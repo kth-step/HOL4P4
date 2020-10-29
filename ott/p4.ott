@@ -1,0 +1,17 @@
+metavar s ::=
+      {{ lex alphanum }}
+      {{ hol string }}
+      {{ com string }}
+grammar
+direction :: direction_ ::=
+| In :: :: in
+| Out :: :: out
+| InOut :: :: in_out
+| Directionless :: :: directionless
+
+terminals :: terminals_ ::=
+| In :: :: In
+  {{ tex \textsf{In} }}
+
+formula :: formula_ ::= 
+| judgement :: :: judgement

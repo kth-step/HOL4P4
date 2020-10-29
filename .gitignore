@@ -1,0 +1,16 @@
+.HOLMK
+.hollogs
+*.uo
+*.ui
+*.dat
+hol/*Theory.sig
+hol/*Theory.sml
+hol/p4Script.sml
+docs/semantics/main.aux
+docs/semantics/main.log
+docs/semantics/main.pdf
+docs/semantics/main.tex
+docs/semantics/main.bbl
+docs/semantics/main.blg
+docs/semantics/main.out
+docs/p4_defs.tex
