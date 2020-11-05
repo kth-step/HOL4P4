@@ -1,5 +1,5 @@
 %For lists? Add more as needed
-indexvar i, j ::= {{ isa num }} {{ coq nat }} {{ hol num }} x
+indexvar i, j, k, l ::= {{ isa num }} {{ coq nat }} {{ hol num }}
 
 metavar string ::=
       {{ lex alphanum }}
@@ -40,9 +40,9 @@ function_kind :: function_kind_ ::= {{ com ??? }}
 
 name :: name_ ::= {{ com ??? }}
 | BareName string :: :: bare_name
-    {{ com String argument called "nm" }}
-| QualifiedName (list string) string :: :: qualified_name
-    {{ com "Path" and "nm" }}
+    {{ com Arg : nm }}
+| QualifiedName [ string1 , ... , stringi ] string' :: :: qualified_name
+    {{ com Args: Path nm }}
 
 unary_operator :: unary_operator_ ::= {{ com ??? }}
 | Not :: :: not
@@ -52,10 +52,8 @@ unary_operator :: unary_operator_ ::= {{ com ??? }}
 binary_operator :: binary_operator_ ::= {{ com ??? }}
 | Plus :: :: plus
 | PlusSat :: :: plus_sat
-{{ com What is this operator??? }}
 | Minus :: :: minus
 | MinusSat :: :: minus_sat
-{{ com What is this operator??? }}
 | Mul :: :: mul
 | Div :: :: div
 | Mod :: :: mod
@@ -71,7 +69,6 @@ binary_operator :: binary_operator_ ::= {{ com ??? }}
 | BitXor :: :: bit_xor
 | BitOr :: :: bit_or
 | PlusPlus :: :: plus_plus
-{{ com What is this operator??? }}
 | And :: :: and
 | Or :: :: or
 
@@ -80,17 +77,17 @@ type :: type_ ::= {{ com ??? }}
 | Bool :: :: bool
 | String :: :: string
 | Integer :: :: integer
-| Int nat :: :: int
+| Int num :: :: int
 {{ com Args: width }}
-| Bit nat :: :: bit
+| Bit num :: :: bit
 {{ com Args: width }}
-| VarBit nat :: :: var_bit
+| VarBit num :: :: var_bit
 {{ com Args: width }}
-| Array type nat :: :: array
+| Array type num :: :: array
 {{ com Args: inner size }}
 | Tuple list type :: :: tuple
 {{ com Args: types }}
-| RecordType (list (string * type)) :: :: record_type
+| RecordType [ ( string1 , type1 ) , ... , ( stringi , typei ) ] :: :: record_type
 {{ com Args: fields }}
 | SetType type :: :: set_type
 {{ com Args: inner }}
@@ -101,31 +98,34 @@ type :: type_ ::= {{ com ??? }}
 | NewType type :: :: new_type
 {{ com Args: inner }}
 | Void :: :: void
-| Header (list (string * type)) :: :: header
+| Header [ ( string1 , type1 ) , ... , ( stringi , typei ) ] :: :: header
 {{ com Args: fields }}
-| HeaderUnion (list (string * type)) :: :: header_union
+| HeaderUnion [ ( string1 , type1 ) , ... , ( stringi , typei ) ] :: :: header_union
 {{ com Args: fields }}
-| Struct (list (string * type)) :: :: struct
+| Struct [ ( string1 , type1 ) , ... , ( stringi , typei ) ] :: :: struct
 {{ com Args: fields }}
-| Enum string (list string) (option type) :: :: enum
-{{ com Args: name members inner }}
-| SpecializedType type (list type) :: :: specialized_type
+%TODO Commented out, handling option type later
+%| Enum string (list string) (option type) :: :: enum
+%{{ com Args: name members inner }}
+| SpecializedType type [ type1 , ... , typei ] :: :: specialized_type
 {{ com Args: base args }}
-| ExternType string (list string) (list (string * function)) :: :: extern_type
-{{ com Args: name type_params methods }}
+| ExternType string [ type1 , ... , typei ] [ ( string'1 , function1 ) , ... , ( string'j , functionj ) ] :: :: extern_type
+{{ com Args: name type\_params methods }}
 | FunctionType function :: :: function_type
 {{ com Args: inner }}
-| ActionType (list param) (list param)' :: :: action_type
+| ActionType [ param1 , ... , parami ] [ param'1 , ... , param'j ] :: :: action_type
 {{ com Args: data_params control_params }}
-| Constructor (list string) (list param) type :: :: constructor
+| Constructor [ string1 , ... , stringi ] [ param1 , ... , paramj ] type :: :: constructor
 {{ com Args: type_params params return_type }}
 
 function :: function_ ::= {{ com Function argument? }}
-| MkFunction (list string) (list param) (function_kind) type :: :: mk_function
+| MkFunction [ string1 , ... , stringi ] [ param1 , ... , paramj ] function_kind type :: :: mk_function
 {{ com Args: type_params parameters kind return_type }}
 
 param :: param_ ::= {{ com ??? }}
-| MkParam direction type string (option expression) :: :: mk_param
+%TODO: expression argument should really be a "option expression"
+%| MkParam direction type string (option expression) :: :: mk_param
+| MkParam direction type string expression :: :: mk_param
 {{ com Args: dir typ variable opt_value }}
 
 keyvalue :: keyvalue_ ::= {{ com ??? }}
@@ -155,13 +155,13 @@ expression :: expression_ ::= {{ com ??? }}
 {{ com Args: array, index }}
 | BitStringAccess expression expression' expression'' :: :: bit_string_access
 {{ com Args: array, hi, lo }}
-| List (list expression) :: :: list
+| List [ expression1 , ... , expressioni ] :: :: list
 {{ com Args: values }}
-| Record (list keyvalue) :: :: record
+| Record [ keyvalue1 , ... , keyvaluei ] :: :: record
 {{ com Args: entries }}
-| UnaryOp unaryoperator expression :: :: unary_op
+| UnaryOp unary_operator expression :: :: unary_op
 {{ com Args: op arg }}
-| BinaryOp binaryoperator expression :: :: record
+| BinaryOp binary_operator expression :: :: binary_op
 {{ com Args: op arg }}
 | Cast type expression :: :: cast
 {{ com Args: type expr}}
@@ -173,9 +173,9 @@ expression :: expression_ ::= {{ com ??? }}
 {{ com Args: expr name }}
 | Ternary expression expression' expression'' :: :: ternary
 {{ com Args: cond true false }}
-| FunctionCall expression (list type) (list argument) :: :: ternary
+| FunctionCall expression [ type1 , ... , typei ] [ argument1 , ... , argumentj ] :: :: function_call
 {{ com Args: function type_args args }}
-| NamelessInstantiation type (list argument) :: :: nameless_instantiation
+| NamelessInstantiation type [ argument1 , ... , argumenti ] :: :: nameless_instantiation
 {{ com Args: type args }}
 | Mask expression expression' :: :: mask
 {{ com Args: expr mask }}
@@ -186,22 +186,25 @@ expression :: expression_ ::= {{ com ??? }}
 declaration :: declaration_ ::= {{ com ??? }}
 | DeclarationConstant type string expression :: :: declaration_constant
 {{ com Args: type name value }}
-| DeclarationVariable type string (option expression) :: :: declaration_variable
-{{ com Args: type name init }}
-| Instantiation type (list expression) string :: :: instantiation
+%TODO: Commenting out, since it contains an option type
+%| DeclarationVariable type string (option expression) :: :: declaration_variable
+%{{ com Args: type name init }}
+| Instantiation type [ expression1 , ... , expressioni ] string :: :: instantiation
 {{ com Args: type args name }}
 
 statement :: statement_ ::= {{ com ??? }}
-| MethodCall expression (list type) (list (option expression)):: :: method_call
-{{ com Args: func type_args args }}
+%TODO: Commenting out, since it contains an option type
+%| MethodCall expression [ type1 , ... , typei ] (list (option expression)):: :: method_call
+%{{ com Args: func type_args args }}
 | Assignment expression expression' :: :: assignment
 {{ com Args: lhs rhs }}
 | BlockStatement block :: :: block_statement
 {{ com Args: blk }}
 | StatementConstant type string expression :: :: statement_constant
 {{ com Args: type name value }}
-| StatementVariable type string (option expression) :: :: statement_variable
-{{ com Args: type name init }}
+%TODO: Commenting out, since it contains an option type
+%| StatementVariable type string (option expression) :: :: statement_variable
+%{{ com Args: type name init }}
 
 
 %TODO How to translate the following:
@@ -225,18 +228,22 @@ match_expression :: match_expression_ ::= {{ com ??? }}
 
 %TODO How to write this? Currently using mk_ syntax
 case :: case_ ::= {{ com ??? }}
-| MkCase (list match_expression) string :: :: mk_case
+| MkCase [ match_expression1 , ... , match_expressioni ] string :: :: mk_case
 {{ com Args: matches next }}
 
 transition :: transition_ ::= {{ com ??? }}
-| MkTransition (list expression) (list case) :: :: mk_transition
+| MkTransition [ expression1 , ... , expressioni ] [ case1 , ... , casej ] :: :: mk_transition
 {{ com Args: exprs cases }}
 
 state :: state_ ::= {{ com ??? }}
-| MkState string (list statement) transition:: :: mk_state
+| MkState string [ statement1 , ... , statementi ] transition :: :: mk_state
 {{ com Args: name statements transition }}
 
 parser :: parser_ ::= {{ com ??? }}
-| MkParser string (list param) (list param) (list declaration) (list state) :: :: mk_parser
+| MkParser string [ param1 , ... , parami ] [ param1 , ... , paramj ] [ declaration1 , ... , declarationk ] [ state1 , ... , statel ] :: :: mk_parser
 %{ parser_name = string; params = list param; constructor_params = list param; locals = list declaration;  states = list states}   :: d :: parser_rec
 {{ com Args: parser_name params constructor_params locals states }}
+
+
+formula :: formula_ ::= 
+| judgement :: :: judgement
