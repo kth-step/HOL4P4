@@ -1,0 +1,83 @@
+This is a sketch of an axiomatic semantics for a fragment of the P4 parser. 
+
+P4 State s is:
+	 ID of current parser state 'c (in 'C) 
+	 values of input and output (i, o) (in Ti * To, where Ti is a finite list of V and To is a function from fields F to lists of V)
+	 Index of the current statement: n (in N)
+	 Status: 'd (in Running, TypeError, Reject 'err, ...)
+
+
+ [p]; (i, o) -> bool
+
+
+ _________________
+ [I == O.f](i, o) = (i = o.f)
+
+
+ size(f1) = sz
+ i = [v1, ..., vsz, vsz+1, ..., vn]
+ i' = [vsz+1, ..., vn]
+ o'.f1 = [v1, ..., vsz]
+ _________________
+ [f1](i, o) = (i', o')
+
+
+ size(f1) = sz
+ i = [v1, ..., vn]
+ vn < sz
+ _________________
+ [f1](i, o) = TypeError
+
+
+
+
+
+ P ; s -> s'
+
+ 'd = Running
+ P(s.n, s.c) = verify(p, err)
+ [p]s.(i,o)
+ s'.n = s.n + 1
+ ____________________
+ P ; s -> s'
+
+
+ 'd = Running
+ P(s.n, s.c) = verify(p, err)
+ ~[p]s.(i,o)
+ s'.'d = Reject(err)
+ ____________________
+ P ; s -> s'
+
+
+ 'd = Running
+ P(s.n, s.c) = extract(f1)
+ [f1](i, o) = (i', o')
+ s'.(i, o) = (i', o')
+ s'.n = s.n + 1
+ ____________________
+ P ; s -> s'
+
+
+ 'd = Running
+ P(s.n, s.c) = extract(f1)
+ [f1](i, o) = TypeError
+ s'.d = TypeError
+ ____________________
+ P ; s -> s'
+
+
+ 'd = Running
+ P(s.n, s.c) = transition c'
+ s'.c = c'
+ s'.n = 0
+ ____________________
+ P ; s -> s'
+
+ 'd = Running
+ size(P(s.c)) <= s.n
+ s'.'d = JumpOutside
+ ____________________
+ P ; s -> s'
+
+
