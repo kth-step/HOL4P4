@@ -110,18 +110,18 @@ subrules
 % Expression semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%
 
-defns
-JFld :: '' ::=
-
-  defn
-  [[ O.out_field ]]( exec_state ) --> bit_vector :: :: eval_fld ::
-    {{ com O.$[[out_field]]$ evaluates to $[[bit_vector]]$}} by
-
-
-   exec_state.output = O
-   O.fld = bvec
-   -------------------------------------  :: fld
-   [[O.fld]]( exec_state ) --> bvec
+%defns
+%JFld :: '' ::=
+%
+%  defn
+%  [[ O.out_field ]]( exec_state ) --> bit_vector :: :: eval_fld ::
+%    {{ com O.$[[out_field]]$ evaluates to $[[bit_vector]]$}} by
+%
+%
+%   exec_state.output = O
+%   O.fld = bvec
+%   -------------------------------------  :: fld
+%   [[O.fld]]( exec_state ) --> bvec
 
 
 %   size(fld) = sz
@@ -131,81 +131,81 @@ JFld :: '' ::=
 %   [[fld]](in, out) --> TypeError
 
 
-JExp :: ” ::=
-
-   defn
-   %Currently, we only need evaluation to Boolean, possibly with some exceptional value (resulting in TypeError)
-   [ exp ]( exec_state ) --> bool :: ::eval_exp::” {{ com $[[p4_exp]]$ evaluates to $[[bool]]$}} by
-
-
-   --------------------------  :: eq
-   [ I == O.fld ]( exec_state ) --> (exec_state.input = [[ O.fld ]]( exec_state ))
+%JExp :: '' ::=
+%
+%   defn
+%   %Currently, we only need evaluation to Boolean, possibly with some exceptional value (resulting in TypeError)
+%   [ exp ]( exec_state ) --> bool :: ::eval_exp::” {{ com $[[p4_exp]]$ evaluates to $[[bool]]$}} by
+%
+%
+%   --------------------------  :: eq
+%   [ I == O.fld ]( exec_state ) --> (exec_state.input = [[ O.fld ]]( exec_state ))
 
 
 %%%%%%%%%%%%%%%%%%%%
 % Parser semantics %
 %%%%%%%%%%%%%%%%%%%%
 
-JParser :: ” ::=
-
-  defn
-%	P ; s -> s'
-  program ; exec_state --> exec_state :: :: exec_parser ::” {{ com Effect of parser execution}} by
-
-
-
+%JParser :: '' ::=
+%
+%  defn
+%%	P ; s -> s'
+%  program ; exec_state --> exec_state :: :: exec_parser ::” {{ com Effect of parser execution}} by
+%
+%
+%
 %Execution of verify statement, case property holds
-	exec_state1.status = Running
-	P(exec_state1.pstate_index, exec_state1.pstate_name) = verify(p, err)
-	[p](exec_state1)
-	exec_state2.n = exec_state1.n + 1
-   --------------------------  :: verif_pass
-	P ; exec_state1 -> exec_state2
-
+%	exec_state1.status = Running
+%	P(exec_state1.pstate_index, exec_state1.pstate_name) = verify(p, err)
+%	[p](exec_state1)
+%	exec_state2.n = exec_state1.n + 1
+%   --------------------------  :: verif_pass
+%	P ; exec_state1 -> exec_state2
+%
 %Execution of verify statement, case property does not hold
-
-
-	exec_state1.status = Running
-	P(exec_state1.pstate_index, exec_state1.pstate_name) = verify(p, err)
-	~[p](exec_state1)
-	exec_state2.status = Reject(err)
-   --------------------------  :: verif_fail
-	P ; exec_state1 -> exec_state2
-
-
-%Regular execution of extract statement
-	exec_state1.status = Running
-	P(exec_state1.pstate_index, exec_state1.c) = extract(f1)
-	[f1](exec_state1) = (i', o')
-	exec_state2.(i, o) = (i', o')
-	exec_state2.n = exec_state1.n + 1
-   --------------------------  :: extract_ok
-	P ; exec_state1 -> exec_state2
-
-
+%
+%
+%	exec_state1.status = Running
+%	P(exec_state1.pstate_index, exec_state1.pstate_name) = verify(p, err)
+%	~[p](exec_state1)
+%	exec_state2.status = Reject(err)
+%   --------------------------  :: verif_fail
+%	P ; exec_state1 -> exec_state2
+%
+%
+%%Regular execution of extract statement
+%	exec_state1.status = Running
+%	P(exec_state1.pstate_index, exec_state1.c) = extract(f1)
+%	[f1](exec_state1) = (i', o')
+%	exec_state2.(i, o) = (i', o')
+%	exec_state2.n = exec_state1.n + 1
+%   --------------------------  :: extract_ok
+%	P ; exec_state1 -> exec_state2
+%
+%
 %TypeError caused by extract statement
-	exec_state1.status = Running
-	P(exec_state1.pstate_index, exec_state1.pstate_name) = extract(f1)
-	[f1](exec_state1) = TypeError
-	exec_state2.status = TypeError
-   --------------------------  :: extract_type_error
-	P ; exec_state1 -> exec_state2
-
-
+%	exec_state1.status = Running
+%	P(exec_state1.pstate_index, exec_state1.pstate_name) = extract(f1)
+%	[f1](exec_state1) = TypeError
+%	exec_state2.status = TypeError
+%   --------------------------  :: extract_type_error
+%	P ; exec_state1 -> exec_state2
+%
+%
 %Regular transition
-	exec_state1.status = Running
-	P(exec_state1.pstate_index, exec_state1.pstate_name) = transition c
-	exec_state2.pstate_name = c
-	exec_state2.pstate_index = 0
-   --------------------------  :: trans_ok
-	P ; exec_state1 -> exec_state2
-
-%Transition outside program
-	exec_state1.status = Running
-	size(P(exec_state1.pstate_name)) <= exec_state1.pstate_index
-	exec_state2.status = JumpOutside
-   --------------------------  :: trans_outside
-	P ; exec_state1 -> exec_state2
+%	exec_state1.status = Running
+%	P(exec_state1.pstate_index, exec_state1.pstate_name) = transition c
+%	exec_state2.pstate_name = c
+%	exec_state2.pstate_index = 0
+%   --------------------------  :: trans_ok
+%	P ; exec_state1 -> exec_state2
+%
+%%Transition outside program
+%	exec_state1.status = Running
+%	size(P(exec_state1.pstate_name)) <= exec_state1.pstate_index
+%	exec_state2.status = JumpOutside
+%   --------------------------  :: trans_outside
+%	P ; exec_state1 -> exec_state2
 
 
 

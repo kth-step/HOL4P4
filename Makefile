@@ -13,7 +13,7 @@ docs/p4_defs.tex: ott/p4.ott
 	ott -o $@ -tex_wrap false $<
 
 docs/parser/main.tex: ott/parser_sketch/p4_parser.ott
-	ott -o $@ -tex_wrap false $<
+	ott -o $@ $<
 
 docs/semantics/main.pdf: docs/p4_defs.tex docs/semantics/main.tex docs/semantics/bib.bib
 	cd docs/semantics && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
