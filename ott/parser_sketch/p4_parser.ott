@@ -88,22 +88,20 @@ exp :: exp_ ::=
 % Program %
 %%%%%%%%%%%
 
-
 bstmt :: bstmt_ ::=
-| verify( exp , err_msg ) :: :: verif
-| extract( string ) :: :: extr
+| verify ( exp , err_msg ) :: :: verify
+| extract ( string ) :: :: extract
 
 trs :: trs_ ::=
-| transition( string ) :: :: uncond
+| transition ( string ) :: :: uncond
 
 %A parser state has a name, a list of statements and a final transition statement
 pstate :: pstate_ ::=
-| { [ bstmt1 , ... , bstmti ] transition( trs ) }
+| { [ bstmt1 , ... , bstmti ] transition( trs ) } :: :: tr
 
 %In our case, the program fragment is simply a list of parser states
 program :: program_ ::=
-| pstate1 , ... , pstatei
-
+| pstate1 , ... , pstatei :: :: states
 
 subrules
   out_field <:: exp_val
@@ -113,10 +111,11 @@ subrules
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 defns
-JFld :: ” ::=
+JFld :: '' ::=
 
   defn
-  [[ O.out_field ]]( exec_state ) --> bit_vector :: :: eval_fld ::” {{ com O.$[[out_field]]$ evaluates to $[[bit_vector]]$}} by
+  [[ O.out_field ]]( exec_state ) --> bit_vector :: :: eval_fld ::
+    {{ com O.$[[out_field]]$ evaluates to $[[bit_vector]]$}} by
 
 
    exec_state.output = O

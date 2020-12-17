@@ -6,11 +6,5 @@
 hol/*Theory.sig
 hol/*Theory.sml
 hol/p4Script.sml
-docs/semantics/main.aux
-docs/semantics/main.log
-docs/semantics/main.pdf
-docs/semantics/main.tex
-docs/semantics/main.bbl
-docs/semantics/main.blg
-docs/semantics/main.out
+hol/p4_parserScript.sml
 docs/p4_defs.tex
