@@ -10,16 +10,16 @@ metavar out ::=
  {{ lex alphanum }}
  {{ hol string |-> bool list }}
  {{ com output }}
-indexvar n ::=
+indexvar k, n ::=
  {{ lex numeral }}
  {{ hol num }}
  {{ com index variable }}
 grammar
-bv, in :: bv_ ::=
+bv, inp :: bv_ ::=
  {{ hol bool list }}
  {{ com bit vector }}
-| [ b1 , ... , bn ] :: M :: enum
-  {{ hol [[b1 ... bn]] }}
+| [ b1 , .. , bn ] :: M :: enum
+  {{ hol [[b1 .. bn]] }}
 
 b :: b_ ::=
 {{ com boolean }}
@@ -50,7 +50,7 @@ status :: status_ ::=
 
 state :: state_ ::=
  {{ com execution state }}
-| ( in , out , status ) :: :: ct
+| ( inp , out , status ) :: :: ct
 
 terminals :: terminals_ ::=
 | -> :: :: rightarrow {{ tex \rightarrow }}
@@ -61,6 +61,12 @@ formula :: formula_ ::=
   {{ com judgement }}
 | out . f = bv :: M :: out_f_eq_bv
   {{ hol (FLOOKUP [[out]] [[f]] = SOME [[bv]]) }}
+| k < n :: M :: lt
+  {{ hol ([[k]] < [[n]]) }}
+| bv = bv' :: M :: bv_eq
+  {{ hol ([[bv]] = [[bv']]) }}
+| size ( f ) = n :: M :: size_f
+  {{ hol (0 = [[n]]) }}
 
 defns
   p4_parser_exp_red :: '' ::=
@@ -70,5 +76,25 @@ defn
 by
 
   out.f = bv  
-  ------------------------------ :: eq
-  [In == Out.f](in,out,status) -> in = bv
+  ----------------------------------- :: eq
+  [In == Out.f](inp,out,status) -> inp = bv
+
+defns
+  p4_parser_stm_red :: '' ::=
+defn
+  [ stm ] state -> state' :: :: stm_red :: stm_red_
+  {{ com statement semantics }}
+by
+
+  size(f) = k
+  inp = [b1,..,bk,b'1,..,b'n]
+  inp' = [b'1,..,b'n]
+  out'.f = [b1,..,bk]
+  ------------------------------------------------- :: extract_1
+  [extract f](inp,out,status) -> (inp',out',status)
+
+  size(f) = k
+  inp = [b1,..,bn]
+  n < k
+  -------------------------------------------------- :: extract_2
+  [extract f](inp,out,status) -> (inp,out,TypeError)
