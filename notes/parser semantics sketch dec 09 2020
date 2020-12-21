@@ -7,30 +7,27 @@ P4 State s is:
 	 Status: 'd (in Running, TypeError, Reject 'err, ...)
 
 
- [p]; (i, o) -> bool
+ [exp](in, out, status) -> bool
+
+ _________________ :: exp_red_1
+ [I == O.f](in, out, status) = (i = o.f)
 
 
- _________________
- [I == O.f](i, o) = (i = o.f)
+ [stm](in, out, status) -> (in',out',status')
+
+ size(f1) = sz
+ in = [v1, ..., vsz, vsz+1, ..., vn]
+ in' = [vsz+1, ..., vn]
+ out'.f1 = [v1, ..., vsz]
+ _________________ :: stm_red_1
+ [extract f1](in, out, status) = (in', out', status)
 
 
  size(f1) = sz
- i = [v1, ..., vsz, vsz+1, ..., vn]
- i' = [vsz+1, ..., vn]
- o'.f1 = [v1, ..., vsz]
- _________________
- [f1](i, o) = (i', o')
-
-
- size(f1) = sz
- i = [v1, ..., vn]
+ in = [v1, ..., vn]
  vn < sz
- _________________
- [f1](i, o) = TypeError
-
-
-
-
+ _________________ :: stm_red_2
+ [extract f1](in, out, status) = (in, out, TypeError)
 
  P ; s -> s'
 
@@ -51,8 +48,8 @@ P4 State s is:
 
 
  'd = Running
- P(s.n, s.c) = extract(f1)
- [f1](i, o) = (i', o')
+ P(s.n, s.c) = extract f1
+ [extract f1](i, o) = (i', o')
  s'.(i, o) = (i', o')
  s'.n = s.n + 1
  ____________________
