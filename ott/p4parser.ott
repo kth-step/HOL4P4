@@ -1,0 +1,74 @@
+metavar f ::=
+ {{ lex alphanum }}
+ {{ hol string }}
+ {{ com field }}
+metavar m ::=
+ {{ lex alphanum }}
+ {{ hol string }}
+ {{ com message }}
+metavar out ::=
+ {{ lex alphanum }}
+ {{ hol string |-> bool list }}
+ {{ com output }}
+indexvar n ::=
+ {{ lex numeral }}
+ {{ hol num }}
+ {{ com index variable }}
+grammar
+bv, in :: bv_ ::=
+ {{ hol bool list }}
+ {{ com bit vector }}
+| [ b1 , ... , bn ] :: M :: enum
+  {{ hol [[b1 ... bn]] }}
+
+b :: b_ ::=
+{{ com boolean }}
+{{ hol bool }}
+| bv = bv' :: M :: bv_eq
+  {{ hol ([[bv]] = [[bv']]) }}
+| true :: M :: true
+  {{ hol T }}
+| false :: M :: false
+  {{ hol F }}
+
+exp :: exp_ ::=
+ {{ com expression }}
+| In :: :: input
+| Out . f :: :: output
+| exp == exp' :: :: eq
+
+stm :: stm_ ::=
+ {{ com statement }}
+| extract f :: :: extract
+
+status :: status_ ::=
+ {{ com execution status }}
+| Running :: :: running
+| TypeError :: :: type_error
+| Reject m :: :: reject
+| JumpOutside :: :: jump_outside
+
+state :: state_ ::=
+ {{ com execution state }}
+| ( in , out , status ) :: :: ct
+
+terminals :: terminals_ ::=
+| -> :: :: rightarrow {{ tex \rightarrow }}
+
+formula :: formula_ ::=
+{{ com formulas }}
+| judgement :: :: judgement
+  {{ com judgement }}
+| out . f = bv :: M :: out_f_eq_bv
+  {{ hol (FLOOKUP [[out]] [[f]] = SOME [[bv]]) }}
+
+defns
+  p4_parser_exp_red :: '' ::=
+defn
+  [ exp ] state -> b :: :: exp_red :: exp_red_
+  {{ com expression semantics }}
+by
+
+  out.f = bv  
+  ------------------------------ :: eq
+  [In == Out.f](in,out,status) -> in = bv

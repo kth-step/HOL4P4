@@ -3,16 +3,16 @@ default: docs/semantics/main.pdf
 hol/p4Script.sml: ott/p4.ott
 	cd hol && ott -o p4Script.sml ../ott/p4.ott
 
-hol/p4_parserScript.sml: ott/parser_sketch/p4_parser.ott
-	cd hol && ott -o p4_parserScript.sml ../ott/parser_sketch/p4_parser.ott
+hol/p4parserScript.sml: ott/p4parser.ott
+	cd hol && ott -o p4parserScript.sml ../ott/p4parser.ott
 
-hol: hol/p4Script.sml hol/p4_parserScript.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
+hol: hol/p4Script.sml hol/p4parserScript.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
 	Holmake -I hol
 
 docs/p4_defs.tex: ott/p4.ott
 	ott -o $@ -tex_wrap false $<
 
-docs/parser/main.tex: ott/parser_sketch/p4_parser.ott
+docs/parser/main.tex: ott/p4parser.ott
 	ott -o $@ $<
 
 docs/semantics/main.pdf: docs/p4_defs.tex docs/semantics/main.tex docs/semantics/bib.bib
@@ -22,7 +22,7 @@ docs/parser/main.pdf: docs/parser/main.tex
 	cd docs/parser && pdflatex main.tex && pdflatex main.tex && pdflatex main.tex
 
 clean:
-	rm -f docs/p4_defs.tex hol/p4Script.sml
+	rm -f docs/p4_defs.tex hol/p4Script.sml hol/p4parserScript.sml
 	cd hol && Holmake clean
 
 .PHONY: default clean hol

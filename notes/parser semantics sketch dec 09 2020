@@ -10,7 +10,7 @@ P4 State s is:
  [exp](in, out, status) -> bool
 
  _________________ :: exp_red_1
- [I == O.f](in, out, status) = (i = o.f)
+ [In == Out.f](in, out, status) = (i = o.f)
 
 
  [stm](in, out, status) -> (in',out',status')
