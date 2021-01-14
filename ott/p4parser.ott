@@ -2,10 +2,15 @@ metavar f ::=
  {{ lex alphanum }}
  {{ hol string }}
  {{ com field }}
+%TODO Type "m" might need some oversight. errors are a built-in P4 type for holding errors. See 7.1.2 and appendix D.
 metavar m ::=
  {{ lex alphanum }}
  {{ hol string }}
  {{ com message }}
+metavar name ::=
+ {{ lex alphanum }}
+ {{ hol string }}
+ {{ com parser state name }}
 metavar out ::=
  {{ lex alphanum }}
  {{ hol string |-> bool list }}
@@ -15,6 +20,8 @@ indexvar k, n ::=
  {{ hol num }}
  {{ com index variable }}
 grammar
+%TODO: Merge bv, b, exp?
+
 bv, inp :: bv_ ::=
  {{ hol bool list }}
  {{ com bit vector }}
@@ -26,6 +33,8 @@ b :: b_ ::=
 {{ hol bool }}
 | bv = bv' :: M :: bv_eq
   {{ hol ([[bv]] = [[bv']]) }}
+| b1 = b2 :: M :: b_eq
+  {{ hol ([[b1]] = [[b2]]) }}
 | true :: M :: true
   {{ hol T }}
 | false :: M :: false
@@ -36,21 +45,52 @@ exp :: exp_ ::=
 | In :: :: input
 | Out . f :: :: output
 | exp == exp' :: :: eq
+| bv :: :: bv_const
 
-stm :: stm_ ::=
- {{ com statement }}
+pst_id :: pst_id_ ::=
+ {{ com parser state id }}
+| Conc name :: :: conc
+| accept :: :: accept
+| reject m :: :: reject
+
+bstm :: bstm_ ::=
+ {{ com basic statement }}
 | extract f :: :: extract
+| verify b m :: :: verify
+
+estm :: estm_ ::=
+ {{ com ending statement }}
+| transition pst_id :: :: transition
+
+prog :: prog_ ::=
+ {{ com program }}
+| prog (name, bstm list, estm) :: :: prog
+ {{ hol name |-> (bstm list, estm)}}
 
 status :: status_ ::=
  {{ com execution status }}
 | Running :: :: running
+| Accept ::  :: accept
 | TypeError :: :: type_error
 | Reject m :: :: reject
 | JumpOutside :: :: jump_outside
 
+idx :: '' ::=
+    {{ hol num }}
+    {{ com pc index }}
+  | n :: I :: N 
+      {{ hol [[n]] }}
+  | idx1 + idx2 :: I :: add 
+      {{ hol ([[idx1]] + [[idx2]]) }}
+
 state :: state_ ::=
  {{ com execution state }}
-| ( inp , out , status ) :: :: ct
+| ( ( pst_id , idx ), inp , out , status ) :: :: ct
+
+%%%%%%%%%%%%%%%%%%%%%%%
+% STATEMENT SEMANTICS %
+%%%%%%%%%%%%%%%%%%%%%%%
+%TODO: Involve PC pointing to statements in the program
 
 terminals :: terminals_ ::=
 | -> :: :: rightarrow {{ tex \rightarrow }}
@@ -65,8 +105,12 @@ formula :: formula_ ::=
   {{ hol ([[k]] < [[n]]) }}
 | bv = bv' :: M :: bv_eq
   {{ hol ([[bv]] = [[bv']]) }}
-| size ( f ) = n :: M :: size_f
-  {{ hol (0 = [[n]]) }}
+| b = b' :: M :: b_eq
+  {{ hol ([[b]] = [[b']]) }}
+| pst_id = pst_id' :: M :: pst_id_eq
+  {{ hol ([[pst_id]] = [[pst_id']]) }}
+| size ( out , f ) = n :: M :: size_f
+  {{ hol (LENGTH (FLOOKUP [[out]] [[f]]) = [[n]]) }}
 
 defns
   p4_parser_exp_red :: '' ::=
@@ -77,24 +121,74 @@ by
 
   out.f = bv  
   ----------------------------------- :: eq
-  [In == Out.f](inp,out,status) -> inp = bv
+  [In == Out.f]((pst_id, idx),inp,out,status) -> inp = bv
 
 defns
-  p4_parser_stm_red :: '' ::=
+  p4_parser_bstm_red :: '' ::=
 defn
-  [ stm ] state -> state' :: :: stm_red :: stm_red_
+  [ bstm ] state -> state' :: :: bstm_red :: bstm_red_
   {{ com statement semantics }}
 by
 
-  size(f) = k
+%%%%%%%%%%%
+% EXTRACT %
+%%%%%%%%%%%
+%Extract is here referred to as a statement, even though it is in fact a method of the input packet (of type packet_in).
+%TODO: This solution only treats fixed-size headers.
+
+%Extract statement, regular case
+  size(out,f) = k
   inp = [b1,..,bk,b'1,..,b'n]
   inp' = [b'1,..,b'n]
   out'.f = [b1,..,bk]
   ------------------------------------------------- :: extract_1
-  [extract f](inp,out,status) -> (inp',out',status)
+  [extract f]((pst_id, idx),inp,out,Running) -> ((pst_id, idx + 1),inp',out',Running)
 
-  size(f) = k
+%Extract statement, case trying to extract too large header
+  size(out,f) = k
   inp = [b1,..,bn]
   n < k
   -------------------------------------------------- :: extract_2
-  [extract f](inp,out,status) -> (inp,out,TypeError)
+  [extract f]((pst_id, idx),inp,out,Running) -> ((pst_id, idx),inp,out,TypeError)
+
+%%%%%%%%%%
+% VERIFY %
+%%%%%%%%%%
+%TODO: Additional case: "b has type error"? How should this be treated?
+
+%Verify, case property b holds
+  b = true
+  -------------------------------------------------- :: verify_1
+  [verify b m]((pst_id, idx),inp,out,Running) -> ((pst_id, idx + 1),inp,out,Running)
+
+%Verify, case property b does not hold
+  b = false
+  -------------------------------------------------- :: verify_2
+  [verify b m]((pst_id, idx),inp,out,Running) -> ((pst_id, idx + 1),inp,out,Reject m)
+
+defns
+  p4_parser_estm_red :: '' ::=
+defn
+  [ estm ] state -> state' :: :: estm_red :: estm_red_
+  {{ com statement semantics }}
+by
+
+%%%%%%%%%%%%%%
+% TRANSITION %
+%%%%%%%%%%%%%%
+%TODO: Check so that parser state transitions do not jump outside the parser
+
+%Transition, regular case
+  pst_id' = Conc name
+  -------------------------------------------------- :: transition_1
+  [transition pst_id']((pst_id, idx),inp,out,Running) -> ((pst_id', 0),inp,out,Running)
+
+%Transition, case accept
+  pst_id' = accept
+  -------------------------------------------------- :: transition_2
+  [transition pst_id']((pst_id, idx),inp,out,Running) -> ((pst_id', 0),inp,out,Accept)
+
+%Transition, case reject
+  pst_id' = reject m
+  -------------------------------------------------- :: transition_3
+  [transition pst_id']((pst_id, idx),inp,out,Running) -> ((pst_id', 0),inp,out,Reject m)
