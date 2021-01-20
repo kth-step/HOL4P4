@@ -168,6 +168,16 @@ by
   -------------------------------------------------- :: verify_2
   [verify b m](pst_id,inp,out,Running) -> (pst_id,inp,out,Reject m)
 
+%%%%%%%%%%%%
+% SEQUENCE %
+%%%%%%%%%%%%
+
+%Verify, case property b holds
+  [bstm1] state -> state'
+  [bstm2] state' -> state''
+  -------------------------------------------------- :: seq
+  [bstm1 ; bstm2]state -> state''
+
 defns
   p4_parser_estm_red :: '' ::=
 defn
