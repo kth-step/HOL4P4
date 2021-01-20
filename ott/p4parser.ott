@@ -55,6 +55,7 @@ pst_id :: pst_id_ ::=
 
 bstm :: bstm_ ::=
  {{ com basic statement }}
+| bstm1 ; bstm2 :: :: comp
 | extract f :: :: extract
 | verify b m :: :: verify
 
@@ -64,8 +65,9 @@ estm :: estm_ ::=
 
 prog :: prog_ ::=
  {{ com program }}
-| prog (name, bstm list, estm) :: :: prog
- {{ hol name |-> (bstm list, estm)}}
+ {{ hol [[name]] |-> (bstm # estm) }}
+| ( name , bstm , estm ) :: :: prog
+
 
 status :: status_ ::=
  {{ com execution status }}
@@ -85,7 +87,7 @@ idx :: '' ::=
 
 state :: state_ ::=
  {{ com execution state }}
-| ( ( pst_id , idx ), inp , out , status ) :: :: ct
+| ( pst_id , inp , out , status ) :: :: ct
 
 %%%%%%%%%%%%%%%%%%%%%%%
 % STATEMENT SEMANTICS %
@@ -121,7 +123,7 @@ by
 
   out.f = bv  
   ----------------------------------- :: eq
-  [In == Out.f]((pst_id, idx),inp,out,status) -> inp = bv
+  [In == Out.f](pst_id,inp,out,status) -> inp = bv
 
 defns
   p4_parser_bstm_red :: '' ::=
@@ -142,14 +144,14 @@ by
   inp' = [b'1,..,b'n]
   out'.f = [b1,..,bk]
   ------------------------------------------------- :: extract_1
-  [extract f]((pst_id, idx),inp,out,Running) -> ((pst_id, idx + 1),inp',out',Running)
+  [extract f](pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
 
 %Extract statement, case trying to extract too large header
   size(out,f) = k
   inp = [b1,..,bn]
   n < k
   -------------------------------------------------- :: extract_2
-  [extract f]((pst_id, idx),inp,out,Running) -> ((pst_id, idx),inp,out,TypeError)
+  [extract f](pst_id,inp,out,Running) -> (pst_id,inp,out,TypeError)
 
 %%%%%%%%%%
 % VERIFY %
@@ -159,12 +161,12 @@ by
 %Verify, case property b holds
   b = true
   -------------------------------------------------- :: verify_1
-  [verify b m]((pst_id, idx),inp,out,Running) -> ((pst_id, idx + 1),inp,out,Running)
+  [verify b m](pst_id,inp,out,Running) -> (pst_id,inp,out,Running)
 
 %Verify, case property b does not hold
   b = false
   -------------------------------------------------- :: verify_2
-  [verify b m]((pst_id, idx),inp,out,Running) -> ((pst_id, idx + 1),inp,out,Reject m)
+  [verify b m](pst_id,inp,out,Running) -> (pst_id,inp,out,Reject m)
 
 defns
   p4_parser_estm_red :: '' ::=
@@ -181,14 +183,14 @@ by
 %Transition, regular case
   pst_id' = Conc name
   -------------------------------------------------- :: transition_1
-  [transition pst_id']((pst_id, idx),inp,out,Running) -> ((pst_id', 0),inp,out,Running)
+  [transition pst_id'](pst_id,inp,out,Running) -> (pst_id',inp,out,Running)
 
 %Transition, case accept
   pst_id' = accept
   -------------------------------------------------- :: transition_2
-  [transition pst_id']((pst_id, idx),inp,out,Running) -> ((pst_id', 0),inp,out,Accept)
+  [transition pst_id'](pst_id,inp,out,Running) -> (pst_id',inp,out,Accept)
 
 %Transition, case reject
   pst_id' = reject m
   -------------------------------------------------- :: transition_3
-  [transition pst_id']((pst_id, idx),inp,out,Running) -> ((pst_id', 0),inp,out,Reject m)
+  [transition pst_id'](pst_id,inp,out,Running) -> (pst_id',inp,out,Reject m)
