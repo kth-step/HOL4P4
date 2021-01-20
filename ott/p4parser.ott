@@ -65,7 +65,7 @@ estm :: estm_ ::=
 
 prog :: prog_ ::=
  {{ com program }}
- {{ hol [[name]] |-> (bstm # estm) }}
+ {{ hol name |-> (bstm # estm) }}
 | ( name , bstm , estm ) :: :: prog
 
 
@@ -112,7 +112,7 @@ formula :: formula_ ::=
 | pst_id = pst_id' :: M :: pst_id_eq
   {{ hol ([[pst_id]] = [[pst_id']]) }}
 | size ( out , f ) = n :: M :: size_f
-  {{ hol (LENGTH (FLOOKUP [[out]] [[f]]) = [[n]]) }}
+  {{ hol (LENGTH (THE (FLOOKUP [[out]] [[f]])) = [[n]]) }}
 
 defns
   p4_parser_exp_red :: '' ::=
