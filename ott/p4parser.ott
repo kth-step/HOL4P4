@@ -15,6 +15,10 @@ metavar out ::=
  {{ lex alphanum }}
  {{ hol string |-> bool list }}
  {{ com output }}
+metavar nstep ::=
+ {{ lex numeral }}
+ {{ hol num }}
+ {{ com number of steps }}
 indexvar k, n ::=
  {{ lex numeral }}
  {{ hol num }}
@@ -50,6 +54,7 @@ exp :: exp_ ::=
 pst_id :: pst_id_ ::=
  {{ com parser state id }}
 | Conc name :: :: conc
+| start :: :: start
 | accept :: :: accept
 | reject m :: :: reject
 
@@ -109,10 +114,16 @@ formula :: formula_ ::=
   {{ hol ([[bv]] = [[bv']]) }}
 | b = b' :: M :: b_eq
   {{ hol ([[b]] = [[b']]) }}
+| nstep = 1 :: M :: num_eq
+  {{ hol ([[nstep]] = 1) }}
 | pst_id = pst_id' :: M :: pst_id_eq
   {{ hol ([[pst_id]] = [[pst_id']]) }}
 | size ( out , f ) = n :: M :: size_f
   {{ hol (LENGTH (THE (FLOOKUP [[out]] [[f]])) = [[n]]) }}
+| prog name = (bstm, estm) :: M :: prog_lookup
+  {{ hol (FLOOKUP [[prog]] [[name]] = SOME (bstm, estm)) }}
+| nstep' = nstep - 1 :: M :: num_minus
+  {{ hol (nstep' = nstep - 1) }}
 
 defns
   p4_parser_exp_red :: '' ::=
@@ -125,6 +136,10 @@ by
   ----------------------------------- :: eq
   [In == Out.f](pst_id,inp,out,status) -> inp = bv
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BASIC STATEMENT EXECUTION %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 defns
   p4_parser_bstm_red :: '' ::=
 defn
@@ -134,7 +149,7 @@ by
 
 %%%%%%%%%%%
 % EXTRACT %
-%%%%%%%%%%%
+
 %Extract is here referred to as a statement, even though it is in fact a method of the input packet (of type packet_in).
 %TODO: This solution only treats fixed-size headers.
 
@@ -155,7 +170,7 @@ by
 
 %%%%%%%%%%
 % VERIFY %
-%%%%%%%%%%
+
 %TODO: Additional case: "b has type error"? How should this be treated?
 
 %Verify, case property b holds
@@ -170,37 +185,82 @@ by
 
 %%%%%%%%%%%%
 % SEQUENCE %
-%%%%%%%%%%%%
 
-%Verify, case property b holds
+
+%Sequential composition of bstmts
   [bstm1] state -> state'
   [bstm2] state' -> state''
   -------------------------------------------------- :: seq
   [bstm1 ; bstm2]state -> state''
 
+%%%%%%%%%%%%%%%%%%%
+% BLOCK EXECUTION %
+%%%%%%%%%%%%%%%%%%%
+
 defns
-  p4_parser_estm_red :: '' ::=
+  p4_parser_block_red :: '' ::=
 defn
-  [ estm ] state -> state' :: :: estm_red :: estm_red_
-  {{ com statement semantics }}
+  [ ( bstm , estm ) ] state -> state' :: :: block_red :: block_red_
+  {{ com block transition semantics }}
 by
 
 %%%%%%%%%%%%%%
 % TRANSITION %
-%%%%%%%%%%%%%%
+
 %TODO: Check so that parser state transitions do not jump outside the parser
 
 %Transition, regular case
   pst_id' = Conc name
+  [bstm] (pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
   -------------------------------------------------- :: transition_1
-  [transition pst_id'](pst_id,inp,out,Running) -> (pst_id',inp,out,Running)
+  [(bstm, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
 
 %Transition, case accept
   pst_id' = accept
+  [bstm] (pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
   -------------------------------------------------- :: transition_2
-  [transition pst_id'](pst_id,inp,out,Running) -> (pst_id',inp,out,Accept)
+  [(bstm, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp,out,Accept)
 
 %Transition, case reject
   pst_id' = reject m
+  [bstm] (pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
   -------------------------------------------------- :: transition_3
-  [transition pst_id'](pst_id,inp,out,Running) -> (pst_id',inp,out,Reject m)
+  [(bstm, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp,out,Reject m)
+
+%%%%%%%%%%%%%%%%%%%%%
+% N-BLOCK EXECUTION %
+%%%%%%%%%%%%%%%%%%%%%
+
+defns
+  p4_parser_nblock_red :: '' ::=
+defn
+  [ ( prog , nstep ) ] state -> state' :: :: nblock_red :: nblock_red_
+  {{ com n-block transition semantics }}
+by
+
+%%%%%%%%%%%%%%
+% N-BLOCK TRANSITION %
+
+%Transition, base case
+%Note that we only define this for status Running, for now...
+  -------------------------------------------------- :: n_transition_1
+  [(prog, 0)](pst_id,inp,out,Running) -> (pst_id,inp,out,Running)
+
+%Transition, one step
+%Note that we only define this for status Running, for now...
+  nstep = 1
+  pst_id = Conc name
+  prog name = (bstm, estm)
+  [(bstm, estm)](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
+  -------------------------------------------------- :: n_transition_2
+  [(prog, nstep)](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
+
+%Transition, inductive case
+%Note that we only define this for status Running, for now...
+  nstep' = nstep - 1
+  [(prog , nstep')] (start,inp,out,Running) -> (pst_id,inp',out',Running)
+  pst_id = Conc name
+  prog name = (bstm, estm)
+  [(bstm, estm)] (pst_id,inp',out',Running) -> (pst_id',inp'',out'',Running)
+  -------------------------------------------------- :: n_transition_3
+  [(prog , nstep)](pst_id,inp',out',Running) -> (pst_id',inp'',out'',Running)
