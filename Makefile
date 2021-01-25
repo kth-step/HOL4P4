@@ -21,6 +21,9 @@ docs/semantics/main.pdf: docs/p4_defs.tex docs/semantics/main.tex docs/semantics
 docs/parser/main.pdf: docs/parser/main.tex
 	cd docs/parser && pdflatex main.tex && pdflatex main.tex && pdflatex main.tex
 
+docs/pnp_sem/p4_parser_defs.tex: ott/p4parser.ott
+	ott -o $@ -tex_wrap false $<
+
 clean:
 	rm -f docs/p4_defs.tex hol/p4Script.sml hol/p4parserScript.sml
 	cd hol && Holmake clean

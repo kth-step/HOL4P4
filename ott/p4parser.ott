@@ -28,7 +28,7 @@ grammar
 
 bv, inp :: bv_ ::=
  {{ hol bool list }}
- {{ com bit vector }}
+ {{ com bitstring }}
 | [ b1 , .. , bn ] :: M :: enum
   {{ hol [[b1 .. bn]] }}
 
@@ -59,38 +59,29 @@ pst_id :: pst_id_ ::=
 | accept :: :: accept
 | reject m :: :: reject
 
-bstm :: bstm_ ::=
+bstmt :: bstmt_ ::=
  {{ com basic statement }}
-| :: :: empty
-| bstm1 ; bstm2 :: :: comp
+| bstmt1 ; bstmt2 :: :: comp
 | extract f :: :: extract
 | verify b m :: :: verify
 
-estm :: estm_ ::=
+estmt :: estmt_ ::=
  {{ com ending statement }}
 | transition pst_id :: :: transition
 
-prog :: prog_ ::=
- {{ com program }}
- {{ hol name |-> (bstm # estm) }}
-| ( name , bstm , estm ) :: :: prog
-
+parser :: parser_ ::=
+ {{ com parser }}
+ {{ hol name |-> (bstmt # estmt) }}
+| ( name , bstmt , estmt ) :: :: parser
+  {{ tex name \rightarrow (bstmt, estmt) }}
 
 status :: status_ ::=
  {{ com execution status }}
 | Running :: :: running
 | Accept ::  :: accept
-| TypeError :: :: type_error
 | Reject m :: :: reject
+| TypeError :: :: type_error
 | JumpOutside :: :: jump_outside
-
-idx :: '' ::=
-    {{ hol num }}
-    {{ com pc index }}
-  | n :: I :: N 
-      {{ hol [[n]] }}
-  | idx1 + idx2 :: I :: add 
-      {{ hol ([[idx1]] + [[idx2]]) }}
 
 state :: state_ ::=
  {{ com execution state }}
@@ -122,8 +113,8 @@ formula :: formula_ ::=
 %TODO: Well-advised to have fields with initialisation flag and sizes
 | size ( out , f ) = n :: M :: size_f
   {{ hol (LENGTH (THE (FLOOKUP [[out]] [[f]])) = [[n]]) }}
-| prog name = (bstm, estm) :: M :: prog_lookup
-  {{ hol (FLOOKUP [[prog]] [[name]] = SOME (bstm, estm)) }}
+| parser name = (bstmt, estmt) :: M :: parser_lookup
+  {{ hol (FLOOKUP [[parser]] [[name]] = SOME (bstmt, estmt)) }}
 | nstep' = nstep - 1 :: M :: num_minus
   {{ hol (nstep' = nstep - 1) }}
 
@@ -143,10 +134,10 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 defns
-  p4_parser_bstm_red :: '' ::=
+  p4_parser_bstmt_red :: '' ::=
 defn
-  [ bstm ] state -> [ bstm' ] state' :: :: bstm_red :: bstm_red_
-  {{ com statement semantics }}
+  [ bstmt ] state -> state' :: :: bstmt_red :: bstmt_red_
+  {{ com basic statement semantics }}
 by
 
 %%%%%%%%%%%
@@ -161,14 +152,14 @@ by
   inp' = [b'1,..,b'n]
   out'.f = [b1,..,bk]
   ------------------------------------------------- :: extract_1
-  [extract f](pst_id,inp,out,Running) -> [ ](pst_id,inp',out',Running)
+  [extract f](pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
 
 %Extract statement, case trying to extract too large header
   size(out,f) = k
   inp = [b1,..,bn]
   n < k
   -------------------------------------------------- :: extract_2
-  [extract f](pst_id,inp,out,Running) -> [ ](pst_id,inp,out,TypeError)
+  [extract f](pst_id,inp,out,Running) -> (pst_id,inp,out,TypeError)
 
 %%%%%%%%%%
 % VERIFY %
@@ -178,27 +169,37 @@ by
 %Verify, case property b holds
   b = true
   -------------------------------------------------- :: verify_1
-  [verify b m](pst_id,inp,out,Running) -> [ ](pst_id,inp,out,Running)
+  [verify b m](pst_id,inp,out,Running) -> (pst_id,inp,out,Running)
 
 %Verify, case property b does not hold
   b = false
   -------------------------------------------------- :: verify_2
-  [verify b m](pst_id,inp,out,Running) -> [ ](pst_id,inp,out,Reject m)
+  [verify b m](pst_id,inp,out,Running) -> (pst_id,inp,out,Reject m)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% STRUCTURAL STATEMENT EXECUTION %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defns
+  p4_parser_str_stmt_red :: '' ::=
+defn
+  [ bstmt ] state -> [ bstmt' ] state' :: :: str_stmt_red :: str_stmt_red_
+  {{ com structural statement semantics }}
+by
 
 %%%%%%%%%%%%
 % SEQUENCE %
 
 
-%Sequential composition of bstmts, "big-step-in-small-step" style
-  [bstm1] state -> [ ]state'
-  [bstm2] state' -> [ ]state''
+%Sequential composition of bstmts, recursive case
+  [bstmt1] state -> [bstmt3] state'
   -------------------------------------------------- :: seq_1
-  [bstm1 ; bstm2]state -> [ ]state''
+  [bstmt1 ; bstmt2]state -> [bstmt3 ; bstmt2]state'
 
-%Sequential composition of bstmts
-  [bstm1] state -> [ ]state'
+%Sequential composition of bstmts, base case
+  [bstmt1] state -> state'
   -------------------------------------------------- :: seq_2
-  [bstm1 ; bstm2]state -> [ bstm2 ]state'
+  [bstmt1 ; bstmt2]state -> [bstmt2]state'
 
 %%%%%%%%%%%%%%%%%%%
 % BLOCK EXECUTION %
@@ -207,7 +208,7 @@ by
 defns
   p4_parser_block_red :: '' ::=
 defn
-  [ ( bstm , estm ) ] state -> state' :: :: block_red :: block_red_
+  [ ( bstmt , estmt ) ] state -> state' :: :: block_red :: block_red_
   {{ com block transition semantics }}
 by
 
@@ -218,21 +219,21 @@ by
 
 %Transition, regular case
   pst_id' = Conc name
-  [bstm] (pst_id,inp,out,Running) -> [ ](pst_id,inp',out',Running)
+  [bstmt] (pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
   -------------------------------------------------- :: transition_1
-  [(bstm, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
+  [(bstmt, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
 
 %Transition, case accept
   pst_id' = accept
-  [bstm] (pst_id,inp,out,Running) -> [ ](pst_id,inp',out',Running)
+  [bstmt] (pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
   -------------------------------------------------- :: transition_2
-  [(bstm, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp,out,Accept)
+  [(bstmt, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp,out,Accept)
 
 %Transition, case reject
   pst_id' = reject m
-  [bstm] (pst_id,inp,out,Running) -> [ ](pst_id,inp',out',Running)
+  [bstmt] (pst_id,inp,out,Running) -> (pst_id,inp',out',Running)
   -------------------------------------------------- :: transition_3
-  [(bstm, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp,out,Reject m)
+  [(bstmt, transition pst_id')](pst_id,inp,out,Running) -> (pst_id',inp,out,Reject m)
 
 %%%%%%%%%%%%%%%%%%%%%
 % N-BLOCK EXECUTION %
@@ -241,7 +242,7 @@ by
 defns
   p4_parser_nblock_red :: '' ::=
 defn
-  [ ( prog , nstep ) ] state -> state' :: :: nblock_red :: nblock_red_
+  [ ( parser , nstep ) ] state -> state' :: :: nblock_red :: nblock_red_
   {{ com n-block transition semantics }}
 by
 
@@ -251,23 +252,23 @@ by
 %Transition, base case
 %Note that we only define this for status Running, for now...
   -------------------------------------------------- :: n_transition_1
-  [(prog, 0)](pst_id,inp,out,Running) -> (pst_id,inp,out,Running)
+  [(parser, 0)](pst_id,inp,out,Running) -> (pst_id,inp,out,Running)
 
 %Transition, one step
 %Note that we only define this for status Running, for now...
   nstep = 1
   pst_id = Conc name
-  prog name = (bstm, estm)
-  [(bstm, estm)](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
+  parser name = (bstmt, estmt)
+  [(bstmt, estmt)](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
   -------------------------------------------------- :: n_transition_2
-  [(prog, nstep)](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
+  [(parser, nstep)](pst_id,inp,out,Running) -> (pst_id',inp',out',Running)
 
 %Transition, inductive case
 %Note that we only define this for status Running, for now...
   nstep' = nstep - 1
-  [(prog , nstep')] (start,inp,out,Running) -> (pst_id,inp',out',Running)
+  [(parser , nstep')] (start,inp,out,Running) -> (pst_id,inp',out',Running)
   pst_id = Conc name
-  prog name = (bstm, estm)
-  [(bstm, estm)] (pst_id,inp',out',Running) -> (pst_id',inp'',out'',Running)
+  parser name = (bstmt, estmt)
+  [(bstmt, estmt)] (pst_id,inp',out',Running) -> (pst_id',inp'',out'',Running)
   -------------------------------------------------- :: n_transition_3
-  [(prog , nstep)](pst_id,inp',out',Running) -> (pst_id',inp'',out'',Running)
+  [(parser , nstep)](pst_id,inp',out',Running) -> (pst_id',inp'',out'',Running)
