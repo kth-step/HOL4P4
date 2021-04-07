@@ -34,28 +34,46 @@ status :: status_ ::=
  {{ com Execution status }}
 | Running :: :: running
 | TypeError :: :: type_error
-% Parser accept?
-
-stack_frame :: stack_frame_ ::=
-{{ com frame/variable environment of current scope }}
-{{ hol (string |-> word64) }}
-%TODO Nothing of the below is exported to HOL4...
-| empty :: M :: empty
-  {{ com empty stack frame }}
-  {{ hol FEMPTY }}
-| stack_frame + [ string |-> int ] :: M :: update
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE [[stack_frame]] ([[string]], [[int]])) }}
 
 env_stack :: env_stack_ ::=
-{{ com current environment stack }}
 {{ hol (stack_frame list) }}
+{{ com current environment stack }}
+| emptyes :: :: empty
+  {{ hol ([]:stack_frame list) }}
 | stack_frame1 , .. , stack_framei :: :: list
-  
+  {{ hol ([[stack_frame1 .. stack_framei]]) }}
+| [ stack_frame ] :: :: sing
+  {{ hol ([ [[stack_frame]] ]) }}
+| env_stack . push ( stack_frame ) :: :: push
+  {{ hol (([[stack_frame]]::[[env_stack]])) }}
+| env_stack . tail :: :: tail
+  {{ hol (TL [[env_stack]]) }}
+| env_stack ++ env_stack' :: :: append
+  {{ hol ([[env_stack]] ++ [[env_stack']]) }}
+| ( env_stack ) :: S :: paren
+  {{ hol ([[env_stack]]) }}
+
 temp_stack :: temp_stack_ ::=
 {{ com stack of caller env stacks }}
 {{ hol (env_stack list) }}
+| emptyts :: :: empty
+  {{ hol ([]:env_stack list) }}
 | env_stack1 , .. , env_stacki :: :: list
+  {{ hol (env_stack list) }}
+| temp_stack . push ( env_stack ) :: :: push
+  {{ hol (([[env_stack]]::[[temp_stack]])) }}
+| ( temp_stack ) :: S :: paren
+  {{ hol ([[temp_stack]]) }}
+
+stack_frame :: stack_frame_ ::=
+{{ hol (string |-> word64) }}
+{{ com frame/variable environment of current scope }}
+| emptysf :: :: empty
+  {{ com empty stack frame }}
+  {{ hol FEMPTY }}
+| stack_frame + [ string |-> int ] :: :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[stack_frame]] ([[string]], [[int]])) }}
 
 state :: state_ ::=
  {{ com execution state }}
@@ -86,7 +104,7 @@ exp :: exp_ ::=
 % Statements %
 %%%%%%%%%%%%%%
 
-statement :: statement_ ::=
+stmt :: stmt_ ::=
 {{ com statement }}
 | return exp :: :: ret
   {{ com return }}
@@ -94,6 +112,18 @@ statement :: statement_ ::=
   {{ com assignment }}
 | func_name ( exp1 , .. , expi ) :: :: func
   {{ com function call }}
+
+%TODO Function map is assumed static for now...
+func_map :: func_map_ ::=
+{{ com function map  }}
+{{ hol (string |-> stmt) }}
+%TODO Nothing of the below is exported to HOL4...
+| empty :: M :: empty
+  {{ com empty function map }}
+  {{ hol FEMPTY }}
+| func_map + [ string |-> stmt ] :: M :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[func_map]] ([[string]], [[stmt]])) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -112,11 +142,25 @@ formula :: formula_ ::=
   {{ hol ([[int]] - [[int']] = int'') }}
 | env_stack ( var_name ) = stack_frame :: M :: find_frame
   {{ com find frame stack of variable }}
-%NOTE: FIND finds the first occurrence, starting from head and going backwards in list
+  %NOTE: FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FIND (\sf. IS_SOME (FLOOKUP sf [[var_name]])) [[env_stack]] = SOME [[stack_frame]]) }}
+| stack_frame = env_stack [ num ] :: M :: env_stack_index
+  {{ hol ([[stack_frame]] = EL [[num]] [[env_stack]]) }}
 | stack_frame ( var_name ) = int :: M :: lookup
   {{ com look-up of variable in stack frame }}
   {{ hol (FLOOKUP [[stack_frame]] [[var_name]] = SOME [[int]]) }}
+| env_stack = env_stack' :: M :: env_stack_eq
+  {{ com env_stack equality (for manipulation) }}
+  {{ hol ([[env_stack]] = [[env_stack']]) }}
+%TODO Typeset temp_stack and env_stack equalities differently... But how?
+| temp_stack =' temp_stack' :: M :: temp_stack_eq
+  {{ com temp_stack equality (for manipulation) }}
+  {{ hol ([[temp_stack]] = [[temp_stack']]) }}
+| env_stack = temp_stack . top :: M :: temp_stack_top
+  {{ hol ([[env_stack]] = HD [[temp_stack]]) }}
+| func_map ( func_name ) = stmt :: M :: func_lookup
+  {{ com function lookup }}
+  {{ hol (FLOOKUP [[func_map]] [[func_name]] = SOME [[stmt]]) }}
 
 defns
   exp_sem :: '' ::=
@@ -173,3 +217,44 @@ by
   int == int' = bool
   ----------------------------------- :: eq3
   [int == int'] ( env_stack , temp_stack , status ) -> [bool] ( env_stack , temp_stack , status )
+
+
+%%%%%%%%%%%%%%%%%%%%%%%
+% Statement semantics %
+%%%%%%%%%%%%%%%%%%%%%%%
+
+defns
+  stmt_sem :: '' ::=
+defn
+  [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: ''
+  {{ com statement semantics }}
+by
+
+%TODO: Add function arguments
+%TODO: Add directed arguments (in, out, inout)
+  
+  stack_frame = env_stack [ 0 ]
+  env_stack' = ( emptyes . push ( stack_frame ) ) . push ( emptysf )
+  temp_stack' =' temp_stack . push ( env_stack . tail )
+  func_map ( func_name ) = stmt
+  ----------------------------------- :: func_call
+  [func_name ( )] ( env_stack , temp_stack , status ) -> [stmt] ( env_stack' , temp_stack' , status )
+
+
+
+  [exp] ( env_stack , temp_stack , status ) -> [exp'] ( env_stack' , temp_stack' , status )
+  ----------------------------------- :: ret1
+  [return exp] ( env_stack , temp_stack , status ) -> [return exp'] ( env_stack' , temp_stack' , status )
+
+defns
+  stmt_sem_fin :: '' ::=
+defn
+  [ stmt ] state -> [ int ] state' :: :: stmt_red_fin :: ''
+  {{ com statement semantics, finalize execution }}
+by
+
+  stack_frame = env_stack [ 0 ]
+  env_stack' = temp_stack . top
+  env_stack'' = ( env_stack' ) ++ ( [ stack_frame ] )
+  ----------------------------------- :: ret2
+  [return int] ( env_stack , temp_stack , status ) -> [int] ( env_stack' , temp_stack' , status )
