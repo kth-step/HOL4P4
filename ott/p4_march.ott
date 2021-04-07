@@ -1,0 +1,175 @@
+embed
+{{ hol
+open wordsTheory;
+}}
+metavar string, var_name, func_name ::=
+      {{ lex alphanum }}
+      {{ hol string }}
+      {{ com string }}
+metavar num ::=
+      {{ lex numeral }}
+      {{ hol num }}
+      {{ com natural number }}
+metavar bool ::=
+      {{ lex numeral }}
+      {{ hol bool }}
+      {{ com boolean }}
+metavar int ::=
+      {{ lex numeral }}
+      {{ hol word64 }}
+      {{ com integer }}
+indexvar i, j, k, l ::=
+  {{ lex numeral }}
+  {{ coq nat }}
+  {{ hol num }}
+grammar
+
+%%%%%%%%%%%%%%%%%%%
+% Execution state %
+%%%%%%%%%%%%%%%%%%%
+%Note that this is not part of the P4 specification, but made up for verification purposes.
+
+%Execution status.
+status :: status_ ::=
+ {{ com Execution status }}
+| Running :: :: running
+| TypeError :: :: type_error
+% Parser accept?
+
+stack_frame :: stack_frame_ ::=
+{{ com frame/variable environment of current scope }}
+{{ hol (string |-> word64) }}
+%TODO Nothing of the below is exported to HOL4...
+| empty :: M :: empty
+  {{ com empty stack frame }}
+  {{ hol FEMPTY }}
+| stack_frame + [ string |-> int ] :: M :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[stack_frame]] ([[string]], [[int]])) }}
+
+env_stack :: env_stack_ ::=
+{{ com current environment stack }}
+{{ hol (stack_frame list) }}
+| stack_frame1 , .. , stack_framei :: :: list
+  
+temp_stack :: temp_stack_ ::=
+{{ com stack of caller env stacks }}
+{{ hol (env_stack list) }}
+| env_stack1 , .. , env_stacki :: :: list
+
+state :: state_ ::=
+ {{ com execution state }}
+| ( env_stack , temp_stack , status ) :: :: ct
+
+
+%%%%%%%%%%%%%%%
+% Expressions %
+%%%%%%%%%%%%%%%
+
+exp :: exp_ ::=
+{{ com expression }}
+%TODO: Unify all of int, bv, b into a word64 const?
+%| bv :: :: bv_const
+| bool :: :: bool_const
+  {{ com boolean value }}
+| int :: :: int_const
+  {{ com integer value }}
+| var_name :: :: var
+  {{ com variable name }}
+| exp1 == exp2 :: :: eq
+  {{ com equality }}
+| exp1 - exp2 :: :: sub
+  {{ com subtraction }}
+
+
+%%%%%%%%%%%%%%
+% Statements %
+%%%%%%%%%%%%%%
+
+statement :: statement_ ::=
+{{ com statement }}
+| return exp :: :: ret
+  {{ com return }}
+| assign var_name exp :: :: ass
+  {{ com assignment }}
+| func_name ( exp1 , .. , expi ) :: :: func
+  {{ com function call }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+% Expression semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+terminals :: terminals_ ::=
+| -> :: :: rightarrow {{ tex \rightarrow }}
+
+formula :: formula_ ::=
+{{ com formulas }}
+| judgement :: :: judgement
+  {{ com judgement }}
+| int == int' = bool :: M :: eq
+  {{ hol (([[int]] = [[int']]) = [[bool]]) }}
+| int - int' = int'' :: M :: sub
+  {{ hol ([[int]] - [[int']] = int'') }}
+| env_stack ( var_name ) = stack_frame :: M :: find_frame
+  {{ com find frame stack of variable }}
+%NOTE: FIND finds the first occurrence, starting from head and going backwards in list
+  {{ hol (FIND (\sf. IS_SOME (FLOOKUP sf [[var_name]])) [[env_stack]] = SOME [[stack_frame]]) }}
+| stack_frame ( var_name ) = int :: M :: lookup
+  {{ com look-up of variable in stack frame }}
+  {{ hol (FLOOKUP [[stack_frame]] [[var_name]] = SOME [[int]]) }}
+
+defns
+  exp_sem :: '' ::=
+defn
+  [ exp ] state -> [ exp' ] state' :: :: exp_red :: ''
+  {{ com expression semantics }}
+by
+%TODO: Status changes
+
+%%%%%%%%%%%%%%%%%
+%Variable look-up
+
+  env_stack ( var_name ) = stack_frame
+  stack_frame ( var_name ) = int
+  ----------------------------------- :: lookup
+  [varname] ( env_stack , temp_stack , status ) -> [int] ( env_stack , temp_stack , status )
+
+
+%%%%%%%%%%%%%%%%%%%%
+%Binary expressions%
+%%%%%%%%%%%%%%%%%%%%
+
+%Three rules for every expression:
+%Reduce 1st operand
+%Reduce 2nd operand, given 1st has been completely reduced
+%Evaluate expression on 2 completely reduced operands
+
+%%%%%%%%%%%%
+%Subtraction
+
+  [exp] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  ----------------------------------- :: sub1
+  [exp - exp'] ( env_stack , temp_stack , status ) -> [exp'' - exp'] ( env_stack' , temp_stack' , status )
+
+  [exp'] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  ----------------------------------- :: sub2
+  [int - exp'] ( env_stack , temp_stack , status ) -> [int - exp''] ( env_stack' , temp_stack' , status )
+
+  int - int' = int''
+  ----------------------------------- :: sub3
+  [int - int'] ( env_stack , temp_stack , status ) -> [int''] ( env_stack , temp_stack , status )
+
+%%%%%%%%%%%%
+%Equality
+
+  [exp] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  ----------------------------------- :: eq1
+  [exp == exp'] ( env_stack , temp_stack , status ) -> [exp'' == exp'] ( env_stack' , temp_stack' , status )
+
+  [exp'] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  ----------------------------------- :: eq2
+  [int == exp'] ( env_stack , temp_stack , status ) -> [int == exp''] ( env_stack' , temp_stack' , status )
+
+  int == int' = bool
+  ----------------------------------- :: eq3
+  [int == int'] ( env_stack , temp_stack , status ) -> [bool] ( env_stack , temp_stack , status )

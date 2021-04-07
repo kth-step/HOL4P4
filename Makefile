@@ -6,7 +6,10 @@ hol/p4Script.sml: ott/p4.ott
 hol/p4parserScript.sml: ott/p4parser.ott
 	cd hol && ott -o p4parserScript.sml ../ott/p4parser.ott
 
-hol: hol/p4Script.sml hol/p4parserScript.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
+hol/p4newScript.sml: ott/p4_march.ott
+	cd hol && ott -o p4newScript.sml ../ott/p4_march.ott
+
+hol: hol/p4Script.sml hol/p4parserScript.sml hol/p4newScript.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
 	Holmake -I hol
 
 docs/p4_defs.tex: ott/p4.ott
