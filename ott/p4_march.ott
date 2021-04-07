@@ -149,10 +149,10 @@ formula :: formula_ ::=
 | stack_frame ( var_name ) = int :: M :: lookup
   {{ com look-up of variable in stack frame }}
   {{ hol (FLOOKUP [[stack_frame]] [[var_name]] = SOME [[int]]) }}
+%TODO Typeset temp_stack and env_stack equalities differently... But how?
 | env_stack = env_stack' :: M :: env_stack_eq
   {{ com env_stack equality (for manipulation) }}
   {{ hol ([[env_stack]] = [[env_stack']]) }}
-%TODO Typeset temp_stack and env_stack equalities differently... But how?
 | temp_stack =' temp_stack' :: M :: temp_stack_eq
   {{ com temp_stack equality (for manipulation) }}
   {{ hol ([[temp_stack]] = [[temp_stack']]) }}
