@@ -68,7 +68,7 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   %TODO push TeX notation?
 | curr_stack_frame . tail :: :: tail
   {{ hol (TL [[curr_stack_frame]]) }}
-  {{ tex \mathit{[[curr_stack_frame]]} }}
+  {{ tex \mathit{tl} ([[curr_stack_frame]]) }}
   %TODO tail TeX notation?
 | curr_stack_frame ++ curr_stack_frame' :: :: append
   {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
@@ -90,7 +90,6 @@ call_stack {{ tex E }} :: call_stack_ ::=
 | call_stack . push ( curr_stack_frame ) :: :: push
   {{ hol (([[curr_stack_frame]]::[[call_stack]])) }}
   {{ tex ([[curr_stack_frame]]::[[call_stack]]) }}
-  %TODO push TeX notation?
 | ( call_stack ) :: S :: paren
   {{ hol ([[call_stack]]) }}
 
@@ -192,11 +191,6 @@ formula :: formula_ ::=
   %NOTE: INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
   {{ tex [[x]] \in dom([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin dom([[curr_stack_frame]][j]) }}
-%| curr_stack_frame ( x ) = scope :: M :: find_scope
-%  {{ com find scope of variable }}
-%  %NOTE: FIND finds the first occurrence, starting from head and going backwards in list
-%  {{ hol (FIND (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]] = SOME [[scope]]) }}
-%  {{ tex [[x]] \in dom([[curr_stack_frame]][i])\land \forall j . \,\, j > i \Rightarrow [[x]] \notin dom([[curr_stack_frame]][j])\\ [[scope]] = [[curr_stack_frame]][i]}}
 | scope = curr_stack_frame [ num ] :: M :: curr_stack_frame_index
   {{ hol ([[scope]] = EL [[num]] [[curr_stack_frame]]) }}
 | n = scope ( x ) :: M :: lookup
@@ -205,16 +199,13 @@ formula :: formula_ ::=
 | scope = scope' :: M :: scope_eq
   {{ com scope equality (for manipulation) }}
   {{ hol [[scope]] = [[scope']] }}
-%  {{ tex [[scope]] = [[scope']] }}
 %TODO Typeset call_stack and curr_stack_frame equalities differently... But how?
 | curr_stack_frame = curr_stack_frame' :: M :: curr_stack_frame_eq
   {{ com curr_stack_frame equality (for manipulation) }}
   {{ hol ([[curr_stack_frame]] = [[curr_stack_frame']]) }}
-%  {{ tex [[curr_stack_frame]] = [[curr_stack_frame']] }}
 | call_stack = call_stack' :: M :: call_stack_eq
   {{ com call_stack equality (for manipulation) }}
   {{ hol ([[call_stack]] = [[call_stack']]) }}
-%  {{ tex ([[call_stack]] = [[call_stack']]) }}
 | curr_stack_frame = call_stack . top :: M :: call_stack_top
   {{ hol ([[curr_stack_frame]] = HD [[call_stack]]) }}
   {{ tex [[curr_stack_frame]] = \mathit{hd}([[call_stack]]) }}
