@@ -2,27 +2,41 @@ embed
 {{ hol
 open wordsTheory;
 }}
-metavar string, var_name, func_name ::=
+metavar x ::=
       {{ lex alphanum }}
       {{ hol string }}
-      {{ com string }}
+      {{ tex [[x]] }}
+      {{ com string (variable/function name) }}
 metavar num ::=
       {{ lex numeral }}
       {{ hol num }}
       {{ com natural number }}
-metavar bool ::=
+%TODO Numeral or alphanum?
+metavar b ::=
       {{ lex numeral }}
       {{ hol bool }}
+      {{ tex [[b]] }}
       {{ com boolean }}
-metavar int ::=
+%TODO Ideally, one should have different word lengths
+metavar n ::=
       {{ lex numeral }}
       {{ hol word64 }}
+      {{ tex [[n]]_w }}
       {{ com integer }}
 indexvar i, j, k, l ::=
   {{ lex numeral }}
   {{ coq nat }}
   {{ hol num }}
 grammar
+
+%Expression semantics
+%TODO: Constant evaluation
+%TODO: Generalisation of expressions
+
+%Statement semantics
+%TODO: Add function arguments
+%TODO: Add directed arguments (in, out, inout)
+%TODO: Assignment
 
 %%%%%%%%%%%%%%%%%%%
 % Execution state %
@@ -31,53 +45,74 @@ grammar
 
 %Execution status.
 status :: status_ ::=
- {{ com Execution status }}
+ {{ com execution status }}
 | Running :: :: running
+%TODO Currently, only word64 can be returned.
+| Return n :: :: return
 | TypeError :: :: type_error
 
-env_stack :: env_stack_ ::=
-{{ hol (stack_frame list) }}
-{{ com current environment stack }}
-| emptyes :: :: empty
-  {{ hol ([]:stack_frame list) }}
-| stack_frame1 , .. , stack_framei :: :: list
-  {{ hol ([[stack_frame1 .. stack_framei]]) }}
-| [ stack_frame ] :: :: sing
-  {{ hol ([ [[stack_frame]] ]) }}
-| env_stack . push ( stack_frame ) :: :: push
-  {{ hol (([[stack_frame]]::[[env_stack]])) }}
-| env_stack . tail :: :: tail
-  {{ hol (TL [[env_stack]]) }}
-| env_stack ++ env_stack' :: :: append
-  {{ hol ([[env_stack]] ++ [[env_stack']]) }}
-| ( env_stack ) :: S :: paren
-  {{ hol ([[env_stack]]) }}
+curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
+{{ hol (scope list) }}
+{{ com current stack frame - stack of block scopes }}
+| emptycsf :: :: empty
+  {{ hol ([]:scope list) }}
+  {{ tex {\emptyset}_{\varepsilon} }}
+| scope1 , .. , scopei :: :: list
+  {{ hol ([[scope1 .. scopei]]) }}
+| [ scope ] :: :: sing
+  {{ hol ([ [[scope]] ]) }}
+  {{ tex [ [[scope]] ] }}
+| curr_stack_frame . push ( scope ) :: :: push
+  {{ hol (([[scope]]::[[curr_stack_frame]])) }}
+  {{ tex ([[scope]]::[[curr_stack_frame]]) }}
+  %TODO push TeX notation?
+| curr_stack_frame . tail :: :: tail
+  {{ hol (TL [[curr_stack_frame]]) }}
+  {{ tex \mathit{[[curr_stack_frame]]} }}
+  %TODO tail TeX notation?
+| curr_stack_frame ++ curr_stack_frame' :: :: append
+  {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
+  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
+| update ( scope , num , curr_stack_frame ) :: :: update
+  {{ hol (LUPDATE [[scope]] [[num]] [[curr_stack_frame]]) }}
+  %TODO list update TeX notation?
+| ( curr_stack_frame ) :: S :: paren
+  {{ hol ([[curr_stack_frame]]) }}
 
-temp_stack :: temp_stack_ ::=
-{{ com stack of caller env stacks }}
-{{ hol (env_stack list) }}
-| emptyts :: :: empty
-  {{ hol ([]:env_stack list) }}
-| env_stack1 , .. , env_stacki :: :: list
-  {{ hol (env_stack list) }}
-| temp_stack . push ( env_stack ) :: :: push
-  {{ hol (([[env_stack]]::[[temp_stack]])) }}
-| ( temp_stack ) :: S :: paren
-  {{ hol ([[temp_stack]]) }}
+call_stack {{ tex E }} :: call_stack_ ::=
+{{ com stack of caller stack frames }}
+{{ hol (curr_stack_frame list) }}
+| emptycs :: :: empty
+  {{ hol ([]:curr_stack_frame list) }}
+  {{ tex {\emptyset}_{E} }}
+| curr_stack_frame1 , .. , curr_stack_framei :: :: list
+  {{ hol (curr_stack_frame list) }}
+| call_stack . push ( curr_stack_frame ) :: :: push
+  {{ hol (([[curr_stack_frame]]::[[call_stack]])) }}
+  {{ tex ([[curr_stack_frame]]::[[call_stack]]) }}
+  %TODO push TeX notation?
+| ( call_stack ) :: S :: paren
+  {{ hol ([[call_stack]]) }}
 
-stack_frame :: stack_frame_ ::=
+scope :: scope_ ::=
 {{ hol (string |-> word64) }}
 {{ com frame/variable environment of current scope }}
-| emptysf :: :: empty
+| emptyscope :: :: empty
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
-| stack_frame + [ string |-> int ] :: :: update
+  {{ tex {\emptyset}_{ \mathrm{scope} } }}
+| scope + [ x |-> n ] :: :: update
   {{ com update variable mapping }}
-  {{ hol (FUPDATE [[stack_frame]] ([[string]], [[int]])) }}
+  {{ hol (FUPDATE [[scope]] ([[x]], [[n]])) }}
+  {{ tex ([[x]] \mapsto  [[n]]) [[scope]] }}
 
-state :: state_ ::=
+stacks {{ tex \sigma }} :: stacks_ ::=
+ {{ com stacks in execution state }}
+| ( curr_stack_frame , call_stack ) :: :: tup
+
+state {{ tex \Sigma }} :: state_ ::=
  {{ com execution state }}
-| ( env_stack , temp_stack , status ) :: :: ct
+| ( stacks , status ) :: :: tup
 
 
 %%%%%%%%%%%%%%%
@@ -86,18 +121,24 @@ state :: state_ ::=
 
 exp :: exp_ ::=
 {{ com expression }}
-%TODO: Unify all of int, bv, b into a word64 const?
+%TODO: Split into exp and val?
+%TODO: Unify all of n, bv, b into a word64 const?
 %| bv :: :: bv_const
-| bool :: :: bool_const
+| b :: :: bool_const
   {{ com boolean value }}
-| int :: :: int_const
+| n :: :: int_const
   {{ com integer value }}
-| var_name :: :: var
-  {{ com variable name }}
+| x :: :: var
+  {{ com variable }}
+%TODO Unify into binary expressions
 | exp1 == exp2 :: :: eq
   {{ com equality }}
 | exp1 - exp2 :: :: sub
   {{ com subtraction }}
+| call x ( exp1 , .. , expi ) :: :: func_call
+  {{ com function call }}
+| exec stmt :: :: func_exec
+  {{ com function execution }}
 
 
 %%%%%%%%%%%%%%
@@ -106,12 +147,16 @@ exp :: exp_ ::=
 
 stmt :: stmt_ ::=
 {{ com statement }}
+| empty_stmt :: :: empty
+  {{ com empty statement }}
+| x ( exp1 , .. , expi ) :: :: func
+  {{ com function call }}
+| assign x exp :: :: ass
+  {{ com assignment }}
+  {{ tex [[x]] \mathrel{\mathop:}= [[exp]] }}
 | return exp :: :: ret
   {{ com return }}
-| assign var_name exp :: :: ass
-  {{ com assignment }}
-| func_name ( exp1 , .. , expi ) :: :: func
-  {{ com function call }}
+
 
 %TODO Function map is assumed static for now...
 func_map :: func_map_ ::=
@@ -121,9 +166,9 @@ func_map :: func_map_ ::=
 | empty :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
-| func_map + [ string |-> stmt ] :: M :: update
+| func_map + [ x |-> stmt ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (FUPDATE [[func_map]] ([[string]], [[stmt]])) }}
+  {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -131,52 +176,71 @@ func_map :: func_map_ ::=
 
 terminals :: terminals_ ::=
 | -> :: :: rightarrow {{ tex \rightarrow }}
+| ~> :: :: rightsquigarrow {{ tex \rightsquigarrow }}
+
 
 formula :: formula_ ::=
 {{ com formulas }}
 | judgement :: :: judgement
   {{ com judgement }}
-| int == int' = bool :: M :: eq
-  {{ hol (([[int]] = [[int']]) = [[bool]]) }}
-| int - int' = int'' :: M :: sub
-  {{ hol ([[int]] - [[int']] = int'') }}
-| env_stack ( var_name ) = stack_frame :: M :: find_frame
-  {{ com find frame stack of variable }}
-  %NOTE: FIND finds the first occurrence, starting from head and going backwards in list
-  {{ hol (FIND (\sf. IS_SOME (FLOOKUP sf [[var_name]])) [[env_stack]] = SOME [[stack_frame]]) }}
-| stack_frame = env_stack [ num ] :: M :: env_stack_index
-  {{ hol ([[stack_frame]] = EL [[num]] [[env_stack]]) }}
-| stack_frame ( var_name ) = int :: M :: lookup
-  {{ com look-up of variable in stack frame }}
-  {{ hol (FLOOKUP [[stack_frame]] [[var_name]] = SOME [[int]]) }}
-%TODO Typeset temp_stack and env_stack equalities differently... But how?
-| env_stack = env_stack' :: M :: env_stack_eq
-  {{ com env_stack equality (for manipulation) }}
-  {{ hol ([[env_stack]] = [[env_stack']]) }}
-| temp_stack =' temp_stack' :: M :: temp_stack_eq
-  {{ com temp_stack equality (for manipulation) }}
-  {{ hol ([[temp_stack]] = [[temp_stack']]) }}
-| env_stack = temp_stack . top :: M :: temp_stack_top
-  {{ hol ([[env_stack]] = HD [[temp_stack]]) }}
-| func_map ( func_name ) = stmt :: M :: func_lookup
+| n == n' = b :: M :: eq
+  {{ hol (([[n]] = [[n']]) = [[b]]) }}
+| n - n' = n'' :: M :: sub
+  {{ hol ([[n]] - [[n']] = n'') }}
+| find_index ( curr_stack_frame , x ) = num :: M :: find_index_scope
+  {{ com find index of variable's scope }}
+  %NOTE: INDEX_FIND finds the first occurrence, starting from head and going backwards in list
+  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
+  {{ tex [[x]] \in dom([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin dom([[curr_stack_frame]][j]) }}
+%| curr_stack_frame ( x ) = scope :: M :: find_scope
+%  {{ com find scope of variable }}
+%  %NOTE: FIND finds the first occurrence, starting from head and going backwards in list
+%  {{ hol (FIND (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]] = SOME [[scope]]) }}
+%  {{ tex [[x]] \in dom([[curr_stack_frame]][i])\land \forall j . \,\, j > i \Rightarrow [[x]] \notin dom([[curr_stack_frame]][j])\\ [[scope]] = [[curr_stack_frame]][i]}}
+| scope = curr_stack_frame [ num ] :: M :: curr_stack_frame_index
+  {{ hol ([[scope]] = EL [[num]] [[curr_stack_frame]]) }}
+| n = scope ( x ) :: M :: lookup
+  {{ com look-up of variable in scope }}
+  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[n]]) }}
+| scope = scope' :: M :: scope_eq
+  {{ com scope equality (for manipulation) }}
+  {{ hol [[scope]] = [[scope']] }}
+%  {{ tex [[scope]] = [[scope']] }}
+%TODO Typeset call_stack and curr_stack_frame equalities differently... But how?
+| curr_stack_frame = curr_stack_frame' :: M :: curr_stack_frame_eq
+  {{ com curr_stack_frame equality (for manipulation) }}
+  {{ hol ([[curr_stack_frame]] = [[curr_stack_frame']]) }}
+%  {{ tex [[curr_stack_frame]] = [[curr_stack_frame']] }}
+| call_stack = call_stack' :: M :: call_stack_eq
+  {{ com call_stack equality (for manipulation) }}
+  {{ hol ([[call_stack]] = [[call_stack']]) }}
+%  {{ tex ([[call_stack]] = [[call_stack']]) }}
+| curr_stack_frame = call_stack . top :: M :: call_stack_top
+  {{ hol ([[curr_stack_frame]] = HD [[call_stack]]) }}
+  {{ tex [[curr_stack_frame]] = \mathit{hd}([[call_stack]]) }}
+| func_map ( x ) = stmt :: M :: func_lookup
   {{ com function lookup }}
-  {{ hol (FLOOKUP [[func_map]] [[func_name]] = SOME [[stmt]]) }}
+  {{ hol (FLOOKUP [[func_map]] [[x]] = SOME [[stmt]]) }}
 
 defns
   exp_sem :: '' ::=
 defn
-  [ exp ] state -> [ exp' ] state' :: :: exp_red :: ''
+  [ exp ] ( stacks , status ) ~> [ exp' ] ( stacks' , status' ) :: :: exp_red :: ''
   {{ com expression semantics }}
+  {{ tex [ [[exp]] ] ( [[stacks]] ) \rightsquigarrow [ [[exp']] ] ( [[stacks']] ) }}
+  %Uses different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status
 by
 %TODO: Status changes
 
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
-  env_stack ( var_name ) = stack_frame
-  stack_frame ( var_name ) = int
+  %TODO: Fewer antecedents
+  find_index ( curr_stack_frame, x ) = num
+  scope = curr_stack_frame [ num ]
+  n = scope ( x )
   ----------------------------------- :: lookup
-  [varname] ( env_stack , temp_stack , status ) -> [int] ( env_stack , temp_stack , status )
+  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [n] ( ( curr_stack_frame, call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -191,32 +255,50 @@ by
 %%%%%%%%%%%%
 %Subtraction
 
-  [exp] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
   ----------------------------------- :: sub1
-  [exp - exp'] ( env_stack , temp_stack , status ) -> [exp'' - exp'] ( env_stack' , temp_stack' , status )
+  [exp - exp'] ( stacks , Running ) ~> [exp'' - exp'] ( stacks' , Running )
 
-  [exp'] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
   ----------------------------------- :: sub2
-  [int - exp'] ( env_stack , temp_stack , status ) -> [int - exp''] ( env_stack' , temp_stack' , status )
+  [n - exp'] ( stacks , Running ) ~> [n - exp''] ( stacks' , Running )
 
-  int - int' = int''
+  n - n' = n''
   ----------------------------------- :: sub3
-  [int - int'] ( env_stack , temp_stack , status ) -> [int''] ( env_stack , temp_stack , status )
+  [n - n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Equality
 
-  [exp] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
   ----------------------------------- :: eq1
-  [exp == exp'] ( env_stack , temp_stack , status ) -> [exp'' == exp'] ( env_stack' , temp_stack' , status )
+  [exp == exp'] ( stacks , Running ) ~> [exp'' == exp'] ( stacks' , Running )
 
-  [exp'] ( env_stack , temp_stack , status ) -> [exp''] ( env_stack' , temp_stack' , status )
+  [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
   ----------------------------------- :: eq2
-  [int == exp'] ( env_stack , temp_stack , status ) -> [int == exp''] ( env_stack' , temp_stack' , status )
+  [n == exp'] ( stacks , Running ) ~> [n == exp''] ( stacks' , Running )
 
-  int == int' = bool
+  n == n' = b
   ----------------------------------- :: eq3
-  [int == int'] ( env_stack , temp_stack , status ) -> [bool] ( env_stack , temp_stack , status )
+  [n == n'] ( stacks , Running ) ~> [b] ( stacks , Running )
+
+%%%%%%%%%%%%%%
+%Function call + exec
+
+  scope = curr_stack_frame [ 0 ]
+  curr_stack_frame' = ( [ scope ] ) . push ( emptyscope )
+  call_stack' = call_stack . push ( curr_stack_frame . tail )
+  func_map ( x ) = stmt
+  ----------------------------------- :: func_call_exp
+  [call x ( )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [exec stmt] ( ( curr_stack_frame' , call_stack' ) , Running )
+
+  [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
+  ----------------------------------- :: func_exec
+  [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
+
+  
+  ----------------------------------- :: func_ret_exp
+  [exec empty_stmt] ( stacks , Return n ) ~> [n] ( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -230,31 +312,40 @@ defn
   {{ com statement semantics }}
 by
 
-%TODO: Add function arguments
-%TODO: Add directed arguments (in, out, inout)
-  
-  stack_frame = env_stack [ 0 ]
-  env_stack' = ( emptyes . push ( stack_frame ) ) . push ( emptysf )
-  temp_stack' =' temp_stack . push ( env_stack . tail )
-  func_map ( func_name ) = stmt
-  ----------------------------------- :: func_call
-  [func_name ( )] ( env_stack , temp_stack , status ) -> [stmt] ( env_stack' , temp_stack' , status )
+%%%%%%%%%%%%%%
+%Function call
+  %Function call with no arguments
+  scope = curr_stack_frame [ 0 ]
+  curr_stack_frame' = ( [ scope ] ) . push ( emptyscope )
+  call_stack' = call_stack . push ( curr_stack_frame . tail )
+  func_map ( x ) = stmt
+  ----------------------------------- :: func_call_stmt
+  [x ( )] ( ( curr_stack_frame , call_stack ) , Running ) -> [stmt] ( ( curr_stack_frame' , call_stack' ) , Running )
 
+  %Return with an expression - reduction step
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: ret_exp
+  [return exp] ( stacks , Running ) -> [return exp'] ( stacks' , Running )
 
+  %Return with a constant
+  scope = curr_stack_frame [ 0 ]
+  curr_stack_frame' = call_stack . top
+  curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
+  ----------------------------------- :: ret_const
+  [return n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return n )
 
-  [exp] ( env_stack , temp_stack , status ) -> [exp'] ( env_stack' , temp_stack' , status )
-  ----------------------------------- :: ret1
-  [return exp] ( env_stack , temp_stack , status ) -> [return exp'] ( env_stack' , temp_stack' , status )
+%%%%%%%%%%%%%%
+%Assignment
 
-defns
-  stmt_sem_fin :: '' ::=
-defn
-  [ stmt ] state -> [ int ] state' :: :: stmt_red_fin :: ''
-  {{ com statement semantics, finalize execution }}
-by
+  %Assign a constant to a variable
+  find_index ( curr_stack_frame , x ) = num
+  scope = curr_stack_frame [ num ]
+  scope' = scope + [ x |-> n ]
+  curr_stack_frame' = update ( scope' , num , curr_stack_frame )
+  ----------------------------------- :: ass_const
+  [assign x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
-  stack_frame = env_stack [ 0 ]
-  env_stack' = temp_stack . top
-  env_stack'' = ( env_stack' ) ++ ( [ stack_frame ] )
-  ----------------------------------- :: ret2
-  [return int] ( env_stack , temp_stack , status ) -> [int] ( env_stack' , temp_stack' , status )
+  %Assign an expression to a variable - reduction step
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: ass_exp
+  [assign x exp] ( stacks , Running ) -> [assign x exp'] ( stacks' , Running )
