@@ -57,11 +57,8 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | emptycsf :: :: empty
   {{ hol ([]:scope list) }}
   {{ tex {\emptyset}_{\varepsilon} }}
-| scope1 , .. , scopei :: :: list
+| [ scope1 , .. , scopei ] :: :: list
   {{ hol ([[scope1 .. scopei]]) }}
-| [ scope ] :: :: sing
-  {{ hol ([ [[scope]] ]) }}
-  {{ tex [ [[scope]] ] }}
 | curr_stack_frame . push ( scope ) :: :: push
   {{ hol (([[scope]]::[[curr_stack_frame]])) }}
   {{ tex ([[scope]]::[[curr_stack_frame]]) }}
@@ -85,7 +82,7 @@ call_stack {{ tex E }} :: call_stack_ ::=
 | emptycs :: :: empty
   {{ hol ([]:curr_stack_frame list) }}
   {{ tex {\emptyset}_{E} }}
-| curr_stack_frame1 , .. , curr_stack_framei :: :: list
+| [ curr_stack_frame1 , .. , curr_stack_framei ] :: :: list
   {{ hol (curr_stack_frame list) }}
 | call_stack . push ( curr_stack_frame ) :: :: push
   {{ hol (([[curr_stack_frame]]::[[call_stack]])) }}
@@ -188,7 +185,7 @@ formula :: formula_ ::=
   {{ hol ([[n]] - [[n']] = n'') }}
 | find_index ( curr_stack_frame , x ) = num :: M :: find_index_scope
   {{ com find index of variable's scope }}
-  %NOTE: INDEX_FIND finds the first occurrence, starting from head and going backwards in list
+  %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
   {{ tex [[x]] \in dom([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin dom([[curr_stack_frame]][j]) }}
 | scope = curr_stack_frame [ num ] :: M :: curr_stack_frame_index
@@ -197,14 +194,13 @@ formula :: formula_ ::=
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[n]]) }}
 | scope = scope' :: M :: scope_eq
-  {{ com scope equality (for manipulation) }}
-  {{ hol [[scope]] = [[scope']] }}
-%TODO Typeset call_stack and curr_stack_frame equalities differently... But how?
+  {{ com scope equality }}
+  {{ hol ([[scope]] = [[scope']]) }}
 | curr_stack_frame = curr_stack_frame' :: M :: curr_stack_frame_eq
-  {{ com curr_stack_frame equality (for manipulation) }}
+  {{ com curr_stack_frame equality }}
   {{ hol ([[curr_stack_frame]] = [[curr_stack_frame']]) }}
 | call_stack = call_stack' :: M :: call_stack_eq
-  {{ com call_stack equality (for manipulation) }}
+  {{ com call_stack equality }}
   {{ hol ([[call_stack]] = [[call_stack']]) }}
 | curr_stack_frame = call_stack . top :: M :: call_stack_top
   {{ hol ([[curr_stack_frame]] = HD [[call_stack]]) }}
@@ -216,10 +212,10 @@ formula :: formula_ ::=
 defns
   exp_sem :: '' ::=
 defn
-  [ exp ] ( stacks , status ) ~> [ exp' ] ( stacks' , status' ) :: :: exp_red :: ''
+  [ exp ] ( stacks , status ) ~> [ exp' ] ( stacks' , status' ) :: :: exp_red :: exp_
   {{ com expression semantics }}
-  {{ tex [ [[exp]] ] ( [[stacks]] ) \rightsquigarrow [ [[exp']] ] ( [[stacks']] ) }}
   %Uses different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status
+  {{ tex [ [[exp]] ] ( [[stacks]] ) \rightsquigarrow [ [[exp']] ] ( [[stacks']] ) }}
 by
 %TODO: Status changes
 
@@ -299,15 +295,15 @@ by
 defns
   stmt_sem :: '' ::=
 defn
-  [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: ''
+  [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
   {{ com statement semantics }}
 by
 
 %%%%%%%%%%%%%%
 %Function call
   %Function call with no arguments
-  scope = curr_stack_frame [ 0 ]
-  curr_stack_frame' = ( [ scope ] ) . push ( emptyscope )
+  scope = curr_stack_frame[0]
+  curr_stack_frame' = ([scope]).push(emptyscope)
   call_stack' = call_stack . push ( curr_stack_frame . tail )
   func_map ( x ) = stmt
   ----------------------------------- :: func_call_stmt

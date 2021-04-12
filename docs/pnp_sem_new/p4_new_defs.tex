@@ -46,7 +46,7 @@
 \ottprodline{|}{\ottnt{scope_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{scope_{\ottmv{i}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ [  \ottnt{scope}  ] }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ ( \ottnt{scope} :: \varepsilon ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathit{ \varepsilon } }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathit{tl} ( \varepsilon ) }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \varepsilon  \mathrel{\mathop+}+  \varepsilon' }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{update} \, \ottsym{(}  \ottnt{scope}  \ottsym{,}  \ottmv{num}  \ottsym{,}  \varepsilon  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \varepsilon  \ottsym{)}} {\textsf{S}}{}{}{}}
@@ -226,7 +226,7 @@
 \newcommand{\ottdrulefuncXXcallXXexp}[1]{\ottdrule[#1]{%
 \ottpremise{\ottnt{scope}  \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
 \ottpremise{\varepsilon'  \ottsym{=}   (  {\emptyset}_{ \mathrm{scope} }  :: \ottsym{(}   [  \ottnt{scope}  ]   \ottsym{)} ) }%
-\ottpremise{E'  \ottsym{=}   (  \mathit{ \varepsilon }  :: E ) }%
+\ottpremise{E'  \ottsym{=}   (  \mathit{tl} ( \varepsilon )  :: E ) }%
 \ottpremise{\ottnt{func\_map}  \ottsym{(}  x  \ottsym{)}  \ottsym{=}  \ottnt{stmt}}%
 }{
  [  \ottkw{call} \, x  \ottsym{(}  \,  \ottsym{)}  ] (  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  ) \rightsquigarrow [  \ottkw{exec} \, \ottnt{stmt}  ] (  \ottsym{(}  \varepsilon'  \ottsym{,}  E'  \ottsym{)}  ) }{%
@@ -270,7 +270,7 @@
 \newcommand{\ottdrulefuncXXcallXXstmt}[1]{\ottdrule[#1]{%
 \ottpremise{\ottnt{scope}  \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
 \ottpremise{\varepsilon'  \ottsym{=}   (  {\emptyset}_{ \mathrm{scope} }  :: \ottsym{(}   [  \ottnt{scope}  ]   \ottsym{)} ) }%
-\ottpremise{E'  \ottsym{=}   (  \mathit{ \varepsilon }  :: E ) }%
+\ottpremise{E'  \ottsym{=}   (  \mathit{tl} ( \varepsilon )  :: E ) }%
 \ottpremise{\ottnt{func\_map}  \ottsym{(}  x  \ottsym{)}  \ottsym{=}  \ottnt{stmt}}%
 }{
 \ottsym{[}  x  \ottsym{(}  \,  \ottsym{)}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E'  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
