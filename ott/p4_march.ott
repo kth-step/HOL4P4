@@ -186,40 +186,35 @@ exp_list :: exp_list_ ::=
 
 decl :: decl_ ::=
 {{ com declaration }}
-| declare x exp :: :: stmt
-  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
 | empty_decl :: :: empty
-| decl1 ; decl2 :: :: seq  
+  {{ com empty declaration }}
+| declare x exp :: :: stmt
+  {{ com declaration }}
+  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
+| decl1 ; decl2 :: :: seq
+  {{ com sequence }}
 
-%TODO: Switch
+%TODO: Switch statement
 stmt :: stmt_ ::=
 {{ com statement }}
 | empty_stmt :: :: empty
   {{ com empty statement }}
   {{ tex \emptyset_{ \mathrm{stmt} } }}
-%TODO: No function calls as statements, for now...
-%| x ( exp1 , .. , expi ) :: :: func
-%  {{ com function call }}
-%TODO: This is not in the P4 specification
-%| x [ exp1 , .. , expi , num ] :: :: func_consts
-%  {{ com function call with resolved arguments }}
 | assign x exp :: :: ass
   {{ com assignment }}
   {{ tex [[x]] \mathrel{\mathop:}= [[exp]] }}
 | if exp then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-| { stmt } :: :: block
+| begin decl1 , .. , decli stmt1 , .. , stmtj end :: :: block 
   {{ com block }}
+| begin' decl1 , .. , decli stmt1 , .. , stmtj end' :: :: block_ip
+  {{ com block in progress }}
 %| exit :: :: exit
 %  {{ com exit }}
 | return exp :: :: ret
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
-| begin decl1 , .. , decli stmt1 , .. , stmtj end :: :: block 
-  {{ com block }}
-| begin' decl1 , .. , decli stmt1 , .. , stmtj end' :: :: block_ip
-  {{ com block in progress }}
 
 func_map :: func_map_ ::=
 {{ com function map  }}
@@ -244,7 +239,6 @@ status :: status_ ::=
 | Return exp :: :: return
 | TypeError :: :: type_error
 
-%TODO: Would like this to map to const instead of n, but run into errors during HOL4 export...
 scope :: scope_ ::=
 {{ hol (string |-> exp) }}
 {{ com frame/variable environment of current scope }}
@@ -277,9 +271,9 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   {{ tex {\emptyset}_{\varepsilon} }}
 | [ scope1 , .. , scopei ] :: M :: list
   {{ hol ([[scope1 .. scopei]]) }}
-| curr_stack_frame . tail :: M :: tail
+| tl curr_stack_frame :: M :: tl
   {{ hol (TL [[curr_stack_frame]]) }}
-  {{ tex \mathit{tl} ([[curr_stack_frame]]) }}
+  {{ tex \mathrm{tl} ([[curr_stack_frame]]) }}
 | scope '::' curr_stack_frame' :: M :: cons
   {{ hol ([[scope]] :: [[curr_stack_frame']]) }}
   {{ tex [[scope]] \mathrel{\mathop:}: [[curr_stack_frame']] }}
@@ -383,10 +377,9 @@ formula :: formula_ ::=
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
 
 %Type-transforming operations
-%TODO: Some kept here because moving them up to their definitions does not always work...
-| curr_stack_frame = call_stack . top :: M :: call_stack_top
+| curr_stack_frame = hd call_stack :: M :: call_stack_hd
   {{ hol ([[curr_stack_frame]] = HD [[call_stack]]) }}
-  {{ tex [[curr_stack_frame]] = \mathrm{hd}([[call_stack]]) }}
+  {{ tex [[curr_stack_frame]] = \mathrm{hd} [[call_stack]] }}
 | scope = curr_stack_frame [ num ] :: M :: curr_stack_frame_index
   {{ hol ([[scope]] = EL [[num]] [[curr_stack_frame]]) }}
 | ( stmt , x1 , .. , xi ) = func_map ( x ) :: M :: func_lookup
@@ -402,8 +395,9 @@ formula :: formula_ ::=
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[exp]]) }}
 | exp = exp_list [ num ] :: M :: args_index
   {{ hol ([[exp]] = EL [[num]] [[exp_list]]) }}
-| exp = exp_list . head :: M :: args_head
+| exp = hd exp_list :: M :: args_hd
   {{ hol ([[exp]] = HD [[exp_list]]) }}
+  {{ hol ([[exp]] = \mathrm{hd} [[exp_list]]) }}
 
 %Function argument resolution
 %TODO: Replace with expression list
@@ -435,7 +429,7 @@ formula :: formula_ ::=
 | call_stack = call_stack' :: M :: call_stack_eq
   {{ com call_stack equality }}
   {{ hol ([[call_stack]] = [[call_stack']]) }}
-%TODO: This can cause confusion with the judgements with binary expression equalities...
+%TODO: This can cause confusion with the judgements with binary expression equalities, hencec the '...
 | exp_list =' exp_list' :: M :: args_eq
   {{ com args equality }}
   {{ hol ([[exp_list]] = [[exp_list']]) }}
@@ -489,7 +483,7 @@ by
   is_empty ( exp1 , .. , expi )
   scope = curr_stack_frame [ 0 ]
   curr_stack_frame' = emptyscope :: [ scope ]
-  call_stack' = curr_stack_frame . tail :: call_stack
+  call_stack' = tl curr_stack_frame :: call_stack
   (stmt, x1 , .. , xi ) = func_map ( x )
   ----------------------------------- :: func_call_noargs
   [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [exec stmt] ( ( curr_stack_frame' , call_stack' ) , Running )
@@ -498,7 +492,7 @@ by
   %TODO: force exp'1 , .. , exp'j to be non-empty?
   exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi
   is_consts ( exp'1 , .. , exp'j )
-  exp = exp'''1 , .. , exp'''k . head
+  exp = hd exp'''1 , .. , exp'''k
   [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks , Running )
   exp''''1 , .. , exp''''i =' update ( exp' , num , ( exp'''1 , .. , exp'''k ) )
   ----------------------------------- :: func_call_args1
@@ -511,7 +505,7 @@ by
   ( stmt , x1 , .. , xi ) = func_map ( x )
   scope' = emptyscope ++ [ x1 |->  exp1 , .. , xi |-> expi ]
   curr_stack_frame' = scope' :: [scope]
-  call_stack' = curr_stack_frame . tail :: call_stack
+  call_stack' = tl curr_stack_frame :: call_stack
   ----------------------------------- :: func_call_args2
   [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
@@ -533,6 +527,7 @@ by
   is_const ( exp )
   ----------------------------------- :: lookup
   [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [exp] ( ( curr_stack_frame, call_stack ) , Running )
+
 
 %%%%%%%%%%%%%%%%%%%
 %Unary expressions%
@@ -740,9 +735,8 @@ by
   scope' = scope + [ x |-> n ]
   curr_stack_frame'' = scope' :: curr_stack_frame'
   ----------------------------------- :: decl_const
-  [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack ) , Running )
+  [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_decl] ( ( curr_stack_frame'' , call_stack ) , Running )
 
-  
 
 %%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics %
@@ -770,7 +764,7 @@ by
   %Return with a constant
   is_const ( exp )
   scope = curr_stack_frame [ 0 ]
-  curr_stack_frame' = call_stack . top
+  curr_stack_frame' = hd call_stack
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
   ----------------------------------- :: ret_const
   [return exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return exp )
@@ -821,13 +815,6 @@ by
 
 %%%%%%%%%%%%%%
 %Block
-
-  %TODO: If rules are to be small-step in the reduction step, needs to
-  %      have separate syntax for "in-progress block".
-  %      Rule 1 pushes new scope onto current stack frame, and changes block syntax
-  %      Rule 2 allows small-step reductions inside in-progress block
-  %      Rule 3 exits in-progress block and pops scope
-
  
   curr_stack_frame' = emptyscope :: curr_stack_frame
   ----------------------------------- :: block_enter
@@ -844,12 +831,10 @@ by
   [begin' empty_decl stmt end'] ( stacks , Running ) -> [begin' empty_decl stmt' end'] ( stacks' , Running )
 
 
-   scope :: curr_stack_frame' = curr_stack_frame
+   curr_stack_frame' = tl curr_stack_frame
   ----------------------------------- :: block_exit
-  [begin' empty_decl empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [skip] ( ( curr_stack_frame' , call_stack ) , Running )
+  [begin' empty_decl empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
-
-%TODO: B2, B3, B4 rules
 
 %%%%%%%%%%%%%%
 %Exit
