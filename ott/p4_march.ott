@@ -737,6 +737,10 @@ by
   ----------------------------------- :: decl_const
   [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_decl] ( ( curr_stack_frame'' , call_stack ) , Running )
 
+  [decl1] ( stacks , Running ) -> [decl1'] ( stacks' , Running )
+  ----------------------------------- :: seq
+  [decl1 ; decl2] ( stacks , Running ) -> [decl1' ; decl2] ( stacks' , Running )
+
 
 %%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics %
