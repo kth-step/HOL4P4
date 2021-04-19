@@ -21,7 +21,9 @@ metavar b ::=
 metavar n ::=
       {{ lex numeral }}
       {{ hol word64 }}
-      {{ tex [[n]]_{64} }}
+%TODO Causes problems with double subscript in LaTeX...
+%      {{ tex [[n]]_{64} }}
+      {{ tex [[n]] }}
       {{ com integer }}
 indexvar i, j, k, l ::=
   {{ lex numeral }}
@@ -172,86 +174,22 @@ exp, expr, expre :: exp_ ::=
 %  {{ tex ([[num]] \mapsto  [[exp]]) [[args]] }}
 %  {{ hol (LUPDATE [[exp]] [[num]] [[args]]) }}
 
-
-%%%%%%%%%%%%%%%%%%%
-% Execution state %
-%%%%%%%%%%%%%%%%%%%
-%Note that this is not part of the P4 specification, but made up for verification purposes.
-
-%Execution status.
-status :: status_ ::=
- {{ com execution status }}
-| Running :: :: running
-%TODO Currently, only word64 can be returned.
-| Return n :: :: return
-| TypeError :: :: type_error
-
-%TODO: Would like this to map to const instead of n, but run into errors during HOL4 export...
-scope :: scope_ ::=
-{{ hol (string |-> n) }}
-{{ com frame/variable environment of current scope }}
-| emptyscope :: :: empty
-  {{ com empty stack frame }}
-  {{ hol FEMPTY }}
-  {{ tex {\emptyset}_{ \mathrm{scope} } }}
-| scope + [ x |-> n ] :: :: update
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[x]], [[n]])) }}
-  {{ tex ([[x]] \mapsto  [[n]]) [[scope]] }}
-| scope + [ x1 , .. , xi ||-> n1 , .. , nj ] :: :: update_list
-  {{ com update variable mapping }}
-  {{ hol (FOLDL (\s (x, n). FUPDATE s (x, n)) [[scope]] (ZIP ([[x1 .. xi]], [[n1 .. nj]])) ) }}
-  {{ tex \forall i . (x_i \mapsto  n_i) [[scope]] }}
-| ( scope ) :: S :: paren
-  {{ hol ([[scope]]) }}
-
-curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
-{{ hol (scope list) }}
-{{ com current stack frame - stack of block scopes }}
-| emptycsf :: :: empty
-  {{ hol ([]:scope list) }}
-  {{ tex {\emptyset}_{\varepsilon} }}
-| [ scope1 , .. , scopei ] :: :: list
-  {{ hol ([[scope1 .. scopei]]) }}
-| curr_stack_frame . push ( scope ) :: :: push
-  {{ hol (([[scope]]::[[curr_stack_frame]])) }}
-  {{ tex ([[scope]]::[[curr_stack_frame]]) }}
-| curr_stack_frame . tail :: :: tail
-  {{ hol (TL [[curr_stack_frame]]) }}
-  {{ tex \mathit{tl} ([[curr_stack_frame]]) }}
-| scope '::' curr_stack_frame' :: :: cons
-  {{ hol ([[scope]] :: [[curr_stack_frame']]) }}
-  {{ tex [[scope]] \mathrel{\mathop:}: [[curr_stack_frame']] }}
-| curr_stack_frame ++ curr_stack_frame' :: :: append
-  {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
-  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
-| update ( scope , num , curr_stack_frame ) :: :: update
-  {{ hol (LUPDATE [[scope]] [[num]] [[curr_stack_frame]]) }}
-  {{ tex ([[num]] \mapsto  [[scope]]) [[curr_stack_frame]] }}
-| ( curr_stack_frame ) :: S :: paren
-  {{ hol ([[curr_stack_frame]]) }}
-
-call_stack {{ tex E }} :: call_stack_ ::=
-{{ com stack of caller stack frames }}
-{{ hol (curr_stack_frame list) }}
-| emptycs :: M :: empty
-  {{ hol ([]:curr_stack_frame list) }}
-  {{ tex {\emptyset}_{E} }}
-| [ curr_stack_frame1 , .. , curr_stack_framei ] :: M :: list
-  {{ hol ([[curr_stack_frame1 .. curr_stack_framei]]) }}
-| call_stack . push ( curr_stack_frame ) :: M :: push
-  {{ hol (([[curr_stack_frame]]::[[call_stack]])) }}
-  {{ tex ([[curr_stack_frame]]::[[call_stack]]) }}
-| ( call_stack ) :: S :: paren
-  {{ hol ([[call_stack]]) }}
-
-stacks {{ tex \sigma }} :: stacks_ ::=
- {{ com stacks in execution state }}
-| ( curr_stack_frame , call_stack ) :: :: tup
-
-state {{ tex \Sigma }} :: state_ ::=
- {{ com execution state }}
-| ( stacks , status ) :: :: tup
+exp_list :: exp_list_ ::=
+{{ com list of expressions }}
+{{ hol (exp list) }}
+| empty_el :: M :: empty
+  {{ com empty expression list }}
+  {{ hol ([]:exp list) }}
+| exp1 , .. , expi :: M :: list
+  {{ com list of expressions }}
+  {{ hol ([[exp1 .. expi]]) }}
+| exp_list ++ exp_list' :: M :: append
+  {{ com append two exp_lists }}
+  {{ hol ([[exp_list]] ++ [[exp_list']]) }}
+| update ( exp , num , ( exp_list ) ) :: M :: update
+  {{ com update entry of expression list }}
+  {{ hol (LUPDATE [[exp]] [[num]] [[exp_list]]) }}
+  {{ tex ([[num]] \mapsto  [[exp]]) [[exp_list]] }}
 
 
 %%%%%%%%%%%%%%
@@ -294,6 +232,94 @@ func_map :: func_map_ ::=
   {{ com update variable mapping }}
   {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
 
+
+%%%%%%%%%%%%%%%%%%%
+% Execution state %
+%%%%%%%%%%%%%%%%%%%
+%Note that this is not part of the P4 specification, but made up for verification purposes.
+
+%Execution status.
+status :: status_ ::=
+ {{ com execution status }}
+| Running :: :: running
+%TODO Currently, only word64 can be returned.
+| Return n :: :: return
+| TypeError :: :: type_error
+
+%TODO: Would like this to map to const instead of n, but run into errors during HOL4 export...
+scope :: scope_ ::=
+{{ hol (string |-> n) }}
+{{ com frame/variable environment of current scope }}
+| emptyscope :: M :: empty
+  {{ com empty stack frame }}
+  {{ hol FEMPTY }}
+  {{ tex {\emptyset}_{ \mathrm{scope} } }}
+| scope + [ x |-> n ] :: M :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[scope]] ([[x]], [[n]])) }}
+  {{ tex ([[x]] \mapsto  [[n]]) [[scope]] }}
+| scope ++ [ x1 |-> n1 , .. , xi |-> ni ] :: M :: update_list
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE_LIST [[scope]] [[x1 n1 .. xi ni]]) }}
+  {{ tex \forall i . (x_i \mapsto  n_i) [[scope]] }}
+| ( scope ) :: S :: paren
+  {{ hol ([[scope]]) }}
+
+embed
+{{ hol
+
+}}
+grammar
+
+curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
+{{ hol (scope list) }}
+{{ com current stack frame - stack of block scopes }}
+| emptycsf :: M :: empty
+  {{ hol ([]:scope list) }}
+  {{ tex {\emptyset}_{\varepsilon} }}
+| [ scope1 , .. , scopei ] :: M :: list
+  {{ hol ([[scope1 .. scopei]]) }}
+| curr_stack_frame . push ( scope ) :: M :: push
+  {{ hol (([[scope]]::[[curr_stack_frame]])) }}
+  {{ tex ([[scope]]::[[curr_stack_frame]]) }}
+| curr_stack_frame . tail :: M :: tail
+  {{ hol (TL [[curr_stack_frame]]) }}
+  {{ tex \mathit{tl} ([[curr_stack_frame]]) }}
+| scope '::' curr_stack_frame' :: M :: cons
+  {{ hol ([[scope]] :: [[curr_stack_frame']]) }}
+  {{ tex [[scope]] \mathrel{\mathop:}: [[curr_stack_frame']] }}
+| curr_stack_frame ++ curr_stack_frame' :: M :: append
+  {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
+  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
+| update ( scope , num , curr_stack_frame ) :: M :: update
+  {{ hol (LUPDATE [[scope]] [[num]] [[curr_stack_frame]]) }}
+  {{ tex ([[num]] \mapsto  [[scope]]) [[curr_stack_frame]] }}
+| ( curr_stack_frame ) :: S :: paren
+  {{ hol ([[curr_stack_frame]]) }}
+
+call_stack {{ tex E }} :: call_stack_ ::=
+{{ com stack of caller stack frames }}
+{{ hol (curr_stack_frame list) }}
+| emptycs :: M :: empty
+  {{ hol ([]:curr_stack_frame list) }}
+  {{ tex {\emptyset}_{E} }}
+| [ curr_stack_frame1 , .. , curr_stack_framei ] :: M :: list
+  {{ hol ([[curr_stack_frame1 .. curr_stack_framei]]) }}
+| call_stack . push ( curr_stack_frame ) :: M :: push
+  {{ hol (([[curr_stack_frame]]::[[call_stack]])) }}
+  {{ tex ([[curr_stack_frame]]::[[call_stack]]) }}
+| ( call_stack ) :: S :: paren
+  {{ hol ([[call_stack]]) }}
+
+stacks {{ tex \sigma }} :: stacks_ ::=
+ {{ com stacks in execution state }}
+| ( curr_stack_frame , call_stack ) :: :: tup
+
+state {{ tex \Sigma }} :: state_ ::=
+ {{ com execution state }}
+| ( stacks , status ) :: :: tup
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -307,14 +333,23 @@ formula :: formula_ ::=
 | judgement :: :: judgement
   {{ com judgement }}
 %Expressions
+| ! b = b' :: M :: neg_bool
+  {{ hol (~[[b]] = [[b']]) }}
+| ~ n = n' :: M :: compl
+  %TODO
+  {{ hol (~ [[n]] = [[n']]) }}
+| - n = n' :: M :: neg_signed
+  %TODO
+  {{ hol (~ [[n]] = [[n']]) }}
+| + n = n' :: M :: un_plus
+  %TODO: Read specification...
+  {{ hol ([[n]] = [[n']]) }}
 | n * n' = n'' :: M :: mul
   {{ hol (word_mul [[n]] [[n']] = [[n'']]) }}
-  {{ tex [[n]] \times [[n']] = [[n'']] }}
 | n / n' = n'' :: M :: div
   {{ hol (word_div [[n]] [[n']] = [[n'']]) }}
 | n mod n' = n'' :: M :: mod
   {{ hol (word_mod [[n]] [[n']] = [[n'']]) }}
-  {{ tex [[n]] \bmod [[n']] = [[n'']] }}
 | n + n' = n'' :: M :: add
   {{ hol (word_add [[n]] [[n']] = [[n'']]) }}
 | n - n' = n'' :: M :: sub
@@ -322,46 +357,35 @@ formula :: formula_ ::=
 %TODO: EQ for const?
 | n EQ n' = b :: M :: eq_word
   {{ hol ([[n]] = [[n']] <=> [[b]]) }}
-  {{ tex ([[n]] = [[n']]) = [[b]] }}
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
-  {{ tex ([[b]] = [[b']]) = [[b'']] }}
 | n SHL n' = n'' :: M :: shl
   {{ hol (word_lsl_bv [[n]] [[n']] = [[n'']]) }}
-  {{ tex [[n]] \ll [[n']] = [[n'']] }}
   %TODO: Double-check
 | n SHR n' = n'' :: M :: shr
   {{ hol (word_asr_bv [[n]] [[n']] = [[n'']]) }}
-  {{ tex [[n]] \gg [[n']] = [[n'']] }}
   %TODO: Double-check
 | n LE n' = b :: M :: le
   {{ hol ([[n]] <= [[n']] <=> [[b]]) }}
-  {{ tex ([[n]] \leq [[n']]) = [[b]] }}
 | n GE n' = b :: M :: ge
   {{ hol ([[n]] >= [[n']] <=> [[b]]) }}
-  {{ tex ([[n]] \geq [[n']]) = [[b]] }}
 | n < n' = b :: M :: lt
   {{ hol ([[n]] < [[n']] <=> [[b]]) }}
 | n > n' = b :: M :: gt
   {{ hol ([[n]] > [[n']] <=> [[b]]) }}
 | n NE n' = b :: M :: neq_word
   {{ hol ([[n]] <> [[n']] <=> [[b]]) }}
-  {{ tex ([[n]] \neq [[n']]) = [[b]] }}
 | n & n' = n'' :: M :: and_word
   {{ hol (word_and [[n]] [[n']] = [[n'']]) }}
-  {{ tex [[n]] \And [[n']] = [[n'']] }}
 | n ^ n' = n'' :: M :: xor_word
   {{ hol (word_xor [[n]] [[n']] = [[n'']]) }}
   %TODO: LaTeX XOR
 | n '|' n' = n'' :: M :: or_word
   {{ hol (word_or [[n]] [[n']] = [[n'']]) }}
-  {{ tex [[n]] \mid [[n']] = [[n'']] }}
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
-  {{ hol [[b]] \land [[b']] = [[b'']] }}
 | b OR b' = b'' :: M :: or_bool
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
-  {{ hol [[b]] \lor [[b']] = [[b'']] }}
 
 %Type-transforming operations
 %TODO: Some kept here because moving them up to their definitions does not always work...
@@ -381,8 +405,10 @@ formula :: formula_ ::=
 | n = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[n]]) }}
-| exp = exp1 , .. , expi [ num ] :: M :: args_index
-  {{ hol ([[exp]] = EL [[num]] [[exp1 .. expi]]) }}
+| exp = exp_list [ num ] :: M :: args_index
+  {{ hol ([[exp]] = EL [[num]] [[exp_list]]) }}
+| exp = exp_list . head :: M :: args_head
+  {{ hol ([[exp]] = HD [[exp_list]]) }}
 
 %Function argument resolution
 | const1 , .. , constj ++ expr1 , .. , exprk = exp1 , .. , expi :: M :: func_args_const_app
@@ -398,9 +424,9 @@ formula :: formula_ ::=
   {{ com condition false }}
   {{ hol ([[b]] = F) }}
   {{ tex [[b]] = \mathrm{False} }}
-| is_empty ( exp1 , .. , expi ) :: M :: args_empty
+| is_empty ( exp_list ) :: M :: args_empty
   {{ com function arguments empty }}
-  {{ hol (NULL [[exp1 .. expi]]) }}
+  {{ hol (NULL [[exp_list]]) }}
   {{ tex \mathit{exp}_1 , .. , \mathit{exp}_i = \{ \} }}
 
 %Equalities
@@ -414,9 +440,10 @@ formula :: formula_ ::=
   {{ com call_stack equality }}
   {{ hol ([[call_stack]] = [[call_stack']]) }}
 %TODO: This can cause confusion with the judgements with binary expression equalities...
-| exp1 , .. , expi =' exp1 , .. , expj :: M :: args_eq
+| exp_list =' exp_list' :: M :: args_eq
   {{ com args equality }}
-  {{ hol ([[exp1 .. expi]] = [[exp1 .. expj]]) }}
+  {{ hol ([[exp_list]] = [[exp_list']]) }}
+  {{ tex ([[exp_list]] = [[exp_list']]) }}
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
@@ -424,15 +451,10 @@ formula :: formula_ ::=
   {{ com numeral increment }}
   {{ hol ([[num']] = [[num]] + 1) }}
   {{ tex [[num']] = [[num]] + 1 }}
-| num < length( exp1 , .. , expi ) :: M :: num_in_rg
+| num < length( exp_list ) :: M :: num_in_rg
   {{ com numeral in range }}
-  {{ hol ([[num]] < LENGTH [[exp1 .. expi]]) }}
+  {{ hol ([[num]] < LENGTH [[exp_list]]) }}
   {{ tex [[num]] < \mathrm{LENGTH}(\mathit{exp}) }}
-%TODO: Operations on function arguments
-| exp1 , .. , expj =' update ( exp , num , ( exp1 , .. , expi ) ) :: M :: args_update
-  {{ hol ([[exp1 .. expj]] = LUPDATE [[exp]] [[num]] [[exp1 .. expi]]) }}
-| exp = exp1 , .. , expi . head :: M :: args_head
-  {{ hol ([[exp]] = HD [[exp1 .. expi]]) }}
 
 subrules
   const <:: exp
@@ -468,12 +490,12 @@ by
   expre1 , .. , exprei =' update ( exp' , num , ( expr1 , .. , exprk ) )
   ----------------------------------- :: func_call_args1
   %TODO: Cannot have two indiced lists here?
-  [call x ( const1 , .. , consti )] ( stacks , Running ) ~> [call x ( expre1 , .. , exprei )] ( stacks , Running )
+  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( expre1 , .. , exprei )] ( stacks , Running )
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   scope = curr_stack_frame[0]
   ( stmt , x1 , .. , xi ) = func_map ( x )
-  scope' = emptyscope + [ x1 , .. , xi ||-> n1 , .. , ni ]
+  scope' = emptyscope ++ [ x1 |->  n1 , .. , xi |-> ni ]
   curr_stack_frame' = ([scope]).push(scope')
   call_stack' = call_stack . push ( curr_stack_frame . tail )
   ----------------------------------- :: func_call_args2
@@ -496,6 +518,43 @@ by
   n = scope ( x )
   ----------------------------------- :: lookup
   [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [const] ( ( curr_stack_frame, call_stack ) , Running )
+
+%%%%%%%%%%%%%%%%%%%
+%Unary expressions%
+%%%%%%%%%%%%%%%%%%%
+
+
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: unop
+  [unop exp] ( stacks , Running ) ~> [unop exp'] ( stacks' , Running )
+
+%%%%%%%%%%%%%%%%%
+%Boolean negation
+
+  ! b = b'
+  ----------------------------------- :: neg_bool
+  [! b] ( stacks , Running ) ~> [b'] ( stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%
+%Bitwise complement
+
+  ~ n = n'
+  ----------------------------------- :: compl
+  [~ n] ( stacks , Running ) ~> [n'] ( stacks , Running )
+
+%%%%%%%%%%%%%%%%
+%Signed negation
+
+  - n = n'
+  ----------------------------------- :: neg_signed
+  [- n] ( stacks , Running ) ~> [n'] ( stacks , Running )
+
+%%%%%%%%%%%
+%Unary plus
+
+  + n = n'
+  ----------------------------------- :: un_plus
+  [+ n] ( stacks , Running ) ~> [n'] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
