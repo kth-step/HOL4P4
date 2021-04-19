@@ -738,8 +738,11 @@ by
   [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_decl] ( ( curr_stack_frame'' , call_stack ) , Running )
 
   [decl1] ( stacks , Running ) -> [decl1'] ( stacks' , Running )
-  ----------------------------------- :: seq
+  ----------------------------------- :: seq1
   [decl1 ; decl2] ( stacks , Running ) -> [decl1' ; decl2] ( stacks' , Running )
+
+  ----------------------------------- :: seq2
+  [empty_decl ; decl] ( stacks , Running ) -> [decl] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -799,8 +802,11 @@ by
 %Sequence
 
   [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Running )
-  ----------------------------------- :: seq
+  ----------------------------------- :: seq1
   [stmt1 ; stmt2] ( stacks , Running ) -> [stmt1' ; stmt2] ( stacks' , Running )
+
+  ----------------------------------- :: seq2
+  [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
 
 %%%%%%%%%%%%%%
 %Conditional
