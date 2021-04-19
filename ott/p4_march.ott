@@ -196,6 +196,13 @@ exp_list :: exp_list_ ::=
 % Statements %
 %%%%%%%%%%%%%%
 
+decl :: decl_ ::=
+{{ com declaration }}
+| declare x exp :: :: stmt
+  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
+| empty_decl :: :: empty
+| decl1 ; decl2 :: :: seq  
+
 %TODO: Switch
 stmt :: stmt_ ::=
 {{ com statement }}
@@ -221,6 +228,10 @@ stmt :: stmt_ ::=
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
+| begin decl1 , .. , decli stmt1 , .. , stmtj end :: :: block 
+  {{ com block }}
+| begin' decl1 , .. , decli stmt1 , .. , stmtj end' :: :: block_ip
+  {{ com block in progress }}
 
 func_map :: func_map_ ::=
 {{ com function map  }}
@@ -704,6 +715,30 @@ by
   [b OR b'] ( stacks , Running ) ~> [b''] ( stacks , Running )
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% Declaration semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defns
+  decl_sem :: '' ::=
+defn
+  [ decl ] state -> [ decl' ] state' :: :: decl_red :: decl_
+  {{ com declaration semantics }}
+by
+
+  %Declare a variable and assign a value - reduction step
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: decl_exp
+  [declare x exp] ( stacks , Running ) -> [declare x exp'] ( stacks' , Running )
+
+  scope :: curr_stack_frame' = curr_stack_frame
+  scope' = scope + [ x |-> n ]
+  curr_stack_frame'' = scope' :: curr_stack_frame'
+  ----------------------------------- :: decl_const
+  [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack ) , Running )
+
+  
+
 %%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics %
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -796,6 +831,29 @@ by
   %      Rule 1 pushes new scope onto current stack frame, and changes block syntax
   %      Rule 2 allows small-step reductions inside in-progress block
   %      Rule 3 exits in-progress block and pops scope
+
+ 
+  curr_stack_frame' = emptyscope :: curr_stack_frame
+  ----------------------------------- :: block_enter
+  [begin decl stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' decl stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
+
+
+  [decl] ( stacks , Running ) -> [decl'] ( stacks' , Running )
+  ----------------------------------- :: block_declare
+  [begin' decl stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' decl' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
+
+
+  [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
+  ----------------------------------- :: block_stmt
+  [begin' empty_decl stmt end'] ( stacks , Running ) -> [begin' empty_decl stmt' end'] ( stacks' , Running )
+
+
+   scope :: curr_stack_frame' = curr_stack_frame
+  ----------------------------------- :: block_exit
+  [begin' empty_decl empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [skip] ( ( curr_stack_frame' , call_stack ) , Running )
+
+
+%TODO: B2, B3, B4 rules
 
 %%%%%%%%%%%%%%
 %Exit
