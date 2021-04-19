@@ -115,14 +115,8 @@ binop {{ tex \oplus }} :: binop_ ::=
 %TODO: Tuples
 %TODO: Enums
 %TODO: Conditional operator
-%TODO: Forced to add aliases "expr" and "expre" in order to use two lists in the same
-%      formula or judgement
-%TODO: We want to separate constant values into a subtype somehow...
 exp :: exp_ ::=
 {{ com expression }}
-%| const :: :: const
-%  {{ com constant }}
-%  {{ hol [[const]] }}
 | b :: :: bool
   {{ com boolean value }}
 %  {{ hol [[b]] }}
@@ -137,7 +131,6 @@ exp :: exp_ ::=
 | exp1 binop exp2 :: :: binop
   {{ com binary operation }}
   {{ tex [[exp1]] [[binop]] [[exp2]] }}
-%  {{ hol ([[binop]] [[exp1]] [[exp2]]) }}
 | call x ( exp1 , .. , expi ) :: :: func_call
   {{ com function call }}
 | exec stmt :: :: func_exec
@@ -205,12 +198,12 @@ stmt :: stmt_ ::=
   {{ tex [[x]] \mathrel{\mathop:}= [[exp]] }}
 | if exp then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-| begin decl1 , .. , decli stmt1 , .. , stmtj end :: :: block 
+| begin decl stmt end :: :: block 
   {{ com block }}
-| begin' decl1 , .. , decli stmt1 , .. , stmtj end' :: :: block_ip
+  {{ tex \{ [[decl]] \,\, [[stmt]] \} }}
+| begin' decl stmt end' :: :: block_ip
   {{ com block in progress }}
-%| exit :: :: exit
-%  {{ com exit }}
+  {{ tex [ [[decl]] \,\, [[stmt]] ] }}
 | return exp :: :: ret
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
@@ -484,7 +477,7 @@ by
   scope = curr_stack_frame [ 0 ]
   curr_stack_frame' = emptyscope :: [ scope ]
   call_stack' = tl curr_stack_frame :: call_stack
-  (stmt, x1 , .. , xi ) = func_map ( x )
+  (stmt, x1 , .. , xj ) = func_map ( x )
   ----------------------------------- :: func_call_noargs
   [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [exec stmt] ( ( curr_stack_frame' , call_stack' ) , Running )
 
@@ -492,12 +485,11 @@ by
   %TODO: force exp'1 , .. , exp'j to be non-empty?
   exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi
   is_consts ( exp'1 , .. , exp'j )
-  exp = hd exp'''1 , .. , exp'''k
+  exp = hd exp''1 , .. , exp''k
   [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks , Running )
-  exp''''1 , .. , exp''''i =' update ( exp' , num , ( exp'''1 , .. , exp'''k ) )
+  exp'''1 , .. , exp'''l =' update ( exp' , num , ( exp''1 , .. , exp''k ) )
   ----------------------------------- :: func_call_args1
-  %TODO: Cannot have two indiced lists here?
-  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp''''1 , .. , exp''''i )] ( stacks , Running )
+  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'''1 , .. , exp'''l )] ( stacks , Running )
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   is_consts ( exp1 , .. , expi )
@@ -520,7 +512,6 @@ by
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
-  %TODO: Fewer antecedents
   find_index ( curr_stack_frame, x ) = num
   scope = curr_stack_frame [ num ]
   exp = scope ( x )
@@ -841,7 +832,7 @@ by
   [begin' empty_decl stmt end'] ( stacks , Running ) -> [begin' empty_decl stmt' end'] ( stacks' , Running )
 
 
-   curr_stack_frame' = tl curr_stack_frame
+  curr_stack_frame' = tl curr_stack_frame
   ----------------------------------- :: block_exit
   [begin' empty_decl empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
