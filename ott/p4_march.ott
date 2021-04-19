@@ -105,18 +105,6 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
-%Constants
-%Subrule of exp
-const :: const_ ::=
-%%TODO: Unify all of n, bv, b into a word64 const?
-%%| bv :: :: bv_const
-%| b :: :: bool
-%  {{ com boolean value }}
-%%  {{ hol [[b]] }}
-| n :: :: int
-  {{ com integer value }}
-%  {{ hol [[n]] }}
-
 %TODO: Members (dot)
 %TODO: String literal
 %TODO: L-values and identifiers
@@ -130,7 +118,7 @@ const :: const_ ::=
 %TODO: Forced to add aliases "expr" and "expre" in order to use two lists in the same
 %      formula or judgement
 %TODO: We want to separate constant values into a subtype somehow...
-exp, expr, expre :: exp_ ::=
+exp :: exp_ ::=
 {{ com expression }}
 %| const :: :: const
 %  {{ com constant }}
@@ -242,26 +230,25 @@ func_map :: func_map_ ::=
 status :: status_ ::=
  {{ com execution status }}
 | Running :: :: running
-%TODO Currently, only word64 can be returned.
-| Return n :: :: return
+| Return exp :: :: return
 | TypeError :: :: type_error
 
 %TODO: Would like this to map to const instead of n, but run into errors during HOL4 export...
 scope :: scope_ ::=
-{{ hol (string |-> n) }}
+{{ hol (string |-> exp) }}
 {{ com frame/variable environment of current scope }}
 | emptyscope :: M :: empty
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
   {{ tex {\emptyset}_{ \mathrm{scope} } }}
-| scope + [ x |-> n ] :: M :: update
+| scope + [ x |-> exp ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[x]], [[n]])) }}
-  {{ tex ([[x]] \mapsto  [[n]]) [[scope]] }}
-| scope ++ [ x1 |-> n1 , .. , xi |-> ni ] :: M :: update_list
+  {{ hol (FUPDATE [[scope]] ([[x]], [[exp]])) }}
+  {{ tex ([[x]] \mapsto  [[exp]]) [[scope]] }}
+| scope ++ [ x1 |-> exp1 , .. , xi |-> expi ] :: M :: update_list
   {{ com update variable mapping }}
-  {{ hol (FUPDATE_LIST [[scope]] [[x1 n1 .. xi ni]]) }}
-  {{ tex \forall i . (x_i \mapsto  n_i) [[scope]] }}
+  {{ hol (FUPDATE_LIST [[scope]] [[x1 exp1 .. xi expi]]) }}
+  {{ tex \forall i . (x_i \mapsto  \mathit{exp}_i) [[scope]] }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
 
@@ -279,9 +266,6 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   {{ tex {\emptyset}_{\varepsilon} }}
 | [ scope1 , .. , scopei ] :: M :: list
   {{ hol ([[scope1 .. scopei]]) }}
-| curr_stack_frame . push ( scope ) :: M :: push
-  {{ hol (([[scope]]::[[curr_stack_frame]])) }}
-  {{ tex ([[scope]]::[[curr_stack_frame]]) }}
 | curr_stack_frame . tail :: M :: tail
   {{ hol (TL [[curr_stack_frame]]) }}
   {{ tex \mathit{tl} ([[curr_stack_frame]]) }}
@@ -305,9 +289,9 @@ call_stack {{ tex E }} :: call_stack_ ::=
   {{ tex {\emptyset}_{E} }}
 | [ curr_stack_frame1 , .. , curr_stack_framei ] :: M :: list
   {{ hol ([[curr_stack_frame1 .. curr_stack_framei]]) }}
-| call_stack . push ( curr_stack_frame ) :: M :: push
-  {{ hol (([[curr_stack_frame]]::[[call_stack]])) }}
-  {{ tex ([[curr_stack_frame]]::[[call_stack]]) }}
+| curr_stack_frame '::' call_stack :: M :: cons
+  {{ hol ([[curr_stack_frame]] :: [[call_stack]]) }}
+  {{ tex [[curr_stack_frame]] \mathrel{\mathop:}: [[call_stack]] }}
 | ( call_stack ) :: S :: paren
   {{ hol ([[call_stack]]) }}
 
@@ -402,18 +386,19 @@ formula :: formula_ ::=
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
   {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
-| n = scope ( x ) :: M :: lookup
+| exp = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
-  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[n]]) }}
+  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[exp]]) }}
 | exp = exp_list [ num ] :: M :: args_index
   {{ hol ([[exp]] = EL [[num]] [[exp_list]]) }}
 | exp = exp_list . head :: M :: args_head
   {{ hol ([[exp]] = HD [[exp_list]]) }}
 
 %Function argument resolution
-| const1 , .. , constj ++ expr1 , .. , exprk = exp1 , .. , expi :: M :: func_args_const_app
+%TODO: Replace with expression list
+| exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi :: M :: func_args_append
   {{ com pattern match on constant and non-constant function arguments }}
-  {{ hol (([[const1 .. constj]] ++ [[expr1 .. exprk]]) = [[exp1 .. expi]]) }}
+  {{ hol (([[exp'1 .. exp'j]] ++ [[exp''1 .. exp''k]]) = [[exp1 .. expi]]) }}
 
 %Conditions
 | b = true :: M :: is_true
@@ -455,9 +440,27 @@ formula :: formula_ ::=
   {{ com numeral in range }}
   {{ hol ([[num]] < LENGTH [[exp_list]]) }}
   {{ tex [[num]] < \mathrm{LENGTH}(\mathit{exp}) }}
+| is_const ( exp ) :: M :: exp_const
+  {{ com expression constant }}
+  {{ hol (is_const [[exp]]) }}
+  {{ tex \mathrm{is\_const} ([[exp]]) }}
+| is_consts ( exp1 , .. , expi ) :: M :: args_const
+  {{ com function arguments constant }}
+  {{ hol (is_consts [[exp1 .. expi]]) }}
+  {{ tex \mathrm{is\_consts} (\mathit{exp}_1 , .. , \mathit{exp}_i) }}
 
-subrules
-  const <:: exp
+embed
+{{ hol
+val is_const_def = Define `
+    ( is_const (exp_bool b) = T)
+/\  ( is_const (exp_int n) = T)
+/\  ( is_const _ = F)
+`;
+val is_consts_def = Define `
+    (is_consts exp_list = ~(EXISTS (\el. ~(is_const el)) exp_list))
+`;
+}}
+grammar
 
 defns
   exp_sem :: '' ::=
@@ -467,7 +470,6 @@ defn
   %Uses different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status
   {{ tex [ [[exp]] ] ( [[stacks]] ) \rightsquigarrow [ [[exp']] ] ( [[stacks']] ) }}
 by
-%TODO: Status changes
 
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
@@ -475,39 +477,40 @@ by
   %No arguments
   is_empty ( exp1 , .. , expi )
   scope = curr_stack_frame [ 0 ]
-  curr_stack_frame' = ( [ scope ] ) . push ( emptyscope )
-  call_stack' = call_stack . push ( curr_stack_frame . tail )
+  curr_stack_frame' = emptyscope :: [ scope ]
+  call_stack' = curr_stack_frame . tail :: call_stack
   (stmt, x1 , .. , xi ) = func_map ( x )
   ----------------------------------- :: func_call_noargs
   [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [exec stmt] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   %Resolving arguments to function call - reduction
-  %TODO: force expr1 , .. , exprk to be non-empty?
-  const1 , .. , constj ++ expr1 , .. , exprk = exp1 , .. , expi
-  exp = expr1 , .. , exprk . head
+  %TODO: force exp'1 , .. , exp'j to be non-empty?
+  exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi
+  is_consts ( exp'1 , .. , exp'j )
+  exp = exp'''1 , .. , exp'''k . head
   [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks , Running )
-  %TODO: Cannot have two indiced lists here? exp1 , .. , expi and exp1 , .. , expj not OK
-  expre1 , .. , exprei =' update ( exp' , num , ( expr1 , .. , exprk ) )
+  exp''''1 , .. , exp''''i =' update ( exp' , num , ( exp'''1 , .. , exp'''k ) )
   ----------------------------------- :: func_call_args1
   %TODO: Cannot have two indiced lists here?
-  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( expre1 , .. , exprei )] ( stacks , Running )
+  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp''''1 , .. , exp''''i )] ( stacks , Running )
 
   %Resolving arguments to function call - assigning arguments to new stack frame
+  is_consts ( exp1 , .. , expi )
   scope = curr_stack_frame[0]
   ( stmt , x1 , .. , xi ) = func_map ( x )
-  scope' = emptyscope ++ [ x1 |->  n1 , .. , xi |-> ni ]
-  curr_stack_frame' = ([scope]).push(scope')
-  call_stack' = call_stack . push ( curr_stack_frame . tail )
+  scope' = emptyscope ++ [ x1 |->  exp1 , .. , xi |-> expi ]
+  curr_stack_frame' = scope' :: [scope]
+  call_stack' = curr_stack_frame . tail :: call_stack
   ----------------------------------- :: func_call_args2
-  [call x ( n1 , .. , ni )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: func_exec
   [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
 
-  
+  is_const ( exp )
   ----------------------------------- :: func_ret_exp
-  [exec empty_stmt] ( stacks , Return n ) ~> [const] ( stacks' , Running )
+  [exec empty_stmt] ( stacks , Return exp ) ~> [exp] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%
 %Variable look-up
@@ -515,9 +518,10 @@ by
   %TODO: Fewer antecedents
   find_index ( curr_stack_frame, x ) = num
   scope = curr_stack_frame [ num ]
-  n = scope ( x )
+  exp = scope ( x )
+  is_const ( exp )
   ----------------------------------- :: lookup
-  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [const] ( ( curr_stack_frame, call_stack ) , Running )
+  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [exp] ( ( curr_stack_frame, call_stack ) , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Unary expressions%
@@ -572,9 +576,10 @@ by
   ----------------------------------- :: binop1
   [exp binop exp'] ( stacks , Running ) ~> [exp'' binop exp'] ( stacks' , Running )
 
+  is_const ( exp )
   [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
   ----------------------------------- :: binop2
-  [const binop exp'] ( stacks , Running ) ~> [const binop exp''] ( stacks' , Running )
+  [exp binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%
@@ -720,17 +725,6 @@ defn
 by
 
 %%%%%%%%%%%%%%
-%Function call
-%  %Function call with no arguments
-%  is_empty ( exp1 , .. , expi )
-%  scope = curr_stack_frame[0]
-%  curr_stack_frame' = ([scope]).push(emptyscope)
-%  call_stack' = call_stack . push ( curr_stack_frame . tail )
-%  ( stmt , x1 , .. , xi ) = func_map ( x )
-%  ----------------------------------- :: func_call_noargs
-%  [x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) -> [stmt] ( ( curr_stack_frame' , call_stack' ) , Running )
-
-%%%%%%%%%%%%%%
 %Return
 
   %Return with an expression - reduction step
@@ -739,27 +733,29 @@ by
   [return exp] ( stacks , Running ) -> [return exp'] ( stacks' , Running )
 
   %Return with a constant
+  is_const ( exp )
   scope = curr_stack_frame [ 0 ]
   curr_stack_frame' = call_stack . top
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
   ----------------------------------- :: ret_const
-  [return n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return n )
+  [return exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return exp )
 
   %With our current semantics with function calls limited to expressions,
   %we can reduce all statements to the empty statement when status is Return.
   ----------------------------------- :: ret_empty
-  [stmt] ( stacks , Return n ) -> [empty_stmt] ( stacks , Return n )
+  [stmt] ( stacks , Return exp ) -> [empty_stmt] ( stacks , Return exp )
 
 %%%%%%%%%%%%%%
 %Assignment
 
   %Assign a constant to a variable
+  is_const ( exp )
   find_index ( curr_stack_frame , x ) = num
   scope = curr_stack_frame [ num ]
-  scope' = scope + [ x |-> n ]
+  scope' = scope + [ x |-> exp ]
   curr_stack_frame' = update ( scope' , num , curr_stack_frame )
   ----------------------------------- :: ass_const
-  [assign x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  [assign x exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign an expression to a variable - reduction step
   [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
