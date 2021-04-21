@@ -444,6 +444,7 @@ formula :: formula_ ::=
 | is_consts ( exp1 , .. , expi ) :: M :: args_const
   {{ com function arguments constant }}
   {{ hol (is_consts [[exp1 .. expi]]) }}
+  %TODO: Fix typesetting
   {{ tex \mathrm{is\_consts} (\mathit{exp}_1 , .. , \mathit{exp}_i) }}
 
 embed
@@ -485,7 +486,8 @@ by
   exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi
   is_consts ( exp'1 , .. , exp'j )
   exp = hd exp''1 , .. , exp''k
-  [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks , Running )
+  [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks' , Running )
+  %TODO: length plus 1 if indexing from 1
   num = length ( exp'1 , .. , exp'j )
   exp'''1 , .. , exp'''l =' update ( exp' , num , ( exp1 , .. , expi ) )
   ----------------------------------- :: func_call_args1
@@ -762,7 +764,7 @@ by
   %Return with a constant
   is_const ( exp )
   scope = curr_stack_frame [ 0 ]
-  curr_stack_frame' = hd call_stack
+  curr_stack_frame' :: call_stack' = call_stack
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
   ----------------------------------- :: ret_const
   [return exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return exp )
@@ -808,11 +810,11 @@ by
 
   b = true
   ----------------------------------- :: cond2
-  [if b then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks' , Running )
+  [if b then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks , Running )
 
   b = false
   ----------------------------------- :: cond3
-  [if b then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks' , Running )
+  [if b then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
 %Block
@@ -824,7 +826,7 @@ by
 
   [decl] ( stacks , Running ) -> [decl'] ( stacks' , Running )
   ----------------------------------- :: block_declare
-  [begin' decl stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' decl' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
+  [begin' decl stmt end'] ( stacks , Running ) -> [begin' decl' stmt end'] ( stacks' , Running )
 
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
