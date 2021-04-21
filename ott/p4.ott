@@ -472,15 +472,6 @@ by
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
 
-  %No arguments
-  is_empty ( exp1 , .. , expi )
-  scope = curr_stack_frame [ 0 ]
-  curr_stack_frame' = emptyscope :: [ scope ]
-  call_stack' = tl curr_stack_frame :: call_stack
-  (stmt, x1 , .. , xj ) = func_map ( x )
-  ----------------------------------- :: func_call_noargs
-  [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [exec stmt] ( ( curr_stack_frame' , call_stack' ) , Running )
-
   %Resolving arguments to function call - reduction
   %TODO: force exp'1 , .. , exp'j to be non-empty?
   exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi

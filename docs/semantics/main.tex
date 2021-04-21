@@ -156,7 +156,6 @@ The status \textbf{Running} represents that the program is executing under regul
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{exp}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{exp'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
 \ottusedrule{\ottdruleexpXXlookup{}}
-\ottusedrule{\ottdruleexpXXfuncXXcallXXnoargs{}}
 \ottusedrule{\ottdruleexpXXfuncXXcallXXargsOne{}}
 \ottusedrule{\ottdruleexpXXfuncXXcallXXargsTwo{}}
 \ottusedrule{\ottdruleexpXXfuncXXexec{}}
@@ -173,11 +172,9 @@ The small-step semantics for reducing expressions is shown in Figure~\ref{fig:se
 
 In the \textsc{exp\_lookup} rule, the first antecedent ensures that the variable \str{} is evaluated in the uppermost (i.e. most recent entered) scope of the current stack frame \currsf{} where it is declared, by preventing \str{} to be in the domain of any \scope{} higher in \currsf{} than the one used for variable resolution. This agrees with the description in \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-name-resolution}{Sections 6.8} and \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
 
-The \textsc{exp\_func\_call\_noargs} rule is for the case of function calls inside expressions with no arguments. It takes the global scope \gscope{} and uses this as the bottom element of a new current stack frame $\currsf '$ which has a fresh scope as head. The tail of the old current stack frame \currsf{} is then saved as the new head of the call stack \cstack{}, to be used later when returning from the function call. Note that this means duplicates of the global scope are not saved in the call stack. Finally, the body of the function (\stmt{}) is obtained from the function map \fmap{}, which holds mappings between function names \str{} and tuples of function bodies and lists of their argument names.
-
 The \textsc{exp\_func\_call\_args1} rule reduces the leftmost function argument which has yet to be reduced to a constant with one expression evaluation step. The first two antecedents divide the list of arguments into two sub-lists, where the prefix must contain all constants. The head of the suffix is then reduced with one expression small-step, after which the corresponding index in the original list of arguments is update with the resulting expression.
 
-The \textsc{exp\_func\_call\_args2} rule is used when all of the function arguments have been reduced to constants using \textsc{exp\_func\_call\_args1} (or if they were all constants to begin with). The constants are assigned to their respective argument names in a fresh scope, after which this scope is put on top of the global scope \gscope{} is order to form the new current stack frame $\currsf '$. The old current stack frame \currsf{} is then saved on top of the call stack \cstack{}, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{}.
+The \textsc{exp\_func\_call\_args2} rule is used when all of the function arguments have been reduced to constants using \textsc{exp\_func\_call\_args1} (or if they were all constants to begin with). The constants are assigned to their respective argument names in a fresh scope, after which this scope is put on top of the global scope \gscope{} in order to form the new current stack frame $\currsf '$. The old current stack frame \currsf{} is then saved on top of the call stack \cstack{} to be used later when returning from the function call, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{} (obtained from the function map \fmap{}, which holds mappings between function names \str{} and tuples of function bodies and lists of their argument names). Note that this rule also covers the case of a function call with no arguments.
 
 The \textsc{exp\_func\_exec} rule reduces the function body of in-progess execution with one small-step statement reduction.
 
