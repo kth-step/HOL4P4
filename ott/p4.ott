@@ -760,11 +760,6 @@ by
   ----------------------------------- :: ret_const
   [return exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return exp )
 
-  %With our current semantics with function calls limited to expressions,
-  %we can reduce all statements to the empty statement when status is Return.
-  ----------------------------------- :: ret_empty
-  [stmt] ( stacks , Return exp ) -> [empty_stmt] ( stacks , Return exp )
-
 %%%%%%%%%%%%%%
 %Assignment
 
@@ -791,6 +786,10 @@ by
 
   ----------------------------------- :: seq2
   [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
+
+  [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return exp )
+  ----------------------------------- :: seq3
+  [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return exp )
 
 %%%%%%%%%%%%%%
 %Conditional
