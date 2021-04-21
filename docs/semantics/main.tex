@@ -84,28 +84,7 @@ Our formalization includes a subset of the full set of P4 expressions found in \
 \label{fig:exp}
 \end{figure}
 
-The expressions included are shown in Figure~\ref{fig:exp}. First, an expression can be a Boolean or an integer (collectively referred to as constants), or a string. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants. The function call is built from the function name \str{}, and a list of arguments (expressions). Function execution is not found in any P4 program, but is rather an artifact of our semantics, signifying the in-progress execution of the body of a called function.
-
-\begin{figure}[ht!]
-\centering\ottgrammartabular{
-\ottunop\ottafterlastrule
-}
-\caption{P4 Unary Operations}
-\label{fig:unop}
-\end{figure}
-
-The unary expressions included are shown in Figure~\ref{fig:unop}. These include all of the unary operations in P4. Boolean negation is only defined on Booleans, the other operations have their standard meanings (note that \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-bit-ops}{unary plus is a no-op}).
-
-\newpage
-\begin{figure}[h!]
-\centering\ottgrammartabular{
-\ottbinop\ottafterlastrule
-}
-\caption{P4 Binary Operations}
-\label{fig:binop}
-\end{figure}
-
-The binary expressions included are shown in Figure~\ref{fig:unop}. These include all of the binary operations in P4.
+The expressions included are shown in Figure~\ref{fig:exp}. First, an expression can be a Boolean or an integer (collectively referred to as constants), or a string. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants. The function call is built from the function name \str{}, and a list of arguments (expressions). Function execution is not found in any P4 program, but is rather an artifact of our semantics, signifying the in-progress execution of the body of a called function. The concrete syntax of unary and binary operations is found in Appendix~\ref{app:op}.
 
 \newpage
 \subsection{Statements}
@@ -194,7 +173,7 @@ The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execut
 %\label{fig:judgexec}
 %\end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[ht!]
 \ottdefnsstmtXXsem
 \caption{P4 Statement Execution Semantics}
 \label{fig:semstmtexec}
@@ -219,5 +198,31 @@ The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execut
 %\end{figure}
 
 \printbibliography
+
+\clearpage
+\appendix
+\section{Concrete Syntax of Operations}
+\label{app:op}
+\begin{figure}[ht!]
+\centering\ottgrammartabular{
+\ottunop\ottafterlastrule
+}
+\caption{P4 Unary Operations}
+\label{fig:unop}
+\end{figure}
+
+The unary expressions included are shown in Figure~\ref{fig:unop}. These include all of the unary operations in P4. Boolean negation is only defined on Booleans, the other operations have their standard meanings (note that \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-bit-ops}{unary plus is a no-op}).
+
+\newpage
+\begin{figure}[ht!]
+\centering\ottgrammartabular{
+\ottbinop\ottafterlastrule
+}
+\caption{P4 Binary Operations}
+\label{fig:binop}
+\end{figure}
+
+The binary expressions included are shown in Figure~\ref{fig:unop}. These include all of the binary operations in P4.
+
 \end{document}
 
