@@ -55,27 +55,27 @@ This is a pen-and-paper semantics of P4, inspired by Core P4~\cite{doenges2021pe
 %\newpage
 \section{Syntax}
 \subsection{Types}
+\newcommand{\num}{\textit{num}}
+\newcommand{\str}{\textit{x}}
+\newcommand{\inte}{\textit{n}}
 %
 %TODO Base types (integers, booleans, bit strings, errors, headers...), function types (superset of base types also including tables, functions and constructors) and directions (in, out, inout), ...
 %
 \begin{figure}[h!]
 \centering
 \ottmetavars
-\caption{P4 Types}
+\caption{Primitive Types}
+\label{fig:types}
 \end{figure}
-%
-TODO: P4 typing rules?
-%
+
+The types shown in Figure~\ref{fig:types} are the subset of P4 types included in this formalization and their standard designations, plus the numerals \num{} and the indices which are not P4 types, but used throughout this formalization. A string \str{} can be used as a function name or a variable name. The integer \inte{} is a 64-bit word.
+
 \newpage
 \subsection{Expressions}
-The \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-exprs}{full set of P4 expressions} as stated by the P4 specification includes more than the expressions stated here.
-%
-%Let $b$ be a Boolean value and $\mathit{bs} = [b_1 , \ldots , b_n]$ a bitstring. As shown in Figure~\ref{fig:exp}, an expression is either the parser input ($\mathbf{In}$, a bitstring), or the parser output ($\mathbf{Out}$, a map from field names $f$ (strings) to bitstrings - supposed to represent a record), a comparison between two expressions, or a constant bitstring. Note that this means we have currently ignored most unary and binary expressions, keeping only the equality comparison.
-%
-%Note also that $\mathbf{In}$ and $\mathbf{Out}$ are hard-coded in the sense that they will syntactically be part of the execution state, which is introduced later on. More generally you might have something like just a variable environment, where the variable names $\mathbf{In}$ and $\mathbf{Out}$ map to their respective values.
-%
-%{\color{red} NOTE: $\mathbf{In}$ and $\mathbf{Out}$ could be renamed with a prefix ``Pars'' or similar, to distinguish them from direction types.}
-%
+\newcommand{\fmap}{\textit{F}}
+
+Our formalization includes a subset of the full set of P4 expressions found in \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-exprs}{Section 8} of the P4 specification.
+
 \begin{figure}[h!]
 \centering\ottgrammartabular{
 \ottexp\ottafterlastrule
@@ -83,12 +83,36 @@ The \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-exprs}{full set of P
 \caption{P4 Expressions}
 \label{fig:exp}
 \end{figure}
-%
+
+The expressions included are shown in Figure~\ref{fig:exp}. First, an expression can be a Boolean or an integer (collectively referred to as constants), or a string. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants. The function call is built from the function name \str{}, and a list of arguments (expressions). Function execution is not found in any P4 program, but is rather an artifact of our semantics, signifying the in-progress execution of the body of a called function.
+
+\begin{figure}[ht!]
+\centering\ottgrammartabular{
+\ottunop\ottafterlastrule
+}
+\caption{P4 Unary Operations}
+\label{fig:unop}
+\end{figure}
+
+The unary expressions included are shown in Figure~\ref{fig:unop}. These include all of the unary operations in P4. Boolean negation is only defined on Booleans, the other operations have their standard meanings (note that \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-bit-ops}{unary plus is a no-op}).
+
+\newpage
+\begin{figure}[h!]
+\centering\ottgrammartabular{
+\ottbinop\ottafterlastrule
+}
+\caption{P4 Binary Operations}
+\label{fig:binop}
+\end{figure}
+
+The binary expressions included are shown in Figure~\ref{fig:unop}. These include all of the binary operations in P4.
+
 \newpage
 \subsection{Statements}
+\newcommand{\stmt}{\textit{stmt}}
+\label{ssec:stmt}
 See \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-stmts}{Section 11} of the P4 specification.
 
-%
 \begin{figure}[h!]
 \centering\ottgrammartabular{
 \ottstmt\ottafterlastrule
@@ -99,14 +123,16 @@ See \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-stmts}{Section 11} o
 
 \newpage
 \newcommand{\state}{\Sigma}
+\newcommand{\scope}{\ensuremath{\mathit{scope}}}
 \newcommand{\stacks}{\sigma}
-\newcommand{\currsf}{\varepsilon}
+\newcommand{\currsf}{\ensuremath{\varepsilon}}
+\newcommand{\gscope}{\ensuremath{\currsf [0] }}
 \newcommand{\cstack}{E}
 \newcommand{\status}{\textit{status}}
 \subsection{Execution State}
-The execution state $\state{}$ holds a current stack frame $\currsf$ (itself a stack of scopes created by blocks), a call stack $\cstack$ and the execution status \status{}. The tuple of the current stack frame and the call stack is abbreviated by $\stacks{}$. Note that none of these constructs are laid out in the P4 specification, but rather made up by yours truly.
+The execution state $\state{}$ holds a current stack frame $\currsf$ (a stack of scopes - denoted by \scope{} - created by $\{ \}$-enclosed blocks, with the global \scope{} at the bottom), a call stack $\cstack$ (where the current \currsf{} is stored when a function is called) and the execution status \status{}. The tuple of the current stack frame and the call stack is abbreviated by $\stacks{}$. Note that none of these constructs are laid out in the P4 specification, but rather made up by yours truly in order to obtain a formal P4 semantics.
 
-The status \textbf{Running} represents that the parser is executing under regular circumstances. \textbf{TypeError} represents a crash caused by some badly-typed part of the program. \textbf{Return} is used to return a value from a function - for now, only 64-bit words.
+The status \textbf{Running} represents that the program is executing under regular circumstances. \textbf{TypeError} represents a crash caused by some badly-typed part of the program. \textbf{Return} is used when the \textbf{return} statement returns a constant inside a function.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -127,10 +153,12 @@ The status \textbf{Running} represents that the parser is executing under regula
 %\label{fig:judgexp}
 %\end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{exp}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{exp'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
 \ottusedrule{\ottdruleexpXXlookup{}}
 \ottusedrule{\ottdruleexpXXfuncXXcallXXnoargs{}}
+\ottusedrule{\ottdruleexpXXfuncXXcallXXargsOne{}}
+\ottusedrule{\ottdruleexpXXfuncXXcallXXargsTwo{}}
 \ottusedrule{\ottdruleexpXXfuncXXexec{}}
 \ottusedrule{\ottdruleexpXXfuncXXretXXexp{}}
 \ottusedrule{\ottdruleexpXXbinopOne{}}
@@ -140,11 +168,21 @@ The status \textbf{Running} represents that the parser is executing under regula
 \label{fig:semexp}
 \end{figure}
 
-In the \textsc{exp\_lookup} rule, the first antecedent ensures that the variable $x$ is evaluated in the uppermost (i.e. most recent entered) scope of the current stack frame $\varepsilon$. This agrees with the description in Sections 6.8 and 10.2 in the P4 specification.
+The small-step semantics for reducing expressions is shown in Figure~\ref{fig:semexp}.
 
-The \textsc{exp\_func\_cal\_noargs} rule is for the case of function calls inside expressions with no arguments. It takes the global scope ($\varepsilon [0]$) and uses this as the bottom element of a new current stack frame $\varepsilon '$ which has a fresh scope as head. The tail of the old current stack frame $\varepsilon$ is then pushed onto the call stack $E$, to be used later when returning from the function call. Note that this means duplicates of the global scope are not saved in the call stack. Finally, the body of the function ($\mathit{stmt}$) is obtained from $\mathit{func\_map}$, which holds mappings between function names $x$ and tuples of function bodies and argument names.
+In the \textsc{exp\_lookup} rule, the first antecedent ensures that the variable \str{} is evaluated in the uppermost (i.e. most recent entered) scope of the current stack frame \currsf{} where it is declared, by preventing \str{} to be in the domain of any \scope{} higher in \currsf{} than the one used for variable resolution. This agrees with the description in \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-name-resolution}{Sections 6.8} and \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
 
-\href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-expr-eval-order}{Section 8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, our rules are split up so that (small-step) reduction of the second operand requires that the first operand has been completely reduced, illustrated by \textsc{exp\_binop1} and \textsc{exp\_binop2}.
+The \textsc{exp\_func\_call\_noargs} rule is for the case of function calls inside expressions with no arguments. It takes the global scope \gscope{} and uses this as the bottom element of a new current stack frame $\currsf '$ which has a fresh scope as head. The tail of the old current stack frame \currsf{} is then saved as the new head of the call stack \cstack{}, to be used later when returning from the function call. Note that this means duplicates of the global scope are not saved in the call stack. Finally, the body of the function (\stmt{}) is obtained from the function map \fmap{}, which holds mappings between function names \str{} and tuples of function bodies and lists of their argument names.
+
+The \textsc{exp\_func\_call\_args1} rule reduces the leftmost function argument which has yet to be reduced to a constant with one expression evaluation step. The first two antecedents divide the list of arguments into two sub-lists, where the prefix must contain all constants. The head of the suffix is then reduced with one expression small-step, after which the corresponding index in the original list of arguments is update with the resulting expression.
+
+The \textsc{exp\_func\_call\_args2} rule is used when all of the function arguments have been reduced to constants using \textsc{exp\_func\_call\_args1} (or if they were all constants to begin with). The constants are assigned to their respective argument names in a fresh scope, after which this scope is put on top of the global scope \gscope{} is order to form the new current stack frame $\currsf '$. The old current stack frame \currsf{} is then saved on top of the call stack \cstack{}, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{}.
+
+The \textsc{exp\_func\_exec} rule reduces the function body of in-progess execution with one small-step statement reduction.
+
+The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execution with status $\mathbf{Return} \,\, \mathit{exp}$ to $\mathit{exp}$, provided $\mathit{exp}$ is a constant. This also changes the status to $\mathbf{Running}$.
+
+\href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-expr-eval-order}{Section 8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{exp\_binop1} and \textsc{exp\_binop2} - are split up so that (small-step) reduction of the second operand requires that the first operand has been completely reduced to a constant.
 
 \newpage
 \subsection{Statement Execution}
