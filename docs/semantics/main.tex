@@ -183,7 +183,7 @@ The \textsc{exp\_func\_exec} rule reduces the function body of in-progess execut
 
 The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execution with status $\mathbf{Return} \,\, \mathit{exp}$ to $\mathit{exp}$, provided $\mathit{exp}$ is a constant. This also changes the status to $\mathbf{Running}$.
 
-\href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-expr-eval-order}{Section 8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{exp\_binop1} and \textsc{exp\_binop2} - are split up so that (small-step) reduction of the second operand requires that the first operand has been completely reduced to a constant.
+\href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-expr-eval-order}{Section 8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{exp\_binop1} and \textsc{exp\_binop2} - are split up so that (small-step) reduction of the second operand requires that the first operand has been completely reduced to a constant. This is trivial for unary operations (\textsc{exp\_unop}).
 
 \newpage
 \subsection{Statement Execution}

@@ -466,7 +466,7 @@ defn
   [ exp ] ( stacks , status ) ~> [ exp' ] ( stacks' , status' ) :: :: exp_red :: exp_
   {{ com expression semantics }}
   %Uses different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status
-  {{ tex [ [[exp]] ] ( [[stacks]] ) \rightsquigarrow [ [[exp']] ] ( [[stacks']] ) }}
+  {{ tex [ [[exp]] ] [[stacks]] \rightsquigarrow [ [[exp']] ] [[stacks']] }}
 by
 
 %%%%%%%%%%%%%%
