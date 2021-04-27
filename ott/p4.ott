@@ -12,6 +12,11 @@ metavar num ::=
       {{ hol num }}
       {{ com natural number }}
 %TODO Numeral or alphanum?
+metavar index ::=
+      {{ lex numeral }}
+      {{ hol index }}
+      {{ com natural number }}
+%TODO Numeral or alphanum?
 metavar b ::=
       {{ lex numeral }}
       {{ hol bool }}
@@ -162,10 +167,10 @@ exp_list :: exp_list_ ::=
 | exp_list ++ exp_list' :: M :: append
   {{ com append two exp_lists }}
   {{ hol ([[exp_list]] ++ [[exp_list']]) }}
-| update ( exp , num , ( exp_list ) ) :: M :: update
+| update ( exp , index , ( exp_list ) ) :: M :: update
   {{ com update entry of expression list }}
-  {{ hol (LUPDATE [[exp]] [[num]] [[exp_list]]) }}
-  {{ tex ([[num]] \mapsto  [[exp]]) [[exp_list]] }}
+  {{ hol (LUPDATE [[exp]] [[index]] [[exp_list]]) }}
+  {{ tex ([[index]] \mapsto  [[exp]]) [[exp_list]] }}
 
 
 %%%%%%%%%%%%%%
@@ -176,6 +181,7 @@ decl :: decl_ ::=
 {{ com declaration }}
 | empty_decl :: :: empty
   {{ com empty declaration }}
+  {{ tex \emptyset_{ \mathrm{decl} } }}
 | declare x exp :: :: stmt
   {{ com declaration }}
   {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
@@ -244,6 +250,10 @@ scope :: scope_ ::=
   {{ tex \forall i . (x_i \mapsto  \mathit{exp}_i) [[scope]] }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
+| G_scope :: M :: global
+{{ com global scope }}
+{{ tex G\_scope }}
+  
 
 embed
 {{ hol
@@ -268,11 +278,12 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | curr_stack_frame ++ curr_stack_frame' :: M :: append
   {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
   {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
-| update ( scope , num , curr_stack_frame ) :: M :: update
-  {{ hol (LUPDATE [[scope]] [[num]] [[curr_stack_frame]]) }}
-  {{ tex ([[num]] \mapsto  [[scope]]) [[curr_stack_frame]] }}
+| update ( scope , index , curr_stack_frame ) :: M :: update
+  {{ hol (LUPDATE [[scope]] [[index]] [[curr_stack_frame]]) }}
+  {{ tex ([[index]] \mapsto  [[scope]]) [[curr_stack_frame]] }}
 | ( curr_stack_frame ) :: S :: paren
   {{ hol ([[curr_stack_frame]]) }}
+
 
 call_stack {{ tex E }} :: call_stack_ ::=
 {{ com stack of caller stack frames }}
@@ -368,16 +379,21 @@ formula :: formula_ ::=
 | curr_stack_frame = hd call_stack :: M :: call_stack_hd
   {{ hol ([[curr_stack_frame]] = HD [[call_stack]]) }}
   {{ tex [[curr_stack_frame]] = \mathrm{hd} [[call_stack]] }}
-| scope = curr_stack_frame [ num ] :: M :: curr_stack_frame_index
-  {{ hol ([[scope]] = EL [[num]] [[curr_stack_frame]]) }}
+| scope = curr_stack_frame [ index ] :: M :: curr_stack_frame_index
+  {{ hol ([[scope]] = EL [[index]] [[curr_stack_frame]]) }}
 | ( stmt , x1 , .. , xi ) = func_map ( x ) :: M :: func_lookup
   {{ com function lookup }}
   {{ hol (FLOOKUP [[func_map]] [[x]] = SOME ([[stmt]], [[x1 .. xi]])) }}
-| find_index ( curr_stack_frame , x ) = num :: M :: find_index_scope
+| find_index_min ( curr_stack_frame , x ) = index :: M :: find_index_scope_min
   {{ com find index of variable's scope }}
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
-  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
-  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
+  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[index]]) }}
+  {{ tex index = min  \{ j . [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
+| find_index_max ( curr_stack_frame , x ) = index :: M :: find_index_scope
+  {{ com find index of variable's scope }}
+  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[index]]) }}
+  {{ tex index = max  \{ j . [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
+
 | exp = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[exp]]) }}
@@ -480,16 +496,16 @@ by
   [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks' , Running )
   %TODO: length plus 1 if indexing from 1
   num = length ( exp'1 , .. , exp'j )
-  exp'''1 , .. , exp'''l =' update ( exp' , num , ( exp1 , .. , expi ) )
+  exp'''1 , .. , exp'''l =' update ( exp' , num , ( exp1 , .. , expi ) ) 
   ----------------------------------- :: func_call_args1
-  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'''1 , .. , exp'''l )] ( stacks , Running )
+  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'''1 , .. , exp'''l )] ( stacks' , Running )
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   is_consts ( exp1 , .. , expi )
   ( stmt , x1 , .. , xi ) = func_map ( x )
   scope' = emptyscope ++ [ x1 |->  exp1 , .. , xi |-> expi ]
-  scope = curr_stack_frame[0]
-  curr_stack_frame' = scope' :: [scope]
+  G_scope = curr_stack_frame[0]
+  curr_stack_frame' = scope' :: [G_scope]
   call_stack' = tl curr_stack_frame :: call_stack
   ----------------------------------- :: func_call_args2
   [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
@@ -505,12 +521,12 @@ by
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
-  find_index ( curr_stack_frame, x ) = num
-  scope = curr_stack_frame [ num ]
-  exp = scope ( x )
-  is_const ( exp )
+  find_index_min ( curr_stack_frame, x ) = index
+  scope = curr_stack_frame [ index ]
+  V = scope ( x )
+  is_const ( V )
   ----------------------------------- :: lookup
-  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [exp] ( ( curr_stack_frame, call_stack ) , Running )
+  [x] ( stacks , Running ) ~> [V] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -753,24 +769,23 @@ by
   [return exp] ( stacks , Running ) -> [return exp'] ( stacks' , Running )
 
   %Return with a constant
-  is_const ( exp )
-  scope = curr_stack_frame [ 0 ]
+  is_const ( V )
+  G_scope = curr_stack_frame [ 0 ]
   curr_stack_frame' :: call_stack' = call_stack
-  curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
+  curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ G_scope ] )
   ----------------------------------- :: ret_const
-  [return exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return exp )
+  [return V] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return V )
 
 %%%%%%%%%%%%%%
 %Assignment
 
   %Assign a constant to a variable
-  is_const ( exp )
-  find_index ( curr_stack_frame , x ) = num
-  scope = curr_stack_frame [ num ]
-  scope' = scope + [ x |-> exp ]
-  curr_stack_frame' = update ( scope' , num , curr_stack_frame )
+  is_const ( V )
+  find_index_max ( curr_stack_frame , x ) = index
+  scope = curr_stack_frame [ index ]
+  curr_stack_frame' = update ( scope + [ x |-> V ] , index , curr_stack_frame )
   ----------------------------------- :: ass_const
-  [assign x exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  [assign x V] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign an expression to a variable - reduction step
   [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
