@@ -138,7 +138,7 @@
 \ottfirstprodline{|}{\ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}}{}{}{}{}}
 
 \newcommand{\ottstate}{
-\ottrulehead{\Sigma}{::=}{\ottcom{execution state}}\ottprodnewline
+\ottrulehead{S}{::=}{\ottcom{execution state}}\ottprodnewline
 \ottfirstprodline{|}{\ottsym{(}  \sigma  \ottsym{,}  \ottnt{status}  \ottsym{)}}{}{}{}{}}
 
 \newcommand{\ottterminals}{
@@ -200,11 +200,11 @@
 
 \newcommand{\ottdeclXXsem}{
 \ottrulehead{\ottnt{decl\_sem}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{[}  \ottnt{decl}  \ottsym{]}  \Sigma  \rightarrow  \ottsym{[}  \ottnt{decl'}  \ottsym{]}  \Sigma'}{}{}{}{\ottcom{declaration semantics}}}
+\ottfirstprodline{|}{\ottsym{[}  \ottnt{decl}  \ottsym{]}  S  \rightarrow  \ottsym{[}  \ottnt{decl'}  \ottsym{]}  S'}{}{}{}{\ottcom{declaration semantics}}}
 
 \newcommand{\ottstmtXXsem}{
 \ottrulehead{\ottnt{stmt\_sem}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \Sigma  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \Sigma'}{}{}{}{\ottcom{statement semantics}}}
+\ottfirstprodline{|}{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  S  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  S'}{}{}{}{\ottcom{statement semantics}}}
 
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
@@ -232,7 +232,7 @@
 \ottprodline{|}{\varepsilon}{}{}{}{}\ottprodnewline
 \ottprodline{|}{E}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\sigma}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\Sigma}{}{}{}{}\ottprodnewline
+\ottprodline{|}{S}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula}}{}{}{}{}}
 
@@ -586,7 +586,7 @@
 {\ottdrulename{decl\_seq2}}{}%
 }}
 
-\newcommand{\ottdefndeclXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{decl}  \ottsym{]}  \Sigma  \rightarrow  \ottsym{[}  \ottnt{decl'}  \ottsym{]}  \Sigma'$}{\ottcom{declaration semantics}}
+\newcommand{\ottdefndeclXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{decl}  \ottsym{]}  S  \rightarrow  \ottsym{[}  \ottnt{decl'}  \ottsym{]}  S'$}{\ottcom{declaration semantics}}
 \ottusedrule{\ottdruledeclXXdeclXXexp{}}
 \ottusedrule{\ottdruledeclXXdeclXXconst{}}
 \ottusedrule{\ottdruledeclXXseqOne{}}
@@ -715,7 +715,7 @@
 {\ottdrulename{stmt\_block\_exit}}{}%
 }}
 
-\newcommand{\ottdefnstmtXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \Sigma  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \Sigma'$}{\ottcom{statement semantics}}
+\newcommand{\ottdefnstmtXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  S  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  S'$}{\ottcom{statement semantics}}
 \ottusedrule{\ottdrulestmtXXretXXexp{}}
 \ottusedrule{\ottdrulestmtXXretXXconst{}}
 \ottusedrule{\ottdrulestmtXXassXXconst{}}
