@@ -177,16 +177,16 @@ exp_list :: exp_list_ ::=
 % Statements %
 %%%%%%%%%%%%%%
 
-decl :: decl_ ::=
-{{ com declaration }}
-| empty_decl :: :: empty
-  {{ com empty declaration }}
-  {{ tex \emptyset_{ \mathrm{decl} } }}
-| declare x exp :: :: stmt
-  {{ com declaration }}
-  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
-| decl1 ; decl2 :: :: seq
-  {{ com sequence }}
+%decl :: decl_ ::=
+%{{ com declaration }}
+%| empty_decl :: :: empty
+%  {{ com empty declaration }}
+%  {{ tex \emptyset_{ \mathrm{decl} } }}
+%| declare x exp :: :: stmt
+%  {{ com declaration }}
+%  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
+%| decl1 ; decl2 :: :: seq
+%  {{ com sequence }}
 
 %TODO: Switch statement
 stmt :: stmt_ ::=
@@ -199,12 +199,15 @@ stmt :: stmt_ ::=
   {{ tex [[x]] \mathrel{\mathop:}= [[exp]] }}
 | if exp then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-| begin decl stmt end :: :: block 
+| decl x :: :: declare
+  {{ com declaration }}
+  {{ tex decl \, [[x]] }}
+| begin stmt end :: :: block 
   {{ com block }}
-  {{ tex \{ [[decl]] \,\, [[stmt]] \} }}
-| begin' decl stmt end' :: :: block_ip
+  {{ tex \{ [[stmt]] \} }}
+| begin' stmt end' :: :: block_ip
   {{ com block in progress }}
-  {{ tex [ [[decl]] \,\, [[stmt]] ] }}
+  {{ tex [ [[stmt]] ] }}
 | return exp :: :: ret
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
@@ -385,14 +388,17 @@ formula :: formula_ ::=
   {{ com function lookup }}
   {{ hol (FLOOKUP [[func_map]] [[x]] = SOME ([[stmt]], [[x1 .. xi]])) }}
 | find_index_min ( curr_stack_frame , x ) = index :: M :: find_index_scope_min
-  {{ com find index of variable's scope }}
+  {{ com find min index of variable's scope }}
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[index]]) }}
   {{ tex index = min  \{ j . [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
-| find_index_max ( curr_stack_frame , x ) = index :: M :: find_index_scope
-  {{ com find index of variable's scope }}
+| find_index_max ( curr_stack_frame , x ) = index :: M :: find_index_scope_max
+  {{ com find max index of variable's scope }}
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[index]]) }}
   {{ tex index = max  \{ j . [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
+| length ( curr_stack_frame ) = index :: M :: find_length
+  {{ com find the current stack frame length }}
+  {{ tex index = length ([[curr_stack_frame]])}}
 
 | exp = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
@@ -719,30 +725,30 @@ by
 % Declaration semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-defns
-  decl_sem :: '' ::=
-defn
-  [ decl ] state -> [ decl' ] state' :: :: decl_red :: decl_
-  {{ com declaration semantics }}
-by
+%defns
+%  decl_sem :: '' ::=
+%defn
+%  [ decl ] state -> [ decl' ] state' :: :: decl_red :: decl_
+%  {{ com declaration semantics }}
+%by
 
   %Declare a variable and assign a value - reduction step
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: decl_exp
-  [declare x exp] ( stacks , Running ) -> [declare x exp'] ( stacks' , Running )
+%  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+%  ----------------------------------- :: decl_exp
+%  [declare x exp] ( stacks , Running ) -> [declare x exp'] ( stacks' , Running )
 
-  scope :: curr_stack_frame' = curr_stack_frame
-  scope' = scope + [ x |-> n ]
-  curr_stack_frame'' = scope' :: curr_stack_frame'
-  ----------------------------------- :: decl_const
-  [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_decl] ( ( curr_stack_frame'' , call_stack ) , Running )
+%  scope :: curr_stack_frame' = curr_stack_frame
+%  scope' = scope + [ x |-> n ]
+%  curr_stack_frame'' = scope' :: curr_stack_frame'
+%  ----------------------------------- :: decl_const
+%  [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_decl] ( ( curr_stack_frame'' , call_stack ) , Running )
 
-  [decl1] ( stacks , Running ) -> [decl1'] ( stacks' , Running )
-  ----------------------------------- :: seq1
-  [decl1 ; decl2] ( stacks , Running ) -> [decl1' ; decl2] ( stacks' , Running )
+ % [decl1] ( stacks , Running ) -> [decl1'] ( stacks' , Running )
+ % ----------------------------------- :: seq1
+ % [decl1 ; decl2] ( stacks , Running ) -> [decl1' ; decl2] ( stacks' , Running )
 
-  ----------------------------------- :: seq2
-  [empty_decl ; decl] ( stacks , Running ) -> [decl] ( stacks , Running )
+ % ----------------------------------- :: seq2
+ % [empty_decl ; decl] ( stacks , Running ) -> [decl] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -822,26 +828,31 @@ by
   [if b then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
+%declaration
+
+  length ( curr_stack_frame ) = index
+  scope = curr_stack_frame [ index ]
+  curr_stack_frame' = update ( scope + [ x |-> 0 ] , index , curr_stack_frame )
+  ----------------------------------- :: decl
+  [decl x] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+
+
+%%%%%%%%%%%%%%
 %Block
  
   curr_stack_frame' = emptyscope :: curr_stack_frame
   ----------------------------------- :: block_enter
-  [begin decl stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' decl stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
-
-
-  [decl] ( stacks , Running ) -> [decl'] ( stacks' , Running )
-  ----------------------------------- :: block_declare
-  [begin' decl stmt end'] ( stacks , Running ) -> [begin' decl' stmt end'] ( stacks' , Running )
+  [begin stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
 
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
-  ----------------------------------- :: block_stmt
-  [begin' empty_decl stmt end'] ( stacks , Running ) -> [begin' empty_decl stmt' end'] ( stacks' , Running )
+  ----------------------------------- :: block_exec
+  [begin' stmt end'] ( stacks , Running ) -> [begin' stmt' end'] ( stacks' , Running )
 
 
   curr_stack_frame' = tl curr_stack_frame
   ----------------------------------- :: block_exit
-  [begin' empty_decl empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  [begin' empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%

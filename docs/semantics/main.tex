@@ -195,7 +195,15 @@ The \textsc{stmt\_seq3} handles the \textbf{return} statement when it does not o
 \\~\\
 The \textsc{stmt\_cond1}, \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are pretty trivial to understand.
 \\~\\
-TODO: block semantics, what was the required changes?
+The \textsc{stmt\_decl} rule is a transition reduction for the declaration statements. Whenever a variable is declared, it will updated in the most recent scope and reduce the transition to an empty statement. The most recent/newest scope is fetched simply by checking the length of the list of scopes $\currsf$. 
+\\~\\
+The \textbf{\{\}} brackets indicates a block, while the \textbf{[ ]} brackets indicates a block being executed.
+Whenever entering a block, in rule \textsc{stmt\_block\_enter}, a new empty scope is added to the list of scopes, and then the \textbf{\{\}} brackets are switched the executing ones \textbf{[ ]} to pinpoint the fact that the statements can be executed now.
+\\~\\
+\textsc{stmt\_block\_exec} rule shows a small step reduction for the statements inside a block.
+\\~\\
+\textsc{stmt\_block\_exit} rule handles the block termination. Whenever a block contains an empty statement, then it is necessary to also remove the corresponding scope from the list of scopes $\currsf$ which in the case of blocks is the most recent one.
+
 %\begin{figure}[h!]
 %\centering\ottgrammartabular{
 %\ottpFourXXparserXXbstmtXXred\ottinterrule
