@@ -176,17 +176,17 @@ exp_list :: exp_list_ ::=
 %%%%%%%%%%%%%%
 % Statements %
 %%%%%%%%%%%%%%
-%
-%decl :: decl_ ::=
-%{{ com declaration }}
-%| empty_decl :: :: empty
-%  {{ com empty declaration }}
-%  {{ tex \emptyset_{ \mathrm{decl} } }}
-%| declare x exp :: :: stmt
-%  {{ com declaration }}
-%  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
-%| decl1 ; decl2 :: :: seq
-%  {{ com sequence }}
+
+decl :: decl_ ::=
+{{ com declaration }}
+| empty_decl :: :: empty
+  {{ com empty declaration }}
+  {{ tex \emptyset_{ \mathrm{decl} } }}
+| declare x exp :: :: stmt
+  {{ com declaration }}
+  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
+| decl1 ; decl2 :: :: seq
+  {{ com sequence }}
 
 %TODO: Switch statement
 stmt :: stmt_ ::=
@@ -199,17 +199,16 @@ stmt :: stmt_ ::=
   {{ tex [[x]] \mathrel{\mathop:}= [[exp]] }}
 | if exp then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-| begin stmt end :: :: block 
+| begin decl stmt end :: :: block 
   {{ com block }}
   {{ tex \{ [[decl]] \,\, [[stmt]] \} }}
-| begin' stmt end' :: :: block_ip
+| begin' decl stmt end' :: :: block_ip
   {{ com block in progress }}
   {{ tex [ [[decl]] \,\, [[stmt]] ] }}
 | return exp :: :: ret
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
- 
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
