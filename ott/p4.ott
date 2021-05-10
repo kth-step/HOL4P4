@@ -115,6 +115,9 @@ const :: const_ ::=
   {{ com boolean value }}
 %  {{ hol [[b]] }}
 | n :: :: int
+  {{ com integer }}
+| struct { x1 = const1 ; ... ; xi = consti } :: :: struct
+  {{ com struct }}
 
 %TODO: Members (dot)
 %TODO: String literal
@@ -132,6 +135,8 @@ exp :: exp_ ::=
   {{ com const }}
 | x :: :: var
   {{ com variable/function name }}
+| exp . x :: :: acc
+  {{ com field access }}
 | unop exp :: :: unop
   {{ com unary operation }}
   {{ tex \ominus [[exp]] }}
@@ -140,6 +145,7 @@ exp :: exp_ ::=
   {{ tex [[exp1]] [[binop]] [[exp2]] }}
 | call x ( exp1 , .. , expi ) :: :: func_call
   {{ com function call }}
+  {{ hol (exp_func_call [[x]] [[exp1 .. expi]]) }}
 | exec stmt :: :: func_exec
   {{ com function execution }}
 | ( exp ) :: S :: paren
@@ -158,10 +164,9 @@ exp_list :: exp_list_ ::=
 | empty_el :: M :: empty
   {{ com empty expression list }}
   {{ hol ([]:exp list) }}
-| exp1 , .. , expi :: M :: list
+| exp1 , .. , expi :: M :: exps
   {{ com list of expressions }}
   {{ hol ([[exp1 .. expi]]) }}
-%  {{ tex \mathit{expl}_i }}
 | exp_list ++ exp_list' :: M :: append
   {{ com append two exp_lists }}
   {{ hol ([[exp_list]] ++ [[exp_list']]) }}
@@ -386,17 +391,20 @@ formula :: formula_ ::=
 | const = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[const]]) }}
+| const = struct { x1 = const1 ; ... ; xi = consti } ( x ) :: M :: access
+  {{ com access fo field in struct }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 const1 ... xi consti]] = SOME ([[x]], [[const]])) }}
 | exp = exp_list [ num ] :: M :: args_index
   {{ hol ([[exp]] = EL [[num]] [[exp_list]]) }}
 | exp = hd exp_list :: M :: args_hd
   {{ hol ([[exp]] = HD [[exp_list]]) }}
-  {{ hol ([[exp]] = \mathrm{hd} [[exp_list]]) }}
+  {{ tex [[exp]] = \mathrm{hd} \,\, [[exp_list]] }}
 
 %Function argument resolution
 %TODO: Replace with expression list
-| exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi :: M :: func_args_append
-  {{ com pattern match on constant and non-constant function arguments }}
-  {{ hol (([[exp'1 .. exp'j]] ++ [[exp''1 .. exp''k]]) = [[exp1 .. expi]]) }}
+%| const_list ++ exp_list' = exp_list :: M :: func_args_append
+%  {{ com pattern match on constant and non-constant function arguments }}
+%  {{ hol (([[const_list]] ++ [[exp_list']]) = [[exp_list]]) }}
 
 %Conditions
 | b = true :: M :: is_true
@@ -426,7 +434,7 @@ formula :: formula_ ::=
 | exp_list =' exp_list' :: M :: args_eq
   {{ com args equality }}
   {{ hol ([[exp_list]] = [[exp_list']]) }}
-  {{ tex ([[exp_list]] = [[exp_list']]) }}
+  {{ tex [[exp_list]] = [[exp_list']] }}
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
@@ -434,23 +442,19 @@ formula :: formula_ ::=
   {{ com numeral increment }}
   {{ hol ([[num']] = [[num]] + 1) }}
   {{ tex [[num']] = [[num]] + 1 }}
-| num = length ( exp1 , .. , expi ) :: M :: num_len
+| num = length ( exp_list ) :: M :: num_len
   {{ com length of list }}
-  {{ hol ([[num]] = LENGTH [[exp1 .. expi]]) }}
-%  {{ tex [[num]] = \mathrm{len}(\mathit{exp}_1 , .. , \mathit{exp}_i) }}
+  {{ hol ([[num]] = LENGTH [[exp_list]]) }}
+  {{ tex [[num]] = \mathrm{len} \,\, [[exp_list]] }}
 | num < length ( exp_list ) :: M :: num_in_rg
   {{ com numeral in range }}
   {{ hol ([[num]] < LENGTH [[exp_list]]) }}
   {{ tex [[num]] < \mathrm{len}(\mathit{exp}) }}
-| is_const ( exp ) :: M :: exp_const
-  {{ com expression constant }}
-  {{ hol (is_const [[exp]]) }}
-  {{ tex \mathrm{is\_const} ([[exp]]) }}
-| is_consts ( exp1 , .. , expi ) :: M :: args_const
+| is_consts ( exp_list ) :: M :: args_const
   {{ com function arguments constant }}
-  {{ hol (is_consts [[exp1 .. expi]]) }}
+  {{ hol (is_consts [[exp_list]]) }}
   %TODO: Fix typesetting
-  {{ tex \mathrm{is\_consts} (\mathit{exp}_1 , .. , \mathit{exp}_i) }}
+  {{ tex \mathrm{is\_consts} \,\, [[exp_list]] }}
 
 embed
 {{ hol
@@ -477,16 +481,16 @@ by
 %Function call + exec (in expression)
 
   %Resolving arguments to function call - reduction
-  %TODO: force exp'1 , .. , exp'j to be non-empty?
-  exp'1 , .. , exp'j ++ exp''1 , .. , exp''k = exp1 , .. , expi
-  is_consts ( exp'1 , .. , exp'j )
-  exp = hd exp''1 , .. , exp''k
+  %TODO: force exp_list'' to be non-empty?
+  exp_list' ++ exp_list'' =' exp1 , .. , expi
+  is_consts ( exp_list' )
+  exp = hd exp_list''
   [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks' , Running )
   %TODO: length plus 1 if indexing from 1
-  num = length ( exp'1 , .. , exp'j )
-  exp'''1 , .. , exp'''l =' update ( exp' , num , ( exp1 , .. , expi ) )
+  num = length ( exp_list' )
+  exp'1 , .. , exp'j =' update ( exp' , num , ( exp1 , .. , expi ) )
   ----------------------------------- :: func_call_args1
-  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'''1 , .. , exp'''l )] ( stacks , Running )
+  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'1 , .. , exp'j )] ( stacks , Running )
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   ( stmt , x1 , .. , xi ) = func_map ( x )
@@ -513,6 +517,16 @@ by
   ----------------------------------- :: lookup
   [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [const] ( ( curr_stack_frame, call_stack ) , Running )
 
+%%%%%%%%%%%%%%%%%%%%
+%Struct field access
+
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: access1
+  [exp . x] ( stacks , Running ) ~> [exp' . x] ( stacks' , Running )
+
+  const = struct { x1 = const1 ; ... ; xi = consti } ( x )
+  ----------------------------------- :: access2
+  [ struct { x1 = const1 ; ... ; xi = consti } . x] ( stacks , Running ) ~> [const] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Unary expressions%
@@ -806,21 +820,18 @@ by
 
 %%%%%%%%%%%%%%
 %Block
- 
+
   curr_stack_frame' = emptyscope :: curr_stack_frame
   ----------------------------------- :: block_enter
   [begin decl stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' decl stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
-
 
   [decl] ( stacks , Running ) -> [decl'] ( stacks' , Running )
   ----------------------------------- :: block_declare
   [begin' decl stmt end'] ( stacks , Running ) -> [begin' decl' stmt end'] ( stacks' , Running )
 
-
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: block_stmt
   [begin' empty_decl stmt end'] ( stacks , Running ) -> [begin' empty_decl stmt' end'] ( stacks' , Running )
-
 
   curr_stack_frame' = tl curr_stack_frame
   ----------------------------------- :: block_exit
