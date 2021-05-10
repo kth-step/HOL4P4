@@ -109,6 +109,13 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
+const :: const_ ::=
+{{ com constant }}
+| b :: :: bool
+  {{ com boolean value }}
+%  {{ hol [[b]] }}
+| n :: :: int
+
 %TODO: Members (dot)
 %TODO: String literal
 %TODO: L-values and identifiers
@@ -121,12 +128,8 @@ binop {{ tex \oplus }} :: binop_ ::=
 %TODO: Conditional operator
 exp :: exp_ ::=
 {{ com expression }}
-| b :: :: bool
-  {{ com boolean value }}
-%  {{ hol [[b]] }}
-| n :: :: int
-  {{ com integer value }}
-%  {{ hol [[n]] }}
+| const :: :: const
+  {{ com const }}
 | x :: :: var
   {{ com variable/function name }}
 | unop exp :: :: unop
@@ -162,10 +165,12 @@ exp_list :: exp_list_ ::=
 | exp_list ++ exp_list' :: M :: append
   {{ com append two exp_lists }}
   {{ hol ([[exp_list]] ++ [[exp_list']]) }}
-| update ( exp , num , ( exp_list ) ) :: M :: update
+| update ( exp , num , exp_list ) :: M :: update
   {{ com update entry of expression list }}
   {{ hol (LUPDATE [[exp]] [[num]] [[exp_list]]) }}
   {{ tex ([[num]] \mapsto  [[exp]]) [[exp_list]] }}
+| ( exp_list ) :: S :: paren
+  {{ hol ([[exp_list]]) }}
 
 
 %%%%%%%%%%%%%%
@@ -228,20 +233,20 @@ status :: status_ ::=
 | TypeError :: :: type_error
 
 scope :: scope_ ::=
-{{ hol (string |-> exp) }}
+{{ hol (string |-> const) }}
 {{ com frame/variable environment of current scope }}
 | emptyscope :: M :: empty
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
   {{ tex {\emptyset}_{ \mathrm{scope} } }}
-| scope + [ x |-> exp ] :: M :: update
+| scope + [ x |-> const ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[x]], [[exp]])) }}
-  {{ tex ([[x]] \mapsto  [[exp]]) [[scope]] }}
-| scope ++ [ x1 |-> exp1 , .. , xi |-> expi ] :: M :: update_list
+  {{ hol (FUPDATE [[scope]] ([[x]], [[const]])) }}
+  {{ tex ([[x]] \mapsto  [[const]]) [[scope]] }}
+| scope ++ [ x1 |-> const1 , .. , xi |-> consti ] :: M :: update_list
   {{ com update variable mapping }}
-  {{ hol (FUPDATE_LIST [[scope]] [[x1 exp1 .. xi expi]]) }}
-  {{ tex \forall i . (x_i \mapsto  \mathit{exp}_i) [[scope]] }}
+  {{ hol (FUPDATE_LIST [[scope]] [[x1 const1 .. xi consti]]) }}
+  {{ tex \forall i . (x_i \mapsto  \mathit{const}_i) [[scope]] }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
 
@@ -378,9 +383,9 @@ formula :: formula_ ::=
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
   {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
-| exp = scope ( x ) :: M :: lookup
+| const = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
-  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[exp]]) }}
+  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[const]]) }}
 | exp = exp_list [ num ] :: M :: args_index
   {{ hol ([[exp]] = EL [[num]] [[exp_list]]) }}
 | exp = hd exp_list :: M :: args_hd
@@ -417,7 +422,7 @@ formula :: formula_ ::=
 | call_stack = call_stack' :: M :: call_stack_eq
   {{ com call_stack equality }}
   {{ hol ([[call_stack]] = [[call_stack']]) }}
-%TODO: This can cause confusion with the judgements with binary expression equalities, hencec the '...
+%TODO: This can cause confusion with the judgements with binary expression equalities, hence the '...
 | exp_list =' exp_list' :: M :: args_eq
   {{ com args equality }}
   {{ hol ([[exp_list]] = [[exp_list']]) }}
@@ -450,8 +455,7 @@ formula :: formula_ ::=
 embed
 {{ hol
 val is_const_def = Define `
-    ( is_const (exp_bool b) = T)
-/\  ( is_const (exp_int n) = T)
+    ( is_const (exp_const _) = T)
 /\  ( is_const _ = F)
 `;
 val is_consts_def = Define `
@@ -485,32 +489,29 @@ by
   [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'''1 , .. , exp'''l )] ( stacks , Running )
 
   %Resolving arguments to function call - assigning arguments to new stack frame
-  is_consts ( exp1 , .. , expi )
   ( stmt , x1 , .. , xi ) = func_map ( x )
-  scope' = emptyscope ++ [ x1 |->  exp1 , .. , xi |-> expi ]
+  scope' = emptyscope ++ [ x1 |->  const1 , .. , xi |-> consti ]
   scope = curr_stack_frame[0]
   curr_stack_frame' = scope' :: [scope]
   call_stack' = tl curr_stack_frame :: call_stack
   ----------------------------------- :: func_call_args2
-  [call x ( exp1 , .. , expi )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  [call x ( const1 , .. , consti )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: func_exec
   [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
 
-  is_const ( exp )
   ----------------------------------- :: func_ret_exp
-  [exec empty_stmt] ( stacks , Return exp ) ~> [exp] ( stacks' , Running )
+  [exec empty_stmt] ( stacks , Return const ) ~> [const] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
   find_index ( curr_stack_frame, x ) = num
   scope = curr_stack_frame [ num ]
-  exp = scope ( x )
-  is_const ( exp )
+  const = scope ( x )
   ----------------------------------- :: lookup
-  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [exp] ( ( curr_stack_frame, call_stack ) , Running )
+  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [const] ( ( curr_stack_frame, call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -764,13 +765,12 @@ by
 %Assignment
 
   %Assign a constant to a variable
-  is_const ( exp )
   find_index ( curr_stack_frame , x ) = num
   scope = curr_stack_frame [ num ]
-  scope' = scope + [ x |-> exp ]
+  scope' = scope + [ x |-> const ]
   curr_stack_frame' = update ( scope' , num , curr_stack_frame )
   ----------------------------------- :: ass_const
-  [assign x exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  [assign x const] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign an expression to a variable - reduction step
   [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
