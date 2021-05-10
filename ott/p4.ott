@@ -567,10 +567,9 @@ by
   ----------------------------------- :: binop1
   [exp binop exp'] ( stacks , Running ) ~> [exp'' binop exp'] ( stacks' , Running )
 
-  is_const ( exp )
   [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
   ----------------------------------- :: binop2
-  [exp binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
+  [const binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%
@@ -754,12 +753,11 @@ by
   [return exp] ( stacks , Running ) -> [return exp'] ( stacks' , Running )
 
   %Return with a constant
-  is_const ( exp )
   scope = curr_stack_frame [ 0 ]
   curr_stack_frame' :: call_stack' = call_stack
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
   ----------------------------------- :: ret_const
-  [return exp] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return exp )
+  [return const] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return const )
 
 %%%%%%%%%%%%%%
 %Assignment
