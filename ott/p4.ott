@@ -17,6 +17,11 @@ metavar b ::=
       {{ hol bool }}
       {{ tex [[b]] }}
       {{ com boolean }}
+metavar packet_in ::=
+      {{ lex numeral }}
+      {{ hol bool list }}
+      {{ tex \mathit{packet\_in} }}
+      {{ com input packet }}
 %TODO Ideally, one should have different word lengths
 metavar n ::=
       {{ lex numeral }}
@@ -109,25 +114,46 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
+bool :: bool_ ::=
+{{ com boolean }}
+| b :: :: free
+%  {{ hol [[b]] }}
+| true :: :: true
+  {{ hol T }}
+| false :: :: false
+  {{ hol F }}
+
+%TODO: String literal
+%TODO: L-values and identifiers
+%TODO: Enums
+%Constants should be thought of as "values of variables we look up"
 const :: const_ ::=
 {{ com constant }}
-| b :: :: bool
+| bool :: :: bool
   {{ com boolean value }}
-%  {{ hol [[b]] }}
 | n :: :: int
   {{ com integer }}
 | struct { x1 = const1 ; ... ; xi = consti } :: :: struct
   {{ com struct }}
+  {{ tex struct }} %TODO
+| header { x1 = const1 ; ... ; xi = consti } :: :: header
+  % A header is like a struct, but has different well-formedness conditions
+  {{ com header }}
+  {{ tex header }} %TODO
+%%TODO: An extern should contain an internally visible list of mappings between variable names and constants,
+%%      and a map from function names to their bodies and arguments
+%% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
+%| extern { x1 = const1 ; ... ; xi = consti } func_map :: :: extern
+%  {{ com extern }}
+| packet_in :: :: packet_in
+  {{ com input packet }}
+  {{ tex \mathit{packet\_in} }}
+| errmsg x :: :: err
+  {{ com error message }}
 
-%TODO: Members (dot)
-%TODO: String literal
-%TODO: L-values and identifiers
-%TODO: ERROR
 %TODO: Casts
-%TODO: Structure-valued expressions
 %TODO: Lists
 %TODO: Tuples
-%TODO: Enums
 %TODO: Conditional operator
 exp :: exp_ ::=
 {{ com expression }}
@@ -135,8 +161,8 @@ exp :: exp_ ::=
   {{ com const }}
 | x :: :: var
   {{ com variable/function name }}
-| exp . x :: :: acc
-  {{ com field access }}
+| exp . exp' :: :: acc
+  {{ com field/method access }}
 | unop exp :: :: unop
   {{ com unary operation }}
   {{ tex \ominus [[exp]] }}
@@ -192,6 +218,15 @@ decl :: decl_ ::=
 | decl1 ; decl2 :: :: seq
   {{ com sequence }}
 
+pars_res {{ tex pst }} :: pars_res_ ::=
+{{ com parser results }}
+| Trans x :: :: trans
+  {{ com transition to named state }}
+| Accept :: :: accept
+  {{ com accepted state }}
+| Reject x :: :: reject
+  {{ com rejected state }}
+
 %TODO: Switch statement
 stmt :: stmt_ ::=
 {{ com statement }}
@@ -213,6 +248,13 @@ stmt :: stmt_ ::=
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
+| verify exp exp' :: :: verify
+  % exp is predicate, exp' is error message
+  {{ com verify }}
+| transition pars_res :: :: trans
+  % x is the parser state name
+  {{ com transition }}
+  {{ tex transition [[pars_res]] }}
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
@@ -224,6 +266,13 @@ func_map {{ tex F }} :: func_map_ ::=
   {{ com update variable mapping }}
   {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
 
+% TODO: Could be just an abbreviation, since it's never changed...
+pars_map {{ tex P }} :: pars_map_ ::=
+{{ com parser state map  }}
+{{ hol (string |-> stmt) }}
+| empty :: M :: empty
+  {{ com empty parser state map }}
+  {{ hol FEMPTY }}
 
 %%%%%%%%%%%%%%%%%%%
 % Execution state %
@@ -235,6 +284,7 @@ status :: status_ ::=
  {{ com execution status }}
 | Running :: :: running
 | Return exp :: :: return
+| pars_res :: :: pars_res
 | TypeError :: :: type_error
 
 scope :: scope_ ::=
@@ -255,6 +305,7 @@ scope :: scope_ ::=
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
 
+%Fence so that ott does not re-order curr_stack_frame
 embed
 {{ hol
 
@@ -284,6 +335,13 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | ( curr_stack_frame ) :: S :: paren
   {{ hol ([[curr_stack_frame]]) }}
 
+%Fence so that ott does not re-order curr_stack_frame
+embed
+{{ hol
+
+}}
+grammar
+
 call_stack {{ tex E }} :: call_stack_ ::=
 {{ com stack of caller stack frames }}
 {{ hol (curr_stack_frame list) }}
@@ -312,8 +370,12 @@ state {{ tex \Sigma }} :: state_ ::=
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 terminals :: terminals_ ::=
+%Statement reduction
 | -> :: :: rightarrow {{ tex \rightarrow }}
+%Expression reduction
 | ~> :: :: rightsquigarrow {{ tex \rightsquigarrow }}
+%Parser state reduction
+| --> :: :: longrightarrow {{ tex \longrightarrow }}
 
 formula :: formula_ ::=
 {{ com formulas }}
@@ -407,6 +469,7 @@ formula :: formula_ ::=
 %  {{ hol (([[const_list]] ++ [[exp_list']]) = [[exp_list]]) }}
 
 %Conditions
+%TODO: Remove, with new separate "bool" definition?
 | b = true :: M :: is_true
   {{ com condition true }}
   {{ hol ([[b]] = T) }}
@@ -455,7 +518,20 @@ formula :: formula_ ::=
   {{ hol (is_consts [[exp_list]]) }}
   %TODO: Fix typesetting
   {{ tex \mathrm{is\_consts} \,\, [[exp_list]] }}
+| ( packet_in' , header { x1 = const'1 ; ... ; xj = const'j } ) = update_header packet_in ( header { x1 = const1 ; ... ; xi = consti } ) :: M :: update_header
+  {{ com update header and input packet }}
+  {{ hol (([[packet_in']], [[x1 const'1 ... xj const'j]]) = update_header [[packet_in]] [[x1 const1 ... xi consti]]) }}
+  {{ tex (([[packet_in']], header') = \mathrm{update\_header} [[packet_in]] header) }}
+  {{ tex TODO }}
+| stmt = pars_map ( x ) :: M :: pars_lookup
+  {{ com parser state map lookup }}
+  {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
+| x = empty_err_msg :: M :: empty_err_msg
+  {{ com empty error message }}
+  {{ hol ([[x]] = "ParserStateEnd") }}
+  {{ tex [[x]] = \mathrm{ParserStateEnd} }}
 
+%TODO: Review if this is needed...
 embed
 {{ hol
 val is_const_def = Define `
@@ -518,11 +594,14 @@ by
   [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [const] ( ( curr_stack_frame, call_stack ) , Running )
 
 %%%%%%%%%%%%%%%%%%%%
-%Struct field access
+%Struct/extern field/method access
 
   [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
   ----------------------------------- :: access1
-  [exp . x] ( stacks , Running ) ~> [exp' . x] ( stacks' , Running )
+  [exp . exp''] ( stacks , Running ) ~> [exp' . exp''] ( stacks' , Running )
+
+%%%%%%%%%%%%%%%%%%%%
+%Struct field access
 
   const = struct { x1 = const1 ; ... ; xi = consti } ( x )
   ----------------------------------- :: access2
@@ -837,9 +916,99 @@ by
   ----------------------------------- :: block_exit
   [begin' empty_decl empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
+%%%%%%%%%%%%%%
+%Verify
+
+%Small-step reduction of predicate
+  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  ------------------------------------------------- :: verify_1
+  [verify exp exp' ]( stacks , Running ) -> [verify exp'' exp']( stacks' , Running )
+
+%Small-step reduction of error message
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ------------------------------------------------- :: verify_2
+  [verify b exp]( stacks , Running ) -> [verify b exp']( stacks' , Running )
+
+%Case predicate holds
+  b = true
+  ------------------------------------------------- :: verify_3
+  [verify b ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+
+%Case predicate does not hold
+  b = false
+  ------------------------------------------------- :: verify_4
+  [verify b ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Reject x )
+
+%%%%%%%%%%%%%%
+%Transition
+
+  ------------------------------------------------- :: transition
+  [transition pars_res]( stacks , Running ) -> [empty_stmt]( stacks , pars_res )
+
+%Transition to named state
+%NOTE: This assumes transition is last statement
+%TODO: Requires statement to be found in pars_map
+%  ------------------------------------------------- :: transition_1
+%  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Trans x )
+
+%Transition to accept
+%NOTE: This assumes transition is last statement
+%  ------------------------------------------------- :: transition_2
+%  [transition accept]( stacks , Running ) -> [empty_stmt]( stacks , Accept )
+
+%Transition to reject
+%NOTE: This assumes transition is last statement
+%  ------------------------------------------------- :: transition_3
+%  [transition reject x]( stacks , Running ) -> [empty_stmt]( stacks , Reject x )
+
 
 %%%%%%%%%%%%%%
 %Exit
 
   %TODO: exit semantics might require to have a specific "function-in-progress" statement
   %      in order to know what to reduce to nothing.
+
+
+%%%%%%%%%%%%%%%%%%%%
+% Parser semantics %
+%%%%%%%%%%%%%%%%%%%%
+%This isolates the unstructured parser semantics into a set of rules defined in terms
+%of the regular statement semantics.
+
+defns
+  pars_sem :: '' ::=
+defn
+  [ stmt ] state --> [ stmt' ] state' :: :: pars_red :: pars_
+  {{ com parser semantics }}
+by
+
+  [stmt]( stacks , Running ) -> [stmt']( stacks' , Running )
+  ------------------------------------------------- :: stmt
+  [stmt]( stacks , Running ) --> [stmt']( stacks' , Running )
+
+  [stmt]( stacks , Running ) -> [stmt']( stacks , Trans x )
+  stmt'' = pars_map ( x )
+  ------------------------------------------------- :: trans
+  [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
+
+
+defns
+  pars_t_sem :: '' ::=
+defn
+  [ stmt ] state --> state' :: :: pars_t_red :: pars_t_
+  {{ com parser semantics, terminating step }}
+by
+
+  [stmt]( stacks , Running ) -> [stmt']( stacks , Accept )
+  ------------------------------------------------- :: accept
+  [stmt]( stacks , Running ) --> ( stacks , Accept )
+
+  [stmt]( stacks , Running ) -> [stmt']( stacks' , Reject x )
+  ------------------------------------------------- :: reject
+  [stmt]( stacks , Running ) --> ( stacks' , Reject x )
+
+%If the end of some parser state is reached without status change, we reject
+  [stmt]( stacks , Running ) -> [empty_stmt]( stacks , Running )
+  x = empty_err_msg
+  ------------------------------------------------- :: empty
+  [stmt]( stacks , Running ) --> ( stacks' , Reject x )

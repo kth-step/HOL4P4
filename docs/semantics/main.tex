@@ -92,13 +92,13 @@ The expressions included are shown in Figure~\ref{fig:exp}. First, an expression
 \label{ssec:stmt}
 See \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-stmts}{Section 11} of the P4 specification.
 
-\begin{figure}[h!]
-\centering\ottgrammartabular{
-\ottstmt\ottafterlastrule
-}
-\caption{P4 Statements}
-\label{fig:stmt}
-\end{figure}
+%\begin{figure}[h!]
+%\centering\ottgrammartabular{
+%\ottstmt\ottafterlastrule
+%}
+%\caption{P4 Statements}
+%\label{fig:stmt}
+%\end{figure}
 
 \newpage
 \newcommand{\state}{\Sigma}
@@ -179,23 +179,14 @@ The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execut
 \label{fig:semstmtexec}
 \end{figure}
 
-%\begin{figure}[h!]
-%\ottdefnspFourXXparserXXstrXXstmtXXred
-%\caption{P4 Structural Statement Execution Semantics}
-%\label{fig:semstmtexec}
-%\end{figure}
-%
-%\begin{figure}[h!]
-%\ottdefnspFourXXparserXXblockXXred
-%\caption{P4 Parser State Execution Semantics}
-%\label{fig:semblockexec}
-%\end{figure}
-%
-%\begin{figure}[h!]
-%\ottdefnspFourXXparserXXnblockXXred
-%\caption{P4 $n$-Parser State Execution Semantics}
-%\label{fig:semnblockexec}
-%\end{figure}
+\subsection{Parser}
+
+\begin{figure}[ht!]
+\ottdefnsparsXXsem
+\ottdefnsparsXXtXXsem
+\caption{Parser Execution Semantics}
+\label{fig:semparsexec}
+\end{figure}
 
 \printbibliography
 
