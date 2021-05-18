@@ -1,13 +1,12 @@
 # Fdb version 3
-["biber main"] 1619598897 "main.bcf" "main.bbl" "main" 1619615740
-  "main.bcf" 1619615699 88353 517fd44d1c2a8a78dc2cb4754d91feab ""
+["biber main"] 0 "main.bcf" "main.bbl" "main" 0
+  "main.bcf" 1620828200 88353 517fd44d1c2a8a78dc2cb4754d91feab ""
   (generated)
   "main.bbl"
-  "main.blg"
-["pdflatex"] 1619615698 "/home/user/Desktop/p4ott/docs/semantics/main.tex" "/home/user/Desktop/p4ott/docs/semantics/main.pdf" "main" 1619615740
+["pdflatex"] 1620828199 "/home/user/Desktop/p4ott/docs/semantics/main.tex" "/home/user/Desktop/p4ott/docs/semantics/main.pdf" "main" 1620828199
   "/etc/texmf/web2c/texmf.cnf" 1592305874 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/user/Desktop/p4ott/docs/semantics/main.aux" 1619615699 4732 a1cb56c24f536f1793ee048e7a5bb269 ""
-  "/home/user/Desktop/p4ott/docs/semantics/main.tex" 1619615739 14962 acfb9f70cfd02210ba930ed23ea92a27 ""
+  "/home/user/Desktop/p4ott/docs/semantics/main.aux" 1620828199 8 a94a2480d3289e625eea47cd1b285758 ""
+  "/home/user/Desktop/p4ott/docs/semantics/main.tex" 1620828198 16343 3e51dee9b387b0254e23b85e3245655b ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1511824771 3332 103109f5612ad95229751940c61aada0 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecbx1000.tfm" 1480098696 3584 2d666ecf6d466d8b007246bc2f94d9da ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecbx1200.tfm" 1480098696 3584 402da0b29eafbad07963b1224b222f18 ""
@@ -233,19 +232,18 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1520210507 32485 c64754543d8ac501bea6e75e209ea521 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1604308961 2700761 ac0584cc9514ab21918550a6948c4ee2 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1604308976 4128044 4bee971d6e4de5aefa88e8e95602b7d5 ""
-  "main.aux" 1619615699 4732 a1cb56c24f536f1793ee048e7a5bb269 ""
-  "main.bbl" 1619613884 0 d41d8cd98f00b204e9800998ecf8427e "biber main"
-  "main.out" 1619615699 515 2a86d41fdcbbebe5db3dfc6ebc2aef73 ""
-  "main.run.xml" 1619615699 2297 cbb6e96cd402021eca670c39b71925a5 ""
-  "main.tex" 1619615739 14962 acfb9f70cfd02210ba930ed23ea92a27 ""
-  "p4_defs.tex" 1619613883 36181 8bb97976c8d51745e76f7682528872b7 ""
+  "main.aux" 0 -1 0 ""
+  "main.bbl" 0 -1 0 "biber main"
+  "main.run.xml" 0 -1 0 ""
+  "main.tex" 1620828198 16343 3e51dee9b387b0254e23b85e3245655b ""
+  "p4_defs.tex" 1620822446 36181 8bb97976c8d51745e76f7682528872b7 ""
   (generated)
-  "main.log"
   "main.bcf"
   "main.aux"
   "/home/user/Desktop/p4ott/docs/semantics/main.log"
-  "main.pdf"
+  "p4_defs.aux"
   "main.out"
   "/home/user/Desktop/p4ott/docs/semantics/main.pdf"
   "main.run.xml"
-  "p4_defs.aux"
+  "main.pdf"
+  "main.log"

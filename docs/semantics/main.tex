@@ -35,6 +35,18 @@
 \usepackage{ifthen}
 \usepackage{alltt}%hack
 
+
+\newcommand*{\inference}[3][t]{%
+   \begingroup
+   \def\and{\\}%
+   \begin{tabular}[#1]{@{\enspace}c@{\enspace}}
+   #2 \\
+   \hline
+   #3
+   \end{tabular}%
+   \endgroup
+}
+
 \include{p4_defs}
 
 \addbibresource{p4.bib}
@@ -237,6 +249,33 @@ Whenever entering a block, in rule \textsc{stmt\_block\_enter}, a new empty scop
 %\caption{P4 $n$-Parser State Execution Semantics}
 %\label{fig:semnblockexec}
 %\end{figure}
+
+\subsection{Match Action Table}
+ The match action table takes the meta data (headers) after it was extracted in the parser. Note that here there are is a control plane and a data plane. 
+Syntactically actions resemble functions with no return value, the body of the action contains statements and declarations. The action can be called implicitly from the match action-process(i.e. means in the table apply), or explicitly from an other action or a control block. (section 12.1 p4).
+
+The first rule shows that the header (as an expression) needs to be evaluated, and in this case, extract the required field for the matching. 
+We still need to add expression list because there can be multiple keys.
+
+\bigskip
+\bigskip
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+apply table exp:
+
+\inference[c]{<exp>(\sigma) -> <exp'>(\sigma ') }
+            {[apply table\_name exp](\sigma) -> [apply\ table\_name \ exp '](\sigma ')}
+\bigskip
+\bigskip
+\bigskip
+
+apply table const:
+
+\inference[c]{t\_map(table\_name) = (e', m\_kind)
+            \and ctrl(table\name, const, m\_kind) = f (v1, ..., vn)
+             }
+              {[apply table\_name const](\sigma) -> [call f (v1, ..., vn)](\sigma ')}
+
+              
 
 \printbibliography
 
