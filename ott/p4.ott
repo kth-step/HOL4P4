@@ -2,7 +2,8 @@ embed
 {{ hol
 open wordsTheory;
 }}
-metavar x ::=
+%x denotes variable name, f denotes field name
+metavar x, f ::=
       {{ lex alphanum }}
       {{ hol string }}
       {{ tex [[x]] }}
@@ -17,11 +18,6 @@ metavar b ::=
       {{ hol bool }}
       {{ tex [[b]] }}
       {{ com boolean }}
-metavar packet_in ::=
-      {{ lex numeral }}
-      {{ hol bool list }}
-      {{ tex \mathit{packet\_in} }}
-      {{ com input packet }}
 %TODO Ideally, one should have different word lengths
 metavar n ::=
       {{ lex numeral }}
@@ -143,13 +139,16 @@ const :: const_ ::=
 %%TODO: An extern should contain an internally visible list of mappings between variable names and constants,
 %%      and a map from function names to their bodies and arguments
 %% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
-%| extern { x1 = const1 ; ... ; xi = consti } func_map :: :: extern
-%  {{ com extern }}
-| packet_in :: :: packet_in
-  {{ com input packet }}
-  {{ tex \mathit{packet\_in} }}
 | errmsg x :: :: err
   {{ com error message }}
+
+%TODO: Array element
+%TODO: Bitslice
+lval :: lval_ ::=
+| x :: :: varname
+  {{ com variable name }}
+| lval . f :: :: field
+  {{ com field access }}
 
 %TODO: Casts
 %TODO: Lists
@@ -165,7 +164,7 @@ exp :: exp_ ::=
   {{ com field/method access }}
 | unop exp :: :: unop
   {{ com unary operation }}
-  {{ tex \ominus [[exp]] }}
+  {{ tex [[unop]] [[exp]] }}
 | exp1 binop exp2 :: :: binop
   {{ com binary operation }}
   {{ tex [[exp1]] [[binop]] [[exp2]] }}
@@ -218,14 +217,19 @@ decl :: decl_ ::=
 | decl1 ; decl2 :: :: seq
   {{ com sequence }}
 
-pars_res {{ tex pst }} :: pars_res_ ::=
-{{ com parser results }}
-| Trans x :: :: trans
-  {{ com transition to named state }}
+pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
+{{ com final parser states }}
 | Accept :: :: accept
   {{ com accepted state }}
 | Reject x :: :: reject
   {{ com rejected state }}
+
+pars_next {{ tex p }} :: pars_next_ ::=
+{{ com parser next state }}
+| Trans x :: :: trans
+  {{ com transition to named state }}
+| pars_fin :: :: pars_fin
+  {{ com final state }}
 
 %TODO: Switch statement
 stmt :: stmt_ ::=
@@ -251,10 +255,10 @@ stmt :: stmt_ ::=
 | verify exp exp' :: :: verify
   % exp is predicate, exp' is error message
   {{ com verify }}
-| transition pars_res :: :: trans
+| transition pars_next :: :: trans
   % x is the parser state name
   {{ com transition }}
-  {{ tex transition [[pars_res]] }}
+  {{ tex transition [[pars_next]] }}
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
@@ -283,9 +287,12 @@ pars_map {{ tex P }} :: pars_map_ ::=
 status :: status_ ::=
  {{ com execution status }}
 | Running :: :: running
-| Return exp :: :: return
-| pars_res :: :: pars_res
+  {{ tex { \mathbf{R} } }}
+| Return const :: :: return
+  {{ tex { \mathbf{Ret} \,\, [[const]]} }}
+| pars_next :: :: pars_next
 | TypeError :: :: type_error
+  {{ tex { \bot } }}
 
 scope :: scope_ ::=
 {{ hol (string |-> const) }}
@@ -518,11 +525,6 @@ formula :: formula_ ::=
   {{ hol (is_consts [[exp_list]]) }}
   %TODO: Fix typesetting
   {{ tex \mathrm{is\_consts} \,\, [[exp_list]] }}
-| ( packet_in' , header { x1 = const'1 ; ... ; xj = const'j } ) = update_header packet_in ( header { x1 = const1 ; ... ; xi = consti } ) :: M :: update_header
-  {{ com update header and input packet }}
-  {{ hol (([[packet_in']], [[x1 const'1 ... xj const'j]]) = update_header [[packet_in]] [[x1 const1 ... xi consti]]) }}
-  {{ tex (([[packet_in']], header') = \mathrm{update\_header} [[packet_in]] header) }}
-  {{ tex TODO }}
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
   {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
@@ -556,31 +558,20 @@ by
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
 
-  %Resolving arguments to function call - reduction
-  %TODO: force exp_list'' to be non-empty?
-  exp_list' ++ exp_list'' =' exp1 , .. , expi
-  is_consts ( exp_list' )
-  exp = hd exp_list''
-  [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks' , Running )
-  %TODO: length plus 1 if indexing from 1
-  num = length ( exp_list' )
-  exp'1 , .. , exp'j =' update ( exp' , num , ( exp1 , .. , expi ) )
-  ----------------------------------- :: func_call_args1
-  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'1 , .. , exp'j )] ( stacks , Running )
-
   %Resolving arguments to function call - assigning arguments to new stack frame
   ( stmt , x1 , .. , xi ) = func_map ( x )
   scope' = emptyscope ++ [ x1 |->  const1 , .. , xi |-> consti ]
   scope = curr_stack_frame[0]
   curr_stack_frame' = scope' :: [scope]
   call_stack' = tl curr_stack_frame :: call_stack
-  ----------------------------------- :: func_call_args2
+  ----------------------------------- :: func_call_newframe
   [call x ( const1 , .. , consti )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: func_exec
   [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
 
+%TODO: Note that this is a simplification of the return mechanism
   ----------------------------------- :: func_ret_exp
   [exec empty_stmt] ( stacks , Return const ) ~> [const] ( stacks' , Running )
 
@@ -595,26 +586,54 @@ by
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct/extern field/method access
-
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: access1
-  [exp . exp''] ( stacks , Running ) ~> [exp' . exp''] ( stacks' , Running )
-
-%%%%%%%%%%%%%%%%%%%%
-%Struct field access
+%TODO: Nested structs
 
   const = struct { x1 = const1 ; ... ; xi = consti } ( x )
-  ----------------------------------- :: access2
+  ----------------------------------- :: acc
   [ struct { x1 = const1 ; ... ; xi = consti } . x] ( stacks , Running ) ~> [const] ( stacks' , Running )
+
+%%%%%%%%%%%%%
+%"Reduction of argument" rules
+
+%Resolving arguments to function call - reduction
+  %TODO: force exp_list'' to be non-empty?
+  exp_list' ++ exp_list'' =' exp1 , .. , expi
+  is_consts ( exp_list' )
+  exp = hd exp_list''
+  [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks' , Running )
+  %TODO: length plus 1 if indexing from 1
+  num = length ( exp_list' )
+  exp'1 , .. , exp'j =' update ( exp' , num , ( exp1 , .. , expi ) )
+  ----------------------------------- :: func_call_args
+  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'1 , .. , exp'j )] ( stacks , Running )
+
+%Stacks
+  [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  ----------------------------------- :: acc_arg2
+  [exp . exp'] ( stacks , Running ) ~> [exp . exp''] ( stacks' , Running )
+
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: acc_arg1
+  [exp . x] ( stacks , Running ) ~> [exp' . x] ( stacks' , Running )
+
+%Unary operations
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: unop_arg
+  [unop exp] ( stacks , Running ) ~> [unop exp'] ( stacks' , Running )
+
+%Binary operations
+  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  ----------------------------------- :: binop_arg1
+  [exp binop exp'] ( stacks , Running ) ~> [exp'' binop exp'] ( stacks' , Running )
+
+  [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  ----------------------------------- :: binop_arg2
+  [const binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
+
 
 %%%%%%%%%%%%%%%%%%%
 %Unary expressions%
 %%%%%%%%%%%%%%%%%%%
-
-
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: unop
-  [unop exp] ( stacks , Running ) ~> [unop exp'] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%
 %Boolean negation
@@ -648,22 +667,6 @@ by
 %%%%%%%%%%%%%%%%%%%%
 %Binary expressions%
 %%%%%%%%%%%%%%%%%%%%
-
-%Reduce 1st operand
-%Reduce 2nd operand, given 1st has been completely reduced
-%Evaluate expression on 2 completely reduced operands
-
-%%%%%%%%%%%%
-%Binary operations - general reductions
-
-  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
-  ----------------------------------- :: binop1
-  [exp binop exp'] ( stacks , Running ) ~> [exp'' binop exp'] ( stacks' , Running )
-
-  [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
-  ----------------------------------- :: binop2
-  [const binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
-
 
 %%%%%%%%%%%%%%%
 %Multiplication
@@ -840,33 +843,25 @@ by
 %%%%%%%%%%%%%%
 %Return
 
-  %Return with an expression - reduction step
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: ret_exp
-  [return exp] ( stacks , Running ) -> [return exp'] ( stacks' , Running )
-
-  %Return with a constant
+  %Return
   scope = curr_stack_frame [ 0 ]
   curr_stack_frame' :: call_stack' = call_stack
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
-  ----------------------------------- :: ret_const
+  ----------------------------------- :: ret
   [return const] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return const )
 
 %%%%%%%%%%%%%%
 %Assignment
 
-  %Assign a constant to a variable
+  %Assign to a variable
   find_index ( curr_stack_frame , x ) = num
   scope = curr_stack_frame [ num ]
   scope' = scope + [ x |-> const ]
   curr_stack_frame' = update ( scope' , num , curr_stack_frame )
-  ----------------------------------- :: ass_const
+  ----------------------------------- :: ass_var
   [assign x const] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
-  %Assign an expression to a variable - reduction step
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: ass_exp
-  [assign x exp] ( stacks , Running ) -> [assign x exp'] ( stacks' , Running )
+  %TODO: Assign to a struct field
 
 %%%%%%%%%%%%%%
 %Sequence
@@ -878,24 +873,20 @@ by
   ----------------------------------- :: seq2
   [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
 
-  [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return exp )
+  [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return const )
   ----------------------------------- :: seq3
-  [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return exp )
+  [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return const )
 
 %%%%%%%%%%%%%%
 %Conditional
 
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: cond1
-  [if exp then stmt1 else stmt2] ( stacks , Running ) -> [if exp' then stmt1 else stmt2] ( stacks' , Running )
-
-  b = true
+%  b = true
   ----------------------------------- :: cond2
-  [if b then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks , Running )
+  [if true then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks , Running )
 
-  b = false
+%  b = false
   ----------------------------------- :: cond3
-  [if b then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
+  [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
 %Block
@@ -919,31 +910,21 @@ by
 %%%%%%%%%%%%%%
 %Verify
 
-%Small-step reduction of predicate
-  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
-  ------------------------------------------------- :: verify_1
-  [verify exp exp' ]( stacks , Running ) -> [verify exp'' exp']( stacks' , Running )
-
-%Small-step reduction of error message
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ------------------------------------------------- :: verify_2
-  [verify b exp]( stacks , Running ) -> [verify b exp']( stacks' , Running )
-
 %Case predicate holds
-  b = true
+%  b = true
   ------------------------------------------------- :: verify_3
-  [verify b ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+  [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
 
 %Case predicate does not hold
-  b = false
+%  b = false
   ------------------------------------------------- :: verify_4
-  [verify b ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Reject x )
+  [verify false ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Reject x )
 
 %%%%%%%%%%%%%%
 %Transition
 
   ------------------------------------------------- :: transition
-  [transition pars_res]( stacks , Running ) -> [empty_stmt]( stacks , pars_res )
+  [transition pars_next]( stacks , Running ) -> [empty_stmt]( stacks , pars_next )
 
 %Transition to named state
 %NOTE: This assumes transition is last statement
@@ -969,6 +950,36 @@ by
   %      in order to know what to reduce to nothing.
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Reduction of expression rules %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%Reduction step of return expression
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: ret_exp
+  [return exp] ( stacks , Running ) -> [return exp'] ( stacks' , Running )
+
+%Reduction step of assign expression
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: ass_exp
+  [assign x exp] ( stacks , Running ) -> [assign x exp'] ( stacks' , Running )
+
+%Reduction step of condition
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ----------------------------------- :: cond_exp
+  [if exp then stmt1 else stmt2] ( stacks , Running ) -> [if exp' then stmt1 else stmt2] ( stacks' , Running )
+
+%Reduction step of verify predicate
+  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  ------------------------------------------------- :: verify_exp1
+  [verify exp exp' ]( stacks , Running ) -> [verify exp'' exp']( stacks' , Running )
+
+%Reduction step of error message
+  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  ------------------------------------------------- :: verify_exp2
+  [verify b exp]( stacks , Running ) -> [verify b exp']( stacks' , Running )
+
+
 %%%%%%%%%%%%%%%%%%%%
 % Parser semantics %
 %%%%%%%%%%%%%%%%%%%%
@@ -986,9 +997,9 @@ by
   ------------------------------------------------- :: stmt
   [stmt]( stacks , Running ) --> [stmt']( stacks' , Running )
 
-  [stmt]( stacks , Running ) -> [stmt']( stacks , Trans x )
+  [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
   stmt'' = pars_map ( x )
-  ------------------------------------------------- :: trans
+  ------------------------------------------------- :: state
   [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
 
 
@@ -996,19 +1007,15 @@ defns
   pars_t_sem :: '' ::=
 defn
   [ stmt ] state --> state' :: :: pars_t_red :: pars_t_
-  {{ com parser semantics, terminating step }}
+  {{ com parser semantics, final step }}
 by
 
-  [stmt]( stacks , Running ) -> [stmt']( stacks , Accept )
-  ------------------------------------------------- :: accept
-  [stmt]( stacks , Running ) --> ( stacks , Accept )
-
-  [stmt]( stacks , Running ) -> [stmt']( stacks' , Reject x )
-  ------------------------------------------------- :: reject
-  [stmt]( stacks , Running ) --> ( stacks' , Reject x )
+  [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
+  ------------------------------------------------- :: fin
+  [stmt]( stacks , Running ) --> ( stacks , pars_fin )
 
 %If the end of some parser state is reached without status change, we reject
-  [stmt]( stacks , Running ) -> [empty_stmt]( stacks , Running )
+  [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
   x = empty_err_msg
   ------------------------------------------------- :: empty
   [stmt]( stacks , Running ) --> ( stacks' , Reject x )
