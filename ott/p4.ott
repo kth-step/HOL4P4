@@ -11,6 +11,7 @@ metavar x, f ::=
 metavar num ::=
       {{ lex numeral }}
       {{ hol num }}
+      {{ tex i }}
       {{ com natural number }}
 %TODO Numeral or alphanum?
 metavar b ::=
@@ -31,7 +32,7 @@ indexvar i, j, k, l ::=
   {{ coq nat }}
   {{ hol num }}
   {{ com indices }}
-grammar
+grammar 
 
 %Statement semantics
 %TODO: Add directed arguments (in, out, inout)
@@ -141,6 +142,12 @@ const :: const_ ::=
 %% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
 | errmsg x :: :: err
   {{ com error message }}
+%TODO: Represent uninitialised variables? Default values?
+%See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
+| uninit :: :: uninit
+  {{ com uninitialized value }}
+  {{ tex ? }}
+  {{ hol (ARB) }}
 
 %TODO: Array element
 %TODO: Bitslice
@@ -157,7 +164,7 @@ lval :: lval_ ::=
 exp :: exp_ ::=
 {{ com expression }}
 | const :: :: const
-  {{ com const }}
+ {{com constant value}}
 | x :: :: var
   {{ com variable/function name }}
 | exp . exp' :: :: acc
@@ -207,15 +214,16 @@ exp_list :: exp_list_ ::=
 % Statements %
 %%%%%%%%%%%%%%
 
-decl :: decl_ ::=
-{{ com declaration }}
-| empty_decl :: :: empty
-  {{ com empty declaration }}
-| declare x exp :: :: stmt
-  {{ com declaration }}
-  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
-| decl1 ; decl2 :: :: seq
-  {{ com sequence }}
+%decl :: decl_ ::=
+%{{ com declaration }}
+%| empty_decl :: :: empty
+%  {{ com empty declaration }}
+%  {{ tex \emptyset_{ \mathrm{decl} } }}
+%| declare x exp :: :: stmt
+%  {{ com declaration }}
+%  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
+%| decl1 ; decl2 :: :: seq
+%  {{ com sequence }}
 
 pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 {{ com final parser states }}
@@ -242,12 +250,16 @@ stmt :: stmt_ ::=
   {{ tex [[x]] \mathrel{\mathop:}= [[exp]] }}
 | if exp then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-| begin decl stmt end :: :: block 
+%TODO: Declaration should take a type as well
+| decl x :: :: declare
+  {{ com declaration }}
+  {{ tex decl \, [[x]] }}
+| begin stmt end :: :: block 
   {{ com block }}
-  {{ tex \{ [[decl]] \,\, [[stmt]] \} }}
-| begin' decl stmt end' :: :: block_ip
+  {{ tex \{ [[stmt]] \} }}
+| begin' stmt end' :: :: block_ip
   {{ com block in progress }}
-  {{ tex [ [[decl]] \,\, [[stmt]] ] }}
+  {{ tex [ [[stmt]] ] }}
 | return exp :: :: ret
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
@@ -284,7 +296,7 @@ pars_map {{ tex P }} :: pars_map_ ::=
 %Note that this is not part of the P4 specification, but made up for verification purposes.
 
 %Execution status.
-status :: status_ ::=
+status {{ tex t }}:: status_ ::=
  {{ com execution status }}
 | Running :: :: running
   {{ tex { \mathbf{R} } }}
@@ -294,13 +306,13 @@ status :: status_ ::=
 | TypeError :: :: type_error
   {{ tex { \bot } }}
 
-scope :: scope_ ::=
+scope {{ tex \gamma }} :: scope_ ::=
 {{ hol (string |-> const) }}
 {{ com frame/variable environment of current scope }}
 | emptyscope :: M :: empty
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
-  {{ tex {\emptyset}_{ \mathrm{scope} } }}
+  {{ tex {\gamma}_{ \emptyset } }}
 | scope + [ x |-> const ] :: M :: update
   {{ com update variable mapping }}
   {{ hol (FUPDATE [[scope]] ([[x]], [[const]])) }}
@@ -311,6 +323,10 @@ scope :: scope_ ::=
   {{ tex \forall i . (x_i \mapsto  \mathit{const}_i) [[scope]] }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
+%| G_scope :: M :: global
+%{{ com global scope }}
+%{{ tex G_s }}
+  
 
 %Fence so that ott does not re-order curr_stack_frame
 embed
@@ -367,7 +383,7 @@ stacks {{ tex \sigma }} :: stacks_ ::=
  {{ com stacks in execution state }}
 | ( curr_stack_frame , call_stack ) :: :: tup
 
-state {{ tex \Sigma }} :: state_ ::=
+state {{ tex s}} :: state_ ::=
  {{ com execution state }}
 | ( stacks , status ) :: :: tup
 
@@ -452,11 +468,16 @@ formula :: formula_ ::=
 | ( stmt , x1 , .. , xi ) = func_map ( x ) :: M :: func_lookup
   {{ com function lookup }}
   {{ hol (FLOOKUP [[func_map]] [[x]] = SOME ([[stmt]], [[x1 .. xi]])) }}
-| find_index ( curr_stack_frame , x ) = num :: M :: find_index_scope
-  {{ com find index of variable's scope }}
+| find_index_max ( curr_stack_frame , x ) = num :: M :: find_index_scope_max
+  {{ com find max index of variable's scope }}
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
-  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
+  {{ tex i = max  \{ j . [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
+%  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
+| length ( curr_stack_frame ) = num :: M :: find_length
+  {{ com find the current stack frame length }}
+  {{ tex [[num]] = length ([[curr_stack_frame]])}}
+  {{ hol ([[num]] = LENGTH [[curr_stack_frame]]) }}
 | const = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[const]]) }}
@@ -561,6 +582,9 @@ by
   %Resolving arguments to function call - assigning arguments to new stack frame
   ( stmt , x1 , .. , xi ) = func_map ( x )
   scope' = emptyscope ++ [ x1 |->  const1 , .. , xi |-> consti ]
+%TODO: Global scope notation
+%  G_scope = curr_stack_frame[0]
+%  curr_stack_frame' = scope' :: [G_scope]
   scope = curr_stack_frame[0]
   curr_stack_frame' = scope' :: [scope]
   call_stack' = tl curr_stack_frame :: call_stack
@@ -578,7 +602,7 @@ by
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
-  find_index ( curr_stack_frame, x ) = num
+  find_index_max ( curr_stack_frame, x ) = num
   scope = curr_stack_frame [ num ]
   const = scope ( x )
   ----------------------------------- :: lookup
@@ -799,30 +823,30 @@ by
 % Declaration semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-defns
-  decl_sem :: '' ::=
-defn
-  [ decl ] state -> [ decl' ] state' :: :: decl_red :: decl_
-  {{ com declaration semantics }}
-by
+%defns
+%  decl_sem :: '' ::=
+%defn
+%  [ decl ] state -> [ decl' ] state' :: :: decl_red :: decl_
+%  {{ com declaration semantics }}
+%by
 
   %Declare a variable and assign a value - reduction step
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: decl_exp
-  [declare x exp] ( stacks , Running ) -> [declare x exp'] ( stacks' , Running )
+%  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+%  ----------------------------------- :: decl_exp
+%  [declare x exp] ( stacks , Running ) -> [declare x exp'] ( stacks' , Running )
 
-  scope :: curr_stack_frame' = curr_stack_frame
-  scope' = scope + [ x |-> n ]
-  curr_stack_frame'' = scope' :: curr_stack_frame'
-  ----------------------------------- :: decl_const
-  [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_decl] ( ( curr_stack_frame'' , call_stack ) , Running )
+%  scope :: curr_stack_frame' = curr_stack_frame
+%  scope' = scope + [ x |-> n ]
+%  curr_stack_frame'' = scope' :: curr_stack_frame'
+%  ----------------------------------- :: decl_const
+%  [declare x n] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_decl] ( ( curr_stack_frame'' , call_stack ) , Running )
 
-  [decl1] ( stacks , Running ) -> [decl1'] ( stacks' , Running )
-  ----------------------------------- :: seq1
-  [decl1 ; decl2] ( stacks , Running ) -> [decl1' ; decl2] ( stacks' , Running )
+ % [decl1] ( stacks , Running ) -> [decl1'] ( stacks' , Running )
+ % ----------------------------------- :: seq1
+ % [decl1 ; decl2] ( stacks , Running ) -> [decl1' ; decl2] ( stacks' , Running )
 
-  ----------------------------------- :: seq2
-  [empty_decl ; decl] ( stacks , Running ) -> [decl] ( stacks , Running )
+ % ----------------------------------- :: seq2
+ % [empty_decl ; decl] ( stacks , Running ) -> [decl] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -843,7 +867,8 @@ by
 %%%%%%%%%%%%%%
 %Return
 
-  %Return
+%TODO: Global scope
+%  G_scope = curr_stack_frame [ 0 ]
   scope = curr_stack_frame [ 0 ]
   curr_stack_frame' :: call_stack' = call_stack
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
@@ -853,12 +878,11 @@ by
 %%%%%%%%%%%%%%
 %Assignment
 
-  %Assign to a variable
-  find_index ( curr_stack_frame , x ) = num
+  %Assign a constant to a variable
+  find_index_max ( curr_stack_frame , x ) = num
   scope = curr_stack_frame [ num ]
-  scope' = scope + [ x |-> const ]
-  curr_stack_frame' = update ( scope' , num , curr_stack_frame )
-  ----------------------------------- :: ass_var
+  curr_stack_frame' = update ( scope + [ x |-> const ] , num , curr_stack_frame )
+  ----------------------------------- :: ass_const
   [assign x const] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %TODO: Assign to a struct field
@@ -889,23 +913,29 @@ by
   [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
+%declaration
+
+  length ( curr_stack_frame ) = num
+  scope = curr_stack_frame [ num ]
+  curr_stack_frame' = update ( scope + [ x |-> uninit ] , num , curr_stack_frame )
+  ----------------------------------- :: decl
+  [decl x] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+
+
+%%%%%%%%%%%%%%
 %Block
 
   curr_stack_frame' = emptyscope :: curr_stack_frame
   ----------------------------------- :: block_enter
-  [begin decl stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' decl stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
-
-  [decl] ( stacks , Running ) -> [decl'] ( stacks' , Running )
-  ----------------------------------- :: block_declare
-  [begin' decl stmt end'] ( stacks , Running ) -> [begin' decl' stmt end'] ( stacks' , Running )
+  [begin stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
-  ----------------------------------- :: block_stmt
-  [begin' empty_decl stmt end'] ( stacks , Running ) -> [begin' empty_decl stmt' end'] ( stacks' , Running )
+  ----------------------------------- :: block_exec
+  [begin' stmt end'] ( stacks , Running ) -> [begin' stmt' end'] ( stacks' , Running )
 
   curr_stack_frame' = tl curr_stack_frame
   ----------------------------------- :: block_exit
-  [begin' empty_decl empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  [begin' empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
 %%%%%%%%%%%%%%
 %Verify

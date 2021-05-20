@@ -1,0 +1,10 @@
+\BOOKMARK [1][-]{section.1}{Syntax}{}% 1
+\BOOKMARK [2][-]{subsection.1.1}{Types}{section.1}% 2
+\BOOKMARK [2][-]{subsection.1.2}{Expressions}{section.1}% 3
+\BOOKMARK [2][-]{subsection.1.3}{Statements}{section.1}% 4
+\BOOKMARK [2][-]{subsection.1.4}{Execution State}{section.1}% 5
+\BOOKMARK [1][-]{section.2}{Semantics}{}% 6
+\BOOKMARK [2][-]{subsection.2.1}{Expressions}{section.2}% 7
+\BOOKMARK [2][-]{subsection.2.2}{Statement Execution}{section.2}% 8
+\BOOKMARK [2][-]{subsection.2.3}{Match Action Table}{section.2}% 9
+\BOOKMARK [1][-]{appendix.A}{Concrete Syntax of Operations}{}% 10
