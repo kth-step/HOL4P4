@@ -27,17 +27,12 @@
 \newcommand{\ottafterlastrule}{\\}
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
- $ x $ & \ottcom{string} \\
+ $ x ,\, f $ & \ottcom{string} \\
  $ i $ & \ottcom{natural number} \\
  $ b $ & \ottcom{boolean} \\
  $ n $ & \ottcom{integer} \\
  $ \ottmv{i} ,\, \ottmv{j} ,\, \ottmv{k} ,\, \ottmv{l} $ & \ottcom{indices} \\
 }}
-
-\newcommand{\ottconst}{
-\ottrulehead{\ottnt{const}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ const }{}{}{}{\ottcom{constants}}\ottprodnewline
-\ottprodline{|}{ const }{}{}{}{\ottcom{boolean}}}
 
 \newcommand{\ottunop}{
 \ottrulehead{\ominus}{::=}{}\ottprodnewline
@@ -67,11 +62,32 @@
 \ottprodline{|}{ \land }{}{}{}{\ottcom{binary and}}\ottprodnewline
 \ottprodline{|}{ \lor }{}{}{}{\ottcom{binary or}}}
 
+\newcommand{\ottbool}{
+\ottrulehead{\ottnt{bool}}{::=}{\ottcom{boolean}}\ottprodnewline
+\ottfirstprodline{|}{b}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{true}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{false}}{}{}{}{}}
+
+\newcommand{\ottconst}{
+\ottrulehead{\ottnt{const}}{::=}{\ottcom{constant}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{bool}}{}{}{}{\ottcom{boolean value}}\ottprodnewline
+\ottprodline{|}{n}{}{}{}{\ottcom{integer}}\ottprodnewline
+\ottprodline{|}{ struct }{}{}{}{\ottcom{struct}}\ottprodnewline
+\ottprodline{|}{ header }{}{}{}{\ottcom{header}}\ottprodnewline
+\ottprodline{|}{\ottkw{errmsg} \, x}{}{}{}{\ottcom{error message}}\ottprodnewline
+\ottprodline{|}{ ? }{}{}{}{\ottcom{uninitialized value}}}
+
+\newcommand{\ottlval}{
+\ottrulehead{\ottnt{lval}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{x}{}{}{}{\ottcom{variable name}}\ottprodnewline
+\ottprodline{|}{\ottnt{lval}  \ottsym{.}  f}{}{}{}{\ottcom{field access}}}
+
 \newcommand{\ottexp}{
 \ottrulehead{\ottnt{exp}}{::=}{\ottcom{expression}}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{const}}{}{}{}{\ottcom{constant value}}\ottprodnewline
 \ottprodline{|}{x}{}{}{}{\ottcom{variable/function name}}\ottprodnewline
-\ottprodline{|}{ \ominus  \ottnt{exp} }{}{}{}{\ottcom{unary operation}}\ottprodnewline
+\ottprodline{|}{\ottnt{exp}  \ottsym{.}  \ottnt{exp'}}{}{}{}{\ottcom{field/method access}}\ottprodnewline
+\ottprodline{|}{ \ominus   \ottnt{exp} }{}{}{}{\ottcom{unary operation}}\ottprodnewline
 \ottprodline{|}{ \ottnt{exp_{{\mathrm{1}}}}   \oplus   \ottnt{exp_{{\mathrm{2}}}} }{}{}{}{\ottcom{binary operation}}\ottprodnewline
 \ottprodline{|}{\ottkw{call} \, x  \ottsym{(}  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}  \ottsym{)}}{}{}{}{\ottcom{function call}}\ottprodnewline
 \ottprodline{|}{\ottkw{exec} \, \ottnt{stmt}}{}{}{}{\ottcom{function execution}}\ottprodnewline
@@ -82,7 +98,18 @@
 \ottfirstprodline{|}{\ottkw{empty\_el}} {\textsf{M}}{}{}{\ottcom{empty expression list}}\ottprodnewline
 \ottprodline{|}{\ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}} {\textsf{M}}{}{}{\ottcom{list of expressions}}\ottprodnewline
 \ottprodline{|}{\ottnt{exp\_list}  \ottsym{++}  \ottnt{exp\_list'}} {\textsf{M}}{}{}{\ottcom{append two exp_lists}}\ottprodnewline
-\ottprodline{|}{ ( \ottkw{i}  \mapsto   \ottnt{exp} )  \ottnt{exp\_list} } {\textsf{M}}{}{}{\ottcom{update entry of expression list}}}
+\ottprodline{|}{ ( i  \mapsto   \ottnt{exp} )  \ottnt{exp\_list} } {\textsf{M}}{}{}{\ottcom{update entry of expression list}}\ottprodnewline
+\ottprodline{|}{\ottsym{(}  \ottnt{exp\_list}  \ottsym{)}} {\textsf{S}}{}{}{}}
+
+\newcommand{\ottparsXXfin}{
+\ottrulehead{p_{ \mathrm{fin} }}{::=}{\ottcom{final parser states}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{Accept}}{}{}{}{\ottcom{accepted state}}\ottprodnewline
+\ottprodline{|}{\ottkw{Reject} \, x}{}{}{}{\ottcom{rejected state}}}
+
+\newcommand{\ottparsXXnext}{
+\ottrulehead{p}{::=}{\ottcom{parser next state}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{Trans} \, x}{}{}{}{\ottcom{transition to named state}}\ottprodnewline
+\ottprodline{|}{p_{ \mathrm{fin} }}{}{}{}{\ottcom{final state}}}
 
 \newcommand{\ottstmt}{
 \ottrulehead{\ottnt{stmt}}{::=}{\ottcom{statement}}\ottprodnewline
@@ -93,26 +120,32 @@
 \ottprodline{|}{ \{  \ottnt{stmt}  \} }{}{}{}{\ottcom{block}}\ottprodnewline
 \ottprodline{|}{ [  \ottnt{stmt}  ] }{}{}{}{\ottcom{block in progress}}\ottprodnewline
 \ottprodline{|}{\ottkw{return} \, \ottnt{exp}}{}{}{}{\ottcom{return}}\ottprodnewline
-\ottprodline{|}{\ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequence}}}
+\ottprodline{|}{\ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequence}}\ottprodnewline
+\ottprodline{|}{\ottkw{verify} \, \ottnt{exp} \, \ottnt{exp'}}{}{}{}{\ottcom{verify}}\ottprodnewline
+\ottprodline{|}{ transition  p }{}{}{}{\ottcom{transition}}}
 
 \newcommand{\ottfuncXXmap}{
 \ottrulehead{F}{::=}{\ottcom{function map}}\ottprodnewline
 \ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty function map}}\ottprodnewline
 \ottprodline{|}{F  \ottsym{+}  \ottsym{[}  x  \ottsym{\mbox{$\mid$}->}  \ottnt{stmt}  \ottsym{]}} {\textsf{M}}{}{}{\ottcom{update variable mapping}}}
 
+\newcommand{\ottparsXXmap}{
+\ottrulehead{P}{::=}{\ottcom{parser state map}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty parser state map}}}
+
 \newcommand{\ottstatus}{
-\ottrulehead{T}{::=}{\ottcom{execution status}}\ottprodnewline
-\ottfirstprodline{|}{\ottkw{Running}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{Return} \, \ottnt{exp}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{TypeError}}{}{}{}{}}
+\ottrulehead{t}{::=}{\ottcom{execution status}}\ottprodnewline
+\ottfirstprodline{|}{ { \mathbf{R} } }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ { \mathbf{Ret} \,\,  \ottnt{const} } }{}{}{}{}\ottprodnewline
+\ottprodline{|}{p}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ { \bot } }{}{}{}{}}
 
 \newcommand{\ottscope}{
 \ottrulehead{\gamma}{::=}{\ottcom{frame/variable environment of current scope}}\ottprodnewline
-\ottfirstprodline{|}{ {\emptyset}_{ \mathrm{\gamma} } } {\textsf{M}}{}{}{\ottcom{empty stack frame}}\ottprodnewline
+\ottfirstprodline{|}{ {\gamma}_{ \emptyset } } {\textsf{M}}{}{}{\ottcom{empty stack frame}}\ottprodnewline
 \ottprodline{|}{ ( x  \mapsto   \ottnt{const} )  \gamma } {\textsf{M}}{}{}{\ottcom{update variable mapping}}\ottprodnewline
 \ottprodline{|}{ \forall i . (x_i \mapsto  \mathit{const}_i)  \gamma } {\textsf{M}}{}{}{\ottcom{update variable mapping}}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  \gamma  \ottsym{)}} {\textsf{S}}{}{}{}\ottprodnewline
-\ottprodline{|}{ G_s } {\textsf{M}}{}{}{\ottcom{global scope}}}
+\ottprodline{|}{\ottsym{(}  \gamma  \ottsym{)}} {\textsf{S}}{}{}{}}
 
 \newcommand{\ottcurrXXstackXXframe}{
 \ottrulehead{\varepsilon}{::=}{\ottcom{current stack frame - stack of block scopes}}\ottprodnewline
@@ -121,7 +154,7 @@
 \ottprodline{|}{ \mathrm{tl} ( \varepsilon ) } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ \gamma  \mathrel{\mathop:}:  \varepsilon' } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ \varepsilon  \mathrel{\mathop+}+  \varepsilon' } {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{ ( \ottkw{i}  \mapsto   \gamma )  \varepsilon } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{ ( i  \mapsto   \gamma )  \varepsilon } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \varepsilon  \ottsym{)}} {\textsf{S}}{}{}{}}
 
 \newcommand{\ottcallXXstack}{
@@ -137,12 +170,13 @@
 
 \newcommand{\ottstate}{
 \ottrulehead{s}{::=}{\ottcom{execution state}}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{(}  \sigma  \ottsym{,}  T  \ottsym{)}}{}{}{}{}}
+\ottfirstprodline{|}{\ottsym{(}  \sigma  \ottsym{,}  t  \ottsym{)}}{}{}{}{}}
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{ \rightarrow }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \rightsquigarrow }{}{}{}{}}
+\ottprodline{|}{ \rightsquigarrow }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \longrightarrow }{}{}{}{}}
 
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
@@ -174,23 +208,24 @@
 \ottprodline{|}{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \ottnt{stmt}  \ottsym{,}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{i}}  \ottsym{)}  \ottsym{=}  F  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{function lookup}}\ottprodnewline
 \ottprodline{|}{ i = max  \{ j .  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} } {\textsf{M}}{}{}{\ottcom{find max index of variable's scope}}\ottprodnewline
-\ottprodline{|}{ i = length ( \varepsilon ) } {\textsf{M}}{}{}{\ottcom{find the current stack frame length}}\ottprodnewline
+\ottprodline{|}{ i  = length ( \varepsilon ) } {\textsf{M}}{}{}{\ottcom{find the current stack frame length}}\ottprodnewline
 \ottprodline{|}{\ottnt{const}  \ottsym{=}  \gamma  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{look-up of variable in scope}}\ottprodnewline
+\ottprodline{|}{\ottnt{const}  \ottsym{=} \, \ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{const_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{i}}  \ottsym{=}  \ottnt{const_{\ottmv{i}}}  \ottsym{\}}  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{access fo field in struct}}\ottprodnewline
 \ottprodline{|}{\ottnt{exp}  \ottsym{=}  \ottnt{exp\_list}  \ottsym{[}  i  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{exp}  \ottsym{=} \, \ottkw{hd} \, \ottnt{exp\_list}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{exp'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp'_{\ottmv{j}}}  \ottsym{++}  \ottnt{exp''_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp''_{\ottmv{k}}}  \ottsym{=}  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}} {\textsf{M}}{}{}{\ottcom{pattern match on constant and non-constant function arguments}}\ottprodnewline
+\ottprodline{|}{ \ottnt{exp}  = \mathrm{hd} \,\,  \ottnt{exp\_list} } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ b  = \mathrm{True} } {\textsf{M}}{}{}{\ottcom{condition true}}\ottprodnewline
 \ottprodline{|}{ b  = \mathrm{False} } {\textsf{M}}{}{}{\ottcom{condition false}}\ottprodnewline
 \ottprodline{|}{ \mathit{exp}_1 , .. , \mathit{exp}_i = \{ \} } {\textsf{M}}{}{}{\ottcom{function arguments empty}}\ottprodnewline
 \ottprodline{|}{\gamma  \ottsym{=}  \gamma'} {\textsf{M}}{}{}{\ottcom{scope equality}}\ottprodnewline
 \ottprodline{|}{\varepsilon  \ottsym{=}  \varepsilon'} {\textsf{M}}{}{}{\ottcom{curr_stack_frame equality}}\ottprodnewline
 \ottprodline{|}{E  \ottsym{=}  E'} {\textsf{M}}{}{}{\ottcom{call_stack equality}}\ottprodnewline
-\ottprodline{|}{ ( \ottnt{exp\_list}  =  \ottnt{exp\_list'} ) } {\textsf{M}}{}{}{\ottcom{args equality}}\ottprodnewline
+\ottprodline{|}{ \ottnt{exp\_list}  =  \ottnt{exp\_list'} } {\textsf{M}}{}{}{\ottcom{args equality}}\ottprodnewline
 \ottprodline{|}{ i  =  i  + 1 } {\textsf{M}}{}{}{\ottcom{numeral increment}}\ottprodnewline
-\ottprodline{|}{i  \ottsym{=} \, \ottkw{length} \, \ottsym{(}  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{length of list}}\ottprodnewline
+\ottprodline{|}{ i  = \mathrm{len} \,\,  \ottnt{exp\_list} } {\textsf{M}}{}{}{\ottcom{length of list}}\ottprodnewline
 \ottprodline{|}{ i  < \mathrm{len}(\mathit{exp}) } {\textsf{M}}{}{}{\ottcom{numeral in range}}\ottprodnewline
-\ottprodline{|}{ \mathrm{is\_const} ( \ottnt{exp} ) } {\textsf{M}}{}{}{\ottcom{expression constant}}\ottprodnewline
-\ottprodline{|}{ \mathrm{is\_consts} (\mathit{exp}_1 , .. , \mathit{exp}_i) } {\textsf{M}}{}{}{\ottcom{function arguments constant}}}
+\ottprodline{|}{ \mathrm{is\_consts} \,\,  \ottnt{exp\_list} } {\textsf{M}}{}{}{\ottcom{function arguments constant}}\ottprodnewline
+\ottprodline{|}{\ottnt{stmt}  \ottsym{=}  P  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{parser state map lookup}}\ottprodnewline
+\ottprodline{|}{ x  = \mathrm{ParserStateEnd} } {\textsf{M}}{}{}{\ottcom{empty error message}}}
 
 \newcommand{\ottexpXXsem}{
 \ottrulehead{\ottnt{exp\_sem}}{::=}{}\ottprodnewline
@@ -200,10 +235,20 @@
 \ottrulehead{\ottnt{stmt\_sem}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'}{}{}{}{\ottcom{statement semantics}}}
 
+\newcommand{\ottparsXXsem}{
+\ottrulehead{\ottnt{pars\_sem}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \longrightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'}{}{}{}{\ottcom{parser semantics}}}
+
+\newcommand{\ottparsXXtXXsem}{
+\ottrulehead{\ottnt{pars\_t\_sem}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \longrightarrow  s'}{}{}{}{\ottcom{parser semantics, final step}}}
+
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{exp\_sem}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{stmt\_sem}}{}{}{}{}}
+\ottprodline{|}{\ottnt{stmt\_sem}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{pars\_sem}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{pars\_t\_sem}}{}{}{}{}}
 
 \newcommand{\ottuserXXsyntax}{
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
@@ -212,14 +257,19 @@
 \ottprodline{|}{b}{}{}{}{}\ottprodnewline
 \ottprodline{|}{n}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{i}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{const}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ominus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\oplus}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bool}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{const}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{lval}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{exp}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{exp\_list}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{p_{ \mathrm{fin} }}{}{}{}{}\ottprodnewline
+\ottprodline{|}{p}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{stmt}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{F}{}{}{}{}\ottprodnewline
-\ottprodline{|}{T}{}{}{}{}\ottprodnewline
+\ottprodline{|}{P}{}{}{}{}\ottprodnewline
+\ottprodline{|}{t}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\gamma}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\varepsilon}{}{}{}{}\ottprodnewline
 \ottprodline{|}{E}{}{}{}{}\ottprodnewline
@@ -229,13 +279,18 @@
 \ottprodline{|}{\ottnt{formula}}{}{}{}{}}
 
 \newcommand{\ottgrammar}{\ottgrammartabular{
-\ottconst\ottinterrule
 \ottunop\ottinterrule
 \ottbinop\ottinterrule
+\ottbool\ottinterrule
+\ottconst\ottinterrule
+\ottlval\ottinterrule
 \ottexp\ottinterrule
 \ottexpXXlist\ottinterrule
+\ottparsXXfin\ottinterrule
+\ottparsXXnext\ottinterrule
 \ottstmt\ottinterrule
 \ottfuncXXmap\ottinterrule
+\ottparsXXmap\ottinterrule
 \ottstatus\ottinterrule
 \ottscope\ottinterrule
 \ottcurrXXstackXXframe\ottinterrule
@@ -246,6 +301,8 @@
 \ottformula\ottinterrule
 \ottexpXXsem\ottinterrule
 \ottstmtXXsem\ottinterrule
+\ottparsXXsem\ottinterrule
+\ottparsXXtXXsem\ottinterrule
 \ottjudgement\ottinterrule
 \ottuserXXsyntax\ottafterlastrule
 }}
@@ -253,33 +310,20 @@
 % defnss
 % defns exp_sem
 %% defn exp_red
-\newcommand{\ottdruleexpXXfuncXXcallXXargsOne}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{exp'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp'_{\ottmv{j}}}  \ottsym{++}  \ottnt{exp''_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp''_{\ottmv{k}}}  \ottsym{=}  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}}%
-\ottpremise{ \mathrm{is\_consts} (\mathit{exp}_1 , .. , \mathit{exp}_i) }%
-\ottpremise{\ottnt{exp}  \ottsym{=} \, \ottkw{hd} \, \ottnt{exp''_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp''_{\ottmv{k}}}}%
-\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
-\ottpremise{i  \ottsym{=} \, \ottkw{length} \, \ottsym{(}  \ottnt{exp'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp'_{\ottmv{j}}}  \ottsym{)}}%
-\ottpremise{ ( \ottnt{exp'''_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp'''_{\ottmv{l}}}  =   ( \ottkw{i}  \mapsto   \ottnt{exp'} )  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}  ) }%
-}{
- [  \ottkw{call} \, x  \ottsym{(}  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}  \ottsym{)}  ]  \sigma  \rightsquigarrow [  \ottkw{call} \, x  \ottsym{(}  \ottnt{exp'''_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp'''_{\ottmv{l}}}  \ottsym{)}  ]  \sigma' }{%
-{\ottdrulename{exp\_func\_call\_args1}}{}%
-}}
-
-
-\newcommand{\ottdruleexpXXfuncXXcallXXargsTwo}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleexpXXfuncXXcallXXnewframe}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{(}  \ottnt{stmt}  \ottsym{,}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{i}}  \ottsym{)}  \ottsym{=}  F  \ottsym{(}  x  \ottsym{)}}%
-\ottpremise{\gamma'  \ottsym{=}   \forall i . (x_i \mapsto  \mathit{const}_i)   {\emptyset}_{ \mathrm{\gamma} }  }%
-\ottpremise{ G_s   \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
-\ottpremise{\varepsilon'  \ottsym{=}   \gamma'  \mathrel{\mathop:}:  \ottsym{[}   G_s   \ottsym{]} }%
+\ottpremise{\gamma'  \ottsym{=}   \forall i . (x_i \mapsto  \mathit{const}_i)   {\gamma}_{ \emptyset }  }%
+\ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
+\ottpremise{\varepsilon'  \ottsym{=}   \gamma'  \mathrel{\mathop:}:  \ottsym{[}  \gamma  \ottsym{]} }%
 \ottpremise{E'  \ottsym{=}    \mathrm{tl} ( \varepsilon )   \mathrel{\mathop:}:  E }%
 }{
  [  \ottkw{call} \, x  \ottsym{(}  \ottnt{const_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{const_{\ottmv{i}}}  \ottsym{)}  ]  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \rightsquigarrow [  \ottkw{exec} \, \ottnt{stmt}  ]  \ottsym{(}  \varepsilon'  \ottsym{,}  E'  \ottsym{)} }{%
-{\ottdrulename{exp\_func\_call\_args2}}{}%
+{\ottdrulename{exp\_func\_call\_newframe}}{}%
 }}
 
 
 \newcommand{\ottdruleexpXXfuncXXexec}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}%
+\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
  [  \ottkw{exec} \, \ottnt{stmt}  ]  \sigma  \rightsquigarrow [  \ottkw{exec} \, \ottnt{stmt'}  ]  \sigma' }{%
 {\ottdrulename{exp\_func\_exec}}{}%
@@ -298,23 +342,76 @@
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
 \ottpremise{\ottnt{const}  \ottsym{=}  \gamma  \ottsym{(}  x  \ottsym{)}}%
 }{
- [  x  ]  \sigma  \rightsquigarrow [  \ottnt{const}  ]  \sigma }{%
+ [  x  ]  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \rightsquigarrow [  \ottnt{const}  ]  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)} }{%
 {\ottdrulename{exp\_lookup}}{}%
 }}
 
 
-\newcommand{\ottdruleexpXXunop}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleexpXXacc}[1]{\ottdrule[#1]{%
+\ottpremise{\ottnt{const}  \ottsym{=} \, \ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{const_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{i}}  \ottsym{=}  \ottnt{const_{\ottmv{i}}}  \ottsym{\}}  \ottsym{(}  x  \ottsym{)}}%
+}{
+ [   struct   \ottsym{.}  x  ]  \sigma  \rightsquigarrow [  \ottnt{const}  ]  \sigma' }{%
+{\ottdrulename{exp\_acc}}{}%
+}}
+
+
+\newcommand{\ottdruleexpXXfuncXXcallXXargs}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{exp\_list'}  \ottsym{++}  \ottnt{exp\_list''}  =  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}} }%
+\ottpremise{ \mathrm{is\_consts} \,\,  \ottnt{exp\_list'} }%
+\ottpremise{ \ottnt{exp}  = \mathrm{hd} \,\,  \ottnt{exp\_list''} }%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
+\ottpremise{ i  = \mathrm{len} \,\,  \ottnt{exp\_list'} }%
+\ottpremise{ \ottnt{exp'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp'_{\ottmv{j}}}  =   ( i  \mapsto   \ottnt{exp'} )  \ottsym{(}  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}  \ottsym{)}  }%
+}{
+ [  \ottkw{call} \, x  \ottsym{(}  \ottnt{exp_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp_{\ottmv{i}}}  \ottsym{)}  ]  \sigma  \rightsquigarrow [  \ottkw{call} \, x  \ottsym{(}  \ottnt{exp'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{exp'_{\ottmv{j}}}  \ottsym{)}  ]  \sigma }{%
+{\ottdrulename{exp\_func\_call\_args}}{}%
+}}
+
+
+\newcommand{\ottdruleexpXXaccXXargTwo}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp'}  ]  \sigma  \rightsquigarrow [  \ottnt{exp''}  ]  \sigma' }%
+}{
+ [  \ottnt{exp}  \ottsym{.}  \ottnt{exp'}  ]  \sigma  \rightsquigarrow [  \ottnt{exp}  \ottsym{.}  \ottnt{exp''}  ]  \sigma' }{%
+{\ottdrulename{exp\_acc\_arg2}}{}%
+}}
+
+
+\newcommand{\ottdruleexpXXaccXXargOne}[1]{\ottdrule[#1]{%
 \ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
 }{
- [   \ominus  \ottnt{exp}   ]  \sigma  \rightsquigarrow [   \ominus  \ottnt{exp'}   ]  \sigma' }{%
-{\ottdrulename{exp\_unop}}{}%
+ [  \ottnt{exp}  \ottsym{.}  x  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  \ottsym{.}  x  ]  \sigma' }{%
+{\ottdrulename{exp\_acc\_arg1}}{}%
+}}
+
+
+\newcommand{\ottdruleexpXXunopXXarg}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
+}{
+ [   \ominus   \ottnt{exp}   ]  \sigma  \rightsquigarrow [   \ominus   \ottnt{exp'}   ]  \sigma' }{%
+{\ottdrulename{exp\_unop\_arg}}{}%
+}}
+
+
+\newcommand{\ottdruleexpXXbinopXXargOne}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp''}  ]  \sigma' }%
+}{
+ [   \ottnt{exp}   \oplus   \ottnt{exp'}   ]  \sigma  \rightsquigarrow [   \ottnt{exp''}   \oplus   \ottnt{exp'}   ]  \sigma' }{%
+{\ottdrulename{exp\_binop\_arg1}}{}%
+}}
+
+
+\newcommand{\ottdruleexpXXbinopXXargTwo}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp'}  ]  \sigma  \rightsquigarrow [  \ottnt{exp''}  ]  \sigma' }%
+}{
+ [   \ottnt{const}   \oplus   \ottnt{exp'}   ]  \sigma  \rightsquigarrow [   \ottnt{exp}   \oplus   \ottnt{exp''}   ]  \sigma' }{%
+{\ottdrulename{exp\_binop\_arg2}}{}%
 }}
 
 
 \newcommand{\ottdruleexpXXnegXXbool}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{!}  b  \ottsym{=}  b'}%
 }{
- [   \ominus   const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [    !    b   ]  \sigma  \rightsquigarrow [  b'  ]  \sigma }{%
 {\ottdrulename{exp\_neg\_bool}}{}%
 }}
 
@@ -322,7 +419,7 @@
 \newcommand{\ottdruleexpXXcompl}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{~}  n  \ottsym{=}  n'}%
 }{
- [   \ominus   const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [    \neg    n   ]  \sigma  \rightsquigarrow [  n'  ]  \sigma }{%
 {\ottdrulename{exp\_compl}}{}%
 }}
 
@@ -330,7 +427,7 @@
 \newcommand{\ottdruleexpXXnegXXsigned}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{-}  n  \ottsym{=}  n'}%
 }{
- [   \ominus   const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   \ottsym{-}   n   ]  \sigma  \rightsquigarrow [  n'  ]  \sigma }{%
 {\ottdrulename{exp\_neg\_signed}}{}%
 }}
 
@@ -338,31 +435,15 @@
 \newcommand{\ottdruleexpXXunXXplus}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{+}  n  \ottsym{=}  n'}%
 }{
- [   \ominus   const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   \ottsym{+}   n   ]  \sigma  \rightsquigarrow [  n'  ]  \sigma }{%
 {\ottdrulename{exp\_un\_plus}}{}%
-}}
-
-
-\newcommand{\ottdruleexpXXbinopOne}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp''}  ]  \sigma' }%
-}{
- [   \ottnt{exp}   \oplus   \ottnt{exp'}   ]  \sigma  \rightsquigarrow [   \ottnt{exp''}   \oplus   \ottnt{exp'}   ]  \sigma' }{%
-{\ottdrulename{exp\_binop1}}{}%
-}}
-
-
-\newcommand{\ottdruleexpXXbinopTwo}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
-}{
- [   \ottnt{const}   \oplus   \ottnt{exp}   ]  \sigma  \rightsquigarrow [   \ottnt{exp}   \oplus   \ottnt{exp'}   ]  \sigma' }{%
-{\ottdrulename{exp\_binop2}}{}%
 }}
 
 
 \newcommand{\ottdruleexpXXmul}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{*}  n'  \ottsym{=}  n''}%
 }{
- [    const     \times     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \times    n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_mul}}{}%
 }}
 
@@ -370,7 +451,7 @@
 \newcommand{\ottdruleexpXXdiv}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{/}  n'  \ottsym{=}  n''}%
 }{
- [    const    \ottsym{/}    const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n   \ottsym{/}   n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_div}}{}%
 }}
 
@@ -378,7 +459,7 @@
 \newcommand{\ottdruleexpXXmod}[1]{\ottdrule[#1]{%
 \ottpremise{n \, \ottkw{mod} \, n'  \ottsym{=}  n''}%
 }{
- [    const     \bmod     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \bmod    n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_mod}}{}%
 }}
 
@@ -386,7 +467,7 @@
 \newcommand{\ottdruleexpXXadd}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{+}  n'  \ottsym{=}  n''}%
 }{
- [    const    \ottsym{+}    const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n   \ottsym{+}   n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_add}}{}%
 }}
 
@@ -394,7 +475,7 @@
 \newcommand{\ottdruleexpXXsub}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{-}  n'  \ottsym{=}  n''}%
 }{
- [    const    \ottsym{-}    const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n   \ottsym{-}   n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_sub}}{}%
 }}
 
@@ -402,7 +483,7 @@
 \newcommand{\ottdruleexpXXshl}[1]{\ottdrule[#1]{%
 \ottpremise{n \, \ottkw{SHL} \, n'  \ottsym{=}  n''}%
 }{
- [    const     \ll     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \ll    n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_shl}}{}%
 }}
 
@@ -410,7 +491,7 @@
 \newcommand{\ottdruleexpXXshr}[1]{\ottdrule[#1]{%
 \ottpremise{n \, \ottkw{SHR} \, n'  \ottsym{=}  n''}%
 }{
- [    const     \gg     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \gg    n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_shr}}{}%
 }}
 
@@ -418,7 +499,7 @@
 \newcommand{\ottdruleexpXXle}[1]{\ottdrule[#1]{%
 \ottpremise{n \, \ottkw{LE} \, n'  \ottsym{=}  b}%
 }{
- [    const     \leq     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \leq    n'   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
 {\ottdrulename{exp\_le}}{}%
 }}
 
@@ -426,7 +507,7 @@
 \newcommand{\ottdruleexpXXge}[1]{\ottdrule[#1]{%
 \ottpremise{n \, \ottkw{GE} \, n'  \ottsym{=}  b}%
 }{
- [    const     \geq     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \geq    n'   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
 {\ottdrulename{exp\_ge}}{}%
 }}
 
@@ -434,7 +515,7 @@
 \newcommand{\ottdruleexpXXlt}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{<}  n'  \ottsym{=}  b}%
 }{
- [    const     <     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    <    n'   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
 {\ottdrulename{exp\_lt}}{}%
 }}
 
@@ -442,7 +523,7 @@
 \newcommand{\ottdruleexpXXgt}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{>}  n'  \ottsym{=}  b}%
 }{
- [    const     >     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    >    n'   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
 {\ottdrulename{exp\_gt}}{}%
 }}
 
@@ -450,7 +531,7 @@
 \newcommand{\ottdruleexpXXneq}[1]{\ottdrule[#1]{%
 \ottpremise{n \, \ottkw{NE} \, n'  \ottsym{=}  b}%
 }{
- [    const     \neq     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \neq    n'   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
 {\ottdrulename{exp\_neq}}{}%
 }}
 
@@ -458,7 +539,7 @@
 \newcommand{\ottdruleexpXXeq}[1]{\ottdrule[#1]{%
 \ottpremise{n \, \ottkw{EQ} \, n'  \ottsym{=}  b}%
 }{
- [    const     =     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    =    n'   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
 {\ottdrulename{exp\_eq}}{}%
 }}
 
@@ -466,7 +547,7 @@
 \newcommand{\ottdruleexpXXand}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{\&}  n'  \ottsym{=}  n''}%
 }{
- [    const    \ottsym{\&}    const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n   \ottsym{\&}   n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_and}}{}%
 }}
 
@@ -474,7 +555,7 @@
 \newcommand{\ottdruleexpXXxor}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{\mbox{$\uparrow$}}  n'  \ottsym{=}  n''}%
 }{
- [    const     \underline{\vee}     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \underline{\vee}    n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_xor}}{}%
 }}
 
@@ -482,7 +563,7 @@
 \newcommand{\ottdruleexpXXor}[1]{\ottdrule[#1]{%
 \ottpremise{n  \ottsym{\mbox{$\mid$}}  n'  \ottsym{=}  n''}%
 }{
- [    const     \mid     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   n    \mid    n'   ]  \sigma  \rightsquigarrow [  n''  ]  \sigma }{%
 {\ottdrulename{exp\_or}}{}%
 }}
 
@@ -490,7 +571,7 @@
 \newcommand{\ottdruleexpXXbinXXand}[1]{\ottdrule[#1]{%
 \ottpremise{b \, \ottkw{AND} \, b'  \ottsym{=}  b''}%
 }{
- [    const     \land     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   b    \land    b'   ]  \sigma  \rightsquigarrow [  b''  ]  \sigma }{%
 {\ottdrulename{exp\_bin\_and}}{}%
 }}
 
@@ -498,23 +579,26 @@
 \newcommand{\ottdruleexpXXbinXXor}[1]{\ottdrule[#1]{%
 \ottpremise{b \, \ottkw{OR} \, b'  \ottsym{=}  b''}%
 }{
- [    const     \lor     const    ]  \sigma  \rightsquigarrow [   const   ]  \sigma }{%
+ [   b    \lor    b'   ]  \sigma  \rightsquigarrow [  b''  ]  \sigma }{%
 {\ottdrulename{exp\_bin\_or}}{}%
 }}
 
 \newcommand{\ottdefnexpXXred}[1]{\begin{ottdefnblock}[#1]{$ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' $}{\ottcom{expression semantics}}
-\ottusedrule{\ottdruleexpXXfuncXXcallXXargsOne{}}
-\ottusedrule{\ottdruleexpXXfuncXXcallXXargsTwo{}}
+\ottusedrule{\ottdruleexpXXfuncXXcallXXnewframe{}}
 \ottusedrule{\ottdruleexpXXfuncXXexec{}}
 \ottusedrule{\ottdruleexpXXfuncXXretXXexp{}}
 \ottusedrule{\ottdruleexpXXlookup{}}
-\ottusedrule{\ottdruleexpXXunop{}}
+\ottusedrule{\ottdruleexpXXacc{}}
+\ottusedrule{\ottdruleexpXXfuncXXcallXXargs{}}
+\ottusedrule{\ottdruleexpXXaccXXargTwo{}}
+\ottusedrule{\ottdruleexpXXaccXXargOne{}}
+\ottusedrule{\ottdruleexpXXunopXXarg{}}
+\ottusedrule{\ottdruleexpXXbinopXXargOne{}}
+\ottusedrule{\ottdruleexpXXbinopXXargTwo{}}
 \ottusedrule{\ottdruleexpXXnegXXbool{}}
 \ottusedrule{\ottdruleexpXXcompl{}}
 \ottusedrule{\ottdruleexpXXnegXXsigned{}}
 \ottusedrule{\ottdruleexpXXunXXplus{}}
-\ottusedrule{\ottdruleexpXXbinopOne{}}
-\ottusedrule{\ottdruleexpXXbinopTwo{}}
 \ottusedrule{\ottdruleexpXXmul{}}
 \ottusedrule{\ottdruleexpXXdiv{}}
 \ottusedrule{\ottdruleexpXXmod{}}
@@ -541,111 +625,85 @@
 
 % defns stmt_sem
 %% defn stmt_red
-\newcommand{\ottdrulestmtXXretXXexp}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
-}{
-\ottsym{[}  \ottkw{return} \, \ottnt{exp}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{return} \, \ottnt{exp'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
-{\ottdrulename{stmt\_ret\_exp}}{}%
-}}
-
-
-\newcommand{\ottdrulestmtXXretXXconst}[1]{\ottdrule[#1]{%
-\ottpremise{ G_s   \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
+\newcommand{\ottdrulestmtXXret}[1]{\ottdrule[#1]{%
+\ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
 \ottpremise{ \varepsilon'  \mathrel{\mathop:}:  E'   \ottsym{=}  E}%
-\ottpremise{\varepsilon''  \ottsym{=}   \varepsilon'  \mathrel{\mathop+}+  \ottsym{[}   G_s   \ottsym{]} }%
+\ottpremise{\varepsilon''  \ottsym{=}   \ottsym{(}  \varepsilon'  \ottsym{)}  \mathrel{\mathop+}+  \ottsym{(}  \ottsym{[}  \gamma  \ottsym{]}  \ottsym{)} }%
 }{
-\ottsym{[}  \ottkw{return} \, \ottnt{const}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon''  \ottsym{,}  E'  \ottsym{)}  \ottsym{,}  \ottkw{Return} \, \ottnt{const}  \ottsym{)}}{%
-{\ottdrulename{stmt\_ret\_const}}{}%
+\ottsym{[}  \ottkw{return} \, \ottnt{const}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon''  \ottsym{,}  E'  \ottsym{)}  \ottsym{,}   { \mathbf{Ret} \,\,  \ottnt{const} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_ret}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXassXXconst}[1]{\ottdrule[#1]{%
 \ottpremise{ i = max  \{ j .  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\varepsilon'  \ottsym{=}   ( \ottkw{i}  \mapsto    ( x  \mapsto   \ottnt{const} )  \gamma  )  \varepsilon }%
+\ottpremise{\varepsilon'  \ottsym{=}   ( i  \mapsto    ( x  \mapsto   \ottnt{const} )  \gamma  )  \varepsilon }%
 }{
-\ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{const}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{const}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_ass\_const}}{}%
 }}
 
 
-\newcommand{\ottdrulestmtXXassXXexp}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
-}{
-\ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{exp}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{exp'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
-{\ottdrulename{stmt\_ass\_exp}}{}%
-}}
-
-
 \newcommand{\ottdrulestmtXXseqOne}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}%
+\ottpremise{\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
-\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_seq1}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXseqTwo}[1]{\ottdrule[#1]{%
 }{
-\ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{;}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{;}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_seq2}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXseqThree}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Return} \, \ottnt{exp}  \ottsym{)}}%
+\ottpremise{\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{Ret} \,\,  \ottnt{const} }   \ottsym{)}}%
 }{
-\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Return} \, \ottnt{exp}  \ottsym{)}}{%
+\ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{Ret} \,\,  \ottnt{const} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_seq3}}{}%
 }}
 
 
-\newcommand{\ottdrulestmtXXcondOne}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
-}{
-\ottsym{[}  \ottkw{if} \, \ottnt{exp} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{if} \, \ottnt{exp'} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
-{\ottdrulename{stmt\_cond1}}{}%
-}}
-
-
 \newcommand{\ottdrulestmtXXcondTwo}[1]{\ottdrule[#1]{%
-\ottpremise{ b  = \mathrm{True} }%
 }{
-\ottsym{[}  \ottkw{if} \,  const  \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}  \ottkw{if} \, \ottkw{true} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_cond2}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXcondThree}[1]{\ottdrule[#1]{%
-\ottpremise{ b  = \mathrm{False} }%
 }{
-\ottsym{[}  \ottkw{if} \,  const  \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}  \ottkw{if} \, \ottkw{false} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_cond3}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXdecl}[1]{\ottdrule[#1]{%
-\ottpremise{ i = length ( \varepsilon ) }%
+\ottpremise{ i  = length ( \varepsilon ) }%
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\varepsilon'  \ottsym{=}   ( \ottkw{i}  \mapsto    ( x  \mapsto    const  )  \gamma  )  \varepsilon }%
+\ottpremise{\varepsilon'  \ottsym{=}   ( i  \mapsto    ( x  \mapsto    ?  )  \gamma  )  \varepsilon }%
 }{
-\ottsym{[}   decl \,  x   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}   decl \,  x   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_decl}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXblockXXenter}[1]{\ottdrule[#1]{%
-\ottpremise{\varepsilon'  \ottsym{=}    {\emptyset}_{ \mathrm{\gamma} }   \mathrel{\mathop:}:  \varepsilon }%
+\ottpremise{\varepsilon'  \ottsym{=}    {\gamma}_{ \emptyset }   \mathrel{\mathop:}:  \varepsilon }%
 }{
-\ottsym{[}   \{  \ottnt{stmt}  \}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   [  \ottnt{stmt}  ]   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}   \{  \ottnt{stmt}  \}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   [  \ottnt{stmt}  ]   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_block\_enter}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXblockXXexec}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}%
+\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
-\ottsym{[}   [  \ottnt{stmt}  ]   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   [  \ottnt{stmt'}  ]   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}   [  \ottnt{stmt}  ]   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   [  \ottnt{stmt'}  ]   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_block\_exec}}{}%
 }}
 
@@ -653,34 +711,156 @@
 \newcommand{\ottdrulestmtXXblockXXexit}[1]{\ottdrule[#1]{%
 \ottpremise{\varepsilon'  \ottsym{=}   \mathrm{tl} ( \varepsilon ) }%
 }{
-\ottsym{[}   [   \emptyset_{ \mathrm{stmt} }   ]   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}  \ottkw{Running}  \ottsym{)}}{%
+\ottsym{[}   [   \emptyset_{ \mathrm{stmt} }   ]   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_block\_exit}}{}%
 }}
 
+
+\newcommand{\ottdrulestmtXXverifyXXThree}[1]{\ottdrule[#1]{%
+}{
+\ottsym{[}  \ottkw{verify} \, \ottkw{true} \, \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_verify\_3}}{}%
+}}
+
+
+\newcommand{\ottdrulestmtXXverifyXXFour}[1]{\ottdrule[#1]{%
+}{
+\ottsym{[}  \ottkw{verify} \, \ottkw{false} \, \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Reject} \, x  \ottsym{)}}{%
+{\ottdrulename{stmt\_verify\_4}}{}%
+}}
+
+
+\newcommand{\ottdrulestmtXXtransition}[1]{\ottdrule[#1]{%
+}{
+\ottsym{[}   transition  p   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  p  \ottsym{)}}{%
+{\ottdrulename{stmt\_transition}}{}%
+}}
+
+
+\newcommand{\ottdrulestmtXXretXXexp}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
+}{
+\ottsym{[}  \ottkw{return} \, \ottnt{exp}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{return} \, \ottnt{exp'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_ret\_exp}}{}%
+}}
+
+
+\newcommand{\ottdrulestmtXXassXXexp}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
+}{
+\ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{exp}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{exp'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_ass\_exp}}{}%
+}}
+
+
+\newcommand{\ottdrulestmtXXcondXXexp}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
+}{
+\ottsym{[}  \ottkw{if} \, \ottnt{exp} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{if} \, \ottnt{exp'} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_cond\_exp}}{}%
+}}
+
+
+\newcommand{\ottdrulestmtXXverifyXXexpOne}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp''}  ]  \sigma' }%
+}{
+\ottsym{[}  \ottkw{verify} \, \ottnt{exp} \, \ottnt{exp'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{verify} \, \ottnt{exp''} \, \ottnt{exp'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_verify\_exp1}}{}%
+}}
+
+
+\newcommand{\ottdrulestmtXXverifyXXexpTwo}[1]{\ottdrule[#1]{%
+\ottpremise{ [  \ottnt{exp}  ]  \sigma  \rightsquigarrow [  \ottnt{exp'}  ]  \sigma' }%
+}{
+\ottsym{[}  \ottkw{verify} \, b \, \ottnt{exp}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{verify} \, b \, \ottnt{exp'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_verify\_exp2}}{}%
+}}
+
 \newcommand{\ottdefnstmtXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
-\ottusedrule{\ottdrulestmtXXretXXexp{}}
-\ottusedrule{\ottdrulestmtXXretXXconst{}}
+\ottusedrule{\ottdrulestmtXXret{}}
 \ottusedrule{\ottdrulestmtXXassXXconst{}}
-\ottusedrule{\ottdrulestmtXXassXXexp{}}
 \ottusedrule{\ottdrulestmtXXseqOne{}}
 \ottusedrule{\ottdrulestmtXXseqTwo{}}
 \ottusedrule{\ottdrulestmtXXseqThree{}}
-\ottusedrule{\ottdrulestmtXXcondOne{}}
 \ottusedrule{\ottdrulestmtXXcondTwo{}}
 \ottusedrule{\ottdrulestmtXXcondThree{}}
 \ottusedrule{\ottdrulestmtXXdecl{}}
 \ottusedrule{\ottdrulestmtXXblockXXenter{}}
 \ottusedrule{\ottdrulestmtXXblockXXexec{}}
 \ottusedrule{\ottdrulestmtXXblockXXexit{}}
+\ottusedrule{\ottdrulestmtXXverifyXXThree{}}
+\ottusedrule{\ottdrulestmtXXverifyXXFour{}}
+\ottusedrule{\ottdrulestmtXXtransition{}}
+\ottusedrule{\ottdrulestmtXXretXXexp{}}
+\ottusedrule{\ottdrulestmtXXassXXexp{}}
+\ottusedrule{\ottdrulestmtXXcondXXexp{}}
+\ottusedrule{\ottdrulestmtXXverifyXXexpOne{}}
+\ottusedrule{\ottdrulestmtXXverifyXXexpTwo{}}
 \end{ottdefnblock}}
 
 
 \newcommand{\ottdefnsstmtXXsem}{
 \ottdefnstmtXXred{}}
 
+% defns pars_sem
+%% defn pars_red
+\newcommand{\ottdruleparsXXstmt}[1]{\ottdrule[#1]{%
+\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
+}{
+\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \longrightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{pars\_stmt}}{}%
+}}
+
+
+\newcommand{\ottdruleparsXXstate}[1]{\ottdrule[#1]{%
+\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Trans} \, x  \ottsym{)}}%
+\ottpremise{\ottnt{stmt''}  \ottsym{=}  P  \ottsym{(}  x  \ottsym{)}}%
+}{
+\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \longrightarrow  \ottsym{[}  \ottnt{stmt''}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{pars\_state}}{}%
+}}
+
+\newcommand{\ottdefnparsXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \longrightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{parser semantics}}
+\ottusedrule{\ottdruleparsXXstmt{}}
+\ottusedrule{\ottdruleparsXXstate{}}
+\end{ottdefnblock}}
+
+
+\newcommand{\ottdefnsparsXXsem}{
+\ottdefnparsXXred{}}
+
+% defns pars_t_sem
+%% defn pars_t_red
+\newcommand{\ottdruleparsXXtXXfin}[1]{\ottdrule[#1]{%
+\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  p_{ \mathrm{fin} }  \ottsym{)}}%
+}{
+\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \longrightarrow  \ottsym{(}  \sigma  \ottsym{,}  p_{ \mathrm{fin} }  \ottsym{)}}{%
+{\ottdrulename{pars\_t\_fin}}{}%
+}}
+
+
+\newcommand{\ottdruleparsXXtXXempty}[1]{\ottdrule[#1]{%
+\ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
+\ottpremise{ x  = \mathrm{ParserStateEnd} }%
+}{
+\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \longrightarrow  \ottsym{(}  \sigma'  \ottsym{,}  \ottkw{Reject} \, x  \ottsym{)}}{%
+{\ottdrulename{pars\_t\_empty}}{}%
+}}
+
+\newcommand{\ottdefnparsXXtXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \longrightarrow  s'$}{\ottcom{parser semantics, final step}}
+\ottusedrule{\ottdruleparsXXtXXfin{}}
+\ottusedrule{\ottdruleparsXXtXXempty{}}
+\end{ottdefnblock}}
+
+
+\newcommand{\ottdefnsparsXXtXXsem}{
+\ottdefnparsXXtXXred{}}
+
 \newcommand{\ottdefnss}{
 \ottdefnsexpXXsem
 \ottdefnsstmtXXsem
+\ottdefnsparsXXsem
+\ottdefnsparsXXtXXsem
 }
 
 \newcommand{\ottall}{\ottmetavars\\[0pt]
