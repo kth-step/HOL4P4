@@ -911,12 +911,10 @@ by
 %Verify
 
 %Case predicate holds
-%  b = true
   ------------------------------------------------- :: verify_3
   [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
 
 %Case predicate does not hold
-%  b = false
   ------------------------------------------------- :: verify_4
   [verify false ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Reject x )
 
