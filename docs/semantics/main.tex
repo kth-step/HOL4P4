@@ -49,14 +49,24 @@ Didrik Lundberg
 \date{\today}
 \begin{document}
 \maketitle
+
+\begingroup\lccode`?=`# \lowercase{\endgroup
+\newcommand{\specsec}[1]{%
+    ?#1%
+}
+}
+\newcommand{\pfourspec}[2]{%
+\href{https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html\specsec{#1}}{#2}
+}
 \noindent
-This is a pen-and-paper semantics of P4, based on \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html}{the official P4 specification} and inspired by Core P4~\cite{doenges2021petr4}.
+This is a pen-and-paper semantics of P4, based on \pfourspec{}{the official P4 specification} and inspired by Core P4~\cite{doenges2021petr4}.
 
 %\newpage
 \section{Syntax}
 \subsection{Types}
 \newcommand{\num}{\textit{num}}
 \newcommand{\str}{\textit{x}}
+\newcommand{\msg}{\textit{m}}
 \newcommand{\inte}{\textit{n}}
 %
 %TODO Base types (integers, booleans, bit strings, errors, headers...), function types (superset of base types also including tables, functions and constructors) and directions (in, out, inout), ...
@@ -74,7 +84,7 @@ The types shown in Figure~\ref{fig:types} are the subset of P4 types included in
 \subsection{Expressions}
 \newcommand{\fmap}{\textit{F}}
 
-Our formalization includes a subset of the full set of P4 expressions found in \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-exprs}{Section 8} of the P4 specification.
+Our formalization includes a subset of the full set of P4 expressions found in \pfourspec{sec-exprs}{Section 8} of the P4 specification.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -90,15 +100,15 @@ The expressions included are shown in Figure~\ref{fig:exp}. First, an expression
 \subsection{Statements}
 \newcommand{\stmt}{\textit{stmt}}
 \label{ssec:stmt}
-See \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-stmts}{Section 11} of the P4 specification.
+See \pfourspec{sec-stmts}{Section 11} of the P4 specification.
 
-\begin{figure}[h!]
-\centering\ottgrammartabular{
-\ottstmt\ottafterlastrule
-}
-\caption{P4 Statements}
-\label{fig:stmt}
-\end{figure}
+%\begin{figure}[h!]
+%\centering\ottgrammartabular{
+%\ottstmt\ottafterlastrule
+%}
+%\caption{P4 Statements}
+%\label{fig:stmt}
+%\end{figure}
 
 \newpage
 \newcommand{\state}{\Sigma}
@@ -108,10 +118,17 @@ See \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-stmts}{Section 11} o
 \newcommand{\gscope}{\ensuremath{\currsf [0] }}
 \newcommand{\cstack}{E}
 \newcommand{\status}{\textit{status}}
+\newcommand{\running}{\textbf{R}}
+\newcommand{\returnst}{\textbf{Ret}}
+\newcommand{\accept}{\textbf{Accept}}
+\newcommand{\reject}[1]{\textbf{Reject} #1}
+\newcommand{\trans}[1]{\textbf{Trans} #1}
+\newcommand{\sterr}{\ensuremath{\bot}}
+\newcommand{\pfin}{\ensuremath{p_{\mathrm{fin}}}}
 \subsection{Execution State}
 The execution state $\state{}$ holds a current stack frame $\currsf$ (a stack of scopes - denoted by \scope{} - created by $\{ \}$-enclosed blocks, with the global \scope{} at the bottom), a call stack $\cstack$ (where the current \currsf{} is stored when a function is called) and the execution status \status{}. The tuple of the current stack frame and the call stack is abbreviated by $\stacks{}$. Note that none of these constructs are laid out in the P4 specification, but rather made up by yours truly in order to obtain a formal P4 semantics.
 
-The status \textbf{Running} represents that the program is executing under regular circumstances. \textbf{TypeError} represents a crash caused by some badly-typed part of the program. \textbf{Return} is used when the \textbf{return} statement returns a constant inside a function.
+The status \running{} represents that the program is executing under regular circumstances. \returnst{} is used when the \textbf{return} statement returns a constant inside a function. The status $p$ signifies transition to a new parser state inside the parser - a named state in the case of \trans{\str{}}, or a final state (\pfin{}) in the case of \accept{} or \reject{}. \sterr{} represents a crash or undefined behaviour, for example caused by some badly-typed part of the program. 
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -134,22 +151,19 @@ The status \textbf{Running} represents that the program is executing under regul
 
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{exp}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{exp'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
-\ottusedrule{\ottdruleexpXXlookup{}}
-\ottusedrule{\ottdruleexpXXfuncXXcallXXargsOne{}}
-\ottusedrule{\ottdruleexpXXfuncXXcallXXargsTwo{}}
+\ottusedrule{\ottdruleexpXXfuncXXcallXXnewframe{}}
 \ottusedrule{\ottdruleexpXXfuncXXexec{}}
 \ottusedrule{\ottdruleexpXXfuncXXretXXexp{}}
-\ottusedrule{\ottdruleexpXXunop{}}
-\ottusedrule{\ottdruleexpXXbinopOne{}}
-\ottusedrule{\ottdruleexpXXbinopTwo{}}
+\ottusedrule{\ottdruleexpXXlookup{}}
+\ottusedrule{\ottdruleexpXXacc{}}
 \end{ottdefnblock}}
 \caption{P4 Expression Evaluation Semantics}
 \label{fig:semexp}
 \end{figure}
 
-The small-step semantics for reducing expressions is shown in Figure~\ref{fig:semexp}.
+The small-step semantics for reducing expressions is shown in Figure~\ref{fig:semexp}. Rules for reducing expressions in all contexts can be found in Appendix TODO.
 
-In the \textsc{exp\_lookup} rule, the first antecedent ensures that the variable \str{} is evaluated in the uppermost (i.e. most recent entered) scope of the current stack frame \currsf{} where it is declared, by preventing \str{} to be in the domain of any \scope{} higher in \currsf{} than the one used for variable resolution. This agrees with the description in \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-name-resolution}{Sections 6.8} and \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
+In the \textsc{exp\_lookup} rule, the first antecedent ensures that the variable \str{} is evaluated in the uppermost (i.e. most recent entered) scope of the current stack frame \currsf{} where it is declared, by preventing \str{} to be in the domain of any \scope{} higher in \currsf{} than the one used for variable resolution. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
 
 The \textsc{exp\_func\_call\_args1} rule reduces the leftmost function argument which has yet to be reduced to a constant with one expression evaluation step. The first two antecedents divide the list of arguments into two sub-lists, where the prefix must contain all constants. The head of the suffix is then reduced with one expression small-step, after which the corresponding index in the original list of arguments is update with the resulting expression.
 
@@ -159,7 +173,7 @@ The \textsc{exp\_func\_exec} rule reduces the function body of in-progess execut
 
 The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execution with status $\mathbf{Return} \,\, \mathit{exp}$ to $\mathit{exp}$, provided $\mathit{exp}$ is a constant. This also changes the status to $\mathbf{Running}$.
 
-\href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-expr-eval-order}{Section 8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{exp\_binop1} and \textsc{exp\_binop2} - are split up so that (small-step) reduction of the second operand requires that the first operand has been completely reduced to a constant. This is trivial for unary operations (\textsc{exp\_unop}).
+\pfourspec{sec-expr-eval-order}{8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{exp\_binop1} and \textsc{exp\_binop2} - are split up so that (small-step) reduction of the second operand requires that the first operand has been completely reduced to a constant. This is trivial for unary operations (\textsc{exp\_unop}).
 
 \newpage
 \subsection{Statement Execution}
@@ -179,23 +193,21 @@ The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execut
 \label{fig:semstmtexec}
 \end{figure}
 
-%\begin{figure}[h!]
-%\ottdefnspFourXXparserXXstrXXstmtXXred
-%\caption{P4 Structural Statement Execution Semantics}
-%\label{fig:semstmtexec}
-%\end{figure}
-%
-%\begin{figure}[h!]
-%\ottdefnspFourXXparserXXblockXXred
-%\caption{P4 Parser State Execution Semantics}
-%\label{fig:semblockexec}
-%\end{figure}
-%
-%\begin{figure}[h!]
-%\ottdefnspFourXXparserXXnblockXXred
-%\caption{P4 $n$-Parser State Execution Semantics}
-%\label{fig:semnblockexec}
-%\end{figure}
+\newcommand{\start}{\textit{start}}
+\subsection{Parser}
+The parser is a part of the P4 language which is generally used to parse packets from bit-string representations to structures of parsed headers, described in \pfourspec{sec-packet-parsing}{Section 12} of the P4 specification. It can be thought of as describing a state machine with three unique states: a \start{} state, an \accept{} state and a \reject{\msg{}} state. A parser state $p$ (including \start{}, but not the abstract final states of \accept{} and \reject{\msg{}}) consists of a list of statements to be executed, with a transition statement at the end which decides the parser state to jump to next.
+\begin{figure}[ht!]
+\ottdefnsparsXXsem
+\ottdefnsparsXXtXXsem
+\caption{Parser Execution Semantics}
+\label{fig:semparsexec}
+\end{figure}
+
+The parser semantics is shown in Figure~\ref{fig:semparsexec}. Note the separate judgment form for the final step of the parser, which goes to a state with status \accept{} or \reject{} (representing the abstract accepting and rejecting states).
+
+The \textsc{pars\_stmt} rule performs a single small step reduction of the current statement (the body in-execution of the current parser state), while the \textsc{pars\_state} rule governs transition to the next parser state: if the current statement \stmt{} is reduced to $\stmt{}'$ with the status being \trans{\str{}}, the next statement is the body of the parser state with name \str{}, obtained from the map $P$ from parser state names to parser bodies.
+
+The \textsc{pars\_t\_fin} rule says that when reduction using the statement semantics of the current statement results in a status with a final parser state $p_{\mathrm{fin}}$, this is also set as the status in the parser semantics. The \textsc{pars\_t\_empty} rule covers the special case when the statement semantics runs out of statements in a parser state, in which case the status is set to \reject{ParserStateEnd}.
 
 \printbibliography
 
@@ -211,7 +223,7 @@ The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execut
 \label{fig:unop}
 \end{figure}
 
-The unary expressions included are shown in Figure~\ref{fig:unop}. These include all of the unary operations in P4. Boolean negation is only defined on Booleans, the other operations have their standard meanings (note that \href{https://p4.org/p4-spec/docs/P4-16-v1.2.1.html#sec-bit-ops}{unary plus is a no-op}).
+The unary expressions included are shown in Figure~\ref{fig:unop}. These include all of the unary operations in P4. Boolean negation is only defined on Booleans, the other operations have their standard meanings (note that \pfourspec{sec-bit-ops}{unary plus is a no-op}).
 
 \newpage
 \begin{figure}[ht!]
