@@ -2,17 +2,18 @@ embed
 {{ hol
 open wordsTheory;
 }}
-%x denotes variable name, f denotes field name
-metavar x, f ::=
+
+%%%%%%%%%%%%%%%%%
+% P4 base types %
+%%%%%%%%%%%%%%%%%
+
+%x denotes variable name, f denotes field name or function name
+%msg denotes error message
+metavar x, f, msg ::=
       {{ lex alphanum }}
       {{ hol string }}
       {{ tex [[x]] }}
       {{ com string }}
-metavar num ::=
-      {{ lex numeral }}
-      {{ hol num }}
-      {{ tex i }}
-      {{ com natural number }}
 %TODO Numeral or alphanum?
 metavar b ::=
       {{ lex numeral }}
@@ -20,14 +21,24 @@ metavar b ::=
       {{ tex [[b]] }}
       {{ com boolean }}
 %TODO Ideally, one should have different word lengths
-metavar n ::=
+metavar nw ::=
       {{ lex numeral }}
       {{ hol word64 }}
 %TODO Causes problems with double subscript in LaTeX...
 %      {{ tex [[n]]_{64} }}
-      {{ tex [[n]] }}
+      {{ tex {n_w} }}
       {{ com integer }}
-indexvar i, j, k, l ::=
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Auxiliary metavariables %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+metavar i ::=
+      {{ lex numeral }}
+      {{ hol num }}
+      {{ tex [[i]] }}
+      {{ com natural number }}
+indexvar m, n, o ::=
   {{ lex numeral }}
   {{ coq nat }}
   {{ hol num }}
@@ -124,16 +135,16 @@ bool :: bool_ ::=
 %TODO: L-values and identifiers
 %TODO: Enums
 %Constants should be thought of as "values of variables we look up"
-const :: const_ ::=
+v :: v_ ::=
 {{ com constant }}
 | bool :: :: bool
   {{ com boolean value }}
-| n :: :: int
+| nw :: :: int
   {{ com integer }}
-| struct { x1 = const1 ; ... ; xi = consti } :: :: struct
+| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
   {{ com struct }}
   {{ tex struct }} %TODO
-| header { x1 = const1 ; ... ; xi = consti } :: :: header
+| header { x1 = v1 ; ... ; xn = vn } :: :: header
   % A header is like a struct, but has different well-formedness conditions
   {{ com header }}
   {{ tex header }} %TODO
@@ -163,24 +174,24 @@ lval :: lval_ ::=
 %TODO: Conditional operator
 exp :: exp_ ::=
 {{ com expression }}
-| const :: :: const
+| v :: :: v
  {{com constant value}}
 | x :: :: var
-  {{ com variable/function name }}
+  {{ com variable name }}
 | exp . exp' :: :: acc
-  {{ com field/method access }}
+  {{ com field access }}
 | unop exp :: :: unop
   {{ com unary operation }}
   {{ tex [[unop]] [[exp]] }}
 | exp1 binop exp2 :: :: binop
   {{ com binary operation }}
   {{ tex [[exp1]] [[binop]] [[exp2]] }}
-| call x ( exp1 , .. , expi ) :: :: func_call
+| call f ( exp1 , .. , expn ) :: :: func_call
   {{ com function call }}
-  {{ hol (exp_func_call [[x]] [[exp1 .. expi]]) }}
+  {{ hol (exp_func_call [[f]] [[exp1 .. expn]]) }}
 | exec stmt :: :: func_exec
   {{ com function execution }}
-| ( exp ) :: S :: paren
+| ( exp ) :: X :: paren
   {{ hol ([[exp]]) }}
 
 %TODO: Trying to make a new definition for expression lists (mainly for function
@@ -196,16 +207,16 @@ exp_list :: exp_list_ ::=
 | empty_el :: M :: empty
   {{ com empty expression list }}
   {{ hol ([]:exp list) }}
-| exp1 , .. , expi :: M :: exps
+| exp1 , .. , expn :: M :: exps
   {{ com list of expressions }}
-  {{ hol ([[exp1 .. expi]]) }}
+  {{ hol ([[exp1 .. expn]]) }}
 | exp_list ++ exp_list' :: M :: append
   {{ com append two exp_lists }}
   {{ hol ([[exp_list]] ++ [[exp_list']]) }}
-| update ( exp , num , exp_list ) :: M :: update
+| update ( exp , i , exp_list ) :: M :: update
   {{ com update entry of expression list }}
-  {{ hol (LUPDATE [[exp]] [[num]] [[exp_list]]) }}
-  {{ tex ([[num]] \mapsto  [[exp]]) [[exp_list]] }}
+  {{ hol (LUPDATE [[exp]] [[i]] [[exp_list]]) }}
+  {{ tex ([[i]] \mapsto  [[exp]]) [[exp_list]] }}
 | ( exp_list ) :: S :: paren
   {{ hol ([[exp_list]]) }}
 
@@ -300,27 +311,27 @@ status {{ tex t }}:: status_ ::=
  {{ com execution status }}
 | Running :: :: running
   {{ tex { \mathbf{R} } }}
-| Return const :: :: return
-  {{ tex { \mathbf{Ret} \,\, [[const]]} }}
+| Return v :: :: return
+  {{ tex { \mathbf{Ret} \,\, [[v]]} }}
 | pars_next :: :: pars_next
 | TypeError :: :: type_error
   {{ tex { \bot } }}
 
 scope {{ tex \gamma }} :: scope_ ::=
-{{ hol (string |-> const) }}
+{{ hol (string |-> v) }}
 {{ com frame/variable environment of current scope }}
 | emptyscope :: M :: empty
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
   {{ tex {\gamma}_{ \emptyset } }}
-| scope + [ x |-> const ] :: M :: update
+| scope + [ x |-> v ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[x]], [[const]])) }}
-  {{ tex ([[x]] \mapsto  [[const]]) [[scope]] }}
-| scope ++ [ x1 |-> const1 , .. , xi |-> consti ] :: M :: update_list
+  {{ hol (FUPDATE [[scope]] ([[x]], [[v]])) }}
+  {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
+| scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
   {{ com update variable mapping }}
-  {{ hol (FUPDATE_LIST [[scope]] [[x1 const1 .. xi consti]]) }}
-  {{ tex \forall i . (x_i \mapsto  \mathit{const}_i) [[scope]] }}
+  {{ hol (FUPDATE_LIST [[scope]] [[x1 v1 .. xn vn]]) }}
+  {{ tex \forall i . (x_i \mapsto  \mathit{v}_i) [[scope]] }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
 %| G_scope :: M :: global
@@ -341,8 +352,8 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | emptycsf :: M :: empty
   {{ hol ([]:scope list) }}
   {{ tex {\emptyset}_{\varepsilon} }}
-| [ scope1 , .. , scopei ] :: M :: list
-  {{ hol ([[scope1 .. scopei]]) }}
+| [ scope1 , .. , scopen ] :: M :: list
+  {{ hol ([[scope1 .. scopen]]) }}
 | tl curr_stack_frame :: M :: tl
   {{ hol (TL [[curr_stack_frame]]) }}
   {{ tex \mathrm{tl} ([[curr_stack_frame]]) }}
@@ -352,9 +363,9 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | curr_stack_frame ++ curr_stack_frame' :: M :: append
   {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
   {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
-| update ( scope , num , curr_stack_frame ) :: M :: update
-  {{ hol (LUPDATE [[scope]] [[num]] [[curr_stack_frame]]) }}
-  {{ tex ([[num]] \mapsto  [[scope]]) [[curr_stack_frame]] }}
+| update ( scope , i , curr_stack_frame ) :: M :: update
+  {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
+  {{ tex ([[i]] \mapsto  [[scope]]) [[curr_stack_frame]] }}
 | ( curr_stack_frame ) :: S :: paren
   {{ hol ([[curr_stack_frame]]) }}
 
@@ -371,8 +382,8 @@ call_stack {{ tex E }} :: call_stack_ ::=
 | emptycs :: M :: empty
   {{ hol ([]:curr_stack_frame list) }}
   {{ tex {\emptyset}_{E} }}
-| [ curr_stack_frame1 , .. , curr_stack_framei ] :: M :: list
-  {{ hol ([[curr_stack_frame1 .. curr_stack_framei]]) }}
+| [ curr_stack_frame1 , .. , curr_stack_framen ] :: M :: list
+  {{ hol ([[curr_stack_frame1 .. curr_stack_framen]]) }}
 | curr_stack_frame '::' call_stack :: M :: cons
   {{ hol ([[curr_stack_frame]] :: [[call_stack]]) }}
   {{ tex [[curr_stack_frame]] \mathrel{\mathop:}: [[call_stack]] }}
@@ -407,53 +418,53 @@ formula :: formula_ ::=
 %Expressions
 | ! b = b' :: M :: neg_bool
   {{ hol (~[[b]] = [[b']]) }}
-| ~ n = n' :: M :: compl
+| ~ nw = nw' :: M :: compl
   %TODO
-  {{ hol (~ [[n]] = [[n']]) }}
-| - n = n' :: M :: neg_signed
+  {{ hol (~ [[nw]] = [[nw']]) }}
+| - nw = nw' :: M :: neg_signed
   %TODO
-  {{ hol (~ [[n]] = [[n']]) }}
-| + n = n' :: M :: un_plus
+  {{ hol (~ [[nw]] = [[nw']]) }}
+| + nw = nw' :: M :: un_plus
   %TODO: Read specification...
-  {{ hol ([[n]] = [[n']]) }}
-| n * n' = n'' :: M :: mul
-  {{ hol (word_mul [[n]] [[n']] = [[n'']]) }}
-| n / n' = n'' :: M :: div
-  {{ hol (word_div [[n]] [[n']] = [[n'']]) }}
-| n mod n' = n'' :: M :: mod
-  {{ hol (word_mod [[n]] [[n']] = [[n'']]) }}
-| n + n' = n'' :: M :: add
-  {{ hol (word_add [[n]] [[n']] = [[n'']]) }}
-| n - n' = n'' :: M :: sub
-  {{ hol (word_sub [[n]] [[n']] = [[n'']]) }}
-%TODO: EQ for const?
-| n EQ n' = b :: M :: eq_word
-  {{ hol ([[n]] = [[n']] <=> [[b]]) }}
+  {{ hol ([[nw]] = [[nw']]) }}
+| nw * nw' = nw'' :: M :: mul
+  {{ hol (word_mul [[nw]] [[nw']] = [[nw'']]) }}
+| nw / nw' = nw'' :: M :: div
+  {{ hol (word_div [[nw]] [[nw']] = [[nw'']]) }}
+| nw mod nw' = nw'' :: M :: mod
+  {{ hol (word_mod [[nw]] [[nw']] = [[nw'']]) }}
+| nw + nw' = nw'' :: M :: add
+  {{ hol (word_add [[nw]] [[nw']] = [[nw'']]) }}
+| nw - nw' = nw'' :: M :: sub
+  {{ hol (word_sub [[nw]] [[nw']] = [[nw'']]) }}
+%TODO: EQ for v?
+| nw EQ nw' = b :: M :: eq_word
+  {{ hol ([[nw]] = [[nw']] <=> [[b]]) }}
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
-| n SHL n' = n'' :: M :: shl
-  {{ hol (word_lsl_bv [[n]] [[n']] = [[n'']]) }}
+| nw SHL nw' = nw'' :: M :: shl
+  {{ hol (word_lsl_bv [[nw]] [[nw']] = [[nw'']]) }}
   %TODO: Double-check
-| n SHR n' = n'' :: M :: shr
-  {{ hol (word_asr_bv [[n]] [[n']] = [[n'']]) }}
+| nw SHR nw' = nw'' :: M :: shr
+  {{ hol (word_asr_bv [[nw]] [[nw']] = [[nw'']]) }}
   %TODO: Double-check
-| n LE n' = b :: M :: le
-  {{ hol ([[n]] <= [[n']] <=> [[b]]) }}
-| n GE n' = b :: M :: ge
-  {{ hol ([[n]] >= [[n']] <=> [[b]]) }}
-| n < n' = b :: M :: lt
-  {{ hol ([[n]] < [[n']] <=> [[b]]) }}
-| n > n' = b :: M :: gt
-  {{ hol ([[n]] > [[n']] <=> [[b]]) }}
-| n NE n' = b :: M :: neq_word
-  {{ hol ([[n]] <> [[n']] <=> [[b]]) }}
-| n & n' = n'' :: M :: and_word
-  {{ hol (word_and [[n]] [[n']] = [[n'']]) }}
-| n ^ n' = n'' :: M :: xor_word
-  {{ hol (word_xor [[n]] [[n']] = [[n'']]) }}
+| nw LE nw' = b :: M :: le
+  {{ hol ([[nw]] <= [[nw']] <=> [[b]]) }}
+| nw GE nw' = b :: M :: ge
+  {{ hol ([[nw]] >= [[nw']] <=> [[b]]) }}
+| nw < nw' = b :: M :: lt
+  {{ hol ([[nw]] < [[nw']] <=> [[b]]) }}
+| nw > nw' = b :: M :: gt
+  {{ hol ([[nw]] > [[nw']] <=> [[b]]) }}
+| nw NE nw' = b :: M :: neq_word
+  {{ hol ([[nw]] <> [[nw']] <=> [[b]]) }}
+| nw & nw' = nw'' :: M :: and_word
+  {{ hol (word_and [[nw]] [[nw']] = [[nw'']]) }}
+| nw ^ nw' = nw'' :: M :: xor_word
+  {{ hol (word_xor [[nw]] [[nw']] = [[nw'']]) }}
   %TODO: LaTeX XOR
-| n '|' n' = n'' :: M :: or_word
-  {{ hol (word_or [[n]] [[n']] = [[n'']]) }}
+| nw '|' nw' = nw'' :: M :: or_word
+  {{ hol (word_or [[nw]] [[nw']] = [[nw'']]) }}
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
 | b OR b' = b'' :: M :: or_bool
@@ -463,38 +474,38 @@ formula :: formula_ ::=
 | curr_stack_frame = hd call_stack :: M :: call_stack_hd
   {{ hol ([[curr_stack_frame]] = HD [[call_stack]]) }}
   {{ tex [[curr_stack_frame]] = \mathrm{hd} [[call_stack]] }}
-| scope = curr_stack_frame [ num ] :: M :: curr_stack_frame_index
-  {{ hol ([[scope]] = EL [[num]] [[curr_stack_frame]]) }}
-| ( stmt , x1 , .. , xi ) = func_map ( x ) :: M :: func_lookup
+| scope = curr_stack_frame [ i ] :: M :: curr_stack_frame_index
+  {{ hol ([[scope]] = EL [[i]] [[curr_stack_frame]]) }}
+| ( stmt , x1 , .. , xn ) = func_map ( f ) :: M :: func_lookup
   {{ com function lookup }}
-  {{ hol (FLOOKUP [[func_map]] [[x]] = SOME ([[stmt]], [[x1 .. xi]])) }}
-| find_index_max ( curr_stack_frame , x ) = num :: M :: find_index_scope_max
+  {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 .. xn]])) }}
+| find_index_max ( curr_stack_frame , x ) = i :: M :: find_index_scope_max
   {{ com find max index of variable's scope }}
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
-  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[num]]) }}
+  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[i]]) }}
   {{ tex i = max  \{ j . [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
-%  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[num]] ]) \land \forall j . \,\, j > [[num]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
-| length ( curr_stack_frame ) = num :: M :: find_length
+%  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[i]] ]) \land \forall j . \,\, j > [[i]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
+| length ( curr_stack_frame ) = i :: M :: find_length
   {{ com find the current stack frame length }}
-  {{ tex [[num]] = length ([[curr_stack_frame]])}}
-  {{ hol ([[num]] = LENGTH [[curr_stack_frame]]) }}
-| const = scope ( x ) :: M :: lookup
+  {{ tex [[i]] = length ([[curr_stack_frame]])}}
+  {{ hol ([[i]] = LENGTH [[curr_stack_frame]]) }}
+| v = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
-  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[const]]) }}
-| const = struct { x1 = const1 ; ... ; xi = consti } ( x ) :: M :: access
+  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
+| v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: access
   {{ com access fo field in struct }}
-  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 const1 ... xi consti]] = SOME ([[x]], [[const]])) }}
-| exp = exp_list [ num ] :: M :: args_index
-  {{ hol ([[exp]] = EL [[num]] [[exp_list]]) }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+| exp = exp_list [ i ] :: M :: args_index
+  {{ hol ([[exp]] = EL [[i]] [[exp_list]]) }}
 | exp = hd exp_list :: M :: args_hd
   {{ hol ([[exp]] = HD [[exp_list]]) }}
   {{ tex [[exp]] = \mathrm{hd} \,\, [[exp_list]] }}
 
 %Function argument resolution
 %TODO: Replace with expression list
-%| const_list ++ exp_list' = exp_list :: M :: func_args_append
+%| v_list ++ exp_list' = exp_list :: M :: func_args_append
 %  {{ com pattern match on constant and non-constant function arguments }}
-%  {{ hol (([[const_list]] ++ [[exp_list']]) = [[exp_list]]) }}
+%  {{ hol (([[v_list]] ++ [[exp_list']]) = [[exp_list]]) }}
 
 %Conditions
 %TODO: Remove, with new separate "bool" definition?
@@ -509,7 +520,7 @@ formula :: formula_ ::=
 | is_empty ( exp_list ) :: M :: args_empty
   {{ com function arguments empty }}
   {{ hol (NULL [[exp_list]]) }}
-  {{ tex \mathit{exp}_1 , .. , \mathit{exp}_i = \{ \} }}
+  {{ tex \mathit{exp}_1 , .. , \mathit{exp}_n = \{ \} }}
 
 %Equalities
 | scope = scope' :: M :: scope_eq
@@ -529,18 +540,18 @@ formula :: formula_ ::=
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
-| num' = num + 1 :: M :: num_inc
+| i' = i + 1 :: M :: num_inc
   {{ com numeral increment }}
-  {{ hol ([[num']] = [[num]] + 1) }}
-  {{ tex [[num']] = [[num]] + 1 }}
-| num = length ( exp_list ) :: M :: num_len
+  {{ hol ([[i']] = [[i]] + 1) }}
+  {{ tex [[i']] = [[i]] + 1 }}
+| i = length ( exp_list ) :: M :: num_len
   {{ com length of list }}
-  {{ hol ([[num]] = LENGTH [[exp_list]]) }}
-  {{ tex [[num]] = \mathrm{len} \,\, [[exp_list]] }}
-| num < length ( exp_list ) :: M :: num_in_rg
+  {{ hol ([[i]] = LENGTH [[exp_list]]) }}
+  {{ tex [[i]] = \mathrm{len} \,\, [[exp_list]] }}
+| i < length ( exp_list ) :: M :: num_in_rg
   {{ com numeral in range }}
-  {{ hol ([[num]] < LENGTH [[exp_list]]) }}
-  {{ tex [[num]] < \mathrm{len}(\mathit{exp}) }}
+  {{ hol ([[i]] < LENGTH [[exp_list]]) }}
+  {{ tex [[i]] < \mathrm{len}(\mathit{exp}) }}
 | is_consts ( exp_list ) :: M :: args_const
   {{ com function arguments constant }}
   {{ hol (is_consts [[exp_list]]) }}
@@ -580,8 +591,8 @@ by
 %Function call + exec (in expression)
 
   %Resolving arguments to function call - assigning arguments to new stack frame
-  ( stmt , x1 , .. , xi ) = func_map ( x )
-  scope' = emptyscope ++ [ x1 |->  const1 , .. , xi |-> consti ]
+  ( stmt , x1 , .. , xn ) = func_map ( f )
+  scope' = emptyscope ++ [ x1 |->  v1 , .. , xn |-> vn ]
 %TODO: Global scope notation
 %  G_scope = curr_stack_frame[0]
 %  curr_stack_frame' = scope' :: [G_scope]
@@ -589,7 +600,7 @@ by
   curr_stack_frame' = scope' :: [scope]
   call_stack' = tl curr_stack_frame :: call_stack
   ----------------------------------- :: func_call_newframe
-  [call x ( const1 , .. , consti )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  [call f ( v1 , .. , vn )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: func_exec
@@ -597,39 +608,39 @@ by
 
 %TODO: Note that this is a simplification of the return mechanism
   ----------------------------------- :: func_ret_exp
-  [exec empty_stmt] ( stacks , Return const ) ~> [const] ( stacks' , Running )
+  [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
-  find_index_max ( curr_stack_frame, x ) = num
-  scope = curr_stack_frame [ num ]
-  const = scope ( x )
+  find_index_max ( curr_stack_frame, x ) = i
+  scope = curr_stack_frame [ i ]
+  v = scope ( x )
   ----------------------------------- :: lookup
-  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [const] ( ( curr_stack_frame, call_stack ) , Running )
+  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct/extern field/method access
 %TODO: Nested structs
 
-  const = struct { x1 = const1 ; ... ; xi = consti } ( x )
+  v = struct { x1 = v1 ; ... ; xn = vn } ( x )
   ----------------------------------- :: acc
-  [ struct { x1 = const1 ; ... ; xi = consti } . x] ( stacks , Running ) ~> [const] ( stacks' , Running )
+  [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks' , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
 
 %Resolving arguments to function call - reduction
   %TODO: force exp_list'' to be non-empty?
-  exp_list' ++ exp_list'' =' exp1 , .. , expi
+  exp_list' ++ exp_list'' =' exp1 , .. , expn
   is_consts ( exp_list' )
   exp = hd exp_list''
   [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks' , Running )
   %TODO: length plus 1 if indexing from 1
-  num = length ( exp_list' )
-  exp'1 , .. , exp'j =' update ( exp' , num , ( exp1 , .. , expi ) )
+  i = length ( exp_list' )
+  exp'1 , .. , exp'm =' update ( exp' , i , ( exp1 , .. , expn ) )
   ----------------------------------- :: func_call_args
-  [call x ( exp1 , .. , expi )] ( stacks , Running ) ~> [call x ( exp'1 , .. , exp'j )] ( stacks , Running )
+  [call f ( exp1 , .. , expn )] ( stacks , Running ) ~> [call f ( exp'1 , .. , exp'm )] ( stacks , Running )
 
 %Stacks
   [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
@@ -652,7 +663,7 @@ by
 
   [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
   ----------------------------------- :: binop_arg2
-  [const binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
+  [v binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -669,23 +680,23 @@ by
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
-  ~ n = n'
+  ~ nw = nw'
   ----------------------------------- :: compl
-  [~ n] ( stacks , Running ) ~> [n'] ( stacks , Running )
+  [~ nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
-  - n = n'
+  - nw = nw'
   ----------------------------------- :: neg_signed
-  [- n] ( stacks , Running ) ~> [n'] ( stacks , Running )
+  [- nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
 
 %%%%%%%%%%%
 %Unary plus
 
-  + n = n'
+  + nw = nw'
   ----------------------------------- :: un_plus
-  [+ n] ( stacks , Running ) ~> [n'] ( stacks , Running )
+  [+ nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -695,114 +706,114 @@ by
 %%%%%%%%%%%%%%%
 %Multiplication
 
-  n * n' = n''
+  nw * nw' = nw''
   ----------------------------------- :: mul
-  [n * n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw * nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Division
 
-  n / n' = n''
+  nw / nw' = nw''
   ----------------------------------- :: div
-  [n / n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw / nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Modulo
 
-  n mod n' = n''
+  nw mod nw' = nw''
   ----------------------------------- :: mod
-  [n mod n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw mod nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Addition
 
-  n + n' = n''
+  nw + nw' = nw''
   ----------------------------------- :: add
-  [n + n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw + nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Subtraction
 
-  n - n' = n''
+  nw - nw' = nw''
   ----------------------------------- :: sub
-  [n - n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw - nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Left shift
 
-  n SHL n' = n''
+  nw SHL nw' = nw''
   ----------------------------------- :: shl
-  [n SHL n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw SHL nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Right shift
 
-  n SHR n' = n''
+  nw SHR nw' = nw''
   ----------------------------------- :: shr
-  [n SHR n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw SHR nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
-  n LE n' = b
+  nw LE nw' = b
   ----------------------------------- :: le
-  [n LE n'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [nw LE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
-  n GE n' = b
+  nw GE nw' = b
   ----------------------------------- :: ge
-  [n GE n'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [nw GE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%
 %Less than
 
-  n < n' = b
+  nw < nw' = b
   ----------------------------------- :: lt
-  [n < n'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [nw < nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Greater than
 
-  n > n' = b
+  nw > nw' = b
   ----------------------------------- :: gt
-  [n > n'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [nw > nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Not equal
 
-  n NE n' = b
+  nw NE nw' = b
   ----------------------------------- :: neq
-  [n NE n'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [nw NE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Equal
 
-  n EQ n' = b
+  nw EQ nw' = b
   ----------------------------------- :: eq
-  [n EQ n'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [nw EQ nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
 
-  n & n' = n''
+  nw & nw' = nw''
   ----------------------------------- :: and
-  [n & n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw & nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise xor
 
-  n ^ n' = n''
+  nw ^ nw' = nw''
   ----------------------------------- :: xor
-  [n ^ n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw ^ nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise or
 
-  n | n' = n''
+  nw | nw' = nw''
   ----------------------------------- :: or
-  [n | n'] ( stacks , Running ) ~> [n''] ( stacks , Running )
+  [nw | nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary and
@@ -873,17 +884,17 @@ by
   curr_stack_frame' :: call_stack' = call_stack
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ scope ] )
   ----------------------------------- :: ret
-  [return const] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return const )
+  [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return v )
 
 %%%%%%%%%%%%%%
 %Assignment
 
   %Assign a constant to a variable
-  find_index_max ( curr_stack_frame , x ) = num
-  scope = curr_stack_frame [ num ]
-  curr_stack_frame' = update ( scope + [ x |-> const ] , num , curr_stack_frame )
-  ----------------------------------- :: ass_const
-  [assign x const] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  find_index_max ( curr_stack_frame , x ) = i
+  scope = curr_stack_frame [ i ]
+  curr_stack_frame' = update ( scope + [ x |-> v ] , i , curr_stack_frame )
+  ----------------------------------- :: ass_v
+  [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %TODO: Assign to a struct field
 
@@ -897,27 +908,25 @@ by
   ----------------------------------- :: seq2
   [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
 
-  [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return const )
+  [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return v )
   ----------------------------------- :: seq3
-  [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return const )
+  [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return v )
 
 %%%%%%%%%%%%%%
 %Conditional
 
-%  b = true
   ----------------------------------- :: cond2
   [if true then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks , Running )
 
-%  b = false
   ----------------------------------- :: cond3
   [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
 %declaration
 
-  length ( curr_stack_frame ) = num
-  scope = curr_stack_frame [ num ]
-  curr_stack_frame' = update ( scope + [ x |-> uninit ] , num , curr_stack_frame )
+  length ( curr_stack_frame ) = i
+  scope = curr_stack_frame [ i ]
+  curr_stack_frame' = update ( scope + [ x |-> uninit ] , i , curr_stack_frame )
   ----------------------------------- :: decl
   [decl x] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
