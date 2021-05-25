@@ -122,13 +122,15 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
-bool :: bool_ ::=
+% Can't be called "bool" since this already exists in HOL4
+boolv :: boolv_ ::=
+{{ hol bool }}
 {{ com boolean }}
-| b :: :: free
-%  {{ hol [[b]] }}
-| true :: :: true
+| b :: M :: free
+  {{ hol [[b]] }}
+| true :: M :: true
   {{ hol T }}
-| false :: :: false
+| false :: M :: false
   {{ hol F }}
 
 %TODO: String literal
@@ -137,7 +139,7 @@ bool :: bool_ ::=
 %Constants should be thought of as "values of variables we look up"
 v :: v_ ::=
 {{ com constant }}
-| bool :: :: bool
+| boolv :: :: bool
   {{ com boolean value }}
 | nw :: :: int
   {{ com integer }}
@@ -172,53 +174,53 @@ lval :: lval_ ::=
 %TODO: Lists
 %TODO: Tuples
 %TODO: Conditional operator
-exp :: exp_ ::=
+e :: e_ ::=
 {{ com expression }}
 | v :: :: v
  {{com constant value}}
 | x :: :: var
   {{ com variable name }}
-| exp . exp' :: :: acc
+| e . e' :: :: acc
   {{ com field access }}
-| unop exp :: :: unop
+| unop e :: :: unop
   {{ com unary operation }}
-  {{ tex [[unop]] [[exp]] }}
-| exp1 binop exp2 :: :: binop
+  {{ tex [[unop]] [[e]] }}
+| e1 binop e2 :: :: binop
   {{ com binary operation }}
-  {{ tex [[exp1]] [[binop]] [[exp2]] }}
-| call f ( exp1 , .. , expn ) :: :: func_call
+  {{ tex [[e1]] [[binop]] [[e2]] }}
+| call f ( e1 , .. , en ) :: :: func_call
   {{ com function call }}
-  {{ hol (exp_func_call [[f]] [[exp1 .. expn]]) }}
+  {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
 | exec stmt :: :: func_exec
   {{ com function execution }}
-| ( exp ) :: X :: paren
-  {{ hol ([[exp]]) }}
+| ( e ) :: X :: paren
+  {{ hol ([[e]]) }}
 
 %TODO: Trying to make a new definition for expression lists (mainly for function
 %      arguments) proved problematic.
-%      If all productions are meta, then you get args as a type abbreviation of "exp",
+%      If all productions are meta, then you get args as a type abbreviation of "e",
 %      which is either undefined at the point where the abbreviation is made, or
-%      exp_list is unknown when defining exp. Either way, mutually recursive definitions
-%      are not possible. If nothing is meta and exp_list is not exported to a type
-%      abbreviation, the function call semantics will not understand the "exp_list" and "exp list" correspondence.
-exp_list :: exp_list_ ::=
+%      e_list is unknown when defining e. Either way, mutually recursive definitions
+%      are not possible. If nothing is meta and e_list is not exported to a type
+%      abbreviation, the function call semantics will not understand the "e_list" and "e list" correspondence.
+e_list :: e_list_ ::=
 {{ com list of expressions }}
-{{ hol (exp list) }}
+{{ hol (e list) }}
 | empty_el :: M :: empty
   {{ com empty expression list }}
-  {{ hol ([]:exp list) }}
-| exp1 , .. , expn :: M :: exps
+  {{ hol ([]:e list) }}
+| e1 , .. , en :: M :: exps
   {{ com list of expressions }}
-  {{ hol ([[exp1 .. expn]]) }}
-| exp_list ++ exp_list' :: M :: append
-  {{ com append two exp_lists }}
-  {{ hol ([[exp_list]] ++ [[exp_list']]) }}
-| update ( exp , i , exp_list ) :: M :: update
+  {{ hol ([[e1 .. en]]) }}
+| e_list ++ e_list' :: M :: append
+  {{ com append two e_lists }}
+  {{ hol ([[e_list]] ++ [[e_list']]) }}
+| update ( e , i , e_list ) :: M :: update
   {{ com update entry of expression list }}
-  {{ hol (LUPDATE [[exp]] [[i]] [[exp_list]]) }}
-  {{ tex ([[i]] \mapsto  [[exp]]) [[exp_list]] }}
-| ( exp_list ) :: S :: paren
-  {{ hol ([[exp_list]]) }}
+  {{ hol (LUPDATE [[e]] [[i]] [[e_list]]) }}
+  {{ tex ([[i]] \mapsto  [[e]]) [[e_list]] }}
+| ( e_list ) :: S :: paren
+  {{ hol ([[e_list]]) }}
 
 
 %%%%%%%%%%%%%%
@@ -230,9 +232,9 @@ exp_list :: exp_list_ ::=
 %| empty_decl :: :: empty
 %  {{ com empty declaration }}
 %  {{ tex \emptyset_{ \mathrm{decl} } }}
-%| declare x exp :: :: stmt
+%| declare x e :: :: stmt
 %  {{ com declaration }}
-%  {{ tex [[x]] \mathrel{\mathop:}:= [[exp]] }}
+%  {{ tex [[x]] \mathrel{\mathop:}:= [[e]] }}
 %| decl1 ; decl2 :: :: seq
 %  {{ com sequence }}
 
@@ -256,10 +258,10 @@ stmt :: stmt_ ::=
 | empty_stmt :: :: empty
   {{ com empty statement }}
   {{ tex \emptyset_{ \mathrm{stmt} } }}
-| assign x exp :: :: ass
+| assign x e :: :: ass
   {{ com assignment }}
-  {{ tex [[x]] \mathrel{\mathop:}= [[exp]] }}
-| if exp then stmt1 else stmt2 :: :: cond
+  {{ tex [[x]] \mathrel{\mathop:}= [[e]] }}
+| if e then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
 %TODO: Declaration should take a type as well
 | decl x :: :: declare
@@ -271,12 +273,12 @@ stmt :: stmt_ ::=
 | begin' stmt end' :: :: block_ip
   {{ com block in progress }}
   {{ tex [ [[stmt]] ] }}
-| return exp :: :: ret
+| return e :: :: ret
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
-| verify exp exp' :: :: verify
-  % exp is predicate, exp' is error message
+| verify e e' :: :: verify
+  % e is predicate, e' is error message
   {{ com verify }}
 | transition pars_next :: :: trans
   % x is the parser state name
@@ -495,17 +497,17 @@ formula :: formula_ ::=
 | v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: access
   {{ com access fo field in struct }}
   {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
-| exp = exp_list [ i ] :: M :: args_index
-  {{ hol ([[exp]] = EL [[i]] [[exp_list]]) }}
-| exp = hd exp_list :: M :: args_hd
-  {{ hol ([[exp]] = HD [[exp_list]]) }}
-  {{ tex [[exp]] = \mathrm{hd} \,\, [[exp_list]] }}
+| e = e_list [ i ] :: M :: args_index
+  {{ hol ([[e]] = EL [[i]] [[e_list]]) }}
+| e = hd e_list :: M :: args_hd
+  {{ hol ([[e]] = HD [[e_list]]) }}
+  {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
 
 %Function argument resolution
 %TODO: Replace with expression list
-%| v_list ++ exp_list' = exp_list :: M :: func_args_append
+%| v_list ++ e_list' = e_list :: M :: func_args_append
 %  {{ com pattern match on constant and non-constant function arguments }}
-%  {{ hol (([[v_list]] ++ [[exp_list']]) = [[exp_list]]) }}
+%  {{ hol (([[v_list]] ++ [[e_list']]) = [[e_list]]) }}
 
 %Conditions
 %TODO: Remove, with new separate "bool" definition?
@@ -517,10 +519,10 @@ formula :: formula_ ::=
   {{ com condition false }}
   {{ hol ([[b]] = F) }}
   {{ tex [[b]] = \mathrm{False} }}
-| is_empty ( exp_list ) :: M :: args_empty
+| is_empty ( e_list ) :: M :: args_empty
   {{ com function arguments empty }}
-  {{ hol (NULL [[exp_list]]) }}
-  {{ tex \mathit{exp}_1 , .. , \mathit{exp}_n = \{ \} }}
+  {{ hol (NULL [[e_list]]) }}
+  {{ tex \mathit{e}_1 , .. , \mathit{e}_n = \{ \} }}
 
 %Equalities
 | scope = scope' :: M :: scope_eq
@@ -533,10 +535,10 @@ formula :: formula_ ::=
   {{ com call_stack equality }}
   {{ hol ([[call_stack]] = [[call_stack']]) }}
 %TODO: This can cause confusion with the judgements with binary expression equalities, hence the '...
-| exp_list =' exp_list' :: M :: args_eq
+| e_list =' e_list' :: M :: args_eq
   {{ com args equality }}
-  {{ hol ([[exp_list]] = [[exp_list']]) }}
-  {{ tex [[exp_list]] = [[exp_list']] }}
+  {{ hol ([[e_list]] = [[e_list']]) }}
+  {{ tex [[e_list]] = [[e_list']] }}
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
@@ -544,19 +546,19 @@ formula :: formula_ ::=
   {{ com numeral increment }}
   {{ hol ([[i']] = [[i]] + 1) }}
   {{ tex [[i']] = [[i]] + 1 }}
-| i = length ( exp_list ) :: M :: num_len
+| i = length ( e_list ) :: M :: num_len
   {{ com length of list }}
-  {{ hol ([[i]] = LENGTH [[exp_list]]) }}
-  {{ tex [[i]] = \mathrm{len} \,\, [[exp_list]] }}
-| i < length ( exp_list ) :: M :: num_in_rg
+  {{ hol ([[i]] = LENGTH [[e_list]]) }}
+  {{ tex [[i]] = \mathrm{len} \,\, [[e_list]] }}
+| i < length ( e_list ) :: M :: num_in_rg
   {{ com numeral in range }}
-  {{ hol ([[i]] < LENGTH [[exp_list]]) }}
-  {{ tex [[i]] < \mathrm{len}(\mathit{exp}) }}
-| is_consts ( exp_list ) :: M :: args_const
+  {{ hol ([[i]] < LENGTH [[e_list]]) }}
+  {{ tex [[i]] < \mathrm{len}(\mathit{e}) }}
+| is_consts ( e_list ) :: M :: args_const
   {{ com function arguments constant }}
-  {{ hol (is_consts [[exp_list]]) }}
+  {{ hol (is_consts [[e_list]]) }}
   %TODO: Fix typesetting
-  {{ tex \mathrm{is\_consts} \,\, [[exp_list]] }}
+  {{ tex \mathrm{is\_consts} \,\, [[e_list]] }}
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
   {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
@@ -569,22 +571,22 @@ formula :: formula_ ::=
 embed
 {{ hol
 val is_const_def = Define `
-    ( is_const (exp_const _) = T)
+    ( is_const (e_v _) = T)
 /\  ( is_const _ = F)
 `;
 val is_consts_def = Define `
-    (is_consts exp_list = ~(EXISTS (\el. ~(is_const el)) exp_list))
+    (is_consts e_list = ~(EXISTS (\el. ~(is_const el)) e_list))
 `;
 }}
 grammar
 
 defns
-  exp_sem :: '' ::=
+  e_sem :: '' ::=
 defn
-  [ exp ] ( stacks , status ) ~> [ exp' ] ( stacks' , status' ) :: :: exp_red :: exp_
+  [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
   {{ com expression semantics }}
   %Uses different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status
-  {{ tex [ [[exp]] ] [[stacks]] \rightsquigarrow [ [[exp']] ] [[stacks']] }}
+  {{ tex [ [[e]] ] [[stacks]] \rightsquigarrow [ [[e']] ] [[stacks']] }}
 by
 
 %%%%%%%%%%%%%%
@@ -607,7 +609,7 @@ by
   [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
 
 %TODO: Note that this is a simplification of the return mechanism
-  ----------------------------------- :: func_ret_exp
+  ----------------------------------- :: func_ret_e
   [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%
@@ -631,39 +633,39 @@ by
 %"Reduction of argument" rules
 
 %Resolving arguments to function call - reduction
-  %TODO: force exp_list'' to be non-empty?
-  exp_list' ++ exp_list'' =' exp1 , .. , expn
-  is_consts ( exp_list' )
-  exp = hd exp_list''
-  [ exp ] ( stacks , Running ) ~> [ exp' ] ( stacks' , Running )
+  %TODO: force e_list'' to be non-empty?
+  e_list' ++ e_list'' =' e1 , .. , en
+  is_consts ( e_list' )
+  e = hd e_list''
+  [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   %TODO: length plus 1 if indexing from 1
-  i = length ( exp_list' )
-  exp'1 , .. , exp'm =' update ( exp' , i , ( exp1 , .. , expn ) )
+  i = length ( e_list' )
+  e'1 , .. , e'm =' update ( e' , i , ( e1 , .. , en ) )
   ----------------------------------- :: func_call_args
-  [call f ( exp1 , .. , expn )] ( stacks , Running ) ~> [call f ( exp'1 , .. , exp'm )] ( stacks , Running )
+  [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'm )] ( stacks , Running )
 
 %Stacks
-  [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: acc_arg2
-  [exp . exp'] ( stacks , Running ) ~> [exp . exp''] ( stacks' , Running )
+  [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
 
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: acc_arg1
-  [exp . x] ( stacks , Running ) ~> [exp' . x] ( stacks' , Running )
+  [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
 
 %Unary operations
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: unop_arg
-  [unop exp] ( stacks , Running ) ~> [unop exp'] ( stacks' , Running )
+  [unop e] ( stacks , Running ) ~> [unop e'] ( stacks' , Running )
 
 %Binary operations
-  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: binop_arg1
-  [exp binop exp'] ( stacks , Running ) ~> [exp'' binop exp'] ( stacks' , Running )
+  [e binop e'] ( stacks , Running ) ~> [e'' binop e'] ( stacks' , Running )
 
-  [exp'] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
+  [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: binop_arg2
-  [v binop exp'] ( stacks , Running ) ~> [exp binop exp''] ( stacks' , Running )
+  [v binop e'] ( stacks , Running ) ~> [e binop e''] ( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -842,9 +844,9 @@ by
 %by
 
   %Declare a variable and assign a value - reduction step
-%  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-%  ----------------------------------- :: decl_exp
-%  [declare x exp] ( stacks , Running ) -> [declare x exp'] ( stacks' , Running )
+%  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+%  ----------------------------------- :: decl_e
+%  [declare x e] ( stacks , Running ) -> [declare x e'] ( stacks' , Running )
 
 %  scope :: curr_stack_frame' = curr_stack_frame
 %  scope' = scope + [ x |-> n ]
@@ -992,29 +994,29 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Reduction step of return expression
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: ret_exp
-  [return exp] ( stacks , Running ) -> [return exp'] ( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ----------------------------------- :: ret_e
+  [return e] ( stacks , Running ) -> [return e'] ( stacks' , Running )
 
 %Reduction step of assign expression
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: ass_exp
-  [assign x exp] ( stacks , Running ) -> [assign x exp'] ( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ----------------------------------- :: ass_e
+  [assign x e] ( stacks , Running ) -> [assign x e'] ( stacks' , Running )
 
 %Reduction step of condition
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ----------------------------------- :: cond_exp
-  [if exp then stmt1 else stmt2] ( stacks , Running ) -> [if exp' then stmt1 else stmt2] ( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ----------------------------------- :: cond_e
+  [if e then stmt1 else stmt2] ( stacks , Running ) -> [if e' then stmt1 else stmt2] ( stacks' , Running )
 
 %Reduction step of verify predicate
-  [exp] ( stacks , Running ) ~> [exp''] ( stacks' , Running )
-  ------------------------------------------------- :: verify_exp1
-  [verify exp exp' ]( stacks , Running ) -> [verify exp'' exp']( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  ------------------------------------------------- :: verify_e1
+  [verify e e' ]( stacks , Running ) -> [verify e'' e']( stacks' , Running )
 
 %Reduction step of error message
-  [exp] ( stacks , Running ) ~> [exp'] ( stacks' , Running )
-  ------------------------------------------------- :: verify_exp2
-  [verify b exp]( stacks , Running ) -> [verify b exp']( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ------------------------------------------------- :: verify_e2
+  [verify b e]( stacks , Running ) -> [verify b e']( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
