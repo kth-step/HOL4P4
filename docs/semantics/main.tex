@@ -133,6 +133,7 @@ See \pfourspec{sec-stmts}{Section 11} of the P4 specification.
 \newcommand{\stacks}{\ensuremath{\sigma}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
+\newcommand{\escope}{\ensuremath{{\gamma}_{\emptyset}}}
 \newcommand{\cstack}{E}
 \newcommand{\status}{\ensuremath{t}}
 \newcommand{\running}{\textbf{R}}
@@ -150,7 +151,7 @@ A scope $\gamma : X \hookrightarrow V$ is a partial function from variable names
 \item Update a variable mapping
 \end{enumerate}
 
-A frame \currsf{} is a stack of $\gamma$ where the global scope \gscope{} is located at the bottom; that is, in location $\currsf [0]$. The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that the indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope ${\gamma}_{\emptyset}$ is pushed onto the frame $\currsf$, which we denote using $ {\gamma}_{\emptyset} :: \currsf$. %TODO New notation for pushing?
+A frame \currsf{} is a stack of $\gamma$ where the global scope \gscope{} is located at the bottom; that is, in location $\currsf [0]$. The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that the indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope \escope{} is pushed onto the frame $\currsf$, which we denote using $ \escope :: \currsf$. %TODO New notation for pushing?
 The following operations can be performed on $\currsf$:
 \begin{enumerate}
 \item Push a $\gamma$
@@ -194,7 +195,7 @@ The execution state \exstate{} is a tuple of \stacks{} and \status{}. Note that 
 \ottusedrule{\ottdruleexpXXfuncXXexec{}}
 \ottusedrule{\ottdruleexpXXfuncXXretXXexp{}}
 \ottusedrule{\ottdruleexpXXlookup{}}
-\ottusedrule{\ottdruleexpXXacc{}}
+%\ottusedrule{\ottdruleexpXXacc{}}
 \end{ottdefnblock}}
 \caption{P4 Expression Evaluation Semantics}
 \label{fig:semexp}
@@ -206,11 +207,11 @@ In the \textsc{exp\_lookup} rule, the first antecedent states the value of a fun
 \\~\\
 The \textsc{exp\_func\_call\_args1} rule reduces the leftmost function argument which has yet to be reduced to a constant with one expression evaluation step. The first two antecedents divide the list of arguments into two sub-lists, where the prefix must contain all constants. The head of the suffix is then reduced with one expression small-step, after which the corresponding index in the original list of arguments is update with the resulting expression.
 \\~\\
-The \textsc{exp\_func\_call\_args2} rule is used when all of the function arguments have been reduced to constants using \textsc{exp\_func\_call\_args1} (or if they were all constants to begin with). The constants are assigned to their respective argument names in a fresh scope, after which this scope is put on top of the global scope \gscope{} in order to form the new current frame $\currsf '$. The old current list of scopes frames \currsf{} is then saved on top of the call list \cstack{} to be used later when returning from the function call, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{} (obtained from the function map \fmap{}, which holds mappings between function names \fn{} and tuples of function bodies and lists of their argument names). Note that this rule also covers the case of a function call with no arguments.
+The \textsc{exp\_func\_call\_args2} rule is used when all of the function arguments have been reduced to constants using \textsc{exp\_func\_call\_args1} (or if they were all constants to begin with). The constants are assigned to their respective argument names in a fresh scope, after which this scope is put on top of the global scope \gscope{} in order to form the new current frame $\currsf '$. The old current frame \currsf{} is then saved on top of the call stack \cstack{} to be used later when returning from the function call, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{} (obtained from the function map \fmap{}, which holds mappings between function names \fn{} and tuples of function bodies and lists of their argument names). Note that this rule also covers the case of a function call with no arguments.
 \\~\\
 The \textsc{exp\_func\_exec} rule reduces the function body of in-progess execution with one small-step statement reduction.
 \\~\\
-The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execution with status $\mathbf{Return} \,\, \mathit{exp}$ to $\mathit{exp}$, provided $\mathit{exp}$ is a constant. This also changes the status to $\mathbf{Running}$.
+The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progress execution with status $\mathbf{Return} \,\, \mathit{exp}$ to $\mathit{exp}$, provided $\mathit{exp}$ is a constant. This also changes the status to $\mathbf{Running}$.
 \\~\\
 \pfourspec{sec-expr-eval-order}{8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{exp\_binop1} and \textsc{exp\_binop2} - are split up so that (small-step) reduction of the second operand requires that the first operand has been completely reduced to a constant. This is trivial for unary operations (\textsc{exp\_unop}).
 
@@ -219,10 +220,10 @@ The \textsc{exp\_func\_ret\_exp} rule reduces finished (empty) in-progess execut
 The SOS of the statements is shown in Figure~\ref{fig:semstmtexec}  
 \\~\\
 The \textsc{stmt\_ret\_exp} rule implements one reduction to the expression at a time, to simplify the expression until it reduces to a constant. 
-Once the \textbf{return} statement appears to return a constant the rule \textsc{stmt\_ret\_const} contains the antecedents that are required for such operation. The global scope \gscope{} is always stored at the bottom (index zero) in the stack of scopes, i.e. $\currsf [0]$. It is fetched and concatenated with most recent caller that was stored on top of the call list $\cstack$. Thus, this concatenation will generate a $\currsf$ that has the same shape to the one before the function being called (of course before reaching the \textbf{return} statement some global variables could have been changed during function evaluation, that is the reason why we say that the shape is the same but not the variable mappings in the global scope \gscope{}). The status will be changed to \textbf{Return V} where it will be handled later in an other rule. 
+Once the \textbf{return} statement appears to return a constant the rule \textsc{stmt\_ret\_const} contains the antecedents that are required for such operation. The global scope \gscope{} is always stored at the bottom (index zero) in the stack of scopes, i.e. $\currsf [0]$. It is fetched and concatenated with most recent caller that was stored on top of the call stack $\cstack$. Thus, this concatenation will generate a $\currsf$ that has the same shape to the one before the function being called (of course before reaching the \textbf{return} statement some global variables could have been changed during function evaluation, that is the reason why we say that the shape is the same but not the variable mappings in the global scope \gscope{}). The status will be changed to $\mathbf{Return} \,\, v$ where it will be handled later in an other rule. 
 \\~\\
 The \textsc{stmt\_ass\_exp} rule implements one reduction to the expression at a time, to simplify the expression until it reduces to a constant.
-The \textsc{stmt\_ass\_const} rule handles assignment statement. In general, the variables that the program can assign values to it should be in the global scope \gscope{} or the current scope of the frame, thus we need to look up into the current list of scopes $\currsf$, but never into $\cstack$. So the antecedent $index = max  \{ j . x  \in \mathrm{dom} ( $\currsf$ [j] ) $ fetches the proper index that locates the variable location, it should be the one in the uppermost part of the the current list of scopes $\currsf$ (i.e. oldest entry). In the last antecedent, $ (x \longrightarrow V )scope $ updates the mapping of the variable name x to the new value i.e. (constant V) in the proper frame location, that indeed lies in the current list of scope frame. One step reduction in this rule results an updated current list of scopes, and an empty statement to execute.
+The \textsc{stmt\_ass\_const} rule handles assignment statement. In general, the variables that the program can assign values to it should be in the global scope \gscope{} or the current scope of the frame, thus we need to look up into the current frame $\currsf$, but never into $\cstack$. So the antecedent $i = max \{ j . \,\, x  \in \mathrm{dom} ( $\currsf$ [j] ) $ fetches the proper index that locates the variable location, it should be the one in the uppermost part of the the current frame $\currsf$ (i.e. oldest entry). In the last antecedent, $ (\vn \longrightarrow \cval )scope $ updates the mapping of the variable name \vn{} to the new value (constant \cval{}) in the proper frame location, that indeed lies in the current frame. One step reduction in this rule results an updated current frame, and an empty statement to execute.
 \\~\\
 The \textsc{stmt\_seq1} and \textsc{stmt\_seq2} rules are trivial to understand, they are pretty standard.
 \\~\\
@@ -230,14 +231,14 @@ The \textsc{stmt\_seq3} handles the \textbf{return} statement when it does not o
 \\~\\
 The \textsc{stmt\_cond1}, \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are pretty trivial to understand.
 \\~\\
-The \textsc{stmt\_decl} rule is a transition reduction for the declaration statements. Whenever a variable is declared, it will updated in the most recent scope and reduce the transition to an empty statement. The most recent/newest scope is fetched simply by checking the length of the list of scopes $\currsf$. 
+The \textsc{stmt\_decl} rule is a transition reduction for the declaration statements. Whenever a variable is declared, it will updated in the most recent scope and reduce the transition to an empty statement. The most recent/newest scope is fetched simply by checking the length of the current frame $\currsf$. 
 \\~\\
 The \textbf{\{\}} brackets indicates a block, while the \textbf{[ ]} brackets indicates a block being executed.
-Whenever entering a block, in rule \textsc{stmt\_block\_enter}, a new empty scope is added to the list of scopes, and then the \textbf{\{\}} brackets are switched the executing ones \textbf{[ ]} to pinpoint the fact that the statements can be executed now.
+Whenever entering a block, in rule \textsc{stmt\_block\_enter}, a new empty scope \escope{} is added to the current frame \currsf{}, and then the \textbf{\{\}} brackets are switched the executing ones \textbf{[ ]} to pinpoint the fact that the statements can be executed now.
 \\~\\
 \textsc{stmt\_block\_exec} rule shows a small step reduction for the statements inside a block.
 \\~\\
-\textsc{stmt\_block\_exit} rule handles the block termination. Whenever a block contains an empty statement, then it is necessary to also remove the corresponding scope from the list of scopes $\currsf$ which in the case of blocks is the most recent one.
+\textsc{stmt\_block\_exit} rule handles the block termination. Whenever a block contains an empty statement, then it is necessary to also remove the corresponding scope from the frame $\currsf$ which in the case of blocks is the most recent one.
 
 %\begin{figure}[h!]
 %\centering\ottgrammartabular{
@@ -288,8 +289,8 @@ apply table exp:
 apply table const:
 \bigskip
 \inference[c]{t\_map(table\_name) = (e', m\_kind)
-            \and ctrl(table\_name, const, m\_kind) = f (v1, ..., vn) } 
-            {[apply table\_name const]($\sigma$) $\rightarrow$ [call f (v1, ...,vn)]($\sigma '$)}
+            \and ctrl(table\_name, const, m\_kind) = (f, ${v_1}, ..., {v_n}$) } 
+            {[apply table\_name const]($\sigma$) $\rightarrow$ [call f (${v_1}, ..., {v_n}$)]($\sigma '$)}
 \bigskip
               
 
