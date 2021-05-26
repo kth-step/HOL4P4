@@ -62,15 +62,15 @@
 \ottprodline{|}{ \land }{}{}{}{\ottcom{binary and}}\ottprodnewline
 \ottprodline{|}{ \lor }{}{}{}{\ottcom{binary or}}}
 
-\newcommand{\ottbool}{
-\ottrulehead{\ottnt{bool}}{::=}{\ottcom{boolean}}\ottprodnewline
-\ottfirstprodline{|}{b}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{true}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{false}}{}{}{}{}}
+\newcommand{\ottboolv}{
+\ottrulehead{\ottnt{boolv}}{::=}{\ottcom{boolean}}\ottprodnewline
+\ottfirstprodline{|}{b} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{true}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{false}} {\textsf{M}}{}{}{}}
 
 \newcommand{\ottv}{
 \ottrulehead{\ottnt{v}}{::=}{\ottcom{constant}}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{bool}}{}{}{}{\ottcom{boolean value}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{boolv}}{}{}{}{\ottcom{boolean value}}\ottprodnewline
 \ottprodline{|}{{n_w}}{}{}{}{\ottcom{integer}}\ottprodnewline
 \ottprodline{|}{ struct }{}{}{}{\ottcom{struct}}\ottprodnewline
 \ottprodline{|}{ header }{}{}{}{\ottcom{header}}\ottprodnewline
@@ -122,7 +122,7 @@
 \ottprodline{|}{\ottkw{return} \, \ottnt{e}}{}{}{}{\ottcom{return}}\ottprodnewline
 \ottprodline{|}{\ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequence}}\ottprodnewline
 \ottprodline{|}{\ottkw{verify} \, \ottnt{e} \, \ottnt{e'}}{}{}{}{\ottcom{verify}}\ottprodnewline
-\ottprodline{|}{ transition  p }{}{}{}{\ottcom{transition}}}
+\ottprodline{|}{ \mathbf{transition}\,  p }{}{}{}{\ottcom{transition}}}
 
 \newcommand{\ottfuncXXmap}{
 \ottrulehead{F}{::=}{\ottcom{function map}}\ottprodnewline
@@ -144,7 +144,7 @@
 \ottrulehead{\gamma}{::=}{\ottcom{frame/variable environment of current scope}}\ottprodnewline
 \ottfirstprodline{|}{ {\gamma}_{ \emptyset } } {\textsf{M}}{}{}{\ottcom{empty stack frame}}\ottprodnewline
 \ottprodline{|}{ ( x  \mapsto   \ottnt{v} )  \gamma } {\textsf{M}}{}{}{\ottcom{update variable mapping}}\ottprodnewline
-\ottprodline{|}{ \forall i . (x_i \mapsto  \mathit{v}_i)  \gamma } {\textsf{M}}{}{}{\ottcom{update variable mapping}}\ottprodnewline
+\ottprodline{|}{ \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\,  \gamma } {\textsf{M}}{}{}{\ottcom{update variable mapping}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \gamma  \ottsym{)}} {\textsf{S}}{}{}{}}
 
 \newcommand{\ottcurrXXstackXXframe}{
@@ -152,16 +152,16 @@
 \ottfirstprodline{|}{ {\emptyset}_{\varepsilon} } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{[}  \gamma_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \gamma_{\ottmv{n}}  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathrm{tl} ( \varepsilon ) } {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{ \gamma  \mathrel{\mathop:}:  \varepsilon' } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{ \gamma  ::  \varepsilon' } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ \varepsilon  \mathrel{\mathop+}+  \varepsilon' } {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{ ( i  \mapsto   \gamma )  \varepsilon } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{ ( i  \mapsto  \gamma )  \varepsilon } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \varepsilon  \ottsym{)}} {\textsf{S}}{}{}{}}
 
 \newcommand{\ottcallXXstack}{
 \ottrulehead{E}{::=}{\ottcom{stack of caller stack frames}}\ottprodnewline
 \ottfirstprodline{|}{ {\emptyset}_{E} } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{[}  \varepsilon_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \varepsilon_{\ottmv{n}}  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{ \varepsilon  \mathrel{\mathop:}:  E } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{ \varepsilon  ::  E } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  E  \ottsym{)}} {\textsf{S}}{}{}{}}
 
 \newcommand{\ottstacks}{
@@ -207,7 +207,7 @@
 \ottprodline{|}{ \varepsilon  = \mathrm{hd}  E } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \ottnt{stmt}  \ottsym{,}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{=}  F  \ottsym{(}  f  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{function lookup}}\ottprodnewline
-\ottprodline{|}{ i = max  \{ j .  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} } {\textsf{M}}{}{}{\ottcom{find max index of variable's scope}}\ottprodnewline
+\ottprodline{|}{ i = \mathrm{max}  \{ j . \,\,  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} } {\textsf{M}}{}{}{\ottcom{find max index of variable's scope}}\ottprodnewline
 \ottprodline{|}{ i  = length ( \varepsilon ) } {\textsf{M}}{}{}{\ottcom{find the current stack frame length}}\ottprodnewline
 \ottprodline{|}{\ottnt{v}  \ottsym{=}  \gamma  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{look-up of variable in scope}}\ottprodnewline
 \ottprodline{|}{\ottnt{v}  \ottsym{=} \, \ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{access fo field in struct}}\ottprodnewline
@@ -229,7 +229,7 @@
 
 \newcommand{\otteXXsem}{
 \ottrulehead{\ottnt{e\_sem}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }{}{}{}{\ottcom{expression semantics}}}
+\ottfirstprodline{|}{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  t  \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  t'  \ottsym{)}}{}{}{}{\ottcom{expression semantics}}}
 
 \newcommand{\ottstmtXXsem}{
 \ottrulehead{\ottnt{stmt\_sem}}{::=}{}\ottprodnewline
@@ -259,7 +259,7 @@
 \ottprodline{|}{\ottmv{m}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ominus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\oplus}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{bool}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{boolv}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{lval}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
@@ -281,7 +281,7 @@
 \newcommand{\ottgrammar}{\ottgrammartabular{
 \ottunop\ottinterrule
 \ottbinop\ottinterrule
-\ottbool\ottinterrule
+\ottboolv\ottinterrule
 \ottv\ottinterrule
 \ottlval\ottinterrule
 \otte\ottinterrule
@@ -312,12 +312,12 @@
 %% defn e_red
 \newcommand{\ottdruleeXXfuncXXcallXXnewframe}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{(}  \ottnt{stmt}  \ottsym{,}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{=}  F  \ottsym{(}  f  \ottsym{)}}%
-\ottpremise{\gamma'  \ottsym{=}   \forall i . (x_i \mapsto  \mathit{v}_i)   {\gamma}_{ \emptyset }  }%
+\ottpremise{\gamma'  \ottsym{=}   \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\,   {\gamma}_{ \emptyset }  }%
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
-\ottpremise{\varepsilon'  \ottsym{=}   \gamma'  \mathrel{\mathop:}:  \ottsym{[}  \gamma  \ottsym{]} }%
-\ottpremise{E'  \ottsym{=}    \mathrm{tl} ( \varepsilon )   \mathrel{\mathop:}:  E }%
+\ottpremise{\varepsilon'  \ottsym{=}   \gamma'  ::  \ottsym{[}  \gamma  \ottsym{]} }%
+\ottpremise{E'  \ottsym{=}    \mathrm{tl} ( \varepsilon )   ::  E }%
 }{
- [  \ottkw{call} \, f  \ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{)}  ]  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \rightsquigarrow [  \ottkw{exec} \, \ottnt{stmt}  ]  \ottsym{(}  \varepsilon'  \ottsym{,}  E'  \ottsym{)} }{%
+\ottsym{[}  \ottkw{call} \, f  \ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{)}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottkw{exec} \, \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E'  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_func\_call\_newframe}}{}%
 }}
 
@@ -325,24 +325,24 @@
 \newcommand{\ottdruleeXXfuncXXexec}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
- [  \ottkw{exec} \, \ottnt{stmt}  ]  \sigma  \rightsquigarrow [  \ottkw{exec} \, \ottnt{stmt'}  ]  \sigma' }{%
+\ottsym{[}  \ottkw{exec} \, \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottkw{exec} \, \ottnt{stmt'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_func\_exec}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXfuncXXretXXe}[1]{\ottdrule[#1]{%
 }{
- [  \ottkw{exec} \,  \emptyset_{ \mathrm{stmt} }   ]  \sigma  \rightsquigarrow [  \ottnt{v}  ]  \sigma' }{%
+\ottsym{[}  \ottkw{exec} \,  \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{Ret} \,\,  \ottnt{v} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{v}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_func\_ret\_e}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXlookup}[1]{\ottdrule[#1]{%
-\ottpremise{ i = max  \{ j .  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
+\ottpremise{ i = \mathrm{max}  \{ j . \,\,  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
 \ottpremise{\ottnt{v}  \ottsym{=}  \gamma  \ottsym{(}  x  \ottsym{)}}%
 }{
- [  x  ]  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \rightsquigarrow [  \ottnt{v}  ]  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)} }{%
+\ottsym{[}  x  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{v}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_lookup}}{}%
 }}
 
@@ -350,7 +350,7 @@
 \newcommand{\ottdruleeXXacc}[1]{\ottdrule[#1]{%
 \ottpremise{\ottnt{v}  \ottsym{=} \, \ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  \ottsym{(}  x  \ottsym{)}}%
 }{
- [   struct   \ottsym{.}  x  ]  \sigma  \rightsquigarrow [  \ottnt{v}  ]  \sigma' }{%
+\ottsym{[}   struct   \ottsym{.}  x  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{v}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_acc}}{}%
 }}
 
@@ -359,51 +359,51 @@
 \ottpremise{ \ottnt{e\_list'}  \ottsym{++}  \ottnt{e\_list''}  =  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}} }%
 \ottpremise{ \mathrm{is\_consts} \,\,  \ottnt{e\_list'} }%
 \ottpremise{ \ottnt{e}  = \mathrm{hd} \,\,  \ottnt{e\_list''} }%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 \ottpremise{ i  = \mathrm{len} \,\,  \ottnt{e\_list'} }%
 \ottpremise{ \ottnt{e'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e'_{\ottmv{m}}}  =   ( i  \mapsto   \ottnt{e'} )  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  }%
 }{
- [  \ottkw{call} \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  ]  \sigma  \rightsquigarrow [  \ottkw{call} \, f  \ottsym{(}  \ottnt{e'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e'_{\ottmv{m}}}  \ottsym{)}  ]  \sigma }{%
+\ottsym{[}  \ottkw{call} \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottkw{call} \, f  \ottsym{(}  \ottnt{e'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e'_{\ottmv{m}}}  \ottsym{)}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_func\_call\_args}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXaccXXargTwo}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e'}  ]  \sigma  \rightsquigarrow [  \ottnt{e''}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e''}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
- [  \ottnt{e}  \ottsym{.}  \ottnt{e'}  ]  \sigma  \rightsquigarrow [  \ottnt{e}  \ottsym{.}  \ottnt{e''}  ]  \sigma' }{%
+\ottsym{[}  \ottnt{e}  \ottsym{.}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e}  \ottsym{.}  \ottnt{e''}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_acc\_arg2}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXaccXXargOne}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
- [  \ottnt{e}  \ottsym{.}  x  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  \ottsym{.}  x  ]  \sigma' }{%
+\ottsym{[}  \ottnt{e}  \ottsym{.}  x  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{.}  x  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_acc\_arg1}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXunopXXarg}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
- [   \ominus   \ottnt{e}   ]  \sigma  \rightsquigarrow [   \ominus   \ottnt{e'}   ]  \sigma' }{%
+\ottsym{[}   \ominus   \ottnt{e}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}   \ominus   \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_unop\_arg}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXbinopXXargOne}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e''}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e''}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
- [   \ottnt{e}   \oplus   \ottnt{e'}   ]  \sigma  \rightsquigarrow [   \ottnt{e''}   \oplus   \ottnt{e'}   ]  \sigma' }{%
+\ottsym{[}   \ottnt{e}   \oplus   \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}   \ottnt{e''}   \oplus   \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_binop\_arg1}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXbinopXXargTwo}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e'}  ]  \sigma  \rightsquigarrow [  \ottnt{e''}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e''}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
- [   \ottnt{v}   \oplus   \ottnt{e'}   ]  \sigma  \rightsquigarrow [   \ottnt{e}   \oplus   \ottnt{e''}   ]  \sigma' }{%
+\ottsym{[}   \ottnt{v}   \oplus   \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}   \ottnt{e}   \oplus   \ottnt{e''}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_binop\_arg2}}{}%
 }}
 
@@ -411,7 +411,7 @@
 \newcommand{\ottdruleeXXnegXXbool}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{!}  b  \ottsym{=}  b'}%
 }{
- [    !    b   ]  \sigma  \rightsquigarrow [  b'  ]  \sigma }{%
+\ottsym{[}    !    b   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b'  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_neg\_bool}}{}%
 }}
 
@@ -419,7 +419,7 @@
 \newcommand{\ottdruleeXXcompl}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{~}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [    \neg    {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}    \neg    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_compl}}{}%
 }}
 
@@ -427,7 +427,7 @@
 \newcommand{\ottdruleeXXnegXXsigned}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{-}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   \ottsym{-}   {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   \ottsym{-}   {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_neg\_signed}}{}%
 }}
 
@@ -435,7 +435,7 @@
 \newcommand{\ottdruleeXXunXXplus}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{+}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   \ottsym{+}   {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   \ottsym{+}   {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_un\_plus}}{}%
 }}
 
@@ -443,7 +443,7 @@
 \newcommand{\ottdruleeXXmul}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{*}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}    \times    {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}    \times    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_mul}}{}%
 }}
 
@@ -451,7 +451,7 @@
 \newcommand{\ottdruleeXXdiv}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{/}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}   \ottsym{/}   {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}   \ottsym{/}   {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_div}}{}%
 }}
 
@@ -459,7 +459,7 @@
 \newcommand{\ottdruleeXXmod}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w} \, \ottkw{mod} \, {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}    \bmod    {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}    \bmod    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_mod}}{}%
 }}
 
@@ -467,7 +467,7 @@
 \newcommand{\ottdruleeXXadd}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{+}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}   \ottsym{+}   {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}   \ottsym{+}   {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_add}}{}%
 }}
 
@@ -475,7 +475,7 @@
 \newcommand{\ottdruleeXXsub}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{-}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}   \ottsym{-}   {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}   \ottsym{-}   {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_sub}}{}%
 }}
 
@@ -483,7 +483,7 @@
 \newcommand{\ottdruleeXXshl}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w} \, \ottkw{SHL} \, {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}    \ll    {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}    \ll    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_shl}}{}%
 }}
 
@@ -491,7 +491,7 @@
 \newcommand{\ottdruleeXXshr}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w} \, \ottkw{SHR} \, {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}    \gg    {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}    \gg    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_shr}}{}%
 }}
 
@@ -499,7 +499,7 @@
 \newcommand{\ottdruleeXXle}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w} \, \ottkw{LE} \, {n_w}  \ottsym{=}  b}%
 }{
- [   {n_w}    \leq    {n_w}   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
+\ottsym{[}   {n_w}    \leq    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_le}}{}%
 }}
 
@@ -507,7 +507,7 @@
 \newcommand{\ottdruleeXXge}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w} \, \ottkw{GE} \, {n_w}  \ottsym{=}  b}%
 }{
- [   {n_w}    \geq    {n_w}   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
+\ottsym{[}   {n_w}    \geq    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_ge}}{}%
 }}
 
@@ -515,7 +515,7 @@
 \newcommand{\ottdruleeXXlt}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{<}  {n_w}  \ottsym{=}  b}%
 }{
- [   {n_w}    <    {n_w}   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
+\ottsym{[}   {n_w}    <    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_lt}}{}%
 }}
 
@@ -523,7 +523,7 @@
 \newcommand{\ottdruleeXXgt}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{>}  {n_w}  \ottsym{=}  b}%
 }{
- [   {n_w}    >    {n_w}   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
+\ottsym{[}   {n_w}    >    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_gt}}{}%
 }}
 
@@ -531,7 +531,7 @@
 \newcommand{\ottdruleeXXneq}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w} \, \ottkw{NE} \, {n_w}  \ottsym{=}  b}%
 }{
- [   {n_w}    \neq    {n_w}   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
+\ottsym{[}   {n_w}    \neq    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_neq}}{}%
 }}
 
@@ -539,7 +539,7 @@
 \newcommand{\ottdruleeXXeq}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w} \, \ottkw{EQ} \, {n_w}  \ottsym{=}  b}%
 }{
- [   {n_w}    =    {n_w}   ]  \sigma  \rightsquigarrow [  b  ]  \sigma }{%
+\ottsym{[}   {n_w}    =    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_eq}}{}%
 }}
 
@@ -547,7 +547,7 @@
 \newcommand{\ottdruleeXXand}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{\&}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}   \ottsym{\&}   {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}   \ottsym{\&}   {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_and}}{}%
 }}
 
@@ -555,7 +555,7 @@
 \newcommand{\ottdruleeXXxor}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{\mbox{$\uparrow$}}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}    \underline{\vee}    {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}    \underline{\vee}    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_xor}}{}%
 }}
 
@@ -563,7 +563,7 @@
 \newcommand{\ottdruleeXXor}[1]{\ottdrule[#1]{%
 \ottpremise{{n_w}  \ottsym{\mbox{$\mid$}}  {n_w}  \ottsym{=}  {n_w}}%
 }{
- [   {n_w}    \mid    {n_w}   ]  \sigma  \rightsquigarrow [  {n_w}  ]  \sigma }{%
+\ottsym{[}   {n_w}    \mid    {n_w}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  {n_w}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_or}}{}%
 }}
 
@@ -571,7 +571,7 @@
 \newcommand{\ottdruleeXXbinXXand}[1]{\ottdrule[#1]{%
 \ottpremise{b \, \ottkw{AND} \, b'  \ottsym{=}  b''}%
 }{
- [   b    \land    b'   ]  \sigma  \rightsquigarrow [  b''  ]  \sigma }{%
+\ottsym{[}   b    \land    b'   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b''  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_bin\_and}}{}%
 }}
 
@@ -579,11 +579,11 @@
 \newcommand{\ottdruleeXXbinXXor}[1]{\ottdrule[#1]{%
 \ottpremise{b \, \ottkw{OR} \, b'  \ottsym{=}  b''}%
 }{
- [   b    \lor    b'   ]  \sigma  \rightsquigarrow [  b''  ]  \sigma }{%
+\ottsym{[}   b    \lor    b'   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b''  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_bin\_or}}{}%
 }}
 
-\newcommand{\ottdefneXXred}[1]{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' $}{\ottcom{expression semantics}}
+\newcommand{\ottdefneXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  t  \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  t'  \ottsym{)}$}{\ottcom{expression semantics}}
 \ottusedrule{\ottdruleeXXfuncXXcallXXnewframe{}}
 \ottusedrule{\ottdruleeXXfuncXXexec{}}
 \ottusedrule{\ottdruleeXXfuncXXretXXe{}}
@@ -627,7 +627,7 @@
 %% defn stmt_red
 \newcommand{\ottdrulestmtXXret}[1]{\ottdrule[#1]{%
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
-\ottpremise{ \varepsilon'  \mathrel{\mathop:}:  E'   \ottsym{=}  E}%
+\ottpremise{ \varepsilon'  ::  E'   \ottsym{=}  E}%
 \ottpremise{\varepsilon''  \ottsym{=}   \ottsym{(}  \varepsilon'  \ottsym{)}  \mathrel{\mathop+}+  \ottsym{(}  \ottsym{[}  \gamma  \ottsym{]}  \ottsym{)} }%
 }{
 \ottsym{[}  \ottkw{return} \, \ottnt{v}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon''  \ottsym{,}  E'  \ottsym{)}  \ottsym{,}   { \mathbf{Ret} \,\,  \ottnt{v} }   \ottsym{)}}{%
@@ -636,9 +636,9 @@
 
 
 \newcommand{\ottdrulestmtXXassXXv}[1]{\ottdrule[#1]{%
-\ottpremise{ i = max  \{ j .  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
+\ottpremise{ i = \mathrm{max}  \{ j . \,\,  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\varepsilon'  \ottsym{=}   ( i  \mapsto    ( x  \mapsto   \ottnt{v} )  \gamma  )  \varepsilon }%
+\ottpremise{\varepsilon'  \ottsym{=}   ( i  \mapsto   ( x  \mapsto   \ottnt{v} )  \gamma  )  \varepsilon }%
 }{
 \ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{v}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_ass\_v}}{}%
@@ -685,7 +685,7 @@
 \newcommand{\ottdrulestmtXXdecl}[1]{\ottdrule[#1]{%
 \ottpremise{ i  = length ( \varepsilon ) }%
 \ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\varepsilon'  \ottsym{=}   ( i  \mapsto    ( x  \mapsto    ?  )  \gamma  )  \varepsilon }%
+\ottpremise{\varepsilon'  \ottsym{=}   ( i  \mapsto   ( x  \mapsto    ?  )  \gamma  )  \varepsilon }%
 }{
 \ottsym{[}   decl \,  x   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_decl}}{}%
@@ -693,7 +693,7 @@
 
 
 \newcommand{\ottdrulestmtXXblockXXenter}[1]{\ottdrule[#1]{%
-\ottpremise{\varepsilon'  \ottsym{=}    {\gamma}_{ \emptyset }   \mathrel{\mathop:}:  \varepsilon }%
+\ottpremise{\varepsilon'  \ottsym{=}    {\gamma}_{ \emptyset }   ::  \varepsilon }%
 }{
 \ottsym{[}   \{  \ottnt{stmt}  \}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   [  \ottnt{stmt}  ]   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon'  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_block\_enter}}{}%
@@ -732,13 +732,13 @@
 
 \newcommand{\ottdrulestmtXXtransition}[1]{\ottdrule[#1]{%
 }{
-\ottsym{[}   transition  p   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  p  \ottsym{)}}{%
+\ottsym{[}   \mathbf{transition}\,  p   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  p  \ottsym{)}}{%
 {\ottdrulename{stmt\_transition}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXretXXe}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
 \ottsym{[}  \ottkw{return} \, \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{return} \, \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_ret\_e}}{}%
@@ -746,7 +746,7 @@
 
 
 \newcommand{\ottdrulestmtXXassXXe}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
 \ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{e}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   x  \mathrel{\mathop:}=  \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_ass\_e}}{}%
@@ -754,7 +754,7 @@
 
 
 \newcommand{\ottdrulestmtXXcondXXe}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
 \ottsym{[}  \ottkw{if} \, \ottnt{e} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{if} \, \ottnt{e'} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_cond\_e}}{}%
@@ -762,7 +762,7 @@
 
 
 \newcommand{\ottdrulestmtXXverifyXXeOne}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e''}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e''}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
 \ottsym{[}  \ottkw{verify} \, \ottnt{e} \, \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{verify} \, \ottnt{e''} \, \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_verify\_e1}}{}%
@@ -770,7 +770,7 @@
 
 
 \newcommand{\ottdrulestmtXXverifyXXeTwo}[1]{\ottdrule[#1]{%
-\ottpremise{ [  \ottnt{e}  ]  \sigma  \rightsquigarrow [  \ottnt{e'}  ]  \sigma' }%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
 \ottsym{[}  \ottkw{verify} \, b \, \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}  \ottkw{verify} \, b \, \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_verify\_e2}}{}%

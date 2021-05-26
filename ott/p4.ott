@@ -283,7 +283,7 @@ stmt :: stmt_ ::=
 | transition pars_next :: :: trans
   % x is the parser state name
   {{ com transition }}
-  {{ tex transition [[pars_next]] }}
+  {{ tex \mathbf{transition}\, [[pars_next]] }}
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
@@ -333,7 +333,8 @@ scope {{ tex \gamma }} :: scope_ ::=
 | scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
   {{ com update variable mapping }}
   {{ hol (FUPDATE_LIST [[scope]] [[x1 v1 .. xn vn]]) }}
-  {{ tex \forall i . (x_i \mapsto  \mathit{v}_i) [[scope]] }}
+%TODO LaTeX cannot have dot form...
+  {{ tex \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\, [[scope]] }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
 %| G_scope :: M :: global
@@ -361,13 +362,13 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   {{ tex \mathrm{tl} ([[curr_stack_frame]]) }}
 | scope '::' curr_stack_frame' :: M :: cons
   {{ hol ([[scope]] :: [[curr_stack_frame']]) }}
-  {{ tex [[scope]] \mathrel{\mathop:}: [[curr_stack_frame']] }}
+  {{ tex [[scope]] :: [[curr_stack_frame']] }}
 | curr_stack_frame ++ curr_stack_frame' :: M :: append
   {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
   {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
 | update ( scope , i , curr_stack_frame ) :: M :: update
   {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
-  {{ tex ([[i]] \mapsto  [[scope]]) [[curr_stack_frame]] }}
+  {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
 | ( curr_stack_frame ) :: S :: paren
   {{ hol ([[curr_stack_frame]]) }}
 
@@ -388,7 +389,7 @@ call_stack {{ tex E }} :: call_stack_ ::=
   {{ hol ([[curr_stack_frame1 .. curr_stack_framen]]) }}
 | curr_stack_frame '::' call_stack :: M :: cons
   {{ hol ([[curr_stack_frame]] :: [[call_stack]]) }}
-  {{ tex [[curr_stack_frame]] \mathrel{\mathop:}: [[call_stack]] }}
+  {{ tex [[curr_stack_frame]] :: [[call_stack]] }}
 | ( call_stack ) :: S :: paren
   {{ hol ([[call_stack]]) }}
 
@@ -485,7 +486,7 @@ formula :: formula_ ::=
   {{ com find max index of variable's scope }}
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[i]]) }}
-  {{ tex i = max  \{ j . [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
+  {{ tex i = \mathrm{max}  \{ j . \,\, [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
 %  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[i]] ]) \land \forall j . \,\, j > [[i]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
 | length ( curr_stack_frame ) = i :: M :: find_length
   {{ com find the current stack frame length }}
@@ -585,8 +586,8 @@ defns
 defn
   [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
   {{ com expression semantics }}
-  %Uses different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status
-  {{ tex [ [[e]] ] [[stacks]] \rightsquigarrow [ [[e']] ] [[stacks']] }}
+  %TODO Should use different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status?
+  %{{ tex [ [[e]] ] [[stacks]] \rightsquigarrow [ [[e']] ] [[stacks']] }}
 by
 
 %%%%%%%%%%%%%%
