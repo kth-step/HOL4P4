@@ -5,21 +5,73 @@ This type of flexibility might lead to multiple security challenges; for example
 To ensure higher security guarantees, one method is to formalize Small-step Operational Semantics (SOS) and prove properties that are relevant to a real-time switch.
 
 ## Features
-### Supported:
-* Conditional statements
-* Parser
-* Match-Action 
-* Function call
-* Packets Records
-### Partially Supported:
-* Calling Convensions
-### Not Supported:
-* Control plane
+### Supported
+Base types:
+* Booleans
+* 64-bit fixed-width bitstrings
+* errors
+
+Expressions:
+* Constants (other than string literals)
+* Arithmetic operations
+* Function calls
+
+Statements:
+* Assignments
+* Method calls
+* Blocks
+* Return
+* Verify
+
+Programmable blocks:
+* Parsers
+* Control blocks
+
+### Partially Supported
+* Calling Conventions
+
+### Not Supported Yet
+Base types:
+* Non-64-bit fixed-width bitstrings
+* Fixed-width signed bitstrings
+* Dynamically sized integers (`varbit`)
+* Arbitrary-sized constants
+
+Derived types:
+* Enumeration types
+* Headers
+* Header stacks
+* Struct
+* Header unions
+* Tuples
+* Sets
+
+Expressions:
+* Conditional expression
+* Casts
+* Bitslicing
+* Concatenation
+* Operations on unimplemented types
+* Select
+
+Statements:
+* Exit
+* Switch
+
+Externs
+
+Type specialization
+
+Data extraction
+
+Specific architecture support
+
+Architecture description
 
 ## Versioning
 Currently, the developer team is working on v1, which will cover all parts of the P4 pipeline and be sufficient to model small examples.
 
-### Prerequisites
+## Prerequisites
 The project has the following dependencies, listed with recommended versions:
 
 1. [Ott 0.31](https://github.com/ott-lang/ott/tree/0.31)
