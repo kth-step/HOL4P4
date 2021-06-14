@@ -130,7 +130,7 @@ First, an expression can be a Boolean or an integer (collectively referred to as
 \subsection{Statements}
 
 \label{ssec:stmt}
-\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}.
+\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}. They are mostly standard, apart from the following: the in-progress block is an artifact of our small-step semantics. The \textbf{verify} statement (here a statement and not an extern function as in \pfourspec{sec-verify}{Section 12.7} of the P4 specification) can be found uniquely in a parser block. It asserts the expressions $e$ and if it holds, does nothing. If $e$ does not hold, it jumps to a rejecting parser state with error message being the result of evaluating $e'$. The \textbf{transition} statement continues execution at a new parser state $p$.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -139,8 +139,6 @@ First, an expression can be a Boolean or an integer (collectively referred to as
 \caption{P4 Statements}
 \label{fig:stmt}
 \end{figure}
-
-TODO: Describe statements.
 
 \newpage
 \newcommand{\exstate}{\ensuremath{s}}
@@ -209,10 +207,10 @@ In addition to the above, there's also a function map $F$ mapping function names
 
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
+\ottusedrule{\ottdruleeXXlookup{}}
 \ottusedrule{\ottdruleeXXfuncXXcallXXnewframe{}}
 \ottusedrule{\ottdruleeXXfuncXXexec{}}
-\ottusedrule{\ottdruleeXXfuncXXretXXe{}}
-\ottusedrule{\ottdruleeXXlookup{}}
+\ottusedrule{\ottdruleeXXfuncXXret{}}
 %\ottusedrule{\ottdruleeXXacc{}}
 \end{ottdefnblock}}
 \caption{P4 Expression Evaluation Semantics}
@@ -222,38 +220,13 @@ In addition to the above, there's also a function map $F$ mapping function names
 
 The semantics of expressions is shown in Figure~\ref{fig:semexp}\footnote{The semantics for reducing concrete arithmetic operations is standard and covers everything found in Appendix~\ref{app:op}}\footnote{Rules for reducing expressions in all contexts can be found in Appendix~\ref{app:exp}}.
 \\~\\
-The \textsc{e\_func\_call\_newframe} rule is used when all of the function arguments have been reduced to constants. The constants are assigned to their respective argument names in a fresh scope, after which this scope is put on top of the global scope \gscope{} in order to form the new current frame $\currsf '$. The old current frame \currsf{} (minus \gscope{}) is then saved on top of the call stack \cstack{} to be used later when returning from the function call, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{} (obtained from the function map \fmap{}, which holds mappings between function names \fn{} and tuples of function bodies and lists of their argument names). Note that this rule also covers the case of a function call with no arguments.
-\\~\\
-The \textsc{e\_func\_exec} rule reduces the function body of in-progess execution with one statement reduction.
-\\~\\
-The \textsc{e\_func\_ret\_e} rule reduces finished (empty) in-progress execution with status $\mathbf{Return} \,\, \expr$ to $\expr$, provided $\expr$ is a constant. This also changes the status to $\mathbf{Running}$.
-\\~\\
 In the \textsc{e\_lookup} rule, the first antecedent states that $\num = \mathrm{max} \, \{ j . \,\, \vn  \in \mathrm{dom} ( $\currsf$ [j] ) \} $, which ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently entered) scope of \currsf{} where it can be found. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
+\\~\\
+The \textsc{e\_func\_call\_newframe} rule is used when all of the function arguments have been reduced to constants. The constants are assigned to their respective argument names in a fresh scope, after which this scope is put on top of the global scope \gscope{} in order to form the new current frame $\currsf '$. The old current frame \currsf{} (minus \gscope{}) is then saved on top of the call stack \cstack{} to be used later when returning from the function call, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{} (obtained from the function map \fmap{}, which holds mappings between function names \fn{} and tuples of function bodies and lists of their argument names). Note that this rule also covers the case of a function call with no arguments. The \textsc{e\_func\_exec} rule reduces the function body of in-progess execution with one statement reduction, and the \textsc{e\_func\_ret} rule reduces finished (empty) in-progress execution with status $\mathbf{Return} \,\, \expr$ to $\expr$, provided $\expr$ is a constant. This also changes the status to $\mathbf{Running}$.
 
 \newpage
 \subsection{Statement Execution}
-The semantics of the statements is shown in Figure~\ref{fig:semstmtexec}.
-\\~\\
-The \textsc{stmt\_ret\_e} rule implements one reduction to the expression at a time, to simplify the expression until it reduces to a constant. 
-Once the \textbf{return} statement appears to return a constant the rule \textsc{stmt\_ret\_const} contains the antecedents that are required for such operation. The global scope \gscope{} is always stored at the bottom (index zero) in the stack of scopes, i.e. $\currsf [0]$. It is fetched and concatenated with most recent caller that was stored on top of the call stack $\cstack$. Thus, this concatenation will generate a $\currsf$ that has the same shape to the one before the function being called (of course before reaching the \textbf{return} statement some global variables could have been changed during function evaluation, that is the reason why we say that the shape is the same but not the variable mappings in the global scope \gscope{}). The status will be changed to $\mathbf{Return} \,\, v$ where it will be handled later in an other rule. 
-\\~\\
-The \textsc{stmt\_ass\_e} rule implements one reduction to the expression at a time, to simplify the expression until it reduces to a constant.
-The \textsc{stmt\_ass\_const} rule handles assignment statement. In general, the variables that the program can assign values to it should be in the global scope \gscope{} or the current scope of the frame, thus we need to look up into the current frame $\currsf$, but never into $\cstack$. So the antecedent $i = max \{ j . \,\, x  \in \mathrm{dom} ( $\currsf$ [j] ) $ fetches the proper index that locates the variable location, it should be the one in the uppermost part of the the current frame $\currsf$ (i.e. oldest entry). In the last antecedent, $ (\vn \longrightarrow \cval )scope $ updates the mapping of the variable name \vn{} to the new value (constant \cval{}) in the proper frame location, that indeed lies in the current frame. One step reduction in this rule results an updated current frame, and an empty statement to execute.
-\\~\\
-The \textsc{stmt\_seq1} and \textsc{stmt\_seq2} rules are trivial to understand, they are pretty standard.
-\\~\\
-The \textsc{stmt\_seq3} handles the \textbf{return} statement when it does not occur at the end of the the function code. The next statement to reduce will be empty and the status will be changed to \textbf{Return} that will be handled later.
-\\~\\
-The \textsc{stmt\_cond1}, \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are pretty trivial to understand.
-\\~\\
-The \textsc{stmt\_decl} rule is a transition reduction for the declaration statements. Whenever a variable is declared, it will updated in the most recent scope and reduce the transition to an empty statement. The most recent/newest scope is fetched simply by checking the length of the current frame $\currsf$. 
-\\~\\
-The \textbf{\{\}} brackets indicates a block, while the \textbf{[ ]} brackets indicates a block in progess of being executed.
-Whenever entering a block, in rule \textsc{stmt\_block\_enter}, a new empty scope \escope{} is pushed onto the current frame \currsf{}, and then the \textbf{\{\}} brackets are switched to the in-progress ones \textbf{[ ]} to signify that the block is currently being executed.
-\\~\\
-\textsc{stmt\_block\_exec} rule shows a small step reduction for the statements inside a block.
-\\~\\
-\textsc{stmt\_block\_exit} rule handles the case where the end of a block is reached, i.e. whenever a block contains only an empty statement. It pops the scope corresponding to the block (the most recent one) from the frame $\currsf$.
+The semantics of the statements is shown in Figures~\ref{fig:strsemstmtexec} and~\ref{fig:semstmtexec}\footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
 
 %\begin{figure}[h!]
 %\centering\ottgrammartabular{
@@ -266,14 +239,60 @@ Whenever entering a block, in rule \textsc{stmt\_block\_enter}, a new empty scop
 %\end{figure}
 
 \begin{figure}[ht!]
-\ottdefnsstmtXXsem
+\begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
+\ottusedrule{\ottdrulestmtXXdecl{}}
+\ottusedrule{\ottdrulestmtXXassXXv{}}
+\ottusedrule{\ottdrulestmtXXret{}}
+\ottusedrule{\ottdrulestmtXXcondTwo{}}
+\ottusedrule{\ottdrulestmtXXcondThree{}}
+\end{ottdefnblock}
 \caption{P4 Statement Execution Semantics}
 \label{fig:semstmtexec}
 \end{figure}
+The \textsc{stmt\_decl} is used to reduce the \textbf{decl} statement, which has the effect of declaring variable mappings in the current (topmost) scope. The newly declared variable is given an uninitialized value, denoted by $?$.
+\\~\\
+The \textsc{stmt\_ass\_v} rule handles the assignment statement. In general, the variables that the program can assign values to are in the global scope \gscope{} or the current frame, thus we need to look up mappings in the current frame $\currsf$, but never in $\cstack$. So the antecedent $i = \mathrm{max} \{ j . \,\, x  \in \mathrm{dom} ( $\currsf$ [j] ) $ obtains the index $i$ of the uppermost (i.e. most recently entered) scope in the current frame $\currsf$ containing the variable. In the last antecedent, $ (\vn \longrightarrow \cval )\gamma $ updates the mapping of the variable name \vn{} to the new value (constant \cval{}) in the proper scope, that indeed lies in the current frame. The reduction results in the empty statement and an updated current frame.
+\\~\\
+Once the expression in the \textbf{return} statement has been reduced to a constant, the rule \textsc{stmt\_ret} can be applied. The global scope \gscope{} is always stored at the bottom (index zero) in the stack of scopes, i.e. $\currsf [0]$. It is fetched and concatenated with the frame of the most recent caller that is stored on top of the call stack $\cstack$. Thus, this concatenation will yield a new frame $\currsf$ that has the same shape as the one before the function being called (of course before reaching the \textbf{return} statement some variable mappings in the global scope \gscope{} could have been changed during function evaluation). The status is also changed to $\mathbf{Return} \,\, v$ which allows for applying \textsc{e\_func\_ret}.
+\\~\\
+The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones for conditional statements.
+\\~\\
+
+\begin{figure}[ht!]
+\begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
+\ottusedrule{\ottdrulestmtXXseqOne{}}
+\ottusedrule{\ottdrulestmtXXseqTwo{}}
+\ottusedrule{\ottdrulestmtXXseqThree{}}
+\ottusedrule{\ottdrulestmtXXblockXXenter{}}
+\ottusedrule{\ottdrulestmtXXblockXXexec{}}
+\ottusedrule{\ottdrulestmtXXblockXXexit{}}
+\end{ottdefnblock}
+\caption{P4 Statement Execution Semantics: Structural Rules}
+\label{fig:strsemstmtexec}
+\end{figure}
+
+The \textsc{stmt\_seq1} and \textsc{stmt\_seq2} rules are pretty standard. The \textsc{stmt\_seq3} rule is used in the situation when the \textbf{return} statement does not occur at the end of the the function body. The next statement to reduce will be empty and the status will be changed to \textbf{Return}, which is handled by \textsc{stmt\_ret}.
+\\~\\
+The \{\} brackets indicate a block, while the [ ] brackets indicate a block in progress of being executed.
+The \textsc{stmt\_block\_enter} rule is used to enter a block, which entails a new empty scope \escope{} being pushed onto the current frame \currsf{}, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents, and the \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the frame $\currsf$.
+\\~\\
 
 \newcommand{\start}{\textit{start}}
 \subsection{Parser}
 The parser is a part of the P4 language which is generally used to parse packets from bit-string representations to structures of parsed headers, described in \pfourspec{sec-control}{Section 13} of the P4 specification. It can be thought of as describing a state machine with three unique states: a \start{} state, an \accept{} state and a \reject{\msg{}} state. A parser state $p$ (including \start{}, but not the abstract final states of \accept{} and \reject{\msg{}}) consists of a list of statements to be executed, with a transition statement at the end which decides the parser state to jump to next.
+
+\begin{figure}[ht!]
+\begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
+\ottusedrule{\ottdrulestmtXXverifyXXThree{}}
+\ottusedrule{\ottdrulestmtXXverifyXXFour{}}
+\ottusedrule{\ottdrulestmtXXtransition{}}
+\end{ottdefnblock}
+\caption{P4 Parser-Specific Statement Execution Semantics}
+\label{fig:parssemstmtexec}
+\end{figure}
+
+The parser-specific statement semantics is shown in Figure~\ref{fig:parssemstmtexec}. The \textsc{stmt\_verify\_3} and \textsc{stmt\_verify\_4} rules describe the semantics of \textbf{verify}, the expressions having been reduced to values. If the condition holds, the reduction is to the empty statement (i.e. nothing happens and execution continues). If the condition does not hold, reduction is also to the empty statement, but state status is set to $\mathbf{Reject}\ x$. The \textsc{stmt\_transition} rule describes reduction of the $\mathbf{transition}$ statement, whose only effect on the state is to set status to $p$ (the \textsc{pars\_state} or \textsc{pars\_t\_fin} rules can then be used next)
+
 \begin{figure}[ht!]
 \ottdefnsparsXXsem
 \ottdefnsparsXXtXXsem
@@ -281,7 +300,7 @@ The parser is a part of the P4 language which is generally used to parse packets
 \label{fig:semparsexec}
 \end{figure}
 
-The parser semantics is shown in Figure~\ref{fig:semparsexec}. Note the separate judgment form for the final step of the parser, which goes to a state with status \accept{} or \reject{} (representing the abstract accepting and rejecting states).
+The parser state machine semantics is shown in Figure~\ref{fig:semparsexec}. Note the separate judgment form for the final step of the parser, which goes to a state with status \accept{} or \reject{} (representing the abstract accepting and rejecting states).
 
 The \textsc{pars\_stmt} rule performs a single small-step reduction of the current statement (the body of the current parser state), while the \textsc{pars\_state} rule governs transition to the next parser state: if the current statement \stmt{} is reduced to $\stmt{}'$ with the status being \trans{\vn{}}, the next statement is the body of the parser state with name \vn{}, obtained from the map $P$ from parser state names to parser bodies.
 
@@ -336,7 +355,7 @@ The binary expressions included are shown in Figure~\ref{fig:unop}. These includ
 
 \section{Semantics of Expression Reduction}
 \label{app:exp}
-This appendix describes semantics for reducing expressions in certain contexts. The expression semantics are shown in Figure~\ref{fig:semexp2}.
+This appendix describes semantics for reducing expressions in certain contexts. The expression semantics are shown in Figure~\ref{fig:semexp2}. The statement semantics are shown in Figure~\ref{fig:semstmt2}.
 
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
@@ -354,6 +373,18 @@ This appendix describes semantics for reducing expressions in certain contexts. 
 The \textsc{e\_func\_call\_args} rule reduces the leftmost function argument which has yet to be reduced to a constant with one expression evaluation step. The first two antecedents divide the list of arguments into two sub-lists, where the prefix must contain all constants. The head of the suffix is then reduced with one step, after which the corresponding index in the original list of arguments is update with the resulting expression.
 \\~\\
 \pfourspec{sec-expr-eval-order}{8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{e\_binop1} and \textsc{e\_binop2} - are split up so that reduction of the second operand requires that the first operand has been completely reduced to a constant. This is trivial for unary operations (\textsc{e\_unop}).
+
+\begin{figure}[ht!]
+\begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
+\ottusedrule{\ottdrulestmtXXretXXe{}}
+\ottusedrule{\ottdrulestmtXXassXXe{}}
+\ottusedrule{\ottdrulestmtXXcondXXe{}}
+\ottusedrule{\ottdrulestmtXXverifyXXeOne{}}
+\ottusedrule{\ottdrulestmtXXverifyXXeTwo{}}
+\end{ottdefnblock}
+\caption{P4 Statement Execution Semantics}
+\label{fig:semstmt2}
+\end{figure}
 
 \end{document}
 

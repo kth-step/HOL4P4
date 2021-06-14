@@ -596,6 +596,15 @@ defn
   %{{ tex [ [[e]] ] [[stacks]] \rightsquigarrow [ [[e']] ] [[stacks']] }}
 by
 
+%%%%%%%%%%%%%%%%%
+%Variable look-up
+
+  find_index_max ( curr_stack_frame, x ) = i
+  scope = curr_stack_frame [ i ]
+  v = scope ( x )
+  ----------------------------------- :: lookup
+  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
+
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
 
@@ -616,17 +625,8 @@ by
   [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
 
 %TODO: Note that this is a simplification of the return mechanism
-  ----------------------------------- :: func_ret_e
+  ----------------------------------- :: func_ret
   [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks' , Running )
-
-%%%%%%%%%%%%%%%%%
-%Variable look-up
-
-  find_index_max ( curr_stack_frame, x ) = i
-  scope = curr_stack_frame [ i ]
-  v = scope ( x )
-  ----------------------------------- :: lookup
-  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct/extern field/method access

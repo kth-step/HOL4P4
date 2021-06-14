@@ -314,6 +314,16 @@
 % defnss
 % defns e_sem
 %% defn e_red
+\newcommand{\ottdruleeXXlookup}[1]{\ottdrule[#1]{%
+\ottpremise{ i = \mathrm{max} \, \{ j . \,\,  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
+\ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
+\ottpremise{\ottnt{v}  \ottsym{=}  \gamma  \ottsym{(}  x  \ottsym{)}}%
+}{
+\ottsym{[}  x  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{v}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{e\_lookup}}{}%
+}}
+
+
 \newcommand{\ottdruleeXXfuncXXcallXXnewframe}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{(}  \ottnt{stmt}  \ottsym{,}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{=}  F  \ottsym{(}  f  \ottsym{)}}%
 \ottpremise{\gamma'  \ottsym{=}   \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\,   {\gamma}_{ \emptyset }  }%
@@ -334,20 +344,10 @@
 }}
 
 
-\newcommand{\ottdruleeXXfuncXXretXXe}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleeXXfuncXXret}[1]{\ottdrule[#1]{%
 }{
 \ottsym{[}  \ottkw{exec} \,  \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{Ret} \,\,  \ottnt{v} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{v}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
-{\ottdrulename{e\_func\_ret\_e}}{}%
-}}
-
-
-\newcommand{\ottdruleeXXlookup}[1]{\ottdrule[#1]{%
-\ottpremise{ i = \mathrm{max} \, \{ j . \,\,  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
-\ottpremise{\gamma  \ottsym{=}  \varepsilon  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\ottnt{v}  \ottsym{=}  \gamma  \ottsym{(}  x  \ottsym{)}}%
-}{
-\ottsym{[}  x  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{v}  \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
-{\ottdrulename{e\_lookup}}{}%
+{\ottdrulename{e\_func\_ret}}{}%
 }}
 
 
@@ -564,10 +564,10 @@
 }}
 
 \newcommand{\ottdefneXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  t  \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  t'  \ottsym{)}$}{\ottcom{expression semantics}}
+\ottusedrule{\ottdruleeXXlookup{}}
 \ottusedrule{\ottdruleeXXfuncXXcallXXnewframe{}}
 \ottusedrule{\ottdruleeXXfuncXXexec{}}
-\ottusedrule{\ottdruleeXXfuncXXretXXe{}}
-\ottusedrule{\ottdruleeXXlookup{}}
+\ottusedrule{\ottdruleeXXfuncXXret{}}
 \ottusedrule{\ottdruleeXXfuncXXcallXXargs{}}
 \ottusedrule{\ottdruleeXXunopXXarg{}}
 \ottusedrule{\ottdruleeXXbinopXXargOne{}}
