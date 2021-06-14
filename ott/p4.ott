@@ -143,13 +143,13 @@ v :: v_ ::=
   {{ com boolean value }}
 | nw :: :: int
   {{ com integer }}
-| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
-  {{ com struct }}
-  {{ tex struct }} %TODO
-| header { x1 = v1 ; ... ; xn = vn } :: :: header
-  % A header is like a struct, but has different well-formedness conditions
-  {{ com header }}
-  {{ tex header }} %TODO
+%| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
+%  {{ com struct }}
+%  {{ tex struct }} %TODO
+%| header { x1 = v1 ; ... ; xn = vn } :: :: header
+%  % A header is like a struct, but has different well-formedness conditions
+%  {{ com header }}
+%  {{ tex header }} %TODO
 %%TODO: An extern should contain an internally visible list of mappings between variable names and constants,
 %%      and a map from function names to their bodies and arguments
 %% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
@@ -170,6 +170,14 @@ lval :: lval_ ::=
 | lval . f :: :: field
   {{ com field access }}
 
+%(Primitive) types
+t {{ tex t }} :: t_ ::=
+{{ com types }}
+| bool_t :: :: bool
+  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
+| int_t :: :: int
+  {{ tex { \mathrm{int}_{ \mathrm{t} } } }}
+
 %TODO: Casts
 %TODO: Lists
 %TODO: Tuples
@@ -180,8 +188,8 @@ e :: e_ ::=
  {{com constant value}}
 | x :: :: var
   {{ com variable name }}
-| e . e' :: :: acc
-  {{ com field access }}
+%| e . e' :: :: acc
+%  {{ com field access }}
 | unop e :: :: unop
   {{ com unary operation }}
   {{ tex [[unop]] [[e]] }}
@@ -191,7 +199,7 @@ e :: e_ ::=
 | call f ( e1 , .. , en ) :: :: func_call
   {{ com function call }}
   {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
-| exec stmt :: :: func_exec
+| exec stmt :: I :: func_exec
   {{ com function execution }}
 | ( e ) :: X :: paren
   {{ hol ([[e]]) }}
@@ -263,14 +271,12 @@ stmt :: stmt_ ::=
   {{ tex [[x]] \mathrel{\mathop:}= [[e]] }}
 | if e then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-%TODO: Declaration should take a type as well
-| decl x :: :: declare
+| decl x t :: :: declare
   {{ com declaration }}
-  {{ tex decl \, [[x]] }}
 | begin stmt end :: :: block 
   {{ com block }}
   {{ tex \{ [[stmt]] \} }}
-| begin' stmt end' :: :: block_ip
+| begin' stmt end' :: I :: block_ip
   {{ com block in progress }}
   {{ tex [ [[stmt]] ] }}
 | return e :: :: ret
@@ -311,12 +317,12 @@ pars_map {{ tex P }} :: pars_map_ ::=
 %Execution status.
 status {{ tex t }}:: status_ ::=
  {{ com execution status }}
-| Running :: :: running
+| Running :: I :: running
   {{ tex { \mathbf{R} } }}
-| Return v :: :: return
+| Return v :: I :: return
   {{ tex { \mathbf{Ret} \,\, [[v]]} }}
-| pars_next :: :: pars_next
-| TypeError :: :: type_error
+| pars_next :: I :: pars_next
+| TypeError :: I :: type_error
   {{ tex { \bot } }}
 
 scope {{ tex \gamma }} :: scope_ ::=
@@ -486,7 +492,7 @@ formula :: formula_ ::=
   {{ com find max index of variable's scope }}
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
   {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[i]]) }}
-  {{ tex i = \mathrm{max}  \{ j . \,\, [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
+  {{ tex i = \mathrm{max} \, \{ j . \,\, [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
 %  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[i]] ]) \land \forall j . \,\, j > [[i]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
 | length ( curr_stack_frame ) = i :: M :: find_length
   {{ com find the current stack frame length }}
@@ -626,9 +632,9 @@ by
 %Struct/extern field/method access
 %TODO: Nested structs
 
-  v = struct { x1 = v1 ; ... ; xn = vn } ( x )
-  ----------------------------------- :: acc
-  [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks' , Running )
+%  v = struct { x1 = v1 ; ... ; xn = vn } ( x )
+%  ----------------------------------- :: acc
+%  [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks' , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
@@ -645,14 +651,14 @@ by
   ----------------------------------- :: func_call_args
   [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'm )] ( stacks , Running )
 
-%Stacks
-  [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
-  ----------------------------------- :: acc_arg2
-  [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
+%Structs
+%  [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+%  ----------------------------------- :: acc_arg2
+%  [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
 
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
-  ----------------------------------- :: acc_arg1
-  [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
+%  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+%  ----------------------------------- :: acc_arg1
+%  [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
 
 %Unary operations
   [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
@@ -931,7 +937,7 @@ by
   scope = curr_stack_frame [ i ]
   curr_stack_frame' = update ( scope + [ x |-> uninit ] , i , curr_stack_frame )
   ----------------------------------- :: decl
-  [decl x] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  [decl x t] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%
