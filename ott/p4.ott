@@ -143,9 +143,8 @@ v :: v_ ::=
   {{ com boolean value }}
 | nw :: :: int
   {{ com integer }}
-%| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
-%  {{ com struct }}
-%  {{ tex struct }} %TODO
+| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
+  {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
 %| header { x1 = v1 ; ... ; xn = vn } :: :: header
 %  % A header is like a struct, but has different well-formedness conditions
 %  {{ com header }}
@@ -170,13 +169,19 @@ lval :: lval_ ::=
 | lval . f :: :: field
   {{ com field access }}
 
-%(Primitive) types
-t {{ tex t }} :: t_ ::=
+%Base types
+bt {{ tex bt }} :: bt_ ::=
 {{ com types }}
 | bool_t :: :: bool
   {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
 | int_t :: :: int
   {{ tex { \mathrm{int}_{ \mathrm{t} } } }}
+
+%Types
+t {{ tex t }} :: t_ ::=
+{{ com types }}
+| bt :: :: base
+| struct_t t1 , ... , tn :: :: struct
 
 %TODO: Casts
 %TODO: Lists
@@ -188,8 +193,10 @@ e :: e_ ::=
  {{com constant value}}
 | x :: :: var
   {{ com variable name }}
-%| e . e' :: :: acc
-%  {{ com field access }}
+| { e1 , .. , en } :: :: list
+  {{ com expression list }}
+| e . e' :: :: acc
+  {{ com field access }}
 | unop e :: :: unop
   {{ com unary operation }}
   {{ tex [[unop]] [[e]] }}
@@ -206,11 +213,12 @@ e :: e_ ::=
 
 %TODO: Trying to make a new definition for expression lists (mainly for function
 %      arguments) proved problematic.
-%      If all productions are meta, then you get args as a type abbreviation of "e",
+%      If all e_list productions are meta, then you get e_list as a type abbreviation of "e list",
 %      which is either undefined at the point where the abbreviation is made, or
-%      e_list is unknown when defining e. Either way, mutually recursive definitions
-%      are not possible. If nothing is meta and e_list is not exported to a type
-%      abbreviation, the function call semantics will not understand the "e_list" and "e list" correspondence.
+%      e_list is unknown when defining e (and specifically function call, which would use e_list).
+%      In both situations, mutually recursive definitions are not possible.
+%
+%      If nothing is meta and e_list is not exported to a type abbreviation, you risk the function call semantics not understanding the "e_list" and "e list" correspondence. However, this seems to work currently.
 e_list :: e_list_ ::=
 {{ com list of expressions }}
 {{ hol (e list) }}
@@ -307,6 +315,14 @@ pars_map {{ tex P }} :: pars_map_ ::=
 {{ hol (string |-> stmt) }}
 | empty :: M :: empty
   {{ com empty parser state map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just an abbreviation, since it's never changed...
+struct_map {{ tex R }} :: struct_map_ ::=
+{{ com struct map  }}
+{{ hol (string |-> ((string # t) list)) }}
+| empty :: M :: empty
+  {{ com empty struct map }}
   {{ hol FEMPTY }}
 
 %%%%%%%%%%%%%%%%%%%
@@ -582,7 +598,7 @@ val is_const_def = Define `
 /\  ( is_const _ = F)
 `;
 val is_consts_def = Define `
-    (is_consts e_list = ~(EXISTS (\el. ~(is_const el)) e_list))
+    (is_consts el = ~(EXISTS (\e. ~(is_const e)) el))
 `;
 }}
 grammar
@@ -629,12 +645,11 @@ by
   [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%
-%Struct/extern field/method access
-%TODO: Nested structs
+%Struct field access
 
-%  v = struct { x1 = v1 ; ... ; xn = vn } ( x )
-%  ----------------------------------- :: acc
-%  [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks' , Running )
+  v = struct { x1 = v1 ; ... ; xn = vn } ( x )
+  ----------------------------------- :: acc
+  [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
