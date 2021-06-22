@@ -147,6 +147,9 @@ t {{ tex t }} :: t_ ::=
 | bt :: :: base
 | struct_t t1 , ... , tn :: :: struct
   {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+%Note: Header type does not reflect validity bit in any way, since this is the same for all headers
+| header_t t1 , ... , tn :: :: header
+  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 
 %TODO: String literal
 %TODO: L-values and identifiers
@@ -160,10 +163,16 @@ v :: v_ ::=
   {{ com integer }}
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
   {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
-%| header { x1 = v1 ; ... ; xn = vn } :: :: header
-%  % A header is like a struct, but has different well-formedness conditions
-%  {{ com header }}
-%  {{ tex header }} %TODO
+| header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
+% A header is like a struct, but with a validity bit.
+% Headers also have different well-formedness conditions (for example, headers cannot be nested).
+%TODO: We must have the following header methods:
+%      isValid()
+%      setValid()
+%      setInvalid()
+%      Should these be modeled as statements, or should they
+%      be pre-set in the function map?
+  {{ com header }}
 %%TODO: An extern should contain an internally visible list of mappings between variable names and constants,
 %%      and a map from function names to their bodies and arguments
 %% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
@@ -524,8 +533,11 @@ formula :: formula_ ::=
 | v = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
-| v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: access
+| v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: s_access
   {{ com access of field in struct }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+| v = header boolv { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: h_access
+  {{ com access of field in header }}
   {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
 %| v'' = ( v' with f := v ) :: M :: set_field
 %  {{ com set field of struct }}
@@ -603,9 +615,12 @@ formula :: formula_ ::=
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
-| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v ) :: M :: struct_fld_upd
+| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v ) :: M :: s_fld_upd
   {{ com update of struct field }}
   {{ hol ([[v'']] = v_struct (LUPDATE ([[f]], [[v]]) (THE (INDEX_OF [[f]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
+| v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with f := v ) :: M :: h_fld_upd
+  {{ com update of struct field }}
+  {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[f]], [[v]]) (THE (INDEX_OF [[f]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
 %  find_index_max ( curr_stack_frame, x ) = i
 %    (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[i]])
 %  scope = curr_stack_frame [ i ]
@@ -626,10 +641,11 @@ val is_const_def = Define `
 val is_consts_def = Define `
     (is_consts el = ~(EXISTS (\e. ~(is_const e)) el))
 `;
-(* Access the field f of a struct (v_struct s) *)
-val str_acc_def = Define `
-    (str_acc (v_struct s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s))))
-/\  (str_acc _ f = NONE)
+(* Access the field f of a struct or a header *)
+val acc_f_def = Define `
+    (acc_f (v_struct s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s))))
+/\  (acc_f (v_header _ s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s))))
+/\  (acc_f _ f = NONE)
 `;
 (*
 val get_lval_root_def = Define `
@@ -653,7 +669,7 @@ val lookup_def = Define `
  * the current stack frame sf. *)
 val lookup_lval_def = Define `
     (lookup_lval (sf:scope list) (lval_varname x) = (lookup sf x))
-/\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (str_acc (lookup_lval sf lval) f))
+/\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
 `;
 }}
 grammar
@@ -700,8 +716,15 @@ by
 %Struct field access
 
   v = struct { x1 = v1 ; ... ; xn = vn } ( x )
-  ----------------------------------- :: acc
+  ----------------------------------- :: s_acc
   [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%%
+%Header field access
+
+  v = header boolv { x1 = v1 ; ... ; xn = vn } ( x )
+  ----------------------------------- :: h_acc
+  [ header boolv { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
@@ -718,7 +741,7 @@ by
   ----------------------------------- :: func_call_args
   [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'm )] ( stacks , Running )
 
-%Structs
+%Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
   [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: acc_arg2
@@ -971,10 +994,16 @@ by
   ----------------------------------- :: ass_v
   [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
-  %TODO: Assign to a struct field
+  %Assign to a struct field
   struct { x1 = v1 ; ... ; xn = vn } = lookup_lval ( curr_stack_frame , lval )
   v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v )
-  ----------------------------------- :: ass_str
+  ----------------------------------- :: ass_s
+  [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+
+  %Assign to a header field
+  header boolv { x1 = v1 ; ... ; xn = vn } = lookup_lval ( curr_stack_frame , lval )
+  v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with f := v )
+  ----------------------------------- :: ass_h
   [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
 
 %%%%%%%%%%%%%%
@@ -1001,7 +1030,7 @@ by
   [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
-%declaration
+%Declaration
 
   length ( curr_stack_frame ) = i
   scope = curr_stack_frame [ i ]
