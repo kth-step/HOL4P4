@@ -223,6 +223,12 @@ e :: e_ ::=
   {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
+| select e { v1 : x1 , ... , vn : xn } x :: :: select
+  {{ com select }}
+%select expression can only be used in parsers
+%e is the expression used to select result
+%the list consists of values that are matched to the evaluated expression
+% x is the default value (TODO: Should be optional)
 | ( e ) :: X :: paren
   {{ hol ([[e]]) }}
 
@@ -273,7 +279,7 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 {{ com final parser states }}
 | Accept :: :: accept
   {{ com accepted state }}
-| Reject x :: :: reject
+| Reject :: :: reject
   {{ com rejected state }}
 
 pars_next {{ tex p }} :: pars_next_ ::=
@@ -294,6 +300,7 @@ stmt :: stmt_ ::=
   {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
 | if e then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
+%TODO: This should have a type name x instead of t, which is looked up in the type environment.
 | decl x t :: :: declare
   {{ com declaration }}
 | begin stmt end :: :: block 
@@ -309,10 +316,10 @@ stmt :: stmt_ ::=
 | verify e e' :: :: verify
   % e is predicate, e' is error message
   {{ com verify }}
-| transition pars_next :: :: trans
-  % x is the parser state name
+| transition e :: :: trans
+  % e should evaluate to a parser state name
   {{ com transition }}
-  {{ tex \mathbf{transition}\, [[pars_next]] }}
+  {{ tex \mathbf{transition}\, [[e]] }}
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
@@ -608,10 +615,10 @@ formula :: formula_ ::=
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
   {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
-| x = empty_err_msg :: M :: empty_err_msg
-  {{ com empty error message }}
-  {{ hol ([[x]] = "ParserStateEnd") }}
-  {{ tex [[x]] = \mathrm{ParserStateEnd} }}
+| x = ParserError :: M :: pars_err
+  {{ com parser error literal }}
+  {{ hol ([[x]] = "ParserError") }}
+  {{ tex [[x]] = \mathit{ParserError} }}
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
@@ -621,15 +628,15 @@ formula :: formula_ ::=
 | v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with f := v ) :: M :: h_fld_upd
   {{ com update of struct field }}
   {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[f]], [[v]]) (THE (INDEX_OF [[f]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
-%  find_index_max ( curr_stack_frame, x ) = i
-%    (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[i]])
-%  scope = curr_stack_frame [ i ]
-%    ([[scope]] = EL [[i]] [[curr_stack_frame]])
-%  v = scope ( x )
-%    (FLOOKUP [[scope]] [[x]] = SOME [[v]])
-%
-%
-%    (SOME [[v]] = FLOOKUP (EL (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]]))) [[curr_stack_frame]]) [[x]])
+| not_final_state ( x ) :: M :: not_final
+  {{ com x is not name of final state }}
+  {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
+| x = "accept" :: M :: is_accept
+  {{ com x is accept }}
+  {{ hol ([[x]] = "accept") }}
+| x = "reject" :: M :: is_reject
+  {{ com x is reject }}
+  {{ hol ([[x]] = "reject") }}
 
 %TODO: Review if "is_const" is needed...
 embed
@@ -1062,14 +1069,26 @@ by
   [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
 
 %Case predicate does not hold
+  %TODO: This assumption needed since we don't have string literals yet
+  x' = ParserError
+  x'' = "reject"
   ------------------------------------------------- :: verify_4
-  [verify false ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Reject x )
+  [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks' , Running )
 
 %%%%%%%%%%%%%%
 %Transition
 
-  ------------------------------------------------- :: transition
-  [transition pars_next]( stacks , Running ) -> [empty_stmt]( stacks , pars_next )
+  not_final_state ( x )
+  ------------------------------------------------- :: trans_1
+  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Trans x )
+
+  x = "accept"
+  ------------------------------------------------- :: trans_2
+  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Accept )
+
+  x = "reject"
+  ------------------------------------------------- :: trans_2
+  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Reject )
 
 %Transition to named state
 %NOTE: This assumes transition is last statement
@@ -1124,6 +1143,11 @@ by
   ------------------------------------------------- :: verify_e2
   [verify b e]( stacks , Running ) -> [verify b e']( stacks' , Running )
 
+%Reduction step of transition
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ------------------------------------------------- :: trans_e
+  [transition e]( stacks , Running ) -> [transition e']( stacks' , Running )
+
 
 %%%%%%%%%%%%%%%%%%%%
 % Parser semantics %
@@ -1147,6 +1171,11 @@ by
   ------------------------------------------------- :: state
   [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
 
+%If the end of some parser state is reached without status change, we reject
+  [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+  x = "reject"
+  ------------------------------------------------- :: empty
+  [stmt]( stacks , Running ) --> [transition x]( stacks' , Running )
 
 defns
   pars_t_sem :: '' ::=
@@ -1158,9 +1187,3 @@ by
   [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
   ------------------------------------------------- :: fin
   [stmt]( stacks , Running ) --> ( stacks , pars_fin )
-
-%If the end of some parser state is reached without status change, we reject
-  [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
-  x = empty_err_msg
-  ------------------------------------------------- :: empty
-  [stmt]( stacks , Running ) --> ( stacks' , Reject x )
