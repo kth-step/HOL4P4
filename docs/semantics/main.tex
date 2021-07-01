@@ -238,6 +238,25 @@ The \textsc{e\_func\_call\_newframe} rule is used when all of the function argum
 The \textsc{e\_acc} rule is used to access the values of fields in structs. 
 
 \newpage
+\subsection{Calling Convention}
+
+\begin{figure}[h]
+\centering\ottgrammartabular{
+\ottdirection\ottafterlastrule
+}
+\caption{direction syntax}
+\label{fig:dir}
+\end{figure}
+
+\begin{figure}[h]
+\centering\ottgrammartabular{
+\ottcalledXXfunctionXXname\ottafterlastrule
+}
+\caption{called function name list}
+\label{fig:fnl}
+\end{figure}
+
+   
 \subsection{Statement Execution}
 The semantics of the statements is shown in Figures~\ref{fig:strsemstmtexec} and~\ref{fig:semstmtexec}\footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
 
