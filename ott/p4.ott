@@ -223,7 +223,7 @@ e :: e_ ::=
   {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
-| select e { v1 : x1 , ... , vn : xn } x :: :: select
+| select e { v1 : x1 ; ... ; vn : xn } x :: :: select
   {{ com select }}
 %select expression can only be used in parsers
 %e is the expression used to select result
@@ -553,6 +553,12 @@ formula :: formula_ ::=
 | e = hd e_list :: M :: args_hd
   {{ hol ([[e]] = HD [[e_list]]) }}
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
+| x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
+  {{ com access of string in select key-value list }}
+  {{ hol (FIND (\(k, v). k = [[v]]) [[v1 x1 ... vn xn]] = SOME ([[v]], [[x']])) }}
+| v notin { v1 : x1 ; ... ; vn : xn } x :: M :: sel_def
+  {{ com default string in select key-value list }}
+  {{ hol (FIND (\(k, v). k = [[v]]) [[v1 x1 ... vn xn]] = NONE) }}
 
 %Function argument resolution
 %TODO: Replace with expression list
@@ -618,25 +624,28 @@ formula :: formula_ ::=
 | x = ParserError :: M :: pars_err
   {{ com parser error literal }}
   {{ hol ([[x]] = "ParserError") }}
-  {{ tex [[x]] = \mathit{ParserError} }}
+  {{ tex [[x]] = ``\mathit{ParserError}" }}
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
-| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v ) :: M :: s_fld_upd
+  {{ tex [[v]] = \mathrm{lookup\_lval} ([[curr_stack_frame]], [[lval]]) }}
+| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: s_fld_upd
   {{ com update of struct field }}
-  {{ hol ([[v'']] = v_struct (LUPDATE ([[f]], [[v]]) (THE (INDEX_OF [[f]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
-| v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with f := v ) :: M :: h_fld_upd
+  {{ hol ([[v'']] = v_struct (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
+| v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: h_fld_upd
   {{ com update of struct field }}
-  {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[f]], [[v]]) (THE (INDEX_OF [[f]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
+  {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
 | not_final_state ( x ) :: M :: not_final
   {{ com x is not name of final state }}
   {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
 | x = "accept" :: M :: is_accept
   {{ com x is accept }}
   {{ hol ([[x]] = "accept") }}
+  {{ tex [[x]] = ``\mathit{accept}" }}
 | x = "reject" :: M :: is_reject
   {{ com x is reject }}
   {{ hol ([[x]] = "reject") }}
+  {{ tex [[x]] = ``\mathit{reject}" }}
 
 %TODO: Review if "is_const" is needed...
 embed
@@ -722,16 +731,29 @@ by
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
 
-  v = struct { x1 = v1 ; ... ; xn = vn } ( x )
+  v = struct { f1 = v1 ; ... ; fn = vn } ( f )
   ----------------------------------- :: s_acc
-  [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks , Running )
+  [ struct { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 %Header field access
 
-  v = header boolv { x1 = v1 ; ... ; xn = vn } ( x )
+  v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
   ----------------------------------- :: h_acc
-  [ header boolv { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks , Running )
+  [ header boolv { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
+
+%%%%%%%%%%%%%%%%%%
+%Select expression
+
+%Case select lookup
+  x' = { v1 : x1 ; ... ; vn : xn } x ( v )
+  ----------------------------------- :: sel_acc
+  [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x' ] ( stacks , Running )
+
+%Case default
+  v notin { v1 : x1 ; ... ; vn : xn } x
+  ----------------------------------- :: sel_def
+  [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x ] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
@@ -757,6 +779,10 @@ by
   [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: acc_arg1
   [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
+
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ----------------------------------- :: sel_arg
+  [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , Running )
 
 %Unary operations
   [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
@@ -1002,14 +1028,14 @@ by
   [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign to a struct field
-  struct { x1 = v1 ; ... ; xn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v )
+  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+  v'' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_s
   [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
 
   %Assign to a header field
-  header boolv { x1 = v1 ; ... ; xn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with f := v )
+  header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+  v'' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_h
   [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
 
@@ -1087,7 +1113,7 @@ by
   [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Accept )
 
   x = "reject"
-  ------------------------------------------------- :: trans_2
+  ------------------------------------------------- :: trans_3
   [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Reject )
 
 %Transition to named state
