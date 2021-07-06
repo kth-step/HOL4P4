@@ -57,14 +57,10 @@ grammar
 % Expressions %
 %%%%%%%%%%%%%%%
 
-%Unary operations (on Booleans)
-b_unop {{ tex {\ominus}_b }}:: b_unop_ ::=
+unop {{ tex \ominus }}:: unop_ ::=
 | ! :: :: neg
   {{ com negation }}
   {{ tex ! }}
-  {{ hol ~ }}
-
-unop {{ tex \ominus }}:: unop_ ::=
 | ~ :: :: compl
   {{ com bitwise complement }}
   {{ tex \neg }}
@@ -104,7 +100,7 @@ binop {{ tex \oplus }} :: binop_ ::=
 | GE :: :: ge
   {{ com greater or equal }}
   {{ tex \geq }}
-| < :: :: ls
+| < :: :: lt
   {{ com less }}
   {{ tex < }}
 | > :: :: gt
@@ -141,8 +137,6 @@ boolv :: boolv_ ::=
   {{ hol F }}
 | b :: M :: free
   {{ hol [[b]] }}
-| b_unop boolv :: M :: unop
-  {{ hol ([[b_unop]] [[boolv]]) }}
 
 intv :: intv_ ::=
 {{ com integer }}
@@ -484,54 +478,54 @@ formula :: formula_ ::=
 | ! b = b' :: M :: neg_bool
   {{ hol (~[[b]] = [[b']]) }}
 | ~ intv = intv' :: M :: compl
-  %TODO
   {{ hol (intv_unop unop_compl [[intv]] = [[intv']]) }}
 | - intv = intv' :: M :: neg_signed
-  %TODO
-  {{ hol (~ [[intv]] = [[intv']]) }}
+  {{ hol (intv_unop unop_neg_signed [[intv]] = [[intv']]) }}
 | + intv = intv' :: M :: un_plus
-  %TODO: Read specification...
-  {{ hol ([[intv]] = [[intv']]) }}
+  %TODO: Specification says this is a noop...
+  {{ hol (intv_unop unop_un_plus [[intv]] = [[intv']]) }}
 | intv * intv' = intv'' :: M :: mul
-  {{ hol (word_mul [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_mul [[intv]] [[intv']] = [[intv'']]) }}
 | intv / intv' = intv'' :: M :: div
-  {{ hol (word_div [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_div [[intv]] [[intv']] = [[intv'']]) }}
 | intv mod intv' = intv'' :: M :: mod
-  {{ hol (word_mod [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_mod [[intv]] [[intv']] = [[intv'']]) }}
 | intv + intv' = intv'' :: M :: add
-  {{ hol (word_add [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_add [[intv]] [[intv']] = [[intv'']]) }}
 | intv - intv' = intv'' :: M :: sub
-  {{ hol (word_sub [[intv]] [[intv']] = [[intv'']]) }}
-%TODO: EQ for v?
+  {{ hol (intv_binop binop_sub [[intv]] [[intv']] = [[intv'']]) }}
 | intv EQ intv' = b :: M :: eq_word
-  {{ hol ([[intv]] = [[intv']] <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_eq [[intv]] [[intv']]) <=> [[b]]) }}
+%TODO: Boolean binops
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
 | intv SHL intv' = intv'' :: M :: shl
-  {{ hol (word_lsl_bv [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_shl [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: Double-check
 | intv SHR intv' = intv'' :: M :: shr
-  {{ hol (word_asr_bv [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_shr [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: Double-check
 | intv LE intv' = b :: M :: le
-  {{ hol ([[intv]] <= [[intv']] <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_le [[intv]] [[intv']]) <=> [[b]]) }}
 | intv GE intv' = b :: M :: ge
-  {{ hol ([[intv]] >= [[intv']] <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_ge [[intv]] [[intv']]) <=> [[b]]) }}
 | intv < intv' = b :: M :: lt
-  {{ hol ([[intv]] < [[intv']] <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_lt [[intv]] [[intv']]) <=> [[b]]) }}
 | intv > intv' = b :: M :: gt
-  {{ hol ([[intv]] > [[intv']] <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_gt [[intv]] [[intv']]) <=> [[b]]) }}
 | intv NE intv' = b :: M :: neq_word
-  {{ hol ([[intv]] <> [[intv']] <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_neq [[intv]] [[intv']]) <=> [[b]]) }}
 | intv & intv' = intv'' :: M :: and_word
-  {{ hol (word_and [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_and [[intv]] [[intv']] = [[intv'']]) }}
 | intv ^ intv' = intv'' :: M :: xor_word
-  {{ hol (word_xor [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_xor [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: LaTeX XOR
 | intv '|' intv' = intv'' :: M :: or_word
-  {{ hol (word_or [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_or [[intv]] [[intv']] = [[intv'']]) }}
+%TODO: Boolean binops
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
+%TODO: Boolean binops
 | b OR b' = b'' :: M :: or_bool
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
 
@@ -741,7 +735,7 @@ val intv_binop_def = Define `
 val get_word_binpred_def = Define `
     (get_word_binpred binop_le = word_le)
 /\  (get_word_binpred binop_ge = word_ge)
-/\  (get_word_binpred binop_ls = word_ls)
+/\  (get_word_binpred binop_lt = word_lt)
 /\  (get_word_binpred binop_gt = word_gt)
 /\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
 /\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
