@@ -555,10 +555,10 @@ formula :: formula_ ::=
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
 | x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
   {{ com access of string in select key-value list }}
-  {{ hol (FIND (\(k, v). k = [[v]]) [[v1 x1 ... vn xn]] = SOME ([[v]], [[x']])) }}
+  {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = SOME ([[v]], [[x']])) }}
 | v notin { v1 : x1 ; ... ; vn : xn } x :: M :: sel_def
   {{ com default string in select key-value list }}
-  {{ hol (FIND (\(k, v). k = [[v]]) [[v1 x1 ... vn xn]] = NONE) }}
+  {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = NONE) }}
 
 %Function argument resolution
 %TODO: Replace with expression list
