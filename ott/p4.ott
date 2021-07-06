@@ -21,12 +21,17 @@ metavar b ::=
       {{ tex [[b]] }}
       {{ com boolean }}
 %TODO Ideally, one should have different word lengths
-metavar nw ::=
+metavar w64 ::=
       {{ lex numeral }}
       {{ hol word64 }}
 %TODO Causes problems with double subscript in LaTeX...
 %      {{ tex [[n]]_{64} }}
-      {{ tex {n_w} }}
+      {{ tex w64 }}
+      {{ com integer }}
+metavar w32 ::=
+      {{ lex numeral }}
+      {{ hol word32 }}
+      {{ tex w32 }}
       {{ com integer }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,11 +57,14 @@ grammar
 % Expressions %
 %%%%%%%%%%%%%%%
 
-%Unary operations
-unop {{ tex \ominus }}:: unop_ ::=
-| ! :: :: neg_bool
-  {{ com boolean negation }}
+%Unary operations (on Booleans)
+b_unop {{ tex {\ominus}_b }}:: b_unop_ ::=
+| ! :: :: neg
+  {{ com negation }}
   {{ tex ! }}
+  {{ hol ~ }}
+
+unop {{ tex \ominus }}:: unop_ ::=
 | ~ :: :: compl
   {{ com bitwise complement }}
   {{ tex \neg }}
@@ -67,6 +75,7 @@ unop {{ tex \ominus }}:: unop_ ::=
   {{ com unary plus }}
 
 %Binary operations
+%Split these up into operations (bv # bv -> bv) and predicates (bv # bv -> bool)?
 %TODO: Saturating addition?
 %TODO: Saturating subtraction?
 binop {{ tex \oplus }} :: binop_ ::=
@@ -84,10 +93,10 @@ binop {{ tex \oplus }} :: binop_ ::=
 | - :: :: sub
   {{ com subtraction }}
 | SHL :: :: shl
-  {{ com left-shift }}
+  {{ com logical left-shift }}
   {{ tex \ll }}
 | SHR :: :: shr
-  {{ com right-shift }}
+  {{ com logical right-shift }}
   {{ tex \gg }}
 | LE :: :: le
   {{ com less or equal }}
@@ -126,12 +135,19 @@ binop {{ tex \oplus }} :: binop_ ::=
 boolv :: boolv_ ::=
 {{ hol bool }}
 {{ com boolean }}
-| b :: M :: free
-  {{ hol [[b]] }}
 | true :: M :: true
   {{ hol T }}
 | false :: M :: false
   {{ hol F }}
+| b :: M :: free
+  {{ hol [[b]] }}
+| b_unop boolv :: M :: unop
+  {{ hol ([[b_unop]] [[boolv]]) }}
+
+intv :: intv_ ::=
+{{ com integer }}
+| int w64 :: :: w64
+| int w32 :: :: w32
 
 %Base types
 bt {{ tex bt }} :: bt_ ::=
@@ -159,7 +175,8 @@ v :: v_ ::=
 {{ com constant }}
 | boolv :: :: bool
   {{ com boolean value }}
-| nw :: :: int
+%intv currently represents both signed and unsigned words
+| intv :: :: int
   {{ com integer }}
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
   {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
@@ -466,53 +483,53 @@ formula :: formula_ ::=
 %Expressions
 | ! b = b' :: M :: neg_bool
   {{ hol (~[[b]] = [[b']]) }}
-| ~ nw = nw' :: M :: compl
+| ~ intv = intv' :: M :: compl
   %TODO
-  {{ hol (~ [[nw]] = [[nw']]) }}
-| - nw = nw' :: M :: neg_signed
+  {{ hol (intv_unop unop_compl [[intv]] = [[intv']]) }}
+| - intv = intv' :: M :: neg_signed
   %TODO
-  {{ hol (~ [[nw]] = [[nw']]) }}
-| + nw = nw' :: M :: un_plus
+  {{ hol (~ [[intv]] = [[intv']]) }}
+| + intv = intv' :: M :: un_plus
   %TODO: Read specification...
-  {{ hol ([[nw]] = [[nw']]) }}
-| nw * nw' = nw'' :: M :: mul
-  {{ hol (word_mul [[nw]] [[nw']] = [[nw'']]) }}
-| nw / nw' = nw'' :: M :: div
-  {{ hol (word_div [[nw]] [[nw']] = [[nw'']]) }}
-| nw mod nw' = nw'' :: M :: mod
-  {{ hol (word_mod [[nw]] [[nw']] = [[nw'']]) }}
-| nw + nw' = nw'' :: M :: add
-  {{ hol (word_add [[nw]] [[nw']] = [[nw'']]) }}
-| nw - nw' = nw'' :: M :: sub
-  {{ hol (word_sub [[nw]] [[nw']] = [[nw'']]) }}
+  {{ hol ([[intv]] = [[intv']]) }}
+| intv * intv' = intv'' :: M :: mul
+  {{ hol (word_mul [[intv]] [[intv']] = [[intv'']]) }}
+| intv / intv' = intv'' :: M :: div
+  {{ hol (word_div [[intv]] [[intv']] = [[intv'']]) }}
+| intv mod intv' = intv'' :: M :: mod
+  {{ hol (word_mod [[intv]] [[intv']] = [[intv'']]) }}
+| intv + intv' = intv'' :: M :: add
+  {{ hol (word_add [[intv]] [[intv']] = [[intv'']]) }}
+| intv - intv' = intv'' :: M :: sub
+  {{ hol (word_sub [[intv]] [[intv']] = [[intv'']]) }}
 %TODO: EQ for v?
-| nw EQ nw' = b :: M :: eq_word
-  {{ hol ([[nw]] = [[nw']] <=> [[b]]) }}
+| intv EQ intv' = b :: M :: eq_word
+  {{ hol ([[intv]] = [[intv']] <=> [[b]]) }}
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
-| nw SHL nw' = nw'' :: M :: shl
-  {{ hol (word_lsl_bv [[nw]] [[nw']] = [[nw'']]) }}
+| intv SHL intv' = intv'' :: M :: shl
+  {{ hol (word_lsl_bv [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: Double-check
-| nw SHR nw' = nw'' :: M :: shr
-  {{ hol (word_asr_bv [[nw]] [[nw']] = [[nw'']]) }}
+| intv SHR intv' = intv'' :: M :: shr
+  {{ hol (word_asr_bv [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: Double-check
-| nw LE nw' = b :: M :: le
-  {{ hol ([[nw]] <= [[nw']] <=> [[b]]) }}
-| nw GE nw' = b :: M :: ge
-  {{ hol ([[nw]] >= [[nw']] <=> [[b]]) }}
-| nw < nw' = b :: M :: lt
-  {{ hol ([[nw]] < [[nw']] <=> [[b]]) }}
-| nw > nw' = b :: M :: gt
-  {{ hol ([[nw]] > [[nw']] <=> [[b]]) }}
-| nw NE nw' = b :: M :: neq_word
-  {{ hol ([[nw]] <> [[nw']] <=> [[b]]) }}
-| nw & nw' = nw'' :: M :: and_word
-  {{ hol (word_and [[nw]] [[nw']] = [[nw'']]) }}
-| nw ^ nw' = nw'' :: M :: xor_word
-  {{ hol (word_xor [[nw]] [[nw']] = [[nw'']]) }}
+| intv LE intv' = b :: M :: le
+  {{ hol ([[intv]] <= [[intv']] <=> [[b]]) }}
+| intv GE intv' = b :: M :: ge
+  {{ hol ([[intv]] >= [[intv']] <=> [[b]]) }}
+| intv < intv' = b :: M :: lt
+  {{ hol ([[intv]] < [[intv']] <=> [[b]]) }}
+| intv > intv' = b :: M :: gt
+  {{ hol ([[intv]] > [[intv']] <=> [[b]]) }}
+| intv NE intv' = b :: M :: neq_word
+  {{ hol ([[intv]] <> [[intv']] <=> [[b]]) }}
+| intv & intv' = intv'' :: M :: and_word
+  {{ hol (word_and [[intv]] [[intv']] = [[intv'']]) }}
+| intv ^ intv' = intv'' :: M :: xor_word
+  {{ hol (word_xor [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: LaTeX XOR
-| nw '|' nw' = nw'' :: M :: or_word
-  {{ hol (word_or [[nw]] [[nw']] = [[nw'']]) }}
+| intv '|' intv' = intv'' :: M :: or_word
+  {{ hol (word_or [[intv]] [[intv']] = [[intv'']]) }}
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
 | b OR b' = b'' :: M :: or_bool
@@ -625,6 +642,7 @@ formula :: formula_ ::=
   {{ com parser error literal }}
   {{ hol ([[x]] = "ParserError") }}
   {{ tex [[x]] = ``\mathit{ParserError}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
@@ -642,10 +660,13 @@ formula :: formula_ ::=
   {{ com x is accept }}
   {{ hol ([[x]] = "accept") }}
   {{ tex [[x]] = ``\mathit{accept}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
 | x = "reject" :: M :: is_reject
   {{ com x is reject }}
   {{ hol ([[x]] = "reject") }}
   {{ tex [[x]] = ``\mathit{reject}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+
 
 %TODO: Review if "is_const" is needed...
 embed
@@ -687,6 +708,49 @@ val lookup_lval_def = Define `
     (lookup_lval (sf:scope list) (lval_varname x) = (lookup sf x))
 /\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
 `;
+(* TODO: Check that these are correct... *)
+val get_word_unop_def = Define `
+    (get_word_unop unop_compl = word_1comp)
+/\  (get_word_unop unop_neg_signed = word_2comp)
+/\  (get_word_unop unop_un_plus = (\w. w))
+`;
+val intv_unop_def = Define `
+    (intv_unop unop (intv_w64 w64) = intv_w64 ((get_word_unop unop) w64))
+/\  (intv_unop unop (intv_w32 w32) = intv_w32 ((get_word_unop unop) w32))
+`;
+val get_word_binop_def = Define `
+    (get_word_binop binop_mul = word_mul)
+
+/\  (get_word_binop binop_div = word_div)
+/\  (get_word_binop binop_mod = word_mod)
+/\  (get_word_binop binop_add = word_add)
+
+/\  (get_word_binop binop_sub = word_sub)
+
+/\  (get_word_binop binop_shl = word_lsl_bv)
+
+/\  (get_word_binop binop_shr = word_lsr_bv)
+/\  (get_word_binop binop_and = word_and)
+/\  (get_word_binop binop_xor = word_xor)
+/\  (get_word_binop binop_or = word_or)
+`;
+val intv_binop_def = Define `
+    (intv_binop binop (intv_w64 w64) (intv_w64 w64') = intv_w64 ((get_word_binop binop) w64 w64'))
+/\  (intv_binop binop (intv_w32 w32) (intv_w32 w32') = intv_w32 ((get_word_binop binop) w32 w32'))
+`;
+val get_word_binpred_def = Define `
+    (get_word_binpred binop_le = word_le)
+/\  (get_word_binpred binop_ge = word_ge)
+/\  (get_word_binpred binop_ls = word_ls)
+/\  (get_word_binpred binop_gt = word_gt)
+/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
+/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
+`;
+val intv_binpred_def = Define `
+    (intv_binpred binpred (intv_w64 w64) (intv_w64 w64') = (((get_word_binpred binpred) w64 w64'):boolv))
+/\  (intv_binpred binpred (intv_w32 w32) (intv_w32 w32') = (((get_word_binpred binpred) w32 w32'):boolv))
+`;
+
 }}
 grammar
 
@@ -813,23 +877,23 @@ by
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
-  ~ nw = nw'
+  ~ intv = intv'
   ----------------------------------- :: compl
-  [~ nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
+  [~ intv] ( stacks , Running ) ~> [intv'] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
-  - nw = nw'
+  - intv = intv'
   ----------------------------------- :: neg_signed
-  [- nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
+  [- intv] ( stacks , Running ) ~> [intv'] ( stacks , Running )
 
 %%%%%%%%%%%
 %Unary plus
 
-  + nw = nw'
+  + intv = intv'
   ----------------------------------- :: un_plus
-  [+ nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
+  [+ intv] ( stacks , Running ) ~> [intv'] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -839,114 +903,114 @@ by
 %%%%%%%%%%%%%%%
 %Multiplication
 
-  nw * nw' = nw''
+  intv * intv' = intv''
   ----------------------------------- :: mul
-  [nw * nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv * intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Division
 
-  nw / nw' = nw''
+  intv / intv' = intv''
   ----------------------------------- :: div
-  [nw / nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv / intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Modulo
 
-  nw mod nw' = nw''
+  intv mod intv' = intv''
   ----------------------------------- :: mod
-  [nw mod nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv mod intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Addition
 
-  nw + nw' = nw''
+  intv + intv' = intv''
   ----------------------------------- :: add
-  [nw + nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv + intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Subtraction
 
-  nw - nw' = nw''
+  intv - intv' = intv''
   ----------------------------------- :: sub
-  [nw - nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv - intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Left shift
 
-  nw SHL nw' = nw''
+  intv SHL intv' = intv''
   ----------------------------------- :: shl
-  [nw SHL nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv SHL intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Right shift
 
-  nw SHR nw' = nw''
+  intv SHR intv' = intv''
   ----------------------------------- :: shr
-  [nw SHR nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv SHR intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
-  nw LE nw' = b
+  intv LE intv' = b
   ----------------------------------- :: le
-  [nw LE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv LE intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
-  nw GE nw' = b
+  intv GE intv' = b
   ----------------------------------- :: ge
-  [nw GE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv GE intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%
 %Less than
 
-  nw < nw' = b
+  intv < intv' = b
   ----------------------------------- :: lt
-  [nw < nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv < intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Greater than
 
-  nw > nw' = b
+  intv > intv' = b
   ----------------------------------- :: gt
-  [nw > nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv > intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Not equal
 
-  nw NE nw' = b
+  intv NE intv' = b
   ----------------------------------- :: neq
-  [nw NE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv NE intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Equal
 
-  nw EQ nw' = b
+  intv EQ intv' = b
   ----------------------------------- :: eq
-  [nw EQ nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv EQ intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
 
-  nw & nw' = nw''
+  intv & intv' = intv''
   ----------------------------------- :: and
-  [nw & nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv & intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise xor
 
-  nw ^ nw' = nw''
+  intv ^ intv' = intv''
   ----------------------------------- :: xor
-  [nw ^ nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv ^ intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise or
 
-  nw | nw' = nw''
+  intv | intv' = intv''
   ----------------------------------- :: or
-  [nw | nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv | intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary and
