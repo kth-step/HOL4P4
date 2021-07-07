@@ -1,5 +1,6 @@
 embed
 {{ hol
+open bitstringTheory;
 open wordsTheory;
 }}
 
@@ -229,6 +230,10 @@ e :: e_ ::=
 | e1 binop e2 :: :: binop
   {{ com binary operation }}
   {{ tex [[e1]] [[binop]] [[e2]] }}
+| e1 ++ e2 :: :: concat
+  {{ com concatenation of bit-strings }}
+| e1 [ e2 : e3 ] :: :: slice
+  {{ com bit-slice }}
 | call f ( e1 , .. , en ) :: :: func_call
   {{ com function call }}
   {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
@@ -744,7 +749,51 @@ val intv_binpred_def = Define `
     (intv_binpred binpred (intv_w64 w64) (intv_w64 w64') = (((get_word_binpred binpred) w64 w64'):boolv))
 /\  (intv_binpred binpred (intv_w32 w32) (intv_w32 w32') = (((get_word_binpred binpred) w32 w32'):boolv))
 `;
-
+val is_word_size_ok_def = Define `
+    (is_word_size_ok 64 = T)
+/\  (is_word_size_ok 32 = T)
+/\  (is_word_size_ok _ = F)
+`;
+val size_of_intv_def = Define `
+    (size_of_intv (intv_w64 w64) = 64)
+/\  (size_of_intv (intv_w32 w32) = 32)
+`;
+(* The below approach might seem like a hack, but it avoids combinatorial blowup that would happen
+ * when using words, since all bitstrings have the same type *)
+val intv2v_def = Define `
+    (intv2v (intv_w64 w) = w2v w)
+/\  (intv2v (intv_w32 w) = w2v w)
+`;
+val v2intv_def = Define `
+    (v2intv v 64 = (intv_w64 (v2w v)))
+/\  (v2intv v 32 = (intv_w32 (v2w v)))
+`;
+val intv_concat_def = Define `
+    (intv_concat intv intv' =
+      let
+        res_word_size = ((size_of_intv intv) + (size_of_intv intv'))
+      in
+      if (is_word_size_ok res_word_size)
+      then
+        let v  = (intv2v intv) in
+        let v' = (intv2v intv') in
+        let res_v = (v ++ v') in
+          SOME (v2intv res_v res_word_size)
+      else NONE
+)
+`;
+(* TODO: Check big-endianness vs. little-endianness (order of arguments of SEG) *)
+val intv_bitslice_def = Define `
+    (intv_bitslice intv intv' intv''=
+      let v  = (intv2v intv) in
+      let m = w2n intv' in
+      let l = w2n intv'' in
+      let res_word_size = (m - l + 1) in
+        if (is_word_size_ok res_word_size)
+        then SOME (v2intv (SEG m l v))
+        else NONE
+)
+`;
 }}
 grammar
 
