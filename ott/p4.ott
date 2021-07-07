@@ -9,7 +9,7 @@ open wordsTheory;
 
 %x denotes variable name, f denotes field name or function name
 %msg denotes error message
-metavar x, f, msg ::=
+metavar x, f, msg, a ::=
       {{ lex alphanum }}
       {{ hol string }}
       {{ tex [[x]] }}
@@ -347,6 +347,9 @@ direction_list :: direction_list_ ::=
   {{ hol ([[direction1 .. directionn]]) }}
 | ( direction_list ) :: S :: paren
   {{ hol ([[direction_list]]) }}
+| direction_list ++ direction_list' :: M :: append
+  {{ com append two e_lists }}
+  {{ hol ([[direction_list]] ++ [[direction_list']]) }}
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
@@ -412,14 +415,7 @@ scope {{ tex \gamma }} :: scope_ ::=
   {{ com global scope }}
   {{ tex {[[scope]]}_G }}
   {{ hol [[scope]] }}
-%| scope ++ [ x1 |-> ( v1 ,   , .. , xn |-> vn ] :: :: build_scope
-%  {{ com the frame being built once function being called}}
-%  {{ tex \forall i \leq n . \gamma'(x_i) = 
-%               \begin{cases}
-%               (e_i, \bot) & if \; d_i \in \{ \downarrow , \circ \}
-%               \\ (lookup_v(\varepsilon, e_i), e_i) & if \; d_i \in \{ \uparrow , \updownarrow \}
-%               \\ (\bot, \bot) & otherwise
-%               \end{cases} }}
+
  
   
 
@@ -452,6 +448,10 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
 | ( curr_stack_frame ) :: S :: paren
   {{ hol ([[curr_stack_frame]]) }}
+%| updatevar( curr_stack_frame , a , v ) :: M :: updatevar
+%  {{ com update variable name a to be mapped to v in the frame}}
+%  {{ tex [[curr_stack_frame]] ([[a]] \mapsto [[v]]) }}
+
 
 %Fence so that ott does not re-order curr_stack_frame
 embed
@@ -478,7 +478,7 @@ called_function_name {{ tex F_n }} :: called_function_name_ ::=
 {{ com called function name  }}
 | bot :: :: bot
   {{ tex \bot }}
-| f :: M :: function_name
+| f :: :: function_name
   {{ tex [[f]] }}  
 
 call_stack {{ tex E }} :: call_stack_ ::=
@@ -518,7 +518,7 @@ terminals :: terminals_ ::=
 %Parser state reduction
 | --> :: :: longrightarrow {{ tex \longrightarrow }}
 %in terminal
-| inset  :: :: inset  {{ tex \in }}
+| subset  :: :: subset  {{ tex \in }}
 %in terminal
 | '{}' :: :: quote {{ tex \texttt{\{\} } }}
 
@@ -616,7 +616,8 @@ formula :: formula_ ::=
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
 | v = lookup_v ( curr_stack_frame , e ) :: :: lookup_v
   {{ tex [[v]] = \mathrm{lookup_v} ([[curr_stack_frame]], [[e]]) }}
-
+| ( v , a ) = lookup_t ( curr_stack_frame , x ) :: :: lookup_t
+  {{ tex ([[v]] , [[a]]) = \mathrm{lookup_t} ([[curr_stack_frame]], [[x]]) }}
 
 %Function argument resolution
 %TODO: Replace with expression list
@@ -624,19 +625,28 @@ formula :: formula_ ::=
 %  {{ com pattern match on constant and non-constant function arguments }}
 %  {{ hol (([[v_list]] ++ [[e_list']]) = [[e_list]]) }}
 
-% in the insets, x denotes direction
-| direction_list inset { none , in } :: :: isnot_copyin
+% in the subsets, x denotes direction
+| direction_list subset { none , in } :: :: isnot_copyin
   {{ com are the directions in or none  }}
   {{ tex \forall i . \, d_i \in [[direction_list]] \implies d_i \in \{\circ , \downarrow\} }}
-| direction_list inset { inout , out } :: :: is_copyin
+| direction_list subset { inout , out } :: :: is_copyin
   {{ com are the directions out or inout  }}
   {{ tex \forall i . \, d_i \in [[direction_list]] \implies d_i \in \{ \uparrow , \updownarrow \} }}  
-| direction_list inset { none , in } implies isconst e_list :: :: notcopy_isconst 
+| direction_list subset { none , in } implies isconst e_list :: :: notcopy_isconst 
   {{ com (the expresstions are not copy in) }}
   {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \; e_i }}
-| direction_list inset { inout , out } implies isvar e_list :: :: copyisvar  
+| direction_list subset { inout , out } implies isvar e_list :: :: copyisvar  
   {{ com (the expresstions are not copy in) }}
-  {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \; e_i }}  
+  {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \; e_i }}
+%some operations on the direction list  
+| direction = direction_list [ i ] :: M :: direction_index
+  {{ hol ([[direction]] = EL [[i]] [[direction_list]]) }}
+| direction = hd direction_list :: M :: direction_hd
+  {{ hol ([[direction]] = HD [[direction_list]]) }}
+  {{ tex [[direction]] = \mathrm{hd} \,\, [[direction_list]] }} 
+
+
+
 %Conditions
 %TODO: Remove, with new separate "bool" definition?
 | b = true :: M :: is_true
@@ -716,7 +726,7 @@ formula :: formula_ ::=
 %    (SOME [[v]] = FLOOKUP (EL (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]]))) [[curr_stack_frame]]) [[x]])
 %TODO Make variable that is a list of strings? Or make variable that is list of tuples of directions and strings?
 %TODO fix hardcoded length n
-| build_scope direction_list scope e_list ( x1 , ... , xn ) :: M :: build_scope
+| build_scope direction_list scope e_list ( x1 , ... , xn ) :: :: build_scope
   {{ com build new scope }}
     {{ tex \forall i \leq n . \, x_i \in [x_1 , ... , x_n] \land e_i \in [[e_list]] \land d_i \in [[direction_list]] \implies [[scope]](x_i) = 
                \begin{cases}
@@ -724,6 +734,9 @@ formula :: formula_ ::=
                \\ (\mathrm{lookup_v}(\varepsilon, e_i), e_i) & \mathrm{if} \; d_i \in \{ \uparrow , \updownarrow \}
                \\ (\bot, \bot) & \mathrm{otherwise}
                \end{cases}   }}
+%TODO fix hardcoded length n
+| curr_stack_frame'' = updateframe ( curr_stack_frame , curr_stack_frame' , ( x1 , direction1 ) , .. , ( xn , directionn ) ) :: :: updateframe
+ {{ tex [[curr_stack_frame'']] = \forall d_i \in [d_1 , ... , d_n] , \, d_i \in \{ \uparrow , \updownarrow \} , \, x_i \in [x_1 , ... , x_n] . \; \mathrm{FOLD} \;\; [[curr_stack_frame']] [a_i \longmapsto v_i]  \; \mathit{where} \; (v_i, a_i) = \mathrm{lookup_t}( [[curr_stack_frame]] , x_i)}}
 
 %TODO: Review if "is_const" is needed...
 embed
@@ -790,8 +803,8 @@ by
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  [ direction1 , .. , directionn ] inset { inout , out } implies isvar [ e1 , .. , en ]
-  [ direction1 , .. , directionn ] inset { none , in } implies isconst [ e1 , .. , en ]
+  [ direction1 , .. , directionn ] subset { inout , out } implies isvar [ e1 , .. , en ]
+  [ direction1 , .. , directionn ] subset { none , in } implies isconst [ e1 , .. , en ]
   %frame build
   build_scope [ direction1 , .. , directionn ] scope' [ e1 , .. , en ] ( x1 , .. , xn )
   G scope = curr_stack_frame[0]
@@ -827,7 +840,7 @@ by
   [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   %TODO: length plus 1 if indexing from 1
   i = length ( e_list' )
-  [ direction1 , .. , directionn ] inset { none , in }
+  [ direction1 , .. , directionn ] subset { none , in }
   e'1 , .. , e'm =' update ( e' , i , ( e1 , .. , en ) )
   ----------------------------------- :: func_call_args
   [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'm )] ( stacks' , Running )
@@ -1070,10 +1083,12 @@ by
 %Return
 
   G scope = curr_stack_frame [ 0 ]
-  ( curr_stack_frame' , called_function_name ) :: call_stack' = call_stack
+  ( curr_stack_frame' , f ) :: call_stack' = call_stack
+  ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ G scope ] )
+  curr_stack_frame''' = updateframe ( curr_stack_frame , curr_stack_frame'' , ( x1 , direction1 ) , .. , ( xn , directionn ) )
   ----------------------------------- :: ret
-  [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame'' , call_stack' ) , Return v )
+  [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
 
 %%%%%%%%%%%%%%
 %Assignment
