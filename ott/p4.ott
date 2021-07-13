@@ -147,6 +147,9 @@ t {{ tex t }} :: t_ ::=
 | bt :: :: base
 | struct_t t1 , ... , tn :: :: struct
   {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+%Note: Header type does not reflect validity bit in any way, since this is the same for all headers
+| header_t t1 , ... , tn :: :: header
+  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 
 %TODO: String literal
 %TODO: L-values and identifiers
@@ -160,10 +163,16 @@ v :: v_ ::=
   {{ com integer }}
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
   {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
-%| header { x1 = v1 ; ... ; xn = vn } :: :: header
-%  % A header is like a struct, but has different well-formedness conditions
-%  {{ com header }}
-%  {{ tex header }} %TODO
+| header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
+% A header is like a struct, but with a validity bit.
+% Headers also have different well-formedness conditions (for example, headers cannot be nested).
+%TODO: We must have the following header methods:
+%      isValid()
+%      setValid()
+%      setInvalid()
+%      Should these be modeled as statements, or should they
+%      be pre-set in the function map?
+  {{ com header }}
 %%TODO: An extern should contain an internally visible list of mappings between variable names and constants,
 %%      and a map from function names to their bodies and arguments
 %% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
@@ -214,6 +223,12 @@ e :: e_ ::=
   {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
+| select e { v1 : x1 ; ... ; vn : xn } x :: :: select
+  {{ com select }}
+%select expression can only be used in parsers
+%e is the expression used to select result
+%the list consists of values that are matched to the evaluated expression
+% x is the default value (TODO: Should be optional)
 | ( e ) :: X :: paren
   {{ hol ([[e]]) }}
 
@@ -264,7 +279,7 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 {{ com final parser states }}
 | Accept :: :: accept
   {{ com accepted state }}
-| Reject x :: :: reject
+| Reject :: :: reject
   {{ com rejected state }}
 
 pars_next {{ tex p }} :: pars_next_ ::=
@@ -285,6 +300,7 @@ stmt :: stmt_ ::=
   {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
 | if e then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
+%TODO: This should have a type name x instead of t, which is looked up in the type environment.
 | decl x t :: :: declare
   {{ com declaration }}
 | begin stmt end :: :: block 
@@ -300,10 +316,10 @@ stmt :: stmt_ ::=
 | verify e e' :: :: verify
   % e is predicate, e' is error message
   {{ com verify }}
-| transition pars_next :: :: trans
-  % x is the parser state name
+| transition e :: :: trans
+  % e should evaluate to a parser state name
   {{ com transition }}
-  {{ tex \mathbf{transition}\, [[pars_next]] }}
+  {{ tex \mathbf{transition}\, [[e]] }}
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
@@ -524,8 +540,11 @@ formula :: formula_ ::=
 | v = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
-| v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: access
+| v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: s_access
   {{ com access of field in struct }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+| v = header boolv { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: h_access
+  {{ com access of field in header }}
   {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
 %| v'' = ( v' with f := v ) :: M :: set_field
 %  {{ com set field of struct }}
@@ -534,6 +553,12 @@ formula :: formula_ ::=
 | e = hd e_list :: M :: args_hd
   {{ hol ([[e]] = HD [[e_list]]) }}
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
+| x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
+  {{ com access of string in select key-value list }}
+  {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = SOME ([[v]], [[x']])) }}
+| v notin { v1 : x1 ; ... ; vn : xn } x :: M :: sel_def
+  {{ com default string in select key-value list }}
+  {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = NONE) }}
 
 %Function argument resolution
 %TODO: Replace with expression list
@@ -596,25 +621,31 @@ formula :: formula_ ::=
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
   {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
-| x = empty_err_msg :: M :: empty_err_msg
-  {{ com empty error message }}
-  {{ hol ([[x]] = "ParserStateEnd") }}
-  {{ tex [[x]] = \mathrm{ParserStateEnd} }}
+| x = ParserError :: M :: pars_err
+  {{ com parser error literal }}
+  {{ hol ([[x]] = "ParserError") }}
+  {{ tex [[x]] = ``\mathit{ParserError}" }}
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
-| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v ) :: M :: struct_fld_upd
+  {{ tex [[v]] = \mathrm{lookup\_lval} ([[curr_stack_frame]], [[lval]]) }}
+| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: s_fld_upd
   {{ com update of struct field }}
-  {{ hol ([[v'']] = v_struct (LUPDATE ([[f]], [[v]]) (THE (INDEX_OF [[f]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
-%  find_index_max ( curr_stack_frame, x ) = i
-%    (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[i]])
-%  scope = curr_stack_frame [ i ]
-%    ([[scope]] = EL [[i]] [[curr_stack_frame]])
-%  v = scope ( x )
-%    (FLOOKUP [[scope]] [[x]] = SOME [[v]])
-%
-%
-%    (SOME [[v]] = FLOOKUP (EL (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]]))) [[curr_stack_frame]]) [[x]])
+  {{ hol ([[v'']] = v_struct (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
+| v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: h_fld_upd
+  {{ com update of struct field }}
+  {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
+| not_final_state ( x ) :: M :: not_final
+  {{ com x is not name of final state }}
+  {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
+| x = "accept" :: M :: is_accept
+  {{ com x is accept }}
+  {{ hol ([[x]] = "accept") }}
+  {{ tex [[x]] = ``\mathit{accept}" }}
+| x = "reject" :: M :: is_reject
+  {{ com x is reject }}
+  {{ hol ([[x]] = "reject") }}
+  {{ tex [[x]] = ``\mathit{reject}" }}
 
 %TODO: Review if "is_const" is needed...
 embed
@@ -626,10 +657,11 @@ val is_const_def = Define `
 val is_consts_def = Define `
     (is_consts el = ~(EXISTS (\e. ~(is_const e)) el))
 `;
-(* Access the field f of a struct (v_struct s) *)
-val str_acc_def = Define `
-    (str_acc (v_struct s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s))))
-/\  (str_acc _ f = NONE)
+(* Access the field f of a struct or a header *)
+val acc_f_def = Define `
+    (acc_f (v_struct s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s))))
+/\  (acc_f (v_header _ s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s))))
+/\  (acc_f _ f = NONE)
 `;
 (*
 val get_lval_root_def = Define `
@@ -653,7 +685,7 @@ val lookup_def = Define `
  * the current stack frame sf. *)
 val lookup_lval_def = Define `
     (lookup_lval (sf:scope list) (lval_varname x) = (lookup sf x))
-/\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (str_acc (lookup_lval sf lval) f))
+/\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
 `;
 }}
 grammar
@@ -699,9 +731,29 @@ by
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
 
-  v = struct { x1 = v1 ; ... ; xn = vn } ( x )
-  ----------------------------------- :: acc
-  [ struct { x1 = v1 ; ... ; xn = vn } . x] ( stacks , Running ) ~> [v] ( stacks , Running )
+  v = struct { f1 = v1 ; ... ; fn = vn } ( f )
+  ----------------------------------- :: s_acc
+  [ struct { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%%
+%Header field access
+
+  v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
+  ----------------------------------- :: h_acc
+  [ header boolv { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
+
+%%%%%%%%%%%%%%%%%%
+%Select expression
+
+%Case select lookup
+  x' = { v1 : x1 ; ... ; vn : xn } x ( v )
+  ----------------------------------- :: sel_acc
+  [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x' ] ( stacks , Running )
+
+%Case default
+  v notin { v1 : x1 ; ... ; vn : xn } x
+  ----------------------------------- :: sel_def
+  [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x ] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
@@ -718,7 +770,7 @@ by
   ----------------------------------- :: func_call_args
   [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'm )] ( stacks , Running )
 
-%Structs
+%Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
   [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: acc_arg2
@@ -727,6 +779,10 @@ by
   [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: acc_arg1
   [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
+
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ----------------------------------- :: sel_arg
+  [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , Running )
 
 %Unary operations
   [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
@@ -971,10 +1027,16 @@ by
   ----------------------------------- :: ass_v
   [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
-  %TODO: Assign to a struct field
-  struct { x1 = v1 ; ... ; xn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v )
-  ----------------------------------- :: ass_str
+  %Assign to a struct field
+  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+  v'' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
+  ----------------------------------- :: ass_s
+  [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+
+  %Assign to a header field
+  header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+  v'' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
+  ----------------------------------- :: ass_h
   [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
 
 %%%%%%%%%%%%%%
@@ -1001,7 +1063,7 @@ by
   [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
-%declaration
+%Declaration
 
   length ( curr_stack_frame ) = i
   scope = curr_stack_frame [ i ]
@@ -1033,14 +1095,26 @@ by
   [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
 
 %Case predicate does not hold
+  %TODO: This assumption needed since we don't have string literals yet
+  x' = ParserError
+  x'' = "reject"
   ------------------------------------------------- :: verify_4
-  [verify false ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Reject x )
+  [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks' , Running )
 
 %%%%%%%%%%%%%%
 %Transition
 
-  ------------------------------------------------- :: transition
-  [transition pars_next]( stacks , Running ) -> [empty_stmt]( stacks , pars_next )
+  not_final_state ( x )
+  ------------------------------------------------- :: trans_1
+  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Trans x )
+
+  x = "accept"
+  ------------------------------------------------- :: trans_2
+  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Accept )
+
+  x = "reject"
+  ------------------------------------------------- :: trans_3
+  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Reject )
 
 %Transition to named state
 %NOTE: This assumes transition is last statement
@@ -1095,6 +1169,11 @@ by
   ------------------------------------------------- :: verify_e2
   [verify b e]( stacks , Running ) -> [verify b e']( stacks' , Running )
 
+%Reduction step of transition
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ------------------------------------------------- :: trans_e
+  [transition e]( stacks , Running ) -> [transition e']( stacks' , Running )
+
 
 %%%%%%%%%%%%%%%%%%%%
 % Parser semantics %
@@ -1118,6 +1197,11 @@ by
   ------------------------------------------------- :: state
   [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
 
+%If the end of some parser state is reached without status change, we reject
+  [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+  x = "reject"
+  ------------------------------------------------- :: empty
+  [stmt]( stacks , Running ) --> [transition x]( stacks' , Running )
 
 defns
   pars_t_sem :: '' ::=
@@ -1129,9 +1213,3 @@ by
   [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
   ------------------------------------------------- :: fin
   [stmt]( stacks , Running ) --> ( stacks , pars_fin )
-
-%If the end of some parser state is reached without status change, we reject
-  [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
-  x = empty_err_msg
-  ------------------------------------------------- :: empty
-  [stmt]( stacks , Running ) --> ( stacks' , Reject x )
