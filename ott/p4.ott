@@ -21,18 +21,10 @@ metavar b ::=
       {{ hol bool }}
       {{ tex [[b]] }}
       {{ com boolean }}
-%TODO Ideally, one should have different word lengths
-metavar w64 ::=
+metavar bl ::=
       {{ lex numeral }}
-      {{ hol word64 }}
-%TODO Causes problems with double subscript in LaTeX...
-%      {{ tex [[n]]_{64} }}
-      {{ tex w64 }}
-      {{ com integer }}
-metavar w32 ::=
-      {{ lex numeral }}
-      {{ hol word32 }}
-      {{ tex w32 }}
+      {{ hol bool list }}
+      {{ tex [[bl]] }}
       {{ com integer }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -140,9 +132,10 @@ boolv :: boolv_ ::=
   {{ hol [[b]] }}
 
 intv :: intv_ ::=
+{{ hol (bl # num) }}
 {{ com integer }}
-| int w64 :: :: w64
-| int w32 :: :: w32
+| bl n :: M :: w64
+  {{ hol ([[bl]], [[n]]) }}
 
 %Base types
 bt {{ tex bt }} :: bt_ ::=
@@ -714,8 +707,7 @@ val get_word_unop_def = Define `
 /\  (get_word_unop unop_un_plus = (\w. w))
 `;
 val intv_unop_def = Define `
-    (intv_unop unop (intv_w64 w64) = intv_w64 ((get_word_unop unop) w64))
-/\  (intv_unop unop (intv_w32 w32) = intv_w32 ((get_word_unop unop) w32))
+    (intv_unop unop (intv i) = ((get_word_unop unop) w64))
 `;
 val get_word_binop_def = Define `
     (get_word_binop binop_mul = word_mul)
