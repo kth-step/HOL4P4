@@ -632,20 +632,22 @@ formula :: formula_ ::=
 | direction_list subset { inout , out } :: :: is_copyin
   {{ com are the directions out or inout  }}
   {{ tex \forall i . \, d_i \in [[direction_list]] \implies d_i \in \{ \uparrow , \updownarrow \} }}  
-| direction_list subset { none , in } implies isconst e_list :: :: notcopy_isconst 
+| direction_list subset { none , in }  isconst e_list :: :: notcopy_isconst 
   {{ com (the expresstions are not copy in) }}
-  {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \; e_i }}
-| direction_list subset { inout , out } implies isvar e_list :: :: copyisvar  
+ % {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \; e_i }}
+ {{ tex \forall i . ( [[direction_list]] [i] \in \{\circ , \downarrow\} \implies \mathrm{is\_const} [[e_list]] [i] ) }}
+| direction_list subset { inout , out }  isvar e_list :: :: copyisvar  
   {{ com (the expresstions are not copy in) }}
-  {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \; e_i }}
+ % {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \; e_i }}
+  {{ tex \forall i . ( [[direction_list]] [i] \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} [[e_list]] [i] ) }}
 %some operations on the direction list  
 | direction = direction_list [ i ] :: M :: direction_index
   {{ hol ([[direction]] = EL [[i]] [[direction_list]]) }}
 | direction = hd direction_list :: M :: direction_hd
   {{ hol ([[direction]] = HD [[direction_list]]) }}
   {{ tex [[direction]] = \mathrm{hd} \,\, [[direction_list]] }} 
-
-
+| find_i_min ( direction_list , e_list ) = i :: :: parameter_index
+  {{ tex i = \mathrm{min} \, \{ j . \,\, [[direction_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
 
 %Conditions
 %TODO: Remove, with new separate "bool" definition?
@@ -728,7 +730,7 @@ formula :: formula_ ::=
 %TODO fix hardcoded length n
 | build_scope direction_list scope e_list ( x1 , ... , xn ) :: :: build_scope
   {{ com build new scope }}
-    {{ tex \forall i \leq n . \, x_i \in [x_1 , ... , x_n] \land e_i \in [[e_list]] \land d_i \in [[direction_list]] \implies [[scope]](x_i) = 
+    {{ tex \forall i. \, [x_1 , ... , x_n] [i] \land [[e_list]] [i] \land [[direction_list]] [i] \implies [[scope]](x_i) = 
                \begin{cases}
                (e_i, \bot) & \mathrm{if} \; d_i \in \{ \downarrow , \circ \}
                \\ (\mathrm{lookup_v}(\varepsilon, e_i), e_i) & \mathrm{if} \; d_i \in \{ \uparrow , \updownarrow \}
@@ -736,8 +738,10 @@ formula :: formula_ ::=
                \end{cases}   }}
 %TODO fix hardcoded length n
 | curr_stack_frame'' = updateframe ( curr_stack_frame , curr_stack_frame' , ( x1 , direction1 ) , .. , ( xn , directionn ) ) :: :: updateframe
- {{ tex [[curr_stack_frame'']] = \forall d_i \in [d_1 , ... , d_n] , \, d_i \in \{ \uparrow , \updownarrow \} , \, x_i \in [x_1 , ... , x_n] . \; \mathrm{FOLD} \;\; [[curr_stack_frame']] [a_i \longmapsto v_i]  \; \mathit{where} \; (v_i, a_i) = \mathrm{lookup_t}( [[curr_stack_frame]] , x_i)}}
-
+% {{ tex [[curr_stack_frame'']] = \forall d_i \in [d_1 , ... , d_n] , \, d_i \in \{ \uparrow , \updownarrow \} , \, x_i \in [x_1 , ... , x_n] . \; \mathrm{FOLD} \;\; [[curr_stack_frame']] [a_i \longmapsto v_i]  \; \mathit{where} \; (v_i, a_i) = \mathrm{lookup_t}( [[curr_stack_frame]] , x_i)}}
+{{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\epsilon} \, i . \,
+                                \mathrm{if}  d_i \in [d_1 , ... , d_n] , \, d_i \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\epsilon} \\
+                                \mathrm{else} \, \overline{\epsilon} \, [a_i \longmapsto v_i] \mathit{where} \; (v_i, a_i) = \mathrm{lookup_t}( [[curr_stack_frame]] , x_i) ) ( [[curr_stack_frame']] ) [1 ... n]}}
 %TODO: Review if "is_const" is needed...
 embed
 {{ hol
@@ -803,8 +807,8 @@ by
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  [ direction1 , .. , directionn ] subset { inout , out } implies isvar [ e1 , .. , en ]
-  [ direction1 , .. , directionn ] subset { none , in } implies isconst [ e1 , .. , en ]
+  [ direction1 , .. , directionn ] subset { inout , out }  isvar [ e1 , .. , en ]
+  [ direction1 , .. , directionn ] subset { none , in }  isconst [ e1 , .. , en ]
   %frame build
   build_scope [ direction1 , .. , directionn ] scope' [ e1 , .. , en ] ( x1 , .. , xn )
   G scope = curr_stack_frame[0]
@@ -835,13 +839,15 @@ by
 %Resolving arguments to function call - reduction
   %TODO: force e_list'' to be non-empty?
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  e_list' ++ e_list'' =' e1 , .. , en
-  e = hd e_list''
+  find_i_min ( [ direction1 , .. , directionn ] , [ e1 , .. , en ] ) = i
+  %e_list' ++ e_list'' =' e1 , .. , en
+  %e = hd e_list''
+  e = [ e1 , .. , en ] [ i ]
   [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   %TODO: length plus 1 if indexing from 1
-  i = length ( e_list' )
-  [ direction1 , .. , directionn ] subset { none , in }
-  e'1 , .. , e'm =' update ( e' , i , ( e1 , .. , en ) )
+  %i = length ( e_list' )
+  %[ direction1 , .. , directionn ] subset { none , in }
+  [ e'1 , .. , e'm ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
   [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'm )] ( stacks' , Running )
 
