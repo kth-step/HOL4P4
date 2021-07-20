@@ -134,7 +134,7 @@ boolv :: boolv_ ::=
 intv :: intv_ ::=
 {{ hol (bl # num) }}
 {{ com integer }}
-| bl n :: M :: w64
+| bl n :: M :: bl
   {{ hol ([[bl]], [[n]]) }}
 
 %Base types
@@ -476,50 +476,60 @@ formula :: formula_ ::=
 | ! b = b' :: M :: neg_bool
   {{ hol (~[[b]] = [[b']]) }}
 | ~ intv = intv' :: M :: compl
-  {{ hol (intv_unop unop_compl [[intv]] = [[intv']]) }}
+  {{ hol (bnot [[intv]] = [[intv']]) }}
 | - intv = intv' :: M :: neg_signed
   {{ hol (intv_unop unop_neg_signed [[intv]] = [[intv']]) }}
 | + intv = intv' :: M :: un_plus
   %TODO: Specification says this is a noop...
-  {{ hol (intv_unop unop_un_plus [[intv]] = [[intv']]) }}
+  {{ hol ([[intv]] = [[intv']]) }}
+%TODO mul
 | intv * intv' = intv'' :: M :: mul
   {{ hol (intv_binop binop_mul [[intv]] [[intv']] = [[intv'']]) }}
+%TODO div
 | intv / intv' = intv'' :: M :: div
   {{ hol (intv_binop binop_div [[intv]] [[intv']] = [[intv'']]) }}
+%TODO mod
 | intv mod intv' = intv'' :: M :: mod
   {{ hol (intv_binop binop_mod [[intv]] [[intv']] = [[intv'']]) }}
+%TODO add
+%"add_def" provided by bitstringTheory does not respect word arithmetic
 | intv + intv' = intv'' :: M :: add
   {{ hol (intv_binop binop_add [[intv]] [[intv']] = [[intv'']]) }}
+%TODO sub
 | intv - intv' = intv'' :: M :: sub
   {{ hol (intv_binop binop_sub [[intv]] [[intv']] = [[intv'']]) }}
 | intv EQ intv' = b :: M :: eq_word
-  {{ hol ((intv_binpred binop_eq [[intv]] [[intv']]) <=> [[b]]) }}
+  {{ hol (([[intv]] = [[intv']]) <=> [[b]]) }}
 %TODO: Boolean binops
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
 | intv SHL intv' = intv'' :: M :: shl
-  {{ hol (intv_binop binop_shl [[intv]] [[intv']] = [[intv'']]) }}
-  %TODO: Double-check
+  {{ hol (shiftl [[intv]] [[intv']] = [[intv'']]) }}
+  %TODO: Double-check shift left
 | intv SHR intv' = intv'' :: M :: shr
-  {{ hol (intv_binop binop_shr [[intv]] [[intv']] = [[intv'']]) }}
-  %TODO: Double-check
+  {{ hol (shiftr [[intv]] [[intv']] = [[intv'']]) }}
+  %TODO: Double-check shift right
+%TODO le
 | intv LE intv' = b :: M :: le
   {{ hol ((intv_binpred binop_le [[intv]] [[intv']]) <=> [[b]]) }}
+%TODO ge
 | intv GE intv' = b :: M :: ge
   {{ hol ((intv_binpred binop_ge [[intv]] [[intv']]) <=> [[b]]) }}
+%TODO lt
 | intv < intv' = b :: M :: lt
   {{ hol ((intv_binpred binop_lt [[intv]] [[intv']]) <=> [[b]]) }}
+%TODO gt
 | intv > intv' = b :: M :: gt
   {{ hol ((intv_binpred binop_gt [[intv]] [[intv']]) <=> [[b]]) }}
 | intv NE intv' = b :: M :: neq_word
-  {{ hol ((intv_binpred binop_neq [[intv]] [[intv']]) <=> [[b]]) }}
+  {{ hol (([[intv]] <> [[intv']]) <=> [[b]]) }}
 | intv & intv' = intv'' :: M :: and_word
-  {{ hol (intv_binop binop_and [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (band [[intv]] [[intv']] = [[intv'']]) }}
 | intv ^ intv' = intv'' :: M :: xor_word
-  {{ hol (intv_binop binop_xor [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (bxor [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: LaTeX XOR
 | intv '|' intv' = intv'' :: M :: or_word
-  {{ hol (intv_binop binop_or [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (bor [[intv]] [[intv']] = [[intv'']]) }}
 %TODO: Boolean binops
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
@@ -738,8 +748,8 @@ val get_word_binpred_def = Define `
 /\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
 `;
 val intv_binpred_def = Define `
-    (intv_binpred binpred (intv_w64 w64) (intv_w64 w64') = (((get_word_binpred binpred) w64 w64'):boolv))
-/\  (intv_binpred binpred (intv_w32 w32) (intv_w32 w32') = (((get_word_binpred binpred) w32 w32'):boolv))
+    (intv_binpred binpred (v, 64) (v', 64) = (((get_word_binpred binpred) (v2intv (v, 64)) (v2intv (v', 64))):boolv))
+/\  (intv_binpred binpred (v, 32) (v', 32) = (((get_word_binpred binpred) (v2intv (v, 32)) (v2intv (v', 32))):boolv))
 `;
 val is_word_size_ok_def = Define `
     (is_word_size_ok 64 = T)
@@ -757,8 +767,8 @@ val intv2v_def = Define `
 /\  (intv2v (intv_w32 w) = w2v w)
 `;
 val v2intv_def = Define `
-    (v2intv v 64 = (intv_w64 (v2w v)))
-/\  (v2intv v 32 = (intv_w32 (v2w v)))
+    (v2intv (v, 64) = (v2w v):word64)
+/\  (v2intv (v, 32) = (v2w v):word32)
 `;
 val intv_concat_def = Define `
     (intv_concat intv intv' =
