@@ -717,7 +717,7 @@ val get_word_unop_def = Define `
 /\  (get_word_unop unop_un_plus = (\w. w))
 `;
 val intv_unop_def = Define `
-    (intv_unop unop (intv i) = ((get_word_unop unop) w64))
+    (intv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
 `;
 val get_word_binop_def = Define `
     (get_word_binop binop_mul = word_mul)
@@ -735,9 +735,15 @@ val get_word_binop_def = Define `
 /\  (get_word_binop binop_xor = word_xor)
 /\  (get_word_binop binop_or = word_or)
 `;
+%TODO This is highly iffy, but trying to achieve the same by overloading on different n des not work so well...
 val intv_binop_def = Define `
-    (intv_binop binop (intv_w64 w64) (intv_w64 w64') = intv_w64 ((get_word_binop binop) w64 w64'))
-/\  (intv_binop binop (intv_w32 w32) (intv_w32 w32') = intv_w32 ((get_word_binop binop) w32 w32'))
+    (intv_binop binop (v, n) (v', n') =
+    if n = n' then
+      case n of
+      | 64 => SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64)
+      | 32 => SOME (w2v ((get_word_binop binop) ((v2w v): 32 word) ((v2w v'): 32 word)), 32)
+      | _ => NONE
+    else NONE)
 `;
 val get_word_binpred_def = Define `
     (get_word_binpred binop_le = word_le)
@@ -748,52 +754,18 @@ val get_word_binpred_def = Define `
 /\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
 `;
 val intv_binpred_def = Define `
-    (intv_binpred binpred (v, 64) (v', 64) = (((get_word_binpred binpred) (v2intv (v, 64)) (v2intv (v', 64))):boolv))
-/\  (intv_binpred binpred (v, 32) (v', 32) = (((get_word_binpred binpred) (v2intv (v, 32)) (v2intv (v', 32))):boolv))
-`;
-val is_word_size_ok_def = Define `
-    (is_word_size_ok 64 = T)
-/\  (is_word_size_ok 32 = T)
-/\  (is_word_size_ok _ = F)
-`;
-val size_of_intv_def = Define `
-    (size_of_intv (intv_w64 w64) = 64)
-/\  (size_of_intv (intv_w32 w32) = 32)
-`;
-(* The below approach might seem like a hack, but it avoids combinatorial blowup that would happen
- * when using words, since all bitstrings have the same type *)
-val intv2v_def = Define `
-    (intv2v (intv_w64 w) = w2v w)
-/\  (intv2v (intv_w32 w) = w2v w)
-`;
-val v2intv_def = Define `
-    (v2intv (v, 64) = (v2w v):word64)
-/\  (v2intv (v, 32) = (v2w v):word32)
+    (intv_binpred binpred (v, 64) (v', 64) = (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv))
+/\  (intv_binpred binpred (v, 32) (v', 32) = (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv))
 `;
 val intv_concat_def = Define `
-    (intv_concat intv intv' =
-      let
-        res_word_size = ((size_of_intv intv) + (size_of_intv intv'))
-      in
-      if (is_word_size_ok res_word_size)
-      then
-        let v  = (intv2v intv) in
-        let v' = (intv2v intv') in
-        let res_v = (v ++ v') in
-          SOME (v2intv res_v res_word_size)
-      else NONE
+    (intv_concat (v, n) (v', n') =
+      (v ++ v', n + n')
 )
 `;
 (* TODO: Check big-endianness vs. little-endianness (order of arguments of SEG) *)
 val intv_bitslice_def = Define `
-    (intv_bitslice intv intv' intv''=
-      let v  = (intv2v intv) in
-      let m = w2n intv' in
-      let l = w2n intv'' in
-      let res_word_size = (m - l + 1) in
-        if (is_word_size_ok res_word_size)
-        then SOME (v2intv (SEG m l v))
-        else NONE
+    (intv_bitslice (v, n) m l =
+      (SEG m l v, m - l + 1)
 )
 `;
 }}
