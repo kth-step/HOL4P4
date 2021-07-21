@@ -349,17 +349,14 @@ The \textsc{apply\_table\_e} rule performs small-step evaluation of the header e
 
 The \textsc{apply\_table\_v} looks up the table name in the table name map, then uses the result together with the header to be looked up to obtain an action (together with action arguments) from the control plane.
 
-\begin{figure}[ht!]
-\centering
-\inference[c]{$[e](\sigma) \rightsquigarrow [e'](\sigma ')$ }
-            {[$\mathbf{apply}\ table\_name\ e](\sigma) \rightarrow [\textbf{apply}\ table\_name \ e'](\sigma')$} \bigskip \textsc{apply\_table\_e}
 
-\inference[c]{$\mathrm{t\_map}(table\_name) = (e', m\_kind)$
-            \and $\mathrm{ctrl}(table\_name,\ v,\ m\_kind) = (f,\ {v_1}, ..., {v_n})$ } 
-            {[$\textbf{apply}\ table\_name\ v](\sigma) \rightarrow [\textbf{call}\ f({v_1}, ..., {v_n})](\sigma ')$} \bigskip \textsc{apply\_table\_v}
-\caption{Match-Action Semantics}
-\label{fig:match}
-\end{figure}  
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}}
+    \ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}}
+    \caption{Match Action Execution Semantics}
+    \label{fig:semmatchaction}
+    \end{figure}
+
 
 \printbibliography
 

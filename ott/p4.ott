@@ -9,7 +9,7 @@ open wordsTheory;
 
 %x denotes variable name, f denotes field name or function name
 %msg denotes error message
-metavar x, f, msg, a ::=
+metavar x, f, msg, a, table_name ::=
       {{ lex alphanum }}
       {{ hol string }}
       {{ tex [[x]] }}
@@ -189,6 +189,8 @@ v :: v_ ::=
 lval :: lval_ ::=
 | x :: :: varname
   {{ com variable name }}
+| null :: :: null
+  {{ com null variable }} 
 | lval . f :: :: field
   {{ com field access }}
 | ( lval ) :: X :: paren
@@ -286,6 +288,16 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 | Reject x :: :: reject
   {{ com rejected state }}
 
+match_kind {{ tex match\_kind }} :: match_kind_ ::=
+%{{ com matching kinds }}
+| exact :: :: exact
+  {{ tex exact }}
+| ternary :: :: ternary
+  {{ tex ternary }}
+| lpm :: :: lpm
+  {{ tex lpm }}
+
+
 pars_next {{ tex p }} :: pars_next_ ::=
 {{ com parser next state }}
 | Trans x :: :: trans
@@ -323,7 +335,10 @@ stmt :: stmt_ ::=
   % x is the parser state name
   {{ com transition }}
   {{ tex \mathbf{transition}\, [[pars_next]] }}
-
+| apply table_name e :: :: app
+  % x is the table name that should be applied
+  {{ com apply}}
+  {{ tex \mathbf{apply} \, [[table_name]] \, [[e]]}}
 
 direction {{ tex d }} :: direction_ ::=
 {{ com the direction of the calling convention }}
@@ -629,20 +644,15 @@ formula :: formula_ ::=
 | direction_list subset { none , in } :: :: isnot_copyin
   {{ com are the directions in or none  }}
   {{ tex \forall i . \, d_i \in [[direction_list]] \implies d_i \in \{\circ , \downarrow\} }}
-| direction_list subset { inout , out } :: :: is_copyin
-  {{ com are the directions out or inout  }}
-  {{ tex \forall i . \, d_i \in [[direction_list]] \implies d_i \in \{ \uparrow , \updownarrow \} }}  
-| direction_list subset { none , in }  isconst e_list :: :: notcopy_isconst 
-  {{ com (the expresstions are not copy in) }}
- % {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \; e_i }}
- {{ tex \forall i . ( [[direction_list]] [i] \in \{\circ , \downarrow\} \implies \mathrm{is\_const} [[e_list]] [i] ) }}
-| direction_list subset { inout , out }  isvar e_list :: :: copyisvar  
-  {{ com (the expresstions are not copy in) }}
- % {{ tex \forall i . \, d_i \in [[direction_list]] \land e_i \in [[e_list]] \land  d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \; e_i }}
-  {{ tex \forall i . ( [[direction_list]] [i] \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} [[e_list]] [i] ) }}
+| sig_check direction_list e_list :: :: signature_check  
+  {{ com check parameters if isvar or isconst }}
+  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[direction_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+  ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
+
 %some operations on the direction list  
 | direction = direction_list [ i ] :: M :: direction_index
   {{ hol ([[direction]] = EL [[i]] [[direction_list]]) }}
+  {{ tex [[direction]] = [[direction_list]] [[i]]}}  
 | direction = hd direction_list :: M :: direction_hd
   {{ hol ([[direction]] = HD [[direction_list]]) }}
   {{ tex [[direction]] = \mathrm{hd} \,\, [[direction_list]] }} 
@@ -682,8 +692,13 @@ formula :: formula_ ::=
   {{ hol ([[e_list]] = [[e_list']]) }}
   {{ tex [[e_list]] = [[e_list']] }}
 
-
-
+%Apply table
+| t_map  (table_name) = ( e , match_kind ) :: :: find_key
+ {{ com find keys and the matching kind }}
+ {{ tex \mathrm{t\_map}\, [[table_name]]\, =\, ( [[e]] \, , [[match_kind]] )}}
+| ctrl  ( table_name , v , match_kind ) = ( f , e_list ) :: :: ctrl_plane  
+  {{ com fetch from ctrl plave the function name and parameters}}
+  {{ tex \mathrm{ctrl}\, ([[table_name]], \, [[v]], \, [[match_kind]]\, ) = \,( f , [[e_list]] )}}
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
@@ -730,18 +745,16 @@ formula :: formula_ ::=
 %TODO fix hardcoded length n
 | build_scope direction_list scope e_list ( x1 , ... , xn ) :: :: build_scope
   {{ com build new scope }}
-    {{ tex \forall i. \, [x_1 , ... , x_n] [i] \land [[e_list]] [i] \land [[direction_list]] [i] \implies [[scope]](x_i) = 
+    {{ tex \forall d,\, e,\, x,\, i \leqslant n . \, x = [x_1 , ... , x_n] [i] \land e = [[e_list]] [i] \land d = [[direction_list]] [i] \implies [[scope]](x) = 
                \begin{cases}
-               (e_i, \bot) & \mathrm{if} \; d_i \in \{ \downarrow , \circ \}
-               \\ (\mathrm{lookup_v}(\varepsilon, e_i), e_i) & \mathrm{if} \; d_i \in \{ \uparrow , \updownarrow \}
-               \\ (\bot, \bot) & \mathrm{otherwise}
+               (\mathrm{lookup_v}(\varepsilon, e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \}             
+               \\ (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
                \end{cases}   }}
 %TODO fix hardcoded length n
-| curr_stack_frame'' = updateframe ( curr_stack_frame , curr_stack_frame' , ( x1 , direction1 ) , .. , ( xn , directionn ) ) :: :: updateframe
-% {{ tex [[curr_stack_frame'']] = \forall d_i \in [d_1 , ... , d_n] , \, d_i \in \{ \uparrow , \updownarrow \} , \, x_i \in [x_1 , ... , x_n] . \; \mathrm{FOLD} \;\; [[curr_stack_frame']] [a_i \longmapsto v_i]  \; \mathit{where} \; (v_i, a_i) = \mathrm{lookup_t}( [[curr_stack_frame]] , x_i)}}
-{{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\epsilon} \, i . \,
-                                \mathrm{if}  d_i \in [d_1 , ... , d_n] , \, d_i \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\epsilon} \\
-                                \mathrm{else} \, \overline{\epsilon} \, [a_i \longmapsto v_i] \mathit{where} \; (v_i, a_i) = \mathrm{lookup_t}( [[curr_stack_frame]] , x_i) ) ( [[curr_stack_frame']] ) [1 ... n]}}
+| curr_stack_frame'' = updateframe ( curr_stack_frame , curr_stack_frame' , direction_list , ( x1 , .. , xn ) ) :: :: updateframe
+{{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
+                                \mathrm{if}  [[direction_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
+                                \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n]}}
 %TODO: Review if "is_const" is needed...
 embed
 {{ hol
@@ -807,8 +820,9 @@ by
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  [ direction1 , .. , directionn ] subset { inout , out }  isvar [ e1 , .. , en ]
-  [ direction1 , .. , directionn ] subset { none , in }  isconst [ e1 , .. , en ]
+  %[ direction1 , .. , directionn ] subset { inout , out }  isvar [ e1 , .. , en ]
+  %[ direction1 , .. , directionn ] subset { none , in }  isconst [ e1 , .. , en ]
+  sig_check [ direction1 , .. , directionn ] [ e1 , .. , en ]
   %frame build
   build_scope [ direction1 , .. , directionn ] scope' [ e1 , .. , en ] ( x1 , .. , xn )
   G scope = curr_stack_frame[0]
@@ -847,9 +861,9 @@ by
   %TODO: length plus 1 if indexing from 1
   %i = length ( e_list' )
   %[ direction1 , .. , directionn ] subset { none , in }
-  [ e'1 , .. , e'm ] =' update ( e' , i , [ e1 , .. , en ] )
+  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
-  [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'm )] ( stacks' , Running )
+  [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , Running )
 
 %Structs
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
@@ -1018,6 +1032,7 @@ by
   ----------------------------------- :: xor
   [nw ^ nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
 
+
 %%%%%%%%%%%%%
 %Bitwise or
 
@@ -1092,7 +1107,7 @@ by
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ G scope ] )
-  curr_stack_frame''' = updateframe ( curr_stack_frame , curr_stack_frame'' , ( x1 , direction1 ) , .. , ( xn , directionn ) )
+  curr_stack_frame''' = updateframe ( curr_stack_frame , curr_stack_frame'' , [ direction1 , .. , directionn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: ret
   [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
 
@@ -1111,6 +1126,11 @@ by
   v'' = ( struct { x1 = v1 ; ... ; xn = vn } with f := v )
   ----------------------------------- :: ass_str
   [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+
+  %Assign to null
+  ----------------------------------- :: ass_null
+  [assign null v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame , call_stack ) , Running )
+
 
 %%%%%%%%%%%%%%
 %Sequence
@@ -1200,6 +1220,22 @@ by
   %TODO: exit semantics might require to have a specific "function-in-progress" statement
   %      in order to know what to reduce to nothing.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Match-Action rules       %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  %apply table name and reduce the expression
+
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ----------------------------------- :: apply_table_e
+  [apply table_name e] ( stacks , Running ) -> [apply table_name e'] ( stacks' , Running )
+
+  %the action is treated as a function call
+
+  t_map (table_name) = ( e' , match_kind )
+  ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
+  ----------------------------------- :: apply_table_v
+  [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
+%  [apply table_name v] ( stacks , Running ) -> [call f ( v1 , .. , vn )] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
