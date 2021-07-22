@@ -11,6 +11,10 @@ Base types:
 * 64-bit fixed-width bitstrings
 * errors
 
+Derived types:
+* Headers
+* Struct
+
 Expressions:
 * Constants (other than string literals)
 * Arithmetic operations
@@ -28,20 +32,24 @@ Programmable blocks:
 * Control blocks
 
 ### Partially Supported
+Base types:
+* Non-64-bit fixed-width bitstrings
+
+Expressions:
+* Bitslicing
+* Concatenation
+
 * Calling Conventions
 
 ### Not Supported Yet
 Base types:
-* Non-64-bit fixed-width bitstrings
 * Fixed-width signed bitstrings
 * Dynamically sized integers (`varbit`)
 * Arbitrary-sized constants
 
 Derived types:
 * Enumeration types
-* Headers
 * Header stacks
-* Struct
 * Header unions
 * Tuples
 * Sets
@@ -49,8 +57,6 @@ Derived types:
 Expressions:
 * Conditional expression
 * Casts
-* Bitslicing
-* Concatenation
 * Operations on unimplemented types
 * Select
 
@@ -66,7 +72,7 @@ Data extraction
 
 Specific architecture support
 
-Architecture description
+Architecture descriptions
 
 ## Versioning
 Currently, the developer team is working on v1, which will cover all parts of the P4 pipeline and be sufficient to model small examples.
