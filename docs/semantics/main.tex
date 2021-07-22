@@ -84,7 +84,7 @@ This is a description of the \pfott{} formalization of P4, which includes a synt
 \newcommand{\vn}{\ensuremath{x}}
 \newcommand{\msg}{\ensuremath{\mathit{msg}}}
 \newcommand{\fn}{\ensuremath{f}}
-\newcommand{\inte}{\ensuremath{n_w}}
+\newcommand{\inte}{\ensuremath{bl}}
 %
 %TODO Base types (integers, booleans, bit strings, errors, headers...), function types (superset of base types also including tables, functions and constructors) and directions (in, out, inout), ...
 %
@@ -95,7 +95,7 @@ This is a description of the \pfott{} formalization of P4, which includes a synt
 \label{fig:vars}
 \end{figure}
 
-The variables shown in Figure~\ref{fig:vars} are standard designations for variables of \pfourspec{sec-base-types}{P4 base types} included in \pfott{}, plus the numerals \num{} and the indices $m, n, o$ which are not part of the P4 syntax, but used on a meta-level throughout this formalization. Depending on the context, strings are denoted with \vn{} (variable name), \fn{} (function or field name) or \msg{} (error message). The integer \inte{} is a 64-bit word.
+The variables shown in Figure~\ref{fig:vars} are standard designations for variables of \pfourspec{sec-base-types}{P4 base types} included in \pfott{}, plus the numerals \num{} and the indices $m, n, o$ which are not part of the P4 syntax, but used on a meta-level throughout this formalization. Depending on the context, strings are denoted with \vn{} (variable name), \fn{} (function or field name) or \msg{} (error message). The integer \inte{} is a list of Boolean values.
 
 Types are sometimes explicitly referenced in the syntax, e.g. in declaration statements. The notation for this is shown in Figure~\ref{fig:types}. Subscript $t$ is used to clarify the notation refers to a type, as opposed to a variable of that type. Declared instances of composite types are stored in the type environment $T$.
 
@@ -125,7 +125,7 @@ Types are sometimes explicitly referenced in the syntax, e.g. in declaration sta
 \newcommand{\cval}{\ensuremath{v}}
 \newcommand{\fexec}[1]{\textbf{exec}\,\,#1}
 
-First, an expression can be a Boolean or an integer (collectively referred to as constant values \cval{}), or a string. Lists of expressions can be used in declarations of variables of struct types, whose fields may be accessed. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of unary and binary operations is found in Appendix~\ref{app:op}}. The function call is built from the function name \fn{}, and a list of arguments (expressions). In-progress execution of the body of a called function, \fexec{\stmt{}}, is not a part of the P4 syntax, but is rather an artifact of our small-step semantics.
+First, an expression can be a value: a Boolean or an integer (collectively referred to as constant values \cval{}), or a variable name. Lists of expressions can be used in declarations of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. The function call is built from the function name \fn{}, and a list of arguments (expressions). In-progress execution of the body of a called function, \fexec{\stmt{}}, is not a part of the P4 syntax, but is rather an artifact of our small-step semantics.
 
 The \textbf{select} expression is similar to a switch statement in C or Java. The expression $e$ is evaluated, and then matched against $v_1 , \ldots , v_n$. If some match is successful, the \textbf{select} expression evaluates to the string at the corresponding index. If no match occurs, then it instead evaluates to the default string $x$.
 

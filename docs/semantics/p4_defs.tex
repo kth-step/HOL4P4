@@ -29,8 +29,7 @@
 \ottmetavartabular{
  $ x ,\, f ,\, msg $ & \ottcom{string} \\
  $ b $ & \ottcom{boolean} \\
- $ w64 $ & \ottcom{integer} \\
- $ w32 $ & \ottcom{integer} \\
+ $ bl $ & \ottcom{integer} \\
  $ i $ & \ottcom{natural number} \\
  $ \ottmv{m} ,\, \ottmv{n} ,\, \ottmv{o} $ & \ottcom{indices} \\
 }}
@@ -71,8 +70,7 @@
 
 \newcommand{\ottintv}{
 \ottrulehead{\ottnt{intv}}{::=}{\ottcom{integer}}\ottprodnewline
-\ottfirstprodline{|}{\ottkw{int} \, w64}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{int} \, w32}{}{}{}{}}
+\ottfirstprodline{|}{bl \, \ottmv{n}} {\textsf{M}}{}{}{}}
 
 \newcommand{\ottbt}{
 \ottrulehead{bt}{::=}{\ottcom{base types}}\ottprodnewline
@@ -290,8 +288,7 @@
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{x}{}{}{}{}\ottprodnewline
 \ottprodline{|}{b}{}{}{}{}\ottprodnewline
-\ottprodline{|}{w64}{}{}{}{}\ottprodnewline
-\ottprodline{|}{w32}{}{}{}{}\ottprodnewline
+\ottprodline{|}{bl}{}{}{}{}\ottprodnewline
 \ottprodline{|}{i}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{m}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ominus}{}{}{}{}\ottprodnewline

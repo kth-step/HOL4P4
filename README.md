@@ -38,6 +38,7 @@ Base types:
 Expressions:
 * Bitslicing
 * Concatenation
+* Select
 
 * Calling Conventions
 
@@ -58,7 +59,6 @@ Expressions:
 * Conditional expression
 * Casts
 * Operations on unimplemented types
-* Select
 
 Statements:
 * Exit
