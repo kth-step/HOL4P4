@@ -229,6 +229,7 @@ e :: e_ ::=
   {{ com bit-slice }}
 | call f ( e1 , .. , en ) :: :: func_call
   {{ com function call }}
+  %TODO: Elaborate on "exp_func_call"
   {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
@@ -476,7 +477,7 @@ formula :: formula_ ::=
 | ! b = b' :: M :: neg_bool
   {{ hol (~[[b]] = [[b']]) }}
 | ~ intv = intv' :: M :: compl
-  {{ hol (bnot [[intv]] = [[intv']]) }}
+  {{ hol (intv_bl_unop bnot [[intv]] = [[intv']]) }}
 | - intv = intv' :: M :: neg_signed
   {{ hol (intv_unop unop_neg_signed [[intv]] = [[intv']]) }}
 | + intv = intv' :: M :: un_plus
@@ -484,52 +485,52 @@ formula :: formula_ ::=
   {{ hol ([[intv]] = [[intv']]) }}
 %TODO mul
 | intv * intv' = intv'' :: M :: mul
-  {{ hol (intv_binop binop_mul [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_mul [[intv]] [[intv']] = SOME [[intv'']]) }}
 %TODO div
 | intv / intv' = intv'' :: M :: div
-  {{ hol (intv_binop binop_div [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_div [[intv]] [[intv']] = SOME [[intv'']]) }}
 %TODO mod
 | intv mod intv' = intv'' :: M :: mod
-  {{ hol (intv_binop binop_mod [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_mod [[intv]] [[intv']] = SOME [[intv'']]) }}
 %TODO add
 %"add_def" provided by bitstringTheory does not respect word arithmetic
 | intv + intv' = intv'' :: M :: add
-  {{ hol (intv_binop binop_add [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_add [[intv]] [[intv']] = SOME [[intv'']]) }}
 %TODO sub
 | intv - intv' = intv'' :: M :: sub
-  {{ hol (intv_binop binop_sub [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_binop binop_sub [[intv]] [[intv']] = SOME [[intv'']]) }}
 | intv EQ intv' = b :: M :: eq_word
   {{ hol (([[intv]] = [[intv']]) <=> [[b]]) }}
 %TODO: Boolean binops
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
 | intv SHL intv' = intv'' :: M :: shl
-  {{ hol (shiftl [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_bl_binop shiftl [[intv]] ((\(bl, n). (v2n bl, n)) [[intv']]) = [[intv'']]) }}
   %TODO: Double-check shift left
 | intv SHR intv' = intv'' :: M :: shr
-  {{ hol (shiftr [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_bl_binop shiftr [[intv]] ((\(bl, n). (v2n bl, n)) [[intv']]) = [[intv'']]) }}
   %TODO: Double-check shift right
 %TODO le
 | intv LE intv' = b :: M :: le
-  {{ hol ((intv_binpred binop_le [[intv]] [[intv']]) <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_le [[intv]] [[intv']]) = SOME [[b]]) }}
 %TODO ge
 | intv GE intv' = b :: M :: ge
-  {{ hol ((intv_binpred binop_ge [[intv]] [[intv']]) <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_ge [[intv]] [[intv']]) = SOME [[b]]) }}
 %TODO lt
 | intv < intv' = b :: M :: lt
-  {{ hol ((intv_binpred binop_lt [[intv]] [[intv']]) <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_lt [[intv]] [[intv']]) = SOME [[b]]) }}
 %TODO gt
 | intv > intv' = b :: M :: gt
-  {{ hol ((intv_binpred binop_gt [[intv]] [[intv']]) <=> [[b]]) }}
+  {{ hol ((intv_binpred binop_gt [[intv]] [[intv']]) = SOME [[b]]) }}
 | intv NE intv' = b :: M :: neq_word
   {{ hol (([[intv]] <> [[intv']]) <=> [[b]]) }}
 | intv & intv' = intv'' :: M :: and_word
-  {{ hol (band [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_bl_binop band [[intv]] [[intv']] = [[intv'']]) }}
 | intv ^ intv' = intv'' :: M :: xor_word
-  {{ hol (bxor [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_bl_binop bxor [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: LaTeX XOR
 | intv '|' intv' = intv'' :: M :: or_word
-  {{ hol (bor [[intv]] [[intv']] = [[intv'']]) }}
+  {{ hol (intv_bl_binop bor [[intv]] [[intv']] = [[intv'']]) }}
 %TODO: Boolean binops
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
@@ -710,6 +711,15 @@ val lookup_lval_def = Define `
     (lookup_lval (sf:scope list) (lval_varname x) = (lookup sf x))
 /\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
 `;
+
+val intv_bl_unop_def = Define `
+    (intv_bl_unop unop (bl, n) = (unop bl, n))
+`;
+
+val intv_bl_binop_def = Define `
+    (intv_bl_binop binop (bl, n) (bl', n') = (binop bl bl', n))
+`;
+
 (* TODO: Check that these are correct... *)
 val get_word_unop_def = Define `
     (get_word_unop unop_compl = word_1comp)
@@ -718,6 +728,7 @@ val get_word_unop_def = Define `
 `;
 val intv_unop_def = Define `
     (intv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
+/\  (intv_unop unop (v, 32) = (w2v ((get_word_unop unop) ((v2w v): 32 word)), 32) )
 `;
 val get_word_binop_def = Define `
     (get_word_binop binop_mul = word_mul)
@@ -735,16 +746,19 @@ val get_word_binop_def = Define `
 /\  (get_word_binop binop_xor = word_xor)
 /\  (get_word_binop binop_or = word_or)
 `;
-%TODO This is highly iffy, but trying to achieve the same by overloading on different n des not work so well...
+(* TODO This intv_binop definition is highly iffy, but trying to achieve the same by overloading on different n des not work so well... *)
+val intv_binop_inner_def = Define `
+    (intv_binop_inner binop v v' 64 = SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64) )
+/\  (intv_binop_inner binop v v' 32 = SOME (w2v ((get_word_binop binop) ((v2w v): 32 word) ((v2w v'): 32 word)), 32) )
+/\  (intv_binop_inner binop v v' _ = NONE )
+`;
 val intv_binop_def = Define `
     (intv_binop binop (v, n) (v', n') =
     if n = n' then
-      case n of
-      | 64 => SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64)
-      | 32 => SOME (w2v ((get_word_binop binop) ((v2w v): 32 word) ((v2w v'): 32 word)), 32)
-      | _ => NONE
+      intv_binop_inner binop v v' n
     else NONE)
 `;
+
 val get_word_binpred_def = Define `
     (get_word_binpred binop_le = word_le)
 /\  (get_word_binpred binop_ge = word_ge)
@@ -753,9 +767,25 @@ val get_word_binpred_def = Define `
 /\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
 /\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
 `;
+(* TODO This intv_binpred definition is highly iffy, but trying to achieve the same by overloading on different n des not work so well...
+
 val intv_binpred_def = Define `
     (intv_binpred binpred (v, 64) (v', 64) = (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv))
 /\  (intv_binpred binpred (v, 32) (v', 32) = (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv))
+`;
+
+*)
+val intv_binpred_inner_def = Define `
+    (intv_binpred_inner binpred v v' 64 = SOME (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv) )
+/\  (intv_binpred_inner binpred v v' 32 = SOME (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv) )
+/\  (intv_binpred_inner binpred v v' _ = NONE )
+`;
+val intv_binpred_def = Define `
+    (intv_binpred binpred (v, n) (v', n') =
+    if n = n' then
+      intv_binpred_inner binpred v v' n
+    else NONE
+)
 `;
 val intv_concat_def = Define `
     (intv_concat (v, n) (v', n') =
