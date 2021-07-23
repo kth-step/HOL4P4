@@ -1,5 +1,6 @@
 embed
 {{ hol
+open bitstringTheory;
 open wordsTheory;
 }}
 
@@ -20,13 +21,10 @@ metavar b ::=
       {{ hol bool }}
       {{ tex [[b]] }}
       {{ com boolean }}
-%TODO Ideally, one should have different word lengths
-metavar nw ::=
+metavar bl ::=
       {{ lex numeral }}
-      {{ hol word64 }}
-%TODO Causes problems with double subscript in LaTeX...
-%      {{ tex [[n]]_{64} }}
-      {{ tex {n_w} }}
+      {{ hol bool list }}
+      {{ tex [[bl]] }}
       {{ com integer }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,10 +50,9 @@ grammar
 % Expressions %
 %%%%%%%%%%%%%%%
 
-%Unary operations
 unop {{ tex \ominus }}:: unop_ ::=
-| ! :: :: neg_bool
-  {{ com boolean negation }}
+| ! :: :: neg
+  {{ com negation }}
   {{ tex ! }}
 | ~ :: :: compl
   {{ com bitwise complement }}
@@ -67,6 +64,7 @@ unop {{ tex \ominus }}:: unop_ ::=
   {{ com unary plus }}
 
 %Binary operations
+%Split these up into operations (bv # bv -> bv) and predicates (bv # bv -> bool)?
 %TODO: Saturating addition?
 %TODO: Saturating subtraction?
 binop {{ tex \oplus }} :: binop_ ::=
@@ -84,10 +82,10 @@ binop {{ tex \oplus }} :: binop_ ::=
 | - :: :: sub
   {{ com subtraction }}
 | SHL :: :: shl
-  {{ com left-shift }}
+  {{ com logical left-shift }}
   {{ tex \ll }}
 | SHR :: :: shr
-  {{ com right-shift }}
+  {{ com logical right-shift }}
   {{ tex \gg }}
 | LE :: :: le
   {{ com less or equal }}
@@ -95,7 +93,7 @@ binop {{ tex \oplus }} :: binop_ ::=
 | GE :: :: ge
   {{ com greater or equal }}
   {{ tex \geq }}
-| < :: :: ls
+| < :: :: lt
   {{ com less }}
   {{ tex < }}
 | > :: :: gt
@@ -126,12 +124,18 @@ binop {{ tex \oplus }} :: binop_ ::=
 boolv :: boolv_ ::=
 {{ hol bool }}
 {{ com boolean }}
-| b :: M :: free
-  {{ hol [[b]] }}
 | true :: M :: true
   {{ hol T }}
 | false :: M :: false
   {{ hol F }}
+| b :: M :: free
+  {{ hol [[b]] }}
+
+intv :: intv_ ::=
+{{ hol (bl # num) }}
+{{ com integer }}
+| bl n :: M :: bl
+  {{ hol ([[bl]], [[n]]) }}
 
 %Base types
 bt {{ tex bt }} :: bt_ ::=
@@ -159,7 +163,8 @@ v :: v_ ::=
 {{ com constant }}
 | boolv :: :: bool
   {{ com boolean value }}
-| nw :: :: int
+%intv currently represents both signed and unsigned words
+| intv :: :: int
   {{ com integer }}
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
   {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
@@ -218,8 +223,13 @@ e :: e_ ::=
 | e1 binop e2 :: :: binop
   {{ com binary operation }}
   {{ tex [[e1]] [[binop]] [[e2]] }}
+| e1 ++ e2 :: :: concat
+  {{ com concatenation of bit-strings }}
+| e1 [ e2 : e3 ] :: :: slice
+  {{ com bit-slice }}
 | call f ( e1 , .. , en ) :: :: func_call
   {{ com function call }}
+  %TODO: Elaborate on "exp_func_call"
   {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
@@ -466,55 +476,65 @@ formula :: formula_ ::=
 %Expressions
 | ! b = b' :: M :: neg_bool
   {{ hol (~[[b]] = [[b']]) }}
-| ~ nw = nw' :: M :: compl
-  %TODO
-  {{ hol (~ [[nw]] = [[nw']]) }}
-| - nw = nw' :: M :: neg_signed
-  %TODO
-  {{ hol (~ [[nw]] = [[nw']]) }}
-| + nw = nw' :: M :: un_plus
-  %TODO: Read specification...
-  {{ hol ([[nw]] = [[nw']]) }}
-| nw * nw' = nw'' :: M :: mul
-  {{ hol (word_mul [[nw]] [[nw']] = [[nw'']]) }}
-| nw / nw' = nw'' :: M :: div
-  {{ hol (word_div [[nw]] [[nw']] = [[nw'']]) }}
-| nw mod nw' = nw'' :: M :: mod
-  {{ hol (word_mod [[nw]] [[nw']] = [[nw'']]) }}
-| nw + nw' = nw'' :: M :: add
-  {{ hol (word_add [[nw]] [[nw']] = [[nw'']]) }}
-| nw - nw' = nw'' :: M :: sub
-  {{ hol (word_sub [[nw]] [[nw']] = [[nw'']]) }}
-%TODO: EQ for v?
-| nw EQ nw' = b :: M :: eq_word
-  {{ hol ([[nw]] = [[nw']] <=> [[b]]) }}
+| ~ intv = intv' :: M :: compl
+  {{ hol (intv_bl_unop bnot [[intv]] = [[intv']]) }}
+| - intv = intv' :: M :: neg_signed
+  {{ hol (intv_unop unop_neg_signed [[intv]] = [[intv']]) }}
+| + intv = intv' :: M :: un_plus
+  %TODO: Specification says this is a noop...
+  {{ hol ([[intv]] = [[intv']]) }}
+%TODO mul
+| intv * intv' = intv'' :: M :: mul
+  {{ hol (intv_binop binop_mul [[intv]] [[intv']] = SOME [[intv'']]) }}
+%TODO div
+| intv / intv' = intv'' :: M :: div
+  {{ hol (intv_binop binop_div [[intv]] [[intv']] = SOME [[intv'']]) }}
+%TODO mod
+| intv mod intv' = intv'' :: M :: mod
+  {{ hol (intv_binop binop_mod [[intv]] [[intv']] = SOME [[intv'']]) }}
+%TODO add
+%"add_def" provided by bitstringTheory does not respect word arithmetic
+| intv + intv' = intv'' :: M :: add
+  {{ hol (intv_binop binop_add [[intv]] [[intv']] = SOME [[intv'']]) }}
+%TODO sub
+| intv - intv' = intv'' :: M :: sub
+  {{ hol (intv_binop binop_sub [[intv]] [[intv']] = SOME [[intv'']]) }}
+| intv EQ intv' = b :: M :: eq_word
+  {{ hol (([[intv]] = [[intv']]) <=> [[b]]) }}
+%TODO: Boolean binops
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
-| nw SHL nw' = nw'' :: M :: shl
-  {{ hol (word_lsl_bv [[nw]] [[nw']] = [[nw'']]) }}
-  %TODO: Double-check
-| nw SHR nw' = nw'' :: M :: shr
-  {{ hol (word_asr_bv [[nw]] [[nw']] = [[nw'']]) }}
-  %TODO: Double-check
-| nw LE nw' = b :: M :: le
-  {{ hol ([[nw]] <= [[nw']] <=> [[b]]) }}
-| nw GE nw' = b :: M :: ge
-  {{ hol ([[nw]] >= [[nw']] <=> [[b]]) }}
-| nw < nw' = b :: M :: lt
-  {{ hol ([[nw]] < [[nw']] <=> [[b]]) }}
-| nw > nw' = b :: M :: gt
-  {{ hol ([[nw]] > [[nw']] <=> [[b]]) }}
-| nw NE nw' = b :: M :: neq_word
-  {{ hol ([[nw]] <> [[nw']] <=> [[b]]) }}
-| nw & nw' = nw'' :: M :: and_word
-  {{ hol (word_and [[nw]] [[nw']] = [[nw'']]) }}
-| nw ^ nw' = nw'' :: M :: xor_word
-  {{ hol (word_xor [[nw]] [[nw']] = [[nw'']]) }}
+| intv SHL intv' = intv'' :: M :: shl
+  {{ hol (intv_bl_binop shiftl [[intv]] ((\(bl, n). (v2n bl, n)) [[intv']]) = [[intv'']]) }}
+  %TODO: Double-check shift left
+| intv SHR intv' = intv'' :: M :: shr
+  {{ hol (intv_bl_binop shiftr [[intv]] ((\(bl, n). (v2n bl, n)) [[intv']]) = [[intv'']]) }}
+  %TODO: Double-check shift right
+%TODO le
+| intv LE intv' = b :: M :: le
+  {{ hol ((intv_binpred binop_le [[intv]] [[intv']]) = SOME [[b]]) }}
+%TODO ge
+| intv GE intv' = b :: M :: ge
+  {{ hol ((intv_binpred binop_ge [[intv]] [[intv']]) = SOME [[b]]) }}
+%TODO lt
+| intv < intv' = b :: M :: lt
+  {{ hol ((intv_binpred binop_lt [[intv]] [[intv']]) = SOME [[b]]) }}
+%TODO gt
+| intv > intv' = b :: M :: gt
+  {{ hol ((intv_binpred binop_gt [[intv]] [[intv']]) = SOME [[b]]) }}
+| intv NE intv' = b :: M :: neq_word
+  {{ hol (([[intv]] <> [[intv']]) <=> [[b]]) }}
+| intv & intv' = intv'' :: M :: and_word
+  {{ hol (intv_bl_binop band [[intv]] [[intv']] = [[intv'']]) }}
+| intv ^ intv' = intv'' :: M :: xor_word
+  {{ hol (intv_bl_binop bxor [[intv]] [[intv']] = [[intv'']]) }}
   %TODO: LaTeX XOR
-| nw '|' nw' = nw'' :: M :: or_word
-  {{ hol (word_or [[nw]] [[nw']] = [[nw'']]) }}
+| intv '|' intv' = intv'' :: M :: or_word
+  {{ hol (intv_bl_binop bor [[intv]] [[intv']] = [[intv'']]) }}
+%TODO: Boolean binops
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
+%TODO: Boolean binops
 | b OR b' = b'' :: M :: or_bool
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
 
@@ -625,6 +645,7 @@ formula :: formula_ ::=
   {{ com parser error literal }}
   {{ hol ([[x]] = "ParserError") }}
   {{ tex [[x]] = ``\mathit{ParserError}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
@@ -642,10 +663,13 @@ formula :: formula_ ::=
   {{ com x is accept }}
   {{ hol ([[x]] = "accept") }}
   {{ tex [[x]] = ``\mathit{accept}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
 | x = "reject" :: M :: is_reject
   {{ com x is reject }}
   {{ hol ([[x]] = "reject") }}
   {{ tex [[x]] = ``\mathit{reject}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+
 
 %TODO: Review if "is_const" is needed...
 embed
@@ -686,6 +710,93 @@ val lookup_def = Define `
 val lookup_lval_def = Define `
     (lookup_lval (sf:scope list) (lval_varname x) = (lookup sf x))
 /\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
+`;
+
+val intv_bl_unop_def = Define `
+    (intv_bl_unop unop (bl, n) = (unop bl, n))
+`;
+
+val intv_bl_binop_def = Define `
+    (intv_bl_binop binop (bl, n) (bl', n') = (binop bl bl', n))
+`;
+
+(* TODO: Check that these are correct... *)
+val get_word_unop_def = Define `
+    (get_word_unop unop_compl = word_1comp)
+/\  (get_word_unop unop_neg_signed = word_2comp)
+/\  (get_word_unop unop_un_plus = (\w. w))
+`;
+val intv_unop_def = Define `
+    (intv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
+/\  (intv_unop unop (v, 32) = (w2v ((get_word_unop unop) ((v2w v): 32 word)), 32) )
+`;
+val get_word_binop_def = Define `
+    (get_word_binop binop_mul = word_mul)
+
+/\  (get_word_binop binop_div = word_div)
+/\  (get_word_binop binop_mod = word_mod)
+/\  (get_word_binop binop_add = word_add)
+
+/\  (get_word_binop binop_sub = word_sub)
+
+/\  (get_word_binop binop_shl = word_lsl_bv)
+
+/\  (get_word_binop binop_shr = word_lsr_bv)
+/\  (get_word_binop binop_and = word_and)
+/\  (get_word_binop binop_xor = word_xor)
+/\  (get_word_binop binop_or = word_or)
+`;
+(* TODO This intv_binop definition is highly iffy, but trying to achieve the same by overloading on different n des not work so well... *)
+val intv_binop_inner_def = Define `
+    (intv_binop_inner binop v v' 64 = SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64) )
+/\  (intv_binop_inner binop v v' 32 = SOME (w2v ((get_word_binop binop) ((v2w v): 32 word) ((v2w v'): 32 word)), 32) )
+/\  (intv_binop_inner binop v v' _ = NONE )
+`;
+val intv_binop_def = Define `
+    (intv_binop binop (v, n) (v', n') =
+    if n = n' then
+      intv_binop_inner binop v v' n
+    else NONE)
+`;
+
+val get_word_binpred_def = Define `
+    (get_word_binpred binop_le = word_le)
+/\  (get_word_binpred binop_ge = word_ge)
+/\  (get_word_binpred binop_lt = word_lt)
+/\  (get_word_binpred binop_gt = word_gt)
+/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
+/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
+`;
+(* TODO This intv_binpred definition is highly iffy, but trying to achieve the same by overloading on different n des not work so well...
+
+val intv_binpred_def = Define `
+    (intv_binpred binpred (v, 64) (v', 64) = (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv))
+/\  (intv_binpred binpred (v, 32) (v', 32) = (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv))
+`;
+
+*)
+val intv_binpred_inner_def = Define `
+    (intv_binpred_inner binpred v v' 64 = SOME (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv) )
+/\  (intv_binpred_inner binpred v v' 32 = SOME (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv) )
+/\  (intv_binpred_inner binpred v v' _ = NONE )
+`;
+val intv_binpred_def = Define `
+    (intv_binpred binpred (v, n) (v', n') =
+    if n = n' then
+      intv_binpred_inner binpred v v' n
+    else NONE
+)
+`;
+val intv_concat_def = Define `
+    (intv_concat (v, n) (v', n') =
+      (v ++ v', n + n')
+)
+`;
+(* TODO: Check big-endianness vs. little-endianness (order of arguments of SEG) *)
+val intv_bitslice_def = Define `
+    (intv_bitslice (v, n) m l =
+      (SEG m l v, m - l + 1)
+)
 `;
 }}
 grammar
@@ -813,23 +924,23 @@ by
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
-  ~ nw = nw'
+  ~ intv = intv'
   ----------------------------------- :: compl
-  [~ nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
+  [~ intv] ( stacks , Running ) ~> [intv'] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
-  - nw = nw'
+  - intv = intv'
   ----------------------------------- :: neg_signed
-  [- nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
+  [- intv] ( stacks , Running ) ~> [intv'] ( stacks , Running )
 
 %%%%%%%%%%%
 %Unary plus
 
-  + nw = nw'
+  + intv = intv'
   ----------------------------------- :: un_plus
-  [+ nw] ( stacks , Running ) ~> [nw'] ( stacks , Running )
+  [+ intv] ( stacks , Running ) ~> [intv'] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -839,114 +950,114 @@ by
 %%%%%%%%%%%%%%%
 %Multiplication
 
-  nw * nw' = nw''
+  intv * intv' = intv''
   ----------------------------------- :: mul
-  [nw * nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv * intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Division
 
-  nw / nw' = nw''
+  intv / intv' = intv''
   ----------------------------------- :: div
-  [nw / nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv / intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Modulo
 
-  nw mod nw' = nw''
+  intv mod intv' = intv''
   ----------------------------------- :: mod
-  [nw mod nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv mod intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Addition
 
-  nw + nw' = nw''
+  intv + intv' = intv''
   ----------------------------------- :: add
-  [nw + nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv + intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Subtraction
 
-  nw - nw' = nw''
+  intv - intv' = intv''
   ----------------------------------- :: sub
-  [nw - nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv - intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Left shift
 
-  nw SHL nw' = nw''
+  intv SHL intv' = intv''
   ----------------------------------- :: shl
-  [nw SHL nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv SHL intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Right shift
 
-  nw SHR nw' = nw''
+  intv SHR intv' = intv''
   ----------------------------------- :: shr
-  [nw SHR nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv SHR intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
-  nw LE nw' = b
+  intv LE intv' = b
   ----------------------------------- :: le
-  [nw LE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv LE intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
-  nw GE nw' = b
+  intv GE intv' = b
   ----------------------------------- :: ge
-  [nw GE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv GE intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%
 %Less than
 
-  nw < nw' = b
+  intv < intv' = b
   ----------------------------------- :: lt
-  [nw < nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv < intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Greater than
 
-  nw > nw' = b
+  intv > intv' = b
   ----------------------------------- :: gt
-  [nw > nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv > intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Not equal
 
-  nw NE nw' = b
+  intv NE intv' = b
   ----------------------------------- :: neq
-  [nw NE nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv NE intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Equal
 
-  nw EQ nw' = b
+  intv EQ intv' = b
   ----------------------------------- :: eq
-  [nw EQ nw'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  [intv EQ intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
 
-  nw & nw' = nw''
+  intv & intv' = intv''
   ----------------------------------- :: and
-  [nw & nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv & intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise xor
 
-  nw ^ nw' = nw''
+  intv ^ intv' = intv''
   ----------------------------------- :: xor
-  [nw ^ nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv ^ intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise or
 
-  nw | nw' = nw''
+  intv | intv' = intv''
   ----------------------------------- :: or
-  [nw | nw'] ( stacks , Running ) ~> [nw''] ( stacks , Running )
+  [intv | intv'] ( stacks , Running ) ~> [intv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary and
