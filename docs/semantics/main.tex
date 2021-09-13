@@ -17,6 +17,7 @@
 \usepackage{tikz}
 \usepackage{subfig}
 \usepackage{fancyvrb}
+\usepackage{enumitem}
 
 \usepackage{hyperref}
 \hypersetup{
@@ -238,7 +239,49 @@ The \textsc{e\_func\_call\_newframe} rule is used when all of the function argum
 The \textsc{e\_acc} rule is used to access the values of fields in structs. 
 
 \newpage
-\subsection{Calling Convention}
+\subsection{Calling convention}   
+The calling conventions can be directioned or directionless. The direction can be either IN, OUT or INOUT. 
+IN direction summary:
+\begin{enumerate}
+\item Should not be used on the left hand of assignment
+\item Shouldn't be passed to a function without using the proper calling convention IN
+\item Initialized by copying the value of the corresponding argument when the invocation is executed.
+\end{enumerate}
+OUT summary:
+\begin{enumerate}
+\item usually uninitialized, and treated as l-values. after the execution of the call, the value of the OUT parameters copied to the corresponding location of the l-value. OUT parameters are initialized in the following cases
+\begin{enumerate}[label=(\alph*)]
+\item if the types are header or header\_union, OUT parameter is set to "invalid"
+\item if the type is a header stack, then all elements of the header stack set to "invalid" and the next index is initialized to 0.
+\item if the type is compound (e.g. struct or tuple) apply the rules recursively to its members.
+\item if any any other type than listed above (e.g. bit <W>), then it doesn't need any predictable value.
+\end{enumerate}
+\end{enumerate}
+
+INOUT summary:
+\begin{enumerate}
+\item this type of parameters are both IN and OUT.
+\item it must be an l-value, which means it can be assigned to a value.
+\end{enumerate}
+NO direction summary:
+\begin{enumerate}
+\item those parameters are known at compile time.
+\item it also can be an action parameter, can be set by the control plane.
+\item it also can be an action parameter that set directly by an other action, then the behaviour will be like IN parameter.
+\end{enumerate}
+
+The direction d can be $\downarrow$ denotes IN, $\uparrow$ denotes OUT, $\updownarrow$ denotes INOUT, $\circ$ denotes directionless. 
+
+Thus,
+d ::= $\downarrow$ | $\uparrow$ | $\updownarrow$ | $\circ$
+
+In the function calls, it requires extending the scope type to be as following;
+$ \gamma : X \hookrightarrow V * (X \cup \{ \bot \})  $ \\We shall also modify the stack E to be a list of tuples of 2 members. First member is the frame, while second member is the function name as in ($\varepsilon$, F\_name). Define a a few new operations: 
+\begin{enumerate}
+\item operation $\varepsilon[x \longmapsto v]$ to update a variable x with value v in the frame $\varepsilon$. This should be equivalent to the three premises in STMT\_ASS\_V
+\item operation $lookup_t(\varepsilon, x)$ to return a tuple (y, d) that that variable x is mapped to in frame $\varepsilon$. 
+\item operation $lookup_v(\varepsilon, x)$ to return the value v of the tuple $(y, x \cup {\bot})$, which is whatever variable x is mapped to in frame $\varepsilon$. 
+\end{enumerate}
 
 \begin{figure}[h]
 \centering\ottgrammartabular{

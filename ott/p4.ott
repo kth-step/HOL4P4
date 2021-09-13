@@ -794,6 +794,80 @@ val lookup_lval_def = Define `
     (lookup_lval (sf:scope list) (lval_varname x) = (lookup sf x))
 /\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (str_acc (lookup_lval sf lval) f))
 `;
+
+val is_var_def = Define `
+    ( is_var (e_var _) = T)
+/\  ( is_var _ = F)
+`;
+
+val is_direction_none_in_def = Define `
+  (is_direction_none_in direction_in = T) /\
+  (is_direction_none_in direction_none = T) /\
+  (is_direction_none_in _ = F)
+`;
+
+(* definition to extract the sting represents the variable name from the expression form*)
+val extract_string_def = Define `
+(extract_string (e_var x) = x)
+`;
+
+
+
+(* finds a tuple (index, scope) that represents the lowest scope that has info about variable name x*)
+val find_lowest_scope_def = Define `
+find_lowest_scope (sf:scope list) (x) =
+ (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc ( x))) sf )
+`;
+
+
+
+(* extracts the lowest scope that the expression value varexp is in *)
+val lowest_scope_def = Define `
+lowest_scope (sf:scope list) x =
+SND (THE (find_lowest_scope sf (x)))
+`;
+
+(* extracts the scope index of the lowest scope that has info about the variable name x*)
+val lowest_scope_index_def = Define `
+lowest_scope_index (sf:scope list) x = 
+FST (THE (find_lowest_scope sf x))
+`;
+
+(* fetches the value of the variable name x from the proper lowest scope *)
+val lookup_v_def = Define `
+lookup_v (sf:scope list) x =
+THE (FLOOKUP (find_lowest_scope sf x) x)
+`;
+
+val lookup_vexp_def = Define `
+lookup_vexp (sf:scope list) expr =
+lookup_v (sf:scope list) $extract_string(expr) 
+`;
+
+
+(* represents find_i_min where the direction is none and in in d list and the expresstion in the same position is not a constant
+it will return (index, direction, expression)*)
+val min_arg_def = Define `
+  min_arg dlist elist = 
+  (INDEX_FIND 0 (\(d, e). (is_direction_none_in d) /\ ~(is_const e)) (ZIP (dlist, elist))
+`;
+
+val extract_arg_index_def = Define `
+extract_arg_index dlist elist  = 
+FST (THE (extract_arg dlist elist))
+`;
+
+
+
+
+
+
+
+
+
+
+
+
 }}
 grammar
 
@@ -854,13 +928,8 @@ by
   %TODO: force e_list'' to be non-empty?
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
   find_i_min ( [ direction1 , .. , directionn ] , [ e1 , .. , en ] ) = i
-  %e_list' ++ e_list'' =' e1 , .. , en
-  %e = hd e_list''
   e = [ e1 , .. , en ] [ i ]
   [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
-  %TODO: length plus 1 if indexing from 1
-  %i = length ( e_list' )
-  %[ direction1 , .. , directionn ] subset { none , in }
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
   [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , Running )
