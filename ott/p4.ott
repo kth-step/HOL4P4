@@ -644,7 +644,7 @@ formula :: formula_ ::=
 | direction_list subset { none , in } :: :: isnot_copyin
   {{ com are the directions in or none  }}
   {{ tex \forall i . \, d_i \in [[direction_list]] \implies d_i \in \{\circ , \downarrow\} }}
-| sig_check direction_list e_list :: :: signature_check  
+| all_arg_check direction_list e_list :: :: signature_check  
   {{ com check parameters if isvar or isconst }}
   {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[direction_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
   ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
@@ -656,7 +656,7 @@ formula :: formula_ ::=
 | direction = hd direction_list :: M :: direction_hd
   {{ hol ([[direction]] = HD [[direction_list]]) }}
   {{ tex [[direction]] = \mathrm{hd} \,\, [[direction_list]] }} 
-| find_i_min ( direction_list , e_list ) = i :: :: parameter_index
+| extract_arg_index direction_list e_list = i :: :: parameter_index
   {{ tex i = \mathrm{min} \, \{ j . \,\, [[direction_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
 
 %Conditions
@@ -821,7 +821,7 @@ find_lowest_scope (sf:scope list) (x) =
 
 
 
-(* extracts the lowest scope that the expression value varexp is in *)
+(* extracts the lowest scope content that the expression value varexp is in *)
 val lowest_scope_def = Define `
 lowest_scope (sf:scope list) x =
 SND (THE (find_lowest_scope sf (x)))
@@ -836,25 +836,37 @@ FST (THE (find_lowest_scope sf x))
 (* fetches the value of the variable name x from the proper lowest scope *)
 val lookup_v_def = Define `
 lookup_v (sf:scope list) x =
-THE (FLOOKUP (find_lowest_scope sf x) x)
+THE (FLOOKUP (lowest_scope sf x) x)
 `;
 
 val lookup_vexp_def = Define `
 lookup_vexp (sf:scope list) expr =
-lookup_v (sf:scope list) $extract_string(expr) 
+lookup_v (sf:scope list) (extract_string(expr)) 
 `;
 
 
-(* represents find_i_min where the direction is none and in in d list and the expresstion in the same position is not a constant
+(* represents minumum argument  where the direction is none and in in d list and the expresstion in the same position is not a constant
 it will return (index, direction, expression)*)
 val min_arg_def = Define `
   min_arg dlist elist = 
-  (INDEX_FIND 0 (\(d, e). (is_direction_none_in d) /\ ~(is_const e)) (ZIP (dlist, elist))
+  (INDEX_FIND 0 (\(d, e). (is_direction_none_in d) /\ ~(is_const e)) (ZIP (dlist, elist)))
 `;
 
 val extract_arg_index_def = Define `
 extract_arg_index dlist elist  = 
-FST (THE (extract_arg dlist elist))
+FST (THE (min_arg dlist elist))
+`;
+
+
+
+(* in e_func_call_newframe rule, we need this definition to show the second premise*)
+val one_arg_check_def = Define `
+  one_arg_check d e = 
+   ((is_direction_none_in d ==> (is_const e)) /\ (~(is_direction_none_in d) ==> (is_var e)) = T)
+`;
+
+val all_arg_check_def = Define `
+  all_arg_check dlist elist = EVERY (\(d, e). one_arg_check d e) (ZIP(dlist,elist))
 `;
 
 
@@ -894,9 +906,7 @@ by
 
   %Resolving arguments to function call - assigning arguments to new stack frame
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  %[ direction1 , .. , directionn ] subset { inout , out }  isvar [ e1 , .. , en ]
-  %[ direction1 , .. , directionn ] subset { none , in }  isconst [ e1 , .. , en ]
-  sig_check [ direction1 , .. , directionn ] [ e1 , .. , en ]
+  all_arg_check [ direction1 , .. , directionn ] [ e1 , .. , en ]
   %frame build
   build_scope [ direction1 , .. , directionn ] scope' [ e1 , .. , en ] ( x1 , .. , xn )
   G scope = curr_stack_frame[0]
@@ -927,7 +937,7 @@ by
 %Resolving arguments to function call - reduction
   %TODO: force e_list'' to be non-empty?
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  find_i_min ( [ direction1 , .. , directionn ] , [ e1 , .. , en ] ) = i
+  extract_arg_index [ direction1 , .. , directionn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
   [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
