@@ -716,7 +716,7 @@ val intv_bl_unop_def = Define `
 `;
 
 val intv_bl_binop_def = Define `
-    (intv_bl_binop binop (bl, n) (bl', n') = (binop bl bl', n))
+    (intv_bl_binop binop (bl, n) (bl', n') = (fixwidth n (binop bl bl'), n))
 `;
 
 (* TODO: Check that these are correct... *)
