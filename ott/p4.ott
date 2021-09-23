@@ -155,7 +155,7 @@ t {{ tex t }} :: t_ ::=
   {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 
 %TODO: String literal
-%TODO: L-values and identifiers
+%TODO: Identifiers
 %TODO: Enums
 %Constants should be thought of as "values of variables we look up"
 v :: v_ ::=
@@ -482,43 +482,32 @@ formula :: formula_ ::=
 | + intv = intv' :: M :: un_plus
   %TODO: Specification says this is a noop...
   {{ hol ([[intv]] = [[intv']]) }}
-%TODO mul
 | intv * intv' = intv'' :: M :: mul
   {{ hol (intv_binop binop_mul [[intv]] [[intv']] = SOME [[intv'']]) }}
-%TODO div
 | intv / intv' = intv'' :: M :: div
   {{ hol (intv_binop binop_div [[intv]] [[intv']] = SOME [[intv'']]) }}
-%TODO mod
 | intv mod intv' = intv'' :: M :: mod
   {{ hol (intv_binop binop_mod [[intv]] [[intv']] = SOME [[intv'']]) }}
-%TODO add
-%"add_def" provided by bitstringTheory does not respect word arithmetic
 | intv + intv' = intv'' :: M :: add
   {{ hol (intv_binop binop_add [[intv]] [[intv']] = SOME [[intv'']]) }}
-%TODO sub
 | intv - intv' = intv'' :: M :: sub
   {{ hol (intv_binop binop_sub [[intv]] [[intv']] = SOME [[intv'']]) }}
 | intv EQ intv' = b :: M :: eq_word
   {{ hol (([[intv]] = [[intv']]) <=> [[b]]) }}
-%TODO: Boolean binops
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
 | intv SHL intv' = intv'' :: M :: shl
   {{ hol (intv_bl_binop shiftl [[intv]] ((\(bl, n). (v2n bl, n)) [[intv']]) = [[intv'']]) }}
-  %TODO: Double-check shift left
+%TODO: Double-check all rules for shift left. Put fixwidth here instead?
 | intv SHR intv' = intv'' :: M :: shr
   {{ hol (intv_bl_binop shiftr [[intv]] ((\(bl, n). (v2n bl, n)) [[intv']]) = [[intv'']]) }}
-  %TODO: Double-check shift right
-%TODO le
+%TODO: Double-check all rules for shift right. Put fixwidth here instead?
 | intv LE intv' = b :: M :: le
   {{ hol ((intv_binpred binop_le [[intv]] [[intv']]) = SOME [[b]]) }}
-%TODO ge
 | intv GE intv' = b :: M :: ge
   {{ hol ((intv_binpred binop_ge [[intv]] [[intv']]) = SOME [[b]]) }}
-%TODO lt
 | intv < intv' = b :: M :: lt
   {{ hol ((intv_binpred binop_lt [[intv]] [[intv']]) = SOME [[b]]) }}
-%TODO gt
 | intv > intv' = b :: M :: gt
   {{ hol ((intv_binpred binop_gt [[intv]] [[intv']]) = SOME [[b]]) }}
 | intv NE intv' = b :: M :: neq_word
@@ -527,13 +516,11 @@ formula :: formula_ ::=
   {{ hol (intv_bl_binop band [[intv]] [[intv']] = [[intv'']]) }}
 | intv ^ intv' = intv'' :: M :: xor_word
   {{ hol (intv_bl_binop bxor [[intv]] [[intv']] = [[intv'']]) }}
-  %TODO: LaTeX XOR
+%TODO: LaTeX XOR
 | intv '|' intv' = intv'' :: M :: or_word
   {{ hol (intv_bl_binop bor [[intv]] [[intv']] = [[intv'']]) }}
-%TODO: Boolean binops
 | b AND b' = b'' :: M :: and_bool
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
-%TODO: Boolean binops
 | b OR b' = b'' :: M :: or_bool
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
 
@@ -719,7 +706,6 @@ val intv_bl_binop_def = Define `
     (intv_bl_binop binop (bl, n) (bl', n') = (fixwidth n (binop bl bl'), n))
 `;
 
-(* TODO: Check that these are correct... *)
 val get_word_unop_def = Define `
     (get_word_unop unop_compl = word_1comp)
 /\  (get_word_unop unop_neg_signed = word_2comp)
