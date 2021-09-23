@@ -802,7 +802,7 @@ val intv_bitslice_def = Define `
 grammar
 
 defns
-  e_sem :: '' ::=
+  e_stmt_sem :: '' ::=
 defn
   [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
   {{ com expression semantics }}
@@ -1112,8 +1112,6 @@ by
 %TODO: Exit
 %TODO: Switch
 
-defns
-  stmt_sem :: '' ::=
 defn
   [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
   {{ com statement semantics }}
