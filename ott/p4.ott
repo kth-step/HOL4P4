@@ -621,6 +621,14 @@ formula :: formula_ ::=
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
+| ( x EQ x' ) = b :: M :: eq_error
+  {{ com equality over errors }}
+  {{ hol (([[x]] = [[x']]) = [[b]]) }}
+  {{ tex ([[x]] = [[x']]) = [[b]] }}
+| ( x <> x' ) = b :: M :: neq_error
+  {{ com inequality over errors }}
+  {{ hol (([[x]] <> [[x']]) = [[b]]) }}
+  {{ tex ([[x]] \neq [[x']]) = [[b]] }}
 | i' = i + 1 :: M :: num_inc
   {{ com numeral increment }}
   {{ hol ([[i']] = [[i]] + 1) }}
@@ -1031,12 +1039,20 @@ by
   ----------------------------------- :: neq
   [intv NE intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
+  (x <> x') = b
+  ----------------------------------- :: neq_error
+  [(errmsg x) NE (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
+
 %%%%%%%%%%%%%
 %Equal
 
   intv EQ intv' = b
   ----------------------------------- :: eq
   [intv EQ intv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+
+  (x EQ x') = b
+  ----------------------------------- :: eq_error
+  [(errmsg x) EQ (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
