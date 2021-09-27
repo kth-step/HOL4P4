@@ -29,7 +29,7 @@
 \ottmetavartabular{
  $ x ,\, f ,\, msg $ & \ottcom{string} \\
  $ b $ & \ottcom{boolean} \\
- $ bl $ & \ottcom{integer} \\
+ $ bl $ & \ottcom{bit-string} \\
  $ i $ & \ottcom{natural number} \\
  $ \ottmv{m} ,\, \ottmv{n} ,\, \ottmv{o} $ & \ottcom{indices} \\
 }}
@@ -68,14 +68,14 @@
 \ottprodline{|}{\ottkw{false}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{b} {\textsf{M}}{}{}{}}
 
-\newcommand{\ottintv}{
-\ottrulehead{\ottnt{intv}}{::=}{\ottcom{integer}}\ottprodnewline
+\newcommand{\ottbitv}{
+\ottrulehead{\ottnt{bitv}}{::=}{\ottcom{bit-string}}\ottprodnewline
 \ottfirstprodline{|}{bl \, \ottmv{n}} {\textsf{M}}{}{}{}}
 
 \newcommand{\ottbt}{
 \ottrulehead{bt}{::=}{\ottcom{base types}}\ottprodnewline
 \ottfirstprodline{|}{ { \mathrm{bool}_{ \mathrm{t} } } }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ { \mathrm{int}_{ \mathrm{t} } } }{}{}{}{}}
+\ottprodline{|}{ { \mathrm{bit}_{ \mathrm{t} } } }{}{}{}{}}
 
 \newcommand{\ottt}{
 \ottrulehead{t}{::=}{\ottcom{types}}\ottprodnewline
@@ -86,7 +86,7 @@
 \newcommand{\ottv}{
 \ottrulehead{\ottnt{v}}{::=}{\ottcom{constant}}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{boolv}}{}{}{}{\ottcom{boolean value}}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}}{}{}{}{\ottcom{integer}}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}}{}{}{}{\ottcom{bit-string}}\ottprodnewline
 \ottprodline{|}{\ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}}{}{}{}{\ottcom{struct}}\ottprodnewline
 \ottprodline{|}{\ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}}{}{}{}{\ottcom{header}}\ottprodnewline
 \ottprodline{|}{\ottkw{errmsg} \, x}{}{}{}{\ottcom{error message}}\ottprodnewline
@@ -207,26 +207,26 @@
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{\ottcom{judgement}}\ottprodnewline
 \ottprodline{|}{\ottsym{!}  b  \ottsym{=}  b'} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{~}  \ottnt{intv}  \ottsym{=}  \ottnt{intv'}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{-}  \ottnt{intv}  \ottsym{=}  \ottnt{intv'}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{+}  \ottnt{intv}  \ottsym{=}  \ottnt{intv'}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{*}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{/}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv} \, \ottkw{mod} \, \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{+}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{-}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv} \, \ottkw{EQ} \, \ottnt{intv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{~}  \ottnt{bitv}  \ottsym{=}  \ottnt{bitv'}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{-}  \ottnt{bitv}  \ottsym{=}  \ottnt{bitv'}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{+}  \ottnt{bitv}  \ottsym{=}  \ottnt{bitv'}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{*}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{/}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv} \, \ottkw{mod} \, \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{+}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{-}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv} \, \ottkw{EQ} \, \ottnt{bitv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{b \, \ottkw{EQ} \, b'  \ottsym{=}  b''} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv} \, \ottkw{SHL} \, \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv} \, \ottkw{SHR} \, \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv} \, \ottkw{LE} \, \ottnt{intv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv} \, \ottkw{GE} \, \ottnt{intv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{<}  \ottnt{intv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{>}  \ottnt{intv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv} \, \ottkw{NE} \, \ottnt{intv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{\&}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{\mbox{$\uparrow$}}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}  \ottsym{\mbox{$\mid$}}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv} \, \ottkw{SHL} \, \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv} \, \ottkw{SHR} \, \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv} \, \ottkw{LE} \, \ottnt{bitv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv} \, \ottkw{GE} \, \ottnt{bitv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{<}  \ottnt{bitv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{>}  \ottnt{bitv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv} \, \ottkw{NE} \, \ottnt{bitv'}  \ottsym{=}  b} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{\&}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{\mbox{$\uparrow$}}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}  \ottsym{\mbox{$\mid$}}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{b \, \ottkw{AND} \, b'  \ottsym{=}  b''} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{b \, \ottkw{OR} \, b'  \ottsym{=}  b''} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ \varepsilon  = \mathrm{hd}  E } {\textsf{M}}{}{}{}\ottprodnewline
@@ -294,7 +294,7 @@
 \ottprodline{|}{\ominus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\oplus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{boolv}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{intv}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bitv}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{bt}{}{}{}{}\ottprodnewline
 \ottprodline{|}{t}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v}}{}{}{}{}\ottprodnewline
@@ -320,7 +320,7 @@
 \ottunop\ottinterrule
 \ottbinop\ottinterrule
 \ottboolv\ottinterrule
-\ottintv\ottinterrule
+\ottbitv\ottinterrule
 \ottbt\ottinterrule
 \ottt\ottinterrule
 \ottv\ottinterrule
@@ -491,153 +491,153 @@
 
 
 \newcommand{\ottdruleeXXcompl}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{~}  \ottnt{intv}  \ottsym{=}  \ottnt{intv'}}%
+\ottpremise{\ottsym{~}  \ottnt{bitv}  \ottsym{=}  \ottnt{bitv'}}%
 }{
-\ottsym{[}    \neg    \ottnt{intv}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}    \neg    \ottnt{bitv}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_compl}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXnegXXsigned}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{-}  \ottnt{intv}  \ottsym{=}  \ottnt{intv'}}%
+\ottpremise{\ottsym{-}  \ottnt{bitv}  \ottsym{=}  \ottnt{bitv'}}%
 }{
-\ottsym{[}   \ottsym{-}   \ottnt{intv}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottsym{-}   \ottnt{bitv}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_neg\_signed}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXunXXplus}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{+}  \ottnt{intv}  \ottsym{=}  \ottnt{intv'}}%
+\ottpremise{\ottsym{+}  \ottnt{bitv}  \ottsym{=}  \ottnt{bitv'}}%
 }{
-\ottsym{[}   \ottsym{+}   \ottnt{intv}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottsym{+}   \ottnt{bitv}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv'}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_un\_plus}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXmul}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{*}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv}  \ottsym{*}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}    \times    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \times    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_mul}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXdiv}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{/}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv}  \ottsym{/}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}   \ottsym{/}   \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}   \ottsym{/}   \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_div}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXmod}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv} \, \ottkw{mod} \, \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv} \, \ottkw{mod} \, \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}    \bmod    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \bmod    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_mod}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXadd}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{+}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv}  \ottsym{+}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}   \ottsym{+}   \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}   \ottsym{+}   \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_add}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXsub}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{-}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv}  \ottsym{-}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}   \ottsym{-}   \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}   \ottsym{-}   \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_sub}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXshl}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv} \, \ottkw{SHL} \, \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv} \, \ottkw{SHL} \, \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}    \ll    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \ll    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_shl}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXshr}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv} \, \ottkw{SHR} \, \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv} \, \ottkw{SHR} \, \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}    \gg    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \gg    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_shr}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXle}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv} \, \ottkw{LE} \, \ottnt{intv'}  \ottsym{=}  b}%
+\ottpremise{\ottnt{bitv} \, \ottkw{LE} \, \ottnt{bitv'}  \ottsym{=}  b}%
 }{
-\ottsym{[}   \ottnt{intv}    \leq    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \leq    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_le}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXge}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv} \, \ottkw{GE} \, \ottnt{intv'}  \ottsym{=}  b}%
+\ottpremise{\ottnt{bitv} \, \ottkw{GE} \, \ottnt{bitv'}  \ottsym{=}  b}%
 }{
-\ottsym{[}   \ottnt{intv}    \geq    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \geq    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_ge}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXlt}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{<}  \ottnt{intv'}  \ottsym{=}  b}%
+\ottpremise{\ottnt{bitv}  \ottsym{<}  \ottnt{bitv'}  \ottsym{=}  b}%
 }{
-\ottsym{[}   \ottnt{intv}    <    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    <    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_lt}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXgt}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{>}  \ottnt{intv'}  \ottsym{=}  b}%
+\ottpremise{\ottnt{bitv}  \ottsym{>}  \ottnt{bitv'}  \ottsym{=}  b}%
 }{
-\ottsym{[}   \ottnt{intv}    >    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    >    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_gt}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXneq}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv} \, \ottkw{NE} \, \ottnt{intv'}  \ottsym{=}  b}%
+\ottpremise{\ottnt{bitv} \, \ottkw{NE} \, \ottnt{bitv'}  \ottsym{=}  b}%
 }{
-\ottsym{[}   \ottnt{intv}    \neq    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \neq    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_neq}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXeq}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv} \, \ottkw{EQ} \, \ottnt{intv'}  \ottsym{=}  b}%
+\ottpremise{\ottnt{bitv} \, \ottkw{EQ} \, \ottnt{bitv'}  \ottsym{=}  b}%
 }{
-\ottsym{[}   \ottnt{intv}    =    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    =    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_eq}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXand}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{\&}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv}  \ottsym{\&}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}   \ottsym{\&}   \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}   \ottsym{\&}   \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_and}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXxor}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{\mbox{$\uparrow$}}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv}  \ottsym{\mbox{$\uparrow$}}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}    \underline{\vee}    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \underline{\vee}    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_xor}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXor}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{intv}  \ottsym{\mbox{$\mid$}}  \ottnt{intv'}  \ottsym{=}  \ottnt{intv''}}%
+\ottpremise{\ottnt{bitv}  \ottsym{\mbox{$\mid$}}  \ottnt{bitv'}  \ottsym{=}  \ottnt{bitv''}}%
 }{
-\ottsym{[}   \ottnt{intv}    \mid    \ottnt{intv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{intv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \ottnt{bitv}    \mid    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{bitv''}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_or}}{}%
 }}
 
