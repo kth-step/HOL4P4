@@ -101,7 +101,7 @@
 \newcommand{\otte}{
 \ottrulehead{\ottnt{e}}{::=}{\ottcom{expression}}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{v}}{}{}{}{\ottcom{constant value}}\ottprodnewline
-\ottprodline{|}{x}{}{}{}{\ottcom{variable name}}\ottprodnewline
+\ottprodline{|}{x}{}{}{}{\ottcom{variable or parser state name}}\ottprodnewline
 \ottprodline{|}{\ottsym{\{}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{\}}}{}{}{}{\ottcom{expression list}}\ottprodnewline
 \ottprodline{|}{\ottnt{e}  \ottsym{.}  \ottnt{e'}}{}{}{}{\ottcom{field access}}\ottprodnewline
 \ottprodline{|}{ \ominus   \ottnt{e} }{}{}{}{\ottcom{unary operation}}\ottprodnewline
@@ -239,8 +239,8 @@
 \ottprodline{|}{\ottnt{v}  \ottsym{=} \, \ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{access of field in header}}\ottprodnewline
 \ottprodline{|}{\ottnt{e}  \ottsym{=}  \ottnt{e\_list}  \ottsym{[}  i  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{e}  = \mathrm{hd} \,\,  \ottnt{e\_list} } {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{x'  \ottsym{=}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x  \ottsym{(}  \ottnt{v}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{access of string in select key-value list}}\ottprodnewline
-\ottprodline{|}{\ottnt{v} \, \ottkw{notin} \, \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x} {\textsf{M}}{}{}{\ottcom{default string in select key-value list}}\ottprodnewline
+\ottprodline{|}{ x'  = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) } {\textsf{M}}{}{}{\ottcom{access of string in select key-value list}}\ottprodnewline
+\ottprodline{|}{ \ottnt{v}  \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) } {\textsf{M}}{}{}{\ottcom{default string in select key-value list}}\ottprodnewline
 \ottprodline{|}{ b  = \mathrm{True} } {\textsf{M}}{}{}{\ottcom{condition true}}\ottprodnewline
 \ottprodline{|}{ b  = \mathrm{False} } {\textsf{M}}{}{}{\ottcom{condition false}}\ottprodnewline
 \ottprodline{|}{ \mathit{e}_1 , .. , \mathit{e}_n = \{ \} } {\textsf{M}}{}{}{\ottcom{function arguments empty}}\ottprodnewline
@@ -403,7 +403,7 @@
 
 
 \newcommand{\ottdruleeXXselXXacc}[1]{\ottdrule[#1]{%
-\ottpremise{x'  \ottsym{=}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x  \ottsym{(}  \ottnt{v}  \ottsym{)}}%
+\ottpremise{ x'  = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) }%
 }{
 \ottsym{[}  \ottkw{select} \, \ottnt{v}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  x'  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_sel\_acc}}{}%
@@ -411,7 +411,7 @@
 
 
 \newcommand{\ottdruleeXXselXXdef}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{v} \, \ottkw{notin} \, \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x}%
+\ottpremise{ \ottnt{v}  \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) }%
 }{
 \ottsym{[}  \ottkw{select} \, \ottnt{v}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  x  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_sel\_def}}{}%

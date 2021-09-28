@@ -208,7 +208,7 @@ e :: e_ ::=
 | v :: :: v
  {{com constant value}}
 | x :: :: var
-  {{ com variable name }}
+  {{ com variable or parser state name }}
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -234,10 +234,7 @@ e :: e_ ::=
   {{ com function execution }}
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
   {{ com select }}
-%select expression can only be used in parsers
-%e is the expression used to select result
-%the list consists of values that are matched to the evaluated expression
-% x is the default value (TODO: Should be optional)
+  % TODO: x is the default value of select expression, which should be optional
 | ( e ) :: X :: paren
   {{ hol ([[e]]) }}
 
@@ -562,9 +559,13 @@ formula :: formula_ ::=
 | x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
   {{ com access of string in select key-value list }}
   {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = SOME ([[v]], [[x']])) }}
-| v notin { v1 : x1 ; ... ; vn : xn } x :: M :: sel_def
+  %TODO: Hack due to lack of list comprehension for tex
+  {{ tex [[x']] = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) }}
+| v notin { v1 : x1 ; ... ; vn : xn } :: M :: sel_def
   {{ com default string in select key-value list }}
   {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = NONE) }}
+  %TODO: Hack due to lack of list comprehension for tex
+  {{ tex [[v]] \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) }}
 
 %Function argument resolution
 %TODO: Replace with expression list
@@ -1034,7 +1035,7 @@ by
   [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x' ] ( stacks , Running )
 
 %Case default
-  v notin { v1 : x1 ; ... ; vn : xn } x
+  v notin { v1 : x1 ; ... ; vn : xn }
   ----------------------------------- :: sel_def
   [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x ] ( stacks , Running )
 
@@ -1063,6 +1064,7 @@ by
   ----------------------------------- :: acc_arg1
   [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
 
+%Select
   [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: sel_arg
   [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , Running )
