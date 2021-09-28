@@ -607,6 +607,14 @@ formula :: formula_ ::=
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
+| ( x EQ x' ) = b :: M :: eq_error
+  {{ com equality over errors }}
+  {{ hol (([[x]] = [[x']]) = [[b]]) }}
+  {{ tex ([[x]] = [[x']]) = [[b]] }}
+| ( x <> x' ) = b :: M :: neq_error
+  {{ com inequality over errors }}
+  {{ hol (([[x]] <> [[x']]) = [[b]]) }}
+  {{ tex ([[x]] \neq [[x']]) = [[b]] }}
 | i' = i + 1 :: M :: num_inc
   {{ com numeral increment }}
   {{ hol ([[i']] = [[i]] + 1) }}
@@ -627,10 +635,10 @@ formula :: formula_ ::=
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
   {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
-| x = ParserError :: M :: pars_err
+| x = parseError :: M :: pars_err
   {{ com parser error literal }}
-  {{ hol ([[x]] = "ParserError") }}
-  {{ tex [[x]] = ``\mathit{ParserError}" }}
+  {{ hol ([[x]] = "parseError") }}
+  {{ tex [[x]] = ``\mathit{parseError}" }}
   %Dummy to keep syntax highlighting from freaking out: "
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
@@ -1195,12 +1203,20 @@ by
   ----------------------------------- :: neq
   [bitv NE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
+  (x <> x') = b
+  ----------------------------------- :: neq_error
+  [(errmsg x) NE (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
+
 %%%%%%%%%%%%%
 %Equal
 
   bitv EQ bitv' = b
   ----------------------------------- :: eq
   [bitv EQ bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+
+  (x EQ x') = b
+  ----------------------------------- :: eq_error
+  [(errmsg x) EQ (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
@@ -1369,7 +1385,7 @@ by
 
 %Case predicate does not hold
   %TODO: This assumption needed since we don't have string literals yet
-  x' = ParserError
+  x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
   [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks' , Running )

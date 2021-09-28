@@ -248,12 +248,14 @@
 \ottprodline{|}{\varepsilon  \ottsym{=}  \varepsilon'} {\textsf{M}}{}{}{\ottcom{curr_stack_frame equality}}\ottprodnewline
 \ottprodline{|}{E  \ottsym{=}  E'} {\textsf{M}}{}{}{\ottcom{call_stack equality}}\ottprodnewline
 \ottprodline{|}{ \ottnt{e\_list}  =  \ottnt{e\_list'} } {\textsf{M}}{}{}{\ottcom{args equality}}\ottprodnewline
+\ottprodline{|}{ ( x  =  x' ) =  b } {\textsf{M}}{}{}{\ottcom{equality over errors}}\ottprodnewline
+\ottprodline{|}{ ( x  \neq  x' ) =  b } {\textsf{M}}{}{}{\ottcom{inequality over errors}}\ottprodnewline
 \ottprodline{|}{ i'  =  i  + 1 } {\textsf{M}}{}{}{\ottcom{numeral increment}}\ottprodnewline
 \ottprodline{|}{ i  = \mathrm{len} \,\,  \ottnt{e\_list} } {\textsf{M}}{}{}{\ottcom{length of list}}\ottprodnewline
 \ottprodline{|}{ i  < \mathrm{len}(\mathit{e}) } {\textsf{M}}{}{}{\ottcom{numeral in range}}\ottprodnewline
 \ottprodline{|}{ \mathrm{is\_consts} \,\,  \ottnt{e\_list} } {\textsf{M}}{}{}{\ottcom{function arguments constant}}\ottprodnewline
 \ottprodline{|}{\ottnt{stmt}  \ottsym{=}  P  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{parser state map lookup}}\ottprodnewline
-\ottprodline{|}{ x  = ``\mathit{ParserError}" } {\textsf{M}}{}{}{\ottcom{parser error literal}}\ottprodnewline
+\ottprodline{|}{ x  = ``\mathit{parseError}" } {\textsf{M}}{}{}{\ottcom{parser error literal}}\ottprodnewline
 \ottprodline{|}{ \ottnt{v}  = \mathrm{lookup\_lval} ( \varepsilon ,  \ottnt{lval} ) } {\textsf{M}}{}{}{\ottcom{instantaneous lookup of lvals}}\ottprodnewline
 \ottprodline{|}{\ottnt{v''}  \ottsym{=}  \ottsym{(} \, \ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{with} \, x  \ottsym{:=}  \ottnt{v}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{update of struct field}}\ottprodnewline
 \ottprodline{|}{\ottnt{v''}  \ottsym{=}  \ottsym{(} \, \ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{with} \, x  \ottsym{:=}  \ottnt{v}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{update of struct field}}\ottprodnewline
@@ -261,13 +263,10 @@
 \ottprodline{|}{ x  = ``\mathit{accept}" } {\textsf{M}}{}{}{\ottcom{x is accept}}\ottprodnewline
 \ottprodline{|}{ x  = ``\mathit{reject}" } {\textsf{M}}{}{}{\ottcom{x is reject}}}
 
-\newcommand{\otteXXsem}{
-\ottrulehead{\ottnt{e\_sem}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  t  \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  t'  \ottsym{)}}{}{}{}{\ottcom{expression semantics}}}
-
-\newcommand{\ottstmtXXsem}{
-\ottrulehead{\ottnt{stmt\_sem}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'}{}{}{}{\ottcom{statement semantics}}}
+\newcommand{\otteXXstmtXXsem}{
+\ottrulehead{\ottnt{e\_stmt\_sem}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  t  \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  t'  \ottsym{)}}{}{}{}{\ottcom{expression semantics}}\ottprodnewline
+\ottprodline{|}{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'}{}{}{}{\ottcom{statement semantics}}}
 
 \newcommand{\ottparsXXsem}{
 \ottrulehead{\ottnt{pars\_sem}}{::=}{}\ottprodnewline
@@ -279,8 +278,7 @@
 
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{e\_sem}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{stmt\_sem}}{}{}{}{}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{e\_stmt\_sem}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{pars\_sem}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{pars\_t\_sem}}{}{}{}{}}
 
@@ -341,8 +339,7 @@
 \ottstate\ottinterrule
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
-\otteXXsem\ottinterrule
-\ottstmtXXsem\ottinterrule
+\otteXXstmtXXsem\ottinterrule
 \ottparsXXsem\ottinterrule
 \ottparsXXtXXsem\ottinterrule
 \ottjudgement\ottinterrule
@@ -350,7 +347,7 @@
 }}
 
 % defnss
-% defns e_sem
+% defns e_stmt_sem
 %% defn e_red
 \newcommand{\ottdruleeXXlookup}[1]{\ottdrule[#1]{%
 \ottpremise{ i = \mathrm{max} \, \{ j . \,\,  x   \in \mathrm{dom} (  \varepsilon  [j] )   \} }%
@@ -610,11 +607,27 @@
 }}
 
 
+\newcommand{\ottdruleeXXneqXXerror}[1]{\ottdrule[#1]{%
+\ottpremise{ ( x  \neq  x' ) =  b }%
+}{
+\ottsym{[}   \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}    \neq    \ottsym{(}  \ottkw{errmsg} \, x'  \ottsym{)}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{e\_neq\_error}}{}%
+}}
+
+
 \newcommand{\ottdruleeXXeq}[1]{\ottdrule[#1]{%
 \ottpremise{\ottnt{bitv} \, \ottkw{EQ} \, \ottnt{bitv'}  \ottsym{=}  b}%
 }{
 \ottsym{[}   \ottnt{bitv}    =    \ottnt{bitv'}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{e\_eq}}{}%
+}}
+
+
+\newcommand{\ottdruleeXXeqXXerror}[1]{\ottdrule[#1]{%
+\ottpremise{ ( x  =  x' ) =  b }%
+}{
+\ottsym{[}   \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}    =    \ottsym{(}  \ottkw{errmsg} \, x'  \ottsym{)}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{e\_eq\_error}}{}%
 }}
 
 
@@ -689,7 +702,9 @@
 \ottusedrule{\ottdruleeXXlt{}}
 \ottusedrule{\ottdruleeXXgt{}}
 \ottusedrule{\ottdruleeXXneq{}}
+\ottusedrule{\ottdruleeXXneqXXerror{}}
 \ottusedrule{\ottdruleeXXeq{}}
+\ottusedrule{\ottdruleeXXeqXXerror{}}
 \ottusedrule{\ottdruleeXXand{}}
 \ottusedrule{\ottdruleeXXxor{}}
 \ottusedrule{\ottdruleeXXor{}}
@@ -697,11 +712,6 @@
 \ottusedrule{\ottdruleeXXbinXXor{}}
 \end{ottdefnblock}}
 
-
-\newcommand{\ottdefnseXXsem}{
-\ottdefneXXred{}}
-
-% defns stmt_sem
 %% defn stmt_red
 \newcommand{\ottdrulestmtXXret}[1]{\ottdrule[#1]{%
 \ottpremise{ { \gamma }_G   \ottsym{=}  \varepsilon  \ottsym{[}  0  \ottsym{]}}%
@@ -820,7 +830,7 @@
 
 
 \newcommand{\ottdrulestmtXXverifyXXFour}[1]{\ottdrule[#1]{%
-\ottpremise{ x'  = ``\mathit{ParserError}" }%
+\ottpremise{ x'  = ``\mathit{parseError}" }%
 \ottpremise{ x''  = ``\mathit{reject}" }%
 }{
 \ottsym{[}  \ottkw{verify} \, \ottkw{false} \, \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   x'  \mathrel{\mathop:}=  \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}   \ottsym{;}   \mathbf{transition}\,  x''   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
@@ -927,8 +937,8 @@
 \end{ottdefnblock}}
 
 
-\newcommand{\ottdefnsstmtXXsem}{
-\ottdefnstmtXXred{}}
+\newcommand{\ottdefnseXXstmtXXsem}{
+\ottdefneXXred{}\ottdefnstmtXXred{}}
 
 % defns pars_sem
 %% defn pars_red
@@ -985,8 +995,7 @@
 \ottdefnparsXXtXXred{}}
 
 \newcommand{\ottdefnss}{
-\ottdefnseXXsem
-\ottdefnsstmtXXsem
+\ottdefnseXXstmtXXsem
 \ottdefnsparsXXsem
 \ottdefnsparsXXtXXsem
 }
