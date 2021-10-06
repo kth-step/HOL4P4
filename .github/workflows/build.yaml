@@ -1,0 +1,47 @@
+name: build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        polyml: ['v5.8.1']
+        hol4: ['kananaskis-14']
+        
+    env:
+      CACHE_DIR: /home/runner/cache
+      POLYML_VERSION: ${{ matrix.polyml }}
+      HOL4_VERSION: ${{ matrix.hol4 }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Cache dependencies
+        id: cache-deps
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${CACHE_DIR}
+          key: os-${{ runner.os }}_polyml-${{ matrix.polyml }}_hol4-${{ matrix.hol4 }}
+
+      - name: Prepare cached dependencies
+        timeout-minutes: 35
+        run: |
+          ./.github/scripts/install_polyml.sh
+          ./.github/scripts/install_hol4.sh
+
+      - name: Prepare OCaml
+        uses: ocaml/setup-ocaml@v2
+        with:
+          ocaml-compiler: 4.13.x
+
+      - name: Prepare Ott
+        run: opam install ott
+        
+      - name: Export Ott files to HOL4 and run Holmake
+        run: eval "$(opam env)" && export PATH=$PATH:${CACHE_DIR}/hol4_${{ matrix.hol4 }}/bin && make hol
