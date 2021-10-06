@@ -266,6 +266,7 @@ e_list :: e_list_ ::=
   {{ hol ([[e_list]]) }}
 
 
+
 %%%%%%%%%%%%%%
 % Statements %
 %%%%%%%%%%%%%%
@@ -409,7 +410,7 @@ status {{ tex t }}:: status_ ::=
   {{ tex { \bot } }}
 
 scope {{ tex \gamma }} :: scope_ ::=
-{{ hol (string |-> v) }}
+{{ hol (string |-> (v # string option)) }}
 {{ com frame/variable environment of current scope }}
 | emptyscope :: M :: empty
   {{ com empty stack frame }}
@@ -629,8 +630,9 @@ formula :: formula_ ::=
 | e = hd e_list :: M :: args_hd
   {{ hol ([[e]] = HD [[e_list]]) }}
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
-| v = lookup_v ( curr_stack_frame , e ) :: :: lookup_v
+| v = lookup_vexp ( curr_stack_frame , e ) :: :: lookup_v
   {{ tex [[v]] = \mathrm{lookup_v} ([[curr_stack_frame]], [[e]]) }}
+  {{ hol [[v]] =  lookup_vexp [[curr_stack_frame]] [[e]]}}
 | ( v , a ) = lookup_t ( curr_stack_frame , x ) :: :: lookup_t
   {{ tex ([[v]] , [[a]]) = \mathrm{lookup_t} ([[curr_stack_frame]], [[x]]) }}
 
@@ -648,7 +650,7 @@ formula :: formula_ ::=
   {{ com check parameters if isvar or isconst }}
   {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[direction_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
   ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
-
+  {{ hol (all_arg_check [[direction_list]] [[e_list]])}}
 %some operations on the direction list  
 | direction = direction_list [ i ] :: M :: direction_index
   {{ hol ([[direction]] = EL [[i]] [[direction_list]]) }}
@@ -658,6 +660,7 @@ formula :: formula_ ::=
   {{ tex [[direction]] = \mathrm{hd} \,\, [[direction_list]] }} 
 | extract_arg_index direction_list e_list = i :: :: parameter_index
   {{ tex i = \mathrm{min} \, \{ j . \,\, [[direction_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (extract_arg_index [[direction_list]] [[e_list]] = i)}}
 
 %Conditions
 %TODO: Remove, with new separate "bool" definition?
@@ -743,18 +746,32 @@ formula :: formula_ ::=
 %    (SOME [[v]] = FLOOKUP (EL (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]]))) [[curr_stack_frame]]) [[x]])
 %TODO Make variable that is a list of strings? Or make variable that is list of tuples of directions and strings?
 %TODO fix hardcoded length n
-| build_scope direction_list scope e_list ( x1 , ... , xn ) :: :: build_scope
+| update_scope curr_stack_frame v x = curr_stack_frame' :: M :: scope_update
+{{ hol (update_scope [[curr_stack_frame]] [[v]] [[x]] = [[curr_stack_frame']]) }}
+{{ tex  [[curr_stack_frame']] =  [[curr_stack_frame]] [ [[x]] \longmapsto [[v]] ] }}
+
+
+
+
+| scope = all_arg_update_for_newscope ( ( x1 , .. , xn ) , direction_list , e_list , curr_stack_frame ) :: M :: build_scope
   {{ com build new scope }}
-    {{ tex \forall d,\, e,\, x,\, i \leqslant n . \, x = [x_1 , ... , x_n] [i] \land e = [[e_list]] [i] \land d = [[direction_list]] [i] \implies [[scope]](x) = 
+    {{ tex \forall d,\, e,\, x,\, i \leqslant n . \, x = [x_1 , ... , x_n] [i] \land 
+    \, e = [e_1 , ... , e_n] [i] \land 
+    \, d = [d_1 , ... , d_n] [i] 
+    \implies [[scope]](x) = 
                \begin{cases}
-               (\mathrm{lookup_v}(\varepsilon, e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \}             
+               (\mathrm{lookup_v}( \varepsilon , e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \}             
                \\ (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
                \end{cases}   }}
-%TODO fix hardcoded length n
-| curr_stack_frame'' = updateframe ( curr_stack_frame , curr_stack_frame' , direction_list , ( x1 , .. , xn ) ) :: :: updateframe
+ {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[direction_list]] [[e_list]] [[curr_stack_frame]]) }}
+
+
+%TODO: fix the \varepsilon and e list in the latex output. 
+| curr_stack_frame'' = return_frame ( curr_stack_frame , curr_stack_frame' , direction_list , ( x1 , .. , xn ) ) :: :: return_frame
 {{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
                                 \mathrm{if}  [[direction_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
                                 \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n]}}
+{{ hol ([[curr_stack_frame'']] = return_frame [[x1 .. xn]] [[direction_list]] [[curr_stack_frame']] [[curr_stack_frame]]  ) }}
 %TODO: Review if "is_const" is needed...
 embed
 {{ hol
@@ -811,12 +828,15 @@ val extract_string_def = Define `
 (extract_string (e_var x) = x)
 `;
 
+val extract_value_def = Define `
+(extract_value (e_v x) = x)
+`;
 
 
 (* finds a tuple (index, scope) that represents the lowest scope that has info about variable name x*)
 val find_lowest_scope_def = Define `
 find_lowest_scope (sf:scope list) (x) =
- (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc ( x))) sf )
+ (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc (x))) sf )
 `;
 
 
@@ -836,7 +856,7 @@ FST (THE (find_lowest_scope sf x))
 (* fetches the value of the variable name x from the proper lowest scope *)
 val lookup_v_def = Define `
 lookup_v (sf:scope list) x =
-THE (FLOOKUP (lowest_scope sf x) x)
+FST (THE (FLOOKUP (lowest_scope sf x) x))
 `;
 
 val lookup_vexp_def = Define `
@@ -844,6 +864,11 @@ lookup_vexp (sf:scope list) expr =
 lookup_v (sf:scope list) (extract_string(expr)) 
 `;
 
+(* fetches the tuple that the variable name is mapped to *)
+val lookup_t_def = Define `
+lookup_t (sf:scope list) x =
+THE (FLOOKUP (lowest_scope sf x) x)
+`;
 
 (* represents minumum argument  where the direction is none and in in d list and the expresstion in the same position is not a constant
 it will return (index, direction, expression)*)
@@ -871,6 +896,53 @@ val all_arg_check_def = Define `
 
 
 
+(*it takes an expression (should be a e_var or e_v), a direction and a scope. It looks up for 
+the proper tuple to be be assigned later in the new fresh scope when the funtion is called*)
+val one_arg_val_for_newscope_def = Define `
+  one_arg_val_for_newscope d e sf =
+   if (~ is_direction_none_in d) then ((lookup_vexp sf e), SOME (extract_string (e)))
+    else (extract_value(e), NONE)
+`;
+
+
+(*create a new scope, and fill it with the new values of the arguments of teh function. Note: used in e_func_call_newframe *)
+val all_arg_update_for_newscope_def = Define `
+  all_arg_update_for_newscope xlist dlist elist sf = 
+    FOLDL (\f . \(d,x,e). (f |+ (x , one_arg_val_for_newscope d e sf))) FEMPTY (ZIP (dlist : direction list, ZIP(xlist,elist : e list)) )
+`;
+
+
+(* operation ε' = ε[a -> v] updates the scope where the variable name a to the value v,
+note that this value will be used in assignment and in return rules *)
+val update_scope_def = Define `
+  update_scope sf val a =
+  LUPDATE
+  ((lowest_scope sf (a)) |+ (a , one_arg_val_for_newscope direction_none (e_v val) sf))
+  (lowest_scope_index sf a)
+  (sf)
+`;
+
+
+(*frame return deinition*)
+val return_frame_def = Define `
+  return_frame (xlist: string list) (dlist: direction list) sf sf_current = 
+   (
+   FOLDL
+   (\sf_temp. (\(x,d).
+     (
+     if (is_direction_none_in d)
+     then
+       sf_temp
+     else
+       update_scope sf_temp (FST(lookup_t sf_current x )) (THE (SND(lookup_t sf_current x )))
+     )
+   ))
+   sf
+   (ZIP(xlist, dlist))
+   )
+`;
+
+
 
 
 
@@ -895,9 +967,10 @@ by
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
-  find_index_max ( curr_stack_frame, x ) = i
-  scope = curr_stack_frame [ i ]
-  v = scope ( x )
+  %find_index_max ( curr_stack_frame, x ) = i
+  %scope = curr_stack_frame [ i ]
+  %v = scope ( x )
+  v = lookup_vexp ( curr_stack_frame , x )
   ----------------------------------- :: lookup
   [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
 
@@ -908,7 +981,7 @@ by
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
   all_arg_check [ direction1 , .. , directionn ] [ e1 , .. , en ]
   %frame build
-  build_scope [ direction1 , .. , directionn ] scope' [ e1 , .. , en ] ( x1 , .. , xn )
+  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ direction1 , .. , directionn ] , [ e1 , .. , en ] , curr_stack_frame )  
   G scope = curr_stack_frame[0]
   curr_stack_frame' = scope' :: [G scope]
   curr_stack_frame'' = tl curr_stack_frame
@@ -1186,7 +1259,7 @@ by
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ G scope ] )
-  curr_stack_frame''' = updateframe ( curr_stack_frame , curr_stack_frame'' , [ direction1 , .. , directionn ] , ( x1 , .. , xn ) )
+  curr_stack_frame''' = return_frame ( curr_stack_frame , curr_stack_frame'' , [ direction1 , .. , directionn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: ret
   [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
 
@@ -1194,9 +1267,7 @@ by
 %Assignment
 
   %Assign a constant to a variable
-  find_index_max ( curr_stack_frame , x ) = i
-  scope = curr_stack_frame [ i ]
-  curr_stack_frame' = update ( scope + [ x |-> v ] , i , curr_stack_frame )
+  update_scope curr_stack_frame v x = curr_stack_frame'
   ----------------------------------- :: ass_v
   [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
