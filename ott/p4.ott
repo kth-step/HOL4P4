@@ -27,13 +27,6 @@ metavar bl ::=
       {{ tex [[bl]] }}
       {{ com bit-string }}
 
-%meta variable for direction
-metavar d ::=
-      {{ lex alphanum }}
-      {{ hol string }}
-      {{ tex [[d]] }}
-      {{ com direction }}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Auxiliary metavariables %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -238,8 +231,6 @@ e :: e_ ::=
   {{ com bit-slice }}
 | call f ( e1 , .. , en ) :: :: func_call
   {{ com function call }}
-  %TODO: Elaborate on "exp_func_call"
-  {{ hol (exp_func_call [[f]] [[e1 .. en]]) }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
@@ -247,14 +238,6 @@ e :: e_ ::=
   % TODO: x is the default value of select expression, which should be optional
 | ( e ) :: X :: paren
   {{ hol ([[e]]) }}
-
-
-genname :: genname_ ::=
-{{ com generalised name }}
-| bot :: :: bot
- {{ tex \bot }}
-| name x :: :: name
- {{ tex [[x]] }} 
 
 %TODO: Trying to make a new definition for expression lists (mainly for function
 %      arguments) proved problematic.
@@ -310,8 +293,8 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 | Reject :: :: reject
   {{ com rejected state }}
 
-match_kind {{ tex match\_kind }} :: match_kind_ ::=
-%{{ com matching kinds }}
+match_kind {{ tex {\mathit{match\_kind} }} :: match_kind_ ::=
+{{ com matching kinds }}
 | exact :: :: exact
   {{ tex exact }}
 | ternary :: :: ternary
@@ -357,13 +340,13 @@ stmt :: stmt_ ::=
 | transition e :: :: trans
   % e should evaluate to a parser state name
   {{ com transition }}
-  {{ tex \mathbf{transition}\, [[pars_next]] }}
+  {{ tex \mathbf{transition}\, [[e]] }}
 | apply table_name e :: :: app
-  % x is the table name that should be applied
+  % table_name is the table name that should be applied
   {{ com apply}}
   {{ tex \mathbf{apply} \, [[table_name]] \, [[e]]}}
 
-direction {{ tex d }} :: direction_ ::=
+d {{ tex d }} :: d_ ::=
 {{ com the direction of the calling convention }}
 | in :: :: in
   {{ tex \downarrow }}
@@ -372,33 +355,56 @@ direction {{ tex d }} :: direction_ ::=
 | inout :: :: inout
   {{ tex \updownarrow }}
 | none :: :: none
-  {{ tex \circ }}  
+  {{ tex \circ }}
 
-direction_list :: direction_list_ ::=
+%Fence between d and d_list
+embed
+{{ hol
+
+}}
+grammar 
+
+d_list :: d_list_ ::=
 {{ com list of directions }}
-{{ hol (direction list) }}
+{{ hol (d list) }}
 | empty_el :: M :: empty
   {{ com empty direction list }}
-  {{ hol ([]:direction list) }}
-| [ direction1 , .. , directionn ] :: M :: directions
+  {{ hol ([]:d list) }}
+| [ d1 , .. , dn ] :: M :: ds
   {{ com list of directions }}
-  {{ hol ([[direction1 .. directionn]]) }}
-| ( direction_list ) :: S :: paren
-  {{ hol ([[direction_list]]) }}
-| direction_list ++ direction_list' :: M :: append
+  {{ hol ([[d1 .. dn]]) }}
+| ( d_list ) :: S :: paren
+  {{ hol ([[d_list]]) }}
+| d_list ++ d_list' :: M :: append
   {{ com append two e_lists }}
-  {{ hol ([[direction_list]] ++ [[direction_list']]) }}
+  {{ hol ([[d_list]] ++ [[d_list']]) }}
 
 
 func_map {{ tex F }} :: func_map_ ::=
 {{ com function map  }}
-{{ hol (string |-> (stmt # (string, direction) list)) }}
+{{ hol (string |-> (stmt # (string # d) list)) }}
 | empty :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 | func_map + [ x |-> stmt ] :: M :: update
   {{ com update variable mapping }}
   {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
+
+% TODO: Could be just an abbreviation, since it's never changed...
+ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
+{{ com control plane }}
+{{ hol ((string # v # match_kind) |-> (string # e_list)) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just an abbreviation, since it's never changed...
+t_map {{ tex {Tb} }} :: t_map_ ::=
+{{ com table map  }}
+{{ hol (string |-> (e # match_kind)) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  {{ hol FEMPTY }}
 
 % TODO: Could be just an abbreviation, since it's never changed...
 pars_map {{ tex P }} :: pars_map_ ::=
@@ -518,7 +524,14 @@ called_function_name {{ tex F_n }} :: called_function_name_ ::=
 | bot :: :: bot
   {{ tex \bot }}
 | f :: :: function_name
-  {{ tex [[f]] }}  
+  {{ tex [[f]] }}
+
+%Fence so that ott does not re-order called_function_name
+embed
+{{ hol
+
+}}
+grammar  
 
 call_stack {{ tex E }} :: call_stack_ ::=
 {{ com stack of caller stack frames }}
@@ -624,9 +637,9 @@ formula :: formula_ ::=
   {{ tex [[curr_stack_frame]] = \mathrm{hd} [[call_stack]] }}
 | scope = curr_stack_frame [ i ] :: M :: curr_stack_frame_index
   {{ hol ([[scope]] = EL [[i]] [[curr_stack_frame]]) }}
-| ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f ) :: M :: func_lookup
+| ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f ) :: M :: func_lookup
   {{ com function signature lookup }}
-  {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 direction1 .. xn directionn]])) }}
+  {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
 | find_index_max ( curr_stack_frame , x ) = i :: M :: find_index_scope_max
   {{ com find max index of variable's scope }}
   %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
@@ -677,24 +690,24 @@ formula :: formula_ ::=
 %  {{ hol (([[v_list]] ++ [[e_list']]) = [[e_list]]) }}
 
 % in the subsets, x denotes direction
-| direction_list subset { none , in } :: :: isnot_copyin
+| d_list subset { none , in } :: :: isnot_copyin
   {{ com are the directions in or none  }}
-  {{ tex \forall i . \, d_i \in [[direction_list]] \implies d_i \in \{\circ , \downarrow\} }}
-| all_arg_check direction_list e_list :: :: signature_check  
+  {{ tex \forall i . \, d_i \in [[d_list]] \implies d_i \in \{\circ , \downarrow\} }}
+| all_arg_check d_list e_list :: :: signature_check  
   {{ com check parameters if isvar or isconst }}
-  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[direction_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
   ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
-  {{ hol (all_arg_check [[direction_list]] [[e_list]])}}
+  {{ hol (all_arg_check [[d_list]] [[e_list]])}}
 %some operations on the direction list  
-| direction = direction_list [ i ] :: M :: direction_index
-  {{ hol ([[direction]] = EL [[i]] [[direction_list]]) }}
-  {{ tex [[direction]] = [[direction_list]] [[i]]}}  
-| direction = hd direction_list :: M :: direction_hd
-  {{ hol ([[direction]] = HD [[direction_list]]) }}
-  {{ tex [[direction]] = \mathrm{hd} \,\, [[direction_list]] }} 
-| extract_arg_index direction_list e_list = i :: :: parameter_index
-  {{ tex i = \mathrm{min} \, \{ j . \,\, [[direction_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
-  {{ hol (extract_arg_index [[direction_list]] [[e_list]] = i)}}
+| d = d_list [ i ] :: M :: d_index
+  {{ hol ([[d]] = EL [[i]] [[d_list]]) }}
+  {{ tex [[d]] = [[d_list]] [[i]]}}  
+| d = hd d_list :: M :: d_hd
+  {{ hol ([[d]] = HD [[d_list]]) }}
+  {{ tex [[d]] = \mathrm{hd} \,\, [[d_list]] }} 
+| extract_arg_index d_list e_list = i :: :: parameter_index
+  {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (extract_arg_index [[d_list]] [[e_list]] = i)}}
 
 %Conditions
 %TODO: Remove, with new separate "bool" definition?
@@ -730,12 +743,14 @@ formula :: formula_ ::=
   {{ tex [[e_list]] = [[e_list']] }}
 
 %Apply table
-| t_map  (table_name) = ( e , match_kind ) :: :: find_key
- {{ com find keys and the matching kind }}
- {{ tex \mathrm{t\_map}\, [[table_name]]\, =\, ( [[e]] \, , [[match_kind]] )}}
-| ctrl  ( table_name , v , match_kind ) = ( f , e_list ) :: :: ctrl_plane  
-  {{ com fetch from ctrl plave the function name and parameters}}
-  {{ tex \mathrm{ctrl}\, ([[table_name]], \, [[v]], \, [[match_kind]]\, ) = \,( f , [[e_list]] )}}
+| t_map ( table_name ) = ( e , match_kind ) :: :: find_key
+  {{ com find keys and the matching kind in the table map }}
+  {{ tex \mathrm{t\_map}\, [[table_name]]\, =\, ( [[e]] \, , [[match_kind]] ) }}
+  {{ hol ( FLOOKUP [[t_map]] [[table_name]] = SOME ( [[e]] , [[match_kind]] ) ) }}
+| ctrl ( table_name , v , match_kind ) = ( f , e_list ) :: :: ctrl_plane  
+  {{ com fetch the function name and parameters from the ctrl plane }}
+  {{ tex \mathrm{ctrl}\, ( [[table_name]] , \, [[v]], \, [[match_kind]]\, ) = \,( [[f]] , [[e_list]] ) }}
+  {{ hol ( FLOOKUP [[ctrl]] ( [[table_name]] , [[v]] , [[match_kind]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
 %MISC (TODO)
 %TODO: Equalities and inequalities on numerals
@@ -800,7 +815,7 @@ formula :: formula_ ::=
 {{ hol (update_scope [[curr_stack_frame]] [[v]] [[x]] = [[curr_stack_frame']]) }}
 {{ tex  [[curr_stack_frame']] =  [[curr_stack_frame]] [ [[x]] \longmapsto [[v]] ] }}
 
-| scope = all_arg_update_for_newscope ( ( x1 , .. , xn ) , direction_list , e_list , curr_stack_frame ) :: M :: build_scope
+| scope = all_arg_update_for_newscope ( ( x1 , .. , xn ) , d_list , e_list , curr_stack_frame ) :: M :: build_scope
   {{ com build new scope }}
     {{ tex \forall d,\, e,\, x,\, i \leqslant n . \, x = [x_1 , ... , x_n] [i] \land 
     \, e = [e_1 , ... , e_n] [i] \land 
@@ -810,14 +825,14 @@ formula :: formula_ ::=
                (\mathrm{lookup_v}( \varepsilon , e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \}             
                \\ (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
                \end{cases}   }}
- {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[direction_list]] [[e_list]] [[curr_stack_frame]]) }}
+ {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[curr_stack_frame]]) }}
 
 %TODO: fix the \varepsilon and e list in the latex output. 
-| curr_stack_frame'' = return_frame ( curr_stack_frame , curr_stack_frame' , direction_list , ( x1 , .. , xn ) ) :: :: return_frame
+| curr_stack_frame'' = return_frame ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: :: return_frame
 {{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
-                                \mathrm{if}  [[direction_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
+                                \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
                                 \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n]}}
-{{ hol ([[curr_stack_frame'']] = return_frame [[x1 .. xn]] [[direction_list]] [[curr_stack_frame']] [[curr_stack_frame]]  ) }}
+{{ hol ([[curr_stack_frame'']] = return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]  ) }}
 
 
 %TODO: Review if "is_const" is needed...
@@ -849,7 +864,7 @@ val get_lval_fields_def = Define `
     (get_lval_fields lval = REVERSE (get_lval_fields_rev lval))
 `;
 *)
-(* Look up the value of a variable x in the current stack frame sf *)
+(* Look up the (value, string option) tuple of a variable x in the current stack frame sf *)
 val lookup_def = Define `
     (lookup (sf:scope list) x = THE (FLOOKUP (EL (FST (THE (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) sf))) sf) x)
     )
@@ -857,7 +872,7 @@ val lookup_def = Define `
 (* Look up the value of a l-value (variables + fields of struct-valued variables) in
  * the current stack frame sf. *)
 val lookup_lval_def = Define `
-    (lookup_lval (sf:scope list) (lval_varname x) = (lookup sf x))
+    (lookup_lval (sf:scope list) (lval_varname x) = FST (lookup sf x))
 /\  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
 `;
 
@@ -1131,10 +1146,10 @@ val is_var_def = Define `
 /\  ( is_var _ = F)
 `;
 
-val is_direction_none_in_def = Define `
-  (is_direction_none_in direction_in = T) /\
-  (is_direction_none_in direction_none = T) /\
-  (is_direction_none_in _ = F)
+val is_d_none_in_def = Define `
+  (is_d_none_in (d_in _) = T) /\
+  (is_d_none_in d_none = T) /\
+  (is_d_none_in _ = F)
 `;
 
 (* definition to extract the sting represents the variable name from the expression form*)
@@ -1188,7 +1203,7 @@ THE (FLOOKUP (lowest_scope sf x) x)
 it will return (index, direction, expression)*)
 val min_arg_def = Define `
   min_arg dlist elist = 
-  (INDEX_FIND 0 (\(d, e). (is_direction_none_in d) /\ ~(is_const e)) (ZIP (dlist, elist)))
+  (INDEX_FIND 0 (\(d, e). (is_d_none_in d) /\ ~(is_const e)) (ZIP (dlist, elist)))
 `;
 
 val extract_arg_index_def = Define `
@@ -1201,7 +1216,7 @@ FST (THE (min_arg dlist elist))
 (* in e_func_call_newframe rule, we need this definition to show the second premise*)
 val one_arg_check_def = Define `
   one_arg_check d e = 
-   ((is_direction_none_in d ==> (is_const e)) /\ (~(is_direction_none_in d) ==> (is_var e)) = T)
+   ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_var e)) = T)
 `;
 
 val all_arg_check_def = Define `
@@ -1214,7 +1229,7 @@ val all_arg_check_def = Define `
 the proper tuple to be be assigned later in the new fresh scope when the funtion is called*)
 val one_arg_val_for_newscope_def = Define `
   one_arg_val_for_newscope d e sf =
-   if (~ is_direction_none_in d) then ((lookup_vexp sf e), SOME (extract_string (e)))
+   if (~ is_d_none_in d) then ((lookup_vexp sf e), SOME (extract_string (e)))
     else (extract_value(e), NONE)
 `;
 
@@ -1222,7 +1237,7 @@ val one_arg_val_for_newscope_def = Define `
 (*create a new scope, and fill it with the new values of the arguments of teh function. Note: used in e_func_call_newframe *)
 val all_arg_update_for_newscope_def = Define `
   all_arg_update_for_newscope xlist dlist elist sf = 
-    FOLDL (\f . \(d,x,e). (f |+ (x , one_arg_val_for_newscope d e sf))) FEMPTY (ZIP (dlist : direction list, ZIP(xlist,elist : e list)) )
+    FOLDL (\f . \(d,x,e). (f |+ (x , one_arg_val_for_newscope d e sf))) FEMPTY (ZIP (dlist : d list, ZIP(xlist,elist : e list)) )
 `;
 
 
@@ -1231,7 +1246,7 @@ note that this value will be used in assignment and in return rules *)
 val update_scope_def = Define `
   update_scope sf val a =
   LUPDATE
-  ((lowest_scope sf (a)) |+ (a , one_arg_val_for_newscope direction_none (e_v val) sf))
+  ((lowest_scope sf (a)) |+ (a , one_arg_val_for_newscope d_none (e_v val) sf))
   (lowest_scope_index sf a)
   (sf)
 `;
@@ -1239,12 +1254,12 @@ val update_scope_def = Define `
 
 (*frame return deinition*)
 val return_frame_def = Define `
-  return_frame (xlist: string list) (dlist: direction list) sf sf_current = 
+  return_frame (xlist: string list) (dlist: d list) sf sf_current = 
    (
    FOLDL
    (\sf_temp. (\(x,d).
      (
-     if (is_direction_none_in d)
+     if (is_d_none_in d)
      then
        sf_temp
      else
@@ -1292,10 +1307,10 @@ by
 %Function call + exec (in expression)
 
   %Resolving arguments to function call - assigning arguments to new stack frame
-  ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  all_arg_check [ direction1 , .. , directionn ] [ e1 , .. , en ]
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  all_arg_check [ d1 , .. , dn ] [ e1 , .. , en ]
   %frame build
-  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ direction1 , .. , directionn ] , [ e1 , .. , en ] , curr_stack_frame )  
+  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame )  
   G scope = curr_stack_frame[0]
   curr_stack_frame' = scope' :: [G scope]
   curr_stack_frame'' = tl curr_stack_frame
@@ -1343,8 +1358,8 @@ by
 
 %Resolving arguments to function call - reduction
   %TODO: force e_list'' to be non-empty?
-  ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
-  extract_arg_index [ direction1 , .. , directionn ] [ e1 , .. , en ] = i
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  extract_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
   [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
@@ -1602,9 +1617,9 @@ by
 
   G scope = curr_stack_frame [ 0 ]
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
-  ( stmt , ( x1 , direction1 ) , .. , ( xn , directionn ) ) = func_map ( f )
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ G scope ] )
-  curr_stack_frame''' = return_frame ( curr_stack_frame , curr_stack_frame'' , [ direction1 , .. , directionn ] , ( x1 , .. , xn ) )
+  curr_stack_frame''' = return_frame ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: ret
   [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
 
