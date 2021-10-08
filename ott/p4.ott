@@ -260,7 +260,7 @@ e_list :: e_list_ ::=
   {{ com bracketed list of expressions }}
   {{ hol ([[e1 .. en]]) }}
 | e_list ++ e_list' :: M :: append
-  {{ com append two e_lists }}
+  {{ com append two expression lists }}
   {{ hol ([[e_list]] ++ [[e_list']]) }}
 | update ( e , i , e_list ) :: M :: update
   {{ com update entry of expression list }}
@@ -293,7 +293,7 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 | Reject :: :: reject
   {{ com rejected state }}
 
-match_kind {{ tex {\mathit{match\_kind} }} :: match_kind_ ::=
+match_kind {{ tex \mathit{match\_kind} }} :: match_kind_ ::=
 {{ com matching kinds }}
 | exact :: :: exact
   {{ tex exact }}
@@ -790,7 +790,7 @@ formula :: formula_ ::=
 | v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
-  {{ tex [[v]] = \mathrm{lookup\_lval} ([[curr_stack_frame]], [[lval]]) }}
+  {{ tex [[v]] = { \mathrm{lookup} }_{ \mathrm{lval} } ([[curr_stack_frame]], [[lval]]) }}
 | v'' = ( struct { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: s_fld_upd
   {{ com update of struct field }}
   {{ hol ([[v'']] = v_struct (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}

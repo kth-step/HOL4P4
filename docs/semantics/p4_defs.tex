@@ -30,7 +30,6 @@
  $ x ,\, f ,\, msg ,\, a ,\, table\_name $ & \ottcom{string} \\
  $ b $ & \ottcom{boolean} \\
  $ bl $ & \ottcom{bit-string} \\
- $ d $ & \ottcom{direction} \\
  $ i $ & \ottcom{natural number} \\
  $ \ottmv{m} ,\, \ottmv{n} ,\, \ottmv{o} $ & \ottcom{indices} \\
 }}
@@ -116,17 +115,12 @@
 \ottprodline{|}{\ottkw{select} \, \ottnt{e}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x}{}{}{}{\ottcom{select}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \ottnt{e}  \ottsym{)}}{}{}{}{}}
 
-\newcommand{\ottgenname}{
-\ottrulehead{\ottnt{genname}}{::=}{\ottcom{generalised name}}\ottprodnewline
-\ottfirstprodline{|}{ \bot }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ x }{}{}{}{}}
-
 \newcommand{\otteXXlist}{
 \ottrulehead{\ottnt{e\_list}}{::=}{\ottcom{list of expressions}}\ottprodnewline
 \ottfirstprodline{|}{\ottkw{empty\_el}} {\textsf{M}}{}{}{\ottcom{empty expression list}}\ottprodnewline
 \ottprodline{|}{\ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}} {\textsf{M}}{}{}{\ottcom{list of expressions}}\ottprodnewline
 \ottprodline{|}{\ottsym{[}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{]}} {\textsf{M}}{}{}{\ottcom{bracketed list of expressions}}\ottprodnewline
-\ottprodline{|}{\ottnt{e\_list}  \ottsym{++}  \ottnt{e\_list'}} {\textsf{M}}{}{}{\ottcom{append two e_lists}}\ottprodnewline
+\ottprodline{|}{\ottnt{e\_list}  \ottsym{++}  \ottnt{e\_list'}} {\textsf{M}}{}{}{\ottcom{append two expression lists}}\ottprodnewline
 \ottprodline{|}{ ( i  \mapsto   \ottnt{e} )  \ottnt{e\_list} } {\textsf{M}}{}{}{\ottcom{update entry of expression list}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \ottnt{e\_list}  \ottsym{)}} {\textsf{S}}{}{}{}}
 
@@ -136,7 +130,7 @@
 \ottprodline{|}{\ottkw{Reject}}{}{}{}{\ottcom{rejected state}}}
 
 \newcommand{\ottmatchXXkind}{
-\ottrulehead{match\_kind}{::=}{}\ottprodnewline
+\ottrulehead{\mathit{match\_kind}}{::=}{\ottcom{matching kinds}}\ottprodnewline
 \ottfirstprodline{|}{ exact }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ ternary }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ lpm }{}{}{}{}}
@@ -157,27 +151,35 @@
 \ottprodline{|}{\ottkw{return} \, \ottnt{e}}{}{}{}{\ottcom{return}}\ottprodnewline
 \ottprodline{|}{\ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequence}}\ottprodnewline
 \ottprodline{|}{\ottkw{verify} \, \ottnt{e} \, \ottnt{e'}}{}{}{}{\ottcom{verify}}\ottprodnewline
-\ottprodline{|}{ \mathbf{transition}\,  \ottkw{pars\_next} }{}{}{}{\ottcom{transition}}\ottprodnewline
+\ottprodline{|}{ \mathbf{transition}\,  \ottnt{e} }{}{}{}{\ottcom{transition}}\ottprodnewline
 \ottprodline{|}{ \mathbf{apply} \,  table\_name  \,  \ottnt{e} }{}{}{}{\ottcom{apply}}}
 
-\newcommand{\ottdirection}{
+\newcommand{\ottd}{
 \ottrulehead{d}{::=}{\ottcom{the direction of the calling convention}}\ottprodnewline
 \ottfirstprodline{|}{ \downarrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \uparrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \updownarrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \circ }{}{}{}{}}
 
-\newcommand{\ottdirectionXXlist}{
-\ottrulehead{\ottnt{direction\_list}}{::=}{\ottcom{list of directions}}\ottprodnewline
+\newcommand{\ottdXXlist}{
+\ottrulehead{\ottnt{d\_list}}{::=}{\ottcom{list of directions}}\ottprodnewline
 \ottfirstprodline{|}{\ottkw{empty\_el}} {\textsf{M}}{}{}{\ottcom{empty direction list}}\ottprodnewline
 \ottprodline{|}{\ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}} {\textsf{M}}{}{}{\ottcom{list of directions}}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  \ottnt{direction\_list}  \ottsym{)}} {\textsf{S}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{direction\_list}  \ottsym{++}  \ottnt{direction\_list'}} {\textsf{M}}{}{}{\ottcom{append two e_lists}}}
+\ottprodline{|}{\ottsym{(}  \ottnt{d\_list}  \ottsym{)}} {\textsf{S}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{d\_list}  \ottsym{++}  \ottnt{d\_list'}} {\textsf{M}}{}{}{\ottcom{append two e_lists}}}
 
 \newcommand{\ottfuncXXmap}{
 \ottrulehead{F}{::=}{\ottcom{function map}}\ottprodnewline
 \ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty function map}}\ottprodnewline
 \ottprodline{|}{F  \ottsym{+}  \ottsym{[}  x  \ottsym{\mbox{$\mid$}->}  \ottnt{stmt}  \ottsym{]}} {\textsf{M}}{}{}{\ottcom{update variable mapping}}}
+
+\newcommand{\ottctrl}{
+\ottrulehead{{ \mathrm{ctrl} }}{::=}{\ottcom{control plane}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty table map}}}
+
+\newcommand{\otttXXmap}{
+\ottrulehead{{Tb}}{::=}{\ottcom{table map}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty table map}}}
 
 \newcommand{\ottparsXXmap}{
 \ottrulehead{P}{::=}{\ottcom{parser state map}}\ottprodnewline
@@ -280,12 +282,12 @@
 \ottprodline{|}{ ( \ottnt{v}  ,  a ) = \mathrm{lookup_t} ( \varepsilon ,  x ) }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ x'  = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) } {\textsf{M}}{}{}{\ottcom{access of string in select key-value list}}\ottprodnewline
 \ottprodline{|}{ \ottnt{v}  \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) } {\textsf{M}}{}{}{\ottcom{default string in select key-value list}}\ottprodnewline
-\ottprodline{|}{ \forall i . \, d_i \in  \ottnt{direction\_list}  \implies d_i \in \{\circ , \downarrow\} }{}{}{}{\ottcom{are the directions in or none}}\ottprodnewline
-\ottprodline{|}{ \forall d ,\, e ,\, i \leqslant n. \, d =  \ottnt{direction\_list}  [i] \, \land \, e =  \ottnt{e\_list}  [i] \, \implies  
+\ottprodline{|}{ \forall i . \, d_i \in  \ottnt{d\_list}  \implies d_i \in \{\circ , \downarrow\} }{}{}{}{\ottcom{are the directions in or none}}\ottprodnewline
+\ottprodline{|}{ \forall d ,\, e ,\, i \leqslant n. \, d =  \ottnt{d\_list}  [i] \, \land \, e =  \ottnt{e\_list}  [i] \, \implies  
   ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }{}{}{}{\ottcom{check parameters if isvar or isconst}}\ottprodnewline
-\ottprodline{|}{ d  =  \ottnt{direction\_list}   i } {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{ d  = \mathrm{hd} \,\,  \ottnt{direction\_list} } {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{ i = \mathrm{min} \, \{ j . \,\,  \ottnt{direction\_list}  [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \,  \ottnt{e\_list}  [j] ) \} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ d  =  \ottnt{d\_list}   i } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{ d  = \mathrm{hd} \,\,  \ottnt{d\_list} } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{ i = \mathrm{min} \, \{ j . \,\,  \ottnt{d\_list}  [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \,  \ottnt{e\_list}  [j] ) \} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ b  = \mathrm{True} } {\textsf{M}}{}{}{\ottcom{condition true}}\ottprodnewline
 \ottprodline{|}{ b  = \mathrm{False} } {\textsf{M}}{}{}{\ottcom{condition false}}\ottprodnewline
 \ottprodline{|}{ \mathit{e}_1 , .. , \mathit{e}_n = \{ \} } {\textsf{M}}{}{}{\ottcom{function arguments empty}}\ottprodnewline
@@ -293,8 +295,8 @@
 \ottprodline{|}{\varepsilon  \ottsym{=}  \varepsilon'} {\textsf{M}}{}{}{\ottcom{curr_stack_frame equality}}\ottprodnewline
 \ottprodline{|}{E  \ottsym{=}  E'} {\textsf{M}}{}{}{\ottcom{call_stack equality}}\ottprodnewline
 \ottprodline{|}{ \ottnt{e\_list}  =  \ottnt{e\_list'} } {\textsf{M}}{}{}{\ottcom{args equality}}\ottprodnewline
-\ottprodline{|}{ \mathrm{t\_map}\,  \ottkw{table\_name} \, =\, (  \ottnt{e}  \, ,  match\_kind  ) }{}{}{}{\ottcom{find keys and the matching kind}}\ottprodnewline
-\ottprodline{|}{ \mathrm{ctrl}\, ( table\_name , \,  \ottnt{v} , \,  match\_kind \, ) = \,( f ,  \ottnt{e\_list}  ) }{}{}{}{\ottcom{fetch from ctrl plave the function name and parameters}}\ottprodnewline
+\ottprodline{|}{ \mathrm{t\_map}\,  table\_name \, =\, (  \ottnt{e}  \, ,  \mathit{match\_kind}  ) }{}{}{}{\ottcom{find keys and the matching kind in the table map}}\ottprodnewline
+\ottprodline{|}{ \mathrm{ctrl}\, (  table\_name  , \,  \ottnt{v} , \,  \mathit{match\_kind} \, ) = \,(  f  ,  \ottnt{e\_list}  ) }{}{}{}{\ottcom{fetch the function name and parameters from the ctrl plane}}\ottprodnewline
 \ottprodline{|}{ ( x  =  x' ) =  b } {\textsf{M}}{}{}{\ottcom{equality over errors}}\ottprodnewline
 \ottprodline{|}{ ( x  \neq  x' ) =  b } {\textsf{M}}{}{}{\ottcom{inequality over errors}}\ottprodnewline
 \ottprodline{|}{ i'  =  i  + 1 } {\textsf{M}}{}{}{\ottcom{numeral increment}}\ottprodnewline
@@ -303,7 +305,7 @@
 \ottprodline{|}{ \mathrm{is\_consts} \,\,  \ottnt{e\_list} } {\textsf{M}}{}{}{\ottcom{function arguments constant}}\ottprodnewline
 \ottprodline{|}{\ottnt{stmt}  \ottsym{=}  P  \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{parser state map lookup}}\ottprodnewline
 \ottprodline{|}{ x  = ``\mathit{parseError}" } {\textsf{M}}{}{}{\ottcom{parser error literal}}\ottprodnewline
-\ottprodline{|}{ \ottnt{v}  = \mathrm{lookup\_lval} ( \varepsilon ,  \ottnt{lval} ) } {\textsf{M}}{}{}{\ottcom{instantaneous lookup of lvals}}\ottprodnewline
+\ottprodline{|}{ \ottnt{v}  = { \mathrm{lookup} }_{ \mathrm{lval} } ( \varepsilon ,  \ottnt{lval} ) } {\textsf{M}}{}{}{\ottcom{instantaneous lookup of lvals}}\ottprodnewline
 \ottprodline{|}{\ottnt{v''}  \ottsym{=}  \ottsym{(} \, \ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{with} \, x  \ottsym{:=}  \ottnt{v}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{update of struct field}}\ottprodnewline
 \ottprodline{|}{\ottnt{v''}  \ottsym{=}  \ottsym{(} \, \ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{with} \, x  \ottsym{:=}  \ottnt{v}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{update of struct field}}\ottprodnewline
 \ottprodline{|}{\ottkw{not\_final\_state} \, \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{x is not name of final state}}\ottprodnewline
@@ -319,7 +321,7 @@
                \\ (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
                \end{cases} } {\textsf{M}}{}{}{\ottcom{build new scope}}\ottprodnewline
 \ottprodline{|}{ \varepsilon''  = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
-                                \mathrm{if}   \ottnt{direction\_list}  [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
+                                \mathrm{if}   \ottnt{d\_list}  [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
                                 \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}(  \varepsilon  , [x_1 , ... , x_n] [i]) ) (  \varepsilon'  ) [1 ... n] }{}{}{}{}}
 
 \newcommand{\otteXXstmtXXsem}{
@@ -346,7 +348,6 @@
 \ottfirstprodline{|}{x}{}{}{}{}\ottprodnewline
 \ottprodline{|}{b}{}{}{}{}\ottprodnewline
 \ottprodline{|}{bl}{}{}{}{}\ottprodnewline
-\ottprodline{|}{d}{}{}{}{}\ottprodnewline
 \ottprodline{|}{i}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{m}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ominus}{}{}{}{}\ottprodnewline
@@ -358,15 +359,16 @@
 \ottprodline{|}{\ottnt{v}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{lval}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{genname}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{e\_list}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{p_{ \mathrm{fin} }}{}{}{}{}\ottprodnewline
-\ottprodline{|}{match\_kind}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\mathit{match\_kind}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{p}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{stmt}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{d}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{direction\_list}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{d\_list}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{F}{}{}{}{}\ottprodnewline
+\ottprodline{|}{{ \mathrm{ctrl} }}{}{}{}{}\ottprodnewline
+\ottprodline{|}{{Tb}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{P}{}{}{}{}\ottprodnewline
 \ottprodline{|}{T}{}{}{}{}\ottprodnewline
 \ottprodline{|}{t}{}{}{}{}\ottprodnewline
@@ -389,15 +391,16 @@
 \ottv\ottinterrule
 \ottlval\ottinterrule
 \otte\ottinterrule
-\ottgenname\ottinterrule
 \otteXXlist\ottinterrule
 \ottparsXXfin\ottinterrule
 \ottmatchXXkind\ottinterrule
 \ottparsXXnext\ottinterrule
 \ottstmt\ottinterrule
-\ottdirection\ottinterrule
-\ottdirectionXXlist\ottinterrule
+\ottd\ottinterrule
+\ottdXXlist\ottinterrule
 \ottfuncXXmap\ottinterrule
+\ottctrl\ottinterrule
+\otttXXmap\ottinterrule
 \ottparsXXmap\ottinterrule
 \otttypeXXmap\ottinterrule
 \ottstatus\ottinterrule
@@ -813,7 +816,7 @@
 
 
 \newcommand{\ottdrulestmtXXassXXs}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottkw{struct} \, \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  = \mathrm{lookup\_lval} ( \varepsilon ,  \ottnt{lval} ) }%
+\ottpremise{ \ottkw{struct} \, \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  = { \mathrm{lookup} }_{ \mathrm{lval} } ( \varepsilon ,  \ottnt{lval} ) }%
 \ottpremise{\ottnt{v''}  \ottsym{=}  \ottsym{(} \, \ottkw{struct} \, \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{with} \, f  \ottsym{:=}  \ottnt{v}  \ottsym{)}}%
 }{
 \ottsym{[}   \ottsym{(}  \ottnt{lval}  \ottsym{.}  f  \ottsym{)}  \mathrel{\mathop:}=  \ottnt{v}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \ottnt{lval}  \mathrel{\mathop:}=  \ottnt{v''}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
@@ -822,7 +825,7 @@
 
 
 \newcommand{\ottdrulestmtXXassXXh}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  = \mathrm{lookup\_lval} ( \varepsilon ,  \ottnt{lval} ) }%
+\ottpremise{ \ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  = { \mathrm{lookup} }_{ \mathrm{lval} } ( \varepsilon ,  \ottnt{lval} ) }%
 \ottpremise{\ottnt{v''}  \ottsym{=}  \ottsym{(} \, \ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, ... \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{with} \, f  \ottsym{:=}  \ottnt{v}  \ottsym{)}}%
 }{
 \ottsym{[}   \ottsym{(}  \ottnt{lval}  \ottsym{.}  f  \ottsym{)}  \mathrel{\mathop:}=  \ottnt{v}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \ottnt{lval}  \mathrel{\mathop:}=  \ottnt{v''}   \ottsym{]}  \ottsym{(}  \ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
@@ -919,7 +922,7 @@
 \ottpremise{ x'  = ``\mathit{parseError}" }%
 \ottpremise{ x''  = ``\mathit{reject}" }%
 }{
-\ottsym{[}  \ottkw{verify} \, \ottkw{false} \, \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   x'  \mathrel{\mathop:}=  \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}   \ottsym{;}   \mathbf{transition}\,  \ottkw{pars\_next}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}  \ottkw{verify} \, \ottkw{false} \, \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   x'  \mathrel{\mathop:}=  \ottsym{(}  \ottkw{errmsg} \, x  \ottsym{)}   \ottsym{;}   \mathbf{transition}\,  x''   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_verify\_4}}{}%
 }}
 
@@ -927,7 +930,7 @@
 \newcommand{\ottdrulestmtXXtransXXOne}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{not\_final\_state} \, \ottsym{(}  x  \ottsym{)}}%
 }{
-\ottsym{[}   \mathbf{transition}\,  \ottkw{pars\_next}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Trans} \, x  \ottsym{)}}{%
+\ottsym{[}   \mathbf{transition}\,  x   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Trans} \, x  \ottsym{)}}{%
 {\ottdrulename{stmt\_trans\_1}}{}%
 }}
 
@@ -935,7 +938,7 @@
 \newcommand{\ottdrulestmtXXtransXXTwo}[1]{\ottdrule[#1]{%
 \ottpremise{ x  = ``\mathit{accept}" }%
 }{
-\ottsym{[}   \mathbf{transition}\,  \ottkw{pars\_next}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Accept}  \ottsym{)}}{%
+\ottsym{[}   \mathbf{transition}\,  x   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Accept}  \ottsym{)}}{%
 {\ottdrulename{stmt\_trans\_2}}{}%
 }}
 
@@ -943,7 +946,7 @@
 \newcommand{\ottdrulestmtXXtransXXThree}[1]{\ottdrule[#1]{%
 \ottpremise{ x  = ``\mathit{reject}" }%
 }{
-\ottsym{[}   \mathbf{transition}\,  \ottkw{pars\_next}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Reject}  \ottsym{)}}{%
+\ottsym{[}   \mathbf{transition}\,  x   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  \ottkw{Reject}  \ottsym{)}}{%
 {\ottdrulename{stmt\_trans\_3}}{}%
 }}
 
@@ -957,8 +960,8 @@
 
 
 \newcommand{\ottdrulestmtXXapplyXXtableXXv}[1]{\ottdrule[#1]{%
-\ottpremise{ \mathrm{t\_map}\,  \ottkw{table\_name} \, =\, (  \ottnt{e'}  \, ,  match\_kind  ) }%
-\ottpremise{ \mathrm{ctrl}\, ( table\_name , \,  \ottnt{v} , \,  match\_kind \, ) = \,( f ,  \ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{)}  ) }%
+\ottpremise{ \mathrm{t\_map}\,  table\_name \, =\, (  \ottnt{e'}  \, ,  \mathit{match\_kind}  ) }%
+\ottpremise{ \mathrm{ctrl}\, (  table\_name  , \,  \ottnt{v} , \,  \mathit{match\_kind} \, ) = \,(  f  ,  \ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{)}  ) }%
 }{
 \ottsym{[}   \mathbf{apply} \,  table\_name  \,  \ottnt{v}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \ottkw{null}  \mathrel{\mathop:}=  \ottsym{(}  \ottkw{call} \, f  \ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{)}  \ottsym{)}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_apply\_table\_v}}{}%
@@ -1008,7 +1011,7 @@
 \newcommand{\ottdrulestmtXXtransXXe}[1]{\ottdrule[#1]{%
 \ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 }{
-\ottsym{[}   \mathbf{transition}\,  \ottkw{pars\_next}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \mathbf{transition}\,  \ottkw{pars\_next}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}   \mathbf{transition}\,  \ottnt{e}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \mathbf{transition}\,  \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{stmt\_trans\_e}}{}%
 }}
 
@@ -1069,7 +1072,7 @@
 \ottpremise{\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
 \ottpremise{ x  = ``\mathit{reject}" }%
 }{
-\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \longrightarrow  \ottsym{[}   \mathbf{transition}\,  \ottkw{pars\_next}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+\ottsym{[}  \ottnt{stmt}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \longrightarrow  \ottsym{[}   \mathbf{transition}\,  x   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
 {\ottdrulename{pars\_empty}}{}%
 }}
 
