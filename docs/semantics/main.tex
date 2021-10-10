@@ -310,16 +310,6 @@ $ \gamma : X \hookrightarrow V * (X \cup \{ \bot \})  $ \\We shall also modify t
 \subsection{Statement Execution}
 The semantics of the statements is shown in Figures~\ref{fig:strsemstmtexec} and~\ref{fig:semstmtexec}\footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
 
-%\begin{figure}[h!]
-%\centering\ottgrammartabular{
-%\ottpFourXXparserXXbstmtXXred\ottinterrule
-%\ottpFourXXparserXXblockXXred\ottinterrule
-%\ottpFourXXparserXXnblockXXred\ottafterlastrule
-%}
-%\caption{Judgment Forms of P4 Statement Execution}
-%\label{fig:judgexec}
-%\end{figure}
-
 \begin{figure}[ht!]
 \begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
 \ottusedrule{\ottdrulestmtXXdecl{}}
@@ -404,11 +394,11 @@ The \textsc{apply\_table\_v} looks up the table name in the table name map, then
 
 
 \begin{figure}[ht!]
-    \ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}}
-    \ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}}
-    \caption{Match Action Execution Semantics}
-    \label{fig:semmatchaction}
-    \end{figure}
+\ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}}
+\ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}}
+\caption{Match Action Execution Semantics}
+\label{fig:semmatchaction}
+\end{figure}
 
 
 \printbibliography
