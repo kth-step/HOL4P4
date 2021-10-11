@@ -27,7 +27,7 @@
 \newcommand{\ottafterlastrule}{\\}
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
- $ x ,\, f ,\, msg ,\, a ,\, table\_name $ & \ottcom{string} \\
+ $ x ,\, f ,\, a ,\, table\_name $ & \ottcom{string} \\
  $ b $ & \ottcom{boolean} \\
  $ bl $ & \ottcom{bit-string} \\
  $ i $ & \ottcom{natural number} \\
@@ -178,7 +178,7 @@
 \ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty table map}}}
 
 \newcommand{\otttXXmap}{
-\ottrulehead{{Tb}}{::=}{\ottcom{table map}}\ottprodnewline
+\ottrulehead{{ \mathit{Tb} }}{::=}{\ottcom{table map}}\ottprodnewline
 \ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty table map}}}
 
 \newcommand{\ottparsXXmap}{
@@ -362,7 +362,7 @@
 \ottprodline{|}{\ottnt{d\_list}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{F}{}{}{}{}\ottprodnewline
 \ottprodline{|}{{ \mathrm{ctrl} }}{}{}{}{}\ottprodnewline
-\ottprodline{|}{{Tb}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{{ \mathit{Tb} }}{}{}{}{}\ottprodnewline
 \ottprodline{|}{P}{}{}{}{}\ottprodnewline
 \ottprodline{|}{T}{}{}{}{}\ottprodnewline
 \ottprodline{|}{t}{}{}{}{}\ottprodnewline
@@ -945,14 +945,6 @@
 }}
 
 
-\newcommand{\ottdrulestmtXXapplyXXtableXXe}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
-}{
-\ottsym{[}   \mathbf{apply} \,  table\_name  \,  \ottnt{e}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \mathbf{apply} \,  table\_name  \,  \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
-{\ottdrulename{stmt\_apply\_table\_e}}{}%
-}}
-
-
 \newcommand{\ottdrulestmtXXapplyXXtableXXv}[1]{\ottdrule[#1]{%
 \ottpremise{ \mathrm{t\_map}\,  table\_name \, =\, (  \ottnt{e'}  \, ,  \mathit{match\_kind}  ) }%
 \ottpremise{ \mathrm{ctrl}\, (  table\_name  , \,  \ottnt{v} , \,  \mathit{match\_kind} \, ) = \,(  f  ,  \ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{)}  ) }%
@@ -1009,6 +1001,14 @@
 {\ottdrulename{stmt\_trans\_e}}{}%
 }}
 
+
+\newcommand{\ottdrulestmtXXapplyXXtableXXe}[1]{\ottdrule[#1]{%
+\ottpremise{\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}%
+}{
+\ottsym{[}   \mathbf{apply} \,  table\_name  \,  \ottnt{e}   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightarrow  \ottsym{[}   \mathbf{apply} \,  table\_name  \,  \ottnt{e'}   \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{stmt\_apply\_table\_e}}{}%
+}}
+
 \newcommand{\ottdefnstmtXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
 \ottusedrule{\ottdrulestmtXXret{}}
 \ottusedrule{\ottdrulestmtXXassXXv{}}
@@ -1029,7 +1029,6 @@
 \ottusedrule{\ottdrulestmtXXtransXXOne{}}
 \ottusedrule{\ottdrulestmtXXtransXXTwo{}}
 \ottusedrule{\ottdrulestmtXXtransXXThree{}}
-\ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}}
 \ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}}
 \ottusedrule{\ottdrulestmtXXretXXe{}}
 \ottusedrule{\ottdrulestmtXXassXXe{}}
@@ -1037,6 +1036,7 @@
 \ottusedrule{\ottdrulestmtXXverifyXXeOne{}}
 \ottusedrule{\ottdrulestmtXXverifyXXeTwo{}}
 \ottusedrule{\ottdrulestmtXXtransXXe{}}
+\ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}}
 \end{ottdefnblock}}
 
 

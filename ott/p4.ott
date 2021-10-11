@@ -9,8 +9,7 @@ open wordsTheory;
 %%%%%%%%%%%%%%%%%
 
 %x denotes variable name, f denotes field name or function name
-%msg denotes error message
-metavar x, f, msg, a, table_name ::=
+metavar x, f, a, table_name ::=
       {{ lex alphanum }}
       {{ hol string }}
       {{ tex [[x]] }}
@@ -389,7 +388,7 @@ ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
   {{ hol FEMPTY }}
 
 % TODO: Could be just a type abbreviation?
-t_map {{ tex {Tb} }} :: t_map_ ::=
+t_map {{ tex { \mathit{Tb} } }} :: t_map_ ::=
 {{ com table map  }}
 {{ hol (string |-> (e # match_kind)) }}
 | empty :: M :: empty
@@ -1601,13 +1600,8 @@ by
 %     Match-Action rules       %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  %Apply table name and reduce the expression
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
-  ----------------------------------- :: apply_table_e
-  [apply table_name e] ( stacks , Running ) -> [apply table_name e'] ( stacks' , Running )
-
   %The action is treated as a function call
-  t_map (table_name) = ( e' , match_kind )
+  t_map ( table_name ) = ( e' , match_kind )
   ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
   [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
@@ -1646,6 +1640,10 @@ by
   ------------------------------------------------- :: trans_e
   [transition e]( stacks , Running ) -> [transition e']( stacks' , Running )
 
+%Reduction step of match-action expression
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ----------------------------------- :: apply_table_e
+  [apply table_name e] ( stacks , Running ) -> [apply table_name e'] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 % Parser semantics %
