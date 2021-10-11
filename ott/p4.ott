@@ -1484,7 +1484,6 @@ by
 %%%%%%%%%%%%%%
 %Return
 
-  %TODO: Obtaining stmt and storing f in the call stack not needed?
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   G scope = curr_stack_frame [ 0 ]
