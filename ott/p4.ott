@@ -1283,6 +1283,7 @@ by
   ----------------------------------- :: binop_arg1
   [e binop e'] ( stacks , Running ) ~> [e'' binop e'] ( stacks' , Running )
 
+  %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
   [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: binop_arg2
   [v binop e'] ( stacks , Running ) ~> [e binop e''] ( stacks' , Running )
@@ -1448,17 +1449,23 @@ by
 
 %%%%%%%%%%%%%
 %Binary and
+%Note: This uses short-circuit evaluation
 
-  b AND b' = b''
-  ----------------------------------- :: bin_and
-  [b AND b'] ( stacks , Running ) ~> [b''] ( stacks , Running )
+  ----------------------------------- :: bin_and1
+  [false AND b] ( stacks , Running ) ~> [false] ( stacks , Running )
+
+  ----------------------------------- :: bin_and2
+  [true AND b] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary or
+%Note: This uses short-circuit evaluation
 
-  b OR b' = b''
-  ----------------------------------- :: bin_or
-  [b OR b'] ( stacks , Running ) ~> [b''] ( stacks , Running )
+  ----------------------------------- :: bin_or1
+  [true OR b] ( stacks , Running ) ~> [true] ( stacks , Running )
+
+  ----------------------------------- :: bin_or2
+  [false OR b] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -1477,7 +1484,6 @@ by
 %%%%%%%%%%%%%%
 %Return
 
-  %TODO: Obtaining stmt and storing f in the call stack not needed?
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   G scope = curr_stack_frame [ 0 ]

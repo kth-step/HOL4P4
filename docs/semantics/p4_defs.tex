@@ -729,19 +729,31 @@
 }}
 
 
-\newcommand{\ottdruleeXXbinXXand}[1]{\ottdrule[#1]{%
-\ottpremise{b \, \ottkw{AND} \, b'  \ottsym{=}  b''}%
+\newcommand{\ottdruleeXXbinXXandOne}[1]{\ottdrule[#1]{%
 }{
-\ottsym{[}   b    \land    b'   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b''  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
-{\ottdrulename{e\_bin\_and}}{}%
+\ottsym{[}   \ottkw{false}    \land    b   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottkw{false}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{e\_bin\_and1}}{}%
 }}
 
 
-\newcommand{\ottdruleeXXbinXXor}[1]{\ottdrule[#1]{%
-\ottpremise{b \, \ottkw{OR} \, b'  \ottsym{=}  b''}%
+\newcommand{\ottdruleeXXbinXXandTwo}[1]{\ottdrule[#1]{%
 }{
-\ottsym{[}   b    \lor    b'   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b''  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
-{\ottdrulename{e\_bin\_or}}{}%
+\ottsym{[}   \ottkw{true}    \land    b   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{e\_bin\_and2}}{}%
+}}
+
+
+\newcommand{\ottdruleeXXbinXXorOne}[1]{\ottdrule[#1]{%
+}{
+\ottsym{[}   \ottkw{true}    \lor    b   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottkw{true}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{e\_bin\_or1}}{}%
+}}
+
+
+\newcommand{\ottdruleeXXbinXXorTwo}[1]{\ottdrule[#1]{%
+}{
+\ottsym{[}   \ottkw{false}    \lor    b   \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow  \ottsym{[}  b  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}}{%
+{\ottdrulename{e\_bin\_or2}}{}%
 }}
 
 \newcommand{\ottdefneXXred}[1]{\begin{ottdefnblock}[#1]{$\ottsym{[}  \ottnt{e}  \ottsym{]}  \ottsym{(}  \sigma  \ottsym{,}  t  \ottsym{)}  \rightsquigarrow  \ottsym{[}  \ottnt{e'}  \ottsym{]}  \ottsym{(}  \sigma'  \ottsym{,}  t'  \ottsym{)}$}{\ottcom{expression semantics}}
@@ -782,8 +794,10 @@
 \ottusedrule{\ottdruleeXXand{}}
 \ottusedrule{\ottdruleeXXxor{}}
 \ottusedrule{\ottdruleeXXor{}}
-\ottusedrule{\ottdruleeXXbinXXand{}}
-\ottusedrule{\ottdruleeXXbinXXor{}}
+\ottusedrule{\ottdruleeXXbinXXandOne{}}
+\ottusedrule{\ottdruleeXXbinXXandTwo{}}
+\ottusedrule{\ottdruleeXXbinXXorOne{}}
+\ottusedrule{\ottdruleeXXbinXXorTwo{}}
 \end{ottdefnblock}}
 
 %% defn stmt_red
