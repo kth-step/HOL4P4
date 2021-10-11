@@ -18,8 +18,11 @@ export PATH=${POLYML_DIR}/bin:$PATH
 export LD_LIBRARY_PATH=${POLYML_DIR}/lib:$LD_LIBRARY_PATH
 
 cd ${CACHE_DIR}
-# If HOL4 directory does not exist already...
-if [[ ! -d "${HOL4_DIR}" ]]; then
+if [[ -d "${HOL4_DIR}" ]]; then
+  echo "HOL4 is already available in the cache."
+  exit 0
+else
+  echo "HOL4 is not in the cache, downloading it now."
   # .. clone the specified HOL4 branch only ...
   git clone -b ${HOL4_VERSION} --single-branch ${GIT_URL} "${HOL4_DIR}"
   # ... and compile HOL4.

@@ -17,7 +17,7 @@ POLYML_DIR_SRC=${CACHE_DIR}/polyml_${POLYML_VERSION}_src
 
 # If the output directory exists, we already have a Poly/ML in the cache
 if [[ -d "${POLYML_DIR}" ]]; then
-  echo "Poly/ML is already available in the cache, exiting."
+  echo "Poly/ML is already available in the cache."
   exit 0
 else
   echo "Poly/ML is not in the cache, downloading it now."
