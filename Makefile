@@ -4,7 +4,7 @@ hol/p4Script.sml: ott/p4.ott
 	cd hol && ott -o p4Script.sml ../ott/p4.ott
 
 hol: hol/p4Script.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
-	Holmake -I hol
+	Holmake -r -I hol
 
 docs/semantics/p4_defs.tex: ott/p4.ott
 	ott -o $@ -tex_wrap false $<
