@@ -1284,9 +1284,9 @@ by
   [e binop e'] ( stacks , Running ) ~> [e'' binop e'] ( stacks' , Running )
 
   %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
-  [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: binop_arg2
-  [v binop e'] ( stacks , Running ) ~> [e binop e''] ( stacks' , Running )
+  [v binop e] ( stacks , Running ) ~> [v binop e'] ( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%%%%%

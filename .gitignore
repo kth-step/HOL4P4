@@ -6,6 +6,7 @@
 hol/*Theory.sig
 hol/*Theory.sml
 hol/p4Script.sml
+hol/p4-heap
 
 ## LaTeX stuff
 *.aux
@@ -14,3 +15,9 @@ hol/p4Script.sml
 *.out
 *.run.xml
 *.synctex.gz
+*.bbl
+*.blg
+
+## Emacs
+*~
+\#*\#
