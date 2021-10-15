@@ -1,10 +1,11 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_e_sem_exec_sketch";
+val _ = new_theory "p4_exec_sem";
 
 open p4Theory;
 open ottTheory;
-
+(* For EVAL-uating: *)
+open blastLib bitstringLib;
 
 (* TODO: Move to ottSyntax *)
 val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
@@ -44,6 +45,9 @@ val find_clause_e_red = find_clause e_red_rules
 Definition e_exec:
  (e_exec (e_v v) (stacks:stacks) (status:status) =
   SOME (e_v v))
+  /\
+ (e_exec (e_var x) (stacks_tup curr_stack_frame call_stack) (status:status) =
+  SOME (e_v (lookup_vexp curr_stack_frame (e_var x))))
   /\
  (********************)
  (* Unary arithmetic *)
@@ -177,35 +181,93 @@ Proof
 cheat
 QED
 
+Definition is_red:
+ (is_red (e_v v) = T) /\
+ (is_red _ = F)
+End
+           
+(* TODO: Instead of matching, put logic allowing only certain types of e_v in
+ *       helper functions? *)
 (* Then, define an executable semantics which performs execution until finished. *)
-
+(* Note that all concrete operations remain esentially the same *)
 Definition e_clos_exec:
  (e_clos_exec (e_v v) (stacks:stacks) (status:status) =
-  SOME (e_v v))
+  e_exec (e_v v) stacks status)
+  /\
+ (e_clos_exec (e_var x) (stacks:stacks) (status:status) =
+  e_exec (e_var x) stacks status)
   /\
  (********************)
  (* Unary arithmetic *)
- (e_clos_exec (e_unop unop_neg (e_v (v_bool b))) (stacks:stacks) (status:status) =
-  SOME (e_v (v_bool ~b)))
+ (e_clos_exec (e_unop unop (e_v v)) (stacks:stacks) (status:status) =
+  e_exec (e_unop unop (e_v v)) stacks status)
   /\
- (e_clos_exec (e_unop unop_compl (e_v (v_bit bitv))) stacks status =
-  SOME (e_v (v_bit (bitv_bl_unop bnot bitv))))
+ (*********************)
+ (* Binary arithmetic *)
+ (e_clos_exec (e_binop (e_v v1) binop (e_v v2)) (stacks:stacks) (status:status) =
+  e_exec (e_binop (e_v v1) binop (e_v v2)) stacks status)
   /\
- (e_clos_exec (e_unop unop_neg_signed (e_v (v_bit bitv))) stacks status =
-  SOME (e_v (v_bit (bitv_unop unop_neg_signed bitv))))
-  /\
- (e_clos_exec (e_unop unop_un_plus (e_v (v_bit bitv))) stacks status =
-  SOME (e_v (v_bit bitv)))
-  /\
- (*****************************************)
- (* Argument reduction of unary operation *)
+ (***************************)
+ (* Unary operand reduction *)
  (e_clos_exec (e_unop unop e) (stacks:stacks) (status:status) =
   case e_clos_exec e stacks status of
-  | SOME e' => e_exec (e_unop unop e') stacks status
+  | SOME ev => e_exec (e_unop unop ev) stacks status
   | NONE => NONE)
   /\
+ (****************************)
+ (* Binary operand reduction *)
+(* Two clauses:
+ (e_clos_exec (e_binop (e_v v1) binop e2) (stacks:stacks) (status:status) =
+  case e_clos_exec e2 stacks status of
+  | SOME (e_v v2) => e_exec (e_binop (e_v v1) binop (e_v v2)) stacks status
+  | SOME _ => NONE
+  | NONE => NONE)
+  /\
+ (e_clos_exec (e_binop e1 binop e2) (stacks:stacks) (status:status) =
+  case e_clos_exec e1 stacks status of
+  | SOME (e_v v1) => e_clos_exec (e_binop (e_v v1) binop e2) stacks status
+  | SOME _ => NONE
+  | NONE => NONE)
+  /\
+*)
+(* One clause, with matching:
+ (e_clos_exec (e_binop e1 binop e2) (stacks:stacks) (status:status) =
+  case e_clos_exec e1 stacks status of
+  | SOME (e_v v1) =>
+   (case e_clos_exec e2 stacks status of
+   | SOME (e_v v2) => e_exec (e_binop (e_v v1) binop (e_v v2)) stacks status
+   | SOME _ => NONE
+   | NONE => NONE)
+  | SOME _ => NONE
+  | NONE => NONE)
+  /\
+*)
+(* One clause, with conditions: *)
+ (e_clos_exec (e_binop e1 binop e2) (stacks:stacks) (status:status) =
+  case e_clos_exec e1 stacks status of
+  | SOME ev1 =>
+   if is_red ev1
+   then
+    (case e_clos_exec e2 stacks status of
+     | SOME ev2 =>
+      if is_red ev2
+      then e_exec (e_binop ev1 binop ev2) stacks status
+      else NONE
+     | NONE => NONE)
+   else NONE
+  | NONE => NONE)
+  /\
+ (* TODO: Ideally, the default case here should be "e_exec e stacks status",
+  *       with all the recursive clauses needed defined above. *)
  (e_clos_exec _ stacks status = NONE)
 End
+(* TEST
+val bl1 = ``(w2v (1w:word32), 32)``;
+val bl2 = ``(w2v (16384w:word32), 32)``;
+
+EVAL ``e_clos_exec (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) stacks status``
+   
+*)
         
 (* Then, define the closure of the small step reduction. *)
 
@@ -250,7 +312,7 @@ Definition e_exec_cake:
 End
 
 (* TODO: At this point, expect to translate lists to lists and fmaps to mlmaps *)
-Theorem sem_expr_exe_cake_eq:
+Theorem sem_expr_exe_cake_equiv:
  !e stacks.
   e_exec_cake e stacks status_running = e_exec_clos e stacks status_running
 Proof
