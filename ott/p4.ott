@@ -226,7 +226,7 @@ e :: e_ ::=
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
   % TODO: x is the default value of select expression, which should be optional
   {{ com select }}
-| ( e ) :: X :: paren
+| ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
 %TODO: Trying to make a new definition for expression lists (mainly for function
@@ -338,7 +338,7 @@ stmt :: stmt_ ::=
 
 d {{ tex d }} :: d_ ::=
 {{ com parameter direction }}
-| in :: :: in
+| 'in :: :: in
   {{ tex \downarrow }}
 | out :: :: out
   {{ tex \uparrow }}
@@ -1106,7 +1106,7 @@ val lookup_lval_def = Define `
 `;
 
 val is_d_none_in_def = Define `
-  (is_d_none_in (d_in _) = T) /\
+  (is_d_none_in d_in = T) /\
   (is_d_none_in d_none = T) /\
   (is_d_none_in _ = F)
 `;
