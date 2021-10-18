@@ -436,8 +436,7 @@ scope {{ tex \gamma }} :: scope_ ::=
   {{ tex {\gamma}_{ \emptyset } }}
 | scope + [ x |-> ( v , NONE ) ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (if (scope = HD []) then  (FUPDATE FEMPTY ([[x]], ( [[v]] , NONE ))) 
-     else (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE )))) }}
+  {{ hol (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE ))) }}
   {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
 | scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
   {{ com update variable mapping }}
@@ -483,10 +482,7 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 %  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [ [[emptyscope]] ] }}  
 | update ( scope , i , curr_stack_frame ) :: M :: update_scope
   {{ com update a scope in the stack frame }}
-  {{ hol (
-  if (scope = HD []) 
-  then LUPDATE [[scope]] [[i]] ([[curr_stack_frame]]++[FEMPTY])
-  else LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
+  {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
   {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
 | assign ( curr_stack_frame , v , x ) :: M :: assign
   {{ com assign to a variable in the stack frame }}
