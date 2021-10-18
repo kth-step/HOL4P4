@@ -434,9 +434,10 @@ scope {{ tex \gamma }} :: scope_ ::=
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
   {{ tex {\gamma}_{ \emptyset } }}
-| scope + [ x |-> v ] :: M :: update
+| scope + [ x |-> ( v , NONE ) ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[x]], [[v]])) }}
+  {{ hol (if (scope = HD []) then  (FUPDATE FEMPTY ([[x]], ( [[v]] , NONE ))) 
+     else (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE )))) }}
   {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
 | scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
   {{ com update variable mapping }}
@@ -474,9 +475,18 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | curr_stack_frame ++ curr_stack_frame' :: M :: append
   {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
   {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
+| rev curr_stack_frame :: M :: rev
+  {{ hol (REVERSE [[curr_stack_frame]]) }}
+  {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
+%| curr_stack_frame ++ [ emptyscope ] :: M :: append_freshscope
+%  {{ hol ([[curr_stack_frame]] ++ [ [[emptyscope]] ]) }}
+%  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [ [[emptyscope]] ] }}  
 | update ( scope , i , curr_stack_frame ) :: M :: update_scope
   {{ com update a scope in the stack frame }}
-  {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
+  {{ hol (
+  if (scope = HD []) 
+  then LUPDATE [[scope]] [[i]] ([[curr_stack_frame]]++[FEMPTY])
+  else LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
   {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
 | assign ( curr_stack_frame , v , x ) :: M :: assign
   {{ com assign to a variable in the stack frame }}
@@ -768,7 +778,10 @@ formula :: formula_ ::=
              (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
 	   \end{cases} }}
   {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[curr_stack_frame]]) }}
-
+| v = arb_from_t t :: M :: make_arb
+  {{ com create new varaible in declaration }}
+  {{ hol ([[v]] = arb_from_t [[t]]) }}
+  {{ tex [[v]] = \mathrm{arb\_from\_t} [[t]] }}
 embed
 {{ hol
 val is_const_def = Define `
@@ -1060,7 +1073,7 @@ val extract_value_def = Define `
  * Note that here, 0 is the topmost scope. *)
 val find_topmost_scope_def = Define `
   find_topmost_scope (sf:scope list) x =
-    (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) sf)
+    (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE sf))
 `;
 
 (* Extracts the topmost scope where the variable name x is mapped *)
@@ -1175,6 +1188,12 @@ val update_return_frame_def = Define `
       sf
       (ZIP(xlist, dlist))
 `;
+
+val arb_from_t_def = Define `
+  (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
+  (arb_from_t (t_base bt_bit) = (v_bit ARB))
+`;
+
 }}
 grammar
 
@@ -1203,7 +1222,7 @@ by
   %Build new stack frame
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame )  
   G scope = curr_stack_frame[0]
-  curr_stack_frame' = scope' :: [G scope]
+  curr_stack_frame' = [G scope] ++ [ scope' ]
   curr_stack_frame'' = tl curr_stack_frame
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
@@ -1487,7 +1506,7 @@ by
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   G scope = curr_stack_frame [ 0 ]
-  curr_stack_frame'' = ( curr_stack_frame' ) ++ ( [ G scope ] )
+  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: ret
   [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
@@ -1546,7 +1565,8 @@ by
 
   length ( curr_stack_frame ) = i
   scope = curr_stack_frame [ i ]
-  curr_stack_frame' = update ( scope + [ x |-> uninit ] , i , curr_stack_frame )
+  v = arb_from_t t
+  curr_stack_frame' = update ( scope + [ x |-> ( v , NONE ) ] , i , curr_stack_frame )
   ----------------------------------- :: decl
   [decl x t] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
@@ -1554,7 +1574,7 @@ by
 %%%%%%%%%%%%%%
 %Block
 
-  curr_stack_frame' = emptyscope :: curr_stack_frame
+  curr_stack_frame' =  curr_stack_frame ++ [ emptyscope ]
   ----------------------------------- :: block_enter
   [begin stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
 
@@ -1562,7 +1582,7 @@ by
   ----------------------------------- :: block_exec
   [begin' stmt end'] ( stacks , Running ) -> [begin' stmt' end'] ( stacks' , Running )
 
-  curr_stack_frame' = tl curr_stack_frame
+  curr_stack_frame' = rev ( tl ( rev curr_stack_frame ) )
   ----------------------------------- :: block_exit
   [begin' empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
