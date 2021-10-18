@@ -503,7 +503,7 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
 | update ( scope , i , curr_stack_frame ) :: M :: update_scope
   {{ com update a scope in the stack frame }}
-  {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
+  {{ hol ( LUPDATE [[scope]] [[i]] [[curr_stack_frame]] ) }}
   {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
 | assign ( curr_stack_frame , v , x ) :: M :: assign
   {{ com assign to a variable in the stack frame }}
@@ -660,6 +660,10 @@ formula :: formula_ ::=
   {{ com find the current stack frame length }}
   {{ tex [[i]] = length ([[curr_stack_frame]])}}
   {{ hol ([[i]] = LENGTH [[curr_stack_frame]]) }}
+| length ( curr_stack_frame ) - 1 = i :: M :: find_length_minus_1
+  {{ com find the current stack frame length minus 1 }}
+  {{ tex [[i]] = length ([[curr_stack_frame]]) - 1}}
+  {{ hol ([[i]] = LENGTH [[curr_stack_frame]] - 1) }}  
 | v = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
@@ -1591,7 +1595,7 @@ by
 %%%%%%%%%%%%%%
 %Declaration
 
-  length ( curr_stack_frame ) = i
+  length ( curr_stack_frame ) - 1  = i
   scope = curr_stack_frame [ i ]
   v = arb_from_t t
   curr_stack_frame' = update ( scope + [ x |-> ( v , NONE ) ] , i , curr_stack_frame )

@@ -192,10 +192,13 @@ More formally, a scope $\gamma : X \hookrightarrow V$ is a partial function from
 \item $(\vn \mapsto  \cval) \,\, \gamma$: Updates a variable mapping in $\gamma$: yields the scope $\gamma'$, which is just $\gamma$ where \vn{} instead maps to \cval{}. By writing $\forall i \leq n. \,\, ({\vn}_i \mapsto  {\cval}_i) \,\, \gamma$ we extend this to lists of mappings from variable names to values.
 \end{itemize}
 
-A frame \currsf{} is a stack of scopes where the global scope \gscope{} is located at the bottom; that is, in location $\currsf [0]$. The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that this indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope \escope{} is pushed onto the frame $\currsf$. %TODO New notation for pushing?
+A frame \currsf{} is a stack of scopes where the global scope \gscope{} is located at the bottom; that is, in location $\currsf [0]$.
+When a frame is considered a list the head of the list (i.e $\currsf{} [0]$) represent the bottom of the stack.
+The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that this indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope \escope{} is pushed onto the frame $\currsf$. %TODO New notation for pushing?
+
 The following operations can be performed on a frame $\currsf$:
 \begin{itemize}
-\item $ \gamma :: \currsf$: Pushes a scope $\gamma$ on top of \currsf{}.
+\item $ \gamma :: \currsf$: Add a scope $\gamma$ on bottom of \currsf{} (i.e. cons).
 %TODO Append (++)
 %\item Concatenating two $\gamma$ frames together.
 %TODO Tail tl
