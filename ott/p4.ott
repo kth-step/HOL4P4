@@ -219,10 +219,10 @@ e :: e_ ::=
   {{ com concatenation of bit-strings }}
 | e1 [ e2 : e3 ] :: :: slice
   {{ com bit-slice }}
-| call f ( e1 , .. , en ) :: :: func_call
+| call f ( e1 , .. , en ) ( e'1 , .. , e'm ) :: :: func_call
   {{ com function call }}
 | call_red f ( e1 , .. , en ) :: :: func_call_red
-  {{ com function call with fully reduced arguments }}
+  {{ com reduced function call }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
@@ -248,6 +248,12 @@ e_list :: e_list_ ::=
 | e1 , .. , en :: M :: exps
   {{ com list of expressions }}
   {{ hol ([[e1 .. en]]) }}
+| e '::' e_list :: M :: cons
+  {{ com cons }}
+  {{ hol (e::[[e_list]]) }}
+| tl e_list :: M :: tail
+  {{ com tail }}
+  {{ hol (TL [[e_list]]) }}
 | [ e1 , .. , en ] :: M :: exps2
   {{ com bracketed list of expressions }}
   {{ hol ([[e1 .. en]]) }}
@@ -667,17 +673,22 @@ formula :: formula_ ::=
   {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = NONE) }}
   %TODO: Hack due to lack of list comprehension for tex
   {{ tex [[v]] \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) }}
+| check_arg_red d_list e i :: M :: red_check  
+  {{ com check if argument is isvar or isconst }}
+  {{ hol (check_arg_red [[d_list]] [[e]] [[i]]) }}
+| ~check_arg_red d_list e i :: M :: red_check_false
+  {{ com check if argument is not isvar or isconst }}
+  {{ hol (~(check_arg_red [[d_list]] [[e]] [[i]])) }}
 | check_args_red d_list e_list :: M :: signature_check  
-  {{ com check if parameters are isvar or isconst }}
+  {{ com check if arguments are isvar or isconst }}
   {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
          ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
   {{ hol (check_args_red [[d_list]] [[e_list]]) }}
 | ~check_args_red d_list e_list :: M :: signature_check_false
-  {{ com check if parameters are not isvar or isconst }}
+  {{ com check if arguments are not isvar or isconst }}
   {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
          \neg ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
   {{ hol (~(check_args_red [[d_list]] [[e_list]])) }}
-
 %some operations on the direction list
 | d = d_list [ i ] :: M :: d_index
   {{ hol ([[d]] = EL [[i]] [[d_list]]) }}
@@ -1144,6 +1155,10 @@ val is_arg_red_def = Define `
   is_arg_red d e = 
    ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_var e)) = T)
 `;
+val check_arg_red_def = Define `
+  check_arg_red dlist e i = 
+   ((is_d_none_in (EL i dlist) ==> (is_const e)) /\ (~(is_d_none_in (EL i dlist)) ==> (is_var e)) = T)
+`;
 val check_args_red_def = Define `
   check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
 `;
@@ -1269,23 +1284,26 @@ by
 %"Reduction of argument" rules
 
 %Arguments to function call
+%TODO: Hack for taking head of list
+%Hack for updating head
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
-  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
-  e = [ e1 , .. , en ] [ i ]
+  i = length ( e'1 , .. , e'm )
+  e = hd ( e1 , .. , en ) 
   [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
-  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
-  ~check_args_red [ d1 , .. , dn ] [ e'1 , .. , e'n ]
+  ~check_arg_red [ d1 , .. , dn ] e i
+  [ e''1 , .. , e''n ] =' update ( e' , 0 , [ e1 , .. , en ] ) 
   ----------------------------------- :: func_call_args
-  [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+  [call f ( e1 , .. , en ) ( e'1 , .. , e'm )] ( stacks , status ) ~> [call f ( e''1 , .. , e''n ) ( e'1 , .. , e'm )] ( stacks' , status' )
 
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
   [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
-  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
-  check_args_red [ d1 , .. , dn ] [ e'1 , .. , e'n ]
+  check_arg_red [ d1 , .. , dn ] e' i
+  e_list =' tl ( e1 , .. , en )
+  [ e''1 , .. , e''o ] =' ( ( e' ) :: ( e'1 , .. , e'm ) )
   ----------------------------------- :: func_call_args_done
-  [call f ( e1 , .. , en )] ( stacks , status ) ~> [call_red f ( e'1 , .. , e'n )] ( stacks' , status' )
+  [call f ( e1 , .. , en ) ( e'1 , .. , e'm )] ( stacks , status ) ~> [call_red f ( e''1 , .. , e''o )] ( stacks' , status' )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
@@ -1640,7 +1658,7 @@ by
   t_map ( table_name ) = ( e' , match_kind )
   ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
+  [apply table_name v] ( stacks , Running ) -> [assign null ( call_red f ( v1 , .. , vn ) )] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
