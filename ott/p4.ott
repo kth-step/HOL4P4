@@ -1630,7 +1630,7 @@ by
   x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
-  ctx [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks' , Running )
+  [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks , Running )
 
 %%%%%%%%%%%%%%
 %Transition

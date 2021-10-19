@@ -1,7 +1,8 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 open arithmeticTheory stringTheory containerTheory pred_setTheory
      listTheory finite_mapTheory;
-     
+
+open blastLib bitstringLib;
 open p4Theory;
 open bitstringTheory;
 open wordsTheory;
@@ -11,9 +12,15 @@ open sumTheory;
 
 
 (*minimalistic bits representations*)
-val bitE = ``v_bit ([] ,0)``;
-val bitT = ``v_bit ([T],1)``;
-val bitF = ``v_bit ([F],1)``;
+val bitE   = ``v_bit ([] ,0)``;
+val bitT   = ``v_bit ([T],1)``;
+val bitF   = ``v_bit ([F],1)``;
+val bitA   = ``v_bit (ARB)``;
+val bitErr1 = ``v_err "NoErr"``;
+val bitErr2 = ``v_err "PacketTooShort"``;
+
+(*minimalistic states representation for transition*)
+
 
 
 
@@ -29,6 +36,8 @@ val map7  = ``("z", (^bitT , NONE: string option))``;
 val map8  = ``("z", (^bitF , NONE: string option))``;
 val map9  = ``("x", (^bitA , NONE: string option))``;
 val map10 = ``("x", (^bitA , NONE: string option))``;
+val map11 = ``("parseError", (^bitErr1 , NONE: string option))``;
+val map12 = ``("parseError", (^bitErr2 , NONE: string option))``;
 
 (*scopes examples*)
 val scope0 = ``(FEMPTY |+ ^map0)``;
@@ -40,7 +49,8 @@ val scope5 = ``(FEMPTY |+ ^map5)``;
 val scope6 = ``(FEMPTY |+ ^map1 |+ ^map4|+ ^map9)``;
 val scope7 = ``(FEMPTY |+ ^map5 |+ ^map9)``;
 val scope8 = ``(FEMPTY |+ ^map5 |+ ^map2)``;
-
+val scope9 = ``(FEMPTY |+ ^map7 |+ ^map11)``;
+val scope10 = ``(FEMPTY |+ ^map7 |+ ^map12)``;
 
 (*scope list examples*)
 val scopelist0 = ``[^scope0]``;
@@ -58,6 +68,8 @@ val scopelist11 = ``[^scope5;FEMPTY]``;
 val scopelist12 = ``[^scope5;^scope4]``;
 val scopelist13 = ``[^scope7]``;
 val scopelist14 = ``[^scope8]``;
+val scopelist15 = ``[^scope9]``;
+val scopelist16 = ``[^scope10]``;
 
 (*** assignment statement reduction --concrete values -- ***)
 val state1 = ``(state_tup (stacks_tup ^scopelist1 []) status_running): state``;
@@ -115,8 +127,9 @@ prove(`` stmt_red (^prog2c)
                   (^state1)
                   (^prog2d)
                   (^state1)  ``,
-RW.ONCE_RW_TAC[e_red_cases] >>
-  cheat                                (*TODO: check with Didrik about the simple exp conversions*)
+REPEAT(RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss [])
 );
 
 
@@ -238,7 +251,7 @@ FULL_SIMP_TAC list_ss [] )
 );
 
 
-val test_stmt_block_exec =
+val test_stmt_block_exit =
 prove(`` stmt_red (^prog6c) 
                   (^state9)
                   (stmt_empty) 
@@ -275,71 +288,16 @@ prove(`` stmt_red (^prog7b)
                   (^state7b)
                   (^prog7c) 
                   (^state7b)  ``,
+
 RW.ONCE_RW_TAC[e_red_cases] >>
-
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss []     (*unresolved subgoal TODO:Check with didrik*)
-
-
-
-);
-
-
-(*** verify  statement reduction --concrete values -- ***)
-
-
-val prog8a =  ``stmt_verify (^cond1) (e_v (v_err "PacketTooShort"))``;
-val prog8b =  ``stmt_verify (e_v (v_bool  T )) (e_v (v_err "PacketTooShort"))``;
-val prog8c =  ``stmt_verify (^cond2) (e_v (v_err "PacketTooShort"))``;
-val prog8d =  ``stmt_verify (e_v (v_bool  F )) (e_v (v_err "PacketTooShort"))``;
-val prog8e =  ``stmt_empty``;
-val prog8f =  ````;
-val state8a = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
-
-val test_stmt_verify1 =
-prove(`` stmt_red (^prog8a) 
-                  (^state8a)
-                  (^prog8b) 
-                  (^state8a)  ``,
-REPEAT (RW.ONCE_RW_TAC[e_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [])
-);
-
-
-val test_stmt_verify2 =
-prove(`` stmt_red (^prog8b) 
-                  (^state8a)
-                  (^prog8e) 
-                  (^state8a)  ``,
-RW.ONCE_RW_TAC[e_red_cases] >>
+NTAC 5 DISJ2_TAC >>  DISJ1_TAC >>
+EXISTS_TAC``(stacks_tup
+         [FEMPTY |+ ("y",v_bit ([F],1),NONE) |+ ("x",v_bit ARB,NONE)] [])`` >>
 EVAL_TAC>>
 FULL_SIMP_TAC list_ss []
 );
 
 
-
-val test_stmt_verify3 =
-prove(`` stmt_red (^prog8c) 
-                  (^state8a)
-                  (^prog8d) 
-                  (^state8a)  ``,
-REPEAT (RW.ONCE_RW_TAC[e_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [])
-);
-
-
-
-val test_stmt_verify4 =
-prove(`` stmt_red (^prog8d) 
-                  (^state8a)
-                  (^prog8e) 
-                  (^state8a)  ``,
-REPEAT (RW.ONCE_RW_TAC[e_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [])    (*ask Didkrik about declaring before assigning*)
-);
 
 
 
@@ -386,3 +344,145 @@ RW.ONCE_RW_TAC[e_red_cases] >>
 EVAL_TAC>>
 FULL_SIMP_TAC list_ss []
 );
+
+
+
+
+
+(*** verify  statement reduction --concrete values -- ***)
+
+(*Testing verify_e1 verify_e2 with both T and F evaluation *)
+val prog8a =  ``stmt_verify (^cond1) (e_v (v_err "PacketTooShort"))``;
+val prog8b =  ``stmt_verify (e_v (v_bool  T )) (e_v (v_err "PacketTooShort"))``;
+val prog8c =  ``stmt_verify (^cond2) (e_v (v_err "PacketTooShort"))``;
+val prog8d =  ``stmt_verify (e_v (v_bool  F )) (e_v (v_err "PacketTooShort"))``;
+val prog8e =  ``stmt_empty``;
+val prog8f =  ``stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err "PacketTooShort")))) (stmt_trans (e_var"reject"))``;
+
+
+
+
+val state8a = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
+val state8b = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
+
+
+
+(*Testing verify_e1*)
+val test_stmt_verify1 =
+prove(`` stmt_red (^prog8a) 
+                  (^state8a)
+                  (^prog8b) 
+                  (^state8a)  ``,
+REPEAT (RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss [])
+);
+
+val test_stmt_verify2 =
+prove(`` stmt_red (^prog8c) 
+                  (^state8a)
+                  (^prog8d) 
+                  (^state8a)  ``,
+REPEAT (RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss [])
+);
+
+
+(*Testing verify_3*)
+val test_stmt_verify3 =
+prove(`` stmt_red (^prog8b) 
+                  (^state8a)
+                  (^prog8e) 
+                  (^state8a)  ``,
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss []
+);
+
+
+(*Testing verify_4 *)
+
+val test_stmt_verify4 =
+prove(`` stmt_red (^prog8d) 
+                  (^state8a)
+                  (^prog8f) 
+                  (^state8a)  ``,
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss []  
+);
+
+
+(*Testing verify_4 the whole execustion*)
+val prog8g =  ``stmt_seq stmt_empty (stmt_trans (e_var"reject"))``;
+val prog8h =  ``(stmt_trans (e_var"reject"))``;
+val state10a = ``(state_tup (stacks_tup ^scopelist15 []) status_running): state``;
+val state10b = ``(state_tup (stacks_tup ^scopelist16 []) status_running): state``;
+val state10c = ``(state_tup (stacks_tup ^scopelist16 []) (status_pars_next (pars_next_pars_fin pars_finreject))): state``;
+
+
+val test_stmt_verify5 =
+prove(``(stmt_red (^prog8d) 
+                  (^state10a)
+                  (^prog8f) 
+                  (^state10a))
+		  /\
+	(stmt_red (^prog8f) 
+                  (^state10a)
+                  (^prog8g) 
+                  (^state10b))
+		  /\
+	(stmt_red (^prog8g) 
+                  (^state10b)
+                  (^prog8h) 
+                  (^state10b))
+		  /\
+	 (stmt_red (^prog8h) 
+                  (^state10b)
+                  (stmt_empty) 
+                  (^state10c))	  		  
+``,
+CONJ_TAC >| [
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss []
+,
+CONJ_TAC >| [
+NTAC 3 (RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss [FUPDATE_EQ])
+,
+CONJ_TAC >| [
+RW.ONCE_RW_TAC[e_red_cases] >>
+NTAC 5 DISJ2_TAC >>  DISJ1_TAC >>
+EXISTS_TAC``(stacks_tup
+            [FEMPTY |+ ("z",v_bit ([T],1),NONE) |+
+             ("parseError",v_err "PacketTooShort",NONE)] [])`` >>
+EVAL_TAC
+,
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss []
+]]]
+);
+
+
+
+
+
+(*** lookup expression  reduction --concrete values -- ***)
+
+val state_e1 = ``(stacks_tup (^scopelist8) [])``;
+
+val test_e_lookup =
+prove(`` e_red    (e_var "x") 
+                  (^state_e1)  (status_running)
+                  (e_v (v_bit ([F],1))) 
+                  (^state_e1)  (status_running) ``,
+RW.ONCE_RW_TAC[e_red_cases, lookup_vexp_def] >>
+NTAC 2 (EVAL_TAC>>
+FULL_SIMP_TAC list_ss []  )
+);
+
+
