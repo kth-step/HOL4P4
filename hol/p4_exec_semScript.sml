@@ -66,15 +66,13 @@ val e_stmt_exec = TotalDefn.multiDefine`
  (*************************)
  (* Function call-related *)
 (* TODO: Fix func_map in this definition... *)
- (e_exec (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status_running =
+ (e_exec (e_func_call_red f e_l) (stacks_tup curr_stack_frame call_stack) status_running =
   case FLOOKUP (^func_map) f of
   | SOME (stmt, x_d_l) =>
-   if check_args_red (MAP SND x_d_l) e_l then
     SOME (e_func_exec stmt,
 	  stacks_tup ([EL 0 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame])
 		     ((TL curr_stack_frame, called_function_name_function_name f)::call_stack),
 	  status_running)
-   else NONE
   | NONE => NONE)
   /\
  (e_exec (e_func_exec stmt_empty) stacks (status_return v) =
@@ -87,21 +85,19 @@ val e_stmt_exec = TotalDefn.multiDefine`
   /\
  (***************************************)
  (* Argument reduction of function call *)
- (e_exec (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status_running =
+ (e_exec (e_func_call f e_l) stacks status =
   case FLOOKUP (^func_map) f of
   | SOME (stmt, x_d_l) =>
   (* TODO: Introduce result of unred_arg_index via a let statement, in order to not compute twice? *)
-   (case e_exec (EL (unred_arg_index (MAP SND x_d_l) e_l) e_l) (stacks_tup curr_stack_frame call_stack) status of
-    | SOME (e', stacks', status') => SOME (e_func_call f (LUPDATE e' (unred_arg_index (MAP SND x_d_l) e_l) e_l), stacks', status')
-    | NONE => NONE)
-(*
-   if check_args_red (MAP SND x_d_l) e_l then
-    SOME (e_func_exec stmt,
-	  stacks_tup ([EL 0 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame])
-		     ((TL curr_stack_frame, called_function_name_function_name f)::call_stack),
-	  status_running)
-   else NONE
-*)
+   (case unred_arg_index (MAP SND x_d_l) e_l of
+    | SOME i =>
+     (case e_exec (EL i e_l) stacks status of
+      | SOME (e', stacks', status') =>
+       if check_args_red (MAP SND x_d_l) (LUPDATE e' i e_l)
+       then SOME (e_func_call_red f (LUPDATE e' i e_l), stacks', status')
+       else SOME (e_func_call f (LUPDATE e' i e_l), stacks', status')
+      | NONE => NONE)
+     | NONE => SOME (e_func_call_red f e_l, stacks, status))
   | NONE => NONE)
   /\
  (********************)
@@ -231,6 +227,11 @@ val e_stmt_exec = TotalDefn.multiDefine`
    | NONE => NONE)
   | [] => NONE)
   /\
+ (stmt_exec (stmt_ret e) stacks (status:status) =
+  case e_exec e stacks status of
+  | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
+  | NONE => NONE)
+  /\
  (**************)
  (* Assignment *)
  (stmt_exec ((stmt_ass (lval_varname x) (e_v v)):stmt) (stacks_tup curr_stack_frame call_stack) (status:status) =
@@ -246,6 +247,9 @@ val e_stmt_exec = TotalDefn.multiDefine`
   /\
  (************)
  (* Sequence *)
+ (stmt_exec ((stmt_seq stmt_empty stmt):stmt) stacks (status_return v) =
+  SOME (stmt_empty, stacks, status_return v))
+  /\
  (stmt_exec ((stmt_seq stmt_empty stmt):stmt) stacks (status:status) =
   SOME (stmt, stacks, status))
   /\

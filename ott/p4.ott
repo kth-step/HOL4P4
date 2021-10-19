@@ -221,6 +221,8 @@ e :: e_ ::=
   {{ com bit-slice }}
 | call f ( e1 , .. , en ) :: :: func_call
   {{ com function call }}
+| call_red f ( e1 , .. , en ) :: :: func_call_red
+  {{ com function call with fully reduced arguments }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
@@ -670,6 +672,11 @@ formula :: formula_ ::=
   {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
          ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
   {{ hol (check_args_red [[d_list]] [[e_list]]) }}
+| ~check_args_red d_list e_list :: M :: signature_check_false
+  {{ com check if parameters are not isvar or isconst }}
+  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+         \neg ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
+  {{ hol (~(check_args_red [[d_list]] [[e_list]])) }}
 
 %some operations on the direction list
 | d = d_list [ i ] :: M :: d_index
@@ -680,7 +687,7 @@ formula :: formula_ ::=
   {{ tex [[d]] = \mathrm{hd} \,\, [[d_list]] }} 
 | unred_arg_index d_list e_list = i :: M :: parameter_index
   {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
-  {{ hol (unred_arg_index [[d_list]] [[e_list]] = i) }}
+  {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME i) }}
 
 %Equalities
 | scope = scope' :: M :: scope_eq
@@ -1126,7 +1133,9 @@ val find_unred_arg_def = Define `
 `;
 val unred_arg_index_def = Define `
   unred_arg_index dlist elist  = 
-    FST (THE (find_unred_arg dlist elist))
+    case find_unred_arg dlist elist of
+    | SOME (i, de) => SOME i
+    | NONE => NONE
 `;
 
 (* Checks if function arguments have been appropriately reduced.
@@ -1209,9 +1218,7 @@ by
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
 
-  %Check that all arguments have been reduced
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
-  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %Build new stack frame
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame )  
   G scope = curr_stack_frame[0]
@@ -1219,7 +1226,7 @@ by
   curr_stack_frame'' = tl curr_stack_frame
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
-  [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  [call_red f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: func_exec
@@ -1265,10 +1272,20 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+  ~check_args_red [ d1 , .. , dn ] [ e'1 , .. , e'n ]
   ----------------------------------- :: func_call_args
-  [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , Running )
+  [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+  e = [ e1 , .. , en ] [ i ]
+  [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+  check_args_red [ d1 , .. , dn ] [ e'1 , .. , e'n ]
+  ----------------------------------- :: func_call_args_done
+  [call f ( e1 , .. , en )] ( stacks , status ) ~> [call_red f ( e'1 , .. , e'n )] ( stacks' , status' )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
