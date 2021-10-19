@@ -477,9 +477,6 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | rev curr_stack_frame :: M :: rev
   {{ hol (REVERSE [[curr_stack_frame]]) }}
   {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
-%| curr_stack_frame ++ [ emptyscope ] :: M :: append_freshscope
-%  {{ hol ([[curr_stack_frame]] ++ [ [[emptyscope]] ]) }}
-%  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [ [[emptyscope]] ] }}  
 | update ( scope , i , curr_stack_frame ) :: M :: update_scope
   {{ com update a scope in the stack frame }}
   {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
