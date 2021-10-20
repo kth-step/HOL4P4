@@ -9,9 +9,7 @@ open wordsTheory;
 open optionTheory;
 open sumTheory;
 
-
-
-(*minimalistic bits representations*)
+(* bits representations*)
 val bitE   = ``v_bit ([] ,0)``;
 val bitT   = ``v_bit ([T],1)``;
 val bitF   = ``v_bit ([F],1)``;
@@ -20,7 +18,7 @@ val bitErr1 = ``v_err "NoErr"``;
 val bitErr2 = ``v_err "PacketTooShort"``;
 
 (*minimalistic states representation for transition*)
-
+val R = ``status_running``;
 
 
 
@@ -72,9 +70,9 @@ val scopelist15 = ``[^scope9]``;
 val scopelist16 = ``[^scope10]``;
 
 (*** assignment statement reduction --concrete values -- ***)
-val state1 = ``(state_tup (stacks_tup ^scopelist1 []) status_running): state``;
-val state2 = ``(state_tup (stacks_tup ^scopelist2 []) status_running): state``;
-val state2b = ``(state_tup (stacks_tup ^scopelist6 []) status_running): state``;
+val state1 = ``(state_tup (stacks_tup ^scopelist1 []) ^R): state``;
+val state2 = ``(state_tup (stacks_tup ^scopelist2 []) ^R): state``;
+val state2b = ``(state_tup (stacks_tup ^scopelist6 []) ^R): state``;
 val prog1 = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([T], 1))))``;
 val prog2 = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([F], 1))))``;
 val exp1  = ``(e_binop (e_v (v_bit ([T],1))) binop_add (e_v (v_bit ([F],1))))``;
@@ -486,3 +484,110 @@ FULL_SIMP_TAC list_ss []  )
 );
 
 
+
+
+
+(*** Parser reductions --concrete values -- ***)
+
+val pars_map = ``(FEMPTY |+ ("start", stmt_seq (^prog8b)  (stmt_trans (e_var "p_ipv4")))
+                         |+ ("p_ipv4", (^prog2) ))``;
+
+
+val state10a = ``(state_tup (stacks_tup ^scopelist2 []) status_running): state``;
+val state10b = ``(state_tup (stacks_tup ^scopelist1 []) status_running): state``;
+val state10c = ``(state_tup (stacks_tup ^scopelist1 []) (status_pars_next (pars_next_pars_fin pars_finreject))): state``;
+val state10d = ``(state_tup (stacks_tup ^scopelist1 []) (status_pars_next (pars_next_pars_fin pars_finaccept))): state``;
+
+val test_pars_sem1 =
+prove(`` pars_red (stmt_seq (^prog8b)  (stmt_trans (e_var "p_ipv4"))) 
+                  (^state10a)  
+                  (stmt_seq stmt_empty  (stmt_trans (e_var "p_ipv4")))
+                  (^state10a) ``,
+REPEAT (RW.ONCE_RW_TAC[pars_red_cases, e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss [])
+);
+
+
+val test_pars_sem2 =
+prove(`` pars_red (stmt_seq stmt_empty  (stmt_trans (e_var "p_ipv4"))) 
+                  (^state10a)  
+                  (stmt_trans (e_var "p_ipv4"))
+                  (^state10a) ``,
+RW.ONCE_RW_TAC[pars_red_cases] >>
+DISJ1_TAC >>
+EVAL_TAC>>
+NTAC 2 (EXISTS_TAC``stacks_tup [FEMPTY |+ ("x",v_bit ([T],1),NONE)] []``) >>
+EVAL_TAC>>
+RW.ONCE_RW_TAC[e_red_cases] >>
+NTAC 5 DISJ2_TAC >>  DISJ1_TAC >>
+EXISTS_TAC``(stacks_tup [FEMPTY |+ ("x",v_bit ([T],1),NONE)] [])`` >>
+EVAL_TAC
+);
+
+
+val test_pars_sem3 =
+prove(`` pars_red ((stmt_trans (e_var "p_ipv4")))
+                  (^state10a)
+		  ((^prog2))
+                  (^state10a)
+``,
+NTAC 2 (RW.ONCE_RW_TAC[pars_red_cases, e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss []) >>
+EXISTS_TAC``(^pars_map)``>>
+EVAL_TAC
+);
+
+
+
+val test_pars_sem4 =
+prove(`` pars_red (^prog2)
+                  (^state10a)
+		  (stmt_trans (e_var "reject"))
+                  (^state10b)
+``,
+RW.ONCE_RW_TAC[pars_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss [] >>
+NTAC 2 (DISJ2_TAC) >>
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss []>>
+EVAL_TAC>>
+SIMP_TAC std_ss [FUPDATE_EQ]
+
+);
+
+
+val test_pars_sem5 =
+prove(`` pars_t_red (stmt_trans (e_var "reject"))
+                  (^state10b)
+		  (^state10c)
+``,
+RW.ONCE_RW_TAC[pars_t_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC``stmt_empty`` >>
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss []>>
+EVAL_TAC
+);
+
+
+(*extra check for accpet*)
+val test_pars_sem5 =
+prove(`` pars_t_red (stmt_trans (e_var "accept"))
+                  (^state10b)
+		  (^state10d)
+``,
+RW.ONCE_RW_TAC[pars_t_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC``stmt_empty`` >>
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss []>>
+EVAL_TAC
+);
