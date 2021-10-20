@@ -112,11 +112,10 @@ TotalDefn.multiDefine `
 
 (* NOTE: e_red is a small-step semantics *)
 
-(* First, some kind of executable semantics definition *)
-(* No state modification, for now *)
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce the number of clauses pattern completion needs to add *)
-val e_stmt_exec = TotalDefn.multiDefine`
+(* TODO: Helper definition for unary and binary concrete operations *)
+val e_stmt_exec = TotalDefn.tDefine "e_stmt_exec" `
  (* e_v is the fully reduced form of expression *)
  (e_exec _ (e_v v) stacks status =
   SOME ((e_v v), stacks, status))
@@ -128,13 +127,19 @@ val e_stmt_exec = TotalDefn.multiDefine`
   /\
  (*************************)
  (* Function call-related *)
- (e_exec f_map (e_func_call_red f e_l) (stacks_tup curr_stack_frame call_stack) status_running =
+ (e_exec f_map (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
   case FLOOKUP f_map f of
   | SOME (stmt, x_d_l) =>
-    SOME (e_func_exec stmt,
-	  stacks_tup ([EL 0 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame])
-		     ((TL curr_stack_frame, called_function_name_function_name f)::call_stack),
-	  status_running)
+    (case unred_arg_index (MAP SND x_d_l) e_l of
+     | SOME i  =>
+      (case e_exec f_map (EL i e_l) (stacks_tup curr_stack_frame call_stack) status of
+       | SOME (e', stacks', status') => SOME (e_func_call f (LUPDATE e' i e_l), stacks', status')
+       | NONE => NONE)
+     | NONE =>
+      SOME (e_func_exec stmt,
+	    stacks_tup ([EL 0 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame])
+		       ((TL curr_stack_frame, called_function_name_function_name f)::call_stack),
+	    status))
   | NONE => NONE)
   /\
  (e_exec _ (e_func_exec stmt_empty) stacks (status_return v) =
@@ -144,23 +149,6 @@ val e_stmt_exec = TotalDefn.multiDefine`
   case stmt_exec f_map stmt stacks status of
   | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
   | NONE => NONE)
-  /\
- (***************************************)
- (* Argument reduction of function call *)
-(* TODO: Fix func_map in this definition... *)
- (e_exec f_map (e_func_call f (e_l_hd::e_l_tl) e_l') stacks status =
-  case FLOOKUP f_map f of
-  | SOME (stmt, x_d_l) =>
-   if check_arg_red (MAP SND x_d_l) e_l_hd (LENGTH e_l')
-   then SOME (e_func_call f e_l_tl (e_l_hd::e_l'), stacks, status)
-   else
-     (case e_exec f_map e_l_hd stacks status of
-      | SOME (e', stacks', status') => SOME (e_func_call f (e'::e_l_tl) e_l', stacks', status')
-      | NONE => NONE)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_func_call f [] e_l) stacks status =
-  SOME (e_func_call_red f e_l, stacks, status))
   /\
  (********************)
  (* Unary arithmetic *)
@@ -211,11 +199,12 @@ val e_stmt_exec = TotalDefn.multiDefine`
   | SOME bitv3 => SOME (e_v (v_bit bitv3), stacks, status)
   | NONE => NONE)
   /\
+(* Typo somewhere below this point *)
  (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_shl (e_v (v_bit bitv2))) stacks status =
-  SOME (e_v (v_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2)) )), stacks, status)
+  SOME (e_v (v_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2))), stacks, status))
   /\
  (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_shr (e_v (v_bit bitv2))) stacks status =
-  SOME (e_v (v_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2)) )), stacks, status)
+  SOME (e_v (v_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2))), stacks, status))
   /\
  (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_le (e_v (v_bit bitv2))) stacks status =
   case bitv_binpred binop_le bitv1 bitv2 of
@@ -320,7 +309,7 @@ val e_stmt_exec = TotalDefn.multiDefine`
   | NONE => NONE)
   /\
  (stmt_exec _ _ stacks status = NONE)
-`;
+` cheat;
 
 (* Then, some kind of theorem that states equivalence
  * between executable semantics and ott-exported reduction rules.
@@ -359,140 +348,24 @@ Definition is_red:
  (is_red _ = F)
 End
 
-(* TODO: Instead of matching, put logic allowing only certain types of e_v in
- *       helper functions? *)
 (* Then, define an executable semantics which performs execution until finished. *)
-(* Note that all concrete operations remain essentially the same *)
+(* Note that all concrete operations remain the same *)
 val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
- (* Case out of gas *)
- (e_multi_exec _ (e:e) stacks status 0 =
+ (e_multi_exec _ e stacks status 0 =
   SOME (e, stacks, status))
   /\
- (* e_v is the fully reduced form of expression *)
- (e_multi_exec f_map (e_v v) stacks status (SUC gas) =
-  e_exec f_map (e_v v) stacks status)
-  /\
- (e_multi_exec f_map (e_var x) stacks status (SUC gas) =
-  e_exec f_map (e_var x) stacks status)
-  /\
- (e_multi_exec f_map (e_func_call_red f e_l) stacks status (SUC gas) =
-  case e_exec f_map (e_func_call_red f e_l) stacks status of
+ (e_multi_exec f_map e stacks status (SUC gas) =
+  case e_exec f_map e stacks status of
   | SOME (e', stacks', status') => e_multi_exec f_map e' stacks' status' gas
   | NONE => NONE)
-  /\
- (* Base case for function execution *)
- (e_multi_exec f_map (e_func_exec stmt_empty) stacks status (SUC gas) =
-  e_exec f_map (e_func_exec stmt_empty) stacks status)
-  /\
- (e_multi_exec f_map (e_func_exec stmt) stacks status (SUC gas) =
+ /\
+ (stmt_multi_exec _ stmt stacks status 0 =
+  SOME (stmt, stacks, status))
+ /\
+ (stmt_multi_exec f_map stmt stacks status (SUC gas) =
   case stmt_exec f_map stmt stacks status of
-  | SOME (stmt', stacks', status') => e_multi_exec f_map (e_func_exec stmt') stacks' status' gas
+  | SOME (stmt', stacks', status') => stmt_multi_exec f_map stmt' stacks' status' gas
   | NONE => NONE)
-  /\
- (*******************************)
- (* Function argument reduction *)
- (e_multi_exec f_map (e_func_call f [] e_l') stacks status (SUC gas) =
-  e_multi_exec f_map (e_func_call_red f e_l') stacks status gas)
-  /\
- (e_multi_exec f_map (e_func_call f e_l e_l') stacks status (SUC gas) =
-  case e_exec f_map (e_func_call f e_l e_l') stacks status of
-   | SOME (efc', stacks', status') => e_multi_exec f_map efc' stacks' status' gas
-   | NONE => NONE)
-  /\
- (********************)
- (* Unary arithmetic *)
- (e_multi_exec f_map (e_unop unop (e_v v)) stacks status (SUC gas) =
-  e_exec f_map (e_unop unop (e_v v)) stacks status)
-  /\
- (*********************)
- (* Binary arithmetic *)
- (e_multi_exec f_map (e_binop (e_v v1) binop (e_v v2)) stacks status (SUC gas) =
-  e_exec f_map (e_binop (e_v v1) binop (e_v v2)) stacks status)
-  /\
- (***************************)
- (* Unary operand reduction *)
- (e_multi_exec f_map (e_unop unop e) stacks status (SUC gas) =
-  case e_multi_exec f_map e stacks status gas of
-  | SOME (ev, stacks', status') => e_exec f_map (e_unop unop ev) stacks' status'
-  | NONE => NONE)
-  /\
- (****************************)
- (* Binary operand reduction *)
-(* Two clauses:
- (e_multi_exec f_map (e_binop (e_v v1) binop e2) stacks status (SUC gas) =
-  case e_multi_exec f_map e2 stacks status gas of
-  | SOME (e_v v2, state', status') => e_exec f_map (e_binop (e_v v1) binop (e_v v2)) stacks' status'
-  | SOME _ => NONE
-  | NONE => NONE)
-  /\
- (e_multi_exec f_map (e_binop e1 binop e2) stacks status (SUC gas) =
-  case e_multi_exec f_map e1 stacks status gas of
-  | SOME (e_v v1, state', status') => e_multi_exec f_map (e_binop (e_v v1) binop e2) stacks' status'
-  | SOME _ => NONE
-  | NONE => NONE)
-  /\
-*)
-(* One clause, with matching:
- (e_multi_exec f_map (e_binop e1 binop e2) stacks status (SUC gas) =
-  case e_multi_exec f_map e1 stacks status gas of
-  | SOME (e_v v1, state', status') =>
-   (case e_multi_exec f_map e2 stacks' status' gas of
-   | SOME (e_v v2, state'', status'') => e_exec f_map (e_binop (e_v v1) binop (e_v v2)) stacks'' status''
-   | SOME _ => NONE
-   | NONE => NONE)
-  | SOME _ => NONE
-  | NONE => NONE)
-  /\
-*)
-(* One clause, with conditions: *)
- (e_multi_exec f_map (e_binop e1 binop e2) stacks status (SUC gas) =
-  case e_multi_exec f_map e1 stacks status gas of
-  | SOME (ev1, stacks', status') =>
-   if is_red ev1
-   then
-    (case e_multi_exec f_map e2 stacks' status' gas of
-     | SOME (ev2, stacks'', status'') =>
-      if is_red ev2
-      then e_exec f_map (e_binop ev1 binop ev2) stacks'' status''
-      else NONE
-     | NONE => NONE)
-   else NONE
-  | NONE => NONE)
-  /\
- (* TODO: Ideally, the default case here should be "e_exec f_map e stacks status",
-  *       with all the recursive clauses needed defined above. *)
- (e_multi_exec _ _ _ _ _ = NONE) /\
- (**************)
- (* Statements *)
- (**************)
- (* Case out of gas *)
- (stmt_multi_exec f_map stmt stacks status 0 =
-  SOME (stmt, stacks, status)) /\
- (* stmt_empty is the fully reduced form of statement *)
- (stmt_multi_exec f_map stmt_empty stacks status gas =
-  stmt_exec f_map stmt_empty stacks status) /\
- (**********)
- (* Return *)
- (stmt_multi_exec f_map (stmt_ret e) stacks status (SUC gas) =
-  case e_multi_exec f_map e stacks status gas of
-  | SOME (ev, stacks', status') => stmt_exec f_map (stmt_ret ev) stacks' status'
-  | NONE => NONE)
-  /\
- (**************)
- (* Assignment *)
- (stmt_multi_exec f_map ((stmt_ass lval e):stmt) stacks status (SUC gas) =
-  case e_multi_exec f_map e stacks status gas of
-  | SOME (ev, stacks', status') => stmt_exec f_map (stmt_ass lval ev) stacks' status'
-  | NONE => NONE)
-  /\
- (************)
- (* Sequence *)
- (stmt_multi_exec f_map (stmt_seq stmt1 stmt2) stacks status (SUC gas) =
-  case stmt_multi_exec f_map stmt1 stacks status gas of
-  | SOME (empty_stmt, stacks', status') => stmt_multi_exec f_map stmt2 stacks' status' gas
-  | NONE => NONE)
-  /\
- (stmt_multi_exec _ _ _ _ _ = NONE)
 `;
 
 (* TEST
@@ -521,10 +394,10 @@ EVAL ``stmt_multi_exec (^func_map) (stmt_seq (stmt_ass (lval_varname "x") (^e_un
 
 (* Function call *)
 (* TODO: Debug "assign" *)
-EVAL ``stmt_multi_exec (^func_map) (stmt_ass lval_null (e_func_call "f_x" [e_var "x"] [])) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec (^func_map) (stmt_ass lval_null (e_func_call "f_x" [e_var "x"])) (^stacks) (^status) 20``;
 
 (* Nested binary operations *)
-EVAL ``e_multi_exec (^func_map) (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) (^stacks) (^status) 20``
+EVAL ``e_multi_exec (^func_map) (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) (^stacks) (^status) 20``;
    
 *)
         
