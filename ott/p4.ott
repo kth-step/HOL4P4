@@ -1084,7 +1084,9 @@ val extract_value_def = Define `
  * Note that here, 0 is the topmost scope. *)
 val find_topmost_scope_def = Define `
   find_topmost_scope (sf:scope list) x =
-    (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE sf))
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE sf) of
+    | SOME (i, sc) => SOME (((LENGTH sf) - 1) - i, sc)
+    | NONE => NONE
 `;
 
 (* Extracts the topmost scope where the variable name x is mapped *)
@@ -1186,7 +1188,7 @@ val all_arg_update_for_newscope_def = Define `
 val assign_def = Define `
   assign sf val a =
     LUPDATE
-      ((topmost_scope sf a) |+ (a, (val, NONE)))
+      ((topmost_scope sf a) |+ (a, (val, lookup_out sf a)))
       (topmost_scope_index sf a)
       sf
 `;

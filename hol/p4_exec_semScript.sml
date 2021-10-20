@@ -111,8 +111,11 @@ TotalDefn.multiDefine `
 *)
 
 (* NOTE: e_red is a small-step semantics *)
+val bl0 = ``(w2v (0w:word32), 32)``;
+val bl1 = ``(w2v (1w:word32), 32)``;
+val bl2 = ``(w2v (16384w:word32), 32)``;
 
-val func_map = ``FEMPTY |+ ("f_x", (stmt_empty, ["x_inout", d_inout]))``;
+val func_map = ``FEMPTY |+ ("f_x", (stmt_seq (stmt_ass (lval_varname "x_inout") (e_v (v_bit (^bl1)))) (stmt_ret (e_v v_bot))), ["x_inout", d_inout])``;
 
 (* First, some kind of executable semantics definition *)
 (* No state modification, for now *)
@@ -161,6 +164,9 @@ val e_stmt_exec = TotalDefn.multiDefine`
       | SOME (e', stacks', status') => SOME (e_func_call f (e'::e_l_tl) e_l', stacks', status')
       | NONE => NONE)
   | NONE => NONE)
+  /\
+ (e_exec (e_func_call f [] e_l) stacks status =
+  SOME (e_func_call_red f e_l, stacks, status))
   /\
  (********************)
  (* Unary arithmetic *)
@@ -359,12 +365,13 @@ Definition is_red:
  (is_red (e_v v) = T) /\
  (is_red _ = F)
 End
-           
+
 (* TODO: Instead of matching, put logic allowing only certain types of e_v in
  *       helper functions? *)
 (* Then, define an executable semantics which performs execution until finished. *)
 (* Note that all concrete operations remain essentially the same *)
 val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
+ (* Case out of gas *)
  (e_multi_exec (e:e) (stacks:stacks) (status:status) 0 =
   SOME (e, stacks, status))
   /\
@@ -375,29 +382,30 @@ val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
  (e_multi_exec (e_var x) stacks status (SUC gas) =
   e_exec (e_var x) stacks status)
   /\
-(* Commented out for termination test
- (e_multi_exec (e_func_call_red f e_l) stacks status =
+ (e_multi_exec (e_func_call_red f e_l) stacks status (SUC gas) =
   case e_exec (e_func_call_red f e_l) stacks status of
-  | SOME (e', stacks', status') => e_multi_exec e' stacks' status'
+  | SOME (e', stacks', status') => e_multi_exec e' stacks' status' gas
   | NONE => NONE)
   /\
  (* Base case for function execution *)
- (e_multi_exec (e_func_exec stmt_empty) stacks status =
+ (e_multi_exec (e_func_exec stmt_empty) stacks status (SUC gas) =
   e_exec (e_func_exec stmt_empty) stacks status)
   /\
- (e_multi_exec (e_func_exec stmt) stacks status =
-  case stmt_multi_exec stmt stacks status of
-  | SOME (stmt', stacks', status') => e_multi_exec (e_func_exec stmt') stacks' status'
+ (e_multi_exec (e_func_exec stmt) stacks status (SUC gas) =
+  case stmt_exec stmt stacks status of
+  | SOME (stmt', stacks', status') => e_multi_exec (e_func_exec stmt') stacks' status' gas
   | NONE => NONE)
   /\
  (*******************************)
  (* Function argument reduction *)
- (e_multi_exec (e_func_call f e_l e_l') stacks status =
-  case e_exec (e_func_call f e_l e_l') stacks status of
-  | SOME (e', stacks', status') => e_multi_exec e' stacks' status'
-  | NONE => NONE)
+ (e_multi_exec (e_func_call f [] e_l') stacks status (SUC gas) =
+  e_multi_exec (e_func_call_red f e_l') stacks status gas)
   /\
-*)
+ (e_multi_exec (e_func_call f e_l e_l') stacks status (SUC gas) =
+  case e_exec (e_func_call f e_l e_l') stacks status of
+   | SOME (efc', stacks', status') => e_multi_exec efc' stacks' status' gas
+   | NONE => NONE)
+  /\
  (********************)
  (* Unary arithmetic *)
  (e_multi_exec (e_unop unop (e_v v)) stacks status (SUC gas) =
@@ -464,10 +472,12 @@ val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
  (**************)
  (* Statements *)
  (**************)
+ (* Case out of gas *)
  (stmt_multi_exec stmt stacks status 0 =
   SOME (stmt, stacks, status)) /\
+ (* stmt_empty is the fully reduced form of statement *)
  (stmt_multi_exec stmt_empty (stacks:stacks) (status:status) gas =
-  SOME (stmt_empty, stacks, status)) /\
+  stmt_exec stmt_empty stacks status) /\
  (**********)
  (* Return *)
  (stmt_multi_exec (stmt_ret e) stacks status (SUC gas) =
@@ -493,28 +503,29 @@ val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
 `;
 
 (* TEST
-val bl0 = ``(w2v (0w:word32), 32)``;
-val bl1 = ``(w2v (1w:word32), 32)``;
-val bl2 = ``(w2v (16384w:word32), 32)``;
 
 val stacks = ``stacks_tup ([FEMPTY |+ ("x", ((v_bit (^bl0)), NONE))]:scope list) ([]:call_stack)``
 val status = ``status_running``
 
 (* Nested unary operations *)
 val e_un = ``(e_unop unop_compl (e_unop unop_compl (e_v (v_bit (^bl1)))))``;
-EVAL ``e_multi_exec (^e_un) stacks status``
+EVAL ``e_multi_exec (^e_un) (^stacks) (^status) 20``;
 
 (* Single statements *)
-EVAL ``stmt_multi_exec (stmt_ass lval_null (^e_un)) (^stacks) (^status)``
+EVAL ``stmt_multi_exec (stmt_ass lval_null (^e_un)) (^stacks) (^status) 20``;
 
 (* TODO: Simplifying multiple updates to the same finite map? *)
-EVAL ``stmt_multi_exec (stmt_ass (lval_varname "x") (^e_un)) (^stacks) (^status)``
+EVAL ``stmt_multi_exec (stmt_ass (lval_varname "x") (^e_un)) (^stacks) (^status) 20``;
 
 (* Sequence of statements *)
-EVAL ``stmt_multi_exec (stmt_seq (stmt_ass (lval_varname "x") (^e_un)) (stmt_ass (lval_varname "x") (e_v (v_bit (^bl2))) )) (^stacks) (^status)``
+EVAL ``stmt_multi_exec (stmt_seq (stmt_ass (lval_varname "x") (^e_un)) (stmt_ass (lval_varname "x") (e_v (v_bit (^bl2))) )) (^stacks) (^status) 20``;
+
+(* Function call *)
+(* TODO: Debug "assign" *)
+EVAL ``stmt_multi_exec (stmt_ass lval_null (e_func_call "f_x" [e_var "x"] [])) (^stacks) (^status) 20``;
 
 (* Nested binary operations *)
-EVAL ``e_multi_exec (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) stacks status``
+EVAL ``e_multi_exec (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) (^stacks) (^status) 20``
    
 *)
         
