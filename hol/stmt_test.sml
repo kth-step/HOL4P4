@@ -10,16 +10,18 @@ open optionTheory;
 open sumTheory;
 
 (* bits representations*)
-val bitE   = ``v_bit ([] ,0)``;
-val bitT   = ``v_bit ([T],1)``;
-val bitF   = ``v_bit ([F],1)``;
-val bitA   = ``v_bit (ARB)``;
+val bitE    = ``v_bit ([] ,0)``;
+val bitT    = ``v_bit ([T],1)``;
+val bitF    = ``v_bit ([F],1)``;
+val bitA    = ``v_bit (ARB)``;
 val bitErr1 = ``v_err "NoErr"``;
 val bitErr2 = ``v_err "PacketTooShort"``;
 
-(*minimalistic states representation for transition*)
-val R = ``status_running``;
 
+(*minimalistic states representation for transition*)
+val R         = ``status_running``;
+val Parse_Rej = ``(status_pars_next (pars_next_pars_fin pars_finreject))``;
+val Parse_Acc = ``(status_pars_next (pars_next_pars_fin pars_finaccept))``;
 
 
 (*mappings from one variable to a tuple (value, string option)*)
@@ -49,6 +51,7 @@ val scope7 = ``(FEMPTY |+ ^map5 |+ ^map9)``;
 val scope8 = ``(FEMPTY |+ ^map5 |+ ^map2)``;
 val scope9 = ``(FEMPTY |+ ^map7 |+ ^map11)``;
 val scope10 = ``(FEMPTY |+ ^map7 |+ ^map12)``;
+val scope11 = ``(FEMPTY |+ ^map2 |+ ^map4)``;
 
 (*scope list examples*)
 val scopelist0 = ``[^scope0]``;
@@ -68,16 +71,23 @@ val scopelist13 = ``[^scope7]``;
 val scopelist14 = ``[^scope8]``;
 val scopelist15 = ``[^scope9]``;
 val scopelist16 = ``[^scope10]``;
+val scopelist17 = ``[^scope11]``;
+
+
 
 (*** assignment statement reduction --concrete values -- ***)
-val state1 = ``(state_tup (stacks_tup ^scopelist1 []) ^R): state``;
-val state2 = ``(state_tup (stacks_tup ^scopelist2 []) ^R): state``;
+val state1  = ``(state_tup (stacks_tup ^scopelist1 []) ^R): state``;
+val state2  = ``(state_tup (stacks_tup ^scopelist2 []) ^R): state``;
 val state2b = ``(state_tup (stacks_tup ^scopelist6 []) ^R): state``;
-val prog1 = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([T], 1))))``;
-val prog2 = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([F], 1))))``;
-val exp1  = ``(e_binop (e_v (v_bit ([T],1))) binop_add (e_v (v_bit ([F],1))))``;
+val state2c = ``(state_tup (stacks_tup ^scopelist17 []) ^R): state``;
+val state2d = ``(state_tup (stacks_tup ^scopelist4 []) ^R): state``;
+
+val prog1  = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([T], 1))))``;
+val prog2  = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([F], 1))))``;
+val exp1   = ``(e_binop (e_v (v_bit ([T],1))) binop_add (e_v (v_bit ([F],1))))``;
 val prog2c = ``(stmt_ass (lval_varname "x") (^exp1) )``; (*assign with reduction*)
-val prog2d = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([T],1))) )``; (*assign with reduction*)
+val prog2d = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([T],1))) )``; 
+val prog2e = ``(stmt_ass (lval_varname "x") (e_var("y") ))``;
 
 val test_stmt_ass1 =
 prove(`` stmt_red (^prog1) 
@@ -90,7 +100,6 @@ FULL_SIMP_TAC std_ss []>>
 EVAL_TAC>>
 SIMP_TAC std_ss [FUPDATE_EQ]
 );
-
 
 
 val test_stmt_ass2 =
@@ -125,6 +134,17 @@ prove(`` stmt_red (^prog2c)
                   (^state1)
                   (^prog2d)
                   (^state1)  ``,
+REPEAT(RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss [])
+);
+
+
+val test_stmt_ass5 =
+prove(`` stmt_red (^prog2e) 
+                  (^state2c)
+                  (^prog2d)
+                  (^state2c)  ``,
 REPEAT(RW.ONCE_RW_TAC[e_red_cases] >>
 EVAL_TAC>>
 FULL_SIMP_TAC std_ss [])
@@ -187,9 +207,9 @@ FULL_SIMP_TAC std_ss [])
 
 
 (*** declare statement reduction --concrete values -- ***)
-val state3 = ``(state_tup (stacks_tup ^scopelist5 []) status_running): state``;
-val state4 = ``(state_tup (stacks_tup ^scopelist6 []) status_running): state``;
-val prog5 = ``(stmt_declare "x"  (t_base bt_bit) )``;
+val state3 = ``(state_tup (stacks_tup ^scopelist5 []) ^R): state``;
+val state4 = ``(state_tup (stacks_tup ^scopelist6 []) ^R): state``;
+val prog5  = ``(stmt_declare "x"  (t_base bt_bit) )``;
 
 val test_stmt_decl1 =
 prove(`` stmt_red (^prog5) 
@@ -204,8 +224,8 @@ FULL_SIMP_TAC list_ss [LUPDATE_def, arb_from_t_def]
 
 
 
-val state5 = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
-val state6 = ``(state_tup (stacks_tup ^scopelist13 []) status_running): state``;
+val state5 = ``(state_tup (stacks_tup ^scopelist10 []) ^R): state``;
+val state6 = ``(state_tup (stacks_tup ^scopelist13 []) ^R): state``;
 
 val test_stmt_decl2 =
 prove(`` stmt_red (^prog5) 
@@ -219,9 +239,9 @@ FULL_SIMP_TAC list_ss [LUPDATE_def, arb_from_t_def]
 
 
 (*** block enter, exec, exit statement reduction --concrete values -- ***)
-val state7 = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
-val state8 = ``(state_tup (stacks_tup ^scopelist11 []) status_running): state``;
-val state9 = ``(state_tup (stacks_tup ^scopelist12 []) status_running): state``;
+val state7 = ``(state_tup (stacks_tup ^scopelist10 []) ^R): state``;
+val state8 = ``(state_tup (stacks_tup ^scopelist11 []) ^R): state``;
+val state9 = ``(state_tup (stacks_tup ^scopelist12 []) ^R): state``;
 val prog6a =  ``(stmt_block ^prog5 )``;
 val prog6b =  ``(stmt_block_ip ^prog5)``;
 val prog6c =  ``(stmt_block_ip stmt_empty)``;
@@ -263,12 +283,12 @@ FULL_SIMP_TAC list_ss [] )
 
 (*** stmt seq  statement reduction --concrete values -- ***)
 
-val prog7a =  ``((stmt_seq ^prog5 ^prog2))``;
-val prog7b =  ``((stmt_seq stmt_empty (^prog2)))``;
+val prog7a =  ``(stmt_seq ^prog5 ^prog2)``;
+val prog7b =  ``(stmt_seq stmt_empty (^prog2))``;
 val prog7c =  ``(^prog2)``;
-val state7a = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
-val state7b = ``(state_tup (stacks_tup ^scopelist13 []) status_running): state``;
-val state7c = ``(state_tup (stacks_tup ^scopelist14 []) status_running): state``;
+val state7a = ``(state_tup (stacks_tup ^scopelist10 []) ^R): state``;
+val state7b = ``(state_tup (stacks_tup ^scopelist13 []) ^R): state``;
+val state7c = ``(state_tup (stacks_tup ^scopelist14 []) ^R): state``;
 
 val test_stmt_seq1 =
 prove(`` stmt_red (^prog7a) 
@@ -305,10 +325,10 @@ val prog9b =  ``stmt_empty``;
 val prog9c =  ``stmt_trans (e_var "accept") ``;
 val prog9d =  ``stmt_trans (e_var "reject") ``;
 
-val state9a = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
+val state9a = ``(state_tup (stacks_tup ^scopelist10 []) ^R): state``;
 val state9b = ``(state_tup (stacks_tup ^scopelist10 []) (status_pars_next (pars_next_trans "MoveNext"))): state``;
-val state9c = ``(state_tup (stacks_tup ^scopelist10 []) (status_pars_next (pars_next_pars_fin pars_finaccept))): state``;
-val state9d = ``(state_tup (stacks_tup ^scopelist10 []) (status_pars_next (pars_next_pars_fin pars_finreject))): state``;
+val state9c = ``(state_tup (stacks_tup ^scopelist10 []) ^Parse_Acc): state``;
+val state9d = ``(state_tup (stacks_tup ^scopelist10 []) ^Parse_Rej): state``;
 
 
 
@@ -360,8 +380,8 @@ val prog8f =  ``stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err "Pac
 
 
 
-val state8a = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
-val state8b = ``(state_tup (stacks_tup ^scopelist10 []) status_running): state``;
+val state8a = ``(state_tup (stacks_tup ^scopelist10 []) ^R): state``;
+val state8b = ``(state_tup (stacks_tup ^scopelist10 []) ^R): state``;
 
 
 
@@ -415,9 +435,9 @@ FULL_SIMP_TAC list_ss []
 (*Testing verify_4 the whole execustion*)
 val prog8g =  ``stmt_seq stmt_empty (stmt_trans (e_var"reject"))``;
 val prog8h =  ``(stmt_trans (e_var"reject"))``;
-val state10a = ``(state_tup (stacks_tup ^scopelist15 []) status_running): state``;
-val state10b = ``(state_tup (stacks_tup ^scopelist16 []) status_running): state``;
-val state10c = ``(state_tup (stacks_tup ^scopelist16 []) (status_pars_next (pars_next_pars_fin pars_finreject))): state``;
+val state10a = ``(state_tup (stacks_tup ^scopelist15 []) ^R): state``;
+val state10b = ``(state_tup (stacks_tup ^scopelist16 []) ^R): state``;
+val state10c = ``(state_tup (stacks_tup ^scopelist16 []) ^Parse_Rej): state``;
 
 
 val test_stmt_verify5 =
@@ -468,35 +488,16 @@ FULL_SIMP_TAC list_ss []
 
 
 
-
-(*** lookup expression  reduction --concrete values -- ***)
-
-val state_e1 = ``(stacks_tup (^scopelist8) [])``;
-
-val test_e_lookup =
-prove(`` e_red    (e_var "x") 
-                  (^state_e1)  (status_running)
-                  (e_v (v_bit ([F],1))) 
-                  (^state_e1)  (status_running) ``,
-RW.ONCE_RW_TAC[e_red_cases, lookup_vexp_def] >>
-NTAC 2 (EVAL_TAC>>
-FULL_SIMP_TAC list_ss []  )
-);
-
-
-
-
-
 (*** Parser reductions --concrete values -- ***)
 
 val pars_map = ``(FEMPTY |+ ("start", stmt_seq (^prog8b)  (stmt_trans (e_var "p_ipv4")))
                          |+ ("p_ipv4", (^prog2) ))``;
 
 
-val state10a = ``(state_tup (stacks_tup ^scopelist2 []) status_running): state``;
-val state10b = ``(state_tup (stacks_tup ^scopelist1 []) status_running): state``;
-val state10c = ``(state_tup (stacks_tup ^scopelist1 []) (status_pars_next (pars_next_pars_fin pars_finreject))): state``;
-val state10d = ``(state_tup (stacks_tup ^scopelist1 []) (status_pars_next (pars_next_pars_fin pars_finaccept))): state``;
+val state10a = ``(state_tup (stacks_tup ^scopelist2 []) ^R): state``;
+val state10b = ``(state_tup (stacks_tup ^scopelist1 []) ^R): state``;
+val state10c = ``(state_tup (stacks_tup ^scopelist1 []) ^Parse_Rej): state``;
+val state10d = ``(state_tup (stacks_tup ^scopelist1 []) ^Parse_Acc): state``;
 
 val test_pars_sem1 =
 prove(`` pars_red (stmt_seq (^prog8b)  (stmt_trans (e_var "p_ipv4"))) 
@@ -527,11 +528,10 @@ EVAL_TAC
 
 
 val test_pars_sem3 =
-prove(`` pars_red ((stmt_trans (e_var "p_ipv4")))
+prove(`` pars_red (stmt_trans (e_var "p_ipv4"))
                   (^state10a)
-		  ((^prog2))
-                  (^state10a)
-``,
+		  (^prog2)
+                  (^state10a) ``,
 NTAC 2 (RW.ONCE_RW_TAC[pars_red_cases, e_red_cases] >>
 EVAL_TAC>>
 FULL_SIMP_TAC list_ss []) >>
@@ -545,8 +545,7 @@ val test_pars_sem4 =
 prove(`` pars_red (^prog2)
                   (^state10a)
 		  (stmt_trans (e_var "reject"))
-                  (^state10b)
-``,
+                  (^state10b) ``,
 RW.ONCE_RW_TAC[pars_red_cases] >>
 EVAL_TAC>>
 FULL_SIMP_TAC list_ss [] >>
@@ -562,9 +561,8 @@ SIMP_TAC std_ss [FUPDATE_EQ]
 
 val test_pars_sem5 =
 prove(`` pars_t_red (stmt_trans (e_var "reject"))
-                  (^state10b)
-		  (^state10c)
-``,
+                    (^state10b)
+		    (^state10c) ``,
 RW.ONCE_RW_TAC[pars_t_red_cases] >>
 EVAL_TAC>>
 FULL_SIMP_TAC list_ss [] >>
@@ -580,8 +578,7 @@ EVAL_TAC
 val test_pars_sem5 =
 prove(`` pars_t_red (stmt_trans (e_var "accept"))
                   (^state10b)
-		  (^state10d)
-``,
+		  (^state10d) ``,
 RW.ONCE_RW_TAC[pars_t_red_cases] >>
 EVAL_TAC>>
 FULL_SIMP_TAC list_ss [] >>
@@ -591,3 +588,28 @@ EVAL_TAC>>
 FULL_SIMP_TAC std_ss []>>
 EVAL_TAC
 );
+
+
+
+
+
+(*** lookup expression  reduction --concrete values -- ***)
+
+val state_e1 = ``(stacks_tup (^scopelist8) [])``;
+
+val test_e_lookup =
+prove(`` e_red    (e_var "x") 
+                  (^state_e1)  (status_running)
+                  (e_v (v_bit ([F],1))) 
+                  (^state_e1)  (status_running) ``,
+RW.ONCE_RW_TAC[e_red_cases, lookup_vexp_def] >>
+NTAC 2 (EVAL_TAC>>
+FULL_SIMP_TAC list_ss []  )
+);
+
+
+
+
+(*** more on assignment (struct, header field adn null)  reduction --concrete values -- ***)
+
+(*tests of assignment null*)
