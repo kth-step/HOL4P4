@@ -160,9 +160,119 @@ Proof
  fs []
 QED
 
+Definition unop_exec:
+ (unop_exec unop_neg (v_bool b) = SOME (v_bool ~b))
+ /\
+ (unop_exec unop_compl (v_bit bitv) = SOME (v_bit (bitv_bl_unop bnot bitv)))
+ /\
+ (unop_exec unop_neg_signed (v_bit bitv) = SOME (v_bit (bitv_unop unop_neg_signed bitv)))
+ /\
+ (unop_exec unop_un_plus (v_bit bitv) = SOME (v_bit bitv))
+ /\
+ (unop_exec unop v = NONE)
+End
+
+(* TODO: Split binop into binop, binpred, ... to reduce copypaste? *)
+Definition binop_exec:
+ (binop_exec binop_mul (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_mul bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_div (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_div bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_mod (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_mod bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_add (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_add bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_sub (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_sub bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_shl (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
+ /\
+ (binop_exec binop_shr (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
+ /\
+ (binop_exec binop_le (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binpred binop_le bitv1 bitv2 of
+  | SOME b => SOME (v_bool b)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_ge (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binpred binop_ge bitv1 bitv2 of
+  | SOME b => SOME (v_bool b)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_lt (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binpred binop_lt bitv1 bitv2 of
+  | SOME b => SOME (v_bool b)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_gt (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binpred binop_gt bitv1 bitv2 of
+  | SOME b => SOME (v_bool b)
+  | NONE => NONE)
+ /\
+ (* TODO: This might generalize easily... *)
+ (binop_exec binop_neq (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bool (bitv1 <> bitv2)))
+ /\
+ (binop_exec binop_neq (v_bool b1) (v_bool b2) =
+  SOME (v_bool (b1 <> b2)))
+ /\
+ (binop_exec binop_eq (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bool (bitv1 = bitv2)))
+ /\
+ (binop_exec binop_eq (v_bool b1) (v_bool b2) =
+  SOME (v_bool (b1 = b2)))
+ /\
+ (binop_exec binop_and (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bit (bitv_bl_binop band bitv1 bitv2)))
+ /\
+ (binop_exec binop_xor (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bit (bitv_bl_binop bxor bitv1 bitv2)))
+ /\
+ (binop_exec binop_or (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bit (bitv_bl_binop bor bitv1 bitv2)))
+ /\
+(*
+ (binop_exec binop_bin_and (v_bool F) (v_bool b) =
+  SOME (v_bool F))
+ /\
+ (binop_exec binop_bin_and (v_bool T) (v_bool b) =
+  SOME (v_bool b))
+ /\
+*)
+ (binop_exec binop v1 v2 = NONE)
+End
+
+Definition is_short_circuitable:
+ (is_short_circuitable (v_bool F) binop_bin_and = T) /\
+ (is_short_circuitable (v_bool T) binop_bin_or = T) /\
+ (is_short_circuitable _ _ = F)
+End
+
+Definition short_circuit:
+ (short_circuit binop_bin_and stacks status = SOME (e_v (v_bool F), stacks, status)) /\
+ (short_circuit binop_bin_or stacks status = SOME (e_v (v_bool T), stacks, status)) /\
+ (short_circuit _ _ _ = NONE)
+End
+
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce the number of clauses pattern completion needs to add *)
-(* TODO: Helper definition for unary and binary concrete operations *)
+(* TODO: Use "get_value" that obtains an option value from an expression? *)
 (* TotalDefn.tDefine "e_stmt_exec" *)
 (* TotalDefn.multiDefine *)
 (* Hol_defn "e_stmt_exec" *)
@@ -203,17 +313,10 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (********************)
  (* Unary arithmetic *)
- (e_exec _ (e_unop unop_neg (e_v (v_bool b))) stacks status =
-  SOME ((e_v (v_bool ~b)), stacks, status))
-  /\
- (e_exec _ (e_unop unop_compl (e_v (v_bit bitv))) stacks status =
-  SOME ((e_v (v_bit (bitv_bl_unop bnot bitv))), stacks, status))
-  /\
- (e_exec _ (e_unop unop_neg_signed (e_v (v_bit bitv))) stacks status =
-  SOME ((e_v (v_bit (bitv_unop unop_neg_signed bitv))), stacks, status))
-  /\
- (e_exec _ (e_unop unop_un_plus (e_v (v_bit bitv))) stacks status =
-  SOME ((e_v (v_bit bitv)), stacks, status))
+ (e_exec _ (e_unop unop (e_v v)) stacks status =
+  case unop_exec unop v of
+  | SOME v => SOME (e_v v, stacks, status)
+  | NONE => NONE)
   /\
  (*****************************************)
  (* Argument reduction of unary operation *)
@@ -222,92 +325,41 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   | SOME (e', stacks', status') => SOME ((e_unop unop e'), stacks', status')
   | NONE => NONE)
   /\
+(* TEST: Single rule for unary arithmetic
+ (e_exec f_map (e_unop unop e) stacks status =
+  case e of
+  | (e_v v) =>
+   (case unop_exec unop v of
+    | SOME v' => SOME (e_v v', stacks, status)
+    | NONE => NONE)
+  | _ =>
+   (case e_exec f_map e stacks status of
+    | SOME (e', stacks', status') => SOME (e_unop unop e', stacks', status')
+    | NONE => NONE))
+  /\
+*)
  (*********************)
  (* Binary arithmetic *)
-(*
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_mul (e_v (v_bit bitv2))) stacks status =
-  case bitv_binop binop_mul bitv1 bitv2 of
-  | SOME bitv3 => SOME (e_v (v_bit bitv3), stacks, status)
+ (e_exec _ (e_binop (e_v v1) binop (e_v v2)) stacks status =
+  case binop_exec binop v1 v2 of
+  | SOME v => SOME (e_v v, stacks, status)
   | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_div (e_v (v_bit bitv2))) stacks status =
-  case bitv_binop binop_div bitv1 bitv2 of
-  | SOME bitv3 => SOME (e_v (v_bit bitv3), stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_mod (e_v (v_bit bitv2))) stacks status =
-  case bitv_binop binop_mod bitv1 bitv2 of
-  | SOME bitv3 => SOME (e_v (v_bit bitv3), stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_add (e_v (v_bit bitv2))) stacks status =
-  case bitv_binop binop_add bitv1 bitv2 of
-  | SOME bitv3 => SOME (e_v (v_bit bitv3), stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_sub (e_v (v_bit bitv2))) stacks status =
-  case bitv_binop binop_sub bitv1 bitv2 of
-  | SOME bitv3 => SOME (e_v (v_bit bitv3), stacks, status)
-  | NONE => NONE)
-  /\
-(* Typo somewhere below this point *)
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_shl (e_v (v_bit bitv2))) stacks status =
-  SOME (e_v (v_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2))), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_shr (e_v (v_bit bitv2))) stacks status =
-  SOME (e_v (v_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2))), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_le (e_v (v_bit bitv2))) stacks status =
-  case bitv_binpred binop_le bitv1 bitv2 of
-  | SOME b => SOME (e_v (v_bool b), stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_ge (e_v (v_bit bitv2))) stacks status =
-  case bitv_binpred binop_ge bitv1 bitv2 of
-  | SOME b => SOME (e_v (v_bool b), stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_lt (e_v (v_bit bitv2))) stacks status =
-  case bitv_binpred binop_lt bitv1 bitv2 of
-  | SOME b => SOME (e_v (v_bool b), stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_gt (e_v (v_bit bitv2))) stacks status =
-  case bitv_binpred binop_gt bitv1 bitv2 of
-  | SOME b => SOME (e_v (v_bool b), stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_neq (e_v (v_bit bitv2))) stacks status = SOME (e_v (v_bool (bitv1 <> bitv2)), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_eq (e_v (v_bit bitv2))) stacks status = SOME (e_v (v_bool (bitv1 = bitv2)), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_and (e_v (v_bit bitv2))) stacks status = SOME (e_v (v_bit (bitv_bl_binop band bitv1 bitv2)), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_xor (e_v (v_bit bitv2))) stacks status = SOME (e_v (v_bit (bitv_bl_binop bxor bitv1 bitv2)), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bit bitv1)) binop_or (e_v (v_bit bitv2))) stacks status = SOME (e_v (v_bit (bitv_bl_binop bor bitv1 bitv2))))
-  /\
- (e_exec _ (e_binop (e_v (v_bool F)) binop_bin_and (e_v (v_bool b))) stacks status = SOME (e_v (v_bool F), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bool T)) binop_bin_and (e_v (v_bool b))) stacks status = SOME (e_v (v_bool b), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bool T)) binop_bin_or (e_v (v_bool b))) stacks status = SOME (e_v (v_bool T), stacks, status))
-  /\
- (e_exec _ (e_binop (e_v (v_bool F)) binop_bin_or (e_v (v_bool b))) stacks status = SOME (e_v (v_bool b), stacks, status))
   /\
  (******************************************)
  (* Argument reduction of binary operation *)
  (e_exec f_map (e_binop (e_v v) binop e1) stacks status =
-  case e_exec f_map e1 stacks status of
-  | SOME (e2, stacks', status') => SOME (e_binop (e_v v) binop e2, stacks', status')
-  | NONE => NONE)
+  if is_short_circuitable v binop
+  then short_circuit binop stacks status
+  else
+   (case e_exec f_map e1 stacks status of
+    | SOME (e2, stacks', status') => SOME (e_binop (e_v v) binop e2, stacks', status')
+    | NONE => NONE))
   /\
  (e_exec f_map (e_binop e1 binop e2) stacks status =
   case e_exec f_map e1 stacks status of
   | SOME (e3, stacks', status') => SOME (e_binop e3 binop e2, stacks', status')
   | NONE => NONE)
   /\
-*)
  (e_exec _ _ stacks status = NONE)
   /\
  (**************)
@@ -319,6 +371,7 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (* Function call-related *)
  (stmt_exec f_map (stmt_ret (e_v v)) (stacks_tup curr_stack_frame call_stack) status_running =
   case call_stack of
+  | ((curr_stack_frame', called_function_name_bot)::call_stack') => NONE
   | ((curr_stack_frame', called_function_name_function_name f)::call_stack') =>
    (case FLOOKUP f_map f of
    | SOME (stmt, x_d_l) => SOME (stmt_empty,
@@ -333,15 +386,35 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
   | NONE => NONE)
   /\
+(*
+ (stmt_exec f_map (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
+  case e of
+  | (e_v v) => 
+   (case call_stack of
+    | ((curr_stack_frame', called_function_name_bot)::call_stack') => NONE
+    | ((curr_stack_frame', called_function_name_function_name f)::call_stack') =>
+     (case FLOOKUP f_map f of
+     | SOME (stmt, x_d_l) => SOME (stmt_empty,
+				  (stacks_tup (update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD curr_stack_frame)::curr_stack_frame') curr_stack_frame)
+					      call_stack'),
+				  status_return v)
+     | NONE => NONE)
+    | [] => NONE)
+  | e' =>
+   (case e_exec f_map e (stacks_tup curr_stack_frame call_stack) status of
+    | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
+    | NONE => NONE))
+  /\
+*)
  (**************)
  (* Assignment *)
- (stmt_exec _ ((stmt_ass (lval_varname x) (e_v v)):stmt) (stacks_tup curr_stack_frame call_stack) status =
+ (stmt_exec _ (stmt_ass (lval_varname x) (e_v v)) (stacks_tup curr_stack_frame call_stack) status =
   SOME (stmt_empty, (stacks_tup  (assign curr_stack_frame v x) call_stack), status))
   /\
- (stmt_exec _ ((stmt_ass lval_null (e_v v)):stmt) stacks status =
+ (stmt_exec _ (stmt_ass lval_null (e_v v)) stacks status =
   SOME (stmt_empty, stacks, status))
   /\
- (stmt_exec f_map ((stmt_ass lval e):stmt) stacks status =
+ (stmt_exec f_map (stmt_ass lval e) stacks status =
   case e_exec f_map e stacks status of
   | SOME (e', stacks', status') => SOME (stmt_ass lval e', stacks', status')
   | NONE => NONE)
@@ -452,7 +525,6 @@ EVAL ``stmt_multi_exec (^func_map) (stmt_ass (lval_varname "x") (^e_un)) (^stack
 EVAL ``stmt_multi_exec (^func_map) (stmt_seq (stmt_ass (lval_varname "x") (^e_un)) (stmt_ass (lval_varname "x") (e_v (v_bit (^bl2))) )) (^stacks) (^status) 20``;
 
 (* Function call *)
-(* TODO: Debug "assign" *)
 EVAL ``stmt_multi_exec (^func_map) (stmt_ass lval_null (e_func_call "f_x" [e_var "x"])) (^stacks) (^status) 20``;
 
 (* Nested binary operations *)
