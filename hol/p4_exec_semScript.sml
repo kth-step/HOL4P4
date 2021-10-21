@@ -112,10 +112,61 @@ TotalDefn.multiDefine `
 
 (* NOTE: e_red is a small-step semantics *)
 
+val sum_size_def = Define `
+ (sum_size (INL ((f_map:func_map), e, (stacks:stacks), (status:status))) = e_size e) /\
+ (sum_size (INR ((f_map:func_map), stmt, (stacks:stacks), (status:status))) = stmt_size stmt)
+`;
+
+Theorem e1_size_append:
+ !e_l1 e_l2. e1_size (e_l1 ++ e_l2) = (e1_size e_l1 + e1_size e_l2)
+Proof
+ Induct_on `e_l1` >> (
+  fs [e_size_def]
+ )
+QED
+
+Theorem e1_size_mem:
+ !e e_l. MEM e e_l ==> e_size e < e1_size e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, e1_size_append, e_size_def]
+QED
+
+Theorem index_find_length:
+ !l i f j e. (INDEX_FIND i f l = SOME (j, e)) ==> (j - i < LENGTH l)
+Proof
+ Induct_on `l` >> (
+  fs [listTheory.INDEX_FIND_def]
+ ) >>
+ REPEAT STRIP_TAC >>
+ fs [] >>
+ Cases_on `f h` >> (
+  fs []
+ ) >>
+ Q.PAT_X_ASSUM `!i f j e. _` (ASSUME_TAC o Q.SPECL [`SUC i`, `f`, `j`, `e`]) >>
+ rfs []
+QED
+
+Theorem unred_arg_index_in_range:
+ !d_l e_l i. unred_arg_index d_l e_l = SOME i ==> i < LENGTH e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [unred_arg_index_def, find_unred_arg_def] >>
+ Cases_on `INDEX_FIND 0 (\(d,e). is_d_none_in d /\ ~is_const e) (ZIP (d_l,e_l))` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ IMP_RES_TAC index_find_length >>
+ fs []
+QED
+
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce the number of clauses pattern completion needs to add *)
 (* TODO: Helper definition for unary and binary concrete operations *)
-val e_stmt_exec = TotalDefn.tDefine "e_stmt_exec" `
+(* TotalDefn.tDefine "e_stmt_exec" *)
+(* TotalDefn.multiDefine *)
+(* Hol_defn "e_stmt_exec" *)
+val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (* e_v is the fully reduced form of expression *)
  (e_exec _ (e_v v) stacks status =
   SOME ((e_v v), stacks, status))
@@ -309,7 +360,15 @@ val e_stmt_exec = TotalDefn.tDefine "e_stmt_exec" `
   | NONE => NONE)
   /\
  (stmt_exec _ _ stacks status = NONE)
-` cheat;
+`
+(WF_REL_TAC `measure sum_size` >>
+ fs [sum_size_def, e_size_def] >>
+ REPEAT STRIP_TAC >>
+ IMP_RES_TAC unred_arg_index_in_range >>
+ IMP_RES_TAC rich_listTheory.EL_MEM >>
+ IMP_RES_TAC e1_size_mem >>
+ fs [])
+;
 
 (* Then, some kind of theorem that states equivalence
  * between executable semantics and ott-exported reduction rules.
