@@ -273,6 +273,7 @@ End
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce the number of clauses pattern completion needs to add *)
 (* TODO: Use "get_value" that obtains an option value from an expression? *)
+(* 11 expressions, 11 statements => 22 clauses in definition, at minimum *)
 (* TotalDefn.tDefine "e_stmt_exec" *)
 (* TotalDefn.multiDefine *)
 (* Hol_defn "e_stmt_exec" *)
@@ -332,6 +333,7 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
    (case unop_exec unop v of
     | SOME v' => SOME (e_v v', stacks, status)
     | NONE => NONE)
+  (* This will become 10 different cases *)
   | _ =>
    (case e_exec f_map e stacks status of
     | SOME (e', stacks', status') => SOME (e_unop unop e', stacks', status')
