@@ -246,6 +246,12 @@ e_list :: e_list_ ::=
 | e1 , .. , en :: M :: exps
   {{ com list of expressions }}
   {{ hol ([[e1 .. en]]) }}
+| e '::' e_list :: M :: cons
+  {{ com cons }}
+  {{ hol (e::[[e_list]]) }}
+| tl e_list :: M :: tail
+  {{ com tail }}
+  {{ hol (TL [[e_list]]) }}
 | [ e1 , .. , en ] :: M :: exps2
   {{ com bracketed list of expressions }}
   {{ hol ([[e1 .. en]]) }}
@@ -436,8 +442,7 @@ scope {{ tex \gamma }} :: scope_ ::=
   {{ tex {\gamma}_{ \emptyset } }}
 | scope + [ x |-> ( v , NONE ) ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (if (scope = HD []) then  (FUPDATE FEMPTY ([[x]], ( [[v]] , NONE ))) 
-     else (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE )))) }}
+  {{ hol (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE ))) }}
   {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
 | scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
   {{ com update variable mapping }}
@@ -478,15 +483,9 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
 | rev curr_stack_frame :: M :: rev
   {{ hol (REVERSE [[curr_stack_frame]]) }}
   {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
-%| curr_stack_frame ++ [ emptyscope ] :: M :: append_freshscope
-%  {{ hol ([[curr_stack_frame]] ++ [ [[emptyscope]] ]) }}
-%  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [ [[emptyscope]] ] }}  
 | update ( scope , i , curr_stack_frame ) :: M :: update_scope
   {{ com update a scope in the stack frame }}
-  {{ hol (
-  if (scope = HD []) 
-  then LUPDATE [[scope]] [[i]] ([[curr_stack_frame]]++[FEMPTY])
-  else LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
+  {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
   {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
 | assign ( curr_stack_frame , v , x ) :: M :: assign
   {{ com assign to a variable in the stack frame }}
@@ -673,11 +672,15 @@ formula :: formula_ ::=
   %TODO: Hack due to lack of list comprehension for tex
   {{ tex [[v]] \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) }}
 | check_args_red d_list e_list :: M :: signature_check  
-  {{ com check if parameters are isvar or isconst }}
+  {{ com check if arguments are isvar or isconst }}
   {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
          ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
   {{ hol (check_args_red [[d_list]] [[e_list]]) }}
-
+| ~check_args_red d_list e_list :: M :: signature_check_false
+  {{ com check if arguments are not isvar or isconst }}
+  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+         \neg ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
+  {{ hol (~(check_args_red [[d_list]] [[e_list]])) }}
 %some operations on the direction list
 | d = d_list [ i ] :: M :: d_index
   {{ hol ([[d]] = EL [[i]] [[d_list]]) }}
@@ -687,7 +690,7 @@ formula :: formula_ ::=
   {{ tex [[d]] = \mathrm{hd} \,\, [[d_list]] }} 
 | unred_arg_index d_list e_list = i :: M :: parameter_index
   {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
-  {{ hol (unred_arg_index [[d_list]] [[e_list]] = i) }}
+  {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME i) }}
 
 %Equalities
 | scope = scope' :: M :: scope_eq
@@ -1073,7 +1076,9 @@ val extract_value_def = Define `
  * Note that here, 0 is the topmost scope. *)
 val find_topmost_scope_def = Define `
   find_topmost_scope (sf:scope list) x =
-    (INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE sf))
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE sf) of
+    | SOME (i, sc) => SOME (((LENGTH sf) - 1) - i, sc)
+    | NONE => NONE
 `;
 
 (* Extracts the topmost scope where the variable name x is mapped *)
@@ -1133,7 +1138,9 @@ val find_unred_arg_def = Define `
 `;
 val unred_arg_index_def = Define `
   unred_arg_index dlist elist  = 
-    FST (THE (find_unred_arg dlist elist))
+    case find_unred_arg dlist elist of
+    | SOME (i, de) => SOME i
+    | NONE => NONE
 `;
 
 (* Checks if function arguments have been appropriately reduced.
@@ -1141,6 +1148,10 @@ val unred_arg_index_def = Define `
 val is_arg_red_def = Define `
   is_arg_red d e = 
    ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_var e)) = T)
+`;
+val check_arg_red_def = Define `
+  check_arg_red dlist e i = 
+   ((is_d_none_in (EL i dlist) ==> (is_const e)) /\ (~(is_d_none_in (EL i dlist)) ==> (is_var e)) = T)
 `;
 val check_args_red_def = Define `
   check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
@@ -1169,7 +1180,7 @@ val all_arg_update_for_newscope_def = Define `
 val assign_def = Define `
   assign sf val a =
     LUPDATE
-      ((topmost_scope sf a) |+ (a, (val, NONE)))
+      ((topmost_scope sf a) |+ (a, (val, lookup_out sf a)))
       (topmost_scope_index sf a)
       sf
 `;
@@ -1216,7 +1227,6 @@ by
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
 
-  %Check that all arguments have been reduced
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %Build new stack frame
