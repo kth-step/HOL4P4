@@ -113,8 +113,8 @@ TotalDefn.multiDefine `
 (* NOTE: e_red is a small-step semantics *)
 
 val sum_size_def = Define `
- (sum_size (INL ((f_map:func_map), e, (stacks:stacks), (status:status))) = e_size e) /\
- (sum_size (INR ((f_map:func_map), stmt, (stacks:stacks), (status:status))) = stmt_size stmt)
+ (sum_size (INL ((ctx:ctx), e, (stacks:stacks), (status:status))) = e_size e) /\
+ (sum_size (INR ((ctx:ctx), stmt, (stacks:stacks), (status:status))) = stmt_size stmt)
 `;
 
 Theorem e1_size_append:
@@ -289,12 +289,12 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (*************************)
  (* Function call-related *)
- (e_exec f_map (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
-  case FLOOKUP f_map f of
+ (e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
+  case FLOOKUP func_map f of
   | SOME (stmt, x_d_l) =>
     (case unred_arg_index (MAP SND x_d_l) e_l of
      | SOME i  =>
-      (case e_exec f_map (EL i e_l) (stacks_tup curr_stack_frame call_stack) status of
+      (case e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (EL i e_l) (stacks_tup curr_stack_frame call_stack) status of
        | SOME (e', stacks', status') => SOME (e_func_call f (LUPDATE e' i e_l), stacks', status')
        | NONE => NONE)
      | NONE =>
@@ -307,8 +307,8 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (e_exec _ (e_func_exec stmt_empty) stacks (status_return v) =
   SOME (e_v v, stacks, status_running))
   /\
- (e_exec f_map (e_func_exec stmt) stacks status =
-  case stmt_exec f_map stmt stacks status of
+ (e_exec ctx (e_func_exec stmt) stacks status =
+  case stmt_exec ctx stmt stacks status of
   | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
   | NONE => NONE)
   /\
@@ -321,13 +321,13 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (*****************************************)
  (* Argument reduction of unary operation *)
- (e_exec f_map (e_unop unop e) stacks status =
-  case e_exec f_map e stacks status of
+ (e_exec ctx (e_unop unop e) stacks status =
+  case e_exec ctx e stacks status of
   | SOME (e', stacks', status') => SOME ((e_unop unop e'), stacks', status')
   | NONE => NONE)
   /\
 (* TEST: Single rule for unary arithmetic
- (e_exec f_map (e_unop unop e) stacks status =
+ (e_exec ctx (e_unop unop e) stacks status =
   case e of
   | (e_v v) =>
    (case unop_exec unop v of
@@ -335,7 +335,7 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | NONE => NONE)
   (* This will become 10 different cases *)
   | _ =>
-   (case e_exec f_map e stacks status of
+   (case e_exec ctx e stacks status of
     | SOME (e', stacks', status') => SOME (e_unop unop e', stacks', status')
     | NONE => NONE))
   /\
@@ -349,16 +349,16 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (******************************************)
  (* Argument reduction of binary operation *)
- (e_exec f_map (e_binop (e_v v) binop e1) stacks status =
+ (e_exec ctx (e_binop (e_v v) binop e1) stacks status =
   if is_short_circuitable v binop
   then short_circuit binop stacks status
   else
-   (case e_exec f_map e1 stacks status of
+   (case e_exec ctx e1 stacks status of
     | SOME (e2, stacks', status') => SOME (e_binop (e_v v) binop e2, stacks', status')
     | NONE => NONE))
   /\
- (e_exec f_map (e_binop e1 binop e2) stacks status =
-  case e_exec f_map e1 stacks status of
+ (e_exec ctx (e_binop e1 binop e2) stacks status =
+  case e_exec ctx e1 stacks status of
   | SOME (e3, stacks', status') => SOME (e_binop e3 binop e2, stacks', status')
   | NONE => NONE)
   /\
@@ -371,11 +371,11 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec _ stmt_empty stacks status = SOME (stmt_empty, stacks, status)) /\
  (*************************)
  (* Function call-related *)
- (stmt_exec f_map (stmt_ret (e_v v)) (stacks_tup curr_stack_frame call_stack) status_running =
+ (stmt_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret (e_v v)) (stacks_tup curr_stack_frame call_stack) status_running =
   case call_stack of
   | ((curr_stack_frame', called_function_name_bot)::call_stack') => NONE
   | ((curr_stack_frame', called_function_name_function_name f)::call_stack') =>
-   (case FLOOKUP f_map f of
+   (case FLOOKUP func_map f of
    | SOME (stmt, x_d_l) => SOME (stmt_empty,
 				(stacks_tup (update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD curr_stack_frame)::curr_stack_frame') curr_stack_frame)
 					    call_stack'),
@@ -383,19 +383,19 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
    | NONE => NONE)
   | [] => NONE)
   /\
- (stmt_exec f_map (stmt_ret e) stacks status =
-  case e_exec f_map e stacks status of
+ (stmt_exec ctx (stmt_ret e) stacks status =
+  case e_exec ctx e stacks status of
   | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
   | NONE => NONE)
   /\
 (*
- (stmt_exec f_map (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
+ (stmt_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
   case e of
   | (e_v v) => 
    (case call_stack of
     | ((curr_stack_frame', called_function_name_bot)::call_stack') => NONE
     | ((curr_stack_frame', called_function_name_function_name f)::call_stack') =>
-     (case FLOOKUP f_map f of
+     (case FLOOKUP func_map f of
      | SOME (stmt, x_d_l) => SOME (stmt_empty,
 				  (stacks_tup (update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD curr_stack_frame)::curr_stack_frame') curr_stack_frame)
 					      call_stack'),
@@ -403,7 +403,7 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
      | NONE => NONE)
     | [] => NONE)
   | e' =>
-   (case e_exec f_map e (stacks_tup curr_stack_frame call_stack) status of
+   (case e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) e (stacks_tup curr_stack_frame call_stack) status of
     | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
     | NONE => NONE))
   /\
@@ -416,8 +416,8 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec _ (stmt_ass lval_null (e_v v)) stacks status =
   SOME (stmt_empty, stacks, status))
   /\
- (stmt_exec f_map (stmt_ass lval e) stacks status =
-  case e_exec f_map e stacks status of
+ (stmt_exec ctx (stmt_ass lval e) stacks status =
+  case e_exec ctx e stacks status of
   | SOME (e', stacks', status') => SOME (stmt_ass lval e', stacks', status')
   | NONE => NONE)
   /\
@@ -429,8 +429,8 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec _ ((stmt_seq stmt_empty stmt):stmt) stacks status =
   SOME (stmt, stacks, status))
   /\
- (stmt_exec f_map ((stmt_seq stmt1 stmt2):stmt) stacks status =
-  case stmt_exec f_map stmt1 stacks status of
+ (stmt_exec ctx ((stmt_seq stmt1 stmt2):stmt) stacks status =
+  case stmt_exec ctx stmt1 stacks status of
   | SOME (stmt1', stacks', status') => SOME (stmt_seq stmt1' stmt2, stacks', status')
   | NONE => NONE)
   /\
@@ -450,9 +450,9 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  * For sketch, only soundness and not completeness *)
 (* TODO: Completeness *)
 Theorem e_exec_sound_red:
- !f_map (e:e) (e':e) stacks stacks' status status'.
-  e_exec f_map e stacks status = SOME (e', stacks', status) ==>
-  e_red e stacks status e' stacks' status'
+ !ctx (e:e) (e':e) stacks stacks' status status'.
+  e_exec ctx e stacks status = SOME (e', stacks', status) ==>
+  e_red ctx e stacks status e' stacks' status'
 Proof
 (* OLD version:
  Cases_on `e` >> Cases_on `e'` >> (
@@ -470,9 +470,9 @@ cheat
 QED
 
 Theorem stmt_exec_sound_red:
- !f_map (stmt:stmt) (stmt':stmt) stacks stacks' status status'.
-  stmt_exec f_map stmt stacks status = SOME (stmt', stacks', status) ==>
-  stmt_red stmt (state_tup stacks status) stmt' (state_tup stacks' status')
+ !ctx (stmt:stmt) (stmt':stmt) stacks stacks' status status'.
+  stmt_exec ctx stmt stacks status = SOME (stmt', stacks', status) ==>
+  stmt_red ctx stmt (state_tup stacks status) stmt' (state_tup stacks' status')
 Proof
 cheat
 QED
@@ -488,17 +488,17 @@ val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
  (e_multi_exec _ e stacks status 0 =
   SOME (e, stacks, status))
   /\
- (e_multi_exec f_map e stacks status (SUC gas) =
-  case e_exec f_map e stacks status of
-  | SOME (e', stacks', status') => e_multi_exec f_map e' stacks' status' gas
+ (e_multi_exec ctx e stacks status (SUC gas) =
+  case e_exec ctx e stacks status of
+  | SOME (e', stacks', status') => e_multi_exec ctx e' stacks' status' gas
   | NONE => NONE)
  /\
  (stmt_multi_exec _ stmt stacks status 0 =
   SOME (stmt, stacks, status))
  /\
- (stmt_multi_exec f_map stmt stacks status (SUC gas) =
-  case stmt_exec f_map stmt stacks status of
-  | SOME (stmt', stacks', status') => stmt_multi_exec f_map stmt' stacks' status' gas
+ (stmt_multi_exec ctx stmt stacks status (SUC gas) =
+  case stmt_exec ctx stmt stacks status of
+  | SOME (stmt', stacks', status') => stmt_multi_exec ctx stmt' stacks' status' gas
   | NONE => NONE)
 `;
 
@@ -538,43 +538,43 @@ EVAL ``e_multi_exec (^func_map) (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_
 
 val (e_clos_sem_rules, e_clos_sem_ind, e_clos_sem_cases) = Hol_reln`
 (* Base clause: *)
-(! (e:e) stacks (e':e) (stacks':stacks).
-( ( e_red e stacks status_running e' stacks' status_running )) ==> 
-( ( e_clos_red e stacks status_running e' stacks' status_running )))
+(! ctx (e:e) stacks (e':e) (stacks':stacks).
+( ( e_red ctx e stacks status_running e' stacks' status_running )) ==> 
+( ( e_clos_red ctx e stacks status_running e' stacks' status_running )))
 (* Inductive clause: *)
-/\ (! (e:e) stacks (e':e) (stacks':stacks) (e'':e) (stacks'':stacks).
-(( ( e_red e stacks status_running e' stacks' status_running )) /\ 
-( ( e_clos_red e' stacks' status_running e'' stacks'' status_running ))) ==> 
-( ( e_clos_red e stacks status_running e'' stacks'' status_running )))
+/\ (! ctx (e:e) stacks (e':e) (stacks':stacks) (e'':e) (stacks'':stacks).
+(( ( e_red ctx e stacks status_running e' stacks' status_running )) /\ 
+( ( e_clos_red ctx e' stacks' status_running e'' stacks'' status_running ))) ==> 
+( ( e_clos_red ctx e stacks status_running e'' stacks'' status_running )))
 `;
 
 val (stmt_clos_sem_rules, stmt_clos_sem_ind, stmt_clos_sem_cases) = Hol_reln`
 (* Base clause: *)
-(! (stmt:stmt) (state:state) (stmt':stmt) (state':state).
-( ( stmt_red stmt state stmt' state' )) ==> 
-( ( stmt_clos_red stmt state stmt' state' )))
+(! ctx (stmt:stmt) (state:state) (stmt':stmt) (state':state).
+( ( stmt_red ctx stmt state stmt' state' )) ==> 
+( ( stmt_clos_red ctx stmt state stmt' state' )))
 (* Inductive clause: *)
-/\ (! (stmt:stmt) (state:state) (stmt':stmt) (state':state) (stmt'':stmt) (state'':state).
-(( ( stmt_red stmt state stmt' state' )) /\ 
-( ( stmt_clos_red stmt' state' stmt'' state'' ))) ==> 
-( ( stmt_clos_red stmt state stmt'' state'' )))
+/\ (! ctx (stmt:stmt) (state:state) (stmt':stmt) (state':state) (stmt'':stmt) (state'':state).
+(( ( stmt_red ctx stmt state stmt' state' )) /\ 
+( ( stmt_clos_red ctx stmt' state' stmt'' state'' ))) ==> 
+( ( stmt_clos_red ctx stmt state stmt'' state'' )))
 `;
 
 (* Then, prove that the multi-step executable semantics is sound with respect to the
  * closure of the small-step reduction *)
 
 Theorem e_multi_exec_sound_red:
- !f_map (e:e) (e':e) stacks status stacks' status' gas.
-  e_multi_exec f_map e stacks status gas = SOME (e', stacks', status') ==>
-  e_clos_red e stacks status e' stacks' status'
+ !ctx (e:e) (e':e) stacks status stacks' status' gas.
+  e_multi_exec ctx  e stacks status gas = SOME (e', stacks', status') ==>
+  e_clos_red ctx e stacks status e' stacks' status'
 Proof
  cheat
 QED
 
 Theorem stmt_multi_exec_sound_red:
- !f_map (stmt:stmt) (stmt':stmt) stacks status stacks' status' gas.
-  stmt_multi_exec f_map stmt stacks status gas = SOME (stmt', stacks', status') ==>
-  stmt_clos_red stmt (state_tup stacks status) stmt' (state_tup stacks' status')
+ !ctx (stmt:stmt) (stmt':stmt) stacks status stacks' status' gas.
+  stmt_multi_exec ctx stmt stacks status gas = SOME (stmt', stacks', status') ==>
+  stmt_clos_red ctx stmt (state_tup stacks status) stmt' (state_tup stacks' status')
 Proof
  cheat
 QED

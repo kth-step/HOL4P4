@@ -417,6 +417,24 @@ type_map {{ tex T }} :: type_map_ ::=
   {{ com empty type environment }}
   {{ hol FEMPTY }}
 
+%Fence so that ott does not re-order ctx
+embed
+{{ hol
+
+}}
+grammar
+
+% TODO: Could be just a type abbreviation?
+ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
+{{ com context }}
+{{ hol (type_map # func_map # pars_map # t_map # ctrl) }}
+| empty :: M :: empty
+  {{ com empty context }}
+  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, FEMPTY) }}
+| ( type_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[type_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
+
 %%%%%%%%%%%%%%%%%%%
 % Execution state %
 %%%%%%%%%%%%%%%%%%%
@@ -1211,7 +1229,7 @@ grammar
 defns
   e_stmt_sem :: '' ::=
 defn
-  [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
+  ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
   {{ com expression semantics }}
   %TODO Should use different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status?
   %{{ tex [ [[e]] ] [[stacks]] \rightsquigarrow [ [[e']] ] [[stacks']] }}
@@ -1222,7 +1240,7 @@ by
 
   v = lookup_vexp ( curr_stack_frame , x )
   ----------------------------------- :: lookup
-  [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
+  ctx [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
 
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
@@ -1236,31 +1254,31 @@ by
   curr_stack_frame'' = tl curr_stack_frame
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
-  [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
-  [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
+  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: func_exec
-  [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
+  ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
 
 %Note: this rule works together with the "ret" rule in the statement semantics.
 %      By the time statement has been reduced to empty_stmt, the stacks have
 %      been updated with the effect of the function call on the caller stacks.
   ----------------------------------- :: func_ret
-  [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks , Running )
+  ctx [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
 
   v = struct { f1 = v1 ; ... ; fn = vn } ( f )
   ----------------------------------- :: s_acc
-  [ struct { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
+  ctx [ struct { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 %Header field access
 
   v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
   ----------------------------------- :: h_acc
-  [ header boolv { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
+  ctx [ header boolv { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%
 %Select expression
@@ -1268,12 +1286,12 @@ by
 %Case select lookup
   x' = { v1 : x1 ; ... ; vn : xn } x ( v )
   ----------------------------------- :: sel_acc
-  [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x' ] ( stacks , Running )
+  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x' ] ( stacks , Running )
 
 %Case default
   v notin { v1 : x1 ; ... ; vn : xn }
   ----------------------------------- :: sel_def
-  [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x ] ( stacks , Running )
+  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x ] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
@@ -1282,40 +1300,40 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  (type_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
-  [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , Running )
+  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , Running )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
-  [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  ctx [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: acc_arg2
-  [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
+  ctx [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
 
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: acc_arg1
-  [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
+  ctx [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
 
 %Select
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: sel_arg
-  [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , Running )
+  ctx [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , Running )
 
 %Unary operations
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: unop_arg
-  [unop e] ( stacks , Running ) ~> [unop e'] ( stacks' , Running )
+  ctx [unop e] ( stacks , Running ) ~> [unop e'] ( stacks' , Running )
 
 %Binary operations
-  [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ----------------------------------- :: binop_arg1
-  [e binop e'] ( stacks , Running ) ~> [e'' binop e'] ( stacks' , Running )
+  ctx [e binop e'] ( stacks , Running ) ~> [e'' binop e'] ( stacks' , Running )
 
   %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: binop_arg2
-  [v binop e] ( stacks , Running ) ~> [v binop e'] ( stacks' , Running )
+  ctx [v binop e] ( stacks , Running ) ~> [v binop e'] ( stacks' , Running )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -1327,28 +1345,28 @@ by
 
   ! b = b'
   ----------------------------------- :: neg_bool
-  [! b] ( stacks , Running ) ~> [b'] ( stacks , Running )
+  ctx [! b] ( stacks , Running ) ~> [b'] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
   ~ bitv = bitv'
   ----------------------------------- :: compl
-  [~ bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
+  ctx [~ bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
   - bitv = bitv'
   ----------------------------------- :: neg_signed
-  [- bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
+  ctx [- bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
 
 %%%%%%%%%%%
 %Unary plus
 
   + bitv = bitv'
   ----------------------------------- :: un_plus
-  [+ bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
+  ctx [+ bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -1360,113 +1378,113 @@ by
 
   bitv * bitv' = bitv''
   ----------------------------------- :: mul
-  [bitv * bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv * bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Division
 
   bitv / bitv' = bitv''
   ----------------------------------- :: div
-  [bitv / bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv / bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Modulo
 
   bitv mod bitv' = bitv''
   ----------------------------------- :: mod
-  [bitv mod bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv mod bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Addition
 
   bitv + bitv' = bitv''
   ----------------------------------- :: add
-  [bitv + bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv + bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Subtraction
 
   bitv - bitv' = bitv''
   ----------------------------------- :: sub
-  [bitv - bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv - bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Left shift
 
   bitv SHL bitv' = bitv''
   ----------------------------------- :: shl
-  [bitv SHL bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv SHL bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%
 %Right shift
 
   bitv SHR bitv' = bitv''
   ----------------------------------- :: shr
-  [bitv SHR bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv SHR bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
   bitv LE bitv' = b
   ----------------------------------- :: le
-  [bitv LE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv LE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
   bitv GE bitv' = b
   ----------------------------------- :: ge
-  [bitv GE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv GE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%
 %Less than
 
   bitv < bitv' = b
   ----------------------------------- :: lt
-  [bitv < bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv < bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Greater than
 
   bitv > bitv' = b
   ----------------------------------- :: gt
-  [bitv > bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv > bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Not equal
 
   bitv NE bitv' = b
   ----------------------------------- :: neq
-  [bitv NE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv NE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
   (x <> x') = b
   ----------------------------------- :: neq_error
-  [(errmsg x) NE (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [(errmsg x) NE (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Equal
 
   bitv EQ bitv' = b
   ----------------------------------- :: eq
-  [bitv EQ bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv EQ bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
 
   (x EQ x') = b
   ----------------------------------- :: eq_error
-  [(errmsg x) EQ (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [(errmsg x) EQ (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
 
   bitv & bitv' = bitv''
   ----------------------------------- :: and
-  [bitv & bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv & bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise xor
 
   bitv ^ bitv' = bitv''
   ----------------------------------- :: xor
-  [bitv ^ bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv ^ bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 
 %%%%%%%%%%%%%
@@ -1474,27 +1492,27 @@ by
 
   bitv | bitv' = bitv''
   ----------------------------------- :: or
-  [bitv | bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv | bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary and
 %Note: This uses short-circuit evaluation
 
   ----------------------------------- :: bin_and1
-  [false AND b] ( stacks , Running ) ~> [false] ( stacks , Running )
+  ctx [false AND b] ( stacks , Running ) ~> [false] ( stacks , Running )
 
   ----------------------------------- :: bin_and2
-  [true AND b] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [true AND b] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
   ----------------------------------- :: bin_or1
-  [true OR b] ( stacks , Running ) ~> [true] ( stacks , Running )
+  ctx [true OR b] ( stacks , Running ) ~> [true] ( stacks , Running )
 
   ----------------------------------- :: bin_or2
-  [false OR b] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [false OR b] ( stacks , Running ) ~> [b] ( stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -1506,7 +1524,7 @@ by
 %TODO: Switch
 
 defn
-  [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
+  ctx [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
   {{ com statement semantics }}
 by
 
@@ -1519,7 +1537,7 @@ by
   curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: ret
-  [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
+  (type_map, func_map, pars_map, t_map, ctrl) [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
 
 %%%%%%%%%%%%%%
 %Assignment
@@ -1527,48 +1545,48 @@ by
   %Assign a constant to a variable
   curr_stack_frame' = assign ( curr_stack_frame , v , x )
   ----------------------------------- :: ass_v
-  [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign to a struct field
   struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
   v'' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_s
-  [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
 
   %Assign to a header field
   header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
   v'' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_h
-  [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
 
   %Assign to null
   %Note: This is be used to model function calls as an expression.
   ----------------------------------- :: ass_null
-  [assign null v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign null v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame , call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%
 %Sequence
 
-  [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Running )
+  ctx [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Running )
   ----------------------------------- :: seq1
-  [stmt1 ; stmt2] ( stacks , Running ) -> [stmt1' ; stmt2] ( stacks' , Running )
+  ctx [stmt1 ; stmt2] ( stacks , Running ) -> [stmt1' ; stmt2] ( stacks' , Running )
 
   ----------------------------------- :: seq2
-  [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
+  ctx [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
 
-  [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return v )
+  ctx [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return v )
   ----------------------------------- :: seq3
-  [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return v )
+  ctx [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return v )
 
 %%%%%%%%%%%%%%
 %Conditional
 
   ----------------------------------- :: cond2
-  [if true then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks , Running )
+  ctx [if true then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks , Running )
 
   ----------------------------------- :: cond3
-  [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
+  ctx [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
 
 %%%%%%%%%%%%%%
 %Declaration
@@ -1578,7 +1596,7 @@ by
   v = arb_from_t t
   curr_stack_frame' = update ( scope + [ x |-> ( v , NONE ) ] , i , curr_stack_frame )
   ----------------------------------- :: decl
-  [decl x t] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [decl x t] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%
@@ -1586,44 +1604,44 @@ by
 
   curr_stack_frame' =  curr_stack_frame ++ [ emptyscope ]
   ----------------------------------- :: block_enter
-  [begin stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [begin stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
 
-  [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
+  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
   ----------------------------------- :: block_exec
-  [begin' stmt end'] ( stacks , Running ) -> [begin' stmt' end'] ( stacks' , Running )
+  ctx [begin' stmt end'] ( stacks , Running ) -> [begin' stmt' end'] ( stacks' , Running )
 
   curr_stack_frame' = rev ( tl ( rev curr_stack_frame ) )
   ----------------------------------- :: block_exit
-  [begin' empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [begin' empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
 %%%%%%%%%%%%%%
 %Verify
 
 %Case predicate holds
   ------------------------------------------------- :: verify_3
-  [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+  ctx [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
 
 %Case predicate does not hold
   %TODO: This assumption needed since we don't have string literals yet
   x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
-  [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks' , Running )
+  ctx [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks' , Running )
 
 %%%%%%%%%%%%%%
 %Transition
 
   not_final_state ( x )
   ------------------------------------------------- :: trans_1
-  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Trans x )
+  ctx [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Trans x )
 
   x = "accept"
   ------------------------------------------------- :: trans_2
-  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Accept )
+  ctx [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Accept )
 
   x = "reject"
   ------------------------------------------------- :: trans_3
-  [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Reject )
+  ctx [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Reject )
 
 
 %%%%%%%%%%%%%%
@@ -1640,46 +1658,46 @@ by
   t_map ( table_name ) = ( e' , match_kind )
   ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
+  (type_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Reduction step of return expression
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: ret_e
-  [return e] ( stacks , Running ) -> [return e'] ( stacks' , Running )
+  ctx [return e] ( stacks , Running ) -> [return e'] ( stacks' , Running )
 
 %Reduction step of assign expression
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: ass_e
-  [assign x e] ( stacks , Running ) -> [assign x e'] ( stacks' , Running )
+  ctx [assign x e] ( stacks , Running ) -> [assign x e'] ( stacks' , Running )
 
 %Reduction step of condition
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: cond_e
-  [if e then stmt1 else stmt2] ( stacks , Running ) -> [if e' then stmt1 else stmt2] ( stacks' , Running )
+  ctx [if e then stmt1 else stmt2] ( stacks , Running ) -> [if e' then stmt1 else stmt2] ( stacks' , Running )
 
 %Reduction step of verify predicate
-  [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
   ------------------------------------------------- :: verify_e1
-  [verify e e' ]( stacks , Running ) -> [verify e'' e']( stacks' , Running )
+  ctx [verify e e' ]( stacks , Running ) -> [verify e'' e']( stacks' , Running )
 
 %Reduction step of error message
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ------------------------------------------------- :: verify_e2
-  [verify b e]( stacks , Running ) -> [verify b e']( stacks' , Running )
+  ctx [verify b e]( stacks , Running ) -> [verify b e']( stacks' , Running )
 
 %Reduction step of transition
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ------------------------------------------------- :: trans_e
-  [transition e]( stacks , Running ) -> [transition e']( stacks' , Running )
+  ctx [transition e]( stacks , Running ) -> [transition e']( stacks' , Running )
 
 %Reduction step of match-action expression
-  [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: apply_table_e
-  [apply table_name e] ( stacks , Running ) -> [apply table_name e'] ( stacks' , Running )
+  ctx [apply table_name e] ( stacks , Running ) -> [apply table_name e'] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 % Parser semantics %
@@ -1690,32 +1708,32 @@ by
 defns
   pars_sem :: '' ::=
 defn
-  [ stmt ] state --> [ stmt' ] state' :: :: pars_red :: pars_
+  ctx [ stmt ] state --> [ stmt' ] state' :: :: pars_red :: pars_
   {{ com parser semantics }}
 by
 
-  [stmt]( stacks , Running ) -> [stmt']( stacks' , Running )
+  ctx [stmt]( stacks , Running ) -> [stmt']( stacks' , Running )
   ------------------------------------------------- :: stmt
-  [stmt]( stacks , Running ) --> [stmt']( stacks' , Running )
+  ctx [stmt]( stacks , Running ) --> [stmt']( stacks' , Running )
 
-  [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
+  (type_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
+  (type_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
 
 %If the end of some parser state is reached without status change, we reject
-  [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+  ctx [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
   x = "reject"
   ------------------------------------------------- :: empty
-  [stmt]( stacks , Running ) --> [transition x]( stacks' , Running )
+  ctx [stmt]( stacks , Running ) --> [transition x]( stacks' , Running )
 
 defns
   pars_t_sem :: '' ::=
 defn
-  [ stmt ] state --> state' :: :: pars_t_red :: pars_t_
+  ctx [ stmt ] state --> state' :: :: pars_t_red :: pars_t_
   {{ com parser semantics, final step }}
 by
 
-  [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
+  ctx [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
   ------------------------------------------------- :: fin
-  [stmt]( stacks , Running ) --> ( stacks , pars_fin )
+  ctx [stmt]( stacks , Running ) --> ( stacks , pars_fin )
