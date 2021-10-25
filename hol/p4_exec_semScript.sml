@@ -413,6 +413,13 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec _ (stmt_ass (lval_varname x) (e_v v)) (stacks_tup curr_stack_frame call_stack) status =
   SOME (stmt_empty, (stacks_tup  (assign curr_stack_frame v x) call_stack), status))
   /\
+ (stmt_exec _ (stmt_ass (lval_field lval f) (e_v v)) (stacks_tup curr_stack_frame call_stack) status =
+  case lookup_lval curr_stack_frame lval of
+  | (v_struct (f_v_list)) =>
+   SOME (stmt_ass lval (e_v (v_struct (LUPDATE (f, v) (THE (INDEX_OF f (MAP FST f_v_list))) f_v_list))), stacks_tup curr_stack_frame call_stack, status)
+  | _ => NONE
+  )
+  /\
  (stmt_exec _ (stmt_ass lval_null (e_v v)) stacks status =
   SOME (stmt_empty, stacks, status))
   /\
@@ -508,6 +515,7 @@ val bl0 = ``(w2v (0w:word32), 32)``;
 val bl1 = ``(w2v (1w:word32), 32)``;
 val bl2 = ``(w2v (16384w:word32), 32)``;
 
+(* TODO: Add to ctx *)
 val func_map = ``FEMPTY |+ ("f_x", (stmt_seq (stmt_ass (lval_varname "x_inout") (e_v (v_bit (^bl1)))) (stmt_ret (e_v v_bot))), ["x_inout", d_inout])``;
 
 val stacks = ``stacks_tup ([FEMPTY |+ ("x", ((v_bit (^bl0)), NONE))]:scope list) ([]:call_stack)``
@@ -531,6 +539,11 @@ EVAL ``stmt_multi_exec (^func_map) (stmt_ass lval_null (e_func_call "f_x" [e_var
 
 (* Nested binary operations *)
 EVAL ``e_multi_exec (^func_map) (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) (^stacks) (^status) 20``;
+
+(* Stack assignment *)
+val stacks' = ``stacks_tup ([FEMPTY |+ ("x", ((v_struct [("f", (v_bit (^bl0)))]), NONE))]:scope list) ([]:call_stack)``;
+
+EVAL ``stmt_multi_exec ctx (stmt_ass (lval_field (lval_varname "x") "f") (e_v (v_bit (^bl1)))) (^stacks') (^status) 20``;
    
 *)
         
