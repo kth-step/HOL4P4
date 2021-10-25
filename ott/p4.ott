@@ -388,7 +388,7 @@ func_map {{ tex F }} :: func_map_ ::=
 % TODO: Could be just a type abbreviation?
 ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
 {{ com control plane }}
-{{ hol ((string # v # match_kind) |-> (string # e_list)) }}
+{{ hol ((string # v # match_kind) -> (string # e_list) option) }}
 | empty :: M :: empty
   {{ com empty table map }}
   {{ hol FEMPTY }}
@@ -740,7 +740,7 @@ formula :: formula_ ::=
 | ctrl ( table_name , v , match_kind ) = ( f , e_list ) :: :: ctrl_plane  
   {{ com fetch the function name and parameters from the ctrl plane }}
   {{ tex \mathrm{ctrl}\, ( [[table_name]] , \, [[v]], \, [[match_kind]]\, ) = \,( [[f]] , [[e_list]] ) }}
-  {{ hol ( FLOOKUP [[ctrl]] ( [[table_name]] , [[v]] , [[match_kind]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
+  {{ hol ([[ctrl]] ( [[table_name]] , [[v]] , [[match_kind]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
