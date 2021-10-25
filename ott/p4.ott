@@ -430,7 +430,7 @@ ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ hol (type_map # func_map # pars_map # t_map # ctrl) }}
 | empty :: M :: empty
   {{ com empty context }}
-  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, FEMPTY) }}
+  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
 | ( type_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[type_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
