@@ -2,14 +2,12 @@ open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_exec_sem";
 
-open p4Theory;
 open ottTheory;
+open p4Theory;
+open p4Syntax;
+
 (* For EVAL-uating: *)
 open blastLib bitstringLib;
-
-(* TODO: Move to ottSyntax *)
-val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
-  syntax_fns1 "ott"  "clause_name";
 
 (* Obtains a list of assumptions for a reduction clause *)
 fun get_clause_assums thm =
@@ -160,6 +158,32 @@ Proof
  fs []
 QED
 
+Definition is_v:
+ (is_v (e_v v) = T) /\
+ (is_v _ = F)
+End
+
+Definition is_var:
+ (is_var (e_var x) = T) /\
+ (is_var _ = F)
+End
+
+Definition is_empty:
+ (is_empty stmt_empty = T) /\
+ (is_empty _ = F)
+End
+
+(*****************************)
+(* Status-related shorthands *)
+
+Definition e_exec_return:
+ (e_exec_return (e_func_exec stmt_empty) stacks v = SOME (e_v v, stacks, status_running)) /\
+ (e_exec_return _ _ _ = NONE)
+End
+
+(*********************************)
+(* Expression-related shorthands *)
+
 Definition unop_exec:
  (unop_exec unop_neg (v_bool b) = SOME (v_bool ~b))
  /\
@@ -170,6 +194,12 @@ Definition unop_exec:
  (unop_exec unop_un_plus (v_bit bitv) = SOME (v_bit bitv))
  /\
  (unop_exec unop v = NONE)
+End
+
+Definition e_exec_unop:
+ (e_exec_unop unop (e_v v) = unop_exec unop v)
+  /\
+ (e_exec_unop _ _ = NONE)
 End
 
 (* TODO: Split binop into binop, binpred, ... to reduce copypaste? *)
@@ -270,35 +300,134 @@ Definition short_circuit:
  (short_circuit _ _ _ = NONE)
 End
 
+Definition short_circuit:
+ (short_circuit binop_bin_and stacks status = SOME (e_v (v_bool F), stacks, status)) /\
+ (short_circuit binop_bin_or stacks status = SOME (e_v (v_bool T), stacks, status)) /\
+ (short_circuit _ _ _ = NONE)
+End
+
+Definition e_exec_binop:
+ (e_exec_binop (e_v v1) binop (e_v v2) = binop_exec binop v1 v2)
+  /\
+ (e_exec_binop _ _ _ = NONE)
+End
+
+(* Field access *)
+Definition e_exec_acc:
+ (e_exec_acc (e_acc (e_v (v_struct f_v_list)) (e_var f)) stacks status =
+  case FIND (\(k, v). k = f) f_v_list of
+  | SOME (f, v) => SOME (e_v v, stacks, status)
+  | NONE => NONE)
+  /\
+ (e_exec_acc _ _ _ = NONE)
+End
+
+(********************************)
+(* Statement-related shorthands *)
+
+Definition stmt_exec_ass:
+ (stmt_exec_ass (lval_varname x) (e_v v) frame =
+  SOME (assign frame v x))
+  /\
+ (stmt_exec_ass lval_null (e_v v) frame =
+  SOME frame)
+  /\
+ (stmt_exec_ass _ _ _ = NONE)
+End
+
+Definition stmt_exec_verify:
+ (stmt_exec_verify (e_v (v_bool T)) (e_v (v_err x)) =
+  SOME stmt_empty)
+  /\
+ (stmt_exec_verify (e_v (v_bool F)) (e_v (v_err x)) =
+  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_var "Reject"))))
+  /\
+ (stmt_exec_verify _ _ = NONE)
+End
+
+Definition stmt_exec_trans:
+ (stmt_exec_trans (e_var x) =
+  if x = "accept"
+  then SOME (status_pars_next (pars_next_pars_fin pars_finaccept))
+  else if x = "reject"
+  then SOME (status_pars_next (pars_next_pars_fin pars_finreject))
+  else SOME (status_pars_next (pars_next_trans x)))
+  /\
+ (stmt_exec_trans _ = NONE)
+End
+
+Definition stmt_exec_ret:
+ (stmt_exec_ret frame call_stack func_map (e_v v) =
+  case call_stack of
+  | ((frame', called_function_name_bot)::call_stack') => NONE
+  | ((frame', called_function_name_function_name f)::call_stack') =>
+   (case FLOOKUP func_map f of
+   | SOME (_, x_d_l) => SOME (stmt_empty,
+				(stacks_tup (update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD frame)::frame') frame)
+					    call_stack'),
+				status_return v)
+   | NONE => NONE)
+  | [] => NONE) /\
+ (stmt_exec_ret _ _ _ _ = NONE)
+End
+
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
- *       This would reduce the number of clauses pattern completion needs to add *)
-(* TODO: Use "get_value" that obtains an option value from an expression? *)
-(* 11 expressions, 11 statements => 22 clauses in definition, at minimum *)
+ *       This would reduce warnings *)
 (* TotalDefn.tDefine "e_stmt_exec" *)
 (* TotalDefn.multiDefine *)
 (* Hol_defn "e_stmt_exec" *)
 val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
+ (******************************************)
+ (* Catch-all clauses for special statuses *)
+ (e_exec _ e stacks status_type_error = NONE)
+  /\
+ (e_exec _ e stacks (status_return v) =
+  e_exec_return e stacks v)
+  /\
+ (* TODO: Any expression with status pars_next x is reduced
+  * to value bottom, with status preserved *)
+ (e_exec _ e stacks (status_pars_next x) =
+  SOME (e_v v_bot, stacks, status_pars_next x))
+  /\
  (* e_v is the fully reduced form of expression *)
  (e_exec _ (e_v v) stacks status =
-  SOME ((e_v v), stacks, status))
+  SOME (e_v v, stacks, status))
   /\
+ (* Note that at this point, status_running is the sole remaining
+  * possible status argument for all other clauses *)
  (********************)
  (* Variable look-up *)
- (e_exec _ (e_var x) (stacks_tup curr_stack_frame call_stack) status_running =
-  SOME ((e_v (lookup_vexp curr_stack_frame (e_var x))), stacks_tup curr_stack_frame call_stack, status_running))
+ (e_exec _ (e_var x) (stacks_tup curr_stack_frame call_stack) status =
+  SOME (e_v (lookup_vexp curr_stack_frame (e_var x)), stacks_tup curr_stack_frame call_stack, status))
   /\
  (***********************)
  (* Struct field access *)
- (e_exec _ (e_acc (e_v (v_struct f_v_list)) (e_var f)) stacks status_running =
+ (e_exec ctx (e_acc e_struct e_field) stacks status =
+  case e_exec_acc (e_acc e_struct e_field) stacks status of
+  | SOME res => SOME res
+  | NONE =>
+   if is_var e_field
+   then
+    (case e_exec ctx e_struct stacks status of
+     | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
+     | NONE => NONE)
+   else
+    (case e_exec ctx e_field stacks status of
+     | SOME (e_field', stacks', status') => SOME (e_acc e_struct e_field', stacks', status')
+     | NONE => NONE))
+  /\
+(* OLD: struct field access clauses:
+ (e_exec _ (e_acc (e_v (v_struct f_v_list)) (e_var f)) stacks status =
   case FIND (\(k, v). k = f) f_v_list of
-  | SOME (f, v) => SOME (e_v v, stacks, status_running)
+  | SOME (f, v) => SOME (e_v v, stacks, status)
   | NONE => NONE)
   /\
- (e_exec ctx (e_acc e (e_var f)) stacks status_running =
-  case e_exec ctx e stacks status_running of
+ (e_exec ctx (e_acc e (e_var f)) stacks status =
+  case e_exec ctx e stacks status of
   | SOME (e', stacks', status') => SOME (e_acc e' (e_var f), stacks', status')
   | NONE => NONE)
   /\
+*)
  (*************************)
  (* Function call-related *)
  (e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
@@ -316,9 +445,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
 	    status))
   | NONE => NONE)
   /\
- (e_exec _ (e_func_exec stmt_empty) stacks (status_return v) =
-  SOME (e_v v, stacks, status_running))
-  /\
  (e_exec ctx (e_func_exec stmt) stacks status =
   case stmt_exec ctx stmt stacks status of
   | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
@@ -326,6 +452,18 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (********************)
  (* Unary arithmetic *)
+ (e_exec ctx (e_unop unop e) stacks status =
+  if is_v e
+  then 
+   (case e_exec_unop unop e of
+    | SOME v => SOME (e_v v, stacks, status)
+    | NONE => NONE)
+  else
+   (case e_exec ctx e stacks status of
+    | SOME (e', stacks', status') => SOME (e_unop unop e', stacks', status')
+    | NONE => NONE))
+  /\
+(* OLD: unary arithmetic clauses:
  (e_exec _ (e_unop unop (e_v v)) stacks status =
   case unop_exec unop v of
   | SOME v => SOME (e_v v, stacks, status)
@@ -338,22 +476,27 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   | SOME (e', stacks', status') => SOME ((e_unop unop e'), stacks', status')
   | NONE => NONE)
   /\
-(* TEST: Single rule for unary arithmetic
- (e_exec ctx (e_unop unop e) stacks status =
-  case e of
-  | (e_v v) =>
-   (case unop_exec unop v of
-    | SOME v' => SOME (e_v v', stacks, status)
-    | NONE => NONE)
-  (* This will become 10 different cases *)
-  | _ =>
-   (case e_exec ctx e stacks status of
-    | SOME (e', stacks', status') => SOME (e_unop unop e', stacks', status')
-    | NONE => NONE))
-  /\
 *)
  (*********************)
  (* Binary arithmetic *)
+ (e_exec ctx (e_binop e1 binop e2) stacks status =
+  if is_v e1
+  then
+   if is_v e2
+   then 
+    (case e_exec_binop e1 binop e2 of
+     | SOME v => SOME (e_v v, stacks, status)
+     | NONE => NONE)
+   else
+    (case e_exec ctx e1 stacks status of
+     | SOME (e1', stacks', status') => SOME (e_binop e1' binop e2, stacks', status')
+     | NONE => NONE)
+  else
+   (case e_exec ctx e2 stacks status of
+    | SOME (e2', stacks', status') => SOME (e_binop e1 binop e2', stacks', status')
+    | NONE => NONE))
+  /\
+(* OLD: binary arithmetic clauses:
  (e_exec _ (e_binop (e_v v1) binop (e_v v2)) stacks status =
   case binop_exec binop v1 v2 of
   | SOME v => SOME (e_v v, stacks, status)
@@ -374,33 +517,36 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   | SOME (e3, stacks', status') => SOME (e_binop e3 binop e2, stacks', status')
   | NONE => NONE)
   /\
- (e_exec _ _ stacks status = NONE)
+*)
+ (e_exec _ _ _ _ = NONE)
   /\
  (**************)
  (* Statements *)
  (**************)
+ (******************************************)
+ (* Catch-all clauses for special statuses *)
+ (stmt_exec _ stmt stacks status_type_error = NONE)
+  /\
+ (stmt_exec _ stmt stacks (status_return v) =
+  SOME (stmt_empty, stacks, status_return v))
+  /\
+ (stmt_exec _ stmt stacks (status_pars_next x) =
+  SOME (stmt_empty, stacks, status_pars_next x))
+  /\
  (* empty_stmt is the fully reduced form of statement *)
  (stmt_exec _ stmt_empty stacks status = SOME (stmt_empty, stacks, status)) /\
  (*************************)
  (* Function call-related *)
- (stmt_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret (e_v v)) (stacks_tup curr_stack_frame call_stack) status_running =
-  case call_stack of
-  | ((curr_stack_frame', called_function_name_bot)::call_stack') => NONE
-  | ((curr_stack_frame', called_function_name_function_name f)::call_stack') =>
-   (case FLOOKUP func_map f of
-   | SOME (stmt, x_d_l) => SOME (stmt_empty,
-				(stacks_tup (update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD curr_stack_frame)::curr_stack_frame') curr_stack_frame)
-					    call_stack'),
-				status_return v)
-   | NONE => NONE)
-  | [] => NONE)
+ (stmt_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
+  if is_v e
+  then
+   stmt_exec_ret curr_stack_frame call_stack func_map e
+  else
+   (case e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) e (stacks_tup curr_stack_frame call_stack) status of
+    | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
+    | NONE => NONE))
   /\
- (stmt_exec ctx (stmt_ret e) stacks status =
-  case e_exec ctx e stacks status of
-  | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
-  | NONE => NONE)
-  /\
-(*
+(* OLD: Single clause for return
  (stmt_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
   case e of
   | (e_v v) => 
@@ -422,8 +568,21 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
 *)
  (**************)
  (* Assignment *)
+ (* TODO: Fix assignment to struct field *)
+ (stmt_exec ctx (stmt_ass lval e) (stacks_tup curr_stack_frame call_stack) status =
+  if is_v e
+  then
+   (case stmt_exec_ass lval e curr_stack_frame of
+    | SOME (curr_stack_frame') => SOME (stmt_empty, stacks_tup curr_stack_frame' call_stack, status)
+    | NONE => NONE)
+  else
+   (case e_exec ctx e (stacks_tup curr_stack_frame call_stack) status of
+    | SOME (e', stacks', status') => SOME (stmt_ass lval e', stacks', status')
+    | NONE => NONE))
+  /\
+(* OLD: Assignment clauses:
  (stmt_exec _ (stmt_ass (lval_varname x) (e_v v)) (stacks_tup curr_stack_frame call_stack) status =
-  SOME (stmt_empty, (stacks_tup  (assign curr_stack_frame v x) call_stack), status))
+  SOME (stmt_empty, stacks_tup (assign curr_stack_frame v x) call_stack, status))
   /\
  (stmt_exec _ (stmt_ass (lval_field lval f) (e_v v)) (stacks_tup curr_stack_frame call_stack) status =
   case lookup_lval curr_stack_frame lval of
@@ -440,11 +599,82 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   | SOME (e', stacks', status') => SOME (stmt_ass lval e', stacks', status')
   | NONE => NONE)
   /\
- (************)
- (* Sequence *)
- (stmt_exec _ ((stmt_seq stmt_empty stmt):stmt) stacks (status_return v) =
-  SOME (stmt_empty, stacks, status_return v))
+*)
+ (**********)
+ (* Verify *)
+ (stmt_exec ctx (stmt_verify e1 e2) stacks status =
+  if is_v e1
+  then
+   if is_v e2
+   then
+    (case stmt_exec_verify e1 e2 of
+     | SOME stmt => SOME (stmt, stacks, status)
+     | NONE => NONE)
+   else
+    (case e_exec ctx e2 stacks status of
+     | SOME (e2', stacks', status') => SOME (stmt_verify e1 e2', stacks', status')
+     | NONE => NONE)
+  else
+   (case e_exec ctx e1 stacks status of
+    | SOME (e1', stacks', status') => SOME (stmt_verify e1' e2, stacks', status')
+    | NONE => NONE))
   /\
+(* OLD: Verify clauses:
+ (stmt_exec _ (stmt_verify (e_v (v_bool T)) (e_v (v_err x))) stacks status =
+  SOME (stmt_empty, stacks, status))
+  /\
+ (stmt_exec _ (stmt_verify (e_v (v_bool F)) (e_v (v_err x))) stacks status =
+  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_var "Reject")), stacks, status))
+  /\
+ (stmt_exec ctx (stmt_verify (e_v (v_bool b)) e) stacks status =
+  case e_exec ctx e stacks status of
+  | SOME (e', stacks', status') => SOME (stmt_verify (e_v (v_bool b)) e', stacks', status')
+  | NONE => NONE)
+  /\
+ (stmt_exec ctx (stmt_verify e e') stacks status =
+  case e_exec ctx e stacks status of
+  | SOME (e'', stacks', status') => SOME (stmt_verify e'' e', stacks', status')
+  | NONE => NONE)
+  /\
+*)
+ (**************)
+ (* Transition *)
+ (**************)
+ (stmt_exec ctx (stmt_trans e) stacks status =
+  if is_var e
+  then
+   (case stmt_exec_trans e of
+    | SOME status' => SOME (stmt_empty, stacks, status')
+    | NONE => NONE)
+  else
+   (case e_exec ctx e stacks status of
+    | SOME (e', stacks', status') => SOME (stmt_trans e', stacks', status')
+    | NONE => NONE))
+  /\
+(* OLD: Transition clauses:
+ (stmt_exec _ (stmt_trans (e_var x)) stacks status =
+  if x = "accept"
+  then SOME (stmt_empty, stacks, status_pars_next (pars_next_pars_fin pars_finaccept))
+  else if x = "reject"
+  then SOME (stmt_empty, stacks, status_pars_next (pars_next_pars_fin pars_finreject))
+  else SOME (stmt_empty, stacks, status_pars_next (pars_next_trans x)))
+  /\
+ (stmt_exec ctx (stmt_trans e) stacks status =
+  case e_exec ctx e stacks status of
+  | SOME (e', stacks', status') => SOME (stmt_trans e', stacks', status')
+  | NONE => NONE)
+  /\
+*)
+ (* Sequence *)
+ (stmt_exec ctx (stmt_seq stmt1 stmt2) stacks status =
+  if is_empty stmt1
+  then SOME (stmt2, stacks, status)
+  else
+   (case stmt_exec ctx stmt1 stacks status of
+    | SOME (stmt1', stacks', status') => SOME (stmt_seq stmt1' stmt2, stacks', status')
+    | NONE => NONE))
+  /\
+(* OLD: Sequence clauses:
  (stmt_exec _ ((stmt_seq stmt_empty stmt):stmt) stacks status =
   SOME (stmt, stacks, status))
   /\
@@ -453,7 +683,8 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   | SOME (stmt1', stacks', status') => SOME (stmt_seq stmt1' stmt2, stacks', status')
   | NONE => NONE)
   /\
- (stmt_exec _ _ stacks status = NONE)
+*)
+ (stmt_exec _ _ _ _ = NONE)
 `
 (WF_REL_TAC `measure sum_size` >>
  fs [sum_size_def, e_size_def] >>
@@ -496,28 +727,23 @@ Proof
 cheat
 QED
 
-Definition is_red:
- (is_red (e_v v) = T) /\
- (is_red _ = F)
-End
-
 (* Then, define an executable semantics which performs execution until finished. *)
 (* Note that all concrete operations remain the same *)
 val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
  (e_multi_exec _ e stacks status 0 =
   SOME (e, stacks, status))
   /\
- (e_multi_exec ctx e stacks status (SUC gas) =
+ (e_multi_exec ctx e stacks status (SUC fuel) =
   case e_exec ctx e stacks status of
-  | SOME (e', stacks', status') => e_multi_exec ctx e' stacks' status' gas
+  | SOME (e', stacks', status') => e_multi_exec ctx e' stacks' status' fuel
   | NONE => NONE)
  /\
  (stmt_multi_exec _ stmt stacks status 0 =
   SOME (stmt, stacks, status))
  /\
- (stmt_multi_exec ctx stmt stacks status (SUC gas) =
+ (stmt_multi_exec ctx stmt stacks status (SUC fuel) =
   case stmt_exec ctx stmt stacks status of
-  | SOME (stmt', stacks', status') => stmt_multi_exec ctx stmt' stacks' status' gas
+  | SOME (stmt', stacks', status') => stmt_multi_exec ctx stmt' stacks' status' fuel
   | NONE => NONE)
 `;
 
@@ -535,22 +761,22 @@ val status = ``status_running``
 
 (* Nested unary operations *)
 val e_un = ``(e_unop unop_compl (e_unop unop_compl (e_v (v_bit (^bl1)))))``;
-EVAL ``e_multi_exec (^func_map) (^e_un) (^stacks) (^status) 20``;
+EVAL ``e_multi_exec ctx (^e_un) (^stacks) (^status) 20``;
 
 (* Single statements *)
-EVAL ``stmt_multi_exec (^func_map) (stmt_ass lval_null (^e_un)) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec ctx (stmt_ass lval_null (^e_un)) (^stacks) (^status) 20``;
 
 (* TODO: Simplifying multiple updates to the same finite map? *)
-EVAL ``stmt_multi_exec (^func_map) (stmt_ass (lval_varname "x") (^e_un)) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec ctx (stmt_ass (lval_varname "x") (^e_un)) (^stacks) (^status) 20``;
 
 (* Sequence of statements *)
-EVAL ``stmt_multi_exec (^func_map) (stmt_seq (stmt_ass (lval_varname "x") (^e_un)) (stmt_ass (lval_varname "x") (e_v (v_bit (^bl2))) )) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec ctx (stmt_seq (stmt_ass (lval_varname "x") (^e_un)) (stmt_ass (lval_varname "x") (e_v (v_bit (^bl2))) )) (^stacks) (^status) 20``;
 
 (* Function call *)
-EVAL ``stmt_multi_exec (^func_map) (stmt_ass lval_null (e_func_call "f_x" [e_var "x"])) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec ctx (stmt_ass lval_null (e_func_call "f_x" [e_var "x"])) (^stacks) (^status) 20``;
 
 (* Nested binary operations *)
-EVAL ``e_multi_exec (^func_map) (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) (^stacks) (^status) 20``;
+EVAL ``e_multi_exec ctx (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) (^stacks) (^status) 20``;
 
 (* Stack assignment *)
 val stacks' = ``stacks_tup ([FEMPTY |+ ("x", ((v_struct [("f", (v_bit (^bl0)))]), NONE))]:scope list) ([]:call_stack)``;
@@ -562,18 +788,27 @@ EVAL ``stmt_multi_exec ctx (stmt_ass (lval_field (lval_varname "x") "f") (e_v (v
 (*************************)
 
 val ip_v0_ok = ``(w2v (4w:word4), 4)``;
+val ip_v0_bad = ``(w2v (3w:word4), 4)``;
 (* TODO: Syntax function to construct struct terms? *)
-val stacks = ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (v_bit (^ip_v0_ok)))]))], NONE))]:scope list) ([]:call_stack)``;
-val status = ``status_running``;
+
 val e_ip_v = ``(e_acc (e_acc (e_var "p") (e_var "ip")) (e_var "version"))``;
 val e_4w4 = ``e_v (v_bit (w2v (4w:word4), 4))``;
 val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
 
+val stacks_ok = ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (v_bit (^ip_v0_ok)))]))], NONE)) |+ ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+val stacks_bad = ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (v_bit (^ip_v0_bad)))]))], NONE)) |+ ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+val status = ``status_running``;
+
 (* p.ip.version == 4w4 *)
-EVAL ``e_multi_exec ctx (^e_ip_v_eq_4w4) (^stacks) (^status) 20``;
+EVAL ``e_multi_exec ctx (^e_ip_v_eq_4w4) (^stacks_ok) (^status) 20``;
 
 (* verify(p.ip.version == 4w4, error.IPv4IncorrectVersion); *)
-EVAL ``stmt_multi_exec ctx (stmt_verify ) (^stacks) (^status) 20``;
+val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
+(* Case OK: *)
+EVAL ``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_ok) (^status) 20``;
+
+(* Case not OK: *)
+EVAL ``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_bad) (^status) 20``;
 
 *)
         
@@ -607,16 +842,16 @@ val (stmt_clos_sem_rules, stmt_clos_sem_ind, stmt_clos_sem_cases) = Hol_reln`
  * closure of the small-step reduction *)
 
 Theorem e_multi_exec_sound_red:
- !ctx (e:e) (e':e) stacks status stacks' status' gas.
-  e_multi_exec ctx  e stacks status gas = SOME (e', stacks', status') ==>
+ !ctx (e:e) (e':e) stacks status stacks' status' fuel.
+  e_multi_exec ctx  e stacks status fuel = SOME (e', stacks', status') ==>
   e_clos_red ctx e stacks status e' stacks' status'
 Proof
  cheat
 QED
 
 Theorem stmt_multi_exec_sound_red:
- !ctx (stmt:stmt) (stmt':stmt) stacks status stacks' status' gas.
-  stmt_multi_exec ctx stmt stacks status gas = SOME (stmt', stacks', status') ==>
+ !ctx (stmt:stmt) (stmt':stmt) stacks status stacks' status' fuel.
+  stmt_multi_exec ctx stmt stacks status fuel = SOME (stmt', stacks', status') ==>
   stmt_clos_red ctx stmt (state_tup stacks status) stmt' (state_tup stacks' status')
 Proof
  cheat

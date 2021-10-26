@@ -7,6 +7,7 @@ val _ = Globals.show_tags := true;
 open arithmeticTheory stringTheory containerTheory pred_setTheory
      listTheory finite_mapTheory bitstringTheory wordsTheory;
 open p4Theory;
+open p4Syntax;
 open p4_exec_semTheory;
 (* For EVAL-uating: *)
 open blastLib;
@@ -15,10 +16,6 @@ open blastLib;
 (* This file includes some tests run on the HOL4-exported p4 expression reduction rules. *)
 (*****************************************************************************************)
 (* TODO: Remove all apostrophes and replace with proper syntax functions *)
-
-(* TODO: Move to ottSyntax *)
-val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
-  syntax_fns1 "ott"  "clause_name";
 
 (******************)
 (* Test functions *)
