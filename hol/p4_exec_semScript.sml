@@ -2,9 +2,9 @@ open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_exec_sem";
 
+open p4Syntax;
 open ottTheory;
 open p4Theory;
-open p4Syntax;
 
 (* For EVAL-uating: *)
 open blastLib bitstringLib;
@@ -403,18 +403,21 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (***********************)
  (* Struct field access *)
  (e_exec ctx (e_acc e_struct e_field) stacks status =
-  case e_exec_acc (e_acc e_struct e_field) stacks status of
-  | SOME res => SOME res
-  | NONE =>
+  if is_v e_struct
+  then
    if is_var e_field
    then
-    (case e_exec ctx e_struct stacks status of
-     | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
+    (case e_exec_acc (e_acc e_struct e_field) stacks status of
+     | SOME res => SOME res
      | NONE => NONE)
    else
     (case e_exec ctx e_field stacks status of
      | SOME (e_field', stacks', status') => SOME (e_acc e_struct e_field', stacks', status')
-     | NONE => NONE))
+     | NONE => NONE)
+  else
+   (case e_exec ctx e_struct stacks status of
+    | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
+    | NONE => NONE))
   /\
 (* OLD: struct field access clauses:
  (e_exec _ (e_acc (e_v (v_struct f_v_list)) (e_var f)) stacks status =
@@ -488,12 +491,12 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
      | SOME v => SOME (e_v v, stacks, status)
      | NONE => NONE)
    else
-    (case e_exec ctx e1 stacks status of
-     | SOME (e1', stacks', status') => SOME (e_binop e1' binop e2, stacks', status')
+    (case e_exec ctx e2 stacks status of
+     | SOME (e2', stacks', status') => SOME (e_binop e1 binop e2', stacks', status')
      | NONE => NONE)
   else
-   (case e_exec ctx e2 stacks status of
-    | SOME (e2', stacks', status') => SOME (e_binop e1 binop e2', stacks', status')
+   (case e_exec ctx e1 stacks status of
+    | SOME (e1', stacks', status') => SOME (e_binop e1' binop e2, stacks', status')
     | NONE => NONE))
   /\
 (* OLD: binary arithmetic clauses:

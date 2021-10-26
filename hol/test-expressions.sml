@@ -59,7 +59,7 @@ end;
 (* Obtains result and evaluation theorem of expression *)
 fun eval_e e_tm =
   let
-    val res_thm = EVAL (``e_clos_exec (^e_tm) stacks status_running``) (* TODO: Alternatively, use a tailor-made eval_e_conv *)
+    val res_thm = EVAL (``e_exec ctx (^e_tm) stacks status_running``) (* TODO: Alternatively, use a tailor-made eval_e_conv *)
     val res_canon_thm = SIMP_RULE (pure_ss++p4_v2w_ss) [] res_thm
     val res_canon_tm = rhs $ concl res_canon_thm
   in
@@ -73,7 +73,7 @@ fun is_v_bool_well_formed res_opt =
     (* Result is syntactically a SOME *)
     val res = optionSyntax.dest_some res_opt
     (* TODO: Hack, replace with syntactic functions *)
-    val res_bs = snd $ dest_comb $ snd $ dest_comb res
+    val res_bs = dest_v_bool $ dest_e_v $ snd $ dest_comb $ fst $ dest_comb res
   in
     ((term_eq res_bs T) orelse (term_eq res_bs F))
   end
@@ -84,7 +84,8 @@ fun is_v_bit_word_well_formed width res_opt =
     (* Result is syntactically a SOME *)
     val res = optionSyntax.dest_some res_opt
     (* TODO: Hack, replace with syntactic functions *)
-    val res_bs = snd $ dest_comb $ snd $ dest_comb res
+    (* TODO: Check status and stacks? *)
+    val res_bs = dest_v_bit $ dest_e_v $ snd $ dest_comb $ fst $ dest_comb res
     (* Bit-string is syntactically a pair *)
     val (res_w2v, res_width) = pairSyntax.dest_pair res_bs
     (* Width of result matches expected width *)
@@ -109,11 +110,12 @@ fun test_red _ _ [] = ()
     val _ = print ((term_to_string e_tm)^ ":\n");
     val _ = print "===============================\n";
     val res = f e_tm
+    val _ = (Hol_pp.print_thm (snd res); print "\n");
     val _ = if wf (fst res) then () else
             raise Fail ("test_red::the result is not well-formed according to "^(wf_name))
-    val _ = (Hol_pp.print_thm (snd res); print "\n");
+    val res_e = fst $ pairSyntax.dest_pair $ optionSyntax.dest_some $ fst res
     val _ = if isSome exp_res
-            then if identical (fst res) (valOf exp_res) then () else
+            then if identical (optionSyntax.mk_some res_e) (valOf exp_res) then () else
                  raise Fail "test_red::reduction does not have expected result"
             else ()
     val _ = print "\n\n";
