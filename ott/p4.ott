@@ -1260,9 +1260,9 @@ by
   ----------------------------------- :: func_call_newframe
   (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
-  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
+  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , status )
   ----------------------------------- :: func_exec
-  ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
+  ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , status )
 
 %Note: this rule works together with the "ret" rule in the statement semantics.
 %      By the time statement has been reduced to empty_stmt, the stacks have
