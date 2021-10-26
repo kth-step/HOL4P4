@@ -1311,13 +1311,13 @@ by
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
-  ctx [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
-  ----------------------------------- :: acc_arg2
-  ctx [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
-
   ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
   ----------------------------------- :: acc_arg1
   ctx [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
+
+  ctx [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  ----------------------------------- :: acc_arg2
+  ctx [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
 
 %Select
   ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )

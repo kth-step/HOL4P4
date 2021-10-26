@@ -287,6 +287,18 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (e_exec _ (e_var x) (stacks_tup curr_stack_frame call_stack) status_running =
   SOME ((e_v (lookup_vexp curr_stack_frame (e_var x))), stacks_tup curr_stack_frame call_stack, status_running))
   /\
+ (***********************)
+ (* Struct field access *)
+ (e_exec _ (e_acc (e_v (v_struct f_v_list)) (e_var f)) stacks status_running =
+  case FIND (\(k, v). k = f) f_v_list of
+  | SOME (f, v) => SOME (e_v v, stacks, status_running)
+  | NONE => NONE)
+  /\
+ (e_exec ctx (e_acc e (e_var f)) stacks status_running =
+  case e_exec ctx e stacks status_running of
+  | SOME (e', stacks', status') => SOME (e_acc e' (e_var f), stacks', status')
+  | NONE => NONE)
+  /\
  (*************************)
  (* Function call-related *)
  (e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
@@ -544,7 +556,25 @@ EVAL ``e_multi_exec (^func_map) (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_
 val stacks' = ``stacks_tup ([FEMPTY |+ ("x", ((v_struct [("f", (v_bit (^bl0)))]), NONE))]:scope list) ([]:call_stack)``;
 
 EVAL ``stmt_multi_exec ctx (stmt_ass (lval_field (lval_varname "x") "f") (e_v (v_bit (^bl1)))) (^stacks') (^status) 20``;
-   
+
+(*************************)
+(*   From VSS Example    *)
+(*************************)
+
+val ip_v0_ok = ``(w2v (4w:word4), 4)``;
+(* TODO: Syntax function to construct struct terms? *)
+val stacks = ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (v_bit (^ip_v0_ok)))]))], NONE))]:scope list) ([]:call_stack)``;
+val status = ``status_running``;
+val e_ip_v = ``(e_acc (e_acc (e_var "p") (e_var "ip")) (e_var "version"))``;
+val e_4w4 = ``e_v (v_bit (w2v (4w:word4), 4))``;
+val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
+
+(* p.ip.version == 4w4 *)
+EVAL ``e_multi_exec ctx (^e_ip_v_eq_4w4) (^stacks) (^status) 20``;
+
+(* verify(p.ip.version == 4w4, error.IPv4IncorrectVersion); *)
+EVAL ``stmt_multi_exec ctx (stmt_verify ) (^stacks) (^status) 20``;
+
 *)
         
 (* Then, define the closure of the small step reduction. *)
