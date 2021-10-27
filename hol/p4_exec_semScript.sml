@@ -318,7 +318,7 @@ End
 (* TotalDefn.tDefine "e_stmt_exec" *)
 (* TotalDefn.multiDefine *)
 (* Hol_defn "e_stmt_exec" *)
-val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
+val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (******************************************)
  (* Catch-all clauses for special statuses *)
  (e_exec _ e stacks status_type_error = NONE)
@@ -326,8 +326,8 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (e_exec _ e stacks (status_return v) =
   e_exec_return e stacks v)
   /\
- (* TODO: Any expression with status pars_next x is reduced
-  * to value bottom, with status preserved *)
+ (* TODO: Should expressions with status pars_next x be reduced
+  * to some value, with status preserved? *)
  (e_exec _ e stacks (status_pars_next x) =
   SOME (e_v v_bot, stacks, status_pars_next x))
   /\
@@ -525,6 +525,14 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  fs [])
 ;
 
+(* Only meant to skip certain soundness proof parts for now *)
+Theorem ignore_pars_next:
+ !ctx e e' stacks stacks' p status'.
+  e_red ctx e stacks (status_pars_next p) e' stacks' status'
+Proof
+cheat
+QED
+
 (* Then, some kind of theorem that states equivalence
  * between executable semantics and ott-exported reduction rules.
  * For sketch, only soundness and not completeness *)
@@ -534,17 +542,19 @@ Theorem e_exec_sound_red:
   e_exec ctx e stacks status = SOME (e', stacks', status) ==>
   e_red ctx e stacks status e' stacks' status'
 Proof
-(* OLD version:
- Cases_on `e` >> Cases_on `e'` >> (
-  fs [e_exec]
+(* NOTE: Use something like
+
+   (valOf o find_clause_e_red) "e_neg_bool"
+
+   to find clauses in Ott-exported reduction rules.
+
+   Should be around 9 subgoals with the below, corresponding
+   roughly to the different expressions:
+*)
+(*
+ Cases_on `e` >> Cases_on `status` >> (
+  fs [e_stmt_exec_def, e_exec_return, ignore_pars_next]
  ) >>
- Cases_on `u` >> Cases_on `v` >> (
-  fs [e_exec]
- ) >| (map (irule o valOf o find_clause_e_red)
-  ["e_neg_bool", "e_compl", "e_neg_signed", "e_un_plus"]
- ) >> (
-  fs [clause_name_def]
- )
 *)
 cheat
 QED
@@ -613,58 +623,6 @@ val stacks' = ``stacks_tup ([FEMPTY |+ ("x", ((v_struct [("f", (^bl0))]), NONE))
 
 EVAL ``stmt_multi_exec (^ctx) (stmt_ass (lval_field (lval_varname "x") "f") (e_v (^bl1))) (^stacks') (^status) 20``;
 
-(*************************)
-(*   From VSS Example    *)
-(*************************)
-
-val ip_v0_ok = mk_v_bitii (4, 4);
-val ip_v0_bad = mk_v_bitii (3, 4);
-val ether_ty_ok = mk_v_bitii (2048, 16);
-(* TODO: Syntax function to construct struct terms? *)
-
-val e_ip_v = ``(e_acc (e_acc (e_var "p") (e_var "ip")) (e_var "version"))``;
-val e_4w4 = mk_e_v ip_v0_ok;
-val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
-
-val stacks_ok =
- ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (^ip_v0_ok))]));
-                                           ("ethernet", (v_struct [("etherType", (^ether_ty_ok))]))], NONE)) |+
-                ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
-val stacks_bad =
- ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (^ip_v0_bad))]))], NONE)) |+
-                ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
-val status = ``status_running``;
-
-(*
-
-p.ip.version == 4w4
-
-*)
-EVAL ``e_multi_exec ctx (^e_ip_v_eq_4w4) (^stacks_ok) (^status) 20``;
-
-(*
-
-verify(p.ip.version == 4w4, error.IPv4IncorrectVersion);
-
-*)
-val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
-(* Case OK: *)
-EVAL ``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_ok) (^status) 20``;
-
-(* Case not OK: *)
-EVAL ``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_bad) (^status) 20``;
-
-(*
- 
-transition select(p.ethernet.etherType) {
-    0x0800: parse_ipv4;
-    // no default rule: all other packets rejected
-}
-
-*)
-val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
-EVAL ``stmt_multi_exec ctx (stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")) (^stacks_ok) (^status) 20``;
-
 *)
         
 (* Then, define the closure of the small step reduction. *)
@@ -730,7 +688,7 @@ Definition e_exec_cake:
  (e_exec_cake _ stacks status = NONE)
 End
 
-(* TODO: At this point, expect to translate lists to lists and fmaps to mlmaps *)
+(* TODO: At this point, expect to translate lists to lists and fmaps to mlmaps and make casts for all non-64-bit words *)
 Theorem sem_expr_exe_cake_equiv:
  !e stacks.
   e_exec_cake e stacks status_running = e_exec_multi e stacks status_running
