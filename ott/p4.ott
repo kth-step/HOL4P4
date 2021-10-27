@@ -1555,13 +1555,13 @@ by
   struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
   v' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_s
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
 
   %Assign to a header field
   header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
   v' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_h
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
 
   %Assign to null
   %Note: This is be used to model function calls as an expression.

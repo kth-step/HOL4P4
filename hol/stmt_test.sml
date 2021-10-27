@@ -1061,8 +1061,8 @@ val prog_call9b = ``(e_func_exec (stmt_ret (e_v (v_bit ([F;F],2))))) ``;
 val prog_return1a = ``((stmt_ret (e_v (v_bit ([F;F],2))))) ``;
 val prog_return1b = ``(stmt_empty)``;
 
-(*val prog_return1a = ``(e_func_exec (stmt_ret (e_v (v_bit ([F;F],2))))) ``;*)
-(*val prog_return1b = ``(e_func_exec stmt_empty) ``;*)
+val prog_return2a = ``(e_func_exec (stmt_ret (e_v (v_bit ([F;F],2))))) ``;
+val prog_return2b = ``(e_func_exec stmt_empty) ``;
 
 val stacks_call9a  = ``(stacks_tup ^scopelist17 [])``;
 val stacks_call9b  = ``(stacks_tup ^scopelist25 [([] , ^Fn "Add1")])``;
@@ -1108,6 +1108,8 @@ FULL_SIMP_TAC list_ss [FUPDATE_EQ])
 
 
 
+
+
 val prog_return2a = ``(e_func_exec (stmt_ret (e_v (v_bit ([F;F],2))))) ``;
 val prog_return2b = ``(e_func_exec stmt_empty) ``;
 
@@ -1133,10 +1135,197 @@ FULL_SIMP_TAC list_ss [FUPDATE_EQ]
 
 
 
+val prog_return2b = ``(e_func_exec stmt_empty) ``;
+val prog_return2c = ``(e_v (v_bit ([F;F],2))) ``;
+
+val stacks_call_ret1 = ``(stacks_tup ^scopelist17 [])``;
+
+val test_return3 =
+prove(`` e_red (^ctx9)(^prog_return2b) 
+                (^stacks_call_ret1) (status_return  ((v_bit ([F;F],2))))
+                (^prog_return2c) 
+                (^stacks_call_ret1) (^R)
+``,
+
+RW.ONCE_RW_TAC[e_red_cases] >>
+NTAC 3 DISJ2_TAC >> DISJ1_TAC >>
+EXISTS_TAC ``v_bit ([F; F],2)`` >>
+EVAL_TAC
+);
+
+
+(****************************************************************)
+(***Testing Headers assignment and access --concrete values-- ***)
+(****************************************************************)
+
+(*assignment*)
+
+val header1 = `` [("dstAddr", (v_bit ([T;T],2)));
+                 ("srcAddr", (v_bit ([F;F],2)));
+		 ("etherType", (v_bit ([T],1)))]
+		 ``;
+
+val header2 = `` [("dstAddr", (v_bit ([T;T],2)));
+                 ("srcAddr", (v_bit ([T;T],2)));
+		 ("etherType", (v_bit ([T],1)))]
+		 ``;
+
+
+val scopelist_h1 = ``[FEMPTY |+ ("IPv4_h",((v_header (T) ^header1) , NONE:string option))]``;
+
+val scopelist_h2 = ``[FEMPTY |+ ("IPv4_h",((v_header (T) ^header2) , NONE:string option))]``;
+
+
+val state15a = ``(state_tup (stacks_tup ^scopelist_h1 []) ^R):state``;
+
+
+val prog_ass_h1a = ``stmt_ass  (lval_field (lval_varname "IPv4_h") "srcAddr")
+                                  (e_v (v_bit ([T;T],2)))``;
+
+val prog_ass_h1b = ``stmt_ass  ( (lval_varname "IPv4_h"))
+                                  (e_v (v_header (T) ^header2)) ``;
+
+
+
+val test_ass_h1 =
+prove(`` (stmt_red (^ctx_empty)(^prog_ass_h1a) 
+                  (^state15a)
+                  (^prog_ass_h1b) 
+                  (^state15a))
+``,
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss []>>
+DISJ2_TAC>>
+NTAC 2 (EVAL_TAC>>
+SIMP_TAC std_ss [])
+);
+
+
+val header3 = `` [("dstAddr", (v_bit ([F;F],2)));
+                 ("srcAddr", (v_bit ([F;F],2)));
+		 ("etherType", (v_bit ([T],1)))]
+		 ``;
+
+
+val scopelist_h3 = ``[FEMPTY |+ ("IPv4_h",((v_header (T) ^header3) , NONE:string option))]``;
+
+
+val prog_ass_h1c = ``stmt_ass  (lval_field (lval_varname "IPv4_h") "dstAddr")
+                                  (e_v (v_bit ([F;F],2)))``;
+
+val prog_ass_h1d = ``stmt_ass  ( (lval_varname "IPv4_h"))
+                                  (e_v (v_header (T) ^header3)) ``;
+
+
+
+val test_ass_h2 =
+prove(`` (stmt_red (^ctx_empty)(^prog_ass_h1c) 
+                  (^state15a)
+                  (^prog_ass_h1d) 
+                  (^state15a))
+``,
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss []>>
+DISJ2_TAC>>
+NTAC 2 (EVAL_TAC>>
+SIMP_TAC std_ss [])
+);
+
+
+
+
+
+(*access fields*)
+
+val prog_acc_h1a = ``e_acc (e_v (v_header (T) (^header1))) (e_var("srcAddr"))  ``;
+val prog_acc_h1b = ``e_v  (v_bit ([F; F],2)) ``;
+val stacks_h1    = ``(stacks_tup ^scopelist_h1 [])``;
+
+
+val test_acc_h1 =
+prove(`` (e_red  (^ctx_empty)(^prog_acc_h1a) 
+                  (^stacks_h1) ^R
+                  (^prog_acc_h1b) 
+                  (^stacks_h1) ^R)
+``,
+RW.ONCE_RW_TAC[e_red_cases] >>
+NTAC 2 (EVAL_TAC>>
+FULL_SIMP_TAC std_ss [])
+);
 
 
 
 
 
 
+(**************************************************************)
+(***        Testing structs    --concrete values--          ***)
+(**************************************************************)
+
+
+val struct1 = ``[("Ethernet_h", (v_bit ([T;T],2)));
+                 ("IPv4_h", (v_header (T) ^header1))]``;
+
+
+val struct2 = ``[("Ethernet_h", (v_bit ([F;F],2)));
+                 ("IPv4_h", (v_header (T) ^header1))]``;
+
+
+val scopelist_s1 =``[FEMPTY |+ ("Parsed_packet", ((v_struct ^struct1), NONE:string option))]``;
+val scopelist_s2 =``[FEMPTY |+ ("Parsed_packet", ((v_struct ^struct2), NONE:string option))]``;
+
+val prog_ass_s1a = ``stmt_ass  (lval_field (lval_varname "Parsed_packet") "Ethernet_h")
+                                  (e_v (v_bit ([F;F],2)))``;
+
+val prog_ass_s1b = ``stmt_ass  ( (lval_varname "Parsed_packet"))
+                                  (e_v (v_struct ^struct2)) ``;
+
+
+val state16a = ``(state_tup (stacks_tup ^scopelist_s1 []) ^R):state``;
+val state16b = ``(state_tup (stacks_tup ^scopelist_s2 []) ^R):state``;
+
+val test_ass_s1 =
+prove(`` (stmt_red (^ctx_empty)(^prog_ass_s1a) 
+                  (^state16a)
+                  (^prog_ass_s1b) 
+                  (^state16a))  /\
+		  
+         (stmt_red (^ctx_empty)(^prog_ass_s1b) 
+                  (^state16a)
+                  (stmt_empty) 
+                  (^state16b))		  
+         		  
+``,
+
+CONJ_TAC>| [
+NTAC 3 (
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss [])
+,
+NTAC 2 (
+RW.ONCE_RW_TAC[e_red_cases] >>
+EVAL_TAC>>
+FULL_SIMP_TAC std_ss [FUPDATE_EQ])
+]
+);
+
+
+val prog_acc_s1a = ``e_acc (e_v (v_struct (^struct1))) (e_var("IPv4_h"))  ``;
+val prog_acc_s1b = ``e_v  (v_header (T) (^header1) ) ``;
+val stacks_s1    = ``(stacks_tup ^scopelist_s1 [])``;
+
+
+val test_acc_h1 =
+prove(`` (e_red  (^ctx_empty)(^prog_acc_s1a) 
+                  (^stacks_s1) ^R
+                  (^prog_acc_s1b) 
+                  (^stacks_s1) ^R)
+``,
+RW.ONCE_RW_TAC[e_red_cases] >>
+NTAC 2 (EVAL_TAC>>
+FULL_SIMP_TAC std_ss [])
+);
 
