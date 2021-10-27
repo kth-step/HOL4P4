@@ -32,83 +32,6 @@ fun find_clause thm clause_name_str =
 ;
 val find_clause_e_red = find_clause e_red_rules
 
-(***************************)
-
-(* Examples of mutually recursive definitions:
-
-val _ = Hol_datatype ` 
-test_status =
-   regular
- | finished
-`;
-val _ = Hol_datatype ` 
-test_type =
-   num of num
- | list2 of test_type list => test_type list
- | list1 of test_type list
- | list1_done of test_type list
- | list1_s of test_type list => test_status
-`;
-
-(***********************)
-(* Using WIP function + new production: *)
-val find_wip_def = Define `
-  (find_wip (list1 l) =
-    case (INDEX_FIND 0 (\tt. (tt = (num 0))) l) of
-    | SOME (i, tt) => SOME i
-    | NONE => NONE) /\
-  (find_wip (list1_s l _) =
-    case (INDEX_FIND 0 (\tt. (tt = (num 0))) l) of
-    | SOME (i, tt) => SOME i
-    | NONE => NONE)
-`;
-TotalDefn.multiDefine `
- (test_func1 (num (0:num))   = num 0) /\
- (test_func1 (num (SUC n))   = test_func2 (num n)) /\
- (test_func1 (list1 [])    = list1 []) /\
- (test_func1 (list1_done l)    = (list1_done l)) /\
- (test_func1 (list1 l) =
-  case find_wip (list1 l) of
-  | SOME i => (list1 (LUPDATE (test_func1 (EL i l)) i l))
-  | NONE => (list1_done l)) /\
- (test_func2 (num (0:num)) = num 0) /\
- (test_func2 (num (SUC n)) = test_func1 (num n))
-`; (* TERMINATION PROOF NEEDED! *)
-
-(*************************)
-(* Using also special status: *)
-TotalDefn.multiDefine `
- (test_func1 (num (0:num))   = num 0) /\
- (test_func1 (num (SUC n))   = test_func2 (num n)) /\
- (test_func1 (list1_s l finished)      = list1 []) /\
- (test_func1 (list1_s l regular) =
-  case find_wip (list1 l) of
-  | SOME i => (list1_s (LUPDATE (test_func1 (EL i l)) i l) regular)
-  | NONE => (list1_s l finished)) /\
- (test_func2 (num (0:num)) = num 0) /\
- (test_func2 (num (SUC n)) = test_func1 (num n))
-`; (* TERMINATION PROOF NEEDED! *)
-
-(********************)
-(* Using two lists: *)
-val is_wip_def = Define `
-  (is_wip (num 0) = F) /\
-  (is_wip _ = T)
-`;
-TotalDefn.multiDefine `
- (test_func1 (num (0:num))    = num 0) /\
- (test_func1 (num (SUC n))    = test_func2 (num n)) /\
- (test_func1 (list2 [] l)     = list2 [] l) /\
- (test_func1 (list2 (h::t) l) = if (is_wip h)
-                                then (list2 ((test_func1 h)::t) l)
-                                else list2 t (h::l)) /\
- (test_func2 (num (0:num)) = num 0) /\
- (test_func2 (num (SUC n)) = test_func1 (num n))
-`; (* OK! *)
-
-*)
-
-(* NOTE: e_red is a small-step semantics *)
 
 val sum_size_def = Define `
  (sum_size (INL ((ctx:ctx), e, (stacks:stacks), (status:status))) = e_size e) /\
@@ -282,14 +205,6 @@ Definition binop_exec:
  (binop_exec binop_or (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bit (bitv_bl_binop bor bitv1 bitv2)))
  /\
-(*
- (binop_exec binop_bin_and (v_bool F) (v_bool b) =
-  SOME (v_bool F))
- /\
- (binop_exec binop_bin_and (v_bool T) (v_bool b) =
-  SOME (v_bool b))
- /\
-*)
  (binop_exec binop v1 v2 = NONE)
 End
 
@@ -324,6 +239,11 @@ Definition e_exec_acc:
   | SOME (f, v) => SOME (e_v v, stacks, status)
   | NONE => NONE)
   /\
+ (e_exec_acc (e_acc (e_v (v_header boolv f_v_list)) (e_var f)) stacks status =
+  case FIND (\(k, v). k = f) f_v_list of
+  | SOME (f, v) => SOME (e_v v, stacks, status)
+  | NONE => NONE)
+  /\
  (e_exec_acc _ _ _ = NONE)
 End
 
@@ -350,6 +270,8 @@ Definition stmt_exec_ass:
   case lookup_lval frame lval of
   | (v_struct f_v_l) =>
    stmt_exec_ass lval (e_v (v_struct (LUPDATE (f, v) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l))) frame
+  | (v_header boolv f_v_l) =>
+   stmt_exec_ass lval (e_v (v_header boolv (LUPDATE (f, v) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l))) frame
   | _ => NONE)
   /\
  (stmt_exec_ass _ _ _ = NONE)
@@ -421,7 +343,7 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   SOME (e_v (lookup_vexp curr_stack_frame (e_var x)), stacks_tup curr_stack_frame call_stack, status))
   /\
  (***********************)
- (* Struct field access *)
+ (* Struct/header field access *)
  (e_exec ctx (e_acc e_struct e_field) stacks status =
   if is_v e_struct
   then
@@ -439,18 +361,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
     | NONE => NONE))
   /\
-(* OLD: struct field access clauses:
- (e_exec _ (e_acc (e_v (v_struct f_v_list)) (e_var f)) stacks status =
-  case FIND (\(k, v). k = f) f_v_list of
-  | SOME (f, v) => SOME (e_v v, stacks, status)
-  | NONE => NONE)
-  /\
- (e_exec ctx (e_acc e (e_var f)) stacks status =
-  case e_exec ctx e stacks status of
-  | SOME (e', stacks', status') => SOME (e_acc e' (e_var f), stacks', status')
-  | NONE => NONE)
-  /\
-*)
  (*************************)
  (* Function call-related *)
  (e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
@@ -486,20 +396,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e', stacks', status') => SOME (e_unop unop e', stacks', status')
     | NONE => NONE))
   /\
-(* OLD: unary arithmetic clauses:
- (e_exec _ (e_unop unop (e_v v)) stacks status =
-  case unop_exec unop v of
-  | SOME v => SOME (e_v v, stacks, status)
-  | NONE => NONE)
-  /\
- (*****************************************)
- (* Argument reduction of unary operation *)
- (e_exec ctx (e_unop unop e) stacks status =
-  case e_exec ctx e stacks status of
-  | SOME (e', stacks', status') => SOME ((e_unop unop e'), stacks', status')
-  | NONE => NONE)
-  /\
-*)
  (*********************)
  (* Binary arithmetic *)
  (e_exec ctx (e_binop e1 binop e2) stacks status =
@@ -519,28 +415,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e1', stacks', status') => SOME (e_binop e1' binop e2, stacks', status')
     | NONE => NONE))
   /\
-(* OLD: binary arithmetic clauses:
- (e_exec _ (e_binop (e_v v1) binop (e_v v2)) stacks status =
-  case binop_exec binop v1 v2 of
-  | SOME v => SOME (e_v v, stacks, status)
-  | NONE => NONE)
-  /\
- (******************************************)
- (* Argument reduction of binary operation *)
- (e_exec ctx (e_binop (e_v v) binop e1) stacks status =
-  if is_short_circuitable v binop
-  then short_circuit binop stacks status
-  else
-   (case e_exec ctx e1 stacks status of
-    | SOME (e2, stacks', status') => SOME (e_binop (e_v v) binop e2, stacks', status')
-    | NONE => NONE))
-  /\
- (e_exec ctx (e_binop e1 binop e2) stacks status =
-  case e_exec ctx e1 stacks status of
-  | SOME (e3, stacks', status') => SOME (e_binop e3 binop e2, stacks', status')
-  | NONE => NONE)
-  /\
-*)
  (**********)
  (* Select *)
  (e_exec ctx (e_select e v_x_l x) stacks status =
@@ -585,29 +459,8 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
     | NONE => NONE))
   /\
-(* OLD: Single clause for return
- (stmt_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
-  case e of
-  | (e_v v) => 
-   (case call_stack of
-    | ((curr_stack_frame', called_function_name_bot)::call_stack') => NONE
-    | ((curr_stack_frame', called_function_name_function_name f)::call_stack') =>
-     (case FLOOKUP func_map f of
-     | SOME (stmt, x_d_l) => SOME (stmt_empty,
-				  (stacks_tup (update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD curr_stack_frame)::curr_stack_frame') curr_stack_frame)
-					      call_stack'),
-				  status_return v)
-     | NONE => NONE)
-    | [] => NONE)
-  | e' =>
-   (case e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) e (stacks_tup curr_stack_frame call_stack) status of
-    | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
-    | NONE => NONE))
-  /\
-*)
  (**************)
  (* Assignment *)
- (* TODO: Fix assignment to struct field *)
  (stmt_exec ctx (stmt_ass lval e) (stacks_tup curr_stack_frame call_stack) status =
   if is_v e
   then
@@ -619,26 +472,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e', stacks', status') => SOME (stmt_ass lval e', stacks', status')
     | NONE => NONE))
   /\
-(* OLD: Assignment clauses:
- (stmt_exec _ (stmt_ass (lval_varname x) (e_v v)) (stacks_tup curr_stack_frame call_stack) status =
-  SOME (stmt_empty, stacks_tup (assign curr_stack_frame v x) call_stack, status))
-  /\
- (stmt_exec _ (stmt_ass (lval_field lval f) (e_v v)) (stacks_tup curr_stack_frame call_stack) status =
-  case lookup_lval curr_stack_frame lval of
-  | (v_struct (f_v_list)) =>
-   SOME (stmt_ass lval (e_v (v_struct (LUPDATE (f, v) (THE (INDEX_OF f (MAP FST f_v_list))) f_v_list))), stacks_tup curr_stack_frame call_stack, status)
-  | _ => NONE
-  )
-  /\
- (stmt_exec _ (stmt_ass lval_null (e_v v)) stacks status =
-  SOME (stmt_empty, stacks, status))
-  /\
- (stmt_exec ctx (stmt_ass lval e) stacks status =
-  case e_exec ctx e stacks status of
-  | SOME (e', stacks', status') => SOME (stmt_ass lval e', stacks', status')
-  | NONE => NONE)
-  /\
-*)
  (**********)
  (* Verify *)
  (stmt_exec ctx (stmt_verify e1 e2) stacks status =
@@ -658,24 +491,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e1', stacks', status') => SOME (stmt_verify e1' e2, stacks', status')
     | NONE => NONE))
   /\
-(* OLD: Verify clauses:
- (stmt_exec _ (stmt_verify (e_v (v_bool T)) (e_v (v_err x))) stacks status =
-  SOME (stmt_empty, stacks, status))
-  /\
- (stmt_exec _ (stmt_verify (e_v (v_bool F)) (e_v (v_err x))) stacks status =
-  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_var "Reject")), stacks, status))
-  /\
- (stmt_exec ctx (stmt_verify (e_v (v_bool b)) e) stacks status =
-  case e_exec ctx e stacks status of
-  | SOME (e', stacks', status') => SOME (stmt_verify (e_v (v_bool b)) e', stacks', status')
-  | NONE => NONE)
-  /\
- (stmt_exec ctx (stmt_verify e e') stacks status =
-  case e_exec ctx e stacks status of
-  | SOME (e'', stacks', status') => SOME (stmt_verify e'' e', stacks', status')
-  | NONE => NONE)
-  /\
-*)
  (**************)
  (* Transition *)
  (**************)
@@ -690,20 +505,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e', stacks', status') => SOME (stmt_trans e', stacks', status')
     | NONE => NONE))
   /\
-(* OLD: Transition clauses:
- (stmt_exec _ (stmt_trans (e_var x)) stacks status =
-  if x = "accept"
-  then SOME (stmt_empty, stacks, status_pars_next (pars_next_pars_fin pars_finaccept))
-  else if x = "reject"
-  then SOME (stmt_empty, stacks, status_pars_next (pars_next_pars_fin pars_finreject))
-  else SOME (stmt_empty, stacks, status_pars_next (pars_next_trans x)))
-  /\
- (stmt_exec ctx (stmt_trans e) stacks status =
-  case e_exec ctx e stacks status of
-  | SOME (e', stacks', status') => SOME (stmt_trans e', stacks', status')
-  | NONE => NONE)
-  /\
-*)
  (* Sequence *)
  (stmt_exec ctx (stmt_seq stmt1 stmt2) stacks status =
   if is_empty stmt1
@@ -713,16 +514,6 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (stmt1', stacks', status') => SOME (stmt_seq stmt1' stmt2, stacks', status')
     | NONE => NONE))
   /\
-(* OLD: Sequence clauses:
- (stmt_exec _ ((stmt_seq stmt_empty stmt):stmt) stacks status =
-  SOME (stmt, stacks, status))
-  /\
- (stmt_exec ctx ((stmt_seq stmt1 stmt2):stmt) stacks status =
-  case stmt_exec ctx stmt1 stacks status of
-  | SOME (stmt1', stacks', status') => SOME (stmt_seq stmt1' stmt2, stacks', status')
-  | NONE => NONE)
-  /\
-*)
  (stmt_exec _ _ _ _ = NONE)
 `
 (WF_REL_TAC `measure sum_size` >>
@@ -792,9 +583,8 @@ val bl0 = mk_v_bitii (0, 32);
 val bl1 = mk_v_bitii (1, 32);
 val bl2 = mk_v_bitii (16384, 32);
 
-(* TODO: Add to ctx *)
 val func_map = ``FEMPTY |+ ("f_x", (stmt_seq (stmt_ass (lval_varname "x_inout") (e_v (^bl1))) (stmt_ret (e_v v_bot))), ["x_inout", d_inout])``;
-val ctx = list_mk_pair [``FEMPTY:type_map``, func_map, ``FEMPTY:pars_map``, ``FEMPTY:t_map``, ``FEMPTY:ctrl``];
+val ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, func_map, ``FEMPTY:pars_map``, ``FEMPTY:t_map``, ``FEMPTY:ctrl``];
 
 val stacks = ``stacks_tup ([FEMPTY |+ ("x", ((^bl0), NONE))]:scope list) ([]:call_stack)``;
 val status = ``status_running``;
