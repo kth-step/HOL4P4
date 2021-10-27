@@ -3,18 +3,10 @@ struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open stringSyntax optionSyntax pairSyntax finite_mapSyntax;
+open stringSyntax optionSyntax pairSyntax finite_mapSyntax
+     wordsSyntax numSyntax bitstringSyntax;
 open p4Theory;
 
-
-fun dest_septop c e tm =
-   case with_exn strip_comb tm e of
-      (t, [t1, t2, t3, t4, t5, t6, t7]) =>
-         if same_const t c then (t1, t2, t3, t4, t5, t6, t7) else raise e
-    | _ => raise e;
-fun list_of_septuple (a, b, c, d, e, f, g) = [a, b, c, d, e, f, g];
-fun mk_septop tm = HolKernel.list_mk_icomb tm o list_of_septuple;
-val syntax_fns7 = HolKernel.syntax_fns {n = 7, dest = dest_septop, make = mk_septop};
 
 fun dest_quinop c e tm =
    case with_exn strip_comb tm e of
@@ -24,6 +16,15 @@ fun dest_quinop c e tm =
 fun list_of_quintuple (a, b, c, d, e) = [a, b, c, d, e];
 fun mk_quinop tm = HolKernel.list_mk_icomb tm o list_of_quintuple;
 val syntax_fns5 = HolKernel.syntax_fns {n = 5, dest = dest_quinop, make = mk_quinop};
+
+fun dest_septop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5, t6, t7]) =>
+         if same_const t c then (t1, t2, t3, t4, t5, t6, t7) else raise e
+    | _ => raise e;
+fun list_of_septuple (a, b, c, d, e, f, g) = [a, b, c, d, e, f, g];
+fun mk_septop tm = HolKernel.list_mk_icomb tm o list_of_septuple;
+val syntax_fns7 = HolKernel.syntax_fns {n = 7, dest = dest_septop, make = mk_septop};
 
 (* TODO: Move to ottSyntax *)
 open ottTheory;
@@ -41,6 +42,9 @@ val (e_v_tm,  mk_e_v, dest_e_v, is_e_v) =
 
 val (v_bit_tm, mk_v_bit, dest_v_bit, is_v_bit) =
   syntax_fns1 "p4" "v_bit";
+fun mk_v_bitii (num, width) =
+  mk_v_bit (mk_pair (mk_w2v $ mk_wordii (num, width), term_of_int width));
+
 val (v_bool_tm, mk_v_bool, dest_v_bool, is_v_bool) =
   syntax_fns1 "p4" "v_bool";
 

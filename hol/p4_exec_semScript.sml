@@ -181,6 +181,11 @@ Definition e_exec_return:
  (e_exec_return _ _ _ = NONE)
 End
 
+Definition stmt_exec_return:
+ (stmt_exec_return (e_func_exec stmt_empty) stacks v = SOME (e_v v, stacks, status_running)) /\
+ (stmt_exec_return _ _ _ = NONE)
+End
+
 (*********************************)
 (* Expression-related shorthands *)
 
@@ -322,6 +327,15 @@ Definition e_exec_acc:
  (e_exec_acc _ _ _ = NONE)
 End
 
+Definition e_exec_select:
+ (e_exec_select (e_v v) v_x_l x =
+  case FIND (\(v', x'). v' = v) v_x_l of
+  | SOME (v', x') => SOME x'
+  | NONE => SOME x)
+  /\
+ (e_exec_select _ _ _ = NONE)
+End
+
 (********************************)
 (* Statement-related shorthands *)
 
@@ -331,6 +345,12 @@ Definition stmt_exec_ass:
   /\
  (stmt_exec_ass lval_null (e_v v) frame =
   SOME frame)
+  /\
+ (stmt_exec_ass (lval_field lval f) (e_v v) frame =
+  case lookup_lval frame lval of
+  | (v_struct f_v_l) =>
+   stmt_exec_ass lval (e_v (v_struct (LUPDATE (f, v) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l))) frame
+  | _ => NONE)
   /\
  (stmt_exec_ass _ _ _ = NONE)
 End
@@ -521,6 +541,19 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
   | NONE => NONE)
   /\
 *)
+ (**********)
+ (* Select *)
+ (e_exec ctx (e_select e v_x_l x) stacks status =
+  if is_v e
+  then
+    (case e_exec_select e v_x_l x of
+     | SOME x' => SOME (e_var x', stacks, status)
+     | NONE => NONE)
+  else
+   (case e_exec ctx e stacks status of
+    | SOME (e', stacks', status') => SOME (e_select e' v_x_l x, stacks', status')
+    | NONE => NONE))
+  /\
  (e_exec _ _ _ _ = NONE)
   /\
  (**************)
@@ -530,9 +563,12 @@ val e_stmt_exec_defn = TotalDefn.tDefine "e_stmt_exec" `
  (* Catch-all clauses for special statuses *)
  (stmt_exec _ stmt stacks status_type_error = NONE)
   /\
+(* TODO: Commented out, for now. Maybe some way can be found to avoid
+ * duplication of clauses for return status...
  (stmt_exec _ stmt stacks (status_return v) =
   SOME (stmt_empty, stacks, status_return v))
   /\
+*)
  (stmt_exec _ stmt stacks (status_pars_next x) =
   SOME (stmt_empty, stacks, status_pars_next x))
   /\
@@ -730,7 +766,7 @@ Proof
 cheat
 QED
 
-(* Then, define an executable semantics which performs execution until finished. *)
+(* Then, define an executable semantics which performs execution until out of fuel. *)
 (* Note that all concrete operations remain the same *)
 val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
  (e_multi_exec _ e stacks status 0 =
@@ -752,66 +788,92 @@ val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
 
 (* TEST
 
-val bl0 = ``(w2v (0w:word32), 32)``;
-val bl1 = ``(w2v (1w:word32), 32)``;
-val bl2 = ``(w2v (16384w:word32), 32)``;
+val bl0 = mk_v_bitii (0, 32);
+val bl1 = mk_v_bitii (1, 32);
+val bl2 = mk_v_bitii (16384, 32);
 
 (* TODO: Add to ctx *)
-val func_map = ``FEMPTY |+ ("f_x", (stmt_seq (stmt_ass (lval_varname "x_inout") (e_v (v_bit (^bl1)))) (stmt_ret (e_v v_bot))), ["x_inout", d_inout])``;
+val func_map = ``FEMPTY |+ ("f_x", (stmt_seq (stmt_ass (lval_varname "x_inout") (e_v (^bl1))) (stmt_ret (e_v v_bot))), ["x_inout", d_inout])``;
+val ctx = list_mk_pair [``FEMPTY:type_map``, func_map, ``FEMPTY:pars_map``, ``FEMPTY:t_map``, ``FEMPTY:ctrl``];
 
-val stacks = ``stacks_tup ([FEMPTY |+ ("x", ((v_bit (^bl0)), NONE))]:scope list) ([]:call_stack)``
-val status = ``status_running``
+val stacks = ``stacks_tup ([FEMPTY |+ ("x", ((^bl0), NONE))]:scope list) ([]:call_stack)``;
+val status = ``status_running``;
 
 (* Nested unary operations *)
-val e_un = ``(e_unop unop_compl (e_unop unop_compl (e_v (v_bit (^bl1)))))``;
-EVAL ``e_multi_exec ctx (^e_un) (^stacks) (^status) 20``;
+val e_un = ``(e_unop unop_compl (e_unop unop_compl (e_v (^bl1))))``;
+EVAL ``e_multi_exec (^ctx) (^e_un) (^stacks) (^status) 20``;
 
 (* Single statements *)
-EVAL ``stmt_multi_exec ctx (stmt_ass lval_null (^e_un)) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec (^ctx) (stmt_ass lval_null (^e_un)) (^stacks) (^status) 20``;
 
 (* TODO: Simplifying multiple updates to the same finite map? *)
-EVAL ``stmt_multi_exec ctx (stmt_ass (lval_varname "x") (^e_un)) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec (^ctx) (stmt_ass (lval_varname "x") (^e_un)) (^stacks) (^status) 20``;
 
 (* Sequence of statements *)
-EVAL ``stmt_multi_exec ctx (stmt_seq (stmt_ass (lval_varname "x") (^e_un)) (stmt_ass (lval_varname "x") (e_v (v_bit (^bl2))) )) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec (^ctx) (stmt_seq (stmt_ass (lval_varname "x") (^e_un)) (stmt_ass (lval_varname "x") (e_v (^bl2)) )) (^stacks) (^status) 20``;
 
 (* Function call *)
-EVAL ``stmt_multi_exec ctx (stmt_ass lval_null (e_func_call "f_x" [e_var "x"])) (^stacks) (^status) 20``;
+EVAL ``stmt_multi_exec (^ctx) (stmt_ass lval_null (e_func_call "f_x" [e_var "x"])) (^stacks) (^status) 20``;
 
 (* Nested binary operations *)
-EVAL ``e_multi_exec ctx (e_binop (e_v (v_bit (^bl1))) binop_add (e_v (v_bit (^bl2)))) (^stacks) (^status) 20``;
+EVAL ``e_multi_exec (^ctx) (e_binop (e_v (^bl1)) binop_add (e_v (^bl2))) (^stacks) (^status) 20``;
 
 (* Stack assignment *)
-val stacks' = ``stacks_tup ([FEMPTY |+ ("x", ((v_struct [("f", (v_bit (^bl0)))]), NONE))]:scope list) ([]:call_stack)``;
+val stacks' = ``stacks_tup ([FEMPTY |+ ("x", ((v_struct [("f", (^bl0))]), NONE))]:scope list) ([]:call_stack)``;
 
-EVAL ``stmt_multi_exec ctx (stmt_ass (lval_field (lval_varname "x") "f") (e_v (v_bit (^bl1)))) (^stacks') (^status) 20``;
+EVAL ``stmt_multi_exec (^ctx) (stmt_ass (lval_field (lval_varname "x") "f") (e_v (^bl1))) (^stacks') (^status) 20``;
 
 (*************************)
 (*   From VSS Example    *)
 (*************************)
 
-val ip_v0_ok = ``(w2v (4w:word4), 4)``;
-val ip_v0_bad = ``(w2v (3w:word4), 4)``;
+val ip_v0_ok = mk_v_bitii (4, 4);
+val ip_v0_bad = mk_v_bitii (3, 4);
+val ether_ty_ok = mk_v_bitii (2048, 16);
 (* TODO: Syntax function to construct struct terms? *)
 
 val e_ip_v = ``(e_acc (e_acc (e_var "p") (e_var "ip")) (e_var "version"))``;
-val e_4w4 = ``e_v (v_bit (w2v (4w:word4), 4))``;
+val e_4w4 = mk_e_v ip_v0_ok;
 val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
 
-val stacks_ok = ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (v_bit (^ip_v0_ok)))]))], NONE)) |+ ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
-val stacks_bad = ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (v_bit (^ip_v0_bad)))]))], NONE)) |+ ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+val stacks_ok =
+ ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (^ip_v0_ok))]));
+                                           ("ethernet", (v_struct [("etherType", (^ether_ty_ok))]))], NONE)) |+
+                ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+val stacks_bad =
+ ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (^ip_v0_bad))]))], NONE)) |+
+                ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
 val status = ``status_running``;
 
-(* p.ip.version == 4w4 *)
+(*
+
+p.ip.version == 4w4
+
+*)
 EVAL ``e_multi_exec ctx (^e_ip_v_eq_4w4) (^stacks_ok) (^status) 20``;
 
-(* verify(p.ip.version == 4w4, error.IPv4IncorrectVersion); *)
+(*
+
+verify(p.ip.version == 4w4, error.IPv4IncorrectVersion);
+
+*)
 val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
 (* Case OK: *)
 EVAL ``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_ok) (^status) 20``;
 
 (* Case not OK: *)
 EVAL ``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_bad) (^status) 20``;
+
+(*
+ 
+transition select(p.ethernet.etherType) {
+    0x0800: parse_ipv4;
+    // no default rule: all other packets rejected
+}
+
+*)
+val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
+EVAL ``stmt_multi_exec ctx (stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")) (^stacks_ok) (^status) 20``;
 
 *)
         
