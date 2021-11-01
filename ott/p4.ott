@@ -1630,7 +1630,7 @@ by
   x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
-  [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks , Running )
+  ctx [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks , Running )
 
 %%%%%%%%%%%%%%
 %Transition
@@ -1674,9 +1674,9 @@ by
   ctx [return e] ( stacks , Running ) -> [return e'] ( stacks' , Running )
 
 %Reduction step of assign expression
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: ass_e
-  ctx [assign x e] ( stacks , Running ) -> [assign x e'] ( stacks' , Running )
+  ctx [assign lval e] ( stacks , status ) -> [assign lval e'] ( stacks' , status' )
 
 %Reduction step of condition
   ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
