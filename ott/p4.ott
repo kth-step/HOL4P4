@@ -388,7 +388,7 @@ func_map {{ tex F }} :: func_map_ ::=
 % TODO: Could be just a type abbreviation?
 ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
 {{ com control plane }}
-{{ hol ((string # v # match_kind) |-> (string # e_list)) }}
+{{ hol ((string # v # match_kind) -> (string # e_list) option) }}
 | empty :: M :: empty
   {{ com empty table map }}
   {{ hol FEMPTY }}
@@ -430,7 +430,7 @@ ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ hol (type_map # func_map # pars_map # t_map # ctrl) }}
 | empty :: M :: empty
   {{ com empty context }}
-  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, FEMPTY) }}
+  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
 | ( type_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[type_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
@@ -503,7 +503,7 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
 | update ( scope , i , curr_stack_frame ) :: M :: update_scope
   {{ com update a scope in the stack frame }}
-  {{ hol (LUPDATE [[scope]] [[i]] [[curr_stack_frame]]) }}
+  {{ hol ( LUPDATE [[scope]] [[i]] [[curr_stack_frame]] ) }}
   {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
 | assign ( curr_stack_frame , v , x ) :: M :: assign
   {{ com assign to a variable in the stack frame }}
@@ -660,6 +660,10 @@ formula :: formula_ ::=
   {{ com find the current stack frame length }}
   {{ tex [[i]] = length ([[curr_stack_frame]])}}
   {{ hol ([[i]] = LENGTH [[curr_stack_frame]]) }}
+| length ( curr_stack_frame ) - 1 = i :: M :: find_length_minus_1
+  {{ com find the current stack frame length minus 1 }}
+  {{ tex [[i]] = length ([[curr_stack_frame]]) - 1}}
+  {{ hol ([[i]] = LENGTH [[curr_stack_frame]] - 1) }}  
 | v = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
   {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
@@ -736,7 +740,7 @@ formula :: formula_ ::=
 | ctrl ( table_name , v , match_kind ) = ( f , e_list ) :: :: ctrl_plane  
   {{ com fetch the function name and parameters from the ctrl plane }}
   {{ tex \mathrm{ctrl}\, ( [[table_name]] , \, [[v]], \, [[match_kind]]\, ) = \,( [[f]] , [[e_list]] ) }}
-  {{ hol ( FLOOKUP [[ctrl]] ( [[table_name]] , [[v]] , [[match_kind]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
+  {{ hol ([[ctrl]] ( [[table_name]] , [[v]] , [[match_kind]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -1256,9 +1260,9 @@ by
   ----------------------------------- :: func_call_newframe
   (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
-  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
+  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , status )
   ----------------------------------- :: func_exec
-  ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , Running )
+  ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , status )
 
 %Note: this rule works together with the "ret" rule in the statement semantics.
 %      By the time statement has been reduced to empty_stmt, the stacks have
@@ -1549,15 +1553,15 @@ by
 
   %Assign to a struct field
   struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v'' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
+  v' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_s
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
 
   %Assign to a header field
   header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v'' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
+  v' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
   ----------------------------------- :: ass_h
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v''] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
 
   %Assign to null
   %Note: This is be used to model function calls as an expression.
@@ -1591,7 +1595,7 @@ by
 %%%%%%%%%%%%%%
 %Declaration
 
-  length ( curr_stack_frame ) = i
+  length ( curr_stack_frame ) - 1  = i
   scope = curr_stack_frame [ i ]
   v = arb_from_t t
   curr_stack_frame' = update ( scope + [ x |-> ( v , NONE ) ] , i , curr_stack_frame )
@@ -1626,7 +1630,7 @@ by
   x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
-  ctx [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks' , Running )
+  ctx [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks , Running )
 
 %%%%%%%%%%%%%%
 %Transition
@@ -1670,9 +1674,9 @@ by
   ctx [return e] ( stacks , Running ) -> [return e'] ( stacks' , Running )
 
 %Reduction step of assign expression
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: ass_e
-  ctx [assign x e] ( stacks , Running ) -> [assign x e'] ( stacks' , Running )
+  ctx [assign lval e] ( stacks , status ) -> [assign lval e'] ( stacks' , status' )
 
 %Reduction step of condition
   ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
