@@ -68,6 +68,37 @@ Proof
  rfs []
 QED
 
+Theorem index_find_first:
+ !l f e i j.
+ (INDEX_FIND i f l = SOME (j, e)) ==>
+ (f e /\ (!j'. (i <= j' /\ j' < j) ==> ~(f (EL (j' - i) l))))
+Proof
+ Induct_on `l` >> (
+  fs [listTheory.INDEX_FIND_def]
+ ) >>
+ REPEAT STRIP_TAC >>
+ fs [] >>
+ Cases_on `f h` >> (
+  fs []
+ ) >> (
+  Q.PAT_X_ASSUM `!f e i j. _` (ASSUME_TAC o Q.SPECL [`f`, `e`, `SUC i`, `j`]) >>
+  rfs []
+ ) >>
+ Q.PAT_X_ASSUM `!j'. _` (ASSUME_TAC o Q.SPEC `j'`) >>
+ subgoal `SUC i <= j'` >- (
+  Cases_on `i = j'` >- (
+   fs []
+  ) >>
+  fs []
+ ) >>
+ fs [] >>
+ rfs [] >>
+ subgoal `j' - i = (SUC (j' - SUC i))` >- (
+  fs []
+ ) >>
+ fs [listTheory.EL_restricted]
+QED
+
 Theorem unred_arg_index_in_range:
  !d_l e_l i. unred_arg_index d_l e_l = SOME i ==> i < LENGTH e_l
 Proof
@@ -339,26 +370,26 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   * possible status argument for all other clauses *)
  (********************)
  (* Variable look-up *)
- (e_exec _ (e_var x) (stacks_tup curr_stack_frame call_stack) status =
-  SOME (e_v (lookup_vexp curr_stack_frame (e_var x)), stacks_tup curr_stack_frame call_stack, status))
+ (e_exec _ (e_var x) (stacks_tup curr_stack_frame call_stack) status_running =
+  SOME (e_v (lookup_vexp curr_stack_frame (e_var x)), stacks_tup curr_stack_frame call_stack, status_running))
   /\
  (***********************)
  (* Struct/header field access *)
  (e_exec ctx (e_acc e_struct e_field) stacks status =
-  if is_v e_struct
+  if is_var e_field
   then
-   if is_var e_field
+   if is_v e_struct
    then
     (case e_exec_acc (e_acc e_struct e_field) stacks status of
      | SOME res => SOME res
      | NONE => NONE)
    else
-    (case e_exec ctx e_field stacks status of
-     | SOME (e_field', stacks', status') => SOME (e_acc e_struct e_field', stacks', status')
+    (case e_exec ctx e_struct stacks status of
+     | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
      | NONE => NONE)
   else
-   (case e_exec ctx e_struct stacks status of
-    | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
+   (case e_exec ctx e_field stacks status of
+    | SOME (e_field', stacks', status') => SOME (e_acc e_struct e_field', stacks', status')
     | NONE => NONE))
   /\
  (*************************)
@@ -539,7 +570,7 @@ QED
 (* TODO: Completeness *)
 Theorem e_exec_sound_red:
  !ctx (e:e) (e':e) stacks stacks' status status'.
-  e_exec ctx e stacks status = SOME (e', stacks', status) ==>
+  e_exec ctx e stacks status = SOME (e', stacks', status') ==>
   e_red ctx e stacks status e' stacks' status'
 Proof
 (* NOTE: Use something like
@@ -551,18 +582,118 @@ Proof
    Should be around 9 subgoals with the below, corresponding
    roughly to the different expressions:
 *)
-(*
- Cases_on `e` >> Cases_on `status` >> (
-  fs [e_stmt_exec_def, e_exec_return, ignore_pars_next]
- ) >>
-*)
-cheat
+STRIP_TAC >>
+Induct_on `e` >> Cases_on `status` >> (
+ (* TODO: Remove ignore_pars_next *)
+ fs [e_stmt_exec_def, e_exec_return, ignore_pars_next]
+) >| [
+ (* TODO: e_v to e_v - should this be among the inference rules? *)
+ cheat,
+
+ (* Variable lookup - how is variable name related to reduced expression? *)
+ Cases_on `stacks` >>
+ fs [e_stmt_exec_def] >>
+ REPEAT STRIP_TAC >>
+ irule ((valOf o find_clause_e_red) "e_lookup") >>
+ fs [clause_name_def], 
+
+ (* Field access *)
+ REPEAT STRIP_TAC >>
+ Cases_on `stacks` >>
+ Cases_on `is_v e` >> Cases_on `is_var e'` >- (
+  (* 1st case is base case *)
+  Cases_on `e` >>  Cases_on `e'` >> (
+   fs [is_v, is_var, e_stmt_exec_def]
+  ) >>
+  Cases_on `v` >> (
+   fs [e_stmt_exec_def, e_exec_acc]
+  ) >> (
+   Cases_on `FIND (\(k,v). k = s) l'`
+  ) >> (
+   fs []
+  ) >> (
+   Cases_on `x`
+  ) >> (
+   fs [] >>
+   rw []
+  ) >| [
+   irule ((valOf o find_clause_e_red) "e_s_acc"),
+
+   irule ((valOf o find_clause_e_red) "e_h_acc")
+  ] >> (
+   fs [clause_name_def, listTheory.FIND_def] >>
+   subgoal `(\(k,v). k = s) (q,r)` >- (
+    Cases_on `z` >>
+    fs [] >>
+    rw [] >>
+    IMP_RES_TAC (ISPECL [``(l':((string # v) list))``, ``(\(k,v). k = s):(string # v -> bool)``, ``(q,r):string # v``, ``0``] index_find_first) >>
+    fs []
+   ) >>
+   fs []
+  )
+ ) >- (
+  (* Second case is reduction of 2nd argument (field name) *)
+  fs [] >>
+  Cases_on `e_exec ctx e' (stacks_tup l l0) status_running` >> (
+   fs []
+  ) >>
+  Cases_on `x` >> Cases_on `r` >>
+  fs [] >>
+  rw [] >>
+  irule ((valOf o find_clause_e_red) "e_acc_arg2") >>
+  fs [clause_name_def]
+ ) >| [
+  (* Third case is reduction of 1st argument (struct value) *)
+  fs [] >>
+  Cases_on `e_exec ctx e (stacks_tup l l0) status_running` >> (
+   fs []
+  ) >>
+  Cases_on `x` >> Cases_on `r` >>
+  fs [] >>
+  rw [] >>
+  Cases_on `e'` >> (
+   fs [is_var]
+  ) >>
+  irule ((valOf o find_clause_e_red) "e_acc_arg1") >>
+  fs [clause_name_def],
+
+  (* Fourth (inductive) case determines case when both arguments are unreduced *)
+  fs [] >>
+  Cases_on `e_exec ctx e' (stacks_tup l l0) status_running` >> (
+   fs []
+  ) >>
+  Cases_on `x` >> Cases_on `r` >>
+  fs [] >>
+  rw [] >>
+  irule ((valOf o find_clause_e_red) "e_acc_arg2") >>
+  RES_TAC >>
+  fs [clause_name_def]
+ ],
+
+ (* Unary operations *)
+ cheat,
+
+ (* Binary operations *)
+ cheat,
+
+ (* Function call *)
+ cheat,
+
+ (* Function body execution *)
+ cheat,
+
+ (* Function body return *)
+ cheat,
+
+ (* Select expression *)
+ cheat
+]
 QED
 
 Theorem stmt_exec_sound_red:
  !ctx (stmt:stmt) (stmt':stmt) stacks stacks' status status'.
   stmt_exec ctx stmt stacks status = SOME (stmt', stacks', status) ==>
-  stmt_red ctx stmt (state_tup stacks status) stmt' (state_tup stacks' status')
+   stmt_red ctx stmt (state_tup stacks status) stmt' (state_tup stacks' status')
 Proof
 cheat
 QED
