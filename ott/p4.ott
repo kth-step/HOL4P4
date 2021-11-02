@@ -1304,40 +1304,40 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (type_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  (type_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
-  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , Running ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , Running )
+  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
-  ctx [e'] ( stacks , Running ) ~> [e''] ( stacks' , Running )
-  ----------------------------------- :: acc_arg2
-  ctx [e . e'] ( stacks , Running ) ~> [e . e''] ( stacks' , Running )
-
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: acc_arg1
-  ctx [e . x] ( stacks , Running ) ~> [e' . x] ( stacks' , Running )
+  ctx [e . x] ( stacks , status ) ~> [e' . x] ( stacks' , status' )
+
+  ctx [e'] ( stacks , status ) ~> [e''] ( stacks' , status' )
+  ----------------------------------- :: acc_arg2
+  ctx [e . e'] ( stacks , status ) ~> [e . e''] ( stacks' , status' )
 
 %Select
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: sel_arg
-  ctx [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , Running )
+  ctx [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , status ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , status' )
 
 %Unary operations
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: unop_arg
-  ctx [unop e] ( stacks , Running ) ~> [unop e'] ( stacks' , Running )
+  ctx [unop e] ( stacks , status ) ~> [unop e'] ( stacks' , status' )
 
 %Binary operations
-  ctx [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e''] ( stacks' , status' )
   ----------------------------------- :: binop_arg1
-  ctx [e binop e'] ( stacks , Running ) ~> [e'' binop e'] ( stacks' , Running )
+  ctx [e binop e'] ( stacks , status ) ~> [e'' binop e'] ( stacks' , status' )
 
   %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: binop_arg2
-  ctx [v binop e] ( stacks , Running ) ~> [v binop e'] ( stacks' , Running )
+  ctx [v binop e] ( stacks , status ) ~> [v binop e'] ( stacks' , status' )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -1610,9 +1610,9 @@ by
   ----------------------------------- :: block_enter
   ctx [begin stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
 
-  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , Running )
+  ctx [stmt] ( stacks , status ) -> [stmt'] ( stacks' , status' )
   ----------------------------------- :: block_exec
-  ctx [begin' stmt end'] ( stacks , Running ) -> [begin' stmt' end'] ( stacks' , Running )
+  ctx [begin' stmt end'] ( stacks , status ) -> [begin' stmt' end'] ( stacks' , status' )
 
   curr_stack_frame' = rev ( tl ( rev curr_stack_frame ) )
   ----------------------------------- :: block_exit
@@ -1669,9 +1669,9 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Reduction step of return expression
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: ret_e
-  ctx [return e] ( stacks , Running ) -> [return e'] ( stacks' , Running )
+  ctx [return e] ( stacks , status ) -> [return e'] ( stacks' , status' )
 
 %Reduction step of assign expression
   ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
@@ -1679,29 +1679,29 @@ by
   ctx [assign lval e] ( stacks , status ) -> [assign lval e'] ( stacks' , status' )
 
 %Reduction step of condition
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: cond_e
-  ctx [if e then stmt1 else stmt2] ( stacks , Running ) -> [if e' then stmt1 else stmt2] ( stacks' , Running )
+  ctx [if e then stmt1 else stmt2] ( stacks , status ) -> [if e' then stmt1 else stmt2] ( stacks' , status' )
 
 %Reduction step of verify predicate
-  ctx [e] ( stacks , Running ) ~> [e''] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e''] ( stacks' , status' )
   ------------------------------------------------- :: verify_e1
-  ctx [verify e e' ]( stacks , Running ) -> [verify e'' e']( stacks' , Running )
+  ctx [verify e e' ]( stacks , status ) -> [verify e'' e']( stacks' , status' )
 
 %Reduction step of error message
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ------------------------------------------------- :: verify_e2
-  ctx [verify b e]( stacks , Running ) -> [verify b e']( stacks' , Running )
+  ctx [verify b e]( stacks , status ) -> [verify b e']( stacks' , status' )
 
 %Reduction step of transition
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ------------------------------------------------- :: trans_e
-  ctx [transition e]( stacks , Running ) -> [transition e']( stacks' , Running )
+  ctx [transition e]( stacks , status ) -> [transition e']( stacks' , status' )
 
 %Reduction step of match-action expression
-  ctx [e] ( stacks , Running ) ~> [e'] ( stacks' , Running )
+  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
   ----------------------------------- :: apply_table_e
-  ctx [apply table_name e] ( stacks , Running ) -> [apply table_name e'] ( stacks' , Running )
+  ctx [apply table_name e] ( stacks , status ) -> [apply table_name e'] ( stacks' , status' )
 
 %%%%%%%%%%%%%%%%%%%%
 % Parser semantics %
@@ -1716,9 +1716,9 @@ defn
   {{ com parser semantics }}
 by
 
-  ctx [stmt]( stacks , Running ) -> [stmt']( stacks' , Running )
+  ctx [stmt]( stacks , status ) -> [stmt']( stacks' , status' )
   ------------------------------------------------- :: stmt
-  ctx [stmt]( stacks , Running ) --> [stmt']( stacks' , Running )
+  ctx [stmt]( stacks , status ) --> [stmt']( stacks' , status' )
 
   (type_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
   stmt'' = pars_map ( x )
