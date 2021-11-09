@@ -42,79 +42,9 @@ indexvar m, n, o ::=
   {{ com indices }}
 grammar
 
-%%%%%%%%%%%%%%%%%%%%%
-% Expression syntax %
-%%%%%%%%%%%%%%%%%%%%%
-
-unop {{ tex \ominus }}:: unop_ ::=
-| ! :: :: neg
-  {{ com negation }}
-  {{ tex ! }}
-| ~ :: :: compl
-  {{ com bitwise complement }}
-  {{ tex \neg }}
-| - :: :: neg_signed
-  {{ com signed negation }}
-| + :: :: un_plus
-  %Defined as no-op for all values in P4 spec
-  {{ com unary plus }}
-
-%Binary operations
-%Split these up into operations (bv # bv -> bv) and predicates (bv # bv -> bool)?
-%TODO: Add saturating addition
-%TODO: Add saturating subtraction
-binop {{ tex \oplus }} :: binop_ ::=
-| * :: :: mul
-  {{ com multiplication }}
-  {{ tex \times }}
-| / :: :: div
-  {{ com division }}
-| mod :: :: mod
-  %Denoted by % in P4 spec
-  {{ com modulo }}
-  {{ tex \bmod }}
-| + :: :: add
-  {{ com addition }}
-| - :: :: sub
-  {{ com subtraction }}
-| SHL :: :: shl
-  {{ com logical left-shift }}
-  {{ tex \ll }}
-| SHR :: :: shr
-  {{ com logical right-shift }}
-  {{ tex \gg }}
-| LE :: :: le
-  {{ com less or equal }}
-  {{ tex \leq }}
-| GE :: :: ge
-  {{ com greater or equal }}
-  {{ tex \geq }}
-| < :: :: lt
-  {{ com less }}
-  {{ tex < }}
-| > :: :: gt
-  {{ com greater }}
-  {{ tex > }}
-| NE :: :: neq
-  {{ com not equal }}
-  {{ tex \neq }}
-| EQ :: :: eq
-  {{ com equal }}
-  {{ tex = }}
-| & :: :: and
-  {{ com bitwise and }}
-| ^ :: :: xor
-  {{ com bitwise xor }}
-  {{ tex \underline{\vee} }}
-| '|' :: :: or
-  {{ com bitwise or }}
-  {{ tex \mid }}
-| AND :: :: bin_and
-  {{ com binary and }}
-  {{ tex \land }}
-| OR :: :: bin_or
-  {{ com binary or }}
-  {{ tex \lor }}
+%%%%%%%%%%%%%%%%
+% Value syntax %
+%%%%%%%%%%%%%%%%
 
 boolv :: boolv_ ::=
 {{ hol bool }}
@@ -132,20 +62,25 @@ bitv :: bitv_ ::=
 | bl n :: M :: bl
   {{ hol ([[bl]], [[n]]) }}
 
-bt {{ tex bt }} :: bt_ ::=
-{{ com base types }}
-| bool_t :: :: bool
-  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
-| bit_t :: :: bit
-  {{ tex { \mathrm{bit}_{ \mathrm{t} } } }}
+%Fence so that ott does not put packet_in before boolv
+embed
+{{ hol
 
-t {{ tex t }} :: t_ ::=
-{{ com types }}
-| bt :: :: base
-| struct_t t1 , ... , tn :: :: struct
-  {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-| header_t t1 , ... , tn :: :: header
-  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+}}
+grammar
+
+packet_in :: packet_in_ ::=
+{{ hol (boolv list) }}
+{{ com input packet }}
+| [ boolv1 , .. , boolvn ] :: M :: list
+  {{ hol ([[boolv1 .. boolvn]]) }}
+
+%TODO: This should be expanded to cover data of all extern objects
+%TODO: Only stuff in core.p4, for now... Should this be polymorphic when done for multiple platforms?
+ext_obj :: ext_obj_ ::=
+{{ com extern object }}
+| packet_in :: :: in
+  {{ com input packet }}
 
 %TODO: Add string literal separate from variable name?
 %TODO: Add identifiers
@@ -169,9 +104,8 @@ v :: v_ ::=
 %      Should these be modeled as statements, or should they
 %      be pre-set in the function map?
   {{ com header }}
-%%TODO: An extern should contain an internally visible list of mappings between variable names and constants,
-%%      and a map from function names to their bodies and arguments
-%% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
+| ext_obj :: :: ext
+  {{ com extern object }}
 | errmsg x :: :: err
   {{ com error message }}
 %TODO: Represent uninitialised variables? Default values?
@@ -195,92 +129,10 @@ lval :: lval_ ::=
 | ( lval ) :: X :: paren
   {{ hol ([[lval]]) }}
 
-%TODO: Add casts
-%TODO: Add lists
-%TODO: Add tuples
-%TODO: Add conditional operator
-e :: e_ ::=
-{{ com expression }}
-| v :: :: v
- {{com constant value}}
-| x :: :: var
-  {{ com variable or parser state name }}
-| { e1 , .. , en } :: :: list
-  {{ com expression list }}
-| e . e' :: :: acc
-  {{ com field access }}
-| unop e :: :: unop
-  {{ com unary operation }}
-  {{ tex [[unop]] [[e]] }}
-| e1 binop e2 :: :: binop
-  {{ com binary operation }}
-  {{ tex [[e1]] [[binop]] [[e2]] }}
-| e1 ++ e2 :: :: concat
-  {{ com concatenation of bit-strings }}
-| e1 [ e2 : e3 ] :: :: slice
-  {{ com bit-slice }}
-| call f ( e1 , .. , en ) :: :: func_call
-  {{ com function call }}
-| exec stmt :: I :: func_exec
-  {{ com function execution }}
-| select e { v1 : x1 ; ... ; vn : xn } x :: :: select
-  % TODO: x is the default value of select expression, which should be optional
-  {{ com select }}
-| ( e ) :: S :: paren
-  {{ hol ([[e]]) }}
-
-%TODO: Trying to make a new definition for expression lists (mainly for function
-%      arguments) proved problematic.
-%      If all e_list productions are meta, then you get e_list as a type abbreviation of "e list",
-%      which is either undefined at the point where the abbreviation is made, or
-%      e_list is unknown when defining e (and specifically function call, which would use e_list).
-%      In both situations, mutually recursive definitions are not possible.
-%
-%      If nothing is meta and e_list is not exported to a type abbreviation, you risk the function call semantics not understanding the "e_list" and "e list" correspondence. However, this seems to work currently.
-e_list :: e_list_ ::=
-{{ com list of expressions }}
-{{ hol (e list) }}
-| empty_el :: M :: empty
-  {{ com empty expression list }}
-  {{ hol ([]:e list) }}
-| e1 , .. , en :: M :: exps
-  {{ com list of expressions }}
-  {{ hol ([[e1 .. en]]) }}
-| e '::' e_list :: M :: cons
-  {{ com cons }}
-  {{ hol (e::[[e_list]]) }}
-| tl e_list :: M :: tail
-  {{ com tail }}
-  {{ hol (TL [[e_list]]) }}
-| [ e1 , .. , en ] :: M :: exps2
-  {{ com bracketed list of expressions }}
-  {{ hol ([[e1 .. en]]) }}
-| e_list ++ e_list' :: M :: append
-  {{ com append two expression lists }}
-  {{ hol ([[e_list]] ++ [[e_list']]) }}
-| update ( e , i , e_list ) :: M :: update
-  {{ com update entry of expression list }}
-  {{ hol (LUPDATE [[e]] [[i]] [[e_list]]) }}
-  {{ tex ([[i]] \mapsto  [[e]]) [[e_list]] }}
-| ( e_list ) :: S :: paren
-  {{ hol ([[e_list]]) }}
-
-
-
-%%%%%%%%%%%%%%
-% Statements %
-%%%%%%%%%%%%%%
-
-%decl :: decl_ ::=
-%{{ com declaration }}
-%| empty_decl :: :: empty
-%  {{ com empty declaration }}
-%  {{ tex \emptyset_{ \mathrm{decl} } }}
-%| declare x e :: :: stmt
-%  {{ com declaration }}
-%  {{ tex [[x]] \mathrel{\mathop:}:= [[e]] }}
-%| decl1 ; decl2 :: :: seq
-%  {{ com sequence }}
+%%%%%%%%%%%%%%%%%%%
+% Execution state %
+%%%%%%%%%%%%%%%%%%%
+%Note that this is not part of the P4 specification, but made up for verification purposes.
 
 pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 {{ com final parser states }}
@@ -289,156 +141,12 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 | Reject :: :: reject
   {{ com rejected state }}
 
-match_kind {{ tex \mathit{match\_kind} }} :: match_kind_ ::=
-{{ com matching kinds }}
-| exact :: :: exact
-  {{ tex exact }}
-| ternary :: :: ternary
-  {{ tex ternary }}
-| lpm :: :: lpm
-  {{ tex lpm }}
-
-
 pars_next {{ tex p }} :: pars_next_ ::=
 {{ com parser next state }}
 | Trans x :: :: trans
   {{ com transition to named state }}
 | pars_fin :: :: pars_fin
   {{ com final state }}
-
-%TODO: Add switch statement
-stmt :: stmt_ ::=
-{{ com statement }}
-| empty_stmt :: :: empty
-  {{ com empty statement }}
-  {{ tex \emptyset_{ \mathrm{stmt} } }}
-| assign lval e :: :: ass
-  {{ com assignment }}
-  {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
-| if e then stmt1 else stmt2 :: :: cond
-  {{ com conditional }}
-| decl x t :: :: declare
-  %TODO: This should have a type name instead of a type t, which is then looked up in the type environment.
-  {{ com declaration }}
-| begin stmt end :: :: block 
-  {{ com block }}
-  {{ tex \{ [[stmt]] \} }}
-| begin' stmt end' :: I :: block_ip
-  {{ com block in progress }}
-  {{ tex [ [[stmt]] ] }}
-| return e :: :: ret
-  {{ com return }}
-| stmt1 ; stmt2 :: :: seq
-  {{ com sequence }}
-| verify e e' :: :: verify
-  %e is predicate, e' is error message
-  {{ com verify }}
-| transition e :: :: trans
-  %e should evaluate to a parser state name
-  {{ com transition }}
-  {{ tex \mathbf{transition}\, [[e]] }}
-| apply table_name e :: :: app
-  %table_name is the table name that should be applied
-  {{ com apply }}
-  {{ tex \mathbf{apply} \, [[table_name]] \, [[e]] }}
-
-d {{ tex d }} :: d_ ::=
-{{ com parameter direction }}
-| 'in :: :: in
-  {{ tex \downarrow }}
-| out :: :: out
-  {{ tex \uparrow }}
-| inout :: :: inout
-  {{ tex \updownarrow }}
-| none :: :: none
-  {{ tex \circ }}
-
-%Fence between d and d_list
-embed
-{{ hol
-
-}}
-grammar 
-
-d_list :: d_list_ ::=
-{{ com list of directions }}
-{{ hol (d list) }}
-| empty_el :: M :: empty
-  {{ com empty direction list }}
-  {{ hol ([]:d list) }}
-| [ d1 , .. , dn ] :: M :: ds
-  {{ com list of directions }}
-  {{ hol ([[d1 .. dn]]) }}
-| ( d_list ) :: S :: paren
-  {{ hol ([[d_list]]) }}
-| d_list ++ d_list' :: M :: append
-  {{ com append two e_lists }}
-  {{ hol ([[d_list]] ++ [[d_list']]) }}
-
-func_map {{ tex F }} :: func_map_ ::=
-{{ com function map  }}
-{{ hol (string |-> (stmt # (string # d) list)) }}
-| empty :: M :: empty
-  {{ com empty function map }}
-  {{ hol FEMPTY }}
-| func_map + [ x |-> stmt ] :: M :: update
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
-
-% TODO: Could be just a type abbreviation?
-ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
-{{ com control plane }}
-{{ hol ((string # v # match_kind) -> (string # e_list) option) }}
-| empty :: M :: empty
-  {{ com empty table map }}
-  {{ hol FEMPTY }}
-
-% TODO: Could be just a type abbreviation?
-t_map {{ tex { \mathit{Tb} } }} :: t_map_ ::=
-{{ com table map  }}
-{{ hol (string |-> (e # match_kind)) }}
-| empty :: M :: empty
-  {{ com empty table map }}
-  {{ hol FEMPTY }}
-
-% TODO: Could be just a type abbreviation?
-pars_map {{ tex P }} :: pars_map_ ::=
-{{ com parser state map  }}
-{{ hol (string |-> stmt) }}
-| empty :: M :: empty
-  {{ com empty parser state map }}
-  {{ hol FEMPTY }}
-
-% TODO: Could be just a type abbreviation?
-type_map {{ tex T }} :: type_map_ ::=
-{{ com type environment  }}
-{{ hol (string |-> ((string # t) list)) }}
-| empty :: M :: empty
-  {{ com empty type environment }}
-  {{ hol FEMPTY }}
-
-%Fence so that ott does not re-order ctx
-embed
-{{ hol
-
-}}
-grammar
-
-% TODO: Could be just a type abbreviation?
-ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
-{{ com context }}
-{{ hol (type_map # func_map # pars_map # t_map # ctrl) }}
-| empty :: M :: empty
-  {{ com empty context }}
-  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
-| ( type_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
-  {{ com tuple }}
-  {{ hol ([[type_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
-
-%%%%%%%%%%%%%%%%%%%
-% Execution state %
-%%%%%%%%%%%%%%%%%%%
-%Note that this is not part of the P4 specification, but made up for verification purposes.
 
 %Execution status
 status {{ tex t }}:: status_ ::=
@@ -562,6 +270,335 @@ stacks {{ tex \sigma }} :: stacks_ ::=
 state {{ tex s }} :: state_ ::=
 {{ com execution state }}
 | ( stacks , status ) :: :: tup
+
+%Fence so that ott does not re-order expression syntax with state syntax
+embed
+{{ hol
+
+}}
+grammar  
+
+%%%%%%%%%%%%%%%%%%%%%
+% Expression syntax %
+%%%%%%%%%%%%%%%%%%%%%
+
+unop {{ tex \ominus }}:: unop_ ::=
+| ! :: :: neg
+  {{ com negation }}
+  {{ tex ! }}
+| ~ :: :: compl
+  {{ com bitwise complement }}
+  {{ tex \neg }}
+| - :: :: neg_signed
+  {{ com signed negation }}
+| + :: :: un_plus
+  %Defined as no-op for all values in P4 spec
+  {{ com unary plus }}
+
+%Binary operations
+%Split these up into operations (bv # bv -> bv) and predicates (bv # bv -> bool)?
+%TODO: Add saturating addition
+%TODO: Add saturating subtraction
+binop {{ tex \oplus }} :: binop_ ::=
+| * :: :: mul
+  {{ com multiplication }}
+  {{ tex \times }}
+| / :: :: div
+  {{ com division }}
+| mod :: :: mod
+  %Denoted by % in P4 spec
+  {{ com modulo }}
+  {{ tex \bmod }}
+| + :: :: add
+  {{ com addition }}
+| - :: :: sub
+  {{ com subtraction }}
+| SHL :: :: shl
+  {{ com logical left-shift }}
+  {{ tex \ll }}
+| SHR :: :: shr
+  {{ com logical right-shift }}
+  {{ tex \gg }}
+| LE :: :: le
+  {{ com less or equal }}
+  {{ tex \leq }}
+| GE :: :: ge
+  {{ com greater or equal }}
+  {{ tex \geq }}
+| < :: :: lt
+  {{ com less }}
+  {{ tex < }}
+| > :: :: gt
+  {{ com greater }}
+  {{ tex > }}
+| NE :: :: neq
+  {{ com not equal }}
+  {{ tex \neq }}
+| EQ :: :: eq
+  {{ com equal }}
+  {{ tex = }}
+| & :: :: and
+  {{ com bitwise and }}
+| ^ :: :: xor
+  {{ com bitwise xor }}
+  {{ tex \underline{\vee} }}
+| '|' :: :: or
+  {{ com bitwise or }}
+  {{ tex \mid }}
+| AND :: :: bin_and
+  {{ com binary and }}
+  {{ tex \land }}
+| OR :: :: bin_or
+  {{ com binary or }}
+  {{ tex \lor }}
+
+ext {{ tex { \mathit{ext} } }} :: ext_ ::=
+{{ hol ((string # e list # state) -> (state option)) }}
+
+%TODO: Add casts
+%TODO: Add tuples
+%TODO: Add conditional operator
+e :: e_ ::=
+{{ com expression }}
+| v :: :: v
+ {{com constant value}}
+| x :: :: var
+  {{ com variable, extern object or parser state name }}
+| { e1 , .. , en } :: :: list
+  {{ com expression list }}
+| e . e' :: :: acc
+  {{ com field access }}
+| unop e :: :: unop
+  {{ com unary operation }}
+  {{ tex [[unop]] [[e]] }}
+| e1 binop e2 :: :: binop
+  {{ com binary operation }}
+  {{ tex [[e1]] [[binop]] [[e2]] }}
+| e1 ++ e2 :: :: concat
+  {{ com concatenation of bit-strings }}
+| e1 [ e2 : e3 ] :: :: slice
+  {{ com bit-slice }}
+| call f ( e1 , .. , en ) :: :: func_call
+  {{ com function call }}
+| exec stmt :: I :: func_exec
+  {{ com function execution }}
+| call x f ( e1 , .. , en ) :: :: ext_call
+  {{ com extern method call }}
+| select e { v1 : x1 ; ... ; vn : xn } x :: :: select
+  % TODO: x is the default value of select expression, which should be optional
+  {{ com select }}
+| ( e ) :: S :: paren
+  {{ hol ([[e]]) }}
+
+%TODO: Trying to make a new definition for expression lists (mainly for function
+%      arguments) proved problematic.
+%      If all e_list productions are meta, then you get e_list as a type abbreviation of "e list",
+%      which is either undefined at the point where the abbreviation is made, or
+%      e_list is unknown when defining e (and specifically function call, which would use e_list).
+%      In both situations, mutually recursive definitions are not possible.
+%
+%      If nothing is meta and e_list is not exported to a type abbreviation, you risk the function call semantics not understanding the "e_list" and "e list" correspondence. However, this seems to work currently.
+e_list :: e_list_ ::=
+{{ com list of expressions }}
+{{ hol (e list) }}
+| empty_el :: M :: empty
+  {{ com empty expression list }}
+  {{ hol ([]:e list) }}
+| e1 , .. , en :: M :: exps
+  {{ com list of expressions }}
+  {{ hol ([[e1 .. en]]) }}
+| e '::' e_list :: M :: cons
+  {{ com cons }}
+  {{ hol (e::[[e_list]]) }}
+| tl e_list :: M :: tail
+  {{ com tail }}
+  {{ hol (TL [[e_list]]) }}
+| [ e1 , .. , en ] :: M :: exps2
+  {{ com bracketed list of expressions }}
+  {{ hol ([[e1 .. en]]) }}
+| e_list ++ e_list' :: M :: append
+  {{ com append two expression lists }}
+  {{ hol ([[e_list]] ++ [[e_list']]) }}
+| update ( e , i , e_list ) :: M :: update
+  {{ com update entry of expression list }}
+  {{ hol (LUPDATE [[e]] [[i]] [[e_list]]) }}
+  {{ tex ([[i]] \mapsto  [[e]]) [[e_list]] }}
+| ( e_list ) :: S :: paren
+  {{ hol ([[e_list]]) }}
+
+
+
+%%%%%%%%%%%%%%
+% Statements %
+%%%%%%%%%%%%%%
+
+%decl :: decl_ ::=
+%{{ com declaration }}
+%| empty_decl :: :: empty
+%  {{ com empty declaration }}
+%  {{ tex \emptyset_{ \mathrm{decl} } }}
+%| declare x e :: :: stmt
+%  {{ com declaration }}
+%  {{ tex [[x]] \mathrel{\mathop:}:= [[e]] }}
+%| decl1 ; decl2 :: :: seq
+%  {{ com sequence }}
+
+match_kind {{ tex \mathit{match\_kind} }} :: match_kind_ ::=
+{{ com matching kinds }}
+| exact :: :: exact
+  {{ tex exact }}
+| ternary :: :: ternary
+  {{ tex ternary }}
+| lpm :: :: lpm
+  {{ tex lpm }}
+
+bt {{ tex bt }} :: bt_ ::=
+{{ com base types }}
+| bool_t :: :: bool
+  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
+| bit_t :: :: bit
+  {{ tex { \mathrm{bit}_{ \mathrm{t} } } }}
+
+t {{ tex t }} :: t_ ::=
+{{ com types }}
+| bt :: :: base
+| struct_t t1 , ... , tn :: :: struct
+  {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+| header_t t1 , ... , tn :: :: header
+  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+
+%TODO: Add switch statement
+stmt :: stmt_ ::=
+{{ com statement }}
+| empty_stmt :: :: empty
+  {{ com empty statement }}
+  {{ tex \emptyset_{ \mathrm{stmt} } }}
+| assign lval e :: :: ass
+  {{ com assignment }}
+  {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
+| if e then stmt1 else stmt2 :: :: cond
+  {{ com conditional }}
+| decl x t :: :: declare
+  %TODO: This should have a type name instead of a type t, which is then looked up in the type environment.
+  {{ com declaration }}
+| begin stmt end :: :: block 
+  {{ com block }}
+  {{ tex \{ [[stmt]] \} }}
+| begin' stmt end' :: I :: block_ip
+  {{ com block in progress }}
+  {{ tex [ [[stmt]] ] }}
+| return e :: :: ret
+  {{ com return }}
+| stmt1 ; stmt2 :: :: seq
+  {{ com sequence }}
+| verify e e' :: :: verify
+  %e is predicate, e' is error message
+  {{ com verify }}
+| transition e :: :: trans
+  %e should evaluate to a parser state name
+  {{ com transition }}
+  {{ tex \mathbf{transition}\, [[e]] }}
+| apply table_name e :: :: app
+  %table_name is the table name that should be applied
+  {{ com apply }}
+  {{ tex \mathbf{apply} \, [[table_name]] \, [[e]] }}
+
+d {{ tex d }} :: d_ ::=
+{{ com parameter direction }}
+| 'in :: :: in
+  {{ tex \downarrow }}
+| out :: :: out
+  {{ tex \uparrow }}
+| inout :: :: inout
+  {{ tex \updownarrow }}
+| none :: :: none
+  {{ tex \circ }}
+
+%Fence between d and d_list
+embed
+{{ hol
+
+}}
+grammar 
+
+d_list :: d_list_ ::=
+{{ com list of directions }}
+{{ hol (d list) }}
+| empty_el :: M :: empty
+  {{ com empty direction list }}
+  {{ hol ([]:d list) }}
+| [ d1 , .. , dn ] :: M :: ds
+  {{ com list of directions }}
+  {{ hol ([[d1 .. dn]]) }}
+| ( d_list ) :: S :: paren
+  {{ hol ([[d_list]]) }}
+| d_list ++ d_list' :: M :: append
+  {{ com append two e_lists }}
+  {{ hol ([[d_list]] ++ [[d_list']]) }}
+
+func_map {{ tex F }} :: func_map_ ::=
+{{ com function map  }}
+{{ hol (string |-> (stmt # (string # d) list)) }}
+| empty :: M :: empty
+  {{ com empty function map }}
+  {{ hol FEMPTY }}
+| func_map + [ x |-> stmt ] :: M :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
+
+ext_map {{ tex X }} :: ext_map_ ::=
+{{ com extern method map  }}
+{{ hol (string |-> (ext # (string # d) list)) }}
+
+% TODO: Could be just a type abbreviation?
+ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
+{{ com control plane }}
+{{ hol ((string # v # match_kind) -> (string # e_list) option) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just a type abbreviation?
+t_map {{ tex { \mathit{Tb} } }} :: t_map_ ::=
+{{ com table map  }}
+{{ hol (string |-> (e # match_kind)) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just a type abbreviation?
+pars_map {{ tex P }} :: pars_map_ ::=
+{{ com parser state map  }}
+{{ hol (string |-> stmt) }}
+| empty :: M :: empty
+  {{ com empty parser state map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just a type abbreviation?
+type_map {{ tex T }} :: type_map_ ::=
+{{ com type environment  }}
+{{ hol (string |-> ((string # t) list)) }}
+| empty :: M :: empty
+  {{ com empty type environment }}
+  {{ hol FEMPTY }}
+
+%Fence so that ott does not re-order ctx
+embed
+{{ hol
+
+}}
+grammar
+
+% TODO: Could be just a type abbreviation?
+ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
+{{ com context }}
+{{ hol (type_map # func_map # pars_map # t_map # ctrl) }}
+| empty :: M :: empty
+  {{ com empty context }}
+  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
+| ( type_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[type_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -807,6 +844,12 @@ formula :: formula_ ::=
   {{ com create new varaible in declaration }}
   {{ hol ([[v]] = arb_from_t [[t]]) }}
   {{ tex [[v]] = \mathrm{arb\_from\_t} [[t]] }}
+| ext x ( e1 , .. , en ) ( stacks , Running ) = ( stacks' , status ) :: M :: exec_ext
+  {{ com execute extern method }}
+  {{ hol ([[ext]] ([[x]], [[e1 .. en]], (state_tup [[stacks]] Running)) = SOME (state_tup [[stacks']] [[status]])) }}
+| ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
+  {{ com ext lookup }}
+  {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
 embed
 {{ hol
 val is_const_def = Define `
@@ -1270,6 +1313,13 @@ by
   ----------------------------------- :: func_ret
   ctx [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks , Running )
 
+%Extern method exec
+  ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  ext x ( e1 , .. , en ) ( stacks , Running ) = ( stacks' , status )
+  ----------------------------------- :: ext_exec
+  ctx [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [bot] ( stacks' , status )
+
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
 
@@ -1308,6 +1358,15 @@ by
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
   (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+
+%Arguments to extern method call
+  ( empty_stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+  e = [ e1 , .. , en ] [ i ]
+  (type_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+  ----------------------------------- :: ext_call_args
+  (type_map, func_map, pars_map, t_map, ctrl) [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [call x f ( e'1 , .. , e'n )] ( stacks' , Running )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
