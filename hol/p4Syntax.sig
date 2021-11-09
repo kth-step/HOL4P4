@@ -25,6 +25,19 @@ val is_v_bool : term -> bool
 val mk_v_bool : term -> term
 val v_bool_tm : term
 
+val dest_v_struct : term -> term
+val is_v_struct : term -> bool
+val mk_v_struct : term -> term
+val v_struct_tm : term
+
+val mk_v_struct_list : (term * term) list -> term
+
+val dest_v_header : term -> term * term
+val is_v_header : term -> bool
+val mk_v_header : term * term -> term
+val v_header_tm : term
+
+val mk_v_header_list : term -> (term * term) list -> term
 
 val dest_lval_varname : term -> term
 val is_lval_varname : term -> bool

@@ -7,6 +7,7 @@ open p4Syntax;
 open pairSyntax;
 open testLib;
 open p4_exec_semTheory;
+open p4_coreTheory;
 open blastLib;
 
 (*************************************************************************************)
@@ -30,6 +31,10 @@ val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
 
 val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
 
+(*
+val test_struct =  mk_v_struct_list [(``"version"``, ``^ip_v0_ok``)]
+*)
+
 val stacks_ok =
  ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (^ip_v0_ok))]));
                                            ("ethernet", (v_struct [("etherType", (^ether_ty_ok))]))], NONE)) |+
@@ -39,6 +44,13 @@ val stacks_bad =
                 ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
 val status = ``status_running``;
 
+(* WIP test cases:
+
+b.extract(p.ethernet);
+
+b.extract(p.ip);
+
+*)
 
 val vss_test_cases = [
   (*
