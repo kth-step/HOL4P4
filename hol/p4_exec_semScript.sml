@@ -394,12 +394,12 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (*************************)
  (* Function call-related *)
- (e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
+ (e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (e_func_call f e_l) (stacks_tup curr_stack_frame call_stack) status =
   case FLOOKUP func_map f of
   | SOME (stmt, x_d_l) =>
     (case unred_arg_index (MAP SND x_d_l) e_l of
      | SOME i  =>
-      (case e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (EL i e_l) (stacks_tup curr_stack_frame call_stack) status of
+      (case e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (EL i e_l) (stacks_tup curr_stack_frame call_stack) status of
        | SOME (e', stacks', status') => SOME (e_func_call f (LUPDATE e' i e_l), stacks', status')
        | NONE => NONE)
      | NONE =>
@@ -481,12 +481,12 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec _ stmt_empty stacks status = SOME (stmt_empty, stacks, status)) /\
  (*************************)
  (* Function call-related *)
- (stmt_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
+ (stmt_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
   if is_v e
   then
    stmt_exec_ret curr_stack_frame call_stack func_map e
   else
-   (case e_exec ((type_map, func_map, pars_map, t_map, ctrl):ctx) e (stacks_tup curr_stack_frame call_stack) status of
+   (case e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) e (stacks_tup curr_stack_frame call_stack) status of
     | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
     | NONE => NONE))
   /\

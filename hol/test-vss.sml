@@ -18,41 +18,109 @@ open blastLib;
 (*   From VSS Example    *)
 (*************************)
 
+(* 4w4 *)
 val ip_v0_ok = mk_v_bitii (4, 4);
+(* 4w3 *)
 val ip_v0_bad = mk_v_bitii (3, 4);
+(* 0x0800 *)
 val ether_ty_ok = mk_v_bitii (2048, 16);
-(* TODO: Use syntax functions *)
 
+(* TODO: Use syntax functions *)
+(* p.ethernet *)
+val e_eth = ``e_acc (e_var "p") (e_var "ethernet")``;
+(* p.ip.version *)
 val e_ip_v = ``(e_acc (e_acc (e_var "p") (e_var "ip")) (e_var "version"))``;
+(* 4w4 (as expression) *)
 val e_4w4 = mk_e_v ip_v0_ok;
+(* p.ip.version == 4w4 *)
 val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
 
+(* error.IPv4IncorrectVersion *)
 val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
-
+(* p.ethernet.etherType *)
 val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
 
 (*
-val test_struct =  mk_v_struct_list [(``"version"``, ``^ip_v0_ok``)]
+(* TODO: Put string -> term functionality in list constructor *)
+val test_header =
+ mk_v_header_list F
+                  [(``"version"``, mk_v_bitii (0, 4)),
+                   (``"ihl"``, mk_v_bitii (0, 4)),
+                   (``"diffserv"``, mk_v_bitii (0, 8)),
+                   (``"totalLen"``, mk_v_bitii (0, 16)),
+                   (``"identification"``, mk_v_bitii (0, 16)),
+                   (``"flags"``, mk_v_bitii (0, 3)),
+                   (``"fragOffset"``, mk_v_bitii (0, 13)),
+                   (``"ttl"``, mk_v_bitii (0, 8)),
+                   (``"protocol"``, mk_v_bitii (0, 8)),
+                   (``"hdrChecksum"``, mk_v_bitii (0, 16)),
+                   (``"srcAddr"``, mk_v_bitii (0, 32)),
+                   (``"dstAddr"``, mk_v_bitii (0, 32))];
 *)
 
+val ipv4_header_uninit =
+ mk_v_header_list F
+                  [(``"version"``, mk_v_bitii (0, 4)),
+                   (``"ihl"``, mk_v_bitii (0, 4)),
+                   (``"diffserv"``, mk_v_bitii (0, 8)),
+                   (``"totalLen"``, mk_v_bitii (0, 16)),
+                   (``"identification"``, mk_v_bitii (0, 16)),
+                   (``"flags"``, mk_v_bitii (0, 3)),
+                   (``"fragOffset"``, mk_v_bitii (0, 13)),
+                   (``"ttl"``, mk_v_bitii (0, 8)),
+                   (``"protocol"``, mk_v_bitii (0, 8)),
+                   (``"hdrChecksum"``, mk_v_bitii (0, 16)),
+                   (``"srcAddr"``, mk_v_bitii (0, 32)),
+                   (``"dstAddr"``, mk_v_bitii (0, 32))];
+
+val ethernet_header_uninit =
+ mk_v_header_list F
+                  [(``"dstAddr"``, mk_v_bitii (0, 48)),
+                   (``"srcAddr"``, mk_v_bitii (0, 48)),
+                   (``"etherType"``, mk_v_bitii (0, 16))];
+
+val parsed_packet_struct_uninit =
+ mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
+
+(* TODO: Add b *)
+val input_bl = ``extend F 272 (n2v 23523)``;
+val stacks_uninit =
+ ``stacks_tup ([FEMPTY |+ ("p", (^parsed_packet_struct_uninit, NONE)) |+
+                          ("parseError", (v_err "NoError", NONE)) |+
+                          ("b", (v_ext (ext_obj_in (^input_bl)), NONE))]:scope list) ([]:call_stack)``;
+
 val stacks_ok =
- ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (^ip_v0_ok))]));
-                                           ("ethernet", (v_struct [("etherType", (^ether_ty_ok))]))], NONE)) |+
-                ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+ ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_header T [("version", (^ip_v0_ok))]));
+                                           ("ethernet", (v_header T [("etherType", (^ether_ty_ok))]))], NONE)) |+
+                          ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
 val stacks_bad =
- ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_struct [("version", (^ip_v0_bad))]))], NONE)) |+
-                ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+ ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_header T [("version", (^ip_v0_bad))]))], NONE)) |+
+                          ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+
+(* ``:(string |-> (ext # (string # d) list))`` *)
+val ext_map = ``FEMPTY |+ ("extract", (extract, [("hdr", d_out)]))``;
+val ext_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, ``FEMPTY:func_map``, ``FEMPTY:pars_map``, ``FEMPTY:t_map``, ``ctrl:ctrl``];
+
 val status = ``status_running``;
 
 (* WIP test cases:
 
-b.extract(p.ethernet);
+(* p.ethernet *)
+EVAL ``e_multi_exec ctx (^e_eth) (^stacks_uninit) (^status) 20``
+
+(* b.extract(p.ethernet); *)
+EVAL ``e_multi_exec (^ext_ctx) (e_ext_call "b" "extract" [(^e_eth)]) (^stacks_uninit) (^status) 1``
+
 
 b.extract(p.ip);
 
 *)
 
 val vss_test_cases = [
+  (*
+  p.ethernet
+  *)
+  (``e_multi_exec ctx (stmt_assign lval_null (e_ext_call "b" "extract" [(^e_eth)])) (^stacks_uninit) (^status) 20``, NONE),
   (*
   p.ip.version == 4w4
   *)

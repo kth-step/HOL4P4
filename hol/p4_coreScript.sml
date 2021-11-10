@@ -86,7 +86,7 @@ End
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover stuff related to header stacks *)
 Definition extract:
- (extract ext_obj_name e_l (state_tup (stacks_tup frame call_stack) status) =
+ (extract (ext_obj_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
   case lookup_packet_in frame ext_obj_name of
   | SOME packet_in =>
    (case get_header_name e_l of

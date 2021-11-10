@@ -592,13 +592,13 @@ grammar
 % TODO: Could be just a type abbreviation?
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (type_map # func_map # pars_map # t_map # ctrl) }}
+{{ hol (type_map # ext_map # func_map # pars_map # t_map # ctrl) }}
 | empty :: M :: empty
   {{ com empty context }}
   {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
-| ( type_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
+| ( type_map , ext_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[type_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
+  {{ hol ([[type_map]], [[ext_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -1301,7 +1301,7 @@ by
   curr_stack_frame'' = tl curr_stack_frame
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
-  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , status )
   ----------------------------------- :: func_exec
@@ -1354,19 +1354,19 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (type_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
-  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
 
 %Arguments to extern method call
   ( empty_stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (type_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: ext_call_args
-  (type_map, func_map, pars_map, t_map, ctrl) [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [call x f ( e'1 , .. , e'n )] ( stacks' , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [call x f ( e'1 , .. , e'n )] ( stacks' , Running )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
@@ -1600,7 +1600,7 @@ by
   curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: ret
-  (type_map, func_map, pars_map, t_map, ctrl) [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
 
 %%%%%%%%%%%%%%
 %Assignment
@@ -1721,7 +1721,7 @@ by
   t_map ( table_name ) = ( e' , match_kind )
   ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  (type_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
@@ -1779,10 +1779,10 @@ by
   ------------------------------------------------- :: stmt
   ctx [stmt]( stacks , status ) --> [stmt']( stacks' , status' )
 
-  (type_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (type_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
 
 %If the end of some parser state is reached without status change, we reject
   ctx [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
