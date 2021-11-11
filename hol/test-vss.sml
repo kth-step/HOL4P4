@@ -19,31 +19,58 @@ open blastLib;
 (*   From VSS Example    *)
 (*************************)
 
+(* 0x0800 *)
+val ether_ty_ok = mk_v_bitii (2048, 16);
+
 (* 4w4 *)
 val ip_v0_ok = mk_v_bitii (4, 4);
 (* 4w3 *)
 val ip_v0_bad = mk_v_bitii (3, 4);
-(* 0x0800 *)
-val ether_ty_ok = mk_v_bitii (2048, 16);
+(* 4w5 *)
+val ip_ihl_ok = mk_v_bitii (5, 4);
 
 (* TODO: Use syntax functions *)
 (* p.ethernet *)
 val e_eth = ``e_acc (e_var "p") (e_var "ethernet")``;
+(* p.ip *)
+val e_ip = ``e_acc (e_var "p") (e_var "ip")``;
 (* p.ip.version *)
-val e_ip_v = ``(e_acc (e_acc (e_var "p") (e_var "ip")) (e_var "version"))``;
+val e_ip_v = ``(e_acc (^e_ip) (e_var "version"))``;
+(* p.ip.ihl *)
+val e_ip_ihl = ``(e_acc (^e_ip) (e_var "ihl"))``;
 (* 4w4 (as expression) *)
 val e_4w4 = mk_e_v ip_v0_ok;
+(* 4w5 (as expression) *)
+val e_4w5 = mk_e_v ip_ihl_ok;
 (* p.ip.version == 4w4 *)
 val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
+(* p.ip.ihl == 4w5 *)
+val e_ip_ihl_eq_4w5 = ``e_binop (^e_ip_ihl) binop_eq (^e_4w5)``;
 
 (* error.IPv4IncorrectVersion *)
 val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
+(* error.IPv4OptionsNotSupported *)
+val e_err_options = ``e_v (v_err "IPv4OptionsNotSupported")``;
 (* p.ethernet.etherType *)
 val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
 
-
+(* start parser state *)
 val stmt_start_extract = ``stmt_ass lval_null (e_ext_call "b" "extract" [(^e_eth)])``;
 val stmt_start_trans = ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
+
+val start_body = mk_stmt_seq_list [stmt_start_extract, stmt_start_trans];
+
+(* parse_ipv4 parser state *)
+val stmt_parse_ipv4_extract = ``stmt_ass lval_null (e_ext_call "b" "extract" [(^e_ip)])``;
+val stmt_parse_ipv4_verify1 = ``stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)``;
+val stmt_parse_ipv4_verify2 = ``stmt_verify (^e_ip_ihl_eq_4w5) (^e_err_options)``;
+val stmt_parse_ipv4_trans = ``stmt_trans (e_var "accept")``;
+
+val parse_ipv4_body =
+  mk_stmt_seq_list [stmt_parse_ipv4_extract,
+                    stmt_parse_ipv4_verify1,
+                    stmt_parse_ipv4_verify2,
+                    stmt_parse_ipv4_trans];
 
 (*
 (* TODO: Put string -> term functionality in list constructor *)
@@ -94,6 +121,11 @@ val stacks_uninit_ok =
  ``stacks_tup ([FEMPTY |+ ("p", (^parsed_packet_struct_uninit, NONE)) |+
                           ("parseError", (v_err "NoError", NONE)) |+
                           ("b", (v_ext (ext_obj_in (^input_bl_ok)), NONE))]:scope list) ([]:call_stack)``;
+(* Stacks at parse_ipv4 state *)
+val stacks_uninit_parse_ipv4_ok =
+ ``stacks_tup ([FEMPTY |+ ("p", (^parsed_packet_struct_uninit, NONE)) |+
+                          ("parseError", (v_err "NoError", NONE)) |+
+                          ("b", (v_ext (ext_obj_in (^input_bl_ipv4_ok)), NONE))]:scope list) ([]:call_stack)``;
 
 val stacks_init_ok =
  ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_header T [("version", (^ip_v0_ok))]));
@@ -149,7 +181,22 @@ val vss_test_cases = [
   *)
   (``stmt_multi_exec ctx (^stmt_start_trans) (^stacks_uninit_ok) (^status) 20``,
    SOME ``stmt_empty``),
-  (``stmt_multi_exec (^ext_ctx) (^(mk_stmt_seq_list [stmt_start_extract, stmt_start_trans])) (^stacks_uninit_ok) (^status) 20``,
+  (*
+  b.extract(p.ethernet);
+  transition select(p.ethernet.etherType) {
+      0x0800: parse_ipv4;
+      // no default rule: all other packets rejected
+  }
+  *)
+  (``stmt_multi_exec (^ext_ctx) (^start_body) (^stacks_uninit_ok) (^status) 20``,
+   SOME ``stmt_empty``),
+  (*
+  b.extract(p.ip);
+  verify(p.ip.version == 4w4, error.IPv4IncorrectVersion);
+  verify(p.ip.ihl == 4w5, error.IPv4OptionsNotSupported);
+  transition accept;
+  *)
+  (``stmt_multi_exec (^ext_ctx) (^parse_ipv4_body) (^stacks_uninit_parse_ipv4_ok) (^status) 20``,
    SOME ``stmt_empty``)
 ];
 
