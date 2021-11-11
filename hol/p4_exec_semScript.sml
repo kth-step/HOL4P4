@@ -291,19 +291,8 @@ End
 (* Statement-related shorthands *)
 
 Definition stmt_exec_ass:
- (stmt_exec_ass (lval_varname x) (e_v v) frame =
-  SOME (assign frame v x))
-  /\
- (stmt_exec_ass lval_null (e_v v) frame =
-  SOME frame)
-  /\
- (stmt_exec_ass (lval_field lval f) (e_v v) frame =
-  case lookup_lval frame lval of
-  | (v_struct f_v_l) =>
-   stmt_exec_ass lval (e_v (v_struct (LUPDATE (f, v) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l))) frame
-  | (v_header boolv f_v_l) =>
-   stmt_exec_ass lval (e_v (v_header boolv (LUPDATE (f, v) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l))) frame
-  | _ => NONE)
+ (stmt_exec_ass lval (e_v v) frame =
+  assign frame v lval)
   /\
  (stmt_exec_ass _ _ _ = NONE)
 End
@@ -330,15 +319,15 @@ Definition stmt_exec_trans:
 End
 
 Definition stmt_exec_ret:
- (stmt_exec_ret frame call_stack func_map (e_v v) =
+ (stmt_exec_ret frame call_stack (func_map:func_map) (e_v v) =
   case call_stack of
   | ((frame', called_function_name_bot)::call_stack') => NONE
   | ((frame', called_function_name_function_name f)::call_stack') =>
    (case FLOOKUP func_map f of
-   | SOME (_, x_d_l) => SOME (stmt_empty,
-				(stacks_tup (update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD frame)::frame') frame)
-					    call_stack'),
-				status_return v)
+   | SOME (_, x_d_l) =>
+    (case update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD frame)::frame') frame of
+     | SOME frame'' => SOME (stmt_empty, (stacks_tup frame'' call_stack'), status_return v)
+     | NONE => NONE)
    | NONE => NONE)
   | [] => NONE) /\
  (stmt_exec_ret _ _ _ _ = NONE)
@@ -351,7 +340,7 @@ End
 (* Hol_defn "e_stmt_exec" *)
 val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (******************************************)
- (* Catch-all clauses for special statuses *)
+ (* Clauses for special statuses *)
  (e_exec _ e stacks status_type_error = NONE)
   /\
  (e_exec _ e stacks (status_return v) =
@@ -412,6 +401,25 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (e_exec ctx (e_func_exec stmt) stacks status =
   case stmt_exec ctx stmt stacks status of
   | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
+  | NONE => NONE)
+  /\
+ (******************)
+ (* Extern-related *)
+ (e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (e_ext_call x f e_l) (stacks_tup curr_stack_frame call_stack) status =
+  case FLOOKUP ext_map f of
+  | SOME (ext, x_d_l) =>
+    (case unred_arg_index (MAP SND x_d_l) e_l of
+     | SOME i  =>
+      (case e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (EL i e_l) (stacks_tup curr_stack_frame call_stack) status of
+       | SOME (e', stacks', status') => SOME (e_ext_call x f (LUPDATE e' i e_l), stacks', status')
+       | NONE => NONE)
+     | NONE =>
+      (case ext (x, e_l, state_tup (stacks_tup curr_stack_frame call_stack) status) of
+       | SOME (state_tup stacks' status') => 
+	SOME (e_v v_bot, stacks', status')
+       | NONE => NONE
+      )
+    )
   | NONE => NONE)
   /\
  (********************)
@@ -683,6 +691,9 @@ Induct_on `e` >> Cases_on `status` >> (
  cheat,
 
  (* Function body return *)
+ cheat,
+
+ (* Extern call *)
  cheat,
 
  (* Select expression *)

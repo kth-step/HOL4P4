@@ -160,16 +160,18 @@ status {{ tex t }}:: status_ ::=
   {{ tex { \bot } }}
 
 scope {{ tex \gamma }} :: scope_ ::=
-{{ hol (string |-> (v # string option)) }}
+{{ hol (string |-> (v # lval option)) }}
 {{ com frame/variable environment of current scope }}
 | emptyscope :: M :: empty
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
   {{ tex {\gamma}_{ \emptyset } }}
+%TODO: This should keep output parameter instead of requiring NONE
 | scope + [ x |-> ( v , NONE ) ] :: M :: update
   {{ com update variable mapping }}
   {{ hol (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE ))) }}
   {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
+%TODO: Update or remove this production
 | scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
   {{ com update variable mapping }}
   {{ hol (FUPDATE_LIST [[scope]] [[x1 v1 .. xn vn]]) }}
@@ -213,18 +215,6 @@ curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
   {{ com update a scope in the stack frame }}
   {{ hol ( LUPDATE [[scope]] [[i]] [[curr_stack_frame]] ) }}
   {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
-| assign ( curr_stack_frame , v , x ) :: M :: assign
-  {{ com assign to a variable in the stack frame }}
-  {{ hol (assign [[curr_stack_frame]] [[v]] [[x]]) }}
-  {{ tex [[curr_stack_frame]] [ [[x]] \longmapsto [[v]] ] }}
-| update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
-  %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
-  {{ com update caller's stack frame upon function return }}
-  %TODO: fix the \varepsilon and e list in the latex output. 
-  {{ tex \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
-	                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
-                          \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
-  {{ hol (update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
 | ( curr_stack_frame ) :: S :: paren
   {{ hol ([[curr_stack_frame]]) }}
 
@@ -850,6 +840,20 @@ formula :: formula_ ::=
 | ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
   {{ com ext lookup }}
   {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
+| curr_stack_frame' = assign ( curr_stack_frame , v , lval ) :: M :: assign
+  {{ com assign v to lval in the frame }}
+  {{ hol (SOME [[curr_stack_frame']] = assign [[curr_stack_frame]] [[v]] [[lval]]) }}
+  {{ tex [[curr_stack_frame']] = [[curr_stack_frame]] [ [[lval]] \longmapsto [[v]] ] }}
+| curr_stack_frame'' = update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
+  %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
+  {{ com update caller's stack frame upon function return }}
+  %TODO: fix the \varepsilon and e list in the latex output. 
+  {{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
+	                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
+                          \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
+  {{ hol (SOME [[curr_stack_frame'']] = update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
+
+
 embed
 {{ hol
 val is_const_def = Define `
@@ -1208,26 +1212,42 @@ val unred_arg_index_def = Define `
     | NONE => NONE
 `;
 
+val get_lval_of_e_def = Define `
+  (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
+  (get_lval_of_e (e_acc e (e_var x)) =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_field lval x)
+   | NONE => NONE) /\
+  (get_lval_of_e _ = NONE)
+`;
+
+val is_e_lval_def = Define `
+  (is_e_lval e =
+    case get_lval_of_e e of
+    | SOME lval => T
+    | NONE => F)
+`;
+
 (* Checks if function arguments have been appropriately reduced.
  * In e_func_call_newframe rule, we need this definition to show the second premise *)
 val is_arg_red_def = Define `
-  is_arg_red d e = 
-   ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_var e)) = T)
+  is_arg_red d e =
+   ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_e_lval e)) = T)
 `;
 val check_arg_red_def = Define `
-  check_arg_red dlist e i = 
-   ((is_d_none_in (EL i dlist) ==> (is_const e)) /\ (~(is_d_none_in (EL i dlist)) ==> (is_var e)) = T)
+  check_arg_red dlist e i =
+    is_arg_red (EL i dlist) e
 `;
 val check_args_red_def = Define `
   check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
 `;
 
-(* Given an an expression (should be a e_var or e_v), a direction and a stack frame,
+(* Given an an expression (should be a lval), a direction and a stack frame,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
   one_arg_val_for_newscope d e sf =
    if ~(is_d_none_in d)
-   then ((lookup_vexp sf e), SOME (extract_string e))
+   then (lookup_vexp sf e, get_lval_of_e e)
    else (extract_value e, NONE)
 `;
 
@@ -1243,11 +1263,23 @@ val all_arg_update_for_newscope_def = Define `
  * written as ε[a -> v], colloquially known as assignment.
  * Note that this function will be used in the assignment and return rules *)
 val assign_def = Define `
-  assign sf val a =
-    LUPDATE
-      ((topmost_scope sf a) |+ (a, (val, lookup_out sf a)))
-      (topmost_scope_index sf a)
-      sf
+  (assign sf val (lval_varname x) =
+    SOME
+      (LUPDATE
+        ((topmost_scope sf x) |+ (x, (val, lookup_out sf x)))
+        (topmost_scope_index sf x)
+        sf)) /\
+  (assign sf val (lval_field lval f) =
+    case lookup_lval sf lval of
+    | (v_struct f_v_l) =>
+      assign sf (v_struct (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
+    | (v_header validity f_v_l) =>
+      assign sf (v_header validity (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
+    | _ => NONE
+  ) /\
+  (assign sf val lval_null =
+    SOME sf
+  )
 `;
 
 (* Given lists of variable names and directions, a caller's stack frame sf
@@ -1259,11 +1291,15 @@ val update_return_frame_def = Define `
       (\sf_temp (x,d).
         if (is_d_none_in d)
         then sf_temp
-        else assign sf_temp (lookup_v sf_current x) (THE (lookup_out sf_current x))
+        else
+          case sf_temp of
+          | SOME sf_temp => assign sf_temp (lookup_v sf_current x) (THE (lookup_out sf_current x))
+          | NONE => NONE
       )
-      sf
+      (SOME sf)
       (ZIP(xlist, dlist))
 `;
+
 
 val arb_from_t_def = Define `
   (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
@@ -1606,22 +1642,23 @@ by
 %Assignment
 
   %Assign a constant to a variable
-  curr_stack_frame' = assign ( curr_stack_frame , v , x )
+  curr_stack_frame' = assign ( curr_stack_frame , v , lval )
   ----------------------------------- :: ass_v
-  ctx [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [assign lval v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign to a struct field
-  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
-  ----------------------------------- :: ass_s
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
+%  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+%  v' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
+%  ----------------------------------- :: ass_s
+%  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign to a header field
-  header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
-  ----------------------------------- :: ass_h
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
+%  header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+%  v' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
+%  ----------------------------------- :: ass_h
+%  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
+%TODO: Now also covered by the assign function
   %Assign to null
   %Note: This is be used to model function calls as an expression.
   ----------------------------------- :: ass_null

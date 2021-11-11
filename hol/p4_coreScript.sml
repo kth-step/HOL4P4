@@ -52,19 +52,30 @@ Definition lookup_packet_in:
  )
 End
 
-Definition lookup_header:
- (lookup_header frame header_name =
-  case lookup_v frame header_name of
+Definition lookup_lval_header:
+ (lookup_lval_header frame header_lval =
+  case lookup_lval frame header_lval of
    | (v_header valid_bit x_v_l) => SOME (valid_bit, x_v_l)
    | _ => NONE
  )
 End
 
 (* Helper function to extract *)
-Definition get_header_name:
- (get_header_name e_l =
+Definition get_header_lval':
+ (get_header_lval' e =
+  case e of
+  | (e_acc e (e_var x)) => 
+   (case get_header_lval' e of
+    | SOME lval => SOME (lval_field lval x)
+    | NONE => NONE)
+  | (e_var x) => SOME (lval_varname x)
+  | _ => NONE
+ )
+End
+Definition get_header_lval:
+ (get_header_lval e_l =
   case e_l of
-  | [e_var x] => SOME x
+  | [e] => get_header_lval' e
   | _ => NONE
  )
 End
@@ -85,13 +96,14 @@ End
 
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover stuff related to header stacks *)
+(* TODO: Extend to allow e.g. header field accesses in place of variables in e_l *)
 Definition extract:
  (extract (ext_obj_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
   case lookup_packet_in frame ext_obj_name of
   | SOME packet_in =>
-   (case get_header_name e_l of
-    | SOME header_name =>
-     (case lookup_header frame header_name of
+   (case get_header_lval e_l of
+    | SOME header_lval =>
+     (case lookup_lval_header frame header_lval of
       | SOME (valid_bit, x_v_l) =>
        (case min_size_in_bits (v_header valid_bit x_v_l) of
         | SOME size =>
@@ -99,17 +111,18 @@ Definition extract:
          then
           (case set_header_fields x_v_l packet_in of
            | SOME x_v_l' =>
-	    let
-	     frame'  = assign frame (v_header T x_v_l') header_name;
-	     frame'' = assign frame' (v_ext (ext_obj_in (DROP size packet_in))) ext_obj_name
-	    in
-	     SOME (state_tup (stacks_tup frame'' call_stack) status)
+	    (case assign frame (v_header T x_v_l') header_lval of
+	     | SOME frame' =>
+             (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) (lval_varname ext_obj_name) of
+	      | SOME frame'' =>             
+	       SOME (state_tup (stacks_tup frame'' call_stack) status)
+              | NONE => NONE)
+             | NONE => NONE)
            | NONE => NONE)
          else
-	  let
-	   frame'  = assign frame (v_err "PacketTooShort") "parseError"
-	  in
-           SOME (state_tup (stacks_tup frame' call_stack) status)
+	  (case assign frame (v_err "PacketTooShort") (lval_varname "parseError") of
+	   | SOME frame' => SOME (state_tup (stacks_tup frame' call_stack) status)
+           | NONE => NONE)
         | NONE => NONE)
       | NONE => NONE)
     | NONE => NONE)
