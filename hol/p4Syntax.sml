@@ -124,6 +124,14 @@ val (stmt_ass_tm, mk_stmt_ass, dest_stmt_ass, is_stmt_ass) =
 val (stmt_seq_tm, mk_stmt_seq, dest_stmt_seq, is_stmt_seq) =
   syntax_fns2 "p4"  "stmt_seq";
 
+fun mk_stmt_seq_list' (h::[]) = h
+  | mk_stmt_seq_list' (h::t) =
+    mk_stmt_seq (h, mk_stmt_seq_list' t)
+  | mk_stmt_seq_list' [] = stmt_empty_tm;
+fun mk_stmt_seq_list [] = stmt_empty_tm
+  | mk_stmt_seq_list [stmt] = stmt
+  | mk_stmt_seq_list stmt_l = mk_stmt_seq_list' stmt_l;
+
 val d_ty = mk_type ("d", []);
 
 (*********)

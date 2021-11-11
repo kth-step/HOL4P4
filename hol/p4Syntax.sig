@@ -112,6 +112,8 @@ val is_stmt_seq : term -> bool
 val mk_stmt_seq : term * term -> term
 val stmt_seq_tm : term
 
+val mk_stmt_seq_list : term list -> term
+
 val dest_e_func_call : term -> term * term
 val e_func_call_tm : term
 val is_e_func_call : term -> bool

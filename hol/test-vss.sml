@@ -6,6 +6,7 @@ val _ = Globals.show_tags := true;
 open p4Syntax;
 open pairSyntax;
 open testLib;
+open p4Lib;
 open p4_exec_semTheory;
 open p4_coreTheory;
 open blastLib;
@@ -39,6 +40,10 @@ val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
 val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
 (* p.ethernet.etherType *)
 val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
+
+
+val stmt_start_extract = ``stmt_ass lval_null (e_ext_call "b" "extract" [(^e_eth)])``;
+val stmt_start_trans = ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
 
 (*
 (* TODO: Put string -> term functionality in list constructor *)
@@ -82,17 +87,19 @@ val ethernet_header_uninit =
 val parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
 
-(* TODO: Add b *)
-val input_bl = ``extend F 272 (n2v 23523)``;
-val stacks_uninit =
+val input_bl_eth_ok = ``fixwidth 112 (n2v 2048)``;
+val input_bl_ipv4_ok = ``(fixwidth 4 (n2v 4))++(fixwidth 4 (n2v 5))++(extend F 152 [])``;
+val input_bl_ok = ``(^input_bl_eth_ok)++(^input_bl_ipv4_ok)``;
+val stacks_uninit_ok =
  ``stacks_tup ([FEMPTY |+ ("p", (^parsed_packet_struct_uninit, NONE)) |+
                           ("parseError", (v_err "NoError", NONE)) |+
-                          ("b", (v_ext (ext_obj_in (^input_bl)), NONE))]:scope list) ([]:call_stack)``;
+                          ("b", (v_ext (ext_obj_in (^input_bl_ok)), NONE))]:scope list) ([]:call_stack)``;
 
-val stacks_ok =
+val stacks_init_ok =
  ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_header T [("version", (^ip_v0_ok))]));
                                            ("ethernet", (v_header T [("etherType", (^ether_ty_ok))]))], NONE)) |+
                           ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+
 val stacks_bad =
  ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_header T [("version", (^ip_v0_bad))]))], NONE)) |+
                           ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
@@ -109,26 +116,28 @@ val status = ``status_running``;
 EVAL ``e_multi_exec ctx (^e_eth) (^stacks_uninit) (^status) 20``
 
 (* b.extract(p.ethernet); *)
-EVAL ``e_multi_exec (^ext_ctx) (e_ext_call "b" "extract" [(^e_eth)]) (^stacks_uninit) (^status) 1``
+EVAL ``e_multi_exec (^ext_ctx) (e_ext_call "b" "extract" [(^e_eth)]) (^stacks_uninit) (^status) 20``
 
 
 b.extract(p.ip);
+
+
 
 *)
 
 val vss_test_cases = [
   (*
-  p.ethernet
+  b.extract(p.ethernet);
   *)
-  (``e_multi_exec ctx (stmt_assign lval_null (e_ext_call "b" "extract" [(^e_eth)])) (^stacks_uninit) (^status) 20``, NONE),
+  (``stmt_multi_exec (^ext_ctx) (^stmt_start_extract) (^stacks_uninit_ok) (^status) 20``, NONE),
   (*
   p.ip.version == 4w4
   *)
-  (``e_multi_exec ctx (^e_ip_v_eq_4w4) (^stacks_ok) (^status) 20``, NONE),
+  (``e_multi_exec ctx (^e_ip_v_eq_4w4) (^stacks_uninit_ok) (^status) 20``, NONE),
   (*
   verify(p.ip.version == 4w4, error.IPv4IncorrectVersion);
   *)
-  (``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_ok) (^status) 20``,
+  (``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_init_ok) (^status) 20``,
    SOME ``stmt_empty``),
   (``stmt_multi_exec ctx (stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)) (^stacks_bad) (^status) 20``,
    SOME ``stmt_empty``),
@@ -138,15 +147,16 @@ val vss_test_cases = [
       // no default rule: all other packets rejected
   }
   *)
-  (``stmt_multi_exec ctx (stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")) (^stacks_ok) (^status) 20``,
+  (``stmt_multi_exec ctx (^stmt_start_trans) (^stacks_uninit_ok) (^status) 20``,
+   SOME ``stmt_empty``),
+  (``stmt_multi_exec (^ext_ctx) (^(mk_stmt_seq_list [stmt_start_extract, stmt_start_trans])) (^stacks_uninit_ok) (^status) 20``,
    SOME ``stmt_empty``)
 ];
 
 fun eval_stmt_multi_exec tm =
  let
   val res_thm = EVAL tm
-  (* TODO: Fix p4_v2w_ss for arbitrary width *)
-  val res_canon_thm = SIMP_RULE (pure_ss++p4_v2w_ss) [] res_thm
+  val res_canon_thm = SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) [] res_thm
   val res_canon_tm = rhs $ concl res_canon_thm
   (* TODO: Return format? *)
 (*

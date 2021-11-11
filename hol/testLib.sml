@@ -34,7 +34,7 @@ val p4_v2w_ss =
   SSFRAG {ac = [],
           congs = [],
           convs = [{conv = K (K to_bitv_word_form_conv),
-                    key= SOME ([], ``(v:bool list, 32)``),
+                    key= SOME ([], ``(v:bool list, (n:num))``),
                     name = "BITV_TO_WORD_FORM",
                     trace = 2}],
                     dprocs = [],

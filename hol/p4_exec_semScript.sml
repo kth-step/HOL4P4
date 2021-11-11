@@ -812,6 +812,37 @@ Proof
  cheat
 QED
 
+(* The executable semantics of the parser is defined in terms of the executable semantics of
+ * statements *)
+val pars_exec_def = Define `
+ (pars_exec (type_map,ext_map,func_map,pars_map,t_map,ctrl) stmt stacks status =
+  case stmt_exec (type_map,ext_map,func_map,pars_map,t_map,ctrl) stmt stacks status of
+  | SOME (stmt', stacks', status_pars_next (pars_next_trans x)) =>
+   (case FLOOKUP pars_map x of
+    | SOME stmt'' => SOME (stmt', stacks', status_running)
+    | NONE => NONE)
+  | SOME (stmt_empty, stacks', status_running) =>
+   SOME (stmt_trans (e_var "reject"), stacks', status_running)
+  | SOME (stmt', stacks', status') =>
+   SOME (stmt', stacks', status')
+  | NONE => NONE
+)
+`;
+
+(* Fuel-powered multi-step executable semantics for parsers *)
+val pars_multi_exec = Define `
+ (pars_multi_exec _ stmt stacks status 0 =
+  SOME (stmt, stacks, status))
+  /\
+ (pars_multi_exec ctx stmt stacks status (SUC fuel) =
+  case pars_exec ctx stmt stacks status of
+  | SOME (stmt', stacks', status') => pars_multi_exec ctx stmt' stacks' status' fuel
+  | NONE => NONE)
+`;
+
+
+
+
 (* Then, some kind of (multi-step) CakeML-adjusted executable semantics definition *)
 (* TODO:
 Definition e_exec_cake:
