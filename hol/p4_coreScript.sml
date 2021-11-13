@@ -115,13 +115,13 @@ Definition extract:
 	     | SOME frame' =>
              (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) (lval_varname ext_obj_name) of
 	      | SOME frame'' =>             
-	       SOME (state_tup (stacks_tup frame'' call_stack) status)
+	       SOME (v_bot, state_tup (stacks_tup frame'' call_stack) status)
               | NONE => NONE)
              | NONE => NONE)
            | NONE => NONE)
          else
 	  (case assign frame (v_err "PacketTooShort") (lval_varname "parseError") of
-	   | SOME frame' => SOME (state_tup (stacks_tup frame' call_stack) status)
+	   | SOME frame' => SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
            | NONE => NONE)
         | NONE => NONE)
       | NONE => NONE)

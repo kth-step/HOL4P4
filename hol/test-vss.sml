@@ -144,14 +144,12 @@ val status = ``status_running``;
 
 (* WIP test cases:
 
-(* p.ethernet *)
-EVAL ``e_multi_exec ctx (^e_eth) (^stacks_uninit) (^status) 20``
+(* ck.clear(); *)
 
-(* b.extract(p.ethernet); *)
-EVAL ``e_multi_exec (^ext_ctx) (e_ext_call "b" "extract" [(^e_eth)]) (^stacks_uninit) (^status) 20``
+(* ck.update(p.ip); *)
 
 
-b.extract(p.ip);
+(* ck.get() *)
 
 
 

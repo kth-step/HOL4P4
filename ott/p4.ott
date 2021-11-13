@@ -75,12 +75,17 @@ packet_in :: packet_in_ ::=
 | [ boolv1 , .. , boolvn ] :: M :: list
   {{ hol ([[boolv1 .. boolvn]]) }}
 
+ipv4_checksum :: ipv4_checksum_ ::= {{ hol (word16) }}
+{{ com ipv4 header checksum }}
+
 %TODO: This should be expanded to cover data of all extern objects
 %TODO: Only stuff in core.p4, for now... Should this be polymorphic when done for multiple platforms?
 ext_obj :: ext_obj_ ::=
 {{ com extern object }}
 | packet_in :: :: in
   {{ com input packet }}
+| ipv4_checksum :: :: ck
+  {{ com ipv4 header checksum }}
 
 %TODO: Add string literal separate from variable name?
 %TODO: Add identifiers
@@ -343,7 +348,7 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ tex \lor }}
 
 ext {{ tex { \mathit{ext} } }} :: ext_ ::=
-{{ hol ((string # e list # state) -> (state option)) }}
+{{ hol ((string # e list # state) -> ((v # state) option)) }}
 
 %TODO: Add casts
 %TODO: Add tuples
@@ -834,9 +839,9 @@ formula :: formula_ ::=
   {{ com create new varaible in declaration }}
   {{ hol ([[v]] = arb_from_t [[t]]) }}
   {{ tex [[v]] = \mathrm{arb\_from\_t} [[t]] }}
-| ext x ( e1 , .. , en ) ( stacks , Running ) = ( stacks' , status ) :: M :: exec_ext
+| ext x ( e1 , .. , en ) ( stacks , Running ) = ( v , ( stacks' , status ) ) :: M :: exec_ext
   {{ com execute extern method }}
-  {{ hol ([[ext]] ([[x]], [[e1 .. en]], (state_tup [[stacks]] Running)) = SOME (state_tup [[stacks']] [[status]])) }}
+  {{ hol ([[ext]] ([[x]], [[e1 .. en]], (state_tup [[stacks]] Running)) = SOME ([[v]], (state_tup [[stacks']] [[status]]))) }}
 | ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
   {{ com ext lookup }}
   {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
@@ -1352,9 +1357,9 @@ by
 %Extern method exec
   ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
-  ext x ( e1 , .. , en ) ( stacks , Running ) = ( stacks' , status )
+  ext x ( e1 , .. , en ) ( stacks , Running ) = ( v , ( stacks' , status ) )
   ----------------------------------- :: ext_exec
-  ctx [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [bot] ( stacks' , status )
+  ctx [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [v] ( stacks' , status )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access

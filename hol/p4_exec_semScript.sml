@@ -415,8 +415,8 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
        | NONE => NONE)
      | NONE =>
       (case ext (x, e_l, state_tup (stacks_tup curr_stack_frame call_stack) status) of
-       | SOME (state_tup stacks' status') => 
-	SOME (e_v v_bot, stacks', status')
+       | SOME (v, state_tup stacks' status') => 
+	SOME (e_v v, stacks', status')
        | NONE => NONE
       )
     )
