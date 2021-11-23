@@ -117,6 +117,16 @@ Definition is_v:
  (is_v _ = F)
 End
 
+Definition is_v_bool:
+ (is_v_bool (e_v (v_bool b)) = T) /\
+ (is_v_bool _ = F)
+End
+
+Definition is_v_err:
+ (is_v_err (e_v (v_err x)) = T) /\
+ (is_v_err _ = F)
+End
+
 Definition is_var:
  (is_var (e_var x) = T) /\
  (is_var _ = F)
@@ -127,9 +137,15 @@ Definition is_empty:
  (is_empty _ = F)
 End
 
+Definition get_ret_v:
+ (get_ret_v (stmt_ret (e_v v)) = SOME v) /\
+ (get_ret_v (stmt_seq (stmt_ret (e_v v)) stmt) = SOME v) /\
+ (get_ret_v _ = NONE)
+End
+
 (*****************************)
 (* Status-related shorthands *)
-
+(*
 Definition e_exec_return:
  (e_exec_return (e_func_exec stmt_empty) stacks v = SOME (e_v v, stacks, status_running)) /\
  (e_exec_return _ _ _ = NONE)
@@ -139,7 +155,7 @@ Definition stmt_exec_return:
  (stmt_exec_return (e_func_exec stmt_empty) stacks v = SOME (e_v v, stacks, status_running)) /\
  (stmt_exec_return _ _ _ = NONE)
 End
-
+*)
 (*********************************)
 (* Expression-related shorthands *)
 
@@ -302,7 +318,7 @@ Definition stmt_exec_verify:
   SOME stmt_empty)
   /\
  (stmt_exec_verify (e_v (v_bool F)) (e_v (v_err x)) =
-  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_var "Reject"))))
+  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_var "reject"))))
   /\
  (stmt_exec_verify _ _ = NONE)
 End
@@ -318,20 +334,20 @@ Definition stmt_exec_trans:
  (stmt_exec_trans _ = NONE)
 End
 
-Definition stmt_exec_ret:
- (stmt_exec_ret frame call_stack (func_map:func_map) (e_v v) =
+Definition exec_ret:
+ (exec_ret ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (stacks_tup frame call_stack) =
   case call_stack of
   | ((frame', called_function_name_bot)::call_stack') => NONE
   | ((frame', called_function_name_function_name f)::call_stack') =>
    (case FLOOKUP func_map f of
    | SOME (_, x_d_l) =>
     (case update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD frame)::frame') frame of
-     | SOME frame'' => SOME (stmt_empty, (stacks_tup frame'' call_stack'), status_return v)
+     | SOME frame'' => SOME (stacks_tup frame'' call_stack')
      | NONE => NONE)
    | NONE => NONE)
-  | [] => NONE) /\
- (stmt_exec_ret _ _ _ _ = NONE)
+  | [] => NONE)
 End
+
 
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce warnings *)
@@ -342,9 +358,6 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (******************************************)
  (* Clauses for special statuses *)
  (e_exec _ e stacks status_type_error = NONE)
-  /\
- (e_exec _ e stacks (status_return v) =
-  e_exec_return e stacks v)
   /\
  (* TODO: Should expressions with status pars_next x be reduced
   * to some value, with status preserved? *)
@@ -399,9 +412,15 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   | NONE => NONE)
   /\
  (e_exec ctx (e_func_exec stmt) stacks status =
-  case stmt_exec ctx stmt stacks status of
-  | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
-  | NONE => NONE)
+  case get_ret_v stmt of
+  | SOME v =>
+   (case exec_ret ctx stacks of
+    | SOME stacks' => SOME (e_v v, stacks', status)
+    | NONE => NONE)
+  | NONE =>
+   (case stmt_exec ctx stmt stacks status of
+    | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
+    | NONE => NONE))
   /\
  (******************)
  (* Extern-related *)
@@ -476,12 +495,6 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (* Catch-all clauses for special statuses *)
  (stmt_exec _ stmt stacks status_type_error = NONE)
   /\
-(* TODO: Commented out, for now. Maybe some way can be found to avoid
- * duplication of clauses for return status...
- (stmt_exec _ stmt stacks (status_return v) =
-  SOME (stmt_empty, stacks, status_return v))
-  /\
-*)
  (stmt_exec _ stmt stacks (status_pars_next x) =
   SOME (stmt_empty, stacks, status_pars_next x))
   /\
@@ -492,7 +505,7 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_ret e) (stacks_tup curr_stack_frame call_stack) status =
   if is_v e
   then
-   stmt_exec_ret curr_stack_frame call_stack func_map e
+   NONE
   else
    (case e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) e (stacks_tup curr_stack_frame call_stack) status of
     | SOME (e', stacks', status') => SOME (stmt_ret e', stacks', status')
@@ -516,15 +529,21 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec ctx (stmt_verify e1 e2) stacks status =
   if is_v e1
   then
-   if is_v e2
+   if is_v_bool e1
    then
-    (case stmt_exec_verify e1 e2 of
-     | SOME stmt => SOME (stmt, stacks, status)
-     | NONE => NONE)
-   else
-    (case e_exec ctx e2 stacks status of
-     | SOME (e2', stacks', status') => SOME (stmt_verify e1 e2', stacks', status')
-     | NONE => NONE)
+    if is_v e2
+    then
+     if is_v_err e2
+     then
+      (case stmt_exec_verify e1 e2 of
+       | SOME stmt => SOME (stmt, stacks, status)
+       | NONE => NONE)
+     else NONE
+    else
+     (case e_exec ctx e2 stacks status of
+      | SOME (e2', stacks', status') => SOME (stmt_verify e1 e2', stacks', status')
+      | NONE => NONE)
+    else NONE
   else
    (case e_exec ctx e1 stacks status of
     | SOME (e1', stacks', status') => SOME (stmt_verify e1' e2, stacks', status')
@@ -565,148 +584,604 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
 ;
 
 (* Only meant to skip certain soundness proof parts for now *)
-Theorem ignore_pars_next:
+Theorem e_ignore_pars_next:
  !ctx e e' stacks stacks' p status'.
   e_red ctx e stacks (status_pars_next p) e' stacks' status'
 Proof
 cheat
 QED
 
-(* Then, some kind of theorem that states equivalence
- * between executable semantics and ott-exported reduction rules.
- * For sketch, only soundness and not completeness *)
-(* TODO: Completeness *)
-Theorem e_exec_sound_red:
- !ctx (e:e) (e':e) stacks stacks' status status'.
-  e_exec ctx e stacks status = SOME (e', stacks', status') ==>
-  e_red ctx e stacks status e' stacks' status'
+Theorem stmt_ignore_pars_next:
+ !ctx stmt stmt' stacks stacks' p status'.
+  stmt_red ctx stmt (state_tup stacks (status_pars_next p)) stmt' (state_tup stacks' status')
 Proof
-(* NOTE: Use something like
+cheat
+QED
 
-   (valOf o find_clause_e_red) "e_neg_bool"
+(*
+Use mutual recursion tactics?
 
-   to find clauses in Ott-exported reduction rules.
+GEN_TAC
+Mutual.MUTUAL_INDUCT_THEN e_induction ASSUME_TAC
 
-   Should be around 9 subgoals with the below, corresponding
-   roughly to the different expressions:
+Use e_induction directly (using irule or similar)?
+
 *)
-STRIP_TAC >>
-Induct_on `e` >> Cases_on `status` >> (
- (* TODO: Remove ignore_pars_next *)
- fs [e_stmt_exec_def, e_exec_return, ignore_pars_next]
-) >| [
- (* TODO: e_v to e_v - should this be among the inference rules? *)
- cheat,
 
- (* Variable lookup - how is variable name related to reduced expression? *)
- Cases_on `stacks` >>
- fs [e_stmt_exec_def] >>
- REPEAT STRIP_TAC >>
- irule ((valOf o find_clause_e_red) "e_lookup") >>
- fs [clause_name_def], 
+Definition e_exec_sound:
+ (e_exec_sound e =
+  !ctx (e':e) stacks stacks' status status'.
+  e_exec ctx e stacks status = SOME (e', stacks', status') ==>
+  e_red ctx e stacks status e' stacks' status')
+End
 
- (* Field access *)
- REPEAT STRIP_TAC >>
- Cases_on `stacks` >>
- Cases_on `is_v e` >> Cases_on `is_var e'` >- (
-  (* 1st case is base case *)
-  Cases_on `e` >>  Cases_on `e'` >> (
-   fs [is_v, is_var, e_stmt_exec_def]
-  ) >>
-  Cases_on `v` >> (
-   fs [e_stmt_exec_def, e_exec_acc]
-  ) >> (
-   Cases_on `FIND (\(k,v). k = s) l'`
-  ) >> (
-   fs []
-  ) >> (
-   Cases_on `x`
-  ) >> (
-   fs [] >>
-   rw []
-  ) >| [
-   irule ((valOf o find_clause_e_red) "e_s_acc"),
+Definition stmt_exec_sound:
+ (stmt_exec_sound stmt =
+  !ctx (stmt':stmt) stacks stacks' status status'.
+  stmt_exec ctx stmt stacks status = SOME (stmt', stacks', status') ==>
+  stmt_red ctx stmt (state_tup stacks status) stmt' (state_tup stacks' status'))
+End
 
-   irule ((valOf o find_clause_e_red) "e_h_acc")
-  ] >> (
-   fs [clause_name_def, listTheory.FIND_def] >>
-   subgoal `(\(k,v). k = s) (q,r)` >- (
-    Cases_on `z` >>
-    fs [] >>
-    rw [] >>
-    IMP_RES_TAC (ISPECL [``(l':((string # v) list))``, ``(\(k,v). k = s):(string # v -> bool)``, ``(q,r):string # v``, ``0``] index_find_first) >>
-    fs []
-   ) >>
-   fs []
+Definition l_sound:
+ (l_sound (l: e list) = T)
+End
+
+Theorem e_v_exec_sound_red:
+!v. e_exec_sound (e_v v)
+Proof
+cheat
+QED
+
+Theorem stmt_block_ip_exec_sound_red:
+!s.
+stmt_exec_sound s ==>
+stmt_exec_sound (stmt_block_ip s)
+Proof
+cheat
+QED
+
+Theorem stmt_block_exec_sound_red:
+!s.
+stmt_exec_sound s ==>
+stmt_exec_sound (stmt_block s)
+Proof
+cheat
+QED
+
+Theorem stmt_verify_exec_sound_red:
+!e1 e2.
+e_exec_sound e1 ==>
+e_exec_sound e2 ==>
+stmt_exec_sound (stmt_verify e1 e2)
+Proof
+fs [stmt_exec_sound, e_exec_sound] >>
+REPEAT STRIP_TAC >>
+Cases_on `status` >> (
+ fs [e_stmt_exec_def, stmt_ignore_pars_next]
+) >>
+Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
+ (* First case *)
+ fs [] >>
+ Cases_on `stmt_exec_verify e1 e2` >> (
+  fs [] >>
+  rw []
+ ) >>
+ Cases_on `e1` >> Cases_on `e2` >> (
+  fs [stmt_exec_verify] >>
+  rw []
+ ) >>
+ rename1 `is_v_bool (e_v v1)` >>
+ rename1 `is_v_err (e_v v2)` >>
+ Cases_on `v1` >> Cases_on `v2` >> (
+  fs [stmt_exec_verify] >>
+  rw []
+ ) >>
+ Cases_on `stmt'` >> (
+  Cases_on `b` >> (
+   fs [stmt_exec_verify]
   )
- ) >- (
-  (* Second case is reduction of 2nd argument (field name) *)
-  fs [] >>
-  Cases_on `e_exec ctx e' (stacks_tup l l0) status_running` >> (
-   fs []
-  ) >>
-  Cases_on `x` >> Cases_on `r` >>
-  fs [] >>
-  rw [] >>
-  irule ((valOf o find_clause_e_red) "e_acc_arg2") >>
-  fs [clause_name_def]
  ) >| [
-  (* Third case is reduction of 1st argument (struct value) *)
-  fs [] >>
-  Cases_on `e_exec ctx e (stacks_tup l l0) status_running` >> (
-   fs []
-  ) >>
-  Cases_on `x` >> Cases_on `r` >>
-  fs [] >>
-  rw [] >>
-  Cases_on `e'` >> (
-   fs [is_var]
-  ) >>
-  irule ((valOf o find_clause_e_red) "e_acc_arg1") >>
-  fs [clause_name_def],
+  METIS_TAC [(valOf o find_clause_e_red) "stmt_verify_3", clause_name_def],
 
-  (* Fourth (inductive) case determines case when both arguments are unreduced *)
-  fs [] >>
-  Cases_on `e_exec ctx e' (stacks_tup l l0) status_running` >> (
-   fs []
-  ) >>
-  Cases_on `x` >> Cases_on `r` >>
-  fs [] >>
-  rw [] >>
-  irule ((valOf o find_clause_e_red) "e_acc_arg2") >>
-  RES_TAC >>
-  fs [clause_name_def]
+  METIS_TAC [(valOf o find_clause_e_red) "stmt_verify_4", clause_name_def]
  ],
 
- (* Unary operations *)
- cheat,
+ (* Second case - second operand unreduced *)
+ fs [] >>
+ Cases_on `e_exec ctx e2 stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ rw [] >>
+ Cases_on `e1` >> (
+  fs [is_v] >>
+  rw []
+ ) >>
+ Cases_on `v` >> (
+  fs [is_v_bool] >>
+  rw []
+ ) >>
+ METIS_TAC [(valOf o find_clause_e_red) "stmt_verify_e2", clause_name_def],
 
- (* Binary operations *)
- cheat,
+ (* Third case - first operand unreduced *)
+ fs [] >>
+ Cases_on `e_exec ctx e1 stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ rw [] >>
+ METIS_TAC [(valOf o find_clause_e_red) "stmt_verify_e1", clause_name_def],
 
- (* Function call *)
- cheat,
-
- (* Function body execution *)
- cheat,
-
- (* Function body return *)
- cheat,
-
- (* Extern call *)
- cheat,
-
- (* Select expression *)
- cheat
+ (* Fourth case - both operands unreduced *)
+ fs [] >>
+ Cases_on `e_exec ctx e1 stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ rw [] >>
+ METIS_TAC [(valOf o find_clause_e_red) "stmt_verify_e1", clause_name_def]
 ]
 QED
 
-Theorem stmt_exec_sound_red:
- !ctx (stmt:stmt) (stmt':stmt) stacks stacks' status status'.
-  stmt_exec ctx stmt stacks status = SOME (stmt', stacks', status) ==>
-   stmt_red ctx stmt (state_tup stacks status) stmt' (state_tup stacks' status')
+Theorem e_acc_exec_sound_red:
+!e1 e2.
+e_exec_sound e1 ==>
+e_exec_sound e2 ==>
+e_exec_sound (e_acc e1 e2)
 Proof
-cheat
+fs [e_exec_sound] >>
+REPEAT STRIP_TAC >>
+Cases_on `status` >> (
+ fs [e_stmt_exec_def, e_ignore_pars_next]
+) >>
+Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_var e2` >| [
+ (* 1st case is base case *)
+ Cases_on `e1` >>  Cases_on `e2` >> (
+  fs [is_v, is_var]
+ ) >>
+ Cases_on `v` >> (
+  fs [e_stmt_exec_def, e_exec_acc]
+ ) >> (
+  Cases_on `FIND (\(k,v). k = s) l'` >>
+  fs [] >>
+  Cases_on `x` >>
+  fs [] >>
+  rw []
+ ) >| [
+  irule ((valOf o find_clause_e_red) "e_s_acc"),
+
+  irule ((valOf o find_clause_e_red) "e_h_acc")
+ ] >> (
+  fs [clause_name_def, listTheory.FIND_def] >>
+  subgoal `(\(k,v). k = s) (q,r)` >- (
+   Cases_on `z` >>
+   fs [] >>
+   rw [] >>
+   IMP_RES_TAC (ISPECL [``(l':((string # v) list))``, ``(\(k,v). k = s):(string # v -> bool)``, ``(q,r):string # v``, ``0``] index_find_first) >>
+   fs []
+  ) >>
+  fs []
+ ),
+
+ (* Second case is reduction of 2nd argument (field name) *)
+ Cases_on `e_exec ctx e2 (stacks_tup l l0) status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg2"), clause_name_def],
+
+ (* Third case is reduction of 1st argument (struct value) *)
+ Cases_on `e_exec ctx e1 (stacks_tup l l0) status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >> Cases_on `e2` >> (
+  fs [is_var]
+ ) >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg1"), clause_name_def],
+
+ (* Fourth case determines case when both arguments are unreduced *)
+ Cases_on `e_exec ctx e2 (stacks_tup l l0) status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg2"), clause_name_def]
+]
+QED
+
+Theorem e_binop_exec_sound_red:
+!e1 e2 b.
+e_exec_sound e1 ==>
+e_exec_sound e2 ==>
+e_exec_sound (e_binop e1 b e2)
+Proof
+fs [e_exec_sound] >>
+REPEAT STRIP_TAC >>
+Cases_on `status` >> (
+ fs [e_stmt_exec_def, e_ignore_pars_next]
+) >>
+Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
+ fs [] >>
+ Cases_on `e_exec_binop e1 b e2` >> (
+  fs [] >>
+  rw []
+ ) >>
+ (* Different concrete cases *)
+ Cases_on `b` >> (
+  Cases_on `e1` >> (
+   fs [is_v]
+  ) >>
+  Cases_on `e2` >> (
+   fs [is_v]
+  ) >>
+  Cases_on `v` >> Cases_on `v'` >> (
+   fs [e_exec_binop, binop_exec]
+  ) >>
+  rw []
+ ) >| [
+   Cases_on `bitv_binop binop_mul p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_mul"),
+
+   Cases_on `bitv_binop binop_div p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_div"),
+
+   Cases_on `bitv_binop binop_mod p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_mod"),
+
+   Cases_on `bitv_binop binop_add p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_add"),
+
+   Cases_on `bitv_binop binop_sub p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_sub"),
+
+   irule ((valOf o find_clause_e_red) "e_shl"),
+
+   irule ((valOf o find_clause_e_red) "e_shr"),
+
+   Cases_on `bitv_binpred binop_le p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_le"),
+
+   Cases_on `bitv_binpred binop_ge p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_ge"),
+
+   Cases_on `bitv_binpred binop_lt p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_lt"),
+
+   Cases_on `bitv_binpred binop_gt p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_gt"),
+
+   irule ((valOf o find_clause_e_red) "e_neq_bool"),
+
+   irule ((valOf o find_clause_e_red) "e_neq"),
+
+   irule ((valOf o find_clause_e_red) "e_eq_bool"),
+
+   irule ((valOf o find_clause_e_red) "e_eq"),
+
+   irule ((valOf o find_clause_e_red) "e_and"),
+
+   irule ((valOf o find_clause_e_red) "e_xor"),
+
+   irule ((valOf o find_clause_e_red) "e_or")
+ ] >> (
+  fs [clause_name_def]
+ ),
+
+ (* Second operand is not fully reduced *)
+ Cases_on `e_exec ctx e2 stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >> Cases_on `e1` >> (
+  fs [is_v]
+ ) >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg2"), clause_name_def],
+
+ (* First operand is not fully reduced *)
+ Cases_on `e_exec ctx e1 stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg1"), clause_name_def],
+
+ (* No operand is fully reduced *)
+ Cases_on `e_exec ctx e1 stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg1"), clause_name_def]
+]
+QED
+
+Theorem e_unop_exec_sound_red:
+!e u.
+e_exec_sound e ==>
+e_exec_sound (e_unop u e)
+Proof
+fs [e_exec_sound] >>
+REPEAT STRIP_TAC >>
+Cases_on `status` >> (
+ fs [e_stmt_exec_def, e_ignore_pars_next]
+) >>
+Cases_on `is_v e` >| [
+ Cases_on `e_exec_unop u e` >> (
+  fs [] >>
+  rw []
+ ) >>
+ Cases_on `e` >> (
+  fs [is_v]
+ ) >>
+ (* Different concrete cases *)
+ Cases_on `u` >> (
+  Cases_on `v` >> (
+   fs [e_exec_unop, unop_exec]
+  ) >>
+  rw []
+ ) >| [
+  irule ((valOf o find_clause_e_red) "e_neg_bool"),
+
+  irule ((valOf o find_clause_e_red) "e_compl"),
+
+  irule ((valOf o find_clause_e_red) "e_neg_signed"),
+
+  irule ((valOf o find_clause_e_red) "e_un_plus")
+ ] >>
+ fs [clause_name_def],
+
+ Cases_on `e_exec ctx e stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ METIS_TAC [(valOf o find_clause_e_red) "e_unop_arg", clause_name_def]
+]
+QED
+
+Theorem e_func_exec_exec_sound_red:
+!s.
+stmt_exec_sound s ==>
+e_exec_sound (e_func_exec s)
+Proof
+fs [e_exec_sound, stmt_exec_sound] >>
+REPEAT STRIP_TAC >>
+Cases_on `status` >> (
+ fs [e_stmt_exec_def, e_ignore_pars_next]
+) >>
+Cases_on `get_ret_v s` >> (
+ fs []
+) >| [
+ Cases_on `stmt_exec ctx s stacks status_running` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> Cases_on `r` >>
+ fs [] >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_func_exec"), clause_name_def],
+
+ Cases_on `exec_ret ctx stacks` >> (
+  fs [] >>
+  rw []
+ ) >>
+ Cases_on `s` >> (
+  fs [get_ret_v] >>
+  rw []
+ ) >| [
+  Cases_on `e` >> (
+   fs [get_ret_v] >>
+   rw []
+  ) >>
+  Cases_on `stacks` >> Cases_on `stacks'` >> PairCases_on `ctx` >>
+  irule ((valOf o find_clause_e_red) "e_func_ret"),
+
+  Cases_on `s'` >> (
+   fs [get_ret_v] >>
+   rw []
+  ) >>
+  Cases_on `e` >> (
+   fs [get_ret_v] >>
+   rw []
+  ) >>
+  Cases_on `stacks` >> Cases_on `stacks'` >> PairCases_on `ctx` >>
+  irule ((valOf o find_clause_e_red) "e_func_ret_seq")
+ ] >> (
+  fs [clause_name_def, exec_ret] >>
+  Cases_on `l0` >> (
+   fs []
+  ) >>
+  Cases_on `h` >> (
+   fs []
+  ) >>
+  Cases_on `r` >> (
+   fs []
+  ) >>
+  Cases_on `FLOOKUP ctx2 s` >> (
+   fs []
+  ) >>
+  Cases_on `x` >> (
+   fs []
+  ) >>
+  Cases_on `update_return_frame (MAP FST r) (MAP SND r) (HD l::q) l` >> (
+   fs []
+  ) >>
+  rw [] >>
+  `FST = (\((x_:string),(d_:d)). x_) /\ SND = (\((x_:string),(d_:d)). d_)` suffices_by (
+   rw [] >>
+   fs []
+  ) >>
+  REPEAT STRIP_TAC >| [
+   subgoal `!x_d. FST x_d = (\((x_:string),(d_:d)). x_) x_d` >- (
+    Cases_on `x_d` >>
+    fs []
+   ) >>
+   METIS_TAC [],
+
+   subgoal `!x_d. SND x_d = (\((x_:string),(d_:d)). d_) x_d` >- (
+    Cases_on `x_d` >>
+    fs []
+   ) >>
+   METIS_TAC []
+  ]
+ )
+]
+QED
+
+Theorem e_stmt_exec_sound_red:
+(!e. e_exec_sound e)
+/\
+(!stmt. stmt_exec_sound stmt)
+Proof
+`(!e. e_exec_sound e) /\ (!stmt. stmt_exec_sound stmt) /\ (!l. l_sound l)` suffices_by (
+ fs []
+) >>
+irule e_induction >>
+REPEAT STRIP_TAC >| [
+ (* TODO: Empty statement - how should this be handled in reductions? *)
+ cheat,
+
+ (* e list *)
+ fs [l_sound],
+
+ (* bitvector slice - not in exec sem yet *)
+ fs [e_exec_sound] >>
+ REPEAT STRIP_TAC >>
+ Cases_on `status` >> (
+  rw [] >>
+  fs [e_stmt_exec_def, e_ignore_pars_next]
+ ),
+
+ (* Field access *)
+ fs [e_acc_exec_sound_red],
+
+ (* bitvector concatenation - not in exec sem yet *)
+ fs [e_exec_sound] >>
+ REPEAT STRIP_TAC >>
+ Cases_on `status` >> (
+  rw [] >>
+  fs [e_stmt_exec_def, e_ignore_pars_next]
+ ),
+
+ (* Verify statement *)
+ fs [stmt_verify_exec_sound_red],
+
+ (* Binary operation *)
+ fs [e_binop_exec_sound_red],
+
+ (* execution of e lists? *)
+ fs [l_sound],
+
+ (* Conditional statement - not in exec sem yet *)
+ cheat,
+
+ (* Return statement *)
+ (* TODO *)
+ cheat,
+
+ (* Transition statement *)
+ (* TODO *)
+ cheat,
+
+ (* Apply statement - not in exec sem yet *)
+ cheat,
+
+ (* Select expression *)
+ (* TODO *)
+ cheat,
+
+ (* Assign statement *)
+ (* TODO *)
+ cheat,
+
+ (* Unary operation *)
+ fs [e_unop_exec_sound_red],
+
+ (* Variable lookup *)
+ fs [e_exec_sound] >>
+ Cases_on `stacks` >>
+ Cases_on `status` >> (
+  rw [] >>
+  fs [e_stmt_exec_def, e_ignore_pars_next]
+ ) >>
+ METIS_TAC [(valOf o find_clause_e_red) "e_lookup", clause_name_def],
+
+ (* Declare statement - not in exec sem yet *)
+ cheat,
+
+ (* List expression - not in exec sem yet *)
+ cheat,
+
+ (* Function call *)
+ (* TODO *)
+ cheat,
+
+ (* Extern call *)
+ (* TODO *)
+ cheat,
+
+ (* Sequence of statements *)
+ (* TODO *)
+ cheat,
+
+ (* Function execution *)
+ fs [e_func_exec_exec_sound_red],
+
+ (* Block entry - not in exec sem yet *)
+ fs [stmt_block_exec_sound_red],
+
+ (* Block execution in-progress - not in exec sem yet *)
+ fs [stmt_block_ip_exec_sound_red],
+
+ (* TODO: Constant value - how should this be handled in reductions? *)
+ cheat
+]
 QED
 
 (* Then, define an executable semantics which performs execution until out of fuel. *)
@@ -851,7 +1326,7 @@ Definition e_exec_cake:
   /\
  (e_exec_cake (e_unop unop_compl (e_v (v_bit bitv))) stacks status =
   SOME (e_v (v_bit (bitv_bl_unop bnot bitv))))
-  /\
+  \/gi
  (e_exec_cake (e_unop unop_neg_signed (e_v (v_bit bitv))) stacks status =
   SOME (e_v (v_bit (bitv_unop unop_neg_signed bitv))))
   /\
