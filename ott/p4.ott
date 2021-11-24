@@ -75,6 +75,12 @@ packet_in :: packet_in_ ::=
 | [ boolv1 , .. , boolvn ] :: M :: list
   {{ hol ([[boolv1 .. boolvn]]) }}
 
+packet_out :: packet_out_ ::=
+{{ hol (boolv list) }}
+{{ com output packet }}
+| [ boolv1 , .. , boolvn ] :: M :: list
+  {{ hol ([[boolv1 .. boolvn]]) }}
+
 ipv4_checksum :: ipv4_checksum_ ::= {{ hol (word16) }}
 {{ com ipv4 header checksum }}
 
@@ -83,6 +89,8 @@ ipv4_checksum :: ipv4_checksum_ ::= {{ hol (word16) }}
 ext_obj :: ext_obj_ ::=
 {{ com extern object }}
 | packet_in :: :: in
+  {{ com input packet }}
+| packet_out :: :: out
   {{ com input packet }}
 | ipv4_checksum :: :: ck
   {{ com ipv4 header checksum }}

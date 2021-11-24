@@ -117,6 +117,11 @@ Definition is_v:
  (is_v _ = F)
 End
 
+Definition get_v:
+ (get_v (e_v v) = SOME v) /\
+ (get_v _ = NONE)
+End
+
 Definition is_v_bool:
  (is_v_bool (e_v (v_bool b)) = T) /\
  (is_v_bool _ = F)
@@ -332,6 +337,16 @@ Definition stmt_exec_trans:
   else SOME (status_pars_next (pars_next_trans x)))
   /\
  (stmt_exec_trans _ = NONE)
+End
+
+Definition stmt_exec_cond:
+ (stmt_exec_cond (e_v (v_bool T)) =
+  SOME T)
+  /\
+ (stmt_exec_cond (e_v (v_bool F)) =
+  SOME F)
+  /\
+ (stmt_exec_cond _ = NONE)
 End
 
 Definition exec_ret:
@@ -551,7 +566,6 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (**************)
  (* Transition *)
- (**************)
  (stmt_exec ctx (stmt_trans e) stacks status =
   if is_var e
   then
@@ -563,6 +577,37 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
     | SOME (e', stacks', status') => SOME (stmt_trans e', stacks', status')
     | NONE => NONE))
   /\
+ (***************)
+ (* Conditional *)
+ (stmt_exec ctx (stmt_cond e stmt1 stmt2) stacks status =
+  if is_v_bool e
+  then
+   (case stmt_exec_cond e of
+    | SOME T => SOME (stmt1, stacks, status)
+    | SOME F => SOME (stmt2, stacks, status)
+    | NONE => NONE)
+  else
+   (case e_exec ctx e stacks status of
+    | SOME (e', stacks', status') => SOME (stmt_cond e' stmt1 stmt2, stacks', status')
+    | NONE => NONE))
+  /\
+ (*********************)
+ (* Table application *)
+ (stmt_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (stmt_app t_name e) stacks status =
+  (case get_v e of
+   | SOME v =>
+    (case FLOOKUP t_map t_name of
+     | SOME (e_t, m_k) =>
+      (case ctrl (t_name, v, m_k) of
+       | SOME (f, f_args) => SOME (stmt_ass lval_null (e_func_call f f_args), stacks, status)
+       | NONE => NONE)
+     | NONE => NONE)
+   | NONE =>
+    (case e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) e stacks status of
+     | SOME (e', stacks', status') => SOME (stmt_app t_name e', stacks', status')
+     | NONE => NONE)))
+  /\
+ (************)
  (* Sequence *)
  (stmt_exec ctx (stmt_seq stmt1 stmt2) stacks status =
   if is_empty stmt1
@@ -1092,7 +1137,6 @@ REPEAT STRIP_TAC >| [
 
  (* bitvector slice - not in exec sem yet *)
  fs [e_exec_sound] >>
- REPEAT STRIP_TAC >>
  Cases_on `status` >> (
   rw [] >>
   fs [e_stmt_exec_def, e_ignore_pars_next]
@@ -1103,7 +1147,6 @@ REPEAT STRIP_TAC >| [
 
  (* bitvector concatenation - not in exec sem yet *)
  fs [e_exec_sound] >>
- REPEAT STRIP_TAC >>
  Cases_on `status` >> (
   rw [] >>
   fs [e_stmt_exec_def, e_ignore_pars_next]
@@ -1129,7 +1172,8 @@ REPEAT STRIP_TAC >| [
  (* TODO *)
  cheat,
 
- (* Apply statement - not in exec sem yet *)
+ (* Apply statement *)
+ (* TODO *)
  cheat,
 
  (* Select expression *)
@@ -1153,10 +1197,18 @@ REPEAT STRIP_TAC >| [
  METIS_TAC [(valOf o find_clause_e_red) "e_lookup", clause_name_def],
 
  (* Declare statement - not in exec sem yet *)
- cheat,
+ fs [stmt_exec_sound] >>
+ Cases_on `status` >> (
+  rw [] >>
+  fs [e_stmt_exec_def, stmt_ignore_pars_next]
+ ),
 
  (* List expression - not in exec sem yet *)
- cheat,
+ fs [e_exec_sound] >>
+ Cases_on `status` >> (
+  rw [] >>
+  fs [e_stmt_exec_def, e_ignore_pars_next]
+ ),
 
  (* Function call *)
  (* TODO *)

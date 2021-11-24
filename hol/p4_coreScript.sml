@@ -35,10 +35,38 @@ Definition min_size_in_bytes:
  )
 End
 
-(* TODO: isValid *)
+Definition is_valid:
+ (is_valid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
+  case lookup_v frame header_name of
+  | (v_header valid_bit x_v_l) =>
+   SOME (v_bool valid_bit, state_tup (stacks_tup frame call_stack) status)
+  | _ => NONE
+ )
+End
 
-(* TODO: setValid *)
-(* TODO: setInvalid *)
+Definition set_valid:
+ (set_valid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
+  case lookup_v frame header_name of
+  | (v_header valid_bit x_v_l) =>
+   (case assign frame (v_header T x_v_l) (lval_varname header_name) of
+    | SOME frame' =>             
+     SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+Definition set_invalid:
+ (set_invalid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
+  case lookup_v frame header_name of
+  | (v_header valid_bit x_v_l) =>
+   (case assign frame (v_header F x_v_l) (lval_varname header_name) of
+    | SOME frame' =>             
+     SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
 
 (*********************)
 (* packet_in methods *)
@@ -96,7 +124,6 @@ End
 
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover stuff related to header stacks *)
-(* TODO: Extend to allow e.g. header field accesses in place of variables in e_l *)
 Definition extract:
  (extract (ext_obj_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
   case lookup_packet_in frame ext_obj_name of
@@ -130,5 +157,41 @@ Definition extract:
  )
 End
 
-
+(**********************)
+(* packet_out methods *)
+(**********************)
+(*
+Definition emit:
+ (emit (ext_obj_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
+  case lookup_packet_out frame ext_obj_name of
+  | SOME packet_out =>
+   (case get_header_lval e_l of
+    | SOME header_lval =>
+     (case lookup_lval_header frame header_lval of
+      | SOME (valid_bit, x_v_l) =>
+       (case min_size_in_bits (v_header valid_bit x_v_l) of
+        | SOME size =>
+         if size <= LENGTH packet_in
+         then
+          (case set_header_fields x_v_l packet_in of
+           | SOME x_v_l' =>
+	    (case assign frame (v_header T x_v_l') header_lval of
+	     | SOME frame' =>
+             (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) (lval_varname ext_obj_name) of
+	      | SOME frame'' =>             
+	       SOME (v_bot, state_tup (stacks_tup frame'' call_stack) status)
+              | NONE => NONE)
+             | NONE => NONE)
+           | NONE => NONE)
+         else
+	  (case assign frame (v_err "PacketTooShort") (lval_varname "parseError") of
+	   | SOME frame' => SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+           | NONE => NONE)
+        | NONE => NONE)
+      | NONE => NONE)
+    | NONE => NONE)
+  | NONE => NONE
+ )
+End
+*)
 val _ = export_theory ();
