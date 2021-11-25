@@ -643,16 +643,6 @@ Proof
 cheat
 QED
 
-(*
-Use mutual recursion tactics?
-
-GEN_TAC
-Mutual.MUTUAL_INDUCT_THEN e_induction ASSUME_TAC
-
-Use e_induction directly (using irule or similar)?
-
-*)
-
 Definition e_exec_sound:
  (e_exec_sound e =
   !ctx (e':e) stacks stacks' status status'.

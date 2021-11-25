@@ -163,7 +163,8 @@ val stacks_bad =
 val ext_map = ``FEMPTY |+ ("extract", (extract, [("hdr", d_out)]))
                        |+ ("clear", (clear, []))
                        |+ ("update", (update, [("data", d_in)]))
-                       |+ ("get", (get, []))``;
+                       |+ ("get", (get, []))
+                       |+ ("emit", (emit, [("data", d_in)]))``;
 val ext_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, ``FEMPTY:func_map``, ``FEMPTY:pars_map``, ``FEMPTY:t_map``, ``ctrl:ctrl``];
 
 val status = ``status_running``;
