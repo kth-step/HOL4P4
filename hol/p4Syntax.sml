@@ -48,6 +48,17 @@ fun mk_v_bitii (num, width) =
 val (v_bool_tm, mk_v_bool, dest_v_bool, is_v_bool) =
   syntax_fns1 "p4" "v_bool";
 
+val (v_struct_tm, mk_v_struct, dest_v_struct, is_v_struct) =
+  syntax_fns1 "p4" "v_struct";
+fun mk_v_struct_list x_v_l =
+  mk_v_struct (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v) ``));
+
+val (v_header_tm, mk_v_header, dest_v_header, is_v_header) =
+  syntax_fns2 "p4" "v_header";
+fun mk_v_header_list vbit x_v_l =
+  mk_v_header (vbit, (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v) ``)));
+
+
 (********)
 (* lval *)
 (********)
@@ -112,6 +123,14 @@ val (stmt_ass_tm, mk_stmt_ass, dest_stmt_ass, is_stmt_ass) =
   syntax_fns2 "p4"  "stmt_ass";
 val (stmt_seq_tm, mk_stmt_seq, dest_stmt_seq, is_stmt_seq) =
   syntax_fns2 "p4"  "stmt_seq";
+
+fun mk_stmt_seq_list' (h::[]) = h
+  | mk_stmt_seq_list' (h::t) =
+    mk_stmt_seq (h, mk_stmt_seq_list' t)
+  | mk_stmt_seq_list' [] = stmt_empty_tm;
+fun mk_stmt_seq_list [] = stmt_empty_tm
+  | mk_stmt_seq_list [stmt] = stmt
+  | mk_stmt_seq_list stmt_l = mk_stmt_seq_list' stmt_l;
 
 val d_ty = mk_type ("d", []);
 

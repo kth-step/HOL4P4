@@ -42,6 +42,243 @@ indexvar m, n, o ::=
   {{ com indices }}
 grammar
 
+%%%%%%%%%%%%%%%%
+% Value syntax %
+%%%%%%%%%%%%%%%%
+
+boolv :: boolv_ ::=
+{{ hol bool }}
+{{ com boolean }}
+| true :: M :: true
+  {{ hol T }}
+| false :: M :: false
+  {{ hol F }}
+| b :: M :: free
+  {{ hol [[b]] }}
+
+bitv :: bitv_ ::=
+{{ hol (bl # num) }}
+{{ com bit-string }}
+| bl n :: M :: bl
+  {{ hol ([[bl]], [[n]]) }}
+
+%Fence so that ott does not put packet_in before boolv
+embed
+{{ hol
+
+}}
+grammar
+
+packet_in :: packet_in_ ::=
+{{ hol (boolv list) }}
+{{ com input packet }}
+| [ boolv1 , .. , boolvn ] :: M :: list
+  {{ hol ([[boolv1 .. boolvn]]) }}
+
+packet_out :: packet_out_ ::=
+{{ hol (boolv list) }}
+{{ com output packet }}
+| [ boolv1 , .. , boolvn ] :: M :: list
+  {{ hol ([[boolv1 .. boolvn]]) }}
+
+ipv4_checksum :: ipv4_checksum_ ::= {{ hol (word16) }}
+{{ com ipv4 header checksum }}
+
+%TODO: This should be expanded to cover data of all extern objects
+%TODO: Only stuff in core.p4, for now... Should this be polymorphic when done for multiple platforms?
+ext_obj :: ext_obj_ ::=
+{{ com extern object }}
+| packet_in :: :: in
+  {{ com input packet }}
+| packet_out :: :: out
+  {{ com input packet }}
+| ipv4_checksum :: :: ck
+  {{ com ipv4 header checksum }}
+
+%TODO: Add string literal separate from variable name?
+%TODO: Add identifiers
+%TODO: Add enums
+v :: v_ ::=
+{{ com constant }}
+| boolv :: :: bool
+  {{ com boolean value }}
+%bitv currently represents both signed and unsigned bit-strings
+| bitv :: :: bit
+  {{ com bit-string }}
+| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
+  {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
+| header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
+% A header is like a struct, but with a validity bit.
+% Headers also have different well-formedness conditions (for example, headers cannot be nested).
+%TODO: We must have the following header methods:
+%      isValid()
+%      setValid()
+%      setInvalid()
+%      Should these be modeled as statements, or should they
+%      be pre-set in the function map?
+  {{ com header }}
+| ext_obj :: :: ext
+  {{ com extern object }}
+| errmsg x :: :: err
+  {{ com error message }}
+%TODO: Represent uninitialised variables? Default values?
+%See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
+| uninit :: :: uninit
+  {{ com uninitialized value }}
+  {{ tex ? }}
+  {{ hol (ARB) }}
+| bot :: :: bot
+  {{ com no value }}
+
+%TODO: Add array element
+%TODO: Add bitslice
+lval :: lval_ ::=
+| x :: :: varname
+  {{ com variable name }}
+| null :: :: null
+  {{ com null variable }} 
+| lval . f :: :: field
+  {{ com field access }}
+| ( lval ) :: X :: paren
+  {{ hol ([[lval]]) }}
+
+%%%%%%%%%%%%%%%%%%%
+% Execution state %
+%%%%%%%%%%%%%%%%%%%
+%Note that this is not part of the P4 specification, but made up for verification purposes.
+
+pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
+{{ com final parser states }}
+| Accept :: :: accept
+  {{ com accepted state }}
+| Reject :: :: reject
+  {{ com rejected state }}
+
+pars_next {{ tex p }} :: pars_next_ ::=
+{{ com parser next state }}
+| Trans x :: :: trans
+  {{ com transition to named state }}
+| pars_fin :: :: pars_fin
+  {{ com final state }}
+
+%Execution status
+status {{ tex t }}:: status_ ::=
+{{ com execution status }}
+| Running :: I :: running
+  {{ tex { \mathbf{R} } }}
+| pars_next :: I :: pars_next
+| TypeError :: I :: type_error
+  {{ tex { \bot } }}
+
+scope {{ tex \gamma }} :: scope_ ::=
+{{ hol (string |-> (v # lval option)) }}
+{{ com frame/variable environment of current scope }}
+| emptyscope :: M :: empty
+  {{ com empty stack frame }}
+  {{ hol FEMPTY }}
+  {{ tex {\gamma}_{ \emptyset } }}
+%TODO: This should keep output parameter instead of requiring NONE
+| scope + [ x |-> ( v , NONE ) ] :: M :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE ))) }}
+  {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
+%TODO: Update or remove this production
+| scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE_LIST [[scope]] [[x1 v1 .. xn vn]]) }}
+  %TODO: The below is a hack since LaTeX cannot interpret dot form...
+  {{ tex \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\, [[scope]] }}
+| ( scope ) :: S :: paren
+  {{ hol ([[scope]]) }}
+| G scope :: M :: global
+  {{ com global scope }}
+  {{ tex {[[scope]]}_G }}
+  {{ hol [[scope]] }}
+
+%Fence so that ott does not re-order curr_stack_frame
+embed
+{{ hol
+
+}}
+grammar
+
+curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
+{{ hol (scope list) }}
+{{ com current stack frame - stack of block scopes }}
+| emptycsf :: M :: empty
+  {{ hol ([]:scope list) }}
+  {{ tex {\emptyset}_{\varepsilon} }}
+| [ scope1 , .. , scopen ] :: M :: list
+  {{ hol ([[scope1 .. scopen]]) }}
+| tl curr_stack_frame :: M :: tl
+  {{ hol (TL [[curr_stack_frame]]) }}
+  {{ tex \mathrm{tl} ([[curr_stack_frame]]) }}
+| scope '::' curr_stack_frame' :: M :: cons
+  {{ hol ([[scope]] :: [[curr_stack_frame']]) }}
+  {{ tex [[scope]] :: [[curr_stack_frame']] }}
+| curr_stack_frame ++ curr_stack_frame' :: M :: append
+  {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
+  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
+| rev curr_stack_frame :: M :: rev
+  {{ hol (REVERSE [[curr_stack_frame]]) }}
+  {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
+| update ( scope , i , curr_stack_frame ) :: M :: update_scope
+  {{ com update a scope in the stack frame }}
+  {{ hol ( LUPDATE [[scope]] [[i]] [[curr_stack_frame]] ) }}
+  {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
+| ( curr_stack_frame ) :: S :: paren
+  {{ hol ([[curr_stack_frame]]) }}
+
+%Fence so that ott does not re-order called_function_name
+embed
+{{ hol
+
+}}
+grammar
+
+called_function_name {{ tex F_n }} :: called_function_name_ ::=
+{{ com called function name  }}
+| bot :: :: bot
+  {{ tex \bot }}
+| f :: :: function_name
+  {{ tex [[f]] }}
+
+%Fence so that ott does not re-order called_function_name
+embed
+{{ hol
+
+}}
+grammar  
+
+call_stack {{ tex E }} :: call_stack_ ::=
+{{ com stack of caller stack frames }}
+{{ hol ((curr_stack_frame # called_function_name) list) }}
+| emptycs :: M :: empty
+  {{ hol ([]:((curr_stack_frame # called_function_name) list)) }}
+  {{ tex {\emptyset}_{E} }}
+| [ ( curr_stack_frame1 , called_function_name1 ) , .. , ( curr_stack_framen , called_function_namen ) ] :: M :: list
+  {{ hol ([[curr_stack_frame1 called_function_name1 .. curr_stack_framen called_function_namen]]) }}
+| ( curr_stack_frame , called_function_name ) '::' call_stack :: M :: cons
+  {{ hol (([[curr_stack_frame]], [[called_function_name]]) :: [[call_stack]]) }}
+  {{ tex ([[curr_stack_frame]], [[called_function_name]]) :: [[call_stack]] }}
+| ( call_stack ) :: S :: paren
+  {{ hol ([[call_stack]]) }}
+
+stacks {{ tex \sigma }} :: stacks_ ::=
+{{ com stacks in execution state }}
+| ( curr_stack_frame , call_stack ) :: :: tup
+
+state {{ tex s }} :: state_ ::=
+{{ com execution state }}
+| ( stacks , status ) :: :: tup
+
+%Fence so that ott does not re-order expression syntax with state syntax
+embed
+{{ hol
+
+}}
+grammar  
+
 %%%%%%%%%%%%%%%%%%%%%
 % Expression syntax %
 %%%%%%%%%%%%%%%%%%%%%
@@ -116,87 +353,10 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
-boolv :: boolv_ ::=
-{{ hol bool }}
-{{ com boolean }}
-| true :: M :: true
-  {{ hol T }}
-| false :: M :: false
-  {{ hol F }}
-| b :: M :: free
-  {{ hol [[b]] }}
-
-bitv :: bitv_ ::=
-{{ hol (bl # num) }}
-{{ com bit-string }}
-| bl n :: M :: bl
-  {{ hol ([[bl]], [[n]]) }}
-
-bt {{ tex bt }} :: bt_ ::=
-{{ com base types }}
-| bool_t :: :: bool
-  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
-| bit_t :: :: bit
-  {{ tex { \mathrm{bit}_{ \mathrm{t} } } }}
-
-t {{ tex t }} :: t_ ::=
-{{ com types }}
-| bt :: :: base
-| struct_t t1 , ... , tn :: :: struct
-  {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-| header_t t1 , ... , tn :: :: header
-  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-
-%TODO: Add string literal separate from variable name?
-%TODO: Add identifiers
-%TODO: Add enums
-v :: v_ ::=
-{{ com constant }}
-| boolv :: :: bool
-  {{ com boolean value }}
-%bitv currently represents both signed and unsigned bit-strings
-| bitv :: :: bit
-  {{ com bit-string }}
-| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
-  {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
-| header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
-% A header is like a struct, but with a validity bit.
-% Headers also have different well-formedness conditions (for example, headers cannot be nested).
-%TODO: We must have the following header methods:
-%      isValid()
-%      setValid()
-%      setInvalid()
-%      Should these be modeled as statements, or should they
-%      be pre-set in the function map?
-  {{ com header }}
-%%TODO: An extern should contain an internally visible list of mappings between variable names and constants,
-%%      and a map from function names to their bodies and arguments
-%% See https://github.com/p4lang/p4c/blob/main/p4include/core.p4 , e.g. packet_in definition
-| errmsg x :: :: err
-  {{ com error message }}
-%TODO: Represent uninitialised variables? Default values?
-%See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
-| uninit :: :: uninit
-  {{ com uninitialized value }}
-  {{ tex ? }}
-  {{ hol (ARB) }}
-| bot :: :: bot
-  {{ com no value }}
-
-%TODO: Add array element
-%TODO: Add bitslice
-lval :: lval_ ::=
-| x :: :: varname
-  {{ com variable name }}
-| null :: :: null
-  {{ com null variable }} 
-| lval . f :: :: field
-  {{ com field access }}
-| ( lval ) :: X :: paren
-  {{ hol ([[lval]]) }}
+ext {{ tex { \mathit{ext} } }} :: ext_ ::=
+{{ hol ((string # e list # state) -> ((v # state) option)) }}
 
 %TODO: Add casts
-%TODO: Add lists
 %TODO: Add tuples
 %TODO: Add conditional operator
 e :: e_ ::=
@@ -204,7 +364,7 @@ e :: e_ ::=
 | v :: :: v
  {{com constant value}}
 | x :: :: var
-  {{ com variable or parser state name }}
+  {{ com variable, extern object or parser state name }}
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -223,6 +383,8 @@ e :: e_ ::=
   {{ com function call }}
 | exec stmt :: I :: func_exec
   {{ com function execution }}
+| call x f ( e1 , .. , en ) :: :: ext_call
+  {{ com extern method call }}
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
   % TODO: x is the default value of select expression, which should be optional
   {{ com select }}
@@ -282,13 +444,6 @@ e_list :: e_list_ ::=
 %| decl1 ; decl2 :: :: seq
 %  {{ com sequence }}
 
-pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
-{{ com final parser states }}
-| Accept :: :: accept
-  {{ com accepted state }}
-| Reject :: :: reject
-  {{ com rejected state }}
-
 match_kind {{ tex \mathit{match\_kind} }} :: match_kind_ ::=
 {{ com matching kinds }}
 | exact :: :: exact
@@ -298,13 +453,20 @@ match_kind {{ tex \mathit{match\_kind} }} :: match_kind_ ::=
 | lpm :: :: lpm
   {{ tex lpm }}
 
+bt {{ tex bt }} :: bt_ ::=
+{{ com base types }}
+| bool_t :: :: bool
+  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
+| bit_t :: :: bit
+  {{ tex { \mathrm{bit}_{ \mathrm{t} } } }}
 
-pars_next {{ tex p }} :: pars_next_ ::=
-{{ com parser next state }}
-| Trans x :: :: trans
-  {{ com transition to named state }}
-| pars_fin :: :: pars_fin
-  {{ com final state }}
+t {{ tex t }} :: t_ ::=
+{{ com types }}
+| bt :: :: base
+| struct_t t1 , ... , tn :: :: struct
+  {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+| header_t t1 , ... , tn :: :: header
+  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 
 %TODO: Add switch statement
 stmt :: stmt_ ::=
@@ -385,6 +547,10 @@ func_map {{ tex F }} :: func_map_ ::=
   {{ com update variable mapping }}
   {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
 
+ext_map {{ tex X }} :: ext_map_ ::=
+{{ com extern method map  }}
+{{ hol (string |-> (ext # (string # d) list)) }}
+
 % TODO: Could be just a type abbreviation?
 ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
 {{ com control plane }}
@@ -427,141 +593,13 @@ grammar
 % TODO: Could be just a type abbreviation?
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (type_map # func_map # pars_map # t_map # ctrl) }}
+{{ hol (type_map # ext_map # func_map # pars_map # t_map # ctrl) }}
 | empty :: M :: empty
   {{ com empty context }}
   {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
-| ( type_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
+| ( type_map , ext_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[type_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
-
-%%%%%%%%%%%%%%%%%%%
-% Execution state %
-%%%%%%%%%%%%%%%%%%%
-%Note that this is not part of the P4 specification, but made up for verification purposes.
-
-%Execution status
-status {{ tex t }}:: status_ ::=
-{{ com execution status }}
-| Running :: I :: running
-  {{ tex { \mathbf{R} } }}
-| Return v :: I :: return
-  {{ tex { \mathbf{Ret} \,\, [[v]]} }}
-| pars_next :: I :: pars_next
-| TypeError :: I :: type_error
-  {{ tex { \bot } }}
-
-scope {{ tex \gamma }} :: scope_ ::=
-{{ hol (string |-> (v # string option)) }}
-{{ com frame/variable environment of current scope }}
-| emptyscope :: M :: empty
-  {{ com empty stack frame }}
-  {{ hol FEMPTY }}
-  {{ tex {\gamma}_{ \emptyset } }}
-| scope + [ x |-> ( v , NONE ) ] :: M :: update
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE ))) }}
-  {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
-| scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE_LIST [[scope]] [[x1 v1 .. xn vn]]) }}
-  %TODO: The below is a hack since LaTeX cannot interpret dot form...
-  {{ tex \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\, [[scope]] }}
-| ( scope ) :: S :: paren
-  {{ hol ([[scope]]) }}
-| G scope :: M :: global
-  {{ com global scope }}
-  {{ tex {[[scope]]}_G }}
-  {{ hol [[scope]] }}
-
-%Fence so that ott does not re-order curr_stack_frame
-embed
-{{ hol
-
-}}
-grammar
-
-curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
-{{ hol (scope list) }}
-{{ com current stack frame - stack of block scopes }}
-| emptycsf :: M :: empty
-  {{ hol ([]:scope list) }}
-  {{ tex {\emptyset}_{\varepsilon} }}
-| [ scope1 , .. , scopen ] :: M :: list
-  {{ hol ([[scope1 .. scopen]]) }}
-| tl curr_stack_frame :: M :: tl
-  {{ hol (TL [[curr_stack_frame]]) }}
-  {{ tex \mathrm{tl} ([[curr_stack_frame]]) }}
-| scope '::' curr_stack_frame' :: M :: cons
-  {{ hol ([[scope]] :: [[curr_stack_frame']]) }}
-  {{ tex [[scope]] :: [[curr_stack_frame']] }}
-| curr_stack_frame ++ curr_stack_frame' :: M :: append
-  {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
-  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
-| rev curr_stack_frame :: M :: rev
-  {{ hol (REVERSE [[curr_stack_frame]]) }}
-  {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
-| update ( scope , i , curr_stack_frame ) :: M :: update_scope
-  {{ com update a scope in the stack frame }}
-  {{ hol ( LUPDATE [[scope]] [[i]] [[curr_stack_frame]] ) }}
-  {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
-| assign ( curr_stack_frame , v , x ) :: M :: assign
-  {{ com assign to a variable in the stack frame }}
-  {{ hol (assign [[curr_stack_frame]] [[v]] [[x]]) }}
-  {{ tex [[curr_stack_frame]] [ [[x]] \longmapsto [[v]] ] }}
-| update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
-  %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
-  {{ com update caller's stack frame upon function return }}
-  %TODO: fix the \varepsilon and e list in the latex output. 
-  {{ tex \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
-	                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
-                          \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
-  {{ hol (update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
-| ( curr_stack_frame ) :: S :: paren
-  {{ hol ([[curr_stack_frame]]) }}
-
-%Fence so that ott does not re-order called_function_name
-embed
-{{ hol
-
-}}
-grammar
-
-called_function_name {{ tex F_n }} :: called_function_name_ ::=
-{{ com called function name  }}
-| bot :: :: bot
-  {{ tex \bot }}
-| f :: :: function_name
-  {{ tex [[f]] }}
-
-%Fence so that ott does not re-order called_function_name
-embed
-{{ hol
-
-}}
-grammar  
-
-call_stack {{ tex E }} :: call_stack_ ::=
-{{ com stack of caller stack frames }}
-{{ hol ((curr_stack_frame # called_function_name) list) }}
-| emptycs :: M :: empty
-  {{ hol ([]:((curr_stack_frame # called_function_name) list)) }}
-  {{ tex {\emptyset}_{E} }}
-| [ ( curr_stack_frame1 , called_function_name1 ) , .. , ( curr_stack_framen , called_function_namen ) ] :: M :: list
-  {{ hol ([[curr_stack_frame1 called_function_name1 .. curr_stack_framen called_function_namen]]) }}
-| ( curr_stack_frame , called_function_name ) '::' call_stack :: M :: cons
-  {{ hol (([[curr_stack_frame]], [[called_function_name]]) :: [[call_stack]]) }}
-  {{ tex ([[curr_stack_frame]], [[called_function_name]]) :: [[call_stack]] }}
-| ( call_stack ) :: S :: paren
-  {{ hol ([[call_stack]]) }}
-
-stacks {{ tex \sigma }} :: stacks_ ::=
-{{ com stacks in execution state }}
-| ( curr_stack_frame , call_stack ) :: :: tup
-
-state {{ tex s }} :: state_ ::=
-{{ com execution state }}
-| ( stacks , status ) :: :: tup
+  {{ hol ([[type_map]], [[ext_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -629,6 +667,8 @@ formula :: formula_ ::=
   {{ com inequality over errors }}
   {{ hol (([[x]] <> [[x']]) = [[b]]) }}
   {{ tex ([[x]] \neq [[x']]) = [[b]] }}
+| b NE b' = b'' :: M :: neq_bool
+  {{ hol (([[b]] <> [[b']]) <=> [[b'']]) }}
 | bitv & bitv' = bitv'' :: M :: and_word
   {{ hol (bitv_bl_binop band [[bitv]] [[bitv']] = [[bitv'']]) }}
 | bitv ^ bitv' = bitv'' :: M :: xor_word
@@ -807,6 +847,26 @@ formula :: formula_ ::=
   {{ com create new varaible in declaration }}
   {{ hol ([[v]] = arb_from_t [[t]]) }}
   {{ tex [[v]] = \mathrm{arb\_from\_t} [[t]] }}
+| ext x ( e1 , .. , en ) ( stacks , Running ) = ( v , ( stacks' , status ) ) :: M :: exec_ext
+  {{ com execute extern method }}
+  {{ hol ([[ext]] ([[x]], [[e1 .. en]], (state_tup [[stacks]] status_running)) = SOME ([[v]], (state_tup [[stacks']] [[status]]))) }}
+| ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
+  {{ com ext lookup }}
+  {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
+| curr_stack_frame' = assign ( curr_stack_frame , v , lval ) :: M :: assign
+  {{ com assign v to lval in the frame }}
+  {{ hol (SOME [[curr_stack_frame']] = assign [[curr_stack_frame]] [[v]] [[lval]]) }}
+  {{ tex [[curr_stack_frame']] = [[curr_stack_frame]] [ [[lval]] \longmapsto [[v]] ] }}
+| curr_stack_frame'' = update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
+  %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
+  {{ com update caller's stack frame upon function return }}
+  %TODO: fix the \varepsilon and e list in the latex output. 
+  {{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
+	                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
+                          \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
+  {{ hol (SOME [[curr_stack_frame'']] = update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
+
+
 embed
 {{ hol
 val is_const_def = Define `
@@ -1165,26 +1225,42 @@ val unred_arg_index_def = Define `
     | NONE => NONE
 `;
 
+val get_lval_of_e_def = Define `
+  (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
+  (get_lval_of_e (e_acc e (e_var x)) =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_field lval x)
+   | NONE => NONE) /\
+  (get_lval_of_e _ = NONE)
+`;
+
+val is_e_lval_def = Define `
+  (is_e_lval e =
+    case get_lval_of_e e of
+    | SOME lval => T
+    | NONE => F)
+`;
+
 (* Checks if function arguments have been appropriately reduced.
  * In e_func_call_newframe rule, we need this definition to show the second premise *)
 val is_arg_red_def = Define `
-  is_arg_red d e = 
-   ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_var e)) = T)
+  is_arg_red d e =
+   ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_e_lval e)) = T)
 `;
 val check_arg_red_def = Define `
-  check_arg_red dlist e i = 
-   ((is_d_none_in (EL i dlist) ==> (is_const e)) /\ (~(is_d_none_in (EL i dlist)) ==> (is_var e)) = T)
+  check_arg_red dlist e i =
+    is_arg_red (EL i dlist) e
 `;
 val check_args_red_def = Define `
   check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
 `;
 
-(* Given an an expression (should be a e_var or e_v), a direction and a stack frame,
+(* Given an an expression (should be a lval), a direction and a stack frame,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
   one_arg_val_for_newscope d e sf =
    if ~(is_d_none_in d)
-   then ((lookup_vexp sf e), SOME (extract_string e))
+   then (lookup_vexp sf e, get_lval_of_e e)
    else (extract_value e, NONE)
 `;
 
@@ -1200,11 +1276,23 @@ val all_arg_update_for_newscope_def = Define `
  * written as ε[a -> v], colloquially known as assignment.
  * Note that this function will be used in the assignment and return rules *)
 val assign_def = Define `
-  assign sf val a =
-    LUPDATE
-      ((topmost_scope sf a) |+ (a, (val, lookup_out sf a)))
-      (topmost_scope_index sf a)
-      sf
+  (assign sf val (lval_varname x) =
+    SOME
+      (LUPDATE
+        ((topmost_scope sf x) |+ (x, (val, lookup_out sf x)))
+        (topmost_scope_index sf x)
+        sf)) /\
+  (assign sf val (lval_field lval f) =
+    case lookup_lval sf lval of
+    | (v_struct f_v_l) =>
+      assign sf (v_struct (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
+    | (v_header validity f_v_l) =>
+      assign sf (v_header validity (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
+    | _ => NONE
+  ) /\
+  (assign sf val lval_null =
+    SOME sf
+  )
 `;
 
 (* Given lists of variable names and directions, a caller's stack frame sf
@@ -1216,11 +1304,15 @@ val update_return_frame_def = Define `
       (\sf_temp (x,d).
         if (is_d_none_in d)
         then sf_temp
-        else assign sf_temp (lookup_v sf_current x) (THE (lookup_out sf_current x))
+        else
+          case sf_temp of
+          | SOME sf_temp => assign sf_temp (lookup_v sf_current x) (THE (lookup_out sf_current x))
+          | NONE => NONE
       )
-      sf
+      (SOME sf)
       (ZIP(xlist, dlist))
 `;
+
 
 val arb_from_t_def = Define `
   (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
@@ -1258,17 +1350,34 @@ by
   curr_stack_frame'' = tl curr_stack_frame
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
-  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , status )
   ----------------------------------- :: func_exec
   ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , status )
 
-%Note: this rule works together with the "ret" rule in the statement semantics.
-%      By the time statement has been reduced to empty_stmt, the stacks have
-%      been updated with the effect of the function call on the caller stacks.
+  ( curr_stack_frame' , f ) :: call_stack' = call_stack
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  G scope = curr_stack_frame [ 0 ]
+  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
+  curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: func_ret
-  ctx [exec empty_stmt] ( stacks , Return v ) ~> [v] ( stacks , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [exec return v] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
+
+  ( curr_stack_frame' , f ) :: call_stack' = call_stack
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  G scope = curr_stack_frame [ 0 ]
+  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
+  curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  ----------------------------------- :: func_ret_seq
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [exec return v ; stmt'] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
+
+%Extern method exec
+  ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  ext x ( e1 , .. , en ) ( stacks , Running ) = ( v , ( stacks' , status ) )
+  ----------------------------------- :: ext_exec
+  ctx [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [v] ( stacks' , status )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
@@ -1304,10 +1413,19 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (type_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
-  (type_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+
+%Arguments to extern method call
+  ( empty_stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+  e = [ e1 , .. , en ] [ i ]
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+  ----------------------------------- :: ext_call_args
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [call x f ( e'1 , .. , e'n )] ( stacks' , Running )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
@@ -1465,6 +1583,10 @@ by
   ----------------------------------- :: neq_error
   ctx [(errmsg x) NE (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
 
+  b NE b' = b''
+  ----------------------------------- :: neq_bool
+  ctx [b NE b'] ( stacks , Running ) ~> [b''] ( stacks , Running )
+
 %%%%%%%%%%%%%
 %Equal
 
@@ -1475,6 +1597,10 @@ by
   (x EQ x') = b
   ----------------------------------- :: eq_error
   ctx [(errmsg x) EQ (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
+
+  b EQ b' = b''
+  ----------------------------------- :: eq_bool
+  ctx [b EQ b'] ( stacks , Running ) ~> [b''] ( stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
@@ -1535,34 +1661,29 @@ by
 %%%%%%%%%%%%%%
 %Return
 
-  ( curr_stack_frame' , f ) :: call_stack' = call_stack
-  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
-  G scope = curr_stack_frame [ 0 ]
-  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
-  curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
-  ----------------------------------- :: ret
-  (type_map, func_map, pars_map, t_map, ctrl) [return v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame''' , call_stack' ) , Return v )
+%NOTE: The behaviour of the return statement is covered by the "func_ret" and "func_ret_seq" rules
 
 %%%%%%%%%%%%%%
 %Assignment
 
   %Assign a constant to a variable
-  curr_stack_frame' = assign ( curr_stack_frame , v , x )
+  curr_stack_frame' = assign ( curr_stack_frame , v , lval )
   ----------------------------------- :: ass_v
-  ctx [assign x v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [assign lval v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign to a struct field
-  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
-  ----------------------------------- :: ass_s
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
+%  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+%  v' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
+%  ----------------------------------- :: ass_s
+%  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign to a header field
-  header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
-  v' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
-  ----------------------------------- :: ass_h
-  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [assign lval  v'] ( ( curr_stack_frame , call_stack ) , Running )
+%  header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+%  v' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
+%  ----------------------------------- :: ass_h
+%  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
 
+%TODO: Now also covered by the assign function
   %Assign to null
   %Note: This is be used to model function calls as an expression.
   ----------------------------------- :: ass_null
@@ -1578,10 +1699,6 @@ by
 
   ----------------------------------- :: seq2
   ctx [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
-
-  ctx [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Return v )
-  ----------------------------------- :: seq3
-  ctx [stmt1 ; stmt2] ( stacks , Running ) -> [ empty_stmt ] ( stacks' , Return v )
 
 %%%%%%%%%%%%%%
 %Conditional
@@ -1662,7 +1779,7 @@ by
   t_map ( table_name ) = ( e' , match_kind )
   ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  (type_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
@@ -1720,10 +1837,10 @@ by
   ------------------------------------------------- :: stmt
   ctx [stmt]( stacks , status ) --> [stmt']( stacks' , status' )
 
-  (type_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (type_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
 
 %If the end of some parser state is reached without status change, we reject
   ctx [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
