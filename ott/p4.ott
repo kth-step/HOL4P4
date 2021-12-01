@@ -95,7 +95,6 @@ ext_obj :: ext_obj_ ::=
 | ipv4_checksum :: :: ck
   {{ com ipv4 header checksum }}
 
-%TODO: Add string literal separate from variable name?
 %TODO: Add identifiers
 %TODO: Add enums
 v :: v_ ::=
@@ -105,6 +104,8 @@ v :: v_ ::=
 %bitv currently represents both signed and unsigned bit-strings
 | bitv :: :: bit
   {{ com bit-string }}
+| x :: :: str
+  {{ com string literal }}
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
   {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
 | header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
@@ -362,9 +363,9 @@ ext {{ tex { \mathit{ext} } }} :: ext_ ::=
 e :: e_ ::=
 {{ com expression }}
 | v :: :: v
- {{com constant value}}
-| x :: :: var
-  {{ com variable, extern object or parser state name }}
+  {{ com constant value }}
+| var x :: :: var
+  {{ com variable or extern object }}
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -643,7 +644,7 @@ formula :: formula_ ::=
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
 | ( x EQ x' ) = b :: M :: eq_error
-  {{ com equality over errors }}
+  {{ com equality over strings - used for errors }}
   {{ hol (([[x]] = [[x']]) = [[b]]) }}
   {{ tex ([[x]] = [[x']]) = [[b]] }}
 | bitv SHL bitv' = bitv'' :: M :: shl
@@ -664,7 +665,7 @@ formula :: formula_ ::=
 | bitv NE bitv' = b :: M :: neq_word
   {{ hol (([[bitv]] <> [[bitv']]) <=> [[b]]) }}
 | ( x <> x' ) = b :: M :: neq_error
-  {{ com inequality over errors }}
+  {{ com inequality over strings - used for errors }}
   {{ hol (([[x]] <> [[x']]) = [[b]]) }}
   {{ tex ([[x]] \neq [[x']]) = [[b]] }}
 | b NE b' = b'' :: M :: neq_bool
@@ -718,9 +719,9 @@ formula :: formula_ ::=
 | e = hd e_list :: M :: args_hd
   {{ hol ([[e]] = HD [[e_list]]) }}
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
-| v = lookup_vexp ( curr_stack_frame , e ) :: :: lookup_v
-  {{ tex [[v]] = \mathrm{lookup_v} ([[curr_stack_frame]], [[e]]) }}
-  {{ hol [[v]] =  lookup_vexp [[curr_stack_frame]] [[e]]}}
+| v = lookup_vexp ( curr_stack_frame , x ) :: :: lookup_v
+  {{ tex [[v]] = \mathrm{lookup_v} ([[curr_stack_frame]], [[x]]) }}
+  {{ hol [[v]] =  lookup_vexp [[curr_stack_frame]] [[x]]}}
 | ( v , a ) = lookup_tup ( curr_stack_frame , x ) :: :: lookup_tup
   {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[curr_stack_frame]], [[x]]) }}
 | x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
@@ -1194,8 +1195,8 @@ val lookup_out_def = Define `
 `;
 (* Same as the above, but directly from an expression *)
 val lookup_vexp_def = Define `
-  lookup_vexp (sf:scope list) e =
-    lookup_v (sf:scope list) (extract_string e) 
+  lookup_vexp (sf:scope list) x =
+    lookup_v (sf:scope list) x 
 `;
 
 (* Look up the value of a l-value (variables + fields of struct-valued variables) in
@@ -1260,7 +1261,7 @@ val check_args_red_def = Define `
 val one_arg_val_for_newscope_def = Define `
   one_arg_val_for_newscope d e sf =
    if ~(is_d_none_in d)
-   then (lookup_vexp sf e, get_lval_of_e e)
+   then (lookup_vexp sf (extract_string e), get_lval_of_e e)
    else (extract_value e, NONE)
 `;
 
@@ -1328,7 +1329,7 @@ defn
   ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
   {{ com expression semantics }}
   %TODO Should use different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status?
-  %{{ tex [ [[e]] ] [[stacks]] \rightsquigarrow [ [[e']] ] [[stacks']] }}
+  {{ tex [[ctx]] \vdash [ [[e]] ] ([[stacks]], [[status]]) \rightsquigarrow [ [[e']] ] ([[stacks']], [[status']]) }}
 by
 
 %%%%%%%%%%%%%%%%%
@@ -1336,7 +1337,7 @@ by
 
   v = lookup_vexp ( curr_stack_frame , x )
   ----------------------------------- :: lookup
-  ctx [x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
+  ctx [var x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
 
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
@@ -1656,6 +1657,7 @@ by
 defn
   ctx [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
   {{ com statement semantics }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \rightarrow [ [[stmt']] ] ([[state']]) }}
 by
 
 %%%%%%%%%%%%%%
@@ -1831,6 +1833,7 @@ defns
 defn
   ctx [ stmt ] state --> [ stmt' ] state' :: :: pars_red :: pars_
   {{ com parser semantics }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \longrightarrow [ [[stmt']] ] ([[state']]) }}
 by
 
   ctx [stmt]( stacks , status ) -> [stmt']( stacks' , status' )
@@ -1853,6 +1856,7 @@ defns
 defn
   ctx [ stmt ] state --> state' :: :: pars_t_red :: pars_t_
   {{ com parser semantics, final step }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \longrightarrow [[state']] }}
 by
 
   ctx [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )

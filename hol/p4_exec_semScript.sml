@@ -132,6 +132,11 @@ Definition is_v_err:
  (is_v_err _ = F)
 End
 
+Definition is_v_str:
+ (is_v_str (e_v (v_str x)) = T) /\
+ (is_v_str _ = F)
+End
+
 Definition is_var:
  (is_var (e_var x) = T) /\
  (is_var _ = F)
@@ -286,12 +291,12 @@ End
 
 (* Field access *)
 Definition e_exec_acc:
- (e_exec_acc (e_acc (e_v (v_struct f_v_list)) (e_var f)) stacks status =
+ (e_exec_acc (e_acc (e_v (v_struct f_v_list)) (e_v (v_str f))) stacks status =
   case FIND (\(k, v). k = f) f_v_list of
   | SOME (f, v) => SOME (e_v v, stacks, status)
   | NONE => NONE)
   /\
- (e_exec_acc (e_acc (e_v (v_header boolv f_v_list)) (e_var f)) stacks status =
+ (e_exec_acc (e_acc (e_v (v_header boolv f_v_list)) (e_v (v_str f))) stacks status =
   case FIND (\(k, v). k = f) f_v_list of
   | SOME (f, v) => SOME (e_v v, stacks, status)
   | NONE => NONE)
@@ -323,7 +328,7 @@ Definition stmt_exec_verify:
   SOME stmt_empty)
   /\
  (stmt_exec_verify (e_v (v_bool F)) (e_v (v_err x)) =
-  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_var "reject"))))
+  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_v (v_str "reject")))))
   /\
  (stmt_exec_verify _ _ = NONE)
 End
@@ -388,22 +393,25 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (********************)
  (* Variable look-up *)
  (e_exec _ (e_var x) (stacks_tup curr_stack_frame call_stack) status_running =
-  SOME (e_v (lookup_vexp curr_stack_frame (e_var x)), stacks_tup curr_stack_frame call_stack, status_running))
+  SOME (e_v (lookup_vexp curr_stack_frame x), stacks_tup curr_stack_frame call_stack, status_running))
   /\
  (***********************)
  (* Struct/header field access *)
  (e_exec ctx (e_acc e_struct e_field) stacks status =
-  if is_var e_field
+  if is_v e_field
   then
-   if is_v e_struct
+   if is_v_str e_field
    then
-    (case e_exec_acc (e_acc e_struct e_field) stacks status of
-     | SOME res => SOME res
-     | NONE => NONE)
-   else
-    (case e_exec ctx e_struct stacks status of
-     | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
-     | NONE => NONE)
+    (if is_v e_struct
+     then
+      (case e_exec_acc (e_acc e_struct e_field) stacks status of
+       | SOME res => SOME res
+       | NONE => NONE)
+     else
+      (case e_exec ctx e_struct stacks status of
+       | SOME (e_struct', stacks', status') => SOME (e_acc e_struct' e_field, stacks', status')
+       | NONE => NONE))
+   else NONE
   else
    (case e_exec ctx e_field stacks status of
     | SOME (e_field', stacks', status') => SOME (e_acc e_struct e_field', stacks', status')
@@ -772,12 +780,12 @@ REPEAT STRIP_TAC >>
 Cases_on `status` >> (
  fs [e_stmt_exec_def, e_ignore_pars_next]
 ) >>
-Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_var e2` >| [
+Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* 1st case is base case *)
  Cases_on `e1` >>  Cases_on `e2` >> (
-  fs [is_v, is_var]
+  fs [is_v]
  ) >>
- Cases_on `v` >> (
+ Cases_on `v` >> Cases_on `v'` >>(
   fs [e_stmt_exec_def, e_exec_acc]
  ) >> (
   Cases_on `FIND (\(k,v). k = s) l'` >>
@@ -814,7 +822,10 @@ Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_var e2` >| [
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >> Cases_on `e2` >> (
-  fs [is_var]
+  fs [is_v]
+ ) >>
+ Cases_on `v` >> (
+  fs [is_v_str]
  ) >>
  METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg1"), clause_name_def],
 
