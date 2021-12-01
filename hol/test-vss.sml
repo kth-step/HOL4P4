@@ -58,7 +58,7 @@ val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``;
 (* p.ip.ihl == 4w5 *)
 val e_ip_ihl_eq_4w5 = ``e_binop (^e_ip_ihl) binop_eq (^e_4w5)``;
 (* ck.get() == 16w0 *)
-val e_ck_eq_16w0 = ``e_binop (e_ext_call "ck" "get" []) binop_eq (^e_16w0)``;
+val e_ck_eq_16w0 = ``e_binop (e_ext_call (lval_varname "ck") "get" []) binop_eq (^e_16w0)``;
 
 (* error.IPv4IncorrectVersion *)
 val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``;
@@ -70,17 +70,17 @@ val e_err_checksum = ``e_v (v_err "IPv4ChecksumError")``;
 val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
 
 (* start parser state *)
-val stmt_start_extract = ``stmt_ass lval_null (e_ext_call "b" "extract" [(^e_eth)])``;
+val stmt_start_extract = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "extract" [(^e_eth)])``;
 val stmt_start_trans = ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
 
 val start_body = mk_stmt_seq_list [stmt_start_extract, stmt_start_trans];
 
 (* parse_ipv4 parser state *)
-val stmt_parse_ipv4_extract = ``stmt_ass lval_null (e_ext_call "b" "extract" [(^e_ip)])``;
+val stmt_parse_ipv4_extract = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "extract" [(^e_ip)])``;
 val stmt_parse_ipv4_verify1 = ``stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)``;
 val stmt_parse_ipv4_verify2 = ``stmt_verify (^e_ip_ihl_eq_4w5) (^e_err_options)``;
-val stmt_parse_ipv4_clear = ``stmt_ass lval_null (e_ext_call "ck" "clear" [])``;
-val stmt_parse_ipv4_update = ``stmt_ass lval_null (e_ext_call "ck" "update" [(^e_ip)])``;
+val stmt_parse_ipv4_clear = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "clear" [])``;
+val stmt_parse_ipv4_update = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "update" [(^e_ip)])``;
 val stmt_parse_ipv4_verify3 = ``stmt_verify (^e_ck_eq_16w0) (^e_err_checksum)``;
 val stmt_parse_ipv4_trans = ``stmt_trans (e_var "accept")``;
 
