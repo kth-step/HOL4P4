@@ -128,7 +128,7 @@ Types are sometimes explicitly referenced in the syntax, e.g. in declaration sta
 \newcommand{\cval}{\ensuremath{v}}
 \newcommand{\fexec}[1]{\textbf{exec}\,\,#1}
 
-First, an expression can be a value: a Boolean or an integer (collectively referred to as constant values \cval{}), or a string $x$ (typically a variable or parser state name). Lists of expressions can be used in declarations of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. The function call is built from the function name \fn{}, and a list of arguments (expressions). In-progress execution of the body of a called function, \fexec{\stmt{}}, is not a part of the P4 syntax, but is rather an artifact of our small-step semantics.
+First, an expression can be a value: a Boolean or an integer (collectively referred to as constant values \cval{}), or a variable or parser state name $x$. Lists of expressions can be used in declarations of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. The function call is built from the function name \fn{}, and a list of arguments (expressions). In-progress execution of the body of a called function, \fexec{\stmt{}}, is not a part of the P4 syntax, but is rather an artifact of our small-step semantics.
 
 The \textbf{select} expression is similar to a switch statement in C or Java. The expression $e$ is evaluated, and then matched against $v_1 , \ldots , v_n$. If some match is successful, the \textbf{select} expression evaluates to the string at the corresponding index. If no match occurs, then it instead evaluates to the default string $x$.
 
@@ -250,6 +250,9 @@ The \textsc{e\_s\_acc} rule is used to access the values of fields in structs, a
 \\~\\
 The \textsc{e\_sel\_acc} rule is used to match the given value $v$ against the key-value list, in the case a match exists. The \textsc{e\_sel\_def} rule is used for the default case, when no match exists. 
 
+%TODO Write explanation for new function return
+%Once the expression in the \textbf{return} statement has been reduced to a constant, the rule \textsc{stmt\_ret} can be applied. The global scope \gscope{} is always stored at the bottom (index zero) in the stack of scopes, i.e. $\currsf [0]$. It is fetched and concatenated with the frame of the most recent caller that is stored on top of the call stack $\cstack$. Thus, this concatenation will yield a new frame $\currsf$ that has the same shape as the one before the function being called (of course before reaching the \textbf{return} statement some variable mappings in the global scope \gscope{} could have been changed during function evaluation). Then, the values of parameters with direction out (obtained from the function map $F$) are copied over to the frame of the caller, using the names of the provided arguments (stored in the frame of the callee $\varepsilon$). The status is also changed to $\mathbf{Return} \,\, v$ which allows for applying \textsc{e\_func\_ret}.
+
 \newpage
 \subsection{Calling convention}   
 The calling conventions can be directioned or directionless. The direction can be either IN, OUT or INOUT. 
@@ -319,9 +322,7 @@ The semantics of the statements is shown in Figures~\ref{fig:strsemstmtexec} and
 \begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
 \ottusedrule{\ottdrulestmtXXdecl{}}
 \ottusedrule{\ottdrulestmtXXassXXv{}}
-\ottusedrule{\ottdrulestmtXXassXXs{}}
-\ottusedrule{\ottdrulestmtXXassXXh{}}
-\ottusedrule{\ottdrulestmtXXret{}}
+\ottusedrule{\ottdrulestmtXXassXXnull{}}
 \ottusedrule{\ottdrulestmtXXcondTwo{}}
 \ottusedrule{\ottdrulestmtXXcondThree{}}
 \end{ottdefnblock}
@@ -332,9 +333,7 @@ The \textsc{stmt\_decl} is used to reduce the \textbf{decl} statement, which has
 \\~\\
 The \textsc{stmt\_ass\_v} rule handles the assignment statement. In general, the variables that the program can assign values to are in the current frame, and never in $\cstack$. The antecedent $\currsf [ \vn \longmapsto \cval ]$ obtains the topmost (i.e. most recently entered) scope in the current frame $\currsf$ containing the variable, then updates the mapping of the variable name \vn{} to the new value (constant \cval{}) in this scope. The reduction results in the empty statement and an updated current frame.
 \\~\\
-The \textsc{stmt\_ass\_s} and \textsc{stmt\_ass\_h} rules handle the cases where the field of a struct or header are assigned to; specifically, they reduce $lval$s with field accesses to $f$ in the assignment to a $lval$ without field access, and the value $v$ to be assigned to $v'$, where $v'$ is the value of $lval$ (considered as an expression) looked up (lookup\_lval) in the current stack frame $\currsf$, with field $f$ set to $v$. Accordingly, for a $lval$ with $m$ nested field accesses, this rule will have to be applied $m$ times in order for \textsc{stmt\_ass\_v} to be used on the result.
-
-Once the expression in the \textbf{return} statement has been reduced to a constant, the rule \textsc{stmt\_ret} can be applied. The global scope \gscope{} is always stored at the bottom (index zero) in the stack of scopes, i.e. $\currsf [0]$. It is fetched and concatenated with the frame of the most recent caller that is stored on top of the call stack $\cstack$. Thus, this concatenation will yield a new frame $\currsf$ that has the same shape as the one before the function being called (of course before reaching the \textbf{return} statement some variable mappings in the global scope \gscope{} could have been changed during function evaluation). Then, the values of parameters with direction out (obtained from the function map $F$) are copied over to the frame of the caller, using the names of the provided arguments (stored in the frame of the callee $\varepsilon$). The status is also changed to $\mathbf{Return} \,\, v$ which allows for applying \textsc{e\_func\_ret}.
+The \textsc{stmt\_ass\_null} rule handles the case where null variable is assigned to, i.e., in method calls.
 \\~\\
 The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones for conditional statements.
 \\~\\
@@ -343,7 +342,6 @@ The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones fo
 \begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
 \ottusedrule{\ottdrulestmtXXseqOne{}}
 \ottusedrule{\ottdrulestmtXXseqTwo{}}
-\ottusedrule{\ottdrulestmtXXseqThree{}}
 \ottusedrule{\ottdrulestmtXXblockXXenter{}}
 \ottusedrule{\ottdrulestmtXXblockXXexec{}}
 \ottusedrule{\ottdrulestmtXXblockXXexit{}}
@@ -352,7 +350,7 @@ The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones fo
 \label{fig:strsemstmtexec}
 \end{figure}
 
-The \textsc{stmt\_seq1} and \textsc{stmt\_seq2} rules are pretty standard. The \textsc{stmt\_seq3} rule is used in the situation when the \textbf{return} statement does not occur at the end of the the function body. The next statement to reduce will be empty and the status will be changed to \textbf{Return}, which is handled by \textsc{stmt\_ret}.
+The \textsc{stmt\_seq1} and \textsc{stmt\_seq2} rules are pretty standard.
 \\~\\
 The \{\} brackets indicate a block, while the [ ] brackets indicate a block in progress of being executed.
 The \textsc{stmt\_block\_enter} rule is used to enter a block, which entails a new empty scope \escope{} being pushed onto the current frame \currsf{}, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents, and the \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the frame $\currsf$.
