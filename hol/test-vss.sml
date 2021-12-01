@@ -164,7 +164,8 @@ val ext_map = ``FEMPTY |+ ("extract", (extract, [("hdr", d_out)]))
                        |+ ("clear", (clear, []))
                        |+ ("update", (update, [("data", d_in)]))
                        |+ ("get", (get, []))
-                       |+ ("emit", (emit, [("data", d_in)]))``;
+                       |+ ("emit", (emit, [("data", d_in)]))
+                       |+ ("isValid", (is_valid, [("hdr", d_in)]))``;
 val ext_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, ``FEMPTY:func_map``, ``FEMPTY:pars_map``, ``FEMPTY:t_map``, ``ctrl:ctrl``];
 
 val status = ``status_running``;
@@ -282,8 +283,67 @@ val stacks_postparser_ok =
                           ("outCtrl", ((^out_control_struct_postparser), NONE)) |+
                           ("nextHop", v_bit (w2v (0w:word32), 32), NONE)]:scope list) ([]:call_stack)``;
 
-(* Test cases from the match-action pipeline of the VSS example *)
+val stacks_postparser_bad_error =
+ ``stacks_tup ([FEMPTY |+ ("headers", ((^parsed_packet_struct_postparser), NONE)) |+
+                          ("parseError", (v_err "PacketTooShort", NONE)) |+
+                          ("inCtrl", ((^in_control_struct_postparser), NONE)) |+
+                          ("outCtrl", ((^out_control_struct_postparser), NONE)) |+
+                          ("nextHop", v_bit (w2v (0w:word32), 32), NONE)]:scope list) ([]:call_stack)``;
 
+(* TODO: Move architectural constants to VSS architectural file? *)
+val DROP_PORT_tm = mk_v_bitii (15, 4);
+val CPU_OUT_PORT_tm = mk_v_bitii (15, 4);
+
+
+val e_outport = mk_lval_field (mk_lval_varname "outCtrl", "outputPort");
+val drop_action_fun = ``("Drop_action", (stmt_seq (stmt_ass (^e_outport) (e_v (^DROP_PORT_tm))) (stmt_ret (e_v v_bot))), []:(string # d) list)``;
+val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ip"), "ttl");
+val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var "headers", mk_e_var "ip"), mk_e_var "ttl");
+val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var "ipv4_dest")),
+                                                       (mk_stmt_ass (lval_headers_ip_ttl, mk_e_binop (e_headers_ip_ttl, binop_sub_tm, mk_e_v (mk_v_bitii (1, 8))))),
+                                                       
+                                                       (mk_stmt_ass (mk_lval_field (mk_lval_varname "outCtrl", "outputPort"), mk_e_var "port"))])), [("ipv4_dest", d_none); ("port", d_none)]:(string # d) list)``;
+val send_to_cpu_fun = ``("Send_to_cpu", stmt_ass (^e_outport) (e_v (^CPU_OUT_PORT_tm)), []:(string # d) list)``;
+val lval_ethdst = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "dstAddr");
+val set_dmac_fun = ``("Set_dmac", stmt_ass (^lval_ethdst) (e_var "dmac"), [("dmac", d_none)]:(string # d) list)``;
+val lval_ethsrc = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "srcAddr");
+val set_smac_fun = ``("Set_smac", stmt_ass (^lval_ethsrc) (e_var "smac"), [("smac", d_none)]:(string # d) list)``;
+val func_map = ``FEMPTY |+ (^drop_action_fun)
+                        |+ (^set_nhop_fun)
+                        |+ (^send_to_cpu_fun)
+                        |+ (^set_dmac_fun)
+                        |+ (^set_smac_fun)``;
+
+
+val ipv4_match_table = ``("ipv4_match", (e_acc (e_acc (e_var "headers") (e_var "ip")) (e_var "dstAddr"), match_kind_lpm))``;
+val check_ttl_table = ``("check_ttl", (e_acc (e_acc (e_var "headers") (e_var "ip")) (e_var "ttl"), match_kind_exact))``;
+val dmac_table = ``("dmac", (e_var "nextHop", match_kind_exact))``;
+val smac_table = ``("smac", (e_acc (e_var "outCtrl") (e_var "outputPort"), match_kind_exact))``;
+val t_map = ``FEMPTY |+ (^ipv4_match_table)
+                     |+ (^check_ttl_table)
+                     |+ (^dmac_table)
+                     |+ (^smac_table)``;
+
+
+val toppipe_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, func_map, ``FEMPTY:pars_map``, t_map, ``ctrl:ctrl``];
+
+
+val e_parseerror_cond = mk_e_binop (``(e_var "parseError")``, binop_neq_tm, ``(e_v (v_err "NoError"))``);
+val stmt_parseerror_then = mk_stmt_seq (mk_stmt_ass (lval_null_tm, mk_e_func_call (``"Drop_action"``, ``[]:e list``)) , mk_stmt_ret ``e_v v_bot``);
+val stmt_parseerror = mk_stmt_cond (e_parseerror_cond, stmt_parseerror_then, stmt_empty_tm);
+
+val e_ipv4_match_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_var "outputPort"))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
+val stmt_ipv4_match = mk_stmt_seq (mk_stmt_app (``"ipv4_match"``, ``e_v v_bot``), mk_stmt_cond (e_ipv4_match_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
+
+val e_check_ttl_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_var "outputPort"))``, binop_eq_tm, mk_e_v CPU_OUT_PORT_tm);
+val check_ttl_match = mk_stmt_seq (mk_stmt_app (``"check_ttl"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
+
+val e_dmac_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_var "outputPort"))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
+val dmac_match = mk_stmt_seq (mk_stmt_app (``"dmac"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
+
+val smac_match = mk_stmt_app (``"smac"``, ``e_v v_bot``);
+
+(* Test cases from the match-action pipeline of the VSS example *)
 val vss_matchaction_test_cases = [
   (*
   if (parseError != error.NoError) {
@@ -291,5 +351,66 @@ val vss_matchaction_test_cases = [
       return;
   }
   *)
-  (``stmt_multi_exec ctx (^stmt_start_extract) (^stacks_postparser_ok) status_running 20``, NONE)
+  (``stmt_multi_exec (^toppipe_ctx) (^stmt_parseerror) (^stacks_postparser_ok) status_running 20``, NONE:term option),
+  (* Note that the error case only takes steps up until the return statement *)
+  (``stmt_multi_exec (^toppipe_ctx) (^stmt_parseerror) (^stacks_postparser_bad_error) status_running 9``, NONE:term option),
+  (*
+  ipv4_match.apply(); // Match result will go into nextHop
+  if (outCtrl.outputPort == DROP_PORT) return;
+  *)
+  (``stmt_multi_exec (^toppipe_ctx) (^stmt_ipv4_match) (^stacks_postparser_ok) status_running 1``, NONE:term option),
+  (*
+  check_ttl.apply();
+  if (outCtrl.outputPort == CPU_OUT_PORT) return;
+  *)
+  (``stmt_multi_exec (^toppipe_ctx) (^check_ttl_match) (^stacks_postparser_ok) status_running 1``, NONE:term option),
+  (*
+  dmac.apply();
+  if (outCtrl.outputPort == DROP_PORT) return;
+  *)
+  (``stmt_multi_exec (^toppipe_ctx) (^dmac_match) (^stacks_postparser_ok) status_running 1``, NONE:term option),
+  (*
+  smac.apply();
+  *)
+  (``stmt_multi_exec (^toppipe_ctx) (^smac_match) (^stacks_postparser_ok) status_running 1``, NONE:term option)
 ];
+
+(* Test match-action pipeline VSS fragments *)
+val _ = test_red ("eval_stmt_multi_exec", eval_stmt_multi_exec)
+                 ("is_multi_exec_res_well_formed", is_multi_exec_res_well_formed)
+                 vss_matchaction_test_cases;
+
+(***********************)
+(*   Deparser tests    *)
+
+val deparser_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, ``FEMPTY:func_map``, ``FEMPTY:pars_map``, t_map, ``ctrl:ctrl``];
+
+(* NOTE: This does not include any effects from the match-action part *)
+val stacks_postmatchaction_ok =
+ ``stacks_tup ([FEMPTY |+ ("p", ((^parsed_packet_struct_postparser), NONE)) |+
+                          ("parseError", (v_err "NoError", NONE)) |+
+                          ("b", (v_ext (ext_obj_out []), NONE)) |+
+                          ("ck", (v_ext (ext_obj_ck 0w), NONE))]:scope list) ([]:call_stack)``;
+
+
+val stmt_deparser_emit = ``stmt_ass lval_null (e_ext_call "b" "emit" [(^e_eth)])``;
+
+val stmt_deparser_cond = ``stmt_cond (e_ext_call "p" "isValid" []) () ()``;
+
+val vss_deparser_test_cases = [
+  (*
+  b.emit(p.ethernet);
+  if (p.ip.isValid()) {
+      ck.clear();              // prepare checksum unit
+      p.ip.hdrChecksum = 16w0; // clear checksum
+      ck.update(p.ip);         // compute new checksum.
+      p.ip.hdrChecksum = ck.get();
+  }
+  b.emit(p.ip);
+  *)
+];
+
+(* Test match-action pipeline VSS fragments *)
+val _ = test_red ("eval_stmt_multi_exec", eval_stmt_multi_exec)
+                 ("is_multi_exec_res_well_formed", is_multi_exec_res_well_formed)
+                 vss_deparser_test_cases;

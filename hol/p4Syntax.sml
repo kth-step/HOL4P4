@@ -63,8 +63,13 @@ fun mk_v_header_list vbit x_v_l =
 (* lval *)
 (********)
 
-val (lval_varname_tm, mk_lval_varname, dest_lval_varname, is_lval_varname) =
+val (lval_varname_tm, _, dest_lval_varname, is_lval_varname) =
   syntax_fns1 "p4" "lval_varname";
+val mk_lval_varname = (#2 (syntax_fns1 "p4" "lval_varname")) o fromMLstring;
+
+val (lval_field_tm, _, dest_lval_field, is_lval_field) =
+  syntax_fns2 "p4" "lval_field";
+val mk_lval_field = (fn (e, f) => (#2 (syntax_fns2 "p4" "lval_field")) (e, fromMLstring f));
 
 val lval_null_tm = prim_mk_const {Name="lval_null", Thy="p4"};
 fun is_lval_null tm = term_eq tm lval_null_tm;
@@ -75,8 +80,9 @@ fun is_lval_null tm = term_eq tm lval_null_tm;
 
 val e_ty = mk_type ("e", []);
 
-val (e_var_tm,  mk_e_var, dest_e_var, is_e_var) =
+val (e_var_tm,  _, dest_e_var, is_e_var) =
   syntax_fns1 "p4" "e_var";
+val mk_e_var = (#2 (syntax_fns1 "p4" "e_var")) o fromMLstring;
 
 val (e_unop_tm,  mk_e_unop, dest_e_unop, is_e_unop) =
   syntax_fns2 "p4" "e_unop";
@@ -110,6 +116,9 @@ val binop_or_tm  = prim_mk_const {Name="binop_or",  Thy="p4"};
 val binop_bin_and_tm = prim_mk_const {Name="binop_bin_and", Thy="p4"};
 val binop_bin_or_tm  = prim_mk_const {Name="binop_bin_or",  Thy="p4"};
 
+val (e_acc_tm, mk_e_acc, dest_e_acc, is_e_acc) =
+  syntax_fns2 "p4"  "e_acc";
+
 val (e_func_call_tm, mk_e_func_call, dest_e_func_call, is_e_func_call) =
   syntax_fns2 "p4"  "e_func_call";
 
@@ -123,6 +132,12 @@ val (stmt_ass_tm, mk_stmt_ass, dest_stmt_ass, is_stmt_ass) =
   syntax_fns2 "p4"  "stmt_ass";
 val (stmt_seq_tm, mk_stmt_seq, dest_stmt_seq, is_stmt_seq) =
   syntax_fns2 "p4"  "stmt_seq";
+val (stmt_cond_tm, mk_stmt_cond, dest_stmt_cond, is_stmt_cond) =
+  syntax_fns3 "p4"  "stmt_cond";
+val (stmt_ret_tm, mk_stmt_ret, dest_stmt_ret, is_stmt_ret) =
+  syntax_fns1 "p4"  "stmt_ret";
+val (stmt_app_tm, mk_stmt_app, dest_stmt_app, is_stmt_app) =
+  syntax_fns2 "p4"  "stmt_app";
 
 fun mk_stmt_seq_list' (h::[]) = h
   | mk_stmt_seq_list' (h::t) =

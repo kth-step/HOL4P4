@@ -4,7 +4,6 @@ open p4Theory;
 
 val _ = new_theory "p4_vss";
 
-
 (**********************)
 (* Checksum16 methods *)
 (**********************)
