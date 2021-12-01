@@ -37,7 +37,7 @@ End
 
 Definition is_valid:
  (is_valid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
-  case lookup_v frame header_name of
+  case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
    SOME (v_bool valid_bit, state_tup (stacks_tup frame call_stack) status)
   | _ => NONE
@@ -46,9 +46,9 @@ End
 
 Definition set_valid:
  (set_valid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
-  case lookup_v frame header_name of
+  case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
-   (case assign frame (v_header T x_v_l) (lval_varname header_name) of
+   (case assign frame (v_header T x_v_l) header_name of
     | SOME frame' =>             
      SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
     | NONE => NONE)
@@ -58,9 +58,9 @@ End
 
 Definition set_invalid:
  (set_invalid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
-  case lookup_v frame header_name of
+  case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
-   (case assign frame (v_header F x_v_l) (lval_varname header_name) of
+   (case assign frame (v_header F x_v_l) header_name of
     | SOME frame' =>             
      SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
     | NONE => NONE)
@@ -74,7 +74,7 @@ End
 
 Definition lookup_packet_in:
  (lookup_packet_in frame ext_obj_name =
-  case lookup_v frame ext_obj_name of
+  case lookup_lval frame ext_obj_name of
   | (v_ext (ext_obj_in packet_in)) => SOME packet_in
   | _ => NONE
  )
@@ -140,7 +140,7 @@ Definition extract:
            | SOME x_v_l' =>
 	    (case assign frame (v_header T x_v_l') header_lval of
 	     | SOME frame' =>
-             (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) (lval_varname ext_obj_name) of
+             (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) ext_obj_name of
 	      | SOME frame'' =>             
 	       SOME (v_bot, state_tup (stacks_tup frame'' call_stack) status)
               | NONE => NONE)
@@ -163,7 +163,7 @@ End
 
 Definition lookup_packet_out:
  (lookup_packet_out frame ext_obj_name =
-  case lookup_v frame ext_obj_name of
+  case lookup_lval frame ext_obj_name of
   | (v_ext (ext_obj_in packet_out)) => SOME packet_out
   | _ => NONE
  )
@@ -207,7 +207,7 @@ Definition emit:
     | SOME (v_header T x_v_l) =>
      (case flatten_v_l (MAP SND x_v_l) of
       | SOME bl =>
-       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) (lval_varname ext_obj_name) of
+       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
 	| SOME frame' =>             
 	 SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
 	| NONE => NONE)
@@ -215,7 +215,7 @@ Definition emit:
     | SOME (v_struct x_v_l) =>
      (case flatten_v_l (MAP SND x_v_l) of
       | SOME bl =>
-       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) (lval_varname ext_obj_name) of
+       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
 	| SOME frame' =>             
 	 SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
 	| NONE => NONE)

@@ -15,7 +15,7 @@ Definition clear:
  (clear (ext_obj_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
   case e_l of
   | [] =>
-   (case assign frame (v_ext (ext_obj_ck 0w)) (lval_varname ext_obj_name) of
+   (case assign frame (v_ext (ext_obj_ck 0w)) ext_obj_name of
     | SOME frame' =>
      SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
     | NONE => NONE)
@@ -29,7 +29,7 @@ End
 
 Definition lookup_ipv4_checksum:
  (lookup_ipv4_checksum frame ext_obj_name =
-  case lookup_v frame ext_obj_name of
+  case lookup_lval frame ext_obj_name of
   | (v_ext (ext_obj_ck ipv4_checksum)) => SOME ipv4_checksum
   | _ => NONE
  )
@@ -92,7 +92,7 @@ Definition update:
   | SOME ipv4_checksum =>
   (case get_checksum_incr frame e_l of
    | SOME checksum_incr =>
-    (case assign frame (v_ext (ext_obj_ck (ipv4_checksum + checksum_incr))) (lval_varname ext_obj_name) of
+    (case assign frame (v_ext (ext_obj_ck (ipv4_checksum + checksum_incr))) ext_obj_name of
      | SOME frame' =>
       SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
      | NONE => NONE)

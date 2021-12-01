@@ -454,16 +454,16 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (******************)
  (* Extern-related *)
- (e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (e_ext_call x f e_l) (stacks_tup curr_stack_frame call_stack) status =
+ (e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (e_ext_call lval f e_l) (stacks_tup curr_stack_frame call_stack) status =
   case FLOOKUP ext_map f of
   | SOME (ext, x_d_l) =>
     (case unred_arg_index (MAP SND x_d_l) e_l of
      | SOME i  =>
       (case e_exec ((type_map, ext_map, func_map, pars_map, t_map, ctrl):ctx) (EL i e_l) (stacks_tup curr_stack_frame call_stack) status of
-       | SOME (e', stacks', status') => SOME (e_ext_call x f (LUPDATE e' i e_l), stacks', status')
+       | SOME (e', stacks', status') => SOME (e_ext_call lval f (LUPDATE e' i e_l), stacks', status')
        | NONE => NONE)
      | NONE =>
-      (case ext (x, e_l, state_tup (stacks_tup curr_stack_frame call_stack) status) of
+      (case ext (lval, e_l, state_tup (stacks_tup curr_stack_frame call_stack) status) of
        | SOME (v, state_tup stacks' status') => 
 	SOME (e_v v, stacks', status')
        | NONE => NONE
