@@ -40,13 +40,13 @@ val ck_ok = mk_v_bitii (0, 16);
 
 (* TODO: Use syntax functions *)
 (* p.ethernet *)
-val e_eth = ``e_acc (e_var "p") (e_var "ethernet")``;
+val e_eth = ``e_acc (e_var "p") (e_v (v_str "ethernet"))``;
 (* p.ip *)
-val e_ip = ``e_acc (e_var "p") (e_var "ip")``;
+val e_ip = ``e_acc (e_var "p") (e_v (v_str "ip"))``;
 (* p.ip.version *)
-val e_ip_v = ``(e_acc (^e_ip) (e_var "version"))``;
+val e_ip_v = ``(e_acc (^e_ip) (e_v (v_str "version")))``;
 (* p.ip.ihl *)
-val e_ip_ihl = ``(e_acc (^e_ip) (e_var "ihl"))``;
+val e_ip_ihl = ``(e_acc (^e_ip) (e_v (v_str "ihl")))``;
 (* 4w4 (as expression) *)
 val e_4w4 = mk_e_v ip_v0_ok;
 (* 4w5 (as expression) *)
@@ -67,7 +67,7 @@ val e_err_options = ``e_v (v_err "IPv4OptionsNotSupported")``;
 (* error.IPv4ChecksumError *)
 val e_err_checksum = ``e_v (v_err "IPv4ChecksumError")``;
 (* p.ethernet.etherType *)
-val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_var "ethernet")) (e_var "etherType"))``;
+val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_v (v_str "ethernet"))) (e_v (v_str "etherType")))``;
 
 (* start parser state *)
 val stmt_start_extract = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "extract" [(^e_eth)])``;
@@ -82,7 +82,7 @@ val stmt_parse_ipv4_verify2 = ``stmt_verify (^e_ip_ihl_eq_4w5) (^e_err_options)`
 val stmt_parse_ipv4_clear = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "clear" [])``;
 val stmt_parse_ipv4_update = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "update" [(^e_ip)])``;
 val stmt_parse_ipv4_verify3 = ``stmt_verify (^e_ck_eq_16w0) (^e_err_checksum)``;
-val stmt_parse_ipv4_trans = ``stmt_trans (e_var "accept")``;
+val stmt_parse_ipv4_trans = ``stmt_trans (e_v (v_str "accept"))``;
 
 val parse_ipv4_body =
   mk_stmt_seq_list [stmt_parse_ipv4_extract,
@@ -126,11 +126,32 @@ val ipv4_header_uninit =
                    (``"srcAddr"``, mk_v_bitii (0, 32)),
                    (``"dstAddr"``, mk_v_bitii (0, 32))];
 
+val ipv4_header_init =
+ mk_v_header_list T
+                  [(``"version"``, ip_v0_ok),
+                   (``"ihl"``, mk_v_bitii (0, 4)),
+                   (``"diffserv"``, mk_v_bitii (0, 8)),
+                   (``"totalLen"``, mk_v_bitii (0, 16)),
+                   (``"identification"``, mk_v_bitii (0, 16)),
+                   (``"flags"``, mk_v_bitii (0, 3)),
+                   (``"fragOffset"``, mk_v_bitii (0, 13)),
+                   (``"ttl"``, mk_v_bitii (0, 8)),
+                   (``"protocol"``, mk_v_bitii (0, 8)),
+                   (``"hdrChecksum"``, mk_v_bitii (0, 16)),
+                   (``"srcAddr"``, mk_v_bitii (0, 32)),
+                   (``"dstAddr"``, mk_v_bitii (0, 32))];
+
 val ethernet_header_uninit =
  mk_v_header_list F
                   [(``"dstAddr"``, mk_v_bitii (0, 48)),
                    (``"srcAddr"``, mk_v_bitii (0, 48)),
                    (``"etherType"``, mk_v_bitii (0, 16))];
+
+val ethernet_header_init =
+ mk_v_header_list T
+                  [(``"dstAddr"``, mk_v_bitii (0, 48)),
+                   (``"srcAddr"``, mk_v_bitii (0, 48)),
+                   (``"etherType"``, ether_ty_ok)];
 
 val parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
@@ -151,9 +172,11 @@ val stacks_uninit_parse_ipv4_ok =
                           ("ck", (v_ext (ext_obj_ck 0w), NONE))]:scope list) ([]:call_stack)``;
 
 val stacks_init_ok =
- ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_header T [("version", (^ip_v0_ok))]));
-                                           ("ethernet", (v_header T [("etherType", (^ether_ty_ok))]))], NONE)) |+
-                          ("parseError", (v_err "NoError", NONE))]:scope list) ([]:call_stack)``;
+ ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (^ipv4_header_init));
+                                           ("ethernet", (^ethernet_header_init))], NONE)) |+
+                          ("parseError", (v_err "NoError", NONE)) |+
+                          ("b", (v_ext (ext_obj_in (^input_bl_ipv4_ok)), NONE)) |+
+                          ("ck", (v_ext (ext_obj_ck 0w), NONE))]:scope list) ([]:call_stack)``;
 
 val stacks_bad =
  ``stacks_tup ([FEMPTY |+ ("p", (v_struct [("ip", (v_header T [("version", (^ip_v0_bad))]))], NONE)) |+
@@ -165,7 +188,7 @@ val ext_map = ``FEMPTY |+ ("extract", (extract, [("hdr", d_out)]))
                        |+ ("update", (update, [("data", d_in)]))
                        |+ ("get", (get, []))
                        |+ ("emit", (emit, [("data", d_in)]))
-                       |+ ("isValid", (is_valid, [("hdr", d_in)]))``;
+                       |+ ("isValid", (is_valid, []))``;
 val ext_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, ``FEMPTY:func_map``, ``FEMPTY:pars_map``, ``FEMPTY:t_map``, ``ctrl:ctrl``];
 
 val status = ``status_running``;
@@ -296,9 +319,9 @@ val CPU_OUT_PORT_tm = mk_v_bitii (15, 4);
 
 
 val e_outport = mk_lval_field (mk_lval_varname "outCtrl", "outputPort");
-val drop_action_fun = ``("Drop_action", (stmt_seq (stmt_ass (^e_outport) (e_v (^DROP_PORT_tm))) (stmt_ret (e_v v_bot))), []:(string # d) list)``;
+val drop_action_fun = ``("Drop_action", stmt_ass (^e_outport) (e_v (^DROP_PORT_tm)), []:(string # d) list)``;
 val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ip"), "ttl");
-val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var "headers", mk_e_var "ip"), mk_e_var "ttl");
+val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var "headers", mk_e_v $ mk_v_str "ip"), mk_e_v $ mk_v_str "ttl");
 val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var "ipv4_dest")),
                                                        (mk_stmt_ass (lval_headers_ip_ttl, mk_e_binop (e_headers_ip_ttl, binop_sub_tm, mk_e_v (mk_v_bitii (1, 8))))),
                                                        
@@ -314,9 +337,8 @@ val func_map = ``FEMPTY |+ (^drop_action_fun)
                         |+ (^set_dmac_fun)
                         |+ (^set_smac_fun)``;
 
-
-val ipv4_match_table = ``("ipv4_match", (e_acc (e_acc (e_var "headers") (e_var "ip")) (e_var "dstAddr"), match_kind_lpm))``;
-val check_ttl_table = ``("check_ttl", (e_acc (e_acc (e_var "headers") (e_var "ip")) (e_var "ttl"), match_kind_exact))``;
+val ipv4_match_table = ``("ipv4_match", (e_acc (e_acc (e_var "headers") (e_v (v_str "ip"))) (e_v (v_str "dstAddr")), match_kind_lpm))``;
+val check_ttl_table = ``("check_ttl", (e_acc (e_acc (e_var "headers") (e_v (v_str "ip"))) (e_v (v_str "ttl")), match_kind_exact))``;
 val dmac_table = ``("dmac", (e_var "nextHop", match_kind_exact))``;
 val smac_table = ``("smac", (e_acc (e_var "outCtrl") (e_var "outputPort"), match_kind_exact))``;
 val t_map = ``FEMPTY |+ (^ipv4_match_table)
@@ -324,21 +346,40 @@ val t_map = ``FEMPTY |+ (^ipv4_match_table)
                      |+ (^dmac_table)
                      |+ (^smac_table)``;
 
+(* Note: this is just a really primitive representation of what
+ * the control plane configuration might be that always chooses the
+ * same action, regardless of input value *)
+val ctrl =
+ ``\(table_name, (v:v), (match_kind:match_kind)).
+   if table_name = "ipv4_match"
+   then SOME ("Set_nhop",
+              [e_v (v_bit (w2v (42w:word32),32));
+               e_v (v_bit (w2v (2w:word4),4))])
+   else if table_name = "check_ttl"
+   then SOME ("Send_to_cpu",
+              [])
+   else if table_name = "dmac"
+   then SOME ("Set_dmac",
+              [e_v (v_bit (w2v (2525w:word48),48))])
+   else if table_name = "smac"
+   then SOME ("Set_smac",
+              [e_v (v_bit (w2v (2525w:word48),48))])
+   else NONE``;
 
-val toppipe_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, func_map, ``FEMPTY:pars_map``, t_map, ``ctrl:ctrl``];
+val toppipe_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, func_map, ``FEMPTY:pars_map``, t_map, ``(^ctrl):ctrl``];
 
 
 val e_parseerror_cond = mk_e_binop (``(e_var "parseError")``, binop_neq_tm, ``(e_v (v_err "NoError"))``);
 val stmt_parseerror_then = mk_stmt_seq (mk_stmt_ass (lval_null_tm, mk_e_func_call (``"Drop_action"``, ``[]:e list``)) , mk_stmt_ret ``e_v v_bot``);
 val stmt_parseerror = mk_stmt_cond (e_parseerror_cond, stmt_parseerror_then, stmt_empty_tm);
 
-val e_ipv4_match_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_var "outputPort"))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
+val e_ipv4_match_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
 val stmt_ipv4_match = mk_stmt_seq (mk_stmt_app (``"ipv4_match"``, ``e_v v_bot``), mk_stmt_cond (e_ipv4_match_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
-val e_check_ttl_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_var "outputPort"))``, binop_eq_tm, mk_e_v CPU_OUT_PORT_tm);
+val e_check_ttl_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_v CPU_OUT_PORT_tm);
 val check_ttl_match = mk_stmt_seq (mk_stmt_app (``"check_ttl"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
-val e_dmac_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_var "outputPort"))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
+val e_dmac_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
 val dmac_match = mk_stmt_seq (mk_stmt_app (``"dmac"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
 val smac_match = mk_stmt_app (``"smac"``, ``e_v v_bot``);
@@ -358,21 +399,21 @@ val vss_matchaction_test_cases = [
   ipv4_match.apply(); // Match result will go into nextHop
   if (outCtrl.outputPort == DROP_PORT) return;
   *)
-  (``stmt_multi_exec (^toppipe_ctx) (^stmt_ipv4_match) (^stacks_postparser_ok) status_running 1``, NONE:term option),
+  (``stmt_multi_exec (^toppipe_ctx) (^stmt_ipv4_match) (^stacks_postparser_ok) status_running 21``, NONE:term option),
   (*
   check_ttl.apply();
   if (outCtrl.outputPort == CPU_OUT_PORT) return;
   *)
-  (``stmt_multi_exec (^toppipe_ctx) (^check_ttl_match) (^stacks_postparser_ok) status_running 1``, NONE:term option),
+  (``stmt_multi_exec (^toppipe_ctx) (^check_ttl_match) (^stacks_postparser_ok) status_running 11``, NONE:term option),
   (*
   dmac.apply();
   if (outCtrl.outputPort == DROP_PORT) return;
   *)
-  (``stmt_multi_exec (^toppipe_ctx) (^dmac_match) (^stacks_postparser_ok) status_running 1``, NONE:term option),
+  (``stmt_multi_exec (^toppipe_ctx) (^dmac_match) (^stacks_postparser_ok) status_running 12``, NONE:term option),
   (*
   smac.apply();
   *)
-  (``stmt_multi_exec (^toppipe_ctx) (^smac_match) (^stacks_postparser_ok) status_running 1``, NONE:term option)
+  (``stmt_multi_exec (^toppipe_ctx) (^smac_match) (^stacks_postparser_ok) status_running 7``, NONE:term option)
 ];
 
 (* Test match-action pipeline VSS fragments *)
@@ -383,7 +424,7 @@ val _ = test_red ("eval_stmt_multi_exec", eval_stmt_multi_exec)
 (***********************)
 (*   Deparser tests    *)
 
-val deparser_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, ``FEMPTY:func_map``, ``FEMPTY:pars_map``, t_map, ``ctrl:ctrl``];
+val deparser_ctx = pairSyntax.list_mk_pair [``FEMPTY:type_map``, ext_map, ``FEMPTY:func_map``, ``FEMPTY:pars_map``, t_map, ``(^ctrl)``];
 
 (* NOTE: This does not include any effects from the match-action part *)
 val stacks_postmatchaction_ok =
@@ -393,21 +434,40 @@ val stacks_postmatchaction_ok =
                           ("ck", (v_ext (ext_obj_ck 0w), NONE))]:scope list) ([]:call_stack)``;
 
 
-val stmt_deparser_emit = ``stmt_ass lval_null (e_ext_call "b" "emit" [(^e_eth)])``;
+val stmt_deparser_emit = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "emit" [(^e_eth)])``;
 
-val stmt_deparser_cond = ``stmt_cond (e_ext_call "p" "isValid" []) () ()``;
+(* p.ip.hdrChecksum *)
+val lval_ip_ck = mk_lval_field (mk_lval_field (mk_lval_varname "p", "ip"), "hdrChecksum");
+val lval_p_ip = mk_lval_field (mk_lval_varname "p", "ip");
+val e_p_ip = mk_e_acc (mk_e_var "p", mk_e_v $ mk_v_str "ip");
+
+val stmt_deparser_cond = ``stmt_cond (e_ext_call (^lval_p_ip) "isValid" [])
+                                     (^(mk_stmt_seq_list [(mk_stmt_ass (lval_null_tm, mk_e_ext_call_list (mk_lval_varname "ck", "clear", ([]:term list)))),
+                                                          mk_stmt_ass (lval_ip_ck, mk_e_v $ mk_v_bitii (0, 16)),
+                                                          mk_stmt_ass (lval_null_tm, mk_e_ext_call_list (mk_lval_varname "ck", "update", ([e_ip]:term list))),
+                                                          mk_stmt_ass (lval_ip_ck, mk_e_ext_call_list (mk_lval_varname "ck", "get", ([]:term list)))]))
+                                     stmt_empty``;
+
+val stmt_deparser_emit2 = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "emit" [(^e_ip)])``;
 
 val vss_deparser_test_cases = [
   (*
   b.emit(p.ethernet);
+  *)
+  (``stmt_multi_exec (^toppipe_ctx) (^stmt_deparser_emit) (^stacks_init_ok) status_running 7``, NONE:term option),
+  (*
   if (p.ip.isValid()) {
       ck.clear();              // prepare checksum unit
       p.ip.hdrChecksum = 16w0; // clear checksum
       ck.update(p.ip);         // compute new checksum.
       p.ip.hdrChecksum = ck.get();
   }
+  *)
+  (``stmt_multi_exec (^toppipe_ctx) (^stmt_deparser_cond) (^stacks_init_ok) status_running 14``, NONE:term option),
+  (*
   b.emit(p.ip);
   *)
+  (``stmt_multi_exec (^toppipe_ctx) (^stmt_deparser_emit2) (^stacks_init_ok) status_running 7``, NONE:term option)
 ];
 
 (* Test match-action pipeline VSS fragments *)

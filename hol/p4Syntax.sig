@@ -25,6 +25,11 @@ val is_v_bool : term -> bool
 val mk_v_bool : term -> term
 val v_bool_tm : term
 
+val dest_v_str : term -> term
+val is_v_str : term -> bool
+val v_str_tm : term
+val mk_v_str : string -> term
+
 val dest_v_struct : term -> term
 val is_v_struct : term -> bool
 val mk_v_struct : term -> term
@@ -38,6 +43,9 @@ val mk_v_header : term * term -> term
 val v_header_tm : term
 
 val mk_v_header_list : term -> (term * term) list -> term
+
+val v_bot_tm : term
+val is_v_bot : term -> bool
 
 val dest_lval_varname : term -> term
 val is_lval_varname : term -> bool
@@ -113,6 +121,13 @@ val dest_e_func_call : term -> term * term
 val e_func_call_tm : term
 val is_e_func_call : term -> bool
 val mk_e_func_call : term * term -> term
+
+val dest_e_ext_call : term -> term * term * term
+val e_ext_call_tm : term
+val is_e_ext_call : term -> bool
+val mk_e_ext_call : term * term * term -> term
+val mk_e_ext_call_list : term * string * term list -> term
+
 
 val stmt_empty_tm : term
 val is_stmt_empty : term -> bool

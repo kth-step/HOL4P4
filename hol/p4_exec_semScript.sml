@@ -341,7 +341,7 @@ Definition stmt_exec_verify:
 End
 
 Definition stmt_exec_trans:
- (stmt_exec_trans (e_var x) =
+ (stmt_exec_trans (e_v (v_str x)) =
   if x = "accept"
   then SOME (status_pars_next (pars_next_pars_fin pars_finaccept))
   else if x = "reject"
@@ -442,15 +442,18 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   | NONE => NONE)
   /\
  (e_exec ctx (e_func_exec stmt) stacks status =
-  case get_ret_v stmt of
-  | SOME v =>
-   (case exec_ret ctx stacks of
-    | SOME stacks' => SOME (e_v v, stacks', status)
-    | NONE => NONE)
-  | NONE =>
-   (case stmt_exec ctx stmt stacks status of
-    | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
-    | NONE => NONE))
+  case is_empty stmt of
+  | T => SOME (e_func_exec (stmt_ret (e_v v_bot)), stacks, status)
+  | F =>
+   case get_ret_v stmt of
+   | SOME v =>
+    (case exec_ret ctx stacks of
+     | SOME stacks' => SOME (e_v v, stacks', status)
+     | NONE => NONE)
+   | NONE =>
+    (case stmt_exec ctx stmt stacks status of
+     | SOME (stmt', stacks', status') => SOME (e_func_exec stmt', stacks', status')
+     | NONE => NONE))
   /\
  (******************)
  (* Extern-related *)
@@ -509,7 +512,7 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   if is_v e
   then
     (case e_exec_select e v_x_l x of
-     | SOME x' => SOME (e_var x', stacks, status)
+     | SOME x' => SOME (e_v (v_str x'), stacks, status)
      | NONE => NONE)
   else
    (case e_exec ctx e stacks status of
@@ -582,11 +585,14 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (**************)
  (* Transition *)
  (stmt_exec ctx (stmt_trans e) stacks status =
-  if is_var e
+  if is_v e
   then
-   (case stmt_exec_trans e of
-    | SOME status' => SOME (stmt_empty, stacks, status')
-    | NONE => NONE)
+   if is_v_str e
+   then
+    (case stmt_exec_trans e of
+     | SOME status' => SOME (stmt_empty, stacks, status')
+     | NONE => NONE)
+    else NONE
   else
    (case e_exec ctx e stacks status of
     | SOME (e', stacks', status') => SOME (stmt_trans e', stacks', status')
@@ -1054,6 +1060,12 @@ REPEAT STRIP_TAC >>
 Cases_on `status` >> (
  fs [e_stmt_exec_def, e_ignore_pars_next]
 ) >>
+Cases_on `is_empty s` >- (
+ Cases_on `s` >> (
+  fs [is_empty]
+ ) >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_func_exec_empty"), clause_name_def]
+) >>
 Cases_on `get_ret_v s` >> (
  fs []
 ) >| [
@@ -1062,14 +1074,20 @@ Cases_on `get_ret_v s` >> (
  ) >>
  Cases_on `x` >> Cases_on `r` >>
  fs [] >>
- METIS_TAC [((valOf o find_clause_e_red) "e_func_exec"), clause_name_def],
+ rw [] >>
+ Cases_on `s` >> (
+  fs [get_ret_v, is_empty]
+ ) >> (
+  irule ((valOf o find_clause_e_red) "e_func_exec") >>
+  fs [clause_name_def]
+ ),
 
  Cases_on `exec_ret ctx stacks` >> (
   fs [] >>
   rw []
  ) >>
  Cases_on `s` >> (
-  fs [get_ret_v] >>
+  fs [get_ret_v, is_empty] >>
   rw []
  ) >| [
   Cases_on `e` >> (

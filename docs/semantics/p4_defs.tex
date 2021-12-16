@@ -178,7 +178,7 @@
 \ottprodline{|}{\ottnt{e_{{\mathrm{1}}}}  \ottsym{[}  \ottnt{e_{{\mathrm{2}}}}  \ottsym{:}  \ottnt{e_{{\mathrm{3}}}}  \ottsym{]}}{}{}{}{\ottcom{bit-slice}}\ottprodnewline
 \ottprodline{|}{\ottkw{call} \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}}{}{}{}{\ottcom{function call}}\ottprodnewline
 \ottprodline{|}{\ottkw{exec} \, \ottnt{stmt}}{}{}{}{\ottcom{function execution}}\ottprodnewline
-\ottprodline{|}{\ottkw{call} \, x \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}}{}{}{}{\ottcom{extern method call}}\ottprodnewline
+\ottprodline{|}{\ottkw{call} \, \ottnt{lval} \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}}{}{}{}{\ottcom{extern method call}}\ottprodnewline
 \ottprodline{|}{\ottkw{select} \, \ottnt{e}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, ... \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x}{}{}{}{\ottcom{select}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \ottnt{e}  \ottsym{)}} {\textsf{S}}{}{}{}}
 
@@ -351,7 +351,7 @@
              (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
 	   \end{cases} } {\textsf{M}}{}{}{\ottcom{build new scope}}\ottprodnewline
 \ottprodline{|}{ \ottnt{v}  = \mathrm{arb\_from\_t}  t } {\textsf{M}}{}{}{\ottcom{create new varaible in declaration}}\ottprodnewline
-\ottprodline{|}{{ \mathit{ext} } \, x  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{(}  \sigma  \ottsym{,} \, \ottkw{Running} \, \ottsym{)}  \ottsym{=}  \ottsym{(}  \ottnt{v}  \ottsym{,}  \ottsym{(}  \sigma'  \ottsym{,}  t  \ottsym{)}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{execute extern method}}\ottprodnewline
+\ottprodline{|}{{ \mathit{ext} } \, \ottnt{lval}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{(}  \sigma  \ottsym{,} \, \ottkw{Running} \, \ottsym{)}  \ottsym{=}  \ottsym{(}  \ottnt{v}  \ottsym{,}  \ottsym{(}  \sigma'  \ottsym{,}  t  \ottsym{)}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{execute extern method}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  { \mathit{ext} }  \ottsym{,}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  \ottsym{=}  X  \ottsym{(}  f  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{ext lookup}}\ottprodnewline
 \ottprodline{|}{ \varepsilon'  =  \varepsilon  [  \ottnt{lval}  \longmapsto  \ottnt{v}  ] } {\textsf{M}}{}{}{\ottcom{assign v to lval in the frame}}\ottprodnewline
 \ottprodline{|}{ \varepsilon''  = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
@@ -540,7 +540,7 @@
 \ottpremise{\ottsym{(}  { \mathit{ext} }  \ottsym{,}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  \ottsym{=}  X  \ottsym{(}  f  \ottsym{)}}%
 \ottpremise{ \forall d ,\, e ,\, i \leqslant n. \, d =  \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  [i] \, \land \, e =  \ottsym{[}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{]}  [i] \, \implies  
          ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }%
-\ottpremise{{ \mathit{ext} } \, x  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{(}  \sigma  \ottsym{,} \, \ottkw{Running} \, \ottsym{)}  \ottsym{=}  \ottsym{(}  \ottnt{v}  \ottsym{,}  \ottsym{(}  \sigma'  \ottsym{,}  t  \ottsym{)}  \ottsym{)}}%
+\ottpremise{{ \mathit{ext} } \, \ottnt{lval}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{(}  \sigma  \ottsym{,} \, \ottkw{Running} \, \ottsym{)}  \ottsym{=}  \ottsym{(}  \ottnt{v}  \ottsym{,}  \ottsym{(}  \sigma'  \ottsym{,}  t  \ottsym{)}  \ottsym{)}}%
 }{
  \ottsym{(}  T  \ottsym{,}  X  \ottsym{,}  F  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{,}  { \mathrm{ctrl} }  \ottsym{)}  \vdash [  \ottkw{call} \, x \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  ]  \ottsym{(}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  \ottnt{v}  ]  \ottsym{(}  \sigma'  \ottsym{,}  t  \ottsym{)} }{%
 {\ottdrulename{e\_ext\_exec}}{}%

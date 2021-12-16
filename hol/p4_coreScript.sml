@@ -92,7 +92,7 @@ End
 Definition get_header_lval':
  (get_header_lval' e =
   case e of
-  | (e_acc e (e_var x)) => 
+  | (e_acc e (e_v (v_str x))) => 
    (case get_header_lval' e of
     | SOME lval => SOME (lval_field lval x)
     | NONE => NONE)

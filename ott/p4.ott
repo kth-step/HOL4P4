@@ -95,6 +95,7 @@ ext_obj :: ext_obj_ ::=
 | ipv4_checksum :: :: ck
   {{ com ipv4 header checksum }}
 
+
 %TODO: Add identifiers
 %TODO: Add enums
 v :: v_ ::=
@@ -866,6 +867,9 @@ formula :: formula_ ::=
 	                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
                           \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
   {{ hol (SOME [[curr_stack_frame'']] = update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
+| not_empty stmt :: M :: not_empty
+  {{ com check so that statement is not the empty statement }}
+  {{ hol ([[stmt]] <> stmt_empty) }}
 
 
 embed
@@ -1353,9 +1357,13 @@ by
   ----------------------------------- :: func_call_newframe
   (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
+  not_empty stmt
   ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , status )
   ----------------------------------- :: func_exec
   ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , status )
+
+  ----------------------------------- :: func_exec_empty
+  ctx [exec empty_stmt] ( stacks , Running ) ~> [exec return bot] ( stacks' , status )
 
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
