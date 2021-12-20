@@ -1326,10 +1326,10 @@ grammar
 defns
   e_stmt_sem :: '' ::=
 defn
-  ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
+  ctx [ e ] state ~> [ e' ] state' :: :: e_red :: e_
   {{ com expression semantics }}
   %TODO Should use different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status?
-  {{ tex [[ctx]] \vdash [ [[e]] ] ([[stacks]], [[status]]) \rightsquigarrow [ [[e']] ] ([[stacks']], [[status']]) }}
+  {{ tex [[ctx]] \vdash [ [[e]] ] [[state]] \rightsquigarrow [ [[e']] ] [[state']] }}
 by
 
 %%%%%%%%%%%%%%%%%
@@ -1657,7 +1657,7 @@ by
 defn
   ctx [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
   {{ com statement semantics }}
-  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \rightarrow [ [[stmt']] ] ([[state']]) }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] [[state]] \rightarrow [ [[stmt']] ] [[state']] }}
 by
 
 %%%%%%%%%%%%%%
