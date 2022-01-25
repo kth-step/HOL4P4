@@ -1244,6 +1244,14 @@ REPEAT STRIP_TAC >| [
  (* TODO *)
  cheat,
 
+ (* Fixed-function block call *)
+ (* TODO *)
+ cheat,
+
+ (* Programmable block call *)
+ (* TODO *)
+ cheat,
+
  (* Extern call *)
  (* TODO *)
  cheat,

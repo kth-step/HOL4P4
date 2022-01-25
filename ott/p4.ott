@@ -163,7 +163,7 @@ pars_next {{ tex p }} :: pars_next_ ::=
 | pars_fin :: :: pars_fin
   {{ com final state }}
 
-%Execution status
+%Execution status of current programmable block
 status {{ tex t }}:: status_ ::=
 {{ com execution status }}
 | Running :: I :: running
@@ -412,7 +412,7 @@ e_list :: e_list_ ::=
   {{ hol ([[e1 .. en]]) }}
 | e '::' e_list :: M :: cons
   {{ com cons }}
-  {{ hol (e::[[e_list]]) }}
+  {{ hol ([[e]]::[[e_list]]) }}
 | tl e_list :: M :: tail
   {{ com tail }}
   {{ hol (TL [[e_list]]) }}
@@ -505,6 +505,17 @@ stmt :: stmt_ ::=
   %table_name is the table name that should be applied
   {{ com apply }}
   {{ tex \mathbf{apply} \, [[table_name]] \, [[e]] }}
+%TODO: Should these really be here, or is this a hack?
+%Alternative approach: Make new production which can be either a
+%statement or a pblock (or a ffblock?)
+| pbl_call f ( e1 , .. , en ) :: :: pbl_call
+  {{ com programmable block call }}
+| ffbl_call f ( e1 , .. , en ) :: :: ffbl_call
+  {{ com fixed-function block call }}
+%| in bl i :: :: in
+%  {{ com input }}
+%| out bl i :: :: out
+%  {{ com output }}
 
 d {{ tex d }} :: d_ ::=
 {{ com parameter direction }}
@@ -516,6 +527,10 @@ d {{ tex d }} :: d_ ::=
   {{ tex \updownarrow }}
 | none :: :: none
   {{ tex \circ }}
+
+%Literally the "fixed function" of a fixed-function block
+ff {{ tex { \mathit{ff} } }} :: ff_ ::=
+{{ hol ((e list # scope # curr_stack_frame) -> (scope # curr_stack_frame)) }}
 
 %Fence between d and d_list
 embed
@@ -559,10 +574,11 @@ ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
 {{ hol ((string # v # match_kind) -> (string # e_list) option) }}
 | empty :: M :: empty
   {{ com empty table map }}
+  %TODO: Correct? How does this affect export?
   {{ hol FEMPTY }}
 
 % TODO: Could be just a type abbreviation?
-t_map {{ tex { \mathit{Tb} } }} :: t_map_ ::=
+tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map  }}
 {{ hol (string |-> (e # match_kind)) }}
 | empty :: M :: empty
@@ -578,12 +594,115 @@ pars_map {{ tex P }} :: pars_map_ ::=
   {{ hol FEMPTY }}
 
 % TODO: Could be just a type abbreviation?
-type_map {{ tex T }} :: type_map_ ::=
+ty_map {{ tex T }} :: ty_map_ ::=
 {{ com type environment  }}
 {{ hol (string |-> ((string # t) list)) }}
 | empty :: M :: empty
   {{ com empty type environment }}
   {{ hol FEMPTY }}
+
+in_out :: in_out_ ::=
+{{ com input and output }}
+{{ hol (bl # num) }}
+| packet bl i :: M :: packet
+  {{ hol ( [[bl]] , [[i]] ) }}
+
+%Fence so that ott does not re-order block and block map
+embed
+{{ hol
+
+}}
+grammar
+
+pblock {{ tex pblock }} :: pblock_ ::=
+{{ com programmable block }}
+| parser stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map :: :: parser
+| control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl :: :: control
+
+ffblock {{ tex ffblock }} :: ffblock_ ::=
+{{ com fixed-function block }}
+{{ hol (ff # (string # d) list) }}
+| ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) :: :: ff
+%  {{ com fixed-function block }}
+%  {{ hol ( [[ff]] , ()) }}
+
+%Fence so that ott does not re-order ffblock
+embed
+{{ hol
+
+}}
+grammar
+
+arch_block :: arch_block_ ::=
+{{ com architectural block }}
+| inp :: :: inp
+| pblock x :: :: pbl
+| ffblock x :: :: ffbl
+| out :: :: out
+
+% TODO: Could be just a type abbreviation?
+pblock_list :: pblock_list_ ::=
+{{ com list of programmable blocks }}
+{{ hol (pblock list) }}
+| empty_pbl :: M :: empty
+  {{ hol ([]:pblock list) }}
+
+% TODO: Could be just a type abbreviation?
+ffblock_list :: ffblock_list_ ::=
+{{ com list of fixed-function blocks }}
+{{ hol (ffblock list) }}
+| empty_ffbl :: M :: empty
+  {{ hol ([]:ffblock list) }}
+
+% TODO: Could be just a type abbreviation?
+pblock_map {{ tex B }} :: pblock_map_ ::=
+{{ com programmable block map }}
+{{ hol (string |-> pblock) }}
+| empty :: M :: empty
+  {{ com empty programmable block map }}
+  {{ hol FEMPTY }}
+
+ffblock_map {{ tex F }} :: ffblock_map_ ::=
+{{ com fixed-function block map }}
+{{ hol (string |-> ffblock) }}
+| empty :: M :: empty
+  {{ com empty fixed-function block map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just a type abbreviation?
+in_out_list :: in_out_list_ ::=
+{{ com list of input and output }}
+{{ hol (in_out list) }}
+| empty_in_out :: M :: empty
+  {{ hol ([]:in_out list) }}
+| in_out '::' in_out_list :: M :: cons
+  {{ com cons }}
+  {{ hol ([[in_out]]::[[in_out_list]]) }}
+| ( in_out_list ) :: S :: paren
+  {{ hol ([[in_out_list]]) }}
+
+%Fence so that ott does not re-order input_f and output_f, ab_list
+embed
+{{ hol
+
+}}
+grammar
+
+ab_list :: ab_list_ ::=
+{{ com list of architectural blocks }}
+{{ hol (arch_block list) }}
+| empty :: M :: empty
+  {{ com empty list }}
+  {{ hol ([]:arch_block list) }}
+
+%TODO: Unify input_f and output_f?
+input_f :: input_f_ ::=
+{{ com input function }}
+{{ hol ((in_out_list # scope) -> (in_out_list # scope)) }}
+
+output_f :: output_f_ ::=
+{{ com output function }}
+{{ hol ((in_out_list # scope) -> (in_out_list # scope)) }}
 
 %Fence so that ott does not re-order ctx
 embed
@@ -592,16 +711,33 @@ embed
 }}
 grammar
 
+aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
+{{ com architectural environment }}
+{{ hol (num # boolv # in_out_list # in_out_list # scope) }}
+| empty :: M :: empty
+  {{ com empty architectural environment }}
+  {{ hol (0, F, [], [], FEMPTY) }}
+| ( i , boolv , in_out_list , in_out_list' , scope ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[i]], [[boolv]], [[in_out_list]], [[in_out_list']], [[scope]]) }}
+
+actx {{ tex { \mathit{ctx}_\mathit{A} } }} :: actx_ ::=
+{{ com architectural context }}
+{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f) }}
+| ( ab_list , pblock_map , ffblock_map , input_f , output_f ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]]) }}
+
 % TODO: Could be just a type abbreviation?
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (type_map # ext_map # func_map # pars_map # t_map # ctrl) }}
+{{ hol (ty_map # ext_map # func_map # pars_map # tbl_map # ctrl) }}
 | empty :: M :: empty
   {{ com empty context }}
   {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
-| ( type_map , ext_map , func_map , pars_map , t_map , ctrl ) :: M :: tup
+| ( ty_map , ext_map , func_map , pars_map , tbl_map , ctrl ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[type_map]], [[ext_map]], [[func_map]], [[pars_map]], [[t_map]], [[ctrl]]) }}
+  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[pars_map]], [[tbl_map]], [[ctrl]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -773,12 +909,16 @@ formula :: formula_ ::=
   {{ com args equality }}
   {{ hol ([[e_list]] = [[e_list']]) }}
   {{ tex [[e_list]] = [[e_list']] }}
+| in_out_list = in_out_list' :: M :: io_eq
+  {{ com args equality }}
+  {{ hol ([[in_out_list]] = [[in_out_list']]) }}
+  {{ tex [[in_out_list]] = [[in_out_list']] }}
 
 %Apply table
-| t_map ( table_name ) = ( e , match_kind ) :: :: find_key
+| tbl_map ( table_name ) = ( e , match_kind ) :: :: find_key
   {{ com find keys and the matching kind in the table map }}
   {{ tex \mathrm{t\_map}\, [[table_name]]\, =\, ( [[e]] \, , [[match_kind]] ) }}
-  {{ hol ( FLOOKUP [[t_map]] [[table_name]] = SOME ( [[e]] , [[match_kind]] ) ) }}
+  {{ hol ( FLOOKUP [[tbl_map]] [[table_name]] = SOME ( [[e]] , [[match_kind]] ) ) }}
 | ctrl ( table_name , v , match_kind ) = ( f , e_list ) :: :: ctrl_plane  
   {{ com fetch the function name and parameters from the ctrl plane }}
   {{ tex \mathrm{ctrl}\, ( [[table_name]] , \, [[v]], \, [[match_kind]]\, ) = \,( [[f]] , [[e_list]] ) }}
@@ -871,6 +1011,39 @@ formula :: formula_ ::=
   {{ com check so that statement is not the empty statement }}
   {{ hol ([[stmt]] <> stmt_empty) }}
 
+%Package semantics-related formulae
+| pblock = pblock_map ( f ) :: M :: lookup_pb
+  {{ com programmable block lookup }}
+  {{ hol (FLOOKUP [[pblock_map]] [[f]] = SOME [[pblock]]) }}
+| ffblock = ffblock_map ( f ) :: M :: lookup_ffb
+  {{ com fixed-function block lookup }}
+  {{ hol (FLOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
+| ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = body_args_of_pbl ( pblock ) :: M :: body_args_pb
+  {{ com obtain body and args of pblock }}
+  {{ hol (([[stmt]], [[x1 d1 .. xn dn]]) = body_args_of_pbl [[pblock]] ) }}
+| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_ffbl ( ffblock ) :: M :: args_ffb
+  {{ com obtain args of ffblock }}
+  {{ hol (([[x1 d1 .. xn dn]]) = args_of_ffbl [[ffblock]] ) }}
+| stmt_regular stmt :: M :: regular
+  {{ com check if statement is regular }}
+  {{ hol (stmt_regular [[stmt]]) }}
+| arch_block = ab_list [ i ] :: M :: ab_index
+  {{ com ab at index i }}
+  {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
+| ( scope' , curr_stack_frame' ) = ff ( ( e1 ,  .. , en ) , scope , curr_stack_frame ) :: M :: app_ff
+  {{ com apply fixed function }}
+  {{ hol (([[scope']], [[curr_stack_frame']]) = [[ff]] ([[e1 .. en]], [[scope]], [[curr_stack_frame]]) ) }}
+| ( in_out_list' , scope' ) = input_f ( in_out_list , scope ) :: M :: input_f
+  {{ com apply input function }}
+  {{ hol ( ( [[in_out_list']] , [[scope']] ) = [[input_f]] ( [[in_out_list]] , [[scope]] ) ) }}
+| ( in_out_list' , scope' ) = output_f ( in_out_list , scope ) :: M :: output_f
+  {{ com apply output function }}
+  {{ hol ( ( [[in_out_list']] , [[scope']] ) = [[output_f]] ( [[in_out_list]] , [[scope]] ) ) }}
+%TODO: Try replacing "zero i" with "i = 0" - mysterious bugs appear...
+| zero i :: M :: num_zero
+  {{ com numeral zeroing }}
+  {{ hol ([[i]] = 0) }}
+  {{ tex [[i]] = 0 }}
 
 embed
 {{ hol
@@ -1324,6 +1497,13 @@ val arb_from_t_def = Define `
   (arb_from_t (t_base bt_bit) = (v_bit ARB))
 `;
 
+(* Note that this cannot use e_list due to dependency problems *)
+val stmt_regular_def = Define `
+  (stmt_regular ( stmt_pbl_call x (el:e list) )  = F) /\
+  (stmt_regular ( stmt_ffbl_call x (el:e list) ) = F) /\
+  (stmt_regular _                           = T)
+`;
+
 }}
 grammar
 
@@ -1350,12 +1530,12 @@ by
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %Build new stack frame
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame )  
-  G scope = curr_stack_frame[0]
+  G scope = curr_stack_frame [ 0 ]
   curr_stack_frame' = [G scope] ++ [ scope' ]
   curr_stack_frame'' = tl curr_stack_frame
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
 
   not_empty stmt
   ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , status )
@@ -1371,7 +1551,7 @@ by
   curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: func_ret
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [exec return v] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [exec return v] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
 
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
@@ -1379,7 +1559,7 @@ by
   curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: func_ret_seq
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [exec return v ; stmt'] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [exec return v ; stmt'] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
 
 %Extern method exec
   ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
@@ -1422,19 +1602,19 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
 
 %Arguments to extern method call
   ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: ext_call_args
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call lval f ( e1 , .. , en )] ( stacks , Running ) ~> [call lval f ( e'1 , .. , e'n )] ( stacks' , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call lval f ( e1 , .. , en )] ( stacks , Running ) ~> [call lval f ( e'1 , .. , e'n )] ( stacks' , Running )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
@@ -1786,10 +1966,11 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   %The action is treated as a function call
-  t_map ( table_name ) = ( e' , match_kind )
+  tbl_map ( table_name ) = ( e' , match_kind )
   ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks , Running )
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
@@ -1830,28 +2011,31 @@ by
   ----------------------------------- :: apply_table_e
   ctx [apply table_name e] ( stacks , status ) -> [apply table_name e'] ( stacks' , status' )
 
-%%%%%%%%%%%%%%%%%%%%
-% Parser semantics %
-%%%%%%%%%%%%%%%%%%%%
-%This isolates the unstructured parser semantics into a set of rules defined in terms
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Parser block semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+%This isolates the unstructured parser block semantics into a set of rules defined in terms
 %of the regular statement semantics.
+%TODO: Can this be unified with the regular statement semantics?
 
 defns
   pars_sem :: '' ::=
 defn
   ctx [ stmt ] state --> [ stmt' ] state' :: :: pars_red :: pars_
-  {{ com parser semantics }}
+  {{ com parser block semantics }}
   {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \longrightarrow [ [[stmt']] ] ([[state']]) }}
 by
 
+%This rule describes how individual statement steps are taken inside the parser
   ctx [stmt]( stacks , status ) -> [stmt']( stacks' , status' )
   ------------------------------------------------- :: stmt
   ctx [stmt]( stacks , status ) --> [stmt']( stacks' , status' )
 
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
+%This rule governs transitions between parser states
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
 
 %If the end of some parser state is reached without status change, we reject
   ctx [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
@@ -1859,6 +2043,7 @@ by
   ------------------------------------------------- :: empty
   ctx [stmt]( stacks , Running ) --> [transition x]( stacks' , Running )
 
+%This describes the final step of the parser
 defns
   pars_t_sem :: '' ::=
 defn
@@ -1870,3 +2055,117 @@ by
   ctx [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
   ------------------------------------------------- :: fin
   ctx [stmt]( stacks , Running ) --> ( stacks , pars_fin )
+
+%Semantics for initial tests of package execution 
+defns
+  test_sem :: '' ::=
+defn
+  actx aenv ctx [ stmt ] ( stacks , status ) -'> aenv' ctx' [ stmt' ] ( stacks' , status' ) :: :: test_red :: test_
+  {{ com package test semantics }}
+  {{ tex [[actx]] \vdash [[aenv]] [[ctx]] [ [[stmt]] ] ( [[stacks]] , [[status]] ) \rightharpoonup [[aenv']] [[ctx']] [ [[stmt']] ] ( [[stacks']] , [[status']] ) }}
+by
+
+%Four different phases: Input, programmable block, fixed-function block and output.
+
+  inp = ab_list [ i ]
+  %TODO: "get_input" VSS-specific? In general, this deals with arbitration
+  ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
+  i' = i + 1
+  ----------------------------------- :: pkg_input
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list'' , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status )
+
+  %Note that this rule does not increment i. That happens when the pblock is finished.
+  pblock x = ab_list [ i ]
+  ----------------------------------- :: pkg_pbl
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ pbl_call x ( e1 , .. , en ) ] ( stacks , status )
+
+  i' = i + 1
+  ffblock x = ab_list [ i ]
+  ----------------------------------- :: pkg_ffbl
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , true , in_out_list , in_out_list' , scope ) ctx [ ffbl_call x ( e1 , .. , en ) ] ( stacks , status )
+
+%Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
+%to have the final state have index 0.
+  out = ab_list [ i ]
+  ( in_out_list'' , scope' ) = output_f ( in_out_list' , scope )
+  zero i'
+  ----------------------------------- :: pkg_output
+  actx ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list , in_out_list'' , scope' ) ctx [ empty_stmt ] ( stacks , status )
+
+
+%The "programmable block" phase can initiate execution of either a parser block or a control block
+
+  parser stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map' = pblock_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  %TODO: Should you also be able to read from the global scope?
+  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
+  G scope = curr_stack_frame[0]
+  curr_stack_frame' = [G scope] ++ [ scope' ]
+  %TODO: Model arch scope external to the P4 program using the call stack?
+  ----------------------------------- :: pblock_newframe_parser
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ pbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map', tbl_map, ctrl) [ stmt ] ( ( curr_stack_frame' , call_stack ) , Running )
+
+  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' = pblock_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  %TODO: Should you also be able to read from the global scope?
+  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
+  G scope = curr_stack_frame[0]
+  curr_stack_frame' = [G scope] ++ [ scope' ]
+  %TODO: Model pseudo-scope external to the P4 program using the call stack?
+  ----------------------------------- :: pblock_newframe_control
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ pbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl') [ stmt ] ( ( curr_stack_frame' , call_stack ) , Running )
+
+
+%The "programmable block" phase then follows the regular statement semantics for the body of the block...
+
+  stmt_regular stmt
+  ctx [ stmt ]( stacks , status ) -> [ stmt' ]( stacks' , status' )
+  ----------------------------------- :: pblock_exec
+  actx aenv ctx [ stmt ] ( stacks , status ) -'> aenv ctx [ stmt' ] ( stacks' , status' )
+
+%... until execution using the regular statement semantics has finished
+
+  parser stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map = pblock_map ( f )
+  G scope = curr_stack_frame[0]
+  [ scope' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  %TODO: Set parseError
+  i' = i + 1
+  ----------------------------------- :: pblock_fin_parser
+  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i' , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( [ G scope ] , emptycs ) , status' )
+
+  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl = pblock_map ( f )
+  G scope = curr_stack_frame[0]
+  [ scope' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  i' = i + 1
+  ----------------------------------- :: pblock_fin_control
+  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i' , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( [ G scope ] , emptycs ) , status' )
+
+%TODO: What should happen when all input has been processed?
+%      Separate judgment form?
+%      Set status to Ended? Then all rules would need to exclude having the Ended status
+
+  ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  ( scope' , curr_stack_frame' ) = ff ( ( e1 ,  .. , en ) , scope , curr_stack_frame )
+  ----------------------------------- :: ffblock_exec
+  actx ( i , false , in_out_list , in_out_list' , scope ) ctx [ ffbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( curr_stack_frame' , call_stack ) , status' )
+
+%"Reduction of argument" rules
+
+  pblock = pblock_map ( f )
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = body_args_of_pbl ( pblock )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
+  e = [ e1 , .. , en ] [ i' ]
+  ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
+  ----------------------------------- :: pblock_args
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) aenv ctx [ pbl_call f ( e1 , .. , en ) ] ( stacks , status ) -'> aenv ctx [ pbl_call f ( e1' , .. , en' ) ] ( stacks' , status' )
+
+  ffblock = ffblock_map ( f )
+  ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_ffbl ( ffblock )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
+  e = [ e1 , .. , en ] [ i' ]
+  ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
+  ----------------------------------- :: ffblock_args
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) aenv ctx [ ffbl_call f ( e1 , .. , en ) ] ( stacks , status ) -'> aenv ctx [ ffbl_call f ( e1' , .. , en' ) ] ( stacks' , status' )
