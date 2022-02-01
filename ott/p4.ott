@@ -616,7 +616,7 @@ grammar
 
 pblock {{ tex pblock }} :: pblock_ ::=
 {{ com programmable block }}
-| parser stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map :: :: parser
+| parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map :: :: parser
 | control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl :: :: control
 
 ffblock {{ tex ffblock }} :: ffblock_ ::=
@@ -961,7 +961,7 @@ formula :: formula_ ::=
 | v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: h_fld_upd
   {{ com update of struct field }}
   {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
-| not_final_state ( x ) :: M :: not_final
+| not_final_state ( x ) :: M :: not_final_x
   {{ com x is not name of final state }}
   {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
 | x = "accept" :: M :: is_accept
@@ -973,6 +973,11 @@ formula :: formula_ ::=
   {{ com x is reject }}
   {{ hol ([[x]] = "reject") }}
   {{ tex [[x]] = ``\mathit{reject}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| x = "start" :: M :: is_start
+  {{ com x is start }}
+  {{ hol ([[x]] = "start") }}
+  {{ tex [[x]] = ``\mathit{start}" }}
   %Dummy to keep syntax highlighting from freaking out: "
 | scope = all_arg_update_for_newscope ( ( x1 , .. , xn ) , d_list , e_list , curr_stack_frame ) :: M :: build_scope
   {{ com build new scope }}
@@ -1044,6 +1049,22 @@ formula :: formula_ ::=
   {{ com numeral zeroing }}
   {{ hol ([[i]] = 0) }}
   {{ tex [[i]] = 0 }}
+| status_not_fin status :: M :: not_final
+  {{ com status is not final }}
+  {{ hol (([[status]] <> status_pars_next (pars_next_pars_fin pars_finaccept)) /\ ([[status]] <> status_pars_next (pars_next_pars_fin pars_finreject))) }}
+  {{ tex [[status]] \neq \mathit{pars\_fin} }}
+| not_return stmt :: M :: not_return
+  {{ com statement is not return }}
+  {{ hol (!e. [[stmt]] <> stmt_ret e) }}
+  {{ tex [[stmt]] \neq \mathit{return} }}
+| lval = "parseError" :: M :: is_parse_error
+  {{ com lval is parseError }}
+  {{ hol ([[lval]] = lval_varname "parseError") }}
+  {{ tex [[lval]] = \mathit{parseError} }}
+| v = errmsg "NoError" :: M :: is_no_error
+  {{ com v is NoError }}
+  {{ hol ([[v]] = v_errmsg "NoError") }}
+  {{ tex [[v]] = \mathit{NoError} }}
 
 embed
 {{ hol
@@ -2021,67 +2042,89 @@ by
 defns
   pars_sem :: '' ::=
 defn
-  ctx [ stmt ] state --> [ stmt' ] state' :: :: pars_red :: pars_
+  ctx [ stmt ] state -p-> [ stmt' ] state' :: :: pars_red :: pars_
   {{ com parser block semantics }}
-  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \longrightarrow [ [[stmt']] ] ([[state']]) }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) {\longrightarrow}_{p} [ [[stmt']] ] ([[state']]) }}
 by
 
 %This rule describes how individual statement steps are taken inside the parser
+  status_not_fin status
   ctx [stmt]( stacks , status ) -> [stmt']( stacks' , status' )
   ------------------------------------------------- :: stmt
-  ctx [stmt]( stacks , status ) --> [stmt']( stacks' , status' )
+  ctx [stmt]( stacks , status ) -p-> [stmt']( stacks' , status' )
 
 %This rule governs transitions between parser states
   (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [stmt]( stacks , Running ) --> [stmt'']( stacks' , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [stmt]( stacks , Running ) -p-> [stmt'']( stacks' , Running )
 
 %If the end of some parser state is reached without status change, we reject
   ctx [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
   x = "reject"
   ------------------------------------------------- :: empty
-  ctx [stmt]( stacks , Running ) --> [transition x]( stacks' , Running )
+  ctx [stmt]( stacks , Running ) -p-> [transition x]( stacks' , Running )
 
 %This describes the final step of the parser
-defns
-  pars_t_sem :: '' ::=
-defn
-  ctx [ stmt ] state --> state' :: :: pars_t_red :: pars_t_
-  {{ com parser semantics, final step }}
-  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \longrightarrow [[state']] }}
-by
 
   ctx [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
   ------------------------------------------------- :: fin
-  ctx [stmt]( stacks , Running ) --> ( stacks , pars_fin )
+  ctx [stmt]( stacks , Running ) -p-> [stmt']( stacks , pars_fin )
 
-%Semantics for initial tests of package execution 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Control block semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 defns
-  test_sem :: '' ::=
+  ctrl_sem :: '' ::=
 defn
-  actx aenv ctx [ stmt ] ( stacks , status ) -'> aenv' ctx' [ stmt' ] ( stacks' , status' ) :: :: test_red :: test_
-  {{ com package test semantics }}
+  ctx [ stmt ] state -c-> [ stmt' ] state' :: :: ctrl_red :: ctrl_
+  {{ com control block semantics }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) {\longrightarrow}_{c} [ [[stmt']] ] ([[state']]) }}
+by
+
+  not_return stmt
+  ctx [stmt]( stacks , status ) -> [stmt']( stacks' , status' )
+  ------------------------------------------------- :: stmt
+  ctx [stmt]( stacks , status ) -c-> [stmt']( stacks' , status' )
+
+%TODO: Rules for finishing the control block when encountering "return"
+
+  ------------------------------------------------- :: ret
+  ctx [return v]( stacks , status ) -c-> [empty_stmt]( stacks , status )
+
+  ------------------------------------------------- :: ret_2
+  ctx [return v ; stmt]( stacks , status ) -c-> [empty_stmt]( stacks , status )
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Architectural-level semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%TODO: Maybe we would move things from actx to ctx? For example, make two-layered map for parser states, et.c. 
+defns
+  arch_sem :: '' ::=
+defn
+  actx aenv ctx [ stmt ] ( stacks , status ) -'> aenv' ctx' [ stmt' ] ( stacks' , status' ) :: :: arch_red :: arch_
+  {{ com architectural-level semantics }}
   {{ tex [[actx]] \vdash [[aenv]] [[ctx]] [ [[stmt]] ] ( [[stacks]] , [[status]] ) \rightharpoonup [[aenv']] [[ctx']] [ [[stmt']] ] ( [[stacks']] , [[status']] ) }}
 by
 
 %Four different phases: Input, programmable block, fixed-function block and output.
 
   inp = ab_list [ i ]
-  %TODO: "get_input" VSS-specific? In general, this deals with arbitration
   ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
   i' = i + 1
-  ----------------------------------- :: pkg_input
+  ----------------------------------- :: in
   ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list'' , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status )
 
   %Note that this rule does not increment i. That happens when the pblock is finished.
   pblock x = ab_list [ i ]
-  ----------------------------------- :: pkg_pbl
+  ----------------------------------- :: pbl_call
   ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ pbl_call x ( e1 , .. , en ) ] ( stacks , status )
 
   i' = i + 1
   ffblock x = ab_list [ i ]
-  ----------------------------------- :: pkg_ffbl
+  ----------------------------------- :: ffbl_call
   ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , true , in_out_list , in_out_list' , scope ) ctx [ ffbl_call x ( e1 , .. , en ) ] ( stacks , status )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
@@ -2089,20 +2132,26 @@ by
   out = ab_list [ i ]
   ( in_out_list'' , scope' ) = output_f ( in_out_list' , scope )
   zero i'
-  ----------------------------------- :: pkg_output
+  ----------------------------------- :: out
   actx ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list , in_out_list'' , scope' ) ctx [ empty_stmt ] ( stacks , status )
 
 
 %The "programmable block" phase can initiate execution of either a parser block or a control block
 
-  parser stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map' = pblock_map ( f )
+%Note that initiation of a parser block also sets parseError to NoError
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map' = pblock_map ( f )
+  x = "start"
+  stmt = pars_map' ( x )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %TODO: Should you also be able to read from the global scope?
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
   G scope = curr_stack_frame[0]
   curr_stack_frame' = [G scope] ++ [ scope' ]
+  v = errmsg "NoError"
+  lval = "parseError"
+  curr_stack_frame'' = assign ( curr_stack_frame' , v , lval )
   %TODO: Model arch scope external to the P4 program using the call stack?
-  ----------------------------------- :: pblock_newframe_parser
+  ----------------------------------- :: parser_init
   ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ pbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map', tbl_map, ctrl) [ stmt ] ( ( curr_stack_frame' , call_stack ) , Running )
 
   control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' = pblock_map ( f )
@@ -2112,37 +2161,54 @@ by
   G scope = curr_stack_frame[0]
   curr_stack_frame' = [G scope] ++ [ scope' ]
   %TODO: Model pseudo-scope external to the P4 program using the call stack?
-  ----------------------------------- :: pblock_newframe_control
+  ----------------------------------- :: control_init
   ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ pbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl') [ stmt ] ( ( curr_stack_frame' , call_stack ) , Running )
 
 
-%The "programmable block" phase then follows the regular statement semantics for the body of the block...
+%The "programmable block" phase then follows the semantics for a parser or control, respectively...
+  %TODO: Create specific control block semantics?
 
-  stmt_regular stmt
-  ctx [ stmt ]( stacks , status ) -> [ stmt' ]( stacks' , status' )
-  ----------------------------------- :: pblock_exec
-  actx aenv ctx [ stmt ] ( stacks , status ) -'> aenv ctx [ stmt' ] ( stacks' , status' )
+%Note that this rule needs to check that execution is actually inside a parser block to remove ambiguity
+  pblock x = ab_list [ i ]
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map' = pblock_map ( x )
+  status_not_fin status
+  ctx [ stmt ]( stacks , status ) -p-> [ stmt' ]( stacks' , status' )
+  ----------------------------------- :: parser_exec
+  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt' ] ( stacks' , status' )
+
+%Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
+  pblock x = ab_list [ i ]
+  control stmt'' ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' = pblock_map ( x )
+  ctx [ stmt ]( stacks , status ) -c-> [ stmt' ]( stacks' , status' )
+  ----------------------------------- :: control_exec
+  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt' ] ( stacks' , status' )
 
 %... until execution using the regular statement semantics has finished
 
-  parser stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map = pblock_map ( f )
+
+%Note that exiting a parser block also sets the value of parseError
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map = pblock_map ( f )
   G scope = curr_stack_frame[0]
   [ scope' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
-  %TODO: Set parseError
+  lval = "parseError"
+  x = "parseError"
+  v = lookup_vexp ( curr_stack_frame , x )
+  [ scope'' ] = assign ( [ scope' ] , v , lval )
   i' = i + 1
-  ----------------------------------- :: pblock_fin_parser
-  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i' , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( [ G scope ] , emptycs ) , status' )
+  %TODO: Relax requirement that statement be empty in initial state?
+  ----------------------------------- :: parser_ret
+  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , pars_fin ) -'> ( i' , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( [ G scope ] , emptycs ) , status' )
 
   control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl = pblock_map ( f )
   G scope = curr_stack_frame[0]
   [ scope' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   i' = i + 1
-  ----------------------------------- :: pblock_fin_control
+  ----------------------------------- :: control_ret
   actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i' , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( [ G scope ] , emptycs ) , status' )
 
 %TODO: What should happen when all input has been processed?
-%      Separate judgment form?
-%      Set status to Ended? Then all rules would need to exclude having the Ended status
+%      	    Separate judgment form?
+%      	    Set status to Ended? Then all rules would need to exclude having the Ended status
 
   ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
