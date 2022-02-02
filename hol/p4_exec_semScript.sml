@@ -1294,6 +1294,115 @@ val [e_multi_exec, stmt_multi_exec] = TotalDefn.multiDefine `
   | NONE => NONE)
 `;
 
+(****************************)
+(*  Parser block semantics  *)
+(****************************)
+        
+val pars_exec_def = Define `
+ (pars_exec ctx stmt (state_tup stacks status_type_error) = NONE) /\
+ (pars_exec ctx stmt (state_tup stacks (status_pars_next _)) = NONE) /\
+ (pars_exec (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) stmt (state_tup stacks status_running) =
+  (case stmt_exec (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) stmt stacks status_running of
+   (* When reaching the empty statement, default behaviour is to go to reject *)
+   | SOME (stmt_empty, stacks', status') =>
+    SOME (stmt_trans (e_v (v_str "reject")), stacks', status')
+   (* Transition to next parser state *)
+   | SOME (stmt', stacks', status_pars_next (pars_next_trans x)) =>
+    (case FLOOKUP pars_map x of
+     | SOME stmt'' => SOME (stmt'', stacks', status_running)
+     | NONE => NONE)
+   (* Transition to final parser state *)
+   | SOME (stmt', stacks', status_pars_next (pars_next_pars_fin pars_fin)) =>
+    SOME (stmt', stacks', status_pars_next (pars_next_pars_fin pars_fin))
+   (* Regular execution of parser state body *)
+   | SOME (stmt', stacks', status') => SOME (stmt', stacks', status')
+   | NONE => NONE)
+ )
+`;
+
+(* Fuel-powered multi-step executable semantics for parsers *)
+val pars_multi_exec = Define `
+ (pars_multi_exec _ stmt stacks status 0 =
+  SOME (stmt, stacks, status))
+  /\
+ (pars_multi_exec ctx stmt stacks status (SUC fuel) =
+  case pars_exec ctx stmt (state_tup stacks status) of
+  | SOME (stmt', stacks', status') => pars_multi_exec ctx stmt' stacks' status' fuel
+  | NONE => NONE)
+`;
+
+(*****************************)
+(*  Control block semantics  *)
+(*****************************)
+
+val ctrl_exec_def = Define `
+ (ctrl_exec ctx stmt (state_tup stacks status_type_error) = NONE) /\
+ (ctrl_exec ctx stmt (state_tup stacks (status_pars_next _)) = NONE) /\
+ (ctrl_exec ctx (stmt_ret e) (state_tup stacks status_running) =
+  SOME (stmt_empty, stacks, status_running)
+ ) /\
+ (ctrl_exec ctx (stmt_seq (stmt_ret e) stmt) (state_tup stacks status_running) =
+  SOME (stmt_empty, stacks, status_running)
+ ) /\ 
+ (ctrl_exec ctx stmt (state_tup stacks status_running) =
+  (case stmt_exec ctx stmt stacks status_running of
+   | SOME (stmt', stacks', status') => SOME (stmt', stacks', status')
+   | NONE => NONE)
+ )
+`;
+
+(* Fuel-powered multi-step executable semantics for control blocks *)
+val ctrl_multi_exec = Define `
+ (ctrl_multi_exec _ stmt stacks status 0 =
+  SOME (stmt, stacks, status))
+  /\
+ (ctrl_multi_exec ctx stmt stacks status (SUC fuel) =
+  case ctrl_exec ctx stmt (state_tup stacks status) of
+  | SOME (stmt', stacks', status') => ctrl_multi_exec ctx stmt' stacks' status' fuel
+  | NONE => NONE)
+`;
+
+(***********************************)
+(*  Architectural-level semantics  *)
+(***********************************)
+
+val arch_exec_def = Define `
+ (* Choose block: input, programmable block, fixed-function block or output *)
+ (* TODO: arch_parser_ret and arch_control_ret: differ on aenv Boolean *)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
+            (i, F, in_out_list, in_out_list', scope) ctx stmt_empty stacks status =
+  case EL i ab_list of
+  | arch_block_inp =>
+   let
+     (in_out_list'', scope') = input_f (in_out_list, scope)
+   in
+    SOME ((i+1, F, in_out_list'', in_out_list', scope'), ctx, stmt_empty, stacks, status)
+  | (arch_block_pbl pblock x el) =>
+   SOME ((i, T, in_out_list, in_out_list', scope), ctx, (stmt_pbl_call x el), stacks, status)
+  | (arch_block_ffbl ffblock x el) =>
+   SOME ((i+1, F, in_out_list, in_out_list', scope), ctx, (stmt_ffbl_call x el), stacks, status)
+  | arch_block_out =>
+   let
+     (in_out_list'', scope') = output_f (in_out_list', scope)
+   in
+    SOME ((0, F, in_out_list, in_out_list'', scope'), ctx, stmt_empty, stacks, status)) /\
+ (* TODO: Operating on a stmt_pbl_call: arch_parser_init, arch_control_init, arch_pblock_args *)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
+            (i, T, in_out_list, in_out_list', scope) ctx stmt stacks status = NONE) /\
+ (* TODO: Operating on a stmt_ffbl_call: arch_ffblock_exec, arch_ffblock_args *)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
+            (i, F, in_out_list, in_out_list', scope) ctx stmt stacks status = NONE) /\
+ (* TODO: Operating on any other statement: arch_parser_exec, arch_control_exec *)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
+            (i, T, in_out_list, in_out_list', scope) ctx (stmt_ret e) stacks status =
+  NONE
+ )
+`;
+        
+(**********)
+(*  Misc  *)
+(**********)
+
 (* TEST
 
 val bl0 = mk_v_bitii (0, 32);
@@ -1376,35 +1485,6 @@ Theorem stmt_multi_exec_sound_red:
 Proof
  cheat
 QED
-
-(* The executable semantics of the parser is defined in terms of the executable semantics of
- * statements *)
-val pars_exec_def = Define `
- (pars_exec (type_map,ext_map,func_map,pars_map,t_map,ctrl) stmt stacks status =
-  case stmt_exec (type_map,ext_map,func_map,pars_map,t_map,ctrl) stmt stacks status of
-  | SOME (stmt', stacks', status_pars_next (pars_next_trans x)) =>
-   (case FLOOKUP pars_map x of
-    | SOME stmt'' => SOME (stmt', stacks', status_running)
-    | NONE => NONE)
-  | SOME (stmt_empty, stacks', status_running) =>
-   SOME (stmt_trans (e_var "reject"), stacks', status_running)
-  | SOME (stmt', stacks', status') =>
-   SOME (stmt', stacks', status')
-  | NONE => NONE
-)
-`;
-
-(* Fuel-powered multi-step executable semantics for parsers *)
-val pars_multi_exec = Define `
- (pars_multi_exec _ stmt stacks status 0 =
-  SOME (stmt, stacks, status))
-  /\
- (pars_multi_exec ctx stmt stacks status (SUC fuel) =
-  case pars_exec ctx stmt stacks status of
-  | SOME (stmt', stacks', status') => pars_multi_exec ctx stmt' stacks' status' fuel
-  | NONE => NONE)
-`;
-
 
 
 

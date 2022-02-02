@@ -636,8 +636,8 @@ grammar
 arch_block :: arch_block_ ::=
 {{ com architectural block }}
 | inp :: :: inp
-| pblock x :: :: pbl
-| ffblock x :: :: ffbl
+| pblock x ( e1 , .. , en ) :: :: pbl
+| ffblock x ( e1 , .. , en ) :: :: ffbl
 | out :: :: out
 
 % TODO: Could be just a type abbreviation?
@@ -1587,7 +1587,7 @@ by
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   ext lval ( e1 , .. , en ) ( stacks , Running ) = ( v , ( stacks' , status ) )
   ----------------------------------- :: ext_exec
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [v] ( stacks' , status )
+  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call lval f ( e1 , .. , en )] ( stacks , Running ) ~> [v] ( stacks' , status )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
@@ -2088,8 +2088,6 @@ by
   ------------------------------------------------- :: stmt
   ctx [stmt]( stacks , status ) -c-> [stmt']( stacks' , status' )
 
-%TODO: Rules for finishing the control block when encountering "return"
-
   ------------------------------------------------- :: ret
   ctx [return v]( stacks , status ) -c-> [empty_stmt]( stacks , status )
 
@@ -2115,17 +2113,17 @@ by
   ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
   i' = i + 1
   ----------------------------------- :: in
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list'' , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list'' , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status )
 
   %Note that this rule does not increment i. That happens when the pblock is finished.
-  pblock x = ab_list [ i ]
+  pblock x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: pbl_call
   ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ pbl_call x ( e1 , .. , en ) ] ( stacks , status )
 
   i' = i + 1
-  ffblock x = ab_list [ i ]
+  ffblock x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: ffbl_call
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , true , in_out_list , in_out_list' , scope ) ctx [ ffbl_call x ( e1 , .. , en ) ] ( stacks , status )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list , in_out_list' , scope ) ctx [ ffbl_call x ( e1 , .. , en ) ] ( stacks , status )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
@@ -2169,7 +2167,7 @@ by
   %TODO: Create specific control block semantics?
 
 %Note that this rule needs to check that execution is actually inside a parser block to remove ambiguity
-  pblock x = ab_list [ i ]
+  pblock x ( e1 , .. , en ) = ab_list [ i ]
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map' = pblock_map ( x )
   status_not_fin status
   ctx [ stmt ]( stacks , status ) -p-> [ stmt' ]( stacks' , status' )
@@ -2177,7 +2175,7 @@ by
   actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt' ] ( stacks' , status' )
 
 %Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
-  pblock x = ab_list [ i ]
+  pblock x ( e1 , .. , en ) = ab_list [ i ]
   control stmt'' ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' = pblock_map ( x )
   ctx [ stmt ]( stacks , status ) -c-> [ stmt' ]( stacks' , status' )
   ----------------------------------- :: control_exec
