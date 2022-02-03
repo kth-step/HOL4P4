@@ -890,7 +890,7 @@ formula :: formula_ ::=
   {{ tex [[d]] = \mathrm{hd} \,\, [[d_list]] }} 
 | unred_arg_index d_list e_list = i :: M :: parameter_index
   {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
-  {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME i) }}
+  {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME [[i]]) }}
 
 %Equalities
 | scope = scope' :: M :: scope_eq
@@ -2113,17 +2113,17 @@ by
   ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
   i' = i + 1
   ----------------------------------- :: in
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list'' , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i' , false , in_out_list'' , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running )
 
   %Note that this rule does not increment i. That happens when the pblock is finished.
   pblock x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: pbl_call
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ pbl_call x ( e1 , .. , en ) ] ( stacks , status )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ pbl_call x ( e1 , .. , en ) ] ( stacks , Running )
 
   i' = i + 1
   ffblock x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: ffbl_call
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list , in_out_list' , scope ) ctx [ ffbl_call x ( e1 , .. , en ) ] ( stacks , status )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i' , false , in_out_list , in_out_list' , scope ) ctx [ ffbl_call x ( e1 , .. , en ) ] ( stacks , Running )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
@@ -2131,7 +2131,7 @@ by
   ( in_out_list'' , scope' ) = output_f ( in_out_list' , scope )
   zero i'
   ----------------------------------- :: out
-  actx ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , status ) -'> ( i' , false , in_out_list , in_out_list'' , scope' ) ctx [ empty_stmt ] ( stacks , status )
+  actx ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i' , false , in_out_list , in_out_list'' , scope' ) ctx [ empty_stmt ] ( stacks , Running )
 
 
 %The "programmable block" phase can initiate execution of either a parser block or a control block
@@ -2155,9 +2155,9 @@ by
   control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' = pblock_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %TODO: Should you also be able to read from the global scope?
-  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
-  G scope = curr_stack_frame[0]
-  curr_stack_frame' = [G scope] ++ [ scope' ]
+  scope'' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
+  G scope' = curr_stack_frame[0]
+  curr_stack_frame' = [G scope'] ++ [ scope'' ]
   %TODO: Model pseudo-scope external to the P4 program using the call stack?
   ----------------------------------- :: control_init
   ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ pbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl') [ stmt ] ( ( curr_stack_frame' , call_stack ) , Running )
@@ -2185,24 +2185,26 @@ by
 
 
 %Note that exiting a parser block also sets the value of parseError
+  pblock f ( e1 , .. , en ) = ab_list [ i ]
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map = pblock_map ( f )
-  G scope = curr_stack_frame[0]
-  [ scope' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  G scope' = curr_stack_frame[0]
+  [ scope'' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   lval = "parseError"
   x = "parseError"
   v = lookup_vexp ( curr_stack_frame , x )
-  [ scope'' ] = assign ( [ scope' ] , v , lval )
+  [ scope''' ] = assign ( [ scope'' ] , v , lval )
   i' = i + 1
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: parser_ret
-  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , pars_fin ) -'> ( i' , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( [ G scope ] , emptycs ) , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , pars_fin ) -'> ( i' , false , in_out_list , in_out_list' , scope''' ) ctx [ empty_stmt ] ( ( [ G scope' ] , emptycs ) , Running )
 
+  pblock f ( e1 , .. , en ) = ab_list [ i ]
   control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl = pblock_map ( f )
-  G scope = curr_stack_frame[0]
-  [ scope' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  G scope' = curr_stack_frame[0]
+  [ scope'' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   i' = i + 1
   ----------------------------------- :: control_ret
-  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i' , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( [ G scope ] , emptycs ) , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i' , false , in_out_list , in_out_list' , scope'' ) ctx [ empty_stmt ] ( ( [ G scope' ] , emptycs ) , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?

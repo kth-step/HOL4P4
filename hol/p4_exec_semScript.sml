@@ -1367,35 +1367,142 @@ val ctrl_multi_exec = Define `
 (***********************************)
 
 val arch_exec_def = Define `
- (* Choose block: input, programmable block, fixed-function block or output *)
- (* TODO: arch_parser_ret and arch_control_ret: differ on aenv Boolean *)
+ (arch_exec actx aenv ctx stmt stacks status_type_error = NONE) /\
+ (* arch_parser_ret: Note that this is a different clause from arch_control_ret due to the status *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
-            (i, F, in_out_list, in_out_list', scope) ctx stmt_empty stacks status =
-  case EL i ab_list of
-  | arch_block_inp =>
-   let
-     (in_out_list'', scope') = input_f (in_out_list, scope)
-   in
-    SOME ((i+1, F, in_out_list'', in_out_list', scope'), ctx, stmt_empty, stacks, status)
-  | (arch_block_pbl pblock x el) =>
-   SOME ((i, T, in_out_list, in_out_list', scope), ctx, (stmt_pbl_call x el), stacks, status)
-  | (arch_block_ffbl ffblock x el) =>
-   SOME ((i+1, F, in_out_list, in_out_list', scope), ctx, (stmt_ffbl_call x el), stacks, status)
-  | arch_block_out =>
-   let
-     (in_out_list'', scope') = output_f (in_out_list', scope)
-   in
-    SOME ((0, F, in_out_list, in_out_list'', scope'), ctx, stmt_empty, stacks, status)) /\
- (* TODO: Operating on a stmt_pbl_call: arch_parser_init, arch_control_init, arch_pblock_args *)
+            (i, b, in_out_list, in_out_list', scope) ctx stmt_empty
+            (stacks_tup curr_stack_frame call_stack) (status_pars_next (pars_next_pars_fin pars_fin)) =
+  if b then
+   (case EL i ab_list of
+    | (arch_block_pbl pblock x el) =>
+     (case FLOOKUP pblock_map x of
+      | SOME (pblock_parser x_d_list pars_map) =>
+       (case update_return_frame (MAP FST x_d_list) (MAP SND x_d_list) [scope] curr_stack_frame of
+        | SOME [scope''] =>
+         (case assign [scope''] (lookup_vexp curr_stack_frame "parseError") (lval_varname "parseError") of
+          | SOME [scope'''] =>
+           SOME ((i+1, F, in_out_list, in_out_list', scope'''), ctx, stmt_empty, (stacks_tup [EL 0 curr_stack_frame] []), status_running)
+          | _ => NONE)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+   else NONE) /\
+ (* Other statements with status pars_fin map to NONE *)
+ (arch_exec actx aenv ctx stmt stacks (status_pars_next (pars_next_pars_fin pars_fin)) = NONE) /\
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
-            (i, T, in_out_list, in_out_list', scope) ctx stmt stacks status = NONE) /\
- (* TODO: Operating on a stmt_ffbl_call: arch_ffblock_exec, arch_ffblock_args *)
+            (i, b, in_out_list, in_out_list', scope) ctx stmt_empty
+            (stacks_tup curr_stack_frame call_stack) status_running =
+ (* arch_control_ret: distinguished by aenv Boolean from the below *)
+  if b then
+   (case EL i ab_list of
+    | (arch_block_pbl pblock x el) =>
+     (case FLOOKUP pblock_map x of
+      | SOME (pblock_control stmt x_d_list ctrl) =>
+       (case update_return_frame (MAP FST x_d_list) (MAP SND x_d_list) [scope] curr_stack_frame of
+        | SOME [scope''] =>
+         SOME ((i+1, F, in_out_list, in_out_list', scope''), ctx, stmt_empty, (stacks_tup [EL 0 curr_stack_frame] []), status_running)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  else
+   (* arch_in, arch_pbl_call, arch_ffbl_call, arch_out *)
+   (case EL i ab_list of
+    | arch_block_inp =>
+     let
+       (in_out_list'', scope') = input_f (in_out_list, scope)
+     in
+      SOME ((i+1, F, in_out_list'', in_out_list', scope'), ctx, stmt_empty, (stacks_tup curr_stack_frame call_stack), status_running)
+    | (arch_block_pbl pblock x el) =>
+     SOME ((i, T, in_out_list, in_out_list', scope), ctx, (stmt_pbl_call x el), (stacks_tup curr_stack_frame call_stack), status_running)
+    | (arch_block_ffbl ffblock x el) =>
+     SOME ((i+1, F, in_out_list, in_out_list', scope), ctx, (stmt_ffbl_call x el), (stacks_tup curr_stack_frame call_stack), status_running)
+    | arch_block_out =>
+     let
+       (in_out_list'', scope') = output_f (in_out_list', scope)
+     in
+      SOME ((0, F, in_out_list, in_out_list'', scope'), ctx, stmt_empty, (stacks_tup curr_stack_frame call_stack), status_running))) /\
+ (* Operating on a stmt_pbl_call: arch_parser_init, arch_control_init, arch_pblock_args *)
+ (* TODO: Would be nice to remove code duplication... *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
-            (i, F, in_out_list, in_out_list', scope) ctx stmt stacks status = NONE) /\
- (* TODO: Operating on any other statement: arch_parser_exec, arch_control_exec *)
+            (i, T, in_out_list, in_out_list', scope)
+            (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) (stmt_pbl_call f el) (stacks_tup curr_stack_frame call_stack) status =
+  (case FLOOKUP pblock_map f of
+   | SOME (pblock_control stmt x_d_list ctrl') =>
+    (case unred_arg_index (MAP SND x_d_list) el of
+     | SOME i' => (* arch_pblock_args *)
+      (case e_exec (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) (EL i' el) (stacks_tup curr_stack_frame call_stack) status of
+       | SOME (e', stacks', status') =>
+        SOME ((i, T, in_out_list, in_out_list', scope), (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl), stmt_ffbl_call f (LUPDATE e' i el), stacks', status')
+       | NONE => NONE)
+     | NONE => (* arch_control_init *)
+      let
+       scope' = all_arg_update_for_newscope (MAP FST x_d_list) (MAP SND x_d_list) el [scope]
+      in
+       let
+        curr_stack_frame' = ([EL 0 curr_stack_frame] ++ [scope'])
+       in
+        SOME ((i, T, in_out_list, in_out_list', scope), (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl'), stmt, (stacks_tup curr_stack_frame' call_stack), status_running)
+    )
+   | SOME (pblock_parser x_d_list pars_map') =>
+    (case unred_arg_index (MAP SND x_d_list) el of
+     | SOME i' => (* arch_pblock_args *)
+      (case e_exec (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) (EL i' el) (stacks_tup curr_stack_frame call_stack) status of
+       | SOME (e', stacks', status') =>
+        SOME ((i, T, in_out_list, in_out_list', scope), (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl), stmt_ffbl_call f (LUPDATE e' i el), stacks', status')
+       | NONE => NONE)
+     | NONE => (* arch_parser_init *)
+      (case FLOOKUP pars_map' "start" of
+       | SOME stmt =>
+        let
+         scope' = all_arg_update_for_newscope (MAP FST x_d_list) (MAP SND x_d_list) el [scope]
+        in
+         let
+          curr_stack_frame' = [EL 0 curr_stack_frame] ++ [scope']
+         in
+          (case assign curr_stack_frame' (v_err "NoError") (lval_varname "parseError") of
+           | SOME curr_stack_frame'' =>
+            SOME ((i, T, in_out_list, in_out_list', scope), (ty_map, ext_map, func_map, pars_map', tbl_map, ctrl), stmt, (stacks_tup curr_stack_frame'' call_stack), status_running)
+           | NONE => NONE)
+       | NONE => NONE))
+   | NONE => NONE)
+ ) /\
+ (* Operating on a stmt_ffbl_call: arch_ffblock_exec, arch_ffblock_args *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
-            (i, T, in_out_list, in_out_list', scope) ctx (stmt_ret e) stacks status =
-  NONE
+            (i, F, in_out_list, in_out_list', scope) ctx (stmt_ffbl_call f el) (stacks_tup curr_stack_frame call_stack) status =
+  (case FLOOKUP ffblock_map f of
+   | SOME (ff, x_d_list) =>
+    (case unred_arg_index (MAP SND x_d_list) el of
+     | SOME i =>
+     (case e_exec ctx (EL i el) (stacks_tup curr_stack_frame call_stack) status of
+      | SOME (e', stacks', status') =>
+       SOME ((i, F, in_out_list, in_out_list', scope), ctx, stmt_ffbl_call f (LUPDATE e' i el), stacks', status')
+      | NONE => NONE)
+     | NONE =>
+      let
+       (scope', curr_stack_frame') = ff (el, scope, curr_stack_frame)
+      in
+       SOME ((i, F, in_out_list, in_out_list', scope'), ctx, stmt_empty, (stacks_tup curr_stack_frame' call_stack), status))
+   | NONE => NONE
+  )
+ ) /\
+ (* Operating on any other statement: arch_parser_exec, arch_control_exec *)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
+            (i, T, in_out_list, in_out_list', scope) ctx stmt stacks status =
+  (case EL i ab_list of
+   | (arch_block_pbl pblock x el) =>
+    (case FLOOKUP pblock_map x of
+     | SOME (pblock_parser x_d_list pars_map') =>
+      (case pars_exec ctx stmt (state_tup stacks status) of
+       | SOME (stmt', stacks', status') =>
+        SOME ((i, T, in_out_list, in_out_list', scope), ctx, stmt', stacks', status')
+       | _ => NONE)
+     | SOME (pblock_control stmt'' x_d_list ctrl') =>
+      (case ctrl_exec ctx stmt (state_tup stacks status) of
+       | SOME (stmt', stacks', status') =>
+        SOME ((i, T, in_out_list, in_out_list', scope), ctx, stmt', stacks', status')
+       | _ => NONE)
+     | _ => NONE)
+   | _ => NONE)
  )
 `;
         
