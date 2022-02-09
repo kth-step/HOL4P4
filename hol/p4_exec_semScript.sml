@@ -1367,12 +1367,12 @@ val ctrl_multi_exec = Define `
 (***********************************)
 
 val arch_exec_def = Define `
- (arch_exec actx aenv ctx stmt stacks status_type_error = NONE) /\
+ (arch_exec (actx:actx) (aenv:aenv) ctx stmt stacks status_type_error = NONE) /\
  (* arch_parser_ret: Note that this is a different clause from arch_control_ret due to the status *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
-            (i, b, in_out_list, in_out_list', scope) ctx stmt_empty
+            (i, b, in_out_list, in_out_list', scope) ctx stmt
             (stacks_tup curr_stack_frame call_stack) (status_pars_next (pars_next_pars_fin pars_fin)) =
-  if b then
+  if b /\ (is_empty stmt) then
    (case EL i ab_list of
     | (arch_block_pbl pblock x el) =>
      (case FLOOKUP pblock_map x of
@@ -1387,8 +1387,6 @@ val arch_exec_def = Define `
       | _ => NONE)
     | _ => NONE)
    else NONE) /\
- (* Other statements with status pars_fin map to NONE *)
- (arch_exec actx aenv ctx stmt stacks (status_pars_next (pars_next_pars_fin pars_fin)) = NONE) /\
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f)
             (i, b, in_out_list, in_out_list', scope) ctx stmt_empty
             (stacks_tup curr_stack_frame call_stack) status_running =
@@ -1505,6 +1503,18 @@ val arch_exec_def = Define `
    | _ => NONE)
  )
 `;
+
+(* Fuel-powered multi-step architectural-level executable semantics *)
+val arch_multi_exec = Define `
+ (arch_multi_exec _ aenv ctx stmt stacks status 0 =
+  SOME (aenv, ctx, stmt, stacks, status))
+  /\
+ (arch_multi_exec actx aenv ctx stmt stacks status (SUC fuel) =
+  case arch_exec actx aenv ctx stmt stacks status of
+  | SOME (aenv', ctx', stmt', stacks', status') => arch_multi_exec actx aenv' ctx' stmt' stacks' status' fuel
+  | NONE => NONE)
+`;
+
         
 (**********)
 (*  Misc  *)
