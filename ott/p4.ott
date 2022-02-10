@@ -1326,10 +1326,10 @@ grammar
 defns
   e_stmt_sem :: '' ::=
 defn
-  ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' ) :: :: e_red :: e_
+  ctx [ e ] state ~> [ e' ] state' :: :: e_red :: e_
   {{ com expression semantics }}
   %TODO Should use different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status?
-  {{ tex [[ctx]] \vdash [ [[e]] ] ([[stacks]], [[status]]) \rightsquigarrow [ [[e']] ] ([[stacks']], [[status']]) }}
+  {{ tex [[ctx]] \vdash [ [[e]] ] [[state]] \rightsquigarrow [ [[e']] ] [[state']] }}
 by
 
 %%%%%%%%%%%%%%%%%
@@ -1378,7 +1378,7 @@ by
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   ext x ( e1 , .. , en ) ( stacks , Running ) = ( v , ( stacks' , status ) )
   ----------------------------------- :: ext_exec
-  ctx [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [v] ( stacks' , status )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call x f ( e1 , .. , en )] ( stacks , Running ) ~> [v] ( stacks' , status )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
@@ -1420,7 +1420,7 @@ by
   (type_map, ext_map, func_map, pars_map, t_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
 
 %Arguments to extern method call
-  ( empty_stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
   (type_map, ext_map, func_map, pars_map, t_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
@@ -1657,7 +1657,7 @@ by
 defn
   ctx [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
   {{ com statement semantics }}
-  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) \rightarrow [ [[stmt']] ] ([[state']]) }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] [[state]] \rightarrow [ [[stmt']] ] [[state']] }}
 by
 
 %%%%%%%%%%%%%%
@@ -1742,7 +1742,7 @@ by
 
 %Case predicate holds
   ------------------------------------------------- :: verify_3
-  ctx [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+  ctx [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks , Running )
 
 %Case predicate does not hold
   %TODO: This assumption needed since we don't have string literals yet
@@ -1781,7 +1781,7 @@ by
   t_map ( table_name ) = ( e' , match_kind )
   ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks' , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
