@@ -140,10 +140,10 @@ val mk_stacks_tup : term * term -> term
 val stacks_tup_tm : term
 
 
-val dest_e_red : term -> term * term * term * term * term * term * term
+val dest_e_red : term -> term * term * term * term * term
 val e_red_tm : term
 val is_e_red : term -> bool
-val mk_e_red : term * term * term * term * term * term * term -> term
+val mk_e_red : term * term * term * term * term -> term
 
 val dest_stmt_red : term -> term * term * term * term * term
 val is_stmt_red : term -> bool

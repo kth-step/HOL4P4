@@ -154,7 +154,7 @@ val (stacks_tup_tm, mk_stacks_tup, dest_stacks_tup, is_stacks_tup) =
 (**************)
 
 val (e_red_tm,  mk_e_red, dest_e_red, is_e_red) =
-  syntax_fns7 "p4" "e_red";
+  syntax_fns5 "p4" "e_red";
 
 val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
   syntax_fns5 "p4" "stmt_red";

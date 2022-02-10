@@ -639,7 +639,7 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
 (* Only meant to skip certain soundness proof parts for now *)
 Theorem e_ignore_pars_next:
  !ctx e e' stacks stacks' p status'.
-  e_red ctx e stacks (status_pars_next p) e' stacks' status'
+  e_red ctx e (state_tup stacks (status_pars_next p)) e' (state_tup stacks' status')
 Proof
 cheat
 QED
@@ -655,7 +655,7 @@ Definition e_exec_sound:
  (e_exec_sound e =
   !ctx (e':e) stacks stacks' status status'.
   e_exec ctx e stacks status = SOME (e', stacks', status') ==>
-  e_red ctx e stacks status e' stacks' status')
+  e_red ctx e (state_tup stacks status) e' (state_tup stacks' status'))
 End
 
 Definition stmt_exec_sound:
@@ -1300,11 +1300,11 @@ EVAL ``stmt_multi_exec (^ctx) (stmt_ass (lval_field (lval_varname "x") "f") (e_v
 val (e_clos_sem_rules, e_clos_sem_ind, e_clos_sem_cases) = Hol_reln`
 (* Base clause: *)
 (! ctx (e:e) stacks (e':e) (stacks':stacks).
-( ( e_red ctx e stacks status_running e' stacks' status_running )) ==> 
+( ( e_red ctx e (state_tup stacks status_running) e' (state_tup stacks' status_running) )) ==> 
 ( ( e_clos_red ctx e stacks status_running e' stacks' status_running )))
 (* Inductive clause: *)
 /\ (! ctx (e:e) stacks (e':e) (stacks':stacks) (e'':e) (stacks'':stacks).
-(( ( e_red ctx e stacks status_running e' stacks' status_running )) /\ 
+(( ( e_red ctx e (state_tup stacks status_running) e' (state_tup stacks' status_running) )) /\ 
 ( ( e_clos_red ctx e' stacks' status_running e'' stacks'' status_running ))) ==> 
 ( ( e_clos_red ctx e stacks status_running e'' stacks'' status_running )))
 `;
