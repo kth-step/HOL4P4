@@ -9,7 +9,7 @@ open wordsTheory;
 %%%%%%%%%%%%%%%%%
 
 %x denotes variable name, f denotes field name or function name
-metavar x, f, a, table_name ::=
+metavar x, f, a, tbl ::=
       {{ lex alphanum }}
       {{ hol string }}
       {{ tex [[x]] }}
@@ -270,10 +270,6 @@ stacks {{ tex \sigma }} :: stacks_ ::=
 {{ com stacks in execution state }}
 | ( curr_stack_frame , call_stack ) :: :: tup
 
-state {{ tex s }} :: state_ ::=
-{{ com execution state }}
-| ( stacks , status ) :: :: tup
-
 %Fence so that ott does not re-order expression syntax with state syntax
 embed
 {{ hol
@@ -354,9 +350,6 @@ binop {{ tex \oplus }} :: binop_ ::=
 | OR :: :: bin_or
   {{ com binary or }}
   {{ tex \lor }}
-
-ext {{ tex { \mathit{ext} } }} :: ext_ ::=
-{{ hol ((lval # e list # state) -> ((v # state) option)) }}
 
 %TODO: Add casts
 %TODO: Add tuples
@@ -446,7 +439,7 @@ e_list :: e_list_ ::=
 %| decl1 ; decl2 :: :: seq
 %  {{ com sequence }}
 
-match_kind {{ tex \mathit{match\_kind} }} :: match_kind_ ::=
+mk {{ tex \mathit{mk} }} :: mk_ ::=
 {{ com matching kinds }}
 | exact :: :: exact
   {{ tex exact }}
@@ -454,6 +447,22 @@ match_kind {{ tex \mathit{match\_kind} }} :: match_kind_ ::=
   {{ tex ternary }}
 | lpm :: :: lpm
   {{ tex lpm }}
+
+% TODO: Could be just a type abbreviation?
+ctrl {{ tex { C } }} :: ctrl_ ::=
+{{ com control plane }}
+{{ hol ((string # v # mk) -> (string # e_list) option) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  %TODO: Correct? How does this affect export?
+  {{ hol FEMPTY }}
+
+state {{ tex s }} :: state_ ::=
+{{ com execution state }}
+| ( ctrl , stacks , status ) :: :: tup
+
+ext {{ tex { \mathit{ext} } }} :: ext_ ::=
+{{ hol ((lval # e list # state) -> ((v # state) option)) }}
 
 bt {{ tex bt }} :: bt_ ::=
 {{ com base types }}
@@ -501,21 +510,10 @@ stmt :: stmt_ ::=
   %e should evaluate to a parser state name
   {{ com transition }}
   {{ tex \mathbf{transition}\, [[e]] }}
-| apply table_name e :: :: app
-  %table_name is the table name that should be applied
+| apply tbl e :: :: app
+  %tbl is the table name that should be applied
   {{ com apply }}
-  {{ tex \mathbf{apply} \, [[table_name]] \, [[e]] }}
-%TODO: Should these really be here, or is this a hack?
-%Alternative approach: Make new production which can be either a
-%statement or a pblock (or a ffblock?)
-| pbl_call f ( e1 , .. , en ) :: :: pbl_call
-  {{ com programmable block call }}
-| ffbl_call f ( e1 , .. , en ) :: :: ffbl_call
-  {{ com fixed-function block call }}
-%| in bl i :: :: in
-%  {{ com input }}
-%| out bl i :: :: out
-%  {{ com output }}
+  {{ tex \mathbf{apply} \, [[tbl]] \, [[e]] }}
 
 d {{ tex d }} :: d_ ::=
 {{ com parameter direction }}
@@ -569,18 +567,9 @@ ext_map {{ tex X }} :: ext_map_ ::=
 {{ hol (string |-> (ext # (string # d) list)) }}
 
 % TODO: Could be just a type abbreviation?
-ctrl {{ tex { \mathrm{ctrl} } }} :: ctrl_ ::=
-{{ com control plane }}
-{{ hol ((string # v # match_kind) -> (string # e_list) option) }}
-| empty :: M :: empty
-  {{ com empty table map }}
-  %TODO: Correct? How does this affect export?
-  {{ hol FEMPTY }}
-
-% TODO: Could be just a type abbreviation?
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map  }}
-{{ hol (string |-> (e # match_kind)) }}
+{{ hol (string |-> (e # mk)) }}
 | empty :: M :: empty
   {{ com empty table map }}
   {{ hol FEMPTY }}
@@ -594,7 +583,7 @@ pars_map {{ tex P }} :: pars_map_ ::=
   {{ hol FEMPTY }}
 
 % TODO: Could be just a type abbreviation?
-ty_map {{ tex T }} :: ty_map_ ::=
+ty_map {{ tex \mathit{Ty} }} :: ty_map_ ::=
 {{ com type environment  }}
 {{ hol (string |-> ((string # t) list)) }}
 | empty :: M :: empty
@@ -614,12 +603,21 @@ embed
 }}
 grammar
 
-pblock {{ tex pblock }} :: pblock_ ::=
+arch_stmt :: arch_stmt_ ::=
+{{ com architecture-level statement }}
+| stmt :: :: regular
+  {{ com regular statement }}
+| pbl_call f ( e1 , .. , en ) :: :: pbl_call
+  {{ com programmable block call }}
+| ffbl_call f ( e1 , .. , en ) :: :: ffbl_call
+  {{ com fixed-function block call }}
+
+pblock {{ tex { \mathit{ pblock } } }} :: pblock_ ::=
 {{ com programmable block }}
 | parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map :: :: parser
-| control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl :: :: control
+| control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl tbl_map :: :: control
 
-ffblock {{ tex ffblock }} :: ffblock_ ::=
+ffblock {{ tex { \mathit{ ffblock } } }} :: ffblock_ ::=
 {{ com fixed-function block }}
 {{ hol (ff # (string # d) list) }}
 | ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) :: :: ff
@@ -641,28 +639,27 @@ arch_block :: arch_block_ ::=
 | out :: :: out
 
 % TODO: Could be just a type abbreviation?
-pblock_list :: pblock_list_ ::=
+pblock_list {{ tex \overline{pb} }} :: pblock_list_ ::=
 {{ com list of programmable blocks }}
 {{ hol (pblock list) }}
 | empty_pbl :: M :: empty
   {{ hol ([]:pblock list) }}
 
 % TODO: Could be just a type abbreviation?
-ffblock_list :: ffblock_list_ ::=
+ffblock_list {{ tex \overline{ffb} }} :: ffblock_list_ ::=
 {{ com list of fixed-function blocks }}
 {{ hol (ffblock list) }}
 | empty_ffbl :: M :: empty
   {{ hol ([]:ffblock list) }}
 
-% TODO: Could be just a type abbreviation?
-pblock_map {{ tex B }} :: pblock_map_ ::=
+pblock_map {{ tex B_{ \mathit{p} } }} :: pblock_map_ ::=
 {{ com programmable block map }}
 {{ hol (string |-> pblock) }}
 | empty :: M :: empty
   {{ com empty programmable block map }}
   {{ hol FEMPTY }}
 
-ffblock_map {{ tex F }} :: ffblock_map_ ::=
+ffblock_map {{ tex B_{ \mathit{ff} } }} :: ffblock_map_ ::=
 {{ com fixed-function block map }}
 {{ hol (string |-> ffblock) }}
 | empty :: M :: empty
@@ -670,7 +667,7 @@ ffblock_map {{ tex F }} :: ffblock_map_ ::=
   {{ hol FEMPTY }}
 
 % TODO: Could be just a type abbreviation?
-in_out_list :: in_out_list_ ::=
+in_out_list {{ tex \overline{io} }} :: in_out_list_ ::=
 {{ com list of input and output }}
 {{ hol (in_out list) }}
 | empty_in_out :: M :: empty
@@ -688,7 +685,7 @@ embed
 }}
 grammar
 
-ab_list :: ab_list_ ::=
+ab_list {{ tex \overline{ab} }} :: ab_list_ ::=
 {{ com list of architectural blocks }}
 {{ hol (arch_block list) }}
 | empty :: M :: empty
@@ -696,11 +693,11 @@ ab_list :: ab_list_ ::=
   {{ hol ([]:arch_block list) }}
 
 %TODO: Unify input_f and output_f?
-input_f :: input_f_ ::=
+input_f {{ tex { f_{ \mathit{in} } } }} :: input_f_ ::=
 {{ com input function }}
 {{ hol ((in_out_list # scope) -> (in_out_list # scope)) }}
 
-output_f :: output_f_ ::=
+output_f {{ tex { f_{ \mathit{out} } } }} :: output_f_ ::=
 {{ com output function }}
 {{ hol ((in_out_list # scope) -> (in_out_list # scope)) }}
 
@@ -713,31 +710,31 @@ grammar
 
 aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
 {{ com architectural environment }}
-{{ hol (num # boolv # in_out_list # in_out_list # scope) }}
+{{ hol (num # boolv # in_out_list # in_out_list # scope # pars_map # ctrl # tbl_map) }}
 | empty :: M :: empty
   {{ com empty architectural environment }}
   {{ hol (0, F, [], [], FEMPTY) }}
-| ( i , boolv , in_out_list , in_out_list' , scope ) :: M :: tup
+| ( i , boolv , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[i]], [[boolv]], [[in_out_list]], [[in_out_list']], [[scope]]) }}
+  {{ hol ([[i]], [[boolv]], [[in_out_list]], [[in_out_list']], [[scope]], [[pars_map]], [[ctrl]], [[tbl_map]]) }}
 
 actx {{ tex { \mathit{ctx}_\mathit{A} } }} :: actx_ ::=
 {{ com architectural context }}
-{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f) }}
-| ( ab_list , pblock_map , ffblock_map , input_f , output_f ) :: M :: tup
+{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # ty_map # ext_map # func_map) }}
+| ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]]) }}
+  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[ty_map]], [[ext_map]], [[func_map]]) }}
 
 % TODO: Could be just a type abbreviation?
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (ty_map # ext_map # func_map # pars_map # tbl_map # ctrl) }}
+{{ hol (ty_map # ext_map # func_map # pars_map # tbl_map) }}
 | empty :: M :: empty
   {{ com empty context }}
   {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY, NONE) }}
-| ( ty_map , ext_map , func_map , pars_map , tbl_map , ctrl ) :: M :: tup
+| ( ty_map , ext_map , func_map , pars_map , tbl_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[pars_map]], [[tbl_map]], [[ctrl]]) }}
+  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[pars_map]], [[tbl_map]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -915,14 +912,14 @@ formula :: formula_ ::=
   {{ tex [[in_out_list]] = [[in_out_list']] }}
 
 %Apply table
-| tbl_map ( table_name ) = ( e , match_kind ) :: :: find_key
+| tbl_map ( tbl ) = ( e , mk ) :: :: find_key
   {{ com find keys and the matching kind in the table map }}
-  {{ tex \mathrm{t\_map}\, [[table_name]]\, =\, ( [[e]] \, , [[match_kind]] ) }}
-  {{ hol ( FLOOKUP [[tbl_map]] [[table_name]] = SOME ( [[e]] , [[match_kind]] ) ) }}
-| ctrl ( table_name , v , match_kind ) = ( f , e_list ) :: :: ctrl_plane  
+  {{ tex \mathrm{t\_map}\, [[tbl]]\, =\, ( [[e]] \, , [[mk]] ) }}
+  {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[e]] , [[mk]] ) ) }}
+| ctrl ( tbl , v , mk ) = ( f , e_list ) :: :: ctrl_plane  
   {{ com fetch the function name and parameters from the ctrl plane }}
-  {{ tex \mathrm{ctrl}\, ( [[table_name]] , \, [[v]], \, [[match_kind]]\, ) = \,( [[f]] , [[e_list]] ) }}
-  {{ hol ([[ctrl]] ( [[table_name]] , [[v]] , [[match_kind]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
+  {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[v]], \, [[mk]]\, ) = \,( [[f]] , [[e_list]] ) }}
+  {{ hol ([[ctrl]] ( [[tbl]] , [[v]] , [[mk]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -1542,7 +1539,7 @@ by
 
   v = lookup_vexp ( curr_stack_frame , x )
   ----------------------------------- :: lookup
-  ctx [var x] ( ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ( curr_stack_frame, call_stack ) , Running )
+  ctx [var x] ( ctrl , ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame, call_stack ) , Running )
 
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
@@ -1556,15 +1553,15 @@ by
   curr_stack_frame'' = tl curr_stack_frame
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call f ( e1 , .. , en )] ( ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ( curr_stack_frame' , call_stack' ) , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [call f ( e1 , .. , en )] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ctrl , ( curr_stack_frame' , call_stack' ) , Running )
 
   not_empty stmt
-  ctx [stmt] ( stacks , Running ) -> [stmt'] ( stacks' , status )
+  ctx [stmt] ( ctrl , stacks , Running ) -> [stmt'] ( ctrl' , stacks' , status )
   ----------------------------------- :: func_exec
-  ctx [exec stmt] ( stacks , Running ) ~> [exec stmt'] ( stacks' , status )
+  ctx [exec stmt] ( ctrl , stacks , Running ) ~> [exec stmt'] ( ctrl' , stacks' , status )
 
   ----------------------------------- :: func_exec_empty
-  ctx [exec empty_stmt] ( stacks , Running ) ~> [exec return bot] ( stacks' , status )
+  ctx [exec empty_stmt] ( ctrl , stacks , Running ) ~> [exec return bot] ( ctrl , stacks , status )
 
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
@@ -1572,7 +1569,7 @@ by
   curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: func_ret
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [exec return v] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [exec return v] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame''' , call_stack' ) , Running )
 
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
@@ -1580,28 +1577,28 @@ by
   curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: func_ret_seq
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [exec return v ; stmt'] ( ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ( curr_stack_frame''' , call_stack' ) , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [exec return v ; stmt'] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame''' , call_stack' ) , Running )
 
 %Extern method exec
   ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   ext lval ( e1 , .. , en ) ( stacks , Running ) = ( v , ( stacks' , status ) )
   ----------------------------------- :: ext_exec
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call lval f ( e1 , .. , en )] ( stacks , Running ) ~> [v] ( stacks' , status )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [call lval f ( e1 , .. , en )] ( ctrl , stacks , Running ) ~> [v] ( ctrl' , stacks' , status )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
 
   v = struct { f1 = v1 ; ... ; fn = vn } ( f )
   ----------------------------------- :: s_acc
-  ctx [ struct { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
+  ctx [ struct { f1 = v1 ; ... ; fn = vn } . f] ( ctrl , stacks , Running ) ~> [v] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%
 %Header field access
 
   v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
   ----------------------------------- :: h_acc
-  ctx [ header boolv { f1 = v1 ; ... ; fn = vn } . f] ( stacks , Running ) ~> [v] ( stacks , Running )
+  ctx [ header boolv { f1 = v1 ; ... ; fn = vn } . f] ( ctrl , stacks , Running ) ~> [v] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%%%%
 %Select expression
@@ -1609,12 +1606,12 @@ by
 %Case select lookup
   x' = { v1 : x1 ; ... ; vn : xn } x ( v )
   ----------------------------------- :: sel_acc
-  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x' ] ( stacks , Running )
+  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( ctrl , stacks , Running ) ~> [ x' ] ( ctrl , stacks , Running )
 
 %Case default
   v notin { v1 : x1 ; ... ; vn : xn }
   ----------------------------------- :: sel_def
-  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( stacks , Running ) ~> [ x ] ( stacks , Running )
+  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( ctrl , stacks , Running ) ~> [ x ] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %"Reduction of argument" rules
@@ -1623,49 +1620,49 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [ e ] ( ctrl , stacks , status ) ~> [ e' ] ( ctrl' , stacks' , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: func_call_args
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call f ( e1 , .. , en )] ( stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( stacks' , status' )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [call f ( e1 , .. , en )] ( ctrl , stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( ctrl' , stacks' , status' )
 
 %Arguments to extern method call
   ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ e ] ( stacks , Running ) ~> [ e' ] ( stacks' , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [ e ] ( ctrl , stacks , Running ) ~> [ e' ] ( ctrl' , stacks' , Running )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: ext_call_args
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [call lval f ( e1 , .. , en )] ( stacks , Running ) ~> [call lval f ( e'1 , .. , e'n )] ( stacks' , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [call lval f ( e1 , .. , en )] ( ctrl , stacks , Running ) ~> [call lval f ( e'1 , .. , e'n )] ( ctrl' , stacks' , Running )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
   ----------------------------------- :: acc_arg1
-  ctx [e . x] ( stacks , status ) ~> [e' . x] ( stacks' , status' )
+  ctx [e . x] ( ctrl , stacks , status ) ~> [e' . x] ( ctrl' , stacks' , status' )
 
-  ctx [e'] ( stacks , status ) ~> [e''] ( stacks' , status' )
+  ctx [e'] ( ctrl , stacks , status ) ~> [e''] ( ctrl' , stacks' , status' )
   ----------------------------------- :: acc_arg2
-  ctx [e . e'] ( stacks , status ) ~> [e . e''] ( stacks' , status' )
+  ctx [e . e'] ( ctrl , stacks , status ) ~> [e . e''] ( ctrl' , stacks' , status' )
 
 %Select
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
   ----------------------------------- :: sel_arg
-  ctx [ select e { v1 : x1 ; ... ; vn : xn } x ] ( stacks , status ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( stacks' , status' )
+  ctx [ select e { v1 : x1 ; ... ; vn : xn } x ] ( ctrl , stacks , status ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( ctrl' , stacks' , status' )
 
 %Unary operations
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
   ----------------------------------- :: unop_arg
-  ctx [unop e] ( stacks , status ) ~> [unop e'] ( stacks' , status' )
+  ctx [unop e] ( ctrl , stacks , status ) ~> [unop e'] ( ctrl' , stacks' , status' )
 
 %Binary operations
-  ctx [e] ( stacks , status ) ~> [e''] ( stacks' , status' )
+  ctx [e] ( ctrl , stacks , status ) ~> [e''] ( ctrl' , stacks' , status' )
   ----------------------------------- :: binop_arg1
-  ctx [e binop e'] ( stacks , status ) ~> [e'' binop e'] ( stacks' , status' )
+  ctx [e binop e'] ( ctrl , stacks , status ) ~> [e'' binop e'] ( ctrl' , stacks' , status' )
 
   %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
   ----------------------------------- :: binop_arg2
-  ctx [v binop e] ( stacks , status ) ~> [v binop e'] ( stacks' , status' )
+  ctx [v binop e] ( ctrl , stacks , status ) ~> [v binop e'] ( ctrl' , stacks' , status' )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -1677,28 +1674,28 @@ by
 
   ! b = b'
   ----------------------------------- :: neg_bool
-  ctx [! b] ( stacks , Running ) ~> [b'] ( stacks , Running )
+  ctx [! b] ( ctrl , stacks , Running ) ~> [b'] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
   ~ bitv = bitv'
   ----------------------------------- :: compl
-  ctx [~ bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
+  ctx [~ bitv] ( ctrl , stacks , Running ) ~> [bitv'] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
   - bitv = bitv'
   ----------------------------------- :: neg_signed
-  ctx [- bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
+  ctx [- bitv] ( ctrl , stacks , Running ) ~> [bitv'] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%
 %Unary plus
 
   + bitv = bitv'
   ----------------------------------- :: un_plus
-  ctx [+ bitv] ( stacks , Running ) ~> [bitv'] ( stacks , Running )
+  ctx [+ bitv] ( ctrl , stacks , Running ) ~> [bitv'] ( ctrl , stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -1710,121 +1707,121 @@ by
 
   bitv * bitv' = bitv''
   ----------------------------------- :: mul
-  ctx [bitv * bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv * bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Division
 
   bitv / bitv' = bitv''
   ----------------------------------- :: div
-  ctx [bitv / bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv / bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%
 %Modulo
 
   bitv mod bitv' = bitv''
   ----------------------------------- :: mod
-  ctx [bitv mod bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv mod bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%
 %Addition
 
   bitv + bitv' = bitv''
   ----------------------------------- :: add
-  ctx [bitv + bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv + bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%
 %Subtraction
 
   bitv - bitv' = bitv''
   ----------------------------------- :: sub
-  ctx [bitv - bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv - bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%
 %Left shift
 
   bitv SHL bitv' = bitv''
   ----------------------------------- :: shl
-  ctx [bitv SHL bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv SHL bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%
 %Right shift
 
   bitv SHR bitv' = bitv''
   ----------------------------------- :: shr
-  ctx [bitv SHR bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv SHR bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
   bitv LE bitv' = b
   ----------------------------------- :: le
-  ctx [bitv LE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv LE bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
   bitv GE bitv' = b
   ----------------------------------- :: ge
-  ctx [bitv GE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv GE bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
 %%%%%%%%%%
 %Less than
 
   bitv < bitv' = b
   ----------------------------------- :: lt
-  ctx [bitv < bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv < bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Greater than
 
   bitv > bitv' = b
   ----------------------------------- :: gt
-  ctx [bitv > bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv > bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Not equal
 
   bitv NE bitv' = b
   ----------------------------------- :: neq
-  ctx [bitv NE bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv NE bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
   (x <> x') = b
   ----------------------------------- :: neq_error
-  ctx [(errmsg x) NE (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [(errmsg x) NE (errmsg x')] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
   b NE b' = b''
   ----------------------------------- :: neq_bool
-  ctx [b NE b'] ( stacks , Running ) ~> [b''] ( stacks , Running )
+  ctx [b NE b'] ( ctrl , stacks , Running ) ~> [b''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Equal
 
   bitv EQ bitv' = b
   ----------------------------------- :: eq
-  ctx [bitv EQ bitv'] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [bitv EQ bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
   (x EQ x') = b
   ----------------------------------- :: eq_error
-  ctx [(errmsg x) EQ (errmsg x')] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [(errmsg x) EQ (errmsg x')] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
   b EQ b' = b''
   ----------------------------------- :: eq_bool
-  ctx [b EQ b'] ( stacks , Running ) ~> [b''] ( stacks , Running )
+  ctx [b EQ b'] ( ctrl , stacks , Running ) ~> [b''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise and
 
   bitv & bitv' = bitv''
   ----------------------------------- :: and
-  ctx [bitv & bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv & bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Bitwise xor
 
   bitv ^ bitv' = bitv''
   ----------------------------------- :: xor
-  ctx [bitv ^ bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv ^ bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 
 %%%%%%%%%%%%%
@@ -1832,27 +1829,27 @@ by
 
   bitv | bitv' = bitv''
   ----------------------------------- :: or
-  ctx [bitv | bitv'] ( stacks , Running ) ~> [bitv''] ( stacks , Running )
+  ctx [bitv | bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary and
 %Note: This uses short-circuit evaluation
 
   ----------------------------------- :: bin_and1
-  ctx [false AND b] ( stacks , Running ) ~> [false] ( stacks , Running )
+  ctx [false AND b] ( ctrl , stacks , Running ) ~> [false] ( ctrl , stacks , Running )
 
   ----------------------------------- :: bin_and2
-  ctx [true AND b] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [true AND b] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
   ----------------------------------- :: bin_or1
-  ctx [true OR b] ( stacks , Running ) ~> [true] ( stacks , Running )
+  ctx [true OR b] ( ctrl , stacks , Running ) ~> [true] ( ctrl , stacks , Running )
 
   ----------------------------------- :: bin_or2
-  ctx [false OR b] ( stacks , Running ) ~> [b] ( stacks , Running )
+  ctx [false OR b] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -1880,7 +1877,7 @@ by
   %Assign a constant to a variable
   curr_stack_frame' = assign ( curr_stack_frame , v , lval )
   ----------------------------------- :: ass_v
-  ctx [assign lval v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [assign lval v] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
 
   %Assign to a struct field
 %  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
@@ -1898,27 +1895,27 @@ by
   %Assign to null
   %Note: This is be used to model function calls as an expression.
   ----------------------------------- :: ass_null
-  ctx [assign null v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame , call_stack ) , Running )
+  ctx [assign null v] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame , call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%
 %Sequence
 
-  ctx [stmt1] ( stacks , Running ) -> [stmt1'] ( stacks' , Running )
+  ctx [stmt1] ( ctrl , stacks , Running ) -> [stmt1'] ( ctrl' , stacks' , Running )
   ----------------------------------- :: seq1
-  ctx [stmt1 ; stmt2] ( stacks , Running ) -> [stmt1' ; stmt2] ( stacks' , Running )
+  ctx [stmt1 ; stmt2] ( ctrl , stacks , Running ) -> [stmt1' ; stmt2] ( ctrl' , stacks' , Running )
 
   ----------------------------------- :: seq2
-  ctx [empty_stmt ; stmt] ( stacks , Running ) -> [stmt] ( stacks , Running )
+  ctx [empty_stmt ; stmt] ( ctrl , stacks , Running ) -> [stmt] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%
 %Conditional
 
   ----------------------------------- :: cond2
-  ctx [if true then stmt1 else stmt2] ( stacks , Running ) -> [stmt1] ( stacks , Running )
+  ctx [if true then stmt1 else stmt2] ( ctrl , stacks , Running ) -> [stmt1] ( ctrl , stacks , Running )
 
   ----------------------------------- :: cond3
-  ctx [if false then stmt1 else stmt2] ( stacks , Running ) -> [stmt2] ( stacks , Running )
+  ctx [if false then stmt1 else stmt2] ( ctrl , stacks , Running ) -> [stmt2] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%
 %Declaration
@@ -1928,7 +1925,7 @@ by
   v = arb_from_t t
   curr_stack_frame' = update ( scope + [ x |-> ( v , NONE ) ] , i , curr_stack_frame )
   ----------------------------------- :: decl
-  ctx [decl x t] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [decl x t] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
 
 
 %%%%%%%%%%%%%%
@@ -1936,44 +1933,44 @@ by
 
   curr_stack_frame' =  curr_stack_frame ++ [ emptyscope ]
   ----------------------------------- :: block_enter
-  ctx [begin stmt end] ( ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [begin stmt end] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
 
-  ctx [stmt] ( stacks , status ) -> [stmt'] ( stacks' , status' )
+  ctx [stmt] ( ctrl , stacks , status ) -> [stmt'] ( ctrl' , stacks' , status' )
   ----------------------------------- :: block_exec
-  ctx [begin' stmt end'] ( stacks , status ) -> [begin' stmt' end'] ( stacks' , status' )
+  ctx [begin' stmt end'] ( ctrl , stacks , status ) -> [begin' stmt' end'] ( ctrl' , stacks' , status' )
 
   curr_stack_frame' = rev ( tl ( rev curr_stack_frame ) )
   ----------------------------------- :: block_exit
-  ctx [begin' empty_stmt end'] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+  ctx [begin' empty_stmt end'] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
 
 %%%%%%%%%%%%%%
 %Verify
 
 %Case predicate holds
   ------------------------------------------------- :: verify_3
-  ctx [verify true ( errmsg x )]( stacks , Running ) -> [empty_stmt]( stacks , Running )
+  ctx [verify true ( errmsg x )]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Running )
 
 %Case predicate does not hold
   %TODO: This assumption needed since we don't have string literals yet
   x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
-  ctx [verify false ( errmsg x )]( stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( stacks , Running )
+  ctx [verify false ( errmsg x )]( ctrl , stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%
 %Transition
 
   not_final_state ( x )
   ------------------------------------------------- :: trans_1
-  ctx [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Trans x )
+  ctx [transition x]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Trans x )
 
   x = "accept"
   ------------------------------------------------- :: trans_2
-  ctx [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Accept )
+  ctx [transition x]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Accept )
 
   x = "reject"
   ------------------------------------------------- :: trans_3
-  ctx [transition x]( stacks , Running ) -> [empty_stmt]( stacks , Reject )
+  ctx [transition x]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Reject )
 
 
 %%%%%%%%%%%%%%
@@ -1987,50 +1984,49 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   %The action is treated as a function call
-  tbl_map ( table_name ) = ( e' , match_kind )
-  ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
+  tbl_map ( tbl ) = ( e' , mk )
+  ctrl ( tbl , v , mk ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [apply table_name v] ( stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( stacks , Running )
-
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [apply tbl v] ( ctrl , stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Reduction step of return expression
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] state ~> [e'] state'
   ----------------------------------- :: ret_e
-  ctx [return e] ( stacks , status ) -> [return e'] ( stacks' , status' )
+  ctx [return e] state -> [return e'] state'
 
 %Reduction step of assign expression
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] state ~> [e'] state'
   ----------------------------------- :: ass_e
-  ctx [assign lval e] ( stacks , status ) -> [assign lval e'] ( stacks' , status' )
+  ctx [assign lval e] state -> [assign lval e'] state'
 
 %Reduction step of condition
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] state ~> [e'] state'
   ----------------------------------- :: cond_e
-  ctx [if e then stmt1 else stmt2] ( stacks , status ) -> [if e' then stmt1 else stmt2] ( stacks' , status' )
+  ctx [if e then stmt1 else stmt2] state -> [if e' then stmt1 else stmt2] state'
 
 %Reduction step of verify predicate
-  ctx [e] ( stacks , status ) ~> [e''] ( stacks' , status' )
+  ctx [e] state ~> [e''] state'
   ------------------------------------------------- :: verify_e1
-  ctx [verify e e' ]( stacks , status ) -> [verify e'' e']( stacks' , status' )
+  ctx [verify e e' ] state -> [verify e'' e'] state'
 
 %Reduction step of error message
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] state ~> [e'] state'
   ------------------------------------------------- :: verify_e2
-  ctx [verify b e]( stacks , status ) -> [verify b e']( stacks' , status' )
+  ctx [verify b e] state  -> [verify b e'] state'
 
 %Reduction step of transition
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] state ~> [e'] state'
   ------------------------------------------------- :: trans_e
-  ctx [transition e]( stacks , status ) -> [transition e']( stacks' , status' )
+  ctx [transition e] state -> [transition e'] state'
 
 %Reduction step of match-action expression
-  ctx [e] ( stacks , status ) ~> [e'] ( stacks' , status' )
+  ctx [e] state ~> [e'] state'
   ----------------------------------- :: apply_table_e
-  ctx [apply table_name e] ( stacks , status ) -> [apply table_name e'] ( stacks' , status' )
+  ctx [apply tbl e] state  -> [apply tbl e'] state'
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 % Parser block semantics %
@@ -2044,32 +2040,32 @@ defns
 defn
   ctx [ stmt ] state -p-> [ stmt' ] state' :: :: pars_red :: pars_
   {{ com parser block semantics }}
-  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) {\longrightarrow}_{p} [ [[stmt']] ] ([[state']]) }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] [[state]] {\longrightarrow}_{p} [ [[stmt']] ] [[state']] }}
 by
 
 %This rule describes how individual statement steps are taken inside the parser
   status_not_fin status
-  ctx [stmt]( stacks , status ) -> [stmt']( stacks' , status' )
+  ctx [stmt] state -> [stmt'] state'
   ------------------------------------------------- :: stmt
-  ctx [stmt]( stacks , status ) -p-> [stmt']( stacks' , status' )
+  ctx [stmt] state -p-> [stmt'] state'
 
 %This rule governs transitions between parser states
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [stmt]( stacks , Running ) -> [stmt']( stacks' , Trans x )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [stmt]( ctrl , stacks , Running ) -> [stmt']( ctrl' , stacks' , Trans x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [stmt]( stacks , Running ) -p-> [stmt'']( stacks' , Running )
+  (ty_map, ext_map, func_map, pars_map, tbl_map) [stmt]( ctrl , stacks , Running ) -p-> [stmt'']( ctrl' , stacks' , Running )
 
 %If the end of some parser state is reached without status change, we reject
-  ctx [stmt]( stacks , Running ) -> [empty_stmt]( stacks' , Running )
+  ctx [stmt]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl' , stacks' , Running )
   x = "reject"
   ------------------------------------------------- :: empty
-  ctx [stmt]( stacks , Running ) -p-> [transition x]( stacks' , Running )
+  ctx [stmt]( ctrl , stacks , Running ) -p-> [transition x]( ctrl , stacks' , Running )
 
 %This describes the final step of the parser
 
-  ctx [stmt]( stacks , Running ) -> [stmt']( stacks , pars_fin )
+  ctx [stmt]( ctrl , stacks , Running ) -> [stmt']( ctrl' , stacks' , pars_fin )
   ------------------------------------------------- :: fin
-  ctx [stmt]( stacks , Running ) -p-> [stmt']( stacks , pars_fin )
+  ctx [stmt]( ctrl , stacks , Running ) -p-> [stmt']( ctrl' , stacks' , pars_fin )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Control block semantics %
@@ -2080,31 +2076,30 @@ defns
 defn
   ctx [ stmt ] state -c-> [ stmt' ] state' :: :: ctrl_red :: ctrl_
   {{ com control block semantics }}
-  {{ tex [[ctx]] \vdash [ [[stmt]] ] ([[state]]) {\longrightarrow}_{c} [ [[stmt']] ] ([[state']]) }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] [[state]] {\longrightarrow}_{c} [ [[stmt']] ] [[state']] }}
 by
 
   not_return stmt
-  ctx [stmt]( stacks , status ) -> [stmt']( stacks' , status' )
+  ctx [stmt] state  -> [stmt'] state' 
   ------------------------------------------------- :: stmt
-  ctx [stmt]( stacks , status ) -c-> [stmt']( stacks' , status' )
+  ctx [stmt] state  -c-> [stmt'] state' 
 
   ------------------------------------------------- :: ret
-  ctx [return v]( stacks , status ) -c-> [empty_stmt]( stacks , status )
+  ctx [return v] state  -c-> [empty_stmt] state 
 
   ------------------------------------------------- :: ret_2
-  ctx [return v ; stmt]( stacks , status ) -c-> [empty_stmt]( stacks , status )
+  ctx [return v ; stmt] state  -c-> [empty_stmt] state 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Architectural-level semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%TODO: Maybe we would move things from actx to ctx? For example, make two-layered map for parser states, et.c. 
 defns
   arch_sem :: '' ::=
 defn
-  actx aenv ctx [ stmt ] ( stacks , status ) -'> aenv' ctx' [ stmt' ] ( stacks' , status' ) :: :: arch_red :: arch_
-  {{ com architectural-level semantics }}
-  {{ tex [[actx]] \vdash [[aenv]] [[ctx]] [ [[stmt]] ] ( [[stacks]] , [[status]] ) \rightharpoonup [[aenv']] [[ctx']] [ [[stmt']] ] ( [[stacks']] , [[status']] ) }}
+  actx [ arch_stmt ] ( aenv , stacks , status ) -'> [ arch_stmt' ] ( aenv' , stacks' , status' ) :: :: arch_red :: arch_
+  {{ com architecture-level semantics }}
+  {{ tex [[actx]] \vdash [ [[arch_stmt]] ] ( [[aenv]] , [[stacks]] , [[status]] ) {\longrightarrow}_{A} [ [[arch_stmt']] ] ( [[aenv']], [[stacks']] , [[status']] ) }}
 by
 
 %Four different phases: Input, programmable block, fixed-function block and output.
@@ -2113,17 +2108,17 @@ by
   ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
   i' = i + 1
   ----------------------------------- :: in
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i' , false , in_out_list'' , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ), stacks , Running ) -'> [ empty_stmt ] ( ( i' , false , in_out_list'' , in_out_list' , scope' , pars_map , ctrl , tbl_map ), stacks , Running )
 
   %Note that this rule does not increment i. That happens when the pblock is finished.
   pblock x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: pbl_call
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ pbl_call x ( e1 , .. , en ) ] ( stacks , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , stacks , Running ) -'> [ pbl_call x ( e1 , .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , stacks , Running )
 
   i' = i + 1
   ffblock x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: ffbl_call
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i' , false , in_out_list , in_out_list' , scope ) ctx [ ffbl_call x ( e1 , .. , en ) ] ( stacks , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , stacks , Running ) -'> [ ffbl_call x ( e1 , .. , en ) ] ( ( i' , false , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , stacks , Running )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
@@ -2131,7 +2126,7 @@ by
   ( in_out_list'' , scope' ) = output_f ( in_out_list' , scope )
   zero i'
   ----------------------------------- :: out
-  actx ( i , false , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( stacks , Running ) -'> ( i' , false , in_out_list , in_out_list'' , scope' ) ctx [ empty_stmt ] ( stacks , Running )
+  actx [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , stacks , Running ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list'' , scope' , pars_map , ctrl , tbl_map ) , stacks , Running )
 
 
 %The "programmable block" phase can initiate execution of either a parser block or a control block
@@ -2150,9 +2145,9 @@ by
   curr_stack_frame'' = assign ( curr_stack_frame' , v , lval )
   %TODO: Model arch scope external to the P4 program using the call stack?
   ----------------------------------- :: parser_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ pbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map', tbl_map, ctrl) [ stmt ] ( ( curr_stack_frame' , call_stack ) , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map' , ctrl , tbl_map ) , ( curr_stack_frame' , call_stack ) , Running )
 
-  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' = pblock_map ( f )
+  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' tbl_map' = pblock_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %TODO: Should you also be able to read from the global scope?
   scope'' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
@@ -2160,7 +2155,7 @@ by
   curr_stack_frame' = [G scope'] ++ [ scope'' ]
   %TODO: Model pseudo-scope external to the P4 program using the call stack?
   ----------------------------------- :: control_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl) [ pbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , Running ) -'> ( i , true , in_out_list , in_out_list' , scope ) (ty_map, ext_map, func_map, pars_map, tbl_map, ctrl') [ stmt ] ( ( curr_stack_frame' , call_stack ) , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl' , tbl_map' ) , ( curr_stack_frame' , call_stack ) , Running )
 
 
 %The "programmable block" phase then follows the semantics for a parser or control, respectively...
@@ -2170,16 +2165,16 @@ by
   pblock x ( e1 , .. , en ) = ab_list [ i ]
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map' = pblock_map ( x )
   status_not_fin status
-  ctx [ stmt ]( stacks , status ) -p-> [ stmt' ]( stacks' , status' )
+  ( ty_map , ext_map , func_map , pars_map , tbl_map ) [ stmt ] state -p-> [ stmt' ] state'
   ----------------------------------- :: parser_exec
-  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt' ] ( stacks' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , stacks , status ) -'> [ stmt' ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl' , tbl_map ) , stacks' , status' )
 
 %Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
   pblock x ( e1 , .. , en ) = ab_list [ i ]
-  control stmt'' ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' = pblock_map ( x )
-  ctx [ stmt ]( stacks , status ) -c-> [ stmt' ]( stacks' , status' )
+  control stmt'' ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl' tbl_map' = pblock_map ( x )
+  ( ty_map , ext_map , func_map , pars_map , tbl_map ) [ stmt ] state -c-> [ stmt' ] state'
   ----------------------------------- :: control_exec
-  actx ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt ] ( stacks , status ) -'> ( i , true , in_out_list , in_out_list' , scope ) ctx [ stmt' ] ( stacks' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , stacks , status ) -'> [ stmt' ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl' , tbl_map' ) , stacks' , status' )
 
 %... until execution using the regular statement semantics has finished
 
@@ -2196,15 +2191,15 @@ by
   i' = i + 1
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: parser_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , pars_fin ) -'> ( i' , false , in_out_list , in_out_list' , scope''' ) ctx [ empty_stmt ] ( ( [ G scope' ] , emptycs ) , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , ( curr_stack_frame , call_stack ) , pars_fin ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list' , scope''' , pars_map , ctrl , tbl_map ) , ( [ G scope' ] , emptycs ) , Running )
 
   pblock f ( e1 , .. , en ) = ab_list [ i ]
-  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl = pblock_map ( f )
+  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) ctrl tbl_map = pblock_map ( f )
   G scope' = curr_stack_frame[0]
   [ scope'' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   i' = i + 1
   ----------------------------------- :: control_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) ( i , true , in_out_list , in_out_list' , scope ) ctx [ empty_stmt ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i' , false , in_out_list , in_out_list' , scope'' ) ctx [ empty_stmt ] ( ( [ G scope' ] , emptycs ) , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , true , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , ( curr_stack_frame , call_stack ) , status ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list' , scope'' , pars_map , ctrl , tbl_map ) , ( [ G scope' ] , emptycs ) , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
@@ -2214,7 +2209,7 @@ by
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   ( scope' , curr_stack_frame' ) = ff ( ( e1 ,  .. , en ) , scope , curr_stack_frame )
   ----------------------------------- :: ffblock_exec
-  actx ( i , false , in_out_list , in_out_list' , scope ) ctx [ ffbl_call f ( e1 ,  .. , en ) ] ( ( curr_stack_frame , call_stack ) , status ) -'> ( i , false , in_out_list , in_out_list' , scope' ) ctx [ empty_stmt ] ( ( curr_stack_frame' , call_stack ) , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ ffbl_call f ( e1 ,  .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope , pars_map , ctrl , tbl_map ) , ( curr_stack_frame , call_stack ) , status ) -'> [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope' , pars_map , ctrl , tbl_map ) , ( curr_stack_frame' , call_stack ) , status' )
 
 %"Reduction of argument" rules
 
@@ -2222,16 +2217,16 @@ by
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = body_args_of_pbl ( pblock )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
   e = [ e1 , .. , en ] [ i' ]
-  ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  ctx [ e ] state ~> [ e' ] state'
   [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
   ----------------------------------- :: pblock_args
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) aenv ctx [ pbl_call f ( e1 , .. , en ) ] ( stacks , status ) -'> aenv ctx [ pbl_call f ( e1' , .. , en' ) ] ( stacks' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 , .. , en ) ] ( aenv , stacks , status ) -'> [ pbl_call f ( e1' , .. , en' ) ] ( aenv , stacks' , status' )
 
   ffblock = ffblock_map ( f )
   ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_ffbl ( ffblock )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
   e = [ e1 , .. , en ] [ i' ]
-  ctx [ e ] ( stacks , status ) ~> [ e' ] ( stacks' , status' )
+  ctx [ e ] state ~> [ e' ] state'
   [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
   ----------------------------------- :: ffblock_args
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f ) aenv ctx [ ffbl_call f ( e1 , .. , en ) ] ( stacks , status ) -'> aenv ctx [ ffbl_call f ( e1' , .. , en' ) ] ( stacks' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ ffbl_call f ( e1 , .. , en ) ] ( aenv , stacks , status ) -'> [ ffbl_call f ( e1' , .. , en' ) ] ( aenv , stacks' , status' )
