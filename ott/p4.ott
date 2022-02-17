@@ -498,38 +498,44 @@ stmt :: stmt_ ::=
 
 
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  HERE
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 stack_tup {{ tex stack_tup }} :: stack_ ::=
 {{ com contanis the function name and the curent scopes}}
-{{ hol (called_function_name # stmt # curr_stack_frame)}}
-| empty :: M :: empty
-  {{ com empty tuple }}
-  {{ hol (\bot, empty_stmt, []) }}
+{{ hol (string # stmt # curr_stack_frame)}}
+%| empty :: M :: empty
+%  {{ com empty tuple }}
+%  {{ hol (\bot, empty_stmt, []) }}
 | ( f , stmt , curr_stack_frame ) :: M :: tup
  {{ hol ([[f]] , [[stmt]] , [[curr_stack_frame]]) }}
  {{ tex ([[f]] , [[stmt]] , [[curr_stack_frame]]) }}
 
-
-E_list {{ tex \overrightarrow{E} }} :: E_list_ ::=
+E {{ tex E }} :: E_ ::=
 {{ hol ((string # stmt # curr_stack_frame) list) }}
 {{ com current stack frame - stack of tuples (f,stmt,Epsilon) }}
 | emptyfse :: M :: empty
   {{ hol ([]:(string # stmt # curr_stack_frame) list) }}
   {{ tex [ \, ] }}
-| E_list ++ E_list' :: M :: append
-  {{ hol ([[E_list]] ++ [[E_list']]) }}
-  {{ tex [[E_list]] \mathrel{\mathop+}+ [[E_list']] }}  
+| [ stack_tup ] :: M :: onemem
+  {{ hol ([ [[stack_tup]] ]) }}   
+| ( E ) :: S :: paren
+  {{ hol ([[E]]) }}
+
+E_list {{ tex \overrightarrow{E} }} :: E_list_ ::=
+{{ hol ((string # stmt # curr_stack_frame) list) }}
+{{ com current stack frame - stack of tuples (f,stmt,Epsilon) }}
+| emptyfsel :: M :: empty
+  {{ hol ([]:(string # stmt # curr_stack_frame) list) }}
+  {{ tex [ \, ] }}
+| E ++ E' :: M :: append
+  {{ hol ([[E]] ++ [[E']]) }}
+  {{ tex [[E]] \mathrel{\mathop+}+ [[E']] }}  
 | tl E_list :: M :: tl
   {{ hol (TL [[E_list]]) }}
   {{ tex \mathrm{tl} ([[E_list]]) }}
-| stack_tup '::' E_list' :: M :: cons
-  {{ hol ([[stack_tup]] :: [[E_list']]) }}
-  {{ tex [[stack_tup]] :: [[E_list']] }}
-| [ stack_tup1 , .. , stack_tupn ] :: M :: list
-  {{ hol ([[stack_tup1 .. stack_tupn]]) }} 
-%| [ stack_tup ] :: M :: list1el
-%  {{ hol ([ [[stack_tup]] ]) }}    
 | ( E_list ) :: S :: paren
   {{ hol ([[E_list]]) }}
 
@@ -1725,9 +1731,9 @@ grammar
 defns
 e_new_sem :: '' ::=
 defn
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E_list ) :: :: n_ :: N_
+ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E ) :: :: n_ :: N_
 {{ com expression reduction semantics }}
-{{ tex {[[ctx]] \, [[scope]]}_G \, [[curr_stack_frame]] \vdash ( [[e]], [[status]] ) \rightsquigarrow  ( [[e']] , [[status']], [[E_list]] ) }}
+{{ tex {[[ctx]] \, [[scope]]}_G \, [[curr_stack_frame]] \vdash ( [[e]], [[status]] ) \rightsquigarrow  ( [[e']] , [[status']], [[E]] ) }}
 by
 
 
@@ -1752,10 +1758,10 @@ scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e
 ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
-(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E_list )
+(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
 [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
 ----------------------------------- :: func_call_args
-(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , status ) ~> ( call f ( e'1 , .. , e'n ) , status' , E_list )
+(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , status ) ~> ( call f ( e'1 , .. , e'n ) , status' , E )
 
 
 %Struct field access
@@ -1785,27 +1791,27 @@ ctx G scope curr_stack_frame ( select v { v1 : x1 ; ... ; vn : xn } x , Running 
 
 %Select
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E_list )
+ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
 ----------------------------------- :: sel_arg
-ctx G scope curr_stack_frame ( select e { v1 : x1 ; ... ; vn : xn } x , status ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , status' , E_list )
+ctx G scope curr_stack_frame ( select e { v1 : x1 ; ... ; vn : xn } x , status ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , status' , E )
 
 
 %Unary operations
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E_list )
+ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
 ----------------------------------- :: unop_arg
-ctx G scope curr_stack_frame ( unop e , status ) ~> ( unop e' , status' , E_list )
+ctx G scope curr_stack_frame ( unop e , status ) ~> ( unop e' , status' , E )
 
 %Binary operations
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e'' , status' , E_list )
+ctx G scope curr_stack_frame ( e , status ) ~> ( e'' , status' , E )
 ----------------------------------- :: binop_arg1
-ctx G scope curr_stack_frame ( e binop e' , status ) ~> ( e'' binop e' , status' , E_list )
+ctx G scope curr_stack_frame ( e binop e' , status ) ~> ( e'' binop e' , status' , E )
 
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E_list )
+ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
 ----------------------------------- :: binop_arg2
-ctx G scope curr_stack_frame ( v binop e , status ) ~> ( v binop e' , status', E_list )
+ctx G scope curr_stack_frame ( v binop e , status ) ~> ( v binop e' , status', E )
 
 
 
