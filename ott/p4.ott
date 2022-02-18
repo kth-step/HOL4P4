@@ -530,6 +530,8 @@ E_list {{ tex \overrightarrow{E} }} :: E_list_ ::=
 | emptyfsel :: M :: empty
   {{ hol ([]:(string # stmt # curr_stack_frame) list) }}
   {{ tex [ \, ] }}
+| [ stack_tup ] :: M :: onemem
+  {{ hol ([ [[stack_tup]] ]) }}    
 | E ++ E' :: M :: append
   {{ hol ([[E]] ++ [[E']]) }}
   {{ tex [[E]] \mathrel{\mathop+}+ [[E']] }}  
@@ -1733,7 +1735,7 @@ e_new_sem :: '' ::=
 defn
 ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E ) :: :: n_ :: N_
 {{ com expression reduction semantics }}
-{{ tex {[[ctx]] \, [[scope]]}_G \, [[curr_stack_frame]] \vdash ( [[e]], [[status]] ) \rightsquigarrow  ( [[e']] , [[status']], [[E]] ) }}
+{{ tex [[ctx]] \, {[[scope]]}_G \, [[curr_stack_frame]] \vdash ( [[e]], [[status]] ) \rightsquigarrow  ( [[e']] , [[status']], [[E]] ) }}
 by
 
 
@@ -2017,6 +2019,192 @@ ctx G scope curr_stack_frame ( false OR b , Running ) ~> ( b , Running ,  emptyf
 
 
 
+
+
+
+
+
+
+
+defns
+stmt_new_sem :: '' ::=
+defn
+ctx ( G scope , E_list , status ) -> ( G scope' , E_list' , status' ) :: :: ns_ :: Ns_
+{{ com stmt reduction semantics }}
+{{ tex [[ctx]] \vdash  ( {[[scope]]}_G , [[E_list]] , [[status]] ) \rightsquigarrow  ( {[[scope']]}_G , [[E_list']] , [[status']] ) }}
+by
+
+  curr_stack_frame' = assign ( ( [ G scope ] ++ curr_stack_frame ) , v , lval )
+  G scope' = curr_stack_frame' [0]
+  curr_stack_frame'' = tl curr_stack_frame'
+  ----------------------------------- :: ass_v
+  ctx ( G scope , [ ( f , assign lval v , curr_stack_frame ) ] , Running ) -> ( G scope' , [ ( f , empty_stmt , curr_stack_frame'' ) ]  , Running )
+
+
+  ----------------------------------- :: ass_null
+  ctx ( G scope , [ ( f , assign null v , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , empty_stmt , curr_stack_frame ) ] , Running )
+
+
+
+%%%%%%%%%%%%%%
+%Sequence
+
+  ctx ( G scope , [ ( f , stmt1 , curr_stack_frame ) ] , Running ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , Running )
+  ----------------------------------- :: seq1
+  ctx ( G scope , [ ( f , stmt1 ; stmt2 , curr_stack_frame ) ] , Running ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , Running )
+
+
+  ----------------------------------- :: seq2
+  ctx ( G scope , [ ( f , empty_stmt ; stmt , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , stmt2 , curr_stack_frame ) ] , Running )
+
+%%%%%%%%%%%%%%
+%Conditional
+
+  ----------------------------------- :: cond2
+  ctx ( G scope , [ ( f , if true then stmt1 else stmt2 , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , stmt1 , curr_stack_frame ) ] , Running )
+ 
+
+  ----------------------------------- :: cond3
+  ctx ( G scope , [ ( f , if false then stmt1 else stmt2 , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , stmt2 , curr_stack_frame ) ] , Running )
+
+
+%%%%%%%%%%%%%%
+%Declaration
+
+
+  
+  length ( curr_stack_frame' ) - 1  = i
+  scope = curr_stack_frame' [ i ]
+  v = arb_from_t t
+  curr_stack_frame'' = update ( scope + [ x |-> ( v , NONE ) ] , i , curr_stack_frame' )
+  G scope' = curr_stack_frame'' [0]
+  curr_stack_frame''' = tl curr_stack_frame''
+  ----------------------------------- :: decl
+  ctx ( G scope , [ ( f , decl x t , curr_stack_frame ) ] , Running ) -> ( G scope' , [ ( f , empty_stmt , curr_stack_frame''' ) ] , Running )
+
+
+%%%%%%%%%%%%%%
+%Block
+
+  curr_stack_frame' =  curr_stack_frame ++ [ emptyscope ]
+  ----------------------------------- :: block_enter
+  ctx ( G scope , [ ( f , begin stmt end , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , begin' stmt end' , curr_stack_frame' ) ] , Running )
+
+
+  ctx ( G scope , [ ( f , stmt , curr_stack_frame ) ] , status ) -> ( G scope' , E ++ [ ( f , stmt' , curr_stack_frame' ) ] , status' )
+  ----------------------------------- :: block_exec
+  ctx ( G scope , [ ( f , begin' stmt end' , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , begin' stmt end' , curr_stack_frame' ) ] , status' )
+
+
+  curr_stack_frame' = rev ( tl ( rev curr_stack_frame ) )
+  ----------------------------------- :: block_exit
+  ctx ( G scope , [ ( f , begin' stmt end' , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , begin' stmt end' , curr_stack_frame' ) ] , Running )
+
+
+
+%%%%%%%%%%%%%%
+%Verify
+
+%Case predicate holds
+
+  ------------------------------------------------- :: verify_3
+  ctx ( G scope , [ ( f , verify true ( errmsg x ) , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , empty_stmt , curr_stack_frame ) ] , Running )
+
+
+%Case predicate does not hold
+
+  x' = parseError
+  x'' = "reject"
+  ------------------------------------------------- :: verify_4
+  ctx ( G scope , [ ( f , verify false ( errmsg x ) , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , assign x' ( errmsg x ) ; transition x'' , curr_stack_frame ) ] , Running )
+
+
+%%%%%%%%%%%%%%
+%Transition
+
+  not_final_state ( x )
+  ------------------------------------------------- :: trans_1
+  ctx ( G scope , [ ( f , transition x , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , empty_stmt , curr_stack_frame ) ] , Trans x )
+
+
+  x = "accept"
+  ------------------------------------------------- :: trans_2
+  ctx ( G scope , [ ( f , transition x , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , empty_stmt , curr_stack_frame ) ] , Accept )
+
+  x = "reject"
+  ------------------------------------------------- :: trans_3
+  ctx ( G scope , [ ( f , transition x , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , empty_stmt , curr_stack_frame ) ] , Reject )
+
+
+%%%%%%%%%%%%%%
+%The action is treated as a function call
+  t_map ( table_name ) = ( e' , match_kind )
+  ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
+  ----------------------------------- :: apply_table_v
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , apply table_name v , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , assign null ( call f ( v1 , .. , vn ) ) , curr_stack_frame ) ] , Running )
+
+
+
+%%%%%%%%%%%%%%
+%return statement
+
+ ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+ curr_stack_frame'' = assign ( curr_stack_frame' , v , varstar )
+ curr_stack_frame''' = ( G scope ) :: curr_stack_frame'' 
+ curr_stack_frame'''' = update_return ( curr_stack_frame , curr_stack_frame''' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+ G scope' = curr_stack_frame'''' [0]
+ curr_stack_frame''''' = tl curr_stack_frame''''
+  ----------------------------------- :: return_v
+ (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , return v , curr_stack_frame ) ] ++ [ ( f' , stmt' , curr_stack_frame' ) ] , Running ) -> ( G scope' , [ ( f' , stmt' , curr_stack_frame''''' ) ] , Running )
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Reduction of expression rules %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%Reduction step of return expression
+
+  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ----------------------------------- :: ret_e
+  ctx ( G scope , [ ( f , return e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , return e' , curr_stack_frame ) ] , status' )
+
+
+%Reduction step of assign expression
+  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ----------------------------------- :: ass_e
+  ctx ( G scope , [ ( f , assign lval e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , assign lval e' , curr_stack_frame ) ] , status' )
+
+
+%Reduction step of condition
+  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ----------------------------------- :: cond_e
+  ctx ( G scope , [ ( f , if e then stmt1 else stmt2 , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , if e' then stmt1 else stmt2 , curr_stack_frame ) ] , status' )
+
+
+%Reduction step of verify predicate
+  ctx G scope curr_stack_frame ( e , status ) ~> ( e'' , status' , E )
+  ------------------------------------------------- :: verify_e1
+  ctx ( G scope , [ ( f , verify e e' , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , verify e'' e' , curr_stack_frame ) ] , status' )
+  
+
+%Reduction step of error message
+  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ------------------------------------------------- :: verify_e2
+  ctx ( G scope , [ ( f , verify b e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , verify b e' , curr_stack_frame ) ] , status' )
+
+
+%Reduction step of transition
+  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ------------------------------------------------- :: trans_e
+  ctx ( G scope , [ ( f , transition e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , transition e' , curr_stack_frame ) ] , status' )
+
+
+%Reduction step of match-action expression
+  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ----------------------------------- :: apply_table_e
+  ctx ( G scope , [ ( f , apply table_name e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , apply table_name e' , curr_stack_frame ) ] , status' )
 
 
 defns
