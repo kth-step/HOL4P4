@@ -14,6 +14,13 @@ metavar x, f, a, tbl ::=
       {{ hol string }}
       {{ tex [[x]] }}
       {{ com string }}
+
+%metavar star ::=
+%      {{ lex alphanum0 }}
+%      {{ hol string }}
+%      {{ tex * }}
+%      {{ com place holder}}   
+
 %TODO Numeral or alphanum?
 metavar b ::=
       {{ lex numeral }}
@@ -25,6 +32,7 @@ metavar bl ::=
       {{ hol bool list }}
       {{ tex [[bl]] }}
       {{ com bit-string }}
+    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Auxiliary metavariables %
@@ -137,6 +145,9 @@ v :: v_ ::=
 lval :: lval_ ::=
 | x :: :: varname
   {{ com variable name }}
+| var_star :: :: var_star
+  {{ com variable acts as a place holder }}
+  {{ tex \mathit{var} * }} 
 | null :: :: null
   {{ com null variable }} 
 | lval . f :: :: field
@@ -375,10 +386,9 @@ e :: e_ ::=
   {{ com constant value }}
 | var x :: :: var
   {{ com variable or extern object }}
-| var star :: :: varStar
+| var_star :: :: var_star
   {{ com variable acts as a place holder }}
-%  {{ hol ([[star]] : string) }}
-  {{ tex \mathit{var} * }}  
+  {{ tex \mathit{var} * }} 
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -1752,7 +1762,7 @@ check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 curr_stack_frame' = [ G scope ] ++ curr_stack_frame
 scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame' )
 ----------------------------------- :: func_call_newframe
-(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , Running ) ~> ( var star , Running , [ ( f , stmt , [ scope' ] ) ] )
+(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , Running ) ~> ( var_star , Running , [ ( f , stmt , [ scope' ] ) ] )
 
 
 %Function call reduction arguments
@@ -2149,7 +2159,7 @@ by
 %return statement
 
  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
- curr_stack_frame'' = assign ( curr_stack_frame' , v , varstar )
+ curr_stack_frame'' = assign ( curr_stack_frame' , v , var_star )
  curr_stack_frame''' = ( G scope ) :: curr_stack_frame'' 
  curr_stack_frame'''' = update_return ( curr_stack_frame , curr_stack_frame''' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
  G scope' = curr_stack_frame'''' [0]
