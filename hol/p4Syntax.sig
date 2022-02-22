@@ -164,11 +164,6 @@ val d_ty : hol_type
 
 val scope_ty : hol_type
 
-val dest_state_tup : term -> term * term
-val is_state_tup : term -> bool
-val mk_state_tup : term * term -> term
-val state_tup_tm : term
-
 val called_function_name_function_name_tm : term
 val dest_called_function_name_function_name : term -> term
 val is_called_function_name_function_name : term -> bool
