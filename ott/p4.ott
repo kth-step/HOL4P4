@@ -1860,20 +1860,20 @@ by
 %Note: This uses short-circuit evaluation
 
   ----------------------------------- :: bin_and1
-  ctx [false AND b] ( ctrl , stacks , Running ) ~> [false] ( ctrl , stacks , Running )
+  ctx [false AND e] ( ctrl , stacks , Running ) ~> [false] ( ctrl , stacks , Running )
 
   ----------------------------------- :: bin_and2
-  ctx [true AND b] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+  ctx [true AND e] ( ctrl , stacks , Running ) ~> [e] ( ctrl , stacks , Running )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
   ----------------------------------- :: bin_or1
-  ctx [true OR b] ( ctrl , stacks , Running ) ~> [true] ( ctrl , stacks , Running )
+  ctx [true OR e] ( ctrl , stacks , Running ) ~> [true] ( ctrl , stacks , Running )
 
   ----------------------------------- :: bin_or2
-  ctx [false OR b] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+  ctx [false OR e] ( ctrl , stacks , Running ) ~> [e] ( ctrl , stacks , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%

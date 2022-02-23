@@ -260,15 +260,9 @@ Definition binop_exec:
 End
 
 Definition is_short_circuitable:
- (is_short_circuitable (v_bool F) binop_bin_and = T) /\
- (is_short_circuitable (v_bool T) binop_bin_or = T) /\
+ (is_short_circuitable (e_v (v_bool F)) binop_bin_and = T) /\
+ (is_short_circuitable (e_v (v_bool T)) binop_bin_or = T) /\
  (is_short_circuitable _ _ = F)
-End
-
-Definition short_circuit:
- (short_circuit binop_bin_and stacks status = SOME (e_v (v_bool F), stacks, status)) /\
- (short_circuit binop_bin_or stacks status = SOME (e_v (v_bool T), stacks, status)) /\
- (short_circuit _ _ _ = NONE)
 End
 
 Definition e_exec_binop:
@@ -474,7 +468,9 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (e_exec ctx (e_binop e1 binop e2) state =
   if is_v e1
   then
-   if is_v e2
+   if is_short_circuitable e1 binop
+   then SOME (e1, state)
+   else if is_v e2
    then 
     (case e_exec_binop e1 binop e2 of
      | SOME v => SOME (e_v v, state)
@@ -870,6 +866,27 @@ Cases_on `status` >> (
  fs [e_stmt_exec_def, e_ignore_pars_next]
 ) >>
 Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
+ (* Both operands are fully reduced *)
+ Cases_on `is_short_circuitable e1 b` >- (
+  (* Short-circuit *)
+  fs [] >>
+  Cases_on `e1` >> (
+   fs [is_v]
+  ) >>
+  rw [] >>
+  Cases_on `v` >> (
+   fs [is_short_circuitable]
+  ) >>
+  Cases_on `b'` >> Cases_on `b` >> (
+   fs [is_short_circuitable]
+  ) >| [
+  irule ((valOf o find_clause_e_red) "e_bin_or1") >>
+  fs [clause_name_def],
+  
+  irule ((valOf o find_clause_e_red) "e_bin_and1") >>
+  fs [clause_name_def]
+  ]
+ ) >>
  fs [] >>
  Cases_on `e_exec_binop e1 b e2` >> (
   fs [] >>
@@ -986,6 +1003,26 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  ),
 
  (* Second operand is not fully reduced *)
+ Cases_on `is_short_circuitable e1 b` >- (
+  (* Short-circuit *)
+  fs [] >>
+  Cases_on `e1` >> (
+   fs [is_v]
+  ) >>
+  rw [] >>
+  Cases_on `v` >> (
+   fs [is_short_circuitable]
+  ) >>
+  Cases_on `b'` >> Cases_on `b` >> (
+   fs [is_short_circuitable]
+  ) >| [
+  irule ((valOf o find_clause_e_red) "e_bin_or1") >>
+  fs [clause_name_def],
+  
+  irule ((valOf o find_clause_e_red) "e_bin_and1") >>
+  fs [clause_name_def]
+  ]
+ ) >>
  Cases_on `e_exec ctx e2 (ctrl, stacks, status_running)` >> (
   fs []
  ) >>
