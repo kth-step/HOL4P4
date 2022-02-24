@@ -145,9 +145,9 @@ v :: v_ ::=
 lval :: lval_ ::=
 | x :: :: varname
   {{ com variable name }}
-| var_star :: :: var_star
-  {{ com variable acts as a place holder }}
-  {{ tex \mathit{var} * }} 
+%| var_star :: :: var_star
+%  {{ com variable acts as a place holder }}
+%  {{ tex \mathit{var} * }} 
 | null :: :: null
   {{ com null variable }} 
 | lval . f :: :: field
@@ -386,9 +386,9 @@ e :: e_ ::=
   {{ com constant value }}
 | var x :: :: var
   {{ com variable or extern object }}
-| var_star :: :: var_star
-  {{ com variable acts as a place holder }}
-  {{ tex \mathit{var} * }} 
+%| var_star :: :: var_star
+%  {{ com variable acts as a place holder }}
+%  {{ tex \mathit{var} * }} 
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -505,6 +505,9 @@ stmt :: stmt_ ::=
   %tbl is the table name that should be applied
   {{ com apply }}
   {{ tex \mathbf{apply} \, [[tbl]] \, [[e]] }}
+| extr :: :: ext_sem
+  {{ com extern function semantics }}
+  {{ tex \blacksquare }}
 
 
 
@@ -545,6 +548,9 @@ E_list {{ tex \overrightarrow{E} }} :: E_list_ ::=
 | E ++ E' :: M :: append
   {{ hol ([[E]] ++ [[E']]) }}
   {{ tex [[E]] \mathrel{\mathop+}+ [[E']] }}  
+| E_list ++ E_list' :: M :: apptolist
+  {{ hol ([[E_list]] ++ [[E_list']]) }}
+  {{ tex [[E_list]] \mathrel{\mathop+}+ [[E_list']] }}   
 | tl E_list :: M :: tl
   {{ hol (TL [[E_list]]) }}
   {{ tex \mathrm{tl} ([[E_list]]) }}
@@ -1016,6 +1022,11 @@ formula :: formula_ ::=
   {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[v]], \, [[mk]]\, ) = \,( [[f]] , [[e_list]] ) }}
   {{ hol ([[ctrl]] ( [[tbl]] , [[v]] , [[mk]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
+| extr ( scope , curr_stack_frame ) = ( v , scope' , curr_stack_frame' , status' ) :: :: external_func  
+  {{ com applies teh semantics of the function and returns a value, with an updated sigma, global scope and status}}
+  {{ tex \blacksquare \, ( [[scope]] , \, [[curr_stack_frame]] ) = \, ( [[v]] , [[scope']] , [[curr_stack_frame']] , [[status']] ) }}
+  {{ hol ([[extr]] ( [[scope]] , [[curr_stack_frame]] ) = ( [[v]] , [[scope']] , [[curr_stack_frame']] , [[status']] ) ) }}
+
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
 | i' = i + 1 :: M :: num_inc
@@ -1099,10 +1110,10 @@ formula :: formula_ ::=
 | curr_stack_frame'' = update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
   %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
   {{ com update caller's stack frame upon function return }}
-  %TODO: fix the \varepsilon and e list in the latex output. 
-  {{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
-	                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
-                          \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
+  {{ tex [[curr_stack_frame'']] = \mathrm{copyout} ([x1, \, .. \, xn] , [[d_list]] , [[curr_stack_frame']] , [[curr_stack_frame]]) }}
+  %{{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
+	%                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
+  %                        \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
   {{ hol (SOME [[curr_stack_frame'']] = update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
@@ -1762,7 +1773,7 @@ check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 curr_stack_frame' = [ G scope ] ++ curr_stack_frame
 scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame' )
 ----------------------------------- :: func_call_newframe
-(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , Running ) ~> ( var_star , Running , [ ( f , stmt , [ scope' ] ) ] )
+(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , Running ) ~> ( var star , Running , [ ( f , stmt , [ scope' ] ) ] )
 
 
 %Function call reduction arguments
@@ -2041,8 +2052,14 @@ stmt_new_sem :: '' ::=
 defn
 ctx ( G scope , E_list , status ) -> ( G scope' , E_list' , status' ) :: :: ns_ :: Ns_
 {{ com stmt reduction semantics }}
-{{ tex [[ctx]] \vdash  ( {[[scope]]}_G , [[E_list]] , [[status]] ) \rightsquigarrow  ( {[[scope']]}_G , [[E_list']] , [[status']] ) }}
+{{ tex [[ctx]] \vdash  ( {[[scope]]}_G , [[E_list]] , [[status]] ) \rightarrow  ( {[[scope']]}_G , [[E_list']] , [[status']] ) }}
 by
+  
+
+  ctx ( G scope , E_list , status ) -> ( G scope' , E_list' , status' )
+  ----------------------------------- :: E
+  ctx ( G scope , E_list ++ E_list'' , status ) -> ( G scope' , E_list' ++ E_list'' , status' )
+
 
   curr_stack_frame' = assign ( ( [ G scope ] ++ curr_stack_frame ) , v , lval )
   G scope' = curr_stack_frame' [0]
@@ -2059,13 +2076,13 @@ by
 %%%%%%%%%%%%%%
 %Sequence
 
-  ctx ( G scope , [ ( f , stmt1 , curr_stack_frame ) ] , Running ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , Running )
+  ctx ( G scope , [ ( f , stmt1 , curr_stack_frame ) ] , status ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , status' )
   ----------------------------------- :: seq1
-  ctx ( G scope , [ ( f , stmt1 ; stmt2 , curr_stack_frame ) ] , Running ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , Running )
+  ctx ( G scope , [ ( f , stmt1 ; stmt2 , curr_stack_frame ) ] , status ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , status' )
 
 
   ----------------------------------- :: seq2
-  ctx ( G scope , [ ( f , empty_stmt ; stmt , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , stmt2 , curr_stack_frame ) ] , Running )
+  ctx ( G scope , [ ( f , empty_stmt ; stmt , curr_stack_frame ) ] , status ) -> ( G scope , [ ( f , stmt2 , curr_stack_frame ) ] , status )
 
 %%%%%%%%%%%%%%
 %Conditional
@@ -2159,7 +2176,7 @@ by
 %return statement
 
  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
- curr_stack_frame'' = assign ( curr_stack_frame' , v , var_star )
+ curr_stack_frame'' = assign ( curr_stack_frame' , v , star )
  curr_stack_frame''' = ( G scope ) :: curr_stack_frame'' 
  curr_stack_frame'''' = update_return ( curr_stack_frame , curr_stack_frame''' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
  G scope' = curr_stack_frame'''' [0]
@@ -2168,7 +2185,21 @@ by
  (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , return v , curr_stack_frame ) ] ++ [ ( f' , stmt' , curr_stack_frame' ) ] , Running ) -> ( G scope' , [ ( f' , stmt' , curr_stack_frame''''' ) ] , Running )
 
 
+  ( curr_stack_frame' , f ) :: call_stack' = call_stack
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  G scope = curr_stack_frame [ 0 ]
+  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
+  curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  ----------------------------------- :: func_ret_seq
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , return v ; stmt'' , curr_stack_frame ) ] ++ [ ( f' , stmt' , curr_stack_frame' ) ] , Running ) -> ( G scope' , [ ( f' , stmt' , curr_stack_frame''''' ) ] , Running )
+ 
 
+  
+  ( extr , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  extr ( scope , curr_stack_frame ) = ( v , scope' , curr_stack_frame' , status' )
+  ----------------------------------- :: func_ext
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , extr , curr_stack_frame ) ] , status ) -> ( G scope' , [ ( f' , return v , curr_stack_frame' ) ] , status' )
+ 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Reduction of expression rules %
