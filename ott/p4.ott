@@ -14,12 +14,7 @@ metavar x, f, a, tbl ::=
       {{ hol string }}
       {{ tex [[x]] }}
       {{ com string }}
-
-%metavar star ::=
-%      {{ lex alphanum0 }}
-%      {{ hol string }}
-%      {{ tex * }}
-%      {{ com place holder}}   
+  
 
 %TODO Numeral or alphanum?
 metavar b ::=
@@ -145,9 +140,6 @@ v :: v_ ::=
 lval :: lval_ ::=
 | x :: :: varname
   {{ com variable name }}
-%| var_star :: :: var_star
-%  {{ com variable acts as a place holder }}
-%  {{ tex \mathit{var} * }} 
 | null :: :: null
   {{ com null variable }} 
 | lval . f :: :: field
@@ -179,6 +171,8 @@ status {{ tex t }}:: status_ ::=
 {{ com execution status }}
 | Running :: I :: running
   {{ tex { \mathbf{R} } }}
+| Ret v :: I :: returnv
+  {{ tex { \mathbf{Ret} \, v } }}  
 | pars_next :: I :: pars_next
 | TypeError :: I :: type_error
   {{ tex { \bot } }}
@@ -386,9 +380,6 @@ e :: e_ ::=
   {{ com constant value }}
 | var x :: :: var
   {{ com variable or extern object }}
-%| var_star :: :: var_star
-%  {{ com variable acts as a place holder }}
-%  {{ tex \mathit{var} * }} 
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -543,12 +534,21 @@ E_list {{ tex \overrightarrow{E} }} :: E_list_ ::=
 | emptyfsel :: M :: empty
   {{ hol ([]:(string # stmt # curr_stack_frame) list) }}
   {{ tex [ \, ] }}
-| [ stack_tup ] :: M :: onemem
-  {{ hol ([ [[stack_tup]] ]) }}    
-| E ++ E' :: M :: append
-  {{ hol ([[E]] ++ [[E']]) }}
-  {{ tex [[E]] \mathrel{\mathop+}+ [[E']] }}  
-| E_list ++ E_list' :: M :: apptolist
+%| [ stack_tup ] :: M :: onemem
+%  {{ hol ([ [[stack_tup]] ]) }}
+| E :: M :: oneE
+  {{ hol ([[E]]) }}
+  {{ tex [[E]] }}      
+%| E ++ E' :: M :: appendEE
+%  {{ hol ([[E]] ++ [[E']]) }}
+%  {{ tex [[E]] \mathrel{\mathop+}+ [[E']] }}
+%| E ++ E_list :: M :: appE2l
+%  {{ hol ([[E]] ++ [[E_list]]) }}
+%  {{ tex [[E]] \mathrel{\mathop+}+ [[E_list]] }}
+%| E ++ E' ++ E_list :: M :: appE2e2l
+%  {{ hol ([[E]] ++ [[E']] ++ [[E_list]]) }}
+%  {{ tex [[E]] \mathrel{\mathop+}+ [[E']] \mathrel{\mathop+}+ [[E_list]] }}        
+| E_list ++ E_list' :: :: apptolist
   {{ hol ([[E_list]] ++ [[E_list']]) }}
   {{ tex [[E_list]] \mathrel{\mathop+}+ [[E_list']] }}   
 | tl E_list :: M :: tl
@@ -1110,7 +1110,7 @@ formula :: formula_ ::=
 | curr_stack_frame'' = update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
   %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
   {{ com update caller's stack frame upon function return }}
-  {{ tex [[curr_stack_frame'']] = \mathrm{copyout} ([x1, \, .. \, xn] , [[d_list]] , [[curr_stack_frame']] , [[curr_stack_frame]]) }}
+  {{ tex [[curr_stack_frame'']] = \mathrm{copyout} ([x1, \, .. , \, xn] , [[d_list]] , [[curr_stack_frame']] , [[curr_stack_frame]]) }}
   %{{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
 	%                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
   %                        \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
@@ -1173,6 +1173,10 @@ formula :: formula_ ::=
   {{ com initialise variable to value }}
   {{ hol ([[curr_stack_frame']] = initialise [[curr_stack_frame]] [[x]] [[v]]) }}
   {{ tex [[curr_stack_frame']] = \mathrm{initialise} ([[curr_stack_frame]], [[x]], [[v]]) }}
+| [ ( f , stmt , curr_stack_frame ) ] = E :: M :: contofE 
+  {{ com extract the content of E }}
+  {{ tex [ ( [[f]] , [[stmt]] , [[curr_stack_frame]]) ] = [[E]] }}
+  {{ hol [ ( [[f]] , [[stmt]] , [[curr_stack_frame]]) ] = [[E]] }}
 
 embed
 {{ hol
@@ -1754,16 +1758,16 @@ grammar
 defns
 e_new_sem :: '' ::=
 defn
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E ) :: :: n_ :: N_
+ctx G scope curr_stack_frame ( e ) ~> ( e' , E ) :: :: n_ :: N_
 {{ com expression reduction semantics }}
-{{ tex [[ctx]] \, {[[scope]]}_G \, [[curr_stack_frame]] \vdash ( [[e]], [[status]] ) \rightsquigarrow  ( [[e']] , [[status']], [[E]] ) }}
+{{ tex [[ctx]] \, {[[scope]]}_G \, [[curr_stack_frame]] \vdash ( [[e]] ) \rightsquigarrow  ( [[e']] , [[E]] ) }}
 by
 
 
 %lookup a value
 v = lookup_vexp2 ( curr_stack_frame , G scope , x )
 ----------------------------------- :: lookup
-ctx G scope curr_stack_frame ( var x , Running ) ~> ( v , Running , emptyfse )
+ctx G scope curr_stack_frame ( var x ) ~> ( v , emptyfse )
 
 %Function call build frame
 
@@ -1773,7 +1777,7 @@ check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 curr_stack_frame' = [ G scope ] ++ curr_stack_frame
 scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame' )
 ----------------------------------- :: func_call_newframe
-(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , Running ) ~> ( var star , Running , [ ( f , stmt , [ scope' ] ) ] )
+(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) ) ~> ( var star , [ ( f , stmt , [ scope' ] ) ] )
 
 
 %Function call reduction arguments
@@ -1781,60 +1785,60 @@ scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e
 ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
-(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( e ) ~> ( e' , E )
 [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
 ----------------------------------- :: func_call_args
-(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) , status ) ~> ( call f ( e'1 , .. , e'n ) , status' , E )
+(type_map, ext_map, func_map, pars_map, t_map, ctrl) G scope curr_stack_frame ( call f ( e1 , .. , en ) ) ~> ( call f ( e'1 , .. , e'n ) , E )
 
 
 %Struct field access
 
 v = struct { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: s_acc
-ctx G scope curr_stack_frame ( struct { f1 = v1 ; ... ; fn = vn } . f , Running ) ~> ( v , Running , emptyfse )
+ctx G scope curr_stack_frame ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v , emptyfse )
 
 %Header field access
 
 v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: h_acc
-ctx G scope curr_stack_frame ( header boolv { f1 = v1 ; ... ; fn = vn } . f , Running ) ~> ( v , Running , emptyfse )
+ctx G scope curr_stack_frame ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v , emptyfse )
 
 %Case select lookup
 
 x' = { v1 : x1 ; ... ; vn : xn } x ( v )
 ----------------------------------- :: sel_acc
-ctx G scope curr_stack_frame ( select v { v1 : x1 ; ... ; vn : xn } x , Running ) ~> ( x' , Running , emptyfse )
+ctx G scope curr_stack_frame ( select v { v1 : x1 ; ... ; vn : xn } x ) ~> ( x' , emptyfse )
 
 %Case default
 
 v notin { v1 : x1 ; ... ; vn : xn }
 ----------------------------------- :: sel_def
-ctx G scope curr_stack_frame ( select v { v1 : x1 ; ... ; vn : xn } x , Running ) ~> ( x , Running , emptyfse )
+ctx G scope curr_stack_frame ( select v { v1 : x1 ; ... ; vn : xn } x ) ~> ( x , emptyfse )
 
 
 %Select
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
 ----------------------------------- :: sel_arg
-ctx G scope curr_stack_frame ( select e { v1 : x1 ; ... ; vn : xn } x , status ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , status' , E )
+ctx G scope curr_stack_frame ( select e { v1 : x1 ; ... ; vn : xn } x ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , E )
 
 
 %Unary operations
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
 ----------------------------------- :: unop_arg
-ctx G scope curr_stack_frame ( unop e , status ) ~> ( unop e' , status' , E )
+ctx G scope curr_stack_frame ( unop e) ~> ( unop e' , E )
 
 %Binary operations
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e'' , status' , E )
+ctx G scope curr_stack_frame ( e ) ~> ( e'' , E )
 ----------------------------------- :: binop_arg1
-ctx G scope curr_stack_frame ( e binop e' , status ) ~> ( e'' binop e' , status' , E )
+ctx G scope curr_stack_frame ( e binop e' ) ~> ( e'' binop e' , E )
 
 
-ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
 ----------------------------------- :: binop_arg2
-ctx G scope curr_stack_frame ( v binop e , status ) ~> ( v binop e' , status', E )
+ctx G scope curr_stack_frame ( v binop e ) ~> ( v binop e' , E )
 
 
 
@@ -1850,21 +1854,21 @@ ctx G scope curr_stack_frame ( v binop e , status ) ~> ( v binop e' , status', E
 
 ! b = b'
 ----------------------------------- :: neg_bool
-ctx G scope curr_stack_frame ( ! b , Running ) ~> ( b' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( ! b ) ~> ( b' ,  emptyfse )
 
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
 ~ bitv = bitv'
 ----------------------------------- :: compl
-ctx G scope curr_stack_frame ( ~ bitv , Running ) ~> ( bitv' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( ~ bitv ) ~> ( bitv' ,  emptyfse )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
 - bitv = bitv'
 ----------------------------------- :: neg_signed
-ctx G scope curr_stack_frame ( - bitv , Running ) ~> ( bitv' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( - bitv ) ~> ( bitv' ,  emptyfse )
 
 
 %%%%%%%%%%%
@@ -1872,7 +1876,7 @@ ctx G scope curr_stack_frame ( - bitv , Running ) ~> ( bitv' , Running ,  emptyf
 
 + bitv = bitv'
 ----------------------------------- :: un_plus
-ctx G scope curr_stack_frame ( + bitv , Running ) ~> ( bitv' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( + bitv ) ~> ( bitv' ,  emptyfse )
 
 
 
@@ -1885,7 +1889,7 @@ ctx G scope curr_stack_frame ( + bitv , Running ) ~> ( bitv' , Running ,  emptyf
 
 bitv * bitv' = bitv''
 ----------------------------------- :: mul
-ctx G scope curr_stack_frame ( bitv * bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv * bitv' ) ~> ( bitv'' ,  emptyfse )
 
 
 %%%%%%%%%%%%%%%
@@ -1893,27 +1897,27 @@ ctx G scope curr_stack_frame ( bitv * bitv' , Running ) ~> ( bitv'' , Running , 
 
 bitv / bitv' = bitv''
 ----------------------------------- :: div
-ctx G scope curr_stack_frame ( bitv / bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv / bitv' ) ~> ( bitv'' ,  emptyfse )
 %%%%%%%%%%%%%%%
 %Modulo
 
 bitv mod bitv' = bitv''
 ----------------------------------- :: mod
-ctx G scope curr_stack_frame ( bitv mod bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv mod bitv' ) ~> ( bitv'' ,  emptyfse )
 
 %%%%%%%%%%%%
 %Addition
 
 bitv + bitv' = bitv''
 ----------------------------------- :: add
-ctx G scope curr_stack_frame ( bitv + bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv + bitv' ) ~> ( bitv'' ,  emptyfse )
 
 %%%%%%%%%%%%
 %Subtraction
 
 bitv - bitv' = bitv''
 ----------------------------------- :: sub
-ctx G scope curr_stack_frame ( bitv - bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv - bitv' ) ~> ( bitv'' ,  emptyfse )
 
 
 %%%%%%%%%%%%
@@ -1921,74 +1925,74 @@ ctx G scope curr_stack_frame ( bitv - bitv' , Running ) ~> ( bitv'' , Running , 
 
 bitv SHL bitv' = bitv''
 ----------------------------------- :: shl
-ctx G scope curr_stack_frame ( bitv SHL bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv SHL bitv' ) ~> ( bitv'' ,  emptyfse )
 
 %%%%%%%%%%%%
 %Right shift
 
 bitv SHR bitv' = bitv''
 ----------------------------------- :: shr
-ctx G scope curr_stack_frame ( bitv SHR bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv SHR bitv' ) ~> ( bitv'' ,  emptyfse )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
 bitv LE bitv' = b
 ----------------------------------- :: le
-ctx G scope curr_stack_frame ( bitv LE bitv' , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv LE bitv' ) ~> ( b ,  emptyfse )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
 bitv GE bitv' = b
 ----------------------------------- :: ge
-ctx G scope curr_stack_frame ( bitv GE bitv' , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv GE bitv' ) ~> ( b ,  emptyfse )
 
 %%%%%%%%%%
 %Less than
 
 bitv < bitv' = b
 ----------------------------------- :: lt
-ctx G scope curr_stack_frame ( bitv < bitv' , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv < bitv' ) ~> ( b ,  emptyfse )
 %%%%%%%%%%%%%
 %Greater than
 
 bitv > bitv' = b
 ----------------------------------- :: gt
-ctx G scope curr_stack_frame ( bitv > bitv' , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv > bitv' ) ~> ( b ,  emptyfse )
 
 %%%%%%%%%%%%%
 %Not equal
 
 bitv NE bitv' = b
 ----------------------------------- :: neq
-ctx G scope curr_stack_frame ( bitv NE bitv' , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv NE bitv' ) ~> ( b ,  emptyfse )
 
 (x <> x') = b
 ----------------------------------- :: neq_error
-ctx G scope curr_stack_frame ( (errmsg x) NE (errmsg x') , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( (errmsg x) NE (errmsg x') ) ~> ( b ,  emptyfse )
 
 b NE b' = b''
 ----------------------------------- :: neq_bool
-ctx G scope curr_stack_frame ( b NE b' , Running ) ~> ( b'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( b NE b' ) ~> ( b'' ,  emptyfse )
 
 %%%%%%%%%%%%%
 %Equal
 
 bitv EQ bitv' = b
 ----------------------------------- :: eq
-ctx G scope curr_stack_frame ( bitv EQ bitv' , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv EQ bitv' ) ~> ( b ,  emptyfse )
 
 
 (x EQ x') = b
 ----------------------------------- :: eq_error
-ctx G scope curr_stack_frame ( (errmsg x) EQ (errmsg x') , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( (errmsg x) EQ (errmsg x') ) ~> ( b ,  emptyfse )
 
 
 
 b EQ b' = b''
 ----------------------------------- :: eq_bool
-ctx G scope curr_stack_frame ( b EQ b' , Running ) ~> ( b'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( b EQ b' ) ~> ( b'' ,  emptyfse )
 
 
 %%%%%%%%%%%%%
@@ -1996,7 +2000,7 @@ ctx G scope curr_stack_frame ( b EQ b' , Running ) ~> ( b'' , Running ,  emptyfs
 
 bitv & bitv' = bitv''
 ----------------------------------- :: and
-ctx G scope curr_stack_frame ( bitv & bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv & bitv' ) ~> ( bitv'' ,  emptyfse )
 
 
 %%%%%%%%%%%%%
@@ -2004,7 +2008,7 @@ ctx G scope curr_stack_frame ( bitv & bitv' , Running ) ~> ( bitv'' , Running , 
 
 bitv ^ bitv' = bitv''
 ----------------------------------- :: xor
-ctx G scope curr_stack_frame ( bitv ^ bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv ^ bitv' ) ~> ( bitv'' ,  emptyfse )
 
 
 
@@ -2013,7 +2017,7 @@ ctx G scope curr_stack_frame ( bitv ^ bitv' , Running ) ~> ( bitv'' , Running , 
 
 bitv | bitv' = bitv''
 ----------------------------------- :: or
-ctx G scope curr_stack_frame ( bitv | bitv' , Running ) ~> ( bitv'' , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( bitv | bitv' ) ~> ( bitv'' ,  emptyfse )
 
 
 %%%%%%%%%%%%%
@@ -2021,22 +2025,22 @@ ctx G scope curr_stack_frame ( bitv | bitv' , Running ) ~> ( bitv'' , Running , 
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_and1
-ctx G scope curr_stack_frame ( false AND b , Running ) ~> ( false , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( false AND b ) ~> ( false ,  emptyfse )
 
 
 ----------------------------------- :: bin_and2
-ctx G scope curr_stack_frame ( true AND b , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( true AND b ) ~> ( b ,  emptyfse )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_or1
-ctx G scope curr_stack_frame ( true OR b , Running ) ~> ( true , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( true OR b ) ~> ( true ,  emptyfse )
 
 
 ----------------------------------- :: bin_or2
-ctx G scope curr_stack_frame ( false OR b , Running ) ~> ( b , Running ,  emptyfse )
+ctx G scope curr_stack_frame ( false OR b ) ~> ( b ,  emptyfse )
 
 
 
@@ -2056,9 +2060,23 @@ ctx ( G scope , E_list , status ) -> ( G scope' , E_list' , status' ) :: :: ns_ 
 by
   
 
-  ctx ( G scope , E_list , status ) -> ( G scope' , E_list' , status' )
-  ----------------------------------- :: E
-  ctx ( G scope , E_list ++ E_list'' , status ) -> ( G scope' , E_list' ++ E_list'' , status' )
+  ctx ( G scope , E , Running ) -> ( G scope' , E_list' , Running )
+  ----------------------------------- :: comp1
+  ctx ( G scope , E ++ E_list'' , Running ) -> ( G scope' , E_list' ++ E_list'' , Running )
+
+
+  ctx ( G scope , E , Running ) -> ( G scope' , E'' , Ret v )
+  [ ( f , stmt , curr_stack_frame ) ] = E'
+  [ ( f' , stmt' , curr_stack_frame' ) ] = E''
+  curr_stack_frame'' = assign ( curr_stack_frame , v , star ) 
+  ( stmt'' , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f' )
+  curr_stack_frame''' = ( G scope' ) :: curr_stack_frame'' 
+  curr_stack_frame'''' = update_return ( curr_stack_frame' , curr_stack_frame''' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  G scope'' = curr_stack_frame'''' [0]
+  curr_stack_frame''''' = tl curr_stack_frame''''
+  ----------------------------------- :: comp2
+  ctx ( G scope , E ++ ( E' ++ E_list ) , Running ) -> ( G scope'' , [ ( f , stmt , curr_stack_frame''''' ) ] ++ E_list , Running )
+
 
 
   curr_stack_frame' = assign ( ( [ G scope ] ++ curr_stack_frame ) , v , lval )
@@ -2076,13 +2094,19 @@ by
 %%%%%%%%%%%%%%
 %Sequence
 
-  ctx ( G scope , [ ( f , stmt1 , curr_stack_frame ) ] , status ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , status' )
+  ctx ( G scope , [ ( f , stmt1 , curr_stack_frame ) ] , Running ) -> ( G scope' , E ++ [ ( f , stmt1' , curr_stack_frame' ) ] , Running )
   ----------------------------------- :: seq1
-  ctx ( G scope , [ ( f , stmt1 ; stmt2 , curr_stack_frame ) ] , status ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , status' )
+  ctx ( G scope , [ ( f , stmt1 ; stmt2 , curr_stack_frame ) ] , Running ) -> ( G scope' , E ++ [ ( f , stmt1' ; stmt2 , curr_stack_frame' ) ] , Running )
 
 
   ----------------------------------- :: seq2
   ctx ( G scope , [ ( f , empty_stmt ; stmt , curr_stack_frame ) ] , status ) -> ( G scope , [ ( f , stmt2 , curr_stack_frame ) ] , status )
+
+
+
+  ctx ( G scope , [ ( f , stmt1 , curr_stack_frame ) ] , Running ) -> ( G scope' , [ ( f , stmt1' , curr_stack_frame' ) ] , Ret v )
+  ----------------------------------- :: seq3
+  ctx ( G scope , [ ( f , stmt1 ; stmt2 , curr_stack_frame ) ] , Running ) -> ( G scope' , [ ( f , stmt1' , curr_stack_frame' ) ] , Ret v )
 
 %%%%%%%%%%%%%%
 %Conditional
@@ -2175,24 +2199,10 @@ by
 %%%%%%%%%%%%%%
 %return statement
 
- ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
- curr_stack_frame'' = assign ( curr_stack_frame' , v , star )
- curr_stack_frame''' = ( G scope ) :: curr_stack_frame'' 
- curr_stack_frame'''' = update_return ( curr_stack_frame , curr_stack_frame''' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
- G scope' = curr_stack_frame'''' [0]
- curr_stack_frame''''' = tl curr_stack_frame''''
+
   ----------------------------------- :: return_v
- (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , return v , curr_stack_frame ) ] ++ [ ( f' , stmt' , curr_stack_frame' ) ] , Running ) -> ( G scope' , [ ( f' , stmt' , curr_stack_frame''''' ) ] , Running )
+ (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , return v , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , empty_stmt , curr_stack_frame ) ] , Ret v )
 
-
-  ( curr_stack_frame' , f ) :: call_stack' = call_stack
-  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
-  G scope = curr_stack_frame [ 0 ]
-  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
-  curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
-  ----------------------------------- :: func_ret_seq
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , return v ; stmt'' , curr_stack_frame ) ] ++ [ ( f' , stmt' , curr_stack_frame' ) ] , Running ) -> ( G scope' , [ ( f' , stmt' , curr_stack_frame''''' ) ] , Running )
- 
 
   
   ( extr , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
@@ -2207,43 +2217,43 @@ by
 
 %Reduction step of return expression
 
-  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
   ----------------------------------- :: ret_e
   ctx ( G scope , [ ( f , return e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , return e' , curr_stack_frame ) ] , status' )
 
 
 %Reduction step of assign expression
-  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
   ----------------------------------- :: ass_e
   ctx ( G scope , [ ( f , assign lval e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , assign lval e' , curr_stack_frame ) ] , status' )
 
 
 %Reduction step of condition
-  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
   ----------------------------------- :: cond_e
   ctx ( G scope , [ ( f , if e then stmt1 else stmt2 , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , if e' then stmt1 else stmt2 , curr_stack_frame ) ] , status' )
 
 
 %Reduction step of verify predicate
-  ctx G scope curr_stack_frame ( e , status ) ~> ( e'' , status' , E )
+  ctx G scope curr_stack_frame ( e ) ~> ( e'' , E )
   ------------------------------------------------- :: verify_e1
   ctx ( G scope , [ ( f , verify e e' , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , verify e'' e' , curr_stack_frame ) ] , status' )
   
 
 %Reduction step of error message
-  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
   ------------------------------------------------- :: verify_e2
   ctx ( G scope , [ ( f , verify b e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , verify b e' , curr_stack_frame ) ] , status' )
 
 
 %Reduction step of transition
-  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
   ------------------------------------------------- :: trans_e
   ctx ( G scope , [ ( f , transition e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , transition e' , curr_stack_frame ) ] , status' )
 
 
 %Reduction step of match-action expression
-  ctx G scope curr_stack_frame ( e , status ) ~> ( e' , status' , E )
+  ctx G scope curr_stack_frame ( e ) ~> ( e' , E )
   ----------------------------------- :: apply_table_e
   ctx ( G scope , [ ( f , apply table_name e , curr_stack_frame ) ] , status ) -> ( G scope , E ++ [ ( f , apply table_name e' , curr_stack_frame ) ] , status' )
 
