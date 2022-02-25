@@ -12,12 +12,12 @@ val _ = new_theory "p4_vss";
 (* clear *)
 
 Definition clear:
- (clear (ext_obj_name, (e_l:e list), ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (clear (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
   case e_l of
   | [] =>
    (case assign frame (v_ext (ext_obj_ck 0w)) ext_obj_name of
     | SOME frame' =>
-     SOME (v_bot, (ctrl, (stacks_tup frame' call_stack), status))
+     SOME (v_bot, (ctrl, (frame', call_stack), status))
     | NONE => NONE)
   | _ => NONE
  )
@@ -87,14 +87,14 @@ Definition get_checksum_incr:
 End
 
 Definition update:
- (update (ext_obj_name, e_l, ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (update (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
   case lookup_ipv4_checksum frame ext_obj_name of
   | SOME ipv4_checksum =>
   (case get_checksum_incr e_l of
    | SOME checksum_incr =>
     (case assign frame (v_ext (ext_obj_ck (ipv4_checksum + checksum_incr))) ext_obj_name of
      | SOME frame' =>
-      SOME (v_bot, (ctrl, (stacks_tup frame' call_stack), status))
+      SOME (v_bot, (ctrl, (frame', call_stack), status))
      | NONE => NONE)
    | NONE => NONE)
   | NONE => NONE
@@ -105,12 +105,12 @@ End
 (* get *)
 
 Definition get:
- (get (ext_obj_name, (e_l:e list), ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (get (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
    case e_l of
    | [] =>
     (case lookup_ipv4_checksum frame ext_obj_name of
      | SOME ipv4_checksum =>
-        SOME (v_bit (fixwidth 16 (w2v ipv4_checksum), 16), (ctrl, (stacks_tup frame call_stack), status))
+        SOME (v_bit (fixwidth 16 (w2v ipv4_checksum), 16), (ctrl, (frame, call_stack), status))
      | NONE => NONE)
    | _ => NONE
  )

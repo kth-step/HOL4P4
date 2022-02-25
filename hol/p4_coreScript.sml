@@ -36,33 +36,33 @@ Definition min_size_in_bytes:
 End
 
 Definition is_valid:
- (is_valid (header_name, (e_l:e list), ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (is_valid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
   case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
-   SOME (v_bool valid_bit, (ctrl, (stacks_tup frame call_stack), status))
+   SOME (v_bool valid_bit, (ctrl, (frame, call_stack), status))
   | _ => NONE
  )
 End
 
 Definition set_valid:
- (set_valid (header_name, (e_l:e list), ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (set_valid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
   case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
    (case assign frame (v_header T x_v_l) header_name of
     | SOME frame' =>             
-     SOME (v_bot, (ctrl, (stacks_tup frame' call_stack), status))
+     SOME (v_bot, (ctrl, (frame', call_stack), status))
     | NONE => NONE)
   | _ => NONE
  )
 End
 
 Definition set_invalid:
- (set_invalid (header_name, (e_l:e list), ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (set_invalid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
   case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
    (case assign frame (v_header F x_v_l) header_name of
     | SOME frame' =>             
-     SOME (v_bot, (ctrl, (stacks_tup frame' call_stack), status))
+     SOME (v_bot, (ctrl, (frame', call_stack), status))
     | NONE => NONE)
   | _ => NONE
  )
@@ -125,7 +125,7 @@ End
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
 Definition extract:
- (extract (ext_obj_name, e_l, ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (extract (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
   case lookup_packet_in frame ext_obj_name of
   | SOME packet_in =>
    (case get_header_lval e_l of
@@ -142,13 +142,13 @@ Definition extract:
 	     | SOME frame' =>
              (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) ext_obj_name of
 	      | SOME frame'' =>             
-	       SOME (v_bot, (ctrl, (stacks_tup frame'' call_stack), status))
+	       SOME (v_bot, (ctrl, (frame'', call_stack), status))
               | NONE => NONE)
              | NONE => NONE)
            | NONE => NONE)
          else
 	  (case assign frame (v_err "PacketTooShort") (lval_varname "parseError") of
-	   | SOME frame' => SOME (v_bot, (ctrl, (stacks_tup frame' call_stack), status))
+	   | SOME frame' => SOME (v_bot, (ctrl, (frame', call_stack), status))
            | NONE => NONE)
         | NONE => NONE)
       | NONE => NONE)
@@ -199,17 +199,17 @@ End
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
 Definition emit:
- (emit (ext_obj_name, e_l, ((ctrl, (stacks_tup frame call_stack), status):state)) =
+ (emit (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
   case lookup_packet_out frame ext_obj_name of
   | SOME packet_out =>
    (case get_e_l_v e_l of
-    | SOME (v_header F x_v_l) => SOME (v_bot, (ctrl, (stacks_tup frame call_stack), status))
+    | SOME (v_header F x_v_l) => SOME (v_bot, (ctrl, (frame, call_stack), status))
     | SOME (v_header T x_v_l) =>
      (case flatten_v_l (MAP SND x_v_l) of
       | SOME bl =>
        (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
 	| SOME frame' =>             
-	 SOME (v_bot, (ctrl, (stacks_tup frame' call_stack), status))
+	 SOME (v_bot, (ctrl, (frame', call_stack), status))
 	| NONE => NONE)
       | NONE => NONE)
     | SOME (v_struct x_v_l) =>
@@ -217,7 +217,7 @@ Definition emit:
       | SOME bl =>
        (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
 	| SOME frame' =>             
-	 SOME (v_bot, (ctrl, (stacks_tup frame' call_stack), status))
+	 SOME (v_bot, (ctrl, (frame', call_stack), status))
 	| NONE => NONE)
       | NONE => NONE)
     | SOME _ => NONE

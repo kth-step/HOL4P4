@@ -169,11 +169,6 @@ val dest_called_function_name_function_name : term -> term
 val is_called_function_name_function_name : term -> bool
 val mk_called_function_name_function_name : term -> term
 
-val dest_stacks_tup : term -> term * term
-val is_stacks_tup : term -> bool
-val mk_stacks_tup : term * term -> term
-val stacks_tup_tm : term
-
 
 val dest_e_red : term -> term * term * term * term * term
 val e_red_tm : term

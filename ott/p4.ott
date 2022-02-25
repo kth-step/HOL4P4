@@ -266,10 +266,6 @@ call_stack {{ tex E }} :: call_stack_ ::=
 | ( call_stack ) :: S :: paren
   {{ hol ([[call_stack]]) }}
 
-stacks {{ tex \sigma }} :: stacks_ ::=
-{{ com stacks in execution state }}
-| ( curr_stack_frame , call_stack ) :: :: tup
-
 mk {{ tex \mathit{mk} }} :: mk_ ::=
 {{ com matching kinds }}
 | exact :: :: exact
@@ -284,7 +280,13 @@ embed
 {{ hol
 
 }}
-grammar  
+grammar
+
+stacks {{ tex \sigma }} :: stacks_ ::=
+{{ com stacks in execution state }}
+{{ hol (curr_stack_frame # call_stack) }}
+| ( curr_stack_frame , call_stack ) :: M :: tup
+  {{ hol ([[curr_stack_frame]], [[call_stack]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%
 % Expression syntax %

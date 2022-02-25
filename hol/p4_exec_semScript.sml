@@ -337,14 +337,14 @@ Definition stmt_exec_cond:
 End
 
 Definition exec_ret:
- (exec_ret ((ty_map, ext_map, func_map, tbl_map):ctx) (stacks_tup frame call_stack) =
+ (exec_ret ((ty_map, ext_map, func_map, tbl_map):ctx) (frame, call_stack) =
   case call_stack of
   | ((frame', called_function_name_bot)::call_stack') => NONE
   | ((frame', called_function_name_function_name f)::call_stack') =>
    (case FLOOKUP func_map f of
    | SOME (_, x_d_l) =>
     (case update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD frame)::frame') frame of
-     | SOME frame'' => SOME (stacks_tup frame'' call_stack')
+     | SOME frame'' => SOME (frame'', call_stack')
      | NONE => NONE)
    | NONE => NONE)
   | [] => NONE)
@@ -374,8 +374,8 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   * possible status argument for all other clauses *)
  (********************)
  (* Variable look-up *)
- (e_exec _ (e_var x) (ctrl, (stacks_tup curr_stack_frame call_stack), status_running) =
-  SOME (e_v (lookup_vexp curr_stack_frame x), (ctrl, stacks_tup curr_stack_frame call_stack, status_running)))
+ (e_exec _ (e_var x) (ctrl, (curr_stack_frame, call_stack), status_running) =
+  SOME (e_v (lookup_vexp curr_stack_frame x), (ctrl, (curr_stack_frame, call_stack), status_running)))
   /\
  (***********************)
  (* Struct/header field access *)
@@ -401,19 +401,19 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   /\
  (*************************)
  (* Function call-related *)
- (e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (e_func_call f e_l) (ctrl, (stacks_tup curr_stack_frame call_stack), status) =
+ (e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (e_func_call f e_l) (ctrl, (curr_stack_frame, call_stack), status) =
   case FLOOKUP func_map f of
   | SOME (stmt, x_d_l) =>
     (case unred_arg_index (MAP SND x_d_l) e_l of
      | SOME i  =>
-      (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (EL i e_l) (ctrl, (stacks_tup curr_stack_frame call_stack), status) of
+      (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (EL i e_l) (ctrl, (curr_stack_frame, call_stack), status) of
        | SOME (e', (ctrl', stacks', status')) => SOME (e_func_call f (LUPDATE e' i e_l), (ctrl', stacks', status'))
        | NONE => NONE)
      | NONE =>
       SOME (e_func_exec stmt,
             (ctrl,
-	     stacks_tup ([EL 0 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame])
-	 	       ((TL curr_stack_frame, called_function_name_function_name f)::call_stack),
+	     (([EL 0 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame]),
+	 	       ((TL curr_stack_frame, called_function_name_function_name f)::call_stack)),
 	     status)))
   | NONE => NONE)
   /\
@@ -471,7 +471,7 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
    if is_short_circuitable e1 binop
    then SOME (e1, state)
    else if is_v e2
-   then 
+   then
     (case e_exec_binop e1 binop e2 of
      | SOME v => SOME (e_v v, state)
      | NONE => NONE)
@@ -513,25 +513,25 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
  (stmt_exec _ stmt_empty state = SOME (stmt_empty, state)) /\
  (*************************)
  (* Function call-related *)
- (stmt_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (stmt_ret e) (ctrl, stacks_tup curr_stack_frame call_stack, status) =
+ (stmt_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (stmt_ret e) (ctrl, (curr_stack_frame, call_stack), status) =
   if is_v e
   then
    NONE
   else
-   (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) e (ctrl, stacks_tup curr_stack_frame call_stack, status) of
+   (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) e (ctrl, (curr_stack_frame, call_stack), status) of
     | SOME (e', state') => SOME (stmt_ret e', state')
     | NONE => NONE))
   /\
  (**************)
  (* Assignment *)
- (stmt_exec ctx (stmt_ass lval e) (ctrl, stacks_tup curr_stack_frame call_stack, status) =
+ (stmt_exec ctx (stmt_ass lval e) (ctrl, (curr_stack_frame, call_stack), status) =
   if is_v e
   then
    (case stmt_exec_ass lval e curr_stack_frame of
-    | SOME curr_stack_frame' => SOME (stmt_empty, (ctrl, stacks_tup curr_stack_frame' call_stack, status))
+    | SOME curr_stack_frame' => SOME (stmt_empty, (ctrl, (curr_stack_frame', call_stack), status))
     | NONE => NONE)
   else
-   (case e_exec ctx e (ctrl, stacks_tup curr_stack_frame call_stack, status) of
+   (case e_exec ctx e (ctrl, (curr_stack_frame, call_stack), status) of
     | SOME (e', state') => SOME (stmt_ass lval e', state')
     | NONE => NONE))
   /\
@@ -692,12 +692,10 @@ fs [stmt_exec_sound, e_exec_sound] >>
 REPEAT STRIP_TAC >>
 pairLib.PairCases_on `state` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(ctrl,state1,state2)` >>
-rename1 `(ctrl,stacks,state2)` >>
-rename1 `(ctrl,stacks,status)` >>
-rename1 `(ctrl',state'1,state'2)` >>
-rename1 `(ctrl',stacks',state'2)` >>
-rename1 `(ctrl',stacks',status')` >>
+rename1 `(ctrl,(state1,state2),state3)` >>
+rename1 `(ctrl,(frame,call_stack),status)` >>
+rename1 `(ctrl',(state'1,state'2),state'3)` >>
+rename1 `(ctrl',(frame',call_stack'),status')` >>
 Cases_on `status` >> (
  fs [e_stmt_exec_def, stmt_ignore_pars_next]
 ) >>
@@ -730,7 +728,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
  (* Second case - second operand unreduced *)
  fs [] >>
- Cases_on `e_exec ctx e2 (ctrl, stacks, status_running)` >> (
+ Cases_on `e_exec ctx e2 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -748,7 +746,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
  (* Third case - first operand unreduced *)
  fs [] >>
- Cases_on `e_exec ctx e1 (ctrl, stacks, status_running)` >> (
+ Cases_on `e_exec ctx e1 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -758,7 +756,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
  (* Fourth case - both operands unreduced *)
  fs [] >>
- Cases_on `e_exec ctx e1 (ctrl, stacks, status_running)` >> (
+ Cases_on `e_exec ctx e1 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -778,24 +776,22 @@ fs [e_exec_sound] >>
 REPEAT STRIP_TAC >>
 pairLib.PairCases_on `state` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(ctrl,state1,state2)` >>
-rename1 `(ctrl,stacks,state2)` >>
-rename1 `(ctrl,stacks,status)` >>
-rename1 `(ctrl',state'1,state'2)` >>
-rename1 `(ctrl',stacks',state'2)` >>
-rename1 `(ctrl',stacks',status')` >>
+rename1 `(ctrl,(state1,state2),state3)` >>
+rename1 `(ctrl,(frame,call_stack),status)` >>
+rename1 `(ctrl',(state'1,state'2),state'3)` >>
+rename1 `(ctrl',(frame',call_stack'),status')` >>
 Cases_on `status` >> (
  fs [e_stmt_exec_def, e_ignore_pars_next]
 ) >>
-Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
+Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* 1st case is base case *)
  Cases_on `e1` >>  Cases_on `e2` >> (
   fs [is_v]
  ) >>
- Cases_on `v` >> Cases_on `v'` >>(
+ Cases_on `v` >> Cases_on `v'` >> (
   fs [e_stmt_exec_def, e_exec_acc]
  ) >> (
-  Cases_on `FIND (\(k,v). k = s) l'` >>
+  Cases_on `FIND (\(k,v). k = s) l` >>
   fs [] >>
   Cases_on `x` >>
   fs [] >>
@@ -817,7 +813,7 @@ Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  ),
 
  (* Second case is reduction of 2nd argument (field name) *)
- Cases_on `e_exec ctx e2 (ctrl, (stacks_tup l l0), status_running)` >> (
+ Cases_on `e_exec ctx e2 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -825,7 +821,7 @@ Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg2"), clause_name_def],
 
  (* Third case is reduction of 1st argument (struct value) *)
- Cases_on `e_exec ctx e1 (ctrl, (stacks_tup l l0), status_running)` >> (
+ Cases_on `e_exec ctx e1 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >> Cases_on `e2` >> (
@@ -837,7 +833,7 @@ Cases_on `stacks` >> Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg1"), clause_name_def],
 
  (* Fourth case determines case when both arguments are unreduced *)
- Cases_on `e_exec ctx e2 (ctrl, (stacks_tup l l0), status_running)` >> (
+ Cases_on `e_exec ctx e2 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -856,12 +852,10 @@ fs [e_exec_sound] >>
 REPEAT STRIP_TAC >>
 pairLib.PairCases_on `state` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(ctrl,state1,state2)` >>
-rename1 `(ctrl,stacks,state2)` >>
-rename1 `(ctrl,stacks,status)` >>
-rename1 `(ctrl',state'1,state'2)` >>
-rename1 `(ctrl',stacks',state'2)` >>
-rename1 `(ctrl',stacks',status')` >>
+rename1 `(ctrl,(state1,state2),state3)` >>
+rename1 `(ctrl,(frame,call_stack),status)` >>
+rename1 `(ctrl',(state'1,state'2),state'3)` >>
+rename1 `(ctrl',(frame',call_stack'),status')` >>
 Cases_on `status` >> (
  fs [e_stmt_exec_def, e_ignore_pars_next]
 ) >>
@@ -1023,7 +1017,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   fs [clause_name_def]
   ]
  ) >>
- Cases_on `e_exec ctx e2 (ctrl, stacks, status_running)` >> (
+ Cases_on `e_exec ctx e2 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >> Cases_on `e1` >> (
@@ -1032,7 +1026,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg2"), clause_name_def],
 
  (* First operand is not fully reduced *)
- Cases_on `e_exec ctx e1 (ctrl, stacks, status_running)` >> (
+ Cases_on `e_exec ctx e1 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -1040,7 +1034,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg1"), clause_name_def],
 
  (* No operand is fully reduced *)
- Cases_on `e_exec ctx e1 (ctrl, stacks, status_running)` >> (
+ Cases_on `e_exec ctx e1 (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -1058,12 +1052,10 @@ fs [e_exec_sound] >>
 REPEAT STRIP_TAC >>
 pairLib.PairCases_on `state` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(ctrl,state1,state2)` >>
-rename1 `(ctrl,stacks,state2)` >>
-rename1 `(ctrl,stacks,status)` >>
-rename1 `(ctrl',state'1,state'2)` >>
-rename1 `(ctrl',stacks',state'2)` >>
-rename1 `(ctrl',stacks',status')` >>
+rename1 `(ctrl,(state1,state2),state3)` >>
+rename1 `(ctrl,(frame,call_stack),status)` >>
+rename1 `(ctrl',(state'1,state'2),state'3)` >>
+rename1 `(ctrl',(frame',call_stack'),status')` >>
 Cases_on `status` >> (
  fs [e_stmt_exec_def, e_ignore_pars_next]
 ) >>
@@ -1092,7 +1084,7 @@ Cases_on `is_v e` >| [
  ] >>
  fs [clause_name_def],
 
- Cases_on `e_exec ctx e (ctrl, stacks, status_running)` >> (
+ Cases_on `e_exec ctx e (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  Cases_on `x` >> Cases_on `r` >>
@@ -1110,12 +1102,10 @@ fs [e_exec_sound, stmt_exec_sound] >>
 REPEAT STRIP_TAC >>
 pairLib.PairCases_on `state` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(ctrl,state1,state2)` >>
-rename1 `(ctrl,stacks,state2)` >>
-rename1 `(ctrl,stacks,status)` >>
-rename1 `(ctrl',state'1,state'2)` >>
-rename1 `(ctrl',stacks',state'2)` >>
-rename1 `(ctrl',stacks',status')` >>
+rename1 `(ctrl,(state1,state2),state3)` >>
+rename1 `(ctrl,(frame,call_stack),status)` >>
+rename1 `(ctrl',(state'1,state'2),state'3)` >>
+rename1 `(ctrl',(frame',call_stack'),status')` >>
 Cases_on `status` >> (
  fs [e_stmt_exec_def, e_ignore_pars_next]
 ) >>
@@ -1128,7 +1118,7 @@ Cases_on `is_empty s` >- (
 Cases_on `get_ret_v s` >> (
  fs []
 ) >| [
- Cases_on `stmt_exec ctx s (ctrl, stacks, status_running)` >> (
+ Cases_on `stmt_exec ctx s (ctrl, (frame, call_stack), status_running)` >> (
   fs []
  ) >>
  PairCases_on `x` >>
@@ -1141,7 +1131,7 @@ Cases_on `get_ret_v s` >> (
   fs [clause_name_def]
  ),
 
- Cases_on `exec_ret ctx stacks` >> (
+ Cases_on `exec_ret ctx (frame, call_stack)` >> (
   fs [] >>
   rw []
  ) >>
@@ -1153,7 +1143,7 @@ Cases_on `get_ret_v s` >> (
    fs [get_ret_v] >>
    rw []
   ) >>
-  Cases_on `stacks` >> Cases_on `stacks'` >> PairCases_on `ctx` >>
+  PairCases_on `ctx` >>
   irule ((valOf o find_clause_e_red) "e_func_ret"),
 
   Cases_on `s'` >> (
@@ -1164,11 +1154,11 @@ Cases_on `get_ret_v s` >> (
    fs [get_ret_v] >>
    rw []
   ) >>
-  Cases_on `stacks` >> Cases_on `stacks'` >> PairCases_on `ctx` >>
+  PairCases_on `ctx` >>
   irule ((valOf o find_clause_e_red) "e_func_ret_seq")
  ] >> (
   fs [clause_name_def, exec_ret] >>
-  Cases_on `l0` >> (
+  Cases_on `call_stack` >> (
    fs []
   ) >>
   Cases_on `h` >> (
@@ -1183,7 +1173,7 @@ Cases_on `get_ret_v s` >> (
   Cases_on `x` >> (
    fs []
   ) >>
-  Cases_on `update_return_frame (MAP FST r) (MAP SND r) (HD l::q) l` >> (
+  Cases_on `update_return_frame (MAP FST r) (MAP SND r) (HD frame::q) frame` >> (
    fs []
   ) >>
   rw [] >>
@@ -1227,7 +1217,7 @@ REPEAT STRIP_TAC >| [
  (* bitvector slice - not in exec sem yet *)
  fs [e_exec_sound] >>
  REPEAT STRIP_TAC >>
- PairCases_on `state` >> Cases_on `state2` >> (
+ PairCases_on `state` >> Cases_on `state3` >> (
   rw [] >>
   fs [e_stmt_exec_def, e_ignore_pars_next]
  ),
@@ -1238,7 +1228,7 @@ REPEAT STRIP_TAC >| [
  (* bitvector concatenation - not in exec sem yet *)
  fs [e_exec_sound] >>
  REPEAT STRIP_TAC >>
- PairCases_on `state` >> Cases_on `state2` >> (
+ PairCases_on `state` >> Cases_on `state3` >> (
   rw [] >>
   fs [e_stmt_exec_def, e_ignore_pars_next]
  ),
@@ -1282,8 +1272,7 @@ REPEAT STRIP_TAC >| [
  fs [e_exec_sound] >>
  REPEAT STRIP_TAC >>
  PairCases_on `state` >>
- Cases_on `state1` >>  
- Cases_on `state2` >> (
+ Cases_on `state3` >> (
   rw [] >>
   fs [e_stmt_exec_def, e_ignore_pars_next]
  ) >>
@@ -1292,7 +1281,7 @@ REPEAT STRIP_TAC >| [
  (* Declare statement - not in exec sem yet *)
  fs [stmt_exec_sound] >>
  REPEAT STRIP_TAC >>
- PairCases_on `state` >> Cases_on `state2` >> (
+ PairCases_on `state` >> Cases_on `state3` >> (
   rw [] >>
   fs [e_stmt_exec_def, stmt_ignore_pars_next]
  ),
@@ -1300,7 +1289,7 @@ REPEAT STRIP_TAC >| [
  (* List expression - not in exec sem yet *)
  fs [e_exec_sound] >>
  REPEAT STRIP_TAC >>
- PairCases_on `state` >> Cases_on `state2` >> (
+ PairCases_on `state` >> Cases_on `state3` >> (
   rw [] >>
   fs [e_stmt_exec_def, e_ignore_pars_next]
  ),
@@ -1429,7 +1418,7 @@ val arch_exec_def = Define `
  (* arch_parser_ret: Note that this is a different clause from arch_control_ret due to the status *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
             (arch_stmt_regular stmt)
-            ((i, b, in_out_list, in_out_list', scope), ctrl, (stacks_tup curr_stack_frame call_stack),
+            ((i, b, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack),
              (status_pars_next (pars_next_pars_fin pars_fin))) =
   if b /\ (is_empty stmt) then
    (case EL i ab_list of
@@ -1440,7 +1429,7 @@ val arch_exec_def = Define `
         | SOME [scope''] =>
          (case assign [scope''] (lookup_vexp curr_stack_frame "parseError") (lval_varname "parseError") of
           | SOME [scope'''] =>
-           SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope'''), ctrl, (stacks_tup [EL 0 curr_stack_frame] []), status_running))
+           SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope'''), ctrl, ([EL 0 curr_stack_frame], []), status_running))
           | _ => NONE)
         | _ => NONE)
       | _ => NONE)
@@ -1449,7 +1438,7 @@ val arch_exec_def = Define `
  /\
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
             (arch_stmt_regular stmt_empty)
-            ((i, b, in_out_list, in_out_list', scope), ctrl, (stacks_tup curr_stack_frame call_stack),
+            ((i, b, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack),
               status_running) =
  (* arch_control_ret: distinguished by the aenv Boolean from arch_in, arch_pbl_call, arch_ffbl_call and arch_out *)
   if b then
@@ -1459,7 +1448,7 @@ val arch_exec_def = Define `
       | SOME (pblock_control stmt x_d_list tbl_map) =>
        (case update_return_frame (MAP FST x_d_list) (MAP SND x_d_list) [scope] curr_stack_frame of
         | SOME [scope''] =>
-         SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope''), ctrl, (stacks_tup [EL 0 curr_stack_frame] []), status_running))
+         SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope''), ctrl, ([EL 0 curr_stack_frame], []), status_running))
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -1470,28 +1459,28 @@ val arch_exec_def = Define `
      let
        (in_out_list'', scope') = input_f (in_out_list, scope)
      in
-      SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list'', in_out_list', scope'), ctrl, (stacks_tup curr_stack_frame call_stack), status_running))
+      SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list'', in_out_list', scope'), ctrl, (curr_stack_frame, call_stack), status_running))
     | (arch_block_pbl pblock x el) =>
-     SOME (arch_stmt_pbl_call x el, ((i, T, in_out_list, in_out_list', scope), ctrl, (stacks_tup curr_stack_frame call_stack), status_running))
+     SOME (arch_stmt_pbl_call x el, ((i, T, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack), status_running))
     | (arch_block_ffbl ffblock x el) =>
-     SOME (arch_stmt_ffbl_call x el, ((i, F, in_out_list, in_out_list', scope), ctrl, (stacks_tup curr_stack_frame call_stack), status_running))
+     SOME (arch_stmt_ffbl_call x el, ((i, F, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack), status_running))
     | arch_block_out =>
      let
        (in_out_list'', scope') = output_f (in_out_list', scope)
      in
-      SOME (arch_stmt_regular stmt_empty, ((0, F, in_out_list, in_out_list'', scope'), ctrl, (stacks_tup curr_stack_frame call_stack), status_running))))
+      SOME (arch_stmt_regular stmt_empty, ((0, F, in_out_list, in_out_list'', scope'), ctrl, (curr_stack_frame, call_stack), status_running))))
 /\
  (* Operating on a stmt_pbl_call: arch_parser_init, arch_control_init, arch_pblock_args *)
  (* TODO: Would be nice to remove code duplication... *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
             (arch_stmt_pbl_call f el)
-            ((i, T, in_out_list, in_out_list', scope), ctrl, (stacks_tup curr_stack_frame call_stack),
+            ((i, T, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack),
              status) =
   (case FLOOKUP pblock_map f of
    | SOME (pblock_control stmt x_d_list tbl_map) =>
     (case unred_arg_index (MAP SND x_d_list) el of
      | SOME i' => (* arch_pblock_args (case control) *)
-      (case e_exec (ty_map, ext_map, func_map, tbl_map) (EL i' el) (ctrl, stacks_tup curr_stack_frame call_stack, status) of
+      (case e_exec (ty_map, ext_map, func_map, tbl_map) (EL i' el) (ctrl, (curr_stack_frame, call_stack), status) of
        | SOME (e', (ctrl', stacks', status')) =>
         SOME (arch_stmt_pbl_call f (LUPDATE e' i el),
               ((i, T, in_out_list, in_out_list', scope), ctrl', stacks', status'))
@@ -1505,13 +1494,13 @@ val arch_exec_def = Define `
        in
         SOME (arch_stmt_regular stmt,
               ((i, T, in_out_list, in_out_list', scope), ctrl,
-               (stacks_tup curr_stack_frame' call_stack), status_running))
+               (curr_stack_frame', call_stack), status_running))
     )
    | SOME (pblock_parser x_d_list pars_map) =>
     (case (unred_arg_index (MAP SND x_d_list) el) of
      | SOME i' => (* arch_pblock_args (case parser) *)
       (case e_exec (ty_map, ext_map, func_map, FEMPTY) (EL i' el)
-                   (ctrl, (stacks_tup curr_stack_frame call_stack), status) of
+                   (ctrl, (curr_stack_frame, call_stack), status) of
        | SOME (e', (ctrl', stacks', status')) =>
         SOME (arch_stmt_pbl_call f (LUPDATE e' i el), ((i, T, in_out_list, in_out_list', scope), ctrl', stacks', status'))
        | NONE => NONE)
@@ -1526,7 +1515,7 @@ val arch_exec_def = Define `
          in
           (case assign curr_stack_frame' (v_err "NoError") (lval_varname "parseError") of
            | SOME curr_stack_frame'' =>
-            SOME (arch_stmt_regular stmt, ((i, T, in_out_list, in_out_list', scope), ctrl, (stacks_tup curr_stack_frame'' call_stack), status_running))
+            SOME (arch_stmt_regular stmt, ((i, T, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame'', call_stack), status_running))
            | NONE => NONE)  
        | NONE => NONE)
     )
@@ -1536,12 +1525,12 @@ val arch_exec_def = Define `
  (* Operating on a stmt_ffbl_call: arch_ffblock_exec, arch_ffblock_args *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
             (arch_stmt_ffbl_call f el)
-            ((i, F, in_out_list, in_out_list', scope), ctrl, stacks_tup curr_stack_frame call_stack, status) =
+            ((i, F, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack), status) =
   (case FLOOKUP ffblock_map f of
    | SOME (ffblock_ff ff x_d_list) =>
     (case unred_arg_index (MAP SND x_d_list) el of
      | SOME i =>
-     (case e_exec (ty_map, ext_map, func_map, FEMPTY) (EL i el) (ctrl, stacks_tup curr_stack_frame call_stack, status) of
+     (case e_exec (ty_map, ext_map, func_map, FEMPTY) (EL i el) (ctrl, (curr_stack_frame, call_stack), status) of
       | SOME (e', (ctrl', stacks', status')) =>
        SOME (arch_stmt_ffbl_call f (LUPDATE e' i el), ((i, F, in_out_list, in_out_list', scope), ctrl', stacks', status'))
       | NONE => NONE)
@@ -1549,7 +1538,7 @@ val arch_exec_def = Define `
       let
        (scope', curr_stack_frame') = ff (el, scope, curr_stack_frame)
       in
-       SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope'), ctrl, stacks_tup curr_stack_frame' call_stack, status)))
+       SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope'), ctrl, (curr_stack_frame', call_stack), status)))
    | NONE => NONE
   )
  )

@@ -170,9 +170,6 @@ val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option string_ty));
 val (called_function_name_function_name_tm, mk_called_function_name_function_name, dest_called_function_name_function_name, is_called_function_name_function_name) =
   syntax_fns1 "p4" "called_function_name_function_name";
 
-val (stacks_tup_tm, mk_stacks_tup, dest_stacks_tup, is_stacks_tup) =
-  syntax_fns2 "p4" "stacks_tup";
-
 (**************)
 (* Reductions *)
 (**************)
