@@ -156,13 +156,16 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
 {{ com final parser states }}
 | Accept :: :: accept
   {{ com accepted state }}
+  {{ tex { \mathbf{acc} } }}
 | Reject :: :: reject
   {{ com rejected state }}
+  {{ tex { \mathbf{rej} } }}
 
 pars_next {{ tex p }} :: pars_next_ ::=
 {{ com parser next state }}
 | Trans x :: :: trans
   {{ com transition to named state }}
+  {{ tex { \mathbf{tra} \; x } }}
 | pars_fin :: :: pars_fin
   {{ com final state }}
 
@@ -170,9 +173,9 @@ pars_next {{ tex p }} :: pars_next_ ::=
 status {{ tex t }}:: status_ ::=
 {{ com execution status }}
 | Running :: I :: running
-  {{ tex { \mathbf{R} } }}
+  {{ tex { \mathbf{run} } }}
 | Ret v :: I :: returnv
-  {{ tex { \mathbf{Ret} \, v } }}  
+  {{ tex { \mathbf{ret} \, v } }}  
 | pars_next :: I :: pars_next
 | TypeError :: I :: type_error
   {{ tex { \bot } }}
@@ -218,10 +221,6 @@ curr_stack_frame {{ tex \overrightarrow{\gamma} }} :: curr_stack_frame_ ::=
   {{ tex {\emptyset}_{\varepsilon} }}
 | [ scope1 , .. , scopen ] :: M :: list
   {{ hol ([[scope1 .. scopen]]) }}
-%| [ scope ] :: M :: singlescope
-%  {{ hol ([ [[scope]] ]) }}  
-%| [ scope ] ++ curr_stack_frame :: M :: concatsinglescope
-%  {{ hol ([[scope]] ++ [[curr_stack_frame]]) }}   
 | tl curr_stack_frame :: M :: tl
   {{ hol (TL [[curr_stack_frame]]) }}
   {{ tex \mathrm{tl} ([[curr_stack_frame]]) }}
@@ -510,7 +509,7 @@ E {{ tex \Phi }} :: E_ ::=
 {{ hol (string # stmt # curr_stack_frame) }}
 | ( f , stmt , curr_stack_frame ) :: M :: tup
  {{ hol ([[f]] , [[stmt]] , [[curr_stack_frame]]) }}
- {{ tex ([[f]] , [[stmt]] , [[curr_stack_frame]]) }}
+ {{ tex ( {[[stmt]])}_{[[curr_stack_frame]]}^{[[f]]} }}
 
 
 E_list {{ tex \overrightarrow{\Phi} }} :: E_list_ ::=
@@ -946,14 +945,10 @@ formula :: formula_ ::=
   {{ tex [[v]] \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) }}
 | check_args_red d_list e_list :: M :: signature_check  
   {{ com check if arguments are isvar or isconst }}
-  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
-         ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
+  {{ tex \forall i \leqslant n. \, ((d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e_i ) \land (d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e_i))  }}
+ % {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+ %        ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
   {{ hol (check_args_red [[d_list]] [[e_list]]) }}
-| ~check_args_red d_list e_list :: M :: signature_check_false
-  {{ com check if arguments are not isvar or isconst }}
-  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
-         \neg ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
-  {{ hol (~(check_args_red [[d_list]] [[e_list]])) }}
 %some operations on the direction list
 | d = d_list [ i ] :: M :: d_index
   {{ hol ([[d]] = EL [[i]] [[d_list]]) }}
@@ -1044,11 +1039,11 @@ formula :: formula_ ::=
   {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
 | notrun( status ) :: M :: notrun
   {{ com status is not in running}}
-  {{ tex t \neq { \mathbf{R} } }}
+  {{ tex t \neq { \mathbf{run} } }}
   {{ hol (status <> Running)}}
 | acc_or_rej( status ) :: M :: accrejstatus
   {{ com status is not in running}}
-  {{ tex t = { \mathbf{Accept} } \vee t = { \mathbf{Reject} } }}
+  {{ tex t = { \mathbf{acc} } \vee t = { \mathbf{rej} } }}
   {{ hol (status = Accept \/ status = Reject) }}     
 | x = "accept" :: M :: is_accept
   {{ com x is accept }}
@@ -1067,14 +1062,16 @@ formula :: formula_ ::=
   %Dummy to keep syntax highlighting from freaking out: "
 | scope = all_arg_update_for_newscope ( ( x1 , .. , xn ) , d_list , e_list , curr_stack_frame ) :: M :: build_scope
   {{ com build new scope }}
-  {{ tex \forall d,\, e,\, x,\, i \leqslant n . \, x = [x_1 , ... , x_n] [i] \land 
-         \, e = [e_1 , ... , e_n] [i] \land 
-         \, d = [d_1 , ... , d_n] [i] 
-         \implies [[scope]](x) = 
-	   \begin{cases}
-	     (\mathrm{lookup_v}( [[curr_stack_frame]] , e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \} \\
-             (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
-	   \end{cases} }}
+  %This is a hack, fix the curr_stack_frame
+  {{ tex \forall i \leqslant n . \, [[scope]](x_n) = \mathrm{copyin} (x_n , e_n , d_n , \overrightarrow{\gamma}' )  }}
+ % {{ tex \forall d,\, e,\, x,\, i \leqslant n . \, x = [x_1 , ... , x_n] [i] \land 
+ %        \, e = [e_1 , ... , e_n] [i] \land 
+ %        \, d = [d_1 , ... , d_n] [i] 
+ %        \implies [[scope]](x) = 
+%	   \begin{cases}
+%	     (\mathrm{lookup_v}( [[curr_stack_frame]] , e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \} \\
+ %            (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
+	%   \end{cases} }}
   {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[curr_stack_frame]]) }}
 | v = arb_from_t t :: M :: make_arb
   {{ com create new varaible in declaration }}
@@ -1091,12 +1088,10 @@ formula :: formula_ ::=
   {{ hol (SOME [[curr_stack_frame']] = assign [[curr_stack_frame]] [[v]] [[lval]]) }}
   {{ tex [[curr_stack_frame']] = [[curr_stack_frame]] [ [[lval]] \longmapsto [[v]] ] }}
 | curr_stack_frame'' = update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
-  %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
+  %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame  
+  %REMOVE THIS!!!!!!!!!!!!!!!!!!
   {{ com update caller's stack frame upon function return }}
-  {{ tex [[curr_stack_frame'']] = \mathrm{copyout} ([x1, \, .. , \, xn] , [[d_list]] , [[curr_stack_frame']] , [[curr_stack_frame]]) }}
-  %{{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
-	%                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
-  %                        \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
+  {{ tex [[curr_stack_frame'']] = \mathrm{updateframe} ([x1, \, .. , \, xn] , [[d_list]] , [[curr_stack_frame']] , [[curr_stack_frame]]) }}
   {{ hol (SOME [[curr_stack_frame'']] = update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
@@ -1160,6 +1155,11 @@ formula :: formula_ ::=
   {{ com extract the content of E }}
   {{ tex [ ( [[f]] , [[stmt]] , [[curr_stack_frame]]) ] = [[E]] }}
   {{ hol [ ( [[f]] , [[stmt]] , [[curr_stack_frame]]) ] = [[E]] }}
+| ( scope , curr_stack_frame'' ) = copyout ( ( x1 , .. , xn ) , d_list , scope' , curr_stack_frame , curr_stack_frame' ) :: M :: copyo
+   %curr_stack_frame is the current called stack, whereas curr_stack_frame' is the caller to copy out to
+  %{{ tex ( [[scope]] , [[curr_stack_frame'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [[d_list]] , [[scope']] , [[curr_stack_frame]] , [[curr_stack_frame']] ) }}
+  {{ tex ( [[scope]] , [[curr_stack_frame'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \gamma_{G} , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) }}
+  {{ hol ( ( [[scope]] , [[curr_stack_frame'']] ) = copyout [[x1 .. xn]] [[d_list]] [[scope']] [[curr_stack_frame]] [[curr_stack_frame']] ) }}
 
 embed
 {{ hol
@@ -1732,9 +1732,34 @@ val args_of_pbl_def = Define `
   (args_of_pbl (pblock_parser x_d_list stmt pars_map) = x_d_list) /\
   (args_of_pbl (pblock_control x_d_list stmt stmt' tbl_map) = x_d_list)
 
-(* Implements all the copyout operation. Given current stack, caller stack,
+(* Implements the copyout operation to the golbal scope. Given current stack, caller stack,
+ * list of arguments of the funtion i.e. args names and directions, and 
+ * the gloal scope, it will return the updated global scope with the proper copy outs *)
+
+val cog_def = Define `
+  cog xlist dlist scope sf sf_current= 
+  (HD (THE (update_return_frame xlist dlist (scope::sf) sf_current)))
+`;
+
+(* Implements the copyout operation to the caller scope. Given current stack, caller stack,
  * list of arguments of the funtion i.e. args names and directions, and 
  * the global scope, and returns a new stack for the caller where everything is copied out and separated into global scope and *)
+
+val col_def = Define `
+  col xlist dlist scope sf sf_current= 
+  (TL (THE (update_return_frame xlist dlist (scope::sf) sf_current)))
+`;
+
+
+(* Implements the whole copyout operation to the caller scope (sf). Given current stack, caller stack,
+ * list of arguments of the funtion i.e. args names and directions, and 
+ * the gloal scope, it will return a tuple first feild is the global with respect to the copy outs, 
+ * where the second feild is the caller's scope updated with the copy outs *)
+
+val copyout_def = Define `
+  copyout xlist dlist scope sf sf_current = 
+  (cog xlist dlist scope sf sf_current ,  col xlist dlist scope sf sf_current )
+`;
 
 
 val arb_from_t_def = Define `
@@ -2054,12 +2079,9 @@ by
  ctx ( G scope , [ ( f , stmt , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , empty_stmt , curr_stack_frame ) ] , Ret v )
  curr_stack_frame'' = assign ( curr_stack_frame' , v , star ) 
  ( stmt'' , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
- curr_stack_frame = ( G scope ) :: curr_stack_frame'' 
- curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
- G scope' = curr_stack_frame''' [0]
- curr_stack_frame'''' = tl curr_stack_frame'''
+ ( G scope' , curr_stack_frame''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , G scope , curr_stack_frame' , curr_stack_frame )
   ----------------------------------- :: comp2
-  (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , stmt , curr_stack_frame ) ] ++ ( [ ( f' , stmt' , curr_stack_frame' ) ] ++ E_list ) , Running ) -> ( G scope' , [ ( f' , stmt' , curr_stack_frame'''' ) ] ++ E_list , Running )
+  (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , stmt , curr_stack_frame ) ] ++ ( [ ( f' , stmt' , curr_stack_frame' ) ] ++ E_list ) , Running ) -> ( G scope' , [ ( f' , stmt' , curr_stack_frame''' ) ] ++ E_list , Running )
 
 
 
@@ -2172,8 +2194,8 @@ by
 
 %%%%%%%%%%%%%%
 %The action is treated as a function call
-  t_map ( table_name ) = ( e' , match_kind )
-  ctrl ( table_name , v , match_kind ) = ( f , ( v1 , .. , vn ) )
+  t_map ( table_name ) = ( e' , mk )
+  ctrl ( table_name , v , mk ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
   (type_map, ext_map, func_map, pars_map, t_map, ctrl) ( G scope , [ ( f , apply table_name v , curr_stack_frame ) ] , Running ) -> ( G scope , [ ( f , assign null ( call f ( v1 , .. , vn ) ) , curr_stack_frame ) ] , Running )
 
