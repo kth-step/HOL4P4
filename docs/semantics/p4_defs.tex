@@ -127,15 +127,15 @@
 \ottprodline{|}{ ( \varepsilon ,  F_n ) ::  E } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  E  \ottsym{)}} {\textsf{S}}{}{}{}}
 
-\newcommand{\ottstacks}{
-\ottrulehead{\sigma}{::=}{\ottcom{stacks in execution state}}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}}{}{}{}{}}
-
 \newcommand{\ottmk}{
 \ottrulehead{\mathit{mk}}{::=}{\ottcom{matching kinds}}\ottprodnewline
 \ottfirstprodline{|}{ exact }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ ternary }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ lpm }{}{}{}{}}
+
+\newcommand{\ottstacks}{
+\ottrulehead{\sigma}{::=}{\ottcom{stacks in execution state}}\ottprodnewline
+\ottfirstprodline{|}{\ottsym{(}  \varepsilon  \ottsym{,}  E  \ottsym{)}} {\textsf{M}}{}{}{}}
 
 \newcommand{\ottunop}{
 \ottrulehead{\ominus}{::=}{}\ottprodnewline
@@ -498,8 +498,8 @@
 \ottprodline{|}{\varepsilon}{}{}{}{}\ottprodnewline
 \ottprodline{|}{F_n}{}{}{}{}\ottprodnewline
 \ottprodline{|}{E}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\sigma}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\mathit{mk}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\sigma}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ominus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\oplus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
@@ -555,8 +555,8 @@
 \ottcurrXXstackXXframe\ottinterrule
 \ottcalledXXfunctionXXname\ottinterrule
 \ottcallXXstack\ottinterrule
-\ottstacks\ottinterrule
 \ottmk\ottinterrule
+\ottstacks\ottinterrule
 \ottunop\ottinterrule
 \ottbinop\ottinterrule
 \otte\ottinterrule
@@ -989,28 +989,28 @@
 
 \newcommand{\ottdruleeXXbinXXandOne}[1]{\ottdrule[#1]{%
 }{
- \mathit{ctx}  \vdash [   \ottkw{false}    \land    b   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  \ottkw{false}  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
+ \mathit{ctx}  \vdash [   \ottkw{false}    \land    \ottnt{e}   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  \ottkw{false}  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
 {\ottdrulename{e\_bin\_and1}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXbinXXandTwo}[1]{\ottdrule[#1]{%
 }{
- \mathit{ctx}  \vdash [   \ottkw{true}    \land    b   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  b  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
+ \mathit{ctx}  \vdash [   \ottkw{true}    \land    \ottnt{e}   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  \ottnt{e}  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
 {\ottdrulename{e\_bin\_and2}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXbinXXorOne}[1]{\ottdrule[#1]{%
 }{
- \mathit{ctx}  \vdash [   \ottkw{true}    \lor    b   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  \ottkw{true}  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
+ \mathit{ctx}  \vdash [   \ottkw{true}    \lor    \ottnt{e}   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  \ottkw{true}  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
 {\ottdrulename{e\_bin\_or1}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXbinXXorTwo}[1]{\ottdrule[#1]{%
 }{
- \mathit{ctx}  \vdash [   \ottkw{false}    \lor    b   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  b  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
+ \mathit{ctx}  \vdash [   \ottkw{false}    \lor    \ottnt{e}   ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)}  \rightsquigarrow [  \ottnt{e}  ]  \ottsym{(}  { C }  \ottsym{,}  \sigma  \ottsym{,}   { \mathbf{R} }   \ottsym{)} }{%
 {\ottdrulename{e\_bin\_or2}}{}%
 }}
 

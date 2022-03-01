@@ -408,29 +408,43 @@ The \textsc{apply\_table\_v} looks up the table name in the table name map, then
 \label{fig:semctrl}
 \end{figure}
 
-The - mostly trivial - control block semantics is shown in Figure~\ref{fig:semctrl}. Note that the body of the control block consists of the statements inside the apply block, and that executing a return statement at this level signifies return from the control block as a whole.
+The statement semantics unique to the control block is shown in Figure~\ref{fig:semmatchaction}. Note that the body of the control block consists of the statements inside the apply block, and that executing a return statement at this level signifies return from the control block as a whole. The block-level semantics of the control block are shown in Figure~\ref{fig:semctrl}. It's almost the same as the statement semantics, the only difference being that the return statement causes an immediate reduction to the empty statement.
 
 \newcommand{\actx}{\ensuremath{\mathit{ctx}_\mathit{A}}}
 \newcommand{\abl}{\ensuremath{\overline{ab}}}
+\newcommand{\pbm}{\ensuremath{B_p}}
+\newcommand{\ffbm}{\ensuremath{B_{ \mathit{ff}}}}
+\newcommand{\aenv}{\ensuremath{\mathit{env}_\mathit{A}}}
 \subsection{Architecture-Level Semantics}
 
-The architecture-level semantics is the topmost-level semantics that describes the entirety of the P4 pipeline from input packets to output packets. The judgment form consists of an \emph{architectural context} \actx{} which contains
+The architecture-level semantics is the topmost-level semantics, and it describes the entirety of the P4 pipeline from input packets to output packets. The judgment form, shown in Figure~\ref{fig:semarch}, consists of multiple components: starting from the left, an \emph{architectural context} \actx{} on the left-hand side of the turnstile, which contains the following:
 \begin{enumerate}
-\item the list of architectural blocks \abl{}: the architectural block represents one of the four fundamental stages in a P4-compatible architecture. First, there are the input (\textbf{inp}) and output (\textbf{out}) stages: these stages are just translators between the P4 input packet format and the general I/O format consisting of a list of ports, each with pending packets to be arbitrated/sent off. The demux block functionality may be modeled as part of the output stage, or it may be its own fixed-function block preceding the output stage. Second, there are the programmable blocks - parser blocks and control blocks, which are described in more detail elsewhere in this document, as well as the fixed-function blocks. Fixed-function blocks can be thought of as analoguous to extern calls, but on the architectural level. They perform the parts of the functionality of the P4-programmable network element that is not written in the P4 language.
-\item $B_p$ is 
+\item The \emph{architectural block list} \abl{}: the architectural block represents one of the four fundamental stages in a P4-compatible architecture. First, there are the input (\textbf{inp}) and output (\textbf{out}) stages: these stages are just translators between the P4 input packet format and the general I/O format consisting of a list of ports, each with pending packets to be arbitrated/sent off. The demux block functionality may be modeled as part of the output stage, or it may be its own fixed-function block preceding the output stage. Second, there are the programmable blocks - parser blocks and control blocks, which are described in more detail elsewhere in this document, as well as the fixed-function blocks. Fixed-function blocks can be thought of as analoguous to extern calls, but on the architectural level. They perform the parts of the functionality of the P4-programmable network element that is not written in the P4 language.
+\item The \emph{programmable block map} \pbm{}, which is a map between names of programmable blocks (strings) and the necessary information required to execute the block in question. For parser blocks, this is the list of directed parameters and the parser state map $P$ between parser state names and their bodies (statements). For programmable blocks, this is the body of the control block (found in the topmost apply statement), the list of directed parameters and a table map $\mathit{Tb}$ between names of tables and tuples of expressions and matching kinds.
+\item The \emph{programmable block map} \ffbm{}, which is a map between names of fixed-function blocks and their lists of directed parameters, as well as the implementation of the fixed fiunction itself - this is a function between an expression list (arguments), the architectural scope, and the current frame to an updated architectural scope and current frame.
+\item The \emph{input function} $f_{ \mathit{in} }$ and the output function $f_{ \mathit{out} }$, which are both functions from the IO list and the architectural scope to an updates IO list and architectural scope.
+\item The \emph{type map} $\mathit{Ty}$, which is a (currently unused) map from names of types to their actual types.
+\item The \emph{extern map} $X$, which is a map from extern names (strings) to tuples of extern functions (functions from tuples of lvals, arguments and states to option types of values and states) and their directed parameter lists. Note that that since the state contains the control plane configuration, extern functions may modify it.
+\item The \emph{function map} $F$, which is a map from function names (strings) to tuples of function bodies (statements) and their directed parameter lists.
+\end{enumerate}
+The architectural context contains everything which can not change between reductions.
+
+The left-hand and right-hand sides of the reduction both consist of an \emph{architectural statement} and an \emph{architectural environment} \aenv{}, which may change between reductions. The architectural statement is either a regular statement as defined above, or a programmable or fixed-function block call which both take lists of directed parameters and function names. \aenv has five components:
+\begin{enumerate}
+\item The \emph{architectural block index}: This is an index which informs us of which architectural block in \abl{} is currently being reduced.
+\item The \emph{in-progress flag}, which is a Boolean telling us whether a programmable block is currently being executed (as opposed to returning or being initialised) or not.
+\item The \emph{input list}, which is a list of incoming packets (represented as tuples of lists of Booleans and numbers signifying input ports)
+\item The \emph{output list}, which is the same as the input list, but used for output.
+\item The \emph{architectural scope}, which is of the same type as the regular scope, but used for storing values in-between non-adjacent blocks.
 \end{enumerate}
 
-\begin{figure}[h!]
-\centering\ottgrammartabular{
-\ottactx\ottinterrule
-\ottaenv\ottafterlastrule
-}
-\caption{Components of Architecture-Level Judgment}
-\label{fig:status}
-\end{figure}
-
-
-This semantics steps which consists of both programmable blocks (either parser or control blocks) and fixed-function blocks. The fixed-function blocks are not written in P4, and are thus modeled as general functions.
+The rules of the architecture-level semantics can be divided into several categories:
+\begin{enumerate}
+\item The \textsc{arch\_in}, \textsc{arch\_pbl\_call}, \textsc{arch\_ffbl\_call} and \textsc{arch\_out} rules all deal with queueing the next block to be executed. Input and output takes place immediately by applying their respective functions.
+\item The \textsc{arch\_parser\_init} and \textsc{arch\_control\_init} rules are similar to the \textsc{e\_func\_call\_newframe} rule in the expression semantics: both set up the values of variables in the new parser and control blocks, respectively. In the parser case, this rule also sets the value of $\mathit{parseError}$ to $\mathit{NoError}$ and the statement to be executed to the statement mapped to $\mathit{start}$ in $P$.
+\item The \textsc{arch\_parser\_exec}, \textsc{arch\_control\_exec} and \textsc{arch\_ffblock\_exec} rules all govern the actual execution of blocks. \textsc{arch\_ffblock\_exec} is different from the other two in that it performs execution in one step only, and thus also checks for properly reduced arguments the same way \textsc{arch\_parser\_init} (for example) does. Accordingly, it also increments the architecture block index. \textsc{arch\_parser\_exec} takes a step in the parser semantics (using the parser map $P$ that was obtained from \pbm{}) that does not start in a state with status $\mathit{pars\_fin}$. \textsc{arch\_control\_exec} similarly takes a step in the control semantics using the table map $Tb$ that was obtained from \pbm{}.
+\item The \textsc{arch\_parser\_ret} and \textsc{arch\_control\_ret} rules govern the return phase of programmable block execution. They are similar in many respects to \textsc{e\_func\_ret}, but they also increment the architecture block index, and \textsc{arch\_parser\_ret} furthermore copies back the value of $\mathit{parseError}$ to the architecture scope.
+\end{enumerate}
 
 \begin{figure}[ht!]
 \resizebox{.7\linewidth}{!}{

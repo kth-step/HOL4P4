@@ -437,17 +437,6 @@ e_list :: e_list_ ::=
 % Statements %
 %%%%%%%%%%%%%%
 
-%decl :: decl_ ::=
-%{{ com declaration }}
-%| empty_decl :: :: empty
-%  {{ com empty declaration }}
-%  {{ tex \emptyset_{ \mathrm{decl} } }}
-%| declare x e :: :: stmt
-%  {{ com declaration }}
-%  {{ tex [[x]] \mathrel{\mathop:}:= [[e]] }}
-%| decl1 ; decl2 :: :: seq
-%  {{ com sequence }}
-
 bt {{ tex bt }} :: bt_ ::=
 {{ com base types }}
 | bool_t :: :: bool
