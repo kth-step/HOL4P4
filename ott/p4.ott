@@ -202,10 +202,16 @@ scope {{ tex \gamma }} :: scope_ ::=
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
   {{ tex  [[scope]] }}
-| G scope :: M :: global
-  {{ com global scope }}
-  {{ tex {[[scope]]}_G }}
-  {{ hol [[scope]] }}
+%| G scope :: M :: global
+%  {{ com global scope }}
+%  {{ tex {[[scope]]}_G }}
+%  {{ hol [[scope]] }}
+
+g_scope {{ tex \gamma_G }} :: g_scope_ ::=
+{{ com global scope}}
+{{ hol scope}}
+| scope :: M :: global
+{{ hol ([[scope]]) }}
 
 %Fence so that ott does not re-order g_scope_list
 embed
@@ -217,10 +223,14 @@ grammar
 g_scope_list {{ tex {\gamma}_L }} :: g_scope_list_ ::=
 {{ hol (scope list) }}
 {{ com list of global scopes }}
-| [ G scope ; G scope' ] :: M :: two
+| [ g_scope ]' :: M :: one
+  {{ com 1 global scope }}
+  {{ hol ([ [[g_scope]] ]) }}
+  {{ tex [ [[g_scope]] ] }}
+| [ g_scope ; g_scope' ] :: M :: two
   {{ com 2 global scopes }}
-  {{ hol ([ [[scope]] ; [[scope']] ]) }}
-  {{ tex [ [[scope]], [[scope']] ] }}
+  {{ hol ([ [[g_scope]] ; [[g_scope']] ]) }}
+  {{ tex [ [[g_scope]], [[g_scope']] ] }}
 
 %Fence so that ott does not re-order scopes_stack
 embed
@@ -240,9 +250,9 @@ scopes_stack {{ tex \overrightarrow{\gamma} }} :: scopes_stack_ ::=
 | tl scopes_stack :: M :: tl
   {{ hol (TL [[scopes_stack]]) }}
   {{ tex \mathrm{tl} ([[scopes_stack]]) }}
-| scope '::' scopes_stack' :: M :: cons
-  {{ hol ([[scope]] :: [[scopes_stack']]) }}
-  {{ tex [[scope]] :: [[scopes_stack']] }}
+| g_scope '::' scopes_stack' :: M :: cons
+  {{ hol ([[g_scope]] :: [[scopes_stack']]) }}
+  {{ tex [[g_scope]] :: [[scopes_stack']] }}
 | scopes_stack ++ scopes_stack' :: M :: append
   {{ hol ([[scopes_stack]] ++ [[scopes_stack']]) }}
   {{ tex [[scopes_stack]] \mathrel{\mathop+}+ [[scopes_stack']] }}
@@ -905,11 +915,11 @@ formula :: formula_ ::=
 | scopes_stack = hd call_stack :: M :: call_stack_hd
   {{ hol ([[scopes_stack]] = HD [[call_stack]]) }}
   {{ tex [[scopes_stack]] = \mathrm{hd} [[call_stack]] }}
-| scope = scopes_stack [ i ] :: M :: scopes_stack_index
-  {{ hol ([[scope]] = EL [[i]] [[scopes_stack]]) }}
+| g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
+  {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
 %TODO: Why does the above not work for value 1?
-| scope = scopes_stack [ 1 ] :: M :: scopes_stack_index_1
-  {{ hol ([[scope]] = EL 1 [[scopes_stack]]) }}
+| g_scope = scopes_stack [ 1 ] :: M :: scopes_stack_index_1
+  {{ hol ([[g_scope]] = EL 1 [[scopes_stack]]) }}
 | ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f ) :: M :: func_lookup
   {{ com function signature lookup }}
   {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
@@ -991,6 +1001,12 @@ formula :: formula_ ::=
   {{ com args equality }}
   {{ hol ([[in_out_list]] = [[in_out_list']]) }}
   {{ tex [[in_out_list]] = [[in_out_list']] }}
+
+%frame_list operation
+| frame_list neq empty :: M ::flnotempty
+  {{ com args equality }}
+  {{ hol ([[frame_list]] <> []) }}
+  {{ tex [[frame_list]] \neq [ \, ] }}
 
 %Apply table
 | tbl_map ( tbl ) = ( e , mk ) :: :: find_key
@@ -1843,7 +1859,6 @@ ctx g_scope_list scopes_stack ( var x , ctrl ) ~> ( v ,  empty , ctrl )
 %Function call + exec (in expression)
 
 %Function call build frame
-
 ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 %Build new stack frame
@@ -2141,6 +2156,7 @@ defn
   {{ tex [[ctx]] \vdash  [[state]] \rightarrow  [[state']] }}
 by
 
+  frame_list'' neq empty
   ctx ( g_scope_list , [ frame ] , ctrl , status ) -> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: comp1
   ctx ( g_scope_list , [ frame ] ++ frame_list'' , ctrl , status ) -> ( g_scope_list' , frame_list' ++ frame_list'' , ctrl' , status' )
@@ -2155,11 +2171,11 @@ by
 
 
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
-  G scope = scopes_stack' [0]
-  G scope' = scopes_stack' [1]
+  g_scope = scopes_stack' [0]
+  g_scope' = scopes_stack' [1]
   scopes_stack'' = tl (tl scopes_stack')
   ----------------------------------- :: ass_v
-  ctx ( g_scope_list , [ ( f , assign lval v , scopes_stack ) ] , ctrl , Running ) -> ( [ G scope ; G scope' ] , [ ( f , empty_stmt , scopes_stack'' ) ]  , ctrl , Running )
+  ctx ( g_scope_list , [ ( f , assign lval v , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( f , empty_stmt , scopes_stack'' ) ]  , ctrl , Running )
 
 
   ----------------------------------- :: ass_null
@@ -2424,8 +2440,8 @@ by
   stmt' = pars_map ( x )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
-  G scope'' = g_scope_list [0]
-  g_scope_list' = [G scope''] ++ [ scope' ]
+  g_scope'' = g_scope_list [0]
+  g_scope_list' = [g_scope'']' ++ [ scope' ]
   v = errmsg "NoError"
   x' = "parseError"
   g_scope_list'' = initialise ( g_scope_list' , x' , v )
@@ -2437,8 +2453,8 @@ by
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %TODO: Should you also be able to read from the global scope?
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
-  G scope'' = g_scope_list [0]
-  g_scope_list' = [G scope''] ++ [ scope' ]
+  g_scope'' = g_scope_list [0]
+  g_scope_list' = [g_scope'']' ++ [ scope' ]
   %TODO: Model pseudo-scope external to the P4 program using the call stack?
   ----------------------------------- :: control_init
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 ,  .. , en ) , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , [ ( f , stmt ; stmt' , emptycsf ) ] , ctrl , Running )
@@ -2473,8 +2489,8 @@ by
   x = "parseError"
   v = lookup_vexp ( g_scope_list , x )
   [ scope'' ] = assign ( [ scope' ] , v , lval )
-  G scope''' = g_scope_list [0]
-  g_scope_list' = [ G scope''' ]
+  g_scope''' = g_scope_list [0]
+  g_scope_list' = [ g_scope''' ]'
   i' = i + 1
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: parser_ret
@@ -2483,8 +2499,8 @@ by
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
   [ scope' ] = update_return ( g_scope_list , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
-  G scope'' = g_scope_list [0]
-  g_scope_list' = [ G scope'' ]
+  g_scope'' = g_scope_list [0]
+  g_scope_list' = [ g_scope'' ]'
   i' = i + 1
   ----------------------------------- :: control_ret
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , [ ( f' , empty_stmt , scopes_stack ) ] , ctrl , Running ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list' , arch_frame_list_empty , ctrl , Running )
