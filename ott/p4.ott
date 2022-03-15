@@ -1068,6 +1068,10 @@ formula :: formula_ ::=
   {{ com status is not in running}}
   {{ tex t \neq { \mathbf{run} } }}
   {{ hol (status <> Running)}}
+| notret( status ) :: :: noret
+  {{ com status is not in return}}
+  {{ tex [[status]] \neq { \mathbf{Ret \, v} } }}
+  {{ hol ( notret [[status]] )}}  
 | acc_or_rej( status ) :: M :: accrejstatus
   {{ com status is not in running}}
   {{ tex t = { \mathbf{acc} } \vee t = { \mathbf{rej} } }}
@@ -1836,6 +1840,13 @@ val not_top_return_def = Define `
     | _ => F
 `;
 
+(*check is the status is not a return*)
+val notret_def = Define `
+  (notret (status_returnv v) = F) /\
+  (notret _ = T)
+`;
+
+
 }}
 grammar
 
@@ -2157,17 +2168,19 @@ defn
 by
 
   frame_list'' neq empty
+  notret( status' )
   ctx ( g_scope_list , [ frame ] , ctrl , status ) -> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: comp1
   ctx ( g_scope_list , [ frame ] ++ frame_list'' , ctrl , status ) -> ( g_scope_list' , frame_list' ++ frame_list'' , ctrl' , status' )
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
- ctx ( g_scope_list , [ ( f , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( f , stmt'' , scopes_stack ) ] , ctrl , Ret v )
- scopes_stack' = assign ( g_scope_list ++ scopes_stack , v , star ) 
+ ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( f , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( f , stmt'' , scopes_stack ) ] , ctrl , Ret v )
+ ( g_scope_list' , scopes_stack' ) = declare ( g_scope_list , scopes_stack , star , t )
+ scopes_stack'' = assign ( g_scope_list' ++ scopes_stack' , v , star ) 
  ( stmt''' , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
- ( g_scope_list' , scopes_stack'' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list , scopes_stack' , scopes_stack )
+ ( g_scope_list'' , scopes_stack''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack'' , scopes_stack )
   ----------------------------------- :: comp2
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( f , stmt , scopes_stack ) ] ++ ( [ ( f' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list' , [ ( f' , stmt' , scopes_stack'' ) ] ++ frame_list , ctrl , Running )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( f , stmt , scopes_stack ) ] ++ ( [ ( f' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list'' , [ ( f' , stmt' , scopes_stack''' ) ] ++ frame_list , ctrl , Running )
 
 
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
