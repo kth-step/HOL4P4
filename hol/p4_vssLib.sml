@@ -9,8 +9,23 @@ open p4Syntax;
 open p4Theory p4_coreTheory p4_vssTheory;
 
 (* Architectural constants *)
+val REAL_PORT_COUNT_tm = mk_v_bitii (8, 4);
+
+val RECIRCULATE_IN_PORT_tm = mk_v_bitii (13, 4);
+val CPU_IN_PORT_tm = mk_v_bitii (14, 4);
+
 val DROP_PORT_tm = mk_v_bitii (15, 4);
-val CPU_OUT_PORT_tm = mk_v_bitii (15, 4);
+val CPU_OUT_PORT_tm = mk_v_bitii (14, 4);
+val RECIRCULATE_OUT_PORT_tm = mk_v_bitii (13, 4);
+
+val vss_init_global_scope =
+ ``(FEMPTY |+ ("REAL_PORT_COUNT", (^REAL_PORT_COUNT_tm, NONE) )
+           |+ ("RECIRCULATE_IN_PORT", (^RECIRCULATE_IN_PORT_tm, NONE) )
+           |+ ("CPU_IN_PORT", (^CPU_IN_PORT_tm, NONE) )
+           |+ ("DROP_PORT", (^DROP_PORT_tm, NONE) )
+           |+ ("CPU_OUT_PORT", (^CPU_OUT_PORT_tm, NONE) )
+           |+ ("RECIRCULATE_OUT_PORT", (^RECIRCULATE_OUT_PORT_tm, NONE) )
+   ):scope``;
 
 (*************************)
 (* Architectural context *)

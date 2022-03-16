@@ -69,6 +69,8 @@ fun is_v_bot tm = term_eq tm v_bot_tm;
 (* lval *)
 (********)
 
+val lval_ty = mk_type ("lval", []);
+
 val (lval_varname_tm, _, dest_lval_varname, is_lval_varname) =
   syntax_fns1 "p4" "lval_varname";
 val mk_lval_varname = (#2 (syntax_fns1 "p4" "lval_varname")) o fromMLstring;
@@ -165,7 +167,7 @@ val d_ty = mk_type ("d", []);
 (* State *)
 (*********)
 
-val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option string_ty));
+val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 

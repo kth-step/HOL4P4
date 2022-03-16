@@ -98,16 +98,16 @@ val vss_pipe_tblmap = ``FEMPTY |+ (^ipv4_match_table)
 (* Body *)
 val e_parseerror_cond = mk_e_binop (``(e_var "parseError")``, binop_neq_tm, ``(e_v (v_err "NoError"))``);
 val stmt_parseerror_then = mk_stmt_seq (mk_stmt_ass (lval_null_tm, mk_e_func_call (``"Drop_action"``, ``[]:e list``)) , mk_stmt_ret ``e_v v_bot``);
-(* TODO: Why the trailing empty statement here and below? *)
+
 val stmt_parseerror = mk_stmt_cond (e_parseerror_cond, stmt_parseerror_then, stmt_empty_tm);
 
-val e_ipv4_match_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
+val e_ipv4_match_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var "DROP_PORT");
 val stmt_ipv4_match = mk_stmt_seq (mk_stmt_app (``"ipv4_match"``, ``e_v v_bot``), mk_stmt_cond (e_ipv4_match_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
-val e_check_ttl_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_v CPU_OUT_PORT_tm);
+val e_check_ttl_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var "CPU_OUT_PORT");
 val check_ttl_match = mk_stmt_seq (mk_stmt_app (``"check_ttl"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
-val e_dmac_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_v DROP_PORT_tm);
+val e_dmac_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var "DROP_PORT");
 val dmac_match = mk_stmt_seq (mk_stmt_app (``"dmac"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
 val smac_match = mk_stmt_app (``"smac"``, ``e_v v_bot``);
@@ -179,14 +179,14 @@ val vss_pblock_map = ``FEMPTY |+ ("parser", (^vss_parser_pbl))
 val vss_ty_map = ``FEMPTY:ty_map``;
 
 val e_outport = mk_lval_field (mk_lval_varname "outCtrl", "outputPort");
-val drop_action_fun = ``("Drop_action", stmt_ass (^e_outport) (e_v (^DROP_PORT_tm)), []:(string # d) list)``;
+val drop_action_fun = ``("Drop_action", stmt_ass (^e_outport) (e_var "DROP_PORT"), []:(string # d) list)``;
 val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ip"), "ttl");
 val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var "headers", mk_e_v $ mk_v_str "ip"), mk_e_v $ mk_v_str "ttl");
 val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var "ipv4_dest")),
                                                        (mk_stmt_ass (lval_headers_ip_ttl, mk_e_binop (e_headers_ip_ttl, binop_sub_tm, mk_e_v (mk_v_bitii (1, 8))))),
                                                        
                                                        (mk_stmt_ass (mk_lval_field (mk_lval_varname "outCtrl", "outputPort"), mk_e_var "port"))])), [("ipv4_dest", d_none); ("port", d_none)]:(string # d) list)``;
-val send_to_cpu_fun = ``("Send_to_cpu", stmt_ass (^e_outport) (e_v (^CPU_OUT_PORT_tm)), []:(string # d) list)``;
+val send_to_cpu_fun = ``("Send_to_cpu", stmt_ass (^e_outport) (e_var "CPU_OUT_PORT"), []:(string # d) list)``;
 val lval_ethdst = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "dstAddr");
 val set_dmac_fun = ``("Set_dmac", stmt_ass (^lval_ethdst) (e_var "dmac"), [("dmac", d_none)]:(string # d) list)``;
 val lval_ethsrc = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "srcAddr");
@@ -220,8 +220,6 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 (*********************)
 (*   Initial state   *)
 (*********************)
-
-(* TODO: Initial state *)
 
 val init_stmt_ok = ``arch_stmt_regular stmt_empty``;
 
@@ -293,19 +291,14 @@ val ctrl =
               [e_v (v_bit (w2v (2525w:word48),48))])
    else NONE``;
 
-(* TODO: Stacks should only need to have the extern objects in the global scope? *)
-(* TODO: Should all platform constants be initialised in the global scope? *)
 val init_stacks =
-  pairSyntax.mk_pair (``[FEMPTY]:scope list``,
+  pairSyntax.mk_pair (listSyntax.mk_list ([vss_init_global_scope], scope_ty),
                       ``[]:call_stack``);
 
 val init_astate = pairSyntax.list_mk_pair [init_aenv, ctrl, init_stacks, status_running_tm];
 
 (*******************************************)
 (*   Architecture-level semantics tests    *)
-(* TODO: What should the input function operate on? The architectural scope or the global scope? *)
-(* TODO: Since the input stage should be encountered multiple times, what should be counted upon 
- *       being already declared in the initial state? OK to have a canonical "VSS initial state"? Yes, better than relying on nothing and checking what needs to be initialised on every run. *)
 
 (* Only input function: *)
 EVAL ``vss_input_f ((^init_inlist_ok), (^init_scope_ok))``;
@@ -315,99 +308,14 @@ EVAL ``arch_exec ((^vss_actx):actx) (^init_stmt_ok) (^init_astate)``;
 
 (* Multiple reductions: *)
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_stmt_ok) (^init_astate) 125``;
+el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_stmt_ok) (^init_astate) 128``;
 
-strip_comb
-
-
-
-(SIMP_CONV (pure_ss++p4_v2w_ss++FMAP_ss) []) test_header;
-
-(* Debugging: *)
-
-val test_stmt = ``stmt_seq
-             (stmt_ass lval_null
-                (e_ext_call (lval_varname "ck") "construct" []))
-             (stmt_seq
-                (stmt_ass lval_null
-                   (e_ext_call (lval_varname "b") "extract"
-                      [e_acc (e_var "p") (e_v (v_str "ethernet"))]))
-                (stmt_trans
-                   (e_select
-                      (e_acc (e_acc (e_var "p") (e_v (v_str "ethernet")))
-                         (e_v (v_str "etherType")))
-                      [(v_bit
-                          ([F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F],
-                           16),"parse_ipv4")] "reject")))``
-
-val test_ctx = pairSyntax.list_mk_pair [vss_ty_map, vss_ext_map, vss_func_map, vss_parser_pmap];
-
-val test_stacks = ``([FEMPTY;
-          FEMPTY |+
-          ("b",
-           v_ext
-             (ext_obj_in
-                [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 T; F; F; F; F; F; F; F; F; F; F; F; F; T; F; F; F; T; F; T;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T;
-                 F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; T; F; F; F; F; F; F; F; F; F; T; F; T; T; T; F; F; F;
-                 T; T; T; F; T; F; T; T; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                 F; F; F; F; F; F; F; F; F; F; F; F]),NONE) |+
-          ("p",
-           v_struct
-             [("ethernet",
-               v_header F
-                 [("dstAddr",v_bit ARB); ("srcAddr",v_bit ARB);
-                  ("etherType",v_bit ARB)]);
-              ("ip",
-               v_header F
-                 [("version",v_bit ARB); ("ihl",v_bit ARB);
-                  ("diffserv",v_bit ARB); ("totalLen",v_bit ARB);
-                  ("identification",v_bit ARB); ("flags",v_bit ARB);
-                  ("fragOffset",v_bit ARB); ("ttl",v_bit ARB);
-                  ("protocol",v_bit ARB); ("hdrChecksum",v_bit ARB);
-                  ("srcAddr",v_bit ARB); ("dstAddr",v_bit ARB)])],
-           SOME (lval_varname "parsedHeaders")) |+
-          ("parseError",v_err "NoError",NONE)],[]:call_stack)``
-
-EVAL ``pars_exec (^test_ctx) (^test_stmt) ((^ctrl), (^test_stacks), status_running)``
-
-
-
-(* TODO: Problem at five steps.. Result is NONE *)
 
 (*******************************)
 (*   Parser statement tests    *)
 
-
 (* Erroneous IP version number: 4w3 *)
 val ip_v0_bad = mk_v_bitii (3, 4);
-
-(*
-(* TODO: Put string -> term functionality in list constructor *)
-val test_header =
- mk_v_header_list F
-                  [(``"version"``, mk_v_bitii (0, 4)),
-                   (``"ihl"``, mk_v_bitii (0, 4)),
-                   (``"diffserv"``, mk_v_bitii (0, 8)),
-                   (``"totalLen"``, mk_v_bitii (0, 16)),
-                   (``"identification"``, mk_v_bitii (0, 16)),
-                   (``"flags"``, mk_v_bitii (0, 3)),
-                   (``"fragOffset"``, mk_v_bitii (0, 13)),
-                   (``"ttl"``, mk_v_bitii (0, 8)),
-                   (``"protocol"``, mk_v_bitii (0, 8)),
-                   (``"hdrChecksum"``, mk_v_bitii (0, 16)),
-                   (``"srcAddr"``, mk_v_bitii (0, 32)),
-                   (``"dstAddr"``, mk_v_bitii (0, 32))];
-*)
 
 val ipv4_header_uninit =
  mk_v_header_list F
