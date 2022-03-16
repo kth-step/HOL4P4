@@ -73,6 +73,10 @@ varstar :: varstar_ ::=
 {{ hol "star" }}
 
 
+varn :: varn_ ::=
+| star :: :: star 
+| x :: :: name
+
 
 %Fence so that ott does not put packet_in before boolv
 embed
@@ -147,7 +151,7 @@ v :: v_ ::=
 %TODO: Add array element
 %TODO: Add bitslice
 lval :: lval_ ::=
-| x :: :: varname
+| varn :: :: varname
   {{ com variable name }}
 | null :: :: null
   {{ com null variable }} 
@@ -190,30 +194,27 @@ status {{ tex t }}:: status_ ::=
   {{ tex { \bot } }}
 
 scope {{ tex \gamma }} :: scope_ ::=
-{{ hol (string |-> (v # lval option)) }}
+{{ hol (varn |-> (v # lval option)) }}
 {{ com frame/variable environment of current scope }}
 | emptyscope :: M :: empty
   {{ com empty stack frame }}
   {{ hol FEMPTY }}
   {{ tex {\gamma}_{ \emptyset } }}
 %TODO: This should keep output parameter instead of requiring NONE
-| scope + [ x |-> ( v , NONE ) ] :: M :: update
+| scope + [ varn |-> ( v , NONE ) ] :: M :: update
   {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE ))) }}
-  {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
+  {{ hol (FUPDATE [[scope]] ([[varn]], ( [[v]] , NONE ))) }}
+  {{ tex ([[varn]] \mapsto  [[v]]) [[scope]] }}
 %TODO: Update or remove this production
-| scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
+| scope ++ [ varn1 |-> v1 , .. , varnn |-> vn ] :: M :: update_list
   {{ com update variable mapping }}
-  {{ hol (FUPDATE_LIST [[scope]] [[x1 v1 .. xn vn]]) }}
+  {{ hol (FUPDATE_LIST [[scope]] [[varn1 v1 .. varnn vn]]) }}
   %TODO: The below is a hack since LaTeX cannot interpret dot form...
   {{ tex \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\, [[scope]] }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
   {{ tex  [[scope]] }}
-%| G scope :: M :: global
-%  {{ com global scope }}
-%  {{ tex {[[scope]]}_G }}
-%  {{ hol [[scope]] }}
+
 
 g_scope {{ tex \gamma_G }} :: g_scope_ ::=
 {{ com global scope}}
@@ -410,6 +411,7 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
+
 %TODO: Add casts
 %TODO: Add tuples
 %TODO: Add conditional operator
@@ -417,10 +419,10 @@ e :: e_ ::=
 {{ com expression }}
 | v :: :: v
   {{ com constant value }}
-| var x :: :: var
-  {{ com variable or extern object }}
-| var star :: :: varstar
-
+%| var x :: :: var
+%  {{ com variable or extern object }}
+%| var star :: :: varstar
+| var varn :: :: var
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -535,6 +537,9 @@ stmt :: stmt_ ::=
   %tbl is the table name that should be applied
   {{ com apply }}
   {{ tex \mathbf{apply} \, [[tbl]] \, [[e]] }}
+| extr_sem :: :: ext_sem
+  {{ com extern function semantics }}
+  {{ tex \blacksquare  }}
 
 frame {{ tex \Phi }} :: frame_ ::=
 {{ com frame tup phi contains the current function name, stmt and the local scope }}
@@ -963,12 +968,12 @@ formula :: formula_ ::=
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
 | v = lookup_vexp ( scopes_stack , x ) :: :: lookup_v
   {{ tex [[v]] = \mathrm{lookup_v} ([[scopes_stack]], [[x]]) }}
-  {{ hol [[v]] =  lookup_vexp [[scopes_stack]] [[x]]}}
-| v = lookup_vexp2 ( scopes_stack , g_scope_list , x ) :: :: lookup_v2
-  {{ tex [[v]] = \mathrm{lookup_v} ([[scopes_stack]], [[g_scope_list]], [[x]]) }}
-  {{ hol [[v]] =  lookup_vexp2 [[scopes_stack]] [[g_scope_list]] [[x]]}} 
-| ( v , a ) = lookup_tup ( scopes_stack , x ) :: :: lookup_tup
-  {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[scopes_stack]], [[x]]) }}
+  {{ hol [[v]] =  lookup_vexp [[scopes_stack]] (varn_name [[x]])}}
+| v = lookup_vexp2 ( scopes_stack , g_scope_list , varn ) :: :: lookup_v2
+  {{ tex [[v]] = \mathrm{lookup_v} ([[scopes_stack]], [[g_scope_list]], [[varn]]) }}
+  {{ hol [[v]] =  lookup_vexp2 [[scopes_stack]] [[g_scope_list]] [[varn]]}} 
+| ( v , a ) = lookup_tup ( scopes_stack , varn ) :: :: lookup_tup
+  {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[scopes_stack]], [[varn]]) }}
 | x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
   {{ com access of string in select key-value list }}
   {{ hol [[x']] = sel [[v]] [[v1 x1 ... vn xn]] [[x]]}}
@@ -1065,11 +1070,11 @@ formula :: formula_ ::=
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[scopes_stack]]  [[lval]]) }}
   {{ tex [[v]] = { \mathrm{lookup} }_{ \mathrm{lval} } ([[scopes_stack]], [[lval]]) }}
-| scopes_stack' = init_star ( scopes_stack , v ) :: M :: init_star
-   %hack to not to take star as a sting.
+| scopes_stack' = init_in_highest_scope ( scopes_stack , v , star ) :: M :: init_star
   {{ com declare "star" with value v in topmost scope }}
-  {{ hol ([[scopes_stack']] = updated_ss_w_star [[scopes_stack]] [[v]]) }}
-  {{ tex [[scopes_stack']] = [[scopes_stack]] [ star \longmapsto [[v]] ] }}
+  {{ hol ([[scopes_stack']] = init_in_highest_scope [[scopes_stack]] [[v]] varn_star) }}
+  {{ tex [[scopes_stack']] = [[scopes_stack]] [ [[star]] \longmapsto [[v]] ] }}
+
 | v'' = ( struct { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: s_fld_upd
   {{ com update of struct field }}
   {{ hol ([[v'']] = v_struct (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
@@ -1187,7 +1192,7 @@ formula :: formula_ ::=
   {{ tex \mathrm{not\_top\_return} [[frame_list]] }}
 | lval = "parseError" :: M :: is_parse_error
   {{ com lval is parseError }}
-  {{ hol ([[lval]] = lval_varname "parseError") }}
+  {{ hol ([[lval]] = lval_varname (varn_name "parseError")) }}
   {{ tex [[lval]] = \mathit{parseError} }}
 | v = errmsg "NoError" :: M :: is_no_error
   {{ com v is NoError }}
@@ -1594,7 +1599,7 @@ val unred_arg_index_def = Define `
 
 val get_lval_of_e_def = Define `
   (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
-  (get_lval_of_e (e_acc e (e_var x)) =
+  (get_lval_of_e (e_acc e (e_var (varn_name x))) =
    case get_lval_of_e e of
    | SOME lval => SOME (lval_field lval x)
    | NONE => NONE) /\
@@ -1715,7 +1720,7 @@ val one_arg_val_for_newscope_def = Define `
  * Note: used in e_func_call_newframe *)
 val all_arg_update_for_newscope_def = Define `
   all_arg_update_for_newscope xlist dlist elist sf = 
-    FOLDL (\f (d,x,e). (f |+ (x , one_arg_val_for_newscope d e sf))) FEMPTY (ZIP (dlist, ZIP(xlist:string list, elist)))
+    FOLDL (\f (d,x,e). (f |+ ( varn_name x , one_arg_val_for_newscope d e sf))) FEMPTY (ZIP (dlist, ZIP(xlist, elist)))
 `;
 
 
@@ -1755,11 +1760,11 @@ val assign_def = Define `
 val declare_def = Define `
   (declare g_scope_list (sf:scopes_stack) x t =
     case sf of
-    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (x, (arb_from_t t, NONE))) 1 g_scope_list, [])
+    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_t t, NONE))) 1 g_scope_list, [])
     | _ =>
      let i = LENGTH sf - 1 in
      let scope = EL i sf in
-     (g_scope_list, LUPDATE (FUPDATE scope (x, (arb_from_t t, NONE))) i sf)
+     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_t t, NONE))) i sf)
   )
 `;
 
@@ -1768,7 +1773,7 @@ val initialise_def = Define `
   (initialise (sf:scopes_stack) x v =
     let i = LENGTH sf - 1 in
     let scope = EL i sf in
-    LUPDATE (FUPDATE scope (x, (v, NONE))) i sf 
+    LUPDATE (FUPDATE scope (varn_name x, (v, NONE))) i sf 
   )
 `;
 
@@ -1783,7 +1788,7 @@ val update_return_frame_def = Define `
         then sf_temp
         else
           case sf_temp of
-          | SOME sf_temp => assign sf_temp (lookup_v sf_current x) (THE (lookup_out sf_current x))
+          | SOME sf_temp => assign sf_temp (lookup_v sf_current (varn_name x)) (THE (lookup_out sf_current ( varn_name x)))
           | NONE => NONE
       )
       (SOME sf)
@@ -1874,13 +1879,13 @@ val newest_scope_def = Define `
 
 (* Init the variable name star in the top most scope and return only the scope*)
 val decl_init_star_def = Define `
-  decl_init_star scopes_stack v =
-  FUPDATE (newest_scope scopes_stack) ("star" , ( v , NONE))
+  decl_init_star scopes_stack v varn_star =
+  FUPDATE (newest_scope scopes_stack) (varn_star , ( v , NONE))
 `;
 
 (* Init the variable name star in the top most scope and return all teh scope stack*)
-val updated_ss_w_star_def = Define `
-  updated_ss_w_star scopes_stack v = LUPDATE (decl_init_star scopes_stack v) (newest_scope_ind scopes_stack) (scopes_stack)
+val init_in_highest_scope_def = Define `
+  init_in_highest_scope scopes_stack v varn_star = LUPDATE (decl_init_star scopes_stack v varn_star) (newest_scope_ind scopes_stack) (scopes_stack)
 `;
 
 }}
@@ -1898,9 +1903,9 @@ by
 %%%%%%%%%%%%%%%%%
 %Variable look-up
 
-v = lookup_vexp2 ( scopes_stack , g_scope_list , x )
+v = lookup_vexp2 ( scopes_stack , g_scope_list , varn )
 ----------------------------------- :: lookup
-ctx g_scope_list scopes_stack ( var x , ctrl ) ~> ( v ,  empty , ctrl )
+ctx g_scope_list scopes_stack ( var varn , ctrl ) ~> ( v ,  empty , ctrl )
 
 %%%%%%%%%%%%%%
 %Function call + exec (in expression)
@@ -2211,7 +2216,7 @@ by
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( f , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( f , stmt'' , scopes_stack ) ] , ctrl , Ret v )
-  scopes_stack'' = init_star ( scopes_stack' , v )
+  scopes_stack'' = init_in_highest_scope ( scopes_stack' , v , star )
   ( stmt''' , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   ( g_scope_list'' , scopes_stack''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack'' , scopes_stack )
   ----------------------------------- :: comp2
