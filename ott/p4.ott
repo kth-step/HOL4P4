@@ -66,6 +66,14 @@ bitv :: bitv_ ::=
 | bl n :: M :: bl
   {{ hol ([[bl]], [[n]]) }}
 
+
+varstar :: varstar_ ::=
+%{{ hol string }}
+| star :: :: star 
+{{ hol "star" }}
+
+
+
 %Fence so that ott does not put packet_in before boolv
 embed
 {{ hol
@@ -411,6 +419,8 @@ e :: e_ ::=
   {{ com constant value }}
 | var x :: :: var
   {{ com variable or extern object }}
+| var star :: :: varstar
+
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
 | e . e' :: :: acc
@@ -1022,7 +1032,7 @@ formula :: formula_ ::=
 | extr ( scope , scopes_stack ) = ( v , scope' , scopes_stack' , status' ) :: :: external_func  
   {{ com applies teh semantics of the function and returns a value, with an updated sigma, global scope and status}}
   {{ tex \blacksquare \, ( [[scope]] , \, [[scopes_stack]] ) = \, ( [[v]] , [[scope']] , [[scopes_stack']] , [[status']] ) }}
-  {{ hol ([[extr]] ( [[scope]] , [[scopes_stack]] ) = ( [[v]] , [[scope']] , [[scopes_stack']] , [[status']] ) ) }}
+  {{ hol (extr ( [[scope]] , [[scopes_stack]] ) = ( [[v]] , [[scope']] , [[scopes_stack']] , [[status']] ) ) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -1055,6 +1065,11 @@ formula :: formula_ ::=
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[scopes_stack]]  [[lval]]) }}
   {{ tex [[v]] = { \mathrm{lookup} }_{ \mathrm{lval} } ([[scopes_stack]], [[lval]]) }}
+| scopes_stack' = init_star ( scopes_stack , v ) :: M :: init_star
+   %hack to not to take star as a sting.
+  {{ com declare "star" with value v in topmost scope }}
+  {{ hol ([[scopes_stack']] = updated_ss_w_star [[scopes_stack]] [[v]]) }}
+  {{ tex [[scopes_stack']] = [[scopes_stack]] [ star \longmapsto [[v]] ] }}
 | v'' = ( struct { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: s_fld_upd
   {{ com update of struct field }}
   {{ hol ([[v'']] = v_struct (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
@@ -1067,7 +1082,7 @@ formula :: formula_ ::=
 | notrun( status ) :: M :: notrun
   {{ com status is not in running}}
   {{ tex t \neq { \mathbf{run} } }}
-  {{ hol (status <> Running)}}
+  {{ hol (status <> status_running)}}
 | notret( status ) :: :: noret
   {{ com status is not in return}}
   {{ tex [[status]] \neq { \mathbf{Ret \, v} } }}
@@ -1847,6 +1862,27 @@ val notret_def = Define `
 `;
 
 
+(*fetch the newest scope index from the scope stacks of the current scope stack*)
+val newest_scope_ind_def = Define `
+  newest_scope_ind scopes_stack = (LENGTH scopes_stack) - 1
+`;
+
+(* returns the newst scope using the index from the newest_scope_ind_def*)
+val newest_scope_def = Define `
+  newest_scope scopes_stack = EL (newest_scope_ind scopes_stack) scopes_stack
+`;
+
+(* Init the variable name star in the top most scope and return only the scope*)
+val decl_init_star_def = Define `
+  decl_init_star scopes_stack v =
+  FUPDATE (newest_scope scopes_stack) ("star" , ( v , NONE))
+`;
+
+(* Init the variable name star in the top most scope and return all teh scope stack*)
+val updated_ss_w_star_def = Define `
+  updated_ss_w_star scopes_stack v = LUPDATE (decl_init_star scopes_stack v) (newest_scope_ind scopes_stack) (scopes_stack)
+`;
+
 }}
 grammar
 
@@ -1873,7 +1909,7 @@ ctx g_scope_list scopes_stack ( var x , ctrl ) ~> ( v ,  empty , ctrl )
 ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 %Build new stack frame
-scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scopes_stack' )
+scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scopes_stack )
 ----------------------------------- :: func_call_newframe
 ( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call f ( e1 , .. , en ) , ctrl ) ~> ( var star , [ ( f , stmt , [ scope' ] ) ] , ctrl )
 
@@ -2174,11 +2210,10 @@ by
   ctx ( g_scope_list , [ frame ] ++ frame_list'' , ctrl , status ) -> ( g_scope_list' , frame_list' ++ frame_list'' , ctrl' , status' )
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
- ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( f , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( f , stmt'' , scopes_stack ) ] , ctrl , Ret v )
- ( g_scope_list' , scopes_stack' ) = declare ( g_scope_list , scopes_stack , star , t )
- scopes_stack'' = assign ( g_scope_list' ++ scopes_stack' , v , star ) 
- ( stmt''' , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
- ( g_scope_list'' , scopes_stack''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack'' , scopes_stack )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( f , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( f , stmt'' , scopes_stack ) ] , ctrl , Ret v )
+  scopes_stack'' = init_star ( scopes_stack' , v )
+  ( stmt''' , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  ( g_scope_list'' , scopes_stack''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack'' , scopes_stack )
   ----------------------------------- :: comp2
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( f , stmt , scopes_stack ) ] ++ ( [ ( f' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list'' , [ ( f' , stmt' , scopes_stack''' ) ] ++ frame_list , ctrl , Running )
 
