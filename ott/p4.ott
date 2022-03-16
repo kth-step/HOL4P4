@@ -1720,7 +1720,7 @@ by
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   ext lval ( e1 , .. , en ) ( ctrl , stacks , Running ) = ( v , ( ctrl' , stacks' , status ) )
   ----------------------------------- :: ext_exec
-  (ty_map, ext_map, func_map, pars_map, tbl_map) [call lval f ( e1 , .. , en )] ( ctrl , stacks , Running ) ~> [v] ( ctrl' , stacks' , status )
+  (ty_map, ext_map, func_map, tbl_map) [call lval f ( e1 , .. , en )] ( ctrl , stacks , Running ) ~> [v] ( ctrl' , stacks' , status )
 
 %%%%%%%%%%%%%%%%%%%%
 %Struct field access
