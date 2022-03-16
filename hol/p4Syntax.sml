@@ -167,6 +167,8 @@ val d_ty = mk_type ("d", []);
 
 val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option string_ty));
 
+val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
+
 val (called_function_name_function_name_tm, mk_called_function_name_function_name, dest_called_function_name_function_name, is_called_function_name_function_name) =
   syntax_fns1 "p4" "called_function_name_function_name";
 

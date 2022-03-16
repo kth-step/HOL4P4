@@ -104,7 +104,7 @@ Theorem unred_arg_index_in_range:
 Proof
  REPEAT STRIP_TAC >>
  fs [unred_arg_index_def, find_unred_arg_def] >>
- Cases_on `INDEX_FIND 0 (\(d,e). is_d_none_in d /\ ~is_const e) (ZIP (d_l,e_l))` >> (
+ Cases_on `INDEX_FIND 0 (\(d,e). ~is_d_out d /\ ~is_const e) (ZIP (d_l,e_l))` >> (
   fs []
  ) >>
  Cases_on `x` >>
@@ -343,7 +343,7 @@ Definition exec_ret:
   | ((frame', called_function_name_function_name f)::call_stack') =>
    (case FLOOKUP func_map f of
    | SOME (_, x_d_l) =>
-    (case update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) ((HD frame)::frame') frame of
+    (case update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) (HD frame::EL 1 frame::frame') frame of
      | SOME frame'' => SOME (frame'', call_stack')
      | NONE => NONE)
    | NONE => NONE)
@@ -405,15 +405,15 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
   case FLOOKUP func_map f of
   | SOME (stmt, x_d_l) =>
     (case unred_arg_index (MAP SND x_d_l) e_l of
-     | SOME i  =>
+     | SOME i =>
       (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (EL i e_l) (ctrl, (curr_stack_frame, call_stack), status) of
        | SOME (e', (ctrl', stacks', status')) => SOME (e_func_call f (LUPDATE e' i e_l), (ctrl', stacks', status'))
        | NONE => NONE)
      | NONE =>
       SOME (e_func_exec stmt,
             (ctrl,
-	     (([EL 0 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame]),
-	 	       ((TL curr_stack_frame, called_function_name_function_name f)::call_stack)),
+	     (([EL 0 curr_stack_frame; EL 1 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame]),
+	 	       ((TL $ TL curr_stack_frame, called_function_name_function_name f)::call_stack)),
 	     status)))
   | NONE => NONE)
   /\
@@ -534,6 +534,11 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
    (case e_exec ctx e (ctrl, (curr_stack_frame, call_stack), status) of
     | SOME (e', state') => SOME (stmt_ass lval e', state')
     | NONE => NONE))
+  /\
+ (***********)
+ (* Declare *)
+ (stmt_exec ctx (stmt_declare x t) (ctrl, (curr_stack_frame, call_stack), status) =
+  SOME (stmt_empty, (ctrl, (declare curr_stack_frame x t, call_stack), status)))
   /\
  (**********)
  (* Verify *)
@@ -1173,7 +1178,7 @@ Cases_on `get_ret_v s` >> (
   Cases_on `x` >> (
    fs []
   ) >>
-  Cases_on `update_return_frame (MAP FST r) (MAP SND r) (HD frame::q) frame` >> (
+  Cases_on `update_return_frame (MAP FST r) (MAP SND r) (HD frame::EL 1 frame::q) frame` >> (
    fs []
   ) >>
   rw [] >>
@@ -1279,12 +1284,8 @@ REPEAT STRIP_TAC >| [
  METIS_TAC [(valOf o find_clause_e_red) "e_lookup", clause_name_def],
 
  (* Declare statement - not in exec sem yet *)
- fs [stmt_exec_sound] >>
- REPEAT STRIP_TAC >>
- PairCases_on `state` >> Cases_on `state3` >> (
-  rw [] >>
-  fs [e_stmt_exec_def, stmt_ignore_pars_next]
- ),
+ (* TODO *)
+ cheat,
 
  (* List expression - not in exec sem yet *)
  fs [e_exec_sound] >>
@@ -1349,9 +1350,6 @@ val pars_exec_def = Define `
  (pars_exec pctx stmt (ctrl, stacks, (status_pars_next _)) = NONE) /\
  (pars_exec (ty_map, ext_map, func_map, pars_map) stmt (ctrl, stacks, status_running) =
   (case stmt_exec (ty_map, ext_map, func_map, FEMPTY) stmt (ctrl, stacks, status_running) of
-   (* When reaching the empty statement, default behaviour is to go to reject *)
-   | SOME (stmt_empty, state') =>
-    SOME (stmt_trans (e_v (v_str "reject")), state')
    (* Transition to next parser state *)
    | SOME (stmt', (ctrl', stacks', status_pars_next (pars_next_trans x))) =>
     (case FLOOKUP pars_map x of
@@ -1360,6 +1358,9 @@ val pars_exec_def = Define `
    (* Transition to final parser state *)
    | SOME (stmt', (ctrl', stacks', status_pars_next (pars_next_pars_fin pars_fin))) =>
     SOME (stmt', (ctrl', stacks', status_pars_next (pars_next_pars_fin pars_fin)))
+   (* When reaching the empty statement, default behaviour is to go to reject *)
+   | SOME (stmt_empty, state') =>
+    SOME (stmt_trans (e_v (v_str "reject")), state')
    (* Regular execution of parser state body *)
    | SOME (stmt', (ctrl', stacks', status')) => SOME (stmt', (ctrl', stacks', status'))
    | NONE => NONE)
@@ -1422,9 +1423,9 @@ val arch_exec_def = Define `
              (status_pars_next (pars_next_pars_fin pars_fin))) =
   if b /\ (is_empty stmt) then
    (case EL i ab_list of
-    | (arch_block_pbl pblock x el) =>
+    | (arch_block_pbl x el) =>
      (case FLOOKUP pblock_map x of
-      | SOME (pblock_parser x_d_list pars_map) =>
+      | SOME (pblock_parser x_d_list stmt pars_map) =>
        (case update_return_frame (MAP FST x_d_list) (MAP SND x_d_list) [scope] curr_stack_frame of
         | SOME [scope''] =>
          (case assign [scope''] (lookup_vexp curr_stack_frame "parseError") (lval_varname "parseError") of
@@ -1443,9 +1444,9 @@ val arch_exec_def = Define `
  (* arch_control_ret: distinguished by the aenv Boolean from arch_in, arch_pbl_call, arch_ffbl_call and arch_out *)
   if b then
    (case EL i ab_list of
-    | (arch_block_pbl pblock x el) =>
+    | (arch_block_pbl x el) =>
      (case FLOOKUP pblock_map x of
-      | SOME (pblock_control stmt x_d_list tbl_map) =>
+      | SOME (pblock_control x_d_list stmt stmt' tbl_map) =>
        (case update_return_frame (MAP FST x_d_list) (MAP SND x_d_list) [scope] curr_stack_frame of
         | SOME [scope''] =>
          SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope''), ctrl, ([EL 0 curr_stack_frame], []), status_running))
@@ -1456,19 +1457,21 @@ val arch_exec_def = Define `
    (* arch_in, arch_pbl_call, arch_ffbl_call, arch_out *)
    (case EL i ab_list of
     | arch_block_inp =>
-     let
-       (in_out_list'', scope') = input_f (in_out_list, scope)
-     in
-      SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list'', in_out_list', scope'), ctrl, (curr_stack_frame, call_stack), status_running))
-    | (arch_block_pbl pblock x el) =>
+     (case input_f (in_out_list, scope) of
+      | SOME (in_out_list'', scope') => 
+       SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list'', in_out_list', scope'), ctrl, (curr_stack_frame, call_stack), status_running))
+      | NONE => NONE)
+    | (arch_block_pbl x el) =>
      SOME (arch_stmt_pbl_call x el, ((i, T, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack), status_running))
-    | (arch_block_ffbl ffblock x el) =>
+    | (arch_block_ffbl x el) =>
      SOME (arch_stmt_ffbl_call x el, ((i, F, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack), status_running))
     | arch_block_out =>
-     let
-       (in_out_list'', scope') = output_f (in_out_list', scope)
-     in
-      SOME (arch_stmt_regular stmt_empty, ((0, F, in_out_list, in_out_list'', scope'), ctrl, (curr_stack_frame, call_stack), status_running))))
+     (case output_f (in_out_list', scope) of
+      | SOME (in_out_list'', scope') =>
+       SOME (arch_stmt_regular stmt_empty, ((0, F, in_out_list, in_out_list'', scope'), ctrl, (curr_stack_frame, call_stack), status_running))
+      | NONE => NONE)
+   )
+ )
 /\
  (* Operating on a stmt_pbl_call: arch_parser_init, arch_control_init, arch_pblock_args *)
  (* TODO: Would be nice to remove code duplication... *)
@@ -1477,13 +1480,16 @@ val arch_exec_def = Define `
             ((i, T, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame, call_stack),
              status) =
   (case FLOOKUP pblock_map f of
-   | SOME (pblock_control stmt x_d_list tbl_map) =>
+   | SOME (pblock_control x_d_list stmt stmt' tbl_map) =>
     (case unred_arg_index (MAP SND x_d_list) el of
      | SOME i' => (* arch_pblock_args (case control) *)
-      (case e_exec (ty_map, ext_map, func_map, tbl_map) (EL i' el) (ctrl, (curr_stack_frame, call_stack), status) of
+      (case e_exec (ty_map, ext_map, func_map, tbl_map) (EL i' el) (ctrl, ([scope], []), status) of
        | SOME (e', (ctrl', stacks', status')) =>
-        SOME (arch_stmt_pbl_call f (LUPDATE e' i el),
-              ((i, T, in_out_list, in_out_list', scope), ctrl', stacks', status'))
+        (case stacks' of
+         | ([scope'], []) =>
+          SOME (arch_stmt_pbl_call f (LUPDATE e' i' el),
+                ((i, T, in_out_list, in_out_list', scope'), ctrl', (curr_stack_frame, call_stack), status'))
+         | _ => NONE)
        | NONE => NONE)
      | NONE => (* arch_control_init *)
       let
@@ -1492,31 +1498,32 @@ val arch_exec_def = Define `
        let
         curr_stack_frame' = ([EL 0 curr_stack_frame] ++ [scope'])
        in
-        SOME (arch_stmt_regular stmt,
+        SOME (arch_stmt_regular (stmt_seq stmt stmt'),
               ((i, T, in_out_list, in_out_list', scope), ctrl,
                (curr_stack_frame', call_stack), status_running))
     )
-   | SOME (pblock_parser x_d_list pars_map) =>
+   | SOME (pblock_parser x_d_list stmt pars_map) =>
     (case (unred_arg_index (MAP SND x_d_list) el) of
      | SOME i' => (* arch_pblock_args (case parser) *)
-      (case e_exec (ty_map, ext_map, func_map, FEMPTY) (EL i' el)
-                   (ctrl, (curr_stack_frame, call_stack), status) of
+      (case e_exec (ty_map, ext_map, func_map, FEMPTY) (EL i' el) (ctrl, ([scope], []), status) of
        | SOME (e', (ctrl', stacks', status')) =>
-        SOME (arch_stmt_pbl_call f (LUPDATE e' i el), ((i, T, in_out_list, in_out_list', scope), ctrl', stacks', status'))
+        (case stacks' of
+         | ([scope'], []) =>
+          SOME (arch_stmt_pbl_call f (LUPDATE e' i' el),
+                ((i, T, in_out_list, in_out_list', scope'), ctrl', (curr_stack_frame, call_stack), status'))
+         | _ => NONE)
        | NONE => NONE)
      | NONE => (* arch_parser_init *)
       (case FLOOKUP pars_map "start" of
-       | SOME stmt =>
+       | SOME stmt' =>
         let
          scope' = all_arg_update_for_newscope (MAP FST x_d_list) (MAP SND x_d_list) el [scope]
         in
          let
           curr_stack_frame' = [EL 0 curr_stack_frame] ++ [scope']
          in
-          (case assign curr_stack_frame' (v_err "NoError") (lval_varname "parseError") of
-           | SOME curr_stack_frame'' =>
-            SOME (arch_stmt_regular stmt, ((i, T, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame'', call_stack), status_running))
-           | NONE => NONE)  
+          (let curr_stack_frame'' = initialise curr_stack_frame' "parseError" (v_err "NoError") in
+            SOME (arch_stmt_regular (stmt_seq stmt stmt'), ((i, T, in_out_list, in_out_list', scope), ctrl, (curr_stack_frame'', call_stack), status_running)))
        | NONE => NONE)
     )
    | _ => NONE)
@@ -1529,17 +1536,21 @@ val arch_exec_def = Define `
   (case FLOOKUP ffblock_map f of
    | SOME (ffblock_ff ff x_d_list) =>
     (case unred_arg_index (MAP SND x_d_list) el of
-     | SOME i =>
-     (case e_exec (ty_map, ext_map, func_map, FEMPTY) (EL i el) (ctrl, (curr_stack_frame, call_stack), status) of
-      | SOME (e', (ctrl', stacks', status')) =>
-       SOME (arch_stmt_ffbl_call f (LUPDATE e' i el), ((i, F, in_out_list, in_out_list', scope), ctrl', stacks', status'))
-      | NONE => NONE)
+     | SOME i' =>
+      (case e_exec (ty_map, ext_map, func_map, FEMPTY) (EL i' el) (ctrl, ([scope], []), status) of
+       | SOME (e', (ctrl', stacks', status')) =>
+        (case stacks' of
+         | ([scope'], []) =>
+          SOME (arch_stmt_ffbl_call f (LUPDATE e' i' el),
+                ((i, F, in_out_list, in_out_list', scope'), ctrl', (curr_stack_frame, call_stack), status'))
+         | _ => NONE)
+       | NONE => NONE)
      | NONE =>
-      let
-       (scope', curr_stack_frame') = ff (el, scope, curr_stack_frame)
-      in
-       SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope'), ctrl, (curr_stack_frame', call_stack), status)))
-   | NONE => NONE
+      (case ff (el, scope, curr_stack_frame) of
+       | SOME (scope', curr_stack_frame') =>
+        SOME (arch_stmt_regular stmt_empty, ((i+1, F, in_out_list, in_out_list', scope'), ctrl, (curr_stack_frame', call_stack), status))
+       | _ => NONE)
+   | _ => NONE)
   )
  )
  /\
@@ -1548,14 +1559,14 @@ val arch_exec_def = Define `
             (arch_stmt_regular stmt)
             ((i, T, in_out_list, in_out_list', scope), ctrl, stacks, status) =
   (case EL i ab_list of
-   | (arch_block_pbl pblock x el) =>
+   | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
-     | SOME (pblock_parser x_d_list pars_map) =>
+     | SOME (pblock_parser x_d_list stmt'' pars_map) =>
       (case pars_exec (ty_map, ext_map, func_map, pars_map) stmt (ctrl, stacks, status) of
        | SOME (stmt', (ctrl', stacks', status')) =>
         SOME (arch_stmt_regular stmt', ((i, T, in_out_list, in_out_list', scope), ctrl', stacks', status'))
        | _ => NONE)
-     | SOME (pblock_control stmt'' x_d_list tbl_map) =>
+     | SOME (pblock_control x_d_list stmt'' stmt''' tbl_map) =>
       (case ctrl_exec (ty_map, ext_map, func_map, tbl_map) stmt (ctrl, stacks, status) of
        | SOME (stmt', (ctrl', stacks', status')) =>
         SOME (arch_stmt_regular stmt', ((i, T, in_out_list, in_out_list', scope), ctrl', stacks', status'))
@@ -1568,7 +1579,7 @@ val arch_exec_def = Define `
 (* Fuel-powered multi-step architectural-level executable semantics *)
 val arch_multi_exec = Define `
  (arch_multi_exec actx astmt (aenv, ctrl, stacks, status) 0 =
-  SOME (aenv, ctrl, stacks, status))
+  SOME (astmt, (aenv, ctrl, stacks, status)))
   /\
  (arch_multi_exec actx astmt (aenv, ctrl, stacks, status) (SUC fuel) =
   case arch_exec actx astmt (aenv, ctrl, stacks, status) of

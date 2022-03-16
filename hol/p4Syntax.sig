@@ -164,6 +164,8 @@ val d_ty : hol_type
 
 val scope_ty : hol_type
 
+val status_running_tm : term
+
 val called_function_name_function_name_tm : term
 val dest_called_function_name_function_name : term -> term
 val is_called_function_name_function_name : term -> bool

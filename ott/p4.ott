@@ -501,7 +501,7 @@ d {{ tex d }} :: d_ ::=
 
 %Literally the "fixed function" of a fixed-function block
 ff {{ tex { \mathit{ff} } }} :: ff_ ::=
-{{ hol ((e list # scope # curr_stack_frame) -> (scope # curr_stack_frame)) }}
+{{ hol ((e list # scope # curr_stack_frame) -> (scope # curr_stack_frame) option) }}
 
 %Fence between d and d_list
 embed
@@ -619,8 +619,8 @@ arch_stmt :: arch_stmt_ ::=
 
 pblock {{ tex { \mathit{ pblock } } }} :: pblock_ ::=
 {{ com programmable block }}
-| parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map :: :: parser
-| control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) tbl_map :: :: control
+| parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map :: :: parser
+| control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map :: :: control
 
 ffblock {{ tex { \mathit{ ffblock } } }} :: ffblock_ ::=
 {{ com fixed-function block }}
@@ -639,8 +639,8 @@ grammar
 arch_block :: arch_block_ ::=
 {{ com architectural block }}
 | inp :: :: inp
-| pblock x ( e1 , .. , en ) :: :: pbl
-| ffblock x ( e1 , .. , en ) :: :: ffbl
+| pbl x ( e1 , .. , en ) :: :: pbl
+| ffbl x ( e1 , .. , en ) :: :: ffbl
 | out :: :: out
 
 % TODO: Could be just a type abbreviation?
@@ -700,11 +700,11 @@ ab_list {{ tex \overline{ab} }} :: ab_list_ ::=
 %TODO: Unify input_f and output_f?
 input_f {{ tex { f_{ \mathit{in} } } }} :: input_f_ ::=
 {{ com input function }}
-{{ hol ((in_out_list # scope) -> (in_out_list # scope)) }}
+{{ hol ((in_out_list # scope) -> (in_out_list # scope) option) }}
 
 output_f {{ tex { f_{ \mathit{out} } } }} :: output_f_ ::=
 {{ com output function }}
-{{ hol ((in_out_list # scope) -> (in_out_list # scope)) }}
+{{ hol ((in_out_list # scope) -> (in_out_list # scope) option) }}
 
 %Fence so that ott does not re-order ctx
 embed
@@ -842,6 +842,9 @@ formula :: formula_ ::=
   {{ tex [[curr_stack_frame]] = \mathrm{hd} [[call_stack]] }}
 | scope = curr_stack_frame [ i ] :: M :: curr_stack_frame_index
   {{ hol ([[scope]] = EL [[i]] [[curr_stack_frame]]) }}
+%TODO: Why does the above not work for value 1?
+| scope = curr_stack_frame [ 1 ] :: M :: curr_stack_frame_index_1
+  {{ hol ([[scope]] = EL 1 [[curr_stack_frame]]) }}
 | ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f ) :: M :: func_lookup
   {{ com function signature lookup }}
   {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
@@ -1051,13 +1054,13 @@ formula :: formula_ ::=
   {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
 | ( scope' , curr_stack_frame' ) = ff ( ( e1 ,  .. , en ) , scope , curr_stack_frame ) :: M :: app_ff
   {{ com apply fixed function }}
-  {{ hol (([[scope']], [[curr_stack_frame']]) = [[ff]] ([[e1 .. en]], [[scope]], [[curr_stack_frame]]) ) }}
+  {{ hol (SOME ([[scope']], [[curr_stack_frame']]) = [[ff]] ([[e1 .. en]], [[scope]], [[curr_stack_frame]]) ) }}
 | ( in_out_list' , scope' ) = input_f ( in_out_list , scope ) :: M :: input_f
   {{ com apply input function }}
-  {{ hol ( ( [[in_out_list']] , [[scope']] ) = [[input_f]] ( [[in_out_list]] , [[scope]] ) ) }}
+  {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[input_f]] ( [[in_out_list]] , [[scope]] ) ) }}
 | ( in_out_list' , scope' ) = output_f ( in_out_list , scope ) :: M :: output_f
   {{ com apply output function }}
-  {{ hol ( ( [[in_out_list']] , [[scope']] ) = [[output_f]] ( [[in_out_list]] , [[scope]] ) ) }}
+  {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[output_f]] ( [[in_out_list]] , [[scope]] ) ) }}
 %TODO: Try replacing "zero i" with "i = 0" - mysterious bugs appear...
 | zero i :: M :: num_zero
   {{ com numeral zeroing }}
@@ -1079,6 +1082,14 @@ formula :: formula_ ::=
   {{ com v is NoError }}
   {{ hol ([[v]] = v_err "NoError") }}
   {{ tex [[v]] = \mathit{NoError} }}
+| curr_stack_frame' = declare ( curr_stack_frame , x , t ) :: M :: declare
+  {{ com declare variable of type }}
+  {{ hol ([[curr_stack_frame']] = declare [[curr_stack_frame]] [[x]] [[t]]) }}
+  {{ tex [[curr_stack_frame']] = \mathrm{declare} ([[curr_stack_frame]], [[x]], [[t]]) }}
+| curr_stack_frame' = initialise ( curr_stack_frame , x , v ) :: M :: initialise
+  {{ com initialise variable to value }}
+  {{ hol ([[curr_stack_frame']] = initialise [[curr_stack_frame]] [[x]] [[v]]) }}
+  {{ tex [[curr_stack_frame']] = \mathrm{initialise} ([[curr_stack_frame]], [[x]], [[v]]) }}
 
 embed
 {{ hol
@@ -1364,7 +1375,7 @@ val extract_string_def = Define `
 `;
 
 val extract_value_def = Define `
-  extract_value (e_v x) = x
+  extract_value (e_v v) = v
 `;
 
 (* Finds the topmost scope where the variable x is mapped and its index, as a tuple.
@@ -1418,10 +1429,23 @@ val lookup_lval_def = Define `
   (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
 `;
 
+(* TODO: This is ambiguous with regard to inout... *)
 val is_d_none_in_def = Define `
   (is_d_none_in d_in = T) /\
   (is_d_none_in d_none = T) /\
   (is_d_none_in _ = F)
+`;
+
+val is_d_in_def = Define `
+  (is_d_in d_in = T) /\
+  (is_d_in d_inout = T) /\
+  (is_d_in _ = F)
+`;
+
+val is_d_out_def = Define `
+  (is_d_out d_inout = T) /\
+  (is_d_out d_out = T) /\
+  (is_d_out _ = F)
 `;
 
 (* Obtains the minimum index where the direction is "none" or "in" in dlist and the
@@ -1429,7 +1453,7 @@ val is_d_none_in_def = Define `
  * direction and expression *)
 val find_unred_arg_def = Define `
   find_unred_arg dlist elist = 
-    (INDEX_FIND 0 (\(d, e). (is_d_none_in d) /\ ~(is_const e)) (ZIP (dlist, elist)))
+    (INDEX_FIND 0 (\(d, e). ~(is_d_out d) /\ ~(is_const e)) (ZIP (dlist, elist)))
 `;
 val unred_arg_index_def = Define `
   unred_arg_index dlist elist  = 
@@ -1458,7 +1482,7 @@ val is_e_lval_def = Define `
  * In e_func_call_newframe rule, we need this definition to show the second premise *)
 val is_arg_red_def = Define `
   is_arg_red d e =
-   ((is_d_none_in d ==> (is_const e)) /\ (~(is_d_none_in d) ==> (is_e_lval e)) = T)
+   ((~(is_d_out d) ==> (is_const e)) /\ (is_d_out d ==> (is_e_lval e)) = T)
 `;
 val check_arg_red_def = Define `
   check_arg_red dlist e i =
@@ -1468,12 +1492,92 @@ val check_args_red_def = Define `
   check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
 `;
 
-(* Given an an expression (should be a lval), a direction and a stack frame,
+(*
+val init_out_param_def = Define `
+  (init_out_param (v_bool boolv) = v_bool ARB) /\
+  (init_out_param (v_bit (bl, n)) = v_bit (ARB, n)) /\
+  (init_out_param (v_str x) = v_str ARB) /\
+  (init_out_param (v_struct x_v_list) = t_base bt_bool) /\
+  (init_out_param (v_header boolv x_v_list) = t_base bt_bool) /\
+  (init_out_param (v_ext ext_obj) = t_base bt_bool) /\
+  (init_out_param (v_err errmsg) = t_base bt_bool) /\
+  (init_out_param (v_uninit errmsg) = t_base bt_bool) /\
+`;
+
+val v_size_def = Define `
+  (v_size (v_bool boolv) = 1) /\
+  (v_size (v_bit bitv) = 1) /\
+  (v_size (v_str x) = 1) /\
+  (v_size (v_struct (h::t)) = v_size (SND h) + v_size (v_struct t)) /\
+  (v_size (v_struct []) = 1) /\
+  (v_size (v_header boolv (h::t)) = v_size (SND h) + v_size (v_header boolv t)) /\
+  (v_size (v_header boolv []) = 1) /\
+  (v_size (v_ext ext_obj) = 1) /\
+  (v_size (v_err errmsg) = 1) /\
+  (v_size v_uninit = 1) /\
+  (v_size v_bot = 1)
+`;
+
+val cons_struct_header_def = Define `
+  (cons_struct_header x_v (v_struct x_v_list) = v_struct (x_v::x_v_list)) /\
+  (cons_struct_header x_v (v_header boolv x_v_list) = (v_header boolv (x_v::x_v_list))) /\
+  (cons_struct_header _ _ = NONE)
+`;
+*)
+
+val v_size_def = DB.fetch "p4" "v_size_def";
+
+Theorem v1_size_append:
+ !v_l1 v_l2. v1_size (v_l1 ++ v_l2) = (v1_size v_l1 + v1_size v_l2)
+Proof
+ Induct_on `v_l1` >> (
+  fs [v_size_def]
+ )
+QED
+
+Theorem v1_size_mem:
+ !x v t. MEM (x,v) t ==> v_size v < v1_size t
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, v1_size_append, v_size_def]
+QED
+
+val init_out_v_def = TotalDefn.tDefine "init_out_v" `
+  (init_out_v (v_bool boolv) = v_bool ARB) /\
+  (init_out_v (v_bit (bl, n)) = v_bit (extend ARB n [], n)) /\
+  (init_out_v (v_str x) = v_str ARB) /\
+  (init_out_v (v_struct ((x,v)::t)) = v_struct (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+  (init_out_v (v_struct []) = v_struct []) /\
+  (init_out_v (v_header boolv ((x,v)::t)) =
+    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+  (init_out_v (v_header boolv []) = v_header F []) /\
+  (init_out_v (v_ext ext_obj) = v_ext ARB) /\
+  (init_out_v (v_err errmsg) = v_err ARB) /\
+  (init_out_v v_uninit = v_uninit) /\
+  (init_out_v v_bot = v_bot)
+`
+(WF_REL_TAC `measure v_size` >>
+ fs [v_size_def] >>
+ REPEAT STRIP_TAC >>
+ `v_size v' < v1_size t` suffices_by (
+  fs []
+ ) >>
+ METIS_TAC [v1_size_mem]
+);
+
+val arb_from_t_def = Define `
+  (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
+  (arb_from_t (t_base bt_bit) = (v_bit ARB))
+`;
+
+(* Given a direction, an expression (should be a lval),  and a stack frame,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
   one_arg_val_for_newscope d e sf =
-   if ~(is_d_none_in d)
-   then (lookup_vexp sf (extract_string e), get_lval_of_e e)
+   if is_d_out d
+   then (if is_d_in d
+         then lookup_vexp sf (extract_string e)
+         else init_out_v (lookup_vexp sf (extract_string e)), get_lval_of_e e)
    else (extract_value e, NONE)
 `;
 
@@ -1508,6 +1612,25 @@ val assign_def = Define `
   )
 `;
 
+(* Declares a new variable and initialises it to ARB, returns the new frame *)
+(* TODO: Behaviour when variable already exists? *)
+val declare_def = Define `
+  (declare (sf:curr_stack_frame) x t =
+    let i = LENGTH sf - 1 in
+    let scope = EL i sf in
+    LUPDATE (FUPDATE scope (x, (arb_from_t t, NONE))) i sf 
+  )
+`;
+
+(* Initialises a new variable in the topmost scope. *)
+val initialise_def = Define `
+  (initialise (sf:curr_stack_frame) x v =
+    let i = LENGTH sf - 1 in
+    let scope = EL i sf in
+    LUPDATE (FUPDATE scope (x, (v, NONE))) i sf 
+  )
+`;
+
 (* Given lists of variable names and directions, a caller's stack frame sf
  * and a callees stack frame sf_current, updates the caller's stack frame
  * according to the calling conventions. *)
@@ -1527,14 +1650,9 @@ val update_return_frame_def = Define `
 `;
 
 
-val arb_from_t_def = Define `
-  (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
-  (arb_from_t (t_base bt_bit) = (v_bit ARB))
-`;
-
 val args_of_pbl_def = Define `
-  (args_of_pbl (pblock_parser x_d_list pars_map) = x_d_list) /\
-  (args_of_pbl (pblock_control stmt x_d_list tbl_map) = x_d_list)
+  (args_of_pbl (pblock_parser x_d_list stmt pars_map) = x_d_list) /\
+  (args_of_pbl (pblock_control x_d_list stmt stmt' tbl_map) = x_d_list)
 `;
 
 }}
@@ -1564,8 +1682,9 @@ by
   %Build new stack frame
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame )  
   G scope = curr_stack_frame [ 0 ]
-  curr_stack_frame' = [G scope] ++ [ scope' ]
-  curr_stack_frame'' = tl curr_stack_frame
+  scope'' = curr_stack_frame [ 1 ]
+  curr_stack_frame' = [G scope , scope'' , scope' ]
+  curr_stack_frame'' = tl (tl curr_stack_frame)
   call_stack' = ( curr_stack_frame'' , f ) :: call_stack
   ----------------------------------- :: func_call_newframe
   (ty_map, ext_map, func_map, tbl_map) [call f ( e1 , .. , en )] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ctrl , ( curr_stack_frame' , call_stack' ) , Running )
@@ -1581,7 +1700,8 @@ by
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   G scope = curr_stack_frame [ 0 ]
-  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
+  scope' = curr_stack_frame [ 1 ]
+  curr_stack_frame'' = ( G scope ) :: ( scope' :: curr_stack_frame' )
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: func_ret
   (ty_map, ext_map, func_map, tbl_map) [exec return v] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame''' , call_stack' ) , Running )
@@ -1589,7 +1709,8 @@ by
   ( curr_stack_frame' , f ) :: call_stack' = call_stack
   ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
   G scope = curr_stack_frame [ 0 ]
-  curr_stack_frame'' = ( G scope ) :: curr_stack_frame'
+  scope' = curr_stack_frame [ 1 ]
+  curr_stack_frame'' = ( G scope ) :: ( scope' :: curr_stack_frame' )
   curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: func_ret_seq
   (ty_map, ext_map, func_map, tbl_map) [exec return v ; stmt'] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame''' , call_stack' ) , Running )
@@ -1935,10 +2056,7 @@ by
 %%%%%%%%%%%%%%
 %Declaration
 
-  length ( curr_stack_frame ) - 1  = i
-  scope = curr_stack_frame [ i ]
-  v = arb_from_t t
-  curr_stack_frame' = update ( scope + [ x |-> ( v , NONE ) ] , i , curr_stack_frame )
+  curr_stack_frame' = declare ( curr_stack_frame , x , t )
   ----------------------------------- :: decl
   ctx [decl x t] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
 
@@ -2126,11 +2244,11 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running ) -'> [ empty_stmt ] ( ( i' , false , in_out_list'' , in_out_list' , scope' ) , ctrl , stacks , Running )
 
   %Note that this rule does not increment i. That happens when the pblock is finished.
-  pblock x ( e1 , .. , en ) = ab_list [ i ]
+  pbl x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: pbl_call
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running ) -'> [ pbl_call x ( e1 , .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running )
 
-  ffblock x ( e1 , .. , en ) = ab_list [ i ]
+  ffbl x ( e1 , .. , en ) = ab_list [ i ]
   ----------------------------------- :: ffbl_call
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running ) -'> [ ffbl_call x ( e1 , .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running )
 
@@ -2146,22 +2264,22 @@ by
 %The "programmable block" phase can initiate execution of either a parser block or a control block
 
 %Note that initiation of a parser block also sets parseError to NoError
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map = pblock_map ( f )
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
   x = "start"
-  stmt = pars_map ( x )
+  stmt' = pars_map ( x )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %TODO: Should you also be able to read from the global scope?
   scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
   G scope = curr_stack_frame[0]
   curr_stack_frame' = [G scope] ++ [ scope' ]
   v = errmsg "NoError"
-  lval = "parseError"
-  curr_stack_frame'' = assign ( curr_stack_frame' , v , lval )
+  x' = "parseError"
+  curr_stack_frame'' = initialise ( curr_stack_frame' , x' , v )
   %TODO: Model arch scope external to the P4 program using the call stack?
   ----------------------------------- :: parser_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame' , call_stack ) , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ; stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame' , call_stack ) , Running )
 
-  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) tbl_map = pblock_map ( f )
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
   %TODO: Should you also be able to read from the global scope?
   scope'' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
@@ -2169,23 +2287,23 @@ by
   curr_stack_frame' = [G scope'] ++ [ scope'' ]
   %TODO: Model pseudo-scope external to the P4 program using the call stack?
   ----------------------------------- :: control_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame' , call_stack ) , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ; stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame' , call_stack ) , Running )
 
 
 %The "programmable block" phase then follows the semantics for a parser or control, respectively...
   %TODO: Create specific control block semantics?
 
 %Note that this rule needs to check that execution is actually inside a parser block to remove ambiguity
-  pblock x ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map = pblock_map ( x )
+  pbl x ( e1 , .. , en ) = ab_list [ i ]
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt'' pars_map = pblock_map ( x )
   status_not_fin status
   ( ty_map , ext_map , func_map , pars_map ) [ stmt ] ( ctrl , stacks , status ) -p-> [ stmt' ] ( ctrl' , stacks' , status' )
   ----------------------------------- :: parser_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl' , stacks' , status' )
 
 %Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
-  pblock x ( e1 , .. , en ) = ab_list [ i ]
-  control stmt'' ( ( x1 , d1 ) , .. , ( xn , dn ) ) tbl_map = pblock_map ( x )
+  pbl x ( e1 , .. , en ) = ab_list [ i ]
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt'' stmt''' tbl_map = pblock_map ( x )
   ( ty_map , ext_map , func_map , tbl_map ) [ stmt ] ( ctrl , stacks , status ) -c-> [ stmt' ] ( ctrl' , stacks' , status' )
   ----------------------------------- :: control_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl' , stacks' , status' )
@@ -2194,8 +2312,8 @@ by
 
 
 %Note that exiting a parser block also sets the value of parseError
-  pblock f ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) pars_map = pblock_map ( f )
+  pbl f ( e1 , .. , en ) = ab_list [ i ]
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
   G scope' = curr_stack_frame[0]
   [ scope'' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   lval = "parseError"
@@ -2207,8 +2325,8 @@ by
   ----------------------------------- :: parser_ret
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , pars_fin ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list' , scope''' ) , ctrl , ( [ G scope' ] , emptycs ) , Running )
 
-  pblock f ( e1 , .. , en ) = ab_list [ i ]
-  control stmt ( ( x1 , d1 ) , .. , ( xn , dn ) ) tbl_map = pblock_map ( f )
+  pbl f ( e1 , .. , en ) = ab_list [ i ]
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
   G scope' = curr_stack_frame[0]
   [ scope'' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   i' = i + 1
@@ -2229,19 +2347,21 @@ by
 %"Reduction of argument" rules
 
 %Note that the use of "args_of_pbl" is to avoid having two separate rules for parser and control
+%TODO: Restrict the expression evaluation to just lookup?
+%NOTE: These rules already disallow function calls, because of the shape of the RHS of the expression reductions
   pblock = pblock_map ( f )
   ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
   e = [ e1 , .. , en ] [ i' ]
-  ctx [ e ] ( ctrl , stacks , status ) ~> [ e' ] ( ctrl' , stacks' , status' )
+  ctx [ e ] ( ctrl , ( [ scope ] , [] ) , status ) ~> [ e' ] ( ctrl' , ( [ scope' ] , [] ) , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
   ----------------------------------- :: pblock_args
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 , .. , en ) ] ( aenv , ctrl , stacks , status ) -'> [ pbl_call f ( e1' , .. , en' ) ] ( aenv , ctrl' , stacks' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 , .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ pbl_call f ( e1' , .. , en' ) ] ( ( i , false , in_out_list , in_out_list' , scope' ) , ctrl' , stacks' , status' )
 
   ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
   e = [ e1 , .. , en ] [ i' ]
-  ctx [ e ] ( ctrl , stacks , status ) ~> [ e' ] ( ctrl' , stacks' , status' )
+  ctx [ e ] ( ctrl , ( [ scope ] , [] ) , status ) ~> [ e' ] ( ctrl' , ( [ scope' ] , [] ) , status' )
   [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
   ----------------------------------- :: ffblock_args
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ ffbl_call f ( e1 , .. , en ) ] ( aenv , ctrl , stacks , status ) -'> [ ffbl_call f ( e1' , .. , en' ) ] ( aenv , ctrl , stacks' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ ffbl_call f ( e1 , .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ ffbl_call f ( e1' , .. , en' ) ] ( ( i , false , in_out_list , in_out_list' , scope' ) , ctrl , stacks' , status' )

@@ -4,6 +4,9 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open p4Syntax;
 
+open finite_mapLib;
+open finite_mapSyntax;
+
 (******************)
 (* Test functions *)
 
