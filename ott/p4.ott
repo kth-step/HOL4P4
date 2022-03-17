@@ -419,9 +419,6 @@ e :: e_ ::=
 {{ com expression }}
 | v :: :: v
   {{ com constant value }}
-%| var x :: :: var
-%  {{ com variable or extern object }}
-%| var star :: :: varstar
 | var varn :: :: var
 | { e1 , .. , en } :: :: list
   {{ com expression list }}
