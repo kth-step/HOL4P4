@@ -1,264 +1,2367 @@
 embed
 {{ hol
+open bitstringTheory;
 open wordsTheory;
 }}
-metavar string ::=
+
+%%%%%%%%%%%%%%%%%
+% P4 base types %
+%%%%%%%%%%%%%%%%%
+
+%x denotes variable name, f denotes field name or function name
+metavar x, f, a, tbl ::=
       {{ lex alphanum }}
       {{ hol string }}
+      {{ tex [[x]] }}
       {{ com string }}
-metavar num ::=
-      {{ lex numeral }}
-      {{ hol num }}
-      {{ com natural number }}
-metavar bool ::=
+%TODO Numeral or alphanum?
+metavar b ::=
       {{ lex numeral }}
       {{ hol bool }}
+      {{ tex [[b]] }}
       {{ com boolean }}
-metavar int ::=
+metavar bl ::=
       {{ lex numeral }}
-      {{ hol word64 }}
-      {{ com integer }}
-indexvar i, j, k, l ::=
+      {{ hol bool list }}
+      {{ tex [[bl]] }}
+      {{ com bit-string }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Auxiliary metavariables %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+metavar i ::=
+      {{ lex numeral }}
+      {{ hol num }}
+      {{ tex [[i]] }}
+      {{ com natural number }}
+indexvar m, n, o ::=
   {{ lex numeral }}
   {{ coq nat }}
   {{ hol num }}
+  {{ com indices }}
 grammar
-direction :: direction_ ::=
- {{ com direction }}
-| In :: :: in
-| Out :: :: out
-| InOut :: :: in_out
-| Directionless :: :: directionless
-
-function_kind :: function_kind_ ::=
- {{ com function kind }}
-| Parser :: :: parser
-| Control :: :: control
-| Extern :: :: extern
-| Table :: :: table
-| Action :: :: action
-| Function :: :: function
-| Builtin :: :: builtin
-
-name :: name_ ::=
-{{ com name }}
-| BareName string :: :: bare_name
- {{ com bare name }}
-| QualifiedName [ string1 , ... , stringi ] string :: :: qualified_name
- {{ com qualified name  }}
-
-unary_operator :: unary_operator_ ::=
- {{ com unary operator }}
-| Not :: :: not
-| BitNot :: :: bit_not
-| BitMinus :: :: bit_minus
-
-binary_operator :: binary_operator_ ::=
- {{ com binary operator }}
-| Plus :: :: plus
-| PlusSat :: :: plus_sat
-| Minus :: :: minus
-| MinusSat :: :: minus_sat
-| Mul :: :: mul
-| Div :: :: div
-| Mod :: :: mod
-| Shl :: :: shl
-| Shr :: :: shr
-| Le :: :: le
-| Ge :: :: ge
-| Lt :: :: lt
-| Gt :: :: gt
-| Eq :: :: eq
-| NotEq :: :: not_eq
-| BitAnd :: :: bit_and
-| BitXor :: :: bit_xor
-| BitOr :: :: bit_or
-| PlusPlus :: :: plus_plus
-| And :: :: and
-| Or :: :: or
-
-type :: type_ ::=
- {{ com type }}
-| Bool :: :: bool
-| String :: :: string
-| Integer :: :: integer
-| Int num :: :: int
-  {{ com Args: width }}
-| Bit num :: :: bit
-  {{ com Args: width }}
-| VarBit num :: :: var_bit
-  {{ com Args: width }}
-| Array type num :: :: array
-  {{ com Args: inner size }}
-| Tuple [ type1 , .. , typei ] :: :: tuple
-  {{ com Args: types }}
-| RecordType [ ( string1 , type1 ) , .. , ( stringi , typei ) ] :: :: record_type
-  {{ com Args: fields }}
-| SetType type :: :: set_type
-  {{ com Args: inner }}
-| Error :: :: error
-| MatchKind :: :: match_kind
-| TypeName string :: :: type_name
-  {{ com Args: name }}
-| NewType type :: :: new_type
-  {{ com Args: inner }}
-| Void :: :: void
-| Header [ ( string1 , type1 ) , .. , ( stringi , typei ) ] :: :: header
-  {{ com Args: fields }}
-| HeaderUnion [ ( string1 , type1 ) , ... , ( stringi , typei ) ] :: :: header_union
-  {{ com Args: fields }}
-| Struct [ ( string1 , type1 ) , .. , ( stringi , typei ) ] :: :: struct
-  {{ com Args: fields }}
-| Enum string [ string1 , .. , stringi ] :: :: enum
- {{ com Args: name members }}
-| Enum string [ string1 , ... , stringi ] type :: :: enum_type
-  {{ com Args: name members inner }}
-| SpecializedType type [ type1 , .. , typei ] :: :: specialized_type
-  {{ com Args: base args }}
-| ExternType string [ type1 , .. , typei ] [ ( string1 ; function1 ) , .. , ( stringj ; functionj ) ] :: :: extern_type
-  {{ com Args: name type\_params methods }}
-| FunctionType function :: :: function_type
-  {{ com Args: inner }}
-| ActionType [ param1 , .. , parami ] [ param'1 , ... , param'j ] :: :: action_type
- {{ com Args: data\_params control\_params }}
-| Constructor [ string1 , ... , stringi ] [ param1 , ... , paraml ] type :: :: constructor
- {{ com Args: type\_params params return\_type }}
-
-function :: function_ ::=
-{{ com function }}
-| MkFunction [ string1 , ... , stringi ] [ param1 , ... , paramj ] function_kind type :: :: mk_function
-  {{ com Args: type\_params parameters kind return\_type }}
-
-param :: param_ ::=
-{{ com param }}
-| MkParam direction type string expression :: :: mk_param_expression
-  {{ com Args: dir typ variable opt\_value }}
-| MkParam direction type string :: :: mk_param
-  {{ com Args: dir typ variable opt\_value }}
-
-keyvalue :: keyvalue_ ::=
- {{ com key value }}
-| MkKeyValue string expression :: :: mk_key_value
-  {{ com Args: key expr }}
-
-argument :: argument_ ::=
-  {{ com argument }}
-| Expression expression :: :: expression
-  {{ com Args: value }}
-| KeyValue string expression :: :: key_value
-  {{ com Args: key value }}
-| Missing :: :: missing
-
-expression :: expression_ ::=
-  {{ com expression }}
-| BoolExpression bool :: :: bool_expression
-  {{ com Args: value (TODO: Argument not related to type\_bool?) }}
-| IntExpression int :: :: int_expression
-  {{ com Args: value }}
-| StringExpression string :: :: string_expression
-  {{ com Args: value }}
-| NameExpression name :: :: name_expression
-  {{ com Args: value }}
-| ArrayAccess expression expression' :: :: array_access
-  {{ com Args: array, index }}
-| BitStringAccess expression1 expression2 expression3 :: :: bit_string_access
-  {{ com Args: array, hi, lo }}
-| List [ expression1 , .. , expressioni ] :: :: list
-  {{ com Args: values }}
-| Record [ keyvalue1 , ... , keyvaluei ] :: :: record
-  {{ com Args: entries }}
-| UnaryOp unary_operator expression :: :: unary_op
-  {{ com Args: op arg }}
-| BinaryOp binary_operator expression :: :: binary_op
-  {{ com Args: op arg }}
-| Cast type expression :: :: cast
-  {{ com Args: type expr}}
-| TypeMember name string :: :: type_member
-  {{ com Args: type name }}
-| ErrorMember string :: :: error_member
-  {{ com Args: error }}
-| ExpressionMember expression string :: :: expression_member
-  {{ com Args: expr name }}
-| Ternary expression1 expression2 expression3 :: :: ternary
-  {{ com Args: cond true false }}
-| FunctionCall expression [ type1 , .. , typei ] [ argument1 , .. , argumentj ] :: :: function_call
-  {{ com Args: function type\_args args }}
-| NamelessInstantiation type [ argument1 , .. , argumenti ] :: :: nameless_instantiation
-  {{ com Args: type args }}
-| Mask expression expression' :: :: mask
-  {{ com Args: expr mask }}
-| Range expression expression' :: :: range
-  {{ com Args: lo hi }}
-
-opt_expression :: opt_expression_ ::=
- {{ hol expression option }}
-| None :: M :: none
-  {{ hol NONE }}
-| Some expression :: M :: some
-  {{ hol (SOME [[expression]]) }}
-
-declaration :: declaration_ ::=
- {{ com declaration }}
-| DeclarationConstant type string expression :: :: declaration_constant
-{{ com Args: type name value }}
-| DeclarationVariable type string expression :: :: declaration_variable_expression
- {{ com Args: type name init }}
-| DeclarationVariable type string :: :: declaration_variable
- {{ com Args: type name }}
-| Instantiation type [ expression1 , ... , expressioni ] string :: :: instantiation
- {{ com Args: type args name }}
-
-statement :: statement_ ::=
- {{ com statement }}
-| MethodCall expression [ type1 , .. , typei ] [ opt_expression1 , .. , opt_expressionj ] :: :: method_call
-  {{ com Args: func type\_args args }}
-| Assignment expression expression' :: :: assignment
-  {{ com Args: lhs rhs }}
-| BlockStatement block :: :: block_statement
-  {{ com Args: blk }}
-| StatementConstant type string expression :: :: statement_constant
-  {{ com Args: type name value }}
-| StatementVariable type string expression :: :: statement_variable_expression
- {{ com Args: type name init }}
-| StatementVariable type string :: :: statement_variable
- {{ com Args: type name }} 
-
-block :: block_ ::=
-{{ com block }}
-| BlockEmpty :: :: block_empty
-| BlockCons statement block :: :: block_cons
-
-match_expression :: match_expression_ ::=
- {{ com match expression }}
-| DontCare :: :: dont_care
-| MatchExpression expression :: :: match_expression
-  {{ com Args: expr }}
 
 %%%%%%%%%%%%%%%%
-%%%  Records  %%
+% Value syntax %
 %%%%%%%%%%%%%%%%
 
-%TODO How to write this? Currently using mk_ syntax
-%case :: case_ ::= {{ com ??? }}
-%| MkCase [ match_expression1 , ... , match_expressioni ] string :: :: mk_case
-%{{ com Args: matches next }}
+boolv :: boolv_ ::=
+{{ hol bool }}
+{{ com boolean }}
+| true :: M :: true
+  {{ hol T }}
+| false :: M :: false
+  {{ hol F }}
+| b :: M :: free
+  {{ hol [[b]] }}
 
-%transition :: transition_ ::= {{ com ??? }}
-%| MkTransition [ expression1 , ... , expressioni ] [ case1 , ... , casej ] :: :: mk_transition
-%{{ com Args: exprs cases }}
+bitv :: bitv_ ::=
+{{ hol (bl # num) }}
+{{ com bit-string }}
+| bl n :: M :: bl
+  {{ hol ([[bl]], [[n]]) }}
+
+%Fence so that ott does not put packet_in before boolv
+embed
+{{ hol
+
+}}
+grammar
+
+packet_in :: packet_in_ ::=
+{{ hol (boolv list) }}
+{{ com input packet }}
+| [ boolv1 , .. , boolvn ] :: M :: list
+  {{ hol ([[boolv1 .. boolvn]]) }}
+
+packet_out :: packet_out_ ::=
+{{ hol (boolv list) }}
+{{ com output packet }}
+| [ boolv1 , .. , boolvn ] :: M :: list
+  {{ hol ([[boolv1 .. boolvn]]) }}
+
+ipv4_checksum :: ipv4_checksum_ ::= {{ hol (word16) }}
+{{ com ipv4 header checksum }}
+
+%TODO: This should be expanded to cover data of all extern objects
+%TODO: Only stuff in core.p4, for now... Should this be polymorphic when done for multiple platforms?
+ext_obj :: ext_obj_ ::=
+{{ com extern object }}
+| packet_in :: :: in
+  {{ com input packet }}
+| packet_out :: :: out
+  {{ com input packet }}
+| ipv4_checksum :: :: ck
+  {{ com ipv4 header checksum }}
+
+
+%TODO: Add identifiers
+%TODO: Add enums
+v :: v_ ::=
+{{ com constant }}
+| boolv :: :: bool
+  {{ com boolean value }}
+%bitv currently represents both signed and unsigned bit-strings
+| bitv :: :: bit
+  {{ com bit-string }}
+| x :: :: str
+  {{ com string literal }}
+| struct { x1 = v1 ; ... ; xn = vn } :: :: struct
+  {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
+| header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
+% A header is like a struct, but with a validity bit.
+% Headers also have different well-formedness conditions (for example, headers cannot be nested).
+%TODO: We must have the following header methods:
+%      isValid()
+%      setValid()
+%      setInvalid()
+%      Should these be modeled as statements, or should they
+%      be pre-set in the function map?
+  {{ com header }}
+| ext_obj :: :: ext
+  {{ com extern object }}
+| errmsg x :: :: err
+  {{ com error message }}
+%TODO: Represent uninitialised variables? Default values?
+%See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
+| uninit :: :: uninit
+  {{ com uninitialized value }}
+  {{ tex ? }}
+  {{ hol (ARB) }}
+| bot :: :: bot
+  {{ com no value }}
+
+%TODO: Add array element
+%TODO: Add bitslice
+lval :: lval_ ::=
+| x :: :: varname
+  {{ com variable name }}
+| null :: :: null
+  {{ com null variable }} 
+| lval . f :: :: field
+  {{ com field access }}
+| ( lval ) :: X :: paren
+  {{ hol ([[lval]]) }}
+
+%%%%%%%%%%%%%%%%%%%
+% Execution state %
+%%%%%%%%%%%%%%%%%%%
+%Note that this is not part of the P4 specification, but made up for verification purposes.
+
+pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
+{{ com final parser states }}
+| Accept :: :: accept
+  {{ com accepted state }}
+| Reject :: :: reject
+  {{ com rejected state }}
+
+pars_next {{ tex p }} :: pars_next_ ::=
+{{ com parser next state }}
+| Trans x :: :: trans
+  {{ com transition to named state }}
+| pars_fin :: :: pars_fin
+  {{ com final state }}
+
+%Execution status of current programmable block
+status {{ tex t }}:: status_ ::=
+{{ com execution status }}
+| Running :: I :: running
+  {{ tex { \mathbf{R} } }}
+| pars_next :: I :: pars_next
+| TypeError :: I :: type_error
+  {{ tex { \bot } }}
+
+scope {{ tex \gamma }} :: scope_ ::=
+{{ hol (string |-> (v # lval option)) }}
+{{ com frame/variable environment of current scope }}
+| emptyscope :: M :: empty
+  {{ com empty stack frame }}
+  {{ hol FEMPTY }}
+  {{ tex {\gamma}_{ \emptyset } }}
+%TODO: This should keep output parameter instead of requiring NONE
+| scope + [ x |-> ( v , NONE ) ] :: M :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[scope]] ([[x]], ( [[v]] , NONE ))) }}
+  {{ tex ([[x]] \mapsto  [[v]]) [[scope]] }}
+%TODO: Update or remove this production
+| scope ++ [ x1 |-> v1 , .. , xn |-> vn ] :: M :: update_list
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE_LIST [[scope]] [[x1 v1 .. xn vn]]) }}
+  %TODO: The below is a hack since LaTeX cannot interpret dot form...
+  {{ tex \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\, [[scope]] }}
+| ( scope ) :: S :: paren
+  {{ hol ([[scope]]) }}
+| G scope :: M :: global
+  {{ com global scope }}
+  {{ tex {[[scope]]}_G }}
+  {{ hol [[scope]] }}
+
+%Fence so that ott does not re-order curr_stack_frame
+embed
+{{ hol
+
+}}
+grammar
+
+curr_stack_frame {{ tex \varepsilon }} :: curr_stack_frame_ ::=
+{{ hol (scope list) }}
+{{ com current stack frame - stack of block scopes }}
+| emptycsf :: M :: empty
+  {{ hol ([]:scope list) }}
+  {{ tex {\emptyset}_{\varepsilon} }}
+| [ scope1 , .. , scopen ] :: M :: list
+  {{ hol ([[scope1 .. scopen]]) }}
+| tl curr_stack_frame :: M :: tl
+  {{ hol (TL [[curr_stack_frame]]) }}
+  {{ tex \mathrm{tl} ([[curr_stack_frame]]) }}
+| scope '::' curr_stack_frame' :: M :: cons
+  {{ hol ([[scope]] :: [[curr_stack_frame']]) }}
+  {{ tex [[scope]] :: [[curr_stack_frame']] }}
+| curr_stack_frame ++ curr_stack_frame' :: M :: append
+  {{ hol ([[curr_stack_frame]] ++ [[curr_stack_frame']]) }}
+  {{ tex [[curr_stack_frame]] \mathrel{\mathop+}+ [[curr_stack_frame']] }}
+| rev curr_stack_frame :: M :: rev
+  {{ hol (REVERSE [[curr_stack_frame]]) }}
+  {{ tex \mathrm{rev} ([[curr_stack_frame]]) }}
+| update ( scope , i , curr_stack_frame ) :: M :: update_scope
+  {{ com update a scope in the stack frame }}
+  {{ hol ( LUPDATE [[scope]] [[i]] [[curr_stack_frame]] ) }}
+  {{ tex ([[i]] \mapsto [[scope]]) [[curr_stack_frame]] }}
+| ( curr_stack_frame ) :: S :: paren
+  {{ hol ([[curr_stack_frame]]) }}
+
+%Fence so that ott does not re-order called_function_name
+embed
+{{ hol
+
+}}
+grammar
+
+called_function_name {{ tex F_n }} :: called_function_name_ ::=
+{{ com called function name  }}
+| bot :: :: bot
+  {{ tex \bot }}
+| f :: :: function_name
+  {{ tex [[f]] }}
+
+%Fence so that ott does not re-order called_function_name
+embed
+{{ hol
+
+}}
+grammar  
+
+call_stack {{ tex E }} :: call_stack_ ::=
+{{ com stack of caller stack frames }}
+{{ hol ((curr_stack_frame # called_function_name) list) }}
+| emptycs :: M :: empty
+  {{ hol ([]:((curr_stack_frame # called_function_name) list)) }}
+  {{ tex {\emptyset}_{E} }}
+| [ ( curr_stack_frame1 , called_function_name1 ) , .. , ( curr_stack_framen , called_function_namen ) ] :: M :: list
+  {{ hol ([[curr_stack_frame1 called_function_name1 .. curr_stack_framen called_function_namen]]) }}
+| ( curr_stack_frame , called_function_name ) '::' call_stack :: M :: cons
+  {{ hol (([[curr_stack_frame]], [[called_function_name]]) :: [[call_stack]]) }}
+  {{ tex ([[curr_stack_frame]], [[called_function_name]]) :: [[call_stack]] }}
+| ( call_stack ) :: S :: paren
+  {{ hol ([[call_stack]]) }}
+
+mk {{ tex \mathit{mk} }} :: mk_ ::=
+{{ com matching kinds }}
+| exact :: :: exact
+  {{ tex exact }}
+| ternary :: :: ternary
+  {{ tex ternary }}
+| lpm :: :: lpm
+  {{ tex lpm }}
+
+%Fence so that ott does not re-order expression syntax with state syntax
+embed
+{{ hol
+
+}}
+grammar
+
+stacks {{ tex \sigma }} :: stacks_ ::=
+{{ com stacks in execution state }}
+{{ hol (curr_stack_frame # call_stack) }}
+| ( curr_stack_frame , call_stack ) :: M :: tup
+  {{ hol ([[curr_stack_frame]], [[call_stack]]) }}
+
+%%%%%%%%%%%%%%%%%%%%%
+% Expression syntax %
+%%%%%%%%%%%%%%%%%%%%%
+
+unop {{ tex \ominus }}:: unop_ ::=
+| ! :: :: neg
+  {{ com negation }}
+  {{ tex ! }}
+| ~ :: :: compl
+  {{ com bitwise complement }}
+  {{ tex \neg }}
+| - :: :: neg_signed
+  {{ com signed negation }}
+| + :: :: un_plus
+  %Defined as no-op for all values in P4 spec
+  {{ com unary plus }}
+
+%Binary operations
+%Split these up into operations (bv # bv -> bv) and predicates (bv # bv -> bool)?
+%TODO: Add saturating addition
+%TODO: Add saturating subtraction
+binop {{ tex \oplus }} :: binop_ ::=
+| * :: :: mul
+  {{ com multiplication }}
+  {{ tex \times }}
+| / :: :: div
+  {{ com division }}
+| mod :: :: mod
+  %Denoted by % in P4 spec
+  {{ com modulo }}
+  {{ tex \bmod }}
+| + :: :: add
+  {{ com addition }}
+| - :: :: sub
+  {{ com subtraction }}
+| SHL :: :: shl
+  {{ com logical left-shift }}
+  {{ tex \ll }}
+| SHR :: :: shr
+  {{ com logical right-shift }}
+  {{ tex \gg }}
+| LE :: :: le
+  {{ com less or equal }}
+  {{ tex \leq }}
+| GE :: :: ge
+  {{ com greater or equal }}
+  {{ tex \geq }}
+| < :: :: lt
+  {{ com less }}
+  {{ tex < }}
+| > :: :: gt
+  {{ com greater }}
+  {{ tex > }}
+| NE :: :: neq
+  {{ com not equal }}
+  {{ tex \neq }}
+| EQ :: :: eq
+  {{ com equal }}
+  {{ tex = }}
+| & :: :: and
+  {{ com bitwise and }}
+| ^ :: :: xor
+  {{ com bitwise xor }}
+  {{ tex \underline{\vee} }}
+| '|' :: :: or
+  {{ com bitwise or }}
+  {{ tex \mid }}
+| AND :: :: bin_and
+  {{ com binary and }}
+  {{ tex \land }}
+| OR :: :: bin_or
+  {{ com binary or }}
+  {{ tex \lor }}
+
+%TODO: Add casts
+%TODO: Add tuples
+%TODO: Add conditional operator
+e :: e_ ::=
+{{ com expression }}
+| v :: :: v
+  {{ com constant value }}
+| var x :: :: var
+  {{ com variable or extern object }}
+| { e1 , .. , en } :: :: list
+  {{ com expression list }}
+| e . e' :: :: acc
+  {{ com field access }}
+| unop e :: :: unop
+  {{ com unary operation }}
+  {{ tex [[unop]] [[e]] }}
+| e1 binop e2 :: :: binop
+  {{ com binary operation }}
+  {{ tex [[e1]] [[binop]] [[e2]] }}
+| e1 ++ e2 :: :: concat
+  {{ com concatenation of bit-strings }}
+| e1 [ e2 : e3 ] :: :: slice
+  {{ com bit-slice }}
+| call f ( e1 , .. , en ) :: :: func_call
+  {{ com function call }}
+| exec stmt :: I :: func_exec
+  {{ com function execution }}
+| call lval f ( e1 , .. , en ) :: :: ext_call
+  {{ com extern method call }}
+| select e { v1 : x1 ; ... ; vn : xn } x :: :: select
+  % TODO: x is the default value of select expression, which should be optional
+  {{ com select }}
+| ( e ) :: S :: paren
+  {{ hol ([[e]]) }}
+
+%TODO: Trying to make a new definition for expression lists (mainly for function
+%      arguments) proved problematic.
+%      If all e_list productions are meta, then you get e_list as a type abbreviation of "e list",
+%      which is either undefined at the point where the abbreviation is made, or
+%      e_list is unknown when defining e (and specifically function call, which would use e_list).
+%      In both situations, mutually recursive definitions are not possible.
 %
-%state :: state_ ::= {{ com ??? }}
-%| MkState string [ statement1 , ... , statementi ] transition :: :: mk_state
-%{{ com Args: name statements transition }}
+%      If nothing is meta and e_list is not exported to a type abbreviation, you risk the function call semantics not understanding the "e_list" and "e list" correspondence. However, this seems to work currently.
+e_list :: e_list_ ::=
+{{ com list of expressions }}
+{{ hol (e list) }}
+| empty_el :: M :: empty
+  {{ com empty expression list }}
+  {{ hol ([]:e list) }}
+| e1 , .. , en :: M :: exps
+  {{ com list of expressions }}
+  {{ hol ([[e1 .. en]]) }}
+| e '::' e_list :: M :: cons
+  {{ com cons }}
+  {{ hol ([[e]]::[[e_list]]) }}
+| tl e_list :: M :: tail
+  {{ com tail }}
+  {{ hol (TL [[e_list]]) }}
+| [ e1 , .. , en ] :: M :: exps2
+  {{ com bracketed list of expressions }}
+  {{ hol ([[e1 .. en]]) }}
+| e_list ++ e_list' :: M :: append
+  {{ com append two expression lists }}
+  {{ hol ([[e_list]] ++ [[e_list']]) }}
+| update ( e , i , e_list ) :: M :: update
+  {{ com update entry of expression list }}
+  {{ hol (LUPDATE [[e]] [[i]] [[e_list]]) }}
+  {{ tex ([[i]] \mapsto  [[e]]) [[e_list]] }}
+| ( e_list ) :: S :: paren
+  {{ hol ([[e_list]]) }}
 
-%parser :: parser_ ::= {{ com ??? }}
-%| MkParser string [ param1 , ... , parami ] [ param1 , ... , paramj ] [ declaration1 , ... , declarationk ] [ state1 , ... , statel ] :: :: mk_parser
-%%{ parser_name = string; params = list param; constructor_params = list param; locals = list declaration;  states = list states}   :: d :: parser_rec
-%{{ com Args: parser_name params constructor_params locals states }}
+%%%%%%%%%%%%%%
+% Statements %
+%%%%%%%%%%%%%%
+
+bt {{ tex bt }} :: bt_ ::=
+{{ com base types }}
+| bool_t :: :: bool
+  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
+| bit_t :: :: bit
+  {{ tex { \mathrm{bit}_{ \mathrm{t} } } }}
+
+t {{ tex t }} :: t_ ::=
+{{ com types }}
+| bt :: :: base
+| struct_t t1 , ... , tn :: :: struct
+  {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+| header_t t1 , ... , tn :: :: header
+  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+
+%TODO: Add switch statement
+stmt :: stmt_ ::=
+{{ com statement }}
+| empty_stmt :: :: empty
+  {{ com empty statement }}
+  {{ tex \emptyset_{ \mathrm{stmt} } }}
+| assign lval e :: :: ass
+  {{ com assignment }}
+  {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
+| if e then stmt1 else stmt2 :: :: cond
+  {{ com conditional }}
+| decl x t :: :: declare
+  %TODO: This should have a type name instead of a type t, which is then looked up in the type environment.
+  {{ com declaration }}
+| begin stmt end :: :: block 
+  {{ com block }}
+  {{ tex \{ [[stmt]] \} }}
+| begin' stmt end' :: I :: block_ip
+  {{ com block in progress }}
+  {{ tex [ [[stmt]] ] }}
+| return e :: :: ret
+  {{ com return }}
+| stmt1 ; stmt2 :: :: seq
+  {{ com sequence }}
+| verify e e' :: :: verify
+  %e is predicate, e' is error message
+  {{ com verify }}
+| transition e :: :: trans
+  %e should evaluate to a parser state name
+  {{ com transition }}
+  {{ tex \mathbf{transition}\, [[e]] }}
+| apply tbl e :: :: app
+  %tbl is the table name that should be applied
+  {{ com apply }}
+  {{ tex \mathbf{apply} \, [[tbl]] \, [[e]] }}
+
+d {{ tex d }} :: d_ ::=
+{{ com parameter direction }}
+| 'in :: :: in
+  {{ tex \downarrow }}
+| out :: :: out
+  {{ tex \uparrow }}
+| inout :: :: inout
+  {{ tex \updownarrow }}
+| none :: :: none
+  {{ tex \circ }}
+
+%Literally the "fixed function" of a fixed-function block
+ff {{ tex { \mathit{ff} } }} :: ff_ ::=
+{{ hol ((e list # scope # curr_stack_frame) -> (scope # curr_stack_frame) option) }}
+
+%Fence between d and d_list
+embed
+{{ hol
+
+}}
+grammar
+
+% TODO: Could be just a type abbreviation?
+ctrl {{ tex { C } }} :: ctrl_ ::=
+{{ com control plane }}
+{{ hol ((string # v # mk) -> (string # e_list) option) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  %TODO: Correct? How does this affect export?
+  {{ hol FEMPTY }}
+
+%Fence between ctrl and state
+embed
+{{ hol
+
+}}
+grammar
+
+state {{ tex s }} :: state_ ::=
+{{ com execution state }}
+{{ hol (ctrl # stacks # status) }}
+| ( ctrl , stacks , status ) :: M :: tup
+  {{ hol ([[ctrl]], [[stacks]], [[status]]) }}
+
+ext {{ tex { \mathit{ext} } }} :: ext_ ::=
+{{ hol ((lval # e list # state) -> ((v # state) option)) }}
+
+%Fence between ext and ext_map
+embed
+{{ hol
+
+}}
+grammar
+
+d_list :: d_list_ ::=
+{{ com list of directions }}
+{{ hol (d list) }}
+| empty_el :: M :: empty
+  {{ com empty direction list }}
+  {{ hol ([]:d list) }}
+| [ d1 , .. , dn ] :: M :: ds
+  {{ com list of directions }}
+  {{ hol ([[d1 .. dn]]) }}
+| ( d_list ) :: S :: paren
+  {{ hol ([[d_list]]) }}
+| d_list ++ d_list' :: M :: append
+  {{ com append two e_lists }}
+  {{ hol ([[d_list]] ++ [[d_list']]) }}
+
+func_map {{ tex F }} :: func_map_ ::=
+{{ com function map  }}
+{{ hol (string |-> (stmt # (string # d) list)) }}
+| empty :: M :: empty
+  {{ com empty function map }}
+  {{ hol FEMPTY }}
+| func_map + [ x |-> stmt ] :: M :: update
+  {{ com update variable mapping }}
+  {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
+
+ext_map {{ tex X }} :: ext_map_ ::=
+{{ com extern method map  }}
+{{ hol (string |-> (ext # (string # d) list)) }}
+
+% TODO: Could be just a type abbreviation?
+tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
+{{ com table map  }}
+{{ hol (string |-> (e # mk)) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just a type abbreviation?
+pars_map {{ tex P }} :: pars_map_ ::=
+{{ com parser state map  }}
+{{ hol (string |-> stmt) }}
+| empty :: M :: empty
+  {{ com empty parser state map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just a type abbreviation?
+ty_map {{ tex \mathit{Ty} }} :: ty_map_ ::=
+{{ com type environment  }}
+{{ hol (string |-> ((string # t) list)) }}
+| empty :: M :: empty
+  {{ com empty type environment }}
+  {{ hol FEMPTY }}
+
+in_out :: in_out_ ::=
+{{ com input and output }}
+{{ hol (bl # num) }}
+| packet bl i :: M :: packet
+  {{ hol ( [[bl]] , [[i]] ) }}
+
+%Fence so that ott does not re-order block and block map
+embed
+{{ hol
+
+}}
+grammar
+
+arch_stmt :: arch_stmt_ ::=
+{{ com architecture-level statement }}
+| stmt :: :: regular
+  {{ com regular statement }}
+| pbl_call f ( e1 , .. , en ) :: :: pbl_call
+  {{ com programmable block call }}
+| ffbl_call f ( e1 , .. , en ) :: :: ffbl_call
+  {{ com fixed-function block call }}
+
+pblock {{ tex { \mathit{ pblock } } }} :: pblock_ ::=
+{{ com programmable block }}
+| parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map :: :: parser
+| control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map :: :: control
+
+ffblock {{ tex { \mathit{ ffblock } } }} :: ffblock_ ::=
+{{ com fixed-function block }}
+%{{ hol (ff # (string # d) list) }}
+| ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) :: :: ff
+%  {{ com fixed-function block }}
+%  {{ hol ( [[ff]] , ()) }}
+
+%Fence so that ott does not re-order ffblock
+embed
+{{ hol
+
+}}
+grammar
+
+arch_block :: arch_block_ ::=
+{{ com architectural block }}
+| inp :: :: inp
+| pbl x ( e1 , .. , en ) :: :: pbl
+| ffbl x ( e1 , .. , en ) :: :: ffbl
+| out :: :: out
+
+% TODO: Could be just a type abbreviation?
+pblock_list {{ tex \overline{pb} }} :: pblock_list_ ::=
+{{ com list of programmable blocks }}
+{{ hol (pblock list) }}
+| empty_pbl :: M :: empty
+  {{ hol ([]:pblock list) }}
+
+% TODO: Could be just a type abbreviation?
+ffblock_list {{ tex \overline{ffb} }} :: ffblock_list_ ::=
+{{ com list of fixed-function blocks }}
+{{ hol (ffblock list) }}
+| empty_ffbl :: M :: empty
+  {{ hol ([]:ffblock list) }}
+
+pblock_map {{ tex B_{ \mathit{p} } }} :: pblock_map_ ::=
+{{ com programmable block map }}
+{{ hol (string |-> pblock) }}
+| empty :: M :: empty
+  {{ com empty programmable block map }}
+  {{ hol FEMPTY }}
+
+ffblock_map {{ tex B_{ \mathit{ff} } }} :: ffblock_map_ ::=
+{{ com fixed-function block map }}
+{{ hol (string |-> ffblock) }}
+| empty :: M :: empty
+  {{ com empty fixed-function block map }}
+  {{ hol FEMPTY }}
+
+% TODO: Could be just a type abbreviation?
+in_out_list {{ tex \overline{io} }} :: in_out_list_ ::=
+{{ com list of input and output }}
+{{ hol (in_out list) }}
+| empty_in_out :: M :: empty
+  {{ hol ([]:in_out list) }}
+| in_out '::' in_out_list :: M :: cons
+  {{ com cons }}
+  {{ hol ([[in_out]]::[[in_out_list]]) }}
+| ( in_out_list ) :: S :: paren
+  {{ hol ([[in_out_list]]) }}
+
+%Fence so that ott does not re-order input_f and output_f, ab_list
+embed
+{{ hol
+
+}}
+grammar
+
+ab_list {{ tex \overline{ab} }} :: ab_list_ ::=
+{{ com list of architectural blocks }}
+{{ hol (arch_block list) }}
+| empty :: M :: empty
+  {{ com empty list }}
+  {{ hol ([]:arch_block list) }}
+
+%TODO: Unify input_f and output_f?
+input_f {{ tex { f_{ \mathit{in} } } }} :: input_f_ ::=
+{{ com input function }}
+{{ hol ((in_out_list # scope) -> (in_out_list # scope) option) }}
+
+output_f {{ tex { f_{ \mathit{out} } } }} :: output_f_ ::=
+{{ com output function }}
+{{ hol ((in_out_list # scope) -> (in_out_list # scope) option) }}
+
+%Fence so that ott does not re-order ctx
+embed
+{{ hol
+
+}}
+grammar
+
+aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
+{{ com architectural environment }}
+{{ hol (num # boolv # in_out_list # in_out_list # scope) }}
+| empty :: M :: empty
+  {{ com empty architectural environment }}
+  {{ hol (0, F, [], [], FEMPTY) }}
+| ( i , boolv , in_out_list , in_out_list' , scope ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[i]], [[boolv]], [[in_out_list]], [[in_out_list']], [[scope]]) }}
+
+actx {{ tex { \mathit{ctx}_\mathit{A} } }} :: actx_ ::=
+{{ com architectural context }}
+{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # ty_map # ext_map # func_map) }}
+| ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[ty_map]], [[ext_map]], [[func_map]]) }}
+
+pctx {{ tex { \mathit{ctx}_\mathit{P} } }} :: pctx_ ::=
+{{ com parser context }}
+{{ hol (ty_map # ext_map # func_map # pars_map) }}
+| ( ty_map , ext_map , func_map , pars_map ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[pars_map]]) }}
+
+%TODO: Same as regular ctx?
+cctx {{ tex { \mathit{ctx}_\mathit{C} } }} :: cctx_ ::=
+{{ com control context }}
+{{ hol (ty_map # ext_map # func_map # tbl_map) }}
+| ( ty_map , ext_map , func_map , tbl_map ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[tbl_map]]) }}
+
+% TODO: Could be just a type abbreviation?
+ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
+{{ com context }}
+{{ hol (ty_map # ext_map # func_map # tbl_map) }}
+| empty :: M :: empty
+  {{ com empty context }}
+  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY) }}
+| ( ty_map , ext_map , func_map , tbl_map ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[tbl_map]]) }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+% Expression semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%
 
 terminals :: terminals_ ::=
-| In :: :: In
-  {{ tex \textsf{In} }}
+%Statement reduction
+| -> :: :: rightarrow {{ tex \rightarrow }}
+%Expression reduction
+| ~> :: :: rightsquigarrow {{ tex \rightsquigarrow }}
+%Parser state reduction
+| --> :: :: longrightarrow {{ tex \longrightarrow }}
 
-formula :: formula_ ::= 
+formula :: formula_ ::=
+{{ com formulas }}
 | judgement :: :: judgement
+  {{ com judgement }}
+%Expressions
+| ! b = b' :: M :: neg_bool
+  {{ hol (~[[b]] = [[b']]) }}
+| ~ bitv = bitv' :: M :: compl
+  {{ hol (bitv_bl_unop bnot [[bitv]] = [[bitv']]) }}
+| - bitv = bitv' :: M :: neg_signed
+  {{ hol (bitv_unop unop_neg_signed [[bitv]] = [[bitv']]) }}
+| + bitv = bitv' :: M :: un_plus
+  %Note P4 spec says this is a noop
+  {{ hol ([[bitv]] = [[bitv']]) }}
+| bitv * bitv' = bitv'' :: M :: mul
+  {{ hol (bitv_binop binop_mul [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv / bitv' = bitv'' :: M :: div
+  {{ hol (bitv_binop binop_div [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv mod bitv' = bitv'' :: M :: mod
+  {{ hol (bitv_binop binop_mod [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv + bitv' = bitv'' :: M :: add
+  {{ hol (bitv_binop binop_add [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv - bitv' = bitv'' :: M :: sub
+  {{ hol (bitv_binop binop_sub [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+%TODO: Unify the below eq_ to equality over values?
+| bitv EQ bitv' = b :: M :: eq_word
+  {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
+| b EQ b' = b'' :: M :: eq_bool
+  {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
+| ( x EQ x' ) = b :: M :: eq_error
+  {{ com equality over strings - used for errors }}
+  {{ hol (([[x]] = [[x']]) = [[b]]) }}
+  {{ tex ([[x]] = [[x']]) = [[b]] }}
+| bitv SHL bitv' = bitv'' :: M :: shl
+  %TODO: Put fixwidth here instead?
+  {{ hol (bitv_bl_binop shiftl [[bitv]] ((\(bl, n). (v2n bl, n)) [[bitv']]) = [[bitv'']]) }}
+| bitv SHR bitv' = bitv'' :: M :: shr
+  %TODO: Put fixwidth here instead?
+  {{ hol (bitv_bl_binop shiftr [[bitv]] ((\(bl, n). (v2n bl, n)) [[bitv']]) = [[bitv'']]) }}
+| bitv LE bitv' = b :: M :: le
+  {{ hol ((bitv_binpred binop_le [[bitv]] [[bitv']]) = SOME [[b]]) }}
+| bitv GE bitv' = b :: M :: ge
+  {{ hol ((bitv_binpred binop_ge [[bitv]] [[bitv']]) = SOME [[b]]) }}
+| bitv < bitv' = b :: M :: lt
+  {{ hol ((bitv_binpred binop_lt [[bitv]] [[bitv']]) = SOME [[b]]) }}
+| bitv > bitv' = b :: M :: gt
+  {{ hol ((bitv_binpred binop_gt [[bitv]] [[bitv']]) = SOME [[b]]) }}
+%TODO: Unify the below neq_ to inequality over values?
+| bitv NE bitv' = b :: M :: neq_word
+  {{ hol (([[bitv]] <> [[bitv']]) <=> [[b]]) }}
+| ( x <> x' ) = b :: M :: neq_error
+  {{ com inequality over strings - used for errors }}
+  {{ hol (([[x]] <> [[x']]) = [[b]]) }}
+  {{ tex ([[x]] \neq [[x']]) = [[b]] }}
+| b NE b' = b'' :: M :: neq_bool
+  {{ hol (([[b]] <> [[b']]) <=> [[b'']]) }}
+| bitv & bitv' = bitv'' :: M :: and_word
+  {{ hol (bitv_bl_binop band [[bitv]] [[bitv']] = [[bitv'']]) }}
+| bitv ^ bitv' = bitv'' :: M :: xor_word
+  %TODO: Decide LaTeX XOR representation
+  {{ hol (bitv_bl_binop bxor [[bitv]] [[bitv']] = [[bitv'']]) }}
+| bitv '|' bitv' = bitv'' :: M :: or_word
+  {{ hol (bitv_bl_binop bor [[bitv]] [[bitv']] = [[bitv'']]) }}
+| b AND b' = b'' :: M :: and_bool
+  {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
+| b OR b' = b'' :: M :: or_bool
+  {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
+
+%Type-transforming operations
+| curr_stack_frame = hd call_stack :: M :: call_stack_hd
+  {{ hol ([[curr_stack_frame]] = HD [[call_stack]]) }}
+  {{ tex [[curr_stack_frame]] = \mathrm{hd} [[call_stack]] }}
+| scope = curr_stack_frame [ i ] :: M :: curr_stack_frame_index
+  {{ hol ([[scope]] = EL [[i]] [[curr_stack_frame]]) }}
+%TODO: Why does the above not work for value 1?
+| scope = curr_stack_frame [ 1 ] :: M :: curr_stack_frame_index_1
+  {{ hol ([[scope]] = EL 1 [[curr_stack_frame]]) }}
+| ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f ) :: M :: func_lookup
+  {{ com function signature lookup }}
+  {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
+| find_index_max ( curr_stack_frame , x ) = i :: M :: find_index_scope_max
+  {{ com find max index of variable's scope }}
+  %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
+  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[curr_stack_frame]])) = [[i]]) }}
+  {{ tex i = \mathrm{max} \, \{ j . \,\, [[x]]  \in \mathrm{dom} ( [[curr_stack_frame]] [j] )   \} }}
+%  {{ tex [[x]] \in \mathrm{dom}([[curr_stack_frame]][ [[i]] ]) \land \forall j . \,\, j > [[i]] \Rightarrow [[x]] \notin \mathrm{dom}([[curr_stack_frame]][j]) }}
+| length ( curr_stack_frame ) = i :: M :: find_length
+  {{ com find the current stack frame length }}
+  {{ tex [[i]] = length ([[curr_stack_frame]])}}
+  {{ hol ([[i]] = LENGTH [[curr_stack_frame]]) }}
+| length ( curr_stack_frame ) - 1 = i :: M :: find_length_minus_1
+  {{ com find the current stack frame length minus 1 }}
+  {{ tex [[i]] = length ([[curr_stack_frame]]) - 1}}
+  {{ hol ([[i]] = LENGTH [[curr_stack_frame]] - 1) }}  
+| v = scope ( x ) :: M :: lookup
+  {{ com look-up of variable in scope }}
+  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
+| v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: s_access
+  {{ com access of field in struct }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+| v = header boolv { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: h_access
+  {{ com access of field in header }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+| e = e_list [ i ] :: M :: args_index
+  {{ hol ([[e]] = EL [[i]] [[e_list]]) }}
+| e = hd e_list :: M :: args_hd
+  {{ hol ([[e]] = HD [[e_list]]) }}
+  {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
+| v = lookup_vexp ( curr_stack_frame , x ) :: :: lookup_v
+  {{ tex [[v]] = \mathrm{lookup_v} ([[curr_stack_frame]], [[x]]) }}
+  {{ hol [[v]] =  lookup_vexp [[curr_stack_frame]] [[x]]}}
+| ( v , a ) = lookup_tup ( curr_stack_frame , x ) :: :: lookup_tup
+  {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[curr_stack_frame]], [[x]]) }}
+| x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
+  {{ com access of string in select key-value list }}
+  {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = SOME ([[v]], [[x']])) }}
+  %TODO: Hack due to lack of list comprehension for tex
+  {{ tex [[x']] = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) }}
+| v notin { v1 : x1 ; ... ; vn : xn } :: M :: sel_def
+  {{ com default string in select key-value list }}
+  {{ hol (FIND (\(ks, s). ks = [[v]]) [[v1 x1 ... vn xn]] = NONE) }}
+  %TODO: Hack due to lack of list comprehension for tex
+  {{ tex [[v]] \notin \mathrm{dom}(\{ v_1 : x_1 ; ... ; v_n : x_n \}) }}
+| check_args_red d_list e_list :: M :: signature_check  
+  {{ com check if arguments are isvar or isconst }}
+  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+         ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
+  {{ hol (check_args_red [[d_list]] [[e_list]]) }}
+| ~check_args_red d_list e_list :: M :: signature_check_false
+  {{ com check if arguments are not isvar or isconst }}
+  {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+         \neg ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
+  {{ hol (~(check_args_red [[d_list]] [[e_list]])) }}
+%some operations on the direction list
+| d = d_list [ i ] :: M :: d_index
+  {{ hol ([[d]] = EL [[i]] [[d_list]]) }}
+  {{ tex [[d]] = [[d_list]] [[i]] }}  
+| d = hd d_list :: M :: d_hd
+  {{ hol ([[d]] = HD [[d_list]]) }}
+  {{ tex [[d]] = \mathrm{hd} \,\, [[d_list]] }} 
+| unred_arg_index d_list e_list = i :: M :: parameter_index
+  {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME [[i]]) }}
+
+%Equalities
+| scope = scope' :: M :: scope_eq
+  {{ com scope equality }}
+  {{ hol ([[scope]] = [[scope']]) }}
+| curr_stack_frame = curr_stack_frame' :: M :: curr_stack_frame_eq
+  {{ com curr_stack_frame equality }}
+  {{ hol ([[curr_stack_frame]] = [[curr_stack_frame']]) }}
+| call_stack = call_stack' :: M :: call_stack_eq
+  {{ com call_stack equality }}
+  {{ hol ([[call_stack]] = [[call_stack']]) }}
+%Note the modified equality sign in the below.
+%This help to distinguish between e and e_list, as well as provide a single parse
+%considering some equalities between expressions are explicitly typeset
+| e_list =' e_list' :: M :: args_eq
+  {{ com args equality }}
+  {{ hol ([[e_list]] = [[e_list']]) }}
+  {{ tex [[e_list]] = [[e_list']] }}
+| in_out_list = in_out_list' :: M :: io_eq
+  {{ com args equality }}
+  {{ hol ([[in_out_list]] = [[in_out_list']]) }}
+  {{ tex [[in_out_list]] = [[in_out_list']] }}
+
+%Apply table
+| tbl_map ( tbl ) = ( e , mk ) :: :: find_key
+  {{ com find keys and the matching kind in the table map }}
+  {{ tex \mathrm{t\_map}\, [[tbl]]\, =\, ( [[e]] \, , [[mk]] ) }}
+  {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[e]] , [[mk]] ) ) }}
+| ctrl ( tbl , v , mk ) = ( f , e_list ) :: :: ctrl_plane  
+  {{ com fetch the function name and parameters from the ctrl plane }}
+  {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[v]], \, [[mk]]\, ) = \,( [[f]] , [[e_list]] ) }}
+  {{ hol ([[ctrl]] ( [[tbl]] , [[v]] , [[mk]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
+
+%MISC (TODO: Sort these)
+%TODO: Equalities and inequalities on numerals
+| i' = i + 1 :: M :: num_inc
+  {{ com numeral increment }}
+  {{ hol ([[i']] = [[i]] + 1) }}
+  {{ tex [[i']] = [[i]] + 1 }}
+| i = length ( e_list ) :: M :: num_len
+  {{ com length of list }}
+  {{ hol ([[i]] = LENGTH [[e_list]]) }}
+  {{ tex [[i]] = \mathrm{len} \,\, [[e_list]] }}
+| i < length ( e_list ) :: M :: num_in_rg
+  {{ com numeral in range }}
+  {{ hol ([[i]] < LENGTH [[e_list]]) }}
+  {{ tex [[i]] < \mathrm{len}(\mathit{e}) }}
+| is_consts ( e_list ) :: M :: args_const
+  {{ com function arguments constant }}
+  {{ hol (is_consts [[e_list]]) }}
+  %TODO: Fix typesetting
+  {{ tex \mathrm{is\_consts} \,\, [[e_list]] }}
+| stmt = pars_map ( x ) :: M :: pars_lookup
+  {{ com parser state map lookup }}
+  {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
+| x = parseError :: M :: pars_err
+  {{ com parser error literal }}
+  {{ hol ([[x]] = "parseError") }}
+  {{ tex [[x]] = ``\mathit{parseError}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| v = lookup_lval ( curr_stack_frame , lval ) :: M :: lookup_lval
+  {{ com instantaneous lookup of lvals }}
+  {{ hol ([[v]] = lookup_lval [[curr_stack_frame]]  [[lval]]) }}
+  {{ tex [[v]] = { \mathrm{lookup} }_{ \mathrm{lval} } ([[curr_stack_frame]], [[lval]]) }}
+| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: s_fld_upd
+  {{ com update of struct field }}
+  {{ hol ([[v'']] = v_struct (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
+| v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: h_fld_upd
+  {{ com update of struct field }}
+  {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
+| not_final_state ( x ) :: M :: not_final_x
+  {{ com x is not name of final state }}
+  {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
+| x = "accept" :: M :: is_accept
+  {{ com x is accept }}
+  {{ hol ([[x]] = "accept") }}
+  {{ tex [[x]] = ``\mathit{accept}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| x = "reject" :: M :: is_reject
+  {{ com x is reject }}
+  {{ hol ([[x]] = "reject") }}
+  {{ tex [[x]] = ``\mathit{reject}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| x = "start" :: M :: is_start
+  {{ com x is start }}
+  {{ hol ([[x]] = "start") }}
+  {{ tex [[x]] = ``\mathit{start}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| scope = all_arg_update_for_newscope ( ( x1 , .. , xn ) , d_list , e_list , curr_stack_frame ) :: M :: build_scope
+  {{ com build new scope }}
+  {{ tex \forall d,\, e,\, x,\, i \leqslant n . \, x = [x_1 , ... , x_n] [i] \land 
+         \, e = [e_1 , ... , e_n] [i] \land 
+         \, d = [d_1 , ... , d_n] [i] 
+         \implies [[scope]](x) = 
+	   \begin{cases}
+	     (\mathrm{lookup_v}( \varepsilon , e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \} \\
+             (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
+	   \end{cases} }}
+  {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[curr_stack_frame]]) }}
+| v = arb_from_t t :: M :: make_arb
+  {{ com create new varaible in declaration }}
+  {{ hol ([[v]] = arb_from_t [[t]]) }}
+  {{ tex [[v]] = \mathrm{arb\_from\_t} [[t]] }}
+| ext lval ( e1 , .. , en ) ( ctrl , stacks , Running ) = ( v , ( ctrl' , stacks' , status ) ) :: M :: exec_ext
+  {{ com execute extern method }}
+  {{ hol ([[ext]] ([[lval]], [[e1 .. en]], ([[ctrl]], [[stacks]], status_running)) = SOME ([[v]], ([[ctrl']], [[stacks']], [[status]]))) }}
+| ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
+  {{ com ext lookup }}
+  {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
+| curr_stack_frame' = assign ( curr_stack_frame , v , lval ) :: M :: assign
+  {{ com assign v to lval in the frame }}
+  {{ hol (SOME [[curr_stack_frame']] = assign [[curr_stack_frame]] [[v]] [[lval]]) }}
+  {{ tex [[curr_stack_frame']] = [[curr_stack_frame]] [ [[lval]] \longmapsto [[v]] ] }}
+| curr_stack_frame'' = update_return ( curr_stack_frame , curr_stack_frame' , d_list , ( x1 , .. , xn ) ) :: M :: update_return
+  %curr_stack_frame is function's stack frame, curr_stack_frame' is caller's stack frame
+  {{ com update caller's stack frame upon function return }}
+  %TODO: fix the \varepsilon and e list in the latex output. 
+  {{ tex [[curr_stack_frame'']] = \mathrm{FOLD} (\lambda \, \overline{\varepsilon} \, i . \,
+	                  \mathrm{if}  [[d_list]] [i] \in \{ \downarrow , \circ \} \, \mathrm{then} \, \overline{\varepsilon} \\
+                          \mathrm{else} \, \overline{\varepsilon} \, [a \longmapsto v] \mathit{where} \; (\mathit{v}, a) = \mathrm{lookup_t}( [[curr_stack_frame]] , [x_1 , ... , x_n] [i]) ) ( [[curr_stack_frame']] ) [1 ... n] }}
+  {{ hol (SOME [[curr_stack_frame'']] = update_return_frame [[x1 .. xn]] [[d_list]] [[curr_stack_frame']] [[curr_stack_frame]]) }}
+| not_empty stmt :: M :: not_empty
+  {{ com check so that statement is not the empty statement }}
+  {{ hol ([[stmt]] <> stmt_empty) }}
+
+%Package semantics-related formulae
+| pblock = pblock_map ( f ) :: M :: lookup_pb
+  {{ com programmable block lookup }}
+  {{ hol (FLOOKUP [[pblock_map]] [[f]] = SOME [[pblock]]) }}
+| ffblock = ffblock_map ( f ) :: M :: lookup_ffb
+  {{ com fixed-function block lookup }}
+  {{ hol (FLOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
+| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
+  {{ com obtain body and args of pblock }}
+  {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
+| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_ffbl ( ffblock ) :: M :: args_ffb
+  {{ com obtain args of ffblock }}
+  {{ hol (([[x1 d1 .. xn dn]]) = args_of_ffbl [[ffblock]] ) }}
+| arch_block = ab_list [ i ] :: M :: ab_index
+  {{ com ab at index i }}
+  {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
+| ( scope' , curr_stack_frame' ) = ff ( ( e1 ,  .. , en ) , scope , curr_stack_frame ) :: M :: app_ff
+  {{ com apply fixed function }}
+  {{ hol (SOME ([[scope']], [[curr_stack_frame']]) = [[ff]] ([[e1 .. en]], [[scope]], [[curr_stack_frame]]) ) }}
+| ( in_out_list' , scope' ) = input_f ( in_out_list , scope ) :: M :: input_f
+  {{ com apply input function }}
+  {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[input_f]] ( [[in_out_list]] , [[scope]] ) ) }}
+| ( in_out_list' , scope' ) = output_f ( in_out_list , scope ) :: M :: output_f
+  {{ com apply output function }}
+  {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[output_f]] ( [[in_out_list]] , [[scope]] ) ) }}
+%TODO: Try replacing "zero i" with "i = 0" - mysterious bugs appear...
+| zero i :: M :: num_zero
+  {{ com numeral zeroing }}
+  {{ hol ([[i]] = 0) }}
+  {{ tex [[i]] = 0 }}
+| status_not_fin status :: M :: not_final
+  {{ com status is not final }}
+  {{ hol (([[status]] <> status_pars_next (pars_next_pars_fin pars_finaccept)) /\ ([[status]] <> status_pars_next (pars_next_pars_fin pars_finreject))) }}
+  {{ tex [[status]] \neq \mathit{pars\_fin} }}
+| not_return stmt :: M :: not_return
+  {{ com statement is not return }}
+  {{ hol (!e. [[stmt]] <> stmt_ret e) }}
+  {{ tex [[stmt]] \neq \mathit{return} }}
+| lval = "parseError" :: M :: is_parse_error
+  {{ com lval is parseError }}
+  {{ hol ([[lval]] = lval_varname "parseError") }}
+  {{ tex [[lval]] = \mathit{parseError} }}
+| v = errmsg "NoError" :: M :: is_no_error
+  {{ com v is NoError }}
+  {{ hol ([[v]] = v_err "NoError") }}
+  {{ tex [[v]] = \mathit{NoError} }}
+| curr_stack_frame' = declare ( curr_stack_frame , x , t ) :: M :: declare
+  {{ com declare variable of type }}
+  {{ hol ([[curr_stack_frame']] = declare [[curr_stack_frame]] [[x]] [[t]]) }}
+  {{ tex [[curr_stack_frame']] = \mathrm{declare} ([[curr_stack_frame]], [[x]], [[t]]) }}
+| curr_stack_frame' = initialise ( curr_stack_frame , x , v ) :: M :: initialise
+  {{ com initialise variable to value }}
+  {{ hol ([[curr_stack_frame']] = initialise [[curr_stack_frame]] [[x]] [[v]]) }}
+  {{ tex [[curr_stack_frame']] = \mathrm{initialise} ([[curr_stack_frame]], [[x]], [[v]]) }}
+
+embed
+{{ hol
+val is_const_def = Define `
+  (is_const (e_v _) = T) /\
+  (is_const _ = F)
+`;
+val is_consts_def = Define `
+  is_consts el = ~(EXISTS (\e. ~(is_const e)) el)
+`;
+
+(* Access the field f of a struct or a header *)
+val acc_f_def = Define `
+  (acc_f (v_struct s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s)))) /\
+  (acc_f (v_header _ s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s)))) /\
+  (acc_f _ f = NONE)
+`;
+
+val bitv_bl_unop_def = Define `
+  bitv_bl_unop unop (bl, n) = (unop bl, n)
+`;
+
+val bitv_bl_binop_def = Define `
+  bitv_bl_binop binop (bl, n) (bl', n') = (fixwidth n (binop bl bl'), n)
+`;
+
+val get_word_unop_def = Define `
+  (get_word_unop unop_compl = word_1comp) /\
+  (get_word_unop unop_neg_signed = word_2comp) /\
+  (get_word_unop unop_un_plus = (\w. w))
+`;
+val bitv_unop_def = Define `
+    (bitv_unop unop (v, 1) = (w2v ((get_word_unop unop) ((v2w v): 1 word)), 1) )
+/\  (bitv_unop unop (v, 2) = (w2v ((get_word_unop unop) ((v2w v): 2 word)), 2) )
+/\  (bitv_unop unop (v, 3) = (w2v ((get_word_unop unop) ((v2w v): 3 word)), 3) )
+/\  (bitv_unop unop (v, 4) = (w2v ((get_word_unop unop) ((v2w v): 4 word)), 4) )
+/\  (bitv_unop unop (v, 5) = (w2v ((get_word_unop unop) ((v2w v): 5 word)), 5) )
+/\  (bitv_unop unop (v, 6) = (w2v ((get_word_unop unop) ((v2w v): 6 word)), 6) )
+/\  (bitv_unop unop (v, 7) = (w2v ((get_word_unop unop) ((v2w v): 7 word)), 7) )
+/\  (bitv_unop unop (v, 8) = (w2v ((get_word_unop unop) ((v2w v): 8 word)), 8) )
+/\  (bitv_unop unop (v, 9) = (w2v ((get_word_unop unop) ((v2w v): 9 word)), 9) )
+/\  (bitv_unop unop (v, 10) = (w2v ((get_word_unop unop) ((v2w v): 10 word)), 10) )
+/\  (bitv_unop unop (v, 11) = (w2v ((get_word_unop unop) ((v2w v): 11 word)), 11) )
+/\  (bitv_unop unop (v, 12) = (w2v ((get_word_unop unop) ((v2w v): 12 word)), 12) )
+/\  (bitv_unop unop (v, 13) = (w2v ((get_word_unop unop) ((v2w v): 13 word)), 13) )
+/\  (bitv_unop unop (v, 14) = (w2v ((get_word_unop unop) ((v2w v): 14 word)), 14) )
+/\  (bitv_unop unop (v, 15) = (w2v ((get_word_unop unop) ((v2w v): 15 word)), 15) )
+/\  (bitv_unop unop (v, 16) = (w2v ((get_word_unop unop) ((v2w v): 16 word)), 16) )
+/\  (bitv_unop unop (v, 17) = (w2v ((get_word_unop unop) ((v2w v): 17 word)), 17) )
+/\  (bitv_unop unop (v, 18) = (w2v ((get_word_unop unop) ((v2w v): 18 word)), 18) )
+/\  (bitv_unop unop (v, 19) = (w2v ((get_word_unop unop) ((v2w v): 19 word)), 19) )
+/\  (bitv_unop unop (v, 20) = (w2v ((get_word_unop unop) ((v2w v): 20 word)), 20) )
+/\  (bitv_unop unop (v, 21) = (w2v ((get_word_unop unop) ((v2w v): 21 word)), 21) )
+/\  (bitv_unop unop (v, 22) = (w2v ((get_word_unop unop) ((v2w v): 22 word)), 22) )
+/\  (bitv_unop unop (v, 23) = (w2v ((get_word_unop unop) ((v2w v): 23 word)), 23) )
+/\  (bitv_unop unop (v, 24) = (w2v ((get_word_unop unop) ((v2w v): 24 word)), 24) )
+/\  (bitv_unop unop (v, 25) = (w2v ((get_word_unop unop) ((v2w v): 25 word)), 25) )
+/\  (bitv_unop unop (v, 26) = (w2v ((get_word_unop unop) ((v2w v): 26 word)), 26) )
+/\  (bitv_unop unop (v, 27) = (w2v ((get_word_unop unop) ((v2w v): 27 word)), 27) )
+/\  (bitv_unop unop (v, 28) = (w2v ((get_word_unop unop) ((v2w v): 28 word)), 28) )
+/\  (bitv_unop unop (v, 29) = (w2v ((get_word_unop unop) ((v2w v): 29 word)), 29) )
+/\  (bitv_unop unop (v, 30) = (w2v ((get_word_unop unop) ((v2w v): 30 word)), 30) )
+/\  (bitv_unop unop (v, 31) = (w2v ((get_word_unop unop) ((v2w v): 31 word)), 31) )
+/\  (bitv_unop unop (v, 32) = (w2v ((get_word_unop unop) ((v2w v): 32 word)), 32) )
+/\  (bitv_unop unop (v, 33) = (w2v ((get_word_unop unop) ((v2w v): 33 word)), 33) )
+/\  (bitv_unop unop (v, 34) = (w2v ((get_word_unop unop) ((v2w v): 34 word)), 34) )
+/\  (bitv_unop unop (v, 35) = (w2v ((get_word_unop unop) ((v2w v): 35 word)), 35) )
+/\  (bitv_unop unop (v, 36) = (w2v ((get_word_unop unop) ((v2w v): 36 word)), 36) )
+/\  (bitv_unop unop (v, 37) = (w2v ((get_word_unop unop) ((v2w v): 37 word)), 37) )
+/\  (bitv_unop unop (v, 38) = (w2v ((get_word_unop unop) ((v2w v): 38 word)), 38) )
+/\  (bitv_unop unop (v, 39) = (w2v ((get_word_unop unop) ((v2w v): 39 word)), 39) )
+/\  (bitv_unop unop (v, 40) = (w2v ((get_word_unop unop) ((v2w v): 40 word)), 40) )
+/\  (bitv_unop unop (v, 41) = (w2v ((get_word_unop unop) ((v2w v): 41 word)), 41) )
+/\  (bitv_unop unop (v, 42) = (w2v ((get_word_unop unop) ((v2w v): 42 word)), 42) )
+/\  (bitv_unop unop (v, 43) = (w2v ((get_word_unop unop) ((v2w v): 43 word)), 43) )
+/\  (bitv_unop unop (v, 44) = (w2v ((get_word_unop unop) ((v2w v): 44 word)), 44) )
+/\  (bitv_unop unop (v, 45) = (w2v ((get_word_unop unop) ((v2w v): 45 word)), 45) )
+/\  (bitv_unop unop (v, 46) = (w2v ((get_word_unop unop) ((v2w v): 46 word)), 46) )
+/\  (bitv_unop unop (v, 47) = (w2v ((get_word_unop unop) ((v2w v): 47 word)), 47) )
+/\  (bitv_unop unop (v, 48) = (w2v ((get_word_unop unop) ((v2w v): 48 word)), 48) )
+/\  (bitv_unop unop (v, 49) = (w2v ((get_word_unop unop) ((v2w v): 49 word)), 49) )
+/\  (bitv_unop unop (v, 50) = (w2v ((get_word_unop unop) ((v2w v): 50 word)), 50) )
+/\  (bitv_unop unop (v, 51) = (w2v ((get_word_unop unop) ((v2w v): 51 word)), 51) )
+/\  (bitv_unop unop (v, 52) = (w2v ((get_word_unop unop) ((v2w v): 52 word)), 52) )
+/\  (bitv_unop unop (v, 53) = (w2v ((get_word_unop unop) ((v2w v): 53 word)), 53) )
+/\  (bitv_unop unop (v, 54) = (w2v ((get_word_unop unop) ((v2w v): 54 word)), 54) )
+/\  (bitv_unop unop (v, 55) = (w2v ((get_word_unop unop) ((v2w v): 55 word)), 55) )
+/\  (bitv_unop unop (v, 56) = (w2v ((get_word_unop unop) ((v2w v): 56 word)), 56) )
+/\  (bitv_unop unop (v, 57) = (w2v ((get_word_unop unop) ((v2w v): 57 word)), 57) )
+/\  (bitv_unop unop (v, 58) = (w2v ((get_word_unop unop) ((v2w v): 58 word)), 58) )
+/\  (bitv_unop unop (v, 59) = (w2v ((get_word_unop unop) ((v2w v): 59 word)), 59) )
+/\  (bitv_unop unop (v, 60) = (w2v ((get_word_unop unop) ((v2w v): 60 word)), 60) )
+/\  (bitv_unop unop (v, 61) = (w2v ((get_word_unop unop) ((v2w v): 61 word)), 61) )
+/\  (bitv_unop unop (v, 62) = (w2v ((get_word_unop unop) ((v2w v): 62 word)), 62) )
+/\  (bitv_unop unop (v, 63) = (w2v ((get_word_unop unop) ((v2w v): 63 word)), 63) )
+/\  (bitv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
+`;
+val get_word_binop_def = Define `
+    (get_word_binop binop_mul = word_mul)
+/\  (get_word_binop binop_div = word_div)
+/\  (get_word_binop binop_mod = word_mod)
+/\  (get_word_binop binop_add = word_add)
+/\  (get_word_binop binop_sub = word_sub)
+/\  (get_word_binop binop_shl = word_lsl_bv)
+/\  (get_word_binop binop_shr = word_lsr_bv)
+/\  (get_word_binop binop_and = word_and)
+/\  (get_word_binop binop_xor = word_xor)
+/\  (get_word_binop binop_or = word_or)
+`;
+
+val bitv_binop_inner_def = Define `
+    (bitv_binop_inner binop v v' 1 = SOME (w2v ((get_word_binop binop) ((v2w v): 1 word) ((v2w v'): 1 word)), 1) )
+/\  (bitv_binop_inner binop v v' 2 = SOME (w2v ((get_word_binop binop) ((v2w v): 2 word) ((v2w v'): 2 word)), 2) )
+/\  (bitv_binop_inner binop v v' 3 = SOME (w2v ((get_word_binop binop) ((v2w v): 3 word) ((v2w v'): 3 word)), 3) )
+/\  (bitv_binop_inner binop v v' 4 = SOME (w2v ((get_word_binop binop) ((v2w v): 4 word) ((v2w v'): 4 word)), 4) )
+/\  (bitv_binop_inner binop v v' 5 = SOME (w2v ((get_word_binop binop) ((v2w v): 5 word) ((v2w v'): 5 word)), 5) )
+/\  (bitv_binop_inner binop v v' 6 = SOME (w2v ((get_word_binop binop) ((v2w v): 6 word) ((v2w v'): 6 word)), 6) )
+/\  (bitv_binop_inner binop v v' 7 = SOME (w2v ((get_word_binop binop) ((v2w v): 7 word) ((v2w v'): 7 word)), 7) )
+/\  (bitv_binop_inner binop v v' 8 = SOME (w2v ((get_word_binop binop) ((v2w v): 8 word) ((v2w v'): 8 word)), 8) )
+/\  (bitv_binop_inner binop v v' 9 = SOME (w2v ((get_word_binop binop) ((v2w v): 9 word) ((v2w v'): 9 word)), 9) )
+/\  (bitv_binop_inner binop v v' 10 = SOME (w2v ((get_word_binop binop) ((v2w v): 10 word) ((v2w v'): 10 word)), 10) )
+/\  (bitv_binop_inner binop v v' 11 = SOME (w2v ((get_word_binop binop) ((v2w v): 11 word) ((v2w v'): 11 word)), 11) )
+/\  (bitv_binop_inner binop v v' 12 = SOME (w2v ((get_word_binop binop) ((v2w v): 12 word) ((v2w v'): 12 word)), 12) )
+/\  (bitv_binop_inner binop v v' 13 = SOME (w2v ((get_word_binop binop) ((v2w v): 13 word) ((v2w v'): 13 word)), 13) )
+/\  (bitv_binop_inner binop v v' 14 = SOME (w2v ((get_word_binop binop) ((v2w v): 14 word) ((v2w v'): 14 word)), 14) )
+/\  (bitv_binop_inner binop v v' 15 = SOME (w2v ((get_word_binop binop) ((v2w v): 15 word) ((v2w v'): 15 word)), 15) )
+/\  (bitv_binop_inner binop v v' 16 = SOME (w2v ((get_word_binop binop) ((v2w v): 16 word) ((v2w v'): 16 word)), 16) )
+/\  (bitv_binop_inner binop v v' 17 = SOME (w2v ((get_word_binop binop) ((v2w v): 17 word) ((v2w v'): 17 word)), 17) )
+/\  (bitv_binop_inner binop v v' 18 = SOME (w2v ((get_word_binop binop) ((v2w v): 18 word) ((v2w v'): 18 word)), 18) )
+/\  (bitv_binop_inner binop v v' 19 = SOME (w2v ((get_word_binop binop) ((v2w v): 19 word) ((v2w v'): 19 word)), 19) )
+/\  (bitv_binop_inner binop v v' 20 = SOME (w2v ((get_word_binop binop) ((v2w v): 20 word) ((v2w v'): 20 word)), 20) )
+/\  (bitv_binop_inner binop v v' 21 = SOME (w2v ((get_word_binop binop) ((v2w v): 21 word) ((v2w v'): 21 word)), 21) )
+/\  (bitv_binop_inner binop v v' 22 = SOME (w2v ((get_word_binop binop) ((v2w v): 22 word) ((v2w v'): 22 word)), 22) )
+/\  (bitv_binop_inner binop v v' 23 = SOME (w2v ((get_word_binop binop) ((v2w v): 23 word) ((v2w v'): 23 word)), 23) )
+/\  (bitv_binop_inner binop v v' 24 = SOME (w2v ((get_word_binop binop) ((v2w v): 24 word) ((v2w v'): 24 word)), 24) )
+/\  (bitv_binop_inner binop v v' 25 = SOME (w2v ((get_word_binop binop) ((v2w v): 25 word) ((v2w v'): 25 word)), 25) )
+/\  (bitv_binop_inner binop v v' 26 = SOME (w2v ((get_word_binop binop) ((v2w v): 26 word) ((v2w v'): 26 word)), 26) )
+/\  (bitv_binop_inner binop v v' 27 = SOME (w2v ((get_word_binop binop) ((v2w v): 27 word) ((v2w v'): 27 word)), 27) )
+/\  (bitv_binop_inner binop v v' 28 = SOME (w2v ((get_word_binop binop) ((v2w v): 28 word) ((v2w v'): 28 word)), 28) )
+/\  (bitv_binop_inner binop v v' 29 = SOME (w2v ((get_word_binop binop) ((v2w v): 29 word) ((v2w v'): 29 word)), 29) )
+/\  (bitv_binop_inner binop v v' 30 = SOME (w2v ((get_word_binop binop) ((v2w v): 30 word) ((v2w v'): 30 word)), 30) )
+/\  (bitv_binop_inner binop v v' 31 = SOME (w2v ((get_word_binop binop) ((v2w v): 31 word) ((v2w v'): 31 word)), 31) )
+/\  (bitv_binop_inner binop v v' 32 = SOME (w2v ((get_word_binop binop) ((v2w v): 32 word) ((v2w v'): 32 word)), 32) )
+/\  (bitv_binop_inner binop v v' 33 = SOME (w2v ((get_word_binop binop) ((v2w v): 33 word) ((v2w v'): 33 word)), 33) )
+/\  (bitv_binop_inner binop v v' 34 = SOME (w2v ((get_word_binop binop) ((v2w v): 34 word) ((v2w v'): 34 word)), 34) )
+/\  (bitv_binop_inner binop v v' 35 = SOME (w2v ((get_word_binop binop) ((v2w v): 35 word) ((v2w v'): 35 word)), 35) )
+/\  (bitv_binop_inner binop v v' 36 = SOME (w2v ((get_word_binop binop) ((v2w v): 36 word) ((v2w v'): 36 word)), 36) )
+/\  (bitv_binop_inner binop v v' 37 = SOME (w2v ((get_word_binop binop) ((v2w v): 37 word) ((v2w v'): 37 word)), 37) )
+/\  (bitv_binop_inner binop v v' 38 = SOME (w2v ((get_word_binop binop) ((v2w v): 38 word) ((v2w v'): 38 word)), 38) )
+/\  (bitv_binop_inner binop v v' 39 = SOME (w2v ((get_word_binop binop) ((v2w v): 39 word) ((v2w v'): 39 word)), 39) )
+/\  (bitv_binop_inner binop v v' 40 = SOME (w2v ((get_word_binop binop) ((v2w v): 40 word) ((v2w v'): 40 word)), 40) )
+/\  (bitv_binop_inner binop v v' 41 = SOME (w2v ((get_word_binop binop) ((v2w v): 41 word) ((v2w v'): 41 word)), 41) )
+/\  (bitv_binop_inner binop v v' 42 = SOME (w2v ((get_word_binop binop) ((v2w v): 42 word) ((v2w v'): 42 word)), 42) )
+/\  (bitv_binop_inner binop v v' 43 = SOME (w2v ((get_word_binop binop) ((v2w v): 43 word) ((v2w v'): 43 word)), 43) )
+/\  (bitv_binop_inner binop v v' 44 = SOME (w2v ((get_word_binop binop) ((v2w v): 44 word) ((v2w v'): 44 word)), 44) )
+/\  (bitv_binop_inner binop v v' 45 = SOME (w2v ((get_word_binop binop) ((v2w v): 45 word) ((v2w v'): 45 word)), 45) )
+/\  (bitv_binop_inner binop v v' 46 = SOME (w2v ((get_word_binop binop) ((v2w v): 46 word) ((v2w v'): 46 word)), 46) )
+/\  (bitv_binop_inner binop v v' 47 = SOME (w2v ((get_word_binop binop) ((v2w v): 47 word) ((v2w v'): 47 word)), 47) )
+/\  (bitv_binop_inner binop v v' 48 = SOME (w2v ((get_word_binop binop) ((v2w v): 48 word) ((v2w v'): 48 word)), 48) )
+/\  (bitv_binop_inner binop v v' 49 = SOME (w2v ((get_word_binop binop) ((v2w v): 49 word) ((v2w v'): 49 word)), 49) )
+/\  (bitv_binop_inner binop v v' 50 = SOME (w2v ((get_word_binop binop) ((v2w v): 50 word) ((v2w v'): 50 word)), 50) )
+/\  (bitv_binop_inner binop v v' 51 = SOME (w2v ((get_word_binop binop) ((v2w v): 51 word) ((v2w v'): 51 word)), 51) )
+/\  (bitv_binop_inner binop v v' 52 = SOME (w2v ((get_word_binop binop) ((v2w v): 52 word) ((v2w v'): 52 word)), 52) )
+/\  (bitv_binop_inner binop v v' 53 = SOME (w2v ((get_word_binop binop) ((v2w v): 53 word) ((v2w v'): 53 word)), 53) )
+/\  (bitv_binop_inner binop v v' 54 = SOME (w2v ((get_word_binop binop) ((v2w v): 54 word) ((v2w v'): 54 word)), 54) )
+/\  (bitv_binop_inner binop v v' 55 = SOME (w2v ((get_word_binop binop) ((v2w v): 55 word) ((v2w v'): 55 word)), 55) )
+/\  (bitv_binop_inner binop v v' 56 = SOME (w2v ((get_word_binop binop) ((v2w v): 56 word) ((v2w v'): 56 word)), 56) )
+/\  (bitv_binop_inner binop v v' 57 = SOME (w2v ((get_word_binop binop) ((v2w v): 57 word) ((v2w v'): 57 word)), 57) )
+/\  (bitv_binop_inner binop v v' 58 = SOME (w2v ((get_word_binop binop) ((v2w v): 58 word) ((v2w v'): 58 word)), 58) )
+/\  (bitv_binop_inner binop v v' 59 = SOME (w2v ((get_word_binop binop) ((v2w v): 59 word) ((v2w v'): 59 word)), 59) )
+/\  (bitv_binop_inner binop v v' 60 = SOME (w2v ((get_word_binop binop) ((v2w v): 60 word) ((v2w v'): 60 word)), 60) )
+/\  (bitv_binop_inner binop v v' 61 = SOME (w2v ((get_word_binop binop) ((v2w v): 61 word) ((v2w v'): 61 word)), 61) )
+/\  (bitv_binop_inner binop v v' 62 = SOME (w2v ((get_word_binop binop) ((v2w v): 62 word) ((v2w v'): 62 word)), 62) )
+/\  (bitv_binop_inner binop v v' 63 = SOME (w2v ((get_word_binop binop) ((v2w v): 63 word) ((v2w v'): 63 word)), 63) )
+/\  (bitv_binop_inner binop v v' 64 = SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64) )
+/\  (bitv_binop_inner binop v v' _ = NONE )
+`;
+val bitv_binop_def = Define `
+  bitv_binop binop (v, n) (v', n') =
+    if n = n'
+    then bitv_binop_inner binop v v' n
+    else NONE
+`;
+
+val get_word_binpred_def = Define `
+    (get_word_binpred binop_le = word_le)
+/\  (get_word_binpred binop_ge = word_ge)
+/\  (get_word_binpred binop_lt = word_lt)
+/\  (get_word_binpred binop_gt = word_gt)
+/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
+/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
+`;
+
+val bitv_binpred_inner_def = Define `
+    (bitv_binpred_inner binpred v v' 1 = SOME (((get_word_binpred binpred) ((v2w v): 1 word) ((v2w v'): 1 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 2 = SOME (((get_word_binpred binpred) ((v2w v): 2 word) ((v2w v'): 2 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 3 = SOME (((get_word_binpred binpred) ((v2w v): 3 word) ((v2w v'): 3 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 4 = SOME (((get_word_binpred binpred) ((v2w v): 4 word) ((v2w v'): 4 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 5 = SOME (((get_word_binpred binpred) ((v2w v): 5 word) ((v2w v'): 5 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 6 = SOME (((get_word_binpred binpred) ((v2w v): 6 word) ((v2w v'): 6 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 7 = SOME (((get_word_binpred binpred) ((v2w v): 7 word) ((v2w v'): 7 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 8 = SOME (((get_word_binpred binpred) ((v2w v): 8 word) ((v2w v'): 8 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 9 = SOME (((get_word_binpred binpred) ((v2w v): 9 word) ((v2w v'): 9 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 10 = SOME (((get_word_binpred binpred) ((v2w v): 10 word) ((v2w v'): 10 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 11 = SOME (((get_word_binpred binpred) ((v2w v): 11 word) ((v2w v'): 11 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 12 = SOME (((get_word_binpred binpred) ((v2w v): 12 word) ((v2w v'): 12 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 13 = SOME (((get_word_binpred binpred) ((v2w v): 13 word) ((v2w v'): 13 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 14 = SOME (((get_word_binpred binpred) ((v2w v): 14 word) ((v2w v'): 14 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 15 = SOME (((get_word_binpred binpred) ((v2w v): 15 word) ((v2w v'): 15 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 16 = SOME (((get_word_binpred binpred) ((v2w v): 16 word) ((v2w v'): 16 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 17 = SOME (((get_word_binpred binpred) ((v2w v): 17 word) ((v2w v'): 17 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 18 = SOME (((get_word_binpred binpred) ((v2w v): 18 word) ((v2w v'): 18 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 19 = SOME (((get_word_binpred binpred) ((v2w v): 19 word) ((v2w v'): 19 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 20 = SOME (((get_word_binpred binpred) ((v2w v): 20 word) ((v2w v'): 20 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 21 = SOME (((get_word_binpred binpred) ((v2w v): 21 word) ((v2w v'): 21 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 22 = SOME (((get_word_binpred binpred) ((v2w v): 22 word) ((v2w v'): 22 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 23 = SOME (((get_word_binpred binpred) ((v2w v): 23 word) ((v2w v'): 23 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 24 = SOME (((get_word_binpred binpred) ((v2w v): 24 word) ((v2w v'): 24 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 25 = SOME (((get_word_binpred binpred) ((v2w v): 25 word) ((v2w v'): 25 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 26 = SOME (((get_word_binpred binpred) ((v2w v): 26 word) ((v2w v'): 26 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 27 = SOME (((get_word_binpred binpred) ((v2w v): 27 word) ((v2w v'): 27 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 28 = SOME (((get_word_binpred binpred) ((v2w v): 28 word) ((v2w v'): 28 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 29 = SOME (((get_word_binpred binpred) ((v2w v): 29 word) ((v2w v'): 29 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 30 = SOME (((get_word_binpred binpred) ((v2w v): 30 word) ((v2w v'): 30 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 31 = SOME (((get_word_binpred binpred) ((v2w v): 31 word) ((v2w v'): 31 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 32 = SOME (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 33 = SOME (((get_word_binpred binpred) ((v2w v): 33 word) ((v2w v'): 33 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 34 = SOME (((get_word_binpred binpred) ((v2w v): 34 word) ((v2w v'): 34 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 35 = SOME (((get_word_binpred binpred) ((v2w v): 35 word) ((v2w v'): 35 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 36 = SOME (((get_word_binpred binpred) ((v2w v): 36 word) ((v2w v'): 36 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 37 = SOME (((get_word_binpred binpred) ((v2w v): 37 word) ((v2w v'): 37 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 38 = SOME (((get_word_binpred binpred) ((v2w v): 38 word) ((v2w v'): 38 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 39 = SOME (((get_word_binpred binpred) ((v2w v): 39 word) ((v2w v'): 39 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 40 = SOME (((get_word_binpred binpred) ((v2w v): 40 word) ((v2w v'): 40 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 41 = SOME (((get_word_binpred binpred) ((v2w v): 41 word) ((v2w v'): 41 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 42 = SOME (((get_word_binpred binpred) ((v2w v): 42 word) ((v2w v'): 42 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 43 = SOME (((get_word_binpred binpred) ((v2w v): 43 word) ((v2w v'): 43 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 44 = SOME (((get_word_binpred binpred) ((v2w v): 44 word) ((v2w v'): 44 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 45 = SOME (((get_word_binpred binpred) ((v2w v): 45 word) ((v2w v'): 45 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 46 = SOME (((get_word_binpred binpred) ((v2w v): 46 word) ((v2w v'): 46 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 47 = SOME (((get_word_binpred binpred) ((v2w v): 47 word) ((v2w v'): 47 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 48 = SOME (((get_word_binpred binpred) ((v2w v): 48 word) ((v2w v'): 48 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 49 = SOME (((get_word_binpred binpred) ((v2w v): 49 word) ((v2w v'): 49 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 50 = SOME (((get_word_binpred binpred) ((v2w v): 50 word) ((v2w v'): 50 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 51 = SOME (((get_word_binpred binpred) ((v2w v): 51 word) ((v2w v'): 51 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 52 = SOME (((get_word_binpred binpred) ((v2w v): 52 word) ((v2w v'): 52 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 53 = SOME (((get_word_binpred binpred) ((v2w v): 53 word) ((v2w v'): 53 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 54 = SOME (((get_word_binpred binpred) ((v2w v): 54 word) ((v2w v'): 54 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 55 = SOME (((get_word_binpred binpred) ((v2w v): 55 word) ((v2w v'): 55 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 56 = SOME (((get_word_binpred binpred) ((v2w v): 56 word) ((v2w v'): 56 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 57 = SOME (((get_word_binpred binpred) ((v2w v): 57 word) ((v2w v'): 57 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 58 = SOME (((get_word_binpred binpred) ((v2w v): 58 word) ((v2w v'): 58 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 59 = SOME (((get_word_binpred binpred) ((v2w v): 59 word) ((v2w v'): 59 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 60 = SOME (((get_word_binpred binpred) ((v2w v): 60 word) ((v2w v'): 60 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 61 = SOME (((get_word_binpred binpred) ((v2w v): 61 word) ((v2w v'): 61 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 62 = SOME (((get_word_binpred binpred) ((v2w v): 62 word) ((v2w v'): 62 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 63 = SOME (((get_word_binpred binpred) ((v2w v): 63 word) ((v2w v'): 63 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 64 = SOME (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' _ = NONE )
+`;
+val bitv_binpred_def = Define `
+  bitv_binpred binpred (v, n) (v', n') =
+    if n = n'
+    then bitv_binpred_inner binpred v v' n
+    else NONE
+`;
+val bitv_concat_def = Define `
+  bitv_concat (v, n) (v', n') = (v ++ v', n + n')
+`;
+(* TODO: Check big-endianness vs. little-endianness (order of arguments of SEG) *)
+val bitv_bitslice_def = Define `
+  bitv_bitslice (v, n) m l = (SEG m l v, m - l + 1)
+`;
+
+val is_var_def = Define `
+  (is_var (e_var _) = T) /\
+  (is_var _ = F)
+`;
+
+(* Extracts the string that represents the variable name from the expression form *)
+val extract_string_def = Define `
+  extract_string (e_var x) = x
+`;
+
+val extract_value_def = Define `
+  extract_value (e_v v) = v
+`;
+
+(* Finds the topmost scope where the variable x is mapped and its index, as a tuple.
+ * Note that here, 0 is the topmost scope. *)
+val find_topmost_scope_def = Define `
+  find_topmost_scope (sf:scope list) x =
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE sf) of
+    | SOME (i, sc) => SOME (((LENGTH sf) - 1) - i, sc)
+    | NONE => NONE
+`;
+
+(* Extracts the topmost scope where the variable name x is mapped *)
+val topmost_scope_def = Define `
+  topmost_scope (sf:scope list) x =
+    SND (THE (find_topmost_scope sf x))
+`;
+
+(* Extracts the index of the topmost scope where the variable name x is mapped *)
+val topmost_scope_index_def = Define `
+  topmost_scope_index (sf:scope list) x = 
+    FST (THE (find_topmost_scope sf x))
+`;
+(* Fetches the (value, string option) tuple of the variable name x,
+ * in the topmost scope where it is mapped *)
+val lookup_tup_def = Define `
+  lookup_tup (sf:scope list) x =
+    THE (FLOOKUP (topmost_scope sf x) x)
+`;
+(* Fetches the value of the variable name x from the topmost scope where it is mapped *)
+val lookup_v_def = Define `
+  lookup_v (sf:scope list) x =
+    FST (lookup_tup sf x)
+`;
+(* Fetches the (optional) argument variable name that might have been saved if
+ * variable name x was mapped as a result of being an out-parameter in a
+ * called function from the topmost scope where x is mapped *)
+val lookup_out_def = Define `
+  lookup_out (sf:scope list) x =
+    SND (lookup_tup sf x)
+`;
+(* Same as the above, but directly from an expression *)
+val lookup_vexp_def = Define `
+  lookup_vexp (sf:scope list) x =
+    lookup_v (sf:scope list) x 
+`;
+
+(* Look up the value of a l-value (variables + fields of struct-valued variables) in
+ * the current stack frame sf. *)
+val lookup_lval_def = Define `
+  (lookup_lval (sf:scope list) (lval_varname x) = (lookup_v sf x)) /\
+  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
+`;
+
+(* TODO: This is ambiguous with regard to inout... *)
+val is_d_none_in_def = Define `
+  (is_d_none_in d_in = T) /\
+  (is_d_none_in d_none = T) /\
+  (is_d_none_in _ = F)
+`;
+
+val is_d_in_def = Define `
+  (is_d_in d_in = T) /\
+  (is_d_in d_inout = T) /\
+  (is_d_in _ = F)
+`;
+
+val is_d_out_def = Define `
+  (is_d_out d_inout = T) /\
+  (is_d_out d_out = T) /\
+  (is_d_out _ = F)
+`;
+
+(* Obtains the minimum index where the direction is "none" or "in" in dlist and the
+ * expression in the same position of elist is not a constant, and the corresponding such
+ * direction and expression *)
+val find_unred_arg_def = Define `
+  find_unred_arg dlist elist = 
+    (INDEX_FIND 0 (\(d, e). ~(is_d_out d) /\ ~(is_const e)) (ZIP (dlist, elist)))
+`;
+val unred_arg_index_def = Define `
+  unred_arg_index dlist elist  = 
+    case find_unred_arg dlist elist of
+    | SOME (i, de) => SOME i
+    | NONE => NONE
+`;
+
+val get_lval_of_e_def = Define `
+  (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
+  (get_lval_of_e (e_acc e (e_var x)) =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_field lval x)
+   | NONE => NONE) /\
+  (get_lval_of_e _ = NONE)
+`;
+
+val is_e_lval_def = Define `
+  (is_e_lval e =
+    case get_lval_of_e e of
+    | SOME lval => T
+    | NONE => F)
+`;
+
+(* Checks if function arguments have been appropriately reduced.
+ * In e_func_call_newframe rule, we need this definition to show the second premise *)
+val is_arg_red_def = Define `
+  is_arg_red d e =
+   ((~(is_d_out d) ==> (is_const e)) /\ (is_d_out d ==> (is_e_lval e)) = T)
+`;
+val check_arg_red_def = Define `
+  check_arg_red dlist e i =
+    is_arg_red (EL i dlist) e
+`;
+val check_args_red_def = Define `
+  check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
+`;
+
+(*
+val init_out_param_def = Define `
+  (init_out_param (v_bool boolv) = v_bool ARB) /\
+  (init_out_param (v_bit (bl, n)) = v_bit (ARB, n)) /\
+  (init_out_param (v_str x) = v_str ARB) /\
+  (init_out_param (v_struct x_v_list) = t_base bt_bool) /\
+  (init_out_param (v_header boolv x_v_list) = t_base bt_bool) /\
+  (init_out_param (v_ext ext_obj) = t_base bt_bool) /\
+  (init_out_param (v_err errmsg) = t_base bt_bool) /\
+  (init_out_param (v_uninit errmsg) = t_base bt_bool) /\
+`;
+
+val v_size_def = Define `
+  (v_size (v_bool boolv) = 1) /\
+  (v_size (v_bit bitv) = 1) /\
+  (v_size (v_str x) = 1) /\
+  (v_size (v_struct (h::t)) = v_size (SND h) + v_size (v_struct t)) /\
+  (v_size (v_struct []) = 1) /\
+  (v_size (v_header boolv (h::t)) = v_size (SND h) + v_size (v_header boolv t)) /\
+  (v_size (v_header boolv []) = 1) /\
+  (v_size (v_ext ext_obj) = 1) /\
+  (v_size (v_err errmsg) = 1) /\
+  (v_size v_uninit = 1) /\
+  (v_size v_bot = 1)
+`;
+
+val cons_struct_header_def = Define `
+  (cons_struct_header x_v (v_struct x_v_list) = v_struct (x_v::x_v_list)) /\
+  (cons_struct_header x_v (v_header boolv x_v_list) = (v_header boolv (x_v::x_v_list))) /\
+  (cons_struct_header _ _ = NONE)
+`;
+*)
+
+val v_size_def = DB.fetch "p4" "v_size_def";
+
+Theorem v1_size_append:
+ !v_l1 v_l2. v1_size (v_l1 ++ v_l2) = (v1_size v_l1 + v1_size v_l2)
+Proof
+ Induct_on `v_l1` >> (
+  fs [v_size_def]
+ )
+QED
+
+Theorem v1_size_mem:
+ !x v t. MEM (x,v) t ==> v_size v < v1_size t
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, v1_size_append, v_size_def]
+QED
+
+val init_out_v_def = TotalDefn.tDefine "init_out_v" `
+  (init_out_v (v_bool boolv) = v_bool ARB) /\
+  (init_out_v (v_bit (bl, n)) = v_bit (extend ARB n [], n)) /\
+  (init_out_v (v_str x) = v_str ARB) /\
+  (init_out_v (v_struct ((x,v)::t)) = v_struct (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+  (init_out_v (v_struct []) = v_struct []) /\
+  (init_out_v (v_header boolv ((x,v)::t)) =
+    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+  (init_out_v (v_header boolv []) = v_header F []) /\
+  (init_out_v (v_ext ext_obj) = v_ext ARB) /\
+  (init_out_v (v_err errmsg) = v_err ARB) /\
+  (init_out_v v_uninit = v_uninit) /\
+  (init_out_v v_bot = v_bot)
+`
+(WF_REL_TAC `measure v_size` >>
+ fs [v_size_def] >>
+ REPEAT STRIP_TAC >>
+ `v_size v' < v1_size t` suffices_by (
+  fs []
+ ) >>
+ METIS_TAC [v1_size_mem]
+);
+
+val arb_from_t_def = Define `
+  (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
+  (arb_from_t (t_base bt_bit) = (v_bit ARB))
+`;
+
+(* Given a direction, an expression (should be a lval),  and a stack frame,
+ * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
+val one_arg_val_for_newscope_def = Define `
+  one_arg_val_for_newscope d e sf =
+   if is_d_out d
+   then (if is_d_in d
+         then lookup_vexp sf (extract_string e)
+         else init_out_v (lookup_vexp sf (extract_string e)), get_lval_of_e e)
+   else (extract_value e, NONE)
+`;
+
+(* Fills a fresh scope with the values of the arguments of a called function.
+ * Note: used in e_func_call_newframe *)
+val all_arg_update_for_newscope_def = Define `
+  all_arg_update_for_newscope xlist dlist elist sf = 
+    FOLDL (\f (d,x,e). (f |+ (x , one_arg_val_for_newscope d e sf))) FEMPTY (ZIP (dlist, ZIP(xlist:string list, elist)))
+`;
+
+(* Updates a stack frame by mapping the variable name a to the value v
+ * in the topmost scope where a is defined,
+ * written as ε[a -> v], colloquially known as assignment.
+ * Note that this function will be used in the assignment and return rules *)
+val assign_def = Define `
+  (assign sf val (lval_varname x) =
+    SOME
+      (LUPDATE
+        ((topmost_scope sf x) |+ (x, (val, lookup_out sf x)))
+        (topmost_scope_index sf x)
+        sf)) /\
+  (assign sf val (lval_field lval f) =
+    case lookup_lval sf lval of
+    | (v_struct f_v_l) =>
+      assign sf (v_struct (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
+    | (v_header validity f_v_l) =>
+      assign sf (v_header validity (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
+    | _ => NONE
+  ) /\
+  (assign sf val lval_null =
+    SOME sf
+  )
+`;
+
+(* Declares a new variable and initialises it to ARB, returns the new frame *)
+(* TODO: Behaviour when variable already exists? *)
+val declare_def = Define `
+  (declare (sf:curr_stack_frame) x t =
+    let i = LENGTH sf - 1 in
+    let scope = EL i sf in
+    LUPDATE (FUPDATE scope (x, (arb_from_t t, NONE))) i sf 
+  )
+`;
+
+(* Initialises a new variable in the topmost scope. *)
+val initialise_def = Define `
+  (initialise (sf:curr_stack_frame) x v =
+    let i = LENGTH sf - 1 in
+    let scope = EL i sf in
+    LUPDATE (FUPDATE scope (x, (v, NONE))) i sf 
+  )
+`;
+
+(* Given lists of variable names and directions, a caller's stack frame sf
+ * and a callees stack frame sf_current, updates the caller's stack frame
+ * according to the calling conventions. *)
+val update_return_frame_def = Define `
+  update_return_frame xlist dlist sf sf_current = 
+    FOLDL
+      (\sf_temp (x,d).
+        if (is_d_none_in d)
+        then sf_temp
+        else
+          case sf_temp of
+          | SOME sf_temp => assign sf_temp (lookup_v sf_current x) (THE (lookup_out sf_current x))
+          | NONE => NONE
+      )
+      (SOME sf)
+      (ZIP(xlist, dlist))
+`;
+
+
+val args_of_pbl_def = Define `
+  (args_of_pbl (pblock_parser x_d_list stmt pars_map) = x_d_list) /\
+  (args_of_pbl (pblock_control x_d_list stmt stmt' tbl_map) = x_d_list)
+`;
+
+}}
+grammar
+
+defns
+  e_stmt_sem :: '' ::=
+defn
+  ctx [ e ] state ~> [ e' ] state' :: :: e_red :: e_
+  {{ com expression semantics }}
+  %TODO Should use different export homs for LaTeX and HOL4 so that LaTeX hides unnecessary status?
+  {{ tex [[ctx]] \vdash [ [[e]] ] [[state]] \rightsquigarrow [ [[e']] ] [[state']] }}
+by
+
+%%%%%%%%%%%%%%%%%
+%Variable look-up
+
+  v = lookup_vexp ( curr_stack_frame , x )
+  ----------------------------------- :: lookup
+  ctx [var x] ( ctrl , ( curr_stack_frame, call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame, call_stack ) , Running )
+
+%%%%%%%%%%%%%%
+%Function call + exec (in expression)
+
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  %Build new stack frame
+  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , curr_stack_frame )  
+  G scope = curr_stack_frame [ 0 ]
+  scope'' = curr_stack_frame [ 1 ]
+  curr_stack_frame' = [G scope , scope'' , scope' ]
+  curr_stack_frame'' = tl (tl curr_stack_frame)
+  call_stack' = ( curr_stack_frame'' , f ) :: call_stack
+  ----------------------------------- :: func_call_newframe
+  (ty_map, ext_map, func_map, tbl_map) [call f ( e1 , .. , en )] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [ exec stmt ] ( ctrl , ( curr_stack_frame' , call_stack' ) , Running )
+
+  not_empty stmt
+  ctx [stmt] ( ctrl , stacks , Running ) -> [stmt'] ( ctrl' , stacks' , status )
+  ----------------------------------- :: func_exec
+  ctx [exec stmt] ( ctrl , stacks , Running ) ~> [exec stmt'] ( ctrl' , stacks' , status )
+
+  ----------------------------------- :: func_exec_empty
+  ctx [exec empty_stmt] ( ctrl , stacks , Running ) ~> [exec return bot] ( ctrl , stacks , status )
+
+  ( curr_stack_frame' , f ) :: call_stack' = call_stack
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  G scope = curr_stack_frame [ 0 ]
+  scope' = curr_stack_frame [ 1 ]
+  curr_stack_frame'' = ( G scope ) :: ( scope' :: curr_stack_frame' )
+  curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  ----------------------------------- :: func_ret
+  (ty_map, ext_map, func_map, tbl_map) [exec return v] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame''' , call_stack' ) , Running )
+
+  ( curr_stack_frame' , f ) :: call_stack' = call_stack
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  G scope = curr_stack_frame [ 0 ]
+  scope' = curr_stack_frame [ 1 ]
+  curr_stack_frame'' = ( G scope ) :: ( scope' :: curr_stack_frame' )
+  curr_stack_frame''' = update_return ( curr_stack_frame , curr_stack_frame'' , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  ----------------------------------- :: func_ret_seq
+  (ty_map, ext_map, func_map, tbl_map) [exec return v ; stmt'] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) ~> [v] ( ctrl , ( curr_stack_frame''' , call_stack' ) , Running )
+
+%Extern method exec
+  ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  ext lval ( e1 , .. , en ) ( ctrl , stacks , Running ) = ( v , ( ctrl' , stacks' , status ) )
+  ----------------------------------- :: ext_exec
+  (ty_map, ext_map, func_map, tbl_map) [call lval f ( e1 , .. , en )] ( ctrl , stacks , Running ) ~> [v] ( ctrl' , stacks' , status )
+
+%%%%%%%%%%%%%%%%%%%%
+%Struct field access
+
+  v = struct { f1 = v1 ; ... ; fn = vn } ( f )
+  ----------------------------------- :: s_acc
+  ctx [ struct { f1 = v1 ; ... ; fn = vn } . f] ( ctrl , stacks , Running ) ~> [v] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%%
+%Header field access
+
+  v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
+  ----------------------------------- :: h_acc
+  ctx [ header boolv { f1 = v1 ; ... ; fn = vn } . f] ( ctrl , stacks , Running ) ~> [v] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%%%%
+%Select expression
+
+%Case select lookup
+  x' = { v1 : x1 ; ... ; vn : xn } x ( v )
+  ----------------------------------- :: sel_acc
+  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( ctrl , stacks , Running ) ~> [ x' ] ( ctrl , stacks , Running )
+
+%Case default
+  v notin { v1 : x1 ; ... ; vn : xn }
+  ----------------------------------- :: sel_def
+  ctx [ select v { v1 : x1 ; ... ; vn : xn } x ] ( ctrl , stacks , Running ) ~> [ x ] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%"Reduction of argument" rules
+
+%Arguments to function call
+  ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+  e = [ e1 , .. , en ] [ i ]
+  (ty_map, ext_map, func_map, tbl_map) [ e ] ( ctrl , stacks , status ) ~> [ e' ] ( ctrl' , stacks' , status' )
+  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+  ----------------------------------- :: func_call_args
+  (ty_map, ext_map, func_map, tbl_map) [call f ( e1 , .. , en )] ( ctrl , stacks , status ) ~> [call f ( e'1 , .. , e'n )] ( ctrl' , stacks' , status' )
+
+%Arguments to extern method call
+  ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+  e = [ e1 , .. , en ] [ i ]
+  (ty_map, ext_map, func_map, tbl_map) [ e ] ( ctrl , stacks , Running ) ~> [ e' ] ( ctrl' , stacks' , Running )
+  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+  ----------------------------------- :: ext_call_args
+  (ty_map, ext_map, func_map, tbl_map) [call lval f ( e1 , .. , en )] ( ctrl , stacks , Running ) ~> [call lval f ( e'1 , .. , e'n )] ( ctrl' , stacks' , Running )
+
+%Struct/header field accesses
+%(looks nicer with left-to-right, since we avoid writing out an explicit struct)
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: acc_arg1
+  ctx [e . x] ( ctrl , stacks , status ) ~> [e' . x] ( ctrl' , stacks' , status' )
+
+  ctx [e'] ( ctrl , stacks , status ) ~> [e''] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: acc_arg2
+  ctx [e . e'] ( ctrl , stacks , status ) ~> [e . e''] ( ctrl' , stacks' , status' )
+
+%Select
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: sel_arg
+  ctx [ select e { v1 : x1 ; ... ; vn : xn } x ] ( ctrl , stacks , status ) ~> [ select e' { v1 : x1 ; ... ; vn : xn } x ] ( ctrl' , stacks' , status' )
+
+%Unary operations
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: unop_arg
+  ctx [unop e] ( ctrl , stacks , status ) ~> [unop e'] ( ctrl' , stacks' , status' )
+
+%Binary operations
+  ctx [e] ( ctrl , stacks , status ) ~> [e''] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: binop_arg1
+  ctx [e binop e'] ( ctrl , stacks , status ) ~> [e'' binop e'] ( ctrl' , stacks' , status' )
+
+  %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
+  ctx [e] ( ctrl , stacks , status ) ~> [e'] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: binop_arg2
+  ctx [v binop e] ( ctrl , stacks , status ) ~> [v binop e'] ( ctrl' , stacks' , status' )
+
+
+%%%%%%%%%%%%%%%%%%%
+%Unary expressions%
+%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%
+%Boolean negation
+
+  ! b = b'
+  ----------------------------------- :: neg_bool
+  ctx [! b] ( ctrl , stacks , Running ) ~> [b'] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%
+%Bitwise complement
+
+  ~ bitv = bitv'
+  ----------------------------------- :: compl
+  ctx [~ bitv] ( ctrl , stacks , Running ) ~> [bitv'] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%%
+%Signed negation
+
+  - bitv = bitv'
+  ----------------------------------- :: neg_signed
+  ctx [- bitv] ( ctrl , stacks , Running ) ~> [bitv'] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%
+%Unary plus
+
+  + bitv = bitv'
+  ----------------------------------- :: un_plus
+  ctx [+ bitv] ( ctrl , stacks , Running ) ~> [bitv'] ( ctrl , stacks , Running )
+
+
+%%%%%%%%%%%%%%%%%%%%
+%Binary expressions%
+%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%
+%Multiplication
+
+  bitv * bitv' = bitv''
+  ----------------------------------- :: mul
+  ctx [bitv * bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%
+%Division
+
+  bitv / bitv' = bitv''
+  ----------------------------------- :: div
+  ctx [bitv / bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%
+%Modulo
+
+  bitv mod bitv' = bitv''
+  ----------------------------------- :: mod
+  ctx [bitv mod bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%
+%Addition
+
+  bitv + bitv' = bitv''
+  ----------------------------------- :: add
+  ctx [bitv + bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%
+%Subtraction
+
+  bitv - bitv' = bitv''
+  ----------------------------------- :: sub
+  ctx [bitv - bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%
+%Left shift
+
+  bitv SHL bitv' = bitv''
+  ----------------------------------- :: shl
+  ctx [bitv SHL bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%
+%Right shift
+
+  bitv SHR bitv' = bitv''
+  ----------------------------------- :: shr
+  ctx [bitv SHR bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%
+%Less than or equal
+
+  bitv LE bitv' = b
+  ----------------------------------- :: le
+  ctx [bitv LE bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%%%%
+%Greater than or equal
+
+  bitv GE bitv' = b
+  ----------------------------------- :: ge
+  ctx [bitv GE bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+%%%%%%%%%%
+%Less than
+
+  bitv < bitv' = b
+  ----------------------------------- :: lt
+  ctx [bitv < bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%Greater than
+
+  bitv > bitv' = b
+  ----------------------------------- :: gt
+  ctx [bitv > bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%Not equal
+
+  bitv NE bitv' = b
+  ----------------------------------- :: neq
+  ctx [bitv NE bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+  (x <> x') = b
+  ----------------------------------- :: neq_error
+  ctx [(errmsg x) NE (errmsg x')] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+  b NE b' = b''
+  ----------------------------------- :: neq_bool
+  ctx [b NE b'] ( ctrl , stacks , Running ) ~> [b''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%Equal
+
+  bitv EQ bitv' = b
+  ----------------------------------- :: eq
+  ctx [bitv EQ bitv'] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+  (x EQ x') = b
+  ----------------------------------- :: eq_error
+  ctx [(errmsg x) EQ (errmsg x')] ( ctrl , stacks , Running ) ~> [b] ( ctrl , stacks , Running )
+
+  b EQ b' = b''
+  ----------------------------------- :: eq_bool
+  ctx [b EQ b'] ( ctrl , stacks , Running ) ~> [b''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%Bitwise and
+
+  bitv & bitv' = bitv''
+  ----------------------------------- :: and
+  ctx [bitv & bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%Bitwise xor
+
+  bitv ^ bitv' = bitv''
+  ----------------------------------- :: xor
+  ctx [bitv ^ bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+
+%%%%%%%%%%%%%
+%Bitwise or
+
+  bitv | bitv' = bitv''
+  ----------------------------------- :: or
+  ctx [bitv | bitv'] ( ctrl , stacks , Running ) ~> [bitv''] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%Binary and
+%Note: This uses short-circuit evaluation
+
+  ----------------------------------- :: bin_and1
+  ctx [false AND e] ( ctrl , stacks , Running ) ~> [false] ( ctrl , stacks , Running )
+
+  ----------------------------------- :: bin_and2
+  ctx [true AND e] ( ctrl , stacks , Running ) ~> [e] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%
+%Binary or
+%Note: This uses short-circuit evaluation
+
+  ----------------------------------- :: bin_or1
+  ctx [true OR e] ( ctrl , stacks , Running ) ~> [true] ( ctrl , stacks , Running )
+
+  ----------------------------------- :: bin_or2
+  ctx [false OR e] ( ctrl , stacks , Running ) ~> [e] ( ctrl , stacks , Running )
+
+
+%%%%%%%%%%%%%%%%%%%%%%%
+% Statement semantics %
+%%%%%%%%%%%%%%%%%%%%%%%
+
+%TODO: Block
+%TODO: Exit
+%TODO: Switch
+
+defn
+  ctx [ stmt ] state -> [ stmt' ] state' :: :: stmt_red :: stmt_
+  {{ com statement semantics }}
+  {{ tex [[ctx]] \vdash [ [[stmt]] ] [[state]] \rightarrow [ [[stmt']] ] [[state']] }}
+by
+
+%%%%%%%%%%%%%%
+%Return
+
+%NOTE: The behaviour of the return statement is covered by the "func_ret" and "func_ret_seq" rules
+
+%%%%%%%%%%%%%%
+%Assignment
+
+  %Assign a constant to a variable
+  curr_stack_frame' = assign ( curr_stack_frame , v , lval )
+  ----------------------------------- :: ass_v
+  ctx [assign lval v] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
+
+  %Assign to a struct field
+%  struct { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+%  v' = ( struct { f1 = v1 ; ... ; fn = vn } with f := v )
+%  ----------------------------------- :: ass_s
+%  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+
+  %Assign to a header field
+%  header boolv { f1 = v1 ; ... ; fn = vn } = lookup_lval ( curr_stack_frame , lval )
+%  v' = ( header boolv { f1 = v1 ; ... ; fn = vn } with f := v )
+%  ----------------------------------- :: ass_h
+%  ctx [assign ( lval . f ) v] ( ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ( curr_stack_frame' , call_stack ) , Running )
+
+%TODO: Now also covered by the assign function
+  %Assign to null
+  %Note: This is be used to model function calls as an expression.
+  ----------------------------------- :: ass_null
+  ctx [assign null v] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame , call_stack ) , Running )
+
+
+%%%%%%%%%%%%%%
+%Sequence
+
+  ctx [stmt1] ( ctrl , stacks , Running ) -> [stmt1'] ( ctrl' , stacks' , Running )
+  ----------------------------------- :: seq1
+  ctx [stmt1 ; stmt2] ( ctrl , stacks , Running ) -> [stmt1' ; stmt2] ( ctrl' , stacks' , Running )
+
+  ----------------------------------- :: seq2
+  ctx [empty_stmt ; stmt] ( ctrl , stacks , Running ) -> [stmt] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%
+%Conditional
+
+  ----------------------------------- :: cond2
+  ctx [if true then stmt1 else stmt2] ( ctrl , stacks , Running ) -> [stmt1] ( ctrl , stacks , Running )
+
+  ----------------------------------- :: cond3
+  ctx [if false then stmt1 else stmt2] ( ctrl , stacks , Running ) -> [stmt2] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%
+%Declaration
+
+  curr_stack_frame' = declare ( curr_stack_frame , x , t )
+  ----------------------------------- :: decl
+  ctx [decl x t] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
+
+
+%%%%%%%%%%%%%%
+%Block
+
+  curr_stack_frame' =  curr_stack_frame ++ [ emptyscope ]
+  ----------------------------------- :: block_enter
+  ctx [begin stmt end] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [begin' stmt end'] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
+
+  ctx [stmt] ( ctrl , stacks , status ) -> [stmt'] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: block_exec
+  ctx [begin' stmt end'] ( ctrl , stacks , status ) -> [begin' stmt' end'] ( ctrl' , stacks' , status' )
+
+  curr_stack_frame' = rev ( tl ( rev curr_stack_frame ) )
+  ----------------------------------- :: block_exit
+  ctx [begin' empty_stmt end'] ( ctrl , ( curr_stack_frame , call_stack ) , Running ) -> [empty_stmt] ( ctrl , ( curr_stack_frame' , call_stack ) , Running )
+
+%%%%%%%%%%%%%%
+%Verify
+
+%Case predicate holds
+  ------------------------------------------------- :: verify_3
+  ctx [verify true ( errmsg x )]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Running )
+
+%Case predicate does not hold
+  %TODO: This assumption needed since we don't have string literals yet
+  x' = parseError
+  x'' = "reject"
+  ------------------------------------------------- :: verify_4
+  ctx [verify false ( errmsg x )]( ctrl , stacks , Running ) -> [ assign x' ( errmsg x ) ; transition x'' ]( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%
+%Transition
+
+  not_final_state ( x )
+  ------------------------------------------------- :: trans_1
+  ctx [transition x]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Trans x )
+
+  x = "accept"
+  ------------------------------------------------- :: trans_2
+  ctx [transition x]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Accept )
+
+  x = "reject"
+  ------------------------------------------------- :: trans_3
+  ctx [transition x]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl , stacks , Reject )
+
+
+%%%%%%%%%%%%%%
+%Exit
+
+  %TODO: Exit semantics might require to have a specific "function-in-progress" statement
+  %      in order to know what to reduce to nothing.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Match-Action rules       %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  %The action is treated as a function call
+  tbl_map ( tbl ) = ( e' , mk )
+  ctrl ( tbl , v , mk ) = ( f , ( v1 , .. , vn ) )
+  ----------------------------------- :: apply_table_v
+  (ty_map, ext_map, func_map, tbl_map) [apply tbl v] ( ctrl , stacks , Running ) -> [assign null ( call f ( v1 , .. , vn ) )] ( ctrl , stacks , Running )
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Reduction of expression rules %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%Reduction step of return expression
+  ctx [e] state ~> [e'] state'
+  ----------------------------------- :: ret_e
+  ctx [return e] state -> [return e'] state'
+
+%Reduction step of assign expression
+  ctx [e] state ~> [e'] state'
+  ----------------------------------- :: ass_e
+  ctx [assign lval e] state -> [assign lval e'] state'
+
+%Reduction step of condition
+  ctx [e] state ~> [e'] state'
+  ----------------------------------- :: cond_e
+  ctx [if e then stmt1 else stmt2] state -> [if e' then stmt1 else stmt2] state'
+
+%Reduction step of verify predicate
+  ctx [e] state ~> [e''] state'
+  ------------------------------------------------- :: verify_e1
+  ctx [verify e e' ] state -> [verify e'' e'] state'
+
+%Reduction step of error message
+  ctx [e] state ~> [e'] state'
+  ------------------------------------------------- :: verify_e2
+  ctx [verify b e] state  -> [verify b e'] state'
+
+%Reduction step of transition
+  ctx [e] state ~> [e'] state'
+  ------------------------------------------------- :: trans_e
+  ctx [transition e] state -> [transition e'] state'
+
+%Reduction step of match-action expression
+  ctx [e] state ~> [e'] state'
+  ----------------------------------- :: apply_table_e
+  ctx [apply tbl e] state  -> [apply tbl e'] state'
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Parser block semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+%This isolates the unstructured parser block semantics into a set of rules defined in terms
+%of the regular statement semantics.
+%TODO: Can this be unified with the regular statement semantics?
+
+defns
+  pars_sem :: '' ::=
+defn
+  pctx [ stmt ] state -p-> [ stmt' ] state' :: :: pars_red :: pars_
+  {{ com parser block semantics }}
+  {{ tex [[pctx]] \vdash [ [[stmt]] ] [[state]] {\longrightarrow}_{p} [ [[stmt']] ] [[state']] }}
+by
+
+%This rule describes how individual statement steps are taken inside the parser
+  status_not_fin status
+  (ty_map, ext_map, func_map, empty) [stmt] state -> [stmt'] state'
+  ------------------------------------------------- :: stmt
+  (ty_map, ext_map, func_map, pars_map) [stmt] state -p-> [stmt'] state'
+
+%This rule governs transitions between parser states
+  (ty_map, ext_map, func_map, empty) [stmt]( ctrl , stacks , Running ) -> [stmt']( ctrl' , stacks' , Trans x )
+  stmt'' = pars_map ( x )
+  ------------------------------------------------- :: state
+  (ty_map, ext_map, func_map, pars_map) [stmt]( ctrl , stacks , Running ) -p-> [stmt'']( ctrl' , stacks' , Running )
+
+%If the end of some parser state is reached without status change, we reject
+  (ty_map, ext_map, func_map, empty) [stmt]( ctrl , stacks , Running ) -> [empty_stmt]( ctrl' , stacks' , Running )
+  x = "reject"
+  ------------------------------------------------- :: empty
+  (ty_map, ext_map, func_map, pars_map) [stmt]( ctrl , stacks , Running ) -p-> [transition x]( ctrl , stacks' , Running )
+
+%This describes the final step of the parser
+
+  (ty_map, ext_map, func_map, empty) [stmt]( ctrl , stacks , Running ) -> [stmt']( ctrl' , stacks' , pars_fin )
+  ------------------------------------------------- :: fin
+  (ty_map, ext_map, func_map, pars_map) [stmt]( ctrl , stacks , Running ) -p-> [stmt']( ctrl' , stacks' , pars_fin )
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Control block semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defns
+  ctrl_sem :: '' ::=
+defn
+  cctx [ stmt ] state -c-> [ stmt' ] state' :: :: ctrl_red :: ctrl_
+  {{ com control block semantics }}
+  {{ tex [[cctx]] \vdash [ [[stmt]] ] [[state]] {\longrightarrow}_{c} [ [[stmt']] ] [[state']] }}
+by
+
+  not_return stmt
+  (ty_map, ext_map, func_map, tbl_map) [stmt] state  -> [stmt'] state'
+  ------------------------------------------------- :: stmt
+  (ty_map, ext_map, func_map, tbl_map) [stmt] state  -c-> [stmt'] state'
+
+  ------------------------------------------------- :: ret
+  cctx [return v] state  -c-> [empty_stmt] state
+
+  ------------------------------------------------- :: ret_2
+  cctx [return v ; stmt] state  -c-> [empty_stmt] state
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Architectural-level semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defns
+  arch_sem :: '' ::=
+defn
+  actx [ arch_stmt ] ( aenv , ctrl , stacks , status ) -'> [ arch_stmt' ] ( aenv' , ctrl' , stacks' , status' ) :: :: arch_red :: arch_
+  {{ com architecture-level semantics }}
+  {{ tex [[actx]] \vdash [ [[arch_stmt]] ] ( [[aenv]], [[ctrl]], [[stacks]], [[status]] ) {\longrightarrow}_{A} [ [[arch_stmt']] ] ( [[aenv']], [[ctrl']], [[stacks']], [[status']] ) }}
+by
+
+%Four different phases: Input, programmable block, fixed-function block and output.
+
+  inp = ab_list [ i ]
+  ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
+  i' = i + 1
+  ----------------------------------- :: in
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running ) -'> [ empty_stmt ] ( ( i' , false , in_out_list'' , in_out_list' , scope' ) , ctrl , stacks , Running )
+
+  %Note that this rule does not increment i. That happens when the pblock is finished.
+  pbl x ( e1 , .. , en ) = ab_list [ i ]
+  ----------------------------------- :: pbl_call
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running ) -'> [ pbl_call x ( e1 , .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running )
+
+  ffbl x ( e1 , .. , en ) = ab_list [ i ]
+  ----------------------------------- :: ffbl_call
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running ) -'> [ ffbl_call x ( e1 , .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running )
+
+%Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
+%to have the final state have index 0.
+  out = ab_list [ i ]
+  ( in_out_list'' , scope' ) = output_f ( in_out_list' , scope )
+  zero i'
+  ----------------------------------- :: out
+  actx [ empty_stmt ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , Running ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list'' , scope' ) , ctrl , stacks , Running )
+
+
+%The "programmable block" phase can initiate execution of either a parser block or a control block
+
+%Note that initiation of a parser block also sets parseError to NoError
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
+  x = "start"
+  stmt' = pars_map ( x )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  %TODO: Should you also be able to read from the global scope?
+  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
+  G scope = curr_stack_frame[0]
+  curr_stack_frame' = [G scope] ++ [ scope' ]
+  v = errmsg "NoError"
+  x' = "parseError"
+  curr_stack_frame'' = initialise ( curr_stack_frame' , x' , v )
+  %TODO: Model arch scope external to the P4 program using the call stack?
+  ----------------------------------- :: parser_init
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ; stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame' , call_stack ) , Running )
+
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  %TODO: Should you also be able to read from the global scope?
+  scope'' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
+  G scope' = curr_stack_frame[0]
+  curr_stack_frame' = [G scope'] ++ [ scope'' ]
+  %TODO: Model pseudo-scope external to the P4 program using the call stack?
+  ----------------------------------- :: control_init
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 ,  .. , en ) ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , Running ) -'> [ stmt ; stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame' , call_stack ) , Running )
+
+
+%The "programmable block" phase then follows the semantics for a parser or control, respectively...
+  %TODO: Create specific control block semantics?
+
+%Note that this rule needs to check that execution is actually inside a parser block to remove ambiguity
+  pbl x ( e1 , .. , en ) = ab_list [ i ]
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt'' pars_map = pblock_map ( x )
+  status_not_fin status
+  ( ty_map , ext_map , func_map , pars_map ) [ stmt ] ( ctrl , stacks , status ) -p-> [ stmt' ] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: parser_exec
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl' , stacks' , status' )
+
+%Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
+  pbl x ( e1 , .. , en ) = ab_list [ i ]
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt'' stmt''' tbl_map = pblock_map ( x )
+  ( ty_map , ext_map , func_map , tbl_map ) [ stmt ] ( ctrl , stacks , status ) -c-> [ stmt' ] ( ctrl' , stacks' , status' )
+  ----------------------------------- :: control_exec
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ stmt' ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl' , stacks' , status' )
+
+%... until execution using the regular statement semantics has finished
+
+
+%Note that exiting a parser block also sets the value of parseError
+  pbl f ( e1 , .. , en ) = ab_list [ i ]
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
+  G scope' = curr_stack_frame[0]
+  [ scope'' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  lval = "parseError"
+  x = "parseError"
+  v = lookup_vexp ( curr_stack_frame , x )
+  [ scope''' ] = assign ( [ scope'' ] , v , lval )
+  i' = i + 1
+  %TODO: Relax requirement that statement be empty in initial state?
+  ----------------------------------- :: parser_ret
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , pars_fin ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list' , scope''' ) , ctrl , ( [ G scope' ] , emptycs ) , Running )
+
+  pbl f ( e1 , .. , en ) = ab_list [ i ]
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
+  G scope' = curr_stack_frame[0]
+  [ scope'' ] = update_return ( curr_stack_frame , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  i' = i + 1
+  ----------------------------------- :: control_ret
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ empty_stmt ] ( ( i , true , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , status ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list' , scope'' ) , ctrl , ( [ G scope' ] , emptycs ) , Running )
+
+%TODO: What should happen when all input has been processed?
+%      	    Separate judgment form?
+%      	    Set status to Ended? Then all rules would need to exclude having the Ended status
+
+  i' = i + 1
+  ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
+  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
+  ( scope' , curr_stack_frame' ) = ff ( ( e1 ,  .. , en ) , scope , curr_stack_frame )
+  ----------------------------------- :: ffblock_exec
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ ffbl_call f ( e1 ,  .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , ( curr_stack_frame , call_stack ) , status ) -'> [ empty_stmt ] ( ( i' , false , in_out_list , in_out_list' , scope' ) , ctrl , ( curr_stack_frame' , call_stack ) , status' )
+
+%"Reduction of argument" rules
+
+%Note that the use of "args_of_pbl" is to avoid having two separate rules for parser and control
+%TODO: Restrict the expression evaluation to just lookup?
+%NOTE: These rules already disallow function calls, because of the shape of the RHS of the expression reductions
+  pblock = pblock_map ( f )
+  ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
+  e = [ e1 , .. , en ] [ i' ]
+  ctx [ e ] ( ctrl , ( [ scope ] , [] ) , status ) ~> [ e' ] ( ctrl' , ( [ scope' ] , [] ) , status' )
+  [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
+  ----------------------------------- :: pblock_args
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ pbl_call f ( e1 , .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ pbl_call f ( e1' , .. , en' ) ] ( ( i , false , in_out_list , in_out_list' , scope' ) , ctrl' , stacks' , status' )
+
+  ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
+  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
+  e = [ e1 , .. , en ] [ i' ]
+  ctx [ e ] ( ctrl , ( [ scope ] , [] ) , status ) ~> [ e' ] ( ctrl' , ( [ scope' ] , [] ) , status' )
+  [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
+  ----------------------------------- :: ffblock_args
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) [ ffbl_call f ( e1 , .. , en ) ] ( ( i , false , in_out_list , in_out_list' , scope ) , ctrl , stacks , status ) -'> [ ffbl_call f ( e1' , .. , en' ) ] ( ( i , false , in_out_list , in_out_list' , scope' ) , ctrl , stacks' , status' )
