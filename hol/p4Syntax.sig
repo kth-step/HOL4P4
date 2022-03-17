@@ -25,6 +25,11 @@ val is_v_bool : term -> bool
 val mk_v_bool : term -> term
 val v_bool_tm : term
 
+val dest_v_str : term -> term
+val is_v_str : term -> bool
+val v_str_tm : term
+val mk_v_str : string -> term
+
 val dest_v_struct : term -> term
 val is_v_struct : term -> bool
 val mk_v_struct : term -> term
@@ -39,10 +44,18 @@ val v_header_tm : term
 
 val mk_v_header_list : term -> (term * term) list -> term
 
+val v_bot_tm : term
+val is_v_bot : term -> bool
+
 val dest_lval_varname : term -> term
 val is_lval_varname : term -> bool
 val lval_varname_tm : term
-val mk_lval_varname : term -> term
+val mk_lval_varname : string -> term
+
+val dest_lval_field : term -> term * term
+val is_lval_field : term -> bool
+val lval_field_tm : term
+val mk_lval_field : term * string -> term
 
 val lval_null_tm : term
 val is_lval_null : term -> bool
@@ -53,7 +66,7 @@ val e_ty : hol_type
 val dest_e_var : term -> term
 val e_var_tm : term
 val is_e_var : term -> bool
-val mk_e_var : term -> term
+val mk_e_var : string -> term
 
 val dest_e_unop : term -> term * term
 val e_unop_tm : term
@@ -99,6 +112,23 @@ val binop_or_tm : term
 val binop_bin_and_tm : term
 val binop_bin_or_tm : term
 
+val dest_e_acc : term -> term * term
+val e_acc_tm : term
+val is_e_acc : term -> bool
+val mk_e_acc : term * term -> term
+
+val dest_e_func_call : term -> term * term
+val e_func_call_tm : term
+val is_e_func_call : term -> bool
+val mk_e_func_call : term * term -> term
+
+val dest_e_ext_call : term -> term * term * term
+val e_ext_call_tm : term
+val is_e_ext_call : term -> bool
+val mk_e_ext_call : term * term * term -> term
+val mk_e_ext_call_list : term * string * term list -> term
+
+
 val stmt_empty_tm : term
 val is_stmt_empty : term -> bool
 
@@ -112,32 +142,34 @@ val is_stmt_seq : term -> bool
 val mk_stmt_seq : term * term -> term
 val stmt_seq_tm : term
 
-val mk_stmt_seq_list : term list -> term
+val dest_stmt_cond : term -> term * term * term
+val is_stmt_cond : term -> bool
+val mk_stmt_cond : term * term * term -> term
+val stmt_cond_tm : term
 
-val dest_e_func_call : term -> term * term
-val e_func_call_tm : term
-val is_e_func_call : term -> bool
-val mk_e_func_call : term * term -> term
+val dest_stmt_ret : term -> term
+val is_stmt_ret : term -> bool
+val mk_stmt_ret : term -> term
+val stmt_ret_tm : term
+
+val dest_stmt_app : term -> term * term
+val is_stmt_app : term -> bool
+val mk_stmt_app : term * term -> term
+val stmt_app_tm : term
+
+val mk_stmt_seq_list : term list -> term
 
 val d_ty : hol_type
 
 
 val scope_ty : hol_type
 
-val dest_state_tup : term -> term * term
-val is_state_tup : term -> bool
-val mk_state_tup : term * term -> term
-val state_tup_tm : term
+val status_running_tm : term
 
 val called_function_name_function_name_tm : term
 val dest_called_function_name_function_name : term -> term
 val is_called_function_name_function_name : term -> bool
 val mk_called_function_name_function_name : term -> term
-
-val dest_stacks_tup : term -> term * term
-val is_stacks_tup : term -> bool
-val mk_stacks_tup : term * term -> term
-val stacks_tup_tm : term
 
 
 val dest_e_red : term -> term * term * term * term * term

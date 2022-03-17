@@ -358,8 +358,8 @@ The \textsc{stmt\_block\_enter} rule is used to enter a block, which entails a n
 \\~\\
 
 \newcommand{\start}{\textit{start}}
-\subsection{Parser}
-The parser is a part of the P4 language which is generally used to parse packets from bit-string representations to structures of parsed headers, described in \pfourspec{sec-control}{Section 13} of the P4 specification. It can be thought of as describing a state machine with three unique states: a \start{} state, an \accept{} state and a \reject{\msg{}} state. A parser state $p$ (including \start{}, but not the abstract final states of \accept{} and \reject{\msg{}}) consists of a list of statements to be executed, with a transition statement at the end which decides the parser state to jump to next.
+\subsection{Parser Block Semantics}
+The parser programmable block is a part of the P4 pipeline which is generally used to parse packets from bit-string representations to structures of parsed headers, described in \pfourspec{sec-control}{Section 13} of the P4 specification. It can be thought of as describing a state machine with three unique states: a \start{} state, an \accept{} state and a \reject{\msg{}} state. A parser state $p$ (including \start{}, but not the abstract final states of \accept{} and \reject{\msg{}}) consists of a list of statements to be executed, with a transition statement at the end which decides the parser state to jump to next.
 
 \begin{figure}[ht!]
 \begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
@@ -377,25 +377,23 @@ The parser-specific statement semantics is shown in Figure~\ref{fig:parssemstmte
 
 \begin{figure}[ht!]
 \ottdefnsparsXXsem
-\ottdefnsparsXXtXXsem
-\caption{Parser Execution Semantics}
+\caption{Parser Block-Level Semantics}
 \label{fig:semparsexec}
 \end{figure}
 
-The parser state machine semantics is shown in Figure~\ref{fig:semparsexec}. Note the separate judgment form for the final step of the parser, which goes to a state with status \accept{} or \reject{} (representing the abstract accepting and rejecting states).
+The parser state machine semantics is shown in Figure~\ref{fig:semparsexec}.
 
 The \textsc{pars\_stmt} rule performs a single small-step reduction of the current statement (the body of the current parser state), while the \textsc{pars\_state} rule governs transition to the next parser state: if the current statement \stmt{} is reduced to $\stmt{}'$ with the status being \trans{\vn{}}, the next statement is the body of the parser state with name \vn{}, obtained from the map $P$ from parser state names to parser bodies.
 
 The \textsc{pars\_t\_fin} rule says that when reduction using the statement semantics of the current statement results in a status with a final parser state $p_{\mathrm{fin}}$, this is also set as the status in the parser semantics. The \textsc{pars\_t\_empty} rule covers the special case when the statement semantics runs out of statements in a parser state, in which case the status is set to \reject{ParserStateEnd}.
 
-\subsection{Control Blocks}
-The control block is a part of the P4 language which is generally used to decide which actions to take (typically forwarding) based on the metadata (headers) which was extracted by the parser, as described in \pfourspec{sec-packet-parsing}{Section 12} of the P4 specification. The two main components of a control block is the match-action table and the actions themselves. Note that part of the functionality is separated into the control plane, which is interfaced with here using the $\mathrm{ctrl}(table\_name,\ v,\ m\_kind)$ function that takes a table name, constant value and matching kind and obtains an action name $f$ and a list of function arguments ${v_1}, ..., {v_n}$.
+\subsection{Control Block Semantics}
+The control block is a part of the P4 pipeline which is generally used to decide which actions to take (typically forwarding) based on the metadata (headers) which was extracted by the parser, as described in \pfourspec{sec-packet-parsing}{Section 12} of the P4 specification. The two main components of a control block are the match-action tables and the actions themselves. Note that part of the functionality is separated into the control plane, which is interfaced with here using the $\mathrm{ctrl}(table\_name,\ v,\ m\_kind)$ function that takes a table name, constant value and matching kind and obtains an action name $f$ and a list of function arguments ${v_1}, ..., {v_n}$.
 Actions can be thought of roughly as functions with no return values. The action can be called implicitly from the match-action process (i.e. in the table application), or explicitly from another action or a control block, as described in \pfourspec{sec-actions}{Section 13.1.1} of the P4 specification.
 
 The \textsc{apply\_table\_e} rule performs small-step evaluation of the header expression used for the matching.
 
 The \textsc{apply\_table\_v} looks up the table name in the table name map, then uses the result together with the header to be looked up to obtain an action (together with action arguments) from the control plane.
-
 
 \begin{figure}[ht!]
 \ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}}
@@ -404,6 +402,71 @@ The \textsc{apply\_table\_v} looks up the table name in the table name map, then
 \label{fig:semmatchaction}
 \end{figure}
 
+\begin{figure}[ht!]
+\ottdefnsctrlXXsem
+\caption{Control Block-Level Semantics}
+\label{fig:semctrl}
+\end{figure}
+
+The statement semantics unique to the control block is shown in Figure~\ref{fig:semmatchaction}. Note that the body of the control block consists of the statements inside the apply block, and that executing a return statement at this level signifies return from the control block as a whole. The block-level semantics of the control block are shown in Figure~\ref{fig:semctrl}. It's almost the same as the statement semantics, the only difference being that the return statement causes an immediate reduction to the empty statement.
+
+\newcommand{\actx}{\ensuremath{\mathit{ctx}_\mathit{A}}}
+\newcommand{\abl}{\ensuremath{\overline{ab}}}
+\newcommand{\pbm}{\ensuremath{B_p}}
+\newcommand{\ffbm}{\ensuremath{B_{ \mathit{ff}}}}
+\newcommand{\aenv}{\ensuremath{\mathit{env}_\mathit{A}}}
+\subsection{Architecture-Level Semantics}
+
+The architecture-level semantics is the topmost-level semantics, and it describes the entirety of the P4 pipeline from input packets to output packets. The judgment form, shown in Figure~\ref{fig:semarch}, consists of multiple components: starting from the left, an \emph{architectural context} \actx{} on the left-hand side of the turnstile, which contains the following:
+\begin{enumerate}
+\item The \emph{architectural block list} \abl{}: the architectural block represents one of the four fundamental stages in a P4-compatible architecture. First, there are the input (\textbf{inp}) and output (\textbf{out}) stages: these stages are just translators between the P4 input packet format and the general I/O format consisting of a list of ports, each with pending packets to be arbitrated/sent off. The demux block functionality may be modeled as part of the output stage, or it may be its own fixed-function block preceding the output stage. Second, there are the programmable blocks - parser blocks and control blocks, which are described in more detail elsewhere in this document, as well as the fixed-function blocks. Fixed-function blocks can be thought of as analoguous to extern calls, but on the architectural level. They perform the parts of the functionality of the P4-programmable network element that is not written in the P4 language.
+\item The \emph{programmable block map} \pbm{}, which is a map between names of programmable blocks (strings) and the necessary information required to execute the block in question. For parser blocks, this is the list of directed parameters and the parser state map $P$ between parser state names and their bodies (statements). For programmable blocks, this is the body of the control block (found in the topmost apply statement), the list of directed parameters and a table map $\mathit{Tb}$ between names of tables and tuples of expressions and matching kinds.
+\item The \emph{programmable block map} \ffbm{}, which is a map between names of fixed-function blocks and their lists of directed parameters, as well as the implementation of the fixed fiunction itself - this is a function between an expression list (arguments), the architectural scope, and the current frame to an updated architectural scope and current frame.
+\item The \emph{input function} $f_{ \mathit{in} }$ and the output function $f_{ \mathit{out} }$, which are both functions from the IO list and the architectural scope to an updates IO list and architectural scope.
+\item The \emph{type map} $\mathit{Ty}$, which is a (currently unused) map from names of types to their actual types.
+\item The \emph{extern map} $X$, which is a map from extern names (strings) to tuples of extern functions (functions from tuples of lvals, arguments and states to option types of values and states) and their directed parameter lists. Note that that since the state contains the control plane configuration, extern functions may modify it.
+\item The \emph{function map} $F$, which is a map from function names (strings) to tuples of function bodies (statements) and their directed parameter lists.
+\end{enumerate}
+The architectural context contains everything which can not change between reductions.
+
+The left-hand and right-hand sides of the reduction both consist of an \emph{architectural statement} and an \emph{architectural environment} \aenv{}, which may change between reductions. The architectural statement is either a regular statement as defined above, or a programmable or fixed-function block call which both take lists of directed parameters and function names. \aenv has five components:
+\begin{enumerate}
+\item The \emph{architectural block index}: This is an index which informs us of which architectural block in \abl{} is currently being reduced.
+\item The \emph{in-progress flag}, which is a Boolean telling us whether a programmable block is currently being executed (as opposed to returning or being initialised) or not.
+\item The \emph{input list}, which is a list of incoming packets (represented as tuples of lists of Booleans and numbers signifying input ports)
+\item The \emph{output list}, which is the same as the input list, but used for output.
+\item The \emph{architectural scope}, which is of the same type as the regular scope, but used for storing values in-between non-adjacent blocks.
+\end{enumerate}
+
+The rules of the architecture-level semantics can be divided into several categories:
+\begin{enumerate}
+\item The \textsc{arch\_in}, \textsc{arch\_pbl\_call}, \textsc{arch\_ffbl\_call} and \textsc{arch\_out} rules all deal with queueing the next block to be executed. Input and output takes place immediately by applying their respective functions.
+\item The \textsc{arch\_parser\_init} and \textsc{arch\_control\_init} rules are similar to the \textsc{e\_func\_call\_newframe} rule in the expression semantics: both set up the values of variables in the new parser and control blocks, respectively. In the parser case, this rule also sets the value of $\mathit{parseError}$ to $\mathit{NoError}$ and the statement to be executed to the statement mapped to $\mathit{start}$ in $P$.
+\item The \textsc{arch\_parser\_exec}, \textsc{arch\_control\_exec} and \textsc{arch\_ffblock\_exec} rules all govern the actual execution of blocks. \textsc{arch\_ffblock\_exec} is different from the other two in that it performs execution in one step only, and thus also checks for properly reduced arguments the same way \textsc{arch\_parser\_init} (for example) does. Accordingly, it also increments the architecture block index. \textsc{arch\_parser\_exec} takes a step in the parser semantics (using the parser map $P$ that was obtained from \pbm{}) that does not start in a state with status $\mathit{pars\_fin}$. \textsc{arch\_control\_exec} similarly takes a step in the control semantics using the table map $Tb$ that was obtained from \pbm{}.
+\item The \textsc{arch\_parser\_ret} and \textsc{arch\_control\_ret} rules govern the return phase of programmable block execution. They are similar in many respects to \textsc{e\_func\_ret}, but they also increment the architecture block index, and \textsc{arch\_parser\_ret} furthermore copies back the value of $\mathit{parseError}$ to the architecture scope.
+\end{enumerate}
+
+\begin{figure}[ht!]
+\resizebox{.7\linewidth}{!}{
+\begin{minipage}{\linewidth}
+\begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash [  \ottnt{arch\_stmt}  ] (  { \mathit{env}_\mathit{A} }  ,  \sigma  ,  t  ) {\longrightarrow}_{A} [  \ottnt{arch\_stmt'}  ] (  { \mathit{env}_\mathit{A} }' ,  \sigma'  ,  t'  ) $}{\ottcom{architecture-level semantics}}
+\ottusedrule{\ottdrulearchXXin{}}
+\ottusedrule{\ottdrulearchXXpblXXcall{}}
+\ottusedrule{\ottdrulearchXXffblXXcall{}}
+\ottusedrule{\ottdrulearchXXout{}}
+\ottusedrule{\ottdrulearchXXparserXXinit{}}
+\ottusedrule{\ottdrulearchXXcontrolXXinit{}}
+\ottusedrule{\ottdrulearchXXparserXXexec{}}
+\ottusedrule{\ottdrulearchXXcontrolXXexec{}}
+\ottusedrule{\ottdrulearchXXparserXXret{}}
+\ottusedrule{\ottdrulearchXXcontrolXXret{}}
+\ottusedrule{\ottdrulearchXXffblockXXexec{}}
+\end{ottdefnblock}
+\end{minipage}
+}
+\caption{Architecture-Level Semantics}
+\label{fig:semarch}
+\end{figure}
 
 \printbibliography
 
@@ -434,7 +497,7 @@ The binary expressions included are shown in Figure~\ref{fig:unop}. These includ
 
 \section{Semantics of Expression Reduction}
 \label{app:exp}
-This appendix describes semantics for reducing expressions in certain contexts. The expression semantics are shown in Figure~\ref{fig:semexp2}. The statement semantics are shown in Figure~\ref{fig:semstmt2}.
+This appendix describes semantics for reducing expressions in certain contexts. The expression semantics are shown in Figure~\ref{fig:semexp2}. The statement semantics are shown in Figure~\ref{fig:semstmt2}. The architecture semantics are shown in Figure~\ref{fig:semarch2}.
 
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
@@ -446,7 +509,7 @@ This appendix describes semantics for reducing expressions in certain contexts. 
 \ottusedrule{\ottdruleeXXbinopXXargOne{}}
 \ottusedrule{\ottdruleeXXbinopXXargTwo{}}
 \end{ottdefnblock}}
-\caption{P4 Expression Evaluation Semantics}
+\caption{Expression Reduction-of-Argument Semantics}
 \label{fig:semexp2}
 \end{figure}
 
@@ -462,8 +525,17 @@ The \textsc{e\_func\_call\_args} rule reduces the leftmost function argument whi
 \ottusedrule{\ottdrulestmtXXverifyXXeOne{}}
 \ottusedrule{\ottdrulestmtXXverifyXXeTwo{}}
 \end{ottdefnblock}
-\caption{P4 Statement Execution Semantics}
+\caption{Statement Reduction-of-Argument Semantics}
 \label{fig:semstmt2}
+\end{figure}
+
+\begin{figure}[ht!]
+\begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash  { \mathit{env}_\mathit{A} }   \mathit{ctx}  [  \ottnt{stmt}  ] (  \sigma  ,  t  ) \rightharpoonup  { \mathit{env}_\mathit{A} }'   \mathit{ctx}'  [  \ottnt{stmt'}  ] (  \sigma'  ,  t'  ) $}{\ottcom{architectural-level semantics}}
+\ottusedrule{\ottdrulearchXXpblockXXargs{}}
+\ottusedrule{\ottdrulearchXXffblockXXargs{}}
+\end{ottdefnblock}
+\caption{Architecture Reduction-of-Argument Semantics}
+\label{fig:semarch2}
 \end{figure}
 
 \end{document}

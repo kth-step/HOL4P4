@@ -48,6 +48,10 @@ fun mk_v_bitii (num, width) =
 val (v_bool_tm, mk_v_bool, dest_v_bool, is_v_bool) =
   syntax_fns1 "p4" "v_bool";
 
+val (v_str_tm, _, dest_v_str, is_v_str) =
+  syntax_fns1 "p4" "v_str";
+val mk_v_str = (#2 (syntax_fns1 "p4" "v_str")) o fromMLstring;
+
 val (v_struct_tm, mk_v_struct, dest_v_struct, is_v_struct) =
   syntax_fns1 "p4" "v_struct";
 fun mk_v_struct_list x_v_l =
@@ -58,13 +62,22 @@ val (v_header_tm, mk_v_header, dest_v_header, is_v_header) =
 fun mk_v_header_list vbit x_v_l =
   mk_v_header (vbit, (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v) ``)));
 
+val v_bot_tm = prim_mk_const {Name="v_bot", Thy="p4"};
+fun is_v_bot tm = term_eq tm v_bot_tm;
 
 (********)
 (* lval *)
 (********)
 
-val (lval_varname_tm, mk_lval_varname, dest_lval_varname, is_lval_varname) =
+val lval_ty = mk_type ("lval", []);
+
+val (lval_varname_tm, _, dest_lval_varname, is_lval_varname) =
   syntax_fns1 "p4" "lval_varname";
+val mk_lval_varname = (#2 (syntax_fns1 "p4" "lval_varname")) o fromMLstring;
+
+val (lval_field_tm, _, dest_lval_field, is_lval_field) =
+  syntax_fns2 "p4" "lval_field";
+val mk_lval_field = (fn (e, f) => (#2 (syntax_fns2 "p4" "lval_field")) (e, fromMLstring f));
 
 val lval_null_tm = prim_mk_const {Name="lval_null", Thy="p4"};
 fun is_lval_null tm = term_eq tm lval_null_tm;
@@ -75,8 +88,9 @@ fun is_lval_null tm = term_eq tm lval_null_tm;
 
 val e_ty = mk_type ("e", []);
 
-val (e_var_tm,  mk_e_var, dest_e_var, is_e_var) =
+val (e_var_tm,  _, dest_e_var, is_e_var) =
   syntax_fns1 "p4" "e_var";
+val mk_e_var = (#2 (syntax_fns1 "p4" "e_var")) o fromMLstring;
 
 val (e_unop_tm,  mk_e_unop, dest_e_unop, is_e_unop) =
   syntax_fns2 "p4" "e_unop";
@@ -110,9 +124,18 @@ val binop_or_tm  = prim_mk_const {Name="binop_or",  Thy="p4"};
 val binop_bin_and_tm = prim_mk_const {Name="binop_bin_and", Thy="p4"};
 val binop_bin_or_tm  = prim_mk_const {Name="binop_bin_or",  Thy="p4"};
 
-val (e_func_call_tm, mk_e_func_call, dest_e_func_call, is_e_func_call) =
-  syntax_fns2 "p4"  "e_func_call";
+val (e_acc_tm, mk_e_acc, dest_e_acc, is_e_acc) =
+  syntax_fns2 "p4" "e_acc";
 
+val (e_func_call_tm, mk_e_func_call, dest_e_func_call, is_e_func_call) =
+  syntax_fns2 "p4" "e_func_call";
+
+val (e_ext_call_tm, mk_e_ext_call, dest_e_ext_call, is_e_ext_call) =
+  syntax_fns3 "p4" "e_ext_call";
+val mk_e_ext_call_list =
+  (fn (e, f, l) => (#2 (syntax_fns3 "p4" "e_ext_call")) (e,
+                                                         fromMLstring f,
+                                                         listSyntax.mk_list (l, e_ty)));
 (********)
 (* stmt *)
 (********)
@@ -123,6 +146,12 @@ val (stmt_ass_tm, mk_stmt_ass, dest_stmt_ass, is_stmt_ass) =
   syntax_fns2 "p4"  "stmt_ass";
 val (stmt_seq_tm, mk_stmt_seq, dest_stmt_seq, is_stmt_seq) =
   syntax_fns2 "p4"  "stmt_seq";
+val (stmt_cond_tm, mk_stmt_cond, dest_stmt_cond, is_stmt_cond) =
+  syntax_fns3 "p4"  "stmt_cond";
+val (stmt_ret_tm, mk_stmt_ret, dest_stmt_ret, is_stmt_ret) =
+  syntax_fns1 "p4"  "stmt_ret";
+val (stmt_app_tm, mk_stmt_app, dest_stmt_app, is_stmt_app) =
+  syntax_fns2 "p4"  "stmt_app";
 
 fun mk_stmt_seq_list' (h::[]) = h
   | mk_stmt_seq_list' (h::t) =
@@ -138,16 +167,12 @@ val d_ty = mk_type ("d", []);
 (* State *)
 (*********)
 
-val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option string_ty));
+val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option lval_ty));
 
-val (state_tup_tm, mk_state_tup, dest_state_tup, is_state_tup) =
-  syntax_fns2 "p4" "state_tup";
+val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 
 val (called_function_name_function_name_tm, mk_called_function_name_function_name, dest_called_function_name_function_name, is_called_function_name_function_name) =
-  syntax_fns1 "p4"  "called_function_name_function_name";
-
-val (stacks_tup_tm, mk_stacks_tup, dest_stacks_tup, is_stacks_tup) =
-  syntax_fns2 "p4" "stacks_tup";
+  syntax_fns1 "p4" "called_function_name_function_name";
 
 (**************)
 (* Reductions *)

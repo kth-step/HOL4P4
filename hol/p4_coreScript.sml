@@ -36,33 +36,33 @@ Definition min_size_in_bytes:
 End
 
 Definition is_valid:
- (is_valid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
-  case lookup_v frame header_name of
+ (is_valid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
+  case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
-   SOME (v_bool valid_bit, state_tup (stacks_tup frame call_stack) status)
+   SOME (v_bool valid_bit, (ctrl, (frame, call_stack), status))
   | _ => NONE
  )
 End
 
 Definition set_valid:
- (set_valid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
-  case lookup_v frame header_name of
+ (set_valid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
+  case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
-   (case assign frame (v_header T x_v_l) (lval_varname header_name) of
+   (case assign frame (v_header T x_v_l) header_name of
     | SOME frame' =>             
-     SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+     SOME (v_bot, (ctrl, (frame', call_stack), status))
     | NONE => NONE)
   | _ => NONE
  )
 End
 
 Definition set_invalid:
- (set_invalid (header_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
-  case lookup_v frame header_name of
+ (set_invalid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
+  case lookup_lval frame header_name of
   | (v_header valid_bit x_v_l) =>
-   (case assign frame (v_header F x_v_l) (lval_varname header_name) of
+   (case assign frame (v_header F x_v_l) header_name of
     | SOME frame' =>             
-     SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+     SOME (v_bot, (ctrl, (frame', call_stack), status))
     | NONE => NONE)
   | _ => NONE
  )
@@ -74,7 +74,7 @@ End
 
 Definition lookup_packet_in:
  (lookup_packet_in frame ext_obj_name =
-  case lookup_v frame ext_obj_name of
+  case lookup_lval frame ext_obj_name of
   | (v_ext (ext_obj_in packet_in)) => SOME packet_in
   | _ => NONE
  )
@@ -92,7 +92,7 @@ End
 Definition get_header_lval':
  (get_header_lval' e =
   case e of
-  | (e_acc e (e_var x)) => 
+  | (e_acc e (e_v (v_str x))) => 
    (case get_header_lval' e of
     | SOME lval => SOME (lval_field lval x)
     | NONE => NONE)
@@ -113,7 +113,7 @@ Definition set_header_fields':
  (set_header_fields' []     acc _ = SOME acc) /\
  (set_header_fields' (h::t) acc packet_in =
   case h of
-  | (x, (v_bool b)) => set_header_fields' t ((x, (v_bool (HD packet_in)))::acc) (DROP 1 packet_in)
+  | (x:x, (v_bool b)) => set_header_fields' t ((x, (v_bool (HD packet_in)))::acc) (DROP 1 packet_in)
   | (x, (v_bit (bv, l))) => set_header_fields' t ((x, (v_bit (TAKE l packet_in, l)))::acc) (DROP l packet_in)
   | _ => NONE
  )
@@ -124,8 +124,9 @@ End
 
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
+(* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
 Definition extract:
- (extract (ext_obj_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
+ (extract (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
   case lookup_packet_in frame ext_obj_name of
   | SOME packet_in =>
    (case get_header_lval e_l of
@@ -138,17 +139,17 @@ Definition extract:
          then
           (case set_header_fields x_v_l packet_in of
            | SOME x_v_l' =>
-	    (case assign frame (v_header T x_v_l') header_lval of
+	    (case assign frame (v_header T (REVERSE x_v_l')) header_lval of
 	     | SOME frame' =>
-             (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) (lval_varname ext_obj_name) of
+             (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) ext_obj_name of
 	      | SOME frame'' =>             
-	       SOME (v_bot, state_tup (stacks_tup frame'' call_stack) status)
+	       SOME (v_bot, (ctrl, (frame'', call_stack), status))
               | NONE => NONE)
              | NONE => NONE)
            | NONE => NONE)
          else
 	  (case assign frame (v_err "PacketTooShort") (lval_varname "parseError") of
-	   | SOME frame' => SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+	   | SOME frame' => SOME (v_bot, (ctrl, (frame', call_stack), status))
            | NONE => NONE)
         | NONE => NONE)
       | NONE => NONE)
@@ -161,9 +162,11 @@ End
 (* packet_out methods *)
 (**********************)
 
+(* TODO: Fix the packet_in/packet_out hack *)
 Definition lookup_packet_out:
  (lookup_packet_out frame ext_obj_name =
-  case lookup_v frame ext_obj_name of
+  case lookup_lval frame ext_obj_name of
+  | (v_ext (ext_obj_out packet_out)) => SOME packet_out
   | (v_ext (ext_obj_in packet_out)) => SOME packet_out
   | _ => NONE
  )
@@ -199,25 +202,25 @@ End
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
 Definition emit:
- (emit (ext_obj_name, e_l, (state_tup (stacks_tup frame call_stack) status)) =
+ (emit (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
   case lookup_packet_out frame ext_obj_name of
   | SOME packet_out =>
    (case get_e_l_v e_l of
-    | SOME (v_header F x_v_l) => SOME (v_bot, state_tup (stacks_tup frame call_stack) status)
+    | SOME (v_header F x_v_l) => SOME (v_bot, (ctrl, (frame, call_stack), status))
     | SOME (v_header T x_v_l) =>
      (case flatten_v_l (MAP SND x_v_l) of
       | SOME bl =>
-       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) (lval_varname ext_obj_name) of
+       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
 	| SOME frame' =>             
-	 SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+	 SOME (v_bot, (ctrl, (frame', call_stack), status))
 	| NONE => NONE)
       | NONE => NONE)
     | SOME (v_struct x_v_l) =>
      (case flatten_v_l (MAP SND x_v_l) of
       | SOME bl =>
-       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) (lval_varname ext_obj_name) of
+       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
 	| SOME frame' =>             
-	 SOME (v_bot, state_tup (stacks_tup frame' call_stack) status)
+	 SOME (v_bot, (ctrl, (frame', call_stack), status))
 	| NONE => NONE)
       | NONE => NONE)
     | SOME _ => NONE
