@@ -8,39 +8,41 @@ To ensure higher security guarantees, one method is to formalize Small-step Oper
 ### Supported
 Base types:
 * Booleans
-* 64-bit fixed-width bitstrings
-* errors
+* Fixed-width bitstrings with widths up to 64
+* Errors
+* Strings
 
 Derived types:
 * Headers
-* Struct
+* Structs
 
 Expressions:
-* Constants (other than string literals)
+* Constants
+* Variables
 * Arithmetic operations
-* Function calls
+* Function (including extern) calls
+* Selects
 
 Statements:
 * Assignments
-* Method calls
+* Method (including extern) calls
+* Conditional
+* Declarations
 * Blocks
 * Return
 * Verify
+* Transition
+* Apply
 
 Programmable blocks:
 * Parsers
 * Control blocks
 
 ### Partially Supported
-Base types:
-* Non-64-bit fixed-width bitstrings
 
 Expressions:
 * Bitslicing
 * Concatenation
-* Select
-
-* Calling Conventions
 
 ### Not Supported Yet
 Base types:
@@ -64,18 +66,13 @@ Statements:
 * Exit
 * Switch
 
-Externs
-
 Type specialization
 
-Data extraction
-
-Specific architecture support
-
-Architecture descriptions
+Specific architecture support:
+* Tofino (TNA)
 
 ## Versioning
-Currently, the developer team is working on v1, which will cover all parts of the P4 pipeline and be sufficient to model small examples.
+Currently, the developer team is working on v0.2, which will include a proofs of determinism, subject reduction, termination as well as soundness and completeness of the executable semantics.
 
 ## Prerequisites
 The project has the following dependencies, listed with recommended versions:
