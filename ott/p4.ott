@@ -511,11 +511,34 @@ t {{ tex t }} :: t_ ::=
 | header_t t1 , ... , tn :: :: header
   {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 
+%Fence between ctrl and e_list
+embed
+{{ hol
+
+}}
+grammar
+
+% TODO: Could be just a type abbreviation?
+ctrl {{ tex { C } }} :: ctrl_ ::=
+{{ com control plane }}
+{{ hol ((string # v # mk) -> (string # e_list) option) }}
+| empty :: M :: empty
+  {{ com empty table map }}
+  %TODO: Correct? How does this affect export?
+  {{ hol FEMPTY }}
+
+%Fence between ctrl and state
+embed
+{{ hol
+
+}}
+grammar
+
 %ext maps a current frame to an updated one.
 %Note that at the time this happens, a new frame has already been declared for ext. 
 ext {{ tex { \mathit{ext} } }} :: ext_ ::=
 %{{ hol ((lval # e list # state) -> ((v # state) option)) }}
-{{ hol (scopes_stack -> (scopes_stack option)) }}
+{{ hol ((g_scope_list # scopes_stack # ctrl) -> ((scopes_stack # ctrl) option)) }}
 
 %Fence between ext and ext_map
 embed
@@ -598,29 +621,6 @@ frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
 | ( frame_list ) :: M :: paren
   {{ hol ([[frame_list]]) }}
   {{ tex [[frame_list]] }}
-
-%Fence between ctrl and e_list
-embed
-{{ hol
-
-}}
-grammar
-
-% TODO: Could be just a type abbreviation?
-ctrl {{ tex { C } }} :: ctrl_ ::=
-{{ com control plane }}
-{{ hol ((string # v # mk) -> (string # e_list) option) }}
-| empty :: M :: empty
-  {{ com empty table map }}
-  %TODO: Correct? How does this affect export?
-  {{ hol FEMPTY }}
-
-%Fence between ctrl and state
-embed
-{{ hol
-
-}}
-grammar
 
 state {{ tex \sigma }} :: state_ ::=
 {{ com execution state }}
@@ -1067,10 +1067,10 @@ formula :: formula_ ::=
   {{ hol ([[ctrl]] ( [[tbl]] , [[v]] , [[mk]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
 % extern
-| extr ( scope , scopes_stack ) = ( v , scope' , scopes_stack' , status' ) :: :: external_func  
-  {{ com applies teh semantics of the function and returns a value, with an updated sigma, global scope and status}}
-  {{ tex \blacksquare \, ( [[scope]] , \, [[scopes_stack]] ) = \, ( [[v]] , [[scope']] , [[scopes_stack']] , [[status']] ) }}
-  {{ hol (extr ( [[scope]] , [[scopes_stack]] ) = ( [[v]] , [[scope']] , [[scopes_stack']] , [[status']] ) ) }}
+| ( scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl ) :: :: ext 
+  {{ com application of an extern function }}
+  {{ tex ([[scopes_stack']], \, [[ctrl']]) = \blacksquare \, ( [[g_scope_list]] , \, [[scopes_stack]] , \, [[ctrl]] ) }}
+  {{ hol (SOME ([[scopes_stack']], [[ctrl']]) = [[ext]] ([[g_scope_list]], [[scopes_stack]], [[ctrl]])) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -1157,9 +1157,6 @@ formula :: formula_ ::=
  %            (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
 	%   \end{cases} }}
   {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[scopes_stack]]) }}
-| ext lval ( e1 , .. , en ) state = ( v , state' ) :: M :: exec_ext
-  {{ com execute extern method }}
-  {{ hol ([[ext]] ([[lval]], [[e1 .. en]], [[state]]) = SOME ([[v]], [[state']])) }}
 | ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
   {{ com ext lookup }}
   {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
@@ -2381,10 +2378,16 @@ by
 
 
 %%%%%%%%%%%%%%
-%return statement
+%Return
 
   ----------------------------------- :: return_v
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , return v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl , Ret v )
+
+%%%%%%%%%%%%%%
+%Extern
+  ( scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl )
+  ----------------------------------- :: ext
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , ext , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl' , Running )
  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
