@@ -674,9 +674,10 @@ func_map {{ tex F }} :: func_map_ ::=
   {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
 
 %This maps extern function names of an individual object obj to their implementations
+%Note that the body of the extern is stmt in order to accommodate return by using return statements
 ext_fun_map {{ tex X_{ \mathit{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
-{{ hol (string |-> (ext # (string # d) list)) }}
+{{ hol (string |-> (stmt # (string # d) list)) }}
 
 %Fence between ext_fun_map and ext_map
 embed
@@ -688,7 +689,7 @@ grammar
 %This maps extern object names to tuples of constructors and their respective function maps
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol (string |-> ((ext # (string # d) list) # ext_fun_map)) }}
+{{ hol (string |-> ((stmt # (string # d) list) # ext_fun_map)) }}
 
 % TODO: Could be just a type abbreviation?
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
@@ -1825,13 +1826,13 @@ val lookup_fun_sig_body_def = Define `
       | NONE => NONE)
     | (funn_inst lval x) =>
      (case FLOOKUP ext_map x of
-      | SOME ((ext, x_d_l), ext_fun_map) => SOME (stmt_ext ext, x_d_l)
+      | SOME ((stmt, x_d_l), ext_fun_map) => SOME (stmt, x_d_l)
       | _ => NONE)
     | (funn_ext lval x x') =>
      (case FLOOKUP ext_map x of
       | SOME (_, ext_fun_map) =>
        (case FLOOKUP ext_fun_map x' of
-	| SOME (ext, x_d_l) => SOME (stmt_ext ext, x_d_l)
+	| SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
 	| _ => NONE)
       | _ => NONE)
   )
@@ -2259,13 +2260,12 @@ by
   ctx ( g_scope_list , [ frame ] ++ frame_list'' , ctrl , status ) -> ( g_scope_list' , frame_list' ++ frame_list'' , ctrl' , status' )
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
-%TODO: Fix this for funn
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
   scopes_stack'' = init_in_highest_scope ( scopes_stack' , v , star )
-  ( stmt''' , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f )
+  ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_fun_sig_body ( funn , func_map , ext_map )
   ( g_scope_list'' , scopes_stack''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack'' , scopes_stack )
   ----------------------------------- :: comp2
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( f' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list'' , [ ( f' , stmt' , scopes_stack''' ) ] ++ frame_list , ctrl , Running )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( funn' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list'' , [ ( funn' , stmt' , scopes_stack''' ) ] ++ frame_list , ctrl , Running )
 
 
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
