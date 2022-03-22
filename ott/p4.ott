@@ -245,7 +245,7 @@ grammar
 scopes_stack {{ tex \overrightarrow{\gamma} }} :: scopes_stack_ ::=
 {{ hol (scope list) }}
 {{ com stack of block scopes }}
-| emptycsf :: M :: empty
+| emptyss :: M :: empty
   {{ hol ([]:scope list) }}
   {{ tex {\emptyset}_{\varepsilon} }}
 | [ scope1 , .. , scopen ] :: M :: list
@@ -499,7 +499,7 @@ embed
 }}
 grammar
 
-%ext maps a current frame to an updated one.
+%ext updates scope stack and ctrl directly.
 %Note that at the time this happens, a new frame has already been declared for ext. 
 ext {{ tex { \mathit{ext} } }} :: ext_ ::=
 %{{ hol ((lval # e list # state) -> ((v # state) option)) }}
@@ -552,7 +552,7 @@ stmt :: stmt_ ::=
   {{ tex \blacksquare  }}
 
 frame {{ tex \Phi }} :: frame_ ::=
-{{ com frame tup phi contains the current function name, stmt and the local scope }}
+{{ com contains the current function name, stmt and local scope stack }}
 {{ hol (funn # stmt # scopes_stack) }}
 | ( funn , stmt , scopes_stack ) :: M :: tup
  {{ hol ([[funn]] , [[stmt]] , [[scopes_stack]]) }}
@@ -567,7 +567,7 @@ grammar
 
 frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
 {{ hol (frame list) }}
-{{ com current stack frame - stack of phi tuples (funn,stmt,Epsilon) }}
+{{ com list of frame tuples }}
 | empty :: M :: empty
   {{ hol ([]:frame list) }}
   {{ tex [ \, ] }}
@@ -933,18 +933,12 @@ formula :: formula_ ::=
 | ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f ) :: M :: func_lookup
   {{ com function signature lookup }}
   {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
-| find_index_max ( scopes_stack , x ) = i :: M :: find_index_scope_max
-  {{ com find max index of variable's scope }}
-  %INDEX_FIND finds the first occurrence, starting from head and going backwards in list
-  {{ hol (FST (THE (INDEX_FIND 0 (\sf. IS_SOME (FLOOKUP sf [[x]])) [[scopes_stack]])) = [[i]]) }}
-  {{ tex i = \mathrm{max} \, \{ j . \,\, [[x]]  \in \mathrm{dom} ( [[scopes_stack]] [j] )   \} }}
-%  {{ tex [[x]] \in \mathrm{dom}([[scopes_stack]][ [[i]] ]) \land \forall j . \,\, j > [[i]] \Rightarrow [[x]] \notin \mathrm{dom}([[scopes_stack]][j]) }}
 | length ( scopes_stack ) = i :: M :: find_length
-  {{ com find the current stack frame length }}
+  {{ com find the scope stack length }}
   {{ tex [[i]] = length ([[scopes_stack]])}}
   {{ hol ([[i]] = LENGTH [[scopes_stack]]) }}
 | length ( scopes_stack ) - 1 = i :: M :: find_length_minus_1
-  {{ com find the current stack frame length minus 1 }}
+  {{ com find the scope stack length minus 1 }}
   {{ tex [[i]] = length ([[scopes_stack]]) - 1}}
   {{ hol ([[i]] = LENGTH [[scopes_stack]] - 1) }}  
 | v = scope ( x ) :: M :: lookup
@@ -963,10 +957,10 @@ formula :: formula_ ::=
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
 | v = lookup_vexp ( scopes_stack , x ) :: :: lookup_v
   {{ tex [[v]] = \mathrm{lookup_v} ([[scopes_stack]], [[x]]) }}
-  {{ hol [[v]] =  lookup_vexp [[scopes_stack]] (varn_name [[x]])}}
+  {{ hol SOME [[v]] =  lookup_vexp [[scopes_stack]] (varn_name [[x]])}}
 | v = lookup_vexp2 ( scopes_stack , g_scope_list , varn ) :: :: lookup_v2
   {{ tex [[v]] = \mathrm{lookup_v} ([[scopes_stack]], [[g_scope_list]], [[varn]]) }}
-  {{ hol [[v]] =  lookup_vexp2 [[scopes_stack]] [[g_scope_list]] [[varn]]}} 
+  {{ hol SOME [[v]] =  lookup_vexp2 [[scopes_stack]] [[g_scope_list]] [[varn]]}} 
 | ( v , a ) = lookup_tup ( scopes_stack , varn ) :: :: lookup_tup
   {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[scopes_stack]], [[varn]]) }}
 | x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
@@ -1066,13 +1060,6 @@ formula :: formula_ ::=
   {{ com declare "star" with value v in topmost scope }}
   {{ hol ([[scopes_stack']] = init_in_highest_scope [[scopes_stack]] [[v]] varn_star) }}
   {{ tex [[scopes_stack']] = [[scopes_stack]] [ [[star]] \longmapsto [[v]] ] }}
-
-| v'' = ( struct { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: s_fld_upd
-  {{ com update of struct field }}
-  {{ hol ([[v'']] = v_struct (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
-| v'' = ( header boolv { x1 = v1 ; ... ; xn = vn } with x := v ) :: M :: h_fld_upd
-  {{ com update of struct field }}
-  {{ hol ([[v'']] = v_header [[boolv]] (LUPDATE ([[x]], [[v]]) (THE (INDEX_OF [[x]] (MAP FST [[x1 v1 ... xn vn]]))) [[x1 v1 ... xn vn]])) }}
 | not_final_state ( x ) :: M :: not_final_x
   {{ com x is not name of final state }}
   {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
@@ -1115,14 +1102,14 @@ formula :: formula_ ::=
 %	     (\mathrm{lookup_v}( [[scopes_stack]] , e), e) & \mathrm{if} \; d \in \{ \uparrow , \updownarrow \} \\
  %            (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
 	%   \end{cases} }}
-  {{ hol ([[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[scopes_stack]]) }}
+  {{ hol (SOME [[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[scopes_stack]]) }}
 | ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
   {{ com ext lookup }}
   {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
 | scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scopes_stack ) :: M :: copyin
   {{ com build new scope and copyin }}
   {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma} )  }}
-  {{ hol ([[scope']] = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scopes_stack]]) }}
+  {{ hol (SOME [[scope']] = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scopes_stack]]) }}
 | v = arb_from_t t :: M :: make_arb
   {{ com create new varaible in declaration }}
   {{ hol ([[v]] = arb_from_t [[t]]) }}
@@ -1200,10 +1187,10 @@ formula :: formula_ ::=
   {{ tex [ ( [[f]] , [[stmt]] , [[scopes_stack]]) ] = [[E]] }}
   {{ hol [ ( [[f]] , [[stmt]] , [[scopes_stack]]) ] = [[E]] }}
 | ( g_scope_list' , scopes_stack'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scopes_stack , scopes_stack' ) :: M :: copyout
-   %scopes_stack is the current called stack, whereas scopes_stack' is the caller to copy out to
+   %scopes_stack callee stack, whereas scopes_stack' is the caller stack
   %{{ tex ( [[scope]] , [[scopes_stack'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [[d_list]] , [[scope']] , [[scopes_stack]] , [[scopes_stack']] ) }}
   {{ tex ( [[g_scope_list']] , [[scopes_stack'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , [[g_scope_list]] , \overrightarrow{\gamma}'' , \overrightarrow{\gamma} ) }}
-  {{ hol ( ( [[g_scope_list']] , [[scopes_stack'']] ) = copyout [[x1 .. xn]] [[d_list]] [[g_scope_list]] [[scopes_stack]] [[scopes_stack']] ) }}
+  {{ hol ( SOME ( [[g_scope_list']] , [[scopes_stack'']] ) = copyout [[x1 .. xn]] [[d_list]] [[g_scope_list]] [[scopes_stack]] [[scopes_stack']] ) }}
 | is_not_fully_red e :: M :: not_fully_red
   {{ com expression is not fully reduced }}
   {{ tex ~ { \mathrm{fully\_reduced} } \, [[e]] }}
@@ -1227,8 +1214,14 @@ val is_consts_def = Define `
 
 (* Access the field f of a struct or a header *)
 val acc_f_def = Define `
-  (acc_f (v_struct s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s)))) /\
-  (acc_f (v_header _ s) f = SOME (SND (THE (FIND (\(f', v). f' = f) s)))) /\
+  (acc_f (v_struct s) f =
+    case FIND (\(f', v). f' = f) s of
+    | SOME (f'', v) => SOME v
+    | _ => NONE) /\
+  (acc_f (v_header _ s) f =
+    case FIND (\(f', v). f' = f) s of
+    | SOME (f'', v) => SOME v
+    | _ => NONE) /\
   (acc_f _ f = NONE)
 `;
 
@@ -1494,69 +1487,88 @@ val is_var_def = Define `
 `;
 
 (* Extracts the string that represents the variable name from the expression form *)
-val extract_string_def = Define `
-  extract_string (e_var x) = x
+val varname_of_e_def = Define `
+  (varname_of_e (e_var x) = SOME x) /\
+  (varname_of_e _ = NONE)
 `;
 
-val extract_value_def = Define `
-  extract_value (e_v v) = v
+val v_of_e_def = Define `
+  (v_of_e (e_v v) = SOME v) /\
+  (v_of_e _ = NONE)
 `;
 
+(* TODO: Rename to avoid confusion with "newest_scope" et.c. *)
 (* Finds the topmost scope where the variable x is mapped and its index, as a tuple.
  * Note that here, 0 is the topmost scope. *)
 val find_topmost_scope_def = Define `
-  find_topmost_scope (sf:scope list) x =
-    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE sf) of
-    | SOME (i, sc) => SOME (((LENGTH sf) - 1) - i, sc)
+  find_topmost_scope (ss:scope list) x =
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE ss) of
+    | SOME (i, sc) => SOME (((LENGTH ss) - 1) - i, sc)
     | NONE => NONE
 `;
 
 (* Extracts the topmost scope where the variable name x is mapped *)
 val topmost_scope_def = Define `
-  topmost_scope (sf:scope list) x =
-    SND (THE (find_topmost_scope sf x))
+  topmost_scope (ss:scope list) x =
+    case find_topmost_scope ss x of
+    | SOME (i, sc) => SOME sc
+    | _ => NONE
 `;
 
 (* Extracts the index of the topmost scope where the variable name x is mapped *)
 val topmost_scope_index_def = Define `
-  topmost_scope_index (sf:scope list) x = 
-    FST (THE (find_topmost_scope sf x))
+  topmost_scope_index (ss:scope list) x = 
+    case find_topmost_scope ss x of
+    | SOME (i, sc) => SOME i
+    | _ => NONE
 `;
 (* Fetches the (value, string option) tuple of the variable name x,
  * in the topmost scope where it is mapped *)
 val lookup_tup_def = Define `
-  lookup_tup (sf:scope list) x =
-    THE (FLOOKUP (topmost_scope sf x) x)
+  lookup_tup (ss:scope list) x =
+    case topmost_scope ss x of
+    | SOME sc => 
+      (case FLOOKUP sc x of
+       | SOME (v, str_opt) => SOME (v, str_opt)
+       | _ => NONE)
+    | _ => NONE
 `;
 (* Fetches the value of the variable name x from the topmost scope where it is mapped *)
 val lookup_v_def = Define `
-  lookup_v (sf:scope list) x =
-    FST (lookup_tup sf x)
+  lookup_v (ss:scope list) x =
+    case lookup_tup ss x of
+    | SOME (v, str_opt) => SOME v
+    | _ => NONE
 `;
 (* Fetches the (optional) argument variable name that might have been saved if
  * variable name x was mapped as a result of being an out-parameter in a
  * called function from the topmost scope where x is mapped *)
 val lookup_out_def = Define `
-  lookup_out (sf:scope list) x =
-    SND (lookup_tup sf x)
+  lookup_out (ss:scope list) x =
+    case lookup_tup ss x of
+    | SOME (v, str_opt) => SOME str_opt
+    | _ => NONE
 `;
 (* Same as the above, but directly from an expression *)
 val lookup_vexp_def = Define `
-  lookup_vexp (sf:scope list) x =
-    lookup_v (sf:scope list) x 
+  lookup_vexp (ss:scope list) x =
+    lookup_v (ss:scope list) x
 `;
 
-(* NEW DEF for lookup with three arguments*)
+(* Lookup with g_scope_list as a separate argument *)
 val lookup_vexp2_def = Define `
-  lookup_vexp2 (sf:scope list) (g_scope_list:scope list) x =
-    lookup_v (g_scope_list++sf) x
+  lookup_vexp2 (ss:scope list) (g_scope_list:scope list) x =
+    lookup_v (g_scope_list++ss) x
 `;
 
 (* Look up the value of a l-value (variables + fields of struct-valued variables) in
- * the current stack frame sf. *)
+ * a scope stack. *)
 val lookup_lval_def = Define `
-  (lookup_lval (sf:scope list) (lval_varname x) = (lookup_v sf x)) /\
-  (lookup_lval (sf:scope list) (lval_field lval f) = THE (acc_f (lookup_lval sf lval) f))
+  (lookup_lval (ss:scope list) (lval_varname x) = lookup_v ss x) /\
+  (lookup_lval (ss:scope list) (lval_field lval f) =
+     case lookup_lval ss lval of
+     | SOME v => acc_f v f
+     | NONE => NONE)
 `;
 
 (* TODO: This is ambiguous with regard to inout... *)
@@ -1589,7 +1601,7 @@ val unred_arg_index_def = Define `
   unred_arg_index dlist elist  = 
     case find_unred_arg dlist elist of
     | SOME (i, de) => SOME i
-    | NONE => NONE
+    | _ => NONE
 `;
 
 val get_lval_of_e_def = Define `
@@ -1608,8 +1620,7 @@ val is_e_lval_def = Define `
     | NONE => F)
 `;
 
-(* Checks if function arguments have been appropriately reduced.
- * In e_func_call_newframe rule, we need this definition to show the second premise *)
+(* Checks if function arguments have been appropriately reduced. *)
 val is_arg_red_def = Define `
   is_arg_red d e =
    ((~(is_d_out d) ==> (is_const e)) /\ (is_d_out d ==> (is_e_lval e)) = T)
@@ -1621,39 +1632,6 @@ val check_arg_red_def = Define `
 val check_args_red_def = Define `
   check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
 `;
-
-(*
-val init_out_param_def = Define `
-  (init_out_param (v_bool boolv) = v_bool ARB) /\
-  (init_out_param (v_bit (bl, n)) = v_bit (ARB, n)) /\
-  (init_out_param (v_str x) = v_str ARB) /\
-  (init_out_param (v_struct x_v_list) = t_base bt_bool) /\
-  (init_out_param (v_header boolv x_v_list) = t_base bt_bool) /\
-  (init_out_param (v_ext ext_obj) = t_base bt_bool) /\
-  (init_out_param (v_err errmsg) = t_base bt_bool) /\
-  (init_out_param (v_uninit errmsg) = t_base bt_bool) /\
-`;
-
-val v_size_def = Define `
-  (v_size (v_bool boolv) = 1) /\
-  (v_size (v_bit bitv) = 1) /\
-  (v_size (v_str x) = 1) /\
-  (v_size (v_struct (h::t)) = v_size (SND h) + v_size (v_struct t)) /\
-  (v_size (v_struct []) = 1) /\
-  (v_size (v_header boolv (h::t)) = v_size (SND h) + v_size (v_header boolv t)) /\
-  (v_size (v_header boolv []) = 1) /\
-  (v_size (v_ext ext_obj) = 1) /\
-  (v_size (v_err errmsg) = 1) /\
-  (v_size v_uninit = 1) /\
-  (v_size v_bot = 1)
-`;
-
-val cons_struct_header_def = Define `
-  (cons_struct_header x_v (v_struct x_v_list) = v_struct (x_v::x_v_list)) /\
-  (cons_struct_header x_v (v_header boolv x_v_list) = (v_header boolv (x_v::x_v_list))) /\
-  (cons_struct_header _ _ = NONE)
-`;
-*)
 
 val v_size_def = DB.fetch "p4" "v_size_def";
 
@@ -1676,7 +1654,7 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_bool boolv) = v_bool ARB) /\
   (init_out_v (v_bit (bl, n)) = v_bit (extend ARB n [], n)) /\
   (init_out_v (v_str x) = v_str ARB) /\
-  (init_out_v (v_struct ((x,v)::t)) = v_struct (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+  (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_struct []) = v_struct []) /\
   (init_out_v (v_header boolv ((x,v)::t)) =
     v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
@@ -1700,75 +1678,103 @@ val arb_from_t_def = Define `
   (arb_from_t (t_base bt_bit) = (v_bit ARB))
 `;
 
-(* Given a direction, an expression (should be a lval),  and a stack frame,
+(* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
-  one_arg_val_for_newscope d e sf =
+  one_arg_val_for_newscope d e ss =
    if is_d_out d
-   then (if is_d_in d
-         then lookup_vexp sf (extract_string e)
-         else init_out_v (lookup_vexp sf (extract_string e)), get_lval_of_e e)
-   else (extract_value e, NONE)
+   then
+     (case varname_of_e e of
+      | SOME varname =>
+          (case get_lval_of_e e of
+           | SOME lval =>
+             (case lookup_vexp ss varname of
+              | SOME v =>
+                if is_d_in d
+                then SOME (v, SOME lval)
+                else SOME (init_out_v v, SOME lval)
+              | NONE => NONE)
+           | NONE => NONE)
+      | NONE => NONE)
+   else
+     (case v_of_e e of
+      | SOME v => SOME (v, NONE)
+      | NONE => NONE)
+`;
+
+val update_arg_for_newscope_def = Define `
+  update_arg_for_newscope ss f_opt (d, x, e) =
+    case f_opt of
+    | SOME f =>
+      (case one_arg_val_for_newscope d e ss of
+       | SOME (v, lval_opt) => SOME (f |+ (varn_name x, (v, lval_opt)))
+       | NONE => NONE)
+    | NONE => NONE
 `;
 
 (* Fills a fresh scope with the values of the arguments of a called function.
- * Note: used in e_func_call_newframe *)
+ * Note: used in e_call_newframe *)
 val all_arg_update_for_newscope_def = Define `
-  all_arg_update_for_newscope xlist dlist elist sf = 
-    FOLDL (\f (d,x,e). (f |+ ( varn_name x , one_arg_val_for_newscope d e sf))) FEMPTY (ZIP (dlist, ZIP(xlist, elist)))
+  all_arg_update_for_newscope xlist dlist elist ss = 
+    FOLDL (update_arg_for_newscope ss) (SOME FEMPTY) (ZIP (dlist, ZIP(xlist, elist)))
 `;
 
 
-(* full copyin to a frame definition *)
+(* full copyin definition *)
 val copyin_def = Define `
-  copyin xlist dlist elist gsl sf_current = 
-    all_arg_update_for_newscope xlist dlist elist (gsl++sf_current)
+  copyin xlist dlist elist gsl ss_curr = 
+    all_arg_update_for_newscope xlist dlist elist (gsl++ss_curr)
 `;
 
 
-(* Updates a stack frame by mapping the variable name a to the value v
+(* Updates a scope stack by mapping the variable name a to the value v
  * in the topmost scope where a is defined,
  * written as ε[a -> v], colloquially known as assignment.
- * Note that this function will be used in the assignment and return rules *)
+ * Note that this function is used in the assignment and return rules *)
 val assign_def = Define `
-  (assign sf val (lval_varname x) =
-    SOME
-      (LUPDATE
-        ((topmost_scope sf x) |+ (x, (val, lookup_out sf x)))
-        (topmost_scope_index sf x)
-        sf)) /\
-  (assign sf val (lval_field lval f) =
-    case lookup_lval sf lval of
-    | (v_struct f_v_l) =>
-      assign sf (v_struct (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
-    | (v_header validity f_v_l) =>
-      assign sf (v_header validity (LUPDATE (f, val) (THE (INDEX_OF f (MAP FST f_v_l))) f_v_l)) lval
+  (assign ss v (lval_varname x) =
+    case find_topmost_scope ss x of
+    | SOME (i, sc) =>
+      (case lookup_out ss x of
+       | SOME str_opt =>
+         SOME (LUPDATE (sc |+ (x, (v, str_opt))) i ss)
+       | NONE => NONE)
+    | _ => NONE) /\
+  (assign ss v (lval_field lval f) =
+    case lookup_lval ss lval of
+    | SOME (v_struct f_v_l) =>
+      (case INDEX_OF f (MAP FST f_v_l) of
+       | SOME i => assign ss (v_struct (LUPDATE (f, v) i f_v_l)) lval
+       | NONE => NONE)
+    | SOME (v_header validity f_v_l) =>
+      (case INDEX_OF f (MAP FST f_v_l) of
+       | SOME i => assign ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
+       | NONE => NONE)
     | _ => NONE
   ) /\
-  (assign sf val lval_null =
-    SOME sf
+  (assign ss v lval_null =
+    SOME ss
   )
 `;
 
-(* Declares a new variable and initialises it to ARB, returns the new frame *)
+(* Declares a new variable and initialises it to ARB, returns the new scope stack *)
 (* TODO: Behaviour when variable already exists? *)
+(* Note that this will declare variables in the block-global scope when scope stack is empty *)
 val declare_def = Define `
-  (declare g_scope_list (sf:scopes_stack) x t =
-    case sf of
+  (declare g_scope_list (ss:scopes_stack) x t =
+    case ss of
     | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_t t, NONE))) 1 g_scope_list, [])
     | _ =>
-     let i = LENGTH sf - 1 in
-     let scope = EL i sf in
-     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_t t, NONE))) i sf)
+     let i = LENGTH ss - 1 in
+     let scope = EL i ss in
+     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_t t, NONE))) i ss)
   )
 `;
 
 (* Initialises a new variable in the topmost scope. *)
 val initialise_def = Define `
-  (initialise (sf:scopes_stack) x v =
-    let i = LENGTH sf - 1 in
-    let scope = EL i sf in
-    LUPDATE (FUPDATE scope (varn_name x, (v, NONE))) i sf 
+  (initialise (ss:scopes_stack) x v =
+    LUPDATE (FUPDATE (LAST ss) (varn_name x, (v, NONE))) (LENGTH ss - 1) ss
   )
 `;
 
@@ -1802,21 +1808,27 @@ val lookup_fun_sig_def = Define `
   )
 `;
 
-(* Given lists of variable names and directions, a caller's stack frame sf
- * and a callees stack frame sf_current, updates the caller's stack frame
+(* Given lists of variable names and directions, a caller's scope stack ss
+ * and a callees scope_stack ss_curr, updates the caller's scope stack
  * according to the calling conventions. *)
 val update_return_frame_def = Define `
-  update_return_frame xlist dlist sf sf_current = 
+  update_return_frame xlist dlist ss ss_curr = 
     FOLDL
-      (\sf_temp (x,d).
+      (\ss_temp_opt (x,d).
         if (is_d_none_in d)
-        then sf_temp
+        then ss_temp_opt
         else
-          case sf_temp of
-          | SOME sf_temp => assign sf_temp (lookup_v sf_current (varn_name x)) (THE (lookup_out sf_current ( varn_name x)))
+          case ss_temp_opt of
+          | SOME ss_temp =>
+           (case lookup_tup ss_curr (varn_name x) of
+            | SOME (v, str_opt) =>
+              (case str_opt of
+               | SOME str => assign ss_temp v str
+               | NONE => NONE)
+            | _ => NONE)
           | NONE => NONE
       )
-      (SOME sf)
+      (SOME ss)
       (ZIP(xlist, dlist))
 `;
 
@@ -1825,38 +1837,21 @@ val args_of_pbl_def = Define `
   (args_of_pbl (pblock_control x_d_list stmt stmt' tbl_map) = x_d_list)
 `;
 
-(* Implements the copyout operation to the global scope. Given current stack, caller stack,
- * list of arguments of the function i.e. args names and directions, and 
- * the global scope, it will return the updated global scope with the proper copy outs *)
-
-val cog_def = Define `
-  cog xlist dlist gsl sf sf_current= 
-  (TAKE 2 (THE (update_return_frame xlist dlist (gsl++sf) sf_current)))
-`;
-
-(* Implements the copyout operation to the caller scope. Given current stack, caller stack,
- * list of arguments of the function i.e. args names and directions, and 
- * the global scope, and returns a new stack for the caller where everything is copied out and separated into global scope and *)
-
-val col_def = Define `
-  col xlist dlist gsl sf sf_current= 
-  (TL (THE (update_return_frame xlist dlist (gsl++sf) sf_current)))
-`;
-
-
-(* Implements the whole copyout operation to the caller scope (sf). Given current stack, caller stack,
- * list of arguments of the funtion i.e. args names and directions, and 
- * the gloal scope, it will return a tuple first feild is the global with respect to the copy outs, 
- * where the second feild is the caller's scope updated with the copy outs *)
-
+(* Implements the whole copyout operation to the caller scope stack. Given list of arguments
+ * of the funtion i.e. names and directions, global scope list, caller scope stack and current
+ * scope stack, it will return a tuple where first element is a global scope list updated with
+ * the copy-outs, and the second element is the caller's scope updated with the copy-outs *)
 val copyout_def = Define `
-  copyout xlist dlist gsl sf sf_current = 
-  (cog xlist dlist gsl sf sf_current, col xlist dlist gsl sf sf_current)
+  copyout xlist dlist gsl ss ss_curr =
+    case update_return_frame xlist dlist (gsl++ss) ss_curr of
+    | SOME updated_return_ss =>
+     SOME (TAKE 2 updated_return_ss, DROP 2 updated_return_ss)
+    | NONE => NONE
 `;
 
 val sel_def = Define `
   sel v (v_x_list) x = 
-      case (FIND (\(ks, s). ks = v) v_x_list) of
+    case (FIND (\(ks, s). ks = v) v_x_list) of
     | SOME (v, x') => x'
     | NONE => x
 `;
@@ -1871,7 +1866,7 @@ val fully_reduced_def = Define `
 val not_top_return_def = Define `
   not_top_return frame_list =
     case frame_list of
-    | [ ( f , stmt , scopes_stack ) ] =>
+    | [(f, stmt, scopes_stack)] =>
       (case stmt of
       | stmt_ret e => T
       | stmt_seq (stmt_ret e) _ => T
@@ -1879,32 +1874,33 @@ val not_top_return_def = Define `
     | _ => F
 `;
 
-(*check is the status is not a return*)
+(* check if the status is not a return *)
 val notret_def = Define `
   (notret (status_returnv v) = F) /\
   (notret _ = T)
 `;
 
 
-(*fetch the newest scope index from the scope stacks of the current scope stack*)
+(* fetch the newest scope index from a scopes stack *)
 val newest_scope_ind_def = Define `
   newest_scope_ind scopes_stack = (LENGTH scopes_stack) - 1
 `;
 
-(* returns the newst scope using the index from the newest_scope_ind_def*)
+(* returns the newest (topmost) scope using the index from the newest_scope_ind_def *)
+(* TODO: Use LAST instead? *)
 val newest_scope_def = Define `
   newest_scope scopes_stack = EL (newest_scope_ind scopes_stack) scopes_stack
 `;
 
-(* Init the variable name star in the top most scope and return only the scope*)
+(* Init the variable name star in the topmost scope and return only the scope *)
 val decl_init_star_def = Define `
   decl_init_star scopes_stack v varn_star =
-  FUPDATE (newest_scope scopes_stack) (varn_star , ( v , NONE))
+  FUPDATE (newest_scope scopes_stack) (varn_star, (v , NONE))
 `;
 
-(* Init the variable name star in the top most scope and return all teh scope stack*)
+(* Init the variable name star in the topmost scope and return the updated scope stack *)
 val init_in_highest_scope_def = Define `
-  init_in_highest_scope scopes_stack v varn_star = LUPDATE (decl_init_star scopes_stack v varn_star) (newest_scope_ind scopes_stack) (scopes_stack)
+  init_in_highest_scope scopes_stack v varn_star = LUPDATE (decl_init_star scopes_stack v varn_star) (newest_scope_ind scopes_stack) scopes_stack
 `;
 
 }}
@@ -2517,7 +2513,7 @@ by
   g_scope_list'' = initialise ( g_scope_list' , x' , v )
   %TODO: Model arch scope external to the P4 program using the call stack?
   ----------------------------------- :: parser_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 ,  .. , en ) , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list'' , [ ( f , stmt ; stmt' , emptycsf ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 ,  .. , en ) , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list'' , [ ( f , stmt ; stmt' , emptyss ) ] , ctrl , Running )
 
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
   check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
@@ -2527,7 +2523,7 @@ by
   g_scope_list' = [g_scope'']' ++ [ scope' ]
   %TODO: Model pseudo-scope external to the P4 program using the call stack?
   ----------------------------------- :: control_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 ,  .. , en ) , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , [ ( f , stmt ; stmt' , emptycsf ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 ,  .. , en ) , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , [ ( f , stmt ; stmt' , emptyss ) ] , ctrl , Running )
 
 
 %The "programmable block" phase then follows the semantics for a parser or control, respectively...
