@@ -588,8 +588,10 @@ frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
   {{ tex [[frame_list]] }}
 
 state {{ tex \sigma }} :: state_ ::=
+{{ hol (g_scope_list # frame_list # ctrl # status) }}
 {{ com execution state }}
-| ( g_scope_list , frame_list , ctrl , status ) :: :: P4
+| ( g_scope_list , frame_list , ctrl , status ) :: M :: tup
+{{ hol ([[g_scope_list]], [[frame_list]], [[ctrl]], [[status]]) }}
 
 d {{ tex d }} :: d_ ::=
 {{ com parameter direction }}
@@ -1178,10 +1180,10 @@ formula :: formula_ ::=
   {{ com declare variable of type }}
   {{ hol (([[g_scope_list]], [[scopes_stack']]) = declare [[g_scope_list]] [[scopes_stack]] [[x]] [[t]]) }}
   {{ tex ([[g_scope_list']], [[scopes_stack']]) = \mathrm{declare} ([[g_scope_list]], [[scopes_stack]], [[x]], [[t]]) }}
-| scopes_stack' = initialise ( scopes_stack , x , v ) :: M :: initialise
+| scopes_stack' = initialise ( scopes_stack , varn , v ) :: M :: initialise
   {{ com initialise variable to value }}
-  {{ hol ([[scopes_stack']] = initialise [[scopes_stack]] [[x]] [[v]]) }}
-  {{ tex [[scopes_stack']] = \mathrm{initialise} ([[scopes_stack]], [[x]], [[v]]) }}
+  {{ hol ([[scopes_stack']] = initialise [[scopes_stack]] [[varn]] [[v]]) }}
+  {{ tex [[scopes_stack']] = \mathrm{initialise} ([[scopes_stack]], [[varn]], [[v]]) }}
 | [ ( f , stmt , scopes_stack ) ] = E :: M :: contofE 
   {{ com extract the content of E }}
   {{ tex [ ( [[f]] , [[stmt]] , [[scopes_stack]]) ] = [[E]] }}
@@ -1773,8 +1775,8 @@ val declare_def = Define `
 
 (* Initialises a new variable in the topmost scope. *)
 val initialise_def = Define `
-  (initialise (ss:scopes_stack) x v =
-    LUPDATE (FUPDATE (LAST ss) (varn_name x, (v, NONE))) (LENGTH ss - 1) ss
+  (initialise (ss:scopes_stack) varn v =
+    LUPDATE (FUPDATE (LAST ss) (varn, (v, NONE))) (LENGTH ss - 1) ss
   )
 `;
 
@@ -1895,12 +1897,14 @@ val newest_scope_def = Define `
 (* Init the variable name star in the topmost scope and return only the scope *)
 val decl_init_star_def = Define `
   decl_init_star scopes_stack v varn_star =
-  FUPDATE (newest_scope scopes_stack) (varn_star, (v , NONE))
+    FUPDATE (newest_scope scopes_stack) (varn_star, (v , NONE))
 `;
 
+(* TODO: Use initialise_def? *)
 (* Init the variable name star in the topmost scope and return the updated scope stack *)
 val init_in_highest_scope_def = Define `
-  init_in_highest_scope scopes_stack v varn_star = LUPDATE (decl_init_star scopes_stack v varn_star) (newest_scope_ind scopes_stack) scopes_stack
+  init_in_highest_scope scopes_stack v varn_star =
+    LUPDATE (decl_init_star scopes_stack v varn_star) (newest_scope_ind scopes_stack) scopes_stack
 `;
 
 }}
@@ -2241,7 +2245,7 @@ by
 
 
   ----------------------------------- :: seq2
-  ctx ( g_scope_list , [ ( funn , empty_stmt ; stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt2 , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , empty_stmt ; stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running )
 
 
   ctx ( g_scope_list , [ ( funn , stmt1 , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , stmt1' , scopes_stack' ) ] , ctrl' , status )
@@ -2267,6 +2271,7 @@ by
   ----------------------------------- :: decl
   ctx ( g_scope_list , [ ( funn , decl t x - , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl , Running )
 
+%TODO: Check type agreement between t and initial value?
   scopes_stack' = initialise ( g_scope_list ++ scopes_stack , x' , v )
   g_scope = scopes_stack' [0]
   g_scope' = scopes_stack' [1]

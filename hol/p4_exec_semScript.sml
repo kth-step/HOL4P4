@@ -33,11 +33,6 @@ fun find_clause thm clause_name_str =
 val find_clause_e_red = find_clause e_red_rules
 
 
-val sum_size_def = Define `
- (sum_size (INL ((ctx:ctx), e, (ctrl:ctrl), (stacks:stacks), (status:status))) = e_size e) /\
- (sum_size (INR ((ctx:ctx), stmt, (ctrl:ctrl), (stacks:stacks), (status:status))) = stmt_size stmt)
-`;
-
 Theorem e1_size_append:
  !e_l1 e_l2. e1_size (e_l1 ++ e_l2) = (e1_size e_l1 + e1_size e_l2)
 Proof
@@ -299,10 +294,14 @@ End
 (* Statement-related shorthands *)
 
 Definition stmt_exec_ass:
- (stmt_exec_ass lval (e_v v) frame =
-  assign frame v lval)
+ (stmt_exec_ass lval (e_v v) ss =
+  assign ss v lval)
   /\
  (stmt_exec_ass _ _ _ = NONE)
+End
+
+Definition stmt_exec_init:
+ (stmt_exec_init varn (e_v v) ss = initialise ss varn v)
 End
 
 Definition stmt_exec_verify:
@@ -310,7 +309,7 @@ Definition stmt_exec_verify:
   SOME stmt_empty)
   /\
  (stmt_exec_verify (e_v (v_bool F)) (e_v (v_err x)) =
-  SOME (stmt_seq (stmt_ass (lval_varname "parseError") ((e_v (v_err x)))) (stmt_trans (e_v (v_str "reject")))))
+  SOME (stmt_seq (stmt_ass (lval_varname (varn_name "parseError")) ((e_v (v_err x)))) (stmt_trans (e_v (v_str "reject")))))
   /\
  (stmt_exec_verify _ _ = NONE)
 End
@@ -336,50 +335,28 @@ Definition stmt_exec_cond:
  (stmt_exec_cond _ = NONE)
 End
 
-Definition exec_ret:
- (exec_ret ((ty_map, ext_map, func_map, tbl_map):ctx) (frame, call_stack) =
-  case call_stack of
-  | ((frame', called_function_name_bot)::call_stack') => NONE
-  | ((frame', called_function_name_function_name f)::call_stack') =>
-   (case FLOOKUP func_map f of
-   | SOME (_, x_d_l) =>
-    (case update_return_frame (MAP FST x_d_l) (MAP SND x_d_l) (HD frame::EL 1 frame::frame') frame of
-     | SOME frame'' => SOME (frame'', call_stack')
-     | NONE => NONE)
-   | NONE => NONE)
-  | [] => NONE)
-End
-
+val e_state_size_def = Define `
+ (e_state_size ((ctx:ctx), (g_scope_list:g_scope_list), (scopes_stack:scopes_stack), (e:e), (ctrl:ctrl)) = e_size e)
+`;
 
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce warnings *)
-(* TotalDefn.tDefine "e_stmt_exec" *)
-(* TotalDefn.multiDefine *)
-(* Hol_defn "e_stmt_exec" *)
-val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
- (******************************************)
- (* Clauses for special statuses *)
- (e_exec (ctx:ctx) (e:e) ((ctrl, stacks, status_type_error):state) = NONE)
+val e_exec = TotalDefn.tDefine "e_exec" `
+ (************************************************)
+ (* e_v is the fully reduced form of expressions *)
+ (e_exec (ctx:ctx) (g_scope_list:g_scope_list) (scopes_stack:scopes_stack) (e_v v) (ctrl:ctrl) =
+  SOME (e_v v, ([]:frame_list), ctrl))
   /\
- (* TODO: Should expressions with status pars_next x be reduced
-  * to some value, with status preserved? *)
- (e_exec _ _ (ctrl, stacks, (status_pars_next x)) =
-  SOME (e_v v_bot, (ctrl, stacks, status_pars_next x)))
-  /\
- (* e_v is the fully reduced form of expression *)
- (e_exec _ (e_v v) state =
-  SOME (e_v v, state))
-  /\
- (* Note that at this point, status_running is the sole remaining
-  * possible status argument for all other clauses *)
  (********************)
  (* Variable look-up *)
- (e_exec _ (e_var x) (ctrl, (curr_stack_frame, call_stack), status_running) =
-  SOME (e_v (lookup_vexp curr_stack_frame x), (ctrl, (curr_stack_frame, call_stack), status_running)))
+ (e_exec ctx g_scope_list scopes_stack (e_var x) ctrl =
+  case lookup_vexp2 scopes_stack g_scope_list x of
+  | SOME v => SOME (e_v v, [], ctrl)
+  | NONE => NONE)
   /\
- (***********************)
+ (******************************)
  (* Struct/header field access *)
- (e_exec ctx (e_acc e_struct e_field) state =
+ (e_exec ctx g_scope_list scopes_stack (e_acc e_struct e_field) ctrl =
   if is_v e_field
   then
    if is_v_str e_field
@@ -387,162 +364,171 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
     (if is_v e_struct
      then
       (case e_exec_acc (e_acc e_struct e_field) of
-       | SOME e' => SOME (e', state)
+       | SOME e' => SOME (e', [], ctrl)
        | NONE => NONE)
      else
-      (case e_exec ctx e_struct state of
-       | SOME (e_struct', state') => SOME (e_acc e_struct' e_field, state')
+      (case e_exec ctx g_scope_list scopes_stack e_struct ctrl of
+       | SOME (e_struct', frame_list, ctrl') => SOME (e_acc e_struct' e_field, frame_list, ctrl')
        | NONE => NONE))
    else NONE
   else
-   (case e_exec ctx e_field state of
-    | SOME (e_field', state') => SOME (e_acc e_struct e_field', state')
+   (case e_exec ctx g_scope_list scopes_stack e_field ctrl of
+    | SOME (e_field', frame_list, ctrl') => SOME (e_acc e_struct e_field', frame_list, ctrl')
     | NONE => NONE))
   /\
- (*************************)
- (* Function call-related *)
- (e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (e_func_call f e_l) (ctrl, (curr_stack_frame, call_stack), status) =
-  case FLOOKUP func_map f of
-  | SOME (stmt, x_d_l) =>
-    (case unred_arg_index (MAP SND x_d_l) e_l of
-     | SOME i =>
-      (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (EL i e_l) (ctrl, (curr_stack_frame, call_stack), status) of
-       | SOME (e', (ctrl', stacks', status')) => SOME (e_func_call f (LUPDATE e' i e_l), (ctrl', stacks', status'))
-       | NONE => NONE)
-     | NONE =>
-      SOME (e_func_exec stmt,
-            (ctrl,
-	     (([EL 0 curr_stack_frame; EL 1 curr_stack_frame]++[all_arg_update_for_newscope (MAP FST x_d_l) (MAP SND x_d_l) e_l curr_stack_frame]),
-	 	       ((TL $ TL curr_stack_frame, called_function_name_function_name f)::call_stack)),
-	     status)))
-  | NONE => NONE)
-  /\
- (e_exec ctx (e_func_exec stmt) (ctrl, stacks, status) =
-  case is_empty stmt of
-  | T => SOME (e_func_exec (stmt_ret (e_v v_bot)), (ctrl, stacks, status))
-  | F =>
-   case get_ret_v stmt of
-   | SOME v =>
-    (case exec_ret ctx stacks of
-     | SOME stacks' => SOME (e_v v, (ctrl, stacks', status))
-     | NONE => NONE)
-   | NONE =>
-    (case stmt_exec ctx stmt (ctrl, stacks, status) of
-     | SOME (stmt', (ctrl', stacks', status')) => SOME (e_func_exec stmt', (ctrl', stacks', status'))
-     | NONE => NONE))
-  /\
- (******************)
- (* Extern-related *)
- (e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (e_ext_call lval f e_l) state =
-  case FLOOKUP ext_map f of
-  | SOME (ext, x_d_l) =>
-    (case unred_arg_index (MAP SND x_d_l) e_l of
-     | SOME i  =>
-      (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (EL i e_l) state of
-       | SOME (e', state') => SOME (e_ext_call lval f (LUPDATE e' i e_l), state')
-       | NONE => NONE)
-     | NONE =>
-      (case ext (lval, e_l, state) of
-       | SOME (v, state') => 
-	SOME (e_v v, state')
-       | NONE => NONE
-      )
-    )
-  | NONE => NONE)
+ (************************)
+ (* Function/extern call *)
+ (e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack (e_call funn e_l) ctrl =
+  (case lookup_fun_sig_body funn func_map ext_map of
+    | SOME (stmt, x_d_l) =>
+     (case unred_arg_index (MAP SND x_d_l) e_l of
+      | SOME i =>
+       (case e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack (EL i e_l) ctrl of
+        | SOME (e', frame_list, ctrl') => SOME (e_call funn (LUPDATE e' i e_l), frame_list, ctrl')
+        | NONE => NONE)
+      | NONE =>
+       (case copyin (MAP FST x_d_l) (MAP SND x_d_l) e_l g_scope_list scopes_stack of
+        | SOME scope => 
+         SOME (e_var varn_star, [(funn, stmt, [scope])] , ctrl)
+        | NONE => NONE))
+    | NONE => NONE))
   /\
  (********************)
  (* Unary arithmetic *)
- (e_exec ctx (e_unop unop e) state =
+ (e_exec ctx g_scope_list scopes_stack (e_unop unop e) ctrl =
   if is_v e
   then 
    (case e_exec_unop unop e of
-    | SOME v => SOME (e_v v, state)
+    | SOME v => SOME (e_v v, [], ctrl)
     | NONE => NONE)
   else
-   (case e_exec ctx e state of
-    | SOME (e', state') => SOME (e_unop unop e', state')
+   (case e_exec ctx g_scope_list scopes_stack e ctrl of
+    | SOME (e', frame_list, ctrl') => SOME (e_unop unop e', frame_list, ctrl')
     | NONE => NONE))
   /\
  (*********************)
  (* Binary arithmetic *)
- (e_exec ctx (e_binop e1 binop e2) state =
+ (e_exec ctx g_scope_list scopes_stack (e_binop e1 binop e2) ctrl =
   if is_v e1
   then
    if is_short_circuitable e1 binop
-   then SOME (e1, state)
+   then SOME (e1, [], ctrl)
    else if is_v e2
    then
     (case e_exec_binop e1 binop e2 of
-     | SOME v => SOME (e_v v, state)
+     | SOME v => SOME (e_v v, [], ctrl)
      | NONE => NONE)
    else
-    (case e_exec ctx e2 state of
-     | SOME (e2', state') => SOME (e_binop e1 binop e2', state')
+    (case e_exec ctx g_scope_list scopes_stack e2 ctrl of
+     | SOME (e2', frame_list, ctrl') => SOME (e_binop e1 binop e2', frame_list, ctrl')
      | NONE => NONE)
   else
-   (case e_exec ctx e1 state of
-    | SOME (e1', state') => SOME (e_binop e1' binop e2, state')
+   (case e_exec ctx g_scope_list scopes_stack e1 ctrl of
+    | SOME (e1', frame_list, ctrl') => SOME (e_binop e1' binop e2, frame_list, ctrl')
     | NONE => NONE))
   /\
  (**********)
  (* Select *)
- (e_exec ctx (e_select e v_x_l x) state =
+ (e_exec ctx g_scope_list scopes_stack (e_select e v_x_l x) ctrl =
   if is_v e
   then
     (case e_exec_select e v_x_l x of
-     | SOME x' => SOME (e_v (v_str x'), state)
+     | SOME x' => SOME (e_v (v_str x'), [], ctrl)
      | NONE => NONE)
   else
-   (case e_exec ctx e state of
-    | SOME (e', state') => SOME (e_select e' v_x_l x, state')
+   (case e_exec ctx g_scope_list scopes_stack e ctrl of
+    | SOME (e', frame_list, ctrl') => SOME (e_select e' v_x_l x, frame_list, ctrl')
     | NONE => NONE))
   /\
- (e_exec _ _ _ = NONE)
-  /\
- (**************)
- (* Statements *)
- (**************)
+ (e_exec _ _ _ _ _ = NONE)
+`
+(WF_REL_TAC `measure e_state_size` >>
+ fs [e_state_size_def, e_size_def] >>
+ REPEAT STRIP_TAC >>
+ IMP_RES_TAC unred_arg_index_in_range >>
+ IMP_RES_TAC rich_listTheory.EL_MEM >>
+ IMP_RES_TAC e1_size_mem >>
+ fs []
+);
+
+(* TODO
+val stmt_state_size_def = Define `
+ (stmt_state_size ((ctx:ctx), (g_scope_list:g_scope_list), (frame_list:frame_list), (ctrl:ctrl), (status:status)) = stmt_size stmt)
+`;
+*)
+
+(* TotalDefn.tDefine "stmt_exec" *)
+Definition stmt_exec:
  (******************************************)
  (* Catch-all clauses for special statuses *)
- (stmt_exec _ stmt ((ctrl, stacks, status_type_error):state) = NONE)
+ (stmt_exec (ctx:ctx) ((g_scope_list:g_scope_list, frame_list:frame_list, ctrl:ctrl, status_type_error):state) = NONE)
   /\
- (stmt_exec _ stmt (ctrl, stacks, (status_pars_next x)) =
-  SOME (stmt_empty, (ctrl, stacks, status_pars_next x)))
+ (stmt_exec _ (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_pars_next x) =
+  SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_pars_next x))
   /\
+ (*****************************************************)
  (* empty_stmt is the fully reduced form of statement *)
- (stmt_exec _ stmt_empty state = SOME (stmt_empty, state)) /\
- (*************************)
- (* Function call-related *)
- (stmt_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (stmt_ret e) (ctrl, (curr_stack_frame, call_stack), status) =
-  if is_v e
-  then
-   NONE
-  else
-   (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) e (ctrl, (curr_stack_frame, call_stack), status) of
-    | SOME (e', state') => SOME (stmt_ret e', state')
-    | NONE => NONE))
+ (stmt_exec _ (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status) =
+  SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status)) /\
+ (*******************************)
+ (* Frame priority (comp1 rule) *)
+ (stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, ((funn, stmt, scopes_stack)::frame_list), ctrl, status_running) =
+   (case stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_running) of
+    | SOME (g_scope_list', frame_list', ctrl', status') =>
+     (case status' of
+      | status_returnv v =>
+       (case frame_list of
+        | ((funn', stmt', scopes_stack')::frame_list'') =>
+         let scopes_stack'' = initialise scopes_stack' varn_star v in
+          (case lookup_fun_sig_body funn func_map ext_map of
+           | SOME (stmt'', x_d_l) =>
+            (case copyout (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list' scopes_stack'' scopes_stack of
+             | SOME (g_scope_list'', scopes_stack''') =>
+              SOME (g_scope_list'', ((funn', stmt', scopes_stack''')::frame_list''), ctrl', status_running)
+             | _ => NONE)
+           | _ => NONE)
+        | _ => NONE)
+      | _ => 
+       SOME (g_scope_list', frame_list'++frame_list, ctrl', status'))
+    | _ => NONE))
   /\
  (**************)
  (* Assignment *)
- (stmt_exec ctx (stmt_ass lval e) (ctrl, (curr_stack_frame, call_stack), status) =
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_ass lval e, scopes_stack)], ctrl, status_running) =
   if is_v e
   then
-   (case stmt_exec_ass lval e curr_stack_frame of
-    | SOME curr_stack_frame' => SOME (stmt_empty, (ctrl, (curr_stack_frame', call_stack), status))
+   (case stmt_exec_ass lval e (g_scope_list++scopes_stack) of
+    | SOME scopes_stack' => SOME (TAKE 2 scopes_stack', [(funn, stmt_empty, DROP 2 scopes_stack)], ctrl, status_running)
     | NONE => NONE)
   else
-   (case e_exec ctx e (ctrl, (curr_stack_frame, call_stack), status) of
-    | SOME (e', state') => SOME (stmt_ass lval e', state')
-    | NONE => NONE))
+   (case e_exec ctx g_scope_list scopes_stack e ctrl of
+    | SOME (e', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_ass lval e', scopes_stack)], ctrl', status_running)
+    | _ => NONE))
   /\
  (***********)
  (* Declare *)
- (stmt_exec ctx (stmt_declare x t) (ctrl, (curr_stack_frame, call_stack), status) =
-  SOME (stmt_empty, (ctrl, (declare curr_stack_frame x t, call_stack), status)))
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_declare t x init_opt, scopes_stack)], ctrl, status_running) =
+  case init_opt of
+  | SOME init =>
+   if is_v init
+   then
+    let
+     scopes_stack' = stmt_exec_init (varn_name x) init (g_scope_list++scopes_stack)
+    in
+     SOME (TAKE 2 scopes_stack', [(funn, stmt_empty, DROP 2 scopes_stack')], ctrl, status_running)
+   else
+    (case e_exec ctx g_scope_list scopes_stack init ctrl of
+     | SOME (init', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_declare t x (SOME init'), scopes_stack)], ctrl', status_running)
+     | _ => NONE)
+  | NONE =>
+   let
+    (g_scope_list', scopes_stack') = declare g_scope_list scopes_stack x t
+   in
+    SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl, status_running))
   /\
  (**********)
  (* Verify *)
- (stmt_exec ctx (stmt_verify e1 e2) state =
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_verify e1 e2, scopes_stack)], ctrl, status_running) =
   if is_v e1
   then
    if is_v_bool e1
@@ -552,76 +538,80 @@ val e_stmt_exec_def = TotalDefn.tDefine "e_stmt_exec" `
      if is_v_err e2
      then
       (case stmt_exec_verify e1 e2 of
-       | SOME stmt => SOME (stmt, state)
+       | SOME stmt => SOME (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_running)
        | NONE => NONE)
      else NONE
     else
-     (case e_exec ctx e2 state of
-      | SOME (e2', state') => SOME (stmt_verify e1 e2', state')
+     (case e_exec ctx g_scope_list scopes_stack e2 ctrl of
+      | SOME (e2', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_verify e1 e2', scopes_stack)], ctrl', status_running)
       | NONE => NONE)
     else NONE
   else
-   (case e_exec ctx e1 state of
-    | SOME (e1', state') => SOME (stmt_verify e1' e2, state')
+   (case e_exec ctx g_scope_list scopes_stack e1 ctrl of
+    | SOME (e1', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_verify e1' e2, scopes_stack)], ctrl', status_running)
     | NONE => NONE))
   /\
  (**************)
  (* Transition *)
- (stmt_exec ctx (stmt_trans e) (ctrl, stacks, status) =
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_trans e, scopes_stack)], ctrl, status_running) =
   if is_v e
   then
    if is_v_str e
    then
     (case stmt_exec_trans e of
-     | SOME status' => SOME (stmt_empty, (ctrl, stacks, status'))
+     | SOME status' => SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status')
      | NONE => NONE)
     else NONE
   else
-   (case e_exec ctx e (ctrl, stacks, status) of
-    | SOME (e', state') => SOME (stmt_trans e', state')
+   (case e_exec ctx g_scope_list scopes_stack e ctrl of
+    | SOME (e', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_trans e', scopes_stack)], ctrl', status_running)
     | NONE => NONE))
   /\
  (***************)
  (* Conditional *)
- (stmt_exec ctx (stmt_cond e stmt1 stmt2) state =
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_cond e stmt1 stmt2, scopes_stack)], ctrl, status_running) =
   if is_v_bool e
   then
    (case stmt_exec_cond e of
-    | SOME T => SOME (stmt1, state)
-    | SOME F => SOME (stmt2, state)
+    | SOME T => SOME (g_scope_list, [(funn, stmt1, scopes_stack)], ctrl, status_running)
+    | SOME F => SOME (g_scope_list, [(funn, stmt2, scopes_stack)], ctrl, status_running)
     | NONE => NONE)
   else
-   (case e_exec ctx e state of
-    | SOME (e', state') => SOME (stmt_cond e' stmt1 stmt2, state')
+   (case e_exec ctx g_scope_list scopes_stack e ctrl of
+    | SOME (e', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_cond e' stmt1 stmt2, scopes_stack)], ctrl', status_running)
     | NONE => NONE))
   /\
  (*********************)
  (* Table application *)
- (stmt_exec ((ty_map, ext_map, func_map, tbl_map):ctx) (stmt_app t_name e) (ctrl, stacks, status) =
+ (stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, [(funn, stmt_app t_name e, scopes_stack)], ctrl, status_running) =
   (case get_v e of
    | SOME v =>
     (case FLOOKUP tbl_map t_name of
      | SOME (e_t, m_k) =>
       (case ctrl (t_name, v, m_k) of
-       | SOME (f, f_args) => SOME (stmt_ass lval_null (e_func_call f f_args), (ctrl, stacks, status))
+       | SOME (f, f_args) => SOME (g_scope_list, [(funn, stmt_ass lval_null (e_call (funn_name f) f_args), scopes_stack)], ctrl, status_running)
        | NONE => NONE)
      | NONE => NONE)
    | NONE =>
-    (case e_exec ((ty_map, ext_map, func_map, tbl_map):ctx) e (ctrl, stacks, status) of
-     | SOME (e', state') => SOME (stmt_app t_name e', state')
+    (case e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack e ctrl of
+     | SOME (e', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_app t_name e', scopes_stack)], ctrl', status_running)
      | NONE => NONE)))
   /\
  (************)
  (* Sequence *)
- (stmt_exec ctx (stmt_seq stmt1 stmt2) state =
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_seq stmt1 stmt2, scopes_stack)], ctrl, status_running) =
   if is_empty stmt1
-  then SOME (stmt2, state)
+  then SOME (g_scope_list, [(funn, stmt2, scopes_stack)], ctrl, status_running)
   else
-   (case stmt_exec ctx stmt1 state of
-    | SOME (stmt1', state') => SOME (stmt_seq stmt1' stmt2, state')
-    | NONE => NONE))
+   (* Note: this only allows for 0 or 1 frame being added *)
+   (case stmt_exec ctx (g_scope_list, [(funn, stmt1, scopes_stack)], ctrl, status_running) of
+    | SOME (g_scope_list', [(funn, stmt1', scopes_stack')], ctrl', status_running) => SOME (g_scope_list', [(funn, stmt_seq stmt1' stmt2, scopes_stack')], ctrl', status_running)
+    | SOME (g_scope_list', (frame::[(funn, stmt1', scopes_stack')]), ctrl', status_running) => SOME (g_scope_list', (frame::[(funn, stmt_seq stmt1' stmt2, scopes_stack')]), ctrl', status_running)
+    | _ => NONE))
   /\
- (stmt_exec _ _ _ = NONE)
+ (stmt_exec _ _ = NONE)
+End
+ 
 `
 (WF_REL_TAC `measure sum_size` >>
  fs [sum_size_def, e_size_def] >>
