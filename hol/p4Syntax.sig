@@ -117,16 +117,10 @@ val e_acc_tm : term
 val is_e_acc : term -> bool
 val mk_e_acc : term * term -> term
 
-val dest_e_func_call : term -> term * term
-val e_func_call_tm : term
-val is_e_func_call : term -> bool
-val mk_e_func_call : term * term -> term
-
-val dest_e_ext_call : term -> term * term * term
-val e_ext_call_tm : term
-val is_e_ext_call : term -> bool
-val mk_e_ext_call : term * term * term -> term
-val mk_e_ext_call_list : term * string * term list -> term
+val dest_e_call : term -> term * term
+val e_call_tm : term
+val is_e_call : term -> bool
+val mk_e_call : term * term -> term
 
 
 val stmt_empty_tm : term
@@ -166,20 +160,15 @@ val scope_ty : hol_type
 
 val status_running_tm : term
 
-val called_function_name_function_name_tm : term
-val dest_called_function_name_function_name : term -> term
-val is_called_function_name_function_name : term -> bool
-val mk_called_function_name_function_name : term -> term
 
-
-val dest_e_red : term -> term * term * term * term * term
+val dest_e_red : term -> term * term * term * term * term * term * term * term
 val e_red_tm : term
 val is_e_red : term -> bool
-val mk_e_red : term * term * term * term * term -> term
+val mk_e_red : term * term * term * term * term * term * term * term -> term
 
-val dest_stmt_red : term -> term * term * term * term * term
+val dest_stmt_red : term -> term * term * term
 val is_stmt_red : term -> bool
-val mk_stmt_red : term * term * term * term * term -> term
+val mk_stmt_red : term * term * term -> term
 val stmt_red_tm : term
 
 

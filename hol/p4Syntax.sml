@@ -26,10 +26,20 @@ fun list_of_septuple (a, b, c, d, e, f, g) = [a, b, c, d, e, f, g];
 fun mk_septop tm = HolKernel.list_mk_icomb tm o list_of_septuple;
 val syntax_fns7 = HolKernel.syntax_fns {n = 7, dest = dest_septop, make = mk_septop};
 
+fun dest_octop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5, t6, t7, t8]) =>
+         if same_const t c then (t1, t2, t3, t4, t5, t6, t7, t8) else raise e
+    | _ => raise e;
+fun list_of_octuple (a, b, c, d, e, f, g, h) = [a, b, c, d, e, f, g, h];
+fun mk_octop tm = HolKernel.list_mk_icomb tm o list_of_octuple;
+val syntax_fns8 = HolKernel.syntax_fns {n = 8, dest = dest_octop, make = mk_octop};
+
 (* TODO: Move to ottSyntax *)
 open ottTheory;
 val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
   syntax_fns1 "ott" "clause_name";
+
 
 (*****)
 (* v *)
@@ -65,6 +75,7 @@ fun mk_v_header_list vbit x_v_l =
 val v_bot_tm = prim_mk_const {Name="v_bot", Thy="p4"};
 fun is_v_bot tm = term_eq tm v_bot_tm;
 
+
 (********)
 (* lval *)
 (********)
@@ -81,6 +92,7 @@ val mk_lval_field = (fn (e, f) => (#2 (syntax_fns2 "p4" "lval_field")) (e, fromM
 
 val lval_null_tm = prim_mk_const {Name="lval_null", Thy="p4"};
 fun is_lval_null tm = term_eq tm lval_null_tm;
+
 
 (*****)
 (* e *)
@@ -127,15 +139,10 @@ val binop_bin_or_tm  = prim_mk_const {Name="binop_bin_or",  Thy="p4"};
 val (e_acc_tm, mk_e_acc, dest_e_acc, is_e_acc) =
   syntax_fns2 "p4" "e_acc";
 
-val (e_func_call_tm, mk_e_func_call, dest_e_func_call, is_e_func_call) =
-  syntax_fns2 "p4" "e_func_call";
+val (e_call_tm, mk_e_call, dest_e_call, is_e_call) =
+  syntax_fns2 "p4" "e_call";
 
-val (e_ext_call_tm, mk_e_ext_call, dest_e_ext_call, is_e_ext_call) =
-  syntax_fns3 "p4" "e_ext_call";
-val mk_e_ext_call_list =
-  (fn (e, f, l) => (#2 (syntax_fns3 "p4" "e_ext_call")) (e,
-                                                         fromMLstring f,
-                                                         listSyntax.mk_list (l, e_ty)));
+
 (********)
 (* stmt *)
 (********)
@@ -171,18 +178,15 @@ val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 
-val (called_function_name_function_name_tm, mk_called_function_name_function_name, dest_called_function_name_function_name, is_called_function_name_function_name) =
-  syntax_fns1 "p4" "called_function_name_function_name";
-
 (**************)
 (* Reductions *)
 (**************)
 
 val (e_red_tm,  mk_e_red, dest_e_red, is_e_red) =
-  syntax_fns5 "p4" "e_red";
+  syntax_fns8 "p4" "e_red";
 
 val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
-  syntax_fns5 "p4" "stmt_red";
+  syntax_fns3 "p4" "stmt_red";
 
 (***********************)
 (* Auxiliary functions *)

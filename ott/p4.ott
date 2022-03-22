@@ -274,40 +274,11 @@ scopes_stack {{ tex \overrightarrow{\gamma} }} :: scopes_stack_ ::=
 | ( scopes_stack ) :: S :: paren
   {{ hol ([[scopes_stack]]) }}
 
-%Fence so that ott does not re-order called_function_name
 embed
 {{ hol
 
 }}
 grammar
-
-called_function_name {{ tex F_n }} :: called_function_name_ ::=
-{{ com called function name  }}
-| bot :: :: bot
-  {{ tex \bot }}
-| f :: :: function_name
-  {{ tex [[f]] }}
-
-%Fence so that ott does not re-order called_function_name
-embed
-{{ hol
-
-}}
-grammar  
-
-call_stack {{ tex E_{old} }} :: call_stack_ ::=
-{{ com stack of caller stack frames }}
-{{ hol ((scopes_stack # called_function_name) list) }}
-| emptycs :: M :: empty
-  {{ hol ([]:((scopes_stack # called_function_name) list)) }}
-  {{ tex {\emptyset}_{E} }}
-| [ ( scopes_stack1 , called_function_name1 ) , .. , ( scopes_stackn , called_function_namen ) ] :: M :: list
-  {{ hol ([[scopes_stack1 called_function_name1 .. scopes_stackn called_function_namen]]) }}
-| ( scopes_stack , called_function_name ) '::' call_stack :: M :: cons
-  {{ hol (([[scopes_stack]], [[called_function_name]]) :: [[call_stack]]) }}
-  {{ tex ([[scopes_stack]], [[called_function_name]]) :: [[call_stack]] }}
-| ( call_stack ) :: S :: paren
-  {{ hol ([[call_stack]]) }}
 
 mk {{ tex \mathit{mk} }} :: mk_ ::=
 {{ com matching kinds }}
@@ -324,12 +295,6 @@ embed
 
 }}
 grammar
-
-stacks {{ tex \sigma }} :: stacks_ ::=
-{{ com stacks in execution state }}
-{{ hol (scopes_stack # call_stack) }}
-| ( scopes_stack , call_stack ) :: M :: tup
-  {{ hol ([[scopes_stack]], [[call_stack]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%
 % Expression syntax %
@@ -960,9 +925,6 @@ formula :: formula_ ::=
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
 
 %Type-transforming operations
-| scopes_stack = hd call_stack :: M :: call_stack_hd
-  {{ hol ([[scopes_stack]] = HD [[call_stack]]) }}
-  {{ tex [[scopes_stack]] = \mathrm{hd} [[call_stack]] }}
 | g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
   {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
 %TODO: Why does the above not work for value 1?
@@ -1035,9 +997,6 @@ formula :: formula_ ::=
 | scopes_stack = scopes_stack' :: M :: scopes_stack_eq
   {{ com scopes_stack equality }}
   {{ hol ([[scopes_stack]] = [[scopes_stack']]) }}
-| call_stack = call_stack' :: M :: call_stack_eq
-  {{ com call_stack equality }}
-  {{ hol ([[call_stack]] = [[call_stack']]) }}
 %Note the modified equality sign in the below.
 %This help to distinguish between e and e_list, as well as provide a single parse
 %considering some equalities between expressions are explicitly typeset
