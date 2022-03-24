@@ -1207,35 +1207,41 @@ End
 (****************************)
         
 val pars_exec_def = Define `
- (pars_exec (pctx:pctx) stmt ((ctrl, stacks, status_type_error):state) = NONE) /\
- (pars_exec pctx stmt (ctrl, stacks, (status_pars_next _)) = NONE) /\
- (pars_exec (ty_map, ext_map, func_map, pars_map) stmt (ctrl, stacks, status_running) =
-  (case stmt_exec (ty_map, ext_map, func_map, FEMPTY) stmt (ctrl, stacks, status_running) of
+ (pars_exec (pctx:pctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
+ (pars_exec _ (_, _, _, status_pars_next x) = NONE) /\
+ (pars_exec (ty_map, ext_map, func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) =
+  (case stmt_exec (ty_map, ext_map, func_map, FEMPTY) (g_scope_list, frame_list, ctrl, status_running) of
+   (* Empty frame list *)
+   | SOME (g_scope_list', [], ctrl', status') => NONE
+   (* No parser-level transition should end with return status *)
+   | SOME (g_scope_list', frame_list', ctrl', status_returnv v) => NONE
+   (* No parser-level transition should end with type error *)
+   | SOME (g_scope_list', frame_list', ctrl', status_type_error) => NONE
    (* Transition to next parser state *)
-   | SOME (stmt', (ctrl', stacks', status_pars_next (pars_next_trans x))) =>
+   | SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_trans x)) =>
     (case FLOOKUP pars_map x of
-     | SOME stmt'' => SOME (stmt'', (ctrl', stacks', status_running))
+     | SOME stmt'' => SOME (g_scope_list', [(funn_name x, stmt'', [FEMPTY])], ctrl', status_running)
      | NONE => NONE)
    (* Transition to final parser state *)
-   | SOME (stmt', (ctrl', stacks', status_pars_next (pars_next_pars_fin pars_fin))) =>
-    SOME (stmt', (ctrl', stacks', status_pars_next (pars_next_pars_fin pars_fin)))
-   (* When reaching the empty statement, default behaviour is to go to reject *)
-   | SOME (stmt_empty, state') =>
-    SOME (stmt_trans (e_v (v_str "reject")), state')
+   | SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_pars_fin pars_fin)) =>
+    SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_pars_fin pars_fin))
+   (* When reaching the empty statement, go to reject *)
+   | SOME (g_scope_list', [(funn, stmt_empty, scopes_stack)], ctrl', status_running) =>
+    SOME (g_scope_list', [(funn, stmt_trans (e_v (v_str "reject")), scopes_stack)], ctrl', status_running)
    (* Regular execution of parser state body *)
-   | SOME (stmt', (ctrl', stacks', status')) => SOME (stmt', (ctrl', stacks', status'))
+   | SOME state' => SOME state'
    | NONE => NONE)
  )
 `;
 
 (* Fuel-powered multi-step executable semantics for parsers *)
 val pars_multi_exec = Define `
- (pars_multi_exec _ stmt state 0 =
-  SOME (stmt, state))
+ (pars_multi_exec _ state 0 =
+  SOME state)
   /\
- (pars_multi_exec ctx stmt state (SUC fuel) =
-  case pars_exec ctx stmt state of
-  | SOME (stmt', state') => pars_multi_exec ctx stmt' state' fuel
+ (pars_multi_exec pctx state (SUC fuel) =
+  case pars_exec pctx state of
+  | SOME state' => pars_multi_exec pctx state' fuel
   | NONE => NONE)
 `;
 
@@ -1244,30 +1250,41 @@ val pars_multi_exec = Define `
 (*****************************)
 
 (* TODO: Note cctx and ctx have same type, for now... *)
+(* TODO: Handle return value in any way? *)
+(* TODO: Outsouce matching of stmt_ret (e_v v) and stmt_seq (stmt_ret (e_v v)) stmt to new
+ * function? *)
 val ctrl_exec_def = Define `
- (ctrl_exec (cctx:cctx) stmt ((ctrl, stacks, status_type_error):state) = NONE) /\
- (ctrl_exec cctx stmt (ctrl, stacks, (status_pars_next _)) = NONE) /\
- (ctrl_exec cctx (stmt_ret e) (ctrl, stacks, status_running) =
-  SOME (stmt_empty, (ctrl, stacks, status_running))
+ (ctrl_exec (cctx:cctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
+ (ctrl_exec _ (_, _, _, status_pars_next x) = NONE) /\
+ (ctrl_exec _ (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running) =
+  if is_v e
+  then
+   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_running)
+  else
+   SOME (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running)
  ) /\
- (ctrl_exec cctx (stmt_seq (stmt_ret e) stmt) (ctrl, stacks, status_running) =
-  SOME (stmt_empty, (ctrl, stacks, status_running))
+ (ctrl_exec _ (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running) =
+  if is_v e
+  then
+   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_running)
+  else
+   SOME (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running)
  ) /\ 
- (ctrl_exec cctx stmt (ctrl, stacks, status_running) =
-  (case stmt_exec cctx stmt (ctrl, stacks, status_running) of
-   | SOME (stmt', state') => SOME (stmt', state')
+ (ctrl_exec cctx (g_scope_list, frame_list, ctrl, status_running) =
+  (case stmt_exec cctx (g_scope_list, frame_list, ctrl, status_running) of
+   | SOME state' => SOME state'
    | NONE => NONE)
  )
 `;
 
 (* Fuel-powered multi-step executable semantics for control blocks *)
 val ctrl_multi_exec = Define `
- (ctrl_multi_exec _ stmt state 0 =
-  SOME (stmt, state))
+ (ctrl_multi_exec _ state 0 =
+  SOME state)
   /\
- (ctrl_multi_exec cctx stmt state (SUC fuel) =
-  case ctrl_exec cctx stmt state of
-  | SOME (stmt', state') => ctrl_multi_exec cctx stmt' state' fuel
+ (ctrl_multi_exec cctx state (SUC fuel) =
+  case ctrl_exec cctx state of
+  | SOME state' => ctrl_multi_exec cctx state' fuel
   | NONE => NONE)
 `;
 
