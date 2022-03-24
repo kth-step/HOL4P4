@@ -2172,22 +2172,22 @@ ctx g_scope_list scopes_stack ( bitv | bitv' ) ~> ( bitv'' , empty )
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_and1
-ctx g_scope_list scopes_stack ( false AND b ) ~> ( false , empty )
+ctx g_scope_list scopes_stack ( false AND e ) ~> ( false , empty )
 
 
 ----------------------------------- :: bin_and2
-ctx g_scope_list scopes_stack ( true AND b ) ~> ( b , empty )
+ctx g_scope_list scopes_stack ( true AND e ) ~> ( b , empty )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_or1
-ctx g_scope_list scopes_stack ( true OR b ) ~> ( true , empty )
+ctx g_scope_list scopes_stack ( true OR e ) ~> ( true , empty )
 
 
 ----------------------------------- :: bin_or2
-ctx g_scope_list scopes_stack ( false OR b ) ~> ( b , empty )
+ctx g_scope_list scopes_stack ( false OR e ) ~> ( b , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
