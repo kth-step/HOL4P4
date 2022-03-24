@@ -451,21 +451,16 @@ val e_exec = TotalDefn.tDefine "e_exec" `
  fs []
 );
 
-(* TODO
-val stmt_state_size_def = Define `
- (stmt_state_size ((ctx:ctx), (g_scope_list:g_scope_list), (frame_list:frame_list), (ctrl:ctrl), (status:status)) =
-  case frame_list of
-  | ([(funn, stmt, scopes_stack)]::frame_list') => 
-  | [] => 0)
-`;
-*)
-
-(* TODO: Extern execution *)
-(* TotalDefn.tDefine "stmt_exec" *)
 Definition stmt_exec:
  (******************************************)
  (* Catch-all clauses for special statuses *)
  (stmt_exec (ctx:ctx) ((g_scope_list:g_scope_list, frame_list:frame_list, ctrl:ctrl, status_type_error):state) = NONE)
+  /\
+ (* No execution step begins with return status *)
+ (stmt_exec (ctx:ctx) ((g_scope_list:g_scope_list, frame_list:frame_list, ctrl:ctrl, status_returnv v):state) = NONE)
+  /\
+ (* Empty frame list *)
+ (stmt_exec (ctx:ctx) ((g_scope_list:g_scope_list, [], ctrl:ctrl, status):state) = NONE)
   /\
  (* TODO: frame list does not take into account nested frames here? *)
  (stmt_exec _ (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_pars_next x) =
@@ -475,26 +470,23 @@ Definition stmt_exec:
  (* empty_stmt is the fully reduced form of statement *)
  (stmt_exec _ (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status) =
   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status)) /\
- (*******************************)
- (* Frame priority (comp1 rule) *)
- (stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, ((funn, stmt, scopes_stack)::frame_list), ctrl, status_running) =
+ (***************)
+ (* Frame rules *)
+ (stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, ((funn, stmt, scopes_stack)::((funn', stmt', scopes_stack')::frame_list'')), ctrl, status_running) =
    (case stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_running) of
     | SOME (g_scope_list', frame_list', ctrl', status') =>
      (case status' of
       | status_returnv v =>
-       (case frame_list of
-        | ((funn', stmt', scopes_stack')::frame_list'') =>
-         let scopes_stack'' = initialise scopes_stack' varn_star v in
-          (case lookup_funn_sig_body funn func_map ext_map of
-           | SOME (stmt'', x_d_l) =>
-            (case copyout (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list' scopes_stack'' scopes_stack of
-             | SOME (g_scope_list'', scopes_stack''') =>
-              SOME (g_scope_list'', ((funn', stmt', scopes_stack''')::frame_list''), ctrl', status_running)
-             | _ => NONE)
+       let scopes_stack'' = initialise scopes_stack' varn_star v in
+        (case lookup_funn_sig_body funn func_map ext_map of
+         | SOME (stmt'', x_d_l) =>
+          (case copyout (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list' scopes_stack'' scopes_stack of
+           | SOME (g_scope_list'', scopes_stack''') =>
+            SOME (g_scope_list'', ((funn', stmt', scopes_stack''')::frame_list''), ctrl', status_running)
            | _ => NONE)
-        | _ => NONE)
+         | _ => NONE)
       | _ => 
-       SOME (g_scope_list', frame_list'++frame_list, ctrl', status'))
+       SOME (g_scope_list', frame_list'++((funn', stmt', scopes_stack')::frame_list''), ctrl', status'))
     | _ => NONE))
   /\
  (**************)
@@ -602,6 +594,37 @@ Definition stmt_exec:
      | SOME (e', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_app t_name e', scopes_stack)], ctrl', status_running)
      | NONE => NONE)))
   /\
+ (**********)
+ (* Return *)
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running) =
+  (case get_v e of
+   | SOME v => SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_returnv v)
+   | NONE => 
+    (case e_exec ctx g_scope_list scopes_stack e ctrl of
+     | SOME (e', frame_list, ctrl') => SOME (g_scope_list, frame_list++[(funn, stmt_ret e', scopes_stack)], ctrl', status_running)
+     | NONE => NONE)))
+  /\
+ (**********)
+ (* Extern *)
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_ext ext, scopes_stack)], ctrl, status_running) =
+  (case ext (g_scope_list, scopes_stack, ctrl) of
+   | SOME (g_scope_list', scopes_stack', ctrl') => SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status_running)
+   | NONE => NONE))
+  /\
+ (*********)
+ (* Block *)
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_block stmt, scopes_stack)], ctrl, status_running) =
+  SOME (g_scope_list, [(funn, stmt_block_ip stmt, (FEMPTY::scopes_stack))], ctrl, status_running))
+  /\
+ (*********)
+ (* Block in-progress *)
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_block_ip stmt, scopes_stack)], ctrl, status_running) =
+  (case stmt_exec ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_running) of
+   | SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status_running) => SOME (g_scope_list', [(funn, stmt_empty, TL scopes_stack')], ctrl', status_running)
+   | SOME (g_scope_list', [(funn, stmt', scopes_stack')], ctrl', status_running) => SOME (g_scope_list', [(funn, stmt_block_ip stmt', scopes_stack')], ctrl', status_running)
+   | SOME (g_scope_list', (frame::[(funn, stmt', scopes_stack')]), ctrl', status_running) => SOME (g_scope_list', (frame::[(funn, stmt_block_ip stmt', scopes_stack')]), ctrl', status_running)
+   | _ => NONE))
+  /\
  (************)
  (* Sequence *)
  (stmt_exec ctx (g_scope_list, [(funn, stmt_seq stmt1 stmt2, scopes_stack)], ctrl, status_running) =
@@ -616,46 +639,33 @@ Definition stmt_exec:
   /\
  (stmt_exec _ _ = NONE)
 End
- 
-`
-(WF_REL_TAC `measure sum_size` >>
- fs [sum_size_def, e_size_def] >>
- REPEAT STRIP_TAC >>
- IMP_RES_TAC unred_arg_index_in_range >>
- IMP_RES_TAC rich_listTheory.EL_MEM >>
- IMP_RES_TAC e1_size_mem >>
- fs [])
-;
 
 (* Only meant to skip certain soundness proof parts for now *)
-Theorem e_ignore_pars_next:
- !ctx e ctrl stacks p e' state'.
-  e_red ctx e (ctrl, stacks, (status_pars_next p)) e' state'
-Proof
-cheat
-QED
-
 Theorem stmt_ignore_pars_next:
- !ctx stmt ctrl stacks p stmt' state'.
-  stmt_red ctx stmt (ctrl, stacks, (status_pars_next p)) stmt' state'
+ !ctx g_scope_list frame_list ctrl p state'.
+  stmt_red ctx (g_scope_list, frame_list, ctrl, (status_pars_next p)) state'
 Proof
 cheat
 QED
 
+(* Note that these are definitions phrased for given statements *)
 Definition e_exec_sound:
  (e_exec_sound e =
-  !ctx e' state state'.
-  e_exec ctx e state = SOME (e', state') ==>
-  e_red ctx e state e' state')
+  !ctx g_scope_list scopes_stack ctrl e' frame_list ctrl'.
+  e_exec ctx g_scope_list scopes_stack e ctrl = SOME (e', frame_list, ctrl') ==>
+  e_red ctx g_scope_list scopes_stack e ctrl e' frame_list ctrl')
 End
 
+(* Note that this definition is phrased for given statements, not on the frame list, so soundness
+ * of comp1 and comp2 rules are excluded *)
 Definition stmt_exec_sound:
  (stmt_exec_sound stmt =
-  !ctx stmt' state state'.
-  stmt_exec ctx stmt state = SOME (stmt', state') ==>
-  stmt_red ctx stmt state stmt' state')
+  !ctx g_scope_list funn scopes_stack ctrl status state'.
+  stmt_exec ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) = SOME state' ==>
+  stmt_red ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) state')
 End
 
+(* TODO: Is this cheating? *)
 Definition l_sound:
  (l_sound (l: e list) = T)
 End
