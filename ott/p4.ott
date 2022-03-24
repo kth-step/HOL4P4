@@ -499,11 +499,10 @@ embed
 }}
 grammar
 
-%ext updates scope stack and ctrl directly.
+%ext updates the scope stack, global scope list and ctrl directly.
 %Note that at the time this happens, a new frame has already been declared for ext. 
 ext {{ tex { \mathit{ext} } }} :: ext_ ::=
-%{{ hol ((lval # e list # state) -> ((v # state) option)) }}
-{{ hol ((g_scope_list # scopes_stack # ctrl) -> ((scopes_stack # ctrl) option)) }}
+{{ hol ((g_scope_list # scopes_stack # ctrl) -> ((g_scope_list # scopes_stack # ctrl) option)) }}
 
 %Fence between ext and ext_map
 embed
@@ -1022,10 +1021,10 @@ formula :: formula_ ::=
   {{ hol ([[ctrl]] ( [[tbl]] , [[v]] , [[mk]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
 % extern
-| ( scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl ) :: :: ext 
+| ( g_scope_list' , scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl ) :: :: ext 
   {{ com application of an extern function }}
-  {{ tex ([[scopes_stack']], \, [[ctrl']]) = \blacksquare \, ( [[g_scope_list]] , \, [[scopes_stack]] , \, [[ctrl]] ) }}
-  {{ hol (SOME ([[scopes_stack']], [[ctrl']]) = [[ext]] ([[g_scope_list]], [[scopes_stack]], [[ctrl]])) }}
+  {{ tex ([[g_scope_list']], \, [[scopes_stack']], \, [[ctrl']]) = \blacksquare \, ( [[g_scope_list]] , \, [[scopes_stack]] , \, [[ctrl]] ) }}
+  {{ hol (SOME ([[g_scope_list']], [[scopes_stack']], [[ctrl']]) = [[ext]] ([[g_scope_list]], [[scopes_stack]], [[ctrl]])) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -1105,9 +1104,6 @@ formula :: formula_ ::=
  %            (e, \bot) & \mathrm{if} \; d \in \{ \downarrow , \circ \}
 	%   \end{cases} }}
   {{ hol (SOME [[scope]] = all_arg_update_for_newscope [[x1 .. xn]] [[d_list]] [[e_list]] [[scopes_stack]]) }}
-| ( ext , ( x1 , d1 ) , .. , ( xn , dn ) ) = ext_map ( f ) :: M :: lookup_ext
-  {{ com ext lookup }}
-  {{ hol (FLOOKUP [[ext_map]] [[f]] = SOME ([[ext]], [[x1 d1 .. xn dn]])) }}
 | scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scopes_stack ) :: M :: copyin
   {{ com build new scope and copyin }}
   {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma} )  }}
@@ -2345,9 +2341,9 @@ by
 
 %%%%%%%%%%%%%%
 %Extern
-  ( scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl )
+  ( g_scope_list' , scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl )
   ----------------------------------- :: ext
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , ext , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl' , Running )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , ext , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl' , Running )
  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
