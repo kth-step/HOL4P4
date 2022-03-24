@@ -1193,12 +1193,12 @@ formula :: formula_ ::=
   {{ com expression is not fully reduced }}
   {{ tex ~ { \mathrm{fully\_reduced} } \, [[e]] }}
   {{ hol (~(fully_reduced [[e]])) }}
-| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_fun_sig_body ( funn , func_map , ext_map ) :: M :: fun_sig_body
+| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , ext_map ) :: M :: fun_sig_body
   {{ com look up the body and signature of an abstract function name }}
-  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_fun_sig_body [[funn]] [[func_map]] [[ext_map]]) }}
-| [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_fun_sig ( funn , func_map , ext_map ) :: M :: fun_sig
+  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[ext_map]]) }}
+| [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , ext_map ) :: M :: fun_sig
   {{ com look up the signature of an abstract function name }}
-  {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_fun_sig [[funn]] [[func_map]] [[ext_map]]) }}
+  {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[ext_map]]) }}
 
 embed
 {{ hol
@@ -1486,7 +1486,7 @@ val is_var_def = Define `
 
 (* Extracts the string that represents the variable name from the expression form *)
 val varname_of_e_def = Define `
-  (varname_of_e (e_var x) = SOME x) /\
+  (varname_of_e (e_var varn) = SOME varn) /\
   (varname_of_e _ = NONE)
 `;
 
@@ -1777,8 +1777,8 @@ val initialise_def = Define `
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
-val lookup_fun_sig_body_def = Define `
-  (lookup_fun_sig_body funn func_map ext_map =
+val lookup_funn_sig_body_def = Define `
+  (lookup_funn_sig_body funn func_map ext_map =
     case funn of
     | (funn_name x) =>
      (case FLOOKUP func_map x of
@@ -1798,9 +1798,9 @@ val lookup_fun_sig_body_def = Define `
   )
 `;
 
-val lookup_fun_sig_def = Define `
-  (lookup_fun_sig funn func_map ext_map =
-    case lookup_fun_sig_body funn func_map ext_map of
+val lookup_funn_sig_def = Define `
+  (lookup_funn_sig funn func_map ext_map =
+    case lookup_funn_sig_body funn func_map ext_map of
     | SOME (_, x_d_l) => SOME x_d_l
     | NONE => NONE
   )
@@ -1864,7 +1864,7 @@ val fully_reduced_def = Define `
 val not_top_return_def = Define `
   not_top_return frame_list =
     case frame_list of
-    | [(f, stmt, scopes_stack)] =>
+    | [(funn, stmt, scopes_stack)] =>
       (case stmt of
       | stmt_ret e => T
       | stmt_seq (stmt_ret e) _ => T
@@ -1926,14 +1926,14 @@ ctx g_scope_list scopes_stack ( var varn , ctrl ) ~> ( v ,  empty , ctrl )
 %Function/method call
 
 %Function call construction of new frame
-( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_fun_sig_body ( funn , func_map , ext_map )
+( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , ext_map )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scopes_stack )
 ----------------------------------- :: call_newframe
 ( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) , ctrl ) ~> ( var star , [ ( funn , stmt , [ scope' ] ) ] , ctrl )
 
 %Function call reduction of arguments
-[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_fun_sig ( funn , func_map , ext_map )
+[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , ext_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
 ( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
@@ -2214,7 +2214,7 @@ by
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
   scopes_stack'' = init_in_highest_scope ( scopes_stack' , v , star )
-  ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_fun_sig_body ( funn , func_map , ext_map )
+  ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , ext_map )
   ( g_scope_list'' , scopes_stack''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack'' , scopes_stack )
   ----------------------------------- :: comp2
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( funn' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list'' , [ ( funn' , stmt' , scopes_stack''' ) ] ++ frame_list , ctrl , Running )
@@ -2353,7 +2353,7 @@ by
 %Reduction step of declare with initializer/instantiation
   ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
   ----------------------------------- :: init_e
-  ctx ( g_scope_list , [ ( funn , decl t x e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , empty_stmt , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , decl t x e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , decl t x e' , scopes_stack ) ] , ctrl' , Running )
 
 %Reduction step of return expression
 

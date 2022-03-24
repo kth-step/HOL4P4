@@ -379,7 +379,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
  (************************)
  (* Function/extern call *)
  (e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack (e_call funn e_l) ctrl =
-  (case lookup_fun_sig_body funn func_map ext_map of
+  (case lookup_funn_sig_body funn func_map ext_map of
     | SOME (stmt, x_d_l) =>
      (case unred_arg_index (MAP SND x_d_l) e_l of
       | SOME i =>
@@ -453,16 +453,21 @@ val e_exec = TotalDefn.tDefine "e_exec" `
 
 (* TODO
 val stmt_state_size_def = Define `
- (stmt_state_size ((ctx:ctx), (g_scope_list:g_scope_list), (frame_list:frame_list), (ctrl:ctrl), (status:status)) = stmt_size stmt)
+ (stmt_state_size ((ctx:ctx), (g_scope_list:g_scope_list), (frame_list:frame_list), (ctrl:ctrl), (status:status)) =
+  case frame_list of
+  | ([(funn, stmt, scopes_stack)]::frame_list') => 
+  | [] => 0)
 `;
 *)
 
+(* TODO: Extern execution *)
 (* TotalDefn.tDefine "stmt_exec" *)
 Definition stmt_exec:
  (******************************************)
  (* Catch-all clauses for special statuses *)
  (stmt_exec (ctx:ctx) ((g_scope_list:g_scope_list, frame_list:frame_list, ctrl:ctrl, status_type_error):state) = NONE)
   /\
+ (* TODO: frame list does not take into account nested frames here? *)
  (stmt_exec _ (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_pars_next x) =
   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_pars_next x))
   /\
@@ -480,7 +485,7 @@ Definition stmt_exec:
        (case frame_list of
         | ((funn', stmt', scopes_stack')::frame_list'') =>
          let scopes_stack'' = initialise scopes_stack' varn_star v in
-          (case lookup_fun_sig_body funn func_map ext_map of
+          (case lookup_funn_sig_body funn func_map ext_map of
            | SOME (stmt'', x_d_l) =>
             (case copyout (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list' scopes_stack'' scopes_stack of
              | SOME (g_scope_list'', scopes_stack''') =>
