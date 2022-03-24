@@ -11,14 +11,13 @@ val _ = new_theory "p4_vss";
 (**********************)
 (* Checksum16 methods *)
 (**********************)
-(* TODO: Prefix function definitions with ck_? *)
 
 (*************)
 (* construct *)
 
 (* TODO: Use ARB instead of 0w? *)
-Definition construct:
- (construct (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
+Definition ck_construct:
+ (ck_construct (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
   case e_l of
   | [] =>
    (case ext_obj_name of
@@ -35,8 +34,8 @@ End
 (*********)
 (* clear *)
 
-Definition clear:
- (clear (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
+Definition ck_clear:
+ (ck_clear (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
   case e_l of
   | [] =>
    (case assign frame (v_ext (ext_obj_ck 0w)) ext_obj_name of
@@ -112,8 +111,8 @@ End
 
 (* Note that this assumes the order of fields in the header is correct *)
 (* TODO: Check for overflow, compensate according to IPv4 checksum algorithm  *)
-Definition update:
- (update (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
+Definition ck_update:
+ (ck_update (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
   case lookup_ipv4_checksum frame ext_obj_name of
   | SOME ipv4_checksum =>
   (case get_checksum_incr e_l of
@@ -130,8 +129,8 @@ End
 (*******)
 (* get *)
 
-Definition get:
- (get (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
+Definition ck_get:
+ (ck_get (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
    case e_l of
    | [] =>
     (case lookup_ipv4_checksum frame ext_obj_name of
