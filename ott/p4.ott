@@ -1687,7 +1687,10 @@ val one_arg_val_for_newscope_def = Define `
           (case get_lval_of_e e of
            | SOME lval =>
              (case lookup_vexp ss varname of
-              | SOME v => SOME (v, SOME lval)
+              | SOME v =>
+                if is_d_in d
+                then SOME (v, SOME lval)
+                else SOME (init_out_v v, SOME lval)
               | NONE => NONE)
            | NONE => NONE)
       | NONE => NONE)
@@ -1854,7 +1857,7 @@ val sel_def = Define `
 val fully_reduced_def = Define `
   fully_reduced e =
     case e of
-    | (e_var x) => T
+    | (e_v (v_str _)) => T
     | _ => F
 `;
 
