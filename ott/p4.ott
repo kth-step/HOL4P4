@@ -252,7 +252,7 @@ scopes_stack {{ tex \overrightarrow{\gamma} }} :: scopes_stack_ ::=
   {{ hol ([[scope1 .. scopen]]) }}
 | tl scopes_stack :: M :: tl
   {{ hol (TL [[scopes_stack]]) }}
-  {{ tex \mathrm{tl} ([[scopes_stack]]) }}
+  {{ tex \mathrm{tl} [[scopes_stack]] }}
 | g_scope '::' scopes_stack' :: M :: cons
   {{ hol ([[g_scope]] :: [[scopes_stack']]) }}
   {{ tex [[g_scope]] :: [[scopes_stack']] }}
@@ -1013,7 +1013,7 @@ formula :: formula_ ::=
 %Apply table
 | tbl_map ( tbl ) = ( e , mk ) :: :: find_key
   {{ com find keys and the matching kind in the table map }}
-  {{ tex \mathrm{t\_map}\, [[tbl]]\, =\, ( [[e]] \, , [[mk]] ) }}
+  {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[e]] \, , [[mk]] ) }}
   {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[e]] , [[mk]] ) ) }}
 | ctrl ( tbl , v , mk ) = ( f , e_list ) :: :: ctrl_plane  
   {{ com fetch the function name and parameters from the ctrl plane }}
@@ -1857,7 +1857,7 @@ val sel_def = Define `
 val fully_reduced_def = Define `
   fully_reduced e =
     case e of
-    | (e_var x) => T
+    | (e_v (v_str _)) => T
     | _ => F
 `;
 
@@ -1910,9 +1910,9 @@ grammar
 defns
 e_sem :: '' ::=
 defn
-ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' ) :: :: e_red :: e_
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list ) :: :: e_red :: e_
 {{ com expression semantics }}
-{{ tex [[ctx]] \, [[g_scope_list]] \, [[scopes_stack]] \vdash ( [[e]], [[ctrl]] ) \rightsquigarrow  ( [[e']] , [[frame_list]], [[ctrl']] ) }}
+{{ tex [[ctx]] \, [[g_scope_list]] \, [[scopes_stack]] \vdash ( [[e]] ) \rightsquigarrow  ( [[e']] , [[frame_list]] ) }}
 by
 
 %%%%%%%%%%%%%%%%%
@@ -1920,7 +1920,7 @@ by
 
 v = lookup_vexp2 ( scopes_stack , g_scope_list , varn )
 ----------------------------------- :: lookup
-ctx g_scope_list scopes_stack ( var varn , ctrl ) ~> ( v ,  empty , ctrl )
+ctx g_scope_list scopes_stack ( var varn ) ~> ( v ,  empty )
 
 %%%%%%%%%%%%%%
 %Function/method call
@@ -1930,67 +1930,67 @@ ctx g_scope_list scopes_stack ( var varn , ctrl ) ~> ( v ,  empty , ctrl )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scopes_stack )
 ----------------------------------- :: call_newframe
-( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) , ctrl ) ~> ( var star , [ ( funn , stmt , [ scope' ] ) ] , ctrl )
+( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( var star , [ ( funn , stmt , [ scope' ] ) ] )
 
 %Function call reduction of arguments
 [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , ext_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
-( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
 ----------------------------------- :: call_args
-( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) , ctrl ) ~> ( call funn ( e'1 , .. , e'n ) , frame_list , ctrl' )
+( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , frame_list )
 
 %Struct field access
 v = struct { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: s_acc
-ctx g_scope_list scopes_stack ( struct { f1 = v1 ; ... ; fn = vn } . f , ctrl ) ~> ( v ,  empty , ctrl )
+ctx g_scope_list scopes_stack ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
 
 %Header field access
 v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: h_acc
-ctx g_scope_list scopes_stack ( header boolv { f1 = v1 ; ... ; fn = vn } . f , ctrl ) ~> ( v ,  empty , ctrl )
+ctx g_scope_list scopes_stack ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
 
 %Case select lookup
 x' = { v1 : x1 ; ... ; vn : xn } x ( v )
 ----------------------------------- :: sel_acc
-ctx g_scope_list scopes_stack ( select v { v1 : x1 ; ... ; vn : xn } x , ctrl ) ~> ( x' ,  empty , ctrl )
+ctx g_scope_list scopes_stack ( select v { v1 : x1 ; ... ; vn : xn } x ) ~> ( x' ,  empty )
 
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
-ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: acc_arg1
-ctx g_scope_list scopes_stack ( e . x , ctrl ) ~> ( e' . x , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e . x ) ~> ( e' . x , frame_list )
 
 is_not_fully_red e'
-ctx g_scope_list scopes_stack ( e' , ctrl ) ~> ( e'' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e' ) ~> ( e'' , frame_list )
 ----------------------------------- :: acc_arg2
-ctx g_scope_list scopes_stack ( e . e' , ctrl ) ~> ( e . e'' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e . e' ) ~> ( e . e'' , frame_list )
 
 %Select
 
-ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: sel_arg
-ctx g_scope_list scopes_stack ( select e { v1 : x1 ; ... ; vn : xn } x , ctrl ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( select e { v1 : x1 ; ... ; vn : xn } x ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , frame_list )
 
 
 %Unary operations
 
-ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: unop_arg
-ctx g_scope_list scopes_stack ( unop e , ctrl ) ~> ( unop e' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( unop e ) ~> ( unop e' , frame_list )
 
 %Binary operations
 
-ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e'' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e ) ~> ( e'' , frame_list )
 ----------------------------------- :: binop_arg1
-ctx g_scope_list scopes_stack ( e binop e' , ctrl ) ~> ( e'' binop e' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e binop e' ) ~> ( e'' binop e' , frame_list )
 
 %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
-ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: binop_arg2
-ctx g_scope_list scopes_stack ( v binop e , ctrl ) ~> ( v binop e' , frame_list , ctrl' )
+ctx g_scope_list scopes_stack ( v binop e ) ~> ( v binop e' , frame_list )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -2002,21 +2002,21 @@ ctx g_scope_list scopes_stack ( v binop e , ctrl ) ~> ( v binop e' , frame_list 
 
 ! b = b'
 ----------------------------------- :: neg_bool
-ctx g_scope_list scopes_stack ( ! b , ctrl ) ~> ( b' , empty , ctrl )
+ctx g_scope_list scopes_stack ( ! b ) ~> ( b' , empty )
 
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
 ~ bitv = bitv'
 ----------------------------------- :: compl
-ctx g_scope_list scopes_stack ( ~ bitv , ctrl ) ~> ( bitv' , empty , ctrl )
+ctx g_scope_list scopes_stack ( ~ bitv ) ~> ( bitv' , empty )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
 - bitv = bitv'
 ----------------------------------- :: neg_signed
-ctx g_scope_list scopes_stack ( - bitv , ctrl ) ~> ( bitv' , empty , ctrl )
+ctx g_scope_list scopes_stack ( - bitv ) ~> ( bitv' , empty )
 
 
 %%%%%%%%%%%
@@ -2024,7 +2024,7 @@ ctx g_scope_list scopes_stack ( - bitv , ctrl ) ~> ( bitv' , empty , ctrl )
 
 + bitv = bitv'
 ----------------------------------- :: un_plus
-ctx g_scope_list scopes_stack ( + bitv , ctrl ) ~> ( bitv' , empty , ctrl )
+ctx g_scope_list scopes_stack ( + bitv ) ~> ( bitv' , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -2036,7 +2036,7 @@ ctx g_scope_list scopes_stack ( + bitv , ctrl ) ~> ( bitv' , empty , ctrl )
 
 bitv * bitv' = bitv''
 ----------------------------------- :: mul
-ctx g_scope_list scopes_stack ( bitv * bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv * bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%%%%
@@ -2044,27 +2044,27 @@ ctx g_scope_list scopes_stack ( bitv * bitv' , ctrl ) ~> ( bitv'' , empty , ctrl
 
 bitv / bitv' = bitv''
 ----------------------------------- :: div
-ctx g_scope_list scopes_stack ( bitv / bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv / bitv' ) ~> ( bitv'' , empty )
 %%%%%%%%%%%%%%%
 %Modulo
 
 bitv mod bitv' = bitv''
 ----------------------------------- :: mod
-ctx g_scope_list scopes_stack ( bitv mod bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv mod bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%
 %Addition
 
 bitv + bitv' = bitv''
 ----------------------------------- :: add
-ctx g_scope_list scopes_stack ( bitv + bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv + bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%
 %Subtraction
 
 bitv - bitv' = bitv''
 ----------------------------------- :: sub
-ctx g_scope_list scopes_stack ( bitv - bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv - bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%
@@ -2072,74 +2072,74 @@ ctx g_scope_list scopes_stack ( bitv - bitv' , ctrl ) ~> ( bitv'' , empty , ctrl
 
 bitv SHL bitv' = bitv''
 ----------------------------------- :: shl
-ctx g_scope_list scopes_stack ( bitv SHL bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv SHL bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%
 %Right shift
 
 bitv SHR bitv' = bitv''
 ----------------------------------- :: shr
-ctx g_scope_list scopes_stack ( bitv SHR bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv SHR bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
 bitv LE bitv' = b
 ----------------------------------- :: le
-ctx g_scope_list scopes_stack ( bitv LE bitv' , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv LE bitv' ) ~> ( b , empty )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
 bitv GE bitv' = b
 ----------------------------------- :: ge
-ctx g_scope_list scopes_stack ( bitv GE bitv' , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv GE bitv' ) ~> ( b , empty )
 
 %%%%%%%%%%
 %Less than
 
 bitv < bitv' = b
 ----------------------------------- :: lt
-ctx g_scope_list scopes_stack ( bitv < bitv' , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv < bitv' ) ~> ( b , empty )
 %%%%%%%%%%%%%
 %Greater than
 
 bitv > bitv' = b
 ----------------------------------- :: gt
-ctx g_scope_list scopes_stack ( bitv > bitv' , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv > bitv' ) ~> ( b , empty )
 
 %%%%%%%%%%%%%
 %Not equal
 
 bitv NE bitv' = b
 ----------------------------------- :: neq
-ctx g_scope_list scopes_stack ( bitv NE bitv' , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv NE bitv' ) ~> ( b , empty )
 
 (x <> x') = b
 ----------------------------------- :: neq_error
-ctx g_scope_list scopes_stack ( (errmsg x) NE (errmsg x') , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( (errmsg x) NE (errmsg x') ) ~> ( b , empty )
 
 b NE b' = b''
 ----------------------------------- :: neq_bool
-ctx g_scope_list scopes_stack ( b NE b' , ctrl ) ~> ( b'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( b NE b' ) ~> ( b'' , empty )
 
 %%%%%%%%%%%%%
 %Equal
 
 bitv EQ bitv' = b
 ----------------------------------- :: eq
-ctx g_scope_list scopes_stack ( bitv EQ bitv' , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv EQ bitv' ) ~> ( b , empty )
 
 
 (x EQ x') = b
 ----------------------------------- :: eq_error
-ctx g_scope_list scopes_stack ( (errmsg x) EQ (errmsg x') , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( (errmsg x) EQ (errmsg x') ) ~> ( b , empty )
 
 
 
 b EQ b' = b''
 ----------------------------------- :: eq_bool
-ctx g_scope_list scopes_stack ( b EQ b' , ctrl ) ~> ( b'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( b EQ b' ) ~> ( b'' , empty )
 
 
 %%%%%%%%%%%%%
@@ -2147,7 +2147,7 @@ ctx g_scope_list scopes_stack ( b EQ b' , ctrl ) ~> ( b'' , empty , ctrl )
 
 bitv & bitv' = bitv''
 ----------------------------------- :: and
-ctx g_scope_list scopes_stack ( bitv & bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv & bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%%
@@ -2155,7 +2155,7 @@ ctx g_scope_list scopes_stack ( bitv & bitv' , ctrl ) ~> ( bitv'' , empty , ctrl
 
 bitv ^ bitv' = bitv''
 ----------------------------------- :: xor
-ctx g_scope_list scopes_stack ( bitv ^ bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv ^ bitv' ) ~> ( bitv'' , empty )
 
 
 
@@ -2164,7 +2164,7 @@ ctx g_scope_list scopes_stack ( bitv ^ bitv' , ctrl ) ~> ( bitv'' , empty , ctrl
 
 bitv | bitv' = bitv''
 ----------------------------------- :: or
-ctx g_scope_list scopes_stack ( bitv | bitv' , ctrl ) ~> ( bitv'' , empty , ctrl )
+ctx g_scope_list scopes_stack ( bitv | bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%%
@@ -2172,22 +2172,22 @@ ctx g_scope_list scopes_stack ( bitv | bitv' , ctrl ) ~> ( bitv'' , empty , ctrl
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_and1
-ctx g_scope_list scopes_stack ( false AND b , ctrl ) ~> ( false , empty , ctrl )
+ctx g_scope_list scopes_stack ( false AND b ) ~> ( false , empty )
 
 
 ----------------------------------- :: bin_and2
-ctx g_scope_list scopes_stack ( true AND b , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( true AND b ) ~> ( b , empty )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_or1
-ctx g_scope_list scopes_stack ( true OR b , ctrl ) ~> ( true , empty , ctrl )
+ctx g_scope_list scopes_stack ( true OR b ) ~> ( true , empty )
 
 
 ----------------------------------- :: bin_or2
-ctx g_scope_list scopes_stack ( false OR b , ctrl ) ~> ( b , empty , ctrl )
+ctx g_scope_list scopes_stack ( false OR b ) ~> ( b , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -2285,7 +2285,7 @@ by
 
   ctx ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list ++ [ ( funn , stmt' , scopes_stack' ) ] , ctrl' , status' )
   ----------------------------------- :: block_exec
-  ctx ( g_scope_list , [ ( funn , begin' stmt end' , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list , frame_list ++ [ ( funn , begin' stmt end' , scopes_stack' ) ] , ctrl' , status' )
+  ctx ( g_scope_list , [ ( funn , begin' stmt end' , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list , frame_list ++ [ ( funn , begin' stmt' end' , scopes_stack' ) ] , ctrl' , status' )
 
 
   scopes_stack' = rev ( tl ( rev scopes_stack ) )
@@ -2330,7 +2330,7 @@ by
   tbl_map ( tbl ) = ( e' , mk )
   ctrl ( tbl , v , mk ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( f , assign null ( call f ( v1 , .. , vn ) ) , scopes_stack ) ] , ctrl , Running )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vn ) ) , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
@@ -2351,51 +2351,51 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Reduction step of declare with initializer/instantiation
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: init_e
-  ctx ( g_scope_list , [ ( funn , decl t x e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , decl t x e' , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , decl t x e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , decl t x e' , scopes_stack ) ] , ctrl , Running )
 
 %Reduction step of return expression
 
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: ret_e
-  ctx ( g_scope_list , [ ( funn , return e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , return e' , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , return e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , return e' , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of assign expression
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: ass_e
-  ctx ( g_scope_list , [ ( funn , assign lval e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , assign lval e' , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , assign lval e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , assign lval e' , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of condition
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: cond_e
-  ctx ( g_scope_list , [ ( funn , if e then stmt1 else stmt2 , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , if e' then stmt1 else stmt2 , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , if e then stmt1 else stmt2 , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , if e' then stmt1 else stmt2 , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of verify predicate
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e'' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e'' , frame_list )
   ------------------------------------------------- :: verify_e1
-  ctx ( g_scope_list , [ ( funn , verify e e' , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , verify e'' e' , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , verify e e' , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , verify e'' e' , scopes_stack ) ] , ctrl , Running )
   
 
 %Reduction step of error message
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ------------------------------------------------- :: verify_e2
-  ctx ( g_scope_list , [ ( funn , verify b e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , verify b e' , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , verify b e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , verify b e' , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of transition
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ------------------------------------------------- :: trans_e
-  ctx ( g_scope_list , [ ( funn , transition e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , transition e' , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , transition e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , transition e' , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of match-action expression
-  ctx g_scope_list scopes_stack ( e , ctrl ) ~> ( e' , frame_list , ctrl' )
+  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: apply_table_e
-  ctx ( g_scope_list , [ ( funn , apply tbl e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , apply tbl e' , scopes_stack ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , apply tbl e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , apply tbl e' , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2592,7 +2592,7 @@ by
   ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
   e = [ e1 , .. , en ] [ i' ]
-  ( ty_map , ext_map , func_map , empty ) g_scope_list [ scope ] ( e , ctrl ) ~> ( e' , empty , ctrl )
+  ( ty_map , ext_map , func_map , empty ) g_scope_list [ scope ] ( e ) ~> ( e' , empty )
   [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
   ----------------------------------- :: pblock_args
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 , .. , en ) , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope' ) , g_scope_list , pbl_call f ( e'1 , .. , e'n ) , ctrl , Running )
@@ -2600,7 +2600,7 @@ by
   ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
   unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
   e = [ e1 , .. , en ] [ i' ]
-  ( ty_map , ext_map , func_map , empty ) g_scope_list [ scope ] ( e , ctrl ) ~> ( e' , empty , ctrl )
+  ( ty_map , ext_map , func_map , empty ) g_scope_list [ scope ] ( e ) ~> ( e' , empty )
   [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
   ----------------------------------- :: ffblock_args
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , ffbl_call f ( e1 , .. , en ) , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope' ) , g_scope_list , ffbl_call f ( e1' , .. , en' ) , ctrl , Running )
