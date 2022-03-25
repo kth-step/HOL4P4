@@ -1,6 +1,12 @@
 name: build
 
-on: [push, pull_request]
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
 
 jobs:
   build:
