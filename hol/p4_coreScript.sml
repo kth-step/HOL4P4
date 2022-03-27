@@ -38,7 +38,7 @@ End
 Definition is_valid:
  (is_valid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
   case lookup_lval frame header_name of
-  | (v_header valid_bit x_v_l) =>
+  | SOME (v_header valid_bit x_v_l) =>
    SOME (v_bool valid_bit, (ctrl, (frame, call_stack), status))
   | _ => NONE
  )

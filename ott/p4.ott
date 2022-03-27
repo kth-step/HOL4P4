@@ -136,12 +136,14 @@ v :: v_ ::=
 | bot :: :: bot
   {{ com no value }}
 
-%A variable is either a function return placeholder ("star") or an actual variable name
+
 varn :: varn_ ::=
 | x :: :: name
   {{ com variable name }}
 | star :: :: star 
   {{ com function return placeholder }}
+| ext_ret :: :: ext_ret
+  {{ com extern return variable }}
 
 %TODO: Add array element
 %TODO: Add bitslice

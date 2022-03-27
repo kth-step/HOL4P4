@@ -40,12 +40,12 @@ val vss_output_f = ``vss_output_f``;
 val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runtime [])
                                |+ ("pre_deparser", ffblock_ff vss_pre_deparser [])``;
 
-val vss_ext_map = ``FEMPTY |+ ("extract", (extract, [("hdr", d_out)]))
-                           |+ ("construct", (construct, []))
-                           |+ ("clear", (clear, []))
-                           |+ ("update", (update, [("data", d_in)]))
-                           |+ ("get", (get, []))
-                           |+ ("emit", (emit, [("data", d_in)]))
-                           |+ ("isValid", (is_valid, []))``;
+val vss_ext_map = ``FEMPTY |+ ("extract", (extract, [("this", d_inout); ("hdr", d_out)]))
+                           |+ ("construct", (construct, [("this", d_inout)]))
+                           |+ ("clear", (clear, [("this", d_inout)]))
+                           |+ ("update", (update, [("this", d_inout); ("data", d_in)]))
+                           |+ ("get", (get, [("this", d_inout)]))
+                           |+ ("emit", (emit, [("this", d_inout); ("data", d_in)]))
+                           |+ ("isValid", (is_valid, [("this", d_inout)]))``;
 
 end
