@@ -41,17 +41,18 @@ val map6  = ``(varn_name "z", (^bitE , NONE: lval option))``;
 val map7  = ``(varn_name "z", (^bitT , NONE: lval option))``;
 val map8  = ``(varn_name "z", (^bitF , NONE: lval option))``;
 val map9  = ``(varn_name "x", (^bitA , NONE: lval option))``;
-val map10 = ``(varn_name "x", (^bitA , NONE: lval option))``;
+val map10 = ``(varn_name "x", ((v_bit ([ARB],1))  , NONE: lval option))``;
 val map11 = ``(varn_name "parseError", (^bitErr1 , NONE: lval option))``;
 val map12 = ``(varn_name "parseError", (^bitErr2 , NONE: lval option))``;
-val map13 = ``(varn_name "y",         (^bitF    , SOME (lval_varname (varn_name"x"))))``;
+val map13 = ``(varn_name "y",  ((v_bit ([ARB],1))   , SOME (lval_varname (varn_name"x"))))``;
 val map14 = ``(varn_name "headers.ip.ttl", (^bitTwo, NONE:lval option)) ``;
 val map15 = ``(varn_name "a", (^bitF , NONE: lval option))``;
-val map16 = ``(varn_name "b", (^bitF , SOME (lval_varname (varn_name"y"))))``;
+val map16 = ``(varn_name "b", ( (v_bit ([ARB],1)), SOME (lval_varname (varn_name"y"))))``;
 val map17 = ``(varn_name "headers.ip.ttl", (^bitF, NONE:lval option)) ``;
 val map18 = ``(varn_star,  ((v_bit ([F; F],2)),NONE:lval option) )``; 
 val map19 = ``(varn_star,  (v_bit (ARB),NONE:lval option) )``;
 val map20 = ``(varn_star,  ((v_bit ([F; F],2)),NONE:lval option) )``;
+
 
 (*scopes examples*)
 val scope0 = ``(FEMPTY |+ ^map0): scope``;
@@ -77,6 +78,8 @@ val scope20 = ``(FEMPTY |+ ^map4 |+ ^map2)``;
 val scope21 = ``(FEMPTY |+ ^map1 |+ ^map4|+ ^map9)``;
 val scope22 = ``(FEMPTY |+ ^map4 |+ ^map2 |+ ^map19):scope``;
 val scope23 = ``(FEMPTY |+ ^map20):scope``;
+val scope24 = ``(FEMPTY |+ ^map5 |+ ^map2)``;
+val scope25 = ``(FEMPTY |+ ^map4 |+ ^map10 |+ ^map18)``;
 
 
 (*scope list examples*)
@@ -111,6 +114,7 @@ val scopelist27 = ``[^scope19]``;
 val scopelist28 = ``[^scope20]``;
 val scopelist29 = ``[^scope22]``;
 val scopelist30 = ``[^scope23]``;
+val scopelist31 = ``[^scope25]``;
 
 (*empty ctrl*)
 val empty_ctrl =
@@ -119,17 +123,17 @@ Define
 
 
 (*context examples*)
-val ctx_empty = ``(FEMPTY, FEMPTY, FEMPTY, FEMPTY, empty_ctrl):ctx``;
-
+val ctx_empty = ``(FEMPTY, FEMPTY, FEMPTY, FEMPTY):ctx``;
+val Gscope_list = ``[FEMPTY;FEMPTY]:scope list``;
 
 (*** assignment statement reduction --concrete values -- ***)
 
 (* test 1: Pre/post frames and states for assignment with empty global*)
 val prog_ass1  = ``(stmt_ass (lval_varname (varn_name "x")) (e_v (v_bit ([T], 1))))``;
-val frame1a = `` [("f", ^prog_ass1 , ^scopelist1 )] : Frame_list `` ;
-val state1a = `` (state_P4 FEMPTY  ^frame1a ^R)  : state `` ;
-val frame1b = `` [("f", stmt_empty , ^scopelist2 )] : Frame_list `` ;
-val state1b = `` (state_P4 FEMPTY  ^frame1b ^R)  : state `` ;
+val frame1a = `` [(funn_name "f", ^prog_ass1 , ^scopelist1 )] : frame_list `` ;
+val state1a = `` (^Gscope_list, ^frame1a, empty_ctrl, ^R):state  `` ;
+val frame1b = `` [(funn_name "f", stmt_empty , ^scopelist2 )] : frame_list `` ;
+val state1b = `` (^Gscope_list, ^frame1b ,  empty_ctrl,  ^R)  : state `` ;
 
 
 val test_stmt_ass1 =
@@ -143,10 +147,10 @@ FULL_SIMP_TAC list_ss []
 
 
 (* test 2: Pre/post frames and states for assignment with non empty global*)
-val frame2a = `` [("f", ^prog_ass1 , ^scopelist1 )] : Frame_list `` ;
-val state2a = `` (state_P4 ^scope0  ^frame2a ^R)  : state `` ;
-val frame2b = `` [("f", stmt_empty , ^scopelist2 )] : Frame_list `` ;
-val state2b = `` (state_P4 ^scope0   ^frame2b ^R)  : state `` ;
+val frame2a = `` [(funn_name "f", ^prog_ass1 , ^scopelist1 )] : frame_list `` ;
+val state2a = `` ([FEMPTY; ^scope0],  ^frame2a, empty_ctrl, ^R)  : state `` ;
+val frame2b = `` [(funn_name "f", stmt_empty , ^scopelist2 )] : frame_list `` ;
+val state2b = `` ([FEMPTY; ^scope0],  ^frame2b, empty_ctrl, ^R)  : state `` ;
 
 
 val test_stmt_ass2 =
@@ -163,14 +167,14 @@ FULL_SIMP_TAC list_ss []
 val exp1   = ``(e_binop (e_v (v_bit ([T],1))) binop_add (e_v (v_bit ([F],1))))``;
 val prog_ass2 = ``(stmt_ass (lval_varname (varn_name "x")) (^exp1) )``;
 val prog_ass3 = ``(stmt_ass (lval_varname (varn_name "x")) (e_v (v_bit ([T],1))) )``; 
-val frame3a = `` [("f", ^prog_ass2 , ^scopelist1 )] : Frame_list `` ;
-val state3a = `` (state_P4 ^scope0  ^frame3a ^R)  : state `` ;
-val frame3b = `` [("f", ^prog_ass3 , ^scopelist1 )] : Frame_list `` ;
-val state3b = `` (state_P4 ^scope0   ^frame3b ^R)  : state `` ;
+val frame3a = `` [(funn_name "f", ^prog_ass2 , ^scopelist1 )] : frame_list `` ;
+val state3a = `` ([FEMPTY; ^scope0], ^frame3a, empty_ctrl, ^R)  : state `` ;
+val frame3b = `` [(funn_name "f", ^prog_ass3 , ^scopelist1 )] : frame_list `` ;
+val state3b = `` ([FEMPTY; ^scope0], ^frame3b, empty_ctrl, ^R)  : state `` ;
 
 
 val test_stmt_ass3 =
-prove(`` stmt_red ^ctx_empty ^state3a ^state3b ``,
+ prove(`` stmt_red ^ctx_empty ^state3a ^state3b ``,
 STMT_SIMP >>
 REPEAT (EXP_SIMP)
 );
@@ -180,10 +184,10 @@ REPEAT (EXP_SIMP)
 (* test 4: Pre/post frames and states for assignment with an other value*)
 val prog_ass4 = ``(stmt_ass (lval_varname (varn_name "x")) (e_var(varn_name "y")))``;
 val prog_ass5 = ``(stmt_ass (lval_varname (varn_name "x")) (e_v (v_bit ([T],1))) )``;
-val frame4a = `` [("f", ^prog_ass4 , ^scopelist17 )] : Frame_list `` ;
-val state4a = `` (state_P4 ^scope0  ^frame4a ^R)  : state `` ;
-val frame4b = `` [("f", ^prog_ass5 , ^scopelist17 )] : Frame_list `` ;
-val state4b = `` (state_P4 ^scope0  ^frame4b ^R)  : state `` ;
+val frame4a = `` [(funn_name "f", ^prog_ass4 , ^scopelist17 )] : frame_list `` ;
+val state4a = `` ([FEMPTY; ^scope0],  ^frame4a, empty_ctrl, ^R)  : state `` ;
+val frame4b = `` [(funn_name "f", ^prog_ass5 , ^scopelist17 )] : frame_list `` ;
+val state4b = `` ([FEMPTY; ^scope0],  ^frame4b, empty_ctrl, ^R)  : state `` ;
 
 val test_stmt_ass4 =
 prove(`` stmt_red ^ctx_empty ^state4a ^state4b ``,
@@ -204,20 +208,20 @@ val prog_if3 = ``(stmt_cond (e_v (v_bool  T )) stmt_empty  ^prog_ass1 )``;
 val prog_if4 = ``(stmt_cond (e_v (v_bool  F )) stmt_empty  ^prog_ass1 )``;
 
 
-val frame_if1 = `` [("f", ^prog_if1 , ^scopelist1 )] : Frame_list `` ;
-val state_if1 = `` (state_P4 ^scope0  ^frame_if1 ^R)  : state `` ;
+val frame_if1 = `` [(funn_name "f", ^prog_if1 , ^scopelist1 )] : frame_list `` ;
+val state_if1 = `` ([FEMPTY; ^scope0],  ^frame_if1, empty_ctrl, ^R)  : state `` ;
 
-val frame_if2 = `` [("f", ^prog_if3 , ^scopelist1 )] : Frame_list `` ;
-val state_if2 = `` (state_P4 ^scope0  ^frame_if2 ^R)  : state `` ;
+val frame_if2 = `` [(funn_name "f", ^prog_if3 , ^scopelist1 )] : frame_list `` ;
+val state_if2 = `` ([FEMPTY; ^scope0],  ^frame_if2 , empty_ctrl, ^R)  : state `` ;
 
-val frame_if3 = `` [("f", stmt_empty , ^scopelist1 )] : Frame_list `` ;
-val state_if3 = `` (state_P4 ^scope0  ^frame_if3 ^R)  : state `` ;
+val frame_if3 = `` [(funn_name "f", stmt_empty , ^scopelist1 )] : frame_list `` ;
+val state_if3 = `` ([FEMPTY; ^scope0],  ^frame_if3 , empty_ctrl, ^R)  : state `` ;
 
-val frame_if4 = `` [("f", ^prog_if2 , ^scopelist1 )] : Frame_list `` ;
-val state_if4 = `` (state_P4 ^scope0  ^frame_if4 ^R)  : state `` ;
+val frame_if4 = `` [(funn_name "f", ^prog_if2 , ^scopelist1 )] : frame_list `` ;
+val state_if4 = `` ([FEMPTY; ^scope0],  ^frame_if4 , empty_ctrl, ^R)  : state `` ;
 
-val frame_if5 = `` [("f", ^prog_if4 , ^scopelist1 )] : Frame_list `` ;
-val state_if5 = `` (state_P4 ^scope0  ^frame_if5 ^R)  : state `` ;
+val frame_if5 = `` [(funn_name "f", ^prog_if4 , ^scopelist1 )] : frame_list `` ;
+val state_if5 = `` ([FEMPTY; ^scope0],  ^frame_if5 , empty_ctrl, ^R)  : state `` ;
 
 
 (* test 1: tranistion for if e *)
@@ -246,13 +250,13 @@ REPEAT (EXP_SIMP)
 (*** declare statement reduction ***)
 
 (*declare a variable*)
-val prog_dec1  = ``(stmt_declare "x"  (t_base bt_bit) )``;
+val prog_dec1  = ``(stmt_declare  (t_base bt_bit) "x"  (NONE:e option) )``;
 
-val frame_dec1 = `` [("f", ^prog_dec1 , ^scopelist5 )] : Frame_list `` ;
-val state_dec1 = `` (state_P4 FEMPTY  ^frame_dec1 ^R)  : state `` ;
+val frame_dec1 = `` [(funn_name "f", ^prog_dec1 , ^scopelist5 )] : frame_list `` ;
+val state_dec1 = `` (^Gscope_list,  ^frame_dec1 , empty_ctrl, ^R)  : state `` ;
 
-val frame_dec2 = `` [("f", stmt_empty , ^scopelist6 )] : Frame_list `` ;
-val state_dec2 = ``(state_P4 FEMPTY  ^frame_dec2 ^R): state``;
+val frame_dec2 = `` [(funn_name "f", stmt_empty , ^scopelist6 )] : frame_list `` ;
+val state_dec2 = ``(^Gscope_list ,  ^frame_dec2 , empty_ctrl, ^R): state``;
 
 (* test 1: transition for declare with empty global*)
 val test_stmt_decl1 =
@@ -262,17 +266,57 @@ FULL_SIMP_TAC list_ss [LUPDATE_def, arb_from_t_def]
 );
 
 
-val frame_dec3 = `` [("f", ^prog_dec1 , ^scopelist5 )] : Frame_list `` ;
-val state_dec3 = `` (state_P4 ^scope5  ^frame_dec1 ^R)  : state `` ;
+val frame_dec3 = `` [(funn_name "f", ^prog_dec1 , ^scopelist5 )] : frame_list `` ;
+val state_dec3 = `` ([FEMPTY; ^scope5],  ^frame_dec1 , empty_ctrl, ^R)  : state `` ;
 
-val frame_dec4 = `` [("f", stmt_empty , ^scopelist6 )] : Frame_list `` ;
-val state_dec4 = ``(state_P4 ^scope5  ^frame_dec2 ^R): state``;
+val frame_dec4 = `` [(funn_name "f", stmt_empty , ^scopelist6 )] : frame_list `` ;
+val state_dec4 = ``([FEMPTY; ^scope5],  ^frame_dec2 , empty_ctrl, ^R): state``;
 
 (* test 2: transition for declare with non empty global*)
 val test_stmt_decl2 =
 prove(`` stmt_red (^ctx_empty) ^state_dec3 ^state_dec4  ``,
 STMT_SIMP >>
 EVAL_TAC
+);
+
+
+(*** initilize statement reduction ***)
+val prog_init1  = ``(stmt_declare  (t_base bt_bit) "x"  (SOME  (e_v (v_bit ([F],1)))) )``;
+
+val frame_init1 = `` [(funn_name "f", ^prog_init1 , ^scopelist19 )] : frame_list `` ;
+val state_init1 = `` (^Gscope_list,  ^frame_init1 , empty_ctrl, ^R)  : state `` ;
+
+val frame_init2 = `` [(funn_name "f", stmt_empty , [^scope2; ^scope24] )] : frame_list `` ;
+val state_init2 = ``(^Gscope_list ,  ^frame_init2 , empty_ctrl, ^R): state``;
+
+
+(* test1: test init variable x in a scope stack that has already x in the first scope*)
+val test_stmt_init =
+prove(`` stmt_red (^ctx_empty) ^state_init1 ^state_init2  ``,
+STMT_SIMP >>
+EXP_SIMP >>
+EXISTS_TAC ``"x"``>>
+EVAL_TAC
+);
+
+
+
+val prog_init2  = ``(stmt_declare  (t_base bt_bit) "x"  (SOME  (e_var (varn_name "y"))))``;
+
+val frame_init3 = `` [(funn_name "f", ^prog_init2 , ^scopelist19 )] : frame_list `` ;
+val state_init3 = `` (^Gscope_list,  ^frame_init3 , empty_ctrl, ^R)  : state `` ;
+
+val frame_init4 = `` [(funn_name "f", ^prog_init1 , ^scopelist19 )] : frame_list `` ;
+val state_init4 = ``(^Gscope_list ,  ^frame_init4 , empty_ctrl, ^R): state``;
+
+
+(* test2: test init with e red*)
+val test_stmt_init2 =
+prove(`` stmt_red (^ctx_empty) ^state_init3 ^state_init4  ``,
+STMT_SIMP >>
+EXP_SIMP >>
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] 
 );
 
 
@@ -283,11 +327,11 @@ val prog_blk2 =  ``(stmt_block_ip ^prog_if3)``;
 val prog_blk3 =  ``(stmt_block_ip stmt_empty)``;
 
 
-val frame_blk1 = `` [("f", ^prog_blk1 , ^scopelist10 )] : Frame_list `` ;
-val state_blk1 = ``(state_P4 FEMPTY ^frame_blk1 ^R): state``;
+val frame_blk1 = `` [(funn_name "f", ^prog_blk1 , ^scopelist10 )] : frame_list `` ;
+val state_blk1 = ``(^Gscope_list , ^frame_blk1 , empty_ctrl, ^R): state``;
 
-val frame_blk2 = `` [("f", ^prog_blk2 , ^scopelist11 )] : Frame_list `` ;
-val state_blk2 = ``(state_P4 FEMPTY ( ^frame_blk2) ^R): state``;
+val frame_blk2 = `` [(funn_name "f", ^prog_blk2 , ^scopelist11 )] : frame_list `` ;
+val state_blk2 = ``(^Gscope_list , ( ^frame_blk2) , empty_ctrl, ^R): state``;
 
 
 
@@ -298,11 +342,11 @@ EVAL_TAC
 );
 
 
-val frame_blk3 = `` [("f", ^prog_blk1 , ^scopelist10 )] : Frame_list `` ;
-val state_blk3 = ``(state_P4 ^scope3 ^frame_blk3 ^R): state``;
+val frame_blk3 = `` [(funn_name "f", ^prog_blk1 , ^scopelist10 )] : frame_list `` ;
+val state_blk3 = ``([FEMPTY; ^scope3], ^frame_blk3 , empty_ctrl, ^R): state``;
 
-val frame_blk4 = `` [("f", ^prog_blk2 , ^scopelist11 )] : Frame_list `` ;
-val state_blk4 = ``(state_P4 ^scope3 ( ^frame_blk4) ^R): state``;
+val frame_blk4 = `` [(funn_name "f", ^prog_blk2 , ^scopelist11 )] : frame_list `` ;
+val state_blk4 = ``([FEMPTY; ^scope3], ( ^frame_blk4) , empty_ctrl, ^R): state``;
 
 (* test 1: transition for block enter*)
 val test_stmt_block_enter =
@@ -313,22 +357,22 @@ EVAL_TAC
 
 
 
-val frame_blk5 = `` [("f", ^prog_blk3 , ^scopelist11 )] : Frame_list `` ;
-val state_blk5 = ``(state_P4 ^scope3 ( ^frame_blk5) ^R): state``;
+val frame_blk5 = `` [(funn_name "f", ^prog_blk3 , ^scopelist11 )] : frame_list `` ;
+val state_blk5 = ``([FEMPTY; ^scope3], ( ^frame_blk5) , empty_ctrl, ^R): state``;
 
 
  (* test 2: transition for block exec*)
 val test_stmt_block_exec =
 prove(`` stmt_red (^ctx_empty) ^state_blk4 ^state_blk5  ``,
 RW_TAC (srw_ss()) [Once stmt_red_cases] >>
-EXISTS_TAC``^scope3`` >>
+EXISTS_TAC``[FEMPTY; ^scope3]`` >>
 STMT_SIMP 
 );
 
 
 (* test 3: transition for block exit*)
-val frame_blk6 = `` [("f", stmt_empty , ^scopelist10 )] : Frame_list `` ;
-val state_blk6 = ``(state_P4 ^scope3 ( ^frame_blk6) ^R): state``;
+val frame_blk6 = `` [(funn_name "f", stmt_empty , ^scopelist10 )] : frame_list `` ;
+val state_blk6 = ``([FEMPTY; ^scope3], ( ^frame_blk6) , empty_ctrl, ^R): state``;
 
 
 val test_stmt_block_exit =
@@ -348,12 +392,12 @@ val prog_tra3 =  ``stmt_trans (e_v (v_str "reject")) ``;
 
 
 
-val frame_tra1 = `` [("f", ^prog_tra1 , ^scopelist1 )] : Frame_list `` ;
-val state_tra1 = ``(state_P4 FEMPTY (^frame_tra1) ^R): state``;
+val frame_tra1 = `` [(funn_name "f", ^prog_tra1 , ^scopelist1 )] : frame_list `` ;
+val state_tra1 = ``(^Gscope_list , (^frame_tra1) , empty_ctrl, ^R): state``;
 
 
-val frame_tra2 = `` [("f", stmt_empty , ^scopelist1 )] : Frame_list `` ;
-val state_tra2 = ``(state_P4 FEMPTY (^frame_tra2) (status_pars_next (pars_next_trans "MoveNext"))): state``;
+val frame_tra2 = `` [(funn_name "f", stmt_empty , ^scopelist1 )] : frame_list `` ;
+val state_tra2 = ``(^Gscope_list , (^frame_tra2), empty_ctrl, (status_pars_next (pars_next_trans "MoveNext"))): state``;
 
 
 (* test 1: transition for stmt trans to non final*)
@@ -364,12 +408,12 @@ EVAL_TAC
 );
 
 
-val frame_tra3 = `` [("f", ^prog_tra2 , ^scopelist1 )] : Frame_list `` ;
-val state_tra3 = ``(state_P4 ^scope8 (^frame_tra3) ^R): state``;
+val frame_tra3 = `` [(funn_name "f", ^prog_tra2 , ^scopelist1 )] : frame_list `` ;
+val state_tra3 = ``([FEMPTY; ^scope8], (^frame_tra3) , empty_ctrl, ^R): state``;
 
 
-val frame_tra4 = `` [("f", stmt_empty , ^scopelist1 )] : Frame_list `` ;
-val state_tra4 = ``(state_P4 ^scope8 (^frame_tra4) ^Parse_Acc): state``;
+val frame_tra4 = `` [(funn_name "f", stmt_empty , ^scopelist1 )] : frame_list `` ;
+val state_tra4 = ``([FEMPTY; ^scope8], (^frame_tra4) , empty_ctrl, ^Parse_Acc): state``;
 
 
 (* test 2: transition for stmt trans to accept*)
@@ -380,12 +424,12 @@ EVAL_TAC
 );
 
 
-val frame_tra5 = `` [("f", ^prog_tra3 , ^scopelist1 )] : Frame_list `` ;
-val state_tra5 = ``(state_P4 ^scope6 (^frame_tra5) ^R): state``;
+val frame_tra5 = `` [(funn_name "f", ^prog_tra3 , ^scopelist1 )] : frame_list `` ;
+val state_tra5 = ``([FEMPTY; ^scope6], (^frame_tra5) , empty_ctrl, ^R): state``;
 
 
-val frame_tra6 = `` [("f", stmt_empty , ^scopelist1 )] : Frame_list `` ;
-val state_tra6 = ``(state_P4 ^scope6 (^frame_tra6) ^Parse_Rej): state``;
+val frame_tra6 = `` [(funn_name "f", stmt_empty , ^scopelist1 )] : frame_list `` ;
+val state_tra6 = ``([FEMPTY; ^scope6], (^frame_tra6) , empty_ctrl, ^Parse_Rej): state``;
 
 (* test 3: transition for stmt trans to accept*)
 val test_stmt_trans3 =
@@ -410,12 +454,12 @@ val prog_ver4 =  ``stmt_verify (e_v (v_bool  F )) (e_v (v_err "PacketTooShort"))
 val prog_ver5 =  ``stmt_seq (stmt_ass (lval_varname (varn_name "parseError")) ((e_v (v_err "PacketTooShort")))) (stmt_trans (e_v (v_str "reject")))``;
 
 
-val frame_ver1 = `` [("f", ^prog_ver1 , ^scopelist2 )] : Frame_list `` ;
-val state_ver1 = ``(state_P4 ^scope8 (^frame_ver1) ^R): state``;
+val frame_ver1 = `` [(funn_name "f", ^prog_ver1 , ^scopelist2 )] : frame_list `` ;
+val state_ver1 = ``([FEMPTY; ^scope8], (^frame_ver1) , empty_ctrl, ^R): state``;
 
 
-val frame_ver2 = `` [("f", ^prog_ver2 , ^scopelist2 )] : Frame_list `` ;
-val state_ver2 = ``(state_P4 ^scope8 (^frame_ver2) ^R): state``;
+val frame_ver2 = `` [(funn_name "f", ^prog_ver2 , ^scopelist2 )] : frame_list `` ;
+val state_ver2 = ``([FEMPTY; ^scope8], (^frame_ver2) , empty_ctrl, ^R): state``;
 
 
 (* test 1: transition for stmt verify e e -> verify T e*)
@@ -423,14 +467,13 @@ val state_ver2 = ``(state_P4 ^scope8 (^frame_ver2) ^R): state``;
 val test_stmt_verify1 =
 prove(`` stmt_red (^ctx_empty) ^state_ver1 ^state_ver2  ``,
 STMT_SIMP >>
-EXISTS_TAC``[] : ((string # stmt # scopes_stack) list) `` >>
-EXISTS_TAC``(e_v (v_bool T)) `` >>
+EXISTS_TAC``[] : frame_list `` >>
 EXP_SIMP
 );
 
 
-val frame_ver3 = `` [("f", stmt_empty , ^scopelist2 )] : Frame_list `` ;
-val state_ver3 = ``(state_P4 ^scope8 (^frame_ver3) ^R): state``;
+val frame_ver3 = `` [(funn_name "f", stmt_empty , ^scopelist2 )] : frame_list `` ;
+val state_ver3 = ``([FEMPTY; ^scope8], (^frame_ver3) , empty_ctrl, ^R): state``;
 
 
 (* test 2: transition for stmt verify T e -> empty*)
@@ -442,25 +485,24 @@ STMT_SIMP
 
 
 
-val frame_ver4 = `` [("f", ^prog_ver3 , ^scopelist2 )] : Frame_list `` ;
-val state_ver4 = ``(state_P4 ^scope8 (^frame_ver4) ^R): state``;
+val frame_ver4 = `` [(funn_name "f", ^prog_ver3 , ^scopelist2 )] : frame_list `` ;
+val state_ver4 = ``([FEMPTY; ^scope8], (^frame_ver4) , empty_ctrl, ^R): state``;
 
-val frame_ver5 = `` [("f", ^prog_ver4 , ^scopelist2 )] : Frame_list `` ;
-val state_ver5 = ``(state_P4 ^scope8 (^frame_ver5) ^R): state``;
+val frame_ver5 = `` [(funn_name "f", ^prog_ver4 , ^scopelist2 )] : frame_list `` ;
+val state_ver5 = ``([FEMPTY; ^scope8], (^frame_ver5) , empty_ctrl, ^R): state``;
 
 (* test 3: transition for stmt verify e e -> verify F e*)
 val test_stmt_verify3 =
 prove(`` stmt_red (^ctx_empty) ^state_ver4 ^state_ver5  ``,
 STMT_SIMP >>
-EXISTS_TAC``[] : ((string # stmt # scopes_stack) list) `` >>
-EXISTS_TAC``(e_v (v_bool F)) `` >>
+EXISTS_TAC``[] : frame_list `` >>
 EXP_SIMP >>
 EVAL_TAC
 );
 
 
-val frame_ver6 = `` [("f", ^prog_ver5 , ^scopelist2 )] : Frame_list `` ;
-val state_ver6 = ``(state_P4 ^scope8 (^frame_ver6) ^R): state``;
+val frame_ver6 = `` [(funn_name "f", ^prog_ver5 , ^scopelist2 )] : frame_list `` ;
+val state_ver6 = ``([FEMPTY; ^scope8], (^frame_ver6) , empty_ctrl, ^R): state``;
 
 
 (* test 4: transition for stmt verify F e -> parserError = errmsg ; trans rej*)
@@ -476,87 +518,64 @@ STMT_SIMP
 val prog_ver6 =  ``stmt_seq stmt_empty (stmt_trans (e_v (v_str "reject")))``;
 val prog_ver7 =  ``(stmt_trans (e_v (v_str "reject")))``;
 
-val frame_ver7 = `` [("f", ^prog_ver6 , ^scopelist15 )] : Frame_list `` ;
-val state_ver7 = ``(state_P4 ^scope8 (^frame_ver7) ^R): state``;
+val frame_ver8 = `` [(funn_name "f", ^prog_ver5 , ^scopelist15 )] : frame_list `` ;
+val state_ver8 = ``([FEMPTY; ^scope8], (^frame_ver8) , empty_ctrl, ^R): state``;
 
-val frame_ver8 = `` [("f", ^prog_ver5 , ^scopelist15 )] : Frame_list `` ;
-val state_ver8 = ``(state_P4 ^scope8 (^frame_ver8) ^R): state``;
+val frame_ver9 = `` [(funn_name "f", ^prog_ver6 , ^scopelist16 )] : frame_list `` ;
+val state_ver9 = ``([FEMPTY; ^scope8], (^frame_ver9) , empty_ctrl, ^R): state``;
 
-val frame_ver9 = `` [("f", ^prog_ver6 , ^scopelist16 )] : Frame_list `` ;
-val state_ver9 = ``(state_P4 ^scope8 (^frame_ver9) ^R): state``;
+val frame_ver10 = `` [(funn_name "f", ^prog_ver7 , ^scopelist16 )] : frame_list `` ;
+val state_ver10 = ``([FEMPTY; ^scope8], (^frame_ver10) , empty_ctrl, ^R): state``;
 
-val frame_ver10 = `` [("f", ^prog_ver7 , ^scopelist16 )] : Frame_list `` ;
-val state_ver10 = ``(state_P4 ^scope8 (^frame_ver10) ^R): state``;
-
-val frame_ver11 = `` [("f", stmt_empty , ^scopelist16 )] : Frame_list `` ;
-val state_ver11 = ``(state_P4 ^scope8 (^frame_ver11) ^Parse_Rej): state``;
+val frame_ver11 = `` [(funn_name "f", stmt_empty , ^scopelist16 )] : frame_list `` ;
+val state_ver11 = ``([FEMPTY; ^scope8], (^frame_ver11) , empty_ctrl, ^Parse_Rej): state``;
 
 val test_stmt_verifyFULL =
-prove(``(stmt_red (^ctx_empty) ^state_ver7 ^state_ver8)
-    /\  (stmt_red (^ctx_empty) ^state_ver8 ^state_ver9)
+prove(`` (stmt_red (^ctx_empty) ^state_ver8 ^state_ver9)
     /\  (stmt_red (^ctx_empty) ^state_ver9 ^state_ver10)
     /\  (stmt_red (^ctx_empty) ^state_ver10 ^state_ver11)
 ``,
-CONJ_TAC >| [
-STMT_SIMP >>
-DISJ1_TAC>>
- EXISTS_TAC``[] : Frame_list `` >>
- EXISTS_TAC``(stmt_ass (lval_varname "parseError")
-             (e_v (v_err "PacketTooShort")))`` >>
- EXISTS_TAC``^scopelist15`` >>
- EVAL_TAC
- 
-,
- CONJ_TAC >| [
  STMT_SIMP >>
- DISJ1_TAC >>
- EXISTS_TAC``[] : ((string # stmt # scopes_stack) list) `` >>
+ EXISTS_TAC``[] : frame_list `` >>
  EXISTS_TAC``stmt_empty`` >>
  EXISTS_TAC``^scopelist16`` >>
  EVAL_TAC >>
  STMT_SIMP >>
  DISJ1_TAC >>
- EXISTS_TAC``[^scope8]++^scopelist16`` >>
+ EXISTS_TAC``[FEMPTY; ^scope8]++^scopelist16`` >>
  EVAL_TAC>>
  FULL_SIMP_TAC list_ss [FUPDATE_EQ]
-,
-CONJ_TAC >| [
-STMT_SIMP
-,
-STMT_SIMP
-]]]
 );
 
 
 
 
 (*** stmt seq  statement reduction --concrete values -- ***)
-val prog_seq1  = ``(stmt_declare "x"  (t_base bt_bit) )``;
-val prog_seq2  = ``(stmt_ass (lval_varname "x") (e_v (v_bit ([F], 1))))``;
+val prog_seq1  = ``(stmt_declare (t_base bt_bit)  "x"  NONE)``;
+val prog_seq2  = ``(stmt_ass (lval_varname (varn_name"x")) (e_v (v_bit ([F], 1))))``;
 val prog_seq3 =  ``(stmt_seq ^prog_seq1 ^prog_seq2)``;
 val prog_seq4 =  ``(stmt_seq stmt_empty ^prog_seq2)``;
 
-val frame_seq1 = `` [("f", ^prog_seq3 , ^scopelist10 )] : Frame_list `` ;
-val state_seq1 = ``(state_P4 ^scope8 (^frame_seq1) ^R): state``;
+val frame_seq1 = `` [(funn_name "f", ^prog_seq3 , ^scopelist10 )] : frame_list `` ;
+val state_seq1 = ``([FEMPTY; ^scope8], (^frame_seq1) , empty_ctrl, ^R): state``;
 
 
-val frame_seq2 = `` [("f", ^prog_seq4 , ^scopelist13 )] : Frame_list `` ;
-val state_seq2 = ``(state_P4 ^scope8 (^frame_seq2) ^R): state``;
+val frame_seq2 = `` [(funn_name "f", ^prog_seq4 , ^scopelist13 )] : frame_list `` ;
+val state_seq2 = ``([FEMPTY; ^scope8], (^frame_seq2) , empty_ctrl, ^R): state``;
 
 
 (* test 1: transition for    seq dec ; x = F -> seq empty ; x= F *)
 val test_stmt_seq1 =
 prove(`` stmt_red (^ctx_empty) ^state_seq1 ^state_seq2 ``,
 STMT_SIMP >>
-DISJ1_TAC >>
 RW_TAC (srw_ss()) [Once stmt_red_cases] >>
 EVAL_TAC
 );
 
 
 (* test 2: transition for    seq empty ; x= F -> x = F*)
-val frame_seq3 = `` [("f", ^prog_seq2 , ^scopelist13 )] : Frame_list `` ;
-val state_seq3 = ``(state_P4 ^scope8 (^frame_seq3) ^R): state``;
+val frame_seq3 = `` [(funn_name "f", ^prog_seq2 , ^scopelist13 )] : frame_list `` ;
+val state_seq3 = ``([FEMPTY; ^scope8], (^frame_seq3) , empty_ctrl, ^R): state``;
 
 val test_stmt_seq2 =
 prove(`` stmt_red (^ctx_empty) ^state_seq2 ^state_seq3  ``,
@@ -571,14 +590,14 @@ STMT_SIMP
 
 (* test 1: lookup e current frames stack while global empty*)
 val test_e_lookup1 =
-prove(`` e_red  (^ctx_empty) FEMPTY ^scopelist8
+prove(`` e_red  (^ctx_empty) [FEMPTY;FEMPTY] ^scopelist8
                (e_var (varn_name"x")) (e_v (v_bit ([F],1))) ([]) ``,
 NTAC 2 EXP_SIMP
 );
 
 (* test 2: lookup e current frames stack while global non empty*)
 val test_e_lookup2 =
-prove(`` e_red  (^ctx_empty) ^scope1 ^scopelist8
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope1] ^scopelist8
                (e_var (varn_name"x")) (e_v (v_bit ([F],1))) ([]) ``,
 NTAC 2 EXP_SIMP
 );
@@ -586,7 +605,7 @@ NTAC 2 EXP_SIMP
 
 (* test 3: lookup varn_star current frames stack while global non empty*)
 val test_e_lookup3 =
-prove(`` e_red  (^ctx_empty) FEMPTY ^scopelist30
+prove(`` e_red  (^ctx_empty) [FEMPTY;FEMPTY] ^scopelist30
                (e_var (varn_star)) (e_v (v_bit ([F; F],2))) ([]) ``,
 NTAC 2 EXP_SIMP
 );
@@ -599,11 +618,11 @@ NTAC 2 EXP_SIMP
 val prog_null1   = ``stmt_ass lval_null (e_v (v_bit ([T],1)))``;
 
 
-val frame_null1 = `` [("f", ^prog_null1 , ^scopelist7 )] : Frame_list `` ;
-val state_null1 = ``(state_P4 ^scope3 (^frame_null1) ^R): state``;
+val frame_null1 = `` [(funn_name "f", ^prog_null1 , ^scopelist7 )] : frame_list `` ;
+val state_null1 = ``([FEMPTY; ^scope3], (^frame_null1) , empty_ctrl, ^R): state``;
 
-val frame_null2 = `` [("f", stmt_empty , ^scopelist7 )] : Frame_list `` ;
-val state_null2 = ``(state_P4 ^scope3 (^frame_null2) ^R): state``;
+val frame_null2 = `` [(funn_name "f", stmt_empty , ^scopelist7 )] : frame_list `` ;
+val state_null2 = ``([FEMPTY; ^scope3], (^frame_null2) , empty_ctrl, ^R): state``;
 
 
 (* test 1: assign to null changes nothing*)
@@ -623,27 +642,25 @@ STMT_SIMP
 (****copy_in IN values aka func_call_args rule ****)
 
 val func_sig1 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_in)] ))): func_map``;
-val ctx1 = ``(FEMPTY, ^func_sig1, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx1 = ``(FEMPTY, FEMPTY, ^func_sig1, FEMPTY):ctx``;
 
-val prog_call1 = ``(e_func_call "Add1" [e_var (varn_name"x")]) ``;
-val prog_call2 = ``(e_func_call "Add1" [(e_v (v_bit ([F],1)))]) ``;
+val prog_call1 = ``(e_call (funn_name "Add1") [e_var (varn_name"x")]) ``;
+val prog_call2 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1)))]) ``;
 
 (* test 1: test exp red : call Add1 (x) ~> call Add1 (1)
 where the arg is IN i.e. not copied in*)
 
 val test_COPYIN1 =
-prove(`` e_red  (^ctx1) ^scope2 [FEMPTY]
+prove(`` e_red  (^ctx1) [FEMPTY;^scope2] [FEMPTY]
            (^prog_call1)
 	   (^prog_call2)  ([]) ``,
-	   
-RW.ONCE_RW_TAC[e_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [] >>
+EXP_SIMP >>
 EXISTS_TAC ``[( e_var( varn_name "x"), (e_v (v_bit ([F],1))) , "y" , d_in)]`` >>
-EXISTS_TAC ``(stmt_empty)`` >>
-RW.ONCE_RW_TAC[e_red_cases] >>
-NTAC 2 (EVAL_TAC>>
-FULL_SIMP_TAC list_ss [])
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC `` (e_v (v_bit ([F],1)))`` >>
+EXP_SIMP >>
+EVAL_TAC
 );
 
 
@@ -654,20 +671,19 @@ FULL_SIMP_TAC list_ss [])
 where the arg is IN i.e. not copied in*)
 
 val func_sig2 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_none)] ))): func_map``;
-val ctx2 = ``(FEMPTY, ^func_sig2, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx2 = ``(FEMPTY, FEMPTY, ^func_sig2, FEMPTY):ctx``;
 
 val test_COPYIN2 =
-prove(`` e_red  (^ctx2) ^scope2 [FEMPTY]
+prove(`` e_red  (^ctx2) [FEMPTY; ^scope2] [FEMPTY]
            (^prog_call1)
 	   (^prog_call2)  ([]) ``,
-RW.ONCE_RW_TAC[e_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [] >>
+EXP_SIMP >>
 EXISTS_TAC ``[( e_var ( varn_name "x"), (e_v (v_bit ([F],1))) , "y" , d_none)]`` >>
-EXISTS_TAC ``(stmt_empty)`` >>
-RW.ONCE_RW_TAC[e_red_cases] >>
-NTAC 2 (EVAL_TAC>>
-FULL_SIMP_TAC list_ss [])
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC `` (e_v (v_bit ([F],1)))`` >>
+EXP_SIMP >>
+EVAL_TAC
 );
 
 
@@ -678,26 +694,24 @@ where y is OUT so it is copied out, thus we do not evaluate it in the first swip
 and   x is IN so it will be the first value to evaluate and not copied in *)
 
 val func_sig3 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_out); ("b", d_in)] )))``;
-val ctx3 = ``(FEMPTY, ^func_sig3, FEMPTY, FEMPTY, empty_ctrl):ctx``;
-val prog_call3 = ``(e_func_call "Add1" [e_var (varn_name "y"); e_var (varn_name "x")]) ``; (*call the function with x,y*)
-val prog_call4 = ``(e_func_call "Add1" [e_var (varn_name "y"); (e_v (v_bit ([F],1)))]) ``;
+val ctx3 = ``(FEMPTY, FEMPTY, ^func_sig3, FEMPTY):ctx``;
+val prog_call3 = ``(e_call (funn_name "Add1") [e_var (varn_name "y"); e_var (varn_name "x")]) ``; (*call the function with x,y*)
+val prog_call4 = ``(e_call (funn_name "Add1") [e_var (varn_name "y"); (e_v (v_bit ([F],1)))]) ``;
 
 
 val test_COPYIN3 =
-prove(`` e_red (^ctx3) ^scope2 [FEMPTY]
+prove(`` e_red (^ctx3) [FEMPTY;^scope2] [FEMPTY]
            (^prog_call3)
 	   (^prog_call4)  ([])``,
 	   
-RW.ONCE_RW_TAC[e_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [] >>
+EXP_SIMP >>
 EXISTS_TAC ``[( e_var (varn_name "y"), e_var (varn_name "y") , "a" , d_out);
               ( e_var (varn_name "x"),(e_v (v_bit ([F],1))) , "b" , d_in)]`` >>
-EXISTS_TAC ``(stmt_empty)`` >>
-
-RW.ONCE_RW_TAC[e_red_cases] >>
-REPEAT (EVAL_TAC>>
-FULL_SIMP_TAC list_ss [])
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC `` (e_v (v_bit ([F],1)))`` >>
+EXP_SIMP >>
+EVAL_TAC 
 );
 
 
@@ -707,79 +721,78 @@ where x is NONE so it is not copied out, thus we do evaluate it in the first swi
 and   y is OUT  *)
 
 val func_sig4 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_none); ("b", d_out)] )))``;
-val ctx4 = ``(FEMPTY, ^func_sig4, FEMPTY, FEMPTY, empty_ctrl):ctx``;
-val prog_call5 = ``(e_func_call "Add1" [ e_var (varn_name "x"); e_var (varn_name "y")]) ``; (*call the function with a,b*)
-val prog_call6 = ``(e_func_call "Add1" [(e_v (v_bit ([F],1))); e_var (varn_name "y")]) ``;
+val ctx4 = ``(FEMPTY, FEMPTY, ^func_sig4, FEMPTY):ctx``;
+val prog_call5 = ``(e_call (funn_name "Add1") [ e_var (varn_name "x"); e_var (varn_name "y")]) ``; (*call the function with a,b*)
+val prog_call6 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1))); e_var (varn_name "y")]) ``;
 
 
 val test_COPYIN4 =
-prove(``e_red (^ctx4) ^scope2 [FEMPTY]
+prove(``e_red (^ctx4) [FEMPTY;^scope2] [FEMPTY]
            (^prog_call5)
 	   (^prog_call6)  ([])``,
-RW.ONCE_RW_TAC[e_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [] >>
+EXP_SIMP >>
 EXISTS_TAC ``[( e_var (varn_name "x"),(e_v (v_bit ([F],1))) , "a" , d_none);
               ( e_var (varn_name "y"), e_var (varn_name "y") , "b" , d_out)]`` >>
-EXISTS_TAC ``(stmt_empty)`` >>
-
-RW.ONCE_RW_TAC[e_red_cases] >>
-REPEAT (EVAL_TAC>>
-FULL_SIMP_TAC list_ss [])
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC `` (e_v (v_bit ([F],1)))`` >>
+EXP_SIMP >>
+EVAL_TAC 
 );
 
 
 
 (* test 5 + 6: two arguments call NONE and IN reduction sequence*)
 val func_sig5 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_none); ("b", d_in)] )))``;
-val ctx5 = ``(FEMPTY, ^func_sig5, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx5 = ``(FEMPTY, FEMPTY, ^func_sig5, FEMPTY):ctx``;
 
 
-val prog_call7 = ``(e_func_call "Add1" [ e_var (varn_name "x") ; e_var (varn_name "y")]) ``; 
-val prog_call8 = ``(e_func_call "Add1" [(e_v (v_bit ([F],1))); e_var (varn_name "y")]) ``;
-val prog_call9 = ``(e_func_call "Add1" [(e_v (v_bit ([F],1))); (e_v (v_bit ([T],1)))]) ``;
+val prog_call7 = ``(e_call (funn_name "Add1") [ e_var (varn_name "x") ; e_var (varn_name "y")]) ``; 
+val prog_call8 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1))); e_var (varn_name "y")]) ``;
+val prog_call9 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1))); (e_v (v_bit ([T],1)))]) ``;
 
 
 val test_COPYIN5 =
-prove(`` e_red (^ctx5) ^scope11 [FEMPTY]
+prove(`` e_red (^ctx5) [FEMPTY;^scope11] [FEMPTY]
            (^prog_call7)
 	   (^prog_call8)  ([])``,
 EXP_SIMP >>
 EXISTS_TAC ``[(e_var (varn_name "x"),(e_v (v_bit ([F],1))) , "a" , d_none);
               (e_var (varn_name "y"),e_var (varn_name "y"), "b" , d_in)]`` >>
-EXISTS_TAC ``(stmt_empty)`` >>
-
-
-RW.ONCE_RW_TAC[e_red_cases] >>
-REPEAT (EXP_SIMP )
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC `` (e_v (v_bit ([F],1)))`` >>
+EXP_SIMP >>
+EVAL_TAC 
 );
 
 
 
 val test_COPYIN6 =
-prove(`` e_red (^ctx5) ^scope11 [FEMPTY]
+prove(`` e_red (^ctx5) [FEMPTY;^scope11] [FEMPTY]
            (^prog_call8)
 	   (^prog_call9)  ([])``,
 EXP_SIMP >>
 EXISTS_TAC ``[( (e_v (v_bit ([F],1))),(e_v (v_bit ([F],1))) , "a" , d_none);
               ( e_var (varn_name "y"),(e_v (v_bit ([T],1))) , "b" , d_in)]`` >>
-EXISTS_TAC ``(stmt_empty)`` >>
-
-RW.ONCE_RW_TAC[e_red_cases] >>
-REPEAT (EXP_SIMP )
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC `` (e_v (v_bit ([T],1)))`` >>
+EXP_SIMP >>
+EVAL_TAC 
 );
 
 
 
 (* test 7: one arg red with expression operation*)
 
-val prog_call10 = ``(e_func_call "Add1" [e_binop (e_var (varn_name "x")) binop_add (e_var (varn_name "y"))]) ``; 
-val prog_call11 = ``(e_func_call "Add1" [e_binop (e_v (v_bit ([F],1))) binop_add  (e_var (varn_name "y"))]) ``; 
+val prog_call10 = ``(e_call (funn_name "Add1") [e_binop (e_var (varn_name "x")) binop_add (e_var (varn_name "y"))]) ``; 
+val prog_call11 = ``(e_call (funn_name "Add1") [e_binop (e_v (v_bit ([F],1))) binop_add  (e_var (varn_name "y"))]) ``; 
 val func_sig6 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_in)] )))``;
-val ctx6 = ``(FEMPTY, ^func_sig6, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx6 = ``(FEMPTY, FEMPTY, ^func_sig6, FEMPTY):ctx``;
 
 val test_COPYIN7 =
-prove(`` e_red (^ctx6) ^scope11 [FEMPTY]
+prove(`` e_red (^ctx6) [FEMPTY; ^scope11] [FEMPTY]
            (^prog_call10)
 	   (^prog_call11)  ([])``,
 EXP_SIMP >>
@@ -787,35 +800,29 @@ EXISTS_TAC ``[(e_binop  (e_var (varn_name "x")) binop_add  (e_var (varn_name "y"
                e_binop (e_v (v_bit ([F],1))) binop_add  (e_var (varn_name "y"))
 	       , "a"
 	       , d_in]`` >>
-EXISTS_TAC ``(stmt_empty)`` >>
-
-
-NTAC 2(
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss []
-) >>
-
-REPEAT (EXP_SIMP)
+EVAL_TAC >>
+FULL_SIMP_TAC list_ss [] >>
+EXISTS_TAC ``e_binop (e_v (v_bit ([F],1))) binop_add (e_var (varn_name "y"))`` >>
+REPEAT (EXP_SIMP >>
+EVAL_TAC) 
 );
 
 
 
 
-val Fn = ``called_function_name_function_name``; 
-
 (****copy_in OUT values aka func_call_newframe rule ****)
 (* test 8: copy_in IN values aka func_call_newframe rule*)
 
 val func_sig7 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_in)] )))``;
-val ctx7 = ``(FEMPTY, ^func_sig7, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx7 = ``(FEMPTY, FEMPTY, ^func_sig7, FEMPTY):ctx``;
 
-val prog_call12 = ``(e_func_call "Add1" [(e_v (v_bit ([F],1)))]) ``;
+val prog_call12 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1)))]) ``;
 
 
 val test_NEWFRAME1 =
-prove(`` e_red (^ctx7) ^scope2 [FEMPTY]
+prove(`` e_red (^ctx7) [FEMPTY; ^scope2] [FEMPTY]
                   (^prog_call12) 
-                  (e_var varn_star) [("Add1", stmt_empty , [^scope13] )]``,
+                  (e_var varn_star) [(funn_name "Add1", stmt_empty , [^scope13] )]``,
 
 EXP_SIMP >>
 EXISTS_TAC ``[( (e_v (v_bit ([F],1)))
@@ -831,15 +838,15 @@ FULL_SIMP_TAC list_ss []
 (* test 9: copy_in OUT values aka func_call_newframe rule*)
 
 val func_sig8 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_out)] )))``;
-val ctx8 = ``(FEMPTY, ^func_sig8, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx8 = ``(FEMPTY, FEMPTY, ^func_sig8, FEMPTY):ctx``;
 
-val prog_call13 = ``(e_func_call "Add1" [e_var (varn_name "x")]) ``;
+val prog_call13 = ``(e_call (funn_name "Add1") [e_var (varn_name "x")]) ``;
 
-
+(*FAILS*)
 val test_NEWFRAME2 =
-prove(`` e_red (^ctx8) ^scope2 [FEMPTY]
+prove(`` e_red (^ctx8) [FEMPTY;^scope2] [FEMPTY]
                   (^prog_call13) 
-                  (e_var varn_star) [("Add1", stmt_empty , [^scope14] )]``,
+                  (e_var varn_star) [(funn_name "Add1", stmt_empty , [^scope14] )]``,
 
 EXP_SIMP >>
 EXISTS_TAC ``[( (e_var (varn_name "x"))
@@ -850,15 +857,14 @@ FULL_SIMP_TAC list_ss []
 );
 
 
-
 (****copy_in two args IN and OUT values aka func_call_newframe rule ****)
 (* test 10: copy_in two arguments (NONE, OUT) values aka func_call_newframe rule*)
-val ctx9 = ``(FEMPTY, ^func_sig4, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx9 = ``(FEMPTY, FEMPTY, ^func_sig4, FEMPTY):ctx``;
 
 val test_NEWFRAME3 =
-prove(`` e_red (^ctx4) ^scope0 [^scope8]
+prove(`` e_red (^ctx4) [FEMPTY;^scope0] [^scope8]
                   (^prog_call6) 
-                   (e_var varn_star) [("Add1", stmt_empty , [^scope15] )] ``,
+                   (e_var varn_star) [(funn_name "Add1", stmt_empty , [^scope15] )] ``,
 		  
 EXP_SIMP >>
 EXISTS_TAC ``[( (e_v (v_bit ([F],1))) , "a" , d_none);
@@ -873,29 +879,29 @@ EVAL_TAC
 (**************************************************************)
 val prog_app1 = ``stmt_app "check_ttl" (e_var (varn_name("headers.ip.ttl"))) ``;
 val prog_app2 = ``stmt_app "check_ttl" (e_v (v_bit ([T; F],2))) ``;
-val prog_app3 = ``stmt_ass lval_null   (e_func_call "NoAction" [])``;
+val prog_app3 = ``stmt_ass lval_null   (e_call (funn_name "NoAction") [])``;
 
-val table_map1 = ``(FEMPTY |+ ("check_ttl", (e_var(varn_name ("headers.ip.ttl")) , match_kind_exact)))``;
+val table_map1 = ``(FEMPTY |+ ("check_ttl", (e_var(varn_name ("headers.ip.ttl")) , mk_exact)))``;
 
 val ctrl1 = Define
 `
- ctrl1 (("check_ttl"), (v_bit ([F; F],2)), (match_kind_exact)) = SOME ("Send_to_cpu",[]:e list ) /\
- ctrl1 (("check_ttl"), (v_bit ([T; F],2)) , (match_kind_exact)) = SOME ("NoAction",[]:e list )
+ ctrl1 (("check_ttl"), (v_bit ([F; F],2)), (mk_exact)) = SOME  ("Send_to_cpu",[]:e list ) /\
+ ctrl1 (("check_ttl"), (v_bit ([T; F],2)) , (mk_exact)) = SOME ("NoAction",[]:e list )
 `;
 
-val ctx11 = ``(FEMPTY, FEMPTY, FEMPTY, ^table_map1, ctrl1):ctx``;
+val ctx11 = ``(FEMPTY, FEMPTY, FEMPTY, ^table_map1):ctx``;
 
 
 (* test 1: test two reductions app e -> app v -> null := call f     *)
 
-val frame_app1 = `` [("f", ^prog_app1 , ^scopelist4 )] : Frame_list `` ;
-val state_app1 = ``(state_P4 ^scope16 (^frame_app1) ^R): state``;
+val frame_app1 = `` [(funn_name "f", ^prog_app1 , ^scopelist4 )] : frame_list `` ;
+val state_app1 = ``([FEMPTY; ^scope16], (^frame_app1) , ctrl1, ^R): state``;
 
-val frame_app2 = `` [("f", ^prog_app2 , ^scopelist4 )] : Frame_list `` ;
-val state_app2 = ``(state_P4 ^scope16 (^frame_app2) ^R): state``;
+val frame_app2 = `` [(funn_name "f", ^prog_app2 , ^scopelist4 )] : frame_list `` ;
+val state_app2 = ``([FEMPTY; ^scope16], (^frame_app2) , ctrl1, ^R): state``;
 
-val frame_app3 = `` [("f", ^prog_app3 , ^scopelist4 )] : Frame_list `` ;
-val state_app3 = ``(state_P4 ^scope16 (^frame_app3) ^R): state``;
+val frame_app3 = `` [(funn_name "f", ^prog_app3 , ^scopelist4 )] : frame_list `` ;
+val state_app3 = ``([FEMPTY; ^scope16], (^frame_app3) , ctrl1, ^R): state``;
 
 
 val test_APPLY1 =
@@ -905,7 +911,7 @@ prove(``
 
 CONJ_TAC >|[
 STMT_SIMP>>
-EXP_SIMP>>
+NTAC 2 EXP_SIMP>>
 EVAL_TAC
 ,
 NTAC 2 (RW.ONCE_RW_TAC[stmt_red_cases] >>
@@ -915,37 +921,31 @@ FULL_SIMP_TAC list_ss [ctrl1])
 
 
 
-
 (* test 2: test two reductions app e -> app v -> null := call f
 Where teh value is repeated in teh global and in the local stack scope *)
-
-val prog_app4 = ``stmt_app "check_ttl" (e_v (v_bit ([F],1))) ``;
-val prog_app5 = ``stmt_ass lval_null   (e_func_call "Send_to_cpu" [])``;
-
-val frame_app4 = `` [("f", ^prog_app1 , ^scopelist24 )] : Frame_list `` ;
-val state_app4 = ``(state_P4 ^scope16 (^frame_app4) ^R): state``;
-
-val frame_app5 = `` [("f", ^prog_app4 , ^scopelist24 )] : Frame_list `` ;
-val state_app5 = ``(state_P4 ^scope16 (^frame_app5) ^R): state``;
-
-val frame_app6 = `` [("f", ^prog_app5 , ^scopelist24 )] : Frame_list `` ;
-val state_app6 = ``(state_P4 ^scope16 (^frame_app6) ^R): state``;
 
 
 val ctrl2 = Define
 `
- ctrl2 (("check_ttl"), (v_bit ([F],1)), (match_kind_exact)) = SOME ("Send_to_cpu",[]:e list ) /\
- ctrl2 (("check_ttl"), (v_bit ([],1)), (match_kind_exact)) = SOME ("NoAction"   ,[]:e list )
+ ctrl2 (("check_ttl"), (v_bit ([F],1)), (mk_exact)) = SOME ("Send_to_cpu",[]:e list ) /\
+ ctrl2 (("check_ttl"), (v_bit ([],1)), (mk_exact)) = SOME ("NoAction"   ,[]:e list )
 `;
 
-(*
-val x = Define `
-f (1,5) = 0 /\
-f (1,x) = 1
-`
-*)
 
-val ctx12 = ``(FEMPTY, FEMPTY, FEMPTY, ^table_map1, ctrl2):ctx``;
+val prog_app4 = ``stmt_app "check_ttl" (e_v (v_bit ([F],1))) ``;
+val prog_app5 = ``stmt_ass lval_null   (e_call (funn_name "Send_to_cpu") [])``;
+
+val frame_app4 = `` [(funn_name "f", ^prog_app1 , ^scopelist24 )] : frame_list `` ;
+val state_app4 = ``([FEMPTY; ^scope16], (^frame_app4) , ctrl2 , ^R): state``;
+
+val frame_app5 = `` [(funn_name "f", ^prog_app4 , ^scopelist24 )] : frame_list `` ;
+val state_app5 = ``([FEMPTY; ^scope16], (^frame_app5) , ctrl2 , ^R): state``;
+
+val frame_app6 = `` [(funn_name "f", ^prog_app5 , ^scopelist24 )] : frame_list `` ;
+val state_app6 = ``([FEMPTY; ^scope16], (^frame_app6) , ctrl2 , ^R): state``;
+
+
+val ctx12 = ``(FEMPTY, FEMPTY, FEMPTY, ^table_map1):ctx``;
 
 val test_APPLY2 =
 prove(``
@@ -954,7 +954,7 @@ prove(``
 
 CONJ_TAC >|[
 STMT_SIMP>>
-EXP_SIMP>>
+NTAC 2 EXP_SIMP>>
 EVAL_TAC
 ,
 NTAC 2 (RW.ONCE_RW_TAC[stmt_red_cases] >>
@@ -972,19 +972,19 @@ FULL_SIMP_TAC list_ss [ctrl2])
 and the body of teh funtion is return *)
 
 val func_sig10 = ``(FEMPTY |+ ("Add1", (stmt_ret (e_v (v_bit ([F;F],2))) , [("y",d_out)] )))``;
-val ctx13 = ``(FEMPTY, ^func_sig10, FEMPTY, FEMPTY, empty_ctrl):ctx``;
+val ctx13 = ``(FEMPTY, FEMPTY, ^func_sig10, FEMPTY):ctx``;
 
-val prog_ret1 = ``(stmt_ass (lval_varname (varn_name"g")) (e_func_call "Add1" [e_var (varn_name "x")]))  ``;
+val prog_ret1 = ``(stmt_ass (lval_varname (varn_name"g")) (e_call (funn_name "Add1") [e_var (varn_name "x")]))  ``;
 val prog_ret2a = ``(stmt_ret (e_v (v_bit ([F;F],2)))) ``;
 val prog_ret2b = ``(stmt_ass (lval_varname (varn_name"g"))  (e_var varn_star))  ``;
 
-val frame_ret1 = `` [("f", ^prog_ret1 , ^scopelist17 )] : Frame_list `` ;
-val state_ret1 = ``(state_P4 FEMPTY (^frame_ret1) ^R): state``;
+val frame_ret1 = `` [(funn_name "f", ^prog_ret1 , ^scopelist17 )] : frame_list `` ;
+val state_ret1 = ``(^Gscope_list , (^frame_ret1) , empty_ctrl, ^R): state``;
 
-val frame_ret2a = `` [("Add1", ^prog_ret2a , ^scopelist26 )] : Frame_list `` ;
-val frame_ret2b = `` [("f", ^prog_ret2b , ^scopelist17 )] : Frame_list `` ;
+val frame_ret2a = `` [(funn_name "Add1", ^prog_ret2a , ^scopelist26 )] : frame_list `` ;
+val frame_ret2b = `` [(funn_name "f", ^prog_ret2b , ^scopelist17 )] : frame_list `` ;
 
-val state_ret2 = ``(state_P4 FEMPTY ((^frame_ret2a)++(^frame_ret2b)) ^R): state``;
+val state_ret2 = ``(^Gscope_list , ((^frame_ret2a)++(^frame_ret2b)) , empty_ctrl, ^R): state``;
 
 
 (* test 1:
@@ -1014,45 +1014,28 @@ test reduction [Add1, ret 0 , cpins] ++ [ f, g := * , oldf] -> [f, g = * , oldf'
 with copyouts
 *)
 
-val frame_ret2a = `` [("Add1", ^prog_ret2a , ^scopelist26 )] : Frame_list `` ;
-val frame_ret2b = `` [("f", ^prog_ret2b , ^scopelist28 )] : Frame_list `` ;
+val frame_ret2a = `` [(funn_name "Add1", ^prog_ret2a , ^scopelist26 )] : frame_list `` ;
+val frame_ret2b = `` [(funn_name "f", ^prog_ret2b , ^scopelist28 )] : frame_list `` ;
 
-val state_ret2 = ``(state_P4 FEMPTY ((^frame_ret2a)++(^frame_ret2b)) ^R): state``;
+val state_ret2 = ``(^Gscope_list , ((^frame_ret2a)++(^frame_ret2b)) , empty_ctrl, ^R): state``;
 
 
-val frame_ret3a = `` [("Add1", stmt_empty , ^scopelist26 )] : Frame_list `` ;
-val frame_ret3b = `` [("f", ^prog_ret2b , ^scopelist27 )] : Frame_list `` ; (*same as 2a*)
-val state_ret3 = ``(state_P4 FEMPTY ((^frame_ret3b)) ^R ) : state``;
+val frame_ret3a = `` [(funn_name "Add1", stmt_empty , ^scopelist26 )] : frame_list `` ;
+val frame_ret3b = `` [(funn_name "f", ^prog_ret2b , ^scopelist31 )] : frame_list `` ; (*same as 2a*)
+val state_ret3 = ``(^Gscope_list , ((^frame_ret3b)) , empty_ctrl, ^R ) : state``;
 
 
 val test_return2 =
 prove(`` stmt_red ^ctx13 ^state_ret2 ^state_ret3 
 ``,
 FULL_SIMP_TAC list_ss [Once stmt_red_cases ] >>
-DISJ2_TAC >> DISJ1_TAC >>
-
-
+DISJ2_TAC >>
 EXISTS_TAC `` [("y",d_out)]`` >>
-EXISTS_TAC ``FEMPTY : scope`` >>
-EXISTS_TAC ``"Add1"`` >>
-EXISTS_TAC ``stmt_ret (e_v (v_bit ([F; F],2)))`` >>
-EXISTS_TAC ``[FEMPTY |+ (varn_name "y",v_bit ([F],1),SOME (lval_varname (varn_name "x")))]`` >>
-
-EXISTS_TAC ``"f"`` >>
-EXISTS_TAC ``stmt_ass (lval_varname (varn_name "g")) (e_var varn_star)`` >>
-EXISTS_TAC ``^scopelist28`` >>
-EXISTS_TAC ``[] : Frame_list`` >>
-EXISTS_TAC ``FEMPTY : scope`` >>
-EXISTS_TAC ``^scopelist27`` >>
-
 EXISTS_TAC ``stmt_empty`` >>
 EXISTS_TAC ``(v_bit ([F; F],2))`` >>
-
 EXISTS_TAC ``stmt_ret (e_v (v_bit ([F; F],2)))`` >>
-
+EXISTS_TAC ``[FEMPTY;FEMPTY]: g_scope_list`` >>
 STMT_SIMP >>
-
-
 ASSUME_TAC (finite_mapLib.fupdate_NORMALISE_CONV
 ``FEMPTY |+ ("y",v_bit ([T],1),NONE) |+ ("x",v_bit ([F],1),NONE) |+
    ("star",v_bit ([F; F],2),NONE) |+ ("x",v_bit ([F],1),NONE)``) >>
@@ -1067,41 +1050,112 @@ test reduction [Add1, ret 0 , cpins] ++ [ f, g := * , oldf] -> [f, g = * , oldf'
 without copyouts
 *)
 
-val frame_ret4a = `` [("Add1", ^prog_ret2a , [FEMPTY] )] : Frame_list `` ;
-val frame_ret4b = `` [("f", ^prog_ret2b , ^scopelist28 )] : Frame_list `` ;
-val state_ret4 = ``(state_P4 FEMPTY ((^frame_ret4a)++(^frame_ret4b)) ^R): state``;
+val frame_ret4a = `` [(funn_name "Add1", ^prog_ret2a , [FEMPTY] )] : frame_list `` ;
+val frame_ret4b = `` [(funn_name "f", ^prog_ret2b , ^scopelist28 )] : frame_list `` ;
+val state_ret4 = ``(^Gscope_list , ((^frame_ret4a)++(^frame_ret4b)) , empty_ctrl, ^R): state``;
 
-val frame_ret5b = `` [("f", ^prog_ret2b , ^scopelist27 )] : Frame_list `` ; 
-val state_ret5 = ``(state_P4 FEMPTY ((^frame_ret5b)) ^R ) : state``;
+val frame_ret5b = `` [(funn_name "f", ^prog_ret2b , ^scopelist27 )] : frame_list `` ; 
+val state_ret5 = ``(^Gscope_list , ((^frame_ret5b)) , empty_ctrl, ^R ) : state``;
 
 
 val test_return3 =
 prove(`` stmt_red ^ctx7 ^state_ret4 ^state_ret5 
 ``,
+
 FULL_SIMP_TAC list_ss [Once stmt_red_cases ] >>
-DISJ2_TAC >> DISJ1_TAC >>
+DISJ2_TAC >> 
 
 
 EXISTS_TAC `` [("y",d_in)]`` >>
-EXISTS_TAC ``FEMPTY : scope`` >>
-EXISTS_TAC ``"Add1"`` >>
-EXISTS_TAC ``stmt_ret (e_v (v_bit ([F; F],2)))`` >>
-EXISTS_TAC ``[FEMPTY]:scopes_stack`` >>
-
-EXISTS_TAC ``"f"`` >>
-EXISTS_TAC ``stmt_ass (lval_varname (varn_name "g")) (e_var varn_star)`` >>
-EXISTS_TAC ``^scopelist28`` >>
-EXISTS_TAC ``[] : Frame_list`` >>
-EXISTS_TAC ``FEMPTY : scope`` >>
-EXISTS_TAC ``^scopelist27`` >>
-
-
 EXISTS_TAC ``stmt_empty`` >>
 EXISTS_TAC ``(v_bit ([F; F],2))`` >>
 EXISTS_TAC ``stmt_empty`` >>
+EXISTS_TAC ``[FEMPTY;FEMPTY]: g_scope_list`` >>
 
-STMT_SIMP>>
-FULL_SIMP_TAC list_ss [FLOOKUP_DEF, LUPDATE_def, FUPDATE_EQ]
+STMT_SIMP
+);
+
+
+
+(**************************************************************)
+(***    Testing comp reductions --concrete values--       ***)
+(**************************************************************)
+
+(* test 1:
+test reduction [Add1, empty; ret 0 , cpins] ++ [ f, g := * , oldf] ->
+     	       [Add1, ret 0 , cpins] ++ [ f, g := * , oldf]
+*)
+
+val frame_comp1a = `` [(funn_name "Add1", stmt_seq stmt_empty ^prog_ret2a , [FEMPTY] )] : frame_list `` ;
+val frame_comp1b = `` [(funn_name "f", ^prog_ret2b , ^scopelist28 )] : frame_list `` ;
+val state_comp1 = ``(^Gscope_list , ((^frame_comp1a)++(^frame_comp1b)) , empty_ctrl, ^R): state``;
+
+
+val frame_comp2a = `` [(funn_name "Add1", ^prog_ret2a , [FEMPTY] )] : frame_list `` ; 
+val state_comp2 = ``(^Gscope_list , ((^frame_comp2a)++(^frame_comp1b)) , empty_ctrl, ^R): state``;
+
+
+val test_comp1 =
+prove(`` stmt_red ^ctx7 ^state_comp1 ^state_comp2 
+``,
+
+FULL_SIMP_TAC list_ss [Once stmt_red_cases ] >>
+EXISTS_TAC ``^frame_comp2a`` >>
+STMT_SIMP 
+);
+
+
+
+(****************************************************************)
+(***    Testing select value from a rec   --concrete values-- ***)
+(****************************************************************)
+
+val select_list1 = `` [((v_bit ([T;T],2)), "tcp"  );
+                 ((v_bit ([F;F],2)), "tryudp");
+		 ((v_bit ([T],1)), "accept")]
+		 ``;
+
+val prog_sel1 = ``e_select
+		 (e_binop (e_v (v_bit([F;T],2))) binop_add (e_v (v_bit([F;T],2))))
+		 ^select_list1
+		 "ack"``;
+
+val prog_sel2 = ``e_select
+                  (e_v (v_bit([T;F],2)))
+		  ^select_list1
+		  "ack"``;
+
+val prog_sel3 = ``e_select
+                  (e_v (v_bit([F;F],2)))
+		  ^select_list1
+		  "ack"``;
+
+(*test1: test (e_select binop list x ) -> (e_select v list x ) *)
+val test_select1 =
+prove(`` e_red (^ctx3) [FEMPTY;^scope3] [FEMPTY]
+           (^prog_sel1)
+	   (^prog_sel2)  ([])``,
+NTAC 2 EXP_SIMP >>
+EVAL_TAC
+);
+
+
+(*test2: test  (e_select v list x ) -> (x)  DEFAULT*)
+val test_select2 =
+prove(`` e_red (^ctx3) [FEMPTY;^scope3] [FEMPTY]
+           (^prog_sel2)
+	   (e_v (v_str("ack")))  ([])``,
+NTAC 2 EXP_SIMP >>
+EVAL_TAC
+);
+
+
+(*test3: test  (e_select v list x ) -> (x)  NOT DEFAULT*)
+val test_select3 =
+prove(`` e_red (^ctx3) [FEMPTY;^scope3] [FEMPTY]
+           (^prog_sel3)
+	   (e_v (v_str("tryudp")))  ([])``,
+NTAC 2 EXP_SIMP
 );
 
 
@@ -1134,11 +1188,11 @@ val prog_ass_h2 = ``stmt_ass  (lval_varname (varn_name "IPv4_h"))
                                   (e_v (v_header (T) ^header2)) ``;
 
 
-val frame_ass_h1 = `` [("f", ^prog_ass_h1 , ^scopelist_h1 )] : Frame_list `` ;
-val state_ass_h1 = ``(state_P4 FEMPTY (^frame_ass_h1) ^R): state``;
+val frame_ass_h1 = `` [(funn_name "f", ^prog_ass_h1 , ^scopelist_h1 )] : frame_list `` ;
+val state_ass_h1 = ``(^Gscope_list , (^frame_ass_h1) , empty_ctrl, ^R): state``;
 
-val frame_ass_h2 = `` [("f", stmt_empty , ^scopelist_h2 )] : Frame_list `` ;
-val state_ass_h2 = ``(state_P4 FEMPTY (^frame_ass_h2) ^R): state``;
+val frame_ass_h2 = `` [(funn_name "f", stmt_empty , ^scopelist_h2 )] : frame_list `` ;
+val state_ass_h2 = ``(^Gscope_list , (^frame_ass_h2) , empty_ctrl, ^R): state``;
 
 
 (* test 1: test assigning a value to a header feild *)
@@ -1172,12 +1226,12 @@ val prog_ass_h3 = ``stmt_ass  (lval_varname (varn_name "IPv4_h"))
 
 
 
-val frame_ass_h3 = `` [("f", ^prog_ass_h3 , ^scopelist_h2 )] : Frame_list `` ;
-val state_ass_h3 = ``(state_P4 FEMPTY (^frame_ass_h3) ^R): state``;
+val frame_ass_h3 = `` [(funn_name "f", ^prog_ass_h3 , ^scopelist_h2 )] : frame_list `` ;
+val state_ass_h3 = ``(^Gscope_list , (^frame_ass_h3) , empty_ctrl, ^R): state``;
 
 
-val frame_ass_h4 = `` [("f", stmt_empty , ^scopelist_h3 )] : Frame_list `` ;
-val state_ass_h4 = ``(state_P4 FEMPTY (^frame_ass_h4) ^R): state``;
+val frame_ass_h4 = `` [(funn_name "f", stmt_empty , ^scopelist_h3 )] : frame_list `` ;
+val state_ass_h4 = ``(^Gscope_list , (^frame_ass_h4) , empty_ctrl, ^R): state``;
 
 
 val test_ass_h3 =
@@ -1195,13 +1249,14 @@ FULL_SIMP_TAC list_ss [FUPDATE_EQ]
 
 
 (*access fields*)
-
 val prog_acc_h1 = ``e_acc (e_v (v_header (T) (^header1))) (e_v( v_str "srcAddr"))  ``;
 val prog_acc_h2 = ``e_v  (v_bit ([F; F],2)) ``;
 
 
+
+(*test e_h_acc on the reduction   acc header f -> (e_v v) *)
 val test_acc_h1 =
-prove(`` e_red (^ctx_empty) FEMPTY ^scopelist_h1
+prove(`` e_red (^ctx_empty) [FEMPTY;FEMPTY] ^scopelist_h1
                (^prog_acc_h1) (^prog_acc_h2) ([])
 ``,
 REPEAT EXP_SIMP
@@ -1234,11 +1289,11 @@ val prog_ass_s1 = ``stmt_ass  (lval_field (lval_varname (varn_name "Parsed_packe
                                   (e_v (v_bit ([F;F],2)))``;
 
 
-val frame_ass_s1 = `` [("f", ^prog_ass_s1 , ^scopelist_s1 )] : Frame_list `` ;
-val state_ass_s1 = ``(state_P4 FEMPTY (^frame_ass_s1) ^R): state``;
+val frame_ass_s1 = `` [(funn_name "f", ^prog_ass_s1 , ^scopelist_s1 )] : frame_list `` ;
+val state_ass_s1 = ``(^Gscope_list , (^frame_ass_s1) , empty_ctrl, ^R): state``;
 
-val frame_ass_s2 = `` [("f", stmt_empty , ^scopelist_s2 )] : Frame_list `` ;
-val state_ass_s2 = ``(state_P4 FEMPTY (^frame_ass_s2) ^R): state``;
+val frame_ass_s2 = `` [(funn_name "f", stmt_empty , ^scopelist_s2 )] : frame_list `` ;
+val state_ass_s2 = ``(^Gscope_list , (^frame_ass_s2) , empty_ctrl, ^R): state``;
 
 
 val test_ass_s1 =
@@ -1261,993 +1316,100 @@ val prog_acc_s2 = ``e_v  (v_header (T) (^header1) ) ``;
 
 
 val test_acc_h1 =
-prove(`` e_red  (^ctx_empty) FEMPTY ^scopelist_s1
+prove(`` e_red  (^ctx_empty) [FEMPTY; FEMPTY] ^scopelist_s1
                   ^prog_acc_s1 ^prog_acc_s2 ([])
 ``,
 NTAC 2 EXP_SIMP
 );
 
 
+
+
 (****************************************************************)
-(***          Testing A block calling a function              ***)
+(***    Testing concat two expressions of bit strings         ***)
 (****************************************************************)
 
+val prog_conc1 = ``e_concat (e_var( varn_name "x")) (e_var( varn_name "y"))  ``;
+val prog_conc2 = ``e_concat (e_v (v_bit ([F],1))) (e_var( varn_name "y")) ``;
+val prog_conc3 = ``e_concat (e_v (v_bit ([F],1))) (e_v (v_bit ([T],1))) ``;
 
-(*
+(* test1:  e_concat ex ey ->  e_concat v ey*)
 
-JR (out y)    //Just Return function
-{
-Return ((e_v (v_bit ([F;F],2));
-}
-
-
-
-f()
-{
-  {
-    <--- start from here
-    g := call JR (x)
-  }
-}
-
-*)
-
-(*
-
-val func_sig11 = ``(FEMPTY |+ ("JR", (stmt_ret (e_v (v_bit ([F;F],2))) , [("y",d_out)] )))``;
-val ctx13 = ``(FEMPTY, ^func_sig11, FEMPTY, FEMPTY, empty_ctrl):ctx``;
-
-val prog_test1 = ``(stmt_ass (lval_varname "g") (e_func_call "JR" [e_var "x"]))  ``;
-
-val prog_test2a = ``(stmt_ret (e_v (v_bit ([F;F],2)))) ``;
-val prog_test2b = ``(stmt_ass (lval_varname "g") (e_var "star") ) ``;
-
-val frame_test1 = `` [("f", ^prog_ret1 , ^scopelist17 )] : Frame_list `` ;
-val state_test1 = ``(state_P4 FEMPTY (^frame_ret1) ^R): state``;
-
-
-
-val frame_ret2a = `` [("JR", ^prog_ret2a , ^scopelist26 )] : Frame_list `` ;
-val frame_ret2b = `` [("f", ^prog_ret2b , ^scopelist17 )] : Frame_list `` ;
-
-val state_ret2 = ``(state_P4 FEMPTY ((^frame_ret2a)++(^frame_ret2b)) ^R): state``;
-
-
-(* test 1:
-test reduction [f, g := call Add1 (x), oldf] -> [Add1, ret 0 , cpins]++[ f, g := * , oldf]
-*)
-
-val test_return1 =
-prove(`` stmt_red ^ctx13 ^state_ret1 ^state_ret2
+val test_conc1 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope22] ^scopelist1
+                  ^prog_conc1 ^prog_conc2 ([])
 ``,
-
-STMT_SIMP >>
-EXISTS_TAC``^frame_ret2a`` >>
-EXISTS_TAC`` (e_var "star")``>>
-EXP_SIMP >>
-EXISTS_TAC ``[( (e_var "x")
-	       , "y"
-	       , d_out)]`` >>
-EXISTS_TAC ``^scopelist17`` >>	       
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss []
-);
-
-*)
-
-
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-(******************************************)
-
-(******** SAME SATE and EXP DEF ************)
-(*********Mapping equv. lemmas ************)
-
-
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-
-val lemma_MAP1 =
-prove(``
-! (l1: (e#string#d) list) l2 . ( MAP (λ(e_,x_,d_). (x_,d_)) l1 ) = ( MAP (λ(e_,x_,d_). (x_,d_)) l2 ) ==>
-(? (le1 : e list)  (lx1 : string list)  (ld1 : d list) (le2 : e list) lx2 ld2.
- MAP (λ(e_,x_,d_). (x_,d_)) (ZIP (le1, ZIP(lx1, ld1))) =
- MAP (λ(e_,x_,d_). (x_,d_)) (ZIP (le2, ZIP(lx2, ld2)))  /\ le1 = le2 /\ lx1 = lx2 /\ ld1 = ld2 ) ``,
-
-REPEAT STRIP_TAC >>
-NTAC 2 (EXISTS_TAC``[]: e list`` >>
-EXISTS_TAC``[]: x list`` >>
-EXISTS_TAC``[]: d list`` ) >>
-FULL_SIMP_TAC list_ss []
-);
-
-val lemma_MAP2 =
-prove (``!l. MAP (λ(e_,x_,d_). (x_,d_)) l = MAP SND l``,
-
-Induct_on `l` >>
-FULL_SIMP_TAC list_ss [] >>
-STRIP_TAC >>
-Cases_on `h` >>
-Cases_on `r` >>
-FULL_SIMP_TAC list_ss [] 
-);
-
-val lemma_MAP3 =
-prove(`` !(l: (e#string#d) list) l' . (MAP (λ(e_ : e ,x_,d_). (x_,d_)) l = MAP (λ(e_,x_,d_). (x_,d_)) l') ==>
-MAP SND l = MAP SND l'``,
-FULL_SIMP_TAC list_ss [lemma_MAP2] 
-);
-
-val lemma_MAP4 =
-prove(`` !(l: (e#string#d) list) l' . (MAP (λ(e_ : e ,x_,d_). (x_,d_)) l = MAP (λ(e_,x_,d_). (x_,d_)) l') /\
-(MAP FST l = MAP FST l') ==>
-(l = l')  ``,
-FULL_SIMP_TAC list_ss [lemma_MAP2, lemma_MAP1, lemma_MAP3] >>
-RW_TAC list_ss [PAIR_FST_SND_EQ,LIST_EQ_MAP_PAIR] 
-
+NTAC 3 EXP_SIMP
 );
 
 
-
-val lemma_MAP5 =
-prove (``!(l: (e#string#d) list) (l': (e#e#string#d) list)  .
-          (MAP (λ(e_,x_,d_). (x_,d_)) l =
-        MAP (λ(e_,e'_,x_,d_). (x_,d_)) l') ==> 
-        ((MAP (λ(e_,x_,d_). d_) l) = (MAP (λ(e_,e'_,x_,d_). d_) l')) /\
-        ((MAP (λ(e_,x_,d_). x_) l) = (MAP (λ(e_,e'_,x_,d_). x_) l'))``,
-
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-Cases_on `r''` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-
-val lemma_MAP6 =
-prove (``
-!(e_e'_x_d_list: (e#e#string#d) list) (e_e'_x_d_list': (e#e#string#d) list) .
-        (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list =
-        MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ==>
-	(MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list =
-        MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list') ``,
-
-Induct_on `e_e'_x_d_list` >>
-Induct_on `e_e'_x_d_list'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-Cases_on `r` >>
-Cases_on `r''` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-
-
-
-
-val lemma_MAP7 =
-prove ( ``
-!(e_x_d_list: (e#string#d) list) (e_x_d_list': (e#string#d) list) .
-        (MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list =
-        MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list') ==>
-	(MAP (λ(e_,x_,d_). (x_)) e_x_d_list =
-        MAP (λ(e_,x_,d_). (x_)) e_x_d_list') /\
-	(MAP (λ(e_,x_,d_). (d_)) e_x_d_list =
-        MAP (λ(e_,x_,d_). (d_)) e_x_d_list') ``,
-
-Induct_on `e_x_d_list` >>
-Induct_on `e_x_d_list'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-
-
-(********* lval and is_const lemmas ************)
-
-val lemma_const_notlval =
-prove (``!e. is_const e ==> ~ is_e_lval e``,
-Cases_on `e` >>
-EVAL_TAC
-);
-
-val lemma_lval_notconst =
-prove (``!e. is_e_lval e ==> ~ is_const e``,
-Cases_on `e` >>
-EVAL_TAC
-);
-
-
-(********* Proving the mono P Q  lemmas ************)
-
-(**************************
-P is (is_d_none_in d ∧ ¬is_const e)
-Q is ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
-show that P ==> not Q
-**************************)
-
-val lemma_dc1a =
-prove(`` ! d e.(is_d_none_in d ∧ ¬is_const e)
-	     ==> ~((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e)) ``,
-NTAC 3 STRIP_TAC >>
-SIMP_TAC std_ss [] >>
-DISJ1_TAC>>
-METIS_TAC[]
-);
-
-
-val lemma_dc1b =
-prove(``
-(∀y. (λ(d,e). is_d_none_in (d) ∧ ¬is_const (e)) y ⇒
-             ($¬ ∘
-              (λ(d,e).
-                   (is_d_none_in (d) ⇒ is_const (e)) ∧
-                   (¬is_d_none_in (d) ⇒ is_e_lval (e)))) y)``,
-
-STRIP_TAC>>
-Cases_on `y`>>
-FULL_SIMP_TAC std_ss [lemma_dc1a] 
-);
-
-
-
-val lemma_dc1c =
-prove(`` ! d e. ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
-                     ==> ~(is_d_none_in d ∧ ¬is_const e) ``,
-NTAC 3 STRIP_TAC >>
-SIMP_TAC std_ss [] >>
-METIS_TAC[]
-);
-
-
-(***************************
-Show that
-INDEX_FIND 0 P l = SOME x ==> P(x)
-
-****************************)
-val lemma_dc2 =
-prove(``!l n. ((INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e)
-                  l) = SOME x)  ==> (λ(d,e). is_d_none_in d ∧ ¬is_const e) (SND x) ``,
-Induct >| [
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-,
-REPEAT STRIP_TAC >>
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-Cases_on `(λ(d,e). is_d_none_in d ∧ ¬is_const e) h` >>
-RW_TAC (list_ss) [] >>
-Q.PAT_X_ASSUM `∀n. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`SUC n`])) >>
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-RW_TAC (list_ss) [] 
-]
-);
-
-
-(***************************
-Show that 
-(INDEX_FIND n P l = NONE) = ~ EXISTS P l
-
-****************************)
-
-val lemma_dc3 =
-prove(``! l n. (( INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = NONE) =
-       ~(EXISTS (λ(d,e). is_d_none_in d ∧ ¬is_const e) l)``,
-Induct >|[
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-,
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-Cases_on `(λ(d,e). is_d_none_in d ∧ ¬is_const e) h` >|[
-FULL_SIMP_TAC list_ss [SND]
-,
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-]
-]
-);
-
-
-(***************************
-Show that for a generic P (Lemma T4)
-(INDEX_FIND n P l = NONE) = ~ EXISTS P
-****************************)
-
-val lemma_dc4 =
-prove(``!  (l: (d#e) list) n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)``,
-Induct >|[
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-,
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-REPEAT STRIP_TAC >>
-Cases_on `P h` >>
-FULL_SIMP_TAC list_ss []
-]
-);
-
-
-
-
-
-
-(***************************
-Show that (equivelnt to above)
-(INDEX_FIND n P l = NONE) = EVERY ~P l
-Here just write P and substitute later.
-****************************)
-
-val lemma_dc5 =
-prove(``! l P n. (( INDEX_FIND n (P: (d#e -> bool)) l) = NONE) = (EVERY ($¬ ∘ P) l)``,
-FULL_SIMP_TAC list_ss [NOT_EXISTS, lemma_dc4]
-);
-
-
-
-(***************************
-WE CANT SHOW THIS:
-! l P n. (( INDEX_FIND n P l) = NONE) = ~(( INDEX_FIND n P l) = SOME x)
-BUT WE CAN SHOW
-! l P n. (( INDEX_FIND n P l) = NONE) ==> ~(( INDEX_FIND n P l) = SOME x)
-Here just write P and substitute later.
-****************************)
-
-val lemma_dc6a =
-prove(``! l P n. (( INDEX_FIND n P l) = NONE) ==> ~(( INDEX_FIND n P l) = SOME x) ``,
-FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES]
-);
-
-
-val lemma_dc6b =
-prove(``! l P n. (( INDEX_FIND n P l) = SOME x) ==> ~(( INDEX_FIND n P l) = NONE) ``,
-FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES]
-);
-
-(***************************
-Show that Lemma T6
-(?x . INDEX_FIND n P l = SOME x) = EXISTS P l
-Here just write P and substitute later.
-****************************)
-
-val lemma_dc7a =
-prove(``
-∀ (l: (d#e) list) n P. ~ (INDEX_FIND n P l = NONE) ⇔ EXISTS P l ``,
-REPEAT GEN_TAC >>
-ASSUME_TAC lemma_dc4>>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF]
-);
-
-
-
-val lemma_dc7b =
-prove(``
-∀ (l: (d#e) list) n P.~ (INDEX_FIND n P l = NONE) = ? x. ( INDEX_FIND n P l) = SOME x``,
-REPEAT GEN_TAC >>
-Cases_on `INDEX_FIND n P l ` >>
-FULL_SIMP_TAC (std_ss) [NOT_SOME_NONE,option_CLAUSES ]
-);
-
-
-
-(*This is the ONE!!!!*)
-
-val lemma_dc7c =
-prove(``!  (l: (d#e) list) P n. (?x .(( INDEX_FIND n P l) = SOME x)) = (EXISTS P l)``,
-REPEAT GEN_TAC >>
-ASSUME_TAC lemma_dc4>>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-ASSUME_TAC lemma_dc7a >>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-ASSUME_TAC lemma_dc7b>>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-
-FULL_SIMP_TAC (srw_ss()) [lemma_dc7b, lemma_dc7a , lemma_dc4 ]
-);
-
-
-
-
-
-(***************************
-Show Lemma T2.1
-! PQ . (∀x. P x ⇒ Q x) ⇒ (∃x. FI n P x) ⇒ ∃x. FI n Q x
-****************************)
-
-
-val lemma_dc_mono1 =
-prove (``! P Q l. ((! (x) . (P x ==>  Q x) ) ==>
-((EXISTS P l) ==>
-(EXISTS Q l)))``,
-REPEAT STRIP_TAC >>
-ASSUME_TAC MONO_EXISTS >>
-FULL_SIMP_TAC list_ss[MONO_EXISTS ]
-);
-
-val lemma_dc_mono2 =
-prove (``
-! P Q l n. ((!  (y : (d#e)) . (P y ==>  Q y) ) ==>
-((? v. INDEX_FIND n P l = SOME v) ==>
-(? v. INDEX_FIND n Q l = SOME v)))
-
+(* test2:  e_concat v ey -> e_concat  v v2 *)
+val test_conc2 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope22] ^scopelist1
+                  ^prog_conc2 ^prog_conc3 ([])
 ``,
-REPEAT STRIP_TAC >>
-ASSUME_TAC (ISPECL [``P:(d # e) -> bool``, ``Q:(d # e) -> bool``, ``l:(d # e) list``] lemma_dc_mono1) >>
-(*twice*)
-ASSUME_TAC  lemma_dc7c >>
-Q.PAT_X_ASSUM `∀l P n. (∃x. INDEX_FIND n P l = SOME x) ⇔ EXISTS P l`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `P`, `n`])) >>
-
-ASSUME_TAC  lemma_dc7c >>
-Q.PAT_X_ASSUM `∀l P n. (∃x. INDEX_FIND n P l = SOME x) ⇔ EXISTS P l`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `Q`, `n`])) >>
-RES_TAC>>
-fs []
+NTAC 3 EXP_SIMP
 );
 
 
+(* test3:  e_concat v v2 ->  v3 *)
 
-
-
-(***************************
-The Big lemma
-****************************)
-
-val lemma_args1 =
-prove (`` ! dl el i. (unred_arg_index dl el = SOME i) ==> ~ check_args_red dl el ``,
-Cases_on `dl`>>
-Cases_on `el` >|[
-RW_TAC (srw_ss()) [unred_arg_index_def]>>
-RW_TAC (srw_ss()) [check_args_red_def]>>
-Cases_on ` find_unred_arg [] []`>>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def] 
-
-,
-RW_TAC (srw_ss()) [unred_arg_index_def]>>
-RW_TAC (srw_ss()) [check_args_red_def]>>
-Cases_on ` find_unred_arg [] (h::t)`>>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def] 
-,
-RW_TAC (srw_ss()) [unred_arg_index_def]>>
-RW_TAC (srw_ss()) [check_args_red_def]>>
-Cases_on ` find_unred_arg (h::t) []`>>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def] 
-,
-
-
-SIMP_TAC (list_ss) [unred_arg_index_def]>>
-REWRITE_TAC [check_args_red_def]>>
-Cases_on ` find_unred_arg (h::t) (h'::t')`
->|[
-REPEAT STRIP_TAC >>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]
-,
-
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]>>
-
-Cases_on `(is_d_none_in h ∧ ¬is_const h')` >| [
-FULL_SIMP_TAC (list_ss) [is_arg_red_def]
-,
-STRIP_TAC >>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]>>
-FULL_SIMP_TAC (list_ss) [is_arg_red_def]>>
-STRIP_TAC >>
-DISJ2_TAC>>
-ASSUME_TAC lemma_dc_mono2 >>
-Q.PAT_X_ASSUM `∀P Q l n. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [
-`(λ(d,e). is_d_none_in d ∧ ¬is_const e) `,
-`$¬ ∘ (λ(d,e). ((is_d_none_in d ⇒ is_const e) ∧
-                (¬is_d_none_in d ⇒ is_e_lval e)))`,
-`ZIP (t,t')`,
-`1`
-])) >>
-FULL_SIMP_TAC std_ss [lemma_dc1b] >>
-
-RES_TAC>>
-ASSUME_TAC lemma_dc7c>>
-
-Q.PAT_X_ASSUM `∀l P n. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [
-`ZIP (t,t') `,
-`$¬ ∘ (λ(d,e). ((is_d_none_in d ⇒ is_const e) ∧
-                (¬is_d_none_in d ⇒ is_e_lval e)))`,
-`1`
-])) >>
-fs[]
-
-]]]);
-
-(*******************************************)
-
-
-fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
-
-
-
-val same_frame_exp_def = Define `
- same_frame_exp (frame:Frame_list) frame' (e:e) e'  =
-((frame = frame') /\ (e = e'))
-`;
-
-
-val lemma_v_red_forall =
-prove(`` ! c s sl e l fl.
-~ e_red c s sl (e_v (l)) e fl   ``,
-RW_TAC (srw_ss()) [Once e_red_cases]
-);
-
-
-
-val det_exp_def = Define `
- det_exp e = ! c scope scopest e' e'' frame frame'.
-(e_red c scope scopest e e' frame )
-/\
-(e_red c scope scopest e e'' frame' ) 
-==>
-(same_frame_exp frame frame' e' e'')
-`;
-
-
-val det_exp_list_def = Define `
-   det_exp_list (l : e list)  = !(x : e). MEM x l ==> det_exp(x)
-`;
-
-(*Replace the one that in p4_exec_semTheory once fixed*)
-Theorem unred_arg_index_in_range:
- !d_l e_l i. unred_arg_index d_l e_l = SOME i ==> i < LENGTH e_l
-Proof
-cheat
-QED
-
-
-
-val P4EXP_det =
-prove (
-``
-(!e. det_exp e) /\
-(! l: e list. det_exp_list l)
+val test_conc3 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope22] ^scopelist1
+                  ^prog_conc3 (e_v (v_bit ([F;T],2))) ([])
 ``,
-Induct >| [
-RW_TAC (srw_ss()) [same_frame_exp_def, det_exp_def, Once e_red_cases]
-,
-RW_TAC (srw_ss()) [det_exp_def] >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def, Once e_red_cases, same_frame_exp_def]
-,
-RW_TAC (srw_ss()) [det_exp_def] >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def, Once e_red_cases, same_frame_exp_def]
-,
-RW_TAC (srw_ss()) [det_exp_def] >>
-FULL_SIMP_TAC (srw_ss()) [Once e_red_cases, same_frame_exp_def]
-,
-
-NTAC 2 (
-SIMP_TAC (srw_ss()) [det_exp_def] >>
-REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``e_acc e e'`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) []) >>
-TRY (OPEN_EXP_RED_TAC ``(e_acc (e_v (_)) (e_v (_)))`` ) >>
-RW_TAC (srw_ss()) [] >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall, same_frame_exp_def] >>
-RES_TAC 
-,
-
-SIMP_TAC (srw_ss()) [det_exp_def] >>
-REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``(e_unop u e)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) [] >>
-
-OPEN_EXP_RED_TAC ``(e_unop u e)`` >>
-RW_TAC (srw_ss()) [] >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def] >>
-RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
-REPEAT (IMP_RES_TAC lemma_v_red_forall >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def] )
-,
-(*****************************)
-(*    binop case             *)
-(*****************************)
-
-(
-SIMP_TAC (srw_ss()) [det_exp_def] >>
-REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``(e_binop e b e')`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) [] 
-
-) >- (      (*e_binop e b e'*)
-
-OPEN_EXP_RED_TAC ``(e_binop e b e')`` >>
-RW_TAC (srw_ss()) [] >>
-IMP_RES_TAC lemma_v_red_forall >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall, same_frame_exp_def] >>
-RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def]
-) >-  (
-
-              (*e_binop (e_v v) b e'*)
-OPEN_EXP_RED_TAC ``(e_binop (e_v v) b e')`` >>
-RW_TAC (srw_ss()) []>>
-IMP_RES_TAC lemma_v_red_forall >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def] >>
-RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def] ) >> (
-(*e_mul case and after, use those as much as needed.*)
-OPEN_EXP_RED_TAC ``(e_binop a b c)`` >>
-RW_TAC (srw_ss()) [] >>
-IMP_RES_TAC lemma_v_red_forall >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall, same_frame_exp_def, option_case_def])
+NTAC 3 EXP_SIMP
+);
 
 
-,
+(****************************************************************)
+(***    Testing slice two expressions of bit strings         ***)
+(****************************************************************)
 
-SIMP_TAC (srw_ss()) [det_exp_def] >>
-REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``(e_concat e e')`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) []
+val prog_slice1 = ``e_slice (e_var( varn_name "headers.ip.ttl")) (e_v (v_bit ([F],1))) (e_v (v_bit ([F],1)))  ``;
+val prog_slice2 = ``e_slice (e_v (v_bit ([T; F],2))) (e_v (v_bit ([F],1))) (e_v (v_bit ([F],1)))  ``;
+val prog_slice3 = ``(e_v (v_bit ([T],1))) ``;
 
-,
+val prog_slice4 = ``e_slice (e_v (v_bit ([T; F ; T ; T],2))) (e_v (v_bit ([T],1))) (e_v (v_bit ([T],1)))  ``;
+val prog_slice5 = ``(e_v (v_bit ([F],1))) ``;
 
-SIMP_TAC (srw_ss()) [det_exp_def] >>
-REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``(e_slice e e' e'')`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) []
-
-,
+val prog_slice6 = ``e_slice (e_v (v_bit ([T; F ; F; F],4))) (e_v (v_bit ([T;T],2))) (e_v (v_bit ([F],1)))  ``;
+val prog_slice7 = ``(e_v (v_bit ([T;F;F;F],4))) ``;
 
 
-(*****************************)
-(*    e_func_call            *)
-(*****************************)
-SIMP_TAC (srw_ss()) [det_exp_def] >>
-REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``(e_func_call s l)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) []  >| [
-
-(*first subgoal*)
-OPEN_EXP_RED_TAC ``(e_func_call s l)`` >>
-RW_TAC (srw_ss()) [] >| [
-
-REV_FULL_SIMP_TAC (list_ss) [rich_listTheory.MAP_FST_funs, same_frame_exp_def] >>
-IMP_RES_TAC lemma_MAP4>>
-METIS_TAC []
-,
-REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
-IMP_RES_TAC lemma_MAP5>>
-RES_TAC >>	
-IMP_RES_TAC lemma_args1 >>
-METIS_TAC[]]
-,
-(*second subgoal*)
-OPEN_EXP_RED_TAC ``(e_func_call s l)`` >>
-RW_TAC (srw_ss()) [] >|[
-
-REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
-ASSUME_TAC lemma_MAP5>>
-PAT_ASSUM `` ∀l l'. _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`e_x_d_list`,`e_e'_x_d_list` ])) >> 
-IMP_RES_TAC lemma_args1 >>
-METIS_TAC[]
-,
-(**first show that the d is the same in both lists, thus the i = i'*)
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-IMP_RES_TAC lemma_MAP6 >>
-`i = i'` by METIS_TAC [ option_case_def]>>
-
-(*Now try to show that the EL i l is deterministic*)
-REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def, det_exp_list_def] >>
-PAT_ASSUM `` ∀x._``
-( STRIP_ASSUME_TAC o (Q.SPECL [`(EL i (MAP (λ(e_,e'_,x_,d_). e_) (e_e'_x_d_list:(e#e#string#d)list)))` ])) >>
-IMP_RES_TAC unred_arg_index_in_range  >>
-IMP_RES_TAC EL_MEM >>
-FULL_SIMP_TAC list_ss [det_exp_def]  >>
-RES_TAC >>
-FULL_SIMP_TAC list_ss [same_frame_exp_def]>>
-rw[] >> rw[]
-]
-]
-
-,
-
-(*****************************)
-(*   e_select                *)
-(*****************************)
-
-SIMP_TAC (srw_ss()) [det_exp_def] >>
-REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-
-(*first + second + beginning of third subgoal*)
- (OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
-IMP_RES_TAC lemma_v_red_forall) >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def]>>
-RES_TAC>>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def ] 
-
-,
-
-FULL_SIMP_TAC list_ss [det_exp_list_def]
-,
-
-FULL_SIMP_TAC list_ss [det_exp_list_def] >>
-REPEAT STRIP_TAC >>
-rw []
-
-]
+val test_slice1 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope16] ^scopelist1
+                  ^prog_slice1 ^prog_slice2 ([])
+``,
+NTAC 3 EXP_SIMP
 );
 
 
 
-
-(******** SAME SATE and STMT DEF ************)
-val same_state_stmt_def = Define `
- same_state_stmt (st:state) st'  =
-((st = st'))
-`;
-
-
-val det_stmt_def = Define `
- det_stmt stm = ! (c:ctx) (ss:scopes_stack) (s':state) (s'':state) (Gscope:Gscope) (f:string) status.
-(stmt_red c (state_P4 Gscope  ([(f,stm,ss)])  status) (s'))
-/\
-(stmt_red c (state_P4 Gscope  ([(f,stm,ss)])  status) (s''))
-==>
-( same_state_stmt s' s'')
-`;
+val test_slice2 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope16] ^scopelist1
+                  ^prog_slice2 ^prog_slice3 ([])
+``,
+NTAC 2 EXP_SIMP
+);
 
 
 
-
-fun OPEN_STMT_RED_TAC stm_term =
-(Q.PAT_X_ASSUM `stmt_red c (state_P4 Gs [(f,^stm_term ,ss)] st) state` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
-
-
-
-
-
-
-val P4Sem_det =
-prove (
-``
-(!stm. det_stmt stm) 
-``
-
-Induct >|[
-RW_TAC (srw_ss()) [det_stmt_def] >>
-OPEN_STMT_RED_TAC ``stmt_empty`` >>
-fs []
-,
+val test_slice3 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope16] ^scopelist1
+                  ^prog_slice4 ^prog_slice5 ([])
+``,
+NTAC 3 EXP_SIMP
+);
 
 
-SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_ass l e)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
 
-(*first + second subgoal*)
-OPEN_STMT_RED_TAC ``(stmt_ass l e)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) []>>
-REV_FULL_SIMP_TAC (srw_ss())  [assign_def, same_state_stmt_def] >>
-IMP_RES_TAC lemma_v_red_forall>|[
-METIS_TAC [ option_case_def]
-,
-ASSUME_TAC P4EXP_det >>
-fs [det_exp_def]  >>
-RES_TAC >>
-fs [same_frame_exp_def]
-]
-
-,
-
-(*****************************)
-(*   stmt_cond                *)
-(*****************************)
-
-SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``stmt_cond e stm stm'`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-
-(*first subgoal*)
-OPEN_STMT_RED_TAC ``stmt_cond e stm stm'`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]>>
-IMP_RES_TAC lemma_v_red_forall>>
-FULL_SIMP_TAC (srw_ss()) [det_stmt_def,lemma_v_red_forall] >>
-
-ASSUME_TAC P4EXP_det >>
-fs [det_exp_def]  >>
-RES_TAC >>
-fs [same_frame_exp_def]
-
-,
-
-(*****************************)
-(*   stmt_declare            *)
-(*****************************)
-NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``stmt_declare s t`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]
-,
-
-(*****************************)
-(*   stmt_block              *)
-(*****************************)
-NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``stmt_block stm`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]
-
-,
-
-(*****************************)
-(*   stmt_ip                 *)
-(*****************************)
-(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``stmt_block_ip stm`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]) >- (
-FULL_SIMP_TAC (srw_ss()) [det_stmt_def] >>
-RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def] ) >>
-OPEN_STMT_RED_TAC ``stmt_empty`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []
-,
-(*****************************)
-(*   stmt_ret                *)
-(*****************************)
-(NTAC 2 ( SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_ret e)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] ) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]) >>
-
-FULL_SIMP_TAC (srw_ss()) [det_exp_def] >>
-RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def] >>
-IMP_RES_TAC lemma_v_red_forall>>
-
-ASSUME_TAC P4EXP_det >>
-fs [det_exp_def]  >>
-RES_TAC >>
-fs [same_frame_exp_def]
-,
-
-(*****************************)
-(*   stmt_seq                *)
-(*****************************)
-
-(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_seq stm stm')`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]) >>
-FULL_SIMP_TAC (srw_ss()) [det_stmt_def] >>
-RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def, Once same_frame_exp_def ] >>
-OPEN_STMT_RED_TAC ``stmt_empty`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []
+val test_slice4 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; ^scope16] ^scopelist1
+                  ^prog_slice6 ^prog_slice7 ([])
+``,
+NTAC 3 EXP_SIMP
+);
 
 
-,
-
-(*****************************)
-(*   stmt_verify             *)
-(*****************************)
-(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_verify e e')`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]) >>
-IMP_RES_TAC lemma_v_red_forall>>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall] >>
-RES_TAC>>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def]>>
-ASSUME_TAC P4EXP_det >>
-fs [det_exp_def]  >>
-RES_TAC >>
-fs [same_frame_exp_def]
-
-,
-
-
-(*****************************)
-(*   stmt_trans              *)
-(*****************************)
-(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_trans e)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]) >>
-IMP_RES_TAC lemma_v_red_forall>>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall] >>
-RES_TAC>>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def] >>
-ASSUME_TAC P4EXP_det >>
-fs [det_exp_def]  >>
-RES_TAC >>
-fs [same_frame_exp_def]
-
-,
-
-(*****************************)
-(*   stmt_app                *)
-(*****************************)
-(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC `` (stmt_app s e)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def]) >>
-IMP_RES_TAC lemma_v_red_forall>>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall] >>
-RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def]>>
-ASSUME_TAC P4EXP_det >>
-fs [det_exp_def]  >>
-RES_TAC >>
-fs [same_frame_exp_def]
-
-,
-
-(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_ext_sem)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_stmt_def] ) >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-
-???
-]);
 
