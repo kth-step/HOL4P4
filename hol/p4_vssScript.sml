@@ -15,9 +15,9 @@ val _ = new_theory "p4_vss";
 (*************)
 (* construct *)
 
-Definition ck_construct:
- (ck_construct (g_scope_list, scopes_stack, ctrl:ctrl) =
-  (let scopes_stack' = initialise (g_scope_list++scopes_stack) (varn_name "this") (v_ext (ext_obj_ck ARB)) in
+Definition Checksum16_construct:
+ (Checksum16_construct (g_scope_list, scopes_stack, ctrl:ctrl) =
+  (let scopes_stack' = initialise (g_scope_list++scopes_stack) varn_ext_ret (v_ext (ext_obj_ck ARB)) in
    SOME (TAKE 2 scopes_stack', DROP 2 scopes_stack', ctrl)
   )
  )
@@ -27,8 +27,8 @@ End
 (*********)
 (* clear *)
 
-Definition ck_clear:
- (ck_clear (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition Checksum16_clear:
+ (Checksum16_clear (g_scope_list, scopes_stack, ctrl:ctrl) =
    (case assign (g_scope_list++scopes_stack) (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
     | SOME scopes_stack' =>
      SOME (TAKE 2 scopes_stack', DROP 2 scopes_stack', ctrl)
@@ -98,8 +98,8 @@ End
 
 (* Note that this assumes the order of fields in the header is correct *)
 (* TODO: Check for overflow, compensate according to IPv4 checksum algorithm *)
-Definition ck_update:
- (ck_update (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition Checksum16_update:
+ (Checksum16_update (g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_ipv4_checksum (g_scope_list++scopes_stack) (lval_varname (varn_name "self")) of
   | SOME ipv4_checksum =>
   (case get_checksum_incr (g_scope_list++scopes_stack) (lval_varname (varn_name "data")) of
@@ -116,8 +116,8 @@ End
 (*******)
 (* get *)
 
-Definition ck_get:
- (ck_get (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition Checksum16_get:
+ (Checksum16_get (g_scope_list, scopes_stack, ctrl:ctrl) =
   (case lookup_ipv4_checksum (g_scope_list++scopes_stack) (lval_varname (varn_name "self")) of
    | SOME ipv4_checksum =>
     (case assign (g_scope_list++scopes_stack) (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) (lval_varname varn_ext_ret) of

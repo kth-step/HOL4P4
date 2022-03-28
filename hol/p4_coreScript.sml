@@ -35,8 +35,8 @@ Definition min_size_in_bytes:
  )
 End
 
-Definition is_valid:
- (is_valid (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition header_is_valid:
+ (header_is_valid (g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_lval (g_scope_list++scopes_stack) (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign (g_scope_list++scopes_stack) (v_bool valid_bit) (lval_varname varn_ext_ret) of
@@ -47,8 +47,8 @@ Definition is_valid:
  )
 End
 
-Definition set_valid:
- (set_valid (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition header_set_valid:
+ (header_set_valid (g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_lval (g_scope_list++scopes_stack) (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign (g_scope_list++scopes_stack) (v_header T x_v_l) (lval_varname (varn_name "this")) of
@@ -59,8 +59,8 @@ Definition set_valid:
  )
 End
 
-Definition set_invalid:
- (set_invalid (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition header_set_invalid:
+ (header_set_invalid (g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_lval (g_scope_list++scopes_stack) (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign (g_scope_list++scopes_stack) (v_header F x_v_l) (lval_varname (varn_name "this")) of
@@ -108,8 +108,8 @@ End
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
 (* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
-Definition extract:
- (extract (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition packet_in_extract:
+ (packet_in_extract (g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_packet_in (g_scope_list++scopes_stack) (lval_varname (varn_name "this")) of
   | SOME packet_in =>
    (case lookup_lval_header (g_scope_list++scopes_stack) (lval_varname (varn_name "hdr")) of
@@ -172,8 +172,8 @@ End
 
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
-Definition emit:
- (emit (g_scope_list, scopes_stack, ctrl:ctrl) =
+Definition packet_out_emit:
+ (packet_out_emit (g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_packet_out (g_scope_list++scopes_stack) (lval_varname (varn_name "this")) of
   | SOME packet_out =>
    (case lookup_lval (g_scope_list++scopes_stack) (lval_varname (varn_name "data")) of

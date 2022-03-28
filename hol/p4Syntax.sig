@@ -7,6 +7,16 @@ val dest_clause_name : term -> term
 val is_clause_name : term -> bool
 val mk_clause_name : term -> term
 
+val dest_varn_name : term -> term
+val is_varn_name : term -> bool
+val mk_varn_name : term -> term
+val varn_name_tm : term
+
+val varn_star_tm : term
+val is_varn_star : term -> bool
+
+val varn_ext_ret_tm : term
+val is_varn_ext_ret : term -> bool
 
 val dest_e_v : term -> term
 val e_v_tm : term
@@ -61,12 +71,28 @@ val lval_null_tm : term
 val is_lval_null : term -> bool
 
 
+val dest_funn_name : term -> term
+val funn_name_tm : term
+val is_funn_name : term -> bool
+val mk_funn_name : string -> term
+
+val dest_funn_inst : term -> term
+val funn_inst_tm : term
+val is_funn_inst : term -> bool
+val mk_funn_inst : string -> term
+
+val dest_funn_ext : term -> term * term
+val funn_ext_tm : term
+val is_funn_ext : term -> bool
+val mk_funn_ext : string * string -> term
+
 val e_ty : hol_type
 
 val dest_e_var : term -> term
 val e_var_tm : term
 val is_e_var : term -> bool
-val mk_e_var : string -> term
+val mk_e_var : term -> term
+val mk_e_var_name : string -> term
 
 val dest_e_unop : term -> term * term
 val e_unop_tm : term
@@ -122,6 +148,7 @@ val e_call_tm : term
 val is_e_call : term -> bool
 val mk_e_call : term * term -> term
 
+val mk_e_ext_call_list : string * string * term list -> term
 
 val stmt_empty_tm : term
 val is_stmt_empty : term -> bool
@@ -141,6 +168,11 @@ val is_stmt_cond : term -> bool
 val mk_stmt_cond : term * term * term -> term
 val stmt_cond_tm : term
 
+val dest_stmt_block : term -> term
+val is_stmt_block : term -> bool
+val mk_stmt_block : term -> term
+val stmt_block_tm : term
+
 val dest_stmt_ret : term -> term
 val is_stmt_ret : term -> bool
 val mk_stmt_ret : term -> term
@@ -155,6 +187,8 @@ val mk_stmt_seq_list : term list -> term
 
 val d_ty : hol_type
 
+
+val arch_frame_list_empty_tm : term
 
 val scope_ty : hol_type
 
