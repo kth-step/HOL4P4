@@ -340,7 +340,7 @@ EVAL ``arch_exec ((^vss_actx):actx) (^init_astate)``;
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
 (* TODO: This becomes NONE at variable lookup on step 14... Is something buggy with variable lookup? *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 24``;
+el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 25``;
 
 (* TODO: Fix up the below and add to CI *)
 (*

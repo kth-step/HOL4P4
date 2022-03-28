@@ -621,8 +621,8 @@ Definition stmt_exec:
  (* Block in-progress *)
  (stmt_exec ctx (g_scope_list, [(funn, stmt_block_ip stmt, scopes_stack)], ctrl, status_running) =
   (case stmt_exec ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_running) of
-   | SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status_running) => SOME (g_scope_list', [(funn, stmt_empty, TL scopes_stack')], ctrl', status_running)
-   | SOME (g_scope_list', [(funn, stmt', scopes_stack')], ctrl', status_running) => SOME (g_scope_list', [(funn, stmt_block_ip stmt', scopes_stack')], ctrl', status_running)
+   | SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status') => SOME (g_scope_list', [(funn, stmt_empty, TL scopes_stack')], ctrl', status')
+   | SOME (g_scope_list', [(funn, stmt', scopes_stack')], ctrl', status') => SOME (g_scope_list', [(funn, stmt_block_ip stmt', scopes_stack')], ctrl', status_running)
    | SOME (g_scope_list', (frame::[(funn, stmt', scopes_stack')]), ctrl', status_running) => SOME (g_scope_list', (frame::[(funn, stmt_block_ip stmt', scopes_stack')]), ctrl', status_running)
    | _ => NONE))
   /\
@@ -1208,6 +1208,7 @@ End
         
 val pars_exec_def = Define `
  (pars_exec (pctx:pctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
+ (* No step should start in status pars_next *)
  (pars_exec _ (_, _, _, status_pars_next x) = NONE) /\
  (pars_exec (ty_map, ext_map, func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) =
   (case stmt_exec (ty_map, ext_map, func_map, FEMPTY) (g_scope_list, frame_list, ctrl, status_running) of
@@ -1291,27 +1292,6 @@ val ctrl_multi_exec = Define `
 (***********************************)
 (*  Architectural-level semantics  *)
 (***********************************)
-
-val pars_exec_wrap_def = Define `
-pars_exec_wrap ((ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map):actx)
-           (((i, b, in_out_list, in_out_list', scope):aenv), g_scope_list,
-             (arch_frame_list_regular frame_list), ctrl,
-             status_running) (pblock_parser x_d_list stmt'' pars_map) =
-      (case pars_exec (ty_map, ext_map, func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) of
-       | SOME (g_scope_list', frame_list', ctrl', status') =>
-        SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list', ctrl',
-              (arch_frame_list_regular frame_list'), status')
-       | _ => NONE)
-`;
-
-val pars_exec_wrap'_def = Define `
-pars_exec_wrap' (ty_map, ext_map, func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) (i:num, in_out_list:in_out_list, in_out_list':in_out_list, scope:scope) =
-      (case pars_exec (ty_map, ext_map, func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) of
-       | SOME (g_scope_list', frame_list', ctrl', status') =>
-        SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list', ctrl',
-              (arch_frame_list_regular frame_list'), status')
-       | _ => NONE)
-`;
 
 (* TODO: Outsource the stuff that causes too many case splits to other functions
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
