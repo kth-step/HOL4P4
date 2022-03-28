@@ -4,7 +4,7 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open listSyntax;
 
-open p4Syntax;
+open p4Syntax p4_coreLib;
 
 open p4Theory p4_coreTheory p4_vssTheory;
 
@@ -19,12 +19,12 @@ val CPU_OUT_PORT_tm = mk_v_bitii (14, 4);
 val RECIRCULATE_OUT_PORT_tm = mk_v_bitii (13, 4);
 
 val vss_init_global_scope =
- ``(FEMPTY |+ ("REAL_PORT_COUNT", (^REAL_PORT_COUNT_tm, NONE) )
-           |+ ("RECIRCULATE_IN_PORT", (^RECIRCULATE_IN_PORT_tm, NONE) )
-           |+ ("CPU_IN_PORT", (^CPU_IN_PORT_tm, NONE) )
-           |+ ("DROP_PORT", (^DROP_PORT_tm, NONE) )
-           |+ ("CPU_OUT_PORT", (^CPU_OUT_PORT_tm, NONE) )
-           |+ ("RECIRCULATE_OUT_PORT", (^RECIRCULATE_OUT_PORT_tm, NONE) )
+ ``(FEMPTY |+ (varn_name "REAL_PORT_COUNT", (^REAL_PORT_COUNT_tm, NONE) )
+           |+ (varn_name "RECIRCULATE_IN_PORT", (^RECIRCULATE_IN_PORT_tm, NONE) )
+           |+ (varn_name "CPU_IN_PORT", (^CPU_IN_PORT_tm, NONE) )
+           |+ (varn_name "DROP_PORT", (^DROP_PORT_tm, NONE) )
+           |+ (varn_name "CPU_OUT_PORT", (^CPU_OUT_PORT_tm, NONE) )
+           |+ (varn_name "RECIRCULATE_OUT_PORT", (^RECIRCULATE_OUT_PORT_tm, NONE) )
    ):scope``;
 
 (*************************)
@@ -40,12 +40,10 @@ val vss_output_f = ``vss_output_f``;
 val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runtime [])
                                |+ ("pre_deparser", ffblock_ff vss_pre_deparser [])``;
 
-val vss_ext_map = ``FEMPTY |+ ("extract", (extract, [("hdr", d_out)]))
-                           |+ ("construct", (construct, []))
-                           |+ ("clear", (clear, []))
-                           |+ ("update", (update, [("data", d_in)]))
-                           |+ ("get", (get, []))
-                           |+ ("emit", (emit, [("data", d_in)]))
-                           |+ ("isValid", (is_valid, []))``;
+val vss_ext_map = ``(^core_ext_map)
+                    |+ ("construct", (construct, [("this", d_inout)]))
+                    |+ ("clear", (clear, [("this", d_inout)]))
+                    |+ ("update", (update, [("this", d_inout); ("data", d_in)]))
+                    |+ ("get", (get, [("this", d_inout)]))``;
 
 end

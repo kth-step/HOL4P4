@@ -17,6 +17,15 @@ fun list_of_quintuple (a, b, c, d, e) = [a, b, c, d, e];
 fun mk_quinop tm = HolKernel.list_mk_icomb tm o list_of_quintuple;
 val syntax_fns5 = HolKernel.syntax_fns {n = 5, dest = dest_quinop, make = mk_quinop};
 
+fun dest_sextop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5, t6]) =>
+         if same_const t c then (t1, t2, t3, t4, t5, t6) else raise e
+    | _ => raise e;
+fun list_of_sextuple (a, b, c, d, e, f) = [a, b, c, d, e, f];
+fun mk_sextop tm = HolKernel.list_mk_icomb tm o list_of_sextuple;
+val syntax_fns6 = HolKernel.syntax_fns {n = 6, dest = dest_sextop, make = mk_sextop};
+
 fun dest_septop c e tm =
    case with_exn strip_comb tm e of
       (t, [t1, t2, t3, t4, t5, t6, t7]) =>
@@ -183,7 +192,7 @@ val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 (**************)
 
 val (e_red_tm,  mk_e_red, dest_e_red, is_e_red) =
-  syntax_fns8 "p4" "e_red";
+  syntax_fns6 "p4" "e_red";
 
 val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
   syntax_fns3 "p4" "stmt_red";
