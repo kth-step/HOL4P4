@@ -42,8 +42,8 @@ val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runti
 
 val vss_Checksum16_map =
  ``(FEMPTY
-    |+ ("clear", (stmt_ext Checksum16_clear, [("this", d_inout)]))
-    |+ ("update", (stmt_ext Checksum16_update, [("this", d_inout); ("data", d_in)]))
+    |+ ("clear", (stmt_seq (stmt_ext Checksum16_clear) (stmt_ret (e_v v_bot)), [("this", d_inout)]))
+    |+ ("update", (stmt_seq (stmt_ext Checksum16_update) (stmt_ret (e_v v_bot)), [("this", d_inout); ("data", d_in)]))
     |+ ("get", (stmt_seq (stmt_ext Checksum16_get) (stmt_ret (e_var varn_ext_ret)), [("this", d_inout)]))):ext_fun_map``;
 
 val vss_ext_map =
