@@ -28,10 +28,10 @@ End
 (* clear *)
 
 Definition Checksum16_clear:
- (Checksum16_clear (g_scope_list, scopes_stack, ctrl:ctrl) =
-   (case assign (g_scope_list++scopes_stack) (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
+ (Checksum16_clear (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+   (case assign scopes_stack (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
     | SOME scopes_stack' =>
-     SOME (TAKE 2 scopes_stack', DROP 2 scopes_stack', ctrl)
+     SOME (g_scope_list, scopes_stack', ctrl)
     | NONE => NONE)
  )
 End
@@ -99,14 +99,14 @@ End
 (* Note that this assumes the order of fields in the header is correct *)
 (* TODO: Check for overflow, compensate according to IPv4 checksum algorithm *)
 Definition Checksum16_update:
- (Checksum16_update (g_scope_list, scopes_stack, ctrl:ctrl) =
-  case lookup_ipv4_checksum (g_scope_list++scopes_stack) (lval_varname (varn_name "self")) of
+ (Checksum16_update (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+  case lookup_ipv4_checksum scopes_stack (lval_varname (varn_name "this")) of
   | SOME ipv4_checksum =>
-  (case get_checksum_incr (g_scope_list++scopes_stack) (lval_varname (varn_name "data")) of
+  (case get_checksum_incr scopes_stack (lval_varname (varn_name "data")) of
    | SOME checksum_incr =>
-    (case assign (g_scope_list++scopes_stack) (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) (lval_varname (varn_name "this")) of
+    (case assign scopes_stack (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) (lval_varname (varn_name "this")) of
      | SOME scopes_stack' =>
-      SOME (TAKE 2 scopes_stack', DROP 2 scopes_stack', ctrl)
+      SOME (g_scope_list, scopes_stack', ctrl)
      | NONE => NONE)
    | NONE => NONE)
   | NONE => NONE
@@ -117,13 +117,11 @@ End
 (* get *)
 
 Definition Checksum16_get:
- (Checksum16_get (g_scope_list, scopes_stack, ctrl:ctrl) =
-  (case lookup_ipv4_checksum (g_scope_list++scopes_stack) (lval_varname (varn_name "self")) of
+ (Checksum16_get (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+  (case lookup_ipv4_checksum scopes_stack (lval_varname (varn_name "this")) of
    | SOME ipv4_checksum =>
-    (case assign (g_scope_list++scopes_stack) (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) (lval_varname varn_ext_ret) of
-     | SOME scopes_stack' =>
-      SOME (TAKE 2 scopes_stack', DROP 2 scopes_stack', ctrl)
-     | NONE => NONE)
+    (let scopes_stack' = initialise scopes_stack varn_ext_ret (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) in
+      SOME (g_scope_list, scopes_stack', ctrl))
    | NONE => NONE)
  )
 End
