@@ -398,7 +398,7 @@ e :: e_ ::=
 | e1 binop e2 :: :: binop
   {{ com binary operation }}
   {{ tex [[e1]] [[binop]] [[e2]] }}
-| e1 ++ e2 :: :: concat
+| concat e1 e2 :: :: concat
   {{ com concatenation of bit-strings }}
 | e1 [ e2 : e3 ] :: :: slice
   {{ com bit-slice }}
@@ -985,6 +985,17 @@ formula :: formula_ ::=
   {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
   {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME [[i]]) }}
 
+%concatination and bit slicing:
+| bitv'' = concat bitv bitv' :: M :: concat
+  {{ com concatination operation}}
+  {{ tex [[bitv'']] =  [[bitv]] {+}\mspace{-8mu}{+}  [[bitv']] }}
+  {{ hol ([[bitv'']] = bitv_concat [[bitv]] [[bitv']]) }}
+
+| bitv''' = bitv [ bitv' : bitv'' ] :: M :: slice
+  {{ com bit slicing operation}}
+  {{ tex [[bitv''']] =  [[bitv]] [ [[bitv']] : [[bitv'']] ]}}
+  {{ hol [[bitv''']] = slice [[bitv]] [[bitv']] [[bitv'']] }}
+
 %Equalities
 | scope = scope' :: M :: scope_eq
   {{ com scope equality }}
@@ -1472,11 +1483,17 @@ val bitv_binpred_def = Define `
     else NONE
 `;
 val bitv_concat_def = Define `
-  bitv_concat (v, n) (v', n') = (v ++ v', n + n')
+  bitv_concat (v, (n:num)) (v', n') = (v ++ v', n + n')
 `;
-(* TODO: Check big-endianness vs. little-endianness (order of arguments of SEG) *)
+
+(* The arguments are v vector, n length of that vector, m is the most significant bit
+ * l is the least significant bit. It returns the sliced vector with the length *)
 val bitv_bitslice_def = Define `
-  bitv_bitslice (v, n) m l = (SEG m l v, m - l + 1)
+  bitv_bitslice (v, n) m l = (SEG ( m - l + 1 ) l v, m - l + 1)
+`;
+
+val slice_def = Define `
+  slice (v, n) (vec1, len1) (vec2, len2) = bitv_bitslice (v , n) (v2n (vec1)) (v2n (vec2))
 `;
 
 val is_var_def = Define `
@@ -1955,6 +1972,34 @@ ctx g_scope_list scopes_stack ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~
 x' = { v1 : x1 ; ... ; vn : xn } x ( v )
 ----------------------------------- :: sel_acc
 ctx g_scope_list scopes_stack ( select v { v1 : x1 ; ... ; vn : xn } x ) ~> ( x' ,  empty )
+
+%concatination of two bitstrings 
+
+ctx g_scope_list scopes_stack ( e ) ~> ( e'' , frame_list )
+----------------------------------- :: concat_arg1
+ctx g_scope_list scopes_stack ( concat e e' ) ~> ( concat e'' e' , frame_list )
+
+
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+----------------------------------- :: concat_arg2
+ctx g_scope_list scopes_stack ( concat bitv e ) ~> ( concat bitv e' , frame_list )
+
+
+bitv'' = concat bitv bitv'
+----------------------------------- :: concat_v
+ctx g_scope_list scopes_stack ( concat bitv bitv' ) ~> ( bitv'' , empty )
+
+
+%bit slicing operation
+
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+----------------------------------- :: slice_arg1
+ctx g_scope_list scopes_stack ( e [ bitv : bitv' ] ) ~> ( e' [ bitv : bitv' ] , frame_list )
+
+%compile time known values from p4 spec. 
+bitv''' = bitv [ bitv' : bitv'' ]
+----------------------------------- :: slice_v
+ctx g_scope_list scopes_stack ( bitv [ bitv' : bitv'' ] ) ~> ( bitv''' , empty )
 
 
 %Struct/header field accesses
