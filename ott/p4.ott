@@ -1608,7 +1608,7 @@ val unred_arg_index_def = Define `
 
 val get_lval_of_e_def = Define `
   (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
-  (get_lval_of_e (e_acc e (e_var (varn_name x))) =
+  (get_lval_of_e (e_acc e (e_v (v_str x))) =
    case get_lval_of_e e of
    | SOME lval => SOME (lval_field lval x)
    | NONE => NONE) /\
@@ -1685,25 +1685,22 @@ val arb_from_t_def = Define `
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
-  one_arg_val_for_newscope d e ss =
-   if is_d_out d
-   then
-     (case varname_of_e e of
-      | SOME varname =>
-          (case get_lval_of_e e of
-           | SOME lval =>
-             (case lookup_vexp ss varname of
-              | SOME v =>
-                if is_d_in d
-                then SOME (v, SOME lval)
-                else SOME (init_out_v v, SOME lval)
-              | NONE => NONE)
-           | NONE => NONE)
+ one_arg_val_for_newscope d e ss =
+  if is_d_out d
+  then
+   (case get_lval_of_e e of
+    | SOME lval =>
+     (case lookup_lval ss lval of
+      | SOME v =>
+       if is_d_in d
+       then SOME (v, SOME lval)
+       else SOME (init_out_v v, SOME lval)
       | NONE => NONE)
-   else
-     (case v_of_e e of
-      | SOME v => SOME (v, NONE)
-      | NONE => NONE)
+    | NONE => NONE)
+  else
+   (case v_of_e e of
+    | SOME v => SOME (v, NONE)
+    | NONE => NONE)
 `;
 
 val update_arg_for_newscope_def = Define `
