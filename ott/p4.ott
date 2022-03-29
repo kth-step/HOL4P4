@@ -929,7 +929,9 @@ formula :: formula_ ::=
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
 | b OR b' = b'' :: M :: or_bool
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
-
+| ~is_short_circuit ( e ) :: M :: short_cir
+  {{ hol (~is_short_circuit  [[e]] ) }}
+  {{ tex ~is_short_circuit  [[e]] }}
 %Type-transforming operations
 | g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
   {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
@@ -1898,6 +1900,16 @@ val notret_def = Define `
   (notret _ = T)
 `;
 
+(* check if the operation is AND or OR. Needed to prevent non determinisim *)
+
+val is_short_circuit_def = Define `
+  (is_short_circuit (e_binop (e_v (v_bool  F )) binop_bin_and _) = T) /\
+  (is_short_circuit (e_binop (e_v (v_bool  T )) binop_bin_and _) = T) /\
+  (is_short_circuit (e_binop (e_v (v_bool  T )) binop_bin_or _)  = T) /\
+  (is_short_circuit (e_binop (e_v (v_bool  F )) binop_bin_or _) = T) /\ 
+  (is_short_circuit  _ = F)
+`;
+
 
 (* fetch the newest scope index from a scopes stack *)
 val newest_scope_ind_def = Define `
@@ -2036,6 +2048,7 @@ ctx g_scope_list scopes_stack ( e ) ~> ( e'' , frame_list )
 ctx g_scope_list scopes_stack ( e binop e' ) ~> ( e'' binop e' , frame_list )
 
 %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
+~is_short_circuit ( v binop e )
 ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: binop_arg2
 ctx g_scope_list scopes_stack ( v binop e ) ~> ( v binop e' , frame_list )
@@ -2224,7 +2237,7 @@ ctx g_scope_list scopes_stack ( false AND e ) ~> ( false , empty )
 
 
 ----------------------------------- :: bin_and2
-ctx g_scope_list scopes_stack ( true AND e ) ~> ( b , empty )
+ctx g_scope_list scopes_stack ( true AND e ) ~> ( e , empty )
 
 %%%%%%%%%%%%%
 %Binary or
@@ -2235,7 +2248,7 @@ ctx g_scope_list scopes_stack ( true OR e ) ~> ( true , empty )
 
 
 ----------------------------------- :: bin_or2
-ctx g_scope_list scopes_stack ( false OR e ) ~> ( b , empty )
+ctx g_scope_list scopes_stack ( false OR e ) ~> ( e , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
