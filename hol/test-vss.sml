@@ -18,26 +18,29 @@ open computeLib;
 (*****************************)
 (*   Architectural context   *)
 (*****************************)
-
 (**************)
 (*   Parser   *)
 
 (* start parser state *)
 (* p.ethernet *)
-val e_eth = ``e_acc (e_var "p") (e_v (v_str "ethernet"))``;
-val stmt_start_extract = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "extract" [(^e_eth)])``;
+val e_eth = ``e_acc (e_var (varn_name "p")) (e_v (v_str "ethernet"))``;
+val stmt_start_extract =
+ ``stmt_ass lval_null (e_call (funn_ext "packet_in" "extract") [(e_var (varn_name "b")); (^e_eth)])``;
 (* p.ethernet.etherType *)
-val e_eth_ty = ``(e_acc (e_acc (e_var "p") (e_v (v_str "ethernet"))) (e_v (v_str "etherType")))``;
+val e_eth_ty =
+ ``(e_acc (e_acc (e_var (varn_name "p")) (e_v (v_str "ethernet"))) (e_v (v_str "etherType")))``;
 (* 0x0800 *)
 val ether_ty_ok = mk_v_bitii (2048, 16);
-val stmt_start_trans = ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
+val stmt_start_trans =
+ ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
 
-val start_body = mk_stmt_seq_list [stmt_start_extract, stmt_start_trans];
+val start_body = mk_stmt_block $ mk_stmt_seq_list [stmt_start_extract, stmt_start_trans];
 
 
 (* parse_ipv4 parser state *)
-val e_ip = ``e_acc (e_var "p") (e_v (v_str "ip"))``; (* p.ip *)
-val stmt_parse_ipv4_extract = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "extract" [(^e_ip)])``;
+val e_ip = ``e_acc (e_var (varn_name "p")) (e_v (v_str "ip"))``; (* p.ip *)
+val stmt_parse_ipv4_extract =
+ ``stmt_ass lval_null (e_call (funn_ext "packet_in" "extract") [(e_var (varn_name "b")); (^e_ip)])``;
 
 val e_ip_v = ``(e_acc (^e_ip) (e_v (v_str "version")))``; (* p.ip.version *)
 val ip_v0_ok = mk_v_bitii (4, 4); (* Correct IP version number: 4w4 *)
@@ -53,110 +56,134 @@ val e_ip_ihl_eq_4w5 = ``e_binop (^e_ip_ihl) binop_eq (^e_4w5)``; (* p.ip.ihl == 
 val e_err_options = ``e_v (v_err "IPv4OptionsNotSupported")``; (* error.IPv4OptionsNotSupported *)
 val stmt_parse_ipv4_verify2 = ``stmt_verify (^e_ip_ihl_eq_4w5) (^e_err_options)``;
 
-val stmt_parse_ipv4_clear = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "clear" [])``;
+val e_ck = mk_e_var_name "ck";
+val stmt_parse_ipv4_clear =
+ ``stmt_ass lval_null (e_call (funn_ext "Checksum16" "clear") [(^e_ck)])``;
 
-val stmt_parse_ipv4_update = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "update" [(^e_ip)])``;
+val stmt_parse_ipv4_update =
+ ``stmt_ass lval_null (e_call (funn_ext "Checksum16" "update") [(^e_ck); (^e_ip)])``;
 
 val ck_ok = mk_v_bitii (0, 16); (* 16w0 *)
 val e_16w0 = mk_e_v ck_ok; (* 16w0 (as expression) *)
-val e_ck_eq_16w0 = ``e_binop (e_ext_call (lval_varname "ck") "get" []) binop_eq (^e_16w0)``; (* ck.get() == 16w0 *)
+val e_ck_eq_16w0 = ``e_binop (e_call (funn_ext "Checksum16" "get") [(^e_ck)]) binop_eq (^e_16w0)``; (* ck.get() == 16w0 *)
 val e_err_checksum = ``e_v (v_err "IPv4ChecksumError")``; (* error.IPv4ChecksumError *)
 val stmt_parse_ipv4_verify3 = ``stmt_verify (^e_ck_eq_16w0) (^e_err_checksum)``;
 
 val stmt_parse_ipv4_trans = ``stmt_trans (e_v (v_str "accept"))``;
 
 val parse_ipv4_body =
-  mk_stmt_seq_list [stmt_parse_ipv4_extract,
-                    stmt_parse_ipv4_verify1,
-                    stmt_parse_ipv4_verify2,
-                    stmt_parse_ipv4_clear,
-                    stmt_parse_ipv4_update,
-                    stmt_parse_ipv4_verify3,
-                    stmt_parse_ipv4_trans];
+ mk_stmt_block $ 
+ mk_stmt_seq_list [stmt_parse_ipv4_extract,
+		   stmt_parse_ipv4_verify1,
+		   stmt_parse_ipv4_verify2,
+		   stmt_parse_ipv4_clear,
+		   stmt_parse_ipv4_update,
+		   stmt_parse_ipv4_verify3,
+		   stmt_parse_ipv4_trans];
 
 val vss_parser_pmap = ``FEMPTY |+ ("start", (^start_body))
                                |+ ("parse_ipv4", (^parse_ipv4_body))``;
 
-val vss_parser_decls = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "construct" [])``
+val vss_parser_decls =
+ ``stmt_declare t_ext "ck" (SOME (e_call (funn_inst "Checksum16") []))``;
 
-val vss_parser_pbl = ``pblock_parser [("b", d_none); ("p", d_out)] (^vss_parser_decls) (^vss_parser_pmap)``;
+val vss_parser_pbl =
+ ``pblock_parser [("b", d_none); ("p", d_out)] (^vss_parser_decls) (^vss_parser_pmap)``;
 
-val vss_parser_ab = ``arch_block_pbl "parser" [e_var "b"; e_var "parsedHeaders"]``;
+val vss_parser_ab =
+ ``arch_block_pbl "parser" [e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``;
 
 
 (************)
 (*   Pipe   *)
 
-val ipv4_match_table = ``("ipv4_match", (e_acc (e_acc (e_var "headers") (e_v (v_str "ip"))) (e_v (v_str "dstAddr")), mk_lpm))``;
-val check_ttl_table = ``("check_ttl", (e_acc (e_acc (e_var "headers") (e_v (v_str "ip"))) (e_v (v_str "ttl")), mk_exact))``;
-val dmac_table = ``("dmac", (e_var "nextHop", mk_exact))``;
-val smac_table = ``("smac", (e_acc (e_var "outCtrl") (e_var "outputPort"), mk_exact))``;
+val ipv4_match_table =
+ ``("ipv4_match", (e_acc (e_acc (e_var (varn_name "headers")) (e_v (v_str "ip"))) (e_v (v_str "dstAddr")), mk_lpm))``;
+val check_ttl_table =
+ ``("check_ttl", (e_acc (e_acc (e_var (varn_name "headers")) (e_v (v_str "ip"))) (e_v (v_str "ttl")), mk_exact))``;
+val dmac_table = ``("dmac", (e_var (varn_name "nextHop"), mk_exact))``;
+val smac_table =
+ ``("smac", (e_acc (e_var (varn_name "outCtrl")) (e_var (varn_name "outputPort")), mk_exact))``;
 val vss_pipe_tblmap = ``FEMPTY |+ (^ipv4_match_table)
                                |+ (^check_ttl_table)
                                |+ (^dmac_table)
                                |+ (^smac_table)``;
+
 (* Body *)
-val e_parseerror_cond = mk_e_binop (``(e_var "parseError")``, binop_neq_tm, ``(e_v (v_err "NoError"))``);
-val stmt_parseerror_then = mk_stmt_seq (mk_stmt_ass (lval_null_tm, mk_e_func_call (``"Drop_action"``, ``[]:e list``)) , mk_stmt_ret ``e_v v_bot``);
+val e_parseerror_cond =
+ mk_e_binop (``(e_var (varn_name "parseError"))``, binop_neq_tm, ``(e_v (v_err "NoError"))``);
+val stmt_parseerror_then =
+ mk_stmt_seq (mk_stmt_ass (lval_null_tm, mk_e_call (``funn_name "Drop_action"``, ``[]:e list``)) , mk_stmt_ret ``e_v v_bot``);
 
 val stmt_parseerror = mk_stmt_cond (e_parseerror_cond, stmt_parseerror_then, stmt_empty_tm);
 
-val e_ipv4_match_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var "DROP_PORT");
-val stmt_ipv4_match = mk_stmt_seq (mk_stmt_app (``"ipv4_match"``, ``e_v v_bot``), mk_stmt_cond (e_ipv4_match_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
+val e_ipv4_match_cond =
+ mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var_name "DROP_PORT");
+val stmt_ipv4_match =
+ mk_stmt_seq (mk_stmt_app (``"ipv4_match"``, ``e_v v_bot``), mk_stmt_cond (e_ipv4_match_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
-val e_check_ttl_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var "CPU_OUT_PORT");
-val check_ttl_match = mk_stmt_seq (mk_stmt_app (``"check_ttl"``, ``e_acc (e_acc (e_var "headers") (e_v (v_str "ip"))) (e_v (v_str "ttl"))``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
+val e_check_ttl_cond =
+ mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var_name "CPU_OUT_PORT");
+val check_ttl_match =
+ mk_stmt_seq (mk_stmt_app (``"check_ttl"``, ``e_acc (e_acc (e_var (varn_name "headers")) (e_v (v_str "ip"))) (e_v (v_str "ttl"))``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
-val e_dmac_cond = mk_e_binop (``(e_acc (e_var "outCtrl") (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var "DROP_PORT");
-val dmac_match = mk_stmt_seq (mk_stmt_app (``"dmac"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
+val e_dmac_cond =
+ mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var_name "DROP_PORT");
+val dmac_match =
+ mk_stmt_seq (mk_stmt_app (``"dmac"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
 val smac_match = mk_stmt_app (``"smac"``, ``e_v v_bot``);
 
 val vss_pipe_body =
-  mk_stmt_seq_list [stmt_parseerror,
-                    stmt_ipv4_match,
-                    check_ttl_match,
-                    dmac_match,
-                    smac_match];
+ mk_stmt_block $ 
+ mk_stmt_seq_list [stmt_parseerror,
+		   stmt_ipv4_match,
+		   check_ttl_match,
+		   dmac_match,
+		   smac_match];
 
-val vss_pipe_decls = ``stmt_declare "nextHop" (t_base bt_bit)``;
+val vss_pipe_decls = ``stmt_declare (t_base bt_bit) "nextHop" NONE``;
 
 val vss_pipe_pbl = ``pblock_control [("headers", d_inout); ("parseError", d_in); ("inCtrl", d_in); ("outCtrl", d_out)] (^vss_pipe_decls) (^vss_pipe_body) (^vss_pipe_tblmap)``;
 
-val vss_pipe_ab = ``arch_block_pbl "pipe" [e_var "headers"; e_var "parseError"; e_var "inCtrl"; e_var "outCtrl"]``;
+val vss_pipe_ab = ``arch_block_pbl "pipe" [e_var (varn_name "headers"); e_var (varn_name "parseError"); e_var (varn_name "inCtrl"); e_var (varn_name "outCtrl")]``;
 
 
 (****************)
 (*   Deparser   *)
 
-val stmt_deparser_emit = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "emit" [(^e_eth)])``;
+val stmt_deparser_emit =
+ ``stmt_ass lval_null (e_call (funn_ext "packet_out" "emit") [e_var (varn_name "b"); (^e_eth)])``;
 
 (* p.ip.hdrChecksum *)
 val lval_ip_ck = mk_lval_field (mk_lval_field (mk_lval_varname "p", "ip"), "hdrChecksum");
 val lval_p_ip = mk_lval_field (mk_lval_varname "p", "ip");
-val e_p_ip = mk_e_acc (mk_e_var "p", mk_e_v $ mk_v_str "ip");
+val e_p_ip = mk_e_acc (mk_e_var_name "p", mk_e_v $ mk_v_str "ip");
 
-val stmt_deparser_cond = ``stmt_cond (e_ext_call (^lval_p_ip) "isValid" [])
-                                     (^(mk_stmt_seq_list [(mk_stmt_ass (lval_null_tm, mk_e_ext_call_list (mk_lval_varname "ck", "clear", ([]:term list)))),
-                                                          mk_stmt_ass (lval_ip_ck, mk_e_v $ mk_v_bitii (0, 16)),
-                                                          mk_stmt_ass (lval_null_tm, mk_e_ext_call_list (mk_lval_varname "ck", "update", ([e_ip]:term list))),
-                                                          mk_stmt_ass (lval_ip_ck, mk_e_ext_call_list (mk_lval_varname "ck", "get", ([]:term list)))]))
-                                     stmt_empty``;
+val stmt_deparser_cond =
+ ``stmt_cond (e_call (funn_ext "header" "isValid") [(^e_p_ip)])
+	     (^(mk_stmt_seq_list [(mk_stmt_ass (lval_null_tm, mk_e_ext_call_list ("Checksum16", "clear", ([e_ck]:term list)))),
+				  mk_stmt_ass (lval_ip_ck, mk_e_v $ mk_v_bitii (0, 16)),
+				  mk_stmt_ass (lval_null_tm, mk_e_ext_call_list ("Checksum16", "update", ([e_ck, e_ip]:term list))),
+				  mk_stmt_ass (lval_ip_ck, mk_e_ext_call_list ("Checksum16", "get", ([e_ck]:term list)))]))
+				  stmt_empty``;
 
-val stmt_deparser_emit2 = ``stmt_ass lval_null (e_ext_call (lval_varname "b") "emit" [(^e_ip)])``;
+val stmt_deparser_emit2 = ``stmt_ass lval_null (e_call (funn_ext "packet_out" "emit") [e_var (varn_name "b"); (^e_ip)])``;
 
 (* TODO: Is this table map correct? *)
 val vss_deparser_tblmap = ``FEMPTY:tbl_map``;
 val vss_deparser_body =
-  mk_stmt_seq_list [stmt_deparser_emit,
-                    stmt_deparser_cond,
-                    stmt_deparser_emit2];
+ mk_stmt_block $ 
+ mk_stmt_seq_list [stmt_deparser_emit,
+		   stmt_deparser_cond,
+		   stmt_deparser_emit2];
 
-val vss_deparser_decls = ``stmt_ass lval_null (e_ext_call (lval_varname "ck") "construct" [])``;
+val vss_deparser_decls =
+ ``stmt_declare t_ext "ck" (SOME (e_call (funn_inst "Checksum16") []))``;
 
 val vss_deparser_pbl = ``pblock_control [("p", d_inout); ("b", d_none)] (^vss_deparser_decls) (^vss_deparser_body) (^vss_deparser_tblmap)``;
 
-val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var "outputHeaders"; e_var "b"]``;
+val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeaders"); e_var (varn_name "b")]``;
 
 
 (**********************)
@@ -179,18 +206,18 @@ val vss_pblock_map = ``FEMPTY |+ ("parser", (^vss_parser_pbl))
 val vss_ty_map = ``FEMPTY:ty_map``;
 
 val e_outport = mk_lval_field (mk_lval_varname "outCtrl", "outputPort");
-val drop_action_fun = ``("Drop_action", stmt_ass (^e_outport) (e_var "DROP_PORT"), []:(string # d) list)``;
+val drop_action_fun = ``("Drop_action", stmt_ass (^e_outport) (e_var (varn_name "DROP_PORT")), []:(string # d) list)``;
 val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ip"), "ttl");
-val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var "headers", mk_e_v $ mk_v_str "ip"), mk_e_v $ mk_v_str "ttl");
-val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var "ipv4_dest")),
+val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var_name "headers", mk_e_v $ mk_v_str "ip"), mk_e_v $ mk_v_str "ttl");
+val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var_name "ipv4_dest")),
                                                        (mk_stmt_ass (lval_headers_ip_ttl, mk_e_binop (e_headers_ip_ttl, binop_sub_tm, mk_e_v (mk_v_bitii (1, 8))))),
                                                        
-                                                       (mk_stmt_ass (mk_lval_field (mk_lval_varname "outCtrl", "outputPort"), mk_e_var "port"))])), [("ipv4_dest", d_none); ("port", d_none)]:(string # d) list)``;
-val send_to_cpu_fun = ``("Send_to_cpu", stmt_ass (^e_outport) (e_var "CPU_OUT_PORT"), []:(string # d) list)``;
+                                                       (mk_stmt_ass (mk_lval_field (mk_lval_varname "outCtrl", "outputPort"), mk_e_var_name "port"))])), [("ipv4_dest", d_none); ("port", d_none)]:(string # d) list)``;
+val send_to_cpu_fun = ``("Send_to_cpu", stmt_ass (^e_outport) (e_var (varn_name "CPU_OUT_PORT")), []:(string # d) list)``;
 val lval_ethdst = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "dstAddr");
-val set_dmac_fun = ``("Set_dmac", stmt_ass (^lval_ethdst) (e_var "dmac"), [("dmac", d_none)]:(string # d) list)``;
+val set_dmac_fun = ``("Set_dmac", stmt_ass (^lval_ethdst) (e_var (varn_name "dmac")), [("dmac", d_none)]:(string # d) list)``;
 val lval_ethsrc = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "srcAddr");
-val set_smac_fun = ``("Set_smac", stmt_ass (^lval_ethsrc) (e_var "smac"), [("smac", d_none)]:(string # d) list)``;
+val set_smac_fun = ``("Set_smac", stmt_ass (^lval_ethsrc) (e_var (varn_name "smac")), [("smac", d_none)]:(string # d) list)``;
 val vss_func_map =
  ``(^core_func_map) |+ (^drop_action_fun)
                     |+ (^set_nhop_fun)
@@ -221,8 +248,6 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 (*********************)
 (*   Initial state   *)
 (*********************)
-
-val init_stmt_ok = ``arch_stmt_regular stmt_empty``;
 
 (* OK input at port 1 *)
 val init_inlist_ok = mk_list ([pairSyntax.mk_pair (input_ok, input_port_ok)], ``:in_out``);
@@ -255,14 +280,14 @@ val parsed_packet_struct_uninit =
 
 
 (* All variables used at architectural level need to be declared *)
-val init_scope_ok = ``(FEMPTY |+ ("inCtrl", (v_struct [("inputPort", v_bit ([ARB; ARB; ARB; ARB],4))], NONE))
-                              |+ ("outCtrl", (v_struct [("outputPort", v_bit ([ARB; ARB; ARB; ARB],4))], NONE))
-                              |+ ("b", (v_ext (ext_obj_in []), NONE))
-                              |+ ("data_crc", (v_ext (ext_obj_out []), NONE))
-                              |+ ("parsedHeaders", ((^parsed_packet_struct_uninit), NONE))
-                              |+ ("headers", ((^parsed_packet_struct_uninit), NONE))
-                              |+ ("outputHeaders", ((^parsed_packet_struct_uninit), NONE))
-                              |+ ("parseError", (v_err "NoError", NONE))):scope``;
+val init_scope_ok = ``(FEMPTY |+ (varn_name "inCtrl", (v_struct [("inputPort", v_bit ([ARB; ARB; ARB; ARB],4))], NONE))
+                              |+ (varn_name "outCtrl", (v_struct [("outputPort", v_bit ([ARB; ARB; ARB; ARB],4))], NONE))
+                              |+ (varn_name "b", (v_ext (ext_obj_in []), NONE))
+                              |+ (varn_name "data_crc", (v_ext (ext_obj_out []), NONE))
+                              |+ (varn_name "parsedHeaders", ((^parsed_packet_struct_uninit), NONE))
+                              |+ (varn_name "headers", ((^parsed_packet_struct_uninit), NONE))
+                              |+ (varn_name "outputHeaders", ((^parsed_packet_struct_uninit), NONE))
+                              |+ (varn_name "parseError", (v_err "NoError", NONE))):scope``;
 
 (* Architectural block index is 0,
  * programmable block in-progress flag set to false,
@@ -300,25 +325,21 @@ val ctrl =
               [e_v (v_bit (w2v (2525w:word48),48))])
    else NONE``;
 
-val init_stacks =
-  pairSyntax.mk_pair (listSyntax.mk_list ([vss_init_global_scope], scope_ty),
-                      ``[]:call_stack``);
-
-val init_astate = pairSyntax.list_mk_pair [init_aenv, ctrl, init_stacks, status_running_tm];
+val init_astate =
+ pairSyntax.list_mk_pair [init_aenv,
+                          listSyntax.mk_list ([vss_init_global_scope], scope_ty),
+                          arch_frame_list_empty_tm, ctrl, status_running_tm];
 
 (*******************************************)
 (*   Architecture-level semantics tests    *)
 
-(* Only input function: *)
-EVAL ``vss_input_f ((^init_inlist_ok), (^init_scope_ok))``;
-
-(* Only single reduction: *)
-EVAL ``arch_exec ((^vss_actx):actx) (^init_stmt_ok) (^init_astate)``;
+(* Single reduction: *)
+EVAL ``arch_exec ((^vss_actx):actx) (^init_astate)``;
 
 (* Multiple reductions: *)
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
-(* Currently ends at 131 steps for TTL=1 in input *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_stmt_ok) (^init_astate) 131``;
+(* In V1, this ended at 131 steps for TTL=1 in input *)
+el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 71``;
 
 (* TODO: Fix up the below and add to CI *)
 (*

@@ -40,10 +40,14 @@ val vss_output_f = ``vss_output_f``;
 val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runtime [])
                                |+ ("pre_deparser", ffblock_ff vss_pre_deparser [])``;
 
-val vss_ext_map = ``(^core_ext_map)
-                    |+ ("construct", (construct, [("this", d_inout)]))
-                    |+ ("clear", (clear, [("this", d_inout)]))
-                    |+ ("update", (update, [("this", d_inout); ("data", d_in)]))
-                    |+ ("get", (get, [("this", d_inout)]))``;
+val vss_Checksum16_map =
+ ``(FEMPTY
+    |+ ("clear", (stmt_seq (stmt_ext Checksum16_clear) (stmt_ret (e_v v_bot)), [("this", d_inout)]))
+    |+ ("update", (stmt_seq (stmt_ext Checksum16_update) (stmt_ret (e_v v_bot)), [("this", d_inout); ("data", d_in)]))
+    |+ ("get", (stmt_seq (stmt_ext Checksum16_get) (stmt_ret (e_var varn_ext_ret)), [("this", d_inout)]))):ext_fun_map``;
+
+val vss_ext_map =
+ ``((^core_ext_map)
+    |+ ("Checksum16", SOME (stmt_seq (stmt_ext Checksum16_construct) (stmt_ret (e_var varn_ext_ret)), []), (^vss_Checksum16_map))):ext_map``;
 
 end
