@@ -1017,7 +1017,7 @@ EXISTS_TAC `` [("y",d_out)]`` >>
 EXISTS_TAC ``stmt_empty`` >>
 EXISTS_TAC ``(v_bit ([F; F],2))`` >>
 EXISTS_TAC ``stmt_ret (e_v (v_bit ([F; F],2)))`` >>
-EXISTS_TAC ``[FEMPTY;FEMPTY]: g_scope_list`` >>
+(*EXISTS_TAC ``[FEMPTY;FEMPTY]: g_scope_list`` >>*)
 STMT_SIMP >>
 ASSUME_TAC (finite_mapLib.fupdate_NORMALISE_CONV
 ``FEMPTY |+ ("y",v_bit ([T],1),NONE) |+ ("x",v_bit ([F],1),NONE) |+
@@ -1055,7 +1055,7 @@ EXISTS_TAC `` [("y",d_in)]`` >>
 EXISTS_TAC ``stmt_empty`` >>
 EXISTS_TAC ``(v_bit ([F; F],2))`` >>
 EXISTS_TAC ``stmt_empty`` >>
-EXISTS_TAC ``[FEMPTY;FEMPTY]: g_scope_list`` >>
+(*EXISTS_TAC ``[FEMPTY;FEMPTY]: g_scope_list`` >>*)
 
 STMT_SIMP >>
 ASSUME_TAC (finite_mapLib.fupdate_NORMALISE_CONV
