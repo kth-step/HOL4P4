@@ -17,6 +17,15 @@ fun list_of_quintuple (a, b, c, d, e) = [a, b, c, d, e];
 fun mk_quinop tm = HolKernel.list_mk_icomb tm o list_of_quintuple;
 val syntax_fns5 = HolKernel.syntax_fns {n = 5, dest = dest_quinop, make = mk_quinop};
 
+fun dest_sextop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5, t6]) =>
+         if same_const t c then (t1, t2, t3, t4, t5, t6) else raise e
+    | _ => raise e;
+fun list_of_sextuple (a, b, c, d, e, f) = [a, b, c, d, e, f];
+fun mk_sextop tm = HolKernel.list_mk_icomb tm o list_of_sextuple;
+val syntax_fns6 = HolKernel.syntax_fns {n = 6, dest = dest_sextop, make = mk_sextop};
+
 fun dest_septop c e tm =
    case with_exn strip_comb tm e of
       (t, [t1, t2, t3, t4, t5, t6, t7]) =>
@@ -40,6 +49,20 @@ open ottTheory;
 val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
   syntax_fns1 "ott" "clause_name";
 
+(********)
+(* varn *)
+(********)
+
+val varn_ty = mk_type ("varn", []);
+
+val (varn_name_tm,  mk_varn_name, dest_varn_name, is_varn_name) =
+  syntax_fns1 "p4" "varn_name";
+
+val varn_star_tm = prim_mk_const {Name="varn_star", Thy="p4"};
+fun is_varn_star tm = term_eq tm varn_star_tm;
+
+val varn_ext_ret_tm = prim_mk_const {Name="varn_ext_ret", Thy="p4"};
+fun is_varn_ext_ret tm = term_eq tm varn_ext_ret_tm;
 
 (*****)
 (* v *)
@@ -84,7 +107,7 @@ val lval_ty = mk_type ("lval", []);
 
 val (lval_varname_tm, _, dest_lval_varname, is_lval_varname) =
   syntax_fns1 "p4" "lval_varname";
-val mk_lval_varname = (#2 (syntax_fns1 "p4" "lval_varname")) o fromMLstring;
+val mk_lval_varname = (#2 (syntax_fns1 "p4" "lval_varname")) o mk_varn_name o fromMLstring;
 
 val (lval_field_tm, _, dest_lval_field, is_lval_field) =
   syntax_fns2 "p4" "lval_field";
@@ -93,6 +116,22 @@ val mk_lval_field = (fn (e, f) => (#2 (syntax_fns2 "p4" "lval_field")) (e, fromM
 val lval_null_tm = prim_mk_const {Name="lval_null", Thy="p4"};
 fun is_lval_null tm = term_eq tm lval_null_tm;
 
+(********)
+(* funn *)
+(********)
+
+val (funn_name_tm, _, dest_funn_name, is_funn_name) =
+  syntax_fns1 "p4" "funn_name";
+val mk_funn_name = (#2 (syntax_fns1 "p4" "funn_name")) o fromMLstring;
+
+val (funn_inst_tm, _, dest_funn_inst, is_funn_inst) =
+  syntax_fns1 "p4" "funn_inst";
+val mk_funn_inst = (#2 (syntax_fns1 "p4" "funn_inst")) o fromMLstring;
+
+val (funn_ext_tm, _, dest_funn_ext, is_funn_ext) =
+  syntax_fns2 "p4" "funn_ext";
+val mk_funn_ext =
+(#2 (syntax_fns2 "p4" "funn_ext")) o (fn (objname, metname) => (fromMLstring objname, fromMLstring metname));
 
 (*****)
 (* e *)
@@ -100,9 +139,9 @@ fun is_lval_null tm = term_eq tm lval_null_tm;
 
 val e_ty = mk_type ("e", []);
 
-val (e_var_tm,  _, dest_e_var, is_e_var) =
+val (e_var_tm,  mk_e_var, dest_e_var, is_e_var) =
   syntax_fns1 "p4" "e_var";
-val mk_e_var = (#2 (syntax_fns1 "p4" "e_var")) o fromMLstring;
+val mk_e_var_name = (#2 (syntax_fns1 "p4" "e_var")) o mk_varn_name o fromMLstring;
 
 val (e_unop_tm,  mk_e_unop, dest_e_unop, is_e_unop) =
   syntax_fns2 "p4" "e_unop";
@@ -142,6 +181,10 @@ val (e_acc_tm, mk_e_acc, dest_e_acc, is_e_acc) =
 val (e_call_tm, mk_e_call, dest_e_call, is_e_call) =
   syntax_fns2 "p4" "e_call";
 
+val mk_e_ext_call_list =
+  (fn (objname, metname, l) =>
+   (#2 (syntax_fns2 "p4" "e_call")) (mk_funn_ext (objname, metname),
+                                     listSyntax.mk_list (l, e_ty)));
 
 (********)
 (* stmt *)
@@ -155,6 +198,8 @@ val (stmt_seq_tm, mk_stmt_seq, dest_stmt_seq, is_stmt_seq) =
   syntax_fns2 "p4"  "stmt_seq";
 val (stmt_cond_tm, mk_stmt_cond, dest_stmt_cond, is_stmt_cond) =
   syntax_fns3 "p4"  "stmt_cond";
+val (stmt_block_tm, mk_stmt_block, dest_stmt_block, is_stmt_block) =
+  syntax_fns1 "p4"  "stmt_block";
 val (stmt_ret_tm, mk_stmt_ret, dest_stmt_ret, is_stmt_ret) =
   syntax_fns1 "p4"  "stmt_ret";
 val (stmt_app_tm, mk_stmt_app, dest_stmt_app, is_stmt_app) =
@@ -174,7 +219,9 @@ val d_ty = mk_type ("d", []);
 (* State *)
 (*********)
 
-val scope_ty = mk_fmap_ty (string_ty, mk_prod (v_ty, mk_option lval_ty));
+val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy="p4"};
+
+val scope_ty = mk_fmap_ty (varn_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 
@@ -183,7 +230,7 @@ val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 (**************)
 
 val (e_red_tm,  mk_e_red, dest_e_red, is_e_red) =
-  syntax_fns8 "p4" "e_red";
+  syntax_fns6 "p4" "e_red";
 
 val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
   syntax_fns3 "p4" "stmt_red";

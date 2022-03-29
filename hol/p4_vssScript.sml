@@ -15,34 +15,24 @@ val _ = new_theory "p4_vss";
 (*************)
 (* construct *)
 
-(* TODO: Use ARB instead of 0w? *)
-Definition ck_construct:
- (ck_construct (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
-  case e_l of
-  | [] =>
-   (case ext_obj_name of
-    | lval_varname x =>
-     (let frame' = (LUPDATE (FUPDATE (HD (REVERSE frame)) (x, (v_ext (ext_obj_ck 0w), NONE))) (LENGTH frame - 1) frame) in
-      SOME (v_bot, (ctrl, (frame', call_stack), status))
-     )
-    | _ => NONE
-   )
-  | _ => NONE
+Definition Checksum16_construct:
+ (Checksum16_construct (g_scope_list, scopes_stack, ctrl:ctrl) =
+  (let scopes_stack' = initialise (g_scope_list++scopes_stack) varn_ext_ret (v_ext (ext_obj_ck ARB)) in
+   SOME (TAKE 2 scopes_stack', DROP 2 scopes_stack', ctrl)
+  )
  )
 End
-   
+
+
 (*********)
 (* clear *)
 
-Definition ck_clear:
- (ck_clear (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
-  case e_l of
-  | [] =>
-   (case assign frame (v_ext (ext_obj_ck 0w)) ext_obj_name of
-    | SOME frame' =>
-     SOME (v_bot, (ctrl, (frame', call_stack), status))
+Definition Checksum16_clear:
+ (Checksum16_clear (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+   (case assign scopes_stack (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
+    | SOME scopes_stack' =>
+     SOME (g_scope_list, scopes_stack', ctrl)
     | NONE => NONE)
-  | _ => NONE
  )
 End
 
@@ -51,9 +41,9 @@ End
 (* update *)
 
 Definition lookup_ipv4_checksum:
- (lookup_ipv4_checksum frame ext_obj_name =
-  case lookup_lval frame ext_obj_name of
-  | (v_ext (ext_obj_ck ipv4_checksum)) => SOME ipv4_checksum
+ (lookup_ipv4_checksum ss ext_obj_name =
+  case lookup_lval ss ext_obj_name of
+  | SOME (v_ext (ext_obj_ck ipv4_checksum)) => SOME ipv4_checksum
   | _ => NONE
  )
 End
@@ -92,12 +82,10 @@ Definition v2w16s:
 End
 
 Definition get_checksum_incr:
- (get_checksum_incr e_l =
-  case e_l of
-  | [e_v v] =>
-   (case v of
-    | (v_bit (bl, n)) => if n = 16 then SOME ((v2w bl):word16) else NONE
-    | (v_header vbit h_list) =>
+ (get_checksum_incr ss ext_data_name =
+   (case lookup_lval ss ext_data_name of
+    | SOME (v_bit (bl, n)) => if n = 16 then SOME ((v2w bl):word16) else NONE
+    | SOME (v_header vbit h_list) =>
      (case header_entries2v h_list of
       | SOME bl =>
        (case v2w16s bl of
@@ -105,21 +93,20 @@ Definition get_checksum_incr:
 	| NONE => NONE)
       | NONE => NONE)
     | _ => NONE)
-  | _ => NONE
  )
 End
 
 (* Note that this assumes the order of fields in the header is correct *)
-(* TODO: Check for overflow, compensate according to IPv4 checksum algorithm  *)
-Definition ck_update:
- (ck_update (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
-  case lookup_ipv4_checksum frame ext_obj_name of
+(* TODO: Check for overflow, compensate according to IPv4 checksum algorithm *)
+Definition Checksum16_update:
+ (Checksum16_update (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+  case lookup_ipv4_checksum scopes_stack (lval_varname (varn_name "this")) of
   | SOME ipv4_checksum =>
-  (case get_checksum_incr e_l of
+  (case get_checksum_incr scopes_stack (lval_varname (varn_name "data")) of
    | SOME checksum_incr =>
-    (case assign frame (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) ext_obj_name of
-     | SOME frame' =>
-      SOME (v_bot, (ctrl, (frame', call_stack), status))
+    (case assign scopes_stack (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) (lval_varname (varn_name "this")) of
+     | SOME scopes_stack' =>
+      SOME (g_scope_list, scopes_stack', ctrl)
      | NONE => NONE)
    | NONE => NONE)
   | NONE => NONE
@@ -129,15 +116,13 @@ End
 (*******)
 (* get *)
 
-Definition ck_get:
- (ck_get (ext_obj_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
-   case e_l of
-   | [] =>
-    (case lookup_ipv4_checksum frame ext_obj_name of
-     | SOME ipv4_checksum =>
-        SOME (v_bit (fixwidth 16 (w2v ipv4_checksum), 16), (ctrl, (frame, call_stack), status))
-     | NONE => NONE)
-   | _ => NONE
+Definition Checksum16_get:
+ (Checksum16_get (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+  (case lookup_ipv4_checksum scopes_stack (lval_varname (varn_name "this")) of
+   | SOME ipv4_checksum =>
+    (let scopes_stack' = initialise scopes_stack varn_ext_ret (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) in
+      SOME (g_scope_list, scopes_stack', ctrl))
+   | NONE => NONE)
  )
 End
 
@@ -168,11 +153,11 @@ val vss_input_f_def = Define `
    | ((bl,p)::t) =>
     let header = TAKE 272 bl in
     let data_crc = REVERSE (DROP 272 (REVERSE bl)) in
-    (case assign [scope] (v_ext (ext_obj_in header)) (lval_varname "b") of
+    (case assign [scope] (v_ext (ext_obj_in header)) (lval_varname (varn_name "b")) of
      | SOME [scope'] =>
-      (case assign [scope'] (v_ext (ext_obj_out data_crc)) (lval_varname "data_crc") of
+      (case assign [scope'] (v_ext (ext_obj_out data_crc)) (lval_varname (varn_name "data_crc")) of
        | SOME [scope''] =>
-        (case assign [scope''] (v_bit (fixwidth 4 (n2v p), 4)) (lval_field (lval_varname "inCtrl") "inputPort") of
+        (case assign [scope''] (v_bit (fixwidth 4 (n2v p), 4)) (lval_field (lval_varname (varn_name "inCtrl")) "inputPort") of
          | SOME [scope'''] => SOME (t, scope''')
          | _ => NONE)
        | _ => NONE)
@@ -181,26 +166,26 @@ val vss_input_f_def = Define `
 `;
 
 val vss_parser_runtime_def = Define `
-  vss_parser_runtime ((e_l:e list), scope:scope, curr_stack_frame:curr_stack_frame) =
+  vss_parser_runtime ((e_l:e list), scope:scope) =
    case e_l of
    | [] =>
-    (case lookup_lval [scope] (lval_varname "parsedHeaders") of
-     | (v_struct hdrs) =>
-        (case assign [scope] (v_struct hdrs) (lval_varname "headers") of
-         | SOME [scope'] => SOME (scope', curr_stack_frame)
+    (case lookup_lval [scope] (lval_varname (varn_name "parsedHeaders")) of
+     | SOME (v_struct hdrs) =>
+        (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "headers")) of
+         | SOME [scope'] => SOME scope'
          | _ => NONE)
      | _ => NONE)
    | _ => NONE
 `;
 
 val vss_pre_deparser_def = Define `
-  vss_pre_deparser ((e_l:e list), scope:scope, curr_stack_frame:curr_stack_frame) =
+  vss_pre_deparser ((e_l:e list), scope:scope) =
    case e_l of
    | [] =>
-    (case lookup_lval [scope] (lval_varname "headers") of
-     | (v_struct hdrs) =>
-        (case assign [scope] (v_struct hdrs) (lval_varname "outputHeaders") of
-         | SOME [scope'] => SOME (scope', curr_stack_frame)
+    (case lookup_lval [scope] (lval_varname (varn_name "headers")) of
+     | SOME (v_struct hdrs) =>
+        (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "outputHeaders")) of
+         | SOME [scope'] => SOME scope'
          | _ => NONE)
      | _ => NONE)
    | _ => NONE
@@ -211,12 +196,12 @@ val vss_pre_deparser_def = Define `
 (* TODO: Outsource obtaining the output port to an external function? *)
 val vss_output_f_def = Define `
  vss_output_f (in_out_list:in_out_list, scope:scope) =
-  (case lookup_lval [scope] (lval_varname "b") of
-   | (v_ext (ext_obj_in headers)) =>
-    (case lookup_lval [scope] (lval_varname "data_crc") of
-     | (v_ext (ext_obj_out data_crc)) =>
-      (case lookup_lval [scope] (lval_varname "outCtrl") of
-       | (v_struct [(fldname, v_bit (bl, n))]) =>
+  (case lookup_lval [scope] (lval_varname (varn_name "b")) of
+   | SOME (v_ext (ext_obj_in headers)) =>
+    (case lookup_lval [scope] (lval_varname (varn_name "data_crc")) of
+     | SOME (v_ext (ext_obj_out data_crc)) =>
+      (case lookup_lval [scope] (lval_varname (varn_name "outCtrl")) of
+       | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
         SOME (in_out_list++[(headers++data_crc, v2n bl)], scope)
        | _ => NONE
       )

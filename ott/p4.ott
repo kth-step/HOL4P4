@@ -136,12 +136,14 @@ v :: v_ ::=
 | bot :: :: bot
   {{ com no value }}
 
-%A variable is either a function return placeholder ("star") or an actual variable name
+
 varn :: varn_ ::=
 | x :: :: name
   {{ com variable name }}
 | star :: :: star 
   {{ com function return placeholder }}
+| ext_ret :: :: ext_ret
+  {{ com extern return variable }}
 
 %TODO: Add array element
 %TODO: Add bitslice
@@ -374,9 +376,9 @@ binop {{ tex \oplus }} :: binop_ ::=
 funn :: funn_ ::=
 | f :: :: name
   {{ com function name }}
-| lval f :: :: inst
+| inst f :: :: inst
   {{ com extern object instantiation }}
-| lval f f' :: :: ext
+| f f' :: :: ext
   {{ com extern method call }}
 
 %TODO: Add casts
@@ -475,6 +477,9 @@ t {{ tex t }} :: t_ ::=
   {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 | header_t t1 , ... , tn :: :: header
   {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+%TODO: are all extern objects that are declared done so using constructors?
+| extt :: :: ext
+  {{ tex \mathrm{ext} }}
 
 %Fence between ctrl and e_list
 embed
@@ -525,7 +530,7 @@ stmt :: stmt_ ::=
 | decl t x init_opt :: :: declare
   %TODO: This should have a type name instead of a type t, which is then looked up in the type environment.
   {{ com declaration }}
-| begin stmt end :: :: block 
+| begin stmt end :: :: block
   {{ com block }}
   {{ tex \{ [[stmt]] \} }}
 | begin' stmt end' :: I :: block_ip
@@ -655,7 +660,7 @@ grammar
 %This maps extern object names to tuples of constructors and their respective function maps
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol (string |-> ((stmt # (string # d) list) # ext_fun_map)) }}
+{{ hol (string |-> (((stmt # (string # d) list) option) # ext_fun_map)) }}
 
 % TODO: Could be just a type abbreviation?
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
@@ -1513,8 +1518,7 @@ val v_of_e_def = Define `
 `;
 
 (* TODO: Rename to avoid confusion with "newest_scope" et.c. *)
-(* Finds the topmost scope where the variable x is mapped and its index, as a tuple.
- * Note that here, 0 is the topmost scope. *)
+(* Finds the topmost scope where the variable x is mapped and its index, as a tuple.*)
 val find_topmost_scope_def = Define `
   find_topmost_scope (ss:scope list) x =
     case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE ss) of
@@ -1621,7 +1625,7 @@ val unred_arg_index_def = Define `
 
 val get_lval_of_e_def = Define `
   (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
-  (get_lval_of_e (e_acc e (e_var (varn_name x))) =
+  (get_lval_of_e (e_acc e (e_v (v_str x))) =
    case get_lval_of_e e of
    | SOME lval => SOME (lval_field lval x)
    | NONE => NONE) /\
@@ -1688,33 +1692,32 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
  METIS_TAC [v1_size_mem]
 );
 
+(* TODO: Other cases *)
 val arb_from_t_def = Define `
   (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
-  (arb_from_t (t_base bt_bit) = (v_bit ARB))
+  (arb_from_t (t_base bt_bit) = (v_bit ARB)) /\
+  (arb_from_t t_ext = (v_ext ARB))
 `;
 
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
-  one_arg_val_for_newscope d e ss =
-   if is_d_out d
-   then
-     (case varname_of_e e of
-      | SOME varname =>
-          (case get_lval_of_e e of
-           | SOME lval =>
-             (case lookup_vexp ss varname of
-              | SOME v =>
-                if is_d_in d
-                then SOME (v, SOME lval)
-                else SOME (init_out_v v, SOME lval)
-              | NONE => NONE)
-           | NONE => NONE)
+ one_arg_val_for_newscope d e ss =
+  if is_d_out d
+  then
+   (case get_lval_of_e e of
+    | SOME lval =>
+     (case lookup_lval ss lval of
+      | SOME v =>
+       if is_d_in d
+       then SOME (v, SOME lval)
+       else SOME (init_out_v v, SOME lval)
       | NONE => NONE)
-   else
-     (case v_of_e e of
-      | SOME v => SOME (v, NONE)
-      | NONE => NONE)
+    | NONE => NONE)
+  else
+   (case v_of_e e of
+    | SOME v => SOME (v, NONE)
+    | NONE => NONE)
 `;
 
 val update_arg_for_newscope_def = Define `
@@ -1801,11 +1804,11 @@ val lookup_funn_sig_body_def = Define `
      (case FLOOKUP func_map x of
       | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
       | NONE => NONE)
-    | (funn_inst lval x) =>
+    | (funn_inst x) =>
      (case FLOOKUP ext_map x of
-      | SOME ((stmt, x_d_l), ext_fun_map) => SOME (stmt, x_d_l)
+      | SOME (SOME (stmt, x_d_l), _) => SOME (stmt, x_d_l)
       | _ => NONE)
-    | (funn_ext lval x x') =>
+    | (funn_ext x x') =>
      (case FLOOKUP ext_map x of
       | SOME (_, ext_fun_map) =>
        (case FLOOKUP ext_fun_map x' of
@@ -2217,22 +2220,22 @@ ctx g_scope_list scopes_stack ( bitv | bitv' ) ~> ( bitv'' , empty )
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_and1
-ctx g_scope_list scopes_stack ( false AND b ) ~> ( false , empty )
+ctx g_scope_list scopes_stack ( false AND e ) ~> ( false , empty )
 
 
 ----------------------------------- :: bin_and2
-ctx g_scope_list scopes_stack ( true AND b ) ~> ( b , empty )
+ctx g_scope_list scopes_stack ( true AND e ) ~> ( b , empty )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_or1
-ctx g_scope_list scopes_stack ( true OR b ) ~> ( true , empty )
+ctx g_scope_list scopes_stack ( true OR e ) ~> ( true , empty )
 
 
 ----------------------------------- :: bin_or2
-ctx g_scope_list scopes_stack ( false OR b ) ~> ( b , empty )
+ctx g_scope_list scopes_stack ( false OR e ) ~> ( b , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -2258,11 +2261,14 @@ by
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
-  scopes_stack'' = init_in_highest_scope ( scopes_stack' , v , star )
+  scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , star )
+  g_scope = scopes_stack'' [0]
+  g_scope' = scopes_stack'' [1]
+  scopes_stack''' = tl (tl scopes_stack'')
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , ext_map )
-  ( g_scope_list'' , scopes_stack''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack'' , scopes_stack )
+  ( g_scope_list' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ g_scope ; g_scope' ] , scopes_stack''' , scopes_stack )
   ----------------------------------- :: comp2
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( funn' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list'' , [ ( funn' , stmt' , scopes_stack''' ) ] ++ frame_list , ctrl , Running )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( funn' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list' , [ ( funn' , stmt' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
 
 
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
@@ -2508,6 +2514,7 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Architectural-level semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%TODO: Use varn, copyin, copyout in these rules also wherever applicatble
 
 defns
   arch_sem :: '' ::=
@@ -2615,7 +2622,7 @@ by
   g_scope_list' = [ g_scope'' ]'
   i' = i + 1
   ----------------------------------- :: control_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , [ ( f' , empty_stmt , scopes_stack ) ] , ctrl , Running ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl , Running ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list' , arch_frame_list_empty , ctrl , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
