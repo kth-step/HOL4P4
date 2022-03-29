@@ -206,18 +206,19 @@ val vss_pblock_map = ``FEMPTY |+ ("parser", (^vss_parser_pbl))
 val vss_ty_map = ``FEMPTY:ty_map``;
 
 val e_outport = mk_lval_field (mk_lval_varname "outCtrl", "outputPort");
-val drop_action_fun = ``("Drop_action", stmt_ass (^e_outport) (e_var (varn_name "DROP_PORT")), []:(string # d) list)``;
+val drop_action_fun = ``("Drop_action", stmt_seq (stmt_ass (^e_outport) (e_var (varn_name "DROP_PORT"))) (stmt_ret (e_v v_bot)), []:(string # d) list)``;
 val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ip"), "ttl");
 val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var_name "headers", mk_e_v $ mk_v_str "ip"), mk_e_v $ mk_v_str "ttl");
 val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var_name "ipv4_dest")),
                                                        (mk_stmt_ass (lval_headers_ip_ttl, mk_e_binop (e_headers_ip_ttl, binop_sub_tm, mk_e_v (mk_v_bitii (1, 8))))),
                                                        
-                                                       (mk_stmt_ass (mk_lval_field (mk_lval_varname "outCtrl", "outputPort"), mk_e_var_name "port"))])), [("ipv4_dest", d_none); ("port", d_none)]:(string # d) list)``;
-val send_to_cpu_fun = ``("Send_to_cpu", stmt_ass (^e_outport) (e_var (varn_name "CPU_OUT_PORT")), []:(string # d) list)``;
+                                                       (mk_stmt_ass (mk_lval_field (mk_lval_varname "outCtrl", "outputPort"), mk_e_var_name "port")), 
+                                                       mk_stmt_ret (mk_e_v v_bot_tm)])), [("ipv4_dest", d_none); ("port", d_none)]:(string # d) list)``;
+val send_to_cpu_fun = ``("Send_to_cpu", stmt_seq (stmt_ass (^e_outport) (e_var (varn_name "CPU_OUT_PORT"))) (stmt_ret (e_v v_bot)), []:(string # d) list)``;
 val lval_ethdst = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "dstAddr");
-val set_dmac_fun = ``("Set_dmac", stmt_ass (^lval_ethdst) (e_var (varn_name "dmac")), [("dmac", d_none)]:(string # d) list)``;
+val set_dmac_fun = ``("Set_dmac", stmt_seq (stmt_ass (^lval_ethdst) (e_var (varn_name "dmac"))) (stmt_ret (e_v v_bot)), [("dmac", d_none)]:(string # d) list)``;
 val lval_ethsrc = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ethernet"), "srcAddr");
-val set_smac_fun = ``("Set_smac", stmt_ass (^lval_ethsrc) (e_var (varn_name "smac")), [("smac", d_none)]:(string # d) list)``;
+val set_smac_fun = ``("Set_smac", stmt_seq (stmt_ass (^lval_ethsrc) (e_var (varn_name "smac"))) (stmt_ret (e_v v_bot)), [("smac", d_none)]:(string # d) list)``;
 val vss_func_map =
  ``(^core_func_map) |+ (^drop_action_fun)
                     |+ (^set_nhop_fun)
@@ -339,7 +340,8 @@ EVAL ``arch_exec ((^vss_actx):actx) (^init_astate)``;
 (* Multiple reductions: *)
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 71``;
+(* In V1, this ends at 219 steps for TTL=1 in input *)
+el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 219``;
 
 (* TODO: Fix up the below and add to CI *)
 (*
