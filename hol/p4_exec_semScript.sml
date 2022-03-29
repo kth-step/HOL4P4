@@ -457,7 +457,7 @@ Definition stmt_exec:
  (* Catch-all clauses for special statuses *)
  (stmt_exec (ctx:ctx) ((g_scope_list:g_scope_list, frame_list:frame_list, ctrl:ctrl, status_type_error):state) = NONE)
   /\
- (* No execution step begins with return status *)
+ (* No statement execution step begins with return status *)
  (stmt_exec _ (_, _, _, status_returnv v) = NONE)
   /\
  (* Empty frame list *)
@@ -496,11 +496,13 @@ Definition stmt_exec:
   if is_v e
   then
    (case stmt_exec_ass lval e (g_scope_list++scopes_stack) of
-    | SOME scopes_stack' => SOME (TAKE 2 scopes_stack', [(funn, stmt_empty, DROP 2 scopes_stack)], ctrl, status_running)
+    | SOME scopes_stack' =>
+     SOME (TAKE 2 scopes_stack', [(funn, stmt_empty, DROP 2 scopes_stack')], ctrl, status_running)
     | NONE => NONE)
   else
    (case e_exec ctx g_scope_list scopes_stack e of
-    | SOME (e', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_ass lval e', scopes_stack)], ctrl, status_running)
+    | SOME (e', frame_list) =>
+     SOME (g_scope_list, frame_list++[(funn, stmt_ass lval e', scopes_stack)], ctrl, status_running)
     | _ => NONE))
   /\
  (***********)
@@ -516,7 +518,8 @@ Definition stmt_exec:
      SOME (TAKE 2 scopes_stack', [(funn, stmt_empty, DROP 2 scopes_stack')], ctrl, status_running)
    else
     (case e_exec ctx g_scope_list scopes_stack init of
-     | SOME (init', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_declare t x (SOME init'), scopes_stack)], ctrl, status_running)
+     | SOME (init', frame_list) =>
+      SOME (g_scope_list, frame_list++[(funn, stmt_declare t x (SOME init'), scopes_stack)], ctrl, status_running)
      | _ => NONE)
   | NONE =>
    let
@@ -541,12 +544,14 @@ Definition stmt_exec:
      else NONE
     else
      (case e_exec ctx g_scope_list scopes_stack e2 of
-      | SOME (e2', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_verify e1 e2', scopes_stack)], ctrl, status_running)
+      | SOME (e2', frame_list) =>
+       SOME (g_scope_list, frame_list++[(funn, stmt_verify e1 e2', scopes_stack)], ctrl, status_running)
       | NONE => NONE)
     else NONE
   else
    (case e_exec ctx g_scope_list scopes_stack e1 of
-    | SOME (e1', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_verify e1' e2, scopes_stack)], ctrl, status_running)
+    | SOME (e1', frame_list) =>
+     SOME (g_scope_list, frame_list++[(funn, stmt_verify e1' e2, scopes_stack)], ctrl, status_running)
     | NONE => NONE))
   /\
  (**************)
@@ -562,7 +567,8 @@ Definition stmt_exec:
     else NONE
   else
    (case e_exec ctx g_scope_list scopes_stack e of
-    | SOME (e', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_trans e', scopes_stack)], ctrl, status_running)
+    | SOME (e', frame_list) =>
+     SOME (g_scope_list, frame_list++[(funn, stmt_trans e', scopes_stack)], ctrl, status_running)
     | NONE => NONE))
   /\
  (***************)
@@ -576,7 +582,8 @@ Definition stmt_exec:
     | NONE => NONE)
   else
    (case e_exec ctx g_scope_list scopes_stack e of
-    | SOME (e', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_cond e' stmt1 stmt2, scopes_stack)], ctrl, status_running)
+    | SOME (e', frame_list) =>
+     SOME (g_scope_list, frame_list++[(funn, stmt_cond e' stmt1 stmt2, scopes_stack)], ctrl, status_running)
     | NONE => NONE))
   /\
  (*********************)
@@ -587,12 +594,14 @@ Definition stmt_exec:
     (case FLOOKUP tbl_map t_name of
      | SOME (e_t, m_k) =>
       (case ctrl (t_name, v, m_k) of
-       | SOME (f, f_args) => SOME (g_scope_list, [(funn, stmt_ass lval_null (e_call (funn_name f) f_args), scopes_stack)], ctrl, status_running)
+       | SOME (f, f_args) =>
+        SOME (g_scope_list, [(funn, stmt_ass lval_null (e_call (funn_name f) f_args), scopes_stack)], ctrl, status_running)
        | NONE => NONE)
      | NONE => NONE)
    | NONE =>
     (case e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack e of
-     | SOME (e', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_app t_name e', scopes_stack)], ctrl, status_running)
+     | SOME (e', frame_list) =>
+      SOME (g_scope_list, frame_list++[(funn, stmt_app t_name e', scopes_stack)], ctrl, status_running)
      | NONE => NONE)))
   /\
  (**********)
@@ -602,14 +611,16 @@ Definition stmt_exec:
    | SOME v => SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_returnv v)
    | NONE => 
     (case e_exec ctx g_scope_list scopes_stack e of
-     | SOME (e', frame_list) => SOME (g_scope_list, frame_list++[(funn, stmt_ret e', scopes_stack)], ctrl, status_running)
+     | SOME (e', frame_list) =>
+      SOME (g_scope_list, frame_list++[(funn, stmt_ret e', scopes_stack)], ctrl, status_running)
      | NONE => NONE)))
   /\
  (**********)
  (* Extern *)
  (stmt_exec ctx (g_scope_list, [(funn, stmt_ext ext, scopes_stack)], ctrl, status_running) =
   (case ext (g_scope_list, scopes_stack, ctrl) of
-   | SOME (g_scope_list', scopes_stack', ctrl') => SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status_running)
+   | SOME (g_scope_list', scopes_stack', ctrl') =>
+    SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status_running)
    | NONE => NONE))
   /\
  (*********)
@@ -621,9 +632,12 @@ Definition stmt_exec:
  (* Block in-progress *)
  (stmt_exec ctx (g_scope_list, [(funn, stmt_block_ip stmt, scopes_stack)], ctrl, status_running) =
   (case stmt_exec ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_running) of
-   | SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status') => SOME (g_scope_list', [(funn, stmt_empty, TL scopes_stack')], ctrl', status')
-   | SOME (g_scope_list', [(funn, stmt', scopes_stack')], ctrl', status') => SOME (g_scope_list', [(funn, stmt_block_ip stmt', scopes_stack')], ctrl', status_running)
-   | SOME (g_scope_list', (frame::[(funn, stmt', scopes_stack')]), ctrl', status_running) => SOME (g_scope_list', (frame::[(funn, stmt_block_ip stmt', scopes_stack')]), ctrl', status_running)
+   | SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status') =>
+    SOME (g_scope_list', [(funn, stmt_empty, TL scopes_stack')], ctrl', status')
+   | SOME (g_scope_list', [(funn, stmt', scopes_stack')], ctrl', status') =>
+    SOME (g_scope_list', [(funn, stmt_block_ip stmt', scopes_stack')], ctrl', status_running)
+   | SOME (g_scope_list', (frame::[(funn, stmt', scopes_stack')]), ctrl', status_running) =>
+    SOME (g_scope_list', (frame::[(funn, stmt_block_ip stmt', scopes_stack')]), ctrl', status_running)
    | _ => NONE))
   /\
  (************)
@@ -634,8 +648,10 @@ Definition stmt_exec:
   else
    (* Note: this only allows for 0 or 1 frame being added *)
    (case stmt_exec ctx (g_scope_list, [(funn, stmt1, scopes_stack)], ctrl, status_running) of
-    | SOME (g_scope_list', [(funn, stmt1', scopes_stack')], ctrl', status_running) => SOME (g_scope_list', [(funn, stmt_seq stmt1' stmt2, scopes_stack')], ctrl', status_running)
-    | SOME (g_scope_list', (frame::[(funn, stmt1', scopes_stack')]), ctrl', status_running) => SOME (g_scope_list', (frame::[(funn, stmt_seq stmt1' stmt2, scopes_stack')]), ctrl', status_running)
+    | SOME (g_scope_list', [(funn, stmt1', scopes_stack')], ctrl', status') =>
+     SOME (g_scope_list', [(funn, stmt_seq stmt1' stmt2, scopes_stack')], ctrl', status')
+    | SOME (g_scope_list', (frame::[(funn, stmt1', scopes_stack')]), ctrl', status_running) =>
+     SOME (g_scope_list', (frame::[(funn, stmt_seq stmt1' stmt2, scopes_stack')]), ctrl', status_running)
     | _ => NONE))
   /\
  (stmt_exec _ _ = NONE)
@@ -1221,7 +1237,7 @@ val pars_exec_def = Define `
    (* Transition to next parser state *)
    | SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_trans x)) =>
     (case FLOOKUP pars_map x of
-     | SOME stmt'' => SOME (g_scope_list', [(funn_name x, stmt'', [FEMPTY])], ctrl', status_running)
+     | SOME stmt'' => SOME (g_scope_list', [(funn_name x, stmt'', [])], ctrl', status_running)
      | NONE => NONE)
    (* Transition to final parser state *)
    | SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_pars_fin pars_fin)) =>
@@ -1257,6 +1273,7 @@ val pars_multi_exec = Define `
 val ctrl_exec_def = Define `
  (ctrl_exec (cctx:cctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
  (ctrl_exec _ (_, _, _, status_pars_next x) = NONE) /\
+(*
  (ctrl_exec _ (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running) =
   if is_v e
   then
@@ -1270,12 +1287,18 @@ val ctrl_exec_def = Define `
    SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_running)
   else
    SOME (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running)
- ) /\ 
+ ) /\
+*) 
  (ctrl_exec cctx (g_scope_list, frame_list, ctrl, status_running) =
   (case stmt_exec cctx (g_scope_list, frame_list, ctrl, status_running) of
-   | SOME state' => SOME state'
-   | NONE => NONE)
- )
+   | SOME (g_scope_list', frame_list', ctrl', status_running) =>
+    SOME (g_scope_list', frame_list', ctrl', status_running)
+   (* If return status is set on base level, set statement to empty (matching arch_control_ret) *)
+   | SOME (g_scope_list', [(funn, stmt, scopes_stack)], ctrl', status_returnv v) =>
+    SOME (g_scope_list', [(funn, stmt_empty, scopes_stack)], ctrl', status_running)
+   | _ => NONE)
+ ) /\
+ (ctrl_exec _ _ = NONE)
 `;
 
 (* Fuel-powered multi-step executable semantics for control blocks *)
@@ -1398,8 +1421,8 @@ val arch_exec_def = Define `
        | SOME stmt' =>
         (case all_arg_update_for_newscope (MAP FST x_d_list) (MAP SND x_d_list) el [scope] of
          | SOME scope' =>
-          (let scopes_stack = initialise [scope'] (varn_name "parseError") (v_err "NoError") in
-            SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
+          (let block_global_scope_sing = initialise [scope'] (varn_name "parseError") (v_err "NoError") in
+            SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++block_global_scope_sing),
                   arch_frame_list_regular [(funn_name f, stmt_seq stmt stmt', [])], ctrl, status_running))
          | NONE => NONE)
        | NONE => NONE)
@@ -1425,7 +1448,7 @@ val arch_exec_def = Define `
       (case ff (el, scope) of
        | SOME scope' =>
         SOME ((i+1, F, in_out_list, in_out_list', scope'), g_scope_list,
-              arch_frame_list_regular [(funn_name f, stmt_empty,[])], ctrl, status_running)
+              arch_frame_list_empty, ctrl, status_running)
        | _ => NONE)
    | _ => NONE)
   )
