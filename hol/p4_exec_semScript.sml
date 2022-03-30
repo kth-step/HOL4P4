@@ -255,16 +255,22 @@ Definition binop_exec:
  (binop_exec binop v1 v2 = NONE)
 End
 
-Definition is_short_circuitable:
- (is_short_circuitable (e_v (v_bool F)) binop_bin_and = T) /\
- (is_short_circuitable (e_v (v_bool T)) binop_bin_or = T) /\
- (is_short_circuitable _ _ = F)
-End
-
 Definition e_exec_binop:
  (e_exec_binop (e_v v1) binop (e_v v2) = binop_exec binop v1 v2)
   /\
  (e_exec_binop _ _ _ = NONE)
+End
+
+Definition e_exec_short_circuit:
+ (e_exec_short_circuit (v_bool T) binop_bin_and e = SOME e)
+  /\
+ (e_exec_short_circuit (v_bool F) binop_bin_and e = SOME (e_v (v_bool F)))
+  /\
+ (e_exec_short_circuit (v_bool T) binop_bin_or e = SOME (e_v (v_bool T)))
+  /\
+ (e_exec_short_circuit (v_bool F) binop_bin_or e = SOME e)
+  /\
+ (e_exec_short_circuit _ _ _ = NONE)
 End
 
 (* Field access *)
@@ -410,23 +416,26 @@ val e_exec = TotalDefn.tDefine "e_exec" `
  (*********************)
  (* Binary arithmetic *)
  (e_exec ctx g_scope_list scopes_stack (e_binop e1 binop e2) =
-  if is_v e1
-  then
-   if is_short_circuitable e1 binop
-   then SOME (e1, [])
-   else if is_v e2
-   then
-    (case e_exec_binop e1 binop e2 of
-     | SOME v => SOME (e_v v, [])
-     | NONE => NONE)
-   else
-    (case e_exec ctx g_scope_list scopes_stack e2 of
-     | SOME (e2', frame_list) => SOME (e_binop e1 binop e2', frame_list)
-     | NONE => NONE)
-  else
-   (case e_exec ctx g_scope_list scopes_stack e1 of
-    | SOME (e1', frame_list) => SOME (e_binop e1' binop e2, frame_list)
-    | NONE => NONE))
+  (case e1 of
+   | (e_v v) =>
+    if is_short_circuitable binop
+    then
+     (case e_exec_short_circuit v binop e2 of
+      | SOME e' => SOME (e', [])
+      | NONE => NONE)
+    else if is_v e2
+    then
+     (case e_exec_binop e1 binop e2 of
+      | SOME v' => SOME (e_v v', [])
+      | NONE => NONE)
+    else
+     (case e_exec ctx g_scope_list scopes_stack e2 of
+      | SOME (e2', frame_list) => SOME (e_binop e1 binop e2', frame_list)
+      | NONE => NONE)
+   | _ =>
+    (case e_exec ctx g_scope_list scopes_stack e1 of
+     | SOME (e1', frame_list) => SOME (e_binop e1' binop e2, frame_list)
+     | NONE => NONE)))
   /\
  (**********)
  (* Select *)
@@ -877,34 +886,38 @@ fs [e_exec_sound] >>
 REPEAT STRIP_TAC >>
 Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* Both operands are fully reduced *)
- Cases_on `is_short_circuitable e1 b` >- (
+ Cases_on `e1` >> (
+  fs [is_v]
+ ) >>
+ Cases_on `is_short_circuitable b` >- (
   (* Short-circuit *)
-  Cases_on `e1` >> (
-   fs [is_v]
-  ) >>
-  Cases_on `v` >> (
-   fs [is_short_circuitable]
-  ) >>
-  Cases_on `b'` >> Cases_on `b` >> (
-   fs [is_short_circuitable, e_exec, is_v]
+  Cases_on `b` >> Cases_on `v` >> (
+   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
+  ) >> (
+   Cases_on `b` >> (
+    fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
+   )
   ) >| [
-  irule ((valOf o find_clause_e_red) "e_bin_or1") >>
-  fs [clause_name_def],
+   irule ((valOf o find_clause_e_red) "e_bin_and2") >>
+   fs [clause_name_def],
+   
+   irule ((valOf o find_clause_e_red) "e_bin_and1") >>
+   fs [clause_name_def],
   
-  irule ((valOf o find_clause_e_red) "e_bin_and1") >>
-  fs [clause_name_def]
+   irule ((valOf o find_clause_e_red) "e_bin_or1") >>
+   fs [clause_name_def],
+
+   irule ((valOf o find_clause_e_red) "e_bin_or2") >>
+   fs [clause_name_def]
   ]
  ) >>
  fs [] >>
- Cases_on `e_exec_binop e1 b e2` >> (
+ Cases_on `e_exec_binop (e_v v) b e2` >> (
   fs [e_exec] >>
   rw []
  ) >>
  (* Different concrete cases *)
  Cases_on `b` >> (
-  Cases_on `e1` >> (
-   fs [is_v]
-  ) >>
   Cases_on `e2` >> (
    fs [is_v]
   ) >>
@@ -1011,30 +1024,36 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  ),
 
  (* Second operand is not fully reduced *)
- Cases_on `is_short_circuitable e1 b` >- (
+ Cases_on `e1` >> (
+  fs [is_v]
+ ) >>
+ Cases_on `is_short_circuitable b` >- (
   (* Short-circuit *)
   fs [] >>
-  Cases_on `e1` >> (
-   fs [is_v]
-  ) >>
   rw [] >>
   Cases_on `v` >> (
-   fs [is_short_circuitable]
+   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
   ) >>
   Cases_on `b'` >> Cases_on `b` >> (
-   fs [is_short_circuitable, e_exec, is_v]
+   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
   ) >| [
-  irule ((valOf o find_clause_e_red) "e_bin_or1") >>
-  fs [clause_name_def],
-  
-  irule ((valOf o find_clause_e_red) "e_bin_and1") >>
-  fs [clause_name_def]
+   irule ((valOf o find_clause_e_red) "e_bin_and2") >>
+   fs [clause_name_def],
+
+   irule ((valOf o find_clause_e_red) "e_bin_or1") >>
+   fs [clause_name_def],
+   
+   irule ((valOf o find_clause_e_red) "e_bin_and1") >>
+   fs [clause_name_def],
+
+   irule ((valOf o find_clause_e_red) "e_bin_or2") >>
+   fs [clause_name_def]
   ]
  ) >>
  Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
   fs [e_exec]
  ) >>
- Cases_on `x` >> Cases_on `e1` >> (
+ Cases_on `x` >> (
   fs [is_v]
  ) >>
  METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg2"), clause_name_def],
@@ -1042,18 +1061,28 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* First operand is not fully reduced *)
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
   fs [e_exec]
- ) >>
- Cases_on `x` >>
- fs [] >>
- METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg1"), clause_name_def],
+ ) >> (
+  Cases_on `e1` >> (
+   fs [is_v]
+  ) >> (
+   Cases_on `x` >>
+   fs [] >>
+   METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg1"), clause_name_def]
+  )
+ ),
 
  (* No operand is fully reduced *)
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
   fs [e_exec]
- ) >>
- Cases_on `x` >>
- fs [] >>
- METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg1"), clause_name_def]
+ ) >> (
+  Cases_on `e1` >> (
+   fs [is_v]
+  ) >> (
+   Cases_on `x` >>
+   fs [] >>
+   METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg1"), clause_name_def]
+  )
+ )
 ]
 QED
 
