@@ -929,9 +929,9 @@ formula :: formula_ ::=
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
 | b OR b' = b'' :: M :: or_bool
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
-| ~is_short_circuit ( e ) :: M :: short_cir
-  {{ hol (~is_short_circuit  [[e]] ) }}
-  {{ tex ~is_short_circuit  [[e]] }}
+| ~is_short_circuit ( v , binop ) :: M :: short_cir
+  {{ hol (~is_short_circuitable [[v]] [[binop]]) }}
+  {{ tex ~\mathrm{is\_short\_circuit}([[v]], [[binop]]) }}
 %Type-transforming operations
 | g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
   {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
@@ -1900,14 +1900,12 @@ val notret_def = Define `
   (notret _ = T)
 `;
 
-(* check if the operation is AND or OR. Needed to prevent non determinisim *)
-
-val is_short_circuit_def = Define `
-  (is_short_circuit (e_binop (e_v (v_bool  F )) binop_bin_and _) = T) /\
-  (is_short_circuit (e_binop (e_v (v_bool  T )) binop_bin_and _) = T) /\
-  (is_short_circuit (e_binop (e_v (v_bool  T )) binop_bin_or _)  = T) /\
-  (is_short_circuit (e_binop (e_v (v_bool  F )) binop_bin_or _) = T) /\ 
-  (is_short_circuit  _ = F)
+(* check if the operation is short-circuitable. Needed to prevent non-determinism *)
+(* TODO: Overkill to check value? *)
+val is_short_circuitable_def = Define `
+  (is_short_circuitable (v_bool b) binop_bin_and = T) /\
+  (is_short_circuitable (v_bool b) binop_bin_or = T) /\
+  (is_short_circuitable _ _ = F)
 `;
 
 
@@ -2048,7 +2046,7 @@ ctx g_scope_list scopes_stack ( e ) ~> ( e'' , frame_list )
 ctx g_scope_list scopes_stack ( e binop e' ) ~> ( e'' binop e' , frame_list )
 
 %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
-~is_short_circuit ( v binop e )
+~is_short_circuit ( v , binop )
 ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: binop_arg2
 ctx g_scope_list scopes_stack ( v binop e ) ~> ( v binop e' , frame_list )
@@ -2235,7 +2233,6 @@ ctx g_scope_list scopes_stack ( bitv | bitv' ) ~> ( bitv'' , empty )
 ----------------------------------- :: bin_and1
 ctx g_scope_list scopes_stack ( false AND e ) ~> ( false , empty )
 
-
 ----------------------------------- :: bin_and2
 ctx g_scope_list scopes_stack ( true AND e ) ~> ( e , empty )
 
@@ -2246,10 +2243,8 @@ ctx g_scope_list scopes_stack ( true AND e ) ~> ( e , empty )
 ----------------------------------- :: bin_or1
 ctx g_scope_list scopes_stack ( true OR e ) ~> ( true , empty )
 
-
 ----------------------------------- :: bin_or2
 ctx g_scope_list scopes_stack ( false OR e ) ~> ( e , empty )
-
 
 %%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics %
