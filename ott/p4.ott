@@ -929,9 +929,9 @@ formula :: formula_ ::=
   {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
 | b OR b' = b'' :: M :: or_bool
   {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
-| ~is_short_circuit ( v , binop ) :: M :: short_cir
-  {{ hol (~is_short_circuitable [[v]] [[binop]]) }}
-  {{ tex ~\mathrm{is\_short\_circuit}([[v]], [[binop]]) }}
+| ~is_short_circuit ( binop ) :: M :: short_cir
+  {{ hol (~is_short_circuitable [[binop]]) }}
+  {{ tex ~\mathrm{is\_short\_circuit}([[binop]]) }}
 %Type-transforming operations
 | g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
   {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
@@ -1901,11 +1901,10 @@ val notret_def = Define `
 `;
 
 (* check if the operation is short-circuitable. Needed to prevent non-determinism *)
-(* TODO: Overkill to check value? *)
 val is_short_circuitable_def = Define `
-  (is_short_circuitable (v_bool b) binop_bin_and = T) /\
-  (is_short_circuitable (v_bool b) binop_bin_or = T) /\
-  (is_short_circuitable _ _ = F)
+  (is_short_circuitable binop_bin_and = T) /\
+  (is_short_circuitable binop_bin_or = T) /\
+  (is_short_circuitable _ = F)
 `;
 
 
@@ -2046,7 +2045,7 @@ ctx g_scope_list scopes_stack ( e ) ~> ( e'' , frame_list )
 ctx g_scope_list scopes_stack ( e binop e' ) ~> ( e'' binop e' , frame_list )
 
 %TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
-~is_short_circuit ( v , binop )
+~is_short_circuit ( binop )
 ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: binop_arg2
 ctx g_scope_list scopes_stack ( v binop e ) ~> ( v binop e' , frame_list )

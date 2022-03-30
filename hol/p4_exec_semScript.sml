@@ -418,7 +418,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
  (e_exec ctx g_scope_list scopes_stack (e_binop e1 binop e2) =
   (case e1 of
    | (e_v v) =>
-    if is_short_circuitable v binop
+    if is_short_circuitable binop
     then
      (case e_exec_short_circuit v binop e2 of
       | SOME e' => SOME (e', [])
@@ -873,10 +873,10 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  Cases_on `e1` >> (
   fs [is_v]
  ) >>
- Cases_on `is_short_circuitable v b` >- (
+ Cases_on `is_short_circuitable b` >- (
   (* Short-circuit *)
   Cases_on `b` >> Cases_on `v` >> (
-   fs [is_short_circuitable_def]
+   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
   ) >> (
    Cases_on `b` >> (
     fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
@@ -1011,12 +1011,12 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  Cases_on `e1` >> (
   fs [is_v]
  ) >>
- Cases_on `is_short_circuitable v b` >- (
+ Cases_on `is_short_circuitable b` >- (
   (* Short-circuit *)
   fs [] >>
   rw [] >>
   Cases_on `v` >> (
-   fs [is_short_circuitable_def]
+   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
   ) >>
   Cases_on `b'` >> Cases_on `b` >> (
    fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
