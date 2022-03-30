@@ -4,7 +4,7 @@ open arithmeticTheory stringTheory containerTheory pred_setTheory
 
 open blastLib bitstringLib;
 open p4Theory;
-(*open p4_exec_semTheory;*)
+open p4_exec_semTheory;
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -74,13 +74,6 @@ val det_exp_list_def = Define `
 `;
 
 
-
-(*Replace the one that in p4_exec_semTheory once fixed*)
-Theorem unred_arg_index_in_range:
- !d_l e_l i. unred_arg_index d_l e_l = SOME i ==> i < LENGTH e_l
-Proof
-cheat
-QED
 
 (*********Reduction of vars lemmas ************)
 
@@ -237,6 +230,13 @@ prove (``!e. is_e_lval e ==> ~ is_const e``,
 Cases_on `e` >>
 EVAL_TAC
 );
+
+val lemma_dir_EQ =
+prove (``!d. (¬is_d_out d = is_d_none_in d) /\ (is_d_out d = ¬is_d_none_in d) ``,
+Cases_on `d` >>
+EVAL_TAC
+);
+
 
 
 (********* Proving the mono P Q  lemmas ************)
@@ -498,7 +498,6 @@ FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
 FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def] 
 ,
 
-
 SIMP_TAC (list_ss) [unred_arg_index_def]>>
 REWRITE_TAC [check_args_red_def]>>
 Cases_on ` find_unred_arg (h::t) (h'::t')`
@@ -511,9 +510,8 @@ FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]
 FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
 FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]>>
 
-Cases_on `(is_d_none_in h ∧ ¬is_const h')` >| [
-FULL_SIMP_TAC (list_ss) [is_arg_red_def] >>
-cheat
+Cases_on `(¬is_d_out h ∧ ¬is_const h')` >| [
+FULL_SIMP_TAC (list_ss) [is_arg_red_def] 
 ,
 STRIP_TAC >>
 FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
@@ -521,6 +519,8 @@ FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]>>
 FULL_SIMP_TAC (list_ss) [is_arg_red_def]>>
 STRIP_TAC >>
 DISJ2_TAC>>
+FULL_SIMP_TAC (list_ss) [lemma_dir_EQ]>>
+
 ASSUME_TAC lemma_dc_mono2 >>
 Q.PAT_X_ASSUM `∀P Q l n. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [
@@ -542,8 +542,7 @@ Q.PAT_X_ASSUM `∀l P n. _`
                 (¬is_d_none_in d ⇒ is_e_lval e)))`,
 `1`
 ])) >>
-fs[] >>
-cheat
+fs[]
 
 ]]]);
 
