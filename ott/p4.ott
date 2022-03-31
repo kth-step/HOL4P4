@@ -1217,6 +1217,9 @@ formula :: formula_ ::=
 | [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , ext_map ) :: M :: fun_sig
   {{ com look up the signature of an abstract function name }}
   {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[ext_map]]) }}
+| parser_not_finished frame_list :: M :: parser_not_finished
+  {{ com parser state is not finished }}
+  {{ hol (parser_not_finished [[frame_list]]) }}
 
 embed
 {{ hol
@@ -1932,6 +1935,11 @@ val init_in_highest_scope_def = Define `
     LUPDATE (decl_init_star scopes_stack v varn_star) (newest_scope_ind scopes_stack) scopes_stack
 `;
 
+val parser_not_finished_def = Define `
+  (parser_not_finished [ ( funn , empty_stmt , scopes_stack ) ] = F) /\
+  (parser_not_finished _ = T)
+`;
+
 }}
 grammar
 
@@ -2471,28 +2479,21 @@ defn
 by
 
 %This rule describes how individual statement steps are taken inside the parser
-  status_not_fin status
-  (ty_map, ext_map, func_map, empty) ( g_scope_list , frame_list , ctrl, status ) -> state'
+  parser_not_finished frame_list
+  (ty_map, ext_map, func_map, empty) ( g_scope_list , frame_list , ctrl, Running ) -> state'
   ------------------------------------------------- :: stmt
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, status ) -p-> state'
+  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> state'
 
 %This rule governs transitions between parser states
 %TODO: OK if function name is set to parser state name?
-  (ty_map, ext_map, func_map, empty) ( g_scope_list , frame_list , ctrl, Running ) -> ( g_scope_list , frame_list' , ctrl, Trans x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> ( g_scope_list , [ ( x , stmt'' , [ emptyscope ] ) ] , ctrl, Running )
+  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Trans x ) -p-> ( g_scope_list , [ ( x , stmt'' , [ emptyscope ] ) ] , ctrl, Running )
 
 %If the end of some parser state is reached without status change, we reject
-  (ty_map, ext_map, func_map, empty) ( g_scope_list , frame_list , ctrl, Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl', Running )
   x = "reject"
   ------------------------------------------------- :: empty
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> ( g_scope_list' , [ ( funn , transition x , scopes_stack ) ] , ctrl', Running )
-
-%This describes the final step of the parser
-  (ty_map, ext_map, func_map, empty) ( g_scope_list , frame_list , ctrl, Running ) -> ( g_scope_list , frame_list , ctrl, pars_fin )
-  ------------------------------------------------- :: fin
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> ( g_scope_list , frame_list , ctrl, pars_fin )
+  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list' , [ ( funn , transition x , scopes_stack ) ] , ctrl', Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
