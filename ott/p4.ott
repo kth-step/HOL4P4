@@ -2295,10 +2295,6 @@ by
   ctx ( g_scope_list , [ ( funn , assign lval v , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , empty_stmt , scopes_stack'' ) ]  , ctrl , Running )
 
 
-  ----------------------------------- :: ass_null
-  ctx ( g_scope_list , [ ( funn , assign null v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl , Running )
-
-
 %%%%%%%%%%%%%%
 %Sequence
 
@@ -2494,7 +2490,7 @@ by
 %If the end of some parser state is reached without status change, we reject
   x = "reject"
   ------------------------------------------------- :: empty
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list' , [ ( funn , transition x , scopes_stack ) ] , ctrl', Running )
+  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list , [ ( funn , transition x , scopes_stack ) ] , ctrl, Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
