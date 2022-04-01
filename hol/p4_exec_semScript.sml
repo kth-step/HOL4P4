@@ -6,6 +6,8 @@ open p4Syntax;
 open ottTheory;
 open p4Theory;
 
+open listTheory;
+
 (* For EVAL-uating: *)
 open blastLib bitstringLib;
 
@@ -100,7 +102,7 @@ Theorem unred_arg_index_in_range:
 Proof
  REPEAT STRIP_TAC >>
  fs [unred_arg_index_def, find_unred_arg_def] >>
- Cases_on `INDEX_FIND 0 (\(d,e). ~is_d_out d /\ ~is_const e) (ZIP (d_l,e_l))` >> (
+ Cases_on `INDEX_FIND 0 (\(d,e). ~is_arg_red d e) (ZIP (d_l,e_l))` >> (
   fs []
  ) >>
  Cases_on `x` >>
@@ -349,14 +351,9 @@ val e_state_size_def = Define `
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce warnings *)
 val e_exec = TotalDefn.tDefine "e_exec" `
- (************************************************)
- (* e_v is the fully reduced form of expressions *)
- (e_exec (ctx:ctx) (g_scope_list:g_scope_list) (scopes_stack:scopes_stack) (e_v v) =
-  SOME (e_v v, ([]:frame_list)))
-  /\
  (********************)
  (* Variable look-up *)
- (e_exec ctx g_scope_list scopes_stack (e_var x) =
+ (e_exec (ctx:ctx) (g_scope_list:g_scope_list) (scopes_stack:scopes_stack) (e_var x) =
   case lookup_vexp2 scopes_stack g_scope_list x of
   | SOME v => SOME (e_v v, [])
   | NONE => NONE)
@@ -388,16 +385,19 @@ val e_exec = TotalDefn.tDefine "e_exec" `
  (e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack (e_call funn e_l) =
   (case lookup_funn_sig_body funn func_map ext_map of
     | SOME (stmt, x_d_l) =>
-     (case unred_arg_index (MAP SND x_d_l) e_l of
-      | SOME i =>
-       (case e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack (EL i e_l) of
-        | SOME (e', frame_list) => SOME (e_call funn (LUPDATE e' i e_l), frame_list)
-        | NONE => NONE)
-      | NONE =>
-       (case copyin (MAP FST x_d_l) (MAP SND x_d_l) e_l g_scope_list scopes_stack of
-        | SOME scope => 
-         SOME (e_var varn_star, [(funn, stmt, [scope])])
-        | NONE => NONE))
+     if LENGTH x_d_l = LENGTH e_l
+     then
+      (case unred_arg_index (MAP SND x_d_l) e_l of
+       | SOME i =>
+        (case e_exec (ty_map, ext_map, func_map, tbl_map) g_scope_list scopes_stack (EL i e_l) of
+         | SOME (e', frame_list) => SOME (e_call funn (LUPDATE e' i e_l), frame_list)
+         | NONE => NONE)
+       | NONE =>
+        (case copyin (MAP FST x_d_l) (MAP SND x_d_l) e_l g_scope_list scopes_stack of
+         | SOME scope => 
+          SOME (e_var varn_star, [(funn, stmt, [scope])])
+         | NONE => NONE))
+     else NONE
     | NONE => NONE))
   /\
  (********************)
@@ -476,10 +476,6 @@ Definition stmt_exec:
  (stmt_exec _ (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status_pars_next x) =
   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_pars_next x))
   /\
- (*****************************************************)
- (* empty_stmt is the fully reduced form of statement *)
- (stmt_exec _ (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status) =
-  SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status)) /\
  (***************)
  (* Frame rules *)
  (stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, ((funn, stmt, scopes_stack)::((funn', stmt', scopes_stack')::frame_list'')), ctrl, status_running) =
@@ -666,13 +662,8 @@ Definition stmt_exec:
  (stmt_exec _ _ = NONE)
 End
 
-(* Only meant to skip certain soundness proof parts for now *)
-Theorem stmt_ignore_pars_next:
- !ctx g_scope_list frame_list ctrl p state'.
-  stmt_red ctx (g_scope_list, frame_list, ctrl, (status_pars_next p)) state'
-Proof
-cheat
-QED
+(***********************)
+(* Soundness of e_exec *)
 
 (* Note that these are definitions phrased for given statements *)
 Definition e_exec_sound:
@@ -682,120 +673,82 @@ Definition e_exec_sound:
   e_red ctx g_scope_list scopes_stack e e' frame_list)
 End
 
-(* Note that this definition is phrased for given statements, not on the frame list, so soundness
- * of comp1 and comp2 rules are excluded *)
-Definition stmt_exec_sound:
- (stmt_exec_sound stmt =
-  !ctx g_scope_list funn scopes_stack ctrl status state'.
-  stmt_exec ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) = SOME state' ==>
-  stmt_red ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) state')
+Definition l_sound_exec:
+ (l_sound_exec [] = T) /\
+ (l_sound_exec ((h::t):e list) = 
+  (e_exec_sound h /\ l_sound_exec t))
 End
 
-(* TODO: Is this cheating? *)
 Definition l_sound:
- (l_sound (l: e list) = T)
+ (l_sound [] = T) /\
+ (l_sound (l:e list) = 
+  !x e. (SOME e = oEL x l) ==> e_exec_sound e)
 End
 
-Theorem e_v_exec_sound_red:
-!v. e_exec_sound (e_v v)
+Theorem l_sound_cons:
+!h l. l_sound (h::l) ==> l_sound l
 Proof
-cheat
-QED
-
-Theorem stmt_block_ip_exec_sound_red:
-!s.
-stmt_exec_sound s ==>
-stmt_exec_sound (stmt_block_ip s)
-Proof
-cheat
-QED
-
-Theorem stmt_block_exec_sound_red:
-!s.
-stmt_exec_sound s ==>
-stmt_exec_sound (stmt_block s)
-Proof
-cheat
-QED
-
-Theorem stmt_verify_exec_sound_red:
-!e1 e2.
-e_exec_sound e1 ==>
-e_exec_sound e2 ==>
-stmt_exec_sound (stmt_verify e1 e2)
-Proof
-fs [stmt_exec_sound, e_exec_sound] >>
 REPEAT STRIP_TAC >>
-pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
-Cases_on `status` >> (
- fs [stmt_exec, stmt_ignore_pars_next]
+Induct_on `l` >> (
+ fs [l_sound]
 ) >>
-Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
- (* First case *)
- fs [] >>
- Cases_on `stmt_exec_verify e1 e2` >> (
-  fs [] >>
-  rw []
- ) >>
- Cases_on `e1` >> Cases_on `e2` >> (
-  fs [stmt_exec_verify] >>
-  rw []
- ) >>
- rename1 `is_v_bool (e_v v1)` >>
- rename1 `is_v_err (e_v v2)` >>
- Cases_on `v1` >> Cases_on `v2` >> (
-  fs [stmt_exec_verify] >>
-  rw []
- ) >>
- Cases_on `x` >> (
-  Cases_on `b` >> (
-   fs [stmt_exec_verify]
-  )
- ) >| [
-  METIS_TAC [(valOf o find_clause_stmt_red) "stmt_verify_3", clause_name_def],
+REPEAT STRIP_TAC >>
+PAT_X_ASSUM ``!x e. _`` (fn thm => ASSUME_TAC (SPECL [``SUC x``, ``e:e``] thm)) >>
+rfs [] >>
+`oEL x (h'::l) = oEL (SUC x) (h::h'::l)` suffices_by (
+ fs []
+) >>
+Induct_on `x` >> (
+ fs [oEL_def]
+)
+QED
 
-  METIS_TAC [(valOf o find_clause_stmt_red) "stmt_verify_4", clause_name_def]
+Theorem oEL_cons:
+!h l. (!x e. SOME e = oEL x l ==> e_exec_sound e) ==> (!x e. SOME e = oEL x (h::l) ==> e_exec_sound e)
+Proof
+cheat
+QED
+
+Theorem oEL_cons_PRE:
+!e x h l. (x > 0) /\ (SOME e = oEL x (h::l)) ==> (SOME e = oEL (PRE x) l)
+Proof
+REPEAT STRIP_TAC >>
+fs [oEL_def, arithmeticTheory.PRE_SUB1]
+QED
+
+Theorem l_sound_equiv:
+!l. l_sound l <=> l_sound_exec l
+Proof
+REPEAT STRIP_TAC >>
+EQ_TAC >| [
+ Induct_on `l` >> (
+  fs [l_sound, l_sound_exec]
+ ) >>
+ REPEAT STRIP_TAC >| [
+  PAT_X_ASSUM ``!x. _`` (fn thm => ASSUME_TAC (SPEC ``0`` thm)) >>
+  fs [oEL_def],
+
+  `l_sound (h::l)` suffices_by (
+   METIS_TAC [l_sound_cons]
+  ) >>
+  METIS_TAC [l_sound]
  ],
 
- (* Second case - second operand unreduced *)
- fs [] >>
- Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
-  fs []
+ Induct_on `l` >> (
+  fs [l_sound, l_sound_exec]
  ) >>
- Cases_on `x` >>
- fs [] >>
- rw [] >>
- Cases_on `e1` >> (
-  fs [is_v] >>
-  rw []
+ NTAC 2 STRIP_TAC >>
+ Induct_on `x` >> (
+  fs [oEL_def]
  ) >>
- Cases_on `v` >> (
-  fs [is_v_bool] >>
-  rw []
+ `!x e. SOME e = oEL x l ==> e_exec_sound e` suffices_by (
+  METIS_TAC [oEL_cons_PRE]
  ) >>
- METIS_TAC [((valOf o find_clause_stmt_red) "stmt_verify_e2"), clause_name_def],
-
- (* Third case - first operand unreduced *)
  fs [] >>
- Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs []
+ Cases_on `l` >- (
+  fs [oEL_def]
  ) >>
- Cases_on `x` >>
- fs [] >>
- rw [] >>
- METIS_TAC [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def],
-
- (* Fourth case - both operands unreduced *)
- fs [] >>
- Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs []
- ) >>
- Cases_on `x` >>
- fs [] >>
- rw [] >>
- METIS_TAC [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def]
+ METIS_TAC [l_sound]
 ]
 QED
 
@@ -1086,6 +1039,43 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 ]
 QED
 
+Theorem e_select_exec_sound_red:
+!e l s.
+e_exec_sound e ==>
+e_exec_sound (e_select e l s)
+Proof
+fs [e_exec_sound] >>
+REPEAT STRIP_TAC >>
+Cases_on `is_v e` >| [
+ Cases_on `e` >> (
+  fs [is_v]
+ ) >>
+ fs [e_exec, e_exec_select] >>
+ Cases_on `FIND (\(v',x'). v' = v) l` >> (
+  fs [is_v]
+ ) >- (
+  rw [] >>
+  irule ((valOf o find_clause_e_red) "e_sel_acc") >>
+  fs [sel_def, clause_name_def]
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ rw [] >>
+ irule ((valOf o find_clause_e_red) "e_sel_acc") >>
+ fs [sel_def, clause_name_def],
+
+ fs [e_exec, e_exec_select] >>
+ Cases_on `e_exec ctx g_scope_list scopes_stack e` >- (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ rw [] >>
+ irule ((valOf o find_clause_e_red) "e_sel_arg") >>
+ fs [clause_name_def]
+]
+QED
+
 Theorem e_unop_exec_sound_red:
 !e u.
 e_exec_sound e ==>
@@ -1127,6 +1117,225 @@ Cases_on `is_v e` >| [
 ]
 QED
 
+Theorem lambda_unzip_tri:
+(!l. MAP (\(a_,b_,c_). a_) l = (FST o UNZIP) l) /\
+(!l. MAP (\(a_,b_,c_). b_) l = (FST o UNZIP o SND o UNZIP) l) /\
+(!l. MAP (\(a_,b_,c_). c_) l = (SND o UNZIP o SND o UNZIP) l)
+Proof
+REPEAT STRIP_TAC >> (
+ Induct_on `l` >> (
+  fs []
+ ) >>
+ REPEAT STRIP_TAC >>
+ PairCases_on `h` >>
+ fs []
+)
+QED
+
+Theorem lambda_snd_unzip_tri:
+!l. MAP (\(a_,b_,c_). (b_, c_)) l = (SND o UNZIP) l
+Proof
+Induct_on `l` >> (
+ fs []
+) >>
+REPEAT STRIP_TAC >>
+PairCases_on `h` >>
+fs []
+QED
+
+(* TODO: More cases as needed *)
+Theorem map_tri_zip12:
+!(al:'a list) (bcl:('b # 'c) list).
+LENGTH bcl = LENGTH al ==>
+(MAP (\(a_,b_,c_). a_) (ZIP (al,bcl)) = al) /\
+(MAP (\(a_,b_,c_). b_) (ZIP (al,bcl)) = MAP FST bcl) /\
+(MAP (\(a_,b_,c_). c_) (ZIP (al,bcl)) = MAP SND bcl) /\
+(MAP (\(a_,b_,c_). (b_, c_)) (ZIP (al,bcl)) = bcl)
+Proof
+REPEAT STRIP_TAC >> (
+ fs [lambda_unzip_tri, lambda_snd_unzip_tri, UNZIP_MAP]
+)
+QED
+
+Theorem lambda_unzip_quad:
+(!l. MAP (\(a,b,c,d). a) l = (FST o UNZIP) l) /\
+(!l. MAP (\(a,b,c,d). b) l = (FST o UNZIP o SND o UNZIP) l) /\
+(!l. MAP (\(a,b,c,d). c) l = (FST o UNZIP o SND o UNZIP o SND o UNZIP) l) /\
+(!l. MAP (\(a,b,c,d). d) l = (SND o UNZIP o SND o UNZIP o SND o UNZIP) l)
+Proof
+REPEAT STRIP_TAC >> (
+ Induct_on `l` >> (
+  fs []
+ ) >>
+ REPEAT STRIP_TAC >>
+ PairCases_on `h` >>
+ fs []
+)
+QED
+
+Theorem lambda_snd_snd_unzip_quad:
+!l. MAP (\(a,b,c,d). (c,d)) l = (SND o UNZIP o SND o UNZIP) l
+Proof
+Induct_on `l` >> (
+ fs []
+) >>
+REPEAT STRIP_TAC >>
+PairCases_on `h` >>
+fs []
+QED
+
+Theorem map_quad_zip112:
+!(al:'a list) (bl:'b list) (cdl:('c # 'd) list).
+LENGTH al = LENGTH (ZIP (bl,cdl)) ==>
+LENGTH bl = LENGTH cdl ==>
+(MAP (\(a_,b_,c_,d_). a_) (ZIP (al, ZIP (bl,cdl))) = al) /\
+(MAP (\(a_,b_,c_,d_). b_) (ZIP (al, ZIP (bl,cdl))) = bl) /\
+(MAP (\(a_,b_,c_,d_). c_) (ZIP (al, ZIP (bl,cdl))) = MAP FST cdl) /\
+(MAP (\(a_,b_,c_,d_). d_) (ZIP (al, ZIP (bl,cdl))) = MAP SND cdl) /\
+(MAP (\(a_,b_,c_,d_). (c_, d_)) (ZIP (al, ZIP (bl,cdl))) = cdl)
+Proof
+REPEAT STRIP_TAC >> (
+ fs [lambda_unzip_quad, lambda_snd_snd_unzip_quad, UNZIP_MAP, MAP_ZIP]
+)
+QED
+
+Theorem INDEX_FIND_NONE_EXISTS:
+!l i P.
+INDEX_FIND i P l = NONE <=> ~(EXISTS P l)
+Proof
+Induct_on `l` >> (
+ fs [INDEX_FIND_def]
+) >>
+REPEAT STRIP_TAC >>
+Cases_on `P h` >> (
+ fs []
+)
+QED
+
+Theorem INDEX_FIND_NONE_EVERY:
+!l P.
+(INDEX_FIND 0 (\x. ~P x) l = NONE) ==>
+EVERY (\x. P x) l
+Proof
+Induct_on `l` >> (
+ fs []
+) >>
+REPEAT STRIP_TAC >| [
+ fs [INDEX_FIND_def] >>
+ Cases_on `~P h` >> (
+  fs []
+ ),
+
+ fs [INDEX_FIND_NONE_EXISTS]
+]
+QED
+
+Theorem unred_arg_index_NONE:
+!dl el.
+(unred_arg_index dl el = NONE) ==>
+check_args_red dl el
+Proof
+fs [unred_arg_index_def, find_unred_arg_def, ZIP_def, INDEX_FIND_def, check_args_red_def] >>
+REPEAT STRIP_TAC >>
+Cases_on `INDEX_FIND 0 (\(d,e). ~is_arg_red d e) (ZIP (dl,el))` >> (
+ fs []
+) >| [
+ ASSUME_TAC (ISPECL [``(ZIP (dl,el)):(d # e) list``, ``UNCURRY is_arg_red``] INDEX_FIND_NONE_EVERY) >>
+ fs [pairTheory.ELIM_UNCURRY],
+
+ Cases_on `x` >>
+ fs []
+]
+QED
+
+(* TODO: Bake this into the definition instead? *)
+Theorem unred_arg_index_empty:
+!dl.
+(unred_arg_index dl [] = NONE)
+Proof
+fs [unred_arg_index_def, find_unred_arg_def, ZIP_def, INDEX_FIND_def]
+QED
+
+Theorem unred_arg_index_max:
+!dl el i.
+(unred_arg_index dl el = SOME i) ==> i < (LENGTH el)
+Proof
+fs [unred_arg_index_def, find_unred_arg_def, ZIP_def, INDEX_FIND_def] >>
+REPEAT STRIP_TAC >>
+Cases_on `INDEX_FIND 0 (\(d,e). ~is_arg_red d e) (ZIP (dl,el))` >> (
+ fs []
+) >>
+Cases_on `x` >>
+fs [] >>
+IMP_RES_TAC index_find_length >>
+fs [LENGTH_ZIP_MIN]
+QED
+
+Theorem e_call_exec_sound_red:
+!f l.
+l_sound l ==>
+e_exec_sound (e_call f l)
+Proof
+fs [e_exec_sound] >>
+REPEAT STRIP_TAC >>
+PairCases_on `ctx` >>
+rename1 `(ty_map,ext_map,func_map,tbl_map)` >>
+fs [e_exec] >>
+Cases_on `lookup_funn_sig_body f func_map ext_map` >> (
+ fs []
+) >>
+Cases_on `x` >> (
+ fs []
+) >>
+Cases_on `unred_arg_index (MAP SND r) l` >> (
+ fs []
+) >| [
+ (* e_call_newframe *)
+ Cases_on `copyin (MAP FST r) (MAP SND r) l g_scope_list scopes_stack` >> (
+  fs []
+ ) >>
+ IMP_RES_TAC map_tri_zip12 >>
+ METIS_TAC [ISPEC ``ZIP (l,r):(e # string # d) list`` ((valOf o find_clause_e_red) "e_call_newframe"), unred_arg_index_NONE,
+            clause_name_def],
+
+ (* e_call_args *)
+ Cases_on `e_exec (ty_map,ext_map,func_map,tbl_map) g_scope_list scopes_stack (EL x l)` >> (
+  fs []
+ ) >>
+ Cases_on `x'` >>
+ fs [] >>
+ rw [] >>
+ Q.SUBGOAL_THEN `((MAP (\(a_,b_,c_,d_). a_) (ZIP (l,ZIP (LUPDATE q' x l,r))) = l) /\
+                 (MAP (\(a_,b_,c_,d_). b_) (ZIP (l,ZIP (LUPDATE q' x l,r))) = LUPDATE q' x l) /\
+                 (MAP (\(a_,b_,c_,d_). c_) (ZIP (l,ZIP (LUPDATE q' x l,r))) = MAP FST r) /\
+                 (MAP (\(a_,b_,c_,d_). d_) (ZIP (l,ZIP (LUPDATE q' x l,r))) = MAP SND r) /\
+                 (MAP (\(a_,b_,c_,d_). (c_,d_)) (ZIP (l,ZIP (LUPDATE q' x l,r))) = r))` (
+  fn thm => (irule (SIMP_RULE std_ss [thm] (ISPEC ``ZIP (l:e list, ZIP ((LUPDATE q' x l), r:(string # d) list))``
+                                                  ((valOf o find_clause_e_red) "e_call_args"))))
+ ) >- (
+  subgoal `LENGTH l = LENGTH (ZIP (LUPDATE q' x l,r))` >- (
+   fs [LENGTH_ZIP]
+  ) >>
+  subgoal `LENGTH (LUPDATE q' x l) = LENGTH r` >- (
+   fs []
+  ) >>
+  fs [map_quad_zip112]
+ ) >>
+ fs [clause_name_def] >>
+ REPEAT STRIP_TAC >| [
+  fs [lookup_funn_sig_def],
+
+  Cases_on `l` >> (
+   fs [unred_arg_index_empty]
+  ) >>
+  fs [e_exec_sound, l_sound] >>
+  PAT_X_ASSUM ``!x' e. _`` (fn thm => ASSUME_TAC (SPECL [``x:num``, ``(EL x (h::t)):e``] thm)) >>
+  IMP_RES_TAC unred_arg_index_max >>
+  fs [oEL_EQ_EL]
+ ]
+]
+QED
+
 Theorem e_exec_sound_red:
 !e. e_exec_sound e
 Proof
@@ -1135,7 +1344,7 @@ Proof
 ) >>
 irule e_induction >>
 REPEAT STRIP_TAC >| [
- (* e list *)
+ (* e list: base case *)
  fs [l_sound],
 
  (* bitvector slice - not in exec sem yet *)
@@ -1150,12 +1359,11 @@ REPEAT STRIP_TAC >| [
  (* Binary operation *)
  fs [e_binop_exec_sound_red],
 
- (* execution of e lists? *)
- fs [l_sound],
+ (* e list: inductive step *)
+ fs [l_sound_equiv, l_sound_exec],
 
  (* Select expression *)
- (* TODO *)
- cheat,
+ fs [e_select_exec_sound_red],
 
  (* Unary operation *)
  fs [e_unop_exec_sound_red],
@@ -1164,11 +1372,10 @@ REPEAT STRIP_TAC >| [
  fs [e_exec_sound, e_exec],
 
  (* Function/extern call *)
- (* TODO *)
- cheat,
+ fs [e_call_exec_sound_red],
 
- (* TODO: Constant value - how should this be handled in reductions? *)
- cheat,
+ (* Constant value: Irreducible *)
+ fs [e_exec_sound, e_exec],
 
  (* Variable lookup *)
  fs [e_exec_sound, e_exec] >>
@@ -1178,6 +1385,123 @@ REPEAT STRIP_TAC >| [
  ) >>
  rw [] >>
  METIS_TAC [(valOf o find_clause_e_red) "e_lookup", clause_name_def]
+]
+QED
+
+(**************************)
+(* Soundness of stmt_exec *)
+
+(* Only meant to skip certain soundness proof parts for now *)
+Theorem stmt_ignore_pars_next:
+ !ctx g_scope_list frame_list ctrl p state'.
+  stmt_red ctx (g_scope_list, frame_list, ctrl, (status_pars_next p)) state'
+Proof
+cheat
+QED
+
+(* Note that this definition is phrased for given statements, not on the frame list, so soundness
+ * of comp1 and comp2 rules are excluded *)
+Definition stmt_exec_sound:
+ (stmt_exec_sound stmt =
+  !ctx g_scope_list funn scopes_stack ctrl status state'.
+  stmt_exec ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) = SOME state' ==>
+  stmt_red ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) state')
+End
+
+Theorem stmt_block_ip_exec_sound_red:
+!s.
+stmt_exec_sound s ==>
+stmt_exec_sound (stmt_block_ip s)
+Proof
+cheat
+QED
+
+Theorem stmt_block_exec_sound_red:
+!s.
+stmt_exec_sound s ==>
+stmt_exec_sound (stmt_block s)
+Proof
+cheat
+QED
+
+Theorem stmt_verify_exec_sound_red:
+!e1 e2.
+e_exec_sound e1 ==>
+e_exec_sound e2 ==>
+stmt_exec_sound (stmt_verify e1 e2)
+Proof
+fs [stmt_exec_sound, e_exec_sound] >>
+REPEAT STRIP_TAC >>
+pairLib.PairCases_on `state'` >>
+rename1 `(g_scope_list',state'1,state'2,state'3)` >>
+rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+Cases_on `status` >> (
+ fs [stmt_exec, stmt_ignore_pars_next]
+) >>
+Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
+ (* First case *)
+ fs [] >>
+ Cases_on `stmt_exec_verify e1 e2` >> (
+  fs [] >>
+  rw []
+ ) >>
+ Cases_on `e1` >> Cases_on `e2` >> (
+  fs [stmt_exec_verify] >>
+  rw []
+ ) >>
+ rename1 `is_v_bool (e_v v1)` >>
+ rename1 `is_v_err (e_v v2)` >>
+ Cases_on `v1` >> Cases_on `v2` >> (
+  fs [stmt_exec_verify] >>
+  rw []
+ ) >>
+ Cases_on `x` >> (
+  Cases_on `b` >> (
+   fs [stmt_exec_verify]
+  )
+ ) >| [
+  METIS_TAC [(valOf o find_clause_stmt_red) "stmt_verify_3", clause_name_def],
+
+  METIS_TAC [(valOf o find_clause_stmt_red) "stmt_verify_4", clause_name_def]
+ ],
+
+ (* Second case - second operand unreduced *)
+ fs [] >>
+ Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ rw [] >>
+ Cases_on `e1` >> (
+  fs [is_v] >>
+  rw []
+ ) >>
+ Cases_on `v` >> (
+  fs [is_v_bool] >>
+  rw []
+ ) >>
+ METIS_TAC [((valOf o find_clause_stmt_red) "stmt_verify_e2"), clause_name_def],
+
+ (* Third case - first operand unreduced *)
+ fs [] >>
+ Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ rw [] >>
+ METIS_TAC [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def],
+
+ (* Fourth case - both operands unreduced *)
+ fs [] >>
+ Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ rw [] >>
+ METIS_TAC [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def]
 ]
 QED
 
