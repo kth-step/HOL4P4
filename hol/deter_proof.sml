@@ -304,6 +304,17 @@ METIS_TAC[]
 );
 
 
+val lemma_dc1d =
+prove(``
+(∀y. (λ(d,e). ¬is_arg_red d e) y ⇒
+             ¬(λ(d,e). is_arg_red d e) y)``,
+
+STRIP_TAC>>
+Cases_on `y`>>
+FULL_SIMP_TAC std_ss [lemma_dc1a, is_arg_red_def, lemma_dir_EQ]
+);
+
+
 (***************************
 Show that
 INDEX_FIND 0 P l = SOME x ==> P(x)
@@ -527,33 +538,29 @@ Cases_on ` find_unred_arg (h::t) (h'::t')`
 >|[
 REPEAT STRIP_TAC >>
 FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]
+FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def ]
 ,
 
 FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
 FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]>>
 
-Cases_on `(¬is_d_out h ∧ ¬is_const h')` >| [
+Cases_on `¬is_arg_red h h'` >| [
 FULL_SIMP_TAC (list_ss) [is_arg_red_def] 
 ,
 STRIP_TAC >>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]>>
-FULL_SIMP_TAC (list_ss) [is_arg_red_def]>>
-STRIP_TAC >>
-DISJ2_TAC>>
-FULL_SIMP_TAC (list_ss) [lemma_dir_EQ]>>
+FULL_SIMP_TAC (list_ss) [] >>
+
 
 ASSUME_TAC lemma_dc_mono2 >>
 Q.PAT_X_ASSUM `∀P Q l n. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [
-`(λ(d,e). is_d_none_in d ∧ ¬is_const e) `,
-`$¬ ∘ (λ(d,e). ((is_d_none_in d ⇒ is_const e) ∧
-                (¬is_d_none_in d ⇒ is_e_lval e)))`,
+`λ(d,e). ¬is_arg_red d e `,
+`($¬ ∘ (λ(d,e). is_arg_red d e))`,
 `ZIP (t,t')`,
 `1`
 ])) >>
-FULL_SIMP_TAC std_ss [lemma_dc1b] >>
+FULL_SIMP_TAC std_ss [lemma_dc1d] >>
+
 
 RES_TAC>>
 ASSUME_TAC lemma_dc7c>>
@@ -561,8 +568,7 @@ ASSUME_TAC lemma_dc7c>>
 Q.PAT_X_ASSUM `∀l P n. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [
 `ZIP (t,t') `,
-`$¬ ∘ (λ(d,e). ((is_d_none_in d ⇒ is_const e) ∧
-                (¬is_d_none_in d ⇒ is_e_lval e)))`,
+`($¬ ∘ (λ(d,e). is_arg_red d e))`,
 `1`
 ])) >>
 fs[]
@@ -888,21 +894,26 @@ fs []
 (*****************************)
 (*   stmt_ass                *)
 (*****************************)
-cheat
-(*
+
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
 OPEN_STMT_RED_TAC ``(stmt_ass l e)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-
-(*first + second subgoal*)
 OPEN_STMT_RED_TAC ``(stmt_ass l e)`` >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
-RW_TAC (srw_ss()) []>>
-REV_FULL_SIMP_TAC (srw_ss())  [assign_def, same_state_def] >>
-IMP_RES_TAC lemma_v_red_forall >|[
 
-]*)
+(*first + second + third subgoal*)
+
+RW_TAC (srw_ss()) [assign_def, same_state_def]>>
+IMP_RES_TAC lemma_v_red_forall >>
+TRY (`SOME scopes_stack' = SOME scopes_stack''` by METIS_TAC [CLOSED_PAIR_EQ] >>
+fs []) >>
+
+(*fourth subgoal*)
+ASSUME_TAC P4_exp_det >>
+fs [det_exp_def]  >>
+RES_TAC >>
+fs [same_frame_exp_def]
+
 
 ,
 
@@ -970,7 +981,7 @@ FULL_SIMP_TAC (srw_ss()) [Once same_state_def]
 ,
 
 (*****************************)
-(*   stmt_ip                 *)
+(*   stmt_block_ip           *)
 (*****************************)
 (NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
@@ -1142,7 +1153,6 @@ prove (
 Cases_on `frame` >| [
 
 (*empty frame*)
-
 FULL_SIMP_TAC (srw_ss()) [det_frame_def] >>
 REPEAT STRIP_TAC >>
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
@@ -1154,15 +1164,12 @@ FULL_SIMP_TAC (srw_ss()) [det_frame_def] >>
 REPEAT STRIP_TAC >>
 Cases_on `t` >| [
 
-
-
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
 Cases_on `h` >>
 Cases_on `r` >>
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`q'`,`c` , `r'` , `s'` , `s''` , `g_scope_list`, `q`, `status`, `ctrl`])) >>
-rfs[]
+RES_TAC >>
+fs [same_state_def]
 
 
 ,
@@ -1176,200 +1183,79 @@ ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
 Cases_on `h` >>
 Cases_on `r` >>
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`q'`,`c` , `r'` ,
-`(g_scope_list'',frame_list',ctrl'',status'')` ,
-`(g_scope_list'³',frame_list'',ctrl'³',status'³')` ,
-`g_scope_list`, `q`, `status`, `ctrl`])) >>
-rfs[]
+RES_TAC >>
+fs [same_state_def]
 
 ,
-
-
-
 
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def, notret_def] >>
 FULL_SIMP_TAC (srw_ss()) [notret_def]>>
 rw[] >| [
-
-
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
-
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt1`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-`(g_scope_list'',frame_list ⧺ [(funn,stmt1',scopes_stack'³')],
-       ctrl'',status_running)` ,
-`(g_scope_list,[(funn,stmt'',scopes_stack)],ctrl,status_returnv v)` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
-
-rfs[]
-
+RES_TAC >>
+rfs[notret_def] 
 ,
-
 OPEN_STMT_RED_TAC ``stmt_empty`` >>
 fs []
-
 ,
-
 (*third subgoal*)
-
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
-
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt1`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-`(g_scope_list'',[(funn,stmt1',scopes_stack'³')],ctrl'',status'')` ,
-`(g_scope_list,[(funn,stmt'',scopes_stack)],ctrl,status_returnv v)` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
-
-rfs[] >>
-FULL_SIMP_TAC (srw_ss()) [ notret_def] 
+RES_TAC >>
+rfs[notret_def] >>
+rw[] >>
+rfs[notret_def] 
 ,
-
 (*fourth*)
-
-
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
-
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt''''`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-` (g_scope_list'⁴',frame_list ⧺ [(funn,stmt'⁵',scopes_stack'³')],
-           ctrl'',status'')` ,
-` (g_scope_list'⁵',[(funn,stmt'⁷',scopes_stack)],ctrl,
-           status_returnv v)` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
-
-rfs[]>>
-FULL_SIMP_TAC (srw_ss()) [same_state_def, notret_def] 
-
+RES_TAC >>
+rfs[notret_def] >>
+rw[] >>
+rfs[notret_def]
 ,
-
 OPEN_STMT_RED_TAC ``stmt_empty`` >>
 fs []
-
 ,
-
 IMP_RES_TAC lemma_v_red_forall 
-
-
 ]
-
-
-
-
-
-
-
 ,
-
-
-
-
 
 (**********************************************)
 
-
-
-
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def, notret_def] >>
 FULL_SIMP_TAC (srw_ss()) [notret_def]>>
 rw[] >| [
-
-
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
-
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt1`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-`  (g_scope_list,[(funn,stmt'',scopes_stack)],ctrl,status_returnv v)` ,
-`(g_scope_list'³',frame_list ⧺ [(funn,stmt1'',scopes_stack'³')],
-       ctrl'',status_running)` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
-
-rfs[]
-
+RES_TAC >>
+rfs[notret_def] 
 ,
-
 OPEN_STMT_RED_TAC ``stmt_empty`` >>
 fs []
-
 ,
-
 (*third subgoal*)
-
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
-
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt1`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-`(g_scope_list,[(funn,stmt'',scopes_stack)],ctrl,status_returnv v)` ,
-`(g_scope_list'³',[(funn,stmt1'',scopes_stack'³')],ctrl'',status'')` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
-
-rfs[]>>
-
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt1`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-`(g_scope_list,[(funn,stmt'',scopes_stack)],ctrl,status_returnv v)` ,
-`(g_scope_list'³',[(funn,stmt1'',scopes_stack'³')],ctrl'',status'')` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
-
-rfs[]>>
-rw [] >> (*VERY MUCH NEEDED HERE*)
-FULL_SIMP_TAC (srw_ss()) [notret_def] 
-
+RES_TAC >>
+rfs[notret_def] >>
+rw[] >>
+rfs[notret_def] 
 ,
-
 (*fourth*)
-
-
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
-
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt'⁴'`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-` (g_scope_list'⁴',[(funn,stmt'⁵',scopes_stack)],ctrl,
-           status_returnv v)` ,
-` (g_scope_list'⁵',frame_list ⧺ [(funn,stmt'⁷',scopes_stack'³')],
-           ctrl'',status'')` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
-
-
-rfs[]>>
-rw [] >> (*VERY MUCH NEEDED HERE*)
-FULL_SIMP_TAC (srw_ss()) [notret_def] 
-
-
+RES_TAC >>
+rfs[notret_def] >>
+rw[] >>
+rfs[notret_def] 
 ,
-
 OPEN_STMT_RED_TAC ``stmt_empty`` >>
 fs []
-
 ,
-
 IMP_RES_TAC lemma_v_red_forall 
-
-
 ]
-
-
-
 
 ,
 
@@ -1381,27 +1267,76 @@ IMP_RES_TAC lemma_MAP8 >>
 rw[] >>
 ASSUME_TAC P4_stmt_det >>
 fs [det_stmt_def, same_state_def]  >>
-PAT_ASSUM `` ∀stmt . _ ``
-( STRIP_ASSUME_TAC o (Q.SPECL [`stmt`,
-`(ty_map,ext_map,func_map,tbl_map)` ,
-`scopes_stack` ,
-`(g_scope_list,[(funn,stmt'',scopes_stack)],ctrl,status_returnv v)` ,
-`(g_scope_list,[(funn,stmt'⁶',scopes_stack)],ctrl,status_returnv v')` ,
-`g_scope_list`, `funn`, `status_running`, `ctrl`])) >>
+RES_TAC >>
+rfs[notret_def] >>
 rfs[]>>
 rw[] >>
 `(g_scope_list'',scopes_stack'⁴') =
  (g_scope_list'³',scopes_stack'⁵')
 ` by METIS_TAC [SOME_EL,SOME_11] >>
 rfs[]
-
+]
 ]
 
-]
 
 ]
 );
 
 
+
+
+
+val det_parser_def = Define `
+ det_parser framel =
+ ! (ty_map:ty_map) (ext_map:ext_map) (func_map:func_map) (pars_map:pars_map) (s':state) s'' (g_scope_list:scope list) (ctrl:ctrl) status.
+(pars_red ( ty_map ,  ext_map ,  func_map ,  pars_map ) ( g_scope_list , framel , ctrl, status) (s'))
+/\
+(pars_red ( ty_map ,  ext_map ,  func_map ,  pars_map ) ( g_scope_list , framel , ctrl, status) (s''))
+==>
+( same_state s' s'')
+`;
+
+
+
+
+
+
+val P4_parser_det =
+prove (
+``
+! frame. det_parser frame
+``,
+Cases_on `frame` >| [
+FULL_SIMP_TAC (srw_ss()) [det_parser_def, same_state_def] >>
+REPEAT STRIP_TAC >>
+FULL_SIMP_TAC (srw_ss()) [Once pars_red_cases, Once stmt_red_cases, same_state_def] >>
+rfs [Once stmt_red_cases] >>
+rw [] >>
+` stmt'' =  stmt'''` by METIS_TAC [SOME_EL,SOME_11] >>
+rw[] 
+,
+FULL_SIMP_TAC (srw_ss()) [det_parser_def, same_state_def] >>
+Cases_on `h` >>
+Cases_on `r` >>
+REPEAT STRIP_TAC >>
+FULL_SIMP_TAC (srw_ss()) [Once pars_red_cases] >>
+REV_FULL_SIMP_TAC (srw_ss()) [] 
+>| [
+ASSUME_TAC P4_frame_det >>
+fs [det_frame_def, same_state_def]  >>
+RES_TAC 
+,
+ASSUME_TAC P4_frame_det >>
+fs [det_frame_def, same_state_def]  >>
+RES_TAC >>
+rw[] >>
+rfs [Once stmt_red_cases]
+,
+` stmt'' =  stmt'''` by METIS_TAC [SOME_EL,SOME_11] >>
+rw[] 
+,
+rfs [Once stmt_red_cases]
+]]
+);
 
 
