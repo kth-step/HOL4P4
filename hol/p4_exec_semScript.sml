@@ -409,12 +409,11 @@ Definition stmt_exec:
  (* No statement execution step begins with return status *)
  (stmt_exec _ (_, _, _, status_returnv v) = NONE)
   /\
+ (* Same for trans status *)
+ (stmt_exec _ (_, _, _, status_trans x) = NONE)
+  /\
  (* Empty frame list *)
  (stmt_exec _ (_, [], _, _) = NONE)
-  /\
- (* TODO: frame list does not take into account nested frames here? *)
- (stmt_exec _ (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_trans x) =
-  SOME (g_scope_list, [(funn, [], scopes_stack)], ctrl, status_trans x))
   /\
  (***************)
  (* Frame rules *)

@@ -5,13 +5,6 @@ val _ = new_theory "p4_exec_sem_stmt_soundness";
 open p4Lib;
 open ottTheory p4Theory p4_exec_semTheory p4_exec_sem_e_soundnessTheory;
 
-(* Only meant to skip certain soundness proof parts for now *)
-Theorem stmt_ignore_pars_next:
- !ctx g_scope_list frame_list ctrl p state'.
-  stmt_red ctx (g_scope_list, frame_list, ctrl, (status_pars_next p)) state'
-Proof
-cheat
-QED
 
 (* Note that this definition is phrased for given singleton statement lists, not on the frame list,
  * so soundness block nesting rules and comp1 and comp2 rules are excluded *)
@@ -21,6 +14,78 @@ Definition stmt_exec_sound:
   stmt_exec ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) = SOME state' ==>
   stmt_red ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) state')
 End
+
+Theorem stmt_exec_funn_inv:
+!ctx g_scope_list funn stmt_stack scopes_stack ctrl status g_scope_list' funn' stmt_stack' scopes_stack' ctrl' status' frame'. 
+(stmt_exec ctx (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status) =
+ SOME (g_scope_list', [(funn', stmt_stack', scopes_stack')], ctrl', status') ==> funn = funn') /\
+(stmt_exec ctx (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status) =
+ SOME (g_scope_list', [frame'; (funn', stmt_stack', scopes_stack')], ctrl', status') ==> funn = funn')
+Proof
+cheat
+QED
+
+(*
+val specl_stmt_block_exec_empty =
+ SIMP_RULE list_ss [] (ISPECL [``ctx:ctx``, ``g_scope_list:g_scope_list``, ``funn:funn``, ``s:stmt``, ``scopes_stack:scopes_stack``, ``ctrl:ctrl``, ``status_running``, ``g_scope_list':g_scope_list``, ``[]:frame_list``] ((valOf o find_clause_stmt_red) "stmt_block_exec"))
+;
+
+val specl_stmt_block_exec_sing =
+ SIMP_RULE list_ss [] (ISPECL [``ctx:ctx``, ``g_scope_list:g_scope_list``, ``funn:funn``, ``s:stmt``, ``scopes_stack:scopes_stack``, ``ctrl:ctrl``, ``status_running``, ``g_scope_list':g_scope_list``, ``[h]:frame_list``] ((valOf o find_clause_stmt_red) "stmt_block_exec"))
+;
+
+Theorem stmt_block_ip_exec_sound_red:
+!s.
+stmt_exec_sound s ==>
+stmt_exec_sound (stmt_block_ip s)
+Proof
+fs [stmt_exec_sound] >>
+REPEAT STRIP_TAC >>
+pairLib.PairCases_on `state'` >>
+rename1 `(g_scope_list',state'1,state'2,state'3)` >>
+rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+Cases_on `status` >> (
+ fs [stmt_exec]
+) >>
+Cases_on `is_empty s` >> (
+ fs []
+) >- (
+ (* stmt_block_exit *)
+ Cases_on `s` >> (
+  fs [is_empty]
+ ) >>
+ METIS_TAC [((valOf o find_clause_stmt_red) "stmt_block_exit"), clause_name_def]
+) >>
+Cases_on `stmt_exec ctx (g_scope_list,[(funn,s,scopes_stack)],ctrl,status_running)` >> (
+ fs [stmt_exec]
+) >>
+pairLib.PairCases_on `x` >>
+fs [] >>
+Cases_on `x1` >> (
+ fs []
+) >>
+Cases_on `t` >> (
+ fs []
+) >| [
+ Cases_on `h` >> (
+  fs []
+ ) >>
+ Cases_on `r` >> (
+  fs []
+ ) >>
+ IMP_RES_TAC stmt_exec_funn_inv >>
+ rw [] >>
+ METIS_TAC [specl_stmt_block_exec_empty, clause_name_def],
+
+ Cases_on `t'` >> Cases_on `h'` >> Cases_on `r` >> (
+  fs []
+ ) >>
+ IMP_RES_TAC stmt_exec_funn_inv >>
+ rw [] >>
+ METIS_TAC [specl_stmt_block_exec_sing, clause_name_def]
+]
+QED
+*)
 
 Theorem stmt_block_exec_sound_red:
 !stmt decl_list.
@@ -42,7 +107,7 @@ pairLib.PairCases_on `state'` >>
 rename1 `(g_scope_list',state'1,state'2,state'3)` >>
 rename1 `(g_scope_list',frame_list',ctrl',status')` >>
 Cases_on `status` >> (
- fs [stmt_exec, stmt_ignore_pars_next]
+ fs [stmt_exec]
 ) >>
 Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* First case *)
