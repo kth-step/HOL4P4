@@ -1192,7 +1192,7 @@ formula :: formula_ ::=
   {{ tex [[v]] = \mathit{NoError} }}
 | ( g_scope_list' , scopes_stack' ) = declare ( g_scope_list , scopes_stack , x , t ) :: M :: declare
   {{ com declare variable of type }}
-  {{ hol (([[g_scope_list]], [[scopes_stack']]) = declare [[g_scope_list]] [[scopes_stack]] [[x]] [[t]]) }}
+  {{ hol (([[g_scope_list']], [[scopes_stack']]) = declare [[g_scope_list]] [[scopes_stack]] [[x]] [[t]]) }}
   {{ tex ([[g_scope_list']], [[scopes_stack']]) = \mathrm{declare} ([[g_scope_list]], [[scopes_stack]], [[x]], [[t]]) }}
 | scopes_stack' = initialise ( scopes_stack , varn , v ) :: M :: initialise
   {{ com initialise variable to value }}
@@ -1804,7 +1804,7 @@ val initialise_def = Define `
 
 (* Looks up the function signature and body for an abstract function name. *)
 val lookup_funn_sig_body_def = Define `
-  (lookup_funn_sig_body funn func_map ext_map =
+  (lookup_funn_sig_body (funn:funn) (func_map:func_map) (ext_map:ext_map) =
     case funn of
     | (funn_name x) =>
      (case FLOOKUP func_map x of
@@ -2295,10 +2295,6 @@ by
   ctx ( g_scope_list , [ ( funn , assign lval v , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , empty_stmt , scopes_stack'' ) ]  , ctrl , Running )
 
 
-  ----------------------------------- :: ass_null
-  ctx ( g_scope_list , [ ( funn , assign null v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl , Running )
-
-
 %%%%%%%%%%%%%%
 %Sequence
 
@@ -2335,7 +2331,7 @@ by
   ctx ( g_scope_list , [ ( funn , decl t x - , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl , Running )
 
 %TODO: Check type agreement between t and initial value?
-  scopes_stack' = initialise ( g_scope_list ++ scopes_stack , x' , v )
+  scopes_stack' = initialise ( g_scope_list ++ scopes_stack , x , v )
   g_scope = scopes_stack' [0]
   g_scope' = scopes_stack' [1]
   scopes_stack'' = tl (tl scopes_stack')
@@ -2494,7 +2490,7 @@ by
 %If the end of some parser state is reached without status change, we reject
   x = "reject"
   ------------------------------------------------- :: empty
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list' , [ ( funn , transition x , scopes_stack ) ] , ctrl', Running )
+  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list , [ ( funn , transition x , scopes_stack ) ] , ctrl, Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%

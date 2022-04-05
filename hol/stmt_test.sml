@@ -612,7 +612,10 @@ val state_null2 = ``(^scopelist18, (^frame_null2) , empty_ctrl, ^R): state``;
 (* test 1: assign to null changes nothing*)
 val test_stmt_ass_null =
 prove(`` stmt_red (^ctx_empty) ^state_null1 ^state_null2 ``,
-STMT_SIMP
+STMT_SIMP >>
+EVAL_TAC>>
+SIMP_TAC std_ss [FUPDATE_EQ]>>
+FULL_SIMP_TAC list_ss []
 );
 
 
