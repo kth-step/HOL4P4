@@ -1,0 +1,34 @@
+["program",
+ [
+  ["ExternObject",{"annotations":[],
+                   "name":"packet_in",
+                   "type_params":[],
+                   "methods":[]}
+  ],
+  ["ParserType",{"annotations":[],
+                 "name":"filter",
+                 "type_params":[],
+                 "params":[{"annotations":[],
+                            "direction":null,
+                            "typ":["name",["BareName","packet_in"]],
+                            "variable":"packet","opt_value":null},
+                           {"annotations":[],
+                            "direction":["Out"],
+                            "typ":["bool"],
+                            "variable":"drop",
+                            "opt_value":null}
+                          ]
+                }
+  ],
+  ["PackageType",{"annotations":[],
+                  "name":"Filter",
+                  "type_params":[],
+                  "params":[{"annotations":[],
+                             "direction":null,
+                             "typ":["name",["BareName","filter"]],
+                             "variable":"f",
+                             "opt_value":null}
+                           ]}
+  ]
+ ]
+]
