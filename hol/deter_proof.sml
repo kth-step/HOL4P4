@@ -14,13 +14,6 @@ open ottTheory;
 open pairTheory;
 open rich_listTheory;
 
-(*
-TODO:
-1. reduce the tactics.
-2. try to ask didrik about the matching that is not working and also about the comp1 and comp2 
-3. give better namings for dc1b ..etc 
-*)
-
 
 
 (*Tactics*)
@@ -28,10 +21,8 @@ TODO:
 fun OPEN_EXP_RED_TAC exp_term =
 (Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
 
-
 fun OPEN_STMT_RED_TAC stm_term =
-(Q.PAT_X_ASSUM `stmt_red ct (gsl,[(fun,^stm_term,s)],ctl,st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
-
+(Q.PAT_X_ASSUM `stmt_red ct (gsl,[(fun,^stm_term,gam)],ctl,st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
 
 (*********** SAME SATE DEF *****************)
 val same_state_def = Define `
@@ -77,6 +68,7 @@ val det_exp_list_def = Define `
    det_exp_list (l : e list)  = !(x : e). MEM x l ==> det_exp(x)
 `;
 
+
 (******** Frame list DETERMINISIM DEF *******)
 val det_frame_def = Define `
  det_frame framel = ! (c:ctx) (s':state) s'' (g_scope_list:scope list) (ctrl:ctrl) status.
@@ -98,7 +90,6 @@ val det_parser_def = Define `
 ==>
 ( same_state s' s'')
 `;
-
 
 
 (*lemmas and thms*)
@@ -246,7 +237,7 @@ Q is ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
 show that P ==> not Q
 **************************)
 
-val lemma_dc1a =
+val dir_const_imp1 =
 prove(`` ! d e.(is_d_none_in d ∧ ¬is_const e)
 	     ==> ~((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e)) ``,
 NTAC 3 STRIP_TAC >>
@@ -256,7 +247,7 @@ METIS_TAC[]
 );
 
 
-val lemma_dc1b =
+val dir_const_imp2 =
 prove(``
 (∀y. (λ(d,e). is_d_none_in (d) ∧ ¬is_const (e)) y ⇒
              ($¬ ∘
@@ -266,12 +257,12 @@ prove(``
 
 STRIP_TAC>>
 Cases_on `y`>>
-FULL_SIMP_TAC std_ss [lemma_dc1a] 
+FULL_SIMP_TAC std_ss [dir_const_imp1] 
 );
 
 
 
-val lemma_dc1c =
+val dir_const_imp3 =
 prove(`` ! d e. ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
                      ==> ~(is_d_none_in d ∧ ¬is_const e) ``,
 NTAC 3 STRIP_TAC >>
@@ -280,14 +271,14 @@ METIS_TAC[]
 );
 
 
-val lemma_dc1d =
+val dir_const_imp4 =
 prove(``
 (∀y. (λ(d,e). ¬is_arg_red d e) y ⇒
              ¬(λ(d,e). is_arg_red d e) y)``,
 
 STRIP_TAC>>
 Cases_on `y`>>
-FULL_SIMP_TAC std_ss [lemma_dc1a, is_arg_red_def, lemma_dir_EQ]
+FULL_SIMP_TAC std_ss [dir_const_imp1, is_arg_red_def, lemma_dir_EQ]
 );
 
 
@@ -296,7 +287,7 @@ Show that
 INDEX_FIND 0 P l = SOME x ==> P(x)
 ****************************)
 
-val lemma_dc2 =
+val index_some1 =
 prove(``!l n. ((INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e)
                   l) = SOME x)  ==> (λ(d,e). is_d_none_in d ∧ ¬is_const e) (SND x) ``,
 Induct >| [
@@ -319,7 +310,7 @@ Show that
 (INDEX_FIND n P l = NONE) = ~ EXISTS P l
 ****************************)
 
-val lemma_dc3 =
+val index_some2 =
 prove(``! l n. (( INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = NONE) =
        ~(EXISTS (λ(d,e). is_d_none_in d ∧ ¬is_const e) l)``,
 Induct >|[
@@ -340,7 +331,7 @@ Show that for a generic P (Lemma T4)
 (INDEX_FIND n P l = NONE) = ~ EXISTS P
 ****************************)
 
-val lemma_dc4 =
+val index_none_not_exist =
 prove(``!  (l: (d#e) list) n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)``,
 Induct >|[
 FULL_SIMP_TAC list_ss [INDEX_FIND_def]
@@ -359,9 +350,9 @@ Show that (equivelnt to above)
 Here just write P and substitute later.
 ****************************)
 
-val lemma_dc5 =
+val index_none_not_every =
 prove(``! l P n. (( INDEX_FIND n (P: (d#e -> bool)) l) = NONE) = (EVERY ($¬ ∘ P) l)``,
-FULL_SIMP_TAC list_ss [NOT_EXISTS, lemma_dc4]
+FULL_SIMP_TAC list_ss [NOT_EXISTS, index_none_not_exist]
 );
 
 
@@ -374,13 +365,13 @@ BUT WE CAN SHOW
 Here just write P and substitute later.
 ****************************)
 
-val lemma_dc6a =
+val index_none_not_some =
 prove(``! l P n. (( INDEX_FIND n P l) = NONE) ==> ~(( INDEX_FIND n P l) = SOME x) ``,
 FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES]
 );
 
 
-val lemma_dc6b =
+val index_none_not_none =
 prove(``! l P n. (( INDEX_FIND n P l) = SOME x) ==> ~(( INDEX_FIND n P l) = NONE) ``,
 FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES]
 );
@@ -391,18 +382,18 @@ Show that Lemma T6
 Here just write P and substitute later.
 ****************************)
 
-val lemma_dc7a =
+val not_index_none_exist =
 prove(``
 ∀ (l: (d#e) list) n P. ~ (INDEX_FIND n P l = NONE) ⇔ EXISTS P l ``,
 REPEAT GEN_TAC >>
-ASSUME_TAC lemma_dc4>>
+ASSUME_TAC index_none_not_exist>>
 Q.PAT_X_ASSUM `∀l n P. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
 FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF]
 );
 
 
-val lemma_dc7b =
+val not_index_none_some =
 prove(``
 ∀ (l: (d#e) list) n P.~ (INDEX_FIND n P l = NONE) = ? x. ( INDEX_FIND n P l) = SOME x``,
 REPEAT GEN_TAC >>
@@ -411,20 +402,20 @@ FULL_SIMP_TAC (std_ss) [NOT_SOME_NONE,option_CLAUSES ]
 );
 
 
-val lemma_dc7c =
+val exists_index_some =
 prove(``!  (l: (d#e) list) P n. (?x .(( INDEX_FIND n P l) = SOME x)) = (EXISTS P l)``,
 REPEAT GEN_TAC >>
-ASSUME_TAC lemma_dc4>>
+ASSUME_TAC index_none_not_exist>>
 Q.PAT_X_ASSUM `∀l n P. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-ASSUME_TAC lemma_dc7a >>
+ASSUME_TAC not_index_none_exist >>
 Q.PAT_X_ASSUM `∀l n P. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-ASSUME_TAC lemma_dc7b>>
+ASSUME_TAC not_index_none_some>>
 Q.PAT_X_ASSUM `∀l n P. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
 
-FULL_SIMP_TAC (srw_ss()) [lemma_dc7b, lemma_dc7a , lemma_dc4 ]
+FULL_SIMP_TAC (srw_ss()) [not_index_none_some, not_index_none_exist , index_none_not_exist ]
 );
 
 
@@ -437,7 +428,7 @@ Show Lemma T2.1
 ****************************)
 
 
-val lemma_dc_mono1 =
+val P_Q_mono1 =
 prove (``! P Q l. ((! (x) . (P x ==>  Q x) ) ==>
 ((EXISTS P l) ==>
 (EXISTS Q l)))``,
@@ -447,7 +438,7 @@ FULL_SIMP_TAC list_ss[MONO_EXISTS ]
 );
 
 
-val lemma_dc_mono2 =
+val P_Q_mono2 =
 prove (``
 ! P Q l n. ((!  (y : (d#e)) . (P y ==>  Q y) ) ==>
 ((? v. INDEX_FIND n P l = SOME v) ==>
@@ -455,13 +446,13 @@ prove (``
 
 ``,
 REPEAT STRIP_TAC >>
-ASSUME_TAC (ISPECL [``P:(d # e) -> bool``, ``Q:(d # e) -> bool``, ``l:(d # e) list``] lemma_dc_mono1) >>
+ASSUME_TAC (ISPECL [``P:(d # e) -> bool``, ``Q:(d # e) -> bool``, ``l:(d # e) list``] P_Q_mono1) >>
 (*twice*)
-ASSUME_TAC  lemma_dc7c >>
+ASSUME_TAC  exists_index_some >>
 Q.PAT_X_ASSUM `∀l P n. (∃x. INDEX_FIND n P l = SOME x) ⇔ EXISTS P l`
 ( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `P`, `n`])) >>
 
-ASSUME_TAC  lemma_dc7c >>
+ASSUME_TAC  exists_index_some >>
 Q.PAT_X_ASSUM `∀l P n. (∃x. INDEX_FIND n P l = SOME x) ⇔ EXISTS P l`
 ( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `Q`, `n`])) >>
 RES_TAC>>
@@ -470,31 +461,27 @@ fs []
 
 
 (***************************
-The Big lemma
+If a minimum index found, then the arg list is unreduced
 ****************************)
 
-val lemma_args1 =
+val lemma_args =
 prove (`` ! dl el i. (unred_arg_index dl el = SOME i) ==> ~ check_args_red dl el ``,
 Cases_on `dl`>>
 Cases_on `el` >|[
-RW_TAC (srw_ss()) [unred_arg_index_def]>>
-RW_TAC (srw_ss()) [check_args_red_def]>>
-Cases_on ` find_unred_arg [] []`>>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def] 
 
+rfs [unred_arg_index_def, check_args_red_def] >>
+Cases_on ` find_unred_arg [] []`>>
+rfs [find_unred_arg_def, INDEX_FIND_def]
 ,
-RW_TAC (srw_ss()) [unred_arg_index_def]>>
-RW_TAC (srw_ss()) [check_args_red_def]>>
+
+rfs [unred_arg_index_def, check_args_red_def] >>
 Cases_on ` find_unred_arg [] (h::t)`>>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def] 
+rfs [find_unred_arg_def, INDEX_FIND_def, ZIP_def]
 ,
-RW_TAC (srw_ss()) [unred_arg_index_def]>>
-RW_TAC (srw_ss()) [check_args_red_def]>>
+
+rfs [unred_arg_index_def, check_args_red_def] >>
 Cases_on ` find_unred_arg (h::t) []`>>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def] 
+rfs [find_unred_arg_def, INDEX_FIND_def, ZIP_def]
 ,
 
 SIMP_TAC (list_ss) [unred_arg_index_def]>>
@@ -502,21 +489,18 @@ REWRITE_TAC [check_args_red_def]>>
 Cases_on ` find_unred_arg (h::t) (h'::t')`
 >|[
 REPEAT STRIP_TAC >>
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def ]
+rfs [find_unred_arg_def, INDEX_FIND_def, ZIP_def]
 ,
 
-FULL_SIMP_TAC (list_ss) [find_unred_arg_def] >>
-FULL_SIMP_TAC (list_ss) [INDEX_FIND_def, ZIP_def]>>
-
-Cases_on `¬is_arg_red h h'` >| [
-FULL_SIMP_TAC (list_ss) [is_arg_red_def] 
+rfs [find_unred_arg_def] >>
+rfs [INDEX_FIND_def, ZIP_def]>>
+Cases_on `¬is_arg_red h h'`>| [
+rfs [is_arg_red_def] 
 ,
 STRIP_TAC >>
 FULL_SIMP_TAC (list_ss) [] >>
 
-
-ASSUME_TAC lemma_dc_mono2 >>
+ASSUME_TAC P_Q_mono2 >>
 Q.PAT_X_ASSUM `∀P Q l n. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [
 `λ(d,e). ¬is_arg_red d e `,
@@ -524,11 +508,10 @@ Q.PAT_X_ASSUM `∀P Q l n. _`
 `ZIP (t,t')`,
 `1`
 ])) >>
-FULL_SIMP_TAC std_ss [lemma_dc1d] >>
-
+FULL_SIMP_TAC std_ss [dir_const_imp4] >>
 
 RES_TAC>>
-ASSUME_TAC lemma_dc7c>>
+ASSUME_TAC exists_index_some>>
 
 Q.PAT_X_ASSUM `∀l P n. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [
@@ -543,12 +526,9 @@ fs[]
 
 
 
-(**************************************************)
-(**************************************************)
-         (*determinism proof expressions*)
-(**************************************************)
-(**************************************************)
 
+
+(*determinism proof of expressions*)
 
 val P4_exp_det =
 prove ( `` (!e. det_exp e) /\ (! l: e list. det_exp_list l) ``,
@@ -715,7 +695,7 @@ rfs [] >>
 
 IMP_RES_TAC lemma_MAP1>>
 RES_TAC >>	
-IMP_RES_TAC lemma_args1 >>
+IMP_RES_TAC lemma_args >>
 METIS_TAC[]
 ]
 
@@ -740,12 +720,11 @@ rfs [] >>
 
 IMP_RES_TAC lemma_MAP1>>
 RES_TAC >>	
-IMP_RES_TAC lemma_args1 >>
+IMP_RES_TAC lemma_args >>
 METIS_TAC[]
-
 ,
 
-(*start the forth poof here*)
+(*start the forth sub poof here*)
 `SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list) =
 SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ` by METIS_TAC [SOME_EL,SOME_11] >>
 REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
@@ -833,7 +812,6 @@ NTAC 2 (OPEN_STMT_RED_TAC ``(stmt_ass l e)``) >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 
 (*first + second + third subgoal*)
-
 RW_TAC (srw_ss()) [assign_def, same_state_def]>>
 IMP_RES_TAC lemma_v_red_forall >>
 TRY (`SOME scopes_stack' = SOME scopes_stack''` by METIS_TAC [CLOSED_PAIR_EQ] >>
@@ -868,15 +846,7 @@ fs [same_frame_exp_def]
 
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
-
-(*OPEN_STMT_RED_TAC ``stmt_declare t s o'`` >>  NOT WORKING*)
-
-(Q.PAT_X_ASSUM ` stmt_red c (g_scope_list,[(f,stmt_declare t s o',ss)],ctrl,status) s' `
-(fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm))) >>
-
-(Q.PAT_X_ASSUM ` stmt_red c (g_scope_list,[(f,stmt_declare t s o',ss)],ctrl,status) s'' `
-(fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm))) >>
-
+NTAC 2 (OPEN_STMT_RED_TAC ``stmt_declare t s o'``) >>
 
 REV_FULL_SIMP_TAC (srw_ss()) []  >>
 rfs [Once same_state_def] >>
@@ -992,12 +962,7 @@ fs [same_frame_exp_def]
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
 
-(Q.PAT_X_ASSUM ` stmt_red c (g_scope_list,[(f,stmt_app s e,ss)],ctrl,status) s' `
-(fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm))) >>
-
-(Q.PAT_X_ASSUM ` stmt_red c (g_scope_list,[(f,stmt_app s e,ss)],ctrl,status) s'' `
-(fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm))) >>
-
+NTAC 2 (OPEN_STMT_RED_TAC ``stmt_app s e``) >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 
 
@@ -1126,9 +1091,7 @@ rfs[SOME_EL,SOME_11]
 
 val P4_parser_det =
 prove (
-``
-! framel. det_parser framel
-``,
+`` ! framel. det_parser framel ``,
 FULL_SIMP_TAC (srw_ss()) [det_parser_def, same_state_def] >>
 NTAC 2 (FULL_SIMP_TAC (srw_ss()) [Once pars_red_cases]) >>
 REPEAT STRIP_TAC >>
