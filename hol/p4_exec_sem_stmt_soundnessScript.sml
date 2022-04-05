@@ -15,6 +15,7 @@ Definition stmt_exec_sound:
   stmt_red ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) state')
 End
 
+(* TODO: This could be used to remove if-statements in the executable semantics
 Theorem stmt_exec_funn_inv:
 !ctx g_scope_list funn stmt_stack scopes_stack ctrl status g_scope_list' funn' stmt_stack' scopes_stack' ctrl' status' frame'. 
 (stmt_exec ctx (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status) =
@@ -24,6 +25,7 @@ Theorem stmt_exec_funn_inv:
 Proof
 cheat
 QED
+*)
 
 (*
 val specl_stmt_block_exec_empty =
@@ -59,7 +61,7 @@ Cases_on `is_empty s` >> (
 Cases_on `stmt_exec ctx (g_scope_list,[(funn,s,scopes_stack)],ctrl,status_running)` >> (
  fs [stmt_exec]
 ) >>
-pairLib.PairCases_on `x` >>
+PairCases_on `x` >>
 fs [] >>
 Cases_on `x1` >> (
  fs []
@@ -67,20 +69,15 @@ Cases_on `x1` >> (
 Cases_on `t` >> (
  fs []
 ) >| [
- Cases_on `h` >> (
+ PairCases_on `h` >> (
   fs []
  ) >>
- Cases_on `r` >> (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_funn_inv >>
  rw [] >>
  METIS_TAC [specl_stmt_block_exec_empty, clause_name_def],
 
- Cases_on `t'` >> Cases_on `h'` >> Cases_on `r` >> (
+ Cases_on `t'` >> PairCases_on `h'` >> (
   fs []
  ) >>
- IMP_RES_TAC stmt_exec_funn_inv >>
  rw [] >>
  METIS_TAC [specl_stmt_block_exec_sing, clause_name_def]
 ]
