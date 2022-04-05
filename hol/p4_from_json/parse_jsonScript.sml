@@ -5,15 +5,17 @@ val _ = new_theory "parse_json";
 open stringTheory;
 
 (* TODO: Cannot make object finite map... *)
-Datatype ‘json_t =
-             Object json_obj_t
-           | Array (json_t list)
-           | String string
-           | Number num
-           | Bool bool
-           | Null ;
+Datatype:
+ json_t =
+    Object json_obj_t
+  | Array (json_t list)
+  | String string
+  | Number num
+  | Bool bool
+  | Null ;
 
-          json_obj_t = Map ((string # json_t) list)’;
+ json_obj_t = Map ((string # json_t) list)
+End
 
 Definition obj_empty:
  obj_empty = Map []
@@ -21,6 +23,10 @@ End
 
 Definition obj_add:
  obj_add (k,v) (Map l) = Map ((k,v)::l)
+End
+
+Definition obj_reverse:
+ obj_reverse (Map l) = Map (REVERSE l)
 End
 
 Definition sym_list:
@@ -34,11 +40,13 @@ Definition is_sym:
   else F
 End
 
-Datatype ‘json_token_t =
-             token_id string
-           | token_str string
-           | token_sym char
-           | token_num num’;
+Datatype:
+ json_token_t =
+    token_id string
+  | token_str string
+  | token_sym char
+  | token_num num
+End
 
 (*********)
 (* LEXER *)
@@ -56,7 +64,16 @@ Theorem lex_id_index_incr:
  (lex_id str (acc, i) token_l = SOME (token_l', i')) ==>
  (i' >= i)
 Proof
-cheat
+Induct_on ‘str’ >> (
+ fs [lex_id]
+) >>
+REPEAT STRIP_TAC >>
+Cases_on ‘isAlphaNum h ∨ h = #"_"’ >> (
+ fs []
+) >> (
+ RES_TAC >>
+ fs []
+)
 QED
 
 Definition lex_str:
@@ -78,7 +95,7 @@ Definition str_to_num:
 End
 
 Definition lex_num:
- (lex_num [] _ _ = NONE) /\
+ (lex_num [] (acc, i) token_l = SOME (((token_num (str_to_num acc))::token_l), i)) /\
  (lex_num (h::t) (acc, i) token_l =
   if isDigit h
   then lex_num t ((h::acc), i+1) token_l
@@ -90,7 +107,23 @@ Theorem lex_num_index_incr:
  (lex_num str (acc, i) token_l = SOME (token_l', i')) ==>
  (i' >= i)
 Proof
-cheat
+Induct_on ‘str’ >> (
+ fs [lex_num]
+) >>
+REPEAT STRIP_TAC >>
+Cases_on ‘isDigit h’ >> (
+ fs []
+) >>
+RES_TAC >>
+fs []
+QED
+
+Theorem is_alpha_alphanum:
+ !c.
+ isAlpha c ==>
+ isAlphaNum c
+Proof
+fs [isAlpha_def, isAlphaNum_def]
 QED
 
 (* TODO: Also discard line break together with whitespace? *)
@@ -100,7 +133,7 @@ val lex = TotalDefn.tDefine "lex" ‘
   let res_opt =
    if isSpace h then SOME (t, token_l)
    else if is_sym h then SOME (t, ((token_sym h)::token_l))
-   else if (isAlphaNum h \/ h = #"_") then
+   else if (isAlpha h \/ h = #"_") then
     (case lex_id (h::t) ([], 0) token_l of
      | SOME (token_l', i) => SOME (DROP i (h::t), token_l')
      | NONE => NONE)
@@ -125,8 +158,8 @@ Cases_on ‘isSpace h’ >> (
 Cases_on ‘is_sym h’ >> (
  fs []
 ) >>
-Cases_on ‘isAlphaNum h’ >> (
- fs [lex_id]
+Cases_on ‘isAlpha h’ >> (
+  fs [lex_id, is_alpha_alphanum]
 ) >| [
  Cases_on ‘lex_id t (STRING h "",1) token_l’ >> (
   fs []
@@ -201,7 +234,7 @@ TotalDefn.tDefine "parse_json_kvs"
    | _ => NONE)
  | ((token_sym #"{")::token_l') =>
   (case parse_kvs obj_empty token_l' of
-   | SOME (kvs, ((token_sym #"}")::token_l')) => SOME (Object kvs, token_l')
+   | SOME (kvs, ((token_sym #"}")::token_l')) => SOME (Object (obj_reverse kvs), token_l')
    | _ => NONE)
  | _ => NONE) /\
 (* TODO: HOL4 complains about missing parse_kvs cases
@@ -242,33 +275,5 @@ Definition json_of_string:
  | _ => NONE
 )
 End
-
-(*********)
-(* TESTS *)
-
-(*
-
-val simple_in_stream = TextIO.openIn "simple_input.json";
-
-val simple_input = TextIO.inputAll simple_in_stream;
-
-val simple_input_tm = stringLib.fromMLstring simple_input;
-
-val simple_lex_thm = EVAL ``lex ((^simple_input_tm), [])``;
-
-val simple_parse_thm = EVAL ``json_of_string (^simple_input_tm)``;
-
-
-val vss_in_stream = TextIO.openIn "vss_input.json";
-
-val vss_input = TextIO.inputAll vss_in_stream;
-
-val vss_input_tm = stringLib.fromMLstring vss_input;
-
-val vss_lex_thm = EVAL ``lex ((^vss_input_tm), [])``;
-
-val vss_parse_thm = EVAL ``json_of_string (^vss_input_tm)``;
-
-*)
 
 val _ = export_theory ();
