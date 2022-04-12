@@ -4,29 +4,29 @@ val _ = new_theory "parse_json";
 
 open stringTheory;
 
-(* TODO: Cannot make object finite map... *)
+(* TODO: Cannot make object finite map due to HOL4 definitional mechanism... *)
 Datatype:
  json_t =
-    Object json_obj_t
-  | Array (json_t list)
-  | String string
-  | Number num
-  | Bool bool
-  | Null ;
+    json_object json_kv_map_t
+  | json_array (json_t list)
+  | json_string string
+  | json_number num
+  | json_bool bool
+  | json_null ;
 
- json_obj_t = Map ((string # json_t) list)
+ json_kv_map_t = Map ((string # json_t) list)
 End
 
-Definition obj_empty:
- obj_empty = Map []
+Definition kv_map_empty:
+ kv_map_empty = Map []
 End
 
-Definition obj_add:
- obj_add (k,v) (Map l) = Map ((k,v)::l)
+Definition kv_map_add:
+ kv_map_add (k,v) (Map l) = Map ((k,v)::l)
 End
 
-Definition obj_reverse:
- obj_reverse (Map l) = Map (REVERSE l)
+Definition kv_map_reverse:
+ kv_map_reverse (Map l) = Map (REVERSE l)
 End
 
 Definition sym_list:
@@ -126,7 +126,7 @@ Proof
 fs [isAlpha_def, isAlphaNum_def]
 QED
 
-(* TODO: Also discard line break together with whitespace? *)
+(* TODO: Also discard line break and whitespace to give JSON format some slack? *)
 val lex = TotalDefn.tDefine "lex" ‘
  (lex ([], token_l) = SOME (REVERSE token_l)) /\
  (lex ((h::t), token_l) =
@@ -212,98 +212,103 @@ Cases_on ‘isAlpha h’ >> (
 Definition parse_token_id:
 parse_token_id id =
  if id = "null"
- then SOME Null
+ then SOME json_null
  else if id = "true"
- then SOME (Bool T)
+ then SOME (json_bool T)
  else if id = "false"
- then SOME (Bool F)
+ then SOME (json_bool F)
  else NONE
 End
 
 Definition sum_size:
- (sum_size (INR (INR (acc:json_obj_t, token_l:json_token_t list))) = LENGTH token_l) /\
- (sum_size (INR (INL (acc:json_obj_t, token_l:json_token_t list))) = LENGTH token_l) /\
- (sum_size (INL (jsons:json_t list, token_l:json_token_t list, alt:bool, expect_v:bool)) =
+ (sum_size (INR (INR (INR (kv_map:json_kv_map_t, token_l:json_token_t list)))) = LENGTH token_l) /\
+ (sum_size (INR (INR (INL (kv_map:json_kv_map_t, token_l:json_token_t list)))) = LENGTH token_l) /\
+ (sum_size (INR (INL (jsons:json_t list, token_l:json_token_t list))) = LENGTH token_l) /\
+ (sum_size (INL (jsons:json_t list, token_l:json_token_t list, expect_v:bool)) =
    LENGTH token_l)
 End
 
-val [parse_jsons_def, parse_kvs_def, parse_kvs'_def] =
- CONJUNCTS $ TotalDefn.tDefine "parse_jsons_def"
- ‘(parse_jsons jsons token_l expect_delim expect_v =
-   case (token_l, expect_delim) of
-   | ([], T) =>
-    if expect_v
-    then NONE
-    else SOME (REVERSE jsons, [])
-   | (((token_str str)::token_l'), F) =>
-    if expect_v
-    then SOME ([String str], token_l')
-    else parse_jsons ((String str)::jsons) token_l' T F
-   | (((token_id id)::token_l'), F) =>
-    (case parse_token_id id of
-     | SOME json_id =>
-      if expect_v
-      then SOME ([json_id], token_l')
-      else parse_jsons (json_id::jsons) token_l' T F
-     | NONE => NONE)
-   | (((token_num n)::token_l'), F) =>
-    if expect_v
-    then SOME ([Number n], token_l')
-    else parse_jsons ((Number n)::jsons) token_l' T F
-   | (((token_sym #",")::token_l'), T) =>
-    if expect_v
-    then NONE
-    else parse_jsons jsons token_l' F F
-   | (((token_sym #"]")::token_l'), T) =>
+(* TODO: This should ideally return NONE for malformed input in a lot more places *)
+val [parse_json_def, parse_json_delim_def, parse_kv_def, parse_kv_delim_def] =
+ CONJUNCTS $ TotalDefn.tDefine "parse_json_kv_def"
+ ‘(parse_json jsons token_l expect_v =
+    case token_l of
+    | [] =>
+     if expect_v
+     then NONE
+     else SOME (REVERSE jsons, [])
+    | ((token_str str)::token_l') =>
+     if expect_v
+     then SOME ([json_string str], token_l')
+     else parse_json_delim ((json_string str)::jsons) token_l'
+    | ((token_id id)::token_l') =>
+     (case parse_token_id id of
+      | SOME json_id =>
+       if expect_v
+       then SOME ([json_id], token_l')
+       else parse_json_delim (json_id::jsons) token_l'
+      | NONE => NONE)
+    | ((token_num n)::token_l') =>
+     if expect_v
+     then SOME ([json_number n], token_l')
+     else parse_json_delim ((json_number n)::jsons) token_l'
+    | ((token_sym #"[")::((token_sym #"]")::token_l')) =>
+     if expect_v
+     then SOME ([json_array []], token_l')
+     else parse_json_delim ((json_array [])::jsons) token_l'
+    | ((token_sym #"[")::token_l') =>
+     (case parse_json [] token_l' F of
+      | SOME (jsons', token_l'') =>
+       (case (LENGTH token_l'' < LENGTH token_l') of
+        | T =>
+         if expect_v
+         then SOME ([json_array jsons'], token_l'')
+         else parse_json_delim ((json_array jsons')::jsons) token_l''
+        | F => NONE)
+      | _ => NONE)
+    | ((token_sym #"{")::token_l') =>
+     (case parse_kv kv_map_empty token_l' of
+      | SOME (kvs, ((token_sym #"}")::token_l'')) =>
+       (case (LENGTH token_l'' < LENGTH token_l') of
+        | T =>
+         if expect_v
+         then SOME ([json_object (kv_map_reverse kvs)], token_l'')
+         else parse_json_delim ((json_object (kv_map_reverse kvs))::jsons) token_l''
+        | F => NONE)
+      | _ => NONE)
+    | _ => NONE) /\
+ (parse_json_delim jsons token_l =
+   case token_l of
+   | ((token_sym #",")::token_l') =>
+    parse_json jsons token_l' F
+   | ((token_sym #"]")::token_l') =>
     SOME ((REVERSE jsons), token_l')
-   | (((token_sym #"[")::((token_sym #"]")::token_l')), F) =>
-    if expect_v
-    then SOME ([Array []], token_l')
-    else parse_jsons ((Array [])::jsons) token_l' T F
-   | (((token_sym #"[")::token_l'), F) =>
-    (case parse_jsons [] token_l' F F of
-     | SOME (jsons', token_l'') =>
-      (case (LENGTH token_l'' < LENGTH token_l') of
-       | T =>
-        if expect_v
-        then SOME ([Array jsons'], token_l'')
-        else parse_jsons ((Array jsons')::jsons) token_l'' T F
-       | F => NONE)
-     | _ => NONE)
-   | (((token_sym #"{")::token_l'), F) =>
-    (case parse_kvs obj_empty token_l' of
-     | SOME (kvs, ((token_sym #"}")::token_l'')) =>
-      (case (LENGTH token_l'' < LENGTH token_l') of
-       | T =>
-        if expect_v
-        then SOME ([Object (obj_reverse kvs)], token_l'')
-        else parse_jsons ((Object (obj_reverse kvs))::jsons) token_l'' T F
-       | F => NONE)
-     | _ => NONE)
+   | [] => SOME (REVERSE jsons, [])
    | _ => NONE) /\
- (parse_kvs acc token_l =
-  case token_l of
-  | ((token_id k)::((token_sym #":")::token_l')) =>
-   (case parse_jsons [] token_l' F T of
-    | SOME ([json], token_l'') =>
-     (case (LENGTH token_l'' < LENGTH token_l') of
-      | T =>
-       parse_kvs' (obj_add (k, json) acc) token_l''
-      | F => NONE)
-    | _ => NONE)
-  | ((token_str k)::((token_sym #":")::token_l')) =>
-   (case parse_jsons [] token_l' F T of
-    | SOME ([json], token_l'') =>
-     (case (LENGTH token_l'' < LENGTH token_l') of
-      | T =>
-       parse_kvs' (obj_add (k, json) acc) token_l''
-      | F => NONE)
-    | _ => NONE)
-  | _ => SOME (acc, token_l)) /\
- (parse_kvs' acc token_l =
-  case token_l of
-  | ((token_sym #",")::token_l') => parse_kvs acc token_l'
-  | _ => SOME (acc,token_l))’
+ (parse_kv kv_map token_l =
+   case token_l of
+   | ((token_id k)::((token_sym #":")::token_l')) =>
+    (case parse_json [] token_l' T of
+     | SOME ([json], token_l'') =>
+      (case (LENGTH token_l'' < LENGTH token_l') of
+       | T =>
+        parse_kv_delim (kv_map_add (k, json) kv_map) token_l''
+       | F => NONE)
+     | _ => NONE)
+   | ((token_str k)::((token_sym #":")::token_l')) =>
+    (case parse_json [] token_l' T of
+     | SOME ([json], token_l'') =>
+      (case (LENGTH token_l'' < LENGTH token_l') of
+       | T =>
+        parse_kv_delim (kv_map_add (k, json) kv_map) token_l''
+       | F => NONE)
+     | _ => NONE)
+   | _ => SOME (kv_map, token_l)) /\
+ (parse_kv_delim kv_map token_l =
+   case token_l of
+   | ((token_sym #",")::token_l') => parse_kv kv_map token_l'
+   | ((token_sym #"}")::token_l') => SOME (kv_map,token_l)
+   | _ => NONE)’
 (WF_REL_TAC `measure sum_size` >>
 fs [sum_size])
 ;
@@ -312,8 +317,8 @@ Definition json_of_string:
 (json_of_string str = 
  case lex (str, []) of
  | SOME token_l =>
-  (case parse_jsons [] token_l F F of
-   | SOME (json, nil) => SOME json
+  (case parse_json [] token_l F of
+   | SOME (json, []) => SOME json
    | _ => NONE)
  | _ => NONE
 )
