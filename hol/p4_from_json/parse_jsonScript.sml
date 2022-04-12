@@ -209,68 +209,111 @@ Cases_on ‘isAlpha h’ >> (
 (**********)
 (* PARSER *)
 
-(* TODO: Termination depends on pj? Restructure this? *)
-val parse_jsons = TotalDefn.tDefine "parse_jsons" 
-‘(parse_jsons pj jsons token_l =
- case pj token_l of
- | SOME (json, (token_sym #",")::token_l') => parse_jsons pj (json::jsons) token_l'
- | SOME (json, (token_sym #"]")::token_l') => SOME (REVERSE (json::jsons), token_l')
- | _ => NONE)’
-cheat;
+Definition parse_token_id:
+parse_token_id id =
+ if id = "null"
+ then SOME Null
+ else if id = "true"
+ then SOME (Bool T)
+ else if id = "false"
+ then SOME (Bool F)
+ else NONE
+End
 
-val [parse_json, parse_kvs, parse_kvs'] = CONJUNCTS (
-TotalDefn.tDefine "parse_json_kvs" 
-‘(parse_json token_l =
- case token_l of
- | ((token_str str)::token_l') => SOME (String str, token_l')
- | ((token_id "null")::token_l') => SOME (Null, token_l')
- | ((token_id "true")::token_l') => SOME (Bool T, token_l')
- | ((token_id "false")::token_l') => SOME (Bool F, token_l')
- | ((token_num n)::token_l') => SOME (Number n, token_l')
- | ((token_sym #"[")::((token_sym #"]")::token_l')) => SOME (Array [], token_l')
- | ((token_sym #"[")::token_l') =>
-  (case parse_jsons parse_json [] token_l' of
-   | SOME (jsons, token_l') => SOME (Array jsons, token_l')
-   | _ => NONE)
- | ((token_sym #"{")::token_l') =>
-  (case parse_kvs obj_empty token_l' of
-   | SOME (kvs, ((token_sym #"}")::token_l')) => SOME (Object (obj_reverse kvs), token_l')
-   | _ => NONE)
- | _ => NONE) /\
-(* TODO: HOL4 complains about missing parse_kvs cases
-(parse_kvs acc ((token_id k)::((token_sym #":")::token_l)) =
- (case parse_json token_l of
-  | SOME (json, token_l') => parse_kvs' (obj_add (k, json) acc) token_l'
-  | _ => NONE)) /\
-(parse_kvs acc ((token_str k)::((token_sym #":")::token_l)) =
- (case parse_json token_l of
-  | SOME (json, token_l') => parse_kvs' (obj_add (k, json) acc) token_l'
-  | _ => NONE)) /\
-(parse_kvs acc token_l = SOME (acc, token_l)) /\
-*)
-(parse_kvs acc token_l =
- case token_l of
- | ((token_id k)::((token_sym #":")::token_l)) =>
-  (case parse_json token_l of
-   | SOME (json, token_l') => parse_kvs' (obj_add (k, json) acc) token_l'
-   | _ => NONE)
- | ((token_str k)::((token_sym #":")::token_l)) =>
-  (case parse_json token_l of
-   | SOME (json, token_l') => parse_kvs' (obj_add (k, json) acc) token_l'
-   | _ => NONE)
- | _ => SOME (acc, token_l)) /\
-(parse_kvs' acc token_l =
- case token_l of
- | ((token_sym #",")::token_l') => parse_kvs acc token_l'
- | _ => SOME (acc,token_l))’
-cheat);
+Definition sum_size:
+ (sum_size (INR (INR (acc:json_obj_t, token_l:json_token_t list))) = LENGTH token_l) /\
+ (sum_size (INR (INL (acc:json_obj_t, token_l:json_token_t list))) = LENGTH token_l) /\
+ (sum_size (INL (jsons:json_t list, token_l:json_token_t list, alt:bool, expect_v:bool)) =
+   LENGTH token_l)
+End
+
+val [parse_jsons_def, parse_kvs_def, parse_kvs'_def] =
+ CONJUNCTS $ TotalDefn.tDefine "parse_jsons_def"
+ ‘(parse_jsons jsons token_l expect_delim expect_v =
+   case (token_l, expect_delim) of
+   | ([], T) =>
+    if expect_v
+    then NONE
+    else SOME (REVERSE jsons, [])
+   | (((token_str str)::token_l'), F) =>
+    if expect_v
+    then SOME ([String str], token_l')
+    else parse_jsons ((String str)::jsons) token_l' T F
+   | (((token_id id)::token_l'), F) =>
+    (case parse_token_id id of
+     | SOME json_id =>
+      if expect_v
+      then SOME ([json_id], token_l')
+      else parse_jsons (json_id::jsons) token_l' T F
+     | NONE => NONE)
+   | (((token_num n)::token_l'), F) =>
+    if expect_v
+    then SOME ([Number n], token_l')
+    else parse_jsons ((Number n)::jsons) token_l' T F
+   | (((token_sym #",")::token_l'), T) =>
+    if expect_v
+    then NONE
+    else parse_jsons jsons token_l' F F
+   | (((token_sym #"]")::token_l'), T) =>
+    SOME ((REVERSE jsons), token_l')
+   | (((token_sym #"[")::((token_sym #"]")::token_l')), F) =>
+    if expect_v
+    then SOME ([Array []], token_l')
+    else parse_jsons ((Array [])::jsons) token_l' T F
+   | (((token_sym #"[")::token_l'), F) =>
+    (case parse_jsons [] token_l' F F of
+     | SOME (jsons', token_l'') =>
+      (case (LENGTH token_l'' < LENGTH token_l') of
+       | T =>
+        if expect_v
+        then SOME ([Array jsons'], token_l'')
+        else parse_jsons ((Array jsons')::jsons) token_l'' T F
+       | F => NONE)
+     | _ => NONE)
+   | (((token_sym #"{")::token_l'), F) =>
+    (case parse_kvs obj_empty token_l' of
+     | SOME (kvs, ((token_sym #"}")::token_l'')) =>
+      (case (LENGTH token_l'' < LENGTH token_l') of
+       | T =>
+        if expect_v
+        then SOME ([Object (obj_reverse kvs)], token_l'')
+        else parse_jsons ((Object (obj_reverse kvs))::jsons) token_l'' T F
+       | F => NONE)
+     | _ => NONE)
+   | _ => NONE) /\
+ (parse_kvs acc token_l =
+  case token_l of
+  | ((token_id k)::((token_sym #":")::token_l')) =>
+   (case parse_jsons [] token_l' F T of
+    | SOME ([json], token_l'') =>
+     (case (LENGTH token_l'' < LENGTH token_l') of
+      | T =>
+       parse_kvs' (obj_add (k, json) acc) token_l''
+      | F => NONE)
+    | _ => NONE)
+  | ((token_str k)::((token_sym #":")::token_l')) =>
+   (case parse_jsons [] token_l' F T of
+    | SOME ([json], token_l'') =>
+     (case (LENGTH token_l'' < LENGTH token_l') of
+      | T =>
+       parse_kvs' (obj_add (k, json) acc) token_l''
+      | F => NONE)
+    | _ => NONE)
+  | _ => SOME (acc, token_l)) /\
+ (parse_kvs' acc token_l =
+  case token_l of
+  | ((token_sym #",")::token_l') => parse_kvs acc token_l'
+  | _ => SOME (acc,token_l))’
+(WF_REL_TAC `measure sum_size` >>
+fs [sum_size])
+;
 
 Definition json_of_string:
 (json_of_string str = 
  case lex (str, []) of
  | SOME token_l =>
-  (case parse_json token_l of
-   | SOME (json,nil) => SOME json
+  (case parse_jsons [] token_l F F of
+   | SOME (json, nil) => SOME json
    | _ => NONE)
  | _ => NONE
 )
