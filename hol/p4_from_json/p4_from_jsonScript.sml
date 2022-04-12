@@ -30,6 +30,16 @@ End
 
 (*
 
+val trivial_input_tm = stringLib.fromMLstring "[\"ExternObject\",{\"annotations\":[],\"name\":\"packet_in\",\"type_params\":[],\"methods\":[]}]";
+val trivial_input_tm = stringLib.fromMLstring "{\"annotations\":[],\"name\":\"packet_in\",\"type_params\":[],\"methods\":[]}";
+val trivial_input_tm = stringLib.fromMLstring "{\"name\":\"packet_in\"}";
+
+
+val trivial_lex_thm = EVAL ``lex ((^trivial_input_tm), [])``;
+val trivial_parse_thm = EVAL ``json_of_string (^trivial_input_tm)``;
+
+
+
 val simple_in_stream = TextIO.openIn "simple_input.json";
 
 val simple_input = TextIO.inputAll simple_in_stream;
@@ -52,3 +62,5 @@ val vss_lex_thm = EVAL ``lex (p4_preprocess_str (^vss_input_tm), [])``;
 val vss_parse_thm = EVAL ``json_of_string (p4_preprocess_str (^vss_input_tm))``;
 
 *)
+
+val _ = export_theory ();
