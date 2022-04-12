@@ -7,12 +7,12 @@ open stringTheory;
 (* TODO: Cannot make object finite map due to HOL4 definitional mechanism... *)
 Datatype:
  json_t =
-    json_object json_kv_map_t
-  | json_array (json_t list)
-  | json_string string
-  | json_number num
-  | json_bool bool
-  | json_null ;
+    Object json_kv_map_t
+  | Array (json_t list)
+  | String string
+  | Number num
+  | Boolean bool
+  | Null ;
 
  json_kv_map_t = Map ((string # json_t) list)
 End
@@ -212,11 +212,11 @@ Cases_on ‘isAlpha h’ >> (
 Definition parse_token_id:
 parse_token_id id =
  if id = "null"
- then SOME json_null
+ then SOME Null
  else if id = "true"
- then SOME (json_bool T)
+ then SOME (Boolean T)
  else if id = "false"
- then SOME (json_bool F)
+ then SOME (Boolean F)
  else NONE
 End
 
@@ -239,8 +239,8 @@ val [parse_json_def, parse_json_delim_def, parse_kv_def, parse_kv_delim_def] =
      else SOME (REVERSE jsons, [])
     | ((token_str str)::token_l') =>
      if expect_v
-     then SOME ([json_string str], token_l')
-     else parse_json_delim ((json_string str)::jsons) token_l'
+     then SOME ([String str], token_l')
+     else parse_json_delim ((String str)::jsons) token_l'
     | ((token_id id)::token_l') =>
      (case parse_token_id id of
       | SOME json_id =>
@@ -250,20 +250,20 @@ val [parse_json_def, parse_json_delim_def, parse_kv_def, parse_kv_delim_def] =
       | NONE => NONE)
     | ((token_num n)::token_l') =>
      if expect_v
-     then SOME ([json_number n], token_l')
-     else parse_json_delim ((json_number n)::jsons) token_l'
+     then SOME ([Number n], token_l')
+     else parse_json_delim ((Number n)::jsons) token_l'
     | ((token_sym #"[")::((token_sym #"]")::token_l')) =>
      if expect_v
-     then SOME ([json_array []], token_l')
-     else parse_json_delim ((json_array [])::jsons) token_l'
+     then SOME ([Array []], token_l')
+     else parse_json_delim ((Array [])::jsons) token_l'
     | ((token_sym #"[")::token_l') =>
      (case parse_json [] token_l' F of
       | SOME (jsons', token_l'') =>
        (case (LENGTH token_l'' < LENGTH token_l') of
         | T =>
          if expect_v
-         then SOME ([json_array jsons'], token_l'')
-         else parse_json_delim ((json_array jsons')::jsons) token_l''
+         then SOME ([Array jsons'], token_l'')
+         else parse_json_delim ((Array jsons')::jsons) token_l''
         | F => NONE)
       | _ => NONE)
     | ((token_sym #"{")::token_l') =>
@@ -272,8 +272,8 @@ val [parse_json_def, parse_json_delim_def, parse_kv_def, parse_kv_delim_def] =
        (case (LENGTH token_l'' < LENGTH token_l') of
         | T =>
          if expect_v
-         then SOME ([json_object (kv_map_reverse kvs)], token_l'')
-         else parse_json_delim ((json_object (kv_map_reverse kvs))::jsons) token_l''
+         then SOME ([Object (kv_map_reverse kvs)], token_l'')
+         else parse_json_delim ((Object (kv_map_reverse kvs))::jsons) token_l''
         | F => NONE)
       | _ => NONE)
     | _ => NONE) /\
