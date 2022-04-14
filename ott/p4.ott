@@ -1499,7 +1499,7 @@ val bitv_concat_def = Define `
 (* The arguments are v vector, n length of that vector, m is the most significant bit
  * l is the least significant bit. It returns the sliced vector with the length *)
 val bitv_bitslice_def = Define `
-  bitv_bitslice (v, n) m l = (SEG ( m - l + 1 ) l v, m - l + 1)
+  bitv_bitslice (v, n) m l = (SEG ( m - l + 1 ) (n - m - 1) v, m - l + 1)
 `;
 
 val slice_def = Define `

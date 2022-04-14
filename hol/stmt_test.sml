@@ -1361,10 +1361,10 @@ NTAC 3 EXP_SIMP
 
 val prog_slice1 = ``e_slice (e_var( varn_name "headers.ip.ttl")) (mk_e 0) (mk_e 0)  ``;
 val prog_slice2 = ``e_slice (mk_e 2) (mk_e 0) (mk_e 0)  ``;
-val prog_slice3 = ``(mk_e 1) ``;
+val prog_slice3 = ``(mk_e 0) ``;
 
 val prog_slice4 = ``e_slice (mk_e 11) (mk_e 1)  (mk_e 1) ``;
-val prog_slice5 = `` (mk_e 0) ``;
+val prog_slice5 = `` (mk_e 1) ``;
 
 val prog_slice6 = ``e_slice  (mk_e 8)  (mk_e 3)  (mk_e 0)  ``;
 val prog_slice7 = `` (mk_e 8) ``;
