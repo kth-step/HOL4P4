@@ -5,6 +5,13 @@ val _ = new_theory "p4_from_json";
 open stringTheory;
 open parse_jsonTheory;
 
+(* Option datatype with error message for the NONE case *)
+Datatype:
+ option_msg_t =
+    SOME_msg 'a
+  | NONE_msg string
+End
+
 (******************)
 (* PRE-PROCESSING *)
 
@@ -24,6 +31,52 @@ Definition p4_preprocess_str:
   else (h::(p4_preprocess_str t)))
 End
 
+(**********************)
+(* HOL4 JSON TO P4OTT *)
+
+Definition p4_from_json_preamble:
+(p4_from_json_preamble json_list =
+ (* petr4: all output is a list with an array at top *)
+ case json_list of
+ | [Array json_list] =>
+  (* petr4: first element in this list is the string "program" *)
+  (case json_list of
+  | (json::json_list') =>
+   if json = String "program"
+   then SOME_msg json_list'
+   else NONE_msg "petr4 format error: Singleton list containing an Array at top level did not have String \"program\" as first element"
+  | _ => NONE_msg "petr4 format error: Empty program")
+ | _ => NONE_msg "petr4 format error: JSON was not a singleton list containing an Array at top level"
+)
+End
+
+(* LHS of the initial architectural-level reduction step:
+ * actx: Contains (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
+ *       ab_list: Programmable block "calls" with arguments
+ *       pblock_map: Can be built from petr4 output
+ *       ffblock_map: Cannot be built from petr4 output
+ *       input_f: Cannot be built from petr4 output
+ *       output_f: Cannot be built from petr4 output
+ *       ty_map: Can be built from petr4 output
+ *       ext_map: Can be partially built from petr4 output (not extern implementations)
+ *       func_map: Can be built from petr4 output
+ * aenv: Cannot be built from petr4 output
+ * g_scope_list: First element (with the global variables) can be built from petr4.
+ * arch_frame_list: Should always start as empty
+ * ctrl: Cannot be built from petr4 output
+ * status: Should always start as Running *)
+
+Definition p4_from_json:
+(p4_from_json json_list =
+ let
+  json_list' = p4_from_json_preamble json_list
+  (* TODO: Here, we want to go through every element in json_list' and build all the components
+   * (as far as possible) on the LHS of an architectural-level reduction step:
+   *   (ab_list (partial), pblock_map, ty_map, ext_map (partially), func_map, g_scope) *)
+ in
+  json_list'
+)
+End
 
 (*********)
 (* TESTS *)

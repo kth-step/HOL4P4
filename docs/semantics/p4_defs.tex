@@ -77,7 +77,7 @@
 \newcommand{\ottvarn}{
 \ottrulehead{\ottnt{varn}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{x}{}{}{}{\ottcom{variable name}}\ottprodnewline
-\ottprodline{|}{\ottsym{(} \, \ottkw{star} \, \ottsym{,}  \ottnt{funn}  \ottsym{)}}{}{}{}{\ottcom{function return placeholder}}}
+\ottprodline{|}{ \ast ^  \ottnt{funn} }{}{}{}{\ottcom{function return placeholder}}}
 
 \newcommand{\ottstatus}{
 \ottrulehead{t}{::=}{\ottcom{execution status}}\ottprodnewline
@@ -244,7 +244,7 @@
 
 \newcommand{\ottFtau}{
 \ottrulehead{\ottnt{Ftau}}{::=}{\ottcom{function names types}}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{[}  \tau_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau} {\textsf{M}}{}{}{}}
+\ottfirstprodline{|}{\ottsym{[}  \tau_{{\mathrm{1}}} \, x_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, x_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau} {\textsf{M}}{}{}{}}
 
 \newcommand{\otttXXscope}{
 \ottrulehead{\psi}{::=}{\ottcom{typing scope}}\ottprodnewline
@@ -277,7 +277,9 @@
 \ottrulehead{X}{::=}{\ottcom{extern object map}}}
 
 \newcommand{\otttblXXmap}{
-\ottrulehead{{ \mathit{Tb} }}{::=}{\ottcom{table map}}}
+\ottrulehead{{ \mathit{Tb} }}{::=}{\ottcom{table map}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{empty}}{}{}{}{\ottcom{empty table map}}\ottprodnewline
+\ottprodline{|}{\ottsym{(}  { \mathit{Tb} }  \ottsym{)}} {\textsf{S}}{}{}{}}
 
 \newcommand{\ottparsXXmap}{
 \ottrulehead{P}{::=}{\ottcom{parser state map}}}
@@ -293,7 +295,7 @@
 
 \newcommand{\ottpblock}{
 \ottrulehead{{ \mathit{pblock} }}{::=}{\ottcom{programmable block}}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{pbl\_type}  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  F_b \, \psi \, \ottnt{stmt} \, P \, { \mathit{Tb} }}{}{}{}{}}
+\ottfirstprodline{|}{\ottnt{pbl\_type} \, F_b \, \psi \, P \, { \mathit{Tb} }}{}{}{}{}}
 
 \newcommand{\ottffblock}{
 \ottrulehead{{ \mathit{ffblock} }}{::=}{\ottcom{fixed-function block}}\ottprodnewline
@@ -482,7 +484,6 @@
 \ottprodline{|}{ \mathrm{not\_empty} \;  \overline{ \mathit{stmt} } } {\textsf{M}}{}{}{\ottcom{check so that statement stack is not the empty statement stack}}\ottprodnewline
 \ottprodline{|}{{ \mathit{pblock} }  \ottsym{=}  B_p  \ottsym{(}  f  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{programmable block lookup}}\ottprodnewline
 \ottprodline{|}{{ \mathit{ffblock} }  \ottsym{=}  B_{ \mathrm{ff} }  \ottsym{(}  f  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{fixed-function block lookup}}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  \ottsym{=} \, \ottkw{args\_of\_pbl} \, \ottsym{(}  { \mathit{pblock} }  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{obtain body and args of pblock}}\ottprodnewline
 \ottprodline{|}{\ottnt{arch\_block}  \ottsym{=}  \overline{ \mathit{ab} }  \ottsym{[}  i  \ottsym{]}} {\textsf{M}}{}{}{\ottcom{ab at index i}}\ottprodnewline
 \ottprodline{|}{{ {\gamma}_A }'  \ottsym{=}  { \mathit{ff} }  \ottsym{(}  { {\gamma}_A }  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{apply fixed function}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \overline{ \mathit{io} }'  \ottsym{,}  { {\gamma}_A }'  \ottsym{)}  \ottsym{=}  { \mathit{in}_A }  \ottsym{(}  \overline{ \mathit{io} }  \ottsym{,}  { {\gamma}_A }  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{apply input function}}\ottprodnewline
@@ -498,19 +499,22 @@
 \ottprodline{|}{ \overline{\gamma_G}'  = \mathrm{initialise\_var\_stars} ( F_g ,  F_b ,  X ,  \overline{\gamma_G} ) } {\textsf{M}}{}{}{\ottcom{initialise var_star variables}}\ottprodnewline
 \ottprodline{|}{ \overline{\gamma_G}'  = \mathrm{scopes\_to\_pass} ( \ottnt{funn} ,  F_g ,  F_b ,  \overline{\gamma_G} ) } {\textsf{M}}{}{}{\ottcom{global and block scopes to pass based on function location}}\ottprodnewline
 \ottprodline{|}{ \overline{\gamma_G}''  = \mathrm{scopes\_to\_retrieve} ( \ottnt{funn} ,  F_g ,  F_b ,  \overline{\gamma_G} ,  \overline{\gamma_G}' ) } {\textsf{M}}{}{}{\ottcom{global and block scopes to retrieve based on function location}}\ottprodnewline
+\ottprodline{|}{ F_b'  = \mathrm{map\_to\_pass} ( \ottnt{funn} ,  F_b ) }{}{}{}{\ottcom{pass either empty or the local function's mapping depending on funn location}}\ottprodnewline
+\ottprodline{|}{ { \mathit{Tb} }'  = \mathrm{tbl\_to\_pass} ( \ottnt{funn} ,  F_b  ,  { \mathit{Tb} } ) }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \gamma'  = \mathrm{replicate} ( \psi ,  \gamma ) } {\textsf{M}}{}{}{\ottcom{update a scope with a list of declarations}}\ottprodnewline
 \ottprodline{|}{ \gamma  = \mathrm{replicate} ( \psi ) } {\textsf{M}}{}{}{\ottcom{create a scope from the list of declarations}}\ottprodnewline
 \ottprodline{|}{ (  \overline{\gamma_G}'  ,  \overline{\gamma}'' ) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}'' , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{ ~ { \mathrm{fully\_reduced} } \,  \ottnt{e} } {\textsf{M}}{}{}{\ottcom{expression is not fully reduced}}\ottprodnewline
 \ottprodline{|}{ ( \ottnt{stmt} , ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ( x_{{\mathrm{1}}} ,  \ottsym{,} ,  d_{{\mathrm{1}}} ,  \ottsym{)} ) } {\textsf{M}}{}{}{\ottcom{look up the body and signature of an abstract function name}}\ottprodnewline
+\ottprodline{|}{ ( \ottnt{stmt} , ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_block\_sig\_body} ( x_{{\mathrm{1}}} ,  \ottsym{,} ) } {\textsf{M}}{}{}{\ottcom{look up the body and signature of a block (for now, held in the local function map)}}\ottprodnewline
 \ottprodline{|}{ ((x_1, d_1), \ldots, (x_n, d_n)) = \mathrm{lookup\_funn\_sig} ( x_{{\mathrm{1}}} ,  \ottsym{,} ,  d_{{\mathrm{1}}} ,  \ottsym{)} ) } {\textsf{M}}{}{}{\ottcom{look up the signature of an abstract function name}}\ottprodnewline
 \ottprodline{|}{\ottkw{parser\_not\_finished} \, \overline{\Phi}} {\textsf{M}}{}{}{\ottcom{parser state is not finished}}\ottprodnewline
-\ottprodline{|}{ w  = width \  \ottnt{bitv} } {\textsf{M}}{}{}{\ottcom{width of bitstring}}\ottprodnewline
+\ottprodline{|}{ w  = \mathrm{width} \ ( \ottnt{bitv} ) } {\textsf{M}}{}{}{\ottcom{width of bitstring}}\ottprodnewline
 \ottprodline{|}{ \tau  = \mathrm{topmost} ( \overrightarrow{\psi}  ,  \overrightarrow{\psi_G}  ,  \ottnt{varn} ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \tau  = \mathrm{find_star_in_globals} ( \overrightarrow{\psi_G} ,  \ottnt{varn} ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{[}  \tau_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \tau  = \mathrm{lookup\_type} \; ( \overrightarrow{\psi_G} ,  \ottnt{varn} ) }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{[}  \tau_{{\mathrm{1}}} \, x_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, x_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ominus  \neq \mathit{!} } {\textsf{M}}{}{}{\ottcom{not bool negation}}\ottprodnewline
-\ottprodline{|}{ \ominus  \eq \mathit{!} } {\textsf{M}}{}{}{\ottcom{not bool negation}}\ottprodnewline
+\ottprodline{|}{ \ominus  = \; \mathit{!} } {\textsf{M}}{}{}{\ottcom{not bool negation}}\ottprodnewline
 \ottprodline{|}{\ottkw{width\_in\_range} \, w} {\textsf{M}}{}{}{\ottcom{bitstring widthlarger than 0}}\ottprodnewline
 \ottprodline{|}{ \ottmv{m}  = length ( \ottnt{taul} ) } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\tau  \ottsym{=}  \ottnt{taul}  \ottsym{[}  i  \ottsym{]}}{}{}{}{}\ottprodnewline
@@ -518,54 +522,82 @@
 \ottprodline{|}{ \ottnt{formula}  \longrightarrow  \ottnt{formula'} } {\textsf{M}}{}{}{\ottcom{implies}}\ottprodnewline
 \ottprodline{|}{ \forall  i  \in 1 ..  \ottmv{n} .  \ottnt{formula} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ ( \ottnt{formula} \!) } {\textsf{M}}{}{}{\ottcom{bracketed}}\ottprodnewline
-\ottprodline{|}{ \ottnt{v\_list}  : (  \ottnt{taul}  , F ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{m}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \tau  \ottsym{,}  b  \ottsym{)}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\psi_t \, T_e  \ottsym{\mbox{$\mid$}-}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{m}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,} \, \ottkw{false} \, \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v\_list}  : (  \ottnt{taul}  , \bot ) }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{m}}}  \ottsym{:}  \ottsym{(}  \tau  \ottsym{,}  b  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\psi_t \, \Gamma  \ottsym{\mbox{$\mid$}-}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{m}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,} \, \ottkw{false} \, \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{correct\_field\_type} \, \ottsym{(}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  x  \ottsym{,}  \tau  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{slice\_length\_check} \, \ottsym{(}  w  \ottsym{,}  \ottnt{bitv'}  \ottsym{,}  \ottnt{bitv''}  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{bits\_length\_check} \, \ottsym{(}  w  \ottsym{,}  w_{{\mathrm{1}}}  \ottsym{,}  w_{{\mathrm{2}}}  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{w  \ottsym{=} \, \ottkw{vec\_to\_const} \, \ottnt{bitv}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\psi_t \, T_e  \ottsym{\mbox{$\mid$}-}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{m}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{[}  b_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  b_{\ottmv{o}}  \ottsym{]}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \psi_t  \,  \Gamma  \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{out\_is\_lval} \, \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  \ottsym{[}  b_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  b_{\ottmv{m}}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{is\_bv\_op} \, \oplus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{is\_bv\_bool\_op} \, \oplus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{is\_bool\_op} \, \oplus}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{is\_err\_bool} \, \oplus}{}{}{}{}\ottprodnewline
-\ottprodline{|}{i_{\ottmv{n}} \, \ottnt{e} \, Prs_n}{}{}{}{}\ottprodnewline
+\ottprodline{|}{i_{\ottmv{n}} \, \ottnt{e} \, \mathbb{P}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{i_{\ottmv{n}} \, tbl \, \ottkw{Tbl\_n}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\Delta_{tbl}  \ottsym{(}  tbl  \ottsym{)}  \ottsym{=}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{literials\_in\_P\_state} \, \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  Prs_n}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{ordered} \, \ottnt{funn} \, \ottnt{funn'} \, \sqsubset}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\mathbb{T}  \ottsym{(}  tbl  \ottsym{)}  \ottsym{=}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{literials\_in\_P\_state} \, \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  \mathbb{P}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\sqsubset \, \ottnt{funn} \, \ottnt{funn'}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\sqsubset  \ottsym{(} \, \ottkw{order\_elem\_t} \, tbl  \ottsym{)}  \ottnt{funn}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{ordered\_list} \, \sqsubset  \ottsym{[}  \ottnt{funn_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{funn_{\ottmv{n}}}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{WF\_o} \, \sqsubset}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{MEM} \, x \, \ottnt{x\_list}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{not\_star} \, \ottsym{(}  \ottnt{varn}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{deltas\_order} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \sqsubset}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{WF} \, \ottkw{funnl} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \sqsubset}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{table\_map\_typed} \, { \mathit{Tb} } \, { \mathit{apply\_table} } \, \Delta_{glb} \, \Delta_{blk} \, \sqsubset}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ x  \in  \ottnt{x\_list} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \forall f. \;   \ottnt{varn}  \neq \ast^f }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{length\_is\_2}  \ottsym{(}  \overrightarrow{\psi_G}  \ottsym{)}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{func\_map\_typed} \, F_g \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{func\_map\_blk\_typed} \, F_b \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{extern\_map\_IoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{ext}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{extern\_MoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{ext}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{func\_map\_typed} \, F_g \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \mathbb{P}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{func\_map\_blk\_typed} \, F_b \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \mathbb{T} \, \mathbb{P}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{extern\_map\_IoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{extern\_MoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{dom\_map\_ei} \, \ottsym{(}  F_g  \ottsym{,}  F_b  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{dom\_tmap\_ei} \, \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{typying\_domains\_ei} \, \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{dom\_g\_eq} \, \ottsym{(}  \Delta_{glb}  \ottsym{,}  F_g  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{dom\_b\_eq} \, \ottsym{(}  \Delta_{blk}  \ottsym{,}  F_b  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{dom\_x\_eq} \, \ottsym{(}  \Delta_{ext}  \ottsym{,}  X  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{dom\_t\_eq} \, \ottsym{(}  \mathbb{T}  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{star\_Err\_not\_in\_ts} \, \psi}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{lvalop\_not\_none} \, \psi}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{Fg\_star\_defined} \, \ottsym{(}  F_g  \ottsym{,}  \overrightarrow{\psi_G}  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{Fb\_star\_defined} \, \ottsym{(}  F_b  \ottsym{,}  \overrightarrow{\psi_G}  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{X\_star\_defined} \, \ottsym{(}  X  \ottsym{,}  \overrightarrow{\psi_G}  \ottsym{)}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{type\_ith\_stmt} \, \overrightarrow{\psi_G} \, \overrightarrow{\psi} \, T_e \, Prs_n \, \overline{ \mathit{stmt} }}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{X\_star\_not\_defined} \, \overrightarrow{\psi_G}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{parseError\_in\_gs} \, \overrightarrow{\psi_G}  \ottsym{[}  \overrightarrow{\psi}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overrightarrow{\psi}_{\ottmv{n}}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{f\_in\_apply\_tbl} \, { \mathit{Tb} } \, { \mathit{apply\_table} }}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{star\_not\_in\_sl} \, \overline{\gamma}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{type\_ith\_stmt} \, \overrightarrow{\psi_G} \, \overrightarrow{\psi} \, \Gamma \, \mathbb{P} \, \overline{ \mathit{stmt} }}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{type\_frame\_tsl} \, \overline{\gamma} \, \overrightarrow{\psi}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{type\_scopes\_list} \, \overline{\gamma_G} \, \overrightarrow{\psi_G}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottkw{type\_state\_tsll} \, \ottsym{(}  \overline{\gamma}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overline{\gamma}_{\ottmv{n}}  \ottsym{)}  \overrightarrow{\psi}}{}{}{}{}}
+\ottprodline{|}{\ottkw{type\_state\_tsll} \, \ottsym{(}  \overline{\gamma}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overline{\gamma}_{\ottmv{n}}  \ottsym{)}  \ottsym{[}  \overrightarrow{\psi}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overrightarrow{\psi}_{\ottmv{m}}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\overrightarrow{\psi_G}'  \ottsym{=} \, \ottkw{t\_scopes\_to\_pass} \, \ottsym{(}  \ottnt{funn}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \overrightarrow{\psi_G}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{sig\_tscope\_consistent} \, \ottnt{funn} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \overrightarrow{\psi}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{args\_t\_same} \, \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \overrightarrow{\psi}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{length\_greq} \, \ottsym{(}  \psi_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \psi_{\ottmv{m}}  \ottsym{)}  \ottsym{(}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{stmt_{\ottmv{n}}}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{length\_eq} \, \Delta_{blk} \, F_b}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{length\_eq} \, \mathbb{T} \, { \mathit{Tb} }}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{(}  \overline{\gamma_G}  \ottsym{,}  \overline{\Phi}  \ottsym{,}  t  \ottsym{)}  \ottsym{-\mbox{$\mid$}\mbox{$\mid$}\mbox{$\mid$}}  \mathbb{P} \, \sqsubset  \ottsym{(}  \overrightarrow{\psi_G}  \ottsym{,}  \ottsym{[}  \overrightarrow{\psi}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overrightarrow{\psi}_{\ottmv{n}}  \ottsym{]}  \ottsym{)}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  F_g \, F_b}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{ext\_is\_defined} \, \Delta_{ext} \, \ottnt{funn}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{ext\_not\_defined} \, \Delta_{glb} \, \Delta_{blk} \, \ottnt{funn}}{}{}{}{}}
 
 \newcommand{\otttXXscopeXXlistXXg}{
 \ottrulehead{\overrightarrow{\psi_G}}{::=}{\ottcom{globals typing scope}}\ottprodnewline
 \ottfirstprodline{|}{ [  \psi ,  \psi'  ] } {\textsf{M}}{}{}{\ottcom{global scope and block-global scope}}}
 
 \newcommand{\otttXXscopeXXlist}{
-\ottrulehead{\overrightarrow{\psi}}{::=}{\ottcom{ddd}}\ottprodnewline
+\ottrulehead{\overrightarrow{\psi}}{::=}{\ottcom{typing a scope_list for each frame}}\ottprodnewline
 \ottfirstprodline{|}{ [\;] } {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{[}  \psi_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \psi_{\ottmv{n}}  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{[}  \psi  \ottsym{]}  \ottsym{++}  \overrightarrow{\psi}} {\textsf{M}}{}{}{}}
+
+\newcommand{\otttXXscopesXXframes}{
+\ottrulehead{{\Psi}}{::=}{\ottcom{typing a scope_list for all frames}}\ottprodnewline
+\ottfirstprodline{|}{ [\;] } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{[}  \overrightarrow{\psi}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overrightarrow{\psi}_{\ottmv{n}}  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{[}  \overrightarrow{\psi}  \ottsym{]}  \ottsym{++}  {\Psi}} {\textsf{M}}{}{}{}}
 
 \newcommand{\otttXXscopesXXtup}{
 \ottrulehead{\psi_t}{::=}{}\ottprodnewline
@@ -584,26 +616,34 @@
 \ottfirstprodline{|}{\ottsym{(} \, \ottkw{empty} \, \ottsym{)}} {\textsf{M}}{}{}{\ottcom{empty function map}}}
 
 \newcommand{\ottdeltaXXt}{
-\ottrulehead{\Delta_{tbl}}{::=}{\ottcom{types of tables}}\ottprodnewline
+\ottrulehead{\mathbb{T}}{::=}{\ottcom{types of tables}}\ottprodnewline
 \ottfirstprodline{|}{\ottsym{(} \, \ottkw{empty} \, \ottsym{)}} {\textsf{M}}{}{}{\ottcom{empty function map}}}
 
 \newcommand{\ottdelta}{
 \ottrulehead{\Delta}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{empty function map}}}
+\ottfirstprodline{|}{\ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{empty function map}}}
 
-\newcommand{\ottorder}{
-\ottrulehead{\sqsubset}{::=}{}\ottprodnewline
+\newcommand{\ottfunnXXlist}{
+\ottrulehead{f_list}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottsym{[}  \ottnt{funn_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{funn_{\ottmv{n}}}  \ottsym{]}}{}{}{}{}}
 
+\newcommand{\ottorderXXelem}{
+\ottrulehead{ft}{::=}{\ottcom{the individual elements of the order in the state are fun name or tables names}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{funn}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{x}{}{}{}{}}
+
+\newcommand{\ottorder}{
+\ottrulehead{\sqsubset}{::=}{\ottcom{list of elements that are funn or table names, this should be given}}}
+
 \newcommand{\ottPrsXXn}{
-\ottrulehead{Prs_n}{::=}{}\ottprodnewline
+\ottrulehead{\mathbb{P}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{Prs_n  \ottsym{++}  \ottsym{[}  \ottsym{"accept"}  \ottsym{;}  \ottsym{"reject"}  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  Prs_n  \ottsym{)}} {\textsf{M}}{}{}{}}
+\ottprodline{|}{\mathbb{P}  \ottsym{++}  \ottsym{[}  \ottsym{"accept"}  \ottsym{;}  \ottsym{"reject"}  \ottsym{]}} {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{(}  \mathbb{P}  \ottsym{)}} {\textsf{M}}{}{}{}}
 
 \newcommand{\ottTXXe}{
-\ottrulehead{T_e}{::=}{}\ottprodnewline
+\ottrulehead{\Gamma}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \Delta  \ottsym{)}} {\textsf{M}}{}{}{}}
 
 \newcommand{\otteXXsem}{
@@ -628,39 +668,47 @@
 
 \newcommand{\otteXXtyp}{
 \ottrulehead{\ottnt{e\_typ}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \psi_t   T_e  \vdash  \ottnt{e}  : (  t  ,  \ottnt{boolv}  ) }{}{}{}{\ottcom{expression types}}}
+\ottfirstprodline{|}{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  t  ,  \ottnt{boolv}  ) }{}{}{}{\ottcom{expression types}}}
+
+\newcommand{\ottlvalXXtyp}{
+\ottrulehead{\ottnt{lval\_typ}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{lval}  : (  t  , { \top }  ) }{}{}{}{\ottcom{lval types}}}
 
 \newcommand{\ottstmtXXtyp}{
 \ottrulehead{\ottnt{stmt\_typ}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \psi_t   T_e   Prs_n  |-  \ottnt{stmt} }{}{}{}{\ottcom{expression types}}}
+\ottfirstprodline{|}{ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt} }{}{}{}{\ottcom{expression types}}}
 
 \newcommand{\ottstmtlXXtyp}{
 \ottrulehead{\ottnt{stmtl\_typ}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \psi_t   T_e   Prs_n  |-  \overline{ \mathit{stmt} } }{}{}{}{\ottcom{statement list types}}}
+\ottfirstprodline{|}{ \psi_t  \,  \Gamma  \,  \mathbb{P}   \; \vdash  \overline{ \mathit{stmt} } }{}{}{}{\ottcom{statement list types}}}
 
 \newcommand{\ottframeXXtyp}{
 \ottrulehead{\ottnt{frame\_typ}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \psi_t   T_e   Prs_n  |- (  \overline{\gamma_G}  ,  \overline{\gamma}  ,  \overline{ \mathit{stmt} }  ) }{}{}{}{\ottcom{frame types}}}
+\ottfirstprodline{|}{ \psi_t  \,  \Gamma  \,  \mathbb{P}   \; \vdash (  \overline{\gamma_G}  ,  \overline{\gamma}  ,  \overline{ \mathit{stmt} }  ) }{}{}{}{\ottcom{frame types}}}
 
 \newcommand{\ottWTFg}{
 \ottrulehead{\ottnt{WTFg}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb} }{}{}{}{\ottcom{global functions well typed}}}
+\ottfirstprodline{|}{ F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{P} }{}{}{}{\ottcom{global functions well typed}}}
 
 \newcommand{\ottWTFb}{
 \ottrulehead{\ottnt{WTFb}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }{}{}{}{\ottcom{actions and local functions well typed}}}
+\ottfirstprodline{|}{ F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} }{}{}{}{\ottcom{actions and local functions well typed}}}
 
 \newcommand{\ottWTX}{
 \ottrulehead{\ottnt{WTX}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{ext} }{}{}{}{\ottcom{extern well typed}}}
+\ottfirstprodline{|}{ X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }{}{}{}{\ottcom{extern well typed}}}
 
 \newcommand{\ottWTXXc}{
 \ottrulehead{\ottnt{WT\_c}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \mathit{ctx}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }{}{}{}{\ottcom{context well typed}}}
+\ottfirstprodline{|}{ \mathit{ctx}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} }{}{}{}{\ottcom{context well typed}}}
+
+\newcommand{\ottWFXXftXXorder}{
+\ottrulehead{\ottnt{WF\_ft\_order}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{ WF_ft_order  f_list   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \sqsubset }{}{}{}{\ottcom{well formed order}}}
 
 \newcommand{\ottWTXXstate}{
 \ottrulehead{\ottnt{WT\_state}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ WT  \mathit{ctx}   s   Prs_n   \sqsubset   \psi_t   \Delta }{}{}{}{\ottcom{context well typed}}}
+\ottfirstprodline{|}{ WT  \mathit{ctx}   s   \mathbb{P}   \sqsubset   \overrightarrow{\psi_G}   {\Psi}   \Delta }{}{}{}{\ottcom{context well typed}}}
 
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
@@ -670,6 +718,7 @@
 \ottprodline{|}{\ottnt{arch\_sem}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v\_typ}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{e\_typ}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{lval\_typ}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{stmt\_typ}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{stmtl\_typ}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{frame\_typ}}{}{}{}{}\ottprodnewline
@@ -677,6 +726,7 @@
 \ottprodline{|}{\ottnt{WTFb}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{WTX}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{WT\_c}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{WF\_ft\_order}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{WT\_state}}{}{}{}{}}
 
 \newcommand{\ottuserXXsyntax}{
@@ -752,15 +802,18 @@
 \ottprodline{|}{\ottnt{formula}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\overrightarrow{\psi_G}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\overrightarrow{\psi}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{{\Psi}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\psi_t}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Delta_{glb}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Delta_{blk}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Delta_{ext}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\Delta_{tbl}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\mathbb{T}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Delta}{}{}{}{}\ottprodnewline
+\ottprodline{|}{f_list}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ft}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\sqsubset}{}{}{}{}\ottprodnewline
-\ottprodline{|}{Prs_n}{}{}{}{}\ottprodnewline
-\ottprodline{|}{T_e}{}{}{}{}}
+\ottprodline{|}{\mathbb{P}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\Gamma}{}{}{}{}}
 
 \newcommand{\ottgrammar}{\ottgrammartabular{
 \ottnumXXexp\ottinterrule
@@ -829,12 +882,15 @@
 \ottformula\ottinterrule
 \otttXXscopeXXlistXXg\ottinterrule
 \otttXXscopeXXlist\ottinterrule
+\otttXXscopesXXframes\ottinterrule
 \otttXXscopesXXtup\ottinterrule
 \ottdeltaXXg\ottinterrule
 \ottdeltaXXb\ottinterrule
 \ottdeltaXXx\ottinterrule
 \ottdeltaXXt\ottinterrule
 \ottdelta\ottinterrule
+\ottfunnXXlist\ottinterrule
+\ottorderXXelem\ottinterrule
 \ottorder\ottinterrule
 \ottPrsXXn\ottinterrule
 \ottTXXe\ottinterrule
@@ -844,6 +900,7 @@
 \ottarchXXsem\ottinterrule
 \ottvXXtyp\ottinterrule
 \otteXXtyp\ottinterrule
+\ottlvalXXtyp\ottinterrule
 \ottstmtXXtyp\ottinterrule
 \ottstmtlXXtyp\ottinterrule
 \ottframeXXtyp\ottinterrule
@@ -851,6 +908,7 @@
 \ottWTFb\ottinterrule
 \ottWTX\ottinterrule
 \ottWTXXc\ottinterrule
+\ottWFXXftXXorder\ottinterrule
 \ottWTXXstate\ottinterrule
 \ottjudgement\ottinterrule
 \ottuserXXsyntax\ottafterlastrule
@@ -872,7 +930,7 @@
 \ottpremise{ \forall i \leqslant n. \, ((d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e_i ) \land (d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e_i)) }%
 \ottpremise{ \gamma'  = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] ,  \ottsym{,}  , \overrightarrow{\gamma}) }%
 }{
- \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \,  \overline{\gamma_G}  \,  \overline{\gamma}  \vdash (  \ottkw{call} \, \ottnt{funn}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  ) \rightsquigarrow  (  \ottkw{var} \, \ottsym{(} \, \ottkw{star} \, \ottsym{,}  \ottnt{funn}  \ottsym{)}  ,   [   ( { \ottsym{[}  \ottnt{stmt}  \ottsym{]} )}_{ \ottsym{[}  \gamma'  \ottsym{]} }^{ \ottnt{funn} }   ]   ) }{%
+ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \,  \overline{\gamma_G}  \,  \overline{\gamma}  \vdash (  \ottkw{call} \, \ottnt{funn}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  ) \rightsquigarrow  (  \ottkw{var} \,  \ast ^  \ottnt{funn}   ,   [   ( { \ottsym{[}  \ottnt{stmt}  \ottsym{]} )}_{ \ottsym{[}  \gamma'  \ottsym{]} }^{ \ottnt{funn} }   ]   ) }{%
 {\ottdrulename{e\_call\_newframe}}{}%
 }}
 
@@ -1525,7 +1583,9 @@
 %% defn frames_red
 \newcommand{\ottdruleframesXXcompOne}[1]{\ottdrule[#1]{%
 \ottpremise{ \overline{\gamma_G}'  = \mathrm{scopes\_to\_pass} ( \ottnt{funn} ,  F_g ,  F_b ,  \overline{\gamma_G} ) }%
-\ottpremise{ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}'  \ottsym{,}   [   ( { \overline{ \mathit{stmt} } )}_{ \overline{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  t  \ottsym{)}  \rightarrow   \ottsym{(}  { {\gamma}_A }'  \ottsym{,}  \overline{\gamma_G}''  \ottsym{,}  \overline{\Phi}'  \ottsym{,}  t'  \ottsym{)} }%
+\ottpremise{ F_b'  = \mathrm{map\_to\_pass} ( \ottnt{funn} ,  F_b ) }%
+\ottpremise{ { \mathit{Tb} }'  = \mathrm{tbl\_to\_pass} ( \ottnt{funn} ,  F_b  ,  { \mathit{Tb} } ) }%
+\ottpremise{ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b'  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }'  \ottsym{)}  \vdash   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}'  \ottsym{,}   [   ( { \overline{ \mathit{stmt} } )}_{ \overline{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  t  \ottsym{)}  \rightarrow   \ottsym{(}  { {\gamma}_A }'  \ottsym{,}  \overline{\gamma_G}''  \ottsym{,}  \overline{\Phi}'  \ottsym{,}  t'  \ottsym{)} }%
 \ottpremise{ \overline{\Phi}''  \neq [] \Rightarrow  t'  \neq { \mathbf{ret} \, v } }%
 \ottpremise{ \overline{\gamma_G}'''  = \mathrm{scopes\_to\_retrieve} ( \ottnt{funn} ,  F_g ,  F_b ,  \overline{\gamma_G} ,  \overline{\gamma_G}'' ) }%
 }{
@@ -1536,13 +1596,17 @@
 
 \newcommand{\ottdruleframesXXcompTwo}[1]{\ottdrule[#1]{%
 \ottpremise{ \overline{\gamma_G}'  = \mathrm{scopes\_to\_pass} ( \ottnt{funn} ,  F_g ,  F_b ,  \overline{\gamma_G} ) }%
-\ottpremise{ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}'  \ottsym{,}   [   ( { \overline{ \mathit{stmt} } )}_{ \overline{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}   { \mathbf{run} }   \ottsym{)}  \rightarrow   \ottsym{(}  { {\gamma}_A }'  \ottsym{,}  \overline{\gamma_G}''  \ottsym{,}   [   ( { \overline{ \mathit{stmt} }'' )}_{ \overline{\gamma}'' }^{ \ottnt{funn} }   ]   \ottsym{,}   { \mathbf{ret} \;  \ottnt{v}  }   \ottsym{)} }%
-\ottpremise{  \overline{\gamma_G}'''   =  \ottsym{(}   \overline{\gamma_G}''   \ottsym{)}  [  \ottsym{(} \, \ottkw{star} \, \ottsym{,}  \ottnt{funn}  \ottsym{)}  \longmapsto  \ottnt{v}  ] }%
+\ottpremise{ F_b'  = \mathrm{map\_to\_pass} ( \ottnt{funn} ,  F_b ) }%
+\ottpremise{ { \mathit{Tb} }'  = \mathrm{tbl\_to\_pass} ( \ottnt{funn} ,  F_b  ,  { \mathit{Tb} } ) }%
+\ottpremise{ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b'  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }'  \ottsym{)}  \vdash   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}'  \ottsym{,}   [   ( { \overline{ \mathit{stmt} } )}_{ \overline{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}   { \mathbf{run} }   \ottsym{)}  \rightarrow   \ottsym{(}  { {\gamma}_A }'  \ottsym{,}  \overline{\gamma_G}''  \ottsym{,}   [   ( { \overline{ \mathit{stmt} }'' )}_{ \overline{\gamma}'' }^{ \ottnt{funn} }   ]   \ottsym{,}   { \mathbf{ret} \;  \ottnt{v}  }   \ottsym{)} }%
 \ottpremise{ ( \ottnt{stmt'''} , ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ( x_{{\mathrm{1}}} ,  \ottsym{,} ,  d_{{\mathrm{1}}} ,  \ottsym{)} ) }%
+\ottpremise{  \overline{\gamma_G}'''   =  \ottsym{(}   \overline{\gamma_G}''   \ottsym{)}  [   \ast ^  \ottnt{funn}   \longmapsto  \ottnt{v}  ] }%
 \ottpremise{ \overline{\gamma_G}''''  = \mathrm{scopes\_to\_retrieve} ( \ottnt{funn} ,  F_g ,  F_b ,  \overline{\gamma_G} ,  \overline{\gamma_G}''' ) }%
-\ottpremise{ (  \overline{\gamma_G}'''''  ,  \overline{\gamma}''' ) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}'' , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) }%
+\ottpremise{ \overline{\gamma_G}'''''  = \mathrm{scopes\_to\_pass} ( \ottnt{funn'} ,  F_g ,  F_b ,  \overline{\gamma_G}'''' ) }%
+\ottpremise{ (  \overline{\gamma_G}''''''  ,  \overline{\gamma}''' ) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}'' , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) }%
+\ottpremise{ \overline{\gamma_G}'''''''  = \mathrm{scopes\_to\_retrieve} ( \ottnt{funn'} ,  F_g ,  F_b ,  \overline{\gamma_G}'''' ,  \overline{\gamma_G}'''''' ) }%
 }{
- \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}  \ottsym{,}    [   ( { \overline{ \mathit{stmt} } )}_{ \overline{\gamma} }^{ \ottnt{funn} }   ]   {+}\mspace{-8mu}{+}     [   ( { \overline{ \mathit{stmt} }' )}_{ \overline{\gamma}' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overline{\Phi}     \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{\Phi}   \ottsym{(}  { {\gamma}_A }'  \ottsym{,}  \overline{\gamma_G}'''''  \ottsym{,}    [   ( { \overline{ \mathit{stmt} }' )}_{ \overline{\gamma}''' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overline{\Phi}   \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
+ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}  \ottsym{,}    [   ( { \overline{ \mathit{stmt} } )}_{ \overline{\gamma} }^{ \ottnt{funn} }   ]   {+}\mspace{-8mu}{+}     [   ( { \overline{ \mathit{stmt} }' )}_{ \overline{\gamma}' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overline{\Phi}     \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{\Phi}   \ottsym{(}  { {\gamma}_A }'  \ottsym{,}  \overline{\gamma_G}'''''''  \ottsym{,}    [   ( { \overline{ \mathit{stmt} }' )}_{ \overline{\gamma}''' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overline{\Phi}   \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{frames\_comp2}}{}%
 }}
 
@@ -1568,7 +1632,8 @@
 
 \newcommand{\ottdrulearchXXpblXXinit}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{pbl} \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{=}  \overline{ \mathit{ab} }  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\ottnt{pbl\_type}  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  F_b \, \psi \, \ottnt{stmt} \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  f  \ottsym{)}}%
+\ottpremise{\ottnt{pbl\_type} \, F_b \, \psi \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  f  \ottsym{)}}%
+\ottpremise{ ( \ottnt{stmt} , ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_block\_sig\_body} ( x_{{\mathrm{1}}} ,  \ottsym{,} ) }%
 \ottpremise{\gamma'  \ottsym{=}  { \mathit{in}_p }  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{,}  \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{[}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{]}  \ottsym{,}  { {\gamma}_A }  \ottsym{,}  \ottnt{pbl\_type}  \ottsym{)}}%
 \ottpremise{ \gamma''  = \mathrm{replicate} ( \psi ,  \gamma' ) }%
 \ottpremise{ \overline{\gamma_G}'   \ottsym{=}    \mathrm{lastn}( \ottsym{1} , \overline{\gamma_G} )  }%
@@ -1601,7 +1666,7 @@
 
 \newcommand{\ottdrulearchXXparserXXtrans}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{pbl} \, x  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{=}  \overline{ \mathit{ab} }  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\ottkw{parser}  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  F_b \, \psi \, \ottnt{stmt} \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  x  \ottsym{)}}%
+\ottpremise{\ottkw{parser} \, F_b \, \psi \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  x  \ottsym{)}}%
 \ottpremise{ \mathrm{not\_final\_state}( x' ) }%
 \ottpremise{\ottnt{stmt'}  \ottsym{=}  P  \ottsym{(}  x'  \ottsym{)}}%
 }{
@@ -1612,7 +1677,7 @@
 
 \newcommand{\ottdrulearchXXpblXXexec}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{pbl} \, x  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{=}  \overline{ \mathit{ab} }  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\ottnt{pbl\_type}  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  F_b \, \psi \, \ottnt{stmt} \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  x  \ottsym{)}}%
+\ottpremise{\ottnt{pbl\_type} \, F_b \, \psi \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  x  \ottsym{)}}%
 \ottpremise{ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}  \ottsym{,}  \overline{\Phi}  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{\Phi}   \ottsym{(}  { {\gamma}_A }'  \ottsym{,}  \overline{\gamma_G}'  \ottsym{,}  \overline{\Phi}'  \ottsym{,}  t'  \ottsym{)} }%
 }{
  \ottsym{(}  \overline{ \mathit{ab} }  \ottsym{,}  B_p  \ottsym{,}  B_{ \mathrm{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{ \mathit{io} }  \ottsym{,}  \overline{ \mathit{io} }'  \ottsym{,}  { {\gamma}_A }  \ottsym{)}  \ottsym{,}  \overline{\gamma_G}  \ottsym{,}  \overline{\Phi}  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{ \mathit{io} }  \ottsym{,}  \overline{ \mathit{io} }'  \ottsym{,}  { {\gamma}_A }'  \ottsym{)}  \ottsym{,}  \overline{\gamma_G}'  \ottsym{,}  \overline{\Phi}'  \ottsym{,}  t'  \ottsym{)} }{%
@@ -1622,7 +1687,8 @@
 
 \newcommand{\ottdrulearchXXpblXXret}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{pbl} \, f  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{=}  \overline{ \mathit{ab} }  \ottsym{[}  i  \ottsym{]}}%
-\ottpremise{\ottnt{pbl\_type}  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  F_b \, \psi \, \ottnt{stmt} \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  f  \ottsym{)}}%
+\ottpremise{\ottnt{pbl\_type} \, F_b \, \psi \, P \, { \mathit{Tb} }  \ottsym{=}  B_p  \ottsym{(}  f  \ottsym{)}}%
+\ottpremise{ ( \ottnt{stmt} , ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_block\_sig\_body} ( x_{{\mathrm{1}}} ,  \ottsym{,} ) }%
 \ottpremise{ \mathrm{state\_fin}( t ,  \overline{\Phi} ) }%
 \ottpremise{ t'  = \mathrm{set\_fin\_status} ( \ottnt{pbl\_type} ,  t ) }%
 \ottpremise{{ {\gamma}_A }'  \ottsym{=}  { \mathit{out}_p }  \ottsym{(}   \overline{\gamma_G}   \ottsym{,}  { {\gamma}_A }  \ottsym{,}  \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{,}  \ottnt{pbl\_type}  \ottsym{,}  t'  \ottsym{)}}%
@@ -1655,7 +1721,7 @@
 
 
 \newcommand{\ottdrulevXXtypXXbit}[1]{\ottdrule[#1]{%
-\ottpremise{ w  = width \  \ottnt{bitv} }%
+\ottpremise{ w  = \mathrm{width} \ ( \ottnt{bitv} ) }%
 }{
  \ottnt{bitv}  : (   { { \mathbf{bs} }^{ w } }   ,   { \bot }   ) }{%
 {\ottdrulename{v\_typ\_bit}}{}%
@@ -1670,7 +1736,7 @@
 
 
 \newcommand{\ottdrulevXXtypXXstringXXliteral}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{MEM} \, x \, \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}}%
+\ottpremise{ x  \in  \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]} }%
 }{
  x  : (  \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  ,   { \bot }   ) }{%
 {\ottdrulename{v\_typ\_string\_literal}}{}%
@@ -1686,7 +1752,7 @@
 
 
 \newcommand{\ottdrulevXXtypXXstruct}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  : (  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  , F ) }%
+\ottpremise{ \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  : (  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  , \bot ) }%
 }{
  \ottkw{struct} \, \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, .. \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  : (  \ottkw{struct}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,   { \bot }   ) }{%
 {\ottdrulename{v\_typ\_struct}}{}%
@@ -1695,10 +1761,17 @@
 
 \newcommand{\ottdrulevXXtypXXheader}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{boolv}  : (  \ottkw{bool}  ,   { \bot }   ) }%
-\ottpremise{ \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  : (  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  , F ) }%
+\ottpremise{ \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  : (  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  , \bot ) }%
 }{
  \ottkw{header} \, \ottnt{boolv}  \ottsym{\{}  x_{{\mathrm{1}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{;} \, .. \, \ottsym{;}  x_{\ottmv{n}}  \ottsym{=}  \ottnt{v_{\ottmv{n}}}  \ottsym{\}}  : (  \ottkw{header}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,   { \bot }   ) }{%
 {\ottdrulename{v\_typ\_header}}{}%
+}}
+
+
+\newcommand{\ottdrulevXXtypXXextXXref}[1]{\ottdrule[#1]{%
+}{
+ \ottkw{ext\_ref} \, i  : (  \ottkw{ext}  ,   { \bot }   ) }{%
+{\ottdrulename{v\_typ\_ext\_ref}}{}%
 }}
 
 \newcommand{\ottdefnvXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{v}  : (  t  ,  \ottnt{boolv}  ) $}{\ottcom{values types}}
@@ -1709,6 +1782,7 @@
 \ottusedrule{\ottdrulevXXtypXXerr{}}
 \ottusedrule{\ottdrulevXXtypXXstruct{}}
 \ottusedrule{\ottdrulevXXtypXXheader{}}
+\ottusedrule{\ottdrulevXXtypXXextXXref{}}
 \end{ottdefnblock}}
 
 
@@ -1720,41 +1794,42 @@
 \newcommand{\ottdruleeXXtypXXv}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{v}  : (  t  ,  b  ) }%
 }{
- \psi_t   T_e  \vdash  \ottnt{v}  : (  t  ,  b  ) }{%
+ \psi_t  \,  \Gamma  \; \vdash  \ottnt{v}  : (  t  ,  b  ) }{%
 {\ottdrulename{e\_typ\_v}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXvar}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{not\_star} \, \ottsym{(}  \ottnt{varn}  \ottsym{)}}%
+\ottpremise{ \forall f. \;   \ottnt{varn}  \neq \ast^f }%
 \ottpremise{ \tau  = \mathrm{topmost} ( \overrightarrow{\psi}  ,  \overrightarrow{\psi_G}  ,  \ottnt{varn} ) }%
 }{
-  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )    T_e  \vdash  \ottkw{var} \, \ottnt{varn}  : (  \tau  ,   { \top }   ) }{%
+  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )   \,  \Gamma  \; \vdash  \ottkw{var} \, \ottnt{varn}  : (  \tau  ,   { \top }   ) }{%
 {\ottdrulename{e\_typ\_var}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXstar}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \tau_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn'}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}%
-\ottpremise{ \tau  = \mathrm{find_star_in_globals} ( \overrightarrow{\psi_G} ,  \ottsym{(} \, \ottkw{star} \, \ottsym{,}  \ottnt{funn'}  \ottsym{)} ) }%
+\ottpremise{\ottsym{[}  \tau_{{\mathrm{1}}} \, x_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, x_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn'}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}%
+\ottpremise{ \tau  = \mathrm{lookup\_type} \; ( \overrightarrow{\psi_G} ,   \ast ^  \ottnt{funn'}  ) }%
 }{
-  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )    \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}  \ottsym{)}  \vdash  \ottkw{var} \, \ottsym{(} \, \ottkw{star} \, \ottsym{,}  \ottnt{funn'}  \ottsym{)}  : (  \tau  ,   { \top }   ) }{%
+  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )   \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \; \vdash  \ottkw{var} \,  \ast ^  \ottnt{funn'}   : (  \tau  ,   { \top }   ) }{%
 {\ottdrulename{e\_typ\_star}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXstruct}[1]{\ottdrule[#1]{%
-\ottpremise{\psi_t \, T_e  \ottsym{\mbox{$\mid$}-}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{[}  b_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  b_{\ottmv{n}}  \ottsym{]}  \ottsym{)}}%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }%
 }{
- \psi_t   T_e  \vdash  \ottkw{eStruct} \, \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{;} \, .. \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{e_{\ottmv{n}}}  \ottsym{\}}  : (  \ottkw{struct}  \ottsym{[}  f_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  f_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash  \ottkw{eStruct} \, \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{;} \, .. \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{e_{\ottmv{n}}}  \ottsym{\}}  : (  \ottkw{struct}  \ottsym{[}  f_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  f_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_struct}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXheader}[1]{\ottdrule[#1]{%
-\ottpremise{\psi_t \, T_e  \ottsym{\mbox{$\mid$}-}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{[}  b_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  b_{\ottmv{n}}  \ottsym{]}  \ottsym{)}}%
+\ottpremise{ \ottnt{boolv}  : (  \ottkw{bool}  ,   { \bot }   ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }%
 }{
- \psi_t   T_e  \vdash  \ottkw{eHeader} \, \ottnt{boolv}  \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{;} \, .. \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{e_{\ottmv{n}}}  \ottsym{\}}  : (  \ottkw{header}  \ottsym{[}  f_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  f_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash  \ottkw{eHeader} \, \ottnt{boolv}  \ottsym{\{}  f_{{\mathrm{1}}}  \ottsym{=}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{;} \, .. \, \ottsym{;}  f_{\ottmv{n}}  \ottsym{=}  \ottnt{e_{\ottmv{n}}}  \ottsym{\}}  : (  \ottkw{header}  \ottsym{[}  f_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  f_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_header}}{}%
 }}
 
@@ -1762,36 +1837,36 @@
 \newcommand{\ottdruleeXXtypXXnotXXneg}[1]{\ottdrule[#1]{%
 \ottpremise{ \ominus  \neq \mathit{!} }%
 \ottpremise{\ottkw{width\_in\_range} \, w}%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
 }{
- \psi_t   T_e  \vdash   \ominus   \ottnt{e}   : (   { { \mathbf{bs} }^{ w } }   ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash   \ominus   \ottnt{e}   : (   { { \mathbf{bs} }^{ w } }   ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_not\_neg}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXisXXneg}[1]{\ottdrule[#1]{%
-\ottpremise{ \ominus  \eq \mathit{!} }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
+\ottpremise{ \ominus  = \; \mathit{!} }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
 }{
- \psi_t   T_e  \vdash   \ominus   \ottnt{e}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash   \ominus   \ottnt{e}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_is\_neg}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXacc}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \ottnt{struct\_ty}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \ottnt{struct\_ty}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  ,  b  ) }%
 \ottpremise{\ottkw{correct\_field\_type} \, \ottsym{(}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  x  \ottsym{,}  \tau  \ottsym{)}}%
 }{
- \psi_t   T_e  \vdash  \ottnt{e}  \ottsym{.}  x  : (  \tau  ,  b  ) }{%
+ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  \ottsym{.}  x  : (  \tau  ,  b  ) }{%
 {\ottdrulename{e\_typ\_acc}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXconcat}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w_{{\mathrm{1}}} } }   ,  b  ) }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e'}  : (   { { \mathbf{bs} }^{ w_{{\mathrm{2}}} } }   ,  b'  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w_{{\mathrm{1}}} } }   ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e'}  : (   { { \mathbf{bs} }^{ w_{{\mathrm{2}}} } }   ,  b'  ) }%
 }{
- \psi_t   T_e  \vdash  \ottkw{concat} \, \ottnt{e} \, \ottnt{e'}  : (   { { \mathbf{bs} }^{ \ottsym{(}  w_{{\mathrm{1}}}  \ottsym{+}  w_{{\mathrm{2}}}  \ottsym{)} } }   ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash  \ottkw{concat} \, \ottnt{e} \, \ottnt{e'}  : (   { { \mathbf{bs} }^{ \ottsym{(}  w_{{\mathrm{1}}}  \ottsym{+}  w_{{\mathrm{2}}}  \ottsym{)} } }   ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_concat}}{}%
 }}
 
@@ -1799,76 +1874,76 @@
 \newcommand{\ottdruleeXXtypXXslice}[1]{\ottdrule[#1]{%
 \ottpremise{w_{{\mathrm{1}}}  \ottsym{=} \, \ottkw{vec\_to\_const} \, \ottnt{bitv}}%
 \ottpremise{w_{{\mathrm{2}}}  \ottsym{=} \, \ottkw{vec\_to\_const} \, \ottnt{bitv'}}%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
 \ottpremise{\ottkw{bits\_length\_check} \, \ottsym{(}  w  \ottsym{,}  w_{{\mathrm{1}}}  \ottsym{,}  w_{{\mathrm{2}}}  \ottsym{)}}%
 }{
- \psi_t   T_e  \vdash  \ottnt{e}  \ottsym{[}  \ottnt{bitv}  \ottsym{:}  \ottnt{bitv'}  \ottsym{]}  : (   { { \mathbf{bs} }^{ \ottsym{(}  \ottsym{(}  w_{{\mathrm{1}}}  \ottsym{-}  w_{{\mathrm{2}}}  \ottsym{)}  \ottsym{+}  \ottsym{1}  \ottsym{)} } }   ,  b  ) }{%
+ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  \ottsym{[}  \ottnt{bitv}  \ottsym{:}  \ottnt{bitv'}  \ottsym{]}  : (   { { \mathbf{bs} }^{ \ottsym{(}  \ottsym{(}  w_{{\mathrm{1}}}  \ottsym{-}  w_{{\mathrm{2}}}  \ottsym{)}  \ottsym{+}  \ottsym{1}  \ottsym{)} } }   ,  b  ) }{%
 {\ottdrulename{e\_typ\_slice}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXselect}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \tau  ,  b'  ) }%
-\ottpremise{\ottsym{(}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \tau  \ottsym{,}  b  \ottsym{)}}%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \tau  ,  b'  ) }%
+\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  \ottsym{(}  \tau  \ottsym{,}  b  \ottsym{)}}%
 }{
- \psi_t   T_e  \vdash  \ottkw{select} \, \ottnt{e}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, .. \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x  : (  \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  \ottsym{++}  \ottsym{[}  x  \ottsym{]}  ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash  \ottkw{select} \, \ottnt{e}  \ottsym{\{}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{:}  x_{{\mathrm{1}}}  \ottsym{;} \, .. \, \ottsym{;}  \ottnt{v_{\ottmv{n}}}  \ottsym{:}  x_{\ottmv{n}}  \ottsym{\}}  x  : (  \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  \ottsym{++}  \ottsym{[}  x  \ottsym{]}  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_select}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXcall}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \tau_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn'}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}%
-\ottpremise{\psi_t \, \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}  \ottsym{)}  \ottsym{\mbox{$\mid$}-}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{[}  b_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  b_{\ottmv{n}}  \ottsym{]}  \ottsym{)}}%
+\ottpremise{\ottsym{[}  \tau_{{\mathrm{1}}} \, x_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, x_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn'}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}%
+\ottpremise{ \psi_t  \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }%
 \ottpremise{\ottkw{out\_is\_lval} \, \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  \ottsym{[}  b_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  b_{\ottmv{n}}  \ottsym{]}}%
-\ottpremise{\ottkw{ordered} \, \ottnt{funn'} \, \ottnt{funn} \, \sqsubset}%
+\ottpremise{\sqsubset \, \ottnt{funn'} \, \ottnt{funn}}%
 }{
- \psi_t   \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}  \ottsym{)}  \vdash  \ottkw{call} \, \ottnt{funn'}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  : (  \tau  ,   { \bot }   ) }{%
+ \psi_t  \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \; \vdash  \ottkw{call} \, \ottnt{funn'}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  : (  \tau  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_call}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXbinopXXbv}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{width\_in\_range} \, w}%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e'}  : (   { { \mathbf{bs} }^{ w } }   ,  b'  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e'}  : (   { { \mathbf{bs} }^{ w } }   ,  b'  ) }%
 \ottpremise{\ottkw{is\_bv\_op} \, \oplus}%
 }{
- \psi_t   T_e  \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (   { { \mathbf{bs} }^{ w } }   ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (   { { \mathbf{bs} }^{ w } }   ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_binop\_bv}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXbinopXXbool}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e'}  : (  \ottkw{bool}  ,  b'  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e'}  : (  \ottkw{bool}  ,  b'  ) }%
 \ottpremise{\ottkw{is\_bool\_op} \, \oplus}%
 }{
- \psi_t   T_e  \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_binop\_bool}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXbinopXXerr}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \ottkw{err}  ,  b  ) }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e'}  : (  \ottkw{err}  ,  b'  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \ottkw{err}  ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e'}  : (  \ottkw{err}  ,  b'  ) }%
 \ottpremise{\ottkw{is\_err\_bool} \, \oplus}%
 }{
- \psi_t   T_e  \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_binop\_err}}{}%
 }}
 
 
 \newcommand{\ottdruleeXXtypXXbinopXXbvXXbool}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{width\_in\_range} \, w}%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e'}  : (   { { \mathbf{bs} }^{ w } }   ,  b'  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (   { { \mathbf{bs} }^{ w } }   ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e'}  : (   { { \mathbf{bs} }^{ w } }   ,  b'  ) }%
 \ottpremise{\ottkw{is\_bv\_bool\_op} \, \oplus}%
 }{
- \psi_t   T_e  \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
+ \psi_t  \,  \Gamma  \; \vdash   \ottnt{e}   \oplus   \ottnt{e'}   : (  \ottkw{bool}  ,   { \bot }   ) }{%
 {\ottdrulename{e\_typ\_binop\_bv\_bool}}{}%
 }}
 
-\newcommand{\ottdefneXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t   T_e  \vdash  \ottnt{e}  : (  t  ,  \ottnt{boolv}  ) $}{\ottcom{expression types}}
+\newcommand{\ottdefneXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  t  ,  \ottnt{boolv}  ) $}{\ottcom{expression types}}
 \ottusedrule{\ottdruleeXXtypXXv{}}
 \ottusedrule{\ottdruleeXXtypXXvar{}}
 \ottusedrule{\ottdruleeXXtypXXstar{}}
@@ -1891,102 +1966,146 @@
 \newcommand{\ottdefnseXXtyp}{
 \ottdefneXXtyp{}}
 
+% defns lval_typ
+%% defn lval_typ
+\newcommand{\ottdrulelvalXXtypXXvar}[1]{\ottdrule[#1]{%
+\ottpremise{  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )   \,  \Gamma  \; \vdash  \ottkw{var} \, \ottnt{varn}  : (  \tau  ,   { \top }   ) }%
+}{
+  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )   \,  \Gamma  \; \vdash  \ottnt{varn}  : (  \tau  , { \top }  ) }{%
+{\ottdrulename{lval\_typ\_var}}{}%
+}}
+
+
+\newcommand{\ottdrulelvalXXtypXXacc}[1]{\ottdrule[#1]{%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{lval}  : (  \ottnt{struct\_ty}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  , { \top }  ) }%
+\ottpremise{\ottkw{correct\_field\_type} \, \ottsym{(}  \ottsym{[}  x_{{\mathrm{1}}} \, \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}} \, \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  x  \ottsym{,}  \tau  \ottsym{)}}%
+}{
+ \psi_t  \,  \Gamma  \; \vdash  \ottnt{lval}  \ottsym{.}  x  : (  \tau  , { \top }  ) }{%
+{\ottdrulename{lval\_typ\_acc}}{}%
+}}
+
+
+\newcommand{\ottdrulelvalXXtypXXslice}[1]{\ottdrule[#1]{%
+\ottpremise{w_{{\mathrm{1}}}  \ottsym{=} \, \ottkw{vec\_to\_const} \, \ottnt{bitv}}%
+\ottpremise{w_{{\mathrm{2}}}  \ottsym{=} \, \ottkw{vec\_to\_const} \, \ottnt{bitv'}}%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{lval}  : (   { { \mathbf{bs} }^{ w } }   , { \top }  ) }%
+\ottpremise{\ottkw{bits\_length\_check} \, \ottsym{(}  w  \ottsym{,}  w_{{\mathrm{1}}}  \ottsym{,}  w_{{\mathrm{2}}}  \ottsym{)}}%
+}{
+ \psi_t  \,  \Gamma  \; \vdash  \ottnt{lval}  \ottsym{[}  \ottnt{bitv}  \ottsym{:}  \ottnt{bitv'}  \ottsym{]}  : (   { { \mathbf{bs} }^{ \ottsym{(}  \ottsym{(}  w_{{\mathrm{1}}}  \ottsym{-}  w_{{\mathrm{2}}}  \ottsym{)}  \ottsym{+}  \ottsym{1}  \ottsym{)} } }   , { \top }  ) }{%
+{\ottdrulename{lval\_typ\_slice}}{}%
+}}
+
+\newcommand{\ottdefnlvalXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t  \,  \Gamma  \; \vdash  \ottnt{lval}  : (  t  , { \top }  ) $}{\ottcom{lval types}}
+\ottusedrule{\ottdrulelvalXXtypXXvar{}}
+\ottusedrule{\ottdrulelvalXXtypXXacc{}}
+\ottusedrule{\ottdrulelvalXXtypXXslice{}}
+\end{ottdefnblock}}
+
+
+\newcommand{\ottdefnslvalXXtyp}{
+\ottdefnlvalXXtyp{}}
+
 % defns stmt_typ
 %% defn stmt_typ
 \newcommand{\ottdrulestmtXXtypXXempty}[1]{\ottdrule[#1]{%
 }{
- \psi_t   T_e   Prs_n  |-   \emptyset_{ \mathrm{stmt} }  }{%
+ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash   \emptyset_{ \mathrm{stmt} }  }{%
 {\ottdrulename{stmt\_typ\_empty}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXassign}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottkw{var} \, \ottnt{varn}  : (  \tau  ,   { \top }   ) }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \tau  ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{lval}  : (  \tau  , { \top }  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \tau  ,  b  ) }%
 }{
- \psi_t   T_e   Prs_n  |-   \ottnt{varn}  \mathrel{\mathop:}=  \ottnt{e}  }{%
+ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash   \ottnt{lval}  \mathrel{\mathop:}=  \ottnt{e}  }{%
 {\ottdrulename{stmt\_typ\_assign}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXassignXXnull}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \tau  ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \tau  ,  b  ) }%
 }{
- \psi_t   T_e   Prs_n  |-   \ottkw{null}  \mathrel{\mathop:}=  \ottnt{e}  }{%
+ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash   \ottkw{null}  \mathrel{\mathop:}=  \ottnt{e}  }{%
 {\ottdrulename{stmt\_typ\_assign\_null}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXif}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
-\ottpremise{ \psi_t   T_e   Prs_n  |-  \ottnt{stmt_{{\mathrm{1}}}} }%
-\ottpremise{ \psi_t   T_e   Prs_n  |-  \ottnt{stmt_{{\mathrm{2}}}} }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt_{{\mathrm{1}}}} }%
+\ottpremise{ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt_{{\mathrm{2}}}} }%
 }{
- \psi_t   T_e   Prs_n  |-  \ottkw{if} \, \ottnt{e} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}} }{%
+ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottkw{if} \, \ottnt{e} \, \ottkw{then} \, \ottnt{stmt_{{\mathrm{1}}}} \, \ottkw{else} \, \ottnt{stmt_{{\mathrm{2}}}} }{%
 {\ottdrulename{stmt\_typ\_if}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXdecl}[1]{\ottdrule[#1]{%
-\ottpremise{  ( \overrightarrow{\psi_G}  ,  \ottsym{[}  \psi  \ottsym{]}  \ottsym{++}  \overrightarrow{\psi} )    T_e   Prs_n  |-  \ottnt{stmt} }%
+\ottpremise{\ottkw{lvalop\_not\_none} \, \psi}%
+\ottpremise{\ottkw{star\_Err\_not\_in\_ts} \, \psi}%
+\ottpremise{  ( \overrightarrow{\psi_G}  ,  \ottsym{[}  \psi  \ottsym{]}  \ottsym{++}  \overrightarrow{\psi} )   \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt} }%
 }{
-  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )    T_e   Prs_n  |-   \{  \psi  \,  \ottnt{stmt}  \}  }{%
+  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )   \,  \Gamma  \,  \mathbb{P}  \; \vdash   \{  \psi  \,  \ottnt{stmt}  \}  }{%
 {\ottdrulename{stmt\_typ\_decl}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXseq}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e   Prs_n  |-  \ottnt{stmt_{{\mathrm{1}}}} }%
-\ottpremise{ \psi_t   T_e   Prs_n  |-  \ottnt{stmt_{{\mathrm{2}}}} }%
+\ottpremise{ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt_{{\mathrm{1}}}} }%
+\ottpremise{ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt_{{\mathrm{2}}}} }%
 }{
- \psi_t   T_e   Prs_n  |-  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}} }{%
+ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{stmt_{{\mathrm{2}}}} }{%
 {\ottdrulename{stmt\_typ\_seq}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXverify}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e'}  : (  \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  ,  b'  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \ottkw{bool}  ,  b  ) }%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e'}  : (  \ottkw{err}  ,  b'  ) }%
 }{
- \psi_t   T_e   Prs_n  |-  \ottkw{verify} \, \ottnt{e} \, \ottnt{e'} }{%
+ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottkw{verify} \, \ottnt{e} \, \ottnt{e'} }{%
 {\ottdrulename{stmt\_typ\_verify}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXtransition}[1]{\ottdrule[#1]{%
-\ottpremise{ \psi_t   T_e  \vdash  \ottnt{e}  : (  \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  ,  b  ) }%
-\ottpremise{\ottkw{literials\_in\_P\_state} \, \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  \ottsym{(}  Prs_n  \ottsym{++}  \ottsym{[}  \ottsym{"accept"}  \ottsym{;}  \ottsym{"reject"}  \ottsym{]}  \ottsym{)}}%
+\ottpremise{ \psi_t  \,  \Gamma  \; \vdash  \ottnt{e}  : (  \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  ,  b  ) }%
+\ottpremise{\ottkw{literials\_in\_P\_state} \, \ottsym{[}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{]}  \ottsym{(}  \mathbb{P}  \ottsym{++}  \ottsym{[}  \ottsym{"accept"}  \ottsym{;}  \ottsym{"reject"}  \ottsym{]}  \ottsym{)}}%
 }{
- \psi_t   T_e   Prs_n  |-   \mathbf{transition}\,  \ottnt{e}  }{%
+ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash   \mathbf{transition}\,  \ottnt{e}  }{%
 {\ottdrulename{stmt\_typ\_transition}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXreturn}[1]{\ottdrule[#1]{%
-\ottpremise{\ottsym{[}  \tau_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \ottsym{(} \, \ottkw{empty} \, \ottsym{)}  \ottsym{)}}%
-\ottpremise{ \psi_t   \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}  \ottsym{)}  \vdash  \ottnt{e}  : (  \tau  ,  b  ) }%
+\ottpremise{\ottsym{[}  \tau_{{\mathrm{1}}} \, x_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, x_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \ottsym{(} \, \ottkw{empty} \, \ottsym{)}  \ottsym{)}}%
+\ottpremise{ \psi_t  \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \; \vdash  \ottnt{e}  : (  \tau  ,  b  ) }%
 }{
- \psi_t   \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}  \ottsym{)}   Prs_n  |-  \ottkw{return} \, \ottnt{e} }{%
+ \psi_t  \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \,  \mathbb{P}  \; \vdash  \ottkw{return} \, \ottnt{e} }{%
 {\ottdrulename{stmt\_typ\_return}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXapply}[1]{\ottdrule[#1]{%
-\ottpremise{\Delta_{tbl}  \ottsym{(}  tbl  \ottsym{)}  \ottsym{=}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}}%
-\ottpremise{\psi_t \, \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}  \ottsym{)}  \ottsym{\mbox{$\mid$}-}  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \ottsym{:}  \ottsym{(}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{[}  b_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  b_{\ottmv{n}}  \ottsym{]}  \ottsym{)}}%
+\ottpremise{\sqsubset  \ottsym{(} \, \ottkw{order\_elem\_t} \, tbl  \ottsym{)}  \ottnt{funn}}%
+\ottpremise{\mathbb{T}  \ottsym{(}  tbl  \ottsym{)}  \ottsym{=}  \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}}%
+\ottpremise{ \psi_t  \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }%
 }{
- \psi_t   \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)}  \ottsym{)}   Prs_n  |-  \ottkw{apply} \, tbl  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)} }{%
+ \psi_t  \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \,  \mathbb{P}  \; \vdash  \ottkw{apply} \, tbl  \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)} }{%
 {\ottdrulename{stmt\_typ\_apply}}{}%
 }}
 
 
 \newcommand{\ottdrulestmtXXtypXXext}[1]{\ottdrule[#1]{%
+\ottpremise{\ottkw{ext\_is\_defined} \, \Delta_{ext} \, \ottnt{funn}}%
+\ottpremise{\ottkw{ext\_not\_defined} \, \Delta_{glb} \, \Delta_{blk} \, \ottnt{funn}}%
 }{
- \psi_t   T_e   Prs_n  |-   \blacksquare  }{%
+ \psi_t  \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \,  \mathbb{P}  \; \vdash   \blacksquare  }{%
 {\ottdrulename{stmt\_typ\_ext}}{}%
 }}
 
-\newcommand{\ottdefnstmtXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t   T_e   Prs_n  |-  \ottnt{stmt} $}{\ottcom{expression types}}
+\newcommand{\ottdefnstmtXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t  \,  \Gamma  \,  \mathbb{P}  \; \vdash  \ottnt{stmt} $}{\ottcom{expression types}}
 \ottusedrule{\ottdrulestmtXXtypXXempty{}}
 \ottusedrule{\ottdrulestmtXXtypXXassign{}}
 \ottusedrule{\ottdrulestmtXXtypXXassignXXnull{}}
@@ -2007,14 +2126,15 @@
 % defns stmtl_typ
 %% defn stmtl_typ
 \newcommand{\ottdrulestmtlXXtypXXlist}[1]{\ottdrule[#1]{%
+\ottpremise{\ottkw{length\_greq} \, \ottsym{(}  \psi_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \psi_{\ottmv{m}}  \ottsym{)}  \ottsym{(}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{stmt_{\ottmv{n}}}  \ottsym{)}}%
 \ottpremise{ \mathrm{not\_empty} \;  \ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{stmt_{\ottmv{n}}}  \ottsym{]} }%
-\ottpremise{\ottkw{type\_ith\_stmt} \, \overrightarrow{\psi_G} \, \ottsym{[}  \psi_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \psi_{\ottmv{n}}  \ottsym{]} \, T_e \, Prs_n \, \ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{stmt_{\ottmv{n}}}  \ottsym{]}}%
+\ottpremise{\ottkw{type\_ith\_stmt} \, \overrightarrow{\psi_G} \, \ottsym{[}  \psi_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \psi_{\ottmv{m}}  \ottsym{]} \, \Gamma \, \mathbb{P} \, \ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{stmt_{\ottmv{n}}}  \ottsym{]}}%
 }{
-  ( \overrightarrow{\psi_G}  ,  \ottsym{[}  \psi_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \psi_{\ottmv{n}}  \ottsym{]} )    T_e   Prs_n  |-  \ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{stmt_{\ottmv{n}}}  \ottsym{]} }{%
+  ( \overrightarrow{\psi_G}  ,  \ottsym{[}  \psi_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \psi_{\ottmv{m}}  \ottsym{]} )   \,  \Gamma  \,  \mathbb{P}   \; \vdash  \ottsym{[}  \ottnt{stmt_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{stmt_{\ottmv{n}}}  \ottsym{]} }{%
 {\ottdrulename{stmtl\_typ\_list}}{}%
 }}
 
-\newcommand{\ottdefnstmtlXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t   T_e   Prs_n  |-  \overline{ \mathit{stmt} } $}{\ottcom{statement list types}}
+\newcommand{\ottdefnstmtlXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t  \,  \Gamma  \,  \mathbb{P}   \; \vdash  \overline{ \mathit{stmt} } $}{\ottcom{statement list types}}
 \ottusedrule{\ottdrulestmtlXXtypXXlist{}}
 \end{ottdefnblock}}
 
@@ -2025,16 +2145,21 @@
 % defns frame_typ
 %% defn frame_typ
 \newcommand{\ottdruleframeXXtypXXstmtl}[1]{\ottdrule[#1]{%
+\ottpremise{\ottsym{[}  \tau_{{\mathrm{1}}} \, x_{{\mathrm{1}}} \, d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}} \, x_{\ottmv{n}} \, d_{\ottmv{n}}  \ottsym{]}  \tau  \ottsym{=} \, \ottkw{t\_lookup\_funn} \, \ottsym{(}  \ottnt{funn}  \ottsym{,}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}%
+\ottpremise{\ottkw{sig\_tscope\_consistent} \, \ottnt{funn} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \overrightarrow{\psi}}%
+\ottpremise{\ottkw{args\_t\_same} \, \ottsym{[}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{]}  \overrightarrow{\psi}}%
+\ottpremise{\ottkw{star\_not\_in\_sl} \, \overline{\gamma}}%
+\ottpremise{\ottkw{parseError\_in\_gs} \, \overrightarrow{\psi_G}  \ottsym{[}  \overrightarrow{\psi}  \ottsym{]}}%
 \ottpremise{\ottkw{type\_frame\_tsl} \, \overline{\gamma} \, \overrightarrow{\psi}}%
 \ottpremise{\ottkw{type\_scopes\_list} \, \overline{\gamma_G} \, \overrightarrow{\psi_G}}%
-\ottpremise{  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )    T_e   Prs_n  |-  \overline{ \mathit{stmt} } }%
+\ottpremise{  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )   \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \,  \mathbb{P}   \; \vdash  \overline{ \mathit{stmt} } }%
 \ottpremise{ \mathrm{not\_empty} \;  \overline{ \mathit{stmt} } }%
 }{
-  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )    T_e   Prs_n  |- (  \overline{\gamma_G}  ,  \overline{\gamma}  ,  \overline{ \mathit{stmt} }  ) }{%
+  ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )   \,  \ottsym{(}  \sqsubset  \ottsym{,}  \ottnt{funn}  \ottsym{,}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  \ottsym{)}  \,  \mathbb{P}   \; \vdash (  \overline{\gamma_G}  ,  \overline{\gamma}  ,  \overline{ \mathit{stmt} }  ) }{%
 {\ottdrulename{frame\_typ\_stmtl}}{}%
 }}
 
-\newcommand{\ottdefnframeXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t   T_e   Prs_n  |- (  \overline{\gamma_G}  ,  \overline{\gamma}  ,  \overline{ \mathit{stmt} }  ) $}{\ottcom{frame types}}
+\newcommand{\ottdefnframeXXtyp}[1]{\begin{ottdefnblock}[#1]{$ \psi_t  \,  \Gamma  \,  \mathbb{P}   \; \vdash (  \overline{\gamma_G}  ,  \overline{\gamma}  ,  \overline{ \mathit{stmt} }  ) $}{\ottcom{frame types}}
 \ottusedrule{\ottdruleframeXXtypXXstmtl{}}
 \end{ottdefnblock}}
 
@@ -2045,13 +2170,13 @@
 % defns WTFg
 %% defn WTFg
 \newcommand{\ottdruleWTFgXXglobal}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{func\_map\_typed} \, F_g \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb}}%
+\ottpremise{\ottkw{func\_map\_typed} \, F_g \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \mathbb{P}}%
 }{
- F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb} }{%
+ F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{P} }{%
 {\ottdrulename{WTFg\_global}}{}%
 }}
 
-\newcommand{\ottdefnWTFg}[1]{\begin{ottdefnblock}[#1]{$ F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb} $}{\ottcom{global functions well typed}}
+\newcommand{\ottdefnWTFg}[1]{\begin{ottdefnblock}[#1]{$ F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{P} $}{\ottcom{global functions well typed}}
 \ottusedrule{\ottdruleWTFgXXglobal{}}
 \end{ottdefnblock}}
 
@@ -2062,13 +2187,13 @@
 % defns WTFb
 %% defn WTFb
 \newcommand{\ottdruleWTFbXXblock}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{func\_map\_blk\_typed} \, F_b \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext}}%
+\ottpremise{\ottkw{func\_map\_blk\_typed} \, F_b \, \sqsubset \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \mathbb{T} \, \mathbb{P}}%
 }{
- F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }{%
+ F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} }{%
 {\ottdrulename{WTFb\_block}}{}%
 }}
 
-\newcommand{\ottdefnWTFb}[1]{\begin{ottdefnblock}[#1]{$ F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} $}{\ottcom{actions and local functions well typed}}
+\newcommand{\ottdefnWTFb}[1]{\begin{ottdefnblock}[#1]{$ F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} $}{\ottcom{actions and local functions well typed}}
 \ottusedrule{\ottdruleWTFbXXblock{}}
 \end{ottdefnblock}}
 
@@ -2079,14 +2204,14 @@
 % defns WTX
 %% defn WTX
 \newcommand{\ottdruleWTXXXext}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{extern\_map\_IoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{ext}}%
-\ottpremise{\ottkw{extern\_MoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{ext}}%
+\ottpremise{\ottkw{extern\_map\_IoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext}}%
+\ottpremise{\ottkw{extern\_MoE\_typed} \, X \, \overrightarrow{\psi_G} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext}}%
 }{
- X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{ext} }{%
+ X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }{%
 {\ottdrulename{WTX\_ext}}{}%
 }}
 
-\newcommand{\ottdefnWTX}[1]{\begin{ottdefnblock}[#1]{$ X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{ext} $}{\ottcom{extern well typed}}
+\newcommand{\ottdefnWTX}[1]{\begin{ottdefnblock}[#1]{$ X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} $}{\ottcom{extern well typed}}
 \ottusedrule{\ottdruleWTXXXext{}}
 \end{ottdefnblock}}
 
@@ -2099,23 +2224,30 @@
 \newcommand{\ottdruleWTXXcXXc}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{WF\_o} \, \sqsubset}%
 \ottpremise{\ottsym{length\_is\_2}  \ottsym{(}  \overrightarrow{\psi_G}  \ottsym{)}}%
+\ottpremise{\ottkw{length\_eq} \, \Delta_{blk} \, F_b}%
+\ottpremise{\ottkw{length\_eq} \, \mathbb{T} \, { \mathit{Tb} }}%
 \ottpremise{\ottkw{dom\_map\_ei} \, \ottsym{(}  F_g  \ottsym{,}  F_b  \ottsym{)}}%
 \ottpremise{\ottkw{dom\_tmap\_ei} \, \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{)}}%
+\ottpremise{\ottkw{typying\_domains\_ei} \, \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{)}}%
 \ottpremise{\ottkw{dom\_g\_eq} \, \ottsym{(}  \Delta_{glb}  \ottsym{,}  F_g  \ottsym{)}}%
 \ottpremise{\ottkw{dom\_b\_eq} \, \ottsym{(}  \Delta_{blk}  \ottsym{,}  F_b  \ottsym{)}}%
 \ottpremise{\ottkw{dom\_x\_eq} \, \ottsym{(}  \Delta_{ext}  \ottsym{,}  X  \ottsym{)}}%
+\ottpremise{\ottkw{dom\_t\_eq} \, \ottsym{(}  \mathbb{T}  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}}%
 \ottpremise{\ottkw{Fg\_star\_defined} \, \ottsym{(}  F_g  \ottsym{,}  \overrightarrow{\psi_G}  \ottsym{)}}%
 \ottpremise{\ottkw{Fb\_star\_defined} \, \ottsym{(}  F_b  \ottsym{,}  \overrightarrow{\psi_G}  \ottsym{)}}%
 \ottpremise{\ottkw{X\_star\_defined} \, \ottsym{(}  X  \ottsym{,}  \overrightarrow{\psi_G}  \ottsym{)}}%
-\ottpremise{ F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb} }%
-\ottpremise{ F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }%
-\ottpremise{ X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{ext} }%
+\ottpremise{\ottkw{X\_star\_not\_defined} \, \overrightarrow{\psi_G}}%
+\ottpremise{ F_g   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{P} }%
+\ottpremise{ F_b   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} }%
+\ottpremise{ X   \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }%
+\ottpremise{\ottkw{table\_map\_typed} \, { \mathit{Tb} } \, { \mathit{apply\_table} } \, \Delta_{glb} \, \Delta_{blk} \, \sqsubset}%
+\ottpremise{\ottkw{f\_in\_apply\_tbl} \, { \mathit{Tb} } \, { \mathit{apply\_table} }}%
 }{
- \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }{%
+ \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} }{%
 {\ottdrulename{WT\_c\_c}}{}%
 }}
 
-\newcommand{\ottdefnWTXXc}[1]{\begin{ottdefnblock}[#1]{$ \mathit{ctx}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} $}{\ottcom{context well typed}}
+\newcommand{\ottdefnWTXXc}[1]{\begin{ottdefnblock}[#1]{$ \mathit{ctx}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} $}{\ottcom{context well typed}}
 \ottusedrule{\ottdruleWTXXcXXc{}}
 \end{ottdefnblock}}
 
@@ -2123,18 +2255,38 @@
 \newcommand{\ottdefnsWTXXc}{
 \ottdefnWTXXc{}}
 
+% defns WF_ft_order
+%% defn WF_ft_order
+\newcommand{\ottdruleWFXXftXXorderXXft}[1]{\ottdrule[#1]{%
+\ottpremise{\ottkw{ordered\_list} \, \sqsubset  \ottsym{[}  \ottnt{funn_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{funn_{\ottmv{n}}}  \ottsym{]}}%
+\ottpremise{\ottkw{deltas\_order} \, \Delta_{glb} \, \Delta_{blk} \, \Delta_{ext} \, \sqsubset}%
+}{
+ WF_ft_order  f_list   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \sqsubset }{%
+{\ottdrulename{WF\_ft\_order\_ft}}{}%
+}}
+
+\newcommand{\ottdefnWFXXftXXorder}[1]{\begin{ottdefnblock}[#1]{$ WF_ft_order  f_list   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \sqsubset $}{\ottcom{well formed order}}
+\ottusedrule{\ottdruleWFXXftXXorderXXft{}}
+\end{ottdefnblock}}
+
+
+\newcommand{\ottdefnsWFXXftXXorder}{
+\ottdefnWFXXftXXorder{}}
+
 % defns WT_state
 %% defn WT_state
 \newcommand{\ottdruleWTXXstateXXstate}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{type\_state\_tsll} \, \ottsym{(}  \overline{\gamma}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overline{\gamma}_{\ottmv{n}}  \ottsym{)}  \overrightarrow{\psi}}%
+\ottpremise{ WF_ft_order  \ottsym{[}  \ottnt{funn_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{funn_{\ottmv{n}}}  \ottsym{]}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \sqsubset }%
+\ottpremise{\ottkw{type\_state\_tsll} \, \ottsym{(}  \overline{\gamma}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overline{\gamma}_{\ottmv{n}}  \ottsym{)}  \ottsym{[}  \overrightarrow{\psi}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overrightarrow{\psi}_{\ottmv{n}}  \ottsym{]}}%
 \ottpremise{\ottkw{type\_scopes\_list} \, \overline{\gamma_G} \, \overrightarrow{\psi_G}}%
-\ottpremise{ \mathit{ctx}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext} }%
+\ottpremise{ \mathit{ctx}  -|  \sqsubset   \overrightarrow{\psi_G}   \Delta_{glb}   \Delta_{blk}   \Delta_{ext}   \mathbb{T}   \mathbb{P} }%
+\ottpremise{\ottsym{(}  \overline{\gamma_G}  \ottsym{,}  \ottsym{[}  \ottsym{[}  \ottsym{(}  \ottnt{funn_{{\mathrm{1}}}}  \ottsym{,}  \overline{ \mathit{stmt} }_{{\mathrm{1}}}  \ottsym{,}  \overline{\gamma}_{{\mathrm{1}}}  \ottsym{)}  \ottsym{]}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{[}  \ottsym{(}  \ottnt{funn_{\ottmv{n}}}  \ottsym{,}  \overline{ \mathit{stmt} }_{\ottmv{n}}  \ottsym{,}  \overline{\gamma}_{\ottmv{n}}  \ottsym{)}  \ottsym{]}  \ottsym{]}  \ottsym{,}  t  \ottsym{)}  \ottsym{-\mbox{$\mid$}\mbox{$\mid$}\mbox{$\mid$}}  \mathbb{P} \, \sqsubset  \ottsym{(}  \overrightarrow{\psi_G}  \ottsym{,}  \ottsym{[}  \overrightarrow{\psi}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overrightarrow{\psi}_{\ottmv{n}}  \ottsym{]}  \ottsym{)}  \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)}  F_g \, F_b}%
 }{
- WT  \mathit{ctx}   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}  \ottsym{,}  \ottsym{[}  \ottsym{[}  \ottsym{(}  \ottnt{funn_{{\mathrm{1}}}}  \ottsym{,}  \overline{ \mathit{stmt} }_{{\mathrm{1}}}  \ottsym{,}  \overline{\gamma}_{{\mathrm{1}}}  \ottsym{)}  \ottsym{]}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{[}  \ottsym{(}  \ottnt{funn_{\ottmv{n}}}  \ottsym{,}  \overline{ \mathit{stmt} }_{\ottmv{n}}  \ottsym{,}  \overline{\gamma}_{\ottmv{n}}  \ottsym{)}  \ottsym{]}  \ottsym{]}  \ottsym{,}   { \mathbf{run} }   \ottsym{)}   Prs_n   \sqsubset    ( \overrightarrow{\psi_G}  ,  \overrightarrow{\psi} )    \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \Delta_{tbl}  \ottsym{)} }{%
+ WT  \ottsym{(}  { \mathit{apply\_table} }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}   \ottsym{(}  { {\gamma}_A }  \ottsym{,}  \overline{\gamma_G}  \ottsym{,}  \ottsym{[}  \ottsym{[}  \ottsym{(}  \ottnt{funn_{{\mathrm{1}}}}  \ottsym{,}  \overline{ \mathit{stmt} }_{{\mathrm{1}}}  \ottsym{,}  \overline{\gamma}_{{\mathrm{1}}}  \ottsym{)}  \ottsym{]}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{[}  \ottsym{(}  \ottnt{funn_{\ottmv{n}}}  \ottsym{,}  \overline{ \mathit{stmt} }_{\ottmv{n}}  \ottsym{,}  \overline{\gamma}_{\ottmv{n}}  \ottsym{)}  \ottsym{]}  \ottsym{]}  \ottsym{,}  t  \ottsym{)}   \mathbb{P}   \sqsubset   \overrightarrow{\psi_G}   \ottsym{[}  \overrightarrow{\psi}_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \overrightarrow{\psi}_{\ottmv{n}}  \ottsym{]}   \ottsym{(}  \Delta_{glb}  \ottsym{,}  \Delta_{blk}  \ottsym{,}  \Delta_{ext}  \ottsym{,}  \mathbb{T}  \ottsym{)} }{%
 {\ottdrulename{WT\_state\_state}}{}%
 }}
 
-\newcommand{\ottdefnWTXXstate}[1]{\begin{ottdefnblock}[#1]{$ WT  \mathit{ctx}   s   Prs_n   \sqsubset   \psi_t   \Delta $}{\ottcom{context well typed}}
+\newcommand{\ottdefnWTXXstate}[1]{\begin{ottdefnblock}[#1]{$ WT  \mathit{ctx}   s   \mathbb{P}   \sqsubset   \overrightarrow{\psi_G}   {\Psi}   \Delta $}{\ottcom{context well typed}}
 \ottusedrule{\ottdruleWTXXstateXXstate{}}
 \end{ottdefnblock}}
 
@@ -2149,6 +2301,7 @@
 \ottdefnsarchXXsem
 \ottdefnsvXXtyp
 \ottdefnseXXtyp
+\ottdefnslvalXXtyp
 \ottdefnsstmtXXtyp
 \ottdefnsstmtlXXtyp
 \ottdefnsframeXXtyp
@@ -2156,6 +2309,7 @@
 \ottdefnsWTFb
 \ottdefnsWTX
 \ottdefnsWTXXc
+\ottdefnsWFXXftXXorder
 \ottdefnsWTXXstate
 }
 
