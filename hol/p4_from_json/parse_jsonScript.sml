@@ -5,6 +5,8 @@ val _ = new_theory "parse_json";
 open stringTheory;
 
 (* TODO: Cannot make object finite map due to HOL4 definitional mechanism... *)
+(* TODO: Keeping this very readable (i.e. Object instead of json_obj) for now,
+ * since you might actually want to look at the parser's output *)
 Datatype:
  json_t =
     Object json_kv_map_t
