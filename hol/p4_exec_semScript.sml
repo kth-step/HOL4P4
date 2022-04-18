@@ -622,10 +622,13 @@ Definition stmt_exec:
   /\
  (**********)
  (* Extern *)
- (stmt_exec ctx (g_scope_list, [(funn, stmt_ext ext, scopes_stack)], ctrl, status_running) =
-  (case ext (g_scope_list, scopes_stack, ctrl) of
-   | SOME (g_scope_list', scopes_stack', ctrl') =>
-    SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status_running)
+ (stmt_exec (ty_map, ext_map, func_map, tbl_map) (g_scope_list, [(funn, stmt_ext, scopes_stack)], ctrl, status_running) =
+  (case lookup_ext_fun funn ext_map of
+   | SOME ext_fun =>
+    (case ext_fun (g_scope_list, scopes_stack, ctrl) of
+     | SOME (g_scope_list', scopes_stack', ctrl') =>
+      SOME (g_scope_list', [(funn, stmt_empty, scopes_stack')], ctrl', status_running)
+     | NONE => NONE)
    | NONE => NONE))
   /\
  (*********)
@@ -1514,6 +1517,10 @@ REPEAT STRIP_TAC >| [
  (* TODO: Empty statement - how should this be handled in reductions? *)
  cheat,
 
+ (* Extern *)
+ (* TODO *)
+ cheat,
+
  (* Return statement *)
  (* TODO *)
  cheat,
@@ -1524,10 +1531,6 @@ REPEAT STRIP_TAC >| [
 
  (* Verify statement *)
  fs [stmt_verify_exec_sound_red],
-
- (* Extern *)
- (* TODO *)
- cheat,
 
  (* Apply statement *)
  (* TODO *)
@@ -1870,7 +1873,6 @@ Theorem stmt_multi_exec_sound_red:
 Proof
  cheat
 QED
-
 
 (*
 (* TODO: some kind of (multi-step) CakeML-adjusted executable semantics definition *)
