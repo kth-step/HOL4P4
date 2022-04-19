@@ -610,7 +610,7 @@ d {{ tex d }} :: d_ ::=
 
 %The "fixed function" of a fixed-function block
 ff {{ tex { \mathit{ff} } }} :: ff_ ::=
-{{ hol ((e list # scope) -> scope option) }}
+{{ hol (scope -> scope option) }}
 
 %Fence between d and d_list
 embed
@@ -708,8 +708,6 @@ arch_frame_list :: arch_frame_list_ ::=
   {{ com regular frame list }}
 | pbl_call f ( e1 , .. , en ) :: :: pbl_call
   {{ com programmable block call }}
-| ffbl_call f ( e1 , .. , en ) :: :: ffbl_call
-  {{ com fixed-function block call }}
 
 pblock {{ tex { \mathit{ pblock } } }} :: pblock_ ::=
 {{ com programmable block }}
@@ -718,10 +716,7 @@ pblock {{ tex { \mathit{ pblock } } }} :: pblock_ ::=
 
 ffblock {{ tex { \mathit{ ffblock } } }} :: ffblock_ ::=
 {{ com fixed-function block }}
-%{{ hol (ff # (string # d) list) }}
-| ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) :: :: ff
-%  {{ com fixed-function block }}
-%  {{ hol ( [[ff]] , ()) }}
+| ff :: :: ff
 
 %Fence so that ott does not re-order ffblock
 embed
@@ -734,7 +729,7 @@ arch_block :: arch_block_ ::=
 {{ com architectural block }}
 | inp :: :: inp
 | pbl x ( e1 , .. , en ) :: :: pbl
-| ffbl x ( e1 , .. , en ) :: :: ffbl
+| ffbl x :: :: ffbl
 | out :: :: out
 
 % TODO: Could be just a type abbreviation?
@@ -743,13 +738,6 @@ pblock_list {{ tex \overline{pb} }} :: pblock_list_ ::=
 {{ hol (pblock list) }}
 | empty_pbl :: M :: empty
   {{ hol ([]:pblock list) }}
-
-% TODO: Could be just a type abbreviation?
-ffblock_list {{ tex \overline{ffb} }} :: ffblock_list_ ::=
-{{ com list of fixed-function blocks }}
-{{ hol (ffblock list) }}
-| empty_ffbl :: M :: empty
-  {{ hol ([]:ffblock list) }}
 
 pblock_map {{ tex B_{ \mathit{p} } }} :: pblock_map_ ::=
 {{ com programmable block map }}
@@ -1158,15 +1146,12 @@ formula :: formula_ ::=
 | ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
   {{ com obtain body and args of pblock }}
   {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
-| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_ffbl ( ffblock ) :: M :: args_ffb
-  {{ com obtain args of ffblock }}
-  {{ hol (([[x1 d1 .. xn dn]]) = args_of_ffbl [[ffblock]] ) }}
 | arch_block = ab_list [ i ] :: M :: ab_index
   {{ com ab at index i }}
   {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
-| scope' = ff ( ( e1 ,  .. , en ) , scope ) :: M :: app_ff
+| scope' = ff ( scope ) :: M :: app_ff
   {{ com apply fixed function }}
-  {{ hol (SOME [[scope']] = [[ff]] ([[e1 .. en]], [[scope]]) ) }}
+  {{ hol (SOME [[scope']] = [[ff]] ([[scope]]) ) }}
 | ( in_out_list' , scope' ) = input_f ( in_out_list , scope ) :: M :: input_f
   {{ com apply input function }}
   {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[input_f]] ( [[in_out_list]] , [[scope]] ) ) }}
@@ -2557,9 +2542,12 @@ by
   ----------------------------------- :: pbl_call
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call x ( e1 , .. , en ) , ctrl , Running )
 
-  ffbl x ( e1 , .. , en ) = ab_list [ i ]
-  ----------------------------------- :: ffbl_call
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , ffbl_call x ( e1 , .. , en ) , ctrl , Running )
+  ffbl x = ab_list [ i ]
+  ff = ffblock_map ( x )
+  scope' = ff ( scope )
+  i' = i + 1
+  ----------------------------------- :: ffbl
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
@@ -2648,13 +2636,6 @@ by
 %      	    Separate judgment form?
 %      	    Set status to Ended? Then all rules would need to exclude having the Ended status
 
-  i' = i + 1
-  ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
-  check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
-  scope' = ff ( ( e1 ,  .. , en ) , scope )
-  ----------------------------------- :: ffblock_exec
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , ffbl_call f ( e1 ,  .. , en ) , ctrl , status ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , status' )
-
 %"Reduction of argument" rules
 
 %Note that the use of "args_of_pbl" is to avoid having two separate rules for parser and control
@@ -2668,11 +2649,3 @@ by
   [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
   ----------------------------------- :: pblock_args
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 , .. , en ) , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope' ) , g_scope_list , pbl_call f ( e'1 , .. , e'n ) , ctrl , Running )
-
-  ff ( ( x1 , d1 ) , .. , ( xn , dn ) ) = ffblock_map ( f )
-  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
-  e = [ e1 , .. , en ] [ i' ]
-  ( ty_map , ext_map , func_map , empty ) g_scope_list [ scope ] ( e ) ~> ( e' , empty )
-  [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
-  ----------------------------------- :: ffblock_args
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , ffbl_call f ( e1 , .. , en ) , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope' ) , g_scope_list , ffbl_call f ( e1' , .. , en' ) , ctrl , Running )

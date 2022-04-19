@@ -1721,7 +1721,7 @@ val arch_exec_def = Define `
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
             ((i, F, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_empty, ctrl, status_running) =
-  (* arch_in, arch_pbl_call, arch_ffbl_call, arch_out *)
+  (* arch_in, arch_pbl_call, arch_ffbl, arch_out *)
   (case EL i ab_list of
    | arch_block_inp =>
     (case input_f (in_out_list, scope) of
@@ -1731,8 +1731,14 @@ val arch_exec_def = Define `
      | NONE => NONE)
    | (arch_block_pbl x el) =>
     SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_pbl_call x el, ctrl, status_running)
-   | (arch_block_ffbl x el) =>
-    SOME ((i, F, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_ffbl_call x el, ctrl, status_running)
+   | (arch_block_ffbl x) =>
+    (case FLOOKUP ffblock_map x of
+     | SOME (ffblock_ff ff) =>
+      (case ff scope of
+       | SOME scope' =>
+        SOME ((i, F, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, ctrl, status_running)
+       | NONE => NONE)
+     | NONE => NONE)
    | arch_block_out =>
     (case output_f (in_out_list', scope) of
      | SOME (in_out_list'', scope') =>
@@ -1786,6 +1792,7 @@ val arch_exec_def = Define `
    | _ => NONE)
  )
  /\
+(*
  (* Operating on a stmt_ffbl_call: arch_ffblock_exec, arch_ffblock_args *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
             ((i, F, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_ffbl_call f el,
@@ -1810,6 +1817,7 @@ val arch_exec_def = Define `
   )
  )
  /\
+*)
  (* Operating on any other statement: arch_parser_exec, arch_control_exec *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
             ((i, T, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular frame_list), ctrl, status) =
