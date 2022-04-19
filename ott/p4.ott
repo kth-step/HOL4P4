@@ -506,7 +506,7 @@ grammar
 
 %ext updates the scope stack, global scope list and ctrl directly.
 %Note that at the time this happens, a new frame has already been declared for ext. 
-ext {{ tex { \mathit{ext} } }} :: ext_ ::=
+ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 {{ hol ((g_scope_list # scopes_stack # ctrl) -> ((g_scope_list # scopes_stack # ctrl) option)) }}
 
 %Fence between ext and ext_map
@@ -645,10 +645,10 @@ func_map {{ tex F }} :: func_map_ ::=
   {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
 
 %This maps extern function names of an individual object obj to their implementations
-%Note that the body of the extern is stmt in order to accommodate return by using return statements
+%Note the stmt in order to accommodate return by using return statements
 ext_fun_map {{ tex X_{ \mathit{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
-{{ hol (string |-> (stmt # (string # d) list)) }}
+{{ hol (string |-> (stmt # (string # d) list # ext_fun)) }}
 
 %Fence between ext_fun_map and ext_map
 embed
@@ -660,7 +660,7 @@ grammar
 %This maps extern object names to tuples of constructors and their respective function maps
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol (string |-> (((stmt # (string # d) list) option) # ext_fun_map)) }}
+{{ hol (string |-> (((stmt # (string # d) list # ext_fun) option) # ext_fun_map)) }}
 
 % TODO: Could be just a type abbreviation?
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
@@ -1033,16 +1033,20 @@ formula :: formula_ ::=
   {{ com find keys and the matching kind in the table map }}
   {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[e]] \, , [[mk]] ) }}
   {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[e]] , [[mk]] ) ) }}
-| ctrl ( tbl , v , mk ) = ( f , e_list ) :: :: ctrl_plane  
+| ctrl ( tbl , v , mk ) = ( f , e_list ) :: :: ctrl_plane
   {{ com fetch the function name and parameters from the ctrl plane }}
   {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[v]], \, [[mk]]\, ) = \,( [[f]] , [[e_list]] ) }}
   {{ hol ([[ctrl]] ( [[tbl]] , [[v]] , [[mk]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
 
 % extern
-| ( g_scope_list' , scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl ) :: :: ext 
+| ext_fun = lookup_ext_fun ( funn , ext_map ) :: :: ext_fun_lookup
+  {{ com lookup of an extern function }}
+  {{ tex [[ext_fun]] = \mathrm{lookup\_ext\_fun} ( [[funn]] , [[ext_map]] ) }}
+  {{ hol (SOME [[ext_fun]] = lookup_ext_fun [[funn]] [[ext_map]]) }}
+| ( g_scope_list' , scopes_stack' , ctrl' ) = ext_fun ( g_scope_list , scopes_stack , ctrl ) :: :: ext_apply
   {{ com application of an extern function }}
-  {{ tex ([[g_scope_list']], \, [[scopes_stack']], \, [[ctrl']]) = \blacksquare \, ( [[g_scope_list]] , \, [[scopes_stack]] , \, [[ctrl]] ) }}
-  {{ hol (SOME ([[g_scope_list']], [[scopes_stack']], [[ctrl']]) = [[ext]] ([[g_scope_list]], [[scopes_stack]], [[ctrl]])) }}
+  {{ tex ([[g_scope_list']], \, [[scopes_stack']], \, [[ctrl']]) = [[ext_fun]] \, ( [[g_scope_list]] , \, [[scopes_stack]] , \, [[ctrl]] ) }}
+  {{ hol (SOME ([[g_scope_list']], [[scopes_stack']], [[ctrl']]) = [[ext_fun]] ([[g_scope_list]], [[scopes_stack]], [[ctrl]])) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -1812,13 +1816,13 @@ val lookup_funn_sig_body_def = Define `
       | NONE => NONE)
     | (funn_inst x) =>
      (case FLOOKUP ext_map x of
-      | SOME (SOME (stmt, x_d_l), _) => SOME (stmt, x_d_l)
+      | SOME (SOME (stmt, x_d_l, _), _) => SOME (stmt, x_d_l)
       | _ => NONE)
     | (funn_ext x x') =>
      (case FLOOKUP ext_map x of
       | SOME (_, ext_fun_map) =>
        (case FLOOKUP ext_fun_map x' of
-	| SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
+	| SOME (stmt, x_d_l, _) => SOME (stmt, x_d_l)
 	| _ => NONE)
       | _ => NONE)
   )
@@ -1939,6 +1943,23 @@ val init_in_highest_scope_def = Define `
 val parser_not_finished_def = Define `
   (parser_not_finished [ ( funn , empty_stmt , scopes_stack ) ] = F) /\
   (parser_not_finished _ = T)
+`;
+
+val lookup_ext_fun_def = Define `
+  (lookup_ext_fun (funn_ext f f') (ext_map:ext_map) =
+   case FLOOKUP ext_map f of
+   | SOME (_, ext_fun_map) =>
+    (case FLOOKUP ext_fun_map f' of
+     | SOME (_, _, ext_fun) =>
+      SOME ext_fun
+     | NONE => NONE)
+   | NONE => NONE) /\
+  (lookup_ext_fun (funn_inst f) ext_map =
+   case FLOOKUP ext_map f of
+   | SOME (SOME (_, _, ext_fun), _) =>
+    SOME ext_fun
+   | NONE => NONE) /\
+  (lookup_ext_fun (funn_name f) ext_map = NONE)
 `;
 
 }}
@@ -2404,7 +2425,8 @@ by
 
 %%%%%%%%%%%%%%
 %Extern
-  ( g_scope_list' , scopes_stack' , ctrl' ) = ext ( g_scope_list , scopes_stack , ctrl )
+  ext_fun = lookup_ext_fun ( funn , ext_map )
+  ( g_scope_list' , scopes_stack' , ctrl' ) = ext_fun ( g_scope_list , scopes_stack , ctrl )
   ----------------------------------- :: ext
   ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , ext , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl' , Running )
  
