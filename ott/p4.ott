@@ -2494,7 +2494,7 @@ defns
 defn
   pctx state -p-> state' :: :: pars_red :: pars_
   {{ com parser block semantics }}
-  {{ tex [[pctx]] \vdash [[state]] {\longrightarrow}_{p} [[state]] }}
+  {{ tex [[pctx]] \vdash [[state]] {\longrightarrow}_{p} [[state']] }}
 by
 
 %This rule describes how individual statement steps are taken inside the parser
@@ -2527,16 +2527,9 @@ defn
   {{ tex [[cctx]] \vdash [[state]] {\longrightarrow}_{c} [[state']] }}
 by
 
-  not_top_return frame_list
-  (ty_map, ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, status ) -> ( g_scope_list' , frame_list' , ctrl', status' )
+  (ty_map, ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -> ( g_scope_list' , frame_list' , ctrl', status' )
   ------------------------------------------------- :: stmt
-  (ty_map, ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, status ) -c-> ( g_scope_list' , frame_list' , ctrl', status' )
-
-  ------------------------------------------------- :: ret
-  cctx ( g_scope_list , [ ( funn , return v , scopes_stack ) ] , ctrl, status ) -c-> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, status )
-
-  ------------------------------------------------- :: ret_2
-  cctx ( g_scope_list , [ ( funn , return v ; stmt , scopes_stack ) ] , ctrl, status ) -c-> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, status )
+  (ty_map, ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -c-> ( g_scope_list' , frame_list' , ctrl', status' )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Architectural-level semantics %
@@ -2620,9 +2613,9 @@ by
 %Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( x )
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , frame_list , ctrl , status ) -c-> ( g_scope_list' , frame_list' , ctrl' , status' )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -c-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: control_exec
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , frame_list , ctrl , status ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , frame_list' , ctrl' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , frame_list , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , frame_list' , ctrl' , status' )
 
 %... until execution using the regular statement semantics has finished
 
@@ -2649,7 +2642,7 @@ by
   g_scope_list' = [ g_scope'' ]'
   i' = i + 1
   ----------------------------------- :: control_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl , Running ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , frame_list , ctrl , Ret v ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list' , arch_frame_list_empty , ctrl , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
