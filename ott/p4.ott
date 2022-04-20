@@ -46,6 +46,14 @@ indexvar m, n, o ::=
 
 grammar
 
+num_exp :: num_exp ::=
+{{ hol num }}
+{{ com expressions with numeric literals }}
+| i :: M :: lit
+  {{ hol [[i]] }}
+| num_exp + 1 :: M :: add1
+  {{ hol ([[num_exp]] + 1) }}
+
 %%%%%%%%%%%%%%%%
 % Value syntax %
 %%%%%%%%%%%%%%%%
@@ -801,9 +809,9 @@ aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
 | empty :: M :: empty
   {{ com empty architectural environment }}
   {{ hol (0, F, [], [], FEMPTY) }}
-| ( i , boolv , in_out_list , in_out_list' , scope ) :: M :: tup
+| ( num_exp , boolv , in_out_list , in_out_list' , scope ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[i]], [[boolv]], [[in_out_list]], [[in_out_list']], [[scope]]) }}
+  {{ hol ([[num_exp]], [[boolv]], [[in_out_list]], [[in_out_list']], [[scope]]) }}
 
 actx {{ tex { \mathit{ctx}_\mathit{A} } }} :: actx_ ::=
 {{ com architectural context }}
@@ -1038,10 +1046,6 @@ formula :: formula_ ::=
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
-| i' = i + 1 :: M :: num_inc
-  {{ com numeral increment }}
-  {{ hol ([[i']] = [[i]] + 1) }}
-  {{ tex [[i']] = [[i]] + 1 }}
 | i = length ( e_list ) :: M :: num_len
   {{ com length of list }}
   {{ hol ([[i]] = LENGTH [[e_list]]) }}
@@ -1158,11 +1162,6 @@ formula :: formula_ ::=
 | ( in_out_list' , scope' ) = output_f ( in_out_list , scope ) :: M :: output_f
   {{ com apply output function }}
   {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[output_f]] ( [[in_out_list]] , [[scope]] ) ) }}
-%TODO: Try replacing "zero i" with "i = 0" - mysterious bugs appear...
-| zero i :: M :: num_zero
-  {{ com numeral zeroing }}
-  {{ hol ([[i]] = 0) }}
-  {{ tex [[i]] = 0 }}
 | status_not_fin status :: M :: not_final
   {{ com status is not final }}
   {{ hol (([[status]] <> status_pars_next (pars_next_pars_fin pars_finaccept)) /\ ([[status]] <> status_pars_next (pars_next_pars_fin pars_finreject))) }}
@@ -2533,9 +2532,8 @@ by
 
   inp = ab_list [ i ]
   ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
-  i' = i + 1
   ----------------------------------- :: in
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i' , false , in_out_list'' , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i + 1 , false , in_out_list'' , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
   %Note that this rule does not increment i. That happens when the pblock is finished.
   pbl x ( e1 , .. , en ) = ab_list [ i ]
@@ -2545,17 +2543,15 @@ by
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
   scope' = ff ( scope )
-  i' = i + 1
   ----------------------------------- :: ffbl
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
   out = ab_list [ i ]
   ( in_out_list'' , scope' ) = output_f ( in_out_list' , scope )
-  zero i'
   ----------------------------------- :: out
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i' , false , in_out_list , in_out_list'' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( 0 , false , in_out_list , in_out_list'' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 
 %The "programmable block" phase can initiate execution of either a parser block or a control block
@@ -2611,26 +2607,20 @@ by
 %Note that exiting a parser block also sets the value of parseError
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
-  [ scope' ] = update_return ( g_scope_list , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  [ scope' ] = update_return ( [ g_scope ; g_scope' ] , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   lval = "parseError"
   x = "parseError"
-  v = lookup_vexp ( g_scope_list , x )
+  v = lookup_vexp ( [ g_scope ; g_scope' ] , x )
   [ scope'' ] = assign ( [ scope' ] , v , lval )
-  g_scope''' = g_scope_list [0]
-  g_scope_list' = [ g_scope''' ]'
-  i' = i + 1
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: parser_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , frame_list , ctrl , pars_fin ) -'> ( ( i' , false , in_out_list , in_out_list' , scope'' ) , g_scope_list' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , pars_fin ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , scope'' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
-  [ scope' ] = update_return ( g_scope_list , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
-  g_scope'' = g_scope_list [0]
-  g_scope_list' = [ g_scope'' ]'
-  i' = i + 1
+  [ scope' ] = update_return ( [ g_scope ; g_scope' ] , [ scope ] , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: control_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , frame_list , ctrl , Ret v ) -'> ( ( i' , false , in_out_list , in_out_list' , scope' ) , g_scope_list' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , Ret v ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , scope' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
