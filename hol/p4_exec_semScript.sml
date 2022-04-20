@@ -1736,7 +1736,7 @@ val arch_exec_def = Define `
      | SOME (ffblock_ff ff) =>
       (case ff scope of
        | SOME scope' =>
-        SOME ((i, F, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, ctrl, status_running)
+        SOME ((i+1, F, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, ctrl, status_running)
        | NONE => NONE)
      | NONE => NONE)
    | arch_block_out =>

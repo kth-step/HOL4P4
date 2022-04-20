@@ -192,9 +192,9 @@ val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeade
 val vss_ab_list =
   mk_list ([``arch_block_inp``,  (* Arbiter built-in *)
             vss_parser_ab,  (* Parser *)
-            ``arch_block_ffbl "parser_runtime" []``, (* Parser Runtime *)
+            ``arch_block_ffbl "parser_runtime"``, (* Parser Runtime *)
             vss_pipe_ab,  (* Match-Action Pipeline *)
-            ``arch_block_ffbl "pre_deparser" []``, (* pre-Deparser *)
+            ``arch_block_ffbl "pre_deparser"``, (* pre-Deparser *)
             vss_deparser_ab,  (* Deparser *)
             ``arch_block_out`` (* Demux/queue built-in *)], ``:arch_block``);
 
@@ -340,8 +340,8 @@ EVAL ``arch_exec ((^vss_actx):actx) (^init_astate)``;
 (* Multiple reductions: *)
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
-(* In V2, this ends at 219 steps for TTL=1 in input *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 219``;
+(* In V2, this ends at 217 steps for TTL=1 in input *)
+el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 217``;
 
 (* TODO: Fix up the below and add to CI *)
 (*
