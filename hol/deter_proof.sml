@@ -4,7 +4,7 @@ open arithmeticTheory stringTheory containerTheory pred_setTheory
 
 open blastLib bitstringLib;
 open p4Theory;
-open p4_exec_semTheory;
+(*open p4_exec_semTheory;*)
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -332,7 +332,7 @@ Show that for a generic P (Lemma T4)
 ****************************)
 
 val index_none_not_exist =
-prove(``!  (l: (d#e) list) n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)``,
+prove(``! l  n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)``,
 Induct >|[
 FULL_SIMP_TAC list_ss [INDEX_FIND_def]
 ,
@@ -351,7 +351,7 @@ Here just write P and substitute later.
 ****************************)
 
 val index_none_not_every =
-prove(``! l P n. (( INDEX_FIND n (P: (d#e -> bool)) l) = NONE) = (EVERY ($¬ ∘ P) l)``,
+prove(``! l P n. (( INDEX_FIND n (P) l) = NONE) = (EVERY ($¬ ∘ P) l)``,
 FULL_SIMP_TAC list_ss [NOT_EXISTS, index_none_not_exist]
 );
 
@@ -384,7 +384,7 @@ Here just write P and substitute later.
 
 val not_index_none_exist =
 prove(``
-∀ (l: (d#e) list) n P. ~ (INDEX_FIND n P l = NONE) ⇔ EXISTS P l ``,
+∀ l n P. ~ (INDEX_FIND n P l = NONE) ⇔ EXISTS P l ``,
 REPEAT GEN_TAC >>
 ASSUME_TAC index_none_not_exist>>
 Q.PAT_X_ASSUM `∀l n P. _`
@@ -395,7 +395,7 @@ FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF]
 
 val not_index_none_some =
 prove(``
-∀ (l: (d#e) list) n P.~ (INDEX_FIND n P l = NONE) = ? x. ( INDEX_FIND n P l) = SOME x``,
+∀ l n P.~ (INDEX_FIND n P l = NONE) = ? x. ( INDEX_FIND n P l) = SOME x``,
 REPEAT GEN_TAC >>
 Cases_on `INDEX_FIND n P l ` >>
 FULL_SIMP_TAC (std_ss) [NOT_SOME_NONE,option_CLAUSES ]
@@ -403,7 +403,7 @@ FULL_SIMP_TAC (std_ss) [NOT_SOME_NONE,option_CLAUSES ]
 
 
 val exists_index_some =
-prove(``!  (l: (d#e) list) P n. (?x .(( INDEX_FIND n P l) = SOME x)) = (EXISTS P l)``,
+prove(``!  l P n. (?x .(( INDEX_FIND n P l) = SOME x)) = (EXISTS P l)``,
 REPEAT GEN_TAC >>
 ASSUME_TAC index_none_not_exist>>
 Q.PAT_X_ASSUM `∀l n P. _`
@@ -440,13 +440,13 @@ FULL_SIMP_TAC list_ss[MONO_EXISTS ]
 
 val P_Q_mono2 =
 prove (``
-! P Q l n. ((!  (y : (d#e)) . (P y ==>  Q y) ) ==>
+! P Q l n. ((!  (y) . (P y ==>  Q y) ) ==>
 ((? v. INDEX_FIND n P l = SOME v) ==>
 (? v. INDEX_FIND n Q l = SOME v)))
 
 ``,
 REPEAT STRIP_TAC >>
-ASSUME_TAC (ISPECL [``P:(d # e) -> bool``, ``Q:(d # e) -> bool``, ``l:(d # e) list``] P_Q_mono1) >>
+ASSUME_TAC (ISPECL [``P: (α -> bool)``, ``Q:(α -> bool)``, ``l:(α list)``] P_Q_mono1) >>
 (*twice*)
 ASSUME_TAC  exists_index_some >>
 Q.PAT_X_ASSUM `∀l P n. (∃x. INDEX_FIND n P l = SOME x) ⇔ EXISTS P l`
@@ -500,7 +500,8 @@ rfs [is_arg_red_def]
 STRIP_TAC >>
 FULL_SIMP_TAC (list_ss) [] >>
 
-ASSUME_TAC P_Q_mono2 >>
+ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:d#e``] P_Q_mono2) >>
+
 Q.PAT_X_ASSUM `∀P Q l n. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [
 `λ(d,e). ¬is_arg_red d e `,
@@ -511,7 +512,7 @@ Q.PAT_X_ASSUM `∀P Q l n. _`
 FULL_SIMP_TAC std_ss [dir_const_imp4] >>
 
 RES_TAC>>
-ASSUME_TAC exists_index_some>>
+ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:d#e``] exists_index_some) >>
 
 Q.PAT_X_ASSUM `∀l P n. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [
@@ -522,6 +523,47 @@ Q.PAT_X_ASSUM `∀l P n. _`
 fs[]
 
 ]]]);
+
+
+
+(*******list of const and const thms  **************)
+val not_exist_every =
+prove(``  ! el . ~(EXISTS (\e. ~(is_const e)) el) = (EVERY (\e. is_const e ) el) ``,
+STRIP_TAC >>
+EQ_TAC >>
+REWRITE_TAC[EVERY_NOT_EXISTS]>>
+fs[]
+);
+
+
+val lconst_every =
+prove(``  ! el . is_consts el = (EVERY (\e. is_const e ) el) ``,
+REWRITE_TAC[is_consts_def]>>
+fs[not_exist_every]
+);
+
+
+
+val lconst_const_imp =
+prove(`` !l i.  (index_not_const l = SOME i) ==> ~ is_consts l	``,
+STRIP_TAC>>
+FULL_SIMP_TAC std_ss [index_not_const_def, INDEX_FIND_def] >>
+Cases_on `INDEX_FIND 0 (λe. ¬is_const e) l ` >>
+fs[] >>
+STRIP_TAC >>
+rw[is_consts_def] >>
+ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:e``] exists_index_some) >>
+
+Q.PAT_X_ASSUM `∀l P n. _`
+( STRIP_ASSUME_TAC o (Q.SPECL [
+`l`,
+`(λe. ¬is_const e)`,
+`0`
+])) >>
+
+rfs[combinTheory.o_DEF]
+);
+
 
 
 
@@ -738,7 +780,7 @@ IMP_RES_TAC lemma_MAP2 >>
 REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def, det_exp_list_def] >>
 PAT_ASSUM `` ∀x._``
 ( STRIP_ASSUME_TAC o (Q.SPECL [`(EL i (MAP (λ(e_,e'_,x_,d_). e_) (e_e'_x_d_list:(e#e#string#d)list)))` ])) >>
-IMP_RES_TAC unred_arg_index_in_range  >>
+(*IMP_RES_TAC unred_arg_index_in_range  >> *) cheat >>
 IMP_RES_TAC EL_MEM >>
 FULL_SIMP_TAC list_ss [det_exp_def]  >>
 RES_TAC >>
@@ -785,7 +827,7 @@ rw []
 
 (**************************************************)
 (**************************************************)
-      (*determinism proof single frame stmt*)
+      (*determinism proof single frame stmt       *)
 (**************************************************)
 (**************************************************)
 
@@ -805,7 +847,6 @@ fs []
 (*****************************)
 (*   stmt_ass                *)
 (*****************************)
-
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
 NTAC 2 (OPEN_STMT_RED_TAC ``(stmt_ass l e)``) >>
@@ -825,7 +866,7 @@ fs [same_frame_exp_def]
 ,
 
 (*****************************)
-(*   stmt_cond                *)
+(*   stmt_cond               *)
 (*****************************)
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
@@ -843,7 +884,6 @@ fs [same_frame_exp_def]
 (*****************************)
 (*   stmt_declare            *)
 (*****************************)
-
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
 NTAC 2 (OPEN_STMT_RED_TAC ``stmt_declare t s o'``) >>
@@ -961,27 +1001,39 @@ fs [same_frame_exp_def]
 (*****************************)
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
-
 NTAC 2 (OPEN_STMT_RED_TAC ``stmt_app s e``) >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
+rw [] >> fs [] >>
+FULL_SIMP_TAC (srw_ss()) [Once same_state_def] >| [
 
+`ctrl (s,MAP (λ(e_,mk_). e_) e_mk_list,MAP (λ(e_,mk_). mk_) e_mk_list)  =
+ ctrl (s,MAP (λ(e_,mk_). e_) e_mk_list',MAP (λ(e_,mk_). mk_) e_mk_list')
+`
+by METIS_TAC[] >> fs []
+,
 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_def] >>
-IMP_RES_TAC lemma_v_red_forall>>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall] >>
+ASSUME_TAC lconst_const_imp >>
 RES_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def]>>
-TRY (ASSUME_TAC P4_exp_det >>
+rfs []
+,
+
+rfs [] >>
+ASSUME_TAC lconst_const_imp >>
+RES_TAC >>
+rfs []
+,
+
+`SOME i'  =
+ SOME i
+`
+by METIS_TAC[] >> rfs [] >> rw[] >> RES_TAC >> rw[] >>
+ASSUME_TAC P4_exp_det >>
 fs [det_exp_def]  >>
 RES_TAC >>
-fs [same_frame_exp_def]) >>
+fs [same_frame_exp_def]
 
-rw [] >> fs [] >>
-FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES] >>
- fs [option_case_def] >>
+]
 
-IMP_RES_TAC lemma_v_red_forall>>
-rw [] >> fs []
 ,
 
 (*****************************)
@@ -995,7 +1047,8 @@ REV_FULL_SIMP_TAC (srw_ss()) []) >>
 FULL_SIMP_TAC (srw_ss()) [Once same_state_def] ) >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 
-`SOME (g_scope_list'',scopes_stack',ctrl'') = SOME (g_scope_list'³',scopes_stack'',ctrl'³') ` by METIS_TAC [ option_case_def]>>
+`SOME (g_scope_list'',scopes_stack',ctrl'') = SOME (g_scope_list'³',scopes_stack'',ctrl'³') `
+by METIS_TAC [ option_case_def]>>
 
 rw [] >> fs [] >>
 FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES] >>

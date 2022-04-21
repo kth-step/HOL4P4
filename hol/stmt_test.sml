@@ -864,16 +864,16 @@ EVAL_TAC
 (**************************************************************)
 (*** Testing apply and tables reductions --concrete values-- ***)
 (**************************************************************)
-val prog_app1 = ``stmt_app "check_ttl" (e_var (varn_name("headers.ip.ttl"))) ``;
-val prog_app2 = ``stmt_app "check_ttl" (e_v (v_bit ([T; F],2))) ``;
+val prog_app1 = ``stmt_app "check_ttl" [(e_var (varn_name("headers.ip.ttl")))] ``;
+val prog_app2 = ``stmt_app "check_ttl" [(e_v (v_bit ([T; F],2)))] ``;
 val prog_app3 = ``stmt_ass lval_null   (e_call (funn_name "NoAction") [])``;
 
-val table_map1 = ``(FEMPTY |+ ("check_ttl", (e_var(varn_name ("headers.ip.ttl")) , mk_exact)))``;
+val table_map1 = ``(FEMPTY |+ ("check_ttl",  [mk_exact]))``;
 
 val ctrl1 = Define
 `
- ctrl1 (("check_ttl"), (v_bit ([F; F],2)), (mk_exact)) = SOME  ("Send_to_cpu",[]:e list ) /\
- ctrl1 (("check_ttl"), (v_bit ([T; F],2)) , (mk_exact)) = SOME ("NoAction",[]:e list )
+ ctrl1 (("check_ttl"), [e_v (v_bit ([F; F],2))], [mk_exact]) = SOME  ("Send_to_cpu",[]:e list ) /\
+ ctrl1 (("check_ttl"), [e_v (v_bit ([T; F],2))], [mk_exact]) = SOME ("NoAction",[]:e list )
 `;
 
 val ctx11 = ``(FEMPTY, FEMPTY, FEMPTY, ^table_map1):ctx``;
@@ -898,12 +898,19 @@ prove(``
 
 CONJ_TAC >|[
 STMT_SIMP>>
+EXISTS_TAC ``[(e_var (varn_name("headers.ip.ttl")), e_v (v_bit ([T; F],2)))]`` >>
+EXISTS_TAC ``[]:frame_list`` >>
+EXISTS_TAC ``0`` >>
+EXISTS_TAC ``e_v (v_bit ([T; F],2))`` >>
 NTAC 2 EXP_SIMP>>
 EVAL_TAC
 ,
-NTAC 2 (RW.ONCE_RW_TAC[stmt_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [ctrl1])
+
+STMT_SIMP>>
+DISJ1_TAC >>
+EXISTS_TAC ``[(e_v (v_bit ([T; F],2)), mk_exact )]`` >>
+EXISTS_TAC ``[]: v list`` >>
+EVAL_TAC
 ]);
 
 
@@ -914,12 +921,12 @@ Where teh value is repeated in teh global and in the local stack scope *)
 
 val ctrl2 = Define
 `
- ctrl2 (("check_ttl"), (v_bit ([F],1)), (mk_exact)) = SOME ("Send_to_cpu",[]:e list ) /\
- ctrl2 (("check_ttl"), (v_bit ([],1)), (mk_exact)) = SOME ("NoAction"   ,[]:e list )
+ ctrl2 (("check_ttl"), [e_v (v_bit ([F],1))], [mk_exact]) = SOME ("Send_to_cpu",[]:e list ) /\
+ ctrl2 (("check_ttl"), [e_v (v_bit ([],1)) ], [mk_exact]) = SOME ("NoAction"   ,[]:e list )
 `;
 
 
-val prog_app4 = ``stmt_app "check_ttl" (e_v (v_bit ([F],1))) ``;
+val prog_app4 = ``stmt_app "check_ttl" [(e_v (v_bit ([F],1)))] ``;
 val prog_app5 = ``stmt_ass lval_null   (e_call (funn_name "Send_to_cpu") [])``;
 
 val frame_app4 = `` [(funn_name "f", ^prog_app1 , ^scopelist23 )] : frame_list `` ;
@@ -941,12 +948,18 @@ prove(``
 
 CONJ_TAC >|[
 STMT_SIMP>>
+EXISTS_TAC ``[(e_var (varn_name("headers.ip.ttl")), e_v (v_bit ([F],1)))]`` >>
+EXISTS_TAC ``[]:frame_list`` >>
+EXISTS_TAC ``0`` >>
+EXISTS_TAC ``e_v (v_bit ([F],1))`` >>
 NTAC 2 EXP_SIMP>>
 EVAL_TAC
 ,
-NTAC 2 (RW.ONCE_RW_TAC[stmt_red_cases] >>
-EVAL_TAC>>
-FULL_SIMP_TAC list_ss [ctrl2])
+STMT_SIMP>>
+DISJ1_TAC >>
+EXISTS_TAC ``[(e_v (v_bit ([F],1)), mk_exact )]`` >>
+EXISTS_TAC ``[]: v list`` >>
+EVAL_TAC
 ]);
 
 
@@ -1403,6 +1416,5 @@ prove(`` e_red  (^ctx_empty) ^scopelist22 ^scopelist1
 ``,
 NTAC 3 EXP_SIMP
 );
-
 
 

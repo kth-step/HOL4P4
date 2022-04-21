@@ -301,6 +301,25 @@ mk {{ tex \mathit{mk} }} :: mk_ ::=
 | lpm :: :: lpm
   {{ tex lpm }}
 
+embed
+{{ hol
+
+}}
+grammar
+
+mkl {{ tex \mathit{mkl} }} :: mkl_ ::=
+{{ com matching kinds list }}
+{{ hol (mk list) }}
+| empty :: :: empty
+  {{ com empty match kind list }}
+  {{ hol ([]:mk list) }}
+| [ mk1 , .. , mkn ] :: M :: mks
+  {{ com list of match kinds }}
+  {{ hol ([[mk1 .. mkn]]) }}
+| ( mkl ) :: S :: paren
+  {{ hol ([[mkl]]) }}
+
+
 %Fence so that ott does not re-order expression syntax with state syntax
 embed
 {{ hol
@@ -422,6 +441,14 @@ e :: e_ ::=
 | ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
+
+embed
+{{ hol
+
+}}
+grammar
+
+
 %TODO: Trying to make a new definition for expression lists (mainly for function
 %      arguments) proved problematic.
 %      If all e_list productions are meta, then you get e_list as a type abbreviation of "e list",
@@ -501,7 +528,7 @@ grammar
 % TODO: Could be just a type abbreviation?
 ctrl {{ tex { C } }} :: ctrl_ ::=
 {{ com control plane }}
-{{ hol ((string # v # mk) -> (string # e_list) option) }}
+{{ hol ((string # e_list # mkl) -> (string # e_list) option) }}
 | empty :: M :: empty
   {{ com empty table map }}
   %TODO: Correct? How does this affect export?
@@ -557,10 +584,10 @@ stmt :: stmt_ ::=
   %e should evaluate to a parser state name
   {{ com transition }}
   {{ tex \mathbf{transition}\, [[e]] }}
-| apply tbl e :: :: app
+| apply tbl ( e1 , .. , en ) :: :: app
   %tbl is the table name that should be applied
   {{ com apply }}
-  {{ tex \mathbf{apply} \, [[tbl]] \, [[e]] }}
+ % {{ tex \mathbf{apply} \, [[tbl]] \, [[e_list]] }}
 | ext :: :: ext
   {{ com extern function }}
   {{ tex \blacksquare  }}
@@ -679,7 +706,7 @@ ext_map {{ tex X }} :: ext_map_ ::=
 % TODO: Could be just a type abbreviation?
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map  }}
-{{ hol (string |-> (e # mk)) }}
+{{ hol (string |-> (mk list)) }}
 | empty :: M :: empty
   {{ com empty table map }}
   {{ hol FEMPTY }}
@@ -1030,14 +1057,19 @@ formula :: formula_ ::=
   {{ tex [[frame_list]] \neq [ \, ] }}
 
 %Apply table
-| tbl_map ( tbl ) = ( e , mk ) :: :: find_key
+| tbl_map ( tbl ) = ( mkl ) :: :: find_key
   {{ com find keys and the matching kind in the table map }}
   {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[e]] \, , [[mk]] ) }}
   {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[e]] , [[mk]] ) ) }}
 | ctrl ( tbl , v , mk ) = ( f , e_list ) :: :: ctrl_plane
   {{ com fetch the function name and parameters from the ctrl plane }}
-  {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[v]], \, [[mk]]\, ) = \,( [[f]] , [[e_list]] ) }}
-  {{ hol ([[ctrl]] ( [[tbl]] , [[v]] , [[mk]] ) = SOME ( [[f]] , [[e_list]] ) ) }}
+  {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[e_list]], \, [[mkl]]\, ) = \,( [[f]] , [[e_list']] ) }}
+  {{ hol ([[ctrl]] ( [[tbl]] , [[e_list]] , [[mkl]] ) = SOME ( [[f]] , [[e_list']] ) ) }}
+| index_not_const e_list = i :: :: indexofnotconst 
+  {{ com get the first index of the unred expression to const}}
+  {{ tex i = \mathrm{min} \, \{ j . \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (index_not_const [[e_list]] = SOME [[i]]) }}
+
 
 % extern
 | ext_fun = lookup_ext_fun ( funn , ext_map ) :: :: ext_fun_lookup
@@ -1500,6 +1532,18 @@ val varname_of_e_def = Define `
 val v_of_e_def = Define `
   (v_of_e (e_v v) = SOME v) /\
   (v_of_e _ = NONE)
+`;
+
+(* Given a list of expresstions e1...en, find the first expression that is not a constant and return its index. 
+*  Returns the index of the expression. 
+*  This definition is used in the apply tbl e_list
+*)
+
+val index_not_const_def = Define `
+  index_not_const elist =
+    case INDEX_FIND 0 (\e. ~(is_const e)) elist of
+    |SOME (i, e) => SOME i
+    |_ => NONE
 `;
 
 (* TODO: Rename to avoid confusion with "newest_scope" et.c. *)
@@ -2382,10 +2426,11 @@ by
 
 %%%%%%%%%%%%%%
 %The action is treated as a function call
-  tbl_map ( tbl ) = ( e' , mk )
-  ctrl ( tbl , v , mk ) = ( f , ( v1 , .. , vn ) )
+  is_consts ( e1 , .. , en )
+  tbl_map ( tbl ) = ( [ mk1 , .. , mkn ] )
+  ctrl ( tbl , ( e1 , .. , en ) , ( [ mk1 , .. , mkn ] ) ) = ( f , ( v1 , .. , vm ) )
   ----------------------------------- :: apply_table_v
-  ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vn ) ) , scopes_stack ) ] , ctrl , Running )
+  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl ( e1 , .. , en ) , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vm ) ) , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
@@ -2449,9 +2494,12 @@ by
 
 
 %Reduction step of match-action expression
+  index_not_const [ e1 , .. , en ] = i
+  e = [ e1 , .. , en ] [ i ]
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: apply_table_e
-  ctx ( g_scope_list , [ ( funn , apply tbl e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , apply tbl e' , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , apply tbl ( e1 , .. , en ) , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , apply tbl ( e'1 , .. , e'n ) , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
