@@ -205,4 +205,17 @@ val vss_output_f_def = Define `
   )
 `;
 
+(*
+
+val copyin_pbl_def = Define `
+  copyin_pbl xlist dlist elist gsl ss_curr =
+    let
+     (* MAP if_is_red*)
+    in
+      all_arg_update_for_newscope xlist dlist elist' (gsl++ss_curr)
+    end
+`;
+
+*)
+
 val _ = export_theory ();

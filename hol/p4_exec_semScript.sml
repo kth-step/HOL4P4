@@ -277,12 +277,12 @@ End
 
 (* Field access *)
 Definition e_exec_acc:
- (e_exec_acc (e_acc (e_v (v_struct f_v_list)) (e_v (v_str f))) =
+ (e_exec_acc (e_acc (e_v (v_struct f_v_list)) f) =
   case FIND (\(k, v). k = f) f_v_list of
   | SOME (f, v) => SOME (e_v v)
   | NONE => NONE)
   /\
- (e_exec_acc (e_acc (e_v (v_header boolv f_v_list)) (e_v (v_str f))) =
+ (e_exec_acc (e_acc (e_v (v_header boolv f_v_list)) f) =
   case FIND (\(k, v). k = f) f_v_list of
   | SOME (f, v) => SOME (e_v v)
   | NONE => NONE)
@@ -360,25 +360,17 @@ val e_exec = TotalDefn.tDefine "e_exec" `
   /\
  (******************************)
  (* Struct/header field access *)
- (e_exec ctx g_scope_list scopes_stack (e_acc e_struct e_field) =
-  if is_v e_field
-  then
-   if is_v_str e_field
+ (e_exec ctx g_scope_list scopes_stack (e_acc e_struct x) =
+  if is_v e_struct
    then
-    (if is_v e_struct
-     then
-      (case e_exec_acc (e_acc e_struct e_field) of
-       | SOME e' => SOME (e', [])
-       | NONE => NONE)
-     else
-      (case e_exec ctx g_scope_list scopes_stack e_struct of
-       | SOME (e_struct', frame_list) => SOME (e_acc e_struct' e_field, frame_list)
-       | NONE => NONE))
-   else NONE
-  else
-   (case e_exec ctx g_scope_list scopes_stack e_field of
-    | SOME (e_field', frame_list) => SOME (e_acc e_struct e_field', frame_list)
-    | NONE => NONE))
+    (case e_exec_acc (e_acc e_struct x) of
+     | SOME e' => SOME (e', [])
+     | NONE => NONE)
+   else
+    (case e_exec ctx g_scope_list scopes_stack e_struct of
+     | SOME (e_struct', frame_list) =>
+      SOME (e_acc e_struct' x, frame_list)
+     | NONE => NONE))
   /\
  (************************)
  (* Function/extern call *)
@@ -756,24 +748,23 @@ EQ_TAC >| [
 QED
 
 Theorem e_acc_exec_sound_red:
-!e1 e2.
+!e1 x.
 e_exec_sound e1 ==>
-e_exec_sound e2 ==>
-e_exec_sound (e_acc e1 e2)
+e_exec_sound (e_acc e1 x)
 Proof
 fs [e_exec_sound] >>
 REPEAT STRIP_TAC >>
-Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
+Cases_on `is_v e1` >| [
  (* 1st case is base case *)
- Cases_on `e1` >>  Cases_on `e2` >> (
+ Cases_on `e1` >> (
   fs [is_v]
  ) >>
- Cases_on `v` >> Cases_on `v'` >> (
+ Cases_on `v` >> (
   fs [e_exec, e_exec_acc, is_v]
  ) >> (
-  Cases_on `FIND (\(k,v). k = s) l` >>
+  Cases_on `FIND (\(k,v). k = x) l` >>
   fs [] >>
-  Cases_on `x` >>
+  Cases_on `x'` >>
   fs [] >>
   rw []
  ) >| [
@@ -782,16 +773,16 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   irule ((valOf o find_clause_e_red) "e_h_acc")
  ] >> (
   fs [clause_name_def, listTheory.FIND_def] >>
-  subgoal `(\(k,v). k = s) (q,r)` >- (
+  subgoal `(\(k,v). k = x) (q,r)` >- (
    Cases_on `z` >>
    fs [] >>
    rw [] >>
-   IMP_RES_TAC (ISPECL [``(l':((string # v) list))``, ``(\(k,v). k = s):(string # v -> bool)``, ``(q,r):string # v``, ``0``] index_find_first) >>
+   IMP_RES_TAC (ISPECL [``(l':((string # v) list))``, ``(\(k,v). k = x):(string # v -> bool)``, ``(q,r):string # v``, ``0``] index_find_first) >>
    fs []
   ) >>
   fs []
  ),
-
+(*
  (* Second case is reduction of 2nd argument (field name) *)
  Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
   fs [e_exec]
@@ -804,18 +795,23 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   )
  ) >>
  METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg2"), clause_name_def],
-
+*)
  (* Third case is reduction of 1st argument (struct value) *)
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
   fs [e_exec]
  ) >>
- Cases_on `x` >> Cases_on `e2` >> (
+ Cases_on `x'` >> (
   fs [is_v]
  ) >>
+(*
  Cases_on `v` >> (
   fs [is_v_str]
  ) >>
- METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg1"), clause_name_def],
+*)
+ METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg1"), clause_name_def]
+
+(*
+,
 
  (* Fourth case determines case when both arguments are unreduced *)
  Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
@@ -829,6 +825,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   )
  ) >>
  METIS_TAC [(valOf o find_clause_e_red) "e_acc_arg2", clause_name_def]
+*)
 ]
 QED
 
@@ -1353,9 +1350,6 @@ REPEAT STRIP_TAC >| [
  (* bitvector slice - not in exec sem yet *)
  fs [e_exec_sound, e_exec],
 
- (* Field access *)
- fs [e_acc_exec_sound_red],
-
  (* bitvector concatenation - not in exec sem yet *)
  fs [e_exec_sound, e_exec],
 
@@ -1364,6 +1358,9 @@ REPEAT STRIP_TAC >| [
 
  (* e list: inductive step *)
  fs [l_sound_equiv, l_sound_exec],
+
+ (* Field access *)
+ fs [e_acc_exec_sound_red],
 
  (* Select expression *)
  fs [e_select_exec_sound_red],
@@ -1677,7 +1674,7 @@ val ctrl_multi_exec = Define `
 val arch_exec_def = Define `
  (arch_exec (actx:actx) ((aenv:aenv), (g_scope_list:g_scope_list) , (arch_frame_list:arch_frame_list) , (ctrl:ctrl), status_type_error) = NONE) /\
  (* arch_parser_ret: Note that this is a different clause from arch_control_ret due to the status *)
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ty_map, ext_map, func_map)
             ((i, b, in_out_list, in_out_list', scope), g_scope_list,
              (arch_frame_list_regular [(funn, stmt, scopes_stack)]), ctrl,
              (status_pars_next (pars_next_pars_fin pars_fin))) =
@@ -1686,8 +1683,9 @@ val arch_exec_def = Define `
     | (arch_block_pbl x el) =>
      (case FLOOKUP pblock_map x of
       | SOME (pblock_parser x_d_list stmt pars_map) =>
-       (case update_return_frame (MAP FST x_d_list) (MAP SND x_d_list) [scope] (g_scope_list++scopes_stack) of
-        | SOME [scope'] =>
+(* TODO: Why no scopes_stack from frame_list after global scopes? *)
+       (case copyout_pbl (g_scope_list, scope, (MAP SND x_d_list), (MAP FST x_d_list)) of
+        | SOME scope' =>
          (case lookup_vexp (g_scope_list++scopes_stack) (varn_name "parseError") of
           | SOME v =>
            (case assign [scope'] v (lval_varname (varn_name "parseError")) of
@@ -1701,7 +1699,7 @@ val arch_exec_def = Define `
     | _ => NONE)
    else NONE)
  /\
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ty_map, ext_map, func_map)
             ((i, T, in_out_list, in_out_list', scope), g_scope_list,
              (arch_frame_list_regular [(funn, stmt_empty, scopes_stack)]), ctrl, status_running) =
  (* arch_control_ret *)
@@ -1709,8 +1707,8 @@ val arch_exec_def = Define `
    | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
      | SOME (pblock_control x_d_list stmt stmt' tbl_map) =>
-      (case update_return_frame (MAP FST x_d_list) (MAP SND x_d_list) [scope] (g_scope_list++scopes_stack) of
-       | SOME [scope'] =>
+      (case copyout_pbl (g_scope_list, scope, (MAP SND x_d_list), (MAP FST x_d_list)) of
+       | SOME scope' =>
         SOME ((i+1, F, in_out_list, in_out_list', scope'), (TAKE 1 g_scope_list),
                arch_frame_list_empty, ctrl, status_running)
        | _ => NONE)
@@ -1718,7 +1716,7 @@ val arch_exec_def = Define `
    | _ => NONE)
  )
  /\
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ty_map, ext_map, func_map)
             ((i, F, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_empty, ctrl, status_running) =
   (* arch_in, arch_pbl_call, arch_ffbl, arch_out *)
@@ -1750,7 +1748,7 @@ val arch_exec_def = Define `
 /\
  (* Operating on a stmt_pbl_call: arch_parser_init, arch_control_init, arch_pblock_args *)
  (* TODO: Would be nice to remove code duplication... *)
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ty_map, ext_map, func_map)
             ((i, T, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_pbl_call f el, ctrl, status_running) =
   (case FLOOKUP pblock_map f of
@@ -1763,7 +1761,7 @@ val arch_exec_def = Define `
         SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_pbl_call f (LUPDATE e' i' el), ctrl, status_running)
        | _ => NONE)
      | NONE => (* arch_control_init *)
-      (case all_arg_update_for_newscope (MAP FST x_d_list) (MAP SND x_d_list) el [scope] of
+      (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
        | SOME scope' =>
         SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
               arch_frame_list_regular [(funn_name f, stmt_seq stmt stmt', [])], ctrl, status_running)
@@ -1781,7 +1779,7 @@ val arch_exec_def = Define `
      | NONE => (* arch_parser_init *)
       (case FLOOKUP pars_map "start" of
        | SOME stmt' =>
-        (case all_arg_update_for_newscope (MAP FST x_d_list) (MAP SND x_d_list) el [scope] of
+        (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
          | SOME scope' =>
           (let block_global_scope_sing = initialise [scope'] (varn_name "parseError") (v_err "NoError") in
             SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++block_global_scope_sing),
@@ -1819,7 +1817,7 @@ val arch_exec_def = Define `
  /\
 *)
  (* Operating on any other statement: arch_parser_exec, arch_control_exec *)
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ty_map, ext_map, func_map)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ty_map, ext_map, func_map)
             ((i, T, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular frame_list), ctrl, status) =
   (case EL i ab_list of
    | (arch_block_pbl x el) =>
