@@ -37,8 +37,8 @@ val vss_input_f = ``vss_input_f``;
 val vss_output_f = ``vss_output_f``;
 
 (* Fixed-function block map *)
-val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runtime [])
-                               |+ ("pre_deparser", ffblock_ff vss_pre_deparser [])``;
+val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runtime)
+                               |+ ("pre_deparser", ffblock_ff vss_pre_deparser)``;
 
 val vss_Checksum16_map =
  ``(FEMPTY

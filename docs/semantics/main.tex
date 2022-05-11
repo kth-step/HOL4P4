@@ -227,14 +227,14 @@ In addition to the above, there's also a function map $F$ mapping function names
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
 \ottusedrule{\ottdruleeXXlookup{}}
-\ottusedrule{\ottdruleeXXfuncXXcallXXnewframe{}}
-\ottusedrule{\ottdruleeXXfuncXXexec{}}
-\ottusedrule{\ottdruleeXXfuncXXret{}}
+%\ottusedrule{\ottdruleeXXfuncXXcallXXnewframe{}}
+%\ottusedrule{\ottdruleeXXfuncXXexec{}}
+%\ottusedrule{\ottdruleeXXfuncXXret{}}
 \ottusedrule{\ottdruleeXXsXXacc{}}
 \ottusedrule{\ottdruleeXXhXXacc{}}
 \ottusedrule{\ottdruleeXXselXXacc{}}
-\ottusedrule{\ottdruleeXXselXXdef{}}
-\ottusedrule{\ottdruleeXXextXXexec{}}
+%\ottusedrule{\ottdruleeXXselXXdef{}}
+%\ottusedrule{\ottdruleeXXextXXexec{}}
 \end{ottdefnblock}}
 \caption{P4 Expression Evaluation Semantics}
 \label{fig:semexp}
@@ -307,13 +307,13 @@ $ \gamma : X \hookrightarrow V * (X \cup \{ \bot \})  $ \\We shall also modify t
 \label{fig:dir}
 \end{figure}
 
-\begin{figure}[h]
-\centering\ottgrammartabular{
-\ottcalledXXfunctionXXname\ottafterlastrule
-}
-\caption{called function name list}
-\label{fig:fnl}
-\end{figure}
+%\begin{figure}[h]
+%\centering\ottgrammartabular{
+%\ottcalledXXfunctionXXname\ottafterlastrule
+%}
+%\caption{called function name list}
+%\label{fig:fnl}
+%\end{figure}
 
    
 \subsection{Statement Execution}
@@ -323,7 +323,7 @@ The semantics of the statements is shown in Figures~\ref{fig:strsemstmtexec} and
 \begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
 \ottusedrule{\ottdrulestmtXXdecl{}}
 \ottusedrule{\ottdrulestmtXXassXXv{}}
-\ottusedrule{\ottdrulestmtXXassXXnull{}}
+%\ottusedrule{\ottdrulestmtXXassXXnull{}}
 \ottusedrule{\ottdrulestmtXXcondTwo{}}
 \ottusedrule{\ottdrulestmtXXcondThree{}}
 \end{ottdefnblock}
@@ -452,7 +452,7 @@ The rules of the architecture-level semantics can be divided into several catego
 \begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash [  \ottnt{arch\_stmt}  ] (  { \mathit{env}_\mathit{A} }  ,  \sigma  ,  t  ) {\longrightarrow}_{A} [  \ottnt{arch\_stmt'}  ] (  { \mathit{env}_\mathit{A} }' ,  \sigma'  ,  t'  ) $}{\ottcom{architecture-level semantics}}
 \ottusedrule{\ottdrulearchXXin{}}
 \ottusedrule{\ottdrulearchXXpblXXcall{}}
-\ottusedrule{\ottdrulearchXXffblXXcall{}}
+%\ottusedrule{\ottdrulearchXXffblXXcall{}}
 \ottusedrule{\ottdrulearchXXout{}}
 \ottusedrule{\ottdrulearchXXparserXXinit{}}
 \ottusedrule{\ottdrulearchXXcontrolXXinit{}}
@@ -460,7 +460,7 @@ The rules of the architecture-level semantics can be divided into several catego
 \ottusedrule{\ottdrulearchXXcontrolXXexec{}}
 \ottusedrule{\ottdrulearchXXparserXXret{}}
 \ottusedrule{\ottdrulearchXXcontrolXXret{}}
-\ottusedrule{\ottdrulearchXXffblockXXexec{}}
+%\ottusedrule{\ottdrulearchXXffblockXXexec{}}
 \end{ottdefnblock}
 \end{minipage}
 }
@@ -501,7 +501,7 @@ This appendix describes semantics for reducing expressions in certain contexts. 
 
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
-\ottusedrule{\ottdruleeXXfuncXXcallXXargs{}}
+%\ottusedrule{\ottdruleeXXfuncXXcallXXargs{}}
 \ottusedrule{\ottdruleeXXaccXXargTwo{}}
 \ottusedrule{\ottdruleeXXaccXXargOne{}}
 \ottusedrule{\ottdruleeXXselXXarg{}}
@@ -532,7 +532,7 @@ The \textsc{e\_func\_call\_args} rule reduces the leftmost function argument whi
 \begin{figure}[ht!]
 \begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash  { \mathit{env}_\mathit{A} }   \mathit{ctx}  [  \ottnt{stmt}  ] (  \sigma  ,  t  ) \rightharpoonup  { \mathit{env}_\mathit{A} }'   \mathit{ctx}'  [  \ottnt{stmt'}  ] (  \sigma'  ,  t'  ) $}{\ottcom{architectural-level semantics}}
 \ottusedrule{\ottdrulearchXXpblockXXargs{}}
-\ottusedrule{\ottdrulearchXXffblockXXargs{}}
+%\ottusedrule{\ottdrulearchXXffblockXXargs{}}
 \end{ottdefnblock}
 \caption{Architecture Reduction-of-Argument Semantics}
 \label{fig:semarch2}

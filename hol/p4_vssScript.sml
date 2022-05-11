@@ -166,29 +166,23 @@ val vss_input_f_def = Define `
 `;
 
 val vss_parser_runtime_def = Define `
-  vss_parser_runtime ((e_l:e list), scope:scope) =
-   case e_l of
-   | [] =>
-    (case lookup_lval [scope] (lval_varname (varn_name "parsedHeaders")) of
-     | SOME (v_struct hdrs) =>
-        (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "headers")) of
-         | SOME [scope'] => SOME scope'
-         | _ => NONE)
-     | _ => NONE)
-   | _ => NONE
+  vss_parser_runtime (scope:scope) =
+   (case lookup_lval [scope] (lval_varname (varn_name "parsedHeaders")) of
+    | SOME (v_struct hdrs) =>
+       (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "headers")) of
+        | SOME [scope'] => SOME scope'
+        | _ => NONE)
+    | _ => NONE)
 `;
 
 val vss_pre_deparser_def = Define `
-  vss_pre_deparser ((e_l:e list), scope:scope) =
-   case e_l of
-   | [] =>
-    (case lookup_lval [scope] (lval_varname (varn_name "headers")) of
-     | SOME (v_struct hdrs) =>
-        (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "outputHeaders")) of
-         | SOME [scope'] => SOME scope'
-         | _ => NONE)
-     | _ => NONE)
-   | _ => NONE
+  vss_pre_deparser (scope:scope) =
+   (case lookup_lval [scope] (lval_varname (varn_name "headers")) of
+    | SOME (v_struct hdrs) =>
+       (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "outputHeaders")) of
+        | SOME [scope'] => SOME scope'
+        | _ => NONE)
+    | _ => NONE)
 `;
 
 (* Add new header + data + Ethernet CRC as a tuple with new output port to output list *)
@@ -210,5 +204,18 @@ val vss_output_f_def = Define `
    | _ => NONE
   )
 `;
+
+(*
+
+val copyin_pbl_def = Define `
+  copyin_pbl xlist dlist elist gsl ss_curr =
+    let
+     (* MAP if_is_red*)
+    in
+      all_arg_update_for_newscope xlist dlist elist' (gsl++ss_curr)
+    end
+`;
+
+*)
 
 val _ = export_theory ();
