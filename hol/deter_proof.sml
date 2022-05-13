@@ -1042,7 +1042,7 @@ fs [same_frame_exp_def]
 
 (NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_ext f)`` >>
+OPEN_STMT_RED_TAC ``(stmt_ext)`` >>
 REV_FULL_SIMP_TAC (srw_ss()) []) >> 
 FULL_SIMP_TAC (srw_ss()) [Once same_state_def] ) >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>

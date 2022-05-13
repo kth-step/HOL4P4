@@ -139,10 +139,6 @@ v :: v_ ::=
   {{ com error message }}
 %TODO: Represent uninitialised variables? Default values?
 %See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
-| uninit :: :: uninit
-  {{ com uninitialized value }}
-  {{ tex ? }}
-  {{ hol (ARB) }}
 | bot :: :: bot
   {{ com no value }}
 
