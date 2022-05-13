@@ -137,12 +137,6 @@ v :: v_ ::=
   {{ com extern object }}
 | errmsg x :: :: err
   {{ com error message }}
-%TODO: Represent uninitialised variables? Default values?
-%See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
-| uninit :: :: uninit
-  {{ com uninitialized value }}
-  {{ tex ? }}
-  {{ hol (ARB) }}
 | bot :: :: bot
   {{ com no value }}
 
@@ -1710,7 +1704,6 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_header boolv []) = v_header F []) /\
   (init_out_v (v_ext ext_obj) = v_ext ARB) /\
   (init_out_v (v_err errmsg) = v_err ARB) /\
-  (init_out_v v_uninit = v_uninit) /\
   (init_out_v v_bot = v_bot)
 `
 (WF_REL_TAC `measure v_size` >>

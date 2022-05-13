@@ -1418,3 +1418,6 @@ NTAC 3 EXP_SIMP
 );
 
 
+EVAL ``declare [FEMPTY;FEMPTY] [FEMPTY] "x" (t_base bt_bit)``;
+EVAL ``declare [FEMPTY;FEMPTY] [FEMPTY] "x" (t_base bt_bool)``;
+EVAL ``declare [FEMPTY;FEMPTY] [FEMPTY] "x" (t_struct [(t_base bt_bool) ; (t_base bt_bool)])``;
