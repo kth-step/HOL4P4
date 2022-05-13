@@ -137,6 +137,12 @@ v :: v_ ::=
   {{ com extern object }}
 | errmsg x :: :: err
   {{ com error message }}
+%TODO: Represent uninitialised variables? Default values?
+%See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
+| uninit :: :: uninit
+  {{ com uninitialized value }}
+  {{ tex ? }}
+  {{ hol (ARB) }}
 | bot :: :: bot
   {{ com no value }}
 
@@ -1053,9 +1059,9 @@ formula :: formula_ ::=
 %Apply table
 | tbl_map ( tbl ) = ( mkl ) :: :: find_key
   {{ com find keys and the matching kind in the table map }}
-  {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[e]] \, , [[mk]] ) }}
-  {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[e]] , [[mk]] ) ) }}
-| ctrl ( tbl , v , mk ) = ( f , e_list ) :: :: ctrl_plane
+  {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[mkl]] ) }}
+  {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mkl]] ) ) }}
+| ctrl ( tbl , e_list , mkl ) = ( f , e_list' ) :: :: ctrl_plane  
   {{ com fetch the function name and parameters from the ctrl plane }}
   {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[e_list]], \, [[mkl]]\, ) = \,( [[f]] , [[e_list']] ) }}
   {{ hol ([[ctrl]] ( [[tbl]] , [[e_list]] , [[mkl]] ) = SOME ( [[f]] , [[e_list']] ) ) }}
@@ -1704,6 +1710,7 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_header boolv []) = v_header F []) /\
   (init_out_v (v_ext ext_obj) = v_ext ARB) /\
   (init_out_v (v_err errmsg) = v_err ARB) /\
+  (init_out_v v_uninit = v_uninit) /\
   (init_out_v v_bot = v_bot)
 `
 (WF_REL_TAC `measure v_size` >>
