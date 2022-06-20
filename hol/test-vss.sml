@@ -203,8 +203,6 @@ val vss_pblock_map = ``FEMPTY |+ ("parser", (^vss_parser_pbl))
                               |+ ("pipe", (^vss_pipe_pbl))
                               |+ ("deparser", (^vss_deparser_pbl))``;
 
-val vss_ty_map = ``FEMPTY:ty_map``;
-
 val e_outport = mk_lval_field (mk_lval_varname "outCtrl", "outputPort");
 val drop_action_fun = ``("Drop_action", stmt_seq (stmt_ass (^e_outport) (e_var (varn_name "DROP_PORT"))) (stmt_ret (e_v v_bot)), []:(string # d) list)``;
 val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ip"), "ttl");
@@ -226,7 +224,14 @@ val vss_func_map =
                     |+ (^set_dmac_fun)
                     |+ (^set_smac_fun)``;
 
-val vss_actx = pairSyntax.list_mk_pair [vss_ab_list, vss_pblock_map, vss_ffblock_map, vss_input_f, vss_output_f, vss_ty_map, vss_ext_map, vss_func_map];
+val vss_actx =
+ pairSyntax.list_mk_pair [vss_ab_list,
+                          vss_pblock_map,
+                          vss_ffblock_map,
+                          vss_input_f,
+                          vss_output_f,
+                          vss_ext_map,
+                          vss_func_map];
 
 (******************)
 (*   Input data   *)

@@ -29,7 +29,7 @@ od = OrderedDict([("ascope_ty", "'a"),
 all_replaces = OrderedDict(list(od_hacks.items()) + list(od.items()))
 
 def replace_all(text, dic):
-    for i, j in dic.iteritems():
+    for i, j in dic.items():
         text = text.replace(i, j)
     return text
 
