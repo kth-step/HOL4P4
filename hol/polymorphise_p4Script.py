@@ -26,7 +26,7 @@ od = OrderedDict([("ascope_ty", "'a"),
                   (":copyout_pbl", ":'a copyout_pbl"),
                   (":ff", ":'a ff")])
                   
-all_replaces = OrderedDict(od_hacks.items() + od.items())
+all_replaces = OrderedDict(list(od_hacks.items()) + list(od.items()))
 
 def replace_all(text, dic):
     for i, j in dic.iteritems():
