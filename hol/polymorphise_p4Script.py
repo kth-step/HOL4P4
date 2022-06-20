@@ -13,8 +13,8 @@ od_hacks = OrderedDict([("val _ = type_abbrev(\"ascope\", ``:('a)``);", ""),
                          "val _ = Hol_datatype ` \nffblock =  (* fixed-function block *)\n   ffblock_ff of 'a ff\n`;"),
                         ("val _ = type_abbrev(\"ffblock_map\", ``:(string |-> ffblock)``);",
                          "val _ = type_abbrev(\"ffblock_map\", ``:(string |-> 'a ffblock)``);"),
-                        ("val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ty_map # ext_map # func_map)``);",
-                         "val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # ty_map # ext_map # func_map)``);")])
+                        ("val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map)``);",
+                         "val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # ext_map # func_map)``);")])
 
 #Straightforward, modular rewrites
 od = OrderedDict([("ascope_ty", "'a"),

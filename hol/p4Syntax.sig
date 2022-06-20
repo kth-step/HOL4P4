@@ -141,7 +141,7 @@ val binop_bin_or_tm : term
 val dest_e_acc : term -> term * term
 val e_acc_tm : term
 val is_e_acc : term -> bool
-val mk_e_acc : term * term -> term
+val mk_e_acc : term * string -> term
 
 val dest_e_call : term -> term * term
 val e_call_tm : term

@@ -175,8 +175,10 @@ val binop_or_tm  = prim_mk_const {Name="binop_or",  Thy="p4"};
 val binop_bin_and_tm = prim_mk_const {Name="binop_bin_and", Thy="p4"};
 val binop_bin_or_tm  = prim_mk_const {Name="binop_bin_or",  Thy="p4"};
 
-val (e_acc_tm, mk_e_acc, dest_e_acc, is_e_acc) =
+val (e_acc_tm, mk_e_acc_tmp, dest_e_acc, is_e_acc) =
   syntax_fns2 "p4" "e_acc";
+val mk_e_acc =
+  mk_e_acc_tmp o (fn (e_tm, fieldname) => (e_tm, fromMLstring fieldname));
 
 val (e_call_tm, mk_e_call, dest_e_call, is_e_call) =
   syntax_fns2 "p4" "e_call";
