@@ -224,12 +224,15 @@ val vss_func_map =
                     |+ (^set_dmac_fun)
                     |+ (^set_smac_fun)``;
 
+(* TODO: Make syntax functions *)
 val vss_actx =
  pairSyntax.list_mk_pair [vss_ab_list,
                           vss_pblock_map,
                           vss_ffblock_map,
                           vss_input_f,
                           vss_output_f,
+                          vss_copyin_pbl,
+                          vss_copyout_pbl,
                           vss_ext_map,
                           vss_func_map];
 
@@ -346,7 +349,12 @@ EVAL ``arch_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate)``;
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
 (* In V2, this ends at 217 steps for TTL=1 in input *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 217``;
+
+(* After arch_in: input read into b, data_crc and inCtrl *)
+el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate) 1``;
+
+(* After arch_in: input read into b, data_crc and inCtrl *)
+el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate) 2``;
 
 (* TODO: Fix up the below and add to CI *)
 (*

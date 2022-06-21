@@ -165,6 +165,21 @@ val vss_input_f_def = Define `
   )
 `;
 
+(* TODO: Write copyout_pbl and copyin_pbl *)
+
+val vss_copyin_pbl_def = Define `
+  vss_copyin_pbl (xlist, dlist, elist, vss_arch_scope) =
+    copyin xlist dlist elist [vss_arch_scope] [FEMPTY]
+`;
+
+val vss_copyout_pbl_def = Define `
+  vss_copyout_pbl (ss, vss_arch_scope, dlist, xlist) =
+    case copyout xlist dlist [FEMPTY; FEMPTY] [vss_arch_scope] ss of
+    | SOME (g_scope_list, [vss_arch_scope']) => SOME vss_arch_scope'
+    | _ => NONE
+`;
+
+
 val vss_parser_runtime_def = Define `
   vss_parser_runtime (scope:scope) =
    (case lookup_lval [scope] (lval_varname (varn_name "parsedHeaders")) of

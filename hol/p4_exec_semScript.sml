@@ -1727,8 +1727,8 @@ val arch_exec_def = Define `
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
             ((i, F, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_empty, ctrl, status_running) =
-  (* arch_in, arch_parser_init, arch_control_init, arch_ffbl, arch_out *)
   (case EL i ab_list of
+   (* arch_in *)
    | arch_block_inp =>
     (case input_f (in_out_list, scope) of
      | SOME (in_out_list'', scope') => 
@@ -1736,7 +1736,27 @@ val arch_exec_def = Define `
              ctrl, status_running)
      | NONE => NONE)
    | (arch_block_pbl x el) =>
-    SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_pbl_call x el, ctrl, status_running)
+    (case FLOOKUP pblock_map x of
+     (* arch_control_init *)
+     | SOME (pblock_control x_d_list stmt stmt' tbl_map) =>
+        (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
+         | SOME scope' =>
+          SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
+                arch_frame_list_regular [(funn_name x, stmt_seq stmt stmt', [])], ctrl, status_running)
+         | _ => NONE)
+     (* arch_parser_init *)
+     | SOME (pblock_parser x_d_list stmt pars_map) =>
+        (case FLOOKUP pars_map "start" of
+         | SOME stmt' =>
+          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
+           | SOME scope' =>
+            (let block_global_scope_sing = initialise [scope'] (varn_name "parseError") (v_err "NoError") in
+              SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++block_global_scope_sing),
+                    arch_frame_list_regular [(funn_name x, stmt_seq stmt stmt', [])], ctrl, status_running))
+           | NONE => NONE)
+         | NONE => NONE)
+     | _ => NONE)
+   (* arch_ffbl *)
    | (arch_block_ffbl x) =>
     (case FLOOKUP ffblock_map x of
      | SOME (ffblock_ff ff) =>
@@ -1745,6 +1765,7 @@ val arch_exec_def = Define `
         SOME ((i+1, F, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, ctrl, status_running)
        | NONE => NONE)
      | NONE => NONE)
+   (* arch_out *)
    | arch_block_out =>
     (case output_f (in_out_list', scope) of
      | SOME (in_out_list'', scope') =>
@@ -1754,84 +1775,6 @@ val arch_exec_def = Define `
   )
  )
 /\
- (* Operating on a stmt_pbl_call: arch_parser_init, arch_control_init *)
- (* TODO: Would be nice to remove code duplication... *)
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, T, in_out_list, in_out_list', scope), g_scope_list,
-             arch_frame_list_pbl_call f el, ctrl, status_running) =
-  (case FLOOKUP pblock_map f of
-   | SOME (pblock_control x_d_list stmt stmt' tbl_map) =>
-(* TODO: Note that copyin_pbl should now operate directly on unreduced arguments
-    (case unred_arg_index (MAP SND x_d_list) el of
-     | SOME i' => (* arch_pblock_args (case control) *)
-      (case e_exec (ext_map, func_map, tbl_map) g_scope_list [scope] (EL i' el) of
-       (* Note that this excludes function calls *)
-       | SOME (e', []) =>
-        SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_pbl_call f (LUPDATE e' i' el), ctrl, status_running)
-       | _ => NONE)
-     | NONE => (* arch_control_init *)
-*)
-      (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
-       | SOME scope' =>
-        SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
-              arch_frame_list_regular [(funn_name f, stmt_seq stmt stmt', [])], ctrl, status_running)
-       | _ => NONE)
-(*
-    )
-*)
-   | SOME (pblock_parser x_d_list stmt pars_map) =>
-(* TODO: Note that copyin_pbl should now operate directly on unreduced arguments
-    (case (unred_arg_index (MAP SND x_d_list) el) of
-     | SOME i' => (* arch_pblock_args (case parser) *)
-      (case e_exec (ext_map, func_map, FEMPTY) g_scope_list [scope] (EL i' el) of
-       (* Note that this excludes function calls *)
-       | SOME (e', []) =>
-        SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list, 
-              arch_frame_list_pbl_call f (LUPDATE e' i' el), ctrl, status_running)
-       | _ => NONE)
-     | NONE => (* arch_parser_init *)
-*)
-      (case FLOOKUP pars_map "start" of
-       | SOME stmt' =>
-        (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
-         | SOME scope' =>
-          (let block_global_scope_sing = initialise [scope'] (varn_name "parseError") (v_err "NoError") in
-            SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++block_global_scope_sing),
-                  arch_frame_list_regular [(funn_name f, stmt_seq stmt stmt', [])], ctrl, status_running))
-         | NONE => NONE)
-       | NONE => NONE)
-(*
-    )
-*)
-   | _ => NONE)
- )
- /\
-(*
- (* Operating on a stmt_ffbl_call: arch_ffblock_exec, arch_ffblock_args *)
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, ext_map, func_map)
-            ((i, F, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_ffbl_call f el,
-             ctrl, status_running) =
-  (case FLOOKUP ffblock_map f of
-   | SOME (ffblock_ff ff x_d_list) =>
-    (case unred_arg_index (MAP SND x_d_list) el of
-     | SOME i' =>
-      (case e_exec (ext_map, func_map, FEMPTY) g_scope_list [scope] (EL i' el) of
-       (* Note that this excludes function calls *)
-       | SOME (e', []) =>
-          SOME ((i, F, in_out_list, in_out_list', scope), g_scope_list, 
-                arch_frame_list_ffbl_call f (LUPDATE e' i' el), ctrl, status_running)
-       | NONE => NONE)
-     | NONE =>
-      (case ff (el, scope) of
-       | SOME scope' =>
-        SOME ((i+1, F, in_out_list, in_out_list', scope'), g_scope_list,
-              arch_frame_list_empty, ctrl, status_running)
-       | _ => NONE)
-   | _ => NONE)
-  )
- )
- /\
-*)
  (* Operating on any other statement: arch_parser_exec, arch_control_exec *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
             ((i, T, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular frame_list), ctrl, status) =
