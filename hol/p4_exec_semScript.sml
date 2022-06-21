@@ -1684,7 +1684,8 @@ val arch_exec_def = Define `
      (case FLOOKUP pblock_map x of
       | SOME (pblock_parser x_d_list stmt pars_map) =>
 (* TODO: Why no scopes_stack from frame_list after global scopes? *)
-       (case copyout_pbl (g_scope_list, scope, (MAP SND x_d_list), (MAP FST x_d_list)) of
+(* TODO: Note that this function will always copy out parseError from a parser. Unclear if this is intended in the spec. *)
+       (case copyout_pbl ((g_scope_list++scopes_stack), scope, (d_out::(MAP SND x_d_list)), ("parseError"::(MAP FST x_d_list))) of
         | SOME scope' =>
 (* TODO: Fix assignment of parseError
          (case lookup_vexp (g_scope_list++scopes_stack) (varn_name "parseError") of
@@ -1723,7 +1724,6 @@ val arch_exec_def = Define `
    | _ => NONE)
  )
  /\
- (* TODO: Merge with the below clause for arch_parser_init and arch_control_init *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
             ((i, F, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_empty, ctrl, status_running) =
@@ -1750,8 +1750,8 @@ val arch_exec_def = Define `
          | SOME stmt' =>
           (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
            | SOME scope' =>
-            (let block_global_scope_sing = initialise [scope'] (varn_name "parseError") (v_err "NoError") in
-              SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++block_global_scope_sing),
+            (let block_global_scope = FUPDATE scope' (varn_name "parseError", (v_err "NoError", SOME (lval_varname (varn_name "parseError")))) in
+              SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++[block_global_scope]),
                     arch_frame_list_regular [(funn_name x, stmt_seq stmt stmt', [])], ctrl, status_running))
            | NONE => NONE)
          | NONE => NONE)

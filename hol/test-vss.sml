@@ -350,11 +350,30 @@ EVAL ``arch_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate)``;
 (* In V1, this ended at 131 steps for TTL=1 in input *)
 (* In V2, this ends at 217 steps for TTL=1 in input *)
 
-(* After arch_in: input read into b, data_crc and inCtrl *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate) 1``;
+(* TODO: Make "exec arch block" function *)
+
+fun eval_and_print_result actx astate nsteps =
+ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^actx):(varn |-> v # lval option) actx) (^astate) ^(term_of_int nsteps)``;
+
+fun eval_and_print_aenv actx astate nsteps =
+ el 1 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+fun eval_and_print_rest actx astate nsteps =
+ el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
 
 (* After arch_in: input read into b, data_crc and inCtrl *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate) 2``;
+eval_and_print_aenv vss_actx init_astate 1;
+
+(* After arch_parser_init: parser block arguments read into b and p *)
+eval_and_print_rest vss_actx init_astate 2;
+
+(* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
+eval_and_print_rest vss_actx init_astate 69;
+
+(* arch_parser_ret: parsedHeaders copied out to arch scope *)
+eval_and_print_aenv vss_actx init_astate 70;
+
+EVAL ``arch_multi_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate) 70``;
 
 (* TODO: Fix up the below and add to CI *)
 (*

@@ -165,13 +165,43 @@ val vss_input_f_def = Define `
   )
 `;
 
+(* TODO: Move? *)
+val oCONS_def = Define `
+ (oCONS (h, SOME t) =
+  SOME (h::t)
+ ) /\
+ (oCONS (_, NONE) =
+  NONE
+ )
+`;
+
 (* TODO: Write copyout_pbl and copyin_pbl *)
+val vss_reduce_nonout_def = Define `
+ (vss_reduce_nonout ([], elist, vss_arch_scope) =
+  SOME []
+ ) /\
+ (vss_reduce_nonout (d::dlist, e::elist, vss_arch_scope) =
+  if is_d_out d
+  then oCONS (e, vss_reduce_nonout (dlist, elist, vss_arch_scope))
+  else
+   (case e of
+    | (e_var x) =>
+     (case lookup_vexp2 [FEMPTY] [vss_arch_scope] x of
+      | SOME v => oCONS (e_v v, vss_reduce_nonout (dlist, elist, vss_arch_scope))
+      | NONE => NONE)
+    | _ => NONE) 
+ )
+`;
 
 val vss_copyin_pbl_def = Define `
   vss_copyin_pbl (xlist, dlist, elist, vss_arch_scope) =
-    copyin xlist dlist elist [vss_arch_scope] [FEMPTY]
+    case vss_reduce_nonout (dlist, elist, vss_arch_scope) of
+    | SOME elist' =>
+     copyin xlist dlist elist' [vss_arch_scope] [FEMPTY]
+    | NONE => NONE
 `;
 
+(* TODO: Does anything need to be looked up for this function? *)
 val vss_copyout_pbl_def = Define `
   vss_copyout_pbl (ss, vss_arch_scope, dlist, xlist) =
     case copyout xlist dlist [FEMPTY; FEMPTY] [vss_arch_scope] ss of
