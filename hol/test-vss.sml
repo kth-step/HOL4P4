@@ -23,12 +23,12 @@ open computeLib;
 
 (* start parser state *)
 (* p.ethernet *)
-val e_eth = ``e_acc (e_var (varn_name "p")) (e_v (v_str "ethernet"))``;
+val e_eth = ``e_acc (e_var (varn_name "p")) "ethernet"``;
 val stmt_start_extract =
  ``stmt_ass lval_null (e_call (funn_ext "packet_in" "extract") [(e_var (varn_name "b")); (^e_eth)])``;
 (* p.ethernet.etherType *)
 val e_eth_ty =
- ``(e_acc (e_acc (e_var (varn_name "p")) (e_v (v_str "ethernet"))) (e_v (v_str "etherType")))``;
+ ``(e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")``;
 (* 0x0800 *)
 val ether_ty_ok = mk_v_bitii (2048, 16);
 val stmt_start_trans =
@@ -38,18 +38,18 @@ val start_body = mk_stmt_block $ mk_stmt_seq_list [stmt_start_extract, stmt_star
 
 
 (* parse_ipv4 parser state *)
-val e_ip = ``e_acc (e_var (varn_name "p")) (e_v (v_str "ip"))``; (* p.ip *)
+val e_ip = ``e_acc (e_var (varn_name "p")) "ip"``; (* p.ip *)
 val stmt_parse_ipv4_extract =
  ``stmt_ass lval_null (e_call (funn_ext "packet_in" "extract") [(e_var (varn_name "b")); (^e_ip)])``;
 
-val e_ip_v = ``(e_acc (^e_ip) (e_v (v_str "version")))``; (* p.ip.version *)
+val e_ip_v = ``(e_acc (^e_ip) "version")``; (* p.ip.version *)
 val ip_v0_ok = mk_v_bitii (4, 4); (* Correct IP version number: 4w4 *)
 val e_4w4 = mk_e_v ip_v0_ok; (* 4w4 (as expression) *)
 val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``; (* p.ip.version == 4w4 *)
 val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``; (* error.IPv4IncorrectVersion *)
 val stmt_parse_ipv4_verify1 = ``stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)``;
 
-val e_ip_ihl = ``(e_acc (^e_ip) (e_v (v_str "ihl")))``; (* p.ip.ihl *)
+val e_ip_ihl = ``(e_acc (^e_ip) "ihl")``; (* p.ip.ihl *)
 val ip_ihl_ok = mk_v_bitii (5, 4); (* Correct IHL: 4w5 *)
 val e_4w5 = mk_e_v ip_ihl_ok; (* 4w5 (as expression) *)
 val e_ip_ihl_eq_4w5 = ``e_binop (^e_ip_ihl) binop_eq (^e_4w5)``; (* p.ip.ihl == 4w5 *)
@@ -98,12 +98,12 @@ val vss_parser_ab =
 (*   Pipe   *)
 
 val ipv4_match_table =
- ``("ipv4_match", (e_acc (e_acc (e_var (varn_name "headers")) (e_v (v_str "ip"))) (e_v (v_str "dstAddr")), mk_lpm))``;
+ ``("ipv4_match", (e_acc (e_acc (e_var (varn_name "headers")) "ip") "dstAddr", mk_lpm))``;
 val check_ttl_table =
- ``("check_ttl", (e_acc (e_acc (e_var (varn_name "headers")) (e_v (v_str "ip"))) (e_v (v_str "ttl")), mk_exact))``;
+ ``("check_ttl", (e_acc (e_acc (e_var (varn_name "headers")) "ip") "ttl", mk_exact))``;
 val dmac_table = ``("dmac", (e_var (varn_name "nextHop"), mk_exact))``;
 val smac_table =
- ``("smac", (e_acc (e_var (varn_name "outCtrl")) (e_var (varn_name "outputPort")), mk_exact))``;
+ ``("smac", (e_acc (e_var (varn_name "outCtrl")) "outputPort", mk_exact))``;
 val vss_pipe_tblmap = ``FEMPTY |+ (^ipv4_match_table)
                                |+ (^check_ttl_table)
                                |+ (^dmac_table)
@@ -118,17 +118,17 @@ val stmt_parseerror_then =
 val stmt_parseerror = mk_stmt_cond (e_parseerror_cond, stmt_parseerror_then, stmt_empty_tm);
 
 val e_ipv4_match_cond =
- mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var_name "DROP_PORT");
+ mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) "outputPort")``, binop_eq_tm, mk_e_var_name "DROP_PORT");
 val stmt_ipv4_match =
  mk_stmt_seq (mk_stmt_app (``"ipv4_match"``, ``e_v v_bot``), mk_stmt_cond (e_ipv4_match_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
 val e_check_ttl_cond =
- mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var_name "CPU_OUT_PORT");
+ mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) "outputPort")``, binop_eq_tm, mk_e_var_name "CPU_OUT_PORT");
 val check_ttl_match =
- mk_stmt_seq (mk_stmt_app (``"check_ttl"``, ``e_acc (e_acc (e_var (varn_name "headers")) (e_v (v_str "ip"))) (e_v (v_str "ttl"))``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
+ mk_stmt_seq (mk_stmt_app (``"check_ttl"``, ``e_acc (e_acc (e_var (varn_name "headers")) "ip") "ttl"``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
 val e_dmac_cond =
- mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) (e_v (v_str "outputPort")))``, binop_eq_tm, mk_e_var_name "DROP_PORT");
+ mk_e_binop (``(e_acc (e_var (varn_name "outCtrl")) "outputPort")``, binop_eq_tm, mk_e_var_name "DROP_PORT");
 val dmac_match =
  mk_stmt_seq (mk_stmt_app (``"dmac"``, ``e_v v_bot``), mk_stmt_cond (e_check_ttl_cond, mk_stmt_ret ``e_v v_bot``, stmt_empty_tm));
 
@@ -158,7 +158,7 @@ val stmt_deparser_emit =
 (* p.ip.hdrChecksum *)
 val lval_ip_ck = mk_lval_field (mk_lval_field (mk_lval_varname "p", "ip"), "hdrChecksum");
 val lval_p_ip = mk_lval_field (mk_lval_varname "p", "ip");
-val e_p_ip = mk_e_acc (mk_e_var_name "p", mk_e_v $ mk_v_str "ip");
+val e_p_ip = mk_e_acc (mk_e_var_name "p", "ip");
 
 val stmt_deparser_cond =
  ``stmt_cond (e_call (funn_ext "header" "isValid") [(^e_p_ip)])
@@ -203,12 +203,10 @@ val vss_pblock_map = ``FEMPTY |+ ("parser", (^vss_parser_pbl))
                               |+ ("pipe", (^vss_pipe_pbl))
                               |+ ("deparser", (^vss_deparser_pbl))``;
 
-val vss_ty_map = ``FEMPTY:ty_map``;
-
 val e_outport = mk_lval_field (mk_lval_varname "outCtrl", "outputPort");
 val drop_action_fun = ``("Drop_action", stmt_seq (stmt_ass (^e_outport) (e_var (varn_name "DROP_PORT"))) (stmt_ret (e_v v_bot)), []:(string # d) list)``;
 val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers", "ip"), "ttl");
-val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var_name "headers", mk_e_v $ mk_v_str "ip"), mk_e_v $ mk_v_str "ttl");
+val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var_name "headers", "ip"), "ttl");
 val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var_name "ipv4_dest")),
                                                        (mk_stmt_ass (lval_headers_ip_ttl, mk_e_binop (e_headers_ip_ttl, binop_sub_tm, mk_e_v (mk_v_bitii (1, 8))))),
                                                        
@@ -226,7 +224,17 @@ val vss_func_map =
                     |+ (^set_dmac_fun)
                     |+ (^set_smac_fun)``;
 
-val vss_actx = pairSyntax.list_mk_pair [vss_ab_list, vss_pblock_map, vss_ffblock_map, vss_input_f, vss_output_f, vss_ty_map, vss_ext_map, vss_func_map];
+(* TODO: Make syntax functions *)
+val vss_actx =
+ pairSyntax.list_mk_pair [vss_ab_list,
+                          vss_pblock_map,
+                          vss_ffblock_map,
+                          vss_input_f,
+                          vss_output_f,
+                          vss_copyin_pbl,
+                          vss_copyout_pbl,
+                          vss_ext_map,
+                          vss_func_map];
 
 (******************)
 (*   Input data   *)
@@ -335,13 +343,62 @@ val init_astate =
 (*   Architecture-level semantics tests    *)
 
 (* Single reduction: *)
-EVAL ``arch_exec ((^vss_actx):actx) (^init_astate)``;
+EVAL ``arch_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate)``;
 
 (* Multiple reductions: *)
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
-(* In V2, this ends at 217 steps for TTL=1 in input *)
-el 1 $ snd $ strip_comb $ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^vss_actx):actx) (^init_astate) 217``;
+(* In V2, this ends at 210 steps for TTL=1 in input *)
+
+(* TODO: Make "exec arch block" function *)
+
+fun eval_and_print_result actx astate nsteps =
+ optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^actx):(varn |-> v # lval option) actx) (^astate) ^(term_of_int nsteps)``;
+
+fun eval_and_print_aenv actx astate nsteps =
+ el 1 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+fun eval_and_print_rest actx astate nsteps =
+ el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+(* After arch_in: input read into b, data_crc and inCtrl *)
+eval_and_print_aenv vss_actx init_astate 1;
+
+(* After arch_parser_init: parser block arguments read into b and p *)
+eval_and_print_rest vss_actx init_astate 2;
+
+(* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
+eval_and_print_rest vss_actx init_astate 69;
+
+(* arch_parser_ret: parseError and parsedHeaders copied out to arch scope *)
+eval_and_print_aenv vss_actx init_astate 70;
+
+(* arch_ffbl: Parser Runtime *)
+eval_and_print_aenv vss_actx init_astate 71;
+
+(* arch_control_init: arguments read into pbl-global scope, frame initialised *)
+eval_and_print_rest vss_actx init_astate 72;
+
+(* arch_control_exec: *)
+eval_and_print_aenv vss_actx init_astate 146;
+
+(* arch_control_ret: outCtrl written to arch scope *)
+eval_and_print_aenv vss_actx init_astate 147;
+
+(* arch_ffbl: pre-Deparser *)
+eval_and_print_aenv vss_actx init_astate 148;
+
+(* arch_control_init: arguments read into pbl-global scope, frame initialised *)
+eval_and_print_rest vss_actx init_astate 149;
+
+(* arch_control_exec *)
+eval_and_print_rest vss_actx init_astate 208;
+
+(* arch_control_ret: p written to arch scope *)
+eval_and_print_aenv vss_actx init_astate 209;
+
+(* arch_out: output read into output stream *)
+eval_and_print_aenv vss_actx init_astate 210;
 
 (* TODO: Fix up the below and add to CI *)
 (*

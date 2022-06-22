@@ -570,6 +570,10 @@ frame {{ tex \Phi }} :: frame_ ::=
  {{ hol ([[funn]] , [[stmt]] , [[scopes_stack]]) }}
  {{ tex ( {[[stmt]])}_{[[scopes_stack]]}^{[[funn]]} }}
 
+ascope, ascope_ty {{ tex { \mathit{scope}_\mathit{A} } }} :: ascope_ ::=
+{{ com architectural scope }}
+{{ hol ('a) }}
+
 %Fence between frame and frame_list
 embed
 {{ hol
@@ -618,7 +622,7 @@ d {{ tex d }} :: d_ ::=
 
 %The "fixed function" of a fixed-function block
 ff {{ tex { \mathit{ff} } }} :: ff_ ::=
-{{ hol (scope -> scope option) }}
+{{ hol (ascope_ty -> ascope_ty option) }}
 
 %Fence between d and d_list
 embed
@@ -684,14 +688,6 @@ pars_map {{ tex P }} :: pars_map_ ::=
 {{ hol (string |-> stmt) }}
 | empty :: M :: empty
   {{ com empty parser state map }}
-  {{ hol FEMPTY }}
-
-% TODO: Could be just a type abbreviation?
-ty_map {{ tex \mathit{Ty} }} :: ty_map_ ::=
-{{ com type environment  }}
-{{ hol (string |-> ((string # t) list)) }}
-| empty :: M :: empty
-  {{ com empty type environment }}
   {{ hol FEMPTY }}
 
 in_out :: in_out_ ::=
@@ -790,19 +786,19 @@ ab_list {{ tex \overline{ab} }} :: ab_list_ ::=
 %TODO: Unify input_f and output_f?
 input_f {{ tex { f_{ \mathit{in} } } }} :: input_f_ ::=
 {{ com input function }}
-{{ hol ((in_out_list # scope) -> (in_out_list # scope) option) }}
+{{ hol ((in_out_list # ascope_ty) -> (in_out_list # ascope_ty) option) }}
 
 output_f {{ tex { f_{ \mathit{out} } } }} :: output_f_ ::=
 {{ com output function }}
-{{ hol ((in_out_list # scope) -> (in_out_list # scope) option) }}
+{{ hol ((in_out_list # ascope_ty) -> (in_out_list # ascope_ty) option) }}
 
 copyin_pbl {{ tex { copyin_{ \mathit{pbl} } } }} :: copyin_pbl_ ::=
 {{ com copy-in to programmable blocks function }}
-{{ hol ((x list # d list # e list # scope) -> scope option) }}
+{{ hol ((x list # d list # e list # ascope_ty) -> scope option) }}
 
 copyout_pbl {{ tex { copyout_{ \mathit{pbl} } } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
-{{ hol ((g_scope list # scope # d list # x list) -> scope option) }}
+{{ hol ((g_scope list # ascope_ty # d list # x list) -> ascope_ty option) }}
 
 %Fence so that ott does not re-order ctx
 embed
@@ -813,46 +809,46 @@ grammar
 
 aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
 {{ com architectural environment }}
-{{ hol (num # boolv # in_out_list # in_out_list # scope) }}
+{{ hol (num # boolv # in_out_list # in_out_list # ascope_ty) }}
 | empty :: M :: empty
   {{ com empty architectural environment }}
   {{ hol (0, F, [], [], FEMPTY) }}
-| ( num_exp , boolv , in_out_list , in_out_list' , scope ) :: M :: tup
+| ( num_exp , boolv , in_out_list , in_out_list' , ascope ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[num_exp]], [[boolv]], [[in_out_list]], [[in_out_list']], [[scope]]) }}
+  {{ hol ([[num_exp]], [[boolv]], [[in_out_list]], [[in_out_list']], [[ascope]]) }}
 
 actx {{ tex { \mathit{ctx}_\mathit{A} } }} :: actx_ ::=
 {{ com architectural context }}
-{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ty_map # ext_map # func_map) }}
-| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) :: M :: tup
+{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map) }}
+| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[ty_map]], [[ext_map]], [[func_map]]) }}
+  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[ext_map]], [[func_map]]) }}
 
 pctx {{ tex { \mathit{ctx}_\mathit{P} } }} :: pctx_ ::=
 {{ com parser context }}
-{{ hol (ty_map # ext_map # func_map # pars_map) }}
-| ( ty_map , ext_map , func_map , pars_map ) :: M :: tup
+{{ hol (ext_map # func_map # pars_map) }}
+| ( ext_map , func_map , pars_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[pars_map]]) }}
+  {{ hol ([[ext_map]], [[func_map]], [[pars_map]]) }}
 
 %TODO: Same as regular ctx?
 cctx {{ tex { \mathit{ctx}_\mathit{C} } }} :: cctx_ ::=
 {{ com control context }}
-{{ hol (ty_map # ext_map # func_map # tbl_map) }}
-| ( ty_map , ext_map , func_map , tbl_map ) :: M :: tup
+{{ hol (ext_map # func_map # tbl_map) }}
+| ( ext_map , func_map , tbl_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[tbl_map]]) }}
+  {{ hol ([[ext_map]], [[func_map]], [[tbl_map]]) }}
 
 % TODO: Could be just a type abbreviation?
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (ty_map # ext_map # func_map # tbl_map) }}
+{{ hol (ext_map # func_map # tbl_map) }}
 | empty :: M :: empty
   {{ com empty context }}
-  {{ hol (FEMPTY, FEMPTY, FEMPTY, FEMPTY) }}
-| ( ty_map , ext_map , func_map , tbl_map ) :: M :: tup
+  {{ hol (FEMPTY, FEMPTY, FEMPTY) }}
+| ( ext_map , func_map , tbl_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ty_map]], [[ext_map]], [[func_map]], [[tbl_map]]) }}
+  {{ hol ([[ext_map]], [[func_map]], [[tbl_map]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -1113,9 +1109,9 @@ formula :: formula_ ::=
   {{ hol ([[x]] = "start") }}
   {{ tex [[x]] = ``\mathit{start}" }}
   %Dummy to keep syntax highlighting from freaking out: "
-| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , scope ) :: M :: copyin_pbl
+| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope ) :: M :: copyin_pbl
   {{ com copy in to programmable blocks }}
-  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[scope]])) }}
+  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]])) }}
 | scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scopes_stack ) :: M :: copyin
   {{ com build new scope and copyin }}
   {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma} ) }}
@@ -1128,9 +1124,9 @@ formula :: formula_ ::=
   {{ com assign v to lval in the frame }}
   {{ hol (SOME [[scopes_stack']] = assign [[scopes_stack]] [[v]] [[lval]]) }}
   {{ tex [[scopes_stack']] = [[scopes_stack]] [ [[lval]] \longmapsto [[v]] ] }}
-| scope' = copyout_pbl ( scopes_stack , scope , d_list , ( x1 , .. , xn ) ) :: M :: copyout_pbl
+| ascope' = copyout_pbl ( scopes_stack , ascope , d_list , ( x1 , .. , xn ) ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
-  {{ hol (SOME [[scope']] = [[copyout_pbl]] ([[scopes_stack]], [[scope]], [[d_list]], [[x1 .. xn]])) }}
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scopes_stack]], [[ascope]], [[d_list]], [[x1 .. xn]])) }}
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
   {{ hol ([[stmt]] <> stmt_empty) }}
@@ -1148,15 +1144,15 @@ formula :: formula_ ::=
 | arch_block = ab_list [ i ] :: M :: ab_index
   {{ com ab at index i }}
   {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
-| scope' = ff ( scope ) :: M :: app_ff
+| ascope' = ff ( ascope ) :: M :: app_ff
   {{ com apply fixed function }}
-  {{ hol (SOME [[scope']] = [[ff]] ([[scope]]) ) }}
-| ( in_out_list' , scope' ) = input_f ( in_out_list , scope ) :: M :: input_f
+  {{ hol (SOME [[ascope']] = [[ff]] ([[ascope]]) ) }}
+| ( in_out_list' , ascope' ) = input_f ( in_out_list , ascope ) :: M :: input_f
   {{ com apply input function }}
-  {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[input_f]] ( [[in_out_list]] , [[scope]] ) ) }}
-| ( in_out_list' , scope' ) = output_f ( in_out_list , scope ) :: M :: output_f
+  {{ hol ( SOME ( [[in_out_list']] , [[ascope']] ) = [[input_f]] ( [[in_out_list]] , [[ascope]] ) ) }}
+| ( in_out_list' , ascope' ) = output_f ( in_out_list , ascope ) :: M :: output_f
   {{ com apply output function }}
-  {{ hol ( SOME ( [[in_out_list']] , [[scope']] ) = [[output_f]] ( [[in_out_list]] , [[scope]] ) ) }}
+  {{ hol ( SOME ( [[in_out_list']] , [[ascope']] ) = [[output_f]] ( [[in_out_list]] , [[ascope]] ) ) }}
 | status_not_fin status :: M :: not_final
   {{ com status is not final }}
   {{ hol (([[status]] <> status_pars_next (pars_next_pars_fin pars_finaccept)) /\ ([[status]] <> status_pars_next (pars_next_pars_fin pars_finreject))) }}
@@ -1968,16 +1964,16 @@ ctx g_scope_list scopes_stack ( var varn ) ~> ( v ,  empty )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scopes_stack )
 ----------------------------------- :: call_newframe
-( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( var star , [ ( funn , stmt , [ scope' ] ) ] )
+( ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( var star , [ ( funn , stmt , [ scope' ] ) ] )
 
 %Function call reduction of arguments
 [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , ext_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
-( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+( ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
 ----------------------------------- :: call_args
-( ty_map , ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , frame_list )
+( ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , frame_list )
 
 %Struct field access
 v = struct { f1 = v1 ; ... ; fn = vn } ( f )
@@ -2271,7 +2267,7 @@ by
   ctx ( g_scope_list , [ frame ] ++ frame_list'' , ctrl , status ) -> ( g_scope_list' , frame_list' ++ frame_list'' , ctrl' , status' )
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
+  ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
   scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , star )
   g_scope = scopes_stack'' [0]
   g_scope' = scopes_stack'' [1]
@@ -2279,7 +2275,7 @@ by
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , ext_map )
   ( g_scope_list' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ g_scope ; g_scope' ] , scopes_stack''' , scopes_stack )
   ----------------------------------- :: comp2
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( funn' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list' , [ ( funn' , stmt' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
+  ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( funn' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list' , [ ( funn' , stmt' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
 
 
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
@@ -2388,21 +2384,21 @@ by
   tbl_map ( tbl ) = ( e' , mk )
   ctrl ( tbl , v , mk ) = ( f , ( v1 , .. , vn ) )
   ----------------------------------- :: apply_table_v
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vn ) ) , scopes_stack ) ] , ctrl , Running )
+  ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vn ) ) , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
 %Return
 
   ----------------------------------- :: return_v
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , return v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl , Ret v )
+  ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , return v , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl , Ret v )
 
 %%%%%%%%%%%%%%
 %Extern
   ext_fun = lookup_ext_fun ( funn , ext_map )
   ( g_scope_list' , scopes_stack' , ctrl' ) = ext_fun ( g_scope_list , scopes_stack , ctrl )
   ----------------------------------- :: ext
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , ext , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl' , Running )
+  ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , ext , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl' , Running )
  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2473,20 +2469,20 @@ by
 
 %This rule describes how individual statement steps are taken inside the parser
   parser_not_finished frame_list
-  (ty_map, ext_map, func_map, empty) ( g_scope_list , frame_list , ctrl, Running ) -> state'
+  (ext_map, func_map, empty) ( g_scope_list , frame_list , ctrl, Running ) -> state'
   ------------------------------------------------- :: stmt
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> state'
+  (ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> state'
 
 %This rule governs transitions between parser states
 %TODO: OK if function name is set to parser state name?
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Trans x ) -p-> ( g_scope_list , [ ( x , stmt'' , [ emptyscope ] ) ] , ctrl, Running )
+  (ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Trans x ) -p-> ( g_scope_list , [ ( x , stmt'' , [ emptyscope ] ) ] , ctrl, Running )
 
 %If the end of some parser state is reached without status change, we reject
   x = "reject"
   ------------------------------------------------- :: empty
-  (ty_map, ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list , [ ( funn , transition x , scopes_stack ) ] , ctrl, Running )
+  (ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , empty_stmt , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list , [ ( funn , transition x , scopes_stack ) ] , ctrl, Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2501,9 +2497,9 @@ defn
   {{ tex [[cctx]] \vdash [[state]] {\longrightarrow}_{c} [[state']] }}
 by
 
-  (ty_map, ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -> ( g_scope_list' , frame_list' , ctrl', status' )
+  (ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -> ( g_scope_list' , frame_list' , ctrl', status' )
   ------------------------------------------------- :: stmt
-  (ty_map, ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -c-> ( g_scope_list' , frame_list' , ctrl', status' )
+  (ext_map, func_map, tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -c-> ( g_scope_list' , frame_list' , ctrl', status' )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Architectural-level semantics %
@@ -2521,9 +2517,9 @@ by
 %Four different phases: Input, programmable block, fixed-function block and output.
 
   inp = ab_list [ i ]
-  ( in_out_list'' , scope' ) = input_f ( in_out_list , scope )
+  ( in_out_list'' , ascope' ) = input_f ( in_out_list , ascope )
   ----------------------------------- :: in
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i + 1 , false , in_out_list'' , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i + 1 , false , in_out_list'' , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 %The "programmable block" phase can initiate execution of either a parser block or a control block
 
@@ -2534,7 +2530,7 @@ by
   x = "start"
   stmt' = pars_map ( x )
 %  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
-  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , scope )
+  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
   g_scope'' = g_scope_list [0]
   g_scope_list' = [g_scope'']' ++ [ scope' ]
   v = errmsg "NoError"
@@ -2542,30 +2538,30 @@ by
   g_scope_list'' = initialise ( g_scope_list' , x' , v )
   %TODO: Model arch scope external to the P4 program using the call stack?
   ----------------------------------- :: parser_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list'' , [ ( f , stmt ; stmt' , emptyss ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , ascope ) , g_scope_list'' , [ ( f , stmt ; stmt' , emptyss ) ] , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
   %TODO: Should you also be able to read from the global scope?
-  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , scope )
+  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
   g_scope'' = g_scope_list [0]
   g_scope_list' = [g_scope'']' ++ [ scope' ]
   %TODO: Model pseudo-scope external to the P4 program using the call stack?
   ----------------------------------- :: control_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , [ ( f , stmt ; stmt' , emptyss ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , stmt ; stmt' , emptyss ) ] , ctrl , Running )
 
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
-  scope' = ff ( scope )
+  ascope' = ff ( ascope )
   ----------------------------------- :: ffbl
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
   out = ab_list [ i ]
-  ( in_out_list'' , scope' ) = output_f ( in_out_list' , scope )
+  ( in_out_list'' , ascope' ) = output_f ( in_out_list' , ascope )
   ----------------------------------- :: out
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( 0 , false , in_out_list , in_out_list'' , scope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( 0 , false , in_out_list , in_out_list'' , ascope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 
 
@@ -2577,16 +2573,16 @@ by
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( x )
   status_not_fin status
-  ( ty_map , ext_map , func_map , pars_map ) ( g_scope_list , frame_list , ctrl , status ) -p-> ( g_scope_list' , frame_list' , ctrl' , status' )
+  ( ext_map , func_map , pars_map ) ( g_scope_list , frame_list , ctrl , status ) -p-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: parser_exec
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , frame_list , ctrl , status ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , frame_list' , ctrl' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , status ) -'> ( ( i , true , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , ctrl' , status' )
 
 %Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( x )
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -c-> ( g_scope_list' , frame_list' , ctrl' , status' )
+  ( ext_map , func_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -c-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: control_exec
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list , frame_list , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , scope ) , g_scope_list' , frame_list' , ctrl' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Running ) -'> ( ( i , true , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , ctrl' , status' )
 
 %... until execution using the regular statement semantics has finished
 
@@ -2596,22 +2592,23 @@ by
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope
-  scope' = copyout_pbl ( [ g_scope ; g_scope' ] , scope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
-  lval = "parseError"
-  x = "parseError"
-  v = lookup_vexp ( [ g_scope ; g_scope' ] , x )
-  [ scope'' ] = assign ( [ scope' ] , v , lval )
+  ascope' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+%TODO Fix parseError copyou with new ascope
+%  lval = "parseError"
+%  x = "parseError"
+%  v = lookup_vexp ( [ g_scope ; g_scope' ] , x )
+%  [ scope'' ] = assign ( [ scope' ] , v , lval )
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: parser_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , pars_fin ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , scope'' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , pars_fin ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , ascope' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope
-  scope' = copyout_pbl ( [ g_scope ; g_scope' ] , scope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
+  ascope' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   ----------------------------------- :: control_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ty_map , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , scope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , Ret v ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , scope' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , true , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , Ret v ) -'> ( ( i + 1 , false , in_out_list , in_out_list' , ascope' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
@@ -2626,7 +2623,7 @@ by
 %  ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock )
 %  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
 %  e = [ e1 , .. , en ] [ i' ]
-%  ( ty_map , ext_map , func_map , empty ) g_scope_list [ scope ] ( e ) ~> ( e' , empty )
+%  ( ext_map , func_map , empty ) g_scope_list [ scope ] ( e ) ~> ( e' , empty )
 %  [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
 %  ----------------------------------- :: pblock_args
-%  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ty_map , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 , .. , en ) , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope' ) , g_scope_list , pbl_call f ( e'1 , .. , e'n ) , ctrl , Running )
+%  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 , .. , en ) , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope' ) , g_scope_list , pbl_call f ( e'1 , .. , e'n ) , ctrl , Running )

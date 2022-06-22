@@ -36,6 +36,12 @@ val vss_input_f = ``vss_input_f``;
 (* Output function term *)
 val vss_output_f = ``vss_output_f``;
 
+(* Programmable block input function term *)
+val vss_copyin_pbl = ``vss_copyin_pbl``;
+
+(* Programmable block output function term *)
+val vss_copyout_pbl = ``vss_copyout_pbl``;
+
 (* Fixed-function block map *)
 val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runtime)
                                |+ ("pre_deparser", ffblock_ff vss_pre_deparser)``;
