@@ -416,7 +416,6 @@ The statement semantics unique to the control block is shown in Figure~\ref{fig:
 \newcommand{\ffbm}{\ensuremath{B_{ \mathit{ff}}}}
 \newcommand{\aenv}{\ensuremath{\mathit{env}_\mathit{A}}}
 \subsection{Architecture-Level Semantics}
-
 The architecture-level semantics is the topmost-level semantics, and it describes the entirety of the P4 pipeline from input packets to output packets. The judgment form, shown in Figure~\ref{fig:semarch}, consists of multiple components: starting from the left, an \emph{architectural context} \actx{} on the left-hand side of the turnstile, which contains the following:
 \begin{enumerate}
 \item The \emph{architectural block list} \abl{}: the architectural block represents one of the four fundamental stages in a P4-compatible architecture. First, there are the input (\textbf{inp}) and output (\textbf{out}) stages: these stages are just translators between the P4 input packet format and the general I/O format consisting of a list of ports, each with pending packets to be arbitrated/sent off. The demux block functionality may be modeled as part of the output stage, or it may be its own fixed-function block preceding the output stage. Second, there are the programmable blocks - parser blocks and control blocks, which are described in more detail elsewhere in this document, as well as the fixed-function blocks. Fixed-function blocks can be thought of as analoguous to extern calls, but on the architectural level. They perform the parts of the functionality of the P4-programmable network element that is not written in the P4 language.
@@ -451,8 +450,7 @@ The rules of the architecture-level semantics can be divided into several catego
 \begin{minipage}{\linewidth}
 \begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash [  \ottnt{arch\_stmt}  ] (  { \mathit{env}_\mathit{A} }  ,  \sigma  ,  t  ) {\longrightarrow}_{A} [  \ottnt{arch\_stmt'}  ] (  { \mathit{env}_\mathit{A} }' ,  \sigma'  ,  t'  ) $}{\ottcom{architecture-level semantics}}
 \ottusedrule{\ottdrulearchXXin{}}
-\ottusedrule{\ottdrulearchXXpblXXcall{}}
-%\ottusedrule{\ottdrulearchXXffblXXcall{}}
+\ottusedrule{\ottdrulearchXXffbl{}}
 \ottusedrule{\ottdrulearchXXout{}}
 \ottusedrule{\ottdrulearchXXparserXXinit{}}
 \ottusedrule{\ottdrulearchXXcontrolXXinit{}}
@@ -460,7 +458,6 @@ The rules of the architecture-level semantics can be divided into several catego
 \ottusedrule{\ottdrulearchXXcontrolXXexec{}}
 \ottusedrule{\ottdrulearchXXparserXXret{}}
 \ottusedrule{\ottdrulearchXXcontrolXXret{}}
-%\ottusedrule{\ottdrulearchXXffblockXXexec{}}
 \end{ottdefnblock}
 \end{minipage}
 }
@@ -497,13 +494,13 @@ The binary expressions included are shown in Figure~\ref{fig:unop}. These includ
 
 \section{Semantics of Expression Reduction}
 \label{app:exp}
-This appendix describes semantics for reducing expressions in certain contexts. The expression semantics are shown in Figure~\ref{fig:semexp2}. The statement semantics are shown in Figure~\ref{fig:semstmt2}. The architecture semantics are shown in Figure~\ref{fig:semarch2}.
+This appendix describes semantics for reducing expressions in certain contexts. The expression semantics are shown in Figure~\ref{fig:semexp2}. The statement semantics are shown in Figure~\ref{fig:semstmt2}.
 
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
 %\ottusedrule{\ottdruleeXXfuncXXcallXXargs{}}
-\ottusedrule{\ottdruleeXXaccXXargTwo{}}
-\ottusedrule{\ottdruleeXXaccXXargOne{}}
+%\ottusedrule{\ottdruleeXXaccXXargTwo{}}
+%\ottusedrule{\ottdruleeXXaccXXargOne{}}
 \ottusedrule{\ottdruleeXXselXXarg{}}
 \ottusedrule{\ottdruleeXXunopXXarg{}}
 \ottusedrule{\ottdruleeXXbinopXXargOne{}}
@@ -527,15 +524,6 @@ The \textsc{e\_func\_call\_args} rule reduces the leftmost function argument whi
 \end{ottdefnblock}
 \caption{Statement Reduction-of-Argument Semantics}
 \label{fig:semstmt2}
-\end{figure}
-
-\begin{figure}[ht!]
-\begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash  { \mathit{env}_\mathit{A} }   \mathit{ctx}  [  \ottnt{stmt}  ] (  \sigma  ,  t  ) \rightharpoonup  { \mathit{env}_\mathit{A} }'   \mathit{ctx}'  [  \ottnt{stmt'}  ] (  \sigma'  ,  t'  ) $}{\ottcom{architectural-level semantics}}
-\ottusedrule{\ottdrulearchXXpblockXXargs{}}
-%\ottusedrule{\ottdrulearchXXffblockXXargs{}}
-\end{ottdefnblock}
-\caption{Architecture Reduction-of-Argument Semantics}
-\label{fig:semarch2}
 \end{figure}
 
 \end{document}
