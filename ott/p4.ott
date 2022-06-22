@@ -710,8 +710,6 @@ arch_frame_list :: arch_frame_list_ ::=
   {{ com empty architecture-level frame list }}
 | frame_list :: :: regular
   {{ com regular frame list }}
-| pbl_call f ( e1 , .. , en ) :: :: pbl_call
-  {{ com programmable block call }}
 
 pblock {{ tex { \mathit{ pblock } } }} :: pblock_ ::=
 {{ com programmable block }}
@@ -2564,9 +2562,6 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( 0 , false , in_out_list , in_out_list'' , ascope' ) , g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 
-
-
-
 %The "programmable block" execution phase then follows the semantics for a parser or control, respectively...
 
 %Note that this rule needs to check that execution is actually inside a parser block to remove ambiguity
@@ -2613,17 +2608,3 @@ by
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
 %      	    Set status to Ended? Then all rules would need to exclude having the Ended status
-
-%"Reduction of argument" rules
-
-%Note that the use of "args_of_pbl" is to avoid having two separate rules for parser and control
-%TODO: Restrict the expression evaluation to just lookup?
-%NOTE: These rules already disallow function calls, because of the shape of the RHS of the expression reductions
-%  pblock = pblock_map ( f )
-%  ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock )
-%  unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i'
-%  e = [ e1 , .. , en ] [ i' ]
-%  ( ext_map , func_map , empty ) g_scope_list [ scope ] ( e ) ~> ( e' , empty )
-%  [ e'1 , .. , e'n ] =' update ( e' , i' , [ e1 , .. , en ] )
-%  ----------------------------------- :: pblock_args
-%  ( ab_list , pblock_map , ffblock_map , input_f , output_f , ext_map , func_map ) ( ( i , false , in_out_list , in_out_list' , scope ) , g_scope_list , pbl_call f ( e1 , .. , en ) , ctrl , Running ) -'> ( ( i , false , in_out_list , in_out_list' , scope' ) , g_scope_list , pbl_call f ( e'1 , .. , e'n ) , ctrl , Running )

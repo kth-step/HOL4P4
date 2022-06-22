@@ -162,6 +162,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\stacks}{\ensuremath{\sigma}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
+\newcommand{\gscopel}{\ensuremath{\bar{\gamma}_L}}
 \newcommand{\escope}{\ensuremath{{\gamma}_{\emptyset}}}
 \newcommand{\cstack}{E}
 \newcommand{\status}{\ensuremath{t}}
@@ -416,25 +417,31 @@ The statement semantics unique to the control block is shown in Figure~\ref{fig:
 \newcommand{\ffbm}{\ensuremath{B_{ \mathit{ff}}}}
 \newcommand{\aenv}{\ensuremath{\mathit{env}_\mathit{A}}}
 \subsection{Architecture-Level Semantics}
-The architecture-level semantics is the topmost-level semantics, and it describes the entirety of the P4 pipeline from input packets to output packets. The judgment form, shown in Figure~\ref{fig:semarch}, consists of multiple components: starting from the left, an \emph{architectural context} \actx{} on the left-hand side of the turnstile, which contains the following:
+The architecture-level semantics is the topmost-level semantics, and it describes the entirety of the P4 pipeline from input packets to output packets. The judgment form, shown at the top of Figure~\ref{fig:semarch}, consists of multiple components: starting from the left, an \emph{architectural context} \actx{} on the left-hand side of the turnstile (contains everything which can not change between reductions), which contains the following:
 \begin{enumerate}
-\item The \emph{architectural block list} \abl{}: the architectural block represents one of the four fundamental stages in a P4-compatible architecture. First, there are the input (\textbf{inp}) and output (\textbf{out}) stages: these stages are just translators between the P4 input packet format and the general I/O format consisting of a list of ports, each with pending packets to be arbitrated/sent off. The demux block functionality may be modeled as part of the output stage, or it may be its own fixed-function block preceding the output stage. Second, there are the programmable blocks - parser blocks and control blocks, which are described in more detail elsewhere in this document, as well as the fixed-function blocks. Fixed-function blocks can be thought of as analoguous to extern calls, but on the architectural level. They perform the parts of the functionality of the P4-programmable network element that is not written in the P4 language.
-\item The \emph{programmable block map} \pbm{}, which is a map between names of programmable blocks (strings) and the necessary information required to execute the block in question. For parser blocks, this is the list of directed parameters and the parser state map $P$ between parser state names and their bodies (statements). For programmable blocks, this is the body of the control block (found in the topmost apply statement), the list of directed parameters and a table map $\mathit{Tb}$ between names of tables and tuples of expressions and matching kinds.
-\item The \emph{programmable block map} \ffbm{}, which is a map between names of fixed-function blocks and their lists of directed parameters, as well as the implementation of the fixed fiunction itself - this is a function between an expression list (arguments), the architectural scope, and the current frame to an updated architectural scope and current frame.
-\item The \emph{input function} $f_{ \mathit{in} }$ and the output function $f_{ \mathit{out} }$, which are both functions from the IO list and the architectural scope to an updates IO list and architectural scope.
-\item The \emph{type map} $\mathit{Ty}$, which is a (currently unused) map from names of types to their actual types.
-\item The \emph{extern map} $X$, which is a map from extern names (strings) to tuples of extern functions (functions from tuples of lvals, arguments and states to option types of values and states) and their directed parameter lists. Note that that since the state contains the control plane configuration, extern functions may modify it.
-\item The \emph{function map} $F$, which is a map from function names (strings) to tuples of function bodies (statements) and their directed parameter lists.
+\item The \emph{architectural block list} \abl{}: an architectural block represents a stage of packet processing. There are four fundamental stages of packet processing in a P4-compatible architecture. First, there are the input (\textbf{inp}) and output (\textbf{out}) stages: these stages just perform translation between the architectural packet format and the generic I/O format (consisting of a list of ports, each with pending packets to be arbitrated/sent off\todo{DL: This currently just a list, not a list of lists. Fix the Ott+HOL4, then \aenv{} below to agree with the description here.})\footnote{The demux block functionality may be modeled as part of the output stage, or it may be its own fixed-function block preceding the output stage}. Second, there are the programmable blocks (parser blocks and control blocks, which are described in more detail elsewhere in this document) and the fixed-function blocks. Fixed-function blocks, like their name implies, perform the parts of packet processing in the P4-programmable network element that are actually not P4-programmable.
+\item The \emph{programmable block map} \pbm{}, which is a partial map between names of programmable block names (strings) and the all necessary items that model the block in question. For parser blocks, this is the list of directed parameters, a statement representing the declarations and instantiations done at the block-global level, and the parser state map $P$ between parser state names and their bodies (statements)\footnote{Note that \pfott{} represents all parser state bodies as encased in a block}. For control blocks, this is the list of directed parameters, a statement representing the declarations and instantiations done at the block-global level, the body of the control block (found in the topmost apply statement)\footnote{Note that \pfott{} represents the content of the apply as encased in a block} and a table map $\mathit{Tb}$ between names of tables and tuples of expressions and matching kinds.
+\item The \emph{fixed-function block map} \ffbm{}, which is a partial map between names of fixed-function blocks to the implementation of the fixed function itself - this is a partial function that maps the architectural scope to an updated architectural scope.\todo{DL: Why not include control plane configuration?}
+\item The \emph{input function} $f_{ \mathit{in} }$ and the \emph{output function} $f_{ \mathit{out} }$, which are both partial functions from the IO list and the architectural scope to an updated IO list and architectural scope. They are used in the input and output stages. 
+\item The \emph{programmable block copy-in function} $\mathit{copyin}_{ \mathit{pbl} }$ and the \emph{programmable block copy-out function} $\mathit{copyout}_{ \mathit{pbl} }$: $\mathit{copyin}_{ \mathit{pbl} }$ is a partial function from a list of directed arguments, a list of expressions and the architectural scope to a scope (the block-global scope of the programmable block). $\mathit{copyout}_{ \mathit{pbl} }$ is a partial function from the global scopes list, a list of directed arguments and the architectural scope to an updated architectural scope.
+\item The \emph{extern object map} $X$, which is a partial map from extern object names to tuples of extern function maps (a map holding the extern functions of the object: tuples of directed parameter lists, function bodies, and the extern implementation), and an optional constructor (holding a tuple same as that of the extern function map).
+\item The \emph{function map} $F$, which is a partial map from function names to tuples of function bodies (statements) and their directed parameter lists.
 \end{enumerate}
-The architectural context contains everything which can not change between reductions.
 
-The left-hand and right-hand sides of the reduction both consist of an \emph{architectural statement} and an \emph{architectural environment} \aenv{}, which may change between reductions. The architectural statement is either a regular statement as defined above, or a programmable or fixed-function block call which both take lists of directed parameters and function names. \aenv has five components:
+The left-hand and right-hand sides of the reduction both have the same elements.
+\begin{enumerate}
+\item The \emph{architectural environment} \aenv{} has five components:
 \begin{enumerate}
 \item The \emph{architectural block index}: This is an index which informs us of which architectural block in \abl{} is currently being reduced.
-\item The \emph{in-progress flag}, which is a Boolean telling us whether a programmable block is currently being executed (as opposed to returning or being initialised) or not.
+\item The \emph{in-progress flag}, which is a Boolean telling us whether a programmable block is currently being reduced (as opposed to returning or being initialised) or not.\todo{DL: This might not be necessary now. Try to fix the Ott+HOL4 to remove this.}
 \item The \emph{input list}, which is a list of incoming packets (represented as tuples of lists of Booleans and numbers signifying input ports)
 \item The \emph{output list}, which is the same as the input list, but used for output.
-\item The \emph{architectural scope}, which is of the same type as the regular scope, but used for storing values in-between non-adjacent blocks.
+\item The \emph{architectural scope}, which is of polymorphic type, and is used for storing things in-between the programmable blocks, as well as things that are not accessible directly by P4 code.
+\end{enumerate}
+\item The global scope list \gscopel{} containing the top-level global scope with constants common to all programmable blocks as well as the block-global scope containing variables declared at the start of progrmamable blocks.
+\item The \emph{architecture-level frame list}: this contains either a regular frame list, or a special empty architecture-level frame list (\textbf{arch\_frame\_list\_empty}).\todo{DL: Why does this exist as a special type?}
+\item The control-plane configuration $C$, a partial function from strings, values and match kinds to tuples of strings and expression lists.
+\item The status, which (other than the functionality on other levels of the semantics) informs us of whether a parser  state machine is finished, or the apply of a control block is finished.
 \end{enumerate}
 
 The rules of the architecture-level semantics can be divided into several categories:
@@ -446,19 +453,25 @@ The rules of the architecture-level semantics can be divided into several catego
 \end{enumerate}
 
 \begin{figure}[ht!]
-\resizebox{.7\linewidth}{!}{
+%\resizebox{.7\linewidth}{!}{
+%\begin{minipage}{\linewidth}
+%\begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash [  \ottnt{arch\_stmt}  ] (  { \mathit{env}_\mathit{A} }  ,  \sigma  ,  t  ) {\longrightarrow}_{A} [  \ottnt{arch\_stmt'}  ] (  { \mathit{env}_\mathit{A} }' ,  \sigma'  ,  t'  ) $}{\ottcom{architecture-level semantics}}
+%\ottusedrule{\ottdrulearchXXin{}}
+%\ottusedrule{\ottdrulearchXXffbl{}}
+%\ottusedrule{\ottdrulearchXXout{}}
+%\ottusedrule{\ottdrulearchXXparserXXinit{}}
+%\ottusedrule{\ottdrulearchXXcontrolXXinit{}}
+%\ottusedrule{\ottdrulearchXXparserXXexec{}}
+%\ottusedrule{\ottdrulearchXXcontrolXXexec{}}
+%\ottusedrule{\ottdrulearchXXparserXXret{}}
+%\ottusedrule{\ottdrulearchXXcontrolXXret{}}
+%\end{ottdefnblock}
+%\end{minipage}
+
+%}
+\resizebox{.58\linewidth}{!}{
 \begin{minipage}{\linewidth}
-\begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash [  \ottnt{arch\_stmt}  ] (  { \mathit{env}_\mathit{A} }  ,  \sigma  ,  t  ) {\longrightarrow}_{A} [  \ottnt{arch\_stmt'}  ] (  { \mathit{env}_\mathit{A} }' ,  \sigma'  ,  t'  ) $}{\ottcom{architecture-level semantics}}
-\ottusedrule{\ottdrulearchXXin{}}
-\ottusedrule{\ottdrulearchXXffbl{}}
-\ottusedrule{\ottdrulearchXXout{}}
-\ottusedrule{\ottdrulearchXXparserXXinit{}}
-\ottusedrule{\ottdrulearchXXcontrolXXinit{}}
-\ottusedrule{\ottdrulearchXXparserXXexec{}}
-\ottusedrule{\ottdrulearchXXcontrolXXexec{}}
-\ottusedrule{\ottdrulearchXXparserXXret{}}
-\ottusedrule{\ottdrulearchXXcontrolXXret{}}
-\end{ottdefnblock}
+\ottdefnsarchXXsem
 \end{minipage}
 }
 \caption{Architecture-Level Semantics}
