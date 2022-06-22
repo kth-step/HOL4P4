@@ -348,7 +348,7 @@ EVAL ``arch_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate)``;
 (* Multiple reductions: *)
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
-(* In V2, this ends at 217 steps for TTL=1 in input *)
+(* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (* TODO: Make "exec arch block" function *)
 
@@ -370,10 +370,35 @@ eval_and_print_rest vss_actx init_astate 2;
 (* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
 eval_and_print_rest vss_actx init_astate 69;
 
-(* arch_parser_ret: parsedHeaders copied out to arch scope *)
+(* arch_parser_ret: parseError and parsedHeaders copied out to arch scope *)
 eval_and_print_aenv vss_actx init_astate 70;
 
-EVAL ``arch_multi_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate) 70``;
+(* arch_ffbl: Parser Runtime *)
+eval_and_print_aenv vss_actx init_astate 71;
+
+(* arch_control_init: arguments read into pbl-global scope, frame initialised *)
+eval_and_print_rest vss_actx init_astate 72;
+
+(* arch_control_exec: *)
+eval_and_print_aenv vss_actx init_astate 146;
+
+(* arch_control_ret: outCtrl written to arch scope *)
+eval_and_print_aenv vss_actx init_astate 147;
+
+(* arch_ffbl: pre-Deparser *)
+eval_and_print_aenv vss_actx init_astate 148;
+
+(* arch_control_init: arguments read into pbl-global scope, frame initialised *)
+eval_and_print_rest vss_actx init_astate 149;
+
+(* arch_control_exec *)
+eval_and_print_rest vss_actx init_astate 208;
+
+(* arch_control_ret: p written to arch scope *)
+eval_and_print_aenv vss_actx init_astate 209;
+
+(* arch_out: output read into output stream *)
+eval_and_print_aenv vss_actx init_astate 210;
 
 (* TODO: Fix up the below and add to CI *)
 (*
