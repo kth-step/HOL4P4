@@ -10,7 +10,7 @@ docs/semantics/p4_defs.tex: ott/p4.ott
 	ott -o $@ -tex_wrap false $<
 
 docs/semantics/main.pdf: docs/semantics/p4_defs.tex docs/semantics/main.tex docs/semantics/p4.bib
-	cd docs/semantics && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
+	cd docs/semantics && latexmk -pdf main.tex
 
 clean:
 	rm -f docs/semantics/p4_defs.tex hol/p4Script.sml

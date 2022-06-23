@@ -303,7 +303,7 @@ val init_scope_ok = ``(FEMPTY |+ (varn_name "inCtrl", (v_struct [("inputPort", v
  * Input list contains only some OK input at port 1,
  * Output list is empty,
  * Scope is empty. *)
-val init_aenv = pairSyntax.list_mk_pair [``0``, F, init_inlist_ok, init_outlist_ok, ``(^init_scope_ok)``];
+val init_aenv = pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_scope_ok)``];
 
 (* Note: this is a really primitive representation of what
  * the control plane configuration might be *)

@@ -1641,7 +1641,7 @@ val ctrl_exec_def = Define `
   else
    SOME (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running)
  ) /\
-*) 
+*)
  (ctrl_exec cctx (g_scope_list, frame_list, ctrl, status_running) =
   (case stmt_exec cctx (g_scope_list, frame_list, ctrl, status_running) of
    | SOME (g_scope_list', frame_list', ctrl', status_running) =>
@@ -1675,40 +1675,26 @@ val arch_exec_def = Define `
  (arch_exec (actx:'a actx) ((aenv:'a aenv), (g_scope_list:g_scope_list) , (arch_frame_list:arch_frame_list) , (ctrl:ctrl), status_type_error) = NONE) /\
  (* arch_parser_ret: Note that this is a different clause from arch_control_ret due to the status *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, b, in_out_list, in_out_list', scope), g_scope_list,
+            ((i, in_out_list, in_out_list', scope), g_scope_list,
              (arch_frame_list_regular [(funn, stmt, scopes_stack)]), ctrl,
              (status_pars_next (pars_next_pars_fin pars_fin))) =
-  if b /\ (is_empty stmt) then
+  if (is_empty stmt) then
    (case EL i ab_list of
     | (arch_block_pbl x el) =>
      (case FLOOKUP pblock_map x of
       | SOME (pblock_parser x_d_list stmt pars_map) =>
-(* TODO: Why no scopes_stack from frame_list after global scopes? *)
 (* TODO: Note that this function will always copy out parseError from a parser. Unclear if this is intended in the spec. *)
        (case copyout_pbl ((g_scope_list++scopes_stack), scope, (d_out::(MAP SND x_d_list)), ("parseError"::(MAP FST x_d_list))) of
         | SOME scope' =>
-(* TODO: Fix assignment of parseError
-         (case lookup_vexp (g_scope_list++scopes_stack) (varn_name "parseError") of
-          | SOME v =>
-           (case assign [scope'] v (lval_varname (varn_name "parseError")) of
-            | SOME [scope''] =>
-             SOME ((i+1, F, in_out_list, in_out_list', scope''), TAKE 1 g_scope_list,
+             SOME ((i+1, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
                    arch_frame_list_empty, ctrl, status_running)
-*)
-(* TODO: Temporary version: *)
-             SOME ((i+1, F, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
-                   arch_frame_list_empty, ctrl, status_running)
-(*
-            | _ => NONE)
-          | _ => NONE)
-*)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
    else NONE)
  /\
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, T, in_out_list, in_out_list', scope), g_scope_list,
+            ((i, in_out_list, in_out_list', scope), g_scope_list,
              (arch_frame_list_regular [(funn, stmt_empty, scopes_stack)]), ctrl, status_running) =
  (* arch_control_ret *)
   (case EL i ab_list of
@@ -1717,7 +1703,7 @@ val arch_exec_def = Define `
      | SOME (pblock_control x_d_list stmt stmt' tbl_map) =>
       (case copyout_pbl (g_scope_list, scope, (MAP SND x_d_list), (MAP FST x_d_list)) of
        | SOME scope' =>
-        SOME ((i+1, F, in_out_list, in_out_list', scope'), (TAKE 1 g_scope_list),
+        SOME ((i+1, in_out_list, in_out_list', scope'), (TAKE 1 g_scope_list),
                arch_frame_list_empty, ctrl, status_running)
        | _ => NONE)
      | _ => NONE)
@@ -1725,14 +1711,14 @@ val arch_exec_def = Define `
  )
  /\
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, F, in_out_list, in_out_list', scope), g_scope_list,
+            ((i, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_empty, ctrl, status_running) =
   (case EL i ab_list of
    (* arch_in *)
    | arch_block_inp =>
     (case input_f (in_out_list, scope) of
      | SOME (in_out_list'', scope') => 
-      SOME ((i+1, F, in_out_list'', in_out_list', scope'), g_scope_list, arch_frame_list_empty,
+      SOME ((i+1, in_out_list'', in_out_list', scope'), g_scope_list, arch_frame_list_empty,
              ctrl, status_running)
      | NONE => NONE)
    | (arch_block_pbl x el) =>
@@ -1741,7 +1727,7 @@ val arch_exec_def = Define `
      | SOME (pblock_control x_d_list stmt stmt' tbl_map) =>
         (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
          | SOME scope' =>
-          SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
+          SOME ((i, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
                 arch_frame_list_regular [(funn_name x, stmt_seq stmt stmt', [])], ctrl, status_running)
          | _ => NONE)
      (* arch_parser_init *)
@@ -1751,7 +1737,7 @@ val arch_exec_def = Define `
           (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
            | SOME scope' =>
             (let block_global_scope = FUPDATE scope' (varn_name "parseError", (v_err "NoError", SOME (lval_varname (varn_name "parseError")))) in
-              SOME ((i, T, in_out_list, in_out_list', scope), (g_scope_list++[block_global_scope]),
+              SOME ((i, in_out_list, in_out_list', scope), (g_scope_list++[block_global_scope]),
                     arch_frame_list_regular [(funn_name x, stmt_seq stmt stmt', [])], ctrl, status_running))
            | NONE => NONE)
          | NONE => NONE)
@@ -1762,14 +1748,14 @@ val arch_exec_def = Define `
      | SOME (ffblock_ff ff) =>
       (case ff scope of
        | SOME scope' =>
-        SOME ((i+1, F, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, ctrl, status_running)
+        SOME ((i+1, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, ctrl, status_running)
        | NONE => NONE)
      | NONE => NONE)
    (* arch_out *)
    | arch_block_out =>
     (case output_f (in_out_list', scope) of
      | SOME (in_out_list'', scope') =>
-      SOME ((0, F, in_out_list, in_out_list'', scope'), g_scope_list, arch_frame_list_empty, ctrl,
+      SOME ((0, in_out_list, in_out_list'', scope'), g_scope_list, arch_frame_list_empty, ctrl,
             status_running)
      | NONE => NONE)
   )
@@ -1777,19 +1763,19 @@ val arch_exec_def = Define `
 /\
  (* Operating on any other statement: arch_parser_exec, arch_control_exec *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, T, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular frame_list), ctrl, status) =
+            ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular frame_list), ctrl, status) =
   (case EL i ab_list of
    | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
      | SOME (pblock_parser x_d_list stmt'' pars_map) =>
       (case pars_exec (ext_map, func_map, pars_map) (g_scope_list, frame_list, ctrl, status) of
        | SOME (g_scope_list', frame_list', ctrl', status') =>
-        SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
+        SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
        | _ => NONE)
      | SOME (pblock_control x_d_list stmt'' stmt''' tbl_map) =>
       (case ctrl_exec (ext_map, func_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
        | SOME (g_scope_list', frame_list', ctrl', status') =>
-        SOME ((i, T, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
+        SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
