@@ -35,54 +35,65 @@ val specl_stmt_block_exec_empty =
 val specl_stmt_block_exec_sing =
  SIMP_RULE list_ss [] (ISPECL [``ctx:ctx``, ``g_scope_list:g_scope_list``, ``funn:funn``, ``s:stmt``, ``scopes_stack:scopes_stack``, ``ctrl:ctrl``, ``status_running``, ``g_scope_list':g_scope_list``, ``[h]:frame_list``] ((valOf o find_clause_stmt_red) "stmt_block_exec"))
 ;
+*)
 
-Theorem stmt_block_ip_exec_sound_red:
-!s.
-stmt_exec_sound s ==>
-stmt_exec_sound (stmt_block_ip s)
+Theorem stmt_ext_exec_sound_red:
+stmt_exec_sound stmt_ext
 Proof
 fs [stmt_exec_sound] >>
-REPEAT STRIP_TAC >>
-pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rpt strip_tac >>
 Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
-Cases_on `is_empty s` >> (
+pairLib.PairCases_on `ctx` >>
+rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+fs [stmt_exec] >>
+Cases_on `lookup_ext_fun funn ext_map` >> (
  fs []
-) >- (
- (* stmt_block_exit *)
- Cases_on `s` >> (
-  fs [is_empty]
- ) >>
- METIS_TAC [((valOf o find_clause_stmt_red) "stmt_block_exit"), clause_name_def]
 ) >>
-Cases_on `stmt_exec ctx (g_scope_list,[(funn,s,scopes_stack)],ctrl,status_running)` >> (
+Cases_on `x (g_scope_list,scopes_stack,ctrl)` >> (
+ fs []
+) >>
+pairLib.PairCases_on `x'` >>
+fs [] >>
+METIS_TAC [(valOf o find_clause_stmt_red) "stmt_ext", clause_name_def]
+QED
+
+Theorem stmt_ret_exec_sound_red:
+!e.
+ e_exec_sound e ==>
+ stmt_exec_sound (stmt_ret e)
+Proof
+fs [stmt_exec_sound, e_exec_sound] >>
+rpt strip_tac >>
+Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
-PairCases_on `x` >>
-fs [] >>
-Cases_on `x1` >> (
- fs []
-) >>
-Cases_on `t` >> (
+Cases_on `get_v e` >> (
  fs []
 ) >| [
- PairCases_on `h` >> (
+ Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
   fs []
  ) >>
- rw [] >>
- METIS_TAC [specl_stmt_block_exec_empty, clause_name_def],
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ METIS_TAC [(valOf o find_clause_stmt_red) "stmt_ret_e", clause_name_def],
 
- Cases_on `t'` >> PairCases_on `h'` >> (
-  fs []
+ Cases_on `e` >> (
+  fs [get_v]
  ) >>
- rw [] >>
- METIS_TAC [specl_stmt_block_exec_sing, clause_name_def]
+ METIS_TAC [(valOf o find_clause_stmt_red) "stmt_ret_v", clause_name_def]
 ]
 QED
-*)
+
+Theorem stmt_trans_exec_sound_red:
+!e.
+ e_exec_sound e ==>
+ stmt_exec_sound (stmt_trans e)
+Proof
+cheat
+QED
 
 Theorem stmt_block_exec_sound_red:
 !stmt decl_list.
@@ -179,12 +190,17 @@ Proof
 ASSUME_TAC e_exec_sound_red >>
 irule stmt_induction >>
 REPEAT STRIP_TAC >| [
- (* TODO: Empty statement - how should this be handled in reductions? *)
+ (* Empty statement *)
+ fs [stmt_exec_sound] >>
+ rpt strip_tac >>
+ Cases_on `status` >> (
+  fs [stmt_exec]
+ ) >>
+ (* Block exit *)
  cheat,
 
  (* Extern *)
- (* TODO *)
- cheat,
+ fs [stmt_ext_exec_sound_red],
 
  (* Return statement *)
  (* TODO *)

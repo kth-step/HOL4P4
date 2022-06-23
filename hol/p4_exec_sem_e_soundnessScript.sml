@@ -46,14 +46,6 @@ Induct_on `x` >> (
 )
 QED
 
-Theorem oEL_cons:
-!h l.
-(!x e. SOME e = oEL x l ==> e_exec_sound e) ==>
-(!x e. SOME e = oEL x (h::l) ==> e_exec_sound e)
-Proof
-cheat
-QED
-
 Theorem oEL_cons_PRE:
 !e x h l.
 (x > 0) /\ (SOME e = oEL x (h::l)) ==>
