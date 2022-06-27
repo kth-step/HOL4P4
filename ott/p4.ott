@@ -1089,7 +1089,7 @@ formula :: formula_ ::=
   {{ hol (status <> status_running)}}
 | notret( status ) :: :: noret
   {{ com status is not in return}}
-  {{ tex [[status]] \neq { \mathbf{Ret \, v} } }}
+  {{ tex [[status]] \neq { \mathbf{ret \, v} } }}
   {{ hol ( notret [[status]] )}}  
 | acc_or_rej( status ) :: M :: accrejstatus
   {{ com status is not in running}}
