@@ -157,7 +157,6 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 
 \newpage
 \newcommand{\exstate}{\ensuremath{s}}
-\newcommand{\scope}{\ensuremath{\mathit{scope}}}
 \newcommand{\stacks}{\ensuremath{\sigma}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
@@ -172,6 +171,9 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\trans}[1]{\textbf{Trans} #1}
 \newcommand{\sterr}{\ensuremath{\bot}}
 \newcommand{\pfin}{\ensuremath{p_{\mathrm{fin}}}}
+\newcommand{\expr}{\ensuremath{e}}
+\newcommand{\varstar}{\mathbf{var \, star}}
+
 \subsection{Execution State}
 
 \begin{figure}[h!]
@@ -214,46 +216,113 @@ The status \running{} represents that the program is executing under regular cir
 
 In addition to the above, there's also a function map $F$ mapping function names to tuples of their bodies and argument names, a table map $\mathit{Tb}$ mapping table names to tuples of expressions and matching kinds, a parser map $P$ mapping parser state names to their bodies and a type environment $T$. These are assumed to be static, and are therefore not part of the execution state.
 
+
+
+
+
+
+
+
+
+
+
+\newcommand{\scope}{\gamma}
+\newcommand{\cons}{, ... \, ,}
+\newcommand{\funn}{\ensuremath{funn}}
+
 \section{Semantics}
 \subsection{Expressions}
-%\begin{figure}[h!]
-%\centering\ottgrammartabular{
-%\otteXXsem\ottafterlastrule
-%}
-%\caption{Judgment Forms of P4 Expression Evaluation}
-%\label{fig:judgexp}
-%\end{figure}
+TODO: The expressions reductions can never alter the scopes ... 
+TODO: Only return a frame ....
+
+\subsubsection*{lookup}
+
+In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently scope $\scope$ that \vn{} is declared or instantiated in). The evaluation will occur in the global list of scopes $\overrightarrow{\scope}_L$ with the local $\overrightarrow{\scope}$ being the most recent scopes.This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
 
 \begin{figure}[ht!]
-\centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
-\ottusedrule{\ottdruleeXXlookup{}}
-%\ottusedrule{\ottdruleeXXfuncXXcallXXnewframe{}}
-%\ottusedrule{\ottdruleeXXfuncXXexec{}}
-%\ottusedrule{\ottdruleeXXfuncXXret{}}
-\ottusedrule{\ottdruleeXXsXXacc{}}
-\ottusedrule{\ottdruleeXXhXXacc{}}
-\ottusedrule{\ottdruleeXXselXXacc{}}
-%\ottusedrule{\ottdruleeXXselXXdef{}}
-%\ottusedrule{\ottdruleeXXextXXexec{}}
-\end{ottdefnblock}}
-\caption{P4 Expression Evaluation Semantics}
-\label{fig:semexp}
+    \ottusedrule{\ottdruleeXXlookup{}} \\
+    \label{fig:lookup_sem}
 \end{figure}
-\newcommand{\expr}{\ensuremath{e}}
 
-%The semantics of expressions is shown in Figure~\ref{fig:semexp}\footnote{The semantics for reducing concrete arithmetic operations is standard and covers everything found in Appendix~\ref{app:op}}\footnote{Rules for reducing expressions in all contexts can be found in Appendix~\ref{app:exp}}.
 
-In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently entered) scope of \currsf{} where it can be found. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
 
-The \textsc{e\_func\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). Arguments with out-directions are looked up in the caller frame, and a tuple of the resulting value and the originating variable is assigned to a variable with the corresponding parameter name in a fresh callee scope $\gamma'$. Similarly, arguments with non-out directions are simply assigned to their parameter names in $\gamma'$. Finally, $\gamma'$ is put on top of the global scope \gscope{} in order to form the new frame of the callee $\currsf '$. The old current frame \currsf{} (minus \gscope{}) is then saved on top of the call stack \cstack{} to be used later when returning from the function call, and the function call statement is reduced to $\mathbf{exec} \,\, \mathit{stmt}$ - in-progress execution of the function body \stmt{} (obtained from the function map \fmap{}, which holds mappings between function names \fn{} and tuples of function bodies and lists of their argument names and directions). Note that this rule also covers the case of a function call with no arguments. The \textsc{e\_func\_exec} rule reduces the function body of in-progess execution with one statement reduction, and the \textsc{e\_func\_ret} rule reduces finished (empty) in-progress execution with status $\mathbf{Ret} \,\, \cval$ to $\cval$. This also changes the status to $\mathbf{R}$.
+\subsubsection*{function call}
+
+The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a place holder we call $\varstar$ and a new frame.  The new frame will be later added on top of the state's frames and the way that it is constructed is as following: The function name \funn{} will be the same as the call in the expression. The function name \funn will be looked up in both the function maps and extern maps to retrieve the funcuion body \stmt{}  and the signature of the parameters represented as a list of variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $ . Each argument will be checked against the boolean formula to ensure that the arguments were reduced properly: (if $d_i$ in-none then the expression in the same position should be a constant, otherise a variable name). The new frame's scope $\scope'$ will contain the copied in parameters. TODO cont.
+
+
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXcallXXnewframe{}} \\
+    \ottusedrule{\ottdruleeXXcallXXargs{}}
+    \label{fig:call_sem}
+\end{figure}
+
+
+
+\subsubsection*{access headers and structs}
 
 The \textsc{e\_s\_acc} rule is used to access the values of fields in structs, and the \textsc{e\_h\_acc} rule is similarly used for headers.
 
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXsXXacc{}} \\
+    \ottusedrule{\ottdruleeXXhXXacc{}} 
+    \label{fig:access_sem}
+\end{figure}
+
+
+
+\subsubsection*{select}
+
 The \textsc{e\_sel\_acc} rule is used to match the given value $v$ against the key-value list, in the case a match exists. The \textsc{e\_sel\_def} rule is used for the default case, when no match exists. 
 
-%TODO Write explanation for new function return
-%Once the expression in the \textbf{return} statement has been reduced to a constant, the rule \textsc{stmt\_ret} can be applied. The global scope \gscope{} is always stored at the bottom (index zero) in the stack of scopes, i.e. $\currsf [0]$. It is fetched and concatenated with the frame of the most recent caller that is stored on top of the call stack $\cstack$. Thus, this concatenation will yield a new frame $\currsf$ that has the same shape as the one before the function being called (of course before reaching the \textbf{return} statement some variable mappings in the global scope \gscope{} could have been changed during function evaluation). Then, the values of parameters with direction out (obtained from the function map $F$) are copied over to the frame of the caller, using the names of the provided arguments (stored in the frame of the callee $\varepsilon$). The status is also changed to $\mathbf{Return} \,\, v$ which allows for applying \textsc{e\_func\_ret}.
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXselXXacc{}} \\
+    \label{fig:select_sem}
+\end{figure}
 
+
+
+\subsubsection*{slice}
+
+text here 
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXsliceXXv{}}
+\label{fig:slice_sem}
+\end{figure}
+
+
+
+
+\subsubsection*{concat}
+
+text here 
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXconcatXXv{}}
+\label{fig:concat_sem}
+\end{figure}
+
+
+
+
+\subsubsection*{uniary}
+
+text here
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXunopXXarg{}} 
+    \label{fig:uniary_sem}
+\end{figure}
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%% CALLING CONVENTION
 \newpage
 \subsection{Calling convention}   
 The calling conventions can be directioned or directionless. The direction can be either IN, OUT or INOUT. 
@@ -307,55 +376,157 @@ $ \gamma : X \hookrightarrow V * (X \cup \{ \bot \})  $ \\We shall also modify t
 \label{fig:dir}
 \end{figure}
 
-%\begin{figure}[h]
-%\centering\ottgrammartabular{
-%\ottcalledXXfunctionXXname\ottafterlastrule
-%}
-%\caption{called function name list}
-%\label{fig:fnl}
-%\end{figure}
 
-   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%% statement semantics   
 \subsection{Statement Execution}
-The semantics of the statements is shown in Figures~\ref{fig:strsemstmtexec} and~\ref{fig:semstmtexec}\footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
+The semantics of the statements are presented in this section. footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
 
-\begin{figure}[ht!]
-\begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
-\ottusedrule{\ottdrulestmtXXdecl{}}
-\ottusedrule{\ottdrulestmtXXassXXv{}}
-%\ottusedrule{\ottdrulestmtXXassXXnull{}}
-\ottusedrule{\ottdrulestmtXXcondTwo{}}
-\ottusedrule{\ottdrulestmtXXcondThree{}}
-\end{ottdefnblock}
-\caption{P4 Statement Execution Semantics}
-\label{fig:semstmtexec}
-\end{figure}
+
+\subsubsection*{declaration}
 The \textsc{stmt\_decl} is used to reduce the \textbf{decl} statement, which has the effect of declaring variable mappings in the current (topmost) scope. The newly declared variable is given an uninitialized value, denoted by $?$.
-\\~\\
-The \textsc{stmt\_ass\_v} rule handles the assignment statement. In general, the variables that the program can assign values to are in the current frame, and never in $\cstack$. The antecedent $\currsf [ \vn \longmapsto \cval ]$ obtains the topmost (i.e. most recently entered) scope in the current frame $\currsf$ containing the variable, then updates the mapping of the variable name \vn{} to the new value (constant \cval{}) in this scope. The reduction results in the empty statement and an updated current frame.
-\\~\\
-The \textsc{stmt\_ass\_null} rule handles the case where null variable is assigned to, i.e., in method calls.
-\\~\\
-The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones for conditional statements.
-\\~\\
 
 \begin{figure}[ht!]
-\begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
-\ottusedrule{\ottdrulestmtXXseqOne{}}
-\ottusedrule{\ottdrulestmtXXseqTwo{}}
-\ottusedrule{\ottdrulestmtXXblockXXenter{}}
-\ottusedrule{\ottdrulestmtXXblockXXexec{}}
-\ottusedrule{\ottdrulestmtXXblockXXexit{}}
-\end{ottdefnblock}
-\caption{P4 Statement Execution Semantics: Structural Rules}
-\label{fig:strsemstmtexec}
+    \ottusedrule{\ottdrulestmtXXdecl{}} \\
+    \ottusedrule{\ottdrulestmtXXinit{}} 
+    \label{fig:decl_sem}
 \end{figure}
 
+
+\subsubsection*{assignment}
+%TODO, write about lvals or check if it exsists previously here
+The \textsc{stmt\_ass\_v} rule handles the assignment statement. In general, the variables that the program can assign values to are in the current frame, and never in $\cstack$. The antecedent $\currsf [ \vn \longmapsto \cval ]$ obtains the topmost (i.e. most recently entered) scope in the current frame $\currsf$ containing the variable, then updates the mapping of the variable name \vn{} to the new value (constant \cval{}) in this scope. The reduction results in the empty statement and an updated current frame.
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXassXXv{}}
+    \label{fig:assign_sem}
+\end{figure}
+
+
+\subsubsection*{if then else}
+The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones for conditional statements.
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXcondTwo{}} \\
+    \ottusedrule{\ottdrulestmtXXcondThree{}} 
+    \label{fig:ifthenelse_sem}
+\end{figure}
+
+
+\subsubsection*{sequential statements}
 The \textsc{stmt\_seq1} and \textsc{stmt\_seq2} rules are pretty standard.
 \\~\\
 The \{\} brackets indicate a block, while the [ ] brackets indicate a block in progress of being executed.
 The \textsc{stmt\_block\_enter} rule is used to enter a block, which entails a new empty scope \escope{} being pushed onto the current frame \currsf{}, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents, and the \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the frame $\currsf$.
 \\~\\
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXseqOne{}} \\
+    \ottusedrule{\ottdrulestmtXXseqTwo{}} \\
+    \ottusedrule{\ottdrulestmtXXseqThree{}}
+    \label{fig:seq_sem}
+\end{figure}
+
+
+
+\subsubsection*{block}
+%TODO
+write here
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXblockXXenter{}} \\
+    \ottusedrule{\ottdrulestmtXXblockXXexec{}} \\
+    \ottusedrule{\ottdrulestmtXXblockXXexit{}} 
+    \label{fig:block_sem}
+\end{figure}
+
+
+\subsubsection*{apply}
+%TODO
+write here
+\begin{figure}[ht!]
+\ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}} 
+\label{fig:apply_sem}
+\end{figure}
+
+\subsubsection*{return}
+%TODO
+write here
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXreturnXXv{}} 
+\label{fig:return_sem}
+\end{figure}
+
+
+\subsubsection*{extern}
+%TODO
+write here
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXext{}}
+\label{fig:ext_sem}
+\end{figure}
+
+
+
+
+
+\subsubsection*{verify}
+%TODO 
+write here
+\begin{figure}[ht!]
+\ottusedrule{\ottdrulestmtXXverifyXXThree{}} \\
+\ottusedrule{\ottdrulestmtXXverifyXXFour{}} \\
+\label{fig:verify_sem}
+\end{figure}
+
+
+\subsubsection*{transition}
+%TODO 
+write here
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXtransXXOne{}} \\
+    \ottusedrule{\ottdrulestmtXXtransXXTwo{}} \\
+    \ottusedrule{\ottdrulestmtXXtransXXThree{}} 
+\label{fig:trans_sem}
+\end{figure}
+
+
+
+\subsubsection*{Compositional frames}
+%TODO 
+write here
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXcompOne{}} \\
+    \ottusedrule{\ottdrulestmtXXcompTwo{}} 
+    \label{fig:comp_sem}
+\end{figure}
+
+
+
+
+
+
+
+
+
+
+
+
 
 \newcommand{\start}{\textit{start}}
 \subsection{Parser Block Semantics}
