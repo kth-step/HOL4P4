@@ -2534,6 +2534,7 @@ by
 
 
 %Note that this does not have to take into account new items in the stmt_stack, since no statement can both create new items in the statement stack and change status
+%TODO: Is this really needed as a separate rule? Arch sem will act immediately upon seeing changes status anyhow... 
   ctx ( g_scope_list , [ ( funn , [ stmt1 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ stmt1' ] , scopes_stack' ) ] , ctrl' , status )
   notrun( status )
   ----------------------------------- :: seq3

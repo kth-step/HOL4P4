@@ -551,7 +551,7 @@ Definition stmt_exec:
  (*********)
  (* Block *)
  (stmt_exec ctx (g_scope_list, [(funn, [stmt_block decl_list stmt], scopes_stack)], ctrl, status_running) =
-   SOME (g_scope_list, [(funn, [stmt]++[stmt_empty], ((declare_list_in_fresh_scope decl_list)::scopes_stack))], ctrl, status_running))
+   SOME (g_scope_list, [(funn, [stmt]++[stmt_empty], (scopes_stack ++ [declare_list_in_fresh_scope decl_list]))], ctrl, status_running))
   /\
  (************)
  (* Sequence *)
@@ -562,9 +562,13 @@ Definition stmt_exec:
    (* Note: this only allows for 0 or 1 frame being added, or (exclusively) 1 stmt element *)
    (case stmt_exec ctx (g_scope_list, [(funn, [stmt1], scopes_stack)], ctrl, status_running) of
     | SOME (g_scope_list', [(funn, [stmt1'], scopes_stack')], ctrl', status') =>
-     SOME (g_scope_list', [(funn, [stmt_seq stmt1' stmt2], scopes_stack')], ctrl', status')
-    | SOME (g_scope_list', [(funn, stmt1'::[stmt_empty], scopes_stack')], ctrl', status') =>
-     SOME (g_scope_list', [(funn, [stmt1']++[stmt2], scopes_stack')], ctrl', status')
+     (case status' of 
+      | status_running =>
+       SOME (g_scope_list', [(funn, [stmt_seq stmt1' stmt2], scopes_stack')], ctrl', status_running)
+      | _ =>
+       SOME (g_scope_list', [(funn, [stmt1'], scopes_stack')], ctrl', status'))
+    | SOME (g_scope_list', [(funn, stmt1'::[stmt_empty], scopes_stack')], ctrl', status_running) =>
+     SOME (g_scope_list', [(funn, [stmt1']++[stmt2], scopes_stack')], ctrl', status_running)
     | SOME (g_scope_list', (frame::[(funn, [stmt1'], scopes_stack')]), ctrl', status_running) =>
      SOME (g_scope_list', (frame::[(funn, [stmt_seq stmt1' stmt2], scopes_stack')]), ctrl', status_running)
     | _ => NONE))
