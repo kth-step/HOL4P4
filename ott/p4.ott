@@ -605,7 +605,7 @@ frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
   {{ hol ([[frame_list]]) }}
   {{ tex [[frame_list]] }}
 
-state {{ tex \sigma }} :: state_ ::=
+state {{ tex \ensuremath{s} }} :: state_ ::=
 {{ hol (g_scope_list # frame_list # ctrl # status) }}
 {{ com execution state }}
 | ( g_scope_list , frame_list , ctrl , status ) :: M :: tup

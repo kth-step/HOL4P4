@@ -85,7 +85,7 @@ This is a description of the \pfott{} formalization of P4, which includes a synt
 \newcommand{\vn}{\ensuremath{x}}
 \newcommand{\vna}{\ensuremath{a}}
 \newcommand{\msg}{\ensuremath{\mathit{msg}}}
-\newcommand{\tn}{\ensuremath{\mathit{table\_name}}}
+\newcommand{\tn}{\ensuremath{\mathit{tbl}}}
 \newcommand{\fn}{\ensuremath{f}}
 \newcommand{\inte}{\ensuremath{bl}}
 %
@@ -128,7 +128,7 @@ Types are sometimes explicitly referenced in the syntax, e.g. in declaration sta
 \newcommand{\cval}{\ensuremath{v}}
 \newcommand{\fexec}[1]{\textbf{exec}\,\,#1}
 
-First, an expression can be a value: a Boolean or an integer (collectively referred to as constant values \cval{}), or a variable or parser state name $x$. Lists of expressions can be used in declarations of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. The function call is built from the function name \fn{}, and a list of arguments (expressions). In-progress execution of the body of a called function, \fexec{\stmt{}}, is not a part of the P4 syntax, but is rather an artifact of our small-step semantics.
+First, an expression can be a value: a Boolean or an integer (collectively referred to as constant values \cval{}), or a variable or parser state name $x$. Lists of expressions can be used in declarations of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. The function call is built from the function name \fn{}, and a list of arguments (expressions). %In-progress execution of the body of a called function, \fexec{\stmt{}}, is not a part of the P4 syntax, but is rather an artifact of our small-step semantics.
 
 The \textbf{select} expression is similar to a switch statement in C or Java. The expression $e$ is evaluated, and then matched against $v_1 , \ldots , v_n$. If some match is successful, the \textbf{select} expression evaluates to the string at the corresponding index. If no match occurs, then it instead evaluates to the default string $x$.
 
@@ -157,7 +157,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 
 \newpage
 \newcommand{\exstate}{\ensuremath{s}}
-\newcommand{\stacks}{\ensuremath{\sigma}}
+%\newcommand{\stacks}{\ensuremath{\sigma}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
 \newcommand{\gscopel}{\ensuremath{\bar{\gamma}_L}}
@@ -173,6 +173,14 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\pfin}{\ensuremath{p_{\mathrm{fin}}}}
 \newcommand{\expr}{\ensuremath{e}}
 \newcommand{\varstar}{\mathbf{var \, star}}
+\newcommand{\scope}{\gamma}
+\newcommand{\scopeL}{\overrightarrow{\gamma}}
+\newcommand{\cons}{, ... \, ,}
+\newcommand{\concat}{{+}\mspace{-8mu}{+}}
+\newcommand{\funn}{\ensuremath{funn}}
+\newcommand{\bitv}{\ensuremath{bitv}}
+\newcommand{\estmt}{\emptyset_{ \mathrm{stmt} }}
+\newcommand{\frameL}{\overrightarrow{\Phi}}
 
 \subsection{Execution State}
 
@@ -181,13 +189,16 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \ottstatus\ottinterrule
 \ottstate\ottafterlastrule
 }
-\caption{P4 Execution State}
+\caption{P4 Execution State}  %TODO: update this section
 \label{fig:status}
 \end{figure}
 
-The P4 execution state is shown in Figure~\ref{fig:status}. Note that nothing like this is described in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the state memory \stacks{} and the state status \status{}. The state memory $\stacks{}$ consists of a tuple ($\currsf$, $\cstack$), where $\currsf$ is a stack of scopes $\gamma$ (induced by entering nested blocks) which hold the values of variables which are currently visible, and $\cstack$ holds variable mappings which belong to previous caller contexts.
+The P4 execution state is shown in Figure~\ref{fig:status}. Note that nothing like this is described in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the state global scope list $\scopeL_L$, a frame list $\frameL$, Control table $C$, and the state status \status{}. 
+%TODO: update here with the meaning of each symbol
 
-More formally, a scope $\gamma : X \hookrightarrow V$ is a partial function from variable names $\vn{} \in X$ to constant values $\cval{} \in V$. The following operations can be performed on $\gamma$:
+%consists of a tuple ($\currsf$, $\cstack$), where $\currsf$ is a stack of scopes $\gamma$ (induced by entering nested blocks) which hold the values of variables which are currently visible, and $\cstack$ holds variable mappings which belong to previous caller contexts.
+
+More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is a partial function from variable names $\vn{} \in X$ to constant values $\cval{} \in V$. The following operations can be performed on $\gamma$:
 %TODO Notation for the below
 \begin{itemize}
 \item $\mathrm{dom} ( \gamma )$: Gets the domain of $\gamma$: obtains the set of variable names $\vn{} \in X$ which are mapped to values in $\gamma$.
@@ -219,17 +230,6 @@ In addition to the above, there's also a function map $F$ mapping function names
 
 
 
-
-
-
-
-\newcommand{\scope}{\gamma}
-\newcommand{\scopeL}{\overrightarrow{\gamma}}
-\newcommand{\cons}{, ... \, ,}
-\newcommand{\concat}{{+}\mspace{-8mu}{+}}
-\newcommand{\funn}{\ensuremath{funn}}
-\newcommand{\bitv}{\ensuremath{bitv}}
-\newcommand{\estmt}{\emptyset_{ \mathrm{stmt} }}
 %%%%%%%%%%%%%%%%% CALLING CONVENTION
 \newpage
 \subsection{Calling convention}   
@@ -357,7 +357,7 @@ The \textsc{e\_sel\_acc} rule is used to match the given value $\cval$ against t
 
 
 \subsubsection*{bit slicing}
-This reduction gives a bitvector $\bitv'''$ that is reduced from the slicing operation. it extracts a contiguous list from the opriginal $\bitv$ from the lsb \bitv'' till the msb \bitv'.
+This reduction gives a bitvector $\bitv'''$ that is reduced from the slicing operation. It extracts a contiguous list from the opriginal $\bitv$ from the lsb \bitv'' till the msb \bitv'.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXsliceXXv{}}
