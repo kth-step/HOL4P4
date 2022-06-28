@@ -2515,7 +2515,7 @@ by
   tbl_map ( tbl ) = ( [ mk1 , .. , mkn ] )
   ctrl ( tbl , ( e1 , .. , en ) , ( [ mk1 , .. , mkn ] ) ) = ( f , ( v1 , .. , vm ) )
   ----------------------------------- :: apply_table_v
-  ( ty_map , ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl ( e1 , .. , en ) , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vm ) ) , scopes_stack ) ] , ctrl , Running )
+  ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , apply tbl ( e1 , .. , en ) , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vm ) ) , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
