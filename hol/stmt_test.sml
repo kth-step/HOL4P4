@@ -1255,7 +1255,7 @@ FULL_SIMP_TAC list_ss [FUPDATE_EQ]
 
 
 (*access fields*)
-val prog_acc_h1 = ``e_acc (e_v (v_header (T) (^header1))) (e_v( v_str "srcAddr"))  ``;
+val prog_acc_h1 = ``e_acc (e_v (v_header (T) (^header1))) (  "srcAddr")  ``;
 val prog_acc_h2 = ``e_v  (v_bit ([F; F],2)) ``;
 
 
@@ -1313,11 +1313,11 @@ FULL_SIMP_TAC list_ss [FUPDATE_EQ]
 );
 
 
-val prog_acc_h1 = ``e_acc (e_v (v_header (T) (^header1))) (e_v( v_str "srcAddr"))  ``;
+val prog_acc_h1 = ``e_acc (e_v (v_header (T) (^header1))) ("srcAddr")  ``;
 val prog_acc_h2 = ``e_v  (v_bit ([F; F],2)) ``;
 
 
-val prog_acc_s1 = ``e_acc (e_v (v_struct (^struct1))) (e_v( v_str "IPv4_h"))  ``;
+val prog_acc_s1 = ``e_acc (e_v (v_struct (^struct1))) ("IPv4_h")  ``;
 val prog_acc_s2 = ``e_v  (v_header (T) (^header1) ) ``;
 
 

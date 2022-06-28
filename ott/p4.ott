@@ -143,6 +143,15 @@ v :: v_ ::=
   {{ com no value }}
 
 
+v_list :: v_list_ ::=
+{{ com list of values }}
+{{ hol (v list) }}
+| empty_vl :: M :: empty
+  {{ com empty expression list }}
+  {{ hol ([]:v list) }}
+| v1 , .. , vn :: M :: vl
+  {{ hol ([[v1 .. vn]]) }}
+
 varn :: varn_ ::=
 | x :: :: name
   {{ com variable name }}
@@ -434,6 +443,10 @@ e :: e_ ::=
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
   %TODO: x is the default value of select expression, which should be optional
   {{ com select }}
+| eStruct { x1 = e1 ; ... ; xn = en } :: :: struct
+    {{ com struct expression }}
+| eHeader boolv { x1 = e1 ; ... ; xn = en } :: :: header
+    {{ com header expression }}  
 | ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
@@ -1016,6 +1029,20 @@ formula :: formula_ ::=
   {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
   {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME [[i]]) }}
 
+%some operations on the headers and structs
+| unred_mem_index e_list = i :: M :: mem_index
+  {{ tex i = \mathrm{min} \, \{ j . \; \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (unred_mem_index [[e_list]] = SOME [[i]]) }}
+| ( v_list ) = vl_of_el ( e_list ) :: M :: vl_of_el
+  {{ tex TODO }}
+  {{ hol ( [[v_list]] = vl_of_el [[e_list]]) }}
+
+
+
+
+
+
+
 %concatination and bit slicing:
 | bitv'' = concat bitv bitv' :: M :: concat
   {{ com concatination operation}}
@@ -1059,7 +1086,7 @@ formula :: formula_ ::=
   {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mkl]] ) ) }}
 | ctrl ( tbl , e_list , mkl ) = ( f , e_list' ) :: :: ctrl_plane  
   {{ com fetch the function name and parameters from the ctrl plane }}
-  {{ tex \mathrm{ctrl}\, ( [[tbl]] , \, [[e_list]], \, [[mkl]]\, ) = \,( [[f]] , [[e_list']] ) }}
+  {{ tex \mathrm{C}\, ( [[tbl]] , \, [[e_list]], \, [[mkl]]\, ) = \,( [[f]] , [[e_list']] ) }}
   {{ hol ([[ctrl]] ( [[tbl]] , [[e_list]] , [[mkl]] ) = SOME ( [[f]] , [[e_list']] ) ) }}
 | index_not_const e_list = i :: :: indexofnotconst 
   {{ com get the first index of the unred expression to const}}
@@ -1530,6 +1557,12 @@ val v_of_e_def = Define `
   (v_of_e _ = NONE)
 `;
 
+
+val vl_of_el_def = Define `
+  vl_of_el el = MAP (\(e). THE (v_of_e e)) (el)
+`;
+
+
 (* Given a list of expresstions e1...en, find the first expression that is not a constant and return its index. 
 *  Returns the index of the expression. 
 *  This definition is used in the apply tbl e_list
@@ -1648,6 +1681,23 @@ val is_e_lval_def = Define `
     case get_lval_of_e e of
     | SOME lval => T
     | NONE => F)
+`;
+
+
+(* Takes an expression list, and returns an option tuple (index, exp) of
+ * the first index that has an unreduced expression*)
+val unred_mem = Define `
+  unred_mem elist  = 
+    INDEX_FIND 0 (\(e). ~(is_const e)) (elist) 
+`;
+
+
+(* retrives only the index of the unred_mem definition *)
+val unred_mem_index_def = Define `
+  unred_mem_index  elist  = 
+    case unred_mem  elist of
+    | SOME (i, e) => SOME i
+    | _ => NONE
 `;
 
 (* Checks if function arguments have been appropriately reduced. *)
@@ -2016,10 +2066,49 @@ e = [ e1 , .. , en ] [ i ]
 ----------------------------------- :: call_args
 ( ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , frame_list )
 
-%Struct field access
+
+%%%%%% structs operations
+
+%eStruct as expression reduction: reduce one step per expression in the list 
+unred_mem_index [ e1 , ... , en ] = i
+e = [ e1 , ... , en ] [ i ]
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+[ e'1 , ... , e'n ] =' update ( e' , i , [ e1 , ... , en ] )
+----------------------------------- :: eStruct
+ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStruct { f1 = e'1 ; ... ; fn = e'n } ,  frame_list )
+
+%eStruct coversion to value struct
+is_consts ( e1 , ... , en )
+( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
+----------------------------------- :: eStrcut_to_v
+ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn }  ,  empty )
+
+%access a value struct field 
 v = struct { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: s_acc
 ctx g_scope_list scopes_stack ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
+
+
+%expression reduction for access fields
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+----------------------------------- :: acc_arg1
+ctx g_scope_list scopes_stack ( e . f ) ~> ( e' . f , frame_list )
+
+%%%%%% headers operations
+%eHeader as expression reduction: reduce one step per expression in the list 
+unred_mem_index [ e1 , ... , en ] = i
+e = [ e1 , ... , en ] [ i ]
+ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+[ e'1 , ... , e'n ] =' update ( e' , i , [ e1 , ... , en ] )
+----------------------------------- :: eHeader
+ctx g_scope_list scopes_stack ( eHeader boolv { f1 = e1 ; ... ; fn = en } ) ~> ( eHeader boolv { f1 = e'1 ; ... ; fn = e'n } ,  frame_list )
+
+%eHeader coversion to value struct
+is_consts ( e1 , ... , en )
+( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
+----------------------------------- :: eHeader_to_v
+ctx g_scope_list scopes_stack ( eHeader boolv { f1 = e1 ; ... ; fn = en } ) ~> ( header boolv { f1 = v1 ; ... ; fn = vn }  ,  empty )
+
 
 %Header field access
 v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
