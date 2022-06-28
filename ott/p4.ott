@@ -605,7 +605,7 @@ frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
   {{ hol ([[frame_list]]) }}
   {{ tex [[frame_list]] }}
 
-state {{ tex \sigma }} :: state_ ::=
+state {{ tex \ensuremath{s} }} :: state_ ::=
 {{ hol (g_scope_list # frame_list # ctrl # status) }}
 {{ com execution state }}
 | ( g_scope_list , frame_list , ctrl , status ) :: M :: tup
@@ -1089,7 +1089,7 @@ formula :: formula_ ::=
   {{ hol (status <> status_running)}}
 | notret( status ) :: :: noret
   {{ com status is not in return}}
-  {{ tex [[status]] \neq { \mathbf{Ret \, v} } }}
+  {{ tex [[status]] \neq { \mathbf{ret \, v} } }}
   {{ hol ( notret [[status]] )}}  
 | acc_or_rej( status ) :: M :: accrejstatus
   {{ com status is not in running}}
