@@ -2502,6 +2502,8 @@ ctx g_scope_list scopes_stack ( false OR e ) ~> ( e , empty )
 % Statement semantics ( single frame )%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%TODO: Should this now be called statement stack semantics and use the prefix "stmt_stack"?
+
 %TODO: Exit
 %TODO: Switch
 
@@ -2666,6 +2668,7 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics (list of frames) %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%TODO: Should this be called "frames" or "frame list"? Use consistently through all code
 
 defns
   frames_sem :: '' ::=
@@ -2750,7 +2753,7 @@ by
 
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -> ( g_scope_list' , frame_list' , ctrl' , status' )
+  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -f-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: pbl_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , ctrl' , status' )
 

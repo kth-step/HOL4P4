@@ -125,6 +125,32 @@ Proof
  fs []
 QED
 
+Theorem lambda_FST:
+!l. MAP (\(a_, b_). a_) l = MAP FST l
+Proof
+strip_tac >> (
+ Induct_on `l` >> (
+  fs []
+ ) >>
+ rpt strip_tac >>
+ PairCases_on `h` >>
+ fs []
+)
+QED
+
+Theorem lambda_SND:
+!l. MAP (\(a_, b_). b_) l = MAP SND l
+Proof
+strip_tac >> (
+ Induct_on `l` >> (
+  fs []
+ ) >>
+ rpt strip_tac >>
+ PairCases_on `h` >>
+ fs []
+)
+QED
+
 Theorem lambda_unzip_tri:
 (!l. MAP (\(a_,b_,c_). a_) l = (FST o UNZIP) l) /\
 (!l. MAP (\(a_,b_,c_). b_) l = (FST o UNZIP o SND o UNZIP) l) /\

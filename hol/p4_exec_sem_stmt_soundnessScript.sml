@@ -3,8 +3,7 @@ open HolKernel boolLib Parse bossLib;
 val _ = new_theory "p4_exec_sem_stmt_soundness";
 
 open p4Lib;
-open ottTheory p4Theory p4_exec_semTheory p4_exec_sem_e_soundnessTheory;
-
+open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_e_soundnessTheory;
 
 (* Note that this definition is phrased for given singleton statement lists, not on the frame list,
  * so soundness block nesting rules and comp1 and comp2 rules are excluded *)
@@ -13,6 +12,18 @@ Definition stmt_exec_sound:
   !ctx g_scope_list funn scopes_stack ctrl status state'.
   stmt_exec ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) = SOME state' ==>
   stmt_red ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) state')
+End
+
+Definition stmt_stack_exec_sound:
+ (stmt_stack_exec_sound [] = T) /\
+ (stmt_stack_exec_sound (h::t) = (stmt_exec_sound h /\ stmt_stack_exec_sound t))
+End
+
+Definition frame_list_exec_sound:
+ (frame_list_exec_sound frame_list =
+  !ctx g_scope_list ctrl status state'.
+  frames_exec ctx (g_scope_list, frame_list, ctrl, status) = SOME state' ==>
+  frames_red ctx (g_scope_list, frame_list, ctrl, status) state')
 End
 
 (* TODO: This could be used to remove if-statements in the executable semantics
@@ -591,6 +602,168 @@ rpt strip_tac >| [
  (* Block entry *)
  fs [stmt_block_exec_sound_red]
 ]
+QED
+
+Theorem return_ctrl_invar:
+!ctx g_scope_list g_scope_list' funn stmt scope_stack frame_list' ctrl ctrl' v.
+stmt_exec ctx (g_scope_list, [(funn, stmt, scope_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status_returnv v) ==>
+ ctrl' = ctrl /\ g_scope_list' = g_scope_list /\ ?stmt'. frame_list' = [(funn, stmt', scope_stack)]
+Proof
+(* TODO: First, need the different possible final statuses of all different statements in
+ *       rewrite theorems. Second, make separate theorem that final status return means
+ *       reduced statement was return. Third, use rewrite theorem of return to prove the conclusion.       Might need to use structural induction... *)
+(* TODO: Use stmt_exec_ind? P could be lambda function from ctx and state... *)
+cheat
+QED
+
+Theorem initialise_equiv:
+!scopes_list v funn.
+scopes_list <> [] ==>
+init_in_highest_scope scopes_list v (varn_star funn) = initialise scopes_list (varn_star funn) v
+Proof
+rpt strip_tac >>
+fs [init_in_highest_scope_def, initialise_def, newest_scope_ind_def] >>
+`decl_init_star scopes_list v (varn_star funn) = LAST scopes_list |+ (varn_star funn, v, NONE)` suffices_by (
+ fs []
+) >>
+fs [decl_init_star_def, newest_scope_def, newest_scope_ind_def] >>
+metis_tac [LAST_EL, arithmeticTheory.PRE_SUB1]
+QED
+
+Theorem frame_list_exec_sound_red:
+!frame_list. frame_list_exec_sound frame_list
+Proof
+fs [frame_list_exec_sound] >>
+rpt strip_tac >>
+Induct_on `frame_list` >- (
+ Cases_on `status` >> (
+  fs [frames_exec]
+ )
+) >>
+rpt strip_tac >>
+Cases_on `status` >> (
+ fs [frames_exec]
+) >>
+pairLib.PairCases_on `ctx` >>
+rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+Cases_on `frame_list` >| [
+ (* TODO: Single frame *)
+ pairLib.PairCases_on `h` >>
+ fs [frames_exec] >>
+ assume_tac stmt_exec_sound_red >>
+ fs [stmt_exec_sound] >>
+ cheat,
+
+ (* TODO: Multiple frames *)
+ cheat
+]
+(* OLD
+ pairLib.PairCases_on `h` >>
+ pairLib.PairCases_on `h'` >>
+ fs [stmt_exec] >>
+ Cases_on `stmt_exec (ext_map,func_map,b_func_map,pars_map,tbl_map)
+             (g_scope_list,[(h0,h1,h2)],ctrl,status_running)` >> (
+  fs []
+ ) >>
+ pairLib.PairCases_on `x` >>
+ fs [] >>
+ Cases_on `x3` >> (
+  fs []
+ ) >| [
+  rw [] >>
+  Q.SUBGOAL_THEN `(h0,h1,h2)::(h'0,h'1,h'2)::t = [(h0,h1,h2)] ++ ((h'0,h'1,h'2)::t)`
+   (fn thm => ONCE_REWRITE_TAC [thm]) >- (
+   fs []
+  ) >>
+  irule ((valOf o find_clause_frames_red) "frames_comp1") >>
+  fs [clause_name_def, notret_def] >>
+  assume_tac stmt_exec_sound_red >>
+  fs [stmt_exec_sound],
+
+  Cases_on `lookup_funn_sig_body h0 func_map ext_map` >> (
+   fs []
+  ) >>
+  pairLib.PairCases_on `x` >>
+  fs [] >>
+  Cases_on `copyout (MAP FST x1') (MAP SND x1')
+             (TAKE 2 (initialise (x0 ++ h'2) varn_star v))
+             (DROP 2 (initialise (x0 ++ h'2) varn_star v)) h2` >> (
+   fs []
+  ) >>
+  pairLib.PairCases_on `x` >>
+  fs [] >>
+  rw [] >>
+  imp_res_tac return_ctrl_invar >>
+  rw [] >>
+  Q.SUBGOAL_THEN `(h0,h1,h2)::(h'0,h'1,h'2)::t = [(h0,h1,h2)] ++ ([(h'0,h'1,h'2)] ++ t)`
+   (fn thm => ONCE_REWRITE_TAC [thm]) >- (
+   fs []
+  ) >>
+  Q.SUBGOAL_THEN `(h'0,h'1,x1'')::t = [(h'0,h'1,x1'')] ++ t`
+   (fn thm => ONCE_REWRITE_TAC [thm]) >- (
+   fs []
+  ) >>
+  irule ((valOf o find_clause_frames_red) "frames_comp2") >>
+  fs [clause_name_def] >>
+  qexistsl_tac [`stmt'`, `v`] >>
+  (* TODO: How can we know this? Through the addition of oTAKE and/or oDROP... *)
+  subgoal `g_scope_list ++ h'2 <> []` >- (
+   cheat
+  ) >>
+  fs [initialise_equiv] >>
+  rpt conj_tac >| [
+   ONCE_REWRITE_TAC [EQ_SYM_EQ] >>
+   fs [] >>
+   Q.PAT_X_ASSUM `copyout (MAP FST x1') (MAP SND x1')
+          (TAKE 2 (initialise (g_scope_list ++ h'2) varn_star v))
+          (DROP 2 (initialise (g_scope_list ++ h'2) varn_star v)) h2 =
+        SOME (x0'',x1'')` (fn thm => fs [GSYM thm]) >>
+   `(MAP (\(x_,d_). x_) x1') = (MAP FST x1') /\ (MAP (\(x_,d_). d_) x1') = (MAP SND x1') /\
+    (TAKE 2 (initialise (g_scope_list ++ h'2) varn_star v)) = [HD (initialise (g_scope_list ++ h'2) varn_star v);
+           EL 1 (initialise (g_scope_list ++ h'2) varn_star v)] /\
+    (TL (TL (initialise (g_scope_list ++ h'2) varn_star v))) = (DROP 2 (initialise (g_scope_list ++ h'2) varn_star v))` suffices_by (
+    fs []
+   ) >>
+   rpt conj_tac >| [
+    fs [lambda_FST],
+
+    fs [lambda_SND],
+
+    (* TODO: TAKE 2 problem *)
+    cheat,
+
+    (* TODO: DROP 2 problem *)
+    cheat
+   ],
+
+   assume_tac stmt_exec_sound_red >>
+   fs [stmt_exec_sound]
+  ],
+
+  rw [] >>
+  Q.SUBGOAL_THEN `(h0,h1,h2)::(h'0,h'1,h'2)::t = [(h0,h1,h2)] ++ ((h'0,h'1,h'2)::t)`
+   (fn thm => ONCE_REWRITE_TAC [thm]) >- (
+   fs []
+  ) >>
+  irule ((valOf o find_clause_stmt_red) "stmt_comp1") >>
+  fs [clause_name_def, notret_def] >>
+  assume_tac stmt_exec_sound_red >>
+  fs [stmt_exec_sound],
+
+  rw [] >>
+  Q.SUBGOAL_THEN `(h0,h1,h2)::(h'0,h'1,h'2)::t = [(h0,h1,h2)] ++ ((h'0,h'1,h'2)::t)`
+   (fn thm => ONCE_REWRITE_TAC [thm]) >- (
+   fs []
+  ) >>
+  irule ((valOf o find_clause_stmt_red) "stmt_comp1") >>
+  fs [clause_name_def, notret_def] >>
+  assume_tac stmt_exec_sound_red >>
+  fs [stmt_exec_sound]
+ ]
+]
+*)
 QED
 
 val _ = export_theory ();

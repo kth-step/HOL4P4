@@ -415,25 +415,6 @@ Definition stmt_exec:
  (* Empty frame list *)
  (stmt_exec _ (_, [], _, _) = NONE)
   /\
- (***************)
- (* Frame rules *)
- (stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, ((funn, stmt_stack, scopes_stack)::((funn', stmt_stack', scopes_stack')::frame_list'')), ctrl, status_running) =
-   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
-    | SOME (g_scope_list', frame_list', ctrl', status') =>
-     (case status' of
-      | status_returnv v =>
-       let scopes_stack'' = initialise (g_scope_list'++scopes_stack') (varn_star funn) v in
-        (case lookup_funn_sig_body funn func_map b_func_map ext_map of
-         | SOME (stmt'', x_d_l) =>
-          (case copyout (MAP FST x_d_l) (MAP SND x_d_l) (TAKE 2 scopes_stack'') (DROP 2 scopes_stack'') scopes_stack of
-           | SOME (g_scope_list'', scopes_stack''') =>
-            SOME (g_scope_list'', ((funn', stmt_stack', scopes_stack''')::frame_list''), ctrl', status_running)
-           | _ => NONE)
-         | _ => NONE)
-      | _ => 
-       SOME (g_scope_list', frame_list'++((funn', stmt_stack', scopes_stack')::frame_list''), ctrl', status'))
-    | _ => NONE))
-  /\
  (**************)
  (* Assignment *)
  (stmt_exec ctx (g_scope_list, [(funn, [stmt_ass lval e], scopes_stack)], ctrl, status_running) =
@@ -626,6 +607,193 @@ Definition stmt_exec:
 End
 (* ` *)
 
+Theorem exec_stmt_SOME_init_running:
+!ctx g_scope_list g_scope_list' funn stmt frame_list' scope_stack ctrl ctrl' status status'.
+stmt_exec ctx (g_scope_list, [(funn, [stmt], scope_stack)], ctrl, status) =
+        SOME (g_scope_list', frame_list', ctrl', status') ==>
+ status = status_running
+Proof
+rpt strip_tac >>
+Cases_on `stmt` >> (
+ fs []
+) >> (
+ Cases_on `status` >> (
+  fs [stmt_exec]
+ )
+)
+QED
+
+(* TODO: Rewriting theorems for other statements *)
+Theorem exec_stmt_verify_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn e1 e2 frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, [stmt_verify e1 e2], scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (is_v e1 ==> is_v_bool e1) /\
+ (~is_v e1 ==> ?e1' frame_list''. e_exec ctx g_scope_list scopes_stack e1 = SOME (e1', frame_list'') /\ frame_list' = frame_list'' ++ [(funn,[stmt_verify e1' e2],scopes_stack)]) /\
+ ((is_v e1 /\ is_v e2) ==> is_v_err e2 /\ ?stmt'. stmt_exec_verify e1 e2 = SOME stmt' /\ frame_list' = [(funn,[stmt'],scopes_stack)]) /\
+ ((is_v e1 /\ ~is_v e2) ==> ?e2' frame_list''. e_exec ctx g_scope_list scopes_stack e2 = SOME (e2', frame_list'') /\ frame_list' = frame_list'' ++ [(funn,[stmt_verify e1 e2'],scopes_stack)]) /\
+ g_scope_list' = g_scope_list /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+fs [stmt_exec] >>
+Cases_on `is_v e1` >> (
+ fs []
+) >| [
+ (* TODO: Not needed? *)
+ Cases_on `is_v_bool e1` >> (
+  fs []
+ ) >>
+ Cases_on `is_v e2` >> (
+  fs []
+ ) >| [
+  Cases_on `is_v_err e2` >> (
+   fs []
+  ) >>
+  Cases_on `stmt_exec_verify e1 e2` >> (
+   fs []
+  ) >>
+  metis_tac [],
+
+  Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >> (
+   fs []
+  ) >>
+  metis_tac []
+ ],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >> (
+  fs []
+ ) >>
+ metis_tac []
+]
+QED
+
+Theorem exec_stmt_trans_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn e frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, [stmt_trans e], scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (is_v e ==> is_v_str e /\ ?status''. stmt_exec_trans e = SOME status'' /\ frame_list' = [(funn,[stmt_empty],scopes_stack)] /\ status' = status'') /\
+ (~is_v e ==> ?e' frame_list''. e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\ frame_list' = frame_list'' ++ [(funn,[stmt_trans e'],scopes_stack)] /\ status' = status_running) /\
+ g_scope_list' = g_scope_list /\
+ ctrl' = ctrl
+Proof
+rpt strip_tac >>
+fs [stmt_exec] >>
+Cases_on `is_v e` >> (
+ fs []
+) >| [
+ (* TODO: Not needed? *)
+ Cases_on `is_v_str e` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec_trans e` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >> (
+  fs []
+ ) >>
+ metis_tac []
+]
+QED
+
+Theorem exec_stmt_cond_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn e stmt1 stmt2 frame_list' scope_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, [stmt_cond e stmt1 stmt2], scope_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (is_v_bool e ==> ?b. stmt_exec_cond e = SOME b /\
+                      (b = T ==> frame_list' = [(funn, [stmt1], scope_stack)]) /\
+                      (b = F ==> frame_list' = [(funn, [stmt2], scope_stack)])) /\
+ (~is_v_bool e ==> ?e' frame_list''. e_exec ctx g_scope_list scope_stack e = SOME (e', frame_list'') /\
+                                     frame_list' = frame_list'' ++ [(funn, [stmt_cond e' stmt1 stmt2], scope_stack)]) /\
+ g_scope_list' = g_scope_list /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+fs [stmt_exec] >>
+Cases_on `is_v_bool e` >> (
+ fs []
+) >| [
+ Cases_on `stmt_exec_cond e` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ],
+
+ Cases_on `e_exec ctx g_scope_list scope_stack e` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ metis_tac []
+]
+QED
+
+(* OLD
+Theorem exec_stmt_app_SOME_REWRS:
+!ext_map func_map b_func_map pars_map tbl_map g_scope_list g_scope_list' funn t_name e frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, [stmt_app t_name e_l], scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (?v. get_v e = SOME v  ==> ?e_t m_k f f_args. FLOOKUP tbl_map t_name = SOME (e_t, m_k) /\
+                       ctrl (t_name, v, m_k) = SOME (f, f_args) /\
+                       frame_list' = [(funn, [stmt_ass lval_null (e_call (funn_name f) f_args)], scopes_stack)]) /\
+ (get_v e = NONE ==>
+  ?e' frame_list''. e_exec (ext_map, func_map, tbl_map) g_scope_list scopes_stack e = SOME (e', frame_list'') /\
+                    frame_list' = frame_list'' ++ [(funn, [stmt_app t_name e'], scopes_stack)]) /\
+ g_scope_list' = g_scope_list /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+fs [stmt_exec] >>
+Cases_on `get_v e = NONE` >> (
+ fs []
+) >| [
+ Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list scopes_stack e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ (* TODO: Not needed? *)
+ Cases_on `FLOOKUP tbl_map t_name` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec_trans e` >> (
+  fs []
+ ) >| [
+  cheat,
+
+  cheat,
+
+  cheat,
+
+  cheat
+ ]
+]
+QED
+*)
+
 (* Then, define an executable semantics which performs execution until out of fuel. *)
 (* Note that all concrete operations remain the same *)
 (* Note that expression multi-step execution makes little sense with the current semantics... *)
@@ -639,99 +807,54 @@ Definition stmt_multi_exec:
   | NONE => NONE)
 End
 
-(****************************)
-(*  Parser block semantics  *)
-(****************************)
-(*
-val pars_exec_def = Define `
- (pars_exec (pctx:pctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
- (* No step should start in status pars_next *)
- (pars_exec _ (_, _, _, status_trans x) = NONE) /\
- (pars_exec (ext_map, func_map, b_func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) =
-  (case stmt_exec (ext_map, func_map, b_func_map, FEMPTY) (g_scope_list, frame_list, ctrl, status_running) of
-   (* Empty frame list *)
-   | SOME (g_scope_list', [], ctrl', status') => NONE
-   (* No parser-level transition should end with return status *)
-   | SOME (g_scope_list', frame_list', ctrl', status_returnv v) => NONE
-   (* No parser-level transition should end with type error *)
-   | SOME (g_scope_list', frame_list', ctrl', status_type_error) => NONE
-   (* Transition to next parser state *)
-   | SOME (g_scope_list', frame_list', ctrl', status_trans x) =>
-    if (x = "accept" \/ x = "reject")
-    then SOME (g_scope_list', frame_list', ctrl', status_trans x)
-    else
-     (case FLOOKUP pars_map x of
-      | SOME stmt'' => SOME (g_scope_list', [(funn_name x, [stmt''], [FEMPTY])], ctrl', status_running)
-      | NONE => NONE)
-   (* When reaching the empty statement, go to reject *)
-   | SOME (g_scope_list', [(funn, [stmt_empty], scopes_stack)], ctrl', status_running) =>
-    SOME (g_scope_list', [(funn, [stmt_trans (e_v (v_str "reject"))], scopes_stack)], ctrl', status_running)
-   (* Regular execution of parser state body *)
-   | SOME state' => SOME state'
-   | NONE => NONE)
- )
-`;
+(**************************)
+(*  Frame list semantics  *)
+(**************************)
 
-(* Fuel-powered multi-step executable semantics for parsers *)
-val pars_multi_exec = Define `
- (pars_multi_exec _ state 0 =
-  SOME state)
+Definition frames_exec:
+ (******************************************)
+ (* Catch-all clauses for special statuses *)
+ (frames_exec (ctx:ctx) ((g_scope_list:g_scope_list, frame_list:frame_list, ctrl:ctrl, status_type_error):state) = NONE)
   /\
- (pars_multi_exec pctx state (SUC fuel) =
-  case pars_exec pctx state of
-  | SOME state' => pars_multi_exec pctx state' fuel
-  | NONE => NONE)
-`;
-*)
-(*****************************)
-(*  Control block semantics  *)
-(*****************************)
-(*
-(* TODO: Handle return value in any way? *)
-(* TODO: Outsouce matching of stmt_ret (e_v v) and stmt_seq (stmt_ret (e_v v)) stmt to new
- * function? *)
-val ctrl_exec_def = Define `
- (ctrl_exec (cctx:cctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
- (ctrl_exec _ (_, _, _, status_trans x) = NONE) /\
-(*
- (ctrl_exec _ (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running) =
-  if is_v e
-  then
-   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_running)
-  else
-   SOME (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running)
- ) /\
- (ctrl_exec _ (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running) =
-  if is_v e
-  then
-   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_running)
-  else
-   SOME (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running)
- ) /\
-*)
- (ctrl_exec cctx (g_scope_list, frame_list, ctrl, status_running) =
-  (case stmt_exec cctx (g_scope_list, frame_list, ctrl, status_running) of
-   | SOME (g_scope_list', frame_list', ctrl', status_running) =>
-    SOME (g_scope_list', frame_list', ctrl', status_running)
-   (* If return status is set on base level, set statement to empty (matching arch_control_ret) *)
-   | SOME (g_scope_list', [(funn, [stmt], scopes_stack)], ctrl', status_returnv v) =>
-    SOME (g_scope_list', [(funn, [stmt_empty], scopes_stack)], ctrl', status_running)
-   | _ => NONE)
- ) /\
- (ctrl_exec _ _ = NONE)
-`;
+ (* No frame list execution step begins with return status *)
+ (frames_exec _ (_, _, _, status_returnv v) = NONE)
+  /\
+ (* Same for trans status *)
+ (frames_exec _ (_, _, _, status_trans x) = NONE)
+  /\
+ (* Empty frame list *)
+ (frames_exec _ (_, [], _, _) = NONE)
+  /\
+ (*********)
+ (* Comp1 *)
+ (frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, ((funn, stmt_stack, scopes_stack)::((funn', stmt_stack', scopes_stack')::frame_list'')), ctrl, status_running) =
+   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
+    | SOME (g_scope_list', frame_list', ctrl', status') =>
+     (case status' of
+      | status_returnv v =>
+       let scopes_stack'' = initialise (g_scope_list'++scopes_stack') (varn_star funn) v in
+        (case lookup_funn_sig_body funn func_map b_func_map ext_map of
+         | SOME (stmt'', x_d_l) =>
+          (case copyout (MAP FST x_d_l) (MAP SND x_d_l) (TAKE 2 scopes_stack'') (DROP 2 scopes_stack'') scopes_stack of
+           | SOME (g_scope_list'', scopes_stack''') =>
+            SOME (g_scope_list'', ((funn', stmt_stack', scopes_stack''')::frame_list''), ctrl', status_running)
+           | _ => NONE)
+         | _ => NONE)
+      | _ => 
+       SOME (g_scope_list', frame_list'++((funn', stmt_stack', scopes_stack')::frame_list''), ctrl', status'))
+    | _ => NONE))
+  /\
+ (*********)
+ (* Comp2 *)
+ (frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) =
+   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
+    | SOME (g_scope_list', frame_list', ctrl', status') =>
+     SOME (g_scope_list', frame_list', ctrl', status')
+    | _ => NONE))
+  /\
+ (frames_exec _ _ = NONE)
+End
 
-(* Fuel-powered multi-step executable semantics for control blocks *)
-val ctrl_multi_exec = Define `
- (ctrl_multi_exec _ state 0 =
-  SOME state)
-  /\
- (ctrl_multi_exec cctx state (SUC fuel) =
-  case ctrl_exec cctx state of
-  | SOME state' => ctrl_multi_exec cctx state' fuel
-  | NONE => NONE)
-`;
-*)
 (***********************************)
 (*  Architectural-level semantics  *)
 (***********************************)
@@ -765,7 +888,7 @@ val arch_exec_def = Define `
           | _ => NONE)
         | status_running =>
          (* pbl_exec *)
-         (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
+         (case frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
           | SOME (g_scope_list', frame_list', ctrl', status') =>
            SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
           | _ => NONE)
