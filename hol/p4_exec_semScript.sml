@@ -246,6 +246,7 @@ val e_state_size_def = Define `
 
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce warnings *)
+(* TODO: Use let-statements to avoid duplicate "MAP FST", et cetera *)
 val e_exec = TotalDefn.tDefine "e_exec" `
  (********************)
  (* Variable look-up *)
@@ -256,17 +257,30 @@ val e_exec = TotalDefn.tDefine "e_exec" `
   /\
  (******************************)
  (* Struct/header field access *)
- (e_exec ctx g_scope_list scopes_stack (e_acc e_struct x) =
-  if is_v e_struct
-   then
-    (case e_exec_acc (e_acc e_struct x) of
-     | SOME e' => SOME (e', [])
-     | NONE => NONE)
+ (e_exec ctx g_scope_list scopes_stack (e_acc e_v_struct x) =
+  if is_v e_v_struct
+  then
+   (case e_exec_acc (e_acc e_v_struct x) of
+    | SOME v => SOME (v, [])
+    | NONE => NONE)
+  else NONE)
+(* TODO: What happens if one tries to access an expression?
    else
-    (case e_exec ctx g_scope_list scopes_stack e_struct of
-     | SOME (e_struct', frame_list) =>
-      SOME (e_acc e_struct' x, frame_list)
+    (case e_exec ctx g_scope_list scopes_stack e_v_struct of
+     | SOME (e_v_struct', frame_list) =>
+      SOME (e_acc e_v_struct' x, frame_list)
      | NONE => NONE))
+*)
+  /\
+ (******************************)
+ (* Struct/header field reduction *)
+ (e_exec ctx g_scope_list scopes_stack (e_struct x_e_l) =
+  case unred_mem_index (MAP SND x_e_l) of
+  | SOME i =>
+   (case e_exec ctx g_scope_list scopes_stack (EL i (MAP SND x_e_l)) of
+    | SOME (e', frame_list) => SOME (e_struct (ZIP (MAP FST x_e_l, (LUPDATE e' i (MAP SND x_e_l)))), frame_list)
+    | NONE => NONE)
+  | NONE => SOME (e_v (v_struct (ZIP (MAP FST x_e_l, vl_of_el (MAP SND x_e_l)))), []))
   /\
  (************************)
  (* Function/extern call *)
@@ -342,11 +356,30 @@ val e_exec = TotalDefn.tDefine "e_exec" `
 `
 (WF_REL_TAC `measure e_state_size` >>
  fs [e_state_size_def, e_size_def] >>
- REPEAT STRIP_TAC >>
- IMP_RES_TAC unred_arg_index_in_range >>
- IMP_RES_TAC rich_listTheory.EL_MEM >>
- IMP_RES_TAC e1_size_mem >>
- fs []
+ REPEAT STRIP_TAC >| [
+  IMP_RES_TAC unred_arg_index_in_range >>
+  IMP_RES_TAC rich_listTheory.EL_MEM >>
+  IMP_RES_TAC e3_size_mem >>
+  fs [],
+
+  IMP_RES_TAC unred_mem_index_in_range >>
+  IMP_RES_TAC rich_listTheory.EL_MEM >>
+  `e_size (EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+   fs []
+  ) >>
+  `e2_size (EL i (MAP FST x_e_l), EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+   rpt strip_tac >>
+   irule arithmeticTheory.LESS_TRANS >>
+   qexists_tac `e2_size (EL i (MAP FST x_e_l),EL i (MAP SND x_e_l))` >>
+   fs [e_e2_size_less]
+  ) >>
+  subgoal `MEM (EL i x_e_l) x_e_l` >- (
+   irule rich_listTheory.EL_MEM >>
+   fs [listTheory.LENGTH_MAP]
+  ) >>
+  imp_res_tac e1_size_mem >>
+  fs [EL_pair_list]
+ ]
 );
 (* TODO: Is the below line too hacky? Should the theorem only be referred to as "e_exec_def"? *)
 val e_exec = save_thm("e_exec", e_exec);
@@ -483,20 +516,20 @@ Definition stmt_exec:
   /\
  (*********************)
  (* Table application *)
- (stmt_exec (ext_map, func_map, tbl_map) (g_scope_list, [(funn, stmt_app t_name e, scopes_stack)], ctrl, status_running) =
-  (case get_v e of
-   | SOME v =>
+ (stmt_exec (ext_map, func_map, tbl_map) (g_scope_list, [(funn, stmt_app t_name e_l, scopes_stack)], ctrl, status_running) =
+  (case index_not_const e_l of
+   | SOME i =>
+    (case e_exec (ext_map, func_map, tbl_map) g_scope_list scopes_stack (EL i e_l) of
+     | SOME (e', frame_list) =>
+      SOME (g_scope_list, frame_list++[(funn, stmt_app t_name (LUPDATE e' i e_l), scopes_stack)], ctrl, status_running)
+     | NONE => NONE)
+   | NONE =>
     (case FLOOKUP tbl_map t_name of
-     | SOME (e_t, m_k) =>
-      (case ctrl (t_name, v, m_k) of
+     | SOME mk_l =>
+      (case ctrl (t_name, e_l, mk_l) of
        | SOME (f, f_args) =>
         SOME (g_scope_list, [(funn, stmt_ass lval_null (e_call (funn_name f) f_args), scopes_stack)], ctrl, status_running)
        | NONE => NONE)
-     | NONE => NONE)
-   | NONE =>
-    (case e_exec (ext_map, func_map, tbl_map) g_scope_list scopes_stack e of
-     | SOME (e', frame_list) =>
-      SOME (g_scope_list, frame_list++[(funn, stmt_app t_name e', scopes_stack)], ctrl, status_running)
      | NONE => NONE)))
   /\
  (**********)

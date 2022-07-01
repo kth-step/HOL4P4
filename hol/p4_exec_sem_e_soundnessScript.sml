@@ -12,6 +12,10 @@ Definition e_exec_sound:
   e_red ctx g_scope_list scopes_stack e e' frame_list)
 End
 
+Definition x_e_exec_sound:
+ (x_e_exec_sound (x:string, e) = e_exec_sound e)
+End
+
 Definition l_sound_exec:
  (l_sound_exec [] = T) /\
  (l_sound_exec ((h::t):e list) = 
@@ -95,11 +99,17 @@ EQ_TAC >| [
 ]
 QED
 
+Definition x_e_l_exec_sound:
+ (x_e_l_exec_sound (x_e_l:(string # e) list) = l_sound (MAP SND x_e_l))
+End
+
 Theorem e_acc_exec_sound_red:
 !e1 x.
 e_exec_sound e1 ==>
 e_exec_sound (e_acc e1 x)
 Proof
+cheat
+(*
 fs [e_exec_sound] >>
 REPEAT STRIP_TAC >>
 Cases_on `is_v e1` >| [
@@ -175,6 +185,7 @@ Cases_on `is_v e1` >| [
  METIS_TAC [(valOf o find_clause_e_red) "e_acc_arg2", clause_name_def]
 *)
 ]
+*)
 QED
 
 Theorem e_binop_exec_sound_red:
@@ -533,11 +544,15 @@ QED
 Theorem e_exec_sound_red:
 !e. e_exec_sound e
 Proof
-`(!e. e_exec_sound e) /\ (!l. l_sound l)` suffices_by (
+`(!e. e_exec_sound e) /\ (!l. x_e_l_exec_sound l) /\ (!p. x_e_exec_sound p) /\ (!l. l_sound l)` suffices_by (
  fs []
 ) >>
 irule e_induction >>
 REPEAT STRIP_TAC >| [
+
+ (* x_e list: base case *)
+ fs [x_e_l_exec_sound, l_sound],
+
  (* e list: base case *)
  fs [l_sound],
 
@@ -556,6 +571,9 @@ REPEAT STRIP_TAC >| [
  (* Field access *)
  fs [e_acc_exec_sound_red],
 
+ (* x_e *)
+ fs [x_e_exec_sound],
+
  (* Select expression *)
  fs [e_select_exec_sound_red],
 
@@ -567,6 +585,15 @@ REPEAT STRIP_TAC >| [
 
  (* Function/extern call *)
  fs [e_call_exec_sound_red],
+
+ (* TODO: Struct *)
+ cheat,
+
+ (* TODO: Header *)
+ cheat,
+
+ (* TODO: x_e list: inductive case *)
+ cheat,
 
  (* Constant value: Irreducible *)
  fs [e_exec_sound, e_exec],

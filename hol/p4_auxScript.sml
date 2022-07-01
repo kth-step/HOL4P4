@@ -6,8 +6,33 @@ open listTheory;
 
 open p4Theory;
 
+(* e_size: size of an e
+ * e1_size: size of a (string # e) list
+ * e2_size: size of a string # e
+ * e3_size: size of an e list *)
+
+Theorem EL_pair_list:
+!i l. EL i l = (EL i (MAP FST l), EL i (MAP SND l))
+Proof
+cheat
+QED
+
+Theorem e_e2_size_less:
+ !x e. e_size e < e2_size (x,e)
+Proof
+ fs [e_size_def]
+QED
+
 Theorem e1_size_append:
- !e_l1 e_l2. e1_size (e_l1 ++ e_l2) = (e1_size e_l1 + e1_size e_l2)
+ !x_e_l1 x_e_l2. e1_size (x_e_l1 ++ x_e_l2) = (e1_size x_e_l1 + e1_size x_e_l2)
+Proof
+ Induct_on `x_e_l1` >> (
+  fs [e_size_def]
+ )
+QED
+
+Theorem e3_size_append:
+ !e_l1 e_l2. e3_size (e_l1 ++ e_l2) = (e3_size e_l1 + e3_size e_l2)
 Proof
  Induct_on `e_l1` >> (
   fs [e_size_def]
@@ -15,10 +40,17 @@ Proof
 QED
 
 Theorem e1_size_mem:
- !e e_l. MEM e e_l ==> e_size e < e1_size e_l
+ !x_e x_e_l. MEM x_e x_e_l ==> e2_size x_e < e1_size x_e_l
 Proof
  REPEAT STRIP_TAC >>
  fs [listTheory.MEM_SPLIT, e1_size_append, e_size_def]
+QED
+
+Theorem e3_size_mem:
+ !e e_l. MEM e e_l ==> e_size e < e3_size e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, e3_size_append, e_size_def]
 QED
 
 Theorem index_find_length:
@@ -73,6 +105,19 @@ Proof
  REPEAT STRIP_TAC >>
  fs [unred_arg_index_def, find_unred_arg_def] >>
  Cases_on `INDEX_FIND 0 (\(d,e). ~is_arg_red d e) (ZIP (d_l,e_l))` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ IMP_RES_TAC index_find_length >>
+ fs []
+QED
+
+Theorem unred_mem_index_in_range:
+ !e_l i. unred_mem_index e_l = SOME i ==> i < LENGTH e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [unred_mem_index_def, unred_mem_def] >>
+ Cases_on `INDEX_FIND 0 (\e. ~is_const e) e_l` >> (
   fs []
  ) >>
  Cases_on `x` >>

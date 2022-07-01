@@ -3,7 +3,7 @@ open arithmeticTheory stringTheory containerTheory pred_setTheory
      listTheory finite_mapTheory;
 
 open blastLib bitstringLib;
-open p4Theory;
+open p4Theory p4_auxTheory;
 (*open p4_exec_semTheory;*)
 open bitstringTheory;
 open wordsTheory;
@@ -674,15 +674,6 @@ FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF] >>
 IMP_RES_TAC index_none_not_none >>
 IMP_RES_TAC not_index_none_exist
 );
-
-
-(*Copied from p4_exec_sem_rules, remove it whenever  that file is fixed*)
-Theorem index_find_length:
- !l i f j e. (INDEX_FIND i f l = SOME (j, e)) ==> (j - i < LENGTH l)
-Proof
- cheat 
-QED
-
 
 val ured_mem_length =
 prove(`` !l i . (unred_mem_index l = SOME i) ==> i < LENGTH l ``,
