@@ -103,11 +103,11 @@ val scopelist28 = ``[(FEMPTY |+ (mk_map "y" 1 NONE) |+ ^map_initx_arb |+ ^map_s_
 (*empty ctrl*)
 val empty_ctrl =
 Define
-`empty_ctrl (" ", v, match_kind_exact) = NONE:(string # e list) option`;
+`empty_ctrl (" ", [v], match_kind_exact) = NONE:(string # e list) option`;
 
 
 (*context examples*)
-val ctx_empty = ``(FEMPTY, FEMPTY, FEMPTY, FEMPTY):ctx``;
+val ctx_empty = ``(FEMPTY, FEMPTY, FEMPTY):ctx``;
 val Gscope_list = ``[FEMPTY;FEMPTY]:scope list``;
 
 (*** assignment statement reduction --concrete values -- ***)
@@ -629,7 +629,7 @@ FULL_SIMP_TAC list_ss []
 (****copy_in IN values aka func_call_args rule ****)
 
 val func_sig1 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_in)] ))): func_map``;
-val ctx1 = ``(FEMPTY, FEMPTY, ^func_sig1, FEMPTY):ctx``;
+val ctx1 = ``(FEMPTY, ^func_sig1, FEMPTY):ctx``;
 
 val prog_call1 = ``(e_call (funn_name "Add1") [e_var (varn_name"x")]) ``;
 val prog_call2 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1)))]) ``;
@@ -658,7 +658,7 @@ EVAL_TAC
 where the arg is IN i.e. not copied in*)
 
 val func_sig2 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_none)] ))): func_map``;
-val ctx2 = ``(FEMPTY, FEMPTY, ^func_sig2, FEMPTY):ctx``;
+val ctx2 = ``(FEMPTY, ^func_sig2, FEMPTY):ctx``;
 
 val test_COPYIN2 =
 prove(`` e_red  (^ctx2) ^scopelist7 [FEMPTY]
@@ -681,7 +681,7 @@ where y is OUT so it is copied out, thus we do not evaluate it in the first swip
 and   x is IN so it will be the first value to evaluate and not copied in *)
 
 val func_sig3 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_out); ("b", d_in)] )))``;
-val ctx3 = ``(FEMPTY, FEMPTY, ^func_sig3, FEMPTY):ctx``;
+val ctx3 = ``(FEMPTY, ^func_sig3, FEMPTY):ctx``;
 val prog_call3 = ``(e_call (funn_name "Add1") [e_var (varn_name "y"); e_var (varn_name "x")]) ``; (*call the function with x,y*)
 val prog_call4 = ``(e_call (funn_name "Add1") [e_var (varn_name "y"); (e_v (v_bit ([F],1)))]) ``;
 
@@ -708,7 +708,7 @@ where x is NONE so it is not copied out, thus we do evaluate it in the first swi
 and   y is OUT  *)
 
 val func_sig4 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_none); ("b", d_out)] )))``;
-val ctx4 = ``(FEMPTY, FEMPTY, ^func_sig4, FEMPTY):ctx``;
+val ctx4 = ``(FEMPTY, ^func_sig4, FEMPTY):ctx``;
 val prog_call5 = ``(e_call (funn_name "Add1") [ e_var (varn_name "x"); e_var (varn_name "y")]) ``; (*call the function with a,b*)
 val prog_call6 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1))); e_var (varn_name "y")]) ``;
 
@@ -731,7 +731,7 @@ EVAL_TAC
 
 (* test 5 + 6: two arguments call NONE and IN reduction sequence*)
 val func_sig5 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_none); ("b", d_in)] )))``;
-val ctx5 = ``(FEMPTY, FEMPTY, ^func_sig5, FEMPTY):ctx``;
+val ctx5 = ``(FEMPTY, ^func_sig5, FEMPTY):ctx``;
 
 
 val prog_call7 = ``(e_call (funn_name "Add1") [ e_var (varn_name "x") ; e_var (varn_name "y")]) ``; 
@@ -776,7 +776,7 @@ EVAL_TAC
 val prog_call10 = ``(e_call (funn_name "Add1") [e_binop (e_var (varn_name "x")) binop_add (e_var (varn_name "y"))]) ``; 
 val prog_call11 = ``(e_call (funn_name "Add1") [e_binop (e_v (v_bit ([F],1))) binop_add  (e_var (varn_name "y"))]) ``; 
 val func_sig6 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("a",d_in)] )))``;
-val ctx6 = ``(FEMPTY, FEMPTY, ^func_sig6, FEMPTY):ctx``;
+val ctx6 = ``(FEMPTY, ^func_sig6, FEMPTY):ctx``;
 
 val test_COPYIN7 =
 prove(`` e_red (^ctx6) ^scopelist17 [FEMPTY]
@@ -801,7 +801,7 @@ EVAL_TAC)
 (* test 8: copy_in IN values aka func_call_newframe rule*)
 
 val func_sig7 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_in)] )))``;
-val ctx7 = ``(FEMPTY, FEMPTY, ^func_sig7, FEMPTY):ctx``;
+val ctx7 = ``(FEMPTY, ^func_sig7, FEMPTY):ctx``;
 
 val prog_call12 = ``(e_call (funn_name "Add1") [(e_v (v_bit ([F],1)))]) ``;
 
@@ -825,7 +825,7 @@ FULL_SIMP_TAC list_ss []
 (* test 9: copy_in OUT values aka func_call_newframe rule*)
 
 val func_sig8 = ``(FEMPTY |+ ("Add1", (stmt_empty , [("y",d_out)] )))``;
-val ctx8 = ``(FEMPTY, FEMPTY, ^func_sig8, FEMPTY):ctx``;
+val ctx8 = ``(FEMPTY, ^func_sig8, FEMPTY):ctx``;
 
 val prog_call13 = ``(e_call (funn_name "Add1") [e_var (varn_name "x")]) ``;
 
@@ -846,7 +846,7 @@ FULL_SIMP_TAC list_ss []
 
 (****copy_in two args IN and OUT values aka func_call_newframe rule ****)
 (* test 10: copy_in two arguments (NONE, OUT) values aka func_call_newframe rule*)
-val ctx9 = ``(FEMPTY, FEMPTY, ^func_sig4, FEMPTY):ctx``;
+val ctx9 = ``(FEMPTY, ^func_sig4, FEMPTY):ctx``;
 
 val test_NEWFRAME3 =
 prove(`` e_red (^ctx4) ^scopelist7 ^scopelist12
@@ -876,7 +876,7 @@ val ctrl1 = Define
  ctrl1 (("check_ttl"), [e_v (v_bit ([T; F],2))], [mk_exact]) = SOME ("NoAction",[]:e list )
 `;
 
-val ctx11 = ``(FEMPTY, FEMPTY, FEMPTY, ^table_map1):ctx``;
+val ctx11 = ``(FEMPTY, FEMPTY, ^table_map1):ctx``;
 
 
 (* test 1: test two reductions app e -> app v -> null := call f     *)
@@ -916,7 +916,7 @@ EVAL_TAC
 
 
 (* test 2: test two reductions app e -> app v -> null := call f
-Where teh value is repeated in teh global and in the local stack scope *)
+Where the value is repeated in the global and in the local stack scope *)
 
 
 val ctrl2 = Define
@@ -939,7 +939,7 @@ val frame_app6 = `` [(funn_name "f", ^prog_app5 , ^scopelist23 )] : frame_list `
 val state_app6 = ``(^scopelist22, (^frame_app6) , ctrl2 , ^R): state``;
 
 
-val ctx12 = ``(FEMPTY, FEMPTY, FEMPTY, ^table_map1):ctx``;
+val ctx12 = ``(FEMPTY, FEMPTY, ^table_map1):ctx``;
 
 val test_APPLY2 =
 prove(``
@@ -972,7 +972,7 @@ EVAL_TAC
 and the body of teh funtion is return *)
 
 val func_sig10 = ``(FEMPTY |+ ("Add1", (stmt_ret (e_v (v_bit ([F;F],2))) , [("y",d_out)] )))``;
-val ctx13 = ``(FEMPTY, FEMPTY, ^func_sig10, FEMPTY):ctx``;
+val ctx13 = ``(FEMPTY, ^func_sig10, FEMPTY):ctx``;
 
 val prog_ret1 = ``(stmt_ass (lval_varname (varn_name"g")) (e_call (funn_name "Add1") [e_var (varn_name "x")]))  ``;
 val prog_ret2a = ``(stmt_ret (e_v (v_bit ([F;F],2)))) ``;
@@ -1270,7 +1270,28 @@ REPEAT EXP_SIMP
 
 
 
+(*header expression reductions*)
+val header4 = ``[("Ethernet_h", e_binop (e_var (varn_name"x")) binop_add (e_v (v_bit ([T],1)))  )]``;
+val header5 = ``[("Ethernet_h", e_binop (e_v (v_bit ([F],1) )) binop_add (e_v (v_bit ([T],1))) )] ``;		 
+val prog_Hexp_s1 = ``e_header T  ^header4  ``;
+val prog_Hexp_s2 = ``e_header T  ^header5 ``;
 
+
+(* test reduction from the expresstion struct to an other expresstion struct*)
+val test_eHeader1 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; FEMPTY] ^scopelist8
+                  ^prog_Hexp_s1 ^prog_Hexp_s2 ([])
+``,
+EXP_SIMP >>
+EXISTS_TAC ``[("Ethernet_h",
+	           e_binop (e_var (varn_name"x")) binop_add (e_v (v_bit ([T],1))),
+		        e_binop (e_v (v_bit ([F],1) )) binop_add (e_v (v_bit ([T],1))))]`` >>
+EXP_SIMP >>
+EVAL_TAC >>
+fs[] >> rw[] >>
+EXP_SIMP >>
+EVAL_TAC
+);
 
 
 
@@ -1328,6 +1349,39 @@ prove(`` e_red  (^ctx_empty) [FEMPTY; FEMPTY] ^scopelist_s1
 NTAC 2 EXP_SIMP
 );
 
+
+(*struct expression reductions*)		 
+val prog_Sexp_s1 = ``e_struct  [("Ethernet_h", e_var (varn_name"x"))]  ``;
+val prog_Sexp_s2 = ``e_struct  [("Ethernet_h", e_v (v_bit ([F],1)))] ``;
+
+
+(* test reduction from the expresstion struct to an other expresstion struct*)
+val test_eStruct1 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; FEMPTY] ^scopelist8
+                  ^prog_Sexp_s1 ^prog_Sexp_s2 ([])
+``,
+EXP_SIMP >>
+EXISTS_TAC ``[("Ethernet_h", e_var (varn_name"x") ,  e_v (v_bit ([F],1)) )]`` >>
+EXISTS_TAC ``0`` >>
+EXISTS_TAC ``e_v (v_bit ([F],1))`` >>
+fs[] >>rw[] >>
+EXP_SIMP >>
+EVAL_TAC
+);
+
+
+(* test reduction from the expresstion struct to an other expresstion struct*)
+val prog_Sval_s1 = ``e_v (v_struct  [("Ethernet_h", (v_bit ([F],1)))]) ``;
+
+
+val test_eStruct1 =
+prove(`` e_red  (^ctx_empty) [FEMPTY; FEMPTY] ^scopelist8
+                  ^prog_Sexp_s2 ^prog_Sval_s1 ([])
+``,
+EXP_SIMP >>
+EXISTS_TAC ``[("Ethernet_h", e_v(v_bit ([F],1)) , (v_bit ([F],1)) )]`` >>
+EVAL_TAC
+);
 
 
 
@@ -1418,6 +1472,3 @@ NTAC 3 EXP_SIMP
 );
 
 
-EVAL ``declare [FEMPTY;FEMPTY] [FEMPTY] "x" (t_base bt_bit)``;
-EVAL ``declare [FEMPTY;FEMPTY] [FEMPTY] "x" (t_base bt_bool)``;
-EVAL ``declare [FEMPTY;FEMPTY] [FEMPTY] "x" (t_struct [(t_base bt_bool) ; (t_base bt_bool)])``;

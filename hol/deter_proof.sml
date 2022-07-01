@@ -24,7 +24,10 @@ fun OPEN_EXP_RED_TAC exp_term =
 fun OPEN_STMT_RED_TAC stm_term =
 (Q.PAT_X_ASSUM `stmt_red ct (gsl,[(fun,^stm_term,gam)],ctl,st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
 
+
+
 (*********** SAME SATE DEF *****************)
+
 val same_state_def = Define `
  same_state (st:state) st'  =
 ((st = st'))
@@ -32,6 +35,7 @@ val same_state_def = Define `
 
 
 (******** STMT DETERMINISIM DEF ************)
+
 val det_stmt_def = Define `
  det_stmt stm = ! (c:ctx) (ss:scopes_stack) (s':state) (s'':state) (g_scope_list:scope list) (f:funn) status (ctrl:ctrl).
 (stmt_red c ( g_scope_list , ([(f,stm,ss)]) , ctrl, status) (s'))
@@ -43,6 +47,7 @@ val det_stmt_def = Define `
 
 
 (********* SAME FRAME and EXP DEF *************)
+
 val same_frame_exp_def = Define `
  same_frame_exp (frame:frame_list) frame' (e:e) e'  =
 ((frame = frame') /\ (e = e'))
@@ -50,6 +55,9 @@ val same_frame_exp_def = Define `
 
 
 (********** EXPRESSION DETER DEF *************)
+(* Based on the e_induction definition, this is P0
+wich shows that each exression reduction is determ.*)
+
 val det_exp_def = Define `
  det_exp e = ! c scope scopest e' e'' frame frame'.
 (e_red c scope scopest e e' frame )
@@ -60,12 +68,37 @@ val det_exp_def = Define `
 `;
 
 
-(********** EXPRESSION List P2 ***************)
+(********** EXPRESSION List P3 ***************)
 (* Supposed to be a property that states the following:
-every expression  element of the list is deterministic *)
+every expression element of the list is deterministic
+for clarification, check the definition of e_induction
+in P4 theory, it is basically P3 *)
 
 val det_exp_list_def = Define `
    det_exp_list (l : e list)  = !(x : e). MEM x l ==> det_exp(x)
+`;
+
+
+(********** STR EXPRESSION List P1 ***************)
+(* Supposed to be a property that states the following:
+every expression element of the list of tuples of expression
+and strings is deterministic for clarification, check
+the definition of e_induction in P4 theory, it is P1 *)
+
+val det_strexp_list_def = Define `
+   det_strexp_list (l : (string#e) list)
+      = !  (e:e) . MEM e (SND (UNZIP l)) ==> det_exp(e)
+`;
+
+
+(********** STR EXPRESSION tuple P2 ***************)
+(* Supposed to be a property that states the following:
+A tuple of (expression, string) in the struct or header 
+is deterministic. Based on e_induction this is P2 *)
+
+val det_strexp_tuple_def = Define `
+   det_strexp_tup (tup : (string#e))
+      =  det_exp (SND(tup))
 `;
 
 
@@ -83,10 +116,10 @@ val det_frame_def = Define `
 (******** parser DETERMINISIM DEF ************)
 val det_parser_def = Define `
  det_parser framel =
- ! (ty_map:ty_map) (ext_map:ext_map) (func_map:func_map) (pars_map:pars_map) (s':state) s'' (g_scope_list:scope list) (ctrl:ctrl) status.
-(pars_red ( ty_map ,  ext_map ,  func_map ,  pars_map ) ( g_scope_list , framel , ctrl, status) (s'))
+ ! (ext_map:ext_map) (func_map:func_map) (pars_map:pars_map) (s':state) s'' (g_scope_list:scope list) (ctrl:ctrl) status.
+(pars_red (  ext_map ,  func_map ,  pars_map ) ( g_scope_list , framel , ctrl, status) (s'))
 /\
-(pars_red ( ty_map ,  ext_map ,  func_map ,  pars_map ) ( g_scope_list , framel , ctrl, status) (s''))
+(pars_red (  ext_map ,  func_map ,  pars_map ) ( g_scope_list , framel , ctrl, status) (s''))
 ==>
 ( same_state s' s'')
 `;
@@ -119,7 +152,7 @@ rfs [lookup_funn_sig_def]
 (*********Mapping equv. lemmas ************)
 
 val lemma_MAP1 =
-prove (``!(l: (e#string#d) list) (l': (e#e#string#d) list)  .
+prove (``! l l'  .
           (MAP (λ(e_,x_,d_). (x_,d_)) l =
         MAP (λ(e_,e'_,x_,d_). (x_,d_)) l') ==> 
         ((MAP (λ(e_,x_,d_). d_) l) = (MAP (λ(e_,e'_,x_,d_). d_) l')) /\
@@ -142,14 +175,14 @@ REV_FULL_SIMP_TAC list_ss []
 
 val lemma_MAP2 =
 prove (``
-!(e_e'_x_d_list: (e#e#string#d) list) (e_e'_x_d_list': (e#e#string#d) list) .
-        (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list =
-        MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ==>
-	(MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list =
-        MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list') ``,
+! l l' .
+        (MAP (λ(e_,e'_,x_,d_). (x_,d_)) l =
+        MAP (λ(e_,e'_,x_,d_). (x_,d_)) l') ==>
+	(MAP (λ(e_,e'_,x_,d_). d_) l =
+        MAP (λ(e_,e'_,x_,d_). d_) l') ``,
 
-Induct_on `e_e'_x_d_list` >>
-Induct_on `e_e'_x_d_list'` >>
+Induct_on `l` >>
+Induct_on `l'` >>
 FULL_SIMP_TAC list_ss [] >>
 NTAC 3 STRIP_TAC>>
 
@@ -165,16 +198,16 @@ REV_FULL_SIMP_TAC list_ss []
 
 val lemma_MAP3 =
 prove ( ``
-!(e_x_d_list: (e#string#d) list) (e_x_d_list': (e#string#d) list) .
-        (MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list =
-        MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list') ==>
-	(MAP (λ(e_,x_,d_). (x_)) e_x_d_list =
-        MAP (λ(e_,x_,d_). (x_)) e_x_d_list') /\
-	(MAP (λ(e_,x_,d_). (d_)) e_x_d_list =
-        MAP (λ(e_,x_,d_). (d_)) e_x_d_list') ``,
+!l l' .
+        (MAP (λ(e_,x_,d_). (x_,d_)) l =
+        MAP (λ(e_,x_,d_). (x_,d_)) l') ==>
+	(MAP (λ(e_,x_,d_). (x_)) l =
+        MAP (λ(e_,x_,d_). (x_)) l') /\
+	(MAP (λ(e_,x_,d_). (d_)) l =
+        MAP (λ(e_,x_,d_). (d_)) l') ``,
 
-Induct_on `e_x_d_list` >>
-Induct_on `e_x_d_list'` >>
+Induct_on `l` >>
+Induct_on `l'` >>
 FULL_SIMP_TAC list_ss [] >>
 NTAC 3 STRIP_TAC>>
 
@@ -188,15 +221,15 @@ REV_FULL_SIMP_TAC list_ss []
 
 val MAP4 =
 prove ( ``
-!(x_d_list: (string#d) list) (x_d_list': (string#d) list) .
-        ( x_d_list =  x_d_list') ==>
-	(MAP (λ(x_,d_). (x_)) x_d_list =
-        MAP (λ(x_,d_). (x_)) x_d_list') /\
-	(MAP (λ(x_,d_). (d_)) x_d_list =
-        MAP (λ(x_,d_). (d_)) x_d_list') ``,
+!l l' .
+        ( l =  l') ==>
+	(MAP (λ(x_,d_). (x_)) l =
+        MAP (λ(x_,d_). (x_)) l) /\
+	(MAP (λ(x_,d_). (d_)) l =
+        MAP (λ(x_,d_). (d_)) l') ``,
 
-Induct_on `x_d_list` >>
-Induct_on `x_d_list'` >>
+Induct_on `l` >>
+Induct_on `l'` >>
 FULL_SIMP_TAC list_ss [] >>
 NTAC 3 STRIP_TAC>>
 
@@ -206,6 +239,70 @@ Cases_on `r` >>
 Cases_on `r'` >>
 REV_FULL_SIMP_TAC list_ss []
 );
+
+
+val lemma_MAP5 =
+prove ( ``
+!l l' .
+        ( MAP (λ(f_,e_,e'_). (f_,e_)) l =
+        MAP (λ(f_,e_,e'_). (f_,e_)) l') ==>
+	(MAP (λ(f_,e_,e'_). (f_)) l =
+        MAP (λ(f_,e_,e'_). (f_)) l') /\
+	(MAP (λ(f_,e_,e'_). (e_)) l =
+        MAP (λ(f_,e_,e'_). (e_)) l') ``,
+
+Induct_on `l` >>
+Induct_on `l'` >>
+FULL_SIMP_TAC list_ss [] >>
+NTAC 3 STRIP_TAC>>
+
+Cases_on `h` >>
+Cases_on `h'` >>
+Cases_on `r` >>
+Cases_on `r'` >>
+REV_FULL_SIMP_TAC list_ss []
+);
+
+
+
+val lemma_MAP6 =
+prove ( ``
+!l l'. (MAP (λ(f_,e_,e'_). f_) l = MAP (λ(f_,e_,e'_). f_) l') /\
+ (MAP (λ(f_,e_,e'_). e_) l = MAP (λ(f_,e_,e'_). e_) l') /\
+ (MAP (λ(f_,e_,e'_). e'_)l = MAP (λ(f_,e_,e'_). e'_) l') ==>
+ MAP (λ(f_,e_,e'_). (f_,e'_)) l =
+        MAP (λ(f_,e_,e'_). (f_,e'_)) l' ``,
+
+Induct_on `l` >>
+Induct_on `l'` >>
+FULL_SIMP_TAC list_ss [] >>
+NTAC 3 STRIP_TAC>>
+
+
+Cases_on `h'` >>
+Cases_on `r` >>
+REV_FULL_SIMP_TAC list_ss [] >>
+fs [ELIM_UNCURRY]
+);	
+
+
+val lemma_MAP7 =
+prove ( ``
+!l l'. MAP (λ(f_,e_,e'_). (f_,e_)) l =
+        MAP (λ(f_,e_,v_). (f_,e_)) l' ==>
+MAP (λ(f_,e_,e'_). (e_)) l =
+        MAP (λ(f_,e_,v_). (e_)) l' ``,
+Induct_on `l` >>
+Induct_on `l'` >>
+FULL_SIMP_TAC list_ss [] >>
+NTAC 3 STRIP_TAC>>
+Cases_on `h'` >>
+Cases_on `r` >>
+REV_FULL_SIMP_TAC list_ss [] >>
+fs [ELIM_UNCURRY]
+);
+
+
 
 (********* lval and is_const lemmas ************)
 
@@ -565,7 +662,88 @@ rfs[combinTheory.o_DEF]
 );
 
 
+val unred_mem_not_const =
+prove(``
+!l i. unred_mem_index (l) = SOME i ==> ~ is_consts (l) ``,
+NTAC 3 STRIP_TAC>>
+FULL_SIMP_TAC std_ss [unred_mem_index_def] >>
+Cases_on `unred_mem l` >>
+fs[is_consts_def, unred_mem_def] >>
+IMP_RES_TAC index_none_not_none >>
+FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF] >>
+IMP_RES_TAC index_none_not_none >>
+IMP_RES_TAC not_index_none_exist
+);
 
+
+(*Copied from p4_exec_sem_rules, remove it whenever  that file is fixed*)
+Theorem index_find_length:
+ !l i f j e. (INDEX_FIND i f l = SOME (j, e)) ==> (j - i < LENGTH l)
+Proof
+ cheat 
+QED
+
+
+val ured_mem_length =
+prove(`` !l i . (unred_mem_index l = SOME i) ==> i < LENGTH l ``,
+REPEAT STRIP_TAC >>
+fs[unred_mem_index_def] >>
+Cases_on `unred_mem l`>>
+fs[] >>
+fs[unred_mem_def] >>
+Cases_on `x` >>
+IMP_RES_TAC index_find_length >>
+fs []
+);
+
+
+(* Mapping, EL and MEM thms*)
+val map_snd_EQ =
+prove(``
+!l . MAP (λx. SND x) l = MAP SND l``,
+Induct >>
+RW_TAC list_ss [MAP]
+);
+
+
+val map_fst_snd_EQ =
+prove(``
+!l. MAP (λx. FST (SND x)) l = (MAP SND (MAP (λx. (FST x,FST (SND x))) l)) ``,
+Induct >>
+RW_TAC list_ss [MAP]
+);
+
+
+
+val mem_el_map1 =
+prove(`` ! l i .
+MEM (EL i (MAP (λ(f_,e_). e_) l))
+               (MAP (λ(f_,e_). e_) l) ==>
+MEM (EL i (MAP (λ(f_,e_). e_) l))
+               (SND (UNZIP (MAP (λ(f_,e_). (f_,e_)) l)))	``,
+
+REPEAT STRIP_TAC >>
+FULL_SIMP_TAC list_ss [UNZIP_MAP] >>
+FULL_SIMP_TAC list_ss [SND_EQ_EQUIV, SND_PAIR_MAP] >>
+fs [ELIM_UNCURRY] >>
+FULL_SIMP_TAC list_ss [map_snd_EQ]
+);
+
+
+val mem_el_map2 =
+prove(`` ! l i .
+MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
+               (MAP (λ(f_,e_,e'_). e_) l) ==>
+MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
+               (SND (UNZIP (MAP (λ(f_,e_,e'_). (f_,e_)) l)))	``,
+
+REPEAT STRIP_TAC >>
+FULL_SIMP_TAC list_ss [UNZIP_MAP] >>
+FULL_SIMP_TAC list_ss [SND_EQ_EQUIV, SND_PAIR_MAP] >>
+fs [ELIM_UNCURRY] >>
+FULL_SIMP_TAC list_ss [map_snd_EQ, map_fst_snd_EQ] 
+);
+	  
 
 
 
@@ -573,8 +751,8 @@ rfs[combinTheory.o_DEF]
 (*determinism proof of expressions*)
 
 val P4_exp_det =
-prove ( `` (!e. det_exp e) /\ (! l: e list. det_exp_list l) ``,
-
+prove ( `` (!e. det_exp e) /\ (! l1: e list. det_exp_list l1)  /\ (!l2 : (string#e) list .  det_strexp_list l2 ) /\ ( ! tup. det_strexp_tup tup)``,
+ 
 Induct >|[
 
 (*****************************)
@@ -805,6 +983,164 @@ IMP_RES_TAC lemma_v_red_forall) >>
 FULL_SIMP_TAC (srw_ss()) [det_exp_def]>>
 RES_TAC>>
 FULL_SIMP_TAC (srw_ss()) [Once same_state_def, Once same_frame_exp_def ] 
+,
+
+(*****************************)
+(*   e_struct                *)
+(*****************************)
+
+NTAC 2 (SIMP_TAC (srw_ss()) [det_exp_def] >>
+REPEAT STRIP_TAC >>
+OPEN_EXP_RED_TAC ``(e_struct l)`` >>
+REV_FULL_SIMP_TAC (srw_ss()) []) >>
+fs[] >> rw[]  >| [
+
+(*first subgoal *)
+IMP_RES_TAC lemma_MAP5 >>
+fs[SOME_EL,SOME_11] >>
+rw[] >>
+REV_FULL_SIMP_TAC (srw_ss()) [det_strexp_list_def] >>
+PAT_ASSUM `` ∀e._``
+( STRIP_ASSUME_TAC o (Q.SPECL [`EL i (MAP (λ(f_,e_,e'_). (e_:e)) (f_e_e'_list':(string # e # e) list))`])) >>
+
+IMP_RES_TAC ured_mem_length >>
+IMP_RES_TAC EL_MEM >>
+IMP_RES_TAC  mem_el_map2 >>
+FULL_SIMP_TAC list_ss [] >>
+
+IMP_RES_TAC det_exp_def >>
+fs[same_frame_exp_def] >>
+
+` MAP (λ(f_,e_,e'_). e'_) f_e_e'_list =
+ MAP (λ(f_,e_,e'_). e'_) f_e_e'_list'
+` by METIS_TAC [SOME_EL,SOME_11] >>
+fs[ lemma_MAP6] 
+,
+
+(*second subgoal *)
+IMP_RES_TAC unred_mem_not_const >>
+IMP_RES_TAC lemma_MAP7 >>
+fs[]
+,
+
+(*third subgoal *)
+IMP_RES_TAC unred_mem_not_const >>
+IMP_RES_TAC lemma_MAP7 >>
+fs[]
+
+,
+(*fourth subgoal *)
+IMP_RES_TAC lemma_MAP5 >>
+rw[] >>
+FULL_SIMP_TAC list_ss [] >>
+` MAP (λ(f_,e_,v_). v_) f_e_v_list =
+ MAP (λ(f_,e_,v_). v_) f_e_v_list'
+` by METIS_TAC [SOME_EL,SOME_11] >>
+IMP_RES_TAC lemma_MAP6 >>
+fs[same_frame_exp_def] 
+]
+,
+
+(*****************************)
+(*   e_header                *)
+(*****************************)
+NTAC 2 (SIMP_TAC (srw_ss()) [det_exp_def] >>
+REPEAT STRIP_TAC >>
+OPEN_EXP_RED_TAC ``(e_header b l)`` >>
+REV_FULL_SIMP_TAC (srw_ss()) []) >>
+fs[] >> rw[]  >| [
+
+(*first subgoal *)
+IMP_RES_TAC lemma_MAP5 >>
+fs[SOME_EL,SOME_11] >>
+rw[] >>
+REV_FULL_SIMP_TAC (srw_ss()) [det_strexp_list_def] >>
+PAT_ASSUM `` ∀e._``
+( STRIP_ASSUME_TAC o (Q.SPECL [`EL i (MAP (λ(f_,e_,e'_). (e_:e)) (f_e_e'_list':(string # e # e) list))`])) >>
+
+IMP_RES_TAC ured_mem_length >>
+IMP_RES_TAC EL_MEM >>
+IMP_RES_TAC  mem_el_map2 >>
+FULL_SIMP_TAC list_ss [] >>
+
+IMP_RES_TAC det_exp_def >>
+fs[same_frame_exp_def] >>
+
+` MAP (λ(f_,e_,e'_). e'_) f_e_e'_list =
+ MAP (λ(f_,e_,e'_). e'_) f_e_e'_list'
+` by METIS_TAC [SOME_EL,SOME_11] >>
+fs[ lemma_MAP6] 
+,
+IMP_RES_TAC unred_mem_not_const >>
+IMP_RES_TAC lemma_MAP7 >>
+fs[]
+,
+IMP_RES_TAC unred_mem_not_const >>
+IMP_RES_TAC lemma_MAP7 >>
+fs[]
+,
+IMP_RES_TAC lemma_MAP5 >>
+rw[] >>
+FULL_SIMP_TAC list_ss [] >>
+` MAP (λ(f_,e_,v_). v_) f_e_v_list =
+ MAP (λ(f_,e_,v_). v_) f_e_v_list'
+` by METIS_TAC [SOME_EL,SOME_11] >>
+IMP_RES_TAC lemma_MAP6 >>
+fs[same_frame_exp_def] 
+]
+,
+
+(*****************************)
+(*   strexcp   []            *)
+(*****************************)
+FULL_SIMP_TAC list_ss [det_strexp_list_def]
+,
+
+(*****************************)
+(*   strexcp   l             *)
+(*****************************)
+Cases_on `tup` >>
+FULL_SIMP_TAC list_ss [det_strexp_tuple_def ] >>
+FULL_SIMP_TAC list_ss [det_strexp_list_def] >>
+FULL_SIMP_TAC list_ss [det_exp_def ] >>
+NTAC 2 STRIP_TAC >|[
+
+(*first case*)
+REPEAT STRIP_TAC >>
+rw [] >>
+PAT_ASSUM `` ∀c scope scopest e' e'' frame frame'.
+          e_red c scope scopest e e' frame ∧
+          e_red c scope scopest e e'' frame' ⇒
+          same_frame_exp frame frame' e' e''``
+( STRIP_ASSUME_TAC o (Q.SPECL [`c`, `scope`, `scopest`, `e'`, `e''`, `frame`, `frame'`])) >>
+FULL_SIMP_TAC list_ss [same_frame_exp_def]
+,
+
+(*second case*)
+REPEAT STRIP_TAC >>
+rw [] >>
+
+PAT_ASSUM `` ∀e. MEM e (SND (UNZIP l2)) ⇒
+            ∀c scope scopest e' e'' frame frame'.
+              e_red c scope scopest e e' frame ∧
+              e_red c scope scopest e e'' frame' ⇒
+              same_frame_exp frame frame' e' e''``
+( STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+PAT_ASSUM `` ∀c scope scopest e' e'' frame frame'.
+          e_red c scope scopest e e' frame ∧
+          e_red c scope scopest e e'' frame' ⇒
+          same_frame_exp frame frame' e' e''``
+( STRIP_ASSUME_TAC o (Q.SPECL [`c`, `scope`, `scopest`, `e'`, `e''`, `frame`, `frame'`])) >>
+FULL_SIMP_TAC list_ss [same_frame_exp_def]
+
+]
+,
+
+(*****************************)
+(*   str_exp_tup             *)
+(*****************************)
+FULL_SIMP_TAC list_ss [det_strexp_tuple_def ]
 ,
 
 (*****************************)
