@@ -181,6 +181,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\bitv}{\ensuremath{bitv}}
 \newcommand{\estmt}{\emptyset_{ \mathrm{stmt} }}
 \newcommand{\frameL}{\overrightarrow{\Phi}}
+\newcommand{\declL}{\overrightarrow{decl}}
 
 \subsection{Execution State}
 
@@ -334,6 +335,17 @@ The way that this new frame is constructed is as follows: The function name \fun
 \end{figure}
 
 
+\subsubsection*{headers and structs}
+The struct can be an expression, thus we need reductions for it. The rule \textsc{e\_eStruct} rule will reduce the expression feilds one at a time from left to right. One all the expressions become constants then we can transform the expression struct to a value struct via \textsc{e\_eStruct\_to\_v} which will be used mostly in header access. Same extact operations are applied on the headers.
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXeStruct{}} \\
+    \ottusedrule{\ottdruleeXXeStrcutXXtoXXv{}} \\
+    \ottusedrule{\ottdruleeXXeHeader{}} \\
+    \ottusedrule{\ottdruleeXXeHeaderXXtoXXv{}}
+    \label{fig:estruct_sem}
+\end{figure}
+
 
 \subsubsection*{access headers and structs}
 The \textsc{e\_s\_acc} rule is used to access the values of fields in structs, and the \textsc{e\_h\_acc} rule is similarly used for headers.
@@ -388,14 +400,14 @@ Unary and binary operations are basically standard operations on bit vectors, th
 The semantics of the statements are presented in this section. \footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
 
 
-\subsubsection*{declaration}
-The declaration statement rules can be broken down into a standard declaration \textsc{stmt\_decl} and initialisation \textsc{stmt\_init}. In the declaration, the value is not provided, only the notion of type t that is used in the grammar (note that this is not part of the typing rules). The premise $\mathrm{declare}$ declares the variable x in the topmost exsisting scope and maps it to an arbitrary value. The same behaviour is carried out in the initialisation, however, the variable name x is mapped to a value rather than an arbitrary value from the same type using the $\mathrm{initialise}$.
+%\subsubsection*{declaration}
+%The declaration statement rules can be broken down into a standard declaration \textsc{stmt\_decl} and initialisation \textsc{stmt\_init}. In the declaration, the value is not provided, only the notion of type t that is used in the grammar (note that this is not part of the typing rules). The premise $\mathrm{declare}$ declares the variable x in the topmost exsisting scope and maps it to an arbitrary value. The same behaviour is carried out in the initialisation, however, the variable name x is mapped to a value rather than an arbitrary value from the same type using the $\mathrm{initialise}$.
 
-\begin{figure}[ht!]
-    \ottusedrule{\ottdrulestmtXXdecl{}} \\
-    \ottusedrule{\ottdrulestmtXXinit{}} 
-    \label{fig:decl_sem}
-\end{figure}
+%\begin{figure}[ht!]
+%    \ottusedrule{\ottdrulestmtXXdecl{}} \\
+%    \ottusedrule{\ottdrulestmtXXinit{}} 
+%    \label{fig:decl_sem}
+%\end{figure}
 
 
 \subsubsection*{assignment}
@@ -420,7 +432,7 @@ The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones fo
 \subsubsection*{block}
 The \{\} brackets indicate a block, while the [ ] brackets indicate a block in progress or being executed.
 
-Once a block statement is encountered the \textsc{stmt\_block\_enter} reduction will be used, it entails an empty scope \escope{} being appended to the local $\scopeL{}$ of the frame, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. 
+Once a block statement is encountered the \textsc{stmt\_block\_enter} reduction will be used, it entails the $\declL{}$ being transformed and replicated into a scope that will be appended to the local $\scopeL{}$ of the frame, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. 
 
 The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents, and the \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the scope list $\scopeL$. The block will be exited and reduced to an empty statement $\estmt{}$ .
 
@@ -432,12 +444,12 @@ The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the
 \end{figure}
 
 
-\subsubsection*{apply} %TODO: update with the new semantics
-The \textsc{stmt\_apply\_v} describes the apply table statement. Each apply statement has a table name $tbl$ with the a key to match on $\cval$. The Tb will return the match kind $mk$. The ctrl is a function that maps table names $tbl$, key value $\cval$, and the match kind $mk$, it returns the action that should be implemented as a method call, with a list of the arguments.
+\subsubsection*{apply} 
+The \textsc{stmt\_apply\_v} describes the apply table statement. Each apply statement has a table name $tbl$ with the a list of key expressions $\expr_1 \cons \expr_n$ to match on. This list have been previously reduced to constants one at a time in the rule \textsc{stmt\_apply\_e}. The Tb will return a list of match kind $mk_1 \cons mk_n$. The ctrl is a function that maps table names $tbl$, expressions, and the match kinds to action that should be implemented as a method call, with a list of the arguments $\cval_1 \cons \cval_m $ .
 
-TODO: UPDATE WITH THE NEW RULE!!!
 
 \begin{figure}[ht!]
+\ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}} \\
 \ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}} 
 \label{fig:apply_sem}
 \end{figure}
@@ -465,7 +477,7 @@ Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returns
 
 
 \subsubsection*{extern}
-The rule \textsc{stmt\_EXT} used when the semantics are encourting an extern function definition, here the $\blacksquare$ signifies that this funtion that is being currently executed has some external semantics that can be fetched via $\mathit{lookup\_ext_fun}$ function. The reduction here is able to change the control $C$, the local scope lists and glocal ones of the state.
+The rule \textsc{stmt\_EXT} used when the semantics are encourting an extern function definition, here the $\blacksquare$ signifies that this funtion that is being currently executed has some external semantics that can be fetched via lookup\_ext\_fun function. The reduction here is able to change the control $C$, the local scope lists and glocal ones of the state.
 
 
 \begin{figure}[ht!]
@@ -496,10 +508,6 @@ The $\mathbf{verify} \, \expr \, \expr'$ usually used to check the validity of t
 \ottusedrule{\ottdrulestmtXXverifyXXFour{}} \\
 \label{fig:verify_sem}
 \end{figure}
-
-
-
-
 
 
 

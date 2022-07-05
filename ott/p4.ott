@@ -555,6 +555,15 @@ grammar
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 {{ hol ((g_scope_list # scopes_stack # ctrl) -> ((g_scope_list # scopes_stack # ctrl) option)) }}
 
+decl_list {{ tex { \overrightarrow{decl} } }} :: decl_list_ ::=
+{{ hol ((varn # t) list) }}
+{{ com declare tuple list of varn and type t}}
+| empty :: M :: empty
+  {{ com empty table map }}
+  {{ hol ([]:(varn # t) list) }}
+  {{ tex [ \, ] }}
+
+
 %Fence between ext and ext_map
 embed
 {{ hol
@@ -573,12 +582,12 @@ stmt :: stmt_ ::=
   {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
 | if e then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-| decl t x init_opt :: :: declare
-  %TODO: This should have a type name instead of a type t, which is then looked up in the type environment.
-  {{ com declaration }}
-| begin stmt end :: :: block
+%| decl t x init_opt :: :: declare
+%  %TODO: This should have a type name instead of a type t, which is then looked up in the type environment.
+%  {{ com declaration }}
+| begin decl_list stmt end :: :: block
   {{ com block }}
-  {{ tex \{ [[stmt]] \} }}
+  {{ tex \{ [[decl_list]] \, [[stmt]] \} }}
 | begin' stmt end' :: I :: block_ip
   {{ com block in progress }}
   {{ tex [ [[stmt]] ] }}
@@ -1034,8 +1043,8 @@ formula :: formula_ ::=
   {{ tex i = \mathrm{min} \, \{ j . \; \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
   {{ hol (unred_mem_index [[e_list]] = SOME [[i]]) }}
 | ( v_list ) = vl_of_el ( e_list ) :: M :: vl_of_el
-  {{ tex TODO }}
-  {{ hol ( [[v_list]] = vl_of_el [[e_list]]) }}
+  {{ tex [[v_list]] = \mathrm{vl\_of\_el} \, ( [[e_list]] ) }}
+  {{ hol  [[v_list]] = vl_of_el [[e_list]] }}
 
 
 
@@ -1233,6 +1242,13 @@ formula :: formula_ ::=
   {{ com initialise variable to value }}
   {{ hol ([[scopes_stack']] = initialise [[scopes_stack]] [[varn]] [[v]]) }}
   {{ tex [[scopes_stack']] = \mathrm{initialise} ([[scopes_stack]], [[varn]], [[v]]) }}
+
+| scope = declare_list_in_fresh_scope ( decl_list ) :: M :: decl_in_fresh_scope  
+  {{ com create a scope from the list of declarations }}
+  {{ hol [[scope]] = declare_list_in_fresh_scope ([[decl_list]]) }}
+  {{ tex [[scope]] = \mathrm{replicate} ([[decl_list]]) }}
+
+
 | [ ( f , stmt , scopes_stack ) ] = E :: M :: contofE 
   {{ com extract the content of E }}
   {{ tex [ ( [[f]] , [[stmt]] , [[scopes_stack]]) ] = [[E]] }}
@@ -1872,6 +1888,14 @@ val initialise_def = Define `
   )
 `;
 
+
+(* it takes a declaration list of tuples (x,type) and it returns a proper scope
+that can be used when entering a block space *)
+val declare_list_in_fresh_scope_def = Define `
+  declare_list_in_fresh_scope (decl_list: decl_list) =
+    FOLDR (λ(x,t) f. f |+ ( x , (arb_from_t t, NONE) )) (FEMPTY:scope) (decl_list)
+`;
+
 (* Looks up the function signature and body for an abstract function name. *)
 val lookup_funn_sig_body_def = Define `
   (lookup_funn_sig_body (funn:funn) (func_map:func_map) (ext_map:ext_map) =
@@ -2151,9 +2175,9 @@ ctx g_scope_list scopes_stack ( bitv [ bitv' : bitv'' ] ) ~> ( bitv''' , empty )
 
 %Struct/header field accesses
 %(looks nicer with left-to-right, since we avoid writing out an explicit struct)
-ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
------------------------------------ :: acc_arg1
-ctx g_scope_list scopes_stack ( e . x ) ~> ( e' . x , frame_list )
+%ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+%----------------------------------- :: acc_arg1
+%ctx g_scope_list scopes_stack ( e . x ) ~> ( e' . x , frame_list )
 
 %Select
 
@@ -2447,25 +2471,30 @@ by
 %%%%%%%%%%%%%%
 %Declaration (possibly with initializer) and Instantiation
 
-  ( g_scope_list' , scopes_stack' ) = declare ( g_scope_list , scopes_stack , x , t )
-  ----------------------------------- :: decl
-  ctx ( g_scope_list , [ ( funn , decl t x - , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl , Running )
+ % ( g_scope_list' , scopes_stack' ) = declare ( g_scope_list , scopes_stack , x , t )
+ % ----------------------------------- :: decl
+ % ctx ( g_scope_list , [ ( funn , decl t x - , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl , Running )
 
 %TODO: Check type agreement between t and initial value?
-  scopes_stack' = initialise ( g_scope_list ++ scopes_stack , x , v )
-  g_scope = scopes_stack' [0]
-  g_scope' = scopes_stack' [1]
-  scopes_stack'' = tl (tl scopes_stack')
-  ----------------------------------- :: init
-  ctx ( g_scope_list , [ ( funn , decl t x v , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , empty_stmt , scopes_stack'' ) ] , ctrl , Running )
+ % scopes_stack' = initialise ( g_scope_list ++ scopes_stack , x , v )
+ % g_scope = scopes_stack' [0]
+ % g_scope' = scopes_stack' [1]
+ % scopes_stack'' = tl (tl scopes_stack')
+ % ----------------------------------- :: init
+ % ctx ( g_scope_list , [ ( funn , decl t x v , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , empty_stmt , scopes_stack'' ) ] , ctrl , Running )
 
 %%%%%%%%%%%%%%
 %Block
 
-  scopes_stack' =  scopes_stack ++ [ emptyscope ]
-  ----------------------------------- :: block_enter
-  ctx ( g_scope_list , [ ( funn , begin stmt end , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , begin' stmt end' , scopes_stack' ) ] , ctrl , Running )
+ % scopes_stack' =  scopes_stack ++ [ emptyscope ]
+ % ----------------------------------- :: block_enter
+ % ctx ( g_scope_list , [ ( funn , begin stmt end , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , begin' stmt end' , scopes_stack' ) ] , ctrl , Running )
 
+  
+  ( scope ) = declare_list_in_fresh_scope ( decl_list )
+  scopes_stack' =  scopes_stack ++ [ scope ]
+  ----------------------------------- :: block_enter
+  ctx ( g_scope_list , [ ( funn , begin decl_list stmt end , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , begin' stmt end' , scopes_stack' ) ] , ctrl , Running )
 
   ctx ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list ++ [ ( funn , stmt' , scopes_stack' ) ] , ctrl' , status' )
   ----------------------------------- :: block_exec
@@ -2537,9 +2566,9 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Reduction step of declare with initializer/instantiation
-  ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
-  ----------------------------------- :: init_e
-  ctx ( g_scope_list , [ ( funn , decl t x e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , decl t x e' , scopes_stack ) ] , ctrl , Running )
+  %ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
+  %----------------------------------- :: init_e
+  %ctx ( g_scope_list , [ ( funn , decl t x e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , decl t x e' , scopes_stack ) ] , ctrl , Running )
 
 %Reduction step of return expression
 
