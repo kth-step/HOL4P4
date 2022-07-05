@@ -152,10 +152,21 @@ v_list :: v_list_ ::=
 | v1 , .. , vn :: M :: vl
   {{ hol ([[v1 .. vn]]) }}
 
+
+%An abstract function or extern method/function name
+funn :: funn_ ::=
+| f :: :: name
+  {{ com function name }}
+| inst f :: :: inst
+  {{ com extern object instantiation }}
+| f f' :: :: ext
+  {{ com extern method call }}
+  
+
 varn :: varn_ ::=
 | x :: :: name
   {{ com variable name }}
-| star :: :: star 
+| ( star , funn ) :: :: star 
   {{ com function return placeholder }}
 | ext_ret :: :: ext_ret
   {{ com extern return variable }}
@@ -240,9 +251,9 @@ embed
 }}
 grammar
 
-g_scope_list {{ tex \overrightarrow{ {\gamma} }_L }} :: g_scope_list_ ::=
+g_scope_list {{ tex \overrightarrow{ {\gamma} }_GB }} :: g_scope_list_ ::=
 {{ hol (scope list) }}
-{{ com list of global scopes }}
+{{ com list of the global scope and the Programmable Block global scope }}
 | [ g_scope ]' :: M :: one
   {{ com 1 global scope }}
   {{ hol ([ [[g_scope]] ]) }}
@@ -406,14 +417,6 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
-%An abstract function or extern method/function name
-funn :: funn_ ::=
-| f :: :: name
-  {{ com function name }}
-| inst f :: :: inst
-  {{ com extern object instantiation }}
-| f f' :: :: ext
-  {{ com extern method call }}
 
 %TODO: Add casts
 %TODO: Add tuples
@@ -1140,10 +1143,10 @@ formula :: formula_ ::=
   {{ com instantaneous lookup of lvals }}
   {{ hol ([[v]] = lookup_lval [[scopes_stack]]  [[lval]]) }}
   {{ tex [[v]] = { \mathrm{lookup} }_{ \mathrm{lval} } ([[scopes_stack]], [[lval]]) }}
-| scopes_stack' = init_in_highest_scope ( scopes_stack , v , star ) :: M :: init_star
+| scopes_stack' = init_in_highest_scope ( scopes_stack , v , ( star , funn ) ) :: M :: init_star
   {{ com declare "star" with value v in topmost scope }}
-  {{ hol ([[scopes_stack']] = init_in_highest_scope [[scopes_stack]] [[v]] varn_star) }}
-  {{ tex [[scopes_stack']] = [[scopes_stack]] [ [[star]] \longmapsto [[v]] ] }}
+  {{ hol ([[scopes_stack']] = init_in_highest_scope [[scopes_stack]] [[v]] ( varn_star [[funn]] ) ) }}
+  {{ tex [[scopes_stack']] = [[scopes_stack]] [ ( [[star]] , [[funn]] )\longmapsto [[v]] ] }}
 | not_final_state ( x ) :: M :: not_final_x
   {{ com x is not name of final state }}
   {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
@@ -2019,15 +2022,15 @@ val newest_scope_def = Define `
 
 (* Init the variable name star in the topmost scope and return only the scope *)
 val decl_init_star_def = Define `
-  decl_init_star scopes_stack v varn_star =
-    FUPDATE (newest_scope scopes_stack) (varn_star, (v , NONE))
+  decl_init_star scopes_stack v (varn_star funn) =
+    FUPDATE (newest_scope scopes_stack) ((varn_star funn), (v , NONE))
 `;
 
 (* TODO: Use initialise_def? *)
 (* Init the variable name star in the topmost scope and return the updated scope stack *)
 val init_in_highest_scope_def = Define `
-  init_in_highest_scope scopes_stack v varn_star =
-    LUPDATE (decl_init_star scopes_stack v varn_star) (newest_scope_ind scopes_stack) scopes_stack
+  init_in_highest_scope scopes_stack v (varn_star funn) =
+    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) (newest_scope_ind scopes_stack) scopes_stack
 `;
 
 val parser_not_finished_def = Define `
@@ -2079,7 +2082,7 @@ ctx g_scope_list scopes_stack ( var varn ) ~> ( v ,  empty )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scopes_stack )
 ----------------------------------- :: call_newframe
-( ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( var star , [ ( funn , stmt , [ scope' ] ) ] )
+( ext_map , func_map , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( var ( star , funn ) , [ ( funn , stmt , [ scope' ] ) ] )
 
 %Function call reduction of arguments
 [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , ext_map )
@@ -2422,7 +2425,7 @@ by
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
   ( ext_map , func_map , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
-  scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , star )
+  scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
   g_scope = scopes_stack'' [0]
   g_scope' = scopes_stack'' [1]
   scopes_stack''' = tl (tl scopes_stack'')
