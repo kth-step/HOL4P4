@@ -201,7 +201,7 @@ val (stmt_seq_tm, mk_stmt_seq, dest_stmt_seq, is_stmt_seq) =
 val (stmt_cond_tm, mk_stmt_cond, dest_stmt_cond, is_stmt_cond) =
   syntax_fns3 "p4"  "stmt_cond";
 val (stmt_block_tm, mk_stmt_block, dest_stmt_block, is_stmt_block) =
-  syntax_fns1 "p4"  "stmt_block";
+  syntax_fns2 "p4"  "stmt_block";
 val (stmt_ret_tm, mk_stmt_ret, dest_stmt_ret, is_stmt_ret) =
   syntax_fns1 "p4"  "stmt_ret";
 val (stmt_app_tm, mk_stmt_app, dest_stmt_app, is_stmt_app) =

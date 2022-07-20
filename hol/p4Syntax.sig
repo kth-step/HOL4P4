@@ -168,9 +168,9 @@ val is_stmt_cond : term -> bool
 val mk_stmt_cond : term * term * term -> term
 val stmt_cond_tm : term
 
-val dest_stmt_block : term -> term
+val dest_stmt_block : term -> term * term
 val is_stmt_block : term -> bool
-val mk_stmt_block : term -> term
+val mk_stmt_block : term * term -> term
 val stmt_block_tm : term
 
 val dest_stmt_ret : term -> term

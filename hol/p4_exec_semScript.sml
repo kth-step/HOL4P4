@@ -285,7 +285,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
  (************************)
  (* Function/extern call *)
  (e_exec (ext_map, func_map, tbl_map) g_scope_list scopes_stack (e_call funn e_l) =
-  (case lookup_funn_sig_body funn func_map ext_map of
+  (case lookup_funn_sig_body funn func_map b_func_map ext_map of
     | SOME (stmt, x_d_l) =>
      if LENGTH x_d_l = LENGTH e_l
      then
@@ -297,7 +297,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
        | NONE =>
         (case copyin (MAP FST x_d_l) (MAP SND x_d_l) e_l g_scope_list scopes_stack of
          | SOME scope => 
-          SOME (e_var varn_star, [(funn, stmt, [scope])])
+          SOME (e_var (varn_star funn), [(funn, [stmt], [scope])])
          | NONE => NONE))
      else NONE
     | NONE => NONE))
