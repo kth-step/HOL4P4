@@ -253,13 +253,13 @@ grammar
 
 g_scope_list {{ tex \overrightarrow{\gamma_G} }} :: g_scope_list_ ::=
 {{ hol (scope list) }}
-{{ com list of the global scope and the Programmable Block global scope }}
+{{ com list of the global scope and the block-global scope }}
 | [ g_scope ]' :: M :: one
-  {{ com 1 global scope }}
+  {{ com only global scope }}
   {{ hol ([ [[g_scope]] ]) }}
   {{ tex [ [[g_scope]] ] }}
 | [ g_scope ; g_scope' ] :: M :: two
-  {{ com 2 global scopes }}
+  {{ com global scope and block-global scope }}
   {{ hol ([ [[g_scope]] ; [[g_scope']] ]) }}
   {{ tex [ [[g_scope]], [[g_scope']] ] }}
 
@@ -560,9 +560,9 @@ ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 
 decl_list {{ tex { \overrightarrow{decl} } }} :: decl_list_ ::=
 {{ hol ((varn # t) list) }}
-{{ com declare tuple list of varn and type t}}
+{{ com list of abstract variable name and type tuples to represent declarations }}
 | empty :: M :: empty
-  {{ com empty table map }}
+  {{ com empty list of declarations }}
   {{ hol ([]:(varn # t) list) }}
   {{ tex [ \, ] }}
 
@@ -585,9 +585,6 @@ stmt :: stmt_ ::=
   {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
 | if e then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-%| decl t x init_opt :: :: declare
-%  %TODO: This should have a type name instead of a type t, which is then looked up in the type environment.
-%  {{ com declaration }}
 | begin decl_list stmt end :: :: block
   {{ com block }}
   {{ tex \{ [[decl_list]] \, [[stmt]] \} }}
@@ -697,25 +694,19 @@ d_list :: d_list_ ::=
   {{ hol ([[d_list]] ++ [[d_list']]) }}
 
 func_map {{ tex F_g }} :: func_map_ ::=
-{{ com function map for global functions and global actions }}
+{{ com function map for global functions and actions }}
 {{ hol (string |-> (stmt # (string # d) list)) }}
 | empty :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
-| func_map + [ x |-> stmt ] :: M :: update
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE [[func_map]] ([[x]], [[stmt]])) }}
 
 func_map_b {{ tex F_b }} :: func_map_b_ ::=
-{{ com function map of the block's local actions }}
+{{ com function map for block-local actions }}
 {{ hol (string |-> (stmt # (string # d) list)) }}
 | empty :: M :: empty
   {{ com empty function map }}
   {{ tex \emptyset }}
   {{ hol FEMPTY }}
-| func_map_b + [ x |-> stmt ] :: M :: update
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE [[func_map_b]] ([[x]], [[stmt]])) }}  
 
 %This maps extern function names of an individual object obj to their implementations
 %Note the stmt in order to accommodate return by using return statements
@@ -1058,22 +1049,16 @@ formula :: formula_ ::=
   {{ hol (unred_mem_index [[e_list]] = SOME [[i]]) }}
 | ( v_list ) = vl_of_el ( e_list ) :: M :: vl_of_el
   {{ tex [[v_list]] = \mathrm{vl\_of\_el} \, ( [[e_list]] ) }}
-  {{ hol  [[v_list]] = vl_of_el [[e_list]] }}
+  {{ hol ([[v_list]] = vl_of_el [[e_list]]) }}
 
-
-
-
-
-
-
-%concatination and bit slicing:
+%concatenation and bit slicing:
 | bitv'' = concat bitv bitv' :: M :: concat
-  {{ com concatination operation}}
+  {{ com concatenation operation}}
   {{ tex [[bitv'']] =  [[bitv]] {+}\mspace{-8mu}{+}  [[bitv']] }}
   {{ hol ([[bitv'']] = bitv_concat [[bitv]] [[bitv']]) }}
 
 | bitv''' = bitv [ bitv' : bitv'' ] :: M :: slice
-  {{ com bit slicing operation}}
+  {{ com bit-slicing operation}}
   {{ tex [[bitv''']] =  [[bitv]] [ [[bitv']] : [[bitv'']] ]}}
   {{ hol [[bitv''']] = slice [[bitv]] [[bitv']] [[bitv'']] }}
 
@@ -1264,8 +1249,7 @@ formula :: formula_ ::=
 | g_scope_list'' = scopes_to_retrieve ( funn , func_map , func_map_b , g_scope_list , g_scope_list' ) :: M :: scopes_to_retrieve
   {{ com global and block scopes to retrieve based on function location }}
   {{ hol (SOME[[g_scope_list'']] = scopes_to_retrieve [[funn]] [[func_map]] [[func_map_b]] [[g_scope_list]] [[g_scope_list']]) }}
-  {{ tex [[g_scope_list'']] = \mathrm{scopes\_to\_retrieve} ([[funn]], [[func_map]], [[func_map_b]], [[g_scope_list]], [[g_scope_list']]) }}  
-
+  {{ tex [[g_scope_list'']] = \mathrm{scopes\_to\_retrieve} ([[funn]], [[func_map]], [[func_map_b]], [[g_scope_list]], [[g_scope_list']]) }}
 
 | scope = declare_list_in_fresh_scope ( decl_list ) :: M :: decl_in_fresh_scope  
   {{ com create a scope from the list of declarations }}
@@ -1273,7 +1257,8 @@ formula :: formula_ ::=
   {{ tex [[scope]] = \mathrm{replicate} ([[decl_list]]) }}
 
 | ( g_scope_list' , scopes_stack'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scopes_stack , scopes_stack' ) :: M :: copyout
-   %scopes_stack callee stack, whereas scopes_stack' is the caller stack
+   %scopes_stack is the callee stack, whereas scopes_stack' is the caller stack
+   %TODO: Double-check this LaTeX hack...
   {{ tex ( [[g_scope_list']] , [[scopes_stack'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}' , \overrightarrow{\gamma}''' , \overrightarrow{\gamma} ) }}
   {{ hol ( SOME ( [[g_scope_list']] , [[scopes_stack'']] ) = copyout [[x1 .. xn]] [[d_list]] [[g_scope_list]] [[scopes_stack]] [[scopes_stack']] ) }}
 
@@ -1908,11 +1893,11 @@ val initialise_def = Define `
 `;
 
 
-(* it takes a declaration list of tuples (x,type) and it returns a proper scope
-that can be used when entering a block space *)
+(* Takes a list of declaration tuples (x, t) and returns the scope
+ * where the declarations have been made (to be used when entering a block) *)
 val declare_list_in_fresh_scope_def = Define `
-  declare_list_in_fresh_scope (decl_list: decl_list) =
-    FOLDR (λ(x,t) f. f |+ ( x , (arb_from_t t, NONE) )) (FEMPTY:scope) (decl_list)
+  declare_list_in_fresh_scope (decl_list:decl_list) =
+    FOLDR (\(x,t) f. f |+ (x , (arb_from_t t, NONE))) (FEMPTY:scope) decl_list
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
@@ -1920,12 +1905,14 @@ val lookup_funn_sig_body_def = Define `
   (lookup_funn_sig_body (funn:funn) (func_map:func_map) (func_map_b:func_map_b) (ext_map:ext_map) =
     case funn of
     | (funn_name x) =>
-     (case FLOOKUP func_map x of
+     (case FLOOKUP func_map_b x of
       | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
-      | NONE => 
-       (case FLOOKUP func_map_b x of
-          | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
-          | NONE => NONE ))
+      | NONE =>
+       (case FLOOKUP func_map x of
+        | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
+        | NONE => NONE
+       )
+     )
     | (funn_inst x) =>
      (case FLOOKUP ext_map x of
       | SOME (SOME (stmt, x_d_l, _), _) => SOME (stmt, x_d_l)
@@ -2075,43 +2062,42 @@ val lookup_ext_fun_def = Define `
 `;
 
 
-(* reads the global scope or block scope based on where the function is defined.
-   If the function is defined in the global scope, then the function read will
-   return only the global scope to be added to the transition of the single frame
-   else then we should always return both the global and block scopes*)
+(* Passes different global scope lists based on where the function funn is defined.
+   If funn is global, then the function will return only the global scope,
+   else both the global and block scopes will be returned.
+   Note that only functions of the shape "funn_name x" can be declared in blocks. *)
 val scopes_to_pass_def = Define `
-  scopes_to_pass (funn:funn) (func_map_g:func_map) (func_map_b:func_map_b)  (g_scope_list:g_scope_list) =
-    case funn of
-    | (funn_name x) =>
+ scopes_to_pass (funn:funn) (func_map_g:func_map) (func_map_b:func_map_b)  (g_scope_list:g_scope_list) =
+  case funn of
+   | (funn_name x) =>
+    (case FLOOKUP func_map_b x of
+     | SOME (stmt, x_d_l) => SOME g_scope_list
+     | NONE =>
       (case FLOOKUP func_map_g x of
-      | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; FEMPTY])
-      | NONE =>
-      	( case FLOOKUP func_map_b x of
-      	| SOME (stmt, x_d_l) => SOME (g_scope_list)
-      	| NONE => NONE
-      	)
+       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; FEMPTY])
+       | NONE => NONE
       )
-    | _ => SOME (g_scope_list)
+    )
+   | _ => SOME ([EL 0 g_scope_list; FEMPTY])
 `;
 
-(* this definition retrieves teh global and block scopes based on where teh function is defined
- If teh function is defined in the block, then retrieve the scopes from the single frame transition
- Otherwise, if the function is defined globally then retrieve a list looks as 
- [new_global_scope [0] ; old_block_scope[1] *)
-
+(* Retrieves the global and block scopes based on where the function funn is defined.
+   If funn is defined in the programmable block, then retrieve the regular global scope list.
+   Otherwise, if the funn is defined globally then retrieve a regular global scope followed by the
+   original block scope: [new_global_scope [0] ; old_block_scope[1] *)
 val scopes_to_retrieve_def = Define `
-  scopes_to_retrieve (funn:funn) (func_map_g:func_map) (func_map_b:func_map_b)  (g_scope_list_og:g_scope_list) (g_scope_list:g_scope_list) =
-    case funn of
-    | (funn_name x) =>
+ scopes_to_retrieve (funn:funn) (func_map_g:func_map) (func_map_b:func_map_b)  (g_scope_list_og:g_scope_list) (g_scope_list:g_scope_list) =
+  case funn of
+   | (funn_name x) =>
+    (case FLOOKUP func_map_b x of
+     | SOME (stmt, x_d_l) => SOME g_scope_list
+     | NONE =>
       (case FLOOKUP func_map_g x of
-      | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; EL 1 g_scope_list_og])
-      | NONE =>
-      	( case FLOOKUP func_map_b x of
-      	| SOME (stmt, x_d_l) => SOME (g_scope_list)
-      	| NONE => NONE
-      	)
+       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; EL 1 g_scope_list_og])
+       | NONE => NONE
       )
-    | _ => SOME (g_scope_list)
+    )
+   | _ => SOME ([EL 0 g_scope_list; EL 1 g_scope_list_og])
 `;
 
 
@@ -2140,7 +2126,6 @@ ctx g_scope_list scopes_stack ( var varn ) ~> ( v ,  empty )
 %Function/method call
 
 %Function call construction of new frame
-%fix this to take the f_local as well
 ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , func_map_b , ext_map )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scopes_stack )
@@ -2148,7 +2133,6 @@ scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_sco
 ( ext_map , func_map , func_map_b , tbl_map ) g_scope_list scopes_stack ( call funn ( e1 , .. , en ) ) ~> ( var ( star , funn ) , [ ( funn , stmt , [ scope' ] ) ] )
 
 %Function call reduction of arguments
-%here as well
 [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , func_map_b , ext_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
@@ -2239,12 +2223,6 @@ bitv''' = bitv [ bitv' : bitv'' ]
 ----------------------------------- :: slice_v
 ctx g_scope_list scopes_stack ( bitv [ bitv' : bitv'' ] ) ~> ( bitv''' , empty )
 
-
-%Struct/header field accesses
-%(looks nicer with left-to-right, since we avoid writing out an explicit struct)
-%ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
-%----------------------------------- :: acc_arg1
-%ctx g_scope_list scopes_stack ( e . x ) ~> ( e' . x , frame_list )
 
 %Select
 
@@ -2481,24 +2459,6 @@ defn
   {{ tex [[ctx]] \vdash  [[state]] \rightarrow  [[state']] }}
 by
 
-%  frame_list'' neq empty
-%  notret( status' )
-%  ctx ( g_scope_list , [ frame ] , ctrl , status ) -> ( g_scope_list' , frame_list' , ctrl' , status' )
-%  ----------------------------------- :: comp1
-%  ctx ( g_scope_list , [ frame ] ++ frame_list'' , ctrl , status ) -> ( g_scope_list' , frame_list' ++ frame_list'' , ctrl' , status' )
-
-%Note that stmt must be return v, so ctrl cannot be modified by this reduction
-%  ( ext_map , func_map , func_map_b  , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
-%  scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
-%  g_scope = scopes_stack'' [0]
-%  g_scope' = scopes_stack'' [1]
-%  scopes_stack''' = tl (tl scopes_stack'')
-%  ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , func_map_b , ext_map )
-%  ( g_scope_list' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ g_scope ; g_scope' ] , scopes_stack''' , scopes_stack )
-%  ----------------------------------- :: comp2
-%  ( ext_map , func_map , func_map_b  , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ ( [ ( funn' , stmt' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -> ( g_scope_list' , [ ( funn' , stmt' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
-
-
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
   g_scope = scopes_stack' [0]
   g_scope' = scopes_stack' [1]
@@ -2534,28 +2494,8 @@ by
   ----------------------------------- :: cond3
   ctx ( g_scope_list , [ ( funn , if false then stmt1 else stmt2 , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt2 , scopes_stack ) ] , ctrl , Running )
 
-
-%%%%%%%%%%%%%%
-%Declaration (possibly with initializer) and Instantiation
-
- % ( g_scope_list' , scopes_stack' ) = declare ( g_scope_list , scopes_stack , x , t )
- % ----------------------------------- :: decl
- % ctx ( g_scope_list , [ ( funn , decl t x - , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt , scopes_stack' ) ] , ctrl , Running )
-
-%TODO: Check type agreement between t and initial value?
- % scopes_stack' = initialise ( g_scope_list ++ scopes_stack , x , v )
- % g_scope = scopes_stack' [0]
- % g_scope' = scopes_stack' [1]
- % scopes_stack'' = tl (tl scopes_stack')
- % ----------------------------------- :: init
- % ctx ( g_scope_list , [ ( funn , decl t x v , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , empty_stmt , scopes_stack'' ) ] , ctrl , Running )
-
 %%%%%%%%%%%%%%
 %Block
-
- % scopes_stack' =  scopes_stack ++ [ emptyscope ]
- % ----------------------------------- :: block_enter
- % ctx ( g_scope_list , [ ( funn , begin stmt end , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , begin' stmt end' , scopes_stack' ) ] , ctrl , Running )
 
   
   ( scope ) = declare_list_in_fresh_scope ( decl_list )
@@ -2632,11 +2572,6 @@ by
 %Reduction of expression rules %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%Reduction step of declare with initializer/instantiation
-  %ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
-  %----------------------------------- :: init_e
-  %ctx ( g_scope_list , [ ( funn , decl t x e , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , decl t x e' , scopes_stack ) ] , ctrl , Running )
-
 %Reduction step of return expression
 
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
@@ -2683,9 +2618,9 @@ by
   ctx ( g_scope_list , [ ( funn , apply tbl ( e1 , .. , en ) , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , apply tbl ( e'1 , .. , e'n ) , scopes_stack ) ] , ctrl , Running )
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Statement semantics ( list of frames )%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Statement semantics (list of frames) %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 defns
   frames_sem :: '' ::=
@@ -2704,6 +2639,7 @@ by
   ( ext_map , func_map , func_map_b  , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] ++ frame_list'' , ctrl , status ) -f-> ( g_scope_list''' , frame_list' ++ frame_list'' , ctrl' , status' )
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
+%Note that global scope does not matter for the below statement reduction step (write global scope empty?)
   ( ext_map , func_map , func_map_b  , tbl_map ) ( g_scope_list , [ ( funn , stmt , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt'' , scopes_stack ) ] , ctrl , Ret v )
   scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
   g_scope = scopes_stack'' [0]
