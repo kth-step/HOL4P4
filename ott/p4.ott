@@ -797,8 +797,10 @@ arch_frame_list :: arch_frame_list_ ::=
 
 pblock {{ tex { \mathit{ pblock } } }} :: pblock_ ::=
 {{ com programmable block }}
-| parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map :: :: parser
-| control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map :: :: control
+| parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map :: :: parser
+%Note: First decl_list and stmt is for block variables, second decl_list' and stmt' is for
+%the top-level apply statement
+| control ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt decl_list' stmt' tbl_map :: :: control
 
 ffblock {{ tex { \mathit{ ffblock } } }} :: ffblock_ ::=
 {{ com fixed-function block }}
@@ -1990,8 +1992,8 @@ val update_return_frame_def = Define `
 `;
 
 val args_of_pbl_def = Define `
-  (args_of_pbl (pblock_parser x_d_list stmt pars_map) = x_d_list) /\
-  (args_of_pbl (pblock_control x_d_list stmt stmt' tbl_map) = x_d_list)
+  (args_of_pbl (pblock_parser x_d_list b_func_map decl_list stmt pars_map) = x_d_list) /\
+  (args_of_pbl (pblock_control x_d_list b_func_map decl_list stmt decl_list' stmt' tbl_map) = x_d_list)
 `;
 
 (* Implements the whole copyout operation to the caller scope stack. Given list of arguments
@@ -2070,7 +2072,7 @@ val init_in_highest_scope_def = Define `
 `;
 
 val parser_not_finished_def = Define `
-  (parser_not_finished [ ( funn , empty_stmt , scopes_stack ) ] = F) /\
+  (parser_not_finished [ ( funn , [empty_stmt] , scopes_stack ) ] = F) /\
   (parser_not_finished _ = T)
 `;
 
@@ -2750,7 +2752,7 @@ by
 %This should populate the block-global scope with arguments + parseError and then set up execution of initial decls+constructors
 %Note that initiation of a parser block also sets parseError to NoError
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map = pblock_map ( f )
   x = "start"
   stmt' = pars_map ( x )
 %  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
@@ -2765,7 +2767,7 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list'' , [ ( f , [ stmt ; stmt' ] , [ emptyscope ] ) ] , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt decl_list' stmt' tbl_map = pblock_map ( f )
   %TODO: Should you also be able to read from the global scope?
   scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
   g_scope'' = g_scope_list [0]
@@ -2792,7 +2794,7 @@ by
 
 %Note that this rule needs to check that execution is actually inside a parser block to remove ambiguity
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( x )
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map = pblock_map ( x )
   status_not_fin status
   ( ext_map , func_map , b_func_map , pars_map ) ( g_scope_list , frame_list , ctrl , status ) -p-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: parser_exec
@@ -2800,7 +2802,7 @@ by
 
 %Note that this rule needs to check that execution is actually inside a control block to remove ambiguity
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( x )
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt decl_list' stmt' tbl_map = pblock_map ( x )
   ( ext_map , func_map , b_func_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -c-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: control_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , ctrl' , status' )
@@ -2810,7 +2812,7 @@ by
 
 %Note that exiting a parser block also sets the value of parseError
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( f )
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map = pblock_map ( f )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope
   ascope' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
@@ -2824,7 +2826,7 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , pars_fin ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt stmt' tbl_map = pblock_map ( f )
+  control ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt decl_list' stmt' tbl_map = pblock_map ( f )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope
   ascope' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
