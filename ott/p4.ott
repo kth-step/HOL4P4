@@ -908,10 +908,10 @@ actx {{ tex { \mathit{ctx}_\mathit{A} } }} :: actx_ ::=
 
 pctx {{ tex { \mathit{ctx}_\mathit{P} } }} :: pctx_ ::=
 {{ com parser context }}
-{{ hol (ext_map # func_map # pars_map) }}
-| ( ext_map , func_map , pars_map ) :: M :: tup
+{{ hol (ext_map # func_map # b_func_map # pars_map) }}
+| ( ext_map , func_map , b_func_map , pars_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ext_map]], [[func_map]], [[pars_map]]) }}
+  {{ hol ([[ext_map]], [[func_map]], [[b_func_map]], [[pars_map]]) }}
 
 %TODO: Same as regular ctx?
 cctx {{ tex { \mathit{ctx}_\mathit{C} } }} :: cctx_ ::=
@@ -2527,6 +2527,7 @@ by
 %%%%%%%%%%%%%%
 %Block
 
+%TODO: Does this build up the scope stack in the right direction?
   ( scope ) = declare_list_in_fresh_scope ( decl_list )
   scopes_stack' =  scopes_stack ++ [ scope ]
   ----------------------------------- :: block_enter
@@ -2692,20 +2693,20 @@ by
 
 %This rule describes how individual statement steps are taken inside the parser
   parser_not_finished frame_list
-  (ext_map , func_map , empty , empty) ( g_scope_list , frame_list , ctrl, Running ) -f-> state'
+  (ext_map , func_map , b_func_map , empty) ( g_scope_list , frame_list , ctrl, Running ) -f-> state'
   ------------------------------------------------- :: stmt
-  (ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> state'
+  (ext_map, func_map, b_func_map, pars_map) ( g_scope_list , frame_list , ctrl, Running ) -p-> state'
 
 %This rule governs transitions between parser states
 %TODO: OK if function name is set to parser state name?
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
-  (ext_map, func_map, pars_map) ( g_scope_list , frame_list , ctrl, Trans x ) -p-> ( g_scope_list , [ ( x , [ stmt'' ] , [ emptyscope ] ) ] , ctrl, Running )
+  (ext_map, func_map, b_func_map, pars_map) ( g_scope_list , frame_list , ctrl, Trans x ) -p-> ( g_scope_list , [ ( x , [ stmt'' ] , [ emptyscope ] ) ] , ctrl, Running )
 
 %If the end of some parser state is reached without status change, we reject
   x = "reject"
   ------------------------------------------------- :: empty
-  (ext_map, func_map, pars_map) ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl, Running )
+  (ext_map, func_map, b_func_map, pars_map) ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl, Running ) -p-> ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl, Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2720,7 +2721,7 @@ defn
   {{ tex [[cctx]] \vdash [[state]] {\longrightarrow}_{c} [[state']] }}
 by
 
-  (ext_map , func_map , b_func_map  , tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -f-> ( g_scope_list' , frame_list' , ctrl', status' )
+  (ext_map , func_map , b_func_map , tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -f-> ( g_scope_list' , frame_list' , ctrl', status' )
   ------------------------------------------------- :: stmt
   (ext_map, func_map, b_func_map, tbl_map) ( g_scope_list , frame_list , ctrl, Running ) -c-> ( g_scope_list' , frame_list' , ctrl', status' )
 
@@ -2793,7 +2794,7 @@ by
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) stmt pars_map = pblock_map ( x )
   status_not_fin status
-  ( ext_map , func_map , pars_map ) ( g_scope_list , frame_list , ctrl , status ) -p-> ( g_scope_list' , frame_list' , ctrl' , status' )
+  ( ext_map , func_map , b_func_map , pars_map ) ( g_scope_list , frame_list , ctrl , status ) -p-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: parser_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , status ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , ctrl' , status' )
 
