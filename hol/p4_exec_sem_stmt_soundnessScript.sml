@@ -13,27 +13,19 @@ Proof
 cheat
 QED
 
-(* Note that this definition is phrased for given statements, not on the frame list, so soundness
- * of comp1 and comp2 rules are excluded *)
+(* Note that this definition is phrased for given singleton statement lists, not on the frame list,
+ * so soundness block nesting rules and comp1 and comp2 rules are excluded *)
 Definition stmt_exec_sound:
  (stmt_exec_sound stmt =
   !ctx g_scope_list funn scopes_stack ctrl status state'.
-  stmt_exec ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) = SOME state' ==>
-  stmt_red ctx (g_scope_list, [(funn, stmt, scopes_stack)], ctrl, status) state')
+  stmt_exec ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) = SOME state' ==>
+  stmt_red ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) state')
 End
 
-Theorem stmt_block_ip_exec_sound_red:
-!s.
-stmt_exec_sound s ==>
-stmt_exec_sound (stmt_block_ip s)
-Proof
-cheat
-QED
-
 Theorem stmt_block_exec_sound_red:
-!s.
-stmt_exec_sound s ==>
-stmt_exec_sound (stmt_block s)
+!stmt decl_list.
+stmt_exec_sound stmt ==>
+stmt_exec_sound (stmt_block decl_list stmt)
 Proof
 cheat
 QED
@@ -160,14 +152,7 @@ REPEAT STRIP_TAC >| [
  cheat,
 
  (* Block entry *)
- fs [stmt_block_exec_sound_red],
-
- (* Block execution in-progress *)
- fs [stmt_block_ip_exec_sound_red],
-
- (* Declare statement *)
- (* TODO *)
- cheat
+ fs [stmt_block_exec_sound_red]
 ]
 QED
 

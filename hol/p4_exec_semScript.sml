@@ -769,7 +769,7 @@ val arch_exec_def = Define `
   (case EL i ab_list of
    | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
-     | SOME (pblock_control x_d_list b_func_map decl_list stmt decl_list' stmt' tbl_map) =>
+     | SOME (pblock_control x_d_list b_func_map decl_list stmt stmt' tbl_map) =>
       (case copyout_pbl (g_scope_list, scope, (MAP SND x_d_list), (MAP FST x_d_list)) of
        | SOME scope' =>
         SOME ((i+1, in_out_list, in_out_list', scope'), (TAKE 1 g_scope_list),
@@ -793,7 +793,7 @@ val arch_exec_def = Define `
    | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
      (* arch_control_init *)
-     | SOME (pblock_control x_d_list b_func_map decl_list stmt decl_list' stmt' tbl_map) =>
+     | SOME (pblock_control x_d_list b_func_map decl_list stmt stmt' tbl_map) =>
         (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
          | SOME scope' =>
           SOME ((i, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
@@ -841,7 +841,7 @@ val arch_exec_def = Define `
        | SOME (g_scope_list', frame_list', ctrl', status') =>
         SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
        | _ => NONE)
-     | SOME (pblock_control x_d_list b_func_map decl_list stmt decl_list' stmt' tbl_map) =>
+     | SOME (pblock_control x_d_list b_func_map decl_list stmt stmt' tbl_map) =>
       (case ctrl_exec (ext_map, func_map, b_func_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
        | SOME (g_scope_list', frame_list', ctrl', status') =>
         SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
