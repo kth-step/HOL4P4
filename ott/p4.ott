@@ -2506,35 +2506,35 @@ by
   g_scope' = scopes_stack' [1]
   scopes_stack'' = tl (tl scopes_stack')
   ----------------------------------- :: ass_v
-  ctx ( g_scope_list , [ ( funn , assign lval v :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , empty_stmt :: stmt_stack , scopes_stack'' ) ]  , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ assign lval v ]  , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , [ empty_stmt ] , scopes_stack'' ) ]  , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
 %Sequence
 
-  ctx ( g_scope_list , [ ( funn , stmt1 :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , frame_list ++ [ ( funn , stmt_stack' ++ ( stmt1' :: stmt_stack ) , scopes_stack' ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , [ stmt1 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , frame_list ++ [ ( funn , stmt_stack' ++ [ stmt1' ] , scopes_stack' ) ] , ctrl' , Running )
   ----------------------------------- :: seq1
-  ctx ( g_scope_list , [ ( funn , stmt1 ; stmt2 :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , frame_list ++ [ ( funn , stmt_stack' ++ ( stmt1' ; stmt2 :: stmt_stack ) , scopes_stack' ) ] , ctrl' , Running )
+  ctx ( g_scope_list , [ ( funn , [ stmt1 ; stmt2 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , frame_list ++ [ ( funn , stmt_stack' ++ [ stmt1' ; stmt2 ] , scopes_stack' ) ] , ctrl' , Running )
 
 
   ----------------------------------- :: seq2
-  ctx ( g_scope_list , [ ( funn , empty_stmt ; stmt :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ empty_stmt ; stmt ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , Running )
 
 
 %Note that this does not have to take into account new items in the stmt_stack, since no statement can both create new items in the statement stack and change status
-  ctx ( g_scope_list , [ ( funn , stmt1 :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , stmt1' :: stmt_stack , scopes_stack' ) ] , ctrl' , status )
+  ctx ( g_scope_list , [ ( funn , [ stmt1 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ stmt1' ] , scopes_stack' ) ] , ctrl' , status )
   notrun( status )
   ----------------------------------- :: seq3
-  ctx ( g_scope_list , [ ( funn , stmt1 ; stmt2 :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , stmt1' :: stmt_stack , scopes_stack' ) ] , ctrl' , status )
+  ctx ( g_scope_list , [ ( funn , [ stmt1 ; stmt2 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ stmt1' ] , scopes_stack' ) ] , ctrl' , status )
 
 %%%%%%%%%%%%%%
 %Conditional
 
   ----------------------------------- :: cond2
-  ctx ( g_scope_list , [ ( funn , if true then stmt1 else stmt2 :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt1 :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ if true then stmt1 else stmt2 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ stmt1 ] , scopes_stack ) ] , ctrl , Running )
  
   ----------------------------------- :: cond3
-  ctx ( g_scope_list , [ ( funn , if false then stmt1 else stmt2 :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt2 :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ if false then stmt1 else stmt2 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ stmt2 ] , scopes_stack ) ] , ctrl , Running )
 
 %%%%%%%%%%%%%%
 %Block
@@ -2543,7 +2543,12 @@ by
   ( scope ) = declare_list_in_fresh_scope ( decl_list )
   scopes_stack' =  scopes_stack ++ [ scope ]
   ----------------------------------- :: block_enter
-  ctx ( g_scope_list , [ ( funn , begin decl_list stmt end :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt :: ( empty_stmt :: stmt_stack ) , scopes_stack' ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ begin decl_list stmt end ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scopes_stack' ) ] , ctrl , Running )
+
+  not_empty stmt
+  ( ext_map , func_map , b_func_map , tbl_map ) ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list'' , frame_list' ++ [ ( funn , [ stmt' ] , scopes_stack' ) ] , ctrl' , status' )
+  ----------------------------------- :: block_exec
+  ctx ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt' :: stmt_stack , scopes_stack' ) ] , ctrl' , status' )
 
   scopes_stack' = rev ( tl ( rev scopes_stack ) )
   ----------------------------------- :: block_exit
@@ -2555,14 +2560,14 @@ by
 
 %Case predicate holds
   ------------------------------------------------- :: verify_3
-  ctx ( g_scope_list , [ ( funn , verify true ( errmsg x ) :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ verify true ( errmsg x ) ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Running )
 
 
 %Case predicate does not hold
   x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
-  ctx ( g_scope_list , [ ( funn , verify false ( errmsg x ) :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign x' ( errmsg x ) ; transition x'' :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ verify false ( errmsg x ) ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ assign x' ( errmsg x ) ; transition x'' ] , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
@@ -2570,16 +2575,16 @@ by
 
   not_final_state ( x )
   ------------------------------------------------- :: trans_1
-  ctx ( g_scope_list , [ ( funn , transition x :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scopes_stack ) ] , ctrl , Trans x )
+  ctx ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Trans x )
 
 
   x = "accept"
   ------------------------------------------------- :: trans_2
-  ctx ( g_scope_list , [ ( funn , transition x :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scopes_stack ) ] , ctrl , Accept )
+  ctx ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Accept )
 
   x = "reject"
   ------------------------------------------------- :: trans_3
-  ctx ( g_scope_list , [ ( funn , transition x :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scopes_stack ) ] , ctrl , Reject )
+  ctx ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Reject )
 
 
 %%%%%%%%%%%%%%
@@ -2588,21 +2593,21 @@ by
   tbl_map ( tbl ) = ( [ mk1 , .. , mkn ] )
   ctrl ( tbl , ( e1 , .. , en ) , ( [ mk1 , .. , mkn ] ) ) = ( f , ( v1 , .. , vm ) )
   ----------------------------------- :: apply_table_v
-  ( ext_map , func_map , b_func_map  , tbl_map ) ( g_scope_list , [ ( funn , apply tbl ( e1 , .. , en ) :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , assign null ( call f ( v1 , .. , vm ) ) :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ( ext_map , func_map , b_func_map  , tbl_map ) ( g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ assign null ( call f ( v1 , .. , vm ) ) ] , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
 %Return
 
   ----------------------------------- :: return_v
-  ( ext_map , func_map , b_func_map  , tbl_map ) ( g_scope_list , [ ( funn , return v :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scopes_stack ) ] , ctrl , Ret v )
+  ( ext_map , func_map , b_func_map  , tbl_map ) ( g_scope_list , [ ( funn , [ return v ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Ret v )
 
 %%%%%%%%%%%%%%
 %Extern
   ext_fun = lookup_ext_fun ( funn , ext_map )
   ( g_scope_list' , scopes_stack' , ctrl' ) = ext_fun ( g_scope_list , scopes_stack , ctrl )
   ----------------------------------- :: ext
-  ( ext_map , func_map , b_func_map  , tbl_map ) ( g_scope_list , [ ( funn , ext :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , empty_stmt :: stmt_stack , scopes_stack' ) ] , ctrl' , Running )
+  ( ext_map , func_map , b_func_map  , tbl_map ) ( g_scope_list , [ ( funn , [ ext ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ empty_stmt ] , scopes_stack' ) ] , ctrl' , Running )
  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2613,37 +2618,37 @@ by
 
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: ret_e
-  ctx ( g_scope_list , [ ( funn , return e :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , return e' :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ return e ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , [ return e' ] , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of assign expression
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: ass_e
-  ctx ( g_scope_list , [ ( funn , assign lval e :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , assign lval e' :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ assign lval e ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , [ assign lval e' ] , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of condition
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: cond_e
-  ctx ( g_scope_list , [ ( funn , if e then stmt1 else stmt2 :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , if e' then stmt1 else stmt2 :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ if e then stmt1 else stmt2 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , [ if e' then stmt1 else stmt2 ] , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of verify predicate
   ctx g_scope_list scopes_stack ( e ) ~> ( e'' , frame_list )
   ------------------------------------------------- :: verify_e1
-  ctx ( g_scope_list , [ ( funn , verify e e' :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , verify e'' e' :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ verify e e' ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , [ verify e'' e' ] , scopes_stack ) ] , ctrl , Running )
   
 
 %Reduction step of error message
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ------------------------------------------------- :: verify_e2
-  ctx ( g_scope_list , [ ( funn , verify b e :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , verify b e' :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ verify b e ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , [ verify b e' ] , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of transition
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   ------------------------------------------------- :: trans_e
-  ctx ( g_scope_list , [ ( funn , transition e :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , transition e' :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ transition e ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , [ transition e' ] , scopes_stack ) ] , ctrl , Running )
 
 
 %Reduction step of match-action expression
@@ -2652,7 +2657,7 @@ by
   ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: apply_table_e
-  ctx ( g_scope_list , [ ( funn , apply tbl ( e1 , .. , en ) :: stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , apply tbl ( e'1 , .. , e'n ) :: stmt_stack , scopes_stack ) ] , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , frame_list ++ [ ( funn , [ apply tbl ( e'1 , .. , e'n ) ] , scopes_stack ) ] , ctrl , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
