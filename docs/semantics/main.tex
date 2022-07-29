@@ -319,13 +319,12 @@ In the \textsc{e\_lookup} rule, the lookup function ensures that the variable na
 
 
 \subsubsection*{function call}
-The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in and none directioned arguments). Each function's argument will be checked against the function's direction in the same position. If the direction is in or none, then it will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout then do not reduce it.  
+Note that function calls also include actions as well as extern function calls.
 
+The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in and none directioned arguments). Each function's argument will be checked against the function's direction in the same position. If the direction is in or none, then it will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout then do not reduce it.
 
-The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a place holder we call $\varstar$ and a new frame.  The new frame will be later added on top of the state's frames in the statements reduction rules. 
+The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a placeholder we call $\varstar$ and a new frame. The new frame will be later added on top of the state's frames in the statements reduction rules. 
 The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. The function name \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{}  and the signature of the parameters represented as a list of tupels: variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked against the boolean formula to ensure that the arguments were reduced properly: (if $d_i$ in-none then the expression in the same position should be a constant, otherwise a variable name). The new frame's scope $\scope'$ is a new fresh empty scope that contains the copied in arguments using the function $\mathbf{copyin}$.
-
-
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXcallXXargs{}} \\
@@ -351,7 +350,6 @@ The \textsc{e\_s\_acc} rule is used to access the values of fields in structs, a
     \ottusedrule{\ottdruleeXXsXXacc{}} \\
     \ottusedrule{\ottdruleeXXhXXacc{}} 
 \end{figure}
-
 
 
 \subsubsection*{select label}
@@ -464,7 +462,7 @@ Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returns
 
 
 \subsubsection*{extern}
-The symbol $\blacksquare$ represents the semantics of an extern function. $\blacksquare$ is able to modify the global scope list, the local scope list and the control plane configuration $C$. The exact behaviour is determined by looking up the entry of the name $\mathit{funn}$ associated with the current frame in the extern function map $X$: since $\blacksquare$ is used in extern function call bodies, this is the name of the extern function.
+The symbol $\blacksquare$ represents a statement capturing the semantics of an extern function other than copy-in copy-out and return behaviour. $\blacksquare$ is able to modify the global scope list $\gscopel$, the local scope list $\scopeL$ and the control plane configuration $C$. The exact behaviour is determined by looking up the entry of the name $\mathit{funn}$ associated with the current frame in the extern function map $X$: since $\blacksquare$ is used in extern function call bodies, $\mathit{funn}$ is the name of the extern function.
 
 Note that calling an extern function works the same as calling any other function, as described in the function call subsection of Section~\ref{sec:expsem}. However, by convention the body of the extern function consists only of $\blacksquare$, possibly followed by a \textbf{return} statement if the extern function in question has any return value.
 
