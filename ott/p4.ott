@@ -2197,7 +2197,7 @@ ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStru
 %eStruct coversion to value struct
 is_consts ( e1 , ... , en )
 ( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
------------------------------------ :: eStrcut_to_v
+----------------------------------- :: eStruct_to_v
 ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn }  ,  empty )
 
 %access a value struct field 

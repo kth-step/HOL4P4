@@ -305,7 +305,7 @@ Opeations on list of scopes:
 
 \section{Semantics}
 
-\subsection{Expressions}
+\subsection{Expressions}\label{sec:expsem}
 Expression semantics and reductions are layed out in this section. Overall, the reductions can never alter or have any side effects on the state. The only thing it can perform is a reduction on the expressions -standard small step structural semantics- and also produce a new frame -which occurs only in the function call reduction-.  
 
 
@@ -338,7 +338,7 @@ The struct can be an expression, thus we need reductions for it. The rule \texts
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXeStruct{}} \\
-    \ottusedrule{\ottdruleeXXeStrcutXXtoXXv{}} \\
+    \ottusedrule{\ottdruleeXXeStructXXtoXXv{}} \\
     \ottusedrule{\ottdruleeXXeHeader{}} \\
     \ottusedrule{\ottdruleeXXeHeaderXXtoXXv{}}
 \end{figure}
@@ -464,15 +464,13 @@ Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returns
 
 
 \subsubsection*{extern}
-TO DO: review extern with copyout !!!!!!!! \\
-The rule \textsc{stmt\_EXT} used when the semantics are encourting an extern function definition, here the $\blacksquare$ signifies that this funtion that is being currently executed has some external semantics that can be fetched via lookup\_ext\_fun function. The reduction here is able to change the control $C$, the local scope lists and glocal ones of the state.
+The symbol $\blacksquare$ represents the semantics of an extern function. $\blacksquare$ is able to modify the global scope list, the local scope list and the control plane configuration $C$. The exact behaviour is determined by looking up the entry of the name $\mathit{funn}$ associated with the current frame in the extern function map $X$: since $\blacksquare$ is used in extern function call bodies, this is the name of the extern function.
 
+Note that calling an extern function works the same as calling any other function, as described in the function call subsection of Section~\ref{sec:expsem}. However, by convention the body of the extern function consists only of $\blacksquare$, possibly followed by a \textbf{return} statement if the extern function in question has any return value.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXext{}}
 \end{figure}
-
-
 
 \subsubsection*{transition}
 The transition statement $\mathbf{transition} \; \vn $ makes a change to the state's status \status{} based on the state name \vn{}. The \textsc{stmt\_trans\_1} used if the state name is not a final one, then it transitions to an $\estmt{}$ and changes the \status{} of the state to \trans{} $\vn$ . Otherwise, if the state is final (i.e. accept $\accept$ or reject $\reject$) the rules \textsc{stmt\_trans\_2} and \textsc{stmt\_trans\_3} are used accordingly.
