@@ -160,7 +160,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 %\newcommand{\stacks}{\ensuremath{\sigma}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
-\newcommand{\gscopel}{\ensuremath{\bar{\gamma}_L}}
+\newcommand{\gscopel}{\ensuremath{\bar{\gamma}_G}}
 \newcommand{\escope}{\ensuremath{{\gamma}_{\emptyset}}}
 \newcommand{\cstack}{E}
 \newcommand{\status}{\ensuremath{t}}
@@ -181,6 +181,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\bitv}{\ensuremath{bitv}}
 \newcommand{\estmt}{\emptyset_{ \mathrm{stmt} }}
 \newcommand{\frameL}{\overrightarrow{\Phi}}
+\newcommand{\declL}{\overrightarrow{decl}}
 
 \subsection{Execution State}
 
@@ -193,7 +194,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \label{fig:status}
 \end{figure}
 
-The P4 execution state is shown in Figure~\ref{fig:status}. Note that nothing like this is described in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the state global scope list $\scopeL_L$, a frame list $\frameL$, Control table $C$, and the state status \status{}. 
+The P4 execution state is shown in Figure~\ref{fig:status}. Note that nothing like this is described in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the state global scope list $\scopeL_G$, a frame list $\frameL$, Control table $C$, and the state status \status{}. 
 %TODO: update here with the meaning of each symbol
 
 %consists of a tuple ($\currsf$, $\cstack$), where $\currsf$ is a stack of scopes $\gamma$ (induced by entering nested blocks) which hold the values of variables which are currently visible, and $\cstack$ holds variable mappings which belong to previous caller contexts.
@@ -283,7 +284,7 @@ d ::= $\downarrow$ | $\uparrow$ | $\updownarrow$ | $\circ$
 Due to the calling conventions, the scope has the type; $ \scope : X \hookrightarrow V * (X \cup \{ \bot \})  $ .
 
 The list of scopes is identified with an arrow following $\scopeL$.
-The local $\scopeL$ is meant to be a local list of scopes to the frame. The global $\scopeL_L$ is a list with a length of 2. The first index determines the external architecture scope (can not be defined by a P4 program), while the second index determines the architecture local variables (defined in the architecture level).
+The local $\scopeL$ is meant to be a local list of scopes to the frame. The global $\scopeL_G$ is a list with a length of 2. The first index determines the external architecture scope (can not be defined by a P4 program), while the second index determines the architecture local variables (defined in the architecture level).
 Opeations on list of scopes:
 \begin{enumerate}
     \setlength{\itemsep}{1pt}
@@ -291,7 +292,7 @@ Opeations on list of scopes:
     \setlength{\parsep}{0pt}
 \item Operation $\scope [\vn \longmapsto v]$ to update a variable name \vn{} with value \cval{} in the scope $\scope$. 
 \item Operation $\scopeL [\vn \longmapsto v]$ to update a variable name \vn{} with value \cval{} in the most recent scope that contains the variable name \vn{}.   
-\item Operation $lookup_v(\scopeL, \scopeL_L, \vn)$ to return the value \cval{} of the tuple $(y, x \cup {\bot})$, which is whatever variable x is mapped to in the most recent scope it is defined in after concatenating $\scopeL_L \concat \scopeL$. 
+\item Operation $lookup_v(\scopeL, \scopeL_G, \vn)$ to return the value \cval{} of the tuple $(y, x \cup {\bot})$, which is whatever variable x is mapped to in the most recent scope it is defined in after concatenating $\scopeL_G \concat \scopeL$. 
 \end{enumerate}
 
 
@@ -309,11 +310,10 @@ Expression semantics and reductions are layed out in this section. Overall, the 
 
 
 \subsubsection*{variable lookup}
-In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently scope $\scope$ that \vn{} is declared or instantiated in). The evaluation will occur in the global list of scopes $\scopeL_L$ with the local $\scopeL{}$ being the most recent scopes. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
+In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently scope $\scope$ that \vn{} is declared or instantiated in). The evaluation will occur in the global list of scopes $\scopeL_G$ with the local $\scopeL{}$ being the most recent scopes. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXlookup{}} \\
-    \label{fig:lookup_sem}
 \end{figure}
 
 
@@ -330,9 +330,18 @@ The way that this new frame is constructed is as follows: The function name \fun
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXcallXXargs{}} \\
     \ottusedrule{\ottdruleeXXcallXXnewframe{}}
-    \label{fig:call_sem}
 \end{figure}
 
+
+\subsubsection*{headers and structs}
+The struct can be an expression, thus we need reductions for it. The rule \textsc{e\_eStruct} rule will reduce the expression feilds one at a time from left to right. One all the expressions become constants then we can transform the expression struct to a value struct via \textsc{e\_eStruct\_to\_v} which will be used mostly in header access. Same extact operations are applied on the headers.
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXeStruct{}} \\
+    \ottusedrule{\ottdruleeXXeStrcutXXtoXXv{}} \\
+    \ottusedrule{\ottdruleeXXeHeader{}} \\
+    \ottusedrule{\ottdruleeXXeHeaderXXtoXXv{}}
+\end{figure}
 
 
 \subsubsection*{access headers and structs}
@@ -341,7 +350,6 @@ The \textsc{e\_s\_acc} rule is used to access the values of fields in structs, a
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXsXXacc{}} \\
     \ottusedrule{\ottdruleeXXhXXacc{}} 
-    \label{fig:access_sem}
 \end{figure}
 
 
@@ -350,8 +358,7 @@ The \textsc{e\_s\_acc} rule is used to access the values of fields in structs, a
 The \textsc{e\_sel\_acc} rule is used to match the given value $\cval$ against the label-value list, in the case a match exists. If the match doesn't exist, then return the default label \vn.
 
 \begin{figure}[ht!]
-    \ottusedrule{\ottdruleeXXselXXacc{}} \\
-    \label{fig:select_sem}
+    \ottusedrule{\ottdruleeXXselXXacc{}}
 \end{figure}
 
 
@@ -361,7 +368,6 @@ This reduction gives a bitvector $\bitv'''$ that is reduced from the slicing ope
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXsliceXXv{}}
-\label{fig:slice_sem}
 \end{figure}
 
 
@@ -372,7 +378,6 @@ The reduction produces one bit string $\bitv''$ that is the result of concatenat
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXconcatXXv{}}
-\label{fig:concat_sem}
 \end{figure}
 
 
@@ -384,18 +389,18 @@ Unary and binary operations are basically standard operations on bit vectors, th
 
 
 %%%%%%%%%%%%%%%%% statement semantics   
-\subsection{Statement Execution}
+\subsection{Statement (single frame) semantics}
 The semantics of the statements are presented in this section. \footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
 
 
-\subsubsection*{declaration}
-The declaration statement rules can be broken down into a standard declaration \textsc{stmt\_decl} and initialisation \textsc{stmt\_init}. In the declaration, the value is not provided, only the notion of type t that is used in the grammar (note that this is not part of the typing rules). The premise $\mathrm{declare}$ declares the variable x in the topmost exsisting scope and maps it to an arbitrary value. The same behaviour is carried out in the initialisation, however, the variable name x is mapped to a value rather than an arbitrary value from the same type using the $\mathrm{initialise}$.
+%\subsubsection*{declaration}
+%The declaration statement rules can be broken down into a standard declaration \textsc{stmt\_decl} and initialisation \textsc{stmt\_init}. In the declaration, the value is not provided, only the notion of type t that is used in the grammar (note that this is not part of the typing rules). The premise $\mathrm{declare}$ declares the variable x in the topmost exsisting scope and maps it to an arbitrary value. The same behaviour is carried out in the initialisation, however, the variable name x is mapped to a value rather than an arbitrary value from the same type using the $\mathrm{initialise}$.
 
-\begin{figure}[ht!]
-    \ottusedrule{\ottdrulestmtXXdecl{}} \\
-    \ottusedrule{\ottdrulestmtXXinit{}} 
-    \label{fig:decl_sem}
-\end{figure}
+%\begin{figure}[ht!]
+%    \ottusedrule{\ottdrulestmtXXdecl{}} \\
+%    \ottusedrule{\ottdrulestmtXXinit{}} 
+%    \label{fig:decl_sem}
+%\end{figure}
 
 
 \subsubsection*{assignment}
@@ -403,7 +408,6 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), they can 
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXassXXv{}}
-    \label{fig:assign_sem}
 \end{figure}
 
 
@@ -413,14 +417,13 @@ The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones fo
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXcondTwo{}} \\
     \ottusedrule{\ottdrulestmtXXcondThree{}} 
-    \label{fig:ifthenelse_sem}
 \end{figure}
 
 
 \subsubsection*{block}
 The \{\} brackets indicate a block, while the [ ] brackets indicate a block in progress or being executed.
 
-Once a block statement is encountered the \textsc{stmt\_block\_enter} reduction will be used, it entails an empty scope \escope{} being appended to the local $\scopeL{}$ of the frame, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. 
+Once a block statement is encountered the \textsc{stmt\_block\_enter} reduction will be used, it entails the $\declL{}$ being transformed and replicated into a scope that will be appended to the local $\scopeL{}$ of the frame, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. 
 
 The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents, and the \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the scope list $\scopeL$. The block will be exited and reduced to an empty statement $\estmt{}$ .
 
@@ -428,18 +431,16 @@ The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the
     \ottusedrule{\ottdrulestmtXXblockXXenter{}} \\
     \ottusedrule{\ottdrulestmtXXblockXXexec{}} \\
     \ottusedrule{\ottdrulestmtXXblockXXexit{}} 
-    \label{fig:block_sem}
 \end{figure}
 
 
-\subsubsection*{apply} %TODO: update with the new semantics
-The \textsc{stmt\_apply\_v} describes the apply table statement. Each apply statement has a table name $tbl$ with the a key to match on $\cval$. The Tb will return the match kind $mk$. The ctrl is a function that maps table names $tbl$, key value $\cval$, and the match kind $mk$, it returns the action that should be implemented as a method call, with a list of the arguments.
+\subsubsection*{apply} 
+The \textsc{stmt\_apply\_v} describes the apply table statement. Each apply statement has a table name $tbl$ with the a list of key expressions $\expr_1 \cons \expr_n$ to match on. This list have been previously reduced to constants one at a time in the rule \textsc{stmt\_apply\_e}. The Tb will return a list of match kind $mk_1 \cons mk_n$. The ctrl is a function that maps table names $tbl$, expressions, and the match kinds to action that should be implemented as a method call, with a list of the arguments $\cval_1 \cons \cval_m $ .
 
-TODO: UPDATE WITH THE NEW RULE!!!
 
 \begin{figure}[ht!]
-\ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}} 
-\label{fig:apply_sem}
+    \ottusedrule{\ottdrulestmtXXapplyXXtableXXe{}} \\
+    \ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}} 
 \end{figure}
 
 \subsubsection*{return}
@@ -447,7 +448,6 @@ Once return's expression is reduced to a constant value, the status is changed t
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXreturnXXv{}} 
-\label{fig:return_sem}
 \end{figure}
 
 \subsubsection*{sequential statements}
@@ -457,20 +457,19 @@ Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returns
 \textsc{stmt\_seq1} and \textsc{stmt\_seq3} are able to change the tables that are populated by the control plane.
 
 \begin{figure}[h!]
-    \ottusedrule{\ottdrulestmtXXseqOne{}} 
+    \ottusedrule{\ottdrulestmtXXseqOne{}} \\
     \ottusedrule{\ottdrulestmtXXseqTwo{}} \\
     \ottusedrule{\ottdrulestmtXXseqThree{}}
-    \label{fig:seq_sem}
 \end{figure}
 
 
 \subsubsection*{extern}
-The rule \textsc{stmt\_EXT} used when the semantics are encourting an extern function definition, here the $\blacksquare$ signifies that this funtion that is being currently executed has some external semantics that can be fetched via $\mathit{lookup\_ext_fun}$ function. The reduction here is able to change the control $C$, the local scope lists and glocal ones of the state.
+TO DO: review extern with copyout !!!!!!!! \\
+The rule \textsc{stmt\_EXT} used when the semantics are encourting an extern function definition, here the $\blacksquare$ signifies that this funtion that is being currently executed has some external semantics that can be fetched via lookup\_ext\_fun function. The reduction here is able to change the control $C$, the local scope lists and glocal ones of the state.
 
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXext{}}
-\label{fig:ext_sem}
 \end{figure}
 
 
@@ -482,7 +481,6 @@ The transition statement $\mathbf{transition} \; \vn $ makes a change to the sta
     \ottusedrule{\ottdrulestmtXXtransXXOne{}} \\
     \ottusedrule{\ottdrulestmtXXtransXXTwo{}} \\
     \ottusedrule{\ottdrulestmtXXtransXXThree{}} 
-\label{fig:trans_sem}
 \end{figure}
 
 
@@ -492,31 +490,49 @@ The $\mathbf{verify} \, \expr \, \expr'$ usually used to check the validity of t
  
 
 \begin{figure}[ht!]
-\ottusedrule{\ottdrulestmtXXverifyXXThree{}} \\
-\ottusedrule{\ottdrulestmtXXverifyXXFour{}} \\
-\label{fig:verify_sem}
+    \ottusedrule{\ottdrulestmtXXverifyXXThree{}} \\
+    \ottusedrule{\ottdrulestmtXXverifyXXFour{}} 
 \end{figure}
 
 
 
-
-
-
-
-\subsubsection*{Compositional frames}
+\subsection{list of frames semantics}
 The previous semantics operate on a single frame for a single statement, however whenever a function being called, then it means that the state will contain two frames. The top frame that will be executed as can be seen in \textsc{stmt\_comp1} reduction, where the previous frame $\Phi$ is not empty (otherwise, we can use the previous rules above). 
-The rule \textsc{stmt\_comp2} is used specifically whenever there is a return occuring in a frame in that is being reduced. Here the caller frame's scopelist $\scopeL'$ or the global scope list $\scopeL_L$ should initilize the $\varstar$ with the return that can be found in the state's status $\returnst{} v$. the proper scope will be updated based on the topmost scope ever that can be found after concatenating $\scopeL_L \concat \scopeL$ to result the scope list $\scopeL''$.
+The rule \textsc{stmt\_comp2} is used specifically whenever there is a return occuring in a frame in that is being reduced. Here the caller frame's scopelist $\scopeL'$ or the global scope list $\scopeL_G$ should initilize the $\varstar$ with the return that can be found in the state's status $\returnst{} v$. the proper scope will be updated based on the topmost scope ever that can be found after concatenating $\scopeL_G \concat \scopeL$ to result the scope list $\scopeL''$.
 The copy out function takes the callee function signature, the "possibly updated" global scope list (index 0 and 1 from $\scopeL''$) the top most scope in the $\scopeL''$ and the callee's current scope list $\scopeL$. It returns a new updated scopes list for both the global and caller's frame. 
 In the copyout function, each parameter with (out or inout directions) should be copied out to the variable name it is mapping to. i.e. the mapping of a single scope looks as  $ \vn \mapsto (v , y) $ so for each variable name $\vn$ that is part of the current argument list in the signature we will check the direction of it, if the direction is (none or in) then we do not copy them out. However, if the direction is (out or inout) we will look into the mapping of it, and retrive a tuple $(v,y)$ which is the value and the oprginal argument of the function to be copied out in the poroper scope (top most one it is defined in).
 
 
 \begin{figure}[ht!]
-    \ottusedrule{\ottdrulestmtXXcompOne{}} \\
-    \ottusedrule{\ottdrulestmtXXcompTwo{}} 
-    \label{fig:comp_sem}
+    \ottusedrule{\ottdruleframesXXcompOne{}} \\
+    \ottusedrule{\ottdruleframesXXcompTwo{}}
 \end{figure}
 
 
+%\newpage
+We define scopes\_to\_pass $ ( funn, F_g , F_b , \overrightarrow{\gamma_G}) $ as : \vspace{10pt}
+
+ $  \overrightarrow{\gamma_G}' =\begin{cases}
+            \mathrm{if} \; funn \in dom(F_g)    \hspace{6pt} ,
+            \mathrm{then} \; [\overrightarrow{\gamma_G}[0] ; \emptyset_{\gamma}] \\
+            \mathrm{otherwise}    \hspace{48pt}     , 
+            \mathrm{then} \; \overrightarrow{\gamma_G} 
+        \end{cases}$     \vspace{10pt}
+
+Where $\overrightarrow{\gamma_G}$ is a list of two elements, index 0 is the global scope, and index 1 is the programmable block global scope, it is fetched from the frame reduction rule. $\overrightarrow{\gamma_G}'$ is the scope that will be used to implement one frame at a time (statement reduction) in comp2.
+
+We define scopes\_to\_retrieve $( funn, F_g , F_b , \overrightarrow{\gamma_G}, \overrightarrow{\gamma_G}')$ as : \vspace{10pt}
+
+ $  \overrightarrow{\gamma_G}'' =\begin{cases}
+            \mathrm{if} \; funn \in dom(F_g)    \hspace{6pt} ,
+            \mathrm{then} \; [\overrightarrow{\gamma_G}'[0],\overrightarrow{\gamma_G}[1]]  \\
+            \mathrm{otherwise}    \hspace{48pt}     , 
+            \mathrm{then} \; \overrightarrow{\gamma_G}' 
+        \end{cases}$   \vspace{10pt}
+
+Where $\overrightarrow{\gamma_G}''$ is a list of two elements, index 0 is the global scope, and index 1 is the programmable block global scope, and we will retrieve it to be added as the resulted scope of the frame reduction.
+$\overrightarrow{\gamma_G}'$ is the scope that is resulted from the statement reduction in comp2. 
+$\overrightarrow{\gamma_G}$ is the original starting state's global list of the frame reduction. 
 
 
 
