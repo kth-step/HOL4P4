@@ -1223,6 +1223,9 @@ formula :: formula_ ::=
 | ascope' = copyout_pbl ( scopes_stack , ascope , d_list , ( x1 , .. , xn ) ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
   {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scopes_stack]], [[ascope]], [[d_list]], [[x1 .. xn]])) }}
+| ascope' = copyout_pbl ( scopes_stack , ascope , d_list , [ x ] ) :: M :: copyout_pbl_sing
+  {{ com copy out singleton from programmable blocks }}
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scopes_stack]], [[ascope]], [[d_list]], [ [[x]] ])) }}
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
   {{ hol ([[stmt]] <> stmt_empty) }}
@@ -2197,7 +2200,7 @@ ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStru
 %eStruct coversion to value struct
 is_consts ( e1 , ... , en )
 ( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
------------------------------------ :: eStrcut_to_v
+----------------------------------- :: eStruct_to_v
 ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn }  ,  empty )
 
 %access a value struct field 
@@ -2769,7 +2772,6 @@ by
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map = pblock_map ( f )
   x = "start"
-  stmt' = pars_map ( x )
 %  scope' = all_arg_update_for_newscope ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , [ scope ] )
   scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
   v = errmsg "NoError"
@@ -2780,7 +2782,7 @@ by
   g_scope_list' = [g_scope''']' ++ [ scope''' ]
   %TODO: Model arch scope external to the P4 program using the call stack?
   ----------------------------------- :: parser_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list'' , [ ( f , [ stmt ; stmt' ] , [ emptyscope ] ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list'' , [ ( f , [ stmt ; transition x ] , [ emptyscope ] ) ] , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt stmt' tbl_map = pblock_map ( f )
@@ -2833,14 +2835,11 @@ by
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope
   ascope' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
-%TODO Fix parseError copyou with new ascope
-%  lval = "parseError"
-%  x = "parseError"
-%  v = lookup_vexp ( [ g_scope ; g_scope' ] , x )
-%  [ scope'' ] = assign ( [ scope' ] , v , lval )
+  x = parseError
+  ascope'' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope' , [ out ] , [ x ] )
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: parser_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , pars_fin ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , pars_fin ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope'' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt stmt' tbl_map = pblock_map ( f )
