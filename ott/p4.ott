@@ -1656,7 +1656,7 @@ val index_not_const_def = Define `
 (* Finds the topmost scope where the variable x is mapped and its index, as a tuple.*)
 val find_topmost_scope_def = Define `
   find_topmost_scope (ss:scope list) x =
-    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE ss) of
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (ss) of
     | SOME (i, sc) => SOME (((LENGTH ss) - 1) - i, sc)
     | NONE => NONE
 `;
@@ -1712,7 +1712,7 @@ val lookup_vexp_def = Define `
 (* Lookup with g_scope_list as a separate argument *)
 val lookup_vexp2_def = Define `
   lookup_vexp2 (ss:scope list) (g_scope_list:scope list) x =
-    lookup_v (g_scope_list++ss) x
+    lookup_v (ss++g_scope_list) x
 `;
 
 (* Look up the value of a l-value (variables + fields of struct-valued variables) in
@@ -1894,7 +1894,7 @@ val all_arg_update_for_newscope_def = Define `
 (* full copyin definition *)
 val copyin_def = Define `
   copyin xlist dlist elist gsl ss_curr = 
-    all_arg_update_for_newscope xlist dlist elist (gsl++ss_curr)
+    all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl)
 `;
 
 
@@ -1908,7 +1908,7 @@ val assign_def = Define `
     | SOME (i, sc) =>
       (case lookup_out ss x of
        | SOME str_opt =>
-         SOME (LUPDATE (sc |+ (x, (v, str_opt))) i ss)
+         SOME (LUPDATE (sc |+ (x, (v, str_opt))) (i-1) ss)
        | NONE => NONE)
     | _ => NONE) /\
   (assign ss v (lval_field lval f) =
@@ -1946,6 +1946,7 @@ val oDROP_def = Define `
 (* Declares a new variable and initialises it to ARB, returns the new scope stack *)
 (* TODO: Behaviour when variable already exists? *)
 (* Note that this will declare variables in the block-global scope when scope stack is empty *)
+(* TODO: REMOVE IT *)
 val declare_def = Define `
   (declare g_scope_list (ss:scopes_stack) x t =
     case ss of
@@ -2047,7 +2048,7 @@ val args_of_pbl_def = Define `
  * the copy-outs, and the second element is the caller's scope updated with the copy-outs *)
 val copyout_def = Define `
   copyout xlist dlist gsl ss ss_curr =
-    case update_return_frame xlist dlist (gsl++ss) ss_curr of
+    case update_return_frame xlist dlist (ss++gsl) ss_curr of
     | SOME updated_return_ss =>
      SOME (TAKE 2 updated_return_ss, DROP 2 updated_return_ss)
     | NONE => NONE
@@ -2111,28 +2112,25 @@ val is_short_circuitable_def = Define `
 `;
 
 
-(* fetch the newest scope index from a scopes stack *)
-val newest_scope_ind_def = Define `
-  newest_scope_ind scopes_stack = (LENGTH scopes_stack) - 1
-`;
-
-(* returns the newest (topmost) scope using the index from the newest_scope_ind_def *)
-(* TODO: Use LAST instead? *)
-val newest_scope_def = Define `
-  newest_scope scopes_stack = EL (newest_scope_ind scopes_stack) scopes_stack
-`;
 
 (* Init the variable name star in the topmost scope and return only the scope *)
 val decl_init_star_def = Define `
   decl_init_star scopes_stack v (varn_star funn) =
-    FUPDATE (newest_scope scopes_stack) ((varn_star funn), (v , NONE))
+    FUPDATE (HD scopes_stack) ((varn_star funn), (v , NONE))
 `;
 
 (* TODO: Use initialise_def? *)
 (* Init the variable name star in the topmost scope and return the updated scope stack *)
 val init_in_highest_scope_def = Define `
   init_in_highest_scope scopes_stack v (varn_star funn) =
-    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) (newest_scope_ind scopes_stack) scopes_stack
+    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) (0) scopes_stack
+`;
+
+(*separate a scope stack into three components global scope 0, global scope 1, local scope*)
+val separate_def = Define `
+  separate scopes_stack =
+    let i = (LENGTH scopes_stack) in
+    (EL (i-1) scopes_stack , EL (i-2) scopes_stack, REVERSE (DROP 2 (REVERSE scopes_stack)))
 `;
 
 val parser_not_finished_def = Define `
@@ -2597,7 +2595,7 @@ by
 
 %TODO: Does this build up the scope stack in the right direction?
   ( scope ) = declare_list_in_fresh_scope ( decl_list )
-  scopes_stack' =  scopes_stack ++ [ scope ]
+  scopes_stack' =  [ scope ] ++ scopes_stack
   ----------------------------------- :: block_enter
   ctx ( g_scope_list , [ ( funn , [ begin decl_list stmt end ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scopes_stack' ) ] , ctrl , Running )
 
@@ -2607,7 +2605,7 @@ by
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' ++ stmt_stack , scopes_stack' ) ] , ctrl' , status' )
 
   not_empty stmt_stack
-  scopes_stack' = rev ( tl ( rev scopes_stack ) )
+  scopes_stack' = tl scopes_stack
   ----------------------------------- :: block_exit
   ctx ( g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list , [ ( funn , stmt_stack , scopes_stack' ) ] , ctrl , status )
 
