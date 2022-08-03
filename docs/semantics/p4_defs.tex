@@ -106,16 +106,11 @@
 \ottfirstprodline{|}{ { \mathbf{acc} } }{}{}{}{\ottcom{accepted state}}\ottprodnewline
 \ottprodline{|}{ { \mathbf{rej} } }{}{}{}{\ottcom{rejected state}}}
 
-\newcommand{\ottparsXXnext}{
-\ottrulehead{p}{::=}{\ottcom{parser next state}}\ottprodnewline
-\ottfirstprodline{|}{ { \mathbf{tra} \; x } }{}{}{}{\ottcom{transition to named state}}\ottprodnewline
-\ottprodline{|}{p_{ \mathrm{fin} }}{}{}{}{\ottcom{final state}}}
-
 \newcommand{\ottstatus}{
 \ottrulehead{t}{::=}{\ottcom{execution status}}\ottprodnewline
 \ottfirstprodline{|}{ { \mathbf{run} } }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ { \mathbf{ret} \, v } }{}{}{}{}\ottprodnewline
-\ottprodline{|}{p}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ { \mathbf{tra} \; x } }{}{}{}{\ottcom{transition to parser state}}\ottprodnewline
 \ottprodline{|}{ { \bot } }{}{}{}{}}
 
 \newcommand{\ottscope}{
@@ -480,7 +475,7 @@
 \ottprodline{|}{ x  = ``\mathit{parseError}" } {\textsf{M}}{}{}{\ottcom{parser error literal}}\ottprodnewline
 \ottprodline{|}{ \ottnt{v}  = { \mathrm{lookup} }_{ \mathrm{lval} } ( \overrightarrow{\gamma} ,  \ottnt{lval} ) } {\textsf{M}}{}{}{\ottcom{instantaneous lookup of lvals}}\ottprodnewline
 \ottprodline{|}{ \overrightarrow{\gamma}'  =  \overrightarrow{\gamma}  [ (  \ottkw{star}  ,  \ottnt{funn}  )\longmapsto  \ottnt{v}  ] } {\textsf{M}}{}{}{\ottcom{declare "star" with value v in topmost scope}}\ottprodnewline
-\ottprodline{|}{\ottkw{not\_final\_state} \, \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{x is not name of final state}}\ottprodnewline
+\ottprodline{|}{\ottkw{not\_final\_state} \, \ottsym{(}  x  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{x is not name of final parser state}}\ottprodnewline
 \ottprodline{|}{ t \neq { \mathbf{run} } } {\textsf{M}}{}{}{\ottcom{status is not in running}}\ottprodnewline
 \ottprodline{|}{ t  \neq { \mathbf{ret \, v} } }{}{}{}{\ottcom{status is not in return}}\ottprodnewline
 \ottprodline{|}{ t = { \mathbf{acc} } \vee t = { \mathbf{rej} } } {\textsf{M}}{}{}{\ottcom{status is not in running}}\ottprodnewline
@@ -502,6 +497,7 @@
 \ottprodline{|}{\ottsym{(}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{=}  { \mathit{in}_A }  \ottsym{(}  \overline{io}  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{apply input function}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{=}  { \mathit{out}_A }  \ottsym{(}  \overline{io}  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{apply output function}}\ottprodnewline
 \ottprodline{|}{ t  \neq \mathit{pars\_fin} } {\textsf{M}}{}{}{\ottcom{status is not final}}\ottprodnewline
+\ottprodline{|}{ t  = \mathit{pars\_fin} } {\textsf{M}}{}{}{\ottcom{status is final}}\ottprodnewline
 \ottprodline{|}{ \mathrm{not\_top\_return}  \overrightarrow{\Phi} } {\textsf{M}}{}{}{\ottcom{top frame is not about to execute a return statement}}\ottprodnewline
 \ottprodline{|}{ \ottnt{lval}  = \mathit{parseError} } {\textsf{M}}{}{}{\ottcom{lval is parseError}}\ottprodnewline
 \ottprodline{|}{ \ottnt{v}  = \mathit{NoError} } {\textsf{M}}{}{}{\ottcom{v is NoError}}\ottprodnewline
@@ -570,7 +566,6 @@
 \ottprodline{|}{\ottnt{varn}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{lval}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{p_{ \mathrm{fin} }}{}{}{}{}\ottprodnewline
-\ottprodline{|}{p}{}{}{}{}\ottprodnewline
 \ottprodline{|}{t}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\gamma}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\gamma_G}{}{}{}{}\ottprodnewline
@@ -639,7 +634,6 @@
 \ottvarn\ottinterrule
 \ottlval\ottinterrule
 \ottparsXXfin\ottinterrule
-\ottparsXXnext\ottinterrule
 \ottstatus\ottinterrule
 \ottscope\ottinterrule
 \ottgXXscope\ottinterrule
@@ -1248,27 +1242,10 @@
 }}
 
 
-\newcommand{\ottdrulestmtXXtransXXOne}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{not\_final\_state} \, \ottsym{(}  x  \ottsym{)}}%
+\newcommand{\ottdrulestmtXXtrans}[1]{\ottdrule[#1]{%
 }{
  \mathit{ctx}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}   \mathbf{transition}\,  x   \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{tra} \; x }   \ottsym{)} }{%
-{\ottdrulename{stmt\_trans\_1}}{}%
-}}
-
-
-\newcommand{\ottdrulestmtXXtransXXTwo}[1]{\ottdrule[#1]{%
-\ottpremise{ x  = ``\mathit{accept}" }%
-}{
- \mathit{ctx}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}   \mathbf{transition}\,  x   \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{acc} }   \ottsym{)} }{%
-{\ottdrulename{stmt\_trans\_2}}{}%
-}}
-
-
-\newcommand{\ottdrulestmtXXtransXXThree}[1]{\ottdrule[#1]{%
-\ottpremise{ x  = ``\mathit{reject}" }%
-}{
- \mathit{ctx}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}   \mathbf{transition}\,  x   \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}   \emptyset_{ \mathrm{stmt} }   \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{rej} }   \ottsym{)} }{%
-{\ottdrulename{stmt\_trans\_3}}{}%
+{\ottdrulename{stmt\_trans}}{}%
 }}
 
 
@@ -1368,9 +1345,7 @@
 \ottusedrule{\ottdrulestmtXXblockXXexit{}}
 \ottusedrule{\ottdrulestmtXXverifyXXThree{}}
 \ottusedrule{\ottdrulestmtXXverifyXXFour{}}
-\ottusedrule{\ottdrulestmtXXtransXXOne{}}
-\ottusedrule{\ottdrulestmtXXtransXXTwo{}}
-\ottusedrule{\ottdrulestmtXXtransXXThree{}}
+\ottusedrule{\ottdrulestmtXXtrans{}}
 \ottusedrule{\ottdrulestmtXXapplyXXtableXXv{}}
 \ottusedrule{\ottdrulestmtXXreturnXXv{}}
 \ottusedrule{\ottdrulestmtXXext{}}
@@ -1435,6 +1410,7 @@
 
 
 \newcommand{\ottdruleparsXXstate}[1]{\ottdrule[#1]{%
+\ottpremise{\ottkw{not\_final\_state} \, \ottsym{(}  x  \ottsym{)}}%
 \ottpremise{\ottnt{stmt''}  \ottsym{=}  P  \ottsym{(}  x  \ottsym{)}}%
 }{
  \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{)}  \vdash  \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}  \overrightarrow{\Phi}  \ottsym{,}  { C }  \ottsym{,}   { \mathbf{tra} \; x }   \ottsym{)}  {\longrightarrow}_{p}  \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}  \ottnt{stmt''}  \ottsym{]} )}_{ \ottsym{[}   {\gamma}_{ \emptyset }   \ottsym{]} }^{ x }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
@@ -1563,8 +1539,9 @@
 \ottpremise{{ {\gamma}_\mathit{A} }'  \ottsym{=}  { \mathit{out}_p }  \ottsym{(}    [  \gamma_G ,  \gamma_G'  ]    \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{,}  \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{)}}%
 \ottpremise{ x  = ``\mathit{parseError}" }%
 \ottpremise{{ {\gamma}_\mathit{A} }''  \ottsym{=}  { \mathit{out}_p }  \ottsym{(}    [  \gamma_G ,  \gamma_G'  ]    \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{,}  \ottsym{[}   \uparrow   \ottsym{]}  \ottsym{,}  \ottsym{[}  x  \ottsym{]}  \ottsym{)}}%
+\ottpremise{ t  = \mathit{pars\_fin} }%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,   [  \gamma_G ,  \gamma_G'  ]  ,  \overrightarrow{\Phi} ,  { C } ,   p_{ \mathrm{fin} }  ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }''  \ottsym{)} ,   [  \gamma_G  ]  ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,   [  \gamma_G ,  \gamma_G'  ]  ,  \overrightarrow{\Phi} ,  { C } ,   t  ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }''  \ottsym{)} ,   [  \gamma_G  ]  ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) }{%
 {\ottdrulename{arch\_parser\_ret}}{}%
 }}
 
