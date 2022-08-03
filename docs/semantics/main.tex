@@ -133,6 +133,8 @@ First, an expression can be a value: a Boolean or an integer (collectively refer
 The \textbf{select} expression is similar to a switch statement in C or Java. The expression $e$ is evaluated, and then matched against $v_1 , \ldots , v_n$. If some match is successful, the \textbf{select} expression evaluates to the string at the corresponding index. If no match occurs, then it instead evaluates to the default string $x$.
 
 \newpage
+\newcommand{\accept}{``accept''}
+\newcommand{\reject}{`reject''}
 \subsection{Statements} \label{ssec:stmt}
 
 \begin{figure}[h!]
@@ -143,7 +145,7 @@ The \textbf{select} expression is similar to a switch statement in C or Java. Th
 \label{fig:stmt}
 \end{figure}
 
-\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}. They are mostly standard, apart from the following: the in-progress block is an artifact of our small-step semantics. The \textbf{verify} statement (here a statement and not an extern function as in \pfourspec{sec-verify}{Section 12.7} of the P4 specification) can be found uniquely in a parser block. It asserts the expression $e$ and if it holds, does nothing. If $e$ does not hold, it jumps to a rejecting parser state with error message being the result of evaluating $e'$. The \textbf{transition} statement continues execution at a new parser state, the name of which is the result of evaluating $e$. The \textbf{apply} statement applies the match-action table with name \tn{} (found in the control plane) to the result of evaluating $e$, thus obtaining an action (modeled as a function call) to execute next.
+\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}. The \textbf{verify} statement (modeled as a statement and not as an extern function as in \pfourspec{sec-verify}{Section 12.7} of the P4 specification) can be found uniquely in a parser block. It asserts the expression $e$ and if it holds, does nothing. If $e$ does not hold, it jumps to the \reject{} parser state with the error message being the result of evaluating $e'$. The \textbf{transition} statement continues execution at a new parser state, the name of which is the result of evaluating $e$. The \textbf{apply} statement applies the match-action table with name \tn{} (found in the control plane) to the result of evaluating $e$, thus obtaining an action (modeled as a function call) to execute next.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -166,8 +168,6 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\status}{\ensuremath{t}}
 \newcommand{\running}{\textbf{run}}
 \newcommand{\returnst}[1]{\ensuremath{\textbf{ret}\,\,#1}}
-\newcommand{\accept}{\textbf{acc}}
-\newcommand{\reject}[1]{\textbf{rej} #1}
 \newcommand{\trans}[1]{\textbf{tra} #1}
 \newcommand{\sterr}{\ensuremath{\bot}}
 \newcommand{\pfin}{\ensuremath{p_{\mathrm{fin}}}}
@@ -224,7 +224,7 @@ The call stack $\cstack$ is a stack of frames used whenever a function call occu
 \item $ \currsf :: \cstack$: Pushes a frame $\currsf$ onto the call stack $\cstack$.
 \end{itemize}
 
-The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a constant \cval{} at the end of a function call. The status $p$ signifies transition to a new parser state inside the parser - a named state in the case of \trans{\vn{}}, or a final state (\pfin{}) in the case of \accept{} or \reject{}. \sterr{} represents a crash or undefined behaviour, for example caused by some badly-typed part of the program. 
+The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a constant \cval{} at the end of a function call. The status \trans{\vn{}} signifies transition to a new parser state - a final state (\pfin{}) in the case of \accept{} or \reject{}, or otherwise a state defined by the programmer. \sterr{} represents a crash or undefined behaviour, for example caused by some badly-typed part of the program. 
 
 In addition to the above, there's also a function map $F$ mapping function names to tuples of their bodies and argument names, a table map $\mathit{Tb}$ mapping table names to tuples of expressions and matching kinds, a parser map $P$ mapping parser state names to their bodies and a type environment $T$. These are assumed to be static, and are therefore not part of the execution state.
 
@@ -451,7 +451,7 @@ Once return's expression is reduced to a constant value, the status is changed t
 \subsubsection*{sequential statements}
 The sequential statements rules \textsc{stmt\_seq1} and \textsc{stmt\_seq2} are standard. The status \status{} must be \running{} to start with. The part that is different is that if any new frame being created by any function call, it will be added on top of the frame list. \\
 
-Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returnst{}, \accept{} , \reject{} or \trans{} to indicate either a a transition to a parser state or a return from a function call. The rest of the sequential composition statements are not considered, this will give flexibility to the return or transition statements in the body rather than only at the end.
+Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returnst{}, or \trans{} to indicate either a a transition to a parser state or a return from a function call. The rest of the sequential composition statements are not considered, this will give flexibility to the return or transition statements in the body rather than only at the end.
 \textsc{stmt\_seq1} and \textsc{stmt\_seq3} are able to change the tables that are populated by the control plane.
 
 \begin{figure}[h!]
@@ -471,20 +471,17 @@ Note that calling an extern function works the same as calling any other functio
 \end{figure}
 
 \subsubsection*{transition}
-The transition statement $\mathbf{transition} \; \vn $ makes a change to the state's status \status{} based on the state name \vn{}. The \textsc{stmt\_trans\_1} used if the state name is not a final one, then it transitions to an $\estmt{}$ and changes the \status{} of the state to \trans{} $\vn$ . Otherwise, if the state is final (i.e. accept $\accept$ or reject $\reject$) the rules \textsc{stmt\_trans\_2} and \textsc{stmt\_trans\_3} are used accordingly.
+The transition statement $\mathbf{transition} \; \vn $, whose semantics is captured by the \textsc{stmt\_trans} rule, makes a change to the state's status \status{} based on the state name \vn{}.
 
 \begin{figure}[ht!]
-    \ottusedrule{\ottdrulestmtXXtransXXOne{}} \\
-    \ottusedrule{\ottdrulestmtXXtransXXTwo{}} \\
-    \ottusedrule{\ottdrulestmtXXtransXXThree{}} 
+    \ottusedrule{\ottdrulestmtXXtrans{}} 
 \end{figure}
 
 
 
 \subsubsection*{verify}
-The $\mathbf{verify} \, \expr \, \expr'$ usually used to check the validity of the boolean expression $\expr$, if true then no error as van be seen in \textsc{stmt\_verify\_3} rule. Otherwise it assigns the error $"parseError"$ to $"reject"$ then it will be followed by a $\mathbf{transition}$ statement to the state reject.
+The $\mathbf{verify} \, \expr \, \expr'$ statement is used to check the whether the boolean expression $\expr$ holds; if it does, then nothing happens, as in the \textsc{stmt\_verify\_3} rule. Otherwise, it assigns the error in $\expr'$ to $"parseError"$ and reduces the statement to a $\mathbf{transition}$ statement to the state \reject{}.
  
-
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXverifyXXThree{}} \\
     \ottusedrule{\ottdrulestmtXXverifyXXFour{}} 
@@ -541,21 +538,19 @@ $\overrightarrow{\gamma_G}$ is the original starting state's global list of the 
 \newpage
 \newcommand{\start}{\textit{start}}
 \subsection{Parser Block Semantics}
-The parser programmable block is a part of the P4 pipeline which is generally used to parse packets from bit-string representations to structures of parsed headers, described in \pfourspec{sec-control}{Section 13} of the P4 specification. It can be thought of as describing a state machine with three unique states: a \start{} state, an \accept{} state and a \reject{\msg{}} state. A parser state $p$ (including \start{}, but not the abstract final states of \accept{} and \reject{\msg{}}) consists of a list of statements to be executed, with a transition statement at the end which decides the parser state to jump to next.
+The parser programmable block is a part of the P4 pipeline which is generally used to parse packets from bit-string representations to structures of parsed headers, described in \pfourspec{sec-control}{Section 13} of the P4 specification. It can be thought of as describing a state machine with three unique states: a \start{} state, an \accept{} state and a \reject{} state. A parser state $p$ (including \start{}, but not the abstract final states of \accept{} and \reject{}) consists of a list of statements to be executed, with a transition statement at the end which decides the parser state to jump to next.
 
 \begin{figure}[ht!]
 \begin{ottdefnblock}{$\ottsym{[}  \ottnt{stmt}  \ottsym{]}  s  \rightarrow  \ottsym{[}  \ottnt{stmt'}  \ottsym{]}  s'$}{\ottcom{statement semantics}}
 \ottusedrule{\ottdrulestmtXXverifyXXThree{}}
 \ottusedrule{\ottdrulestmtXXverifyXXFour{}}
-\ottusedrule{\ottdrulestmtXXtransXXOne{}}
-\ottusedrule{\ottdrulestmtXXtransXXTwo{}}
-\ottusedrule{\ottdrulestmtXXtransXXThree{}}
+\ottusedrule{\ottdrulestmtXXtrans{}}
 \end{ottdefnblock}
 \caption{P4 Parser-Specific Statement Execution Semantics}
 \label{fig:parssemstmtexec}
 \end{figure}
 
-The parser-specific statement semantics is shown in Figure~\ref{fig:parssemstmtexec}. The \textsc{stmt\_verify\_3} and \textsc{stmt\_verify\_4} rules describe the semantics of \textbf{verify}, the expressions having been reduced to values. If the condition holds, the reduction is to the empty statement (i.e. nothing happens and execution continues). If the condition does not hold, reduction is also to the empty statement, but state status is set to $\mathbf{Reject}\ x$. The \textsc{stmt\_trans} rules describe reduction of the $\mathbf{transition}$ statement, whose only effect on the state is to set status to indicate next parser state (the \textsc{pars\_state} or \textsc{pars\_t\_fin} rules can then be used next)
+The parser-specific statement semantics is shown in Figure~\ref{fig:parssemstmtexec}. The \textsc{stmt\_verify\_3} and \textsc{stmt\_verify\_4} rules describe the semantics of \textbf{verify}, the expressions having been reduced to values. If the condition holds, the reduction is to the empty statement (i.e. nothing happens and execution continues). If the condition does not hold, reduction is also to the empty statement, but state status is set to \reject{}. The \textsc{stmt\_trans} rules describes reduction of the $\mathbf{transition}$ statement, whose only effect on the state is to set status to indicate next parser state (the \textsc{pars\_state} or \textsc{pars\_t\_fin} rules can then be used next)
 
 \begin{figure}[ht!]
 \ottdefnsparsXXsem
@@ -565,7 +560,7 @@ The parser-specific statement semantics is shown in Figure~\ref{fig:parssemstmte
 
 The parser state machine semantics is shown in Figure~\ref{fig:semparsexec}.
 
-The \textsc{pars\_stmt} rule performs a single small-step reduction of the current statement (the body of the current parser state), while the \textsc{pars\_state} rule governs transition to the next parser state: if the current statement \stmt{} is reduced to $\stmt{}'$ with the status being \trans{\vn{}}, the next statement is the body of the parser state with name \vn{}, obtained from the map $P$ from parser state names to parser bodies. The \textsc{pars\_empty} rule covers the special case when the statement semantics runs out of statements in a parser state, in which case the status is set to \reject{ParserStateEnd}.
+The \textsc{pars\_stmt} rule performs a single small-step reduction of the current statement (the body of the current parser state), while the \textsc{pars\_state} rule governs transition to the next parser state: if the current statement \stmt{} is reduced to $\stmt{}'$ with the status being \trans{\vn{}} where \vn{} is not \accept{} or \reject{}, the next statement is the body of the parser state with name \vn{}, obtained from the map $P$ from parser state names to parser bodies. The \textsc{pars\_empty} rule covers the special case when the statement semantics runs out of statements in a parser state, in which case the status is set to \reject{}.
 
 \subsection{Control Block Semantics}
 The control block is a part of the P4 pipeline which is generally used to decide which actions to take (typically forwarding) based on the metadata (headers) which was extracted by the parser, as described in \pfourspec{sec-packet-parsing}{Section 12} of the P4 specification. The two main components of a control block are the match-action tables and the actions themselves. Note that part of the functionality is separated into the control plane, which is interfaced with here using the $\mathrm{ctrl}(table\_name,\ v,\ m\_kind)$ function that takes a table name, constant value and matching kind and obtains an action name $f$ and a list of function arguments ${v_1}, ..., {v_n}$.

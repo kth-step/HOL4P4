@@ -197,14 +197,6 @@ pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
   {{ com rejected state }}
   {{ tex { \mathbf{rej} } }}
 
-pars_next {{ tex p }} :: pars_next_ ::=
-{{ com parser next state }}
-| Trans x :: :: trans
-  {{ com transition to named state }}
-  {{ tex { \mathbf{tra} \; x } }}
-| pars_fin :: :: pars_fin
-  {{ com final state }}
-
 %Execution status of current programmable block
 status {{ tex t }}:: status_ ::=
 {{ com execution status }}
@@ -212,7 +204,9 @@ status {{ tex t }}:: status_ ::=
   {{ tex { \mathbf{run} } }}
 | Ret v :: I :: returnv
   {{ tex { \mathbf{ret} \, v } }}  
-| pars_next :: I :: pars_next
+| Trans x :: I :: trans
+  {{ com transition to parser state }}
+  {{ tex { \mathbf{tra} \; x } }}
 | TypeError :: I :: type_error
   {{ tex { \bot } }}
 
@@ -1176,7 +1170,7 @@ formula :: formula_ ::=
   {{ hol ([[scopes_stack']] = init_in_highest_scope [[scopes_stack]] [[v]] ( varn_star [[funn]] ) ) }}
   {{ tex [[scopes_stack']] = [[scopes_stack]] [ ( [[star]] , [[funn]] )\longmapsto [[v]] ] }}
 | not_final_state ( x ) :: M :: not_final_x
-  {{ com x is not name of final state }}
+  {{ com x is not name of final parser state }}
   {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
 | notrun( status ) :: M :: notrun
   {{ com status is not in running}}
@@ -1254,8 +1248,12 @@ formula :: formula_ ::=
   {{ hol ( SOME ( [[in_out_list']] , [[ascope']] ) = [[output_f]] ( [[in_out_list]] , [[ascope]] ) ) }}
 | status_not_fin status :: M :: not_final
   {{ com status is not final }}
-  {{ hol (([[status]] <> status_pars_next (pars_next_pars_fin pars_finaccept)) /\ ([[status]] <> status_pars_next (pars_next_pars_fin pars_finreject))) }}
+  {{ hol (([[status]] <> status_pars_next "accept") /\ ([[status]] <> status_pars_next "reject")) }}
   {{ tex [[status]] \neq \mathit{pars\_fin} }}
+| status_fin status :: M :: final
+  {{ com status is final }}
+  {{ hol (([[status]] = status_pars_next "accept") \/ ([[status]] = status_pars_next "reject")) }}
+  {{ tex [[status]] = \mathit{pars\_fin} }}
 | not_top_return frame_list :: M :: not_top_return
   {{ com top frame is not about to execute a return statement }}
   {{ hol (not_top_return [[frame_list]]) }}
@@ -2576,18 +2574,8 @@ by
 %%%%%%%%%%%%%%
 %Transition
 
-  not_final_state ( x )
-  ------------------------------------------------- :: trans_1
+  ------------------------------------------------- :: trans
   ctx ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Trans x )
-
-
-  x = "accept"
-  ------------------------------------------------- :: trans_2
-  ctx ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Accept )
-
-  x = "reject"
-  ------------------------------------------------- :: trans_3
-  ctx ( g_scope_list , [ ( funn , [ transition x ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Reject )
 
 
 %%%%%%%%%%%%%%
@@ -2719,6 +2707,7 @@ by
 
 %This rule governs transitions between parser states
 %TODO: OK if function name is set to parser state name?
+  not_final_state ( x )
   stmt'' = pars_map ( x )
   ------------------------------------------------- :: state
   (ext_map, func_map, b_func_map, pars_map) ( g_scope_list , frame_list , ctrl, Trans x ) -p-> ( g_scope_list , [ ( x , [ stmt'' ] , [ emptyscope ] ) ] , ctrl, Running )
@@ -2837,9 +2826,10 @@ by
   ascope' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) )
   x = parseError
   ascope'' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope' , [ out ] , [ x ] )
+  status_fin status
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: parser_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , pars_fin ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope'' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope'' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   control ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt stmt' tbl_map = pblock_map ( f )

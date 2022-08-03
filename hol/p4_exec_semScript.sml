@@ -225,12 +225,7 @@ Definition stmt_exec_verify:
 End
 
 Definition stmt_exec_trans:
- (stmt_exec_trans (e_v (v_str x)) =
-  if x = "accept"
-  then SOME (status_pars_next (pars_next_pars_fin pars_finaccept))
-  else if x = "reject"
-  then SOME (status_pars_next (pars_next_pars_fin pars_finreject))
-  else SOME (status_pars_next (pars_next_trans x)))
+ (stmt_exec_trans (e_v (v_str x)) = SOME (status_trans x))
   /\
  (stmt_exec_trans _ = NONE)
 End
@@ -418,8 +413,8 @@ Definition stmt_exec:
  (stmt_exec _ (_, [], _, _) = NONE)
   /\
  (* TODO: frame list does not take into account nested frames here? *)
- (stmt_exec _ (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_pars_next x) =
-  SOME (g_scope_list, [(funn, [], scopes_stack)], ctrl, status_pars_next x))
+ (stmt_exec _ (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_trans x) =
+  SOME (g_scope_list, [(funn, [], scopes_stack)], ctrl, status_trans x))
   /\
  (***************)
  (* Frame rules *)
@@ -648,7 +643,7 @@ End
 val pars_exec_def = Define `
  (pars_exec (pctx:pctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
  (* No step should start in status pars_next *)
- (pars_exec _ (_, _, _, status_pars_next x) = NONE) /\
+ (pars_exec _ (_, _, _, status_trans x) = NONE) /\
  (pars_exec (ext_map, func_map, b_func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) =
   (case stmt_exec (ext_map, func_map, b_func_map, FEMPTY) (g_scope_list, frame_list, ctrl, status_running) of
    (* Empty frame list *)
@@ -658,13 +653,13 @@ val pars_exec_def = Define `
    (* No parser-level transition should end with type error *)
    | SOME (g_scope_list', frame_list', ctrl', status_type_error) => NONE
    (* Transition to next parser state *)
-   | SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_trans x)) =>
-    (case FLOOKUP pars_map x of
-     | SOME stmt'' => SOME (g_scope_list', [(funn_name x, [stmt''], [FEMPTY])], ctrl', status_running)
-     | NONE => NONE)
-   (* Transition to final parser state *)
-   | SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_pars_fin pars_fin)) =>
-    SOME (g_scope_list', frame_list', ctrl', status_pars_next (pars_next_pars_fin pars_fin))
+   | SOME (g_scope_list', frame_list', ctrl', status_trans x) =>
+    if (x = "accept" \/ x = "reject")
+    then SOME (g_scope_list', frame_list', ctrl', status_trans x)
+    else
+     (case FLOOKUP pars_map x of
+      | SOME stmt'' => SOME (g_scope_list', [(funn_name x, [stmt''], [FEMPTY])], ctrl', status_running)
+      | NONE => NONE)
    (* When reaching the empty statement, go to reject *)
    | SOME (g_scope_list', [(funn, [stmt_empty], scopes_stack)], ctrl', status_running) =>
     SOME (g_scope_list', [(funn, [stmt_trans (e_v (v_str "reject"))], scopes_stack)], ctrl', status_running)
@@ -694,7 +689,7 @@ val pars_multi_exec = Define `
  * function? *)
 val ctrl_exec_def = Define `
  (ctrl_exec (cctx:cctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
- (ctrl_exec _ (_, _, _, status_pars_next x) = NONE) /\
+ (ctrl_exec _ (_, _, _, status_trans x) = NONE) /\
 (*
  (ctrl_exec _ (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running) =
   if is_v e
@@ -743,14 +738,15 @@ val ctrl_multi_exec = Define `
 val arch_exec_def = Define `
  (arch_exec (actx:'a actx) ((aenv:'a aenv), (g_scope_list:g_scope_list), (arch_frame_list:arch_frame_list), (ctrl:ctrl), status_type_error) = NONE) /\
  (* arch_parser_ret: Note that this is a different clause from arch_control_ret due to the status *)
+ (* NOTE: Parser semantics can only end up with transition status to accept or reject *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
             ((i, in_out_list, in_out_list', scope), g_scope_list,
              (arch_frame_list_regular [(funn, stmt_stack, scopes_stack)]), ctrl,
-             (status_pars_next (pars_next_pars_fin pars_fin))) =
+             (status_trans x)) =
   if (is_empty_singleton stmt_stack) then
    (case EL i ab_list of
-    | (arch_block_pbl x el) =>
-     (case FLOOKUP pblock_map x of
+    | (arch_block_pbl x' el) =>
+     (case FLOOKUP pblock_map x' of
       | SOME (pblock_parser x_d_list b_func_map decl_list stmt pars_map) =>
 (* TODO: Note that this function will always copy out parseError from a parser. Unclear if this is intended in the spec. *)
        (case copyout_pbl ((g_scope_list++scopes_stack), scope, (d_out::(MAP SND x_d_list)), ("parseError"::(MAP FST x_d_list))) of
