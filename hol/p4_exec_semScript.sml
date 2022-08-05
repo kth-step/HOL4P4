@@ -284,14 +284,14 @@ val e_exec = TotalDefn.tDefine "e_exec" `
   /\
  (************************)
  (* Function/extern call *)
- (e_exec (ext_map, func_map, b_func_map, tbl_map) g_scope_list scopes_stack (e_call funn e_l) =
+ (e_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scopes_stack (e_call funn e_l) =
   (case lookup_funn_sig_body funn func_map b_func_map ext_map of
     | SOME (stmt, x_d_l) =>
      if LENGTH x_d_l = LENGTH e_l
      then
       (case unred_arg_index (MAP SND x_d_l) e_l of
        | SOME i =>
-        (case e_exec (ext_map, func_map, b_func_map, tbl_map) g_scope_list scopes_stack (EL i e_l) of
+        (case e_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scopes_stack (EL i e_l) of
          | SOME (e', frame_list) => SOME (e_call funn (LUPDATE e' i e_l), frame_list)
          | NONE => NONE)
        | NONE =>
@@ -418,8 +418,8 @@ Definition stmt_exec:
   /\
  (***************)
  (* Frame rules *)
- (stmt_exec (ext_map, func_map, b_func_map, tbl_map) (g_scope_list, ((funn, stmt_stack, scopes_stack)::((funn', stmt_stack', scopes_stack')::frame_list'')), ctrl, status_running) =
-   (case stmt_exec (ext_map, func_map, b_func_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
+ (stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, ((funn, stmt_stack, scopes_stack)::((funn', stmt_stack', scopes_stack')::frame_list'')), ctrl, status_running) =
+   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
     | SOME (g_scope_list', frame_list', ctrl', status') =>
      (case status' of
       | status_returnv v =>
@@ -511,10 +511,10 @@ Definition stmt_exec:
   /\
  (*********************)
  (* Table application *)
- (stmt_exec (ext_map, func_map, b_func_map, tbl_map) (g_scope_list, [(funn, [stmt_app t_name e_l], scopes_stack)], ctrl, status_running) =
+ (stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, [stmt_app t_name e_l], scopes_stack)], ctrl, status_running) =
   (case index_not_const e_l of
    | SOME i =>
-    (case e_exec (ext_map, func_map, b_func_map, tbl_map) g_scope_list scopes_stack (EL i e_l) of
+    (case e_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scopes_stack (EL i e_l) of
      | SOME (e', frame_list) =>
       SOME (g_scope_list, frame_list++[(funn, [stmt_app t_name (LUPDATE e' i e_l)], scopes_stack)], ctrl, status_running)
      | NONE => NONE)
@@ -540,7 +540,7 @@ Definition stmt_exec:
   /\
  (**********)
  (* Extern *)
- (stmt_exec (ext_map, func_map, b_func_map, tbl_map) (g_scope_list, [(funn, [stmt_ext], scopes_stack)], ctrl, status_running) =
+ (stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, [stmt_ext], scopes_stack)], ctrl, status_running) =
   (case lookup_ext_fun funn ext_map of
    | SOME ext_fun =>
     (case ext_fun (g_scope_list, scopes_stack, ctrl) of
@@ -639,7 +639,7 @@ End
 (****************************)
 (*  Parser block semantics  *)
 (****************************)
-
+(*
 val pars_exec_def = Define `
  (pars_exec (pctx:pctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
  (* No step should start in status pars_next *)
@@ -679,11 +679,11 @@ val pars_multi_exec = Define `
   | SOME state' => pars_multi_exec pctx state' fuel
   | NONE => NONE)
 `;
-
+*)
 (*****************************)
 (*  Control block semantics  *)
 (*****************************)
-
+(*
 (* TODO: Handle return value in any way? *)
 (* TODO: Outsouce matching of stmt_ret (e_v v) and stmt_seq (stmt_ret (e_v v)) stmt to new
  * function? *)
@@ -728,7 +728,7 @@ val ctrl_multi_exec = Define `
   | SOME state' => ctrl_multi_exec cctx state' fuel
   | NONE => NONE)
 `;
-
+*)
 (***********************************)
 (*  Architectural-level semantics  *)
 (***********************************)
@@ -737,40 +737,36 @@ val ctrl_multi_exec = Define `
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
 val arch_exec_def = Define `
  (arch_exec (actx:'a actx) ((aenv:'a aenv), (g_scope_list:g_scope_list), (arch_frame_list:arch_frame_list), (ctrl:ctrl), status_type_error) = NONE) /\
- (* arch_parser_ret: Note that this is a different clause from arch_control_ret due to the status *)
- (* NOTE: Parser semantics can only end up with transition status to accept or reject *)
  (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, in_out_list, in_out_list', scope), g_scope_list,
-             (arch_frame_list_regular [(funn, stmt_stack, scopes_stack)]), ctrl,
-             (status_trans x)) =
-  if (is_empty_singleton stmt_stack) then
-   (case EL i ab_list of
-    | (arch_block_pbl x' el) =>
-     (case FLOOKUP pblock_map x' of
-      | SOME (pblock_parser x_d_list b_func_map decl_list stmt pars_map) =>
-(* TODO: Note that this function will always copy out parseError from a parser. Unclear if this is intended in the spec. *)
-       (case copyout_pbl ((g_scope_list++scopes_stack), scope, (d_out::(MAP SND x_d_list)), ("parseError"::(MAP FST x_d_list))) of
-        | SOME scope' =>
-             SOME ((i+1, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
-                   arch_frame_list_empty, ctrl, status_running)
-        | _ => NONE)
-      | _ => NONE)
-    | _ => NONE)
-   else NONE)
- /\
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, in_out_list, in_out_list', scope), g_scope_list,
-             (arch_frame_list_regular [(funn, [stmt_empty], scopes_stack)]), ctrl, status_running) =
- (* arch_control_ret *)
+            ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list_regular frame_list, ctrl, status) =
   (case EL i ab_list of
    | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
-     | SOME (pblock_control x_d_list b_func_map decl_list stmt stmt' tbl_map) =>
-      (case copyout_pbl (g_scope_list, scope, (MAP SND x_d_list), (MAP FST x_d_list)) of
-       | SOME scope' =>
-        SOME ((i+1, in_out_list, in_out_list', scope'), (TAKE 1 g_scope_list),
+     | SOME (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) =>
+      if state_fin status frame_list
+      then
+       (* pbl_ret *)
+       (* TODO: OK to only copy out from block-global scope here? *)
+       (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, pbl_type, set_fin_status pbl_type status) of
+        | SOME scope' =>
+         SOME ((i+1, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
                arch_frame_list_empty, ctrl, status_running)
-       | _ => NONE)
+        | _ => NONE)
+      else
+       (case status of
+        | status_trans x' =>
+         (* parser_trans *)
+         (case FLOOKUP pars_map x' of
+          | SOME stmt' =>
+           SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular [(funn_name x', [stmt'], [FEMPTY])]), ctrl, status_running)
+          | _ => NONE)
+        | status_running =>
+         (* pbl_exec *)
+         (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
+          | SOME (g_scope_list', frame_list', ctrl', status') =>
+           SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
+          | _ => NONE)
+        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
  )
@@ -779,7 +775,7 @@ val arch_exec_def = Define `
             ((i, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_empty, ctrl, status_running) =
   (case EL i ab_list of
-   (* arch_in *)
+   (* in *)
    | arch_block_inp =>
     (case input_f (in_out_list, scope) of
      | SOME (in_out_list'', scope') => 
@@ -788,26 +784,15 @@ val arch_exec_def = Define `
      | NONE => NONE)
    | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
-     (* arch_control_init *)
-     | SOME (pblock_control x_d_list b_func_map decl_list stmt stmt' tbl_map) =>
-        (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
+     (* pbl_init *)
+     | SOME (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) =>
+        (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope, pbl_type) of
          | SOME scope' =>
           SOME ((i, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
-                arch_frame_list_regular [(funn_name x, [stmt_seq stmt stmt'], [])], ctrl, status_running)
+                arch_frame_list_regular [(funn_name x, [stmt], [])], ctrl, status_running)
          | _ => NONE)
-     (* arch_parser_init *)
-     | SOME (pblock_parser x_d_list b_func_map decl_list stmt pars_map) =>
-        (case FLOOKUP pars_map "start" of
-         | SOME stmt' =>
-          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
-           | SOME scope' =>
-            (let block_global_scope = FUPDATE scope' (varn_name "parseError", (v_err "NoError", SOME (lval_varname (varn_name "parseError")))) in
-              SOME ((i, in_out_list, in_out_list', scope), (g_scope_list++[block_global_scope]),
-                    arch_frame_list_regular [(funn_name x, [stmt_seq stmt stmt'], [])], ctrl, status_running))
-           | NONE => NONE)
-         | NONE => NONE)
      | _ => NONE)
-   (* arch_ffbl *)
+   (* ffbl *)
    | (arch_block_ffbl x) =>
     (case FLOOKUP ffblock_map x of
      | SOME (ffblock_ff ff) =>
@@ -816,7 +801,7 @@ val arch_exec_def = Define `
         SOME ((i+1, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, ctrl, status_running)
        | NONE => NONE)
      | NONE => NONE)
-   (* arch_out *)
+   (* out *)
    | arch_block_out =>
     (case output_f (in_out_list', scope) of
      | SOME (in_out_list'', scope') =>
@@ -824,26 +809,6 @@ val arch_exec_def = Define `
             status_running)
      | NONE => NONE)
   )
- )
-/\
- (* Operating on any other statement: arch_parser_exec, arch_control_exec *)
- (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)
-            ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular frame_list), ctrl, status) =
-  (case EL i ab_list of
-   | (arch_block_pbl x el) =>
-    (case FLOOKUP pblock_map x of
-     | SOME (pblock_parser x_d_list b_func_map decl_list stmt pars_map) =>
-      (case pars_exec (ext_map, func_map, b_func_map, pars_map) (g_scope_list, frame_list, ctrl, status) of
-       | SOME (g_scope_list', frame_list', ctrl', status') =>
-        SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
-       | _ => NONE)
-     | SOME (pblock_control x_d_list b_func_map decl_list stmt stmt' tbl_map) =>
-      (case ctrl_exec (ext_map, func_map, b_func_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
-       | SOME (g_scope_list', frame_list', ctrl', status') =>
-        SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
-       | _ => NONE)
-     | _ => NONE)
-   | _ => NONE)
  )
 /\
 (arch_exec _ _ = NONE)
