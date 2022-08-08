@@ -484,7 +484,7 @@ Proof
 fs [e_exec_sound] >>
 REPEAT STRIP_TAC >>
 PairCases_on `ctx` >>
-rename1 `(ext_map,func_map,b_func_map,tbl_map)` >>
+rename1 `(ext_map,func_map,b_func_map,pars_map,tbl_map)` >>
 fs [e_exec] >>
 Cases_on `lookup_funn_sig_body f func_map b_func_map ext_map` >> (
  fs []
@@ -504,7 +504,7 @@ Cases_on `unred_arg_index (MAP SND r) l` >> (
             clause_name_def],
 
  (* e_call_args *)
- Cases_on `e_exec (ext_map,func_map,b_func_map,tbl_map) g_scope_list scopes_stack (EL x l)` >> (
+ Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list scopes_stack (EL x l)` >> (
   fs []
  ) >>
  Cases_on `x'` >>
