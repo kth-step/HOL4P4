@@ -12,9 +12,17 @@ open p4Theory;
  * e3_size: size of an e list *)
 
 Theorem EL_pair_list:
-!i l. EL i l = (EL i (MAP FST l), EL i (MAP SND l))
+!i l.
+i < LENGTH l ==>
+EL i l = (EL i (MAP FST l), EL i (MAP SND l))
 Proof
-cheat
+rpt strip_tac >>
+subgoal `?l1 l2. LENGTH l1 = LENGTH l2 /\ l = ZIP (l1,l2)` >- (
+ qexists_tac `MAP FST l` >>
+ qexists_tac `MAP SND l` >>
+ fs [GSYM listTheory.UNZIP_MAP]
+) >>
+fs [listTheory.MAP_ZIP, listTheory.EL_ZIP]
 QED
 
 Theorem e_e2_size_less:

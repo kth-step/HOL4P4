@@ -247,6 +247,7 @@ val e_state_size_def = Define `
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce warnings *)
 (* TODO: Use let-statements to avoid duplicate "MAP FST", et cetera *)
+(* Defn.tgoal (Hol_defn "e_exec" ` *)
 val e_exec = TotalDefn.tDefine "e_exec" `
  (********************)
  (* Variable look-up *)
@@ -378,7 +379,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
    fs [listTheory.LENGTH_MAP]
   ) >>
   imp_res_tac e1_size_mem >>
-  fs [EL_pair_list]
+  metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
  ]
 );
 (* TODO: Is the below line too hacky? Should the theorem only be referred to as "e_exec_def"? *)
