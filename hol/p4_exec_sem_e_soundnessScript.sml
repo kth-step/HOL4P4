@@ -3,7 +3,7 @@ open HolKernel boolLib Parse bossLib;
 val _ = new_theory "p4_exec_sem_e_soundness";
 
 open p4Lib;
-open ottTheory listTheory p4_auxTheory p4Theory p4_exec_semTheory;
+open ottTheory listTheory rich_listTheory arithmeticTheory p4_auxTheory p4Theory p4_exec_semTheory;
 
 Definition e_exec_sound:
  (e_exec_sound e =
@@ -31,11 +31,11 @@ End
 Theorem l_sound_cons:
 !h l. l_sound (h::l) ==> l_sound l
 Proof
-REPEAT STRIP_TAC >>
+rpt strip_tac >>
 Induct_on `l` >> (
  fs [l_sound]
 ) >>
-REPEAT STRIP_TAC >>
+rpt strip_tac >>
 PAT_X_ASSUM ``!x e. _`` (fn thm => ASSUME_TAC (SPECL [``SUC x``, ``e:e``] thm)) >>
 rfs [] >>
 `oEL x (h'::l) = oEL (SUC x) (h::h'::l)` suffices_by (
@@ -51,19 +51,19 @@ Theorem oEL_cons_PRE:
 (x > 0) /\ (SOME e = oEL x (h::l)) ==>
 (SOME e = oEL (PRE x) l)
 Proof
-REPEAT STRIP_TAC >>
-fs [oEL_def, arithmeticTheory.PRE_SUB1]
+rpt strip_tac >>
+fs [oEL_def, PRE_SUB1]
 QED
 
 Theorem l_sound_equiv:
 !l. l_sound l <=> l_sound_exec l
 Proof
-REPEAT STRIP_TAC >>
+rpt strip_tac >>
 EQ_TAC >| [
  Induct_on `l` >> (
   fs [l_sound, l_sound_exec]
  ) >>
- REPEAT STRIP_TAC >| [
+ rpt strip_tac >| [
   PAT_X_ASSUM ``!x. _`` (fn thm => ASSUME_TAC (SPEC ``0`` thm)) >>
   fs [oEL_def],
 
@@ -76,7 +76,7 @@ EQ_TAC >| [
  Induct_on `l` >> (
   fs [l_sound, l_sound_exec]
  ) >>
- NTAC 2 STRIP_TAC >>
+ NTAC 2 strip_tac >>
  Induct_on `x` >> (
   fs [oEL_def]
  ) >>
@@ -91,93 +91,58 @@ EQ_TAC >| [
 ]
 QED
 
+Theorem l_sound_MEM:
+ !e l.
+ MEM e l ==>
+ l_sound l ==>
+ e_exec_sound e
+Proof
+Induct_on `l` >> (
+ fs []
+) >>
+rpt strip_tac >> (
+ fs [l_sound_equiv, l_sound_exec]
+)
+QED
+
 Definition x_e_l_exec_sound:
  (x_e_l_exec_sound (x_e_l:(string # e) list) = l_sound (MAP SND x_e_l))
 End
 
 Theorem e_acc_exec_sound_red:
-!e1 x.
-e_exec_sound e1 ==>
-e_exec_sound (e_acc e1 x)
+!e x.
+e_exec_sound e ==>
+e_exec_sound (e_acc e x)
 Proof
-cheat
-(*
 fs [e_exec_sound] >>
-REPEAT STRIP_TAC >>
-Cases_on `is_v e1` >| [
- (* 1st case is base case *)
- Cases_on `e1` >> (
-  fs [is_v]
- ) >>
- Cases_on `v` >> (
-  fs [e_exec, e_exec_acc, is_v]
- ) >> (
-  Cases_on `FIND (\(k,v). k = x) l` >>
-  fs [] >>
-  Cases_on `x'` >>
-  fs [] >>
-  rw []
- ) >| [
-  irule ((valOf o find_clause_e_red) "e_s_acc"),
-
-  irule ((valOf o find_clause_e_red) "e_h_acc")
- ] >> (
-  fs [clause_name_def, listTheory.FIND_def] >>
-  subgoal `(\(k,v). k = x) (q,r)` >- (
-   Cases_on `z` >>
-   fs [] >>
-   rw [] >>
-   IMP_RES_TAC (ISPECL [``(l':((string # v) list))``, ``(\(k,v). k = x):(string # v -> bool)``, ``(q,r):string # v``, ``0``] index_find_first) >>
-   fs []
-  ) >>
+rpt strip_tac >>
+fs [e_exec] >>
+Cases_on `e_exec_acc (e_acc e x)` >> (
+ fs []
+) >>
+Cases_on `e` >> (
+ fs [is_v]
+) >>
+Cases_on `v` >> (
+ fs [e_exec_acc]
+) >> (
+ Cases_on `FIND (\(k,v). k = x) l` >> (
   fs []
- ),
-(*
- (* Second case is reduction of 2nd argument (field name) *)
- Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
-  fs [e_exec]
  ) >>
- Cases_on `x` >>
+ PairCases_on `x''` >>
  fs [] >>
- subgoal `~fully_reduced e2` >- (
-  Cases_on `e2` >> (
-   fs [fully_reduced_def, is_v]
-  )
- ) >>
- METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg2"), clause_name_def],
-*)
- (* Third case is reduction of 1st argument (struct value) *)
- Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs [e_exec]
- ) >>
- Cases_on `x'` >> (
-  fs [is_v]
- ) >>
-(*
- Cases_on `v` >> (
-  fs [is_v_str]
- ) >>
-*)
- METIS_TAC [((valOf o find_clause_e_red) "e_acc_arg1"), clause_name_def]
+ rw []
+) >| [
+ irule ((valOf o find_clause_e_red) "e_s_acc"),
 
-(*
-,
-
- (* Fourth case determines case when both arguments are unreduced *)
- Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
-  fs [e_exec]
- ) >>
- Cases_on `x` >>
- fs [] >>
- subgoal `~fully_reduced e2` >- (
-  Cases_on `e2` >> (
-   fs [fully_reduced_def, is_v]
-  )
- ) >>
- METIS_TAC [(valOf o find_clause_e_red) "e_acc_arg2", clause_name_def]
-*)
-]
-*)
+ irule ((valOf o find_clause_e_red) "e_h_acc")
+] >> (
+ fs [clause_name_def, FIND_def] >>
+ Cases_on `z` >>
+ IMP_RES_TAC index_find_first >>
+ Cases_on `r` >>
+ fs []
+)
 QED
 
 Theorem e_binop_exec_sound_red:
@@ -187,7 +152,7 @@ e_exec_sound e2 ==>
 e_exec_sound (e_binop e1 b e2)
 Proof
 fs [e_exec_sound] >>
-REPEAT STRIP_TAC >>
+rpt strip_tac >>
 Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* Both operands are fully reduced *)
  Cases_on `e1` >> (
@@ -396,7 +361,7 @@ e_exec_sound e ==>
 e_exec_sound (e_select e l s)
 Proof
 fs [e_exec_sound] >>
-REPEAT STRIP_TAC >>
+rpt strip_tac >>
 Cases_on `is_v e` >| [
  Cases_on `e` >> (
   fs [is_v]
@@ -433,7 +398,7 @@ e_exec_sound e ==>
 e_exec_sound (e_unop u e)
 Proof
 fs [e_exec_sound] >>
-REPEAT STRIP_TAC >>
+rpt strip_tac >>
 Cases_on `is_v e` >| [
  Cases_on `e_exec_unop u e` >> (
   fs [e_exec] >>
@@ -474,7 +439,7 @@ l_sound l ==>
 e_exec_sound (e_call f l)
 Proof
 fs [e_exec_sound] >>
-REPEAT STRIP_TAC >>
+rpt strip_tac >>
 PairCases_on `ctx` >>
 rename1 `(ext_map,func_map,b_func_map,pars_map,tbl_map)` >>
 fs [e_exec] >>
@@ -519,7 +484,7 @@ Cases_on `unred_arg_index (MAP SND r) l` >> (
   fs [map_quad_zip112]
  ) >>
  fs [clause_name_def] >>
- REPEAT STRIP_TAC >| [
+ rpt strip_tac >| [
   fs [lookup_funn_sig_def],
 
   Cases_on `l` >> (
@@ -533,6 +498,87 @@ Cases_on `unred_arg_index (MAP SND r) l` >> (
 ]
 QED
 
+Theorem e_struct_exec_sound_red:
+!x_e_l.
+x_e_l_exec_sound x_e_l ==>
+e_exec_sound (e_struct x_e_l)
+Proof
+fs [e_exec_sound] >>
+rpt strip_tac >>
+fs [e_exec] >>
+Cases_on `unred_mem_index (MAP SND x_e_l)` >> (
+ fs []
+) >| [
+ rw [] >>
+ subgoal `?x_l. x_l = MAP FST x_e_l` >- (
+  fs []
+ ) >>
+ subgoal `?e_l. e_l = MAP SND x_e_l` >- (
+  fs []
+ ) >>
+ Q.SUBGOAL_THEN `((MAP ( \ (f_,e_,v_). (f_,e_)) (ZIP (x_l,ZIP (e_l,vl_of_el (MAP SND x_e_l))))) = x_e_l) /\
+                 ((MAP ( \ (f_,e_,v_). (f_,v_)) (ZIP (x_l,ZIP (e_l,vl_of_el (MAP SND x_e_l))))) = ZIP (MAP FST x_e_l,vl_of_el (MAP SND x_e_l)))` (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPEC ``ZIP (x_l:string list, ZIP (e_l:e list, vl_of_el (MAP SND (x_e_l:(string # e) list))))``
+                                                  ((valOf o find_clause_e_red) "e_eStruct_to_v"))))) >- (
+  subgoal `LENGTH (MAP FST x_e_l) = LENGTH (ZIP (MAP SND x_e_l,vl_of_el (MAP SND x_e_l)))` >- (
+   fs [LENGTH_ZIP_MIN, MIN_DEF] >>
+   CASE_TAC >>
+   fs [vl_of_el_LENGTH]
+  ) >>
+  fs [map_tri_zip12] >>
+  subgoal `LENGTH (MAP SND x_e_l) = LENGTH (vl_of_el (MAP SND x_e_l))` >- (
+   fs [vl_of_el_LENGTH]
+  ) >>
+  fs [map_tri_zip12, listTheory.MAP_ZIP, GSYM UNZIP_MAP]
+ ) >>
+ fs [clause_name_def] >>
+ rpt strip_tac >> (
+  fs [lambda_unzip_tri] >>
+  subgoal `LENGTH (MAP FST x_e_l) = LENGTH (ZIP (MAP SND x_e_l,vl_of_el (MAP SND x_e_l)))` >- (
+   fs [LENGTH_ZIP_MIN, MIN_DEF] >>
+   CASE_TAC >>
+   fs [vl_of_el_LENGTH]
+  ) >>
+  fs [UNZIP_ZIP] >>
+  subgoal `LENGTH (MAP SND x_e_l) = LENGTH (vl_of_el (MAP SND x_e_l))` >- (
+   fs [vl_of_el_LENGTH]
+  ) >>
+  fs [UNZIP_ZIP, unred_mem_index_NONE]
+ ),
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack (EL x (MAP SND x_e_l))` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ rw [] >>
+ Q.SUBGOAL_THEN `((MAP ( \ (f_,e_,e'_). (f_,e_)) (ZIP (MAP FST x_e_l, ZIP (MAP SND x_e_l, LUPDATE x'0 x (MAP SND x_e_l))))) = x_e_l) /\
+                 ((MAP ( \ (f_,e_,e'_). (f_,e'_)) (ZIP (MAP FST x_e_l,ZIP (MAP SND x_e_l, LUPDATE x'0 x (MAP SND x_e_l))))) = ZIP (MAP FST x_e_l, LUPDATE x'0 x (MAP SND x_e_l)))`
+  (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPEC ``ZIP (MAP FST (x_e_l:(string # e) list), ZIP (MAP SND x_e_l, LUPDATE x'0 x (MAP SND x_e_l)))``
+                                                  ((valOf o find_clause_e_red) "e_eStruct"))))) >- (
+  subgoal `LENGTH (MAP FST x_e_l) = LENGTH (ZIP (MAP SND x_e_l, LUPDATE x'0 x (MAP SND x_e_l)))` >- (
+   fs []
+  ) >>
+  fs [map_tri_zip12] >>
+  subgoal `LENGTH (MAP SND x_e_l) = LENGTH (LUPDATE x'0 x (MAP SND x_e_l))` >- (
+   fs [vl_of_el_LENGTH]
+  ) >>
+  fs [map_tri_zip12, listTheory.MAP_ZIP, GSYM UNZIP_MAP]
+ ) >>
+ fs [clause_name_def] >>
+ qexistsl_tac [`x'0`, `x`] >>
+ rpt strip_tac >> (
+  fs [lambda_unzip_tri]
+ ) >>
+ fs [x_e_l_exec_sound] >>
+ IMP_RES_TAC unred_mem_index_in_range >>
+ subgoal `MEM (EL x (MAP SND x_e_l)) (MAP SND x_e_l)` >- (
+  metis_tac [MEM_EL]
+ ) >>
+ IMP_RES_TAC l_sound_MEM >>
+ fs [e_exec_sound]
+]
+QED
+
 Theorem e_exec_sound_red:
 !e. e_exec_sound e
 Proof
@@ -540,18 +586,17 @@ Proof
  fs []
 ) >>
 irule e_induction >>
-REPEAT STRIP_TAC >| [
-
+rpt strip_tac >| [
  (* x_e list: base case *)
  fs [x_e_l_exec_sound, l_sound],
 
  (* e list: base case *)
  fs [l_sound],
 
- (* bitvector slice - not in exec sem yet *)
+ (* TODO: bitvector slice - not in exec sem yet *)
  fs [e_exec_sound, e_exec],
 
- (* bitvector concatenation - not in exec sem yet *)
+ (* TODO: bitvector concatenation - not in exec sem yet *)
  fs [e_exec_sound, e_exec],
 
  (* Binary operation *)
@@ -572,27 +617,36 @@ REPEAT STRIP_TAC >| [
  (* Unary operation *)
  fs [e_unop_exec_sound_red],
 
- (* List expression - not in exec sem yet *)
+ (* TODO: List expression - not in exec sem yet *)
  fs [e_exec_sound, e_exec],
 
  (* Function/extern call *)
  fs [e_call_exec_sound_red],
 
- (* TODO: Struct *)
- cheat,
+ (* Struct *)
+ fs [e_struct_exec_sound_red],
 
- (* TODO: Header *)
- cheat,
+ (* TODO: Header expression - not in exec sem yet *)
+ fs [e_exec_sound, e_exec],
 
- (* TODO: x_e list: inductive case *)
- cheat,
+ (* x_e list: inductive case *)
+ Cases_on `p` >>
+ fs [x_e_l_exec_sound, l_sound, x_e_exec_sound] >>
+ rpt strip_tac >>
+ Cases_on `x` >> (
+  fs [oEL_def]
+ ) >>
+ subgoal `MEM e (MAP SND l)` >- (
+  fs [oEL_EQ_EL, EL_MEM]
+ ) >>
+ metis_tac [l_sound_MEM],
 
  (* Constant value: Irreducible *)
  fs [e_exec_sound, e_exec],
 
  (* Variable lookup *)
  fs [e_exec_sound, e_exec] >>
- REPEAT STRIP_TAC >>
+ rpt strip_tac >>
  Cases_on `lookup_vexp2 scopes_stack g_scope_list v` >> (
   fs []
  ) >>

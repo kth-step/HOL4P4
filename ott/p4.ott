@@ -2204,18 +2204,18 @@ e = [ e1 , ... , en ] [ i ]
 ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 [ e'1 , ... , e'n ] =' update ( e' , i , [ e1 , ... , en ] )
 ----------------------------------- :: eStruct
-ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStruct { f1 = e'1 ; ... ; fn = e'n } ,  frame_list )
+ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStruct { f1 = e'1 ; ... ; fn = e'n } , frame_list )
 
 %eStruct coversion to value struct
 is_consts ( e1 , ... , en )
 ( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
 ----------------------------------- :: eStruct_to_v
-ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn }  ,  empty )
+ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn } , empty )
 
 %access a value struct field 
 v = struct { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: s_acc
-ctx g_scope_list scopes_stack ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
+ctx g_scope_list scopes_stack ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v , empty )
 
 
 %expression reduction for access fields
