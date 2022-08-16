@@ -241,58 +241,51 @@ stmt_exec_sound (stmt_ass lval e)
 Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
+pairLib.PairCases_on `state'` >>
+rename1 `(g_scope_list',state'1,state'2,state'3)` >>
+rename1 `(g_scope_list',frame_list',ctrl',status')` >>
 Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
-Cases_on `scopes_stack` >> (
- fs [stmt_exec]
-) >>
-Cases_on `is_v e` >> (
- fs []
-) >| [
- Cases_on `stmt_exec_ass lval e (g_scope_list ++ (h::t))` >> (
-  fs []
- ) >>
+fs [exec_stmt_ass_SOME_REWRS] >>
+Cases_on `is_v e` >| [
+ fs [] >>
  Cases_on `e` >> (
   fs [is_v]
  ) >>
- rename1 `TAKE 2 g_scope_list'` >>
+ rename1 `TAKE 2 g_scope_list''` >>
  rw [] >>
  fs [stmt_exec_ass] >>
- subgoal `?g_scope g_scope'. TAKE 2 g_scope_list' = [g_scope; g_scope']` >- (
+ (* TODO: Ensure that g_scope_list is at least of length 2 in semantics? *)
+ subgoal `?g_scope g_scope'. TAKE 2 g_scope_list'' = [g_scope; g_scope']` >- (
   cheat
  ) >>
- subgoal `?scopes_stack''. DROP 2 g_scope_list' = scopes_stack''` >- (
+ subgoal `?scopes_stack''. DROP 2 g_scope_list'' = scopes_stack''` >- (
   cheat
  ) >>
  fs [] >>
  irule ((valOf o find_clause_stmt_red) "stmt_ass_v") >>
  fs [clause_name_def] >>
  rpt conj_tac >| [
-  Cases_on `g_scope_list'` >> (
+  Cases_on `g_scope_list''` >> (
    fs []
   ),
 
-  Cases_on `g_scope_list'` >> (
+  Cases_on `g_scope_list''` >> (
    fs []
   ) >>
-  Cases_on `t'` >> (
+  Cases_on `t` >> (
    fs []
   ),
 
-  Cases_on `g_scope_list'` >> (
+  Cases_on `g_scope_list''` >> (
    fs []
   ) >>
-  Cases_on `t'` >> (
+  Cases_on `t` >> (
    fs []
   )
  ],
 
- Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
-  fs []
- ) >>
- pairLib.PairCases_on `x` >>
- fs [] >>
  metis_tac [((valOf o find_clause_stmt_red) "stmt_ass_e"), clause_name_def]
 ]
 QED
@@ -308,9 +301,10 @@ rpt strip_tac >>
 Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
-Cases_on `scopes_stack` >> (
- fs [stmt_exec]
-) >>
+pairLib.PairCases_on `state'` >>
+rename1 `(g_scope_list',state'1,state'2,state'3)` >>
+rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+fs [exec_stmt_seq_SOME_REWRS] >>
 Cases_on `is_empty s1` >> (
  fs []
 ) >| [
@@ -319,155 +313,20 @@ Cases_on `is_empty s1` >> (
  ) >>
  metis_tac [((valOf o find_clause_stmt_red) "stmt_seq2"), clause_name_def],
 
- Cases_on `stmt_exec ctx (g_scope_list,[(funn,[s1],(h::t))],ctrl,status_running)` >> (
-  fs []
- ) >>
- pairLib.PairCases_on `x` >> (
-  fs []
- ) >>
- Cases_on `x1` >> (
-  fs []
- ) >>
- Cases_on `t'` >> (
+ Cases_on `status' = status_running` >> (
   fs []
  ) >| [
-  pairLib.PairCases_on `h'` >> (
-   fs []
-  ) >>
-  Cases_on `h'1` >> (
-   fs []
-  ) >>
-  Cases_on `t'` >> (
-   fs []
-  ) >| [
-   Cases_on `x3` >> (
-    fs []
-   ) >| [
-    rw [] >>
-    rename1 `(x0, [(funn', [stmt_seq s1' s2], scopes_stack')], ctrl', status_running)` >>
-    rename1 `(g_scope_list', [(funn', [stmt_seq s1' s2], scopes_stack')], ctrl', status_running)` >>
-    Q.SUBGOAL_THEN `funn' = funn`
-     (fn thm => fs [thm]) >- (
-     metis_tac [stmt_exec_inv]
-    ) >>
-    Q.SUBGOAL_THEN `[(funn, [stmt_seq s1' s2], scopes_stack')] = [] ++ [(funn, [stmt_seq s1' s2], scopes_stack')]`
-     (fn thm => ONCE_REWRITE_TAC [thm]) >- (
-     fs []
-    ) >>
-    Q.SUBGOAL_THEN `[(funn, [stmt_seq s1' s2], scopes_stack')] = [(funn, [] ++ [stmt_seq s1' s2], scopes_stack')]`
-     (fn thm => ONCE_REWRITE_TAC [thm]) >- (
-     fs []
-    ) >>
-    irule ((valOf o find_clause_stmt_red) "stmt_seq1") >>
-    fs [clause_name_def],
+  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def],
 
-    rw [] >>
-    rename1 `(x0, [(funn', [s], scopes_stack')], ctrl', status_returnv v)` >>
-    rename1 `(g_scope_list', [(funn', [s], scopes_stack')], ctrl', status_returnv v)` >>
-    Q.SUBGOAL_THEN `funn' = funn`
-     (fn thm => fs [thm]) >- (
-     metis_tac [stmt_exec_inv]
-    ) >>
-    metis_tac [((valOf o find_clause_stmt_red) "stmt_seq3"), clause_name_def, status_distinct],
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_seq3", clause_name_def]
+ ],
 
-    rw [] >>
-    rename1 `(x0, [(funn', [s1'], scopes_stack')], ctrl', status_trans s)` >>
-    rename1 `(g_scope_list', [(funn', [s1'], scopes_stack')], ctrl', status_trans s)` >>
-    Q.SUBGOAL_THEN `funn' = funn`
-     (fn thm => fs [thm]) >- (
-     metis_tac [stmt_exec_inv]
-    ) >>
-    metis_tac [((valOf o find_clause_stmt_red) "stmt_seq3"), clause_name_def, status_distinct],
+ (* stmt added to stmt stack (block entered) *)
+ metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[stmt1'']`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def],
 
-    rw [] >>
-    rename1 `(x0, [(funn', [s1'], scopes_stack')], ctrl', status_type_error)` >>
-    rename1 `(g_scope_list', [(funn', [s1'], scopes_stack')], ctrl', status_type_error)` >>
-    Q.SUBGOAL_THEN `funn' = funn`
-     (fn thm => fs [thm]) >- (
-     metis_tac [stmt_exec_inv]
-    ) >>
-    metis_tac [((valOf o find_clause_stmt_red) "stmt_seq3"), clause_name_def, status_distinct]
-   ],
-
-   Cases_on `t''` >> (
-    fs []
-   ) >>
-   Cases_on `x3` >> (
-    fs []
-   ) >>
-   rw [] >>
-   (* TODO: stmt_seq1 *)
-   (* ((valOf o find_clause_stmt_red) "stmt_seq1") *)
-   cheat
-  ],
-
-  pairLib.PairCases_on `h''` >> (
-   fs []
-  ) >>
-  Cases_on `h''1` >> (
-   fs []
-  ) >>
-  Cases_on `t'` >> (
-   fs []
-  ) >>
-  Cases_on `t''` >> (
-   fs []
-  ) >>
-  Cases_on `x3` >> (
-   fs []
-  ) >>
-  (* TODO: seq1: new frame is created *)
-  rw [] >>
-  cheat
- ]
+ (* frame added (function called) *)
+ metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[frame]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
 ]
-(* OLD:
- rename1 `(x0,frame_list',ctrl',status')` >>
- rename1 `(g_scope_list',frame_list',ctrl',status')` >>
- Cases_on `frame_list'` >> (
-  fs []
- ) >>
- Cases_on `t` >> (
-  fs []
- ) >| [
-  pairLib.PairCases_on `h` >>
-  fs [] >>
-  rw [] >>
-  Cases_on `status'` >> (
-   fs []
-  ) >| [
-   Q.SUBGOAL_THEN `[(funn,stmt_seq h1 s2,h2)] = [] ++ [(funn,stmt_seq h1 s2,h2)]`
-    (fn thm => ONCE_REWRITE_TAC [thm]) >- (
-    fs []
-   ) >>
-   irule ((valOf o find_clause_stmt_red) "stmt_seq1") >>
-   fs [clause_name_def],
-
-   metis_tac [((valOf o find_clause_stmt_red) "stmt_seq3"), clause_name_def, status_distinct],
-
-   metis_tac [((valOf o find_clause_stmt_red) "stmt_seq3"), clause_name_def, status_distinct],
-
-   metis_tac [((valOf o find_clause_stmt_red) "stmt_seq3"), clause_name_def, status_distinct]
-  ],
-
-  pairLib.PairCases_on `h'` >>
-  fs [] >>
-  Cases_on `t'` >> (
-   fs []
-  ) >>
-  Cases_on `status'` >> (
-   fs []
-  ) >>
-  rw [] >>
-  Q.SUBGOAL_THEN `[h; (funn,stmt_seq h'1 s2,h'2)] = [h] ++ [(funn,stmt_seq h'1 s2,h'2)]`
-   (fn thm => ONCE_REWRITE_TAC [thm]) >- (
-   fs []
-  ) >>
-  irule ((valOf o find_clause_stmt_red) "stmt_seq1") >>
-  fs [clause_name_def]
- ]
-]
-*)
 QED
 
 Theorem stmt_cond_exec_sound_red:
