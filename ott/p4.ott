@@ -1170,12 +1170,12 @@ formula :: formula_ ::=
   {{ com status is not in running}}
   {{ tex t \neq { \mathbf{run} } }}
   {{ hol (status <> status_running)}}
-| notret( status ) :: :: noret
-  {{ com status is not in return}}
-  {{ tex [[status]] \neq { \mathbf{ret \, v} } }}
-  {{ hol ( notret [[status]] )}}  
+| notret( status , frame_list ) :: :: noret
+  {{ com status is (conditionally) not return}}
+  {{ tex [[frame_list]] \neq [] \Rightarrow [[status]] \neq { \mathbf{ret \, v} } }}
+  {{ hol ( ([[frame_list]] <> []) ==> notret [[status]] )}}  
 | acc_or_rej( status ) :: M :: accrejstatus
-  {{ com status is not in running}}
+  {{ com status is not running}}
   {{ tex t = { \mathbf{acc} } \vee t = { \mathbf{rej} } }}
   {{ hol (status = Accept \/ status = Reject) }}     
 | x = "accept" :: M :: is_accept
@@ -2700,14 +2700,14 @@ by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
   %frame_list'' neq empty
-  notret( status' )
+  notret( status' , frame_list'' )
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list' , [ ( funn , stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list'' , frame_list' , ctrl' , status' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
   ----------------------------------- :: comp1
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ frame_list'' , ctrl , status ) -f-> ( g_scope_list''' , frame_list' ++ frame_list'' , ctrl' , status' )
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
-%Note that global scope does not matter for the below statement reduction step (write global scope empty?)
+%Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt_stack'' , scopes_stack ) ] , ctrl , Ret v )
   scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
   g_scope = scopes_stack'' [0]

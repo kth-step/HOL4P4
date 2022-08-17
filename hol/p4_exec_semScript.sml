@@ -1963,32 +1963,56 @@ Definition frames_exec:
  (frames_exec _ (_, [], _, _) = NONE)
   /\
  (*********)
- (* Comp1 *)
+ (* Comp2 + Comp1 case of multiple frames *)
  (frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, ((funn, stmt_stack, scopes_stack)::((funn', stmt_stack', scopes_stack')::frame_list'')), ctrl, status_running) =
-   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
-    | SOME (g_scope_list', frame_list', ctrl', status') =>
-     (case status' of
-      | status_returnv v =>
-       let scopes_stack'' = initialise (g_scope_list'++scopes_stack') (varn_star funn) v in
-        (case lookup_funn_sig_body funn func_map b_func_map ext_map of
-         | SOME (stmt'', x_d_l) =>
-          (case copyout (MAP FST x_d_l) (MAP SND x_d_l) (TAKE 2 scopes_stack'') (DROP 2 scopes_stack'') scopes_stack of
-           | SOME (g_scope_list'', scopes_stack''') =>
-            SOME (g_scope_list'', ((funn', stmt_stack', scopes_stack''')::frame_list''), ctrl', status_running)
-           | _ => NONE)
+  (case scopes_to_pass funn func_map b_func_map g_scope_list of
+   | SOME g_scope_list' =>
+    (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list', [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
+     | SOME (g_scope_list'', frame_list', ctrl', status') =>
+      (case status' of
+       | status_returnv v =>
+        (* Comp2 *)
+        let scopes_stack'' = initialise (g_scope_list''++scopes_stack') (varn_star funn) v in
+         (case oTAKE 2 scopes_stack'' of
+          | SOME g_scope_list''' =>
+           (case oDROP 2 scopes_stack'' of
+            | SOME scopes_stack''' =>
+             (case scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list''' of
+              | SOME g_scope_list'''' =>
+               (case lookup_funn_sig_body funn func_map b_func_map ext_map of
+                | SOME (stmt'', x_d_l) =>
+                 (case copyout (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list'''' scopes_stack''' scopes_stack of
+                  | SOME (g_scope_list''''', scopes_stack'''') =>
+                   SOME (g_scope_list''''', ((funn', stmt_stack', scopes_stack'''')::frame_list''), ctrl', status_running)
+                  | _ => NONE)
+                | _ => NONE)
+              | _ => NONE)
+            | _ => NONE)
+          | NONE => NONE)
+       | _ => 
+        (* Comp1 *)
+        (case scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' of
+         | SOME g_scope_list''' =>
+          SOME (g_scope_list''', frame_list'++((funn', stmt_stack', scopes_stack')::frame_list''), ctrl', status')
          | _ => NONE)
-      | _ => 
-       SOME (g_scope_list', frame_list'++((funn', stmt_stack', scopes_stack')::frame_list''), ctrl', status'))
-    | _ => NONE))
+     | _ => NONE)
+    | _ => NONE)
+   | _ => NONE))
   /\
  (*********)
- (* Comp2 *)
+ (* Comp1, remaining cases *)
  (frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) =
-   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
-    | SOME (g_scope_list', frame_list', ctrl', status') =>
-     SOME (g_scope_list', frame_list', ctrl', status')
-    | _ => NONE))
-  /\
+  (case scopes_to_pass funn func_map b_func_map g_scope_list of
+   | SOME g_scope_list' =>
+   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list', [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
+    | SOME (g_scope_list'', frame_list', ctrl', status') =>
+     (case scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' of
+      | SOME g_scope_list''' =>
+       SOME (g_scope_list''', frame_list', ctrl', status')
+      | _ => NONE)
+    | _ => NONE)
+   | _ => NONE))
+ /\
  (frames_exec _ _ = NONE)
 End
 
