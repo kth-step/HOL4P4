@@ -253,38 +253,10 @@ Cases_on `is_v e` >| [
  Cases_on `e` >> (
   fs [is_v]
  ) >>
- rename1 `TAKE 2 g_scope_list''` >>
  rw [] >>
  fs [stmt_exec_ass] >>
- (* TODO: Ensure that g_scope_list is at least of length 2 in semantics? *)
- subgoal `?g_scope g_scope'. TAKE 2 g_scope_list'' = [g_scope; g_scope']` >- (
-  cheat
- ) >>
- subgoal `?scopes_stack''. DROP 2 g_scope_list'' = scopes_stack''` >- (
-  cheat
- ) >>
- fs [] >>
  irule ((valOf o find_clause_stmt_red) "stmt_ass_v") >>
- fs [clause_name_def] >>
- rpt conj_tac >| [
-  Cases_on `g_scope_list''` >> (
-   fs []
-  ),
-
-  Cases_on `g_scope_list''` >> (
-   fs []
-  ) >>
-  Cases_on `t` >> (
-   fs []
-  ),
-
-  Cases_on `g_scope_list''` >> (
-   fs []
-  ) >>
-  Cases_on `t` >> (
-   fs []
-  )
- ],
+ fs [clause_name_def],
 
  metis_tac [((valOf o find_clause_stmt_red) "stmt_ass_e"), clause_name_def]
 ]

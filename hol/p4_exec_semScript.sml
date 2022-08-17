@@ -446,8 +446,11 @@ Definition stmt_exec:
   if is_v e
   then
    (case stmt_exec_ass lval e (g_scope_list++scopes_stack) of
-    | SOME scopes_stack' =>
-     SOME (TAKE 2 scopes_stack', [(funn, [stmt_empty], DROP 2 scopes_stack')], ctrl, status_running)
+    | SOME scopes_stack'' =>
+     (case (oTAKE 2 scopes_stack'', oDROP 2 scopes_stack'') of
+      | (SOME g_scope_list', SOME scopes_stack') =>
+       SOME (g_scope_list', [(funn, [stmt_empty], scopes_stack')], ctrl, status_running)
+      | _ => NONE)
     | NONE => NONE)
   else
    (case e_exec ctx g_scope_list scopes_stack e of
@@ -642,10 +645,11 @@ Theorem exec_stmt_ass_SOME_REWRS:
 stmt_exec ctx (g_scope_list, [(funn, [stmt_ass lval e], scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
  (is_v e ==> 
-  ?scopes_stack'.
-   (stmt_exec_ass lval e (g_scope_list++scopes_stack) = SOME scopes_stack') /\
-   (g_scope_list' = TAKE 2 scopes_stack') /\
-   (frame_list' = [(funn, [stmt_empty], DROP 2 scopes_stack')])) /\
+  ?scopes_stack'' scopes_stack'.
+   (stmt_exec_ass lval e (g_scope_list++scopes_stack) = SOME scopes_stack'') /\
+   (SOME g_scope_list' = oTAKE 2 scopes_stack'') /\
+   (SOME scopes_stack' = oDROP 2 scopes_stack'') /\
+   (frame_list' = [(funn, [stmt_empty], scopes_stack')])) /\
  (~is_v e ==> 
   ?e' frame_list''.
    (e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'')) /\
@@ -665,14 +669,19 @@ Cases_on `is_v e` >> (
  Cases_on `stmt_exec_ass lval e (g_scope_list ++ h::t)` >> (
   fs []
  ) >>
+ Cases_on `oTAKE 2 x` >> (
+  fs []
+ ) >>
+ Cases_on `oDROP 2 x` >> (
+  fs []
+ ) >>
  metis_tac [],
 
  Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
   fs []
  ) >>
- PairCases_on `x` >> (
-  fs []
- ) >>
+ PairCases_on `x` >>
+ fs [] >>
  metis_tac []
 ]
 QED
@@ -961,6 +970,12 @@ Cases_on `stmt` >> Cases_on `stmt_stack` >> (
   fs []
  ) >| [
   Cases_on `stmt_exec_ass l e (g_scope_list ++ h_scope::scopes_stack)` >> (
+   fs []
+  ) >>
+  Cases_on `oTAKE 2 x` >> (
+   fs []
+  ) >>
+  Cases_on `oDROP 2 x` >> (
    fs []
   ),
 

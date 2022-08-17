@@ -1000,6 +1000,10 @@ formula :: formula_ ::=
 %Type-transforming operations
 | g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
   {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
+| g_scope_list' = take i scopes_stack :: M :: scopes_take
+  {{ hol (SOME [[g_scope_list']] = oTAKE [[i]] [[scopes_stack]]) }}
+| scopes_stack' = drop i scopes_stack :: M :: scopes_drop
+  {{ hol (SOME [[scopes_stack']] = oDROP [[i]] [[scopes_stack]]) }}
 %TODO: Why does the above not work for value 1?
 | g_scope = scopes_stack [ 1 ] :: M :: scopes_stack_index_1
   {{ hol ([[g_scope]] = EL 1 [[scopes_stack]]) }}
@@ -1901,6 +1905,21 @@ val assign_def = Define `
   )
 `;
 
+val oTAKE_def = Define `
+  (oTAKE 0 _ = SOME []) /\
+  (oTAKE (SUC n) [] = NONE) /\
+  (oTAKE (SUC n) (h::t) =
+   case oTAKE n t of
+   | SOME l => SOME (h::l)
+   | NONE => NONE)
+`;
+
+val oDROP_def = Define `
+  (oDROP 0 l = SOME l) /\
+  (oDROP (SUC n) [] = NONE) /\
+  (oDROP (SUC n) (h::t) = oDROP n t)
+`;
+
 (* Declares a new variable and initialises it to ARB, returns the new scope stack *)
 (* TODO: Behaviour when variable already exists? *)
 (* Note that this will declare variables in the block-global scope when scope stack is empty *)
@@ -2516,11 +2535,10 @@ defn
 by
 
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
-  g_scope = scopes_stack' [0]
-  g_scope' = scopes_stack' [1]
-  scopes_stack'' = tl (tl scopes_stack')
+  g_scope_list' = take 2 scopes_stack'
+  scopes_stack'' = drop 2 scopes_stack'
   ----------------------------------- :: ass_v
-  ctx ( g_scope_list , [ ( funn , [ assign lval v ]  , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , [ empty_stmt ] , scopes_stack'' ) ]  , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ assign lval v ]  , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ empty_stmt ] , scopes_stack'' ) ]  , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
