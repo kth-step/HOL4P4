@@ -1002,8 +1002,10 @@ formula :: formula_ ::=
   {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
 | g_scope_list' = take i scopes_stack :: M :: scopes_take
   {{ hol (SOME [[g_scope_list']] = oTAKE [[i]] [[scopes_stack]]) }}
+  {{ tex [[g_scope_list']] = \mathrm{take}([[i]], [[scopes_stack]]) }}
 | scopes_stack' = drop i scopes_stack :: M :: scopes_drop
   {{ hol (SOME [[scopes_stack']] = oDROP [[i]] [[scopes_stack]]) }}
+  {{ tex [[scopes_stack']] = \mathrm{drop}([[i]], [[scopes_stack]]) }}
 %TODO: Why does the above not work for value 1?
 | g_scope = scopes_stack [ 1 ] :: M :: scopes_stack_index_1
   {{ hol ([[g_scope]] = EL 1 [[scopes_stack]]) }}
