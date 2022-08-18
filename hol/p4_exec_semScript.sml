@@ -598,7 +598,7 @@ Definition stmt_exec:
   | _ =>
    (case scopes_stack of
     | [] => NONE
-    | (h_scope::scopes_stack') => SOME (g_scope_list, [(funn, stmt_stack, scopes_stack')], ctrl, status)))
+    | (h_scope::scopes_stack') => SOME (g_scope_list, [(funn, stmt_stack, REVERSE (TL (REVERSE (h_scope::scopes_stack'))))], ctrl, status)))
   /\
  (* TODO: This clause gets expanded into multiple clauses to account for all different
   *       statements. An alternative solution, which may be even more convoluted,
@@ -1972,7 +1972,7 @@ Definition frames_exec:
       (case status' of
        | status_returnv v =>
         (* Comp2 *)
-        let scopes_stack'' = initialise (g_scope_list''++scopes_stack') (varn_star funn) v in
+        let scopes_stack'' = initialise (g_scope_list++scopes_stack') (varn_star funn) v in
          (case oTAKE 2 scopes_stack'' of
           | SOME g_scope_list''' =>
            (case oDROP 2 scopes_stack'' of

@@ -377,7 +377,73 @@ QED
 Theorem stmt_stack_exec_sound_red:
 !stmt_stack. stmt_stack_exec_sound stmt_stack
 Proof
-cheat
+Cases_on `stmt_stack` >> (
+ fs [stmt_stack_exec_sound] >>
+ rpt strip_tac >>
+ Cases_on `status` >> (
+  fs [stmt_exec]
+ ) >>
+ Cases_on `scopes_stack` >> (
+  fs [stmt_exec]
+ )
+) >>
+Cases_on `h <> stmt_empty` >| [
+ pairLib.PairCases_on `ctx` >>
+ rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
+ rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+ pairLib.PairCases_on `state'` >>
+ rename1 `(g_scope_list',state'1,state'2,state'3)` >>
+ rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+ rename1 `[(funn,stmt::stmt_stack,scope::scope_stack)]` >>
+ (* TODO: Not trivial..? *)
+ subgoal `?frame_list'' stmt' scope' scope_stack'. frame_list' = frame_list'' ++ [(funn,stmt'::stmt_stack, scope'::scope_stack')]` >- (
+  cheat
+ ) >>
+ fs [] >>
+ irule ((valOf o find_clause_stmt_red) "stmt_block_exec") >>
+ fs [clause_name_def] >>
+ qexists_tac `g_scope_list'` >>
+ Cases_on `stmt_stack` >- (
+  irule (SIMP_RULE std_ss [stmt_exec_sound] (Q.SPECL [`h`] stmt_exec_sound_red)) >>
+  fs []
+ ) >>
+ Cases_on `stmt` >| [
+  fs [],
+
+  (* TODO: Make rewriting theorems for case statement stack *)
+  cheat,
+
+  cheat,
+
+  cheat,
+
+  cheat,
+
+  cheat,
+
+  cheat,
+
+  cheat,
+
+  cheat,
+
+  cheat
+ ],
+
+ Cases_on `h` >> (
+  fs []
+ ) >>
+ pairLib.PairCases_on `state'` >>
+ rename1 `(g_scope_list',state'1,state'2,state'3)` >>
+ rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+ fs [stmt_exec] >>
+ Cases_on `t` >> (
+  fs []
+ ) >>
+ rw [] >>
+ irule ((valOf o find_clause_stmt_red) "stmt_block_exit") >>
+ fs [clause_name_def]
+]
 QED
 
 (* This states an invariant of the steps where the final status is Return *)
@@ -419,6 +485,28 @@ fs [init_in_highest_scope_def, initialise_def, newest_scope_ind_def] >>
 ) >>
 fs [decl_init_star_def, newest_scope_def, newest_scope_ind_def] >>
 metis_tac [LAST_EL, arithmeticTheory.PRE_SUB1]
+QED
+
+(* TODO: Move *)
+Theorem oTAKE_SOME:
+!i l l'.
+i > 0 ==>
+oTAKE i l = SOME l' ==>
+l <> []
+Proof
+Cases_on `i` >> (
+ fs [oTAKE_def]
+)
+QED
+
+(* TODO: Move *)
+Theorem initialise_LENGTH:
+!ss varn v ss'.
+initialise ss varn v = ss' ==>
+LENGTH ss = LENGTH ss'
+Proof
+fs [initialise_def] >>
+rw []
 QED
 
 Theorem frame_list_exec_sound_red:
@@ -492,10 +580,10 @@ Cases_on `frame_list` >| [
   fs [],
 
   (* comp2 *)
-  Cases_on `oTAKE 2 (initialise (x'0 ++ h'2) (varn_star h0) v)` >> (
+  Cases_on `oTAKE 2 (initialise (g_scope_list ++ h'2) (varn_star h0) v)` >> (
    fs []
   ) >>
-  Cases_on `oDROP 2 (initialise (x'0 ++ h'2) (varn_star h0) v)` >> (
+  Cases_on `oDROP 2 (initialise (g_scope_list ++ h'2) (varn_star h0) v)` >> (
    fs []
   ) >>
   Cases_on `scopes_to_retrieve h0 func_map b_func_map g_scope_list x'` >> (
@@ -513,10 +601,7 @@ Cases_on `frame_list` >| [
   fs [] >>
   rw [] >>
   rename1 `(x'0, frame_list', ctrl', status_returnv v)` >>
-  rename1 `(g_scope_list'', frame_list', ctrl', status_returnv v)` >>
-  IMP_RES_TAC stmt_exec_status_returnv_indep >>
-  Q.PAT_X_ASSUM `!g_scope_list'' ctrl''. ?g_scope_list'3' ctrl'3'. _` (fn thm => ASSUME_TAC (Q.SPECL [`g_scope_list`, `ctrl`] thm)) >>
-  fs [] >>
+  rename1 `(g_scope_list', frame_list', ctrl', status_returnv v)` >>
   IMP_RES_TAC stmt_exec_status_returnv_inv >>
   rw [] >>
   assume_tac stmt_stack_exec_sound_red >>
@@ -525,19 +610,42 @@ Cases_on `frame_list` >| [
   fs [] >>
   irule (SIMP_RULE list_ss [] (Q.SPECL [`x''''1`, `ext_map`, `func_map`, `b_func_map`, `pars_map`, `tbl_map`, `g_scope_list`, `h0`, `h1`, `h2`, `h'0`, `h'1`, `h'2`, `t`] ((valOf o find_clause_frames_red) "frames_comp2"))) >>
   fs [clause_name_def] >>
-  qexistsl_tac [`x'3'`, `stmt'`, `v`] >>
+  qexistsl_tac [`x'`, `x'3'`, `x''`, `stmt'`, `v`] >>
   fs [lambda_FST, lambda_SND] >>
-  `x' = [HD (init_in_highest_scope (g_scope_list ++ h'2) v (varn_star h0));
-         EL 1 (init_in_highest_scope (g_scope_list ++ h'2) v (varn_star h0))] /\
-   x'' = (TL (TL (init_in_highest_scope (g_scope_list ++ h'2) v (varn_star h0))))` suffices_by (
-   metis_tac []
-  ) >>
   rpt strip_tac >| [
-   (* TODO: Implication from oTAKE to HD, EL 1, equivalence of initialise and init_in_highest_scope *)
-   cheat,
+   subgoal `g_scope_list ++ h'2 <> []` >- (
+    subgoal `2 > 0` >- (
+     fs []
+    ) >>
+    IMP_RES_TAC oTAKE_SOME >>
+    subgoal `?ss'. initialise (g_scope_list ++ h'2) (varn_star h0) v = ss'` >- (
+     fs []
+    ) >>
+    IMP_RES_TAC initialise_LENGTH >>
+    CCONTR_TAC >>
+    fs []
+   ) >>
+   metis_tac [initialise_equiv],
 
-   (* TODO: Implication from oDROP to TL o TL, equivalence of initialise and init_in_highest_scope *)
-   cheat
+   subgoal `g_scope_list ++ h'2 <> []` >- (
+    subgoal `2 > 0` >- (
+     fs []
+    ) >>
+    IMP_RES_TAC oTAKE_SOME >>
+    subgoal `?ss'. initialise (g_scope_list ++ h'2) (varn_star h0) v = ss'` >- (
+     fs []
+    ) >>
+    IMP_RES_TAC initialise_LENGTH >>
+    CCONTR_TAC >>
+    fs []
+   ) >>
+   metis_tac [initialise_equiv],
+
+   IMP_RES_TAC stmt_exec_status_returnv_indep >>
+   Q.PAT_X_ASSUM `!g_scope_list'' ctrl''. ?g_scope_list'3' ctrl'3'. _` (fn thm => ASSUME_TAC (Q.SPECL [`g_scope_list`, `ctrl`] thm)) >>
+   fs [] >>
+   IMP_RES_TAC stmt_exec_status_returnv_inv >>
+   fs []
   ],
 
   (* comp1 *)

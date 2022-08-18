@@ -2710,14 +2710,13 @@ by
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt_stack'' , scopes_stack ) ] , ctrl , Ret v )
   scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
-  g_scope = scopes_stack'' [0]
-  g_scope' = scopes_stack'' [1]
-  scopes_stack''' = tl (tl scopes_stack'')
+  g_scope_list' = take 2 scopes_stack''
+  scopes_stack''' = drop 2 scopes_stack''
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
-   g_scope_list' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , [ g_scope ; g_scope' ] )
-  ( g_scope_list'' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack''' , scopes_stack )
+   g_scope_list'' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list' )
+  ( g_scope_list''' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'' , scopes_stack''' , scopes_stack )
   ----------------------------------- :: comp2
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ ( [ ( funn' , stmt_stack' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -f-> ( g_scope_list'' , [ ( funn' , stmt_stack' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
+  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ ( [ ( funn' , stmt_stack' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -f-> ( g_scope_list''' , [ ( funn' , stmt_stack' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
