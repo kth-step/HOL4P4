@@ -382,8 +382,13 @@ val e_exec = TotalDefn.tDefine "e_exec" `
   metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
  ]
 );
-(* TODO: Is the below line too hacky? Should the theorem only be referred to as "e_exec_def"? *)
+(* TODO: Is the below line too hacky? Also, should the theorem only be referred to as "e_exec_def"? *)
 val e_exec = save_thm("e_exec", e_exec);
+
+val e_exec_ind = tryfind (uncurry DB.fetch) [("scratch", "e_exec_ind"),
+                                             ("p4_exec_sem", "e_exec_ind")];
+val _ = save_thm("e_exec_ind", e_exec_ind);
+
 
 (*
 val measure_stmt_state_size_def = Define `
@@ -640,27 +645,267 @@ Cases_on `stmt` >> (
 )
 QED
 
+Theorem e_exec_new_frame:
+!ctx g_scope_list scopes_stack e e' frame_list'.
+e_exec ctx g_scope_list scopes_stack e = SOME (e',frame_list') ==>
+(frame_list' = [] \/
+ ?funn stmt scope. frame_list' = [(funn, [stmt], [scope])])
+Proof
+`!ctx g_scope_list scopes_stack e.
+ (\ctx' g_scope_list' scopes_stack' e'.
+  !e'' frame_list''.
+  e_exec ctx' g_scope_list' scopes_stack' e' = SOME (e'', frame_list'') ==>
+  (frame_list'' = [] \/
+   ?funn'' stmt'' scope''. frame_list'' = [(funn'', [stmt''], [scope''])])
+ ) ctx g_scope_list scopes_stack e` suffices_by (
+ metis_tac []
+) >>
+irule e_exec_ind >>
+fs [e_exec] >>
+rpt strip_tac >| [
+ Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ Cases_on `unred_arg_index (MAP SND x1) e_l` >> (
+  fs []
+ ) >| [
+  Cases_on `copyin (MAP FST x1) (MAP SND x1) e_l g_scope_list scopes_stack` >> (
+   fs []
+  ) >>
+  metis_tac [],
+
+  Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list
+              scopes_stack (EL x e_l)` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []  
+ ],
+
+ (* TODO: Weird blob goal... *)
+ Cases_on `e1` >> (
+  fs [e_exec]
+ ) >| [
+  Cases_on `is_short_circuitable binop` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_short_circuit v binop e2` >> (
+    fs []
+   ),
+
+   Cases_on `is_v e2` >> (
+    fs []
+   ) >| [
+    Cases_on `e_exec_binop (e_v v) binop e2` >> (
+     fs []
+    ),
+
+    Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
+     fs []
+    ) >>
+    PairCases_on `x` >>
+    fs []
+   ]
+  ],
+
+  Cases_on `lookup_vexp2 scopes_stack g_scope_list v` >> (
+   fs []
+  ),
+
+  Cases_on `is_v e` >> (
+   fs []
+  ) >>
+  Cases_on `e_exec_acc (e_acc e s)` >> (
+   fs []
+  ),
+
+  Cases_on `is_v e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_unop u e` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
+  (* TODO: Interesting... *)
+  Cases_on `case e of
+             e_v v =>
+               if is_short_circuitable b then
+                 case e_exec_short_circuit v b e0 of
+                   NONE => NONE
+                 | SOME e' => SOME (e',[])
+               else if is_v e0 then
+                 case e_exec_binop e b e0 of
+                   NONE => NONE
+                 | SOME v' => SOME (e_v v',[])
+               else
+                 (case e_exec ctx g_scope_list scopes_stack e0 of
+                    NONE => NONE
+                  | SOME (e2',frame_list) =>
+                    SOME (e_binop e b e2',frame_list))
+           | e_var v25 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_list v26 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_acc v27 v28 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_unop v29 v30 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_binop v31 v32 v33 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_concat v34 v35 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_slice v36 v37 v38 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_call v39 v40 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_select v41 v42 v43 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_struct v44 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_header v45 v46 =>
+             case e_exec ctx g_scope_list scopes_stack e of
+               NONE => NONE
+             | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list)` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  (* Function call *)
+  Cases_on `e_exec ctx g_scope_list scopes_stack (e_call f l)` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  (* Select *)
+  Cases_on `is_v e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_select e l s` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
+  (* Struct *)
+  Cases_on `unred_mem_index (MAP SND l)` >> (
+   fs []
+  ) >>
+  Cases_on `e_exec ctx g_scope_list scopes_stack (EL x (MAP SND l))` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []
+ ],
+
+ (* Access *)
+ Cases_on `e_exec_acc (e_acc e_v_struct x)` >> (
+  fs []
+ ),
+
+ (* Select *)
+ Cases_on `is_v e` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_select e v_x_l x` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []
+ ],
+
+ (* Struct? *)
+ Cases_on `unred_mem_index (MAP SND x_e_l)` >> (
+  fs []
+ ) >>
+ Cases_on `e_exec ctx g_scope_list scopes_stack (EL x (MAP SND x_e_l))` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [],
+
+ (* Unop *)
+ Cases_on `is_v e` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_unop unop e` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs []
+ ],
+
+ (* Variable lookup *)
+ Cases_on `lookup_vexp2 scopes_stack g_scope_list x` >> (
+  fs []
+ )
+]
+QED
+
 Theorem exec_stmt_ass_SOME_REWRS:
-!ctx g_scope_list g_scope_list' funn lval e frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec ctx (g_scope_list, [(funn, [stmt_ass lval e], scopes_stack)], ctrl, status_running) =
+!ctx g_scope_list g_scope_list' funn lval e stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_ass lval e)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
- (is_v e ==> 
+ (is_v e ==>
   ?scopes_stack'' scopes_stack'.
    (stmt_exec_ass lval e (g_scope_list++scopes_stack) = SOME scopes_stack'') /\
    (SOME g_scope_list' = oTAKE 2 scopes_stack'') /\
    (SOME scopes_stack' = oDROP 2 scopes_stack'') /\
-   (frame_list' = [(funn, [stmt_empty], scopes_stack')])) /\
- (~is_v e ==> 
+   (frame_list' = [(funn, (stmt_empty)::stmt_stack, scopes_stack')])) /\
+ (~is_v e ==>
   ?e' frame_list''.
    (e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'')) /\
    (g_scope_list' = g_scope_list) /\
-   (frame_list' = (frame_list''++[(funn, [stmt_ass lval e'], scopes_stack)]))) /\
+   (frame_list' = (frame_list''++[(funn, (stmt_ass lval e')::stmt_stack, scopes_stack)]))) /\
  scopes_stack <> [] /\
  ctrl' = ctrl /\
  status' = status_running
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> (
  fs [stmt_exec]
 ) >>
 Cases_on `is_v e` >> (
@@ -682,32 +927,60 @@ Cases_on `is_v e` >> (
  ) >>
  PairCases_on `x` >>
  fs [] >>
- metis_tac []
+ metis_tac [],
+
+ Cases_on `stmt_exec_ass lval e (g_scope_list ++ h::t)` >> (
+  fs []
+ ) >>
+ Cases_on `oTAKE 2 x` >> (
+  fs []
+ ) >>
+ Cases_on `oDROP 2 x` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []  
+ ]
 ]
 QED
 
-(* TODO: Rewriting theorems for other statements *)
 Theorem exec_stmt_verify_SOME_REWRS:
-!ctx g_scope_list g_scope_list' funn e1 e2 frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec ctx (g_scope_list, [(funn, [stmt_verify e1 e2], scopes_stack)], ctrl, status_running) =
+!ctx g_scope_list g_scope_list' funn e1 e2 stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_verify e1 e2)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
  (is_v e1 ==> is_v_bool e1) /\
- (~is_v e1 ==> ?e1' frame_list''. e_exec ctx g_scope_list scopes_stack e1 = SOME (e1', frame_list'') /\ frame_list' = frame_list'' ++ [(funn,[stmt_verify e1' e2],scopes_stack)]) /\
- ((is_v e1 /\ is_v e2) ==> is_v_err e2 /\ ?stmt'. stmt_exec_verify e1 e2 = SOME stmt' /\ frame_list' = [(funn,[stmt'],scopes_stack)]) /\
- ((is_v e1 /\ ~is_v e2) ==> ?e2' frame_list''. e_exec ctx g_scope_list scopes_stack e2 = SOME (e2', frame_list'') /\ frame_list' = frame_list'' ++ [(funn,[stmt_verify e1 e2'],scopes_stack)]) /\
+ (~is_v e1 ==>
+  ?e1' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e1 = SOME (e1', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1' e2)::stmt_stack,scopes_stack)]) /\
+ ((is_v e1 /\ is_v e2) ==>
+  is_v_err e2 /\
+  ?stmt'. stmt_exec_verify e1 e2 = SOME stmt' /\
+  frame_list' = [(funn,stmt'::stmt_stack,scopes_stack)]) /\
+ ((is_v e1 /\ ~is_v e2) ==>
+  ?e2' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e2 = SOME (e2', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1 e2')::stmt_stack,scopes_stack)]) /\
  g_scope_list' = g_scope_list /\
  scopes_stack <> [] /\
  ctrl' = ctrl /\
  status' = status_running
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_v e1` >> (
  fs [stmt_exec]
-) >>
-Cases_on `is_v e1` >> (
- fs []
 ) >| [
- (* TODO: Not needed? *)
  Cases_on `is_v_bool e1` >> (
   fs []
  ) >>
@@ -737,26 +1010,72 @@ Cases_on `is_v e1` >> (
  PairCases_on `x` >> (
   fs []
  ) >>
- metis_tac []
+ metis_tac [],
+
+ Cases_on `is_v_bool e1` >> (
+  fs []
+ ) >>
+ Cases_on `is_v e2` >> (
+  fs []
+ ) >| [
+  Cases_on `is_v_err e2` >> (
+   fs []
+  ) >>
+  Cases_on `stmt_exec_verify e1 e2` >> (
+   fs []
+  ) >>
+  metis_tac [],
+
+  Cases_on `e_exec ctx g_scope_list (h::t) e2` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [] >>
+  IMP_RES_TAC e_exec_new_frame >> (
+   fs []
+  ) >| [
+   metis_tac [],
+
+   metis_tac []
+  ]
+ ],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e1` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
 ]
 QED
 
 Theorem exec_stmt_trans_SOME_REWRS:
-!ctx g_scope_list g_scope_list' funn e frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec ctx (g_scope_list, [(funn, [stmt_trans e], scopes_stack)], ctrl, status_running) =
+!ctx g_scope_list g_scope_list' funn e stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_trans e)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
- (is_v e ==> is_v_str e /\ ?status''. stmt_exec_trans e = SOME status'' /\ frame_list' = [(funn,[stmt_empty],scopes_stack)] /\ status' = status'') /\
- (~is_v e ==> ?e' frame_list''. e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\ frame_list' = frame_list'' ++ [(funn,[stmt_trans e'],scopes_stack)] /\ status' = status_running) /\
+ (is_v e ==>
+  is_v_str e /\
+  ?status''.
+   stmt_exec_trans e = SOME status'' /\
+   frame_list' = [(funn,stmt_empty::stmt_stack,scopes_stack)] /\ status' = status'') /\
+ (~is_v e ==>
+  ?e' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn,(stmt_trans e')::stmt_stack,scopes_stack)] /\
+   status' = status_running) /\
  g_scope_list' = g_scope_list /\
  scopes_stack <> [] /\
  ctrl' = ctrl
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_v e` >> (
  fs [stmt_exec]
-) >>
-Cases_on `is_v e` >> (
- fs []
 ) >| [
  (* TODO: Not needed? *)
  Cases_on `is_v_str e` >> (
@@ -773,30 +1092,52 @@ Cases_on `is_v e` >> (
  PairCases_on `x` >> (
   fs []
  ) >>
- metis_tac []
+ metis_tac [],
+
+ Cases_on `is_v_str e` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec_trans e` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
 ]
 QED
 
 Theorem exec_stmt_cond_SOME_REWRS:
-!ctx g_scope_list g_scope_list' funn e stmt1 stmt2 frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec ctx (g_scope_list, [(funn, [stmt_cond e stmt1 stmt2], scopes_stack)], ctrl, status_running) =
+!ctx g_scope_list g_scope_list' funn e stmt1 stmt2 stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_cond e stmt1 stmt2)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
- (is_v_bool e ==> ?b. stmt_exec_cond e = SOME b /\
-                      (b = T ==> frame_list' = [(funn, [stmt1], scopes_stack)]) /\
-                      (b = F ==> frame_list' = [(funn, [stmt2], scopes_stack)])) /\
- (~is_v_bool e ==> ?e' frame_list''. e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\
-                                     frame_list' = frame_list'' ++ [(funn, [stmt_cond e' stmt1 stmt2], scopes_stack)]) /\
+ (is_v_bool e ==>
+  ?b.
+   stmt_exec_cond e = SOME b /\
+   (b = T ==> frame_list' = [(funn, stmt1::stmt_stack, scopes_stack)]) /\
+   (b = F ==> frame_list' = [(funn, stmt2::stmt_stack, scopes_stack)])) /\
+ (~is_v_bool e ==>
+  ?e' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn, (stmt_cond e' stmt1 stmt2)::stmt_stack, scopes_stack)]) /\
  g_scope_list' = g_scope_list /\
  scopes_stack <> [] /\
  ctrl' = ctrl /\
  status' = status_running
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_v_bool e` >> (
  fs [stmt_exec]
-) >>
-Cases_on `is_v_bool e` >> (
- fs []
 ) >| [
  Cases_on `stmt_exec_cond e` >> (
   fs []
@@ -815,33 +1156,54 @@ Cases_on `is_v_bool e` >> (
  Cases_on `x` >> (
   fs []
  ) >>
- metis_tac []
+ metis_tac [],
+
+ Cases_on `stmt_exec_cond e` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
 ]
 QED
 
 Theorem exec_stmt_app_SOME_REWRS:
-!ext_map func_map b_func_map pars_map tbl_map g_scope_list g_scope_list' funn t_name e_l frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, [stmt_app t_name e_l], scopes_stack)], ctrl, status_running) =
+!ext_map func_map b_func_map pars_map tbl_map g_scope_list g_scope_list' funn t_name e_l stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, (stmt_app t_name e_l)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
  (index_not_const e_l = NONE  ==> ?mk_l f f_args. FLOOKUP tbl_map t_name = SOME mk_l /\
                        ctrl (t_name, e_l, mk_l) = SOME (f, f_args) /\
                        is_consts_exec f_args /\
                        LENGTH mk_l = LENGTH e_l /\
-                       frame_list' = [(funn, [stmt_ass lval_null (e_call (funn_name f) f_args)], scopes_stack)]) /\
+                       frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scopes_stack)]) /\
  (!i. index_not_const e_l = SOME i ==>
   ?e' frame_list''. e_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scopes_stack (EL i e_l) = SOME (e', frame_list'') /\
-                    frame_list' = frame_list'' ++ [(funn, [stmt_app t_name (LUPDATE e' i e_l)], scopes_stack)]) /\
+                    frame_list' = frame_list'' ++ [(funn, (stmt_app t_name (LUPDATE e' i e_l))::stmt_stack, scopes_stack)]) /\
  g_scope_list' = g_scope_list /\
  scopes_stack <> [] /\
  ctrl' = ctrl /\
  status' = status_running
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l` >> (
  fs [stmt_exec]
-) >>
-Cases_on `index_not_const e_l` >> (
- fs []
 ) >| [
  Cases_on `FLOOKUP tbl_map t_name` >> (
   fs []
@@ -860,90 +1222,141 @@ Cases_on `index_not_const e_l` >> (
  PairCases_on `x'` >> (
   fs []
  ) >>
- metis_tac []
+ metis_tac [],
+
+ Cases_on `FLOOKUP tbl_map t_name` >> (
+  fs []
+ ) >>
+ Cases_on `ctrl (t_name,e_l,x)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ Cases_on `LENGTH x = LENGTH e_l` >> (
+  fs []
+ ) >>
+ Cases_on `is_consts_exec x'1` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
 ]
 QED
 
 Theorem exec_stmt_ret_SOME_REWRS:
-!ctx g_scope_list g_scope_list' funn e frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec ctx (g_scope_list, [(funn, [stmt_ret e], scopes_stack)], ctrl, status_running) =
+!ctx g_scope_list g_scope_list' funn e stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_ret e)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
  (!v. get_v e = SOME v ==>
-  frame_list' = [(funn,[stmt_empty],scopes_stack)] /\
+  frame_list' = [(funn,stmt_empty::stmt_stack,scopes_stack)] /\
   status' = status_returnv v) /\
  (get_v e = NONE ==>
   ?e' frame_list''.
   e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\
-  frame_list' = frame_list'' ++ [(funn,[stmt_ret e'],scopes_stack)] /\
+  frame_list' = frame_list'' ++ [(funn,(stmt_ret e')::stmt_stack,scopes_stack)] /\
   status' = status_running) /\
  g_scope_list' = g_scope_list /\
  scopes_stack <> [] /\
  ctrl' = ctrl
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `get_v e` >> (
  fs [stmt_exec]
-) >>
-Cases_on `get_v e` >> (
- fs []
 ) >| [
  Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
   fs []
  ) >>
- PairCases_on `x` >> (
+ PairCases_on `x` >>
+ fs [] >>
+ metis_tac [],
+
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
   fs []
  ) >>
- metis_tac [],
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ],
 
  metis_tac []
 ]
 QED
 
 Theorem exec_stmt_ext_SOME_REWRS:
-!ext_map func_map b_func_map pars_map tbl_map g_scope_list g_scope_list' funn e frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, [stmt_ext], scopes_stack)], ctrl, status_running) =
+!ext_map func_map b_func_map pars_map tbl_map g_scope_list g_scope_list' funn stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_ext::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
  (?ext_fun.
    lookup_ext_fun funn ext_map = SOME ext_fun /\
    ?g_scope_list'' scopes_stack'' ctrl''.
     ext_fun (g_scope_list, scopes_stack, ctrl) = SOME (g_scope_list'', scopes_stack'', ctrl'') /\
     g_scope_list' = g_scope_list'' /\
-    frame_list' = [(funn, [stmt_empty], scopes_stack'')] /\
+    frame_list' = [(funn, stmt_empty::stmt_stack, scopes_stack'')] /\
     status' = status_running /\
     scopes_stack <> [] /\
     ctrl' = ctrl'')
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> (
  fs [stmt_exec]
-) >>
-Cases_on `lookup_ext_fun funn ext_map` >> (
- fs []
-) >>
-Cases_on `x (g_scope_list,h::t,ctrl)` >> (
- fs []
-) >>
-PairCases_on `x'` >> (
- fs []
-) >>
-metis_tac []
+) >| [
+ Cases_on `lookup_ext_fun funn ext_map` >> (
+  fs []
+ ) >>
+ Cases_on `x (g_scope_list,h::t,ctrl)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ metis_tac [],
+
+ Cases_on `lookup_ext_fun funn ext_map` >> (
+  fs []
+ ) >>
+ Cases_on `x (g_scope_list,h::t,ctrl)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ metis_tac []
+]
 QED
 
 Theorem exec_stmt_block_SOME_REWRS:
-!ctx g_scope_list g_scope_list' funn decl_list stmt frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec ctx (g_scope_list, [(funn, [stmt_block decl_list stmt], scopes_stack)], ctrl, status_running) =
+!ctx g_scope_list g_scope_list' funn decl_list stmt stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_block decl_list stmt)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
  scopes_stack <> [] /\
  g_scope_list' = g_scope_list /\
- frame_list' = [(funn, [stmt]++[stmt_empty], (scopes_stack ++ [declare_list_in_fresh_scope decl_list]))] /\
+ frame_list' = [(funn, stmt::(stmt_empty::stmt_stack), (scopes_stack ++ [declare_list_in_fresh_scope decl_list]))] /\
  ctrl' = ctrl /\
  status' = status_running
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> (
  fs [stmt_exec]
-) >>
-metis_tac []
+) >> (
+ metis_tac []
+)
 QED
 
 Theorem stmt_exec_block:
@@ -960,224 +1373,37 @@ stmt_exec ctx
           (g_scope_list',frame'++[(funn',stmt_stack'',scopes_stack')],ctrl',status')
 Proof
 rpt strip_tac >>
-Cases_on `stmt` >> Cases_on `stmt_stack` >> (
+Cases_on `stmt` >> (
  fs []
 ) >| [
  (* Assign *)
  fs [exec_stmt_ass_SOME_REWRS] >>
- fs [stmt_exec] >>
  Cases_on `is_v e` >> (
   fs []
- ) >| [
-  Cases_on `stmt_exec_ass l e (g_scope_list ++ h_scope::scopes_stack)` >> (
-   fs []
-  ) >>
-  Cases_on `oTAKE 2 x` >> (
-   fs []
-  ) >>
-  Cases_on `oDROP 2 x` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec ctx g_scope_list (h_scope::scopes_stack) e` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [] >>
-  Cases_on `x1` >> (
-   fs []
-  ) >>
-  PairCases_on `h'` >>
-  fs [] >>
-  Cases_on `h'1` >> (
-   fs []
-  ) >>
-  Cases_on `t''` >> (
-   fs []
-  ) >| [
-   Cases_on `frame'` >> (
-    fs []
-   ) >| [
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h''` >>
-    fs [] >>
-    Cases_on `h''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t''` >> (
-     fs []
-    ),
-
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h'3'` >>
-    fs [] >>
-    Cases_on `h'''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t'3'` >> (
-     fs []
-    )
-   ],
-
-   Cases_on `t'3'` >> (
-    fs []
-   ) >>
-   Cases_on `t'` >> (
-    fs []
-   )
-  ]
- ],
+ ),
 
  (* Conditional *)
  fs [exec_stmt_cond_SOME_REWRS] >>
- fs [stmt_exec] >>
  Cases_on `is_v_bool e` >> (
   fs []
- ) >| [
-  Cases_on `stmt_exec_cond e` >> (
-   fs []
-  ) >>
-  Cases_on `x` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec ctx g_scope_list (h_scope::scopes_stack) e` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [] >>
-  Cases_on `x1` >> (
-   fs []
-  ) >>
-  PairCases_on `h'` >>
-  fs [] >>
-  Cases_on `h'1` >> (
-   fs []
-  ) >>
-  Cases_on `t''` >> (
-   fs []
-  ) >| [
-   Cases_on `frame'` >> (
-    fs []
-   ) >| [
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h''` >>
-    fs [] >>
-    Cases_on `h''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t''` >> (
-     fs []
-    ),
-
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h'3'` >>
-    fs [] >>
-    Cases_on `h'''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t'3'` >> (
-     fs []
-    )
-   ],
-
-   Cases_on `t'3'` >> (
-    fs []
-   ) >>
-   Cases_on `t'` >> (
-    fs []
-   )
-  ]
- ],
+ ) >>
+ Cases_on `b` >> (
+  fs []
+ ),
 
  (* Block entry *)
- fs [stmt_exec],
+ fs [exec_stmt_block_SOME_REWRS],
 
  (* Return *)
  fs [exec_stmt_ret_SOME_REWRS] >>
- fs [stmt_exec] >>
  Cases_on `get_v e` >> (
   fs []
- ) >>
- Cases_on `e_exec ctx g_scope_list (h_scope::scopes_stack) e` >> (
-  fs []
- ) >>
- PairCases_on `x` >>
- fs [] >>
- Cases_on `x1` >> (
-  fs []
- ) >>
- PairCases_on `h'` >>
- fs [] >>
- Cases_on `h'1` >> (
-  fs []
- ) >>
- Cases_on `t''` >> (
-  fs []
- ) >| [
-  Cases_on `frame'` >> (
-   fs []
-  ) >| [
-   Cases_on `t'` >> (
-    fs []
-   ) >>
-   PairCases_on `h''` >>
-   fs [] >>
-   Cases_on `h''1` >> (
-    fs []
-   ) >>
-   Cases_on `t'` >> (
-    fs []
-   ) >>
-   Cases_on `t''` >> (
-    fs []
-   ),
-
-   Cases_on `t'` >> (
-    fs []
-   ) >>
-   PairCases_on `h'3'` >>
-   fs [] >>
-   Cases_on `h'''1` >> (
-    fs []
-   ) >>
-   Cases_on `t'` >> (
-    fs []
-   ) >>
-   Cases_on `t'3'` >> (
-    fs []
-   )
-  ],
-
-  Cases_on `t'3'` >> (
-   fs []
-  ) >>
-  Cases_on `t'` >> (
-   fs []
-  )
- ],
+ ),
 
  (* Seq *)
+ Cases_on `stmt_stack` >> (
+  fs []
+ ) >>
  fs [stmt_exec] >>
  Cases_on `is_empty s` >> (
   fs []
@@ -1257,306 +1483,29 @@ Cases_on `stmt` >> Cases_on `stmt_stack` >> (
 
  (* Verify *)
  fs [exec_stmt_verify_SOME_REWRS] >>
- fs [stmt_exec] >>
  Cases_on `is_v e` >> (
   fs []
- ) >| [
-  Cases_on `is_v_bool e` >> (
-   fs []
-  ) >>
-  Cases_on `is_v e0` >> (
-   fs []
-  ) >| [
-   Cases_on `is_v_err e0` >> (
-    fs []
-   ) >>
-   Cases_on `stmt_exec_verify e e0` >> (
-    fs []
-   ),
-
-   Cases_on `e_exec ctx g_scope_list (h_scope::scopes_stack) e0` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs [] >>
-   Cases_on `x1` >> (
-    fs []
-   ) >>
-   PairCases_on `h'` >>
-   fs [] >>
-   Cases_on `h'1` >> (
-    fs []
-   ) >>
-   Cases_on `t''` >> (
-    fs []
-   ) >| [
-    Cases_on `frame'` >> (
-     fs []
-    ) >| [
-     Cases_on `t'` >> (
-      fs []
-     ) >>
-     PairCases_on `h''` >>
-     fs [] >>
-     Cases_on `h''1` >> (
-      fs []
-     ) >>
-     Cases_on `t'` >> (
-      fs []
-     ) >>
-     Cases_on `t''` >> (
-      fs []
-     ),
-
-     Cases_on `t'` >> (
-      fs []
-     ) >>
-     PairCases_on `h'3'` >>
-     fs [] >>
-     Cases_on `h'''1` >> (
-      fs []
-     ) >>
-     Cases_on `t'` >> (
-      fs []
-     ) >>
-     Cases_on `t'3'` >> (
-      fs []
-     )
-    ],
-
-    Cases_on `t'3'` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    )
-   ]
-  ],
-
-  Cases_on `e_exec ctx g_scope_list (h_scope::scopes_stack) e` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [] >>
-  Cases_on `x1` >> (
-   fs []
-  ) >>
-  PairCases_on `h'` >>
-  fs [] >>
-  Cases_on `h'1` >> (
-   fs []
-  ) >>
-  Cases_on `t''` >> (
-   fs []
-  ) >| [
-   Cases_on `frame'` >> (
-    fs []
-   ) >| [
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h''` >>
-    fs [] >>
-    Cases_on `h''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t''` >> (
-     fs []
-    ),
-
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h'3'` >>
-    fs [] >>
-    Cases_on `h'''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t'3'` >> (
-     fs []
-    )
-   ],
-
-   Cases_on `t'3'` >> (
-    fs []
-   ) >>
-   Cases_on `t'` >> (
-    fs []
-   )
-  ]
- ],
+ ) >>
+ Cases_on `is_v e0` >> (
+  fs []
+ ),
 
  (* Transition *)
  fs [exec_stmt_trans_SOME_REWRS] >>
- fs [stmt_exec] >>
  Cases_on `is_v e` >> (
   fs []
- ) >| [
-  Cases_on `is_v_str e` >> (
-   fs []
-  ) >>
-  Cases_on `stmt_exec_trans e` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec ctx g_scope_list (h_scope::scopes_stack) e` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [] >>
-  Cases_on `x1` >> (
-   fs []
-  ) >>
-  PairCases_on `h'` >>
-  fs [] >>
-  Cases_on `h'1` >> (
-   fs []
-  ) >>
-  Cases_on `t''` >> (
-   fs []
-  ) >| [
-   Cases_on `frame'` >> (
-    fs []
-   ) >| [
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h''` >>
-    fs [] >>
-    Cases_on `h''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t''` >> (
-     fs []
-    ),
-
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h'3'` >>
-    fs [] >>
-    Cases_on `h'''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t'3'` >> (
-     fs []
-    )
-   ],
-
-   Cases_on `t'3'` >> (
-    fs []
-   ) >>
-   Cases_on `t'` >> (
-    fs []
-   )
-  ]
- ],
+ ),
 
  (* Apply *)
  PairCases_on `ctx` >>
  fs [exec_stmt_app_SOME_REWRS] >>
- fs [stmt_exec] >>
  Cases_on `index_not_const l` >> (
   fs []
- ) >| [
-  Cases_on `FLOOKUP ctx4 s` >> (
-   fs []
-  ) >>
-  Cases_on `LENGTH x = LENGTH l` >> (
-   fs []
-  ) >>
-  Cases_on `ctrl (s,l,x)` >> (
-   fs []
-  ) >>
-  PairCases_on `x'` >>
-  fs [] >>
-  Cases_on `is_consts_exec x'1` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec (ctx0,ctx1,ctx2,ctx3,ctx4) g_scope_list (h_scope::scopes_stack) (EL x l)` >> (
-   fs []
-  ) >>
-  PairCases_on `x'` >>
-  fs [] >>
-  Cases_on `x'1` >> (
-   fs []
-  ) >>
-  PairCases_on `h'` >>
-  fs [] >>
-  Cases_on `h'1` >> (
-   fs []
-  ) >>
-  Cases_on `t''` >> (
-   fs []
-  ) >| [
-   Cases_on `frame'` >> (
-    fs []
-   ) >| [
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h''` >>
-    fs [] >>
-    Cases_on `h''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t''` >> (
-     fs []
-    ),
-
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    PairCases_on `h'3'` >>
-    fs [] >>
-    Cases_on `h'''1` >> (
-     fs []
-    ) >>
-    Cases_on `t'` >> (
-     fs []
-    ) >>
-    Cases_on `t'3'` >> (
-     fs []
-    )
-   ],
-
-   Cases_on `t'3'` >> (
-    fs []
-   ) >>
-   Cases_on `t'` >> (
-    fs []
-   )
-  ]
- ],
+ ),
 
  (* Extern *)
  PairCases_on `ctx` >>
- fs [exec_stmt_ext_SOME_REWRS] >>
- fs [stmt_exec] >>
- Cases_on `lookup_ext_fun funn ctx0` >> (
-  fs []
- ) >>
- Cases_on `x (g_scope_list,h_scope::scopes_stack,ctrl)` >> (
-  fs []
- ) >>
- PairCases_on `x'` >>
- fs []
+ fs [exec_stmt_ext_SOME_REWRS]
 ]
 QED
 
@@ -1580,11 +1529,15 @@ QED
 
 (* TODO: This should track some invariants of stmt_exec under regular conditions,
  * i.e. funn of current frame, ... *)
-Theorem stmt_exec_inv:
+Theorem stmt_exec_inv_sing:
 !ctx g_scope_list g_scope_list' frame' funn funn' stmt_stack stmt_stack' scopes_stack scopes_stack' ctrl ctrl' status status'.
 stmt_exec ctx (g_scope_list, [(funn,stmt_stack,scopes_stack)], ctrl, status) =
  SOME (g_scope_list', frame'++[(funn',stmt_stack',scopes_stack')], ctrl', status') ==>
-funn = funn'
+funn = funn' /\
+(frame' = [] \/
+ ?funn'' stmt' scope'.
+  frame' = [(funn'', [stmt'], [scope'])]
+)
 Proof
 `!ctx g_scope_list funn stmt_stack scopes_stack ctrl status.
  (\ctx' state'.
@@ -1592,7 +1545,11 @@ Proof
   state' = (g_scope_list',[(funn',stmt_stack',scopes_stack')],ctrl',status') ==>
   stmt_exec ctx' (g_scope_list',[(funn',stmt_stack',scopes_stack')],ctrl',status') =
    SOME (g_scope_list'', frame''++[(funn'',stmt_stack'',scopes_stack'')], ctrl'', status'') ==>
-  (funn' = funn'')
+  (funn' = funn'' /\
+   (frame'' = [] \/
+    ?funn''' stmt'' scope''.
+     frame'' = [(funn''', [stmt''], [scope''])]
+   ))
  ) ctx (g_scope_list, [(funn,stmt_stack,scopes_stack)], ctrl, status)` suffices_by (
  metis_tac []
 ) >>
@@ -1613,93 +1570,68 @@ rpt strip_tac >| [
 
  (* Apply *)
  fs [exec_stmt_app_SOME_REWRS] >>
- rpt strip_tac >>
- Cases_on `index_not_const e_l` >> (
-  fs []
- ),
+ rpt strip_tac >> (
+  Cases_on `index_not_const e_l` >> (
+   fs []
+  )
+ ) >>
+ metis_tac [e_exec_new_frame],
 
  fs [],
 
  (* Verify *)
  fs [exec_stmt_verify_SOME_REWRS] >>
- metis_tac [],
+ metis_tac [e_exec_new_frame],
 
  (* Verify (stack case) *)
- fs [] >>
- rpt strip_tac >>
- subgoal `stmt_verify v122 v123 <> stmt_empty` >- (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_block >>
  fs [exec_stmt_verify_SOME_REWRS] >>
  metis_tac [],
 
  (* Return *)
  fs [exec_stmt_ret_SOME_REWRS] >>
- rpt strip_tac >>
- Cases_on `get_v e` >> (
-  fs []
- ),
+ rpt strip_tac >> (
+  Cases_on `get_v e` >> (
+   fs []
+  )
+ ) >>
+ metis_tac [e_exec_new_frame],
 
  (* Trans *)
  fs [exec_stmt_trans_SOME_REWRS] >>
- metis_tac [],
+ metis_tac [e_exec_new_frame],
 
  (* Return (stack case) *)
- fs [] >>
- rpt strip_tac >>
- subgoal `stmt_ret v119 <> stmt_empty` >- (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_block >>
  fs [exec_stmt_ret_SOME_REWRS] >>
  metis_tac [],
 
  (* Trans (stack case) *)
- fs [] >>
- rpt strip_tac >>
- subgoal `stmt_trans v124 <> stmt_empty` >- (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_block >>
  fs [exec_stmt_trans_SOME_REWRS] >>
  metis_tac [],
 
  (* Cond *)
  fs [exec_stmt_cond_SOME_REWRS] >>
- metis_tac [],
+ metis_tac [e_exec_new_frame],
 
  (* Cond (stack case) *)
- fs [] >>
- rpt strip_tac >>
- subgoal `stmt_cond v114 v115 v116 <> stmt_empty` >- (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_block >>
  fs [exec_stmt_cond_SOME_REWRS] >>
  metis_tac [],
 
  fs [stmt_exec],
 
- (* Apply (stack case) *)
+ (* TODO: Apply (stack case) *)
  fs [] >>
- rpt strip_tac >>
- subgoal `stmt_app v125 v126 <> stmt_empty` >- (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_block >>
- fs [exec_stmt_app_SOME_REWRS],
+ rpt strip_tac >> (
+  subgoal `stmt_app v125 v126 <> stmt_empty` >- (
+   fs []
+  ) >>
+  IMP_RES_TAC stmt_exec_block >>
+  fs [exec_stmt_app_SOME_REWRS]
+ ),
 
  (* Block entry *)
  fs [exec_stmt_block_SOME_REWRS],
 
  (* Block entry (stack case) *)
- fs [] >>
- rpt strip_tac >>
- subgoal `stmt_block v117 v118 <> stmt_empty` >- (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_block >>
  fs [exec_stmt_block_SOME_REWRS],
 
  (* Block exit *)
@@ -1712,15 +1644,9 @@ rpt strip_tac >| [
 
  (* Assign *)
  fs [exec_stmt_ass_SOME_REWRS] >>
- metis_tac [],
+ metis_tac [e_exec_new_frame],
 
  (* Assign (stack case) *)
- fs [] >>
- rpt strip_tac >>
- subgoal `stmt_ass v112 v113 <> stmt_empty` >- (
-  fs []
- ) >>
- IMP_RES_TAC stmt_exec_block >>
  fs [exec_stmt_ass_SOME_REWRS] >>
  metis_tac [],
 
@@ -1811,26 +1737,26 @@ rpt strip_tac >| [
 ]
 QED
 
-Theorem stmt_exec_inv_sing:
+Theorem stmt_exec_inv_sing_noframe:
 !ctx g_scope_list g_scope_list' funn funn' stmt_stack stmt_stack' scopes_stack scopes_stack' ctrl ctrl' status status'.
 stmt_exec ctx (g_scope_list, [(funn,stmt_stack,scopes_stack)], ctrl, status) =
  SOME (g_scope_list', [(funn',stmt_stack',scopes_stack')], ctrl', status') ==>
 funn = funn'
 Proof
 rpt strip_tac >>
-ASSUME_TAC (Q.SPECL [`ctx`, `g_scope_list`, `g_scope_list'`, `[]`] stmt_exec_inv) >>
+ASSUME_TAC (Q.SPECL [`ctx`, `g_scope_list`, `g_scope_list'`, `[]`] stmt_exec_inv_sing) >>
 fs [listTheory.APPEND_NIL] >>
 metis_tac []
 QED
 
 Theorem exec_stmt_seq_SOME_REWRS:
-!ctx g_scope_list g_scope_list' funn stmt1 stmt2 frame_list' scopes_stack ctrl ctrl' status'.
-stmt_exec ctx (g_scope_list, [(funn, [stmt_seq stmt1 stmt2], scopes_stack)], ctrl, status_running) =
+!ctx g_scope_list g_scope_list' funn stmt1 stmt2 stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_seq stmt1 stmt2)::stmt_stack, scopes_stack)], ctrl, status_running) =
         SOME (g_scope_list', frame_list', ctrl', status') <=>
  scopes_stack <> [] /\
  (is_empty stmt1 ==>
   g_scope_list' = g_scope_list /\
-  frame_list' = [(funn, [stmt2], scopes_stack)] /\
+  frame_list' = [(funn, stmt2::stmt_stack, scopes_stack)] /\
   ctrl' = ctrl /\
   status' = status_running) /\
  (~is_empty stmt1 ==>
@@ -1842,24 +1768,21 @@ stmt_exec ctx (g_scope_list, [(funn, [stmt_seq stmt1 stmt2], scopes_stack)], ctr
    status' = status'' /\ (
    (?stmt1' scopes_stack'.
      frame_list'' = [(funn, [stmt1'], scopes_stack')] /\
-     (status'' = status_running ==> frame_list' = [(funn, [stmt_seq stmt1' stmt2], scopes_stack')]) /\
-     (status'' <> status_running ==> frame_list' = [(funn, [stmt1'], scopes_stack')])) \/
+     (status'' = status_running ==> frame_list' = [(funn, (stmt_seq stmt1' stmt2)::stmt_stack, scopes_stack')]) /\
+     (status'' <> status_running ==> frame_list' = [(funn, stmt1'::stmt_stack, scopes_stack')])) \/
    (?stmt1' stmt1'' scopes_stack'.
-     frame_list'' = [(funn, stmt1''::[stmt1'], scopes_stack')] /\
+     frame_list'' = [(funn, stmt1''::([stmt1']), scopes_stack')] /\
      status'' = status_running /\
-     frame_list' = [(funn, [stmt1'']++[stmt_seq stmt1' stmt2], scopes_stack')]
+     frame_list' = [(funn, stmt1''::((stmt_seq stmt1' stmt2)::stmt_stack), scopes_stack')]
      ) \/
-   (?stmt1' frame scopes_stack'.
-     frame_list'' = (frame::[(funn, [stmt1'], scopes_stack')]) /\
+   (?stmt1' funn' stmt' scope' scopes_stack'.
+     frame_list'' = ((funn', [stmt'], [scope'])::[(funn, [stmt1'], scopes_stack')]) /\
      status'' = status_running /\
-     frame_list' = (frame::[(funn, [stmt_seq stmt1' stmt2], scopes_stack')]))))
+     frame_list' = ((funn', [stmt'], [scope'])::[(funn, (stmt_seq stmt1' stmt2)::stmt_stack, scopes_stack')]))))
 Proof
 rpt strip_tac >>
-Cases_on `scopes_stack` >> (
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_empty stmt1` >> (
  fs [stmt_exec]
-) >>
-Cases_on `is_empty stmt1` >> (
- fs []
 ) >| [
  metis_tac [],
 
@@ -1875,12 +1798,9 @@ Cases_on `is_empty stmt1` >> (
  Cases_on `t'` >> (
   fs []
  ) >| [
-  Cases_on `h'` >> (
-   fs []
-  ) >>
-  PairCases_on `r` >>
+  PairCases_on `h'` >>
   fs [] >>
-  Cases_on `r0` >> (
+  Cases_on `h'1` >> (
    fs []
   ) >>
   Cases_on `t'` >> (
@@ -1891,7 +1811,7 @@ Cases_on `is_empty stmt1` >> (
      fs []
     )
    ) >> (
-    metis_tac [stmt_exec_inv_sing]
+    metis_tac [stmt_exec_inv_sing_noframe]
    ),
 
    Cases_on `t''` >> (
@@ -1902,7 +1822,7 @@ Cases_on `is_empty stmt1` >> (
      fs []
     )
    ) >>
-   metis_tac [stmt_exec_inv_sing]
+   metis_tac [stmt_exec_inv_sing_noframe]
   ],
 
   PairCases_on `h''` >>
@@ -1921,12 +1841,126 @@ Cases_on `is_empty stmt1` >> (
     fs []
    )
   ) >>
+  assume_tac (Q.SPECL [`ctx`, `g_scope_list`, `x0`, `[h']`] stmt_exec_inv_sing) >>
+  fs [] >>
+  RES_TAC >>
   `funn = h''0` suffices_by (
    metis_tac []
   ) >>
-  ASSUME_TAC (Q.SPECL [`ctx`, `g_scope_list`, `x0`, `[h']`] stmt_exec_inv) >>
   fs [] >>
   metis_tac []
+ ],
+
+ metis_tac [],
+
+ Cases_on `stmt_exec ctx
+             (g_scope_list,[(funn,[stmt1],h::t)],ctrl,status_running)` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ Cases_on `x1` >> (
+  fs []
+ ) >>
+ Cases_on `t''` >> (
+  fs []
+ ) >| [
+  PairCases_on `h''` >>
+  fs [] >>
+  Cases_on `h''1` >> (
+   fs []
+  ) >>
+  Cases_on `t''` >> (
+   fs []
+  ) >| [
+   Cases_on `x3` >> (
+    Cases_on `status'` >> (
+     fs []
+    )
+   ) >> (
+    metis_tac [stmt_exec_inv_sing_noframe]
+   ),
+
+   Cases_on `t'''` >> (
+    fs []
+   ) >>
+   Cases_on `x3` >> (
+    Cases_on `status'` >> (
+     fs []
+    )
+   ) >>
+   metis_tac [stmt_exec_inv_sing_noframe]
+  ],
+
+  PairCases_on `h'''` >>
+  fs [] >>
+  Cases_on `h'''1` >> (
+   fs []
+  ) >>
+  Cases_on `t''` >> (
+   fs []
+  ) >>
+  Cases_on `t'''` >> (
+   fs []
+  ) >>
+  Cases_on `x3` >> (
+   Cases_on `status'` >> (
+    fs []
+   )
+  ) >| [
+   (* Running *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   assume_tac (Q.SPECL [`ctx`, `g_scope_list`, `x0`, `[(h''0,h''::t'',h''2)]`] stmt_exec_inv_sing) >>
+   fs [] >>
+   RES_TAC >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   metis_tac [],
+
+   (* Return *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `t'''` >> (
+    fs []
+   ),
+
+   (* Transition *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `t'''` >> (
+    fs []
+   ),
+
+   (* Return *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `t'''` >> (
+    fs []
+   )
+  ]
  ]
 ]
 QED
