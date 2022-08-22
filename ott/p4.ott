@@ -2581,9 +2581,9 @@ by
   ctx ( g_scope_list , [ ( funn , [ begin decl_list stmt end ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scopes_stack' ) ] , ctrl , Running )
 
   not_empty stmt
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list'' , frame_list' ++ [ ( funn , [ stmt' ] , scopes_stack' ) ] , ctrl' , status' )
+  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list'' , frame_list' ++ [ ( funn , stmt_stack' , scopes_stack' ) ] , ctrl' , status' )
   ----------------------------------- :: block_exec
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt' :: stmt_stack , scopes_stack' ) ] , ctrl' , status' )
+  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' ++ stmt_stack , scopes_stack' ) ] , ctrl' , status' )
 
   scopes_stack' = rev ( tl ( rev scopes_stack ) )
   ----------------------------------- :: block_exit
