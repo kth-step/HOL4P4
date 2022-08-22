@@ -1000,6 +1000,12 @@ formula :: formula_ ::=
 %Type-transforming operations
 | g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
   {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
+| g_scope_list' = take i scopes_stack :: M :: scopes_take
+  {{ hol (SOME [[g_scope_list']] = oTAKE [[i]] [[scopes_stack]]) }}
+  {{ tex [[g_scope_list']] = \mathrm{take}([[i]], [[scopes_stack]]) }}
+| scopes_stack' = drop i scopes_stack :: M :: scopes_drop
+  {{ hol (SOME [[scopes_stack']] = oDROP [[i]] [[scopes_stack]]) }}
+  {{ tex [[scopes_stack']] = \mathrm{drop}([[i]], [[scopes_stack]]) }}
 %TODO: Why does the above not work for value 1?
 | g_scope = scopes_stack [ 1 ] :: M :: scopes_stack_index_1
   {{ hol ([[g_scope]] = EL 1 [[scopes_stack]]) }}
@@ -1164,12 +1170,12 @@ formula :: formula_ ::=
   {{ com status is not in running}}
   {{ tex t \neq { \mathbf{run} } }}
   {{ hol (status <> status_running)}}
-| notret( status ) :: :: noret
-  {{ com status is not in return}}
-  {{ tex [[status]] \neq { \mathbf{ret \, v} } }}
-  {{ hol ( notret [[status]] )}}  
+| notret( status , frame_list ) :: :: noret
+  {{ com status is (conditionally) not return}}
+  {{ tex [[frame_list]] \neq [] \Rightarrow [[status]] \neq { \mathbf{ret \, v} } }}
+  {{ hol ( ([[frame_list]] <> []) ==> notret [[status]] )}}  
 | acc_or_rej( status ) :: M :: accrejstatus
-  {{ com status is not in running}}
+  {{ com status is not running}}
   {{ tex t = { \mathbf{acc} } \vee t = { \mathbf{rej} } }}
   {{ hol (status = Accept \/ status = Reject) }}     
 | x = "accept" :: M :: is_accept
@@ -1901,6 +1907,21 @@ val assign_def = Define `
   )
 `;
 
+val oTAKE_def = Define `
+  (oTAKE 0 _ = SOME []) /\
+  (oTAKE (SUC n) [] = NONE) /\
+  (oTAKE (SUC n) (h::t) =
+   case oTAKE n t of
+   | SOME l => SOME (h::l)
+   | NONE => NONE)
+`;
+
+val oDROP_def = Define `
+  (oDROP 0 l = SOME l) /\
+  (oDROP (SUC n) [] = NONE) /\
+  (oDROP (SUC n) (h::t) = oDROP n t)
+`;
+
 (* Declares a new variable and initialises it to ARB, returns the new scope stack *)
 (* TODO: Behaviour when variable already exists? *)
 (* Note that this will declare variables in the block-global scope when scope stack is empty *)
@@ -2204,18 +2225,18 @@ e = [ e1 , ... , en ] [ i ]
 ctx g_scope_list scopes_stack ( e ) ~> ( e' , frame_list )
 [ e'1 , ... , e'n ] =' update ( e' , i , [ e1 , ... , en ] )
 ----------------------------------- :: eStruct
-ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStruct { f1 = e'1 ; ... ; fn = e'n } ,  frame_list )
+ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStruct { f1 = e'1 ; ... ; fn = e'n } , frame_list )
 
 %eStruct coversion to value struct
 is_consts ( e1 , ... , en )
 ( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
 ----------------------------------- :: eStruct_to_v
-ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn }  ,  empty )
+ctx g_scope_list scopes_stack ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn } , empty )
 
 %access a value struct field 
 v = struct { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: s_acc
-ctx g_scope_list scopes_stack ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
+ctx g_scope_list scopes_stack ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v , empty )
 
 
 %expression reduction for access fields
@@ -2502,6 +2523,8 @@ ctx g_scope_list scopes_stack ( false OR e ) ~> ( e , empty )
 % Statement semantics ( single frame )%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%TODO: Should this now be called statement stack semantics and use the prefix "stmt_stack"?
+
 %TODO: Exit
 %TODO: Switch
 
@@ -2514,11 +2537,10 @@ defn
 by
 
   scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
-  g_scope = scopes_stack' [0]
-  g_scope' = scopes_stack' [1]
-  scopes_stack'' = tl (tl scopes_stack')
+  g_scope_list' = take 2 scopes_stack'
+  scopes_stack'' = drop 2 scopes_stack'
   ----------------------------------- :: ass_v
-  ctx ( g_scope_list , [ ( funn , [ assign lval v ]  , scopes_stack ) ] , ctrl , Running ) -> ( [ g_scope ; g_scope' ] , [ ( funn , [ empty_stmt ] , scopes_stack'' ) ]  , ctrl , Running )
+  ctx ( g_scope_list , [ ( funn , [ assign lval v ]  , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ empty_stmt ] , scopes_stack'' ) ]  , ctrl , Running )
 
 
 %%%%%%%%%%%%%%
@@ -2534,6 +2556,7 @@ by
 
 
 %Note that this does not have to take into account new items in the stmt_stack, since no statement can both create new items in the statement stack and change status
+%TODO: Is this really needed as a separate rule? Arch sem will act immediately upon seeing changes status anyhow... 
   ctx ( g_scope_list , [ ( funn , [ stmt1 ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ stmt1' ] , scopes_stack' ) ] , ctrl' , status )
   notrun( status )
   ----------------------------------- :: seq3
@@ -2601,8 +2624,8 @@ by
 %%%%%%%%%%%%%%
 %Return
 
-  ----------------------------------- :: return_v
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , [ return v ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Ret v )
+  ----------------------------------- :: ret_v
+  ctx ( g_scope_list , [ ( funn , [ return v ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , [ empty_stmt ] , scopes_stack ) ] , ctrl , Ret v )
 
 %%%%%%%%%%%%%%
 %Extern
@@ -2665,6 +2688,7 @@ by
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics (list of frames) %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%TODO: Should this be called "frames" or "frame list"? Use consistently through all code
 
 defns
   frames_sem :: '' ::=
@@ -2676,24 +2700,23 @@ by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
   %frame_list'' neq empty
-  notret( status' )
+  notret( status' , frame_list'' )
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list' , [ ( funn , stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list'' , frame_list' , ctrl' , status' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
   ----------------------------------- :: comp1
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ frame_list'' , ctrl , status ) -f-> ( g_scope_list''' , frame_list' ++ frame_list'' , ctrl' , status' )
 
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
-%Note that global scope does not matter for the below statement reduction step (write global scope empty?)
+%Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt_stack'' , scopes_stack ) ] , ctrl , Ret v )
   scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
-  g_scope = scopes_stack'' [0]
-  g_scope' = scopes_stack'' [1]
-  scopes_stack''' = tl (tl scopes_stack'')
+  g_scope_list' = take 2 scopes_stack''
+  scopes_stack''' = drop 2 scopes_stack''
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
-   g_scope_list' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , [ g_scope ; g_scope' ] )
-  ( g_scope_list'' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list' , scopes_stack''' , scopes_stack )
+   g_scope_list'' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list' )
+  ( g_scope_list''' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'' , scopes_stack''' , scopes_stack )
   ----------------------------------- :: comp2
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ ( [ ( funn' , stmt_stack' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -f-> ( g_scope_list'' , [ ( funn' , stmt_stack' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
+  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ ( [ ( funn' , stmt_stack' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -f-> ( g_scope_list''' , [ ( funn' , stmt_stack' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2749,7 +2772,7 @@ by
 
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -> ( g_scope_list' , frame_list' , ctrl' , status' )
+  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , frame_list , ctrl , Running ) -f-> ( g_scope_list' , frame_list' , ctrl' , status' )
   ----------------------------------- :: pbl_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , ctrl' , status' )
 

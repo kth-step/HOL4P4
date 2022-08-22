@@ -12,9 +12,17 @@ open p4Theory;
  * e3_size: size of an e list *)
 
 Theorem EL_pair_list:
-!i l. EL i l = (EL i (MAP FST l), EL i (MAP SND l))
+!i l.
+i < LENGTH l ==>
+EL i l = (EL i (MAP FST l), EL i (MAP SND l))
 Proof
-cheat
+rpt strip_tac >>
+subgoal `?l1 l2. LENGTH l1 = LENGTH l2 /\ l = ZIP (l1,l2)` >- (
+ qexists_tac `MAP FST l` >>
+ qexists_tac `MAP SND l` >>
+ fs [GSYM listTheory.UNZIP_MAP]
+) >>
+fs [listTheory.MAP_ZIP, listTheory.EL_ZIP]
 QED
 
 Theorem e_e2_size_less:
@@ -125,6 +133,32 @@ Proof
  fs []
 QED
 
+Theorem lambda_FST:
+!l. MAP (\(a_, b_). a_) l = MAP FST l
+Proof
+strip_tac >> (
+ Induct_on `l` >> (
+  fs []
+ ) >>
+ rpt strip_tac >>
+ PairCases_on `h` >>
+ fs []
+)
+QED
+
+Theorem lambda_SND:
+!l. MAP (\(a_, b_). b_) l = MAP SND l
+Proof
+strip_tac >> (
+ Induct_on `l` >> (
+  fs []
+ ) >>
+ rpt strip_tac >>
+ PairCases_on `h` >>
+ fs []
+)
+QED
+
 Theorem lambda_unzip_tri:
 (!l. MAP (\(a_,b_,c_). a_) l = (FST o UNZIP) l) /\
 (!l. MAP (\(a_,b_,c_). b_) l = (FST o UNZIP o SND o UNZIP) l) /\
@@ -151,6 +185,28 @@ PairCases_on `h` >>
 fs []
 QED
 
+Theorem lambda_12_unzip_tri:
+!l. MAP (\(a_,b_,c_). (a_, b_)) l = ZIP ((FST o UNZIP) l, MAP FST ((SND o UNZIP) l))
+Proof
+Induct_on `l` >> (
+ fs []
+) >>
+REPEAT STRIP_TAC >>
+PairCases_on `h` >>
+fs []
+QED
+
+Theorem lambda_23_unzip_tri:
+!l. MAP (\(a_,b_,c_). (a_, c_)) l = ZIP ((FST o UNZIP) l, MAP SND ((SND o UNZIP) l))
+Proof
+Induct_on `l` >> (
+ fs []
+) >>
+REPEAT STRIP_TAC >>
+PairCases_on `h` >>
+fs []
+QED
+
 (* TODO: More cases as needed *)
 Theorem map_tri_zip12:
 !(al:'a list) (bcl:('b # 'c) list).
@@ -158,10 +214,12 @@ LENGTH bcl = LENGTH al ==>
 (MAP (\(a_,b_,c_). a_) (ZIP (al,bcl)) = al) /\
 (MAP (\(a_,b_,c_). b_) (ZIP (al,bcl)) = MAP FST bcl) /\
 (MAP (\(a_,b_,c_). c_) (ZIP (al,bcl)) = MAP SND bcl) /\
+(MAP (\(a_,b_,c_). (a_, b_)) (ZIP (al,bcl)) = ZIP (al, MAP FST bcl)) /\
+(MAP (\(a_,b_,c_). (a_, c_)) (ZIP (al,bcl)) = ZIP (al, MAP SND bcl)) /\
 (MAP (\(a_,b_,c_). (b_, c_)) (ZIP (al,bcl)) = bcl)
 Proof
 REPEAT STRIP_TAC >> (
- fs [lambda_unzip_tri, lambda_snd_unzip_tri, UNZIP_MAP]
+ fs [lambda_unzip_tri, lambda_12_unzip_tri, lambda_23_unzip_tri, lambda_snd_unzip_tri, UNZIP_MAP]
 )
 QED
 
@@ -256,6 +314,24 @@ Cases_on `INDEX_FIND 0 (\(d,e). ~is_arg_red d e) (ZIP (dl,el))` >> (
 ]
 QED
 
+Theorem unred_mem_index_NONE:
+!el.
+(unred_mem_index el = NONE) ==>
+is_consts el
+Proof
+fs [unred_mem_index_def, unred_mem_def, is_consts_def, ZIP_def, INDEX_FIND_def] >>
+rpt strip_tac >>
+Cases_on `INDEX_FIND 0 (\e. ~is_const e) el` >> (
+ fs []
+) >| [
+ ASSUME_TAC (ISPECL [``el:e list``, ``($~ o (\e. ~is_const e))``] INDEX_FIND_NONE_EVERY) >>
+ fs [combinTheory.o_ABS_R],
+
+ Cases_on `x` >>
+ fs []
+]
+QED
+
 (* TODO: Bake this into the definition instead? *)
 Theorem unred_arg_index_empty:
 !dl.
@@ -277,6 +353,31 @@ Cases_on `x` >>
 fs [] >>
 IMP_RES_TAC index_find_length >>
 fs [LENGTH_ZIP_MIN]
+QED
+
+Theorem index_not_const_NONE:
+!el.
+index_not_const el = NONE ==>
+is_consts el
+Proof
+rpt strip_tac >>
+fs [index_not_const_def, is_consts_def] >>
+Cases_on `INDEX_FIND 0 (\e. ~is_const e) el` >> (
+ fs []
+) >| [
+ IMP_RES_TAC INDEX_FIND_NONE_EVERY >>
+ fs [combinTheory.o_ABS_R],
+
+ Cases_on `x` >>
+ fs []
+]
+QED
+
+Theorem vl_of_el_LENGTH:
+!el.
+LENGTH (vl_of_el el) = LENGTH el
+Proof
+fs [vl_of_el_def]
 QED
 
 val _ = export_theory ();

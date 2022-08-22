@@ -402,12 +402,11 @@ The semantics of the statements are presented in this section. \footnote{Rules f
 
 
 \subsubsection*{assignment}
-The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), they can be either variable identified by their names, a null variable (used to model method calls) or struct fields, which are identified by the struct and field names, similar to the field access expression. Whenever an $lval$ is assigned to an expression, that expression shall be reduced until it becomes a constant value. Then the appropriate scope in the current frame of execution will be updated with the mapping  $\vn \mapsto v$. With appropriate we mean that the topmost (most recent) scope that the $lval$ is declared in. The reduction results in the empty statement and an updated local or global scope lists. Note that this doesn't apply on $\mathbf{null}$ since it is used for method and action calls with no return values in mind.
+The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), they can be either variable identified by their names, a null variable (used to model method calls) or struct fields, which are identified by the struct and field names, similar to the field access expression. Whenever an expression is assigned to an $lval$, that expression shall be reduced until it becomes a constant value. Then the appropriate scope in the current frame of execution will be updated with the mapping  $\vn \mapsto v$. With appropriate we mean that the topmost (most recent) scope that the $lval$ is declared in. The reduction results in the empty statement and an updated local or global scope lists. Note that this doesn't apply on $\mathbf{null}$ since it is used for method and action calls with no return values in mind.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXassXXv{}}
 \end{figure}
-
 
 \subsubsection*{if then else}
 The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones for conditional statements.
@@ -445,7 +444,7 @@ The \textsc{stmt\_apply\_v} describes the apply table statement. Each apply stat
 Once return's expression is reduced to a constant value, the status is changed to a \returnst{} \cval, and the statement becomes $\estmt{}$. The rest of the return operatoin will be handeled in the sequence and composition rules.
 
 \begin{figure}[ht!]
-    \ottusedrule{\ottdrulestmtXXreturnXXv{}} 
+    \ottusedrule{\ottdrulestmtXXretXXv{}} 
 \end{figure}
 
 \subsubsection*{sequential statements}

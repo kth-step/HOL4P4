@@ -107,5 +107,7 @@ fun find_clause thm clause_name_str =
 val find_clause_e_red = find_clause e_red_rules
 (* find_clause, hard-coded for the statement reduction theorem *)
 val find_clause_stmt_red = find_clause stmt_red_rules
+(* find_clause, hard-coded for the frame reduction theorem *)
+val find_clause_frames_red = find_clause frames_red_rules
 
 end

@@ -247,6 +247,7 @@ val e_state_size_def = Define `
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
  *       This would reduce warnings *)
 (* TODO: Use let-statements to avoid duplicate "MAP FST", et cetera *)
+(* Defn.tgoal (Hol_defn "e_exec" ` *)
 val e_exec = TotalDefn.tDefine "e_exec" `
  (********************)
  (* Variable look-up *)
@@ -264,7 +265,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
     | SOME v => SOME (v, [])
     | NONE => NONE)
   else NONE)
-(* TODO: What happens if one tries to access an expression?
+(* TODO: What happens if one tries to access a field in an expression struct?
    else
     (case e_exec ctx g_scope_list scopes_stack e_v_struct of
      | SOME (e_v_struct', frame_list) =>
@@ -378,11 +379,16 @@ val e_exec = TotalDefn.tDefine "e_exec" `
    fs [listTheory.LENGTH_MAP]
   ) >>
   imp_res_tac e1_size_mem >>
-  fs [EL_pair_list]
+  metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
  ]
 );
-(* TODO: Is the below line too hacky? Should the theorem only be referred to as "e_exec_def"? *)
+(* TODO: Is the below line too hacky? Also, should the theorem only be referred to as "e_exec_def"? *)
 val e_exec = save_thm("e_exec", e_exec);
+
+val e_exec_ind = tryfind (uncurry DB.fetch) [("scratch", "e_exec_ind"),
+                                             ("p4_exec_sem", "e_exec_ind")];
+val _ = save_thm("e_exec_ind", e_exec_ind);
+
 
 (*
 val measure_stmt_state_size_def = Define `
@@ -395,6 +401,27 @@ val measure_stmt_state_size_def = Define `
   else (stmt_size (HD $ FST $ SND $ HD frame_list) < stmt_size (HD $ FST $ SND $ HD frame_list')))
 `;
 *)
+
+Definition is_consts_exec_def:
+ (is_consts_exec [] = T) /\
+ (is_consts_exec (h::t) = ((is_const h) /\ (is_consts_exec t)))
+End
+
+Theorem vl_of_el_MAP_e_v:
+!el.
+is_consts_exec el ==>
+el = MAP e_v (vl_of_el el)
+Proof
+Induct_on `el` >- (
+ fs [is_consts_exec_def, vl_of_el_def]
+) >>
+rpt strip_tac >>
+fs [is_consts_exec_def, vl_of_el_def] >>
+Cases_on `h` >> (
+ fs [is_const_def]
+) >>
+fs [v_of_e_def]
+QED
 
 (*
 Defn.tgoal $ Hol_defn "stmt_exec"
@@ -409,31 +436,14 @@ Definition stmt_exec:
  (* No statement execution step begins with return status *)
  (stmt_exec _ (_, _, _, status_returnv v) = NONE)
   /\
+ (* Same for trans status *)
+ (stmt_exec _ (_, _, _, status_trans x) = NONE)
+  /\
  (* Empty frame list *)
  (stmt_exec _ (_, [], _, _) = NONE)
   /\
- (* TODO: frame list does not take into account nested frames here? *)
- (stmt_exec _ (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_trans x) =
-  SOME (g_scope_list, [(funn, [], scopes_stack)], ctrl, status_trans x))
-  /\
- (***************)
- (* Frame rules *)
- (stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, ((funn, stmt_stack, scopes_stack)::((funn', stmt_stack', scopes_stack')::frame_list'')), ctrl, status_running) =
-   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
-    | SOME (g_scope_list', frame_list', ctrl', status') =>
-     (case status' of
-      | status_returnv v =>
-       let scopes_stack'' = initialise (g_scope_list'++scopes_stack') (varn_star funn) v in
-        (case lookup_funn_sig_body funn func_map b_func_map ext_map of
-         | SOME (stmt'', x_d_l) =>
-          (case copyout (MAP FST x_d_l) (MAP SND x_d_l) (TAKE 2 scopes_stack'') (DROP 2 scopes_stack'') scopes_stack of
-           | SOME (g_scope_list'', scopes_stack''') =>
-            SOME (g_scope_list'', ((funn', stmt_stack', scopes_stack''')::frame_list''), ctrl', status_running)
-           | _ => NONE)
-         | _ => NONE)
-      | _ => 
-       SOME (g_scope_list', frame_list'++((funn', stmt_stack', scopes_stack')::frame_list''), ctrl', status'))
-    | _ => NONE))
+ (* Empty scope stack *)
+ (stmt_exec _ (_, [(funn, stmt_stack, [])], _, _) = NONE)
   /\
  (**************)
  (* Assignment *)
@@ -441,8 +451,11 @@ Definition stmt_exec:
   if is_v e
   then
    (case stmt_exec_ass lval e (g_scope_list++scopes_stack) of
-    | SOME scopes_stack' =>
-     SOME (TAKE 2 scopes_stack', [(funn, [stmt_empty], DROP 2 scopes_stack')], ctrl, status_running)
+    | SOME scopes_stack'' =>
+     (case (oTAKE 2 scopes_stack'', oDROP 2 scopes_stack'') of
+      | (SOME g_scope_list', SOME scopes_stack') =>
+       SOME (g_scope_list', [(funn, [stmt_empty], scopes_stack')], ctrl, status_running)
+      | _ => NONE)
     | NONE => NONE)
   else
    (case e_exec ctx g_scope_list scopes_stack e of
@@ -521,10 +534,16 @@ Definition stmt_exec:
    | NONE =>
     (case FLOOKUP tbl_map t_name of
      | SOME mk_l =>
-      (case ctrl (t_name, e_l, mk_l) of
-       | SOME (f, f_args) =>
-        SOME (g_scope_list, [(funn, [stmt_ass lval_null (e_call (funn_name f) f_args)], scopes_stack)], ctrl, status_running)
-       | NONE => NONE)
+      (if LENGTH mk_l = LENGTH e_l
+       then
+        (case ctrl (t_name, e_l, mk_l) of
+         | SOME (f, f_args) =>
+          (if is_consts_exec f_args
+           then
+            SOME (g_scope_list, [(funn, [stmt_ass lval_null (e_call (funn_name f) f_args)], scopes_stack)], ctrl, status_running)
+           else NONE)
+         | NONE => NONE)
+       else NONE)
      | NONE => NONE)))
   /\
  (**********)
@@ -552,7 +571,7 @@ Definition stmt_exec:
  (*********)
  (* Block *)
  (stmt_exec ctx (g_scope_list, [(funn, [stmt_block decl_list stmt], scopes_stack)], ctrl, status_running) =
-   SOME (g_scope_list, [(funn, [stmt]++[stmt_empty], ((declare_list_in_fresh_scope decl_list)::scopes_stack))], ctrl, status_running))
+   SOME (g_scope_list, [(funn, [stmt]++[stmt_empty], (scopes_stack ++ [declare_list_in_fresh_scope decl_list]))], ctrl, status_running))
   /\
  (************)
  (* Sequence *)
@@ -563,9 +582,13 @@ Definition stmt_exec:
    (* Note: this only allows for 0 or 1 frame being added, or (exclusively) 1 stmt element *)
    (case stmt_exec ctx (g_scope_list, [(funn, [stmt1], scopes_stack)], ctrl, status_running) of
     | SOME (g_scope_list', [(funn, [stmt1'], scopes_stack')], ctrl', status') =>
-     SOME (g_scope_list', [(funn, [stmt_seq stmt1' stmt2], scopes_stack')], ctrl', status')
-    | SOME (g_scope_list', [(funn, stmt1'::[stmt_empty], scopes_stack')], ctrl', status') =>
-     SOME (g_scope_list', [(funn, [stmt1']++[stmt2], scopes_stack')], ctrl', status')
+     (case status' of 
+      | status_running =>
+       SOME (g_scope_list', [(funn, [stmt_seq stmt1' stmt2], scopes_stack')], ctrl', status_running)
+      | _ =>
+       SOME (g_scope_list', [(funn, [stmt1'], scopes_stack')], ctrl', status'))
+    | SOME (g_scope_list', [(funn, stmt1''::[stmt1'], scopes_stack')], ctrl', status_running) =>
+     SOME (g_scope_list', [(funn, [stmt1'']++[stmt_seq stmt1' stmt2], scopes_stack')], ctrl', status_running)
     | SOME (g_scope_list', (frame::[(funn, [stmt1'], scopes_stack')]), ctrl', status_running) =>
      SOME (g_scope_list', (frame::[(funn, [stmt_seq stmt1' stmt2], scopes_stack')]), ctrl', status_running)
     | _ => NONE))
@@ -573,35 +596,18 @@ Definition stmt_exec:
  (*********************)
  (* Stmt stack clause *)
  (*********************)
-(* OLD:
- (* TODO: The recursive call in this clause necessitates a termination proof *)
- (stmt_exec ctx (g_scope_list, [(funn, stmt::stmt_stack, scopes_stack)], ctrl, status) =
-  case stmt of
-  | stmt_empty => SOME (g_scope_list, [(funn, stmt_stack, TL scopes_stack)], ctrl, status)
-  | _ => 
-   (case stmt_exec ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) of
-   | SOME (g_scope_list', frame_list', ctrl', status') =>
-    (case frame_list' of
-     (* Regular case *)
-     | [(funn, [stmt'], scopes_stack')] =>
-      SOME (g_scope_list', [(funn, stmt'::stmt_stack, scopes_stack')], ctrl', status')
-     (* Block entry *)
-     | [(funn, stmt''::[stmt'], scopes_stack')] =>
-      SOME (g_scope_list', [(funn, stmt''::(stmt'::stmt_stack), scopes_stack')], ctrl', status')
-     (* Function call *)
-     | ((funn', [stmt'], scopes_stack')::[(funn, [stmt''], scopes_stack)]) =>
-      SOME (g_scope_list', ((funn', [stmt'], scopes_stack')::[(funn, stmt''::stmt_stack, scopes_stack)]), ctrl', status')
-     (* TODO: What can happen here? *)
-     | _ => NONE)
-   | NONE => NONE))
+ (* TODO: Should the case statement be handled by better matching in the clause? *)
+ (stmt_exec ctx (g_scope_list, [(funn, stmt_empty::stmt_stack, scopes_stack)], ctrl, status) =
+  case stmt_stack of
+  | [] => NONE
+  | _ =>
+   (case scopes_stack of
+    | [] => NONE
+    | (h_scope::scopes_stack') => SOME (g_scope_list, [(funn, stmt_stack, REVERSE (TL (REVERSE (h_scope::scopes_stack'))))], ctrl, status)))
   /\
-*)
  (* TODO: This clause gets expanded into multiple clauses to account for all different
   *       statements. An alternative solution, which may be even more convoluted,
   *       could be to make mutually recursive functions *)
- (stmt_exec ctx (g_scope_list, [(funn, stmt_empty::stmt_stack, scopes_stack)], ctrl, status) =
-  SOME (g_scope_list, [(funn, stmt_stack, TL scopes_stack)], ctrl, status))
-  /\
  (stmt_exec ctx (g_scope_list, [(funn, stmt::stmt_stack, scopes_stack)], ctrl, status) =
    (case stmt_exec ctx (g_scope_list, [(funn, [stmt], scopes_stack)], ctrl, status) of
    | SOME (g_scope_list', frame_list', ctrl', status') =>
@@ -623,6 +629,1342 @@ Definition stmt_exec:
 End
 (* ` *)
 
+Theorem exec_stmt_SOME_init_running:
+!ctx g_scope_list g_scope_list' funn stmt frame_list' scope_stack ctrl ctrl' status status'.
+stmt_exec ctx (g_scope_list, [(funn, [stmt], scope_stack)], ctrl, status) =
+        SOME (g_scope_list', frame_list', ctrl', status') ==>
+ status = status_running
+Proof
+rpt strip_tac >>
+Cases_on `stmt` >> (
+ fs []
+) >> (
+ Cases_on `status` >> (
+  fs [stmt_exec]
+ )
+)
+QED
+
+Theorem e_exec_new_frame:
+!ctx g_scope_list scopes_stack e e' frame_list'.
+e_exec ctx g_scope_list scopes_stack e = SOME (e',frame_list') ==>
+(frame_list' = [] \/
+ ?funn stmt scope. frame_list' = [(funn, [stmt], [scope])])
+Proof
+`!ctx g_scope_list scopes_stack e.
+ (\ctx' g_scope_list' scopes_stack' e'.
+  !e'' frame_list''.
+  e_exec ctx' g_scope_list' scopes_stack' e' = SOME (e'', frame_list'') ==>
+  (frame_list'' = [] \/
+   ?funn'' stmt'' scope''. frame_list'' = [(funn'', [stmt''], [scope''])])
+ ) ctx g_scope_list scopes_stack e` suffices_by (
+ metis_tac []
+) >>
+irule e_exec_ind >>
+fs [e_exec] >>
+rpt strip_tac >| [
+ Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ Cases_on `unred_arg_index (MAP SND x1) e_l` >> (
+  fs []
+ ) >| [
+  Cases_on `copyin (MAP FST x1) (MAP SND x1) e_l g_scope_list scopes_stack` >> (
+   fs []
+  ) >>
+  metis_tac [],
+
+  Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list
+              scopes_stack (EL x e_l)` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []  
+ ],
+
+ (* TODO: Weird blob goal... *)
+ Cases_on `e1` >> (
+  fs [e_exec]
+ ) >| [
+  Cases_on `is_short_circuitable binop` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_short_circuit v binop e2` >> (
+    fs []
+   ),
+
+   Cases_on `is_v e2` >> (
+    fs []
+   ) >| [
+    Cases_on `e_exec_binop (e_v v) binop e2` >> (
+     fs []
+    ),
+
+    Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
+     fs []
+    ) >>
+    PairCases_on `x` >>
+    fs []
+   ]
+  ],
+
+  Cases_on `lookup_vexp2 scopes_stack g_scope_list v` >> (
+   fs []
+  ),
+
+  Cases_on `is_v e` >> (
+   fs []
+  ) >>
+  Cases_on `e_exec_acc (e_acc e s)` >> (
+   fs []
+  ),
+
+  Cases_on `is_v e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_unop u e` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
+  (* TODO: Interesting... *)
+  Cases_on `case e of
+             e_v v =>
+               if is_short_circuitable b then
+                 case e_exec_short_circuit v b e0 of
+                   NONE => NONE
+                 | SOME e' => SOME (e',[])
+               else if is_v e0 then
+                 case e_exec_binop e b e0 of
+                   NONE => NONE
+                 | SOME v' => SOME (e_v v',[])
+               else
+                 (case e_exec ctx g_scope_list scopes_stack e0 of
+                    NONE => NONE
+                  | SOME (e2',frame_list) =>
+                    SOME (e_binop e b e2',frame_list))
+           | e_var v25 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_list v26 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_acc v27 v28 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_unop v29 v30 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_binop v31 v32 v33 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_concat v34 v35 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_slice v36 v37 v38 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_call v39 v40 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_select v41 v42 v43 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_struct v44 =>
+             (case e_exec ctx g_scope_list scopes_stack e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_header v45 v46 =>
+             case e_exec ctx g_scope_list scopes_stack e of
+               NONE => NONE
+             | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list)` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  (* Function call *)
+  Cases_on `e_exec ctx g_scope_list scopes_stack (e_call f l)` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  (* Select *)
+  Cases_on `is_v e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_select e l s` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
+  (* Struct *)
+  Cases_on `unred_mem_index (MAP SND l)` >> (
+   fs []
+  ) >>
+  Cases_on `e_exec ctx g_scope_list scopes_stack (EL x (MAP SND l))` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []
+ ],
+
+ (* Access *)
+ Cases_on `e_exec_acc (e_acc e_v_struct x)` >> (
+  fs []
+ ),
+
+ (* Select *)
+ Cases_on `is_v e` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_select e v_x_l x` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []
+ ],
+
+ (* Struct? *)
+ Cases_on `unred_mem_index (MAP SND x_e_l)` >> (
+  fs []
+ ) >>
+ Cases_on `e_exec ctx g_scope_list scopes_stack (EL x (MAP SND x_e_l))` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [],
+
+ (* Unop *)
+ Cases_on `is_v e` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_unop unop e` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs []
+ ],
+
+ (* Variable lookup *)
+ Cases_on `lookup_vexp2 scopes_stack g_scope_list x` >> (
+  fs []
+ )
+]
+QED
+
+Theorem exec_stmt_ass_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn lval e stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_ass lval e)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (is_v e ==>
+  ?scopes_stack'' scopes_stack'.
+   (stmt_exec_ass lval e (g_scope_list++scopes_stack) = SOME scopes_stack'') /\
+   (SOME g_scope_list' = oTAKE 2 scopes_stack'') /\
+   (SOME scopes_stack' = oDROP 2 scopes_stack'') /\
+   (frame_list' = [(funn, (stmt_empty)::stmt_stack, scopes_stack')])) /\
+ (~is_v e ==>
+  ?e' frame_list''.
+   (e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'')) /\
+   (g_scope_list' = g_scope_list) /\
+   (frame_list' = (frame_list''++[(funn, (stmt_ass lval e')::stmt_stack, scopes_stack)]))) /\
+ scopes_stack <> [] /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> (
+ fs [stmt_exec]
+) >>
+Cases_on `is_v e` >> (
+ fs []
+) >| [
+ Cases_on `stmt_exec_ass lval e (g_scope_list ++ h::t)` >> (
+  fs []
+ ) >>
+ Cases_on `oTAKE 2 x` >> (
+  fs []
+ ) >>
+ Cases_on `oDROP 2 x` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ metis_tac [],
+
+ Cases_on `stmt_exec_ass lval e (g_scope_list ++ h::t)` >> (
+  fs []
+ ) >>
+ Cases_on `oTAKE 2 x` >> (
+  fs []
+ ) >>
+ Cases_on `oDROP 2 x` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []  
+ ]
+]
+QED
+
+Theorem exec_stmt_verify_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn e1 e2 stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_verify e1 e2)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (is_v e1 ==> is_v_bool e1) /\
+ (~is_v e1 ==>
+  ?e1' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e1 = SOME (e1', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1' e2)::stmt_stack,scopes_stack)]) /\
+ ((is_v e1 /\ is_v e2) ==>
+  is_v_err e2 /\
+  ?stmt'. stmt_exec_verify e1 e2 = SOME stmt' /\
+  frame_list' = [(funn,stmt'::stmt_stack,scopes_stack)]) /\
+ ((is_v e1 /\ ~is_v e2) ==>
+  ?e2' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e2 = SOME (e2', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1 e2')::stmt_stack,scopes_stack)]) /\
+ g_scope_list' = g_scope_list /\
+ scopes_stack <> [] /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_v e1` >> (
+ fs [stmt_exec]
+) >| [
+ Cases_on `is_v_bool e1` >> (
+  fs []
+ ) >>
+ Cases_on `is_v e2` >> (
+  fs []
+ ) >| [
+  Cases_on `is_v_err e2` >> (
+   fs []
+  ) >>
+  Cases_on `stmt_exec_verify e1 e2` >> (
+   fs []
+  ) >>
+  metis_tac [],
+
+  Cases_on `e_exec ctx g_scope_list (h::t) e2` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >> (
+   fs []
+  ) >>
+  metis_tac []
+ ],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e1` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `is_v_bool e1` >> (
+  fs []
+ ) >>
+ Cases_on `is_v e2` >> (
+  fs []
+ ) >| [
+  Cases_on `is_v_err e2` >> (
+   fs []
+  ) >>
+  Cases_on `stmt_exec_verify e1 e2` >> (
+   fs []
+  ) >>
+  metis_tac [],
+
+  Cases_on `e_exec ctx g_scope_list (h::t) e2` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [] >>
+  IMP_RES_TAC e_exec_new_frame >> (
+   fs []
+  ) >| [
+   metis_tac [],
+
+   metis_tac []
+  ]
+ ],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e1` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
+]
+QED
+
+Theorem exec_stmt_trans_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn e stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_trans e)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (is_v e ==>
+  is_v_str e /\
+  ?status''.
+   stmt_exec_trans e = SOME status'' /\
+   frame_list' = [(funn,stmt_empty::stmt_stack,scopes_stack)] /\ status' = status'') /\
+ (~is_v e ==>
+  ?e' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn,(stmt_trans e')::stmt_stack,scopes_stack)] /\
+   status' = status_running) /\
+ g_scope_list' = g_scope_list /\
+ scopes_stack <> [] /\
+ ctrl' = ctrl
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_v e` >> (
+ fs [stmt_exec]
+) >| [
+ (* TODO: Not needed? *)
+ Cases_on `is_v_str e` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec_trans e` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `is_v_str e` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec_trans e` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
+]
+QED
+
+Theorem exec_stmt_cond_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn e stmt1 stmt2 stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_cond e stmt1 stmt2)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (is_v_bool e ==>
+  ?b.
+   stmt_exec_cond e = SOME b /\
+   (b = T ==> frame_list' = [(funn, stmt1::stmt_stack, scopes_stack)]) /\
+   (b = F ==> frame_list' = [(funn, stmt2::stmt_stack, scopes_stack)])) /\
+ (~is_v_bool e ==>
+  ?e' frame_list''.
+   e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\
+   frame_list' = frame_list'' ++ [(funn, (stmt_cond e' stmt1 stmt2)::stmt_stack, scopes_stack)]) /\
+ g_scope_list' = g_scope_list /\
+ scopes_stack <> [] /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_v_bool e` >> (
+ fs [stmt_exec]
+) >| [
+ Cases_on `stmt_exec_cond e` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `stmt_exec_cond e` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
+]
+QED
+
+Theorem exec_stmt_app_SOME_REWRS:
+!ext_map func_map b_func_map pars_map tbl_map g_scope_list g_scope_list' funn t_name e_l stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, (stmt_app t_name e_l)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (index_not_const e_l = NONE  ==> ?mk_l f f_args. FLOOKUP tbl_map t_name = SOME mk_l /\
+                       ctrl (t_name, e_l, mk_l) = SOME (f, f_args) /\
+                       is_consts_exec f_args /\
+                       LENGTH mk_l = LENGTH e_l /\
+                       frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scopes_stack)]) /\
+ (!i. index_not_const e_l = SOME i ==>
+  ?e' frame_list''. e_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scopes_stack (EL i e_l) = SOME (e', frame_list'') /\
+                    frame_list' = frame_list'' ++ [(funn, (stmt_app t_name (LUPDATE e' i e_l))::stmt_stack, scopes_stack)]) /\
+ g_scope_list' = g_scope_list /\
+ scopes_stack <> [] /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l` >> (
+ fs [stmt_exec]
+) >| [
+ Cases_on `FLOOKUP tbl_map t_name` >> (
+  fs []
+ ) >>
+ Cases_on `ctrl (t_name,e_l,x)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `FLOOKUP tbl_map t_name` >> (
+  fs []
+ ) >>
+ Cases_on `ctrl (t_name,e_l,x)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ Cases_on `LENGTH x = LENGTH e_l` >> (
+  fs []
+ ) >>
+ Cases_on `is_consts_exec x'1` >> (
+  fs []
+ ) >>
+ metis_tac [],
+
+ Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ]
+]
+QED
+
+Theorem exec_stmt_ret_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn e stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_ret e)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (!v. get_v e = SOME v ==>
+  frame_list' = [(funn,stmt_empty::stmt_stack,scopes_stack)] /\
+  status' = status_returnv v) /\
+ (get_v e = NONE ==>
+  ?e' frame_list''.
+  e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list'') /\
+  frame_list' = frame_list'' ++ [(funn,(stmt_ret e')::stmt_stack,scopes_stack)] /\
+  status' = status_running) /\
+ g_scope_list' = g_scope_list /\
+ scopes_stack <> [] /\
+ ctrl' = ctrl
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `get_v e` >> (
+ fs [stmt_exec]
+) >| [
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ metis_tac [],
+
+ metis_tac [],
+
+ Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ IMP_RES_TAC e_exec_new_frame >> (
+  fs []
+ ) >| [
+  metis_tac [],
+
+  metis_tac []
+ ],
+
+ metis_tac []
+]
+QED
+
+Theorem exec_stmt_ext_SOME_REWRS:
+!ext_map func_map b_func_map pars_map tbl_map g_scope_list g_scope_list' funn stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_ext::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ (?ext_fun.
+   lookup_ext_fun funn ext_map = SOME ext_fun /\
+   ?g_scope_list'' scopes_stack'' ctrl''.
+    ext_fun (g_scope_list, scopes_stack, ctrl) = SOME (g_scope_list'', scopes_stack'', ctrl'') /\
+    g_scope_list' = g_scope_list'' /\
+    frame_list' = [(funn, stmt_empty::stmt_stack, scopes_stack'')] /\
+    status' = status_running /\
+    scopes_stack <> [] /\
+    ctrl' = ctrl'')
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> (
+ fs [stmt_exec]
+) >| [
+ Cases_on `lookup_ext_fun funn ext_map` >> (
+  fs []
+ ) >>
+ Cases_on `x (g_scope_list,h::t,ctrl)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ metis_tac [],
+
+ Cases_on `lookup_ext_fun funn ext_map` >> (
+  fs []
+ ) >>
+ Cases_on `x (g_scope_list,h::t,ctrl)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >>
+ fs [] >>
+ metis_tac []
+]
+QED
+
+Theorem exec_stmt_block_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn decl_list stmt stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_block decl_list stmt)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ scopes_stack <> [] /\
+ g_scope_list' = g_scope_list /\
+ frame_list' = [(funn, stmt::(stmt_empty::stmt_stack), (scopes_stack ++ [declare_list_in_fresh_scope decl_list]))] /\
+ ctrl' = ctrl /\
+ status' = status_running
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> (
+ fs [stmt_exec]
+) >> (
+ metis_tac []
+)
+QED
+
+Theorem stmt_exec_block:
+!ctx g_scope_list g_scope_list' funn frame' funn' stmt stmt_stack stmt_stack' h_scope scopes_stack scopes_stack' ctrl ctrl' status'.
+stmt <> stmt_empty ==>
+stmt_exec ctx
+          (g_scope_list,[(funn,stmt::stmt_stack,h_scope::scopes_stack)],ctrl,status_running) =
+        SOME
+          (g_scope_list',frame'++[(funn',stmt_stack',scopes_stack')],ctrl',status') ==>
+?stmt_stack''. stmt_stack''++stmt_stack = stmt_stack' /\
+stmt_exec ctx
+          (g_scope_list,[(funn,[stmt],h_scope::scopes_stack)],ctrl,status_running) =
+        SOME
+          (g_scope_list',frame'++[(funn',stmt_stack'',scopes_stack')],ctrl',status')
+Proof
+rpt strip_tac >>
+Cases_on `stmt` >> (
+ fs []
+) >| [
+ (* Assign *)
+ fs [exec_stmt_ass_SOME_REWRS] >>
+ Cases_on `is_v e` >> (
+  fs []
+ ),
+
+ (* Conditional *)
+ fs [exec_stmt_cond_SOME_REWRS] >>
+ Cases_on `is_v_bool e` >> (
+  fs []
+ ) >>
+ Cases_on `b` >> (
+  fs []
+ ),
+
+ (* Block entry *)
+ fs [exec_stmt_block_SOME_REWRS],
+
+ (* Return *)
+ fs [exec_stmt_ret_SOME_REWRS] >>
+ Cases_on `get_v e` >> (
+  fs []
+ ),
+
+ (* Seq *)
+ Cases_on `stmt_stack` >> (
+  fs []
+ ) >>
+ fs [stmt_exec] >>
+ Cases_on `is_empty s` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec ctx
+               (g_scope_list,[(funn,[s],h_scope::scopes_stack)],ctrl,status_running)` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >> (
+  fs []
+ ) >>
+ Cases_on `x1` >> (
+  fs []
+ ) >>
+ Cases_on `t'` >> (
+  fs []
+ ) >| [
+  PairCases_on `h'` >> (
+   fs []
+  ) >>
+  Cases_on `h'1` >> (
+   fs []
+  ) >>
+  Cases_on `t'` >> (
+   fs []
+  ) >| [
+   Cases_on `x3` >> (
+    fs []
+   ),
+
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `x3` >> (
+    fs []
+   )
+  ],
+
+  PairCases_on `h''` >> (
+   fs []
+  ) >>
+  Cases_on `h''1` >> (
+   fs []
+  ) >>
+  Cases_on `t'` >> (
+   fs []
+  ) >>
+  Cases_on `t''` >> (
+   fs []
+  ) >>
+  Cases_on `x3` >> (
+   fs []
+  ) >>
+  PairCases_on `h'` >>
+  fs [] >>
+  Cases_on `h'1` >> (
+   fs []
+  ) >>
+  Cases_on `frame'` >> (
+   fs []
+  ) >| [
+   Cases_on `t'` >> (
+    fs []
+   ) >>
+   Cases_on `t''` >> (
+    fs []
+   ),
+
+   Cases_on `t'` >> (
+    fs []
+   ) >>
+   Cases_on `t'3'` >> (
+    fs []
+   )
+  ]
+ ],
+
+ (* Verify *)
+ fs [exec_stmt_verify_SOME_REWRS] >>
+ Cases_on `is_v e` >> (
+  fs []
+ ) >>
+ Cases_on `is_v e0` >> (
+  fs []
+ ),
+
+ (* Transition *)
+ fs [exec_stmt_trans_SOME_REWRS] >>
+ Cases_on `is_v e` >> (
+  fs []
+ ),
+
+ (* Apply *)
+ PairCases_on `ctx` >>
+ fs [exec_stmt_app_SOME_REWRS] >>
+ Cases_on `index_not_const l` >> (
+  fs []
+ ),
+
+ (* Extern *)
+ PairCases_on `ctx` >>
+ fs [exec_stmt_ext_SOME_REWRS]
+]
+QED
+
+Theorem stmt_exec_block_sing:
+!ctx g_scope_list g_scope_list' funn funn' stmt stmt_stack stmt_stack' h_scope scopes_stack scopes_stack' ctrl ctrl' status'.
+stmt <> stmt_empty ==>
+stmt_exec ctx
+          (g_scope_list,[(funn,stmt::stmt_stack,h_scope::scopes_stack)],ctrl,status_running) =
+        SOME
+          (g_scope_list',[(funn',stmt_stack',scopes_stack')],ctrl',status') ==>
+?stmt_stack''. stmt_stack''++stmt_stack = stmt_stack' /\
+stmt_exec ctx
+          (g_scope_list,[(funn,[stmt],h_scope::scopes_stack)],ctrl,status_running) =
+        SOME
+          (g_scope_list',[(funn',stmt_stack'',scopes_stack')],ctrl',status')
+Proof
+rpt strip_tac >>
+IMP_RES_TAC (Q.SPECL [`ctx`, `g_scope_list`, `g_scope_list'`, `funn`, `[]`] stmt_exec_block) >>
+fs [listTheory.APPEND_NIL]
+QED
+
+(* TODO: This should track some invariants of stmt_exec under regular conditions,
+ * i.e. funn of current frame, ... *)
+Theorem stmt_exec_inv_sing:
+!ctx g_scope_list g_scope_list' frame' funn funn' stmt_stack stmt_stack' scopes_stack scopes_stack' ctrl ctrl' status status'.
+stmt_exec ctx (g_scope_list, [(funn,stmt_stack,scopes_stack)], ctrl, status) =
+ SOME (g_scope_list', frame'++[(funn',stmt_stack',scopes_stack')], ctrl', status') ==>
+funn = funn' /\
+(frame' = [] \/
+ ?funn'' stmt' scope'.
+  frame' = [(funn'', [stmt'], [scope'])]
+)
+Proof
+`!ctx g_scope_list funn stmt_stack scopes_stack ctrl status.
+ (\ctx' state'.
+  !g_scope_list' funn' stmt_stack' scopes_stack' ctrl' status' g_scope_list'' frame'' funn'' stmt_stack'' scopes_stack'' ctrl'' status''.
+  state' = (g_scope_list',[(funn',stmt_stack',scopes_stack')],ctrl',status') ==>
+  stmt_exec ctx' (g_scope_list',[(funn',stmt_stack',scopes_stack')],ctrl',status') =
+   SOME (g_scope_list'', frame''++[(funn'',stmt_stack'',scopes_stack'')], ctrl'', status'') ==>
+  (funn' = funn'' /\
+   (frame'' = [] \/
+    ?funn''' stmt'' scope''.
+     frame'' = [(funn''', [stmt''], [scope''])]
+   ))
+ ) ctx (g_scope_list, [(funn,stmt_stack,scopes_stack)], ctrl, status)` suffices_by (
+ metis_tac []
+) >>
+rpt strip_tac >>
+irule stmt_exec_ind >>
+rpt strip_tac >| [
+ (* Extern *)
+ fs [stmt_exec] >>
+ Cases_on `lookup_ext_fun funn ext_map` >> (
+  fs []
+ ) >>
+ Cases_on `x (g_scope_list,v94::v95,ctrl)` >> (
+  fs []
+ ) >>
+ PairCases_on `x'` >> (
+  fs []
+ ),
+
+ (* Apply *)
+ fs [exec_stmt_app_SOME_REWRS] >>
+ rpt strip_tac >> (
+  Cases_on `index_not_const e_l` >> (
+   fs []
+  )
+ ) >>
+ metis_tac [e_exec_new_frame],
+
+ fs [],
+
+ (* Verify *)
+ fs [exec_stmt_verify_SOME_REWRS] >>
+ metis_tac [e_exec_new_frame],
+
+ (* Verify (stack case) *)
+ fs [exec_stmt_verify_SOME_REWRS] >>
+ metis_tac [],
+
+ (* Return *)
+ fs [exec_stmt_ret_SOME_REWRS] >>
+ rpt strip_tac >> (
+  Cases_on `get_v e` >> (
+   fs []
+  )
+ ) >>
+ metis_tac [e_exec_new_frame],
+
+ (* Trans *)
+ fs [exec_stmt_trans_SOME_REWRS] >>
+ metis_tac [e_exec_new_frame],
+
+ (* Return (stack case) *)
+ fs [exec_stmt_ret_SOME_REWRS] >>
+ metis_tac [],
+
+ (* Trans (stack case) *)
+ fs [exec_stmt_trans_SOME_REWRS] >>
+ metis_tac [],
+
+ (* Cond *)
+ fs [exec_stmt_cond_SOME_REWRS] >>
+ metis_tac [e_exec_new_frame],
+
+ (* Cond (stack case) *)
+ fs [exec_stmt_cond_SOME_REWRS] >>
+ metis_tac [],
+
+ fs [stmt_exec],
+
+ (* TODO: Apply (stack case) *)
+ fs [] >>
+ rpt strip_tac >> (
+  subgoal `stmt_app v125 v126 <> stmt_empty` >- (
+   fs []
+  ) >>
+  IMP_RES_TAC stmt_exec_block >>
+  fs [exec_stmt_app_SOME_REWRS]
+ ),
+
+ (* Block entry *)
+ fs [exec_stmt_block_SOME_REWRS],
+
+ (* Block entry (stack case) *)
+ fs [exec_stmt_block_SOME_REWRS],
+
+ (* Block exit *)
+ fs [stmt_exec] >>
+ Cases_on `stmt_stack` >> (
+  fs []
+ ),
+
+ fs [stmt_exec],
+
+ (* Assign *)
+ fs [exec_stmt_ass_SOME_REWRS] >>
+ metis_tac [e_exec_new_frame],
+
+ (* Assign (stack case) *)
+ fs [exec_stmt_ass_SOME_REWRS] >>
+ metis_tac [],
+
+ (* Extern (stack case) *)
+ fs [] >>
+ rpt strip_tac >>
+ subgoal `stmt_ext <> stmt_empty` >- (
+  fs []
+ ) >>
+ IMP_RES_TAC stmt_exec_block >>
+ fs [exec_stmt_ext_SOME_REWRS],
+
+ (* Seq *)
+ fs [stmt_exec] >>
+ Cases_on `is_empty stmt1` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec ctx
+               (g_scope_list,[(funn,[stmt1],v98::v99)],ctrl,status_running)` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >> (
+  fs []
+ ) >>
+ Cases_on `x1` >> (
+  fs []
+ ) >>
+ Cases_on `t` >> (
+  fs []
+ ) >| [
+  PairCases_on `h` >> (
+   fs []
+  ) >>
+  Cases_on `h1` >> (
+   fs []
+  ) >>
+  Cases_on `t` >> (
+   fs []
+  ) >| [
+   Cases_on `x3` >> (
+    fs []
+   ),
+
+   Cases_on `t'` >> (
+    fs []
+   ) >>
+   Cases_on `x3` >> (
+    fs []
+   )
+  ],
+
+  PairCases_on `h'` >> (
+   fs []
+  ) >>
+  Cases_on `h'1` >> (
+   fs []
+  ) >>
+  Cases_on `t` >> (
+   fs []
+  ) >>
+  Cases_on `t'` >> (
+   fs []
+  ) >>
+  Cases_on `x3` >> (
+   fs []
+  )
+ ],
+
+ (* Seq (stack case) *)
+ fs [] >>
+ rpt strip_tac >>
+ subgoal `stmt_seq v120 v121 <> stmt_empty` >- (
+  fs []
+ ) >>
+ IMP_RES_TAC stmt_exec_block >>
+ fs [stmt_exec],
+
+ (* Initial trans status *)
+ fs [stmt_exec],
+
+ (* Initial return status *)
+ fs [stmt_exec],
+
+ (* Initial type error status *)
+ fs [stmt_exec],
+
+ fs []
+]
+QED
+
+Theorem stmt_exec_inv_sing_noframe:
+!ctx g_scope_list g_scope_list' funn funn' stmt_stack stmt_stack' scopes_stack scopes_stack' ctrl ctrl' status status'.
+stmt_exec ctx (g_scope_list, [(funn,stmt_stack,scopes_stack)], ctrl, status) =
+ SOME (g_scope_list', [(funn',stmt_stack',scopes_stack')], ctrl', status') ==>
+funn = funn'
+Proof
+rpt strip_tac >>
+ASSUME_TAC (Q.SPECL [`ctx`, `g_scope_list`, `g_scope_list'`, `[]`] stmt_exec_inv_sing) >>
+fs [listTheory.APPEND_NIL] >>
+metis_tac []
+QED
+
+Theorem exec_stmt_seq_SOME_REWRS:
+!ctx g_scope_list g_scope_list' funn stmt1 stmt2 stmt_stack frame_list' scopes_stack ctrl ctrl' status'.
+stmt_exec ctx (g_scope_list, [(funn, (stmt_seq stmt1 stmt2)::stmt_stack, scopes_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status') <=>
+ scopes_stack <> [] /\
+ (is_empty stmt1 ==>
+  g_scope_list' = g_scope_list /\
+  frame_list' = [(funn, stmt2::stmt_stack, scopes_stack)] /\
+  ctrl' = ctrl /\
+  status' = status_running) /\
+ (~is_empty stmt1 ==>
+  ?g_scope_list'' frame_list'' ctrl'' status''.
+   stmt_exec ctx (g_scope_list, [(funn, [stmt1], scopes_stack)], ctrl, status_running) =
+    SOME (g_scope_list'', frame_list'', ctrl'', status'') /\
+   g_scope_list' = g_scope_list'' /\
+   ctrl' = ctrl'' /\
+   status' = status'' /\ (
+   (?stmt1' scopes_stack'.
+     frame_list'' = [(funn, [stmt1'], scopes_stack')] /\
+     (status'' = status_running ==> frame_list' = [(funn, (stmt_seq stmt1' stmt2)::stmt_stack, scopes_stack')]) /\
+     (status'' <> status_running ==> frame_list' = [(funn, stmt1'::stmt_stack, scopes_stack')])) \/
+   (?stmt1' stmt1'' scopes_stack'.
+     frame_list'' = [(funn, stmt1''::([stmt1']), scopes_stack')] /\
+     status'' = status_running /\
+     frame_list' = [(funn, stmt1''::((stmt_seq stmt1' stmt2)::stmt_stack), scopes_stack')]
+     ) \/
+   (?stmt1' funn' stmt' scope' scopes_stack'.
+     frame_list'' = ((funn', [stmt'], [scope'])::[(funn, [stmt1'], scopes_stack')]) /\
+     status'' = status_running /\
+     frame_list' = ((funn', [stmt'], [scope'])::[(funn, (stmt_seq stmt1' stmt2)::stmt_stack, scopes_stack')]))))
+Proof
+rpt strip_tac >>
+Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> Cases_on `is_empty stmt1` >> (
+ fs [stmt_exec]
+) >| [
+ metis_tac [],
+
+ Cases_on `stmt_exec ctx
+             (g_scope_list,[(funn,[stmt1],h::t)],ctrl,status_running)` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ Cases_on `x1` >> (
+  fs []
+ ) >>
+ Cases_on `t'` >> (
+  fs []
+ ) >| [
+  PairCases_on `h'` >>
+  fs [] >>
+  Cases_on `h'1` >> (
+   fs []
+  ) >>
+  Cases_on `t'` >> (
+   fs []
+  ) >| [
+   Cases_on `x3` >> (
+    Cases_on `status'` >> (
+     fs []
+    )
+   ) >> (
+    metis_tac [stmt_exec_inv_sing_noframe]
+   ),
+
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `x3` >> (
+    Cases_on `status'` >> (
+     fs []
+    )
+   ) >>
+   metis_tac [stmt_exec_inv_sing_noframe]
+  ],
+
+  PairCases_on `h''` >>
+  fs [] >>
+  Cases_on `h''1` >> (
+   fs []
+  ) >>
+  Cases_on `t'` >> (
+   fs []
+  ) >>
+  Cases_on `t''` >> (
+   fs []
+  ) >>
+  Cases_on `x3` >> (
+   Cases_on `status'` >> (
+    fs []
+   )
+  ) >>
+  assume_tac (Q.SPECL [`ctx`, `g_scope_list`, `x0`, `[h']`] stmt_exec_inv_sing) >>
+  fs [] >>
+  RES_TAC >>
+  `funn = h''0` suffices_by (
+   metis_tac []
+  ) >>
+  fs [] >>
+  metis_tac []
+ ],
+
+ metis_tac [],
+
+ Cases_on `stmt_exec ctx
+             (g_scope_list,[(funn,[stmt1],h::t)],ctrl,status_running)` >> (
+  fs []
+ ) >>
+ PairCases_on `x` >>
+ fs [] >>
+ Cases_on `x1` >> (
+  fs []
+ ) >>
+ Cases_on `t''` >> (
+  fs []
+ ) >| [
+  PairCases_on `h''` >>
+  fs [] >>
+  Cases_on `h''1` >> (
+   fs []
+  ) >>
+  Cases_on `t''` >> (
+   fs []
+  ) >| [
+   Cases_on `x3` >> (
+    Cases_on `status'` >> (
+     fs []
+    )
+   ) >> (
+    metis_tac [stmt_exec_inv_sing_noframe]
+   ),
+
+   Cases_on `t'''` >> (
+    fs []
+   ) >>
+   Cases_on `x3` >> (
+    Cases_on `status'` >> (
+     fs []
+    )
+   ) >>
+   metis_tac [stmt_exec_inv_sing_noframe]
+  ],
+
+  PairCases_on `h'''` >>
+  fs [] >>
+  Cases_on `h'''1` >> (
+   fs []
+  ) >>
+  Cases_on `t''` >> (
+   fs []
+  ) >>
+  Cases_on `t'''` >> (
+   fs []
+  ) >>
+  Cases_on `x3` >> (
+   Cases_on `status'` >> (
+    fs []
+   )
+  ) >| [
+   (* Running *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   assume_tac (Q.SPECL [`ctx`, `g_scope_list`, `x0`, `[(h''0,h''::t'',h''2)]`] stmt_exec_inv_sing) >>
+   fs [] >>
+   RES_TAC >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   metis_tac [],
+
+   (* Return *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `t'''` >> (
+    fs []
+   ),
+
+   (* Transition *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `t'''` >> (
+    fs []
+   ),
+
+   (* Return *)
+   PairCases_on `h''` >>
+   fs [] >>
+   Cases_on `h''1` >> (
+    fs []
+   ) >>
+   Cases_on `t''` >> (
+    fs []
+   ) >>
+   Cases_on `t'''` >> (
+    fs []
+   )
+  ]
+ ]
+]
+QED
+
 (* Then, define an executable semantics which performs execution until out of fuel. *)
 (* Note that all concrete operations remain the same *)
 (* Note that expression multi-step execution makes little sense with the current semantics... *)
@@ -636,99 +1978,78 @@ Definition stmt_multi_exec:
   | NONE => NONE)
 End
 
-(****************************)
-(*  Parser block semantics  *)
-(****************************)
-(*
-val pars_exec_def = Define `
- (pars_exec (pctx:pctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
- (* No step should start in status pars_next *)
- (pars_exec _ (_, _, _, status_trans x) = NONE) /\
- (pars_exec (ext_map, func_map, b_func_map, pars_map) (g_scope_list, frame_list, ctrl, status_running) =
-  (case stmt_exec (ext_map, func_map, b_func_map, FEMPTY) (g_scope_list, frame_list, ctrl, status_running) of
-   (* Empty frame list *)
-   | SOME (g_scope_list', [], ctrl', status') => NONE
-   (* No parser-level transition should end with return status *)
-   | SOME (g_scope_list', frame_list', ctrl', status_returnv v) => NONE
-   (* No parser-level transition should end with type error *)
-   | SOME (g_scope_list', frame_list', ctrl', status_type_error) => NONE
-   (* Transition to next parser state *)
-   | SOME (g_scope_list', frame_list', ctrl', status_trans x) =>
-    if (x = "accept" \/ x = "reject")
-    then SOME (g_scope_list', frame_list', ctrl', status_trans x)
-    else
-     (case FLOOKUP pars_map x of
-      | SOME stmt'' => SOME (g_scope_list', [(funn_name x, [stmt''], [FEMPTY])], ctrl', status_running)
-      | NONE => NONE)
-   (* When reaching the empty statement, go to reject *)
-   | SOME (g_scope_list', [(funn, [stmt_empty], scopes_stack)], ctrl', status_running) =>
-    SOME (g_scope_list', [(funn, [stmt_trans (e_v (v_str "reject"))], scopes_stack)], ctrl', status_running)
-   (* Regular execution of parser state body *)
-   | SOME state' => SOME state'
-   | NONE => NONE)
- )
-`;
+(**************************)
+(*  Frame list semantics  *)
+(**************************)
 
-(* Fuel-powered multi-step executable semantics for parsers *)
-val pars_multi_exec = Define `
- (pars_multi_exec _ state 0 =
-  SOME state)
+Definition frames_exec:
+ (******************************************)
+ (* Catch-all clauses for special statuses *)
+ (frames_exec (ctx:ctx) ((g_scope_list:g_scope_list, frame_list:frame_list, ctrl:ctrl, status_type_error):state) = NONE)
   /\
- (pars_multi_exec pctx state (SUC fuel) =
-  case pars_exec pctx state of
-  | SOME state' => pars_multi_exec pctx state' fuel
-  | NONE => NONE)
-`;
-*)
-(*****************************)
-(*  Control block semantics  *)
-(*****************************)
-(*
-(* TODO: Handle return value in any way? *)
-(* TODO: Outsouce matching of stmt_ret (e_v v) and stmt_seq (stmt_ret (e_v v)) stmt to new
- * function? *)
-val ctrl_exec_def = Define `
- (ctrl_exec (cctx:cctx) ((g_scope_list, frame_list, ctrl, status_type_error):state) = NONE) /\
- (ctrl_exec _ (_, _, _, status_trans x) = NONE) /\
-(*
- (ctrl_exec _ (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running) =
-  if is_v e
-  then
-   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_running)
-  else
-   SOME (g_scope_list, [(funn, stmt_ret e, scopes_stack)], ctrl, status_running)
- ) /\
- (ctrl_exec _ (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running) =
-  if is_v e
-  then
-   SOME (g_scope_list, [(funn, stmt_empty, scopes_stack)], ctrl, status_running)
-  else
-   SOME (g_scope_list, [(funn, stmt_seq (stmt_ret e) stmt, scopes_stack)], ctrl, status_running)
- ) /\
-*)
- (ctrl_exec cctx (g_scope_list, frame_list, ctrl, status_running) =
-  (case stmt_exec cctx (g_scope_list, frame_list, ctrl, status_running) of
-   | SOME (g_scope_list', frame_list', ctrl', status_running) =>
-    SOME (g_scope_list', frame_list', ctrl', status_running)
-   (* If return status is set on base level, set statement to empty (matching arch_control_ret) *)
-   | SOME (g_scope_list', [(funn, [stmt], scopes_stack)], ctrl', status_returnv v) =>
-    SOME (g_scope_list', [(funn, [stmt_empty], scopes_stack)], ctrl', status_running)
-   | _ => NONE)
- ) /\
- (ctrl_exec _ _ = NONE)
-`;
+ (* No frame list execution step begins with return status *)
+ (frames_exec _ (_, _, _, status_returnv v) = NONE)
+  /\
+ (* Same for trans status *)
+ (frames_exec _ (_, _, _, status_trans x) = NONE)
+  /\
+ (* Empty frame list *)
+ (frames_exec _ (_, [], _, _) = NONE)
+  /\
+ (*********)
+ (* Comp2 + Comp1 case of multiple frames *)
+ (frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, ((funn, stmt_stack, scopes_stack)::((funn', stmt_stack', scopes_stack')::frame_list'')), ctrl, status_running) =
+  (case scopes_to_pass funn func_map b_func_map g_scope_list of
+   | SOME g_scope_list' =>
+    (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list', [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
+     | SOME (g_scope_list'', frame_list', ctrl', status') =>
+      (case status' of
+       | status_returnv v =>
+        (* Comp2 *)
+        let scopes_stack'' = initialise (g_scope_list++scopes_stack') (varn_star funn) v in
+         (case oTAKE 2 scopes_stack'' of
+          | SOME g_scope_list''' =>
+           (case oDROP 2 scopes_stack'' of
+            | SOME scopes_stack''' =>
+             (case scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list''' of
+              | SOME g_scope_list'''' =>
+               (case lookup_funn_sig_body funn func_map b_func_map ext_map of
+                | SOME (stmt'', x_d_l) =>
+                 (case copyout (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list'''' scopes_stack''' scopes_stack of
+                  | SOME (g_scope_list''''', scopes_stack'''') =>
+                   SOME (g_scope_list''''', ((funn', stmt_stack', scopes_stack'''')::frame_list''), ctrl', status_running)
+                  | _ => NONE)
+                | _ => NONE)
+              | _ => NONE)
+            | _ => NONE)
+          | NONE => NONE)
+       | _ => 
+        (* Comp1 *)
+        (case scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' of
+         | SOME g_scope_list''' =>
+          SOME (g_scope_list''', frame_list'++((funn', stmt_stack', scopes_stack')::frame_list''), ctrl', status')
+         | _ => NONE)
+     | _ => NONE)
+    | _ => NONE)
+   | _ => NONE))
+  /\
+ (*********)
+ (* Comp1, remaining cases *)
+ (frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status_running) =
+  (case scopes_to_pass funn func_map b_func_map g_scope_list of
+   | SOME g_scope_list' =>
+   (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list', [(funn, stmt_stack, scopes_stack)], ctrl, status_running) of
+    | SOME (g_scope_list'', frame_list', ctrl', status') =>
+     (case scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' of
+      | SOME g_scope_list''' =>
+       SOME (g_scope_list''', frame_list', ctrl', status')
+      | _ => NONE)
+    | _ => NONE)
+   | _ => NONE))
+ /\
+ (frames_exec _ _ = NONE)
+End
 
-(* Fuel-powered multi-step executable semantics for control blocks *)
-val ctrl_multi_exec = Define `
- (ctrl_multi_exec _ state 0 =
-  SOME state)
-  /\
- (ctrl_multi_exec cctx state (SUC fuel) =
-  case ctrl_exec cctx state of
-  | SOME state' => ctrl_multi_exec cctx state' fuel
-  | NONE => NONE)
-`;
-*)
 (***********************************)
 (*  Architectural-level semantics  *)
 (***********************************)
@@ -762,7 +2083,7 @@ val arch_exec_def = Define `
           | _ => NONE)
         | status_running =>
          (* pbl_exec *)
-         (case stmt_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
+         (case frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
           | SOME (g_scope_list', frame_list', ctrl', status') =>
            SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
           | _ => NONE)
@@ -830,7 +2151,7 @@ val arch_multi_exec = Define `
 (**********)
 (*  Misc  *)
 (**********)
-        
+(* TODO  
 (* Then, define the closure of the small step reduction. *)
 val (stmt_clos_sem_rules, stmt_clos_sem_ind, stmt_clos_sem_cases) = Hol_reln`
 (* Base clause: *)
@@ -845,6 +2166,7 @@ val (stmt_clos_sem_rules, stmt_clos_sem_ind, stmt_clos_sem_cases) = Hol_reln`
  stmt_clos_red ctx state state'')
 `;
 
+
 (* Then, prove that the multi-step executable semantics is sound with respect to the
  * closure of the small-step reduction *)
 Theorem stmt_multi_exec_sound_red:
@@ -854,6 +2176,7 @@ Theorem stmt_multi_exec_sound_red:
 Proof
  cheat
 QED
+*)
 
 (*
 (* TODO: some kind of (multi-step) CakeML-adjusted executable semantics definition *)
