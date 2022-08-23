@@ -2278,30 +2278,37 @@ val arch_exec_def = Define `
    | (arch_block_pbl x el) =>
     (case FLOOKUP pblock_map x of
      | SOME (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) =>
-      if state_fin status frame_list
-      then
-       (* pbl_ret *)
-       (* TODO: OK to only copy out from block-global scope here? *)
-       (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, pbl_type, set_fin_status pbl_type status) of
-        | SOME scope' =>
-         SOME ((i+1, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
-               arch_frame_list_empty, ctrl, status_running)
-        | _ => NONE)
-      else
-       (case status of
-        | status_trans x' =>
-         (* parser_trans *)
-         (case FLOOKUP pars_map x' of
-          | SOME stmt' =>
-           SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular [(funn_name x', [stmt'], [FEMPTY])]), ctrl, status_running)
+      (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
+      (if LENGTH el = LENGTH x_d_list
+       then
+        if state_fin status frame_list
+        then
+         (* pbl_ret *)
+         (* TODO: OK to only copy out from block-global scope here? *)
+         (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, pbl_type, set_fin_status pbl_type status) of
+          | SOME scope' =>
+           SOME ((i+1, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
+                 arch_frame_list_empty, ctrl, status_running)
           | _ => NONE)
-        | status_running =>
-         (* pbl_exec *)
-         (case frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
-          | SOME (g_scope_list', frame_list', ctrl', status') =>
-           SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
+        else
+         (case status of
+          | status_trans x' =>
+           (* parser_trans *)
+           (case pbl_type of
+            | pbl_type_parser =>
+             (case FLOOKUP pars_map x' of
+              | SOME stmt' =>
+               SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular [(funn_name x', [stmt'], [FEMPTY])]), ctrl, status_running)
+              | _ => NONE)
+            | _ => NONE)
+          | status_running =>
+           (* pbl_exec *)
+           (case frames_exec (ext_map, func_map, b_func_map, pars_map, tbl_map) (g_scope_list, frame_list, ctrl, status) of
+            | SOME (g_scope_list', frame_list', ctrl', status') =>
+             SOME ((i, in_out_list, in_out_list', scope), g_scope_list', (arch_frame_list_regular frame_list'), ctrl', status')
+            | _ => NONE)
           | _ => NONE)
-        | _ => NONE)
+       else NONE)
      | _ => NONE)
    | _ => NONE)
  )
@@ -2321,11 +2328,18 @@ val arch_exec_def = Define `
     (case FLOOKUP pblock_map x of
      (* pbl_init *)
      | SOME (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) =>
+      (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
+      (if LENGTH el = LENGTH x_d_list
+       then
         (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope, pbl_type) of
          | SOME scope' =>
-          SOME ((i, in_out_list, in_out_list', scope), (g_scope_list++[scope']),
-                arch_frame_list_regular [(funn_name x, [stmt], [])], ctrl, status_running)
+          (case oEL 0 g_scope_list of
+           | SOME g_scope =>
+            SOME ((i, in_out_list, in_out_list', scope), (g_scope::[declare_list_in_scope (decl_list, scope')]),
+                  arch_frame_list_regular [(funn_name x, [stmt], [FEMPTY])], ctrl, status_running)
+           | NONE => NONE)
          | _ => NONE)
+       else NONE)
      | _ => NONE)
    (* ffbl *)
    | (arch_block_ffbl x) =>

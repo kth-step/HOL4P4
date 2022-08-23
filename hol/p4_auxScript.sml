@@ -144,6 +144,12 @@ Proof
  fs []
 QED
 
+Theorem ZIP_MAP_FST_SND:
+ !l. ZIP (MAP FST l, MAP SND l) = l
+Proof
+fs [GSYM listTheory.UNZIP_MAP]
+QED
+
 Theorem lambda_FST:
 !l. MAP (\(a_, b_). a_) l = MAP FST l
 Proof

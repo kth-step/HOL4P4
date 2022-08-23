@@ -127,7 +127,8 @@
 \newcommand{\ottgXXscopeXXlist}{
 \ottrulehead{\overrightarrow{\gamma_G}}{::=}{\ottcom{list of the global scope and the block-global scope}}\ottprodnewline
 \ottfirstprodline{|}{ [  \gamma_G  ] } {\textsf{M}}{}{}{\ottcom{only global scope}}\ottprodnewline
-\ottprodline{|}{ [  \gamma_G ,  \gamma_G'  ] } {\textsf{M}}{}{}{\ottcom{global scope and block-global scope}}}
+\ottprodline{|}{ [  \gamma_G ,  \gamma_G'  ] } {\textsf{M}}{}{}{\ottcom{global scope and block-global scope}}\ottprodnewline
+\ottprodline{|}{ \mathrm{take}(1, \overrightarrow{\gamma_G} ) } {\textsf{M}}{}{}{\ottcom{take first element}}}
 
 \newcommand{\ottscopesXXstack}{
 \ottrulehead{\overrightarrow{\gamma}}{::=}{\ottcom{stack of block scopes}}\ottprodnewline
@@ -396,6 +397,10 @@
 \ottfirstprodline{|}{\ottkw{empty}} {\textsf{M}}{}{}{\ottcom{empty context}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{tuple}}}
 
+\newcommand{\ottastate}{
+\ottrulehead{{\ensuremath{s}_A}}{::=}{\ottcom{architectural state}}\ottprodnewline
+\ottfirstprodline{|}{\ottsym{(}  { \mathit{env}_\mathit{A} }  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}  \ottnt{arch\_frame\_list}  \ottsym{,}  { C }  \ottsym{,}  t  \ottsym{)}} {\textsf{M}}{}{}{\ottcom{tuple}}}
+
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{ \rightarrow }{}{}{}{}\ottprodnewline
@@ -475,8 +480,8 @@
 \ottprodline{|}{ \overrightarrow{\gamma}'  =  \overrightarrow{\gamma}  [ (  \ottkw{star}  ,  \ottnt{funn}  )\longmapsto  \ottnt{v}  ] } {\textsf{M}}{}{}{\ottcom{declare "star" with value v in topmost scope}}\ottprodnewline
 \ottprodline{|}{ \mathrm{not\_final\_state}( x ) } {\textsf{M}}{}{}{\ottcom{x is not name of final parser state}}\ottprodnewline
 \ottprodline{|}{ t \neq { \mathbf{run} } } {\textsf{M}}{}{}{\ottcom{status is not in running}}\ottprodnewline
-\ottprodline{|}{ t  \neq { \mathbf{ret \, v} } }{}{}{}{\ottcom{status is not in return}}\ottprodnewline
-\ottprodline{|}{ t = { \mathbf{acc} } \vee t = { \mathbf{rej} } } {\textsf{M}}{}{}{\ottcom{status is not in running}}\ottprodnewline
+\ottprodline{|}{ \overrightarrow{\Phi}  \neq [] \Rightarrow  t  \neq { \mathbf{ret \, v} } }{}{}{}{\ottcom{status is (conditionally) not return}}\ottprodnewline
+\ottprodline{|}{ t = { \mathbf{acc} } \vee t = { \mathbf{rej} } } {\textsf{M}}{}{}{\ottcom{status is not running}}\ottprodnewline
 \ottprodline{|}{ x  = ``\mathit{accept}" } {\textsf{M}}{}{}{\ottcom{x is accept}}\ottprodnewline
 \ottprodline{|}{ x  = ``\mathit{reject}" } {\textsf{M}}{}{}{\ottcom{x is reject}}\ottprodnewline
 \ottprodline{|}{ x  = ``\mathit{start}" } {\textsf{M}}{}{}{\ottcom{x is start}}\ottprodnewline
@@ -526,7 +531,7 @@
 
 \newcommand{\ottarchXXsem}{
 \ottrulehead{\ottnt{arch\_sem}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ { \mathit{ctx}_\mathit{A} }  \vdash (  { \mathit{env}_\mathit{A} } ,  \overrightarrow{\gamma_G} ,  \ottnt{arch\_frame\_list} ,  { C } ,   t  ) {\longrightarrow}_{A} (  { \mathit{env}_\mathit{A} }' ,  \overrightarrow{\gamma_G}' ,  \ottnt{arch\_frame\_list'} ,  { C }' ,   t'  ) }{}{}{}{\ottcom{architecture-level semantics}}}
+\ottfirstprodline{|}{ { \mathit{ctx}_\mathit{A} }  \vdash  {\ensuremath{s}_A}  {\longrightarrow}_{A}  {\ensuremath{s}_A}' }{}{}{}{\ottcom{architecture-level semantics}}}
 
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
@@ -605,6 +610,7 @@
 \ottprodline{|}{{ \mathit{env}_\mathit{A} }}{}{}{}{}\ottprodnewline
 \ottprodline{|}{{ \mathit{ctx}_\mathit{A} }}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\mathit{ctx}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{{\ensuremath{s}_A}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula}}{}{}{}{}}
 
@@ -672,6 +678,7 @@
 \ottaenv\ottinterrule
 \ottactx\ottinterrule
 \ottctx\ottinterrule
+\ottastate\ottinterrule
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
 \otteXXsem\ottinterrule
@@ -1195,9 +1202,9 @@
 
 \newcommand{\ottdrulestmtXXblockXXexec}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{not\_empty} \, \ottnt{stmt}}%
-\ottpremise{ \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}  \ottnt{stmt}  \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}  t  \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}''  \ottsym{,}   \overrightarrow{\Phi}'  {+}\mspace{-8mu}{+}   [   ( { \ottsym{[}  \ottnt{stmt'}  \ottsym{]} )}_{ \overrightarrow{\gamma}' }^{ \ottnt{funn} }   ]    \ottsym{,}  { C }'  \ottsym{,}  t'  \ottsym{)} }%
+\ottpremise{ \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \ottsym{[}  \ottnt{stmt}  \ottsym{]} )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}  t  \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}''  \ottsym{,}   \overrightarrow{\Phi}'  {+}\mspace{-8mu}{+}   [   ( { \overrightarrow{ \mathit{stmt} }' )}_{ \overrightarrow{\gamma}' }^{ \ottnt{funn} }   ]    \ottsym{,}  { C }'  \ottsym{,}  t'  \ottsym{)} }%
 }{
- \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( {  \ottnt{stmt}  ::  \overrightarrow{ \mathit{stmt} }  )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}  t  \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}'  \ottsym{,}   \overrightarrow{\Phi}'  {+}\mspace{-8mu}{+}   [   ( {  \ottnt{stmt'}  ::  \overrightarrow{ \mathit{stmt} }  )}_{ \overrightarrow{\gamma}' }^{ \ottnt{funn} }   ]    \ottsym{,}  { C }'  \ottsym{,}  t'  \ottsym{)} }{%
+ \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( {  \ottnt{stmt}  ::  \overrightarrow{ \mathit{stmt} }  )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}  t  \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}'  \ottsym{,}   \overrightarrow{\Phi}'  {+}\mspace{-8mu}{+}   [   ( {  \overrightarrow{ \mathit{stmt} }'  \mathrel{\mathop+}+  \overrightarrow{ \mathit{stmt} }  )}_{ \overrightarrow{\gamma}' }^{ \ottnt{funn} }   ]    \ottsym{,}  { C }'  \ottsym{,}  t'  \ottsym{)} }{%
 {\ottdrulename{stmt\_block\_exec}}{}%
 }}
 
@@ -1350,7 +1357,7 @@
 %% defn frames_red
 \newcommand{\ottdruleframesXXcompOne}[1]{\ottdrule[#1]{%
 \ottpremise{ \overrightarrow{\gamma_G}'  = \mathrm{scopes\_to\_pass} ( \ottnt{funn} ,  F_g ,  F_b ,  \overrightarrow{\gamma_G} ) }%
-\ottpremise{ t'  \neq { \mathbf{ret \, v} } }%
+\ottpremise{ \overrightarrow{\Phi}''  \neq [] \Rightarrow  t'  \neq { \mathbf{ret \, v} } }%
 \ottpremise{ \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}'  \ottsym{,}   [   ( { \overrightarrow{ \mathit{stmt} } )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}  t  \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}''  \ottsym{,}  \overrightarrow{\Phi}'  \ottsym{,}  { C }'  \ottsym{,}  t'  \ottsym{)} }%
 \ottpremise{ \overrightarrow{\gamma_G}'''  = \mathrm{scopes\_to\_retrieve} ( \ottnt{funn} ,  F_g ,  F_b ,  \overrightarrow{\gamma_G} ,  \overrightarrow{\gamma_G}'' ) }%
 }{
@@ -1362,14 +1369,13 @@
 \newcommand{\ottdruleframesXXcompTwo}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \overrightarrow{ \mathit{stmt} } )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  \rightarrow   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}   [   ( { \overrightarrow{ \mathit{stmt} }'' )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{ret} \,  \ottnt{v}  }   \ottsym{)} }%
 \ottpremise{ \overrightarrow{\gamma}''  =  \ottsym{(}    \overrightarrow{\gamma_G}   \mathrel{\mathop+}+  \overrightarrow{\gamma}'   \ottsym{)}  [ (  \ottkw{star}  ,  \ottnt{funn}  )\longmapsto  \ottnt{v}  ] }%
-\ottpremise{\gamma_G  \ottsym{=}  \overrightarrow{\gamma}''  \ottsym{[}  0  \ottsym{]}}%
-\ottpremise{\gamma_G'  \ottsym{=}  \overrightarrow{\gamma}''  \ottsym{[}  \ottsym{1}  \ottsym{]}}%
-\ottpremise{\overrightarrow{\gamma}'''  \ottsym{=}   \mathrm{tl}  \ottsym{(}   \mathrm{tl}  \overrightarrow{\gamma}''   \ottsym{)} }%
+\ottpremise{ \overrightarrow{\gamma_G}'  = \mathrm{take}( 2 ,  \overrightarrow{\gamma}'' ) }%
+\ottpremise{ \overrightarrow{\gamma}'''  = \mathrm{drop}( 2 ,  \overrightarrow{\gamma}'' ) }%
 \ottpremise{\ottsym{(}  \ottnt{stmt'''}  \ottsym{,}  \ottsym{[}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{]}  \ottsym{)}  \ottsym{=} \, \ottkw{lookup\_funn\_sig\_body} \, \ottsym{(}  \ottnt{funn}  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  X  \ottsym{)}}%
-\ottpremise{ \overrightarrow{\gamma_G}'  = \mathrm{scopes\_to\_retrieve} ( \ottnt{funn} ,  F_g ,  F_b ,  \overrightarrow{\gamma_G} ,   [  \gamma_G ,  \gamma_G'  ]  ) }%
-\ottpremise{ (  \overrightarrow{\gamma_G}''  ,  \overrightarrow{\gamma}'''' ) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}' , \overrightarrow{\gamma}''' , \overrightarrow{\gamma} ) }%
+\ottpremise{ \overrightarrow{\gamma_G}''  = \mathrm{scopes\_to\_retrieve} ( \ottnt{funn} ,  F_g ,  F_b ,  \overrightarrow{\gamma_G} ,  \overrightarrow{\gamma_G}' ) }%
+\ottpremise{ (  \overrightarrow{\gamma_G}'''  ,  \overrightarrow{\gamma}'''' ) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}' , \overrightarrow{\gamma}''' , \overrightarrow{\gamma} ) }%
 }{
- \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}    [   ( { \overrightarrow{ \mathit{stmt} } )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   {+}\mspace{-8mu}{+}     [   ( { \overrightarrow{ \mathit{stmt} }' )}_{ \overrightarrow{\gamma}' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overrightarrow{\Phi}     \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{\Phi}   \ottsym{(}  \overrightarrow{\gamma_G}''  \ottsym{,}    [   ( { \overrightarrow{ \mathit{stmt} }' )}_{ \overrightarrow{\gamma}'''' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overrightarrow{\Phi}   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
+ \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}    [   ( { \overrightarrow{ \mathit{stmt} } )}_{ \overrightarrow{\gamma} }^{ \ottnt{funn} }   ]   {+}\mspace{-8mu}{+}     [   ( { \overrightarrow{ \mathit{stmt} }' )}_{ \overrightarrow{\gamma}' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overrightarrow{\Phi}     \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{\Phi}   \ottsym{(}  \overrightarrow{\gamma_G}'''  \ottsym{,}    [   ( { \overrightarrow{ \mathit{stmt} }' )}_{ \overrightarrow{\gamma}'''' }^{ \ottnt{funn'} }   ]   {+}\mspace{-8mu}{+}  \overrightarrow{\Phi}   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{frames\_comp2}}{}%
 }}
 
@@ -1388,7 +1394,7 @@
 \ottpremise{\ottkw{inp}  \ottsym{=}  \overline{ab}  \ottsym{[}  i  \ottsym{]}}%
 \ottpremise{\ottsym{(}  \overline{io}''  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{=}  { \mathit{in}_A }  \ottsym{(}  \overline{io}  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}}%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G} ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}''  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)} ,  \overrightarrow{\gamma_G} ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}''  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{arch\_in}}{}%
 }}
 
@@ -1401,7 +1407,7 @@
 \ottpremise{\gamma_G''  \ottsym{=}   \overrightarrow{\gamma_G}   \ottsym{[}  0  \ottsym{]}}%
 \ottpremise{ \overrightarrow{\gamma_G}'   \ottsym{=}     [  \gamma_G''  ]    \mathrel{\mathop+}+  \ottsym{[}  \gamma''  \ottsym{]} }%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G} ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G}' ,   [   ( { \ottsym{[}  \ottnt{stmt}  \ottsym{;}  \ottnt{stmt'}  \ottsym{]} )}_{ \ottsym{[}   {\gamma}_{ \emptyset }   \ottsym{]} }^{ f }   ]  ,  { C } ,    { \mathbf{run} }   ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}'  \ottsym{,}   [   ( { \ottsym{[}  \ottnt{stmt}  \ottsym{]} )}_{ \ottsym{[}   {\gamma}_{ \emptyset }   \ottsym{]} }^{ f }   ]   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{arch\_pbl\_init}}{}%
 }}
 
@@ -1411,7 +1417,7 @@
 \ottpremise{{ \mathit{ff} }  \ottsym{=}  B_{ \mathit{ff} }  \ottsym{(}  x  \ottsym{)}}%
 \ottpremise{{ {\gamma}_\mathit{A} }'  \ottsym{=}  { \mathit{ff} }  \ottsym{(}  { {\gamma}_\mathit{A} }  \ottsym{)}}%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G} ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)} ,  \overrightarrow{\gamma_G} ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{arch\_ffbl}}{}%
 }}
 
@@ -1420,7 +1426,7 @@
 \ottpremise{\ottkw{out}  \ottsym{=}  \overline{ab}  \ottsym{[}  i  \ottsym{]}}%
 \ottpremise{\ottsym{(}  \overline{io}''  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{=}  { \mathit{out}_A }  \ottsym{(}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}}%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G} ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) {\longrightarrow}_{A} (  \ottsym{(}  0  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}''  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)} ,  \overrightarrow{\gamma_G} ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  0  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}''  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{arch\_out}}{}%
 }}
 
@@ -1431,7 +1437,7 @@
 \ottpremise{ \mathrm{not\_final\_state}( x' ) }%
 \ottpremise{\ottnt{stmt'}  \ottsym{=}  P  \ottsym{(}  x'  \ottsym{)}}%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G} ,  \overrightarrow{\Phi} ,  { C } ,    { \mathbf{tra} \;  x'  }   ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G}' ,   [   ( { \ottsym{[}  \ottnt{stmt'}  \ottsym{]} )}_{ \ottsym{[}   {\gamma}_{ \emptyset }   \ottsym{]} }^{ x' }   ]  ,  { C }' ,    { \mathbf{run} }   ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}  \overrightarrow{\Phi}  \ottsym{,}  { C }  \ottsym{,}   { \mathbf{tra} \;  x'  }   \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}'  \ottsym{,}   [   ( { \ottsym{[}  \ottnt{stmt'}  \ottsym{]} )}_{ \ottsym{[}   {\gamma}_{ \emptyset }   \ottsym{]} }^{ x' }   ]   \ottsym{,}  { C }'  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{arch\_parser\_trans}}{}%
 }}
 
@@ -1441,7 +1447,7 @@
 \ottpremise{\ottnt{pbl\_type}  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  F_b \, { \overrightarrow{decl} } \, \ottnt{stmt} \, P \, { \mathit{Tb} }  \ottsym{=}  B_{ \mathit{p} }  \ottsym{(}  x  \ottsym{)}}%
 \ottpremise{ \ottsym{(}  X  \ottsym{,}  F_g  \ottsym{,}  F_b  \ottsym{,}  P  \ottsym{,}  { \mathit{Tb} }  \ottsym{)}  \vdash   \ottsym{(}  \overrightarrow{\gamma_G}  \ottsym{,}  \overrightarrow{\Phi}  \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{\Phi}   \ottsym{(}  \overrightarrow{\gamma_G}'  \ottsym{,}  \overrightarrow{\Phi}'  \ottsym{,}  { C }'  \ottsym{,}  t'  \ottsym{)} }%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G} ,  \overrightarrow{\Phi} ,  { C } ,    { \mathbf{run} }   ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,  \overrightarrow{\gamma_G}' ,  \overrightarrow{\Phi}' ,  { C }' ,   t'  ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}  \overrightarrow{\Phi}  \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}'  \ottsym{,}  \overrightarrow{\Phi}'  \ottsym{,}  { C }'  \ottsym{,}  t'  \ottsym{)} }{%
 {\ottdrulename{arch\_pbl\_exec}}{}%
 }}
 
@@ -1451,13 +1457,13 @@
 \ottpremise{\ottnt{pbl\_type}  \ottsym{(}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,}  d_{{\mathrm{1}}}  \ottsym{)}  \ottsym{,} \, .. \, \ottsym{,}  \ottsym{(}  x_{\ottmv{n}}  \ottsym{,}  d_{\ottmv{n}}  \ottsym{)}  \ottsym{)}  F_b \, { \overrightarrow{decl} } \, \ottnt{stmt} \, P \, { \mathit{Tb} }  \ottsym{=}  B_{ \mathit{p} }  \ottsym{(}  f  \ottsym{)}}%
 \ottpremise{ \mathrm{state\_fin}( t ,  \overrightarrow{\Phi} ) }%
 \ottpremise{ t'  = \mathrm{set\_fin\_status} ( \ottnt{pbl\_type} ,  t ) }%
-\ottpremise{{ {\gamma}_\mathit{A} }'  \ottsym{=}  { \mathit{out}_p }  \ottsym{(}    [  \gamma_G ,  \gamma_G'  ]    \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{,}  \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{,}  \ottnt{pbl\_type}  \ottsym{,}  t'  \ottsym{)}}%
+\ottpremise{{ {\gamma}_\mathit{A} }'  \ottsym{=}  { \mathit{out}_p }  \ottsym{(}   \overrightarrow{\gamma_G}   \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{,}  \ottsym{[}  d_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  d_{\ottmv{n}}  \ottsym{]}  \ottsym{,}  \ottsym{(}  x_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  x_{\ottmv{n}}  \ottsym{)}  \ottsym{,}  \ottnt{pbl\_type}  \ottsym{,}  t'  \ottsym{)}}%
 }{
- \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash (  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)} ,   [  \gamma_G ,  \gamma_G'  ]  ,  \overrightarrow{\Phi} ,  { C } ,   t  ) {\longrightarrow}_{A} (  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)} ,   [  \gamma_G  ]  ,   { [ \; ]_A }  ,  { C } ,    { \mathbf{run} }   ) }{%
+ \ottsym{(}  \overline{ab}  \ottsym{,}  B_{ \mathit{p} }  \ottsym{,}  B_{ \mathit{ff} }  \ottsym{,}  { \mathit{in}_A }  \ottsym{,}  { \mathit{out}_A }  \ottsym{,}  { \mathit{in}_p }  \ottsym{,}  { \mathit{out}_p }  \ottsym{,}  X  \ottsym{,}  F_g  \ottsym{)}  \vdash  \ottsym{(}  \ottsym{(}  i  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }  \ottsym{)}  \ottsym{,}  \overrightarrow{\gamma_G}  \ottsym{,}  \overrightarrow{\Phi}  \ottsym{,}  { C }  \ottsym{,}  t  \ottsym{)}  {\longrightarrow}_{A}  \ottsym{(}  \ottsym{(}  i  \ottsym{+}  \ottsym{1}  \ottsym{,}  \overline{io}  \ottsym{,}  \overline{io}'  \ottsym{,}  { {\gamma}_\mathit{A} }'  \ottsym{)}  \ottsym{,}   \mathrm{take}(1, \overrightarrow{\gamma_G} )   \ottsym{,}   { [ \; ]_A }   \ottsym{,}  { C }  \ottsym{,}   { \mathbf{run} }   \ottsym{)} }{%
 {\ottdrulename{arch\_pbl\_ret}}{}%
 }}
 
-\newcommand{\ottdefnarchXXred}[1]{\begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash (  { \mathit{env}_\mathit{A} } ,  \overrightarrow{\gamma_G} ,  \ottnt{arch\_frame\_list} ,  { C } ,   t  ) {\longrightarrow}_{A} (  { \mathit{env}_\mathit{A} }' ,  \overrightarrow{\gamma_G}' ,  \ottnt{arch\_frame\_list'} ,  { C }' ,   t'  ) $}{\ottcom{architecture-level semantics}}
+\newcommand{\ottdefnarchXXred}[1]{\begin{ottdefnblock}[#1]{$ { \mathit{ctx}_\mathit{A} }  \vdash  {\ensuremath{s}_A}  {\longrightarrow}_{A}  {\ensuremath{s}_A}' $}{\ottcom{architecture-level semantics}}
 \ottusedrule{\ottdrulearchXXin{}}
 \ottusedrule{\ottdrulearchXXpblXXinit{}}
 \ottusedrule{\ottdrulearchXXffbl{}}

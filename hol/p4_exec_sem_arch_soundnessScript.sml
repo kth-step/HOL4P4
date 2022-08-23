@@ -14,4 +14,215 @@ Definition arch_exec_sound:
 End
 
 
+Theorem arch_exec_sound_red:
+!arch_frame_list type. arch_exec_sound arch_frame_list type
+Proof
+Cases_on `arch_frame_list` >> (
+ fs [arch_exec_sound] >>
+ Cases_on `status` >> (
+  fs [arch_exec_def]
+ )
+) >> (
+ rpt strip_tac >>
+ PairCases_on `actx` >>
+ rename1 `(actx0, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)` >>
+ rename1 `(ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)` >>
+ PairCases_on `aenv` >>
+ rename1 `(aenv0, in_out_list, in_out_list', ascope)` >>
+ rename1 `(i, in_out_list, in_out_list', ascope)`
+) >| [
+ Cases_on `EL i ab_list` >| [
+  (* input *)
+  fs [arch_exec_def] >>
+  Cases_on `input_f (in_out_list,ascope)` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [] >>
+  rw [] >>
+  metis_tac [(valOf o find_clause_arch_red) "arch_in", clause_name_def],
+
+  (* programmable block initialisation *)
+  fs [arch_exec_def] >>
+  Cases_on `FLOOKUP pblock_map s` >> (
+   fs []
+  ) >>
+  Cases_on `x` >>
+  fs [] >>
+  Cases_on `copyin_pbl (MAP FST l',MAP SND l',l,ascope,p)` >> (
+   fs []
+  ) >>
+  Cases_on `oEL 0 g_scope_list` >> (
+   fs []
+  ) >>
+  rw [] >>
+  irule ((valOf o find_clause_arch_red) "arch_pbl_init") >>
+  fs [clause_name_def] >>
+  qexistsl_tac [`ZIP (l, ZIP (MAP FST l', MAP SND l'))`, `x`] >>
+  fs [] >>
+  rpt strip_tac >| [
+   fs [map_tri_zip12],
+
+   fs [listTheory.oEL_EQ_EL],
+
+   fs [map_tri_zip12, ZIP_MAP_FST_SND],
+
+   fs [map_tri_zip12, ZIP_MAP_FST_SND]
+  ],
+
+  (* fixed-function block *)
+  fs [arch_exec_def] >>
+  Cases_on `FLOOKUP ffblock_map s` >> (
+   fs []
+  ) >>
+  Cases_on `x` >>
+  fs [] >>
+  Cases_on `f ascope` >> (
+   fs []
+  ) >>
+  rw [] >>
+  metis_tac [(valOf o find_clause_arch_red) "arch_ffbl", clause_name_def],
+
+  (* output *)
+  fs [arch_exec_def] >>
+  Cases_on `output_f (in_out_list',ascope)` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [] >>
+  rw [] >>
+  metis_tac [(valOf o find_clause_arch_red) "arch_out", clause_name_def]
+ ],
+
+ fs [arch_exec_def],
+
+ fs [arch_exec_def],
+
+ Cases_on `state_fin status_running l` >| [
+  (* programmable block return *)
+  fs [state_fin_def] >>
+  rw [] >>
+  fs [arch_exec_def] >>
+  Cases_on `EL i ab_list` >> (
+   fs []
+  ) >>
+  Cases_on `FLOOKUP pblock_map s` >> (
+   fs []
+  ) >>
+  Cases_on `x` >>
+  fs [state_fin_def] >>
+  Cases_on `copyout_pbl
+             (g_scope_list,ascope,MAP SND l',MAP FST l',p,
+              set_fin_status p status_running)` >> (
+   fs []
+  ) >>
+  rw [] >>
+  irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
+  fs [clause_name_def, state_fin_def] >>
+  qexists_tac `ZIP (l, ZIP (MAP FST l', MAP SND l'))` >>
+  rpt strip_tac >| [
+   fs [map_tri_zip12],
+
+   fs [map_tri_zip12, ZIP_MAP_FST_SND],
+
+   fs [map_tri_zip12, ZIP_MAP_FST_SND]
+  ],
+
+  (* programmable block execution *)
+  fs [state_fin_def, arch_exec_def] >>
+  Cases_on `EL i ab_list` >> (
+   fs []
+  ) >>
+  Cases_on `FLOOKUP pblock_map s` >> (
+   fs []
+  ) >>
+  Cases_on `x` >>
+  fs [state_fin_def] >>
+  Cases_on `frames_exec (ext_map,func_map,f,f0,f1)
+             (g_scope_list,l,ctrl,status_running)` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [] >>
+  rw [] >>
+  irule ((valOf o find_clause_arch_red) "arch_pbl_exec") >>
+  fs [clause_name_def] >>
+  qexists_tac `ZIP (l', l'')` >>
+  rpt strip_tac >| [
+   fs [map_tri_zip12],
+
+   fs [map_tri_zip12],
+
+   assume_tac frame_list_exec_sound_red >>
+   fs [frame_list_exec_sound]
+  ]
+ ],
+
+ (* programmable block return *)
+ subgoal `state_fin (status_returnv v) l` >- (
+  fs [state_fin_def]
+ ) >>
+ fs [arch_exec_def] >>
+ Cases_on `EL i ab_list` >> (
+  fs []
+ ) >>
+ Cases_on `FLOOKUP pblock_map s` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ Cases_on `copyout_pbl
+             (g_scope_list,ascope,MAP SND l'',MAP FST l'',p,
+              set_fin_status p (status_returnv v))` >> (
+  fs []
+ ) >>
+ rw [] >>
+ irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
+ fs [clause_name_def] >>
+ qexists_tac `ZIP (l', l'')` >>
+ fs [map_tri_zip12],
+
+ fs [arch_exec_def] >>
+ Cases_on `EL i ab_list` >> (
+  fs []
+ ) >>
+ Cases_on `FLOOKUP pblock_map s'` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ Cases_on `state_fin (status_trans s) l` >> (
+  fs []
+ ) >| [
+  (* programmable block return *)
+  Cases_on `copyout_pbl
+             (g_scope_list,ascope,MAP SND l'',MAP FST l'',p,
+              set_fin_status p (status_trans s))` >> (
+   fs []
+  ) >>
+  rw [] >>
+  irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
+  fs [clause_name_def] >>
+  qexists_tac `ZIP (l', l'')` >>
+  fs [map_tri_zip12],
+
+  (* parser transition *)
+  Cases_on `p` >> (
+   fs []
+  ) >>
+  Cases_on `FLOOKUP f0 s` >> (
+   fs []
+  ) >>
+  rw [] >>
+  irule ((valOf o find_clause_arch_red) "arch_parser_trans") >>
+  fs [clause_name_def, state_fin_def] >>
+  qexists_tac `ZIP (l', l'')` >>
+  rpt strip_tac >| [
+   fs [map_tri_zip12],
+
+   fs [map_tri_zip12]
+  ]
+ ]
+]
+QED
+
 val _ = export_theory ();
