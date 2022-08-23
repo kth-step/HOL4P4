@@ -6,6 +6,17 @@ open listTheory;
 
 open p4Theory;
 
+Theorem oTAKE_SOME:
+!i l l'.
+i > 0 ==>
+oTAKE i l = SOME l' ==>
+l <> []
+Proof
+Cases_on `i` >> (
+ fs [oTAKE_def]
+)
+QED
+
 (* e_size: size of an e
  * e1_size: size of a (string # e) list
  * e2_size: size of a string # e
@@ -131,6 +142,12 @@ Proof
  Cases_on `x` >>
  IMP_RES_TAC index_find_length >>
  fs []
+QED
+
+Theorem ZIP_MAP_FST_SND:
+ !l. ZIP (MAP FST l, MAP SND l) = l
+Proof
+fs [GSYM listTheory.UNZIP_MAP]
 QED
 
 Theorem lambda_FST:
@@ -378,6 +395,29 @@ Theorem vl_of_el_LENGTH:
 LENGTH (vl_of_el el) = LENGTH el
 Proof
 fs [vl_of_el_def]
+QED
+
+Theorem initialise_equiv:
+!scopes_list v funn.
+scopes_list <> [] ==>
+init_in_highest_scope scopes_list v (varn_star funn) = initialise scopes_list (varn_star funn) v
+Proof
+rpt strip_tac >>
+fs [init_in_highest_scope_def, initialise_def, newest_scope_ind_def] >>
+`decl_init_star scopes_list v (varn_star funn) = LAST scopes_list |+ (varn_star funn, v, NONE)` suffices_by (
+ fs []
+) >>
+fs [decl_init_star_def, newest_scope_def, newest_scope_ind_def] >>
+metis_tac [LAST_EL, arithmeticTheory.PRE_SUB1]
+QED
+
+Theorem initialise_LENGTH:
+!ss varn v ss'.
+initialise ss varn v = ss' ==>
+LENGTH ss = LENGTH ss'
+Proof
+fs [initialise_def] >>
+rw []
 QED
 
 val _ = export_theory ();

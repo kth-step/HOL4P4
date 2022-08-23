@@ -256,6 +256,10 @@ g_scope_list {{ tex \overrightarrow{\gamma_G} }} :: g_scope_list_ ::=
   {{ com global scope and block-global scope }}
   {{ hol ([ [[g_scope]] ; [[g_scope']] ]) }}
   {{ tex [ [[g_scope]], [[g_scope']] ] }}
+| take 1 g_scope_list :: M :: take
+  {{ com take first element }}
+  {{ hol (TAKE 1 [[g_scope_list]]) }}
+  {{ tex \mathrm{take}(1,[[g_scope_list]]) }}
 
 %Fence so that ott does not re-order scopes_stack
 embed
@@ -914,6 +918,20 @@ ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 | ( ext_map , func_map , b_func_map , pars_map , tbl_map ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]]) }}
+
+%Fence so that ott does not re-order aenv and astate
+embed
+{{ hol
+
+}}
+grammar
+
+astate {{ tex {\ensuremath{s}_A} }} :: astate_ ::=
+{{ com architectural state }}
+{{ hol (aenv # g_scope_list # arch_frame_list # ctrl # status) }}
+| ( aenv , g_scope_list , arch_frame_list , ctrl , status ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[aenv]], [[g_scope_list]], [[arch_frame_list]], [[ctrl]], [[status]]) }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
@@ -2727,9 +2745,9 @@ by
 defns
   arch_sem :: '' ::=
 defn
-  actx ( aenv , g_scope_list , arch_frame_list , ctrl , status ) -'> ( aenv' , g_scope_list' , arch_frame_list' , ctrl' , status' ) :: :: arch_red :: arch_
+  actx astate -'> astate' :: :: arch_red :: arch_
   {{ com architecture-level semantics }}
-  {{ tex [[actx]] \vdash ( [[aenv]], [[g_scope_list]], [[arch_frame_list]], [[ctrl]],  [[status]] ) {\longrightarrow}_{A} ( [[aenv']], [[g_scope_list']], [[arch_frame_list']], [[ctrl']],  [[status']] ) }}
+  {{ tex [[actx]] \vdash [[astate]] {\longrightarrow}_{A} [[astate']] }}
 by
 
 %Four different phases: Input, programmable block, fixed-function block and output.
@@ -2746,7 +2764,7 @@ by
   g_scope'' = g_scope_list [0]
   g_scope_list' = [g_scope'']' ++ [ scope'' ]
   ----------------------------------- :: pbl_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , [ stmt ; stmt' ] , [ emptyscope ] ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , [ stmt ] , [ emptyscope ] ) ] , ctrl , Running )
 
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
@@ -2787,10 +2805,10 @@ by
   status' = set_fin_status ( pbl_type , status )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope... TODO: Test this...
-  ascope' = copyout_pbl ( [ g_scope ; g_scope' ] , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , pbl_type , status' )
+  ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , pbl_type , status' )
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: pbl_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , [ g_scope ; g_scope' ] , frame_list , ctrl , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , [ g_scope ]' , arch_frame_list_empty , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , take 1 g_scope_list , arch_frame_list_empty , ctrl , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
