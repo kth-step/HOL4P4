@@ -1226,6 +1226,10 @@ formula :: formula_ ::=
   {{ com assign v to lval in the frame }}
   {{ hol (SOME [[scopes_stack']] = assign [[scopes_stack]] [[v]] [[lval]]) }}
   {{ tex [[scopes_stack']] = [[scopes_stack]] [ [[lval]] \longmapsto [[v]] ] }}
+| ( g_scope_list , scopes_stack' ) = separate scopes_stack :: M :: separate_scopes
+  {{ com separate scopes into globals and locals after assignment }}
+  {{ hol ( ( SOME [[g_scope_list]] ,  SOME [[scopes_stack']] ) = separate [[scopes_stack]] ) }}
+  {{ tex ( ( [[g_scope_list]] ,  [[scopes_stack']] ) = \mathrm{separate}[[scopes_stack]] )  }}  
 | ascope' = copyout_pbl ( scopes_stack , ascope , d_list , ( x1 , .. , xn ) , pbl_type , status ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
   {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scopes_stack]], [[ascope]], [[d_list]], [[x1 .. xn]], [[pbl_type]], [[status]])) }}
@@ -1657,7 +1661,7 @@ val index_not_const_def = Define `
 val find_topmost_scope_def = Define `
   find_topmost_scope (ss:scope list) x =
     case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (ss) of
-    | SOME (i, sc) => SOME (((LENGTH ss) - 1) - i, sc)
+    | SOME (i, sc) => SOME (i, sc)
     | NONE => NONE
 `;
 
@@ -1908,7 +1912,7 @@ val assign_def = Define `
     | SOME (i, sc) =>
       (case lookup_out ss x of
        | SOME str_opt =>
-         SOME (LUPDATE (sc |+ (x, (v, str_opt))) (i-1) ss)
+         SOME (LUPDATE (sc |+ (x, (v, str_opt))) (i) ss)
        | NONE => NONE)
     | _ => NONE) /\
   (assign ss v (lval_field lval f) =
@@ -2126,11 +2130,11 @@ val init_in_highest_scope_def = Define `
     LUPDATE (decl_init_star scopes_stack v (varn_star funn)) (0) scopes_stack
 `;
 
-(*separate a scope stack into three components global scope 0, global scope 1, local scope*)
+(*separate a scope stack into two components global scopes, local scopes*)
 val separate_def = Define `
   separate scopes_stack =
     let i = (LENGTH scopes_stack) in
-    (EL (i-1) scopes_stack , EL (i-2) scopes_stack, REVERSE (DROP 2 (REVERSE scopes_stack)))
+    (oDROP (i-2) scopes_stack, oTAKE (i-2) scopes_stack)
 `;
 
 val parser_not_finished_def = Define `
@@ -2555,9 +2559,8 @@ defn
   {{ tex [[ctx]] \vdash  [[state]] \rightarrow  [[state']] }}
 by
 
-  scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
-  g_scope_list' = take 2 scopes_stack'
-  scopes_stack'' = drop 2 scopes_stack'
+  scopes_stack' = assign ( ( scopes_stack ++ g_scope_list ) , v , lval )
+  ( g_scope_list' , scopes_stack'' ) = separate scopes_stack'
   ----------------------------------- :: ass_v
   ctx ( g_scope_list , [ ( funn , [ assign lval v ]  , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ empty_stmt ] , scopes_stack'' ) ]  , ctrl , Running )
 
@@ -2601,6 +2604,7 @@ by
 
   not_empty stmt
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' , scopes_stack' ) ] , ctrl' , status' )
+  not_empty stmt_stack 
   ----------------------------------- :: block_exec
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' ++ stmt_stack , scopes_stack' ) ] , ctrl' , status' )
 
