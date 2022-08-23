@@ -915,6 +915,20 @@ ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
   {{ com tuple }}
   {{ hol ([[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]]) }}
 
+%Fence so that ott does not re-order aenv and astate
+embed
+{{ hol
+
+}}
+grammar
+
+astate {{ tex {\ensuremath{s}_A} }} :: astate_ ::=
+{{ com architectural state }}
+{{ hol (aenv # g_scope_list # arch_frame_list # ctrl # status) }}
+| ( aenv , g_scope_list , arch_frame_list , ctrl , status ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[aenv]], [[g_scope_list]], [[arch_frame_list]], [[ctrl]], [[status]]) }}
+
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -2727,9 +2741,9 @@ by
 defns
   arch_sem :: '' ::=
 defn
-  actx ( aenv , g_scope_list , arch_frame_list , ctrl , status ) -'> ( aenv' , g_scope_list' , arch_frame_list' , ctrl' , status' ) :: :: arch_red :: arch_
+  actx astate -'> astate' :: :: arch_red :: arch_
   {{ com architecture-level semantics }}
-  {{ tex [[actx]] \vdash ( [[aenv]], [[g_scope_list]], [[arch_frame_list]], [[ctrl]],  [[status]] ) {\longrightarrow}_{A} ( [[aenv']], [[g_scope_list']], [[arch_frame_list']], [[ctrl']],  [[status']] ) }}
+  {{ tex [[actx]] \vdash [[astate]] {\longrightarrow}_{A} [[astate']] }}
 by
 
 %Four different phases: Input, programmable block, fixed-function block and output.
