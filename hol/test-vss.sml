@@ -34,7 +34,7 @@ val ether_ty_ok = mk_v_bitii (2048, 16);
 val stmt_start_trans =
  ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
 
-val start_body = mk_stmt_block $ mk_stmt_seq_list [stmt_start_extract, stmt_start_trans];
+val start_body = mk_stmt_block (``[]:decl_list``, mk_stmt_seq_list [stmt_start_extract, stmt_start_trans]);
 
 
 (* parse_ipv4 parser state *)
@@ -72,18 +72,20 @@ val stmt_parse_ipv4_verify3 = ``stmt_verify (^e_ck_eq_16w0) (^e_err_checksum)``;
 val stmt_parse_ipv4_trans = ``stmt_trans (e_v (v_str "accept"))``;
 
 val parse_ipv4_body =
- mk_stmt_block $ 
- mk_stmt_seq_list [stmt_parse_ipv4_extract,
-		   stmt_parse_ipv4_verify1,
-		   stmt_parse_ipv4_verify2,
-		   stmt_parse_ipv4_clear,
-		   stmt_parse_ipv4_update,
-		   stmt_parse_ipv4_verify3,
-		   stmt_parse_ipv4_trans];
+ mk_stmt_block (``[]:decl_list``,
+  mk_stmt_seq_list [stmt_parse_ipv4_extract,
+		    stmt_parse_ipv4_verify1,
+		    stmt_parse_ipv4_verify2,
+		    stmt_parse_ipv4_clear,
+		    stmt_parse_ipv4_update,
+		    stmt_parse_ipv4_verify3,
+		    stmt_parse_ipv4_trans]);
 
 val vss_parser_pmap = ``FEMPTY |+ ("start", (^start_body))
                                |+ ("parse_ipv4", (^parse_ipv4_body))``;
 
+(* TODO: This declaration needs to be factored in to a proper list of declarations in the
+ *       VSS parser block*)
 val vss_parser_decls =
  ``stmt_declare t_ext "ck" (SOME (e_call (funn_inst "Checksum16") []))``;
 
