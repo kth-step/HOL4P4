@@ -2050,11 +2050,14 @@ val args_of_pbl_def = Define `
  * of the funtion i.e. names and directions, global scope list, caller scope stack and current
  * scope stack, it will return a tuple where first element is a global scope list updated with
  * the copy-outs, and the second element is the caller's scope updated with the copy-outs *)
+
 val copyout_def = Define `
   copyout xlist dlist gsl ss ss_curr =
     case update_return_frame xlist dlist (ss++gsl) ss_curr of
-    | SOME updated_return_ss =>
-     SOME (TAKE 2 updated_return_ss, DROP 2 updated_return_ss)
+    |(SOME updated_return_ss =>
+      case (LENGTH updated_return_ss) of
+      | 0 => NONE
+      | i => SOME (THE (oDROP (i-2) updated_return_ss), THE(oTAKE (i-2) updated_return_ss)))
     | NONE => NONE
 `;
 
@@ -2172,7 +2175,7 @@ val scopes_to_pass_def = Define `
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
       (case FLOOKUP func_map_g x of
-       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; FEMPTY])
+       | SOME (stmt, x_d_l) => SOME ([FEMPTY; EL 1 g_scope_list])
        | NONE => NONE
       )
     )
@@ -2191,11 +2194,11 @@ val scopes_to_retrieve_def = Define `
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
       (case FLOOKUP func_map_g x of
-       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; EL 1 g_scope_list_og])
+       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
        | NONE => NONE
       )
     )
-   | _ => SOME ([EL 0 g_scope_list; EL 1 g_scope_list_og])
+   | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
 `;
 
 
@@ -2596,15 +2599,15 @@ by
 %%%%%%%%%%%%%%
 %Block
 
-%TODO: Does this build up the scope stack =  [ scope ] ++ scopes_stackin the right direction?
+
   ( scope ) = declare_list_in_fresh_scope ( decl_list )
   scopes_stack' =  [ scope ] ++ scopes_stack
   ----------------------------------- :: block_enter
   ctx ( g_scope_list , [ ( funn , [ begin decl_list stmt end ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scopes_stack' ) ] , ctrl , Running )
 
   not_empty stmt
+  not_empty stmt_stack
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' , scopes_stack' ) ] , ctrl' , status' )
-  not_empty stmt_stack 
   ----------------------------------- :: block_exec
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' ++ stmt_stack , scopes_stack' ) ] , ctrl' , status' )
 
@@ -2733,12 +2736,10 @@ by
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt_stack'' , scopes_stack ) ] , ctrl , Ret v )
-  scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
-  g_scope_list' = take 2 scopes_stack''
-  scopes_stack''' = drop 2 scopes_stack''
+  g_scope_list' = assign ( ( g_scope_list ) , v , ( star , funn ) )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
    g_scope_list'' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list' )
-  ( g_scope_list''' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'' , scopes_stack''' , scopes_stack )
+  ( g_scope_list''' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'' , scopes_stack' , scopes_stack )
   ----------------------------------- :: comp2
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ ( [ ( funn' , stmt_stack' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -f-> ( g_scope_list''' , [ ( funn' , stmt_stack' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
 
