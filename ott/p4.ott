@@ -207,8 +207,6 @@ status {{ tex t }}:: status_ ::=
 | Trans x :: I :: trans
   {{ com transition to parser state }}
   {{ tex { \mathbf{tra} \; [[x]] } }}
-| TypeError :: I :: type_error
-  {{ tex { \bot } }}
 
 scope {{ tex \gamma }} :: scope_ ::=
 {{ hol (varn |-> (v # lval option)) }}
