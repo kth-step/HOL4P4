@@ -397,20 +397,6 @@ Proof
 fs [vl_of_el_def]
 QED
 
-Theorem initialise_equiv:
-!scopes_list v funn.
-scopes_list <> [] ==>
-init_in_highest_scope scopes_list v (varn_star funn) = initialise scopes_list (varn_star funn) v
-Proof
-rpt strip_tac >>
-fs [init_in_highest_scope_def, initialise_def, newest_scope_ind_def] >>
-`decl_init_star scopes_list v (varn_star funn) = LAST scopes_list |+ (varn_star funn, v, NONE)` suffices_by (
- fs []
-) >>
-fs [decl_init_star_def, newest_scope_def, newest_scope_ind_def] >>
-metis_tac [LAST_EL, arithmeticTheory.PRE_SUB1]
-QED
-
 Theorem initialise_LENGTH:
 !ss varn v ss'.
 initialise ss varn v = ss' ==>

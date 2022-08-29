@@ -2128,10 +2128,11 @@ val decl_init_star_def = Define `
 (* Init the variable name star in the topmost scope and return the updated scope stack *)
 val init_in_highest_scope_def = Define `
   init_in_highest_scope scopes_stack v (varn_star funn) =
-    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) (0) scopes_stack
+    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) 0 scopes_stack
 `;
 
-(*separate a scope stack into two components global scopes, local scopes*)
+(* Separate a joined scope stack into its two components:
+ * 2 global scopes, the rest local scopes *)
 val separate_def = Define `
   separate scopes_stack =
     let i = (LENGTH scopes_stack) in
