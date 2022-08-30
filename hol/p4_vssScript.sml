@@ -175,7 +175,6 @@ val oCONS_def = Define `
  )
 `;
 
-(* TODO: Write copyout_pbl and copyin_pbl *)
 val vss_reduce_nonout_def = Define `
  (vss_reduce_nonout ([], elist, vss_arch_scope) =
   SOME []
@@ -193,19 +192,41 @@ val vss_reduce_nonout_def = Define `
  )
 `;
 
+(* TODO: Should also initialise parseError. Since this should be initialised
+ *       for all architectures, maybe it should be outsourced to a
+ *       architecture-generic function? *)
 val vss_copyin_pbl_def = Define `
-  vss_copyin_pbl (xlist, dlist, elist, vss_arch_scope) =
+  vss_copyin_pbl (xlist, dlist, elist, vss_arch_scope, pbl_type) =
     case vss_reduce_nonout (dlist, elist, vss_arch_scope) of
     | SOME elist' =>
-     copyin xlist dlist elist' [vss_arch_scope] [FEMPTY]
+      (case copyin xlist dlist elist' [vss_arch_scope] [FEMPTY] of
+       | SOME scope =>
+         if pbl_type = pbl_type_parser
+         then
+           SOME (initialise_parse_error scope)
+         else
+           SOME scope
+       | NONE => NONE)
     | NONE => NONE
 `;
 
 (* TODO: Does anything need to be looked up for this function? *)
+(* TODO: pbl_type-dependent behaviour *)
+(* Note that this re-uses the copyout function intended for P4 functions *)
 val vss_copyout_pbl_def = Define `
-  vss_copyout_pbl (ss, vss_arch_scope, dlist, xlist) =
+  vss_copyout_pbl (ss, vss_arch_scope, dlist, xlist, pbl_type, (status:status)) =
     case copyout xlist dlist [FEMPTY; FEMPTY] [vss_arch_scope] ss of
-    | SOME (g_scope_list, [vss_arch_scope']) => SOME vss_arch_scope'
+    | SOME (g_scope_list, [vss_arch_scope']) =>
+      if pbl_type = pbl_type_parser
+      then
+        (case lookup_lval ss (lval_varname (varn_name "parseError")) of
+         | SOME v =>
+           (case assign [vss_arch_scope'] v (lval_varname (varn_name "parseError")) of
+            | SOME [vss_arch_scope''] => SOME vss_arch_scope''
+            | NONE => NONE)
+         | _ => NONE)
+      else
+       SOME vss_arch_scope'
     | _ => NONE
 `;
 
@@ -224,9 +245,9 @@ val vss_pre_deparser_def = Define `
   vss_pre_deparser (scope:scope) =
    (case lookup_lval [scope] (lval_varname (varn_name "headers")) of
     | SOME (v_struct hdrs) =>
-       (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "outputHeaders")) of
-        | SOME [scope'] => SOME scope'
-        | _ => NONE)
+      (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "outputHeaders")) of
+       | SOME [scope'] => SOME scope'
+       | _ => NONE)
     | _ => NONE)
 `;
 

@@ -1144,6 +1144,12 @@ val initialise_def = Define `
   )
 `;
 
+(* Initialises parseError in a scope. *)
+val initialise_parse_error_def = Define `
+  (initialise_parse_error (scope:scope) =
+    FUPDATE scope (varn_name "parseError", (v_err "NoError", NONE))
+  )
+`;
 
 (* Takes a list of declaration tuples (x, t) and a scope, and returns a scope
  * where the declarations have been made *)
@@ -1995,7 +2001,6 @@ by
 
 %TODO: 13.3 of spec says: "An architecture must specify the behavior when the accept and reject states are reached. [...]", so copyout function must take status also
 
-%Note that exiting a parser block also sets the value of parseError
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( f )
   state_fin ( status , frame_list )

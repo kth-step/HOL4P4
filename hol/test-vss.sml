@@ -85,8 +85,9 @@ val vss_parser_pmap = ``FEMPTY |+ ("start", (^start_body))
                                |+ ("parse_ipv4", (^parse_ipv4_body))``;
 
 val vss_parser_decl_list = ``[(varn_name "ck", t_ext)]``;
-(* TODO: Add transition *)
-val vss_parser_inits = ``stmt_seq (stmt_ass (lval_varname (varn_name "ck")) (e_call (funn_inst "Checksum16") [])) (stmt_trans (e_v (v_str "start")))``;
+val vss_parser_inits =
+ mk_stmt_seq_list [``stmt_ass (lval_varname (varn_name "ck")) (e_call (funn_inst "Checksum16") [])``,
+                   ``stmt_trans (e_v (v_str "start"))``];
 
 val vss_parser_pbl =
  ``pblock_regular pbl_type_parser [("b", d_none); ("p", d_out)] FEMPTY (^vss_parser_decl_list) (^vss_parser_inits) (^vss_parser_pmap) FEMPTY``;
@@ -231,15 +232,15 @@ val vss_func_map =
 
 (* TODO: Make syntax functions *)
 val vss_actx =
- pairSyntax.list_mk_pair [vss_ab_list,
-                          vss_pblock_map,
-                          vss_ffblock_map,
-                          vss_input_f,
-                          vss_output_f,
-                          vss_copyin_pbl,
-                          vss_copyout_pbl,
-                          vss_ext_map,
-                          vss_func_map];
+ pairSyntax.list_mk_pair [``(^vss_ab_list):ab_list``,
+                          ``(^vss_pblock_map):pblock_map``,
+                          ``(^vss_ffblock_map):(varn |-> v # lval option) ffblock_map``,
+                          ``(^vss_input_f):(varn |-> v # lval option) input_f``,
+                          ``(^vss_output_f):(varn |-> v # lval option) output_f``,
+                          ``(^vss_copyin_pbl):((x list # d list # e list # (varn |-> v # lval option) # pbl_type) -> scope option)``,
+                          ``(^vss_copyout_pbl):((g_scope list # (varn |-> v # lval option) # d list # x list # pbl_type # status) -> (varn |-> v # lval option) option)``,
+                          ``(^vss_ext_map):(string |-> (((stmt # (string # d) list # ext_fun) option) # ext_fun_map))``,
+                          ``(^vss_func_map):(string |-> (stmt # (string # d) list))``];
 
 (******************)
 (*   Input data   *)
