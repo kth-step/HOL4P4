@@ -162,7 +162,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 %\newcommand{\stacks}{\ensuremath{\sigma}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
-\newcommand{\gscopel}{\ensuremath{\bar{\gamma}_G}}
+\newcommand{\gscopel}{\ensuremath{\overrightarrow{\gamma}_G}}
 \newcommand{\escope}{\ensuremath{{\gamma}_{\emptyset}}}
 \newcommand{\cstack}{E}
 \newcommand{\status}{\ensuremath{t}}
@@ -172,9 +172,10 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\sterr}{\ensuremath{\bot}}
 \newcommand{\pfin}{\ensuremath{p_{\mathrm{fin}}}}
 \newcommand{\expr}{\ensuremath{e}}
-\newcommand{\varstar}{\mathbf{var \, star}}
+\newcommand{\varstar}{\mathbf{var} ( \mathbf{star} , funn )}
 \newcommand{\scope}{\gamma}
 \newcommand{\scopeL}{\overrightarrow{\gamma}}
+\newcommand{\stmtL}{\overrightarrow{stmt}}
 \newcommand{\cons}{, ... \, ,}
 \newcommand{\concat}{{+}\mspace{-8mu}{+}}
 \newcommand{\funn}{\ensuremath{funn}}
@@ -195,38 +196,73 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \end{figure}
 
 The P4 execution state is shown in Figure~\ref{fig:status}. Note that nothing like this is described in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the state global scope list $\scopeL_G$, a frame list $\frameL$, Control table $C$, and the state status \status{}. 
-%TODO: update here with the meaning of each symbol
 
-%consists of a tuple ($\currsf$, $\cstack$), where $\currsf$ is a stack of scopes $\gamma$ (induced by entering nested blocks) which hold the values of variables which are currently visible, and $\cstack$ holds variable mappings which belong to previous caller contexts.
-
-More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is a partial function from variable names $\vn{} \in X$ to constant values $\cval{} \in V$. The following operations can be performed on $\gamma$:
+\subsubsection*{Single scope}
+More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is a partial function from variable names $\vn{} \in X$ to constant values $\cval{} \in V$. The following operations can be performed on $\scope$:
 %TODO Notation for the below
 \begin{itemize}
 \item $\mathrm{dom} ( \gamma )$: Gets the domain of $\gamma$: obtains the set of variable names $\vn{} \in X$ which are mapped to values in $\gamma$.
 \item $(\vn \mapsto  \cval) \,\, \gamma$: Updates a variable mapping in $\gamma$: yields the scope $\gamma'$, which is just $\gamma$ where \vn{} instead maps to \cval{}. By writing $\forall i \leq n. \,\, ({\vn}_i \mapsto  {\cval}_i) \,\, \gamma$ we extend this to lists of mappings from variable names to values.
 \end{itemize}
 
-A frame \currsf{} is a stack of scopes where the global scope \gscope{} is located at the bottom; that is, in location $\currsf [0]$.
-When a frame is considered a list the head of the list (i.e $\currsf{} [0]$) represent the bottom of the stack.
-The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that this indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope \escope{} is pushed onto the frame $\currsf$. %TODO New notation for pushing?
+\subsubsection*{Scope list}
+$\scopeL$ is a list of scopes $\scope_1 \cons \scope_n$ where the index 1 is the most recent scope, and $n$ is the oldest.
 
-The following operations can be performed on a frame $\currsf$:
-\begin{itemize}
-\item $ \gamma :: \currsf$: Add a scope $\gamma$ on bottom of \currsf{} (i.e. cons).
+\subsubsection*{Global scope list}
+The global scope list \gscopel{} contains two elements; index 0 represents the programmable block local scope, while index 1 represents the global scope of the architecture. Initially, for each function declared globally in the architecture or locally in a programmable block there must exist a return value in the proper index of \gscopel that adheres with the location of the function declaration.
+
+%The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that this indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope \escope{} is pushed onto the frame $\currsf$. %TODO New notation for pushing?
+
+%
+% TODO update operations here and in the scope.
+%
+
+%The following operations can be performed on a list of scopes $\scopeL$:
+%\begin{itemize}
+%\item $ \gamma :: \scopeL $: Add a scope $\gamma$ to the list $\scopeL$ (i.e. cons).
 %TODO Append (++)
 %\item Concatenating two $\gamma$ frames together.
 %TODO Tail tl
-\item $(\num \mapsto  \gamma) \,\, \currsf$: Updates the scope located at index \num{} of \currsf{} by setting it to $\gamma$.
-\end{itemize}
+%\item $(\num \mapsto  \gamma) \,\, \currsf$: Updates the scope located at index \num{} of \currsf{} by setting it to $\gamma$.
+%\end{itemize}
 
-The call stack $\cstack$ is a stack of frames used whenever a function call occurs. When a function call is executed, the frame \currsf{} (minus the global scope \gscope{}) of the caller will be pushed onto $\cstack$. When the callee function finishes execution and returns, \currsf{} will be popped from $\cstack$ and pushed onto a frame containing only \gscope{}. Note that this means that the same \gscope{} is kept throughout function calls, and updates to it are passed along accordingly. The following operations can be performed on $\cstack$: 
-\begin{itemize}
-\item $ \currsf :: \cstack$: Pushes a frame $\currsf$ onto the call stack $\cstack$.
-\end{itemize}
+%The call stack $\cstack$ is a stack of frames used whenever a function call occurs. When a function call is executed, the frame \currsf{} (minus the global scope \gscope{}) of the caller will be pushed onto $\cstack$. When the callee function finishes execution and returns, \currsf{} will be popped from $\cstack$ and pushed onto a frame containing only \gscope{}. Note that this means that the same \gscope{} is kept throughout function calls, and updates to it are passed along accordingly. The following operations can be performed on $\cstack$: 
+%\begin{itemize}
+%\item $ \currsf :: \cstack$: Pushes a frame $\currsf$ onto the call stack $\cstack$.
+%\end{itemize}
 
-The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a constant \cval{} at the end of a function call. The status \trans{\vn{}} signifies transition to a new parser state - a final state (\pfin{}) in the case of \accept{} or \reject{}, or otherwise a state defined by the programmer. \sterr{} represents a crash or undefined behaviour, for example caused by some badly-typed part of the program. 
+\subsubsection*{List of statements}
+The list of statement $\stmtL$ is simply a list of $stmt_1 \cons stmt_n$ where $stmt_1$ is the most recent block we have enetered, and $stmt_n$ is the oldest one.
 
-In addition to the above, there's also a function map $F$ mapping function names to tuples of their bodies and argument names, a table map $\mathit{Tb}$ mapping table names to tuples of expressions and matching kinds, a parser map $P$ mapping parser state names to their bodies and a type environment $T$. These are assumed to be static, and are therefore not part of the execution state.
+How do we use the list of statement notion? Whenever a block $\{ \declL \ stmt \} ; stmt_{old}$ is encountered, the block's statement $stmt$ will be appended to the old statement $stmt_{old}$ and leaves an empty statement in it's original place. So the next transition will become $stmt::(\emptyset_{stmt}; stmt_{old} $ 
+
+
+\subsubsection*{Function name}
+Function name $funn$ identifies the function name or the extern object instantiation. In P4, functions can be declared globally, or locally in the programmable block (actions). We model the actions exactly as the functions, and to distinguish between them we store their signatures and bodies in two different locations. The (programmable block locally declared functions) signature and body in the mapping $F_b$. The (globally declared functions and actions) signatures and bodies are stored in the mapping $F_g$. Both function block mapping $F_b$ and global block mapping $F_g$ are stored in the context $ctx$ which will be discussed later.
+
+
+\subsubsection*{Frame}
+The frame $\Phi$ is a tuple of three members: a statement list $\stmtL$, a function name $funn$, and a local to the frame scope list $\scopeL$. Overall, a frame $\Phi$ is represented as $ \stmtL^{funn}_{\scopeL{}} $ .Whever a function call occurs, the callee function will be appeneded to the caller as $\Phi_{callee} :: \frameL $.
+
+
+\subsubsection*{Control plane configuration}
+It is a function that takes a table name $tbl$, the key list expressions $e_1 \cons e_n$, and a list of matching kinds $mk_1 \cons mk_n$ then returns the actions and their arguments. This ill be explained further in the statements semantics.
+
+\subsubsection*{Status}
+Represented in the state with $t$. The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a constant \cval{} at the end of a function call. The status \trans{\vn{}} signifies transition to a new parser state. The new parser state can be a final state in the case of \trans{\vn{accpet}} or \trans{\vn{reject}}, or otherwise a state defined by the programmer. \sterr{} represents a crash or undefined behaviour, for example caused by some badly-typed part of the program. 
+
+
+\subsubsection*{Context}
+ The $ctx$ is a tuple of the following: 
+\begin{enumerate}
+   \item $X$ external object map. It maps extern object names to tuples of constructors and their respective function maps.
+   \item $F_g$ globally declared function map. It maps global function and actions names to tuples of their bodies, argument names and directions. 
+   \item $F_b$ programmable block locally declared functions.  It maps local function names to tuples of their bodies, argument names and directions. 
+   \item $P$ parser states map. It maps the name of the parser state to the body of that state name.
+   \item $Tb$ the table match-kind map. It maps the table name to its list of matching kinds.
+\end{enumerate}
+
+The context $ctx$ assumed to be static, therefore not part of the execution state.
 
 
 
@@ -310,10 +346,10 @@ Expression semantics and reductions are layed out in this section. Overall, the 
 
 
 \subsubsection*{variable lookup}
-In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently scope $\scope$ that \vn{} is declared or instantiated in). The evaluation will occur in the global list of scopes $\scopeL_G$ with the local $\scopeL{}$ being the most recent scopes. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The value of this variable is then resolved, and checked to be a constant.
+In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently scope $\scope$ that \vn{} exists in). The evaluation will occur using the function $\mathrm{lookup}_v$. It will sweep the list of scopes $\scopeL \concat \scopeL_G$ and finds the most recent scopes -most left- that contains variable $x$ and this is because the scopes grows from right to left in the list. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The constant value of this variable is then returned to the expression rediction.
 
 \begin{figure}[ht!]
-    \ottusedrule{\ottdruleeXXlookup{}} \\
+    \ottusedrule{\ottdruleeXXlookup{}} 
 \end{figure}
 
 
@@ -321,7 +357,7 @@ In the \textsc{e\_lookup} rule, the lookup function ensures that the variable na
 \subsubsection*{function call}
 Note that function calls also include actions as well as extern function calls.
 
-The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in and none directioned arguments). Each function's argument will be checked against the function's direction in the same position. If the direction is in or none, then it will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout then do not reduce it.
+The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in and none directioned arguments). We fetch the function name's argument names and directions using $\mathbf{lookup\_funn\_sig}$, then each function's argument will be checked against the function's direction in the same position. If the direction is in or none, then it will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout then do not reduce it.
 
 The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a placeholder we call $\varstar$ and a new frame. The new frame will be later added on top of the state's frames in the statements reduction rules. 
 The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. The function name \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{}  and the signature of the parameters represented as a list of tupels: variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked against the boolean formula to ensure that the arguments were reduced properly: (if $d_i$ in-none then the expression in the same position should be a constant, otherwise a variable name). The new frame's scope $\scope'$ is a new fresh empty scope that contains the copied in arguments using the function $\mathbf{copyin}$.
@@ -391,16 +427,6 @@ Unary and binary operations are basically standard operations on bit vectors, th
 The semantics of the statements are presented in this section. \footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
 
 
-%\subsubsection*{declaration}
-%The declaration statement rules can be broken down into a standard declaration \textsc{stmt\_decl} and initialisation \textsc{stmt\_init}. In the declaration, the value is not provided, only the notion of type t that is used in the grammar (note that this is not part of the typing rules). The premise $\mathrm{declare}$ declares the variable x in the topmost exsisting scope and maps it to an arbitrary value. The same behaviour is carried out in the initialisation, however, the variable name x is mapped to a value rather than an arbitrary value from the same type using the $\mathrm{initialise}$.
-
-%\begin{figure}[ht!]
-%    \ottusedrule{\ottdrulestmtXXdecl{}} \\
-%    \ottusedrule{\ottdrulestmtXXinit{}} 
-%    \label{fig:decl_sem}
-%\end{figure}
-
-
 \subsubsection*{assignment}
 The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), they can be either variable identified by their names, a null variable (used to model method calls) or struct fields, which are identified by the struct and field names, similar to the field access expression. Whenever an expression is assigned to an $lval$, that expression shall be reduced until it becomes a constant value. Then the appropriate scope in the current frame of execution will be updated with the mapping  $\vn \mapsto v$. With appropriate we mean that the topmost (most recent) scope that the $lval$ is declared in. The reduction results in the empty statement and an updated local or global scope lists. Note that this doesn't apply on $\mathbf{null}$ since it is used for method and action calls with no return values in mind.
 
@@ -418,11 +444,13 @@ The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones fo
 
 
 \subsubsection*{block}
-The \{\} brackets indicate a block, while the [ ] brackets indicate a block in progress or being executed.
+Once a block statement is encountered $ \{ \declL \ stmt \}$ the \textsc{stmt\_block\_enter} reduction will be used, it entails the $\declL{}$ being transformed and replicated into a scope that will be appended to the local $\scopeL{}$ of the frame, and then the body $stmt$ of the block will be appended to the empty statement. 
 
-Once a block statement is encountered the \textsc{stmt\_block\_enter} reduction will be used, it entails the $\declL{}$ being transformed and replicated into a scope that will be appended to the local $\scopeL{}$ of the frame, and then the \{\} brackets are switched to the in-progress ones [ ] to signify that the block is currently being executed. 
 
-The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents, and the \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the scope list $\scopeL$. The block will be exited and reduced to an empty statement $\estmt{}$ .
+The \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the scope list $\scopeL$. The block will be exited and reduced to an empty statement $\estmt{}$ .
+
+
+The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents. We also check if the previous list $\stmtL$ is empty or not, if it is empty, then directly apply the other single block statement rules. It is also important to check that the head of the list $stmt::\stmtL$ is not empty statement $\estmt{}$  otherwise it is non-deterministic with the block exit rule. 
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXblockXXenter{}} \\
@@ -448,7 +476,7 @@ Once return's expression is reduced to a constant value, the status is changed t
 \end{figure}
 
 \subsubsection*{sequential statements}
-The sequential statements rules \textsc{stmt\_seq1} and \textsc{stmt\_seq2} are standard. The status \status{} must be \running{} to start with. The part that is different is that if any new frame being created by any function call, it will be added on top of the frame list. \\
+The sequential statements rules \textsc{stmt\_seq1} and \textsc{stmt\_seq2} are standard. The status \status{} must be \running{} to start with. The part that is different is that if any new frame being created by any function call or a statement added to the statement list, it will be added on top of the frame list. \\
 
 Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returnst{}, or \trans{} to indicate either a a transition to a parser state or a return from a function call. The rest of the sequential composition statements are not considered, this will give flexibility to the return or transition statements in the body rather than only at the end.
 \textsc{stmt\_seq1} and \textsc{stmt\_seq3} are able to change the tables that are populated by the control plane.
@@ -489,10 +517,11 @@ The $\mathbf{verify} \, \expr \, \expr'$ statement is used to check the whether 
 
 
 \subsection{list of frames semantics}
-The previous semantics operate on a single frame for a single statement, however whenever a function being called, then it means that the state will contain two frames. The top frame that will be executed as can be seen in \textsc{stmt\_comp1} reduction, where the previous frame $\Phi$ is not empty (otherwise, we can use the previous rules above). 
-The rule \textsc{stmt\_comp2} is used specifically whenever there is a return occuring in a frame in that is being reduced. Here the caller frame's scopelist $\scopeL'$ or the global scope list $\scopeL_G$ should initilize the $\varstar$ with the return that can be found in the state's status $\returnst{} v$. the proper scope will be updated based on the topmost scope ever that can be found after concatenating $\scopeL_G \concat \scopeL$ to result the scope list $\scopeL''$.
-The copy out function takes the callee function signature, the "possibly updated" global scope list (index 0 and 1 from $\scopeL''$) the top most scope in the $\scopeL''$ and the callee's current scope list $\scopeL$. It returns a new updated scopes list for both the global and caller's frame. 
-In the copyout function, each parameter with (out or inout directions) should be copied out to the variable name it is mapping to. i.e. the mapping of a single scope looks as  $ \vn \mapsto (v , y) $ so for each variable name $\vn$ that is part of the current argument list in the signature we will check the direction of it, if the direction is (none or in) then we do not copy them out. However, if the direction is (out or inout) we will look into the mapping of it, and retrive a tuple $(v,y)$ which is the value and the oprginal argument of the function to be copied out in the poroper scope (top most one it is defined in).
+The previous semantics operate on a single frame for a list of statements, however when a function being called, then it means that the state will contain two frames. The top frame that will be executed as can be seen in \textsc{frames\_comp1} reduction, where the previous frame $\Phi$ is not empty (otherwise, we can use the previous rules above). 
+
+The rule \textsc{frames\_comp2} is used specifically whenever there is a return occuring in a frame in that is being reduced. Here the the global scope list $\scopeL_G$ must contain a $\varstar$ declared for every function $funn$. This variable should be updated with the value $v$ that is found in the state's status $\returnst{v}$. The copy out function takes the callee function signature, the "possibly updated" global scope list (index 0 or 1 from depends on the location of $\varstar{}$), the top most scope in the $\scopeL''$ and the callee's current scope list $\scopeL$. It returns a new updated scopes list for both the global and caller's frame.
+
+In the copyout function, each parameter with (out or inout directions) should be copied out to the variable name it is mapping to. i.e. the mapping of a single scope looks as  $ \vn \mapsto (v , y) $ so for each variable name $\vn$ that is part of the current argument list in the signature we will check the direction of it, if the direction is (none or in) then we do not copy them out. However, if the direction is (out or inout) we will look into the mapping of it, and retrive a tuple $(v,y)$ which is the value and the original argument of the function to be copied out in the poroper scope (top most one it is defined in).
 
 
 \begin{figure}[ht!]
@@ -501,30 +530,29 @@ In the copyout function, each parameter with (out or inout directions) should be
 \end{figure}
 
 
-%\newpage
 We define scopes\_to\_pass $ ( funn, F_g , F_b , \overrightarrow{\gamma_G}) $ as : \vspace{10pt}
 
  $  \overrightarrow{\gamma_G}' =\begin{cases}
             \mathrm{if} \; funn \in dom(F_g)    \hspace{6pt} ,
-            \mathrm{then} \; [\overrightarrow{\gamma_G}[0] ; \emptyset_{\gamma}] \\
+            \mathrm{then} \; [ \emptyset_{\gamma} ; \overrightarrow{\gamma_G}[1] ] \\
             \mathrm{otherwise}    \hspace{48pt}     , 
             \mathrm{then} \; \overrightarrow{\gamma_G} 
         \end{cases}$     \vspace{10pt}
 
-Where $\overrightarrow{\gamma_G}$ is a list of two elements, index 0 is the global scope, and index 1 is the programmable block global scope, it is fetched from the frame reduction rule. $\overrightarrow{\gamma_G}'$ is the scope that will be used to implement one frame at a time (statement reduction) in comp2.
+Where $\overrightarrow{\gamma_G}$ is a list of two elements, index 1 is the global scope, and index 0 is the programmable block global scope, it is fetched from the frame reduction rule and considered to be the initial global scope list. $\overrightarrow{\gamma_G}'$ is the scope that will be used to implement one frame at a time (statement reduction) in \textsc{frames\_comp1}.
 
 We define scopes\_to\_retrieve $( funn, F_g , F_b , \overrightarrow{\gamma_G}, \overrightarrow{\gamma_G}')$ as : \vspace{10pt}
 
  $  \overrightarrow{\gamma_G}'' =\begin{cases}
             \mathrm{if} \; funn \in dom(F_g)    \hspace{6pt} ,
-            \mathrm{then} \; [\overrightarrow{\gamma_G}'[0],\overrightarrow{\gamma_G}[1]]  \\
+            \mathrm{then} \; [\overrightarrow{\gamma_G}[0];\overrightarrow{\gamma_G}'[1]]  \\
             \mathrm{otherwise}    \hspace{48pt}     , 
             \mathrm{then} \; \overrightarrow{\gamma_G}' 
         \end{cases}$   \vspace{10pt}
 
-Where $\overrightarrow{\gamma_G}''$ is a list of two elements, index 0 is the global scope, and index 1 is the programmable block global scope, and we will retrieve it to be added as the resulted scope of the frame reduction.
-$\overrightarrow{\gamma_G}'$ is the scope that is resulted from the statement reduction in comp2. 
-$\overrightarrow{\gamma_G}$ is the original starting state's global list of the frame reduction. 
+Where $\overrightarrow{\gamma_G}''$ is a list of two elements, index 1 is the global scope, and index 0 is the programmable block global scope, and we will retrieve it to be added as the resulted scope of the frame reduction.
+$\overrightarrow{\gamma_G}'$ is the scope that is resulted from the statement reduction. 
+$\overrightarrow{\gamma_G}$ is the original (initial) starting state's global list of the frame reduction. 
 
 
 

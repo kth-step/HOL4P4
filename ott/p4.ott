@@ -207,8 +207,6 @@ status {{ tex t }}:: status_ ::=
 | Trans x :: I :: trans
   {{ com transition to parser state }}
   {{ tex { \mathbf{tra} \; [[x]] } }}
-| TypeError :: I :: type_error
-  {{ tex { \bot } }}
 
 scope {{ tex \gamma }} :: scope_ ::=
 {{ hol (varn |-> (v # lval option)) }}
@@ -1226,6 +1224,10 @@ formula :: formula_ ::=
   {{ com assign v to lval in the frame }}
   {{ hol (SOME [[scopes_stack']] = assign [[scopes_stack]] [[v]] [[lval]]) }}
   {{ tex [[scopes_stack']] = [[scopes_stack]] [ [[lval]] \longmapsto [[v]] ] }}
+| ( g_scope_list , scopes_stack' ) = separate scopes_stack :: M :: separate_scopes
+  {{ com separate scopes into globals and locals after assignment }}
+  {{ hol ( ( SOME [[g_scope_list]] ,  SOME [[scopes_stack']] ) = separate [[scopes_stack]] ) }}
+  {{ tex ( ( [[g_scope_list]] ,  [[scopes_stack']] ) = \mathrm{separate}[[scopes_stack]] )  }}  
 | ascope' = copyout_pbl ( scopes_stack , ascope , d_list , ( x1 , .. , xn ) , pbl_type , status ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
   {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scopes_stack]], [[ascope]], [[d_list]], [[x1 .. xn]], [[pbl_type]], [[status]])) }}
@@ -1235,6 +1237,9 @@ formula :: formula_ ::=
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
   {{ hol ([[stmt]] <> stmt_empty) }}
+| not_empty stmt_stack :: M :: not_empty_stmt_stack
+  {{ com check so that statement stack is not the empty }}
+  {{ hol ([[stmt_stack]] <> []) }}  
 
 %Architecture-level semantics-related formulae
 | pblock = pblock_map ( f ) :: M :: lookup_pb
@@ -1313,7 +1318,7 @@ formula :: formula_ ::=
 | ( g_scope_list' , scopes_stack'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scopes_stack , scopes_stack' ) :: M :: copyout
    %scopes_stack is the callee stack, whereas scopes_stack' is the caller stack
    %TODO: Double-check this LaTeX hack...
-  {{ tex ( [[g_scope_list']] , [[scopes_stack'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}' , \overrightarrow{\gamma}''' , \overrightarrow{\gamma} ) }}
+  {{ tex ( [[g_scope_list']] , [[scopes_stack'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}'' , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) }}
   {{ hol ( SOME ( [[g_scope_list']] , [[scopes_stack'']] ) = copyout [[x1 .. xn]] [[d_list]] [[g_scope_list]] [[scopes_stack]] [[scopes_stack']] ) }}
 
 | is_not_fully_red e :: M :: not_fully_red
@@ -1653,8 +1658,8 @@ val index_not_const_def = Define `
 (* Finds the topmost scope where the variable x is mapped and its index, as a tuple.*)
 val find_topmost_scope_def = Define `
   find_topmost_scope (ss:scope list) x =
-    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (REVERSE ss) of
-    | SOME (i, sc) => SOME (((LENGTH ss) - 1) - i, sc)
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (ss) of
+    | SOME (i, sc) => SOME (i, sc)
     | NONE => NONE
 `;
 
@@ -1709,7 +1714,7 @@ val lookup_vexp_def = Define `
 (* Lookup with g_scope_list as a separate argument *)
 val lookup_vexp2_def = Define `
   lookup_vexp2 (ss:scope list) (g_scope_list:scope list) x =
-    lookup_v (g_scope_list++ss) x
+    lookup_v (ss++g_scope_list) x
 `;
 
 (* Look up the value of a l-value (variables + fields of struct-valued variables) in
@@ -1891,7 +1896,7 @@ val all_arg_update_for_newscope_def = Define `
 (* full copyin definition *)
 val copyin_def = Define `
   copyin xlist dlist elist gsl ss_curr = 
-    all_arg_update_for_newscope xlist dlist elist (gsl++ss_curr)
+    all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl)
 `;
 
 
@@ -1905,7 +1910,7 @@ val assign_def = Define `
     | SOME (i, sc) =>
       (case lookup_out ss x of
        | SOME str_opt =>
-         SOME (LUPDATE (sc |+ (x, (v, str_opt))) i ss)
+         SOME (LUPDATE (sc |+ (x, (v, str_opt))) (i) ss)
        | NONE => NONE)
     | _ => NONE) /\
   (assign ss v (lval_field lval f) =
@@ -1943,6 +1948,7 @@ val oDROP_def = Define `
 (* Declares a new variable and initialises it to ARB, returns the new scope stack *)
 (* TODO: Behaviour when variable already exists? *)
 (* Note that this will declare variables in the block-global scope when scope stack is empty *)
+(* TODO: REMOVE IT *)
 val declare_def = Define `
   (declare g_scope_list (ss:scopes_stack) x t =
     case ss of
@@ -2042,11 +2048,14 @@ val args_of_pbl_def = Define `
  * of the funtion i.e. names and directions, global scope list, caller scope stack and current
  * scope stack, it will return a tuple where first element is a global scope list updated with
  * the copy-outs, and the second element is the caller's scope updated with the copy-outs *)
+
 val copyout_def = Define `
   copyout xlist dlist gsl ss ss_curr =
-    case update_return_frame xlist dlist (gsl++ss) ss_curr of
-    | SOME updated_return_ss =>
-     SOME (TAKE 2 updated_return_ss, DROP 2 updated_return_ss)
+    case update_return_frame xlist dlist (ss++gsl) ss_curr of
+    |(SOME updated_return_ss =>
+      case (LENGTH updated_return_ss) of
+      | 0 => NONE
+      | i => SOME (THE (oDROP (i-2) updated_return_ss), THE(oTAKE (i-2) updated_return_ss)))
     | NONE => NONE
 `;
 
@@ -2108,28 +2117,26 @@ val is_short_circuitable_def = Define `
 `;
 
 
-(* fetch the newest scope index from a scopes stack *)
-val newest_scope_ind_def = Define `
-  newest_scope_ind scopes_stack = (LENGTH scopes_stack) - 1
-`;
-
-(* returns the newest (topmost) scope using the index from the newest_scope_ind_def *)
-(* TODO: Use LAST instead? *)
-val newest_scope_def = Define `
-  newest_scope scopes_stack = EL (newest_scope_ind scopes_stack) scopes_stack
-`;
 
 (* Init the variable name star in the topmost scope and return only the scope *)
 val decl_init_star_def = Define `
   decl_init_star scopes_stack v (varn_star funn) =
-    FUPDATE (newest_scope scopes_stack) ((varn_star funn), (v , NONE))
+    FUPDATE (HD scopes_stack) ((varn_star funn), (v , NONE))
 `;
 
 (* TODO: Use initialise_def? *)
 (* Init the variable name star in the topmost scope and return the updated scope stack *)
 val init_in_highest_scope_def = Define `
   init_in_highest_scope scopes_stack v (varn_star funn) =
-    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) (newest_scope_ind scopes_stack) scopes_stack
+    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) 0 scopes_stack
+`;
+
+(* Separate a joined scope stack into its two components:
+ * 2 global scopes, the rest local scopes *)
+val separate_def = Define `
+  separate scopes_stack =
+    let i = (LENGTH scopes_stack) in
+    (oDROP (i-2) scopes_stack, oTAKE (i-2) scopes_stack)
 `;
 
 val parser_not_finished_def = Define `
@@ -2167,7 +2174,7 @@ val scopes_to_pass_def = Define `
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
       (case FLOOKUP func_map_g x of
-       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; FEMPTY])
+       | SOME (stmt, x_d_l) => SOME ([FEMPTY; EL 1 g_scope_list])
        | NONE => NONE
       )
     )
@@ -2186,11 +2193,11 @@ val scopes_to_retrieve_def = Define `
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
       (case FLOOKUP func_map_g x of
-       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list; EL 1 g_scope_list_og])
+       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
        | NONE => NONE
       )
     )
-   | _ => SOME ([EL 0 g_scope_list; EL 1 g_scope_list_og])
+   | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
 `;
 
 
@@ -2554,9 +2561,8 @@ defn
   {{ tex [[ctx]] \vdash  [[state]] \rightarrow  [[state']] }}
 by
 
-  scopes_stack' = assign ( ( g_scope_list ++ scopes_stack ) , v , lval )
-  g_scope_list' = take 2 scopes_stack'
-  scopes_stack'' = drop 2 scopes_stack'
+  scopes_stack' = assign ( ( scopes_stack ++ g_scope_list ) , v , lval )
+  ( g_scope_list' , scopes_stack'' ) = separate scopes_stack'
   ----------------------------------- :: ass_v
   ctx ( g_scope_list , [ ( funn , [ assign lval v ]  , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list' , [ ( funn , [ empty_stmt ] , scopes_stack'' ) ]  , ctrl , Running )
 
@@ -2592,18 +2598,20 @@ by
 %%%%%%%%%%%%%%
 %Block
 
-%TODO: Does this build up the scope stack in the right direction?
+
   ( scope ) = declare_list_in_fresh_scope ( decl_list )
-  scopes_stack' =  scopes_stack ++ [ scope ]
+  scopes_stack' =  [ scope ] ++ scopes_stack
   ----------------------------------- :: block_enter
   ctx ( g_scope_list , [ ( funn , [ begin decl_list stmt end ] , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scopes_stack' ) ] , ctrl , Running )
 
   not_empty stmt
-  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list'' , frame_list' ++ [ ( funn , stmt_stack' , scopes_stack' ) ] , ctrl' , status' )
+  not_empty stmt_stack
+  ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , [ stmt ] , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' , scopes_stack' ) ] , ctrl' , status' )
   ----------------------------------- :: block_exec
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' ++ stmt_stack , scopes_stack' ) ] , ctrl' , status' )
 
-  scopes_stack' = rev ( tl ( rev scopes_stack ) )
+  not_empty stmt_stack
+  scopes_stack' = tl scopes_stack
   ----------------------------------- :: block_exit
   ctx ( g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scopes_stack ) ] , ctrl , status ) -> ( g_scope_list , [ ( funn , stmt_stack , scopes_stack' ) ] , ctrl , status )
 
@@ -2727,12 +2735,10 @@ by
 %Note that stmt must be return v, so ctrl cannot be modified by this reduction
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] , ctrl , Running ) -> ( g_scope_list , [ ( funn , stmt_stack'' , scopes_stack ) ] , ctrl , Ret v )
-  scopes_stack'' = init_in_highest_scope ( ( g_scope_list ++ scopes_stack' ) , v , ( star , funn ) )
-  g_scope_list' = take 2 scopes_stack''
-  scopes_stack''' = drop 2 scopes_stack''
+  g_scope_list' = assign ( ( g_scope_list ) , v , ( star , funn ) )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
    g_scope_list'' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list' )
-  ( g_scope_list''' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'' , scopes_stack''' , scopes_stack )
+  ( g_scope_list''' , scopes_stack'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'' , scopes_stack' , scopes_stack )
   ----------------------------------- :: comp2
   ( ext_map , func_map , b_func_map , pars_map , tbl_map ) ( g_scope_list , [ ( funn , stmt_stack , scopes_stack ) ] ++ ( [ ( funn' , stmt_stack' , scopes_stack' ) ] ++ frame_list ) , ctrl , Running ) -f-> ( g_scope_list''' , [ ( funn' , stmt_stack' , scopes_stack'''' ) ] ++ frame_list , ctrl , Running )
 

@@ -40,11 +40,14 @@ rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
 rename1 `(g_scope_list',state'1,state'2,state'3)` >>
 rename1 `(g_scope_list',frame_list',ctrl',status')` >>
-fs [exec_stmt_ext_SOME_REWRS] >>
-irule (specl_stmt_block_exec ``stmt_ext`` ``[]:frame_list`` ``[stmt_empty]``) >>
-fs [clause_name_def] >>
-qexists_tac `g_scope_list'` >>
-metis_tac [(valOf o find_clause_stmt_red) "stmt_ext", clause_name_def]
+ fs [exec_stmt_ext_SOME_REWRS] >>
+Cases_on `stmt_stack` >| [
+ metis_tac [(valOf o find_clause_stmt_red) "stmt_ext", clause_name_def],
+
+ irule (specl_stmt_block_exec ``stmt_ext`` ``[]:frame_list`` ``[stmt_empty]``) >>
+ fs [clause_name_def] >>
+ metis_tac [(valOf o find_clause_stmt_red) "stmt_ext", clause_name_def]
+]
 QED
 
 Theorem stmt_ret_exec_sound_red:
@@ -63,12 +66,20 @@ pairLib.PairCases_on `state'` >>
 rename1 `(g_scope_list',state'1,state'2,state'3)` >>
 rename1 `(g_scope_list',frame_list',ctrl',status')` >>
 fs [exec_stmt_ret_SOME_REWRS] >>
-Cases_on `get_v e` >> (
- fs []
+Cases_on `stmt_stack` >> (
+ Cases_on `get_v e` >> (
+  fs []
+ )
 ) >| [
+ metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_e", clause_name_def],
+
+ Cases_on `e` >> (
+  fs [get_v]
+ ) >>
+ metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_v", clause_name_def],
+
  irule (specl_stmt_block_exec ``stmt_ret e`` ``frame_list'':frame_list`` ``[stmt_ret e']``) >>
  fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
  metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_e", clause_name_def],
 
  Cases_on `e` >> (
@@ -76,7 +87,6 @@ Cases_on `get_v e` >> (
  ) >>
  irule (specl_stmt_block_exec ``stmt_ret e`` ``[]:frame_list`` ``[stmt_empty]``) >>
  fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
  metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_v", clause_name_def]
 ]
 QED
@@ -108,15 +118,21 @@ Cases_on `is_v e` >> (
  ) >>
  rw [] >>
  fs [stmt_exec_trans] >>
- irule (specl_stmt_block_exec ``stmt_trans (e_v (v_str s))`` ``[]:frame_list`` ``[stmt_empty]``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list` >>
- metis_tac [(valOf o find_clause_stmt_red) "stmt_trans", clause_name_def],
+ Cases_on `stmt_stack` >| [
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans", clause_name_def],
 
- irule (specl_stmt_block_exec ``stmt_trans e`` ``frame_list'':frame_list`` ``[stmt_trans e']``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [(valOf o find_clause_stmt_red) "stmt_trans_e", clause_name_def]
+  irule (specl_stmt_block_exec ``stmt_trans (e_v (v_str s))`` ``[]:frame_list`` ``[stmt_empty]``) >>
+  fs [clause_name_def] >>
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans", clause_name_def]
+ ],
+
+ Cases_on `stmt_stack` >| [
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans_e", clause_name_def],
+
+  irule (specl_stmt_block_exec ``stmt_trans e`` ``frame_list'':frame_list`` ``[stmt_trans e']``) >>
+  fs [clause_name_def] >>
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans_e", clause_name_def]
+ ]
 ]
 QED
 
@@ -142,34 +158,42 @@ Cases_on `index_not_const e_l` >> (
 ) >| [
  rw [] >>
  IMP_RES_TAC index_not_const_NONE >>
- irule (specl_stmt_block_exec ``stmt_app tbl e_l`` ``[]:frame_list`` ``[stmt_ass lval_null (e_call (funn_name f) f_args)]``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list` >>
- subgoal `?v_l. f_args = MAP e_v v_l` >- (
-  qexists_tac `vl_of_el f_args` >>
-  IMP_RES_TAC vl_of_el_MAP_e_v
- ) >>
- Q.SUBGOAL_THEN `(MAP ( \ (e_,mk_). e_) (ZIP (e_l,mk_l)) = e_l) /\
-                 (MAP ( \ v_. e_v v_) v_l = f_args)`
-  (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPECL [``ZIP ((e_l:e list), mk_l: mk list)``, ``v_l:v list``]
-                                                  ((valOf o find_clause_stmt_red) "stmt_apply_table_v"))))) >- (
-  fs [lambda_FST, MAP_ZIP] >>
-  metis_tac []
- ) >>
- fs [clause_name_def, lambda_SND, MAP_ZIP],
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_app tbl e_l`` ``[]:frame_list`` ``[stmt_ass lval_null (e_call (funn_name f) f_args)]``) >>
+  fs [clause_name_def]
+ ] >> (
+  subgoal `?v_l. f_args = MAP e_v v_l` >- (
+   qexists_tac `vl_of_el f_args` >>
+   IMP_RES_TAC vl_of_el_MAP_e_v
+  ) >>
+  Q.SUBGOAL_THEN `(MAP ( \ (e_,mk_). e_) (ZIP (e_l,mk_l)) = e_l) /\
+                  (MAP ( \ v_. e_v v_) v_l = f_args)`
+   (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPECL [``ZIP ((e_l:e list), mk_l: mk list)``, ``v_l:v list``]
+                                                   ((valOf o find_clause_stmt_red) "stmt_apply_table_v"))))) >- (
+   fs [lambda_FST, MAP_ZIP] >>
+   metis_tac []
+  ) >>
+  fs [clause_name_def, lambda_SND, MAP_ZIP]
+ ),
 
  rw [] >>
- irule (specl_stmt_block_exec ``stmt_app tbl e_l`` ``frame_list'':frame_list`` ``[stmt_app tbl (LUPDATE e' x e_l)]``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list` >>
- Q.SUBGOAL_THEN `(MAP ( \ (e_,e'_). e_) (ZIP ((e_l:e list), (LUPDATE e' x e_l):e list)) = e_l) /\
-                 (MAP ( \ (e_,e'_). e'_) (ZIP ((e_l:e list), (LUPDATE e' x e_l):e list)) = (LUPDATE e' x e_l))`
-  (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPEC ``ZIP ((e_l:e list), (LUPDATE e' x e_l):e list)``
-                                                  ((valOf o find_clause_stmt_red) "stmt_apply_table_e"))))) >- (
-  fs [lambda_FST, lambda_SND, MAP_ZIP]
- ) >>
- fs [clause_name_def] >>
- metis_tac [e_exec_sound]
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_app tbl e_l`` ``frame_list'':frame_list`` ``[stmt_app tbl (LUPDATE e' x e_l)]``) >>
+  fs [clause_name_def]
+ ] >> (
+  Q.SUBGOAL_THEN `(MAP ( \ (e_,e'_). e_) (ZIP ((e_l:e list), (LUPDATE e' x e_l):e list)) = e_l) /\
+                  (MAP ( \ (e_,e'_). e'_) (ZIP ((e_l:e list), (LUPDATE e' x e_l):e list)) = (LUPDATE e' x e_l))`
+   (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPEC ``ZIP ((e_l:e list), (LUPDATE e' x e_l):e list)``
+                                                   ((valOf o find_clause_stmt_red) "stmt_apply_table_e"))))) >- (
+   fs [lambda_FST, lambda_SND, MAP_ZIP]
+  ) >>
+  fs [clause_name_def] >>
+  metis_tac [e_exec_sound]
+ )
 ]
 QED
 
@@ -202,15 +226,23 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  Cases_on `b` >> (
   fs [stmt_exec_verify]
  ) >| [
-  irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool T)) (e_v (v_err s))`` ``[]:frame_list`` ``[stmt_empty]``) >>
-  fs [clause_name_def] >>
-  qexists_tac `g_scope_list'` >>
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_3", clause_name_def],
+  Cases_on `stmt_stack` >| [
+   ALL_TAC,
 
-  irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool F)) (e_v (v_err s))`` ``[]:frame_list`` ``[stmt']:stmt list``) >>
-  fs [clause_name_def] >>
-  qexists_tac `g_scope_list'` >>
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_4", clause_name_def]
+   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool T)) (e_v (v_err s))`` ``[]:frame_list`` ``[stmt_empty]``) >>
+   fs [clause_name_def]
+  ] >> (
+   metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_3", clause_name_def]
+  ),
+
+  Cases_on `stmt_stack` >| [
+   ALL_TAC,
+
+   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool F)) (e_v (v_err s))`` ``[]:frame_list`` ``[stmt']:stmt list``) >>
+   fs [clause_name_def]
+  ] >> (
+   metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_4", clause_name_def]
+  )
  ],
 
  (* Second case - second operand unreduced *)
@@ -220,24 +252,36 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  Cases_on `v` >> (
   fs [is_v_bool]
  ) >>
- irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool b)) e2`` ``frame_list'':frame_list`` ``[stmt_verify (e_v (v_bool b)) e2']``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e2"), clause_name_def],
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool b)) e2`` ``frame_list'':frame_list`` ``[stmt_verify (e_v (v_bool b)) e2']``) >>
+  fs [clause_name_def]
+ ] >> (
+  metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e2"), clause_name_def]
+ ),
 
  (* Third case - first operand unreduced *)
  fs [] >>
- irule (specl_stmt_block_exec ``stmt_verify e1 e2`` ``frame_list'':frame_list`` ``[stmt_verify e1' e2]``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def],
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_verify e1 e2`` ``frame_list'':frame_list`` ``[stmt_verify e1' e2]``) >>
+  fs [clause_name_def]
+ ] >> (
+  metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def]
+ ),
 
  (* Fourth case - both operands unreduced *)
  fs [] >>
- irule (specl_stmt_block_exec ``stmt_verify e1 e2`` ``frame_list'':frame_list`` ``[stmt_verify e1' e2]``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def]
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_verify e1 e2`` ``frame_list'':frame_list`` ``[stmt_verify e1' e2]``) >>
+  fs [clause_name_def]
+ ] >> (
+  metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def]
+ )
 ]
 QED
 
@@ -258,24 +302,32 @@ Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 fs [exec_stmt_ass_SOME_REWRS] >>
-Cases_on `is_v e` >| [
- fs [] >>
+Cases_on `is_v e` >> (
+ fs []
+) >| [
  Cases_on `e` >> (
   fs [is_v]
  ) >>
  rw [] >>
  fs [stmt_exec_ass] >>
- irule (specl_stmt_block_exec ``stmt_ass lval (e_v v)`` ``[]:frame_list`` ``[stmt_empty]``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- irule ((valOf o find_clause_stmt_red) "stmt_ass_v") >>
- fs [clause_name_def],
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
 
- fs [] >>
- irule (specl_stmt_block_exec ``stmt_ass lval e`` ``frame_list'':frame_list`` ``[stmt_ass lval e']``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
+  irule (specl_stmt_block_exec ``stmt_ass lval (e_v v)`` ``[]:frame_list`` ``[stmt_empty]``) >>
+  fs [clause_name_def]
+ ] >> (
+  irule ((valOf o find_clause_stmt_red) "stmt_ass_v") >>
+  fs [clause_name_def]
+ ),
+
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_ass lval e`` ``frame_list'':frame_list`` ``[stmt_ass lval e']``) >>
+  fs [clause_name_def]
+ ] >> (
  metis_tac [((valOf o find_clause_stmt_red) "stmt_ass_e"), clause_name_def]
+ )
 ]
 QED
 
@@ -303,38 +355,58 @@ Cases_on `is_empty s1` >> (
  Cases_on `s1` >> (
   fs [is_empty]
  ) >>
- irule (specl_stmt_block_exec ``stmt_seq stmt_empty s2`` ``[]:frame_list`` ``[s2]:stmt list``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [((valOf o find_clause_stmt_red) "stmt_seq2"), clause_name_def],
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_seq stmt_empty s2`` ``[]:frame_list`` ``[s2]:stmt list``) >>
+  fs [clause_name_def]
+ ] >> (
+  metis_tac [((valOf o find_clause_stmt_red) "stmt_seq2"), clause_name_def]
+ ),
 
  Cases_on `status' = status_running` >> (
   fs []
  ) >| [
-  irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``[stmt_seq stmt1' s2]:stmt list``) >>
-  fs [clause_name_def] >>
-  qexists_tac `g_scope_list'` >>
-  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def],
+  Cases_on `stmt_stack` >| [
+   ALL_TAC,
 
-  irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``[stmt1']:stmt list``) >>
-  fs [clause_name_def] >>
-  qexists_tac `g_scope_list'` >>
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_seq3", clause_name_def]
+   irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``[stmt_seq stmt1' s2]:stmt list``) >>
+   fs [clause_name_def]
+  ] >> (
+   metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
+  ),
+
+  Cases_on `stmt_stack` >| [
+   ALL_TAC,
+
+   irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``[stmt1']:stmt list``) >>
+   fs [clause_name_def]
+  ] >> (
+   metis_tac [(valOf o find_clause_stmt_red) "stmt_seq3", clause_name_def]
+  )
  ],
 
  (* stmt added to stmt stack (block entered) *)
  fs [] >>
- irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``stmt1''::[stmt_seq stmt1' s2]:stmt list``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[stmt1'']`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def],
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``stmt1''::[stmt_seq stmt1' s2]:stmt list``) >>
+  fs [clause_name_def]
+ ] >> (
+  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[stmt1'']`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
+ ),
 
  (* frame added (function called) *)
  fs [] >>
- irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[(funn',[stmt'],[scope'])]:frame_list`` ``[stmt_seq stmt1' s2]:stmt list``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[frame]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[(funn',[stmt'],[scope'])]:frame_list`` ``[stmt_seq stmt1' s2]:stmt list``) >>
+  fs [clause_name_def]
+ ] >> (
+  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[frame]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
+ )
 ]
 QED
 
@@ -373,21 +445,33 @@ Cases_on `is_v_bool e` >> (
    fs [stmt_exec_cond]
   )
  ) >| [
-  irule (specl_stmt_block_exec ``stmt_cond (e_v (v_bool T)) s1 s2`` ``[]:frame_list`` ``[s1]:stmt list``) >>
-  fs [clause_name_def] >>
-  qexists_tac `g_scope_list'` >>
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_cond2", clause_name_def],
+  Cases_on `stmt_stack` >| [
+   ALL_TAC,
 
-  irule (specl_stmt_block_exec ``stmt_cond (e_v (v_bool F)) s1 s2`` ``[]:frame_list`` ``[s2]:stmt list``) >>
-  fs [clause_name_def] >>
-  qexists_tac `g_scope_list'` >>
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_cond3", clause_name_def]
+   irule (specl_stmt_block_exec ``stmt_cond (e_v (v_bool T)) s1 s2`` ``[]:frame_list`` ``[s1]:stmt list``) >>
+   fs [clause_name_def]
+  ] >> (
+   metis_tac [(valOf o find_clause_stmt_red) "stmt_cond2", clause_name_def]
+  ),
+
+  Cases_on `stmt_stack` >| [
+   ALL_TAC,
+
+   irule (specl_stmt_block_exec ``stmt_cond (e_v (v_bool F)) s1 s2`` ``[]:frame_list`` ``[s2]:stmt list``) >>
+   fs [clause_name_def]
+  ] >> (
+   metis_tac [(valOf o find_clause_stmt_red) "stmt_cond3", clause_name_def]
+  )
  ],
 
- irule (specl_stmt_block_exec ``stmt_cond e s1 s2`` ``frame_list'':frame_list`` ``[stmt_cond e' s1 s2]``) >>
- fs [clause_name_def] >>
- qexists_tac `g_scope_list'` >>
- metis_tac [(valOf o find_clause_stmt_red) "stmt_cond_e", clause_name_def]
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_cond e s1 s2`` ``frame_list'':frame_list`` ``[stmt_cond e' s1 s2]``) >>
+  fs [clause_name_def]
+ ] >> (
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_cond_e", clause_name_def]
+ )
 ]
 QED
 
@@ -408,10 +492,15 @@ pairLib.PairCases_on `state'` >>
 rename1 `(g_scope_list',state'1,state'2,state'3)` >>
 rename1 `(g_scope_list',frame_list',ctrl',status')` >>
 fs [exec_stmt_block_SOME_REWRS] >>
-irule (specl_stmt_block_exec ``stmt_block decl_list s`` ``[]:frame_list`` ``s::[stmt_empty]``) >>
-fs [clause_name_def] >>
-qexists_tac `g_scope_list'` >>
-metis_tac [(valOf o find_clause_stmt_red) "stmt_block_enter", clause_name_def]
+Cases_on `stmt_stack` >| [
+ ALL_TAC,
+
+ irule (specl_stmt_block_exec ``stmt_block decl_list s`` ``[]:frame_list`` ``s::[stmt_empty]``) >>
+ fs [clause_name_def]
+] >> (
+ irule ((valOf o find_clause_stmt_red) "stmt_block_enter") >>
+ fs [clause_name_def]
+)
 QED
 
 Theorem stmt_exec_sound_red:
@@ -476,4 +565,200 @@ assume_tac (SPEC ``h:stmt`` stmt_exec_sound_red) >>
 fs [stmt_exec_sound]
 QED
 
+(*
+(* This states an invariant of the steps where the final status is Return *)
+Theorem stmt_exec_status_returnv_inv:
+!ctx g_scope_list g_scope_list' funn stmt scope_stack frame_list' ctrl ctrl' v.
+stmt_exec ctx (g_scope_list, [(funn, stmt, scope_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status_returnv v) ==>
+ ctrl' = ctrl /\ g_scope_list' = g_scope_list /\ ?stmt'. frame_list' = [(funn, stmt', scope_stack)]
+Proof
+(* TODO: First, need the different possible final statuses of all different statements in
+ *       rewrite theorems. Second, make separate theorem that final status return means
+ *       reduced statement was return. Third, use rewrite theorem of return to prove the conclusion.       Might need to use structural induction... *)
+(* TODO: Use stmt_exec_ind? P could be lambda function from ctx and state... *)
+cheat
+QED
+
+(* This states that steps where the final status is Return would end up in a state with
+ * the same status regardless of g_scope_list and ctrl *)
+Theorem stmt_exec_status_returnv_indep:
+!ctx g_scope_list g_scope_list' funn stmt scope_stack frame_list' ctrl ctrl' v.
+stmt_exec ctx (g_scope_list, [(funn, stmt, scope_stack)], ctrl, status_running) =
+        SOME (g_scope_list', frame_list', ctrl', status_returnv v) ==>
+!g_scope_list'' ctrl''. ?g_scope_list''' ctrl'''.
+stmt_exec ctx (g_scope_list'', [(funn, stmt, scope_stack)], ctrl'', status_running) =
+        SOME (g_scope_list''', frame_list', ctrl''', status_returnv v)
+Proof
+cheat
+QED
+
+(*
+Theorem initialise_equiv:
+!scopes_list v funn.
+scopes_list <> [] ==>
+init_in_highest_scope scopes_list v (varn_star funn) = initialise scopes_list (varn_star funn) v
+Proof
+rpt strip_tac >>
+fs [init_in_highest_scope_def, initialise_def] >>
+`decl_init_star scopes_list v (varn_star funn) = LAST scopes_list |+ (varn_star funn, v, NONE)` suffices_by (
+ fs []
+) >>
+fs [decl_init_star_def, newest_scope_def, newest_scope_ind_def] >>
+metis_tac [LAST_EL, arithmeticTheory.PRE_SUB1]
+QED
+*)
+
+(* TODO: Move *)
+Theorem oTAKE_SOME:
+!i l l'.
+i > 0 ==>
+oTAKE i l = SOME l' ==>
+l <> []
+Proof
+Cases_on `i` >> (
+ fs [oTAKE_def]
+)
+QED
+
+(* TODO: Move *)
+Theorem initialise_LENGTH:
+!ss varn v ss'.
+initialise ss varn v = ss' ==>
+LENGTH ss = LENGTH ss'
+Proof
+fs [initialise_def] >>
+rw []
+QED
+
+Theorem frame_list_exec_sound_red:
+!frame_list. frame_list_exec_sound frame_list
+Proof
+Induct_on `frame_list` >> (
+ fs [frame_list_exec_sound] >>
+ Cases_on `status` >> (
+  fs [frames_exec]
+ )
+) >>
+rpt strip_tac >>
+pairLib.PairCases_on `ctx` >>
+rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+Cases_on `frame_list` >| [
+ (* Single frame (comp1) *)
+ pairLib.PairCases_on `h` >>
+ fs [frames_exec] >>
+ Cases_on `scopes_to_pass h0 func_map b_func_map g_scope_list` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec (ext_map,func_map,b_func_map,pars_map,tbl_map)
+            (x,[(h0,h1,h2)],ctrl,status_running)` >- (
+  fs []
+ ) >>
+ pairLib.PairCases_on `x'` >>
+ fs [] >>
+ Cases_on `scopes_to_retrieve h0 func_map b_func_map g_scope_list x'0` >> (
+  fs []
+ ) >>
+ rw [] >>
+ rename1 `(x'0, frame_list', ctrl', status')` >>
+ rename1 `(g_scope_list', frame_list', ctrl', status')` >>
+ assume_tac stmt_stack_exec_sound_red >>
+ fs [stmt_stack_exec_sound] >>
+ RES_TAC >>
+ irule (SIMP_RULE list_ss [] (Q.SPECL [`ext_map`, `func_map`, `b_func_map`, `pars_map`, `tbl_map`, `g_scope_list`, `h0`, `h1`, `h2`, `[]`] ((valOf o find_clause_frames_red) "frames_comp1"))) >>
+ fs [clause_name_def] >>
+ qexists_tac `x'0` >>
+ fs [],
+
+ (* TODO: Multiple frames *)
+ pairLib.PairCases_on `h` >>
+ pairLib.PairCases_on `h'` >>
+ fs [frames_exec] >>
+ Cases_on `scopes_to_pass h0 func_map b_func_map g_scope_list` >> (
+  fs []
+ ) >>
+ Cases_on `stmt_exec (ext_map,func_map,b_func_map,pars_map,tbl_map)
+            (x,[(h0,h1,h2)],ctrl,status_running)` >- (
+  fs []
+ ) >>
+ pairLib.PairCases_on `x'` >>
+ fs [] >>
+ Cases_on `x'3` >> (
+  fs []
+ ) >| [
+  (* comp1 *)
+  Cases_on `scopes_to_retrieve h0 func_map b_func_map g_scope_list x'0` >> (
+   fs []
+  ) >>
+  rw [] >>
+  rename1 `(x'0, frame_list', ctrl', status_running)` >>
+  rename1 `(g_scope_list'', frame_list', ctrl', status_running)` >>
+  assume_tac stmt_stack_exec_sound_red >>
+  fs [stmt_stack_exec_sound] >>
+  RES_TAC >>
+  irule (SIMP_RULE list_ss [] (Q.SPECL [`ext_map`, `func_map`, `b_func_map`, `pars_map`, `tbl_map`, `g_scope_list`, `h0`, `h1`, `h2`, `(h'0,h'1,h'2)::t`] ((valOf o find_clause_frames_red) "frames_comp1"))) >>
+  fs [clause_name_def, notret_def] >>
+  qexists_tac `g_scope_list''` >>
+  fs [],
+
+  (* comp2 *)
+  Cases_on `assign x'0 v (lval_varname (varn_star h0))` >> (
+   fs []
+  ) >>
+  Cases_on `scopes_to_retrieve h0 func_map b_func_map g_scope_list x'` >> (
+   fs []
+  ) >>
+  Cases_on `lookup_funn_sig_body h0 func_map b_func_map ext_map` >> (
+   fs []
+  ) >>
+  pairLib.PairCases_on `x'3'` >>
+  fs [] >>
+  Cases_on `copyout (MAP FST x'''1) (MAP SND x'''1) x'' h'2 h2` >> (
+   fs []
+  ) >>
+  pairLib.PairCases_on `x'3'` >>
+  fs [] >>
+  rw [] >>
+  rename1 `(x'0, frame_list', ctrl', status_returnv v)` >>
+  rename1 `(g_scope_list', frame_list', ctrl', status_returnv v)` >>
+  IMP_RES_TAC stmt_exec_status_returnv_inv >>
+  rw [] >>
+  assume_tac stmt_stack_exec_sound_red >>
+  fs [stmt_stack_exec_sound] >>
+  RES_TAC >>
+  fs [] >>
+  irule (SIMP_RULE list_ss [] (Q.SPECL [`x''''1`, `ext_map`, `func_map`, `b_func_map`, `pars_map`, `tbl_map`, `g_scope_list`, `h0`, `h1`, `h2`, `h'0`, `h'1`, `h'2`, `t`] ((valOf o find_clause_frames_red) "frames_comp2"))) >>
+  fs [clause_name_def] >>
+  qexistsl_tac [`x'`, `x''`, `stmt'`, `v`] >>
+  fs [lambda_FST, lambda_SND] >>
+  rpt strip_tac >| [
+   (* TODO: Only holds if scopes to pass results in g_scope_list *)
+   cheat,
+
+   IMP_RES_TAC stmt_exec_status_returnv_indep >>
+   Q.PAT_X_ASSUM `!g_scope_list'' ctrl''. ?g_scope_list'3' ctrl'3'. _` (fn thm => ASSUME_TAC (Q.SPECL [`g_scope_list`, `ctrl`] thm)) >>
+   fs [] >>
+   IMP_RES_TAC stmt_exec_status_returnv_inv >>
+   fs []
+  ],
+
+  (* comp1 *)
+  Cases_on `scopes_to_retrieve h0 func_map b_func_map g_scope_list x'0` >> (
+   fs []
+  ) >>
+  rw [] >>
+  rename1 `(x'0, frame_list', ctrl', status_trans s)` >>
+  rename1 `(g_scope_list'', frame_list', ctrl', status_trans s)` >>
+  assume_tac stmt_stack_exec_sound_red >>
+  fs [stmt_stack_exec_sound] >>
+  RES_TAC >>
+  irule (SIMP_RULE list_ss [] (Q.SPECL [`ext_map`, `func_map`, `b_func_map`, `pars_map`, `tbl_map`, `g_scope_list`, `h0`, `h1`, `h2`, `(h'0,h'1,h'2)::t`] ((valOf o find_clause_frames_red) "frames_comp1"))) >>
+  fs [clause_name_def, notret_def] >>
+  qexists_tac `g_scope_list''` >>
+  fs []
+ ]
+]
+QED
+
+*)
 val _ = export_theory ();
