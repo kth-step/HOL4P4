@@ -1,0 +1,230 @@
+embed
+{{ hol
+open bitstringTheory;
+open wordsTheory;
+}}
+
+grammar
+
+
+
+%w is a const number that represent the width of the bit string
+indexvar w ::=
+  {{ lex numeral }}
+  {{ tex [[w]] }}
+  {{ hol num }}
+  {{ com width }}
+
+grammar
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Types
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+tau :: tau_ ::=
+  {{ com basic component of the types }}
+| bool :: :: bool
+  {{ com boolean type }}
+| bs w :: :: bit
+  {{ com bit-string }}
+| str :: :: str
+  {{ com string literal }}    
+| bot :: :: bot
+  {{ com no value }}
+| [ tau1 x1 , .. , taun xn ] :: :: txl
+
+
+taul :: taul_ ::=
+{{ hol (tau list) }}
+| empty :: M :: empty
+  {{ hol ([]:tau list) }}
+| [ tau1 , .. , taun ] :: M :: vl
+  {{ hol ([[tau1 .. taun]]) }}
+
+Ftau :: Ftau ::=
+{{ com function names types }}
+{{ hol ( ( tau # d ) list # tau) }}
+| [ tau1 d1 , .. , taun dn ] tau :: M :: list
+  {{ hol ([[tau1 d1 .. taun dn]] [[tau]]) }}
+
+
+embed
+{{ hol
+}}
+grammar
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Typing scopes and lists
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+t_scope {{ tex \psi }} :: t_scope_ ::=
+{{ hol (varn |-> tau) }}
+{{ com typing scope }}
+| empty :: M :: empty
+  {{ com empty typing scope }}
+  {{ hol FEMPTY }}
+  {{ tex {\psi}_{ \emptyset } }}
+| ( t_scope ) :: S :: paren
+  {{ hol ([[t_scope]]) }}
+  {{ tex  [[t_scope]] }}
+
+embed
+{{ hol
+}}
+grammar
+
+t_scope_list_g {{ tex \overrightarrow{\psi_G} }} :: t_scope_list_g_ ::=
+{{ hol (t_scope list) }}
+{{ com globals typing scope }}
+| [ t_scope ; t_scope' ] :: M :: two
+  {{ com global scope and block-global scope }}
+  {{ hol ([ [[t_scope]] ; [[t_scope']] ]) }}
+  {{ tex [ [[t_scope]], [[t_scope']] ] }}
+
+t_scope_list {{ tex \overrightarrow{\psi} }} :: t_scope_list_ ::=
+{{ hol (t_scope list) }}
+{{ com ddd}}
+| emptytss :: M :: empty
+  {{ hol ([]:t_scope list) }}
+  {{ tex [\;] }}
+| [ t_scope1 , .. , t_scopen ] :: M :: list
+  {{ hol ([[t_scope1 .. t_scopen]]) }}
+
+
+embed
+{{ hol
+}}
+grammar
+
+t_scopes_tup {{ tex \psi_t }} :: t_scopes_tup_ ::=
+{{ hol (t_scope_list_g # t_scope_list) }}
+| ( t_scope_list_g , t_scope_list ) :: M :: tup
+ {{ hol ([[t_scope_list_g]] , [[t_scope_list]]) }}
+ {{ tex ([[t_scope_list_g]] , [[t_scope_list]]) }}
+
+
+
+embed
+{{ hol
+}}
+grammar
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Global, local functions names types
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+delta_g {{ tex \delta_{glb} }} :: delta_g_ ::=
+{{ com types of functions defined globally}}
+{{ hol (funn |-> (Ftau)) }}
+| ( empty ) :: M :: empty
+  {{ com empty function map }}
+  {{ hol FEMPTY }}
+
+delta_b {{ tex \delta_{blk} }} :: delta_b_ ::=
+{{ com types of functions defined locally}}
+{{ hol (funn |-> (Ftau)) }}
+| ( empty ) :: M :: empty
+  {{ com empty function map }}
+  {{ hol FEMPTY }}
+
+delta_t {{ tex \delta_{tbl} }} :: delta_t_ ::=
+{{ com types of tables}}
+{{ hol (funn |-> (taul)) }}
+| ( empty ) :: M :: empty
+  {{ com empty function map }}
+  {{ hol FEMPTY }}
+
+delta {{ tex \delta_{tbl} }} :: delta_ ::=
+{{ hol ( delta_g # delta_b # delta_t ) }}
+| ( delta_g , delta_b , delta_t ) :: M :: tup
+  {{ com empty function map }}
+  {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_t]] ) }}
+
+
+
+
+%tjudgement :: tjudgement_ ::=
+%{{ com typing formulas }}
+%TODO: add order
+
+order {{ tex \sqsubset }} :: order_ ::=
+{{ hol ( funn -> funn -> bool ) }}
+| ( funn , funn' , b ) :: :: o
+%{{ hol [[funn]] [[funn']] [[b]] }}
+
+
+
+
+
+T_e {{ tex T_e }} :: T_e_ ::=
+{{ hol ( order # funn # delta ) }}
+| ( order , funn , delta ) :: M :: tup
+{{ hol ( [[order]] , [[funn]] , [[delta]] ) }}
+
+defns
+v_typ :: '' ::=
+defn
+ v : ( tau ) :: :: v_typ :: v_
+{{ com expression types }}
+{{ tex [[v]] : ( [[tau]] ) }}
+by
+
+ 
+----------------------------------- :: bool
+  boolv : ( bool )
+
+
+ w = width bitv
+----------------------------------- :: bit
+  bitv : ( bs w )
+
+
+----------------------------------- :: bot
+  bot : ( bot )
+
+
+----------------------------------- :: x
+  x : ( str )
+
+
+  x : (str)
+----------------------------------- :: err
+  errmsg x : (str)
+
+
+----------------------------------- :: struct
+ struct { x1 = v1 ; .. ; xn = vn } : ( [ tau1 x1 , .. , taun xn ] )
+
+
+
+----------------------------------- :: header
+ header boolv { x1 = v1 ; .. ; xn = vn } : ( [ tau1 x1 , .. , taun xn ] )
+
+
+
+
+
+defns
+e_typ :: '' ::=
+defn
+t_scopes_tup T_e |- e : tau :: :: e_typ :: e_
+{{ com expression types }}
+{{ tex [[T_e]] [[t_scopes_tup]] |- [[e]] : [[tau]]  }}
+by
+
+%tau = top_most ( t_scopes_tup , varn )
+----------------------------------- :: var
+t_scopes_tup T_e |- var varn : tau
+
+
+
+
+
+
+
+
+
+
+
+
+
