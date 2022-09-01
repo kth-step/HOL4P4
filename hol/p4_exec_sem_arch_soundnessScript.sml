@@ -55,6 +55,9 @@ Cases_on `arch_frame_list` >> (
   Cases_on `oEL 0 g_scope_list` >> (
    fs []
   ) >>
+  Cases_on `initialise_var_stars func_map f [x'; declare_list_in_scope (l0,x)]` >> (
+   fs []
+  ) >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_init") >>
   fs [clause_name_def] >>
@@ -63,9 +66,9 @@ Cases_on `arch_frame_list` >> (
   rpt strip_tac >| [
    fs [map_tri_zip12],
 
-   fs [listTheory.oEL_EQ_EL],
-
    fs [map_tri_zip12, ZIP_MAP_FST_SND],
+
+   gs [listTheory.oEL_EQ_EL],
 
    fs [map_tri_zip12, ZIP_MAP_FST_SND]
   ],
@@ -182,6 +185,7 @@ Cases_on `arch_frame_list` >> (
  qexists_tac `ZIP (l', l'')` >>
  fs [map_tri_zip12],
 
+ (* programmable block transition *)
  fs [arch_exec_def] >>
  Cases_on `EL i ab_list` >> (
   fs []

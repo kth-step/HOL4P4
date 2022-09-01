@@ -465,6 +465,10 @@ formula :: formula_ ::=
   {{ com initialise variable to value }}
   {{ hol ([[scopes_stack']] = initialise [[scopes_stack]] [[varn]] [[v]]) }}
   {{ tex [[scopes_stack']] = \mathrm{initialise} ([[scopes_stack]], [[varn]], [[v]]) }}
+| g_scope_list' = initialise_var_stars func_map b_func_map g_scope_list :: M :: initialise_var_stars
+  {{ com initialise var_star variables }}
+  {{ hol (SOME [[g_scope_list']] = initialise_var_stars [[func_map]] [[b_func_map]] [[g_scope_list]]) }}
+  {{ tex [[g_scope_list']] = \mathrm{initialise\_var\_stars} ([[func_map]], [[b_func_map]], [[g_scope_list]]) }}
 
 | g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list ) :: M :: scopes_to_pass
   {{ com global and block scopes to pass based on function location }}
@@ -1148,6 +1152,24 @@ val initialise_def = Define `
 val initialise_parse_error_def = Define `
   (initialise_parse_error (scope:scope) =
     FUPDATE scope (varn_name "parseError", (v_err "NoError", NONE))
+  )
+`;
+
+(* Obtains the varn_star updates of a single function map *)
+val var_star_updates_of_func_map_def = Define `
+  (var_star_updates_of_func_map (func_map:func_map) =
+   let varnames = (SET_TO_LIST (FDOM func_map)) in
+   MAP ( \x. (varn_star (funn_name x), (v_bot, (NONE:lval option)))) varnames
+  )
+`;
+
+(* Initialises varn_star variables in function maps *)
+val initialise_var_stars_def = Define `
+  (initialise_var_stars func_map b_func_map g_scope_list =
+   case g_scope_list of
+   | [gg_scope; bg_scope] =>
+    SOME ([gg_scope |++ (var_star_updates_of_func_map func_map); bg_scope |++ (var_star_updates_of_func_map b_func_map)])
+   | _ => NONE
   )
 `;
 
@@ -1966,8 +1988,10 @@ by
   scope'' = declare_list_in_scope ( decl_list , scope' )
   g_scope'' = g_scope_list [0]
   g_scope_list' = [g_scope'']' ++ [ scope'' ]
+%Note that the below means that the var_star of globally-defined functions is redefined every time pbl_init is applied 
+  g_scope_list'' = initialise_var_stars func_map b_func_map g_scope_list'
   ----------------------------------- :: pbl_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , [ stmt ] , [ empty ] ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list'' , [ ( f , [ stmt ] , [ empty ] ) ] , ctrl , Running )
 
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
