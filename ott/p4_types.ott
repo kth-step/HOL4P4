@@ -31,7 +31,7 @@ tau :: tau_ ::=
   {{ com string literal }}    
 | bot :: :: bot
   {{ com no value }}
-| [ tau1 x1 , .. , taun xn ] :: :: txl
+| [ x1 tau1 , .. , xn taun ] :: :: txl
 
 
 taul :: taul_ ::=
@@ -39,7 +39,7 @@ taul :: taul_ ::=
 | empty :: M :: empty
   {{ hol ([]:tau list) }}
 | [ tau1 , .. , taun ] :: M :: vl
-  {{ hol ([[tau1 .. taun]]) }}
+  {{ hol ([[tau1 .. taun]]) }}  
 
 Ftau :: Ftau ::=
 {{ com function names types }}
@@ -161,45 +161,137 @@ T_e {{ tex T_e }} :: T_e_ ::=
 | ( order , funn , delta ) :: M :: tup
 {{ hol ( [[order]] , [[funn]] , [[delta]] ) }}
 
+
+islval :: islval_ ::=
+{{ hol bool }}
+{{ com boolean }}
+| T :: M :: T
+  {{ hol T }}
+  {{ tex { T } }}
+| F :: M :: F
+  {{ hol F }}
+  {{ tex { F } }}
+| b :: M :: free
+  {{ hol [[b]] }}
+
+embed
+{{ hol
+(*************************************************)
+(****** Typing Rules Related definitions *********)
+(*************************************************)
+
+(* returns the width of the bitstring *)
+val bs_width_def = Define `
+  bs_width (bl, (n:num)) = n
+`;
+
+
+val WF_def = Define `
+(WF order) =    (( !x.   ~order x x ) /\
+  		       	 ( !x y.  order x y ==> ~order y x) /\
+                 ( !x y z. order x y /\ order y z ==> order x z))`;
+
+
+(*find the index of the top most typing scope that contains the varn x *)
+val t_find_topmost_scope_def = Define `
+  t_find_topmost_scope (tss:t_scope list) x =
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (tss) of
+    | SOME (i, sc) => SOME (i, sc)
+    | NONE => NONE
+`;
+
+(*find the top most typing scope that contains the varn x *)
+val t_topmost_scope_def = Define `
+  t_topmost_scope (tss:t_scope list) x =
+    case t_find_topmost_scope tss x of
+    | SOME (i, sc) => SOME sc
+    | _ => NONE
+`;
+
+
+
+(* find the type of the top most scope that contains x 
+here the lists of the locals and globals are concatinated *)
+val t_lookup_def = Define `
+  t_lookup (tss:t_scope list) x =
+    case t_topmost_scope (tss) x of
+    | SOME sc => 
+      (case FLOOKUP sc x of
+       | SOME t => SOME t
+       | _ => NONE)
+    | _ => NONE
+`;
+
+
+(* find the type of the top most scope that contains x 
+here the lists of the typing scope lists *)
+val topmost_def = Define `
+  topmost (t_scopes_tup:t_scopes_tup) x =
+  let ( t_scope_list_g : t_scope_list_g , t_scope_list : t_scope_list )  = t_scopes_tup in
+    t_lookup (t_scope_list++t_scope_list_g) x
+`;
+
+
+
+(* lookup teh functions type *)
+val t_lookup_funn_def = Define `
+  t_lookup_funn (delta_g:delta_g) (delta_b:delta_b) (funn:funn) =
+    case FLOOKUP (FUNION (delta_g) (delta_b)) funn of
+    | SOME (tdl , t) => SOME (tdl , t)
+    | NONE  => NONE
+`;
+
+
+val all_v_is_wt_def = Define `
+  all_v_is_wt (vl: v list) (tl : tau list) = (tl)   
+`;
+
+
+
+}}
+
 defns
 v_typ :: '' ::=
 defn
- v : ( tau ) :: :: v_typ :: v_
-{{ com expression types }}
-{{ tex [[v]] : ( [[tau]] ) }}
+ v : ( tau , islval )  :: :: v_typ :: v_
+{{ com values types }}
+{{ tex [[v]] : ( [[tau]] , [[islval]] ) }}
 by
 
  
 ----------------------------------- :: bool
-  boolv : ( bool )
+  boolv : ( bool , F )
 
 
  w = width bitv
 ----------------------------------- :: bit
-  bitv : ( bs w )
+  bitv : ( bs w , F )
 
 
 ----------------------------------- :: bot
-  bot : ( bot )
+  bot : ( bot , F )
 
 
 ----------------------------------- :: x
-  x : ( str )
+  x : ( str , F )
 
 
-  x : (str)
+  x : ( str , F )
 ----------------------------------- :: err
-  errmsg x : (str)
+  errmsg x : ( str , F )
 
 
+%TODO:def
+ %length ( [ tau1 , .. , taun ] ) = m
+ %forall i in 1 -- m . ( ( tau = [ tau1 , .. , taun ][i] /\  v = ( v1 , .. , vn )[i] ) implies  v : ( tau , F ) ) 
+ [ tau1 , .. , taun ] : ( ( v1 , .. , vn ) , F )
 ----------------------------------- :: struct
- struct { x1 = v1 ; .. ; xn = vn } : ( [ tau1 x1 , .. , taun xn ] )
+ struct { x1 = v1 ; .. ; xn = vn } : ( [ x1 tau1 , .. , xn taun ] , F )
 
 
-
+ [ tau1 , .. , taun ] : ( ( v1 , .. , vn ) , F )
 ----------------------------------- :: header
- header boolv { x1 = v1 ; .. ; xn = vn } : ( [ tau1 x1 , .. , taun xn ] )
-
+ header boolv { x1 = v1 ; .. ; xn = vn } : ( [ x1 tau1 , .. , xn taun ] , F )
 
 
 
@@ -207,17 +299,48 @@ by
 defns
 e_typ :: '' ::=
 defn
-t_scopes_tup T_e |- e : tau :: :: e_typ :: e_
+t_scopes_tup T_e |- e : ( tau , islval ) :: :: e_typ :: e_
 {{ com expression types }}
-{{ tex [[T_e]] [[t_scopes_tup]] |- [[e]] : [[tau]]  }}
+{{ tex [[T_e]] [[t_scopes_tup]] |- [[e]] : ( [[tau]] , [[islval]] ) }}
 by
 
-%tau = top_most ( t_scopes_tup , varn )
+tau = topmost ( t_scopes_tup , varn )
 ----------------------------------- :: var
-t_scopes_tup T_e |- var varn : tau
+t_scopes_tup T_e |- var varn : ( tau , T )
 
 
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn )
+tau = topmost ( t_scopes_tup , ( star , funn ) )
+----------------------------------- :: star
+t_scopes_tup ( order , funn' , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn ) : ( tau , T )
 
+
+t_scopes_tup T_e |- [ tau1 , .. , taun ] : ( ( e1 , .. , en ) , F )
+----------------------------------- :: struct
+t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( [ x1 tau1 , .. , xn taun ] , F )
+
+
+t_scopes_tup T_e |- [ tau1 , .. , taun ] : ( ( e1 , .. , en ) , F )
+----------------------------------- :: header
+t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( [ x1 tau1 , .. , xn taun ] , F )
+
+
+not_bool_neg unop
+t_scopes_tup T_e |- e : ( bs w , b )
+----------------------------------- :: not_neg
+t_scopes_tup T_e |- unop e : ( bs w , F )
+
+
+is_bool_neg unop
+t_scopes_tup T_e |- e : ( bool , b )
+----------------------------------- :: is_neg
+t_scopes_tup T_e |- unop e : ( bool , F )
+
+
+t_scopes_tup T_e |- e : ( [ x1 tau1 , .. , xn taun ] , b )
+% I am here
+----------------------------------- :: acc
+t_scopes_tup T_e |- e . x : ( tau , F )
 
 
 
