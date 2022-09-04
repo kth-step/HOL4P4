@@ -309,7 +309,7 @@ binop {{ tex \oplus }} :: binop_ ::=
 e :: e_ ::=
 {{ com expression }}
 | v :: :: v
-  {{ com constant value }}
+  {{ com value }}
 | var varn :: :: var
   {{ com variable }}
 | { e1 , .. , en } :: :: list
@@ -491,6 +491,7 @@ stmt :: stmt_ ::=
 %%%%%%%%%%%
 
 %Note that since the semantics is modular with respect to the architecture, A is typeset in cursive as a variable here
+%Note that a Python script later rewrites the export and add the proper polymorphic type in place of "ascope_ty"
 ascope {{ tex { {\gamma}_A } }}, ascope_ty :: ascope_ ::=
 {{ com architectural scope }}
 {{ hol ('a) }}
