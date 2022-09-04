@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib ottLib;
 
-open p4Theory;
+open p4Theory p4_auxTheory;
 
 val _ = new_theory "p4_vss";
     
@@ -15,11 +15,15 @@ val _ = new_theory "p4_vss";
 (*************)
 (* construct *)
 
+(* TODO: Fix this. It should now initialise a new object in the ascope. *)
 Definition Checksum16_construct:
- (Checksum16_construct (g_scope_list, scopes_stack, ctrl:ctrl) =
-  (let scopes_stack' = initialise (g_scope_list++scopes_stack) varn_ext_ret (v_ext (ext_obj_ck ARB)) in
-   SOME (TAKE 2 scopes_stack', DROP 2 scopes_stack', ctrl)
+ (Checksum16_construct (vss_arch_scope, g_scope_list, scope_stack) =
+(*
+  (let scope_stack' = initialise (g_scope_list++scope_stack) varn_ext_ret (v_ext (ext_obj_ck ARB)) in
+   SOME (vss_arch_scope, TAKE 2 scope_stack', DROP 2 scope_stack', ctrl)
   )
+*)
+  SOME (vss_arch_scope, g_scope_list, scope_stack)
  )
 End
 
@@ -27,19 +31,23 @@ End
 (*********)
 (* clear *)
 
+(* TODO: Fix this. *)
 Definition Checksum16_clear:
- (Checksum16_clear (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
-   (case assign scopes_stack (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
-    | SOME scopes_stack' =>
-     SOME (g_scope_list, scopes_stack', ctrl)
+ (Checksum16_clear (vss_arch_scope, g_scope_list:g_scope_list, scope_stack) =
+(*
+   (case assign scope_stack (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
+    | SOME scope_stack' =>
+     SOME (g_scope_list, scope_stack', ctrl)
     | NONE => NONE)
+*)
+   SOME (vss_arch_scope, g_scope_list, scope_stack)
  )
 End
 
 
 (**********)
 (* update *)
-
+(* OLD
 Definition lookup_ipv4_checksum:
  (lookup_ipv4_checksum ss ext_obj_name =
   case lookup_lval ss ext_obj_name of
@@ -47,6 +55,7 @@ Definition lookup_ipv4_checksum:
   | _ => NONE
  )
 End
+*)
 
 (* TODO: Add recursive cases *)
 Definition header_entry2v:
@@ -68,6 +77,7 @@ Definition header_entries2v:
   | NONE => NONE
  )
 End
+
 
 TotalDefn.tDefine "v2w16s'" `
  (v2w16s' [] = []) /\
@@ -98,31 +108,39 @@ End
 
 (* Note that this assumes the order of fields in the header is correct *)
 (* TODO: Check for overflow, compensate according to IPv4 checksum algorithm *)
+(* TODO: Fix this. *)
 Definition Checksum16_update:
- (Checksum16_update (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
-  case lookup_ipv4_checksum scopes_stack (lval_varname (varn_name "this")) of
+ (Checksum16_update (vss_arch_scope, g_scope_list:g_scope_list, scope_stack) =
+(*
+  case lookup_ipv4_checksum scope_stack (lval_varname (varn_name "this")) of
   | SOME ipv4_checksum =>
-  (case get_checksum_incr scopes_stack (lval_varname (varn_name "data")) of
+  (case get_checksum_incr scope_stack (lval_varname (varn_name "data")) of
    | SOME checksum_incr =>
-    (case assign scopes_stack (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) (lval_varname (varn_name "this")) of
-     | SOME scopes_stack' =>
-      SOME (g_scope_list, scopes_stack', ctrl)
+    (case assign scope_stack (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) (lval_varname (varn_name "this")) of
+     | SOME scope_stack' =>
+      SOME (g_scope_list, scope_stack', ctrl)
      | NONE => NONE)
    | NONE => NONE)
   | NONE => NONE
+*)
+  SOME (vss_arch_scope, g_scope_list, scope_stack)
  )
 End
 
 (*******)
 (* get *)
 
+(* TODO: Fix this. *)
 Definition Checksum16_get:
- (Checksum16_get (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
-  (case lookup_ipv4_checksum scopes_stack (lval_varname (varn_name "this")) of
+ (Checksum16_get (vss_arch_scope, g_scope_list:g_scope_list, scope_stack) =
+(*
+  (case lookup_ipv4_checksum scope_stack (lval_varname (varn_name "this")) of
    | SOME ipv4_checksum =>
-    (let scopes_stack' = initialise scopes_stack varn_ext_ret (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) in
-      SOME (g_scope_list, scopes_stack', ctrl))
+    (let scope_stack' = initialise scope_stack varn_ext_ret (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) in
+      SOME (g_scope_list, scope_stack', ctrl))
    | NONE => NONE)
+*)
+  SOME (vss_arch_scope, g_scope_list, scope_stack)
  )
 End
 
@@ -146,8 +164,10 @@ End
 (* Length of both headers 112+160=272 (IHL=5 assumed) *)
 (* TODO: Make smarter extract function for getting total_length *)
 (* let total_length = (v2n (REVERSE (TAKE 16 (REVERSE (TAKE 144 h)))))*8 in *)
+(* TODO: Fix this. *)
 val vss_input_f_def = Define `
   (vss_input_f (io_list:in_out_list, scope) =
+(*
    case io_list of
    | [] => NONE
    | ((bl,p)::t) =>
@@ -162,19 +182,12 @@ val vss_input_f_def = Define `
          | _ => NONE)
        | _ => NONE)
      | _ => NONE)
+*)
+  SOME (io_list:in_out_list, scope)
   )
 `;
 
-(* TODO: Move? *)
-val oCONS_def = Define `
- (oCONS (h, SOME t) =
-  SOME (h::t)
- ) /\
- (oCONS (_, NONE) =
-  NONE
- )
-`;
-
+(* TODO: Write copyout_pbl and copyin_pbl *)
 val vss_reduce_nonout_def = Define `
  (vss_reduce_nonout ([], elist, vss_arch_scope) =
   SOME []
@@ -254,8 +267,10 @@ val vss_pre_deparser_def = Define `
 (* Add new header + data + Ethernet CRC as a tuple with new output port to output list *)
 (* Add data + Ethernet CRC *)
 (* TODO: Outsource obtaining the output port to an external function? *)
+(* TODO: Fix this *)
 val vss_output_f_def = Define `
  vss_output_f (in_out_list:in_out_list, scope:scope) =
+(*
   (case lookup_lval [scope] (lval_varname (varn_name "b")) of
    | SOME (v_ext (ext_obj_in headers)) =>
     (case lookup_lval [scope] (lval_varname (varn_name "data_crc")) of
@@ -269,6 +284,8 @@ val vss_output_f_def = Define `
     )
    | _ => NONE
   )
+*)
+  SOME (in_out_list:in_out_list, scope:scope)
 `;
 
 (*

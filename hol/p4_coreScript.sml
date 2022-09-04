@@ -36,34 +36,34 @@ Definition min_size_in_bytes:
 End
 
 Definition header_is_valid:
- (header_is_valid (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+ (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scopes_stack) =
   case lookup_lval scopes_stack (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (let scopes_stack' = initialise scopes_stack varn_ext_ret (v_bool valid_bit) in
-    SOME (g_scope_list, scopes_stack', ctrl))
+    SOME (ascope, g_scope_list, scopes_stack'))
   | _ => NONE
  )
 End
 
 Definition header_set_valid:
- (header_set_valid (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+ (header_set_valid (g_scope_list:g_scope_list, scopes_stack) =
   case lookup_lval scopes_stack (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign scopes_stack (v_header T x_v_l) (lval_varname (varn_name "this")) of
     | SOME scopes_stack' =>             
-     SOME (g_scope_list, scopes_stack', ctrl)
+     SOME (g_scope_list, scopes_stack')
     | NONE => NONE)
   | _ => NONE
  )
 End
 
 Definition header_set_invalid:
- (header_set_invalid (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
+ (header_set_invalid (g_scope_list:g_scope_list, scopes_stack) =
   case lookup_lval scopes_stack (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign scopes_stack (v_header F x_v_l) (lval_varname (varn_name "this")) of
     | SOME scopes_stack' =>             
-     SOME (g_scope_list, scopes_stack', ctrl)
+     SOME (g_scope_list, scopes_stack')
     | NONE => NONE)
   | _ => NONE
  )
@@ -73,6 +73,7 @@ End
 (* packet_in methods *)
 (*********************)
 
+(* TODO: Fix this
 Definition lookup_packet_in:
  (lookup_packet_in ss ext_obj_name =
   case lookup_lval ss ext_obj_name of
@@ -80,6 +81,7 @@ Definition lookup_packet_in:
   | _ => NONE
  )
 End
+*)
 
 Definition lookup_lval_header:
  (lookup_lval_header ss header_lval =
@@ -106,6 +108,7 @@ End
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
 (* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
+(* TODO: Fix this
 Definition packet_in_extract:
  (packet_in_extract (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_packet_in scopes_stack (lval_varname (varn_name "this")) of
@@ -135,12 +138,14 @@ Definition packet_in_extract:
   | NONE => NONE
  )
 End
+*)
 
 (**********************)
 (* packet_out methods *)
 (**********************)
 
 (* TODO: Fix the packet_in/packet_out hack *)
+(* TODO: Fix this
 Definition lookup_packet_out:
  (lookup_packet_out frame ext_obj_name =
   case lookup_lval frame ext_obj_name of
@@ -149,6 +154,7 @@ Definition lookup_packet_out:
   | _ => NONE
  )
 End
+*)
 
 Definition flatten_v_l:
  (flatten_v_l [] = SOME []) /\
@@ -170,6 +176,7 @@ End
 
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
+(* TODO: Fix this
 Definition packet_out_emit:
  (packet_out_emit (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
   case lookup_packet_out scopes_stack (lval_varname (varn_name "this")) of
@@ -196,5 +203,6 @@ Definition packet_out_emit:
     | NONE => NONE)
   | NONE => NONE)
 End
+*)
 
 val _ = export_theory ();

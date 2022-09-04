@@ -91,31 +91,6 @@ embed
 }}
 grammar
 
-packet_in :: packet_in_ ::=
-{{ hol (boolv list) }}
-{{ com input packet }}
-| [ boolv1 , .. , boolvn ] :: M :: list
-  {{ hol ([[boolv1 .. boolvn]]) }}
-
-packet_out :: packet_out_ ::=
-{{ hol (boolv list) }}
-{{ com output packet }}
-| [ boolv1 , .. , boolvn ] :: M :: list
-  {{ hol ([[boolv1 .. boolvn]]) }}
-
-ipv4_checksum :: ipv4_checksum_ ::=
-{{ hol (word16) }}
-{{ com ipv4 header checksum }}
-
-ext_obj :: ext_obj_ ::=
-{{ com extern object }}
-| packet_in :: :: in
-  {{ com input packet }}
-| packet_out :: :: out
-  {{ com input packet }}
-| ipv4_checksum :: :: ck
-  {{ com ipv4 header checksum }}
-
 v :: v_ ::=
 {{ com value }}
 | boolv :: :: bool
@@ -128,10 +103,10 @@ v :: v_ ::=
   {{ com struct }}
 | header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
   {{ com header }}
-| ext_obj :: :: ext
-  {{ com extern object }}
 | errmsg x :: :: err
   {{ com error message }}
+| ext_ref i :: :: ext_ref
+  {{ com extern object reference }}
 | bot :: :: bot
   {{ com no value }}
 
@@ -217,24 +192,24 @@ mk {{ tex \mathit{mk} }} :: mk_ ::=
 | lpm :: :: lpm
   {{ tex \mathrm{lpm} }}
 
-%Fence between mk and mkl
+%Fence between mk and mk_list
 embed
 {{ hol
 
 }}
 grammar
 
-mkl {{ tex \mathit{mkl} }} :: mkl_ ::=
+mk_list {{ tex \mathit{mk\_list} }} :: mk_list_ ::=
 {{ com matching kinds list }}
 {{ hol (mk list) }}
 | empty :: :: empty
   {{ com empty match kind list }}
   {{ hol ([]:mk list) }}
-| [ mk1 , .. , mkn ] :: M :: mks
+| [ mk1 , .. , mkn ] :: M :: list
   {{ com list of match kinds }}
   {{ hol ([[mk1 .. mkn]]) }}
-| ( mkl ) :: S :: paren
-  {{ hol ([[mkl]]) }}
+| ( mk_list ) :: S :: paren
+  {{ hol ([[mk_list]]) }}
 
 
 %%%%%%%%%%%%%%%%%%%%%
@@ -337,6 +312,13 @@ e :: e_ ::=
 | ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
+%Fence between e and e_list
+embed
+{{ hol
+
+}}
+grammar
+
 e_list :: e_list_ ::=
 {{ com list of expressions }}
 {{ hol (e list) }}
@@ -384,20 +366,13 @@ t {{ tex t }} :: t_ ::=
   {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 | header_t t1 , ... , tn :: :: header
   {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-| ext_t :: :: ext
-  {{ tex \mathrm{ext}_{ \mathrm{t} } }}
 
-%Fence between mkl and ctrl
+%Fence between t and decl_list
 embed
 {{ hol
 
 }}
 grammar
-
-%The control plane configuration is part of the state, and used by the apply statement
-ctrl {{ tex C }} :: ctrl_ ::=
-{{ com control plane }}
-{{ hol ((string # e_list # mkl) -> (string # e_list) option) }}
 
 %The global scope list holds the global scope as well as the block-global scope
 g_scope_list {{ tex \overline{\gamma_G} }} :: g_scope_list_ ::=
@@ -416,7 +391,7 @@ g_scope_list {{ tex \overline{\gamma_G} }} :: g_scope_list_ ::=
   {{ hol (TAKE 1 [[g_scope_list]]) }}
   {{ tex \mathrm{take}(1,[[g_scope_list]]) }}
 
-scopes_stack {{ tex \overline{\gamma} }} :: scopes_stack_ ::=
+scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 {{ hol (scope list) }}
 {{ com stack of block scopes }}
 | empty :: M :: empty
@@ -424,33 +399,34 @@ scopes_stack {{ tex \overline{\gamma} }} :: scopes_stack_ ::=
   {{ tex {[\;]} }}
 | [ scope1 , .. , scopen ] :: M :: list
   {{ hol ([[scope1 .. scopen]]) }}
-| tl scopes_stack :: M :: tl
-  {{ hol (TL [[scopes_stack]]) }}
-  {{ tex \mathrm{tl} [[scopes_stack]] }}
-| g_scope '::' scopes_stack' :: M :: cons
-  {{ hol ([[g_scope]] :: [[scopes_stack']]) }}
-  {{ tex [[g_scope]] :: [[scopes_stack']] }}
-| scopes_stack ++ scopes_stack' :: M :: append
-  {{ hol ([[scopes_stack]] ++ [[scopes_stack']]) }}
-  {{ tex [[scopes_stack]] \mathrel{\mathop+}+ [[scopes_stack']] }}
-| rev scopes_stack :: M :: rev
-  {{ hol (REVERSE [[scopes_stack]]) }}
-  {{ tex \mathrm{rev} ([[scopes_stack]]) }}
-| update ( scope , i , scopes_stack ) :: M :: update_scope
+| tl scope_list :: M :: tl
+  {{ hol (TL [[scope_list]]) }}
+  {{ tex \mathrm{tl} [[scope_list]] }}
+| g_scope '::' scope_list' :: M :: cons
+  {{ hol ([[g_scope]] :: [[scope_list']]) }}
+  {{ tex [[g_scope]] :: [[scope_list']] }}
+| scope_list ++ scope_list' :: M :: append
+  {{ hol ([[scope_list]] ++ [[scope_list']]) }}
+  {{ tex [[scope_list]] \mathrel{\mathop+}+ [[scope_list']] }}
+| rev scope_list :: M :: rev
+  {{ hol (REVERSE [[scope_list]]) }}
+  {{ tex \mathrm{rev} ([[scope_list]]) }}
+| update ( scope , i , scope_list ) :: M :: update_scope
   {{ com update a scope in the stack frame }}
-  {{ hol ( LUPDATE [[scope]] [[i]] [[scopes_stack]] ) }}
-  {{ tex ([[i]] \mapsto [[scope]]) [[scopes_stack]] }}
+  {{ hol ( LUPDATE [[scope]] [[i]] [[scope_list]] ) }}
+  {{ tex ([[i]] \mapsto [[scope]]) [[scope_list]] }}
 | g_scope_list :: M :: g_scope_list
   {{ com g_scope_list }}
   {{ hol ( [[g_scope_list]] ) }}
   {{ tex [[g_scope_list]] }}
-| ( scopes_stack ) :: S :: paren
-  {{ hol ([[scopes_stack]]) }}
+| ( scope_list ) :: S :: paren
+  {{ hol ([[scope_list]]) }}
 
-%An extern function/method updates the scope stack, global scope list and ctrl directly.
-%Note that at the time this happens, a new frame has already been declared for it to work inside. 
+%An extern function/method updates the scope stack, global scope list and arch scope directly.
+%TODO: Should this be able to write to the global scope?
+%Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
-{{ hol ((g_scope_list # scopes_stack # ctrl) -> ((g_scope_list # scopes_stack # ctrl) option)) }}
+{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # g_scope_list # scope_list) option)) }}
 
 decl_list {{ tex { \overline{ \mathit{decl} } } }} :: decl_list_ ::=
 {{ hol ((varn # t) list) }}
@@ -648,6 +624,11 @@ copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
 {{ hol ((g_scope list # ascope_ty # d list # x list # pbl_type # status) -> ascope_ty option) }}
 
+%This function takes a table name, parameters, match kinds and the architectural scope and returns an action with parameters
+apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
+{{ com apply table function }}
+{{ hol ((x # e_list # mk_list # ascope_ty) -> (x # e_list) option) }}
+
 %Fence between ab_list and actx
 embed
 {{ hol
@@ -658,15 +639,15 @@ grammar
 %The architectural context stores everything that's needed for, but stays invariant over, architecture-level reductions
 actx {{ tex { \mathit{ctx}_A } }} :: actx_ ::=
 {{ com architectural context }}
-{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map) }}
-| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) :: M :: tup
+{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map) }}
+| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[ext_map]], [[func_map]]) }}
+  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[apply_table_f]], [[ext_map]], [[func_map]]) }}
 
 %The context stores everything that's needed for, but stays invariant over, statement reductions
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (ext_map # func_map # b_func_map # pars_map # tbl_map) }}
-| ( ext_map , func_map , b_func_map , pars_map , tbl_map ) :: M :: tup
+{{ hol (apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map) }}
+| ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]]) }}
+  {{ hol ([[apply_table_f]], [[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]]) }}

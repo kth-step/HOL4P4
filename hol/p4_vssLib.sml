@@ -50,10 +50,10 @@ val vss_Checksum16_map =
  ``(FEMPTY
     |+ ("clear", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_inout)], Checksum16_clear))
     |+ ("update", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_inout); ("data", d_in)], Checksum16_update))
-    |+ ("get", (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [("this", d_inout)], Checksum16_get))):ext_fun_map``;
+    |+ ("get", (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [("this", d_inout)], Checksum16_get))):scope ext_fun_map``;
 
 val vss_ext_map =
- ``((^core_ext_map)
-    |+ ("Checksum16", SOME (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [], Checksum16_construct), (^vss_Checksum16_map))):ext_map``;
+ ``(FEMPTY (* (^core_ext_map) *) (* TODO: Fix this... *)
+    |+ ("Checksum16", SOME (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [], Checksum16_construct), (^vss_Checksum16_map))):scope ext_map``;
 
 end

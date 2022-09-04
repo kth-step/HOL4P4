@@ -6,30 +6,30 @@ open p4Lib;
 open ottTheory listTheory rich_listTheory arithmeticTheory p4_auxTheory p4Theory p4_exec_semTheory;
 
 Definition e_exec_sound:
- (e_exec_sound e =
-  !ctx g_scope_list scopes_stack e' frame_list.
+ (e_exec_sound (type:('a itself)) e =
+  !(ctx:'a ctx) g_scope_list scopes_stack e' frame_list.
   e_exec ctx g_scope_list scopes_stack e = SOME (e', frame_list) ==>
   e_red ctx g_scope_list scopes_stack e e' frame_list)
 End
 
 Definition x_e_exec_sound:
- (x_e_exec_sound (x:string, e) = e_exec_sound e)
+ (x_e_exec_sound type (x:string, e) = e_exec_sound type e)
 End
 
 Definition l_sound_exec:
- (l_sound_exec [] = T) /\
- (l_sound_exec ((h::t):e list) = 
-  (e_exec_sound h /\ l_sound_exec t))
+ (l_sound_exec type [] = T) /\
+ (l_sound_exec type ((h::t):e list) = 
+  (e_exec_sound type h /\ l_sound_exec type t))
 End
 
 Definition l_sound:
- (l_sound [] = T) /\
- (l_sound (l:e list) = 
-  !x e. (SOME e = oEL x l) ==> e_exec_sound e)
+ (l_sound type [] = T) /\
+ (l_sound type (l:e list) = 
+  !x e. (SOME e = oEL x l) ==> e_exec_sound type e)
 End
 
 Theorem l_sound_cons:
-!h l. l_sound (h::l) ==> l_sound l
+!type h l. l_sound type (h::l) ==> l_sound type l
 Proof
 rpt strip_tac >>
 Induct_on `l` >> (
@@ -46,6 +46,7 @@ Induct_on `x` >> (
 )
 QED
 
+(* TODO: Move *)
 Theorem oEL_cons_PRE:
 !e x h l.
 (x > 0) /\ (SOME e = oEL x (h::l)) ==>
@@ -56,7 +57,7 @@ fs [oEL_def, PRE_SUB1]
 QED
 
 Theorem l_sound_equiv:
-!l. l_sound l <=> l_sound_exec l
+!type l. l_sound type l <=> l_sound_exec type l
 Proof
 rpt strip_tac >>
 EQ_TAC >| [
@@ -67,7 +68,7 @@ EQ_TAC >| [
   PAT_X_ASSUM ``!x. _`` (fn thm => ASSUME_TAC (SPEC ``0`` thm)) >>
   fs [oEL_def],
 
-  `l_sound (h::l)` suffices_by (
+  `l_sound type (h::l)` suffices_by (
    METIS_TAC [l_sound_cons]
   ) >>
   METIS_TAC [l_sound]
@@ -76,11 +77,11 @@ EQ_TAC >| [
  Induct_on `l` >> (
   fs [l_sound, l_sound_exec]
  ) >>
- NTAC 2 strip_tac >>
+ NTAC 3 strip_tac >>
  Induct_on `x` >> (
   fs [oEL_def]
  ) >>
- `!x e. SOME e = oEL x l ==> e_exec_sound e` suffices_by (
+ `!x e. SOME e = oEL x l ==> e_exec_sound type e` suffices_by (
   METIS_TAC [oEL_cons_PRE]
  ) >>
  fs [] >>
@@ -92,10 +93,10 @@ EQ_TAC >| [
 QED
 
 Theorem l_sound_MEM:
- !e l.
+ !type e l.
  MEM e l ==>
- l_sound l ==>
- e_exec_sound e
+ l_sound type l ==>
+ e_exec_sound type e
 Proof
 Induct_on `l` >> (
  fs []
@@ -106,13 +107,13 @@ rpt strip_tac >> (
 QED
 
 Definition x_e_l_exec_sound:
- (x_e_l_exec_sound (x_e_l:(string # e) list) = l_sound (MAP SND x_e_l))
+ (x_e_l_exec_sound type (x_e_l:(string # e) list) = l_sound type (MAP SND x_e_l))
 End
 
 Theorem e_acc_exec_sound_red:
-!e x.
-e_exec_sound e ==>
-e_exec_sound (e_acc e x)
+!type e x.
+e_exec_sound type e ==>
+e_exec_sound type (e_acc e x)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
@@ -146,10 +147,10 @@ Cases_on `v` >> (
 QED
 
 Theorem e_binop_exec_sound_red:
-!e1 e2 b.
-e_exec_sound e1 ==>
-e_exec_sound e2 ==>
-e_exec_sound (e_binop e1 b e2)
+!type e1 e2 b.
+e_exec_sound type e1 ==>
+e_exec_sound type e2 ==>
+e_exec_sound type (e_binop e1 b e2)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
@@ -356,9 +357,9 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 QED
 
 Theorem e_select_exec_sound_red:
-!e l s.
-e_exec_sound e ==>
-e_exec_sound (e_select e l s)
+!type e l s.
+e_exec_sound type e ==>
+e_exec_sound type (e_select e l s)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
@@ -393,9 +394,9 @@ Cases_on `is_v e` >| [
 QED
 
 Theorem e_unop_exec_sound_red:
-!e u.
-e_exec_sound e ==>
-e_exec_sound (e_unop u e)
+!type e u.
+e_exec_sound type e ==>
+e_exec_sound type (e_unop u e)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
@@ -434,14 +435,14 @@ Cases_on `is_v e` >| [
 QED
 
 Theorem e_call_exec_sound_red:
-!f l.
-l_sound l ==>
-e_exec_sound (e_call f l)
+!type f l.
+l_sound type l ==>
+e_exec_sound type (e_call f l)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
 PairCases_on `ctx` >>
-rename1 `(ext_map,func_map,b_func_map,pars_map,tbl_map)` >>
+rename1 `(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)` >>
 fs [e_exec] >>
 Cases_on `lookup_funn_sig_body f func_map b_func_map ext_map` >> (
  fs []
@@ -461,7 +462,7 @@ Cases_on `unred_arg_index (MAP SND r) l` >> (
             clause_name_def],
 
  (* e_call_args *)
- Cases_on `e_exec (ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list scopes_stack (EL x l)` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list scopes_stack (EL x l)` >> (
   fs []
  ) >>
  Cases_on `x'` >>
@@ -499,9 +500,9 @@ Cases_on `unred_arg_index (MAP SND r) l` >> (
 QED
 
 Theorem e_struct_exec_sound_red:
-!x_e_l.
-x_e_l_exec_sound x_e_l ==>
-e_exec_sound (e_struct x_e_l)
+!type x_e_l.
+x_e_l_exec_sound type x_e_l ==>
+e_exec_sound type (e_struct x_e_l)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
@@ -580,9 +581,10 @@ Cases_on `unred_mem_index (MAP SND x_e_l)` >> (
 QED
 
 Theorem e_exec_sound_red:
-!e. e_exec_sound e
+!type e. e_exec_sound type e
 Proof
-`(!e. e_exec_sound e) /\ (!l. x_e_l_exec_sound l) /\ (!p. x_e_exec_sound p) /\ (!l. l_sound l)` suffices_by (
+strip_tac >>
+`(!e. e_exec_sound type e) /\ (!l. x_e_l_exec_sound type l) /\ (!p. x_e_exec_sound type p) /\ (!l. l_sound type l)` suffices_by (
  fs []
 ) >>
 irule e_induction >>

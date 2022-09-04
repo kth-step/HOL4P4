@@ -8,27 +8,27 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_e_
 (* Note that this definition is phrased for given singleton statement lists, not on the frame list,
  * so soundness block nesting rules and comp1 and comp2 rules are excluded *)
 Definition stmt_exec_sound:
- (stmt_exec_sound stmt =
-  !ctx g_scope_list funn stmt_stack scopes_stack ctrl status state'.
-  stmt_exec ctx (g_scope_list, [(funn, stmt::stmt_stack, scopes_stack)], ctrl, status) = SOME state' ==>
-  stmt_red ctx (g_scope_list, [(funn, stmt::stmt_stack, scopes_stack)], ctrl, status) state')
+ (stmt_exec_sound (type:('a itself)) stmt =
+  !(ctx:'a ctx) ascope g_scope_list funn stmt_stack scope_list status state'.
+  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_red ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) state')
 End
 
 Definition stmt_stack_exec_sound:
- (stmt_stack_exec_sound stmt_stack =
-  !ctx g_scope_list funn scopes_stack ctrl status state'.
-  stmt_exec ctx (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status) = SOME state' ==>
-  stmt_red ctx (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status) state')
+ (stmt_stack_exec_sound (type:('a itself)) stmt_stack =
+  !(ctx:'a ctx) ascope g_scope_list funn scope_list status state'.
+  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_red ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) state')
 End
 
 
 fun specl_stmt_block_exec stmt frame_list' stmt_stack' =
- SIMP_RULE list_ss [] (ISPECL [``ext_map:ext_map``, ``func_map:func_map``, ``b_func_map:b_func_map``, ``pars_map:pars_map``, ``tbl_map:tbl_map``, ``g_scope_list:g_scope_list``, ``funn:funn``, stmt, ``stmt_stack:stmt_stack``, ``scopes_stack:scopes_stack``, ``ctrl:ctrl``, ``status_running``, ``g_scope_list':g_scope_list``, frame_list', stmt_stack'] ((valOf o find_clause_stmt_red) "stmt_block_exec"))
+ SIMP_RULE list_ss [] (ISPECL [``apply_table_f:'a apply_table_f``, ``ext_map:'a ext_map``, ``func_map:func_map``, ``b_func_map:b_func_map``, ``pars_map:pars_map``, ``tbl_map:tbl_map``, ``ascope:'a``, ``g_scope_list:g_scope_list``, ``funn:funn``, stmt, ``stmt_stack:stmt_stack``, ``scope_list:scope_list``, ``status_running``, ``ascope':'a``, ``g_scope_list':g_scope_list``, frame_list', stmt_stack'] ((valOf o find_clause_stmt_red) "stmt_block_exec"))
 ;
 
 
 Theorem stmt_ext_exec_sound_red:
-stmt_exec_sound stmt_ext
+!type. stmt_exec_sound type stmt_ext
 Proof
 fs [stmt_exec_sound] >>
 rpt strip_tac >>
@@ -36,11 +36,11 @@ Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
- fs [exec_stmt_ext_SOME_REWRS] >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
+fs [exec_stmt_ext_SOME_REWRS] >>
 Cases_on `stmt_stack` >| [
  metis_tac [(valOf o find_clause_stmt_red) "stmt_ext", clause_name_def],
 
@@ -51,9 +51,9 @@ Cases_on `stmt_stack` >| [
 QED
 
 Theorem stmt_ret_exec_sound_red:
-!e.
- e_exec_sound e ==>
- stmt_exec_sound (stmt_ret e)
+!type e.
+ e_exec_sound type e ==>
+ stmt_exec_sound type (stmt_ret e)
 Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
@@ -61,10 +61,10 @@ Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 fs [exec_stmt_ret_SOME_REWRS] >>
 Cases_on `stmt_stack` >> (
  Cases_on `get_v e` >> (
@@ -92,9 +92,9 @@ Cases_on `stmt_stack` >> (
 QED
 
 Theorem stmt_trans_exec_sound_red:
-!e.
- e_exec_sound e ==>
- stmt_exec_sound (stmt_trans e)
+!type e.
+ e_exec_sound type e ==>
+ stmt_exec_sound type (stmt_trans e)
 Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
@@ -102,10 +102,10 @@ Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 fs [exec_stmt_trans_SOME_REWRS] >>
 Cases_on `is_v e` >> (
  fs []
@@ -137,21 +137,21 @@ Cases_on `is_v e` >> (
 QED
 
 Theorem stmt_app_exec_sound_red:
-!e_l tbl.
- (!e. e_exec_sound e) ==>
- stmt_exec_sound (stmt_app tbl e_l)
+!type e_l tbl.
+ (!e. e_exec_sound type e) ==>
+ stmt_exec_sound type (stmt_app tbl e_l)
 Proof
 fs [stmt_exec_sound] >>
 rpt strip_tac >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(ctx0, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 fs [exec_stmt_app_SOME_REWRS] >>
 Cases_on `index_not_const e_l` >> (
  fs []
@@ -198,19 +198,18 @@ Cases_on `index_not_const e_l` >> (
 QED
 
 Theorem stmt_verify_exec_sound_red:
-!e1 e2.
-e_exec_sound e1 ==>
-e_exec_sound e2 ==>
-stmt_exec_sound (stmt_verify e1 e2)
+!type e1 e2.
+e_exec_sound type e1 ==>
+e_exec_sound type e2 ==>
+stmt_exec_sound type (stmt_verify e1 e2)
 Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
@@ -286,18 +285,17 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 QED
 
 Theorem stmt_ass_exec_sound_red:
-!lval e.
-e_exec_sound e ==>
-stmt_exec_sound (stmt_ass lval e)
+!type lval e.
+e_exec_sound type e ==>
+stmt_exec_sound type (stmt_ass lval e)
 Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
@@ -332,10 +330,10 @@ Cases_on `is_v e` >> (
 QED
 
 Theorem stmt_seq_exec_sound_red:
-!s1 s2.
-stmt_exec_sound s1 ==>
-stmt_exec_sound s2 ==>
-stmt_exec_sound (stmt_seq s1 s2)
+!type s1 s2.
+stmt_exec_sound type s1 ==>
+stmt_exec_sound type s2 ==>
+stmt_exec_sound type (stmt_seq s1 s2)
 Proof
 fs [stmt_exec_sound] >>
 rpt strip_tac >>
@@ -343,11 +341,10 @@ Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 fs [exec_stmt_seq_SOME_REWRS] >>
 Cases_on `is_empty s1` >> (
  fs []
@@ -373,7 +370,7 @@ Cases_on `is_empty s1` >> (
    irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``[stmt_seq stmt1' s2]:stmt list``) >>
    fs [clause_name_def]
   ] >> (
-   metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
+   metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `ascope`, `g_scope_list`, `funn`, `s1`, `s2`, `scope_list`, `ascope'`, `g_scope_list'`, `[]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
   ),
 
   Cases_on `stmt_stack` >| [
@@ -394,7 +391,7 @@ Cases_on `is_empty s1` >> (
   irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[]:frame_list`` ``stmt1''::[stmt_seq stmt1' s2]:stmt list``) >>
   fs [clause_name_def]
  ] >> (
-  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[]`, `[stmt1'']`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
+  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `ascope`, `g_scope_list`, `funn`, `s1`, `s2`, `scope_list`, `ascope'`, `g_scope_list'`, `[]`, `[stmt1'']`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
  ),
 
  (* frame added (function called) *)
@@ -405,17 +402,17 @@ Cases_on `is_empty s1` >> (
   irule (specl_stmt_block_exec ``stmt_seq s1 s2`` ``[(funn',[stmt'],[scope'])]:frame_list`` ``[stmt_seq stmt1' s2]:stmt list``) >>
   fs [clause_name_def]
  ] >> (
-  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `g_scope_list`, `funn`, `s1`, `s2`, `scopes_stack`, `ctrl`, `g_scope_list'`, `[frame]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
+  metis_tac [SIMP_RULE list_ss [] (Q.SPECL [`ctx`, `ascope`, `g_scope_list`, `funn`, `s1`, `s2`, `scope_list`, `ascope'`, `g_scope_list'`, `[frame]`, `[]`] ((valOf o find_clause_stmt_red) "stmt_seq1")), clause_name_def]
  )
 ]
 QED
 
 Theorem stmt_cond_exec_sound_red:
-!e s1 s2.
-e_exec_sound e ==>
-stmt_exec_sound s1 ==>
-stmt_exec_sound s2 ==>
-stmt_exec_sound (stmt_cond e s1 s2)
+!type e s1 s2.
+e_exec_sound type e ==>
+stmt_exec_sound type s1 ==>
+stmt_exec_sound type s2 ==>
+stmt_exec_sound type (stmt_cond e s1 s2)
 Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
@@ -423,11 +420,10 @@ Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 fs [exec_stmt_cond_SOME_REWRS] >>
 Cases_on `is_v_bool e` >> (
  fs []
@@ -476,9 +472,9 @@ Cases_on `is_v_bool e` >> (
 QED
 
 Theorem stmt_block_exec_sound_red:
-!s decl_list.
-stmt_exec_sound s ==>
-stmt_exec_sound (stmt_block decl_list s)
+!type s decl_list.
+stmt_exec_sound type s ==>
+stmt_exec_sound type (stmt_block decl_list s)
 Proof
 fs [stmt_exec_sound] >>
 rpt strip_tac >>
@@ -486,11 +482,10 @@ Cases_on `status` >> (
  fs [stmt_exec]
 ) >>
 pairLib.PairCases_on `ctx` >>
-rename1 `(ctx0, func_map, b_func_map, pars_map, tbl_map)` >>
-rename1 `(ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
-rename1 `(g_scope_list',state'1,state'2,state'3)` >>
-rename1 `(g_scope_list',frame_list',ctrl',status')` >>
+rename1 `(state'0,g_scope_list',state'2,state'3)` >>
+rename1 `(ascope',g_scope_list',frame_list',status')` >>
 fs [exec_stmt_block_SOME_REWRS] >>
 Cases_on `stmt_stack` >| [
  ALL_TAC,
@@ -504,15 +499,16 @@ Cases_on `stmt_stack` >| [
 QED
 
 Theorem stmt_exec_sound_red:
-!stmt. stmt_exec_sound stmt
+!type stmt. stmt_exec_sound type stmt
 Proof
 assume_tac e_exec_sound_red >>
+strip_tac >>
 irule stmt_induction >>
 rpt strip_tac >| [
  (* Empty statement *)
  fs [stmt_exec_sound] >>
  rpt strip_tac >>
- Cases_on `status` >> Cases_on `scopes_stack` >> Cases_on `stmt_stack` >> (
+ Cases_on `status` >> Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
   fs [stmt_exec]
  ) >>
  rw [] >>
@@ -549,7 +545,7 @@ rpt strip_tac >| [
 QED
 
 Theorem stmt_stack_exec_sound_red:
-!stmt_stack. stmt_stack_exec_sound stmt_stack
+!type stmt_stack. stmt_stack_exec_sound type stmt_stack
 Proof
 Cases_on `stmt_stack` >> (
  fs [stmt_stack_exec_sound] >>
@@ -557,11 +553,11 @@ Cases_on `stmt_stack` >> (
  Cases_on `status` >> (
   fs [stmt_exec]
  ) >>
- Cases_on `scopes_stack` >> (
+ Cases_on `scope_list` >> (
   fs [stmt_exec]
  )
 ) >>
-assume_tac (SPEC ``h:stmt`` stmt_exec_sound_red) >>
+assume_tac (SPECL [``type:'a itself``, ``h:stmt``] stmt_exec_sound_red) >>
 fs [stmt_exec_sound]
 QED
 
