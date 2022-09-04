@@ -4,12 +4,12 @@ open bitstringTheory;
 open wordsTheory;
 }}
 
-%%%%%%%%%%%%%%%%%
-% P4 base types %
-%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%
+% Primitive types %
+%%%%%%%%%%%%%%%%%%%
 
-%x denotes variable name, f denotes field name or function name
-metavar x, f, a, tbl ::=
+%x denotes variable name, f denotes field name or function name, tbl denotes table name
+metavar x, f, tbl ::=
       {{ lex alphanum }}
       {{ hol string }}
       {{ tex [[x]] }}
@@ -21,12 +21,13 @@ metavar b ::=
       {{ hol bool }}
       {{ tex [[b]] }}
       {{ com boolean }}
+
 metavar bl ::=
       {{ lex numeral }}
       {{ hol bool list }}
       {{ tex [[bl]] }}
       {{ com bit-string }}
-    
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Auxiliary metavariables %
@@ -37,6 +38,7 @@ metavar i ::=
       {{ hol num }}
       {{ tex [[i]] }}
       {{ com natural number }}
+
 indexvar m, n, o ::=
   {{ lex numeral }}
   {{ coq nat }}
@@ -46,13 +48,19 @@ indexvar m, n, o ::=
 
 grammar
 
+%%%%%%%%%%%%%%%%%%%%
+% Auxiliary syntax %
+%%%%%%%%%%%%%%%%%%%%
+
+%This just exists in order to be able to use the below productions in the semantics
 num_exp :: num_exp ::=
 {{ hol num }}
-{{ com expressions with numeric literals }}
-| i :: M :: lit
+{{ com expressions with numerals }}
+| i :: M :: num
   {{ hol [[i]] }}
 | num_exp + 1 :: M :: add1
   {{ hol ([[num_exp]] + 1) }}
+
 
 %%%%%%%%%%%%%%%%
 % Value syntax %
@@ -95,11 +103,10 @@ packet_out :: packet_out_ ::=
 | [ boolv1 , .. , boolvn ] :: M :: list
   {{ hol ([[boolv1 .. boolvn]]) }}
 
-ipv4_checksum :: ipv4_checksum_ ::= {{ hol (word16) }}
+ipv4_checksum :: ipv4_checksum_ ::=
+{{ hol (word16) }}
 {{ com ipv4 header checksum }}
 
-%TODO: This should be expanded to cover data of all extern objects
-%TODO: Only stuff in core.p4, for now... Should this be polymorphic when done for multiple platforms?
 ext_obj :: ext_obj_ ::=
 {{ com extern object }}
 | packet_in :: :: in
@@ -109,39 +116,24 @@ ext_obj :: ext_obj_ ::=
 | ipv4_checksum :: :: ck
   {{ com ipv4 header checksum }}
 
-
-%TODO: Add identifiers
-%TODO: Add enums
 v :: v_ ::=
-{{ com constant }}
+{{ com value }}
 | boolv :: :: bool
   {{ com boolean value }}
-%bitv currently represents both signed and unsigned bit-strings
 | bitv :: :: bit
   {{ com bit-string }}
 | x :: :: str
   {{ com string literal }} 
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
-  {{ com struct }} %TODO: Ott User Guide 12.2  List comprehension forms
+  {{ com struct }}
 | header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
-% A header is like a struct, but with a validity bit.
-% Headers also have different well-formedness conditions (for example, headers cannot be nested).
-%TODO: We must have the following header methods:
-%      isValid()
-%      setValid()
-%      setInvalid()
-%      Should these be modeled as statements, or should they
-%      be pre-set in the function map?
   {{ com header }}
 | ext_obj :: :: ext
   {{ com extern object }}
 | errmsg x :: :: err
   {{ com error message }}
-%TODO: Represent uninitialised variables? Default values?
-%See https://p4lang.github.io/p4-spec/docs/P4-16-v1.2.2.html#sec-uninitialized-values-and-writing-invalid-headers
 | bot :: :: bot
   {{ com no value }}
-
 
 v_list :: v_list_ ::=
 {{ com list of values }}
@@ -152,7 +144,6 @@ v_list :: v_list_ ::=
 | v1 , .. , vn :: M :: vl
   {{ hol ([[v1 .. vn]]) }}
 
-
 %An abstract function or extern method/function name
 funn :: funn_ ::=
 | f :: :: name
@@ -161,8 +152,8 @@ funn :: funn_ ::=
   {{ com extern object instantiation }}
 | f f' :: :: ext
   {{ com extern method call }}
-  
 
+%An abstract variable name
 varn :: varn_ ::=
 | x :: :: name
   {{ com variable name }}
@@ -171,8 +162,6 @@ varn :: varn_ ::=
 | ext_ret :: :: ext_ret
   {{ com extern return variable }}
 
-%TODO: Add array element
-%TODO: Add bitslice
 lval :: lval_ ::=
 | varn :: :: varname
   {{ com variable name }}
@@ -189,15 +178,7 @@ lval :: lval_ ::=
 %%%%%%%%%%%%%%%%%%%
 %Note that this is not part of the P4 specification, but made up for verification purposes.
 
-pars_fin {{ tex p_{ \mathrm{fin} } }} :: pars_fin ::=
-{{ com final parser states }}
-| Accept :: :: accept
-  {{ com accepted state }}
-  {{ tex { \mathbf{acc} } }}
-| Reject :: :: reject
-  {{ com rejected state }}
-  {{ tex { \mathbf{rej} } }}
-
+%Execution status: used to model function return and parser state transitions
 status {{ tex t }}:: status_ ::=
 {{ com execution status }}
 | Running :: I :: running
@@ -208,43 +189,35 @@ status {{ tex t }}:: status_ ::=
   {{ com transition to parser state }}
   {{ tex { \mathbf{tra} \; [[x]] } }}
 
+%This is the structure that maps variable names to values (and with copy-out variables)
 scope {{ tex \gamma }} :: scope_ ::=
 {{ hol (varn |-> (v # lval option)) }}
-{{ com frame/variable environment of current scope }}
-| emptyscope :: M :: empty
-  {{ com empty stack frame }}
+{{ com variable environment of current scope }}
+| empty :: M :: empty
+  {{ com empty scope }}
   {{ hol FEMPTY }}
-  {{ tex {\gamma}_{ \emptyset } }}
-%TODO: This should keep output parameter instead of requiring NONE
-| scope + [ varn |-> ( v , NONE ) ] :: M :: update
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE [[scope]] ([[varn]], ( [[v]] , NONE ))) }}
-  {{ tex ([[varn]] \mapsto  [[v]]) [[scope]] }}
-%TODO: Update or remove this production
-| scope ++ [ varn1 |-> v1 , .. , varnn |-> vn ] :: M :: update_list
-  {{ com update variable mapping }}
-  {{ hol (FUPDATE_LIST [[scope]] [[varn1 v1 .. varnn vn]]) }}
-  %TODO: The below is a hack since LaTeX cannot interpret dot form...
-  {{ tex \forall i \leq n. \,\, (x_i \mapsto  \mathit{v}_i) \,\, [[scope]] }}
+  {{ tex {\gamma}_{\emptyset} }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
   {{ tex  [[scope]] }}
 
-g_scope {{ tex \gamma_G }} :: g_scope_ ::=
-{{ com global scope}}
-{{ hol scope}}
+%A global scope is of the same type as a regular scope, but is used and typeset differently
+g_scope {{ tex \gamma_{ \mathrm{G} } }} :: g_scope_ ::=
+{{ com global scope }}
+{{ hol scope }}
 | scope :: M :: global
   {{ hol ([[scope]]) }}
 
 mk {{ tex \mathit{mk} }} :: mk_ ::=
 {{ com matching kinds }}
 | exact :: :: exact
-  {{ tex exact }}
+  {{ tex \mathrm{exact} }}
 | ternary :: :: ternary
-  {{ tex ternary }}
+  {{ tex \mathrm{ternary} }}
 | lpm :: :: lpm
-  {{ tex lpm }}
+  {{ tex \mathrm{lpm} }}
 
+%Fence between mk and mkl
 embed
 {{ hol
 
@@ -264,13 +237,6 @@ mkl {{ tex \mathit{mkl} }} :: mkl_ ::=
   {{ hol ([[mkl]]) }}
 
 
-%Fence so that ott does not re-order expression syntax with state syntax
-embed
-{{ hol
-
-}}
-grammar
-
 %%%%%%%%%%%%%%%%%%%%%
 % Expression syntax %
 %%%%%%%%%%%%%%%%%%%%%
@@ -285,13 +251,8 @@ unop {{ tex \ominus }}:: unop_ ::=
 | - :: :: neg_signed
   {{ com signed negation }}
 | + :: :: un_plus
-  %Defined as no-op for all values in P4 spec
   {{ com unary plus }}
 
-%Binary operations
-%TODO: Split these up into operations (bv # bv -> bv) and predicates (bv # bv -> bool)?
-%TODO: Add saturating addition
-%TODO: Add saturating subtraction
 binop {{ tex \oplus }} :: binop_ ::=
 | * :: :: mul
   {{ com multiplication }}
@@ -345,10 +306,6 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
-
-%TODO: Add casts
-%TODO: Add tuples
-%TODO: Add conditional operator
 e :: e_ ::=
 {{ com expression }}
 | v :: :: v
@@ -372,31 +329,14 @@ e :: e_ ::=
 | call funn ( e1 , .. , en ) :: :: call
   {{ com function or extern call }}
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
-  %TODO: x is the default value of select expression, which should be optional
   {{ com select }}
 | eStruct { x1 = e1 ; ... ; xn = en } :: :: struct
-    {{ com struct expression }}
+  {{ com struct }}
 | eHeader boolv { x1 = e1 ; ... ; xn = en } :: :: header
-    {{ com header expression }}  
+  {{ com header }}  
 | ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
-
-embed
-{{ hol
-
-}}
-grammar
-
-
-%TODO: Trying to make a new definition for expression lists (mainly for function
-%      arguments) proved problematic.
-%      If all e_list productions are meta, then you get e_list as a type abbreviation of "e list",
-%      which is either undefined at the point where the abbreviation is made, or
-%      e_list is unknown when defining e (and specifically function call, which would use e_list).
-%      In both situations, mutually recursive definitions are not possible.
-%
-%      If nothing is meta and e_list is not exported to a type abbreviation, you risk the function call semantics not understanding the "e_list" and "e list" correspondence. However, this seems to work currently.
 e_list :: e_list_ ::=
 {{ com list of expressions }}
 {{ hol (e list) }}
@@ -412,7 +352,7 @@ e_list :: e_list_ ::=
 | tl e_list :: M :: tail
   {{ com tail }}
   {{ hol (TL [[e_list]]) }}
-| [ e1 , .. , en ] :: M :: exps2
+| [ e1 , .. , en ] :: M :: list
   {{ com bracketed list of expressions }}
   {{ hol ([[e1 .. en]]) }}
 | e_list ++ e_list' :: M :: append
@@ -425,16 +365,6 @@ e_list :: e_list_ ::=
 | ( e_list ) :: S :: paren
   {{ hol ([[e_list]]) }}
 
-init_opt :: init_opt_ ::=
-{{ com optional initializer }}
-{{ hol (e option) }}
-| e :: M :: some
-  {{ com initializer }}
-  {{ hol (SOME [[e]]) }}
-%TODO: Choose notation
-| - :: M :: none
-  {{ com no initializer }}
-  {{ hol (NONE:e option) }}
 
 %%%%%%%%%%%%%%
 % Statements %
@@ -454,22 +384,23 @@ t {{ tex t }} :: t_ ::=
   {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 | header_t t1 , ... , tn :: :: header
   {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-%TODO: are all extern objects that are declared done so using constructors?
-| extt :: :: ext
-  {{ tex \mathrm{ext} }}
+| ext_t :: :: ext
+  {{ tex \mathrm{ext}_{ \mathrm{t} } }}
 
-%Fence between ctrl and e_list
+%Fence between mkl and ctrl
 embed
 {{ hol
 
 }}
 grammar
 
-ctrl {{ tex { C } }} :: ctrl_ ::=
+%The control plane configuration is part of the state, and used by the apply statement
+ctrl {{ tex C }} :: ctrl_ ::=
 {{ com control plane }}
 {{ hol ((string # e_list # mkl) -> (string # e_list) option) }}
 
-g_scope_list {{ tex \overrightarrow{\gamma_G} }} :: g_scope_list_ ::=
+%The global scope list holds the global scope as well as the block-global scope
+g_scope_list {{ tex \overline{\gamma_G} }} :: g_scope_list_ ::=
 {{ hol (scope list) }}
 {{ com list of the global scope and the block-global scope }}
 | [ g_scope ]' :: M :: one
@@ -485,17 +416,10 @@ g_scope_list {{ tex \overrightarrow{\gamma_G} }} :: g_scope_list_ ::=
   {{ hol (TAKE 1 [[g_scope_list]]) }}
   {{ tex \mathrm{take}(1,[[g_scope_list]]) }}
 
-%Fence between ctrl and state
-embed
-{{ hol
-
-}}
-grammar
-
-scopes_stack {{ tex \overrightarrow{\gamma} }} :: scopes_stack_ ::=
+scopes_stack {{ tex \overline{\gamma} }} :: scopes_stack_ ::=
 {{ hol (scope list) }}
 {{ com stack of block scopes }}
-| emptyss :: M :: empty
+| empty :: M :: empty
   {{ hol ([]:scope list) }}
   {{ tex {[\;]} }}
 | [ scope1 , .. , scopen ] :: M :: list
@@ -516,7 +440,6 @@ scopes_stack {{ tex \overrightarrow{\gamma} }} :: scopes_stack_ ::=
   {{ com update a scope in the stack frame }}
   {{ hol ( LUPDATE [[scope]] [[i]] [[scopes_stack]] ) }}
   {{ tex ([[i]] \mapsto [[scope]]) [[scopes_stack]] }}
-%TODO: Hack to make you able to concatenate g_scope_lists and scope_stacks
 | g_scope_list :: M :: g_scope_list
   {{ com g_scope_list }}
   {{ hol ( [[g_scope_list]] ) }}
@@ -524,27 +447,15 @@ scopes_stack {{ tex \overrightarrow{\gamma} }} :: scopes_stack_ ::=
 | ( scopes_stack ) :: S :: paren
   {{ hol ([[scopes_stack]]) }}
 
-%ext updates the scope stack, global scope list and ctrl directly.
-%Note that at the time this happens, a new frame has already been declared for ext. 
+%An extern function/method updates the scope stack, global scope list and ctrl directly.
+%Note that at the time this happens, a new frame has already been declared for it to work inside. 
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 {{ hol ((g_scope_list # scopes_stack # ctrl) -> ((g_scope_list # scopes_stack # ctrl) option)) }}
 
-decl_list {{ tex { \overrightarrow{decl} } }} :: decl_list_ ::=
+decl_list {{ tex { \overline{ \mathit{decl} } } }} :: decl_list_ ::=
 {{ hol ((varn # t) list) }}
 {{ com list of abstract variable name and type tuples to represent declarations }}
-| empty :: M :: empty
-  {{ com empty list of declarations }}
-  {{ hol ([]:(varn # t) list) }}
-  {{ tex [ \, ] }}
 
-%Fence between ext and ext_map
-embed
-{{ hol
-
-}}
-grammar
-
-%TODO: Add switch statement
 stmt :: stmt_ ::=
 {{ com statement }}
 | empty_stmt :: :: empty
@@ -575,7 +486,12 @@ stmt :: stmt_ ::=
   {{ com extern function }}
   {{ tex \blacksquare  }}
 
-ascope {{ tex { {\gamma}_\mathit{A} } }}, ascope_ty :: ascope_ ::=
+%%%%%%%%%%%
+% Context %
+%%%%%%%%%%%
+
+%Note that since the semantics is modular with respect to the architecture, A is typeset in cursive as a variable here
+ascope {{ tex { {\gamma}_A } }}, ascope_ty :: ascope_ ::=
 {{ com architectural scope }}
 {{ hol ('a) }}
 
@@ -594,27 +510,27 @@ d {{ tex d }} :: d_ ::=
 ff {{ tex { \mathit{ff} } }} :: ff_ ::=
 {{ hol (ascope_ty -> ascope_ty option) }}
 
-%Fence between d and d_list
+d_list :: d_list_ ::=
+{{ com list of directions }}
+{{ hol (d list) }}
+| empty :: M :: empty
+  {{ com empty direction list }}
+  {{ hol ([]:d list) }}
+| [ d1 , .. , dn ] :: M :: list
+  {{ com list of directions }}
+  {{ hol ([[d1 .. dn]]) }}
+| d_list ++ d_list' :: M :: append
+  {{ com append two e_lists }}
+  {{ hol ([[d_list]] ++ [[d_list']]) }}
+| ( d_list ) :: S :: paren
+  {{ hol ([[d_list]]) }}
+
+%Fence between stmt and func_map
 embed
 {{ hol
 
 }}
 grammar
-
-d_list :: d_list_ ::=
-{{ com list of directions }}
-{{ hol (d list) }}
-| empty_el :: M :: empty
-  {{ com empty direction list }}
-  {{ hol ([]:d list) }}
-| [ d1 , .. , dn ] :: M :: ds
-  {{ com list of directions }}
-  {{ hol ([[d1 .. dn]]) }}
-| ( d_list ) :: S :: paren
-  {{ hol ([[d_list]]) }}
-| d_list ++ d_list' :: M :: append
-  {{ com append two e_lists }}
-  {{ hol ([[d_list]] ++ [[d_list']]) }}
 
 func_map {{ tex F_g }} :: func_map_ ::=
 {{ com function map for global functions and actions }}
@@ -626,7 +542,7 @@ b_func_map {{ tex F_b }} :: b_func_map_ ::=
 
 %This maps extern function names of an individual object obj to their implementations
 %Note the stmt in order to accommodate return by using return statements
-ext_fun_map {{ tex X_{ \mathit{obj} } }} :: ext_fun_map_ ::=
+ext_fun_map {{ tex X_{ \mathrm{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
 {{ hol (string |-> (stmt # (string # d) list # ext_fun)) }}
 
@@ -643,11 +559,11 @@ ext_map {{ tex X }} :: ext_map_ ::=
 {{ hol (string |-> (((stmt # (string # d) list # ext_fun) option) # ext_fun_map)) }}
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
-{{ com table map  }}
+{{ com table map }}
 {{ hol (string |-> (mk list)) }}
 
 pars_map {{ tex P }} :: pars_map_ ::=
-{{ com parser state map  }}
+{{ com parser state map }}
 {{ hol (string |-> stmt) }}
 
 in_out :: in_out_ ::=
@@ -669,7 +585,7 @@ ffblock {{ tex { \mathit{ffblock} } }} :: ffblock_ ::=
 {{ com fixed-function block }}
 | ff :: :: ff
 
-%Fence so that ott does not re-order ffblock
+%Fence between pblock and pblock_list
 embed
 {{ hol
 
@@ -683,8 +599,7 @@ arch_block :: arch_block_ ::=
 | ffbl x :: :: ffbl
 | out :: :: out
 
-% TODO: Could be just a type abbreviation?
-pblock_list {{ tex \overline{pb} }} :: pblock_list_ ::=
+pblock_list {{ tex \overline{ \mathit{pb} } }} :: pblock_list_ ::=
 {{ com list of programmable blocks }}
 {{ hol (pblock list) }}
 
@@ -692,12 +607,11 @@ pblock_map {{ tex B_p }} :: pblock_map_ ::=
 {{ com programmable block map }}
 {{ hol (string |-> pblock) }}
 
-ffblock_map {{ tex B_{ \mathit{ff} } }} :: ffblock_map_ ::=
+ffblock_map {{ tex B_{ \mathrm{ff} } }} :: ffblock_map_ ::=
 {{ com fixed-function block map }}
 {{ hol (string |-> ffblock) }}
 
-% TODO: Could be just a type abbreviation?
-in_out_list {{ tex \overline{io} }} :: in_out_list_ ::=
+in_out_list {{ tex \overline{ \mathit{io} } }} :: in_out_list_ ::=
 {{ com list of input and output }}
 {{ hol (in_out list) }}
 
@@ -708,23 +622,27 @@ embed
 }}
 grammar
 
-ab_list {{ tex \overline{ab} }} :: ab_list_ ::=
+%The list of architectural blocks describes stages of the pipeline in a specific (package in a specific) architecture
+ab_list {{ tex \overline{ \mathit{ab} } }} :: ab_list_ ::=
 {{ com list of architectural blocks }}
 {{ hol (arch_block list) }}
 
-%TODO: Unify input_f and output_f?
+%The input function modifies the raw input at the start of the pipeline
 input_f {{ tex { \mathit{in}_A } }} :: input_f_ ::=
 {{ com input function }}
 {{ hol ((in_out_list # ascope_ty) -> (in_out_list # ascope_ty) option) }}
 
+%The output function modifies the raw output at the end of the pipeline
 output_f {{ tex { \mathit{out}_A } }} :: output_f_ ::=
 {{ com output function }}
 {{ hol ((in_out_list # ascope_ty) -> (in_out_list # ascope_ty) option) }}
 
+%This function is used to copy things from the architecture when a programmable block begins
 copyin_pbl {{ tex { \mathit{in}_p } }} :: copyin_pbl_ ::=
 {{ com copy-in to programmable blocks function }}
 {{ hol ((x list # d list # e list # ascope_ty # pbl_type) -> scope option) }}
 
+%This function is used to copy out things to the architecture after a programmable block is finished
 copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
 {{ hol ((g_scope list # ascope_ty # d list # x list # pbl_type # status) -> ascope_ty option) }}
@@ -736,6 +654,7 @@ embed
 }}
 grammar
 
+%The architectural context stores everything that's needed for, but stays invariant over, architecture-level reductions
 actx {{ tex { \mathit{ctx}_A } }} :: actx_ ::=
 {{ com architectural context }}
 {{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map) }}
@@ -743,6 +662,7 @@ actx {{ tex { \mathit{ctx}_A } }} :: actx_ ::=
   {{ com tuple }}
   {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[ext_map]], [[func_map]]) }}
 
+%The context stores everything that's needed for, but stays invariant over, statement reductions
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
 {{ hol (ext_map # func_map # b_func_map # pars_map # tbl_map) }}

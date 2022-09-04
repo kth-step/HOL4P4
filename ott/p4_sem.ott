@@ -1961,7 +1961,7 @@ by
   g_scope'' = g_scope_list [0]
   g_scope_list' = [g_scope'']' ++ [ scope'' ]
   ----------------------------------- :: pbl_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , [ stmt ] , [ emptyscope ] ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , [ stmt ] , [ empty ] ) ] , ctrl , Running )
 
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
@@ -1983,7 +1983,7 @@ by
   not_final_state ( x' )
   stmt' = pars_map ( x' )
   ----------------------------------- :: parser_trans
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ emptyscope ] ) ] , ctrl' , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , ctrl' , Running )
 
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
