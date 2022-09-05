@@ -1,3 +1,1403 @@
+grammar
+
+stmt_stack {{ tex \overrightarrow{ \mathit{stmt} } }} :: stmt_stack_ ::=
+{{ hol (stmt list) }}
+{{ com stack of stmts }}
+| emptystmts :: M :: empty
+  {{ hol ([]:stmt list) }}
+  {{ tex {[\;]} }}
+| [ stmt1 , .. , stmtn ] :: M :: list
+  {{ hol ([[stmt1 .. stmtn]]) }}
+| tl stmt_stack :: M :: tl
+  {{ hol (TL [[stmt_stack]]) }}
+  {{ tex \mathrm{tl} [[stmt_stack]] }}
+| stmt '::' stmt_stack' :: M :: cons
+  {{ hol ([[stmt]] :: [[stmt_stack']]) }}
+  {{ tex [[stmt]] :: [[stmt_stack']] }}
+| stmt_stack ++ stmt_stack' :: M :: append
+  {{ hol ([[stmt_stack]] ++ [[stmt_stack']]) }}
+  {{ tex [[stmt_stack]] \mathrel{\mathop+}+ [[stmt_stack']] }}
+| rev stmt_stack :: M :: rev
+  {{ hol (REVERSE [[stmt_stack]]) }}
+  {{ tex \mathrm{rev} ([[stmt_stack]]) }}
+| update ( stmt , i , stmt_stack ) :: M :: update
+  {{ com update a stmt in the stmt stack }}
+  {{ hol (LUPDATE [[stmt]] [[i]] [[stmt_stack]]) }}
+  {{ tex ([[i]] \mapsto [[stmt]]) [[stmt_stack]] }}
+| ( stmt_stack ) :: S :: paren
+  {{ hol ([[stmt_stack]]) }}
+
+frame {{ tex \Phi }} :: frame_ ::=
+{{ com contains the current function name, stmt and local scope stack }}
+{{ hol (funn # stmt_stack # scopes_stack) }}
+| ( funn , stmt_stack , scopes_stack ) :: M :: tup
+ {{ hol ([[funn]] , [[stmt_stack]] , [[scopes_stack]]) }}
+ {{ tex ( {[[stmt_stack]])}_{[[scopes_stack]]}^{[[funn]]} }}
+
+embed
+{{ hol
+
+}}
+grammar
+
+frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
+{{ hol (frame list) }}
+{{ com list of frame tuples }}
+| empty :: M :: empty
+  {{ hol ([]:frame list) }}
+  {{ tex [ \, ] }}
+| [ frame ] :: M :: sing
+  {{ hol ([ [[frame]] ]) }}
+  {{ tex [ [[frame]] ] }}    
+| frame '::' frame_list :: M :: cons
+  {{ hol ([[frame]] :: [[frame_list]]) }}
+  {{ tex [[frame]] :: [[frame_list]] }}    
+| frame_list ++ frame_list' :: M :: app
+  {{ hol ([[frame_list]] ++ [[frame_list']]) }}
+  {{ tex [[frame_list]] {+}\mspace{-8mu}{+} [[frame_list']] }} 
+| tl frame_list :: M :: tl
+  {{ hol (TL [[frame_list]]) }}
+  {{ tex \mathrm{tl} ([[frame_list]]) }}
+| ( frame_list ) :: M :: paren
+  {{ hol ([[frame_list]]) }}
+  {{ tex [[frame_list]] }}
+
+state {{ tex s }} :: state_ ::=
+{{ hol (g_scope_list # frame_list # ctrl # status) }}
+{{ com execution state }}
+| ( g_scope_list , frame_list , ctrl , status ) :: M :: tup
+{{ hol ([[g_scope_list]], [[frame_list]], [[ctrl]], [[status]]) }}
+
+aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
+{{ com architectural environment }}
+{{ hol (num # in_out_list # in_out_list # ascope_ty) }}
+| empty :: M :: empty
+  {{ com empty architectural environment }}
+  {{ hol (0, [], [], FEMPTY) }}
+| ( num_exp , in_out_list , in_out_list' , ascope ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[ascope]]) }}
+
+%Fence so that ott does not re-order aenv and astate
+embed
+{{ hol
+
+}}
+grammar
+
+arch_frame_list :: arch_frame_list_ ::=
+{{ com architecture-level frame list }}
+| arch_frame_list_empty :: :: empty
+  {{ com empty architecture-level frame list }}
+  {{ tex { [ \; ]_A } }}
+| frame_list :: :: regular
+  {{ com regular frame list }}
+
+astate {{ tex { \ensuremath{s_A} } }} :: astate_ ::=
+{{ com architectural state }}
+{{ hol (aenv # g_scope_list # arch_frame_list # ctrl # status) }}
+| ( aenv , g_scope_list , arch_frame_list , ctrl , status ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[aenv]], [[g_scope_list]], [[arch_frame_list]], [[ctrl]], [[status]]) }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+% Expression semantics %
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+terminals :: terminals_ ::=
+%Statement reduction
+| -> :: :: rightarrow {{ tex \rightarrow }}
+%Expression reduction
+| ~> :: :: rightsquigarrow {{ tex \rightsquigarrow }}
+%Parser state reduction
+| --> :: :: longrightarrow {{ tex \longrightarrow }}
+
+formula :: formula_ ::=
+{{ com formulas }}
+| judgement :: :: judgement
+  {{ com judgement }}
+%Expressions
+| ! b = b' :: M :: neg_bool
+  {{ hol (~[[b]] = [[b']]) }}
+| ~ bitv = bitv' :: M :: compl
+  {{ hol (bitv_bl_unop bnot [[bitv]] = [[bitv']]) }}
+| - bitv = bitv' :: M :: neg_signed
+  {{ hol (bitv_unop unop_neg_signed [[bitv]] = [[bitv']]) }}
+| + bitv = bitv' :: M :: un_plus
+  %Note P4 spec says this is a noop
+  {{ hol ([[bitv]] = [[bitv']]) }}
+| bitv * bitv' = bitv'' :: M :: mul
+  {{ hol (bitv_binop binop_mul [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv / bitv' = bitv'' :: M :: div
+  {{ hol (bitv_binop binop_div [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv mod bitv' = bitv'' :: M :: mod
+  {{ hol (bitv_binop binop_mod [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv + bitv' = bitv'' :: M :: add
+  {{ hol (bitv_binop binop_add [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv - bitv' = bitv'' :: M :: sub
+  {{ hol (bitv_binop binop_sub [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+%TODO: Unify the below eq_ to equality over values?
+| bitv EQ bitv' = b :: M :: eq_word
+  {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
+| b EQ b' = b'' :: M :: eq_bool
+  {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
+| ( x EQ x' ) = b :: M :: eq_error
+  {{ com equality over strings - used for errors }}
+  {{ hol (([[x]] = [[x']]) = [[b]]) }}
+  {{ tex ([[x]] = [[x']]) = [[b]] }}
+| bitv SHL bitv' = bitv'' :: M :: shl
+  %TODO: Put fixwidth here instead?
+  {{ hol (bitv_bl_binop shiftl [[bitv]] ((\(bl, n). (v2n bl, n)) [[bitv']]) = [[bitv'']]) }}
+| bitv SHR bitv' = bitv'' :: M :: shr
+  %TODO: Put fixwidth here instead?
+  {{ hol (bitv_bl_binop shiftr [[bitv]] ((\(bl, n). (v2n bl, n)) [[bitv']]) = [[bitv'']]) }}
+| bitv LE bitv' = b :: M :: le
+  {{ hol ((bitv_binpred binop_le [[bitv]] [[bitv']]) = SOME [[b]]) }}
+| bitv GE bitv' = b :: M :: ge
+  {{ hol ((bitv_binpred binop_ge [[bitv]] [[bitv']]) = SOME [[b]]) }}
+| bitv < bitv' = b :: M :: lt
+  {{ hol ((bitv_binpred binop_lt [[bitv]] [[bitv']]) = SOME [[b]]) }}
+| bitv > bitv' = b :: M :: gt
+  {{ hol ((bitv_binpred binop_gt [[bitv]] [[bitv']]) = SOME [[b]]) }}
+%TODO: Unify the below neq_ to inequality over values?
+| bitv NE bitv' = b :: M :: neq_word
+  {{ hol (([[bitv]] <> [[bitv']]) <=> [[b]]) }}
+| ( x <> x' ) = b :: M :: neq_error
+  {{ com inequality over strings - used for errors }}
+  {{ hol (([[x]] <> [[x']]) = [[b]]) }}
+  {{ tex ([[x]] \neq [[x']]) = [[b]] }}
+| b NE b' = b'' :: M :: neq_bool
+  {{ hol (([[b]] <> [[b']]) <=> [[b'']]) }}
+| bitv & bitv' = bitv'' :: M :: and_word
+  {{ hol (bitv_bl_binop band [[bitv]] [[bitv']] = [[bitv'']]) }}
+| bitv ^ bitv' = bitv'' :: M :: xor_word
+  %TODO: Decide LaTeX XOR representation
+  {{ hol (bitv_bl_binop bxor [[bitv]] [[bitv']] = [[bitv'']]) }}
+| bitv '|' bitv' = bitv'' :: M :: or_word
+  {{ hol (bitv_bl_binop bor [[bitv]] [[bitv']] = [[bitv'']]) }}
+| b AND b' = b'' :: M :: and_bool
+  {{ hol ([[b]] /\ [[b']] = [[b'']]) }}
+| b OR b' = b'' :: M :: or_bool
+  {{ hol ([[b]] \/ [[b']] = [[b'']]) }}
+| ~is_short_circuit ( binop ) :: M :: short_cir
+  {{ hol (~is_short_circuitable [[binop]]) }}
+  {{ tex ~\mathrm{is\_short\_circuit}([[binop]]) }}
+%Type-transforming operations
+| g_scope = scopes_stack [ i ] :: M :: scopes_stack_index
+  {{ hol ([[g_scope]] = EL [[i]] [[scopes_stack]]) }}
+| g_scope_list' = take i scopes_stack :: M :: scopes_take
+  {{ hol (SOME [[g_scope_list']] = oTAKE [[i]] [[scopes_stack]]) }}
+  {{ tex [[g_scope_list']] = \mathrm{take}([[i]], [[scopes_stack]]) }}
+| scopes_stack' = drop i scopes_stack :: M :: scopes_drop
+  {{ hol (SOME [[scopes_stack']] = oDROP [[i]] [[scopes_stack]]) }}
+  {{ tex [[scopes_stack']] = \mathrm{drop}([[i]], [[scopes_stack]]) }}
+%TODO: Why does the above not work for value 1?
+| g_scope = scopes_stack [ 1 ] :: M :: scopes_stack_index_1
+  {{ hol ([[g_scope]] = EL 1 [[scopes_stack]]) }}
+| ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f ) :: M :: func_lookup
+  {{ com function signature lookup }}
+  {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
+| length ( scopes_stack ) = i :: M :: find_length
+  {{ com find the scope stack length }}
+  {{ tex [[i]] = length ([[scopes_stack]])}}
+  {{ hol ([[i]] = LENGTH [[scopes_stack]]) }}
+| length ( scopes_stack ) - 1 = i :: M :: find_length_minus_1
+  {{ com find the scope stack length minus 1 }}
+  {{ tex [[i]] = length ([[scopes_stack]]) - 1}}
+  {{ hol ([[i]] = LENGTH [[scopes_stack]] - 1) }}  
+| v = scope ( x ) :: M :: lookup
+  {{ com look-up of variable in scope }}
+  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
+| v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: s_access
+  {{ com access of field in struct }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+| v = header boolv { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: h_access
+  {{ com access of field in header }}
+  {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+| e = e_list [ i ] :: M :: args_index
+  {{ hol ([[e]] = EL [[i]] [[e_list]]) }}
+| e = hd e_list :: M :: args_hd
+  {{ hol ([[e]] = HD [[e_list]]) }}
+  {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
+| v = lookup_vexp ( scopes_stack , x ) :: :: lookup_v
+  {{ tex [[v]] = \mathrm{lookup_v} ([[scopes_stack]], [[x]]) }}
+  {{ hol SOME [[v]] =  lookup_vexp [[scopes_stack]] (varn_name [[x]])}}
+| v = lookup_vexp2 ( scopes_stack , g_scope_list , varn ) :: :: lookup_v2
+  {{ tex [[v]] = \mathrm{lookup_v} ([[scopes_stack]], [[g_scope_list]], [[varn]]) }}
+  {{ hol SOME [[v]] =  lookup_vexp2 [[scopes_stack]] [[g_scope_list]] [[varn]]}} 
+| ( v , a ) = lookup_tup ( scopes_stack , varn ) :: :: lookup_tup
+  {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[scopes_stack]], [[varn]]) }}
+| x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
+  {{ com access of string in select key-value list }}
+  {{ hol [[x']] = sel [[v]] [[v1 x1 ... vn xn]] [[x]]}}
+  {{ tex [[x']] = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) }}
+| check_args_red d_list e_list :: M :: signature_check  
+  {{ com check if arguments are isvar or isconst }}
+  {{ tex \forall i \leqslant n. \, ((d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e_i ) \land (d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e_i))  }}
+ % {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
+ %        ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
+  {{ hol (check_args_red [[d_list]] [[e_list]]) }}
+%some operations on the direction list
+| d = d_list [ i ] :: M :: d_index
+  {{ hol ([[d]] = EL [[i]] [[d_list]]) }}
+  {{ tex [[d]] = [[d_list]] [[i]] }}  
+| d = hd d_list :: M :: d_hd
+  {{ hol ([[d]] = HD [[d_list]]) }}
+  {{ tex [[d]] = \mathrm{hd} \,\, [[d_list]] }} 
+| unred_arg_index d_list e_list = i :: M :: parameter_index
+  {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME [[i]]) }}
+
+%some operations on the headers and structs
+| unred_mem_index e_list = i :: M :: mem_index
+  {{ tex i = \mathrm{min} \, \{ j . \; \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (unred_mem_index [[e_list]] = SOME [[i]]) }}
+| ( v_list ) = vl_of_el ( e_list ) :: M :: vl_of_el
+  {{ tex [[v_list]] = \mathrm{vl\_of\_el} \, ( [[e_list]] ) }}
+  {{ hol ([[v_list]] = vl_of_el [[e_list]]) }}
+
+%concatenation and bit slicing:
+| bitv'' = concat bitv bitv' :: M :: concat
+  {{ com concatenation operation}}
+  {{ tex [[bitv'']] =  [[bitv]] {+}\mspace{-8mu}{+}  [[bitv']] }}
+  {{ hol ([[bitv'']] = bitv_concat [[bitv]] [[bitv']]) }}
+
+| bitv''' = bitv [ bitv' : bitv'' ] :: M :: slice
+  {{ com bit-slicing operation}}
+  {{ tex [[bitv''']] =  [[bitv]] [ [[bitv']] : [[bitv'']] ]}}
+  {{ hol [[bitv''']] = slice [[bitv]] [[bitv']] [[bitv'']] }}
+
+%Equalities
+| scope = scope' :: M :: scope_eq
+  {{ com scope equality }}
+  {{ hol ([[scope]] = [[scope']]) }}
+| scopes_stack = scopes_stack' :: M :: scopes_stack_eq
+  {{ com scopes_stack equality }}
+  {{ hol ([[scopes_stack]] = [[scopes_stack']]) }}
+%Note the modified equality sign in the below.
+%This help to distinguish between e and e_list, as well as provide a single parse
+%considering some equalities between expressions are explicitly typeset
+| e_list =' e_list' :: M :: args_eq
+  {{ com args equality }}
+  {{ hol ([[e_list]] = [[e_list']]) }}
+  {{ tex [[e_list]] = [[e_list']] }}
+| in_out_list = in_out_list' :: M :: io_eq
+  {{ com args equality }}
+  {{ hol ([[in_out_list]] = [[in_out_list']]) }}
+  {{ tex [[in_out_list]] = [[in_out_list']] }}
+
+%frame_list operation
+| frame_list neq empty :: M ::flnotempty
+  {{ com args equality }}
+  {{ hol ([[frame_list]] <> []) }}
+  {{ tex [[frame_list]] \neq [ \, ] }}
+
+%Apply table
+| tbl_map ( tbl ) = ( mkl ) :: :: find_key
+  {{ com find keys and the matching kind in the table map }}
+  {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[mkl]] ) }}
+  {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mkl]] ) ) }}
+| ctrl ( tbl , e_list , mkl ) = ( f , e_list' ) :: :: ctrl_plane  
+  {{ com fetch the function name and parameters from the ctrl plane }}
+  {{ tex \mathrm{C}\, ( [[tbl]] , \, [[e_list]], \, [[mkl]]\, ) = \,( [[f]] , [[e_list']] ) }}
+  {{ hol ([[ctrl]] ( [[tbl]] , [[e_list]] , [[mkl]] ) = SOME ( [[f]] , [[e_list']] ) ) }}
+| index_not_const e_list = i :: :: indexofnotconst 
+  {{ com get the first index of the unred expression to const}}
+  {{ tex i = \mathrm{min} \, \{ j . \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ hol (index_not_const [[e_list]] = SOME [[i]]) }}
+
+% extern
+| ext_fun = lookup_ext_fun ( funn , ext_map ) :: :: ext_fun_lookup
+  {{ com lookup of an extern function }}
+  {{ tex [[ext_fun]] = \mathrm{lookup\_ext\_fun} ( [[funn]] , [[ext_map]] ) }}
+  {{ hol (SOME [[ext_fun]] = lookup_ext_fun [[funn]] [[ext_map]]) }}
+| ( g_scope_list' , scopes_stack' , ctrl' ) = ext_fun ( g_scope_list , scopes_stack , ctrl ) :: :: ext_apply
+  {{ com application of an extern function }}
+  {{ tex ([[g_scope_list']], \, [[scopes_stack']], \, [[ctrl']]) = [[ext_fun]] \, ( [[g_scope_list]] , \, [[scopes_stack]] , \, [[ctrl]] ) }}
+  {{ hol (SOME ([[g_scope_list']], [[scopes_stack']], [[ctrl']]) = [[ext_fun]] ([[g_scope_list]], [[scopes_stack]], [[ctrl]])) }}
+
+%MISC (TODO: Sort these)
+%TODO: Equalities and inequalities on numerals
+| i = length ( e_list ) :: M :: num_len
+  {{ com length of list }}
+  {{ hol ([[i]] = LENGTH [[e_list]]) }}
+  {{ tex [[i]] = \mathrm{len} \,\, [[e_list]] }}
+| i < length ( e_list ) :: M :: num_in_rg
+  {{ com numeral in range }}
+  {{ hol ([[i]] < LENGTH [[e_list]]) }}
+  {{ tex [[i]] < \mathrm{len}(\mathit{e}) }}
+| is_consts ( e_list ) :: M :: args_const
+  {{ com function arguments constant }}
+  {{ hol (is_consts [[e_list]]) }}
+  %TODO: Fix typesetting
+  {{ tex \mathrm{is\_consts} \,\, [[e_list]] }}
+| stmt = pars_map ( x ) :: M :: pars_lookup
+  {{ com parser state map lookup }}
+  {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
+| x = parseError :: M :: pars_err
+  {{ com parser error literal }}
+  {{ hol ([[x]] = "parseError") }}
+  {{ tex [[x]] = ``\mathit{parseError}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| v = lookup_lval ( scopes_stack , lval ) :: M :: lookup_lval
+  {{ com instantaneous lookup of lvals }}
+  {{ hol ([[v]] = lookup_lval [[scopes_stack]]  [[lval]]) }}
+  {{ tex [[v]] = { \mathrm{lookup} }_{ \mathrm{lval} } ([[scopes_stack]], [[lval]]) }}
+| scopes_stack' = init_in_highest_scope ( scopes_stack , v , ( star , funn ) ) :: M :: init_star
+  {{ com declare "star" with value v in topmost scope }}
+  {{ hol ([[scopes_stack']] = init_in_highest_scope [[scopes_stack]] [[v]] ( varn_star [[funn]] ) ) }}
+  {{ tex [[scopes_stack']] = [[scopes_stack]] [ ( [[star]] , [[funn]] )\longmapsto [[v]] ] }}
+| not_final_state ( x ) :: M :: not_final_x
+  {{ com x is not name of final parser state }}
+  {{ hol (([[x]] <> "accept") /\ ([[x]] <> "reject")) }}
+  {{ tex \mathrm{not\_final\_state}([[x]]) }}
+| notrun( status ) :: M :: notrun
+  {{ com status is not in running}}
+  {{ tex t \neq { \mathbf{run} } }}
+  {{ hol (status <> status_running)}}
+| notret( status , frame_list ) :: :: noret
+  {{ com status is (conditionally) not return}}
+  {{ tex [[frame_list]] \neq [] \Rightarrow [[status]] \neq { \mathbf{ret \, v} } }}
+  {{ hol ( ([[frame_list]] <> []) ==> notret [[status]] )}}  
+| acc_or_rej( status ) :: M :: accrejstatus
+  {{ com status is not running}}
+  {{ tex t = { \mathbf{acc} } \vee t = { \mathbf{rej} } }}
+  {{ hol (status = Accept \/ status = Reject) }}     
+| x = "accept" :: M :: is_accept
+  {{ com x is accept }}
+  {{ hol ([[x]] = "accept") }}
+  {{ tex [[x]] = ``\mathit{accept}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| x = "reject" :: M :: is_reject
+  {{ com x is reject }}
+  {{ hol ([[x]] = "reject") }}
+  {{ tex [[x]] = ``\mathit{reject}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| x = "start" :: M :: is_start
+  {{ com x is start }}
+  {{ hol ([[x]] = "start") }}
+  {{ tex [[x]] = ``\mathit{start}" }}
+  %Dummy to keep syntax highlighting from freaking out: "
+| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope , pbl_type ) :: M :: copyin_pbl
+  {{ com copy in to programmable blocks }}
+  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]], [[pbl_type]])) }}
+| scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scopes_stack ) :: M :: copyin
+  {{ com build new scope and copyin }}
+  {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
+  {{ hol (SOME [[scope']] = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scopes_stack]]) }}
+| v = arb_from_t t :: M :: make_arb
+  {{ com create new varaible in declaration }}
+  {{ hol ([[v]] = arb_from_t [[t]]) }}
+  {{ tex [[v]] = \mathrm{arb\_from\_t} \, [[t]] }}
+| scopes_stack' = assign ( scopes_stack , v , lval ) :: M :: assign
+  {{ com assign v to lval in the frame }}
+  {{ hol (SOME [[scopes_stack']] = assign [[scopes_stack]] [[v]] [[lval]]) }}
+  {{ tex [[scopes_stack']] = [[scopes_stack]] [ [[lval]] \longmapsto [[v]] ] }}
+| ( g_scope_list , scopes_stack' ) = separate scopes_stack :: M :: separate_scopes
+  {{ com separate scopes into globals and locals after assignment }}
+  {{ hol ( ( SOME [[g_scope_list]] ,  SOME [[scopes_stack']] ) = separate [[scopes_stack]] ) }}
+  {{ tex ( ( [[g_scope_list]] ,  [[scopes_stack']] ) = \mathrm{separate}[[scopes_stack]] )  }}  
+| ascope' = copyout_pbl ( scopes_stack , ascope , d_list , ( x1 , .. , xn ) , pbl_type , status ) :: M :: copyout_pbl
+  {{ com copy out from programmable blocks }}
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scopes_stack]], [[ascope]], [[d_list]], [[x1 .. xn]], [[pbl_type]], [[status]])) }}
+| ascope' = copyout_pbl ( scopes_stack , ascope , d_list , [ x ] , pbl_type , status ) :: M :: copyout_pbl_sing
+  {{ com copy out singleton from programmable blocks }}
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scopes_stack]], [[ascope]], [[d_list]], [ [[x]] ], [[pbl_type]], [[status]])) }}
+| not_empty stmt :: M :: not_empty
+  {{ com check so that statement is not the empty statement }}
+  {{ hol ([[stmt]] <> stmt_empty) }}
+| not_empty stmt_stack :: M :: not_empty_stmt_stack
+  {{ com check so that statement stack is not the empty }}
+  {{ hol ([[stmt_stack]] <> []) }}  
+
+%Architecture-level semantics-related formulae
+| pblock = pblock_map ( f ) :: M :: lookup_pb
+  {{ com programmable block lookup }}
+  {{ hol (FLOOKUP [[pblock_map]] [[f]] = SOME [[pblock]]) }}
+| ffblock = ffblock_map ( f ) :: M :: lookup_ffb
+  {{ com fixed-function block lookup }}
+  {{ hol (FLOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
+| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
+  {{ com obtain body and args of pblock }}
+  {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
+| arch_block = ab_list [ i ] :: M :: ab_index
+  {{ com ab at index i }}
+  {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
+| ascope' = ff ( ascope ) :: M :: app_ff
+  {{ com apply fixed function }}
+  {{ hol (SOME [[ascope']] = [[ff]] ([[ascope]]) ) }}
+| ( in_out_list' , ascope' ) = input_f ( in_out_list , ascope ) :: M :: input_f
+  {{ com apply input function }}
+  {{ hol ( SOME ( [[in_out_list']] , [[ascope']] ) = [[input_f]] ( [[in_out_list]] , [[ascope]] ) ) }}
+| ( in_out_list' , ascope' ) = output_f ( in_out_list , ascope ) :: M :: output_f
+  {{ com apply output function }}
+  {{ hol ( SOME ( [[in_out_list']] , [[ascope']] ) = [[output_f]] ( [[in_out_list]] , [[ascope]] ) ) }}
+| status_not_fin status :: M :: not_final
+  {{ com status is not final }}
+  {{ hol (([[status]] <> status_trans "accept") /\ ([[status]] <> status_trans "reject")) }}
+  {{ tex [[status]] \neq \mathit{pars\_fin} }}
+%TODO: Define HOL4 function for the below
+| state_fin ( status , frame_list ) :: M :: final
+  {{ com state is final }}
+  {{ hol (state_fin [[status]] [[frame_list]]) }}
+  {{ tex \mathrm{state\_fin}([[status]], [[frame_list]]) }}
+| status' = set_fin_status ( pbl_type , status ) :: M :: set_fin_status
+  {{ com set new final status }}
+  {{ hol ([[status']] = set_fin_status [[pbl_type]] [[status]]) }}
+  {{ tex [[status']] = \mathrm{set\_fin\_status} ([[pbl_type]], [[status]]) }}
+| not_top_return frame_list :: M :: not_top_return
+  {{ com top frame is not about to execute a return statement }}
+  {{ hol (not_top_return [[frame_list]]) }}
+  {{ tex \mathrm{not\_top\_return} [[frame_list]] }}
+| lval = "parseError" :: M :: is_parse_error
+  {{ com lval is parseError }}
+  {{ hol ([[lval]] = lval_varname (varn_name "parseError")) }}
+  {{ tex [[lval]] = \mathit{parseError} }}
+| v = errmsg "NoError" :: M :: is_no_error
+  {{ com v is NoError }}
+  {{ hol ([[v]] = v_err "NoError") }}
+  {{ tex [[v]] = \mathit{NoError} }}
+| ( g_scope_list' , scopes_stack' ) = declare ( g_scope_list , scopes_stack , x , t ) :: M :: declare
+  {{ com declare variable of type }}
+  {{ hol (([[g_scope_list']], [[scopes_stack']]) = declare [[g_scope_list]] [[scopes_stack]] [[x]] [[t]]) }}
+  {{ tex ([[g_scope_list']], [[scopes_stack']]) = \mathrm{declare} ([[g_scope_list]], [[scopes_stack]], [[x]], [[t]]) }}
+| scopes_stack' = initialise ( scopes_stack , varn , v ) :: M :: initialise
+  {{ com initialise variable to value }}
+  {{ hol ([[scopes_stack']] = initialise [[scopes_stack]] [[varn]] [[v]]) }}
+  {{ tex [[scopes_stack']] = \mathrm{initialise} ([[scopes_stack]], [[varn]], [[v]]) }}
+
+| g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list ) :: M :: scopes_to_pass
+  {{ com global and block scopes to pass based on function location }}
+  {{ hol (SOME[[g_scope_list']] = scopes_to_pass [[funn]] [[func_map]] [[b_func_map]] [[g_scope_list]]) }}
+  {{ tex [[g_scope_list']] = \mathrm{scopes\_to\_pass} ([[funn]], [[func_map]], [[b_func_map]], [[g_scope_list]]) }}
+| g_scope_list'' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list' ) :: M :: scopes_to_retrieve
+  {{ com global and block scopes to retrieve based on function location }}
+  {{ hol (SOME[[g_scope_list'']] = scopes_to_retrieve [[funn]] [[func_map]] [[b_func_map]] [[g_scope_list]] [[g_scope_list']]) }}
+  {{ tex [[g_scope_list'']] = \mathrm{scopes\_to\_retrieve} ([[funn]], [[func_map]], [[b_func_map]], [[g_scope_list]], [[g_scope_list']]) }}
+
+| scope' = declare_list_in_scope ( decl_list , scope ) :: M :: decl_in_scope  
+  {{ com update a scope with a list of declarations }}
+  {{ hol [[scope']] = declare_list_in_scope ([[decl_list]], [[scope]]) }}
+  {{ tex [[scope']] = \mathrm{replicate} ([[decl_list]], [[scope]]) }}
+| scope = declare_list_in_fresh_scope ( decl_list ) :: M :: decl_in_fresh_scope  
+  {{ com create a scope from the list of declarations }}
+  {{ hol [[scope]] = declare_list_in_fresh_scope ([[decl_list]]) }}
+  {{ tex [[scope]] = \mathrm{replicate} ([[decl_list]]) }}
+
+| ( g_scope_list' , scopes_stack'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scopes_stack , scopes_stack' ) :: M :: copyout
+   %scopes_stack is the callee stack, whereas scopes_stack' is the caller stack
+   %TODO: Double-check this LaTeX hack...
+  {{ tex ( [[g_scope_list']] , [[scopes_stack'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}'' , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) }}
+  {{ hol ( SOME ( [[g_scope_list']] , [[scopes_stack'']] ) = copyout [[x1 .. xn]] [[d_list]] [[g_scope_list]] [[scopes_stack]] [[scopes_stack']] ) }}
+
+| is_not_fully_red e :: M :: not_fully_red
+  {{ com expression is not fully reduced }}
+  {{ tex ~ { \mathrm{fully\_reduced} } \, [[e]] }}
+  {{ hol (~(fully_reduced [[e]])) }}
+| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig_body
+  {{ com look up the body and signature of an abstract function name }}
+  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+| [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig
+  {{ com look up the signature of an abstract function name }}
+  {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+| parser_not_finished frame_list :: M :: parser_not_finished
+  {{ com parser state is not finished }}
+  {{ hol (parser_not_finished [[frame_list]]) }}
+
+
+
+% (*typing rules related formulas*)
+| w = width bitv :: M :: width
+  {{ com width of bitstring}}
+  {{ tex [[w]] = bs_width [[bitv]] }}
+  {{ hol ([[w]] = bs_width [[bitv]]) }}
+
+embed
+{{ hol
+val is_const_def = Define `
+  (is_const (e_v _) = T) /\
+  (is_const _ = F)
+`;
+val is_consts_def = Define `
+  is_consts el = ~(EXISTS (\e. ~(is_const e)) el)
+`;
+
+(* Access the field f of a struct or a header *)
+val acc_f_def = Define `
+  (acc_f (v_struct s) f =
+    case FIND (\(f', v). f' = f) s of
+    | SOME (f'', v) => SOME v
+    | _ => NONE) /\
+  (acc_f (v_header _ s) f =
+    case FIND (\(f', v). f' = f) s of
+    | SOME (f'', v) => SOME v
+    | _ => NONE) /\
+  (acc_f _ f = NONE)
+`;
+
+val bitv_bl_unop_def = Define `
+  bitv_bl_unop unop (bl, n) = (unop bl, n)
+`;
+
+val bitv_bl_binop_def = Define `
+  bitv_bl_binop binop (bl, n) (bl', n') = (fixwidth n (binop bl bl'), n)
+`;
+
+val get_word_unop_def = Define `
+  (get_word_unop unop_compl = word_1comp) /\
+  (get_word_unop unop_neg_signed = word_2comp) /\
+  (get_word_unop unop_un_plus = (\w. w))
+`;
+val bitv_unop_def = Define `
+    (bitv_unop unop (v, 1) = (w2v ((get_word_unop unop) ((v2w v): 1 word)), 1) )
+/\  (bitv_unop unop (v, 2) = (w2v ((get_word_unop unop) ((v2w v): 2 word)), 2) )
+/\  (bitv_unop unop (v, 3) = (w2v ((get_word_unop unop) ((v2w v): 3 word)), 3) )
+/\  (bitv_unop unop (v, 4) = (w2v ((get_word_unop unop) ((v2w v): 4 word)), 4) )
+/\  (bitv_unop unop (v, 5) = (w2v ((get_word_unop unop) ((v2w v): 5 word)), 5) )
+/\  (bitv_unop unop (v, 6) = (w2v ((get_word_unop unop) ((v2w v): 6 word)), 6) )
+/\  (bitv_unop unop (v, 7) = (w2v ((get_word_unop unop) ((v2w v): 7 word)), 7) )
+/\  (bitv_unop unop (v, 8) = (w2v ((get_word_unop unop) ((v2w v): 8 word)), 8) )
+/\  (bitv_unop unop (v, 9) = (w2v ((get_word_unop unop) ((v2w v): 9 word)), 9) )
+/\  (bitv_unop unop (v, 10) = (w2v ((get_word_unop unop) ((v2w v): 10 word)), 10) )
+/\  (bitv_unop unop (v, 11) = (w2v ((get_word_unop unop) ((v2w v): 11 word)), 11) )
+/\  (bitv_unop unop (v, 12) = (w2v ((get_word_unop unop) ((v2w v): 12 word)), 12) )
+/\  (bitv_unop unop (v, 13) = (w2v ((get_word_unop unop) ((v2w v): 13 word)), 13) )
+/\  (bitv_unop unop (v, 14) = (w2v ((get_word_unop unop) ((v2w v): 14 word)), 14) )
+/\  (bitv_unop unop (v, 15) = (w2v ((get_word_unop unop) ((v2w v): 15 word)), 15) )
+/\  (bitv_unop unop (v, 16) = (w2v ((get_word_unop unop) ((v2w v): 16 word)), 16) )
+/\  (bitv_unop unop (v, 17) = (w2v ((get_word_unop unop) ((v2w v): 17 word)), 17) )
+/\  (bitv_unop unop (v, 18) = (w2v ((get_word_unop unop) ((v2w v): 18 word)), 18) )
+/\  (bitv_unop unop (v, 19) = (w2v ((get_word_unop unop) ((v2w v): 19 word)), 19) )
+/\  (bitv_unop unop (v, 20) = (w2v ((get_word_unop unop) ((v2w v): 20 word)), 20) )
+/\  (bitv_unop unop (v, 21) = (w2v ((get_word_unop unop) ((v2w v): 21 word)), 21) )
+/\  (bitv_unop unop (v, 22) = (w2v ((get_word_unop unop) ((v2w v): 22 word)), 22) )
+/\  (bitv_unop unop (v, 23) = (w2v ((get_word_unop unop) ((v2w v): 23 word)), 23) )
+/\  (bitv_unop unop (v, 24) = (w2v ((get_word_unop unop) ((v2w v): 24 word)), 24) )
+/\  (bitv_unop unop (v, 25) = (w2v ((get_word_unop unop) ((v2w v): 25 word)), 25) )
+/\  (bitv_unop unop (v, 26) = (w2v ((get_word_unop unop) ((v2w v): 26 word)), 26) )
+/\  (bitv_unop unop (v, 27) = (w2v ((get_word_unop unop) ((v2w v): 27 word)), 27) )
+/\  (bitv_unop unop (v, 28) = (w2v ((get_word_unop unop) ((v2w v): 28 word)), 28) )
+/\  (bitv_unop unop (v, 29) = (w2v ((get_word_unop unop) ((v2w v): 29 word)), 29) )
+/\  (bitv_unop unop (v, 30) = (w2v ((get_word_unop unop) ((v2w v): 30 word)), 30) )
+/\  (bitv_unop unop (v, 31) = (w2v ((get_word_unop unop) ((v2w v): 31 word)), 31) )
+/\  (bitv_unop unop (v, 32) = (w2v ((get_word_unop unop) ((v2w v): 32 word)), 32) )
+/\  (bitv_unop unop (v, 33) = (w2v ((get_word_unop unop) ((v2w v): 33 word)), 33) )
+/\  (bitv_unop unop (v, 34) = (w2v ((get_word_unop unop) ((v2w v): 34 word)), 34) )
+/\  (bitv_unop unop (v, 35) = (w2v ((get_word_unop unop) ((v2w v): 35 word)), 35) )
+/\  (bitv_unop unop (v, 36) = (w2v ((get_word_unop unop) ((v2w v): 36 word)), 36) )
+/\  (bitv_unop unop (v, 37) = (w2v ((get_word_unop unop) ((v2w v): 37 word)), 37) )
+/\  (bitv_unop unop (v, 38) = (w2v ((get_word_unop unop) ((v2w v): 38 word)), 38) )
+/\  (bitv_unop unop (v, 39) = (w2v ((get_word_unop unop) ((v2w v): 39 word)), 39) )
+/\  (bitv_unop unop (v, 40) = (w2v ((get_word_unop unop) ((v2w v): 40 word)), 40) )
+/\  (bitv_unop unop (v, 41) = (w2v ((get_word_unop unop) ((v2w v): 41 word)), 41) )
+/\  (bitv_unop unop (v, 42) = (w2v ((get_word_unop unop) ((v2w v): 42 word)), 42) )
+/\  (bitv_unop unop (v, 43) = (w2v ((get_word_unop unop) ((v2w v): 43 word)), 43) )
+/\  (bitv_unop unop (v, 44) = (w2v ((get_word_unop unop) ((v2w v): 44 word)), 44) )
+/\  (bitv_unop unop (v, 45) = (w2v ((get_word_unop unop) ((v2w v): 45 word)), 45) )
+/\  (bitv_unop unop (v, 46) = (w2v ((get_word_unop unop) ((v2w v): 46 word)), 46) )
+/\  (bitv_unop unop (v, 47) = (w2v ((get_word_unop unop) ((v2w v): 47 word)), 47) )
+/\  (bitv_unop unop (v, 48) = (w2v ((get_word_unop unop) ((v2w v): 48 word)), 48) )
+/\  (bitv_unop unop (v, 49) = (w2v ((get_word_unop unop) ((v2w v): 49 word)), 49) )
+/\  (bitv_unop unop (v, 50) = (w2v ((get_word_unop unop) ((v2w v): 50 word)), 50) )
+/\  (bitv_unop unop (v, 51) = (w2v ((get_word_unop unop) ((v2w v): 51 word)), 51) )
+/\  (bitv_unop unop (v, 52) = (w2v ((get_word_unop unop) ((v2w v): 52 word)), 52) )
+/\  (bitv_unop unop (v, 53) = (w2v ((get_word_unop unop) ((v2w v): 53 word)), 53) )
+/\  (bitv_unop unop (v, 54) = (w2v ((get_word_unop unop) ((v2w v): 54 word)), 54) )
+/\  (bitv_unop unop (v, 55) = (w2v ((get_word_unop unop) ((v2w v): 55 word)), 55) )
+/\  (bitv_unop unop (v, 56) = (w2v ((get_word_unop unop) ((v2w v): 56 word)), 56) )
+/\  (bitv_unop unop (v, 57) = (w2v ((get_word_unop unop) ((v2w v): 57 word)), 57) )
+/\  (bitv_unop unop (v, 58) = (w2v ((get_word_unop unop) ((v2w v): 58 word)), 58) )
+/\  (bitv_unop unop (v, 59) = (w2v ((get_word_unop unop) ((v2w v): 59 word)), 59) )
+/\  (bitv_unop unop (v, 60) = (w2v ((get_word_unop unop) ((v2w v): 60 word)), 60) )
+/\  (bitv_unop unop (v, 61) = (w2v ((get_word_unop unop) ((v2w v): 61 word)), 61) )
+/\  (bitv_unop unop (v, 62) = (w2v ((get_word_unop unop) ((v2w v): 62 word)), 62) )
+/\  (bitv_unop unop (v, 63) = (w2v ((get_word_unop unop) ((v2w v): 63 word)), 63) )
+/\  (bitv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
+`;
+val get_word_binop_def = Define `
+    (get_word_binop binop_mul = word_mul)
+/\  (get_word_binop binop_div = word_div)
+/\  (get_word_binop binop_mod = word_mod)
+/\  (get_word_binop binop_add = word_add)
+/\  (get_word_binop binop_sub = word_sub)
+/\  (get_word_binop binop_shl = word_lsl_bv)
+/\  (get_word_binop binop_shr = word_lsr_bv)
+/\  (get_word_binop binop_and = word_and)
+/\  (get_word_binop binop_xor = word_xor)
+/\  (get_word_binop binop_or = word_or)
+`;
+
+val bitv_binop_inner_def = Define `
+    (bitv_binop_inner binop v v' 1 = SOME (w2v ((get_word_binop binop) ((v2w v): 1 word) ((v2w v'): 1 word)), 1) )
+/\  (bitv_binop_inner binop v v' 2 = SOME (w2v ((get_word_binop binop) ((v2w v): 2 word) ((v2w v'): 2 word)), 2) )
+/\  (bitv_binop_inner binop v v' 3 = SOME (w2v ((get_word_binop binop) ((v2w v): 3 word) ((v2w v'): 3 word)), 3) )
+/\  (bitv_binop_inner binop v v' 4 = SOME (w2v ((get_word_binop binop) ((v2w v): 4 word) ((v2w v'): 4 word)), 4) )
+/\  (bitv_binop_inner binop v v' 5 = SOME (w2v ((get_word_binop binop) ((v2w v): 5 word) ((v2w v'): 5 word)), 5) )
+/\  (bitv_binop_inner binop v v' 6 = SOME (w2v ((get_word_binop binop) ((v2w v): 6 word) ((v2w v'): 6 word)), 6) )
+/\  (bitv_binop_inner binop v v' 7 = SOME (w2v ((get_word_binop binop) ((v2w v): 7 word) ((v2w v'): 7 word)), 7) )
+/\  (bitv_binop_inner binop v v' 8 = SOME (w2v ((get_word_binop binop) ((v2w v): 8 word) ((v2w v'): 8 word)), 8) )
+/\  (bitv_binop_inner binop v v' 9 = SOME (w2v ((get_word_binop binop) ((v2w v): 9 word) ((v2w v'): 9 word)), 9) )
+/\  (bitv_binop_inner binop v v' 10 = SOME (w2v ((get_word_binop binop) ((v2w v): 10 word) ((v2w v'): 10 word)), 10) )
+/\  (bitv_binop_inner binop v v' 11 = SOME (w2v ((get_word_binop binop) ((v2w v): 11 word) ((v2w v'): 11 word)), 11) )
+/\  (bitv_binop_inner binop v v' 12 = SOME (w2v ((get_word_binop binop) ((v2w v): 12 word) ((v2w v'): 12 word)), 12) )
+/\  (bitv_binop_inner binop v v' 13 = SOME (w2v ((get_word_binop binop) ((v2w v): 13 word) ((v2w v'): 13 word)), 13) )
+/\  (bitv_binop_inner binop v v' 14 = SOME (w2v ((get_word_binop binop) ((v2w v): 14 word) ((v2w v'): 14 word)), 14) )
+/\  (bitv_binop_inner binop v v' 15 = SOME (w2v ((get_word_binop binop) ((v2w v): 15 word) ((v2w v'): 15 word)), 15) )
+/\  (bitv_binop_inner binop v v' 16 = SOME (w2v ((get_word_binop binop) ((v2w v): 16 word) ((v2w v'): 16 word)), 16) )
+/\  (bitv_binop_inner binop v v' 17 = SOME (w2v ((get_word_binop binop) ((v2w v): 17 word) ((v2w v'): 17 word)), 17) )
+/\  (bitv_binop_inner binop v v' 18 = SOME (w2v ((get_word_binop binop) ((v2w v): 18 word) ((v2w v'): 18 word)), 18) )
+/\  (bitv_binop_inner binop v v' 19 = SOME (w2v ((get_word_binop binop) ((v2w v): 19 word) ((v2w v'): 19 word)), 19) )
+/\  (bitv_binop_inner binop v v' 20 = SOME (w2v ((get_word_binop binop) ((v2w v): 20 word) ((v2w v'): 20 word)), 20) )
+/\  (bitv_binop_inner binop v v' 21 = SOME (w2v ((get_word_binop binop) ((v2w v): 21 word) ((v2w v'): 21 word)), 21) )
+/\  (bitv_binop_inner binop v v' 22 = SOME (w2v ((get_word_binop binop) ((v2w v): 22 word) ((v2w v'): 22 word)), 22) )
+/\  (bitv_binop_inner binop v v' 23 = SOME (w2v ((get_word_binop binop) ((v2w v): 23 word) ((v2w v'): 23 word)), 23) )
+/\  (bitv_binop_inner binop v v' 24 = SOME (w2v ((get_word_binop binop) ((v2w v): 24 word) ((v2w v'): 24 word)), 24) )
+/\  (bitv_binop_inner binop v v' 25 = SOME (w2v ((get_word_binop binop) ((v2w v): 25 word) ((v2w v'): 25 word)), 25) )
+/\  (bitv_binop_inner binop v v' 26 = SOME (w2v ((get_word_binop binop) ((v2w v): 26 word) ((v2w v'): 26 word)), 26) )
+/\  (bitv_binop_inner binop v v' 27 = SOME (w2v ((get_word_binop binop) ((v2w v): 27 word) ((v2w v'): 27 word)), 27) )
+/\  (bitv_binop_inner binop v v' 28 = SOME (w2v ((get_word_binop binop) ((v2w v): 28 word) ((v2w v'): 28 word)), 28) )
+/\  (bitv_binop_inner binop v v' 29 = SOME (w2v ((get_word_binop binop) ((v2w v): 29 word) ((v2w v'): 29 word)), 29) )
+/\  (bitv_binop_inner binop v v' 30 = SOME (w2v ((get_word_binop binop) ((v2w v): 30 word) ((v2w v'): 30 word)), 30) )
+/\  (bitv_binop_inner binop v v' 31 = SOME (w2v ((get_word_binop binop) ((v2w v): 31 word) ((v2w v'): 31 word)), 31) )
+/\  (bitv_binop_inner binop v v' 32 = SOME (w2v ((get_word_binop binop) ((v2w v): 32 word) ((v2w v'): 32 word)), 32) )
+/\  (bitv_binop_inner binop v v' 33 = SOME (w2v ((get_word_binop binop) ((v2w v): 33 word) ((v2w v'): 33 word)), 33) )
+/\  (bitv_binop_inner binop v v' 34 = SOME (w2v ((get_word_binop binop) ((v2w v): 34 word) ((v2w v'): 34 word)), 34) )
+/\  (bitv_binop_inner binop v v' 35 = SOME (w2v ((get_word_binop binop) ((v2w v): 35 word) ((v2w v'): 35 word)), 35) )
+/\  (bitv_binop_inner binop v v' 36 = SOME (w2v ((get_word_binop binop) ((v2w v): 36 word) ((v2w v'): 36 word)), 36) )
+/\  (bitv_binop_inner binop v v' 37 = SOME (w2v ((get_word_binop binop) ((v2w v): 37 word) ((v2w v'): 37 word)), 37) )
+/\  (bitv_binop_inner binop v v' 38 = SOME (w2v ((get_word_binop binop) ((v2w v): 38 word) ((v2w v'): 38 word)), 38) )
+/\  (bitv_binop_inner binop v v' 39 = SOME (w2v ((get_word_binop binop) ((v2w v): 39 word) ((v2w v'): 39 word)), 39) )
+/\  (bitv_binop_inner binop v v' 40 = SOME (w2v ((get_word_binop binop) ((v2w v): 40 word) ((v2w v'): 40 word)), 40) )
+/\  (bitv_binop_inner binop v v' 41 = SOME (w2v ((get_word_binop binop) ((v2w v): 41 word) ((v2w v'): 41 word)), 41) )
+/\  (bitv_binop_inner binop v v' 42 = SOME (w2v ((get_word_binop binop) ((v2w v): 42 word) ((v2w v'): 42 word)), 42) )
+/\  (bitv_binop_inner binop v v' 43 = SOME (w2v ((get_word_binop binop) ((v2w v): 43 word) ((v2w v'): 43 word)), 43) )
+/\  (bitv_binop_inner binop v v' 44 = SOME (w2v ((get_word_binop binop) ((v2w v): 44 word) ((v2w v'): 44 word)), 44) )
+/\  (bitv_binop_inner binop v v' 45 = SOME (w2v ((get_word_binop binop) ((v2w v): 45 word) ((v2w v'): 45 word)), 45) )
+/\  (bitv_binop_inner binop v v' 46 = SOME (w2v ((get_word_binop binop) ((v2w v): 46 word) ((v2w v'): 46 word)), 46) )
+/\  (bitv_binop_inner binop v v' 47 = SOME (w2v ((get_word_binop binop) ((v2w v): 47 word) ((v2w v'): 47 word)), 47) )
+/\  (bitv_binop_inner binop v v' 48 = SOME (w2v ((get_word_binop binop) ((v2w v): 48 word) ((v2w v'): 48 word)), 48) )
+/\  (bitv_binop_inner binop v v' 49 = SOME (w2v ((get_word_binop binop) ((v2w v): 49 word) ((v2w v'): 49 word)), 49) )
+/\  (bitv_binop_inner binop v v' 50 = SOME (w2v ((get_word_binop binop) ((v2w v): 50 word) ((v2w v'): 50 word)), 50) )
+/\  (bitv_binop_inner binop v v' 51 = SOME (w2v ((get_word_binop binop) ((v2w v): 51 word) ((v2w v'): 51 word)), 51) )
+/\  (bitv_binop_inner binop v v' 52 = SOME (w2v ((get_word_binop binop) ((v2w v): 52 word) ((v2w v'): 52 word)), 52) )
+/\  (bitv_binop_inner binop v v' 53 = SOME (w2v ((get_word_binop binop) ((v2w v): 53 word) ((v2w v'): 53 word)), 53) )
+/\  (bitv_binop_inner binop v v' 54 = SOME (w2v ((get_word_binop binop) ((v2w v): 54 word) ((v2w v'): 54 word)), 54) )
+/\  (bitv_binop_inner binop v v' 55 = SOME (w2v ((get_word_binop binop) ((v2w v): 55 word) ((v2w v'): 55 word)), 55) )
+/\  (bitv_binop_inner binop v v' 56 = SOME (w2v ((get_word_binop binop) ((v2w v): 56 word) ((v2w v'): 56 word)), 56) )
+/\  (bitv_binop_inner binop v v' 57 = SOME (w2v ((get_word_binop binop) ((v2w v): 57 word) ((v2w v'): 57 word)), 57) )
+/\  (bitv_binop_inner binop v v' 58 = SOME (w2v ((get_word_binop binop) ((v2w v): 58 word) ((v2w v'): 58 word)), 58) )
+/\  (bitv_binop_inner binop v v' 59 = SOME (w2v ((get_word_binop binop) ((v2w v): 59 word) ((v2w v'): 59 word)), 59) )
+/\  (bitv_binop_inner binop v v' 60 = SOME (w2v ((get_word_binop binop) ((v2w v): 60 word) ((v2w v'): 60 word)), 60) )
+/\  (bitv_binop_inner binop v v' 61 = SOME (w2v ((get_word_binop binop) ((v2w v): 61 word) ((v2w v'): 61 word)), 61) )
+/\  (bitv_binop_inner binop v v' 62 = SOME (w2v ((get_word_binop binop) ((v2w v): 62 word) ((v2w v'): 62 word)), 62) )
+/\  (bitv_binop_inner binop v v' 63 = SOME (w2v ((get_word_binop binop) ((v2w v): 63 word) ((v2w v'): 63 word)), 63) )
+/\  (bitv_binop_inner binop v v' 64 = SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64) )
+/\  (bitv_binop_inner binop v v' _ = NONE )
+`;
+val bitv_binop_def = Define `
+  bitv_binop binop (v, n) (v', n') =
+    if n = n'
+    then bitv_binop_inner binop v v' n
+    else NONE
+`;
+
+val get_word_binpred_def = Define `
+    (get_word_binpred binop_le = word_le)
+/\  (get_word_binpred binop_ge = word_ge)
+/\  (get_word_binpred binop_lt = word_lt)
+/\  (get_word_binpred binop_gt = word_gt)
+/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
+/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
+`;
+
+val bitv_binpred_inner_def = Define `
+    (bitv_binpred_inner binpred v v' 1 = SOME (((get_word_binpred binpred) ((v2w v): 1 word) ((v2w v'): 1 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 2 = SOME (((get_word_binpred binpred) ((v2w v): 2 word) ((v2w v'): 2 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 3 = SOME (((get_word_binpred binpred) ((v2w v): 3 word) ((v2w v'): 3 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 4 = SOME (((get_word_binpred binpred) ((v2w v): 4 word) ((v2w v'): 4 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 5 = SOME (((get_word_binpred binpred) ((v2w v): 5 word) ((v2w v'): 5 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 6 = SOME (((get_word_binpred binpred) ((v2w v): 6 word) ((v2w v'): 6 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 7 = SOME (((get_word_binpred binpred) ((v2w v): 7 word) ((v2w v'): 7 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 8 = SOME (((get_word_binpred binpred) ((v2w v): 8 word) ((v2w v'): 8 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 9 = SOME (((get_word_binpred binpred) ((v2w v): 9 word) ((v2w v'): 9 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 10 = SOME (((get_word_binpred binpred) ((v2w v): 10 word) ((v2w v'): 10 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 11 = SOME (((get_word_binpred binpred) ((v2w v): 11 word) ((v2w v'): 11 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 12 = SOME (((get_word_binpred binpred) ((v2w v): 12 word) ((v2w v'): 12 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 13 = SOME (((get_word_binpred binpred) ((v2w v): 13 word) ((v2w v'): 13 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 14 = SOME (((get_word_binpred binpred) ((v2w v): 14 word) ((v2w v'): 14 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 15 = SOME (((get_word_binpred binpred) ((v2w v): 15 word) ((v2w v'): 15 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 16 = SOME (((get_word_binpred binpred) ((v2w v): 16 word) ((v2w v'): 16 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 17 = SOME (((get_word_binpred binpred) ((v2w v): 17 word) ((v2w v'): 17 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 18 = SOME (((get_word_binpred binpred) ((v2w v): 18 word) ((v2w v'): 18 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 19 = SOME (((get_word_binpred binpred) ((v2w v): 19 word) ((v2w v'): 19 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 20 = SOME (((get_word_binpred binpred) ((v2w v): 20 word) ((v2w v'): 20 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 21 = SOME (((get_word_binpred binpred) ((v2w v): 21 word) ((v2w v'): 21 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 22 = SOME (((get_word_binpred binpred) ((v2w v): 22 word) ((v2w v'): 22 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 23 = SOME (((get_word_binpred binpred) ((v2w v): 23 word) ((v2w v'): 23 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 24 = SOME (((get_word_binpred binpred) ((v2w v): 24 word) ((v2w v'): 24 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 25 = SOME (((get_word_binpred binpred) ((v2w v): 25 word) ((v2w v'): 25 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 26 = SOME (((get_word_binpred binpred) ((v2w v): 26 word) ((v2w v'): 26 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 27 = SOME (((get_word_binpred binpred) ((v2w v): 27 word) ((v2w v'): 27 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 28 = SOME (((get_word_binpred binpred) ((v2w v): 28 word) ((v2w v'): 28 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 29 = SOME (((get_word_binpred binpred) ((v2w v): 29 word) ((v2w v'): 29 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 30 = SOME (((get_word_binpred binpred) ((v2w v): 30 word) ((v2w v'): 30 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 31 = SOME (((get_word_binpred binpred) ((v2w v): 31 word) ((v2w v'): 31 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 32 = SOME (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 33 = SOME (((get_word_binpred binpred) ((v2w v): 33 word) ((v2w v'): 33 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 34 = SOME (((get_word_binpred binpred) ((v2w v): 34 word) ((v2w v'): 34 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 35 = SOME (((get_word_binpred binpred) ((v2w v): 35 word) ((v2w v'): 35 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 36 = SOME (((get_word_binpred binpred) ((v2w v): 36 word) ((v2w v'): 36 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 37 = SOME (((get_word_binpred binpred) ((v2w v): 37 word) ((v2w v'): 37 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 38 = SOME (((get_word_binpred binpred) ((v2w v): 38 word) ((v2w v'): 38 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 39 = SOME (((get_word_binpred binpred) ((v2w v): 39 word) ((v2w v'): 39 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 40 = SOME (((get_word_binpred binpred) ((v2w v): 40 word) ((v2w v'): 40 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 41 = SOME (((get_word_binpred binpred) ((v2w v): 41 word) ((v2w v'): 41 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 42 = SOME (((get_word_binpred binpred) ((v2w v): 42 word) ((v2w v'): 42 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 43 = SOME (((get_word_binpred binpred) ((v2w v): 43 word) ((v2w v'): 43 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 44 = SOME (((get_word_binpred binpred) ((v2w v): 44 word) ((v2w v'): 44 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 45 = SOME (((get_word_binpred binpred) ((v2w v): 45 word) ((v2w v'): 45 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 46 = SOME (((get_word_binpred binpred) ((v2w v): 46 word) ((v2w v'): 46 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 47 = SOME (((get_word_binpred binpred) ((v2w v): 47 word) ((v2w v'): 47 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 48 = SOME (((get_word_binpred binpred) ((v2w v): 48 word) ((v2w v'): 48 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 49 = SOME (((get_word_binpred binpred) ((v2w v): 49 word) ((v2w v'): 49 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 50 = SOME (((get_word_binpred binpred) ((v2w v): 50 word) ((v2w v'): 50 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 51 = SOME (((get_word_binpred binpred) ((v2w v): 51 word) ((v2w v'): 51 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 52 = SOME (((get_word_binpred binpred) ((v2w v): 52 word) ((v2w v'): 52 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 53 = SOME (((get_word_binpred binpred) ((v2w v): 53 word) ((v2w v'): 53 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 54 = SOME (((get_word_binpred binpred) ((v2w v): 54 word) ((v2w v'): 54 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 55 = SOME (((get_word_binpred binpred) ((v2w v): 55 word) ((v2w v'): 55 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 56 = SOME (((get_word_binpred binpred) ((v2w v): 56 word) ((v2w v'): 56 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 57 = SOME (((get_word_binpred binpred) ((v2w v): 57 word) ((v2w v'): 57 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 58 = SOME (((get_word_binpred binpred) ((v2w v): 58 word) ((v2w v'): 58 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 59 = SOME (((get_word_binpred binpred) ((v2w v): 59 word) ((v2w v'): 59 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 60 = SOME (((get_word_binpred binpred) ((v2w v): 60 word) ((v2w v'): 60 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 61 = SOME (((get_word_binpred binpred) ((v2w v): 61 word) ((v2w v'): 61 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 62 = SOME (((get_word_binpred binpred) ((v2w v): 62 word) ((v2w v'): 62 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 63 = SOME (((get_word_binpred binpred) ((v2w v): 63 word) ((v2w v'): 63 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 64 = SOME (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' _ = NONE )
+`;
+val bitv_binpred_def = Define `
+  bitv_binpred binpred (v, n) (v', n') =
+    if n = n'
+    then bitv_binpred_inner binpred v v' n
+    else NONE
+`;
+val bitv_concat_def = Define `
+  bitv_concat (v, (n:num)) (v', n') = (v ++ v', n + n')
+`;
+
+(* The arguments are v vector, n length of that vector, m is the most significant bit
+ * l is the least significant bit. It returns the sliced vector with the length *)
+val bitv_bitslice_def = Define `
+  bitv_bitslice (v, n) m l = (SEG ( m - l + 1 ) (n - m - 1) v, m - l + 1)
+`;
+
+val slice_def = Define `
+  slice (v, n) (vec1, len1) (vec2, len2) = bitv_bitslice (v , n) (v2n (vec1)) (v2n (vec2))
+`;
+
+val is_var_def = Define `
+  (is_var (e_var _) = T) /\
+  (is_var _ = F)
+`;
+
+(* Extracts the string that represents the variable name from the expression form *)
+val varname_of_e_def = Define `
+  (varname_of_e (e_var varn) = SOME varn) /\
+  (varname_of_e _ = NONE)
+`;
+
+val v_of_e_def = Define `
+  (v_of_e (e_v v) = SOME v) /\
+  (v_of_e _ = NONE)
+`;
+
+
+val vl_of_el_def = Define `
+  vl_of_el el = MAP (\(e). THE (v_of_e e)) (el)
+`;
+
+
+(* Given a list of expresstions e1...en, find the first expression that is not a constant and return its index. 
+*  Returns the index of the expression. 
+*  This definition is used in the apply tbl e_list
+*)
+
+val index_not_const_def = Define `
+  index_not_const elist =
+    case INDEX_FIND 0 (\e. ~(is_const e)) elist of
+    |SOME (i, e) => SOME i
+    |_ => NONE
+`;
+
+(* TODO: Rename to avoid confusion with "newest_scope" et.c. *)
+(* Finds the topmost scope where the variable x is mapped and its index, as a tuple.*)
+val find_topmost_scope_def = Define `
+  find_topmost_scope (ss:scope list) x =
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (ss) of
+    | SOME (i, sc) => SOME (i, sc)
+    | NONE => NONE
+`;
+
+(* Extracts the topmost scope where the variable name x is mapped *)
+val topmost_scope_def = Define `
+  topmost_scope (ss:scope list) x =
+    case find_topmost_scope ss x of
+    | SOME (i, sc) => SOME sc
+    | _ => NONE
+`;
+
+(* Extracts the index of the topmost scope where the variable name x is mapped *)
+val topmost_scope_index_def = Define `
+  topmost_scope_index (ss:scope list) x = 
+    case find_topmost_scope ss x of
+    | SOME (i, sc) => SOME i
+    | _ => NONE
+`;
+(* Fetches the (value, string option) tuple of the variable name x,
+ * in the topmost scope where it is mapped *)
+val lookup_tup_def = Define `
+  lookup_tup (ss:scope list) x =
+    case topmost_scope ss x of
+    | SOME sc => 
+      (case FLOOKUP sc x of
+       | SOME (v, str_opt) => SOME (v, str_opt)
+       | _ => NONE)
+    | _ => NONE
+`;
+(* Fetches the value of the variable name x from the topmost scope where it is mapped *)
+val lookup_v_def = Define `
+  lookup_v (ss:scope list) x =
+    case lookup_tup ss x of
+    | SOME (v, str_opt) => SOME v
+    | _ => NONE
+`;
+(* Fetches the (optional) argument variable name that might have been saved if
+ * variable name x was mapped as a result of being an out-parameter in a
+ * called function from the topmost scope where x is mapped *)
+val lookup_out_def = Define `
+  lookup_out (ss:scope list) x =
+    case lookup_tup ss x of
+    | SOME (v, str_opt) => SOME str_opt
+    | _ => NONE
+`;
+(* Same as the above, but directly from an expression *)
+val lookup_vexp_def = Define `
+  lookup_vexp (ss:scope list) x =
+    lookup_v (ss:scope list) x
+`;
+
+(* Lookup with g_scope_list as a separate argument *)
+val lookup_vexp2_def = Define `
+  lookup_vexp2 (ss:scope list) (g_scope_list:scope list) x =
+    lookup_v (ss++g_scope_list) x
+`;
+
+(* Look up the value of a l-value (variables + fields of struct-valued variables) in
+ * a scope stack. *)
+val lookup_lval_def = Define `
+  (lookup_lval (ss:scope list) (lval_varname x) = lookup_v ss x) /\
+  (lookup_lval (ss:scope list) (lval_field lval f) =
+     case lookup_lval ss lval of
+     | SOME v => acc_f v f
+     | NONE => NONE)
+`;
+
+(* TODO: This is ambiguous with regard to inout... *)
+val is_d_none_in_def = Define `
+  (is_d_none_in d_in = T) /\
+  (is_d_none_in d_none = T) /\
+  (is_d_none_in _ = F)
+`;
+
+val is_d_in_def = Define `
+  (is_d_in d_in = T) /\
+  (is_d_in d_inout = T) /\
+  (is_d_in _ = F)
+`;
+
+val is_d_out_def = Define `
+  (is_d_out d_inout = T) /\
+  (is_d_out d_out = T) /\
+  (is_d_out _ = F)
+`;
+
+val get_lval_of_e_def = Define `
+  (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
+  (get_lval_of_e (e_acc e x) =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_field lval x)
+   | NONE => NONE) /\
+  (get_lval_of_e _ = NONE)
+`;
+
+val is_e_lval_def = Define `
+  (is_e_lval e =
+    case get_lval_of_e e of
+    | SOME lval => T
+    | NONE => F)
+`;
+
+
+(* Takes an expression list, and returns an option tuple (index, exp) of
+ * the first index that has an unreduced expression*)
+val unred_mem = Define `
+  unred_mem elist  = 
+    INDEX_FIND 0 (\(e). ~(is_const e)) (elist) 
+`;
+
+
+(* retrives only the index of the unred_mem definition *)
+val unred_mem_index_def = Define `
+  unred_mem_index  elist  = 
+    case unred_mem  elist of
+    | SOME (i, e) => SOME i
+    | _ => NONE
+`;
+
+(* Checks if function arguments have been appropriately reduced. *)
+val is_arg_red_def = Define `
+  is_arg_red d e =
+   ((~(is_d_out d) ==> is_const e) /\ (is_d_out d ==> is_e_lval e))
+`;
+
+(* Obtains the minimum index where an unreduced argument is found:
+ * for non-out-directed arguments, if it's not a constant, for
+ * out-directed arguments, if it's not a lval *)
+val find_unred_arg_def = Define `
+  find_unred_arg dlist elist = 
+    (INDEX_FIND 0 (\(d, e). ~(is_arg_red d e)) (ZIP (dlist, elist)))
+`;
+val unred_arg_index_def = Define `
+  unred_arg_index dlist elist  = 
+    case find_unred_arg dlist elist of
+    | SOME (i, de) => SOME i
+    | _ => NONE
+`;
+
+val check_arg_red_def = Define `
+  check_arg_red dlist e i =
+    is_arg_red (EL i dlist) e
+`;
+val check_args_red_def = Define `
+  check_args_red dlist elist = EVERY (\(d, e). is_arg_red d e) (ZIP(dlist, elist))
+`;
+
+val v_size_def = DB.fetch "p4" "v_size_def";
+
+Theorem v1_size_append:
+ !v_l1 v_l2. v1_size (v_l1 ++ v_l2) = (v1_size v_l1 + v1_size v_l2)
+Proof
+ Induct_on `v_l1` >> (
+  fs [v_size_def]
+ )
+QED
+
+Theorem v1_size_mem:
+ !x v t. MEM (x,v) t ==> v_size v < v1_size t
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, v1_size_append, v_size_def]
+QED
+
+val init_out_v_def = TotalDefn.tDefine "init_out_v" `
+  (init_out_v (v_bool boolv) = v_bool ARB) /\
+  (init_out_v (v_bit (bl, n)) = v_bit (extend ARB n [], n)) /\
+  (init_out_v (v_str x) = v_str ARB) /\
+  (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+  (init_out_v (v_struct []) = v_struct []) /\
+  (init_out_v (v_header boolv ((x,v)::t)) =
+    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+  (init_out_v (v_header boolv []) = v_header F []) /\
+  (init_out_v (v_ext ext_obj) = v_ext ARB) /\
+  (init_out_v (v_err errmsg) = v_err ARB) /\
+  (init_out_v v_uninit = v_uninit) /\
+  (init_out_v v_bot = v_bot)
+`
+(WF_REL_TAC `measure v_size` >>
+ fs [v_size_def] >>
+ REPEAT STRIP_TAC >>
+ `v_size v' < v1_size t` suffices_by (
+  fs []
+ ) >>
+ METIS_TAC [v1_size_mem]
+);
+
+(* TODO: Other cases *)
+val arb_from_t_def = Define `
+  (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
+  (arb_from_t (t_base bt_bit) = (v_bit ARB)) /\
+  (arb_from_t t_ext = (v_ext ARB))
+`;
+
+(* Given a direction, an expression (should be a lval), and a scope stack,
+ * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
+val one_arg_val_for_newscope_def = Define `
+ one_arg_val_for_newscope d e ss =
+  if is_d_out d
+  then
+   (case get_lval_of_e e of
+    | SOME lval =>
+     (case lookup_lval ss lval of
+      | SOME v =>
+       if is_d_in d
+       then SOME (v, SOME lval)
+       else SOME (init_out_v v, SOME lval)
+      | NONE => NONE)
+    | NONE => NONE)
+  else
+   (case v_of_e e of
+    | SOME v => SOME (v, NONE)
+    | NONE => NONE)
+`;
+
+val update_arg_for_newscope_def = Define `
+  update_arg_for_newscope ss f_opt (d, x, e) =
+    case f_opt of
+    | SOME f =>
+      (case one_arg_val_for_newscope d e ss of
+       | SOME (v, lval_opt) => SOME (f |+ (varn_name x, (v, lval_opt)))
+       | NONE => NONE)
+    | NONE => NONE
+`;
+
+(* Fills a fresh scope with the values of the arguments of a called function.
+ * Note: used in e_call_newframe *)
+val all_arg_update_for_newscope_def = Define `
+  all_arg_update_for_newscope xlist dlist elist ss = 
+    FOLDL (update_arg_for_newscope ss) (SOME FEMPTY) (ZIP (dlist, ZIP(xlist, elist)))
+`;
+
+
+(* full copyin definition *)
+val copyin_def = Define `
+  copyin xlist dlist elist gsl ss_curr = 
+    all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl)
+`;
+
+
+(* Updates a scope stack by mapping the variable name a to the value v
+ * in the topmost scope where a is defined,
+ * written as ε[a -> v], colloquially known as assignment.
+ * Note that this function is used in the assignment and return rules *)
+val assign_def = Define `
+  (assign ss v (lval_varname x) =
+    case find_topmost_scope ss x of
+    | SOME (i, sc) =>
+      (case lookup_out ss x of
+       | SOME str_opt =>
+         SOME (LUPDATE (sc |+ (x, (v, str_opt))) (i) ss)
+       | NONE => NONE)
+    | _ => NONE) /\
+  (assign ss v (lval_field lval f) =
+    case lookup_lval ss lval of
+    | SOME (v_struct f_v_l) =>
+      (case INDEX_OF f (MAP FST f_v_l) of
+       | SOME i => assign ss (v_struct (LUPDATE (f, v) i f_v_l)) lval
+       | NONE => NONE)
+    | SOME (v_header validity f_v_l) =>
+      (case INDEX_OF f (MAP FST f_v_l) of
+       | SOME i => assign ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
+       | NONE => NONE)
+    | _ => NONE
+  ) /\
+  (assign ss v lval_null =
+    SOME ss
+  )
+`;
+
+val oTAKE_def = Define `
+  (oTAKE 0 _ = SOME []) /\
+  (oTAKE (SUC n) [] = NONE) /\
+  (oTAKE (SUC n) (h::t) =
+   case oTAKE n t of
+   | SOME l => SOME (h::l)
+   | NONE => NONE)
+`;
+
+val oDROP_def = Define `
+  (oDROP 0 l = SOME l) /\
+  (oDROP (SUC n) [] = NONE) /\
+  (oDROP (SUC n) (h::t) = oDROP n t)
+`;
+
+(* Declares a new variable and initialises it to ARB, returns the new scope stack *)
+(* TODO: Behaviour when variable already exists? *)
+(* Note that this will declare variables in the block-global scope when scope stack is empty *)
+(* TODO: REMOVE IT *)
+val declare_def = Define `
+  (declare g_scope_list (ss:scopes_stack) x t =
+    case ss of
+    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_t t, NONE))) 1 g_scope_list, [])
+    | _ =>
+     let i = LENGTH ss - 1 in
+     let scope = EL i ss in
+     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_t t, NONE))) i ss)
+  )
+`;
+
+(* Initialises a new variable in the topmost scope. *)
+val initialise_def = Define `
+  (initialise (ss:scopes_stack) varn v =
+    LUPDATE (FUPDATE (LAST ss) (varn, (v, NONE))) (LENGTH ss - 1) ss
+  )
+`;
+
+
+(* Takes a list of declaration tuples (x, t) and a scope, and returns a scope
+ * where the declarations have been made *)
+val declare_list_in_scope_def = Define `
+  declare_list_in_scope (decl_list:decl_list, scope:scope) =
+    FOLDR (\(x,t) f. f |+ (x , (arb_from_t t, NONE))) (scope:scope) decl_list
+`;
+
+(* Same as the above, but with the empty scope *)
+val declare_list_in_fresh_scope_def = Define `
+  declare_list_in_fresh_scope (decl_list:decl_list) =
+    declare_list_in_scope (decl_list, FEMPTY)
+`;
+
+(* Looks up the function signature and body for an abstract function name. *)
+val lookup_funn_sig_body_def = Define `
+  (lookup_funn_sig_body (funn:funn) (func_map:func_map) (b_func_map:b_func_map) (ext_map:ext_map) =
+    case funn of
+    | (funn_name x) =>
+     (case FLOOKUP b_func_map x of
+      | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
+      | NONE =>
+       (case FLOOKUP func_map x of
+        | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
+        | NONE => NONE
+       )
+     )
+    | (funn_inst x) =>
+     (case FLOOKUP ext_map x of
+      | SOME (SOME (stmt, x_d_l, _), _) => SOME (stmt, x_d_l)
+      | _ => NONE)
+    | (funn_ext x x') =>
+     (case FLOOKUP ext_map x of
+      | SOME (_, ext_fun_map) =>
+       (case FLOOKUP ext_fun_map x' of
+	| SOME (stmt, x_d_l, _) => SOME (stmt, x_d_l)
+	| _ => NONE)
+      | _ => NONE)
+  )
+`;
+
+val lookup_funn_sig_def = Define `
+  (lookup_funn_sig funn func_map b_func_map ext_map =
+    case lookup_funn_sig_body funn func_map b_func_map ext_map of
+    | SOME (_, x_d_l) => SOME x_d_l
+    | NONE => NONE
+  )
+`;
+
+(* Given lists of variable names and directions, a caller's scope stack ss
+ * and a callees scope_stack ss_curr, updates the caller's scope stack
+ * according to the calling conventions. *)
+val update_return_frame_def = Define `
+  update_return_frame xlist dlist ss ss_curr = 
+    FOLDL
+      (\ss_temp_opt (x,d).
+        if (is_d_none_in d)
+        then ss_temp_opt
+        else
+          case ss_temp_opt of
+          | SOME ss_temp =>
+           (case lookup_tup ss_curr (varn_name x) of
+            | SOME (v, str_opt) =>
+              (case str_opt of
+               | SOME str => assign ss_temp v str
+               | NONE => NONE)
+            | _ => NONE)
+          | NONE => NONE
+      )
+      (SOME ss)
+      (ZIP(xlist, dlist))
+`;
+
+val args_of_pbl_def = Define `
+  args_of_pbl (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) = x_d_list
+`;
+
+(* Implements the whole copyout operation to the caller scope stack. Given list of arguments
+ * of the funtion i.e. names and directions, global scope list, caller scope stack and current
+ * scope stack, it will return a tuple where first element is a global scope list updated with
+ * the copy-outs, and the second element is the caller's scope updated with the copy-outs *)
+
+val copyout_def = Define `
+  copyout xlist dlist gsl ss ss_curr =
+    case update_return_frame xlist dlist (ss++gsl) ss_curr of
+    |(SOME updated_return_ss =>
+      case (LENGTH updated_return_ss) of
+      | 0 => NONE
+      | i => SOME (THE (oDROP (i-2) updated_return_ss), THE(oTAKE (i-2) updated_return_ss)))
+    | NONE => NONE
+`;
+
+val sel_def = Define `
+  sel v (v_x_list) x = 
+    case (FIND (\(ks, s). ks = v) v_x_list) of
+    | SOME (v, x') => x'
+    | NONE => x
+`;
+
+val fully_reduced_def = Define `
+  fully_reduced e =
+    case e of
+    | (e_v (v_str _)) => T
+    | _ => F
+`;
+
+val state_fin_def = Define `
+ state_fin status frame_list =
+  ((status = status_trans "accept") \/
+   (status = status_trans "reject") \/
+   (?v. status = status_returnv v) \/
+   (?funn scopes_stack. frame_list = [(funn, [stmt_empty], scopes_stack)]))
+`;
+
+
+val set_fin_status_def = Define `
+  set_fin_status pbl_type status =
+    case pbl_type of
+    | pbl_type_parser =>
+     (case status of
+      | status_running => (status_trans "reject")
+      | _ => status)
+    | pbl_type_control => status
+`;
+
+val not_top_return_def = Define `
+  not_top_return frame_list =
+    case frame_list of
+    | [(funn, stmt, scopes_stack)] =>
+      (case stmt of
+      | stmt_ret e => T
+      | stmt_seq (stmt_ret e) _ => T
+      | _ => F)
+    | _ => F
+`;
+
+(* check if the status is not a return *)
+val notret_def = Define `
+  (notret (status_returnv v) = F) /\
+  (notret _ = T)
+`;
+
+(* check if the operation is short-circuitable. Needed to prevent non-determinism *)
+val is_short_circuitable_def = Define `
+  (is_short_circuitable binop_bin_and = T) /\
+  (is_short_circuitable binop_bin_or = T) /\
+  (is_short_circuitable _ = F)
+`;
+
+
+
+(* Init the variable name star in the topmost scope and return only the scope *)
+val decl_init_star_def = Define `
+  decl_init_star scopes_stack v (varn_star funn) =
+    FUPDATE (HD scopes_stack) ((varn_star funn), (v , NONE))
+`;
+
+(* TODO: Use initialise_def? *)
+(* Init the variable name star in the topmost scope and return the updated scope stack *)
+val init_in_highest_scope_def = Define `
+  init_in_highest_scope scopes_stack v (varn_star funn) =
+    LUPDATE (decl_init_star scopes_stack v (varn_star funn)) 0 scopes_stack
+`;
+
+(* Separate a joined scope stack into its two components:
+ * 2 global scopes, the rest local scopes *)
+val separate_def = Define `
+  separate scopes_stack =
+    let i = (LENGTH scopes_stack) in
+    (oDROP (i-2) scopes_stack, oTAKE (i-2) scopes_stack)
+`;
+
+val parser_not_finished_def = Define `
+  (parser_not_finished [ ( funn , [empty_stmt] , scopes_stack ) ] = F) /\
+  (parser_not_finished _ = T)
+`;
+
+val lookup_ext_fun_def = Define `
+  (lookup_ext_fun (funn_ext f f') (ext_map:ext_map) =
+   case FLOOKUP ext_map f of
+   | SOME (_, ext_fun_map) =>
+    (case FLOOKUP ext_fun_map f' of
+     | SOME (_, _, ext_fun) =>
+      SOME ext_fun
+     | NONE => NONE)
+   | NONE => NONE) /\
+  (lookup_ext_fun (funn_inst f) ext_map =
+   case FLOOKUP ext_map f of
+   | SOME (SOME (_, _, ext_fun), _) =>
+    SOME ext_fun
+   | NONE => NONE) /\
+  (lookup_ext_fun (funn_name f) ext_map = NONE)
+`;
+
+
+(* Passes different global scope lists based on where the function funn is defined.
+   If funn is global, then the function will return only the global scope,
+   else both the global and block scopes will be returned.
+   Note that only functions of the shape "funn_name x" can be declared in blocks. *)
+val scopes_to_pass_def = Define `
+ scopes_to_pass (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map)  (g_scope_list:g_scope_list) =
+  case funn of
+   | (funn_name x) =>
+    (case FLOOKUP b_func_map x of
+     | SOME (stmt, x_d_l) => SOME g_scope_list
+     | NONE =>
+      (case FLOOKUP func_map_g x of
+       | SOME (stmt, x_d_l) => SOME ([FEMPTY; EL 1 g_scope_list])
+       | NONE => NONE
+      )
+    )
+   | _ => SOME ([EL 0 g_scope_list; FEMPTY])
+`;
+
+(* Retrieves the global and block scopes based on where the function funn is defined.
+   If funn is defined in the programmable block, then retrieve the regular global scope list.
+   Otherwise, if the funn is defined globally then retrieve a regular global scope followed by the
+   original block scope: [new_global_scope [0] ; old_block_scope[1] *)
+val scopes_to_retrieve_def = Define `
+ scopes_to_retrieve (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map)  (g_scope_list_og:g_scope_list) (g_scope_list:g_scope_list) =
+  case funn of
+   | (funn_name x) =>
+    (case FLOOKUP b_func_map x of
+     | SOME (stmt, x_d_l) => SOME g_scope_list
+     | NONE =>
+      (case FLOOKUP func_map_g x of
+       | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
+       | NONE => NONE
+      )
+    )
+   | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
+`;
+
+
+
+(*************************************************)
+(****** Typing Rules Related definitions *********)
+(*************************************************)
+
+(* returns the width of the bitstring *)
+val bs_width_def = Define `
+  bs_width (bl, (n:num)) = n
+`;
+
+
+val WF_def = Define `
+(WF order) =    (( !x.   ~order x x ) /\
+  		       	 ( !x y.  order x y ==> ~order y x) /\
+                 ( !x y z. order x y /\ order y z ==> order x z))`;
+
+
+}}
+grammar
+
 defns
 e_sem :: '' ::=
 defn
@@ -561,7 +1961,7 @@ by
   g_scope'' = g_scope_list [0]
   g_scope_list' = [g_scope'']' ++ [ scope'' ]
   ----------------------------------- :: pbl_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , [ stmt ] , [ emptyscope ] ) ] , ctrl , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , ctrl , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( f , [ stmt ] , [ empty ] ) ] , ctrl , Running )
 
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
@@ -583,7 +1983,7 @@ by
   not_final_state ( x' )
   stmt' = pars_map ( x' )
   ----------------------------------- :: parser_trans
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ emptyscope ] ) ] , ctrl' , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , ctrl , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , ctrl' , Running )
 
   pbl x ( e1 , .. , en ) = ab_list [ i ]
   pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
