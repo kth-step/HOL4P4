@@ -2156,6 +2156,7 @@ rpt strip_tac >| [
 QED
 
 (* TODO: More powerful formulation *)
+(* "The steps that change status do so irrespective of g_scope_list and ctrl" *)
 Theorem stmt_exec_status_SOME_indep:
 !ctx g_scope_list g_scope_list' funn stmt_stack scopes_stack frame_list' ctrl status ctrl' status'.
 stmt_exec ctx (g_scope_list, [(funn, stmt_stack, scopes_stack)], ctrl, status) =
