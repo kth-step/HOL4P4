@@ -15,13 +15,13 @@ val core_func_map = ``(FEMPTY |+ (^no_action_fun)):func_map``;
 
 val core_header_map =
  ``(FEMPTY
-    |+ ("isValid", (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [("this", d_inout)], (header_is_valid:'a ext_fun)))):'a ext_fun_map``;
+    |+ ("isValid", (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [("this", d_in)], (header_is_valid:'a ext_fun)))):'a ext_fun_map``;
 
 val core_packet_in_map =
- ``(FEMPTY |+ ("extract", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_inout); ("hdr", d_out)], packet_in_extract))):'a ext_fun_map``;
+ ``(FEMPTY |+ ("extract", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in); ("hdr", d_out)], packet_in_extract))):'a ext_fun_map``;
 
 val core_packet_out_map =
- ``(FEMPTY |+ ("emit", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_inout); ("data", d_in)], packet_out_emit))):'a ext_fun_map``;
+ ``(FEMPTY |+ ("emit", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in); ("data", d_in)], packet_out_emit))):'a ext_fun_map``;
 
 val core_ext_map =
  ``(FEMPTY |+ ("header", (NONE, (^core_header_map)))

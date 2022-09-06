@@ -48,12 +48,12 @@ val vss_ffblock_map = ``FEMPTY |+ ("parser_runtime", ffblock_ff vss_parser_runti
 
 val vss_Checksum16_map =
  ``(FEMPTY
-    |+ ("clear", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_inout)], Checksum16_clear))
-    |+ ("update", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_inout); ("data", d_in)], Checksum16_update))
-    |+ ("get", (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [("this", d_inout)], Checksum16_get))):scope ext_fun_map``;
+    |+ ("clear", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in)], Checksum16_clear))
+    |+ ("update", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in); ("data", d_in)], Checksum16_update))
+    |+ ("get", (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [("this", d_in)], Checksum16_get))):scope ext_fun_map``;
 
 val vss_ext_map =
- ``(FEMPTY (* (^core_ext_map) *) (* TODO: Fix this... *)
-    |+ ("Checksum16", SOME (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [], Checksum16_construct), (^vss_Checksum16_map))):scope ext_map``;
+ ``((^(inst [``:'a`` |-> ``:scope``] core_ext_map))
+    |+ ("Checksum16", SOME (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))):scope ext_map``;
 
 end

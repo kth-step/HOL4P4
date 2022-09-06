@@ -246,10 +246,11 @@ val vss_actx =
 (*   Input data   *)
 (******************)
 
-(* Printed program:
+(* HOL4 representation of the VSS P4 program:
 
 vss_pblock_map
-
+vss_ext_map
+vss_func_map
 
 *)
 
