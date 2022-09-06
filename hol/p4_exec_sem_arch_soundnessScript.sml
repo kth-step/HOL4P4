@@ -8,9 +8,9 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_fr
 (* Type argument added to avoid "Unbound type variable(s) in definition: "'a"" *)
 Definition arch_exec_sound:
  (arch_exec_sound arch_frame_list (type:('a itself)) =
-  !(actx:'a actx) aenv g_scope_list ctrl status astate'.
-  arch_exec actx (aenv, g_scope_list, arch_frame_list, ctrl, status) = SOME astate' ==>
-  arch_red actx (aenv, g_scope_list, arch_frame_list, ctrl, status) astate')
+  !(actx:'a actx) aenv g_scope_list status astate'.
+  arch_exec actx (aenv, g_scope_list, arch_frame_list, status) = SOME astate' ==>
+  arch_red actx (aenv, g_scope_list, arch_frame_list, status) astate')
 End
 
 
@@ -25,8 +25,7 @@ Cases_on `arch_frame_list` >> (
 ) >> (
  rpt strip_tac >>
  PairCases_on `actx` >>
- rename1 `(actx0, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)` >>
- rename1 `(ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, ext_map, func_map)` >>
+ rename1 `(ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)` >>
  PairCases_on `aenv` >>
  rename1 `(aenv0, in_out_list, in_out_list', ascope)` >>
  rename1 `(i, in_out_list, in_out_list', ascope)`
@@ -141,8 +140,8 @@ Cases_on `arch_frame_list` >> (
   ) >>
   Cases_on `x` >>
   fs [state_fin_def] >>
-  Cases_on `frames_exec (ext_map,func_map,f,f0,f1)
-             (g_scope_list,l,ctrl,status_running)` >> (
+  Cases_on `frames_exec (apply_table_f,ext_map,func_map,f,f0,f1)
+             (ascope,g_scope_list,l,status_running)` >> (
    fs []
   ) >>
   PairCases_on `x` >>

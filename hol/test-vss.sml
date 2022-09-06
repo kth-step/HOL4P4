@@ -234,17 +234,24 @@ val vss_func_map =
 val vss_actx =
  pairSyntax.list_mk_pair [``(^vss_ab_list):ab_list``,
                           ``(^vss_pblock_map):pblock_map``,
-                          ``(^vss_ffblock_map):(varn |-> v # lval option) ffblock_map``,
-                          ``(^vss_input_f):(varn |-> v # lval option) input_f``,
-                          ``(^vss_output_f):(varn |-> v # lval option) output_f``,
+                          ``(^vss_ffblock_map):scope ffblock_map``,
+                          ``(^vss_input_f):scope input_f``,
+                          ``(^vss_output_f):scope output_f``,
                           ``(^vss_copyin_pbl):((x list # d list # e list # (varn |-> v # lval option) # pbl_type) -> scope option)``,
                           ``(^vss_copyout_pbl):((g_scope list # (varn |-> v # lval option) # d list # x list # pbl_type # status) -> (varn |-> v # lval option) option)``,
-                          ``(^vss_ext_map):(string |-> (((stmt # (string # d) list # ext_fun) option) # ext_fun_map))``,
+                          ``(^vss_ext_map):(string |-> (((stmt # (string # d) list # scope ext_fun) option) # scope ext_fun_map))``,
                           ``(^vss_func_map):(string |-> (stmt # (string # d) list))``];
 
 (******************)
 (*   Input data   *)
 (******************)
+
+(* Printed program:
+
+vss_pblock_map
+
+
+*)
 
 val input_port_ok = ``1``;
 

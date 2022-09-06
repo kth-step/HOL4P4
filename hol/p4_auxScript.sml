@@ -6,6 +6,15 @@ open listTheory;
 
 open p4Theory;
 
+val oCONS_def = Define `
+ (oCONS (h, SOME t) =
+  SOME (h::t)
+ ) /\
+ (oCONS (_, NONE) =
+  NONE
+ )
+`;
+
 Theorem oTAKE_SOME:
 !i l l'.
 i > 0 ==>
