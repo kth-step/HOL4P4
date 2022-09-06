@@ -44,6 +44,15 @@ fun list_of_octuple (a, b, c, d, e, f, g, h) = [a, b, c, d, e, f, g, h];
 fun mk_octop tm = HolKernel.list_mk_icomb tm o list_of_octuple;
 val syntax_fns8 = HolKernel.syntax_fns {n = 8, dest = dest_octop, make = mk_octop};
 
+fun dest_novop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5, t6, t7, t8, t9]) =>
+         if same_const t c then (t1, t2, t3, t4, t5, t6, t7, t8, t9) else raise e
+    | _ => raise e;
+fun list_of_novuple (a, b, c, d, e, f, g, h, i) = [a, b, c, d, e, f, g, h, i];
+fun mk_novop tm = HolKernel.list_mk_icomb tm o list_of_novuple;
+val syntax_fns9 = HolKernel.syntax_fns {n = 9, dest = dest_novop, make = mk_novop};
+
 (* TODO: Move to ottSyntax *)
 open ottTheory;
 val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
@@ -226,6 +235,7 @@ val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy=
 val scope_ty = mk_fmap_ty (varn_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
+
 
 (**************)
 (* Reductions *)
