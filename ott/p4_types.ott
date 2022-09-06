@@ -8,64 +8,6 @@ grammar
 
 
 
-%w is a const number that represent the width of the bit string
-indexvar w, w1, w2 ::=
-  {{ lex numeral }}
-  {{ tex [[w]] }}
-  {{ hol num }}
-  {{ com width }}
-
-grammar
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Types
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-
-wid :: wid_ ::=
-{{ hol num }}
-{{ com expressions with numeric literals }}
-| w :: M :: wid
-  {{ hol [[w]] }}
-| ( w1 + w2 ) :: M :: add
-  {{ hol ([[w1]] + [[w2]]) }}
-| ( w1 + 1 ) :: M :: add1
-  {{ hol ([[w1]] + 1) }}  
-| ( w1 - w2 + 1 ) :: M :: sub
-  {{ hol ([[w1]] - [[w2]] + 1) }}
-
-
-
-grammar
-
-tau :: tau_ ::=
-  {{ com basic component of the types }}
-| bool :: :: bool
-  {{ com boolean type }}
-| bs wid :: :: bit
-  {{ com bit-string }}
-| str :: :: str
-  {{ com string literal }}    
-| bot :: :: bot
-  {{ com no value }}
-| [ x1 tau1 , .. , xn taun ] :: :: txl
-
-
-taul :: taul_ ::=
-{{ hol (tau list) }}
-| empty :: M :: empty
-  {{ hol ([]:tau list) }}
-| [ tau1 , .. , taun ] :: M :: vl
-  {{ hol ([[tau1 .. taun]]) }}  
-
-Ftau :: Ftau ::=
-{{ com function names types }}
-{{ hol ( ( tau # d ) list # tau) }}
-| [ tau1 d1 , .. , taun dn ] tau :: M :: list
-  {{ hol ([[tau1 d1 .. taun dn]] [[tau]]) }}
-
 
 embed
 {{ hol
@@ -133,28 +75,28 @@ grammar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Global, local functions names types
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-delta_g {{ tex \delta_{glb} }} :: delta_g_ ::=
+delta_g {{ tex \Delta_{glb} }} :: delta_g_ ::=
 {{ com types of functions defined globally}}
 {{ hol (funn |-> (Ftau)) }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
-delta_b {{ tex \delta_{blk} }} :: delta_b_ ::=
+delta_b {{ tex \Delta_{blk} }} :: delta_b_ ::=
 {{ com types of functions defined locally}}
 {{ hol (funn |-> (Ftau)) }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
-delta_t {{ tex \delta_{tbl} }} :: delta_t_ ::=
+delta_t {{ tex \Delta_{tbl} }} :: delta_t_ ::=
 {{ com types of tables}}
 {{ hol (string |-> (taul)) }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
-delta {{ tex \delta_{tbl} }} :: delta_ ::=
+delta {{ tex \Delta_{tbl} }} :: delta_ ::=
 {{ hol ( delta_g # delta_b # delta_t ) }}
 | ( delta_g , delta_b , delta_t ) :: M :: tup
   {{ com empty function map }}
@@ -187,9 +129,13 @@ Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
 %list contains the names of the table names
 {{ hol (string list) }}
 | empty :: M :: empty
-{{ hol ([]: string list ) }}
+{{ hol []: string list  }}
 | [ x1 , .. , xn ] :: M :: list
-{{ hol ([[x1 .. xn]] ) }}
+{{ hol [[x1 .. xn]] }}
+|  Prs_n ++ [ "accept" ; "reject" ] :: M :: waccrej
+{{ hol [[Prs_n]] ++ [ "accept" ; "reject"]  }}
+| ( Prs_n ) :: M :: paren 
+{{ hol ( [[Prs_n]] )}}
 
 T_s {{ tex T_s }} :: T_s_ ::=
 {{ hol ( Tbl_n # Prs_n ) }}
@@ -372,6 +318,12 @@ is_bool_op (oper:binop) =
 `;
 
 
+(* checks if exery literial x in list xl, is a parser state name indeed*)
+val literials_in_P_state_def = Define `
+literials_in_P_state (xl: x list) (Prs_n:Prs_n) =
+EVERY (\(x). MEM x Prs_n) (xl)
+`;
+
 
 
 }}
@@ -399,25 +351,23 @@ by
 
 
 ----------------------------------- :: x
-  x : ( str , F )
+  x : ( [ x ] , F )
 
 
-  x : ( str , F )
+  x : ( [ x ] , F )
 ----------------------------------- :: err
-  errmsg x : ( str , F )
+  errmsg x : ( [ x ] , F )
 
 
-%TODO:def
- %length ( [ tau1 , .. , taun ] ) = m
- %forall i in 1 -- m . ( ( tau = [ tau1 , .. , taun ][i] /\  v = ( v1 , .. , vn )[i] ) implies  v : ( tau , F ) ) 
- ( v1 , .. , vn ) : ( [ tau1 , .. , taun ] , F )
+ v1 , .. , vn : ( [ tau1 , .. , taun ] , F )
 ----------------------------------- :: struct
  struct { x1 = v1 ; .. ; xn = vn } : ( [ x1 tau1 , .. , xn taun ] , F )
 
 
-  ( v1 , .. , vn ) : ( [ tau1 , .. , taun ] , F )
+ boolv : ( bool , F )
+ v1 , .. , vn : ( [ tau1 , .. , taun ] , F )
 ----------------------------------- :: header
- header boolv { x1 = v1 ; .. ; xn = vn } : ( [ x1 tau1 , .. , xn taun ] , F )
+ header boolv { x1 = v1 ; .. ; xn = vn } : ( bool [ x1 tau1 , .. , xn taun ] , F )
 
 
 
@@ -427,8 +377,14 @@ e_typ :: '' ::=
 defn
 t_scopes_tup T_e |- e : ( tau , islval ) :: :: e_typ :: e_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] |- [[e]] : ( [[tau]] , [[islval]] ) }}
+{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[tau]] , [[islval]] ) }}
 by
+
+
+v : ( tau , b )
+----------------------------------- :: x
+t_scopes_tup T_e |- v : ( tau , b )
+
 
 tau = topmost ( t_scopes_tup , varn )
 ----------------------------------- :: var
@@ -448,7 +404,7 @@ t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( [ x1 tau1 , .. , xn t
 
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , F )
 ----------------------------------- :: header
-t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( [ x1 tau1 , .. , xn taun ] , F )
+t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( bool [ x1 tau1 , .. , xn taun ] , F )
 
 
 not_bool_neg unop
@@ -486,9 +442,10 @@ t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( w1 - w2 + 1 ) , T )
 
 
 t_scopes_tup T_e |- e : ( tau , F )
-( v1 , ... , vn ) : ( tau , F )
+( v1 , .. , vn ) : ( tau , F )
 ----------------------------------- :: select
-t_scopes_tup T_e |- select e { v1 : x1 ; ... ; vn : xn } x : ( str , F )
+t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , F )
+
 
 
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn' ) 
@@ -574,14 +531,14 @@ t_scopes_tup T_e T_s |-  stmt1 ; stmt2
 
 
 t_scopes_tup T_e |-  e  : ( bool , b )
-t_scopes_tup T_e |-  e'  : ( str , b' )
+t_scopes_tup T_e |-  e'  : ( [ x1 , .. , xn ] , b' )
 --------------------------------------- :: verify
 t_scopes_tup T_e T_s |-  verify e e' 
 
 
 
-t_scopes_tup T_e |-  e  : ( str , b )
-%TODO add accept or reject to the states this is an expression cannot be a string all teh time
+t_scopes_tup T_e |-  e  : ( [ x1 , .. , xn ] , b )
+literials_in_P_state [ x1 , .. , xn ] ( Prs_n ++ [ "accept" ; "reject" ] )
 --------------------------------------- :: transition
 t_scopes_tup T_e ( Tbl_n , Prs_n ) |-   transition e 
 

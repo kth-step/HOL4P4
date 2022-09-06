@@ -39,7 +39,8 @@ metavar i ::=
       {{ tex [[i]] }}
       {{ com natural number }}
 
-indexvar m, n, o ::=
+%w is a const number that represent the width of the bit string
+indexvar m, n, o, w, w1, w2 ::=
   {{ lex numeral }}
   {{ coq nat }}
   {{ hol num }}
@@ -146,7 +147,7 @@ lval :: lval_ ::=
   {{ com field access }}
 | ( lval ) :: X :: paren
   {{ hol ([[lval]]) }}
-
+%TODO: add slicing as lval
 
 %%%%%%%%%%%%%%%%%%%
 % Execution state %
@@ -312,7 +313,6 @@ e :: e_ ::=
 | ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
-%Fence between e and e_list
 embed
 {{ hol
 
@@ -347,10 +347,6 @@ e_list :: e_list_ ::=
 | ( e_list ) :: S :: paren
   {{ hol ([[e_list]]) }}
 
-
-%%%%%%%%%%%%%%
-% Statements %
-%%%%%%%%%%%%%%
 
 bt {{ tex \mathit{bt} }} :: bt_ ::=
 {{ com base types }}
@@ -429,9 +425,11 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 {{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # g_scope_list # scope_list) option)) }}
 
-decl_list {{ tex { \overline{ \mathit{decl} } } }} :: decl_list_ ::=
-{{ hol ((varn # t) list) }}
-{{ com list of abstract variable name and type tuples to represent declarations }}
+
+
+%%%%%%%%%%%%%%
+% statement  %
+%%%%%%%%%%%%%%
 
 stmt :: stmt_ ::=
 {{ com statement }}
@@ -502,6 +500,81 @@ d_list :: d_list_ ::=
   {{ hol ([[d_list]] ++ [[d_list']]) }}
 | ( d_list ) :: S :: paren
   {{ hol ([[d_list]]) }}
+
+
+
+%%%%%%%%%%%%%%
+%   Types   %
+%%%%%%%%%%%%%%
+
+wid :: wid_ ::=
+{{ hol num }}
+{{ com expressions with numeric literals }}
+| w :: M :: wid
+  {{ hol [[w]] }}
+| ( w1 + w2 ) :: M :: add
+  {{ hol ([[w1]] + [[w2]]) }}
+| ( w1 + 1 ) :: M :: add1
+  {{ hol ([[w1]] + 1) }}  
+| ( w1 - w2 + 1 ) :: M :: sub
+  {{ hol ([[w1]] - [[w2]] + 1) }}
+
+
+x_list :: x_list_ ::=
+{{ com list of strings }}
+{{ hol (x list) }}
+| empty :: M :: empty
+  {{ com empty direction list }}
+  {{ hol ([]:x list) }}
+| [ x1 , .. , xn ] :: M :: list
+  {{ com list of directions }}
+  {{ hol ([[x1 .. xn]]) }}
+| x_list ++ x_list' :: M :: append
+  {{ com append two e_lists }}
+  {{ hol ([[x_list]] ++ [[x_list']]) }}
+| ( x_list ) :: S :: paren
+  {{ hol ([[x_list]]) }}
+
+
+
+grammar
+
+tau {{ tex \tau }} ::  tau_ ::=
+  {{ com basic component of the types }}
+| bool :: :: bool
+  {{ com boolean type }}
+| bs wid :: :: bit
+  {{ com bit-string }}
+  {{ tex bs^w}}   
+| bot :: :: bot
+  {{ com no value }}
+  {{ tex \bot}}
+| [ x1 tau1 , .. , xn taun ] :: :: struct
+  {{ com struct type }} 
+| bool [ x1 tau1 , .. , xn taun ] :: :: header
+  {{ com header type }}  
+| x_list :: :: xl   
+  {{ com string literial type }}  
+%TODO: add the ref type for the extern call
+
+taul :: taul_ ::=
+{{ hol (tau list) }}
+| empty :: M :: empty
+  {{ hol ([]:tau list) }}
+| [ tau1 , .. , taun ] :: M :: vl
+  {{ hol ([[tau1 .. taun]]) }}  
+
+Ftau :: Ftau ::=
+{{ com function names types }}
+{{ hol ( ( tau # d ) list # tau) }}
+| [ tau1 d1 , .. , taun dn ] tau :: M :: list
+  {{ hol ([[tau1 d1 .. taun dn]] [[tau]]) }}
+
+
+
+decl_list {{ tex { \overline{ \mathit{decl} } } }} :: decl_list_ ::=
+{{ hol ((varn # t) list) }}
+{{ com list of abstract variable name and type tuples to represent declarations }}
 
 %Fence between stmt and func_map
 embed

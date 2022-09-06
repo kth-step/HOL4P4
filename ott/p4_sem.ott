@@ -514,13 +514,13 @@ formula :: formula_ ::=
    % (*typing rules related formulas*)
 | w = width bitv :: M :: width
   {{ com width of bitstring}}
-  {{ tex [[w]] = bs_width [[bitv]] }}
+  {{ tex [[w]] = width \ [[bitv]] }}
   {{ hol ([[w]] = bs_width [[bitv]]) }}
 | tau = topmost ( t_scopes_tup , varn ) :: :: topmost
   {{ tex [[tau]] = \mathrm{topmost} ([[t_scopes_tup]], [[varn]]) }}
   {{ hol SOME [[tau]] =  topmost [[t_scopes_tup]] [[varn]]}}
 | [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) :: :: fun_type
-%  {{ tex SOME ([[tau1 d1 .. taun dn]] , [[tau]] ) = \mathrm{t_lookup_funn} ([[delta_g]], [[delta_b]], [[funn]]) }}
+%  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_g]] \cup [[delta_b]] ([[funn]]) }}
   {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) =  t_lookup_funn [[delta_g]] [[delta_b]] [[funn]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
@@ -551,8 +551,9 @@ formula :: formula_ ::=
   {{ com bracketed }}
   {{ tex ([[formula]]\!) }}
   {{ hol ([[formula]]) }}
-|  ( v1 , .. , vm ) : ( [ tau1 , .. , taun ] , F )  :: :: type_all_v
-  {{ hol !i. (1<=i /\ i<= LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (EL i [[tau1 .. taun]]) F ) }}
+|  v_list : ( taul , F )  :: :: type_all_v
+  {{ hol !i. (1<=i /\ i<= LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
+  {{ tex [[v_list]] : ( [[taul]] , F ) }}
 |  ( v1 , .. , vm ) : ( tau , F )  :: :: type_all_v_one_t
   {{ hol !i. (1<=i /\ i<= LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) ([[tau]]) F ) }}     
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , F )  :: :: type_all_e
@@ -581,6 +582,9 @@ formula :: formula_ ::=
   {{ hol MEM [[tbl]] [[Tbl_n]]}} 
 | delta_t ( tbl ) = [ tau1 , .. , taun ] :: :: lookup_tbl_in_delta
   {{ hol (FLOOKUP [[delta_t]] [[tbl]] = SOME ([[tau1 .. taun]])) }}
+| literials_in_P_state [ x1 , .. , xn ] Prs_n :: :: literials_in_P_state
+  {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
+
 
 embed
 {{ hol
