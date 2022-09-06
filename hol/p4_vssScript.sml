@@ -166,7 +166,7 @@ End
 (* let total_length = (v2n (REVERSE (TAKE 16 (REVERSE (TAKE 144 h)))))*8 in *)
 (* TODO: Fix this. *)
 val vss_input_f_def = Define `
-  (vss_input_f (io_list:in_out_list, scope) =
+  (vss_input_f (io_list:in_out_list, scope:scope) =
 (*
    case io_list of
    | [] => NONE

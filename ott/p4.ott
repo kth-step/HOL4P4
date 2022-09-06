@@ -366,6 +366,7 @@ t {{ tex t }} :: t_ ::=
   {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
 | header_t t1 , ... , tn :: :: header
   {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
+| ext :: :: ext
 
 %Fence between t and decl_list
 embed
