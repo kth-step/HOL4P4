@@ -539,6 +539,11 @@ x_list :: x_list_ ::=
 
 grammar
 
+struct_ty :: struct_ty_ ::=
+| struct :: :: struct
+| header :: :: header
+
+
 tau {{ tex \tau }} ::  tau_ ::=
   {{ com basic component of the types }}
 | bool :: :: bool
@@ -549,12 +554,11 @@ tau {{ tex \tau }} ::  tau_ ::=
 | bot :: :: bot
   {{ com no value }}
   {{ tex \bot}}
-| [ x1 tau1 , .. , xn taun ] :: :: struct
+| struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
   {{ com struct type }} 
-| bool [ x1 tau1 , .. , xn taun ] :: :: header
-  {{ com header type }}  
 | x_list :: :: xl   
-  {{ com string literial type }}  
+  {{ com string literial type }} 
+| err :: :: err   
 %TODO: add the ref type for the extern call
 
 taul :: taul_ ::=

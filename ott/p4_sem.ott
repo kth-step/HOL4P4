@@ -1103,6 +1103,49 @@ val arb_from_t_def = Define `
   (arb_from_t (t_base bt_bit) = (v_bit ARB))
 `;
 
+
+val tau_size_def = DB.fetch "p4" "tau_size_def";
+
+Theorem tau1_size_append:
+ !l1 l2. tau1_size (l1 ++ l2) = (tau1_size l1 + tau1_size l2)
+Proof
+ Induct_on `l1` >> (
+  fs [tau_size_def]
+ )
+QED
+
+
+Theorem tau1_size_mem:
+ !x t xtl. MEM (x,t) xtl ==> tau_size t < tau1_size xtl
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, tau1_size_append, tau_size_def]
+QED
+
+
+val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
+  (arb_from_tau (tau_bool)   = (v_bool ARB))  /\
+  (arb_from_tau (tau_bit w)  = (v_bit (ARB , w)))  /\
+  (arb_from_tau (tau_bot)    = (v_bot))   /\
+  (arb_from_tau (tau_xl [x]) = (v_str ARB )) /\
+  (arb_from_tau (tau_err )   = (v_err ARB )) /\
+  (arb_from_tau (tau_xtl struct_ty_struct (xtl) ) =
+    (v_struct ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ) /\
+  (  (arb_from_tau (tau_xtl struct_ty_header (xtl)) =
+    (v_header (ARB) ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ))  
+  `
+ (fs [tau_size_def] >>
+ WF_REL_TAC `measure tau_size` >>
+ REPEAT STRIP_TAC >>
+ FULL_SIMP_TAC std_ss [] >>
+ `tau_size t < tau1_size xtl` suffices_by (
+  fs []
+ ) >>
+ IMP_RES_TAC tau1_size_mem );
+
+
+
+
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `

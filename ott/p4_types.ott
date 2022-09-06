@@ -116,15 +116,6 @@ order {{ tex \sqsubset }} :: order_ ::=
 
 
 
-Tbl_n {{ tex Tbl_n }} :: Tbl_n_ ::=
-%list contains the names of the table names
-{{ hol (string list) }}
-| empty :: M :: empty
-{{ hol ([]: string list ) }}
-| [ x1 , .. , xn ] :: M :: list
-{{ hol ([[x1 .. xn]] ) }}
-
-
 Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
 %list contains the names of the table names
 {{ hol (string list) }}
@@ -136,11 +127,6 @@ Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
 {{ hol [[Prs_n]] ++ [ "accept" ; "reject"]  }}
 | ( Prs_n ) :: M :: paren 
 {{ hol ( [[Prs_n]] )}}
-
-T_s {{ tex T_s }} :: T_s_ ::=
-{{ hol ( Tbl_n # Prs_n ) }}
-| ( Tbl_n , Prs_n ) :: M :: tup
-{{ hol ( [[Tbl_n]] , [[Prs_n]] ) }}
 
 
 T_e {{ tex T_e }} :: T_e_ ::=
@@ -356,18 +342,18 @@ by
 
   x : ( [ x ] , F )
 ----------------------------------- :: err
-  errmsg x : ( [ x ] , F )
+  errmsg x : ( err , F )
 
 
  v1 , .. , vn : ( [ tau1 , .. , taun ] , F )
 ----------------------------------- :: struct
- struct { x1 = v1 ; .. ; xn = vn } : ( [ x1 tau1 , .. , xn taun ] , F )
+ struct { x1 = v1 ; .. ; xn = vn } : ( struct [ x1 tau1 , .. , xn taun ] , F )
 
 
  boolv : ( bool , F )
  v1 , .. , vn : ( [ tau1 , .. , taun ] , F )
 ----------------------------------- :: header
- header boolv { x1 = v1 ; .. ; xn = vn } : ( bool [ x1 tau1 , .. , xn taun ] , F )
+ header boolv { x1 = v1 ; .. ; xn = vn } : ( header [ x1 tau1 , .. , xn taun ] , F )
 
 
 
@@ -399,12 +385,12 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star ,
 
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , F )
 ----------------------------------- :: struct
-t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( [ x1 tau1 , .. , xn taun ] , F )
+t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ x1 tau1 , .. , xn taun ] , F )
 
 
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , F )
 ----------------------------------- :: header
-t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( bool [ x1 tau1 , .. , xn taun ] , F )
+t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ x1 tau1 , .. , xn taun ] , F )
 
 
 not_bool_neg unop
@@ -419,7 +405,7 @@ t_scopes_tup T_e |- e : ( bool , b )
 t_scopes_tup T_e |- unop e : ( bool , F )
 
 
-t_scopes_tup T_e |- e : ( [ x1 tau1 , .. , xn taun ] , b )
+t_scopes_tup T_e |- e : ( struct_ty [ x1 tau1 , .. , xn taun ] , b )
 correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau )
 ----------------------------------- :: acc
 t_scopes_tup T_e |- e . x : ( tau , b )
@@ -483,79 +469,78 @@ t_scopes_tup T_e |-  e binop e' : ( bool , F )
 defns
 stmt_typ :: '' ::=
 defn
-t_scopes_tup T_e T_s |- stmt  :: :: stmt_typ :: stmt_
+t_scopes_tup T_e Prs_n |- stmt  :: :: stmt_typ :: stmt_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] [[T_s]] |- [[stmt]] }}
+{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt]] }}
 by
 
 
 
 --------------------------------------- :: empty
-t_scopes_tup T_e T_s |- empty_stmt
+t_scopes_tup T_e Prs_n |- empty_stmt
 
 
 
 t_scopes_tup T_e |- var varn : ( tau , T )
 t_scopes_tup T_e |-  e    : ( tau , b )
 --------------------------------------- :: assign
-t_scopes_tup T_e T_s |- assign varn e
+t_scopes_tup T_e Prs_n |- assign varn e
 
 
 
 t_scopes_tup T_e |-  e  : ( tau , b )
 --------------------------------------- :: assign_null
-t_scopes_tup T_e T_s |- assign null e
+t_scopes_tup T_e Prs_n |- assign null e
 
 
 
 t_scopes_tup T_e |-  e  : ( bool , b )
-t_scopes_tup T_e T_s |- stmt1
-t_scopes_tup T_e T_s |- stmt2
+t_scopes_tup T_e Prs_n |- stmt1
+t_scopes_tup T_e Prs_n |- stmt2
 --------------------------------------- :: if
-t_scopes_tup T_e T_s |- if e then stmt1 else stmt2
+t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 
 
 %TODO replicate types
-( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e T_s |- stmt
+( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
-( t_scope_list_g , t_scope_list ) T_e T_s |- begin decl_list stmt end 
+( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin decl_list stmt end 
 
 
 
-t_scopes_tup T_e T_s |- stmt1
-t_scopes_tup T_e T_s |- stmt2
+t_scopes_tup T_e Prs_n |- stmt1
+t_scopes_tup T_e Prs_n |- stmt2
 --------------------------------------- :: seq
-t_scopes_tup T_e T_s |-  stmt1 ; stmt2 
+t_scopes_tup T_e Prs_n |-  stmt1 ; stmt2 
 
 
 
 t_scopes_tup T_e |-  e  : ( bool , b )
 t_scopes_tup T_e |-  e'  : ( [ x1 , .. , xn ] , b' )
 --------------------------------------- :: verify
-t_scopes_tup T_e T_s |-  verify e e' 
+t_scopes_tup T_e Prs_n |-  verify e e' 
 
 
 
 t_scopes_tup T_e |-  e  : ( [ x1 , .. , xn ] , b )
 literials_in_P_state [ x1 , .. , xn ] ( Prs_n ++ [ "accept" ; "reject" ] )
 --------------------------------------- :: transition
-t_scopes_tup T_e ( Tbl_n , Prs_n ) |-   transition e 
+t_scopes_tup T_e Prs_n |-  transition e 
 
 
 
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) 
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |-  e  : ( tau , b )
 --------------------------------------- :: return
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) T_s |-  return e
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  return e
 
 
 
  delta_t ( tbl ) = [ tau1 , .. , taun ]
- %in tbl Tbl_n sme
  t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
 --------------------------------------- :: apply
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) T_s |-   apply tbl ( e1 , .. , en ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-   apply tbl ( e1 , .. , en ) 
 
 
 
