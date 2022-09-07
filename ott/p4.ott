@@ -485,18 +485,6 @@ d_list :: d_list_ ::=
 %   Types   %
 %%%%%%%%%%%%%%
 
-%wid :: wid_ ::=
-%{{ hol num }}
-%{{ com expressions with numeric literals }}
-%| w :: M :: wid
-%  {{ hol [[w]] }}
-%| ( w1 + w2 ) :: M :: add
-%  {{ hol ([[w1]] + [[w2]]) }}
-%| ( w1 + 1 ) :: M :: add1
-%  {{ hol ([[w1]] + 1) }}  
-%| ( w1 - w2 + 1 ) :: M :: sub
-%  {{ hol ([[w1]] - [[w2]] + 1) }}
-
 
 x_list :: x_list_ ::=
 {{ com list of strings }}
