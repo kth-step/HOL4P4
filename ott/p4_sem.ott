@@ -385,10 +385,10 @@ formula :: formula_ ::=
   {{ com build new scope and copyin }}
   {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
   {{ hol (SOME [[scope']] = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scope_list]]) }}
-| v = arb_from_t t :: M :: make_arb
+| v = arb_from_tau tau :: M :: make_arb
   {{ com create new varaible in declaration }}
-  {{ hol ([[v]] = arb_from_t [[t]]) }}
-  {{ tex [[v]] = \mathrm{arb\_from\_t} \, [[t]] }}
+  {{ hol ([[v]] = arb_from_tau [[tau]]) }}
+  {{ tex [[v]] = \mathrm{arb\_from\_t} \, [[tau]] }}
 | scope_list' = assign ( scope_list , v , lval ) :: M :: assign
   {{ com assign v to lval in the frame }}
   {{ hol (SOME [[scope_list']] = assign [[scope_list]] [[v]] [[lval]]) }}
@@ -584,7 +584,10 @@ formula :: formula_ ::=
   {{ hol (FLOOKUP [[delta_t]] [[tbl]] = SOME ([[tau1 .. taun]])) }}
 | literials_in_P_state [ x1 , .. , xn ] Prs_n :: :: literials_in_P_state
   {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
-
+| ordered funn funn' order :: :: ordered
+  {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
+| t_scope = replicate_types decl_list :: :: types_repl
+  {{ hol ( [[t_scope]] = replicate_types [[decl_list]]) }}
 
 embed
 {{ hol
@@ -1097,11 +1100,6 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
  METIS_TAC [v1_size_mem]
 );
 
-(* TODO: Other cases *)
-val arb_from_t_def = Define `
-  (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
-  (arb_from_t (t_base bt_bit) = (v_bit ARB))
-`;
 
 
 val tau_size_def = DB.fetch "p4" "tau_size_def";
@@ -1114,7 +1112,6 @@ Proof
  )
 QED
 
-
 Theorem tau1_size_mem:
  !x t xtl. MEM (x,t) xtl ==> tau_size t < tau1_size xtl
 Proof
@@ -1122,7 +1119,7 @@ Proof
  fs [listTheory.MEM_SPLIT, tau1_size_append, tau_size_def]
 QED
 
-
+(* generate a random value that correlates to a certain type *)
 val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
   (arb_from_tau (tau_bool)   = (v_bool ARB))  /\
   (arb_from_tau (tau_bit w)  = (v_bit (ARB , w)))  /\
@@ -1244,11 +1241,11 @@ val oDROP_def = Define `
 val declare_def = Define `
   (declare g_scope_list (ss:scope_list) x t =
     case ss of
-    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_t t, NONE))) 1 g_scope_list, [])
+    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_tau t, NONE))) 1 g_scope_list, [])
     | _ =>
      let i = LENGTH ss - 1 in
      let scope = EL i ss in
-     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_t t, NONE))) i ss)
+     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_tau t, NONE))) i ss)
   )
 `;
 
@@ -1288,7 +1285,7 @@ val initialise_var_stars_def = Define `
  * where the declarations have been made *)
 val declare_list_in_scope_def = Define `
   declare_list_in_scope (decl_list:decl_list, scope:scope) =
-    FOLDR (\(x,t) f. f |+ (x , (arb_from_t t, NONE))) (scope:scope) decl_list
+    FOLDR (\(x,t) f. f |+ (x , (arb_from_tau t, NONE))) (scope:scope) decl_list
 `;
 
 (* Same as the above, but with the empty scope *)
@@ -1515,23 +1512,6 @@ val scopes_to_retrieve_def = Define `
     )
    | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
 `;
-
-
-
-(*************************************************)
-(****** Typing Rules Related definitions *********)
-(*************************************************)
-
-(* returns the width of the bitstring *)
-val bs_width_def = Define `
-  bs_width (bl, (n:num)) = n
-`;
-
-
-val WF_def = Define `
-(WF order) =    (( !x.   ~order x x ) /\
-  		       	 ( !x y.  order x y ==> ~order y x) /\
-                 ( !x y z. order x y /\ order y z ==> order x z))`;
 
 
 }}

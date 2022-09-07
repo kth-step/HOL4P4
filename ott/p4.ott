@@ -427,40 +427,6 @@ ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 
 
 
-%%%%%%%%%%%%%%
-% statement  %
-%%%%%%%%%%%%%%
-
-stmt :: stmt_ ::=
-{{ com statement }}
-| empty_stmt :: :: empty
-  {{ com empty statement }}
-  {{ tex \emptyset_{ \mathrm{stmt} } }}
-| assign lval e :: :: ass
-  {{ com assignment }}
-  {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
-| if e then stmt1 else stmt2 :: :: cond
-  {{ com conditional }}
-| begin decl_list stmt end :: :: block
-  {{ com block }}
-  {{ tex \{ [[decl_list]] \, [[stmt]] \} }}
-| return e :: :: ret
-  {{ com return }}
-| stmt1 ; stmt2 :: :: seq
-  {{ com sequence }}
-| verify e e' :: :: verify
-  %e is the predicate, e' is the error message
-  {{ com verify }}
-| transition e :: :: trans
-  {{ com transition }}
-  {{ tex \mathbf{transition}\, [[e]] }}
-| apply tbl ( e1 , .. , en ) :: :: app
-  {{ com apply }}
- % {{ tex \mathbf{apply} \, [[tbl]] \, [[e_list]] }}
-| ext :: :: ext
-  {{ com extern function }}
-  {{ tex \blacksquare  }}
-
 %%%%%%%%%%%
 % Context %
 %%%%%%%%%%%
@@ -576,9 +542,51 @@ Ftau :: Ftau ::=
 
 
 
+%Fence between types and statement
+embed
+{{ hol
+
+}}
+grammar
+
 decl_list {{ tex { \overline{ \mathit{decl} } } }} :: decl_list_ ::=
-{{ hol ((varn # t) list) }}
+{{ hol ((varn # tau) list) }}
 {{ com list of abstract variable name and type tuples to represent declarations }}
+
+%%%%%%%%%%%%%%
+% statement  %
+%%%%%%%%%%%%%%
+
+stmt :: stmt_ ::=
+{{ com statement }}
+| empty_stmt :: :: empty
+  {{ com empty statement }}
+  {{ tex \emptyset_{ \mathrm{stmt} } }}
+| assign lval e :: :: ass
+  {{ com assignment }}
+  {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
+| if e then stmt1 else stmt2 :: :: cond
+  {{ com conditional }}
+| begin decl_list stmt end :: :: block
+  {{ com block }}
+  {{ tex \{ [[decl_list]] \, [[stmt]] \} }}
+| return e :: :: ret
+  {{ com return }}
+| stmt1 ; stmt2 :: :: seq
+  {{ com sequence }}
+| verify e e' :: :: verify
+  %e is the predicate, e' is the error message
+  {{ com verify }}
+| transition e :: :: trans
+  {{ com transition }}
+  {{ tex \mathbf{transition}\, [[e]] }}
+| apply tbl ( e1 , .. , en ) :: :: app
+  {{ com apply }}
+ % {{ tex \mathbf{apply} \, [[tbl]] \, [[e_list]] }}
+| ext :: :: ext
+  {{ com extern function }}
+  {{ tex \blacksquare  }}
+
 
 %Fence between stmt and func_map
 embed

@@ -6,14 +6,6 @@ open wordsTheory;
 
 grammar
 
-
-
-
-embed
-{{ hol
-}}
-grammar
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Typing scopes and lists
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -103,16 +95,9 @@ delta {{ tex \Delta_{tbl} }} :: delta_ ::=
   {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_t]] ) }}
 
 
-
-
-%tjudgement :: tjudgement_ ::=
-%{{ com typing formulas }}
-%TODO: add order
-
 order {{ tex \sqsubset }} :: order_ ::=
-{{ hol ( funn -> funn -> bool ) }}
-| ( funn , funn' , b ) :: :: o
-%{{ hol [[funn]] [[funn']] [[b]] }}
+{{ hol ( funn list ) }}
+| [ funn1 , .. , funnn ] :: :: fl
 
 
 
@@ -149,6 +134,8 @@ islval :: islval_ ::=
 
 embed
 {{ hol
+
+
 (*************************************************)
 (****** Typing Rules Related definitions *********)
 (*************************************************)
@@ -310,6 +297,43 @@ literials_in_P_state (xl: x list) (Prs_n:Prs_n) =
 EVERY (\(x). MEM x Prs_n) (xl)
 `;
 
+(* returns the width of the bitstring *)
+val bs_width_def = Define `
+  bs_width (bl, (n:num)) = n
+`;
+
+
+
+val ordered_check_def = Define `
+ordered_check (x:funn) y order =
+  case INDEX_FIND 0 (\x' . x' = x ) (order) of
+  | SOME (n , x ) =>
+    ( case INDEX_FIND 0 (\y' . y' = y ) (order) of
+      | SOME ( m , y ) => if (n < m) then (SOME T) else (SOME F)
+      | NONE => NONE
+    )
+  | NONE => NONE
+`;
+
+
+val ordered_def = Define `
+ordered (x:funn) y order =
+  THE (ordered_check (x:funn) y order)
+`;
+
+
+
+val WF_o_def = Define `
+(WF_o order) =    (( !(x:funn).   ~ (ordered x x order) ) /\
+  		 ( !x y.  ordered x y order ==> ~ordered y x order) /\
+                 ( !x y z. ordered x y order/\ ordered y z order ==> ordered x z order))`;
+
+
+
+val replicate_types_def = Define `
+replicate_types (decl : decl_list) =
+  FOLDR (\(x,t) f. f |+ (x , t)) (FEMPTY) decl
+`;
 
 
 }}
@@ -437,8 +461,7 @@ t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] +
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn' ) 
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
-% order funn' funn 
-%TODO
+ordered funn' funn order
 ----------------------------------- :: call
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , F )
 
@@ -502,7 +525,7 @@ t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 
 
-%TODO replicate types
+ t_scope = replicate_types decl_list
 ( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
 ( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin decl_list stmt end 
