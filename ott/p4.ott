@@ -33,14 +33,14 @@ metavar bl ::=
 % Auxiliary metavariables %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-metavar i ::=
+metavar i, w ::=
       {{ lex numeral }}
       {{ hol num }}
       {{ tex [[i]] }}
       {{ com natural number }}
 
 %w is a const number that represent the width of the bit string
-indexvar m, n, o, w, w1, w2 ::=
+indexvar m, n, o ::=
   {{ lex numeral }}
   {{ coq nat }}
   {{ hol num }}
@@ -59,20 +59,14 @@ num_exp :: num_exp ::=
 {{ com expressions with numerals }}
 | i :: M :: i
   {{ hol [[i]] }}
-| w :: M :: w
-  {{ hol [[w]] }}
-| w1 :: M :: w1
-  {{ hol [[w1]] }}
-| w2 :: M :: w2
-  {{ hol [[w2]] }}       
 | num_exp + 1 :: M :: add1
   {{ hol ( [[num_exp]] + 1 ) }}
-| ( num_exp + num_exp' ) :: M :: add
-  {{ hol ( [[num_exp]] + [[num_exp']] ) }} 
-| ( num_exp - num_exp' ) :: M :: sub
-  {{ hol ( [[num_exp]] - [[num_exp']] ) }} 
-%| ( num_exp ) :: M :: par
-%  {{ hol ( [[num_exp]] ) }} 
+| num_exp + num_exp' :: M :: add
+  {{ hol ( [[num_exp]] + [[num_exp']] ) }}
+| num_exp - num_exp' :: M :: sub
+  {{ hol ( [[num_exp]] - [[num_exp']] ) }}
+| ( num_exp ) :: M :: par
+  {{ hol ( [[num_exp]] ) }} 
 
 
 %%%%%%%%%%%%%%%%

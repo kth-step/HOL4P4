@@ -437,7 +437,7 @@ w2 = vec_to_const bitv'
 t_scopes_tup T_e |- e : ( bs w , true )
 bits_length_check ( w , w1 , w2 )
 ----------------------------------- :: slice
-t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( w1 - w2 + 1 ) , true )
+t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , true )
 
 
 
