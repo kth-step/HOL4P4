@@ -36,34 +36,34 @@ Definition min_size_in_bytes:
 End
 
 Definition header_is_valid:
- (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scopes_stack) =
-  case lookup_lval scopes_stack (lval_varname (varn_name "this")) of
+ (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
-   (let scopes_stack' = initialise scopes_stack varn_ext_ret (v_bool valid_bit) in
-    SOME (ascope, g_scope_list, scopes_stack'))
+   (let scope_list' = initialise scope_list varn_ext_ret (v_bool valid_bit) in
+    SOME (ascope, g_scope_list, scope_list'))
   | _ => NONE
  )
 End
 
 Definition header_set_valid:
- (header_set_valid (g_scope_list:g_scope_list, scopes_stack) =
-  case lookup_lval scopes_stack (lval_varname (varn_name "this")) of
+ (header_set_valid (g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
-   (case assign scopes_stack (v_header T x_v_l) (lval_varname (varn_name "this")) of
-    | SOME scopes_stack' =>             
-     SOME (g_scope_list, scopes_stack')
+   (case assign scope_list (v_header T x_v_l) (lval_varname (varn_name "this")) of
+    | SOME scope_list' =>             
+     SOME (g_scope_list, scope_list')
     | NONE => NONE)
   | _ => NONE
  )
 End
 
 Definition header_set_invalid:
- (header_set_invalid (g_scope_list:g_scope_list, scopes_stack) =
-  case lookup_lval scopes_stack (lval_varname (varn_name "this")) of
+ (header_set_invalid (g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
-   (case assign scopes_stack (v_header F x_v_l) (lval_varname (varn_name "this")) of
-    | SOME scopes_stack' =>             
-     SOME (g_scope_list, scopes_stack')
+   (case assign scope_list (v_header F x_v_l) (lval_varname (varn_name "this")) of
+    | SOME scope_list' =>             
+     SOME (g_scope_list, scope_list')
     | NONE => NONE)
   | _ => NONE
  )
@@ -108,12 +108,13 @@ End
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
 (* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
-(* TODO: Fix this
+
 Definition packet_in_extract:
- (packet_in_extract (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
-  case lookup_packet_in scopes_stack (lval_varname (varn_name "this")) of
+ (packet_in_extract (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+(* TODO: Fix this...
+  case lookup_packet_in scope_list (lval_varname (varn_name "this")) of
   | SOME packet_in =>
-   (case lookup_lval_header scopes_stack (lval_varname (varn_name "hdr")) of
+   (case lookup_lval_header scope_list (lval_varname (varn_name "hdr")) of
     | SOME (valid_bit, x_v_l) =>
      (case min_size_in_bits (v_header valid_bit x_v_l) of
       | SOME size =>
@@ -121,24 +122,25 @@ Definition packet_in_extract:
        then
         (case set_header_fields x_v_l packet_in of
          | SOME x_v_l' =>
-          (case assign scopes_stack (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "hdr")) of
-           | SOME scopes_stack' =>
-           (case assign scopes_stack' (v_ext (ext_obj_in (DROP size packet_in))) (lval_varname (varn_name "this")) of
-            | SOME scopes_stack'' =>
-             SOME (g_scope_list, scopes_stack'', ctrl)
+          (case assign scope_list (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "hdr")) of
+           | SOME scope_list' =>
+           (case assign scope_list' (v_ext (ext_obj_in (DROP size packet_in))) (lval_varname (varn_name "this")) of
+            | SOME scope_list'' =>
+             SOME (ascope, g_scope_list, scope_list'')
             | NONE => NONE)
            | NONE => NONE)
          | NONE => NONE)
        else
-        (case assign scopes_stack (v_err "PacketTooShort") (lval_varname (varn_name "parseError")) of
-         | SOME scopes_stack' => SOME (g_scope_list, scopes_stack', ctrl)
+        (case assign scope_list (v_err "PacketTooShort") (lval_varname (varn_name "parseError")) of
+         | SOME scope_list' => SOME (ascope, g_scope_list, scope_list')
          | NONE => NONE)
       | NONE => NONE)
     | NONE => NONE)
   | NONE => NONE
+*)
+  SOME (ascope, g_scope_list, scope_list)
  )
 End
-*)
 
 (**********************)
 (* packet_out methods *)
@@ -176,33 +178,36 @@ End
 
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
-(* TODO: Fix this
+
 Definition packet_out_emit:
- (packet_out_emit (g_scope_list:g_scope_list, scopes_stack, ctrl:ctrl) =
-  case lookup_packet_out scopes_stack (lval_varname (varn_name "this")) of
+ (packet_out_emit (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+(* TODO: Fix this
+  case lookup_packet_out scope_list (lval_varname (varn_name "this")) of
   | SOME packet_out =>
-   (case lookup_lval scopes_stack (lval_varname (varn_name "data")) of
-    | SOME (v_header F x_v_l) => SOME (g_scope_list, scopes_stack, ctrl)
+   (case lookup_lval scope_list (lval_varname (varn_name "data")) of
+    | SOME (v_header F x_v_l) => SOME (g_scope_list, scope_list, ctrl)
     | SOME (v_header T x_v_l) =>
      (case flatten_v_l (MAP SND x_v_l) of
       | SOME bl =>
-       (case assign scopes_stack (v_ext (ext_obj_out (packet_out++bl))) (lval_varname (varn_name "this")) of
-	| SOME scopes_stack' =>             
-	 SOME (g_scope_list, scopes_stack', ctrl)
+       (case assign scope_list (v_ext (ext_obj_out (packet_out++bl))) (lval_varname (varn_name "this")) of
+	| SOME scope_list' =>             
+	 SOME (g_scope_list, scope_list', ctrl)
 	| NONE => NONE)
       | NONE => NONE)
     | SOME (v_struct x_v_l) =>
      (case flatten_v_l (MAP SND x_v_l) of
       | SOME bl =>
-       (case assign scopes_stack (v_ext (ext_obj_out (packet_out++bl))) (lval_varname (varn_name "this")) of
-	| SOME scopes_stack' =>             
-	 SOME (g_scope_list, scopes_stack', ctrl)
+       (case assign scope_list (v_ext (ext_obj_out (packet_out++bl))) (lval_varname (varn_name "this")) of
+	| SOME scope_list' =>             
+	 SOME (g_scope_list, scope_list', ctrl)
 	| NONE => NONE)
       | NONE => NONE)
     | SOME _ => NONE
     | NONE => NONE)
-  | NONE => NONE)
-End
+  | NONE => NONE
 *)
+  SOME (ascope, g_scope_list, scope_list)
+ )
+End
 
 val _ = export_theory ();
