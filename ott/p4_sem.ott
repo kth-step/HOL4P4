@@ -385,10 +385,10 @@ formula :: formula_ ::=
   {{ com build new scope and copyin }}
   {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
   {{ hol (SOME [[scope']] = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scope_list]]) }}
-| v = arb_from_t t :: M :: make_arb
+| v = arb_from_tau tau :: M :: make_arb
   {{ com create new varaible in declaration }}
-  {{ hol ([[v]] = arb_from_t [[t]]) }}
-  {{ tex [[v]] = \mathrm{arb\_from\_t} \, [[t]] }}
+  {{ hol ([[v]] = arb_from_tau [[tau]]) }}
+  {{ tex [[v]] = \mathrm{arb\_from\_t} \, [[tau]] }}
 | scope_list' = assign ( scope_list , v , lval ) :: M :: assign
   {{ com assign v to lval in the frame }}
   {{ hol (SOME [[scope_list']] = assign [[scope_list]] [[v]] [[lval]]) }}
@@ -510,11 +510,84 @@ formula :: formula_ ::=
 
 
 
-% (*typing rules related formulas*)
+
+   % (*typing rules related formulas*)
 | w = width bitv :: M :: width
   {{ com width of bitstring}}
-  {{ tex [[w]] = bs_width [[bitv]] }}
+  {{ tex [[w]] = width \ [[bitv]] }}
   {{ hol ([[w]] = bs_width [[bitv]]) }}
+| tau = topmost ( t_scopes_tup , varn ) :: :: topmost
+  {{ tex [[tau]] = \mathrm{topmost} ([[t_scopes_tup]], [[varn]]) }}
+  {{ hol SOME [[tau]] =  topmost [[t_scopes_tup]] [[varn]]}}
+| [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) :: :: fun_type
+%  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_g]] \cup [[delta_b]] ([[funn]]) }}
+  {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) =  t_lookup_funn [[delta_g]] [[delta_b]] [[funn]]}}
+| not_bool_neg unop :: M :: not_bool_neg
+  {{ com not bool negation }}
+  {{ hol (([[unop]] <> unop_neg)) }}
+  {{ tex [[unop]] \neq \mathit{!} }}
+| is_bool_neg unop :: M :: is_bool_neg
+  {{ com not bool negation }}
+  {{ hol (([[unop]] = unop_neg)) }}
+  {{ tex [[unop]] \eq \mathit{!} }}
+
+| length ( taul ) = m :: M :: find_t_length
+  {{ tex [[m]] = length ([[taul]])}}
+  {{ hol ([[m]] = LENGTH [[taul]]) }}
+| tau = taul [ i ] :: :: tal
+  {{ hol ( [[tau]] = EL [[i]] [[taul]])}}  
+| formula /\ formula' :: M :: and
+  {{ com and }}
+  {{ tex [[formula]] \wedge [[formula']] }}  
+  {{ hol ([[formula]] /\ [[formula']]) }}
+| formula implies formula' :: M :: implies
+  {{ com implies }}
+  {{ tex [[formula]] \longrightarrow [[formula']] }}
+  {{ hol [[formula]] ==> [[formula']] }}      
+| forall i in 1 -- n . formula  :: :: forall 
+  {{ tex \forall [[i]] \in 1 .. [[n]]. [[formula]] }} 
+  {{ hol (![[i]]. (1<=[[i]] /\ [[i]]<=[[n]]) ==> [[formula]]) }}  
+| ( formula )  :: M :: brackets
+  {{ com bracketed }}
+  {{ tex ([[formula]]\!) }}
+  {{ hol ([[formula]]) }}
+|  v_list : ( taul , false )  :: :: type_all_v
+  {{ hol !i. (1<=i /\ i<= LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
+  {{ tex [[v_list]] : ( [[taul]] , F ) }}
+|  ( v1 , .. , vm ) : ( tau , false )  :: :: type_all_v_one_t
+  {{ hol !i. (1<=i /\ i<= LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) ([[tau]]) F ) }}    
+| t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
+  {{ hol !i. (1<=i /\ i<= LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
+| correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau ) :: :: correct_field_type
+  {{ hol correct_field_type [[x1 tau1 .. xn taun]] [[x]] [[tau]] }}
+| slice_length_check ( w , bitv' , bitv'' )  :: :: slice_length_check
+  {{ hol slice_length_check [[w]] [[bitv']] [[bitv'']] }}
+|  bits_length_check ( w , w1 , w2 ) :: :: bits_length_check
+  {{ hol bits_length_check [[w]] [[w1]] [[w2]] }}
+| w = vec_to_const bitv  :: :: vec_to_const
+  {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
+| t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
+  {{ hol !i. (1<=i /\ i<= LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) (EL i [[b1 .. bo]]) ) }}
+| out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
+  {{ hol ( out_is_lval [[d1 .. dn]] [[b1 .. bm]] ) }}
+| is_bv_op binop :: :: is_bv_op 
+  {{ hol is_bv_op [[binop]]}}
+| is_bv_bool_op binop :: :: is_bv_bool_op   
+  {{ hol is_bv_bool_op [[binop]]}}
+| is_bool_op binop :: :: is_bool_op   
+  {{ hol is_bool_op [[binop]]}}  
+| in e Prs_n :: :: eInPrs  
+  {{ hol MEM [[e]] [[Prs_n]]}}  
+| in tbl Tbl_n :: :: eInTbl  
+  {{ hol MEM [[tbl]] [[Tbl_n]]}} 
+| delta_t ( tbl ) = [ tau1 , .. , taun ] :: :: lookup_tbl_in_delta
+  {{ hol (FLOOKUP [[delta_t]] [[tbl]] = SOME ([[tau1 .. taun]])) }}
+| literials_in_P_state [ x1 , .. , xn ] Prs_n :: :: literials_in_P_state
+  {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
+| ordered funn funn' order :: :: ordered
+  {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
+| t_scope = replicate_types decl_list :: :: types_repl
+  {{ hol ( [[t_scope]] = replicate_types [[decl_list]]) }}
 
 embed
 {{ hol
@@ -1027,11 +1100,48 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
  METIS_TAC [v1_size_mem]
 );
 
-(* TODO: Other cases *)
-val arb_from_t_def = Define `
-  (arb_from_t (t_base bt_bool) = (v_bool ARB)) /\
-  (arb_from_t (t_base bt_bit) = (v_bit ARB))
-`;
+
+
+val tau_size_def = DB.fetch "p4" "tau_size_def";
+
+Theorem tau1_size_append:
+ !l1 l2. tau1_size (l1 ++ l2) = (tau1_size l1 + tau1_size l2)
+Proof
+ Induct_on `l1` >> (
+  fs [tau_size_def]
+ )
+QED
+
+Theorem tau1_size_mem:
+ !x t xtl. MEM (x,t) xtl ==> tau_size t < tau1_size xtl
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, tau1_size_append, tau_size_def]
+QED
+
+(* generate a random value that correlates to a certain type *)
+val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
+  (arb_from_tau (tau_bool)   = (v_bool ARB))  /\
+  (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
+  (arb_from_tau (tau_bot)    = (v_bot))   /\
+  (arb_from_tau (tau_xl [x]) = (v_str ARB )) /\
+  (arb_from_tau (tau_err )   = (v_err ARB )) /\
+  (arb_from_tau (tau_xtl struct_ty_struct (xtl) ) =
+    (v_struct ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ) /\
+  (  (arb_from_tau (tau_xtl struct_ty_header (xtl)) =
+    (v_header (ARB) ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ))  
+  `
+ (fs [tau_size_def] >>
+ WF_REL_TAC `measure tau_size` >>
+ REPEAT STRIP_TAC >>
+ FULL_SIMP_TAC std_ss [] >>
+ `tau_size t < tau1_size xtl` suffices_by (
+  fs []
+ ) >>
+ IMP_RES_TAC tau1_size_mem );
+
+
+
 
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
@@ -1131,11 +1241,11 @@ val oDROP_def = Define `
 val declare_def = Define `
   (declare g_scope_list (ss:scope_list) x t =
     case ss of
-    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_t t, NONE))) 1 g_scope_list, [])
+    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_tau t, NONE))) 1 g_scope_list, [])
     | _ =>
      let i = LENGTH ss - 1 in
      let scope = EL i ss in
-     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_t t, NONE))) i ss)
+     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_tau t, NONE))) i ss)
   )
 `;
 
@@ -1175,7 +1285,7 @@ val initialise_var_stars_def = Define `
  * where the declarations have been made *)
 val declare_list_in_scope_def = Define `
   declare_list_in_scope (decl_list:decl_list, scope:scope) =
-    FOLDR (\(x,t) f. f |+ (x , (arb_from_t t, NONE))) (scope:scope) decl_list
+    FOLDR (\(x,t) f. f |+ (x , (arb_from_tau t, NONE))) (scope:scope) decl_list
 `;
 
 (* Same as the above, but with the empty scope *)
@@ -1402,23 +1512,6 @@ val scopes_to_retrieve_def = Define `
     )
    | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
 `;
-
-
-
-(*************************************************)
-(****** Typing Rules Related definitions *********)
-(*************************************************)
-
-(* returns the width of the bitstring *)
-val bs_width_def = Define `
-  bs_width (bl, (n:num)) = n
-`;
-
-
-val WF_def = Define `
-(WF order) =    (( !x.   ~order x x ) /\
-  		       	 ( !x y.  order x y ==> ~order y x) /\
-                 ( !x y z. order x y /\ order y z ==> order x z))`;
 
 
 }}

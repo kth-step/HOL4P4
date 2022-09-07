@@ -6,53 +6,6 @@ open wordsTheory;
 
 grammar
 
-
-
-%w is a const number that represent the width of the bit string
-indexvar w ::=
-  {{ lex numeral }}
-  {{ tex [[w]] }}
-  {{ hol num }}
-  {{ com width }}
-
-grammar
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Types
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-tau :: tau_ ::=
-  {{ com basic component of the types }}
-| bool :: :: bool
-  {{ com boolean type }}
-| bs w :: :: bit
-  {{ com bit-string }}
-| str :: :: str
-  {{ com string literal }}    
-| bot :: :: bot
-  {{ com no value }}
-| [ tau1 x1 , .. , taun xn ] :: :: txl
-
-
-taul :: taul_ ::=
-{{ hol (tau list) }}
-| empty :: M :: empty
-  {{ hol ([]:tau list) }}
-| [ tau1 , .. , taun ] :: M :: vl
-  {{ hol ([[tau1 .. taun]]) }}
-
-Ftau :: Ftau ::=
-{{ com function names types }}
-{{ hol ( ( tau # d ) list # tau) }}
-| [ tau1 d1 , .. , taun dn ] tau :: M :: list
-  {{ hol ([[tau1 d1 .. taun dn]] [[tau]]) }}
-
-
-embed
-{{ hol
-}}
-grammar
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Typing scopes and lists
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -89,7 +42,8 @@ t_scope_list {{ tex \overrightarrow{\psi} }} :: t_scope_list_ ::=
   {{ tex [\;] }}
 | [ t_scope1 , .. , t_scopen ] :: M :: list
   {{ hol ([[t_scope1 .. t_scopen]]) }}
-
+| [ t_scope ] ++ t_scope_list :: M :: scope_concat  
+  {{ hol ( [ [[t_scope]] ] ++ [[t_scope_list]]) }}
 
 embed
 {{ hol
@@ -113,47 +67,51 @@ grammar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Global, local functions names types
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-delta_g {{ tex \delta_{glb} }} :: delta_g_ ::=
+delta_g {{ tex \Delta_{glb} }} :: delta_g_ ::=
 {{ com types of functions defined globally}}
 {{ hol (funn |-> (Ftau)) }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
-delta_b {{ tex \delta_{blk} }} :: delta_b_ ::=
+delta_b {{ tex \Delta_{blk} }} :: delta_b_ ::=
 {{ com types of functions defined locally}}
 {{ hol (funn |-> (Ftau)) }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
-delta_t {{ tex \delta_{tbl} }} :: delta_t_ ::=
+delta_t {{ tex \Delta_{tbl} }} :: delta_t_ ::=
 {{ com types of tables}}
-{{ hol (funn |-> (taul)) }}
+{{ hol (string |-> (taul)) }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
-delta {{ tex \delta_{tbl} }} :: delta_ ::=
+delta {{ tex \Delta_{tbl} }} :: delta_ ::=
 {{ hol ( delta_g # delta_b # delta_t ) }}
 | ( delta_g , delta_b , delta_t ) :: M :: tup
   {{ com empty function map }}
   {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_t]] ) }}
 
 
-
-
-%tjudgement :: tjudgement_ ::=
-%{{ com typing formulas }}
-%TODO: add order
-
 order {{ tex \sqsubset }} :: order_ ::=
-{{ hol ( funn -> funn -> bool ) }}
-| ( funn , funn' , b ) :: :: o
-%{{ hol [[funn]] [[funn']] [[b]] }}
+{{ hol ( funn list ) }}
+| [ funn1 , .. , funnn ] :: :: fl
 
 
 
+Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
+%list contains the names of the table names
+{{ hol (string list) }}
+| empty :: M :: empty
+{{ hol []: string list  }}
+| [ x1 , .. , xn ] :: M :: list
+{{ hol [[x1 .. xn]] }}
+|  Prs_n ++ [ "accept" ; "reject" ] :: M :: waccrej
+{{ hol [[Prs_n]] ++ [ "accept" ; "reject"]  }}
+| ( Prs_n ) :: M :: paren 
+{{ hol ( [[Prs_n]] )}}
 
 
 T_e {{ tex T_e }} :: T_e_ ::=
@@ -161,45 +119,255 @@ T_e {{ tex T_e }} :: T_e_ ::=
 | ( order , funn , delta ) :: M :: tup
 {{ hol ( [[order]] , [[funn]] , [[delta]] ) }}
 
+
+
+
+embed
+{{ hol
+
+
+(*************************************************)
+(****** Typing Rules Related definitions *********)
+(*************************************************)
+
+(* returns the width of the bitstring *)
+val bs_width_def = Define `
+  bs_width (bl, (n:num)) = n
+`;
+
+
+val WF_def = Define `
+(WF order) =    (( !x.   ~order x x ) /\
+  		       	 ( !x y.  order x y ==> ~order y x) /\
+                 ( !x y z. order x y /\ order y z ==> order x z))`;
+
+
+(*find the index of the top most typing scope that contains the varn x *)
+val t_find_topmost_scope_def = Define `
+  t_find_topmost_scope (tss:t_scope list) x =
+    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (tss) of
+    | SOME (i, sc) => SOME (i, sc)
+    | NONE => NONE
+`;
+
+(*find the top most typing scope that contains the varn x *)
+val t_topmost_scope_def = Define `
+  t_topmost_scope (tss:t_scope list) x =
+    case t_find_topmost_scope tss x of
+    | SOME (i, sc) => SOME sc
+    | _ => NONE
+`;
+
+
+
+(* find the type of the top most scope that contains x 
+here the lists of the locals and globals are concatinated *)
+val t_lookup_def = Define `
+  t_lookup (tss:t_scope list) x =
+    case t_topmost_scope (tss) x of
+    | SOME sc => 
+      (case FLOOKUP sc x of
+       | SOME t => SOME t
+       | _ => NONE)
+    | _ => NONE
+`;
+
+
+(* find the type of the top most scope that contains x 
+here the lists of the typing scope lists *)
+val topmost_def = Define `
+  topmost (t_scopes_tup:t_scopes_tup) x =
+  let ( t_scope_list_g : t_scope_list_g , t_scope_list : t_scope_list )  = t_scopes_tup in
+    t_lookup (t_scope_list++t_scope_list_g) x
+`;
+
+
+
+(* lookup the functions type *)
+val t_lookup_funn_def = Define `
+  t_lookup_funn (delta_g:delta_g) (delta_b:delta_b) (funn:funn) =
+    case FLOOKUP (FUNION (delta_g) (delta_b)) funn of
+    | SOME (tdl , t) => SOME (tdl , t)
+    | NONE  => NONE
+`;
+
+
+
+(* 
+given a record feild names and their types xtl, with result tau and a string x, make sure that 
+the string x has the proper type in the record list xtl, and it should be equal to to tau
+used in feild access typing *)
+val tau_in_rec_def = Define `
+tau_in_rec (xtl:(x#tau) list) (x:x) (t:tau) =
+    case (FIND (\(xm, tm). xm = x) xtl) of
+    | SOME (xm, tm) => 
+      if (tm = t) then (SOME T) else ( SOME F)
+    | NONE => NONE
+`;
+
+
+(* Syntactic function to make the tau_in_rec retuens a boolean rather than option type*)
+val correct_field_type_def = Define `
+  correct_field_type (xtl:(x#tau) list) (x:x) (t:tau) =
+      if (tau_in_rec xtl x t = (SOME T) )
+      then T
+      else F
+`;
+
+
+(* checks the lengths of the constants during the slicing operation.
+(v,n) is the desired bitvector to slice from the index vec2 to vec1 
+*)
+val bits_length_chec_def = Define `
+bits_length_check w (vec1) (vec2) =
+     ( (0 <= vec2) /\ (vec2 <= vec1) /\ (vec1 < w) )
+`; 
+
+
+(* given three bitstrings that are aruments to the slicing operations, convert the 
+bitstrings into constants and check if they adhere to teh specification's length requirements *)
+val slice_length_check_def = Define `
+slice_length_check w (vec1,len1) (vec2,len2) =
+      bits_length_check w (v2n vec1) (v2n vec2)
+`;
+
+(* convert from a bit vector to constant *)
+val vec_to_const_def = Define `
+vec_to_const (vec,len) =
+      (v2n vec)
+`;
+
+
+(* check if the dir is out, then the boolean b must be lval *)
+val out_is_lval_def = Define `
+out_is_lval dl bl =
+ EVERY (\ (dir,b) . is_d_out dir ==> b ) (ZIP(dl, bl))
+`;
+
+
+(* returns true if the operation is conducted between two bitvectors and returnsa bitvector*)
+val is_bv_op_def = Define `
+is_bv_op (oper:binop) =
+((oper = binop_mul) \/
+(oper = binop_div) \/
+(oper = binop_mod) \/
+(oper = binop_add) \/
+(oper = binop_sub) \/
+(oper = binop_shl) \/
+(oper = binop_shr) \/
+(oper = binop_and) \/
+(oper = binop_or) \/
+(oper = binop_xor)) 
+`;
+
+(* returns true if the operation is conducted between two bitvectors and returns bool*)
+val is_bv_bool_op_def = Define `
+is_bv_bool_op (oper:binop) =
+((oper = binop_le) \/
+(oper = binop_ge) \/
+(oper = binop_lt) \/
+(oper = binop_gt) \/
+(oper = binop_neq) \/
+(oper = binop_eq)) 
+`;
+
+(* returns true if the operation is conducted between two bools and returns bool*)
+val is_bool_op_def = Define `
+is_bool_op (oper:binop) =
+((oper = binop_bin_and) \/
+(oper = binop_bin_or) \/
+(oper = binop_neq) \/
+(oper = binop_eq))  (*make sure to ask about this part, shall we create new ones for the bool*)
+`;
+
+
+(* checks if exery literial x in list xl, is a parser state name indeed*)
+val literials_in_P_state_def = Define `
+literials_in_P_state (xl: x list) (Prs_n:Prs_n) =
+EVERY (\(x). MEM x Prs_n) (xl)
+`;
+
+(* returns the width of the bitstring *)
+val bs_width_def = Define `
+  bs_width (bl, (n:num)) = n
+`;
+
+
+
+val ordered_check_def = Define `
+ordered_check (x:funn) y order =
+  case INDEX_FIND 0 (\x' . x' = x ) (order) of
+  | SOME (n , x ) =>
+    ( case INDEX_FIND 0 (\y' . y' = y ) (order) of
+      | SOME ( m , y ) => if (n < m) then (SOME T) else (SOME F)
+      | NONE => NONE
+    )
+  | NONE => NONE
+`;
+
+
+val ordered_def = Define `
+ordered (x:funn) y order =
+  THE (ordered_check (x:funn) y order)
+`;
+
+
+
+val WF_o_def = Define `
+(WF_o order) =    (( !(x:funn).   ~ (ordered x x order) ) /\
+  		 ( !x y.  ordered x y order ==> ~ordered y x order) /\
+                 ( !x y z. ordered x y order/\ ordered y z order ==> ordered x z order))`;
+
+
+
+val replicate_types_def = Define `
+replicate_types (decl : decl_list) =
+  FOLDR (\(x,t) f. f |+ (x , t)) (FEMPTY) decl
+`;
+
+
+}}
+
 defns
 v_typ :: '' ::=
 defn
- v : ( tau ) :: :: v_typ :: v_
-{{ com expression types }}
-{{ tex [[v]] : ( [[tau]] ) }}
+ v : ( tau , boolv )  :: :: v_typ :: v_
+{{ com values types }}
+{{ tex [[v]] : ( [[tau]] , [[boolv]] ) }}
 by
 
  
 ----------------------------------- :: bool
-  boolv : ( bool )
+  boolv : ( bool , false  )
 
 
  w = width bitv
 ----------------------------------- :: bit
-  bitv : ( bs w )
+  bitv : ( bs w , false  )
 
 
 ----------------------------------- :: bot
-  bot : ( bot )
+  bot : ( bot , false  )
 
 
 ----------------------------------- :: x
-  x : ( str )
+  x : ( [ x ] , false  )
 
 
-  x : (str)
+  x : ( [ x ] , false  )
 ----------------------------------- :: err
-  errmsg x : (str)
+  errmsg x : ( err , false  )
 
 
+ v1 , .. , vn : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: struct
- struct { x1 = v1 ; .. ; xn = vn } : ( [ tau1 x1 , .. , taun xn ] )
+ struct { x1 = v1 ; .. ; xn = vn } : ( struct [ x1 tau1 , .. , xn taun ] , false  )
 
 
-
+ boolv : ( bool , false  )
+ v1 , .. , vn : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: header
- header boolv { x1 = v1 ; .. ; xn = vn } : ( [ tau1 x1 , .. , taun xn ] )
-
+ header boolv { x1 = v1 ; .. ; xn = vn } : ( header [ x1 tau1 , .. , xn taun ] , false  )
 
 
 
@@ -207,24 +375,185 @@ by
 defns
 e_typ :: '' ::=
 defn
-t_scopes_tup T_e |- e : tau :: :: e_typ :: e_
+t_scopes_tup T_e |- e : ( tau , boolv ) :: :: e_typ :: e_
 {{ com expression types }}
-{{ tex [[T_e]] [[t_scopes_tup]] |- [[e]] : [[tau]]  }}
+{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[tau]] , [[boolv]] ) }}
 by
 
-%tau = top_most ( t_scopes_tup , varn )
+
+v : ( tau , b )
+----------------------------------- :: x
+t_scopes_tup T_e |- v : ( tau , b )
+
+
+tau = topmost ( t_scopes_tup , varn )
 ----------------------------------- :: var
-t_scopes_tup T_e |- var varn : tau
+t_scopes_tup T_e |- var varn : ( tau , true )
+
+
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn )
+tau = topmost ( t_scopes_tup , ( star , funn' ) )
+----------------------------------- :: star
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
+
+
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
+----------------------------------- :: struct
+t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ x1 tau1 , .. , xn taun ] , false  )
+
+
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
+----------------------------------- :: header
+t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ x1 tau1 , .. , xn taun ] , false  )
+
+
+not_bool_neg unop
+t_scopes_tup T_e |- e : ( bs w , b )
+----------------------------------- :: not_neg
+t_scopes_tup T_e |- unop e : ( bs w , false  )
+
+
+is_bool_neg unop
+t_scopes_tup T_e |- e : ( bool , b )
+----------------------------------- :: is_neg
+t_scopes_tup T_e |- unop e : ( bool , false  )
+
+
+t_scopes_tup T_e |- e : ( struct_ty [ x1 tau1 , .. , xn taun ] , b )
+correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau )
+----------------------------------- :: acc
+t_scopes_tup T_e |- e . x : ( tau , b )
+
+
+t_scopes_tup T_e |- e : ( bs w1 , b )
+t_scopes_tup T_e |- e' : ( bs w2 , b' )
+----------------------------------- :: concat
+t_scopes_tup T_e |-  concat e e'  : ( bs ( w1 + w2 ) , false  )
 
 
 
+w1 = vec_to_const bitv
+w2 = vec_to_const bitv'
+t_scopes_tup T_e |- e : ( bs w , true )
+bits_length_check ( w , w1 , w2 )
+----------------------------------- :: slice
+t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , true )
 
 
 
+t_scopes_tup T_e |- e : ( tau , false  )
+( v1 , .. , vn ) : ( tau , false  )
+----------------------------------- :: select
+t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
 
 
 
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn' ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
+out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
+ordered funn' funn order
+----------------------------------- :: call
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
 
+
+
+t_scopes_tup T_e |-  e   : ( bs w , b )
+t_scopes_tup T_e |-  e'  : ( bs w , b' )
+is_bv_op binop
+------------------------------------ :: binop_bv
+t_scopes_tup T_e |-  e binop e' : ( bs w , false  )
+
+
+t_scopes_tup T_e |-  e   : ( bool , b )
+t_scopes_tup T_e |-  e'  : ( bool , b' )
+is_bool_op binop
+------------------------------------ :: binop_bool
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
+
+
+t_scopes_tup T_e |-  e   : ( bs w , b )
+t_scopes_tup T_e |-  e'  : ( bs w , b' )
+is_bv_bool_op binop
+------------------------------------ :: binop_bv_bool
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
+
+
+
+defns
+stmt_typ :: '' ::=
+defn
+t_scopes_tup T_e Prs_n |- stmt  :: :: stmt_typ :: stmt_
+{{ com expression types }}
+{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt]] }}
+by
+
+
+
+--------------------------------------- :: empty
+t_scopes_tup T_e Prs_n |- empty_stmt
+
+
+
+t_scopes_tup T_e |- var varn : ( tau , true )
+t_scopes_tup T_e |-  e    : ( tau , b )
+--------------------------------------- :: assign
+t_scopes_tup T_e Prs_n |- assign varn e
+
+
+
+t_scopes_tup T_e |-  e  : ( tau , b )
+--------------------------------------- :: assign_null
+t_scopes_tup T_e Prs_n |- assign null e
+
+
+
+t_scopes_tup T_e |-  e  : ( bool , b )
+t_scopes_tup T_e Prs_n |- stmt1
+t_scopes_tup T_e Prs_n |- stmt2
+--------------------------------------- :: if
+t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
+
+
+
+ t_scope = replicate_types decl_list
+( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
+--------------------------------------- :: decl
+( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin decl_list stmt end 
+
+
+
+t_scopes_tup T_e Prs_n |- stmt1
+t_scopes_tup T_e Prs_n |- stmt2
+--------------------------------------- :: seq
+t_scopes_tup T_e Prs_n |-  stmt1 ; stmt2 
+
+
+
+t_scopes_tup T_e |-  e  : ( bool , b )
+t_scopes_tup T_e |-  e'  : ( [ x1 , .. , xn ] , b' )
+--------------------------------------- :: verify
+t_scopes_tup T_e Prs_n |-  verify e e' 
+
+
+
+t_scopes_tup T_e |-  e  : ( [ x1 , .. , xn ] , b )
+literials_in_P_state [ x1 , .. , xn ] ( Prs_n ++ [ "accept" ; "reject" ] )
+--------------------------------------- :: transition
+t_scopes_tup T_e Prs_n |-  transition e 
+
+
+
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |-  e  : ( tau , b )
+--------------------------------------- :: return
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  return e
+
+
+
+ delta_t ( tbl ) = [ tau1 , .. , taun ]
+ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
+--------------------------------------- :: apply
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-   apply tbl ( e1 , .. , en ) 
 
 
 
