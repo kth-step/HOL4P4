@@ -2181,6 +2181,7 @@ rpt strip_tac >| [
 QED
 
 (* TODO: More powerful formulation *)
+(*
 (* "The steps that change status do so irrespective of g_scope_list and ctrl" *)
 Theorem stmt_exec_status_SOME_indep:
 !ctx ascope ascope' g_scope_list g_scope_list' funn stmt_stack scope_list frame_list' status status'.
@@ -2193,6 +2194,7 @@ status''' = status'
 Proof
 cheat
 QED
+*)
 
 (* Then, define an executable semantics which performs execution until out of fuel. *)
 (* Note that all concrete operations remain the same *)
