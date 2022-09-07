@@ -57,10 +57,22 @@ grammar
 num_exp :: num_exp ::=
 {{ hol num }}
 {{ com expressions with numerals }}
-| i :: M :: num
+| i :: M :: i
   {{ hol [[i]] }}
+| w :: M :: w
+  {{ hol [[w]] }}
+| w1 :: M :: w1
+  {{ hol [[w1]] }}
+| w2 :: M :: w2
+  {{ hol [[w2]] }}       
 | num_exp + 1 :: M :: add1
-  {{ hol ([[num_exp]] + 1) }}
+  {{ hol ( [[num_exp]] + 1 ) }}
+| ( num_exp + num_exp' ) :: M :: add
+  {{ hol ( [[num_exp]] + [[num_exp']] ) }} 
+| ( num_exp - num_exp' ) :: M :: sub
+  {{ hol ( [[num_exp]] - [[num_exp']] ) }} 
+%| ( num_exp ) :: M :: par
+%  {{ hol ( [[num_exp]] ) }} 
 
 
 %%%%%%%%%%%%%%%%
@@ -473,17 +485,17 @@ d_list :: d_list_ ::=
 %   Types   %
 %%%%%%%%%%%%%%
 
-wid :: wid_ ::=
-{{ hol num }}
-{{ com expressions with numeric literals }}
-| w :: M :: wid
-  {{ hol [[w]] }}
-| ( w1 + w2 ) :: M :: add
-  {{ hol ([[w1]] + [[w2]]) }}
-| ( w1 + 1 ) :: M :: add1
-  {{ hol ([[w1]] + 1) }}  
-| ( w1 - w2 + 1 ) :: M :: sub
-  {{ hol ([[w1]] - [[w2]] + 1) }}
+%wid :: wid_ ::=
+%{{ hol num }}
+%{{ com expressions with numeric literals }}
+%| w :: M :: wid
+%  {{ hol [[w]] }}
+%| ( w1 + w2 ) :: M :: add
+%  {{ hol ([[w1]] + [[w2]]) }}
+%| ( w1 + 1 ) :: M :: add1
+%  {{ hol ([[w1]] + 1) }}  
+%| ( w1 - w2 + 1 ) :: M :: sub
+%  {{ hol ([[w1]] - [[w2]] + 1) }}
 
 
 x_list :: x_list_ ::=
@@ -514,7 +526,7 @@ tau {{ tex \tau }} ::  tau_ ::=
   {{ com basic component of the types }}
 | bool :: :: bool
   {{ com boolean type }}
-| bs wid :: :: bit
+| bs num_exp :: :: bit
   {{ com bit-string }}
   {{ tex bs^w}}   
 | bot :: :: bot

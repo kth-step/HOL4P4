@@ -120,17 +120,7 @@ T_e {{ tex T_e }} :: T_e_ ::=
 {{ hol ( [[order]] , [[funn]] , [[delta]] ) }}
 
 
-islval :: islval_ ::=
-{{ hol bool }}
-{{ com boolean }}
-| T :: M :: T
-  {{ hol T }}
-  {{ tex { T } }}
-| F :: M :: F
-  {{ hol F }}
-  {{ tex { F } }}
-| b :: M :: free
-  {{ hol [[b]] }}
+
 
 embed
 {{ hol
@@ -193,7 +183,7 @@ val topmost_def = Define `
 
 
 
-(* lookup teh functions type *)
+(* lookup the functions type *)
 val t_lookup_funn_def = Define `
   t_lookup_funn (delta_g:delta_g) (delta_b:delta_b) (funn:funn) =
     case FLOOKUP (FUNION (delta_g) (delta_b)) funn of
@@ -341,43 +331,43 @@ replicate_types (decl : decl_list) =
 defns
 v_typ :: '' ::=
 defn
- v : ( tau , islval )  :: :: v_typ :: v_
+ v : ( tau , boolv )  :: :: v_typ :: v_
 {{ com values types }}
-{{ tex [[v]] : ( [[tau]] , [[islval]] ) }}
+{{ tex [[v]] : ( [[tau]] , [[boolv]] ) }}
 by
 
  
 ----------------------------------- :: bool
-  boolv : ( bool , F )
+  boolv : ( bool , false  )
 
 
  w = width bitv
 ----------------------------------- :: bit
-  bitv : ( bs w , F )
+  bitv : ( bs w , false  )
 
 
 ----------------------------------- :: bot
-  bot : ( bot , F )
+  bot : ( bot , false  )
 
 
 ----------------------------------- :: x
-  x : ( [ x ] , F )
+  x : ( [ x ] , false  )
 
 
-  x : ( [ x ] , F )
+  x : ( [ x ] , false  )
 ----------------------------------- :: err
-  errmsg x : ( err , F )
+  errmsg x : ( err , false  )
 
 
- v1 , .. , vn : ( [ tau1 , .. , taun ] , F )
+ v1 , .. , vn : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: struct
- struct { x1 = v1 ; .. ; xn = vn } : ( struct [ x1 tau1 , .. , xn taun ] , F )
+ struct { x1 = v1 ; .. ; xn = vn } : ( struct [ x1 tau1 , .. , xn taun ] , false  )
 
 
- boolv : ( bool , F )
- v1 , .. , vn : ( [ tau1 , .. , taun ] , F )
+ boolv : ( bool , false  )
+ v1 , .. , vn : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: header
- header boolv { x1 = v1 ; .. ; xn = vn } : ( header [ x1 tau1 , .. , xn taun ] , F )
+ header boolv { x1 = v1 ; .. ; xn = vn } : ( header [ x1 tau1 , .. , xn taun ] , false  )
 
 
 
@@ -385,9 +375,9 @@ by
 defns
 e_typ :: '' ::=
 defn
-t_scopes_tup T_e |- e : ( tau , islval ) :: :: e_typ :: e_
+t_scopes_tup T_e |- e : ( tau , boolv ) :: :: e_typ :: e_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[tau]] , [[islval]] ) }}
+{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[tau]] , [[boolv]] ) }}
 by
 
 
@@ -398,35 +388,35 @@ t_scopes_tup T_e |- v : ( tau , b )
 
 tau = topmost ( t_scopes_tup , varn )
 ----------------------------------- :: var
-t_scopes_tup T_e |- var varn : ( tau , T )
+t_scopes_tup T_e |- var varn : ( tau , true )
 
 
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn )
 tau = topmost ( t_scopes_tup , ( star , funn' ) )
 ----------------------------------- :: star
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , T )
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
 
 
-t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , F )
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: struct
-t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ x1 tau1 , .. , xn taun ] , F )
+t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ x1 tau1 , .. , xn taun ] , false  )
 
 
-t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , F )
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: header
-t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ x1 tau1 , .. , xn taun ] , F )
+t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ x1 tau1 , .. , xn taun ] , false  )
 
 
 not_bool_neg unop
 t_scopes_tup T_e |- e : ( bs w , b )
 ----------------------------------- :: not_neg
-t_scopes_tup T_e |- unop e : ( bs w , F )
+t_scopes_tup T_e |- unop e : ( bs w , false  )
 
 
 is_bool_neg unop
 t_scopes_tup T_e |- e : ( bool , b )
 ----------------------------------- :: is_neg
-t_scopes_tup T_e |- unop e : ( bool , F )
+t_scopes_tup T_e |- unop e : ( bool , false  )
 
 
 t_scopes_tup T_e |- e : ( struct_ty [ x1 tau1 , .. , xn taun ] , b )
@@ -438,23 +428,23 @@ t_scopes_tup T_e |- e . x : ( tau , b )
 t_scopes_tup T_e |- e : ( bs w1 , b )
 t_scopes_tup T_e |- e' : ( bs w2 , b' )
 ----------------------------------- :: concat
-t_scopes_tup T_e |-  concat e e'  : ( bs ( w1 + w2 ) , F )
+t_scopes_tup T_e |-  concat e e'  : ( bs ( w1 + w2 ) , false  )
 
 
 
 w1 = vec_to_const bitv
 w2 = vec_to_const bitv'
-t_scopes_tup T_e |- e : ( bs w , T )
+t_scopes_tup T_e |- e : ( bs w , true )
 bits_length_check ( w , w1 , w2 )
 ----------------------------------- :: slice
-t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( w1 - w2 + 1 ) , T )
+t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( w1 - w2 + 1 ) , true )
 
 
 
-t_scopes_tup T_e |- e : ( tau , F )
-( v1 , .. , vn ) : ( tau , F )
+t_scopes_tup T_e |- e : ( tau , false  )
+( v1 , .. , vn ) : ( tau , false  )
 ----------------------------------- :: select
-t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , F )
+t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
 
 
 
@@ -463,7 +453,7 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |-  ( e1 , .. , 
 out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
 ordered funn' funn order
 ----------------------------------- :: call
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , F )
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
 
 
 
@@ -471,21 +461,21 @@ t_scopes_tup T_e |-  e   : ( bs w , b )
 t_scopes_tup T_e |-  e'  : ( bs w , b' )
 is_bv_op binop
 ------------------------------------ :: binop_bv
-t_scopes_tup T_e |-  e binop e' : ( bs w , F )
+t_scopes_tup T_e |-  e binop e' : ( bs w , false  )
 
 
 t_scopes_tup T_e |-  e   : ( bool , b )
 t_scopes_tup T_e |-  e'  : ( bool , b' )
 is_bool_op binop
 ------------------------------------ :: binop_bool
-t_scopes_tup T_e |-  e binop e' : ( bool , F )
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 
 t_scopes_tup T_e |-  e   : ( bs w , b )
 t_scopes_tup T_e |-  e'  : ( bs w , b' )
 is_bv_bool_op binop
 ------------------------------------ :: binop_bv_bool
-t_scopes_tup T_e |-  e binop e' : ( bool , F )
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 
 
@@ -504,7 +494,7 @@ t_scopes_tup T_e Prs_n |- empty_stmt
 
 
 
-t_scopes_tup T_e |- var varn : ( tau , T )
+t_scopes_tup T_e |- var varn : ( tau , true )
 t_scopes_tup T_e |-  e    : ( tau , b )
 --------------------------------------- :: assign
 t_scopes_tup T_e Prs_n |- assign varn e
