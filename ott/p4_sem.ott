@@ -73,7 +73,7 @@ aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
 {{ hol (num # in_out_list # in_out_list # ascope_ty) }}
 | empty :: M :: empty
   {{ com empty architectural environment }}
-  {{ hol (0, [], [], FEMPTY) }}
+  {{ hol (0, [], [], []) }}
 | ( num_exp , in_out_list , in_out_list' , ascope ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[ascope]]) }}
@@ -196,7 +196,7 @@ formula :: formula_ ::=
   {{ hol ([[g_scope]] = EL 1 [[scope_list]]) }}
 | ( stmt , ( x1 , d1 ) , .. , ( xn , dn ) ) = func_map ( f ) :: M :: func_lookup
   {{ com function signature lookup }}
-  {{ hol (FLOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
+  {{ hol (ALOOKUP [[func_map]] [[f]] = SOME ([[stmt]], [[x1 d1 .. xn dn]])) }}
 | length ( scope_list ) = i :: M :: find_length
   {{ com find the scope stack length }}
   {{ tex [[i]] = length ([[scope_list]])}}
@@ -207,7 +207,7 @@ formula :: formula_ ::=
   {{ hol ([[i]] = LENGTH [[scope_list]] - 1) }}  
 | v = scope ( x ) :: M :: lookup
   {{ com look-up of variable in scope }}
-  {{ hol (FLOOKUP [[scope]] [[x]] = SOME [[v]]) }}
+  {{ hol (ALOOKUP [[scope]] [[x]] = SOME [[v]]) }}
 | v = struct { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: s_access
   {{ com access of field in struct }}
   {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
@@ -296,7 +296,7 @@ formula :: formula_ ::=
 | tbl_map ( tbl ) = ( mk_list ) :: :: find_key
   {{ com find keys and the matching kind in the table map }}
   {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[mk_list]] ) }}
-  {{ hol ( FLOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mk_list]] ) ) }}
+  {{ hol ( ALOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mk_list]] ) ) }}
 | apply_table_f ( tbl , e_list , mk_list , ascope ) = ( f , e_list' ) :: :: apply_table  
   {{ com fetch the action name and parameters from the control plane }}
   {{ tex [[apply_table_f]]\, ( [[tbl]] , \, [[e_list]], \, [[mk_list]], \, [[ascope]]\, ) = \,( [[f]] , [[e_list']] ) }}
@@ -333,7 +333,7 @@ formula :: formula_ ::=
   {{ tex \mathrm{is\_consts} \,\, [[e_list]] }}
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
-  {{ hol (FLOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
+  {{ hol (ALOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
 | x = parseError :: M :: pars_err
   {{ com parser error literal }}
   {{ hol ([[x]] = "parseError") }}
@@ -413,10 +413,10 @@ formula :: formula_ ::=
 %Architecture-level semantics-related formulae
 | pblock = pblock_map ( f ) :: M :: lookup_pb
   {{ com programmable block lookup }}
-  {{ hol (FLOOKUP [[pblock_map]] [[f]] = SOME [[pblock]]) }}
+  {{ hol (ALOOKUP [[pblock_map]] [[f]] = SOME [[pblock]]) }}
 | ffblock = ffblock_map ( f ) :: M :: lookup_ffb
   {{ com fixed-function block lookup }}
-  {{ hol (FLOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
+  {{ hol (ALOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
 | ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
   {{ com obtain body and args of pblock }}
   {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
@@ -581,7 +581,7 @@ formula :: formula_ ::=
 | in tbl Tbl_n :: :: eInTbl  
   {{ hol MEM [[tbl]] [[Tbl_n]]}} 
 | delta_t ( tbl ) = [ tau1 , .. , taun ] :: :: lookup_tbl_in_delta
-  {{ hol (FLOOKUP [[delta_t]] [[tbl]] = SOME ([[tau1 .. taun]])) }}
+  {{ hol (ALOOKUP [[delta_t]] [[tbl]] = SOME ([[tau1 .. taun]])) }}
 | literials_in_P_state [ x1 , .. , xn ] Prs_n :: :: literials_in_P_state
   {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
 | ordered funn funn' order :: :: ordered
@@ -912,7 +912,7 @@ val index_not_const_def = Define `
 (* Finds the topmost scope where the variable x is mapped and its index, as a tuple.*)
 val find_topmost_scope_def = Define `
   find_topmost_scope (ss:scope list) x =
-    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (ss) of
+    case INDEX_FIND 0 (\sc. IS_SOME (ALOOKUP sc x)) (ss) of
     | SOME (i, sc) => SOME (i, sc)
     | NONE => NONE
 `;
@@ -938,7 +938,7 @@ val lookup_tup_def = Define `
   lookup_tup (ss:scope list) x =
     case topmost_scope ss x of
     | SOME sc => 
-      (case FLOOKUP sc x of
+      (case ALOOKUP sc x of
        | SOME (v, str_opt) => SOME (v, str_opt)
        | _ => NONE)
     | _ => NONE
@@ -1164,12 +1164,23 @@ val one_arg_val_for_newscope_def = Define `
     | NONE => NONE)
 `;
 
+Definition AUPDATE_def:
+ AUPDATE alist (k,v) =
+  case ALOOKUP alist k of
+   | SOME _ => AFUPDKEY k (\old_v. v) alist
+   | NONE => (alist++[(k,v)])
+End
+
+Definition AUPDATE_LIST_def:
+ AUPDATE_LIST = FOLDL AUPDATE
+End
+
 val update_arg_for_newscope_def = Define `
   update_arg_for_newscope ss f_opt (d, x, e) =
     case f_opt of
     | SOME f =>
       (case one_arg_val_for_newscope d e ss of
-       | SOME (v, lval_opt) => SOME (f |+ (varn_name x, (v, lval_opt)))
+       | SOME (v, lval_opt) => SOME (AUPDATE f (varn_name x, (v, lval_opt)))
        | NONE => NONE)
     | NONE => NONE
 `;
@@ -1178,7 +1189,7 @@ val update_arg_for_newscope_def = Define `
  * Note: used in e_call_newframe *)
 val all_arg_update_for_newscope_def = Define `
   all_arg_update_for_newscope xlist dlist elist ss = 
-    FOLDL (update_arg_for_newscope ss) (SOME FEMPTY) (ZIP (dlist, ZIP(xlist, elist)))
+    FOLDL (update_arg_for_newscope ss) (SOME []) (ZIP (dlist, ZIP(xlist, elist)))
 `;
 
 
@@ -1199,7 +1210,7 @@ val assign_def = Define `
     | SOME (i, sc) =>
       (case lookup_out ss x of
        | SOME str_opt =>
-         SOME (LUPDATE (sc |+ (x, (v, str_opt))) (i) ss)
+         SOME (LUPDATE (AUPDATE sc (x, (v, str_opt))) (i) ss)
        | NONE => NONE)
     | _ => NONE) /\
   (assign ss v (lval_field lval f) =
@@ -1238,35 +1249,37 @@ val oDROP_def = Define `
 (* TODO: Behaviour when variable already exists? *)
 (* Note that this will declare variables in the block-global scope when scope stack is empty *)
 (* TODO: REMOVE IT *)
+(*
 val declare_def = Define `
   (declare g_scope_list (ss:scope_list) x t =
     case ss of
-    | [] => (LUPDATE (FUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_tau t, NONE))) 1 g_scope_list, [])
+    | [] => (LUPDATE (AUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_tau t, NONE))) 1 g_scope_list, [])
     | _ =>
      let i = LENGTH ss - 1 in
      let scope = EL i ss in
-     (g_scope_list, LUPDATE (FUPDATE scope (varn_name x, (arb_from_tau t, NONE))) i ss)
+     (g_scope_list, LUPDATE (AUPDATE scope (varn_name x, (arb_from_tau t, NONE))) i ss)
   )
 `;
+*)
 
 (* Initialises a new variable in the topmost scope. *)
 val initialise_def = Define `
   (initialise (ss:scope_list) varn v =
-    LUPDATE (FUPDATE (LAST ss) (varn, (v, NONE))) (LENGTH ss - 1) ss
+    LUPDATE (AUPDATE (LAST ss) (varn, (v, NONE))) (LENGTH ss - 1) ss
   )
 `;
 
 (* Initialises parseError in a scope. *)
 val initialise_parse_error_def = Define `
   (initialise_parse_error (scope:scope) =
-    FUPDATE scope (varn_name "parseError", (v_err "NoError", NONE))
+    AUPDATE scope (varn_name "parseError", (v_err "NoError", NONE))
   )
 `;
 
 (* Obtains the varn_star updates of a single function map *)
 val var_star_updates_of_func_map_def = Define `
   (var_star_updates_of_func_map (func_map:func_map) =
-   let varnames = (SET_TO_LIST (FDOM func_map)) in
+   let varnames = (MAP FST func_map) in
    MAP ( \x. (varn_star (funn_name x), (v_bot, (NONE:lval option)))) varnames
   )
 `;
@@ -1276,7 +1289,7 @@ val initialise_var_stars_def = Define `
   (initialise_var_stars func_map b_func_map g_scope_list =
    case g_scope_list of
    | [gg_scope; bg_scope] =>
-    SOME ([gg_scope |++ (var_star_updates_of_func_map func_map); bg_scope |++ (var_star_updates_of_func_map b_func_map)])
+    SOME ([AUPDATE_LIST gg_scope (var_star_updates_of_func_map func_map); AUPDATE_LIST bg_scope (var_star_updates_of_func_map b_func_map)])
    | _ => NONE
   )
 `;
@@ -1285,13 +1298,13 @@ val initialise_var_stars_def = Define `
  * where the declarations have been made *)
 val declare_list_in_scope_def = Define `
   declare_list_in_scope (decl_list:decl_list, scope:scope) =
-    FOLDR (\(x,t) f. f |+ (x , (arb_from_tau t, NONE))) (scope:scope) decl_list
+    FOLDR (\(x,t) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) decl_list
 `;
 
 (* Same as the above, but with the empty scope *)
 val declare_list_in_fresh_scope_def = Define `
   declare_list_in_fresh_scope (decl_list:decl_list) =
-    declare_list_in_scope (decl_list, FEMPTY)
+    declare_list_in_scope (decl_list, [])
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
@@ -1299,22 +1312,22 @@ val lookup_funn_sig_body_def = Define `
   (lookup_funn_sig_body (funn:funn) (func_map:func_map) (b_func_map:b_func_map) (ext_map:'a ext_map) =
     case funn of
     | (funn_name x) =>
-     (case FLOOKUP b_func_map x of
+     (case ALOOKUP b_func_map x of
       | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
       | NONE =>
-       (case FLOOKUP func_map x of
+       (case ALOOKUP func_map x of
         | SOME (stmt, x_d_l) => SOME (stmt, x_d_l)
         | NONE => NONE
        )
      )
     | (funn_inst x) =>
-     (case FLOOKUP ext_map x of
+     (case ALOOKUP ext_map x of
       | SOME (SOME (stmt, x_d_l, _), _) => SOME (stmt, x_d_l)
       | _ => NONE)
     | (funn_ext x x') =>
-     (case FLOOKUP ext_map x of
+     (case ALOOKUP ext_map x of
       | SOME (_, ext_fun_map) =>
-       (case FLOOKUP ext_fun_map x' of
+       (case ALOOKUP ext_fun_map x' of
 	| SOME (stmt, x_d_l, _) => SOME (stmt, x_d_l)
 	| _ => NONE)
       | _ => NONE)
@@ -1434,7 +1447,7 @@ val is_short_circuitable_def = Define `
 (* Init the variable name star in the topmost scope and return only the scope *)
 val decl_init_star_def = Define `
   decl_init_star scope_list v (varn_star funn) =
-    FUPDATE (HD scope_list) ((varn_star funn), (v , NONE))
+    AUPDATE (HD scope_list) ((varn_star funn), (v , NONE))
 `;
 
 (* TODO: Use initialise_def? *)
@@ -1459,15 +1472,15 @@ val parser_not_finished_def = Define `
 
 val lookup_ext_fun_def = Define `
   (lookup_ext_fun (funn_ext f f') (ext_map:'a ext_map) =
-   case FLOOKUP ext_map f of
+   case ALOOKUP ext_map f of
    | SOME (_, ext_fun_map) =>
-    (case FLOOKUP ext_fun_map f' of
+    (case ALOOKUP ext_fun_map f' of
      | SOME (_, _, ext_fun) =>
       SOME ext_fun
      | NONE => NONE)
    | NONE => NONE) /\
   (lookup_ext_fun (funn_inst f) ext_map =
-   case FLOOKUP ext_map f of
+   case ALOOKUP ext_map f of
    | SOME (SOME (_, _, ext_fun), _) =>
     SOME ext_fun
    | NONE => NONE) /\
@@ -1483,15 +1496,15 @@ val scopes_to_pass_def = Define `
  scopes_to_pass (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map)  (g_scope_list:g_scope_list) =
   case funn of
    | (funn_name x) =>
-    (case FLOOKUP b_func_map x of
+    (case ALOOKUP b_func_map x of
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
-      (case FLOOKUP func_map_g x of
-       | SOME (stmt, x_d_l) => SOME ([FEMPTY; EL 1 g_scope_list])
+      (case ALOOKUP func_map_g x of
+       | SOME (stmt, x_d_l) => SOME ([ []; EL 1 g_scope_list])
        | NONE => NONE
       )
     )
-   | _ => SOME ([EL 0 g_scope_list; FEMPTY])
+   | _ => SOME ([EL 0 g_scope_list; [] ])
 `;
 
 (* Retrieves the global and block scopes based on where the function funn is defined.
@@ -1502,10 +1515,10 @@ val scopes_to_retrieve_def = Define `
  scopes_to_retrieve (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map)  (g_scope_list_og:g_scope_list) (g_scope_list:g_scope_list) =
   case funn of
    | (funn_name x) =>
-    (case FLOOKUP b_func_map x of
+    (case ALOOKUP b_func_map x of
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
-      (case FLOOKUP func_map_g x of
+      (case ALOOKUP func_map_g x of
        | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
        | NONE => NONE
       )

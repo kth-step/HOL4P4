@@ -198,7 +198,7 @@ val vss_reduce_nonout_def = Define `
   else
    (case e of
     | (e_var x) =>
-     (case lookup_vexp2 [FEMPTY] [vss_arch_scope] x of
+     (case lookup_vexp2 [ [] ] [vss_arch_scope] x of
       | SOME v => oCONS (e_v v, vss_reduce_nonout (dlist, elist, vss_arch_scope))
       | NONE => NONE)
     | _ => NONE) 
@@ -212,7 +212,7 @@ val vss_copyin_pbl_def = Define `
   vss_copyin_pbl (xlist, dlist, elist, vss_arch_scope, pbl_type) =
     case vss_reduce_nonout (dlist, elist, vss_arch_scope) of
     | SOME elist' =>
-      (case copyin xlist dlist elist' [vss_arch_scope] [FEMPTY] of
+      (case copyin xlist dlist elist' [vss_arch_scope] [ [] ] of
        | SOME scope =>
          if pbl_type = pbl_type_parser
          then
@@ -228,7 +228,7 @@ val vss_copyin_pbl_def = Define `
 (* Note that this re-uses the copyout function intended for P4 functions *)
 val vss_copyout_pbl_def = Define `
   vss_copyout_pbl (ss, vss_arch_scope, dlist, xlist, pbl_type, (status:status)) =
-    case copyout xlist dlist [FEMPTY; FEMPTY] [vss_arch_scope] ss of
+    case copyout xlist dlist [ [] ; [] ] [vss_arch_scope] ss of
     | SOME (g_scope_list, [vss_arch_scope']) =>
       if pbl_type = pbl_type_parser
       then

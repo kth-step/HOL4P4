@@ -528,7 +528,7 @@ Definition stmt_exec:
       SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_app t_name (LUPDATE e' i e_l)], scope_list)], status_running)
      | NONE => NONE)
    | NONE =>
-    (case FLOOKUP tbl_map t_name of
+    (case ALOOKUP tbl_map t_name of
      | SOME mk_l =>
       (if LENGTH mk_l = LENGTH e_l
        then
@@ -1177,7 +1177,7 @@ Theorem exec_stmt_app_SOME_REWRS:
 !apply_table_f ext_map func_map b_func_map pars_map tbl_map ascope ascope' g_scope_list g_scope_list' funn t_name e_l stmt_stack frame_list' scope_list status'.
 stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, (stmt_app t_name e_l)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
- (index_not_const e_l = NONE  ==> ?mk_l f f_args. FLOOKUP tbl_map t_name = SOME mk_l /\
+ (index_not_const e_l = NONE  ==> ?mk_l f f_args. ALOOKUP tbl_map t_name = SOME mk_l /\
                        apply_table_f (t_name, e_l, mk_l, ascope) = SOME (f, f_args) /\
                        is_consts_exec f_args /\
                        LENGTH mk_l = LENGTH e_l /\
@@ -1194,7 +1194,7 @@ rpt strip_tac >>
 Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l` >> (
  fs [stmt_exec]
 ) >| [
- Cases_on `FLOOKUP tbl_map t_name` >> (
+ Cases_on `ALOOKUP tbl_map t_name` >> (
   fs []
  ) >>
  Cases_on `apply_table_f (t_name,e_l,x,ascope)` >> (
@@ -1213,7 +1213,7 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  ) >>
  metis_tac [],
 
- Cases_on `FLOOKUP tbl_map t_name` >> (
+ Cases_on `ALOOKUP tbl_map t_name` >> (
   fs []
  ) >>
  Cases_on `apply_table_f (t_name,e_l,x,ascope)` >> (
@@ -1547,6 +1547,15 @@ Proof
 rpt strip_tac >>
 irule stmt_exec_ind >>
 rpt strip_tac >| [
+ (* Apply *)
+ fs [exec_stmt_app_SOME_REWRS] >>
+ rpt strip_tac >> (
+  Cases_on `index_not_const e_l` >> (
+   fs []
+  )
+ ) >>
+ metis_tac [e_exec_new_frame],
+
  (* Extern *)
  rename1 `[(funn,[stmt_ext],scope::scope_list)]` >>
  fs [stmt_exec] >>
@@ -1559,15 +1568,6 @@ rpt strip_tac >| [
  PairCases_on `x'` >> (
   fs []
  ),
-
- (* Apply *)
- fs [exec_stmt_app_SOME_REWRS] >>
- rpt strip_tac >> (
-  Cases_on `index_not_const e_l` >> (
-   fs []
-  )
- ) >>
- metis_tac [e_exec_new_frame],
 
  (* Verify *)
  fs [exec_stmt_verify_SOME_REWRS] >>
@@ -1606,8 +1606,6 @@ rpt strip_tac >| [
  fs [exec_stmt_cond_SOME_REWRS] >>
  metis_tac [],
 
- fs [stmt_exec],
-
  (* Apply (stack case) *)
  rename1 `stmt_app t_name e_l` >>
  fs [] >>
@@ -1618,6 +1616,8 @@ rpt strip_tac >| [
   IMP_RES_TAC stmt_exec_block >>
   fs [exec_stmt_app_SOME_REWRS]
  ),
+
+ fs [stmt_exec],
 
  (* Block entry *)
  fs [exec_stmt_block_SOME_REWRS],
@@ -1651,7 +1651,6 @@ rpt strip_tac >| [
  fs [exec_stmt_ext_SOME_REWRS],
 
  (* Seq *)
- (* TODO: Fix *)
  fs [stmt_exec] >>
  Cases_on `is_empty stmt1` >> (
   fs []
@@ -1983,9 +1982,9 @@ Proof
 rpt strip_tac >>
 irule stmt_exec_ind >>
 rpt strip_tac >| [
- fs [exec_stmt_ext_SOME_REWRS],
-
  fs [exec_stmt_app_SOME_REWRS],
+
+ fs [exec_stmt_ext_SOME_REWRS],
 
  fs [exec_stmt_verify_SOME_REWRS],
 
@@ -2012,12 +2011,12 @@ rpt strip_tac >| [
 
  fs [exec_stmt_cond_SOME_REWRS],
 
- fs [stmt_exec],
-
  pairLib.PairCases_on `ctx` >>
  rename1 `(ctx0, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
  rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
  fs [exec_stmt_app_SOME_REWRS],
+
+ fs [stmt_exec],
 
  fs [exec_stmt_block_SOME_REWRS],
 
@@ -2105,11 +2104,10 @@ Proof
 ) >>
 rpt strip_tac >>
 irule stmt_exec_ind >>
-
 rpt strip_tac >| [
- fs [exec_stmt_ext_SOME_REWRS],
-
  fs [exec_stmt_app_SOME_REWRS],
+
+ fs [exec_stmt_ext_SOME_REWRS],
 
  fs [exec_stmt_verify_SOME_REWRS],
 
@@ -2135,12 +2133,12 @@ rpt strip_tac >| [
 
  fs [exec_stmt_cond_SOME_REWRS],
 
- fs [stmt_exec],
-
  pairLib.PairCases_on `ctx` >>
  rename1 `(ctx0, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
  rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
  fs [exec_stmt_app_SOME_REWRS],
+
+ fs [stmt_exec],
 
  fs [exec_stmt_block_SOME_REWRS],
 
@@ -2287,7 +2285,7 @@ val arch_exec_def = Define `
             (((i, in_out_list, in_out_list', scope):'a aenv), g_scope_list:g_scope_list, arch_frame_list_regular frame_list, status:status) =
   (case EL i ab_list of
    | (arch_block_pbl x el) =>
-    (case FLOOKUP pblock_map x of
+    (case ALOOKUP pblock_map x of
      | SOME (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) =>
       (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
       (if LENGTH el = LENGTH x_d_list
@@ -2307,9 +2305,9 @@ val arch_exec_def = Define `
            (* parser_trans *)
            (case pbl_type of
             | pbl_type_parser =>
-             (case FLOOKUP pars_map x' of
+             (case ALOOKUP pars_map x' of
               | SOME stmt' =>
-               SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular [(funn_name x', [stmt'], [FEMPTY])]), status_running)
+               SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular [(funn_name x', [stmt'], [ [] ])]), status_running)
               | _ => NONE)
             | _ => NONE)
           | status_running =>
@@ -2336,7 +2334,7 @@ val arch_exec_def = Define `
              status_running)
      | NONE => NONE)
    | (arch_block_pbl x el) =>
-    (case FLOOKUP pblock_map x of
+    (case ALOOKUP pblock_map x of
      (* pbl_init *)
      | SOME (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) =>
       (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
@@ -2350,7 +2348,7 @@ val arch_exec_def = Define `
              (case initialise_var_stars func_map b_func_map g_scope_list' of
               | SOME g_scope_list'' =>
                SOME ((i, in_out_list, in_out_list', scope), g_scope_list'',
-                     arch_frame_list_regular [(funn_name x, [stmt], [FEMPTY])], status_running)
+                     arch_frame_list_regular [(funn_name x, [stmt], [ [] ])], status_running)
               | NONE => NONE)
            | NONE => NONE)
          | _ => NONE)
@@ -2358,7 +2356,7 @@ val arch_exec_def = Define `
      | _ => NONE)
    (* ffbl *)
    | (arch_block_ffbl x) =>
-    (case FLOOKUP ffblock_map x of
+    (case ALOOKUP ffblock_map x of
      | SOME (ffblock_ff ff) =>
       (case ff scope of
        | SOME scope' =>

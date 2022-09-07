@@ -43,7 +43,7 @@ Cases_on `arch_frame_list` >> (
 
   (* programmable block initialisation *)
   fs [arch_exec_def] >>
-  Cases_on `FLOOKUP pblock_map s` >> (
+  Cases_on `ALOOKUP pblock_map s` >> (
    fs []
   ) >>
   Cases_on `x` >>
@@ -54,7 +54,7 @@ Cases_on `arch_frame_list` >> (
   Cases_on `oEL 0 g_scope_list` >> (
    fs []
   ) >>
-  Cases_on `initialise_var_stars func_map f [x'; declare_list_in_scope (l0,x)]` >> (
+  Cases_on `initialise_var_stars func_map l0 [x'; declare_list_in_scope (l1,x)]` >> (
    fs []
   ) >>
   rw [] >>
@@ -65,16 +65,16 @@ Cases_on `arch_frame_list` >> (
   rpt strip_tac >| [
    fs [map_tri_zip12],
 
-   fs [map_tri_zip12, ZIP_MAP_FST_SND],
-
    gs [listTheory.oEL_EQ_EL],
+
+   fs [map_tri_zip12, ZIP_MAP_FST_SND],
 
    fs [map_tri_zip12, ZIP_MAP_FST_SND]
   ],
 
   (* fixed-function block *)
   fs [arch_exec_def] >>
-  Cases_on `FLOOKUP ffblock_map s` >> (
+  Cases_on `ALOOKUP ffblock_map s` >> (
    fs []
   ) >>
   Cases_on `x` >>
@@ -108,7 +108,7 @@ Cases_on `arch_frame_list` >> (
   Cases_on `EL i ab_list` >> (
    fs []
   ) >>
-  Cases_on `FLOOKUP pblock_map s` >> (
+  Cases_on `ALOOKUP pblock_map s` >> (
    fs []
   ) >>
   Cases_on `x` >>
@@ -135,12 +135,12 @@ Cases_on `arch_frame_list` >> (
   Cases_on `EL i ab_list` >> (
    fs []
   ) >>
-  Cases_on `FLOOKUP pblock_map s` >> (
+  Cases_on `ALOOKUP pblock_map s` >> (
    fs []
   ) >>
   Cases_on `x` >>
   fs [state_fin_def] >>
-  Cases_on `frames_exec (apply_table_f,ext_map,func_map,f,f0,f1)
+  Cases_on `frames_exec (apply_table_f,ext_map,func_map,l0,l2,l3)
              (ascope,g_scope_list,l,status_running)` >> (
    fs []
   ) >>
@@ -168,7 +168,7 @@ Cases_on `arch_frame_list` >> (
  Cases_on `EL i ab_list` >> (
   fs []
  ) >>
- Cases_on `FLOOKUP pblock_map s` >> (
+ Cases_on `ALOOKUP pblock_map s` >> (
   fs []
  ) >>
  Cases_on `x` >>
@@ -189,7 +189,7 @@ Cases_on `arch_frame_list` >> (
  Cases_on `EL i ab_list` >> (
   fs []
  ) >>
- Cases_on `FLOOKUP pblock_map s'` >> (
+ Cases_on `ALOOKUP pblock_map s'` >> (
   fs []
  ) >>
  Cases_on `x` >>
@@ -212,7 +212,7 @@ Cases_on `arch_frame_list` >> (
   Cases_on `p` >> (
    fs []
   ) >>
-  Cases_on `FLOOKUP f0 s` >> (
+  Cases_on `ALOOKUP l2 s` >> (
    fs []
   ) >>
   rw [] >>
