@@ -1119,17 +1119,18 @@ Proof
  fs [listTheory.MEM_SPLIT, tau1_size_append, tau_size_def]
 QED
 
-(* generate a random value that correlates to a certain type *)
+(* generate an undetermined value for a given type *)
 val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
-  (arb_from_tau (tau_bool)   = (v_bool ARB))  /\
+  (arb_from_tau tau_bool   = (v_bool ARB))  /\
   (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
-  (arb_from_tau (tau_bot)    = (v_bot))   /\
-  (arb_from_tau (tau_xl [x]) = (v_str ARB )) /\
-  (arb_from_tau (tau_err )   = (v_err ARB )) /\
+  (arb_from_tau tau_bot    = v_bot)   /\
+  (arb_from_tau (tau_xl [x]) = (v_str ARB)) /\
+  (arb_from_tau tau_err   = (v_err ARB)) /\
+  (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
   (arb_from_tau (tau_xtl struct_ty_struct (xtl) ) =
     (v_struct ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ) /\
   (  (arb_from_tau (tau_xtl struct_ty_header (xtl)) =
-    (v_header (ARB) ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ))  
+    (v_header ARB ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ))  
   `
  (fs [tau_size_def] >>
  WF_REL_TAC `measure tau_size` >>

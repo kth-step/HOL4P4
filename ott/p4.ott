@@ -354,23 +354,6 @@ e_list :: e_list_ ::=
 | ( e_list ) :: S :: paren
   {{ hol ([[e_list]]) }}
 
-
-bt {{ tex \mathit{bt} }} :: bt_ ::=
-{{ com base types }}
-| bool_t :: :: bool
-  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
-| bit_t :: :: bit
-  {{ tex { \mathrm{bit}_{ \mathrm{t} } } }}
-
-t {{ tex t }} :: t_ ::=
-{{ com types }}
-| bt :: :: base
-| struct_t t1 , ... , tn :: :: struct
-  {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-| header_t t1 , ... , tn :: :: header
-  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-| ext :: :: ext
-
 %Fence between t and decl_list
 embed
 {{ hol
@@ -519,8 +502,8 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ com struct }} 
 | x_list :: :: xl   
   {{ com string literal }} 
-| err :: :: err   
-%TODO: add the ref type for the extern call
+| err :: :: err
+| ext :: :: ext
 
 taul :: taul_ ::=
 {{ hol (tau list) }}
