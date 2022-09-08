@@ -2,6 +2,13 @@
 
 #The maximum bit-string size
 max = 64
+
+# print word wrappers
+for i in range(2, max+1):
+	print("Definition w%d_def:" % (i))
+	print("  w%d w = ((w2v:%d word -> bool list) w,%d)" % (i, i, i))
+	print("End")
+	print("")
  
 # print bitv_unop stuff
 print("val bitv_unop_def = Define `")

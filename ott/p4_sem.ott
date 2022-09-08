@@ -625,6 +625,258 @@ val get_word_unop_def = Define `
   (get_word_unop unop_neg_signed = word_2comp) /\
   (get_word_unop unop_un_plus = (\w. w))
 `;
+Definition w2_def:
+  w2 w = ((w2v:2 word -> bool list) w,2)
+End
+
+Definition w3_def:
+  w3 w = ((w2v:3 word -> bool list) w,3)
+End
+
+Definition w4_def:
+  w4 w = ((w2v:4 word -> bool list) w,4)
+End
+
+Definition w5_def:
+  w5 w = ((w2v:5 word -> bool list) w,5)
+End
+
+Definition w6_def:
+  w6 w = ((w2v:6 word -> bool list) w,6)
+End
+
+Definition w7_def:
+  w7 w = ((w2v:7 word -> bool list) w,7)
+End
+
+Definition w8_def:
+  w8 w = ((w2v:8 word -> bool list) w,8)
+End
+
+Definition w9_def:
+  w9 w = ((w2v:9 word -> bool list) w,9)
+End
+
+Definition w10_def:
+  w10 w = ((w2v:10 word -> bool list) w,10)
+End
+
+Definition w11_def:
+  w11 w = ((w2v:11 word -> bool list) w,11)
+End
+
+Definition w12_def:
+  w12 w = ((w2v:12 word -> bool list) w,12)
+End
+
+Definition w13_def:
+  w13 w = ((w2v:13 word -> bool list) w,13)
+End
+
+Definition w14_def:
+  w14 w = ((w2v:14 word -> bool list) w,14)
+End
+
+Definition w15_def:
+  w15 w = ((w2v:15 word -> bool list) w,15)
+End
+
+Definition w16_def:
+  w16 w = ((w2v:16 word -> bool list) w,16)
+End
+
+Definition w17_def:
+  w17 w = ((w2v:17 word -> bool list) w,17)
+End
+
+Definition w18_def:
+  w18 w = ((w2v:18 word -> bool list) w,18)
+End
+
+Definition w19_def:
+  w19 w = ((w2v:19 word -> bool list) w,19)
+End
+
+Definition w20_def:
+  w20 w = ((w2v:20 word -> bool list) w,20)
+End
+
+Definition w21_def:
+  w21 w = ((w2v:21 word -> bool list) w,21)
+End
+
+Definition w22_def:
+  w22 w = ((w2v:22 word -> bool list) w,22)
+End
+
+Definition w23_def:
+  w23 w = ((w2v:23 word -> bool list) w,23)
+End
+
+Definition w24_def:
+  w24 w = ((w2v:24 word -> bool list) w,24)
+End
+
+Definition w25_def:
+  w25 w = ((w2v:25 word -> bool list) w,25)
+End
+
+Definition w26_def:
+  w26 w = ((w2v:26 word -> bool list) w,26)
+End
+
+Definition w27_def:
+  w27 w = ((w2v:27 word -> bool list) w,27)
+End
+
+Definition w28_def:
+  w28 w = ((w2v:28 word -> bool list) w,28)
+End
+
+Definition w29_def:
+  w29 w = ((w2v:29 word -> bool list) w,29)
+End
+
+Definition w30_def:
+  w30 w = ((w2v:30 word -> bool list) w,30)
+End
+
+Definition w31_def:
+  w31 w = ((w2v:31 word -> bool list) w,31)
+End
+
+Definition w32_def:
+  w32 w = ((w2v:32 word -> bool list) w,32)
+End
+
+Definition w33_def:
+  w33 w = ((w2v:33 word -> bool list) w,33)
+End
+
+Definition w34_def:
+  w34 w = ((w2v:34 word -> bool list) w,34)
+End
+
+Definition w35_def:
+  w35 w = ((w2v:35 word -> bool list) w,35)
+End
+
+Definition w36_def:
+  w36 w = ((w2v:36 word -> bool list) w,36)
+End
+
+Definition w37_def:
+  w37 w = ((w2v:37 word -> bool list) w,37)
+End
+
+Definition w38_def:
+  w38 w = ((w2v:38 word -> bool list) w,38)
+End
+
+Definition w39_def:
+  w39 w = ((w2v:39 word -> bool list) w,39)
+End
+
+Definition w40_def:
+  w40 w = ((w2v:40 word -> bool list) w,40)
+End
+
+Definition w41_def:
+  w41 w = ((w2v:41 word -> bool list) w,41)
+End
+
+Definition w42_def:
+  w42 w = ((w2v:42 word -> bool list) w,42)
+End
+
+Definition w43_def:
+  w43 w = ((w2v:43 word -> bool list) w,43)
+End
+
+Definition w44_def:
+  w44 w = ((w2v:44 word -> bool list) w,44)
+End
+
+Definition w45_def:
+  w45 w = ((w2v:45 word -> bool list) w,45)
+End
+
+Definition w46_def:
+  w46 w = ((w2v:46 word -> bool list) w,46)
+End
+
+Definition w47_def:
+  w47 w = ((w2v:47 word -> bool list) w,47)
+End
+
+Definition w48_def:
+  w48 w = ((w2v:48 word -> bool list) w,48)
+End
+
+Definition w49_def:
+  w49 w = ((w2v:49 word -> bool list) w,49)
+End
+
+Definition w50_def:
+  w50 w = ((w2v:50 word -> bool list) w,50)
+End
+
+Definition w51_def:
+  w51 w = ((w2v:51 word -> bool list) w,51)
+End
+
+Definition w52_def:
+  w52 w = ((w2v:52 word -> bool list) w,52)
+End
+
+Definition w53_def:
+  w53 w = ((w2v:53 word -> bool list) w,53)
+End
+
+Definition w54_def:
+  w54 w = ((w2v:54 word -> bool list) w,54)
+End
+
+Definition w55_def:
+  w55 w = ((w2v:55 word -> bool list) w,55)
+End
+
+Definition w56_def:
+  w56 w = ((w2v:56 word -> bool list) w,56)
+End
+
+Definition w57_def:
+  w57 w = ((w2v:57 word -> bool list) w,57)
+End
+
+Definition w58_def:
+  w58 w = ((w2v:58 word -> bool list) w,58)
+End
+
+Definition w59_def:
+  w59 w = ((w2v:59 word -> bool list) w,59)
+End
+
+Definition w60_def:
+  w60 w = ((w2v:60 word -> bool list) w,60)
+End
+
+Definition w61_def:
+  w61 w = ((w2v:61 word -> bool list) w,61)
+End
+
+Definition w62_def:
+  w62 w = ((w2v:62 word -> bool list) w,62)
+End
+
+Definition w63_def:
+  w63 w = ((w2v:63 word -> bool list) w,63)
+End
+
+Definition w64_def:
+  w64 w = ((w2v:64 word -> bool list) w,64)
+End
+
 val bitv_unop_def = Define `
     (bitv_unop unop (v, 1) = (w2v ((get_word_unop unop) ((v2w v): 1 word)), 1) )
 /\  (bitv_unop unop (v, 2) = (w2v ((get_word_unop unop) ((v2w v): 2 word)), 2) )
