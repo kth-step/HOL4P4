@@ -8,7 +8,6 @@ val _ = new_theory "p4_core";
 (* Header methods *)
 (******************)
 
-(* We might want this to take a header argument to agree with minSizeInBits() *)
 Definition min_size_in_bits:
  (min_size_in_bits (v_header valid_bit []) = SOME 0) /\
  (min_size_in_bits (v_header valid_bit (h::t)) =
@@ -46,11 +45,11 @@ Definition header_is_valid:
 End
 
 Definition header_set_valid:
- (header_set_valid (g_scope_list:g_scope_list, scope_list) =
+ (header_set_valid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign scope_list (v_header T x_v_l) (lval_varname (varn_name "this")) of
-    | SOME scope_list' =>             
+    | SOME scope_list' =>
      SOME (g_scope_list, scope_list')
     | NONE => NONE)
   | _ => NONE
