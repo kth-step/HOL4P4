@@ -34,13 +34,13 @@ metavar bl ::=
 % Auxiliary metavariables %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%w represents the width of a bitstring
 metavar i, w ::=
       {{ lex numeral }}
       {{ hol num }}
       {{ tex [[i]] }}
       {{ com natural number }}
 
-%w is a const number that represent the width of the bit string
 indexvar m, n, o ::=
   {{ lex numeral }}
   {{ coq nat }}
@@ -69,10 +69,11 @@ num_exp :: num_exp ::=
 | ( num_exp ) :: M :: par
   {{ hol ( [[num_exp]] ) }} 
 
-
-%%%%%%%%%%%%%%%%
-% Value syntax %
-%%%%%%%%%%%%%%%%
+%Note: Headers denote only the start of the syntax for their respective components.
+%      Some parts may be defined later under other headers, for technical reasons.
+%%%%%%%%%%
+% Values %
+%%%%%%%%%%
 
 boolv :: boolv_ ::=
 {{ hol bool }}
@@ -154,12 +155,12 @@ lval :: lval_ ::=
   {{ com field access }}
 | ( lval ) :: X :: paren
   {{ hol ([[lval]]) }}
-%TODO: add slicing as lval
+
 
 %%%%%%%%%%%%%%%%%%%
 % Execution state %
 %%%%%%%%%%%%%%%%%%%
-%Note that this is not part of the P4 specification, but made up for verification purposes.
+%Note that the execution state is not part of the P4 specification, but made up for verification purposes.
 
 %Execution status: used to model function return and parser state transitions
 status {{ tex t }}:: status_ ::=
@@ -220,9 +221,9 @@ mk_list {{ tex \mathit{mk\_list} }} :: mk_list_ ::=
   {{ hol ([[mk_list]]) }}
 
 
-%%%%%%%%%%%%%%%%%%%%%
-% Expression syntax %
-%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%
+% Expressions %
+%%%%%%%%%%%%%%%
 
 unop {{ tex \ominus }}:: unop_ ::=
 | ! :: :: neg
@@ -409,12 +410,10 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 | ( scope_list ) :: S :: paren
   {{ hol ([[scope_list]]) }}
 
-%An extern function/method updates the scope stack, global scope list and arch scope directly.
-%TODO: Should this be able to write to the global scope?
+%An extern function/method updates the scope list, global scope list and arch scope directly.
 %Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 {{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # g_scope_list # scope_list) option)) }}
-
 
 
 %%%%%%%%%%%
@@ -458,35 +457,28 @@ d_list :: d_list_ ::=
   {{ hol ([[d_list]]) }}
 
 
-
-%%%%%%%%%%%%%%
+%%%%%%%%%%%%%
 %   Types   %
-%%%%%%%%%%%%%%
-
+%%%%%%%%%%%%%
 
 x_list :: x_list_ ::=
 {{ com list of strings }}
 {{ hol (x list) }}
 | empty :: M :: empty
-  {{ com empty direction list }}
+  {{ com empty list }}
   {{ hol ([]:x list) }}
 | [ x1 , .. , xn ] :: M :: list
-  {{ com list of directions }}
+  {{ com list of strings }}
   {{ hol ([[x1 .. xn]]) }}
 | x_list ++ x_list' :: M :: append
-  {{ com append two e_lists }}
+  {{ com append lists }}
   {{ hol ([[x_list]] ++ [[x_list']]) }}
 | ( x_list ) :: S :: paren
   {{ hol ([[x_list]]) }}
 
-
-
-grammar
-
 struct_ty :: struct_ty_ ::=
 | struct :: :: struct
 | header :: :: header
-
 
 tau {{ tex \tau }} :: tau_ ::=
 {{ com type }}
@@ -509,7 +501,7 @@ taul :: taul_ ::=
 {{ hol (tau list) }}
 | empty :: M :: empty
   {{ hol ([]:tau list) }}
-| [ tau1 , .. , taun ] :: M :: vl
+| [ tau1 , .. , taun ] :: M :: list
   {{ hol ([[tau1 .. taun]]) }}  
 
 Ftau :: Ftau ::=
@@ -517,7 +509,6 @@ Ftau :: Ftau ::=
 {{ hol ( ( tau # d ) list # tau) }}
 | [ tau1 d1 , .. , taun dn ] tau :: M :: list
   {{ hol ([[tau1 d1 .. taun dn]] [[tau]]) }}
-
 
 
 %Fence between types and statement
@@ -532,7 +523,7 @@ decl_list {{ tex { \overline{ \mathit{decl} } } }} :: decl_list_ ::=
 {{ com list of abstract variable name and type tuples to represent declarations }}
 
 %%%%%%%%%%%%%%
-% statement  %
+% Statements %
 %%%%%%%%%%%%%%
 
 stmt :: stmt_ ::=
@@ -564,7 +555,6 @@ stmt :: stmt_ ::=
 | ext :: :: ext
   {{ com extern function }}
   {{ tex \blacksquare  }}
-
 
 %Fence between stmt and func_map
 embed
