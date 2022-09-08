@@ -11,11 +11,11 @@ grammar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 t_scope {{ tex \psi }} :: t_scope_ ::=
-{{ hol (varn |-> tau) }}
+{{ hol ((varn, tau) alist) }}
 {{ com typing scope }}
 | empty :: M :: empty
   {{ com empty typing scope }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
   {{ tex {\psi}_{ \emptyset } }}
 | ( t_scope ) :: S :: paren
   {{ hol ([[t_scope]]) }}
@@ -69,21 +69,21 @@ grammar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 delta_g {{ tex \Delta_{glb} }} :: delta_g_ ::=
 {{ com types of functions defined globally}}
-{{ hol (funn |-> (Ftau)) }}
+{{ hol (funn, Ftau) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
 delta_b {{ tex \Delta_{blk} }} :: delta_b_ ::=
 {{ com types of functions defined locally}}
-{{ hol (funn |-> (Ftau)) }}
+{{ hol (funn, Ftau) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
 
 delta_t {{ tex \Delta_{tbl} }} :: delta_t_ ::=
 {{ com types of tables}}
-{{ hol (string |-> (taul)) }}
+{{ hol (string, taul) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
   {{ hol FEMPTY }}
@@ -145,7 +145,7 @@ val WF_def = Define `
 (*find the index of the top most typing scope that contains the varn x *)
 val t_find_topmost_scope_def = Define `
   t_find_topmost_scope (tss:t_scope list) x =
-    case INDEX_FIND 0 (\sc. IS_SOME (FLOOKUP sc x)) (tss) of
+    case INDEX_FIND 0 (\sc. IS_SOME (ALOOKUP sc x)) (tss) of
     | SOME (i, sc) => SOME (i, sc)
     | NONE => NONE
 `;
@@ -166,7 +166,7 @@ val t_lookup_def = Define `
   t_lookup (tss:t_scope list) x =
     case t_topmost_scope (tss) x of
     | SOME sc => 
-      (case FLOOKUP sc x of
+      (case ALOOKUP sc x of
        | SOME t => SOME t
        | _ => NONE)
     | _ => NONE
@@ -186,7 +186,7 @@ val topmost_def = Define `
 (* lookup the functions type *)
 val t_lookup_funn_def = Define `
   t_lookup_funn (delta_g:delta_g) (delta_b:delta_b) (funn:funn) =
-    case FLOOKUP (FUNION (delta_g) (delta_b)) funn of
+    case ALOOKUP (delta_g++delta_b) funn of
     | SOME (tdl , t) => SOME (tdl , t)
     | NONE  => NONE
 `;
@@ -322,7 +322,7 @@ val WF_o_def = Define `
 
 val replicate_types_def = Define `
 replicate_types (decl : decl_list) =
-  FOLDR (\(x,t) f. f |+ (x , t)) (FEMPTY) decl
+  FOLDR (\(x,t) f. AUPDATE f (x , t)) [] decl
 `;
 
 

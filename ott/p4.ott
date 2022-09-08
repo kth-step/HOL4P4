@@ -2,6 +2,7 @@ embed
 {{ hol
 open bitstringTheory;
 open wordsTheory;
+open alistTheory;
 }}
 
 %%%%%%%%%%%%%%%%%%%
@@ -173,11 +174,11 @@ status {{ tex t }}:: status_ ::=
 
 %This is the structure that maps variable names to values (and with copy-out variables)
 scope {{ tex \gamma }} :: scope_ ::=
-{{ hol (varn |-> (v # lval option)) }}
+{{ hol ((varn, (v # lval option)) alist) }}
 {{ com variable environment of current scope }}
 | empty :: M :: empty
   {{ com empty scope }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
   {{ tex {\gamma}_{\emptyset} }}
 | ( scope ) :: S :: paren
   {{ hol ([[scope]]) }}
@@ -353,23 +354,6 @@ e_list :: e_list_ ::=
 | ( e_list ) :: S :: paren
   {{ hol ([[e_list]]) }}
 
-
-bt {{ tex \mathit{bt} }} :: bt_ ::=
-{{ com base types }}
-| bool_t :: :: bool
-  {{ tex { \mathrm{bool}_{ \mathrm{t} } } }}
-| bit_t :: :: bit
-  {{ tex { \mathrm{bit}_{ \mathrm{t} } } }}
-
-t {{ tex t }} :: t_ ::=
-{{ com types }}
-| bt :: :: base
-| struct_t t1 , ... , tn :: :: struct
-  {{ tex { \mathrm{struct}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-| header_t t1 , ... , tn :: :: header
-  {{ tex { \mathrm{header}_{ \mathrm{t} }\,\, t_1 , \ldots , t_n } }}
-| ext :: :: ext
-
 %Fence between t and decl_list
 embed
 {{ hol
@@ -504,22 +488,22 @@ struct_ty :: struct_ty_ ::=
 | header :: :: header
 
 
-tau {{ tex \tau }} ::  tau_ ::=
-  {{ com basic component of the types }}
+tau {{ tex \tau }} :: tau_ ::=
+{{ com type }}
 | bool :: :: bool
-  {{ com boolean type }}
+  {{ com boolean }}
 | bs num_exp :: :: bit
   {{ com bit-string }}
-  {{ tex bs^w}}   
+  {{ tex bs^{[[num_exp]]} }}   
 | bot :: :: bot
   {{ com no value }}
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
-  {{ com struct type }} 
+  {{ com struct }} 
 | x_list :: :: xl   
-  {{ com string literial type }} 
-| err :: :: err   
-%TODO: add the ref type for the extern call
+  {{ com string literal }} 
+| err :: :: err
+| ext :: :: ext
 
 taul :: taul_ ::=
 {{ hol (tau list) }}
@@ -591,17 +575,17 @@ grammar
 
 func_map {{ tex F_g }} :: func_map_ ::=
 {{ com function map for global functions and actions }}
-{{ hol (string |-> (stmt # (string # d) list)) }}
+{{ hol ((string, (stmt # (string # d) list)) alist) }}
 
 b_func_map {{ tex F_b }} :: b_func_map_ ::=
 {{ com function map for block-local actions }}
-{{ hol (string |-> (stmt # (string # d) list)) }}
+{{ hol ((string, (stmt # (string # d) list)) alist) }}
 
 %This maps extern function names of an individual object obj to their implementations
 %Note the stmt in order to accommodate return by using return statements
 ext_fun_map {{ tex X_{ \mathrm{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
-{{ hol (string |-> (stmt # (string # d) list # ext_fun)) }}
+{{ hol ((string, (stmt # (string # d) list # ext_fun)) alist) }}
 
 %Fence between ext_fun_map and ext_map
 embed
@@ -613,15 +597,15 @@ grammar
 %This maps extern object names to tuples of optional constructors and the function map of the object in question
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol (string |-> (((stmt # (string # d) list # ext_fun) option) # ext_fun_map)) }}
+{{ hol ((string, (((stmt # (string # d) list # ext_fun) option) # ext_fun_map)) alist) }}
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
-{{ hol (string |-> (mk list)) }}
+{{ hol ((string, (mk list)) alist) }}
 
 pars_map {{ tex P }} :: pars_map_ ::=
 {{ com parser state map }}
-{{ hol (string |-> stmt) }}
+{{ hol ((string, stmt) alist) }}
 
 in_out :: in_out_ ::=
 {{ com input and output }}
@@ -662,11 +646,11 @@ pblock_list {{ tex \overline{ \mathit{pb} } }} :: pblock_list_ ::=
 
 pblock_map {{ tex B_p }} :: pblock_map_ ::=
 {{ com programmable block map }}
-{{ hol (string |-> pblock) }}
+{{ hol ((string, pblock) alist) }}
 
 ffblock_map {{ tex B_{ \mathrm{ff} } }} :: ffblock_map_ ::=
 {{ com fixed-function block map }}
-{{ hol (string |-> ffblock) }}
+{{ hol ((string, ffblock) alist) }}
 
 in_out_list {{ tex \overline{ \mathit{io} } }} :: in_out_list_ ::=
 {{ com list of input and output }}

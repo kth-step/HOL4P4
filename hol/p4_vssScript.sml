@@ -3,6 +3,9 @@ open HolKernel boolLib Parse bossLib ottLib;
 open p4Theory p4_auxTheory;
 
 val _ = new_theory "p4_vss";
+
+(* The architectural scope type of the VSS architecture model *)
+val _ = type_abbrev("vss_ascope", ``:scope``);
     
 (**********************************************************)
 (*                     EXTERN OBJECTS                     *)
@@ -17,13 +20,13 @@ val _ = new_theory "p4_vss";
 
 (* TODO: Fix this. It should now initialise a new object in the ascope. *)
 Definition Checksum16_construct:
- (Checksum16_construct (vss_arch_scope, g_scope_list, scope_stack) =
+ (Checksum16_construct (vss_arch_scope, g_scope_list, scope_list) =
 (*
-  (let scope_stack' = initialise (g_scope_list++scope_stack) varn_ext_ret (v_ext (ext_obj_ck ARB)) in
-   SOME (vss_arch_scope, TAKE 2 scope_stack', DROP 2 scope_stack', ctrl)
+  (let scope_list' = initialise (g_scope_list++scope_list) varn_ext_ret (v_ext (ext_obj_ck ARB)) in
+   SOME (vss_arch_scope, TAKE 2 scope_list', DROP 2 scope_list', ctrl)
   )
 *)
-  SOME (vss_arch_scope, g_scope_list, scope_stack)
+  SOME (vss_arch_scope, g_scope_list, scope_list)
  )
 End
 
@@ -33,14 +36,14 @@ End
 
 (* TODO: Fix this. *)
 Definition Checksum16_clear:
- (Checksum16_clear (vss_arch_scope, g_scope_list:g_scope_list, scope_stack) =
+ (Checksum16_clear (vss_arch_scope, g_scope_list:g_scope_list, scope_list) =
 (*
-   (case assign scope_stack (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
-    | SOME scope_stack' =>
-     SOME (g_scope_list, scope_stack', ctrl)
+   (case assign scope_list (v_ext (ext_obj_ck 0w)) (lval_varname (varn_name "this")) of
+    | SOME scope_list' =>
+     SOME (g_scope_list, scope_list', ctrl)
     | NONE => NONE)
 *)
-   SOME (vss_arch_scope, g_scope_list, scope_stack)
+   SOME (vss_arch_scope, g_scope_list, scope_list)
  )
 End
 
@@ -110,20 +113,20 @@ End
 (* TODO: Check for overflow, compensate according to IPv4 checksum algorithm *)
 (* TODO: Fix this. *)
 Definition Checksum16_update:
- (Checksum16_update (vss_arch_scope, g_scope_list:g_scope_list, scope_stack) =
+ (Checksum16_update (vss_arch_scope, g_scope_list:g_scope_list, scope_list) =
 (*
-  case lookup_ipv4_checksum scope_stack (lval_varname (varn_name "this")) of
+  case lookup_ipv4_checksum scope_list (lval_varname (varn_name "this")) of
   | SOME ipv4_checksum =>
-  (case get_checksum_incr scope_stack (lval_varname (varn_name "data")) of
+  (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
    | SOME checksum_incr =>
-    (case assign scope_stack (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) (lval_varname (varn_name "this")) of
-     | SOME scope_stack' =>
-      SOME (g_scope_list, scope_stack', ctrl)
+    (case assign scope_list (v_ext (ext_obj_ck (word_1comp (ipv4_checksum + checksum_incr)))) (lval_varname (varn_name "this")) of
+     | SOME scope_list' =>
+      SOME (g_scope_list, scope_list', ctrl)
      | NONE => NONE)
    | NONE => NONE)
   | NONE => NONE
 *)
-  SOME (vss_arch_scope, g_scope_list, scope_stack)
+  SOME (vss_arch_scope, g_scope_list, scope_list)
  )
 End
 
@@ -132,15 +135,15 @@ End
 
 (* TODO: Fix this. *)
 Definition Checksum16_get:
- (Checksum16_get (vss_arch_scope, g_scope_list:g_scope_list, scope_stack) =
+ (Checksum16_get (vss_arch_scope, g_scope_list:g_scope_list, scope_list) =
 (*
-  (case lookup_ipv4_checksum scope_stack (lval_varname (varn_name "this")) of
+  (case lookup_ipv4_checksum scope_list (lval_varname (varn_name "this")) of
    | SOME ipv4_checksum =>
-    (let scope_stack' = initialise scope_stack varn_ext_ret (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) in
-      SOME (g_scope_list, scope_stack', ctrl))
+    (let scope_list' = initialise scope_list varn_ext_ret (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) in
+      SOME (g_scope_list, scope_list', ctrl))
    | NONE => NONE)
 *)
-  SOME (vss_arch_scope, g_scope_list, scope_stack)
+  SOME (vss_arch_scope, g_scope_list, scope_list)
  )
 End
 
@@ -166,7 +169,7 @@ End
 (* let total_length = (v2n (REVERSE (TAKE 16 (REVERSE (TAKE 144 h)))))*8 in *)
 (* TODO: Fix this. *)
 val vss_input_f_def = Define `
-  (vss_input_f (io_list:in_out_list, scope:scope) =
+  (vss_input_f (io_list:in_out_list, scope:vss_ascope) =
 (*
    case io_list of
    | [] => NONE
@@ -198,7 +201,7 @@ val vss_reduce_nonout_def = Define `
   else
    (case e of
     | (e_var x) =>
-     (case lookup_vexp2 [FEMPTY] [vss_arch_scope] x of
+     (case lookup_vexp2 [ [] ] [vss_arch_scope] x of
       | SOME v => oCONS (e_v v, vss_reduce_nonout (dlist, elist, vss_arch_scope))
       | NONE => NONE)
     | _ => NONE) 
@@ -212,7 +215,7 @@ val vss_copyin_pbl_def = Define `
   vss_copyin_pbl (xlist, dlist, elist, vss_arch_scope, pbl_type) =
     case vss_reduce_nonout (dlist, elist, vss_arch_scope) of
     | SOME elist' =>
-      (case copyin xlist dlist elist' [vss_arch_scope] [FEMPTY] of
+      (case copyin xlist dlist elist' [vss_arch_scope] [ [] ] of
        | SOME scope =>
          if pbl_type = pbl_type_parser
          then
@@ -228,7 +231,7 @@ val vss_copyin_pbl_def = Define `
 (* Note that this re-uses the copyout function intended for P4 functions *)
 val vss_copyout_pbl_def = Define `
   vss_copyout_pbl (ss, vss_arch_scope, dlist, xlist, pbl_type, (status:status)) =
-    case copyout xlist dlist [FEMPTY; FEMPTY] [vss_arch_scope] ss of
+    case copyout xlist dlist [ [] ; [] ] [vss_arch_scope] ss of
     | SOME (g_scope_list, [vss_arch_scope']) =>
       if pbl_type = pbl_type_parser
       then
@@ -245,7 +248,7 @@ val vss_copyout_pbl_def = Define `
 
 
 val vss_parser_runtime_def = Define `
-  vss_parser_runtime (scope:scope) =
+  vss_parser_runtime (scope:vss_ascope) =
    (case lookup_lval [scope] (lval_varname (varn_name "parsedHeaders")) of
     | SOME (v_struct hdrs) =>
        (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "headers")) of
@@ -255,7 +258,7 @@ val vss_parser_runtime_def = Define `
 `;
 
 val vss_pre_deparser_def = Define `
-  vss_pre_deparser (scope:scope) =
+  vss_pre_deparser (scope:vss_ascope) =
    (case lookup_lval [scope] (lval_varname (varn_name "headers")) of
     | SOME (v_struct hdrs) =>
       (case assign [scope] (v_struct hdrs) (lval_varname (varn_name "outputHeaders")) of
@@ -269,7 +272,7 @@ val vss_pre_deparser_def = Define `
 (* TODO: Outsource obtaining the output port to an external function? *)
 (* TODO: Fix this *)
 val vss_output_f_def = Define `
- vss_output_f (in_out_list:in_out_list, scope:scope) =
+ vss_output_f (in_out_list:in_out_list, scope:vss_ascope) =
 (*
   (case lookup_lval [scope] (lval_varname (varn_name "b")) of
    | SOME (v_ext (ext_obj_in headers)) =>
@@ -285,7 +288,7 @@ val vss_output_f_def = Define `
    | _ => NONE
   )
 *)
-  SOME (in_out_list:in_out_list, scope:scope)
+  SOME (in_out_list:in_out_list, scope:vss_ascope)
 `;
 
 (*

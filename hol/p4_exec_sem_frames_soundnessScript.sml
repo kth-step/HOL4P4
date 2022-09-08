@@ -89,7 +89,12 @@ Cases_on `frame_list` >| [
   irule (SIMP_RULE list_ss [] (Q.SPECL [`apply_table_f`, `ext_map`, `func_map`, `b_func_map`, `pars_map`, `tbl_map`, `ascope`, `g_scope_list`, `h0`, `h1`, `h2`, `(h'0,h'1,h'2)::t`] ((valOf o find_clause_frames_red) "frames_comp1"))) >>
   fs [clause_name_def, notret_def] >>
   rpt strip_tac >| [
-   cheat,
+   Cases_on `status''` >> (
+    fs [notret_def]
+   ) >>
+   IMP_RES_TAC stmt_exec_status_returnv_indep >>
+   Q.PAT_X_ASSUM `!g_scope_list'' ascope''. ?g_scope_list'3' ascope'3'. _` (fn thm => ASSUME_TAC (Q.SPECL [`g_scope_list`, `ascope`] thm)) >>
+   gs [],
 
    qexists_tac `g_scope_list''` >>
    fs []
@@ -133,10 +138,10 @@ Cases_on `frame_list` >| [
    fs []
   ) >>
   pairLib.PairCases_on `x'` >>
- rename1 `(ascope', x1, frame_list', status')` >>
- rename1 `(ascope', g_scope_list', frame_list', status')` >>
+  rename1 `(ascope'', x'1, frame_list'', status'')` >>
+  rename1 `(ascope'', g_scope_list'', frame_list'', status'')` >>
   fs [] >>
-  Cases_on `scopes_to_retrieve h0 func_map b_func_map g_scope_list x'1` >> (
+  Cases_on `scopes_to_retrieve h0 func_map b_func_map g_scope_list g_scope_list''` >> (
    fs []
   ) >>
   rw [] >>
@@ -146,9 +151,14 @@ Cases_on `frame_list` >| [
   irule (SIMP_RULE list_ss [] (Q.SPECL [`apply_table_f`, `ext_map`, `func_map`, `b_func_map`, `pars_map`, `tbl_map`, `ascope`, `g_scope_list`, `h0`, `h1`, `h2`, `(h'0,h'1,h'2)::t`] ((valOf o find_clause_frames_red) "frames_comp1"))) >>
   fs [clause_name_def, notret_def] >>
   rpt strip_tac >| [
-   cheat,
+   Cases_on `status''` >> (
+    fs [notret_def]
+   ) >>
+   IMP_RES_TAC stmt_exec_status_returnv_indep >>
+   Q.PAT_X_ASSUM `!g_scope_list'' ascope''. ?g_scope_list'3' ascope'3'. _` (fn thm => ASSUME_TAC (Q.SPECL [`g_scope_list`, `ascope`] thm)) >>
+   gs [],
 
-   qexists_tac `x'1` >>
+   qexists_tac `g_scope_list''` >>
    fs []
   ]
  ]
