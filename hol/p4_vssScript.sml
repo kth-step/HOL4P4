@@ -12,7 +12,7 @@ val _ = type_abbrev("v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 val _ = type_abbrev("vss_ctrl", ``:scope``);
 
 (* The architectural scope type of the VSS architecture model *)
-val _ = type_abbrev("vss_ascope", ``:(num # ((num, v_ext) alist) # vss_ctrl)``);
+val _ = type_abbrev("vss_ascope", ``:(num # ((num, v_ext) alist) # ((string, num) alist) # vss_ctrl)``);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -25,8 +25,8 @@ Definition vss_ascope_lookup_def:
 End
 
 Definition vss_ascope_update_def:
- vss_ascope_update ((counter, ext_map, ctrl):vss_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_map (ext_ref, v_ext), ctrl)
+ vss_ascope_update ((counter, ext_map, ref_map, ctrl):vss_ascope) ext_ref v_ext =
+   (counter, AUPDATE ext_map (ext_ref, v_ext), ref_map, ctrl)
 End
 
 Definition packet_in_extract:
@@ -49,11 +49,11 @@ End
 (* construct *)
 
 Definition Checksum16_construct:
- (Checksum16_construct ((counter, ext_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_construct ((counter, ext_map, ref_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   let ext_map' = AUPDATE ext_map (counter, INR (vss_v_ext_ipv4_checksum (0w:word16))) in
   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
-    SOME ((counter + 1, ext_map', ctrl), g_scope_list, scope_list)
+    SOME ((counter + 1, ext_map', ref_map, ctrl), g_scope_list, scope_list)
    | NONE => NONE)
  )
 End
@@ -63,10 +63,10 @@ End
 (* clear *)
 
 Definition Checksum16_clear:
- (Checksum16_clear ((counter, ext_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_clear ((counter, ext_map, ref_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   SOME ((counter, AUPDATE ext_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), ctrl), g_scope_list, scope_list)
+   SOME ((counter, AUPDATE ext_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), ref_map, ctrl), g_scope_list, scope_list)
   | _ => NONE
  )
 End
@@ -127,16 +127,16 @@ End
 (* Note that this assumes the order of fields in the header is correct *)
 (* TODO: Check for overflow, compensate according to IPv4 checksum algorithm *)
 Definition Checksum16_update:
- (Checksum16_update ((counter, ext_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_update ((counter, ext_map, ref_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
      (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
       | SOME checksum_incr =>
-       SOME ((counter, AUPDATE ext_map (i, INR (vss_v_ext_ipv4_checksum (word_1comp (ipv4_checksum + checksum_incr)))), ctrl), g_scope_list, scope_list)
+       SOME ((counter, AUPDATE ext_map (i, INR (vss_v_ext_ipv4_checksum (word_1comp (ipv4_checksum + checksum_incr)))), ref_map, ctrl), g_scope_list, scope_list)
       | NONE => NONE)
-    | NONE => NONE)
+    | _ => NONE)
   | _ => NONE
  )
 End
@@ -146,25 +146,17 @@ End
 (* get *)
 
 Definition Checksum16_get:
- (Checksum16_get ((counter, ext_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_get ((counter, ext_map, ref_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_map, ctrl):vss_ascope, g_scope_list:g_scope_list, initialise scope_list varn_ext_ret (v_bit (16w ipv4_checksum)))
-    | NONE => NONE)
+     SOME ((counter, ext_map, ref_map, ctrl):vss_ascope, g_scope_list:g_scope_list, initialise scope_list varn_ext_ret (v_bit (w16 ipv4_checksum)))
+    | _ => NONE)
   | _ => NONE
  )
 End
 
-(*
-  (case lookup_ipv4_checksum scope_list (lval_varname (varn_name "this")) of
-   | SOME ipv4_checksum =>
-    (let scope_list' = initialise scope_list varn_ext_ret (v_bit (fixwidth 16 (w2v ipv4_checksum), 16)) in
-      SOME (g_scope_list, scope_list', ctrl))
-   | NONE => NONE)
-*)
-  SOME (vss_ascope, g_scope_list, scope_list)
 
 (**********************************************************)
 (*                     MODEL-SPECIFIC                     *)
@@ -188,7 +180,22 @@ End
 (* let total_length = (v2n (REVERSE (TAKE 16 (REVERSE (TAKE 144 h)))))*8 in *)
 (* TODO: Fix this. *)
 val vss_input_f_def = Define `
-  (vss_input_f (io_list:in_out_list, scope:vss_ascope) =
+  (vss_input_f (io_list:in_out_list, (counter, ext_map, ref_map, ctrl):vss_ascope) =
+   case io_list of
+   | [] => NONE
+   | ((bl,p)::t) =>
+    let header = TAKE 272 bl in
+    let data_crc = REVERSE (DROP 272 (REVERSE bl)) in
+    let ext_map' = AUPDATE ext_map (counter, header) in
+    (case ALOOKUP ref_map "b" of
+     | SOME i =>
+      let ext_map'' = AUPDATE ref_map (i, INL (core_v_ext_packet_in header)) in
+      (case ALOOKUP ref_map "data_crc" of
+       | SOME i' =>
+        let ext_map''' = AUPDATE ext_map (i', INL (core_v_ext_packet_out data_crc)) in
+        (* TODO: Assign to inCtrl. Should we also give global scope as a vss_input_f argument? *)
+     (io_list:in_out_list, (counter, ext_map'', ref_map, ctrl):vss_ascope)
+
 (*
    case io_list of
    | [] => NONE
@@ -205,11 +212,9 @@ val vss_input_f_def = Define `
        | _ => NONE)
      | _ => NONE)
 *)
-  SOME (io_list:in_out_list, scope)
   )
 `;
 
-(* TODO: Write copyout_pbl and copyin_pbl *)
 val vss_reduce_nonout_def = Define `
  (vss_reduce_nonout ([], elist, vss_ascope) =
   SOME []
@@ -227,7 +232,7 @@ val vss_reduce_nonout_def = Define `
  )
 `;
 
-(* TODO: Should also initialise parseError. Since this should be initialised
+(* TODO: Since this should be initialised
  *       for all architectures, maybe it should be outsourced to a
  *       architecture-generic function? *)
 val vss_copyin_pbl_def = Define `
