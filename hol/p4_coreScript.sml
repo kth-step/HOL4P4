@@ -189,16 +189,16 @@ Definition packet_out_emit_gen:
       | SOME (v_header T x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i (INL (core_v_ext_packet_out (packet_out_bl++bl))), g_scope_list, scope_list)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list)
         | NONE => NONE)
       | SOME (v_struct x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i (INL (core_v_ext_packet_out (packet_out_bl++bl))), g_scope_list, scope_list)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list)
         | NONE => NONE)
       | SOME _ => NONE
       | NONE => NONE)
-    | NONE => NONE)
+    | _ => NONE)
   | _ => NONE
  )
 End
