@@ -168,11 +168,20 @@ Cases_on `index_not_const e_l` >> (
    qexists_tac `vl_of_el f_args` >>
    IMP_RES_TAC vl_of_el_MAP_e_v
   ) >>
-  Q.SUBGOAL_THEN `(MAP ( \ (e_,mk_). e_) (ZIP (e_l,mk_l)) = e_l) /\
+  Q.SUBGOAL_THEN `(MAP ( \ (e_,mk_,e'_). e_) (ZIP (e_l:e list,ZIP (mk_l:mk list,default_f_args:e list))) = e_l) /\
+                  (MAP ( \ (e_,mk_,e'_). mk_) (ZIP (e_l:e list,ZIP (mk_l:mk list,default_f_args:e list))) = mk_l) /\
+                  (MAP ( \ (e_,mk_,e'_). e'_) (ZIP (e_l:e list,ZIP (mk_l:mk list,default_f_args:e list))) = default_f_args) /\
                   (MAP ( \ v_. e_v v_) v_l = f_args)`
-   (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPECL [``ZIP ((e_l:e list), mk_l: mk list)``, ``v_l:v list``]
+   (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPECL [``ZIP ((e_l:e list), ZIP(mk_l: mk list, default_f_args:e list))``, ``v_l:v list``]
                                                    ((valOf o find_clause_stmt_red) "stmt_apply_table_v"))))) >- (
-   fs [lambda_FST, MAP_ZIP] >>
+   (* TODO: Add this check (length e_l = length e'_l) in the semantics... *)
+   subgoal `LENGTH mk_l = LENGTH default_f_args` >- (
+    cheat
+   ) >>
+   subgoal `LENGTH e_l = LENGTH (ZIP (mk_l, default_f_args))` >- (
+    fs []
+   ) >>
+   fs [lambda_unzip_tri, MAP_ZIP, UNZIP_ZIP] >>
    metis_tac []
   ) >>
   fs [clause_name_def, lambda_SND, MAP_ZIP]

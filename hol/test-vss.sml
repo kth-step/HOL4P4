@@ -320,41 +320,6 @@ val init_scope_ok = ``(FEMPTY |+ (varn_name "inCtrl", (v_struct [("inputPort", v
  * Scope is empty. *)
 val init_aenv = pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_scope_ok)``];
 
-(* Note: this is a really primitive representation of what
- * the control plane configuration might be *)
-Definition ctrl_check_ttl:
- (ctrl_check_ttl (e_l, mk_l:mk list) =
-  case e_l of
-  | [e] =>
-   (case e of
-    | e_v v =>
-     (case v of
-      | (v_bit (bl,n)) =>
-       if (v2n bl) > 0
-       then SOME ("NoAction", [])
-       else SOME ("Send_to_cpu", [])
-      | _ => NONE)
-    | _ => NONE)
-  | _ => NONE
- )
-End
-
-val ctrl =
- ``\(table_name, (e_l:e list), (mk_l:mk list)).
-   if table_name = "ipv4_match"
-   then SOME ("Set_nhop",
-              [e_v (v_bit (w2v (42w:word32),32));
-               e_v (v_bit (w2v (2w:word4),4))])
-   else if table_name = "check_ttl"
-   then ctrl_check_ttl (e_l, mk_l)
-   else if table_name = "dmac"
-   then SOME ("Set_dmac",
-              [e_v (v_bit (w2v (2525w:word48),48))])
-   else if table_name = "smac"
-   then SOME ("Set_smac",
-              [e_v (v_bit (w2v (2525w:word48),48))])
-   else NONE``;
-
 val init_astate =
  pairSyntax.list_mk_pair [init_aenv,
                           listSyntax.mk_list ([vss_init_global_scope], scope_ty),

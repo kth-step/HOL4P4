@@ -8,8 +8,7 @@ val _ = Hol_datatype `
  vss_v_ext = vss_v_ext_ipv4_checksum of word16`;
 val _ = type_abbrev("v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
-(* TODO: Fix this *)
-val _ = type_abbrev("vss_ctrl", ``:scope``);
+val _ = type_abbrev("vss_ctrl", ``:(string, (e_list # mk_list, string # e_list) alist) alist``);
 
 (* The architectural state type of the VSS architecture model *)
 val _ = type_abbrev("vss_ascope", ``:(num # ((num, v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
@@ -318,6 +317,57 @@ Definition vss_output_f_def:
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
+End
+
+Definition ctrl_check_ttl:
+ (ctrl_check_ttl (e_l, mk_l:mk list) =
+  case e_l of
+  | [e] =>
+   (case e of
+    | e_v v =>
+     (case v of
+      | (v_bit (bl,n)) =>
+       if (v2n bl) > 0
+       then SOME ("NoAction", [])
+       else SOME ("Send_to_cpu", [])
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+(* OLD:
+val ctrl =
+ ``\(table_name, (e_l:e list), (mk_l:mk list)).
+   if table_name = "ipv4_match"
+   then SOME ("Set_nhop",
+              [e_v (v_bit (w2v (42w:word32),32));
+               e_v (v_bit (w2v (2w:word4),4))])
+   else if table_name = "check_ttl"
+   then ctrl_check_ttl (e_l, mk_l)
+   else if table_name = "dmac"
+   then SOME ("Set_dmac",
+              [e_v (v_bit (w2v (2525w:word48),48))])
+   else if table_name = "smac"
+   then SOME ("Set_smac",
+              [e_v (v_bit (w2v (2525w:word48),48))])
+   else NONE``;
+*)
+
+Definition vss_apply_table_f_def:
+ vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+  (* TODO: Note that this function could do other stuff here depending on table name.
+   *       Ideally, one could make a general, not hard-coded, solution for this *)
+  if x = "check_ttl"
+  then
+   ctrl_check_ttl (e_l, mk_list)
+  else
+   (case ALOOKUP ctrl x of
+    | SOME table =>
+     (case ALOOKUP table (e_l, mk_list) of
+      | SOME (x'', e_l'') => SOME (x'', e_l'')
+      | NONE => SOME (x', e_l'))
+    | NONE => NONE)
 End
 
 val _ = export_theory ();
