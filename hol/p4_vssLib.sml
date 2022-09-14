@@ -51,6 +51,9 @@ val vss_copyin_pbl = ``vss_copyin_pbl``;
 (* Programmable block output function term *)
 val vss_copyout_pbl = ``vss_copyout_pbl``;
 
+(* Programmable block output function term *)
+val vss_apply_table_f = ``vss_apply_table_f``;
+
 (* Fixed-function block map *)
 val vss_ffblock_map = ``[("parser_runtime", ffblock_ff vss_parser_runtime);
                          ("pre_deparser", ffblock_ff vss_pre_deparser)]``;

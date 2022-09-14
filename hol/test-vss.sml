@@ -101,12 +101,12 @@ val vss_parser_ab =
 (*   Pipe   *)
 
 val ipv4_match_table =
- ``("ipv4_match", [mk_lpm])``;
+ ``("ipv4_match", [mk_lpm], ("Drop_action",[]:e_list))``;
 val check_ttl_table =
- ``("check_ttl", [mk_exact])``;
-val dmac_table = ``("dmac", [mk_exact])``;
+ ``("check_ttl", [mk_exact], ("NoAction", []:e_list))``;
+val dmac_table = ``("dmac", [mk_exact], ("Drop_action",[]:e_list))``;
 val smac_table =
- ``("smac", [mk_exact])``;
+ ``("smac", [mk_exact], ("Drop_action",[]:e_list))``;
 val vss_pipe_tblmap = ``[(^ipv4_match_table);
                          (^check_ttl_table);
                          (^dmac_table);
@@ -118,7 +118,6 @@ val lval_headers_ip_ttl = mk_lval_field (mk_lval_field (mk_lval_varname "headers
 val e_headers_ip_ttl = mk_e_acc (mk_e_acc (mk_e_var_name "headers", "ip"), "ttl");
 val set_nhop_fun = ``("Set_nhop", (^(mk_stmt_seq_list [(mk_stmt_ass (mk_lval_varname "nextHop", mk_e_var_name "ipv4_dest")),
                                                        (mk_stmt_ass (lval_headers_ip_ttl, mk_e_binop (e_headers_ip_ttl, binop_sub_tm, mk_e_v (mk_v_bitii (1, 8))))),
-                                                       
                                                        (mk_stmt_ass (mk_lval_field (mk_lval_varname "outCtrl", "outputPort"), mk_e_var_name "port")), 
                                                        mk_stmt_ret (mk_e_v v_bot_tm)])), [("ipv4_dest", d_none); ("port", d_none)]:(string # d) list)``;
 val send_to_cpu_fun = ``("Send_to_cpu", stmt_seq (stmt_ass (^e_outport) (e_var (varn_name "CPU_OUT_PORT"))) (stmt_ret (e_v v_bot)), []:(string # d) list)``;
@@ -233,15 +232,16 @@ val vss_func_map =
 
 (* TODO: Make syntax functions *)
 val vss_actx =
- pairSyntax.list_mk_pair [``(^vss_ab_list):ab_list``,
-                          ``(^vss_pblock_map):pblock_map``,
-                          ``(^vss_ffblock_map):scope ffblock_map``,
-                          ``(^vss_input_f):scope input_f``,
-                          ``(^vss_output_f):scope output_f``,
-                          ``(^vss_copyin_pbl):scope copyin_pbl``,
-                          ``(^vss_copyout_pbl):scope copyout_pbl``,
-                          ``(^vss_ext_map):scope ext_map``,
-                          ``(^vss_func_map):func_map``];
+ ``(^(pairSyntax.list_mk_pair [``(^vss_ab_list):ab_list``,
+                               ``(^vss_pblock_map):pblock_map``,
+                               ``(^vss_ffblock_map):vss_ascope ffblock_map``,
+                               ``(^vss_input_f):vss_ascope input_f``,
+                               ``(^vss_output_f):vss_ascope output_f``,
+                               ``(^vss_copyin_pbl):vss_ascope copyin_pbl``,
+                               ``(^vss_copyout_pbl):vss_ascope copyout_pbl``,
+                               ``(^vss_apply_table_f):vss_ascope apply_table_f``,
+                               ``(^vss_ext_map):vss_ascope ext_map``,
+                               ``(^vss_func_map):func_map``])):vss_ascope actx``;
 
 (******************)
 (*   Input data   *)
@@ -277,7 +277,7 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 val init_inlist_ok = mk_list ([pairSyntax.mk_pair (input_ok, input_port_ok)], ``:in_out``);
 val init_outlist_ok = mk_list ([], ``:in_out``);
 
-(* TODO: Initialise these with "ARB" instead? *)
+(* TODO: Initialise these with "ARB" instead *)
 val ipv4_header_uninit =
  mk_v_header_list F
                   [(``"version"``, mk_v_bitii (0, 4)),
@@ -303,33 +303,39 @@ val parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
 
 
-(* All variables used at architectural level need to be declared *)
-val init_scope_ok = ``(FEMPTY |+ (varn_name "inCtrl", (v_struct [("inputPort", v_bit ([ARB; ARB; ARB; ARB],4))], NONE))
-                              |+ (varn_name "outCtrl", (v_struct [("outputPort", v_bit ([ARB; ARB; ARB; ARB],4))], NONE))
-                              |+ (varn_name "b", (v_ext (ext_obj_in []), NONE))
-                              |+ (varn_name "data_crc", (v_ext (ext_obj_out []), NONE))
-                              |+ (varn_name "parsedHeaders", ((^parsed_packet_struct_uninit), NONE))
-                              |+ (varn_name "headers", ((^parsed_packet_struct_uninit), NONE))
-                              |+ (varn_name "outputHeaders", ((^parsed_packet_struct_uninit), NONE))
-                              |+ (varn_name "parseError", (v_err "NoError", NONE))):scope``;
+val init_counter = ``2:num``;
 
-(* Architectural block index is 0,
- * programmable block in-progress flag set to false,
- * Input list contains only some OK input at port 1,
- * Output list is empty,
- * Scope is empty. *)
-val init_aenv = pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_scope_ok)``];
+val init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
+                          (1, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
 
+(* All variables used in the architectural scope need to be declared *)
+val init_v_map = ``[("inCtrl", v_struct [("inputPort", v_bit ([ARB; ARB; ARB; ARB],4))]);
+                    ("outCtrl", v_struct [("outputPort", v_bit ([ARB; ARB; ARB; ARB],4))]);
+                    ("b", v_ext_ref 0);
+                    ("data_crc", v_ext_ref 1);
+                    ("parsedHeaders", (^parsed_packet_struct_uninit));
+                    ("headers", (^parsed_packet_struct_uninit));
+                    ("outputHeaders", (^parsed_packet_struct_uninit));
+                    ("parseError", v_err "NoError")]:(string, v) alist``;
+
+(* TODO: Make syntax functions *)
+val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), []:vss_ctrl):vss_ascope``;
+
+(* TODO: Make syntax functions *)
+val init_aenv = ``(^(pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
+
+(* TODO: Make syntax functions *)
 val init_astate =
- pairSyntax.list_mk_pair [init_aenv,
-                          listSyntax.mk_list ([vss_init_global_scope], scope_ty),
-                          arch_frame_list_empty_tm, ctrl, status_running_tm];
+ ``(^(pairSyntax.list_mk_pair [init_aenv,
+                               listSyntax.mk_list ([vss_init_global_scope], scope_ty),
+                               arch_frame_list_empty_tm,
+                               status_running_tm])):vss_ascope astate``;
 
 (*******************************************)
 (*   Architecture-level semantics tests    *)
 
 (* Single reduction: *)
-EVAL ``arch_exec ((^vss_actx):(varn |-> v # lval option) actx) (^init_astate)``;
+EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 
 (* Multiple reductions: *)
 (* TODO: Fix p4_v2w_ss, why doesn't this work? *)
