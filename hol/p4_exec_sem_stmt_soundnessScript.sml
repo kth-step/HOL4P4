@@ -176,7 +176,7 @@ Cases_on `index_not_const e_l` >> (
                                                    ((valOf o find_clause_stmt_red) "stmt_apply_table_v"))))) >- (
    (* TODO: Add this check (length e_l = length e'_l) in the semantics... *)
    subgoal `LENGTH mk_l = LENGTH default_f_args` >- (
-    cheat
+    fs []
    ) >>
    subgoal `LENGTH e_l = LENGTH (ZIP (mk_l, default_f_args))` >- (
     fs []

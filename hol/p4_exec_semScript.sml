@@ -530,7 +530,7 @@ Definition stmt_exec:
    | NONE =>
     (case ALOOKUP tbl_map t_name of
      | SOME (mk_l, (default_f, default_f_args)) =>
-      (if LENGTH mk_l = LENGTH e_l
+      (if LENGTH mk_l = LENGTH e_l /\ LENGTH mk_l = LENGTH default_f_args
        then
         (case apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) of
          | SOME (f, f_args) =>
@@ -1181,6 +1181,7 @@ stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (asc
                        apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
                        is_consts_exec f_args /\
                        LENGTH mk_l = LENGTH e_l /\
+                       LENGTH mk_l = LENGTH default_f_args /\
                        frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scope_list)]) /\
  (!i. index_not_const e_l = SOME i ==>
   ?e' frame_list''. e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scope_list (EL i e_l) = SOME (e', frame_list'') /\
@@ -1225,6 +1226,9 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  PairCases_on `x` >>
  fs [] >>
  Cases_on `LENGTH x0 = LENGTH e_l` >> (
+  fs []
+ ) >>
+ Cases_on `LENGTH x0 = LENGTH x2` >> (
   fs []
  ) >>
  Cases_on `is_consts_exec x1'` >> (
