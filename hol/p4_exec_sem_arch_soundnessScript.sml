@@ -112,7 +112,7 @@ Cases_on `arch_frame_list` >> (
    fs []
   ) >>
   Cases_on `x` >>
-  fs [state_fin_def] >>
+  fs [state_fin_exec_def] >>
   Cases_on `copyout_pbl
              (g_scope_list,ascope,MAP SND l',MAP FST l',p,
               set_fin_status p status_running)` >> (
@@ -131,7 +131,7 @@ Cases_on `arch_frame_list` >> (
   ],
 
   (* programmable block execution *)
-  fs [state_fin_def, arch_exec_def] >>
+  fs [GSYM state_fin_exec_equiv, arch_exec_def] >>
   Cases_on `EL i ab_list` >> (
    fs []
   ) >>
@@ -139,7 +139,7 @@ Cases_on `arch_frame_list` >> (
    fs []
   ) >>
   Cases_on `x` >>
-  fs [state_fin_def] >>
+  fs [state_fin_exec_equiv, state_fin_def] >>
   Cases_on `frames_exec (apply_table_f,ext_map,func_map,l0,l2,l3)
              (ascope,g_scope_list,l,status_running)` >> (
    fs []
@@ -193,6 +193,7 @@ Cases_on `arch_frame_list` >> (
   fs []
  ) >>
  Cases_on `x` >>
+ fs [state_fin_exec_equiv] >>
  Cases_on `state_fin (status_trans s) l` >> (
   fs []
  ) >| [

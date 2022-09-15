@@ -2287,6 +2287,64 @@ End
 (*  Architectural-level semantics  *)
 (***********************************)
 
+Definition state_fin_exec_def:
+ state_fin_exec status frame_list =
+  case frame_list of
+  | [(funn, [stmt_empty], scope_list)] => T
+  | _ =>
+   (case status of
+    | status_returnv v => T
+    | status_trans x =>
+     if x = "accept" \/ x = "reject"
+     then T
+     else F
+    | _ => F)
+End
+
+Theorem state_fin_exec_equiv:
+!status frame_list:frame_list.
+ state_fin_exec status frame_list <=> state_fin status frame_list
+Proof
+fs [state_fin_def, state_fin_exec_def] >>
+Cases_on `frame_list` >> (
+ fs []
+) >- (
+ Cases_on `status` >> (
+  fs []
+ )
+) >>
+Cases_on `t` >> (
+ fs []
+) >- (
+ PairCases_on `h` >>
+ fs [] >>
+ Cases_on `h1` >> (
+  fs []
+ ) >- (
+  Cases_on `status` >> (
+   fs []
+  )
+ ) >>
+ Cases_on `h` >> (
+  fs []
+ ) >- (
+  Cases_on `t` >> (
+   fs []
+  ) >>
+  Cases_on `status` >> (
+   fs []
+  )
+ ) >> (
+  Cases_on `status` >> (
+   fs []
+  )
+ )
+) >>
+Cases_on `status` >> (
+ fs []
+)
+QED
+
 (* TODO: Outsource the stuff that causes too many case splits to other functions
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
 val arch_exec_def = Define `
@@ -2299,7 +2357,7 @@ val arch_exec_def = Define `
       (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
       (if LENGTH el = LENGTH x_d_list
        then
-        if state_fin status frame_list
+        if state_fin_exec status frame_list
         then
          (* pbl_ret *)
          (* TODO: OK to only copy out from block-global scope here? *)

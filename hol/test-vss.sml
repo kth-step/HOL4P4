@@ -354,25 +354,90 @@ val actx = vss_actx;
 fun eval_and_print_result actx astate nsteps =
  optionSyntax.dest_some $ rhs $ concl $ (fn thm => REWRITE_RULE [(SIMP_CONV (pure_ss++p4_v2w_ss) [] (rhs $ concl thm))] thm) $ EVAL ``arch_multi_exec ((^actx):vss_ascope actx) (^astate) ^(term_of_int nsteps)``;
 
+(* Used for steps where architecture changes state *)
 fun eval_and_print_aenv actx astate nsteps =
  el 1 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
 
+(* Used for steps inside programmable blocks *)
 fun eval_and_print_rest actx astate nsteps =
  el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+fun dest_astate astate =
+ let
+  val (aenv, astate') = dest_pair astate
+  val (g_scope_list, astate'') = dest_pair astate'
+  val (arch_frame_list, status) = dest_pair astate''
+ in
+  (aenv, g_scope_list, arch_frame_list, status)
+ end
+;
+
+fun dest_vss_aenv aenv =
+ let
+  val (i, aenv') = dest_pair aenv
+  val (in_out_list, aenv'') = dest_pair aenv'
+  val (in_out_list', ascope) = dest_pair aenv''
+ in
+  (i, in_out_list, in_out_list', ascope)
+ end
+;
+
+fun dest_vss_actx actx =
+ let
+  val (ab_list, actx') = dest_pair actx
+  val (pblock_map, actx'') = dest_pair actx'
+  val (ffblock_map, actx''') = dest_pair actx''
+  val (input_f, actx'''') = dest_pair actx'''
+  val (output_f, actx''''') = dest_pair actx''''
+  val (copyin_pbl, actx'''''') = dest_pair actx'''''
+  val (copyout_pbl, actx''''''') = dest_pair actx''''''
+  val (apply_table_f, actx'''''''') = dest_pair actx'''''''
+  val (ext_map, func_map) = dest_pair actx''''''''
+ in
+  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
+ end
+;
+
+fun debug_arch_from_step actx astate nsteps =
+ let
+  val astate' = eval_and_print_result actx astate nsteps
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+(*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
+ in
+  (dest_vss_actx actx, (dest_vss_aenv aenv, g_scope_list, arch_frame_list, status))
+ end
+;
 
 (* arch_in: input read into b, data_crc and inCtrl *)
 eval_and_print_aenv vss_actx init_astate 1;
 
 (* arch_pbl_init: parser block arguments read into b and p *)
+eval_and_print_rest vss_actx init_astate 2;
+
 (*
+
+val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
+
+EVAL ``EL (^i) (^ab_list)``
 
 val x = ``"parser"``
 val el = ``[e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``
-val x_d_list = ``[("b",d_none); ("p",d_out)]``
-val vss_ascope_1 = snd $ dest_pair $ snd $ dest_pair $ snd $ dest_pair (eval_and_print_aenv vss_actx init_astate 1);
-val vss_v_map_1 = fst $ dest_pair $ snd $ dest_pair $ snd $ dest_pair vss_ascope_1;
 
-EVAL ``ALOOKUP (^vss_pblock_map) (^x)``
+EVAL ``ALOOKUP (^pblock_map) (^x)``
+
+val x_d_list = ``[("b",d_none); ("p",d_out)]``
+
+EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``
+
+arch_frame_list
+EVAL ``if (state_fin (^status) [(funn_name "parser",
+        [stmt_seq
+           (stmt_ass lval_null
+              (e_call (funn_inst "Checksum16") [e_var (varn_name "ck")]))
+           (stmt_trans (e_v (v_str "start")))],[[]])])
+       then T
+       else F``
 
 (* Gives NONE *)
 EVAL ``vss_copyin_pbl ((MAP FST (^x_d_list)), (MAP SND (^x_d_list)), (^el), (^vss_ascope_1), pbl_type_parser)``
