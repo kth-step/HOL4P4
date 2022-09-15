@@ -201,20 +201,20 @@ Definition vss_input_f_def:
 End
 
 Definition vss_reduce_nonout_def:
- (vss_reduce_nonout ([], elist, vss_ascope) =
+ (vss_reduce_nonout ([], elist, v_map) =
   SOME []
  ) /\
- (vss_reduce_nonout (d::dlist, e::elist, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+ (vss_reduce_nonout (d::dlist, e::elist, v_map) =
   if is_d_out d
-  then oCONS (e, vss_reduce_nonout (dlist, elist, (counter, ext_obj_map, v_map, ctrl)))
+  then oCONS (e, vss_reduce_nonout (dlist, elist, v_map))
   else
    (case e of
     | (e_var (varn_name x)) =>
      (case ALOOKUP v_map x of
       | SOME v =>
        if is_d_in d
-       then oCONS (e_v v, vss_reduce_nonout (dlist, elist, (counter, ext_obj_map, v_map, ctrl)))
-       else oCONS (e_v (init_out_v v), vss_reduce_nonout (dlist, elist, (counter, ext_obj_map, v_map, ctrl)))
+       then oCONS (e_v v, vss_reduce_nonout (dlist, elist, v_map))
+       else oCONS (e_v (init_out_v v), vss_reduce_nonout (dlist, elist, v_map))
        
       | _ => NONE)
     | _ => NONE))
@@ -240,16 +240,20 @@ End
 (* TODO: Since the same thing should be initialised
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)
+(* TODO: Don't reduce all arguments at once? *)
 Definition vss_copyin_pbl_def:
  vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):vss_ascope, pbl_type) =
-  case copyin xlist dlist elist [v_map_to_scope v_map] [ [] ] of
-   | SOME scope =>
-    if pbl_type = pbl_type_parser
-    then
-     SOME (initialise_parse_error scope)
-    else
-     SOME scope
-   | NONE => NONE
+  case vss_reduce_nonout (dlist, elist, v_map) of
+  | SOME elist' =>
+   (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
+    | SOME scope =>
+     if pbl_type = pbl_type_parser
+     then
+      SOME (initialise_parse_error scope)
+     else
+      SOME scope
+    | NONE => NONE)
+  | NONE => NONE
 End
 
 (* TODO: Does anything need to be looked up for this function? *)

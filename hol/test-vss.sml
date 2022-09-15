@@ -342,10 +342,17 @@ EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 (* In V1, this ended at 131 steps for TTL=1 in input *)
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
+(*
+val nsteps = 2;
+val astate = init_astate;
+val actx = vss_actx;
+
+*)
+
 (* TODO: Make "exec arch block" function *)
 
 fun eval_and_print_result actx astate nsteps =
- optionSyntax.dest_some $ rhs $ concl $ (SIMP_RULE (pure_ss++p4_v2w_ss++FMAP_ss) []) $ EVAL ``arch_multi_exec ((^actx):(varn |-> v # lval option) actx) (^astate) ^(term_of_int nsteps)``;
+ optionSyntax.dest_some $ rhs $ concl $ (fn thm => REWRITE_RULE [(SIMP_CONV (pure_ss++p4_v2w_ss) [] (rhs $ concl thm))] thm) $ EVAL ``arch_multi_exec ((^actx):vss_ascope actx) (^astate) ^(term_of_int nsteps)``;
 
 fun eval_and_print_aenv actx astate nsteps =
  el 1 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
@@ -353,10 +360,31 @@ fun eval_and_print_aenv actx astate nsteps =
 fun eval_and_print_rest actx astate nsteps =
  el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
 
-(* After arch_in: input read into b, data_crc and inCtrl *)
+(* arch_in: input read into b, data_crc and inCtrl *)
 eval_and_print_aenv vss_actx init_astate 1;
 
-(* After arch_parser_init: parser block arguments read into b and p *)
+(* arch_pbl_init: parser block arguments read into b and p *)
+(*
+
+val x = ``"parser"``
+val el = ``[e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``
+val x_d_list = ``[("b",d_none); ("p",d_out)]``
+val vss_ascope_1 = snd $ dest_pair $ snd $ dest_pair $ snd $ dest_pair (eval_and_print_aenv vss_actx init_astate 1);
+val vss_v_map_1 = fst $ dest_pair $ snd $ dest_pair $ snd $ dest_pair vss_ascope_1;
+
+EVAL ``ALOOKUP (^vss_pblock_map) (^x)``
+
+(* Gives NONE *)
+EVAL ``vss_copyin_pbl ((MAP FST (^x_d_list)), (MAP SND (^x_d_list)), (^el), (^vss_ascope_1), pbl_type_parser)``
+
+EVAL ``v_map_to_scope (^vss_v_map_1)``
+
+EVAL ``copyin (MAP FST (^x_d_list)) (MAP SND (^x_d_list)) (^el) [ []; [] ] [v_map_to_scope (^vss_v_map_1)]``
+
+EVAL ``update_arg_for_newscope [v_map_to_scope (^vss_v_map_1)] (SOME []) (d_none, "b", e_var (varn_name "b"))``
+
+
+*)
 eval_and_print_rest vss_actx init_astate 2;
 
 (* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)

@@ -16,6 +16,8 @@ val vss_init_global_scope : term
 val vss_input_f : term
 val vss_output_f : term
 
+val vss_apply_table_f : term
+
 val vss_copyin_pbl : term
 val vss_copyout_pbl : term
 
