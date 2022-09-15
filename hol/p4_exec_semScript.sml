@@ -2363,7 +2363,7 @@ val arch_exec_def = Define `
          (* TODO: OK to only copy out from block-global scope here? *)
          (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, pbl_type, set_fin_status pbl_type status) of
           | SOME scope' =>
-           SOME ((i+1, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
+           SOME ((i+1, in_out_list, in_out_list', scope'), LASTN 1 g_scope_list,
                  arch_frame_list_empty, status_running)
           | _ => NONE)
         else
@@ -2409,15 +2409,15 @@ val arch_exec_def = Define `
        then
         (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope, pbl_type) of
          | SOME scope' =>
-          (case oEL 0 g_scope_list of
-           | SOME g_scope =>
-            let g_scope_list' = (g_scope::[declare_list_in_scope (decl_list, scope')]) in
+          (case oLASTN 1 g_scope_list of
+           | SOME [g_scope] =>
+            let g_scope_list' = ([declare_list_in_scope (decl_list, scope')]++[g_scope]) in
              (case initialise_var_stars func_map b_func_map g_scope_list' of
               | SOME g_scope_list'' =>
                SOME ((i, in_out_list, in_out_list', scope), g_scope_list'',
                      arch_frame_list_regular [(funn_name x, [stmt], [ [] ])], status_running)
               | NONE => NONE)
-           | NONE => NONE)
+           | _ => NONE)
          | _ => NONE)
        else NONE)
      | _ => NONE)

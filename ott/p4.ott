@@ -58,10 +58,10 @@ grammar
 num_exp :: num_exp ::=
 {{ hol num }}
 {{ com expressions with numerals }}
+| 1 :: M :: one
+  {{ hol 1 }}
 | i :: M :: i
   {{ hol [[i]] }}
-| num_exp + 1 :: M :: add1
-  {{ hol ( [[num_exp]] + 1 ) }}
 | num_exp + num_exp' :: M :: add
   {{ hol ( [[num_exp]] + [[num_exp']] ) }}
 | num_exp - num_exp' :: M :: sub
@@ -378,6 +378,10 @@ g_scope_list {{ tex \overline{\gamma_G} }} :: g_scope_list_ ::=
   {{ com take first element }}
   {{ hol (TAKE 1 [[g_scope_list]]) }}
   {{ tex \mathrm{take}(1,[[g_scope_list]]) }}
+| lastn num_exp g_scope_list :: M :: lastn
+  {{ com last n elements }}
+  {{ hol (LASTN [[num_exp]] [[g_scope_list]]) }}
+  {{ tex \mathrm{lastn}([[num_exp]],[[g_scope_list]]) }}
 
 scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 {{ hol (scope list) }}

@@ -52,7 +52,7 @@ Definition Checksum16_construct:
   let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum (0w:word16))) in
   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
-    SOME ((counter + 1, ext_obj_map', v_map, ctrl), g_scope_list, scope_list)
+    SOME ((counter + 1, ext_obj_map', v_map, ctrl), g_scope_list, scope_list')
    | NONE => NONE)
  )
 End

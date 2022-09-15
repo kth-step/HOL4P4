@@ -343,7 +343,7 @@ EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 2;
+val nsteps = 3;
 val astate = init_astate;
 val actx = vss_actx;
 
@@ -445,20 +445,14 @@ val x_d_list = ``[("b",d_none); ("p",d_out)]``
 
 EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``
 
-EVAL ``if (state_fin_exec (^status) [(funn_name "parser",
-        [stmt_seq
-           (stmt_ass lval_null
-              (e_call (funn_inst "Checksum16") [e_var (varn_name "ck")]))
-           (stmt_trans (e_v (v_str "start")))],[[]])])
-       then T
-       else F``
+EVAL ``state_fin_exec (^status) ^frame_list``
 
 (* TODO: Debug frames_exec *)
 val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
 
-val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "parser") (^func_map) (^b_func_map) (^g_scope_list)``
+val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_inst "Checksum16") (^func_map) (^b_func_map) (^g_scope_list)``;
 
-val [ascope'', g_scope_list'', frame_list''', status''] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
+val [ascope'', g_scope_list'', frame_list''', status''] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', [(EL 0 ^frame_list)], status_running)``
 
 EVAL ``scopes_to_retrieve (funn_name "parser") ^func_map ^b_func_map ^g_scope_list ^g_scope_list''``
 

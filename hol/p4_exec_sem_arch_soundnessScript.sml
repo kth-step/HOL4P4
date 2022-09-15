@@ -51,10 +51,16 @@ Cases_on `arch_frame_list` >> (
   Cases_on `copyin_pbl (MAP FST l',MAP SND l',l,ascope,p)` >> (
    fs []
   ) >>
-  Cases_on `oEL 0 g_scope_list` >> (
+  Cases_on `oLASTN 1 g_scope_list` >> (
    fs []
   ) >>
-  Cases_on `initialise_var_stars func_map l0 [x'; declare_list_in_scope (l1,x)]` >> (
+  Cases_on `x'` >> (
+   fs []
+  ) >>
+  Cases_on `t` >> (
+   fs []
+  ) >>
+  Cases_on `initialise_var_stars func_map l0 [declare_list_in_scope (l1,x); h]` >> (
    fs []
   ) >>
   rw [] >>
@@ -65,7 +71,8 @@ Cases_on `arch_frame_list` >> (
   rpt strip_tac >| [
    fs [map_tri_zip12],
 
-   gs [listTheory.oEL_EQ_EL],
+   gs [listTheory.oEL_EQ_EL] >>
+   metis_tac [oLASTN_imp_LASTN],
 
    fs [map_tri_zip12, ZIP_MAP_FST_SND],
 
