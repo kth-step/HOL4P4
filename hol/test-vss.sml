@@ -409,6 +409,21 @@ fun debug_arch_from_step actx astate nsteps =
  end
 ;
 
+(* Note that this presupposes execution is inside a programmable block *)
+fun debug_frames_from_step actx astate nsteps =
+ let
+  val astate' = eval_and_print_result actx astate nsteps
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv
+  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx
+  val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
+  val (pbl_type, x_d_list, b_func_map, decl_list, stmt, pars_map, tbl_map) = dest_pblock_regular $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
+  val frame_list = dest_arch_frame_list_regular arch_frame_list
+ in
+  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
+ end
+;
+
 (* arch_in: input read into b, data_crc and inCtrl *)
 eval_and_print_aenv vss_actx init_astate 1;
 
@@ -430,8 +445,7 @@ val x_d_list = ``[("b",d_none); ("p",d_out)]``
 
 EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``
 
-arch_frame_list
-EVAL ``if (state_fin (^status) [(funn_name "parser",
+EVAL ``if (state_fin_exec (^status) [(funn_name "parser",
         [stmt_seq
            (stmt_ass lval_null
               (e_call (funn_inst "Checksum16") [e_var (varn_name "ck")]))
@@ -439,18 +453,14 @@ EVAL ``if (state_fin (^status) [(funn_name "parser",
        then T
        else F``
 
-(* Gives NONE *)
-EVAL ``vss_copyin_pbl ((MAP FST (^x_d_list)), (MAP SND (^x_d_list)), (^el), (^vss_ascope_1), pbl_type_parser)``
+(* TODO: Debug frames_exec *)
+val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
 
-EVAL ``v_map_to_scope (^vss_v_map_1)``
-
-EVAL ``copyin (MAP FST (^x_d_list)) (MAP SND (^x_d_list)) (^el) [ []; [] ] [v_map_to_scope (^vss_v_map_1)]``
-
-EVAL ``update_arg_for_newscope [v_map_to_scope (^vss_v_map_1)] (SOME []) (d_none, "b", e_var (varn_name "b"))``
+EVAL ``scopes_to_pass (funn_name "parser") (^func_map) (^b_func_map) (^g_scope_list)``
 
 
 *)
-eval_and_print_rest vss_actx init_astate 2;
+eval_and_print_rest vss_actx init_astate 3;
 
 (* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
 eval_and_print_rest vss_actx init_astate 69;

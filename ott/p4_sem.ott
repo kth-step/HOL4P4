@@ -1746,7 +1746,7 @@ val lookup_ext_fun_def = Define `
    else both the global and block scopes will be returned.
    Note that only functions of the shape "funn_name x" can be declared in blocks. *)
 val scopes_to_pass_def = Define `
- scopes_to_pass (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map)  (g_scope_list:g_scope_list) =
+ scopes_to_pass (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map) (g_scope_list:g_scope_list) =
   case funn of
    | (funn_name x) =>
     (case ALOOKUP b_func_map x of
@@ -1754,7 +1754,10 @@ val scopes_to_pass_def = Define `
      | NONE =>
       (case ALOOKUP func_map_g x of
        | SOME (stmt, x_d_l) => SOME ([ []; EL 1 g_scope_list])
-       | NONE => NONE
+        (* If x is not found in b_func_map or func_map_g we must be at
+         * base level without having called any function *)
+        (* TODO: Should this be a special funn? "funn_base" or something? *)
+       | NONE => SOME g_scope_list
       )
     )
    | _ => SOME ([EL 0 g_scope_list; [] ])
