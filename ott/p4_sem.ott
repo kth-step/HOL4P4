@@ -1768,7 +1768,7 @@ val scopes_to_pass_def = Define `
    Otherwise, if the funn is defined globally then retrieve a regular global scope followed by the
    original block scope: [new_global_scope [0] ; old_block_scope[1] *)
 val scopes_to_retrieve_def = Define `
- scopes_to_retrieve (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map)  (g_scope_list_og:g_scope_list) (g_scope_list:g_scope_list) =
+ scopes_to_retrieve (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map) (g_scope_list_og:g_scope_list) (g_scope_list:g_scope_list) =
   case funn of
    | (funn_name x) =>
     (case ALOOKUP b_func_map x of
@@ -1776,7 +1776,8 @@ val scopes_to_retrieve_def = Define `
      | NONE =>
       (case ALOOKUP func_map_g x of
        | SOME (stmt, x_d_l) => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
-       | NONE => NONE
+        (* Base level: g_scope_list started out same as g_scope_list_og, but might have been modified *)
+       | NONE => SOME g_scope_list
       )
     )
    | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])

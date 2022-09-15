@@ -456,7 +456,11 @@ EVAL ``if (state_fin_exec (^status) [(funn_name "parser",
 (* TODO: Debug frames_exec *)
 val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
 
-EVAL ``scopes_to_pass (funn_name "parser") (^func_map) (^b_func_map) (^g_scope_list)``
+val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "parser") (^func_map) (^b_func_map) (^g_scope_list)``
+
+val [ascope'', g_scope_list'', frame_list''', status''] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
+
+EVAL ``scopes_to_retrieve (funn_name "parser") ^func_map ^b_func_map ^g_scope_list ^g_scope_list''``
 
 
 *)
