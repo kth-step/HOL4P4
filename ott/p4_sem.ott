@@ -465,10 +465,10 @@ formula :: formula_ ::=
   {{ com initialise variable to value }}
   {{ hol ([[scope_list']] = initialise [[scope_list]] [[varn]] [[v]]) }}
   {{ tex [[scope_list']] = \mathrm{initialise} ([[scope_list]], [[varn]], [[v]]) }}
-| g_scope_list' = initialise_var_stars func_map b_func_map g_scope_list :: M :: initialise_var_stars
+| g_scope_list' = initialise_var_stars func_map b_func_map ext_map g_scope_list :: M :: initialise_var_stars
   {{ com initialise var_star variables }}
-  {{ hol (SOME [[g_scope_list']] = initialise_var_stars [[func_map]] [[b_func_map]] [[g_scope_list]]) }}
-  {{ tex [[g_scope_list']] = \mathrm{initialise\_var\_stars} ([[func_map]], [[b_func_map]], [[g_scope_list]]) }}
+  {{ hol (SOME [[g_scope_list']] = initialise_var_stars [[func_map]] [[b_func_map]] [[ext_map]] [[g_scope_list]]) }}
+  {{ tex [[g_scope_list']] = \mathrm{initialise\_var\_stars} ([[func_map]], [[b_func_map]], [[ext_map]], [[g_scope_list]]) }}
 
 | g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list ) :: M :: scopes_to_pass
   {{ com global and block scopes to pass based on function location }}
@@ -1529,7 +1529,7 @@ val initialise_parse_error_def = Define `
   )
 `;
 
-(* Obtains the varn_star updates of a single function map *)
+(* Obtains the varn_star updates of a function map *)
 val var_star_updates_of_func_map_def = Define `
   (var_star_updates_of_func_map (func_map:func_map) =
    let varnames = (MAP FST func_map) in
@@ -1537,12 +1537,24 @@ val var_star_updates_of_func_map_def = Define `
   )
 `;
 
+(* Obtains the varn_star updates of an extern map *)
+val var_star_updates_of_ext_map_def = Define `
+ (var_star_updates_of_ext_map ([]:ext_map) = []) /\
+ (var_star_updates_of_ext_map (((ext_obj_name, ext_obj_funs)::t):ext_map) =
+  case ext_obj_funs of
+  | (SOME _, ext_fun_map) =>
+   ((varn_star (funn_inst ext_obj_name), (v_bot, (NONE:lval option)))::(MAP ( \x. (varn_star (funn_ext ext_obj_name x), (v_bot, (NONE:lval option)))) (MAP FST ext_fun_map)))++(var_star_updates_of_ext_map t)
+  | (NONE, ext_fun_map) =>
+   MAP ( \x. (varn_star (funn_ext ext_obj_name x), (v_bot, (NONE:lval option)))) (MAP FST ext_fun_map)++(var_star_updates_of_ext_map t)
+ )
+`;
+
 (* Initialises varn_star variables in function maps *)
 val initialise_var_stars_def = Define `
-  (initialise_var_stars func_map b_func_map g_scope_list =
+  (initialise_var_stars func_map b_func_map ext_map g_scope_list =
    case g_scope_list of
-   | [gg_scope; bg_scope] =>
-    SOME ([AUPDATE_LIST gg_scope (var_star_updates_of_func_map func_map); AUPDATE_LIST bg_scope (var_star_updates_of_func_map b_func_map)])
+   | [bg_scope; gg_scope] =>
+    SOME ([AUPDATE_LIST bg_scope (var_star_updates_of_func_map b_func_map); AUPDATE_LIST gg_scope ((var_star_updates_of_func_map func_map)++(var_star_updates_of_ext_map ext_map))])
    | _ => NONE
   )
 `;
@@ -2305,7 +2317,6 @@ defn
 by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  %frame_list'' neq empty
   notret( status' , frame_list'' )
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
@@ -2349,7 +2360,7 @@ by
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
 %Note that the below means that the var_star of globally-defined functions is redefined every time pbl_init is applied 
-  g_scope_list''' = initialise_var_stars func_map b_func_map g_scope_list''
+  g_scope_list''' = initialise_var_stars func_map b_func_map ext_map g_scope_list''
   ----------------------------------- :: pbl_init
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list''' , [ ( f , [ stmt ] , [ empty ] ) ] , Running )
 

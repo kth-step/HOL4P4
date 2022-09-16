@@ -2412,7 +2412,7 @@ val arch_exec_def = Define `
           (case oLASTN 1 g_scope_list of
            | SOME [g_scope] =>
             let g_scope_list' = ([declare_list_in_scope (decl_list, scope')]++[g_scope]) in
-             (case initialise_var_stars func_map b_func_map g_scope_list' of
+             (case initialise_var_stars func_map b_func_map ext_map g_scope_list' of
               | SOME g_scope_list'' =>
                SOME ((i, in_out_list, in_out_list', scope), g_scope_list'',
                      arch_frame_list_regular [(funn_name x, [stmt], [ [] ])], status_running)

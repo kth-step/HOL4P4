@@ -60,7 +60,7 @@ Cases_on `arch_frame_list` >> (
   Cases_on `t` >> (
    fs []
   ) >>
-  Cases_on `initialise_var_stars func_map l0 [declare_list_in_scope (l1,x); h]` >> (
+  Cases_on `initialise_var_stars func_map l0 ext_map [declare_list_in_scope (l1,x); h]` >> (
    fs []
   ) >>
   rw [] >>
