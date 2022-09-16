@@ -1669,9 +1669,12 @@ val state_fin_def = Define `
   ((status = status_trans "accept") \/
    (status = status_trans "reject") \/
    (?v. status = status_returnv v) \/
-   (?funn scope_list. frame_list = [(funn, [stmt_empty], scope_list)]))
+   (?funn scope_list. frame_list = [(funn, [stmt_empty], scope_list)] /\
+    ((?state_name. status = status_trans state_name) ==>
+     ((status = status_trans "accept") \/
+      (status = status_trans "reject"))))
+  )
 `;
-
 
 val set_fin_status_def = Define `
   set_fin_status pbl_type status =

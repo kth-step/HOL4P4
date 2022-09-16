@@ -343,7 +343,7 @@ EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 5;
+val nsteps = 10;
 val astate = init_astate;
 val actx = vss_actx;
 
@@ -445,12 +445,9 @@ val x_d_list = ``[("b",d_none); ("p",d_out)]``
 
 EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``
 
-EVAL ``state_fin_exec (^status) ([(funn_inst "Checksum16",[stmt_ret (e_v v_bot)],
-        [[(varn_name "this",v_ext_ref 2,SOME (lval_varname (varn_name "ck")))]]);
-       (funn_name "parser",
-        [stmt_seq
-           (stmt_ass lval_null (e_var (varn_star (funn_inst "Checksum16"))))
-           (stmt_trans (e_v (v_str "start")))],[[]])])``
+EVAL ``state_fin_exec (^status) ([(funn_name "parser",[stmt_empty],[[]])])``
+
+EVAL ``state_fin_exec (^status) ([(funn_name "parser",[stmt_empty],[[]])])``
 
 (* TODO: Debug frames_exec *)
 val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;

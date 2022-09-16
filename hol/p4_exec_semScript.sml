@@ -2290,7 +2290,13 @@ End
 Definition state_fin_exec_def:
  state_fin_exec status frame_list =
   case frame_list of
-  | [(funn, [stmt_empty], scope_list)] => T
+  | [(funn, [stmt_empty], scope_list)] =>
+   (case status of
+    | status_trans x =>
+     if x = "accept" \/ x = "reject"
+     then T
+     else F
+    | _ => T)
   | _ =>
    (case status of
     | status_returnv v => T
@@ -2330,9 +2336,12 @@ Cases_on `t` >> (
  ) >- (
   Cases_on `t` >> (
    fs []
-  ) >>
-  Cases_on `status` >> (
-   fs []
+  ) >> (
+   Cases_on `status` >> (
+    fs []
+   )
+  ) >- (
+   metis_tac []
   )
  ) >> (
   Cases_on `status` >> (
