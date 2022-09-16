@@ -264,14 +264,11 @@ val e_exec = TotalDefn.tDefine "e_exec" `
    (case e_exec_acc (e_acc e_v_struct x) of
     | SOME v => SOME (v, [])
     | NONE => NONE)
-  else NONE)
-(* TODO: What happens if one tries to access a field in an expression struct?
    else
     (case e_exec ctx g_scope_list scope_list e_v_struct of
      | SOME (e_v_struct', frame_list) =>
       SOME (e_acc e_v_struct' x, frame_list)
      | NONE => NONE))
-*)
   /\
  (******************************)
  (* Struct/header field reduction *)
@@ -712,10 +709,16 @@ rpt strip_tac >| [
 
   Cases_on `is_v e` >> (
    fs []
+  ) >- (
+   Cases_on `e_exec_acc (e_acc e s)` >> (
+    fs []
+   )
   ) >>
-  Cases_on `e_exec_acc (e_acc e s)` >> (
+  Cases_on `e_exec ctx g_scope_list scope_list e` >> (
    fs []
-  ),
+  ) >>
+  PairCases_on `x` >>
+  fs [],
 
   Cases_on `is_v e` >> (
    fs []
@@ -830,9 +833,19 @@ rpt strip_tac >| [
  ],
 
  (* Access *)
- Cases_on `e_exec_acc (e_acc e_v_struct x)` >> (
+ Cases_on `is_v e_v_struct` >> (
   fs []
- ),
+ ) >| [
+  Cases_on `e_exec_acc (e_acc e_v_struct x)` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e_v_struct` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []
+ ],
 
  (* Select *)
  Cases_on `is_v e` >> (

@@ -338,12 +338,11 @@ val init_astate =
 EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 
 (* Multiple reductions: *)
-(* TODO: Fix p4_v2w_ss, why doesn't this work? *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 10;
+val nsteps = 20;
 val astate = init_astate;
 val actx = vss_actx;
 
@@ -434,34 +433,62 @@ eval_and_print_rest vss_actx init_astate 2;
 
 val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
 
-EVAL ``EL (^i) (^ab_list)``
+EVAL ``EL (^i) (^ab_list)``;
 
-val x = ``"parser"``
-val el = ``[e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``
+val x = ``"parser"``;
+val el = ``[e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``;
 
-EVAL ``ALOOKUP (^pblock_map) (^x)``
+EVAL ``ALOOKUP (^pblock_map) (^x)``;
 
-val x_d_list = ``[("b",d_none); ("p",d_out)]``
+val x_d_list = ``[("b",d_none); ("p",d_out)]``;
 
-EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``
+EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``;
 
-EVAL ``state_fin_exec (^status) ([(funn_name "parser",[stmt_empty],[[]])])``
+EVAL ``state_fin_exec (^status) ([(funn_name "start",
+        [stmt_trans
+           (e_select
+              (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")
+              [(v_bit (w2v 2048w,16),"parse_ipv4")] "reject"); stmt_empty],
+        [[]; []])])``;
 
-EVAL ``state_fin_exec (^status) ([(funn_name "parser",[stmt_empty],[[]])])``
-
-(* TODO: Debug frames_exec *)
+(* NOTE: For debugging frames_exec *)
 val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
 
-val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list, [(EL 0 ^frame_list)], status_running)``
+(* NOTE: New g_scope_list from scopes_to_pass, use to debug stmt_exec *)
+val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "start") ^func_map ^b_func_map ^g_scope_list``;
+
+(* NOTE: For debugging stmt_exec *)
+
+(* stmt_exec test: *)
+val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
+
+EVAL ``is_v (e_select
+                (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")
+                [(v_bit (w2v 2048w,16),"parse_ipv4")] "reject")``
+
+EVAL ``e_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) ^g_scope_list' [[]; []] (e_select
+                (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")
+                [(v_bit (w2v 2048w,16),"parse_ipv4")] "reject")``
+
+EVAL ``is_v (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")``
+
+EVAL ``e_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) ^g_scope_list' [[]; []] (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")``
+
+EVAL ``is_v (e_acc (e_var (varn_name "p")) "ethernet")``
+
+EVAL ``e_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) ^g_scope_list' [[]; []] (e_acc (e_var (varn_name "p")) "ethernet")``
+
+EVAL ``is_v (e_var (varn_name "p"))``
+
+
 
 EVAL ``assign (^g_scope_list') v_bot (lval_varname (varn_star (funn_inst "Checksum16")))``
 
 
 *)
-eval_and_print_rest vss_actx init_astate 10;
 
 (* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
-eval_and_print_rest vss_actx init_astate 69;
+eval_and_print_rest vss_actx init_astate 76;
 
 (* arch_parser_ret: parseError and parsedHeaders copied out to arch scope *)
 eval_and_print_aenv vss_actx init_astate 70;
