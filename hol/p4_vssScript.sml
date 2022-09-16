@@ -261,7 +261,7 @@ End
 Definition vss_copyout_pbl_def:
  vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, pbl_type, (status:status)) =
   case copyout xlist dlist [ [] ; [] ] [v_map_to_scope v_map] g_scope_list of
-  | SOME ([v_map_scope], _) =>
+  | SOME (_, [v_map_scope]) =>
    if pbl_type = pbl_type_parser
    then
     (case lookup_lval g_scope_list (lval_varname (varn_name "parseError")) of

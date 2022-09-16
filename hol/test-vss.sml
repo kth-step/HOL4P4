@@ -342,7 +342,7 @@ EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 20;
+val nsteps = 76;
 val astate = init_astate;
 val actx = vss_actx;
 
@@ -441,15 +441,18 @@ val el = ``[e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``;
 EVAL ``ALOOKUP (^pblock_map) (^x)``;
 
 val x_d_list = ``[("b",d_none); ("p",d_out)]``;
+val pbl_type = ``pbl_type_parser``;
 
 EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``;
 
-EVAL ``state_fin_exec (^status) ([(funn_name "start",
-        [stmt_trans
-           (e_select
-              (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")
-              [(v_bit (w2v 2048w,16),"parse_ipv4")] "reject"); stmt_empty],
-        [[]; []])])``;
+EVAL ``^copyout_pbl (^g_scope_list, ^scope, MAP SND ^x_d_list, MAP FST ^x_d_list, ^pbl_type, set_fin_status ^pbl_type ^status)``;
+
+val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
+
+EVAL ``copyout (MAP FST ^x_d_list) (MAP SND ^x_d_list) [ [] ; [] ] [v_map_to_scope ^v_map] ^g_scope_list``;
+
+
+(********** Nested exec sems ***********)
 
 (* NOTE: For debugging frames_exec *)
 val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
@@ -491,7 +494,7 @@ EVAL ``assign (^g_scope_list') v_bot (lval_varname (varn_star (funn_inst "Checks
 eval_and_print_rest vss_actx init_astate 76;
 
 (* arch_parser_ret: parseError and parsedHeaders copied out to arch scope *)
-eval_and_print_aenv vss_actx init_astate 70;
+eval_and_print_aenv vss_actx init_astate 77;
 
 (* arch_ffbl: Parser Runtime *)
 eval_and_print_aenv vss_actx init_astate 71;
