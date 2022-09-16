@@ -342,7 +342,7 @@ EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 76;
+val nsteps = 87;
 val astate = init_astate;
 val actx = vss_actx;
 
@@ -429,27 +429,42 @@ eval_and_print_aenv vss_actx init_astate 1;
 (* arch_pbl_init: parser block arguments read into b and p *)
 eval_and_print_rest vss_actx init_astate 2;
 
+(* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
+eval_and_print_rest vss_actx init_astate 76;
+
+(* arch_pbl_ret: parseError and parsedHeaders copied out to arch scope *)
+eval_and_print_aenv vss_actx init_astate 77;
+
+(* arch_ffbl: Parser Runtime *)
+eval_and_print_aenv vss_actx init_astate 78;
+
+(* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
+eval_and_print_rest vss_actx init_astate 79;
+
+(* arch_control_exec: *)
+eval_and_print_rest vss_actx init_astate 88;
+
 (*
 
 val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
 
 EVAL ``EL (^i) (^ab_list)``;
 
-val x = ``"parser"``;
-val el = ``[e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``;
+val x = ``"pipe"``;
+val el = ``[e_var (varn_name "headers"); e_var (varn_name "parseError");
+            e_var (varn_name "inCtrl"); e_var (varn_name "outCtrl")]``;
 
 EVAL ``ALOOKUP (^pblock_map) (^x)``;
 
-val x_d_list = ``[("b",d_none); ("p",d_out)]``;
-val pbl_type = ``pbl_type_parser``;
+val x_d_list = ``[("headers",d_inout); ("parseError",d_in); ("inCtrl",d_in);
+                  ("outCtrl",d_out)]``;
+val pbl_type = ``pbl_type_control``;
 
 EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``;
-
-EVAL ``^copyout_pbl (^g_scope_list, ^scope, MAP SND ^x_d_list, MAP FST ^x_d_list, ^pbl_type, set_fin_status ^pbl_type ^status)``;
+val frame_list = dest_arch_frame_list_regular arch_frame_list;
+EVAL ``state_fin_exec ^status ^frame_list``;
 
 val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
-
-EVAL ``copyout (MAP FST ^x_d_list) (MAP SND ^x_d_list) [ [] ; [] ] [v_map_to_scope ^v_map] ^g_scope_list``;
 
 
 (********** Nested exec sems ***********)
@@ -461,13 +476,19 @@ val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, 
 val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "start") ^func_map ^b_func_map ^g_scope_list``;
 
 (* NOTE: For debugging stmt_exec *)
+val frame_list = ``[(funn_name "pipe", [stmt_app "ipv4_match" [e_v (v_bit (w2v:word32 -> bool list 0w,32))]], [[]]:scope list)]``;
 
 (* stmt_exec test: *)
 val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
 
-EVAL ``is_v (e_select
-                (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")
-                [(v_bit (w2v 2048w,16),"parse_ipv4")] "reject")``
+EVAL ``index_not_const [e_v (v_bit (w2v:word32 -> bool list 0w,32))]``
+
+EVAL ``ALOOKUP ^tbl_map "ipv4_match"``
+
+EVAL ``LENGTH [mk_lpm] = LENGTH [e_v (v_bit (w2v:word32 -> bool list 0w,32))]``
+
+
+EVAL ``^apply_table_f ("ipv4_match", [e_v (v_bit (w2v:word32 -> bool list 0w,32))], [mk_lpm], ("NoAction", []), ^scope)``
 
 EVAL ``e_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) ^g_scope_list' [[]; []] (e_select
                 (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")
@@ -489,21 +510,6 @@ EVAL ``assign (^g_scope_list') v_bot (lval_varname (varn_star (funn_inst "Checks
 
 
 *)
-
-(* After a number of arch_parser_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
-eval_and_print_rest vss_actx init_astate 76;
-
-(* arch_parser_ret: parseError and parsedHeaders copied out to arch scope *)
-eval_and_print_aenv vss_actx init_astate 77;
-
-(* arch_ffbl: Parser Runtime *)
-eval_and_print_aenv vss_actx init_astate 71;
-
-(* arch_control_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 72;
-
-(* arch_control_exec: *)
-eval_and_print_aenv vss_actx init_astate 146;
 
 (* arch_control_ret: outCtrl written to arch scope *)
 eval_and_print_aenv vss_actx init_astate 147;
