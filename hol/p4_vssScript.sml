@@ -8,7 +8,7 @@ val _ = Hol_datatype `
  vss_v_ext = vss_v_ext_ipv4_checksum of word16`;
 val _ = type_abbrev("v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
-val _ = type_abbrev("vss_ctrl", ``:(string, (e_list # mk_list, string # e_list) alist) alist``);
+val _ = type_abbrev("vss_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
 
 (* The architectural state type of the VSS architecture model *)
 val _ = type_abbrev("vss_ascope", ``:(num # ((num, v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
@@ -324,7 +324,7 @@ Definition vss_output_f_def:
 End
 
 Definition ctrl_check_ttl:
- (ctrl_check_ttl (e_l, mk_l:mk list) =
+ (ctrl_check_ttl e_l =
   case e_l of
   | [e] =>
    (case e of
@@ -364,11 +364,13 @@ Definition vss_apply_table_f_def:
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   if x = "check_ttl"
   then
-   ctrl_check_ttl (e_l, mk_list)
+   ctrl_check_ttl e_l
   else
    (case ALOOKUP ctrl x of
     | SOME table =>
-     (case ALOOKUP table (e_l, mk_list) of
+     (* TODO: This now implicitly uses only exact matching against stored tables.
+      * Ideally, this should be able to use lpm and other matching kinds *)
+     (case ALOOKUP table e_l of
       | SOME (x'', e_l'') => SOME (x'', e_l'')
       | NONE => SOME (x', e_l'))
     | NONE => NONE)

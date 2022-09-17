@@ -263,7 +263,7 @@ val input_data_ok = mk_list ([], bool);
 
 (* The simplest IPV4 header that will be judged valid by the example *)
 (* NOTE: This only assigns the version, IHL, total length, ttl and header checksum fields. *)
-val input_ttl_ok = 1; (* NOTE: TTL 1 and 2 will be sent to CPU *)
+val input_ttl_ok = 2; (* NOTE: TTL 1 and 2 will be sent to CPU *)
 val input_ipv4_ok = mk_ipv4_packet_ok input_data_ok input_ttl_ok;
 
 (* The simplest ethernet frame that will be judged valid by the example *)
@@ -318,8 +318,15 @@ val init_v_map = ``[("inCtrl", v_struct [("inputPort", v_bit ([ARB; ARB; ARB; AR
                     ("outputHeaders", (^parsed_packet_struct_uninit));
                     ("parseError", v_err "NoError")]:(string, v) alist``;
 
+(* TODO: More realistic example values *)
+(* Regular ethernet output ports are numbered 0-7 *)
+val init_ctrl = ``[("ipv4_match",
+                    [( [e_v (v_bit (w2v:word32 -> bool list 0w,32))],
+                       ("Set_nhop", [e_v (v_bit (w2v:word32 -> bool list 1w,32)); e_v (v_bit (w2v:word4 -> bool list 0w,4))]) )]
+                  )]``;
+
 (* TODO: Make syntax functions *)
-val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), []:vss_ctrl):vss_ascope``;
+val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
 
 (* TODO: Make syntax functions *)
 val init_aenv = ``(^(pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
@@ -442,7 +449,7 @@ eval_and_print_aenv vss_actx init_astate 78;
 eval_and_print_rest vss_actx init_astate 79;
 
 (* arch_control_exec: *)
-eval_and_print_rest vss_actx init_astate 88;
+eval_and_print_rest vss_actx init_astate 127;
 
 (*
 
