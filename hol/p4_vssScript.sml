@@ -177,6 +177,7 @@ End
 (* Length of both headers 112+160=272 (IHL=5 assumed) *)
 (* TODO: Make smarter extract function for getting total_length *)
 (* let total_length = (v2n (REVERSE (TAKE 16 (REVERSE (TAKE 144 h)))))*8 in *)
+(* NOTE: "b" renamed to "b_in" *)
 Definition vss_input_f_def:
   (vss_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
    case io_list of
@@ -184,9 +185,9 @@ Definition vss_input_f_def:
    | ((bl,p)::t) =>
     (* TODO: Use oTAKE *)
     let header = TAKE 272 bl in
-    (* TODO: Use oDROP *)
+    (* TODO: Use oLASTN? *)
     let data_crc = REVERSE (DROP 272 (REVERSE bl)) in
-    (case ALOOKUP v_map "b" of
+    (case ALOOKUP v_map "b_in" of
      | SOME (v_ext_ref i) =>
       let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet_in header)) in
       (case ALOOKUP v_map "data_crc" of
@@ -309,10 +310,11 @@ End
 (* Add new header + data + Ethernet CRC as a tuple with new output port to output list *)
 (* Add data + Ethernet CRC *)
 (* TODO: Outsource obtaining the output port to an external function? *)
+(* NOTE: "b" renamed to "b_out" *)
 Definition vss_output_f_def:
  vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
-  (case vss_lookup_obj ext_obj_map v_map "b" of
-   | SOME (INL (core_v_ext_packet_in headers)) =>
+  (case vss_lookup_obj ext_obj_map v_map "b_out" of
+   | SOME (INL (core_v_ext_packet_out headers)) =>
     (case vss_lookup_obj ext_obj_map v_map "data_crc" of
      | SOME (INL (core_v_ext_packet_out data_crc)) =>
       (case ALOOKUP v_map "outCtrl" of

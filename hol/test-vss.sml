@@ -94,7 +94,7 @@ val vss_parser_pbl =
  ``pblock_regular pbl_type_parser [("b", d_none); ("p", d_out)] [] (^vss_parser_decl_list) (^vss_parser_inits) (^vss_parser_pmap) []``;
 
 val vss_parser_ab =
- ``arch_block_pbl "parser" [e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``;
+ ``arch_block_pbl "parser" [e_var (varn_name "b_in"); e_var (varn_name "parsedHeaders")]``;
 
 
 (************)
@@ -207,7 +207,7 @@ val vss_deparser_body =
 
 val vss_deparser_pbl = ``pblock_regular pbl_type_control [("p", d_inout); ("b", d_none)] [] (^vss_deparser_decl_list) (^vss_deparser_body) [] (^vss_deparser_tblmap)``;
 
-val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeaders"); e_var (varn_name "b")]``;
+val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeaders"); e_var (varn_name "b_out")]``;
 
 
 (**********************)
@@ -303,16 +303,19 @@ val parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
 
 
-val init_counter = ``2:num``;
+val init_counter = ``3:num``;
 
 val init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
-                          (1, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+                          (1, INL (core_v_ext_packet_out []));
+                          (2, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
 
 (* All variables used in the architectural scope need to be declared *)
+(* NOTE: the output packet is here called "data_crc". VSS spec has both input and output called "b" *)
 val init_v_map = ``[("inCtrl", v_struct [("inputPort", v_bit ([ARB; ARB; ARB; ARB],4))]);
                     ("outCtrl", v_struct [("outputPort", v_bit ([ARB; ARB; ARB; ARB],4))]);
-                    ("b", v_ext_ref 0);
-                    ("data_crc", v_ext_ref 1);
+                    ("b_in", v_ext_ref 0);
+                    ("b_out", v_ext_ref 1);
+                    ("data_crc", v_ext_ref 2);
                     ("parsedHeaders", (^parsed_packet_struct_uninit));
                     ("headers", (^parsed_packet_struct_uninit));
                     ("outputHeaders", (^parsed_packet_struct_uninit));
@@ -321,9 +324,21 @@ val init_v_map = ``[("inCtrl", v_struct [("inputPort", v_bit ([ARB; ARB; ARB; AR
 (* TODO: More realistic example values *)
 (* Regular ethernet output ports are numbered 0-7 *)
 val init_ctrl = ``[("ipv4_match",
+                    (* IPv4 matching maps IP destination address to
+                     * a next hop IPv4 address and output port *)
                     [( [e_v (v_bit (w2v:word32 -> bool list 0w,32))],
                        ("Set_nhop", [e_v (v_bit (w2v:word32 -> bool list 1w,32)); e_v (v_bit (w2v:word4 -> bool list 0w,4))]) )]
-                  )]``;
+                   );
+                   ("dmac",
+                    (* Destination MAC addess is computed from next hop IPv4 address *)
+                    [( [e_v (v_bit (w2v:word32 -> bool list 1w,32))],
+                       ("Set_dmac", [e_v (v_bit (w2v:word48 -> bool list 1w,48))]) )]
+                   );
+                   ("smac",
+                    (* Source MAC addess is computed from output port *)
+                    [( [e_v (v_bit (w2v:word4 -> bool list 0w,4))],
+                       ("Set_smac", [e_v (v_bit (w2v:word48 -> bool list 0w,48))]) )]
+                   )]``;
 
 (* TODO: Make syntax functions *)
 val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
@@ -349,9 +364,37 @@ EVAL ``arch_exec ((^vss_actx):vss_ascope actx) (^init_astate)``;
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 87;
+val nsteps = 223;
 val astate = init_astate;
 val actx = vss_actx;
+
+*)
+
+(*
+
+val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
+
+val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
+
+(********** Nested exec sems ***********)
+
+(* NOTE: For debugging frames_exec *)
+val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
+
+(* NOTE: New g_scope_list from scopes_to_pass, use to debug stmt_exec *)
+val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "start") ^func_map ^b_func_map ^g_scope_list``;
+
+(* NOTE: For debugging stmt_exec (top element of frame list) *)
+val frame_list = ``[(funn_ext "packet_out" "emit",
+      [stmt_seq stmt_ext (stmt_ret (e_v v_bot))],
+      [[(varn_name "this",v_ext_ref 0,NONE);
+        (varn_name "data",
+         v_header T
+           [("dstAddr",v_bit (w2v:word48 -> bool list 1w,48)); ("srcAddr",v_bit (w2v:word48 -> bool list 0w,48));
+            ("etherType",v_bit (w2v:word16 -> bool list 2048w,16))],NONE)]])]:frame_list``;
+
+(* stmt_exec test: *)
+val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
 
 *)
 
@@ -449,92 +492,25 @@ eval_and_print_aenv vss_actx init_astate 78;
 eval_and_print_rest vss_actx init_astate 79;
 
 (* arch_control_exec: *)
-eval_and_print_rest vss_actx init_astate 127;
+eval_and_print_rest vss_actx init_astate 153;
 
-(*
-
-val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
-
-EVAL ``EL (^i) (^ab_list)``;
-
-val x = ``"pipe"``;
-val el = ``[e_var (varn_name "headers"); e_var (varn_name "parseError");
-            e_var (varn_name "inCtrl"); e_var (varn_name "outCtrl")]``;
-
-EVAL ``ALOOKUP (^pblock_map) (^x)``;
-
-val x_d_list = ``[("headers",d_inout); ("parseError",d_in); ("inCtrl",d_in);
-                  ("outCtrl",d_out)]``;
-val pbl_type = ``pbl_type_control``;
-
-EVAL ``LENGTH (^el) = LENGTH (^x_d_list)``;
-val frame_list = dest_arch_frame_list_regular arch_frame_list;
-EVAL ``state_fin_exec ^status ^frame_list``;
-
-val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
-
-
-(********** Nested exec sems ***********)
-
-(* NOTE: For debugging frames_exec *)
-val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
-
-(* NOTE: New g_scope_list from scopes_to_pass, use to debug stmt_exec *)
-val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "start") ^func_map ^b_func_map ^g_scope_list``;
-
-(* NOTE: For debugging stmt_exec *)
-val frame_list = ``[(funn_name "pipe", [stmt_app "ipv4_match" [e_v (v_bit (w2v:word32 -> bool list 0w,32))]], [[]]:scope list)]``;
-
-(* stmt_exec test: *)
-val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
-
-EVAL ``index_not_const [e_v (v_bit (w2v:word32 -> bool list 0w,32))]``
-
-EVAL ``ALOOKUP ^tbl_map "ipv4_match"``
-
-EVAL ``LENGTH [mk_lpm] = LENGTH [e_v (v_bit (w2v:word32 -> bool list 0w,32))]``
-
-
-EVAL ``^apply_table_f ("ipv4_match", [e_v (v_bit (w2v:word32 -> bool list 0w,32))], [mk_lpm], ("NoAction", []), ^scope)``
-
-EVAL ``e_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) ^g_scope_list' [[]; []] (e_select
-                (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")
-                [(v_bit (w2v 2048w,16),"parse_ipv4")] "reject")``
-
-EVAL ``is_v (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")``
-
-EVAL ``e_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) ^g_scope_list' [[]; []] (e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType")``
-
-EVAL ``is_v (e_acc (e_var (varn_name "p")) "ethernet")``
-
-EVAL ``e_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) ^g_scope_list' [[]; []] (e_acc (e_var (varn_name "p")) "ethernet")``
-
-EVAL ``is_v (e_var (varn_name "p"))``
-
-
-
-EVAL ``assign (^g_scope_list') v_bot (lval_varname (varn_star (funn_inst "Checksum16")))``
-
-
-*)
-
-(* arch_control_ret: outCtrl written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 147;
+(* arch_pbl_ret: outCtrl written to arch scope *)
+eval_and_print_aenv vss_actx init_astate 154;
 
 (* arch_ffbl: pre-Deparser *)
-eval_and_print_aenv vss_actx init_astate 148;
+eval_and_print_aenv vss_actx init_astate 155;
 
-(* arch_control_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 149;
+(* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
+eval_and_print_rest vss_actx init_astate 156;
 
-(* arch_control_exec *)
-eval_and_print_rest vss_actx init_astate 208;
+(* arch_pbl_exec *)
+eval_and_print_rest vss_actx init_astate 222;
 
-(* arch_control_ret: p written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 209;
+(* arch_pbl_ret: p written to arch scope *)
+eval_and_print_aenv vss_actx init_astate 223;
 
 (* arch_out: output read into output stream *)
-eval_and_print_aenv vss_actx init_astate 210;
+eval_and_print_aenv vss_actx init_astate 224;
 
 (* TODO: Fix up the below and add to CI *)
 (*
