@@ -118,32 +118,45 @@ Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
 fs [e_exec] >>
-Cases_on `e_exec_acc (e_acc e x)` >> (
+Cases_on `is_v e` >> (
  fs []
-) >>
-Cases_on `e` >> (
- fs [is_v]
-) >>
-Cases_on `v` >> (
- fs [e_exec_acc]
-) >> (
- Cases_on `FIND (\(k,v). k = x) l` >> (
+) >| [
+ Cases_on `e_exec_acc (e_acc e x)` >> (
   fs []
  ) >>
- PairCases_on `x''` >>
- fs [] >>
- rw []
-) >| [
- irule ((valOf o find_clause_e_red) "e_s_acc"),
+ Cases_on `e` >> (
+  fs [is_v]
+ ) >>
+ Cases_on `v` >> (
+  fs [e_exec_acc]
+ ) >> (
+  Cases_on `FIND (\(k,v). k = x) l` >> (
+   fs []
+  ) >>
+  PairCases_on `x''` >>
+  fs [] >>
+  rw []
+ ) >| [
+  irule ((valOf o find_clause_e_red) "e_s_acc"),
 
- irule ((valOf o find_clause_e_red) "e_h_acc")
-] >> (
- fs [clause_name_def, FIND_def] >>
- Cases_on `z` >>
- IMP_RES_TAC index_find_first >>
- Cases_on `r` >>
- fs []
-)
+  irule ((valOf o find_clause_e_red) "e_h_acc")
+ ] >> (
+  fs [clause_name_def, FIND_def] >>
+  Cases_on `z` >>
+  IMP_RES_TAC index_find_first >>
+  Cases_on `r` >>
+  fs []
+ ),
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e` >- (
+  fs []
+ ) >>
+ Cases_on `x'` >>
+ fs [] >>
+ rw [] >>
+ irule ((valOf o find_clause_e_red) "e_acc_arg1") >>
+ fs [clause_name_def]
+]
 QED
 
 Theorem e_binop_exec_sound_red:

@@ -13,15 +13,26 @@ open finite_mapSyntax;
 (* Simpset fragment containing a conversion keyed on bitvectors that will
  * rewrite bool lists as the v2w of the corresponding word *)
 local
+fun vector_without_ARBs vector =
+ not (exists (fn el => boolSyntax.is_arb el) (fst $ listSyntax.dest_list vector))
+;
+
 fun to_bitv_word_form bitv =
-  let
-    val (vector, width) = pairSyntax.dest_pair bitv
+ let
+   val (vector, width) = pairSyntax.dest_pair bitv
+ in
+  if vector_without_ARBs vector
+  then
+   let
     val word = wordsSyntax.mk_wordi (bitstringSyntax.num_of_term vector, numSyntax.int_of_term width)
     val bitv_word = bitstringSyntax.mk_w2v word
     val bitv' = pairSyntax.mk_pair (bitv_word, width)
-  in
+   in
     bitv'
-  end
+   end
+  else
+   raise UNCHANGED
+ end
 ;
 
 fun to_bitv_word_form_conv bitv =

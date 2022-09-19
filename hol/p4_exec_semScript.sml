@@ -264,14 +264,11 @@ val e_exec = TotalDefn.tDefine "e_exec" `
    (case e_exec_acc (e_acc e_v_struct x) of
     | SOME v => SOME (v, [])
     | NONE => NONE)
-  else NONE)
-(* TODO: What happens if one tries to access a field in an expression struct?
    else
     (case e_exec ctx g_scope_list scope_list e_v_struct of
      | SOME (e_v_struct', frame_list) =>
       SOME (e_acc e_v_struct' x, frame_list)
      | NONE => NONE))
-*)
   /\
  (******************************)
  (* Struct/header field reduction *)
@@ -529,10 +526,10 @@ Definition stmt_exec:
      | NONE => NONE)
    | NONE =>
     (case ALOOKUP tbl_map t_name of
-     | SOME mk_l =>
+     | SOME (mk_l, (default_f, default_f_args)) =>
       (if LENGTH mk_l = LENGTH e_l
        then
-        (case apply_table_f (t_name, e_l, mk_l, ascope) of
+        (case apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) of
          | SOME (f, f_args) =>
           (if is_consts_exec f_args
            then
@@ -712,10 +709,16 @@ rpt strip_tac >| [
 
   Cases_on `is_v e` >> (
    fs []
+  ) >- (
+   Cases_on `e_exec_acc (e_acc e s)` >> (
+    fs []
+   )
   ) >>
-  Cases_on `e_exec_acc (e_acc e s)` >> (
+  Cases_on `e_exec ctx g_scope_list scope_list e` >> (
    fs []
-  ),
+  ) >>
+  PairCases_on `x` >>
+  fs [],
 
   Cases_on `is_v e` >> (
    fs []
@@ -830,9 +833,19 @@ rpt strip_tac >| [
  ],
 
  (* Access *)
- Cases_on `e_exec_acc (e_acc e_v_struct x)` >> (
+ Cases_on `is_v e_v_struct` >> (
   fs []
- ),
+ ) >| [
+  Cases_on `e_exec_acc (e_acc e_v_struct x)` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e_v_struct` >> (
+   fs []
+  ) >>
+  PairCases_on `x'` >>
+  fs []
+ ],
 
  (* Select *)
  Cases_on `is_v e` >> (
@@ -1177,8 +1190,8 @@ Theorem exec_stmt_app_SOME_REWRS:
 !apply_table_f ext_map func_map b_func_map pars_map tbl_map ascope ascope' g_scope_list g_scope_list' funn t_name e_l stmt_stack frame_list' scope_list status'.
 stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, (stmt_app t_name e_l)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
- (index_not_const e_l = NONE  ==> ?mk_l f f_args. ALOOKUP tbl_map t_name = SOME mk_l /\
-                       apply_table_f (t_name, e_l, mk_l, ascope) = SOME (f, f_args) /\
+ (index_not_const e_l = NONE  ==> ?mk_l f f_args default_f default_f_args. ALOOKUP tbl_map t_name = SOME (mk_l, (default_f, default_f_args)) /\
+                       apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
                        is_consts_exec f_args /\
                        LENGTH mk_l = LENGTH e_l /\
                        frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scope_list)]) /\
@@ -1197,10 +1210,12 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  Cases_on `ALOOKUP tbl_map t_name` >> (
   fs []
  ) >>
- Cases_on `apply_table_f (t_name,e_l,x,ascope)` >> (
+ PairCases_on `x` >>
+ fs [] >>
+ Cases_on `apply_table_f (t_name,e_l,x0,(x1,x2),ascope)` >> (
   fs []
  ) >>
- PairCases_on `x'` >> (
+ PairCases_on `x` >> (
   fs []
  ) >>
  metis_tac [],
@@ -1208,23 +1223,24 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
   fs []
  ) >>
- PairCases_on `x'` >> (
-  fs []
- ) >>
+ PairCases_on `x'` >>
+ fs [] >>
  metis_tac [],
 
  Cases_on `ALOOKUP tbl_map t_name` >> (
   fs []
  ) >>
- Cases_on `apply_table_f (t_name,e_l,x,ascope)` >> (
-  fs []
- ) >>
- PairCases_on `x'` >>
+ PairCases_on `x` >>
  fs [] >>
- Cases_on `LENGTH x = LENGTH e_l` >> (
+ Cases_on `apply_table_f (t_name,e_l,x0,(x1,x2),ascope)` >> (
   fs []
  ) >>
- Cases_on `is_consts_exec x'1` >> (
+ PairCases_on `x` >>
+ fs [] >>
+ Cases_on `LENGTH x0 = LENGTH e_l` >> (
+  fs []
+ ) >>
+ Cases_on `is_consts_exec x1'` >> (
   fs []
  ) >>
  metis_tac [],
@@ -2280,6 +2296,73 @@ End
 (*  Architectural-level semantics  *)
 (***********************************)
 
+Definition state_fin_exec_def:
+ state_fin_exec status frame_list =
+  case frame_list of
+  | [(funn, [stmt_empty], scope_list)] =>
+   (case status of
+    | status_trans x =>
+     if x = "accept" \/ x = "reject"
+     then T
+     else F
+    | _ => T)
+  | _ =>
+   (case status of
+    | status_returnv v => T
+    | status_trans x =>
+     if x = "accept" \/ x = "reject"
+     then T
+     else F
+    | _ => F)
+End
+
+Theorem state_fin_exec_equiv:
+!status frame_list:frame_list.
+ state_fin_exec status frame_list <=> state_fin status frame_list
+Proof
+fs [state_fin_def, state_fin_exec_def] >>
+Cases_on `frame_list` >> (
+ fs []
+) >- (
+ Cases_on `status` >> (
+  fs []
+ )
+) >>
+Cases_on `t` >> (
+ fs []
+) >- (
+ PairCases_on `h` >>
+ fs [] >>
+ Cases_on `h1` >> (
+  fs []
+ ) >- (
+  Cases_on `status` >> (
+   fs []
+  )
+ ) >>
+ Cases_on `h` >> (
+  fs []
+ ) >- (
+  Cases_on `t` >> (
+   fs []
+  ) >> (
+   Cases_on `status` >> (
+    fs []
+   )
+  ) >- (
+   metis_tac []
+  )
+ ) >> (
+  Cases_on `status` >> (
+   fs []
+  )
+ )
+) >>
+Cases_on `status` >> (
+ fs []
+)
+QED
+
 (* TODO: Outsource the stuff that causes too many case splits to other functions
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
 val arch_exec_def = Define `
@@ -2292,13 +2375,13 @@ val arch_exec_def = Define `
       (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
       (if LENGTH el = LENGTH x_d_list
        then
-        if state_fin status frame_list
+        if state_fin_exec status frame_list
         then
          (* pbl_ret *)
          (* TODO: OK to only copy out from block-global scope here? *)
          (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, pbl_type, set_fin_status pbl_type status) of
           | SOME scope' =>
-           SOME ((i+1, in_out_list, in_out_list', scope'), TAKE 1 g_scope_list,
+           SOME ((i+1, in_out_list, in_out_list', scope'), LASTN 1 g_scope_list,
                  arch_frame_list_empty, status_running)
           | _ => NONE)
         else
@@ -2344,15 +2427,15 @@ val arch_exec_def = Define `
        then
         (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope, pbl_type) of
          | SOME scope' =>
-          (case oEL 0 g_scope_list of
-           | SOME g_scope =>
-            let g_scope_list' = (g_scope::[declare_list_in_scope (decl_list, scope')]) in
-             (case initialise_var_stars func_map b_func_map g_scope_list' of
+          (case oLASTN 1 g_scope_list of
+           | SOME [g_scope] =>
+            let g_scope_list' = ([declare_list_in_scope (decl_list, scope')]++[g_scope]) in
+             (case initialise_var_stars func_map b_func_map ext_map g_scope_list' of
               | SOME g_scope_list'' =>
                SOME ((i, in_out_list, in_out_list', scope), g_scope_list'',
                      arch_frame_list_regular [(funn_name x, [stmt], [ [] ])], status_running)
               | NONE => NONE)
-           | NONE => NONE)
+           | _ => NONE)
          | _ => NONE)
        else NONE)
      | _ => NONE)

@@ -3,7 +3,7 @@ struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open stringSyntax optionSyntax pairSyntax finite_mapSyntax
+open stringSyntax optionSyntax pairSyntax listSyntax
      wordsSyntax numSyntax bitstringSyntax;
 open p4Theory;
 
@@ -232,10 +232,22 @@ val d_ty = mk_type ("d", []);
 
 val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy="p4"};
 
-val scope_ty = mk_fmap_ty (varn_ty, mk_prod (v_ty, mk_option lval_ty));
+val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 
+(********)
+(* Arch *)
+(********)
+
+val (arch_block_pbl_tm,  mk_arch_block_pbl, dest_arch_block_pbl, is_arch_block_pbl) =
+  syntax_fns2 "p4" "arch_block_pbl";
+
+val (pblock_regular_tm,  mk_pblock_regular, dest_pblock_regular, is_pblock_regular) =
+  syntax_fns7 "p4" "pblock_regular";
+
+val (arch_frame_list_regular_tm,  mk_arch_frame_list_regular, dest_arch_frame_list_regular, is_arch_frame_list_regular) =
+  syntax_fns1 "p4" "arch_frame_list_regular";
 
 (**************)
 (* Reductions *)

@@ -2,7 +2,7 @@ open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_aux";
 
-open listTheory;
+open listTheory rich_listTheory;
 
 open p4Theory;
 
@@ -14,6 +14,44 @@ val oCONS_def = Define `
   NONE
  )
 `;
+
+val oLASTN_def = Define `
+ (oLASTN n l =
+  case oTAKE n (REVERSE l) of
+  | SOME l' => SOME (REVERSE l')
+  | NONE => NONE)
+`;
+
+Theorem oTAKE_imp_TAKE:
+!i l l'.
+oTAKE i l = SOME l' ==>
+TAKE i l = l'
+Proof
+Induct_on `i` >> (
+ fs [oTAKE_def]
+) >>
+rpt strip_tac >>
+Cases_on `l` >> (
+ fs [oTAKE_def, TAKE_def]
+) >>
+Cases_on `oTAKE i t` >> (
+ fs []
+) >>
+metis_tac []
+QED
+
+Theorem oLASTN_imp_LASTN:
+!i l l'.
+oLASTN i l = SOME l' ==>
+LASTN i l = l'
+Proof
+rpt strip_tac >>
+fs [LASTN_def, oLASTN_def] >>
+Cases_on `oTAKE i (REVERSE l)` >> (
+ fs []
+) >>
+metis_tac [oTAKE_imp_TAKE]
+QED
 
 Theorem oTAKE_SOME:
 !i l l'.

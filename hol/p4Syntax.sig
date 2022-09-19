@@ -194,6 +194,22 @@ val scope_ty : hol_type
 
 val status_running_tm : term
 
+val arch_block_pbl_tm : term
+val dest_arch_block_pbl : term -> term * term
+val is_arch_block_pbl : term -> bool
+val mk_arch_block_pbl : term * term -> term
+
+val dest_pblock_regular :
+   term -> term * term * term * term * term * term * term
+val is_pblock_regular : term -> bool
+val mk_pblock_regular :
+   term * term * term * term * term * term * term -> term
+val pblock_regular_tm : term
+
+val arch_frame_list_regular_tm : term
+val dest_arch_frame_list_regular : term -> term
+val is_arch_frame_list_regular : term -> bool
+val mk_arch_frame_list_regular : term -> term
 
 val dest_e_red : term -> term * term * term * term * term * term
 val e_red_tm : term

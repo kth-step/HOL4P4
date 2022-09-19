@@ -51,10 +51,16 @@ Cases_on `arch_frame_list` >> (
   Cases_on `copyin_pbl (MAP FST l',MAP SND l',l,ascope,p)` >> (
    fs []
   ) >>
-  Cases_on `oEL 0 g_scope_list` >> (
+  Cases_on `oLASTN 1 g_scope_list` >> (
    fs []
   ) >>
-  Cases_on `initialise_var_stars func_map l0 [x'; declare_list_in_scope (l1,x)]` >> (
+  Cases_on `x'` >> (
+   fs []
+  ) >>
+  Cases_on `t` >> (
+   fs []
+  ) >>
+  Cases_on `initialise_var_stars func_map l0 ext_map [declare_list_in_scope (l1,x); h]` >> (
    fs []
   ) >>
   rw [] >>
@@ -65,7 +71,8 @@ Cases_on `arch_frame_list` >> (
   rpt strip_tac >| [
    fs [map_tri_zip12],
 
-   gs [listTheory.oEL_EQ_EL],
+   gs [listTheory.oEL_EQ_EL] >>
+   metis_tac [oLASTN_imp_LASTN],
 
    fs [map_tri_zip12, ZIP_MAP_FST_SND],
 
@@ -112,7 +119,7 @@ Cases_on `arch_frame_list` >> (
    fs []
   ) >>
   Cases_on `x` >>
-  fs [state_fin_def] >>
+  fs [state_fin_exec_def] >>
   Cases_on `copyout_pbl
              (g_scope_list,ascope,MAP SND l',MAP FST l',p,
               set_fin_status p status_running)` >> (
@@ -131,7 +138,7 @@ Cases_on `arch_frame_list` >> (
   ],
 
   (* programmable block execution *)
-  fs [state_fin_def, arch_exec_def] >>
+  fs [GSYM state_fin_exec_equiv, arch_exec_def] >>
   Cases_on `EL i ab_list` >> (
    fs []
   ) >>
@@ -139,7 +146,7 @@ Cases_on `arch_frame_list` >> (
    fs []
   ) >>
   Cases_on `x` >>
-  fs [state_fin_def] >>
+  fs [state_fin_exec_equiv, state_fin_def] >>
   Cases_on `frames_exec (apply_table_f,ext_map,func_map,l0,l2,l3)
              (ascope,g_scope_list,l,status_running)` >> (
    fs []
@@ -193,6 +200,7 @@ Cases_on `arch_frame_list` >> (
   fs []
  ) >>
  Cases_on `x` >>
+ fs [state_fin_exec_equiv] >>
  Cases_on `state_fin (status_trans s) l` >> (
   fs []
  ) >| [
