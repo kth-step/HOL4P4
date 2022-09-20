@@ -219,10 +219,10 @@ Definition vss_reduce_nonout_def:
       | SOME v =>
        if is_d_in d
        then oCONS (e_v v, vss_reduce_nonout (dlist, elist, v_map))
-       else oCONS (e_v (init_out_v v), vss_reduce_nonout (dlist, elist, v_map))
-       
+       else oCONS (e_v (init_out_v v), vss_reduce_nonout (dlist, elist, v_map))       
       | _ => NONE)
-    | _ => NONE))
+    | _ => NONE)) /\
+ (vss_reduce_nonout (_, _, v_map) = NONE)
 End
 
 (* TODO: Remove these and keep "v_map" as just a regular scope? *)

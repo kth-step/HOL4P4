@@ -14,9 +14,11 @@ open alistTheory;
 
 (* This file includes complete test runs of the VSS example in the P4 spec. *)
 
-(******************)
-(*   Input data   *)
-(******************)
+(*********************)
+(*   Input packets   *)
+(*********************)
+
+(* TODO: Currently the input is Ethernet frames *)
 
 val input_port_ok = ``1:num``;
 
@@ -165,79 +167,6 @@ val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.d
 *)
 
 (* TODO: Make "exec arch block" function *)
-
-fun eval_and_print_result actx astate nsteps =
- optionSyntax.dest_some $ rhs $ concl $ (fn thm => REWRITE_RULE [(SIMP_CONV (pure_ss++p4_v2w_ss) [] (rhs $ concl thm))] thm) $ EVAL ``arch_multi_exec ((^actx):vss_ascope actx) (^astate) ^(term_of_int nsteps)``;
-
-(* Used for steps where architecture changes state *)
-fun eval_and_print_aenv actx astate nsteps =
- el 1 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
-
-(* Used for steps inside programmable blocks *)
-fun eval_and_print_rest actx astate nsteps =
- el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
-
-fun dest_astate astate =
- let
-  val (aenv, astate') = dest_pair astate
-  val (g_scope_list, astate'') = dest_pair astate'
-  val (arch_frame_list, status) = dest_pair astate''
- in
-  (aenv, g_scope_list, arch_frame_list, status)
- end
-;
-
-fun dest_vss_aenv aenv =
- let
-  val (i, aenv') = dest_pair aenv
-  val (in_out_list, aenv'') = dest_pair aenv'
-  val (in_out_list', ascope) = dest_pair aenv''
- in
-  (i, in_out_list, in_out_list', ascope)
- end
-;
-
-fun dest_vss_actx actx =
- let
-  val (ab_list, actx') = dest_pair actx
-  val (pblock_map, actx'') = dest_pair actx'
-  val (ffblock_map, actx''') = dest_pair actx''
-  val (input_f, actx'''') = dest_pair actx'''
-  val (output_f, actx''''') = dest_pair actx''''
-  val (copyin_pbl, actx'''''') = dest_pair actx'''''
-  val (copyout_pbl, actx''''''') = dest_pair actx''''''
-  val (apply_table_f, actx'''''''') = dest_pair actx'''''''
-  val (ext_map, func_map) = dest_pair actx''''''''
- in
-  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
- end
-;
-
-fun debug_arch_from_step actx astate nsteps =
- let
-  val astate' = eval_and_print_result actx astate nsteps
-  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
-(*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
-(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
- in
-  (dest_vss_actx actx, (dest_vss_aenv aenv, g_scope_list, arch_frame_list, status))
- end
-;
-
-(* Note that this presupposes execution is inside a programmable block *)
-fun debug_frames_from_step actx astate nsteps =
- let
-  val astate' = eval_and_print_result actx astate nsteps
-  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
-  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv
-  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx
-  val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
-  val (pbl_type, x_d_list, b_func_map, decl_list, stmt, pars_map, tbl_map) = dest_pblock_regular $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
-  val frame_list = dest_arch_frame_list_regular arch_frame_list
- in
-  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
- end
-;
 
 (* arch_in: input read into b, data_crc and inCtrl *)
 eval_and_print_aenv vss_actx init_astate 1;

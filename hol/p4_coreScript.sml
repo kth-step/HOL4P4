@@ -34,7 +34,8 @@ Definition min_size_in_bits:
     | NONE => NONE
    )
   | _ => NONE
- )
+ ) /\
+ (min_size_in_bits _ = NONE)
 End
 
 Definition min_size_in_bytes:

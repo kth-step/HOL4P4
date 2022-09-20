@@ -2,7 +2,9 @@ structure p4_testLib :> p4_testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open wordsSyntax bitstringSyntax listSyntax numSyntax;
+open pairSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
+
+open p4Syntax testLib;
 
 (* This file contains functions that are useful when creating P4 tests *)
 
@@ -58,7 +60,7 @@ fun get_ipv4_checksum (version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, src, ds
 (* Creates a bitstring representation of an IPv4 packet, given the
  * bitstring representation of the payload and the
  * time-to-live number *)
-(* TODO: Options field *)
+(* TODO: Options field is currently always zero *)
 fun mk_ipv4_packet_ok data ttl =
   let
     (* IP version - always set to 4 for IPv4 *)
@@ -99,7 +101,7 @@ fun mk_ipv4_packet_ok data ttl =
 
 (* Creates a bitstring representation of an Ethernet frame, given
  * the bitstring representation of the payload (assumed to be IP). *)
-fun mk_eth_frame_ok data  =
+fun mk_eth_frame_ok data =
   let
     (* Destination MAC address - TODO *)
     val src = fixedwidth_of_int (0, 48);
@@ -113,5 +115,80 @@ fun mk_eth_frame_ok data  =
     rhs $ concl $ EVAL $ list_mk_append [src, dst, ty, data, crc]
   end
 ;
+
+
+fun eval_and_print_result actx astate nsteps =
+ optionSyntax.dest_some $ rhs $ concl $ (fn thm => REWRITE_RULE [(SIMP_CONV (pure_ss++p4_v2w_ss) [] (rhs $ concl thm))] thm) $ EVAL ``arch_multi_exec ((^actx):vss_ascope actx) (^astate) ^(term_of_int nsteps)``;
+
+(* Used for steps where architecture changes state *)
+fun eval_and_print_aenv actx astate nsteps =
+ el 1 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+(* Used for steps inside programmable blocks *)
+fun eval_and_print_rest actx astate nsteps =
+ el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+fun dest_astate astate =
+ let
+  val (aenv, astate') = dest_pair astate
+  val (g_scope_list, astate'') = dest_pair astate'
+  val (arch_frame_list, status) = dest_pair astate''
+ in
+  (aenv, g_scope_list, arch_frame_list, status)
+ end
+;
+
+fun dest_vss_aenv aenv =
+ let
+  val (i, aenv') = dest_pair aenv
+  val (in_out_list, aenv'') = dest_pair aenv'
+  val (in_out_list', ascope) = dest_pair aenv''
+ in
+  (i, in_out_list, in_out_list', ascope)
+ end
+;
+
+fun dest_vss_actx actx =
+ let
+  val (ab_list, actx') = dest_pair actx
+  val (pblock_map, actx'') = dest_pair actx'
+  val (ffblock_map, actx''') = dest_pair actx''
+  val (input_f, actx'''') = dest_pair actx'''
+  val (output_f, actx''''') = dest_pair actx''''
+  val (copyin_pbl, actx'''''') = dest_pair actx'''''
+  val (copyout_pbl, actx''''''') = dest_pair actx''''''
+  val (apply_table_f, actx'''''''') = dest_pair actx'''''''
+  val (ext_map, func_map) = dest_pair actx''''''''
+ in
+  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
+ end
+;
+
+fun debug_arch_from_step actx astate nsteps =
+ let
+  val astate' = eval_and_print_result actx astate nsteps
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+(*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
+ in
+  (dest_vss_actx actx, (dest_vss_aenv aenv, g_scope_list, arch_frame_list, status))
+ end
+;
+
+(* Note that this presupposes execution is inside a programmable block *)
+fun debug_frames_from_step actx astate nsteps =
+ let
+  val astate' = eval_and_print_result actx astate nsteps
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv
+  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx
+  val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
+  val (pbl_type, x_d_list, b_func_map, decl_list, stmt, pars_map, tbl_map) = dest_pblock_regular $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
+  val frame_list = dest_arch_frame_list_regular arch_frame_list
+ in
+  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
+ end
+;
+
 
 end
