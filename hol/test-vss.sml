@@ -327,7 +327,8 @@ val init_ctrl = ``[("ipv4_match",
                     (* IPv4 matching maps IP destination address to
                      * a next hop IPv4 address and output port *)
                     [( [e_v (v_bit (w2v:word32 -> bool list 0w,32))],
-                       ("Set_nhop", [e_v (v_bit (w2v:word32 -> bool list 1w,32)); e_v (v_bit (w2v:word4 -> bool list 0w,4))]) )]
+                       ("Set_nhop", [e_v (v_bit (w2v:word32 -> bool list 1w,32));
+                                     e_v (v_bit (w2v:word4 -> bool list 0w,4))]) )]
                    );
                    ("dmac",
                     (* Destination MAC addess is computed from next hop IPv4 address *)

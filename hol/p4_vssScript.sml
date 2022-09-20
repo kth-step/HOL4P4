@@ -161,44 +161,48 @@ End
 (*                     MODEL-SPECIFIC                     *)
 (**********************************************************)
 
-(* TODO: This should arbitrate between different ports, taking a list of lists of input *)
-(* NOTE: the model starts out at the data link layer *)
-(* https://en.wikipedia.org/wiki/Ethernet_frame#Frame_%E2%80%93_data_link_layer *)
-(* 1. Read into header to determine size of packet *)
-(*    Technically, you would look into EtherType first, to determine
- *    whether it is used for payload size or protocol ID.
- *    We always have IPv4, so need to look into IPv4 header.
- *    Also, no 802.1Q tag is assumed. This would have been known
- *    from the bits normally forming the EtherType field having the
- *    value 0x8100 instead of 0x8000 (IPv4). *)
-(* 2. Remove data + Ethernet CRC *)
-(* 3. Put the rest of the header into the input extern object *)
-(* TODO: Also take different values of IHL into account *)
-(* Length of both headers 112+160=272 (IHL=5 assumed) *)
-(* TODO: Make smarter extract function for getting total_length *)
-(* let total_length = (v2n (REVERSE (TAKE 16 (REVERSE (TAKE 144 h)))))*8 in *)
+Definition get_optional_bits:
+ get_optional_bits header = ((v2n (TAKE 4 (DROP 116 header)))*32) - 160
+End
+
+(* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
+(* NOTE: VSS example starts out at the data link layer (physical layer ignored):
+ * https://en.wikipedia.org/wiki/Ethernet_frame#Frame_%E2%80%93_data_link_layer *)
+(* NOTE: VSS example uses only Ethernet II framing:
+ * https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II *)
+
+(* The first 14 bytes are always the Eth-II header.
+ * The last 4 bytes are always the CRC checksum.
+ * In between these is the IPv4 payload. The first 16 bytes
+ * of this are mandatory fields. Depending on the IHL header
+ * field, 0-46 bytes of option field follows. *)
 (* NOTE: "b" renamed to "b_in" *)
 Definition vss_input_f_def:
   (vss_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
    case io_list of
    | [] => NONE
    | ((bl,p)::t) =>
-    (* TODO: Use oTAKE *)
-    let header = TAKE 272 bl in
-    (* TODO: Use oLASTN? *)
-    let data_crc = REVERSE (DROP 272 (REVERSE bl)) in
-    (case ALOOKUP v_map "b_in" of
-     | SOME (v_ext_ref i) =>
-      let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet_in header)) in
-      (case ALOOKUP v_map "data_crc" of
-       | SOME (v_ext_ref i') =>
-        let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet_out data_crc)) in
-         (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
-          * function for vss_ascope. *)
-         let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",(v_bit (w4 (n2w p))))]) in
-          SOME (t, (counter, ext_obj_map'', v_map', ctrl):vss_ascope)
-       | _ => NONE)
-     | _ => NONE))
+    let frame_length = LENGTH bl in
+    let optional_bits = get_optional_bits bl in
+    (case oTAKE (272+optional_bits) bl of
+     | SOME header =>
+      (case oDROP (272+optional_bits) bl of
+       | SOME data_crc =>
+        (case ALOOKUP v_map "b_in" of
+         | SOME (v_ext_ref i) =>
+          let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet_in header)) in
+          (case ALOOKUP v_map "data_crc" of
+           | SOME (v_ext_ref i') =>
+            let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet_out data_crc)) in
+             (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
+              * function for vss_ascope. *)
+             let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",(v_bit (w4 (n2w p))))]) in
+              SOME (t, (counter, ext_obj_map'', v_map', ctrl):vss_ascope)
+           | _ => NONE)
+         | _ => NONE)
+       | NONE => NONE)
+     | NONE => NONE)
+   | _ => NONE)
 End
 
 Definition vss_reduce_nonout_def:
