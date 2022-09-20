@@ -86,6 +86,8 @@ val (v_bit_tm, mk_v_bit, dest_v_bit, is_v_bit) =
   syntax_fns1 "p4" "v_bit";
 fun mk_v_bitii (num, width) =
   mk_v_bit (mk_pair (mk_w2v $ mk_wordii (num, width), term_of_int width));
+fun mk_v_biti_arb width =
+  mk_v_bit (mk_pair (mk_list (List.tabulate (width, (fn w => (inst[Type.alpha |-> bool] arb))), bool), term_of_int width));
 
 val (v_bool_tm, mk_v_bool, dest_v_bool, is_v_bool) =
   syntax_fns1 "p4" "v_bool";
@@ -97,7 +99,7 @@ val mk_v_str = (#2 (syntax_fns1 "p4" "v_str")) o fromMLstring;
 val (v_struct_tm, mk_v_struct, dest_v_struct, is_v_struct) =
   syntax_fns1 "p4" "v_struct";
 fun mk_v_struct_list x_v_l =
-  mk_v_struct (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v) ``));
+  mk_v_struct (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v)``));
 
 val (v_header_tm, mk_v_header, dest_v_header, is_v_header) =
   syntax_fns2 "p4" "v_header";
