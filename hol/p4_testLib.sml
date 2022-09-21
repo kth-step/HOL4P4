@@ -56,6 +56,9 @@ fun get_ipv4_checksum (version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, src, ds
   end
 ;
 
+fun fixedwidth_freevars (fname, width) =
+ mk_list (List.tabulate (width, (fn index => mk_var (fname^(Int.toString index), bool))), bool)
+;
 
 (* Creates a bitstring representation of an IPv4 packet, given the
  * bitstring representation of the payload and the
@@ -69,31 +72,31 @@ fun mk_ipv4_packet_ok data ttl =
      * Minimum is 5. *)
     val ihl = fixedwidth_of_int (5, 4);
     (* DSCP - ignored, for now. *)
-    val dscp = fixedwidth_of_int (0, 6);
+    val dscp = fixedwidth_freevars ("dscp", 6);
     (* ECN - ignored, for now. *)
-    val ecn = fixedwidth_of_int (0, 2);
+    val ecn = fixedwidth_freevars ("ecn", 2);
     (* Total length - the total length of the packet in bytes, both header and data.
      * Minimum (case no data) is 20. *)
     val data_length = int_of_term $ rhs $ concl $ EVAL (mk_length data);
     val tl = fixedwidth_of_int (20 + data_length, 16);
     (* Identification - ignored, for now. *)
-    val id = fixedwidth_of_int (0, 16);
+    val id = fixedwidth_freevars ("id", 16);
     (* Flags - ignored, for now. *)
-    val fl = fixedwidth_of_int (0, 3);
+    val fl = fixedwidth_freevars ("fl", 3);
     (* Fragment offset - ignored, for now. *)
-    val fo = fixedwidth_of_int (0, 13);
+    val fo = fixedwidth_freevars ("fo", 13);
     (* Time to live - should be non-zero. *)
     val ttl = fixedwidth_of_int (ttl, 8);
     (* Protocol - TODO. *)
-    val pr = fixedwidth_of_int (0, 8);
+    val pr = fixedwidth_freevars ("pr", 8);
     (* Source IP address - TODO *)
-    val src = fixedwidth_of_int (0, 32);
+    val src = fixedwidth_freevars ("src", 32);
     (* Destination IP address - TODO *)
     val dst = fixedwidth_of_int (0, 32);
     (* NOTE: No optional fields here *)
 
     (* Header checksum - calculated from the other header fields.*)
-    val ck = get_ipv4_checksum (version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, src, dst);
+    val ck = fixedwidth_of_int (0, 16);
   in
     rhs $ concl $ EVAL $ list_mk_append [version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, ck, src, dst, data]
   end

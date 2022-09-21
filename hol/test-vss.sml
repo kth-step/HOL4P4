@@ -28,7 +28,7 @@ val input_data_ok = mk_list ([], bool);
 
 (* The simplest IPV4 header that will be judged valid by the example *)
 (* NOTE: This only assigns the version, IHL, total length, ttl and header checksum fields. *)
-val input_ttl_ok = 2; (* NOTE: TTL 1 will be sent to CPU *)
+val input_ttl_ok = 1; (* NOTE: TTL 1 will be sent to CPU *)
 val input_ipv4_ok = mk_ipv4_packet_ok input_data_ok input_ttl_ok;
 
 (* The simplest ethernet frame that will be judged valid by the example *)
@@ -206,3 +206,9 @@ eval_and_print_aenv vss_actx init_astate 194;
 
 (* arch_out: output read into output stream *)
 eval_and_print_aenv vss_actx init_astate 195;
+
+
+(* NOTE: 171 steps for TTL=1 packet to get forwarded to CPU *)
+eval_and_print_rest vss_actx init_astate 171;
+
+GEN_ALL $ EVAL ``arch_multi_exec (^vss_actx) (^init_astate) 171``;
