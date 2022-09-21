@@ -346,24 +346,6 @@ Definition ctrl_check_ttl:
  )
 End
 
-(* OLD:
-val ctrl =
- ``\(table_name, (e_l:e list), (mk_l:mk list)).
-   if table_name = "ipv4_match"
-   then SOME ("Set_nhop",
-              [e_v (v_bit (w2v (42w:word32),32));
-               e_v (v_bit (w2v (2w:word4),4))])
-   else if table_name = "check_ttl"
-   then ctrl_check_ttl (e_l, mk_l)
-   else if table_name = "dmac"
-   then SOME ("Set_dmac",
-              [e_v (v_bit (w2v (2525w:word48),48))])
-   else if table_name = "smac"
-   then SOME ("Set_smac",
-              [e_v (v_bit (w2v (2525w:word48),48))])
-   else NONE``;
-*)
-
 Definition vss_apply_table_f_def:
  vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
