@@ -23,5 +23,6 @@ val vss_copyout_pbl : term
 
 val vss_ext_map : term
 val vss_ffblock_map : term
+val vss_func_map : term
 
 end

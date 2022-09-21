@@ -34,7 +34,8 @@ Definition min_size_in_bits:
     | NONE => NONE
    )
   | _ => NONE
- )
+ ) /\
+ (min_size_in_bits _ = NONE)
 End
 
 Definition min_size_in_bytes:
@@ -162,7 +163,10 @@ Definition flatten_v_l:
  (flatten_v_l [] = SOME []) /\
  (flatten_v_l (h::t) =
   case h of
-  | v_struct [] => SOME []
+  | v_struct [] =>
+   (case flatten_v_l t of
+    | SOME l => SOME l
+    | NONE => NONE)
   | v_struct (h'::t') =>
    (case flatten_v_l [SND h'] of
     | SOME l =>
@@ -170,8 +174,14 @@ Definition flatten_v_l:
       | SOME l' => SOME (l++l')
       | NONE => NONE)
     | NONE => NONE)
-  | v_bit (bl, n) => SOME bl
-  | v_bool b => SOME [b]
+  | v_bit (bl, n) =>
+   (case flatten_v_l t of
+    | SOME l => SOME (bl++l)
+    | NONE => NONE)
+  | v_bool b =>
+   (case flatten_v_l t of
+    | SOME l => SOME (b::l)
+    | NONE => NONE)
   | _ => NONE
  )
 End

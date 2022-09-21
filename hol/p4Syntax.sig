@@ -29,6 +29,7 @@ val mk_v_bit : term -> term
 val v_bit_tm : term
 
 val mk_v_bitii : int * int -> term
+val mk_v_biti_arb : int -> term
 
 val dest_v_bool : term -> term
 val is_v_bool : term -> bool

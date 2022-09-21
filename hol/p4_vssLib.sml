@@ -69,4 +69,6 @@ val vss_ext_map =
         ("packet_out", (NONE, (^packet_out_map)));
 ("Checksum16", SOME (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))])``;
 
+val vss_func_map = core_func_map;
+
 end
