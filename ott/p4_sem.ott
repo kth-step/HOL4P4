@@ -2208,7 +2208,7 @@ by
   not_empty stmt_stack
   scope_list' = tl scope_list
   ----------------------------------- :: block_exit
-  ctx ( ascope , g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list , [ ( funn , stmt_stack , scope_list' ) ] , status )
+  ctx ( ascope , g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scope_list ) ] , status ) -> ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list' ) ] , status )
 
 
 %%%%%%%%%%%%%%
