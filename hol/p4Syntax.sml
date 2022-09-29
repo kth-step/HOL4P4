@@ -70,8 +70,6 @@ val (varn_name_tm,  mk_varn_name, dest_varn_name, is_varn_name) =
 val varn_star_tm = prim_mk_const {Name="varn_star", Thy="p4"};
 fun is_varn_star tm = term_eq tm varn_star_tm;
 
-val varn_ext_ret_tm = prim_mk_const {Name="varn_ext_ret", Thy="p4"};
-fun is_varn_ext_ret tm = term_eq tm varn_ext_ret_tm;
 
 (*****)
 (* v *)
