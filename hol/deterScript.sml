@@ -15,7 +15,7 @@ open ottTheory;
 open pairTheory;
 open rich_listTheory;
 
-val _ = new_theory "p4_determ";
+val _ = new_theory "deter";
 
 (*Tactics*)
 
@@ -140,11 +140,13 @@ val det_framel_def = Define `
 
 (*********Reduction of vars lemmas ************)
 
-val lemma_v_red_forall =
-prove(`` ! c s sl e l fl.
-~ e_red c s sl (e_v (l)) e fl   ``,
+Theorem lemma_v_red_forall:
+! c s sl e l fl.
+~ e_red c s sl (e_v (l)) e fl
+Proof
 RW_TAC (srw_ss()) [Once e_red_cases]
-);
+QED
+
 
 (********* lookup_funn_sig_body eq ************)
 
