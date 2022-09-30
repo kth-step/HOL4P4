@@ -519,16 +519,19 @@ formula :: formula_ ::=
 | tau = topmost ( t_scopes_tup , varn ) :: :: topmost
   {{ tex [[tau]] = \mathrm{topmost} ([[t_scopes_tup]], [[varn]]) }}
   {{ hol SOME [[tau]] =  topmost [[t_scopes_tup]] [[varn]]}}
+| tau = find_star_in_globals ( t_scope_list_g , varn ) :: :: find_star_in_globals
+  {{ tex [[tau]] = \mathrm{find_star_in_globals} ([[t_scope_list_g]], [[varn]]) }}
+  {{ hol SOME [[tau]] =  find_star_in_globals [[t_scope_list_g]] [[varn]]}}
 | [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) :: :: fun_type
 %  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_g]] \cup [[delta_b]] ([[funn]]) }}
   {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) =  t_lookup_funn [[delta_g]] [[delta_b]] [[funn]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] <> unop_neg)) }}
+  {{ hol (([[unop]] <> unop_neg_signed)) }}
   {{ tex [[unop]] \neq \mathit{!} }}
 | is_bool_neg unop :: M :: is_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] = unop_neg)) }}
+  {{ hol (([[unop]] = unop_neg_signed)) }}
   {{ tex [[unop]] \eq \mathit{!} }}
 
 | length ( taul ) = m :: M :: find_t_length
@@ -552,12 +555,12 @@ formula :: formula_ ::=
   {{ tex ([[formula]]\!) }}
   {{ hol ([[formula]]) }}
 |  v_list : ( taul , false )  :: :: type_all_v
-  {{ hol !i. (1<=i /\ i<= LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
+  {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
   {{ tex [[v_list]] : ( [[taul]] , F ) }}
 |  ( v1 , .. , vm ) : ( tau , false )  :: :: type_all_v_one_t
-  {{ hol !i. (1<=i /\ i<= LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) ([[tau]]) F ) }}    
+  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) ([[tau]]) F ) }}    
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
-  {{ hol !i. (1<=i /\ i<= LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
+  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
 | correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau ) :: :: correct_field_type
   {{ hol correct_field_type [[x1 tau1 .. xn taun]] [[x]] [[tau]] }}
 | slice_length_check ( w , bitv' , bitv'' )  :: :: slice_length_check
@@ -567,7 +570,7 @@ formula :: formula_ ::=
 | w = vec_to_const bitv  :: :: vec_to_const
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
-  {{ hol !i. (1<=i /\ i<= LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) (EL i [[b1 .. bo]]) ) }}
+  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) (EL i [[b1 .. bo]]) ) }}
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
   {{ hol ( out_is_lval [[d1 .. dn]] [[b1 .. bm]] ) }}
 | is_bv_op binop :: :: is_bv_op 

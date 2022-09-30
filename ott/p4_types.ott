@@ -181,6 +181,11 @@ val topmost_def = Define `
     t_lookup (t_scope_list++t_scope_list_g) x
 `;
 
+(* find the type of functions return value  *)
+val find_star_in_globals_def = Define `
+  find_star_in_globals (t_scope_list_g:t_scope_list_g) x =
+    t_lookup (t_scope_list_g) x
+`;
 
 
 (* lookup the functions type *)
@@ -316,7 +321,7 @@ ordered (x:funn) y order =
 val WF_o_def = Define `
 (WF_o order) =    (( !(x:funn).   ~ (ordered x x order) ) /\
   		 ( !x y.  ordered x y order ==> ~ordered y x order) /\
-                 ( !x y z. ordered x y order/\ ordered y z order ==> ordered x z order))`;
+       ( !x y z. ordered x y order/\ ordered y z order ==> ordered x z order))`;
 
 
 
@@ -392,9 +397,9 @@ t_scopes_tup T_e |- var varn : ( tau , true )
 
 
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn )
-tau = topmost ( t_scopes_tup , ( star , funn' ) )
+tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 ----------------------------------- :: star
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
+( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
 
 
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
@@ -553,7 +558,7 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  retur
  delta_t ( tbl ) = [ tau1 , .. , taun ]
  t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
 --------------------------------------- :: apply
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-   apply tbl ( e1 , .. , en ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
 
 
 
