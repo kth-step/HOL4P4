@@ -175,34 +175,34 @@ eval_and_print_aenv vss_actx init_astate 1;
 eval_and_print_rest vss_actx init_astate 2;
 
 (* After a number of arch_pbl_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
-eval_and_print_rest vss_actx init_astate 76;
+eval_and_print_rest vss_actx init_astate 63;
 
 (* arch_pbl_ret: parseError and parsedHeaders copied out to arch scope *)
-eval_and_print_aenv vss_actx init_astate 77;
+eval_and_print_aenv vss_actx init_astate 64;
 
 (* arch_ffbl: Parser Runtime *)
-eval_and_print_aenv vss_actx init_astate 78;
+eval_and_print_aenv vss_actx init_astate 65;
 
 (* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 79;
+eval_and_print_rest vss_actx init_astate 66;
 
 (* arch_control_exec: *)
-eval_and_print_rest vss_actx init_astate 153;
+eval_and_print_rest vss_actx init_astate 140;
 
 (* arch_pbl_ret: outCtrl written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 154;
+eval_and_print_aenv vss_actx init_astate 141;
 
 (* arch_ffbl: pre-Deparser *)
-eval_and_print_aenv vss_actx init_astate 155;
+eval_and_print_aenv vss_actx init_astate 142;
 
 (* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 156;
+eval_and_print_rest vss_actx init_astate 143;
 
 (* arch_pbl_exec *)
-eval_and_print_rest vss_actx init_astate 222;
+eval_and_print_rest vss_actx init_astate 193;
 
 (* arch_pbl_ret: p written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 223;
+eval_and_print_aenv vss_actx init_astate 194;
 
 (* arch_out: output read into output stream *)
-eval_and_print_aenv vss_actx init_astate 224;
+eval_and_print_aenv vss_actx init_astate 195;

@@ -47,34 +47,33 @@ Definition min_size_in_bytes:
 End
 
 Definition header_is_valid:
- (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
-   (let scope_list' = initialise scope_list varn_ext_ret (v_bool valid_bit) in
-    SOME (ascope, g_scope_list, scope_list'))
+   SOME (ascope, g_scope_list, scope_list, status_returnv (v_bool valid_bit))
   | _ => NONE
  )
 End
 
 Definition header_set_valid:
- (header_set_valid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (header_set_valid (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign scope_list (v_header T x_v_l) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>
-     SOME (ascope, g_scope_list, scope_list')
+     SOME (ascope, g_scope_list, scope_list', status_returnv v_bot)
     | NONE => NONE)
   | _ => NONE
  )
 End
 
 Definition header_set_invalid:
- (header_set_invalid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (header_set_invalid (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
    (case assign scope_list (v_header F x_v_l) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>             
-     SOME (ascope, g_scope_list, scope_list')
+     SOME (ascope, g_scope_list, scope_list', status_returnv v_bot)
     | NONE => NONE)
   | _ => NONE
  )
@@ -95,7 +94,7 @@ End
 
 Definition update_ascope_gen:
  (update_ascope_gen ascope_update (ascope:'a) (ext_ref:num) (v_ext:(core_v_ext, 'b) sum) =
-  ascope_update ascope ext_ref v_ext
+  (ascope_update ascope ext_ref v_ext):'a
  )
 End
 
@@ -125,7 +124,7 @@ End
 (* TODO: Extend to cover extraction to header stacks *)
 (* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
 Definition packet_in_extract_gen:
- (packet_in_extract_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (packet_in_extract_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case lookup_lval_header scope_list (lval_varname (varn_name "hdr")) of
@@ -140,12 +139,12 @@ Definition packet_in_extract_gen:
            | SOME x_v_l' =>
             (case assign scope_list (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "hdr")) of
              | SOME scope_list' =>
-              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_in (DROP size packet_in_bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list')
+              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_in (DROP size packet_in_bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list', status_returnv v_bot)
              | NONE => NONE)
            | NONE => NONE)
          else
           (case assign scope_list (v_err "PacketTooShort") (lval_varname (varn_name "parseError")) of
-           | SOME scope_list' => SOME (ascope, g_scope_list, scope_list')
+           | SOME scope_list' => SOME (ascope, g_scope_list, scope_list', status_returnv v_bot)
            | NONE => NONE)
         | NONE => NONE)
        | _ => NONE)
@@ -189,22 +188,22 @@ End
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
 Definition packet_out_emit_gen:
- (packet_out_emit_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (packet_out_emit_gen (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case lookup_ascope_gen ascope_lookup ascope i of
     | SOME (INL (core_v_ext_packet_out packet_out_bl)) =>
      (case lookup_lval scope_list (lval_varname (varn_name "data")) of
-      | SOME (v_header F x_v_l) => SOME (ascope, g_scope_list, scope_list)
+      | SOME (v_header F x_v_l) => SOME (ascope, g_scope_list, scope_list, status_returnv v_bot)
       | SOME (v_header T x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list, status_returnv v_bot)
         | NONE => NONE)
       | SOME (v_struct x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list, status_returnv v_bot)
         | NONE => NONE)
       | SOME _ => NONE
       | NONE => NONE)

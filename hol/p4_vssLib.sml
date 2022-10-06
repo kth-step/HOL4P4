@@ -31,10 +31,10 @@ val vss_init_global_scope =
 (* Architectural context (generic externs) *)
 
 val packet_in_map =
- ``[("extract", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in); ("hdr", d_out)], packet_in_extract))]``;
+ ``[("extract", (stmt_ext, [("this", d_in); ("hdr", d_out)], packet_in_extract))]``;
 
 val packet_out_map =
- ``[("emit", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in); ("data", d_in)], packet_out_emit))]``;
+ ``[("emit", (stmt_ext, [("this", d_in); ("data", d_in)], packet_out_emit))]``;
 
 (*************************)
 (* Architectural context *)
@@ -59,15 +59,15 @@ val vss_ffblock_map = ``[("parser_runtime", ffblock_ff vss_parser_runtime);
                          ("pre_deparser", ffblock_ff vss_pre_deparser)]``;
 
 val vss_Checksum16_map =
- ``[("clear", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in)], Checksum16_clear));
-    ("update", (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_in); ("data", d_in)], Checksum16_update));
-    ("get", (stmt_seq stmt_ext (stmt_ret (e_var varn_ext_ret)), [("this", d_in)], Checksum16_get))]``;
+ ``[("clear", (stmt_ext, [("this", d_in)], Checksum16_clear));
+    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update));
+    ("get", (stmt_ext, [("this", d_in)], Checksum16_get))]``;
 
 val vss_ext_map =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
     ++ [("packet_in", (NONE, (^packet_in_map)));
         ("packet_out", (NONE, (^packet_out_map)));
-("Checksum16", SOME (stmt_seq stmt_ext (stmt_ret (e_v v_bot)), [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))])``;
+("Checksum16", SOME (stmt_ext, [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))])``;
 
 val vss_func_map = core_func_map;
 

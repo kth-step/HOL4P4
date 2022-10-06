@@ -311,10 +311,10 @@ formula :: formula_ ::=
   {{ com lookup of an extern function }}
   {{ tex [[ext_fun]] = \mathrm{lookup\_ext\_fun} ( [[funn]] , [[ext_map]] ) }}
   {{ hol (SOME [[ext_fun]] = lookup_ext_fun [[funn]] [[ext_map]]) }}
-| ( ascope' , g_scope_list' , scope_list' ) = ext_fun ( ascope , g_scope_list , scope_list ) :: :: ext_apply
+| ( ascope' , g_scope_list' , scope_list' , status' ) = ext_fun ( ascope , g_scope_list , scope_list , status ) :: :: ext_apply
   {{ com application of an extern function }}
-  {{ tex ([[ascope']], \, [[g_scope_list']], \, [[scope_list']]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]] ) }}
-  {{ hol (SOME ([[ascope']], [[g_scope_list']], [[scope_list']]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]])) }}
+  {{ tex ([[ascope']], \, [[g_scope_list']], \, [[scope_list']], \, [[status']]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]] , \, [[status]]) }}
+  {{ hol (SOME ([[ascope']], [[g_scope_list']], [[scope_list']], [[status']]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]], [[status]])) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -2251,9 +2251,9 @@ by
 %%%%%%%%%%%%%%
 %Extern
   ext_fun = lookup_ext_fun ( funn , ext_map )
-  ( ascope' , g_scope_list' , scope_list' ) = ext_fun ( ascope , g_scope_list , scope_list )
+  ( ascope' , g_scope_list' , scope_list' , status' ) = ext_fun ( ascope , g_scope_list , scope_list , status )
   ----------------------------------- :: ext
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list' , [ ( funn , [ empty_stmt ] , scope_list' ) ] , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list' , [ ( funn , [ empty_stmt ] , scope_list' ) ] , status' )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2320,20 +2320,21 @@ defn
 by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  notret( status' , frame_list'' )
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
+  notret( status' , frame_list'' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
   ----------------------------------- :: comp1
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ frame_list'' , status ) -f-> ( ascope' , g_scope_list''' , frame_list' ++ frame_list'' , status' )
 
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , stmt_stack'' , scope_list ) ] , Ret v )
-  g_scope_list' = assign ( ( g_scope_list ) , v , ( star , funn ) )
+  g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
+  g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
-   g_scope_list'' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list' )
-  ( g_scope_list''' , scope_list'''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'' , scope_list' , scope_list )
+   g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' )
+  ( g_scope_list''''' , scope_list''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'''' , scope_list' , scope_list'' )
   ----------------------------------- :: comp2
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f-> ( ascope , g_scope_list''' , [ ( funn' , stmt_stack' , scope_list'''' ) ] ++ frame_list , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f-> ( ascope' , g_scope_list''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
