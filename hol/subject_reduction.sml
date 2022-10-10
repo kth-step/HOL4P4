@@ -4,7 +4,8 @@ open arithmeticTheory stringTheory containerTheory pred_setTheory
 
 open p4Lib;
 open blastLib bitstringLib;
-open p4Theory p4_auxTheory;
+open p4Theory;
+open p4_auxTheory;
 open deterTheory;
 open bitstringTheory;
 open wordsTheory;
@@ -15,6 +16,7 @@ open ottTheory;
 open pairTheory;
 open rich_listTheory;
 open arithmeticTheory;
+open alistTheory;
 
 
 
@@ -33,11 +35,13 @@ fun OPEN_EXP_TYP_TAC exp_term =
 (******   Subject Reduction for expression    ******)
 val sr_exp_def = Define `
  sr_exp (e) (ty:'a itself) = ! e' scope scopest framel t_scope_list t_scope_list_g T_e tau b (c:'a ctx).
+       (type_scopes_list (t_scope_list_g) (scope)) /\
+       (type_scopes_list (t_scope_list) (scopest)) /\
+       (tsl_check_star_member t_scope_list  ) /\
        (e_red c scope scopest e e' framel ) /\
        (e_typ ( t_scope_list_g  ,  t_scope_list ) T_e (e) tau  b) ==>
        ((e_typ ( t_scope_list_g  ,  t_scope_list ) T_e (e') tau  b)) 
 `;
-
 
 
 (****** Subject reduction for expression list ******)
@@ -61,18 +65,6 @@ val sr_strexp_tuple_def = Define `
 `;
 
 
-
-(*
-val sr_strexp_list_def = Define `
-   sr_strexp_list (l : (string#v) list) (ty:'a itself)
-      = !  (v:v) . MEM v (SND (UNZIP l)) ==> sr_exp(e_v(v)) (ty:'a itself)
-`;
-
-val sr_strexp_tuple_def = Define ` 
-   sr_strexp_tup (tup : (string#v)) (ty:'a itself)
-      =  sr_exp (e_v (SND tup)) (ty:'a itself)
-`;
-*)
 
 
 (*************** Lemmas  ***************)
@@ -116,7 +108,8 @@ prove(``
  REPEAT STRIP_TAC >>
  Cases_on `INDEX_FIND 0 P l = SOME (i,f)` >> 
  fs [] >>
- IMP_RES_TAC index_find_length >>
+ (*IMP_RES_TAC index_find_length >>*)
+ cheat>>
  fs []
 );
 
@@ -218,7 +211,7 @@ Cases_on `P h` >|[
    gvs[GSYM ADD1]>> 
    rw[] >>
    IMP_RES_TAC P_holds_on_curent >>
-   IMP_RES_TAC index_find_first >>
+   (*IMP_RES_TAC index_find_first >>*) cheat>>
    rfs[] >>
    rw[] >>
    (*SIMP_TAC arith_ss [Once EL_compute] >>*)
@@ -260,10 +253,12 @@ prove (``
  i<LENGTH l /\
 (q,r,t) = EL i (MAP (λ(x_,v_,tau_). (x_,v_,tau_)) l) ==>
 (q) = EL i (MAP (λ(x_,v_,tau_). (x_)) l) ``,
+Induct >>
 REPEAT STRIP_TAC >>
-IMP_RES_TAC EL_pair_list >>
+(*IMP_RES_TAC EL_pair_list >>*) cheat >>
 rw[] >>
 fs [ELIM_UNCURRY] >>
+EVAL_TAC >>
 METIS_TAC[]
 );
 
@@ -275,7 +270,7 @@ prove (``
 (q,r,t) = EL i (MAP (λ(x_,v_,tau_). (x_,v_,tau_)) l) ==>
 (r,t) = EL i (MAP (λ(x_,v_,tau_). (v_,tau_)) l) ``,
 REPEAT STRIP_TAC >>
-IMP_RES_TAC EL_pair_list >>
+(*IMP_RES_TAC EL_pair_list >>*) cheat >>
 rw[] >>
 fs [ELIM_UNCURRY] >>
 METIS_TAC[]
@@ -292,10 +287,11 @@ prove (``
 )``,
 
 REPEAT STRIP_TAC >>
-NTAC 2 (IMP_RES_TAC EL_pair_list >> rw[] >>
+NTAC 2 (
+(*IMP_RES_TAC EL_pair_list >> rw[] >>*) cheat >>
 IMP_RES_TAC EL_simp1 >>
 IMP_RES_TAC EL_simp2) >>
-rfs[EL_pair_list,EL_simp1,EL_simp2] >>
+(* rfs[EL_pair_list,EL_simp1,EL_simp2] >> *)
 fs [ELIM_UNCURRY] >>
 rfs[] >>
 rfs[MAP_MAP_o] >>
@@ -449,6 +445,276 @@ fs [ELIM_UNCURRY]
 
 
 
+
+
+
+val index_mem = prove (``
+!l P n v. INDEX_FIND 0 P l = SOME (n,v) ==> MEM v l
+``,
+Induct >|[
+fs[INDEX_FIND_def] 
+,
+fs[]>>
+rw[]>>
+fs[INDEX_FIND_def] >>
+Cases_on `P h` >|[
+fs[]>>
+rw[]
+,
+fs[]>>
+rw[]>>
+ASSUME_TAC P_hold_on_next>> 
+Q.PAT_X_ASSUM `∀i l P m.
+          INDEX_FIND (SUC i) P l = SOME m ⇔
+          INDEX_FIND i P l = SOME (FST m − 1,SND m) ∧ 0 < FST m`
+( STRIP_ASSUME_TAC o (Q.SPECL [`0`,`l`,`P`,`(n,v)`])) >>
+gvs[GSYM ADD1]>> 
+RES_TAC >>
+fs[]
+] ]
+);
+
+
+val mem_fst_snd = prove (``
+!l m. MEM m l ==> MEM (SND m) (MAP SND l) /\ MEM (FST m) (MAP FST l) ``,
+Induct >>
+REPEAT STRIP_TAC >>
+fs[]
+);
+
+
+
+(*duplicated from determ proof remove it*)
+val ured_mem_length =
+prove(`` !l i . (unred_mem_index l = SOME i) ==> i < LENGTH l ``,
+ cheat
+);
+
+(*this one as well*)
+val mem_el_map2 =
+prove(`` ! l i .
+MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
+               (MAP (λ(f_,e_,e'_). e_) l) ==>
+MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
+               (SND (UNZIP (MAP (λ(f_,e_,e'_). (f_,e_)) l)))	``,
+
+cheat
+);
+
+
+(*this one also dup*)
+val lemma_MAP5 =
+prove ( ``
+!l l' .
+        ( MAP (λ(f_,e_,e'_). (f_,e_)) l =
+        MAP (λ(f_,e_,e'_). (f_,e_)) l') ==>
+	(MAP (λ(f_,e_,e'_). (f_)) l =
+        MAP (λ(f_,e_,e'_). (f_)) l') /\
+	(MAP (λ(f_,e_,e'_). (e_)) l =
+        MAP (λ(f_,e_,e'_). (e_)) l') ``,
+
+cheat
+);
+
+
+
+
+
+val map_distrub = prove ( 
+``!l l' l''.
+(LENGTH l = LENGTH l' /\
+LENGTH l' = LENGTH l'') ==>
+
+(MAP (\(a_,b_,c_). a_) (ZIP (l,ZIP (l',l''))) = l /\
+MAP (\(a_,b_,c_). b_) (ZIP (l,ZIP (l',l''))) = l' /\
+MAP (\(a_,b_,c_). c_) (ZIP (l,ZIP (l',l''))) = l'' /\
+MAP (\(a_,b_,c_). (a_,b_)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l') /\
+MAP (\(a_,b_,c_). (a_,c_)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l'') 
+)``,
+rw[lambda_unzip_tri] >>
+rw[lambda_12_unzip_tri] >>
+rw[map_tri_zip12] >>
+EVAL_TAC >>
+fs [GSYM UNZIP_MAP] >>
+fs[MAP_ZIP]
+);
+
+
+
+
+
+val map_rw = prove ( `` !l . (MAP (λ(f_,e_,e'_). (f_,e'_)) l = ZIP ( (MAP (λ(f_,e_,e'_). (f_)) l) , (MAP (λ(f_,e_,e'_). (e'_)) l))) ``,
+Induct >>
+REPEAT STRIP_TAC >>
+fs [GSYM UNZIP_MAP] >>
+PairCases_on `h` >>
+EVAL_TAC
+);
+
+
+
+
+
+
+val el_of_vl_def = Define `
+  el_of_vl vl = MAP (\(v). (e_v v)) (vl)
+`;
+
+
+val vl_el_conv = prove( ``
+! l l'.  (l = vl_of_el l')  /\ (is_consts l') ==>
+ (l' = el_of_vl l) ``,
+Induct_on `l` >>
+Induct_on `l'` >>
+REPEAT STRIP_TAC >>
+fs[el_of_vl_def, vl_of_el_def] >>
+rw[]>>
+Cases_on `h`>>
+fs[v_of_e_def, is_const_def, is_consts_def]
+);
+
+
+
+
+
+
+
+
+val ev_types_v = prove (``
+! v tau t_scope_list_g t_scope_list T_e .
+  e_typ (t_scope_list_g,t_scope_list) T_e (e_v v) (tau) F ==>
+  v_typ (v) (tau) F ``,
+
+REPEAT STRIP_TAC >>
+OPEN_EXP_TYP_TAC ``e_v v`` >>
+fs[] ) ;
+
+
+
+val e_types_v = prove (``
+! v e tau t_scope_list_g t_scope_list T_e .
+  is_const(e) /\
+  e_typ (t_scope_list_g,t_scope_list) T_e (e) (tau) F ==>
+  v_typ ( THE (v_of_e e)) (tau) F ``,
+
+REPEAT STRIP_TAC >>
+OPEN_EXP_TYP_TAC ``e`` >>
+fs[] >>
+fs[v_of_e_def, is_const_def]
+) ;
+
+
+
+
+
+
+val evl_types_vl = prove(``
+!l l' i t_scope_list_g t_scope_list T_e.
+(LENGTH l = LENGTH l') /\
+(i<LENGTH l) /\
+is_consts (l) /\
+(e_typ (t_scope_list_g,t_scope_list) T_e
+          (EL i l)
+          (EL i l') F) ==>
+v_typ (EL i (vl_of_el l)) (EL i l') F ``,
+
+Induct_on `l` >>
+Induct_on `l'` >>
+fs[] >>
+REPEAT STRIP_TAC >>
+
+IMP_RES_TAC e_types_v  >>
+
+subgoal `
+!l' i. i < LENGTH l' /\ is_consts (l') ==>
+is_const (EL i (l')) ` >- (
+REPEAT STRIP_TAC >>
+fs[is_consts_def] >>
+fs[is_const_def] >>
+fs[EVERY_EL] ) >>
+
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`(h'::l): (e list)`, `i`])) >>
+fs[] >>
+RES_TAC >>
+
+Cases_on `EL i (h'::l)` >>
+fs[is_consts_def] >>
+fs[is_const_def] >>
+fs[EVERY_EL] >>
+rw[] >>
+
+
+IMP_RES_TAC e_types_v  >>
+gvs[]>>
+
+
+
+fs[Once EL_compute] >>
+CASE_TAC >| [
+rw[] >>
+fs[vl_of_el_def]
+,
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`l'`,`(i:num)-1`])) >>
+fs[] >>
+fs[numeralTheory.numeral_pre, PRE_SUB1, PRE_SUC_EQ ,ADD1] >>
+rw[] >>
+Cases_on `i = 1` >>
+fs[] >>
+gvs [v_of_e_def] >>
+RES_TAC >>
+gvs [vl_of_el_def] >>
+
+subgoal ` EL (i − 1) (HD l::TL l) = EL (PRE (i − 1)) (TL l)  ` >- (
+`0 < i - 1` by fs[] >>
+ASSUME_TAC EL_CONS >>
+Q.PAT_X_ASSUM `∀n. 0 < n ⇒ ∀x l. EL n (x::l) = EL (PRE n) l`
+( STRIP_ASSUME_TAC o (Q.SPECL [`i-1`])) >>
+RES_TAC >>
+fs[EL_CONS] ) >>
+
+
+
+subgoal `(HD l::TL l) = l  ` >- (
+`0 < i` by fs[] >>
+`0 < LENGTH l` by fs[] >>
+` ~(0 >= LENGTH l)` by fs[] >>
+`0 ≥ LENGTH l ⇔ l = []` by fs[quantHeuristicsTheory.LIST_LENGTH_0] >>
+` ~(l = [])` by fs[] >>
+fs[NULL] >>
+
+ASSUME_TAC NULL_LENGTH >>
+ASSUME_TAC CONS >>
+RES_TAC >>
+FULL_SIMP_TAC list_ss [CONS, NULL_LENGTH, NULL_DEF, NULL_EQ]
+
+) >>
+
+
+
+Q.PAT_X_ASSUM ` ∀t_scope_list_g' t_scope_list' T_e'.
+          e_typ (t_scope_list_g',t_scope_list') T_e' (EL (i − 2) (TL l))
+            (EL (i − 1) l') F ⇒
+          v_typ (EL (i − 1) (MAP (λe. THE (v_of_e e)) l)) (EL (i − 1) l') F `
+( STRIP_ASSUME_TAC o (Q.SPECL [`t_scope_list_g`, `t_scope_list`, `T_e`])) >>	  
+
+gvs [] >>
+
+fs[EL_CONS] >>
+fs[PRE_SUB1] 
+]
+);
+
+
+
+
+(****************)
+(****************)
+(*  E SR        *)
+(****************)
+(****************)
+
 val SR_e =
 prove (`` ! (ty:'a itself) .
 (!e. sr_exp e ty) /\
@@ -471,12 +737,15 @@ rfs[sr_exp_def] >>
 REPEAT STRIP_TAC >>
 OPEN_EXP_RED_TAC ``(e_var v)`` >>
 OPEN_EXP_TYP_TAC ``(e_var v)`` >>
-FULL_SIMP_TAC list_ss [] >> rw[] >|[
+FULL_SIMP_TAC list_ss [] >> rw[] >>
+fs [clause_name_def] 
+>|[
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
-SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
 cheat
+(* thm requires the typing context *)
 ,
 cheat
+(* thm requires the typing context *)
 ]
 
 ,
@@ -515,8 +784,13 @@ rfs[FIND_def, MEM_EXISTS] >>
 Cases_on `z` >>
 Cases_on `r` >>
 IMP_RES_TAC prop_in_range >>
-fs[LENGTH_MAP] >>
-RES_TAC >>
+ fs[LENGTH_MAP] >>
+ 
+subgoal `v_typ (EL q (MAP (λ(x_,v_,tau_). v_) x_v_tau_list))
+              (EL q (MAP (λ(x_,v_,tau_). tau_) x_v_tau_list)) F ` >- (
+ RES_TAC
+) >>
+
 rw[] >>
 
 IMP_RES_TAC EL_relation_to_INDEX_less >>
@@ -558,7 +832,12 @@ Cases_on `z` >>
 Cases_on `r` >>
 IMP_RES_TAC prop_in_range >>
 fs[LENGTH_MAP] >>
-RES_TAC >>
+
+subgoal `v_typ (EL q (MAP (λ(x_,v_,tau_). v_) x_v_tau_list))
+              (EL q (MAP (λ(x_,v_,tau_). tau_) x_v_tau_list)) F ` >- (
+ RES_TAC
+) >>
+
 rw[] >>
 
 IMP_RES_TAC EL_relation_to_INDEX_less >>
@@ -591,11 +870,11 @@ OPEN_EXP_TYP_TAC ``e_unop unop_neg e`` >>
 FULL_SIMP_TAC list_ss [lemma_v_red_forall] >> rw[] >|[
 
 (*e*)
-RES_TAC >>
 rw[Once e_typ_cases] >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
-Q.EXISTS_TAC `b'` >> rw[]
+Q.EXISTS_TAC `b'` >> rw[] >>
+RES_TAC
 ,
 
 (*v*)
@@ -612,11 +891,11 @@ fs []
 OPEN_EXP_TYP_TAC ``e_unop unop_compl e`` >>
 OPEN_EXP_RED_TAC ``e_unop unop_compl e`` >>
 FULL_SIMP_TAC list_ss [] >> rw[] >| [
-RES_TAC >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
 Q.EXISTS_TAC `b'` >>
-fs [clause_name_def] 
+fs [clause_name_def]  >>
+RES_TAC
 ,
 
 OPEN_EXP_TYP_TAC ``(e_v (v_bool b'))`` >>
@@ -641,11 +920,13 @@ OPEN_EXP_TYP_TAC ``e_unop unop_neg_signed e`` >>
 OPEN_EXP_RED_TAC ``e_unop unop_neg_signed e`` >>
 FULL_SIMP_TAC list_ss [] >> rw[] >|[
 
-RES_TAC >>
+
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
 Q.EXISTS_TAC `b'` >>
-fs [clause_name_def]
+fs [clause_name_def] >>
+RES_TAC >>
+
 ,
 OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv))`` >> fs[] >>
 OPEN_V_TYP_TAC ``(v_bit bitv)`` >>  fs[] 
@@ -657,11 +938,12 @@ OPEN_V_TYP_TAC ``(v_bit bitv)`` >>  fs[]
 OPEN_EXP_TYP_TAC ``(e_unop unop_un_plus e)`` >>
 OPEN_EXP_RED_TAC ``(e_unop unop_un_plus e)`` >>
 FULL_SIMP_TAC list_ss [] >> rw[] >|[
-RES_TAC >>
+
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
 Q.EXISTS_TAC `b'` >>
-fs [clause_name_def]
+fs [clause_name_def] >>
+RES_TAC 
 ,
 OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv'))`` >> rfs[] >>
 OPEN_V_TYP_TAC ``(v_bit bitv)`` >>
@@ -873,8 +1155,8 @@ cheat
 (****************)
 (*  concat      *)
 (****************)
-REPEAT STRIP_TAC >>
-fs [sr_exp_def] >>
+
+SIMP_TAC std_ss [sr_exp_def] >>
 REPEAT STRIP_TAC >>
 OPEN_EXP_RED_TAC ``(e_concat e e')`` >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
@@ -882,7 +1164,13 @@ fs[] >| [
 
 OPEN_EXP_TYP_TAC ``(e_concat e e')`` >>
 fs[] >>
+
+Q.PAT_X_ASSUM `sr_exp e ty`
+((STRIP_ASSUME_TAC o (Q.SPECL
+[`e'''''`,`scope`, `scopest`, `framel`, `t_scope_list`, `t_scope_list_g`,`T_e`, `(tau_bit w1)`, `b'`, `c`])) o
+SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 RES_TAC >>
+
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 rw[] >>
 Q.EXISTS_TAC `w1`>>
@@ -894,22 +1182,26 @@ fs[]
 ,
 
 rw[] >>
+
 OPEN_EXP_TYP_TAC ``(e_concat (e_v (v_bit bitv)) e')`` >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
-RES_TAC >>
 rw[] >>
 Q.EXISTS_TAC `w1`>>
 Q.EXISTS_TAC `w2'`>>
 Q.EXISTS_TAC `b'`>>
 Q.EXISTS_TAC `b''`>>
-fs[] 
+fs[] >>
+
+fs[sr_exp_def] >>
+RES_TAC 
+
 ,
 rw[] >>
 OPEN_EXP_TYP_TAC ``(e_concat (e_v (v_bit bitv)) (e_v (v_bit bitv')))`` >>
 rw[] >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv))`` >>
-OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv))`` >>
+OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv'))`` >>
 rw[] >>
 OPEN_V_TYP_TAC ``((v_bit bitv))`` >>
 OPEN_V_TYP_TAC ``((v_bit bitv'))`` >>
@@ -930,7 +1222,7 @@ fs[bs_width_def]
 (* slice         *)
 (****************)
 
-fs [sr_exp_def] >>
+SIMP_TAC std_ss [sr_exp_def] >>
 REPEAT STRIP_TAC >>
 OPEN_EXP_RED_TAC ``(e_slice e e' e'')`` >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
@@ -939,7 +1231,14 @@ rw[] >>
 OPEN_EXP_TYP_TAC ``(e_slice e'⁵' (e_v (v_bit bitv)) (e_v (v_bit bitv')))`` >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 rfs[] >>
+
+Q.PAT_X_ASSUM `sr_exp e ty`
+((STRIP_ASSUME_TAC o (Q.SPECL
+[`e'''''`,`scope`, `scopest`, `framel`, `t_scope_list`, `t_scope_list_g`,`T_e`, `(tau_bit w)`, `T`, `c`])) o
+SIMP_RULE (srw_ss()) [sr_exp_def]) >>
+
 RES_TAC >>
+
 Q.EXISTS_TAC `w`>>
 rfs[]
 ,
@@ -947,6 +1246,7 @@ rw[] >>
 OPEN_EXP_TYP_TAC ``(e_slice (e_v (v_bit bitv)) (e_v (v_bit bitv')))`` >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 rfs[] >>
+
 RES_TAC >>
 rfs[] >>
 SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
@@ -992,32 +1292,209 @@ REPEAT STRIP_TAC >>
 OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 fs[] >|[
+
+(*e_sel v*)
+
 rw[] >>
 OPEN_EXP_TYP_TAC ``(e_select (e_v v) l s)`` >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
-rfs[] >>
-rfs[clause_name_def] >> 
+rfs[clause_name_def] >>
 OPEN_EXP_TYP_TAC ``(e_v v)`` >>
 rfs[clause_name_def] >> rw[] >>
-SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
+rfs[clause_name_def] >>
 
-Cases_on `LENGTH l`
 
-RES_TAC >>
-Q.EXISTS_TAC `w`>>
-rfs[]
 
+SIMP_TAC (srw_ss()) [sel_def] >>
+Cases_on ` FIND (λ(ks,s). ks = v) l` >>
+fs[] >>
+fs[FIND_def] >>
+PairCases_on `z` >>
+fs[] >>
+IMP_RES_TAC index_mem >>
+IMP_RES_TAC mem_fst_snd >>
+fs[ELIM_UNCURRY] >>
+EVAL_TAC >>
+rw[]
 
 ,
 
 
+(*e_sel e*)
+
+rw[] >>
+OPEN_EXP_TYP_TAC ``(e_select (e_v e) l s)`` >>
+SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+rfs[clause_name_def] >>
+RES_TAC >>
+METIS_TAC[]
 ]
 
+,
 
+(****************)
+(*  struct      *)
+(****************)
+
+SIMP_TAC (srw_ss()) [sr_exp_def] >>
+REPEAT STRIP_TAC >>
+OPEN_EXP_RED_TAC ``(e_struct l2)`` >>
+rfs[] >>
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+fs[] >>
+rw[] >| [
+
+(*e_eStruct*)
+
+fs [sr_strexp_list_def] >>
+OPEN_EXP_TYP_TAC ``(e_struct (MAP (λ(f_,e_,v_). (f_,e_)) f_e_v_list))`` >>
+
+IMP_RES_TAC ured_mem_length >>
+ `i < LENGTH ( f_e_e'_list)` by METIS_TAC[LENGTH_MAP] >>
+IMP_RES_TAC  mem_el_map2 >>
+IMP_RES_TAC EL_MEM >>
+IMP_RES_TAC MAP_EQ_EVERY2 >>
+
+RES_TAC >>
+
+SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+fs[clause_name_def] >> rw[] >>
+
+Q.EXISTS_TAC `
+ZIP ( MAP (λ(f_,e_,tau_). f_) f_e_tau_list ,
+     ZIP ((MAP (λ(f_,e_,e'_). e'_) f_e_e'_list),
+     MAP (λ(f_,e_,tau_). tau_) f_e_tau_list ))` >>
+
+
+rw[map_distrub] >>
+rw[lemma_MAP5] >>
+rw [map_tri_zip12] >>
+SIMP_TAC list_ss [map_rw] >>
+fs[] >>
+IMP_RES_TAC lemma_MAP5 >>
+fs[]  >| [
+
+
+rw[map_distrub] >>
+rw[lemma_MAP5] >>
+rw [map_tri_zip12] >>
+SIMP_TAC list_ss [map_rw] >>
+fs[] >>
+IMP_RES_TAC lemma_MAP5 >>
+fs[]
+
+,
+
+
+rw[map_distrub] >>
+rw[lemma_MAP5] >>
+rw [map_tri_zip12] >>
+SIMP_TAC list_ss [map_rw] >>
+fs[] >>
+IMP_RES_TAC lemma_MAP5 >>
+fs[]
+
+,
+
+
+rw[map_distrub] >>
+rw[lemma_MAP5] >>
+rw [map_tri_zip12] >>
+SIMP_TAC list_ss [map_rw] >>
+fs[] >>
+IMP_RES_TAC lemma_MAP5 >>
+fs[] >>
+
+RES_TAC >>
+(subgoal `e_typ (t_scope_list_g,t_scope_list) T_e
+              (EL i' (MAP (λ(f_,e_,tau_). e_) f_e_tau_list))
+              (EL i' (MAP (λ(f_,e_,tau_). tau_) f_e_tau_list)) F` ) >-
+	      (RES_TAC ) >>
+ 
+
+Cases_on `i=i'` >| [
+RES_TAC >>
+rw[] >>
+
+PAT_ASSUM `` ∀e._``
+( STRIP_ASSUME_TAC o (Q.SPECL [`EL i (MAP (λ(f_,e_,e'_). e_) (f_e_tau_list:(string # e # tau) list))`])) >>
+
+rw[] >>
+
+IMP_RES_TAC ured_mem_length >>
+IMP_RES_TAC  mem_el_map2 >>
+IMP_RES_TAC EL_MEM >>
+IMP_RES_TAC MAP_EQ_EVERY2 >>
+rw[] >>
+RES_TAC >>
+(*`sr_exp (EL i (MAP (λ(f_,e_,e'_). e_) f_e_tau_list)) ty` by fs[ELIM_UNCURRY] >> *)
+RES_TAC >>
+EVAL_TAC >>
+fs[EL_LUPDATE] >>
+fs [sr_exp_def] >>
+RES_TAC
+,
+fs[EL_LUPDATE] >>
+fs [sr_exp_def] >>
+RES_TAC
+]
+
+]
+,
+
+
+(******************************************************************)
+(*struct -> v*)
+
+fs[clause_name_def] >> rw[] >>
+
+SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
+
+OPEN_EXP_TYP_TAC ``(e_struct (MAP (λ(f_,e_,v_). (f_,e_)) f_e_v_list))`` >>
+fs[clause_name_def] >> rw[] >>
+
+
+Q.EXISTS_TAC `
+ZIP ( (MAP (λ(f_,e_,v_). f_) f_e_v_list),
+   ZIP( (MAP (λ(f_,e_,v_). v_) f_e_v_list) , (MAP (λ(f_,e_,tau_). (tau_)) f_e_tau_list)  ))
+` >>
+
+IMP_RES_TAC MAP_EQ_EVERY2 >>
+rw[map_distrub] >>
+rw[lemma_MAP5] >>
+rw [map_tri_zip12] >>
+SIMP_TAC list_ss [map_rw] >>
+fs[] >>
+IMP_RES_TAC lemma_MAP5 >>
+fs[] >>
+
+
+RES_TAC >>
+IMP_RES_TAC evl_types_vl >>
+fs[LENGTH_MAP]
+
+]
+
+(**FINALLY DONE!!!!!!!)
+
+,
+
+
+(****************)
+(*  Header      *)
+(****************)
+cheat
+,
+
+cheat
+,
+cheat
+,
+cheat
+,
+cheat
 
 ]
 );
-
-
-
