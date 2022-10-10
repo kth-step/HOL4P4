@@ -83,7 +83,6 @@ This is a description of the \pfott{} formalization of P4, which includes a synt
 \subsection{Types}
 \newcommand{\num}{\ensuremath{i}}
 \newcommand{\vn}{\ensuremath{x}}
-\newcommand{\vna}{\ensuremath{a}}
 \newcommand{\msg}{\ensuremath{\mathit{msg}}}
 \newcommand{\tn}{\ensuremath{\mathit{tbl}}}
 \newcommand{\fn}{\ensuremath{f}}
@@ -98,14 +97,13 @@ This is a description of the \pfott{} formalization of P4, which includes a synt
 \label{fig:vars}
 \end{figure}
 
-The variables shown in Figure~\ref{fig:vars} are standard designations for variables of \pfourspec{sec-base-types}{P4 base types} included in \pfott{}, plus the numerals \num{} and the indices $m, n, o$ which are not part of the P4 syntax, but used on a meta-level throughout this formalization. Depending on the context, strings are denoted with \vna{}, \vn{} (variable or parser state name), \msg{} (error message), \tn{} (match-action table name) or \fn{} (function or field name). \inte{} is a list of Boolean values, used to represent bit-strings of fixed width.
+The variables shown in Figure~\ref{fig:vars} are standard designations for variables of \pfourspec{sec-base-types}{P4 base types} included in \pfott{}, plus the numerals \num{} and the indices $m, n, o$ which are not part of the P4 syntax, but used on a meta-level throughout this formalization. Depending on the context, strings are denoted with \vn{} (variable or parser state name), \tn{} (match-action table name) or \fn{} (function or field name). \inte{} is a list of Boolean values, used to represent bit-strings of fixed width.
 
-Types are sometimes explicitly referenced in the syntax, e.g. in declaration statements. The notation for this is shown in Figure~\ref{fig:types}. Subscript $t$ is used to clarify the notation refers to a type, as opposed to a variable of that type. Declared instances of composite types are stored in the type environment $T$.
+P4 types are sometimes explicitly referenced in the syntax, e.g. in declaration statements. The notation for this is shown in Figure~\ref{fig:types}.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
-\ottbt\ottinterrule
-\ottt\ottafterlastrule
+\otttau\ottafterlastrule
 }
 \caption{Types}
 \label{fig:types}
@@ -119,6 +117,14 @@ Types are sometimes explicitly referenced in the syntax, e.g. in declaration sta
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
+\ottv\ottafterlastrule
+}
+\caption{P4 Values}
+\label{fig:val}
+\end{figure}
+
+\begin{figure}[h!]
+\centering\ottgrammartabular{
 \otte\ottafterlastrule
 }
 \caption{P4 Expressions}
@@ -128,9 +134,11 @@ Types are sometimes explicitly referenced in the syntax, e.g. in declaration sta
 \newcommand{\cval}{\ensuremath{v}}
 \newcommand{\fexec}[1]{\textbf{exec}\,\,#1}
 
-First, an expression can be a value: a Boolean or an integer (collectively referred to as constant values \cval{}), or a variable or parser state name $x$. Lists of expressions can be used in declarations of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. The function call is built from the function name \fn{}, and a list of arguments (expressions). %In-progress execution of the body of a called function, \fexec{\stmt{}}, is not a part of the P4 syntax, but is rather an artifact of our small-step semantics.
+First, an expression can be a value $v$, the types of which are shown in Figure~\ref{fig:val}. Lists of expressions can be used in initialisation of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. Bitstrings can be concatenated and sliced. The function call is built from the function name \fn{}, and a list of arguments (expressions).
 
 The \textbf{select} expression is similar to a switch statement in C or Java. The expression $e$ is evaluated, and then matched against $v_1 , \ldots , v_n$. If some match is successful, the \textbf{select} expression evaluates to the string at the corresponding index. If no match occurs, then it instead evaluates to the default string $x$.
+
+Furthermore, structs and headers can also have expression values assigned to their keys, and so be expressions (separate from the struct and header values).
 
 \newpage
 \newcommand{\accept}{``accept''}
@@ -145,7 +153,7 @@ The \textbf{select} expression is similar to a switch statement in C or Java. Th
 \label{fig:stmt}
 \end{figure}
 
-\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}. The \textbf{verify} statement (modeled as a statement and not as an extern function as in \pfourspec{sec-verify}{Section 12.7} of the P4 specification) can be found uniquely in a parser block. It asserts the expression $e$ and if it holds, does nothing. If $e$ does not hold, it jumps to the \reject{} parser state with the error message being the result of evaluating $e'$. The \textbf{transition} statement continues execution at a new parser state, the name of which is the result of evaluating $e$. The \textbf{apply} statement applies the match-action table with name \tn{} (found in the control plane) to the result of evaluating $e$, thus obtaining an action (modeled as a function call) to execute next.
+\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}. The statements in Figure~\ref{fig:stmt} can be found in the specification, with the following exceptions: the block, verify, apply and extern statements. The block statement features an additional list of declarations (note the absence of declarations from this syntax, in contrast to the P4 specification), the apply statement features the list of arguments that are to be matched (which is possible to resolve at compile time), and the extern captures the semantics of an extern function or method. The \textbf{verify} statement (modeled as a statement and not as an extern function as in \pfourspec{sec-verify}{Section 12.7} of the P4 specification) can be found uniquely in a parser block. It asserts the expression $e$ and if it holds, does nothing. If $e$ does not hold, it jumps to the \reject{} parser state with the error message being the result of evaluating $e'$.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -155,14 +163,14 @@ The \textbf{select} expression is similar to a switch statement in C or Java. Th
 \label{fig:lval}
 \end{figure}
 
-The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which include variables identified by their names, a null variable (used to model method calls) and struct fields, which are identified by the struct and field names, similar to the field access expression.
+$lval$s are shown in Figure~\ref{fig:lval} and include variables identified by their names, a null variable (used to model method calls) and struct fields, which are identified by the struct and field names, similar to the field access expression.
 
 \newpage
 \newcommand{\exstate}{\ensuremath{s}}
-%\newcommand{\stacks}{\ensuremath{\sigma}}
+\newcommand{\astate}{\ensuremath{{\gamma}_A}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
-\newcommand{\gscopel}{\ensuremath{\overrightarrow{\gamma}_G}}
+\newcommand{\gscopel}{\ensuremath{\overline{\gamma_G}}}
 \newcommand{\escope}{\ensuremath{{\gamma}_{\emptyset}}}
 \newcommand{\cstack}{E}
 \newcommand{\status}{\ensuremath{t}}
@@ -174,15 +182,15 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \newcommand{\expr}{\ensuremath{e}}
 \newcommand{\varstar}{\mathbf{var} ( \mathbf{star} , funn )}
 \newcommand{\scope}{\gamma}
-\newcommand{\scopeL}{\overrightarrow{\gamma}}
-\newcommand{\stmtL}{\overrightarrow{stmt}}
+\newcommand{\scopeL}{\overline{\gamma}}
+\newcommand{\stmtL}{\overline{stmt}}
 \newcommand{\cons}{, ... \, ,}
 \newcommand{\concat}{{+}\mspace{-8mu}{+}}
 \newcommand{\funn}{\ensuremath{funn}}
 \newcommand{\bitv}{\ensuremath{bitv}}
 \newcommand{\estmt}{\emptyset_{ \mathrm{stmt} }}
-\newcommand{\frameL}{\overrightarrow{\Phi}}
-\newcommand{\declL}{\overrightarrow{decl}}
+\newcommand{\frameL}{\overline{\Phi}}
+\newcommand{\declL}{\overline{decl}}
 
 \subsection{Execution State}
 
@@ -195,7 +203,7 @@ The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which inc
 \label{fig:status}
 \end{figure}
 
-The P4 execution state is shown in Figure~\ref{fig:status}. Note that nothing like this is described in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the state global scope list $\scopeL_G$, a frame list $\frameL$, Control table $C$, and the state status \status{}. 
+The P4 execution state is shown in Figure~\ref{fig:status}. Note that a ``P4 execution state'' is not defined in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the architectural state \astate{}, the global scope list $\scopeL_G$, a frame list $\frameL$, and the state status \status{}. 
 
 \subsubsection*{Single scope}
 More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is a partial function from variable names $\vn{} \in X$ to constant values $\cval{} \in V$. The following operations can be performed on $\scope$:
