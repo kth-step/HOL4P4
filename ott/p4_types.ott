@@ -354,9 +354,12 @@ by
 ----------------------------------- :: bot
   bot : ( bot , false  )
 
+%in pen and paper it will be presented as a set
+%TODO try to make it a list later
 
+  MEM x [ x1 , .. , xn ]
 ----------------------------------- :: x
-  x : ( [ x ] , false  )
+  x : ( [ x1 , .. , xn ] , false  )
 
 
   x : ( [ x ] , false  )
@@ -377,6 +380,105 @@ by
 
 
 
+embed
+{{ hol
+(*finds the domain (variable names) set of a scope *)
+val scope_domain_def = Define `
+scope_domain (scope:scope) = 
+  FDOM (alist_to_fmap scope)
+`;
+
+(* finds a typing scope domain *)
+val ts_domain_def = Define `
+ts_domain (t_scope:t_scope) = 
+  FDOM (alist_to_fmap t_scope)
+`;
+
+(* fetches the domain of each scope in a typing list*)
+val tsl_domain_def = Define `
+tsl_domain (tsl: t_scope list) =
+ FOLDR  (\(t_scope) l. (ts_domain t_scope)::l ) [] (tsl) 
+`;
+
+(*in a list of typing scopes, get the domain of each typing then 
+check of varn is a member for every single domain 
+used for star checkup in the locals *)
+val tsl_check_member_def = Define `
+tsl_check_member (f:varn) (tsl) =
+ EVERY (\doml. (f IN doml))  (tsl_domain tsl)
+`;
+
+
+val tsl_check_star_member_def = Define `
+tsl_check_star_member (tsl) =
+  ! x . EVERY (\doml. ~((varn_star x) IN doml)) (tsl_domain tsl)
+`;
+
+(* finds the value v of a given variable name vn from a certain scope *)
+val fetch_val_from_scope_def = Define `
+  fetch_val_from_scope (scope:scope) (vn) =
+  case (ALOOKUP (scope) (vn)) of
+  | SOME (v,opt) => SOME v
+  | _ => NONE
+`;
+
+
+(* fetches the type tau of a given variable name in the typing scope t_scope*)
+val fetch_tau_val_from_tscope_def = Define `
+  fetch_tau_val_from_tscope (t_scope:t_scope) (vn) =
+  case (ALOOKUP (t_scope) (vn)) of
+  | SOME (t) => SOME t
+  | _ => NONE
+`;
+
+
+
+(* for variable name vn, check if it well typed *)
+val single_vn_typed_def = Define `
+single_vn_typed (t_scope:t_scope) (scope:scope) (vn:varn)=
+ case fetch_val_from_scope scope vn of
+ | SOME v => ( case fetch_tau_val_from_tscope t_scope vn of
+         | SOME t => SOME (v_typ v t F)
+	       | NONE => NONE)
+| NONE => NONE 
+`;
+
+
+
+(* checks if a typing scope can type a scope which is the operation 
+*      t_scope |- scope   *)
+val type_scope_def = Define `
+type_scope (t_scope:t_scope) (scope:scope) =
+EVERY (\(vn,t). (THE (single_vn_typed t_scope scope vn) /\ 
+                ts_domain t_scope = scope_domain scope ) ) (t_scope)
+`;
+
+
+(*check if a list of scopes can be typed with respect to a list of typing scopes 
+       [t_scope1...t_scopen] |- [scope1 ... scopen]
+*)
+val type_scopes_list_def = Define `
+type_scopes_list (tsl:t_scope list) (sl:scope list) =
+EVERY (\(t_scope,scope). type_scope t_scope scope  ) (ZIP (tsl,sl))
+`;
+
+
+(*type the local scopes of a state, make sure 
+that none of those lists contains a star*)
+val type_locals_tsll_def = Define `
+type_locals_tsll (tsll: t_scope list list) (sll:scope list list) =
+EVERY (\(tsl,sl). type_scopes_list tsl sl /\
+tsl_check_star_member (tsl)) (ZIP (tsll,sll))
+`;
+
+(* type the global scope in a state *)
+val type_globals_tsl_def = Define `
+type_globals_tsl (tsll: t_scope list list) (sll:scope list list) =
+EVERY (\(tsl,sl). type_scopes_list tsl sl) (ZIP (tsll,sll))
+`;
+}}
+
+
 defns
 e_typ :: '' ::=
 defn
@@ -387,7 +489,7 @@ by
 
 
 v : ( tau , b )
------------------------------------ :: x
+----------------------------------- :: v
 t_scopes_tup T_e |- v : ( tau , b )
 
 
@@ -404,12 +506,12 @@ tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: struct
-t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ x1 tau1 , .. , xn taun ] , false  )
+t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ f1 tau1 , .. , fn taun ] , false  )
 
 
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
 ----------------------------------- :: header
-t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ x1 tau1 , .. , xn taun ] , false  )
+t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ f1 tau1 , .. , fn taun ] , false  )
 
 
 not_bool_neg unop
@@ -561,4 +663,41 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  retur
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
 
 
+
+
+
+
+defns
+WT_f :: '' ::=
+defn
+ func_map order t_scope_list_g delta_g  :: :: WT_f :: WT_f_
+{{ com values types }}
+{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] }}
+by
+
+
+WF_o order
+%TODO:cont the big implication.
+--------------------------------------- :: global
+func_map order t_scope_list_g delta_g
+
+
+
+
+
+defns
+WT_c :: '' ::=
+defn
+ ctx order t_scope_list_g delta_g delta_b :: :: WT_c :: WT_c_
+{{ com values types }}
+{{ tex [[ctx]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] }}
+by
+
+
+
+WF_o order
+%intersection_of_domains_is_null_between func_map b_func_map 
+%TODO:cont the big implication.
+--------------------------------------- :: c
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) order t_scope_list_g delta_g delta_b 
 
