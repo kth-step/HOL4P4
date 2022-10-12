@@ -122,93 +122,20 @@ val init_astate =
 (*******************************************)
 (*   Architecture-level semantics tests    *)
 
-(* Single reduction: *)
-EVAL ``arch_exec p4_vss_actx (^init_astate)``;
+val ctx = ``p4_vss_actx``;
+val stop_consts1 = [``Checksum16_update``];
+val stop_consts2 = []:term list;
 
-(* Shorthand: *)
-val vss_actx = ``p4_vss_actx``;
+val ass1 = gen_all ``Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case ALOOKUP ext_obj_map i of
+    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
+     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+    | _ => NONE)
+  | _ => NONE``;
+val ctxt = [ass1];
 
-(* Multiple reductions: *)
-(* In V1, this ended at 131 steps for TTL=1 in input *)
-(* In V2, this ends at 210 steps for TTL=1 in input *)
-
-(*
-val nsteps = 223;
-val astate = init_astate;
-val actx = p4_vss_actx;
-*)
-
-(* FOR DEBUGGING:
-
-val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
-
-val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
-
-(********** Nested exec sems ***********)
-
-(* NOTE: For debugging frames_exec *)
-val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
-
-(* NOTE: New g_scope_list from scopes_to_pass, use to debug stmt_exec *)
-val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "start") ^func_map ^b_func_map ^g_scope_list``;
-
-(* NOTE: For debugging stmt_exec (top element of frame list) *)
-val frame_list = ``[(funn_ext "packet_out" "emit",
-      [stmt_seq stmt_ext (stmt_ret (e_v v_bot))],
-      [[(varn_name "this",v_ext_ref 0,NONE);
-        (varn_name "data",
-         v_header T
-           [("dstAddr",v_bit (w2v:word48 -> bool list 1w,48)); ("srcAddr",v_bit (w2v:word48 -> bool list 0w,48));
-            ("etherType",v_bit (w2v:word16 -> bool list 2048w,16))],NONE)]])]:frame_list``;
-
-(* stmt_exec test: *)
-val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
-
-*)
-
-(* TODO: Make "exec arch block" function *)
-
-(* arch_in: input read into b, data_crc and inCtrl *)
-eval_and_print_aenv vss_actx init_astate 1;
-
-(* arch_pbl_init: parser block arguments read into b and p *)
-eval_and_print_rest vss_actx init_astate 2;
-
-(* After a number of arch_pbl_exec steps: status set to status_pars_next (pars_next_pars_fin pars_finaccept) *)
-eval_and_print_rest vss_actx init_astate 63;
-
-(* arch_pbl_ret: parseError and parsedHeaders copied out to arch scope *)
-eval_and_print_aenv vss_actx init_astate 64;
-
-(* arch_ffbl: Parser Runtime *)
-eval_and_print_aenv vss_actx init_astate 65;
-
-(* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 66;
-
-(* arch_control_exec: *)
-eval_and_print_rest vss_actx init_astate 140;
-
-(* arch_pbl_ret: outCtrl written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 141;
-
-(* arch_ffbl: pre-Deparser *)
-eval_and_print_aenv vss_actx init_astate 142;
-
-(* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 143;
-
-(* arch_pbl_exec *)
-eval_and_print_rest vss_actx init_astate 193;
-
-(* arch_pbl_ret: p written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 194;
-
-(* arch_out: output read into output stream *)
-eval_and_print_aenv vss_actx init_astate 195;
-
-
-(* NOTE: 171 steps for TTL=1 packet to get forwarded to CPU *)
-eval_and_print_rest vss_actx init_astate 171;
-
-GEN_ALL $ EVAL ``arch_multi_exec (^vss_actx) (^init_astate) 171``;
+(* Takes around 45 seconds to run *)
+(* 171 steps for TTL=1 packet to get forwarded to CPU *)
+eval_under_assum ctx init_astate stop_consts1 stop_consts2 ctxt 171;

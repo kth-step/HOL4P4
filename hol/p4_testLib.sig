@@ -8,6 +8,8 @@ val mk_eth_frame_ok : term -> term
 val eval_and_print_result : term -> term -> int -> term
 val eval_and_print_aenv : term -> term -> int -> term
 val eval_and_print_rest : term -> term -> int -> term
+val eval_under_assum :
+   term -> term -> term list -> term list -> term list -> int -> thm
 val dest_astate : term -> term * term * term * term
 val dest_vss_aenv : term -> term * term * term * term
 val dest_vss_actx :

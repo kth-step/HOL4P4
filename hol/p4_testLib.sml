@@ -4,7 +4,9 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open pairSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
 
-open p4Syntax testLib;
+open p4Syntax p4_exec_semSyntax testLib evalwrapLib;
+
+open p4_exec_semTheory;
 
 (* This file contains functions that are useful when creating P4 tests *)
 
@@ -131,6 +133,39 @@ fun eval_and_print_aenv actx astate nsteps =
 fun eval_and_print_rest actx astate nsteps =
  el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
 
+(* TODO: Add debug output *)
+(* TODO: Make arch_multi_exec syntax file *)
+local
+fun eval_under_assum' ctx step_thm stop_consts1 stop_consts2 ctxt 0 = step_thm
+  | eval_under_assum' ctx step_thm stop_consts1 stop_consts2 ctxt fuel =
+ let
+  val curr_state = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+  val step_thm2 =
+   SPEC_ALL (eval_ctxt_gen stop_consts1 stop_consts2 ctxt (mk_arch_multi_exec (ctx, curr_state, 1)));
+  val comp_step_thm =
+   SIMP_RULE (pure_ss++numSimps.REDUCE_ss) []
+    (HO_MATCH_MP
+     (HO_MATCH_MP (INST_TYPE [Type.alpha |-> Type`:vss_ascope`] arch_multi_exec_comp_n_tl_assl) step_thm)
+     step_thm2
+    );
+ in
+  eval_under_assum' ctx comp_step_thm stop_consts1 stop_consts2 ctxt (fuel-1)
+ end
+
+in
+fun eval_under_assum ctx init_astate stop_consts1 stop_consts2 ctxt fuel =
+ let
+  (* Take the first execution step. *)
+  val step_thm =
+   SPEC_ALL (eval_ctxt_gen stop_consts1 stop_consts2 ctxt (mk_arch_multi_exec (ctx, init_astate, 1)));
+ in
+  if fuel = 1
+  then step_thm
+  else eval_under_assum' ctx step_thm stop_consts1 stop_consts2 ctxt (fuel-1)
+ end
+end;
+
+(* TODO: Move to syntax file *)
 fun dest_astate astate =
  let
   val (aenv, astate') = dest_pair astate
@@ -141,6 +176,7 @@ fun dest_astate astate =
  end
 ;
 
+(* TODO: Move to syntax file *)
 fun dest_vss_aenv aenv =
  let
   val (i, aenv') = dest_pair aenv
@@ -151,6 +187,7 @@ fun dest_vss_aenv aenv =
  end
 ;
 
+(* TODO: Move to syntax file *)
 fun dest_vss_actx actx =
  let
   val (ab_list, actx') = dest_pair actx
@@ -192,6 +229,5 @@ fun debug_frames_from_step actx astate nsteps =
   ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
  end
 ;
-
 
 end

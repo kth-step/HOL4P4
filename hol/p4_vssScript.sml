@@ -131,7 +131,10 @@ Definition Checksum16_update:
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+     (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
+      | SOME checksum_incr =>
+       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (word_1comp (ipv4_checksum + checksum_incr)))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+      | NONE => NONE)
     | _ => NONE)
   | _ => NONE
  )
