@@ -142,49 +142,21 @@ val WF_def = Define `
                  ( !x y z. order x y /\ order y z ==> order x z))`;
 
 
-(*find the index of the top most typing scope that contains the varn x *)
-val t_find_topmost_scope_def = Define `
-  t_find_topmost_scope (tss:t_scope list) x =
-    case INDEX_FIND 0 (\sc. IS_SOME (ALOOKUP sc x)) (tss) of
-    | SOME (i, sc) => SOME (i, sc)
-    | NONE => NONE
-`;
-
-(*find the top most typing scope that contains the varn x *)
-val t_topmost_scope_def = Define `
-  t_topmost_scope (tss:t_scope list) x =
-    case t_find_topmost_scope tss x of
-    | SOME (i, sc) => SOME sc
-    | _ => NONE
-`;
-
-
-
-(* find the type of the top most scope that contains x 
-here the lists of the locals and globals are concatinated *)
-val t_lookup_def = Define `
-  t_lookup (tss:t_scope list) x =
-    case t_topmost_scope (tss) x of
-    | SOME sc => 
-      (case ALOOKUP sc x of
-       | SOME t => SOME t
-       | _ => NONE)
-    | _ => NONE
-`;
-
-
 (* find the type of the top most scope that contains x 
 here the lists of the typing scope lists *)
-val topmost_def = Define `
-  topmost (t_scopes_tup:t_scopes_tup) x =
-  let ( t_scope_list_g : t_scope_list_g , t_scope_list : t_scope_list )  = t_scopes_tup in
-    t_lookup (t_scope_list++t_scope_list_g) x
+val lookup_tau_def = Define `
+  lookup_tau (ts:t_scope list) (t_scope_list_g:t_scope list) x =
+    case lookup_map (ts++t_scope_list_g) x of
+    | SOME t => SOME t
+    | _ => NONE
 `;
 
 (* find the type of functions return value  *)
 val find_star_in_globals_def = Define `
   find_star_in_globals (t_scope_list_g:t_scope_list_g) x =
-    t_lookup (t_scope_list_g) x
+    case lookup_map (t_scope_list_g) x of
+    | SOME t => SOME t
+    | _ => NONE
 `;
 
 
@@ -354,9 +326,8 @@ by
 ----------------------------------- :: bot
   bot : ( bot , false  )
 
-%in pen and paper it will be presented as a set
-%TODO try to make it a list later
-
+%in pen and paper it will be presented as a set of possible values
+%TODO try to make it a set later
   MEM x [ x1 , .. , xn ]
 ----------------------------------- :: x
   x : ( [ x1 , .. , xn ] , false  )
@@ -382,6 +353,7 @@ by
 
 embed
 {{ hol
+
 (*finds the domain (variable names) set of a scope *)
 val scope_domain_def = Define `
 scope_domain (scope:scope) = 
@@ -399,6 +371,13 @@ val tsl_domain_def = Define `
 tsl_domain (tsl: t_scope list) =
  FOLDR  (\(t_scope) l. (ts_domain t_scope)::l ) [] (tsl) 
 `;
+
+(*
+
+TODO: Make every definition as quantifier
+
+*)
+
 
 (*in a list of typing scopes, get the domain of each typing then 
 check of varn is a member for every single domain 
@@ -493,9 +472,9 @@ v : ( tau , b )
 t_scopes_tup T_e |- v : ( tau , b )
 
 
-tau = topmost ( t_scopes_tup , varn )
+tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
 ----------------------------------- :: var
-t_scopes_tup T_e |- var varn : ( tau , true )
+( t_scope_list_g , t_scope_list ) T_e |- var varn : ( tau , true )
 
 
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn )
