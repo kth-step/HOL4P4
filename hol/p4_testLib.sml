@@ -133,35 +133,38 @@ fun eval_and_print_aenv actx astate nsteps =
 fun eval_and_print_rest actx astate nsteps =
  el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
 
-(* TODO: Add debug output *)
-(* TODO: Make arch_multi_exec syntax file *)
+(* TODO: Add debug print output *)
+(* TODO: Make variant that executes until packet is output *)
 local
-fun eval_under_assum' ctx step_thm stop_consts1 stop_consts2 ctxt 0 = step_thm
-  | eval_under_assum' ctx step_thm stop_consts1 stop_consts2 ctxt fuel =
+fun the_final_state step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+
+fun final_state_is_some step_thm = optionSyntax.is_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+
+val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
+
+fun eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm step_thm 0 = step_thm
+  | eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm step_thm fuel =
  let
-  val curr_state = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+  val curr_state = the_final_state step_thm
   val step_thm2 =
    SPEC_ALL (eval_ctxt_gen stop_consts1 stop_consts2 ctxt (mk_arch_multi_exec (ctx, curr_state, 1)));
   val comp_step_thm =
-   SIMP_RULE (pure_ss++numSimps.REDUCE_ss) []
-    (HO_MATCH_MP
-     (HO_MATCH_MP (INST_TYPE [Type.alpha |-> Type`:vss_ascope`] arch_multi_exec_comp_n_tl_assl) step_thm)
-     step_thm2
-    );
+   SIMP_RULE simple_arith_ss []
+    (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
  in
-  eval_under_assum' ctx comp_step_thm stop_consts1 stop_consts2 ctxt (fuel-1)
+  eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm comp_step_thm (fuel-1)
  end
 
 in
-fun eval_under_assum ctx init_astate stop_consts1 stop_consts2 ctxt fuel =
+fun eval_under_assum arch_ty ctx init_astate stop_consts1 stop_consts2 ctxt fuel =
  let
-  (* Take the first execution step. *)
   val step_thm =
    SPEC_ALL (eval_ctxt_gen stop_consts1 stop_consts2 ctxt (mk_arch_multi_exec (ctx, init_astate, 1)));
+  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl;
  in
   if fuel = 1
   then step_thm
-  else eval_under_assum' ctx step_thm stop_consts1 stop_consts2 ctxt (fuel-1)
+  else eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm step_thm (fuel-1)
  end
 end;
 

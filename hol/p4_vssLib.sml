@@ -8,6 +8,8 @@ open p4Syntax p4_coreLib;
 
 open p4Theory p4_coreTheory p4_vssTheory;
 
+val vss_arch_ty = ``:vss_ascope``;
+
 (* Architectural constants *)
 val REAL_PORT_COUNT_tm = mk_v_bitii (8, 4);
 

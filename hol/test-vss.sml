@@ -42,7 +42,6 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 val init_inlist_ok = mk_list ([pairSyntax.mk_pair (input_ok, input_port_ok)], ``:in_out``);
 val init_outlist_ok = mk_list ([], ``:in_out``);
 
-(* TODO: Initialise these with "ARB" instead *)
 val ipv4_header_uninit =
  mk_v_header_list F 
                   [(``"version"``, mk_v_biti_arb 4),
@@ -136,6 +135,52 @@ val ass1 = gen_all ``Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_
   | _ => NONE``;
 val ctxt = [ass1];
 
-(* Takes around 45 seconds to run *)
 (* 171 steps for TTL=1 packet to get forwarded to CPU *)
-eval_under_assum ctx init_astate stop_consts1 stop_consts2 ctxt 171;
+
+(* Solution: Use stepwise EVAL with assumptions *)
+(* Takes around 45 seconds to run *)
+
+eval_under_assum vss_arch_ty ctx init_astate stop_consts1 stop_consts2 ctxt 171;
+
+(* Solution: Use EVAL directly with re-defined function that has assumed property *)
+(* Takes around 2 seconds to run *)
+
+(* Re-definition of Checksum16_update *)
+Definition Checksum16_update':
+ (Checksum16_update' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case ALOOKUP ext_obj_map i of
+    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
+     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+(* Re-definition of vss_ext_map *)
+val vss_Checksum16_map' =
+ ``[("clear", (stmt_ext, [("this", d_in)], Checksum16_clear));
+    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update'));
+    ("get", (stmt_ext, [("this", d_in)], Checksum16_get))]``;
+val vss_ext_map' =
+ ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
+    ++ [("packet_in", (NONE, (^packet_in_map)));
+        ("packet_out", (NONE, (^packet_out_map)));
+("Checksum16", SOME (stmt_ext, [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))])``;
+
+
+val vss_actx_list = spine_pair $ rhs $ concl p4_vss_actx_def;
+val vss_actx_list_8first = List.take (vss_actx_list, 8);
+val vss_actx_list_10 = List.last vss_actx_list;
+val vss_actx_list' = (vss_actx_list_8first@[vss_ext_map'])@[vss_actx_list_10];
+val p4_vss_actx'_tm = list_mk_pair vss_actx_list';
+
+(* Re-definition of p4_vss_actx' *)
+Definition p4_vss_actx'_def:
+  p4_vss_actx' = ^p4_vss_actx'_tm
+End
+val ctx' = ``p4_vss_actx'``;
+
+(* EVAL-uate until packet is output (happens to be step 171) *)
+GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 171``;
