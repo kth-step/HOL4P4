@@ -751,29 +751,6 @@ FULL_SIMP_TAC list_ss [map_snd_EQ, map_fst_snd_EQ]
 
 
 
-val scopes_to_pass_same =
-prove(``
-! stmt g_scope_list g_scope_list' scopes_stack stmt_stack' ctrl funn v  (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) ascope apply_table_f. 
-(SOME g_scope_list' = scopes_to_pass funn func_map b_func_map g_scope_list ) /\
-(stmt_red ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ) 
-          (ascope, g_scope_list,[(funn,[stmt],scopes_stack)],status_running)
-          (ascope, g_scope_list,[(funn,stmt_stack',scopes_stack)],
-           status_returnv v)) ==>	   
-(stmt_red ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ) 
-          (ascope, g_scope_list',[(funn,[stmt],scopes_stack)],status_running)
-          (ascope, g_scope_list',[(funn,stmt_stack',scopes_stack)],
-           status_returnv v)) `` ,
-	   
-REPEAT STRIP_TAC >>
-Induct_on `stmt`  >>
-
-REPEAT STRIP_TAC >>
-rw[] >>
-rfs[] >>
-TRY (OPEN_STMT_RED_TAC ``stmt_seq stmt stmt'``) >>
-RW_TAC (srw_ss()) [Once stmt_red_cases] >>
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
-);
 
 
 
@@ -781,12 +758,13 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
 
 (*determinism proof of expressions*)
 
-val P4_exp_det =
-prove ( `` ! (ty:'a itself) .
+Theorem P4_exp_det:
+ ! (ty:'a itself) .
 (!  e .          det_exp e ty) /\
 (! (l1: e list). det_exp_list l1 ty)  /\
 (! (l2: (string#e) list) .  det_strexp_list l2 ty) /\
-(! tup. det_strexp_tup tup ty)``,
+(! tup. det_strexp_tup tup ty)
+Proof
 
 STRIP_TAC >>
 Induct >|[
@@ -1195,8 +1173,7 @@ FULL_SIMP_TAC list_ss [det_exp_list_def] >>
 REPEAT STRIP_TAC >>
 rw []
 ]
-);
-
+QED
 
 
 
@@ -1206,8 +1183,9 @@ rw []
 (**************************************************)
 (**************************************************)
 
-val P4_stmt_det =
-prove ( `` !stmt ty. det_stmt stmt ty``,
+Theorem P4_stmt_det:
+ !stmt ty. det_stmt stmt ty
+Proof 
 
 
 Induct >|[
@@ -1388,10 +1366,10 @@ FULL_SIMP_TAC (srw_ss()) [Once same_state_def] ) >>
 rw[] >>
 Cases_on `lookup_ext_fun f ext_map` >>
 rw[] >>
-Cases_on `ext_fun (ascope,g_scope_list,sl)`>>
+Cases_on `ext_fun (ascope,g_scope_list,sl,status_running)`>>
 rw[] 
 ]
-);
+QED
 
 
 (**************************************************)
@@ -1400,8 +1378,10 @@ rw[]
 (**************************************************)
 (**************************************************)
 
-val P4_stmtl_det =
-prove ( `` ! stmtl ty. det_stmtl stmtl ty ``,
+
+Theorem P4_stmtl_det:
+! stmtl ty. det_stmtl stmtl ty
+Proof
 
 Cases_on `stmtl` >| [
 FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
@@ -1437,7 +1417,7 @@ TRY (PAT_ASSUM `` ∀stmt._``
 RES_TAC >>
 fs [])
 ]]
-);
+QED
 
 
 
@@ -1494,26 +1474,6 @@ stmt_red c
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
 );
 
-
-
-
-
-
-
-
-val ret_lemma2a =
-prove(``
-! c g_scope_list g_scope_list' funn stmt stmt'   scopes_stack frame_list  ascope v .
-(stmt_red c
-          (ascope, g_scope_list,[(funn,[stmt],scopes_stack)],status_running)
-          (ascope, g_scope_list,[(funn,[stmt'],scopes_stack)],status_returnv v))
-	      ==>
-((((stmt = stmt_ret (e_v v)) )  \/  ? stmt'' stmt'''. stmt = stmt_seq (stmt'') (stmt'''))) ``
-,
-Induct_on `stmt` >>
-rw[] >> rfs[] >>
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
-);
 
 
 val not_ret_status  =
@@ -1631,8 +1591,9 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
 
 
 
-val P4_framel_det =
-prove ( `` ! framel ty. det_framel framel ty``,
+Theorem P4_framel_det:
+ ! framel ty. det_framel framel ty
+Proof 
 
 Cases_on `framel` >| [
 
@@ -1670,6 +1631,8 @@ Cases_on `t` >| [
        (*comp1-comp2*)
        (*************)       
 
+    fs[]>>rw[] >>
+    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
     FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
     rfs [notret_def]>>
     ASSUME_TAC P4_stmt_det >>
@@ -1679,33 +1642,11 @@ Cases_on `t` >| [
     TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
     rw[] >>
     rfs[notret_def]>>
-    IMP_RES_TAC lemma_v_red_forall >>
-    rw[] >| [
-    (*comp1+seq1 -  comp2-seq3*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (*comp1+seq3 -  comp2
-    show that the transition status can only happen with stmt transition
-    *)
-    IMP_RES_TAC not_ret_run_is_trans_or_error >>
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (* comp1 - comp2 - exec*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    Cases_on `status''` >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >> RES_TAC >>
-    rw[] >>
-    rfs[notret_def] >>
-    IMP_RES_TAC not_ret_status
-    ]
+       IMP_RES_TAC lemma_v_red_forall >>
 
+     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
+     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
+     fs[notret_def]
 
        ,
 
@@ -1714,6 +1655,8 @@ Cases_on `t` >| [
        (*************)       
 
 
+    fs[]>>rw[] >>
+    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
     FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
     rfs [notret_def]>>
     ASSUME_TAC P4_stmt_det >>
@@ -1723,54 +1666,35 @@ Cases_on `t` >| [
     TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
     rw[] >>
     rfs[notret_def]>>
-    IMP_RES_TAC lemma_v_red_forall >>
-          rw[] >| [
-    (*comp1+seq1 -  comp2-seq3*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (*comp1+seq3 -  comp2
-    show that the transition status can only happen with stmt transition
-    *)
-    IMP_RES_TAC not_ret_run_is_trans_or_error >>
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (* comp1 - comp2 - exec*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    Cases_on `status''` >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >> RES_TAC >>
-    rw[] >>
-    rfs[notret_def] >>
-    IMP_RES_TAC not_ret_status
-    ]
+       IMP_RES_TAC lemma_v_red_forall >>
+
+     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
+     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
+     fs[notret_def]
 
        ,
        (*************)
        (*comp2-comp2*)
        (*************)
 
-rw[] >>
-(*fs [same_state_def]  >>*)
-Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> rw[]>>
-rfs[] >>
-IMP_RES_TAC MAP4 >>
-rfs[] >>
-ASSUME_TAC P4_stmtl_det >>
-fs [det_stmtl_def]  >>
-RES_TAC >>
-Cases_on `assign g_scope_list v (lval_varname (varn_star funn))`    >> rw[] >>
-Cases_on `scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list''` >> rw[] >>
-REPEAT (Cases_on `copyout (MAP (λ(x_,d_). x_) x_d_list) (MAP (λ(x_,d_). d_) x_d_list)
-          g_scope_list'⁴' scope_list' scope_list` >> rw[same_state_def] >> rfs[] >> fs [same_state_def])
+       rw[] >>
+       Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> rw[]>>
+       Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list` >> fs[] >> rw[] >>      
+       ASSUME_TAC P4_stmtl_det >>
+       fs [det_stmtl_def]  >>
+       RES_TAC >>
+       fs [same_state_def] >> 
+       gvs[] >>
+       Cases_on `assign g_scope_list'³' v (lval_varname (varn_star funn))`  >> fs[]   >> rw[] >> 
+       Cases_on `scopes_to_retrieve funn func_map b_func_map g_scope_list
+          g_scope_list'⁴'` >> rw[] >>
+       Cases_on `copyout (MAP (λ(x_,d_). x_) x_d_list) (MAP (λ(x_,d_). d_) x_d_list)
+          g_scope_list'⁶' scope_list' scope_list''`>>   
+       fs[] >> rw[]
   ]
   
-]]);
+]]
+QED
 
 
 
