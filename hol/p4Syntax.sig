@@ -220,11 +220,6 @@ val mk_stmt_red : term * term * term -> term
 val stmt_red_tm : term
 
 
-val dest_lookup_vexp : term -> term * term
-val is_lookup_vexp : term -> bool
-val lookup_vexp_tm : term
-val mk_lookup_vexp : term * term -> term
-
 val dest_assign : term -> term * term * term
 val is_assign : term -> bool
 val assign_tm : term
