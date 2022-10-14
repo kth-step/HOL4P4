@@ -264,7 +264,7 @@ val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
 (***********************)
 
 val (lookup_vexp_tm, mk_lookup_vexp, dest_lookup_vexp, is_lookup_vexp) =
-  syntax_fns2 "p4" "lookup_vexp";
+  syntax_fns2 "p4" "lookup_v";
 
 val (assign_tm, mk_assign, dest_assign, is_assign) =
   syntax_fns3 "p4" "assign";
