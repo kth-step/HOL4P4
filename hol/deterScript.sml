@@ -4,8 +4,8 @@ open arithmeticTheory stringTheory containerTheory pred_setTheory
 
 open p4Lib;
 open blastLib bitstringLib;
-open p4Theory p4_auxTheory;
-(*open p4_exec_semTheory;*)
+open p4Theory p4_auxTheory ottTheory;
+open p4_exec_semTheory;
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -15,7 +15,7 @@ open ottTheory;
 open pairTheory;
 open rich_listTheory;
 
-
+val _ = new_theory "deter";
 
 (*Tactics*)
 
@@ -23,28 +23,30 @@ fun OPEN_EXP_RED_TAC exp_term =
 (Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
 
 fun OPEN_STMT_RED_TAC stm_term =
-(Q.PAT_X_ASSUM `stmt_red ct (gsl,[(fun,[^stm_term],gam)],ctl,st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
 
 
 
 (*********** SAME SATE DEF *****************)
 
 val same_state_def = Define `
- same_state (st:state) st'  =
-((st = st'))
+ same_state (st:'a state) st'  =
+(st = st')
 `;
 
 
 (******** STMT DETERMINISIM DEF ************)
 
+
 val det_stmt_def = Define `
- det_stmt stm = ! (c:ctx) (ss:scopes_stack) (s':state) (s'':state) (g_scope_list:scope list) (f:funn) status (ctrl:ctrl).
-(stmt_red c ( g_scope_list , ([(f,[stm],ss)]) , ctrl, status) (s'))
+ det_stmt (stm) (ty:'a itself) = ! (c: 'a ctx) ascope sl s' s'' g_scope_list f status .
+(stmt_red c ( ascope, g_scope_list, ([(f,[stm],sl)]), status) (s'))
 /\
-(stmt_red c ( g_scope_list , ([(f,[stm],ss)]) , ctrl, status) (s''))
+(stmt_red c ( ascope, g_scope_list, ([(f,[stm],sl)]), status) (s''))
 ==>
 ( same_state s' s'')
 `;
+
 
 
 (********* SAME FRAME and EXP DEF *************)
@@ -60,10 +62,10 @@ val same_frame_exp_def = Define `
 wich shows that each exression reduction is determ.*)
 
 val det_exp_def = Define `
- det_exp e = ! c scope scopest e' e'' frame frame'.
-(e_red c scope scopest e e' frame )
+ det_exp e (ty:'a itself) = ! (c: 'a ctx) scope scopest e' e'' frame frame'.
+(e_red (c: 'a ctx) scope scopest e e' frame )
 /\
-(e_red c scope scopest e e'' frame' ) 
+(e_red (c: 'a ctx)  scope scopest e e'' frame' ) 
 ==>
 (same_frame_exp frame frame' e' e'')
 `;
@@ -76,7 +78,7 @@ for clarification, check the definition of e_induction
 in P4 theory, it is basically P3 *)
 
 val det_exp_list_def = Define `
-   det_exp_list (l : e list)  = !(x : e). MEM x l ==> det_exp(x)
+   det_exp_list (l : e list) (ty:'a itself)  = !(x : e). MEM x l ==> det_exp (x) (ty:'a itself)
 `;
 
 
@@ -87,8 +89,8 @@ and strings is deterministic for clarification, check
 the definition of e_induction in P4 theory, it is P1 *)
 
 val det_strexp_list_def = Define `
-   det_strexp_list (l : (string#e) list)
-      = !  (e:e) . MEM e (SND (UNZIP l)) ==> det_exp(e)
+   det_strexp_list (l : (string#e) list) (ty:'a itself)
+      = !  (e:e) . MEM e (SND (UNZIP l)) ==> det_exp(e) (ty:'a itself)
 `;
 
 
@@ -97,28 +99,28 @@ val det_strexp_list_def = Define `
 A tuple of (expression, string) in the struct or header 
 is deterministic. Based on e_induction this is P2 *)
 
-val det_strexp_tuple_def = Define `
-   det_strexp_tup (tup : (string#e))
-      =  det_exp (SND(tup))
+val det_strexp_tuple_def = Define ` 
+   det_strexp_tup (tup : (string#e)) (ty:'a itself)
+      =  det_exp (SND(tup)) (ty:'a itself)
 `;
 
 
 (******** stmt list DETERMINISIM DEF *******)
 val det_stmtl_def = Define `
- det_stmtl stmtl = ! (c:ctx) (s':state) s'' (g_scope_list:scope list) (ctrl:ctrl) status (ss:scope list) (f:funn).
-(stmt_red c ( g_scope_list , ([(f,stmtl,ss)]) , ctrl, status) (s'))
+ det_stmtl stmtl (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list) status (ss:scope list) (f:funn) ascope.
+(stmt_red c ( ascope, g_scope_list , ([(f,stmtl,ss)]) , status) (s'))
 /\
-(stmt_red c ( g_scope_list , ([(f,stmtl,ss)]) , ctrl, status) (s''))
+(stmt_red c ( ascope, g_scope_list , ([(f,stmtl,ss)]) , status) (s''))
 ==>
 ( same_state s' s'')
 `;
 
 (******** Single frame DETERMINISIM DEF *******)
 val det_frame_def = Define `
- det_frame frame = ! (c:ctx) (s':state) s'' (g_scope_list:scope list) (ctrl:ctrl) status.
-(frames_red c ( g_scope_list , [frame] , ctrl, status) (s'))
+ det_frame frame (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list) status ascope.
+(frames_red c ( ascope, g_scope_list , [frame] , status) (s'))
 /\
-(frames_red c ( g_scope_list , [frame] , ctrl, status) (s''))
+(frames_red c ( ascope, g_scope_list , [frame] , status) (s''))
 ==>
 ( same_state s' s'')
 `;
@@ -126,10 +128,10 @@ val det_frame_def = Define `
 
 (******** Frame list DETERMINISIM DEF *******)
 val det_framel_def = Define `
- det_framel framel = ! (c:ctx) (s':state) s'' (g_scope_list:scope list) (ctrl:ctrl) status.
-(frames_red c ( g_scope_list , framel , ctrl, status) (s'))
+ det_framel framel (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list)  status ascope.
+(frames_red c ( ascope, g_scope_list , framel, status) (s'))
 /\
-(frames_red c ( g_scope_list , framel , ctrl, status) (s''))
+(frames_red c ( ascope, g_scope_list , framel, status) (s''))
 ==>
 ( same_state s' s'')
 `;
@@ -138,11 +140,13 @@ val det_framel_def = Define `
 
 (*********Reduction of vars lemmas ************)
 
-val lemma_v_red_forall =
-prove(`` ! c s sl e l fl.
-~ e_red c s sl (e_v (l)) e fl   ``,
+Theorem lemma_v_red_forall:
+! c s sl e l fl.
+~ e_red c s sl (e_v (l)) e fl
+Proof
 RW_TAC (srw_ss()) [Once e_red_cases]
-);
+QED
+
 
 (********* lookup_funn_sig_body eq ************)
 
@@ -747,29 +751,6 @@ FULL_SIMP_TAC list_ss [map_snd_EQ, map_fst_snd_EQ]
 
 
 
-val scopes_to_pass_same =
-prove(``
-! stmt g_scope_list g_scope_list' scopes_stack stmt_stack' ctrl funn v  (ext_map:ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map)  . 
-(SOME g_scope_list' = scopes_to_pass funn func_map b_func_map g_scope_list ) /\
-(stmt_red ( ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )
-          (g_scope_list,[(funn,[stmt],scopes_stack)],ctrl,status_running)
-          (g_scope_list,[(funn,stmt_stack',scopes_stack)],ctrl,
-           status_returnv v)) ==>	   
-(stmt_red ( ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )
-          (g_scope_list',[(funn,[stmt],scopes_stack)],ctrl,status_running)
-          (g_scope_list',[(funn,stmt_stack',scopes_stack)],ctrl,
-           status_returnv v)) `` ,
-	   
-REPEAT STRIP_TAC >>
-Induct_on `stmt`  >>
-
-REPEAT STRIP_TAC >>
-rw[] >>
-rfs[] >>
-TRY (OPEN_STMT_RED_TAC ``stmt_seq stmt stmt'``) >>
-RW_TAC (srw_ss()) [Once stmt_red_cases] >>
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
-);
 
 
 
@@ -777,9 +758,15 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
 
 (*determinism proof of expressions*)
 
-val P4_exp_det =
-prove ( `` (!e. det_exp e) /\ (! l1: e list. det_exp_list l1)  /\ (!l2 : (string#e) list .  det_strexp_list l2 ) /\ ( ! tup. det_strexp_tup tup)``,
- 
+Theorem P4_exp_det:
+ ! (ty:'a itself) .
+(!  e .          det_exp e ty) /\
+(! (l1: e list). det_exp_list l1 ty)  /\
+(! (l2: (string#e) list) .  det_strexp_list l2 ty) /\
+(! tup. det_strexp_tup tup ty)
+Proof
+
+STRIP_TAC >>
 Induct >|[
 
 (*****************************)
@@ -901,7 +888,7 @@ FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def]
 
 (*****************************)
 (*    e_func_call            *)
-(*****************************)
+(*****************************) 
 SIMP_TAC (srw_ss()) [det_exp_def] >>
 REPEAT STRIP_TAC >>
 OPEN_EXP_RED_TAC ``(e_call s l)`` >>
@@ -975,23 +962,24 @@ METIS_TAC[]
 
 (*start the forth sub poof here*)
 `SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list) =
-SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ` by METIS_TAC [SOME_EL,SOME_11] >>
-REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
+SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ` by METIS_TAC [SOME_EL,SOME_11] >> rw[] >>
+(*REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >> *)
 
 (**first show that the d is the same in both lists, thus the i = i'*)
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 IMP_RES_TAC lemma_MAP2 >>
-`i = i'` by METIS_TAC [ option_case_def]>>
+`i = i'` by METIS_TAC [ option_case_def]>> rw[] >> rfs[] >>
 
 (*Now try to show that the EL i l is deterministic*)
-REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def, det_exp_list_def] >>
+REV_FULL_SIMP_TAC (srw_ss()) [det_exp_list_def] >>
 PAT_ASSUM `` ∀x._``
 ( STRIP_ASSUME_TAC o (Q.SPECL [`(EL i (MAP (λ(e_,e'_,x_,d_). e_) (e_e'_x_d_list:(e#e#string#d)list)))` ])) >>
-(*IMP_RES_TAC unred_arg_index_in_range  >> *) cheat >>
-IMP_RES_TAC EL_MEM >>
+rw[]>>
+IMP_RES_TAC unred_arg_index_in_range >>
+IMP_RES_TAC EL_MEM >> rfs[]>>
 FULL_SIMP_TAC list_ss [det_exp_def]  >>
-RES_TAC >>
-FULL_SIMP_TAC list_ss [same_frame_exp_def]>>
+RES_TAC >> rw[] >>
+FULL_SIMP_TAC list_ss [same_frame_exp_def]>> rfs[] >>
 rw[] >> rw[]
 ]  ]
 ,
@@ -1185,8 +1173,7 @@ FULL_SIMP_TAC list_ss [det_exp_list_def] >>
 REPEAT STRIP_TAC >>
 rw []
 ]
-);
-
+QED
 
 
 
@@ -1196,8 +1183,10 @@ rw []
 (**************************************************)
 (**************************************************)
 
-val P4_stmt_det =
-prove ( `` !stmt. det_stmt stmt ``,
+Theorem P4_stmt_det:
+ !stmt ty. det_stmt stmt ty
+Proof 
+
 
 Induct >|[
 
@@ -1220,24 +1209,25 @@ REV_FULL_SIMP_TAC (srw_ss()) [] >>
 (*first + second + third subgoal*)
 RW_TAC (srw_ss()) [assign_def, same_state_def]>>
 IMP_RES_TAC lemma_v_red_forall >>
-TRY (`SOME scopes_stack' = SOME scopes_stack''` by METIS_TAC [CLOSED_PAIR_EQ] >>
+TRY (`SOME scopes_list' = SOME scopes_list''` by METIS_TAC [CLOSED_PAIR_EQ] >>
 fs []) >>
+rw[] >> rfs[] >>
 
 (*fourth subgoal*)
+
+
+rfs[] >>
+Cases_on `assign (sl ⧺ g_scope_list) v l` >>
+fs[] >>
+Cases_on `separate x` >>
+rw[] >>
+
+
 ASSUME_TAC P4_exp_det >>
 fs [det_exp_def]  >>
 RES_TAC >>
-fs [same_frame_exp_def]>>
-`
-SOME scopes_stack'⁴' =
-SOME scopes_stack'
-`by METIS_TAC[] >> rfs [] >>
+fs [same_frame_exp_def]
 
-
-`(SOME g_scope_list'',SOME scopes_stack'')  =
- (SOME g_scope_list'³',SOME scopes_stack'³')
-`
-by METIS_TAC[] >> rfs []
 ,
 
 (*****************************)
@@ -1343,27 +1333,14 @@ fs [same_frame_exp_def]
 (*****************************)
 SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
-NTAC 2 (OPEN_STMT_RED_TAC ``stmt_app s e``) >>
+NTAC 2 (OPEN_STMT_RED_TAC ``stmt_app s l``) >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 rw [] >> fs [] >>
-FULL_SIMP_TAC (srw_ss()) [Once same_state_def] >| [
-
-`ctrl (s,MAP (λ(e_,mk_). e_) e_mk_list,MAP (λ(e_,mk_). mk_) e_mk_list)  =
- ctrl (s,MAP (λ(e_,mk_). e_) e_mk_list',MAP (λ(e_,mk_). mk_) e_mk_list')
-`
-by METIS_TAC[] >> fs []
-,
+FULL_SIMP_TAC (srw_ss()) [Once same_state_def] >>
 
 ASSUME_TAC lconst_const_imp >>
 RES_TAC >>
-rfs []
-,
-
 rfs [] >>
-ASSUME_TAC lconst_const_imp >>
-RES_TAC >>
-rfs []
-,
 
 `SOME i'  =
  SOME i
@@ -1374,7 +1351,6 @@ fs [det_exp_def]  >>
 RES_TAC >>
 fs [same_frame_exp_def]
 
-]
 
 ,
 
@@ -1387,16 +1363,13 @@ REPEAT STRIP_TAC >>
 OPEN_STMT_RED_TAC ``(stmt_ext)`` >>
 REV_FULL_SIMP_TAC (srw_ss()) []) >> 
 FULL_SIMP_TAC (srw_ss()) [Once same_state_def] ) >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-
-`SOME (g_scope_list'',scopes_stack',ctrl'') = SOME (g_scope_list'³',scopes_stack'',ctrl'³') `
-by METIS_TAC [ option_case_def]>>
-
-rw [] >> fs [] >>
-FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES] >>
- fs [option_case_def]
+rw[] >>
+Cases_on `lookup_ext_fun f ext_map` >>
+rw[] >>
+Cases_on `ext_fun (ascope,g_scope_list,sl,status_running)`>>
+rw[] 
 ]
-);
+QED
 
 
 (**************************************************)
@@ -1405,8 +1378,10 @@ FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES] >>
 (**************************************************)
 (**************************************************)
 
-val P4_stmtl_det =
-prove ( `` ! stmtl. det_stmtl stmtl ``,
+
+Theorem P4_stmtl_det:
+! stmtl ty. det_stmtl stmtl ty
+Proof
 
 Cases_on `stmtl` >| [
 FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
@@ -1421,41 +1396,28 @@ fs [det_stmt_def, same_state_def]  >>
 RES_TAC >>
 fs []
 ,
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >| [
-
-(*first subgoal exec-exec*)
+FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >> fs [same_state_def] >>
+rw[] >>
 ASSUME_TAC P4_stmt_det >>
 rfs [det_stmt_def, same_state_def]  >>
-PAT_ASSUM `` ∀stmt._``
+
+TRY (PAT_ASSUM `` ∀stmt._``
 ( STRIP_ASSUME_TAC o (Q.SPECL [`h`,
-`c`,
+`(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)`,
+`ascope`,
 `ss`,
-`(g_scope_list'',frame_list' ⧺ [(f,stmt_stack',scopes_stack')],
-           ctrl'',status'')`,
-`(g_scope_list'³',frame_list'' ⧺ [(f,stmt_stack'',scopes_stack'')],
-           ctrl'³',status'³')`,
+`(ascope'³',g_scope_list'³',
+           frame_list'' ⧺ [(f,stmt_stack'',scope_list'')],status'³')`,
+`(ascope'',g_scope_list'',
+           frame_list' ⧺ [(f,stmt_stack',scope_list')],status'')`,
 `g_scope_list`,
 `f`,
-`status`,
-`ctrl`
+`status`
 ])) >>
 RES_TAC >>
-fs []
-,
-
-(*second subgoal exec-exit*)
-fs []
-,
-
-(*third subgoal exit-exec *)
-fs []
-,
-
-(*fourth subgoal exit-exit *)
-fs [same_state_def]
-
-]]]
-);
+fs [])
+]]
+QED
 
 
 
@@ -1463,11 +1425,11 @@ fs [same_state_def]
 
 val ret_lemma1a =
 prove(``
-! e v c g_scope_list funn scopes_stack ctrl stmt'.
+! e v c g_scope_list funn scopes_stack ctrl stmt' ascope.
 stmt_red c
-          (g_scope_list,[(funn,[stmt_ret e],scopes_stack)],ctrl,
+          (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (g_scope_list,[(funn,[stmt'],scopes_stack)],ctrl,status_returnv v) ==> (e = e_v v) ``,
+          (ascope, g_scope_list,[(funn,[stmt'],scopes_stack)],status_returnv v) ==> (e = e_v v) ``,
 
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
 
@@ -1476,11 +1438,11 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
 
 val ret_lemma1b =
 prove(``
-! e v c g_scope_list funn scopes_stack scopes_stack' ctrl stmt'.
+! e v c g_scope_list funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
-          (g_scope_list,[(funn,[stmt_ret e],scopes_stack)],ctrl,
+          (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (g_scope_list,[(funn,[stmt'],scopes_stack')],ctrl,status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack')  ``,
+          (ascope, g_scope_list,[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack')  ``,
 
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
 );
@@ -1489,11 +1451,11 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
 
 val ret_lemma1c =
 prove(``
-! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' ctrl stmt'.
+! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
-          (g_scope_list,[(funn,[stmt_ret e],scopes_stack)],ctrl,
+          (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (g_scope_list',[(funn,[stmt'],scopes_stack')],ctrl,status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
+          (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
 
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
 );
@@ -1503,43 +1465,23 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
 
 val ret_lemma1d =
 prove(``
-! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' ctrl stmt'.
+! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
-          (g_scope_list,[(funn,[stmt_ret e],scopes_stack)],ctrl,
+          (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (g_scope_list',[(funn,[stmt'],scopes_stack')],ctrl,status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
+          (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
 
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
 );
 
 
 
-
-
-
-
-
-val ret_lemma2a =
-prove(``
-! c g_scope_list g_scope_list' funn stmt stmt'   scopes_stack frame_list  ctrl  ctrl' v .
-(stmt_red c
-          (g_scope_list,[(funn,[stmt],scopes_stack)],ctrl,status_running)
-          (g_scope_list,[(funn,[stmt'],scopes_stack)],ctrl,status_returnv v))
-	      ==>
-((((stmt = stmt_ret (e_v v)) )  \/  ? stmt'' stmt'''. stmt = stmt_seq (stmt'') (stmt'''))) ``
-,
-Induct_on `stmt` >>
-rw[] >> rfs[] >>
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
-);
-
-
 val not_ret_status  =
 prove(``
-! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v .
+! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v ascope.
 ~ stmt_red c
-          (g_scope_list,[(f,[stmt_ret (e_v v)],ss)],ctrl, status_running)
-          (g_scope_list', frame_list , ctrl',status_running)``
+          (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
+          (ascope, g_scope_list', frame_list,status_running)``
 ,
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
 rw[] >>
@@ -1549,10 +1491,10 @@ rfs[lemma_v_red_forall]
 
 val is_ret_status  =
 prove(``
-! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v status.
+! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v status ascope.
 stmt_red c
-          (g_scope_list,[(f,[stmt_ret (e_v v)],ss)],ctrl, status_running)
-          (g_scope_list', frame_list , ctrl',status) ==>  (status = status_returnv v)``
+          (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
+          (ascope, g_scope_list', frame_list,status) ==>  (status = status_returnv v)``
 ,
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
 rw[] >>
@@ -1564,10 +1506,10 @@ rfs[lemma_v_red_forall]
 
 val not_trans_status  =
 prove(``
-! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v v'.
+! c g_scope_list g_scope_list' f stmt stmt' ss frame_list v v' ascope.
 ~ stmt_red c
-          (g_scope_list,[(f,[stmt_trans (e_v (v_str v'))],ss)],ctrl, status_running)
-          (g_scope_list', frame_list , ctrl',status_returnv v)
+          (ascope, g_scope_list,[(f,[stmt_trans (e_v (v_str v'))],ss)], status_running)
+          (ascope, g_scope_list', frame_list,status_returnv v)
 ``
 ,
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
@@ -1584,10 +1526,10 @@ We can never reach the status error... shall we remove it?
 
 val not_trans_status  =
 prove(``
-! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v v'.
+! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  v v' ascope.
 ~ stmt_red c
-          (g_scope_list,[(f,[stmt_trans (e_v (v_str v'))],ss)],ctrl, status_running)
-          (g_scope_list', frame_list , ctrl',status_returnv v)
+          (ascope, g_scope_list,[(f,[stmt_trans (e_v (v_str v'))],ss)], status_running)
+          (ascope, g_scope_list', frame_list,status_returnv v)
 ``
 ,
 FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
@@ -1616,7 +1558,7 @@ rw [notret_def]
 (**************************************************)
 
 val P4_frame_det =
-prove ( `` ! frame. det_frame frame ``,
+prove ( `` ! frame ty. det_frame frame ty ``,
 Cases_on `frame` >>
 Cases_on `r`>>
 Cases_on `q'` >| [
@@ -1630,21 +1572,13 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
   REPEAT STRIP_TAC >>
   FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
   rw[] >>
-  `g_scope_list'' = g_scope_list'⁶'` by METIS_TAC [SOME_EL,SOME_11] >>
+  Cases_on `scopes_to_pass q func_map b_func_map g_scope_list` >>
+  rw[] >>
   ASSUME_TAC P4_stmtl_det >>
   fs [det_stmtl_def]  >>
-  PAT_ASSUM `` ∀stmtl._``
-  ( STRIP_ASSUME_TAC o (Q.SPECL [`h::t`,
-  `(ext_map,func_map,b_func_map,pars_map,tbl_map)`,
-  ` (g_scope_list'⁴',frame_list',ctrl'',status'')`,
-  `(g_scope_list'⁷',frame_list'',ctrl'³',status'³')`,
-  `g_scope_list'⁶'`,
-  `ctrl`,
-  `status`,
-  `r'`,
-  `q` ])) >>
    rfs[same_state_def] >>
    RES_TAC >>
+     fs []  >>
    ` g_scope_list''' =  g_scope_list'⁵'` by METIS_TAC [SOME_EL,SOME_11]
 ]
 
@@ -1657,8 +1591,9 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
 
 
 
-val P4_framel_det =
-prove ( `` ! framel. det_framel framel ``,
+Theorem P4_framel_det:
+ ! framel ty. det_framel framel ty
+Proof 
 
 Cases_on `framel` >| [
 
@@ -1681,25 +1616,14 @@ Cases_on `t` >| [
   rw[] >| [
        (*comp1-comp1*)
     rw[] >>
-    `g_scope_list'' = g_scope_list'⁶'` by METIS_TAC [SOME_EL,SOME_11] >>
+    Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list`>>
+    rw[] >>
 
     ASSUME_TAC P4_stmtl_det >>
     fs [det_stmtl_def]  >>
 
-    PAT_ASSUM `` ∀stmtl._``
-    ( STRIP_ASSUME_TAC o (Q.SPECL [`stmt_stack`,
-    `(ext_map,func_map,b_func_map,pars_map,tbl_map)`,
-    `(g_scope_list'⁴',frame_list',ctrl'',status'')`,
-    `(g_scope_list'⁷',frame_list'',ctrl'³',status'³')`,
-    `g_scope_list''`,
-    `ctrl`,
-    `status`,
-    `scopes_stack`,
-    `funn`
-    ])) >>
-
     rfs[same_state_def] >>
-    RES_TAC >>
+    RES_TAC >>    rw[] >>
     ` g_scope_list''' =  g_scope_list'⁵'` by METIS_TAC [SOME_EL,SOME_11]
        ,
 
@@ -1707,6 +1631,8 @@ Cases_on `t` >| [
        (*comp1-comp2*)
        (*************)       
 
+    fs[]>>rw[] >>
+    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
     FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
     rfs [notret_def]>>
     ASSUME_TAC P4_stmt_det >>
@@ -1716,33 +1642,11 @@ Cases_on `t` >| [
     TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
     rw[] >>
     rfs[notret_def]>>
-    IMP_RES_TAC lemma_v_red_forall >>
-    rw[] >| [
-    (*comp1+seq1 -  comp2-seq3*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (*comp1+seq3 -  comp2
-    show that the transition status can only happen with stmt transition
-    *)
-    IMP_RES_TAC not_ret_run_is_trans_or_error >>
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (* comp1 - comp2 - exec*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    Cases_on `status''` >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >> RES_TAC >>
-    rw[] >>
-    rfs[notret_def] >>
-    IMP_RES_TAC not_ret_status
-    ]
+       IMP_RES_TAC lemma_v_red_forall >>
 
+     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
+     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
+     fs[notret_def]
 
        ,
 
@@ -1751,6 +1655,8 @@ Cases_on `t` >| [
        (*************)       
 
 
+    fs[]>>rw[] >>
+    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
     FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
     rfs [notret_def]>>
     ASSUME_TAC P4_stmt_det >>
@@ -1760,57 +1666,38 @@ Cases_on `t` >| [
     TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
     rw[] >>
     rfs[notret_def]>>
-    IMP_RES_TAC lemma_v_red_forall >>
-          rw[] >| [
-    (*comp1+seq1 -  comp2-seq3*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (*comp1+seq3 -  comp2
-    show that the transition status can only happen with stmt transition
-    *)
-    IMP_RES_TAC not_ret_run_is_trans_or_error >>
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >>
-    RES_TAC >>rw[]
-    ,
-    (* comp1 - comp2 - exec*)
-    rw[] >> IMP_RES_TAC scopes_to_pass_same >>
-    Cases_on `status''` >>
-    ASSUME_TAC   P4_stmtl_det   >>
-    fs[det_stmtl_def] >> RES_TAC >>
-    rw[] >>
-    rfs[notret_def] >>
-    IMP_RES_TAC not_ret_status
-    ]
+       IMP_RES_TAC lemma_v_red_forall >>
+
+     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
+     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
+     fs[notret_def]
 
        ,
        (*************)
        (*comp2-comp2*)
        (*************)
 
-rw[] >>
-fs [same_state_def]  >>
-`(stmt'³',x_d_list) = (stmt'⁴',x_d_list')` by METIS_TAC [SOME_EL,SOME_11] >>
-rfs[] >>
-IMP_RES_TAC MAP4 >>
-rfs[] >>
-ASSUME_TAC P4_stmtl_det >>
-fs [det_stmtl_def, same_state_def]  >>
-RES_TAC >>
-rw[] >>
-`  g_scope_list'' =  g_scope_list'⁶' ` by METIS_TAC [SOME_EL,SOME_11] >>
-rw[] >>
-` g_scope_list'⁴' = g_scope_list'⁷' ` by METIS_TAC [SOME_EL,SOME_11] >>
-rw[] >>
-`(g_scope_list'⁵',scopes_stack'⁵') = (g_scope_list'³',scopes_stack'⁴') ` by METIS_TAC [SOME_EL,SOME_11] >>
-rw[] 
+       rw[] >>
+       Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> rw[]>>
+       Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list` >> fs[] >> rw[] >>      
+       ASSUME_TAC P4_stmtl_det >>
+       fs [det_stmtl_def]  >>
+       RES_TAC >>
+       fs [same_state_def] >> 
+       gvs[] >>
+       Cases_on `assign g_scope_list'³' v (lval_varname (varn_star funn))`  >> fs[]   >> rw[] >> 
+       Cases_on `scopes_to_retrieve funn func_map b_func_map g_scope_list
+          g_scope_list'⁴'` >> rw[] >>
+       Cases_on `copyout (MAP (λ(x_,d_). x_) x_d_list) (MAP (λ(x_,d_). d_) x_d_list)
+          g_scope_list'⁶' scope_list' scope_list''`>>   
+       fs[] >> rw[]
   ]
   
-]]);
+]]
+QED
 
 
+
+
+val _ = export_theory ();
 

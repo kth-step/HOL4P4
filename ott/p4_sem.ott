@@ -219,9 +219,9 @@ formula :: formula_ ::=
 | e = hd e_list :: M :: args_hd
   {{ hol ([[e]] = HD [[e_list]]) }}
   {{ tex [[e]] = \mathrm{hd} \,\, [[e_list]] }}
-| v = lookup_vexp ( scope_list , x ) :: :: lookup_v
+| v = lookup_v ( scope_list , x ) :: :: lookup_v
   {{ tex [[v]] = \mathrm{lookup_v} ([[scope_list]], [[x]]) }}
-  {{ hol SOME [[v]] =  lookup_vexp [[scope_list]] (varn_name [[x]])}}
+  {{ hol SOME [[v]] =  lookup_v [[scope_list]] (varn_name [[x]])}}
 | v = lookup_vexp2 ( scope_list , g_scope_list , varn ) :: :: lookup_v2
   {{ tex [[v]] = \mathrm{lookup_v} ([[scope_list]], [[g_scope_list]], [[varn]]) }}
   {{ hol SOME [[v]] =  lookup_vexp2 [[scope_list]] [[g_scope_list]] [[varn]]}} 
@@ -516,19 +516,22 @@ formula :: formula_ ::=
   {{ com width of bitstring}}
   {{ tex [[w]] = width \ [[bitv]] }}
   {{ hol ([[w]] = bs_width [[bitv]]) }}
-| tau = topmost ( t_scopes_tup , varn ) :: :: topmost
-  {{ tex [[tau]] = \mathrm{topmost} ([[t_scopes_tup]], [[varn]]) }}
-  {{ hol SOME [[tau]] =  topmost [[t_scopes_tup]] [[varn]]}}
+| tau = lookup_tau ( t_scope_list , t_scope_list_g , varn ) :: :: topmost
+  {{ tex [[tau]] = \mathrm{topmost} ([[t_scope_list]] , [[t_scope_list_g]] , [[varn]]) }}
+  {{ hol SOME [[tau]] =  lookup_tau [[t_scope_list]] [[t_scope_list_g]] [[varn]] }}
+| tau = find_star_in_globals ( t_scope_list_g , varn ) :: :: find_star_in_globals
+  {{ tex [[tau]] = \mathrm{find_star_in_globals} ([[t_scope_list_g]], [[varn]]) }}
+  {{ hol SOME [[tau]] =  find_star_in_globals [[t_scope_list_g]] [[varn]]}}
 | [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) :: :: fun_type
 %  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_g]] \cup [[delta_b]] ([[funn]]) }}
   {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) =  t_lookup_funn [[delta_g]] [[delta_b]] [[funn]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] <> unop_neg)) }}
+  {{ hol (([[unop]] <> unop_neg_signed)) }}
   {{ tex [[unop]] \neq \mathit{!} }}
 | is_bool_neg unop :: M :: is_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] = unop_neg)) }}
+  {{ hol (([[unop]] = unop_neg_signed)) }}
   {{ tex [[unop]] \eq \mathit{!} }}
 
 | length ( taul ) = m :: M :: find_t_length
@@ -552,12 +555,12 @@ formula :: formula_ ::=
   {{ tex ([[formula]]\!) }}
   {{ hol ([[formula]]) }}
 |  v_list : ( taul , false )  :: :: type_all_v
-  {{ hol !i. (1<=i /\ i<= LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
+  {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
   {{ tex [[v_list]] : ( [[taul]] , F ) }}
 |  ( v1 , .. , vm ) : ( tau , false )  :: :: type_all_v_one_t
-  {{ hol !i. (1<=i /\ i<= LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) ([[tau]]) F ) }}    
+  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) ([[tau]]) F ) }}    
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
-  {{ hol !i. (1<=i /\ i<= LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
+  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
 | correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau ) :: :: correct_field_type
   {{ hol correct_field_type [[x1 tau1 .. xn taun]] [[x]] [[tau]] }}
 | slice_length_check ( w , bitv' , bitv'' )  :: :: slice_length_check
@@ -567,7 +570,7 @@ formula :: formula_ ::=
 | w = vec_to_const bitv  :: :: vec_to_const
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
-  {{ hol !i. (1<=i /\ i<= LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) (EL i [[b1 .. bo]]) ) }}
+  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) (EL i [[b1 .. bo]]) ) }}
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
   {{ hol ( out_is_lval [[d1 .. dn]] [[b1 .. bm]] ) }}
 | is_bv_op binop :: :: is_bv_op 
@@ -588,6 +591,11 @@ formula :: formula_ ::=
   {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
 | t_scope = replicate_types decl_list :: :: types_repl
   {{ hol ( [[t_scope]] = replicate_types [[decl_list]]) }}
+| WF_o order :: :: WF_order
+  {{ hol ( WF_o [[order]] )}}
+| MEM x x_list :: :: x_in_xlist
+  {{ hol ( MEM [[x]] [[x_list]] ) }} 
+
 
 embed
 {{ hol
@@ -1152,7 +1160,6 @@ val vl_of_el_def = Define `
 *  Returns the index of the expression. 
 *  This definition is used in the apply tbl e_list
 *)
-
 val index_not_const_def = Define `
   index_not_const elist =
     case INDEX_FIND 0 (\e. ~(is_const e)) elist of
@@ -1160,68 +1167,64 @@ val index_not_const_def = Define `
     |_ => NONE
 `;
 
-(* TODO: Rename to avoid confusion with "newest_scope" et.c. *)
-(* Finds the topmost scope where the variable x is mapped and its index, as a tuple.*)
-val find_topmost_scope_def = Define `
-  find_topmost_scope (ss:scope list) x =
+(* Extracts the index of the topmost scope where the variable name x is mapped in *)
+val find_topmost_map_def = Define `
+  find_topmost_map (ss:((varn#'a) list) list) (x:varn) =
     case INDEX_FIND 0 (\sc. IS_SOME (ALOOKUP sc x)) (ss) of
-    | SOME (i, sc) => SOME (i, sc)
+    | SOME y => SOME y
     | NONE => NONE
 `;
 
-(* Extracts the topmost scope where the variable name x is mapped *)
-val topmost_scope_def = Define `
-  topmost_scope (ss:scope list) x =
-    case find_topmost_scope ss x of
-    | SOME (i, sc) => SOME sc
+
+(* Extracts the topmost scope where the variable name x is mapped in *)
+val topmost_map_def = Define `
+  topmost_map  (ss:((varn#'a) list) list) (x:varn) =
+    case find_topmost_map ss x of
+    | SOME (i, y) => SOME y
     | _ => NONE
 `;
 
-(* Extracts the index of the topmost scope where the variable name x is mapped *)
-val topmost_scope_index_def = Define `
-  topmost_scope_index (ss:scope list) x = 
-    case find_topmost_scope ss x of
-    | SOME (i, sc) => SOME i
-    | _ => NONE
-`;
-(* Fetches the (value, string option) tuple of the variable name x,
- * in the topmost scope where it is mapped *)
-val lookup_tup_def = Define `
-  lookup_tup (ss:scope list) x =
-    case topmost_scope ss x of
+
+(* Fetches the ('a, string option) tuple of the variable name x, 
+in the topmost scope where it is mapped *) 
+val lookup_map_def = Define `
+  lookup_map  (ss:((varn#'a) list) list) (x:varn) =
+    case topmost_map ss x of
     | SOME sc => 
       (case ALOOKUP sc x of
-       | SOME (v, str_opt) => SOME (v, str_opt)
+       | SOME y => SOME y
        | _ => NONE)
     | _ => NONE
 `;
-(* Fetches the value of the variable name x from the topmost scope where it is mapped *)
+
+(* Fetches the value of the variable name x from the topmost scope where it is mapped*)
 val lookup_v_def = Define `
   lookup_v (ss:scope list) x =
-    case lookup_tup ss x of
+    case lookup_map ss x of
     | SOME (v, str_opt) => SOME v
     | _ => NONE
 `;
+
+
 (* Fetches the (optional) argument variable name that might have been saved if
  * variable name x was mapped as a result of being an out-parameter in a
  * called function from the topmost scope where x is mapped *)
 val lookup_out_def = Define `
   lookup_out (ss:scope list) x =
-    case lookup_tup ss x of
+    case lookup_map ss x of
     | SOME (v, str_opt) => SOME str_opt
     | _ => NONE
 `;
-(* Same as the above, but directly from an expression *)
-val lookup_vexp_def = Define `
-  lookup_vexp (ss:scope list) x =
-    lookup_v (ss:scope list) x
-`;
 
-(* Lookup with g_scope_list as a separate argument *)
+
 val lookup_vexp2_def = Define `
   lookup_vexp2 (ss:scope list) (g_scope_list:scope list) x =
-    lookup_v (ss++g_scope_list) x
+    case lookup_map (ss++g_scope_list) x of
+    | SOME (v, str_opt) => SOME v
+    | _ => NONE
 `;
+
+
 
 (* Look up the value of a l-value (variables + fields of struct-valued variables) in
  * a scope stack. *)
@@ -1459,7 +1462,7 @@ val copyin_def = Define `
  * Note that this function is used in the assignment and return rules *)
 val assign_def = Define `
   (assign ss v (lval_varname x) =
-    case find_topmost_scope ss x of
+    case find_topmost_map ss x of
     | SOME (i, sc) =>
       (case lookup_out ss x of
        | SOME str_opt =>
@@ -1619,7 +1622,7 @@ val update_return_frame_def = Define `
         else
           case ss_temp_opt of
           | SOME ss_temp =>
-           (case lookup_tup ss_curr (varn_name x) of
+           (case lookup_map ss_curr (varn_name x) of
             | SOME (v, str_opt) =>
               (case str_opt of
                | SOME str => assign ss_temp v str
@@ -2208,7 +2211,7 @@ by
   not_empty stmt_stack
   scope_list' = tl scope_list
   ----------------------------------- :: block_exit
-  ctx ( ascope , g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list , [ ( funn , stmt_stack , scope_list' ) ] , status )
+  ctx ( ascope , g_scope_list , [ ( funn , empty_stmt :: stmt_stack , scope_list ) ] , status ) -> ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list' ) ] , status )
 
 
 %%%%%%%%%%%%%%
@@ -2251,7 +2254,7 @@ by
 %%%%%%%%%%%%%%
 %Extern
   ext_fun = lookup_ext_fun ( funn , ext_map )
-  ( ascope' , g_scope_list' , scope_list' , status' ) = ext_fun ( ascope , g_scope_list , scope_list , status )
+  ( ascope' , g_scope_list' , scope_list' , status' ) = ext_fun ( ascope , g_scope_list , scope_list , Running )
   ----------------------------------- :: ext
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list' , [ ( funn , [ empty_stmt ] , scope_list' ) ] , status' )
 
