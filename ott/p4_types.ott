@@ -415,8 +415,8 @@ val fetch_tau_val_from_tscope_def = Define `
 (* for variable name vn, check if it well typed *)
 val single_vn_typed_def = Define `
 single_vn_typed (t_scope:t_scope) (scope:scope) (vn:varn)=
- case fetch_val_from_scope scope vn of
- | SOME v => ( case fetch_tau_val_from_tscope t_scope vn of
+ case (ALOOKUP (scope) (vn)) of
+ | SOME (v,opt) => ( case ALOOKUP t_scope vn of
          | SOME t => SOME (v_typ v t F)
 	       | NONE => NONE)
 | NONE => NONE 
@@ -426,9 +426,10 @@ single_vn_typed (t_scope:t_scope) (scope:scope) (vn:varn)=
 
 (* checks if a typing scope can type a scope which is the operation 
 *      t_scope |- scope   *)
+
 val type_scope_def = Define `
 type_scope (t_scope:t_scope) (scope:scope) =
-EVERY (\(vn,t). (THE (single_vn_typed t_scope scope vn) /\ 
+EVERY (\(vn,t). (IS_SOME (single_vn_typed t_scope scope vn) /\ 
                 ts_domain t_scope = scope_domain scope ) ) (t_scope)
 `;
 

@@ -66,64 +66,7 @@ val sr_strexp_tuple_def = Define `
 
 
 
-(*
-say this is initially what we want
 
-val similar_def = Define `
-similar R l1 l2 = ! i .  (R (SND (EL i l1)) (SND (EL i l2))) /\ (FST (EL i l1)) (FST (EL i l2)) `;
-
-
-(**use this*)
-val similar_def = Define `
-similar R l1 l2 = LIST_REL (\x y . (R (SND x) (SND y) ) /\ (FST x = FST y) ) l1 l2 `;
-
-
-
-the function of double in lambda notation looks as following, using similar 
-double:
-double l1 l2 = similar (\x y . x = y * 2) (l1) (l2)
-
-
-type_scope:
-type_scope sc tc = similar (\ (v , o)  t.  v_typ v t F) (sc) (tc)
-
-
-PROVE THIS:
-! R v x t sc tc.
-( similar R tc sc /\
-(SOME v = ALOOKUP sc x)   /\
-(SOME t = ALOOKUP tc x ) ) ==>
-(R t v)
-
-(how do we know that x in tc and x in sc has the same index?? )
-Induct_on `sc` >>
-Induct_on `tc` >>
-
-RW_TAC list_ss [similar_def] >>
-rw [ALOOKUP_MEM] >>
-FULL_SIMP_TAC list_ss [ALOOKUP_def, ALOOKUP_MEM] >>
-
-REPEAT STRIP_TAC >>
-PairCases_on `h` >>
-PairCases_on `h'` >>
-fs [similar_def] >>
-rw[] >>
-
-(*lastone*)
-Cases_on `h'0 = x` >>
-fs[] >>
-rw[]
-
-Q.PAT_X_ASSUM `! R' v' x' t' tc'.
-          LIST_REL (λx y. R' (SND x) (SND y) ∧ FST x = FST y) tc' sc ∧
-          SOME v' = ALOOKUP sc x' ∧ SOME t' = ALOOKUP tc' x' ⇒
-          R' t' v'`
-( STRIP_ASSUME_TAC o (Q.SPECL [`R`,`v`,`x`,`t`, `tc`])) >>
-fs[similar_def,LIST_REL_def]
-
-
-
-*)
 
 
 (*************** Lemmas  ***************)
@@ -662,15 +605,6 @@ fs[v_of_e_def, is_const_def]
 
 
 
-(*
-GOAL 1
-is_consts l ==> !i . ?v. EL i l = e_v v
-
-GOAL 2
-! i l .  EL i l = e_v v  ==>  EL i (vl_of_el l) = v
-*)
-
-
 
 val evl_types_vl = prove(``
 !l l' i t_scope_list_g t_scope_list T_e.
@@ -749,8 +683,6 @@ Q.PAT_X_ASSUM `∀n. 0 < n ⇒ ∀x l. EL n (x::l) = EL (PRE n) l`
 RES_TAC >>
 fs[EL_CONS] ) >>
 
-
-
 subgoal `(HD l::TL l) = l  ` >- (
 `0 < i` by fs[] >>
 `0 < LENGTH l` by fs[] >>
@@ -766,8 +698,6 @@ FULL_SIMP_TAC list_ss [CONS, NULL_LENGTH, NULL_DEF, NULL_EQ]
 
 ) >>
 
-
-
 Q.PAT_X_ASSUM ` ∀t_scope_list_g' t_scope_list' T_e'.
           e_typ (t_scope_list_g',t_scope_list') T_e' (EL (i − 2) (TL l))
             (EL (i − 1) l') F ⇒
@@ -782,229 +712,358 @@ fs[PRE_SUB1]
 );
 
 
-(*this is to determ make them theorems*)
-val exists_index_some =
-prove(``!  l P n. (?x .(( INDEX_FIND n P l) = SOME x)) = (EXISTS P l)``,
-cheat
-);
 
-val index_none_not_some =
-prove(``! l P n. (( INDEX_FIND n P l) = NONE) ==> ~(( INDEX_FIND n P l) = SOME x) ``,
+val P_NONE_hold = prove ( ``
+!P l n .  (INDEX_FIND 0 P l = NONE) ==> (INDEX_FIND n P l = NONE) `` ,
+ Induct_on `l` >>
+REPEAT STRIP_TAC >>
+fs[INDEX_FIND_def] >>
+Cases_on `P h` >>
+fs[] >>
+rw[ADD1] >>
+fs[Once INDEX_FIND_add] 
+);
+ 
+
+
+
+
+(*******************************************************************)
+
+(* create a relation between two scopes *)
+
+(* Single scope similarity *)
+val similar_def = Define `
+similar R l1 l2 = LIST_REL (\x y . (R (SND x) (SND y) ) /\ (FST x = FST y) ) l1 l2 `;
+
+
+(*list of scopes similarity*)
+val similarl_def = Define `
+similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
+
+
+
+
+(*
+alternatively:
+
+val similar_def = Define `
+similar R l1 l2 = ! i .  (R (SND (EL i l1)) (SND (EL i l2))) /\ (FST (EL i l1)) (FST (EL i l2)) `;
+
+
+val similarl_def = Define `
+similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
+
+
+
+type_scope:
+type_scope sc tc = similar (\ (v , o)  t.  v_typ v t F) (sc) (tc)
+
+*)
+
+
+
+
+val INDEX_FIND_EQ_SOME_0 = store_thm ("INDEX_FIND_EQ_SOME_0",
+  ``!l P j e. (INDEX_FIND 0 P l = SOME (j, e)) <=> (
+       (j < LENGTH l) /\
+       (EL j l = e) /\ P e /\
+       (!j'. j' < j ==> ~(P (EL j' l))))``,
+
 cheat);
 
 
-val not_index_none_exist =
-prove(``
-∀ l n P. ~ (INDEX_FIND n P l = NONE) ⇔ EXISTS P l ``,
-cheat
-);
 
 
-val index_none_not_exist =
-prove(``! l  n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)``,
-cheat);
+val R_ALOOKUP_NONE_scopes = prove (``
+! R v x t sc tc.
+ similar R tc sc ==>
+((NONE = ALOOKUP sc x)  <=>
+(NONE = ALOOKUP tc x ) )``,
 
 
+Induct_on `sc` >>
+Induct_on `tc` >>
 
-val x_mem_ss = prove(``
-! ss x v . (SOME v = lookup_v ss x) ==>
- ?str_opt . MEM [(x , v , str_opt)] ss
-``, cheat);
+RW_TAC list_ss [similar_def] >>
+rw [ALOOKUP_MEM] >>
 
-Induct_on `ss` >| [
- REPEAT STRIP_TAC >>
- fs[MEM, lookup_v_def, lookup_tup_def, topmost_scope_def, find_topmost_scope_def] >>
- fs[INDEX_FIND_def] 
- ,
-
- Induct_on `h` >| [
-  (*[] ::ss*)
-    fs[MEM, lookup_v_def, lookup_tup_def, topmost_scope_def, find_topmost_scope_def] >>
-     fs[INDEX_FIND_def] >>
-     REPEAT GEN_TAC >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`x`,`v`])) >>
-     Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss` >| [
-     fs[] >>
-     rw[] >>
-     IMP_RES_TAC index_none_not_some >>
-     fs[P_implies_next] >>
-     
-     Cases_on `INDEX_FIND 1 (λsc. IS_SOME (ALOOKUP sc x)) ss` >> fs[] >>
-
-        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`x'`])) >>
-(*     subgoal `! l P .INDEX_FIND 0 P l = NONE ==>
-                INDEX_FIND 1 P l = NONE  ` >- (
-      fs[index_none_not_exist]
-     ) >> fs[] >> RES_TAC >>   *)
-
-    ( subgoal `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss ≠ SOME x' ==>
-               INDEX_FIND 1 (λsc. IS_SOME (ALOOKUP sc x)) ss ≠ SOME x'`) >- (
-	       
-	       IMP_RES_TAC index_none_not_exist >> 
-	     fs[] >>
-	     IMP_RES_TAC exists_index_some >>
-	     fs[exists_index_some] >>
-	     gvs[] >>
-	     IMP_RES_TAC index_none_not_exist >> 
-	     fs[] 
-	     	  ) >>fs[]
-,
-(*ss*)
 
 REPEAT STRIP_TAC >>
+PairCases_on `h` >>
+PairCases_on `h'` >>
+fs [similar_def] >>
+rw[] >>
+
+Q.PAT_X_ASSUM `∀R' x tc'.
+          LIST_REL (λx y. R' (SND x) (SND y) ∧ FST x = FST y) tc' sc ⇒
+          (ALOOKUP sc x = NONE ⇔ ALOOKUP tc' x = NONE)`
+( STRIP_ASSUME_TAC o (Q.SPECL [`R`,`x`,`tc`])) >>
+fs[similar_def,LIST_REL_def]
+
+);
+
+
+
+
+
+val R_ALOOKUP_scopes = prove (``
+! R v x t sc tc.
+( similar R tc sc /\
+(SOME v = ALOOKUP sc x)   /\
+(SOME t = ALOOKUP tc x ) ) ==>
+(R t v)``,
+
+Induct_on `sc` >>
+Induct_on `tc` >>
+
+RW_TAC list_ss [similar_def] >>
+rw [ALOOKUP_MEM] >>
+FULL_SIMP_TAC list_ss [ALOOKUP_def, ALOOKUP_MEM] >>
+
+REPEAT STRIP_TAC >>
+PairCases_on `h` >>
+PairCases_on `h'` >>
+fs [similar_def] >>
+rw[] >>
+
+(*lastone*)
+Cases_on `h'0 = x` >>
 fs[] >>
+rw[] >>
+
+Q.PAT_X_ASSUM `! R' v' x' t' tc'.
+          LIST_REL (λx y. R' (SND x) (SND y) ∧ FST x = FST y) tc' sc ∧
+          SOME v' = ALOOKUP sc x' ∧ SOME t' = ALOOKUP tc' x' ⇒
+          R' t' v'`
+( STRIP_ASSUME_TAC o (Q.SPECL [`R`,`v`,`x`,`t`, `tc`])) >>
+fs[similar_def,LIST_REL_def]
+);
+
+
+
+
+
+
+
+
+
+(*Done!!*)
+
+val R_find_topmost_map_scopesl = prove (``
+! R x l1 l2 scl tcl.
+( similarl R tcl scl /\
+(SOME l1 = find_topmost_map tcl x)   /\
+(SOME l2 = find_topmost_map scl x ) ) ==>
+((similar R (SND l1) (SND l2)) /\ (FST l1 = FST l2) )``,
+
+
+simp [find_topmost_map_def] >>
+NTAC 7 STRIP_TAC>>
+Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) scl` >>
+Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) tcl` >>
+
+fs[]>>
+rw[]>>
+
+PairCases_on `l1` >>
+PairCases_on `l2` >>
+
+Cases_on`l10 = l20 ` >| [
+
+(*lists equal*)
+
+gvs[] >>
+
+fs[similarl_def] >>
 IMP_RES_TAC P_holds_on_curent >>
-
- Cases_on `x'` >>
-      fs[] >>
-Cases_on `ALOOKUP r x` >>
-      fs[] >>
- Cases_on `x'` >>
-      fs[] >>
-IMP_RES_TAC ALOOKUP_MEM >>
-IMP_RES_TAC P_implies_next >>
-fs[] >>
-gvs[] >>
-Q.EXISTS_TAC `str_opt` >>
-fs[]      
-]
-)
-
-(*(h::h::ss) *)
-Induct_on `h` >| [
-REPEAT STRIP_TAC >>
- fs[MEM, lookup_v_def, lookup_tup_def, topmost_scope_def, find_topmost_scope_def] >>
- fs[INDEX_FIND_def] >>
-Cases_on `IS_SOME (ALOOKUP [h] x)` >>
-fs[] >>
-Cases_on `ALOOKUP [h] x` >>
-fs[] >>
-Cases_on `x'` >>
-gvs[] >>
-NTAC 2 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`x`,`q`])) >>
-fs[] >>
-Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss` >>
 fs[]>>
-  ( subgoal `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE ==>
-               INDEX_FIND 1 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE`) >- (
-      fs[index_none_not_exist]
-	     	  ) >>fs[] >>
-
-PairCases_on `h` >>
-Q.EXISTS_TAC `h2` >>
-fs[]
-
-,
-
-PairCases_on `h` >>
-Q.EXISTS_TAC `h2` >>
-fs[]
-
-,
-fs[] >>
-
-three times this one
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`x`,`v`])) >>
-
-Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss` >>
-fs[] >| [
-
- ( subgoal `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE ==>
-               INDEX_FIND 1 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE`) >- (
-      fs[index_none_not_exist]
-	     	  ) >>fs[] 
-
-,
 
 
-Cases_on `x'` >>
-IMP_RES_TAC P_implies_next >>
-fs[] >>
-   Cases_on `ALOOKUP r x` >> fs[] >> Cases_on `x'` >>fs[] >> RES_TAC >> Q.EXISTS_TAC `str_opt` >> fs[] 
-
-REPEAT STRIP_TAC >>
- fs[MEM, lookup_v_def, lookup_tup_def, topmost_scope_def, find_topmost_scope_def] >>
- fs[INDEX_FIND_def] >>
-
-Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss` >>
+Cases_on `ALOOKUP l21 x`>>
+Cases_on `ALOOKUP l11 x`>>
 fs[]>>
-fs[] >>
-gvs[] >>
+rw[]>>
 
+(*since the ith element is the same then the relartion R should
+hold in the same index for both*)
 
-Cases_on `(ALOOKUP (h'::h) x)` >>
-fs[] >>
+fsrw_tac [][LIST_REL_EL_EQN,MEM_EL] >>
+IMP_RES_TAC LIST_REL_MEM_IMP >>
+IMP_RES_TAC prop_in_range >>
+RES_TAC >>
 
+(*simplify the scope by using the ith element notaion*)
 
- ( subgoal `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE ==>
-               INDEX_FIND 1 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE`) >- (
-      fs[index_none_not_exist]
-	     	  ) >>fs[] >> gvs[]
-		  
-Cases_on `IS_SOME (ALOOKUP (h''::h'::h) x)` >>
-fs[] >>
+subgoal `EL l10 tcl = l11` >- 
+IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
 
-Cases_on `ALOOKUP (h''::h'::h) x` >>gvs[] >>
+subgoal `EL l10 scl = l21` >-
+IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
 
-Cases_on `x'` >>
-gvs[] >>
+IMP_RES_TAC R_ALOOKUP_scopes >>
+rw [similar_def]
 
-Cases_on `IS_SOME (ALOOKUP h x')` >>gvs[]
-cheat
-
-
-Q.EXISTS_TAC `r` >>
-IMP_RES_TAC ALOOKUP_MEM
-
-Cases_on `IS_SOME (ALOOKUP h x)` >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`x`,`q`])) >>
-fs[] >>
-Cases_on `ALOOKUP h x` >>
-fs[] >>
-Cases_on `x'` >>
-gvs[] >>
-fs[] >>
-
-Cases_on `h`
-
-PairCases_on `h` >>
-Q.EXISTS_TAC `h2` >>
 ,
 
-PairCases_on `h` >>
-Q.EXISTS_TAC `h2` >>
+(*prove by contradiction*)
+CCONTR_TAC >>
+gvs[] >>
+
+
+(*the property holds on both l11 and l21*)
+fs[similarl_def] >>
+IMP_RES_TAC P_holds_on_curent >>
+fs[]>>
+
+
+(*simplify all the lookup cases *)
+Cases_on `ALOOKUP l21 x`>>
+Cases_on `ALOOKUP l11 x`>>
+fs[]>>
+rw[]>>
+
+
+(*show that the relation holds on both index l20 and l110 for both scl and tcl*)
+fsrw_tac [][LIST_REL_EL_EQN,MEM_EL] >>
+IMP_RES_TAC LIST_REL_MEM_IMP >>
+IMP_RES_TAC prop_in_range >>
+subgoal `similar R (EL l20 tcl) (EL l20 scl) /\ similar R (EL l10 tcl) (EL l10 scl)` >-
+(fs[]>>
+RES_TAC) >>
+
+(*use this lemma to indicate that if a relation holds on NONE *)
+IMP_RES_TAC R_ALOOKUP_NONE_scopes >>
+
+
+subgoal `∀j'. j' < l10 ⇒ ¬(λsc. IS_SOME (ALOOKUP sc x)) (EL j' tcl)` >-
+IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
+
+
+subgoal `∀j'. j' < l20 ⇒ ¬(λsc. IS_SOME (ALOOKUP sc x)) (EL j' scl)` >- 
+IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
+
+
+
+subgoal `EL l10 tcl = l11` >-
+IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
+
+subgoal `EL l20 scl = l21` >-
+IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
+
+
+
+` l20 < l10 \/ l10 < l20` by fs[] >>
+
+
+fs[similar_def,LIST_REL_def] >>
+fsrw_tac [][LIST_REL_EL_EQN,MEM_EL] >>
+IMP_RES_TAC LIST_REL_MEM_IMP >>
+IMP_RES_TAC prop_in_range >>
+RES_TAC >>
+
+IMP_RES_TAC P_holds_on_curent >>
+RES_TAC >>
+fs[similar_def]>>
+rw[]
+
+
+
+
+,
+
 fs[]
 ,
-fs[] >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`x`,`v`])) >>
-Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss` >>
-fs[] >| [
-
- ( subgoal `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE ==>
-               INDEX_FIND 1 (λsc. IS_SOME (ALOOKUP sc x)) ss = NONE`) >- (
-      fs[index_none_not_exist]
-	     	  ) >>fs[] 
-
-,
-
-
-Cases_on `x'` >>
-IMP_RES_TAC P_implies_next >>
-fs[] >>
-   Cases_on `ALOOKUP r x` >> fs[] >> Cases_on `x'` >>fs[] >> RES_TAC >> Q.EXISTS_TAC `str_opt` >> fs[]
-
-
-(*Until now finshed if there is a member in [h]*)
-
-REPEAT STRIP_TAC >>
-
 
 cheat
+(*the proof is the same as subgoal 2*)
+
 ]
 );
 
 
 
+
+
+
+
+val R_topmost_map_scopesl = prove (``
+! R x l1 l2 scl tcl.
+( similarl R tcl scl /\
+(SOME l1 = topmost_map tcl x)   /\
+(SOME l2 = topmost_map scl x ) ) ==>
+(similar R l1 l2)``,
+
+
+simp [topmost_map_def] >>
+REPEAT STRIP_TAC>>
+
+Cases_on `find_topmost_map scl x` >>
+Cases_on `find_topmost_map tcl x` >>
+
+fs[]>>
+rw[]>>
+
+PairCases_on `x'` >>
+PairCases_on `x''` >>
+gvs[]>>
+
+ASSUME_TAC R_find_topmost_map_scopesl >>
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`R`, `x`, `(x''0,l1)`, `(x'0,l2)`, `scl`, `tcl`])) >>
+fs[]
+
+);
+
+
+
+
+
+
+
+
+
+
+
+
+
+val R_lookup_map_scopesl = prove (``
+! R v x t scl tcl.
+( similarl R tcl scl /\
+(SOME v = lookup_map scl x)   /\
+(SOME t = lookup_map tcl x ) ) ==>
+(R t v)``,
+
+
+fs[lookup_map_def] >>
+REPEAT STRIP_TAC>>
+
+Cases_on `topmost_map tcl x` >>
+Cases_on `topmost_map scl x` >>
+
+fs[]>>
+rw[]>>
+
+
+
+ASSUME_TAC R_topmost_map_scopesl >>
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`R`, `x`, `x'`, `x''`, `scl`, `tcl`])) >>
+
+
+gvs[] >>
+
+Cases_on `ALOOKUP x'' x` >>
+Cases_on `ALOOKUP x' x` >>
+fs[]>>
+rw[]>>
+
+fs[] >>
+
+IMP_RES_TAC  R_ALOOKUP_scopes >>
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`x`, `v`])) >>
+fs[]
+
+
+);
 
 
 
@@ -1018,71 +1077,43 @@ val varn_is_typed = prove (``
           type_scopes_list t_scope_list sl ∧
           type_scopes_list t_scope_list_g gsl ∧
           SOME v = lookup_vexp2 gsl sl varn ∧
-          SOME tau = topmost t_scope_list_g t_scope_list varn ==>
+          SOME tau = lookup_tau t_scope_list_g t_scope_list varn ==>
           v_typ v tau F
 ``,
 
 
 
+fs[lookup_vexp2_def] >>
+fs[lookup_tau_def] >>
 
 REPEAT STRIP_TAC >>
-fs[type_scopes_list_def] >>
-fs[EVERY_MEM] >>
 
-`MEM e (ZIP (t_scope_list_g,sl))` by cheat >>
-RES_TAC >>
-
-fs[type_scope_def] >>
-fs[EVERY_MEM] >>
-`MEM e t_scope` by cheat >>
-
-fs[ELIM_UNCURRY] >>
-RES_TAC
-
-`MEM (varn,tau) (FST e)` by cheat >>
-RES_TAC
-
-fs[single_vn_typed_def]>>
-gvs[] >>
-
-Cases_on `e` >>
-fs[] >>
-gvs[]
-
-fs[lookup_vexp2_def] >>
-fs[lookup_v_def] >>
-fs[lookup_tup_def] >>
-Cases_on `topmost_scope (gsl ⧺ sl) varn` >>
-fs[] >>
-fs[topmost_scope_def] >>
-gvs[] >>
-Cases_on `find_topmost_scope (gsl ⧺ sl) varn`
-fs[]
-fs[find_topmost_scope_def] >>
-gvs[] >>
-Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc varn)) (gsl ⧺ sl)`
-gvs[]
-
-Cases_on `fetch_val_from_scope r varn` >>
+Cases_on `lookup_map (gsl ⧺ sl) varn` >>
+Cases_on `lookup_map (t_scope_list_g ⧺ t_scope_list) varn` >>
 fs[]>>
-fs[fetch_val_from_scope_def] >>
-fs[] >>
-Cases_on `ALOOKUP r varn` >>
-fs[]
+rw[]>>
+
+ASSUME_TAC R_lookup_map_scopesl >>
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`type_scopes_list`])) >>
 
 
 
-fs[ALL_EL_MAP] >>
-fs[EVERY_MAP] >>
-fs[EVERY_CONJ] >>
-fs[FEVERY_alist_to_fmap]
 
 
-fs[lookup_vexp2_def] >>
-fs[topmost_def] >> cheat
+
+
+
+
+Cases_on `x` >>
+gvs[]
+
+
+
 
 
 );
+
+
 
 
 
