@@ -372,12 +372,6 @@ tsl_domain (tsl: t_scope list) =
  FOLDR  (\(t_scope) l. (ts_domain t_scope)::l ) [] (tsl) 
 `;
 
-(*
-
-TODO: Make every definition as quantifier
-
-*)
-
 
 (*in a list of typing scopes, get the domain of each typing then 
 check of varn is a member for every single domain 
@@ -424,13 +418,26 @@ single_vn_typed (t_scope:t_scope) (scope:scope) (vn:varn)=
 
 
 
+
+(* create a relation between two scopes *)
+
+(* Single scope similarity *)
+val similar_def = Define `
+similar R l1 l2 = LIST_REL (\x y . (R (SND x) (SND y) ) /\ (FST x = FST y) ) l1 l2 `;
+
+
+(*list of scopes similarity*)
+val similarl_def = Define `
+similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
+
+
+
 (* checks if a typing scope can type a scope which is the operation 
 *      t_scope |- scope   *)
 
 val type_scope_def = Define `
-type_scope (t_scope:t_scope) (scope:scope) =
-EVERY (\(vn,t). (IS_SOME (single_vn_typed t_scope scope vn) /\ 
-                ts_domain t_scope = scope_domain scope ) ) (t_scope)
+type_scope (scope:scope) (t_scope:t_scope) =
+  similar (\x y . (v_typ (FST (x)) (y) F ) ) scope 
 `;
 
 
@@ -438,24 +445,65 @@ EVERY (\(vn,t). (IS_SOME (single_vn_typed t_scope scope vn) /\
        [t_scope1...t_scopen] |- [scope1 ... scopen]
 *)
 val type_scopes_list_def = Define `
-type_scopes_list (tsl:t_scope list) (sl:scope list) =
-EVERY (\(t_scope,scope). type_scope t_scope scope  ) (ZIP (tsl,sl))
+type_scopes_list (sl:scope list) (tsl:t_scope list) =
+ similarl (\x y . (v_typ (FST (x)) (y) F ) ) sl tsl
 `;
 
 
-(*type the local scopes of a state, make sure 
-that none of those lists contains a star*)
-val type_locals_tsll_def = Define `
-type_locals_tsll (tsll: t_scope list list) (sll:scope list list) =
-EVERY (\(tsl,sl). type_scopes_list tsl sl /\
-tsl_check_star_member (tsl)) (ZIP (tsll,sll))
+
+(* checks if a variable varn is a variable name or not, it is used later to check 
+that star is not a member of the local frame. WF property. 
+*)
+val is_varn_name_def = Define `
+  (is_varn_name (varn_name _) = T) /\
+  (is_varn_name _ = F)
 `;
 
-(* type the global scope in a state *)
+
+
+(*in a given scope and a typing scope, the domain is the same and also all variables are 
+ not return /function place holders (aka var star) 
+ *)
+val star_not_in_s_def = Define `
+star_not_in_s (s:scope) =
+  ! f . (ALOOKUP s (varn_star f) = NONE)
+`;
+
+
+(*in a given scope list (in one frame) and a typing scope (of one frame), the domain 
+ of each scope in the list is the same and also none of the scopes contain 
+ a function place holder variable star 
+ *)
+val star_not_in_sl_def = Define `
+star_not_in_sl (sl) =
+ EVERY (\s.  (star_not_in_s s)  ) sl
+`;
+
+
+
+(* To type one single frame, all scopes (list of scopes) should be able to be typed 
+   by the typyng list of scopes tsl, and also, the domain of each list is the same.
+   The domains should comtain only variable names, and no var star
+*)
+val type_frame_tsl_def = Define `
+type_frame_tsl (sl:scope list) (tsl: t_scope list) =
+( similarl (\x y . (v_typ (FST (x)) (y) F ) ) sl tsl   /\
+  star_not_in_sl (sl))
+`;
+
+
+
+(* type the global scope in a state: To type a global it is enough that all variables can 
+type each other. NOTE: the global frames we keep the return functions variables stars. 
+thus we do not check it's absence 
+*)
 val type_globals_tsl_def = Define `
-type_globals_tsl (tsll: t_scope list list) (sll:scope list list) =
-EVERY (\(tsl,sl). type_scopes_list tsl sl) (ZIP (tsll,sll))
+type_globals_tsl (sl:scope list) (tsl: t_scope list)  =
+similarl (\x y . (v_typ (FST (x)) (y) F ) ) sl tsl
 `;
+
+
+
 }}
 
 

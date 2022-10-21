@@ -34,11 +34,12 @@ fun OPEN_EXP_TYP_TAC exp_term =
 
 (******   Subject Reduction for expression    ******)
 val sr_exp_def = Define `
- sr_exp (e) (ty:'a itself) = ! e' scope scopest framel t_scope_list t_scope_list_g T_e tau b (c:'a ctx).
-       (type_scopes_list (t_scope_list_g) (scope)) /\
-       (type_scopes_list (t_scope_list) (scopest)) /\
-       (tsl_check_star_member t_scope_list  ) /\
-       (e_red c scope scopest e e' framel ) /\
+ sr_exp (e) (ty:'a itself) =
+ ! e' gscope (scopest:scope list) framel t_scope_list t_scope_list_g T_e tau b (c:'a ctx).
+       (type_scopes_list  (gscope)  (t_scope_list_g) ) /\
+       (type_scopes_list  (scopest) (t_scope_list)) /\
+       (star_not_in_sl (scopest)  ) /\
+       (e_red c gscope scopest e e' framel ) /\
        (e_typ ( t_scope_list_g  ,  t_scope_list ) T_e (e) tau  b) ==>
        (?b'. (e_typ ( t_scope_list_g  ,  t_scope_list ) T_e (e') tau  b')) 
 `;
@@ -110,8 +111,7 @@ prove(``
  REPEAT STRIP_TAC >>
  Cases_on `INDEX_FIND 0 P l = SOME (i,f)` >> 
  fs [] >>
- (*IMP_RES_TAC index_find_length >>*)
- cheat>>
+ IMP_RES_TAC index_find_length >>
  fs []
 );
 
@@ -204,7 +204,6 @@ Cases_on `P h` >|[
    rfs[]
    ,
    fs[INDEX_FIND_def] >>
-   (*IMP_RES_TAC P_current_next_same >>*)
    rw[] >>
    SIMP_TAC arith_ss [Once EL_compute] >>
    CASE_TAC >>
@@ -213,10 +212,9 @@ Cases_on `P h` >|[
    gvs[GSYM ADD1]>> 
    rw[] >>
    IMP_RES_TAC P_holds_on_curent >>
-   (*IMP_RES_TAC index_find_first >>*) cheat>>
+   IMP_RES_TAC index_find_first >>
    rfs[] >>
    rw[] >>
-   (*SIMP_TAC arith_ss [Once EL_compute] >>*)
    fs[
    numeralTheory.numeral_pre,
    arithmeticTheory.PRE_SUB1,
@@ -257,7 +255,7 @@ prove (``
 (q) = EL i (MAP (λ(x_,v_,tau_). (x_)) l) ``,
 Induct >>
 REPEAT STRIP_TAC >>
-(*IMP_RES_TAC EL_pair_list >>*) cheat >>
+IMP_RES_TAC EL_pair_list >>
 rw[] >>
 fs [ELIM_UNCURRY] >>
 EVAL_TAC >>
@@ -272,7 +270,7 @@ prove (``
 (q,r,t) = EL i (MAP (λ(x_,v_,tau_). (x_,v_,tau_)) l) ==>
 (r,t) = EL i (MAP (λ(x_,v_,tau_). (v_,tau_)) l) ``,
 REPEAT STRIP_TAC >>
-(*IMP_RES_TAC EL_pair_list >>*) cheat >>
+IMP_RES_TAC EL_pair_list >>
 rw[] >>
 fs [ELIM_UNCURRY] >>
 METIS_TAC[]
@@ -290,14 +288,17 @@ prove (``
 
 REPEAT STRIP_TAC >>
 NTAC 2 (
-(*IMP_RES_TAC EL_pair_list >> rw[] >>*) cheat >>
+IMP_RES_TAC EL_pair_list >> rw[] >>
 IMP_RES_TAC EL_simp1 >>
 IMP_RES_TAC EL_simp2) >>
-(* rfs[EL_pair_list,EL_simp1,EL_simp2] >> *)
-fs [ELIM_UNCURRY] >>
-rfs[] >>
-rfs[MAP_MAP_o] >>
-METIS_TAC[]
+gvs[ELIM_UNCURRY] >>
+
+
+rfs[EL_pair_list,EL_simp1,EL_simp2] >>
+rfs[Once MAP_o] >>
+AP_TERM_TAC >>
+FULL_SIMP_TAC list_ss [MAP_MAP_o, FST,SND]>>
+FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF]
 );
 
 
@@ -621,17 +622,6 @@ Induct_on `l'` >>
 fs[] >>
 REPEAT STRIP_TAC >>
 
-(*
-`is_consts l ==> !i . ?v. EL i l = e_v v` by cheat
-
-
-
-fs[]
-`(EL i (vl_of_el l)) =(v)` by cheat
-fs[]
-
-*)
-
 IMP_RES_TAC ev_types_v  >>
 
 subgoal `
@@ -723,44 +713,24 @@ fs[] >>
 rw[ADD1] >>
 fs[Once INDEX_FIND_add] 
 );
- 
+
+
+
+val P_NONE_hold2 = prove ( ``
+!P l n .  (INDEX_FIND n P l = NONE) ==> (INDEX_FIND 0 P l = NONE) `` ,
+ Induct_on `l` >>
+REPEAT STRIP_TAC >>
+fs[INDEX_FIND_def] >>
+Cases_on `P h` >>
+fs[] >>
+rw[ADD1] >>
+fs[Once INDEX_FIND_add] 
+);
 
 
 
 
 (*******************************************************************)
-
-(* create a relation between two scopes *)
-
-(* Single scope similarity *)
-val similar_def = Define `
-similar R l1 l2 = LIST_REL (\x y . (R (SND x) (SND y) ) /\ (FST x = FST y) ) l1 l2 `;
-
-
-(*list of scopes similarity*)
-val similarl_def = Define `
-similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
-
-
-
-
-(*
-alternatively:
-
-val similar_def = Define `
-similar R l1 l2 = ! i .  (R (SND (EL i l1)) (SND (EL i l2))) /\ (FST (EL i l1)) (FST (EL i l2)) `;
-
-
-val similarl_def = Define `
-similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
-
-
-
-type_scope:
-type_scope sc tc = similar (\ (v , o)  t.  v_typ v t F) (sc) (tc)
-
-*)
-
 
 
 
@@ -1070,48 +1040,346 @@ fs[]
 
 
 
+val type_scopes_list_LENGTH = prove (``
+! l1 l2 . type_scopes_list l1 l2 ==> (LENGTH l1 = LENGTH l2)``,
+
+fs[type_scopes_list_def, similarl_def, similar_def] >>
+REPEAT STRIP_TAC >>
+IMP_RES_TAC LIST_REL_LENGTH
+);
+
+
+val type_scopes_list_APPEND = prove (``
+! l1 l2 l3 l4. type_scopes_list l1 l2 /\
+          type_scopes_list l3 l4 ==>
+	  type_scopes_list (l1++l3) (l2++l4)``,
+
+fs[type_scopes_list_def, similarl_def, similar_def] >>
+REPEAT STRIP_TAC >>
+IMP_RES_TAC LIST_REL_APPEND
+);
+
+
+
+
 
 
 val varn_is_typed = prove (``
-!t_scope_list_g sl t_scope_list gsl varn v tau T_e.
-          type_scopes_list t_scope_list sl ∧
-          type_scopes_list t_scope_list_g gsl ∧
-          SOME v = lookup_vexp2 gsl sl varn ∧
-          SOME tau = lookup_tau t_scope_list_g t_scope_list varn ==>
+! gsl gtsl sl tsl varn v tau .
+          type_scopes_list gsl gtsl ∧
+          type_scopes_list sl tsl ∧
+          SOME v = lookup_vexp2 sl gsl varn ∧
+          SOME tau = lookup_tau tsl gtsl varn ==>
           v_typ v tau F
 ``,
 
 
+REPEAT STRIP_TAC >>
+IMP_RES_TAC type_scopes_list_LENGTH >>
 
 fs[lookup_vexp2_def] >>
 fs[lookup_tau_def] >>
 
+Cases_on `lookup_map (sl ⧺ gsl) varn`>>
+Cases_on `lookup_map (tsl ⧺ gtsl) varn` >>
+fs[] >>rw[] >>
+
+
+subgoal `type_scopes_list (sl ⧺ gsl) (tsl ⧺ gtsl)` >-
+IMP_RES_TAC type_scopes_list_APPEND >>
+
+PairCases_on `x` >>
+
+fs[type_scopes_list_def] >>
+subgoal `∀x t.
+          SOME t = lookup_map (sl ⧺ gsl) x ==>
+          ∀v. SOME v = lookup_map (tsl ⧺ gtsl) x ==> v_typ (FST t) v F` >-
+(IMP_RES_TAC R_lookup_map_scopesl >>
+fs[])  >>
+
+
+Q.PAT_X_ASSUM `∀x t. _`
+( STRIP_ASSUME_TAC o (Q.SPECL [`varn`,`(v,x1)`])) >>
+gvs[]
+);
+
+
+
+
+
+
+
+
+
+val star_MEM = prove ( ``
+!s f.
+star_not_in_s (s) ==>  ~MEM (varn_star f) (MAP FST s) ``,
+
+REPEAT STRIP_TAC >>
+fs[star_not_in_s_def] >>
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`f`])) >>
+
+fs[ALOOKUP_NONE] );
+
+
+
+
+val mem_triple_map_fst = prove ( ``
+! l a b c . MEM (a,b,c) l ==> MEM a (MAP FST l)
+``,
+Induct_on `l` >>
+fs[] >>
+REPEAT STRIP_TAC >| [
+PairCases_on `h` >>
+fs[]
+,
+RES_TAC >>
+fs[]
+]
+);
+
+
+
+val index_find_concat1 = prove ( ``
+! l1 l2 n P.
+INDEX_FIND 0 P l1 = NONE  /\
+INDEX_FIND 0 P (l2 ⧺ l1) = SOME n ==>
+INDEX_FIND 0 P (l2) = SOME n ``,
+
+Induct_on `l1` >>
+Induct_on `l2` >>
+fs[INDEX_FIND_def] >>
+REPEAT STRIP_TAC >>
+CASE_TAC >| [
+rfs[]
+,
+Cases_on `P h'` >| [
+gvs[]
+,
+gvs[] >>
+
+ASSUME_TAC P_hold_on_next>> 
+Q.PAT_X_ASSUM `∀i l P m.
+          INDEX_FIND (SUC i) P l = SOME m ⇔
+          INDEX_FIND i P l = SOME (FST m − 1,SND m) ∧ 0 < FST m`
+( STRIP_ASSUME_TAC o (Q.SPECL [`0`,`(l2 ⧺ h'::l1)`,`P`,`n`])) >>
+gvs[GSYM ADD1]>> 
+RES_TAC >>
+gvs[] >>
+
+IMP_RES_TAC P_implies_next >>
+Cases_on `n` >>
+fs[]
+]
+]
+);
+
+
+
+
+
+
+
+val index_find_concat2 = prove ( ``
+! l1 l2 a b P.
+INDEX_FIND 0 P l2 = NONE  /\
+INDEX_FIND 0 P (l2 ++ l1) = SOME a /\
+INDEX_FIND 0 P (l1) = SOME b ==>
+(SND a = SND b )
+
+``,
+
+Induct_on `l1` >>
+Induct_on `l2` >>
+fs [INDEX_FIND_def] >| [
+REPEAT STRIP_TAC >>
+Cases_on `P h` >>
+fs[]
+,
+REPEAT STRIP_TAC >>
+Cases_on `P h` >>
+fs[] >>
+Cases_on `P h'` >>
+fs[] >|  [
+
+gvs[] >>
+
+(*show that if the property holds on some element,
+then if we append it to a lost, we will find it *)
+
+subgoal `! i l P h'.
+    P h' ==>
+    INDEX_FIND i P (h'::l) = SOME (i, h')` >- 
+fs [INDEX_FIND_def] >>
+
+
+Q.PAT_X_ASSUM ` ∀i l P h'. P h' ⇒ INDEX_FIND i P (h'::l) = SOME (i,h') `
+( STRIP_ASSUME_TAC o (Q.SPECL [`0`,`l1`,`P`,`h'`])) >>
+RES_TAC >>
+
+
+
+Cases_on `a` >>
+fs[] >>
+
+subgoal `(INDEX_FIND 0 P l2 = NONE)` >- 
+IMP_RES_TAC P_NONE_hold2 >>
+
+
+
+Q.PAT_X_ASSUM `∀h a b P.
+          INDEX_FIND 0 P l2 = NONE ∧ INDEX_FIND 0 P (l2 ⧺ h::l1) = SOME a ∧
+          (if P h then SOME (0,h) else INDEX_FIND 1 P l1) = SOME b ⇒
+          SND a = SND b`
+( STRIP_ASSUME_TAC o (Q.SPECL [`h'`,`(q-1,r)`,`(0,h')`,`P`])) >>
+
+gvs[] >>
+   ASSUME_TAC P_hold_on_next >>
+   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
+   gvs[GSYM ADD1]>> 
+   rw[] 
+
+,
+
+(*Inductive case*)
+
+gvs[] >>
+
+(*show that if the property holds on some element,
+then if we append it to a lost, we will find it *)
+
+
+subgoal `(INDEX_FIND 0 P l2 = NONE)` >- 
+IMP_RES_TAC P_NONE_hold2 >>
+
+gvs[] >>
+   ASSUME_TAC P_hold_on_next >>
+   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
+   gvs[GSYM ADD1]>> 
+   rw[] >>
+
+Cases_on `a` >>
+Cases_on `b` >>
+gvs[]>>
+
+Q.PAT_X_ASSUM `∀h a b P.
+          INDEX_FIND 0 P l2 = NONE ∧ INDEX_FIND 0 P (l2 ⧺ h::l1) = SOME a ∧
+          (if P h then SOME (0,h) else INDEX_FIND 1 P l1) = SOME b ⇒
+          SND a = SND b`
+( STRIP_ASSUME_TAC o (Q.SPECL [`h'`,`(q-1,r)`,`(q',r')`,`P`])) >>
+
+gvs[]
+]]
+);
+
+
+
+
+
+
+
+val star_not_in_s_implies_none = prove ( ``
+! l.
+EVERY (λs. star_not_in_s s) l  ==>
+!f . INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (l) = NONE ``,
+Induct >>
+fs[star_not_in_s_def, INDEX_FIND_def] >>
+REPEAT STRIP_TAC >>
+RES_TAC >>
+fs[P_NONE_hold]
+);
+
+
+
+
+
+
+val lookup_in_gsl_lemma = prove ( ``
+! v f sl gsl.
+SOME v = lookup_vexp2 sl gsl (varn_star f) /\
+star_not_in_sl sl
+==>
+SOME v = lookup_vexp2 [] gsl (varn_star f)   `` ,
+
 REPEAT STRIP_TAC >>
 
-Cases_on `lookup_map (gsl ⧺ sl) varn` >>
-Cases_on `lookup_map (t_scope_list_g ⧺ t_scope_list) varn` >>
-fs[]>>
-rw[]>>
-
-ASSUME_TAC R_lookup_map_scopesl >>
-LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`type_scopes_list`])) >>
+fs[star_not_in_sl_def] >>
+fs[lookup_vexp2_def] >>
+fs[lookup_map_def] >>
+fs[topmost_map_def] >>
+fs[find_topmost_map_def] >>
 
 
+Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f)))
+                  (sl ⧺ gsl)`>>
+rw[] >> fs[] >>
+
+PairCases_on `x` >>
+rw[] >> fs[] >>
+
+Cases_on `ALOOKUP x1 (varn_star f)` >>
+rw[] >> fs[] >>
 
 
+PairCases_on `x` >>
+rw[] >> fs[] >>
+
+gvs[] >>
 
 
+Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) gsl`>>
+rw[] >> fs[] >>
+gvs[] >| [
 
+IMP_RES_TAC index_find_concat1 >>
+fs[EVERY_MEM] >>
+IMP_RES_TAC index_mem >>
+fs[EVERY_MEM] >>
+RES_TAC >>
+fs[] >>
+IMP_RES_TAC ALOOKUP_MEM >>
+IMP_RES_TAC mem_triple_map_fst >>
+IMP_RES_TAC star_MEM 
 
+,
 
-Cases_on `x` >>
+PairCases_on `x` >>
+fs[] >>
+Cases_on `ALOOKUP x1'' (varn_star f)` >>
+rw[] >> fs[] >| [
+
+IMP_RES_TAC index_find_concat1 >>
+IMP_RES_TAC P_holds_on_curent >>
 gvs[]
+,
 
-
-
-
-
+PairCases_on `x` >>
+fs[] >>
+IMP_RES_TAC star_not_in_s_implies_none>>
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`f`])) >>
+fs[] >>
+IMP_RES_TAC index_find_concat2 >>
+fs[]
+]]
 );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1153,30 +1421,36 @@ fs [clause_name_def] >>
 rw[] >|[
 (*variable name not a star*)
 
-
-
-
-
-
-
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
-SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
-rename1 `v`
-
-
-
-
-
-
-
-
-
-
-
+fs[clause_name_def] >>
+Q.EXISTS_TAC `F` >>
+IMP_RES_TAC varn_is_typed
 
 ,
-cheat
+
+
 (* thm requires the typing context *)
+
+SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+fs[clause_name_def] >>
+Q.EXISTS_TAC `F` >>
+
+
+
+subgoal `! t_scope_list_g x.
+find_star_in_globals t_scope_list_g x = lookup_tau [] t_scope_list_g x ` >-
+fs[find_star_in_globals_def, lookup_tau_def] >>
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`t_scope_list_g`, `(varn_star funn')`])) >>
+
+IMP_RES_TAC lookup_in_gsl_lemma >>
+
+subgoal `type_scopes_list [] []` >-
+fs[type_scopes_list_def, similarl_def] >>
+
+gvs[] >>
+
+IMP_RES_TAC varn_is_typed
+
 ]
 
 ,
@@ -1214,6 +1488,7 @@ rw []>>
 rfs[FIND_def, MEM_EXISTS] >>
 Cases_on `z` >>
 Cases_on `r` >>
+gvs[] >>
 IMP_RES_TAC prop_in_range >>
  fs[LENGTH_MAP] >>
  
@@ -1226,12 +1501,15 @@ rw[] >>
 
 IMP_RES_TAC EL_relation_to_INDEX_less >>
 fs[LENGTH_MAP] >>
+subgoal `EL q (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) = (q',r')` >-
 RES_TAC>>
 rw[]>>
 IMP_RES_TAC EL_simp5 >>
 (*dont rewrite here*)
 IMP_RES_TAC correct_field_index_lemma >>
-rfs[]
+Q.EXISTS_TAC `F` >>
+rfs[] 
+
 
 ,
 
@@ -1273,12 +1551,14 @@ rw[] >>
 
 IMP_RES_TAC EL_relation_to_INDEX_less >>
 fs[LENGTH_MAP] >>
+subgoal `EL q (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) = (q',r')` >-
 RES_TAC>>
 rw[]>>
 IMP_RES_TAC EL_simp5 >>
 (*dont rewrite here*)
 IMP_RES_TAC correct_field_index_lemma >>
-rfs[]
+Q.EXISTS_TAC `F` >>
+rfs[] 
 
 ]
 
@@ -1304,8 +1584,16 @@ FULL_SIMP_TAC list_ss [lemma_v_red_forall] >> rw[] >|[
 rw[Once e_typ_cases] >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
-Q.EXISTS_TAC `b'` >> rw[] >>
-RES_TAC
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`e'''`,
+`gscope`,
+`scopest`,
+`framel`,
+`t_scope_list`,
+`t_scope_list_g`,
+`T_e`])) >>
+RES_TAC >>
+Q.EXISTS_TAC `b''` >> rw[] 
 ,
 
 (*v*)
@@ -1324,9 +1612,19 @@ OPEN_EXP_RED_TAC ``e_unop unop_compl e`` >>
 FULL_SIMP_TAC list_ss [] >> rw[] >| [
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
-Q.EXISTS_TAC `b'` >>
-fs [clause_name_def]  >>
-RES_TAC
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`e'''`,
+`gscope`,
+`scopest`,
+`framel`,
+`t_scope_list`,
+`t_scope_list_g`,
+`T_e`])) >>
+RES_TAC >>
+
+Q.EXISTS_TAC `b''` >>
+fs [clause_name_def] 
+
 ,
 
 OPEN_EXP_TYP_TAC ``(e_v (v_bool b'))`` >>
@@ -1354,9 +1652,20 @@ FULL_SIMP_TAC list_ss [] >> rw[] >|[
 
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
-Q.EXISTS_TAC `b'` >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`e'''`,
+`gscope`,
+`scopest`,
+`framel`,
+`t_scope_list`,
+`t_scope_list_g`,
+`T_e`,
+`tau_bool`,
+`b'`])) >>
 fs [clause_name_def] >>
 RES_TAC >>
+Q.EXISTS_TAC `b''` >>
+fs[]
 
 ,
 OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv))`` >> fs[] >>
@@ -1372,9 +1681,22 @@ FULL_SIMP_TAC list_ss [] >> rw[] >|[
 
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> (*to simplify the goal*)
 fs[] >>
-Q.EXISTS_TAC `b'` >>
-fs [clause_name_def] >>
-RES_TAC 
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`e'''`,
+`gscope`,
+`scopest`,
+`framel`,
+`t_scope_list`,
+`t_scope_list_g`,
+`T_e`,
+`(tau_bit w)`,
+`b'`,
+`c`])) >>
+gvs[] >>
+Q.EXISTS_TAC `b''` >>
+fs[]
+
 ,
 OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv'))`` >> rfs[] >>
 OPEN_V_TYP_TAC ``(v_bit bitv)`` >>
@@ -1598,15 +1920,15 @@ fs[] >>
 
 Q.PAT_X_ASSUM `sr_exp e ty`
 ((STRIP_ASSUME_TAC o (Q.SPECL
-[`e'''''`,`scope`, `scopest`, `framel`, `t_scope_list`, `t_scope_list_g`,`T_e`, `(tau_bit w1)`, `b'`, `c`])) o
+[`e'''''`,`gscope`, `scopest`, `framel`, `t_scope_list`, `t_scope_list_g`,`T_e`, `(tau_bit w1)`, `b'`, `c`])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
-RES_TAC >>
+gvs[]>>
 
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 rw[] >>
 Q.EXISTS_TAC `w1`>>
 Q.EXISTS_TAC `w2'`>>
-Q.EXISTS_TAC `b'`>>
+Q.EXISTS_TAC `b'''`>>
 Q.EXISTS_TAC `b''`>>
 fs[]
 
@@ -1620,11 +1942,25 @@ rw[] >>
 Q.EXISTS_TAC `w1`>>
 Q.EXISTS_TAC `w2'`>>
 Q.EXISTS_TAC `b'`>>
-Q.EXISTS_TAC `b''`>>
-fs[] >>
 
+fs[] >>
 fs[sr_exp_def] >>
-RES_TAC 
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`e''''`,
+`gscope`,
+`scopest`,
+`framel`,
+`t_scope_list`,
+`t_scope_list_g`,
+`T_e`,
+`(tau_bit w2')`,
+`b''`,
+`c`])) >>
+gvs[] >>
+Q.EXISTS_TAC `b'''` >>
+fs[]
+
 
 ,
 rw[] >>
@@ -1659,19 +1995,40 @@ OPEN_EXP_RED_TAC ``(e_slice e e' e'')`` >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 fs[] >| [
 rw[] >>
-OPEN_EXP_TYP_TAC ``(e_slice e'⁵' (e_v (v_bit bitv)) (e_v (v_bit bitv')))`` >>
-SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
-rfs[] >>
+OPEN_EXP_TYP_TAC ``(e_slice e (e_v (v_bit bitv)) (e_v (v_bit bitv')))`` >>
+rw[] >>
+
+(*TODO: lift this up to the bin and un operations*)
+
 
 Q.PAT_X_ASSUM `sr_exp e ty`
 ((STRIP_ASSUME_TAC o (Q.SPECL
-[`e'''''`,`scope`, `scopest`, `framel`, `t_scope_list`, `t_scope_list_g`,`T_e`, `(tau_bit w)`, `T`, `c`])) o
+[`e'''''`,`gscope`, `scopest`, `framel`, `t_scope_list`, `t_scope_list_g`,`T_e`, `(tau_bit w)`, `T`, `c`])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
+gvs[] >>
 
-RES_TAC >>
+
+
+
+Q.EXISTS_TAC `b'`>>
+rfs[] >>
+
+
+SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 
 Q.EXISTS_TAC `w`>>
-rfs[]
+fs[clause_name_def] >>
+
+
+(* TODO : problem here
+The problem is that the reduction itself can produce a value v,
+v can never be typed being an Lval, so teh typying rules is wrong?
+
+*)
+cheat
+Cases_on `b'` >> fs[]
+
+
 ,
 rw[] >>
 OPEN_EXP_TYP_TAC ``(e_slice (e_v (v_bit bitv)) (e_v (v_bit bitv')))`` >>
@@ -1683,7 +2040,6 @@ rfs[] >>
 SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
 FULL_SIMP_TAC (srw_ss()) [lemma_v_red_forall] >>
 FULL_SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
-(*OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv))`` >>*)
 rfs[] >>
 OPEN_V_TYP_TAC ``(v_bit bitv)`` >>
 rfs[]
@@ -1758,8 +2114,28 @@ rw[] >>
 OPEN_EXP_TYP_TAC ``(e_select (e_v e) l s)`` >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 rfs[clause_name_def] >>
-RES_TAC >>
-METIS_TAC[]
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`e'''`,
+`gscope`,
+`scopest`,
+`framel`,
+`t_scope_list`,
+`t_scope_list_g`,
+`T_e`,
+`tau'`,
+`F`,
+`c`])) >>
+gvs[]
+
+Q.EXISTS_TAC `tau'` >>
+gvs[]
+(* TODO: same problem as slicing here happening. *)
+
+cheat
+
+
+
 ]
 
 ,
@@ -1837,7 +2213,6 @@ fs[] >>
 IMP_RES_TAC lemma_MAP5 >>
 fs[] >>
 
-RES_TAC >>
 (subgoal `e_typ (t_scope_list_g,t_scope_list) T_e
               (EL i' (MAP (λ(f_,e_,tau_). e_) f_e_tau_list))
               (EL i' (MAP (λ(f_,e_,tau_). tau_) f_e_tau_list)) F` ) >-
@@ -1859,7 +2234,6 @@ IMP_RES_TAC EL_MEM >>
 IMP_RES_TAC MAP_EQ_EVERY2 >>
 rw[] >>
 RES_TAC >>
-(*`sr_exp (EL i (MAP (λ(f_,e_,e'_). e_) f_e_tau_list)) ty` by fs[ELIM_UNCURRY] >> *)
 RES_TAC >>
 EVAL_TAC >>
 fs[EL_LUPDATE] >>
@@ -1910,5 +2284,9 @@ fs[LENGTH_MAP]
 
 
 );
+
+
+
+
 
 
