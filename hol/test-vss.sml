@@ -39,7 +39,7 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 (*********************)
 
 (* OK input at port 1 *)
-val init_inlist_ok = mk_list ([pairSyntax.mk_pair (input_ok, input_port_ok)], ``:in_out``);
+val init_inlist_ok = mk_list ([mk_pair (input_ok, input_port_ok)], ``:in_out``);
 val init_outlist_ok = mk_list ([], ``:in_out``);
 
 val ipv4_header_uninit =
@@ -109,12 +109,12 @@ val init_ctrl = ``[("ipv4_match",
 val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
 
 (* TODO: Make syntax functions *)
-val init_aenv = ``(^(pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
+val init_aenv = ``(^(list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
 
 (* TODO: Make syntax functions *)
 val init_astate =
  ``(^(pairSyntax.list_mk_pair [init_aenv,
-                               listSyntax.mk_list ([vss_init_global_scope], scope_ty),
+                               mk_list ([vss_init_global_scope], scope_ty),
                                arch_frame_list_empty_tm,
                                status_running_tm])):vss_ascope astate``;
 
@@ -122,8 +122,7 @@ val init_astate =
 (*   Architecture-level semantics tests    *)
 
 val ctx = ``p4_vss_actx``;
-val stop_consts1 = [``Checksum16_update``];
-val stop_consts2 = []:term list;
+val stop_consts = [``Checksum16_update``];
 
 val ass1 = gen_all ``Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -133,14 +132,15 @@ val ass1 = gen_all ``Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_
      SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
     | _ => NONE)
   | _ => NONE``;
-val ctxt = [ass1];
+val ctxt = ASSUME ass1;
 
 (* 171 steps for TTL=1 packet to get forwarded to CPU *)
 
 (* Solution: Use stepwise EVAL with assumptions *)
 (* Takes around 45 seconds to run *)
 
-eval_under_assum vss_arch_ty ctx init_astate stop_consts1 stop_consts2 ctxt 171;
+(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 51; *)
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
 
 (* Solution: Use EVAL directly with re-defined function that has assumed property *)
 (* Takes around 2 seconds to run *)
@@ -184,3 +184,9 @@ val ctx' = ``p4_vss_actx'``;
 
 (* EVAL-uate until packet is output (happens to be step 171) *)
 GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 171``;
+
+(* Solution: Use repeated EVAL-under-assumptions *)
+(* Takes around 3 seconds to run *)
+
+(* Takes 52 steps, then another 101, then 18 *)
+GEN_ALL $ eval_under_assum_break ctx init_astate stop_consts ctxt [52, 101, 18]

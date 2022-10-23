@@ -2,7 +2,7 @@ structure p4_testLib :> p4_testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open pairSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
+open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
 
 open p4Syntax p4_exec_semSyntax testLib evalwrapLib;
 
@@ -142,29 +142,60 @@ fun final_state_is_some step_thm = optionSyntax.is_some $ snd $ dest_eq $ snd $ 
 
 val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
 
-fun eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm step_thm 0 = step_thm
-  | eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm step_thm fuel =
+(* Stepwise evaluation under assumptions *)
+fun eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm 0 = step_thm
+  | eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm fuel =
  let
   val curr_state = the_final_state step_thm
   val step_thm2 =
-   SPEC_ALL (eval_ctxt_gen stop_consts1 stop_consts2 ctxt (mk_arch_multi_exec (ctx, curr_state, 1)));
+   eval_ctxt_gen stop_consts [] ctxt (mk_arch_multi_exec (ctx, curr_state, 1));
   val comp_step_thm =
    SIMP_RULE simple_arith_ss []
     (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
  in
-  eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm comp_step_thm (fuel-1)
+  eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm comp_step_thm (fuel-1)
  end
 
 in
-fun eval_under_assum arch_ty ctx init_astate stop_consts1 stop_consts2 ctxt fuel =
+fun eval_under_assum arch_ty ctx init_astate stop_consts ctxt fuel =
  let
   val step_thm =
-   SPEC_ALL (eval_ctxt_gen stop_consts1 stop_consts2 ctxt (mk_arch_multi_exec (ctx, init_astate, 1)));
+   eval_ctxt_gen stop_consts [] ctxt (mk_arch_multi_exec (ctx, init_astate, 1));
   val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl;
  in
   if fuel = 1
   then step_thm
-  else eval_under_assum' arch_ty ctx stop_consts1 stop_consts2 ctxt comp_thm step_thm (fuel-1)
+  else eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm (fuel-1)
+ end
+end;
+
+(* Successively takes the amount of steps provided in a list *)
+local
+fun eval_under_assum_break' ctx stop_consts ctxt exec_thm [] = exec_thm
+  | eval_under_assum_break' ctx stop_consts ctxt exec_thm (h::t) =
+ let
+  val init_astate = dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl exec_thm
+  val tm = mk_arch_multi_exec (ctx, init_astate, h)
+  val exec_thm' = eval_ctxt_gen stop_consts stop_consts ctxt tm
+  val exec_comp_thm = MATCH_MP (MATCH_MP arch_multi_exec_comp_n_tl_assl exec_thm) exec_thm'
+ in
+  eval_under_assum_break' ctx stop_consts ctxt exec_comp_thm t
+ end
+
+in
+fun eval_under_assum_break ctx init_astate stop_consts ctxt [] =
+ let
+  val tm = mk_arch_multi_exec (ctx, init_astate, 0)
+  val exec_thm = eval_ctxt_gen stop_consts stop_consts ctxt tm
+ in
+  exec_thm
+ end
+  | eval_under_assum_break ctx init_astate stop_consts ctxt (h::t) =
+ let
+  val tm = mk_arch_multi_exec (ctx, init_astate, h)
+  val exec_thm = eval_ctxt_gen stop_consts stop_consts ctxt tm
+ in
+  eval_under_assum_break' ctx stop_consts ctxt exec_thm t
  end
 end;
 
