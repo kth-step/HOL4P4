@@ -2,6 +2,11 @@ signature p4_vssLib =
 sig
   include Abbrev
 
+val vss_arch_ty : hol_type
+
+val packet_in_map : term
+val packet_out_map : term
+
 val REAL_PORT_COUNT_tm : term
 
 val RECIRCULATE_IN_PORT_tm : term

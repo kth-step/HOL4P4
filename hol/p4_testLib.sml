@@ -2,9 +2,11 @@ structure p4_testLib :> p4_testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open pairSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
+open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
 
-open p4Syntax testLib;
+open p4Syntax p4_exec_semSyntax testLib evalwrapLib;
+
+open p4_exec_semTheory;
 
 (* This file contains functions that are useful when creating P4 tests *)
 
@@ -56,6 +58,9 @@ fun get_ipv4_checksum (version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, src, ds
   end
 ;
 
+fun fixedwidth_freevars (fname, width) =
+ mk_list (List.tabulate (width, (fn index => mk_var (fname^(Int.toString index), bool))), bool)
+;
 
 (* Creates a bitstring representation of an IPv4 packet, given the
  * bitstring representation of the payload and the
@@ -99,6 +104,45 @@ fun mk_ipv4_packet_ok data ttl =
   end
 ;
 
+(* Same as the above, with symbolic values for the TTL example *)
+fun mk_ipv4_packet_ok_ttl data ttl =
+  let
+    (* IP version - always set to 4 for IPv4 *)
+    val version = fixedwidth_of_int (4, 4);
+    (* IHL (Internet Header Length) - determines size (in 32-bit words) of IPv4 header.
+     * Minimum is 5. *)
+    val ihl = fixedwidth_of_int (5, 4);
+    (* DSCP - ignored, for now. *)
+    val dscp = fixedwidth_freevars ("dscp", 6);
+    (* ECN - ignored, for now. *)
+    val ecn = fixedwidth_freevars ("ecn", 2);
+    (* Total length - the total length of the packet in bytes, both header and data.
+     * Minimum (case no data) is 20. *)
+    val data_length = int_of_term $ rhs $ concl $ EVAL (mk_length data);
+    val tl = fixedwidth_of_int (20 + data_length, 16);
+    (* Identification - ignored, for now. *)
+    val id = fixedwidth_freevars ("id", 16);
+    (* Flags - ignored, for now. *)
+    val fl = fixedwidth_freevars ("fl", 3);
+    (* Fragment offset - ignored, for now. *)
+    val fo = fixedwidth_freevars ("fo", 13);
+    (* Time to live - should be non-zero. *)
+    val ttl = fixedwidth_of_int (ttl, 8);
+    (* Protocol - TODO. *)
+    val pr = fixedwidth_freevars ("pr", 8);
+    (* Source IP address - TODO *)
+    val src = fixedwidth_freevars ("src", 32);
+    (* Destination IP address - TODO *)
+    val dst = fixedwidth_of_int (0, 32);
+    (* NOTE: No optional fields here *)
+
+    (* Header checksum - calculated from the other header fields.*)
+    val ck = fixedwidth_of_int (0, 16);
+  in
+    rhs $ concl $ EVAL $ list_mk_append [version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, ck, src, dst, data]
+  end
+;
+
 (* Creates a bitstring representation of an Ethernet frame, given
  * the bitstring representation of the payload (assumed to be IP). *)
 fun mk_eth_frame_ok data =
@@ -128,6 +172,73 @@ fun eval_and_print_aenv actx astate nsteps =
 fun eval_and_print_rest actx astate nsteps =
  el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
 
+(* TODO: Add debug print output *)
+(* TODO: Make variant that executes until packet is output *)
+local
+fun the_final_state step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+
+fun final_state_is_some step_thm = optionSyntax.is_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+
+val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
+
+(* Stepwise evaluation under assumptions *)
+fun eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm 0 = step_thm
+  | eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm fuel =
+ let
+  val curr_state = the_final_state step_thm
+  val step_thm2 =
+   eval_ctxt_gen stop_consts [] ctxt (mk_arch_multi_exec (ctx, curr_state, 1));
+  val comp_step_thm =
+   SIMP_RULE simple_arith_ss []
+    (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
+ in
+  eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm comp_step_thm (fuel-1)
+ end
+
+in
+fun eval_under_assum arch_ty ctx init_astate stop_consts ctxt fuel =
+ let
+  val step_thm =
+   eval_ctxt_gen stop_consts [] ctxt (mk_arch_multi_exec (ctx, init_astate, 1));
+  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl;
+ in
+  if fuel = 1
+  then step_thm
+  else eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm (fuel-1)
+ end
+end;
+
+(* Successively takes the amount of steps provided in a list *)
+local
+fun eval_under_assum_break' ctx stop_consts ctxt exec_thm [] = exec_thm
+  | eval_under_assum_break' ctx stop_consts ctxt exec_thm (h::t) =
+ let
+  val init_astate = dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl exec_thm
+  val tm = mk_arch_multi_exec (ctx, init_astate, h)
+  val exec_thm' = eval_ctxt_gen stop_consts stop_consts ctxt tm
+  val exec_comp_thm = MATCH_MP (MATCH_MP arch_multi_exec_comp_n_tl_assl exec_thm) exec_thm'
+ in
+  eval_under_assum_break' ctx stop_consts ctxt exec_comp_thm t
+ end
+
+in
+fun eval_under_assum_break ctx init_astate stop_consts ctxt [] =
+ let
+  val tm = mk_arch_multi_exec (ctx, init_astate, 0)
+  val exec_thm = eval_ctxt_gen stop_consts stop_consts ctxt tm
+ in
+  exec_thm
+ end
+  | eval_under_assum_break ctx init_astate stop_consts ctxt (h::t) =
+ let
+  val tm = mk_arch_multi_exec (ctx, init_astate, h)
+  val exec_thm = eval_ctxt_gen stop_consts stop_consts ctxt tm
+ in
+  eval_under_assum_break' ctx stop_consts ctxt exec_thm t
+ end
+end;
+
+(* TODO: Move to syntax file *)
 fun dest_astate astate =
  let
   val (aenv, astate') = dest_pair astate
@@ -138,6 +249,7 @@ fun dest_astate astate =
  end
 ;
 
+(* TODO: Move to syntax file *)
 fun dest_vss_aenv aenv =
  let
   val (i, aenv') = dest_pair aenv
@@ -148,6 +260,7 @@ fun dest_vss_aenv aenv =
  end
 ;
 
+(* TODO: Move to syntax file *)
 fun dest_vss_actx actx =
  let
   val (ab_list, actx') = dest_pair actx
@@ -189,6 +302,5 @@ fun debug_frames_from_step actx astate nsteps =
   ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
  end
 ;
-
 
 end

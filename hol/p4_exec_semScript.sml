@@ -2360,6 +2360,88 @@ val arch_multi_exec = Define `
   | NONE => NONE)
 `;
 
+Theorem arch_multi_exec_add:
+!actx aenv g_scope_list arch_frame_list status m n.
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (m+n) =
+ case arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) n of
+ | SOME (aenv', g_scope_list', arch_frame_list', status') =>
+  arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') m
+ | NONE => NONE
+Proof
+Induct_on `n` >- (
+ fs [arch_multi_exec]
+) >>
+rpt strip_tac >>
+fs [arch_multi_exec, arithmeticTheory.ADD_CLAUSES] >>
+Cases_on `arch_exec actx (aenv,g_scope_list,arch_frame_list,status)` >> (
+ fs []
+) >>
+PairCases_on `x` >>
+fs []
+QED
+
+(* TODO: What to call this? Compose? Combine? *)
+Theorem arch_multi_exec_comp_1_tl:
+!actx aenv g_scope_list arch_frame_list status m aenv' g_scope_list' arch_frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) 1 =
+  SOME (aenv', g_scope_list', arch_frame_list', status') ==>
+arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') m =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'') ==>
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (1+m) =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'')
+Proof
+rpt strip_tac >>
+FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_COMM] >>
+fs [arch_multi_exec_add]
+QED
+
+Theorem arch_multi_exec_split_1_tl:
+!actx aenv g_scope_list arch_frame_list status m aenv'' g_scope_list'' arch_frame_list'' status''.
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (m+1) =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'') ==>
+(?aenv' g_scope_list' arch_frame_list' status'.
+ arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) m =
+   SOME (aenv', g_scope_list', arch_frame_list', status') ==>
+ arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') 1 =
+   SOME (aenv'', g_scope_list'', arch_frame_list'', status''))
+Proof
+rpt strip_tac >>
+FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_COMM] >>
+fs [arch_multi_exec_add] >>
+Cases_on `arch_multi_exec actx (aenv,g_scope_list,arch_frame_list,status) m` >> (
+ fs []
+) >>
+PairCases_on `x` >>
+qexistsl_tac [`(x0,x1,x2,x3)`, `x4`, `x5`, `x6`] >>
+fs []
+QED
+
+Theorem arch_multi_exec_comp_1_tl_assl:
+!m actx assl aenv g_scope_list arch_frame_list status aenv' g_scope_list' arch_frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
+(assl ==> arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) 1 =
+  SOME (aenv', g_scope_list', arch_frame_list', status')) ==>
+(assl ==> arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') m =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'')) ==>
+(assl ==> arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (1+m) =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status''))
+Proof
+metis_tac[arch_multi_exec_comp_1_tl]
+QED
+
+Theorem arch_multi_exec_comp_n_tl_assl:
+!n m actx assl aenv g_scope_list arch_frame_list status aenv' g_scope_list' arch_frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
+(assl ==> arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) n =
+  SOME (aenv', g_scope_list', arch_frame_list', status')) ==>
+(assl ==> arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') m =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'')) ==>
+(assl ==> arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (n+m) =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status''))
+Proof
+rpt strip_tac >>
+gs [] >>
+fs [arch_multi_exec_add]
+QED
+
         
 (**********)
 (*  Misc  *)

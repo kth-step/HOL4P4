@@ -9,7 +9,7 @@ open blastLib;
 open computeLib;
 open alistTheory;
 
-(* This file includes complete test runs of the VSS example in the P4 spec. *)
+(* This file includes complete test runs of the VSS example in the P4 spec for a TTL that is low enough to send the packet to CPU, with the bits in other fields that don't affect this computation set to free variables. *)
 
 (*********************)
 (*   Input packets   *)
@@ -24,7 +24,7 @@ val input_data_ok = mk_list ([], bool);
 
 (* The simplest IPV4 header that will be judged valid by the example *)
 (* NOTE: This only assigns the version, IHL, total length, ttl and header checksum fields. *)
-val input_ttl_ok = 2; (* NOTE: TTL 1 will be sent to CPU *)
+val input_ttl_ok = 1; (* NOTE: TTL 1 will be sent to CPU *)
 val input_ipv4_ok = mk_ipv4_packet_ok input_data_ok input_ttl_ok;
 
 (* The simplest ethernet frame that will be judged valid by the example *)
@@ -35,7 +35,7 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 (*********************)
 
 (* OK input at port 1 *)
-val init_inlist_ok = mk_list ([pairSyntax.mk_pair (input_ok, input_port_ok)], ``:in_out``);
+val init_inlist_ok = mk_list ([mk_pair (input_ok, input_port_ok)], ``:in_out``);
 val init_outlist_ok = mk_list ([], ``:in_out``);
 
 val ipv4_header_uninit =
@@ -104,99 +104,84 @@ val init_ctrl = ``[("ipv4_match",
 val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
 
 (* TODO: Make syntax functions *)
-val init_aenv = ``(^(pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
+val init_aenv = ``(^(list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
 
 (* TODO: Make syntax functions *)
 val init_astate =
  ``(^(pairSyntax.list_mk_pair [init_aenv,
-                               listSyntax.mk_list ([vss_init_global_scope], scope_ty),
+                               mk_list ([vss_init_global_scope], scope_ty),
                                arch_frame_list_empty_tm,
                                status_running_tm])):vss_ascope astate``;
 
 (*******************************************)
 (*   Architecture-level semantics tests    *)
 
-(* Single reduction: *)
-EVAL ``arch_exec p4_vss_actx (^init_astate)``;
+val ctx = ``p4_vss_actx``;
+val stop_consts = [``Checksum16_update``];
 
-(* Shorthand: *)
-val vss_actx = ``p4_vss_actx``;
+val ass1 = gen_all ``Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case ALOOKUP ext_obj_map i of
+    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
+     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+    | _ => NONE)
+  | _ => NONE``;
+val ctxt = ASSUME ass1;
 
-(* Multiple reductions: *)
-(* In V1, this ended at 131 steps for TTL=1 in input *)
-(* In V2, this ends at 210 steps for TTL=1 in input *)
+(* 171 steps for TTL=1 packet to get forwarded to CPU *)
 
-(*
-val nsteps = 223;
-val astate = init_astate;
-val actx = p4_vss_actx;
-*)
+(* Solution: Use stepwise EVAL with assumptions *)
+(* Takes around 20 seconds to run *)
 
-(* FOR DEBUGGING:
+(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 51; *)
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
 
-val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
+(* Solution: Use EVAL directly with re-defined function that has assumed property *)
+(* Takes around 2 seconds to run *)
 
-val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
+(* Re-definition of Checksum16_update *)
+Definition Checksum16_update':
+ (Checksum16_update' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case ALOOKUP ext_obj_map i of
+    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
+     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
 
-(********** Nested exec sems ***********)
+(* Re-definition of vss_ext_map *)
+val vss_Checksum16_map' =
+ ``[("clear", (stmt_ext, [("this", d_in)], Checksum16_clear));
+    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update'));
+    ("get", (stmt_ext, [("this", d_in)], Checksum16_get))]``;
+val vss_ext_map' =
+ ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
+    ++ [("packet_in", (NONE, (^packet_in_map)));
+        ("packet_out", (NONE, (^packet_out_map)));
+("Checksum16", SOME (stmt_ext, [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))])``;
 
-(* NOTE: For debugging frames_exec *)
-val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
 
-(* NOTE: New g_scope_list from scopes_to_pass, use to debug stmt_exec *)
-val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "start") ^func_map ^b_func_map ^g_scope_list``;
+val vss_actx_list = spine_pair $ rhs $ concl p4_vss_actx_def;
+val vss_actx_list_8first = List.take (vss_actx_list, 8);
+val vss_actx_list_10 = List.last vss_actx_list;
+val vss_actx_list' = (vss_actx_list_8first@[vss_ext_map'])@[vss_actx_list_10];
+val p4_vss_actx'_tm = list_mk_pair vss_actx_list';
 
-(* NOTE: For debugging stmt_exec (top element of frame list) *)
-val frame_list = ``[(funn_ext "packet_out" "emit",
-      [stmt_seq stmt_ext (stmt_ret (e_v v_bot))],
-      [[(varn_name "this",v_ext_ref 0,NONE);
-        (varn_name "data",
-         v_header T
-           [("dstAddr",v_bit (w2v:word48 -> bool list 1w,48)); ("srcAddr",v_bit (w2v:word48 -> bool list 0w,48));
-            ("etherType",v_bit (w2v:word16 -> bool list 2048w,16))],NONE)]])]:frame_list``;
+(* Re-definition of p4_vss_actx' *)
+Definition p4_vss_actx'_def:
+  p4_vss_actx' = ^p4_vss_actx'_tm
+End
+val ctx' = ``p4_vss_actx'``;
 
-(* stmt_exec test: *)
-val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``stmt_exec (^apply_table_f, ^ext_map, ^func_map, ^b_func_map, ^pars_map, ^tbl_map) (^scope, ^g_scope_list', ^frame_list, status_running)``
+(* EVAL-uate until packet is output (happens to be step 171) *)
+GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 171``;
 
-*)
+(* Solution: Use repeated EVAL-under-assumptions *)
+(* Takes around 2 seconds to run *)
 
-(* TODO: Make "exec arch block" function *)
-
-(* arch_in: input read into b, data_crc and inCtrl *)
-eval_and_print_aenv vss_actx init_astate 1;
-
-(* arch_pbl_init: parser block arguments read into b and p *)
-eval_and_print_rest vss_actx init_astate 2;
-
-(* After a number of arch_pbl_exec steps: status set to status_trans "accept" *)
-eval_and_print_rest vss_actx init_astate 63;
-
-(* arch_pbl_ret: parseError and parsedHeaders copied out to arch scope *)
-eval_and_print_aenv vss_actx init_astate 64;
-
-(* arch_ffbl: Parser Runtime *)
-eval_and_print_aenv vss_actx init_astate 65;
-
-(* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 66;
-
-(* arch_control_exec: *)
-eval_and_print_rest vss_actx init_astate 140;
-
-(* arch_pbl_ret: outCtrl written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 141;
-
-(* arch_ffbl: pre-Deparser *)
-eval_and_print_aenv vss_actx init_astate 142;
-
-(* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 143;
-
-(* arch_pbl_exec *)
-eval_and_print_rest vss_actx init_astate 193;
-
-(* arch_pbl_ret: p written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 194;
-
-(* arch_out: output read into output stream *)
-eval_and_print_aenv vss_actx init_astate 195;
+(* Takes 52 steps, then another 101, then 18 *)
+GEN_ALL $ eval_under_assum_break ctx init_astate stop_consts ctxt [52, 101, 18]
