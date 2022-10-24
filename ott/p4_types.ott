@@ -503,6 +503,15 @@ similarl (\x y . (v_typ (FST (x)) (y) F ) ) sl tsl
 `;
 
 
+(* To type all frame's scopes, all frames's scopes should be able to be typed 
+   by the typing list of scopes tsll, and also, the domain of each frame is the same.
+*)
+val type_state_tsll_def = Define `
+type_state_tsll (sll:scope list list) (tsll: t_scope list list) =
+ type_frame_tsl (FLAT sll) (FLAT tsll)
+`;
+
+
 
 }}
 
@@ -532,12 +541,12 @@ tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 ( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
 
 
-t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ]  )
 ----------------------------------- :: struct
 t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ f1 tau1 , .. , fn taun ] , false  )
 
 
-t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 ----------------------------------- :: header
 t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ f1 tau1 , .. , fn taun ] , false  )
 
@@ -569,15 +578,15 @@ t_scopes_tup T_e |-  concat e e'  : ( bs ( w1 + w2 ) , false  )
 
 w1 = vec_to_const bitv
 w2 = vec_to_const bitv'
-t_scopes_tup T_e |- e : ( bs w , true )
+t_scopes_tup T_e |- e : ( bs w , b )
 bits_length_check ( w , w1 , w2 )
 ----------------------------------- :: slice
-t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , true )
+t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , b )
 
 
 
-t_scopes_tup T_e |- e : ( tau , false  )
-( v1 , .. , vn ) : ( tau , false  )
+t_scopes_tup T_e |- e : ( tau , b' )
+( v1 , .. , vn ) : ( tau , b )
 ----------------------------------- :: select
 t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
 
