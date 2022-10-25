@@ -25,7 +25,7 @@ val input_data_ok = mk_list ([], bool);
 (* The simplest IPV4 header that will be judged valid by the example *)
 (* NOTE: This only assigns the version, IHL, total length, ttl and header checksum fields. *)
 val input_ttl_ok = 1; (* NOTE: TTL 1 will be sent to CPU *)
-val input_ipv4_ok = mk_ipv4_packet_ok input_data_ok input_ttl_ok;
+val input_ipv4_ok = mk_ipv4_packet_ok_ttl input_data_ok input_ttl_ok;
 
 (* The simplest ethernet frame that will be judged valid by the example *)
 val input_ok = mk_eth_frame_ok input_ipv4_ok;
@@ -117,16 +117,10 @@ val init_astate =
 (*   Architecture-level semantics tests    *)
 
 val ctx = ``p4_vss_actx``;
-val stop_consts = [``Checksum16_update``];
+val stop_consts = [``Checksum16_get``];
 
-val ass1 = gen_all ``Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
-  case lookup_lval scope_list (lval_varname (varn_name "this")) of
-  | SOME (v_ext_ref i) =>
-   (case ALOOKUP ext_obj_map i of
-    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
-    | _ => NONE)
-  | _ => NONE``;
+val ass1 = gen_all ``Checksum16_get ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+  SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 (0w))))``;
 val ctxt = ASSUME ass1;
 
 (* 171 steps for TTL=1 packet to get forwarded to CPU *)
@@ -134,20 +128,20 @@ val ctxt = ASSUME ass1;
 (* Solution: Use stepwise EVAL with assumptions *)
 (* Takes around 20 seconds to run *)
 
-(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 51; *)
+(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 57; *)
 GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
 
 (* Solution: Use EVAL directly with re-defined function that has assumed property *)
 (* Takes around 2 seconds to run *)
 
-(* Re-definition of Checksum16_update *)
-Definition Checksum16_update':
- (Checksum16_update' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+(* Re-definition of Checksum16_get *)
+Definition Checksum16_get':
+ (Checksum16_get' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 0w)))
     | _ => NONE)
   | _ => NONE
  )
@@ -156,8 +150,8 @@ End
 (* Re-definition of vss_ext_map *)
 val vss_Checksum16_map' =
  ``[("clear", (stmt_ext, [("this", d_in)], Checksum16_clear));
-    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update'));
-    ("get", (stmt_ext, [("this", d_in)], Checksum16_get))]``;
+    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update));
+    ("get", (stmt_ext, [("this", d_in)], Checksum16_get'))]``;
 val vss_ext_map' =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
     ++ [("packet_in", (NONE, (^packet_in_map)));
@@ -183,5 +177,5 @@ GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 171``;
 (* Solution: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
-(* Takes 52 steps, then another 101, then 18 *)
-GEN_ALL $ eval_under_assum_break ctx init_astate stop_consts ctxt [52, 101, 18]
+(* Takes 58 steps, then another 100, then 13 *)
+GEN_ALL $ eval_under_assum_break ctx init_astate stop_consts ctxt [58, 100, 13];
