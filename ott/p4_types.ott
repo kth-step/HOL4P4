@@ -7,24 +7,10 @@ open wordsTheory;
 grammar
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Typing scopes and lists
+% Typing scope lists
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-t_scope {{ tex \psi }} :: t_scope_ ::=
-{{ hol ((varn, tau) alist) }}
-{{ com typing scope }}
-| empty :: M :: empty
-  {{ com empty typing scope }}
-  {{ hol [] }}
-  {{ tex {\psi}_{ \emptyset } }}
-| ( t_scope ) :: S :: paren
-  {{ hol ([[t_scope]]) }}
-  {{ tex  [[t_scope]] }}
 
-embed
-{{ hol
-}}
-grammar
 
 t_scope_list_g {{ tex \overrightarrow{\psi_G} }} :: t_scope_list_g_ ::=
 {{ hol (t_scope list) }}
@@ -161,11 +147,27 @@ val find_star_in_globals_def = Define `
 
 
 (* lookup the functions type *)
-val t_lookup_funn_def = Define `
-  t_lookup_funn (delta_g:delta_g) (delta_b:delta_b) (funn:funn) =
-    case ALOOKUP (delta_g++delta_b) funn of
-    | SOME (tdl , t) => SOME (tdl , t)
-    | NONE  => NONE
+val t_lookup_funn_typ_def = Define `
+  (t_lookup_funn_typ (funn:funn) (delta_g:delta_g) (delta_b:delta_b) =
+    case funn of
+    | (funn_name x) =>
+     (case ALOOKUP delta_b funn of
+      | SOME (tdl , t) => SOME (tdl , t)
+      | NONE =>
+       (case ALOOKUP delta_g funn of
+        | SOME (tdl , t) => SOME (tdl , t)
+        | NONE => NONE
+       )
+     )
+    | (funn_inst x) =>
+     (case ALOOKUP delta_g funn of
+        | SOME (tdl , t) => SOME (tdl , t)
+        | _ => NONE)
+    | (funn_ext x x') =>
+     (case ALOOKUP delta_g funn of
+      | SOME (tdl , t) => SOME (tdl , t)
+      | _ => NONE)
+  )
 `;
 
 
@@ -297,10 +299,6 @@ val WF_o_def = Define `
 
 
 
-val replicate_types_def = Define `
-replicate_types (decl : decl_list) =
-  FOLDR (\(x,t) f. AUPDATE f (x , t)) [] decl
-`;
 
 
 }}
@@ -512,7 +510,6 @@ type_state_tsll (sll:scope list list) (tsll: t_scope list list) =
 `;
 
 
-
 }}
 
 
@@ -535,7 +532,7 @@ tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
 ( t_scope_list_g , t_scope_list ) T_e |- var varn : ( tau , true )
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn )
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b )
 tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 ----------------------------------- :: star
 ( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
@@ -592,7 +589,7 @@ t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] +
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn' ) 
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b ) 
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
 ordered funn' funn order
@@ -659,10 +656,9 @@ t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 
 
- t_scope = replicate_types decl_list
 ( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
-( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin decl_list stmt end 
+( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin t_scope stmt end 
 
 
 
@@ -687,7 +683,7 @@ t_scopes_tup T_e Prs_n |-  transition e
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) 
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b )
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |-  e  : ( tau , b )
 --------------------------------------- :: return
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  return e
@@ -700,7 +696,75 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  retur
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
 
 
+ 
+--------------------------------------- :: ext
+t_scopes_tup T_e Prs_n |-  ext
 
+
+
+
+
+
+
+
+
+
+embed
+{{ hol
+
+
+(*
+val Fg_body_args_typed_def = Define `
+Fg_body_args_typed f func_map order t_scope_list_g delta_g  =
+! stmt xdl  tau tdl x t_scope' .
+ (( (f = funn_name x) /\
+   (ALOOKUP func_map x = SOME (stmt, xdl))
+) ==>
+   (SOME (tdl,tau) = t_lookup_funn [] delta_g f) /\
+   (t_scope' = ( ZIP (FST (UNZIP(xdl)) , FST (UNZIP(tdl)) )  )) /\ 
+   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[])) [] (stmt) ) /\
+   ( ALL_DISTINCT (FST (UNZIP(xdl))) )
+)
+`;
+
+
+
+
+val Fb_body_args_typed_def = Define `
+Fb_body_args_typed f b_func_map order t_scope_list_g delta_g delta_b  =
+! stmt xdl  tau tdl x t_scope' .
+ (( (f = funn_name x) /\
+   (ALOOKUP b_func_map x = SOME (stmt, xdl))
+) ==>
+   (SOME (tdl,tau) = t_lookup_funn delta_b [] f) /\
+   (t_scope' = ( ZIP (FST (UNZIP(xdl)) , FST (UNZIP(tdl)) )  )) /\ 
+   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,[])) [] (stmt) ) /\
+   ( ALL_DISTINCT (FST (UNZIP(xdl))) )
+)
+`;
+*)
+
+
+
+(*initial implementation of the end statement of some function's body during the call should terminate
+so we are looking into the statements if there exsist a return statement *)
+val end_stmt_is_ret_def = Define `
+  (end_stmt_is_ret (stmt_ret e) = T ) /\
+  (end_stmt_is_ret (stmt_ext) = T ) /\   (*this should be false because if P4 you should not call an ext from a function*)
+  (end_stmt_is_ret (stmt_empty) = F ) /\
+  (end_stmt_is_ret (stmt_verify e e') = F) /\
+  (end_stmt_is_ret (stmt_trans e) = F ) /\
+  (end_stmt_is_ret (stmt_app x el) = F ) /\
+  (end_stmt_is_ret (stmt_cond (e_v (v_bool T)) stmt1 stmt2) = end_stmt_is_ret (stmt1)) /\    (*not sure what to do with the condition if it is simply e ???*)
+  (end_stmt_is_ret (stmt_cond (e_v (v_bool F)) stmt1 stmt2) = end_stmt_is_ret (stmt2)) /\
+  (end_stmt_is_ret (stmt_block dl stmt) = end_stmt_is_ret (stmt)) /\
+  (end_stmt_is_ret (stmt_seq stmt1 stmt2) = (end_stmt_is_ret (stmt1) \/ end_stmt_is_ret (stmt2)) ) 
+`;
+
+
+
+
+}}
 
 
 

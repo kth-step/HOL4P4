@@ -481,14 +481,14 @@ formula :: formula_ ::=
   {{ hol (SOME[[g_scope_list'']] = scopes_to_retrieve [[funn]] [[func_map]] [[b_func_map]] [[g_scope_list]] [[g_scope_list']]) }}
   {{ tex [[g_scope_list'']] = \mathrm{scopes\_to\_retrieve} ([[funn]], [[func_map]], [[b_func_map]], [[g_scope_list]], [[g_scope_list']]) }}
 
-| scope' = declare_list_in_scope ( decl_list , scope ) :: M :: decl_in_scope  
+| scope' = declare_list_in_scope ( t_scope , scope ) :: M :: decl_in_scope  
   {{ com update a scope with a list of declarations }}
-  {{ hol [[scope']] = declare_list_in_scope ([[decl_list]], [[scope]]) }}
-  {{ tex [[scope']] = \mathrm{replicate} ([[decl_list]], [[scope]]) }}
-| scope = declare_list_in_fresh_scope ( decl_list ) :: M :: decl_in_fresh_scope  
+  {{ hol [[scope']] = declare_list_in_scope ([[t_scope]], [[scope]]) }}
+  {{ tex [[scope']] = \mathrm{replicate} ([[t_scope]], [[scope]]) }}
+| scope = declare_list_in_fresh_scope ( t_scope ) :: M :: decl_in_fresh_scope  
   {{ com create a scope from the list of declarations }}
-  {{ hol [[scope]] = declare_list_in_fresh_scope ([[decl_list]]) }}
-  {{ tex [[scope]] = \mathrm{replicate} ([[decl_list]]) }}
+  {{ hol [[scope]] = declare_list_in_fresh_scope ([[t_scope]]) }}
+  {{ tex [[scope]] = \mathrm{replicate} ([[t_scope]]) }}
 
 | ( g_scope_list' , scope_list'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scope_list , scope_list' ) :: M :: copyout
    %scope_list is the callee stack, whereas scope_list' is the caller stack
@@ -526,9 +526,9 @@ formula :: formula_ ::=
 | tau = find_star_in_globals ( t_scope_list_g , varn ) :: :: find_star_in_globals
   {{ tex [[tau]] = \mathrm{find_star_in_globals} ([[t_scope_list_g]], [[varn]]) }}
   {{ hol SOME [[tau]] =  find_star_in_globals [[t_scope_list_g]] [[varn]]}}
-| [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) :: :: fun_type
-%  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_g]] \cup [[delta_b]] ([[funn]]) }}
-  {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) =  t_lookup_funn [[delta_g]] [[delta_b]] [[funn]]}}
+| [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b ) :: :: fun_type
+%  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_b]] \cup [[delta_g]] ([[funn]]) }}
+  {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] }}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
   {{ hol (([[unop]] <> unop_neg_signed)) }}
@@ -593,8 +593,6 @@ formula :: formula_ ::=
   {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
 | ordered funn funn' order :: :: ordered
   {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
-| t_scope = replicate_types decl_list :: :: types_repl
-  {{ hol ( [[t_scope]] = replicate_types [[decl_list]]) }}
 | WF_o order :: :: WF_order
   {{ hol ( WF_o [[order]] )}}
 | MEM x x_list :: :: x_in_xlist
@@ -1569,14 +1567,14 @@ val initialise_var_stars_def = Define `
 (* Takes a list of declaration tuples (x, t) and a scope, and returns a scope
  * where the declarations have been made *)
 val declare_list_in_scope_def = Define `
-  declare_list_in_scope (decl_list:decl_list, scope:scope) =
-    FOLDR (\(x,t) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) decl_list
+  declare_list_in_scope (t_scope:t_scope, scope:scope) =
+    FOLDR (\(x,t) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) t_scope
 `;
 
 (* Same as the above, but with the empty scope *)
 val declare_list_in_fresh_scope_def = Define `
-  declare_list_in_fresh_scope (decl_list:decl_list) =
-    declare_list_in_scope (decl_list, [])
+  declare_list_in_fresh_scope (t_scope:t_scope) =
+    declare_list_in_scope (t_scope, [])
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
@@ -1600,8 +1598,8 @@ val lookup_funn_sig_body_def = Define `
      (case ALOOKUP ext_map x of
       | SOME (_, ext_fun_map) =>
        (case ALOOKUP ext_fun_map x' of
-	| SOME (stmt, x_d_l, _) => SOME (stmt, x_d_l)
-	| _ => NONE)
+	      | SOME (stmt, x_d_l, _) => SOME (stmt, x_d_l)
+	      | _ => NONE)
       | _ => NONE)
   )
 `;
@@ -1639,7 +1637,7 @@ val update_return_frame_def = Define `
 `;
 
 val args_of_pbl_def = Define `
-  args_of_pbl (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) = x_d_list
+  args_of_pbl (pblock_regular pbl_type x_d_list b_func_map t_scope stmt pars_map tbl_map) = x_d_list
 `;
 
 (* Implements the whole copyout operation to the caller scope stack. Given list of arguments
@@ -2201,10 +2199,10 @@ by
 %Block
 
 
-  ( scope ) = declare_list_in_fresh_scope ( decl_list )
+  ( scope ) = declare_list_in_fresh_scope ( t_scope )
   scope_list' =  [ scope ] ++ scope_list
   ----------------------------------- :: block_enter
-  ctx ( ascope , g_scope_list , [ ( funn , [ begin decl_list stmt end ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scope_list' ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ begin t_scope stmt end ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scope_list' ) ] , Running )
 
   not_empty stmt
   not_empty stmt_stack
@@ -2365,9 +2363,9 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list'' , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( f )
+  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( f )
   scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope , pbl_type )
-  scope'' = declare_list_in_scope ( decl_list , scope' )
+  scope'' = declare_list_in_scope ( t_scope , scope' )
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
 %Note that the below means that the var_star of globally-defined functions is redefined every time pbl_init is applied 
@@ -2391,14 +2389,14 @@ by
 
 %TODO: This could be solved directly at statement level... This is essentially the old pars_state rule
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
+  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( x )
   not_final_state ( x' )
   stmt' = pars_map ( x' )
   ----------------------------------- :: parser_trans
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , Running )
 
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
+  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( x )
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , frame_list , Running ) -f-> ( ascope' , g_scope_list' , frame_list' , status' )
   ----------------------------------- :: pbl_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope' ) , g_scope_list' , frame_list' , status' )
@@ -2408,7 +2406,7 @@ by
 %TODO: 13.3 of spec says: "An architecture must specify the behavior when the accept and reject states are reached. [...]", so copyout function must take status also
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( f )
+  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( f )
   state_fin ( status , frame_list )
   status' = set_fin_status ( pbl_type , status )
   %Q: Why no scopes from frame_list after global scopes?
