@@ -40,7 +40,7 @@ embed
 }}
 grammar
 
-frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
+frame_list {{ tex \overline{\Phi} }} :: frame_list_ ::=
 {{ hol (frame list) }}
 {{ com list of frame tuples }}
 | empty :: M :: empty
