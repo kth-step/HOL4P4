@@ -137,9 +137,9 @@ fun mk_ipv4_packet_ok_ttl data ttl =
     (* NOTE: No optional fields here *)
 
     (* Header checksum - calculated from the other header fields.*)
-    val ck = fixedwidth_of_int (0, 16);
+    val hc = fixedwidth_freevars ("hc", 16);
   in
-    rhs $ concl $ EVAL $ list_mk_append [version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, ck, src, dst, data]
+    rhs $ concl $ EVAL $ list_mk_append [version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, hc, src, dst, data]
   end
 ;
 

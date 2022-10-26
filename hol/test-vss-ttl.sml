@@ -120,67 +120,56 @@ val ctx = ``p4_vss_actx``;
 val stop_consts = [``compute_checksum16``];
 
 val ass1 =
- gen_all ``compute_checksum16
-            [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
-                  dscp4; dscp5; ecn0; ecn1];
-             v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
-             v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
-                  id11; id12; id13; id14; id15];
-             v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
-                  fo8; fo9; fo10; fo11; fo12];
-             v2w [F; F; F; F; F; F; F; T; pr0; pr1; pr2; pr3; pr4; pr5;
-                  pr6; pr7];
-             v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-             v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
-                  src9; src10; src11; src12; src13; src14; src15];
-             v2w [src16; src17; src18; src19; src20; src21; src22; src23;
-                  src24; src25; src26; src27; src28; src29; src30; src31];
-             v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-             v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = (0w:word16)``;
-(* New result due to updated TTL value: same as if 0x0100 was no longer added to the sum *)
+ ``compute_checksum16
+    [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
+	  dscp4; dscp5; ecn0; ecn1];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
+     v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
+	  id11; id12; id13; id14; id15];
+     v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
+	  fo8; fo9; fo10; fo11; fo12];
+     v2w [F; F; F; F; F; F; F; T; pr0; pr1; pr2; pr3; pr4; pr5;
+	  pr6; pr7];
+     v2w [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12;
+	  hc13; hc14; hc15];
+     v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
+	  src9; src10; src11; src12; src13; src14; src15];
+     v2w [src16; src17; src18; src19; src20; src21; src22; src23;
+	  src24; src25; src26; src27; src28; src29; src30; src31];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = (0w:word16)``;
+
+(* New result due to updated TTL value: same as if 0x0100 and the previous checksum was no longer added to the sum *)
 val ass2 =
- gen_all ``compute_checksum16
-	     [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
-		   dscp4; dscp5; ecn0; ecn1];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
-	      v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
-		   id11; id12; id13; id14; id15];
-	      v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
-		   fo8; fo9; fo10; fo11; fo12];
-	      v2w [F; F; F; F; F; F; F; F; pr0; pr1; pr2; pr3; pr4; pr5;
-		   pr6; pr7];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-	      v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
-		   src9; src10; src11; src12; src13; src14; src15];
-	      v2w [src16; src17; src18; src19; src20; src21; src22; src23;
-		   src24; src25; src26; src27; src28; src29; src30; src31];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = word_1comp (0xFEFFw:word16)``;
+ ``compute_checksum16
+    [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
+	  dscp4; dscp5; ecn0; ecn1];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
+     v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
+	  id11; id12; id13; id14; id15];
+     v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
+	  fo8; fo9; fo10; fo11; fo12];
+     v2w [F; F; F; F; F; F; F; F; pr0; pr1; pr2; pr3; pr4; pr5;
+	  pr6; pr7];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
+	  src9; src10; src11; src12; src13; src14; src15];
+     v2w [src16; src17; src18; src19; src20; src21; src22; src23;
+	  src24; src25; src26; src27; src28; src29; src30; src31];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = word_1comp (sub_ones_complement (0xFEFFw:word16, v2w [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12;
+	 hc13; hc14; hc15]))``;
 val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 
 (*
 Can't feasibly compute 58th step with free variables:
 GEN_ALL $ EVAL ``arch_multi_exec (^ctx) (^init_astate) 58``;
 
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 158;
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 58;
 
-SIMP_CONV std_ss [ASSUME ass2] ``compute_checksum16
-	     [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
-		   dscp4; dscp5; ecn0; ecn1];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
-	      v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
-		   id11; id12; id13; id14; id15];
-	      v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
-		   fo8; fo9; fo10; fo11; fo12];
-	      v2w [F; F; F; F; F; F; F; F; pr0; pr1; pr2; pr3; pr4; pr5;
-		   pr6; pr7];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-	      v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
-		   src9; src10; src11; src12; src13; src14; src15];
-	      v2w [src16; src17; src18; src19; src20; src21; src22; src23;
-		   src24; src25; src26; src27; src28; src29; src30; src31];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-	      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = 0w``;
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
+
+EVAL ``sub_ones_complement (0xFFFFw:word16, 0x0100w:word16)``
 
 *)
 
@@ -192,7 +181,7 @@ SIMP_CONV std_ss [ASSUME ass2] ``compute_checksum16
 (* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 57; *)
 GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
 
-(* Solution: Use EVAL directly with re-defined function that has assumed property *)
+(* Solution: Use EVAL directly with re-defined function that has properties that easily enable the theorem. *)
 (* Takes around 2 seconds to run *)
 
 (* Re-definition of Checksum16_get *)

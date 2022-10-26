@@ -150,6 +150,16 @@ Definition add_ones_complement_def:
    else result
 End
 
+Definition sub_ones_complement_def:
+ sub_ones_complement (x, y) =
+   let
+    (result,carry_out,overflow) = add_with_carry(x, word_1comp y,F)
+   in
+    if carry_out
+    then result + 1w
+    else word_1comp result
+End
+
 Definition compute_checksum16_def:
  compute_checksum16 (w16_list:word16 list) = 
   word_1comp (FOLDR (CURRY add_ones_complement) (0w:word16) w16_list)
