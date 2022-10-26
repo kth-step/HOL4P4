@@ -40,7 +40,7 @@ embed
 }}
 grammar
 
-frame_list {{ tex \overrightarrow{\Phi} }} :: frame_list_ ::=
+frame_list {{ tex \overline{\Phi} }} :: frame_list_ ::=
 {{ hol (frame list) }}
 {{ com list of frame tuples }}
 | empty :: M :: empty
@@ -294,7 +294,7 @@ formula :: formula_ ::=
 
 %Apply table
 | tbl_map ( tbl ) = ( mk_list , ( x , e_list ) ) :: :: find_key
-  {{ com find the match kind and defulat action in the table map }}
+  {{ com find the match kinds and default action in the table map }}
   {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[mk_list]] , ( [[x]] , [[e_list]] ) ) }}
   {{ hol ( ALOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mk_list]] , ( [[x]] , [[e_list]] ) ) ) }}
 | apply_table_f ( tbl , e_list , mk_list , ( f , e_list' ) , ascope ) = ( f' , e_list'' ) :: :: apply_table  
