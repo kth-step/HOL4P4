@@ -417,7 +417,6 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 {{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # v) option)) }}
 
-
 %%%%%%%%%%%
 % Context %
 %%%%%%%%%%%

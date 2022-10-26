@@ -55,30 +55,43 @@ grammar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 delta_g {{ tex \Delta_{glb} }} :: delta_g_ ::=
 {{ com types of functions defined globally}}
-{{ hol (funn, Ftau) alist }}
+{{ hol (string, Ftau) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
 
 delta_b {{ tex \Delta_{blk} }} :: delta_b_ ::=
 {{ com types of functions defined locally}}
-{{ hol (funn, Ftau) alist }}
+{{ hol (string, Ftau) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
+
+% map between the name of the extern object name to the type it has (which we call instan).
+%The option string represent the methods calls of the original extern object.
+delta_x {{ tex \Delta_{ext} }} :: delta_x_ ::=
+{{ com types of extern instan and methods}}
+{{ hol (string, ( Ftau # (string option # Ftau option))) alist }}
+| ( empty ) :: M :: empty
+  {{ com empty function map }}
+  {{ hol [] }}
+
+
+
+
 
 delta_t {{ tex \Delta_{tbl} }} :: delta_t_ ::=
 {{ com types of tables}}
 {{ hol (string, taul) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
 
-delta {{ tex \Delta_{tbl} }} :: delta_ ::=
-{{ hol ( delta_g # delta_b # delta_t ) }}
-| ( delta_g , delta_b , delta_t ) :: M :: tup
+delta {{ tex \Delta }} :: delta_ ::=
+{{ hol ( delta_g # delta_b # delta_x # delta_t ) }}
+| ( delta_g , delta_b , delta_x , delta_t ) :: M :: tup
   {{ com empty function map }}
-  {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_t]] ) }}
+  {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_x]] , [[delta_t]] ) }}
 
 
 order {{ tex \sqsubset }} :: order_ ::=
@@ -147,25 +160,25 @@ val find_star_in_globals_def = Define `
 
 
 (* lookup the functions type *)
-val t_lookup_funn_typ_def = Define `
-  (t_lookup_funn_typ (funn:funn) (delta_g:delta_g) (delta_b:delta_b) =
+val t_lookup_funn_def = Define `
+  (t_lookup_funn (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) =
     case funn of
     | (funn_name x) =>
-     (case ALOOKUP delta_b funn of
-      | SOME (tdl , t) => SOME (tdl , t)
+     (case ALOOKUP delta_b x of
+      | SOME (t, tdl) => SOME (t, tdl)
       | NONE =>
-       (case ALOOKUP delta_g funn of
-        | SOME (tdl , t) => SOME (tdl , t)
+       (case ALOOKUP delta_g x of
+        | SOME (t, tdl) => SOME (t, tdl)
         | NONE => NONE
        )
      )
     | (funn_inst x) =>
-     (case ALOOKUP delta_g funn of
-        | SOME (tdl , t) => SOME (tdl , t)
-        | _ => NONE)
+     (case ALOOKUP delta_x x of
+      | SOME ((t, tdl), _) => SOME (t, tdl)
+      | _ => NONE)
     | (funn_ext x x') =>
-     (case ALOOKUP delta_g funn of
-      | SOME (tdl , t) => SOME (tdl , t)
+     (case ALOOKUP delta_x x of
+      | SOME (_, (SOME x' , SOME (t,tdl) )) => SOME (t, tdl)
       | _ => NONE)
   )
 `;
@@ -532,10 +545,10 @@ tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
 ( t_scope_list_g , t_scope_list ) T_e |- var varn : ( tau , true )
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b )
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
 tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 ----------------------------------- :: star
-( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
+( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- var ( star , funn' ) : ( tau , true )
 
 
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ]  )
@@ -589,12 +602,12 @@ t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] +
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b ) 
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
 ordered funn' funn order
 ----------------------------------- :: call
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
 
 
 
@@ -683,17 +696,17 @@ t_scopes_tup T_e Prs_n |-  transition e
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b )
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |-  e  : ( tau , b )
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  e  : ( tau , b )
 --------------------------------------- :: return
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  return e
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |-  return e
 
 
 
  delta_t ( tbl ) = [ tau1 , .. , taun ]
- t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
+ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
 --------------------------------------- :: apply
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
 
 
  
@@ -713,41 +726,14 @@ embed
 {{ hol
 
 
-(*
-val Fg_body_args_typed_def = Define `
-Fg_body_args_typed f func_map order t_scope_list_g delta_g  =
-! stmt xdl  tau tdl x t_scope' .
- (( (f = funn_name x) /\
-   (ALOOKUP func_map x = SOME (stmt, xdl))
-) ==>
-   (SOME (tdl,tau) = t_lookup_funn [] delta_g f) /\
-   (t_scope' = ( ZIP (FST (UNZIP(xdl)) , FST (UNZIP(tdl)) )  )) /\ 
-   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[])) [] (stmt) ) /\
-   ( ALL_DISTINCT (FST (UNZIP(xdl))) )
-)
-`;
-
-
-
-
-val Fb_body_args_typed_def = Define `
-Fb_body_args_typed f b_func_map order t_scope_list_g delta_g delta_b  =
-! stmt xdl  tau tdl x t_scope' .
- (( (f = funn_name x) /\
-   (ALOOKUP b_func_map x = SOME (stmt, xdl))
-) ==>
-   (SOME (tdl,tau) = t_lookup_funn delta_b [] f) /\
-   (t_scope' = ( ZIP (FST (UNZIP(xdl)) , FST (UNZIP(tdl)) )  )) /\ 
-   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,[])) [] (stmt) ) /\
-   ( ALL_DISTINCT (FST (UNZIP(xdl))) )
-)
-`;
+(*TODO Fix this*)
+(*initial implementation of the end statement of some function's body during the call should terminate
+so we are looking into the statements if there exsist a return statement
+I think we need to BOTH:
+1. e terminates 
+2. the frame that e can create is always well typed...
 *)
 
-
-
-(*initial implementation of the end statement of some function's body during the call should terminate
-so we are looking into the statements if there exsist a return statement *)
 val end_stmt_is_ret_def = Define `
   (end_stmt_is_ret (stmt_ret e) = T ) /\
   (end_stmt_is_ret (stmt_ext) = T ) /\   (*this should be false because if P4 you should not call an ext from a function*)
@@ -764,23 +750,148 @@ val end_stmt_is_ret_def = Define `
 
 
 
+
+
+val mk_varn_def = Define `
+mk_varn (xl:string list) =
+FOLDR (\x l.  (varn_name x) :: l ) [] (xl)  
+`;
+
+
+(*based on the specs, the extern cannot be called from functions *)
+val func_map_typed_def = Define `
+func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g  =
+! f stmt xdl  tau tdl x (t_scope':t_scope) xl tl.
+ ( (f = funn_name x) /\
+   (ALOOKUP func_map x = SOME (stmt, xdl)) )
+   ==>
+   (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] ) /\
+   (xl = mk_varn  (FST (UNZIP xdl ))) /\
+   (tl = FST (UNZIP tdl )) /\
+   (t_scope' = ZIP (xl , tl ) ) /\ 
+   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],[])) [] (stmt) ) /\
+   ( ALL_DISTINCT (FST (UNZIP(xdl))) ) /\
+   ( end_stmt_is_ret stmt)
+`;
+
+
+
+
+
+val func_map_blk_typed_def = Define `
+func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x =
+! f stmt xdl  tau tdl x (t_scope':t_scope) xl tl.
+ ( (f = funn_name x) /\
+   (ALOOKUP b_func_map x = SOME (stmt, xdl))
+) ==>
+   (SOME (tdl,tau) = t_lookup_funn f [] delta_b [] ) /\
+   (xl = mk_varn  (FST (UNZIP xdl ))) /\
+   (tl = FST (UNZIP tdl )) /\
+   (t_scope' = ZIP (xl , tl ) ) /\ 
+   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,[])) [] (stmt) ) /\
+   ( ALL_DISTINCT (FST (UNZIP(xdl))) ) /\
+   ( end_stmt_is_ret stmt)
+
+`;
+
+
+(*note the statement here can only be the black box*)
+
+
+
+val extern_map_IoE_typed_def = Define `
+extern_map_IoE_typed (ext_map: 'a ext_map) order t_scope_list_g delta_x  =
+
+! f (stmt:stmt) (xdl : (string # d) list) x IoE MoE tdl tau (t_scope':t_scope) (a:'a) (a':'a) (g_scope_list:g_scope_list)  scope_list' v local_scope xl tl .
+         f = funn_inst x /\
+	 ALOOKUP ext_map x = SOME (SOME (stmt,xdl,IoE),MoE) ==>
+
+         SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
+   (xl = mk_varn  (FST (UNZIP xdl ))) /\
+   (tl = FST (UNZIP tdl )) /\
+   (t_scope' = ZIP (xl , tl ) ) /\ 
+	 (stmt_typ ( t_scope_list_g, [t_scope'] ) ( order, f , ([],[],[],[])) [] (stmt)) /\
+	 ALL_DISTINCT (FST (UNZIP xdl)) /\
+	 [local_scope] = declare_list_in_fresh_scope ( t_scope' ) /\
+	 SOME (a',scope_list', v) = IoE (a,g_scope_list, [ [local_scope] ]) /\
+	 v_typ v tau F /\
+	 type_scopes_list scope_list' [t_scope']
+`;
+
+
+(* if the above is ok, then uncomment this one for the ext methods calls
+
+val extern_MoE_typed_def = Define `
+extern_MoE_typed ext_map order t_scope_list_g delta_x  =
+
+! f stmt xdl x x' IoE MoE tdl tau t_scope' (a:'a) (a':'a) (g_scope_list:g_scope_list)  scope_list' v local_scope .
+         f = funn_ext x x' /\
+	 ALOOKUP ext_map x = SOME (SOME (stmt,xdl,IoE),MoE) ==>
+   
+         SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
+   (xl = mk_varn  (FST (UNZIP xdl ))) /\
+   (tl = FST (UNZIP tdl )) /\
+   (t_scope' = ZIP (xl , tl ) ) /\ 
+	 (stmt_typ ( t_scope_list_g, [t_scope'] ) ( order, f , ([],[],[],[])) [] (stmt)) /\
+	 ALL_DISTINCT (FST (UNZIP xdl)) /\
+	 [local_scope] = declare_list_in_fresh_scope ( t_scope' ) /\
+	 (a',scope_list', v) = MoE (a,g_scope_list, [ [local_scope] ] ) /\
+	 v_typ v tau F /\
+	 type_scopes_list scope_list' [t_scope']
+`;
+*)
+
+
 }}
 
 
 
 defns
-WT_f :: '' ::=
+WTFg :: '' ::=
 defn
- func_map order t_scope_list_g delta_g  :: :: WT_f :: WT_f_
+ func_map order t_scope_list_g delta_g  :: :: WTFg :: WTFg_
 {{ com values types }}
 {{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] }}
 by
 
+WF_o order
+func_map_typed func_map order t_scope_list_g delta_g
+--------------------------------------------------------- :: global
+func_map order t_scope_list_g delta_g
+
+
+
+
+defns
+WTFb :: '' ::=
+defn
+ b_func_map order t_scope_list_g delta_g delta_b delta_x  :: :: WTFb :: WTFb_
+{{ com values types }}
+{{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
+by
 
 WF_o order
-%TODO:cont the big implication.
---------------------------------------- :: global
-func_map order t_scope_list_g delta_g
+func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x
+--------------------------------------------------------- :: block
+b_func_map order t_scope_list_g delta_g delta_b delta_x
+
+
+
+
+defns
+WTX :: '' ::=
+defn
+ ext_map order t_scope_list_g delta_x  :: :: WTX :: WTX_
+{{ com values types }}
+{{ tex  [[ext_map]] [[order]] [[t_scope_list_g]] [[delta_x]] }}
+by
+
+% if this def approved add the WT_XMoE in this rule
+WF_o order
+extern_map_IoE_typed ext_map order t_scope_list_g delta_x
+--------------------------------------------------------- :: ext
+ext_map order t_scope_list_g delta_x
+
 
 
 

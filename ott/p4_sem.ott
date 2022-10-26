@@ -315,7 +315,7 @@ formula :: formula_ ::=
   {{ com application of an extern function }}
   {{ tex ([[ascope']], \, [[scope_list']], \, [[v]]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]]) }}
   {{ hol (SOME ([[ascope']], [[scope_list']], [[v]]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]])) }}
-
+  
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
 | i = length ( e_list ) :: M :: num_len
@@ -526,9 +526,9 @@ formula :: formula_ ::=
 | tau = find_star_in_globals ( t_scope_list_g , varn ) :: :: find_star_in_globals
   {{ tex [[tau]] = \mathrm{find_star_in_globals} ([[t_scope_list_g]], [[varn]]) }}
   {{ hol SOME [[tau]] =  find_star_in_globals [[t_scope_list_g]] [[varn]]}}
-| [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b ) :: :: fun_type
+| [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x ) :: :: fun_type
 %  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_b]] \cup [[delta_g]] ([[funn]]) }}
-  {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] }}
+  {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] [[delta_x]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
   {{ hol (([[unop]] <> unop_neg_signed)) }}
@@ -597,6 +597,14 @@ formula :: formula_ ::=
   {{ hol ( WF_o [[order]] )}}
 | MEM x x_list :: :: x_in_xlist
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
+| func_map_typed func_map order t_scope_list_g delta_g :: ::  func_map_typed 
+  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] ) }} 
+| func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x :: :: func_map_blk_typed
+  {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }} 
+| extern_map_IoE_typed ext_map order t_scope_list_g delta_x :: :: extern_map_IoE_typed
+  {{ hol (extern_map_IoE_typed [[ext_map]] [[order]] [[t_scope_list_g]] [[delta_x]] ) }}
+
+
 
 
 embed
