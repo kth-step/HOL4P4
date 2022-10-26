@@ -179,12 +179,12 @@ GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_con
 
 (* Re-definition of Checksum16_get *)
 Definition Checksum16_get':
- (Checksum16_get' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+ (Checksum16_get' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 0w)))
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, (v_bit (w16 0w)))
     | _ => NONE)
   | _ => NONE
  )
