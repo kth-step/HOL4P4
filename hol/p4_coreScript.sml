@@ -4,11 +4,21 @@ open p4Theory;
 
 val _ = new_theory "p4_core";
 
+(*****************)
+(* core ext type *)
+(*****************)
+
+val _ = Hol_datatype ` 
+core_v_ext =
+   core_v_ext_packet_in of (bool list)
+ | core_v_ext_packet_out of (bool list)`;
+
+(* TODO: Definitions with _gen get specialised later by the different architectures *)
+
 (******************)
 (* Header methods *)
 (******************)
 
-(* We might want this to take a header argument to agree with minSizeInBits() *)
 Definition min_size_in_bits:
  (min_size_in_bits (v_header valid_bit []) = SOME 0) /\
  (min_size_in_bits (v_header valid_bit (h::t)) =
@@ -18,13 +28,14 @@ Definition min_size_in_bits:
     | SOME num' => SOME (num + num')
     | NONE => NONE
    )
-  | (v_bool _) => 
+  | (v_bool _) =>
    (case min_size_in_bits (v_header valid_bit t) of
     | SOME num' => SOME (1 + num')
     | NONE => NONE
    )
   | _ => NONE
- )
+ ) /\
+ (min_size_in_bits _ = NONE)
 End
 
 Definition min_size_in_bytes:
@@ -35,76 +46,63 @@ Definition min_size_in_bytes:
  )
 End
 
-Definition is_valid:
- (is_valid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
-  case lookup_lval frame header_name of
-  | (v_header valid_bit x_v_l) =>
-   SOME (v_bool valid_bit, (ctrl, (frame, call_stack), status))
+Definition header_is_valid:
+ (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_header valid_bit x_v_l) =>
+   SOME (ascope, g_scope_list, scope_list, status_returnv (v_bool valid_bit))
   | _ => NONE
  )
 End
 
-Definition set_valid:
- (set_valid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
-  case lookup_lval frame header_name of
-  | (v_header valid_bit x_v_l) =>
-   (case assign frame (v_header T x_v_l) header_name of
-    | SOME frame' =>             
-     SOME (v_bot, (ctrl, (frame', call_stack), status))
+Definition header_set_valid:
+ (header_set_valid (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_header valid_bit x_v_l) =>
+   (case assign scope_list (v_header T x_v_l) (lval_varname (varn_name "this")) of
+    | SOME scope_list' =>
+     SOME (ascope, g_scope_list, scope_list', status_returnv v_bot)
     | NONE => NONE)
   | _ => NONE
  )
 End
 
-Definition set_invalid:
- (set_invalid (header_name, (e_l:e list), ((ctrl, (frame, call_stack), status):state)) =
-  case lookup_lval frame header_name of
-  | (v_header valid_bit x_v_l) =>
-   (case assign frame (v_header F x_v_l) header_name of
-    | SOME frame' =>             
-     SOME (v_bot, (ctrl, (frame', call_stack), status))
+Definition header_set_invalid:
+ (header_set_invalid (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_header valid_bit x_v_l) =>
+   (case assign scope_list (v_header F x_v_l) (lval_varname (varn_name "this")) of
+    | SOME scope_list' =>             
+     SOME (ascope, g_scope_list, scope_list', status_returnv v_bot)
     | NONE => NONE)
   | _ => NONE
  )
 End
+
 
 (*********************)
 (* packet_in methods *)
 (*********************)
 
-Definition lookup_packet_in:
- (lookup_packet_in frame ext_obj_name =
-  case lookup_lval frame ext_obj_name of
-  | (v_ext (ext_obj_in packet_in)) => SOME packet_in
+Definition lookup_ascope_gen:
+ (lookup_ascope_gen ascope_lookup (ascope:'a) (ext_ref:num) =
+  case ascope_lookup ascope ext_ref of
+  | SOME v_ext => SOME (v_ext:(core_v_ext, 'b) sum)
   | _ => NONE
+ )
+End
+
+Definition update_ascope_gen:
+ (update_ascope_gen ascope_update (ascope:'a) (ext_ref:num) (v_ext:(core_v_ext, 'b) sum) =
+  (ascope_update ascope ext_ref v_ext):'a
  )
 End
 
 Definition lookup_lval_header:
- (lookup_lval_header frame header_lval =
-  case lookup_lval frame header_lval of
-   | (v_header valid_bit x_v_l) => SOME (valid_bit, x_v_l)
+ (lookup_lval_header ss header_lval =
+  case lookup_lval ss header_lval of
+   | SOME (v_header valid_bit x_v_l) => SOME (valid_bit, x_v_l)
    | _ => NONE
- )
-End
-
-(* Helper function to extract *)
-Definition get_header_lval':
- (get_header_lval' e =
-  case e of
-  | (e_acc e (e_v (v_str x))) => 
-   (case get_header_lval' e of
-    | SOME lval => SOME (lval_field lval x)
-    | NONE => NONE)
-  | (e_var x) => SOME (lval_varname x)
-  | _ => NONE
- )
-End
-Definition get_header_lval:
- (get_header_lval e_l =
-  case e_l of
-  | [e] => get_header_lval' e
-  | _ => NONE
  )
 End
 
@@ -125,67 +123,49 @@ End
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
 (* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
-Definition extract:
- (extract (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
-  case lookup_packet_in frame ext_obj_name of
-  | SOME packet_in =>
-   (case get_header_lval e_l of
-    | SOME header_lval =>
-     (case lookup_lval_header frame header_lval of
-      | SOME (valid_bit, x_v_l) =>
+Definition packet_in_extract_gen:
+ (packet_in_extract_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case lookup_lval_header scope_list (lval_varname (varn_name "hdr")) of
+    | SOME (valid_bit, x_v_l) =>
+     (case lookup_ascope_gen ascope_lookup ascope i of
+      | SOME ((INL (core_v_ext_packet_in packet_in_bl)):(core_v_ext, 'b) sum) =>
        (case min_size_in_bits (v_header valid_bit x_v_l) of
         | SOME size =>
-         if size <= LENGTH packet_in
+         if size <= LENGTH packet_in_bl
          then
-          (case set_header_fields x_v_l packet_in of
+          (case set_header_fields x_v_l packet_in_bl of
            | SOME x_v_l' =>
-	    (case assign frame (v_header T (REVERSE x_v_l')) header_lval of
-	     | SOME frame' =>
-             (case assign frame' (v_ext (ext_obj_in (DROP size packet_in))) ext_obj_name of
-	      | SOME frame'' =>             
-	       SOME (v_bot, (ctrl, (frame'', call_stack), status))
-              | NONE => NONE)
+            (case assign scope_list (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "hdr")) of
+             | SOME scope_list' =>
+              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_in (DROP size packet_in_bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list', status_returnv v_bot)
              | NONE => NONE)
            | NONE => NONE)
          else
-	  (case assign frame (v_err "PacketTooShort") (lval_varname "parseError") of
-	   | SOME frame' => SOME (v_bot, (ctrl, (frame', call_stack), status))
+          (case assign scope_list (v_err "PacketTooShort") (lval_varname (varn_name "parseError")) of
+           | SOME scope_list' => SOME (ascope, g_scope_list, scope_list', status_returnv v_bot)
            | NONE => NONE)
         | NONE => NONE)
-      | NONE => NONE)
+       | _ => NONE)
     | NONE => NONE)
-  | NONE => NONE
+  | _ => NONE
  )
 End
+
 
 (**********************)
 (* packet_out methods *)
 (**********************)
 
-(* TODO: Fix the packet_in/packet_out hack *)
-Definition lookup_packet_out:
- (lookup_packet_out frame ext_obj_name =
-  case lookup_lval frame ext_obj_name of
-  | (v_ext (ext_obj_out packet_out)) => SOME packet_out
-  | (v_ext (ext_obj_in packet_out)) => SOME packet_out
-  | _ => NONE
- )
-End
-
-Definition get_e_l_v:
- (get_e_l_v e =
-  case e of
-  | [e_v v] =>
-   SOME v
-  | _ => NONE
- )
-End
-
 Definition flatten_v_l:
  (flatten_v_l [] = SOME []) /\
  (flatten_v_l (h::t) =
   case h of
-  | v_struct [] => SOME []
+  | v_struct [] =>
+   (case flatten_v_l t of
+    | SOME l => SOME l
+    | NONE => NONE)
   | v_struct (h'::t') =>
    (case flatten_v_l [SND h'] of
     | SOME l =>
@@ -193,39 +173,43 @@ Definition flatten_v_l:
       | SOME l' => SOME (l++l')
       | NONE => NONE)
     | NONE => NONE)
-  | v_bit (bl, n) => SOME bl
-  | v_bool b => SOME [b]
+  | v_bit (bl, n) =>
+   (case flatten_v_l t of
+    | SOME l => SOME (bl++l)
+    | NONE => NONE)
+  | v_bool b =>
+   (case flatten_v_l t of
+    | SOME l => SOME (b::l)
+    | NONE => NONE)
   | _ => NONE
  )
 End
 
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
-Definition emit:
- (emit (ext_obj_name, e_l, ((ctrl, (frame, call_stack), status):state)) =
-  case lookup_packet_out frame ext_obj_name of
-  | SOME packet_out =>
-   (case get_e_l_v e_l of
-    | SOME (v_header F x_v_l) => SOME (v_bot, (ctrl, (frame, call_stack), status))
-    | SOME (v_header T x_v_l) =>
-     (case flatten_v_l (MAP SND x_v_l) of
-      | SOME bl =>
-       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
-	| SOME frame' =>             
-	 SOME (v_bot, (ctrl, (frame', call_stack), status))
-	| NONE => NONE)
+Definition packet_out_emit_gen:
+ (packet_out_emit_gen (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case lookup_ascope_gen ascope_lookup ascope i of
+    | SOME (INL (core_v_ext_packet_out packet_out_bl)) =>
+     (case lookup_lval scope_list (lval_varname (varn_name "data")) of
+      | SOME (v_header F x_v_l) => SOME (ascope, g_scope_list, scope_list, status_returnv v_bot)
+      | SOME (v_header T x_v_l) =>
+       (case flatten_v_l (MAP SND x_v_l) of
+        | SOME bl =>
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list, status_returnv v_bot)
+        | NONE => NONE)
+      | SOME (v_struct x_v_l) =>
+       (case flatten_v_l (MAP SND x_v_l) of
+        | SOME bl =>
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), g_scope_list, scope_list, status_returnv v_bot)
+        | NONE => NONE)
+      | SOME _ => NONE
       | NONE => NONE)
-    | SOME (v_struct x_v_l) =>
-     (case flatten_v_l (MAP SND x_v_l) of
-      | SOME bl =>
-       (case assign frame (v_ext (ext_obj_out (packet_out++bl))) ext_obj_name of
-	| SOME frame' =>             
-	 SOME (v_bot, (ctrl, (frame', call_stack), status))
-	| NONE => NONE)
-      | NONE => NONE)
-    | SOME _ => NONE
-    | NONE => NONE)
-  | NONE => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
 End
 
 val _ = export_theory ();

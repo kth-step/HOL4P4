@@ -1,16 +1,16 @@
 default: docs/semantics/main.pdf
 
-hol/p4Script.sml: ott/p4.ott
-	cd hol && ott -o p4Script.sml ../ott/p4.ott
-
+hol/p4Script.sml: ott/p4.ott ott/p4_sem.ott ott/p4_types.ott
+	cd hol && ott -i ../ott/p4.ott -i ../ott/p4_sem.ott -i ../ott/p4_types.ott -o p4Script.sml && python3 ./polymorphise_p4Script.py
+	
 hol: hol/p4Script.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
 	Holmake -r -I hol
 
 docs/semantics/p4_defs.tex: ott/p4.ott
-	ott -o $@ -tex_wrap false $<
+	ott -o $@ -tex_wrap false $< -i ott/p4_sem.ott -i ott/p4_types.ott 
 
 docs/semantics/main.pdf: docs/semantics/p4_defs.tex docs/semantics/main.tex docs/semantics/p4.bib
-	cd docs/semantics && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
+	cd docs/semantics && latexmk -pdf main.tex
 
 clean:
 	rm -f docs/semantics/p4_defs.tex hol/p4Script.sml

@@ -2,7 +2,11 @@ structure p4_testLib :> p4_testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open wordsSyntax bitstringSyntax listSyntax numSyntax;
+open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
+
+open p4Syntax p4_exec_semSyntax testLib evalwrapLib;
+
+open p4_exec_semTheory;
 
 (* This file contains functions that are useful when creating P4 tests *)
 
@@ -54,11 +58,14 @@ fun get_ipv4_checksum (version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, src, ds
   end
 ;
 
+fun fixedwidth_freevars (fname, width) =
+ mk_list (List.tabulate (width, (fn index => mk_var (fname^(Int.toString index), bool))), bool)
+;
 
 (* Creates a bitstring representation of an IPv4 packet, given the
  * bitstring representation of the payload and the
  * time-to-live number *)
-(* TODO: Options field *)
+(* TODO: Options field is currently always zero *)
 fun mk_ipv4_packet_ok data ttl =
   let
     (* IP version - always set to 4 for IPv4 *)
@@ -97,9 +104,48 @@ fun mk_ipv4_packet_ok data ttl =
   end
 ;
 
+(* Same as the above, with symbolic values for the TTL example *)
+fun mk_ipv4_packet_ok_ttl data ttl =
+  let
+    (* IP version - always set to 4 for IPv4 *)
+    val version = fixedwidth_of_int (4, 4);
+    (* IHL (Internet Header Length) - determines size (in 32-bit words) of IPv4 header.
+     * Minimum is 5. *)
+    val ihl = fixedwidth_of_int (5, 4);
+    (* DSCP - ignored, for now. *)
+    val dscp = fixedwidth_freevars ("dscp", 6);
+    (* ECN - ignored, for now. *)
+    val ecn = fixedwidth_freevars ("ecn", 2);
+    (* Total length - the total length of the packet in bytes, both header and data.
+     * Minimum (case no data) is 20. *)
+    val data_length = int_of_term $ rhs $ concl $ EVAL (mk_length data);
+    val tl = fixedwidth_of_int (20 + data_length, 16);
+    (* Identification - ignored, for now. *)
+    val id = fixedwidth_freevars ("id", 16);
+    (* Flags - ignored, for now. *)
+    val fl = fixedwidth_freevars ("fl", 3);
+    (* Fragment offset - ignored, for now. *)
+    val fo = fixedwidth_freevars ("fo", 13);
+    (* Time to live - should be non-zero. *)
+    val ttl = fixedwidth_of_int (ttl, 8);
+    (* Protocol - TODO. *)
+    val pr = fixedwidth_freevars ("pr", 8);
+    (* Source IP address - TODO *)
+    val src = fixedwidth_freevars ("src", 32);
+    (* Destination IP address - TODO *)
+    val dst = fixedwidth_of_int (0, 32);
+    (* NOTE: No optional fields here *)
+
+    (* Header checksum - calculated from the other header fields.*)
+    val hc = fixedwidth_freevars ("hc", 16);
+  in
+    rhs $ concl $ EVAL $ list_mk_append [version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, hc, src, dst, data]
+  end
+;
+
 (* Creates a bitstring representation of an Ethernet frame, given
  * the bitstring representation of the payload (assumed to be IP). *)
-fun mk_eth_frame_ok data  =
+fun mk_eth_frame_ok data =
   let
     (* Destination MAC address - TODO *)
     val src = fixedwidth_of_int (0, 48);
@@ -112,6 +158,149 @@ fun mk_eth_frame_ok data  =
   in
     rhs $ concl $ EVAL $ list_mk_append [src, dst, ty, data, crc]
   end
+;
+
+
+fun eval_and_print_result actx astate nsteps =
+ optionSyntax.dest_some $ rhs $ concl $ (fn thm => REWRITE_RULE [(SIMP_CONV (pure_ss++p4_v2w_ss) [] (rhs $ concl thm))] thm) $ EVAL ``arch_multi_exec ((^actx):vss_ascope actx) (^astate) ^(term_of_int nsteps)``;
+
+(* Used for steps where architecture changes state *)
+fun eval_and_print_aenv actx astate nsteps =
+ el 1 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+(* Used for steps inside programmable blocks *)
+fun eval_and_print_rest actx astate nsteps =
+ el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
+
+(* TODO: Add debug print output *)
+(* TODO: Make variant that executes until packet is output *)
+local
+fun the_final_state step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+
+fun final_state_is_some step_thm = optionSyntax.is_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+
+val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
+
+(* Stepwise evaluation under assumptions *)
+fun eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm 0 = step_thm
+  | eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm fuel =
+ let
+  val curr_state = the_final_state step_thm
+  val step_thm2 =
+   eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never ctxt (mk_arch_multi_exec (ctx, curr_state, 1));
+  val comp_step_thm =
+   SIMP_RULE simple_arith_ss []
+    (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
+ in
+  eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm comp_step_thm (fuel-1)
+ end
+
+in
+fun eval_under_assum arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt fuel =
+ let
+  val step_thm =
+   eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never ctxt (mk_arch_multi_exec (ctx, init_astate, 1));
+  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl;
+ in
+  if fuel = 1
+  then step_thm
+  else eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm (fuel-1)
+ end
+end;
+
+(* Successively takes the amount of steps provided in a list *)
+local
+fun eval_under_assum_break' ctx stop_consts ctxt exec_thm [] = exec_thm
+  | eval_under_assum_break' ctx stop_consts ctxt exec_thm (h::t) =
+ let
+  val init_astate = dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl exec_thm
+  val tm = mk_arch_multi_exec (ctx, init_astate, h)
+  val exec_thm' = eval_ctxt_gen stop_consts stop_consts ctxt tm
+  val exec_comp_thm = MATCH_MP (MATCH_MP arch_multi_exec_comp_n_tl_assl exec_thm) exec_thm'
+ in
+  eval_under_assum_break' ctx stop_consts ctxt exec_comp_thm t
+ end
+
+in
+fun eval_under_assum_break ctx init_astate stop_consts ctxt [] =
+ let
+  val tm = mk_arch_multi_exec (ctx, init_astate, 0)
+  val exec_thm = eval_ctxt_gen stop_consts stop_consts ctxt tm
+ in
+  exec_thm
+ end
+  | eval_under_assum_break ctx init_astate stop_consts ctxt (h::t) =
+ let
+  val tm = mk_arch_multi_exec (ctx, init_astate, h)
+  val exec_thm = eval_ctxt_gen stop_consts stop_consts ctxt tm
+ in
+  eval_under_assum_break' ctx stop_consts ctxt exec_thm t
+ end
+end;
+
+(* TODO: Move to syntax file *)
+fun dest_astate astate =
+ let
+  val (aenv, astate') = dest_pair astate
+  val (g_scope_list, astate'') = dest_pair astate'
+  val (arch_frame_list, status) = dest_pair astate''
+ in
+  (aenv, g_scope_list, arch_frame_list, status)
+ end
+;
+
+(* TODO: Move to syntax file *)
+fun dest_vss_aenv aenv =
+ let
+  val (i, aenv') = dest_pair aenv
+  val (in_out_list, aenv'') = dest_pair aenv'
+  val (in_out_list', ascope) = dest_pair aenv''
+ in
+  (i, in_out_list, in_out_list', ascope)
+ end
+;
+
+(* TODO: Move to syntax file *)
+fun dest_vss_actx actx =
+ let
+  val (ab_list, actx') = dest_pair actx
+  val (pblock_map, actx'') = dest_pair actx'
+  val (ffblock_map, actx''') = dest_pair actx''
+  val (input_f, actx'''') = dest_pair actx'''
+  val (output_f, actx''''') = dest_pair actx''''
+  val (copyin_pbl, actx'''''') = dest_pair actx'''''
+  val (copyout_pbl, actx''''''') = dest_pair actx''''''
+  val (apply_table_f, actx'''''''') = dest_pair actx'''''''
+  val (ext_map, func_map) = dest_pair actx''''''''
+ in
+  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
+ end
+;
+
+fun debug_arch_from_step actx astate nsteps =
+ let
+  val astate' = eval_and_print_result actx astate nsteps
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+(*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
+ in
+  (dest_vss_actx actx, (dest_vss_aenv aenv, g_scope_list, arch_frame_list, status))
+ end
+;
+
+(* Note that this presupposes execution is inside a programmable block *)
+fun debug_frames_from_step actx astate nsteps =
+ let
+  val astate' = eval_and_print_result actx astate nsteps
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv
+  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx
+  val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
+  val (pbl_type, x_d_list, b_func_map, decl_list, stmt, pars_map, tbl_map) = dest_pblock_regular $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
+  val frame_list = dest_arch_frame_list_regular arch_frame_list
+ in
+  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
+ end
 ;
 
 end
