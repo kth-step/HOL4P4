@@ -1366,7 +1366,7 @@ FULL_SIMP_TAC (srw_ss()) [Once same_state_def] ) >>
 rw[] >>
 Cases_on `lookup_ext_fun f ext_map` >>
 rw[] >>
-Cases_on `ext_fun (ascope,g_scope_list,sl,status_running)`>>
+Cases_on `ext_fun (ascope,g_scope_list,sl)`>>
 rw[] 
 ]
 QED
