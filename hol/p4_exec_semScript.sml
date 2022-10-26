@@ -555,9 +555,9 @@ Definition stmt_exec:
  (stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt_ext], scope_list)], status_running) =
   (case lookup_ext_fun funn ext_map of
    | SOME ext_fun =>
-    (case ext_fun (ascope, g_scope_list, scope_list, status_running) of
-     | SOME (ascope', g_scope_list', scope_list', status') =>
-      SOME (ascope', g_scope_list', [(funn, [stmt_empty], scope_list')], status')
+    (case ext_fun (ascope, g_scope_list, scope_list) of
+     | SOME (ascope', scope_list', v) =>
+      SOME (ascope', g_scope_list, [(funn, [stmt_empty], scope_list')], status_returnv v)
      | NONE => NONE)
    | NONE => NONE))
   /\
@@ -1312,11 +1312,11 @@ stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (asc
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (?ext_fun.
    lookup_ext_fun funn ext_map = SOME ext_fun /\
-   ?g_scope_list'' scope_list'' ascope'' status''.
-    ext_fun (ascope, g_scope_list, scope_list, status_running) = SOME (ascope'', g_scope_list'', scope_list'', status'') /\
-    g_scope_list' = g_scope_list'' /\
+   ?scope_list'' ascope'' v''.
+    ext_fun (ascope, g_scope_list, scope_list) = SOME (ascope'', scope_list'', v'') /\
+    g_scope_list' = g_scope_list /\
     frame_list' = [(funn, stmt_empty::stmt_stack, scope_list'')] /\
-    status' = status'' /\
+    status' = status_returnv v'' /\
     scope_list <> [] /\
     ascope' = ascope'')
 Proof
@@ -1327,7 +1327,7 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
  Cases_on `lookup_ext_fun funn ext_map` >> (
   fs []
  ) >>
- Cases_on `x (ascope,g_scope_list,h::t, status_running)` >> (
+ Cases_on `x (ascope,g_scope_list,h::t)` >> (
   fs []
  ) >>
  PairCases_on `x'` >>
@@ -1337,7 +1337,7 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
  Cases_on `lookup_ext_fun funn ext_map` >> (
   fs []
  ) >>
- Cases_on `x (ascope,g_scope_list,h::t,status_running)` >> (
+ Cases_on `x (ascope,g_scope_list,h::t)` >> (
   fs []
  ) >>
  PairCases_on `x'` >>
@@ -1578,7 +1578,7 @@ rpt strip_tac >| [
  Cases_on `lookup_ext_fun funn ext_map` >> (
   fs []
  ) >>
- Cases_on `x (ascope,g_scope_list,scope::scope_list,status_running)` >> (
+ Cases_on `x (ascope,g_scope_list,scope::scope_list)` >> (
   fs []
  ) >>
  PairCases_on `x'` >> (

@@ -415,7 +415,7 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 %An extern function/method updates the scope list, global scope list and arch scope directly.
 %Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
-{{ hol ((ascope_ty # g_scope_list # scope_list # status) -> ((ascope_ty # g_scope_list # scope_list # status) option)) }}
+{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # v) option)) }}
 
 
 %%%%%%%%%%%
