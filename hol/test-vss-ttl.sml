@@ -117,7 +117,12 @@ val init_astate =
 (*   Architecture-level semantics tests    *)
 
 val ctx = ``p4_vss_actx``;
-val stop_consts = [``compute_checksum16``];
+val stop_consts_rewr = [``compute_checksum16``];
+Definition vss_updated_checksum16_def:
+ vss_updated_checksum16 (w16_list:bool list) = 
+  word_1comp (sub_ones_complement (0xFEFFw, v2w w16_list)):word16
+End
+val stop_consts_never = [``vss_updated_checksum16``];
 
 val ass1 =
  ``compute_checksum16
@@ -157,31 +162,19 @@ val ass2 =
      v2w [src16; src17; src18; src19; src20; src21; src22; src23;
 	  src24; src25; src26; src27; src28; src29; src30; src31];
      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = word_1comp (sub_ones_complement (0xFEFFw:word16, v2w [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12;
-	 hc13; hc14; hc15]))``;
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = vss_updated_checksum16 [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
 val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
-
-(*
-Can't feasibly compute 58th step with free variables:
-GEN_ALL $ EVAL ``arch_multi_exec (^ctx) (^init_astate) 58``;
-
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 58;
-
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
-
-EVAL ``sub_ones_complement (0xFFFFw:word16, 0x0100w:word16)``
-
-*)
 
 (* 171 steps for TTL=1 packet to get forwarded to CPU *)
 
 (* Solution: Use stepwise EVAL with assumptions *)
 (* Takes around 20 seconds to run *)
 
-(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 57; *)
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
+(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 57; *)
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 171;
 
-(* Solution: Use EVAL directly with re-defined function that has properties that easily enable the theorem. *)
+(* Solution: Use EVAL directly with re-defined function that has a property that easily enable the theorem.
+ * This re-defined function should have no effect on the theorem statement other than through this property *)
 (* Takes around 2 seconds to run *)
 
 (* Re-definition of Checksum16_get *)
@@ -228,4 +221,4 @@ GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 171``;
 (* Takes around 2 seconds to run *)
 
 (* Takes 58 steps, then another 100, then 13 *)
-GEN_ALL $ eval_under_assum_break ctx init_astate stop_consts ctxt [58, 100, 13];
+GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [58, 100, 13];
