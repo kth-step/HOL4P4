@@ -14,9 +14,9 @@ This guide assumes a fresh install of Ubuntu 22.04.
 
 First, navigate to the directory where you want to put the source code of Poly/ML and HOL4. Then, in the terminal:
 
-1. Install a C compiler
+1. Install a C compiler and Git
 
-		sudo apt-get install build-essential
+		sudo apt-get install build-essential git
 
 2. Install Poly/ML 5.9
 
