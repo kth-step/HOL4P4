@@ -190,6 +190,8 @@ $lval$s are shown in Figure~\ref{fig:lval} and include variables identified by t
 \newcommand{\estmt}{\emptyset_{ \mathrm{stmt} }}
 \newcommand{\frameL}{\overline{\Phi}}
 \newcommand{\declL}{\overline{decl}}
+%TODO Change this...
+\newcommand{\fapp}{\ensuremath{\mathit{table\_apply}}}
 
 \subsection{Execution State}
 
@@ -204,7 +206,7 @@ $lval$s are shown in Figure~\ref{fig:lval} and include variables identified by t
 
 The P4 execution state is shown in Figure~\ref{fig:status}. Note that a ``P4 execution state'' is not defined in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the architectural state \astate{}, the global scope list $\scopeL_G$, a frame list $\frameL$, and the state status \status{}. 
 
-\subsubsection*{Single scope}
+\subsubsection*{Scope}
 More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is a partial function from variable names $\vn{} \in X$ to constant values $\cval{} \in V$. The following operations can be performed on $\scope$:
 %TODO Notation for the below
 \begin{itemize}
@@ -216,7 +218,7 @@ More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is 
 $\scopeL$ is a list of scopes $\scope_1 \cons \scope_n$ where the index 1 is the most recently entered scope, and $n$ is the oldest.
 
 \subsubsection*{Global scope list}
-The global scope list \gscopel{} contains two elements; index 0 represents the programmable block local scope, while index 1 represents the global scope of the architecture. Initially when a programmable block is entered, for each function declared globally in the architecture or locally in a programmable block a return variable is declared in the he programmable block local scope.
+The global scope list \gscopel{} contains two elements; index 0 represents the programmable block local scope, while index 1 represents the global scope of the architecture. Initially when a programmable block is entered, for each function declared globally in the architecture or locally in a programmable block a return variable is declared in the local programmable block scope.
 
 %The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that this indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope \escope{} is pushed onto the frame $\currsf$. %TODO New notation for pushing?
 
@@ -239,37 +241,38 @@ The global scope list \gscopel{} contains two elements; index 0 represents the p
 %\end{itemize}
 
 \subsubsection*{List of statements}
-The list of statement $\stmtL$ is simply a list of $stmt_1 \cons stmt_n$ where $stmt_1$ belongs to the most recent block we have entered, and $stmt_n$ is the oldest one.
+The list of statements $\stmtL$ is simply a list of $stmt_1 \cons stmt_n$ where $stmt_1$ belongs to the most recent block we have entered, and $stmt_n$ is the oldest one.
 
 Whenever a block $\{ \declL \ stmt_b \} ; stmt$ is encountered, the block's statement $stmt_b$ will be appended to the old statement $stmt$ leaving an empty statement in it's original place. So the next transition will become $stmt_b::(\emptyset_{stmt}; stmt$ 
 
 
 \subsubsection*{Function name}
-Function name $funn$ identifies the function name or the extern object instantiation. In P4, functions can be declared globally, or locally in the programmable block (actions). We model the actions exactly as the functions, and to distinguish between them we store their signatures and bodies in two different locations. The (programmable block locally declared functions) signature and body in the mapping $F_b$. The (globally declared functions and actions) signatures and bodies are stored in the mapping $F_g$. Both function block mapping $F_b$ and global block mapping $F_g$ are stored in the context $ctx$ which will be discussed later.
+The abstract function name $funn$ identifies the function name, extern method or extern constructor. In P4, functions can be declared globally, or locally in the programmable block (actions). We model the actions exactly as the functions, and to distinguish between them we store their signatures and bodies in two different locations: the programmable block-local functions' signature and body in the mapping $F_b$, and the globally declared functions' and actions' signatures and bodies are stored in the mapping $F_g$. Both $F_b$ and $F_g$ are stored in the context $ctx$ which will be discussed later.
 
 
 \subsubsection*{Frame}
-The frame $\Phi$ is a tuple of three members: a statement list $\stmtL$, a function name $funn$, and a local to the frame scope list $\scopeL$. Overall, a frame $\Phi$ is represented as $ \stmtL^{funn}_{\scopeL{}} $ .Whever a function call occurs, the callee function will be appeneded to the caller as $\Phi_{callee} :: \frameL $.
+The frame $\Phi$ is a tuple of three members: a function name $funn$, a statement list $\stmtL$ and a scope list $\scopeL$; represented as $ \stmtL^{funn}_{\scopeL{}} $. Whenever a function call occurs, in the state the frame of the callee will be appended to the frame of the caller as $\Phi_{callee} :: \frameL $.
 
 
 \subsubsection*{Control plane configuration}
 It is a function that takes a table name $tbl$, the key list expressions $e_1 \cons e_n$, and a list of matching kinds $mk_1 \cons mk_n$ then returns the actions and their arguments. This ill be explained further in the statements semantics.
 
 \subsubsection*{Status}
-Represented in the state with $t$. The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a constant \cval{} at the end of a function call. The status \trans{\vn{}} signifies transition to a new parser state. The new parser state can be a final state in the case of \trans{\vn{accpet}} or \trans{\vn{reject}}, or otherwise a state defined by the programmer. \sterr{} represents a crash or undefined behaviour, for example caused by some badly-typed part of the program. 
+Represented in the state with $t$. The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a value \cval{} ($\bot$ if it has a void return value) at the end of a function call. The status \trans{\vn{}} signifies transition to a new parser state. The new parser state can be a final state in the case of \trans{\vn{accept}} or \trans{\vn{reject}}, or otherwise a state defined in the P4 program.
 
 
 \subsubsection*{Context}
  The $ctx$ is a tuple of the following: 
 \begin{enumerate}
-   \item $X$ external object map. It maps extern object names to tuples of constructors and their respective function maps.
-   \item $F_g$ globally declared function map. It maps global function and actions names to tuples of their bodies, argument names and directions. 
-   \item $F_b$ programmable block locally declared functions.  It maps local function names to tuples of their bodies, argument names and directions. 
-   \item $P$ parser states map. It maps the name of the parser state to the body of that state name.
-   \item $Tb$ the table match-kind map. It maps the table name to its list of matching kinds.
+   \item $\fapp$: the apply table function which takes a table name, parameters, match kinds and the architectural scope and returns an action with parameters.
+   \item $X$: the extern object map, which maps extern object names to tuples of constructors and their respective function maps.
+   \item $F_g$: the globally-declared function map. It maps global function and action names to tuples of their bodies, argument names and directions. 
+   \item $F_b$: the programmable block-local function map.  It maps local function names to tuples of their bodies, argument names and directions. 
+   \item $P$ parser states map. It maps the name of parser states to their bodies.
+   \item $Tb$ the table map. It maps the table name to its list of match kinds and default action with parameters.
 \end{enumerate}
 
-The context $ctx$ assumed to be static, therefore not part of the execution state.
+The context $ctx$ is static in the statement semantics, and is therefore separated out from the execution state.
 
 
 
@@ -349,11 +352,11 @@ Opeations on list of scopes:
 \section{Semantics}
 
 \subsection{Expressions}\label{sec:expsem}
-Expression semantics and reductions are layed out in this section. Overall, the reductions can never alter or have any side effects on the state. The only thing it can perform is a reduction on the expressions -standard small step structural semantics- and also produce a new frame -which occurs only in the function call reduction-.  
+Expression semantics and reductions are laid out in this section. Overall, the reductions can never alter or have any side effects on the state. The only thing it can perform is a reduction on the expressions - standard small step structural semantics - and also produce a new frame (which then indirectly can have side-effects on the state), which occurs only in the function call reduction.  
 
 
 \subsubsection*{Variable lookup}
-In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost (i.e. most recently scope $\scope$ that \vn{} exists in). The evaluation will occur using the function $\mathrm{lookup}_v$. It will sweep the list of scopes $\scopeL \concat \scopeL_G$ and finds the most recent scopes -most left- that contains variable $x$ and this is because the scopes grows from right to left in the list. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The constant value of this variable is then returned to the expression rediction.
+In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost scope (i.e. most recent scope $\scope$ that \vn{} exists in). The evaluation will occur using the function $\mathrm{lookup}_v$. It will sweep the list of scopes $\scopeL \concat \scopeL_G$ and find the most recent (leftmost in the list) scope that contains variable $x$ and this is because the scopes grow from right to left. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The constant value of this variable is then returned to the expression reduction.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXlookup{}} 
@@ -361,13 +364,13 @@ In the \textsc{e\_lookup} rule, the lookup function ensures that the variable na
 
 
 
-\subsubsection*{function call}
+\subsubsection*{Function call}
 Note that function calls also include actions as well as extern function calls.
 
-The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in and none directioned arguments). We fetch the function name's argument names and directions using $\mathbf{lookup\_funn\_sig}$, then each function's argument will be checked against the function's direction in the same position. If the direction is in or none, then it will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout then do not reduce it.
+The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in- and none-directioned) arguments. We fetch the function name's argument names and directions using $\mathbf{lookup\_funn\_sig}$, then each function's argument will be checked against the function's direction in the same position. If the direction is in or none, then it will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout it should not be reduced.
 
-The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a placeholder we call $\varstar$ and a new frame. The new frame will be later added on top of the state's frames in the statements reduction rules. 
-The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. The function name \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{}  and the signature of the parameters represented as a list of tupels: variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked against the boolean formula to ensure that the arguments were reduced properly: (if $d_i$ in-none then the expression in the same position should be a constant, otherwise a variable name). The new frame's scope $\scope'$ is a new fresh empty scope that contains the copied in arguments using the function $\mathbf{copyin}$.
+The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a placeholder we call $\varstar$ and a new frame. The new frame will be added by the enclosing statement semantic layer on top of the state's existing frames, as explained later. 
+The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. The function name \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{} and the signature of the parameters represented as a list of tuples of variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked to ensure that the arguments were reduced properly: (if $d_i$ is in or none then the expression in the same position should be a constant, otherwise a variable name). The new frame's scope $\scope'$ is a new fresh empty scope that contains the copied-in arguments using the function $\mathbf{copyin}$.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXcallXXargs{}} \\
@@ -376,7 +379,7 @@ The way that this new frame is constructed is as follows: The function name \fun
 
 
 \subsubsection*{Headers and structs}
-The struct can be an expression, thus we need reductions for it. The rule \textsc{e\_eStruct} rule will reduce the expression feilds one at a time from left to right. One all the expressions become constants then we can transform the expression struct to a value struct via \textsc{e\_eStruct\_to\_v} which will be used mostly in header access. Same extact operations are applied on the headers.
+The struct can be an expression, thus we need reductions for it. The \textsc{e\_eStruct} rule will reduce the expression fields one at a time from left to right. Once all the expressions have become constants we can transform the expression struct to a value struct via \textsc{e\_eStruct\_to\_v}. The same operations are applied on the headers.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXeStruct{}} \\
@@ -405,7 +408,7 @@ The \textsc{e\_sel\_acc} rule is used to match the given value $\cval$ against t
 
 
 \subsubsection*{Bit slicing}
-This reduction gives a bitvector $\bitv'''$ that is reduced from the slicing operation. It extracts a contiguous list from the opriginal $\bitv$ from the lsb \bitv'' till the msb \bitv'.
+This reduction gives a bitvector $\bitv'''$ that is reduced from the slicing operation. It extracts a contiguous list from the original $\bitv$ from the LSB \bitv'' to the MSB \bitv'.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXsliceXXv{}}
@@ -425,18 +428,17 @@ The reduction produces one bit string $\bitv''$ that is the result of concatenat
 
 
 \subsubsection*{Unary and binary arithmetic operations}
-Unary and binary operations are basically standard operations on bit vectors, therefore are removed from this section.  
+Unary and binary operations are basically standard operations on bit vectors, and are for this reason elided in this section.
 
 
 
 %%%%%%%%%%%%%%%%% statement semantics   
 \subsection{Statement Semantics}
-Note that the statement semantics operates on single frames. 
-The semantics of the statements are presented in this section\footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}.
+The semantics of the statements are presented in this section\footnote{Rules for reducing expressions in all contexts are found in Appendix~\ref{app:exp}}. Note that the statement semantics operates on single frames.
 
 
 \subsubsection*{Assignment}
-The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), they can be either variable identified by their names, a null variable (used to model method calls) or struct fields, which are identified by the struct and field names, similar to the field access expression. Whenever an expression is assigned to an $lval$, that expression shall be reduced until it becomes a constant value. Then the appropriate scope in the current frame of execution will be updated with the mapping  $\vn \mapsto v$. With appropriate we mean that the topmost (most recent) scope that the $lval$ is declared in. The reduction results in the empty statement and an updated local or global scope lists. Note that this doesn't apply on $\mathbf{null}$ since it is used for method and action calls with no return values in mind.
+The assignment can assign to $lval$s (shown in Figure~\ref{fig:lval}), which can be either variables identified by their names, a null variable (used to model method calls) or struct fields, which are identified by the struct and field names, similar to the field access expression. Whenever an expression is assigned to an $lval$, that expression shall be reduced until it becomes a constant value. Then the appropriate scope in the current frame of execution will be updated with the mapping  $\vn \mapsto v$. With appropriate we mean that the topmost (most recent) scope that the $lval$ is declared in. The reduction results in the empty statement and an updated local or global scope lists. Note that this doesn't apply on $\mathbf{null}$ since it is used for method and action calls with no return values in mind.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXassXXv{}}
@@ -452,13 +454,13 @@ The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones fo
 
 
 \subsubsection*{Block}
-Once a block statement is encountered $ \{ \declL \ stmt \}$ the \textsc{stmt\_block\_enter} reduction will be used, it entails the $\declL{}$ being transformed and replicated into a scope that will be appended to the local $\scopeL{}$ of the frame, and then the body $stmt$ of the block will be appended to the empty statement. 
+Once a block statement is encountered $ \{ \declL \ stmt \}$ the \textsc{stmt\_block\_enter} reduction will be used, which entails the $\declL{}$ being transformed and replicated into a scope that will be appended to the local $\scopeL{}$ of the frame, and then the body $stmt$ of the block will be appended to the empty statement.
 
 
-The \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the scope list $\scopeL$. The block will be exited and reduced to an empty statement $\estmt{}$ .
+The \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the scope list $\scopeL$. The block will be exited and reduced to an empty statement $\estmt{}$.
 
 
-The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents. We also check if the previous list $\stmtL$ is empty or not, if it is empty, then directly apply the other single block statement rules. It is also important to check that the head of the list $stmt::\stmtL$ is not empty statement $\estmt{}$  otherwise it is non-deterministic with the block exit rule. 
+The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents. We also check if the previous list $\stmtL$ is empty or not, if it is empty, then directly apply the other single block statement rules. It is also important to check that the head of the list $stmt::\stmtL$ is not empty statement $\estmt{}$ otherwise it is non-deterministic with the block exit rule.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXblockXXenter{}} \\
@@ -468,7 +470,7 @@ The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the
 
 
 \subsubsection*{Apply} 
-The \textsc{stmt\_apply\_v} describes the apply table statement. Each apply statement has a table name $tbl$ with the a list of key expressions $\expr_1 \cons \expr_n$ to match on. This list have been previously reduced to constants one at a time in the rule \textsc{stmt\_apply\_e}. The Tb will return a list of match kind $mk_1 \cons mk_n$. The ctrl is a function that maps table names $tbl$, expressions, and the match kinds to action that should be implemented as a method call, with a list of the arguments $\cval_1 \cons \cval_m $ .
+The \textsc{stmt\_apply\_v} describes the apply table statement. Note that this is particular to our formalization: it is not a statement in the P4 specification, but a method. Each apply statement has a table name $tbl$ with the a list of key expressions $\expr_1 \cons \expr_n$ to match on. This list has been previously reduced to constants one at a time in the rule \textsc{stmt\_apply\_e}. The Tb will return a list of match kinds $mk_1 \cons mk_n$, which is then used with $\mathit{apply\_table}$ to perform the actual table matching. %The ctrl is a function that maps table names $tbl$, expressions, and the match kinds to action that should be implemented as a method call, with a list of the arguments $\cval_1 \cons \cval_m $ .
 
 
 \begin{figure}[ht!]
@@ -477,7 +479,7 @@ The \textsc{stmt\_apply\_v} describes the apply table statement. Each apply stat
 \end{figure}
 
 \subsubsection*{Return}
-Once return's expression is reduced to a constant value, the status is changed to a \returnst{} \cval, and the statement becomes $\estmt{}$. The rest of the return operatoin will be handeled in the sequence and composition rules.
+Once return's expression is reduced to a constant value, the status is changed to a \returnst{} \cval, and the statement becomes $\estmt{}$. The rest of the return operation will be handled in the sequence rule and frame-level semantics.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXretXXv{}} 
