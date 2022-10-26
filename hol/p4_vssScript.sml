@@ -150,13 +150,18 @@ Definition add_ones_complement_def:
    else result
 End
 
+Definition compute_checksum16_def:
+ compute_checksum16 (w16_list:word16 list) = 
+  word_1comp (FOLDR (CURRY add_ones_complement) (0w:word16) w16_list)
+End
+
 Definition Checksum16_get:
  (Checksum16_get ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 (word_1comp (FOLDR (CURRY add_ones_complement) 0w ipv4_checksum)))))
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 (compute_checksum16 ipv4_checksum))))
     | _ => NONE)
   | _ => NONE
  )
