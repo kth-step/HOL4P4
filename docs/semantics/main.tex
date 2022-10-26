@@ -134,8 +134,9 @@ P4 types are sometimes explicitly referenced in the syntax, e.g. in declaration 
 \newcommand{\stmt}{\textit{stmt}}
 \newcommand{\cval}{\ensuremath{v}}
 \newcommand{\fexec}[1]{\textbf{exec}\,\,#1}
+\newcommand{\avn}{\ensuremath{\mathit{varn}}}
 
-First, an expression can be a value $v$, the types of which are shown in Figure~\ref{fig:val}. Lists of expressions can be used in initialisation of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. Bitstrings can be concatenated and sliced. The function call is built from the abstract function name \funn{}, and a list of arguments (expressions).
+First, an expression can be a value $v$, the types of which are shown in Figure~\ref{fig:val}. It can also be a variable, in which case it has an abstract variable name \avn{} which is either the special ``star'' function return placeholder variable, in which case it holds the corresponding \funn{}, or a regular variable, which holds the variable name \vn{}. Lists of expressions can be used in initialisation of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. Bitstrings can be concatenated and sliced. The function call is built from the abstract function name \funn{}, and a list of arguments (expressions).
 
 The \textbf{select} expression is similar to a switch statement in C or Java. The expression $e$ is evaluated, and then matched against $v_1 , \ldots , v_n$. If some match is successful, the \textbf{select} expression evaluates to the string at the corresponding index. If no match occurs, then it instead evaluates to the default string $x$.
 
