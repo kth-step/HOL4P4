@@ -137,9 +137,9 @@ fun mk_ipv4_packet_ok_ttl data ttl =
     (* NOTE: No optional fields here *)
 
     (* Header checksum - calculated from the other header fields.*)
-    val ck = fixedwidth_of_int (0, 16);
+    val hc = fixedwidth_freevars ("hc", 16);
   in
-    rhs $ concl $ EVAL $ list_mk_append [version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, ck, src, dst, data]
+    rhs $ concl $ EVAL $ list_mk_append [version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, hc, src, dst, data]
   end
 ;
 
@@ -182,29 +182,29 @@ fun final_state_is_some step_thm = optionSyntax.is_some $ snd $ dest_eq $ snd $ 
 val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
 
 (* Stepwise evaluation under assumptions *)
-fun eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm 0 = step_thm
-  | eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm fuel =
+fun eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm 0 = step_thm
+  | eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm fuel =
  let
   val curr_state = the_final_state step_thm
   val step_thm2 =
-   eval_ctxt_gen stop_consts [] ctxt (mk_arch_multi_exec (ctx, curr_state, 1));
+   eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never ctxt (mk_arch_multi_exec (ctx, curr_state, 1));
   val comp_step_thm =
    SIMP_RULE simple_arith_ss []
     (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
  in
-  eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm comp_step_thm (fuel-1)
+  eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm comp_step_thm (fuel-1)
  end
 
 in
-fun eval_under_assum arch_ty ctx init_astate stop_consts ctxt fuel =
+fun eval_under_assum arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt fuel =
  let
   val step_thm =
-   eval_ctxt_gen stop_consts [] ctxt (mk_arch_multi_exec (ctx, init_astate, 1));
+   eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never ctxt (mk_arch_multi_exec (ctx, init_astate, 1));
   val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl;
  in
   if fuel = 1
   then step_thm
-  else eval_under_assum' arch_ty ctx stop_consts ctxt comp_thm step_thm (fuel-1)
+  else eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm (fuel-1)
  end
 end;
 

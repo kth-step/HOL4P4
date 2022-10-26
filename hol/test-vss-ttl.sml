@@ -25,7 +25,7 @@ val input_data_ok = mk_list ([], bool);
 (* The simplest IPV4 header that will be judged valid by the example *)
 (* NOTE: This only assigns the version, IHL, total length, ttl and header checksum fields. *)
 val input_ttl_ok = 1; (* NOTE: TTL 1 will be sent to CPU *)
-val input_ipv4_ok = mk_ipv4_packet_ok input_data_ok input_ttl_ok;
+val input_ipv4_ok = mk_ipv4_packet_ok_ttl input_data_ok input_ttl_ok;
 
 (* The simplest ethernet frame that will be judged valid by the example *)
 val input_ok = mk_eth_frame_ok input_ipv4_ok;
@@ -117,37 +117,74 @@ val init_astate =
 (*   Architecture-level semantics tests    *)
 
 val ctx = ``p4_vss_actx``;
-val stop_consts = [``Checksum16_update``];
+val stop_consts_rewr = [``compute_checksum16``];
+Definition vss_updated_checksum16_def:
+ vss_updated_checksum16 (w16_list:bool list) = 
+  word_1comp (sub_ones_complement (0xFEFFw, v2w w16_list)):word16
+End
+val stop_consts_never = [``vss_updated_checksum16``];
 
-val ass1 = gen_all ``Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
-  case lookup_lval scope_list (lval_varname (varn_name "this")) of
-  | SOME (v_ext_ref i) =>
-   (case ALOOKUP ext_obj_map i of
-    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
-    | _ => NONE)
-  | _ => NONE``;
-val ctxt = ASSUME ass1;
+val ass1 =
+ ``compute_checksum16
+    [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
+	  dscp4; dscp5; ecn0; ecn1];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
+     v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
+	  id11; id12; id13; id14; id15];
+     v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
+	  fo8; fo9; fo10; fo11; fo12];
+     v2w [F; F; F; F; F; F; F; T; pr0; pr1; pr2; pr3; pr4; pr5;
+	  pr6; pr7];
+     v2w [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12;
+	  hc13; hc14; hc15];
+     v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
+	  src9; src10; src11; src12; src13; src14; src15];
+     v2w [src16; src17; src18; src19; src20; src21; src22; src23;
+	  src24; src25; src26; src27; src28; src29; src30; src31];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = (0w:word16)``;
+
+(* New result due to updated TTL value: same as if 0x0100 and the previous checksum was no longer added to the sum *)
+val ass2 =
+ ``compute_checksum16
+    [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
+	  dscp4; dscp5; ecn0; ecn1];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
+     v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
+	  id11; id12; id13; id14; id15];
+     v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
+	  fo8; fo9; fo10; fo11; fo12];
+     v2w [F; F; F; F; F; F; F; F; pr0; pr1; pr2; pr3; pr4; pr5;
+	  pr6; pr7];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
+	  src9; src10; src11; src12; src13; src14; src15];
+     v2w [src16; src17; src18; src19; src20; src21; src22; src23;
+	  src24; src25; src26; src27; src28; src29; src30; src31];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = vss_updated_checksum16 [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
+val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 
 (* 171 steps for TTL=1 packet to get forwarded to CPU *)
 
 (* Solution: Use stepwise EVAL with assumptions *)
 (* Takes around 20 seconds to run *)
 
-(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 51; *)
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts ctxt 171;
+(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 57; *)
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 171;
 
-(* Solution: Use EVAL directly with re-defined function that has assumed property *)
+(* Solution: Use EVAL directly with re-defined function that has a property that easily enable the theorem.
+ * This re-defined function should have no effect on the theorem statement other than through this property *)
 (* Takes around 2 seconds to run *)
 
-(* Re-definition of Checksum16_update *)
-Definition Checksum16_update':
- (Checksum16_update' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
+(* Re-definition of Checksum16_get *)
+Definition Checksum16_get':
+ (Checksum16_get' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 0w)))
     | _ => NONE)
   | _ => NONE
  )
@@ -156,8 +193,8 @@ End
 (* Re-definition of vss_ext_map *)
 val vss_Checksum16_map' =
  ``[("clear", (stmt_ext, [("this", d_in)], Checksum16_clear));
-    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update'));
-    ("get", (stmt_ext, [("this", d_in)], Checksum16_get))]``;
+    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update));
+    ("get", (stmt_ext, [("this", d_in)], Checksum16_get'))]``;
 val vss_ext_map' =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
     ++ [("packet_in", (NONE, (^packet_in_map)));
@@ -183,5 +220,5 @@ GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 171``;
 (* Solution: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
-(* Takes 52 steps, then another 101, then 18 *)
-GEN_ALL $ eval_under_assum_break ctx init_astate stop_consts ctxt [52, 101, 18]
+(* Takes 58 steps, then another 100, then 13 *)
+GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [58, 100, 13];

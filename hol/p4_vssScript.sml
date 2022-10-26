@@ -5,7 +5,7 @@ open p4Theory p4_auxTheory p4_coreTheory;
 val _ = new_theory "p4_vss";
 
 val _ = Hol_datatype ` 
- vss_v_ext = vss_v_ext_ipv4_checksum of word16`;
+ vss_v_ext = vss_v_ext_ipv4_checksum of word16 list`;
 val _ = type_abbrev("v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
 val _ = type_abbrev("vss_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
@@ -49,7 +49,7 @@ End
 
 Definition Checksum16_construct:
  (Checksum16_construct ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
-  let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum (0w:word16))) in
+  let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum ([]:word16 list))) in
   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
     SOME ((counter + 1, ext_obj_map', v_map, ctrl), g_scope_list, scope_list', status_returnv v_bot)
@@ -65,7 +65,7 @@ Definition Checksum16_clear:
  (Checksum16_clear ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (0w:word16))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:word16 list))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
   | _ => NONE
  )
 End
@@ -111,20 +111,16 @@ End
 Definition get_checksum_incr:
  (get_checksum_incr scope_list ext_data_name =
    (case lookup_lval scope_list ext_data_name of
-    | SOME (v_bit (bl, n)) => if n = 16 then SOME ((v2w bl):word16) else NONE
+    | SOME (v_bit (bl, n)) => if n = 16 then SOME [(v2w bl):word16] else NONE
     | SOME (v_header vbit h_list) =>
      (case header_entries2v h_list of
-      | SOME bl =>
-       (case v2w16s bl of
-	| SOME w16s => SOME (FOLDL word_add (0w) w16s)
-	| NONE => NONE)
+      | SOME bl => v2w16s bl
       | NONE => NONE)
     | _ => NONE)
  )
 End
 
 (* Note that this assumes the order of fields in the header is correct *)
-(* TODO: Check for overflow, compensate according to IPv4 checksum algorithm *)
 Definition Checksum16_update:
  (Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -133,7 +129,7 @@ Definition Checksum16_update:
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
      (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
       | SOME checksum_incr =>
-       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (word_1comp (ipv4_checksum + checksum_incr)))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
+       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), g_scope_list, scope_list, status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE
@@ -144,13 +140,38 @@ End
 (*******)
 (* get *)
 
+Definition add_ones_complement_def:
+ add_ones_complement (x, y) = 
+  let
+   (result,carry_out,overflow) = add_with_carry(x,y,F)
+  in
+   if carry_out
+   then result + 1w
+   else result
+End
+
+Definition sub_ones_complement_def:
+ sub_ones_complement (x, y) =
+   let
+    (result,carry_out,overflow) = add_with_carry(x, word_1comp y,F)
+   in
+    if carry_out
+    then result + 1w
+    else word_1comp result
+End
+
+Definition compute_checksum16_def:
+ compute_checksum16 (w16_list:word16 list) = 
+  word_1comp (FOLDR (CURRY add_ones_complement) (0w:word16) w16_list)
+End
+
 Definition Checksum16_get:
  (Checksum16_get ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 ipv4_checksum)))
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list, scope_list, status_returnv (v_bit (w16 (compute_checksum16 ipv4_checksum))))
     | _ => NONE)
   | _ => NONE
  )
