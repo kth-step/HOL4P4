@@ -499,7 +499,7 @@ Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returns
 
 
 \subsubsection*{Extern}
-The symbol $\blacksquare$ represents a statement capturing the semantics of an extern function other than copy-in, copy-out and return behaviour. $\blacksquare$ is able to modify the architectural state, the global scope list $\gscopel$, the local scope list $\scopeL$ and the execution status (which is typically set to \returnst{v}). The exact behaviour is determined by looking up the entry of the name $\mathit{funn}$ associated with the current frame in the extern function map $X$: since $\blacksquare$ is used in extern function call bodies, $\mathit{funn}$ is the name of the extern function.
+The symbol $\blacksquare$ represents a statement capturing the semantics of an extern function other than copy-in, copy-out and return behaviour. $\blacksquare$ is able to modify the architectural state, the local scope list $\scopeL$ and the execution status (which is always set to \returnst{v}). The exact behaviour is determined by looking up the entry of the name $\mathit{funn}$ associated with the current frame in the extern function map $X$: since $\blacksquare$ is used in extern function call bodies, $\mathit{funn}$ is the name of the extern function.
 
 Note that calling an extern function works the same as calling any other function, as described in the function call subsection of Section~\ref{sec:expsem}. However, by convention the body of the extern function consists only of $\blacksquare$.
 
