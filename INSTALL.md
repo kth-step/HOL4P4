@@ -4,19 +4,18 @@ This guide assumes a fresh install of Ubuntu 22.04.
 
 ## Dependencies
 
-* HOL4
+* HOL4 
 * Ott
+* Git
 * Python 3
-* latexmk (for building documentation)
-* ... and their dependencies
 
 ## Installation
 
 First, navigate to the directory where you want to put the source code of Poly/ML and HOL4. Then, in the terminal:
 
-1. Install a C compiler and Git
+1. Install a C compiler, Git and Python 3
 
-		sudo apt-get install build-essential git
+		sudo apt-get install build-essential git python3
 
 2. Install Poly/ML 5.9
 
@@ -25,7 +24,7 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		git checkout v5.9
 		./configure --prefix=/usr
 		make
-		make install
+		sudo make install
 		cd ..
 
 3. Install HOL4 Kananaskis-14
@@ -39,11 +38,11 @@ First, navigate to the directory where you want to put the source code of Poly/M
 	
 	If you are annoyed that bin/build gives errors when compiling SAT solvers, you may add the `gcc` flag `-std=c++14` to their respective `Makefile`s. However, these errors should not affect this project.
 
-	Again, edit your `.bashrc`, now adding:
+	Again, edit `~/.bashrc`, now adding:
 
 		export PATH=$PATH:[installation directory]/HOL/bin
 	
-	where `[installation directory]` is substituted with your installation directory, then
+	where `[installation directory]` is substituted with the directory you cloned HOL4 in, then
 
 		source ~/.bashrc
 
@@ -60,16 +59,12 @@ First, navigate to the directory where you want to put the source code of Poly/M
 
 		opam pin add ott 0.32
 
-6. Install Python 3
-
-		sudo apt-get install python3
-
 You may need to repeat `eval $(opam env)` depending on your choice in step 4 in order to use `ott` in the terminal.
 
 Then, navigate to the directory where you want to install this repo, and do the following:
 
-	git clone https://github.com/kth-step/p4ott.git
-	cd p4ott
+	git clone https://github.com/kth-step/HOL4P4.git
+	cd HOL4P4
 	make hol
 
 This will build the HOL4 theories and associated libraries.
