@@ -8,7 +8,7 @@ HOL4P4 is a small-step, heapless formalisation of the P4 language implemented in
 * [Executable semantics](hol/p4_exec_semScript.sml)
   * Soundness proof - for [expression](hol/p4_exec_sem_e_soundnessScript.sml), [statement](hol/p4_exec_sem_stmt_soundnessScript.sml), [frame](hol/p4_exec_sem_frames_soundnessScript.sml) and [architecture](hol/p4_exec_sem_arch_soundnessScript.sml) semantics
 * [Verification, testing and debugging tools](hol/p4_testLib.sml)
-* Examples: [concrete execution](test-vss.sml), [interference-freeness](test-vss-ttl.sml)
+* Examples: [concrete execution](hol/test-vss.sml), [non-interference](hol/test-vss-ttl.sml)
 
 ## Installation
 
