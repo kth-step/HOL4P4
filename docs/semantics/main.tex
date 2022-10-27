@@ -79,17 +79,17 @@ This is a description of the \pfott{} formalization of P4, which includes a synt
 \pfott{} is constructed using the \texttt{ott} tool. \texttt{ott} files can then be exported to \LaTeX{} commands (used in this document) as well as to the HOL4, Isabelle/HOL and Coq interactive theorem provers (of which only the first is currently supported).
 
 %\newpage
-\section{Syntax}
-\subsection{Types}
-\newcommand{\num}{\ensuremath{i}}
+
 \newcommand{\vn}{\ensuremath{x}}
-\newcommand{\msg}{\ensuremath{\mathit{msg}}}
-\newcommand{\tn}{\ensuremath{\mathit{tbl}}}
 \newcommand{\fn}{\ensuremath{f}}
+\newcommand{\tn}{\ensuremath{\mathit{tbl}}}
 \newcommand{\inte}{\ensuremath{bl}}
-%
-%TODO Base types (integers, booleans, bit strings, errors, headers...), function types (superset of base types also including tables, functions and constructors) and directions (in, out, inout), ...
-%
+\newcommand{\num}{\ensuremath{i}}
+\newcommand{\wid}{\ensuremath{w}}
+\section{Syntax}
+\subsection{Types and Values}
+%TODO directions?
+
 \begin{figure}[h!]
 \centering
 \ottmetavars
@@ -97,9 +97,19 @@ This is a description of the \pfott{} formalization of P4, which includes a synt
 \label{fig:vars}
 \end{figure}
 
-The variables shown in Figure~\ref{fig:vars} are standard designations for variables of \pfourspec{sec-base-types}{P4 base types} included in \pfott{}, plus the numerals \num{} (sometimes $w$ when referring to width) and the indices $m, n, o$ which are not part of the P4 syntax, but used on a meta-level throughout this formalization. Depending on the context, strings are denoted with \vn{} (variable or parser state name), \tn{} (match-action table name) or \fn{} (function or field name). \inte{} is a list of Boolean values, used to represent bit-strings of fixed width.
+The (meta)variables shown in Figure~\ref{fig:vars} are standard designations for the data of \pfourspec{sec-base-types}{P4 base types} included in \pfott{}, plus the numerals \num{} (sometimes \wid{} when referring to width) and the indices $m, n, o$ which are not part of the P4 syntax, but used on a meta-level throughout this formalization. Depending on the context, strings are denoted with \vn{} (variable or parser state name), \fn{} (function or field name) or \tn{} (match-action table name). \inte{} is a list of Boolean values, used to represent bit-strings of fixed width.
 
-P4 types are sometimes explicitly referenced in the syntax, e.g. in declaration statements. The notation for this is shown in Figure~\ref{fig:types}.
+Figure~\ref{fig:val} shows the values of our formalisation. This largely mirrors \pfourspec{sec-base-types}{P4 base types}, except for the lack of match kinds, arbitrary-sized constants and bit-strings of dynamically computed width. Notably, some derived types have also been placed here: headers, structs and extern object references as well as the $\bot$ value which is an artifact of our model. Other derived types (tuples, enums, header unions and stacks) are yet to be added to the model, while some (parser, control, package) are not treated as such here, since they cannot be manipulated at run time.
+
+\begin{figure}[h!]
+\centering\ottgrammartabular{
+\ottv\ottafterlastrule
+}
+\caption{P4 Values}
+\label{fig:val}
+\end{figure}
+
+P4 types are sometimes explicitly referenced in the syntax, e.g. in declaration statements. The notation for this is shown in Figure~\ref{fig:types}. $\mathit{struct\_ty}$ can be either \textbf{header} or \textbf{struct}, and $\mathit{num\_exp}$ is an arithmetic expression of type integer. Regular string literals are the special case of an $\mathit{x\_list}$ with length 1.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -111,18 +121,14 @@ P4 types are sometimes explicitly referenced in the syntax, e.g. in declaration 
 
 %\newpage
 \newcommand{\funn}{\ensuremath{\mathit{funn}}}
-\subsection{Expressions}
+\newcommand{\stmt}{\textit{stmt}}
+\newcommand{\cval}{\ensuremath{v}}
+\newcommand{\fexec}[1]{\textbf{exec}\,\,#1}
+\newcommand{\avn}{\ensuremath{\mathit{varn}}}
 \newcommand{\fmap}{\textit{F}}
+\subsection{Expressions}
 
 \pfott{} includes a subset of the full set of P4 expressions found in {\pfourspec{sec-exprs}{Section 8}} of the P4 specification, shown in Figure~\ref{fig:exp}.
-
-\begin{figure}[h!]
-\centering\ottgrammartabular{
-\ottv\ottafterlastrule
-}
-\caption{P4 Values}
-\label{fig:val}
-\end{figure}
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -131,12 +137,8 @@ P4 types are sometimes explicitly referenced in the syntax, e.g. in declaration 
 \caption{P4 Expressions}
 \label{fig:exp}
 \end{figure}
-\newcommand{\stmt}{\textit{stmt}}
-\newcommand{\cval}{\ensuremath{v}}
-\newcommand{\fexec}[1]{\textbf{exec}\,\,#1}
-\newcommand{\avn}{\ensuremath{\mathit{varn}}}
 
-First, an expression can be a value $v$, the types of which are shown in Figure~\ref{fig:val}. It can also be a variable, in which case it has an abstract variable name \avn{} which is either the special ``star'' function return placeholder variable, in which case it holds the corresponding \funn{}, or a regular variable, which holds the variable name \vn{}. Lists of expressions can be used in initialisation of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the constants\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. Bitstrings can be concatenated and sliced. The function call is built from the abstract function name \funn{}, and a list of arguments (expressions).
+First, an expression can be a value $v$, the types of which were shown earlier in Figure~\ref{fig:val}. An expression can also be a variable, in which case it has an abstract variable name \avn{} which is either the special ``star'' function return placeholder variable, in which case it holds the corresponding \funn{}, or a regular variable, which holds the variable name \vn{}. Lists of expressions can be used in initialisation of variables of struct types. The fields of these structs may be accessed, which is denoted in the usual manner. There exist unary and binary arithmetic operations, where the semantics of the individual operations are defined on some subset of the values\footnote{The concrete syntax of the many unary and binary operations is found in Appendix~\ref{app:op}}. Bitstrings can be concatenated and sliced. The function call is built from the abstract function name \funn{}, and a list of arguments (expressions).
 
 The \textbf{select} expression is similar to a switch statement in C or Java. The expression $e$ is evaluated, and then matched against $v_1 , \ldots , v_n$. If some match is successful, the \textbf{select} expression evaluates to the string at the corresponding index. If no match occurs, then it instead evaluates to the default string $x$.
 
@@ -154,7 +156,7 @@ Furthermore, structs and headers can also have expression values assigned to the
 \label{fig:stmt}
 \end{figure}
 
-\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}. The statements in Figure~\ref{fig:stmt} can be found in the specification, with the following exceptions: the block, verify, apply and extern statements. The block statement features an additional list of declarations (note the absence of declarations from this syntax, in contrast to the P4 specification), the apply statement (replacing the apply method in \pfourspec{sec-invoke-mau}{Section 11} of the P4 specification) features the list of arguments that are to be matched to the table \tn{} (which is possible to resolve at compile time), and the extern captures the semantics of an extern function or method. The \textbf{verify} statement (modeled as a statement and not as an extern function as in \pfourspec{sec-verify}{Section 12.7} of the P4 specification) can be found uniquely in a parser block. It asserts the expression $e$ and if it holds, does nothing. If $e$ does not hold, it jumps to the \reject{} parser state with the error message being the result of evaluating $e'$.
+\pfott{} includes a subset of the full set of P4 statements found in \pfourspec{sec-stmts}{Section 11} of the P4 specification, shown in Figure~\ref{fig:stmt}. All of the statements in Figure~\ref{fig:stmt} can be found in the specification, with the following exceptions: the block, verify, apply and extern statements. The block statement features an additional list of declarations (note the absence of declarations from this syntax, in contrast to the P4 specification), the apply statement (replacing the apply method in \pfourspec{sec-invoke-mau}{Section 11} of the P4 specification) features the list of arguments that are to be matched to the table \tn{} (which is possible to resolve at compile time), and the extern captures the semantics of an extern function or method. The \textbf{verify} statement (modeled as a statement and not as an extern function as in \pfourspec{sec-verify}{Section 12.7} of the P4 specification) can be found uniquely in a parser block. It asserts the expression $e$ and if it holds, does nothing. If $e$ does not hold, it jumps to the \reject{} parser state with the error message being the result of evaluating $e'$.
 
 \begin{figure}[h!]
 \centering\ottgrammartabular{
@@ -168,7 +170,7 @@ $lval$s are shown in Figure~\ref{fig:lval} and include variables identified by t
 
 \newpage
 \newcommand{\exstate}{\ensuremath{s}}
-\newcommand{\astate}{\ensuremath{{\gamma}_A}}
+\newcommand{\ascope}{\ensuremath{{\gamma}_A}}
 \newcommand{\currsf}{\ensuremath{\varepsilon}}
 \newcommand{\gscope}{\ensuremath{{\gamma}_G}}
 \newcommand{\gscopel}{\ensuremath{\overline{\gamma_G}}}
@@ -181,7 +183,7 @@ $lval$s are shown in Figure~\ref{fig:lval} and include variables identified by t
 \newcommand{\sterr}{\ensuremath{\bot}}
 \newcommand{\pfin}{\ensuremath{p_{\mathrm{fin}}}}
 \newcommand{\expr}{\ensuremath{e}}
-\newcommand{\varstar}{\mathbf{var} ( \mathbf{star} , funn )}
+\newcommand{\varstar}{\mathbf{var} ( \mathbf{star} , \mathit{funn} )}
 \newcommand{\scope}{\gamma}
 \newcommand{\scopeL}{\overline{\gamma}}
 \newcommand{\stmtL}{\overline{stmt}}
@@ -205,21 +207,19 @@ $lval$s are shown in Figure~\ref{fig:lval} and include variables identified by t
 \label{fig:status}
 \end{figure}
 
-The P4 execution state is shown in Figure~\ref{fig:status}. Note that a ``P4 execution state'' is not defined in the P4 specification, so it is entirely an artifice of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the architectural state \astate{}, the global scope list $\scopeL_G$, a frame list $\frameL$, and the state status \status{}. 
+The P4 execution state is shown in Figure~\ref{fig:status}. Note that a ``P4 execution state'' is not defined in the P4 specification, so it is entirely an artifact of the \pfott{} implementation. In short, the execution state \exstate{} is a tuple of the architectural scope \ascope{}, the global scope list $\scopeL_G$, a frame list $\frameL$, and the state status \status{}. 
 
-\subsubsection*{Scope}
-More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is a partial function from variable names $\vn{} \in X$ to constant values $\cval{} \in V$. The following operations can be performed on $\scope$:
+\subsubsection*{Scopes}
+More formally, a scope $\gamma : X \hookrightarrow V * (X \cup \{ \bot \} )$ is a partial function from variable names $\vn{} \in X$ to tuples of their values $\cval{} \in V$ and optional variable names (used for variables introduced as out-directed function parameters). The following operations are be performed on $\scope$ in the semantics:
 %TODO Notation for the below
 \begin{itemize}
 \item $\mathrm{dom} ( \gamma )$: Gets the domain of $\gamma$: obtains the set of variable names $\vn{} \in X$ which are mapped to values in $\gamma$.
-\item $(\vn \mapsto  \cval) \,\, \gamma$: Updates a variable mapping in $\gamma$: yields the scope $\gamma'$, which is just $\gamma$ where \vn{} instead maps to \cval{}. By writing $\forall i \leq n. \,\, ({\vn}_i \mapsto  {\cval}_i) \,\, \gamma$ we extend this to lists of mappings from variable names to values.
+\item $(\vn \mapsto  \cval) \,\, \gamma$: Updates a variable mapping in $\gamma$: yields the scope $\gamma'$, which is just $\gamma$ where \vn{} instead maps to \cval{} instead of its old value. By writing $\forall i \leq n. \,\, ({\vn}_i \mapsto  {\cval}_i) \,\, \gamma$ we extend this to lists of mappings from variable names to values.
 \end{itemize}
-
-\subsubsection*{Scope list}
 $\scopeL$ is a list of scopes $\scope_1 \cons \scope_n$ where the index 1 is the most recently entered scope, and $n$ is the oldest.
 
-\subsubsection*{Global scope list}
-The global scope list \gscopel{} contains two elements; index 0 represents the programmable block local scope, while index 1 represents the global scope of the architecture. Initially when a programmable block is entered, for each function declared globally in the architecture or locally in a programmable block a return variable is declared in the local programmable block scope.
+\subsubsection*{Global scopes}
+The global scope list \gscopel{} contains two elements; index 0 represents the programmable block local scope, while index 1 represents the global scope of the architecture. Initially, when a programmable block is entered, for each function declared globally in the architecture or locally in a programmable block a corresponding function return placeholder variable is declared in the local programmable block scope.
 
 %The current scope - that which was most recently entered by execution - is stored on the top of \currsf{}  (note that this indexing is the reverse of what you would expect from a list). Whenever a new block (delineated by $\{ \}$) is entered, a new fresh scope \escope{} is pushed onto the frame $\currsf$. %TODO New notation for pushing?
 
@@ -241,123 +241,103 @@ The global scope list \gscopel{} contains two elements; index 0 represents the p
 %\item $ \currsf :: \cstack$: Pushes a frame $\currsf$ onto the call stack $\cstack$.
 %\end{itemize}
 
-\subsubsection*{List of statements}
+\subsubsection*{Lists of statements}
 The list of statements $\stmtL$ is simply a list of $stmt_1 \cons stmt_n$ where $stmt_1$ belongs to the most recent block we have entered, and $stmt_n$ is the oldest one.
 
-Whenever a block $\{ \declL \ stmt_b \} ; stmt$ is encountered, the block's statement $stmt_b$ will be appended to the old statement $stmt$ leaving an empty statement in it's original place. So the next transition will become $stmt_b::(\emptyset_{stmt}; stmt$ 
+Whenever a block $\{ \declL \ stmt_b \} ; stmt$ is encountered, the block's statement $stmt_b$ will be appended to the old statement $stmt$ leaving an empty statement in its original place. So the next transition will become $stmt_b::(\emptyset_{stmt}; stmt$ 
 
+\subsubsection*{Function names}
+The abstract function name \funn{} identifies a function name, extern function (using extern object name and function name) or extern constructor (using only extern name). In P4, functions can be declared globally, or locally in the programmable block (actions). We model the actions exactly as the functions, and to distinguish between them we store their signatures and bodies in two different locations: the programmable block-local functions' signatures and bodies in the mapping $F_b$, and the globally declared functions' and actions' signatures and bodies in the mapping $F_g$. Both $F_b$ and $F_g$ are stored in the context $ctx$ which will be discussed later.
 
-\subsubsection*{Function name}
-The abstract function name $funn$ identifies the function name, extern method or extern constructor. In P4, functions can be declared globally, or locally in the programmable block (actions). We model the actions exactly as the functions, and to distinguish between them we store their signatures and bodies in two different locations: the programmable block-local functions' signature and body in the mapping $F_b$, and the globally declared functions' and actions' signatures and bodies are stored in the mapping $F_g$. Both $F_b$ and $F_g$ are stored in the context $ctx$ which will be discussed later.
+\subsubsection*{Frames}
+The frame $\Phi$ is a tuple of three members: a function name \funn{}, a statement list $\stmtL$ and a scope list $\scopeL$: together represented as $ \stmtL^{\funn}_{\scopeL{}} $. Whenever a function call occurs, the frame of the callee will be appended to the list of frames in the state (in which the frame of the caller is the first) as $\Phi_{\mathrm{callee}} :: \frameL $.
 
-
-\subsubsection*{Frame}
-The frame $\Phi$ is a tuple of three members: a function name $funn$, a statement list $\stmtL$ and a scope list $\scopeL$; represented as $ \stmtL^{funn}_{\scopeL{}} $. Whenever a function call occurs, in the state the frame of the callee will be appended to the frame of the caller as $\Phi_{callee} :: \frameL $.
-
-
-\subsubsection*{Control plane configuration}
-It is a function that takes a table name $tbl$, the key list expressions $e_1 \cons e_n$, and a list of matching kinds $mk_1 \cons mk_n$ then returns the actions and their arguments. This ill be explained further in the statements semantics.
+\subsubsection*{Architectural scope}
+The architectural scope is of polymorphic type. For specific architectures, this is supposed to hold table configurations and the states extern objects, as well as any other stateful components of the architecture. Exactly how this is represented is entirely up to the architecture in question.
 
 \subsubsection*{Status}
-Represented in the state with $t$. The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a value \cval{} ($\bot$ if it has a void return value) at the end of a function call. The status \trans{\vn{}} signifies transition to a new parser state. The new parser state can be a final state in the case of \trans{\vn{accept}} or \trans{\vn{reject}}, or otherwise a state defined in the P4 program.
+Represented in the state with $t$. The status \running{} represents that the program is executing under regular circumstances. \returnst{v} is used when the \textbf{return} statement returns a value \cval{} ($\bot$ if it is a void function) at the end of a function call. The status \trans{\vn{}} signifies transition to a new parser state. The new parser state can be a final state in the case of \trans{\mathit{accept}} or \trans{\mathit{reject}}, or otherwise a state defined in the P4 program.
 
-
-\subsubsection*{Context}
- The $ctx$ is a tuple of the following: 
+\subsection{Context}
+The context $ctx$ - separated out from the execution state since it remains invariant over reductions - is a tuple of the following: 
 \begin{enumerate}
-   \item $\fapp$: the apply table function which takes a table name, parameters, match kinds and the architectural scope and returns an action with parameters.
+   \item $\fapp$: the apply table function which takes a table name, parameters to match, match kinds, default action with arguments and the architectural scope and returns an action with parameters.
    \item $X$: the extern object map, which maps extern object names to tuples of constructors and their respective function maps.
    \item $F_g$: the globally-declared function map. It maps global function and action names to tuples of their bodies, argument names and directions. 
    \item $F_b$: the programmable block-local function map.  It maps local function names to tuples of their bodies, argument names and directions. 
-   \item $P$ parser states map. It maps the name of parser states to their bodies.
-   \item $Tb$ the table map. It maps the table name to its list of match kinds and default action with parameters.
+   \item $P$: the parser states map. It maps the name of parser states to their bodies.
+   \item $Tb$: the table map. It maps the table name to its list of match kinds and default action with parameters.
 \end{enumerate}
 
-The context $ctx$ is static in the statement semantics, and is therefore separated out from the execution state.
-
-
-
-
-%%%%%%%%%%%%%%%%% CALLING CONVENTION
-\newpage
-\subsection{Calling convention}   
-The calling conventions can be directioned or directionless. The direction can be either IN, OUT or INOUT. 
-IN direction summary:
-\begin{enumerate}
-    \setlength{\itemsep}{1pt}
-    \setlength{\parskip}{0pt}
-    \setlength{\parsep}{0pt}
-\item Should not be used on the left hand of assignment
-\item Shouldn't be passed to a function without using the proper calling convention IN
-\item Initialized by copying the value of the corresponding argument when the invocation is executed.
-\end{enumerate}
-OUT summary:
-\begin{enumerate}
-    \setlength{\itemsep}{1pt}
-    \setlength{\parskip}{0pt}
-    \setlength{\parsep}{0pt}
-\item usually uninitialized, and treated as l-values. after the execution of the call, the value of the OUT parameters copied to the corresponding location of the l-value. OUT parameters are initialized in the following cases
-\begin{enumerate}[label=(\alph*)]
-\item if the types are header or header\_union, OUT parameter is set to "invalid"
-\item if the type is a header stack, then all elements of the header stack set to "invalid" and the next index is initialized to 0.
-\item if the type is compound (e.g. struct or tuple) apply the rules recursively to its members.
-\item if any any other type than listed above (e.g. bit <W>), then it doesn't need any predictable value.
-\end{enumerate}
-\end{enumerate}
-
-INOUT summary:
-\begin{enumerate}
-    \setlength{\itemsep}{1pt}
-    \setlength{\parskip}{0pt}
-    \setlength{\parsep}{0pt}
-\item this type of parameters are both IN and OUT.
-\item it must be an l-value, which means it can be assigned to a value.
-\end{enumerate}
-NO direction summary:
-\begin{enumerate}
-    \setlength{\itemsep}{1pt}
-    \setlength{\parskip}{0pt}
-    \setlength{\parsep}{0pt}
-\item those parameters are known at compile time.
-\item it also can be an action parameter, can be set by the control plane.
-\item it also can be an action parameter that set directly by an other action, then the behaviour will be like IN parameter.
-\end{enumerate}
-
-The direction d can be $\downarrow$ denotes IN, $\uparrow$ denotes OUT, $\updownarrow$ denotes INOUT, $\circ$ denotes directionless. 
-
-Thus,
-d ::= $\downarrow$ | $\uparrow$ | $\updownarrow$ | $\circ$
-
-Due to the calling conventions, the scope has the type; $ \scope : X \hookrightarrow V * (X \cup \{ \bot \})  $ .
-
-The list of scopes is identified with an arrow following $\scopeL$.
-The local $\scopeL$ is meant to be a local list of scopes to the frame. The global $\scopeL_G$ is a list with a length of 2. The first index determines the external architecture scope (can not be defined by a P4 program), while the second index determines the architecture local variables (defined in the architecture level).
-Opeations on list of scopes:
-\begin{enumerate}
-    \setlength{\itemsep}{1pt}
-    \setlength{\parskip}{0pt}
-    \setlength{\parsep}{0pt}
-\item Operation $\scope [\vn \longmapsto v]$ to update a variable name \vn{} with value \cval{} in the scope $\scope$. 
-\item Operation $\scopeL [\vn \longmapsto v]$ to update a variable name \vn{} with value \cval{} in the most recent scope that contains the variable name \vn{}.   
-\item Operation $lookup_v(\scopeL, \scopeL_G, \vn)$ to return the value \cval{} of the tuple $(y, x \cup {\bot})$, which is whatever variable x is mapped to in the most recent scope it is defined in after concatenating $\scopeL_G \concat \scopeL$. 
-\end{enumerate}
-
-
-
-
-
-
-
-\newpage
+%\subsection{Calling convention}   
+%The calling conventions can be directioned or directionless. The direction can be either IN, OUT or INOUT. 
+%IN direction summary:
+%\begin{enumerate}
+%    \setlength{\itemsep}{1pt}
+%    \setlength{\parskip}{0pt}
+%    \setlength{\parsep}{0pt}
+%\item Should not be used on the left hand of assignment
+%\item Shouldn't be passed to a function without using the proper calling convention IN
+%\item Initialized by copying the value of the corresponding argument when the invocation is executed.
+%\end{enumerate}
+%OUT summary:
+%\begin{enumerate}
+%    \setlength{\itemsep}{1pt}
+%    \setlength{\parskip}{0pt}
+%    \setlength{\parsep}{0pt}
+%\item usually uninitialized, and treated as l-values. after the execution of the call, the value of the OUT parameters copied to the corresponding location of the l-value. OUT parameters are initialized in the following cases
+%\begin{enumerate}[label=(\alph*)]
+%\item if the types are header or header\_union, OUT parameter is set to "invalid"
+%\item if the type is a header stack, then all elements of the header stack set to "invalid" and the next index is initialized to 0.
+%\item if the type is compound (e.g. struct or tuple) apply the rules recursively to its members.
+%\item if any any other type than listed above (e.g. bit <W>), then it doesn't need any predictable value.
+%\end{enumerate}
+%\end{enumerate}
+%
+%INOUT summary:
+%\begin{enumerate}
+%    \setlength{\itemsep}{1pt}
+%    \setlength{\parskip}{0pt}
+%    \setlength{\parsep}{0pt}
+%\item this type of parameters are both IN and OUT.
+%\item it must be an l-value, which means it can be assigned to a value.
+%\end{enumerate}
+%NO direction summary:
+%\begin{enumerate}
+%    \setlength{\itemsep}{1pt}
+%    \setlength{\parskip}{0pt}
+%    \setlength{\parsep}{0pt}
+%\item those parameters are known at compile time.
+%\item it also can be an action parameter, can be set by the control plane.
+%\item it also can be an action parameter that set directly by an other action, then the behaviour will be like IN parameter.
+%\end{enumerate}
+%
+%The direction d can be $\downarrow$ denotes IN, $\uparrow$ denotes OUT, $\updownarrow$ denotes INOUT, $\circ$ denotes directionless. 
+%
+%Thus,
+%d ::= $\downarrow$ | $\uparrow$ | $\updownarrow$ | $\circ$
+%
+%Due to the calling conventions, the scope has the type; $ \scope : X \hookrightarrow V * (X \cup \{ \bot \})  $ .
+%
+%The list of scopes is identified with an arrow following $\scopeL$.
+%The local $\scopeL$ is meant to be a local list of scopes to the frame. The global $\scopeL_G$ is a list with a length of 2. The first index determines the external architecture scope (can not be defined by a P4 program), while the second index determines the architecture local variables (defined in the architecture level).
+%Opeations on list of scopes:
+%\begin{enumerate}
+%    \setlength{\itemsep}{1pt}
+%    \setlength{\parskip}{0pt}
+%    \setlength{\parsep}{0pt}
+%\item Operation $\scope [\vn \longmapsto v]$ to update a variable name \vn{} with value \cval{} in the scope $\scope$. 
+%\item Operation $\scopeL [\vn \longmapsto v]$ to update a variable name \vn{} with value \cval{} in the most recent scope that contains the variable name \vn{}.   
+%\item Operation $lookup_v(\scopeL, \scopeL_G, \vn)$ to return the value \cval{} of the tuple $(y, x \cup {\bot})$, which is whatever variable x is mapped to in the most recent scope it is defined in after concatenating $\scopeL_G \concat \scopeL$. 
+%\end{enumerate}
 
 \section{Semantics}
 
 \subsection{Expressions}\label{sec:expsem}
-Expression semantics and reductions are laid out in this section. Overall, the reductions can never alter or have any side effects on the state. The only thing it can perform is a reduction on the expressions - standard small step structural semantics - and also produce a new frame (which then indirectly can have side-effects on the state), which occurs only in the function call reduction.  
-
+The reductions of the expression semantics can not directly alter or have any side effects on the state. The rules reduce expressions - standard small step structural semantics - and may also produce a new frame (which can then indirectly have side effects on the state in other layers of the semantics), which occurs only in the function call reduction.  
 
 \subsubsection*{Variable lookup}
-In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost scope (i.e. most recent scope $\scope$ that \vn{} exists in). The evaluation will occur using the function $\mathrm{lookup}_v$. It will sweep the list of scopes $\scopeL \concat \scopeL_G$ and find the most recent (leftmost in the list) scope that contains variable $x$ and this is because the scopes grow from right to left. This agrees with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The constant value of this variable is then returned to the expression reduction.
+In the \textsc{e\_lookup} rule, the lookup function ensures that the variable name \vn{} is evaluated in the uppermost scope (i.e. most recent scope $\scope$ that \vn{} is declared in). The evaluation will occur using the function $\mathrm{lookup}_v$. It will sweep the list of scopes $\scopeL \concat \scopeL_G$ and find the most recent (leftmost in the list) scope that contains variable $x$ and this is because the scopes grow from right to left, in accordance with the description in Sections \pfourspec{sec-name-resolution}{6.8} and \pfourspec{sec-variables}{10.2} of the P4 specification. The constant value of this variable is then propagated to the result of the expression reduction.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXlookup{}} 
@@ -368,10 +348,10 @@ In the \textsc{e\_lookup} rule, the lookup function ensures that the variable na
 \subsubsection*{Function call}
 Note that function calls also include actions as well as extern function calls.
 
-The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in- and none-directioned) arguments. We fetch the function name's argument names and directions using $\mathbf{lookup\_funn\_sig}$, then each function's argument will be checked against the function's direction in the same position. If the direction is in or none, then it will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout it should not be reduced.
+The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in- and none-directioned) arguments. We fetch the parameter names and directions of the function using $\mathbf{lookup\_funn\_sig}$, then each function's arguments will be checked against the direction in the same position. If the direction is in or none, then the argument will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout it should not be reduced beyond variable lookup.
 
-The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a placeholder we call $\varstar$ and a new frame. The new frame will be added by the enclosing statement semantic layer on top of the state's existing frames, as explained later. 
-The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. The function name \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{} and the signature of the parameters represented as a list of tuples of variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked to ensure that the arguments were reduced properly: (if $d_i$ is in or none then the expression in the same position should be a constant, otherwise a variable name). The new frame's scope $\scope'$ is a new fresh empty scope that contains the copied-in arguments using the function $\mathbf{copyin}$.
+The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a placeholder we call $\varstar$ and a new frame. The new frame will be added by the enclosing statement semantic layer on top of the state's existing frames, as explained later.
+The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{} and the signature of the parameters represented as a list of tuples of variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked to ensure that the arguments were reduced properly: (if $d_i$ is in or none then the expression in the same position should be a constant, otherwise a variable). The new frame's scope $\scope'$ is a new fresh empty scope to which the parameters are declared and copied in to using the function $\mathbf{copyin}$, depending on direction.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXcallXXargs{}} \\
@@ -379,8 +359,8 @@ The way that this new frame is constructed is as follows: The function name \fun
 \end{figure}
 
 
-\subsubsection*{Headers and structs}
-The struct can be an expression, thus we need reductions for it. The \textsc{e\_eStruct} rule will reduce the expression fields one at a time from left to right. Once all the expressions have become constants we can transform the expression struct to a value struct via \textsc{e\_eStruct\_to\_v}. The same operations are applied on the headers.
+\subsubsection*{Headers and structs with expression fields}
+Structs or headers with expressions in place of values have their own reduction rules. The \textsc{e\_eStruct} rule will reduce the expression fields one at a time from left to right. Once all the expressions have become values we can transform the expression struct to a value struct via \textsc{e\_eStruct\_to\_v}. Similar operations are applied on the header expressions.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXeStruct{}} \\
@@ -407,15 +387,12 @@ The \textsc{e\_sel\_acc} rule is used to match the given value $\cval$ against t
 \end{figure}
 
 
-
 \subsubsection*{Bit slicing}
 This reduction gives a bitvector $\bitv'''$ that is reduced from the slicing operation. It extracts a contiguous list from the original $\bitv$ from the LSB \bitv'' to the MSB \bitv'.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXsliceXXv{}}
 \end{figure}
-
-
 
 
 \subsubsection*{Concatenation}
@@ -426,11 +403,8 @@ The reduction produces one bit string $\bitv''$ that is the result of concatenat
 \end{figure}
 
 
-
-
 \subsubsection*{Unary and binary arithmetic operations}
-Unary and binary operations are basically standard operations on bit vectors, and are for this reason elided in this section.
-
+The unary and binary operations consist mostly of standard operations on bit vectors, and are for this reason elided in this section.
 
 
 %%%%%%%%%%%%%%%%% statement semantics   
@@ -455,13 +429,11 @@ The \textsc{stmt\_cond2} and \textsc{stmt\_cond3} rules are the standard ones fo
 
 
 \subsubsection*{Block}
-Once a block statement is encountered $ \{ \declL \ stmt \}$ the \textsc{stmt\_block\_enter} reduction will be used, which entails the $\declL{}$ being transformed and replicated into a scope that will be appended to the local $\scopeL{}$ of the frame, and then the body $stmt$ of the block will be appended to the empty statement.
+Once a block statement is encountered $ \{ \declL \ stmt \}$ the \textsc{stmt\_block\_enter} reduction will be used, which entails the $\declL{}$ being declared in a fresh scope that will be pushed to the local $\scopeL{}$ of the frame, and then the body $stmt$ of the block will be pushed to the statement list, in which the block statement has been reduced to the empty statement.
 
+The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents. We also check if the previous list $\stmtL$ is empty or not: if it is empty, then the other single block statement rules can be applied directly. It is also important to check that the head of the list $stmt::\stmtL$ is not $\estmt{}$, otherwise this rule is non-deterministic with \textsc{stmt\_block\_exit}.
 
-The \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only an empty statement: it pops the scope corresponding to the block (the most recent one) from the scope list $\scopeL$. The block will be exited and reduced to an empty statement $\estmt{}$.
-
-
-The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the block contents. We also check if the previous list $\stmtL$ is empty or not, if it is empty, then directly apply the other single block statement rules. It is also important to check that the head of the list $stmt::\stmtL$ is not empty statement $\estmt{}$ otherwise it is non-deterministic with the block exit rule.
+The \textsc{stmt\_block\_exit} rule is used in the case where the end of a block is reached, i.e. whenever a block contains only $\estmt{}$: it pops the head (containing only $\estmt{}$) from the statement list as well as the scope corresponding to the block from the scope list $\scopeL$.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXblockXXenter{}} \\
@@ -471,7 +443,7 @@ The \textsc{stmt\_block\_exec} rule simply describes small-step reduction of the
 
 
 \subsubsection*{Apply} 
-The \textsc{stmt\_apply\_v} describes the apply table statement. Note that this is particular to our formalization: it is not a statement in the P4 specification, but a method. Each apply statement has a table name $tbl$ with the a list of key expressions $\expr_1 \cons \expr_n$ to match on. This list has been previously reduced to constants one at a time in the rule \textsc{stmt\_apply\_e}. The Tb will return a list of match kinds $mk_1 \cons mk_n$, which is then used with $\mathit{apply\_table}$ to perform the actual table matching. %The ctrl is a function that maps table names $tbl$, expressions, and the match kinds to action that should be implemented as a method call, with a list of the arguments $\cval_1 \cons \cval_m $ .
+The \textsc{stmt\_apply\_v} describes the apply table statement. Note that this is particular to our formalization: it is a method call in the P4 specification. Each apply statement has a table name \tn{} with a list of key expressions $\expr_1 \cons \expr_n$ to match on. This list has been previously reduced to constants one at a time in the rule \textsc{stmt\_apply\_e}. The $Tb$ will return a list of match kinds $mk_1 \cons mk_n$ and a default action with arguments, which is then used with $\mathit{apply\_table}$ to perform the actual table matching. %The ctrl is a function that maps table names $tbl$, expressions, and the match kinds to action that should be implemented as a method call, with a list of the arguments $\cval_1 \cons \cval_m $ .
 
 
 \begin{figure}[ht!]
@@ -480,17 +452,17 @@ The \textsc{stmt\_apply\_v} describes the apply table statement. Note that this 
 \end{figure}
 
 \subsubsection*{Return}
-Once return's expression is reduced to a constant value, the status is changed to a \returnst{} \cval, and the statement becomes $\estmt{}$. The rest of the return operation will be handled in the sequence rule and frame-level semantics.
+Once the expression of \textbf{return} is reduced to a constant value, the status is changed to a \returnst{} \cval, and the statement becomes $\estmt{}$. The rest of the function return procedure will be described in the sequence rule and frame-level semantics.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXretXXv{}} 
 \end{figure}
 
 \subsubsection*{Sequence}
-The sequential statements rules \textsc{stmt\_seq1} and \textsc{stmt\_seq2} are standard. The status \status{} must be \running{} to start with. The part that is different is that if any new frame being created by any function call or a statement added to the statement list, it will be added on top of the frame list. \\
+The sequential statements rules \textsc{stmt\_seq1} and \textsc{stmt\_seq2} are standard. The status \status{} must be \running{} in the initial state. The non-standard element of \textsc{stmt\_seq1} is that if any new frame is created (e.g. by a function call) or a statement added to the statement list (e.g. by a block statement), it will be added on top of the frame list. \\
 
-Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returnst{}, or \trans{} to indicate either a a transition to a parser state or a return from a function call. The rest of the sequential composition statements are not considered, this will give flexibility to the return or transition statements in the body rather than only at the end.
-\textsc{stmt\_seq1} and \textsc{stmt\_seq3} are able to change the tables that are populated by the control plane.
+Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returnst{}, or \trans{} to indicate either a a transition to a parser state or a return from a function call. The statements that follow sequentially can be discarded: this gives flexibility to have return or transition statements in the body rather than only at the end.
+Furthermore, \textsc{stmt\_seq1} and \textsc{stmt\_seq3} are both able to change the architectural scope.
 
 \begin{figure}[h!]
     \ottusedrule{\ottdrulestmtXXseqOne{}} \\
@@ -500,7 +472,7 @@ Otherwise, the \textsc{stmt\_seq3}  rule is used whenever the status is \returns
 
 
 \subsubsection*{Extern}
-The symbol $\blacksquare$ represents a statement capturing the semantics of an extern function other than copy-in, copy-out and return behaviour. $\blacksquare$ is able to modify the architectural state, the local scope list $\scopeL$ and the execution status (which is always set to \returnst{v}). The exact behaviour is determined by looking up the entry of the name $\mathit{funn}$ associated with the current frame in the extern function map $X$: since $\blacksquare$ is used in extern function call bodies, $\mathit{funn}$ is the name of the extern function.
+The symbol $\blacksquare$ represents a statement capturing the inner semantics of an extern function: i.e. the semantics other than copy-in, copy-out and return behaviour. $\blacksquare$ is able to modify the architectural scope, the local scope list $\scopeL$ and the execution status (which is always set to \returnst{v}). The exact behaviour is determined by looking up the entry of the \funn{} associated with the current frame in the extern function map $X$: since $\blacksquare$ is meant to be used only in extern function call bodies, $\mathit{funn}$ is the name of the extern function that is currently being called.
 
 Note that calling an extern function works the same as calling any other function, as described in the function call subsection of Section~\ref{sec:expsem}. However, by convention the body of the extern function consists only of $\blacksquare$.
 
@@ -518,7 +490,7 @@ The transition statement $\mathbf{transition} \; \vn $, whose semantics is captu
 
 
 \subsubsection*{Verify}
-The $\mathbf{verify} \, \expr \, \expr'$ statement is used to check the whether the boolean expression $\expr$ holds; if it does, then nothing happens, as in the \textsc{stmt\_verify\_3} rule. Otherwise, it assigns the error in $\expr'$ to $"parseError"$ and reduces the statement to a $\mathbf{transition}$ statement to the state \reject{}.
+The $\mathbf{verify} \, \expr \, \expr'$ statement is used to check the whether the boolean expression $\expr$ holds; if it does, then nothing happens, as stated in the \textsc{stmt\_verify\_3} rule. Otherwise, it assigns the error in $\expr'$ to $"parseError"$ and reduces the statement to a $\mathbf{transition}$ statement to the state \reject{}.
  
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXverifyXXThree{}} \\
@@ -528,50 +500,36 @@ The $\mathbf{verify} \, \expr \, \expr'$ statement is used to check the whether 
 
 
 \subsection{Frame-Level Semantics}
-The previous semantics operate on a single frame for a list of statements, however when a function being called, then it means that the state will contain two frames. The top frame that will be executed as can be seen in \textsc{frames\_comp1} reduction, where the previous frame $\Phi$ is not empty (otherwise, we can use the previous rules above). 
+The statement semantics in the previous section operate on a single frame containing a list of statements, however when a function being called, a new frame will be pushed to the frame list of the state. The frame-level semantics will always try to execute the top frame, however \textsc{frames\_comp1} will be used when the status is not set to $\returnst{v}$ and \textsc{frames\_comp2} when it is.
 
-The rule \textsc{frames\_comp2} is used specifically whenever there is a return occuring in a frame in that is being reduced. Here the the global scope list $\scopeL_G$ must contain a $\varstar$ declared for every function $funn$. This variable should be updated with the value $v$ that is found in the state's status $\returnst{v}$. The copy out function takes the callee function signature, the "possibly updated" global scope list (index 0 or 1 from depends on the location of $\varstar{}$), the top most scope in the $\scopeL''$ and the callee's current scope list $\scopeL$. It returns a new updated scopes list for both the global and caller's frame.
+For \textsc{frames\_comp2}, note that the the global scope list $\scopeL_G$ will contain a $\varstar$ declared for every callable function in the current programmable block (set in the architecture-level semantics). This variable is then updated with the value $v$ that is found in the final status $\returnst{v}$ of the statement semantics reduction. The copy-out function takes the callee function signature, the global scope list, the caller's scope list $\scopeL'$ and the callee's scope list $\scopeL''$ (note that $\scopeL = \scopeL''$ due to the semantics of \textbf{return}). It returns a new updated scopes list for both the global and caller's frame.
 
-In the copyout function, each parameter with (out or inout directions) should be copied out to the variable name it is mapping to. i.e. the mapping of a single scope looks as  $ \vn \mapsto (v , y) $ so for each variable name $\vn$ that is part of the current argument list in the signature we will check the direction of it, if the direction is (none or in) then we do not copy them out. However, if the direction is (out or inout) we will look into the mapping of it, and retrive a tuple $(v,y)$ which is the value and the original argument of the function to be copied out in the poroper scope (top most one it is defined in).
-
+In the copyout function, each out-directed parameter should be copied out to the variable name of its argument: note that these argument names are stored in the callee's scope.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleframesXXcompOne{}} \\
     \ottusedrule{\ottdruleframesXXcompTwo{}}
 \end{figure}
 
+We define $\mathrm{scopes\_to\_pass}(\funn, F_g , F_b , \overline{\gamma_G})$ for function names as:
+ \[  \overline{\gamma_G}' = \begin{cases}
+            \mathrm{if} \; \funn \in dom(F_b)    \hspace{6pt} ,
+            \mathrm{then} \;  \overline{\gamma_G}\\
+            \mathrm{otherwise}    \hspace{45pt}     , 
+            \mathrm{then} \; \mathrm{if} \; \funn \in dom(F_g) \; \mathrm{then} \; [ \emptyset_{\gamma} ; \overline{\gamma_G}[1] ] \; \mathrm{else} \; \overline{\gamma_G}\;,
+        \end{cases}\]
+and in the case \funn{} is an extern function or constructor, $\overline{\gamma_G}' = [ \emptyset_{\gamma} ; \overline{\gamma_G}[1] ]$.
+Recall that the global scope is at index $1$ of $\overline{\gamma_G}$, and the programmable block-global scope is at index $0$. $\overline{\gamma_G}'$ is propagated to the statement semantics as the global scope list of the initial state. 
 
-We define scopes\_to\_pass $ ( funn, F_g , F_b , \overrightarrow{\gamma_G}) $ as : \vspace{10pt}
-
- $  \overrightarrow{\gamma_G}' =\begin{cases}
-            \mathrm{if} \; funn \in dom(F_g)    \hspace{6pt} ,
-            \mathrm{then} \; [ \emptyset_{\gamma} ; \overrightarrow{\gamma_G}[1] ] \\
-            \mathrm{otherwise}    \hspace{48pt}     , 
-            \mathrm{then} \; \overrightarrow{\gamma_G} 
-        \end{cases}$     \vspace{10pt}
-
-Where $\overrightarrow{\gamma_G}$ is a list of two elements, index 1 is the global scope, and index 0 is the programmable block global scope, it is fetched from the frame reduction rule and considered to be the initial global scope list. $\overrightarrow{\gamma_G}'$ is the scope that will be used to implement one frame at a time (statement reduction) in \textsc{frames\_comp1}.
-
-We define scopes\_to\_retrieve $( funn, F_g , F_b , \overrightarrow{\gamma_G}, \overrightarrow{\gamma_G}')$ as : \vspace{10pt}
-
- $  \overrightarrow{\gamma_G}'' =\begin{cases}
-            \mathrm{if} \; funn \in dom(F_g)    \hspace{6pt} ,
-            \mathrm{then} \; [\overrightarrow{\gamma_G}[0];\overrightarrow{\gamma_G}'[1]]  \\
-            \mathrm{otherwise}    \hspace{48pt}     , 
-            \mathrm{then} \; \overrightarrow{\gamma_G}' 
-        \end{cases}$   \vspace{10pt}
-
-Where $\overrightarrow{\gamma_G}''$ is a list of two elements, index 1 is the global scope, and index 0 is the programmable block global scope, and we will retrieve it to be added as the resulted scope of the frame reduction.
-$\overrightarrow{\gamma_G}'$ is the scope that is resulted from the statement reduction. 
-$\overrightarrow{\gamma_G}$ is the original (initial) starting state's global list of the frame reduction. 
-
-
-
-
-
-
-
-
+We define $\mathrm{scopes\_to\_retrieve}(\funn, F_g , F_b , \overline{\gamma_G}, \overline{\gamma_G}')$ for function names as:
+\[\overline{\gamma_G}'' = \begin{cases}
+            \mathrm{if} \; \funn \in dom(F_b)    \hspace{6pt} ,
+            \mathrm{then} \;   \overline{\gamma_G}'\\
+            \mathrm{otherwise}    \hspace{45pt}     , 
+            \mathrm{then} \; \mathrm{if} \; \funn \in dom(F_g) \; \mathrm{then} \; [\overline{\gamma_G}[0];\overline{\gamma_G}'[1]] \; \mathrm{else} \; \overline{\gamma_G}'\; ,
+        \end{cases}
+\]
+and in the case \funn{} is an extern function or constructor, $\overline{\gamma_G}'' = [\overline{\gamma_G}[0];\overline{\gamma_G}'[1]]$. The result here then becomes the global scope list of the final state of the frame-level reduction, after eventual copy-out.
 
 %\newpage
 %\newcommand{\start}{\textit{start}}
@@ -651,15 +609,14 @@ The states on the left-hand and right-hand sides of the reduction both have the 
 \end{enumerate}
 \item The global scope list \gscopel{}, which contains the top-level global scope with constants common to all programmable blocks as well as the block-global scope containing variables declared at the start of progrmamable blocks.
 \item The \emph{architecture-level frame list}: this contains either a regular frame list (as described in the statement semantics), or it is a special empty architecture-level frame list ($[ \; ]_A$).
-\item The control-plane configuration $C$, a partial function from strings, values and match kinds to tuples of strings and expression lists.
 \item The status, which informs us of whether a parser state machine is finished, or the apply of a control block is finished.
 \end{enumerate}
 
 The rules of the architecture-level semantics are the following:
 \begin{enumerate}
-\item \textsc{arch\_in}: The first antecedent requires that the pending architecture block is \textbf{inp}, and then $f_{ \mathit{in} }$ updates the input list and the architectural scope.
+\item \textsc{arch\_in}: The first premise requires that the pending architecture block is \textbf{inp}, and then $f_{ \mathit{in} }$ updates the input list and the architectural scope.
 
-\item \textsc{arch\_pbl\_init}: when the pending architecture block is a programmable block, a new block-global scope $\gamma'$ is created and initialised with the arguments of the programmable block (in the case of a parser block, \textit{parseError} is also initially set to \textit{NoError}). After this, the variables in the list of declarations are declared in $\gamma'$. The final result $\gamma'''$ is appended to the top-level global scope $\gscopel [0]$, forming a new global scopes list $\gscopel'$. Also, the empty architecture frame list is changed to a single frame where the singleton statement list contains the initialisations of the parser block \textit{stmt} followed by the body of the programmable block\footnote{Conventions for how these are represented are mentioned in the explanation of $\pbm$}, the scopes stack contains a single empty scope and the current function name is the name of the programmable block.
+\item \textsc{arch\_pbl\_init}: when the pending architecture block is a programmable block, a new block-global scope $\gamma'$ is created and initialised with the arguments of the programmable block (in the case of a parser block, \textit{parseError} is also initially set to \textit{NoError}). After this, the variables in the list of declarations are declared in $\gamma'$. The final result $\gamma''$ is appended to the top-level global scope $\gscopel[0]$, forming a new global scopes list $\gscopel''$, in which $\mathrm{initialise\_var\_stars}$ initialises function return placeholder variables for all callable functions in the block. Also, the empty architecture frame list is changed to a single frame where the singleton statement list contains the initialisations of the parser block \textit{stmt} followed by the body of the programmable block\footnote{Conventions for how these are represented are mentioned in the explanation of $\pbm$}, the scopes stack contains a single empty scope and the current function name is the name of the programmable block.
 
 \item \textsc{arch\_ffbl} handles the fixed-function block: when the pending architecture block is a fixed-function block with name $x$, the implementation \textit{ff} of the fixed-function is looked-up in \ffbm{} using $x$, after which it is used to update the architectural scope. Also, the architecture block index is incremented.
 
