@@ -696,7 +696,7 @@ t_scopes_tup T_e Prs_n |-  transition e
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , ( empty ) )
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  e  : ( tau , b )
 --------------------------------------- :: return
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |-  return e
@@ -842,6 +842,90 @@ extern_MoE_typed ext_map order t_scope_list_g delta_x  =
 *)
 
 
+(*****************)
+(*  domain       *)
+(*****************)
+(* takes two lists and checks if the domains are different*)
+val dom_neq_def = Define `
+dom_neq l1 l2 =
+! f z. ((ALOOKUP l1 f = NONE) /\ (ALOOKUP l2 f = SOME z)) \/
+      ((ALOOKUP l2 f = NONE) /\ (ALOOKUP l1 f = SOME z)) \/
+      ((ALOOKUP l1 f = NONE) /\ (ALOOKUP l2 f = NONE))
+`;
+
+
+val dom_eq_def = Define `
+dom_eq l1 l2 =
+! f z1 z2. ((ALOOKUP l1 f = SOME z1) /\ (ALOOKUP l2 f = SOME z2)) 
+`;
+
+
+val dom_map_neq_def = Define `
+dom_map_neq (func_map:func_map) (b_func_map:b_func_map) =
+  dom_neq func_map b_func_map
+`;
+
+
+
+val dom_tmap_neq_def = Define `
+dom_tmap_neq (delta_g:delta_g) (delta_b:delta_b) =
+  dom_neq delta_g delta_b
+`;
+
+
+
+val dom_g_eq_def = Define `
+dom_g_eq (delta_g:delta_g) (func_map:func_map) =
+  dom_eq delta_g func_map
+`;
+
+
+
+val dom_b_eq_def = Define `
+dom_b_eq (delta_b:delta_b) (b_func_map:b_func_map) =
+  dom_eq delta_b b_func_map
+`;
+
+
+val dom_x_eq_def = Define `
+dom_x_eq (delta_x:delta_x) (ext_map: 'a ext_map) =
+  dom_eq delta_x ext_map
+`;
+
+
+
+(* represents 
+∀f ∈ domain( Fg ). var(star,f) ∈ domain(gsl_t[1])
+*)
+
+val Fg_star_defined_def = Define `
+Fg_star_defined (func_map:func_map) (t_scope_list_g:t_scope_list_g) =
+! f sig t x. ((f = funn_name x) /\  (ALOOKUP func_map x = SOME sig)) /\
+     (ALOOKUP (EL 1 t_scope_list_g)  (varn_star f) = SOME t)
+`;
+
+
+
+val Fb_star_defined_def = Define `
+Fb_star_defined (b_func_map:b_func_map) (t_scope_list_g:t_scope_list_g) =
+! f sig t x. ((f = funn_name x) /\  (ALOOKUP b_func_map x = SOME sig)) /\
+     (ALOOKUP (EL 0 t_scope_list_g)  (varn_star f) = SOME t)
+`;
+
+
+
+val X_star_defined_def = Define `
+X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
+! f sig t x x'.
+         ((f = funn_inst x \/ f = funn_ext x x') /\
+          ALOOKUP ext_map x = SOME sig) /\
+         ALOOKUP (EL 1 t_scope_list_g) (varn_star f) = SOME t
+`;
+
+
+
+
+
 }}
 
 
@@ -850,7 +934,7 @@ defns
 WTFg :: '' ::=
 defn
  func_map order t_scope_list_g delta_g  :: :: WTFg :: WTFg_
-{{ com values types }}
+{{ com global functions well typed }}
 {{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] }}
 by
 
@@ -866,7 +950,7 @@ defns
 WTFb :: '' ::=
 defn
  b_func_map order t_scope_list_g delta_g delta_b delta_x  :: :: WTFb :: WTFb_
-{{ com values types }}
+{{ com actions and local functions well typed }}
 {{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
 by
 
@@ -882,7 +966,7 @@ defns
 WTX :: '' ::=
 defn
  ext_map order t_scope_list_g delta_x  :: :: WTX :: WTX_
-{{ com values types }}
+{{ com extern well typed }}
 {{ tex  [[ext_map]] [[order]] [[t_scope_list_g]] [[delta_x]] }}
 by
 
@@ -900,16 +984,25 @@ ext_map order t_scope_list_g delta_x
 defns
 WT_c :: '' ::=
 defn
- ctx order t_scope_list_g delta_g delta_b :: :: WT_c :: WT_c_
-{{ com values types }}
-{{ tex [[ctx]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] }}
+ ctx order t_scope_list_g delta_g delta_b delta_x :: :: WT_c :: WT_c_
+{{ com context well typed }}
+{{ tex [[ctx]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
 by
 
 
 
 WF_o order
-%intersection_of_domains_is_null_between func_map b_func_map 
-%TODO:cont the big implication.
+dom_map_neq ( func_map , b_func_map )
+dom_tmap_neq ( delta_g , delta_b )
+dom_g_eq ( delta_g , func_map )
+dom_b_eq ( delta_b , b_func_map )
+dom_x_eq ( delta_x , ext_map )
+Fg_star_defined ( func_map , t_scope_list_g )
+Fb_star_defined ( b_func_map , t_scope_list_g )
+X_star_defined  ( ext_map , t_scope_list_g )
+func_map order t_scope_list_g delta_g
+b_func_map order t_scope_list_g delta_g delta_b delta_x
+ext_map order t_scope_list_g delta_x
 --------------------------------------- :: c
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) order t_scope_list_g delta_g delta_b 
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) order t_scope_list_g delta_g delta_b delta_x
 
