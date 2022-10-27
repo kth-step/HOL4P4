@@ -348,10 +348,10 @@ In the \textsc{e\_lookup} rule, the lookup function ensures that the variable na
 \subsubsection*{Function call}
 Note that function calls also include actions as well as extern function calls.
 
-The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in- and none-directioned) arguments. We fetch the parameter names and directions of the function using $\mathbf{lookup\_funn\_sig}$, then each function's arguments will be checked against the direction in the same position. If the direction is in or none, then the argument will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout it should not be reduced beyond variable lookup.
+The \textsc{e\_call\_args} is used whenever there is a function call expression with unreduced (in- and none-directioned) arguments. We fetch the parameter names and directions of the function using $\mathrm{lookup\_funn\_sig}$, then each function's arguments will be checked against the direction in the same position. If the direction is in or none, then the argument will be reduced until it becomes a constant, otherwise if the argument has the direction out or inout it should not be reduced beyond variable lookup.
 
 The \textsc{e\_call\_newframe} rule is used when all of the function arguments have been reduced to constants (for non-out directions) or variables (directions with out). The function call reduction will produce a placeholder we call $\varstar$ and a new frame. The new frame will be added by the enclosing statement semantic layer on top of the state's existing frames, as explained later.
-The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{} and the signature of the parameters represented as a list of tuples of variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked to ensure that the arguments were reduced properly: (if $d_i$ is in or none then the expression in the same position should be a constant, otherwise a variable). The new frame's scope $\scope'$ is a new fresh empty scope to which the parameters are declared and copied in to using the function $\mathbf{copyin}$, depending on direction.
+The way that this new frame is constructed is as follows: The function name \funn{} will be the same as the call in the expression. \funn{} will be looked up in both the function maps and extern maps to retrieve the function body \stmt{} and the signature of the parameters represented as a list of tuples of variable names and their directions $ [(\vn{}_1, d_1) \cons (\vn{}_n, d_n) ] $. Each argument will be checked to ensure that the arguments were reduced properly: (if $d_i$ is in or none then the expression in the same position should be a constant, otherwise a variable). The new frame's scope $\scope'$ is a new fresh empty scope to which the parameters are declared and copied in to using the function $\mathrm{copyin}$, depending on direction.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdruleeXXcallXXargs{}} \\
@@ -452,7 +452,7 @@ The \textsc{stmt\_apply\_v} describes the apply table statement. Note that this 
 \end{figure}
 
 \subsubsection*{Return}
-Once the expression of \textbf{return} is reduced to a constant value, the status is changed to a \returnst{} \cval, and the statement becomes $\estmt{}$. The rest of the function return procedure will be described in the sequence rule and frame-level semantics.
+Once the expression of \textbf{return} is reduced to a constant value, the status is changed to $\returnst{\cval}$, and the statement becomes $\estmt{}$. The rest of the function return procedure will be described in the sequence rule and frame-level semantics.
 
 \begin{figure}[ht!]
     \ottusedrule{\ottdrulestmtXXretXXv{}} 
@@ -626,7 +626,7 @@ The rules of the architecture-level semantics are the following:
 
 \item \textsc{arch\_pbl\_exec} describes a reduction step inside a programmable block: the first two premises are there to obtain the content of the statement semantics context. Then, the global block list, the frame list, the control plane configuration and the status are updated by a statement reduction step $\longrightarrow$.
 
-\item \textsc{arch\_pbl\_ret} rule describes the final step of programmable block reduction that reduces to an empty frame list. The first two premises obtain the directed parameters of the block. If $\mathit{state\_fin}$ (termination conditions of the two programmable blocks) holds of the status and frame list (if status was \running{}, it is then set to \trans{``reject"} if we are in a parser block). The block output function $\mathit{out}_{ \mathit{p} }$ proceeds to update the architectural scope (notably dependent on architecture, it copies out the value of $\mathit{parseError}$). Furthermore, the architecture block list index is incremented by 1 and the block-global scope is dropped from the global scopes list.
+\item \textsc{arch\_pbl\_ret} rule describes the final step of programmable block reduction that reduces to an empty frame list. The first two premises obtain the directed parameters of the block. If $\mathit{state\_fin}$ (termination conditions of the two programmable blocks) holds of the status and frame list (if status was \running{}, $\mathrm{set\_fin\_status}$ then sets it to \trans{``reject"} if we are in a parser block). The block output function $\mathit{out}_{ \mathit{p} }$ proceeds to update the architectural scope (notably dependent on architecture, it copies out the value of $\mathit{parseError}$). Furthermore, the architecture block list index is incremented by 1 and the block-global scope is dropped from the global scopes list.
 \end{enumerate}
 
 \begin{figure}[ht!]
@@ -667,7 +667,7 @@ The binary expressions included are shown in Figure~\ref{fig:unop}. These includ
 
 \section{Semantics of Expression Reduction}
 \label{app:exp}
-This appendix describes semantics for reducing expressions in certain contexts. The expression semantics are shown in Figure~\ref{fig:semexp2}. The statement semantics are shown in Figure~\ref{fig:semstmt2}.
+This appendix describes semantics for reducing nested expressions. A selection of this type of expression semantics are shown in Figure~\ref{fig:semexp2}, and for the statement semantics are in Figure~\ref{fig:semstmt2}.
 
 \begin{figure}[ht!]
 \centering{\begin{ottdefnblock}[#1]{$ [  \ottnt{e}  ] (  \sigma  ) \rightsquigarrow [  \ottnt{e'}  ] (  \sigma'  ) $}{\ottcom{expression semantics}}
@@ -679,12 +679,10 @@ This appendix describes semantics for reducing expressions in certain contexts. 
 \ottusedrule{\ottdruleeXXbinopXXargOne{}}
 \ottusedrule{\ottdruleeXXbinopXXargTwo{}}
 \end{ottdefnblock}}
-\caption{Expression Reduction-of-Argument Semantics}
+\caption{Expression Reduction-of-Argument Semantics (selection)}
 \label{fig:semexp2}
 \end{figure}
 
-The \textsc{e\_func\_call\_args} rule reduces the leftmost function argument which has yet to be reduced to a constant with one expression evaluation step. The first two antecedents divide the list of arguments into two sub-lists, where the prefix must contain all constants. The head of the suffix is then reduced with one step, after which the corresponding index in the original list of arguments is update with the resulting expression.
-\\~\\
 \pfourspec{sec-expr-eval-order}{8.1} of the P4 specification states that expressions are evaluated left-to-right. Accordingly, the rules for binary operations - \textsc{e\_binop1} and \textsc{e\_binop2} - are split up so that reduction of the second operand requires that the first operand has been completely reduced to a constant. This is trivial for unary operations (\textsc{e\_unop}).
 
 \begin{figure}[ht!]
@@ -695,7 +693,7 @@ The \textsc{e\_func\_call\_args} rule reduces the leftmost function argument whi
 \ottusedrule{\ottdrulestmtXXverifyXXeOne{}}
 \ottusedrule{\ottdrulestmtXXverifyXXeTwo{}}
 \end{ottdefnblock}
-\caption{Statement Reduction-of-Argument Semantics}
+\caption{Statement Reduction-of-Argument Semantics (selection)}
 \label{fig:semstmt2}
 \end{figure}
 

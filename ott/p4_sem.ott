@@ -1,6 +1,6 @@
 grammar
 
-stmt_stack {{ tex \overrightarrow{ \mathit{stmt} } }} :: stmt_stack_ ::=
+stmt_stack {{ tex \overline{ \mathit{stmt} } }} :: stmt_stack_ ::=
 {{ hol (stmt list) }}
 {{ com stack of stmts }}
 | emptystmts :: M :: empty
@@ -357,7 +357,7 @@ formula :: formula_ ::=
   {{ hol (status <> status_running)}}
 | notret( status , frame_list ) :: :: noret
   {{ com status is (conditionally) not return}}
-  {{ tex [[frame_list]] \neq [] \Rightarrow [[status]] \neq { \mathbf{ret \, v} } }}
+  {{ tex [[frame_list]] \neq [] \Rightarrow [[status]] \neq { \mathbf{ret} \, v } }}
   {{ hol ( ([[frame_list]] <> []) ==> notret [[status]] )}}  
 | acc_or_rej( status ) :: M :: accrejstatus
   {{ com status is not running}}
@@ -396,7 +396,7 @@ formula :: formula_ ::=
 | ( g_scope_list , scope_list' ) = separate scope_list :: M :: separate_scopes
   {{ com separate scopes into globals and locals after assignment }}
   {{ hol ( ( SOME [[g_scope_list]] ,  SOME [[scope_list']] ) = separate [[scope_list]] ) }}
-  {{ tex ( ( [[g_scope_list]] ,  [[scope_list']] ) = \mathrm{separate}[[scope_list]] )  }}  
+  {{ tex ( [[g_scope_list]] ,  [[scope_list']] ) = \mathrm{separate}([[scope_list]])  }}  
 | ascope' = copyout_pbl ( scope_list , ascope , d_list , ( x1 , .. , xn ) , pbl_type , status ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
   {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [[x1 .. xn]], [[pbl_type]], [[status]])) }}
@@ -405,9 +405,11 @@ formula :: formula_ ::=
   {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [ [[x]] ], [[pbl_type]], [[status]])) }}
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
+  {{ tex \mathrm{not\_empty} \; [[stmt]] }}
   {{ hol ([[stmt]] <> stmt_empty) }}
 | not_empty stmt_stack :: M :: not_empty_stmt_stack
-  {{ com check so that statement stack is not the empty }}
+  {{ com check so that statement stack is not the empty statement stack }}
+  {{ tex \mathrm{not\_empty} \; [[stmt_stack]] }}
   {{ hol ([[stmt_stack]] <> []) }}  
 
 %Architecture-level semantics-related formulae
@@ -500,15 +502,17 @@ formula :: formula_ ::=
   {{ hol (~(fully_reduced [[e]])) }}
 | ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig_body
   {{ com look up the body and signature of an abstract function name }}
+  %TODO: LaTeX hack here...
+  {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
   {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
 | [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig
   {{ com look up the signature of an abstract function name }}
+  %TODO: LaTeX hack here...
+  {{ tex ((x_1, d_1), \ldots, (x_n, d_n)) = \mathrm{lookup\_funn\_sig} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
   {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
 | parser_not_finished frame_list :: M :: parser_not_finished
   {{ com parser state is not finished }}
   {{ hol (parser_not_finished [[frame_list]]) }}
-
-
 
 
    % (*typing rules related formulas*)

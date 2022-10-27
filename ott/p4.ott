@@ -391,7 +391,7 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
   {{ hol ([[scope1 .. scopen]]) }}
 | tl scope_list :: M :: tl
   {{ hol (TL [[scope_list]]) }}
-  {{ tex \mathrm{tl} [[scope_list]] }}
+  {{ tex \mathrm{tl} \; [[scope_list]] }}
 | g_scope '::' scope_list' :: M :: cons
   {{ hol ([[g_scope]] :: [[scope_list']]) }}
   {{ tex [[g_scope]] :: [[scope_list']] }}
