@@ -391,7 +391,7 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
   {{ hol ([[scope1 .. scopen]]) }}
 | tl scope_list :: M :: tl
   {{ hol (TL [[scope_list]]) }}
-  {{ tex \mathrm{tl} [[scope_list]] }}
+  {{ tex \mathrm{tl} \; [[scope_list]] }}
 | g_scope '::' scope_list' :: M :: cons
   {{ hol ([[g_scope]] :: [[scope_list']]) }}
   {{ tex [[g_scope]] :: [[scope_list']] }}
@@ -488,16 +488,19 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ com boolean }}
 | bs num_exp :: :: bit
   {{ com bit-string }}
-  {{ tex bs^{[[num_exp]]} }}   
+  {{ tex { { \mathbf{bs} }^{[[num_exp]]} } }}   
 | bot :: :: bot
   {{ com no value }}
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
   {{ com struct }} 
 | x_list :: :: xl   
-  {{ com string literal }} 
+  {{ com string literal }}
 | err :: :: err
+  {{ com error }}
 | ext :: :: ext
+  {{ com extern }}
+
 
 taul :: taul_ ::=
 {{ hol (tau list) }}
@@ -555,7 +558,7 @@ stmt :: stmt_ ::=
   {{ com apply }}
  % {{ tex \mathbf{apply} \, [[tbl]] \, [[e_list]] }}
 | ext :: :: ext
-  {{ com extern function }}
+  {{ com extern }}
   {{ tex \blacksquare  }}
 
 %Fence between stmt and func_map
@@ -680,7 +683,7 @@ copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
 {{ hol ((g_scope list # ascope_ty # d list # x list # pbl_type # status) -> ascope_ty option) }}
 
-%This function takes a table name, parameters, match kinds and the architectural scope and returns an action with parameters
+%This function takes a table name, arguments, match kinds and the architectural scope and returns an action with arguments
 apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
 {{ com apply table function }}
 {{ hol ((x # e_list # mk_list # (x # e_list) # ascope_ty) -> (x # e_list) option) }}
