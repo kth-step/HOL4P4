@@ -58,6 +58,8 @@ frame_list {{ tex \overline{\Phi} }} :: frame_list_ ::=
 | tl frame_list :: M :: tl
   {{ hol (TL [[frame_list]]) }}
   {{ tex \mathrm{tl} ([[frame_list]]) }}
+| [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] :: M :: extract  
+  {{ hol ([[ [ ( funn1 , stmt_stack1 , scope_list1 ) ] .. [ ( funnn , stmt_stackn , scope_listn ) ] ]]) }}
 | ( frame_list ) :: M :: paren
   {{ hol ([[frame_list]]) }}
   {{ tex [[frame_list]] }}
@@ -558,6 +560,7 @@ formula :: formula_ ::=
   {{ com bracketed }}
   {{ tex ([[formula]]\!) }}
   {{ hol ([[formula]]) }}
+
 |  v_list : ( taul , false )  :: :: type_all_v
   {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
   {{ tex [[v_list]] : ( [[taul]] , F ) }}
@@ -575,6 +578,7 @@ formula :: formula_ ::=
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) (EL i [[b1 .. bo]]) ) }}
+
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
   {{ hol ( out_is_lval [[d1 .. dn]] [[b1 .. bm]] ) }}
 | is_bv_op binop :: :: is_bv_op 
@@ -591,12 +595,15 @@ formula :: formula_ ::=
   {{ hol (ALOOKUP [[delta_t]] [[tbl]] = SOME ([[tau1 .. taun]])) }}
 | literials_in_P_state [ x1 , .. , xn ] Prs_n :: :: literials_in_P_state
   {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
+
 | ordered funn funn' order :: :: ordered
   {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
 | WF_o order :: :: WF_order
   {{ hol ( WF_o [[order]] )}}
 | MEM x x_list :: :: x_in_xlist
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
+
+
 | func_map_typed func_map order t_scope_list_g delta_g :: ::  func_map_typed 
   {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] ) }} 
 | func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x :: :: func_map_blk_typed
@@ -619,6 +626,17 @@ formula :: formula_ ::=
   {{ hol ( Fb_star_defined [[b_func_map]]  [[t_scope_list_g]] ) }}
 | X_star_defined  ( ext_map , t_scope_list_g ) :: :: X_star_defined
   {{ hol ( X_star_defined [[ext_map]]  [[t_scope_list_g]] ) }}
+
+| type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack :: :: type_ith_stmt 
+  {{ hol ( type_ith_stmt [[t_scope_list_g]] [[t_scope_list]] [[T_e]] [[Prs_n]] [[stmt_stack]] ) }}
+| type_frame_tsl scope_list t_scope_list :: :: type_frame_tsl
+  {{ hol ( type_frame_tsl [[scope_list]] [[t_scope_list]] ) }}
+| type_globals_tsl g_scope_list t_scope_list_g :: :: type_globals_tsl
+  {{ hol ( type_globals_tsl [[g_scope_list]] [[t_scope_list_g]] ) }}
+| type_state_tsll ( scope_list1 , .. , scope_listn ) t_scope_list :: :: type_state_tsll
+  {{ hol ( type_state_tsll [[scope_list1 .. scope_listn]] [[t_scope_list]] )  }}
+
+
 
 
 embed

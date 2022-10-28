@@ -507,6 +507,7 @@ type_frame_tsl (sl:scope list) (tsl: t_scope list) =
 (* type the global scope in a state: To type a global it is enough that all variables can 
 type each other. NOTE: the global frames we keep the return functions variables stars. 
 thus we do not check it's absence 
+  ψ_G_list ⊢ γ_g_list
 *)
 val type_globals_tsl_def = Define `
 type_globals_tsl (sl:scope list) (tsl: t_scope list)  =
@@ -518,10 +519,9 @@ similarl (\x y . (v_typ (FST (x)) (y) F ) ) sl tsl
    by the typing list of scopes tsll, and also, the domain of each frame is the same.
 *)
 val type_state_tsll_def = Define `
-type_state_tsll (sll:scope list list) (tsll: t_scope list list) =
- type_frame_tsl (FLAT sll) (FLAT tsll)
+type_state_tsll (sll:scope list list) (tsl: t_scope list) =
+ type_frame_tsl (FLAT sll) (tsl)
 `;
-
 
 }}
 
@@ -717,7 +717,56 @@ t_scopes_tup T_e Prs_n |-  ext
 
 
 
+embed
+{{ hol
 
+val type_ith_stmt_def = Define `
+type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack =
+! i . i < LENGTH stmt_stack ==>
+      stmt_typ (t_scope_list_g, ( DROP i t_scope_list)  ) T_e Prs_n (EL i stmt_stack)
+`;
+
+}}
+
+
+
+defns
+stmtl_typ :: '' ::=
+defn
+t_scopes_tup T_e Prs_n |- stmt_stack  :: :: stmtl_typ :: stmtl_
+{{ com expression types }}
+{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt_stack]] }}
+by
+
+
+not_empty [ stmt1 , .. , stmtn ] 
+type_ith_stmt t_scope_list_g [ t_scope1 , .. , t_scopen ] T_e Prs_n [ stmt1 , .. , stmtn ] 
+--------------------------------------- :: list
+( t_scope_list_g , [ t_scope1 , .. , t_scopen ] ) T_e Prs_n |- [ stmt1 , .. , stmtn ]
+
+
+
+
+
+
+
+defns
+frame_typ :: '' ::=
+defn
+t_scopes_tup T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: frame_typ :: frame_
+{{ com expression types }}
+{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
+by
+
+%note that in this rule will be mainly used to rewrite the definitions once we are typing the result frame of an expression reduction.
+
+
+type_frame_tsl scope_list t_scope_list
+type_globals_tsl g_scope_list t_scope_list_g
+( t_scope_list_g , t_scope_list ) T_e Prs_n |- stmt_stack
+not_empty stmt_stack 
+--------------------------------------- :: stmtl
+( t_scope_list_g , t_scope_list ) T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack ) 
 
 
 
@@ -924,7 +973,20 @@ X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
 
 
 
-
+val t_scopes_to_pass_def = Define `
+ t_scopes_to_pass (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (t_scope_list_g:t_scope_list_g) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP delta_b x of
+     | SOME (t, tl) => SOME t_scope_list_g
+     | NONE =>
+      (case ALOOKUP delta_g x of
+       | SOME (t, tl) => SOME ([ []; EL 1 t_scope_list_g])
+       | NONE => SOME t_scope_list_g
+      )
+    )
+   | _ => SOME ([ []; EL 1 t_scope_list_g])
+`;
 
 }}
 
@@ -933,7 +995,7 @@ X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
 defns
 WTFg :: '' ::=
 defn
- func_map order t_scope_list_g delta_g  :: :: WTFg :: WTFg_
+ func_map -| order t_scope_list_g delta_g  :: :: WTFg :: WTFg_
 {{ com global functions well typed }}
 {{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] }}
 by
@@ -941,7 +1003,7 @@ by
 WF_o order
 func_map_typed func_map order t_scope_list_g delta_g
 --------------------------------------------------------- :: global
-func_map order t_scope_list_g delta_g
+func_map -| order t_scope_list_g delta_g
 
 
 
@@ -949,7 +1011,7 @@ func_map order t_scope_list_g delta_g
 defns
 WTFb :: '' ::=
 defn
- b_func_map order t_scope_list_g delta_g delta_b delta_x  :: :: WTFb :: WTFb_
+ b_func_map -| order t_scope_list_g delta_g delta_b delta_x  :: :: WTFb :: WTFb_
 {{ com actions and local functions well typed }}
 {{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
 by
@@ -957,7 +1019,7 @@ by
 WF_o order
 func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x
 --------------------------------------------------------- :: block
-b_func_map order t_scope_list_g delta_g delta_b delta_x
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x
 
 
 
@@ -965,7 +1027,7 @@ b_func_map order t_scope_list_g delta_g delta_b delta_x
 defns
 WTX :: '' ::=
 defn
- ext_map order t_scope_list_g delta_x  :: :: WTX :: WTX_
+ ext_map -| order t_scope_list_g delta_x  :: :: WTX :: WTX_
 {{ com extern well typed }}
 {{ tex  [[ext_map]] [[order]] [[t_scope_list_g]] [[delta_x]] }}
 by
@@ -974,7 +1036,7 @@ by
 WF_o order
 extern_map_IoE_typed ext_map order t_scope_list_g delta_x
 --------------------------------------------------------- :: ext
-ext_map order t_scope_list_g delta_x
+ext_map -| order t_scope_list_g delta_x
 
 
 
@@ -984,9 +1046,9 @@ ext_map order t_scope_list_g delta_x
 defns
 WT_c :: '' ::=
 defn
- ctx order t_scope_list_g delta_g delta_b delta_x :: :: WT_c :: WT_c_
+ ctx -| order t_scope_list_g delta_g delta_b delta_x :: :: WT_c :: WT_c_
 {{ com context well typed }}
-{{ tex [[ctx]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
+{{ tex [[ctx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
 by
 
 
@@ -1000,9 +1062,39 @@ dom_x_eq ( delta_x , ext_map )
 Fg_star_defined ( func_map , t_scope_list_g )
 Fb_star_defined ( b_func_map , t_scope_list_g )
 X_star_defined  ( ext_map , t_scope_list_g )
-func_map order t_scope_list_g delta_g
-b_func_map order t_scope_list_g delta_g delta_b delta_x
-ext_map order t_scope_list_g delta_x
+func_map -| order t_scope_list_g delta_g
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x
+ext_map -| order t_scope_list_g delta_x
 --------------------------------------- :: c
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) order t_scope_list_g delta_g delta_b delta_x
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x
+
+
+
+
+
+
+defns
+WT_state :: '' ::=
+defn
+ ctx state Prs_n order t_scopes_tup delta :: :: WT_state :: WT_state_
+{{ com context well typed }}
+{{ tex WT [[ctx]] [[state]] [[Prs_n]] [[order]] [[t_scopes_tup]] [[delta]] }}
+by
+
+%todo: in the previous setting, the status was supposde to be running.
+%This is bad because if it was tran then this will not be WF?
+%TODO add last def.
+
+
+type_state_tsll ( scope_list1 , .. , scope_listn ) t_scope_list
+type_globals_tsl g_scope_list t_scope_list_g
+ctx -| order t_scope_list_g delta_g delta_b delta_x
+---------------------------------------------------------------------- :: state
+ctx ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , Running ) Prs_n order ( t_scope_list_g , t_scope_list ) ( delta_g , delta_b , delta_x , delta_t )
+
+
+
+
+
+
 
