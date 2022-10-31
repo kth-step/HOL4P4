@@ -539,13 +539,13 @@ v : ( tau , b )
 ----------------------------------- :: v
 t_scopes_tup T_e |- v : ( tau , b )
 
-
+not_star (varn)
 tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
 ----------------------------------- :: var
 ( t_scope_list_g , t_scope_list ) T_e |- var varn : ( tau , true )
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
+[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x )
 tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 ----------------------------------- :: star
 ( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- var ( star , funn' ) : ( tau , true )
@@ -1000,7 +1000,7 @@ defn
 {{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] }}
 by
 
-WF_o order
+
 func_map_typed func_map order t_scope_list_g delta_g
 --------------------------------------------------------- :: global
 func_map -| order t_scope_list_g delta_g
@@ -1016,7 +1016,7 @@ defn
 {{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
 by
 
-WF_o order
+
 func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x
 --------------------------------------------------------- :: block
 b_func_map -| order t_scope_list_g delta_g delta_b delta_x
@@ -1033,7 +1033,6 @@ defn
 by
 
 % if this def approved add the WT_XMoE in this rule
-WF_o order
 extern_map_IoE_typed ext_map order t_scope_list_g delta_x
 --------------------------------------------------------- :: ext
 ext_map -| order t_scope_list_g delta_x
@@ -1054,6 +1053,7 @@ by
 
 
 WF_o order
+length_is_2 ( t_scope_list_g )
 dom_map_neq ( func_map , b_func_map )
 dom_tmap_neq ( delta_g , delta_b )
 dom_g_eq ( delta_g , func_map )
@@ -1083,6 +1083,7 @@ by
 
 %todo: in the previous setting, the status was supposde to be running.
 %This is bad because if it was tran then this will not be WF?
+
 %TODO add last def.
 
 

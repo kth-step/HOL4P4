@@ -602,7 +602,10 @@ formula :: formula_ ::=
   {{ hol ( WF_o [[order]] )}}
 | MEM x x_list :: :: x_in_xlist
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
-
+| not_star ( varn ) :: :: not_star  
+  {{ hol ( ! funn.  [[varn]] <> (varn_star funn) ) }} 
+| length_is_2 ( t_scope_list_g ) :: M :: length_is_2
+  {{ hol ( 2 = LENGTH [[t_scope_list_g]] ) }}
 
 | func_map_typed func_map order t_scope_list_g delta_g :: ::  func_map_typed 
   {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] ) }} 
