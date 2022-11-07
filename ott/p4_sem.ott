@@ -611,8 +611,10 @@ formula :: formula_ ::=
   {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] ) }} 
 | func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x :: :: func_map_blk_typed
   {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }} 
-| extern_map_IoE_typed ext_map order t_scope_list_g delta_x :: :: extern_map_IoE_typed
-  {{ hol ( extern_map_IoE_typed [[ext_map]] [[order]] [[t_scope_list_g]] [[delta_x]] ) }}
+| extern_map_IoE_typed ext_map t_scope_list_g delta_x :: :: extern_map_IoE_typed
+  {{ hol ( extern_map_IoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_x]] ) }}
+| extern_MoE_typed ext_map t_scope_list_g delta_x :: :: extern_MoE_typed
+  {{ hol extern_MoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_x]] }}  
 | dom_map_neq ( func_map , b_func_map ) :: :: dom_map_neq
   {{ hol ( dom_map_neq [[func_map]] [[b_func_map]] ) }}
 | dom_tmap_neq ( delta_g , delta_b ) :: :: dom_tmap_neq
@@ -634,8 +636,8 @@ formula :: formula_ ::=
   {{ hol ( type_ith_stmt [[t_scope_list_g]] [[t_scope_list]] [[T_e]] [[Prs_n]] [[stmt_stack]] ) }}
 | type_frame_tsl scope_list t_scope_list :: :: type_frame_tsl
   {{ hol ( type_frame_tsl [[scope_list]] [[t_scope_list]] ) }}
-| type_globals_tsl g_scope_list t_scope_list_g :: :: type_globals_tsl
-  {{ hol ( type_globals_tsl [[g_scope_list]] [[t_scope_list_g]] ) }}
+| type_scopes_list g_scope_list t_scope_list_g :: :: type_scopes_list
+  {{ hol ( type_scopes_list [[g_scope_list]] [[t_scope_list_g]] ) }}
 | type_state_tsll ( scope_list1 , .. , scope_listn ) t_scope_list :: :: type_state_tsll
   {{ hol ( type_state_tsll [[scope_list1 .. scope_listn]] [[t_scope_list]] )  }}
 
@@ -1179,6 +1181,20 @@ val slice_def = Define `
   slice (v, n) (vec1, len1) (vec2, len2) = bitv_bitslice (v , n) (v2n (vec1)) (v2n (vec2))
 `;
 
+
+(* given an lval being a slicing operation, take only the parts that are required in the slicing *)
+val slice_lval_def = Define `
+  (slice_lval (v_bit (v, bl)) (e1) (e2) =
+     ( case e1 of
+     | (e_v (v_bit (v1, bl1))) =>
+       ( case e2 of
+       | (e_v (v_bit (v2, bl2))) => SOME ( v_bit (slice (v, bl) (v1, bl1) (v2, bl2)) )
+       | _ => NONE )
+     | _ => NONE
+     ))
+`;
+
+
 val is_var_def = Define `
   (is_var (e_var _) = T) /\
   (is_var _ = F)
@@ -1271,14 +1287,20 @@ val lookup_vexp2_def = Define `
 
 
 
-(* Look up the value of a l-value (variables + fields of struct-valued variables) in
- * a scope stack. *)
+(* Look up the value of a l-value (variables + fields of struct-valued variables + slice) in
+ * a scope stack. 
+ * for the slicing operation, e1 and e2 needs to be strictly v bits *)
 val lookup_lval_def = Define `
   (lookup_lval (ss:scope list) (lval_varname x) = lookup_v ss x) /\
   (lookup_lval (ss:scope list) (lval_field lval f) =
      case lookup_lval ss lval of
      | SOME v => acc_f v f
-     | NONE => NONE)
+     | NONE => NONE) /\
+ (lookup_lval (ss:scope list) (lval_slice lval e1 e2) =
+    case lookup_lval ss lval of
+     | SOME (v_bit (v, bl)) => (slice_lval (v_bit (v, bl)) e1 e2)
+     | _ => NONE
+     )
 `;
 
 (* TODO: This is ambiguous with regard to inout... *)
@@ -1300,11 +1322,16 @@ val is_d_out_def = Define `
   (is_d_out _ = F)
 `;
 
+
 val get_lval_of_e_def = Define `
   (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
   (get_lval_of_e (e_acc e x) =
    case get_lval_of_e e of
    | SOME lval => SOME (lval_field lval x)
+   | NONE => NONE) /\
+   (get_lval_of_e (e_slice e ev1 ev2) =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_slice lval ev1 ev2)
    | NONE => NONE) /\
   (get_lval_of_e _ = NONE)
 `;
@@ -1505,6 +1532,7 @@ val copyin_def = Define `
  * in the topmost scope where a is defined,
  * written as ε[a -> v], colloquially known as assignment.
  * Note that this function is used in the assignment and return rules *)
+ (*TODO: fix assignment to include the slicing*)
 val assign_def = Define `
   (assign ss v (lval_varname x) =
     case find_topmost_map ss x of
@@ -1635,13 +1663,13 @@ val lookup_funn_sig_body_def = Define `
      )
     | (funn_inst x) =>
      (case ALOOKUP ext_map x of
-      | SOME (SOME (stmt, x_d_l, _), _) => SOME (stmt, x_d_l)
+      | SOME (SOME (x_d_l, _), _) => SOME (stmt_ext, x_d_l)
       | _ => NONE)
     | (funn_ext x x') =>
      (case ALOOKUP ext_map x of
       | SOME (_, ext_fun_map) =>
        (case ALOOKUP ext_fun_map x' of
-	      | SOME (stmt, x_d_l, _) => SOME (stmt, x_d_l)
+	      | SOME (x_d_l, _) => SOME (stmt_ext, x_d_l)
 	      | _ => NONE)
       | _ => NONE)
   )
@@ -1791,13 +1819,13 @@ val lookup_ext_fun_def = Define `
    case ALOOKUP ext_map f of
    | SOME (_, ext_fun_map) =>
     (case ALOOKUP ext_fun_map f' of
-     | SOME (_, _, ext_fun) =>
+     | SOME (_, ext_fun) =>
       SOME ext_fun
      | NONE => NONE)
    | NONE => NONE) /\
   (lookup_ext_fun (funn_inst f) ext_map =
    case ALOOKUP ext_map f of
-   | SOME (SOME (_, _, ext_fun), _) =>
+   | SOME (SOME (_, ext_fun), _) =>
     SOME ext_fun
    | NONE => NONE) /\
   (lookup_ext_fun (funn_name f) ext_map = NONE)
