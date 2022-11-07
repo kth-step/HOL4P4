@@ -144,15 +144,6 @@ varn :: varn_ ::=
 | ( star , funn ) :: :: star 
   {{ com function return placeholder }}
 
-lval :: lval_ ::=
-| varn :: :: varname
-  {{ com variable name }}
-| null :: :: null
-  {{ com null variable }} 
-| lval . f :: :: field
-  {{ com field access }}
-| ( lval ) :: X :: paren
-  {{ hol ([[lval]]) }}
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -170,25 +161,6 @@ status {{ tex t }}:: status_ ::=
 | Trans x :: I :: trans
   {{ com transition to parser state }}
   {{ tex { \mathbf{tra} \; [[x]] } }}
-
-%This is the structure that maps variable names to values (and with copy-out variables)
-scope {{ tex \gamma }} :: scope_ ::=
-{{ hol ((varn, (v # lval option)) alist) }}
-{{ com variable environment of current scope }}
-| empty :: M :: empty
-  {{ com empty scope }}
-  {{ hol [] }}
-  {{ tex {\gamma}_{\emptyset} }}
-| ( scope ) :: S :: paren
-  {{ hol ([[scope]]) }}
-  {{ tex  [[scope]] }}
-
-%A global scope is of the same type as a regular scope, but is used and typeset differently
-g_scope {{ tex \gamma_{ \mathrm{G} } }} :: g_scope_ ::=
-{{ com global scope }}
-{{ hol scope }}
-| scope :: M :: global
-  {{ hol ([[scope]]) }}
 
 mk {{ tex \mathit{mk} }} :: mk_ ::=
 {{ com matching kinds }}
@@ -353,7 +325,48 @@ e_list :: e_list_ ::=
 | ( e_list ) :: S :: paren
   {{ hol ([[e_list]]) }}
 
-%Fence between elist and g_scope_list
+
+lval :: lval_ ::=
+| varn :: :: varname
+  {{ com variable name }}
+| null :: :: null
+  {{ com null variable }} 
+| lval . f :: :: field
+  {{ com field access }}
+| lval [ e1 : e2 ]  :: :: slice
+  {{ com slice array }}  
+| ( lval ) :: X :: paren
+  {{ hol ([[lval]]) }}
+
+
+embed
+{{ hol
+
+}}
+grammar
+
+%This is the structure that maps variable names to values (and with copy-out variables)
+scope {{ tex \gamma }} :: scope_ ::=
+{{ hol ((varn, (v # lval option)) alist) }}
+{{ com variable environment of current scope }}
+| empty :: M :: empty
+  {{ com empty scope }}
+  {{ hol [] }}
+  {{ tex {\gamma}_{\emptyset} }}
+| ( scope ) :: S :: paren
+  {{ hol ([[scope]]) }}
+  {{ tex  [[scope]] }}
+
+%A global scope is of the same type as a regular scope, but is used and typeset differently
+g_scope {{ tex \gamma_{ \mathrm{G} } }} :: g_scope_ ::=
+{{ com global scope }}
+{{ hol scope }}
+| scope :: M :: global
+  {{ hol ([[scope]]) }}
+
+
+
+%Fence between gscope and g_scope_list
 embed
 {{ hol
 
@@ -592,10 +605,11 @@ b_func_map {{ tex F_b }} :: b_func_map_ ::=
 {{ hol ((string, (stmt # (string # d) list)) alist) }}
 
 %This maps extern function names of an individual object obj to their implementations
-%Note the stmt in order to accommodate return by using return statements
+% method signature sig is = ((string # d) list # ext_fun) 
+
 ext_fun_map {{ tex X_{ \mathrm{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
-{{ hol ((string, (stmt # (string # d) list # ext_fun)) alist) }}
+{{ hol ((string, ((string # d) list # ext_fun)) alist) }}
 
 %Fence between ext_fun_map and ext_map
 embed
@@ -607,7 +621,7 @@ grammar
 %This maps extern object names to tuples of optional constructors and the function map of the object in question
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol ((string, (((stmt # (string # d) list # ext_fun) option) # ext_fun_map)) alist) }}
+{{ hol ((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist) }}
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
