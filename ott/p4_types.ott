@@ -819,7 +819,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    (ALOOKUP func_map x = SOME (stmt, xdl)) )
    ==>
    (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] ) /\
-   (xl = mk_varn  (FST (UNZIP xdl ))) /\
+   (xl = mk_varn  (FST (UNZIP xdl ))) /\ (*this also ensures that there is not a star in the domain of the new scope*)
    (tl = FST (UNZIP tdl )) /\
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
@@ -867,9 +867,10 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    (t_scope' = ZIP (xl , tl ) ) /\ 
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
 	 ALL_DISTINCT (FST (UNZIP xdl)) /\
-	 [local_scope] = declare_list_in_fresh_scope ( t_scope' ) /\
-	 SOME (a',scope_list', v) = IoE (a,g_scope_list, [ [local_scope] ]) /\
+	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
+	 SOME (a',scope_list', v) = IoE (a,g_scope_list, [local_scope] ) /\
 	 v_typ v tau F /\
+   star_not_in_sl (scope_list') /\
 	 type_scopes_list scope_list' [t_scope']
 `;
 
@@ -879,9 +880,9 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 val extern_MoE_typed_def = Define `
 extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 
-! f xdl xdl' xl tl x x' IoE MoE MoE_map tdl tau t_scope' (a:'a) (a':'a) (g_scope_list:g_scope_list)  (scope_list': scope list) (v:v) local_scope .
+! f xdl xl tl x x' IoEsig MoE MoE_map tdl tau t_scope' (a:'a) (a':'a) (g_scope_list:g_scope_list)  (scope_list': scope list) (v:v) local_scope .
          f = funn_ext x x' /\
-	 ALOOKUP ext_map x = SOME (SOME (xdl',IoE),MoE) /\
+	 ALOOKUP ext_map x = SOME (IoEsig, MoE) /\
 	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
    
          SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
@@ -890,9 +891,10 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    (t_scope' = ZIP (xl , tl ) ) /\ 
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
 	 ALL_DISTINCT (FST (UNZIP xdl)) /\
-	 [local_scope] = declare_list_in_fresh_scope ( t_scope' ) /\
-	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, [ [local_scope] ] )) /\
+	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
+	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, [local_scope]  )) /\
 	 v_typ v tau F /\
+   star_not_in_sl (scope_list') /\
 	 type_scopes_list scope_list' [t_scope']
 `;
 
