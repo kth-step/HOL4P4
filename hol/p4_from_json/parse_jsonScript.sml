@@ -1,329 +1,629 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib Parse bossLib ;
+open BasicProvers boolSimps markerLib optionTheory ;
+open listTheory rich_listTheory ;
+open stringTheory ASCIInumbersTheory arithmeticTheory ;
+
+(*
+ * This file offers functionality to evaluate a term given preconditions.
+ * This is a copy of functionality hosted in a branch of a HOL4 fork:
+ *   https://github.com/kth-step/HOL/tree/json
+ *)
 
 val _ = new_theory "parse_json";
 
-open stringTheory;
+(*
+HOL4 integer operations are not evaluatable:
+EVAL ``int_lt (-1:int) 0``
+(Some kind of of zero comparison would be critical to the json_to_string_def function)
 
-(* TODO: Cannot make object finite map due to HOL4 definitional mechanism... *)
-(* TODO: Keeping this very readable (i.e. Object instead of json_obj) for now,
- * since you might actually want to look at the parser's output *)
+Therefore, integers are stored using a bool flag for sign (T means negative) and a regular num,
+with a separate converter function to HOL4 integers, reals et.c. as future work.
+*)
 Datatype:
- json_t =
-    Object json_kv_map_t
-  | Array (json_t list)
-  | String string
-  | Number num
-  | Boolean bool
-  | Null ;
-
- json_kv_map_t = Map ((string # json_t) list)
+  sign =
+     Positive
+   | Negative
+End
+Datatype:
+  json =
+     Object ((string # json) list)
+   | Array (json list)
+   | String string
+   | Number (sign # num) (num option) ((sign # num) option)
+   | Bool bool
+   | Null
 End
 
-Definition kv_map_empty:
- kv_map_empty = Map []
+val json_size_def = fetch "-" "json_size_def";
+
+Theorem json_size_MEM1:
+  !l a. MEM a l ==> json_size a < json3_size l
+Proof
+  Induct >> rw[json_size_def]
+  >> res_tac
+  >> fs[]
+QED
+
+Theorem json_size_MEM2:
+  !l a. MEM a l ==> json_size (SND a) + list_size char_size (FST a) < json1_size l
+Proof
+  Induct >> fs[json_size_def]
+  >> gen_tac >> PairCases
+  >> rw[]
+  >> res_tac >> fs[json_size_def]
+QED
+
+Definition concat_with_def:
+  (concat_with [] c = []) /\
+  (concat_with [s] c = s) /\
+  (concat_with (s::ss) c = s ++ (c ++ concat_with ss c))
 End
 
-Definition kv_map_add:
- kv_map_add (k,v) (Map l) = Map ((k,v)::l)
+Theorem concat_with_CONS_eq:
+  !ls x t. concat_with (x::ls) t
+    = (if ~NULL ls then (x ++ t) else x) ++ (concat_with ls t)
+Proof
+  Cases >> fs[concat_with_def]
+QED
+
+Theorem concat_with_APPEND:
+  !ls ls' t. concat_with (ls ++ ls') t = ((concat_with ls t) ++
+    (if ~NULL ls /\ ~NULL ls' then t else []) ++ (concat_with ls' t))
+Proof
+  Induct
+  >> rw[concat_with_def]
+  >> fs[PULL_FORALL,iffLR NULL_EQ,concat_with_def,concat_with_CONS_eq]
+  >> IF_CASES_TAC
+  >> fs[NULL_EQ]
+QED
+
+Theorem concat_with_REVERSE:
+  !ls t. REVERSE $ concat_with ls t = concat_with (REVERSE $ MAP REVERSE ls) (REVERSE t)
+Proof
+  Induct
+  >> fs[concat_with_def]
+  >> rpt gen_tac
+  >> qmatch_goalsub_rename_tac `h::ls`
+  >> Cases_on `ls`
+  >> fs[concat_with_def]
+  >> simp[concat_with_APPEND,concat_with_def]
+QED
+
+Definition printable_def:
+  printable c <=> 32 <= ORD c /\ ORD c < 127 /\ c <> #"\"" /\ c <> #"\\"
 End
 
-Definition kv_map_reverse:
- kv_map_reverse (Map l) = Map (REVERSE l)
+Definition num_to_hex_digit_def:
+  num_to_hex_digit n =
+    if n < 10 then [CHR (48 + n)] else
+    if n < 16 then [CHR (55 + n)] else []
 End
 
-Definition sym_list:
- sym_list = [#"["; #"]"; #","; #":"; #"{"; #"}"]
+Definition n_rev_hex_digs_def:
+  n_rev_hex_digs 0 x = [] /\
+  n_rev_hex_digs (SUC n) x = (num_to_hex_digit (x MOD 16) ++
+    n_rev_hex_digs n (x DIV 16))
 End
 
-Definition is_sym:
- is_sym char =
-  if MEM char sym_list
-  then T
-  else F
+Definition encode_str_def:
+  encode_str unicode s =
+  let s2 = EXPLODE s in
+  if EVERY printable s2 then s
+  else FLAT $ MAP (λc.
+    if printable c then [c]
+    else if unicode then ("\\u" ++ (REVERSE $ n_rev_hex_digs 4 (ORD c)))
+    else "\\" ++ (toString (ORD c))
+  ) s2
 End
+
+(*
+Example:
+EVAL ``json_to_string $ Object [("a", String "\t")]``
+*)
+
+(* Note: this exclusively uses "big-E" exponential notation *)
+Definition json_to_string_def:
+  (json_to_string obj =
+    case obj of
+    | Object mems => ["{"] ++
+             concat_with (MAP mem_to_string mems) [","] ++
+             ["}"]
+    | Array obs => ["["] ++
+             concat_with (MAP json_to_string obs) [","] ++
+             ["]"]
+    | String s => [CONCAT ["\""; encode_str T s; "\""]]
+    | Number (sign, integer) frac_opt exp_opt =>
+      [if sign = Negative then CONCAT ["-"; toString integer] else toString integer] ++
+      (case frac_opt of
+       | SOME fraction => [CONCAT ["."; toString fraction]]
+       | NONE => []) ++
+      (case exp_opt of
+       | SOME (exp_sign, exp) =>
+         [if exp_sign = Negative then CONCAT ["-"; toString exp] else toString exp]
+       | NONE => [])
+    | Bool b => if b then ["true"] else ["false"]
+    | Null => ["null"])
+  /\
+  (mem_to_string n_obj = let (n, obj) = n_obj in
+       [CONCAT ["\""; n; "\""]]
+       ++ [":"] ++ json_to_string obj)
+Termination
+   WF_REL_TAC `measure (\x. case x of
+       | INL obj => json_size obj
+       | INR p => json2_size p)`
+  >> rw[]
+  >> imp_res_tac json_size_MEM1
+  >> imp_res_tac json_size_MEM2
+  >> fs[]
+End
+
+(* lexing *)
 
 Datatype:
- json_token_t =
-    token_id string
-  | token_str string
-  | token_sym char
-  | token_num num
+  token =
+    OBJOPEN | OBJCLOSE | COLON
+  | ARROPEN | ARRCLOSE | COMMA
+  | NULL
+  | BOOL bool
+  | Str string
+  | NUM (sign # num) (num option) ((sign # num) option)
 End
 
-(*********)
-(* LEXER *)
-
-Definition lex_id:
- (lex_id [] (acc, i) token_l = SOME (((token_id (REVERSE acc))::token_l), i)) /\
- (lex_id (h::t) (acc, i) token_l =
-  if (isAlphaNum h \/ (h = #"_"))
-  then lex_id t ((h::acc), i+1) token_l
-  else SOME (((token_id (REVERSE acc))::token_l), i))
+Definition is_whitespace_def:
+  is_whitespace c = MEM c "\u0020\u000A\u000D\u0009"
 End
 
-Theorem lex_id_index_incr:
- !str acc i token_l token_l' i'.
- (lex_id str (acc, i) token_l = SOME (token_l', i')) ==>
- (i' >= i)
+Definition lex_bool_def:
+  lex_bool cs =
+    case cs of
+    | #"t"::#"r"::#"u"::#"e"::cs => SOME (BOOL T, cs)
+    | #"f"::#"a"::#"l"::#"s"::#"e"::cs => SOME (BOOL F, cs)
+    | _ => NONE
+End
+
+Theorem lex_bool_thm:
+  !t cs. lex_bool cs = SOME t <=>
+    (cs = "true" ++ SND t /\ FST t = BOOL T)
+    \/ (cs = "false" ++ SND t /\ FST t = BOOL F)
 Proof
-Induct_on ‘str’ >> (
- fs [lex_id]
-) >>
-REPEAT STRIP_TAC >>
-Cases_on ‘isAlphaNum h ∨ h = #"_"’ >> (
- fs []
-) >> (
- RES_TAC >>
- fs []
-)
+  PairCases
+  >> rw[lex_bool_def,IS_SOME_EXISTS]
+  >> BasicProvers.every_case_tac
+  >> fs[AC CONJ_ASSOC CONJ_COMM]
 QED
 
-Definition lex_str:
- (lex_str [] _ _ = NONE) /\
- (lex_str (h::t) (acc, i) token_l =
-  if (h <> #"\"")
-  then lex_str t ((h::acc), i+1) token_l
-  else SOME (((token_str (REVERSE acc))::token_l), i))
+Definition lex_null_def:
+  lex_null cs =
+    case cs of
+    | #"n"::#"u"::#"l"::#"l"::cs => SOME (NULL, cs)
+    | _ => NONE
 End
 
-Definition str_to_num':
- (str_to_num' [] acc _ = acc) /\
- (str_to_num' (h::t) acc i =
-  str_to_num' t (acc+((ORD h - 48)*i)) (i*10))
-End
-
-Definition str_to_num:
- str_to_num str = str_to_num' (REVERSE str) 0 1
-End
-
-Definition lex_num:
- (lex_num [] (acc, i) token_l = SOME (((token_num (str_to_num acc))::token_l), i)) /\
- (lex_num (h::t) (acc, i) token_l =
-  if isDigit h
-  then lex_num t ((h::acc), i+1) token_l
-  else SOME (((token_num (str_to_num acc))::token_l), i))
-End
-
-Theorem lex_num_index_incr:
- !str acc i token_l token_l' i'.
- (lex_num str (acc, i) token_l = SOME (token_l', i')) ==>
- (i' >= i)
+Theorem lex_null_thm:
+  !t cs. lex_null cs = SOME t <=> cs = "null" ++ SND t /\ FST t = NULL
 Proof
-Induct_on ‘str’ >> (
- fs [lex_num]
-) >>
-REPEAT STRIP_TAC >>
-Cases_on ‘isDigit h’ >> (
- fs []
-) >>
-RES_TAC >>
-fs []
+  PairCases
+  >> rw[lex_null_def,IS_SOME_EXISTS]
+  >> BasicProvers.every_case_tac
+  >> fs[AC CONJ_ASSOC CONJ_COMM]
 QED
 
-Theorem is_alpha_alphanum:
- !c.
- isAlpha c ==>
- isAlphaNum c
+Definition lex_escape_innards_def:
+  (lex_escape_innards [] = NONE)
+  /\ (lex_escape_innards (c::cs) =
+    if MEM c "\"\\/bfnrt" then SOME (c::#"\\"::[],cs) else
+    if c <> #"u" then NONE else
+    case cs of
+    | a::b::c::d::cs =>
+      if EVERY isHexDigit [a;b;c;d]
+      then SOME (d::c::b::a::#"u"::#"\\"::[], cs)
+      else NONE
+    | _ => NONE)
+End
+
+Theorem lex_escape_innards_LENGTH:
+  !cs v. lex_escape_innards cs = SOME v
+  ==> IS_SUFFIX cs $ SND v /\ LENGTH $ SND v < LENGTH cs
 Proof
-fs [isAlpha_def, isAlphaNum_def]
+  Cases
+  >> rw[lex_escape_innards_def]
+  >> fs[IS_SUFFIX_APPEND]
+  >> BasicProvers.every_case_tac
+  >> gvs[]
 QED
 
-(* TODO: Also discard line break and whitespace to give JSON format some slack? *)
-val lex = TotalDefn.tDefine "lex" ‘
- (lex ([], token_l) = SOME (REVERSE token_l)) /\
- (lex ((h::t), token_l) =
-  let res_opt =
-   if isSpace h then SOME (t, token_l)
-   else if is_sym h then SOME (t, ((token_sym h)::token_l))
-   else if (isAlpha h \/ h = #"_") then
-    (case lex_id (h::t) ([], 0) token_l of
-     | SOME (token_l', i) => SOME (DROP i (h::t), token_l')
-     | NONE => NONE)
-   else if h = #"\"" then 
-    (case lex_str t ([], 0) token_l of
-     | SOME (token_l', i) => SOME (DROP (i+1) t, token_l')
-     | NONE => NONE)
-   else if isDigit h then 
-    (case lex_num (h::t) ([], 0) token_l of
-     | SOME (token_l', i) => SOME (DROP i (h::t), token_l')
-     | NONE => NONE)
-   else NONE
-  in
-  case res_opt of
-  | SOME res => lex res
-  | NONE => NONE)’ (
-WF_REL_TAC `measure (\(str, token_l). STRLEN str)` >>
-REPEAT STRIP_TAC >>
-Cases_on ‘isSpace h’ >> (
- fs []
-) >>
-Cases_on ‘is_sym h’ >> (
- fs []
-) >>
-Cases_on ‘isAlpha h’ >> (
-  fs [lex_id, is_alpha_alphanum]
-) >| [
- Cases_on ‘lex_id t (STRING h "",1) token_l’ >> (
-  fs []
- ) >>
- Cases_on ‘x’ >> (
-  fs []
- ) >>
- IMP_RES_TAC lex_id_index_incr >>
- rw [],
-
- Cases_on ‘h = #"_"’ >> (
-  fs [lex_id]
- ) >- (
-  Cases_on ‘lex_id t ("_",1) token_l’ >> (
-   fs []
-  ) >>
-  Cases_on ‘x’ >> (
-   fs []
-  ) >>
-  IMP_RES_TAC lex_id_index_incr >>
-  rw []
- ) >>
- Cases_on ‘h = #"\""’ >> (
-  fs []
- ) >| [
-  Cases_on ‘lex_str t ("",0) token_l’ >> (
-   fs []
-  ) >>
-  Cases_on ‘x’ >> (
-   fs []
-  ) >>
-  rw [],
-
-  Cases_on ‘lex_num (STRING h t) ("",0) token_l’ >> (
-   fs [lex_num]
-  ) >>
-  Cases_on ‘x’ >> (
-   fs []
-  ) >>
-  rfs [] >>
-  IMP_RES_TAC lex_num_index_incr >>
-  rw []
- ]
-]
-);
-
-(**********)
-(* PARSER *)
-
-Definition parse_token_id:
-parse_token_id id =
- if id = "null"
- then SOME Null
- else if id = "true"
- then SOME (Boolean T)
- else if id = "false"
- then SOME (Boolean F)
- else NONE
+Definition lex_str_def:
+ (lex_str [] _ = NONE) /\
+ (lex_str (c::cs) acc =
+  if c <> #"\\" then
+    if c = #"\"" then
+      SOME (Str (REVERSE acc), cs)
+    else lex_str cs (c::acc)
+  else
+    case lex_escape_innards cs of
+    | NONE => NONE
+    | SOME (esc, cs) => lex_str cs (esc ++ acc))
+Termination
+  WF_REL_TAC `measure $ LENGTH o FST` >> rw[]
+  >> dxrule_then assume_tac lex_escape_innards_LENGTH
+  >> fs[]
 End
 
-Definition sum_size:
- (sum_size (INR (INR (INR (kv_map:json_kv_map_t, token_l:json_token_t list)))) = LENGTH token_l) /\
- (sum_size (INR (INR (INL (kv_map:json_kv_map_t, token_l:json_token_t list)))) = LENGTH token_l) /\
- (sum_size (INR (INL (jsons:json_t list, token_l:json_token_t list))) = LENGTH token_l) /\
- (sum_size (INL (jsons:json_t list, token_l:json_token_t list, expect_v:bool)) =
-   LENGTH token_l)
+Theorem lex_str_LENGTH:
+  !cs acc v. lex_str cs acc = SOME v
+  ==> IS_SUFFIX cs $ SND v /\ LENGTH $ SND v < LENGTH cs
+Proof
+  gen_tac
+  >> completeInduct_on `LENGTH cs`
+  >> fs[PULL_FORALL,AND_IMP_INTRO]
+  >> Cases
+  >> fs[lex_str_def]
+  >> rpt gen_tac >> strip_tac
+  >> BasicProvers.every_case_tac >> fs[]
+  >> imp_res_tac lex_escape_innards_LENGTH
+  >> gvs[]
+  >- gvs[IS_SUFFIX_APPEND]
+  >- gvs[IS_SUFFIX_APPEND]
+  >- (
+    first_x_assum $ drule_at Any
+    >> rw[IS_SUFFIX_APPEND]
+    >> qmatch_goalsub_rename_tac `STRING h (STRCAT l _)`
+    >> qexists_tac `h::l`
+    >> fs[]
+  )
+  >- (
+    first_x_assum $ drule_at Any
+    >> rw[IS_SUFFIX_APPEND]
+    >> qmatch_goalsub_rename_tac `STRING h (STRCAT l _)`
+    >> qexists_tac `h::l`
+    >> fs[]
+  )
+  >> first_x_assum $ drule_at Any
+  >> fs[IS_SUFFIX_APPEND]
+  >> rw[]
+  >> qmatch_goalsub_rename_tac `STRCAT l (STRCAT l' _)`
+  >> qexists_tac `STRCAT (#"\\"::l) l'`
+  >> fs[]
+QED
+
+(*
+Example:
+EVAL ``lex_num "21149a" 0``
+*)
+
+Definition lex_num_def:
+  lex_num [] acc = (acc,[]) /\
+  (lex_num (c::cs) acc =
+    if isDigit c then
+      lex_num cs (acc * 10 + (ORD c - ORD #"0"))
+    else (acc, c::cs))
 End
 
-(* TODO: This should ideally return NONE for malformed input in a lot more places *)
-val [parse_json_def, parse_json_delim_def, parse_kv_def, parse_kv_delim_def] =
- CONJUNCTS $ TotalDefn.tDefine "parse_json_kv_def"
- ‘(parse_json jsons token_l expect_v =
-    case token_l of
-    | [] =>
-     if expect_v
-     then NONE
-     else SOME (REVERSE jsons, [])
-    | ((token_str str)::token_l') =>
-     if expect_v
-     then SOME ([String str], token_l')
-     else parse_json_delim ((String str)::jsons) token_l'
-    | ((token_id id)::token_l') =>
-     (case parse_token_id id of
-      | SOME json_id =>
-       if expect_v
-       then SOME ([json_id], token_l')
-       else parse_json_delim (json_id::jsons) token_l'
-      | NONE => NONE)
-    | ((token_num n)::token_l') =>
-     if expect_v
-     then SOME ([Number n], token_l')
-     else parse_json_delim ((Number n)::jsons) token_l'
-    | ((token_sym #"[")::((token_sym #"]")::token_l')) =>
-     if expect_v
-     then SOME ([Array []], token_l')
-     else parse_json_delim ((Array [])::jsons) token_l'
-    | ((token_sym #"[")::token_l') =>
-     (case parse_json [] token_l' F of
-      | SOME (jsons', token_l'') =>
-       (case (LENGTH token_l'' < LENGTH token_l') of
-        | T =>
-         if expect_v
-         then SOME ([Array jsons'], token_l'')
-         else parse_json_delim ((Array jsons')::jsons) token_l''
-        | F => NONE)
-      | _ => NONE)
-    | ((token_sym #"{")::token_l') =>
-     (case parse_kv kv_map_empty token_l' of
-      | SOME (kvs, ((token_sym #"}")::token_l'')) =>
-       (case (LENGTH token_l'' < LENGTH token_l') of
-        | T =>
-         if expect_v
-         then SOME ([Object (kv_map_reverse kvs)], token_l'')
-         else parse_json_delim ((Object (kv_map_reverse kvs))::jsons) token_l''
-        | F => NONE)
-      | _ => NONE)
-    | _ => NONE) /\
- (parse_json_delim jsons token_l =
-   case token_l of
-   | ((token_sym #",")::token_l') =>
-    parse_json jsons token_l' F
-   | ((token_sym #"]")::token_l') =>
-    SOME ((REVERSE jsons), token_l')
-   | [] => SOME (REVERSE jsons, [])
-   | _ => NONE) /\
- (parse_kv kv_map token_l =
-   case token_l of
-   | ((token_id k)::((token_sym #":")::token_l')) =>
-    (case parse_json [] token_l' T of
-     | SOME ([json], token_l'') =>
-      (case (LENGTH token_l'' < LENGTH token_l') of
-       | T =>
-        parse_kv_delim (kv_map_add (k, json) kv_map) token_l''
-       | F => NONE)
-     | _ => NONE)
-   | ((token_str k)::((token_sym #":")::token_l')) =>
-    (case parse_json [] token_l' T of
-     | SOME ([json], token_l'') =>
-      (case (LENGTH token_l'' < LENGTH token_l') of
-       | T =>
-        parse_kv_delim (kv_map_add (k, json) kv_map) token_l''
-       | F => NONE)
-     | _ => NONE)
-   | _ => SOME (kv_map, token_l)) /\
- (parse_kv_delim kv_map token_l =
-   case token_l of
-   | ((token_sym #",")::token_l') => parse_kv kv_map token_l'
-   | ((token_sym #"}")::token_l') => SOME (kv_map,token_l)
-   | _ => NONE)’
-(WF_REL_TAC `measure sum_size` >>
-fs [sum_size])
-;
-
-Definition json_of_string:
-(json_of_string str = 
- case lex (str, []) of
- | SOME token_l =>
-  (case parse_json [] token_l F of
-   | SOME (json, []) => SOME json
-   | _ => NONE)
- | _ => NONE
-)
+Definition lex_int_def:
+  lex_int [] = NONE /\
+  (lex_int (c::cs) =
+    let sign = if c = #"-" then Negative else Positive in
+    let (nat_num, cs') = if sign = Negative then lex_num cs 0 else lex_num (c::cs) 0 in
+    SOME ((sign, nat_num), cs'))
 End
 
-val _ = export_theory ();
+Definition lex_frac_def:
+  lex_frac [] = (NONE, []) /\
+  (lex_frac (c::cs) =
+    if c = #"." then
+      (( \ (a, b). (SOME a, b)) (lex_num cs 0))
+    else (NONE, c::cs))
+End
+
+Definition lex_exp_def:
+  lex_exp [] = (NONE, []) /\
+  (lex_exp (c::cs) =
+    if (c = #"e" \/ c = #"E") then
+      (case lex_int cs of
+        | SOME (int, cs') => (SOME int, cs')
+        | NONE => (NONE, c::cs))
+    else (NONE, c::cs))
+End
+
+(* Note: this function could do with more explicit errors *)
+Definition lex_sci_def:
+  lex_sci [] = NONE /\
+  (lex_sci (c::cs) =
+    case lex_int (c::cs) of
+    | SOME (integer, cs') =>
+      let (frac_opt, cs'') = lex_frac cs' in
+      let (exp_opt, cs''') = lex_exp cs'' in
+        SOME ((integer, frac_opt, exp_opt), cs''')
+    | NONE => NONE)
+End
+
+Theorem lex_num_SUFFIX:
+  !cs n v. lex_num cs n = v ==> IS_SUFFIX cs $ SND v
+Proof
+  Induct
+  >> rw[lex_num_def]
+  >> fs[IS_SUFFIX_APPEND,lex_num_def]
+  >> qmatch_goalsub_abbrev_tac `lex_num cs num`
+  >> first_x_assum $ qspec_then `num` strip_assume_tac
+  >> qexists_tac `h::l`
+  >> fs[]
+QED
+
+Theorem lex_num_LENGTH:
+  !cs n v. lex_num cs n = v /\ cs <> SND v ==> LENGTH $ SND v < LENGTH cs
+Proof
+  rpt strip_tac
+  >> drule_then assume_tac lex_num_SUFFIX
+  >> fs[IS_SUFFIX_APPEND]
+  >> spose_not_then assume_tac
+  >> fs[NOT_LESS]
+QED
+
+Theorem lex_int_SUFFIX:
+  !cs n v. lex_int cs = SOME v ==> IS_SUFFIX cs $ SND v
+Proof
+  rpt strip_tac
+  >> Cases_on `cs`
+  >> (fs[lex_int_def])
+  >> Cases_on `h = #"-"`
+  >> (fs[])
+  >- (Cases_on `lex_num t 0`
+      >> imp_res_tac lex_num_SUFFIX
+      >> gvs[IS_SUFFIX_APPEND])
+  >> Cases_on `lex_num (STRING h t) 0`
+  >> imp_res_tac lex_num_SUFFIX
+  >> gvs[IS_SUFFIX_APPEND]
+QED
+
+Theorem lex_int_LENGTH:
+  !cs v. lex_int cs = SOME v /\ cs <> SND v ==> LENGTH $ SND v < LENGTH cs
+Proof
+  rpt strip_tac
+  >> Cases_on `cs`
+  >> (fs[lex_int_def])
+  >> Cases_on `h = #"-"`
+  >> (fs[])
+  >- (Cases_on `lex_num t 0`
+      >> drule_then assume_tac lex_num_SUFFIX
+      >> gvs[IS_SUFFIX_APPEND])
+  >> Cases_on `lex_num (STRING h t) 0`
+  >> imp_res_tac lex_num_LENGTH
+  >> gvs[]
+QED
+
+Theorem lex_frac_LENGTH:
+  !cs v. lex_frac cs = v /\ cs <> SND v ==> LENGTH $ SND v < LENGTH cs
+Proof
+  rpt strip_tac
+  >> Cases_on `cs`
+  >> (gs[lex_frac_def])
+  >> Cases_on `h = #"."`
+  >> (fs[])
+  >- (Cases_on `lex_num t 0`
+      >> drule_then assume_tac lex_num_SUFFIX
+      >> gvs[IS_SUFFIX_APPEND])
+  >> gvs[]
+QED
+
+Theorem lex_exp_LENGTH:
+  !cs v. lex_exp cs = v /\ cs <> SND v ==> LENGTH $ SND v < LENGTH cs
+Proof
+  rpt strip_tac
+  >> Cases_on `cs`
+  >> (gs[lex_exp_def])
+  >> Cases_on `h = #"e" \/ h = #"E"`
+  >> (gs[])
+  >- (Cases_on `lex_int t`
+      >> (gs[])
+      >- gvs[]
+      >> Cases_on `x`
+      >> imp_res_tac lex_int_SUFFIX
+      >> gvs[IS_SUFFIX_APPEND])
+  >- (Cases_on `lex_int t`
+      >> (gs[])
+      >- gvs[]
+      >> Cases_on `x`
+      >> imp_res_tac lex_int_SUFFIX
+      >> gvs[IS_SUFFIX_APPEND])
+  >> gvs[]
+QED
+
+Theorem lex_sci_LENGTH:
+  !cs n v. lex_sci cs = SOME v /\ cs <> SND v ==> LENGTH $ SND v < LENGTH cs
+Proof
+  rpt strip_tac
+  >> Cases_on `cs`
+  >> (fs[lex_sci_def])
+  >> Cases_on `lex_int (STRING h t)`
+  >> (fs[])
+  >> Cases_on `x`
+  >> fs[]
+  >> Cases_on `lex_frac r`
+  >> fs []
+  >> Cases_on `lex_exp r'`
+  >> gvs[]
+  >> Cases_on `STRING h t <> r`
+  >> (Cases_on `r <> r'`)
+  >> (Cases_on `r' <> r''`)
+  >> (imp_res_tac lex_int_LENGTH
+      >> imp_res_tac lex_frac_LENGTH
+      >> imp_res_tac lex_exp_LENGTH
+      >> gvs[])
+QED
+
+Definition lex_def:
+  (lex [] acc = INL acc)
+  /\ (lex (c::cs) acc =
+    if is_whitespace c then lex cs acc
+    else if c = #":" then lex cs (COLON::acc)
+    else if c = #"," then lex cs (COMMA::acc)
+    else if c = #"{" then lex cs (OBJOPEN::acc)
+    else if c = #"}" then lex cs (OBJCLOSE::acc)
+    else if c = #"[" then lex cs (ARROPEN::acc)
+    else if c = #"]" then lex cs (ARRCLOSE::acc)
+    else if c = #"\"" then
+      case lex_str cs [] of
+      | SOME (tok, cs) => lex cs (tok::acc)
+      | NONE => INR $ "unbalanced string" ++ TAKE 10 (c::cs)
+    else if c = #"t" \/ c = #"f" then
+      case lex_bool (c::cs) of
+      | SOME (tok, cs) => lex cs (tok::acc)
+      | NONE => INR $ "unexpected characters: " ++ TAKE 10 (c::cs)
+    else if c = #"n" then
+      case lex_null (c::cs) of
+      | SOME (tok, cs) => lex cs (tok::acc)
+      | NONE => INR ("unexpected characters: " ++ TAKE 10 (c::cs))
+    else
+      case lex_sci (c::cs) of
+      | SOME ((integer,frac_opt,exp_opt), cs') =>
+       if cs' = c::cs then
+         INR $ "unexpected characters: " ++ TAKE 10 (c::cs)
+       else lex cs' ((NUM integer frac_opt exp_opt)::acc)
+      | NONE => INR $ "unexpected characters: " ++ TAKE 10 (c::cs)
+  )
+Termination
+  WF_REL_TAC `measure $ LENGTH o FST`
+  >> (rw[]
+      >> gs[lex_null_thm,lex_bool_thm])
+  >- (imp_res_tac lex_sci_LENGTH >> gs[])
+  >> (imp_res_tac lex_str_LENGTH >> gs[])
+End
+
+(*
+ * stack of parsed items.
+ *   OBJV is a json value that expects a key, and an object list
+ *   OBJ is an object
+ *   ARR is an array
+*)
+Datatype:
+  parsestack = OBJV json ((string # json) list) | OBJ ((string # json) list) | ARR (json list)
+End
+
+(* parse arguments: token stream, nesting level, json value expected *)
+
+Definition parse_def:
+     parse [] _ T = INL "unexpected EOF"
+  /\ parse (NULL::ts) ns T =
+    (case ns of
+    | (OBJ acc)::ns => parse ts ((OBJV Null acc)::ns) F
+    | (ARR acc)::ns => parse ts ((ARR $ Null::acc)::ns) F
+    | ns => INR (Null, ts, ns))
+  /\ parse ((BOOL b)::ts) ns T =
+    (case ns of
+    | (OBJ acc)::ns => parse ts ((OBJV (Bool b) acc)::ns) F
+    | (ARR acc)::ns => parse ts ((ARR $ (Bool b)::acc)::ns) F
+    | ns => INR (Bool b, ts, ns))
+  /\ parse ((Str s)::ts) ns T =
+    (case ns of
+    | (OBJ acc)::ns => parse ts ((OBJV (String s) acc)::ns) F
+    | (ARR acc)::ns => parse ts ((ARR $ (String s)::acc)::ns) F
+    | ns => INR (String s, ts, ns))
+  /\ parse ((NUM i frac_opt exp_opt)::ts) ns T =
+    (case ns of
+    | (OBJ acc)::ns => parse ts ((OBJV (Number i frac_opt exp_opt) acc)::ns) F
+    | (ARR acc)::ns => parse ts ((ARR $ (Number i frac_opt exp_opt)::acc)::ns) F
+    | ns => INR (Number i frac_opt exp_opt, ts, ns))
+  /\ parse (OBJCLOSE::OBJOPEN::ts) ((ARR acc)::ns) T
+    = parse ts ((ARR $ (Object [])::acc)::ns) F
+  /\ parse (OBJCLOSE::OBJOPEN::ts) ((OBJ acc)::ns) T
+    = parse ts ((OBJV (Object []) acc)::ns) F
+  /\ parse (OBJCLOSE::OBJOPEN::ts) ns T = INR (Object [], ts, ns)
+  /\ parse (OBJCLOSE::ts) ns T = parse ts ((OBJ [])::ns) T
+  /\ parse (ARRCLOSE::ARROPEN::ts) ((ARR acc)::ns) T
+    = parse ts ((ARR $ (Array [])::acc)::ns) F
+  /\ parse (ARRCLOSE::ARROPEN::ts) ((OBJ acc)::ns) T
+    = parse ts ((OBJV (Array []) acc)::ns) F
+  /\ parse (ARRCLOSE::ARROPEN::ts) ns T = INR (Array [], ts, ns)
+  /\ parse (ARRCLOSE::ts) ns T = parse ts ((ARR [])::ns) T
+  /\ parse (ARROPEN::ts) ((ARR aacc)::(OBJ oacc)::ns) F
+    = parse ts ((OBJV (Array aacc) oacc)::ns) F
+  /\ parse (ARROPEN::ts) ((ARR acc)::(ARR acc')::ns) F
+    = parse ts ((ARR $ (Array acc)::acc')::ns) F
+  /\ parse (ARROPEN::ts) ((ARR acc)::ns) F = INR (Array acc, ts, ns)
+  /\ parse (COMMA::ts) ((ARR acc)::ns) F = parse ts ((ARR acc)::ns) T
+  /\ parse (COLON::(Str s)::OBJOPEN::ts) ((OBJV v oacc)::(ARR aacc)::ns) F
+    = parse ts ((ARR $ (Object $ (s,v)::oacc)::aacc)::ns) F
+  /\ parse (COLON::(Str s)::OBJOPEN::ts) ((OBJV v acc)::(OBJ acc')::ns) F
+    = parse ts ((OBJV (Object $ (s,v)::acc) acc')::ns) F
+  /\ parse (COLON::(Str s)::OBJOPEN::ts) ((OBJV v acc)::ns) F
+    = INR (Object $ (s,v)::acc, ts, ns)
+  /\ parse (COLON::(Str s)::COMMA::ts) ((OBJV v acc)::ns) F
+    = parse ts ((OBJ $ (s,v)::acc)::ns) T
+  /\ parse _ _ _ = INL "error"
+End
+
+Definition json_to_tok_def:
+  (json_to_tok obj =
+    case obj of
+        | Object mems =>
+               [OBJCLOSE] ++
+               (REVERSE $ concat_with (MAP mem_to_tok mems) [COMMA]) ++
+               [OBJOPEN]
+        | Array obs =>
+                [ARRCLOSE] ++
+                (REVERSE $ concat_with (MAP json_to_tok obs) [COMMA]) ++
+                [ARROPEN]
+       | String s => [Str s]
+       | Number i frac_opt exp_opt => [NUM i frac_opt exp_opt]
+       | Bool b => [BOOL b]
+       | Null => [NULL])
+  /\
+  (mem_to_tok n_obj = let (n, obj) = n_obj in
+        json_to_tok obj ++ [COLON;Str n])
+Termination
+   WF_REL_TAC `measure (\x. case x of
+       | INL obj => json_size obj
+       | INR p => json2_size p)`
+  >> rw[]
+  >> imp_res_tac json_size_MEM1
+  >> imp_res_tac json_size_MEM2
+  >> fs[]
+End
+
+Theorem lex_json_to_string_eq_json_to_tok:
+  !obj. lex (FLAT $ json_to_string obj) [] = INL $ json_to_tok obj
+Proof
+  cheat
+QED
+
+(* Correctness: serialise then parse *)
+
+Theorem parse_json_to_tok_eq_ID:
+  !obj. parse (json_to_tok obj) [] T = INR (obj,[],[])
+Proof
+  cheat
+QED
+
+Theorem parse_json_to_string_eq_ID:
+  !obj ts. lex (FLAT $ json_to_string obj) [] = INL ts
+  ==> parse ts [] T = INR (obj,[],[])
+Proof
+  fs[lex_json_to_string_eq_json_to_tok,parse_json_to_tok_eq_ID]
+QED
+
+(* Correctness: parse then serialise *)
+
+Theorem json_to_tok_parse_eq_ID:
+  !obj ts. parse ts [] T = INR (obj, [], [])
+  ==> json_to_tok obj = ts
+Proof
+  cheat
+QED
+
+(*
+Examples:
+EVAL ``lex "{}" []``
+EVAL ``lex "\"\"\"" []``
+EVAL ``lex "\"\"" []``
+EVAL ``lex "{ \"a\" : -1 }" []``
+EVAL ``lex "{ \"a\" : -1.3333 }" []``
+EVAL ``lex "{ \"a\" : -1.3333e-10 }" []``
+EVAL ``parse [OBJCLOSE; OBJOPEN] [] T``
+EVAL ``parse [OBJCLOSE; OBJCLOSE; OBJOPEN] [] T``
+EVAL ``parse (OUTL $ lex "{\"1\": {\"2\": {\"3\": [{\"4\": {}}]}}}" []) [] T``
+EVAL ``CONCAT $ json_to_string $ Object [("a",Array [])]``
+EVAL ``CONCAT $ json_to_string $ String "\u0022"``
+*)
+
+val _ = export_theory();
+
