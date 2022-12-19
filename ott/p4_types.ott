@@ -807,7 +807,7 @@ val end_stmt_is_ret_def = Define `
 
 val mk_varn_def = Define `
 mk_varn (xl:string list) =
-FOLDR (\x l.  (varn_name x) :: l ) [] (xl)  
+    MAP (\x. varn_name x ) xl
 `;
 
 
@@ -821,6 +821,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] ) /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\ (*this also ensures that there is not a star in the domain of the new scope*)
    (tl = FST (UNZIP tdl )) /\
+   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
    ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],[])) [] (stmt) ) /\
@@ -841,6 +842,7 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
    (SOME (tdl,tau) = t_lookup_funn f [] delta_b [] ) /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\
    (tl = FST (UNZIP tdl )) /\
+   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
    ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,[])) [] (stmt) ) /\
@@ -864,6 +866,7 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\
    (tl = FST (UNZIP tdl )) /\
+   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (t_scope' = ZIP (xl , tl ) ) /\ 
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
 	 ALL_DISTINCT (FST (UNZIP xdl)) /\
@@ -888,6 +891,7 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
          SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\
    (tl = FST (UNZIP tdl )) /\
+   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (t_scope' = ZIP (xl , tl ) ) /\ 
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
 	 ALL_DISTINCT (FST (UNZIP xdl)) /\
