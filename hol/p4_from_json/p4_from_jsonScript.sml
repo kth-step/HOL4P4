@@ -52,11 +52,11 @@ Definition p4_from_json_preamble:
     then
      (case json_list' of
      | [Array json_list''] => SOME_msg json_list''
-     | _ => NONE_msg "petr4 format error: Array at top level not found")
-    else NONE_msg "petr4 format error: List containing a String and an Array at top level did not have String \"program\" as first element"
+     | _ => NONE_msg "petr4 format error: Top-level List did not have Array as second element")
+    else NONE_msg "petr4 format error: Top level List did not have String \"program\" as first element"
    | _ => NONE_msg "petr4 format error: Empty program")
   | _ => NONE_msg "petr4 format error: JSON was not a singleton list containing an Array at top level")
- | _ => NONE_msg "result of JSON parser did not have expected format"
+ | _ => NONE_msg "output of HOL4 JSON parser did not have expected format"
 )
 End
 
@@ -80,6 +80,9 @@ End
  * ctrl: Cannot be built from petr4 output
  * status: Should always start as Running *)
 
+(********************)
+(* Type definitions *)
+
 (* TODO: Expand as you encounter more types *)
 Definition petr4_parse_type_def:
  petr4_parse_type tyenv json =
@@ -101,7 +104,7 @@ Definition petr4_typedef_to_tyenvupdate_def:
  petr4_typedef_to_tyenvupdate tyenv json =
   case json of
   | Object
-   [("annotations",Array []); ("name",String ty_name);
+   [("annotations",Array annotations); ("name",String ty_name);
     ("typ_or_decl",
      Array
        [String "Left";
@@ -154,6 +157,9 @@ Constant:
               Array [Number (Positive,4) NONE NONE; Bool F])]])]
 *)
 
+(*************)
+(* Constants *)
+
 (* TODO: Use tau here? *)
 Definition petr4_parse_value_def:
  petr4_parse_value tau json =
@@ -188,7 +194,7 @@ Definition petr4_constant_to_scopeupdate_def:
  petr4_constant_to_scopeupdate tyenv json =
   case json of
   | Object
-   [("annotations", Array []);
+   [("annotations", Array annotations);
     ("type", Array json_type);
     ("name", String json_name);
     ("value", Array json_value)] =>
@@ -205,27 +211,121 @@ Definition petr4_parse_constant_def:
  petr4_parse_constant (tyenv, gscope) constant =
   case petr4_constant_to_scopeupdate tyenv constant of
    | SOME (varn, val) => SOME_msg (tyenv, AUPDATE gscope (varn, val))
-   | NONE => NONE_msg "Could not parse constant"
+   | NONE => NONE_msg "Could not parse constant" (* TODO: Print constant name *)
 End
+
+(*******************)
+(* Struct + Header *)
+
+(* TODO: This should work with nested pre-defined header types, but can you write them in-place? *)
+Definition petr4_parse_struct_field_def:
+ petr4_parse_struct_field tyenv struct_field =
+  case struct_field of
+  | Object [("annotations", Array annotations);
+            ("type", Array field_type);
+            ("name", String field_name)] =>
+   (case petr4_parse_type tyenv field_type of
+    | SOME tau => SOME_msg (field_name, tau)
+    | NONE => NONE_msg ("Could not parse type of "++(field_name)++" in struct definition"))
+  | _ => NONE_msg "Could not parse struct field"
+End
+
+(* TODO: Ensure field order is correct *)
+Definition petr4_parse_struct_fields_def:
+ petr4_parse_struct_fields tyenv struct_fields =
+  FOLDR ( \ struct_field res_opt. case res_opt of
+                     | SOME_msg res =>
+                      (case petr4_parse_struct_field tyenv struct_field of
+                       | SOME_msg (field_name, field_type) =>
+                        SOME_msg ((field_name, field_type)::res)
+                       | NONE_msg msg' => NONE_msg msg')
+                     | NONE_msg msg => NONE_msg msg) (SOME_msg []) struct_fields
+End
+
+Definition petr4_struct_to_tyenvupdate_def:
+ petr4_struct_to_tyenvupdate tyenv struct struct_ty =
+  case struct of
+  | Object
+   [("annotations",Array annotations); ("name",String struct_name);
+    ("fields",
+     Array struct_fields)] =>
+   (case petr4_parse_struct_fields tyenv struct_fields of
+    | SOME_msg struct_name_tau_list => SOME_msg (struct_name, tau_xtl struct_ty struct_name_tau_list)
+    | NONE_msg msg => NONE_msg msg)
+  | _ => NONE_msg "Could not parse struct JSON object"
+End
+
+Definition petr4_parse_struct_def:
+ petr4_parse_struct (tyenv, gscope) struct struct_ty =
+  case petr4_struct_to_tyenvupdate tyenv struct struct_ty of
+   | SOME_msg (struct_name, tau) => SOME_msg (AUPDATE tyenv (struct_name, tau), gscope)
+   | NONE_msg msg => NONE_msg ("Could not parse struct: "++msg)
+End
+
+(*************************)
+(* Functions and actions *)
+
+(* TODO: Redundant? *)
+Definition petr4_function_to_fmapupdate_def:
+ petr4_function_to_fmapupdate (tyenv, fmap, gscope) function =
+  case function of
+  | Object
+   [("annotations", Array annotations);
+    ("name", String f_name);
+    ("params", Array params);
+    ("body", Object [("annotations", Array body_annotations); ("statements", Array stmts)])] =>
+   (* TODO: Parse params *)
+   (case petr4_parse_stmts (tyenv, fmap, gscope) stmts of
+    | SOME_msg f_body => SOME_msg (struct_name, tau_xtl struct_ty struct_name_tau_list)
+    | NONE_msg msg => NONE_msg msg)
+  | _ => NONE_msg ("Could not parse function or action: "++f_name)
+End
+
+(* TODO: Decide whether to put function in global or local function map *)
+Definition petr4_parse_function_def:
+ petr4_parse_function (tyenv, fmap, gscope) function =
+  case petr4_struct_to_tyenvupdate (tyenv, fmap, gscope) function of
+   | SOME_msg (f_name, f_args, f_body) => SOME_msg (AUPDATE tyenv (struct_name, tau), gscope)
+   | NONE_msg msg => NONE_msg ("Could not parse struct: "++msg)
+End
+
+(**********************)
+(* Petr4 JSON element *)
+(**********************)
 
 (* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
 Definition petr4_parse_element_def:
  petr4_parse_element res json =
  case json of
+  (* TODO: Many element types just ignored, for now... *)
  | Array [String elem_name; obj] =>
-  if elem_name = "Error" then SOME_msg res (* TODO *)
-  else if elem_name = "MatchKind" then SOME_msg res (* TODO *)
-  else if elem_name = "ExternObject" then SOME_msg res (* TODO *)
-  else if elem_name = "ExternFunction" then SOME_msg res (* TODO *)
-  else if elem_name = "Action" then SOME_msg res (* TODO *)
+  (* TODO: Give Error a separate enumeration map? *)
+  if elem_name = "Error" then SOME_msg res
+  (* TODO: Give MatchKind a separate enumeration map? *)
+  else if elem_name = "MatchKind" then SOME_msg res
+  (* TODO: Ignore, for now? *)
+  else if elem_name = "ExternObject" then SOME_msg res
+  (* TODO: Ignore, for now? *)
+  else if elem_name = "ExternFunction" then SOME_msg res
+  (* TODO: Add to global function map, local ones as appropriate? *)
+  else if elem_name = "Action" then SOME_msg res
+  (* DONE: TypeDefs generate a type map that is checked when later elements are parsed *)
   else if elem_name = "TypeDef" then petr4_parse_typedef res obj
+  (* WIP: Constants are added to the global scope.
+   *      Should be added to compile-time constant map instead... *)
   else if elem_name = "Constant" then petr4_parse_constant res obj
-  else if elem_name = "Struct" then SOME_msg res (* TODO *)
-  else if elem_name = "Header" then SOME_msg res (* TODO *)
-  else if elem_name = "ParserType" then SOME_msg res (* TODO *)
-  else if elem_name = "ControlType" then SOME_msg res (* TODO *)
-  else if elem_name = "PackageType" then SOME_msg res (* TODO *)
+  (* WIP: Added to type map. Needs further validation *)
+  else if elem_name = "Struct" then petr4_parse_struct res obj struct_ty_struct
+  (* WIP: Added to type map. Needs further validation *)
+  else if elem_name = "Header" then petr4_parse_struct res obj struct_ty_header
+  (* TODO: Add to new "block type map" used similarly to the type map *)
+  else if elem_name = "ParserType" then SOME_msg res
+  (* TODO: Add to new "block type map" used similarly to the type map *)
+  else if elem_name = "ControlType" then SOME_msg res
+  (* TODO: Ignore until multi-package support for architectures is added *)
+  else if elem_name = "PackageType" then SOME_msg res
   else NONE_msg ("Unknown element type: "++elem_name)
+  (* TODO: Parser, control, ... *)
  | _ => NONE_msg "Could not recognize JSON element"
 End
 
@@ -261,7 +361,7 @@ Definition p4_from_json_def:
    * ControlType
    * PackageType *)
    (* TODO: Debug here by TAKE-ing different parts of the list *)
-   (case petr4_parse_elements (TAKE 10 json_list) of
+   (case petr4_parse_elements (TAKE 25 json_list) of
     | SOME_msg res =>
      SOME_msg res
     | NONE_msg msg => NONE_msg msg)
@@ -298,6 +398,8 @@ End
 
 (*
 
+(* SIMPLE *)
+
 val simple_in_stream = TextIO.openIn "simple_input.json";
 
 val simple_input = TextIO.inputAll simple_in_stream;
@@ -313,6 +415,7 @@ val simple_parse_clean = EVAL ``p4_from_json ^(rhs $ concl simple_parse_thm)``;
 val list_elems = fst $ listSyntax.dest_list $ snd $ dest_comb $ rhs $ concl simple_parse_clean;
 
 
+(* VSS *)
 
 val vss_in_stream = TextIO.openIn "vss_input.json";
 
@@ -320,10 +423,10 @@ val vss_input = TextIO.inputAll vss_in_stream;
 
 val vss_input_tm = stringLib.fromMLstring vss_input;
 
-(* Takes ~10s *)
+(* Lexing: Takes ~10s *)
 val vss_lex_thm = EVAL ``lex (p4_preprocess_str (^vss_input_tm)) ([]:token list)``;
 
-(* Takes ~10s. *)
+(* Parsing of result of lexing: Takes ~10s. *)
 val vss_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^vss_input_tm)) ([]:token list))) [] T``;
 
 val vss_parse_clean = EVAL ``p4_from_json ^(rhs $ concl vss_parse_thm)``;
