@@ -73,7 +73,7 @@ val sr_strexp_list_def = Define `
 
 
 (****** Subject reduction for str e tup list ******)
-val sr_strexp_tuple_def = Define ` 
+val sr_strexp_tup_def = Define ` 
    sr_strexp_tup (tup : (string#e)) (ty:'a itself)
       =  sr_exp ((SND tup)) (ty:'a itself)
 `;
@@ -695,8 +695,8 @@ val evl_types_vl_F = prove(``
 is_consts (l) /\
 (e_typ (t_scope_list_g,t_scope_list) T_e
           (EL i l)
-          (EL i l') F) ==>
-v_typ (EL i (vl_of_el l)) (EL i l') F ``,
+          (t_tau_tau (EL i l')) F) ==>
+v_typ (EL i (vl_of_el l)) (t_tau_tau (EL i l')) F ``,
 
 Induct_on `l` >>
 Induct_on `l'` >>
@@ -771,8 +771,9 @@ FULL_SIMP_TAC list_ss [CONS, NULL_LENGTH, NULL_DEF, NULL_EQ]
 
 Q.PAT_X_ASSUM ` ∀t_scope_list_g' t_scope_list' T_e'.
           e_typ (t_scope_list_g',t_scope_list') T_e' (EL (i − 2) (TL l))
-            (EL (i − 1) l') F ⇒
-          v_typ (EL (i − 1) (MAP (λe. THE (v_of_e e)) l)) (EL (i − 1) l') F `
+            (t_tau_tau (EL (i − 1) l')) F ⇒
+          v_typ (EL (i − 1) (MAP (λe. THE (v_of_e e)) l))
+            (t_tau_tau (EL (i − 1) l')) F `
 ( STRIP_ASSUME_TAC o (Q.SPECL [`t_scope_list_g`, `t_scope_list`, `T_e`])) >>	  
 
 gvs [] >>
@@ -809,8 +810,8 @@ fs[Once v_typ_cases] );
 val evl_types_vl_blist = prove ( ``
 ∀l l' l'' i t_scope_list_g t_scope_list T_e.
        LENGTH l = LENGTH l' /\ LENGTH l = LENGTH l'' ∧ i < LENGTH l ∧ is_consts l ∧
-       e_typ (t_scope_list_g,t_scope_list) T_e (EL i l) (EL i l') (EL i l'') ⇒
-       v_typ (EL i (vl_of_el l)) (EL i l') F ``,
+       e_typ (t_scope_list_g,t_scope_list) T_e (EL i l) (t_tau_tau (EL i l')) (EL i l'') ⇒
+       v_typ (EL i (vl_of_el l)) (t_tau_tau (EL i l')) F ``,
 
 
 Induct_on `l` >>
@@ -896,8 +897,8 @@ FULL_SIMP_TAC list_ss [CONS, NULL_LENGTH, NULL_DEF, NULL_EQ]
 
 Q.PAT_X_ASSUM ` ∀t_scope_list_g' t_scope_list' T_e'.
           e_typ (t_scope_list_g',t_scope_list') T_e' (EL (i − 2) (TL l))
-            (EL (i − 1) l') (EL (i − 1) l'') ⇒
-          v_typ (EL (i − 1) (MAP (λe. THE (v_of_e e)) l)) (EL (i − 1) l') F `
+            (t_tau_tau (EL (i − 1) l')) (EL (i − 1) l'') ⇒
+          v_typ (EL (i − 1) (MAP (λe. THE (v_of_e e)) l)) (t_tau_tau ((EL (i − 1)) l')) F `
 ( STRIP_ASSUME_TAC o (Q.SPECL [`t_scope_list_g`, `t_scope_list`, `T_e`])) >>	  
 fs[EL_CONS] >>
 fs[PRE_SUB1] 
@@ -2099,9 +2100,6 @@ REPEAT STRIP_TAC >>
 
 Cases_on `f` >| [
 
-
-
-
 fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
 fs[t_lookup_funn_def] >>
 rfs[] >> rw[]  >> 
@@ -2156,10 +2154,52 @@ gvs[]
 ,
 (*extern object instansiation*)
 
-cheat (*until the extern delta def is fixed*)
+fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
+fs[t_lookup_funn_def] >>
+rfs[] >> rw[]  >>
+
+Cases_on `ALOOKUP ext_map s` >>
+Cases_on `ALOOKUP delta_x s` >>
+fs[] >> rw[] >>
+
+PairCases_on `x` >> PairCases_on `x'` >> gvs[] >>
+Cases_on `x0` >> Cases_on `x'0` >> gvs[] >>
+Cases_on `x` >> Cases_on `x'` >> gvs[] >>
+
+fs[WTX_cases] >>
+fs[extern_map_IoE_typed_def] >>
+
+RES_TAC >>
+gvs[]
+
+
+
+
 ,
 
-cheat
+
+fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
+fs[t_lookup_funn_def] >>
+rfs[] >> rw[]  >>
+
+Cases_on `ALOOKUP ext_map s` >>
+Cases_on `ALOOKUP delta_x s` >>
+fs[] >> rw[] >>
+
+PairCases_on `x` >> PairCases_on `x'` >> gvs[] >>
+
+
+
+Cases_on `ALOOKUP x1 s0` >>
+Cases_on `ALOOKUP x'1 s0` >> gvs[] >>
+Cases_on `x` >> Cases_on `x'`  >> gvs[] >>
+
+fs[WTX_cases] >>
+fs[extern_MoE_typed_def] >>
+
+RES_TAC >>
+gvs[]
+
 ]
 
 );
@@ -4638,7 +4678,15 @@ IMP_RES_TAC INDEX_FIND_same_list >> fs[] >>
 gvs[] >>
 RES_TAC >>
 
-` v = EL q (MAP (λ(x_,v_,tau_). v_) x_v_tau_list)` by cheat >>  (* trivial proof *)
+(subgoal ` v = EL q (MAP (λ(x_,v_,tau_). v_) x_v_tau_list)` >-
+(
+
+`EL q (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) = (x0',v)` by fsrw_tac [] [ INDEX_FIND_EQ_SOME_0] >>
+IMP_RES_TAC EL_simp5 >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`v`, `x0'`])) >>
+gvs[]
+
+)) >>
 
 gvs[]
 
@@ -4945,8 +4993,6 @@ star_not_in_sl scopest /\
               (EL i (MAP (λ(e_,x_,d_). e_) e_x_d_list))
               (t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) e_tau_d_b_list)))
               (EL i (MAP (λ(e_,tau_,d_,b_). b_) e_tau_d_b_list))) /\
-(* check_args_red (MAP (λ(e_,x_,d_). d_) e_x_d_list)
-               (MAP (λ(e_,x_,d_). e_) e_x_d_list) /\ *)
 wf_arg_list (MAP (λ(e,x,d). d) e_x_d_list) 
             (MAP (λ(e,x,d). x) e_x_d_list) (MAP (λ(e,x,d). e) e_x_d_list)
             (scopest ⧺ gscope) /\
@@ -5147,7 +5193,7 @@ gvs[] >>
 
 
 
-
+cheat
 
 
 (****************)
@@ -5511,11 +5557,14 @@ srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
 
 (****************)
 (*  binop       *)
-(****************)  cheat
+(****************)  
 
-SIMP_TAC (srw_ss()) [sr_exp_def] >>
 REPEAT STRIP_TAC  >>
-Cases_on `b` >| [
+SIMP_TAC (srw_ss()) [sr_exp_def] >>
+REPEAT STRIP_TAC  >| [
+(*e type*)
+Cases_on `b`  >|[
+
 (*this section  works from mul to shr  so first 7 cases +(and+oxor+or) *)
 
 OPEN_EXP_RED_TAC ``(e_binop e _ e')`` >>
@@ -5524,6 +5573,7 @@ RW_TAC (srw_ss()) [] >>
 OPEN_EXP_TYP_TAC ``(e_binop e _ e')`` >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >> 
 rfs[is_bool_op_def, is_bv_bool_op_def, is_bv_op_def] >> rw[] >| [
+
 
 Q.PAT_X_ASSUM `sr_exp e ty`
 ((STRIP_ASSUME_TAC o (Q.SPECL
@@ -5534,7 +5584,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`(tau_bit w)`,
+`t_tau_tau (tau_bit w)`,
 `b`,
 `c`,
 `order`,
@@ -5542,7 +5592,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 
@@ -5562,7 +5612,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`(tau_bit w)`,
+`t_tau_tau (tau_bit w)`,
 `b''`,
 `c`,
 `order`,
@@ -5570,7 +5620,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5615,7 +5665,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`(tau_bit w)`,
+`t_tau_tau (tau_bit w)`,
 `b`,
 `c`,
 `order`,
@@ -5623,7 +5673,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5646,7 +5696,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`(tau_bit w)`,
+`t_tau_tau (tau_bit w)`,
 `b''`,
 `c`,
 `order`,
@@ -5654,7 +5704,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5709,7 +5759,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bool`,
+`t_tau_tau tau_bool`,
 `b`,
 `c`,
 `order`,
@@ -5717,7 +5767,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5744,7 +5794,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bit w`,
+`t_tau_tau (tau_bit w)`,
 `b`,
 `c`,
 `order`,
@@ -5752,7 +5802,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5782,7 +5832,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bool`,
+`t_tau_tau tau_bool`,
 `b''`,
 `c`,
 `order`,
@@ -5790,7 +5840,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5818,7 +5868,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bit w`,
+`t_tau_tau (tau_bit w)`,
 `b''`,
 `c`,
 `order`,
@@ -5826,7 +5876,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5870,7 +5920,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bit w`,
+`t_tau_tau (tau_bit w)`,
 `b`,
 `c`,
 `order`,
@@ -5878,7 +5928,8 @@ Q.PAT_X_ASSUM `sr_exp e ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
+
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5901,7 +5952,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bit w`,
+`t_tau_tau (tau_bit w)`,
 `b''`,
 `c`,
 `order`,
@@ -5909,7 +5960,8 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
+
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -5967,7 +6019,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bool`,
+`t_tau_tau tau_bool`,
 `b`,
 `c`,
 `order`,
@@ -5975,7 +6027,7 @@ Q.PAT_X_ASSUM `sr_exp e ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -6000,7 +6052,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
 `framel`,
 `t_scope_list`,
 `t_scope_list_g`,
-`tau_bool`,
+`t_tau_tau tau_bool`,
 `b''`,
 `c`,
 `order`,
@@ -6008,7 +6060,7 @@ Q.PAT_X_ASSUM `sr_exp e' ty`
  `delta_b`,
  `delta_t`,
  `delta_x`,
- `f`
+ `f`, ` f_called`, `stmt_called`, `copied_in_scope`,` Prs_n`
 ])) o
 SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 gvs[] >>
@@ -6042,6 +6094,22 @@ fs[]
 ]
 
 
+
+,
+
+(***** frame creation ***)
+
+
+fs[] >>
+OPEN_EXP_RED_TAC ``(e_binop e b e')`` >>
+OPEN_EXP_TYP_TAC ``(e_binop e b e')`` >>
+rfs[] >>
+srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
+
+
+
+
+]
 
 
 
@@ -6356,7 +6424,25 @@ RES_TAC >>
 rw[] 
 ,
 
-`(MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list) = (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list) ` by cheat >>
+
+
+subgoal ` (MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list) =
+          (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)`>-
+ ( ASSUME_TAC dir_fun_delta_same >>
+ 
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
+         `(MAP (λ(e_,e'_,x_,d_). (x_,d_)) (e_e'_x_d_list : (e # e # string # d) list)) `,
+	 `(MAP (λ(e_,tau_,d_,b_). (tau_,d_)) (e_tau_d_b_list : (e # tau # d # bool) list))`,
+	 `tau'`, `f`, `func_map`, `b_func_map`, `ext_map`,
+	 `delta_g`, `delta_b`, `delta_x`, `apply_table_f`,
+	 `order`, `t_scope_list_g`, `pars_map`, `tbl_map`               
+])) >>
+gvs[] >>
+fs[map_rw_quad, UNZIP_rw]
+) >>
+
+
+
 
 (*thus this holds*)
 gvs[] >>
@@ -6397,7 +6483,7 @@ OPEN_EXP_RED_TAC ``(e_call f l1)`` >>
 OPEN_EXP_TYP_TAC ``(e_call f l1)`` >>
 rfs[] >> rw[] >| [
 
-(*
+(*first subgoal of frame creation part *)
 
 
 fs[clause_name_def] >>rw[] >>
@@ -6406,7 +6492,7 @@ REPEAT STRIP_TAC >>
 
 Cases_on `f` >| [
 
-(* func_name global and block *)
+(*********** func_name global and block *)
 
 fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
 fs[t_lookup_funn_def] >>
@@ -6459,10 +6545,6 @@ fs[clause_name_def] >>
 
 CONJ_TAC >|[
 
-cheat
-
-
-(*   I AM HERE
 
 gvs[] >>
 IMP_RES_TAC copyin_imp_wf_args2 >>
@@ -6495,14 +6577,9 @@ gvs[] >>
 (* show that the lists have the same length *)
 
 `LENGTH (MAP (λ(e_,tau_,d_,d_'). d_) e_tau_d_b_list) =
-        LENGTH (MAP (λ(e_,x_,d_). d_) e_x_d_list)` by fs[MAP_EQ_EVERY2]
-`LENGTH e_tau_d_b_list = LENGTH e_x_d_list` by fs[]
+        LENGTH (MAP (λ(e_,x_,d_). d_) e_x_d_list)` by fs[MAP_EQ_EVERY2] >>
+`LENGTH e_tau_d_b_list = LENGTH e_x_d_list` by fs[] >>
  gvs[]
-
-
-
-*)
-
 
 
 
@@ -6528,7 +6605,7 @@ srw_tac [SatisfySimps.SATISFY_ss] [fg_stmt_typ_theorm]
 ,
 
 
-(* funn_inst s *)
+(*********** funn_inst s *)
 
 fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
 fs[t_lookup_funn_def] >>
@@ -6675,31 +6752,6 @@ fs[ clause_name_def]
 ]
 
 
-
-
-
-
-]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*)
-
-
 ,
 
 
@@ -6750,11 +6802,9 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
 ])) >>
 gvs[] >>
 srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
-]
 
 ]
-
-*)
+]
 
 
 
@@ -6766,13 +6816,16 @@ srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
 (*  select      *)
 (****************)
 
+REPEAT STRIP_TAC >>
 SIMP_TAC list_ss [sr_exp_def] >>
 REPEAT STRIP_TAC >>
-OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-fs[] >|[
+ >|[
 
 (*e_sel v*)
+
+OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+fs[] >| [
 
 rw[] >>
 OPEN_EXP_TYP_TAC ``(e_select (e_v v) l s)`` >>
@@ -6806,7 +6859,7 @@ rw[] >>
 OPEN_EXP_TYP_TAC ``(e_select (e_v e) l s)`` >>
 SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 rfs[clause_name_def] >>
-
+gvs[] >>
 
 Q.PAT_X_ASSUM `sr_exp e ty`
 ((STRIP_ASSUME_TAC o (Q.SPECL
@@ -6825,17 +6878,41 @@ Q.PAT_X_ASSUM `sr_exp e ty`
 `delta_t`,
 `delta_x`,
 `f` ])) o
-SIMP_RULE (srw_ss()) [sr_exp_def]) >>
+SIMP_RULE (srw_ss()) [sr_exp_def]) >> gvs[] >>
 
-gvs[] >>
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`f`,
+`stmt`,
+`s'`,
+`fr`])) >>
+fs [clause_name_def] >>
+
+
 
 Q.EXISTS_TAC `tau'` >>
 Q.EXISTS_TAC `b'''` >>
 Q.EXISTS_TAC `b''` >>
 
-gvs[]
+gvs[] 
+]
+
+
+,
+
+
+fs[] >>
+OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
+OPEN_EXP_TYP_TAC ``(e_select e l s)`` >>
+rfs[] >>
+srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
+
+
 
 ]
+
+
+
 
 ,
 
@@ -6843,8 +6920,11 @@ gvs[]
 (*  struct      *)
 (****************)
 
+REPEAT STRIP_TAC >>
 SIMP_TAC (srw_ss()) [sr_exp_def] >>
 REPEAT STRIP_TAC >| [
+
+(*e type *)
 
 OPEN_EXP_RED_TAC ``(e_struct l2)`` >>
 rfs[] >>
@@ -6965,7 +7045,8 @@ fs[clause_name_def] >> rw[] >>
 
 Q.EXISTS_TAC `
 ZIP ( (MAP (λ(f_,e_,v_). f_) f_e_v_list),
-   ZIP( (MAP (λ(f_,e_,v_). v_) f_e_v_list) , (MAP (λ(f_,e_,tau_,b_). (tau_)) f_e_tau_b_list)  ))
+   ZIP( (MAP (λ(f_,e_,v_). v_) f_e_v_list) ,
+      (MAP (λ(f_,e_,tau_,b_). (tau_)) f_e_tau_b_list)  ))
 ` >>
 
 IMP_RES_TAC lemma_MAP8 >>
@@ -6985,20 +7066,142 @@ fs[]
 
 ,
 
-(*TODO, fix teh theorm instead of tau to be t_tau_tau*)
-
 RES_TAC >>
-
 IMP_RES_TAC evl_types_vl_blist >>
-
 IMP_RES_TAC evl_types_vl_F >>
 RES_TAC >>
 fs[LENGTH_MAP]
 
+]]
+
+,
+
+
+
+
+fs [sr_strexp_list_def] >>
+OPEN_EXP_RED_TAC ``(e_struct l2)`` >>
+OPEN_EXP_TYP_TAC ``(e_struct l2)`` >>
+gvs[] >>
+
+
+IMP_RES_TAC ured_mem_length >>
+ `i < LENGTH ( f_e_e'_list)` by METIS_TAC[LENGTH_MAP] >>
+`LENGTH f_e_e'_list = LENGTH f_e_tau_b_list` by fs[ MAP_EQ_EVERY2, lemma_MAP8] >>
+
+
+
+subgoal ` sr_exp ((EL i (MAP (λ(f_,e_,e'_). e_) f_e_e'_list))) ty ` >- (
+IMP_RES_TAC EL_MEM >>
+IMP_RES_TAC mem_el_map2 >>
+gvs[] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`(EL i (MAP (λ(f_,e_,e'_). e_) (f_e_e'_list : (string # e # e) list)))`])) >>
+gvs[]
+) >>
+
+
+
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`i`])) >> 
+
+ASSUME_TAC e_resulted_frame_is_WT >>
+
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`c`, `gscope`, `scopest`,
+`(EL i (MAP (λ(f_,e_,tau_,b_). e_)  (f_e_tau_b_list : (string # e # tau # bool) list)))`,
+        `e''`, `f_called` , `stmt_called`, `copied_in_scope`,
+	` t_scope_list_g`, `t_scope_list`,
+	`order`,
+	`delta_g`,
+	`delta_b`,
+	`delta_x`,
+	`delta_t`, `f`, `Prs_n`, `ty`,
+         `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list : (string # e # tau # bool) list)))`,
+	 `(t_tau_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`         
+])) >>
+
+gvs[] >>
+
+subgoal `(EL i (MAP (λ(f_,e_,e'_). e_) f_e_e'_list)) =
+ (EL i (MAP (λ(f_,e_,tau_,b_). e_) f_e_tau_b_list))` >- (
+
+ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:string``,
+                         ``:'b`` |-> ``:e``,
+			 ``: γ`` |-> ``:e``,
+			 `` :δ`` |->  ``:tau``,
+			 `` :ε`` |->  ``:bool`` ] lemma_MAP8)  >>
+
+
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+[`f_e_e'_list`  ,
+`f_e_tau_b_list `
+])) >>
+
+fs[ELIM_UNCURRY] >>
+gvs[] ) >>
+
+fsrw_tac [] []
+
 ]
+
+,
+
+(*****************)
+(*    header     *)
+(*****************)
+
+Same proof as above.
+cheat
+,
+
+(**********************)
+(* sr_strexp_list []  *)
+(**********************)
+
+fsrw_tac [] [sr_strexp_list_def]
+
+,
+
+
+(**********************)
+(* sr_strexp_list     *)
+(**********************)
+
+fsrw_tac [] [sr_strexp_list_def, sr_strexp_tup_def] >>
+REPEAT STRIP_TAC >>
+PairCases_on `tup` >> fs[]
+
+,
+
+(**********************)
+(* sr_strexp_tup      *)
+(**********************)
+
+fsrw_tac [] [sr_strexp_tup_def]
+
+,
+
+(**********************)
+(* sr_exp_list []     *)
+(**********************)
+
+fsrw_tac [] [sr_exp_list_def]
+
+,
+
+(**********************)
+(* sr_exp_list        *)
+(**********************)
+
+fsrw_tac [] [sr_exp_list_def] >>
+REPEAT STRIP_TAC >>
+fs[]
+
 ]
-]
-]
+
 
 
 
