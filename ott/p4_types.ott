@@ -330,9 +330,9 @@ val WF_o_def = Define `
 defns
 v_typ :: '' ::=
 defn
- v : ( tau , boolv )  :: :: v_typ :: v_
+ v : ( t_tau , boolv )  :: :: v_typ :: v_
 {{ com values types }}
-{{ tex [[v]] : ( [[tau]] , [[boolv]] ) }}
+{{ tex [[v]] : ( [[t_tau]] , [[boolv]] ) }}
 by
 
  
@@ -351,7 +351,7 @@ by
 %in pen and paper it will be presented as a set of possible values
 %TODO try to make it a set later
   MEM x [ x1 , .. , xn ]
------------------------------------ :: x
+----------------------------------- :: string_literal
   x : ( [ x1 , .. , xn ] , false  )
 
 
@@ -433,7 +433,7 @@ val single_vn_typed_def = Define `
 single_vn_typed (t_scope:t_scope) (scope:scope) (vn:varn)=
  case (ALOOKUP (scope) (vn)) of
  | SOME (v,opt) => ( case ALOOKUP t_scope vn of
-         | SOME t => SOME (v_typ v t F)
+         | SOME t => SOME (v_typ v (t_tau_tau t) F)
 	       | NONE => NONE)
 | NONE => NONE 
 `;
@@ -468,7 +468,7 @@ type_scope (scope:scope) (t_scope:t_scope) =
 *)
 val type_scopes_list_def = Define `
 type_scopes_list (sl:scope list) (tsl:t_scope list) =
- similarl (\x y . (v_typ (FST (x)) (y) F ) ) sl tsl
+ similarl (\x y . (v_typ (FST (x)) (t_tau_tau y) F ) ) sl tsl
 `;
 
 
@@ -522,7 +522,7 @@ thus we do not check it's absence
 *)
 val type_globals_tsl_def = Define `
 type_globals_tsl (sl:scope list) (tsl: t_scope list)  =
-similarl (\x y . (v_typ (FST (x)) (y) F ) ) sl tsl
+similarl (\x y . (v_typ (FST (x)) (t_tau_tau y) F ) ) sl tsl
 `;
 
 
@@ -540,15 +540,15 @@ type_state_tsll (sll:scope list list) (tsl: t_scope list) =
 defns
 e_typ :: '' ::=
 defn
-t_scopes_tup T_e |- e : ( tau , boolv ) :: :: e_typ :: e_
+t_scopes_tup T_e |- e : ( t_tau , boolv ) :: :: e_typ :: e_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[tau]] , [[boolv]] ) }}
+{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[t_tau]] , [[boolv]] ) }}
 by
 
 
-v : ( tau , b )
+v : ( t_tau , b )
 ----------------------------------- :: v
-t_scopes_tup T_e |- v : ( tau , b )
+t_scopes_tup T_e |- v : ( t_tau , b )
 
 not_star (varn)
 tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
@@ -821,7 +821,6 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] ) /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\ (*this also ensures that there is not a star in the domain of the new scope*)
    (tl = FST (UNZIP tdl )) /\
-   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
    ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],[])) [] (stmt) ) /\
@@ -842,7 +841,6 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
    (SOME (tdl,tau) = t_lookup_funn f [] delta_b [] ) /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\
    (tl = FST (UNZIP tdl )) /\
-   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
    ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,[])) [] (stmt) ) /\
@@ -866,13 +864,12 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\
    (tl = FST (UNZIP tdl )) /\
-   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (t_scope' = ZIP (xl , tl ) ) /\ 
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
 	 ALL_DISTINCT (FST (UNZIP xdl)) /\
 	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
 	 SOME (a',scope_list', v) = IoE (a,g_scope_list, [local_scope] ) /\
-	 v_typ v tau F /\
+	 v_typ v (t_tau_tau tau) F /\
    star_not_in_sl (scope_list') /\
 	 type_scopes_list scope_list' [t_scope']
 `;
@@ -891,13 +888,12 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
          SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
    (xl = mk_varn  (FST (UNZIP xdl ))) /\
    (tl = FST (UNZIP tdl )) /\
-   ( ! strl . ~ ( MEM (tau_xl strl)  tl)  ) /\ (* to ensure that any argument is not a string *)
    (t_scope' = ZIP (xl , tl ) ) /\ 
    (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
 	 ALL_DISTINCT (FST (UNZIP xdl)) /\
 	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
 	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, [local_scope]  )) /\
-	 v_typ v tau F /\
+	 v_typ v (t_tau_tau tau) F /\
    star_not_in_sl (scope_list') /\
 	 type_scopes_list scope_list' [t_scope']
 `;

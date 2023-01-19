@@ -506,12 +506,20 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
   {{ com struct }} 
-| x_list :: :: xl   
-  {{ com string literal }}
 | err :: :: err
   {{ com error }}
 | ext :: :: ext
   {{ com extern }}
+
+
+
+t_tau {{ tex \t_{tau} }} :: t_tau_ ::=
+{{ com type }}
+| tau :: :: tau
+  {{ com BASE TYPE }}
+| x_list :: :: string_names_a   
+  {{ com represents parser states' names ex. a , not literals "a" }} 
+
 
 
 taul :: taul_ ::=
