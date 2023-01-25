@@ -903,18 +903,18 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 (*****************)
 (*  domain       *)
 (*****************)
-(* takes two lists and checks if the domains are different*)
+(* takes two lists and checks if the current contents of the domains are different*)
 val dom_neq_def = Define `
 dom_neq l1 l2 =
 ! f z. ((ALOOKUP l1 f = NONE) /\ (ALOOKUP l2 f = SOME z)) \/
-      ((ALOOKUP l2 f = NONE) /\ (ALOOKUP l1 f = SOME z)) \/
-      ((ALOOKUP l1 f = NONE) /\ (ALOOKUP l2 f = NONE))
+       ((ALOOKUP l2 f = NONE) /\ (ALOOKUP l1 f = SOME z))
 `;
 
 
+(* NOTE: this will be used for functions maps and the types of the functions *)
 val dom_eq_def = Define `
 dom_eq l1 l2 =
-! f z1 z2. ((ALOOKUP l1 f = SOME z1) /\ (ALOOKUP l2 f = SOME z2)) /\
+! f z1 z2. ((ALOOKUP l1 f = SOME z1) /\ (ALOOKUP l2 f = SOME z2)) \/
            ((ALOOKUP l1 f = NONE) /\ (ALOOKUP l2 f = NONE))
 `;
 
