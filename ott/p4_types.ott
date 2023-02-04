@@ -76,13 +76,6 @@ delta_x {{ tex \Delta_{ext} }} :: delta_x_ ::=
   {{ com empty function map }}
   {{ hol [] }}
 
-%remove it and update later with teh above one
-%delta_x {{ tex \Delta_{ext} }} :: delta_x_ ::=
-%{{ com types of extern instan and methods}}
-%{{ hol (string, ( Ftau # (string option # Ftau option))) alist }}
-%| ( empty ) :: M :: empty
-%  {{ com empty function map }}
-%  {{ hol [] }}
 
 
 
@@ -280,9 +273,14 @@ is_bool_op (oper:binop) =
 ((oper = binop_bin_and) \/
 (oper = binop_bin_or) \/
 (oper = binop_neq) \/
-(oper = binop_eq))  (*make sure to ask about this part, shall we create new ones for the bool*)
+(oper = binop_eq))
 `;
 
+val is_err_bool_def = Define `
+is_err_bool (oper:binop) =
+((oper = binop_neq) \/
+(oper = binop_eq))  
+`;
 
 (* checks if exery literial x in list xl, is a parser state name indeed*)
 val literials_in_P_state_def = Define `
@@ -318,7 +316,7 @@ ordered (x:funn) y order =
 
 val WF_o_def = Define `
 (WF_o order) =    (( !(x:funn).   ~ (ordered x x order) ) /\
-  		 ( !x y.  ordered x y order ==> ~ordered y x order) /\
+  		 ( !x y.   ordered x y order ==> ~ordered y x order) /\
        ( !x y z. ordered x y order/\ ordered y z order ==> ordered x z order))`;
 
 
@@ -349,7 +347,6 @@ by
   bot : ( bot , false  )
 
 %in pen and paper it will be presented as a set of possible values
-%TODO try to make it a set later
   MEM x [ x1 , .. , xn ]
 ----------------------------------- :: string_literal
   x : ( [ x1 , .. , xn ] , false  )
@@ -375,70 +372,6 @@ by
 
 embed
 {{ hol
-
-(*finds the domain (variable names) set of a scope *)
-val scope_domain_def = Define `
-scope_domain (scope:scope) = 
-  FDOM (alist_to_fmap scope)
-`;
-
-(* finds a typing scope domain *)
-val ts_domain_def = Define `
-ts_domain (t_scope:t_scope) = 
-  FDOM (alist_to_fmap t_scope)
-`;
-
-(* fetches the domain of each scope in a typing list*)
-val tsl_domain_def = Define `
-tsl_domain (tsl: t_scope list) =
- FOLDR  (\(t_scope) l. (ts_domain t_scope)::l ) [] (tsl) 
-`;
-
-
-(*in a list of typing scopes, get the domain of each typing then 
-check of varn is a member for every single domain 
-used for star checkup in the locals *)
-val tsl_check_member_def = Define `
-tsl_check_member (f:varn) (tsl) =
- EVERY (\doml. (f IN doml))  (tsl_domain tsl)
-`;
-
-
-val tsl_check_star_member_def = Define `
-tsl_check_star_member (tsl) =
-  ! x . EVERY (\doml. ~((varn_star x) IN doml)) (tsl_domain tsl)
-`;
-
-(* finds the value v of a given variable name vn from a certain scope *)
-val fetch_val_from_scope_def = Define `
-  fetch_val_from_scope (scope:scope) (vn) =
-  case (ALOOKUP (scope) (vn)) of
-  | SOME (v,opt) => SOME v
-  | _ => NONE
-`;
-
-
-(* fetches the type tau of a given variable name in the typing scope t_scope*)
-val fetch_tau_val_from_tscope_def = Define `
-  fetch_tau_val_from_tscope (t_scope:t_scope) (vn) =
-  case (ALOOKUP (t_scope) (vn)) of
-  | SOME (t) => SOME t
-  | _ => NONE
-`;
-
-
-
-(* for variable name vn, check if it well typed *)
-val single_vn_typed_def = Define `
-single_vn_typed (t_scope:t_scope) (scope:scope) (vn:varn)=
- case (ALOOKUP (scope) (vn)) of
- | SOME (v,opt) => ( case ALOOKUP t_scope vn of
-         | SOME t => SOME (v_typ v (t_tau_tau t) F)
-	       | NONE => NONE)
-| NONE => NONE 
-`;
-
-
 
 
 (* create a relation between two scopes *)
@@ -573,6 +506,7 @@ t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ f1 tau
 
 
 not_bool_neg unop
+width_in_range w
 t_scopes_tup T_e |- e : ( bs w , b )
 ----------------------------------- :: not_neg
 t_scopes_tup T_e |- unop e : ( bs w , false  )
@@ -621,7 +555,7 @@ ordered funn' funn order
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
 
 
-
+width_in_range w
 t_scopes_tup T_e |-  e   : ( bs w , b )
 t_scopes_tup T_e |-  e'  : ( bs w , b' )
 is_bv_op binop
@@ -636,6 +570,14 @@ is_bool_op binop
 t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 
+t_scopes_tup T_e |-  e   : ( err , b )
+t_scopes_tup T_e |-  e'  : ( err , b' )
+is_err_bool binop
+------------------------------------ :: binop_err
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
+
+
+width_in_range w
 t_scopes_tup T_e |-  e   : ( bs w , b )
 t_scopes_tup T_e |-  e'  : ( bs w , b' )
 is_bv_bool_op binop
@@ -787,6 +729,7 @@ embed
 
 
 
+(* given a statement, check whether the end statement is a return statement *)
 
 val end_stmt_is_ret_def = Define `
   (end_stmt_is_ret (stmt_ret e) = T ) /\
@@ -801,9 +744,7 @@ val end_stmt_is_ret_def = Define `
 `;
 
 
-
-
-
+(* given a list of strings, mk_varn makes a list of variable names for that list *)
 
 val mk_varn_def = Define `
 mk_varn (xl:string list) =
@@ -812,6 +753,8 @@ mk_varn (xl:string list) =
 
 
 (*based on the specs, the extern cannot be called from functions *)
+
+
 val func_map_typed_def = Define `
 func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g  =
 ! f stmt xdl  tau tdl x (t_scope':t_scope) xl tl.
@@ -819,12 +762,12 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    (ALOOKUP func_map x = SOME (stmt, xdl)) )
    ==>
    (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] ) /\
-   (xl = mk_varn  (FST (UNZIP xdl ))) /\ (*this also ensures that there is not a star in the domain of the new scope*)
-   (tl = FST (UNZIP tdl )) /\
-   (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
+   (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
+   (tl = MAP FST tdl ) /\
+   (MAP SND tdl = MAP SND xdl) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
    ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],[])) [] (stmt) ) /\
-   ( ALL_DISTINCT (FST (UNZIP(xdl))) ) /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt)
 `;
 
@@ -839,20 +782,18 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
    (ALOOKUP b_func_map x = SOME (stmt, xdl))
 ) ==>
    (SOME (tdl,tau) = t_lookup_funn f [] delta_b [] ) /\
-   (xl = mk_varn  (FST (UNZIP xdl ))) /\
-   (tl = FST (UNZIP tdl )) /\
-   (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
+   (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
+   (tl = MAP FST tdl ) /\
+   (MAP SND tdl = MAP SND xdl) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
    ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,[])) [] (stmt) ) /\
-   ( ALL_DISTINCT (FST (UNZIP(xdl))) ) /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt)
 
 `;
 
 
 (*note the statement here can only be the black box*)
-
-
 
 val extern_map_IoE_typed_def = Define `
 extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
@@ -862,11 +803,11 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 	 ALOOKUP ext_map x = SOME (SOME (xdl,IoE),MoE) ==>
 
    SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
-   (xl = mk_varn  (FST (UNZIP xdl ))) /\
-   (tl = FST (UNZIP tdl )) /\
+   (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
+   (tl = MAP FST tdl ) /\
+   (MAP SND tdl = MAP SND xdl) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
-   (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
-	 ALL_DISTINCT (FST (UNZIP xdl)) /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
 	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
 	 SOME (a',scope_list', v) = IoE (a,g_scope_list, [local_scope] ) /\
 	 v_typ v (t_tau_tau tau) F /\
@@ -874,8 +815,6 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 	 type_scopes_list scope_list' [t_scope']
 `;
 
-
-(* if the above is ok, then uncomment this one for the ext methods calls *)
 
 val extern_MoE_typed_def = Define `
 extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
@@ -886,11 +825,11 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
    
          SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
-   (xl = mk_varn  (FST (UNZIP xdl ))) /\
-   (tl = FST (UNZIP tdl )) /\
+   (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
+   (tl = MAP FST tdl ) /\
+   (MAP SND tdl = MAP SND xdl) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
-   (SND (UNZIP tdl) = SND (UNZIP xdl)) /\
-	 ALL_DISTINCT (FST (UNZIP xdl)) /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
 	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
 	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, [local_scope]  )) /\
 	 v_typ v (t_tau_tau tau) F /\
@@ -904,18 +843,27 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 (*  domain       *)
 (*****************)
 (* takes two lists and checks if the current contents of the domains are different*)
-val dom_neq_def = Define `
-dom_neq l1 l2 =
-! f z. ((ALOOKUP l1 f = NONE) /\ (ALOOKUP l2 f = SOME z)) \/
-       ((ALOOKUP l2 f = NONE) /\ (ALOOKUP l1 f = SOME z))
+
+
+
+(* use this definition whereever the equivelent holds *)
+val is_lookup_defined_def = Define `
+    is_lookup_defined l1 x =
+     ? y . ALOOKUP l1 x = SOME y 
 `;
 
 
 (* NOTE: this will be used for functions maps and the types of the functions *)
 val dom_eq_def = Define `
 dom_eq l1 l2 =
-! f z1 z2. ((ALOOKUP l1 f = SOME z1) /\ (ALOOKUP l2 f = SOME z2)) \/
-           ((ALOOKUP l1 f = NONE) /\ (ALOOKUP l2 f = NONE))
+! f . ((is_lookup_defined l1 f) <=> (is_lookup_defined l2 f)) 
+`;
+
+
+
+val dom_neq_def = Define `
+dom_neq l1 l2 =
+! f . ~((is_lookup_defined l1 f) <=> (is_lookup_defined l2 f))
 `;
 
 
@@ -948,37 +896,56 @@ dom_b_eq (delta_b:delta_b) (b_func_map:b_func_map) =
 
 val dom_x_eq_def = Define `
 dom_x_eq (delta_x:delta_x) (ext_map: 'a ext_map) =
-  dom_eq delta_x ext_map
-`;
+! f .
+	 (dom_eq delta_x ext_map) /\  
+   (! a1 a2 ext_fun_map ext_MoE.
+	       ( ALOOKUP delta_x f = SOME (a1,ext_MoE) /\
+          ALOOKUP ext_map f = SOME (a2,ext_fun_map) ) ==>
 
+	         IS_SOME(a1)= IS_SOME(a2) /\
+          (dom_eq ext_MoE ext_fun_map)
+	 )
+`;
 
 
 (* represents 
 ∀f ∈ domain( Fg ). var(star,f) ∈ domain(gsl_t[1])
 *)
+(*
+val Fg_star_defined_def = Define `
+Fg_star_defined (func_map:func_map) (t_scope_list_g:t_scope_list_g) =
+! x . (? sig. (ALOOKUP func_map x = SOME sig)) <=>
+      (? t. ALOOKUP (EL 1 t_scope_list_g)  (varn_star (funn_name x)) = SOME t)
+`;
+*)
+
+
+
+
 
 val Fg_star_defined_def = Define `
 Fg_star_defined (func_map:func_map) (t_scope_list_g:t_scope_list_g) =
-! f sig t x. ((f = funn_name x) /\  (ALOOKUP func_map x = SOME sig)) /\
-     (ALOOKUP (EL 1 t_scope_list_g)  (varn_star f) = SOME t)
+! x . (is_lookup_defined func_map x)
+             <=>
+      (is_lookup_defined (EL 1 t_scope_list_g) (varn_star (funn_name x)))
 `;
-
 
 
 val Fb_star_defined_def = Define `
 Fb_star_defined (b_func_map:b_func_map) (t_scope_list_g:t_scope_list_g) =
-! f sig t x. ((f = funn_name x) /\  (ALOOKUP b_func_map x = SOME sig)) /\
-     (ALOOKUP (EL 0 t_scope_list_g)  (varn_star f) = SOME t)
+! x . (is_lookup_defined b_func_map x)
+             <=>
+      (is_lookup_defined (EL 0 t_scope_list_g) (varn_star (funn_name x)))
 `;
 
 
 
 val X_star_defined_def = Define `
 X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
-! f sig t x x'.
-         ((f = funn_inst x \/ f = funn_ext x x') /\
-          ALOOKUP ext_map x = SOME sig) /\
-         ALOOKUP (EL 1 t_scope_list_g) (varn_star f) = SOME t
+! f x x' . (f = funn_inst x \/ f = funn_ext x x') ==> (
+           (is_lookup_defined ext_map x)
+             <=>
+            (is_lookup_defined (EL 1 t_scope_list_g) (varn_star f)))
 `;
 
 

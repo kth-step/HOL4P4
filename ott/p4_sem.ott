@@ -533,13 +533,15 @@ formula :: formula_ ::=
   {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] [[delta_x]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] <> unop_neg_signed)) }}
+  {{ hol (([[unop]] <> unop_neg)) }}
   {{ tex [[unop]] \neq \mathit{!} }}
 | is_bool_neg unop :: M :: is_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] = unop_neg_signed)) }}
+  {{ hol (([[unop]] = unop_neg)) }}
   {{ tex [[unop]] \eq \mathit{!} }}
-
+| width_in_range w :: M :: width_in_range
+  {{ com bitstring widthlarger than 0}}
+  {{ hol ([[w]] > 0 /\ [[w]] <= 64 ) }}
 | length ( taul ) = m :: M :: find_t_length
   {{ tex [[m]] = length ([[taul]])}}
   {{ hol ([[m]] = LENGTH [[taul]]) }}
@@ -586,7 +588,9 @@ formula :: formula_ ::=
 | is_bv_bool_op binop :: :: is_bv_bool_op   
   {{ hol is_bv_bool_op [[binop]]}}
 | is_bool_op binop :: :: is_bool_op   
-  {{ hol is_bool_op [[binop]]}}  
+  {{ hol is_bool_op [[binop]]}}
+| is_err_bool binop :: :: is_err_bool
+  {{ hol is_err_bool [[binop]]}}  
 | in e Prs_n :: :: eInPrs  
   {{ hol MEM [[e]] [[Prs_n]]}}  
 | in tbl Tbl_n :: :: eInTbl  
