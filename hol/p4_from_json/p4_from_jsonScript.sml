@@ -280,8 +280,17 @@ End
 Definition exp_to_funn_def:
  exp_to_funn exp =
   case exp of
-  | (e_var (varn_name name)) => SOME (funn_name name)
-  | (e_acc (e_var (varn_name ext_name)) fun_name) => SOME (funn_ext ext_name fun_name)
+  (* Regular function call *)
+  | (e_var (varn_name name)) => SOME (funn_name name, NONE)
+  (* Extern method call/isValid *)
+  | (e_acc obj fun_name) =>
+   (if fun_name = "isValid" then
+    (* TODO: Also check if obj is well-formed before returning? *)
+    SOME (funn_ext "header" "isValid", SOME obj)
+    else
+    (case obj of
+     | (e_var (varn_name ext_name)) => SOME (funn_ext ext_name fun_name, NONE)
+     | _ => NONE))
   | _ => NONE
 End
 
@@ -376,7 +385,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
    (case petr4_parse_expression_gen tyenv (func_name, NONE) of
     | SOME_msg (INL res_func_name) =>
      (case exp_to_funn res_func_name of
-      | SOME res_func_name' =>
+      | SOME (res_func_name', NONE) =>
        (case petr4_parse_expressions_gen tyenv (ZIP (args, REPLICATE (LENGTH args) NONE)) of
         | SOME_msg res_args =>
          (case tyu_l_only res_args of
@@ -384,6 +393,9 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
            SOME_msg (INL (e_call res_func_name' res_args_inl))
           | NONE => get_error_msg "type inference failed for function argument list: " (Array args))
         | NONE_msg func_name_msg => NONE_msg ("could not parse called function name: "++func_name_msg))
+      (* isValid is modeled in HOL4P4 as a method call *)
+      | SOME (res_isvalid, SOME isvalid_arg) =>
+       SOME_msg (INL (e_call res_isvalid [isvalid_arg]))
       | NONE => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
   | _ => get_error_msg "invalid JSON format of expression: " exp) /\
@@ -546,14 +558,14 @@ Definition petr4_parse_method_call_def:
     (if f2 = "type_args" then
      (if f3 = "args" then
       (case petr4_parse_expression tyenv (func, NONE) of
-       | SOME_msg exp => 
+       | SOME_msg exp =>
         (case exp_to_funn exp of
-         | SOME funn =>
+         | SOME (funn, NONE) =>
           (case petr4_parse_args tyenv args of
            | SOME_msg res_args =>
             SOME_msg (stmt_ass lval_null (e_call funn res_args))
            | NONE_msg args_msg => NONE_msg ("could not parse method call: "++args_msg))
-         | NONE => get_error_msg "could not parse into funn: " func)
+         | _ => get_error_msg "could not parse into funn: " func)
        | NONE_msg func_msg => NONE_msg ("could not parse method call: "++func_msg))
       else NONE_msg ("invalid JSON object field of method call: "++f3))
      else NONE_msg ("invalid JSON object field of method call: "++f2))
@@ -1239,6 +1251,9 @@ Definition petr4_parse_element_def:
   else if elem_name = "control" then petr4_parse_control res obj
   (* IGNORE: Ignore until multi-package support for architectures is added *)
   else if elem_name = "PackageType" then SOME_msg res
+  (* IGNORE: This is the package instantiation, can maybe be global extern object
+   *         instantiation for some architectures. Ignore, for now? *)
+  else if elem_name = "Instantiation" then SOME_msg res
   else NONE_msg ("Unknown top-level element type: "++elem_name)
   (* TODO: ??? *)
  | _ => NONE_msg "Invalid JSON format of element"
