@@ -757,18 +757,21 @@ mk_varn (xl:string list) =
 
 val func_map_typed_def = Define `
 func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g  =
-! f stmt xdl  tau tdl x (t_scope':t_scope) xl tl.
+! f stmt xdl x  .
  ( (f = funn_name x) /\
    (ALOOKUP func_map x = SOME (stmt, xdl)) )
    ==>
-   (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] ) /\
+
+   ? tau tdl xl tl (t_scope':t_scope). 
+   (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] /\ 
+     find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
    (tl = MAP FST tdl ) /\
    (MAP SND tdl = MAP SND xdl) /\
    (t_scope' = ZIP (xl , tl ) ) /\ 
    ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],[])) [] (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
-   ( end_stmt_is_ret stmt)
+   ( end_stmt_is_ret stmt))
 `;
 
 
@@ -777,11 +780,14 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
 
 val func_map_blk_typed_def = Define `
 func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x =
-! f stmt xdl  tau tdl x (t_scope':t_scope) xl tl.
+! f stmt xdl x .
  ( (f = funn_name x) /\
    (ALOOKUP b_func_map x = SOME (stmt, xdl))
 ) ==>
+
+   ? tau tdl (t_scope':t_scope) xl tl .
    (SOME (tdl,tau) = t_lookup_funn f [] delta_b [] ) /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
    (tl = MAP FST tdl ) /\
    (MAP SND tdl = MAP SND xdl) /\
@@ -798,11 +804,13 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
 val extern_map_IoE_typed_def = Define `
 extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 
-! f (xdl : (string # d) list) x IoE MoE tdl tau (t_scope':t_scope) (a:'a) (a':'a) (g_scope_list:g_scope_list)  scope_list' v local_scope xl tl .
+! f (xdl : (string # d) list) x IoE MoE.
          f = funn_inst x /\
 	 ALOOKUP ext_map x = SOME (SOME (xdl,IoE),MoE) ==>
 
+   ? tdl tau (t_scope':t_scope) (a:'a) (a':'a) (g_scope_list:g_scope_list)  scope_list' v local_scope xl tl .
    SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
    (tl = MAP FST tdl ) /\
    (MAP SND tdl = MAP SND xdl) /\
@@ -819,12 +827,14 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 val extern_MoE_typed_def = Define `
 extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 
-! f xdl xl tl x x' IoEsig MoE MoE_map tdl tau t_scope' (a:'a) (a':'a) (g_scope_list:g_scope_list)  (scope_list': scope list) (v:v) local_scope .
+! f xdl x x' IoEsig MoE MoE_map  .
          f = funn_ext x x' /\
 	 ALOOKUP ext_map x = SOME (IoEsig, MoE) /\
 	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
-   
+
+  ? xl tl tdl tau t_scope' (a:'a) (a':'a) (g_scope_list:g_scope_list)  (scope_list': scope list) (v:v) local_scope .
          SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
+         find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (xl = mk_varn  (MAP FST xdl )) /\ (*this also ensures that there is not a star in the domain of the new scope*)
    (tl = MAP FST tdl ) /\
    (MAP SND tdl = MAP SND xdl) /\
@@ -860,23 +870,25 @@ dom_eq l1 l2 =
 `;
 
 
-
-val dom_neq_def = Define `
-dom_neq l1 l2 =
-! f . ~((is_lookup_defined l1 f) <=> (is_lookup_defined l2 f))
+(* domain empty intersection, given two assosiative lists, the domains should not intersect 
+   with eachother *)
+val dom_empty_intersection_def = Define `
+dom_empty_intersection l1 l2 =
+! f . (ALOOKUP l1 f = NONE \/ ALOOKUP l2 f = NONE)
 `;
 
 
-val dom_map_neq_def = Define `
-dom_map_neq (func_map:func_map) (b_func_map:b_func_map) =
-  dom_neq func_map b_func_map
+(* functions map empty intersection *)
+val dom_map_ei_def = Define `
+dom_map_ei (func_map:func_map) (b_func_map:b_func_map) =
+  dom_empty_intersection func_map b_func_map
 `;
 
 
 
-val dom_tmap_neq_def = Define `
-dom_tmap_neq (delta_g:delta_g) (delta_b:delta_b) =
-  dom_neq delta_g delta_b
+val dom_tmap_ei_def = Define `
+dom_tmap_ei (delta_g:delta_g) (delta_b:delta_b) =
+  dom_empty_intersection delta_g delta_b
 `;
 
 
@@ -908,20 +920,15 @@ dom_x_eq (delta_x:delta_x) (ext_map: 'a ext_map) =
 `;
 
 
+
+
+
+
+
+
 (* represents 
 ∀f ∈ domain( Fg ). var(star,f) ∈ domain(gsl_t[1])
 *)
-(*
-val Fg_star_defined_def = Define `
-Fg_star_defined (func_map:func_map) (t_scope_list_g:t_scope_list_g) =
-! x . (? sig. (ALOOKUP func_map x = SOME sig)) <=>
-      (? t. ALOOKUP (EL 1 t_scope_list_g)  (varn_star (funn_name x)) = SOME t)
-`;
-*)
-
-
-
-
 
 val Fg_star_defined_def = Define `
 Fg_star_defined (func_map:func_map) (t_scope_list_g:t_scope_list_g) =
@@ -1032,8 +1039,8 @@ by
 
 WF_o order
 length_is_2 ( t_scope_list_g )
-dom_map_neq ( func_map , b_func_map )
-dom_tmap_neq ( delta_g , delta_b )
+dom_map_ei ( func_map , b_func_map )
+dom_tmap_ei ( delta_g , delta_b )
 dom_g_eq ( delta_g , func_map )
 dom_b_eq ( delta_b , b_func_map )
 dom_x_eq ( delta_x , ext_map )

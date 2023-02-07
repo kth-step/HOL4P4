@@ -619,10 +619,10 @@ formula :: formula_ ::=
   {{ hol ( extern_map_IoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_x]] ) }}
 | extern_MoE_typed ext_map t_scope_list_g delta_x :: :: extern_MoE_typed
   {{ hol extern_MoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_x]] }}  
-| dom_map_neq ( func_map , b_func_map ) :: :: dom_map_neq
-  {{ hol ( dom_map_neq [[func_map]] [[b_func_map]] ) }}
-| dom_tmap_neq ( delta_g , delta_b ) :: :: dom_tmap_neq
-  {{ hol ( dom_tmap_neq [[delta_g]] [[delta_b]] ) }}
+| dom_map_ei ( func_map , b_func_map ) :: :: dom_map_ei
+  {{ hol ( dom_map_ei [[func_map]] [[b_func_map]] ) }}
+| dom_tmap_ei ( delta_g , delta_b ) :: :: dom_tmap_ei
+  {{ hol ( dom_tmap_ei [[delta_g]] [[delta_b]] ) }}
 | dom_g_eq ( delta_g , func_map ) :: ::  dom_g_eq
   {{ hol ( dom_g_eq [[delta_g]] [[func_map]] ) }}
 | dom_b_eq ( delta_b , b_func_map ) :: :: dom_b_eq
