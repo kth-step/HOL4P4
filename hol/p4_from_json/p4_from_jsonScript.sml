@@ -265,17 +265,10 @@ Definition exp_to_tau_def:
     | SOME (tau_xtl struct_ty f_t_list) =>
      (case (FIND (\ (f, t). f = fld)  f_t_list) of
       | SOME (fld, res_tau) => SOME res_tau
-      | NONE => NONE
-     )
+      | NONE => NONE)
     | _ => NONE)
   | (e_var (varn_name varname)) => ALOOKUP vtymap (varn_name varname) 
   | _ => NONE
-End
-
-Definition petr4_parse_value_def:
- petr4_parse_value tau_opt json =
-  case json of
-   | _ => NONE
 End
 
 Definition exp_to_funn_def:
@@ -309,13 +302,36 @@ Definition tyu_l_only_def:
   | _ => NONE)
 End
 
+(* TODO: Saturating addition/subtraction, ++? *)
+Definition petr4_binop_lookup_def:
+(petr4_binop_lookup binop_str = 
+ ALOOKUP [("Plus", binop_add);
+          ("Minus", binop_sub);
+          ("Mul", binop_mul);
+          ("Div", binop_div);
+          ("Mod", binop_mod);
+          ("Shl", binop_shl);
+          ("Shr", binop_shr);
+          ("Le", binop_le);
+          ("Ge", binop_ge);
+          ("Lt", binop_lt);
+          ("Gt", binop_gt);
+          ("Eq", binop_eq);
+          ("NotEq", binop_neq);
+          ("BitAnd", binop_and);
+          ("BitXor", binop_xor);
+          ("BitOr", binop_or);
+          ("And", binop_bin_and);
+          ("Or", binop_bin_or)] binop_str)
+End
+
 (* The image of this function is the type union of expressions (INL)
  * and natural numbers (INR) (for arbitrary-width integers).
  * Regular petr4_parse_expression is a wrapper for this which
  * rejects the INR result *)
 (* Definition petr4_parse_expression_gen_def: *)
 val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
-`(petr4_parse_expression_gen tyenv (exp, tau_opt) =
+`(petr4_parse_expression_gen (tyenv, vtymap) (exp, tau_opt) =
   case exp of
   (* TODO: Null can occur in case of return without value - works generally? *)
   | Null => SOME_msg (INL (e_v v_bot))
@@ -323,7 +339,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
   | Array [String "expression_member";
      Object [("expr", nested_exp);
              ("name", String mem_name)]] =>
-   (case petr4_parse_expression_gen tyenv (nested_exp, NONE) of
+   (case petr4_parse_expression_gen (tyenv, vtymap) (nested_exp, NONE) of
     | SOME_msg (INL mem_nested_exp) => SOME_msg (INL (e_acc mem_nested_exp mem_name))
     | SOME_msg (INR n) => NONE_msg "cannot access field of constant"
     | NONE_msg mem_msg => NONE_msg mem_msg)
@@ -361,20 +377,29 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
   | Array [String "binary_op";
      Object [("op", Array [String optype]);
              ("args", Array [op1; op2])]] =>
-   (case petr4_parse_expression_gen tyenv (op1, NONE) of
+   (case petr4_parse_expression_gen (tyenv, vtymap) (op1, NONE) of
     | SOME_msg res_op1 =>
-     (case petr4_parse_expression_gen tyenv (op2, NONE) of
+     (case petr4_parse_expression_gen (tyenv, vtymap) (op2, NONE) of
       | SOME_msg res_op2 =>
        (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
-       if optype = "Eq" then
-        (case (res_op1, res_op2) of
-         | (INL op1_exp, INL op2_exp) => SOME_msg (INL (e_binop op1_exp binop_eq op2_exp))
-         | _ => get_error_msg "type inference failed for expression: " exp)
-       else if optype = "NotEq" then
-        (case (res_op1, res_op2) of
-         | (INL op1_exp, INL op2_exp) => SOME_msg (INL (e_binop op1_exp binop_neq op2_exp))
-         | _ => get_error_msg "type inference failed for expression: " exp)
-       else NONE_msg ("unknown optype: "++optype)
+       (case petr4_binop_lookup optype of
+        | SOME binop =>
+         (case (res_op1, res_op2) of
+          | (INL op1_exp, INL op2_exp) => SOME_msg (INL (e_binop op1_exp binop op2_exp))
+          | (INL op1_exp, INR op2_const) =>
+           (case exp_to_tau vtymap op1_exp of
+            | SOME (tau_bit n) =>
+             SOME_msg (INL (e_binop op1_exp binop (e_v (v_bit (fixwidth n (n2v op2_const), n)))))
+            | SOME _ => get_error_msg "non-bitstring type inference unsupported for expression: " exp
+            | NONE => get_error_msg "type inference failed for expression: " exp)
+          | (INR op1_const, INL op2_exp) =>
+           (case exp_to_tau vtymap op2_exp of
+            | SOME (tau_bit n) =>
+             SOME_msg (INL (e_binop (e_v (v_bit (fixwidth n (n2v op1_const), n))) binop op2_exp))
+            | SOME _ => get_error_msg "non-bitstring type inference unsupported for expression: " exp
+            | NONE => get_error_msg "type inference failed for expression: " exp)
+          | _ => get_error_msg "type inference failed, since expression contains binop on constants: " exp)
+        | NONE => NONE_msg ("unknown optype: "++optype))
       | NONE_msg op2_msg => NONE_msg op2_msg)
     | NONE_msg op1_msg => NONE_msg op1_msg)
   (* Error *)
@@ -386,11 +411,11 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
            Object [("func", func_name);
                    ("type_args", Array tyargs);
                    ("args", Array args)]] =>
-   (case petr4_parse_expression_gen tyenv (func_name, NONE) of
+   (case petr4_parse_expression_gen (tyenv, vtymap) (func_name, NONE) of
     | SOME_msg (INL res_func_name) =>
      (case exp_to_funn res_func_name of
       | SOME (SOME res_func_name', NONE) =>
-       (case petr4_parse_expressions_gen tyenv (ZIP (args, REPLICATE (LENGTH args) NONE)) of
+       (case petr4_parse_expressions_gen (tyenv, vtymap) (ZIP (args, REPLICATE (LENGTH args) NONE)) of
         | SOME_msg res_args =>
          (case tyu_l_only res_args of
           | SOME res_args_inl =>
@@ -403,11 +428,11 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
       | _ => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
   | _ => get_error_msg "invalid JSON format of expression: " exp) /\
-(petr4_parse_expressions_gen tyenv [] = SOME_msg []) /\
-(petr4_parse_expressions_gen tyenv ((h1, h2)::t) =
- case petr4_parse_expression_gen tyenv (h1, h2) of
+(petr4_parse_expressions_gen (tyenv, vtymap) [] = SOME_msg []) /\
+(petr4_parse_expressions_gen (tyenv, vtymap) ((h1, h2)::t) =
+ case petr4_parse_expression_gen (tyenv, vtymap) (h1, h2) of
   | SOME_msg exp_res =>
-   (case petr4_parse_expressions_gen tyenv t of
+   (case petr4_parse_expressions_gen (tyenv, vtymap) t of
     | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
     | NONE_msg exps_msg => NONE_msg exps_msg)
   | NONE_msg exp_msg => NONE_msg ("could not parse expressions: "++exp_msg))
@@ -416,20 +441,20 @@ cheat
 ;
 
 Definition petr4_parse_expression_def:
- petr4_parse_expression tyenv (exp, tau_opt) =
-  case petr4_parse_expression_gen tyenv (exp, tau_opt) of
+ petr4_parse_expression (tyenv, vtymap) (exp, tau_opt) =
+  case petr4_parse_expression_gen (tyenv, vtymap) (exp, tau_opt) of
   | SOME_msg (INR n) => get_error_msg "type inference failed for integer constant: " exp
   | SOME_msg (INL exp) => SOME_msg exp
   | NONE_msg exp_msg => NONE_msg ("could not parse value: "++exp_msg)
 End
 
 Definition petr4_parse_expressions_def:
- (petr4_parse_expressions tyenv [] =
+ (petr4_parse_expressions (tyenv, vtymap) [] =
   SOME_msg []) /\
- (petr4_parse_expressions tyenv ((h1, h2)::t) =
-  case petr4_parse_expression tyenv (h1, h2) of
+ (petr4_parse_expressions (tyenv, vtymap) ((h1, h2)::t) =
+  case petr4_parse_expression (tyenv, vtymap) (h1, h2) of
    | SOME_msg exp_res =>
-    (case petr4_parse_expressions tyenv t of
+    (case petr4_parse_expressions (tyenv, vtymap) t of
      | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
      | NONE_msg exps_msg => NONE_msg exps_msg)
    | NONE_msg exp_msg => NONE_msg ("could not parse expressions: "++exp_msg))
@@ -443,9 +468,10 @@ Definition exp_to_val_def:
 End
 
 (* This is used e.g. to parse global constants *)
+(* NOTE: vtymap is not needed at top level *)
 Definition petr4_parse_value_def:
- petr4_parse_value tyenv (exp, tau_opt) =
-  case petr4_parse_expression_gen tyenv (exp, tau_opt) of
+ petr4_parse_value (tyenv, vtymap) (exp, tau_opt) =
+  case petr4_parse_expression_gen (tyenv, vtymap) (exp, tau_opt) of
   | SOME_msg (INR n) => SOME_msg (INR n)
   | SOME_msg (INL res_exp) =>
    (case exp_to_val res_exp of
@@ -459,8 +485,9 @@ End
 
 (* TODO: Tau not used for any check? *)
 (* TODO: Update compile-time constant map here *)
+(* TODO: Update vtymap *)
 Definition petr4_constant_to_scopeupdate_def:
- petr4_constant_to_scopeupdate tyenv json =
+ petr4_constant_to_scopeupdate (tyenv, vtymap) json =
   case json of
   | Object
    [("annotations", Array annotations);
@@ -470,7 +497,7 @@ Definition petr4_constant_to_scopeupdate_def:
    (case petr4_parse_type tyenv json_type of
     | SOME tau =>
      (* TODO: No type inference for global constants? *)
-     (case petr4_parse_value tyenv (json_value, NONE) of
+     (case petr4_parse_value (tyenv, vtymap) (json_value, NONE) of
       | SOME_msg value => SOME_msg (varn_name json_name, value)
       | NONE_msg val_msg => NONE_msg val_msg)
     | NONE => get_error_msg "could not parse type: " (Array json_type))
@@ -479,7 +506,7 @@ End
 
 Definition petr4_parse_constant_def:
  petr4_parse_constant (tyenv, vtymap, fmap, bltymap, gscope, pblock_map) constant =
-  case petr4_constant_to_scopeupdate tyenv constant of
+  case petr4_constant_to_scopeupdate (tyenv, vtymap) constant of
    | SOME_msg (varn, val) => SOME_msg (tyenv, vtymap, fmap, bltymap, AUPDATE gscope (varn, val), pblock_map)
    | NONE_msg const_msg => NONE_msg ("Could not parse constant"++const_msg) (* TODO: Print constant name using nested msg *)
 End
@@ -536,15 +563,15 @@ End
 (* Common: statements *)
 
 Definition petr4_parse_args_def:
- (petr4_parse_args tyenv [] =
+ (petr4_parse_args (tyenv, vtymap) [] =
   SOME_msg []) /\
- (petr4_parse_args tyenv (h::t) =
+ (petr4_parse_args (tyenv, vtymap) (h::t) =
   case h of
   | Array [String argtype; Object [("value", exp)]] =>
    if argtype = "Expression" then
-    case petr4_parse_expression tyenv (exp, NONE) of
+    case petr4_parse_expression (tyenv, vtymap) (exp, NONE) of
      | SOME_msg exp_res =>
-      (case petr4_parse_args tyenv t of
+      (case petr4_parse_args (tyenv, vtymap) t of
        | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
        | NONE_msg exps_msg => NONE_msg exps_msg)
      | NONE_msg exp_msg => NONE_msg ("could not parse arguments: "++exp_msg)
@@ -553,7 +580,7 @@ Definition petr4_parse_args_def:
 End
 
 Definition petr4_parse_method_call_def:
- petr4_parse_method_call (tyenv, gscope, apply_map) stmt_details =
+ petr4_parse_method_call (tyenv, vtymap, gscope, apply_map) stmt_details =
   case stmt_details of
   | [(f1, func); (* Expression: either a name or a member (in case of extern object's method) *)
      (f2, tyargs); (* TODO: Typically an empty list. Now thrown away *)
@@ -561,11 +588,11 @@ Definition petr4_parse_method_call_def:
    if f1 = "func" then
     (if f2 = "type_args" then
      (if f3 = "args" then
-      (case petr4_parse_expression tyenv (func, NONE) of
+      (case petr4_parse_expression (tyenv, vtymap) (func, NONE) of
        | SOME_msg exp =>
         (case exp_to_funn exp of
          | SOME (SOME funn, NONE) =>
-          (case petr4_parse_args tyenv args of
+          (case petr4_parse_args (tyenv, vtymap) args of
            | SOME_msg res_args =>
             (case funn of
              (* Extern object method *)
@@ -611,17 +638,17 @@ Definition exp_to_lval_def:
 End
 
 Definition petr4_parse_assignment_def:
- petr4_parse_assignment (tyenv, gscope) stmt_details =
+ petr4_parse_assignment (tyenv, vtymap, gscope) stmt_details =
   case stmt_details of
   | [(f1, lhs); (* Left-hand side: expression, should be lval *)
      (f2, rhs)] => (* Right-hand side: expression *)
    if f1 = "lhs" then
     (if f2 = "rhs" then
-     (case petr4_parse_expression tyenv (lhs, NONE) of
+     (case petr4_parse_expression (tyenv, vtymap) (lhs, NONE) of
       | SOME_msg lhs_res =>
        (case exp_to_lval lhs_res of
         | SOME lval => 
-         (case petr4_parse_expression tyenv (rhs, NONE) of
+         (case petr4_parse_expression (tyenv, vtymap) (rhs, NONE) of
           | SOME_msg rhs_res => SOME_msg (stmt_ass lval rhs_res)
           | NONE_msg rhs_msg => NONE_msg ("could not parse RHS of assignment: "++rhs_msg))
         | NONE => get_error_msg "could not parse into lval: " lhs)
@@ -632,11 +659,11 @@ Definition petr4_parse_assignment_def:
 End
 
 Definition petr4_parse_return_def:
- petr4_parse_return (tyenv, gscope) stmt_details =
+ petr4_parse_return (tyenv, vtymap, gscope) stmt_details =
   case stmt_details of
   | [(f1, exp)] => (* Right-hand side: expression *)
    if f1 = "expr" then
-     (case petr4_parse_expression tyenv (exp, NONE) of
+     (case petr4_parse_expression (tyenv, vtymap) (exp, NONE) of
       | SOME_msg exp_res => SOME_msg (stmt_ret exp_res)
       | NONE_msg exp_msg => NONE_msg ("could not parse return expression: "++exp_msg))
    else NONE_msg ("invalid JSON object field of return: "++f1)
@@ -653,9 +680,9 @@ val _ = TotalDefn.tDefine "petr4_parse_stmt"
   case stmt of
   | Array [String stmt_name; Object stmt_details] =>
    if stmt_name = "method_call" then
-    petr4_parse_method_call (tyenv, gscope, apply_map) stmt_details
+    petr4_parse_method_call (tyenv, vtymap, gscope, apply_map) stmt_details
    else if stmt_name = "assignment" then
-    petr4_parse_assignment (tyenv, gscope) stmt_details
+    petr4_parse_assignment (tyenv, vtymap, gscope) stmt_details
    (* Note: conditional statement is recursive *)
    else if stmt_name = "conditional" then
     case stmt_details of
@@ -665,7 +692,7 @@ val _ = TotalDefn.tDefine "petr4_parse_stmt"
      if f1 = "cond" then
       (if f2 = "tru" then
        (if f3 = "fls" then
-        (case petr4_parse_expression tyenv (cond, NONE) of
+        (case petr4_parse_expression (tyenv, vtymap) (cond, NONE) of
          | SOME_msg cond_res =>
           (* TODO: Will this work, since the cases are always a singleton list of a block statement? *)
           (case petr4_parse_stmt (tyenv, vtymap, gscope, apply_map) true_case of
@@ -695,7 +722,7 @@ val _ = TotalDefn.tDefine "petr4_parse_stmt"
       )
      else NONE_msg ("invalid JSON object field of block: "++f1)
    else if stmt_name = "return" then
-    petr4_parse_return (tyenv, gscope) stmt_details
+    petr4_parse_return (tyenv, vtymap, gscope) stmt_details
    else NONE_msg ("unknown statement name: "++stmt_name)
   | Null => SOME_msg stmt_empty
   | _ => get_error_msg "invalid JSON format of statement: " stmt) /\
@@ -954,8 +981,8 @@ Definition petr4_parse_match_kind_def:
 End
 
 Definition petr4_parse_keys_def:
- (petr4_parse_keys tyenv [] = SOME_msg []) /\
- (petr4_parse_keys tyenv (h::t) =
+ (petr4_parse_keys (tyenv, vtymap) [] = SOME_msg []) /\
+ (petr4_parse_keys (tyenv, vtymap) (h::t) =
    case h of
    | Object
     [("annotations", Array annotations);
@@ -963,9 +990,9 @@ Definition petr4_parse_keys_def:
      ("match_kind", match_kind)] =>
     (case petr4_parse_match_kind match_kind of
      | SOME_msg res_mk =>
-      (case petr4_parse_expression tyenv (key, NONE) of
+      (case petr4_parse_expression (tyenv, vtymap) (key, NONE) of
        | SOME_msg res_key =>
-        (case petr4_parse_keys tyenv t of
+        (case petr4_parse_keys (tyenv, vtymap) t of
          | SOME_msg res_msg => SOME_msg ((res_key, res_mk)::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg key_msg => NONE_msg ("could not parse key: "++key_msg))
@@ -975,14 +1002,14 @@ End
 
 (* TODO: Action argument seems to not be exported by petr4 *)
 Definition petr4_parse_default_action_def:
- petr4_parse_default_action tyenv default_action =
+ petr4_parse_default_action (tyenv, vtymap) default_action =
   case default_action of
   | Object [("annotations", annotations);
             (* TODO: Don't throw this away *)
             ("const", const);
             ("name", String "default_action");
             ("value", action)] =>
-   (case petr4_parse_expression tyenv (action, NONE) of
+   (case petr4_parse_expression (tyenv, vtymap) (action, NONE) of
     | SOME_msg (e_var (varn_name name)) =>
      SOME_msg name
     | _ => get_error_msg "unknown format of default action name: " action)
@@ -991,25 +1018,25 @@ End
 
 (* TODO: Note that this presupposes a default_action field *)
 Definition petr4_build_table_def:
- petr4_build_table tyenv keys_obj custom_obj_opt custom_obj_opt2 =
-  case petr4_parse_keys tyenv keys_obj of
+ petr4_build_table (tyenv, vtymap) keys_obj custom_obj_opt custom_obj_opt2 =
+  case petr4_parse_keys (tyenv, vtymap) keys_obj of
   | SOME_msg keys_res =>
    (case custom_obj_opt of
     | SOME custom_obj =>
      (case custom_obj_opt2 of
       | SOME custom_obj2 =>
        (* See if first custom object is an action *)
-       (case petr4_parse_default_action tyenv custom_obj of
+       (case petr4_parse_default_action (tyenv, vtymap) custom_obj of
         | SOME_msg default_action_name =>
          SOME_msg (keys_res, default_action_name)
        (* If not, second may be an action *)
         | NONE_msg def_act_msg =>
-         (case petr4_parse_default_action tyenv custom_obj2 of
+         (case petr4_parse_default_action (tyenv, vtymap) custom_obj2 of
           | SOME_msg default_action_name2 =>
            SOME_msg (keys_res, default_action_name2)
           | NONE_msg def_act_msg2 => NONE_msg def_act_msg))
       | NONE =>
-       (case petr4_parse_default_action tyenv custom_obj of
+       (case petr4_parse_default_action (tyenv, vtymap) custom_obj of
         | SOME_msg default_action_name =>
          SOME_msg (keys_res, default_action_name)
         | NONE_msg def_act_msg => NONE_msg def_act_msg))
@@ -1020,7 +1047,7 @@ End
 
 (* TODO: Don't throw away the "actions" field - but this requires change in Ott *)
 Definition petr4_parse_properties_def:
- petr4_parse_properties tyenv props =
+ petr4_parse_properties (tyenv, vtymap) props =
   case props of
   | ((Array [String "Key"; Object [("keys", Array keys_obj)]])::t) =>
    (case t of
@@ -1029,11 +1056,11 @@ Definition petr4_parse_properties_def:
       | ((Array [String "Custom"; custom_obj])::t'') =>
        (case t'' of
         | [Array [String "Custom"; custom_obj2]] =>
-         petr4_build_table tyenv keys_obj (SOME custom_obj) (SOME custom_obj2)
-        | [] => petr4_build_table tyenv keys_obj (SOME custom_obj) NONE
+         petr4_build_table (tyenv, vtymap) keys_obj (SOME custom_obj) (SOME custom_obj2)
+        | [] => petr4_build_table (tyenv, vtymap) keys_obj (SOME custom_obj) NONE
         | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
        )
-      | [] => petr4_build_table tyenv keys_obj NONE NONE
+      | [] => petr4_build_table (tyenv, vtymap) keys_obj NONE NONE
       | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
      )
     | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
@@ -1042,14 +1069,14 @@ Definition petr4_parse_properties_def:
 End
 
 Definition petr4_parse_table_def:
- petr4_parse_table tyenv table =
+ petr4_parse_table (tyenv, vtymap) table =
   case table of
   | Object
    [("annotations", Array annotations);
     ("name", String tbl_name);
     ("properties", Array props)] =>
    (* Properties are: Key, Actions, Custom-"size" (optional), Custom-"default_action" (optional?) *)
-   (case petr4_parse_properties tyenv props of
+   (case petr4_parse_properties (tyenv, vtymap) props of
     | SOME_msg (keys, default_action) => SOME_msg ((tbl_name, (SND $ UNZIP keys, (default_action, []))), (tbl_name, FST $ UNZIP keys))
     | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg)
    )
@@ -1077,7 +1104,7 @@ Definition petr4_parse_locals_def:
       petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map, tbl_map, decl_list', inits', vty_updates', apply_map) t
      | NONE_msg var_msg => NONE_msg ("could not parse block-local variable: "++var_msg))
    | Array [String "Table"; tab_obj] =>
-    (case petr4_parse_table tyenv tab_obj of
+    (case petr4_parse_table (tyenv, vtymap) tab_obj of
      | SOME_msg (tbl_map_entry, apply_map_entry) =>
       petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, vty_updates, AUPDATE apply_map apply_map_entry) t
      | NONE_msg tbl_msg => NONE_msg ("could not parse table: "++tbl_msg))
@@ -1085,14 +1112,14 @@ Definition petr4_parse_locals_def:
 End
 
 Definition petr4_parse_matches_def:
- (petr4_parse_matches (tyenv, g_scope) expected_tau [] = SOME_msg []) /\
- (petr4_parse_matches (tyenv, g_scope) expected_tau (h::t) =
+ (petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau [] = SOME_msg []) /\
+ (petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau (h::t) =
   case h of
   | Array [String "Expression";
            Object [("expr", exp)]] =>
-   (case petr4_parse_expression (tyenv, g_scope) (exp, SOME expected_tau) of
+   (case petr4_parse_expression (tyenv, vtymap) (exp, SOME expected_tau) of
      | SOME_msg exp_res =>
-      (case petr4_parse_matches (tyenv, g_scope) expected_tau t of
+      (case petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau t of
        | SOME_msg matches_res => SOME_msg (exp_res::matches_res)
        | NONE_msg matches_msg => NONE_msg matches_msg)
      | NONE_msg exp_msg => NONE_msg ("could not parse select match case: "++exp_msg)
@@ -1101,11 +1128,11 @@ Definition petr4_parse_matches_def:
 End
 
 Definition petr4_parse_case_def:
- petr4_parse_case (tyenv, g_scope) expected_tau select_case =
+ petr4_parse_case (tyenv, vtymap, g_scope) expected_tau select_case =
   case select_case of
    | Object [("matches", Array match_exps);
              ("next", String state_name)] =>
-    (case petr4_parse_matches (tyenv, g_scope) expected_tau match_exps of
+    (case petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau match_exps of
      | SOME_msg [exp_res] =>
       (case v_of_e exp_res of
        | SOME v => SOME_msg (v, state_name)
@@ -1116,12 +1143,12 @@ Definition petr4_parse_case_def:
 End
 
 Definition petr4_parse_cases_def:
- (petr4_parse_cases tyenv expected_tau [] =
+ (petr4_parse_cases (tyenv, vtymap, g_scope) expected_tau [] =
   SOME_msg []) /\
- (petr4_parse_cases tyenv expected_tau (h::t) =
-  case petr4_parse_case tyenv expected_tau h of
+ (petr4_parse_cases (tyenv, vtymap, g_scope) expected_tau (h::t) =
+  case petr4_parse_case (tyenv, vtymap, g_scope) expected_tau h of
    | SOME_msg case_res =>
-    (case petr4_parse_cases tyenv expected_tau t of
+    (case petr4_parse_cases (tyenv, vtymap, g_scope) expected_tau t of
      | SOME_msg cases_res => SOME_msg (case_res::cases_res)
      | NONE_msg cases_msg => NONE_msg cases_msg)
    | NONE_msg case_msg => NONE_msg ("could not parse cases: "++case_msg))
@@ -1189,7 +1216,7 @@ Definition petr4_parse_parser_def:
      * block type parameters? *)
     (case petr4_parse_block_params tyenv params of
      | SOME_msg (pars_params, vty_updates) =>
-      (case petr4_parse_locals (tyenv, vtymap, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
+      (case petr4_parse_locals (tyenv, AUPDATE_LIST vtymap vty_updates, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
        (* TODO: Turn p_tau in decl_list to tau *)
        | SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates', apply_map) =>
         (case petr4_parse_states (tyenv, AUPDATE_LIST vtymap (vty_updates++vty_updates'), gscope) [] states of
@@ -1223,7 +1250,7 @@ Definition petr4_parse_control_def:
      * block type parameters? *)
     (case petr4_parse_block_params tyenv params of
      | SOME_msg (ctrl_params, vty_updates) =>
-      (case petr4_parse_locals (tyenv, vtymap, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
+      (case petr4_parse_locals (tyenv, AUPDATE_LIST vtymap vty_updates, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
        | SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates', apply_map) =>
         (case petr4_parse_stmts (tyenv, AUPDATE_LIST vtymap (vty_updates++vty_updates'), gscope, apply_map) apply of
          | SOME_msg res_apply =>
