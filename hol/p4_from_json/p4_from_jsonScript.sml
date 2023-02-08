@@ -203,7 +203,8 @@ End
 Definition petr4_parse_typedef_def:
  petr4_parse_typedef (tyenv, vtymap, fmap, bltymap, gscope, pblock_map) json =
   case petr4_typedef_to_tyenvupdate tyenv json of
-   | SOME (ty_name, tau) => SOME_msg (AUPDATE tyenv (ty_name, tau), vtymap, fmap, bltymap, gscope, pblock_map)
+   | SOME (ty_name, tau) =>
+    SOME_msg (AUPDATE tyenv (ty_name, tau), vtymap, fmap, bltymap, gscope, pblock_map)
    | NONE => NONE_msg "Could not parse type definition"
 End
 
@@ -281,15 +282,18 @@ Definition exp_to_funn_def:
  exp_to_funn exp =
   case exp of
   (* Regular function call *)
-  | (e_var (varn_name name)) => SOME (funn_name name, NONE)
+  | (e_var (varn_name name)) => SOME (SOME (funn_name name), NONE)
   (* Extern method call/isValid *)
   | (e_acc obj fun_name) =>
+     (* TODO: Also check if obj is well-formed before returning? *)
    (if fun_name = "isValid" then
-    (* TODO: Also check if obj is well-formed before returning? *)
-    SOME (funn_ext "header" "isValid", SOME obj)
+     SOME (SOME (funn_ext "header" "isValid"), SOME obj)
+    else if fun_name = "apply" then
+     (* Apply is a statement, no function name needed *)
+     SOME (NONE, SOME obj)
     else
     (case obj of
-     | (e_var (varn_name ext_name)) => SOME (funn_ext ext_name fun_name, NONE)
+     | (e_var (varn_name ext_name)) => SOME (SOME (funn_ext ext_name fun_name), NONE)
      | _ => NONE))
   | _ => NONE
 End
@@ -385,7 +389,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
    (case petr4_parse_expression_gen tyenv (func_name, NONE) of
     | SOME_msg (INL res_func_name) =>
      (case exp_to_funn res_func_name of
-      | SOME (res_func_name', NONE) =>
+      | SOME (SOME res_func_name', NONE) =>
        (case petr4_parse_expressions_gen tyenv (ZIP (args, REPLICATE (LENGTH args) NONE)) of
         | SOME_msg res_args =>
          (case tyu_l_only res_args of
@@ -394,9 +398,9 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
           | NONE => get_error_msg "type inference failed for function argument list: " (Array args))
         | NONE_msg func_name_msg => NONE_msg ("could not parse called function name: "++func_name_msg))
       (* isValid is modeled in HOL4P4 as a method call *)
-      | SOME (res_isvalid, SOME isvalid_arg) =>
+      | SOME (SOME res_isvalid, SOME isvalid_arg) =>
        SOME_msg (INL (e_call res_isvalid [isvalid_arg]))
-      | NONE => get_error_msg "could not parse called function name: " func_name)
+      | _ => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
   | _ => get_error_msg "invalid JSON format of expression: " exp) /\
 (petr4_parse_expressions_gen tyenv [] = SOME_msg []) /\
@@ -549,9 +553,9 @@ Definition petr4_parse_args_def:
 End
 
 Definition petr4_parse_method_call_def:
- petr4_parse_method_call (tyenv, gscope) stmt_details =
+ petr4_parse_method_call (tyenv, gscope, apply_map) stmt_details =
   case stmt_details of
-  | [(f1, func); (* Expression: either a name or a member (in case of extern method) *)
+  | [(f1, func); (* Expression: either a name or a member (in case of extern object's method) *)
      (f2, tyargs); (* TODO: Typically an empty list. Now thrown away *)
      (f3, Array args)] => (* Argument list: typically expressions *)
    if f1 = "func" then
@@ -560,11 +564,33 @@ Definition petr4_parse_method_call_def:
       (case petr4_parse_expression tyenv (func, NONE) of
        | SOME_msg exp =>
         (case exp_to_funn exp of
-         | SOME (funn, NONE) =>
+         | SOME (SOME funn, NONE) =>
           (case petr4_parse_args tyenv args of
            | SOME_msg res_args =>
-            SOME_msg (stmt_ass lval_null (e_call funn res_args))
+            (case funn of
+             (* Extern object method *)
+             | (funn_ext ext_name extfun_name) =>
+              SOME_msg (stmt_ass lval_null (e_call funn res_args))
+             (* Method without associated object *)
+             (* TODO: This can either be an extern or not... *)
+             (* Note special treatment of verify *)
+             | (funn_name fun_name) =>
+              (if fun_name = "verify" then
+                (* TODO: Make error check for res_args format *)
+                SOME_msg (stmt_verify (EL 0 res_args) (EL 1 res_args))
+               else 
+                SOME_msg (stmt_ass lval_null (e_call funn res_args)))
+             | _ => get_error_msg "unknown type of method call: " func)
            | NONE_msg args_msg => NONE_msg ("could not parse method call: "++args_msg))
+         (* Apply *)
+         | SOME (NONE, SOME app_exp) =>
+           (case app_exp of
+            | (e_var (varn_name tbl_name)) =>
+             (case ALOOKUP apply_map tbl_name of
+              | SOME keys =>
+               SOME_msg (stmt_app tbl_name keys)
+              | NONE => NONE_msg ("could not find entry of table name "++tbl_name++" in apply map"))
+            | _ => get_error_msg "could not parse table name: " func)
          | _ => get_error_msg "could not parse into funn: " func)
        | NONE_msg func_msg => NONE_msg ("could not parse method call: "++func_msg))
       else NONE_msg ("invalid JSON object field of method call: "++f3))
@@ -623,13 +649,13 @@ Definition p4_seq_stmts_def:
 End
 
 val _ = TotalDefn.tDefine "petr4_parse_stmt"
- `(petr4_parse_stmt (tyenv, gscope) stmt =
+ `(petr4_parse_stmt (tyenv, vtymap, gscope, apply_map) stmt =
   case stmt of
   | Array [String stmt_name; Object stmt_details] =>
    if stmt_name = "method_call" then
-    petr4_parse_method_call (tyenv, gscope) stmt_details
+    petr4_parse_method_call (tyenv, gscope, apply_map) stmt_details
    else if stmt_name = "assignment" then
-    SOME_msg stmt_empty
+    petr4_parse_assignment (tyenv, gscope) stmt_details
    (* Note: conditional statement is recursive *)
    else if stmt_name = "conditional" then
     case stmt_details of
@@ -642,9 +668,9 @@ val _ = TotalDefn.tDefine "petr4_parse_stmt"
         (case petr4_parse_expression tyenv (cond, NONE) of
          | SOME_msg cond_res =>
           (* TODO: Will this work, since the cases are always a singleton list of a block statement? *)
-          (case petr4_parse_stmt (tyenv, gscope) true_case of
+          (case petr4_parse_stmt (tyenv, vtymap, gscope, apply_map) true_case of
            | SOME_msg true_case_res =>
-            (case petr4_parse_stmt (tyenv, gscope) false_case of
+            (case petr4_parse_stmt (tyenv, vtymap, gscope, apply_map) false_case of
              | SOME_msg false_case_res => SOME_msg (stmt_cond cond_res true_case_res false_case_res)
              | NONE_msg false_case_msg => NONE_msg ("could not parse then-case of conditional statement: "++false_case_msg))
            | NONE_msg true_case_msg => NONE_msg ("could not parse if-case of conditional statement: "++true_case_msg))
@@ -660,7 +686,7 @@ val _ = TotalDefn.tDefine "petr4_parse_stmt"
       (case block of
        | Object [("annotations", annotations);
                  ("statements", Array stmts)] =>
-        (case petr4_parse_stmts (tyenv, gscope) stmts of
+        (case petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) stmts of
          (* TODO: Must fix list of declarations for the block... *)
          | SOME_msg res_stmts => SOME_msg (stmt_block [] (p4_seq_stmts res_stmts))
          | NONE_msg stmts_msg => NONE_msg ("could not parse block: "++stmts_msg)
@@ -673,18 +699,18 @@ val _ = TotalDefn.tDefine "petr4_parse_stmt"
    else NONE_msg ("unknown statement name: "++stmt_name)
   | Null => SOME_msg stmt_empty
   | _ => get_error_msg "invalid JSON format of statement: " stmt) /\
- (petr4_parse_stmts (tyenv, gscope) [] =
+ (petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) [] =
   SOME_msg []) /\
- (petr4_parse_stmts (tyenv, gscope) (h::t) =
-  case petr4_parse_stmt (tyenv, gscope) h of
+ (petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) (h::t) =
+  case petr4_parse_stmt (tyenv, vtymap, gscope, apply_map) h of
    | SOME_msg stmt_res =>
-    (case petr4_parse_stmts (tyenv, gscope) t of
+    (case petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) t of
      | SOME_msg stmts_res => SOME_msg (stmt_res::stmts_res)
      | NONE_msg stmts_msg => NONE_msg stmts_msg)
    | NONE_msg stmt_msg => NONE_msg ("could not parse stmts: "++stmt_msg))`
 cheat
 ;
-
+(*
 Definition petr4_parse_stmts_def:
  (petr4_parse_stmts (tyenv, gscope) [] =
   SOME_msg []) /\
@@ -696,7 +722,7 @@ Definition petr4_parse_stmts_def:
      | NONE_msg stmts_msg => NONE_msg stmts_msg)
    | NONE_msg stmt_msg => NONE_msg ("could not parse stmts: "++stmt_msg))
 End
-
+*)
 Definition p4_seq_append_stmt_def:
  p4_seq_append_stmt stmt1 stmt2 =
   case stmt1 of
@@ -715,7 +741,7 @@ Definition petr4_parse_params_def:
 End
 
 Definition petr4_function_to_fmapupdate_def:
- petr4_function_to_fmapupdate (tyenv, fmap, gscope) function =
+ petr4_function_to_fmapupdate (tyenv, vtymap, fmap, gscope, apply_map) function =
   case function of
   | Object
    [("annotations", Array annotations);
@@ -725,7 +751,7 @@ Definition petr4_function_to_fmapupdate_def:
                      ("statements", Array stmts)])] =>
    (case petr4_parse_params (tyenv, fmap, gscope) params of
     | SOME_msg f_params =>
-     (case petr4_parse_stmts (tyenv, fmap, gscope) stmts of
+     (case petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) stmts of
       | SOME_msg f_body => SOME_msg (f_name, (p4_seq_stmts f_body, f_params))
       | NONE_msg stmts_msg => NONE_msg stmts_msg)
     | NONE_msg params_msg => NONE_msg params_msg)
@@ -734,9 +760,10 @@ End
 
 (* TODO: Decide whether to put function in global or local function map *)
 Definition petr4_parse_function_def:
- petr4_parse_function (tyenv, vtymap, fmap, bltymap, gscope, pblock_map) function =
-  case petr4_function_to_fmapupdate (tyenv, fmap, gscope) function of
-   | SOME_msg (f_name, (f_body, f_params)) => SOME_msg (tyenv, vtymap, AUPDATE fmap (f_name, (f_body, f_params)), bltymap, gscope, pblock_map)
+ petr4_parse_function (tyenv, vtymap, fmap, bltymap, gscope, pblock_map, apply_map) function =
+  case petr4_function_to_fmapupdate (tyenv, vtymap, fmap, gscope, apply_map) function of
+   | SOME_msg (f_name, (f_body, f_params)) =>
+    SOME_msg (tyenv, vtymap, AUPDATE fmap (f_name, (f_body, f_params)), bltymap, gscope, pblock_map)
    | NONE_msg msg => NONE_msg ("Could not parse struct: "++msg)
 End
 
@@ -816,7 +843,8 @@ End
 Definition petr4_parse_block_type_def:
  petr4_parse_block_type (tyenv, vtymap, fmap, bltymap, gscope, pblock_map) blty blocktype_details =
   case petr4_blocktype_to_bltymapupdate (tyenv, fmap, bltymap, gscope) blocktype_details of
-   | SOME_msg (blty_name, (blty_typarams, blty_blparams)) => SOME_msg (tyenv, vtymap, fmap, AUPDATE bltymap (blty_name, (blty, blty_typarams, blty_blparams)), gscope, pblock_map)
+   | SOME_msg (blty_name, (blty_typarams, blty_blparams)) =>
+    SOME_msg (tyenv, vtymap, fmap, AUPDATE bltymap (blty_name, (blty, blty_typarams, blty_blparams)), gscope, pblock_map)
    | NONE_msg msg => NONE_msg ("Could not parse block type: "++msg)
 End
 
@@ -1028,32 +1056,30 @@ Definition petr4_parse_table_def:
   | _ => get_error_msg "invalid JSON format of table: " table
 End
 
-(* Current point of TODO: Make this also return an updated tbl_map and a block-local apply_map
- * for adding the keys to apply statements *)
 Definition petr4_parse_locals_def:
- (petr4_parse_locals (tyenv, fmap, gscope) (b_func_map:b_func_map, tbl_map:tbl_map, decl_list, inits, vty_updates, apply_map) [] =
+ (petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map:b_func_map, tbl_map:tbl_map, decl_list, inits, vty_updates, apply_map) [] =
   SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates, apply_map)) /\
- (petr4_parse_locals (tyenv, fmap, gscope) (b_func_map, tbl_map, decl_list, inits, vty_updates, apply_map) (h::t) =
+ (petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map, tbl_map, decl_list, inits, vty_updates, apply_map) (h::t) =
   case h of
    | Array [String "Instantiation"; inst_obj] =>
     (case petr4_parse_inst (tyenv, decl_list, inits) inst_obj of
      | SOME_msg (decl_list', inits') =>
-      petr4_parse_locals (tyenv, fmap, gscope) (b_func_map, tbl_map, decl_list', inits', vty_updates, apply_map) t
+      petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map, tbl_map, decl_list', inits', vty_updates, apply_map) t
      | NONE_msg inst_msg => NONE_msg ("could not parse instantiation: "++inst_msg))
    | Array [String "Action"; act_obj] =>
-    (case petr4_function_to_fmapupdate (tyenv, fmap, gscope) act_obj of
+    (case petr4_function_to_fmapupdate (tyenv, vtymap, fmap, gscope, apply_map) act_obj of
      | SOME_msg b_func_map_upd =>
-      petr4_parse_locals (tyenv, fmap, gscope) (AUPDATE b_func_map b_func_map_upd, tbl_map, decl_list, inits, vty_updates, apply_map) t
+      petr4_parse_locals (tyenv, vtymap, fmap, gscope) (AUPDATE b_func_map b_func_map_upd, tbl_map, decl_list, inits, vty_updates, apply_map) t
      | NONE_msg f_msg => NONE_msg ("could not parse block-local function: "++f_msg))
    | Array [String "Variable"; var_obj] =>
     (case petr4_parse_var (tyenv, decl_list, inits, vty_updates) var_obj of
      | SOME_msg (decl_list', inits', vty_updates') =>
-      petr4_parse_locals (tyenv, fmap, gscope) (b_func_map, tbl_map, decl_list', inits', vty_updates', apply_map) t
+      petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map, tbl_map, decl_list', inits', vty_updates', apply_map) t
      | NONE_msg var_msg => NONE_msg ("could not parse block-local variable: "++var_msg))
    | Array [String "Table"; tab_obj] =>
     (case petr4_parse_table tyenv tab_obj of
      | SOME_msg (tbl_map_entry, apply_map_entry) =>
-      petr4_parse_locals (tyenv, fmap, gscope) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, vty_updates, AUPDATE apply_map apply_map_entry) t
+      petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, vty_updates, AUPDATE apply_map apply_map_entry) t
      | NONE_msg tbl_msg => NONE_msg ("could not parse table: "++tbl_msg))
    | _ => get_error_msg "invalid JSON format of local: " h)
 End
@@ -1138,7 +1164,7 @@ Definition petr4_parse_states_def:
      ("name", String state_name);
      ("statements", Array stmts);
      ("transition", Array trans)] =>
-    (case petr4_parse_stmts (tyenv,vtymap,gscope) stmts of
+    (case petr4_parse_stmts (tyenv,vtymap,gscope,[]) stmts of
      | SOME_msg stmts_res =>
       (case petr4_parse_trans (tyenv,vtymap,gscope) trans of
        | SOME_msg trans_res =>
@@ -1149,7 +1175,7 @@ Definition petr4_parse_states_def:
 End
 
 Definition petr4_parse_parser_def:
- petr4_parse_parser (tyenv, vtymap, fmap, bltymap, gscope, pblock_map:pblock_map) parser =
+ petr4_parse_parser (tyenv, vtymap, fmap:func_map, bltymap, gscope, pblock_map:pblock_map) parser =
   case parser of
    | Object
     [("annotations",Array annotations);
@@ -1163,7 +1189,7 @@ Definition petr4_parse_parser_def:
      * block type parameters? *)
     (case petr4_parse_block_params tyenv params of
      | SOME_msg (pars_params, vty_updates) =>
-      (case petr4_parse_locals (tyenv, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
+      (case petr4_parse_locals (tyenv, vtymap, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
        (* TODO: Turn p_tau in decl_list to tau *)
        | SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates', apply_map) =>
         (case petr4_parse_states (tyenv, AUPDATE_LIST vtymap (vty_updates++vty_updates'), gscope) [] states of
@@ -1197,9 +1223,9 @@ Definition petr4_parse_control_def:
      * block type parameters? *)
     (case petr4_parse_block_params tyenv params of
      | SOME_msg (ctrl_params, vty_updates) =>
-      (case petr4_parse_locals (tyenv, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
+      (case petr4_parse_locals (tyenv, vtymap, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
        | SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates', apply_map) =>
-        (case petr4_parse_stmts (tyenv, AUPDATE_LIST vtymap (vty_updates++vty_updates'), gscope) apply of
+        (case petr4_parse_stmts (tyenv, AUPDATE_LIST vtymap (vty_updates++vty_updates'), gscope, apply_map) apply of
          | SOME_msg res_apply =>
           (* TODO: Fix table map below *)
           SOME_msg (tyenv, vtymap, fmap, bltymap, gscope, AUPDATE pblock_map (control_name, (pblock_regular pbl_type_control ctrl_params b_func_map decl_list (stmt_seq inits (p4_seq_stmts res_apply)) ([]:pars_map) tbl_map)))
@@ -1212,6 +1238,13 @@ End
 (**********************)
 (* Petr4 JSON element *)
 (**********************)
+
+(* Top-level functions don't need apply maps, since there are not tables defined outside
+ * control blocks *)
+Definition petr4_parse_top_level_function_def:
+ petr4_parse_top_level_function res obj =
+  petr4_parse_function (( \ (tyenv, vtymap, fmap, bltymap, gscope, pblock_map). (tyenv, vtymap, fmap, bltymap, gscope, pblock_map, [])) res) obj
+End
 
 (* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
 Definition petr4_parse_element_def:
@@ -1229,7 +1262,7 @@ Definition petr4_parse_element_def:
   else if elem_name = "ExternFunction" then SOME_msg res
   (* WIP: Add to global function map, local ones as appropriate
    *      Finish stmt parsing and param parsing *)
-  else if elem_name = "Action" then petr4_parse_function res obj
+  else if elem_name = "Action" then petr4_parse_top_level_function res obj
   (* DONE: TypeDefs generate a type map that is checked when later elements are parsed *)
   else if elem_name = "TypeDef" then petr4_parse_typedef res obj
   (* DONE: Constants are added to the global scope.
