@@ -513,7 +513,7 @@ tau {{ tex \tau }} :: tau_ ::=
 
 
 
-t_tau {{ tex \t_{tau} }} :: t_tau_ ::=
+t {{ tex t }} :: t_ ::=
 {{ com type }}
 | tau :: :: tau
   {{ com BASE TYPE }}

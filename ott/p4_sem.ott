@@ -564,10 +564,10 @@ formula :: formula_ ::=
   {{ hol ([[formula]]) }}
 
 |  v_list : ( taul , false )  :: :: type_all_v
-  {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau_tau ( EL i [[taul]] )) F ) }}
+  {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau ( EL i [[taul]] )) F ) }}
   {{ tex [[v_list]] : ( [[taul]] , F ) }}
 |  ( v1 , .. , vm ) : ( tau , b )  :: :: type_all_v_one_t
-  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau_tau [[tau]]) [[b]] ) }}    
+  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
 | correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau ) :: :: correct_field_type
@@ -579,7 +579,7 @@ formula :: formula_ ::=
 | w = vec_to_const bitv  :: :: vec_to_const
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
-  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (t_tau_tau (EL i [[tau1 .. taun]])) (EL i [[b1 .. bo]]) ) }}
+  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (t_tau (EL i [[tau1 .. taun]])) (EL i [[b1 .. bo]]) ) }}
 
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
   {{ hol ( out_is_lval [[d1 .. dn]] [[b1 .. bm]] ) }}

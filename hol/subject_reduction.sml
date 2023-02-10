@@ -205,9 +205,9 @@ val v_typed_bv_op = prove ( ``
 w ≤ 64 /\ w > 0 /\
 is_bv_op (op) /\
 bitv_binop op bitv bitv' = SOME bitv'' /\
-v_typ (v_bit bitv) (t_tau_tau (tau_bit w)) b /\
-v_typ (v_bit bitv') (t_tau_tau (tau_bit w)) b' ==>
-v_typ (v_bit bitv'') (t_tau_tau (tau_bit w)) F ``,
+v_typ (v_bit bitv) (t_tau (tau_bit w)) b /\
+v_typ (v_bit bitv') (t_tau (tau_bit w)) b' ==>
+v_typ (v_bit bitv'') (t_tau (tau_bit w)) F ``,
 
 
      REPEAT STRIP_TAC >>
@@ -1250,8 +1250,8 @@ val evl_types_vl_F = prove(``
 is_consts (l) /\
 (e_typ (t_scope_list_g,t_scope_list) T_e
           (EL i l)
-          (t_tau_tau (EL i l')) F) ==>
-v_typ (EL i (vl_of_el l)) (t_tau_tau (EL i l')) F ``,
+          (t_tau (EL i l')) F) ==>
+v_typ (EL i (vl_of_el l)) (t_tau (EL i l')) F ``,
 
 Induct_on `l` >>
 Induct_on `l'` >>
@@ -1350,8 +1350,8 @@ the values of the list l, the same exact way using v_typ.
 val evl_types_vl_blist = prove ( ``
     ∀l l' l'' i t_scope_list_g t_scope_list T_e.
        LENGTH l = LENGTH l' /\ LENGTH l = LENGTH l'' ∧ i < LENGTH l ∧ is_consts l ∧
-       e_typ (t_scope_list_g,t_scope_list) T_e (EL i l) (t_tau_tau (EL i l')) (EL i l'') ⇒
-       v_typ (EL i (vl_of_el l)) (t_tau_tau (EL i l')) F ``,
+       e_typ (t_scope_list_g,t_scope_list) T_e (EL i l) (t_tau (EL i l')) (EL i l'') ⇒
+       v_typ (EL i (vl_of_el l)) (t_tau (EL i l')) F ``,
 
 Induct_on `l` >>
 Induct_on `l'` >>
@@ -1671,7 +1671,7 @@ val varn_is_typed = prove (``
           type_scopes_list sl tsl ∧
           SOME v = lookup_vexp2 sl gsl varn ∧
           SOME tau = lookup_tau tsl gtsl varn ==>
-          v_typ v (t_tau_tau tau) F
+          v_typ v (t_tau tau) F
 ``,
 
 REPEAT STRIP_TAC >>
@@ -1692,7 +1692,7 @@ PairCases_on `x` >>
 fs[type_scopes_list_def] >>
 subgoal `∀x v.
           SOME v = lookup_map (sl ⧺ gsl) x ==>
-          ∀t. SOME t = lookup_map (tsl ⧺ gtsl) x ==> v_typ (FST v) (t_tau_tau t) F` >-
+          ∀t. SOME t = lookup_map (tsl ⧺ gtsl) x ==> v_typ (FST v) (t_tau t) F` >-
 (IMP_RES_TAC R_lookup_map_scopesl >>
 fs[])  >>
 
@@ -4446,21 +4446,21 @@ RES_TAC
 (*********************************************)
 
 
-val rm_t_tau_def = Define `
-(rm_t_tau (t_tau_tau (tau : tau) ) = tau ) 
+val rm_t_def = Define `
+(rm_t (t_tau (tau : tau) ) = tau ) 
 `;
 
 
 val type_of_v_def = TotalDefn.tDefine "type_of_v" `
-(type_of_v (v_bool boolv) = t_tau_tau tau_bool) /\
-(type_of_v (v_bit (bl, n)) = t_tau_tau (tau_bit n)) /\
-(type_of_v (v_bot) = t_tau_tau tau_bot) /\
-(type_of_v (v_err x) = t_tau_tau tau_err) /\
-(type_of_v (v_str x) = t_tau_string_names_a [x] ) /\
+(type_of_v (v_bool boolv) = t_tau tau_bool) /\
+(type_of_v (v_bit (bl, n)) = t_tau (tau_bit n)) /\
+(type_of_v (v_bot) = t_tau tau_bot) /\
+(type_of_v (v_err x) = t_tau tau_err) /\
+(type_of_v (v_str x) = t_string_names_a [x] ) /\
 (type_of_v (v_struct xvl) =
-  t_tau_tau (tau_xtl struct_ty_struct ( MAP (\xv . (FST xv ,  rm_t_tau (type_of_v (SND xv))   )) xvl   ) ) ) /\
+  t_tau (tau_xtl struct_ty_struct ( MAP (\xv . (FST xv ,  rm_t (type_of_v (SND xv))   )) xvl   ) ) ) /\
 (type_of_v (v_header boolv xvl) =
-  t_tau_tau (tau_xtl struct_ty_header ( MAP (\xv . (FST xv ,  rm_t_tau (type_of_v (SND xv))   )) xvl   ) ) )
+  t_tau (tau_xtl struct_ty_header ( MAP (\xv . (FST xv ,  rm_t (type_of_v (SND xv))   )) xvl   ) ) )
 `
 (WF_REL_TAC `measure v_size` >>
  fs[v_size_def] >>
@@ -4488,7 +4488,7 @@ vl_typ_eq vl tl (ty:'a itself)  =
 (* this property is applied only on the base type. It does not include the parer names*)
 val init_out_v_typed_def = Define `
  init_out_v_typed (v:v) (ty:'a itself) =
-(!tau . v_typ v (t_tau_tau tau) F ==> v_typ (init_out_v v) (t_tau_tau tau) F)
+(!tau . v_typ v (t_tau tau) F ==> v_typ (init_out_v v) (t_tau tau) F)
 `;
 
 
@@ -4774,10 +4774,10 @@ RES_TAC
 
 val access_struct_init_typed = prove ( ``
 ! x s v struct_ty x_tau_list tau .
-v_typ x (t_tau_tau (tau_xtl struct_ty x_tau_list)) F /\
+v_typ x (t_tau (tau_xtl struct_ty x_tau_list)) F /\
 acc_f x s = SOME v /\
 correct_field_type x_tau_list s tau ==>
-v_typ (init_out_v v) (t_tau_tau tau) F
+v_typ (init_out_v v) (t_tau tau) F
 
 ``,
 REPEAT STRIP_TAC >>
@@ -4823,7 +4823,7 @@ REPEAT (
   fs[] >>
   gvs[] ) >>
 
- subgoal `v_typ v (t_tau_tau tau) F` >-
+ subgoal `v_typ v (t_tau tau) F` >-
  (INST_FST [`z'0`] >>
   RES_TAC >>
   gvs[] ) >>
@@ -4845,7 +4845,7 @@ REPEAT (
 
 
 val ev_not_typed_T = prove ( ``! t_g t_sl T_e v tau .
-   ~ e_typ (t_g,t_sl) T_e (e_v v) (t_tau_tau tau) T``,
+   ~ e_typ (t_g,t_sl) T_e (e_v v) (t_tau tau) T``,
 
 fs[Once e_typ_cases] >>
 fs[Once v_typ_cases] >>
@@ -4869,9 +4869,9 @@ fs[] );
 val acc_struct_val_typed = prove ( ``
 ! v strct s struct_ty x_tau_list tau .
 acc_f strct s = SOME v /\
-v_typ strct (t_tau_tau (tau_xtl struct_ty x_tau_list)) F /\
+v_typ strct (t_tau (tau_xtl struct_ty x_tau_list)) F /\
 correct_field_type x_tau_list s tau ==>
-  v_typ v (t_tau_tau tau) F
+  v_typ v (t_tau tau) F
 ``,
 
 REPEAT STRIP_TAC >>
@@ -4923,9 +4923,9 @@ star_not_in_sl scopest /\
 get_lval_of_e e = SOME lval /\
 wf_arg d x e (scopest ⧺ gscope) /\
 (is_d_out d ) /\
-e_typ (t_g,t_sl) T_e e (t_tau_tau tau) b ==>
+e_typ (t_g,t_sl) T_e e (t_tau tau) b ==>
 (? v . lookup_lval (scopest ⧺ gscope) lval = SOME v /\
-v_typ v (t_tau_tau tau) F)
+v_typ v (t_tau tau) F)
 ``,
 (* First prove that b is always true *)
 
@@ -4949,7 +4949,7 @@ gvs[] >| [
   gvs[] >>
 
   fs[type_scopes_list_def] >>
-  subgoal `similarl (λx y. v_typ (FST x) (t_tau_tau y) F) (scopest ++ gscope) (t_sl ++ t_g) ` >-
+  subgoal `similarl (λx y. v_typ (FST x) (t_tau y) F) (scopest ++ gscope) (t_sl ++ t_g) ` >-
   (fs[similarl_def] >>
   IMP_RES_TAC LIST_REL_APPEND) >>
 
@@ -4957,7 +4957,7 @@ gvs[] >| [
                          ``:'b`` |-> ``:tau``] R_lookup_map_scopesl)  >>
 			 
   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-  [`(λx y. v_typ (FST x) (t_tau_tau y) F)`,
+  [`(λx y. v_typ (FST x) (t_tau y) F)`,
    `(tau)`,
    `(varn_name s)`,
    `x`,
@@ -4984,7 +4984,7 @@ gvs[] >| [
    ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:(v#lval option)``,
                          ``:'b`` |-> ``:tau``] R_lookup_map_scopesl)  >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`(λx y. v_typ (FST x) (t_tau_tau y) F)`,
+   [`(λx y. v_typ (FST x) (t_tau y) F)`,
     `(tau)`,
     `(varn_star f)`,
     `(v',x1)`,
@@ -5062,7 +5062,7 @@ val CI_scope_WT_single = prove ( ``
 type_scopes_list gscope t_g /\
 type_scopes_list scopest t_sl /\
 star_not_in_sl scopest /\
-( e_typ (t_g,t_sl) T_e e (t_tau_tau tau) b) /\
+( e_typ (t_g,t_sl) T_e e (t_tau tau) b) /\
 wf_arg d x e (scopest ⧺ gscope) /\
 copyin_abstract [x] [d] [e] (scopest ⧺ gscope) scope' ==>
 type_scopes_list [scope'] [ZIP ((mk_varn [x]), [tau])]
@@ -5158,7 +5158,7 @@ star_not_in_sl scopest /\
             e_typ (t_g,t_sl)
               (T_e)
               (EL i (MAP (λ(e_,x_,d_). e_) e_x_d_list))
-              (t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) e_tau_d_b_list)))
+              (t_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) e_tau_d_b_list)))
               (EL i (MAP (λ(e_,tau_,d_,b_). b_) e_tau_d_b_list))) /\
 wf_arg_list (MAP (λ(e,x,d). d) e_x_d_list) 
             (MAP (λ(e,x,d). x) e_x_d_list) (MAP (λ(e,x,d). e) e_x_d_list)
@@ -5223,7 +5223,7 @@ Induct >| [
   subgoal `(∀i. i < LENGTH e_x_d_list ⇒
              e_typ (t_g,t_sl) T_e
 	                  (EL i (MAP (λ(e_,x_,d_). e_) e_x_d_list))
-               (t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) (TL e_tau_d_b_list))))
+               (t_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) (TL e_tau_d_b_list))))
                           (EL i (MAP (λ(e_,tau_,d_,b_). b_) (TL e_tau_d_b_list))))` >-
     ( REPEAT STRIP_TAC >>
       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i + 1` ])) >>
@@ -5272,7 +5272,7 @@ Induct >| [
   `MAP (λ(e_,tau_,d_,b_). tau_) (TL (e_tau_d_b_list : (α # tau # β # bool) list))`,
   `HD (MAP (λ(e_,tau_,d_,b_). tau_) (e_tau_d_b_list : (α # tau # β # bool) list))`,
   `varn_name h1`,
-  `(λx y. v_typ (FST x) (t_tau_tau y) F)`,
+  `(λx y. v_typ (FST x) (t_tau y) F)`,
   `HD scope'`
  ])) >>
 
@@ -5449,7 +5449,7 @@ FULL_SIMP_TAC list_ss [lemma_v_red_forall] >> rw[] >|[
  fs[LENGTH_MAP] >>
  
  subgoal `v_typ (EL q (MAP (λ(x_,v_,tau_). v_) x_v_tau_list))
-          (t_tau_tau (EL q (MAP (λ(x_,v_,tau_). tau_) x_v_tau_list))) F ` >- (
+          (t_tau (EL q (MAP (λ(x_,v_,tau_). tau_) x_v_tau_list))) F ` >- (
   RES_TAC ) >>
  rw[] >>
 
@@ -5497,7 +5497,7 @@ FULL_SIMP_TAC list_ss [lemma_v_red_forall] >> rw[] >|[
  fs[LENGTH_MAP] >>
 
  subgoal `v_typ (EL q (MAP (λ(x_,v_,tau_). v_) x_v_tau_list))
-          (t_tau_tau (EL q (MAP (λ(x_,v_,tau_). tau_) x_v_tau_list))) F ` >- (
+          (t_tau (EL q (MAP (λ(x_,v_,tau_). tau_) x_v_tau_list))) F ` >- (
   RES_TAC ) >>
  rw[] >>
 
@@ -5907,7 +5907,7 @@ REPEAT STRIP_TAC >| [
      `framel`,
      `t_scope_list`,
      `t_scope_list_g`,
-     `t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) (e_tau_d_b_list : (e # tau # d # bool) list ) ))`,
+     `t_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) (e_tau_d_b_list : (e # tau # d # bool) list ) ))`,
      `(EL i (MAP (λ(e_,tau_,d_,b_). b_) (e_tau_d_b_list : (e # tau # d # bool) list ) ))`,
      `(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)`, 
      `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`,
@@ -6106,7 +6106,7 @@ REPEAT STRIP_TAC >| [
   `delta_g`,`delta_b`,`delta_x`,`delta_t`,
   `f'`, `Prs_n`, `ty`,
   `(EL i (MAP (λ(e_,tau_,d_,b_). b_) (e_tau_d_b_list : (e # tau # d # bool) list )   ))`,
-  `t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) (e_tau_d_b_list : (e # tau # d # bool) list ) ))`
+  `t_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_) (e_tau_d_b_list : (e # tau # d # bool) list ) ))`
   ])) >>
  gvs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
@@ -6171,7 +6171,7 @@ REPEAT STRIP_TAC >|[
    `framel`,
    `t_scope_list`,
    `t_scope_list_g`,
-   `t_tau_tau tau'`,
+   `t_tau tau'`,
    `b'`,
    `c`,
    `order`,
@@ -6259,7 +6259,7 @@ REPEAT STRIP_TAC >| [
     `framel`,
     `t_scope_list`,
     `t_scope_list_g`,
-    `t_tau_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list: (string # e # tau # bool) list )  ))`,
+    `t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list: (string # e # tau # bool) list )  ))`,
     `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list: (string # e # tau # bool) list)  ))`,
     `c`,
     `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`,
@@ -6377,7 +6377,7 @@ REPEAT STRIP_TAC >| [
 	`delta_x`,
 	`delta_t`, `f`, `Prs_n`, `ty`,
          `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list : (string # e # tau # bool) list)))`,
-	 `(t_tau_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`])) >>
+	 `(t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`])) >>
 
  gvs[] >>
 
@@ -6449,7 +6449,7 @@ REPEAT STRIP_TAC >| [
     `framel`,
     `t_scope_list`,
     `t_scope_list_g`,
-    `t_tau_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list: (string # e # tau # bool) list )  ))`,
+    `t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list: (string # e # tau # bool) list )  ))`,
     `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list: (string # e # tau # bool) list)  ))`,
     `c`,
     `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`,
@@ -6569,7 +6569,7 @@ REPEAT STRIP_TAC >| [
 	`delta_x`,
 	`delta_t`, `f`, `Prs_n`, `ty`,
          `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list : (string # e # tau # bool) list)))`,
-	 `(t_tau_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`])) >>
+	 `(t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`])) >>
 
  gvs[] >>
 

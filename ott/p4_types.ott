@@ -328,9 +328,9 @@ val WF_o_def = Define `
 defns
 v_typ :: '' ::=
 defn
- v : ( t_tau , boolv )  :: :: v_typ :: v_
+ v : ( t , boolv )  :: :: v_typ :: v_
 {{ com values types }}
-{{ tex [[v]] : ( [[t_tau]] , [[boolv]] ) }}
+{{ tex [[v]] : ( [[t]] , [[boolv]] ) }}
 by
 
  
@@ -401,7 +401,7 @@ type_scope (scope:scope) (t_scope:t_scope) =
 *)
 val type_scopes_list_def = Define `
 type_scopes_list (sl:scope list) (tsl:t_scope list) =
- similarl (\x y . (v_typ (FST (x)) (t_tau_tau y) F ) ) sl tsl
+ similarl (\x y . (v_typ (FST (x)) (t_tau y) F ) ) sl tsl
 `;
 
 
@@ -455,7 +455,7 @@ thus we do not check it's absence
 *)
 val type_globals_tsl_def = Define `
 type_globals_tsl (sl:scope list) (tsl: t_scope list)  =
-similarl (\x y . (v_typ (FST (x)) (t_tau_tau y) F ) ) sl tsl
+similarl (\x y . (v_typ (FST (x)) (t_tau y) F ) ) sl tsl
 `;
 
 
@@ -473,15 +473,15 @@ type_state_tsll (sll:scope list list) (tsl: t_scope list) =
 defns
 e_typ :: '' ::=
 defn
-t_scopes_tup T_e |- e : ( t_tau , boolv ) :: :: e_typ :: e_
+t_scopes_tup T_e |- e : ( t , boolv ) :: :: e_typ :: e_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[t_tau]] , [[boolv]] ) }}
+{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[t]] , [[boolv]] ) }}
 by
 
 
-v : ( t_tau , b )
+v : ( t , b )
 ----------------------------------- :: v
-t_scopes_tup T_e |- v : ( t_tau , b )
+t_scopes_tup T_e |- v : ( t , b )
 
 not_star (varn)
 tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
@@ -818,7 +818,7 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    ( ALL_DISTINCT (MAP FST xdl) ) /\
 	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
 	 SOME (a',scope_list', v) = IoE (a,g_scope_list, [local_scope] ) /\
-	 v_typ v (t_tau_tau tau) F /\
+	 v_typ v (t_tau tau) F /\
    star_not_in_sl (scope_list') /\
 	 type_scopes_list scope_list' [t_scope']
 `;
@@ -842,7 +842,7 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    ( ALL_DISTINCT (MAP FST xdl) ) /\
 	 local_scope = declare_list_in_fresh_scope ( t_scope' ) /\
 	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, [local_scope]  )) /\
-	 v_typ v (t_tau_tau tau) F /\
+	 v_typ v (t_tau tau) F /\
    star_not_in_sl (scope_list') /\
 	 type_scopes_list scope_list' [t_scope']
 `;
