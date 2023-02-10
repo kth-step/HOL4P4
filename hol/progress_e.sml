@@ -764,10 +764,10 @@ val varn_tau_exists_in_scl_tscl = prove ( ``
    type_scopes_list sl tsl  ==>
    
     ((SOME v = lookup_vexp2 sl gsl varn ==> ?tau. SOME tau = lookup_tau tsl gtsl varn /\
-                                                    v_typ v (t_tau_tau tau) F)
+                                                    v_typ v (t_tau tau) F)
 						    /\
      (SOME tau = lookup_tau tsl gtsl varn ==> ?v. SOME v = lookup_vexp2 sl gsl varn /\
-                                                    v_typ v (t_tau_tau tau) F))
+                                                    v_typ v (t_tau tau) F))
 ``,
 
 gvs[lookup_tau_def] >>
@@ -1269,7 +1269,7 @@ gvs[]  >| [
                         ``:'b`` |-> ``:tau``] R_lookup_map_scopesl)  >>
 			 
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`(λx y. v_typ (FST x) (t_tau_tau y) F)`, `(tau')`, `(varn_name s)`,
+ [`(λx y. v_typ (FST x) (t_tau y) F)`, `(tau')`, `(varn_name s)`,
   `(v'',x1)`, `(tsl ⧺ gtsl)`,`(scopest ⧺ gscope)`])) >>
  gvs[]
  ,
@@ -1301,7 +1301,7 @@ gvs[]  >| [
 
 		 
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`(λx y. v_typ (FST x) (t_tau_tau y) F)`, `(tau')`, `(varn_star f)`,
+ [`(λx y. v_typ (FST x) (t_tau y) F)`, `(tau')`, `(varn_star f)`,
   `(v'',x1)`, `(gtsl)`,`(gscope)`])) >>
  gvs[type_scopes_list_def]
 ]
@@ -1349,7 +1349,7 @@ REPEAT STRIP_TAC >~ [`∃lval v. get_lval_of_e (e_acc e s) = SOME lval ∧
  fs[is_get_lval] >| [
 
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-         `(t_tau_tau (tau_xtl struct_ty_struct x_tau_list))`,
+         `(t_tau (tau_xtl struct_ty_struct x_tau_list))`,
 	 `gtsl`, `gscope`,`tsl`,`scopest`,`T_e`])) >> gvs[] >>
 
    Q.PAT_X_ASSUM `get_lval_of_e (e_acc e s) = SOME v`
@@ -1375,7 +1375,7 @@ REPEAT STRIP_TAC >~ [`∃lval v. get_lval_of_e (e_acc e s) = SOME lval ∧
    ,
 
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-         `(t_tau_tau (tau_xtl struct_ty_header x_tau_list))`,
+         `(t_tau (tau_xtl struct_ty_header x_tau_list))`,
 	 `gtsl`, `gscope`,`tsl`,`scopest`,`T_e`])) >> gvs[] >>
 
    Q.PAT_X_ASSUM `get_lval_of_e (e_acc e s) = SOME v`
@@ -1412,7 +1412,7 @@ REPEAT STRIP_TAC >~ [`∃lval v. get_lval_of_e (e_acc e s) = SOME lval ∧
  gvs[is_get_lval, get_lval_of_e_def] >>
 
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`(t_tau_tau (tau_bit w))`, `gtsl`,
+ [`(t_tau (tau_bit w))`, `gtsl`,
   `gscope`, `tsl`, `scopest`, `T_e`])) >>
  gvs[] >>
 
@@ -1619,7 +1619,7 @@ check_args_red (MAP (λ(e_,tau_,d_,b_,x_). d_) e_tau_d_b_t_list)
             e_typ (gtsl,tsl)
               (T_e)
               (EL i (MAP (λ(e_,tau_,d_,b_,x_). e_) e_tau_d_b_t_list))
-              (t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_,x_). tau_) e_tau_d_b_t_list)))
+              (t_tau (EL i (MAP (λ(e_,tau_,d_,b_,x_). tau_) e_tau_d_b_t_list)))
               (EL i (MAP (λ(e_,tau_,d_,b_,x_). b_) e_tau_d_b_t_list))) ==>
 wf_arg_list (MAP (λ(e_,tau_,d_,b_,x_). d_) e_tau_d_b_t_list)
  	      (MAP (λ(e_,tau_,d_,b_,x_). x_) e_tau_d_b_t_list)
@@ -1644,7 +1644,7 @@ CONJ_TAC >| [
 
  ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:string``  ] wf_arg_single_implied_2) >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`h0`, `h2`, `h3`, `h4`, `(t_tau_tau h1)`, `gtsl`, `gscope`, `tsl`, `scopest`, `T_e`])) >>
+ [`h0`, `h2`, `h3`, `h4`, `(t_tau h1)`, `gtsl`, `gscope`, `tsl`, `scopest`, `T_e`])) >>
 
  gvs[] >>
  gvs[check_args_red_def] >>
@@ -1661,7 +1661,7 @@ CONJ_TAC >| [
 subgoal `(∀i. i < LENGTH e_tau_d_b_t_list ⇒
          e_typ (gtsl,tsl) T_e
                  (EL i (MAP (λ(e_,tau_,d_,b_,x_).   e_) e_tau_d_b_t_list))
-      (t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_,x_). tau_) e_tau_d_b_t_list)))
+      (t_tau (EL i (MAP (λ(e_,tau_,d_,b_,x_). tau_) e_tau_d_b_t_list)))
                  (EL i (MAP (λ(e_,tau_,d_,b_,x_).   b_) e_tau_d_b_t_list)))` >-
   (REPEAT STRIP_TAC >>
 
@@ -1723,7 +1723,7 @@ check_args_red dl el  /\
             e_typ (gtsl,tsl)
               (T_e)
               (EL i el)
-              (t_tau_tau (EL i tl))
+              (t_tau (EL i tl))
               (EL i bl)) ==>
 wf_arg_list dl xl el (scopest++gscope) ``,
 
@@ -2007,7 +2007,7 @@ Cases_on `is_const e` >| [
   fs[prog_exp_def] >>
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
   [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-  `t_tau_tau (tau_xtl struct_ty x_tau_list)`, ` b`, ` c`, ` order`, `
+  `t_tau (tau_xtl struct_ty x_tau_list)`, ` b`, ` c`, ` order`, `
             delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
   gvs[] >>
   srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
@@ -2143,7 +2143,7 @@ rpt strip_tac >>
    fs[prog_exp_def] >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-    `t_tau_tau (tau_bit w)`, ` b''`, ` c`, ` order`, `delta_g`,
+    `t_tau (tau_bit w)`, ` b''`, ` c`, ` order`, `delta_g`,
     ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
 
    gvs[] >>
@@ -2156,7 +2156,7 @@ rpt strip_tac >>
 
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-    `t_tau_tau (tau_bool)`, ` b''`, ` c`, ` order`, `delta_g`,
+    `t_tau (tau_bool)`, ` b''`, ` c`, ` order`, `delta_g`,
     ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
    gvs[] >>
    gvs[is_const_val_exsist] >>
@@ -2168,7 +2168,7 @@ rpt strip_tac >>
     
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-    `t_tau_tau (tau_err)`, ` b''`, ` c`, ` order`, `delta_g`,
+    `t_tau (tau_err)`, ` b''`, ` c`, ` order`, `delta_g`,
     ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
    gvs[] >>
    gvs[is_const_val_exsist] >>
@@ -2179,7 +2179,7 @@ rpt strip_tac >>
    fs[prog_exp_def] >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-   `(t_tau_tau (tau_bit w))`, ` b''`, ` c`, ` order`, `
+   `(t_tau (tau_bit w))`, ` b''`, ` c`, ` order`, `
             delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>	    
    gvs[] >>
    gvs[is_const_val_exsist] >>
@@ -2234,7 +2234,7 @@ Cases_on `is_const e` >| [
    fs[prog_exp_def] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
     [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-     `(t_tau_tau (tau_bit w2'))`, ` b''`, ` c`, ` order`, `
+     `(t_tau (tau_bit w2'))`, ` b''`, ` c`, ` order`, `
             delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
 	    
    gvs[] >>
@@ -2248,7 +2248,7 @@ Cases_on `is_const e` >| [
  fs[prog_exp_def] >>
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
   [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-   `(t_tau_tau (tau_bit w1))`, ` b'`, ` c`, ` order`, `delta_g`,
+   `(t_tau (tau_bit w1))`, ` b'`, ` c`, ` order`, `delta_g`,
    ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
   gvs[] >>
   srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
@@ -2289,7 +2289,7 @@ Cases_on `is_const e` >| [
     
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
   [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-   `(t_tau_tau (tau_bit w))`, ` b`, ` c`, ` order`, `delta_g`,
+   `(t_tau (tau_bit w))`, ` b`, ` c`, ` order`, `delta_g`,
    ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
   gvs[] >>
   gvs[is_const_val_exsist] >>
@@ -2415,7 +2415,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
  fs[prog_exp_def] >>  
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, `t_scope_list_g`,
-   `(t_tau_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_)
+   `(t_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_)
    (e_tau_d_b_list : (e # tau # d # bool) list))))`,
    `(EL i (MAP (λ(e_,tau_,d_,b_). b_) (e_tau_d_b_list : (e # tau # d # bool) list)))`,
    `(c0,c1,c2,c3,c4,c5)`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f'`])) >> gvs[] >>
@@ -2514,7 +2514,7 @@ Cases_on `is_const e` >| [
  fs[prog_exp_def] >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
  [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-   `t_tau_tau tau'`, ` b'`, ` c`, ` order`, `delta_g`,
+   `t_tau tau'`, ` b'`, ` c`, ` order`, `delta_g`,
    ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
  gvs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][clause_name_def] >>
@@ -2590,7 +2590,7 @@ Cases_on `is_consts (MAP (λ(f_,e_,tau_,b_). (e_)) f_e_tau_b_list)` >| [
  Q.PAT_X_ASSUM `prog_exp (EL i (MAP (λ(f_,e_,tau_,b_). e_) f_e_tau_b_list)) ty`
  (STRIP_ASSUME_TAC o (Q.SPECL
  [`gscope`,`scopest`, `t_scope_list`, `t_scope_list_g`,
- `(t_tau_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`,
+ `(t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`,
  `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list : (string # e # tau # bool) list)))`,
  `c`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f`
  ]) o (SIMP_RULE (srw_ss()) [prog_exp_def])) >>
@@ -2681,7 +2681,7 @@ Cases_on `is_consts (MAP (λ(f_,e_,tau_,b_). (e_)) f_e_tau_b_list)` >| [
  Q.PAT_X_ASSUM `prog_exp (EL i (MAP (λ(f_,e_,tau_,b_). e_) f_e_tau_b_list)) ty`
  (STRIP_ASSUME_TAC o (Q.SPECL
  [`gscope`,`scopest`, `t_scope_list`, `t_scope_list_g`,
- `(t_tau_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`,
+ `(t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`,
  `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list : (string # e # tau # bool) list)))`,
  `c`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f`
  ]) o (SIMP_RULE (srw_ss()) [prog_exp_def])) >>
