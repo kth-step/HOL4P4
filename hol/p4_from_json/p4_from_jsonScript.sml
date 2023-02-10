@@ -98,6 +98,29 @@ Definition get_error_msg_def:
  get_error_msg msg json = NONE_msg (msg++(json_to_string_wrap json))
 End
 
+Definition parse_json_obj'_def:
+ (parse_json_obj' [] [] = SOME []) /\
+ (parse_json_obj' [] _  = NONE) /\
+ (parse_json_obj' _  [] = NONE) /\
+ (parse_json_obj' ((k, v)::t) (h2::t2) =
+  if k = h2
+  then
+   (case parse_json_obj' t t2 of
+    | SOME vl => SOME (v::vl)
+    | NONE => NONE)
+  else NONE)
+End
+
+(* Returns a list of the JSON elements that are the
+ * values of the members of json iff the keys match
+ * the provided list of strings *)
+Definition parse_json_obj_def:
+ parse_json_obj json fields =
+  case json of 
+  | Object kvpairs => parse_json_obj' kvpairs fields
+  | _ => NONE
+End
+
 (* TODO: Pre-parse JSON into alternative JSON format that has enumerated type for fields instead of strings to avoid excessive string matching *)
 
 (**********************)
@@ -189,7 +212,8 @@ Definition petr4_typedef_to_tyenvupdate_def:
  petr4_typedef_to_tyenvupdate tyenv json =
   case json of
   | Object
-   [("annotations",Array annotations); ("name",String ty_name);
+   [("annotations",Array annotations);
+    ("name",String ty_name);
     ("typ_or_decl",
      Array
        [String "Left";
