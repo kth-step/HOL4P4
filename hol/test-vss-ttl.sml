@@ -192,14 +192,14 @@ End
 
 (* Re-definition of vss_ext_map *)
 val vss_Checksum16_map' =
- ``[("clear", (stmt_ext, [("this", d_in)], Checksum16_clear));
-    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update));
-    ("get", (stmt_ext, [("this", d_in)], Checksum16_get'))]``;
+ ``[("clear", ([("this", d_in)], Checksum16_clear));
+    ("update", ([("this", d_in); ("data", d_in)], Checksum16_update));
+    ("get", ([("this", d_in)], Checksum16_get'))]``;
 val vss_ext_map' =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
     ++ [("packet_in", (NONE, (^packet_in_map)));
         ("packet_out", (NONE, (^packet_out_map)));
-("Checksum16", SOME (stmt_ext, [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))])``;
+("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))])``;
 
 
 val vss_actx_list = spine_pair $ rhs $ concl p4_vss_actx_def;
