@@ -25,7 +25,7 @@ val ether_ty_ok = mk_v_bitii (2048, 16);
 val stmt_start_trans =
  ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
 
-val start_body = mk_stmt_block (``[]:decl_list``, mk_stmt_seq_list [stmt_start_extract, stmt_start_trans]);
+val start_body = mk_stmt_block (``[]:t_scope``, mk_stmt_seq_list [stmt_start_extract, stmt_start_trans]);
 
 
 (* parse_ipv4 parser state *)
@@ -63,7 +63,7 @@ val stmt_parse_ipv4_verify3 = ``stmt_verify (^e_ck_eq_16w0) (^e_err_checksum)``;
 val stmt_parse_ipv4_trans = ``stmt_trans (e_v (v_str "accept"))``;
 
 val parse_ipv4_body =
- mk_stmt_block (``[]:decl_list``,
+ mk_stmt_block (``[]:t_scope``,
   mk_stmt_seq_list [stmt_parse_ipv4_extract,
 		    stmt_parse_ipv4_verify1,
 		    stmt_parse_ipv4_verify2,
@@ -148,7 +148,7 @@ val dmac_match =
 val smac_match = mk_stmt_app (``"smac"``, ``[e_acc (e_var (varn_name "outCtrl")) "outputPort"]``);
 
 val vss_pipe_body =
- mk_stmt_block (``[]:decl_list``,
+ mk_stmt_block (``[]:t_scope``,
   mk_stmt_seq_list [stmt_parseerror,
 		    stmt_ipv4_match,
 		    check_ttl_match,
@@ -189,7 +189,7 @@ val stmt_deparser_inits = ``stmt_ass lval_null (e_call (funn_inst "Checksum16") 
 
 val vss_deparser_tblmap = ``[]:tbl_map``;
 val vss_deparser_body =
- mk_stmt_block (``[]:decl_list``,
+ mk_stmt_block (``[]:t_scope``,
   mk_stmt_seq_list [stmt_deparser_inits,
                     stmt_deparser_emit,
 		    stmt_deparser_cond,

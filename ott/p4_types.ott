@@ -328,7 +328,7 @@ val WF_o_def = Define `
 defns
 v_typ :: '' ::=
 defn
- v : ( t , boolv )  :: :: v_typ :: v_
+ v : ( t , boolv )  :: :: v_typ :: v_typ_
 {{ com values types }}
 {{ tex [[v]] : ( [[t]] , [[boolv]] ) }}
 by
@@ -473,7 +473,7 @@ type_state_tsll (sll:scope list list) (tsl: t_scope list) =
 defns
 e_typ :: '' ::=
 defn
-t_scopes_tup T_e |- e : ( t , boolv ) :: :: e_typ :: e_
+t_scopes_tup T_e |- e : ( t , boolv ) :: :: e_typ :: e_typ_
 {{ com expression types }}
 {{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[t]] , [[boolv]] ) }}
 by
@@ -589,7 +589,7 @@ t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 defns
 stmt_typ :: '' ::=
 defn
-t_scopes_tup T_e Prs_n |- stmt  :: :: stmt_typ :: stmt_
+t_scopes_tup T_e Prs_n |- stmt  :: :: stmt_typ :: stmt_typ_
 {{ com expression types }}
 {{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt]] }}
 by
@@ -686,8 +686,8 @@ type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack =
 defns
 stmtl_typ :: '' ::=
 defn
-t_scopes_tup T_e Prs_n |- stmt_stack  :: :: stmtl_typ :: stmtl_
-{{ com expression types }}
+t_scopes_tup T_e Prs_n |- stmt_stack  :: :: stmtl_typ :: stmtl_typ_
+{{ com statement list types }}
 {{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt_stack]] }}
 by
 
@@ -706,8 +706,8 @@ type_ith_stmt t_scope_list_g [ t_scope1 , .. , t_scopen ] T_e Prs_n [ stmt1 , ..
 defns
 frame_typ :: '' ::=
 defn
-t_scopes_tup T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: frame_typ :: frame_
-{{ com expression types }}
+t_scopes_tup T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: frame_typ :: frame_typ_
+{{ com frame types }}
 {{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
 by
 
