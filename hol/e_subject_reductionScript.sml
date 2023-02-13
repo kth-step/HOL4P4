@@ -6,7 +6,7 @@ open p4Lib;
 open blastLib bitstringLib;
 open p4Theory;
 open p4_auxTheory;
-(*open deterTheory;*)
+open deterTheory;
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -48,6 +48,9 @@ val EXP_GOAL_TYP_IH_TAC = SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
                           fs[];
 
 
+val _ = new_theory "e_subject_reduction";
+
+
 (******   Subject Reduction for expression    ******)
 val sr_exp_def = Define `
  sr_exp (e) (ty:'a itself) =
@@ -86,1074 +89,6 @@ val sr_strexp_tup_def = Define `
    sr_strexp_tup (tup : (string#e)) (ty:'a itself)
       =  sr_exp ((SND tup)) (ty:'a itself)
 `;
-
-
-
-
-
-(****** List manipluation theories and lemmas  ******)
-
-
-(** bitv theories section **)
-
-(*
-The bitv_binop_innershould return the same width as the input bitstrings
-*)
-
-val bitv_binop_inner_lemma =
-prove(``
-! q q' q'' r r' binop . bitv_binop_inner binop q q' r = SOME (q'',r') ==>
-(r = r') ``,
-REPEAT GEN_TAC >>
-SIMP_TAC (srw_ss()) [Once bitv_binop_inner_def] >>
-NTAC 64 (IF_CASES_TAC >>
-FULL_SIMP_TAC std_ss [])
-);
-
-val bitv_binop_width_lemma =
-prove(``
-! bitv bitv' bitv'' binop . bitv_binop binop bitv bitv' = SOME bitv'' ==>
-(SND bitv = SND bitv') /\ (SND bitv' = SND bitv'') 
-``,
-REPEAT STRIP_TAC >>
-Cases_on `bitv` >>
-Cases_on `bitv'` >>
-Cases_on `bitv''` >>
-rfs[bitv_binop_def] >>
-IMP_RES_TAC bitv_binop_inner_lemma
-);
-
-
-
-
-val binop_bs_width = prove ( ``
-! bitv bitv' bitv'' op . 
-bs_width bitv' = bs_width bitv /\
-bitv_binop op bitv bitv' = SOME bitv'' ==>
-bs_width bitv = bs_width bitv'' ``,
-Cases_on `op` >>
-REPEAT STRIP_TAC >>
-PairCases_on `bitv` >>
-PairCases_on `bitv'` >>
-PairCases_on `bitv''` >>
-rfs[bs_width_def, bitv_binop_inner_def, bitv_bl_binop_def] >>
-rfs[bitv_binop_def] >>
-IMP_RES_TAC bitv_binop_inner_lemma
-);
-
-
-val bitv_bl_binop_width = prove ( ``
-! bitv bitv' op . 
-bs_width bitv' = bs_width bitv /\
- (op = shiftl \/ op = shiftr)==>
-bs_width bitv =
-        bs_width (bitv_bl_binop op bitv ((λ(bl,n). (v2n bl,n)) bitv')) ``,
-	
-Cases_on `bitv` >>
-Cases_on `bitv'` >>
-rw[] >> gvs[] >>
-rfs[bs_width_def, bitv_binop_inner_def, bitv_bl_binop_def] >>
-gvs[bitv_binop_def] >>
-IMP_RES_TAC bitv_binop_inner_lemma
-);
-
-
-
-
-
-val bit_range = prove ( ``
-! (r:num) .
-r > 0 /\
-r ≤ 64 ==>
-(r = 1 \/ r = 2 \/ r = 3 \/ r = 4 \/ r = 5 \/
-r = 6 \/ r = 7 \/ r = 8 \/ r = 9 \/ r = 10 \/
-r = 11 \/ r = 12 \/ r = 13 \/ r = 14 \/ r = 15 \/
-r = 16 \/ r = 17 \/ r = 18 \/ r = 19 \/ r = 20 \/
-r = 21 \/ r = 22 \/ r = 23 \/ r = 24 \/ r = 25 \/
-r = 26 \/ r = 27 \/ r = 28 \/ r = 29 \/ r = 30 \/
-r = 31 \/ r = 32 \/ r = 33 \/ r = 34 \/ r = 35 \/
-r = 36 \/ r = 37 \/ r = 38 \/ r = 39 \/ r = 40 \/
-r = 41 \/ r = 42 \/ r = 43 \/ r = 44 \/ r = 45 \/
-r = 46 \/ r = 47 \/ r = 48 \/ r = 49 \/ r = 50 \/
-r = 51 \/ r = 52 \/ r = 53 \/ r = 54 \/ r = 55 \/
-r = 56 \/ r = 57 \/ r = 58 \/ r = 59 \/ r = 60 \/
-r = 61 \/ r = 62 \/ r = 63 \/ r = 64 )
-``,
-intLib.COOPER_TAC
-);
-
-
-
-val bs_width_neg_signed = prove ( ``! r q .
-r > 0 /\
-r ≤ 64 ==>
-r = bs_width (bitv_unop unop_neg_signed (q,r))``,
-
-rpt strip_tac >>
-IMP_RES_TAC  bit_range >> fs[] >>
-gvs[bitv_unop_def, get_word_unop_def, bs_width_def]
-
-);
-
-
-
-
-
-
-val v_typed_bv_op = prove ( ``
-! op w bitv bitv' bitv'' b b'.
-w ≤ 64 /\ w > 0 /\
-is_bv_op (op) /\
-bitv_binop op bitv bitv' = SOME bitv'' /\
-v_typ (v_bit bitv) (t_tau (tau_bit w)) b /\
-v_typ (v_bit bitv') (t_tau (tau_bit w)) b' ==>
-v_typ (v_bit bitv'') (t_tau (tau_bit w)) F ``,
-
-
-     REPEAT STRIP_TAC >>
-     FULL_SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
-     PairCases_on `bitv` >>
-     PairCases_on `bitv'` >>
-     PairCases_on `bitv''` >>
-     rw[] >>
-     rfs[bs_width_def, bitv_binop_inner_def, bitv_bl_binop_def] >>
-     rfs[bitv_binop_def] >>
-     IMP_RES_TAC bitv_binop_inner_lemma 
-);
-
-
-
-
-
-(** INDEX_OF theories section **)
-
-
-(*
- If the property P holds on one list member in index i, then the index is
- indeed within the range of the list
-*)
-val prop_in_range =
-prove(``
- !l P i f. ( INDEX_FIND 0 P l = SOME (i,f)) ==> (i < LENGTH l ) ``,
- REPEAT STRIP_TAC >>
- Cases_on `INDEX_FIND 0 P l = SOME (i,f)` >> 
- fs[] >>
- IMP_RES_TAC index_find_length >>
- fs[]
-);
-
-
-
-(*
- P should hold on the member it finds.
-*)
-val P_holds_on_curent = prove(``
-  !l P i m. INDEX_FIND i P l = SOME m  ==>
-  P (SND m) ``,
-  Induct_on `l` >>
-  fs[INDEX_FIND_def] >>
-  NTAC 2 GEN_TAC >>
-  CASE_TAC >>
-  rw[]
-);
-
-
-
-
-
-(*
-if a property found in some range, then if we started from a previous
-index i we should find it.
-*)
-val P_hold_on_next = prove (``
-  !i l P m.  (INDEX_FIND (SUC i) P l = SOME m) =
-             (INDEX_FIND i P l = SOME (FST m - 1, SND m) /\ (0 < FST m))``,
-Induct_on `l` >>
-REPEAT STRIP_TAC >>
-EQ_TAC >>
-fs[INDEX_FIND_def] >>
-rw[] >>
-fs[] >>
-PairCases_on `m` >>
-fs[]
-);
-
-
-(*
-if a property holds on some index i starting from 0, then it should hold on the
-ith position if starting from 1
-*)
-val P_implies_next = prove (``
-    !l P i m. INDEX_FIND 0 P l = SOME (i, m) ==>
-              INDEX_FIND 1 P l = SOME (SUC i, m)
-``,
-Induct >>
-REPEAT STRIP_TAC >>
-fs[INDEX_FIND_def] >>
-Cases_on `P h` >>
-fs[] >>
-rw[ADD1] >>
-fs[Once INDEX_FIND_add] >> (*my new fav thm*)
-PairCases_on `z` >>
-rw[] >>
-fs[INDEX_FIND_def] 
-);
-
-
-(*
-if the property holds on some index, starting from
-0 or 1 th positions, then the result are the same for for both finds
-*)
-val P_current_next_same = prove (``
-    !l P m n. INDEX_FIND 0 P l = SOME m /\
-              INDEX_FIND 1 P l = SOME n ==> SND n = SND m
-``,
-Induct >>
-REPEAT STRIP_TAC >>
-fs[INDEX_FIND_def] >>
-Cases_on `P h` >>
-fs[] >>
-rw[] >>
-fs[Once INDEX_FIND_add] >> 
-PairCases_on `z` >>
-rw[] >>
-fs[INDEX_FIND_def]
-);
-
-
-
-(*
-if we find a property to hold on the ith index, and also we try
-to retrive that element using EL, then the reuslt should be the same
-*)
-val  EL_relation_to_INDEX_lesseq =
-prove (``
-!l P i m n. INDEX_FIND 0 P l = SOME (i,n) /\ EL i l  = (m) /\
-            i <= LENGTH l ==>
-            m = n ``,
-
-Induct >>
-REPEAT STRIP_TAC >>
-fs[INDEX_FIND_def] >>
-Cases_on `P h` >|[
-   fs[Once EL_compute] >>
-   rfs[]
-   ,
-   fs[INDEX_FIND_def] >>
-   rw[] >>
-   SIMP_TAC arith_ss [Once EL_compute] >>
-   CASE_TAC >>
-   
-   ASSUME_TAC P_hold_on_next >>
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
-   gvs[GSYM ADD1] >> 
-   rw[] >>
-   IMP_RES_TAC P_holds_on_curent >>
-   IMP_RES_TAC index_find_first >>
-   rfs[] >>
-   rw[] >>
-   fs[numeral_pre, PRE_SUB1, PRE_SUC_EQ] >>
-   fs[Once INDEX_FIND_add] >> 
-   PairCases_on `z` >>
-   rw[] >>
-   fs[INDEX_FIND_def] >>
-     rw[] >>
-     RES_TAC >>
-     fs[] >>
-     rw[] 
-]);
-
-
-
-
-(*
-same as above, but it holds on strictly less than l
-*)
-val EL_relation_to_INDEX_less =
-prove (``
-!l P i m n. INDEX_FIND 0 P l = SOME (i,n) /\
-            EL i l  = (m) /\
-            i < LENGTH l ==>
-            m = n``,
-	    
-`!l i. i < LENGTH l ==> i <= LENGTH l ` by FULL_SIMP_TAC arith_ss [] >>
-REPEAT STRIP_TAC >>
-RES_TAC >>
-IMP_RES_TAC EL_relation_to_INDEX_lesseq
- );
-
-
-
-(* if P does not hold on any member of list l starting from index 0,
-then P does not hold starting from any index n in the list *)
-val P_NONE_hold = prove ( ``
-!P l n .  (INDEX_FIND 0 P l = NONE) ==> (INDEX_FIND n P l = NONE) `` ,
- Induct_on `l` >>
- REPEAT STRIP_TAC >>
- fs[INDEX_FIND_def] >>
- Cases_on `P h` >>
- fs[] >>
- rw[ADD1] >>
- fs[Once INDEX_FIND_add] 
-);
-
-
-
-val P_NONE_hold2 = prove ( ``
-!P l n .  (INDEX_FIND n P l = NONE) ==> (INDEX_FIND 0 P l = NONE) `` ,
- Induct_on `l` >>
- REPEAT STRIP_TAC >>
- fs[INDEX_FIND_def] >>
- Cases_on `P h` >>
- fs[] >>
- rw[ADD1] >>
- fs[Once INDEX_FIND_add] 
-);
-
-
-
-val INDEX_FIND_EQ_SOME_0 = store_thm ("INDEX_FIND_EQ_SOME_0",
-  ``!l P j e. (INDEX_FIND 0 P l = SOME (j, e)) <=> (
-       (j < LENGTH l) /\
-       (EL j l = e) /\ P e /\
-       (!j'. j' < j ==> ~(P (EL j' l))))``,
-
-cheat);
-
-
-
-
-
-val index_find_concat1 = prove ( ``
-! l1 l2 n P.
-INDEX_FIND 0 P l1 = NONE  /\
-INDEX_FIND 0 P (l2 ⧺ l1) = SOME n ==>
-INDEX_FIND 0 P (l2) = SOME n ``,
-
-Induct_on `l1` >>
-Induct_on `l2` >>
-fs[INDEX_FIND_def] >>
-REPEAT STRIP_TAC >>
-CASE_TAC >| [
- rfs[]
- ,
- Cases_on `P h'` >| [
-  gvs[]
-  ,
-  gvs[] >>
-
-  ASSUME_TAC P_hold_on_next>> 
-  FIRST_X_ASSUM
-  (STRIP_ASSUME_TAC o (Q.SPECL [`0`,`(l2 ⧺ h'::l1)`,`P`,`n`])) >>
-  gvs[GSYM ADD1] >> 
-  RES_TAC >>
-  gvs[] >>
-
-  IMP_RES_TAC P_implies_next >>
-  Cases_on `n` >>
-  fs[]
-  ]
- ]
-);
-
-
-
-
-val index_find_concat2 = prove ( ``
-! l1 l2 a b P.
-INDEX_FIND 0 P l2 = NONE  /\
-INDEX_FIND 0 P (l2 ++ l1) = SOME a /\
-INDEX_FIND 0 P (l1) = SOME b ==>
-(SND a = SND b )
-
-``,
-
-Induct_on `l1` >>
-Induct_on `l2` >>
-fs[INDEX_FIND_def] >>
-REPEAT STRIP_TAC >>
-
-Cases_on `P h` >>
-fs[] >>
-
-Cases_on `P h'` >>
-fs[] >> gvs[] >>
-
-ASSUME_TAC P_hold_on_next >>
-LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
-gvs[GSYM ADD1] >> rw[] >|[
-
- (*show that if the property holds on some element,
- then if we append it to a lost, we will find it *)
-
-  subgoal `! i l P h'.
-    P h' ==>
-    INDEX_FIND i P (h'::l) = SOME (i, h')` >-
-    fs[INDEX_FIND_def] >>
-
-
- Q.PAT_X_ASSUM ` ∀i l P h'. P h' ⇒ INDEX_FIND i P (h'::l) = SOME (i,h') `
- (STRIP_ASSUME_TAC o (Q.SPECL [`0`,`l1`,`P`,`h'`])) >>
- RES_TAC >>
-
- Cases_on `a` >>
- fs[] >>
-
- subgoal `(INDEX_FIND 0 P l2 = NONE)` >-  IMP_RES_TAC P_NONE_hold2 >>
-
- FIRST_X_ASSUM
- (STRIP_ASSUME_TAC o (Q.SPECL [`h'`,`(q-1,r)`,`(0,h')`,`P`])) >>
-
- gvs[]  
-
- ,
-
- (*Inductive case*)
- (*show that if the property holds on some element,
- then if we append it to a lost, we will find it *)
-
- subgoal `(INDEX_FIND 0 P l2 = NONE)` >- 
- IMP_RES_TAC P_NONE_hold2 >>
-
- Cases_on `a` >>
- Cases_on `b` >>
- gvs[] >>
-
- FIRST_X_ASSUM
- (STRIP_ASSUME_TAC o (Q.SPECL [`h'`,`(q-1,r)`,`(q',r')`,`P`])) >>
- gvs[]
- ]
-);
-
-
-
-
-
-
-
-
-(** EL simplication section **)
-
-val  EL_simp1 =
-prove (``
-!l i q r t.
- i<LENGTH l /\
-(q,r,t) = EL i (MAP (λ(x_,v_,tau_). (x_,v_,tau_)) l) ==>
-(q) = EL i (MAP (λ(x_,v_,tau_). (x_)) l) ``,
-Induct >>
-REPEAT STRIP_TAC >>
-IMP_RES_TAC EL_pair_list >>
-rw[] >> fs[ELIM_UNCURRY] >>
-EVAL_TAC >> METIS_TAC[]
-);
-
-
-val  EL_simp2 =
-prove (``
-!l i q r t.
- i<LENGTH l /\
-(q,r,t) = EL i (MAP (λ(x_,v_,tau_). (x_,v_,tau_)) l) ==>
-(r,t) = EL i (MAP (λ(x_,v_,tau_). (v_,tau_)) l) ``,
-REPEAT STRIP_TAC >>
-IMP_RES_TAC EL_pair_list >>
-rw[] >>
-fs[ELIM_UNCURRY] >>
-METIS_TAC[]
-);
-
-
-val  EL_simp3 =
-prove (``
-!l i q r t.
- i<LENGTH l /\
-(q,r,t) = EL i (MAP (λ(x_,v_,tau_). (x_,v_,tau_)) l) ==>
-((r) = EL i (MAP (λ(x_,v_,tau_). (v_)) l) /\
-(t) = EL i (MAP (λ(x_,v_,tau_). (tau_)) l)
-)``,
-
-REPEAT STRIP_TAC >>
-NTAC 2 (
-IMP_RES_TAC EL_pair_list >> rw[] >>
-IMP_RES_TAC EL_simp1 >>
-IMP_RES_TAC EL_simp2) >>
-gvs[ELIM_UNCURRY] >>
-
-
-rfs[EL_pair_list,EL_simp1,EL_simp2] >>
-rfs[Once MAP_o] >>
-AP_TERM_TAC >>
-FULL_SIMP_TAC list_ss [MAP_MAP_o, FST,SND] >>
-FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF]
-);
-
-
-val  EL_simp4 =
-prove (``
-!l i q r t.
- i<LENGTH l /\
-(q,r,t) = EL i (MAP (λ(x_,v_,tau_). (x_,v_,tau_)) l) ==>
-((q) = EL i (MAP (λ(x_,v_,tau_). (x_)) l) /\
-(r) = EL i (MAP (λ(x_,v_,tau_). (v_)) l) /\
-(t) = EL i (MAP (λ(x_,v_,tau_). (tau_)) l)) ``,
-
-REPEAT STRIP_TAC >>
-IMP_RES_TAC EL_simp1 >>
-IMP_RES_TAC EL_simp2 >>
-IMP_RES_TAC EL_simp3 
-);
-
-
-
-val EL_simp5 =
-prove (``
-!l i q r .
- i<LENGTH l /\
-(q,r) = EL i (MAP (λ(x_,v_,tau_). (x_,v_)) l) ==>
-((q) = EL i (MAP (λ(x_,v_,tau_). (x_)) l) /\
-(r) = EL i (MAP (λ(x_,v_,tau_). (v_)) l) )``,
-
-REPEAT STRIP_TAC >>
-rfs[EL_pair_list,EL_simp1,EL_simp2] >>
-fs[ELIM_UNCURRY] >>
-rfs[] >>
-rfs[Once MAP_o] >>
-EVAL_TAC >>
-AP_TERM_TAC >>
-FULL_SIMP_TAC list_ss [MAP_MAP_o, FST,SND] >>
-FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF] >>
-METIS_TAC []
-);
-
-
-val EL_exists1 =
-prove (``
-!l i q r .
- i<LENGTH l /\
-(q,r) = EL i (MAP (λ(x_,v_,tau_). (x_,v_)) l) ==>
-?t . (t) = EL i (MAP (λ(x_,v_,tau_). (tau_)) l) ``,
-REPEAT STRIP_TAC >>
-rfs[EL_pair_list,EL_simp1,EL_simp2] );
-
-
-
-val EL_LENGTH_simp = prove ( ``
-! l x0 x1 x2 a.
-EL (LENGTH l) (MAP (λ(d,x,e). d) l ⧺ [x0]) = x0 ∧
-EL (LENGTH l) (MAP (λ(d,x,e). x) l ⧺ [x1]) = x1 ∧
-EL (LENGTH l) (MAP (λ(d,x,e). e) l ⧺ [x2]) = x2 ∧
-EL (LENGTH l) (l ⧺ [a]) = a 
-``,
-Induct_on `l` >>
-fs[] );
-
-
-
-val P_on_any_EL = prove
-(``!l i P. i < LENGTH l ==> P (EL i (l)) = EL i (MAP P (l))``,
-Induct >> fs[] >> REPEAT STRIP_TAC >>
-rw[Once EL_compute] >>
-fs[EL_CONS] >>
-fs[PRE_SUB1] );
-
-
-
-val list_length1 = prove ( ``
-! l1 l2 .
-LENGTH l1 = SUC (LENGTH l2) ==>
-LENGTH (TL l1) = LENGTH l2  ``,
-Induct_on `l1` >> Induct_on `l2` >> fs[]
-);
-
-
-(*
-Given that we want to find the member that matches with k ,
-and given two lists of tuples where the type of the first member
-is the same for both lists, then the property should have
-the same index for both lists, since we are looking for k in both lists that
-are literally the same
-*)
-
-
-val INDEX_FIND_same_list =
-prove (``
-! l P i i' x x' v r q'.
-INDEX_FIND 0 (λ(k,v). k = q') (MAP (λ(x_,v_,tau_). (x_,v_)) l) =
-        SOME (i,x,v) /\
-INDEX_FIND 0 (λ(k,v). k = q') (MAP (λ(x_,v_,tau_). (x_,tau_)) l) =
-        SOME (i',x',r) ==>
-	(i = i' /\ r = EL i (MAP (λ(x_,v_,tau_). tau_) l)) ``,
-
-
-Induct >>
-REPEAT GEN_TAC >>
-fs[INDEX_FIND_def] >>
-CASE_TAC  >>
-gvs[] >>
-STRIP_TAC >|[
-  fs[] >>
-  FULL_SIMP_TAC list_ss [] >>
-  Cases_on `(λ(k,v). k = q') ((λ(x_,v_,tau_). (x_,tau_)) h)` >>
-  fs[] >>
-  fs[ELIM_UNCURRY] >>
-  rfs[] 
-  ,
-  fs[] >>
-  FULL_SIMP_TAC list_ss [] >>
-  Cases_on `(λ(k,v). k = q') ((λ(x_,v_,tau_). (x_,tau_)) h)` >|[
-   fs[] >>
-   fs[ELIM_UNCURRY]
-   ,
-
-   gvs[] >>
-   
-   ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:('a#γ)``] P_hold_on_next)  >>
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   				  [`0`, `(MAP (λ(x_,v_,tau_). (x_,tau_)) l)`,
-				  `(λ(k,v). k = q')`, `(i',x',r)`])) >>
-   gvs[GSYM ADD1] >>
-
-   
-   ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:('a#'b)``] P_hold_on_next)  >>
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   				  [`0`, `(MAP (λ(x_,v_,tau_). (x_,v_)) l)`,
-				  `(λ(k,v). k = q')`, `(i,x,v)`])) >>
-   gvs[GSYM ADD1] >>
-   RES_TAC >>
-   `i=i'` by fs[] >>
-   rw[] >>
-   fs[Once EL_compute] >>
-   CASE_TAC >> gvs[] >| [
-   `i=1` by fs[] >> rw[]
-   ,
-   `i>1` by fs[] >> rw[] >>
-   gvs[GSYM EL_compute] >>
-  fs[EL_CONS] >>
-  fs[PRE_SUB1] >>
-
-  rfs[GSYM EL] >>
-  gvs[ADD1]
-]]]
-);
-
-
-
-(*
-if the field name q has the type tau, and tau is in the list of the
-feild types in position i, then it is indeed true that the feild name q
-and its type tau can be found in the list (l) at a specific index i
-*)
-val correct_field_index_lemma = prove (``
-! (l:(string#v#tau)list ) i q r tau .
-INDEX_FIND 0 (λ(k,v). k = q) (MAP (λ(x_,v_,t_). (x_,v_)) l) =
-          SOME (i,EL i (MAP (λ(x_,v_,t_). (x_,v_)) l)) ∧
-          correct_field_type (MAP (λ(x_,v_,t_). (x_,t_)) l) q tau ∧
-          (q,r) = EL i (MAP (λ(x_,v_,t_). (x_,v_)) l) ⇒
-          tau = EL i (MAP (λ(x_,v_,t_). t_) l)``,
-
-REPEAT STRIP_TAC >>
-rfs[correct_field_type_def] >>
-rfs[tau_in_rec_def] >>
-Cases_on `FIND (λ(xm,tm). xm = q) (MAP (λ(x_,v_,t_). (x_,t_)) l)` >>
-fs[FIND_def] >>
-PairCases_on `z` >>
-rw[] >>
-Cases_on `SND (z0,z1,z2)` >>
-fs[] >>
-rw[] >> 
-
-Cases_on `r' = tau` >>
-fs[] >>
-rw[] >>
-IMP_RES_TAC INDEX_FIND_same_list >>
-fs[ELIM_UNCURRY] >>
-`INDEX_FIND 0 (λx. FST x = q) (MAP (λx. (FST x,FST (SND x))) l) =
-        SOME (i,EL i (MAP (λx. (FST x,FST (SND x))) l)) ==>
-INDEX_FIND 0 (λx. FST x = q) (MAP (λx. (FST x,FST (SND x))) l) =
-        SOME (i,q,r)
-` by METIS_TAC[] >>
-RES_TAC >>
-IMP_RES_TAC INDEX_FIND_same_list >>
-fs[ELIM_UNCURRY]
-);
-
-
-
-
-
-(*
-If INDEX_FIND for some property P finds an element v in list l,
-then that element is a member of the list l
-*)
-val index_mem = prove (``
-!l P n v. INDEX_FIND 0 P l = SOME (n,v) ==> MEM v l
-``,
-
-Induct >>
-fs[] >> rw[] >>
-fs[INDEX_FIND_def] >>
-
-Cases_on `P h` >>
-fs[] >> rw[] >>
-
-ASSUME_TAC P_hold_on_next>>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`,`l`,`P`,`(n,v)`])) >>
-gvs[GSYM ADD1] >> 
-RES_TAC >>
-fs[]
-);
-
-
-
-val index_find_not_mem =
-prove (`` ! l P e n. (INDEX_FIND n P l = NONE) /\ P e ==> ~ MEM e l ``,
-
-Induct >>
-fs[INDEX_FIND_def] >>
-REPEAT GEN_TAC >>
-CASE_TAC >>
-STRIP_TAC >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-[`P`, `e` , `SUC n`])) >>
-IMP_RES_TAC P_NONE_hold2 >>
-Cases_on `e=h` >>
-fs[]
-);
-
-
-
-val mem_fst_snd = prove (``
-!l m. MEM m l ==>
-      MEM (SND m) (MAP SND l) /\
-      MEM (FST m) (MAP FST l) ``,
-Induct >>
-REPEAT STRIP_TAC >>
-fs[]
-);
-
-
-
-
-(** REMOVE_LATER SECTION **)
-(** REMOVE_LATER SECTION **)
-
-val index_none_not_every =
-prove(``! l P n. (( INDEX_FIND n (P) l) = NONE) = (EVERY ($¬ ∘ P) l)``,
-cheat
-);
-
-
-
-(*duplicated from determ proof remove it*)
-val ured_mem_length =
-prove(`` !l i . (unred_mem_index l = SOME i) ==> i < LENGTH l ``,
- cheat
-);
-
-(*this one as well*)
-val mem_el_map2 =
-prove(`` ! l i .
-MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
-               (MAP (λ(f_,e_,e'_). e_) l) ==>
-MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
-               (SND (UNZIP (MAP (λ(f_,e_,e'_). (f_,e_)) l)))	``,
-
-cheat
-);
-
-(*this one also dup*)
-val lemma_MAP5 =
-prove ( ``
-!l l' .
-        ( MAP (λ(a,b,c). (a,b)) l =
-        MAP (λ(a,b,c). (a,b)) l') ==>
-	(MAP (λ(a,b,c). (a)) l =
-        MAP (λ(a,b,c). (a)) l') /\
-	(MAP (λ(a,b,c). (b)) l =
-        MAP (λ(a,b,c). (b)) l') ``,
-
-cheat
-);
-
-
-
-
-val lemma_v_red_forall = prove ( ``
-! c s sl e l fl.
-~ e_red c s sl (e_v (l)) e fl ``, cheat);
-
-
-
-
-(** MAP theories and simplifications section **)
-(** ZIP & UNZIP theorems **)
-
-val lemma_MAP8 =
-prove ( ``
-! l l' . MAP (λ(a,b,c). (a,b)) l =
-         MAP (λ(a,b,c,d). (a,b)) l' ==>
-((MAP (λ(a,b,c). (a)) l = MAP (λ(a,b,c,d). (a)) l') /\
-(MAP (λ(a,b,c). (b)) l = MAP (λ(a,b,c,d). (b)) l')) `` ,
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC >>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-REV_FULL_SIMP_TAC list_ss [] >>
-fs[ELIM_UNCURRY]
-);
-
-
-
-val map_distrub = prove ( 
-``!l l' l''.
-(LENGTH l = LENGTH l' /\
-LENGTH l' = LENGTH l'') ==>
-
-(MAP (\(a,b,_). a) (ZIP (l,ZIP (l',l''))) = l /\
-MAP (\(a,b,c). b) (ZIP (l,ZIP (l',l''))) = l' /\
-MAP (\(a,b,c). c) (ZIP (l,ZIP (l',l''))) = l'' /\
-MAP (\(a,b,c). (a,b)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l') /\
-MAP (\(a,b,c). (a,c)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l'') 
-)``,
-rw[lambda_unzip_tri] >>
-rw[lambda_12_unzip_tri] >>
-rw[map_tri_zip12] >>
-EVAL_TAC >>
-fs[GSYM UNZIP_MAP] >>
-fs[MAP_ZIP]
-);
-
-
-
-val map_rw1 = prove ( ``
-!l . (MAP (\(a,b,c). (a,c)) l = ZIP (MAP (\(a,b,c). a) l,MAP (\(a,b,c). c) l)) /\
-     (MAP (\(a,b,c). (a,b)) l = ZIP (MAP (\(a,b,c). a) l,MAP (\(a,b,c). b) l)) /\
-     (MAP (\(a,b,c). (b,c)) l = ZIP (MAP (\(a,b,c). b) l,MAP (\(a,b,c). c) l)) ``,
-Induct >>
-REPEAT STRIP_TAC >>
-fs[GSYM UNZIP_MAP] >>
-PairCases_on `h` >>
-EVAL_TAC
-);
-
-
-
-val map_rw2 = prove ( ``
-!l . MAP (\(a,b,c,d). (a,b)) l = ZIP (MAP (\(a,b,c,d). a) l, MAP (\(a,b,c,d). b) l) /\
-     MAP (\(a,b,c,d). (a,c)) l = ZIP (MAP (λ(a,b,c,d). a) l, MAP (\(a,b,c,d). c) l) /\
-     MAP (\(a,b,c,d). (a,d)) l = ZIP (MAP (λ(a,b,c,d). a) l, MAP (\(a,b,c,d). d) l) /\
-     MAP (\(a,b,c,d). (b,c)) l = ZIP (MAP (λ(a,b,c,d). b) l, MAP (\(a,b,c,d). c) l) /\
-     MAP (\(a,b,c,d). (b,d)) l = ZIP (MAP (λ(a,b,c,d). b) l, MAP (\(a,b,c,d). d) l) /\
-     MAP (\(a,b,c,d). (c,d)) l = ZIP (MAP (λ(a,b,c,d). c) l, MAP (\(a,b,c,d). d) l) 
-``,
-REPEAT CONJ_TAC >>
-Induct >>
-REPEAT STRIP_TAC >>
-fs[GSYM UNZIP_MAP] >>
-PairCases_on `h` >>
-EVAL_TAC
-);
-
-
-val map_simp_1 = prove ( ``! l1 l2.
-          MAP SND (MAP (λ(e_,tau_,d_,b_). (tau_,d_)) l1 ) =
-          MAP SND (MAP (λ(e_,e'_,x_,d_). (x_,d_)) l2) ==>
-	  MAP (λ(e_,e'_,x_,d_). d_) l2=
-          MAP (λ(e_,tau_,d_,b_). d_) l1
-	  ``,
-
-Induct_on `l1` >>
-Induct_on `l2` >>
-FULL_SIMP_TAC list_ss [] >>
-REPEAT STRIP_TAC>>
-
-PairCases_on `h` >>
-PairCases_on `h'` >>
-fs[]
-);
-
-
-val map_simp_2 = prove ( ``! l1 l2.
-          l1 = MAP FST (MAP (λ(a,b,c). (b,c)) l2) <=>
-	  l1 = MAP (λ(a,b,c). b) l2 
-	  ``,
-
-Induct_on `l1` >>
-Induct_on `l2` >>
-FULL_SIMP_TAC list_ss [] >>
-REPEAT STRIP_TAC>>
-
-PairCases_on `h` >>
-fs[]
-);
-
-
-
-val map_simp_3 = prove ( ``! l1 l2.
-          l1 = MAP FST (MAP (λ(a,b,c,d). (b,c)) l2) <=>
-	  l1 = MAP (λ(a,b,c,d). (b)) l2 
-	  ``,
-
-Induct_on `l1` >>
-Induct_on `l2` >>
-FULL_SIMP_TAC list_ss [] >>
-REPEAT STRIP_TAC>>
-
-PairCases_on `h` >>
-fs[]
-);
-
-
-val map_rw_quad = prove ( ``
-!l l' l''.
-(LENGTH l = LENGTH l' /\
-LENGTH l' = LENGTH l'') ==>
-(MAP (\(a,b,c,d). a) (ZIP (l,ZIP (l',l''))) = l /\
-MAP (\(a,b,c,d). b) (ZIP (l,ZIP (l',l''))) = l' /\
-MAP (\(a,b,c,d). c) (ZIP (l,ZIP (l',l''))) = FST (UNZIP l'') /\
-MAP (\(a,b,c,d). d) (ZIP (l,ZIP (l',l''))) = SND (UNZIP l'') /\
-MAP (\(a,b,c,d). (a,b)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l')  /\
-MAP (\(a,b,c,d). (a,c)) (ZIP (l,ZIP (l',l''))) = ZIP (l, FST (UNZIP l'') ) /\
-MAP (\(a,b,c,d). (b,c)) (ZIP (l,ZIP (l',l''))) = ZIP (l', FST (UNZIP l'') )
-)``,
-
-Induct_on `l` >>
-Induct_on `l'` >>
-Induct_on `l''` >>
-rw[lambda_unzip_quad] >>
-fs[ELIM_UNCURRY]
-);
-
-
-
-val mem_triple_map_fst = prove ( ``
-! l a b c . MEM (a,b,c) l ==> MEM a (MAP FST l)
-``,
-Induct_on `l` >>
-fs[] >>
-REPEAT STRIP_TAC >| [
-PairCases_on `h` >>
-fs[]
-,
-RES_TAC >>
-fs[]
-]
-);
-
-
-
-val UNZIP_rw = prove(`` !l l'.
-(FST (UNZIP (MAP (\(a,b,c). (a,b)) l)) = MAP (\(a,b,c). (a)) l) /\
-(FST (UNZIP (MAP (\(a,b,c). (b,c)) l)) = MAP (\(a,b,c). (b)) l) /\
-(FST (UNZIP (MAP (\(a,b,c). (a,c)) l)) = MAP (\(a,b,c). (a)) l) /\
-(SND (UNZIP (MAP (\(a,b,c). (a,b)) l)) = MAP (\(a,b,c). (b)) l) /\
-(SND (UNZIP (MAP (\(a,b,c). (b,c)) l)) = MAP (\(a,b,c). (c)) l) /\
-(SND (UNZIP (MAP (\(a,b,c). (a,c)) l)) = MAP (\(a,b,c). (c)) l) /\
-
-
-(FST (UNZIP (MAP (\(a,b,c,d). (a,b)) l')) = MAP (\(a,b,c,d). (a)) l') /\
-(FST (UNZIP (MAP (\(a,b,c,d). (a,c)) l')) = MAP (\(a,b,c,d). (a)) l') /\
-(FST (UNZIP (MAP (\(a,b,c,d). (a,d)) l')) = MAP (\(a,b,c,d). (a)) l') /\
-(FST (UNZIP (MAP (\(a,b,c,d). (b,c)) l')) = MAP (\(a,b,c,d). (b)) l') /\
-(FST (UNZIP (MAP (\(a,b,c,d). (b,d)) l')) = MAP (\(a,b,c,d). (b)) l') /\
-(FST (UNZIP (MAP (\(a,b,c,d). (c,d)) l')) = MAP (\(a,b,c,d). (c)) l') /\
-
-(SND (UNZIP (MAP (\(a,b,c,d). (a,b)) l')) = MAP (\(a,b,c,d). (b)) l') /\
-(SND (UNZIP (MAP (\(a,b,c,d). (a,c)) l')) = MAP (\(a,b,c,d). (c)) l') /\
-(SND (UNZIP (MAP (\(a,b,c,d). (a,d)) l')) = MAP (\(a,b,c,d). (d)) l') /\
-(SND (UNZIP (MAP (\(a,b,c,d). (b,c)) l')) = MAP (\(a,b,c,d). (c)) l') /\
-(SND (UNZIP (MAP (\(a,b,c,d). (b,d)) l')) = MAP (\(a,b,c,d). (d)) l') /\
-(SND (UNZIP (MAP (\(a,b,c,d). (c,d)) l')) = MAP (\(a,b,c,d). (d)) l') 
-``,
-Induct_on `l` >>
-Induct_on `l'` >>
-rw[lambda_unzip_quad] >>
-fs[ELIM_UNCURRY]
-);
-
-
-val zipped_list =  prove (``
-! (l : ('a # 'b # 'c ) list ) .
- l = (ZIP (MAP (λ(d,x,e). d) l,
-      ZIP (MAP (λ(d,x,e). x) l,
-            MAP (λ(d,x,e). e) l)))``,
-
-Induct >-
-fs[] >>
-STRIP_TAC >>
-PairCases_on `h` >>
-fs[]
-);
-
-
-
-val EL_ZIP_simp = prove (``
-! l a x i.
- i < LENGTH (MAP (λ(x_,v_,t_). (x_,t_)) l) /\
- EL i (MAP (λ(x_,v_,t_). (x_,t_)) l) = (x,a) ==>
- EL i (MAP (λ(x_,v_,t_). t_ ) l) = (a) ``,
-
-Induct >-
-fs[Once EL_compute] >>
-
-
-REPEAT STRIP_TAC >>
-fs[Once EL_compute] >>
-Cases_on `i=0` >| [
- PairCases_on `h` >>
- fs[]
- ,
-
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`a`,`x`, `(i:num)-1`])) >>
-
- gvs[] >>
- fs[numeral_pre, PRE_SUB1, PRE_SUC_EQ ,ADD1] >>
- rw[] >>
- Cases_on `i = 1` >>
- fs[] >>
-
- `~ (i ≤ 1)` by fs[] >>
- gvs[] >>
-
-
- subgoal ` EL (i − 1) (HD ((MAP (λ(x_,v_,t_). (x_,t_)) l))::TL ((MAP (λ(x_,v_,t_). (x_,t_)) l))) =
-           EL (PRE (i − 1)) (TL ((MAP (λ(x_,v_,t_). (x_,t_)) l)))  ` >- (
-   `0 < i - 1` by fs[] >>
-    ASSUME_TAC EL_CONS >>
-    Q.PAT_X_ASSUM `∀n. 0 < n ⇒ ∀x l. EL n (x::l) = EL (PRE n) l`
-    ( STRIP_ASSUME_TAC o (Q.SPECL [`i-1`])) >>
-    RES_TAC >>
-    fs[EL_CONS] ) >>
-
- fs[EL_CONS] >>
- fs[PRE_SUB1] >>
- gvs[] >>
-
- subgoal ` (HD (MAP (λ(x_,v_,t_). (x_,t_)) l) ::TL (MAP (λ(x_,v_,t_). (x_,t_)) l) ) =
-            (MAP (λ(x_,v_,t_). (x_,t_)) l) ` >- (
-   `0 < i` by fs[] >>
-   `0 < LENGTH l` by fs[] >>
-   ` ~(0 >= LENGTH l)` by fs[] >>
-   `0 ≥ LENGTH l ⇔ l = []` by fs[quantHeuristicsTheory.LIST_LENGTH_0] >>
-   ` ~(l = [])` by fs[] >>
-   fs[NULL] >>
-
-   ASSUME_TAC NULL_LENGTH >>
-   ASSUME_TAC CONS >>
-   RES_TAC >>
-   FULL_SIMP_TAC list_ss [CONS, NULL_LENGTH, NULL_DEF, NULL_EQ]
-   ) >>
-
- fs[EL_CONS]
-]
-);
-
 
 
 (******
@@ -1226,14 +161,15 @@ fs[v_of_e_def, is_const_def]
 for a list of expressions l',
 if all the list members are constants, then accessing any member is a constant
 *)
-val EL_consts_is_const = prove (``
+Theorem EL_consts_is_const:
 !l i. i < LENGTH l /\ is_consts (l) ==>
-is_const (EL i (l)) `` ,
+is_const (EL i (l))
+Proof
 REPEAT STRIP_TAC >>
 fs[is_consts_def] >>
 fs[is_const_def] >>
 fs[EVERY_EL]
-);
+QED
 
 
 
@@ -1397,11 +333,12 @@ fs[] >| [
 
 (* variable name x cannot be looked up in the scope sc if and only if it cannot be looked up
    in the typing scope tc *)
-val R_ALOOKUP_NONE_scopes = prove (``
+Theorem R_ALOOKUP_NONE_scopes:
 ! R v x t sc tc.
  similar R tc sc ==>
 ((NONE = ALOOKUP sc x)  <=>
-(NONE = ALOOKUP tc x ) )``,
+(NONE = ALOOKUP tc x ) )
+Proof
 
 Induct_on `sc` >>
 Induct_on `tc` >>
@@ -1418,7 +355,7 @@ rw[] >>
 LAST_X_ASSUM
 ( STRIP_ASSUME_TAC o (Q.SPECL [`R`,`x`,`tc`])) >>
 fs[similar_def,LIST_REL_def]
-);
+QED
 
 
 
@@ -1426,12 +363,13 @@ fs[similar_def,LIST_REL_def]
 (*
 if the variable name is in the scope sc and has the value v , as well as the typing scope tc with the type t , and also we know that tc |- sc, then v : (tau, F)
 *)
-val R_ALOOKUP_scopes = prove (``
+Theorem R_ALOOKUP_scopes:
 ! R v x t sc tc.
 ( similar R tc sc /\
 (SOME v = ALOOKUP sc x)   /\
 (SOME t = ALOOKUP tc x ) ) ==>
-(R t v)``,
+(R t v)
+Proof
 
 Induct_on `sc` >>
 Induct_on `tc` >>
@@ -1454,16 +392,17 @@ rw[] >>
 LAST_X_ASSUM
 ( STRIP_ASSUME_TAC o (Q.SPECL [`R`,`v`,`x`,`t`, `tc`])) >>
 fs[similar_def,LIST_REL_def]
-);
+QED
 
 
 
-val R_find_topmost_map_scopesl = prove (``
+Theorem R_find_topmost_map_scopesl:
 ! R x l1 l2 scl tcl.
 ( similarl R tcl scl /\
 (SOME l1 = find_topmost_map tcl x)   /\
 (SOME l2 = find_topmost_map scl x ) ) ==>
-((similar R (SND l1) (SND l2)) /\ (FST l1 = FST l2) )``,
+((similar R (SND l1) (SND l2)) /\ (FST l1 = FST l2) )
+Proof
 
 
 simp [find_topmost_map_def] >>
@@ -1572,17 +511,18 @@ Cases_on`l10 = l20` >> FIRST [
 ,
 fs[]
 ]
-);
+QED
 
 
 
 
-val R_topmost_map_scopesl = prove (``
+Theorem R_topmost_map_scopesl:
 ! R x l1 l2 scl tcl.
 ( similarl R tcl scl /\
 (SOME l1 = topmost_map tcl x)   /\
 (SOME l2 = topmost_map scl x ) ) ==>
-(similar R l1 l2)``,
+(similar R l1 l2)
+Proof
 
 simp [topmost_map_def] >>
 REPEAT STRIP_TAC >>
@@ -1600,17 +540,18 @@ gvs[] >>
 ASSUME_TAC R_find_topmost_map_scopesl >>
 LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`R`, `x`, `(x''0,l1)`, `(x'0,l2)`, `scl`, `tcl`])) >>
 fs[]
-);
+QED
 
 
 
 
-val R_lookup_map_scopesl = prove (``
+Theorem R_lookup_map_scopesl:
 ! R v x t scl tcl.
 ( similarl R tcl scl /\
 (SOME v = lookup_map scl x)   /\
 (SOME t = lookup_map tcl x ) ) ==>
-(R t v)``,
+(R t v)
+Proof
 
 fs[lookup_map_def] >>
 REPEAT STRIP_TAC >>
@@ -1636,7 +577,7 @@ fs[] >>
 IMP_RES_TAC  R_ALOOKUP_scopes >>
 LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`x`, `v`])) >>
 fs[]
-);
+QED
 
 
 
@@ -1653,15 +594,15 @@ IMP_RES_TAC LIST_REL_LENGTH
 );
 
 
-val type_scopes_list_APPEND = prove (``
+Theorem type_scopes_list_APPEND:
 ! l1 l2 l3 l4. type_scopes_list l1 l2 /\
           type_scopes_list l3 l4 ==>
-	  type_scopes_list (l1++l3) (l2++l4)``,
-
+	  type_scopes_list (l1++l3) (l2++l4)
+Proof
 fs[type_scopes_list_def, similarl_def, similar_def] >>
 REPEAT STRIP_TAC >>
 IMP_RES_TAC LIST_REL_APPEND
-);
+QED
 
 
 
@@ -1737,12 +678,12 @@ fs[P_NONE_hold]
 );
 
 
-val lookup_map_in_gsl_lemma  = prove ( ``
+Theorem lookup_map_in_gsl_lemma:
 ! v lvalop f sl gsl.
 SOME (v,lvalop)  = lookup_map (sl ⧺ gsl) (varn_star f) /\
 star_not_in_sl sl ==>
 SOME (v,lvalop) = lookup_map   gsl (varn_star f)
-``,
+Proof
 
 REPEAT STRIP_TAC >>
 
@@ -1799,17 +740,18 @@ gvs[] >| [
   fs[]
   ]
  ]
-);
+QED
 
 
 
 
 
-val lookup_in_gsl_lemma = prove ( ``
+Theorem lookup_in_gsl_lemma:
 ! v f sl gsl.
 SOME v = lookup_vexp2 sl gsl (varn_star f) /\
 star_not_in_sl sl ==>
-SOME v = lookup_vexp2 [] gsl (varn_star f)   `` ,
+SOME v = lookup_vexp2 [] gsl (varn_star f)
+Proof
 
 REPEAT STRIP_TAC >>
 fs[lookup_vexp2_def] >>
@@ -1821,8 +763,7 @@ PairCases_on `x` >> fs[] >>
 ASSUME_TAC lookup_map_in_gsl_lemma >>
   FIRST_X_ASSUM
   (STRIP_ASSUME_TAC o (Q.SPECL [`v`,`x1`,`f`,`sl`, `gsl`])) >> gvs[]
-);
-
+QED
 
 
 
@@ -2250,14 +1191,15 @@ gvs[]
 
 
 
-val lookup_funn_t_map_NONE = prove (``
+Theorem lookup_funn_t_map_NONE:
 ! delta_g delta_b delta_x func_map b_func_map ext_map f .
 dom_tmap_ei delta_g delta_b /\
 dom_g_eq delta_g func_map /\
 dom_b_eq delta_b b_func_map /\
 dom_x_eq delta_x ext_map  ==>
 (t_lookup_funn (f) delta_g delta_b delta_x = NONE <=>
-lookup_funn_sig_body (f) func_map b_func_map ext_map = NONE) ``,
+lookup_funn_sig_body (f) func_map b_func_map ext_map = NONE)
+Proof
 
 REPEAT STRIP_TAC >>
 fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
@@ -2355,7 +1297,7 @@ Cases_on `f` >> gvs[]  >| [
    rfs[] 
  ]
 ]
-);
+QED
 
 
 
@@ -2364,7 +1306,7 @@ Cases_on `f` >> gvs[]  >| [
 
 
 
-val tfunn_imp_sig_body_lookup = prove ( ``
+Theorem tfunn_imp_sig_body_lookup:
 ! apply_table_f ext_map func_map b_func_map pars_map tbl_map
   order t_scope_list_g delta_g delta_b delta_x tdl tau f.
 WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
@@ -2376,7 +1318,7 @@ SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x  ==>
     MAP SND tdl = MAP SND xdl ∧
     LENGTH (MAP SND xdl) = LENGTH (MAP SND tdl) ∧
     ALL_DISTINCT (MAP FST xdl)
-``,
+Proof
 
 fs[WT_c_cases] >>
 REPEAT STRIP_TAC >>
@@ -2462,7 +1404,8 @@ REPEAT STRIP_TAC >>
    RES_TAC >> gvs[] >>
    METIS_TAC[GSYM LENGTH_MAP]
    ]
- ]);
+ ]
+QED
 
 
 
@@ -2471,7 +1414,7 @@ REPEAT STRIP_TAC >>
 
 
 
-val tfunn_imp_sig_lookup = prove ( ``
+Theorem tfunn_imp_sig_lookup:
 ! apply_table_f ext_map func_map b_func_map pars_map tbl_map
   order t_scope_list_g delta_g delta_b delta_x tdl tau f.
     WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
@@ -2482,7 +1425,7 @@ val tfunn_imp_sig_lookup = prove ( ``
             MAP SND tdl = MAP SND xdl /\
             LENGTH (MAP SND xdl) = LENGTH (MAP SND tdl) /\
             ALL_DISTINCT (MAP FST xdl)  
-``,
+Proof
 
 REPEAT STRIP_TAC >>
 fs[lookup_funn_sig_def] >>
@@ -2502,7 +1445,7 @@ fs[] >| [
  IMP_RES_TAC tfunn_imp_sig_body_lookup >>
  gvs[]
 ]
-);
+QED
 
 
 
@@ -2638,30 +1581,32 @@ fs[INDEX_FIND_def] >| [
 
 
 
-val unred_arg_index_result = prove ( ``
+Theorem unred_arg_index_result:
 ! dl el i .
 unred_arg_index dl el = SOME i ⇒
        ¬is_d_out (EL i dl) ∧ ¬is_const (EL i el) ∨
-       is_d_out (EL i dl) ∧ ¬is_e_lval (EL i el)``,
+       is_d_out (EL i dl) ∧ ¬is_e_lval (EL i el)
+Proof       
 
 NTAC 4 STRIP_TAC >> 
 IMP_RES_TAC unred_arg_index_details >>
 SRW_TAC [] [unred_arg_index_details, is_d_out_def] 
-);
+QED
 
 
 
-val unred_arg_out_is_lval_imp = prove ( ``
+Theorem unred_arg_out_is_lval_imp:
 ∀i dl bl el.
 unred_arg_index dl el = SOME i ∧ out_is_lval dl bl ⇒
-            EL i bl ∨ EL i dl = d_none ∨ EL i dl = d_in ``,	    
+            EL i bl ∨ EL i dl = d_none ∨ EL i dl = d_in
+Proof             
 REPEAT STRIP_TAC >>
 IMP_RES_TAC unred_arg_index_details>>
 fs[out_is_lval_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i`])) >>
 fs[is_d_out_def] >>
 RES_TAC
-);
+QED
 
 
 
@@ -2702,14 +1647,14 @@ Cases_on `t_lookup_funn f delta_g delta_b delta_x` >> gvs[]
 
 
 
-val e_lval_tlval = prove ( ``
+Theorem e_lval_tlval:
 !e b t_scope_list t_scope_list_g order f delta_g delta_b delta_x delta_t tau gscope scopest.
  type_scopes_list gscope t_scope_list_g /\
  type_scopes_list scopest t_scope_list  /\
 e_typ (t_scope_list_g,t_scope_list)
           (order,f,delta_g,delta_b,delta_x,delta_t) e tau b
 	  ==> b ==> is_e_lval (e)
-``,
+Proof
 
 Induct >> 
 
@@ -2745,7 +1690,7 @@ fs[is_e_lval_def, get_lval_of_e_def] >>
 fs[Once e_typ_cases] >>
 fs[is_e_lval_def, get_lval_of_e_def] >>
 fs[Once v_typ_cases] 
-);
+QED
 
 
 
@@ -3333,10 +2278,11 @@ gvs[]
 
 
 
-val wf_arg_normalization = prove (``
+Theorem wf_arg_normalization:
 ! d dl x xl e el ss.
 wf_arg_list (d::dl) (x::xl) (e::el) ss ==>
-wf_arg d x e ss /\ wf_arg_list (dl) (xl) (el) ss ``,
+wf_arg d x e ss /\ wf_arg_list (dl) (xl) (el) ss
+Proof
 
 REPEAT STRIP_TAC >>
 fs[wf_arg_list_def] >| [
@@ -3352,7 +2298,7 @@ fs[wf_arg_list_def] >| [
  fs[EL_CONS] >>
  fs[PRE_SUB1]
  ]
-);
+QED
 
 
 
@@ -3474,10 +2420,11 @@ Cases_on `is_d_out d` >| [
 
 
 
-val wf_imp_val_lval = prove ( ``
+Theorem wf_imp_val_lval:
 ! ss d s e .
  wf_arg d s e ss ==> 
-  ? v lval_op . one_arg_val_for_newscope d e ss = SOME (v , lval_op)  ``,
+  ? v lval_op . one_arg_val_for_newscope d e ss = SOME (v , lval_op)
+Proof
 
 fs[wf_arg_def, one_arg_val_for_newscope_def] >>
 REPEAT STRIP_TAC >>
@@ -3497,7 +2444,8 @@ fs[] >>
 
 Cases_on `v_of_e e` >>
 fs[] >> rw[] 
-] );
+]
+QED
 
 
 
@@ -3517,13 +2465,14 @@ SIMP_TAC list_ss [copyin_abstract_def]
 
 
 
-val wf_arg_list_NONE = prove ( ``
+Theorem wf_arg_list_NONE:
        ! dxel x d e ss.
        ALL_DISTINCT (MAP (λ(d,x,e). x) dxel )  /\
        (wf_arg_list (MAP (λ(d,x,e). d) dxel )
                     (MAP (λ(d,x,e). x) dxel )
 		    (MAP (λ(d,x,e). e) dxel ) ss) ==>
-      ~ (FOLDL (update_arg_for_newscope ss) (SOME []) dxel = NONE) ``,
+      ~ (FOLDL (update_arg_for_newscope ss) (SOME []) dxel = NONE)
+Proof      
 
  HO_MATCH_MP_TAC SNOC_INDUCT THEN SRW_TAC [] [FOLDL_SNOC, MAP_SNOC]  >>
  fs[SNOC_APPEND] >>
@@ -3540,7 +2489,7 @@ val wf_arg_list_NONE = prove ( ``
  SIMP_TAC list_ss [update_arg_for_newscope_def] >>
  IMP_RES_TAC wf_imp_val_lval >>
  gvs[]
-);
+QED
  
 
 
@@ -4181,7 +3130,7 @@ METIS_TAC []
 
 
 
-val copyin_eq = prove ( ``
+Theorem copyin_eq:
 ! e_x_d_list gscope scopest scope.
      (ALL_DISTINCT (MAP (λ(e,x,d). x) e_x_d_list)) ∧
      (wf_arg_list (MAP (λ(e,x,d). d) e_x_d_list)
@@ -4196,7 +3145,7 @@ val copyin_eq = prove ( ``
 copyin_abstract (MAP (λ(e,x,d). x) e_x_d_list)
                 (MAP (λ(e,x,d). d) e_x_d_list)
 		(MAP (λ(e,x,d). e) e_x_d_list) (scopest ⧺ gscope) scope)
-``,
+Proof
 
 REPEAT STRIP_TAC >>
 fs[copyin_def] >>
@@ -4211,7 +3160,7 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
 
 rfs[] >>
 rfs[map_distrub]
-);
+QED
 
 
 
@@ -4844,13 +3793,14 @@ REPEAT (
 
 
 
-val ev_not_typed_T = prove ( ``! t_g t_sl T_e v tau .
-   ~ e_typ (t_g,t_sl) T_e (e_v v) (t_tau tau) T``,
-
+Theorem ev_not_typed_T:
+! t_g t_sl T_e v tau .
+   ~ e_typ (t_g,t_sl) T_e (e_v v) (t_tau tau) T
+Proof   
 fs[Once e_typ_cases] >>
 fs[Once v_typ_cases] >>
 gvs[]
-);
+QED
 
 
 
@@ -5348,12 +4298,13 @@ Induct >| [
 (****************)
 (****************)
 
-val SR_e =
-prove (`` ! (ty:'a itself) .
+Theorem SR_e:
+! (ty:'a itself) .
 (!e. sr_exp e ty) /\
 (! (l1: e list). sr_exp_list l1 ty) /\
 (! (l2: (string#e) list) .  sr_strexp_list l2 ty) /\
-(! tup. sr_strexp_tup tup ty)   ``,
+(! tup. sr_strexp_tup tup ty)
+Proof
 
 STRIP_TAC >>
 Induct >| [ 
@@ -6634,11 +5585,12 @@ fsrw_tac [] [sr_exp_list_def] >>
 REPEAT STRIP_TAC >>
 fs[]
 ]
-);
+QED
 
 
 
 
+val _ = export_theory ();
 
 
 

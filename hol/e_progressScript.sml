@@ -7,7 +7,6 @@ open p4Lib;
 open blastLib bitstringLib;
 open p4Theory;
 open p4_auxTheory;
-(*open deterTheory;*)
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -20,7 +19,7 @@ open arithmeticTheory;
 open alistTheory;
 open numeralTheory;
 open intLib;
-
+open e_subject_reductionTheory;
 
 
 fun OPEN_EXP_RED_TAC exp_term =
@@ -36,6 +35,7 @@ fun OPEN_V_TYP_TAC v_term =
 fun OPEN_EXP_TYP_TAC exp_term =
 (Q.PAT_X_ASSUM ` e_typ (t1,t2) t ^exp_term ta bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_typ_cases] thm)))
 
+val _ = new_theory "e_progress";
 
 
 (******    Type progress for expressions  ******)
@@ -76,345 +76,6 @@ val prog_strexp_tup_def = Define `
    prog_strexp_tup (tup : (string#e)) (ty:'a itself)
       =  prog_exp ((SND tup)) (ty:'a itself)
 `;
-
-
-
-
-(************************************************************)
-
-val INDEX_FIND_EQ_SOME_0 = store_thm ("INDEX_FIND_EQ_SOME_0",
-  ``!l P j e. (INDEX_FIND 0 P l = SOME (j, e)) <=> (
-       (j < LENGTH l) /\
-       (EL j l = e) /\ P e /\
-       (!j'. j' < j ==> ~(P (EL j' l))))``,
-
-cheat);
-
-val P_NONE_hold = prove ( ``
-!P l n .  (INDEX_FIND 0 P l = NONE) ==> (INDEX_FIND n P l = NONE) `` ,
- cheat 
-);
-
-val P_NONE_hold2 = prove ( ``
-!P l n .  (INDEX_FIND n P l = NONE) ==> (INDEX_FIND 0 P l = NONE) `` ,
- cheat
-);
-
-val R_ALOOKUP_NONE_scopes = prove (``
-! R v x t sc tc.
- similar R tc sc ==>
-((NONE = ALOOKUP sc x)  <=>
-(NONE = ALOOKUP tc x ) )``,
-cheat
-);
-
-
-
-val P_hold_on_next = prove (``
-  !i l P m.  (INDEX_FIND (SUC i) P l = SOME m) =
-             (INDEX_FIND i P l = SOME (FST m - 1, SND m) /\ (0 < FST m))``, cheat);
-
-
-
-val P_implies_next = prove (``
-    !l P i m. INDEX_FIND 0 P l = SOME (i, m) ==>
-              INDEX_FIND 1 P l = SOME (SUC i, m)
-``, cheat);
-
-
-
-val lemma_v_red_forall = prove ( ``
-! c s sl e l fl.
-~ e_red c s sl (e_v (l)) e fl ``, cheat);
-
-
-
-
-
-val e_lval_tlval = prove ( ``
-!e b t_scope_list t_scope_list_g order f delta_g delta_b delta_x delta_t tau gscope scopest.
- type_scopes_list gscope t_scope_list_g /\
- type_scopes_list scopest t_scope_list  /\
-e_typ (t_scope_list_g,t_scope_list)
-          (order,f,delta_g,delta_b,delta_x,delta_t) e tau b
-	  ==> b ==> is_e_lval (e)
-``, cheat);
-
-
-val R_topmost_map_scopesl = prove (``
-! R x l1 l2 scl tcl.
-( similarl R tcl scl /\
-(SOME l1 = topmost_map tcl x)   /\
-(SOME l2 = topmost_map scl x ) ) ==>
-(similar R l1 l2)``,
-cheat
-);
-
-val R_find_topmost_map_scopesl = prove (``
-! R x l1 l2 scl tcl.
-( similarl R tcl scl /\
-(SOME l1 = find_topmost_map tcl x)   /\
-(SOME l2 = find_topmost_map scl x ) ) ==>
-((similar R (SND l1) (SND l2)) /\ (FST l1 = FST l2) )``,
-cheat);
-
-
-
-val P_current_next_same = prove (``
-    !l P m n. INDEX_FIND 0 P l = SOME m /\
-              INDEX_FIND 1 P l = SOME n ==> SND n = SND m
-``,
-cheat
-);
-
-
-
-val P_implies_next = prove (``
-    !l P i m. INDEX_FIND 0 P l = SOME (i, m) ==>
-              INDEX_FIND 1 P l = SOME (SUC i, m)
-``,
-cheat
-);
-
-
-
-val not_index_none_exist =
-prove(``
-∀ l n P. ~ (INDEX_FIND n P l = NONE) ⇔ EXISTS P l ``,
-cheat
-);
-
-
-
-
-
-(* from SR *)
-val lookup_funn_t_map_NONE = prove (``
-! delta_g delta_b delta_x func_map b_func_map ext_map f .
-dom_tmap_ei delta_g delta_b /\
-dom_g_eq delta_g func_map /\
-dom_b_eq delta_b b_func_map /\
-dom_x_eq delta_x ext_map  ==>
-(t_lookup_funn (f) delta_g delta_b delta_x = NONE <=>
-lookup_funn_sig_body (f) func_map b_func_map ext_map = NONE) ``,
-cheat
-);
-
-
-
-
-
-
-
-
-(* from SR *)
-val tfunn_imp_sig_body_lookup = prove ( ``
-! apply_table_f ext_map func_map b_func_map pars_map tbl_map
-  order t_scope_list_g delta_g delta_b delta_x tdl tau f.
-WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-       order t_scope_list_g delta_g delta_b delta_x /\
-SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x
- ==>
-(? stmt xdl. SOME (stmt,xdl) = lookup_funn_sig_body f func_map b_func_map ext_map /\
-  (MAP SND tdl = MAP SND xdl ) /\
-  (LENGTH (MAP SND xdl) = LENGTH (MAP SND tdl) /\
-   (ALL_DISTINCT (MAP FST xdl)))
-) ``,
-
-cheat
-);
-
-
-
-
-(* from SR *)
-val tfunn_imp_sig_lookup = prove ( ``
-
-! apply_table_f ext_map func_map b_func_map pars_map tbl_map
-  order t_scope_list_g delta_g delta_b delta_x tdl tau f.
-WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) order t_scope_list_g delta_g delta_b delta_x /\
-SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x ==>
-(? xdl . SOME (xdl) = lookup_funn_sig f func_map b_func_map ext_map  /\
-              MAP SND tdl = MAP SND xdl ∧
-         LENGTH (MAP SND xdl) = LENGTH (MAP SND tdl)  /\
-	    (ALL_DISTINCT (MAP FST xdl))) ``,
-cheat
-
-);
-
-
-
-
-val bit_range = prove ( ``
-! (r:num) .
-r > 0 /\
-r ≤ 64 ==>
-(r = 1 \/ r = 2 \/ r = 3 \/ r = 4 \/ r = 5 \/
-r = 6 \/ r = 7 \/ r = 8 \/ r = 9 \/ r = 10 \/
-r = 11 \/ r = 12 \/ r = 13 \/ r = 14 \/ r = 15 \/
-r = 16 \/ r = 17 \/ r = 18 \/ r = 19 \/ r = 20 \/
-r = 21 \/ r = 22 \/ r = 23 \/ r = 24 \/ r = 25 \/
-r = 26 \/ r = 27 \/ r = 28 \/ r = 29 \/ r = 30 \/
-r = 31 \/ r = 32 \/ r = 33 \/ r = 34 \/ r = 35 \/
-r = 36 \/ r = 37 \/ r = 38 \/ r = 39 \/ r = 40 \/
-r = 41 \/ r = 42 \/ r = 43 \/ r = 44 \/ r = 45 \/
-r = 46 \/ r = 47 \/ r = 48 \/ r = 49 \/ r = 50 \/
-r = 51 \/ r = 52 \/ r = 53 \/ r = 54 \/ r = 55 \/
-r = 56 \/ r = 57 \/ r = 58 \/ r = 59 \/ r = 60 \/
-r = 61 \/ r = 62 \/ r = 63 \/ r = 64 )
-``,
-cheat);
-
-
-
-
-
-val bs_width_neg_signed = prove ( ``! r q .
-r > 0 /\
-r ≤ 64 ==>
-r = bs_width (bitv_unop unop_neg_signed (q,r))``,
-cheat
-);
-
-
-val UNZIP_rw = prove(`` !l l'.
-(FST (UNZIP (MAP (\(a_,b_,c_). (a_,b_)) l)) = MAP (\(a_,b_,c_). (a_)) l) /\
-(FST (UNZIP (MAP (\(a_,b_,c_). (b_,c_)) l)) = MAP (\(a_,b_,c_). (b_)) l) /\
-(FST (UNZIP (MAP (\(a_,b_,c_). (a_,c_)) l)) = MAP (\(a_,b_,c_). (a_)) l) /\
-(SND (UNZIP (MAP (\(a_,b_,c_). (a_,b_)) l)) = MAP (\(a_,b_,c_). (b_)) l) /\
-(SND (UNZIP (MAP (\(a_,b_,c_). (b_,c_)) l)) = MAP (\(a_,b_,c_). (c_)) l) /\
-(SND (UNZIP (MAP (\(a_,b_,c_). (a_,c_)) l)) = MAP (\(a_,b_,c_). (c_)) l) /\
-
-
-(FST (UNZIP (MAP (\(a_,b_,c_,d_). (a_,b_)) l')) = MAP (\(a_,b_,c_,d_). (a_)) l') /\
-(FST (UNZIP (MAP (\(a_,b_,c_,d_). (a_,c_)) l')) = MAP (\(a_,b_,c_,d_). (a_)) l') /\
-(FST (UNZIP (MAP (\(a_,b_,c_,d_). (a_,d_)) l')) = MAP (\(a_,b_,c_,d_). (a_)) l') /\
-(FST (UNZIP (MAP (\(a_,b_,c_,d_). (b_,c_)) l')) = MAP (\(a_,b_,c_,d_). (b_)) l') /\
-(FST (UNZIP (MAP (\(a_,b_,c_,d_). (b_,d_)) l')) = MAP (\(a_,b_,c_,d_). (b_)) l') /\
-(FST (UNZIP (MAP (\(a_,b_,c_,d_). (c_,d_)) l')) = MAP (\(a_,b_,c_,d_). (c_)) l') /\
-
-(SND (UNZIP (MAP (\(a_,b_,c_,d_). (a_,b_)) l')) = MAP (\(a_,b_,c_,d_). (b_)) l') /\
-(SND (UNZIP (MAP (\(a_,b_,c_,d_). (a_,c_)) l')) = MAP (\(a_,b_,c_,d_). (c_)) l') /\
-(SND (UNZIP (MAP (\(a_,b_,c_,d_). (a_,d_)) l')) = MAP (\(a_,b_,c_,d_). (d_)) l') /\
-(SND (UNZIP (MAP (\(a_,b_,c_,d_). (b_,c_)) l')) = MAP (\(a_,b_,c_,d_). (c_)) l') /\
-(SND (UNZIP (MAP (\(a_,b_,c_,d_). (b_,d_)) l')) = MAP (\(a_,b_,c_,d_). (d_)) l') /\
-(SND (UNZIP (MAP (\(a_,b_,c_,d_). (c_,d_)) l')) = MAP (\(a_,b_,c_,d_). (d_)) l') 
-``, cheat);
-
-
-
-
-val R_lookup_map_scopesl = prove (``
-! R v x t scl tcl.
-( similarl R tcl scl /\
-(SOME v = lookup_map scl x)   /\
-(SOME t = lookup_map tcl x ) ) ==>
-(R t v)``,
-cheat);
-
-
-val R_ALOOKUP_scopes = prove (``
-! R v x t sc tc.
-( similar R tc sc /\
-(SOME v = ALOOKUP sc x)   /\
-(SOME t = ALOOKUP tc x ) ) ==>
-(R t v)``,
-cheat);
-
-
-
-val type_scopes_list_APPEND = prove (``
-! l1 l2 l3 l4. type_scopes_list l1 l2 /\
-          type_scopes_list l3 l4 ==>
-	  type_scopes_list (l1++l3) (l2++l4)``,
-cheat
-);
-
-
-
-
-val lookup_in_gsl_lemma = prove ( ``
-! v f sl gsl.
-SOME v = lookup_vexp2 sl gsl (varn_star f) /\
-star_not_in_sl sl ==>
-SOME v = lookup_vexp2 [] gsl (varn_star f)   `` ,
-cheat
-);
-
-
-val lookup_map_in_gsl_lemma  = prove ( ``
-! v lvalop f sl gsl.
-SOME (v,lvalop)  = lookup_map (sl ⧺ gsl) (varn_star f) /\
-star_not_in_sl sl ==>
-SOME (v,lvalop) = lookup_map   gsl (varn_star f)
-``,
-cheat);
-
-
-
-val EL_consts_is_const = prove (``
-!l i. i < LENGTH l /\ is_consts (l) ==>
-is_const (EL i (l)) `` ,
-cheat
-);
-
-val map_distrub = prove ( 
-``!l l' l''.
-(LENGTH l = LENGTH l' /\
-LENGTH l' = LENGTH l'') ==>
-
-(MAP (\(a_,b_,c_). a_) (ZIP (l,ZIP (l',l''))) = l /\
-MAP (\(a_,b_,c_). b_) (ZIP (l,ZIP (l',l''))) = l' /\
-MAP (\(a_,b_,c_). c_) (ZIP (l,ZIP (l',l''))) = l'' /\
-MAP (\(a_,b_,c_). (a_,b_)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l') /\
-MAP (\(a_,b_,c_). (a_,c_)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l'') 
-)``,
-cheat
-);
-
-
-
-val map_rw_quad = prove ( ``
-!l l' l''.
-(LENGTH l = LENGTH l' /\
-LENGTH l' = LENGTH l'') ==>
-(MAP (\(a_,b_,c_,d_). a_) (ZIP (l,ZIP (l',l''))) = l /\
-MAP (\(a_,b_,c_,d_). b_) (ZIP (l,ZIP (l',l''))) = l' /\
-MAP (\(a_,b_,c_,d_). c_) (ZIP (l,ZIP (l',l''))) = FST (UNZIP l'') /\
-MAP (\(a_,b_,c_,d_). d_) (ZIP (l,ZIP (l',l''))) = SND (UNZIP l'') /\
-MAP (\(a_,b_,c_,d_). (a_,b_)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l')  /\
-MAP (\(a_,b_,c_,d_). (a_,c_)) (ZIP (l,ZIP (l',l''))) = ZIP (l, FST (UNZIP l'') ) /\
-MAP (\(a_,b_,c_,d_). (b_,c_)) (ZIP (l,ZIP (l',l''))) = ZIP (l', FST (UNZIP l'') )
-)``, cheat);
-
-
-
-
-val map_rw1 = prove ( ``
-!l . (MAP (\(f_,e_,e'_). (f_,e'_)) l =
-         ZIP (MAP (\(f_,e_,e'_). f_) l,MAP (\(f_,e_,e'_). e'_) l)) /\
-     (MAP (\(f_,e_,e'_). (f_,e_)) l =
-         ZIP (MAP (\(f_,e_,e'_). f_) l,MAP (\(f_,e_,e'_). e_) l))	 ``,
-cheat
-);
-
-
-val map_rw2 = prove ( ``
-!l . MAP (\(a,b,c,d). (a,b)) l = ZIP (MAP (\(a,b,c,d). a) l, MAP (\(a,b,c,d). b) l) /\
-     MAP (\(a,b,c,d). (a,c)) l = ZIP (MAP (λ(a,b,c,d). a) l, MAP (\(a,b,c,d). c) l) /\
-     MAP (\(a,b,c,d). (a,d)) l = ZIP (MAP (λ(a,b,c,d). a) l, MAP (\(a,b,c,d). d) l) /\
-     MAP (\(a,b,c,d). (b,c)) l = ZIP (MAP (λ(a,b,c,d). b) l, MAP (\(a,b,c,d). c) l) /\
-     MAP (\(a,b,c,d). (b,d)) l = ZIP (MAP (λ(a,b,c,d). b) l, MAP (\(a,b,c,d). d) l) /\
-     MAP (\(a,b,c,d). (c,d)) l = ZIP (MAP (λ(a,b,c,d). c) l, MAP (\(a,b,c,d). d) l) 
-``,
-cheat
-);
-
-(************************************************************)
-
-
-
-
 
 
 
@@ -1011,7 +672,6 @@ srw_tac [numSimps.SUC_FILTER_ss][]
 
 
 
-(* TODO: fix this one as well theorm to make it fast, sol below *)
 val bv_bv_bool_prog = prove (``
 ! bitv bitv' op.
 bs_width bitv > 0 /\
@@ -1444,20 +1104,6 @@ fs[Once v_typ_cases]
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-(* TO DO : move to the SR and make sure to add it to the CI*)
-
 val wf_arg_single_implied  =  prove ( ``
 ! e d b x tau gtsl gscope tsl scopest T_e .
 star_not_in_sl scopest /\
@@ -1861,21 +1507,6 @@ gvs[] >| [
 
 
 
-(* TODO: put all the maps together and call them map simps file *)
-val MAP_snd_quad_12_1 = prove ( ``
-!l .  MAP SND (MAP (λ(e_,t_,d_,b_). (t_,d_)) l) =
-              (MAP (λ(e_,t_,d_,b_). d_) l) ``,
-Induct >>
-REPEAT STRIP_TAC >>
-gvs[] >>
-PairCases_on `h` >>
-gvs[]
-);
-
-
-
-
-
 
 val copyin_eq_rw = prove ( ``
 ! xl dl el gscope scopest scope.
@@ -1911,12 +1542,13 @@ gvs[]
 
 
 
-val PROG_e =
-prove (`` ! (ty:'a itself) .
+Theorem PROG_e:
+! (ty:'a itself) .
 (!e. prog_exp e ty) /\
 (! (l1: e list). prog_exp_list l1 ty) /\
 (! (l2: (string#e) list) .  prog_strexp_list l2 ty) /\
-(! tup. prog_strexp_tup tup ty)   ``,
+(! tup. prog_strexp_tup tup ty)
+Proof
 
 STRIP_TAC >>
 Induct >| [
@@ -2755,11 +2387,12 @@ fsrw_tac [] [prog_exp_list_def] >>
 REPEAT STRIP_TAC >>
 fs[]
 ]
-);
+QED
 
 
 
 
+val _ = export_theory ();
 
 
 

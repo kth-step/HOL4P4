@@ -65,7 +65,7 @@ EQ_TAC >| [
   fs [l_sound, l_sound_exec]
  ) >>
  rpt strip_tac >| [
-  PAT_X_ASSUM ``!x. _`` (fn thm => ASSUME_TAC (SPEC ``0`` thm)) >>
+  PAT_X_ASSUM ``!x. _`` (fn thm => ASSUME_TAC (SPEC ``(0:num)`` thm)) >>
   fs [oEL_def],
 
   `l_sound type (h::l)` suffices_by (
