@@ -604,6 +604,13 @@ formula :: formula_ ::=
   {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
 | WF_o order :: :: WF_order
   {{ hol ( WF_o [[order]] )}}
+| f_ordered_with_reserved delta_g delta_b delta_x Pb_n order :: :: f_ordered_with_reserved
+  {{ com all functions come after the first frame are ordered}}
+  {{ hol f_ordered_with_reserved [[delta_g]] [[delta_b]] [[delta_x]] [[Pb_n]] [[order]] }}
+| base_frame_is_in_Pb_n delta_t funn Pb_n :: :: base_frame_is_in_Pb_n
+  {{ hol base_frame_is_in_Pb_n [[delta_t]] [[funn]] [[Pb_n]] }}
+| table_map_typed tbl_map apply_table_f delta_g delta_b :: :: table_map_typed
+  {{ hol table_map_typed [[tbl_map]] [[apply_table_f]] [[delta_g]] [[delta_b]] }}  
 | MEM x x_list :: :: x_in_xlist
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
 | not_star ( varn ) :: :: not_star  
@@ -629,6 +636,8 @@ formula :: formula_ ::=
   {{ hol ( dom_b_eq [[delta_b]] [[b_func_map]] ) }}
 | dom_x_eq ( delta_x , ext_map ) :: :: dom_x_eq
   {{ hol ( dom_x_eq [[delta_x]] [[ext_map]] ) }}
+| dom_t_eq ( delta_t , tbl_map ) :: :: dom_t_eq
+  {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }}  
 | Fg_star_defined ( func_map , t_scope_list_g ) :: :: Fg_star_defined
   {{ hol ( Fg_star_defined [[func_map]] [[t_scope_list_g]] ) }}
 | Fb_star_defined ( b_func_map , t_scope_list_g ) :: :: Fb_star_defined
@@ -645,7 +654,8 @@ formula :: formula_ ::=
 | type_state_tsll ( scope_list1 , .. , scope_listn ) t_scope_list :: :: type_state_tsll
   {{ hol ( type_state_tsll [[scope_list1 .. scope_listn]] [[t_scope_list]] )  }}
 
-
+| args_t_same [ tau1 , .. , taun ]  t_scope_list :: :: args_t_same
+  {{ hol (args_t_same  ([[tau1 .. taun]]) t_scope_list ) }}
 
 
 embed
@@ -1530,6 +1540,27 @@ val copyin_def = Define `
     all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl)
 `;
 
+(* in bl' slice from v2 to v1 and in that section add bl in those positions
+   relpace_bits ([F;F;F],3) ([T;T;T;T;T;T],6) 3 1 = [T; T; F; F; F; T]
+  *)
+val  relpace_bits_def = Define `
+relpace_bits (bl,(v:num)) (bl',v') v1 v2 =
+(SEG (v'-v1 -1) (0) bl') ++ bl ++ (SEG (v2) (0)  bl') `;  
+
+
+     
+(* assign to slice returns that value being replaces in a slicing assignment.
+   i.e. assign the value bit vb to vb' where vb should replace only the positions from ev2 to ev1 in vb' *)
+
+val  assign_to_slice_def = Define `
+assign_to_slice vb vb' ev1 ev2 =
+( case ev1 of
+     | (e_v (v_bit (bl1, n1))) =>
+       (case ev2 of
+       | (e_v (v_bit (bl2, n2))) => SOME ( v_bit ((relpace_bits vb vb' (v2n bl1) (v2n bl2)), SND vb')  )
+       | _ => NONE )
+     | _ => NONE
+     )`; 
 
 (* Updates a scope stack by mapping the variable name a to the value v
  * in the topmost scope where a is defined,
@@ -1555,8 +1586,17 @@ val assign_def = Define `
       (case INDEX_OF f (MAP FST f_v_l) of
        | SOME i => assign ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
        | NONE => NONE)
-    | _ => NONE
-  ) /\
+    | _ => NONE) /\    
+  (assign ss v (lval_slice lval ev1 ev2) =
+     case v of
+     | v_bit vb => (
+           case lookup_lval ss lval of
+           | SOME (v_bit vb') =>
+               (case assign_to_slice vb vb' ev1 ev2 of
+                | SOME v_res => assign ss v_res lval
+                | _ => NONE )
+           | _ => NONE)
+     | _ => NONE ) /\
   (assign ss v lval_null =
     SOME ss
   )
@@ -1822,15 +1862,13 @@ val lookup_ext_fun_def = Define `
    case ALOOKUP ext_map f of
    | SOME (_, ext_fun_map) =>
     (case ALOOKUP ext_fun_map f' of
-     | SOME (_, ext_fun) =>
-      SOME ext_fun
+     | SOME (_, ext_fun) => SOME ext_fun
      | NONE => NONE)
    | NONE => NONE) /\
   (lookup_ext_fun (funn_inst f) ext_map =
    case ALOOKUP ext_map f of
-   | SOME (SOME (_, ext_fun), _) =>
-    SOME ext_fun
-   | NONE => NONE) /\
+   | SOME (SOME (_, ext_fun), _) => SOME ext_fun
+   | _ => NONE) /\
   (lookup_ext_fun (funn_name f) ext_map = NONE)
 `;
 
