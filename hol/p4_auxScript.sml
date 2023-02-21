@@ -1741,7 +1741,7 @@ Theorem map_distrub:
 (LENGTH l = LENGTH l' /\
 LENGTH l' = LENGTH l'') ==>
 
-(MAP (\(a,b,_). a) (ZIP (l,ZIP (l',l''))) = l /\
+(MAP (\(a,b,c). a) (ZIP (l,ZIP (l',l''))) = l /\
 MAP (\(a,b,c). b) (ZIP (l,ZIP (l',l''))) = l' /\
 MAP (\(a,b,c). c) (ZIP (l,ZIP (l',l''))) = l'' /\
 MAP (\(a,b,c). (a,b)) (ZIP (l,ZIP (l',l''))) = ZIP (l,l') /\
@@ -1839,6 +1839,18 @@ REPEAT STRIP_TAC>>
 
 PairCases_on `h` >>
 fs[]
+QED
+
+
+Theorem map_rw_doub:
+!l l'.
+(LENGTH l = LENGTH l') ==>
+MAP (\(a,b). a)  (ZIP (l,l')) = l /\
+MAP (\(a,b). b)  (ZIP (l,l')) = l'
+Proof
+Induct_on `l` >>
+Induct_on `l'` >>
+rw[]
 QED
 
 
