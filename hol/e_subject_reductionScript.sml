@@ -284,11 +284,12 @@ given l (expression value list), l' (type list), l'' (lval indication list), whe
 of l can be typed with ith element of l' and l'', then the can type
 the values of the list l, the same exact way using v_typ.
 *)
-val evl_types_vl_blist = prove ( ``
+Theorem evl_types_vl_blist:
     ∀l l' l'' i t_scope_list_g t_scope_list T_e.
        LENGTH l = LENGTH l' /\ LENGTH l = LENGTH l'' ∧ i < LENGTH l ∧ is_consts l ∧
        e_typ (t_scope_list_g,t_scope_list) T_e (EL i l) (t_tau (EL i l')) (EL i l'') ⇒
-       v_typ (EL i (vl_of_el l)) (t_tau (EL i l')) F ``,
+       v_typ (EL i (vl_of_el l)) (t_tau (EL i l')) F
+Proof
 
 Induct_on `l` >>
 Induct_on `l'` >>
@@ -324,7 +325,7 @@ fs[] >| [
  IMP_RES_TAC evl_types_vl_F >>
  gvs[]
 ]
-);
+QED
 
 
 
@@ -1493,9 +1494,9 @@ Cases_on `n` >| [
  fs[PRE_SUB1] >>
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`dl`])) >>
 
-  subgoal `! i . is_d_out (EL i (dl)) ⇒ EL i (bl)` >-
-  ( STRIP_TAC >>
-    Q.PAT_X_ASSUM `∀i. is_d_out (EL i (h::dl)) ⇒ EL i (h'::bl)`
+  subgoal `∀i. i < LENGTH dl ⇒ is_d_out (EL i (dl)) ⇒ EL i (bl)` >-
+  ( NTAC 2 STRIP_TAC >>
+    Q.PAT_X_ASSUM `∀i. i < SUC (LENGTH dl) ⇒ is_d_out (EL i (h::dl)) ⇒ EL i (h'::bl)`
     (STRIP_ASSUME_TAC o (Q.SPECL [`i+1`])) >>
     fs[EL_CONS] >>
     fs[PRE_SUB1] 
@@ -1597,7 +1598,7 @@ fs[INDEX_FIND_def] >| [
 );
 
 
-
+    
 
 Theorem unred_arg_index_result:
 ! dl el i .
@@ -1613,6 +1614,25 @@ QED
 
 
 
+
+
+                    
+val unred_arg_index_in_range2 = prove ( “
+∀dl el i. unred_arg_index dl el = SOME i ⇒ i < LENGTH dl
+                                      ”,
+ REPEAT STRIP_TAC >>
+ fs[unred_arg_index_def] >>
+ fs[find_unred_arg_def] >>
+ Cases_on `INDEX_FIND 0 (λ(d,e). ¬is_arg_red d e) (ZIP (dl,el))` >> 
+ gvs [] >>
+ Cases_on `x` >>
+ IMP_RES_TAC index_find_length >>
+ fs []
+);        
+
+
+                        
+
 Theorem unred_arg_out_is_lval_imp:
 ∀i dl bl el.
 unred_arg_index dl el = SOME i ∧ out_is_lval dl bl ⇒
@@ -1623,7 +1643,9 @@ IMP_RES_TAC unred_arg_index_details>>
 fs[out_is_lval_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i`])) >>
 fs[is_d_out_def] >>
-RES_TAC
+
+IMP_RES_TAC unred_arg_index_in_range2 >>
+fs[is_d_out_def]               
 QED
 
 

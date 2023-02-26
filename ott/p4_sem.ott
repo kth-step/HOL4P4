@@ -604,13 +604,16 @@ formula :: formula_ ::=
   {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
 | WF_o order :: :: WF_order
   {{ hol ( WF_o [[order]] )}}
-| f_ordered_with_reserved delta_g delta_b delta_x Pb_n order :: :: f_ordered_with_reserved
+| f_ordered_with_any_reserved delta_g delta_b delta_x Pb_n order :: :: f_ordered_with_any_reserved
   {{ com all functions come after the first frame are ordered}}
-  {{ hol f_ordered_with_reserved [[delta_g]] [[delta_b]] [[delta_x]] [[Pb_n]] [[order]] }}
+  {{ hol f_ordered_with_any_reserved [[delta_g]] [[delta_b]] [[delta_x]] [[Pb_n]] [[order]] }}
+| f_not_reserved_then_ordered delta_g delta_b delta_x Pb_n order :: :: f_not_reserved_then_ordered
+  {{ com if function not in reserved Pb_n, then ordered with it}}
+  {{ hol f_not_reserved_then_ordered [[delta_g]] [[delta_b]] [[delta_x]] [[Pb_n]] [[order]] }}
 | base_frame_is_in_Pb_n delta_t funn Pb_n :: :: base_frame_is_in_Pb_n
   {{ hol base_frame_is_in_Pb_n [[delta_t]] [[funn]] [[Pb_n]] }}
-| table_map_typed tbl_map apply_table_f delta_g delta_b :: :: table_map_typed
-  {{ hol table_map_typed [[tbl_map]] [[apply_table_f]] [[delta_g]] [[delta_b]] }}  
+| table_map_typed tbl_map apply_table_f delta_g delta_b Pb_n :: :: table_map_typed
+  {{ hol table_map_typed [[tbl_map]] [[apply_table_f]] [[delta_g]] [[delta_b]] [[Pb_n]] }}  
 | MEM x x_list :: :: x_in_xlist
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
 | not_star ( varn ) :: :: not_star  
