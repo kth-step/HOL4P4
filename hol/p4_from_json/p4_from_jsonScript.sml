@@ -9,11 +9,28 @@ open p4Theory;
 (* For EVAL *)
 open ASCIInumbersLib;
 
+Definition opt_pair_def:
+ (opt_pair (SOME x) (SOME y) = SOME (x, y)) /\
+ (opt_pair _        _        = NONE)
+End
+
 (* Option datatype with error message for the NONE case *)
 Datatype:
  option_msg_t =
     SOME_msg 'a
   | NONE_msg string
+End
+
+Definition opt_add_msg_def:
+ opt_add_msg msg opt =
+  case opt of
+  | SOME x => SOME_msg x
+  | NONE => NONE_msg msg
+End
+
+Definition opt_msg_bind_def:
+ (opt_msg_bind (NONE_msg msg) f = NONE_msg msg) /\
+ (opt_msg_bind (SOME_msg x) f = f x)
 End
 
 (* This is defined as an extension to "tau" defined in p4Theory to handle type parameters *)
@@ -98,14 +115,36 @@ Definition get_error_msg_def:
  get_error_msg msg json = NONE_msg (msg++(json_to_string_wrap json))
 End
 
-Definition parse_json_obj'_def:
- (parse_json_obj' [] [] = SOME []) /\
- (parse_json_obj' [] _  = NONE) /\
- (parse_json_obj' _  [] = NONE) /\
- (parse_json_obj' ((k, v)::t) (h2::t2) =
+Definition json_dest_str_def:
+ json_dest_str json =
+  case json of
+  | String s => SOME s
+  | _ => NONE
+End
+
+Definition json_dest_obj_def:
+ json_dest_obj json =
+  case json of
+  | Object obj => SOME obj
+  | _ => NONE
+End
+
+Definition json_dest_arr_def:
+ json_dest_arr json =
+  case json of
+  | Array arr => SOME arr
+  | _ => NONE
+End
+
+(* TODO: Rename this and all parse_ functions to json_parse? *)
+Definition json_parse_obj'_def:
+ (json_parse_obj' [] [] = SOME []) /\
+ (json_parse_obj' [] _  = NONE) /\
+ (json_parse_obj' _  [] = NONE) /\
+ (json_parse_obj' (h2::t2) ((k, v)::t) =
   if k = h2
   then
-   (case parse_json_obj' t t2 of
+   (case json_parse_obj' t2 t of
     | SOME vl => SOME (v::vl)
     | NONE => NONE)
   else NONE)
@@ -114,10 +153,52 @@ End
 (* Returns a list of the JSON elements that are the
  * values of the members of json iff the keys match
  * the provided list of strings *)
-Definition parse_json_obj_def:
- parse_json_obj json fields =
+Definition json_parse_obj_def:
+ json_parse_obj fields json =
+  OPTION_BIND (json_dest_obj json) (json_parse_obj' fields) 
+End
+
+Definition json_parse_arr'_def:
+ (json_parse_arr' _  _ [] = NONE) /\
+ (json_parse_arr' name f (h::[t]) =
+  OPTION_BIND
+   (json_dest_str h)
+   (\s. if s = name then f t else NONE))
+End
+
+(* Returns the JSON that is the second element of json iff
+ * the first elements is a String that matches the provided string.
+ * Note that this is not the general format of a JSON array, but rather
+ * a specific pattern found in petr4 JSON exports. *)
+Definition json_parse_arr_def:
+ json_parse_arr name f json =
+  OPTION_BIND (json_dest_arr json) (json_parse_arr' name f)
+End
+
+Definition json_parse_arr_list'_def:
+ (json_parse_arr_list' _ [] = NONE) /\
+ (json_parse_arr_list' name_f_l (h::t) =
+  OPTION_BIND
+   (json_dest_str h)
+   (\s.
+    (case INDEX_FIND 0 (\name_f. (FST name_f) = s) name_f_l of
+     | SOME (i, name_f) =>
+      (* t can be empty if we're dealing with an error *)
+      (case t of
+       | [] =>
+        (SND name_f) Null
+       | [t'] =>
+        (SND name_f) t'
+       | _ => NONE)
+     | _ => NONE)))
+End
+
+(* Parses the JSON element using one of the options in name_f_l, depending
+ * on the String value, which has to be the first element of the list *)
+Definition json_parse_arr_list_def:
+ json_parse_arr_list name_f_l json =
   case json of 
-  | Object kvpairs => parse_json_obj' kvpairs fields
+  | Array arr_elems => json_parse_arr_list' name_f_l arr_elems
   | _ => NONE
 End
 
@@ -126,26 +207,26 @@ End
 (**********************)
 (* HOL4 JSON TO P4OTT *)
 
+(* TODO: Fix this... *)
 Definition p4_from_json_preamble:
-(p4_from_json_preamble json_parse_result =
- case json_parse_result of
- | INR (json, [], []) =>
-  (* petr4: all output is a list with an array at top *)
-  (case json of
-  | Array json_list =>
-   (* petr4: first element in this list is the string "program" *)
-   (case json_list of
-   | (json'::json_list') =>
-    if json' = String "program"
-    then
-     (case json_list' of
-     | [Array json_list''] => SOME_msg json_list''
-     | _ => NONE_msg "petr4 format error: Top-level List did not have Array as second element")
-    else NONE_msg "petr4 format error: Top level List did not have String \"program\" as first element"
-   | _ => NONE_msg "petr4 format error: Empty program")
-  | _ => NONE_msg "petr4 format error: JSON was not a singleton list containing an Array at top level")
- | _ => NONE_msg "output of HOL4 JSON parser did not have expected format"
-)
+ p4_from_json_preamble json_parse_result =
+  case json_parse_result of
+  | INR (json, [], []) =>
+   (* petr4: all output is a list with an array at top *)
+   (case json of
+   | Array json_list =>
+    (* petr4: first element in this list is the string "program" *)
+    (case json_list of
+    | (json'::json_list') =>
+     if json' = String "program"
+     then
+      (case json_list' of
+      | [Array json_list''] => SOME_msg json_list''
+      | _ => NONE_msg "petr4 format error: Top-level List did not have Array as second element")
+     else NONE_msg "petr4 format error: Top level List did not have String \"program\" as first element"
+    | _ => NONE_msg "petr4 format error: Empty program")
+   | _ => NONE_msg "petr4 format error: JSON was not a singleton list containing an Array at top level")
+  | _ => NONE_msg "output of HOL4 JSON parser did not have expected format"
 End
 
 (*
@@ -171,7 +252,7 @@ End
 (********************)
 (* Type definitions *)
 
-(* TODO: Expand as you encounter more types *)
+(* OLD
 Definition petr4_parse_ptype_def:
  petr4_parse_ptype tyenv json =
   case json of
@@ -187,6 +268,38 @@ Definition petr4_parse_ptype_def:
             String ty_name]] => ALOOKUP tyenv ty_name
   | _ => NONE
 End
+*)
+
+Definition petr4_parse_width_def:
+ petr4_parse_width json_list =
+  case json_list of
+  | [String width; Null] => 
+   (case fromDecString width of
+    | SOME w_num => SOME (p_tau_bit w_num)
+    | NONE => NONE)
+  | _ => NONE
+End
+
+(* TODO: Make dest_string to chain with OPTION_BIND? *)
+Definition petr4_parse_tyname_def:
+ petr4_parse_tyname tyenv json =
+  OPTION_BIND (json_dest_str json) (ALOOKUP tyenv)
+End
+
+(* TODO: Expand as you encounter more types *)
+Definition petr4_parse_ptype_def:
+ petr4_parse_ptype tyenv json =
+  json_parse_arr_list
+   [("bit", \json'. OPTION_BIND
+             (OPTION_BIND
+               (json_parse_arr "int" SOME json')
+               (json_parse_obj ["value"; "width_signed"]))
+             petr4_parse_width);
+    ("error", \json'. SOME p_tau_err);
+    ("name", \json'. OPTION_BIND
+              (json_parse_arr "BareName" SOME json')
+              (petr4_parse_tyname tyenv))] json
+End
 
 (* Version for non-parameterized types *)
 Definition petr4_parse_type_def:
@@ -199,17 +312,15 @@ End
 (* TODO: Merge with the above and return tuple? *)
 Definition petr4_parse_type_name_def:
  petr4_parse_type_name json =
-  case json of
-  | [String "name";
-     Array [String "BareName";
-            String ty_name]] => SOME ty_name
-  | _ => NONE
+  OPTION_BIND
+   (json_parse_arr "name" SOME json)
+   (json_parse_arr "BareName" json_dest_str)
 End
 
-(* TODO: Brute force case expression, but does the job *)
-(* TODO: Separate string comparisons into if-then-else? *)
+(* TODO: Avoid explicit case matching on list possible? *)
 Definition petr4_typedef_to_tyenvupdate_def:
  petr4_typedef_to_tyenvupdate tyenv json =
+(* OLD: Brute force case expression (95 clauses), but does the job
   case json of
   | Object
    [("annotations",Array annotations);
@@ -217,10 +328,19 @@ Definition petr4_typedef_to_tyenvupdate_def:
     ("typ_or_decl",
      Array
        [String "Left";
-        Array type])] =>
-   (case petr4_parse_ptype tyenv type of
+        json_type])] =>
+   (case petr4_parse_ptype tyenv json_type of
     | SOME tau => SOME (ty_name, tau)
     | NONE => NONE)
+  | _ => NONE
+*)
+  case json_parse_obj ["annotations"; "name"; "typ_or_decl"] json of
+  | SOME [json_annot; json_ty_name; json_typ_or_decl] =>
+   opt_pair
+    (json_dest_str json_ty_name)
+    (OPTION_BIND
+     (json_parse_arr "Left" SOME json_typ_or_decl)
+     (petr4_parse_ptype tyenv))
   | _ => NONE
 End
 
@@ -328,25 +448,25 @@ End
 
 (* TODO: Saturating addition/subtraction, ++? *)
 Definition petr4_binop_lookup_def:
-(petr4_binop_lookup binop_str = 
- ALOOKUP [("Plus", binop_add);
-          ("Minus", binop_sub);
-          ("Mul", binop_mul);
-          ("Div", binop_div);
-          ("Mod", binop_mod);
-          ("Shl", binop_shl);
-          ("Shr", binop_shr);
-          ("Le", binop_le);
-          ("Ge", binop_ge);
-          ("Lt", binop_lt);
-          ("Gt", binop_gt);
-          ("Eq", binop_eq);
-          ("NotEq", binop_neq);
-          ("BitAnd", binop_and);
-          ("BitXor", binop_xor);
-          ("BitOr", binop_or);
-          ("And", binop_bin_and);
-          ("Or", binop_bin_or)] binop_str)
+ petr4_binop_lookup binop_str = 
+  ALOOKUP [("Plus", binop_add);
+           ("Minus", binop_sub);
+           ("Mul", binop_mul);
+           ("Div", binop_div);
+           ("Mod", binop_mod);
+           ("Shl", binop_shl);
+           ("Shr", binop_shr);
+           ("Le", binop_le);
+           ("Ge", binop_ge);
+           ("Lt", binop_lt);
+           ("Gt", binop_gt);
+           ("Eq", binop_eq);
+           ("NotEq", binop_neq);
+           ("BitAnd", binop_and);
+           ("BitXor", binop_xor);
+           ("BitOr", binop_or);
+           ("And", binop_bin_and);
+           ("Or", binop_bin_or)] binop_str
 End
 
 (* The image of this function is the type union of expressions (INL)
@@ -515,7 +635,7 @@ Definition petr4_constant_to_scopeupdate_def:
   case json of
   | Object
    [("annotations", Array annotations);
-    ("type", Array json_type);
+    ("type", json_type);
     ("name", String json_name);
     ("value", json_value)] =>
    (case petr4_parse_type tyenv json_type of
@@ -524,7 +644,7 @@ Definition petr4_constant_to_scopeupdate_def:
      (case petr4_parse_value (tyenv, vtymap) (json_value, NONE) of
       | SOME_msg value => SOME_msg (varn_name json_name, value)
       | NONE_msg val_msg => NONE_msg val_msg)
-    | NONE => get_error_msg "could not parse type: " (Array json_type))
+    | NONE => get_error_msg "could not parse type: " json_type)
   | _ => get_error_msg "invalid JSON format of constant: " json
 End
 
@@ -543,9 +663,9 @@ Definition petr4_parse_struct_field_def:
  petr4_parse_struct_field tyenv struct_field =
   case struct_field of
   | Object [("annotations", Array annotations);
-            ("type", Array field_type);
+            ("type", json_field_type);
             ("name", String field_name)] =>
-   (case petr4_parse_ptype tyenv field_type of
+   (case petr4_parse_ptype tyenv json_field_type of
     | SOME tau => SOME_msg (field_name, tau)
     | NONE => NONE_msg ("Could not parse type of "++(field_name)++" in struct definition"))
   | _ => NONE_msg "Could not parse struct field"
@@ -857,18 +977,18 @@ Definition petr4_parse_blocktype_params_def:
    | Object
     [("annotations", Array annotations);
      ("direction", dir_opt);
-     ("typ", Array type);
+     ("typ", json_type);
      ("variable", String p_name);
      (* TODO: Parse optional default value instead of throwing away *)
      ("opt_value", p_opt_value)] =>
     (case petr4_parse_dir dir_opt of
      | SOME_msg p_dir =>
-      (case petr4_parse_ptype ptyenv type of
+      (case petr4_parse_ptype ptyenv json_type of
        | SOME p_type =>
         (case petr4_parse_blocktype_params ptyenv t of
          | SOME_msg res_msg => SOME_msg ((p_name, p_dir, p_type)::res_msg)
          | NONE_msg err_msg_params => NONE_msg err_msg_params)
-       | NONE => get_error_msg "could not parse type: " (Array type))
+       | NONE => get_error_msg "could not parse type: " json_type)
      | NONE_msg err_msg_dir => NONE_msg err_msg_dir)
    | _ => get_error_msg "could not parse block parameters: " h)
 End
@@ -925,19 +1045,19 @@ Definition petr4_parse_block_params_def:
     [("annotations", Array annotations);
      ("direction", dir_opt);
      (* TODO: Type potentially needed for type inference *)
-     ("typ", Array type);
+     ("typ", json_type);
      ("variable", String p_name);
      (* TODO: Parse optional default value instead of throwing away *)
      ("opt_value", p_opt_value)] =>
     (case petr4_parse_dir dir_opt of
      | SOME_msg p_dir =>
-      (case petr4_parse_type ptyenv type of
+      (case petr4_parse_type ptyenv json_type of
        | SOME p_type =>
         (case petr4_parse_block_params ptyenv t of
          | SOME_msg (res_params_msg, res_vty_updates_msg) =>
           SOME_msg ((p_name, p_dir)::res_params_msg, (varn_name p_name, p_type)::res_vty_updates_msg)
          | NONE_msg err_msg_params => NONE_msg err_msg_params)
-       | NONE => get_error_msg "could not parse type: " (Array type))
+       | NONE => get_error_msg "could not parse type: " json_type)
      | NONE_msg err_msg_dir => NONE_msg err_msg_dir)
    | _ => get_error_msg "could not parse block parameters: " h)
 End
@@ -947,22 +1067,22 @@ Definition petr4_parse_inst_def:
   case inst of
   | Object
    [("annotations", Array annotations);
-    ("type", Array type);
+    ("type", json_type);
     (* TODO: Use args as needed in constructor *)
     ("args", Array args);
     ("name", String inst_name);
     (* TODO: Make use of init field *)
     ("init", opt_init)] =>
-   (case petr4_parse_type tyenv type of
+   (case petr4_parse_type tyenv json_type of
     | SOME tau_ext =>
-     (case petr4_parse_type_name type of
+     (case petr4_parse_type_name json_type of
       | SOME type_name => 
        SOME_msg (decl_list++[(varn_name inst_name, tau_ext)],
                  p4_seq_append_stmt inits (stmt_ass lval_null (e_call (funn_inst type_name) [e_var (varn_name inst_name)])))
-      | _ => get_error_msg "could not parse type name: " (Array type)
+      | _ => get_error_msg "could not parse type name: " json_type
      )
     | SOME _ => get_error_msg "type of instantiation is not extern: " inst
-    | NONE => get_error_msg "could not parse type: " (Array type)
+    | NONE => get_error_msg "could not parse type: " json_type
    )
   | _ => get_error_msg "invalid JSON format of instantiation: " inst
 End
@@ -972,20 +1092,20 @@ Definition petr4_parse_var_def:
   case var of
   | Object
    [("annotations", Array annotations);
-    ("type", Array type);
+    ("type", json_type);
     ("name", String var_name);
     ("init", opt_init)] =>
-   (case petr4_parse_type tyenv type of
+   (case petr4_parse_type tyenv json_type of
     | SOME tau_var =>
-     (case petr4_parse_type_name type of
+     (case petr4_parse_type_name json_type of
       | SOME type_name =>
        (case opt_init of
         | Null =>
          SOME_msg (decl_list++[(varn_name var_name, tau_var)],inits, vty_updates++[(varn_name var_name, tau_var)])
         | _ => get_error_msg "initial values not yet supported: " opt_init)
-      | _ => get_error_msg "could not parse type name: " (Array type)
+      | _ => get_error_msg "could not parse type name: " json_type
      )
-    | NONE => get_error_msg "could not parse type: " (Array type)
+    | NONE => get_error_msg "could not parse type: " json_type
    )
   | _ => get_error_msg "invalid JSON format of variable: " var
 End
