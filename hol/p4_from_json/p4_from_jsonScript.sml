@@ -91,20 +91,21 @@ cheat
 (******************)
 (* PRE-PROCESSING *)
 
-(* NOTE: In the petr4 JSON output, a body can be an array, with Unparsed (a string)
- * being the first element, and [\"unused\"] (with quotation marks) presumably
- * being a singleton log message, using \" instead of ", as the second.
- * *)
-(* Pre-processing will delete duplicate quotation marks and backslashes, leaving
- * only single quotation marks *)
-Definition p4_preprocess_str:
+(* NOTE: This deals with "\"unused\"" in the situation where "" can also occur *)
+Definition p4_preprocess_str_def:
 (p4_preprocess_str [] = []) /\
 (p4_preprocess_str (h::t) =
-  if ((h = #"\"") \/ ((h = #"\\")))
-  then if ((HD t = #"\"") \/ ((HD t = #"\\")))
-       then (p4_preprocess_str t)
-       else (h::(p4_preprocess_str t))
-  else (h::(p4_preprocess_str t)))
+  if LENGTH t > 1 then
+   if (h = #"\"")
+   then if ((EL 1 t = #"\\") /\ ((EL 2 t = #"\"")))
+        then (p4_preprocess_str t)
+        else (h::(p4_preprocess_str t))
+   else if (h = #"\\")
+   then if ((EL 1 t = #"\"") /\ ((EL 2 t = #"\"")))
+        then (p4_preprocess_str t)
+        else (h::(p4_preprocess_str t))
+   else (h::(p4_preprocess_str t))
+  else t)
 End
 
 Definition json_to_string_wrap_def:
@@ -252,24 +253,6 @@ End
 (********************)
 (* Type definitions *)
 
-(* OLD
-Definition petr4_parse_ptype_def:
- petr4_parse_ptype tyenv json =
-  case json of
-  | [String "bit";
-     Array [String "int";
-            Object [("value",String width); ("width_signed",Null)]]] =>
-   (case fromDecString width of
-    | SOME w_num => SOME (p_tau_bit w_num)
-    | NONE => NONE)
-  | [String "error"] => SOME p_tau_err
-  | [String "name";
-     Array [String "BareName";
-            String ty_name]] => ALOOKUP tyenv ty_name
-  | _ => NONE
-End
-*)
-
 Definition petr4_parse_width_def:
  petr4_parse_width json_list =
   case json_list of
@@ -280,10 +263,42 @@ Definition petr4_parse_width_def:
   | _ => NONE
 End
 
+Definition petr4_parse_name_def:
+ petr4_parse_name name_obj =
+  case name_obj of
+   | Object
+    [("tags", tags);
+     ("string", String name)] =>
+    SOME name
+   | _ => NONE
+End
+
+Definition petr4_parse_bare_name_def:
+ petr4_parse_bare_name bname_obj =
+  case bname_obj of
+   | Object
+    [("tags", tags);
+     ("name", name)] => petr4_parse_name name
+   | _ => NONE
+End
+
 (* TODO: Make dest_string to chain with OPTION_BIND? *)
 Definition petr4_parse_tyname_def:
  petr4_parse_tyname tyenv json =
+  case json of
+  | Object
+    [("tags", tags);
+     ("name", name)] =>
+   (case json_parse_arr "BareName" SOME name of
+    | SOME bname_obj =>
+     (case petr4_parse_bare_name bname_obj of
+      | SOME tyname => ALOOKUP tyenv tyname
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+(*
   OPTION_BIND (json_dest_str json) (ALOOKUP tyenv)
+*)
 End
 
 (* TODO: Expand as you encounter more types *)
@@ -295,10 +310,9 @@ Definition petr4_parse_ptype_def:
                (json_parse_arr "int" SOME json')
                (json_parse_obj ["value"; "width_signed"]))
              petr4_parse_width);
+    ("bool", \json'. SOME p_tau_bool);
     ("error", \json'. SOME p_tau_err);
-    ("name", \json'. OPTION_BIND
-              (json_parse_arr "BareName" SOME json')
-              (petr4_parse_tyname tyenv))] json
+    ("name", \json'. petr4_parse_tyname tyenv json')] json
 End
 
 (* Version for non-parameterized types *)
@@ -314,7 +328,7 @@ Definition petr4_parse_type_name_def:
  petr4_parse_type_name json =
   OPTION_BIND
    (json_parse_arr "name" SOME json)
-   (json_parse_arr "BareName" json_dest_str)
+   json_dest_str
 End
 
 (* TODO: Avoid explicit case matching on list possible? *)
@@ -351,41 +365,6 @@ Definition petr4_parse_typedef_def:
     SOME_msg (AUPDATE tyenv (ty_name, tau), vtymap, fmap, bltymap, gscope, pblock_map)
    | NONE => NONE_msg "Could not parse type definition"
 End
-
-(*
-val _ = type_abbrev("scope", ``:((varn, (v # lval option)) alist)``);
-
-varn_name of x
-
-val _ = Hol_datatype ` 
-v =  (* value *)
-   v_bool of boolv (* boolean value *)
- | v_bit of bitv (* bit-string *)
- | v_str of x (* string literal *)
- | v_struct of (x#v) list (* struct *)
- | v_header of boolv => (x#v) list (* header *)
- | v_err of x (* error message *)
- | v_ext_ref of i (* extern object reference *)
- | v_bot (* no value *)
-`;
-
-Constant:
-
-   Object
-     [("annotations",Array []);
-      ("type",
-       Array
-         [String "name";
-          Array [String "BareName"; String "PortId"]]);
-      ("name",String "REAL_PORT_COUNT");
-      ("value",
-       Array
-         [String "int";
-          Object
-            [("value",String "8");
-             ("width_signed",
-              Array [Number (Positive,4) NONE NONE; Bool F])]])]
-*)
 
 (***********************)
 (* Common: expressions *)
@@ -489,8 +468,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
     | NONE_msg mem_msg => NONE_msg mem_msg)
   (* Variable *)
   | Array [String "name";
-     Array [String "BareName";
-            String var_name]] => SOME_msg (INL (e_var (varn_name var_name)))
+           String var_name] => SOME_msg (INL (e_var (varn_name var_name)))
   (* Fixed-width (unsigned) integer *)
   | Array [String "int";
      Object [("value", String value_str);
@@ -945,7 +923,7 @@ Definition petr4_parse_dir_def:
  petr4_parse_dir dir =
   case dir of
   | Null => SOME_msg d_none
-  | Array [String some_dir] =>
+  | Array [String some_dir; tags_obj] =>
    if some_dir = "In" then SOME_msg d_in
    else if some_dir = "InOut" then SOME_msg d_inout
    else if some_dir = "Out" then SOME_msg d_out
@@ -975,22 +953,26 @@ Definition petr4_parse_blocktype_params_def:
  (petr4_parse_blocktype_params ptyenv (h::t) =
    case h of
    | Object
-    [("annotations", Array annotations);
+    [("tags", tags);
+     ("annotations", annot);
      ("direction", dir_opt);
      ("typ", json_type);
-     ("variable", String p_name);
+     ("variable", name);
      (* TODO: Parse optional default value instead of throwing away *)
      ("opt_value", p_opt_value)] =>
     (case petr4_parse_dir dir_opt of
      | SOME_msg p_dir =>
       (case petr4_parse_ptype ptyenv json_type of
        | SOME p_type =>
-        (case petr4_parse_blocktype_params ptyenv t of
-         | SOME_msg res_msg => SOME_msg ((p_name, p_dir, p_type)::res_msg)
-         | NONE_msg err_msg_params => NONE_msg err_msg_params)
+        (case petr4_parse_name name of
+         | SOME p_name =>
+          (case petr4_parse_blocktype_params ptyenv t of
+           | SOME_msg res_msg => SOME_msg ((p_name, p_dir, p_type)::res_msg)
+           | NONE_msg err_msg_params => NONE_msg err_msg_params)
+         | NONE => get_error_msg "could not parse name: " name)
        | NONE => get_error_msg "could not parse type: " json_type)
      | NONE_msg err_msg_dir => NONE_msg err_msg_dir)
-   | _ => get_error_msg "could not parse block parameters: " h)
+   | _ => get_error_msg "could not parse block type parameters: " h)
 End
 
 (* TODO: Keep parametrized type environment in parsed block type? *)
@@ -998,16 +980,20 @@ Definition petr4_blocktype_to_bltymapupdate_def:
  petr4_blocktype_to_bltymapupdate (tyenv, fmap, bltymap, gscope) blocktype =
   case blocktype of
   | Object
-   [("annotations", Array annotations);
-    ("name", String blty_name);
+   [("tags", tags);
+    ("annotations", annot);
+    ("name", name);
     ("type_params", Array typarams);
     ("params", Array blparams)] =>
-   (case petr4_parse_type_params typarams of
-    | SOME_msg blty_typarams =>
-     (case petr4_parse_blocktype_params (petr4_parametrize_tyenv tyenv blty_typarams) blparams of
-      | SOME_msg blty_blparams => SOME_msg (blty_name, (blty_typarams, blty_blparams))
-      | NONE_msg blparams_msg => NONE_msg (blparams_msg++" while parsing block type "++blty_name))
-    | NONE_msg typarams_msg => NONE_msg (typarams_msg++" while parsing block type "++blty_name))
+   (case petr4_parse_name name of
+    | SOME blty_name =>
+     (case petr4_parse_type_params typarams of
+      | SOME_msg blty_typarams =>
+       (case petr4_parse_blocktype_params (petr4_parametrize_tyenv tyenv blty_typarams) blparams of
+        | SOME_msg blty_blparams => SOME_msg (blty_name, (blty_typarams, blty_blparams))
+        | NONE_msg blparams_msg => NONE_msg (blparams_msg++" while parsing block type "++blty_name))
+      | NONE_msg typarams_msg => NONE_msg (typarams_msg++" while parsing block type "++blty_name))
+    | NONE => get_error_msg "could not parse name: " name)
   | _ => NONE_msg "Invalid JSON object"
 End
 
@@ -1026,11 +1012,15 @@ Definition petr4_parse_ext_object_def:
  petr4_parse_ext_object (tyenv, vtymap, fmap, bltymap, gscope, pblock_map) ext_obj =
   case ext_obj of
    | Object
-    [("annotations",Array annotations);
-     ("name",String ext_name);
+    [("tags", tags);
+     ("annotations", annot);
+     ("name", name_obj);
      ("type_params", Array typarams);
      ("methods", Array methods)] =>
-    SOME_msg (AUPDATE tyenv (ext_name, p_tau_ext), vtymap, fmap, bltymap, gscope, pblock_map)
+    (case petr4_parse_name name_obj of
+     | SOME ext_name => 
+      SOME_msg (AUPDATE tyenv (ext_name, p_tau_ext), vtymap, fmap, bltymap, gscope, pblock_map)
+     | NONE => get_error_msg "Could not parse name: " name_obj)
    | _ => get_error_msg "Could not parse extern object: " ext_obj
 End
 
@@ -1042,21 +1032,25 @@ Definition petr4_parse_block_params_def:
  (petr4_parse_block_params ptyenv (h::t) =
    case h of
    | Object
-    [("annotations", Array annotations);
+    [("tags", tags);
+     ("annotations", annot);
      ("direction", dir_opt);
      (* TODO: Type potentially needed for type inference *)
      ("typ", json_type);
-     ("variable", String p_name);
+     ("variable", name);
      (* TODO: Parse optional default value instead of throwing away *)
      ("opt_value", p_opt_value)] =>
     (case petr4_parse_dir dir_opt of
      | SOME_msg p_dir =>
       (case petr4_parse_type ptyenv json_type of
        | SOME p_type =>
-        (case petr4_parse_block_params ptyenv t of
-         | SOME_msg (res_params_msg, res_vty_updates_msg) =>
-          SOME_msg ((p_name, p_dir)::res_params_msg, (varn_name p_name, p_type)::res_vty_updates_msg)
-         | NONE_msg err_msg_params => NONE_msg err_msg_params)
+        (case petr4_parse_name name of
+         | SOME p_name =>
+          (case petr4_parse_block_params ptyenv t of
+           | SOME_msg (res_params_msg, res_vty_updates_msg) =>
+            SOME_msg ((p_name, p_dir)::res_params_msg, (varn_name p_name, p_type)::res_vty_updates_msg)
+           | NONE_msg err_msg_params => NONE_msg err_msg_params)
+         | NONE => get_error_msg "could not parse name: " name)
        | NONE => get_error_msg "could not parse type: " json_type)
      | NONE_msg err_msg_dir => NONE_msg err_msg_dir)
    | _ => get_error_msg "could not parse block parameters: " h)
@@ -1070,9 +1064,8 @@ Definition petr4_parse_inst_def:
     ("type", json_type);
     (* TODO: Use args as needed in constructor *)
     ("args", Array args);
-    ("name", String inst_name);
-    (* TODO: Make use of init field *)
-    ("init", opt_init)] =>
+    ("name", String inst_name)
+    (* TODO: No init field in latest petr4? *)] =>
    (case petr4_parse_type tyenv json_type of
     | SOME tau_ext =>
      (case petr4_parse_type_name json_type of
@@ -1417,51 +1410,64 @@ Definition petr4_parse_top_level_function_def:
   petr4_parse_function (( \ (tyenv, vtymap, fmap, bltymap, gscope, pblock_map). (tyenv, vtymap, fmap, bltymap, gscope, pblock_map, [])) res) obj
 End
 
-(* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
 Definition petr4_parse_element_def:
  petr4_parse_element res json =
- case json of
- | Array [String elem_name; obj] =>
-  (* TODO: Give Error a separate enumeration map? *)
-  if elem_name = "Error" then SOME_msg res
-  (* TODO: Give MatchKind a separate enumeration map? *)
-  else if elem_name = "MatchKind" then SOME_msg res
-  (* WIP: Extern object types added to the type environment, since parameters to blocks
-   * can be of extern type. Methods are ignored, for now... *)
-  else if elem_name = "ExternObject" then petr4_parse_ext_object res obj
-  (* IGNORE: Ignore, for now? *)
-  else if elem_name = "ExternFunction" then SOME_msg res
-  (* WIP: Add to global function map, local ones as appropriate
-   *      Finish stmt parsing and param parsing *)
-  else if elem_name = "Action" then petr4_parse_top_level_function res obj
-  (* DONE: TypeDefs generate a type map that is checked when later elements are parsed *)
-  else if elem_name = "TypeDef" then petr4_parse_typedef res obj
-  (* DONE: Constants are added to the global scope.
-   *      Should be added to compile-time constant map instead... *)
-  else if elem_name = "Constant" then petr4_parse_constant res obj
-  (* DONE: Added to type map. *)
-  else if elem_name = "Struct" then petr4_parse_struct res obj struct_ty_struct
-  (* DONE: Added to type map. *)
-  else if elem_name = "Header" then petr4_parse_struct res obj struct_ty_header
-  (* DONE: Added to new "block type map".
-   * TODO: Fix default parameter values *)
-  else if elem_name = "ParserType" then petr4_parse_block_type res pbl_type_parser obj
-  (* DONE: Added to new "block type map".
-   * TODO: Fix default parameter values *)
-  else if elem_name = "ControlType" then petr4_parse_block_type res pbl_type_control obj
-  (* DONE: Added to pblock_map *)
-  else if elem_name = "Parser" then petr4_parse_parser res obj
-  (* TODO: Added to pblock_map *)
-  else if elem_name = "control" then petr4_parse_control res obj
-  (* IGNORE: Ignore until multi-package support for architectures is added *)
-  else if elem_name = "PackageType" then SOME_msg res
-  (* IGNORE: This is the package instantiation, can maybe be global extern object
-   *         instantiation for some architectures. Ignore, for now? *)
-  else if elem_name = "Instantiation" then SOME_msg res
-  else NONE_msg ("Unknown top-level element type: "++elem_name)
-  (* TODO: ??? *)
- | _ => NONE_msg "Invalid JSON format of element"
+  case json of
+  | Array [String elem_name; obj] =>
+   (* TODO: Give Error a separate enumeration map? *)
+   if elem_name = "Error" then SOME_msg res
+   (* TODO: Give MatchKind a separate enumeration map? *)
+   else if elem_name = "MatchKind" then SOME_msg res
+   (* WIP: Extern object types added to the type environment, since parameters to blocks
+    * can be of extern type. Methods are ignored, for now... *)
+   else if elem_name = "ExternObject" then petr4_parse_ext_object res obj
+   (* IGNORE: Ignore, for now? *)
+   else if elem_name = "ExternFunction" then SOME_msg res
+   (* WIP: Add to global function map, local ones as appropriate
+    *      Finish stmt parsing and param parsing *)
+   else if elem_name = "Action" then petr4_parse_top_level_function res obj
+   (* DONE: TypeDefs generate a type map that is checked when later elements are parsed *)
+   else if elem_name = "TypeDef" then petr4_parse_typedef res obj
+   (* DONE: Constants are added to the global scope.
+    *      Should be added to compile-time constant map instead... *)
+   else if elem_name = "Constant" then petr4_parse_constant res obj
+   (* DONE: Added to type map. *)
+   else if elem_name = "Struct" then petr4_parse_struct res obj struct_ty_struct
+   (* DONE: Added to type map. *)
+   else if elem_name = "Header" then petr4_parse_struct res obj struct_ty_header
+   (* DONE: Added to new "block type map".
+    * TODO: Fix default parameter values *)
+   else if elem_name = "ParserType" then petr4_parse_block_type res pbl_type_parser obj
+   (* DONE: Added to new "block type map".
+    * TODO: Fix default parameter values *)
+   else if elem_name = "ControlType" then petr4_parse_block_type res pbl_type_control obj
+   (* DONE: Added to pblock_map *)
+   else if elem_name = "Parser" then petr4_parse_parser res obj
+   (* TODO: Added to pblock_map *)
+   else if elem_name = "control" then petr4_parse_control res obj
+   (* IGNORE: Ignore until multi-package support for architectures is added *)
+   else if elem_name = "PackageType" then SOME_msg res
+   (* IGNORE: This is the package instantiation, can maybe be global extern object
+    *         instantiation for some architectures. Ignore, for now? *)
+   else if elem_name = "Instantiation" then SOME_msg res
+   else NONE_msg ("Unknown declaration element type: "++elem_name)
+   (* TODO: ??? *)
+  | _ => NONE_msg "Invalid JSON format of element"
 End
+
+(* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
+(*
+Definition petr4_parse_element_def:
+ petr4_parse_element res json =
+  case json of
+  | Array [String elem_name; obj] =>
+   if elem_name = "type_declaration" then
+    petr4_parse_element' res obj
+   else if elem_name = "declaration" then
+    petr4_parse_element' res obj
+   else NONE_msg ("Unknown top-level element type: "++elem_name)
+End
+*)
 
 Definition petr4_parse_elements_def:
  petr4_parse_elements json_list =
@@ -1470,8 +1476,6 @@ Definition petr4_parse_elements_def:
                      | NONE_msg msg => NONE_msg msg) (SOME_msg ([],[],[],[],[],[])) json_list
 End
 
-
-(* TODO: Instead of filtering, iterate over all items and have "add_typedef", "add_constant", et.c. functions. *)
 Definition p4_from_json_def:
 (p4_from_json json_parse_result =
  case p4_from_json_preamble json_parse_result of
@@ -1487,7 +1491,7 @@ End
 
 (*************)
 (* DEBUGGING *)
-
+(*
 Definition petr4_is_constant_def:
  petr4_is_constant json =
   case json of
@@ -1508,21 +1512,24 @@ Definition debug_json_def:
  | NONE_msg msg => NONE_msg msg
 )
 End
+*)
 
 (*********)
 (* TESTS *)
 
 (*
 
-(* SIMPLE *)
+(* SIMPLE FILTER *)
 
-val simple_in_stream = TextIO.openIn "simple_input.json";
+val simple_in_stream = TextIO.openIn "filter.json";
 
 val simple_input = TextIO.inputAll simple_in_stream;
 
 val simple_input_tm = stringLib.fromMLstring simple_input;
 
-val simple_lex_thm = EVAL ``lex (^simple_input_tm) ([]:token list)``;
+(*val simple_input_preproc_tm = rhs $ concl $ EVAL ``p4_preprocess_str (^simple_input_tm)``;*)
+
+val simple_lex_thm = EVAL ``lex (p4_preprocess_str (^simple_input_tm)) ([]:token list)``;
 
 val simple_parse_thm = EVAL ``parse (OUTL (lex (^simple_input_tm) ([]:token list))) [] T``;
 
