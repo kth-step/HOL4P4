@@ -1078,8 +1078,10 @@ Definition petr4_parse_var_def:
   | SOME [tags; annot; json_type; name; opt_init] =>
    (case petr4_parse_type tyenv json_type of
     | SOME tau_var =>
+(* TODO: Not needed?
      (case petr4_parse_type_name json_type of
       | SOME type_name =>
+*)
        (case petr4_parse_name name of
         | SOME var_name =>
          (case opt_init of
@@ -1087,10 +1089,10 @@ Definition petr4_parse_var_def:
            SOME_msg (decl_list++[(varn_name var_name, tau_var)],inits, vty_updates++[(varn_name var_name, tau_var)])
           | _ => get_error_msg "initial values not yet supported: " opt_init)
         | NONE => get_error_msg "could not parse name: " name)
-      | _ => get_error_msg "could not parse type name: " json_type
-     )
-    | NONE => get_error_msg "could not parse type: " json_type
-   )
+(*
+      | _ => get_error_msg "could not parse type name: " json_type)
+*)
+    | NONE => get_error_msg "could not parse type: " json_type)
   | _ => get_error_msg "unknown JSON format of variable: " var
 End
 
@@ -1469,7 +1471,7 @@ Definition petr4_parse_elements_def:
  petr4_parse_elements json_list =
   FOLDL ( \ res_opt json. case res_opt of
                      | SOME_msg res => petr4_parse_element res json
-                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([],[],[],[],[],[])) json_list
+                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],[],[],[],[],[])) json_list
 End
 
 Definition p4_from_json_def:
@@ -1514,6 +1516,15 @@ End
 (* TESTS *)
 
 (*
+
+(* CURRENT WIP *)
+
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/chain1.json";
+
+val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
+
+val wip_parse_res = rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm)``;
+
 
 (* SIMPLE FILTER *)
 
