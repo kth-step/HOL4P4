@@ -265,20 +265,16 @@ End
 
 Definition petr4_parse_name_def:
  petr4_parse_name name_obj =
-  case name_obj of
-   | Object
-    [("tags", tags);
-     ("string", String name)] =>
-    SOME name
+  case json_parse_obj ["tags"; "string"] name_obj of
+   | SOME [tags; name] =>
+    json_dest_str name
    | _ => NONE
 End
 
 Definition petr4_parse_bare_name_def:
  petr4_parse_bare_name bname_obj =
-  case bname_obj of
-   | Object
-    [("tags", tags);
-     ("name", name)] => petr4_parse_name name
+  case json_parse_obj ["tags"; "name"] bname_obj of
+   | SOME [tags; name] => petr4_parse_name name
    | _ => NONE
 End
 
@@ -286,10 +282,8 @@ End
 (* TODO: This is currently used also to parse variable names... *)
 Definition petr4_parse_tyname_def:
  petr4_parse_tyname json =
-  case json of
-  | Object
-    [("tags", tags);
-     ("name", name)] =>
+  case json_parse_obj ["tags"; "name"] json of
+  | SOME [tags; name] =>
    (case json_parse_arr "BareName" SOME name of
     | SOME bname_obj =>
      petr4_parse_bare_name bname_obj
@@ -310,23 +304,14 @@ Definition petr4_parse_ptype_def:
  petr4_parse_ptype tyenv json =
   json_parse_arr_list
    [("bit", \json'.
-             (case json' of
-              | Object
-               [("tags", tags);
-                ("expr", expr)] =>
-               (case expr of
-                | Array
-                 [String "int";
-                  int_obj] =>
-                 (case int_obj of
-                  | Object
-                   [("tags", tags);
-                    ("x", x_obj)] =>
-                   (case x_obj of
-                    | Object
-                     [("tags", tags);
-                      ("value", value);
-                      ("width_signed", width)] =>
+             (case json_parse_obj ["tags"; "expr"] json' of
+              | SOME [tags; expr] =>
+               (case json_parse_arr "int" SOME expr of
+                | SOME int_obj =>
+                 (case json_parse_obj ["tags"; "x"] int_obj of
+                  | SOME [int_tags; x_obj] =>
+                   (case json_parse_obj ["tags"; "value"; "width_signed"] x_obj of
+                    | SOME [x_tags; value; width] =>
                      petr4_parse_width [value; width]
                     | _ => NONE)
                   | _ => NONE)
@@ -344,39 +329,6 @@ Definition petr4_parse_type_def:
   | SOME p_tau => deparameterise_tau p_tau
   | NONE => NONE
 End
-
-(*
-val typ_obj = ``Object
-   [("tags",Array [String "missing_info"; String ""]);
-    ("annotations",Array []);
-    ("name",
-     Object
-       [("tags",Array [String "missing_info"; String ""]);
-        ("string",String "PortId")]);
-    ("typ_or_decl",
-     Array
-       [String "Left";
-        Array
-          [String "bit";
-           Object
-             [("tags",
-               Array [String "missing_info"; String ""]);
-              ("expr",
-               Array
-                 [String "int";
-                  Object
-                    [("tags",
-                      Array
-                        [String "missing_info"; String ""]);
-                     ("x",
-                      Object
-                        [("tags",
-                          Array
-                            [String "missing_info";
-                             String ""]);
-                         ("value",String "4");
-                         ("width_signed",Null)])]])]]])]``;
-*)
 
 (* TODO: Avoid explicit case matching on list possible? *)
 Definition petr4_typedef_to_tyenvupdate_def:
@@ -486,6 +438,7 @@ End
  * Regular petr4_parse_expression is a wrapper for this which
  * rejects the INR result *)
 (* Definition petr4_parse_expression_gen_def: *)
+(* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
 `(petr4_parse_expression_gen (tyenv, vtymap) (exp, tau_opt) =
   case exp of
@@ -602,7 +555,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
        SOME_msg (INL (e_call res_isvalid [isvalid_arg]))
       | _ => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
-  | _ => get_error_msg "invalid JSON format of expression: " exp) /\
+  | _ => get_error_msg "unknown JSON format of expression: " exp) /\
 (petr4_parse_expressions_gen (tyenv, vtymap) [] = SOME_msg []) /\
 (petr4_parse_expressions_gen (tyenv, vtymap) ((h1, h2)::t) =
  case petr4_parse_expression_gen (tyenv, vtymap) (h1, h2) of
@@ -663,13 +616,8 @@ End
 (* TODO: Update vtymap *)
 Definition petr4_constant_to_scopeupdate_def:
  petr4_constant_to_scopeupdate (tyenv, vtymap) json =
-  case json of
-  | Object
-   [("tags", tags);
-    ("annotations", annot);
-    ("type", json_type);
-    ("name", name);
-    ("value", json_value)] =>
+  case json_parse_obj ["tags"; "annotations"; "type"; "name"; "value"] json of
+  | SOME [tags; annot; json_type; name; json_value] =>
    (case petr4_parse_type tyenv json_type of
     | SOME tau =>
      (case petr4_parse_name name of
@@ -680,7 +628,7 @@ Definition petr4_constant_to_scopeupdate_def:
         | NONE_msg val_msg => NONE_msg val_msg)
       | NONE => get_error_msg "could not parse name: " name)
     | NONE => get_error_msg "could not parse type: " json_type)
-  | _ => get_error_msg "invalid JSON format of constant: " json
+  | _ => get_error_msg "unknown JSON format of constant: " json
 End
 
 Definition petr4_parse_constant_def:
@@ -696,18 +644,15 @@ End
 (* TODO: This should work with nested pre-defined header types, but can you write them in-place? *)
 Definition petr4_parse_struct_field_def:
  petr4_parse_struct_field tyenv struct_field =
-  case struct_field of
-  | Object [("tags", tags);
-            ("annotations", annot);
-            ("type", json_field_type);
-            ("name", name)] =>
+  case json_parse_obj ["tags"; "annotations"; "type"; "name"] struct_field of
+  | SOME [tags; annot; json_field_type; name] =>
    (case petr4_parse_ptype tyenv json_field_type of
     | SOME tau =>
      (case petr4_parse_name name of
       | SOME field_name =>
        SOME_msg (field_name, tau)
       | NONE => get_error_msg "could not parse name: " name)
-    | NONE => get_error_msg "could not parse struct type: " json_field_type)
+    | NONE => get_error_msg "could not parse struct field type: " json_field_type)
   | _ => NONE_msg "could not parse struct field"
 End
 
@@ -725,13 +670,8 @@ End
 
 Definition petr4_struct_to_tyenvupdate_def:
  petr4_struct_to_tyenvupdate tyenv struct struct_ty =
-  case struct of
-  | Object
-   [("tags",tags);
-    ("annotations", annot);
-    ("name", name);
-    ("fields",
-     Array struct_fields)] =>
+  case json_parse_obj ["tags"; "annotations"; "name"; "fields"] struct of
+  | SOME [tags; annot; name; Array struct_fields] =>
    (case petr4_parse_name name of
     | SOME struct_name =>
      (case petr4_parse_struct_fields tyenv struct_fields of
@@ -751,6 +691,7 @@ End
 (**********************)
 (* Common: statements *)
 
+(* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 Definition petr4_parse_args_def:
  (petr4_parse_args (tyenv, vtymap) [] =
   SOME_msg []) /\
@@ -765,7 +706,7 @@ Definition petr4_parse_args_def:
        | NONE_msg exps_msg => NONE_msg exps_msg)
      | NONE_msg exp_msg => NONE_msg ("could not parse arguments: "++exp_msg)
    else NONE_msg ("unsupported argument type: "++argtype)
-  | _ => get_error_msg "invalid JSON format of argument: " h)
+  | _ => get_error_msg "unknown JSON format of argument: " h)
 End
 
 Definition petr4_parse_method_call_def:
@@ -810,10 +751,10 @@ Definition petr4_parse_method_call_def:
             | _ => get_error_msg "could not parse table name: " func)
          | _ => get_error_msg "could not parse into funn: " func)
        | NONE_msg func_msg => NONE_msg ("could not parse method call: "++func_msg))
-      else NONE_msg ("invalid JSON object field of method call: "++f3))
-     else NONE_msg ("invalid JSON object field of method call: "++f2))
-   else NONE_msg ("invalid JSON object field of method call: "++f1)
-  | _ => get_error_msg "invalid JSON format of method call: " (Object stmt_details)
+      else NONE_msg ("unknown JSON object field of method call: "++f3))
+     else NONE_msg ("unknown JSON object field of method call: "++f2))
+   else NONE_msg ("unknown JSON object field of method call: "++f1)
+  | _ => get_error_msg "unknown JSON format of method call: " (Object stmt_details)
 End
 
 Definition exp_to_lval_def:
@@ -844,9 +785,9 @@ Definition petr4_parse_assignment_def:
           | NONE_msg rhs_msg => NONE_msg ("could not parse RHS of assignment: "++rhs_msg))
         | NONE => get_error_msg "could not parse into lval: " lhs)
       | NONE_msg lhs_msg => NONE_msg ("could not parse LHS of assignment: "++lhs_msg))
-     else NONE_msg ("invalid JSON object field of assignment: "++f2))
-   else NONE_msg ("invalid JSON object field of assignment: "++f1)
-  | _ => get_error_msg "invalid JSON format of assignment: " (Object stmt_details)
+     else NONE_msg ("unknown JSON object field of assignment: "++f2))
+   else NONE_msg ("unknown JSON object field of assignment: "++f1)
+  | _ => get_error_msg "unknown JSON format of assignment: " (Object stmt_details)
 End
 
 Definition petr4_parse_return_def:
@@ -858,8 +799,8 @@ Definition petr4_parse_return_def:
      (case petr4_parse_expression (tyenv, vtymap) (exp, NONE) of
       | SOME_msg exp_res => SOME_msg (stmt_ret exp_res)
       | NONE_msg exp_msg => NONE_msg ("could not parse return expression: "++exp_msg))
-   else NONE_msg ("invalid JSON object field of return: "++f1)
-  | _ => get_error_msg "invalid JSON format of return: " (Object stmt_details)
+   else NONE_msg ("unknown JSON object field of return: "++f1)
+  | _ => get_error_msg "unknown JSON format of return: " (Object stmt_details)
 End
 
 Definition p4_seq_stmts_def:
@@ -867,6 +808,7 @@ Definition p4_seq_stmts_def:
  (p4_seq_stmts (h::t) = FOLDL ( \ stmt stmts. stmt_seq stmt stmts) h t)
 End
 
+(* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 val _ = TotalDefn.tDefine "petr4_parse_stmt"
  `(petr4_parse_stmt (tyenv, vtymap, gscope, apply_map) stmt =
   case stmt of
@@ -895,32 +837,30 @@ val _ = TotalDefn.tDefine "petr4_parse_stmt"
              | NONE_msg false_case_msg => NONE_msg ("could not parse else-case of conditional statement: "++false_case_msg))
            | NONE_msg true_case_msg => NONE_msg ("could not parse then-case of conditional statement: "++true_case_msg))
          | NONE_msg cond_msg => NONE_msg ("could not parse condition of conditional statement: "++cond_msg))
-        else NONE_msg ("invalid JSON object field of conditional: "++f3))
-       else NONE_msg ("invalid JSON object field of conditional: "++f2))
-     else NONE_msg ("invalid JSON object field of conditional: "++f1)
-    | _ => get_error_msg "invalid JSON format of conditional: " (Object stmt_details)
+        else NONE_msg ("unknown JSON object field of conditional: "++f3))
+       else NONE_msg ("unknown JSON object field of conditional: "++f2))
+     else NONE_msg ("unknown JSON object field of conditional: "++f1)
+    | _ => get_error_msg "unknown JSON format of conditional: " (Object stmt_details)
    else if stmt_name = "block" then
     case stmt_details of
     | [("tags", tags); (f1, block)] =>
      if f1 = "block" then
-      (case block of
-       | Object [("tags", tags);
-                 ("annotations", annotations);
-                 ("statements", Array stmts)] =>
+      (case json_parse_obj ["tags"; "annotations"; "statements"] block of
+       | SOME [tags; annotations; Array stmts] =>
         (case petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) stmts of
          (* TODO: Must fix list of declarations for the block... *)
          | SOME_msg res_stmts => SOME_msg (stmt_block [] (p4_seq_stmts res_stmts))
          | NONE_msg stmts_msg => NONE_msg ("could not parse block: "++stmts_msg)
         )
-       | _ => get_error_msg "invalid JSON format of block: " block
+       | _ => get_error_msg "unknown JSON format of block: " block
       )
-     else NONE_msg ("invalid JSON object field of block: "++f1)
-    | _ => get_error_msg "invalid JSON format of block: " (Object stmt_details)
+     else NONE_msg ("unknown JSON object field of block: "++f1)
+    | _ => get_error_msg "unknown JSON format of block: " (Object stmt_details)
    else if stmt_name = "return" then
     petr4_parse_return (tyenv, vtymap, gscope) stmt_details
    else NONE_msg ("unknown statement name: "++stmt_name)
   | Null => SOME_msg stmt_empty
-  | _ => get_error_msg "invalid JSON format of statement: " stmt) /\
+  | _ => get_error_msg "unknown JSON format of statement: " stmt) /\
  (petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) [] =
   SOME_msg []) /\
  (petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) (h::t) =
@@ -964,25 +904,21 @@ End
 
 Definition petr4_function_to_fmapupdate_def:
  petr4_function_to_fmapupdate (tyenv, vtymap, fmap, gscope, apply_map) function =
-  case function of
-  | Object
-   [("tags", tags);
-    ("annotations", annot);
-    ("name", name);
-    ("params", Array params);
-    ("body", Object [("tags", tags2);
-                     ("annotations", body_annot);
-                     ("statements", Array stmts)])] =>
-   (case petr4_parse_name name of
-    | SOME f_name =>
-     (case petr4_parse_params (tyenv, fmap, gscope) params of
-      | SOME_msg f_params =>
-       (case petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) stmts of
-        | SOME_msg f_body => SOME_msg (f_name, (p4_seq_stmts f_body, f_params))
-        | NONE_msg stmts_msg => NONE_msg stmts_msg)
-      | NONE_msg params_msg => NONE_msg params_msg)
-    | NONE => get_error_msg "could not parse name: " name)
-  | _ => NONE_msg "Could not parse function or action"
+  case json_parse_obj ["tags"; "annotations"; "name"; "params"; "body"] function of
+  | SOME [tags; annot; name; Array params; body] =>
+   (case json_parse_obj ["tags"; "annotations"; "statements"] body of
+    | SOME [body_tags; body_annot; Array stmts] =>
+     (case petr4_parse_name name of
+      | SOME f_name =>
+       (case petr4_parse_params (tyenv, fmap, gscope) params of
+        | SOME_msg f_params =>
+         (case petr4_parse_stmts (tyenv, vtymap, gscope, apply_map) stmts of
+          | SOME_msg f_body => SOME_msg (f_name, (p4_seq_stmts f_body, f_params))
+          | NONE_msg stmts_msg => NONE_msg stmts_msg)
+        | NONE_msg params_msg => NONE_msg params_msg)
+      | NONE => get_error_msg "could not parse name: " name)
+    | _ => get_error_msg "unknown JSON format of function or action body: " body)
+  | _ => get_error_msg "unknown JSON format of function or action: " function
 End
 
 (* TODO: Decide whether to put function in global or local function map *)
@@ -1005,8 +941,8 @@ Definition petr4_parse_dir_def:
    if some_dir = "In" then SOME_msg d_in
    else if some_dir = "InOut" then SOME_msg d_inout
    else if some_dir = "Out" then SOME_msg d_out
-   else NONE_msg "Could not parse direction: invalid direction name"
-  | _ => NONE_msg "Could not parse direction: invalid JSON object"
+   else NONE_msg ("unknown direction name: "++some_dir)
+  | _ => get_error_msg "unknown JSON format of direction: " dir
 End
 
 Definition petr4_parse_type_params_def:
@@ -1017,7 +953,7 @@ Definition petr4_parse_type_params_def:
     (case petr4_parse_type_params t of
      | SOME_msg res_msg => SOME_msg (typaram::res_msg)
      | NONE_msg err_msg => NONE_msg err_msg)
-   | _ => NONE_msg "Could not parse block type parameters")
+   | _ => get_error_msg "could not parse block type parameter name: " h)
 End
 
 Definition petr4_parametrize_tyenv_def:
@@ -1029,15 +965,9 @@ End
 Definition petr4_parse_blocktype_params_def:
  (petr4_parse_blocktype_params ptyenv [] = SOME_msg []) /\
  (petr4_parse_blocktype_params ptyenv (h::t) =
-   case h of
-   | Object
-    [("tags", tags);
-     ("annotations", annot);
-     ("direction", dir_opt);
-     ("typ", json_type);
-     ("variable", name);
-     (* TODO: Parse optional default value instead of throwing away *)
-     ("opt_value", p_opt_value)] =>
+   (* TODO: Parse optional default value instead of throwing away *)
+   case json_parse_obj ["tags"; "annotations"; "direction"; "typ"; "variable"; "opt_value"] h of
+   | SOME [tags; annot; dir_opt; json_type; name; p_opt_value] =>
     (case petr4_parse_dir dir_opt of
      | SOME_msg p_dir =>
       (case petr4_parse_ptype ptyenv json_type of
@@ -1049,20 +979,15 @@ Definition petr4_parse_blocktype_params_def:
            | NONE_msg err_msg_params => NONE_msg err_msg_params)
          | NONE => get_error_msg "could not parse name: " name)
        | NONE => get_error_msg "could not parse type: " json_type)
-     | NONE_msg err_msg_dir => NONE_msg err_msg_dir)
+     | NONE_msg err_msg_dir => NONE_msg ("could not parse direction: "++err_msg_dir))
    | _ => get_error_msg "could not parse block type parameters: " h)
 End
 
 (* TODO: Keep parametrized type environment in parsed block type? *)
 Definition petr4_blocktype_to_bltymapupdate_def:
  petr4_blocktype_to_bltymapupdate (tyenv, fmap, bltymap, gscope) blocktype =
-  case blocktype of
-  | Object
-   [("tags", tags);
-    ("annotations", annot);
-    ("name", name);
-    ("type_params", Array typarams);
-    ("params", Array blparams)] =>
+  case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params"] blocktype of
+  | SOME [tags; annot; name; Array typarams; Array blparams] =>
    (case petr4_parse_name name of
     | SOME blty_name =>
      (case petr4_parse_type_params typarams of
@@ -1072,7 +997,7 @@ Definition petr4_blocktype_to_bltymapupdate_def:
         | NONE_msg blparams_msg => NONE_msg (blparams_msg++" while parsing block type "++blty_name))
       | NONE_msg typarams_msg => NONE_msg (typarams_msg++" while parsing block type "++blty_name))
     | NONE => get_error_msg "could not parse name: " name)
-  | _ => NONE_msg "Invalid JSON object"
+  | _ => get_error_msg "unknown JSON format of block type: " blocktype
 End
 
 Definition petr4_parse_block_type_def:
@@ -1086,15 +1011,11 @@ End
 (*****************)
 (* Extern object *)
 
+(* TODO: Add support fo type parameters and methods *)
 Definition petr4_parse_ext_object_def:
  petr4_parse_ext_object (tyenv, vtymap, fmap, bltymap, gscope, pblock_map) ext_obj =
-  case ext_obj of
-   | Object
-    [("tags", tags);
-     ("annotations", annot);
-     ("name", name_obj);
-     ("type_params", Array typarams);
-     ("methods", Array methods)] =>
+  case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "methods"] ext_obj of
+   | SOME [tags; annot; name_obj; Array typarams; Array methods] =>
     (case petr4_parse_name name_obj of
      | SOME ext_name => 
       SOME_msg (AUPDATE tyenv (ext_name, p_tau_ext), vtymap, fmap, bltymap, gscope, pblock_map)
@@ -1108,16 +1029,10 @@ End
 Definition petr4_parse_block_params_def:
  (petr4_parse_block_params ptyenv [] = SOME_msg ([], [])) /\
  (petr4_parse_block_params ptyenv (h::t) =
-   case h of
-   | Object
-    [("tags", tags);
-     ("annotations", annot);
-     ("direction", dir_opt);
-     (* TODO: Type potentially needed for type inference *)
-     ("typ", json_type);
-     ("variable", name);
-     (* TODO: Parse optional default value instead of throwing away *)
-     ("opt_value", p_opt_value)] =>
+   (* TODO: Type potentially needed for type inference *)
+   (* TODO: Parse optional default value instead of throwing away *)
+   case json_parse_obj ["tags"; "annotations"; "direction"; "typ"; "variable"; "opt_value"] h of
+   | SOME [tags; annot; dir_opt; json_type; name; p_opt_value] =>
     (case petr4_parse_dir dir_opt of
      | SOME_msg p_dir =>
       (case petr4_parse_type ptyenv json_type of
@@ -1136,16 +1051,10 @@ End
 
 Definition petr4_parse_inst_def:
  petr4_parse_inst (tyenv, decl_list, inits) inst =
-  case inst of
-  | Object
-   [("tags", tags);
-    ("annotations", annot);
-    ("type", json_type);
-    (* TODO: Use args as needed in constructor *)
-    ("args", Array args);
-    ("name", name);
-    (* TODO: Use init field *)
-    ("init", init)] =>
+  (* TODO: Use args as needed in constructor *)
+  (* TODO: Use init field *)
+  case json_parse_obj ["tags"; "annotations"; "type"; "args"; "name"; "init"] inst of
+  | SOME [tags; annot; json_type; Array args; name; init] =>
    (case petr4_parse_type tyenv json_type of
     | SOME tau_ext =>
      (case petr4_parse_type_name json_type of
@@ -1160,18 +1069,13 @@ Definition petr4_parse_inst_def:
     | SOME _ => get_error_msg "type of instantiation is not extern: " inst
     | NONE => get_error_msg "could not parse type: " json_type
    )
-  | _ => get_error_msg "invalid JSON format of instantiation: " inst
+  | _ => get_error_msg "unknown JSON format of instantiation: " inst
 End
 
 Definition petr4_parse_var_def:
  petr4_parse_var (tyenv, decl_list, inits, vty_updates) var =
-  case var of
-  | Object
-   [("tags", tags);
-    ("annotations", annot);
-    ("type", json_type);
-    ("name", name);
-    ("init", opt_init)] =>
+  case json_parse_obj ["tags"; "annotations"; "type"; "name"; "init"] var of
+  | SOME [tags; annot; json_type; name; opt_init] =>
    (case petr4_parse_type tyenv json_type of
     | SOME tau_var =>
      (case petr4_parse_type_name json_type of
@@ -1187,7 +1091,7 @@ Definition petr4_parse_var_def:
      )
     | NONE => get_error_msg "could not parse type: " json_type
    )
-  | _ => get_error_msg "invalid JSON format of variable: " var
+  | _ => get_error_msg "unknown JSON format of variable: " var
 End
 
 Definition petr4_parse_match_kind_def:
@@ -1201,18 +1105,14 @@ Definition petr4_parse_match_kind_def:
    else if mk_str = "lpm"
    then SOME_msg mk_lpm
    else NONE_msg ("unknown match kind: "++mk_str)
-  | _ => get_error_msg "invalid JSON format of match kind: " match_kind
+  | _ => get_error_msg "unknown JSON format of match kind: " match_kind
 End
 
 Definition petr4_parse_keys_def:
  (petr4_parse_keys (tyenv, vtymap) [] = SOME_msg []) /\
  (petr4_parse_keys (tyenv, vtymap) (h::t) =
-   case h of
-   | Object
-    [("tags", tags);
-     ("annotations", annot);
-     ("key", key);
-     ("match_kind", match_kind)] =>
+   case json_parse_obj ["tags"; "annotations"; "key"; "match_kind"] h of
+   | SOME [tags; annot; key; match_kind] =>
     (case petr4_parse_match_kind match_kind of
      | SOME_msg res_mk =>
       (case petr4_parse_expression (tyenv, vtymap) (key, NONE) of
@@ -1222,19 +1122,15 @@ Definition petr4_parse_keys_def:
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg key_msg => NONE_msg ("could not parse key: "++key_msg))
      | NONE_msg mk_msg => NONE_msg ("could not parse match kind: "++mk_msg))
-   | _ => get_error_msg "invalid JSON format of key: " h)
+   | _ => get_error_msg "unknown JSON format of key: " h)
 End
 
 (* TODO: Action argument seems to not be exported by petr4 *)
 Definition petr4_parse_default_action_def:
  petr4_parse_default_action (tyenv, vtymap) default_action =
-  case default_action of
-  | Object [("tags", tags);
-            ("annotations", annot);
-            (* TODO: Don't throw const away *)
-            ("const", const);
-            ("name", name);
-            ("value", action)] =>
+  (* TODO: Don't throw const away *)
+  case json_parse_obj ["tags"; "annotations"; "const"; "name"; "value"] default_action of
+  | SOME [tags; annot; const; name; action] =>
    (case petr4_parse_name name of
     | SOME custom_name =>
      if custom_name = "default_action" then
@@ -1277,6 +1173,7 @@ Definition petr4_build_table_def:
 End
 
 (* TODO: Don't throw away the "actions" field - but this requires change in Ott *)
+(* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 Definition petr4_parse_properties_def:
  petr4_parse_properties (tyenv, vtymap) props =
   case props of
@@ -1301,12 +1198,8 @@ End
 
 Definition petr4_parse_table_def:
  petr4_parse_table (tyenv, vtymap) table =
-  case table of
-  | Object
-   [("tags", tags);
-    ("annotations", annot);
-    ("name", name);
-    ("properties", Array props)] =>
+  case json_parse_obj ["tags"; "annotations"; "name"; "properties"] table of
+  | SOME [tags; annot; name; Array props] =>
    (* Properties are: Key, Actions, Custom-"size" (optional), Custom-"default_action" (optional?) *)
    (case petr4_parse_name name of
     | SOME tbl_name =>
@@ -1314,9 +1207,10 @@ Definition petr4_parse_table_def:
       | SOME_msg (keys, default_action) => SOME_msg ((tbl_name, (SND $ UNZIP keys, (default_action, []))), (tbl_name, FST $ UNZIP keys))
       | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg))
     | NONE => get_error_msg "could not parse name: " name)
-  | _ => get_error_msg "invalid JSON format of table: " table
+  | _ => get_error_msg "unknown JSON format of table: " table
 End
 
+(* TODO: Use json_parse_arr_list *)
 Definition petr4_parse_locals_def:
  (petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map:b_func_map, tbl_map:tbl_map, decl_list, inits, vty_updates, apply_map) [] =
   SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates, apply_map)) /\
@@ -1342,9 +1236,10 @@ Definition petr4_parse_locals_def:
      | SOME_msg (tbl_map_entry, apply_map_entry) =>
       petr4_parse_locals (tyenv, vtymap, fmap, gscope) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, vty_updates, AUPDATE apply_map apply_map_entry) t
      | NONE_msg tbl_msg => NONE_msg ("could not parse table: "++tbl_msg))
-   | _ => get_error_msg "invalid JSON format of local: " h)
+   | _ => get_error_msg "unknown JSON format of local: " h)
 End
 
+(* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 Definition petr4_parse_matches_def:
  (petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau [] = SOME_msg []) /\
  (petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau (h::t) =
@@ -1358,15 +1253,13 @@ Definition petr4_parse_matches_def:
        | NONE_msg matches_msg => NONE_msg matches_msg)
      | NONE_msg exp_msg => NONE_msg ("could not parse select match case: "++exp_msg)
    )
-  | _ => get_error_msg "invalid JSON format of select case match: " h)
+  | _ => get_error_msg "unknown JSON format of select case match: " h)
 End
 
 Definition petr4_parse_case_def:
  petr4_parse_case (tyenv, vtymap, g_scope) expected_tau select_case =
-  case select_case of
-   | Object [("tags", tags);
-             ("matches", Array match_exps);
-             ("next", name)] =>
+  case json_parse_obj ["tags"; "matches"; "next"] select_case of
+   | SOME [tags; Array match_exps; name] =>
     (case petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau match_exps of
      | SOME_msg [exp_res] =>
       (case v_of_e exp_res of
@@ -1378,7 +1271,7 @@ Definition petr4_parse_case_def:
        | NONE => get_error_msg "non-value expressions as select match cases not yet supported: " (Array match_exps))
      | SOME_msg _ => get_error_msg "lists of case matches not yet supported" (Array match_exps)
      | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
-   | _ => get_error_msg "invalid JSON format of case: " select_case
+   | _ => get_error_msg "unknown JSON format of case: " select_case
 End
 
 Definition petr4_parse_cases_def:
@@ -1393,6 +1286,7 @@ Definition petr4_parse_cases_def:
    | NONE_msg case_msg => NONE_msg ("could not parse cases: "++case_msg))
 End
 
+(* TODO: Use json_parse_arr_list *)
 Definition petr4_parse_trans_def:
  petr4_parse_trans (tyenv,vtymap,gscope) trans =
   case trans of
@@ -1422,20 +1316,15 @@ Definition petr4_parse_trans_def:
        | NONE => get_error_msg "could not parse type of " (Array exps))
      | NONE_msg exps_msg => get_error_msg (exps_msg++" while parsing transition: ") (Array trans)
      | _ => get_error_msg ("lists of expressions in select statements not supported, encountered while parsing transition: ") (Array trans))
-  | _ => get_error_msg "invalid JSON format of transition: " (Array trans)
+  | _ => get_error_msg "unknown JSON format of transition: " (Array trans)
 End
 
 Definition petr4_parse_states_def:
  (petr4_parse_states (tyenv,vtymap,gscope) (pars_map:pars_map) [] =
   SOME_msg pars_map) /\
  (petr4_parse_states (tyenv,vtymap,gscope) pars_map (h::t) =
-  case h of
-   | Object
-    [("tags", tags);
-     ("annotations", annot);
-     ("name", name);
-     ("statements", Array stmts);
-     ("transition", Array trans)] =>
+  case json_parse_obj ["tags"; "annotations"; "name"; "statements"; "transition"] h of
+   | SOME [tags; annot; name; Array stmts; Array trans] =>
     (case petr4_parse_name name of
      | SOME state_name =>
       (case petr4_parse_stmts (tyenv,vtymap,gscope,[]) stmts of
@@ -1446,21 +1335,14 @@ Definition petr4_parse_states_def:
          | NONE_msg trans_msg => NONE_msg ("could not parse parser state: "++trans_msg))
        | NONE_msg stmts_msg => NONE_msg ("could not parse parser state body: "++stmts_msg))
      | NONE => get_error_msg "could not parse name: " name)
-   | _ => get_error_msg "invalid JSON format of parser state: " h)
+   | _ => get_error_msg "unknown JSON format of parser state: " h)
 End
 
 Definition petr4_parse_parser_def:
  petr4_parse_parser (tyenv, vtymap, fmap:func_map, bltymap, gscope, pblock_map:pblock_map) parser =
-  case parser of
-   | Object
-    [("tags", tags);
-     ("annotations", annot);
-     ("name", name);
-     ("type_params", Array typarams); (* TODO: illegal according to spec? *)
-     ("params", Array params);
-     ("constructor_params", Array constructor_params); (* TODO: ??? *)
-     ("locals", Array locals);
-     ("states", Array states)] =>
+  case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
+                       "constructor_params"; "locals"; "states"] parser of
+   | SOME [tags; annot; name; Array typarams; Array params; Array constructor_params; Array locals; Array states] =>
     (* TODO: Check that the parameters are a proper instantiation of the type-parametrized
      * block type parameters? *)
     (case petr4_parse_name name of
@@ -1477,7 +1359,7 @@ Definition petr4_parse_parser_def:
          | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing parser "++parser_name))
        | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing parser "++parser_name))
      | NONE => get_error_msg "could not parse name: " name)
-   | _ => get_error_msg "Invalid JSON format of parser: " parser
+   | _ => get_error_msg "Unknown JSON format of parser: " parser
 End
 
 
@@ -1488,35 +1370,29 @@ End
 
 Definition petr4_parse_control_def:
  petr4_parse_control (tyenv, vtymap, fmap, bltymap, gscope, pblock_map:pblock_map) control =
-  case control of
-   | Object
-    [("tags", tags);
-     ("annotations", annot);
-     ("name", name);
-     ("type_params", Array typarams); (* TODO: illegal according to spec? *)
-     ("params", Array params);
-     ("constructor_params", Array constructor_params); (* TODO: ??? *)
-     ("locals", Array locals);
-     ("apply", Object [("tags", app_tags);
-                       ("annotations", annot_app);
-                       ("statements", Array apply)])] =>
-    (case petr4_parse_name name of
-     | SOME control_name =>
-      (* TODO: Check that the parameters are a proper instantiation of the type-parametrized
-       * block type parameters? *)
-      (case petr4_parse_block_params tyenv params of
-       | SOME_msg (ctrl_params, vty_updates) =>
-        (case petr4_parse_locals (tyenv, AUPDATE_LIST vtymap vty_updates, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
-         | SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates', apply_map) =>
-          (case petr4_parse_stmts (tyenv, AUPDATE_LIST vtymap (vty_updates++vty_updates'), gscope, apply_map) apply of
-           | SOME_msg res_apply =>
-            (* TODO: Fix table map below *)
-            SOME_msg (tyenv, vtymap, fmap, bltymap, gscope, AUPDATE pblock_map (control_name, (pblock_regular pbl_type_control ctrl_params b_func_map decl_list (stmt_seq inits (p4_seq_stmts res_apply)) ([]:pars_map) tbl_map)))
-           | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
-         | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
-       | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing control "++control_name))
-     | NONE => get_error_msg "could not parse name: " name)
-   | _ => get_error_msg "Invalid JSON format of control: " control
+  case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
+                       "constructor_params"; "locals"; "apply"] control of
+   | SOME [tags; annot; name; Array typarams; Array params; Array constructor_params; Array locals; apply] =>
+    (case json_parse_obj ["tags"; "annotations"; "statements"] apply of 
+     | SOME [app_tags; app_annot; Array stmts] =>
+      (case petr4_parse_name name of
+       | SOME control_name =>
+        (* TODO: Check that the parameters are a proper instantiation of the type-parametrized
+         * block type parameters? *)
+        (case petr4_parse_block_params tyenv params of
+         | SOME_msg (ctrl_params, vty_updates) =>
+          (case petr4_parse_locals (tyenv, AUPDATE_LIST vtymap vty_updates, fmap, gscope) ([], [], [], stmt_empty, [], []) locals of
+           | SOME_msg (b_func_map, tbl_map, decl_list, inits, vty_updates', apply_map) =>
+            (case petr4_parse_stmts (tyenv, AUPDATE_LIST vtymap (vty_updates++vty_updates'), gscope, apply_map) stmts of
+             | SOME_msg res_apply =>
+              (* TODO: Fix table map below *)
+              SOME_msg (tyenv, vtymap, fmap, bltymap, gscope, AUPDATE pblock_map (control_name, (pblock_regular pbl_type_control ctrl_params b_func_map decl_list (stmt_seq inits (p4_seq_stmts res_apply)) ([]:pars_map) tbl_map)))
+             | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
+           | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
+         | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing control "++control_name))
+       | NONE => get_error_msg "could not parse name: " name)
+     | _ => get_error_msg "Unknown JSON format of apply block: " apply)
+   | _ => get_error_msg "Unknown JSON format of control: " control
 End
 
 (**********************)
@@ -1572,7 +1448,7 @@ Definition petr4_parse_element_def:
    else if elem_name = "Instantiation" then SOME_msg res
    else NONE_msg ("Unknown declaration element type: "++elem_name)
    (* TODO: ??? *)
-  | _ => NONE_msg "Invalid JSON format of element"
+  | _ => NONE_msg "Unknown JSON format of element"
 End
 
 (* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
@@ -1601,7 +1477,6 @@ Definition p4_from_json_def:
  case p4_from_json_preamble json_parse_result of
  | SOME_msg json_list =>
    (* TODO: Debug here by TAKE-ing different parts of the list *)
-   (* TODO: Problem at 28... *)
    (case petr4_parse_elements json_list of
     | SOME_msg res =>
      SOME_msg res
