@@ -1297,26 +1297,29 @@ End
 
 (* TODO: Don't throw away the "actions" field - but this requires change in Ott *)
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
+(* Note: P4 spec says tables don't have to have key fields *)
 Definition petr4_parse_properties_def:
  petr4_parse_properties (tyenv, enummap, vtymap) props =
-  case props of
-  | ((Array [String "Key"; Object [("tags", tags); ("keys", Array keys_obj)]])::t) =>
-   (case t of
+  let
+   (keys_obj', props') = (case props of
+    | ((Array [String "Key"; Object [("tags", tags); ("keys", Array keys_obj)]])::t) =>
+     (keys_obj, t)
+    | _ => ([], props))
+  in
+   (case props' of
     | ((Array [String "Actions"; actions_obj])::t') =>
      (case t' of
       | ((Array [String "Custom"; custom_obj])::t'') =>
        (case t'' of
         | [Array [String "Custom"; custom_obj2]] =>
-         petr4_build_table (tyenv, enummap, vtymap) keys_obj (SOME custom_obj) (SOME custom_obj2)
-        | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj (SOME custom_obj) NONE
+         petr4_build_table (tyenv, enummap, vtymap) keys_obj' (SOME custom_obj) (SOME custom_obj2)
+        | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj' (SOME custom_obj) NONE
         | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
        )
-      | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj NONE NONE
+      | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj' NONE NONE
       | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
      )
-    | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
-   )
-  | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
+    | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
 End
 
 Definition petr4_parse_table_def:
@@ -1643,7 +1646,7 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/complex5.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/actionAnnotations.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
 
