@@ -1133,43 +1133,6 @@ End
 (*************************)
 (* Functions and actions *)
 
-(* TODO: Complete implementation *)
-Definition petr4_parse_params_def:
- petr4_parse_params (tyenv, fmap, gscope) params =
-  SOME_msg ([]:(string # d) list)
-End
-
-Definition petr4_function_to_fmapupdate_def:
- petr4_function_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) function =
-  case json_parse_obj ["tags"; "annotations"; "name"; "params"; "body"] function of
-  | SOME [tags; annot; name; Array params; body] =>
-   (case json_parse_obj ["tags"; "annotations"; "statements"] body of
-    | SOME [body_tags; body_annot; Array stmts] =>
-     (case petr4_parse_name name of
-      | SOME f_name =>
-       (case petr4_parse_params (tyenv, fmap, gscope) params of
-        | SOME_msg f_params =>
-         (case petr4_parse_stmts (tyenv, enummap, vtymap, gscope, apply_map) stmts of
-          | SOME_msg f_body => SOME_msg (f_name, (f_body, f_params))
-          | NONE_msg stmts_msg => NONE_msg stmts_msg)
-        | NONE_msg params_msg => NONE_msg params_msg)
-      | NONE => get_error_msg "could not parse name: " name)
-    | _ => get_error_msg "unknown JSON format of function or action body: " body)
-  | _ => get_error_msg "unknown JSON format of function or action: " function
-End
-
-(* TODO: Decide whether to put function in global or local function map *)
-Definition petr4_parse_function_def:
- petr4_parse_function (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map, apply_map) function =
-  case petr4_function_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) function of
-   | SOME_msg (f_name, (f_body, f_params)) =>
-    SOME_msg (tyenv, enummap, vtymap, AUPDATE fmap (f_name, (f_body, f_params)), bltymap, gscope, pblock_map)
-   | NONE_msg msg => NONE_msg ("Could not parse function: "++msg)
-End
-
-(***************)
-(* Block types *)
-
 Definition petr4_parse_dir_def:
  petr4_parse_dir dir =
   case dir of
@@ -1181,6 +1144,87 @@ Definition petr4_parse_dir_def:
    else NONE_msg ("unknown direction name: "++some_dir)
   | _ => get_error_msg "unknown JSON format of direction: " dir
 End
+
+(* TODO: Type potentially needed for type inference *)
+(* TODO: Parse optional default value instead of throwing away *)
+(* TODO: This needs to also take into account type parametrization *)
+Definition petr4_parse_params_def:
+ (petr4_parse_params tyenv [] = SOME_msg ([], [])) /\
+ (petr4_parse_params tyenv (h::t) =
+   case json_parse_obj ["tags"; "annotations"; "direction"; "typ"; "variable"; "opt_value"] h of
+   | SOME [tags; annot; dir_opt; type; name; opt_value] =>
+    (case petr4_parse_dir dir_opt of
+     | SOME_msg p_dir =>
+      (case petr4_parse_type tyenv type of
+       | SOME p_type =>
+        (case petr4_parse_name name of
+         | SOME p_name =>
+          (case petr4_parse_params tyenv t of
+           | SOME_msg (res_params, res_vty_updates) =>
+            SOME_msg ((p_name, p_dir)::res_params, (varn_name p_name, p_type)::res_vty_updates)
+           | NONE_msg err_msg_params => NONE_msg err_msg_params)
+         | NONE => get_error_msg "could not parse name: " name)
+       | NONE => get_error_msg "could not parse type: " type)
+     | NONE_msg err_msg_dir => NONE_msg err_msg_dir)
+   | _ => get_error_msg "could not parse parameters: " h)
+End
+
+(* Parses the shared parts of actions and functions *)
+Definition petr4_parse_fun_act_shared_def:
+ petr4_parse_fun_act_shared (tyenv, enummap, vtymap, fmap, gscope, apply_map) (body, name, params) =
+  case json_parse_obj ["tags"; "annotations"; "statements"] body of
+   | SOME [body_tags; body_annot; Array stmts] =>
+    (case petr4_parse_name name of
+     | SOME fa_name =>
+      (case petr4_parse_params tyenv params of
+       | SOME_msg (fa_params, vty_updates) =>
+        (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, gscope, apply_map) stmts of
+         | SOME_msg fa_body => SOME_msg (fa_name, (fa_body, fa_params))
+         | NONE_msg stmts_msg => NONE_msg stmts_msg)
+       | NONE_msg params_msg => NONE_msg params_msg)
+     | NONE => get_error_msg "could not parse name: " name)
+   | _ => get_error_msg "unknown JSON format of function or action body: " body
+End
+
+(* TODO: Add return statements as appropriate *)
+Definition petr4_action_to_fmapupdate_def:
+ petr4_action_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) action =
+  case json_parse_obj ["tags"; "annotations"; "name"; "params"; "body"] action of
+  | SOME [tags; annot; name; Array params; body] =>
+   petr4_parse_fun_act_shared (tyenv, enummap, vtymap, fmap, gscope, apply_map) (body, name, params)
+  | _ => get_error_msg "unknown JSON format of action: " action
+End
+
+(* TODO: Decide whether to put action in global or local function map *)
+Definition petr4_parse_action_def:
+ petr4_parse_action (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map, apply_map) action =
+  case petr4_action_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) action of
+   | SOME_msg (a_name, (a_body, a_params)) =>
+    SOME_msg (tyenv, enummap, vtymap, AUPDATE fmap (a_name, (a_body, a_params)), bltymap, gscope, pblock_map)
+   | NONE_msg msg => NONE_msg ("Could not parse action: "++msg)
+End
+
+(* TODO: Add return statements as appropriate *)
+Definition petr4_function_to_fmapupdate_def:
+ petr4_function_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) function =
+  case json_parse_obj ["tags"; "return"; "name"; "type_params"; "params"; "body"] function of
+  | SOME [tags; ret_ty; name; Array typarams; Array params; body] =>
+   petr4_parse_fun_act_shared (tyenv, enummap, vtymap, fmap, gscope, apply_map) (body, name, params)
+  | _ => get_error_msg "unknown JSON format of function: " function
+End
+
+(* TODO: Decide whether to put function in global or local function map *)
+Definition petr4_parse_function_def:
+ petr4_parse_function (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map, apply_map) function =
+  case petr4_function_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) function of
+   | SOME_msg (f_name, (f_body, f_params)) =>
+    SOME_msg (tyenv, enummap, vtymap, AUPDATE fmap (f_name, (f_body, f_params)), bltymap, gscope, pblock_map)
+   | NONE_msg msg => NONE_msg ("Could not parse function: "++msg)
+End
+
+
+(***************)
+(* Block types *)
 
 Definition petr4_parse_type_params_def:
  (petr4_parse_type_params [] = SOME_msg []) /\
@@ -1248,7 +1292,7 @@ End
 (*****************)
 (* Extern object *)
 
-(* TODO: Add support fo type parameters and methods *)
+(* TODO: Add support for type parameters and methods *)
 Definition petr4_parse_ext_object_def:
  petr4_parse_ext_object (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map) ext_obj =
   case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "methods"] ext_obj of
@@ -1262,29 +1306,6 @@ End
 
 (**********)
 (* Parser *)
-
-Definition petr4_parse_block_params_def:
- (petr4_parse_block_params ptyenv [] = SOME_msg ([], [])) /\
- (petr4_parse_block_params ptyenv (h::t) =
-   (* TODO: Type potentially needed for type inference *)
-   (* TODO: Parse optional default value instead of throwing away *)
-   case json_parse_obj ["tags"; "annotations"; "direction"; "typ"; "variable"; "opt_value"] h of
-   | SOME [tags; annot; dir_opt; json_type; name; p_opt_value] =>
-    (case petr4_parse_dir dir_opt of
-     | SOME_msg p_dir =>
-      (case petr4_parse_type ptyenv json_type of
-       | SOME p_type =>
-        (case petr4_parse_name name of
-         | SOME p_name =>
-          (case petr4_parse_block_params ptyenv t of
-           | SOME_msg (res_params_msg, res_vty_updates_msg) =>
-            SOME_msg ((p_name, p_dir)::res_params_msg, (varn_name p_name, p_type)::res_vty_updates_msg)
-           | NONE_msg err_msg_params => NONE_msg err_msg_params)
-         | NONE => get_error_msg "could not parse name: " name)
-       | NONE => get_error_msg "could not parse type: " json_type)
-     | NONE_msg err_msg_dir => NONE_msg err_msg_dir)
-   | _ => get_error_msg "could not parse block parameters: " h)
-End
 
 Definition petr4_parse_inst_def:
  petr4_parse_inst (tyenv, decl_list, inits) inst =
@@ -1407,11 +1428,9 @@ Definition petr4_parse_properties_def:
         | [Array [String "Custom"; custom_obj2]] =>
          petr4_build_table (tyenv, enummap, vtymap) keys_obj' (SOME custom_obj) (SOME custom_obj2)
         | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj' (SOME custom_obj) NONE
-        | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
-       )
+        | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
       | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj' NONE NONE
-      | _ => get_error_msg "unknown JSON format of table properties: " (Array props)
-     )
+      | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
     | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
 End
 
@@ -1441,10 +1460,10 @@ Definition petr4_parse_locals_def:
       petr4_parse_locals (tyenv, enummap, vtymap, fmap, gscope) (b_func_map, tbl_map, decl_list', inits', apply_map) t
      | NONE_msg inst_msg => NONE_msg ("could not parse instantiation: "++inst_msg))
    | Array [String "Action"; act_obj] =>
-    (case petr4_function_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) act_obj of
+    (case petr4_action_to_fmapupdate (tyenv, enummap, vtymap, fmap, gscope, apply_map) act_obj of
      | SOME_msg b_func_map_upd =>
       petr4_parse_locals (tyenv, enummap, vtymap, fmap, gscope) (AUPDATE b_func_map b_func_map_upd, tbl_map, decl_list, inits, apply_map) t
-     | NONE_msg f_msg => NONE_msg ("could not parse block-local function: "++f_msg))
+     | NONE_msg f_msg => NONE_msg ("could not parse block-local action: "++f_msg))
    | Array [String "Variable"; var_obj] =>
     (case petr4_parse_var (tyenv, enummap, vtymap) var_obj of
      | SOME_msg (varn, tau, init_opt) =>
@@ -1571,7 +1590,7 @@ Definition petr4_parse_parser_def:
     (case petr4_parse_name name of
      | SOME parser_name =>
       (* TODO: Modify vtymap directly here instead? *)
-      (case petr4_parse_block_params tyenv params of
+      (case petr4_parse_params tyenv params of
        | SOME_msg (pars_params, vty_updates) =>
         (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, fmap, gscope) ([], [], [], stmt_empty, []) locals of
          (* TODO: Turn p_tau in decl_list to tau *)
@@ -1604,7 +1623,7 @@ Definition petr4_parse_control_def:
         (* TODO: Check that the parameters are a proper instantiation of the type-parametrized
          * block type parameters? *)
         (* TODO: Modify vtymap directly here instead? *)
-        (case petr4_parse_block_params tyenv params of
+        (case petr4_parse_params tyenv params of
          | SOME_msg (ctrl_params, vty_updates) =>
           (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, fmap, gscope) ([], [], [], stmt_empty, []) locals of
            | SOME_msg (vtymap', b_func_map, tbl_map, decl_list, inits, apply_map) =>
@@ -1624,8 +1643,13 @@ End
 (* Petr4 JSON element *)
 (**********************)
 
-(* Top-level functions don't need apply maps, since there are not tables defined outside
+(* Top-level functions and actions don't need apply maps, since there are no tables defined outside
  * control blocks *)
+Definition petr4_parse_top_level_action_def:
+ petr4_parse_top_level_action res obj =
+  petr4_parse_action (( \ (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map). (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map, [])) res) obj
+End
+
 Definition petr4_parse_top_level_function_def:
  petr4_parse_top_level_function res obj =
   petr4_parse_function (( \ (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map). (tyenv, enummap, vtymap, fmap, bltymap, gscope, pblock_map, [])) res) obj
@@ -1648,7 +1672,9 @@ Definition petr4_parse_element_def:
    else if elem_name = "ExternFunction" then SOME_msg res
    (* WIP: Add to global function map, local ones as appropriate
     *      Finish stmt parsing and param parsing *)
-   else if elem_name = "Action" then petr4_parse_top_level_function res obj
+   else if elem_name = "Action" then petr4_parse_top_level_action res obj
+   (* TODO: Same as Action? *)
+   else if elem_name = "Function" then petr4_parse_top_level_function res obj
    (* DONE: TypeDefs generate a type map that is checked when later elements are parsed *)
    else if elem_name = "TypeDef" then petr4_parse_typedef res obj
    (* DONE: Constants are added to the global scope.
@@ -1745,7 +1771,7 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/issue1334.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/fcallNoInfer.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
 
