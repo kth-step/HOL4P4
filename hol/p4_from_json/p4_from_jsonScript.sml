@@ -509,6 +509,13 @@ Definition tyu_l_only_def:
   | _ => NONE)
 End
 
+Definition petr4_unop_lookup_def:
+ petr4_unop_lookup unop_str = 
+  ALOOKUP [("Not", unop_neg);
+           ("BitNot", unop_compl);
+           ("UMinus", unop_neg_signed)] unop_str
+End
+
 (* TODO: Saturating addition/subtraction, ++? *)
 Definition petr4_binop_lookup_def:
  petr4_binop_lookup binop_str = 
@@ -601,6 +608,24 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
         | NONE => NONE_msg ("could not parse string to integer: "++value_str))
       | _ => get_error_msg "unsupported integer type: " width_signed)
     | _ => get_error_msg "could not obtain value and width of integer literal: " x)
+  (* Unary operation *)
+  | Array [String "unary_op";
+     Object [("tags", tags);
+             ("op", Array [String optype; op_tags]);
+             ("arg", op)]] =>
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap) (op, NONE) of
+    | SOME_msg res_op =>
+     (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
+     (case petr4_unop_lookup optype of
+      | SOME unop =>
+       (case res_op of
+        | INL op_exp =>
+         SOME_msg (INL (e_unop unop op_exp))
+        | INR op_const =>
+         (* TODO: Infer type directly from tau_opt *)
+         get_error_msg "type inference unsupported for unops: " exp)
+      | NONE => NONE_msg ("unknown optype: "++optype))
+    | NONE_msg op_msg => NONE_msg op_msg)
   (* Binary operation *)
   | Array [String "binary_op";
      Object [("tags", tags);
@@ -1720,7 +1745,7 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/action_call_ebpf.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/issue1334.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
 
