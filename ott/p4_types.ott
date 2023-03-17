@@ -137,6 +137,11 @@ val bs_width_def = Define `
 `;
 
 
+val star_not_in_ts_def = Define `
+star_not_in_ts (s:t_scope) =
+  ! f . (ALOOKUP s (varn_star f) = NONE)
+`;
+
 val WF_def = Define `
 (WF order) =    (( !x.   ~order x x ) /\
   		       	 ( !x y.  order x y ==> ~order y x) /\
@@ -372,7 +377,8 @@ by
  header boolv { x1 = v1 ; .. ; xn = vn } : ( header [ x1 tau1 , .. , xn taun ] , false  )
 
 
-
+----------------------------------- :: ext_ref
+ ext_ref i : ( ext , false)
 
 embed
 {{ hol
@@ -655,7 +661,7 @@ t_scopes_tup T_e Prs_n |- stmt2
 t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 
-
+star_not_in_ts t_scope
 ( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
 ( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin t_scope stmt end 
@@ -745,11 +751,13 @@ t_scopes_tup T_e Prs_n |- stmt_stack  :: :: stmtl_typ :: stmtl_typ_
 {{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt_stack]] }}
 by
 
+%TODO: add that m >= n
 
+length_greq ( t_scope1 , .. , t_scopem ) ( stmt1 , .. , stmtn )
 not_empty [ stmt1 , .. , stmtn ] 
-type_ith_stmt t_scope_list_g [ t_scope1 , .. , t_scopen ] T_e Prs_n [ stmt1 , .. , stmtn ] 
+type_ith_stmt t_scope_list_g [ t_scope1 , .. , t_scopem ] T_e Prs_n [ stmt1 , .. , stmtn ] 
 --------------------------------------- :: list
-( t_scope_list_g , [ t_scope1 , .. , t_scopen ] ) T_e Prs_n |- [ stmt1 , .. , stmtn ]
+( t_scope_list_g , [ t_scope1 , .. , t_scopem ] ) T_e Prs_n |- [ stmt1 , .. , stmtn ]
 
 
 
@@ -888,7 +896,7 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
          f = funn_inst x /\
 	 ALOOKUP ext_map x = SOME (SOME (xdl,IoE),MoE) ==>
 
-   ! (a:'a) (g_scope_list:g_scope_list) local_scope .
+   ! (a:'a) (g_scope_list:g_scope_list) local_scopes .
 
    ? tdl tau (t_scope':t_scope) (a':'a)  scope_list' v.
 
@@ -897,12 +905,12 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    (same_dir xdl tdl) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    (t_scope' = mk_tscope xdl tdl  ) /\ 
-	 SOME (a',scope_list', v) = IoE (a,g_scope_list, [local_scope] ) /\
+	 SOME (a',scope_list', v) = IoE (a,g_scope_list, local_scopes ) /\
 	 v_typ v (t_tau tau) F /\
    star_not_in_sl (scope_list') /\
 
 	 type_scopes_list scope_list' [t_scope'] /\
-   ext_sc_same_as_input [local_scope] scope_list'
+   ext_sc_same_as_input local_scopes scope_list'
 `;
 
 
@@ -914,7 +922,7 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
 	 ALOOKUP ext_map x = SOME (IoEsig, MoE) /\
 	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
   
-  !  (a:'a) (g_scope_list:g_scope_list) local_scope .
+  !  (a:'a) (g_scope_list:g_scope_list) local_scopes .
 
   ? tdl tau t_scope'  (a':'a)  (scope_list': scope list) (v:v)  .
 
@@ -924,11 +932,11 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_x  =
    (t_scope' = mk_tscope xdl tdl ) /\ 
    ( ALL_DISTINCT (MAP FST xdl) ) /\
 
-	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, [local_scope]  )) /\
+	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, local_scopes  )) /\
 	 v_typ v (t_tau tau) F /\
    star_not_in_sl (scope_list') /\
 	 type_scopes_list scope_list' [t_scope'] /\
-   ext_sc_same_as_input [local_scope] scope_list'
+   ext_sc_same_as_input local_scopes scope_list'
 `;
 
 

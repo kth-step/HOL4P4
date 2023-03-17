@@ -640,7 +640,9 @@ formula :: formula_ ::=
 | dom_x_eq ( delta_x , ext_map ) :: :: dom_x_eq
   {{ hol ( dom_x_eq [[delta_x]] [[ext_map]] ) }}
 | dom_t_eq ( delta_t , tbl_map ) :: :: dom_t_eq
-  {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }}  
+  {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }} 
+| star_not_in_ts t_scope :: :: star_not_in_ts
+  {{ hol ( star_not_in_ts [[t_scope]] )}}   
 | Fg_star_defined ( func_map , t_scope_list_g ) :: :: Fg_star_defined
   {{ hol ( Fg_star_defined [[func_map]] [[t_scope_list_g]] ) }}
 | Fb_star_defined ( b_func_map , t_scope_list_g ) :: :: Fb_star_defined
@@ -659,6 +661,9 @@ formula :: formula_ ::=
 
 | args_t_same [ tau1 , .. , taun ]  t_scope_list :: :: args_t_same
   {{ hol (args_t_same  ([[tau1 .. taun]]) t_scope_list ) }}
+| length_greq ( t_scope1 , .. , t_scopem ) ( stmt1 , .. , stmtn ) :: :: length_greq
+  {{ hol (LENGTH [[t_scope1 .. t_scopem]]  >= LENGTH [[stmt1 .. stmtn]] ) }}
+
 
 
 embed
@@ -1317,7 +1322,8 @@ val lookup_lval_def = Define `
     case lookup_lval ss lval of
      | SOME (v_bit (v, bl)) => (slice_lval (v_bit (v, bl)) e1 e2)
      | _ => NONE
-     )
+     ) /\
+ (lookup_lval (ss:scope list) (lval_null) = NONE ) 
 `;
 
 (* TODO: This is ambiguous with regard to inout... *)
@@ -1429,7 +1435,7 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_struct []) = v_struct []) /\
   (init_out_v (v_header boolv ((x,v)::t)) =
-    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\   (*TODO : fix to map*)
+    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\ 
   (init_out_v (v_header boolv []) = v_header F []) /\
   (init_out_v (v_err errmsg) = v_err ARB) /\
   (init_out_v v_uninit = v_uninit) /\
@@ -1470,19 +1476,20 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
   (arb_from_tau tau_bot    = v_bot)   /\
   (arb_from_tau tau_err   = (v_err ARB)) /\
   (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
-  (arb_from_tau (tau_xtl struct_ty_struct (xtl) ) =   (*TODO : fix to map*)
-    (v_struct ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ) /\
-  (  (arb_from_tau (tau_xtl struct_ty_header (xtl)) =
-    (v_header ARB ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ))  
+  (arb_from_tau (tau_xtl struct_ty_struct [] ) =  v_struct [] ) /\ 
+  (arb_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =  
+   v_struct ((x0,arb_from_tau t0)::(MAP (λ(x,t). (x,arb_from_tau t)) xtl))) /\
+  (arb_from_tau (tau_xtl struct_ty_header [] ) =  v_header ARB [] ) /\            
+  (arb_from_tau (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
+    v_header ARB ((x0,arb_from_tau t0)::(MAP (λ(x,t). (x,arb_from_tau t)) xtl))) 
   `
- (fs [tau_size_def] >>
- WF_REL_TAC `measure tau_size` >>
+ (WF_REL_TAC `measure tau_size` >>
  REPEAT STRIP_TAC >>
  FULL_SIMP_TAC std_ss [] >>
+ fs [tau_size_def] >>  
  `tau_size t < tau1_size xtl` suffices_by (
-  fs []
- ) >>
- IMP_RES_TAC tau1_size_mem );
+  fs [] ) >>  
+ IMP_RES_TAC tau1_size_mem);
 
 
 
@@ -1691,7 +1698,7 @@ val declare_list_in_scope_def = Define `
 (* Same as the above, but with the empty scope *)
 val declare_list_in_fresh_scope_def = Define `
   declare_list_in_fresh_scope (t_scope:t_scope) =
-    declare_list_in_scope (t_scope, [])
+    (MAP (\(x,t). (x , (arb_from_tau t, NONE))) t_scope)
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
