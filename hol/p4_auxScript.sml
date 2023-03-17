@@ -1141,7 +1141,7 @@ QED
 
 
 
-(** INDEX_OF theories section **)
+(** INDEX_FIND theories section **)
 
 
 (* If the property P holds on one list member in index i, then the index is
@@ -1737,7 +1737,7 @@ QED
 (** ZIP & UNZIP theorems **)
 
 Theorem map_distrub:
-! l l' .
+! l l' l''.
 (LENGTH l = LENGTH l' /\
 LENGTH l' = LENGTH l'') ==>
 

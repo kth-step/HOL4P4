@@ -200,7 +200,7 @@ fs[] >| [
 
 
 
-val R_implies_ALOOKUP_scopes = prove (``
+Theorem R_implies_ALOOKUP_scopes:
 ! R x v t sc tc.
  similar R tc sc ==>
 
@@ -208,7 +208,7 @@ val R_implies_ALOOKUP_scopes = prove (``
 (? v . SOME v = ALOOKUP sc x  /\ R t v )) /\
 ((SOME v = ALOOKUP sc x) ==>
 (? t . SOME t = ALOOKUP tc x  /\ R t v )))
- ``,
+Proof
 
 Induct_on `tc` >>
 Induct_on `sc` >>
@@ -232,7 +232,7 @@ rpt strip_tac >| [
  [`R`, `x`, `v`, `t'`, `sc`])) >> gvs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][]
 ]
-);
+QED
 
 
 
@@ -346,13 +346,13 @@ fs[INDEX_FIND_def]
 
 
 
-val R_implies_lookup_map_scopesl = prove ( ``
+Theorem R_implies_lookup_map_scopesl:
 
 ! R v x t (scl :(varn # β) list list) (tcl :(varn # α) list list).
 similarl R tcl scl ==>
   ((SOME t = lookup_map tcl x ==> ? v . SOME v = lookup_map scl x /\ (R t v)) /\
    (SOME v = lookup_map scl x ==> ? t . SOME t = lookup_map tcl x /\ (R t v)))
-``,
+Proof
 
 REPEAT STRIP_TAC >>
 fs[lookup_map_def] >>
@@ -414,12 +414,12 @@ gvs[] >| [
    gvs[]
  ]
 ]
-);
+QED
 
 
 
 
-val varn_tau_exists_in_scl_tscl = prove ( `` 
+Theorem varn_tau_exists_in_scl_tscl:
 ! gsl gtsl sl tsl varn v tau .
    type_scopes_list gsl gtsl ∧
    type_scopes_list sl tsl  ==>
@@ -429,7 +429,7 @@ val varn_tau_exists_in_scl_tscl = prove ( ``
 						    /\
      (SOME tau = lookup_tau tsl gtsl varn ==> ?v. SOME v = lookup_vexp2 sl gsl varn /\
                                                     v_typ v (t_tau tau) F))
-``,
+Proof
 
 gvs[lookup_tau_def] >>
 fs[lookup_vexp2_def] >>
@@ -472,7 +472,7 @@ fs[type_scopes_list_def] >> rw[] >| [
  [`tau`, `varn`, `(x0,x1)`])) >>
  gvs[] 
 ]
-);
+QED
 
 
 
@@ -601,11 +601,12 @@ IMP_RES_TAC FIND_in_typl_imp_rec >>
 
 
 
-val is_const_val_exsist = prove ( ``
-! e . is_const e <=> (?v . e = e_v v) ``,
+Theorem is_const_val_exsist:
+! e . is_const e <=> (?v . e = e_v v) 
+Proof
 Cases_on `e` >>
 fs[is_const_def]
-);
+QED
 
 
 
@@ -825,14 +826,15 @@ val is_get_lval = prove ( ``
 
 
 
-val INDEX_FIND_same_list_2 = prove ( ``
+Theorem INDEX_FIND_same_list_2:
 ! l s i i' s' s'' v t .
 INDEX_FIND 0 (λ(k,v). k = s) (MAP (λ(x,v,t). (x,v)) l) = SOME (i,s',v) /\
 INDEX_FIND 0 (λ(xm,tm). xm = s) (MAP (λ(x,v,t). (x,t)) l) = SOME (i',s'',t) ==>
 (i = i' /\ s = s'' /\ s = s /\ i < LENGTH l /\
 v = EL i (MAP (λ(x,v,t). v) l) /\
 t = EL i (MAP (λ(x,v,t). t) l)
- ) ``,
+ )
+Proof 
 
 REPEAT GEN_TAC >>
 STRIP_TAC >>
@@ -849,7 +851,7 @@ gvs[] >>
 
 IMP_RES_TAC INDEX_FIND_same_list >> gvs[] >>
 gvs[EL_simp5]
-);
+QED
 
 
 

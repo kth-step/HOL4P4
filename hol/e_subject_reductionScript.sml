@@ -941,16 +941,17 @@ fs[] >> rw[]
 
 
 
-val t_lookup_funn_ext_lemma = prove ( ``
+Theorem t_lookup_funn_ext_lemma:
 ! delta_g delta_b delta_x f tdl tau .
 SOME (tdl,tau) = t_lookup_funn (f) [] [] delta_x ==>
 (? tau' tdl' . ( SOME (tdl',tau') = t_lookup_funn f delta_g delta_b delta_x) /\
-	       (tdl = tdl' /\ tau = tau')) ``,
+	       (tdl = tdl' /\ tau = tau'))
+Proof         
 
 REPEAT STRIP_TAC >>
 Cases_on `f` >>
 fs[t_lookup_funn_def]
-);
+QED
 
 
 
@@ -3975,13 +3976,13 @@ fs[] );
 
 
 
-val acc_struct_val_typed = prove ( ``
+Theorem acc_struct_val_typed:
 ! v strct s struct_ty x_tau_list tau .
 acc_f strct s = SOME v /\
 v_typ strct (t_tau (tau_xtl struct_ty x_tau_list)) F /\
 correct_field_type x_tau_list s tau ==>
   v_typ v (t_tau tau) F
-``,
+Proof
 
 REPEAT STRIP_TAC >>
 fs[correct_field_type_def, tau_in_rec_def] >>
@@ -4018,7 +4019,7 @@ RES_TAC >>
    gvs[]
  )) >>
 gvs[]
-);
+QED
 
 
 
@@ -5394,10 +5395,10 @@ REPEAT STRIP_TAC >| [
      ,   
      (* now how that the body is well typed *)
 
-     Q.EXISTS_TAC `[(ZIP (mk_varn (MAP (λ(e_,x_,d_). x_) e_x_d_list),
-                        (MAP (λ(e_,tau_,d_,b_). tau_) e_tau_d_b_list)), stmt) ]` >>
+     (* Q.EXISTS_TAC `[(ZIP (mk_varn (MAP (λ(e_,x_,d_). x_) e_x_d_list),
+                        (MAP (λ(e_,tau_,d_,b_). tau_) e_tau_d_b_list)), stmt) ]` >> *)
      gvs[] >>
-     REPEAT STRIP_TAC >>
+     (*REPEAT STRIP_TAC >>*)
      `i=0` by fs[] >>
      rw[] >>
 
