@@ -5,6 +5,24 @@ open excluded;
 
 (* val exclude_descs = []:((string * string list) list); *)
 
+(* For debugging:
+fun read_file filename =
+  let
+    val instream = TextIO.openIn filename
+    fun read_lines instream =
+      case TextIO.inputLine instream of
+        NONE => []
+      | SOME line => line :: read_lines instream
+    val lines = read_lines instream
+    val _ = TextIO.closeIn instream
+  in
+    lines
+  end
+;
+
+val test_line = el 1 (read_file "test-examples/good/action_call_ebpf.stf")
+*)
+
 datatype stf_iotype = packet | expect;
 
 (* hex_to_bin "DEFEC8" *)
@@ -51,27 +69,12 @@ fun parse_line s =
  end
 ;
 
-fun drop_last l = String.implode $ List.take (explode l, size l - 1);
-
 fun parse_packet s =
- case String.tokens (fn c => c = #" ") (drop_last s) of
+ case String.tokens (fn c => c = #" ") s of
    "packet" :: rest => SOME (parse_line s)
  | "expect" :: rest => SOME (parse_line s)
  | _ => NONE
 ;
-
-(*
-val input = ["packet 0 00000000 00000000 00000000 00000000 00000000 ABCDEF01",
-             "expect 0 00000000 00000000 00000000 00000000 00000000 ABCDEF01",
-             "packet 0 001b1700 0130b881 98b7aeb7 08004500 00344a6f 40004006 53920a01 98453212 c86acf2c 01bbd0fa 585c4ccc b2ac8010 0353c314 00000101 080a0192 463911a0 c06f",
-             "expect 0 001b1700 0130b881 98b7aeb7 08004500 00344a6f 40004006 53920a01 98453212 c86acf2c 01bbd0fa 585c4ccc b2ac8010 0353c314 00000101 080a0192 463911a0 c06f",
-             "packet 0 00000000 00000000 00000000 00000000 00000000 00010000",
-             "expect 0 00000000 00000000 00000000 00000000 00000000 00010000",
-             "packet 0 00000000 00000000 00000000 00000000 00000000 00011000",
-             "expect 0 00000000 00000000 00000000 00000000 00000000 00011000",
-             "packet 0 001b1700 0130b881 98b7aeb7 08004500 00344a6f 40004006 53920a01 98453212 c86acf2c 01bbd0fa 585c4ccc b2ac8010 0353c314 00000101 080a0192 463911a0 c06e",
-             "expect 0 001b1700 0130b881 98b7aeb7 08004500 00344a6f 40004006 53920a01 98453212 c86acf2c 01bbd0fa 585c4ccc b2ac8010 0353c314 00000101 080a0192 463911a0 c06e"]
-*)
 
 fun string_to_term s =
  let
@@ -85,33 +88,68 @@ fun string_to_term s =
  end
 ;
 
-fun print_in_out (port, data) =
+(* Print a HOL4 value to script format *)
+(* TODO: Fix format details *)
+(* TODO: Duplicated from parse_any_test, put in shared lib *)
+fun print_hol4_val (name, tm) =
+ let
+  val _ = print ("val "^name^" = ``");
+  val _ = print_term tm
+  val _ = print ("``;\n\n");
+ in
+  ()
+ end
+;
+
+fun stf_iotype_to_str iot = 
+ if iot = packet
+ then "packet"
+ else "expect"
+;
+
+fun print_in_out valname iot n (port, data) =
  let
   val data_tm = string_to_term data
   val port_tm = term_of_int port
+  val tm = mk_pair (data_tm, port_tm)
  in
-  term_to_string (mk_pair (data_tm, port_tm))
+  print_hol4_val (valname^("_"^((stf_iotype_to_str iot)^(Int.toString n))), tm)
  end
+;
+
+fun drop_last l = String.implode $ List.take (explode l, size l - 1);
+
+fun switch iot =
+  if iot = packet
+  then expect
+  else packet
 ;
 
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
 (* TODO: Here, we should also print the function that performs the test and check *)
-fun parse_stf instream =
+(* TODO: Make wrapper *)
+fun parse_stf valname stf_iotype n instream =
  case TextIO.inputLine instream of
    SOME s =>
-    (case parse_packet s of
+    (case parse_packet (drop_last s) of
       SOME (port, data) =>
        (case Int.fromString port of
          SOME i =>
           let
-           val _ = print_in_out (i, data)
+           val _ = print_in_out valname stf_iotype n (i, data)
           in
-           parse_stf instream
+           parse_stf valname (switch stf_iotype) (n+1) instream
           end
         | NONE => raise Fail ("Invalid port number: "^port))
-    | NONE => parse_stf instream)
+    | NONE => parse_stf valname stf_iotype n instream)
   | NONE => ()
 ;
+
+(* Print test:
+
+ val args = ["1", "2", "test-examples/good/action_call_ebpf.stf", "teststf.log"];
+
+*)
 
 fun main() =
  let
@@ -136,8 +174,8 @@ fun main() =
     if not $ List.exists (fn el => el = valname) (List.concat $ snd $ unzip exclude_descs)
     then
      let
-      val _ = TextIO.openIn filename
-      val _ = parse_stf (TextIO.openIn filename)
+      val instream = TextIO.openIn filename
+      val _ = parse_stf valname packet 1 instream
       val _ = TextIO.closeOut outstream;
      in
       ()
