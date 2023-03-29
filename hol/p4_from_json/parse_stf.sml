@@ -120,30 +120,32 @@ fun print_in_out valname iot n (port, data) =
 fun drop_last l = String.implode $ List.take (explode l, size l - 1);
 
 fun switch iot =
-  if iot = packet
-  then expect
-  else packet
+ if iot = packet
+ then expect
+ else packet
 ;
 
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
 (* TODO: Here, we should also print the function that performs the test and check *)
-(* TODO: Make wrapper *)
-fun parse_stf valname stf_iotype n instream =
- case TextIO.inputLine instream of
-   SOME s =>
-    (case parse_packet (drop_last s) of
-      SOME (port, data) =>
-       (case Int.fromString port of
-         SOME i =>
-          let
-           val _ = print_in_out valname stf_iotype n (i, data)
-          in
-           parse_stf valname (switch stf_iotype) (n+1) instream
-          end
-        | NONE => raise Fail ("Invalid port number: "^port))
-    | NONE => parse_stf valname stf_iotype n instream)
-  | NONE => ()
-;
+local
+ fun parse_stf' valname stf_iotype n instream =
+  case TextIO.inputLine instream of
+    SOME s =>
+     (case parse_packet (drop_last s) of
+       SOME (port, data) =>
+	(case Int.fromString port of
+	  SOME i =>
+	   let
+	    val _ = print_in_out valname stf_iotype n (i, data)
+	   in
+	    parse_stf' valname (switch stf_iotype) (n+1) instream
+	   end
+	 | NONE => raise Fail ("Invalid port number: "^port))
+     | NONE => parse_stf' valname stf_iotype n instream)
+   | NONE => ()
+in
+ fun parse_stf valname instream = parse_stf' valname packet 1 instream
+end
 
 (* Print test:
 
@@ -165,7 +167,7 @@ fun main() =
     val valname_no_suffix = List.drop (rev $ explode filename, 4);
     val valname_no_prefix =
      case index (fn c => c = #"/") valname_no_suffix of
-       NONE => valname_no_suffix 
+       NONE => valname_no_suffix
      | SOME i => (List.take (valname_no_suffix, i));
     val valname = implode $ rev $ valname_no_prefix;
 
@@ -175,7 +177,7 @@ fun main() =
     then
      let
       val instream = TextIO.openIn filename
-      val _ = parse_stf valname packet 1 instream
+      val _ = parse_stf valname instream
       val _ = TextIO.closeOut outstream;
      in
       ()
