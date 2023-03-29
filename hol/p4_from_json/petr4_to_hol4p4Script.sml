@@ -1867,7 +1867,7 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/action_profile-bmv2.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/action_call_ebpf.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
 
