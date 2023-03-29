@@ -4,8 +4,8 @@ sig
 
 val vss_arch_ty : hol_type
 
-val packet_in_map : term
-val packet_out_map : term
+val vss_packet_in_map : term
+val vss_packet_out_map : term
 
 val REAL_PORT_COUNT_tm : term
 

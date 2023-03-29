@@ -2,11 +2,11 @@ open HolKernel Parse bossLib boolSyntax;
 open testutils;
 open PPBackEnd;
 open parse_jsonTheory;
-open p4_from_jsonTheory;
+open petr4_to_hol4p4Theory;
 
 open excluded;
 
-open p4_from_jsonSyntax;
+open petr4_to_hol4p4Syntax;
 
 (* For EVAL *)
 open ASCIInumbersLib;

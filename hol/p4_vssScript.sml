@@ -28,12 +28,12 @@ Definition vss_ascope_update_def:
    (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
 End
 
-Definition packet_in_extract:
- packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update
+Definition vss_packet_in_extract:
+ vss_packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update
 End
 
-Definition packet_out_emit:
- packet_out_emit = packet_out_emit_gen vss_ascope_lookup vss_ascope_update
+Definition vss_packet_out_emit:
+ vss_packet_out_emit = packet_out_emit_gen vss_ascope_lookup vss_ascope_update
 End
 
 (**********************************************************)
