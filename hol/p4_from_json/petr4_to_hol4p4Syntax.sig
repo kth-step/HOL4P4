@@ -1,4 +1,4 @@
-signature p4_from_jsonSyntax =
+signature petr4_to_hol4p4Syntax =
 sig
   include Abbrev
 

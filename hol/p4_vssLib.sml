@@ -32,11 +32,11 @@ val vss_init_global_scope =
 (*******************************************)
 (* Architectural context (generic externs) *)
 
-val packet_in_map =
- ``[("extract", (stmt_ext, [("this", d_in); ("hdr", d_out)], packet_in_extract))]``;
+val vss_packet_in_map =
+ ``[("extract", (stmt_ext, [("this", d_in); ("hdr", d_out)], vss_packet_in_extract))]``;
 
-val packet_out_map =
- ``[("emit", (stmt_ext, [("this", d_in); ("data", d_in)], packet_out_emit))]``;
+val vss_packet_out_map =
+ ``[("emit", (stmt_ext, [("this", d_in); ("data", d_in)], vss_packet_out_emit))]``;
 
 (*************************)
 (* Architectural context *)
@@ -67,8 +67,8 @@ val vss_Checksum16_map =
 
 val vss_ext_map =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
-    ++ [("packet_in", (NONE, (^packet_in_map)));
-        ("packet_out", (NONE, (^packet_out_map)));
+    ++ [("packet_in", (NONE, (^vss_packet_in_map)));
+        ("packet_out", (NONE, (^vss_packet_out_map)));
 ("Checksum16", SOME (stmt_ext, [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))])``;
 
 val vss_func_map = core_func_map;
