@@ -46,7 +46,7 @@ fun print_hol4p4_vals valname fmap pblock_map =
 
  val args = ["1", "2", "filter.json", "filter.log"];
  val args = ["1", "2", "vss_input.json", "vss_input.log"];
- val args = ["1", "2", "test-examples/good/actionAnnotations.json", "test-examples/good/actionAnnotations.log"];
+ val args = ["1", "2", "test-examples/good/action_call_ebpf.json", "test-examples/good/action_call_ebpf.log"];
 
   val outstream = TextIO.openOut "test.txt"
   val _ = TextIO.output (outstream, "test")
@@ -94,9 +94,9 @@ fun main() =
 	val _ = TextIO.closeOut outstream;
 	(* TODO: Map this result to everything we need...
 	 *       Does not use explicit list to map variable names due to warning *)
-	val res_list = pairLib.strip_pair $ dest_SOME_msg final_res_tup;
+	val res_list = pairLib.spine_pair $ dest_SOME_msg final_res_tup;
        in
-	print_hol4p4_vals valname (el 3 res_list) (el 6 res_list)
+	print_hol4p4_vals valname (el 4 res_list) (el 8 res_list)
        end
       else
        let
