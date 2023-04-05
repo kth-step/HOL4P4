@@ -482,7 +482,11 @@ formula :: formula_ ::=
   {{ com global and block scopes to retrieve based on function location }}
   {{ hol (SOME[[g_scope_list'']] = scopes_to_retrieve [[funn]] [[func_map]] [[b_func_map]] [[g_scope_list]] [[g_scope_list']]) }}
   {{ tex [[g_scope_list'']] = \mathrm{scopes\_to\_retrieve} ([[funn]], [[func_map]], [[b_func_map]], [[g_scope_list]], [[g_scope_list']]) }}
-
+| b_func_map' = map_to_pass funn b_func_map :: :: map_to_pass
+  {{ com pass either empty or the local function's mapping depending on funn location }}
+  {{ hol  SOME [[b_func_map']] = map_to_pass [[funn]] [[b_func_map]] }}
+| tbl_map' = table_to_pass frame_list tbl_map :: :: table_to_pass
+  {{ hol SOME [[tbl_map']] = table_to_pass [[frame_list]] [[tbl_map]]}}
 | scope' = declare_list_in_scope ( t_scope , scope ) :: M :: decl_in_scope  
   {{ com update a scope with a list of declarations }}
   {{ hol [[scope']] = declare_list_in_scope ([[t_scope]], [[scope]]) }}
@@ -602,6 +606,8 @@ formula :: formula_ ::=
 
 | ordered funn funn' order :: :: ordered
   {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
+| ordered_list [ funn1 , .. , funnn ] order :: :: ordered_list
+  {{ hol (ordered_list [[funn1 .. funnn]] [[order]]) }}
 | WF_o order :: :: WF_order
   {{ hol ( WF_o [[order]] )}}
 | f_ordered_with_any_reserved delta_g delta_b delta_x Pb_n order :: :: f_ordered_with_any_reserved
@@ -633,6 +639,8 @@ formula :: formula_ ::=
   {{ hol ( dom_map_ei [[func_map]] [[b_func_map]] ) }}
 | dom_tmap_ei ( delta_g , delta_b ) :: :: dom_tmap_ei
   {{ hol ( dom_tmap_ei [[delta_g]] [[delta_b]] ) }}
+| typying_domains_ei ( delta_g , delta_b , delta_x )  :: :: typying_domains_ei
+  {{ hol ( typying_domains_ei [[delta_g]] [[delta_b]] [[delta_x]] ) }}  
 | dom_g_eq ( delta_g , func_map ) :: ::  dom_g_eq
   {{ hol ( dom_g_eq [[delta_g]] [[func_map]] ) }}
 | dom_b_eq ( delta_b , b_func_map ) :: :: dom_b_eq
@@ -649,6 +657,11 @@ formula :: formula_ ::=
   {{ hol ( Fb_star_defined [[b_func_map]]  [[t_scope_list_g]] ) }}
 | X_star_defined  ( ext_map , t_scope_list_g ) :: :: X_star_defined
   {{ hol ( X_star_defined [[ext_map]]  [[t_scope_list_g]] ) }}
+| parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ] :: :: parseError_in_gs
+  {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
+| f_in_apply_tbl tbl_map apply_table_f :: :: f_in_apply_tbl
+  {{ hol ( f_in_apply_tbl [[tbl_map]] [[apply_table_f]] ) }}
+
 
 | type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack :: :: type_ith_stmt 
   {{ hol ( type_ith_stmt [[t_scope_list_g]] [[t_scope_list]] [[T_e]] [[Prs_n]] [[stmt_stack]] ) }}
@@ -656,14 +669,27 @@ formula :: formula_ ::=
   {{ hol ( type_frame_tsl [[scope_list]] [[t_scope_list]] ) }}
 | type_scopes_list g_scope_list t_scope_list_g :: :: type_scopes_list
   {{ hol ( type_scopes_list [[g_scope_list]] [[t_scope_list_g]] ) }}
-| type_state_tsll ( scope_list1 , .. , scope_listn ) t_scope_list :: :: type_state_tsll
-  {{ hol ( type_state_tsll [[scope_list1 .. scope_listn]] [[t_scope_list]] )  }}
+| type_state_tsll ( scope_list1 , .. , scope_listn ) [ t_scope_list1 , .. , t_scope_listm ] :: :: type_state_tsll
+  {{ hol ( type_state_tsll [[scope_list1 .. scope_listn]] [[t_scope_list1 .. t_scope_listm]] )  }}
+| t_scope_list_g' = t_scopes_to_pass ( funn , delta_g , delta_b , t_scope_list_g ) :: :: t_scopes_to_pass
+  {{ hol ( SOME [[t_scope_list_g']] = t_scopes_to_pass [[funn]] [[delta_g]] [[delta_b]] [[t_scope_list_g]] ) }}
+
 
 | args_t_same [ tau1 , .. , taun ]  t_scope_list :: :: args_t_same
   {{ hol (args_t_same  ([[tau1 .. taun]]) t_scope_list ) }}
 | length_greq ( t_scope1 , .. , t_scopem ) ( stmt1 , .. , stmtn ) :: :: length_greq
   {{ hol (LENGTH [[t_scope1 .. t_scopem]]  >= LENGTH [[stmt1 .. stmtn]] ) }}
+| length_eq delta_b b_func_map :: :: length_eq 
+  {{ hol (LENGTH [[delta_b]] = LENGTH [[b_func_map]] ) }} 
+| length_eq delta_t tbl_map :: :: length_eq_tbl  
+  {{ hol (LENGTH [[delta_t]] = LENGTH [[tbl_map]] ) }} 
+| ( g_scope_list , frame_list , status ) -||| Prs_n Pb_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) :: :: type_frames
+  {{ hol ( type_frames [[g_scope_list]] [[frame_list]] [[Prs_n]] [[Pb_n]] [[order]] [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] ) }}
 
+| ext_is_defined delta_x funn :: :: ext_is_defined
+  {{ hol ext_is_defined [[delta_x]] [[funn]] }}
+| ext_not_defined delta_g delta_b funn :: :: ext_not_defined
+  {{ hol ext_not_defined [[delta_g]] [[delta_b]] [[funn]] }}
 
 
 embed
@@ -1323,7 +1349,9 @@ val lookup_lval_def = Define `
      | SOME (v_bit (v, bl)) => (slice_lval (v_bit (v, bl)) e1 e2)
      | _ => NONE
      ) /\
- (lookup_lval (ss:scope list) (lval_null) = NONE ) 
+ (lookup_lval (ss:scope list) (lval_null) = NONE ) /\
+ (lookup_lval (ss:scope list) (lval_paren lval) = lookup_lval ss lval) 
+
 `;
 
 (* TODO: This is ambiguous with regard to inout... *)
@@ -1926,6 +1954,30 @@ val scopes_to_retrieve_def = Define `
 `;
 
 
+
+(* if the function is defined locally, then the map of the locals will be passed 
+   else it should be empty, because functions defined globally or extern should not be calling locals *)
+
+val map_to_pass_def = Define `
+ map_to_pass (funn:funn) (b_func_map:b_func_map) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP b_func_map x of
+     | SOME (stmt, x_d_l) => SOME b_func_map
+     | NONE => SOME []
+    )
+   | _ => SOME []
+`;
+
+
+val table_to_pass_def = Define `
+ table_to_pass (frame_list:frame_list) (tbl_map:tbl_map) = 
+  case (LENGTH frame_list = 0) of
+   | T  => SOME tbl_map
+   | F  => SOME []
+`;
+
+
 }}
 grammar
 
@@ -2447,15 +2499,19 @@ defn
 by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
+  b_func_map' = map_to_pass funn b_func_map
+  tbl_map' = table_to_pass frame_list'' tbl_map
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
   notret( status' , frame_list'' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
   ----------------------------------- :: comp1
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ frame_list'' , status ) -f-> ( ascope' , g_scope_list''' , frame_list' ++ frame_list'' , status' )
 
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
+% TODO change tbl_map here to e mpty
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
+  b_func_map' = map_to_pass funn b_func_map
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , empty ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
   g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
    g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' )

@@ -634,6 +634,12 @@ ext_map {{ tex X }} :: ext_map_ ::=
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
 {{ hol ((string, ((mk list) # (x # e_list))) alist) }}
+| empty :: :: empty
+  {{ com empty table map }}
+  {{ hol ([]:((string, ((mk list) # (x # e_list))) alist)) }}
+| ( tbl_map ) :: S :: paren
+  {{ hol ([[tbl_map]]) }}
+
 
 pars_map {{ tex P }} :: pars_map_ ::=
 {{ com parser state map }}

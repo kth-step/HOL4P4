@@ -22,7 +22,7 @@ t_scope_list_g {{ tex \overrightarrow{\psi_G} }} :: t_scope_list_g_ ::=
 
 t_scope_list {{ tex \overrightarrow{\psi} }} :: t_scope_list_ ::=
 {{ hol (t_scope list) }}
-{{ com ddd}}
+{{ com typing a scope_list for each frame}}
 | emptytss :: M :: empty
   {{ hol ([]:t_scope list) }}
   {{ tex [\;] }}
@@ -35,6 +35,18 @@ embed
 {{ hol
 }}
 grammar
+
+t_scopes_frames {{ tex {\Psi} }} :: t_scopes_frames_ ::=
+{{ hol (t_scope_list list) }}
+{{ com typing a scope_list for all frames }}
+| emptytssl :: M :: empty
+  {{ hol ([]:t_scope_list list) }}
+  {{ tex [\;] }}
+| [ t_scope_list1 , .. , t_scope_listn ] :: M :: list
+  {{ hol ([[t_scope_list1 .. t_scope_listn]]) }}
+| [ t_scope_list ] ++ t_scopes_frames :: M :: scopel_concat  
+  {{ hol ( [ [[t_scope_list]] ] ++ [[t_scopes_frames]]) }}
+
 
 t_scopes_tup {{ tex \psi_t }} :: t_scopes_tup_ ::=
 {{ hol (t_scope_list_g # t_scope_list) }}
@@ -142,6 +154,14 @@ star_not_in_ts (s:t_scope) =
   ! f . (ALOOKUP s (varn_star f) = NONE)
 `;
 
+val parseError_in_gs_def  = Define `
+parseError_in_gs (t_scope_list_g:t_scope list) ( t_scope_list_list : t_scope list list) =
+  ((ALOOKUP (EL 1 t_scope_list_g) (varn_name "parseError") = SOME tau_err ) /\
+   (ALOOKUP (EL 0 t_scope_list_g) (varn_name "parseError") = NONE) /\
+  (! i . i < LENGTH t_scope_list_list ==> lookup_map (EL i t_scope_list_list) (varn_name "parseError") = NONE ))
+
+`;  
+
 val WF_def = Define `
 (WF order) =    (( !x.   ~order x x ) /\
   		       	 ( !x y.  order x y ==> ~order y x) /\
@@ -193,6 +213,36 @@ val t_lookup_funn_def = Define `
       | _ => NONE)
   )
 `;
+
+
+
+
+
+val ext_is_defined_def = Define `
+ext_is_defined (delta_x:delta_x) funn =
+! f . funn = funn_name f ⇒
+( ALOOKUP delta_x f = NONE )
+  ∧                            
+(! x . funn = funn_inst x ⇒
+       ( ∃ a1 ext_MoE . ALOOKUP delta_x x = SOME (a1,ext_MoE)))
+  ∧                            
+(! x x' . funn = funn_ext x x' ⇒
+       ( ∃ a1 ext_MoE tdl t. ALOOKUP delta_x x = SOME (a1,ext_MoE) ∧
+         ALOOKUP ext_MoE x' = SOME (tdl, t)))
+`;
+
+
+
+val ext_not_defined_def = Define `
+    ext_not_defined delta_g delta_b funn =
+((∀f.    funn = funn_name f ⇒
+            ALOOKUP delta_g f = NONE ∧ ALOOKUP delta_b f = NONE) ∧
+(∀x.    funn = funn_inst x ⇒
+            ALOOKUP delta_g x = NONE ∧ ALOOKUP delta_b x = NONE) ∧
+(∀x x'. funn = funn_ext x x' ⇒
+         ALOOKUP delta_g x = NONE ∧ ALOOKUP delta_b x = NONE))   `;  
+
+
 
 
 
@@ -321,6 +371,12 @@ ordered (x:funn) y order =
   THE (ordered_check (x:funn) y order)
 `;
 
+
+val ordered_list_def = Define `
+ordered_list (l:funn list) order =
+  ! i . SUC i < LENGTH l ==>
+        THE (ordered_check (EL i l) (EL (SUC i) l) order)
+`;
 
 
 val WF_o_def = Define `
@@ -473,8 +529,9 @@ similarl (\x y . (v_typ (FST (x)) (t_tau y) F ) ) sl tsl
    by the typing list of scopes tsll, and also, the domain of each frame is the same.
 *)
 val type_state_tsll_def = Define `
-type_state_tsll (sll:scope list list) (tsl: t_scope list) =
- type_frame_tsl (FLAT sll) (tsl)
+type_state_tsll (sll:scope_list list) (tsll: t_scope_list list) =
+ ! i . i < LENGTH sll ==>
+type_frame_tsl (EL i sll) (EL i tsll)
 `;
 
 }}
@@ -674,9 +731,9 @@ t_scopes_tup T_e Prs_n |- stmt2
 t_scopes_tup T_e Prs_n |-  stmt1 ; stmt2 
 
 
-
+% all constraints of star should be applicable on the err_msg
 t_scopes_tup T_e |-  e  : ( bool , b )
-t_scopes_tup T_e |-  e'  : ( [ x1 , .. , xn ] , b' )
+t_scopes_tup T_e |-  e'  : ( err , b' )
 --------------------------------------- :: verify
 t_scopes_tup T_e Prs_n |-  verify e e' 
 
@@ -702,9 +759,10 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- ( e
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
 
 
- 
+ext_is_defined delta_x funn
+ext_not_defined delta_g delta_b funn
 --------------------------------------- :: ext
-t_scopes_tup T_e Prs_n |-  ext
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t )  ) Prs_n |-  ext
 
 
 
@@ -751,7 +809,6 @@ t_scopes_tup T_e Prs_n |- stmt_stack  :: :: stmtl_typ :: stmtl_typ_
 {{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt_stack]] }}
 by
 
-%TODO: add that m >= n
 
 length_greq ( t_scope1 , .. , t_scopem ) ( stmt1 , .. , stmtn )
 not_empty [ stmt1 , .. , stmtn ] 
@@ -958,6 +1015,8 @@ val is_directionless_def = Define `
 is_directionless dl =  EVERY (\d. d = d_none) dl
 `;
 
+
+(* el is the key list, f' is default action, el' default action's data/args *)
 val table_map_typed_def = Define `
 table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g delta_b Pb_n =
 
@@ -965,6 +1024,7 @@ table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g del
     ALOOKUP tbl_map s = SOME (mkl,f',el') /\
     apply_table_f (s,el,mkl, (f',el'),ascope) = SOME (f,vl) ==>
      ? tdl .
+       LENGTH mkl = LENGTH el /\
        SOME (tdl,tau_bot) = t_lookup_funn (funn_name f) delta_g delta_b [] /\
        is_consts vl /\
        is_directionless (MAP SND tdl) /\
@@ -1010,12 +1070,19 @@ dom_map_ei (func_map:func_map) (b_func_map:b_func_map) =
 `;
 
 
-
+(* domain of the typing function map *)
 val dom_tmap_ei_def = Define `
 dom_tmap_ei (delta_g:delta_g) (delta_b:delta_b) =
   dom_empty_intersection delta_g delta_b
 `;
 
+
+val typying_domains_ei_def = Define `
+typying_domains_ei (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) =
+  (dom_empty_intersection delta_g delta_x /\
+  dom_empty_intersection delta_b delta_x /\
+  dom_empty_intersection delta_g delta_b)
+`;
 
 
 val dom_g_eq_def = Define `
@@ -1053,6 +1120,15 @@ dom_x_eq (delta_x:delta_x) (ext_map: 'a ext_map) =
 
 
 
+
+
+
+val f_in_apply_tbl_def = Define ‘
+     f_in_apply_tbl (tbl_map:tbl_map) (apply_table_f: 'a apply_table_f) =
+∀ s mk x el key_list ascope.
+ALOOKUP tbl_map s = SOME (mk, x ,el) ⇒
+ ∃ f vl .   apply_table_f (s,key_list,mk,(x,el),ascope) = SOME (f,vl)    
+    ’;
 
 
 
@@ -1188,11 +1264,15 @@ defn
 {{ tex [[ctx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Pb_n]]}}
 by
 
+% TODO: remove dom_tmap_ei ( delta_g , delta_b ) because the prop is satisfies in typying_domains_ei
 
 WF_o order
 length_is_2 ( t_scope_list_g )
+length_eq delta_b b_func_map
+length_eq delta_t tbl_map
 dom_map_ei ( func_map , b_func_map )
 dom_tmap_ei ( delta_g , delta_b )
+typying_domains_ei ( delta_g , delta_b , delta_x )
 dom_g_eq ( delta_g , func_map )
 dom_b_eq ( delta_b , b_func_map )
 dom_x_eq ( delta_x , ext_map )
@@ -1206,35 +1286,110 @@ ext_map -| order t_scope_list_g delta_x
 table_map_typed tbl_map apply_table_f delta_g delta_b Pb_n
 f_ordered_with_any_reserved delta_g delta_b delta_x Pb_n order
 f_not_reserved_then_ordered delta_g delta_b delta_x Pb_n order
+f_in_apply_tbl tbl_map apply_table_f
 --------------------------------------- :: c
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n
 
 
 
 
+embed
+{{ hol
 
+
+
+val typing_scopes_to_pass_def = Define `
+ typing_scopes_to_pass (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (t_scope_list_g:t_scope_list_g) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP delta_b x of
+     | SOME (stmt, x_d_l) => SOME t_scope_list_g
+     | NONE =>
+      (case ALOOKUP delta_g x of
+       | SOME (stmt, x_d_l) => SOME ([ []; EL 1 t_scope_list_g])
+       | NONE => SOME t_scope_list_g
+      )
+    )
+   | _ => SOME ([ []; EL 1 t_scope_list_g])
+`;
+
+
+     
+
+
+val t_map_to_pass_def = Define `
+ t_map_to_pass (funn:funn) (delta_b:delta_b) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP delta_b x of
+     | SOME (tdl,t) => SOME delta_b
+     | NONE => SOME []
+    )
+   | _ => SOME []
+`;
+
+
+
+
+
+       
+
+
+
+val type_frames_def = Define `
+type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n) (Pb_n:Pb_n) 
+(order:order) (t_scope_list_g:t_scope_list_g)  (t_scopes_frames:t_scopes_frames)  (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) =
+
+∀ i funnl stml scl .
+     
+    (funnl = MAP (λ(f,stml,scl). f) frames_list ∧
+     stml = MAP (λ(f,stml,scl). stml) frames_list ∧
+     scl = MAP (λ(f,stml,scl). scl) frames_list) ⇒
+   
+         (* The base frame (i.e. bottom) case *)        
+    (i = LENGTH frames_list − 1 ==>
+       ∃ t_scope_list_g' passed_delta_b. 
+          typing_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME t_scope_list_g' ∧
+          t_map_to_pass (EL i funnl) (delta_b) =  SOME passed_delta_b ∧                    
+          (delta_t ≠ [] ⇒ MEM (EL i funnl) Pb_n) ∧
+          frame_typ (t_scope_list_g',EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,delta_t) Prs_n Pb_n g_scope_list (EL i scl) (EL i stml))
+
+         ∧
+
+         (* The ret of the frame is well typed with empty delta_t, thus we do not call any tables f_not_reserved_then_ordered
+            which we know because all the names of functions in the frames are not in the Pb_n *)  
+
+         (i < LENGTH frames_list - 1  ==>
+            ∃ t_scope_list_g' passed_delta_b. 
+              typing_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME t_scope_list_g' ∧
+                      t_map_to_pass (EL i funnl) delta_b =  SOME passed_delta_b ∧
+          ~ (MEM (EL i funnl) Pb_n)  /\
+          frame_typ (t_scope_list_g',EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,[]) Prs_n Pb_n g_scope_list (EL i scl) (EL i stml))            
+
+`;
+
+
+
+}}
 
 defns
 WT_state :: '' ::=
 defn
- ctx state Prs_n Pb_n order t_scopes_tup delta :: :: WT_state :: WT_state_
+ctx state Prs_n Pb_n order ( t_scope_list_g , t_scopes_frames ) delta :: :: WT_state :: WT_state_
 {{ com context well typed }}
-{{ tex WT [[ctx]] [[state]] [[Prs_n]] [[Pb_n]] [[order]] [[t_scopes_tup]] [[delta]] }}
+{{ tex WT [[ctx]] [[state]] [[Prs_n]] [[Pb_n]] [[order]] [[t_scope_list_g]] [[t_scopes_frames]] [[delta]] }}
 by
 
-%TODO: in the previous setting, the status was supposed to be running. Isn't bad in case we want to make a transition?
-%TODO: add equivelent def of global scope to pass for the typing, and add it to the 
+%Question: in the previous setting, the status was supposed to be running. Isn't bad in case we want to make a transition?
 
-%TODO this def add def for all frames_
-% ! 0< i <=n . ( t_scope_list_g , t_scope_list ) ( order , [ funn1 , .. ,  funnn ] , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n Pb_n |- ( g_scope_list , [ scopelist1 , .. ,  scope_listn] , [ stmt_stack1 , .. , stmt_stackn ] ) 
-%TODO: add the funnn is typed with delta_t but the rest empty delta_t (check pic for refernce point 1)
-%TODO: add that funn1 ordered funn2 ordered funn3 ... funnn
-
-type_state_tsll ( scope_list1 , .. , scope_listn ) t_scope_list
+ordered_list [ funn1 , .. , funnn ] order
+type_state_tsll ( scope_list1 , .. , scope_listn ) [ t_scope_list1 , .. , t_scope_listn ]
 type_scopes_list g_scope_list t_scope_list_g
+parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ]
 ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n
+( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n Pb_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
 ---------------------------------------------------------------------- :: state
-ctx ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , Running ) Prs_n Pb_n order ( t_scope_list_g , t_scope_list ) ( delta_g , delta_b , delta_x , delta_t )
+ctx ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n Pb_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
 
 
 
