@@ -81,25 +81,25 @@ val prog_strexp_tup_def = Define `
 
 
 
-val INDEX_FIND_concat3 = prove (``
+Theorem INDEX_FIND_concat3:
 ! P sl gsl.
 INDEX_FIND 0 P (sl ⧺ gsl) = NONE <=>
 (INDEX_FIND 0 P (sl) = NONE /\
- INDEX_FIND 0 P (gsl) = NONE) ``,
-
+ INDEX_FIND 0 P (gsl) = NONE)
+Proof
 rw[] >>
 rpt strip_tac>>
 fs[INDEX_FIND_NONE_EXISTS]
-);
+QED
 
 
 
-val find_topmost_map_concat_none = prove( ``
+Theorem find_topmost_map_concat_none:
 ! sl gsl v .
 find_topmost_map (sl ⧺ gsl) v = NONE <=>
 (find_topmost_map (sl) v  = NONE /\
- find_topmost_map (gsl) v  = NONE ) ``,
-
+ find_topmost_map (gsl) v  = NONE ) 
+Proof
 rpt strip_tac >>
 fs[find_topmost_map_def] >>
 Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc v)) (sl ⧺ gsl)` >>
@@ -116,7 +116,7 @@ fs[] >| [
  IMP_RES_TAC INDEX_FIND_concat3 >>
  gvs[]
 ]
-);
+QED
 
 
 
@@ -167,12 +167,12 @@ gvs[INDEX_FIND_EQ_SOME_0]
 
 
 
-val lookup_map_concat_none = prove ( ``
+Theorem lookup_map_concat_none:
 ! sl gsl v .
 lookup_map (sl ⧺ gsl) (v) = NONE <=>
 (lookup_map (sl) (v) = NONE /\
- lookup_map (gsl) (v) = NONE) ``,
-
+ lookup_map (gsl) (v) = NONE) 
+Proof
 rpt strip_tac >>
 fs[lookup_map_def] >>
 fs[] >>
@@ -195,7 +195,7 @@ fs[] >| [
 
  IMP_RES_TAC topmost_map_not_none
 ]
-);
+QED
 
 
 
@@ -290,14 +290,14 @@ EVAL_TAC
 
 
 
-val R_implies_topmost_map_scopesl = prove (``
+Theorem R_implies_topmost_map_scopesl:
 !R x l1 l2 scl tcl.
    similarl R tcl scl ⇒
    (SOME l1 = topmost_map tcl x ⇒
            ? l2'. SOME l2' = topmost_map scl x ∧ similar R l1 l2') /\
    (SOME l2 = topmost_map scl x ⇒
            ? l1'. SOME l1' = topmost_map tcl x ∧ similar R l1' l2)
-``,	
+Proof
 
 reverse (Induct_on `tcl` >>
          Induct_on `scl` ) >- (
@@ -339,7 +339,7 @@ reverse (Induct_on `tcl` >>
 fs[topmost_map_def, find_topmost_map_def, similar_def, similarl_def] >>
 fs[INDEX_FIND_def]
 
-);
+QED
 
 
 
@@ -579,11 +579,11 @@ srw_tac [SatisfySimps.SATISFY_ss][]
 
 
 
-val correct_field_type_FIND = prove ( ``
+Theorem correct_field_type_FIND:
 ! s tau l  .
 correct_field_type (MAP (λ(x_,v_,tau_). (x_,tau_)) l) s tau ==>
   ∃v'. FIND (λ(k,v). k = s) (MAP (λ(x_,v_,tau_). (x_,v_)) l) = SOME (s,v')
-``,
+Proof
 
 gvs[correct_field_type_def] >>
 fs[tau_in_rec_def] >>
@@ -595,7 +595,7 @@ PairCases_on `x` >> fs[] >>
 Cases_on `x1 = tau` >> gvs[] >>
 IMP_RES_TAC FIND_in_typl_imp_rec >>
  srw_tac [SatisfySimps.SATISFY_ss][]
-);
+QED
 
 
 
@@ -972,7 +972,7 @@ gvs[]  >| [
 
 
 
-val e_lval_WT = prove ( ``
+Theorem e_lval_WT:
 ! e x tau gtsl gscope tsl scopest T_e .
 star_not_in_sl scopest /\
 type_scopes_list gscope gtsl /\
@@ -982,7 +982,8 @@ e_typ (gtsl,tsl) T_e e tau T ==>
         (∃lval v.
           get_lval_of_e e = SOME lval ∧
           lookup_lval (scopest ⧺ gscope) lval = SOME v /\
-	  v_typ v tau F) ``,
+	  v_typ v tau F)
+Proof    
 	  
 
 Induct >>
@@ -1101,7 +1102,7 @@ fs[get_lval_of_e_def] >>
 fs[Once e_typ_cases] >>
 fs[Once v_typ_cases]
 
-);
+QED
 
 
 

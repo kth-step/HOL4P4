@@ -773,19 +773,18 @@ QED
 
 
 
-val lookup_map_none_lemma1 = prove ( ``
-! t_scope_list_g x .  LENGTH t_scope_list_g = 2 /\
-  lookup_map t_scope_list_g (varn_star (funn_name x)) = NONE ==>
-  (ALOOKUP (EL 1 t_scope_list_g) (varn_star (funn_name x)) = NONE /\
-   ALOOKUP (EL 0 t_scope_list_g) (varn_star (funn_name x)) = NONE)``,
-
+Theorem lookup_map_none_lemma1:
+! t_scope_list_g varn.  LENGTH t_scope_list_g = 2 /\
+  lookup_map t_scope_list_g (varn) = NONE ==>
+  (ALOOKUP (EL 1 t_scope_list_g) (varn) = NONE /\
+   ALOOKUP (EL 0 t_scope_list_g) (varn) = NONE)
+Proof
 REPEAT STRIP_TAC >>
 fs[lookup_map_def] >>
 fs[topmost_map_def] >>
 fs[find_topmost_map_def] >>
 
-Cases_on `INDEX_FIND 0
-(λsc. IS_SOME (ALOOKUP sc (varn_star (funn_name x)))) t_scope_list_g` >>
+Cases_on `INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc varn)) t_scope_list_g` >>
 fs[] >> rw[] >> FIRST[
   (* first and third subgoals *)
   IMP_RES_TAC index_none_not_every >>
@@ -794,13 +793,13 @@ fs[] >> rw[] >> FIRST[
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[]
   ,
   (* second and fourth subgoals *)
-  PairCases_on `x'` >>
+  PairCases_on `x` >>
   fs[] >>
-  Cases_on `ALOOKUP x'1 (varn_star (funn_name x))` >>
+  Cases_on `ALOOKUP x1 varn` >>
   fs[] >> rw[] >>
   fs[INDEX_FIND_EQ_SOME_0]
   ]
-);
+QED
 
 
 
@@ -1080,8 +1079,7 @@ REPEAT STRIP_TAC >| [
 
    fs[WT_c_cases] >>
    gvs[WTFg_cases, func_map_typed_def] >>
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`stmt`, `xdl`, `s`])) >>
+   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt`, `xdl`, `s`])) >>
    gvs[] >>
    IMP_RES_TAC t_lookup_funn_lemma >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`])) >>
@@ -1089,8 +1087,7 @@ REPEAT STRIP_TAC >| [
    ,
    fs[WT_c_cases] >>
    gvs[WTFb_cases, func_map_blk_typed_def] >>
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`stmt`, `xdl`, `s`])) >> gvs[] >>
+   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt`, `xdl`, `s`])) >> gvs[] >>
    IMP_RES_TAC t_lookup_funn_blk_lemma >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`, `delta_g`])) >>
    srw_tac [SatisfySimps.SATISFY_ss][]
@@ -1935,13 +1932,13 @@ val fb_e_typed_tac = TRY( OPEN_EXP_TYP_TAC ``(e)``) >>
 
 
 
-val fb_exp_typed_thm = prove (  ``
+Theorem fb_exp_typed_thm:
  ! (ty:'a itself) . (
 (! e  . fb_e_typ (e) ty) /\
 (! el . fb_el_typ (el) ty) /\
 (! stel . fb_stel_typ (stel) ty) /\
 (! stetup . fb_stetup_typ (stetup) ty))
-``,
+Proof
 
 STRIP_TAC >>
 Induct >>
@@ -2016,7 +2013,7 @@ fs[fb_e_typ_def, fb_el_typ_def, fb_stel_typ_def, fb_stetup_typ_def] >>
 REPEAT STRIP_TAC >>
 gvs[]
 ]
-);
+QED
 
 
 
@@ -2075,7 +2072,9 @@ gvs[] >>
 val fg_stmt_typ_theorm =  prove (``
 ! stmt c f' order t_scope_list_g t_scope_list_g s delta_g delta_b
   delta_x delta_t Prs_n order t_scope_local ty.
-      dom_tmap_ei delta_g delta_b ∧
+  dom_tmap_ei delta_g delta_b ∧
+  ALOOKUP delta_x s = NONE ∧
+  ALOOKUP delta_b s = NONE ∧        
       ordered (funn_name s) f' order ∧
       stmt_typ (t_scope_list_g,t_scope_local)
                (order,funn_name s,delta_g,[],[],[]) [] stmt ⇒
@@ -2113,13 +2112,17 @@ srw_tac [SatisfySimps.SATISFY_ss][]
  gvs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][] >>
  gvs[trans_names_imp]
+ ,
+ gvs[ext_is_defined_def]
+ ,
+ gvs[ext_not_defined_def]                         
 ]
 );
 
 
 
 
-val lval_typ_deltas_lemma2 = prove (“
+Theorem lval_typ_deltas_lemma2:
 ! lval tau f order t_scope_list_g t_scope_list_g s delta_g delta_b
  delta_x delta_t Prs_n order t_scope_local ty.
       dom_tmap_ei delta_g delta_b ∧       
@@ -2127,7 +2130,8 @@ lval_typ (t_scope_list_g,t_scope_local)
          (order,funn_name s,delta_g,delta_b,delta_x,[]) lval (t_tau tau) ⇒
 (lval_typ (t_scope_list_g,t_scope_local)
             (order,funn_name s,delta_g,delta_b,delta_x,delta_t) lval
-            (t_tau tau))   ”,
+            (t_tau tau))
+Proof            
              
 Induct_on ‘lval’>>
 REPEAT STRIP_TAC >>
@@ -2152,7 +2156,7 @@ gvs[] >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`])) >>
      srw_tac [SatisfySimps.SATISFY_ss][]
     ]
-);
+QED
 
                                   
 
@@ -2228,7 +2232,7 @@ gvs[]
 
 
 
-
+        
                 
 
 val all_func_maps_contains_welltyped_body_min = prove ( ``
@@ -2237,7 +2241,7 @@ val all_func_maps_contains_welltyped_body_min = prove ( ``
   apply_table_f (ext_map:'a ext_map) func_map b_func_map pars_map tbl_map
   order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n delta_t Pb_n.
         dom_tmap_ei delta_g delta_b ∧ dom_g_eq delta_g func_map ∧
-        dom_b_eq delta_b b_func_map ∧
+        dom_b_eq delta_b b_func_map ∧ typying_domains_ei delta_g delta_b delta_x ∧
         WTFg func_map order t_scope_list_g delta_g ∧
         WTFb b_func_map order t_scope_list_g delta_g delta_b delta_x ∧
 MAP SND tdl = MAP SND xdl /\
@@ -2271,6 +2275,10 @@ Cases_on `f` >| [
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt`,`xdl `,`s`])) >>
    gvs[UNZIP_rw, same_dir_def, mk_tscope_def] >>
 
+   subgoal ‘ALOOKUP delta_x s = NONE’ >- (
+         gvs[typying_domains_ei_def, dom_empty_intersection_def] >>                                                      
+         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[] ) >>
+                                                            
 
      subgoal `tdl' = tdl` >- (
        IMP_RES_TAC t_lookup_funn_lemma >>
@@ -2280,6 +2288,9 @@ Cases_on `f` >| [
        gvs[]) >>
      srw_tac [] [fg_stmt_typ_theorm] >>
 
+
+
+     
      drule (INST_TYPE [``:'b`` |-> ``:funn list``] fg_stmt_typ_theorm) >> 
      gvs[] >>
      STRIP_TAC >>
@@ -2312,11 +2323,22 @@ Cases_on `f` >| [
  ,
          (* funn inst s *)
  IMP_RES_TAC funn_inst_ext_prod_ext_stmt >>
- srw_tac [SatisfySimps.SATISFY_ss] [Once stmt_typ_cases, clause_name_def]
+ srw_tac [SatisfySimps.SATISFY_ss] [Once stmt_typ_cases, clause_name_def] >>
+ gvs[ext_is_defined_def, ext_not_defined_def] >>
+ gvs[t_lookup_funn_def] >>
+ REPEAT BasicProvers.FULL_CASE_TAC >> gvs[typying_domains_ei_def, dom_empty_intersection_def] >> 
+ REPEAT (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[])
+
+         
  ,
         (* funn ext s s' *)
  IMP_RES_TAC funn_inst_ext_prod_ext_stmt >>
- srw_tac [SatisfySimps.SATISFY_ss] [Once stmt_typ_cases, clause_name_def]
+ srw_tac [SatisfySimps.SATISFY_ss] [Once stmt_typ_cases, clause_name_def] >>
+ gvs[ext_is_defined_def, ext_not_defined_def] >>
+ gvs[t_lookup_funn_def] >>
+ REPEAT BasicProvers.FULL_CASE_TAC >> gvs[typying_domains_ei_def, dom_empty_intersection_def] >> 
+ REPEAT (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[])
+                                  
 ]
 );
 
@@ -3863,10 +3885,11 @@ fs[init_out_v_typed_def, init_out_v_def] >| [
 
 
 
-val FIND_in_conc = prove( ``
+Theorem FIND_in_conc:
 ! xtl s a . 
 FIND (λx. FST x = s) xtl = SOME a ==>
-     (FST a=s) ``,
+     (FST a=s)
+Proof     
 
 Induct_on `xtl` >>
 REPEAT STRIP_TAC >>
@@ -3876,7 +3899,7 @@ Cases_on ` FST h = s` >> gvs[] >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`, `xtl`, `(λx. FST x = s)`, `z`])) >>
    gvs[GSYM ADD1] >> 
 RES_TAC
-);
+QED
 
 
 
