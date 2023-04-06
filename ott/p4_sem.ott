@@ -604,22 +604,23 @@ formula :: formula_ ::=
 | literials_in_P_state [ x1 , .. , xn ] Prs_n :: :: literials_in_P_state
   {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
 
-| ordered funn funn' order :: :: ordered
-  {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
-| ordered_list [ funn1 , .. , funnn ] order :: :: ordered_list
-  {{ hol (ordered_list [[funn1 .. funnn]] [[order]]) }}
-| WF_o order :: :: WF_order
+| order funn funn' :: :: ordered_f_pair
+  {{ hol ([[order]] (order_elem_f [[funn]]) (order_elem_f [[funn']])) }}
+| order ( order_elem_t tbl ) funn :: :: ordered_tbl_f_pair  
+  {{ hol ([[order]] (order_elem_t [[tbl]]) (order_elem_f [[funn]])) }}
+
+| ordered_list order [ funn1 , .. , funnn ]  :: :: ordered_list_f
+  {{ hol (ordered_list [[order]] ( MAP (\f. order_elem_f f ) [[funn1 .. funnn]])  ) }}
+| WF_o order :: :: WF_o
   {{ hol ( WF_o [[order]] )}}
-| f_ordered_with_any_reserved delta_g delta_b delta_x Pb_n order :: :: f_ordered_with_any_reserved
-  {{ com all functions come after the first frame are ordered}}
-  {{ hol f_ordered_with_any_reserved [[delta_g]] [[delta_b]] [[delta_x]] [[Pb_n]] [[order]] }}
-| f_not_reserved_then_ordered delta_g delta_b delta_x Pb_n order :: :: f_not_reserved_then_ordered
-  {{ com if function not in reserved Pb_n, then ordered with it}}
-  {{ hol f_not_reserved_then_ordered [[delta_g]] [[delta_b]] [[delta_x]] [[Pb_n]] [[order]] }}
-| base_frame_is_in_Pb_n delta_t funn Pb_n :: :: base_frame_is_in_Pb_n
-  {{ hol base_frame_is_in_Pb_n [[delta_t]] [[funn]] [[Pb_n]] }}
-| table_map_typed tbl_map apply_table_f delta_g delta_b Pb_n :: :: table_map_typed
-  {{ hol table_map_typed [[tbl_map]] [[apply_table_f]] [[delta_g]] [[delta_b]] [[Pb_n]] }}  
+| deltas_order delta_g delta_b delta_x order :: :: deltas_order 
+  {{ hol (deltas_order [[delta_g]] [[delta_b]] [[delta_x]] [[order]] )}}  
+| WF funnl delta_g delta_b delta_x order :: :: WF_funnl_deltas
+  {{ hol ( WF [[funnl]] [[delta_g]] [[delta_b]] [[delta_x]] [[order]]  )}}
+
+
+| table_map_typed tbl_map apply_table_f delta_g delta_b order :: :: table_map_typed
+  {{ hol ( table_map_typed [[tbl_map]] [[apply_table_f]] [[delta_g]] [[delta_b]] [[order]] ) }}  
 | MEM x x_list :: :: x_in_xlist
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
 | not_star ( varn ) :: :: not_star  
@@ -627,10 +628,10 @@ formula :: formula_ ::=
 | length_is_2 ( t_scope_list_g ) :: M :: length_is_2
   {{ hol ( 2 = LENGTH [[t_scope_list_g]] ) }}
 
-| func_map_typed func_map order t_scope_list_g delta_g :: ::  func_map_typed 
-  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] ) }} 
-| func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x :: :: func_map_blk_typed
-  {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }} 
+| func_map_typed func_map order t_scope_list_g delta_g delta_t :: ::  func_map_typed 
+  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_t]] ) }} 
+| func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t :: :: func_map_blk_typed
+  {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] ) }} 
 | extern_map_IoE_typed ext_map t_scope_list_g delta_x :: :: extern_map_IoE_typed
   {{ hol ( extern_map_IoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_x]] ) }}
 | extern_MoE_typed ext_map t_scope_list_g delta_x :: :: extern_MoE_typed
@@ -683,8 +684,8 @@ formula :: formula_ ::=
   {{ hol (LENGTH [[delta_b]] = LENGTH [[b_func_map]] ) }} 
 | length_eq delta_t tbl_map :: :: length_eq_tbl  
   {{ hol (LENGTH [[delta_t]] = LENGTH [[tbl_map]] ) }} 
-| ( g_scope_list , frame_list , status ) -||| Prs_n Pb_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) :: :: type_frames
-  {{ hol ( type_frames [[g_scope_list]] [[frame_list]] [[Prs_n]] [[Pb_n]] [[order]] [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] ) }}
+| ( g_scope_list , frame_list , status ) -||| Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) :: :: type_frames
+  {{ hol ( type_frames [[g_scope_list]] [[frame_list]] [[Prs_n]] [[order]] [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] ) }}
 
 | ext_is_defined delta_x funn :: :: ext_is_defined
   {{ hol ext_is_defined [[delta_x]] [[funn]] }}
@@ -2500,8 +2501,7 @@ by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
   b_func_map' = map_to_pass funn b_func_map
-  tbl_map' = table_to_pass frame_list'' tbl_map
-  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
   notret( status' , frame_list'' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
   ----------------------------------- :: comp1
@@ -2511,7 +2511,7 @@ by
 % TODO change tbl_map here to e mpty
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
   b_func_map' = map_to_pass funn b_func_map
-  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , empty ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
   g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
    g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' )

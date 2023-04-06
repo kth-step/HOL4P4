@@ -42,7 +42,7 @@ val _ = new_theory "e_progress";
 val prog_exp_def = Define `
  prog_exp (e) (ty:'a itself) =
  !gscope (scopest:scope list) t_scope_list t_scope_list_g
- T_e tau b (c:'a ctx) order delta_g delta_b (delta_t:delta_t) delta_x f Pb_n.
+ T_e tau b (c:'a ctx) order delta_g delta_b (delta_t:delta_t) delta_x f.
      	 
           type_scopes_list gscope t_scope_list_g ∧
           type_scopes_list scopest t_scope_list ∧
@@ -50,7 +50,7 @@ val prog_exp_def = Define `
 	  ~(is_const e) ∧
           e_typ (t_scope_list_g,t_scope_list) T_e e tau b ∧
           (T_e = (order,  f, (delta_g, delta_b, delta_x, delta_t))) /\	  
-	  WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n ==>
+	  WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ==>
           ?e' framel. e_red c gscope scopest e e' framel
 `;
 
@@ -1643,7 +1643,7 @@ Cases_on `is_const e` >| [
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
   [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
   `t_tau (tau_xtl struct_ty x_tau_list)`, ` b`, ` c`, ` order`, `
-            delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f`, ‘Pb_n’])) >>
+            delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
   gvs[] >>
   srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
 ]
@@ -1683,7 +1683,7 @@ Cases_on `is_const e` >| [
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
   [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
    `tau`, ` b'`, ` c`, ` order`, `delta_g`, ` delta_b`,
-   ` delta_t`, ` delta_x`,`f`, ‘Pb_n’])) >>
+   ` delta_t`, ` delta_x`,`f`])) >>
 
  gvs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
@@ -1779,7 +1779,7 @@ rpt strip_tac >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
     `t_tau (tau_bit w)`, ` b''`, ` c`, ` order`, `delta_g`,
-    ` delta_b`, ` delta_t`, ` delta_x`,`f`, ‘Pb_n’])) >>
+    ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
 
    gvs[] >>
    gvs[is_const_val_exsist] >>
@@ -1792,7 +1792,7 @@ rpt strip_tac >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
     `t_tau (tau_bool)`, ` b''`, ` c`, ` order`, `delta_g`,
-    ` delta_b`, ` delta_t`, ` delta_x`,`f`, ‘Pb_n’])) >>
+    ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
    gvs[] >>
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][]  
@@ -1804,7 +1804,7 @@ rpt strip_tac >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
     `t_tau (tau_err)`, ` b''`, ` c`, ` order`, `delta_g`,
-    ` delta_b`, ` delta_t`, ` delta_x`,`f`, ‘Pb_n’])) >>
+    ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
    gvs[] >>
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][] 
@@ -1815,7 +1815,7 @@ rpt strip_tac >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
    `(t_tau (tau_bit w))`, ` b''`, ` c`, ` order`, `
-            delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f`, ‘Pb_n’])) >>	    
+            delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>	    
    gvs[] >>
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][] 
@@ -1870,7 +1870,7 @@ Cases_on `is_const e` >| [
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
     [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
      `(t_tau (tau_bit w2'))`, ` b''`, ` c`, ` order`, `
-            delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f` , ‘Pb_n’])) >>
+            delta_g`, ` delta_b`, ` delta_t`, ` delta_x`,`f` ])) >>
 	    
    gvs[] >>
    gvs[is_const_val_exsist] >>
@@ -1884,7 +1884,7 @@ Cases_on `is_const e` >| [
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
   [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
    `(t_tau (tau_bit w1))`, ` b'`, ` c`, ` order`, `delta_g`,
-   ` delta_b`, ` delta_t`, ` delta_x`,`f` , ‘Pb_n’])) >>
+   ` delta_b`, ` delta_t`, ` delta_x`,`f` ])) >>
   gvs[] >>
   srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
 ]
@@ -1925,7 +1925,7 @@ Cases_on `is_const e` >| [
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
   [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
    `(t_tau (tau_bit w))`, ` b`, ` c`, ` order`, `delta_g`,
-   ` delta_b`, ` delta_t`, ` delta_x`,`f`, ‘Pb_n’])) >>
+   ` delta_b`, ` delta_t`, ` delta_x`,`f`])) >>
   gvs[] >>
   gvs[is_const_val_exsist] >>
   srw_tac [SatisfySimps.SATISFY_ss][]   
@@ -1965,7 +1965,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
    [`c0`, `c1`, `c2`, `c3`, `c4`, `c5`, `order`, `t_scope_list_g`,
    `delta_g`, `delta_b`, `delta_x`,
    `(MAP (λ(e_,tau_,d_,b_).(tau_,d_)) (e_tau_d_b_list : (e # tau # d # bool) list))`,
-   `tau'`, `f` , ‘delta_t’ , ‘Pb_n’])) >> gvs[] >>
+   `tau'`, `f` , ‘delta_t’  ])) >> gvs[] >>
 
  Q.EXISTS_TAC `ZIP ((MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list),
                    ZIP(MAP FST xdl,MAP SND xdl))` >>
@@ -2029,7 +2029,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
    [`c0`, `c1`, `c2`, `c3`, `c4`, `c5`, `order`, `t_scope_list_g`,
    `delta_g`, `delta_b`, `delta_x`,
    `(MAP (λ(e_,tau_,d_,b_).(tau_,d_)) (e_tau_d_b_list : (e # tau # d # bool) list))`,
-   `tau'`, `f`, ‘delta_t’, ‘Pb_n’])) >> gvs[] >>
+   `tau'`, `f`, ‘delta_t’])) >> gvs[] >>
 
 
  (* now use IH *)
@@ -2053,7 +2053,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
    `(t_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_)
    (e_tau_d_b_list : (e # tau # d # bool) list))))`,
    `(EL i (MAP (λ(e_,tau_,d_,b_). b_) (e_tau_d_b_list : (e # tau # d # bool) list)))`,
-   `(c0,c1,c2,c3,c4,c5)`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f'`, ‘Pb_n’])) >> gvs[] >>
+   `(c0,c1,c2,c3,c4,c5)`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f'`])) >> gvs[] >>
  
  IMP_RES_TAC unred_arg_index_result >| [
    (* if d is in/none, then it shouldn't be a constant in order to reduce it *)
@@ -2150,7 +2150,7 @@ Cases_on `is_const e` >| [
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
  [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
    `t_tau tau'`, ` b'`, ` c`, ` order`, `delta_g`,
-   ` delta_b`, ` delta_t`, ` delta_x`,`f` , ‘Pb_n’])) >>
+   ` delta_b`, ` delta_t`, ` delta_x`,`f` ])) >>
  gvs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][clause_name_def] >>
  gvs[is_const_def]
@@ -2227,7 +2227,7 @@ Cases_on `is_consts (MAP (λ(f_,e_,tau_,b_). (e_)) f_e_tau_b_list)` >| [
  [`gscope`,`scopest`, `t_scope_list`, `t_scope_list_g`,
  `(t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`,
  `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list : (string # e # tau # bool) list)))`,
- `c`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f` , ‘Pb_n’
+ `c`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f` 
  ]) o (SIMP_RULE (srw_ss()) [prog_exp_def])) >>
 
  gvs[] >>
@@ -2318,7 +2318,7 @@ Cases_on `is_consts (MAP (λ(f_,e_,tau_,b_). (e_)) f_e_tau_b_list)` >| [
  [`gscope`,`scopest`, `t_scope_list`, `t_scope_list_g`,
  `(t_tau (EL i (MAP (λ(f_,e_,tau_,b_). tau_) (f_e_tau_b_list : (string # e # tau # bool) list))))`,
  `(EL i (MAP (λ(f_,e_,tau_,b_). b_) (f_e_tau_b_list : (string # e # tau # bool) list)))`,
- `c`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f` , ‘Pb_n’
+ `c`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f` 
  ]) o (SIMP_RULE (srw_ss()) [prog_exp_def])) >>
 
  gvs[] >>

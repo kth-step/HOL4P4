@@ -51,7 +51,7 @@ val OPEN_ANY_STMT_RED_TAC =
  (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
  
 fun OPEN_FRAME_TYP_TAC frame_term =
-(Q.PAT_X_ASSUM ` frame_typ (t1,t2) t a b h d ^frame_term` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once frame_typ_cases] thm)))
+(Q.PAT_X_ASSUM ` frame_typ (t1,t2) a b h d ^frame_term` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once frame_typ_cases] thm)))
    
 fun OPEN_LVAL_TYP_TAC lval_term =
 (Q.PAT_X_ASSUM `lval_typ (g1,q1) t (^lval_term) (tp)` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once lval_typ_cases] thm)))
@@ -65,13 +65,13 @@ val _ = new_theory "stmt_subject_reduction";
     
 (* represent the definition of:
  ψlist_G  ψlist_local ⊢ Φ)
- Pb_n is the programmable blocks names so it is the main  *)
+  is the programmable blocks names so it is the main  *)
 val res_frame_typ_def = Define ‘
 res_frame_typ T_e t_scope_list_g t_scope_list gscope framel =
 ∀i. 0 <= i ∧ i < LENGTH framel ⇒
-           ∃stmt_stack f_name local_scope_list Prs_n Pb_n.
+           ∃stmt_stack f_name local_scope_list Prs_n .
              EL i framel = (f_name,stmt_stack,local_scope_list) ∧
-             frame_typ (t_scope_list_g,t_scope_list) T_e Prs_n Pb_n gscope
+             frame_typ (t_scope_list_g,t_scope_list) T_e Prs_n  gscope
                local_scope_list stmt_stack
 ’;
 
@@ -79,23 +79,23 @@ res_frame_typ T_e t_scope_list_g t_scope_list gscope framel =
    
 val sr_stmt_def = Define `
  sr_stmt (stmt) (ty:'a itself) =
-∀ stmtl ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n Pb_n.
+∀ stmtl ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n .
       
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
        type_scopes_list  (scopest) (t_scope_list)   ∧
        star_not_in_sl (scopest) ∧
        parseError_in_gs t_scope_list_g [t_scope_list] ∧
                         
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
-       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n Pb_n gscope scopest [stmt] ) ∧
+       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest [stmt] ) ∧
              
        (stmt_red c ( ascope ,  gscope  ,           [ (f, [stmt], scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl , scopest')] , status')) ⇒
        (∃ t_scope_list' f_called.
-       res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, [])) t_scope_list_g t_scope_list' gscope framel ) ∧
+       res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel ) ∧
        (∃ t_scope_list''  .  LENGTH t_scope_list'' = (LENGTH stmtl - LENGTH [stmt]) ∧
-        frame_typ  ( t_scope_list_g  ,  t_scope_list''++t_scope_list ) T_e Prs_n Pb_n gscope' scopest' stmtl)
+        frame_typ  ( t_scope_list_g  ,  t_scope_list''++t_scope_list ) T_e Prs_n  gscope' scopest' stmtl)
 `;
 
 
@@ -356,18 +356,18 @@ QED
 
 
 (* TODO: simplify by making frame_typ just a stmt type, then make it in another theorem *)
-(* here we knwo that also teh frame we create and trying to type, the Pb_n is empty*)
+(* here we knwo that also teh frame we create and trying to type, the  is empty*)
 val SR_stmt_newframe = prove ( “
-∀ stmt stmtl ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n Pb_n.
+∀ stmt stmtl ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n .
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
        type_scopes_list  (scopest) (t_scope_list)   ∧
        star_not_in_sl (scopest) ∧
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
-       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n Pb_n gscope scopest [stmt] ) ∧
+       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest [stmt] ) ∧
        (stmt_red c ( ascope ,  gscope  ,           [ (f, [stmt], scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl , scopest')] , status')) ⇒
-       (∃ t_scope_list' f_called. res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, [])) t_scope_list_g t_scope_list' gscope framel ) ”,
+       (∃ t_scope_list' f_called. res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel ) ”,
 
                                   
 Induct >>
@@ -400,7 +400,7 @@ REPEAT STRIP_TAC >| [
       fs[sr_exp_def] >>
                      
        
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘(t_tau tau')’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘(t_tau tau')’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
       gvs[] >>
             
       Q.EXISTS_TAC ‘t_scope_list_fr’ >>
@@ -413,7 +413,6 @@ REPEAT STRIP_TAC >| [
       Q.EXISTS_TAC ‘f_called’ >> 
       Q.EXISTS_TAC ‘copied_in_scope’ >>
       Q.EXISTS_TAC ‘Prs_n’ >>              
-      Q.EXISTS_TAC ‘Pb_n’ >>
       gvs[]  >>
 
       ‘i=0’ by fs[] >>       
@@ -427,7 +426,7 @@ REPEAT STRIP_TAC >| [
         
   (* condition case *)
 
-        
+
         (* we know that the length of the frame is either 0 or one from :*)
     IMP_RES_TAC fr_len_from_a_frame_theorem >| [
         OPEN_ANY_STMT_RED_TAC >>
@@ -453,7 +452,7 @@ REPEAT STRIP_TAC >| [
         fs[sr_exp_def] >>
                      
        
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘(t_tau tau_bool)’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘(t_tau tau_bool)’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
       gvs[] >>
             
       Q.EXISTS_TAC ‘t_scope_list_fr’ >>
@@ -467,7 +466,6 @@ REPEAT STRIP_TAC >| [
       Q.EXISTS_TAC ‘f_called’ >> 
       Q.EXISTS_TAC ‘copied_in_scope’ >>  
         Q.EXISTS_TAC ‘Prs_n’ >>
-                 Q.EXISTS_TAC ‘Pb_n’ >>         
       gvs[]  >>
 
       ‘i=0’ by fs[] >>       
@@ -492,12 +490,12 @@ REPEAT STRIP_TAC >| [
         gvs[]>>
 
         (* use IH *)
-        LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘stmt_stack' ⧺ [stmt1']’, ‘ascope’, ‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’, ‘scopest'’,‘[(f_called,[stmt_called],copied_in_scope)]’,‘status_running’,‘status_running’,‘t_scope_list’,‘t_scope_list_g’, ‘c’, ‘order’,‘delta_g’,‘delta_b’,‘delta_t’,‘delta_x’,‘f’,‘Prs_n’, ‘Pb_n’])) >>                             
+        LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘stmt_stack' ⧺ [stmt1']’, ‘ascope’, ‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’, ‘scopest'’,‘[(f_called,[stmt_called],copied_in_scope)]’,‘status_running’,‘status_running’,‘t_scope_list’,‘t_scope_list_g’, ‘c’, ‘order’,‘delta_g’,‘delta_b’,‘delta_t’,‘delta_x’,‘f’,‘Prs_n’])) >>                             
         gvs[] >>
 
         (* we know that [stmt] is well typed from frame_typ*)
           subgoal ‘frame_typ (t_scope_list_g,t_scope_list)
-          (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n Pb_n gscope scopest
+          (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n  gscope scopest
           [stmt]’ >-
           (       OPEN_FRAME_TYP_TAC “[stmt_seq stmt stmt']” >>
                   SIMP_TAC list_ss [Once frame_typ_cases]>>
@@ -557,7 +555,7 @@ REPEAT STRIP_TAC >| [
         fs[sr_exp_def] >>
                      
        
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘(t_tau tau_bool)’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘(t_tau tau_bool)’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
       gvs[] >>
             
       Q.EXISTS_TAC ‘t_scope_list_fr’ >>
@@ -572,7 +570,6 @@ REPEAT STRIP_TAC >| [
                      
       Q.EXISTS_TAC ‘copied_in_scope’ >>  
         Q.EXISTS_TAC ‘Prs_n’ >>
-                   Q.EXISTS_TAC ‘Pb_n’ >>       
       gvs[]  >>
 
       ‘i=0’ by fs[] >>       
@@ -604,7 +601,7 @@ REPEAT STRIP_TAC >| [
         fs[sr_exp_def] >>
                      
        
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘t_tau tau_err’, ‘b''’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘t_tau tau_err’, ‘b''’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
       gvs[] >>
             
       Q.EXISTS_TAC ‘t_scope_list_fr’ >>
@@ -617,7 +614,7 @@ REPEAT STRIP_TAC >| [
       Q.EXISTS_TAC ‘[stmt_called]’ >>
       Q.EXISTS_TAC ‘f_called’ >> 
       Q.EXISTS_TAC ‘copied_in_scope’ >>  
-      Q.EXISTS_TAC ‘Prs_n’ >>      Q.EXISTS_TAC ‘Pb_n’ >>
+      Q.EXISTS_TAC ‘Prs_n’ >> 
       gvs[]  >>
 
       ‘i=0’ by fs[] >>       
@@ -657,7 +654,7 @@ REPEAT STRIP_TAC >| [
 
      
        
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘t_string_names_a x_list’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’, ‘t_string_names_a x_list’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
       gvs[] >>
             
       Q.EXISTS_TAC ‘t_scope_list_fr’ >>
@@ -670,7 +667,7 @@ REPEAT STRIP_TAC >| [
       Q.EXISTS_TAC ‘[stmt_called]’ >>
       Q.EXISTS_TAC ‘f_called’ >> 
       Q.EXISTS_TAC ‘copied_in_scope’ >>  
-      Q.EXISTS_TAC ‘Prs_n’ >> Q.EXISTS_TAC ‘Pb_n’ >>
+      Q.EXISTS_TAC ‘Prs_n’ >>
       gvs[]  >>
 
       ‘i=0’ by fs[] >>       
@@ -726,7 +723,7 @@ REPEAT STRIP_TAC >| [
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’,
 
      ‘ (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
- ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+ ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
       gvs[] >>
             
       Q.EXISTS_TAC ‘t_scope_list_fr’ >>
@@ -739,7 +736,7 @@ REPEAT STRIP_TAC >| [
       Q.EXISTS_TAC ‘[stmt_called]’ >>
       Q.EXISTS_TAC ‘f_called’ >> 
       Q.EXISTS_TAC ‘copied_in_scope’ >>  
-      Q.EXISTS_TAC ‘Prs_n’ >> Q.EXISTS_TAC ‘Pb_n’ >>
+      Q.EXISTS_TAC ‘Prs_n’ >>
       gvs[]  >>
 
        ‘i'=0’ by fs[] >>
@@ -898,10 +895,10 @@ IMP_RES_TAC LIST_REL_LENGTH
 val typ_scope_list_ext_out_scope_lemma = prove (
   “ ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map
     order tslg delta_g delta_b delta_x ascope ascope'
-          gscope scopest  scopest' v ext_fun tsl tau tdl delta_t Pb_n.
+          gscope scopest  scopest' v ext_fun tsl tau tdl delta_t .
           
 WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-     order tslg delta_g delta_b delta_x delta_t Pb_n∧
+     order tslg delta_g delta_b delta_x delta_t ∧
 SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x ∧
 args_t_same (MAP FST tdl) tsl ∧    
 type_scopes_list scopest tsl ∧
@@ -3247,14 +3244,17 @@ QED
 
 
 
+val ordered_apply_call = prove  ( 
+“∀ order s f f'.
+WF_o order ∧  
+order (order_elem_t s) (order_elem_f f) ∧
+order (order_elem_f (funn_name f')) (order_elem_t s) ⇒
+order (order_elem_f (funn_name f')) (order_elem_f f)”,
 
-
-
-
-
-
-        
-
+REPEAT STRIP_TAC >>                    
+gvs[WF_o_def] >>
+RES_TAC       
+);
 
         
 
@@ -3264,10 +3264,10 @@ QED
 
 val stmt_to_stmt_single = prove ( “
 ∀ stmt stmt'  c order delta_g delta_b delta_x  delta_t tslg tsl
-       scopest scopest' gscope gscope' ascope ascope' status status'  framel f Prs_n Pb_n
+       scopest scopest' gscope gscope' ascope ascope' status status'  framel f Prs_n 
        tdl tau.                                      
                                         
-WT_c c order tslg delta_g delta_b delta_x delta_t Pb_n ∧                                
+WT_c c order tslg delta_g delta_b delta_x delta_t  ∧                                
 type_scopes_list scopest tsl ∧
 type_scopes_list gscope tslg ∧
 star_not_in_sl scopest ∧
@@ -3275,7 +3275,6 @@ parseError_in_gs tslg [tsl] ∧
 
 SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x ∧
 args_t_same (MAP FST tdl) tsl ∧
-base_frame_is_in_Pb_n delta_t f Pb_n ∧                                      
 stmt_red c (ascope ,gscope,           [(f,[stmt] , scopest )], status )
            (ascope',gscope',framel ⧺ [(f,[stmt'], scopest')], status') ∧
 stmt_typ (tslg,tsl) (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n stmt ⇒
@@ -3351,7 +3350,7 @@ gvs[Once stmt_typ_cases] >>
      
                     
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘framel’, ‘tsl’, ‘tslg’, ‘t_tau tau'’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘framel’, ‘tsl’, ‘tslg’, ‘t_tau tau'’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>
     
      srw_tac [SatisfySimps.SATISFY_ss][]
@@ -3368,8 +3367,8 @@ gvs[Once stmt_typ_cases] >>
 (*****************************)
 
 (* remove the induction hypothesis *)
- schneiderUtils.POP_NO_TAC 11 >>
  schneiderUtils.POP_NO_TAC 10 >>
+ schneiderUtils.POP_NO_TAC 9 >>
 
         
 (* we need to prove it directly from the IH *)
@@ -3407,7 +3406,7 @@ gvs[] >>
      
                     
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘framel’, ‘tsl’, ‘tslg’, ‘t_tau tau_bool’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘framel’, ‘tsl’, ‘tslg’, ‘t_tau tau_bool’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>
     
 srw_tac [SatisfySimps.SATISFY_ss][]
@@ -3451,7 +3450,7 @@ gvs[] >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘(t_tau tau')’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘(t_tau tau')’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
     gvs[type_frame_tsl_def]>>              
    srw_tac [SatisfySimps.SATISFY_ss][]
@@ -3476,7 +3475,7 @@ fs[type_frame_tsl_def] >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘(t_tau tau')’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘(t_tau tau')’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
     gvs[type_frame_tsl_def]>>              
    srw_tac [SatisfySimps.SATISFY_ss][]
@@ -3491,12 +3490,12 @@ fs[type_frame_tsl_def] >>
 (*****************************)
 
 
- schneiderUtils.POP_NO_TAC 10 >>
+ schneiderUtils.POP_NO_TAC 9 >>
 
  OPEN_STMT_RED_TAC “stmt_seq stmt stmt'” >>
  FIRST_X_ASSUM MP_TAC >>
  STRIP_TAC >| [  
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt1'`, ‘c’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_x’, ‘delta_t’, ‘tslg’,‘tsl’,‘scopest’,‘scopest'’,‘gscope’, ‘gscope'’,‘ascope’,‘ascope'’,‘status_running’,‘status_running’,‘framel’,‘f’, ‘Prs_n’, ‘Pb_n’ ,‘tdl’,‘tau’])) >>
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt1'`, ‘c’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_x’, ‘delta_t’, ‘tslg’,‘tsl’,‘scopest’,‘scopest'’,‘gscope’, ‘gscope'’,‘ascope’,‘ascope'’,‘status_running’,‘status_running’,‘framel’,‘f’, ‘Prs_n’ ,‘tdl’,‘tau’])) >>
   gvs[] >>
 
   OPEN_STMT_TYP_TAC “stmt_seq stmt stmt'” >>
@@ -3505,13 +3504,13 @@ fs[type_frame_tsl_def] >>
   SIMP_TAC list_ss [Once stmt_typ_cases] >> gvs[] 
   ,  
   OPEN_STMT_TYP_TAC “stmt_seq stmt stmt'” >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt''`, ‘c’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_x’, ‘delta_t’, ‘tslg’,‘tsl’,‘scopest’,‘scopest'’,‘gscope’, ‘gscope'’,‘ascope’,‘ascope'’,‘status_running’,‘status'’,‘[]’,‘f’, ‘Prs_n’, ‘Pb_n’ ,‘tdl’,‘tau’])) >> 
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt''`, ‘c’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_x’, ‘delta_t’, ‘tslg’,‘tsl’,‘scopest’,‘scopest'’,‘gscope’, ‘gscope'’,‘ascope’,‘ascope'’,‘status_running’,‘status'’,‘[]’,‘f’, ‘Prs_n’ ,‘tdl’,‘tau’])) >> 
         
   rfs[] >> gvs[type_frame_tsl_def]          
   ,
 
 
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt''`, ‘c’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_x’, ‘delta_t’, ‘tslg’,‘tsl’,‘scopest’,‘scopest'’,‘gscope’, ‘gscope'’,‘ascope’,‘ascope'’,‘status_running’,‘status'’,‘[]’,‘f’, ‘Prs_n’, ‘Pb_n’ ,‘tdl’,‘tau’])) >>  
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt''`, ‘c’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_x’, ‘delta_t’, ‘tslg’,‘tsl’,‘scopest’,‘scopest'’,‘gscope’, ‘gscope'’,‘ascope’,‘ascope'’,‘status_running’,‘status'’,‘[]’,‘f’, ‘Prs_n’ ,‘tdl’,‘tau’])) >>  
 
     gvs[] >> 
         
@@ -3548,7 +3547,7 @@ fs[type_frame_tsl_def]
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘t_tau tau_bool’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘t_tau tau_bool’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]
 
@@ -3559,7 +3558,7 @@ fs[type_frame_tsl_def]
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e0`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘t_tau tau_err’, ‘b'’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘t_tau tau_err’, ‘b'’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]
 
@@ -3619,7 +3618,6 @@ gvs[] >| [
                           
           
           ]     
-       (* TODO: wong typing rule?*)
 
         ,
   SIMP_TAC list_ss [Once stmt_typ_cases]>>
@@ -3647,7 +3645,7 @@ fs[type_frame_tsl_def] >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘t_tau tau_bool’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘t_tau tau_bool’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]
     ,
@@ -3663,7 +3661,7 @@ fs[type_frame_tsl_def] >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e0`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘t_tau tau_err’, ‘b'’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘t_tau tau_err’, ‘b'’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]
 
@@ -3699,7 +3697,7 @@ fs[type_frame_tsl_def] >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘t_string_names_a x_list’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’, ‘tslg’, ‘t_string_names_a x_list’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]
                        
@@ -3722,7 +3720,7 @@ gvs[] >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
     fs[sr_exp_def] >>
                    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘t_string_names_a x_list’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e''`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’, ‘t_string_names_a x_list’, ‘b’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
      gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]
   ]
@@ -3763,7 +3761,7 @@ fs[sr_exp_def] >>
 
      ‘ (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
      ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,
-          ‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+          ‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
    gvs[]>>
 
 
@@ -3794,9 +3792,7 @@ gvs[map_distrub, map_rw1, LENGTH_MAP]
 
 ‘LENGTH (MAP (λ(e_,tau_,b_). e_) e_tau_b_list) =
  LENGTH (MAP (λ(e_,e'_). e_) e_e'_list)’ by fs[MAP_EQ_EVERY2] >> 
-gvs[] >>
- 
-                        
+gvs[] >>                       
 gvs[map_distrub, map_rw1, LENGTH_MAP] 
 ,
 
@@ -3878,20 +3874,8 @@ gvs[] >| [
                       can find something in the domain of delta_t, and if we find something
                       in the dmain of delta_t, then indeed it is not empty*)            
 
-                    fs[base_frame_is_in_Pb_n_def] >>
-                    drule (INST_TYPE [``:'a`` |-> ``:string``, ``:'b`` |-> ``:tau list``] ALOOKUP_not_empty) >>
-                    STRIP_TAC >>  gvs[] >>
-
-                    (* we know that if there is a function call f' , and we lookup it up, then it is orederd *)
-                        
-                   fs[f_not_reserved_then_ordered_def] >>    
-           FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘funn_name f'’, ‘tau_bot’,‘tdl'’])) >>
-                          
-            ‘∀ f delta_g delta_b delta_x .
-             t_lookup_funn (funn_name f) delta_g delta_b delta_x  =
-             t_lookup_funn (funn_name f) delta_g delta_b []’ by gvs[t_lookup_funn_def] >>
-            FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘f'’, ‘delta_g’,‘delta_b’,‘delta_x’])) >>  gvs[]
-        ]
+                    IMP_RES_TAC ordered_apply_call
+                 ]
 
          ,
           (*via SR*) (* i am repeating the proof of SR_stmt_newframe*)
@@ -3929,7 +3913,7 @@ e_typ (tslg,tsl) (order,f,delta_g,delta_b,delta_x,delta_t)
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’,
 
      ‘ (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
- ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’, ‘Pb_n’])) >>
+ ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,‘c’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’,‘Prs_n’])) >>
       gvs[] >>
      gvs[] >>             
     srw_tac [SatisfySimps.SATISFY_ss][]>>
@@ -3969,7 +3953,7 @@ gvs[clause_name_def, type_frame_tsl_def] >>
 fs[Once stmt_typ_cases] >>
 ASSUME_TAC typ_scope_list_ext_out_scope_lemma >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-     [`f`, `apply_table_f`, ‘ext_map’,‘func_map’,‘b_func_map’,‘pars_map’,‘tbl_map’,‘order’,‘tslg’,‘delta_g’,‘delta_b’,‘delta_x’,‘ascope’,‘ascope'’,‘gscope’,‘scopest’,‘scopest'’,‘v’,‘ext_fun’,‘tsl’,‘tau’,‘tdl’, ‘delta_t’, ‘Pb_n’])) >>
+     [`f`, `apply_table_f`, ‘ext_map’,‘func_map’,‘b_func_map’,‘pars_map’,‘tbl_map’,‘order’,‘tslg’,‘delta_g’,‘delta_b’,‘delta_x’,‘ascope’,‘ascope'’,‘gscope’,‘scopest’,‘scopest'’,‘v’,‘ext_fun’,‘tsl’,‘tau’,‘tdl’, ‘delta_t’])) >>
 gvs[]
 
 
@@ -4483,10 +4467,10 @@ IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
          `[stmt_res] ⧺ [stmt1']`,
 	 `ascope`, `ascope'`,`gscope`,`gscope'`,`scopest`,`scopest'`,
          `framel`, `status_running`,`status_running`, ‘t_scope_list’ ,‘t_scope_list_g’, ‘c’,‘order’,
-         ‘delta_g’,‘delta_b’,‘delta_t’, ‘delta_x’,‘f’,‘Prs_n’,‘Pb_n’])) >> gvs[] >>
+         ‘delta_g’,‘delta_b’,‘delta_t’, ‘delta_x’,‘f’,‘Prs_n’])) >> gvs[] >>
 
    subgoal ‘frame_typ (t_scope_list_g,t_scope_list)
-          (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n Pb_n gscope scopest
+          (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n  gscope scopest
           [stmt]’ >-
      ( SIMP_TAC list_ss [frame_typ_cases] >> gvs[] >> REPEAT STRIP_TAC >>
 
@@ -4620,7 +4604,7 @@ IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
 
 val sr_stmtl_def = Define `
  sr_stmtl (stmtl) (ty:'a itself) =
-∀ stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n Pb_n n.
+∀ stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n  n.
       
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
        type_scopes_list  (scopest) (t_scope_list)   ∧
@@ -4630,22 +4614,22 @@ val sr_stmtl_def = Define `
 
 
                                
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
-       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n Pb_n gscope scopest stmtl ) ∧
+       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest stmtl ) ∧
              
        (stmt_red c ( ascope ,  gscope  ,           [ (f, stmtl, scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status')) ⇒
        (∃ t_scope_list' f_called.
-       res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, [])) t_scope_list_g t_scope_list' gscope framel ) ∧
+       res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel ) ∧
        (
        LENGTH stmtl ≤ LENGTH stmtl' ⇒
        ∃ t_scope_list''  .  LENGTH t_scope_list'' = (LENGTH stmtl' - LENGTH stmtl) ∧
-                            frame_typ  ( t_scope_list_g  ,  t_scope_list''++t_scope_list ) T_e Prs_n Pb_n gscope' scopest' stmtl') ∧
+                            frame_typ  ( t_scope_list_g  ,  t_scope_list''++t_scope_list ) T_e Prs_n  gscope' scopest' stmtl') ∧
        (
        LENGTH stmtl > LENGTH stmtl' ⇒
         n = (LENGTH stmtl - LENGTH stmtl') ⇒
-        frame_typ  ( t_scope_list_g  ,  (DROP n t_scope_list) ) T_e Prs_n Pb_n gscope' scopest' stmtl'
+        frame_typ  ( t_scope_list_g  ,  (DROP n t_scope_list) ) T_e Prs_n  gscope' scopest' stmtl'
        )                    
 `;
 
@@ -4653,8 +4637,8 @@ val sr_stmtl_def = Define `
 
 
 Theorem empty_frame_not_typed:
-∀ t_scope_list_g t_scope_list T_e Prs_n Pb_n scope scopest gscope.
-  ~ frame_typ (t_scope_list_g,t_scope_list) T_e Prs_n Pb_n gscope scopest []
+∀ t_scope_list_g t_scope_list T_e Prs_n  scope scopest gscope.
+  ~ frame_typ (t_scope_list_g,t_scope_list) T_e Prs_n  gscope scopest []
 Proof  
    fs[frame_typ_cases, stmtl_typ_cases, type_ith_stmt_def]
 QED
@@ -4680,9 +4664,9 @@ gvs[clause_name_def]
 
 
 Theorem frame_typ_head_of_stmtl:
-∀ t_scope_list_g t_scope_list T_e  Prs_n Pb_n gscope scopest stmt stmtl.
-   frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n Pb_n gscope scopest (stmt::stmtl) ⇒
-   frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n Pb_n gscope scopest [stmt]
+∀ t_scope_list_g t_scope_list T_e  Prs_n  gscope scopest stmt stmtl.
+   frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope scopest (stmt::stmtl) ⇒
+   frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope scopest [stmt]
 Proof          
 
  REPEAT STRIP_TAC >>                                       
@@ -4736,10 +4720,10 @@ fs[Once EL_compute] >> gvs[PRE_SUB1]
                                 
 
 val frame_type_seq_in_sr1 = prove ( “
-∀ t_scope_list_g  t_scope_list ts T_e Prs_n  Pb_n gscope' scopest' gscope scopest s1 h h' t'  .                        
-frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n Pb_n gscope' scopest' [s1] ∧
-frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n Pb_n gscope  scopest (h::h'::t') ⇒
-frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n Pb_n gscope' scopest' (s1::h'::t')”,
+∀ t_scope_list_g  t_scope_list ts T_e Prs_n   gscope' scopest' gscope scopest s1 h h' t'  .                        
+frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope' scopest' [s1] ∧
+frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope  scopest (h::h'::t') ⇒
+frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope' scopest' (s1::h'::t')”,
         
 
 REPEAT STRIP_TAC >>
@@ -4793,10 +4777,10 @@ Cases_on ‘i=0’ >> gvs []   >|  [
 
         
 val frame_type_seq_in_sr2 = prove ( “
-∀ t_scope_list_g  t_scope_list ts T_e Prs_n  Pb_n gscope' scopest' gscope scopest s1 s2 h h' t'  .                        
-frame_typ (t_scope_list_g,ts::t_scope_list) T_e  Prs_n Pb_n gscope' scopest' [s1; s2] ∧
-frame_typ (t_scope_list_g,t_scope_list)     T_e  Prs_n Pb_n gscope  scopest (h::h'::t') ⇒
-frame_typ (t_scope_list_g,ts::t_scope_list) T_e  Prs_n Pb_n gscope' scopest' (s1::s2::h'::t')”,
+∀ t_scope_list_g  t_scope_list ts T_e Prs_n   gscope' scopest' gscope scopest s1 s2 h h' t'  .                        
+frame_typ (t_scope_list_g,ts::t_scope_list) T_e  Prs_n  gscope' scopest' [s1; s2] ∧
+frame_typ (t_scope_list_g,t_scope_list)     T_e  Prs_n  gscope  scopest (h::h'::t') ⇒
+frame_typ (t_scope_list_g,ts::t_scope_list) T_e  Prs_n  gscope' scopest' (s1::s2::h'::t')”,
         
 
 REPEAT STRIP_TAC >>
@@ -4872,10 +4856,10 @@ Cases_on ‘i=0’ >> gvs []   >|  [
 
 val frame_type_block_exit_in_sr = prove (
 “
-∀ t_scope_list_g  t_scope_list ts T_e Prs_n  Pb_n gscope scopest stmt stmtl  .
+∀ t_scope_list_g  t_scope_list ts T_e Prs_n   gscope scopest stmt stmtl  .
   stmtl ≠ [] ∧
-frame_typ (t_scope_list_g,t_scope_list) T_e Prs_n Pb_n gscope scopest (stmt::stmtl) ⇒
-frame_typ (t_scope_list_g,DROP 1 t_scope_list) T_e  Prs_n Pb_n gscope (TL scopest) stmtl”,
+frame_typ (t_scope_list_g,t_scope_list) T_e Prs_n  gscope scopest (stmt::stmtl) ⇒
+frame_typ (t_scope_list_g,DROP 1 t_scope_list) T_e  Prs_n  gscope (TL scopest) stmtl”,
 
 REPEAT STRIP_TAC >>
 
@@ -4932,18 +4916,18 @@ srw_tac [boolSimps.DNF_ss][] >| [
 
 
 (* TODO: simplify by making frame_typ just a stmt type, then make it in another theorem *)
-(* here we knwo that also teh frame we create and trying to type, the Pb_n is empty*)
+(* here we knwo that also teh frame we create and trying to type, the  is empty*)
 val SR_stmtl_newframe = prove ( “
-∀ stmtl stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n Pb_n.
+∀ stmtl stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n .
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
        type_scopes_list  (scopest) (t_scope_list)   ∧
        star_not_in_sl (scopest) ∧
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
-       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n Pb_n gscope scopest (stmtl) ) ∧
+       (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest (stmtl) ) ∧
        (stmt_red c ( ascope ,  gscope  ,           [ (f, stmtl, scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status')) ⇒
-       (∃ t_scope_list' f_called. res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, [])) t_scope_list_g t_scope_list' gscope framel ) ”,
+       (∃ t_scope_list' f_called. res_frame_typ (order, f_called, (delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel ) ”,
 
 
 
@@ -4965,7 +4949,7 @@ Cases_on ‘t’ >> gvs[] >| [
 
  ASSUME_TAC SR_stmt_newframe >> 
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-      ‘h’,  `stmtl'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’, ‘(order,f,delta_g,delta_b,delta_x,delta_t)’  , ‘c’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’, ‘Pb_n’])) >> gvs[] >>
+      ‘h’,  `stmtl'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’, ‘(order,f,delta_g,delta_b,delta_x,delta_t)’  , ‘c’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >> gvs[] >>
           srw_tac [SatisfySimps.SATISFY_ss][]
  ,
 
@@ -4975,7 +4959,7 @@ Cases_on ‘t’ >> gvs[] >| [
  ASSUME_TAC SR_stmt_newframe >> 
           
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-                                          ‘h’,  `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’, ‘(order,f,delta_g,delta_b,delta_x,delta_t)’  , ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’, ‘Pb_n’])) >> gvs[] >>
+                                          ‘h’,  `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’, ‘(order,f,delta_g,delta_b,delta_x,delta_t)’  , ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >> gvs[] >>
 
                                           
       IMP_RES_TAC frame_typ_head_of_stmtl >> gvs[] >>
@@ -5046,7 +5030,7 @@ CONJ_TAC  >| [
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘h’])) >>
         fs[sr_stmt_def] >> gvs[] >>
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-        `stmtl'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’,‘c’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’, ‘Pb_n’])) >> gvs[] >>
+        `stmtl'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’,‘c’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >> gvs[] >>
           srw_tac [SatisfySimps.SATISFY_ss][]
         ,
                 
@@ -5058,7 +5042,7 @@ CONJ_TAC  >| [
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘h’])) >>
         fs[sr_stmt_def] >> gvs[] >>
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-        `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’,‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’, ‘Pb_n’])) >> gvs[] >>
+        `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’,‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >> gvs[] >>
 
       IMP_RES_TAC frame_typ_head_of_stmtl >> gvs[] >>
       Q.EXISTS_TAC ‘t_scope_list''’  >>               
@@ -5092,7 +5076,7 @@ CONJ_TAC  >| [
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘h’])) >>
         fs[sr_stmt_def] >> gvs[] >>
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-        `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’,‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’, ‘Pb_n’])) >> gvs[] >>
+        `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’, ‘t_scope_list’,‘t_scope_list_g’,‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >> gvs[] >>
 
 
          IMP_RES_TAC frame_typ_head_of_stmtl >> gvs[] >>
@@ -5141,13 +5125,13 @@ QED
 
 val sr_state_def = Define `
  sr_state (framel) (ty:'a itself) =
-∀ framel' (c:'a ctx) ascope ascope' gscope gscope'  status status' tslg  order delta_g delta_b delta_t delta_x Prs_n Pb_n tsll.
+∀ framel' (c:'a ctx) ascope ascope' gscope gscope'  status status' tslg  order delta_g delta_b delta_t delta_x Prs_n  tsll.
       
-       (WT_state c ( ascope ,  gscope  , framel  , status) Prs_n Pb_n order tslg tsll (delta_g, delta_b, delta_x, delta_t)) ∧             
+       (WT_state c ( ascope ,  gscope  , framel  , status) Prs_n  order tslg tsll (delta_g, delta_b, delta_x, delta_t)) ∧             
        (frames_red c ( ascope ,  gscope  , framel  , status)
                      ( ascope',  gscope' , framel' , status')) ⇒
 
- ∃  tsll' .    (WT_state c ( ascope' ,  gscope'  , framel'  , status') Prs_n Pb_n order tslg tsll' (delta_g, delta_b, delta_x, delta_t))                  
+ ∃  tsll' .    (WT_state c ( ascope' ,  gscope'  , framel'  , status') Prs_n  order tslg tsll' (delta_g, delta_b, delta_x, delta_t))                  
 `;
 
 
@@ -5184,10 +5168,10 @@ Induct >> gvs[] >> REPEAT STRIP_TAC >>
 );
 
 
-
+(*
 Theorem WT_state_rw:      
-∀ c ascope gscope framel status Prs_n Pb_n order tslg delta_g delta_b delta_x delta_t .
-   (∃tsll'. WT_state c (ascope,gscope,framel,status) Prs_n Pb_n order tslg
+∀ c ascope gscope framel status Prs_n  order tslg delta_g delta_b delta_x delta_t .
+   (∃tsll'. WT_state c (ascope,gscope,framel,status) Prs_n  order tslg
             tsll' (delta_g,delta_b,delta_x,delta_t))   ==>
 ∃funn_l stmt_stack_l scope_list_l t_scope_list_l .
   LENGTH funn_l = LENGTH stmt_stack_l ∧
@@ -5196,11 +5180,11 @@ Theorem WT_state_rw:
                          
      framel = ZIP (funn_l, ZIP (stmt_stack_l,scope_list_l))
      ∧
-     ordered_list funn_l  order ∧
+     ordered_funnl funn_l  order ∧
      type_state_tsll scope_list_l t_scope_list_l  ∧
      type_scopes_list gscope tslg ∧
-     WT_c c order tslg delta_g delta_b delta_x delta_t Pb_n ∧
-     type_frames gscope framel Prs_n Pb_n order tslg t_scope_list_l  delta_g delta_b delta_x delta_t
+     WT_c c order tslg delta_g delta_b delta_x delta_t  ∧
+     type_frames gscope framel Prs_n  order tslg t_scope_list_l  delta_g delta_b delta_x delta_t
 Proof     
 
 REPEAT STRIP_TAC >>
@@ -5212,7 +5196,7 @@ Q.EXISTS_TAC ‘(MAP (λ(funn_,stmt_stack_,scope_list_,t_scope_list_). t_scope_l
 srw_tac [][] >>
 gvs[MAP_comp_quad_trio]
 QED
-
+*)
 
 
 
@@ -5470,7 +5454,7 @@ Cases_on ‘framel’ >-
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
              `stmtl'`,‘ascope’,‘ascope'’, ‘g_scope_list'’,‘g_scope_list''’, ‘e1''’,‘scope_list'’,
               ‘[]’,‘status’,‘status'’, ‘e1'''’,‘tslg_passed’,‘c’,‘order’, ‘delta_g’,
-              ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘e1’, ‘Prs_n’, ‘Pb_n’])) >> gvs[] >>
+              ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘e1’, ‘Prs_n’])) >> gvs[] >>
         gvs[]
 
 

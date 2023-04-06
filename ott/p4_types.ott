@@ -105,14 +105,27 @@ delta {{ tex \Delta }} :: delta_ ::=
   {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_x]] , [[delta_t]] ) }}
 
 
-order {{ tex \sqsubset }} :: order_ ::=
+
+funn_list {{ tex f_list }} :: funn_list_ ::=
 {{ hol ( funn list ) }}
 | [ funn1 , .. , funnn ] :: :: fl
 
-Pb_n {{ tex Initf\_{names} }} :: Pb_n_ ::=
-{{ com a reserved list for the initial PB names/main }}
-{{ hol ( funn list ) }}
-| [ funn1 , .. , funnn ] :: :: fl
+
+order_elem {{ tex \sqsubset_{f,t} }} :: order_elem_ ::= 
+{{ com the individual elements of the order in the state are fun name or tables names }}
+| funn :: :: f
+| x :: :: t
+
+embed
+{{ hol
+}}
+grammar
+
+order {{ tex \bar { \sqsubset_{f,t} } }} :: order_ ::= 
+{{ com list of elements that are funn or table names, this should be given }}
+{{ hol (order_elem -> order_elem -> bool ) }}
+
+
 
 Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
 %list contains the names of the table names
@@ -161,11 +174,6 @@ parseError_in_gs (t_scope_list_g:t_scope list) ( t_scope_list_list : t_scope lis
   (! i . i < LENGTH t_scope_list_list ==> lookup_map (EL i t_scope_list_list) (varn_name "parseError") = NONE ))
 
 `;  
-
-val WF_def = Define `
-(WF order) =    (( !x.   ~order x x ) /\
-  		       	 ( !x y.  order x y ==> ~order y x) /\
-                 ( !x y z. order x y /\ order y z ==> order x z))`;
 
 
 (* find the type of the top most scope that contains x 
@@ -352,37 +360,21 @@ val bs_width_def = Define `
 `;
 
 
-
-val ordered_check_def = Define `
-ordered_check (x:funn) y order =
-  case INDEX_FIND 0 (\x' . x' = x ) (order) of
-  | SOME (n , x ) =>
-    ( case INDEX_FIND 0 (\y' . y' = y ) (order) of
-      | SOME ( m , y ) => if (n < m) then (SOME T) else (SOME F)
-      | NONE => NONE
-    )
-  | NONE => NONE
-`;
-
-
-(* check if x is defined before y*)
-val ordered_def = Define `
-ordered (x:funn) y order =
-  THE (ordered_check (x:funn) y order)
-`;
-
-
-val ordered_list_def = Define `
-ordered_list (l:funn list) order =
-  ! i . SUC i < LENGTH l ==>
-        THE (ordered_check (EL i l) (EL (SUC i) l) order)
-`;
-
+(* "order" is a partial relation that relates two components.
+   This has the features of reflexivity, antisymmetry, & transitivity 
+   with order we mean that x defined before y *)
 
 val WF_o_def = Define `
-(WF_o order) =    (( !(x:funn).   ~ (ordered x x order) ) /\
-  		 ( !x y.   ordered x y order ==> ~ordered y x order) /\
-       ( !x y z. ordered x y order/\ ordered y z order ==> ordered x z order))`;
+(WF_o order) =    (( !(x:order_elem).   ~ (order x x) ) /\
+  		 ( !x y.   order x y  ==> ~order y x ) /\
+       ( !x y z. order x y /\ order y z  ==> order x z ))`;
+
+
+(* given a list l and an order given by the configuration order *)
+val ordered_list_def = Define `
+ordered_list order l  =
+    ! i .  order (EL i l) (EL (SUC i) l)
+`;
 
 
 
@@ -617,7 +609,7 @@ t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] +
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x ) 
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
-ordered funn' funn order
+order funn' funn
 ----------------------------------- :: call
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
 
@@ -752,7 +744,7 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  e 
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |-  return e
 
 
-
+order ( order_elem_t tbl ) funn     
 delta_t ( tbl ) = [ tau1 , .. , taun ]
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
 --------------------------------------- :: apply
@@ -786,17 +778,6 @@ args_t_same (tl:tau list) (t_scope_list:t_scope_list) =
 `;
 
 
-
-(* delta_t <> [] ==> funn IN {reserved names} 
-   In the base frame delta_t is not empty, then the funn (of the frame) that it is operating at is 
-   indeed a programmable block name. 
-*)
-val base_frame_is_in_Pb_n_def = Define `
-base_frame_is_in_Pb_n (delta_t:delta_t) funn (Pb_n:Pb_n) =
-(delta_t ≠ [] ==>
-        MEM funn Pb_n) 
-`;  
-
 }}
 
 
@@ -825,15 +806,13 @@ type_ith_stmt t_scope_list_g [ t_scope1 , .. , t_scopem ] T_e Prs_n [ stmt1 , ..
 defns
 frame_typ :: '' ::=
 defn
-t_scopes_tup T_e Prs_n Pb_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: frame_typ :: frame_typ_
+t_scopes_tup T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: frame_typ :: frame_typ_
 {{ com frame types }}
-{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] [[Pb_n]] |- ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
+{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
 by
 
 %note that in this rule will be mainly used to rewrite the definitions once we are typing the result frame of an expression reduction.
 
-
-base_frame_is_in_Pb_n delta_t funn Pb_n
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
 args_t_same [ tau1 , .. , taun ]  t_scope_list
 type_frame_tsl scope_list t_scope_list
@@ -841,7 +820,7 @@ type_scopes_list g_scope_list t_scope_list_g
 ( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |- stmt_stack
 not_empty stmt_stack 
 --------------------------------------- :: stmtl
-( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n Pb_n |- ( g_scope_list , scope_list , stmt_stack ) 
+( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |- ( g_scope_list , scope_list , stmt_stack ) 
 
 
 
@@ -893,9 +872,8 @@ mk_varn (xl:string list) =
 
 (*based on the specs, the extern cannot be called from functions *)
 
-
 val func_map_typed_def = Define `
-func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g  =
+func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g delta_t =
 ! f stmt xdl x  .
  ( (f = funn_name x) /\
    (ALOOKUP func_map x = SOME (stmt, xdl)) )
@@ -906,7 +884,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
      find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir xdl tdl) /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
-   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],[])) [] (stmt) ) /\
+   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],delta_t)) [] (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt))
 `;
@@ -916,7 +894,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
 
 
 val func_map_blk_typed_def = Define `
-func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x =
+func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x delta_t =
 ! f stmt xdl x .
  ( (f = funn_name x) /\
    (ALOOKUP b_func_map x = SOME (stmt, xdl))
@@ -927,7 +905,7 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
    find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir xdl tdl) /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
-   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,[])) [] (stmt) ) /\
+   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,delta_t)) [] (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt)
 
@@ -1018,7 +996,7 @@ is_directionless dl =  EVERY (\d. d = d_none) dl
 
 (* el is the key list, f' is default action, el' default action's data/args *)
 val table_map_typed_def = Define `
-table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g delta_b Pb_n =
+table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g delta_b order =
 
 !  s mkl f' f el' el vl ascope  .
     ALOOKUP tbl_map s = SOME (mkl,f',el') /\
@@ -1031,7 +1009,7 @@ table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g del
        LENGTH tdl = LENGTH vl /\
        (! i . i < LENGTH tdl ==>
               v_typ (EL i ( vl_of_el vl)) (t_tau (EL i (MAP FST tdl))) F) /\
-       ~ MEM (funn_name f) Pb_n        
+       order ( order_elem_f (funn_name f)) (order_elem_t s )        
 `;            
 
 (*****************)
@@ -1179,28 +1157,6 @@ val t_scopes_to_pass_def = Define `
 `;
 
 
-(*
- ! f IN deltas . ordered f {reserved names of starting Pb name}
-   Important to add otherwise, we do can not make a further reduction from apply table 
-   since we do not know that the function is orederd with respect to the frame it is operating in.
-   so f should be defined before pb_name
-*)
-val f_ordered_with_any_reserved_def = Define `
-f_ordered_with_any_reserved delta_g delta_b delta_x Pb_n order =
-! f tau tdl . SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x ==>
-      ! pb_name . MEM pb_name Pb_n ==>
-                          ordered f pb_name order
- `;
-
-
-
-val f_not_reserved_then_ordered_def = Define `
-f_not_reserved_then_ordered delta_g delta_b delta_x Pb_n order =
-! f tau tdl . SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x ==>
-      (~ MEM f Pb_n) ==>
-         ! pb_name . MEM pb_name Pb_n ==>
-          ordered f pb_name order
- `;
 
 }}
 
@@ -1209,15 +1165,15 @@ f_not_reserved_then_ordered delta_g delta_b delta_x Pb_n order =
 defns
 WTFg :: '' ::=
 defn
- func_map -| order t_scope_list_g delta_g  :: :: WTFg :: WTFg_
+ func_map -| order t_scope_list_g delta_g delta_t :: :: WTFg :: WTFg_
 {{ com global functions well typed }}
-{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] }}
+{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_t]] }}
 by
 
 
-func_map_typed func_map order t_scope_list_g delta_g
+func_map_typed func_map order t_scope_list_g delta_g delta_t
 --------------------------------------------------------- :: global
-func_map -| order t_scope_list_g delta_g
+func_map -| order t_scope_list_g delta_g delta_t
 
 
 
@@ -1225,15 +1181,15 @@ func_map -| order t_scope_list_g delta_g
 defns
 WTFb :: '' ::=
 defn
- b_func_map -| order t_scope_list_g delta_g delta_b delta_x  :: :: WTFb :: WTFb_
+ b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t :: :: WTFb :: WTFb_
 {{ com actions and local functions well typed }}
-{{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
+{{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] }}
 by
 
 
-func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x
+func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t
 --------------------------------------------------------- :: block
-b_func_map -| order t_scope_list_g delta_g delta_b delta_x
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t
 
 
 
@@ -1259,9 +1215,9 @@ ext_map -| order t_scope_list_g delta_x
 defns
 WT_c :: '' ::=
 defn
- ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n :: :: WT_c :: WT_c_
+ ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t :: :: WT_c :: WT_c_
 {{ com context well typed }}
-{{ tex [[ctx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Pb_n]]}}
+{{ tex [[ctx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] }}
 by
 
 % TODO: remove dom_tmap_ei ( delta_g , delta_b ) because the prop is satisfies in typying_domains_ei
@@ -1280,15 +1236,13 @@ dom_t_eq ( delta_t , tbl_map )
 Fg_star_defined ( func_map , t_scope_list_g )
 Fb_star_defined ( b_func_map , t_scope_list_g )
 X_star_defined  ( ext_map , t_scope_list_g )
-func_map -| order t_scope_list_g delta_g
-b_func_map -| order t_scope_list_g delta_g delta_b delta_x
+func_map -| order t_scope_list_g delta_g delta_t
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t
 ext_map -| order t_scope_list_g delta_x
-table_map_typed tbl_map apply_table_f delta_g delta_b Pb_n
-f_ordered_with_any_reserved delta_g delta_b delta_x Pb_n order
-f_not_reserved_then_ordered delta_g delta_b delta_x Pb_n order
+table_map_typed tbl_map apply_table_f delta_g delta_b order
 f_in_apply_tbl tbl_map apply_table_f
 --------------------------------------- :: c
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t
 
 
 
@@ -1337,7 +1291,7 @@ val t_map_to_pass_def = Define `
 
 
 val type_frames_def = Define `
-type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n) (Pb_n:Pb_n) 
+type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
 (order:order) (t_scope_list_g:t_scope_list_g)  (t_scopes_frames:t_scopes_frames)  (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) =
 
 ∀ i funnl stml scl .
@@ -1347,49 +1301,79 @@ type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n) (
      scl = MAP (λ(f,stml,scl). scl) frames_list) ⇒
    
          (* The base frame (i.e. bottom) case *)        
-    (i = LENGTH frames_list − 1 ==>
+    (i < LENGTH frames_list ==>
        ∃ t_scope_list_g' passed_delta_b. 
           typing_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME t_scope_list_g' ∧
-          t_map_to_pass (EL i funnl) (delta_b) =  SOME passed_delta_b ∧                    
-          (delta_t ≠ [] ⇒ MEM (EL i funnl) Pb_n) ∧
-          frame_typ (t_scope_list_g',EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,delta_t) Prs_n Pb_n g_scope_list (EL i scl) (EL i stml))
+          t_map_to_pass (EL i funnl) (delta_b) =  SOME passed_delta_b ∧ 
 
-         ∧
-
-         (* The ret of the frame is well typed with empty delta_t, thus we do not call any tables f_not_reserved_then_ordered
-            which we know because all the names of functions in the frames are not in the Pb_n *)  
-
-         (i < LENGTH frames_list - 1  ==>
-            ∃ t_scope_list_g' passed_delta_b. 
-              typing_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME t_scope_list_g' ∧
-                      t_map_to_pass (EL i funnl) delta_b =  SOME passed_delta_b ∧
-          ~ (MEM (EL i funnl) Pb_n)  /\
-          frame_typ (t_scope_list_g',EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,[]) Prs_n Pb_n g_scope_list (EL i scl) (EL i stml))            
+          frame_typ (t_scope_list_g',EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,delta_t) Prs_n g_scope_list (EL i scl) (EL i stml))     
 
 `;
 
 
 
+
+
+val f_decl_in_def = Define
+‘f_decl_in f l =
+  ∀ x . ∃ sig . (f = funn_name x /\ ALOOKUP l x = SOME sig)’;
+   
+
+val ext_decl_in_def = Define
+‘ext_decl_in f l =
+ ((∀ x . ∃ sig . f = funn_inst x /\ ALOOKUP l x = SOME sig) ∧
+ (∀ x x'. ∃ ext_MoE sig a1. f = funn_ext x x' /\ ALOOKUP l x = SOME (a1, ext_MoE) ∧ ALOOKUP ext_MoE x' = SOME sig  ))
+’;
+    
+
+val deltas_order_def = Define
+ ‘ deltas_order (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (order:order) =
+    ((∀ f1 f2 . ext_decl_in f1 delta_x  ∧ f_decl_in f2 delta_g ⇒
+                order (order_elem_f f1) (order_elem_f f2)  ) ∧
+
+   (∀ f1 f2 . f_decl_in f1 delta_g  ∧ f_decl_in f2 delta_b ⇒
+               order (order_elem_f f1) (order_elem_f f2) ))
+           
+ ’;
+
+
 }}
+
+
+
+defns
+WF_ft_order :: '' ::=
+defn
+WF funn_list delta_g delta_b delta_x order :: :: WF_ft_order :: WF_ft_order_
+{{ com well formed order }}
+{{ tex WF_ft_order [[funn_list]] [[delta_g]] [[delta_b]] [[delta_x]] [[order]] }}
+by
+
+
+ordered_list order [ funn1 , .. , funnn ] 
+deltas_order delta_g delta_b delta_x order
+---------------------------------------------------------------------- :: ft
+WF funn_list delta_g delta_b delta_x order
+
+
 
 defns
 WT_state :: '' ::=
 defn
-ctx state Prs_n Pb_n order ( t_scope_list_g , t_scopes_frames ) delta :: :: WT_state :: WT_state_
+ctx state Prs_n order ( t_scope_list_g , t_scopes_frames ) delta :: :: WT_state :: WT_state_
 {{ com context well typed }}
-{{ tex WT [[ctx]] [[state]] [[Prs_n]] [[Pb_n]] [[order]] [[t_scope_list_g]] [[t_scopes_frames]] [[delta]] }}
+{{ tex WT [[ctx]] [[state]] [[Prs_n]] [[order]] [[t_scope_list_g]] [[t_scopes_frames]] [[delta]] }}
 by
 
-%Question: in the previous setting, the status was supposed to be running. Isn't bad in case we want to make a transition?
 
-ordered_list [ funn1 , .. , funnn ] order
+WF [ funn1 , .. , funnn ] delta_g delta_b delta_x order
 type_state_tsll ( scope_list1 , .. , scope_listn ) [ t_scope_list1 , .. , t_scope_listn ]
 type_scopes_list g_scope_list t_scope_list_g
 parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ]
-ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Pb_n
-( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n Pb_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
+ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t
+( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
 ---------------------------------------------------------------------- :: state
-ctx ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n Pb_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
 
 
 
