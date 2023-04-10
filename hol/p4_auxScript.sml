@@ -1330,7 +1330,18 @@ QED
 
 
 
-
+Theorem index_not_const_in_range:
+  ∀ el i.
+index_not_const el = SOME i ⇒
+i < LENGTH el
+Proof
+REPEAT STRIP_TAC >>
+fs[index_not_const_def] >>
+Cases_on ‘INDEX_FIND 0 (λe. ¬is_const e) el’ >>
+gvs[] >>
+PairCases_on ‘x’ >> gvs[] >>
+gvs[INDEX_FIND_EQ_SOME_0]
+QED
 
 Theorem index_find_concat1:
 ! l1 l2 n P.
@@ -1868,7 +1879,6 @@ MAP (\(a,b,c,d). (b,c)) (ZIP (l,ZIP (l',l''))) = ZIP (l', FST (UNZIP l'') ) /\
 MAP (\(a,b,c,d). (a,b,c)) (ZIP (l,ZIP (l',l''))) = ZIP (l, ZIP ( l' , FST (UNZIP l'') ) )
 )
 Proof
-
 Induct_on `l` >>
 Induct_on `l'` >>
 Induct_on `l''` >>
@@ -2002,5 +2012,75 @@ Cases_on `i=0` >| [
  fs[EL_CONS]
 ]
 QED
+
+
+Theorem ZIP_EQ_NIL_tri: 
+∀ al bl cl.
+LENGTH al = LENGTH bl ∧
+LENGTH bl = LENGTH cl ∧
+ZIP (al,ZIP (bl,cl)) = [] ⇒
+al = [] ∧ bl = [] ∧ cl = []
+Proof                         
+Cases_on ‘al’ >>
+Cases_on ‘bl’ >>
+Cases_on ‘cl’ >>
+gvs[]
+QED
+                                
+
+Theorem ZIP_LENGTH_tri_1:
+∀ al bl cl a b c .
+ LENGTH al = LENGTH bl ∧ LENGTH bl = LENGTH cl ∧
+ [(a,b,c)] = ZIP (al,ZIP (bl,cl)) ⇒
+  LENGTH al = 1
+Proof  
+Cases_on ‘al’ >>
+Cases_on ‘bl’ >>
+Cases_on ‘cl’ >>
+gvs[] >> 
+REPEAT STRIP_TAC >>
+IMP_RES_TAC ZIP_EQ_NIL_tri
+QED
+
+
+val ZIP_LENGTH_tri = prove (
+“∀ al bl cl l .
+  LENGTH al = LENGTH bl ∧ LENGTH bl = LENGTH cl ∧
+  l = ZIP (al,ZIP (bl,cl)) ⇒
+  LENGTH l = LENGTH al ∧
+  LENGTH l = LENGTH bl ∧
+  LENGTH l = LENGTH cl ”,
+         
+
+Cases_on ‘al’ >>
+Cases_on ‘bl’ >>
+Cases_on ‘cl’ >>
+gvs[]
+);
+
+
+
+              
+
+Theorem ZIP_HD_tri_1:
+∀ al bl cl a b c .
+  LENGTH al = LENGTH bl ∧ LENGTH bl = LENGTH cl ∧
+ [(a,b,c)] = ZIP (al,ZIP (bl,cl)) ⇒
+  HD al = a ∧
+  HD bl = b ∧
+  HD cl = c
+Proof  
+Cases_on ‘al’ >>
+Cases_on ‘bl’ >>
+Cases_on ‘cl’ >>
+gvs[] 
+QED
+
+
+
+
+
+
+
 
 val _ = export_theory ();

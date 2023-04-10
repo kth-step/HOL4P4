@@ -952,7 +952,7 @@ rw [notret_def]
          (*determinism proof frame list*)
 (**************************************************)
 (**************************************************)
-
+(*
 val P4_frame_det =
 prove ( `` ! frame ty. det_frame frame ty ``,
 Cases_on `frame` >>
@@ -968,7 +968,9 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
   REPEAT STRIP_TAC >>
   FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
   rw[] >>
-  Cases_on `scopes_to_pass q func_map b_func_map g_scope_list` >>
+  Cases_on ‘map_to_pass q b_func_map’ >> gvs[] >>    
+ Cases_on `scopes_to_pass q func_map b_func_map g_scope_list` >>
+  Cases_on ‘table_to_pass [] tbl_map’ >> gvs[] >>        
   rw[] >>
   ASSUME_TAC P4_stmtl_det >>
   fs [det_stmtl_def]  >>
@@ -979,10 +981,6 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
 ]
 
 );
-
-
-
-
 
 
 
@@ -1009,17 +1007,22 @@ Cases_on `t` >| [
   FULL_SIMP_TAC (srw_ss()) [det_framel_def] >>
   REPEAT STRIP_TAC >>
   FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
-  rw[] >| [
+  rw[]  >>          
+  Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >| [
        (*comp1-comp1*)
     rw[] >>
     Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list`>>
     rw[] >>
-
+    
     ASSUME_TAC P4_stmtl_det >>
     fs [det_stmtl_def]  >>
 
-    rfs[same_state_def] >>
+    Cases_on ‘table_to_pass (h'::t') tbl_map’ >>
+    gvs[] >>
+       
     RES_TAC >>    rw[] >>
+    rfs[same_state_def] >>
+        
     ` g_scope_list''' =  g_scope_list'⁵'` by METIS_TAC [SOME_EL,SOME_11]
        ,
 
@@ -1028,7 +1031,11 @@ Cases_on `t` >| [
        (*************)       
 
     fs[]>>rw[] >>
-    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
+    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>
+    Cases_on ‘table_to_pass ((funn'',stmt_stack'',scope_list'')::t') tbl_map’ >> gvs[] >>
+
+
+              
     FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
     rfs [notret_def]>>
     ASSUME_TAC P4_stmt_det >>
@@ -1040,6 +1047,11 @@ Cases_on `t` >| [
     rfs[notret_def]>>
        IMP_RES_TAC lemma_v_red_forall >>
 
+     gvs[clause_name_def]
+
+     IMP_RES_TAC 
+
+                
      Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
      Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
      fs[notret_def]
@@ -1092,7 +1104,7 @@ Cases_on `t` >| [
 ]]
 QED
 
-
+*)
 
 
 val _ = export_theory ();
