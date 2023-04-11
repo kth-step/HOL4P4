@@ -477,8 +477,7 @@ QED
 
 
 
-val star_tau_exists_in_scl_tscl = prove ( ``
-
+Theorem star_tau_exists_in_scl_tscl:
 ! gsl gtsl sl tsl v tau f.
 star_not_in_sl (sl) /\
 type_scopes_list gsl gtsl ==>
@@ -487,8 +486,8 @@ type_scopes_list gsl gtsl ==>
            ?v. SOME v = lookup_vexp2 sl gsl (varn_star f))
 	   /\
 (SOME v = lookup_vexp2 sl gsl (varn_star f) ⇒
-           ?tau. SOME tau = find_star_in_globals gtsl (varn_star f))``,
-
+           ?tau. SOME tau = find_star_in_globals gtsl (varn_star f))
+Proof
 
 gvs[lookup_tau_def] >>
 fs[lookup_vexp2_def] >>
@@ -534,7 +533,7 @@ rpt strip_tac >| [
  [`v`, `(varn_star f)`, `(v,x1)`])) >>
  gvs[]
 ]
-);
+QED
 
 
 

@@ -1055,7 +1055,7 @@ fs[] >| [
 );
 
 
-val Fg_star_lemma1 = prove ( ``
+Theorem Fg_star_lemma1:
 ! t_scope_list_g f func_map delta_g delta_b delta_x order
   b_func_map gscope (ext_map: 'a ext_map)
   stmt xdl apply_table_f pars_map tbl_map  delta_t.
@@ -1066,7 +1066,8 @@ val Fg_star_lemma1 = prove ( ``
           order t_scope_list_g delta_g delta_b delta_x delta_t
 	  ==>
     ( ? tau tdl. SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x /\
-    (SOME tau = find_star_in_globals t_scope_list_g (varn_star f))) ``,
+    (SOME tau = find_star_in_globals t_scope_list_g (varn_star f)))
+Proof
 
 Cases_on `f` >>
 REPEAT STRIP_TAC >| [
@@ -1134,7 +1135,7 @@ REPEAT STRIP_TAC >| [
  [`delta_g`,`delta_b`])) >>
  srw_tac [SatisfySimps.SATISFY_ss][]
 ]
-);
+QED
 
 
 
