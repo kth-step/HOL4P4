@@ -453,4 +453,39 @@ fs [initialise_def] >>
 rw []
 QED
 
+Definition v_to_tau_def:
+  (v_to_tau (v_bool boolv) = SOME tau_bool) /\
+  (v_to_tau (v_bit (bl, n)) = SOME (tau_bit n)) /\
+  (v_to_tau (v_struct ((x,v)::t)) =
+   OPTION_BIND (v_to_tau (v_struct t))
+    (\ res. case res of
+            | tau_xtl struct_ty_struct t' =>
+             (case v_to_tau v of
+              | SOME tau => SOME (tau_xtl struct_ty_struct ((x,tau)::t'))
+              | NONE => NONE)
+            | _ => NONE)) /\
+  (v_to_tau (v_struct []) = SOME (tau_xtl struct_ty_struct [])) /\
+  (v_to_tau (v_header boolv ((x,v)::t)) =
+   OPTION_BIND (v_to_tau (v_header boolv t))
+    (\ res. case res of
+            | tau_xtl struct_ty_header t' =>
+             (case v_to_tau v of
+              | SOME tau => SOME (tau_xtl struct_ty_header ((x,tau)::t'))
+              | NONE => NONE)
+            | _ => NONE)) /\
+  (v_to_tau (v_header boolv []) = SOME (tau_xtl struct_ty_header [])) /\
+  (v_to_tau (v_err errmsg) = SOME tau_err) /\
+  (v_to_tau v_bot = SOME tau_bot) /\
+  (v_to_tau _ = NONE)
+  (* TODO: tau_str? *)
+Termination
+ WF_REL_TAC `measure v_size` >>
+ fs [v_size_def] >>
+ REPEAT STRIP_TAC >>
+ `v_size v' < v1_size t` suffices_by (
+  fs []
+ ) >>
+ METIS_TAC [v1_size_mem]
+End
+
 val _ = export_theory ();
