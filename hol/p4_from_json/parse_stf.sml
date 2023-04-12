@@ -90,7 +90,7 @@ fun string_to_term s =
 
 (* Print a HOL4 value to script format *)
 (* TODO: Fix format details *)
-(* TODO: Duplicated from parse_any_test, put in shared lib *)
+(* TODO: Duplicated, put in shared lib *)
 fun print_hol4_val (name, tm) =
  let
   val _ = print ("val "^name^" = ``");
