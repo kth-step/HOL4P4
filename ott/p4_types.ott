@@ -873,7 +873,7 @@ mk_varn (xl:string list) =
 (*based on the specs, the extern cannot be called from functions *)
 
 val func_map_typed_def = Define `
-func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g delta_t =
+func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g delta_x =
 ! f stmt xdl x  .
  ( (f = funn_name x) /\
    (ALOOKUP func_map x = SOME (stmt, xdl)) )
@@ -884,7 +884,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
      find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir xdl tdl) /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
-   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],[],delta_t)) [] (stmt) ) /\
+   ( stmt_typ ( t_scope_list_g  ,  [t_scope'] ) (  order, f , (delta_g,[],delta_x,[])) [] (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt))
 `;
@@ -1141,21 +1141,6 @@ X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
 
 
 
-val t_scopes_to_pass_def = Define `
- t_scopes_to_pass (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (t_scope_list_g:t_scope_list_g) =
-  case funn of
-   | (funn_name x) =>
-    (case ALOOKUP delta_b x of
-     | SOME (t, tl) => SOME t_scope_list_g
-     | NONE =>
-      (case ALOOKUP delta_g x of
-       | SOME (t, tl) => SOME ([ []; EL 1 t_scope_list_g])
-       | NONE => SOME t_scope_list_g
-      )
-    )
-   | _ => SOME ([ []; EL 1 t_scope_list_g])
-`;
-
 
 
 }}
@@ -1165,15 +1150,15 @@ val t_scopes_to_pass_def = Define `
 defns
 WTFg :: '' ::=
 defn
- func_map -| order t_scope_list_g delta_g delta_t :: :: WTFg :: WTFg_
+ func_map -| order t_scope_list_g delta_g delta_x :: :: WTFg :: WTFg_
 {{ com global functions well typed }}
-{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_t]] }}
+{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_x]] }}
 by
 
 
-func_map_typed func_map order t_scope_list_g delta_g delta_t
+func_map_typed func_map order t_scope_list_g delta_g delta_x
 --------------------------------------------------------- :: global
-func_map -| order t_scope_list_g delta_g delta_t
+func_map -| order t_scope_list_g delta_g delta_x
 
 
 
@@ -1236,7 +1221,7 @@ dom_t_eq ( delta_t , tbl_map )
 Fg_star_defined ( func_map , t_scope_list_g )
 Fb_star_defined ( b_func_map , t_scope_list_g )
 X_star_defined  ( ext_map , t_scope_list_g )
-func_map -| order t_scope_list_g delta_g delta_t
+func_map -| order t_scope_list_g delta_g delta_x
 b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t
 ext_map -| order t_scope_list_g delta_x
 table_map_typed tbl_map apply_table_f delta_g delta_b order
@@ -1252,8 +1237,8 @@ embed
 
 
 
-val typing_scopes_to_pass_def = Define `
- typing_scopes_to_pass (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (t_scope_list_g:t_scope_list_g) =
+val t_scopes_to_pass_def = Define `
+ t_scopes_to_pass (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (t_scope_list_g:t_scope_list_g) =
   case funn of
    | (funn_name x) =>
     (case ALOOKUP delta_b x of
@@ -1282,7 +1267,16 @@ val t_map_to_pass_def = Define `
    | _ => SOME []
 `;
 
-
+val t_tbl_to_pass_def = Define `
+ t_tbl_to_pass (funn:funn) (delta_b:delta_b) (delta_t:delta_t) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP delta_b x of
+     | SOME (tdl,t) => SOME delta_t
+     | NONE => SOME []
+    )
+   | _ => SOME []
+`;
 
 
 
@@ -1302,11 +1296,11 @@ type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
    
          (* The base frame (i.e. bottom) case *)        
     (i < LENGTH frames_list ==>
-       ∃ t_scope_list_g' passed_delta_b. 
-          typing_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME t_scope_list_g' ∧
-          t_map_to_pass (EL i funnl) (delta_b) =  SOME passed_delta_b ∧ 
-
-          frame_typ (t_scope_list_g',EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,delta_t) Prs_n g_scope_list (EL i scl) (EL i stml))     
+       ∃ t_scope_list_g' passed_delta_b passed_delta_t. 
+          t_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME t_scope_list_g' ∧
+          t_map_to_pass (EL i funnl) delta_b =  SOME passed_delta_b ∧ 
+          t_tbl_to_pass (EL i funnl) delta_b delta_t = SOME passed_delta_t /\
+          frame_typ (t_scope_list_g',EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n g_scope_list (EL i scl) (EL i stml))     
 
 `;
 
@@ -1315,27 +1309,43 @@ type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
 
 
 val f_decl_in_def = Define
-‘f_decl_in f l =
-  ∀ x . ∃ sig . (f = funn_name x /\ ALOOKUP l x = SOME sig)’;
+‘f_decl_in (funn_name x) l =
+ ∃ sig . ALOOKUP l x = SOME sig ’;
    
 
-val ext_decl_in_def = Define ` 
-  ext_decl_in f l =
- ((∀ x . ∃ sig . f = funn_inst x /\ ALOOKUP l x = SOME sig) ∧
- (∀ x x'. ∃ ext_MoE sig a1. f = funn_ext x x' /\ ALOOKUP l x = SOME (a1, ext_MoE) ∧ ALOOKUP ext_MoE x' = SOME sig  ))
-`;
+val t_decl_in_def = Define
+‘t_decl_in t l =
+  ∃ sig . ALOOKUP l t = SOME sig’;
     
 
+val IoE_decl_in_def = Define ` 
+  IoE_decl_in (funn_inst x) l =
+    ∃ sig . ALOOKUP l x = SOME sig
+`;
+
+val MoE_decl_in_def = Define ` 
+  MoE_decl_in (funn_ext x x') l =
+    ( ∃ ext_MoE sig a1. ALOOKUP l x = SOME (a1, ext_MoE) ∧ ALOOKUP ext_MoE x' = SOME sig ) 
+`;
+
+
 val deltas_order_def = Define
- ‘ deltas_order (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (order:order) =
-    ((∀ f1 f2 . ext_decl_in f1 delta_x  ∧ f_decl_in f2 delta_g ⇒
-                order (order_elem_f f1) (order_elem_f f2)  ) ∧
+ ` deltas_order (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (order:order) =
 
-   (∀ f1 f2 . f_decl_in f1 delta_g  ∧ f_decl_in f2 delta_b ⇒
-               order (order_elem_f f1) (order_elem_f f2) ))
-           
+    (* order of ext and global functions : ext defined before global *)
+
+((∀s s'.   IoE_decl_in (funn_inst s) delta_x ∧ f_decl_in (funn_name s') delta_g ⇒
+          order (order_elem_f (funn_inst s)) (order_elem_f (funn_name s'))) ∧
+          
+(∀s s' s''. MoE_decl_in (funn_ext s s') delta_x ∧ f_decl_in (funn_name s'') delta_g ⇒
+            order (order_elem_f (funn_ext s s')) (order_elem_f (funn_name s''))) ∧
+
+
+    (* order of global and local functions : global defined before local *)           
+
+(∀s s'.   f_decl_in (funn_name s) delta_g ∧ f_decl_in (funn_name s') delta_b ⇒
+          order (order_elem_f (funn_name s)) (order_elem_f (funn_name s'))))
  `;
-
 
 }}
 

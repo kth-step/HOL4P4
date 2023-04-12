@@ -889,8 +889,7 @@ fs[] >| [
 
 
 
-
-val t_lookup_funn_lemma = prove ( ``
+val t_lookup_funn_lemma_old = prove ( ``
 ! delta_g delta_b delta_x f tdl tau .
 SOME (tdl,tau) = t_lookup_funn f delta_g [] [] /\
 dom_tmap_ei delta_g delta_b ==>
@@ -902,26 +901,37 @@ REPEAT STRIP_TAC >>
 Cases_on `f` >>
 fs[t_lookup_funn_def] >>
 
-
-Cases_on `ALOOKUP delta_b s` >>
-fs[] >> rw[] >>
-
-
-Cases_on `ALOOKUP delta_g s` >>
-fs[] >> rw[] >>
-
-PairCases_on `x` >>
-PairCases_on `x'` >>
-fs[] >> rw[] >>
-
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
 fs[dom_tmap_ei_def] >>
 rfs[dom_empty_intersection_def] >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`s`])) >> gvs[]
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[]
+);
+
+                                    
+val t_lookup_funn_lemma = prove ( ``
+! delta_g delta_b delta_x f tdl tau .
+SOME (tdl,tau) = t_lookup_funn f delta_g [] delta_x /\
+dom_tmap_ei delta_g delta_b ==>
+(? tau' tdl' . ( SOME (tdl',tau') = t_lookup_funn f delta_g delta_b delta_x) /\
+	       (tdl = tdl' /\ tau = tau'))``,
+
+REPEAT STRIP_TAC >>
+fs[t_lookup_funn_def] >>
+
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+fs[dom_tmap_ei_def] >>
+rfs[dom_empty_intersection_def] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[]
 );
 
 
+
+
+
+
+                                    
 
 val t_lookup_funn_blk_lemma = prove ( ``
 ! delta_g delta_b delta_x f tdl tau .
@@ -1081,7 +1091,7 @@ REPEAT STRIP_TAC >| [
    gvs[WTFg_cases, func_map_typed_def] >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`stmt`, `xdl`, `s`])) >>
    gvs[] >>
-   IMP_RES_TAC t_lookup_funn_lemma >>
+   IMP_RES_TAC t_lookup_funn_lemma_old >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`])) >>
    srw_tac [SatisfySimps.SATISFY_ss][]
    ,
@@ -1350,7 +1360,7 @@ REPEAT STRIP_TAC >>
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`x0`,`x1`, `s`])) >>
      gvs[same_dir_def] >>
 
-     ASSUME_TAC t_lookup_funn_lemma >> RES_TAC >>
+     ASSUME_TAC t_lookup_funn_lemma_old >> RES_TAC >>
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`])) >>
      Cases_on `t_lookup_funn (funn_name s) delta_g delta_b delta_x` >>
      gvs[] >>
@@ -1752,7 +1762,7 @@ val fg_e_typ_def = Define `
    (! s tau b order t_scope_list_g t_scope_local delta_g delta_b delta_x delta_t .
 dom_tmap_ei delta_g delta_b /\
 e_typ (t_scope_list_g,t_scope_local)
-          (order,funn_name s,delta_g,[],[],delta_t) e tau b
+          (order,funn_name s,delta_g,[],delta_x,[]) e tau b
 ==>
 e_typ (t_scope_list_g,t_scope_local)
           (order,funn_name s,delta_g,delta_b,delta_x,delta_t) e tau b )
@@ -2036,7 +2046,7 @@ val lval_typ_deltas_lemma = prove (“
  delta_x delta_t Prs_n order t_scope_local ty.
       dom_tmap_ei delta_g delta_b ∧       
 lval_typ (t_scope_list_g,t_scope_local)
-         (order,funn_name s,delta_g,[],[],delta_t) lval (t_tau tau) ⇒
+         (order,funn_name s,delta_g,[],delta_x,[]) lval (t_tau tau) ⇒
 (lval_typ (t_scope_list_g,t_scope_local)
             (order,funn_name s,delta_g,delta_b,delta_x,delta_t) lval
             (t_tau tau))   ”,
@@ -2049,21 +2059,15 @@ gvs[Once lval_typ_cases] >>
 TRY(gvs[Once e_typ_cases]) >>
 SIMP_TAC list_ss [Once lval_typ_cases] >>
 TRY(SIMP_TAC list_ss [Once e_typ_cases]) >>
-gvs[] >>
-
-      FIRST [
-      
-    gvs[] >>         
-    RES_TAC >>        
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`,‘delta_t’])) >>
-    srw_tac [SatisfySimps.SATISFY_ss][]  
+gvs[] >| [
+    gvs[] >>
+    IMP_RES_TAC t_lookup_funn_lemma >>     
+    srw_tac [SatisfySimps.SATISFY_ss][]       
     ,
-
-     rfs[] >>
-    IMP_RES_TAC t_lookup_funn_lemma >>
-    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`])) >>
-     srw_tac [SatisfySimps.SATISFY_ss][]
-    ]
+    gvs[] >> RES_TAC >> METIS_TAC []
+    ,
+    gvs[] >> RES_TAC >> METIS_TAC []
+  ]
 );
             
 
@@ -2078,7 +2082,7 @@ val fg_stmt_typ_theorm =  prove (``
   ALOOKUP delta_x s = NONE ∧
   ALOOKUP delta_b s = NONE ∧        
       stmt_typ (t_scope_list_g,t_scope_local)
-               (order,funn_name s,delta_g,[],[],delta_t) [] stmt ⇒
+               (order,funn_name s,delta_g,[],delta_x,[]) [] stmt ⇒
       stmt_typ (t_scope_list_g,t_scope_local)
                (order,funn_name s,delta_g,delta_b,delta_x,delta_t) Prs_n stmt	  
 ``,
@@ -2113,13 +2117,7 @@ srw_tac [SatisfySimps.SATISFY_ss][]
  gvs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][] >>
  gvs[trans_names_imp]
- ,
- gvs[] >>
- Q.EXISTS_TAC `e_tau_b_list` >>
- gvs[]
- ,
- gvs[ext_is_defined_def]       
- ,       
+ ,      
  gvs[ext_not_defined_def]                         
 ]
 );
@@ -2246,10 +2244,9 @@ val all_func_maps_contains_welltyped_body_min = prove ( ``
   order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n delta_t .
         dom_tmap_ei delta_g delta_b ∧ dom_g_eq delta_g func_map ∧
         dom_b_eq delta_b b_func_map ∧ typying_domains_ei delta_g delta_b delta_x ∧
-        WTFg func_map order t_scope_list_g delta_g delta_t ∧
+        WTFg func_map order t_scope_list_g delta_g delta_x ∧
         WTFb b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t ∧
 MAP SND tdl = MAP SND xdl /\
-(*order f f'  /\*)
 LENGTH tdl = LENGTH xdl /\
 SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x /\	
 SOME (stmt,xdl) = lookup_funn_sig_body f func_map b_func_map ext_map ==>
@@ -2285,7 +2282,7 @@ Cases_on `f` >| [
                                                             
 
      subgoal `tdl' = tdl` >- (
-       IMP_RES_TAC t_lookup_funn_lemma >>
+       IMP_RES_TAC t_lookup_funn_lemma_old >>
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_x`])) >>
        gvs[] >>
        Cases_on `t_lookup_funn (funn_name s) delta_g delta_b delta_x` >>
@@ -2356,7 +2353,6 @@ val all_func_maps_contains_welltyped_body = prove ( ``
 WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
           order t_scope_list_g delta_g delta_b delta_x delta_t  /\
 MAP SND tdl = MAP SND xdl /\
-(*ordered f f' order /\*)
 LENGTH tdl = LENGTH xdl /\
 SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x /\	
 SOME (stmt,xdl) = lookup_funn_sig_body f func_map b_func_map ext_map ==>

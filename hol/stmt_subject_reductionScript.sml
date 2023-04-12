@@ -4307,10 +4307,10 @@ Theorem scopes_to_pass_imp_typed_lemma:
   type_scopes_list gscope tslg ∧                                                                                                    
   scopes_to_pass funn func_map b_func_map gscope = SOME g_scope_passed ⇒
   ∃ tslg_passed .
-                typing_scopes_to_pass funn delta_g delta_b tslg = SOME tslg_passed ∧
+                t_scopes_to_pass funn delta_g delta_b tslg = SOME tslg_passed ∧
                 type_scopes_list g_scope_passed tslg_passed                                                
 Proof
-gvs[scopes_to_pass_def, typing_scopes_to_pass_def] >>
+gvs[scopes_to_pass_def, t_scopes_to_pass_def] >>
 REPEAT STRIP_TAC >>
 
 Cases_on ‘funn’ >> gvs[] >>
@@ -4348,7 +4348,7 @@ WT_state ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map 
        parseError_in_gs tslg [HD tsll] ∧
   
              ∃ tslg' gscope' passed_delta_b passed_b_func_map.
-                                              typing_scopes_to_pass f delta_g delta_b tslg = SOME tslg' ∧                                    
+                                              t_scopes_to_pass f delta_g delta_b tslg = SOME tslg' ∧                                    
                                                scopes_to_pass f func_map b_func_map gscope = SOME gscope' ∧
                                                   map_to_pass f b_func_map = SOME passed_b_func_map ∧
                                                 t_map_to_pass f delta_b = SOME passed_delta_b   ∧
