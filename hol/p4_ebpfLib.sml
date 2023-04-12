@@ -17,10 +17,10 @@ val ebpf_init_global_scope =
 (* Architectural context (generic externs) *)
 
 val ebpf_packet_in_map =
- ``[("extract", (stmt_ext, [("this", d_in); ("hdr", d_out)], ebpf_packet_in_extract))]``;
+ ``[("extract", ([("this", d_in); ("hdr", d_out)], ebpf_packet_in_extract))]``;
 
 val ebpf_packet_out_map =
- ``[("emit", (stmt_ext, [("this", d_in); ("data", d_in)], ebpf_packet_out_emit))]``;
+ ``[("emit", ([("this", d_in); ("data", d_in)], ebpf_packet_out_emit))]``;
 
 (*************************)
 (* Architectural context *)
