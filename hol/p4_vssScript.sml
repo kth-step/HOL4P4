@@ -279,7 +279,7 @@ Definition vss_copyout_pbl_def:
         (case scope_to_vmap v_map_scope' of
          | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
          | NONE => NONE)
-       | NONE => NONE)
+       | _ => NONE)
      | _ => NONE)
    else
     (case scope_to_vmap v_map_scope of

@@ -1342,8 +1342,9 @@ Definition petr4_parse_fun_body_def:
       (case petr4_parse_p_params F tyenv params of
        | SOME_msg (fa_params, p_vty_updates) =>
         (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap (update_vtymap_fun p_vty_updates funtype), ftymap, gscope, apply_map) stmts of
-         | SOME_msg fa_body => SOME_msg ((fa_name, (fa_body, fa_params)),
-                                         (get_funn_name funtype fa_name, (MAP SND p_vty_updates, tau_bot)))
+         | SOME_msg fa_body =>
+          SOME_msg ((fa_name, (fa_body, fa_params)),
+                    (get_funn_name funtype fa_name, (MAP SND p_vty_updates, tau_bot)))
          | NONE_msg stmts_msg => NONE_msg stmts_msg)
        | NONE_msg params_msg => NONE_msg params_msg)
      | NONE => get_error_msg "could not parse name: " name)
@@ -1383,17 +1384,42 @@ Definition petr4_fun_to_fmapupdate_def:
     | _ => get_error_msg "unknown JSON format of extern constructor: " fun)
 End
 
-(* TODO: Decide whether to put action in global or local function map *)
+Definition is_final_stmt_return_def:
+ is_final_stmt_return stmt =
+  case stmt of
+ | stmt_empty => F
+ | stmt_ass lval e => F
+ | stmt_cond e stmt1 stmt2 =>
+  is_final_stmt_return stmt1 /\ is_final_stmt_return stmt2
+ | stmt_block decl_list stmt => is_final_stmt_return stmt
+ | stmt_ret e => T
+ | stmt_seq stmt1 stmt2 =>
+  is_final_stmt_return stmt2  
+ | stmt_verify e1 e2 => F
+ | stmt_trans e => F
+ | stmt_app x el => F
+ | stmt_ext => F
+End
+
+Definition add_explicit_return_def:
+ add_explicit_return stmt =
+  if is_final_stmt_return stmt
+  then stmt
+  else (stmt_seq stmt (stmt_ret (e_v v_bot)))
+End
+
+
+(* TODO: Decide whether to put action in global or local function map here, re-use in parse_locals *)
 (* Parses a top-level action (note that this can't see any tables, since those can only be defined in control blocks) *)
 Definition petr4_parse_action_def:
  petr4_parse_action (tyenv, enummap, vtymap, ftymap, fmap, gscope) action =
   case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, []) action funtype_action of
-   | SOME_msg (fmap_upd, ftymap_upd) =>
-    SOME_msg (ftymap_upd::ftymap, AUPDATE fmap fmap_upd)
+   | SOME_msg ((fa_name, (fa_body, fa_params)), ftymap_upd) =>
+    SOME_msg (ftymap_upd::ftymap, AUPDATE fmap (fa_name, (add_explicit_return fa_body, fa_params)))
    | NONE_msg msg => NONE_msg ("Could not parse action: "++msg)
 End
 
-(* TODO: Decide whether to put function in global or local function map *)
+(* TODO: Decide whether to put action in global or local function map here, re-use in parse_locals *)
 (* TODO: Set return type properly *)
 (* Parses a top-level function *)
 Definition petr4_parse_function_def:
@@ -1404,7 +1430,6 @@ Definition petr4_parse_function_def:
    | NONE_msg msg => NONE_msg ("Could not parse function: "++msg)
 End
 
-(* TODO: Decide whether to put function in global or local function map *)
 (* TODO: Set return type properly *)
 (* Parses a top-level extern function *)
 Definition petr4_parse_extfun_def:
@@ -1811,8 +1836,8 @@ Definition petr4_parse_locals_def:
      | NONE_msg inst_msg => NONE_msg ("could not parse instantiation: "++inst_msg))
    | Array [String "Action"; act_obj] =>
     (case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map) act_obj funtype_action of
-     | SOME_msg (b_func_map_upd, ftymap_upd) =>
-      petr4_parse_locals (tyenv, enummap, vtymap, ftymap_upd::ftymap, fmap, gscope) (AUPDATE b_func_map b_func_map_upd, tbl_map, decl_list, inits, apply_map) t
+     | SOME_msg ((fa_name, (fa_body, fa_params)), ftymap_upd) =>
+      petr4_parse_locals (tyenv, enummap, vtymap, ftymap_upd::ftymap, fmap, gscope) (AUPDATE b_func_map (fa_name, (add_explicit_return fa_body, fa_params)), tbl_map, decl_list, inits, apply_map) t
      | NONE_msg f_msg => NONE_msg ("could not parse block-local action: "++f_msg))
    | Array [String "Variable"; var_obj] =>
     (case petr4_parse_var (tyenv, enummap, vtymap) var_obj of
@@ -1994,7 +2019,7 @@ Definition petr4_p_tau_par_to_string_def:
 End
 
 (* TODO: Write abstraction for "FOLDL with option type" instead *)
-Definition petr4_parse_pblock_insts_def:
+Definition petr4_p_tau_pars_to_string_def:
  (petr4_p_tau_pars_to_string [] = SOME []) /\
  (petr4_p_tau_pars_to_string (h::t) =
    case petr4_p_tau_par_to_string h of

@@ -2284,4 +2284,14 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
+(* Replaces the input list with a single input in a given architectural state *)
+Definition p4_replace_input_def:
+ p4_replace_input input (astate:'a astate) =
+  case astate of
+  | (aenv, gscope, afl, status) =>
+   (case aenv of
+    | (ab_index, inputl, outputl, ascope) => 
+     ((ab_index, [input], outputl, ascope), gscope, afl, status))
+End
+
 val _ = export_theory ();
