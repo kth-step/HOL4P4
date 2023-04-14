@@ -1979,6 +1979,7 @@ unlike what we have with bool
 
 
 (* note that pre local means the (previous frame's scope ++ global scopes ) *)
+(* probably we need to add that lval and v are the same type? *)
 val co_wf_arg_def = Define ‘
 co_wf_arg d x (curr_local: scope list) pre_local =                         
 (is_d_out d ⇒ ∃ v lval v' .  lookup_map curr_local (varn_name x) = SOME (v, SOME lval) ∧
@@ -2023,7 +2024,7 @@ cheat );
 
 
 
-
+(*
 
 
 ∀ lval s x x' v scopest.
@@ -2173,7 +2174,7 @@ gvs[update_return_frame_def]
 
 
 
-
+*)
       
 
 
