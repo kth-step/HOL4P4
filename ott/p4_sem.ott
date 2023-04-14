@@ -628,14 +628,14 @@ formula :: formula_ ::=
 | length_is_2 ( t_scope_list_g ) :: M :: length_is_2
   {{ hol ( 2 = LENGTH [[t_scope_list_g]] ) }}
 
-| func_map_typed func_map order t_scope_list_g delta_g delta_x :: ::  func_map_typed 
-  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_x]] ) }} 
+| func_map_typed func_map order t_scope_list_g delta_g delta_b delta_x :: ::  func_map_typed 
+  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }} 
 | func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t :: :: func_map_blk_typed
   {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] ) }} 
-| extern_map_IoE_typed ext_map t_scope_list_g delta_x :: :: extern_map_IoE_typed
-  {{ hol ( extern_map_IoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_x]] ) }}
-| extern_MoE_typed ext_map t_scope_list_g delta_x :: :: extern_MoE_typed
-  {{ hol extern_MoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_x]] }}  
+| extern_map_IoE_typed ext_map t_scope_list_g delta_g delta_b delta_x :: :: extern_map_IoE_typed
+  {{ hol ( extern_map_IoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }}
+| extern_MoE_typed ext_map t_scope_list_g delta_g delta_b delta_x :: :: extern_MoE_typed
+  {{ hol extern_MoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}  
 | dom_map_ei ( func_map , b_func_map ) :: :: dom_map_ei
   {{ hol ( dom_map_ei [[func_map]] [[b_func_map]] ) }}
 | dom_tmap_ei ( delta_g , delta_b ) :: :: dom_tmap_ei
