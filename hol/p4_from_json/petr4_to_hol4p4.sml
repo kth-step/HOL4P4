@@ -26,6 +26,14 @@ fun arch_to_term arch_opt =
  | NONE => mk_none ``:arch_t``
 ;
 
+fun ascope_of_arch arch_opt_tm =
+ if is_arch_vss $ dest_some arch_opt_tm
+ then "``:vss_ascope``"
+ else if is_arch_ebpf $ dest_some arch_opt_tm
+ then "``:ebpf_ascope``"
+ else "``:'a``"
+;
+
 (* Returns the astate type of the architecture (as a term) as a string, for outputting *)
 fun astate_of_arch arch_opt_tm =
  if is_arch_vss $ dest_some arch_opt_tm
@@ -98,7 +106,7 @@ val parsed_packet_struct_uninit =
 
 fun output_hol4p4_incipit valname outstream =
  let
-  val _ = TextIO.output (outstream, "open HolKernel Parse bossLib boolSyntax p4Theory p4_exec_semTheory;\n\n");
+  val _ = TextIO.output (outstream, "open HolKernel Parse bossLib boolSyntax;\nopen p4_testLib;\n\n");
   val _ = TextIO.output (outstream, "val _ = new_theory \""^(valname^"\";\n\n"));
  in
   ()
@@ -107,12 +115,11 @@ fun output_hol4p4_incipit valname outstream =
 
 fun output_hol4p4_explicit outstream =
  let
-  val _ = TextIO.output (outstream, "\n\nval _ = export_theory ();");
+  val _ = TextIO.output (outstream, "val _ = export_theory ();");
  in
   ()
  end
 ;
-
 
 datatype stf_iotype = packet | expect;
 
@@ -203,10 +210,34 @@ fun switch iot =
  else packet
 ;
 
+fun output_test_astate outstream valname n =
+ let
+  val _ = TextIO.output (outstream, "val "^(valname^("_test"^((Int.toString n)^("_astate = rhs $ concl $ EVAL ``p4_replace_input ^"^(valname^"_packet"^((Int.toString n)^(" ^"^(valname^"_astate``;\n\n")))))))));
+ in
+  ()
+ end
+;
+
+(* Row breaks for legibility *)
+fun output_test_theorem outstream valname arch_opt n =
+ let
+  val actx = (valname^"_actx")
+  val _ = TextIO.output (outstream, "Theorem "^(valname^("_test"^((Int.toString n)^":\n"))));
+  val _ = TextIO.output (outstream, "?n ab_index' ascope' g_scope_list' arch_frame_list' status'.\n");
+  val _ = TextIO.output (outstream, "arch_multi_exec ^"^(actx^(" ^"^(valname^("_test"^((Int.toString n)^"_astate n =\n"))))));
+  val _ = TextIO.output (outstream, " SOME ((ab_index', [], [^"^(valname^"_expect"^((Int.toString n)^"], ascope'), g_scope_list', arch_frame_list', status')\n")));
+  val _ = TextIO.output (outstream, "Proof\n");
+  val _ = TextIO.output (outstream, "p4_eval_test_tac "^((ascope_of_arch arch_opt)^" "^(valname^("_actx "^(valname^"_test"^((Int.toString n)^"_astate\n"))))));
+  val _ = TextIO.output (outstream, "QED\n\n");
+ in
+  ()
+ end
+;
+
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
 (* TODO: Here, we should also print the function that performs the test and check *)
 local
- fun parse_stf' outstream valname stf_iotype n instream =
+ fun parse_stf' outstream valname stf_iotype arch_opt_tm n instream =
   case TextIO.inputLine instream of
     SOME s =>
      (case parse_packet (drop_last s) of
@@ -216,18 +247,27 @@ local
 	   let
 	    val _ = output_in_out outstream valname stf_iotype n (i, data)
 	   in
-	    parse_stf' outstream valname (switch stf_iotype) (n+1) instream
+            if stf_iotype = expect
+            then
+             let
+              val _ = output_test_astate outstream valname n
+              val _ = output_test_theorem outstream valname arch_opt_tm n
+             in
+              parse_stf' outstream valname (switch stf_iotype) arch_opt_tm (n+1) instream
+             end
+            else
+             parse_stf' outstream valname (switch stf_iotype) arch_opt_tm n instream
 	   end
 	 | NONE => raise Fail ("Invalid port number: "^port))
-     | NONE => parse_stf' outstream valname stf_iotype n instream)
+     | NONE => parse_stf' outstream valname stf_iotype arch_opt_tm n instream)
    | NONE => ()
 in
- fun parse_stf outstream stfname_opt valname =
+ fun parse_stf outstream stfname_opt valname arch_opt_tm =
   case stfname_opt of
    SOME stfname =>
     let
      val instream = TextIO.openIn stfname;
-     val _ = parse_stf' outstream valname packet 1 instream;
+     val _ = parse_stf' outstream valname packet arch_opt_tm 1 instream;
      val _ = TextIO.closeIn instream;
     in
      ()
@@ -271,10 +311,11 @@ fun output_hol4p4_vals outstream valname stfname_opt fmap pblock_map ab_list_tm 
      val fmap' = rhs $ concl $ EVAL ``AUPDATE_LIST ^vss_func_map ^fmap``
      (* TODO: Make appropriate additions to ab_list_tm here *)
      val actx =
-      list_mk_pair [vss_add_ffblocks_to_ab_list ab_list_tm, pblock_map, vss_ffblock_map,
-                    vss_input_f, vss_output_f,
-                    vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
-                    vss_ext_map, fmap']
+      rhs $ concl $ SIMP_CONV list_ss [] $
+       list_mk_pair [vss_add_ffblocks_to_ab_list ab_list_tm, pblock_map, vss_ffblock_map,
+		     vss_input_f, vss_output_f,
+		     vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
+		     vss_ext_map, fmap']
      (* TODO: Move ext_obj_map to p4_vssLib? *)
      val ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
 			  (1, INL (core_v_ext_packet_out []));
@@ -311,10 +352,11 @@ fun output_hol4p4_vals outstream valname stfname_opt fmap pblock_map ab_list_tm 
     let
      val fmap' = rhs $ concl $ EVAL ``AUPDATE_LIST ^ebpf_func_map ^fmap``
      val actx =
-      list_mk_pair [ebpf_add_ffblocks_to_ab_list ab_list_tm, pblock_map, ebpf_ffblock_map,
-                    ebpf_input_f, ebpf_output_f,
-                    ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
-                    ebpf_ext_map, fmap']
+      rhs $ concl $ SIMP_CONV list_ss [] $
+       list_mk_pair [ebpf_add_ffblocks_to_ab_list ab_list_tm, pblock_map, ebpf_ffblock_map,
+		     ebpf_input_f, ebpf_output_f,
+		     ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
+		     ebpf_ext_map, fmap']
      (* TODO: Initialise ext_obj_map... *)
      val ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
 			  (1, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
@@ -350,7 +392,7 @@ fun output_hol4p4_vals outstream valname stfname_opt fmap pblock_map ab_list_tm 
             map (output_hol4_val outstream) (map (fn (a, b, c) => (valname^("_"^a), b, c))
                               [("actx", actx, actx_of_arch arch_opt_tm), ("astate", astate, astate_of_arch arch_opt_tm)])
           | NONE => [()];
-  val _ = parse_stf outstream stfname_opt valname
+  val _ = parse_stf outstream stfname_opt valname arch_opt_tm
  in
   ()
  end
@@ -377,15 +419,16 @@ fun main() =
    let
     val filename = el 3 args;
     val logname = el 4 args;
-    val arch_opt = if length args >= 5 then parse_arch (el 5 args) else NONE;
+    val scriptname = el 5 args;
+    val arch_opt = if length args >= 6 then parse_arch (el 6 args) else NONE;
     val arch_opt_tm = arch_to_term arch_opt;
 
     (* NOTE: This will just remove the suffix .json *)
     val valname_no_suffix = List.drop (rev $ explode filename, 5);
     val stfname_opt =
-     if length args = 6
+     if length args = 7
      then 
-      if (el 6 args) = "Y"
+      if (el 7 args) = "Y"
       then SOME ((implode $ rev valname_no_suffix)^".stf")
       else NONE
      else NONE;
@@ -422,7 +465,7 @@ fun main() =
        in
         let
          (* TODO: Take this as an argument instead *)
-         val outstream = TextIO.openOut "test_out.sml";
+         val outstream = TextIO.openOut scriptname;
          val _ = output_hol4p4_incipit valname outstream ;
 (* Debug:
 val fmap = (el 5 res_list)
@@ -440,7 +483,7 @@ val arch_opt = (el 10 res_list)
       else
        let
 	val parse_error = stringLib.fromHOLstring $ dest_NONE_msg final_res_tup
-         handle HOL_ERR _ => "Parsing of JSON was not completed, yielding a malformed result without error message (you might want to check that EVAL works correctly)";
+         handle HOL_ERR _ => "Parsing of JSON was not completed, yielding a incompletely reduced RHS without error message (you might want to check that EVAL works correctly)";
 	val _ = TextIO.outputSubstr (outstream, Substring.full ("FAIL: Could not parse "^filename^(". "^(parse_error^"\n"))));
 	val _ = TextIO.closeOut outstream;
        in

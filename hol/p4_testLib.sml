@@ -4,7 +4,7 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
 
-open p4Syntax p4_exec_semSyntax testLib evalwrapLib p4_vssTheory p4_ebpfTheory;
+open p4Syntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib p4_vssTheory p4_ebpfTheory;
 
 open p4_exec_semTheory;
 
@@ -185,20 +185,18 @@ fun eval_and_print_aenv arch actx astate nsteps =
 fun eval_and_print_rest arch actx astate nsteps =
  el 2 $ snd $ strip_comb $ (eval_and_print_result arch actx astate nsteps);
 
+val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
+
 (* TODO: Add debug print output *)
 (* TODO: Make version that executes until packet is output *)
 local
-fun the_final_state step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
-
-fun final_state_is_some step_thm = optionSyntax.is_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
-
-val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
+fun the_final_state_imp step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 
 (* Stepwise evaluation under assumptions *)
 fun eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm 0 = step_thm
   | eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm fuel =
  let
-  val curr_state = the_final_state step_thm
+  val curr_state = the_final_state_imp step_thm
   val step_thm2 =
    eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never ctxt (mk_arch_multi_exec (ctx, curr_state, 1));
   val comp_step_thm =
@@ -251,7 +249,77 @@ fun eval_under_assum_break ctx init_astate stop_consts ctxt [] =
  end
 end;
 
+fun the_final_state step_thm = optionSyntax.dest_some $ rhs $ concl step_thm
+
+fun final_state_is_none step_thm = optionSyntax.is_none $ rhs $ concl step_thm
+
+(* Stepwise evaluation *)
+local
+fun eval_step' actx comp_thm step_thm 0 = step_thm
+  | eval_step' actx comp_thm step_thm fuel =
+ let
+  val curr_state = the_final_state step_thm
+  val step_thm2 =
+   EVAL “^(mk_arch_multi_exec (actx, curr_state, 1))”;
+ in
+  if final_state_is_none step_thm2
+  then step_thm
+  else
+   let
+    val comp_step_thm =
+     SIMP_RULE simple_arith_ss []
+      (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
+   in
+    eval_step' actx comp_thm comp_step_thm (fuel-1)
+   end
+ end
+in
+fun eval_step_fuel ascope_ty actx astate fuel =
+ let
+  val step_thm =
+   EVAL “^(mk_arch_multi_exec (actx, astate, 1))”;
+  val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
+ in
+  if fuel = 1
+  then step_thm
+  else eval_step' actx comp_thm step_thm (fuel-1)
+ end
+end;
+
+(* WARNING: Not guaranteed to terminate! *)
+local
+fun eval_step' actx comp_thm step_thm =
+ let
+  val curr_state = the_final_state step_thm
+  val step_thm2 =
+   EVAL “^(mk_arch_multi_exec (actx, curr_state, 1))”;
+ in
+  if final_state_is_none step_thm2
+  then step_thm
+  else
+   let
+    val comp_step_thm =
+     SIMP_RULE simple_arith_ss []
+      (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
+   in
+    eval_step' actx comp_thm comp_step_thm
+   end
+ end
+in
+fun eval_step ascope_ty actx astate =
+ let
+  val step_thm =
+   EVAL “^(mk_arch_multi_exec (actx, astate, 1))”;
+  val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
+ in
+  if final_state_is_none step_thm
+  then raise UNCHANGED
+  else eval_step' actx comp_thm step_thm
+ end
+end;
+
 (* TODO: Move to syntax file *)
+(* TODO: spine_pair *)
 fun dest_astate astate =
  let
   val (aenv, astate') = dest_pair astate
@@ -291,6 +359,32 @@ fun dest_vss_actx actx =
   (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
  end
 ;
+
+(* This tactic is used in the automatic tests derived from the .stf files of the P4 examples *)
+local
+fun get_existentials eval_thm =
+ let
+  val final_state = the_final_state eval_thm
+  val steps = last $ snd $ strip_comb $ lhs $ concl eval_thm
+  val (aenv', g_scope_list', arch_frame_list', status') = dest_astate final_state
+  (* TODO: Below line might not generalise well in future *)
+  val (ab_index', _, _, ascope') = dest_vss_aenv aenv'
+ in
+  [steps, ab_index', ascope', g_scope_list', arch_frame_list', status']
+ end
+in
+fun p4_eval_test_tac aenv_ty actx astate =
+ let
+  val step_thm = eval_step aenv_ty actx astate
+  val [n, ab_index', ascope', g_scope_list', arch_frame_list', status'] =
+   get_existentials step_thm
+ in
+  (foldr (fn (a, b) => a >> b) ALL_TAC
+   (map exists_tac [n, ab_index', ascope', g_scope_list', arch_frame_list', status']))
+   >>
+   fs [step_thm, p4_replace_input_def]
+ end
+end;
 
 (* TODO: Still presupposes VSS? *)
 fun debug_arch_from_step arch actx astate nsteps =

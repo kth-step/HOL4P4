@@ -2442,6 +2442,20 @@ qexistsl_tac [`(x0,x1,x2,x3)`, `x4`, `x5`, `x6`] >>
 fs []
 QED
 
+Theorem arch_multi_exec_comp_n_tl:
+!n m actx assl aenv g_scope_list arch_frame_list status aenv' g_scope_list' arch_frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) n =
+  SOME (aenv', g_scope_list', arch_frame_list', status') ==>
+arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') m =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'') ==>
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (n+m) =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'')
+Proof
+rpt strip_tac >>
+gs[] >>
+fs [arch_multi_exec_add]
+QED
+
 Theorem arch_multi_exec_comp_1_tl_assl:
 !m actx assl aenv g_scope_list arch_frame_list status aenv' g_scope_list' arch_frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
 (assl ==> arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) 1 =
