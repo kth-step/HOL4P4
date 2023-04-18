@@ -1294,13 +1294,12 @@ type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
      stml = MAP (λ(f,stml,scl). stml) frames_list ∧
      scl = MAP (λ(f,stml,scl). scl) frames_list) ⇒
    
-         (* The base frame (i.e. bottom) case *)        
     (i < LENGTH frames_list ==>
-       ∃ passed_tslg passed_delta_b passed_delta_t passed_gscope. 
+       ∃ passed_tslg passed_delta_b passed_delta_t. 
           t_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME passed_tslg ∧
           t_map_to_pass (EL i funnl) delta_b =  SOME passed_delta_b ∧ 
           t_tbl_to_pass (EL i funnl) delta_b delta_t = SOME passed_delta_t /\
-          frame_typ (passed_tslg,EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope (EL i scl) (EL i stml))     
+          frame_typ (passed_tslg,EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n g_scope_list (EL i scl) (EL i stml))     
 
 `;
 

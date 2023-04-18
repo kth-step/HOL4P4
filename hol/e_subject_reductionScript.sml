@@ -4034,15 +4034,17 @@ QED
 
 
 
-val lookup_lval_exsists = prove ( ``
+Theorem lookup_lval_exsists:
 ! ss v x s .
 lookup_lval (ss) (lval_field x s) = SOME v ==>
-? v' . lookup_lval (ss) x = SOME v' ``,
+? v' . lookup_lval (ss) x = SOME v' 
+Proof
 
 REPEAT STRIP_TAC >>
 fs[lookup_lval_def] >>
 Cases_on `lookup_lval ss x` >>
-fs[] );
+fs[] 
+QED
 
 
 

@@ -1448,55 +1448,7 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘s’])) >> gvs[]
                                                 
               
 
-val type_scopes_list_single_detr = prove ( “
-∀ h h' h''.
- type_scopes_list [h''] [h] ∧
- type_scopes_list [h''] [h'] ⇒
-  h = h' ”,
 
-gvs[type_scopes_list_def, similarl_def] >>
-Induct_on ‘h’ >>
-Induct_on ‘h'’ >>
-Induct_on ‘h''’ >>
-REPEAT STRIP_TAC >>
-gvs[similar_def] >>
-
-PairCases_on ‘h'⁴'’ >>
-PairCases_on ‘h'⁵'’ >>
-PairCases_on ‘h'³'’ >>
-gvs[] >>
-
-ASSUME_TAC  v_typ_deter >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`])) >> gvs[] >>
-gvs[deter_v_typed_def] >>
-METIS_TAC []
-);
-
-
-
-
-(* move to stmt sr after v_typ_deter *)       
-val type_scopes_list_detr = prove (“
-∀ sl tscl tscl' .
- type_scopes_list sl tscl ∧
- type_scopes_list sl tscl' ==>
-  tscl = tscl' ”,
-     
-Induct_on ‘sl’ >>
-Induct_on ‘tscl’ >>
-Induct_on ‘tscl'’ >>
-
-REPEAT STRIP_TAC >>
-IMP_RES_TAC type_scopes_list_LENGTH >>
-gvs[] >>
-
-‘type_scopes_list [h''] [h] ∧
- type_scopes_list [h''] [h'] ∧
- type_scopes_list sl tscl' ∧
- type_scopes_list sl tscl ’ by (IMP_RES_TAC type_scopes_list_normalize >> gvs[]) >>
-
-IMP_RES_TAC type_scopes_list_single_detr >> gvs[] >> METIS_TAC []
-);
 
 
 
@@ -1718,10 +1670,17 @@ Cases_on ‘tsll’ >> gvs[] >>
 IMP_RES_TAC parseError_in_gs_normalization >> gvs[] >>
 
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
-
+(*
 ‘ ∃ passed_gscope .  scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope
                        ∧  type_scopes_list passed_gscope t_scope_list_g'’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
+*)
 
+
+
+‘ ∃ g_scope_passed .  scopes_to_pass f func_map b_func_map gscope = SOME g_scope_passed
+                       ∧  type_scopes_list g_scope_passed passed_tslg’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
+
+        
 srw_tac [SatisfySimps.SATISFY_ss][] >>
 
 gvs[frame_typ_cases] >>
@@ -1788,8 +1747,8 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
 Cases_on ‘ (ZIP (funnl,ZIP (stmtll,scll)))’ >> gvs[] >> 
 PairCases_on ‘h'’ >> gvs[] >>
 
-‘ ∃ passed_gscope .  scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope
-                       ∧  type_scopes_list passed_gscope t_scope_list_g'’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
+‘ ∃ g_scope_passed .  scopes_to_pass f func_map b_func_map gscope = SOME g_scope_passed
+                       ∧  type_scopes_list g_scope_passed passed_tslg’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
 
 srw_tac [SatisfySimps.SATISFY_ss][] >>
 
@@ -1879,30 +1838,7 @@ QED
 
 
      
-Theorem return_imp_same_g_base_case:
-∀ stmt stmtl' c ascope ascope' gscope gscope' f  v framel locale locale'.
-stmt_red c (ascope,gscope,[(f,[stmt],locale)],status_running)
-           (ascope',gscope',[(f,stmtl',locale')],status_returnv v) ⇒
-gscope = gscope'  
-Proof
-Induct >>
-REPEAT GEN_TAC >>
-STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
-METIS_TAC []
-QED                                                                              
-
-     
-Theorem return_imp_same_g:
-∀ stmtl stmtl' c ascope ascope' gscope gscope' f  v framel locale locale'.
-stmt_red c (ascope,gscope,[(f,stmtl,locale)],status_running)
-           (ascope',gscope',[(f,stmtl',locale')],status_returnv v) ⇒
-gscope = gscope' 
-Proof
-REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
-IMP_RES_TAC return_imp_same_g_base_case
-QED    
+  
 
 
 val assign_star_length_2 = prove (“
@@ -2014,18 +1950,11 @@ REPEAT STRIP_TAC >| [
 );
 
 
-val lookup_lval_exsists = prove ( ``
-! ss v x s .
-lookup_lval (ss) (lval_field x s) = SOME v ==>
-? v' . lookup_lval (ss) x = SOME v' ``,
-cheat );
-
 
 
 
 
 (*
-
 
 ∀ lval s x x' v scopest.
 lookup_map scopest (varn_name x) = SOME (v,SOME (lval_field lval s)) ==>
@@ -2049,7 +1978,8 @@ gvs[topmost_map_def, find_topmost_map_def]
 
            
       
-∀ lval v x d copy_to_ss scopest.     
+   ∀ lval v x d copy_to_ss scopest.
+     
   LENGTH copy_to_ss > 1 ∧
   is_d_out d ∧
   lookup_map scopest (varn_name x) = SOME (v,SOME lval) ∧
@@ -2171,11 +2101,6 @@ REPEAT STRIP_TAC >>
 gvs[update_return_frame_def]
 
 
-
-
-
-*)
-      
 
 
 
