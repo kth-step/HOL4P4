@@ -20,6 +20,7 @@ val exclude_descs =
     "issue1406",
     "issue1409-bmv2",
     "issue1607-bmv2",
+    "issue1989-bmv2.json",
     "issue2090",
     "issue313_1",
     "issue313_2",
@@ -59,10 +60,13 @@ val exclude_descs =
     "issue134-bmv2",
     "issue1863",
     "issue2036-3",
+    "issue2261.json",
     "issue2265-1",
+    "issue2289.json",
     "issue232-bmv2",
     "issue249",
     "issue270-bmv2",
+    "issue430-1-bmv2.json",
     "issue430-bmv2",
     "issue529",
     "issue655-bmv2",
@@ -107,6 +111,15 @@ val exclude_descs =
     "union4-bmv2",
     "union-valid-bmv2"]),
 (*
+    Match kind
+    FAIL: Could not parse .*\/(.*?)\. .*? could not parse match kind.*
+*)
+  ("supporting introduction of new match kinds",
+   ["action_profile_max_group_size_annotation.json",
+    "action_profile-bmv2.json",
+    "action_selector_shared-bmv2.json",
+    "issue297-bmv2.json"]),
+(*
     Casts
     FAIL: Could not parse .*\/(.*?)\. .*cast.*
 *)
@@ -123,12 +136,17 @@ val exclude_descs =
     "hash-bmv2",
     "initializer",
     "issue1097-2-bmv2",
+    "issue1538.json",
     "issue1566-bmv2",
     "issue1566",
     "issue1713-bmv2",
+    "issue1755-1-bmv2.json",
     "issue2104",
+    "issue2148.json",
     "issue2151",
     "issue2335-1",
+    "issue2260-2.json",
+    "issue983-bmv2.json",
     "issue584-1",
     "spec-ex25",
     "strength6",

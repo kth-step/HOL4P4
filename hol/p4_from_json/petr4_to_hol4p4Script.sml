@@ -560,12 +560,16 @@ Definition exp_to_funn_def:
   case exp of
   (* Regular function call *)
   | (e_var (varn_name name)) => SOME (SOME (funn_name name), NONE)
-  (* Extern method call/isValid *)
+  (* Extern method call/validity manipulation *)
   | (e_acc obj fun_name) =>
-     (* TODO: This is a hack, making exceptions for "isValid" and "apply"...
+     (* TODO: This is a hack, making exceptions for validity manipulations and "apply"...
       *       Need to check type of obj to see what methods exist *)
    (if fun_name = "isValid" then
      SOME (SOME (funn_ext "header" "isValid"), SOME obj)
+    else if fun_name = "setInvalid" then
+     SOME (SOME (funn_ext "header" "setInvalid"), SOME obj)
+    else if fun_name = "setValid" then
+     SOME (SOME (funn_ext "header" "setValid"), SOME obj)
     else if fun_name = "apply" then
      (* Apply is a statement, no function name needed *)
      SOME (NONE, SOME obj)
@@ -624,6 +628,15 @@ Definition petr4_binop_lookup_def:
            ("Or", binop_bin_or)] binop_str
 End
 
+(* Like ALOOKUP, but also requires the number of arguments to match
+ * Required due to overloaded function names, e.g. extract in packet_in *)
+Definition find_fty_match_args_def:
+ find_fty_match_args ftymap funn numargs =
+  case FIND (\ (funn', (tyargs', tyret')). if funn = funn' then (numargs = LENGTH tyargs') else F) ftymap of
+  | SOME fty => SOME (SND fty)
+  | NONE => NONE
+End
+
 (* The image of this function is the type union of expressions (INL)
  * and natural numbers (INR) (for arbitrary-width integers).
  * Regular petr4_parse_expression is a wrapper for this which
@@ -631,7 +644,7 @@ End
 (* Definition petr4_parse_expression_gen_def: *)
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
-`(petr4_parse_expression_gen (tyenv, enummap, vtymap) (exp, p_tau_opt) =
+`(petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (exp, p_tau_opt) =
   case exp of
   (* TODO: Null can occur in case of return without value - works generally? *)
   | Null => SOME_msg (INL (e_v v_bot))
@@ -647,7 +660,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
      Object [("tags", tags);
              ("expr", nested_exp);
              ("name", name)]] =>
-   (case petr4_parse_expression_gen (tyenv, enummap, vtymap) (nested_exp, NONE) of
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (nested_exp, NONE) of
     | SOME_msg (INL mem_nested_exp) =>
      (case petr4_parse_name name of
       | SOME mem_name =>
@@ -698,7 +711,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
      Object [("tags", tags);
              ("op", Array [String optype; op_tags]);
              ("arg", op)]] =>
-   (case petr4_parse_expression_gen (tyenv, enummap, vtymap) (op, NONE) of
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (op, NONE) of
     | SOME_msg res_op =>
      (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
      (case petr4_unop_lookup optype of
@@ -716,9 +729,9 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
      Object [("tags", tags);
              ("op", Array [String optype; op_tags]);
              ("args", Array [op1; op2])]] =>
-   (case petr4_parse_expression_gen (tyenv, enummap, vtymap) (op1, NONE) of
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (op1, NONE) of
     | SOME_msg res_op1 =>
-     (case petr4_parse_expression_gen (tyenv, enummap, vtymap) (op2, NONE) of
+     (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (op2, NONE) of
       | SOME_msg res_op2 =>
        (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
        (case petr4_binop_lookup optype of
@@ -780,73 +793,68 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
                    ("func", func_name);
                    ("type_args", Array tyargs);
                    ("args", Array args)]] =>
-   (case petr4_parse_expression_gen (tyenv, enummap, vtymap) (func_name, NONE) of
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (func_name, NONE) of
     | SOME_msg (INL res_func_name) =>
      (case exp_to_funn vtymap res_func_name of
       | SOME (SOME res_func_name', NONE) =>
-       (case petr4_parse_args (tyenv, enummap, vtymap) (ZIP (args, REPLICATE (LENGTH args) NONE)) of
-        | SOME_msg res_args =>
+       (case find_fty_match_args ftymap res_func_name' (LENGTH args) of
+        | SOME (arg_tys, ret_ty) =>
+         (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) (ZIP (args, MAP SOME arg_tys)) of
+          | SOME_msg res_args =>
            SOME_msg (INL (e_call res_func_name' res_args))
-        | NONE_msg func_name_msg => NONE_msg ("could not parse function call arguments: "++func_name_msg))
-      (* isValid is modeled in HOL4P4 as a method call *)
-      | SOME (SOME res_isvalid, SOME isvalid_arg) =>
-       SOME_msg (INL (e_call res_isvalid [isvalid_arg]))
+          | NONE_msg func_name_msg => NONE_msg ("could not parse function call arguments: "++func_name_msg))
+        | NONE => get_error_msg "could not retrieve type of functiion: " func_name)
+      (* validity manipulation is modeled in HOL4P4 as a method call *)
+      | SOME (SOME res_validity, SOME validity_arg) =>
+       SOME_msg (INL (e_call res_validity [validity_arg]))
       | _ => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
   | _ => get_error_msg "unknown JSON format of expression: " exp) /\
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 (* TODO: Why should this do any type inference? Can that be restricted to parse_expression_gen? *)
- (petr4_parse_args (tyenv, enummap, vtymap) [] =
+ (petr4_parse_args (tyenv, enummap, vtymap, ftymap) [] =
   SOME_msg []) /\
- (petr4_parse_args (tyenv, enummap, vtymap) (h::t) =
+ (petr4_parse_args (tyenv, enummap, vtymap, ftymap) (h::t) =
   case h of
   | (Array [String argtype; Object [("tags", tags); ("value", exp)]], p_tau_opt) =>
    if argtype = "Expression" then
-    case petr4_parse_expression_gen (tyenv, enummap, vtymap) (exp, NONE) of
+    case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (exp, NONE) of
      | SOME_msg (INL exp_res) =>
       (* TODO: Check if p_tau_opt is a parameter, then specialise it in t if that is the case *)
-      (case petr4_parse_args (tyenv, enummap, vtymap) t of
+      (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) t of
        | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
        | NONE_msg exps_msg => NONE_msg exps_msg)
      | SOME_msg (INR c) =>
       (case p_tau_opt of
        | SOME (p_tau_bit n) =>
-        (case petr4_parse_args (tyenv, enummap, vtymap) t of
+        (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) t of
          | SOME_msg exps_res => SOME_msg ((e_v (v_bit (fixwidth n (n2v c), n)))::exps_res)
          | NONE_msg exps_msg => NONE_msg exps_msg)
        | SOME other_tau => get_error_msg "non-bitstring type inference unsupported for exp: " exp
        | NONE => get_error_msg "type inference information missing for function argument: " exp)
      | NONE_msg exp_msg => NONE_msg ("could not parse arguments: "++exp_msg)
    else NONE_msg ("unsupported argument type: "++argtype)
-  | _ => get_error_msg "unknown JSON format of argument: " (FST h)) (*/\
-(petr4_parse_expressions_gen (tyenv, enummap, vtymap) [] = SOME_msg []) /\
-(petr4_parse_expressions_gen (tyenv, enummap, vtymap) ((h1, h2)::t) =
- case petr4_parse_expression_gen (tyenv, enummap, vtymap) (h1, h2) of
-  | SOME_msg exp_res =>
-   (case petr4_parse_expressions_gen (tyenv, enummap, vtymap) t of
-    | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
-    | NONE_msg exps_msg => NONE_msg exps_msg)
-  | NONE_msg exp_msg => NONE_msg ("could not parse expressions: "++exp_msg)) *)
+  | _ => get_error_msg "unknown JSON format of argument: " (FST h))
 `
 cheat
 ;
 
 (* TODO: Why does this not use tyenv? Remove tyenv? *)
 Definition petr4_parse_expression_def:
- petr4_parse_expression (tyenv, enummap:enummap, vtymap) (exp, tau_opt) =
-  case petr4_parse_expression_gen (tyenv, enummap, vtymap) (exp, tau_opt) of
+ petr4_parse_expression (tyenv, enummap:enummap, vtymap, ftymap) (exp, tau_opt) =
+  case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (exp, tau_opt) of
   | SOME_msg (INR n) => get_error_msg "no type inference information provided for integer constant: " exp
   | SOME_msg (INL exp) => SOME_msg exp
   | NONE_msg exp_msg => NONE_msg ("could not parse value: "++exp_msg)
 End
 
 Definition petr4_parse_expressions_def:
- (petr4_parse_expressions (tyenv, enummap, vtymap) [] =
+ (petr4_parse_expressions (tyenv, enummap, vtymap, ftymap) [] =
   SOME_msg []) /\
- (petr4_parse_expressions (tyenv, enummap, vtymap) ((h1, h2)::t) =
-  case petr4_parse_expression (tyenv, enummap, vtymap) (h1, h2) of
+ (petr4_parse_expressions (tyenv, enummap, vtymap, ftymap) ((h1, h2)::t) =
+  case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (h1, h2) of
    | SOME_msg exp_res =>
-    (case petr4_parse_expressions (tyenv, enummap, vtymap) t of
+    (case petr4_parse_expressions (tyenv, enummap, vtymap, ftymap) t of
      | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
      | NONE_msg exps_msg => NONE_msg exps_msg)
    | NONE_msg exp_msg => NONE_msg ("could not parse expressions: "++exp_msg))
@@ -862,8 +870,8 @@ End
 (* NOTE: Should vtymap be needed at top level?
  *       Remove tyenv, doesn't seem to be needed? *)
 Definition petr4_parse_value_def:
- petr4_parse_value (tyenv, enummap:enummap, vtymap) (exp, tau_opt) =
-  case petr4_parse_expression_gen (tyenv, enummap, vtymap) (exp, tau_opt) of
+ petr4_parse_value (tyenv, enummap:enummap, vtymap, ftymap) (exp, tau_opt) =
+  case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (exp, tau_opt) of
   | SOME_msg (INR n) => SOME_msg (INR n)
   | SOME_msg (INL res_exp) =>
    (case exp_to_val res_exp of
@@ -878,7 +886,7 @@ End
 (* TODO: Tau not used for any check? *)
 (* TODO: Update vtymap here? *)
 Definition petr4_constant_to_scopeupdate_def:
- petr4_constant_to_scopeupdate (tyenv, enummap, vtymap) json =
+ petr4_constant_to_scopeupdate (tyenv, enummap, vtymap, ftymap) json =
   case json_parse_obj ["tags"; "annotations"; "type"; "name"; "value"] json of
   | SOME [tags; annot; json_type; name; json_value] =>
    (case petr4_parse_type tyenv json_type of
@@ -886,7 +894,7 @@ Definition petr4_constant_to_scopeupdate_def:
      (case petr4_parse_name name of
       | SOME c_name =>
        (* TODO: No type inference for global constants? *)
-       (case petr4_parse_value (tyenv, enummap, vtymap) (json_value, NONE) of
+       (case petr4_parse_value (tyenv, enummap, vtymap, ftymap) (json_value, NONE) of
         | SOME_msg value => SOME_msg (varn_name c_name, value)
         | NONE_msg val_msg => NONE_msg val_msg)
       | NONE => get_error_msg "could not parse name: " name)
@@ -896,8 +904,8 @@ End
 
 (* This is used to parse global constants *)
 Definition petr4_parse_constant_def:
- petr4_parse_constant (tyenv, enummap, vtymap, gscope) constant =
-  case petr4_constant_to_scopeupdate (tyenv, enummap, vtymap) constant of
+ petr4_parse_constant (tyenv, enummap, vtymap, ftymap, gscope) constant =
+  case petr4_constant_to_scopeupdate (tyenv, enummap, vtymap, ftymap) constant of
    | SOME_msg (varn, val) =>
     (case val of
      | INL v =>
@@ -962,15 +970,6 @@ End
 (**********************)
 (* Common: statements *)
 
-(* Like ALOOKUP, but also requires the number of arguments to match
- * Required due to overloaded function names, e.g. extract in packet_in *)
-Definition find_fty_match_args_def:
- find_fty_match_args ftymap funn numargs =
-  case FIND (\ (funn', (tyargs', tyret')). if funn = funn' then (numargs = LENGTH tyargs') else F) ftymap of
-  | SOME fty => SOME (SND fty)
-  | NONE => NONE
-End
-
 Definition petr4_parse_method_call_def:
  petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, apply_map) stmt_details =
   case stmt_details of
@@ -981,13 +980,13 @@ Definition petr4_parse_method_call_def:
    if f1 = "func" then
     (if f2 = "type_args" then
      (if f3 = "args" then
-      (case petr4_parse_expression (tyenv, enummap, vtymap) (func, NONE) of
+      (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (func, NONE) of
        | SOME_msg exp =>
         (case exp_to_funn vtymap exp of
          | SOME (SOME funn, obj_opt) =>
           (case find_fty_match_args ftymap funn (LENGTH args) of
            | SOME (arg_tys, ret_ty) =>
-            (case petr4_parse_args (tyenv, enummap, vtymap) (ZIP (args, MAP SOME arg_tys)) of
+            (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) (ZIP (args, MAP SOME arg_tys)) of
              | SOME_msg res_args =>
               (case funn of
                (* Extern object method *)
@@ -1051,20 +1050,20 @@ Definition infer_rhs_type_def:
 End
 
 Definition petr4_parse_assignment_def:
- petr4_parse_assignment (tyenv, enummap, vtymap, gscope) stmt_details =
+ petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope) stmt_details =
   case stmt_details of
   | [(f0, tags); (* No check for this, since it's only thrown away *)
      (f1, lhs); (* Left-hand side: expression, should be lval *)
      (f2, rhs)] => (* Right-hand side: expression *)
    if f1 = "lhs" then
     (if f2 = "rhs" then
-     (case petr4_parse_expression (tyenv, enummap, vtymap) (lhs, NONE) of
+     (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (lhs, NONE) of
       | SOME_msg lhs_res =>
        (case exp_to_lval lhs_res of
         | SOME lval => 
          (case infer_rhs_type vtymap lval of
           | SOME p_tau =>
-           (case petr4_parse_expression (tyenv, enummap, vtymap) (rhs, SOME p_tau) of
+           (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (rhs, SOME p_tau) of
             | SOME_msg rhs_res => SOME_msg (stmt_ass lval rhs_res)
             | NONE_msg rhs_msg => NONE_msg ("could not parse RHS of assignment: "++rhs_msg))
           | NONE => get_error_msg "no type inference information found for lval: " lhs)
@@ -1076,12 +1075,12 @@ Definition petr4_parse_assignment_def:
 End
 
 Definition petr4_parse_return_def:
- petr4_parse_return (tyenv, enummap, vtymap, gscope) stmt_details =
+ petr4_parse_return (tyenv, enummap, vtymap, ftymap, gscope) stmt_details =
   case stmt_details of
   | [(f0, tags); (* No check for this, since it's only thrown away *)
      (f1, exp)] => (* Right-hand side: expression *)
    if f1 = "expr" then
-     (case petr4_parse_expression (tyenv, enummap, vtymap) (exp, NONE) of
+     (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (exp, NONE) of
       | SOME_msg exp_res => SOME_msg (stmt_ret exp_res)
       | NONE_msg exp_msg => NONE_msg ("could not parse return expression: "++exp_msg))
    else NONE_msg ("unknown JSON object field of return: "++f1)
@@ -1089,7 +1088,7 @@ Definition petr4_parse_return_def:
 End
 
 Definition petr4_parse_var_def:
- petr4_parse_var (tyenv, enummap, vtymap) var =
+ petr4_parse_var (tyenv, enummap, vtymap, ftymap) var =
   case json_parse_obj ["tags"; "annotations"; "type"; "name"; "init"] var of
   | SOME [tags; annot; json_type; name; opt_init] =>
    (case petr4_parse_type tyenv json_type of
@@ -1104,7 +1103,7 @@ Definition petr4_parse_var_def:
           | Null =>
            SOME_msg (varn_name var_name, tau_var, NONE)
           | val_exp =>
-           (case petr4_parse_value (tyenv, enummap, vtymap) (val_exp, SOME (parameterise_tau tau_var)) of
+           (case petr4_parse_value (tyenv, enummap, vtymap, ftymap) (val_exp, SOME (parameterise_tau tau_var)) of
             | SOME_msg (INL val) =>
              SOME_msg (varn_name var_name, tau_var, SOME val)
             | SOME_msg (INR n) => get_error_msg "type inference failed for integer constant: " val_exp
@@ -1141,7 +1140,7 @@ val _ = TotalDefn.tDefine "petr4_parse_stmts"
        | NONE_msg stmts_msg => NONE_msg stmts_msg)
      | NONE_msg call_msg => NONE_msg call_msg)
    else if stmt_name = "assignment" then
-    (case petr4_parse_assignment (tyenv, enummap, vtymap, gscope) stmt_details of
+    (case petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope) stmt_details of
      | SOME_msg ass_res =>
       (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, apply_map) t of
        | SOME_msg stmts_res =>
@@ -1158,7 +1157,7 @@ val _ = TotalDefn.tDefine "petr4_parse_stmts"
      if f1 = "cond" then
       (if f2 = "tru" then
        (if f3 = "fls" then
-        (case petr4_parse_expression (tyenv, enummap, vtymap) (cond, NONE) of
+        (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (cond, NONE) of
          | SOME_msg cond_res =>
           (* TODO: Will this work, since the cases are always a singleton list of a block statement? *)
           (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, apply_map) [true_case] of
@@ -1196,7 +1195,7 @@ val _ = TotalDefn.tDefine "petr4_parse_stmts"
      else NONE_msg ("unknown JSON object field of block: "++f1)
     | _ => get_error_msg "unknown JSON format of block: " (Object stmt_details)
    else if stmt_name = "return" then
-    (case petr4_parse_return (tyenv, enummap, vtymap, gscope) stmt_details of
+    (case petr4_parse_return (tyenv, enummap, vtymap, ftymap, gscope) stmt_details of
      | SOME_msg ret_res =>
       (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, apply_map) t of
        | SOME_msg stmts_res =>
@@ -1211,7 +1210,7 @@ val _ = TotalDefn.tDefine "petr4_parse_stmts"
        ("decl", decl)] =>
      (case json_parse_arr "Variable" SOME decl of
       | SOME decl_obj =>
-       (case petr4_parse_var (tyenv, enummap, vtymap) decl_obj of
+       (case petr4_parse_var (tyenv, enummap, vtymap, ftymap) decl_obj of
         | SOME_msg (varn, tau, init_val_opt) => 
          (case petr4_parse_stmts (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, gscope, apply_map) t of
           | SOME_msg stmts_res =>
@@ -1551,28 +1550,30 @@ End
 
 (* TODO: Infer types of arguments *)
 Definition petr4_parse_inst_def:
- petr4_parse_inst (tyenv, enummap, vtymap, decl_list, inits) inst =
+ petr4_parse_inst (tyenv, enummap, vtymap, ftymap, decl_list, inits) inst =
   (* TODO: Use args as needed in constructor *)
   (* TODO: Use init field *)
   case json_parse_obj ["tags"; "annotations"; "type"; "args"; "name"; "init"] inst of
   | SOME [tags; annot; json_type; Array args; name; init] =>
    (case petr4_parse_type tyenv json_type of
     | SOME tau_ext =>
-     (case petr4_parse_args (tyenv, enummap, vtymap) (ZIP (args, REPLICATE (LENGTH args) NONE)) of
-      | SOME_msg res_args => 
-       (case petr4_parse_type_name json_type of
-        | SOME type_name =>
-         (case petr4_parse_name name of
-          | SOME inst_name =>
-           SOME_msg (decl_list++[(varn_name inst_name, tau_ext)],
-                     p4_seq_append_stmt inits (stmt_ass lval_null (e_call (funn_inst type_name) ([e_var (varn_name inst_name)]++res_args))),
-                     (varn_name inst_name, p_tau_ext type_name))
-          | NONE => get_error_msg "could not parse name: " name)
-        | _ => get_error_msg "could not parse type name: " json_type)
-      | NONE_msg args_msg => NONE_msg ("could not parse instantiation arguments: "++args_msg))
+     (case petr4_parse_type_name json_type of
+      | SOME type_name =>
+       (case find_fty_match_args ftymap (funn_inst type_name) (LENGTH args) of
+        | SOME (arg_tys, ret_ty) =>
+         (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) (ZIP (args, MAP SOME arg_tys)) of
+          | SOME_msg res_args => 
+           (case petr4_parse_name name of
+            | SOME inst_name =>
+             SOME_msg (decl_list++[(varn_name inst_name, tau_ext)],
+                       p4_seq_append_stmt inits (stmt_ass lval_null (e_call (funn_inst type_name) ([e_var (varn_name inst_name)]++res_args))),
+                       (varn_name inst_name, p_tau_ext type_name))
+            | NONE => get_error_msg "could not parse name: " name)
+          | NONE_msg args_msg => NONE_msg ("could not parse instantiation arguments: "++args_msg))
+        | NONE => get_error_msg "could not find type information of instantiation: " json_type)
+      | _ => get_error_msg "could not parse type name: " json_type)
     | SOME _ => get_error_msg "type of instantiation is not extern: " inst
-    | NONE => get_error_msg "could not parse type: " json_type
-   )
+    | NONE => get_error_msg "could not parse type: " json_type)
   | _ => get_error_msg "unknown JSON format of instantiation: " inst
 End
 
@@ -1592,15 +1593,15 @@ Definition petr4_parse_match_kind_def:
 End
 
 Definition petr4_parse_keys_def:
- (petr4_parse_keys (tyenv, enummap, vtymap) [] = SOME_msg []) /\
- (petr4_parse_keys (tyenv, enummap, vtymap) (h::t) =
+ (petr4_parse_keys (tyenv, enummap, vtymap, ftymap) [] = SOME_msg []) /\
+ (petr4_parse_keys (tyenv, enummap, vtymap, ftymap) (h::t) =
    case json_parse_obj ["tags"; "annotations"; "key"; "match_kind"] h of
    | SOME [tags; annot; key; match_kind] =>
     (case petr4_parse_match_kind match_kind of
      | SOME_msg res_mk =>
-      (case petr4_parse_expression (tyenv, enummap, vtymap) (key, NONE) of
+      (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (key, NONE) of
        | SOME_msg res_key =>
-        (case petr4_parse_keys (tyenv, enummap, vtymap) t of
+        (case petr4_parse_keys (tyenv, enummap, vtymap, ftymap) t of
          | SOME_msg res_msg => SOME_msg ((res_key, res_mk)::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg key_msg => NONE_msg ("could not parse key: "++key_msg))
@@ -1610,14 +1611,14 @@ End
 
 (* TODO: Action argument seems to not be exported by petr4 *)
 Definition petr4_parse_default_action_def:
- petr4_parse_default_action (tyenv, enummap, vtymap) default_action =
+ petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) default_action =
   (* TODO: Don't throw const away *)
   case json_parse_obj ["tags"; "annotations"; "const"; "name"; "value"] default_action of
   | SOME [tags; annot; const; name; action] =>
    (case petr4_parse_name name of
     | SOME custom_name =>
      if custom_name = "default_action" then
-     (case petr4_parse_expression (tyenv, enummap, vtymap) (action, NONE) of
+     (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (action, NONE) of
       | SOME_msg (e_call (funn_name action_name) args) =>
        SOME_msg (action_name, args)
       | SOME_msg (e_var (varn_name action_name)) =>
@@ -1631,25 +1632,25 @@ End
 (* TODO: Note that this presupposes a default_action field is present if any optional field is *)
 (* TODO: Fix this mess... *)
 Definition petr4_build_table_def:
- petr4_build_table (tyenv, enummap, vtymap) keys_obj custom_obj_opt custom_obj_opt2 =
-  case petr4_parse_keys (tyenv, enummap, vtymap) keys_obj of
+ petr4_build_table (tyenv, enummap, vtymap, ftymap) keys_obj custom_obj_opt custom_obj_opt2 =
+  case petr4_parse_keys (tyenv, enummap, vtymap, ftymap) keys_obj of
   | SOME_msg keys_res =>
    (case custom_obj_opt of
     | SOME custom_obj =>
      (case custom_obj_opt2 of
       | SOME custom_obj2 =>
        (* See if first custom object is an action *)
-       (case petr4_parse_default_action (tyenv, enummap, vtymap) custom_obj of
+       (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) custom_obj of
         | SOME_msg default_action =>
          SOME_msg (keys_res, default_action)
        (* If not, second may be an action *)
         | NONE_msg def_act_msg =>
-         (case petr4_parse_default_action (tyenv, enummap, vtymap) custom_obj2 of
+         (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) custom_obj2 of
           | SOME_msg default_action2 =>
            SOME_msg (keys_res, default_action2)
           | NONE_msg def_act_msg2 => NONE_msg ("either "++(def_act_msg++(" or "++def_act_msg2)))))
       | NONE =>
-       (case petr4_parse_default_action (tyenv, enummap, vtymap) custom_obj of
+       (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) custom_obj of
         | SOME_msg default_action =>
          SOME_msg (keys_res, default_action)
         | NONE_msg def_act_msg => NONE_msg def_act_msg))
@@ -1728,12 +1729,12 @@ End
 *)
 
 Definition petr4_process_key_def:
- petr4_process_key (tyenv, enummap, vtymap) props =
+ petr4_process_key (tyenv, enummap, vtymap, ftymap) props =
   case FIND_EXTRACT_ONE petr4_property_is_key props of
   | SOME (keys, props') =>
    (case keys of
     | Array [String "Key"; Object [("tags", tags); ("keys", Array keys_obj)]] =>
-     (case petr4_parse_keys (tyenv, enummap, vtymap) keys_obj of
+     (case petr4_parse_keys (tyenv, enummap, vtymap, ftymap) keys_obj of
       | SOME_msg key_mk_list => SOME_msg (key_mk_list, props')
       | NONE_msg msg => NONE_msg msg)
     | _ => get_error_msg "unknown key property format: " keys)
@@ -1788,7 +1789,7 @@ End
 (* Note: P4 spec says tables don't have to have key fields - then the default action will
  * always be the result of matching *)
 Definition petr4_parse_properties_def:
- petr4_parse_properties (tyenv, enummap, vtymap) props =
+ petr4_parse_properties (tyenv, enummap, vtymap, ftymap) props =
   let
    (keys_obj', props') = (case props of
     | ((Array [String "Key"; Object [("tags", tags); ("keys", Array keys_obj)]])::t) =>
@@ -1801,22 +1802,22 @@ Definition petr4_parse_properties_def:
       | ((Array [String "Custom"; custom_obj])::t'') =>
        (case t'' of
         | [Array [String "Custom"; custom_obj2]] =>
-         petr4_build_table (tyenv, enummap, vtymap) keys_obj' (SOME custom_obj) (SOME custom_obj2)
-        | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj' (SOME custom_obj) NONE
+         petr4_build_table (tyenv, enummap, vtymap, ftymap) keys_obj' (SOME custom_obj) (SOME custom_obj2)
+        | [] => petr4_build_table (tyenv, enummap, vtymap, ftymap) keys_obj' (SOME custom_obj) NONE
         | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
-      | [] => petr4_build_table (tyenv, enummap, vtymap) keys_obj' NONE NONE
+      | [] => petr4_build_table (tyenv, enummap, vtymap, ftymap) keys_obj' NONE NONE
       | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
     | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
 End
 
 Definition petr4_parse_table_def:
- petr4_parse_table (tyenv, vtymap) table =
+ petr4_parse_table (tyenv, enummap, vtymap, ftymap) table =
   case json_parse_obj ["tags"; "annotations"; "name"; "properties"] table of
   | SOME [tags; annot; name; Array props] =>
    (* Properties are: Key, Actions, Custom-"size" (optional), Custom-"default_action" (optional?) *)
    (case petr4_parse_name name of
     | SOME tbl_name =>
-     (case petr4_parse_properties (tyenv, vtymap) props of
+     (case petr4_parse_properties (tyenv, enummap, vtymap, ftymap) props of
       | SOME_msg (keys, default_action) => SOME_msg ((tbl_name, (SND $ UNZIP keys, default_action)), (tbl_name, FST $ UNZIP keys))
       | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg))
     | NONE => get_error_msg "could not parse name: " name)
@@ -1830,7 +1831,7 @@ Definition petr4_parse_locals_def:
  (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope) (b_func_map, tbl_map, decl_list, inits, apply_map) (h::t) =
   case h of
    | Array [String "Instantiation"; inst_obj] =>
-    (case petr4_parse_inst (tyenv, enummap, vtymap, decl_list, inits) inst_obj of
+    (case petr4_parse_inst (tyenv, enummap, vtymap, ftymap, decl_list, inits) inst_obj of
      | SOME_msg (decl_list', inits', vty_upd) =>
       petr4_parse_locals (tyenv, enummap, AUPDATE vtymap vty_upd, ftymap, fmap, gscope) (b_func_map, tbl_map, decl_list', inits', apply_map) t
      | NONE_msg inst_msg => NONE_msg ("could not parse instantiation: "++inst_msg))
@@ -1840,7 +1841,7 @@ Definition petr4_parse_locals_def:
       petr4_parse_locals (tyenv, enummap, vtymap, ftymap_upd::ftymap, fmap, gscope) (AUPDATE b_func_map (fa_name, (add_explicit_return fa_body, fa_params)), tbl_map, decl_list, inits, apply_map) t
      | NONE_msg f_msg => NONE_msg ("could not parse block-local action: "++f_msg))
    | Array [String "Variable"; var_obj] =>
-    (case petr4_parse_var (tyenv, enummap, vtymap) var_obj of
+    (case petr4_parse_var (tyenv, enummap, vtymap, ftymap) var_obj of
      | SOME_msg (varn, tau, init_opt) =>
       (case init_opt of
        | SOME init_val =>
@@ -1849,63 +1850,86 @@ Definition petr4_parse_locals_def:
         petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope) (b_func_map, tbl_map, decl_list++[(varn, tau)], inits, apply_map) t)
      | NONE_msg var_msg => NONE_msg ("could not parse block-local variable: "++var_msg))
    | Array [String "Table"; tab_obj] =>
-    (case petr4_parse_table (tyenv, enummap, vtymap) tab_obj of
+    (case petr4_parse_table (tyenv, enummap, vtymap, ftymap) tab_obj of
      | SOME_msg (tbl_map_entry, apply_map_entry) =>
       petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, AUPDATE apply_map apply_map_entry) t
      | NONE_msg tbl_msg => NONE_msg ("could not parse table: "++tbl_msg))
    | _ => get_error_msg "unknown JSON format of local: " h)
 End
 
+Datatype:
+ match_res_t =
+    match_res_default
+  | match_res_exp (e list)
+End
+
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 Definition petr4_parse_matches_def:
- (petr4_parse_matches (tyenv, enummap, vtymap, g_scope) expected_tau [] = SOME_msg []) /\
- (petr4_parse_matches (tyenv, enummap, vtymap, g_scope) expected_tau (h::t) =
+ (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, g_scope) expected_tau [] = SOME_msg (match_res_exp [])) /\
+ (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, g_scope) expected_tau (h::t) =
   case h of
   | Array [String "Expression";
            Object [("tags", tags); ("expr", exp)]] =>
-   (case petr4_parse_expression (tyenv, enummap, vtymap) (exp, SOME expected_tau) of
+   (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (exp, SOME expected_tau) of
      | SOME_msg exp_res =>
-      (case petr4_parse_matches (tyenv, enummap, vtymap, g_scope) expected_tau t of
-       | SOME_msg matches_res => SOME_msg (exp_res::matches_res)
+      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, g_scope) expected_tau t of
+       | SOME_msg (match_res_exp matches_res) => SOME_msg (match_res_exp (exp_res::matches_res))
+       | SOME_msg (match_res_default) => SOME_msg (match_res_default)
        | NONE_msg matches_msg => NONE_msg matches_msg)
-     | NONE_msg exp_msg => NONE_msg ("could not parse select match case: "++exp_msg)
-   )
+     | NONE_msg exp_msg => NONE_msg ("could not parse select match case: "++exp_msg))
+  | Array [String "Default";
+           Object [("tags", tags)]] =>
+   SOME_msg (match_res_default)
   | _ => get_error_msg "unknown JSON format of select case match: " h)
 End
 
+Datatype:
+ match_t =
+    match_default string
+  | match_exp (v # string)
+End
+
 Definition petr4_parse_case_def:
- petr4_parse_case (tyenv, vtymap, g_scope) expected_tau select_case =
+ petr4_parse_case (tyenv, vtymap, ftymap, g_scope) expected_tau select_case =
   case json_parse_obj ["tags"; "matches"; "next"] select_case of
    | SOME [tags; Array match_exps; name] =>
-    (case petr4_parse_matches (tyenv, vtymap, g_scope) expected_tau match_exps of
-     | SOME_msg [exp_res] =>
-      (case v_of_e exp_res of
-       | SOME v =>
-        (case petr4_parse_name name of
-         | SOME state_name =>       
-          SOME_msg (v, state_name)
-         | NONE => get_error_msg "could not parse name: " name)
-       | NONE => get_error_msg "non-value expressions as select match cases not yet supported: " (Array match_exps))
-     | SOME_msg _ => get_error_msg "lists of case matches not yet supported" (Array match_exps)
-     | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
+    (case petr4_parse_name name of
+     | SOME state_name =>
+      (case petr4_parse_matches (tyenv, vtymap, ftymap, g_scope) expected_tau match_exps of
+       | SOME_msg (match_res_exp [exp_res]) =>
+        (case v_of_e exp_res of
+         | SOME v =>
+          SOME_msg (match_exp (v, state_name))
+         | NONE => get_error_msg "non-value expressions as select match cases not yet supported: " (Array match_exps))
+       | SOME_msg (match_res_default) =>
+        SOME_msg (match_default state_name)
+       | SOME_msg _ => get_error_msg "lists of case matches not yet supported" (Array match_exps)
+       | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
+     | NONE => get_error_msg "could not parse name: " name)
    | _ => get_error_msg "unknown JSON format of case: " select_case
 End
 
+(* TODO: Rewrite from tail-recursive to avoid code duplication? *)
 Definition petr4_parse_cases_def:
- (petr4_parse_cases (tyenv, vtymap, g_scope) expected_tau [] =
-  SOME_msg []) /\
- (petr4_parse_cases (tyenv, vtymap, g_scope) expected_tau (h::t) =
-  case petr4_parse_case (tyenv, vtymap, g_scope) expected_tau h of
-   | SOME_msg case_res =>
-    (case petr4_parse_cases (tyenv, vtymap, g_scope) expected_tau t of
-     | SOME_msg cases_res => SOME_msg (case_res::cases_res)
+ (petr4_parse_cases (tyenv, vtymap, ftymap, g_scope) expected_tau [] =
+  SOME_msg ([], NONE)) /\
+ (petr4_parse_cases (tyenv, vtymap, ftymap, g_scope) expected_tau (h::t) =
+  case petr4_parse_case (tyenv, vtymap, ftymap, g_scope) expected_tau h of
+   | SOME_msg (match_exp exp_case_res) =>
+    (case petr4_parse_cases (tyenv, vtymap, ftymap, g_scope) expected_tau t of
+     | SOME_msg (exp_cases_res, def_case_res) => SOME_msg (exp_case_res::exp_cases_res, def_case_res)
+     | NONE_msg cases_msg => NONE_msg cases_msg)
+   | SOME_msg (match_default def_case_res) =>
+    (case petr4_parse_cases (tyenv, vtymap, ftymap, g_scope) expected_tau t of
+     | SOME_msg (exp_cases_res, NONE) => SOME_msg (exp_cases_res, SOME def_case_res)
+     | SOME_msg _ => get_error_msg "duplicate default case: " h
      | NONE_msg cases_msg => NONE_msg cases_msg)
    | NONE_msg case_msg => NONE_msg ("could not parse cases: "++case_msg))
 End
 
 (* TODO: Use json_parse_arr_list *)
 Definition petr4_parse_trans_def:
- petr4_parse_trans (tyenv, enummap, vtymap, gscope) trans =
+ petr4_parse_trans (tyenv, enummap, vtymap, ftymap, gscope) trans =
   case trans of
   | [String "Direct";
      Object [("tags", tags);
@@ -1918,17 +1942,21 @@ Definition petr4_parse_trans_def:
      Object [("tags", tags);
              ("exprs", Array exps);
              ("cases", Array cases)]] =>
-    (case petr4_parse_expressions (tyenv, enummap, vtymap) (ZIP(exps, REPLICATE (LENGTH exps) NONE)) of
+    (case petr4_parse_expressions (tyenv, enummap, vtymap, ftymap) (ZIP(exps, REPLICATE (LENGTH exps) NONE)) of
      (* TODO: Support multiple expressions *)
      | SOME_msg [exp_res] =>
       (* TODO: Fix this *)
       (case exp_to_p_tau vtymap exp_res of
        | SOME p_tau =>
-        (case petr4_parse_cases (tyenv, enummap, vtymap, gscope) p_tau cases of
-         | SOME_msg cases_res =>
+        (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope) p_tau cases of
+         | SOME_msg (cases_res, def_case_res) =>
           (* TODO: Note that reject is always default next state unless otherwise specified...
            * Hard-coded in petr4 semantics or in spec? *)
-          SOME_msg (stmt_trans (e_select exp_res cases_res "reject"))
+          (case def_case_res of
+           | SOME def_case => 
+            SOME_msg (stmt_trans (e_select exp_res cases_res def_case))
+           | NONE => 
+            SOME_msg (stmt_trans (e_select exp_res cases_res "reject")))
          | NONE_msg cases_msg => get_error_msg (cases_msg++" while parsing transition: ") (Array trans))
        | NONE => get_error_msg "could not parse type of " (Array exps))
      | NONE_msg exps_msg => get_error_msg (exps_msg++" while parsing transition: ") (Array trans)
@@ -1946,7 +1974,7 @@ Definition petr4_parse_states_def:
      | SOME state_name =>
       (case petr4_parse_stmts (tyenv,enummap,vtymap,ftymap,gscope,[]) stmts of
        | SOME_msg stmts_res =>
-        (case petr4_parse_trans (tyenv,enummap,vtymap,gscope) trans of
+        (case petr4_parse_trans (tyenv,enummap,vtymap,ftymap,gscope) trans of
          | SOME_msg trans_res =>
           petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope) (AUPDATE pars_map (state_name, stmt_seq stmts_res trans_res)) t
          | NONE_msg trans_msg => NONE_msg ("could not parse parser state: "++trans_msg))
@@ -2191,7 +2219,7 @@ Definition petr4_parse_element_def:
      | NONE_msg msg => NONE_msg msg)
    (* TODO: Constants are added to the global scope, also vtymap if not arbitrary-length constant... *)
    else if elem_name = "Constant" then
-    (case petr4_parse_constant (tyenv, enummap, vtymap, gscope) obj of
+    (case petr4_parse_constant (tyenv, enummap, vtymap, ftymap, gscope) obj of
      | SOME_msg (vtymap', gscope') =>
       SOME_msg (tyenv, enummap, vtymap', ftymap, fmap, bltymap, ptymap, gscope', pblock_map, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
@@ -2258,14 +2286,13 @@ Definition petr4_parse_elements_def:
  petr4_parse_elements json_list arch_pkg_opt =
   FOLDL ( \ res_opt json. case res_opt of
                      | SOME_msg res => petr4_parse_element res json
-                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],(0,[]),[],[],[],[],[],[],[],arch_pkg_opt,[])) json_list
+                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],(0,[]),[],[(funn_ext "header" "isValid",[],tau_bool); (funn_ext "header" "setValid",[],tau_bot); (funn_ext "header" "setInvalid",[],tau_bot)],[],[],[],[],[],arch_pkg_opt,[])) json_list
 End
 
 Definition p4_from_json_def:
 (p4_from_json json_parse_result arch_pkg_opt =
  case p4_from_json_preamble json_parse_result of
  | SOME_msg json_list =>
-  (* TODO: Debug here by TAKE-ing different parts of the json_list *)
   petr4_parse_elements json_list arch_pkg_opt
  | NONE_msg msg => NONE_msg msg)
 End
@@ -2297,102 +2324,624 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/action_call_ebpf.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/action_call_table_ebpf.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
 
 (* More detailed debugging:
+open petr4_to_hol4p4Syntax;
+
 val wip_test_tm = dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json_preamble ^(rhs $ concl wip_parse_thm)``;
 
-val wip_package_type_tm = rhs $ concl $ EVAL ``EL 11 ^wip_test_tm``;
-val wip_package_inst_tm = rhs $ concl $ EVAL ``EL 15 ^wip_test_tm``;
+(* The index of the list in wip_test_tm at which conversion to HOL4P4 runs into an error *)
+val index_of_error = ``14:num``;
 
-val wip_obj = optionSyntax.dest_some $ rhs $ concl $ EVAL ``case (^wip_package_inst_tm) of | Array [String elem_name; obj] => SOME obj | _ => NONE``;
+val wip_control_inst_tm = rhs $ concl $ EVAL ``EL (^index_of_error) ^wip_test_tm``;
 
-val wip_tyenv = ``[("bit",p_tau_bit 1); ("packet_in",p_tau_ext "packet_in");
-        ("packet_out",p_tau_ext "packet_out");
-        ("CounterArray",p_tau_ext "CounterArray");
-        ("array_table",p_tau_ext "array_table");
-        ("hash_table",p_tau_ext "hash_table");
-        ("ebpfFilter",p_tau_pkg "ebpfFilter");
-        ("Headers_t",p_tau_xtl struct_ty_struct [])]``;
+(* Re-definition of p4_from_json that only converts up until index_of_error *)
+Definition p4_from_json_def:
+(p4_from_json json_parse_result arch_pkg_opt =
+ case p4_from_json_preamble json_parse_result of
+ | SOME_msg json_list =>
+  (* TODO: Debug here by TAKE-ing different parts of the json_list *)
+  petr4_parse_elements (TAKE (^index_of_error) json_list) arch_pkg_opt
+ | NONE_msg msg => NONE_msg msg)
+End
 
-val wip_bltymap = ``[("parse",pbl_type_parser,["H"],
-         [("packet",d_none,p_tau_ext "packet_in");
-          ("headers",d_out,p_tau_par "H")]);
-        ("filter",pbl_type_control,["H3"],
-         [("headers",d_inout,p_tau_par "H3"); ("accept",d_out,p_tau_bool)])]``;
+(* The object to be converted to HOL4P4 at index_of_error *)
+val wip_obj = optionSyntax.dest_some $ rhs $ concl $ EVAL ``case (^wip_control_inst_tm) of | Array [String elem_name; obj] => SOME obj | _ => NONE``;
 
-val wip_ptymap = ``[("ebpfFilter",
-         ["parse";
-          "filter"])]``;
+(* The result immediately prior to index_of_error, which gives us the debugging variables *)
+val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_fmap, wip_bltymap, wip_ptymap, wip_gscope, wip_pblockmap, wip_arch_pkg_opt, wip_ab_list] = pairSyntax.spine_pair $ dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm) (SOME (arch_ebpf (NONE)))``;
 
-EVAL ``petr4_parse_top_level_inst (^wip_tyenv, ^wip_bltymap, ^wip_ptymap) ^wip_obj``
+(***********************************************)
 
-EVAL ``json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params"] ^wip_obj``
+(* MANUAL DEBUG: From here on, start by choosing sub-case of petr4_parse_element *)
+EVAL ``petr4_parse_control (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_fmap, ^wip_bltymap, ^wip_gscope, ^wip_pblockmap) ^wip_obj``
 
-val wip_args = ``[Array
-             [String "Expression";
+EVAL ``json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
+                       "constructor_params"; "locals"; "apply"] ^wip_obj``
+
+val wip_params = ``[Object
+             [("tags",Array [String "missing_info"; String ""]);
+              ("annotations",Array []);
+              ("direction",
+               Array
+                 [String "InOut";
+                  Object [("tags",Array [String "missing_info"; String ""])]]);
+              ("typ",
+               Array
+                 [String "name";
+                  Object
+                    [("tags",Array [String "missing_info"; String ""]);
+                     ("name",
+                      Array
+                        [String "BareName";
+                         Object
+                           [("tags",Array [String "missing_info"; String ""]);
+                            ("name",
+                             Object
+                               [("tags",
+                                 Array [String "missing_info"; String ""]);
+                                ("string",String "Headers_t")])]])]]);
+              ("variable",
+               Object
+                 [("tags",Array [String "missing_info"; String ""]);
+                  ("string",String "headers")]); ("opt_value",Null)];
+           Object
+             [("tags",Array [String "missing_info"; String ""]);
+              ("annotations",Array []);
+              ("direction",
+               Array
+                 [String "Out";
+                  Object [("tags",Array [String "missing_info"; String ""])]]);
+              ("typ",
+               Array
+                 [String "bool";
+                  Object [("tags",Array [String "missing_info"; String ""])]]);
+              ("variable",
+               Object
+                 [("tags",Array [String "missing_info"; String ""]);
+                  ("string",String "pass")]); ("opt_value",Null)]]``;
+val wip_locals = ``[Array
+             [String "Action";
               Object
                 [("tags",Array [String "missing_info"; String ""]);
-                 ("value",
+                 ("annotations",Array []);
+                 ("name",
+                  Object
+                    [("tags",Array [String "missing_info"; String ""]);
+                     ("string",String "Reject")]);
+                 ("params",
                   Array
-                    [String "instantiation";
-                     Object
+                    [Object
                        [("tags",Array [String "missing_info"; String ""]);
-                        ("type",
+                        ("annotations",Array []); ("direction",Null);
+                        ("typ",
                          Array
-                           [String "name";
+                           [String "bit";
                             Object
                               [("tags",
                                 Array [String "missing_info"; String ""]);
-                               ("name",
+                               ("expr",
                                 Array
-                                  [String "BareName";
+                                  [String "int";
                                    Object
                                      [("tags",
                                        Array
                                          [String "missing_info"; String ""]);
-                                      ("name",
+                                      ("x",
                                        Object
                                          [("tags",
                                            Array
                                              [String "missing_info";
                                               String ""]);
-                                          ("string",String "prs")])]])]]);
-                        ("args",Array [])]])]];
+                                          ("value",String "8");
+                                          ("width_signed",Null)])]])]]);
+                        ("variable",
+                         Object
+                           [("tags",Array [String "missing_info"; String ""]);
+                            ("string",String "rej")]); ("opt_value",Null)];
+                     Object
+                       [("tags",Array [String "missing_info"; String ""]);
+                        ("annotations",Array []); ("direction",Null);
+                        ("typ",
+                         Array
+                           [String "bit";
+                            Object
+                              [("tags",
+                                Array [String "missing_info"; String ""]);
+                               ("expr",
+                                Array
+                                  [String "int";
+                                   Object
+                                     [("tags",
+                                       Array
+                                         [String "missing_info"; String ""]);
+                                      ("x",
+                                       Object
+                                         [("tags",
+                                           Array
+                                             [String "missing_info";
+                                              String ""]);
+                                          ("value",String "8");
+                                          ("width_signed",Null)])]])]]);
+                        ("variable",
+                         Object
+                           [("tags",Array [String "missing_info"; String ""]);
+                            ("string",String "bar")]); ("opt_value",Null)]]);
+                 ("body",
+                  Object
+                    [("tags",Array [String "missing_info"; String ""]);
+                     ("annotations",Array []);
+                     ("statements",
+                      Array
+                        [Array
+                           [String "conditional";
+                            Object
+                              [("tags",
+                                Array [String "missing_info"; String ""]);
+                               ("cond",
+                                Array
+                                  [String "binary_op";
+                                   Object
+                                     [("tags",
+                                       Array
+                                         [String "missing_info"; String ""]);
+                                      ("op",
+                                       Array
+                                         [String "Eq";
+                                          Object
+                                            [("tags",
+                                              Array
+                                                [String "missing_info";
+                                                 String ""])]]);
+                                      ("args",
+                                       Array
+                                         [Array
+                                            [String "name";
+                                             Object
+                                               [("tags",
+                                                 Array
+                                                   [String "missing_info";
+                                                    String ""]);
+                                                ("name",
+                                                 Array
+                                                   [String "BareName";
+                                                    Object
+                                                      [("tags",
+                                                        Array
+                                                          [String
+                                                             "missing_info";
+                                                           String ""]);
+                                                       ("name",
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""]);
+                                                           ("string",
+                                                            String "rej")])]])]];
+                                          Array
+                                            [String "int";
+                                             Object
+                                               [("tags",
+                                                 Array
+                                                   [String "missing_info";
+                                                    String ""]);
+                                                ("x",
+                                                 Object
+                                                   [("tags",
+                                                     Array
+                                                       [String "missing_info";
+                                                        String ""]);
+                                                    ("value",String "0");
+                                                    ("width_signed",Null)])]]])]]);
+                               ("tru",
+                                Array
+                                  [String "block";
+                                   Object
+                                     [("tags",
+                                       Array
+                                         [String "missing_info"; String ""]);
+                                      ("block",
+                                       Object
+                                         [("tags",
+                                           Array
+                                             [String "missing_info";
+                                              String ""]);
+                                          ("annotations",Array []);
+                                          ("statements",
+                                           Array
+                                             [Array
+                                                [String "assignment";
+                                                 Object
+                                                   [("tags",
+                                                     Array
+                                                       [String "missing_info";
+                                                        String ""]);
+                                                    ("lhs",
+                                                     Array
+                                                       [String "name";
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""]);
+                                                           ("name",
+                                                            Array
+                                                              [String
+                                                                 "BareName";
+                                                               Object
+                                                                 [("tags",
+                                                                   Array
+                                                                     [String
+                                                                        "missing_info";
+                                                                      String
+                                                                        ""]);
+                                                                  ("name",
+                                                                   Object
+                                                                     [("tags",
+                                                                       Array
+                                                                         [String
+                                                                            "missing_info";
+                                                                          String
+                                                                            ""]);
+                                                                      ("string",
+                                                                       String
+                                                                         "pass")])]])]]);
+                                                    ("rhs",
+                                                     Array
+                                                       [String "true";
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""])]])]]])])]]);
+                               ("fls",
+                                Array
+                                  [String "block";
+                                   Object
+                                     [("tags",
+                                       Array
+                                         [String "missing_info"; String ""]);
+                                      ("block",
+                                       Object
+                                         [("tags",
+                                           Array
+                                             [String "missing_info";
+                                              String ""]);
+                                          ("annotations",Array []);
+                                          ("statements",
+                                           Array
+                                             [Array
+                                                [String "assignment";
+                                                 Object
+                                                   [("tags",
+                                                     Array
+                                                       [String "missing_info";
+                                                        String ""]);
+                                                    ("lhs",
+                                                     Array
+                                                       [String "name";
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""]);
+                                                           ("name",
+                                                            Array
+                                                              [String
+                                                                 "BareName";
+                                                               Object
+                                                                 [("tags",
+                                                                   Array
+                                                                     [String
+                                                                        "missing_info";
+                                                                      String
+                                                                        ""]);
+                                                                  ("name",
+                                                                   Object
+                                                                     [("tags",
+                                                                       Array
+                                                                         [String
+                                                                            "missing_info";
+                                                                          String
+                                                                            ""]);
+                                                                      ("string",
+                                                                       String
+                                                                         "pass")])]])]]);
+                                                    ("rhs",
+                                                     Array
+                                                       [String "false";
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""])]])]]])])]])]];
+                         Array
+                           [String "conditional";
+                            Object
+                              [("tags",
+                                Array [String "missing_info"; String ""]);
+                               ("cond",
+                                Array
+                                  [String "binary_op";
+                                   Object
+                                     [("tags",
+                                       Array
+                                         [String "missing_info"; String ""]);
+                                      ("op",
+                                       Array
+                                         [String "Eq";
+                                          Object
+                                            [("tags",
+                                              Array
+                                                [String "missing_info";
+                                                 String ""])]]);
+                                      ("args",
+                                       Array
+                                         [Array
+                                            [String "name";
+                                             Object
+                                               [("tags",
+                                                 Array
+                                                   [String "missing_info";
+                                                    String ""]);
+                                                ("name",
+                                                 Array
+                                                   [String "BareName";
+                                                    Object
+                                                      [("tags",
+                                                        Array
+                                                          [String
+                                                             "missing_info";
+                                                           String ""]);
+                                                       ("name",
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""]);
+                                                           ("string",
+                                                            String "bar")])]])]];
+                                          Array
+                                            [String "int";
+                                             Object
+                                               [("tags",
+                                                 Array
+                                                   [String "missing_info";
+                                                    String ""]);
+                                                ("x",
+                                                 Object
+                                                   [("tags",
+                                                     Array
+                                                       [String "missing_info";
+                                                        String ""]);
+                                                    ("value",String "0");
+                                                    ("width_signed",Null)])]]])]]);
+                               ("tru",
+                                Array
+                                  [String "block";
+                                   Object
+                                     [("tags",
+                                       Array
+                                         [String "missing_info"; String ""]);
+                                      ("block",
+                                       Object
+                                         [("tags",
+                                           Array
+                                             [String "missing_info";
+                                              String ""]);
+                                          ("annotations",Array []);
+                                          ("statements",
+                                           Array
+                                             [Array
+                                                [String "assignment";
+                                                 Object
+                                                   [("tags",
+                                                     Array
+                                                       [String "missing_info";
+                                                        String ""]);
+                                                    ("lhs",
+                                                     Array
+                                                       [String "name";
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""]);
+                                                           ("name",
+                                                            Array
+                                                              [String
+                                                                 "BareName";
+                                                               Object
+                                                                 [("tags",
+                                                                   Array
+                                                                     [String
+                                                                        "missing_info";
+                                                                      String
+                                                                        ""]);
+                                                                  ("name",
+                                                                   Object
+                                                                     [("tags",
+                                                                       Array
+                                                                         [String
+                                                                            "missing_info";
+                                                                          String
+                                                                            ""]);
+                                                                      ("string",
+                                                                       String
+                                                                         "pass")])]])]]);
+                                                    ("rhs",
+                                                     Array
+                                                       [String "false";
+                                                        Object
+                                                          [("tags",
+                                                            Array
+                                                              [String
+                                                                 "missing_info";
+                                                               String ""])]])]]])])]]);
+                               ("fls",Null)]]])])]];
            Array
-             [String "Expression";
+             [String "Table";
               Object
                 [("tags",Array [String "missing_info"; String ""]);
-                 ("value",
+                 ("annotations",Array []);
+                 ("name",
+                  Object
+                    [("tags",Array [String "missing_info"; String ""]);
+                     ("string",String "t")]);
+                 ("properties",
                   Array
-                    [String "instantiation";
-                     Object
-                       [("tags",Array [String "missing_info"; String ""]);
-                        ("type",
-                         Array
-                           [String "name";
+                    [Array
+                       [String "Actions";
+                        Object
+                          [("tags",Array [String "missing_info"; String ""]);
+                           ("actions",
+                            Array
+                              [Object
+                                 [("tags",
+                                   Array [String "missing_info"; String ""]);
+                                  ("annotations",Array []);
+                                  ("name",
+                                   Array
+                                     [String "BareName";
+                                      Object
+                                        [("tags",
+                                          Array
+                                            [String "missing_info";
+                                             String ""]);
+                                         ("name",
+                                          Object
+                                            [("tags",
+                                              Array
+                                                [String "missing_info";
+                                                 String ""]);
+                                             ("string",String "Reject")])]]);
+                                  ("args",Array [])]])]];
+                     Array
+                       [String "Custom";
+                        Object
+                          [("tags",Array [String "missing_info"; String ""]);
+                           ("annotations",Array []); ("const",Bool F);
+                           ("name",
                             Object
                               [("tags",
                                 Array [String "missing_info"; String ""]);
-                               ("name",
-                                Array
-                                  [String "BareName";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("name",
-                                       Object
-                                         [("tags",
-                                           Array
-                                             [String "missing_info";
-                                              String ""]);
-                                          ("string",String "pipe")])]])]]);
-                        ("args",Array [])]])]]]``;
+                               ("string",String "default_action")]);
+                           ("value",
+                            Array
+                              [String "call";
+                               Object
+                                 [("tags",
+                                   Array [String "missing_info"; String ""]);
+                                  ("func",
+                                   Array
+                                     [String "name";
+                                      Object
+                                        [("tags",
+                                          Array
+                                            [String "missing_info";
+                                             String ""]);
+                                         ("name",
+                                          Array
+                                            [String "BareName";
+                                             Object
+                                               [("tags",
+                                                 Array
+                                                   [String "missing_info";
+                                                    String ""]);
+                                                ("name",
+                                                 Object
+                                                   [("tags",
+                                                     Array
+                                                       [String "missing_info";
+                                                        String ""]);
+                                                    ("string",String "Reject")])]])]]);
+                                  ("type_args",Array []);
+                                  ("args",
+                                   Array
+                                     [Array
+                                        [String "Expression";
+                                         Object
+                                           [("tags",
+                                             Array
+                                               [String "missing_info";
+                                                String ""]);
+                                            ("value",
+                                             Array
+                                               [String "int";
+                                                Object
+                                                  [("tags",
+                                                    Array
+                                                      [String "missing_info";
+                                                       String ""]);
+                                                   ("x",
+                                                    Object
+                                                      [("tags",
+                                                        Array
+                                                          [String
+                                                             "missing_info";
+                                                           String ""]);
+                                                       ("value",String "1");
+                                                       ("width_signed",Null)])]])]];
+                                      Array
+                                        [String "Expression";
+                                         Object
+                                           [("tags",
+                                             Array
+                                               [String "missing_info";
+                                                String ""]);
+                                            ("value",
+                                             Array
+                                               [String "int";
+                                                Object
+                                                  [("tags",
+                                                    Array
+                                                      [String "missing_info";
+                                                       String ""]);
+                                                   ("x",
+                                                    Object
+                                                      [("tags",
+                                                        Array
+                                                          [String
+                                                             "missing_info";
+                                                           String ""]);
+                                                       ("value",String "0");
+                                                       ("width_signed",Null)])]])]]])]])]]])]]]``;
 
-EVAL ``petr4_parse_pblock_insts ^wip_args``
+EVAL ``petr4_parse_p_params F ^wip_tyenv ^wip_params``
+val wip_vty_updates = ``[(varn_name "headers",p_tau_xtl struct_ty_struct []);
+                         (varn_name "pass",p_tau_bool)]``;
+val wip_vtymap' = ``AUPDATE_LIST ^wip_vtymap ^wip_vty_updates``;
+val wip_ftymap' = ``[(funn_name "Reject",[p_tau_bit 8; p_tau_bit 8],tau_bot);
+         (funn_inst "hash_table",[p_tau_bit 32],tau_bot);
+         (funn_inst "array_table",[p_tau_bit 32],tau_bot);
+         (funn_ext "CounterArray" "add",[p_tau_bit 32; p_tau_bit 32],tau_bot);
+         (funn_ext "CounterArray" "increment",[p_tau_bit 32],tau_bot);
+         (funn_inst "CounterArray",[p_tau_bit 32; p_tau_bool],tau_bot);
+         (funn_name "NoAction",[],tau_bot);
+         (funn_name "verify",[p_tau_bool; p_tau_err],tau_bot);
+         (funn_ext "packet_out" "emit",[p_tau_par "T2"],tau_bot);
+         (funn_ext "packet_in" "length",[],tau_bot);
+         (funn_ext "packet_in" "advance",[p_tau_bit 32],tau_bot);
+         (funn_ext "packet_in" "lookahead",[],tau_bot);
+         (funn_ext "packet_in" "extract",[p_tau_par "T0"; p_tau_bit 32],
+          tau_bot); (funn_ext "packet_in" "extract",[p_tau_par "T"],tau_bot)]``
+
+EVAL ``petr4_parse_locals (^wip_tyenv, ^wip_enummap, ^wip_vtymap', ^wip_ftymap', ^wip_fmap, ^wip_gscope) ([], [], [], stmt_empty, []) (DROP 1 ^wip_locals)``
+
+val wip_tab_obj = optionSyntax.dest_some $ rhs $ concl $ EVAL ``case (EL 1 ^wip_locals) of | Array [String elem_name; obj] => SOME obj | _ => NONE``;
+
+EVAL ``petr4_parse_table (^wip_tyenv, ^wip_enummap, ^wip_vtymap', ^wip_ftymap') ^wip_tab_obj``
 
 *)
 
