@@ -1609,6 +1609,45 @@ Definition petr4_parse_keys_def:
    | _ => get_error_msg "unknown JSON format of key: " h)
 End
 
+Definition petr4_parse_actions_def:
+ (petr4_parse_actions (tyenv, enummap, vtymap, ftymap) [] = SOME_msg []) /\
+ (petr4_parse_actions (tyenv, enummap, vtymap, ftymap) (h::t) =
+   case json_parse_obj ["tags"; "annotations"; "name"; "args"] h of
+   | SOME [tags; annot; name; Array args] =>
+(* TODO: This section is probably needed when actions with arguments are encountered
+    (* TODO: This sequence of functions that parses arguments with type inference is duplicated
+     * several times in this file. Make it a separate function instead. *)
+    (* Actions may only be actions and not e.g. extern method calls, but we might want to do 
+     * type inference of arguments *)
+    (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap) (name, NONE) of
+     | SOME_msg exp =>
+      (case exp_to_funn vtymap exp of
+       | SOME (SOME (funn_name action_name), obj_opt) =>
+        (case find_fty_match_args ftymap (funn_name action_name) (LENGTH args) of
+         | SOME (arg_tys, ret_ty) =>
+          (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) (ZIP (args, MAP SOME arg_tys)) of
+           | SOME_msg res_args =>
+            (case petr4_parse_actions (tyenv, enummap, vtymap, ftymap) t of
+             | SOME_msg res_msg => SOME_msg ((action_name, res_args)::res_msg)
+             | NONE_msg err_msg => NONE_msg err_msg)
+           | NONE_msg args_msg => NONE_msg ("could not parse action arguments: "++args_msg))
+         | NONE => get_error_msg "type inference information not found for action: " name)
+       | _ => get_error_msg "could not parse action name into funn: " name)
+     | NONE_msg act_name_msg => NONE_msg ("could not parse action: "++act_name_msg))
+*)
+    (case petr4_parse_bare_name name of
+     | SOME action_name =>
+      (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) (ZIP (args, REPLICATE (LENGTH args) NONE)) of
+       | SOME_msg [] =>
+        (case petr4_parse_actions (tyenv, enummap, vtymap, ftymap) t of
+         | SOME_msg res_msg => SOME_msg ((action_name, [])::res_msg)
+         | NONE_msg err_msg => NONE_msg err_msg)
+       | SOME_msg _ => get_error_msg "could not parse action arguments (expected empty list): " (Array args)
+       | NONE_msg args_msg => NONE_msg args_msg)
+     | NONE => get_error_msg "could not parse action name (expected BareName): " name)
+   | _ => get_error_msg "unknown JSON format of action: " h)
+End
+
 (* TODO: Action argument seems to not be exported by petr4 *)
 Definition petr4_parse_default_action_def:
  petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) default_action =
@@ -1631,6 +1670,7 @@ End
 
 (* TODO: Note that this presupposes a default_action field is present if any optional field is *)
 (* TODO: Fix this mess... *)
+(*
 Definition petr4_build_table_def:
  petr4_build_table (tyenv, enummap, vtymap, ftymap) keys_obj custom_obj_opt custom_obj_opt2 =
   case petr4_parse_keys (tyenv, enummap, vtymap, ftymap) keys_obj of
@@ -1658,6 +1698,7 @@ Definition petr4_build_table_def:
      SOME_msg (keys_res, ("NoAction", [])))
   | NONE_msg keys_msg => NONE_msg keys_msg
 End
+*)
 
 Definition petr4_property_is_key_def:
  petr4_property_is_key prop = 
@@ -1702,34 +1743,9 @@ Definition petr4_property_is_size_def:
   | _ => F
 End
 
-Definition petr4_property_is_entries_def:
- petr4_property_is_entries prop = 
-  case prop of
-  | (Array [String "Custom"; obj]) =>
-   (case json_parse_obj ["tags"; "annotations"; "const"; "name"; "value"] obj of
-    | SOME [tags; annot; const; name; value] =>
-     (case petr4_parse_name name of
-      | SOME custom_name =>
-       if custom_name = "entries" then T else F
-      | NONE => F)
-    | _ => F)
-  | _ => F
-End
-
-(*
-Definition petr4_process_prop_def:
- petr4_process_prop recogniser parser props =
-  case FIND_EXTRACT_ONE recogniser props of
-  | SOME (e, l') =>
-   (case parser e of
-    | SOME res => SOME (res, l')
-    | NONE => NONE)
-  | NONE => NONE
-End
-*)
-
 Definition petr4_process_key_def:
  petr4_process_key (tyenv, enummap, vtymap, ftymap) props =
+  (* TODO: Replace with FIND_EXTRACT_ONE_OR_NONE *)
   case FIND_EXTRACT_ONE petr4_property_is_key props of
   | SOME (keys, props') =>
    (case keys of
@@ -1738,29 +1754,37 @@ Definition petr4_process_key_def:
       | SOME_msg key_mk_list => SOME_msg (key_mk_list, props')
       | NONE_msg msg => NONE_msg msg)
     | _ => get_error_msg "unknown key property format: " keys)
-  | NONE => get_error_msg "zero or duplicate key property fields in table: " (Array props)
+  | NONE => SOME_msg ([], props)
 End
 
 (* TODO: Add more here later when needed *)
 Definition petr4_process_actions_def:
- petr4_process_actions props =
+ petr4_process_actions (tyenv, enummap, vtymap, ftymap) props =
   case FIND_EXTRACT_ONE petr4_property_is_actions props of
   | SOME (actions, props') =>
-   SOME_msg props'
+   (case actions of
+    | Array [String "Actions"; actions_obj] =>
+     (case json_parse_obj ["tags"; "actions"] actions_obj of
+      | SOME [tags; Array actions_list] =>
+       (case petr4_parse_actions (tyenv, enummap, vtymap, ftymap) actions_list of
+        | SOME_msg actions => SOME_msg (actions, props')
+        | NONE_msg msg => NONE_msg msg)
+      | NONE => get_error_msg "could not parse actions: " actions_obj)
+    | _ => get_error_msg "unknown actions property format: " actions)
   | NONE => get_error_msg "zero or duplicate actions property fields in table: " (Array props)
 End
 
 Definition petr4_process_default_action_def:
- petr4_process_default_action (tyenv, enummap, vtymap) props =
+ petr4_process_default_action (tyenv, enummap, vtymap, ftymap) props =
   case FIND_EXTRACT_ONE petr4_property_is_default_action props of
   | SOME (default_action, props') =>
    (case default_action of
     | Array [String "Custom"; custom_obj] =>
-     (case petr4_parse_default_action (tyenv, enummap, vtymap) custom_obj of
-      | SOME_msg (action_name, args) => SOME_msg (SOME (action_name, args), props')
+     (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) custom_obj of
+      | SOME_msg (action_name, args) => SOME_msg ((action_name, args), props')
       | NONE_msg msg => NONE_msg msg)
     | _ => get_error_msg "unknown default action property format: " default_action)
-  | NONE => SOME_msg (NONE, props)
+  | NONE => SOME_msg (("NoAction", []), props)
 End
 
 (* TODO: Add stuff here as needed *)
@@ -1768,24 +1792,40 @@ Definition petr4_process_size_def:
  petr4_process_size props = SOME_msg props
 End
 
-(* TODO: Add stuff here ASAP to initialise ctrl *)
-Definition petr4_process_entries_def:
- petr4_process_entries (tyenv, enummap, vtymap) props = SOME_msg props
-(*
-  case FIND_EXTRACT_ONE petr4_property_is_entries props of
-  | SOME (entries, props') =>
-   (case entries of
-    | Array [String "Custom"; custom_obj] =>
-     (case petr4_parse_entries (tyenv, enummap, vtymap) custom_obj of
-      | SOME_msg entries_parsed => SOME_msg (SOME entries_parsed, props')
-      | NONE_msg msg => NONE_msg msg)
-    | _ => get_error_msg "unknown entries property format: " entries)
-  | NONE => SOME_msg (NONE, props)
-*)
+(* TODO: This should take arch_pkg_opt and be able to discard properties based on which
+ * architecture you're parsing. Currently, it just discards everything, potentially allowing
+ * for false positives in case of arch-specific properties which would matter for execution *)
+Definition petr4_process_arch_specific_properties_def:
+ petr4_process_arch_specific_properties props = SOME_msg props
 End
 
-(* TODO: Don't throw away the "actions" field? *)
-(* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
+Definition petr4_process_properties_def:
+ petr4_process_properties (tyenv, enummap, vtymap, ftymap) props =
+  case petr4_process_key (tyenv, enummap, vtymap, ftymap) props of
+  | SOME_msg (key_mk_list, props') =>
+   (case petr4_process_actions (tyenv, enummap, vtymap, ftymap) props' of
+    | SOME_msg (actions, props'') =>
+     (case petr4_process_default_action (tyenv, enummap, vtymap, ftymap) props'' of
+      | SOME_msg (default_action, props''') =>
+       (case petr4_process_size props''' of
+        | SOME_msg props'''' =>
+         (* TODO: implementation field is eBPF-specific? *)
+         (case petr4_process_arch_specific_properties props'''' of
+          | SOME_msg arch_props_res =>
+           (case key_mk_list of
+            | [] =>
+             (case actions of
+              | [action] => SOME_msg ([], action)
+              | _ => SOME_msg ([], default_action))
+            | _ => SOME_msg (key_mk_list, default_action))
+          | NONE_msg arch_props_msg => NONE_msg arch_props_msg)
+        | NONE_msg size_msg => NONE_msg size_msg)
+      | NONE_msg default_action_msg => NONE_msg default_action_msg)
+    | NONE_msg actions_msg => NONE_msg actions_msg)
+  | NONE_msg key_msg => NONE_msg key_msg
+End
+
+(*
 (* Note: P4 spec says tables don't have to have key fields - then the default action will
  * always be the result of matching *)
 Definition petr4_parse_properties_def:
@@ -1809,6 +1849,7 @@ Definition petr4_parse_properties_def:
       | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
     | _ => get_error_msg "unknown JSON format of table properties: " (Array props))
 End
+*)
 
 Definition petr4_parse_table_def:
  petr4_parse_table (tyenv, enummap, vtymap, ftymap) table =
@@ -1817,7 +1858,7 @@ Definition petr4_parse_table_def:
    (* Properties are: Key, Actions, Custom-"size" (optional), Custom-"default_action" (optional?) *)
    (case petr4_parse_name name of
     | SOME tbl_name =>
-     (case petr4_parse_properties (tyenv, enummap, vtymap, ftymap) props of
+     (case petr4_process_properties (tyenv, enummap, vtymap, ftymap) props of
       | SOME_msg (keys, default_action) => SOME_msg ((tbl_name, (SND $ UNZIP keys, default_action)), (tbl_name, FST $ UNZIP keys))
       | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg))
     | NONE => get_error_msg "could not parse name: " name)
@@ -2324,7 +2365,7 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/action_call_table_ebpf.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/valid_ebpf.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
 
@@ -2333,8 +2374,9 @@ open petr4_to_hol4p4Syntax;
 
 val wip_test_tm = dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json_preamble ^(rhs $ concl wip_parse_thm)``;
 
-(* The index of the list in wip_test_tm at which conversion to HOL4P4 runs into an error *)
-val index_of_error = ``14:num``;
+(* The index of the list in wip_test_tm at which conversion to HOL4P4 runs into an error
+ * (note the correspondence with the usage below in p4_from_json_def) *)
+val index_of_error = ``18:num``;
 
 val wip_control_inst_tm = rhs $ concl $ EVAL ``EL (^index_of_error) ^wip_test_tm``;
 
@@ -2359,589 +2401,6 @@ val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_fmap, wip_bltymap, wip_
 (* MANUAL DEBUG: From here on, start by choosing sub-case of petr4_parse_element *)
 EVAL ``petr4_parse_control (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_fmap, ^wip_bltymap, ^wip_gscope, ^wip_pblockmap) ^wip_obj``
 
-EVAL ``json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
-                       "constructor_params"; "locals"; "apply"] ^wip_obj``
-
-val wip_params = ``[Object
-             [("tags",Array [String "missing_info"; String ""]);
-              ("annotations",Array []);
-              ("direction",
-               Array
-                 [String "InOut";
-                  Object [("tags",Array [String "missing_info"; String ""])]]);
-              ("typ",
-               Array
-                 [String "name";
-                  Object
-                    [("tags",Array [String "missing_info"; String ""]);
-                     ("name",
-                      Array
-                        [String "BareName";
-                         Object
-                           [("tags",Array [String "missing_info"; String ""]);
-                            ("name",
-                             Object
-                               [("tags",
-                                 Array [String "missing_info"; String ""]);
-                                ("string",String "Headers_t")])]])]]);
-              ("variable",
-               Object
-                 [("tags",Array [String "missing_info"; String ""]);
-                  ("string",String "headers")]); ("opt_value",Null)];
-           Object
-             [("tags",Array [String "missing_info"; String ""]);
-              ("annotations",Array []);
-              ("direction",
-               Array
-                 [String "Out";
-                  Object [("tags",Array [String "missing_info"; String ""])]]);
-              ("typ",
-               Array
-                 [String "bool";
-                  Object [("tags",Array [String "missing_info"; String ""])]]);
-              ("variable",
-               Object
-                 [("tags",Array [String "missing_info"; String ""]);
-                  ("string",String "pass")]); ("opt_value",Null)]]``;
-val wip_locals = ``[Array
-             [String "Action";
-              Object
-                [("tags",Array [String "missing_info"; String ""]);
-                 ("annotations",Array []);
-                 ("name",
-                  Object
-                    [("tags",Array [String "missing_info"; String ""]);
-                     ("string",String "Reject")]);
-                 ("params",
-                  Array
-                    [Object
-                       [("tags",Array [String "missing_info"; String ""]);
-                        ("annotations",Array []); ("direction",Null);
-                        ("typ",
-                         Array
-                           [String "bit";
-                            Object
-                              [("tags",
-                                Array [String "missing_info"; String ""]);
-                               ("expr",
-                                Array
-                                  [String "int";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("x",
-                                       Object
-                                         [("tags",
-                                           Array
-                                             [String "missing_info";
-                                              String ""]);
-                                          ("value",String "8");
-                                          ("width_signed",Null)])]])]]);
-                        ("variable",
-                         Object
-                           [("tags",Array [String "missing_info"; String ""]);
-                            ("string",String "rej")]); ("opt_value",Null)];
-                     Object
-                       [("tags",Array [String "missing_info"; String ""]);
-                        ("annotations",Array []); ("direction",Null);
-                        ("typ",
-                         Array
-                           [String "bit";
-                            Object
-                              [("tags",
-                                Array [String "missing_info"; String ""]);
-                               ("expr",
-                                Array
-                                  [String "int";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("x",
-                                       Object
-                                         [("tags",
-                                           Array
-                                             [String "missing_info";
-                                              String ""]);
-                                          ("value",String "8");
-                                          ("width_signed",Null)])]])]]);
-                        ("variable",
-                         Object
-                           [("tags",Array [String "missing_info"; String ""]);
-                            ("string",String "bar")]); ("opt_value",Null)]]);
-                 ("body",
-                  Object
-                    [("tags",Array [String "missing_info"; String ""]);
-                     ("annotations",Array []);
-                     ("statements",
-                      Array
-                        [Array
-                           [String "conditional";
-                            Object
-                              [("tags",
-                                Array [String "missing_info"; String ""]);
-                               ("cond",
-                                Array
-                                  [String "binary_op";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("op",
-                                       Array
-                                         [String "Eq";
-                                          Object
-                                            [("tags",
-                                              Array
-                                                [String "missing_info";
-                                                 String ""])]]);
-                                      ("args",
-                                       Array
-                                         [Array
-                                            [String "name";
-                                             Object
-                                               [("tags",
-                                                 Array
-                                                   [String "missing_info";
-                                                    String ""]);
-                                                ("name",
-                                                 Array
-                                                   [String "BareName";
-                                                    Object
-                                                      [("tags",
-                                                        Array
-                                                          [String
-                                                             "missing_info";
-                                                           String ""]);
-                                                       ("name",
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""]);
-                                                           ("string",
-                                                            String "rej")])]])]];
-                                          Array
-                                            [String "int";
-                                             Object
-                                               [("tags",
-                                                 Array
-                                                   [String "missing_info";
-                                                    String ""]);
-                                                ("x",
-                                                 Object
-                                                   [("tags",
-                                                     Array
-                                                       [String "missing_info";
-                                                        String ""]);
-                                                    ("value",String "0");
-                                                    ("width_signed",Null)])]]])]]);
-                               ("tru",
-                                Array
-                                  [String "block";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("block",
-                                       Object
-                                         [("tags",
-                                           Array
-                                             [String "missing_info";
-                                              String ""]);
-                                          ("annotations",Array []);
-                                          ("statements",
-                                           Array
-                                             [Array
-                                                [String "assignment";
-                                                 Object
-                                                   [("tags",
-                                                     Array
-                                                       [String "missing_info";
-                                                        String ""]);
-                                                    ("lhs",
-                                                     Array
-                                                       [String "name";
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""]);
-                                                           ("name",
-                                                            Array
-                                                              [String
-                                                                 "BareName";
-                                                               Object
-                                                                 [("tags",
-                                                                   Array
-                                                                     [String
-                                                                        "missing_info";
-                                                                      String
-                                                                        ""]);
-                                                                  ("name",
-                                                                   Object
-                                                                     [("tags",
-                                                                       Array
-                                                                         [String
-                                                                            "missing_info";
-                                                                          String
-                                                                            ""]);
-                                                                      ("string",
-                                                                       String
-                                                                         "pass")])]])]]);
-                                                    ("rhs",
-                                                     Array
-                                                       [String "true";
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""])]])]]])])]]);
-                               ("fls",
-                                Array
-                                  [String "block";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("block",
-                                       Object
-                                         [("tags",
-                                           Array
-                                             [String "missing_info";
-                                              String ""]);
-                                          ("annotations",Array []);
-                                          ("statements",
-                                           Array
-                                             [Array
-                                                [String "assignment";
-                                                 Object
-                                                   [("tags",
-                                                     Array
-                                                       [String "missing_info";
-                                                        String ""]);
-                                                    ("lhs",
-                                                     Array
-                                                       [String "name";
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""]);
-                                                           ("name",
-                                                            Array
-                                                              [String
-                                                                 "BareName";
-                                                               Object
-                                                                 [("tags",
-                                                                   Array
-                                                                     [String
-                                                                        "missing_info";
-                                                                      String
-                                                                        ""]);
-                                                                  ("name",
-                                                                   Object
-                                                                     [("tags",
-                                                                       Array
-                                                                         [String
-                                                                            "missing_info";
-                                                                          String
-                                                                            ""]);
-                                                                      ("string",
-                                                                       String
-                                                                         "pass")])]])]]);
-                                                    ("rhs",
-                                                     Array
-                                                       [String "false";
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""])]])]]])])]])]];
-                         Array
-                           [String "conditional";
-                            Object
-                              [("tags",
-                                Array [String "missing_info"; String ""]);
-                               ("cond",
-                                Array
-                                  [String "binary_op";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("op",
-                                       Array
-                                         [String "Eq";
-                                          Object
-                                            [("tags",
-                                              Array
-                                                [String "missing_info";
-                                                 String ""])]]);
-                                      ("args",
-                                       Array
-                                         [Array
-                                            [String "name";
-                                             Object
-                                               [("tags",
-                                                 Array
-                                                   [String "missing_info";
-                                                    String ""]);
-                                                ("name",
-                                                 Array
-                                                   [String "BareName";
-                                                    Object
-                                                      [("tags",
-                                                        Array
-                                                          [String
-                                                             "missing_info";
-                                                           String ""]);
-                                                       ("name",
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""]);
-                                                           ("string",
-                                                            String "bar")])]])]];
-                                          Array
-                                            [String "int";
-                                             Object
-                                               [("tags",
-                                                 Array
-                                                   [String "missing_info";
-                                                    String ""]);
-                                                ("x",
-                                                 Object
-                                                   [("tags",
-                                                     Array
-                                                       [String "missing_info";
-                                                        String ""]);
-                                                    ("value",String "0");
-                                                    ("width_signed",Null)])]]])]]);
-                               ("tru",
-                                Array
-                                  [String "block";
-                                   Object
-                                     [("tags",
-                                       Array
-                                         [String "missing_info"; String ""]);
-                                      ("block",
-                                       Object
-                                         [("tags",
-                                           Array
-                                             [String "missing_info";
-                                              String ""]);
-                                          ("annotations",Array []);
-                                          ("statements",
-                                           Array
-                                             [Array
-                                                [String "assignment";
-                                                 Object
-                                                   [("tags",
-                                                     Array
-                                                       [String "missing_info";
-                                                        String ""]);
-                                                    ("lhs",
-                                                     Array
-                                                       [String "name";
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""]);
-                                                           ("name",
-                                                            Array
-                                                              [String
-                                                                 "BareName";
-                                                               Object
-                                                                 [("tags",
-                                                                   Array
-                                                                     [String
-                                                                        "missing_info";
-                                                                      String
-                                                                        ""]);
-                                                                  ("name",
-                                                                   Object
-                                                                     [("tags",
-                                                                       Array
-                                                                         [String
-                                                                            "missing_info";
-                                                                          String
-                                                                            ""]);
-                                                                      ("string",
-                                                                       String
-                                                                         "pass")])]])]]);
-                                                    ("rhs",
-                                                     Array
-                                                       [String "false";
-                                                        Object
-                                                          [("tags",
-                                                            Array
-                                                              [String
-                                                                 "missing_info";
-                                                               String ""])]])]]])])]]);
-                               ("fls",Null)]]])])]];
-           Array
-             [String "Table";
-              Object
-                [("tags",Array [String "missing_info"; String ""]);
-                 ("annotations",Array []);
-                 ("name",
-                  Object
-                    [("tags",Array [String "missing_info"; String ""]);
-                     ("string",String "t")]);
-                 ("properties",
-                  Array
-                    [Array
-                       [String "Actions";
-                        Object
-                          [("tags",Array [String "missing_info"; String ""]);
-                           ("actions",
-                            Array
-                              [Object
-                                 [("tags",
-                                   Array [String "missing_info"; String ""]);
-                                  ("annotations",Array []);
-                                  ("name",
-                                   Array
-                                     [String "BareName";
-                                      Object
-                                        [("tags",
-                                          Array
-                                            [String "missing_info";
-                                             String ""]);
-                                         ("name",
-                                          Object
-                                            [("tags",
-                                              Array
-                                                [String "missing_info";
-                                                 String ""]);
-                                             ("string",String "Reject")])]]);
-                                  ("args",Array [])]])]];
-                     Array
-                       [String "Custom";
-                        Object
-                          [("tags",Array [String "missing_info"; String ""]);
-                           ("annotations",Array []); ("const",Bool F);
-                           ("name",
-                            Object
-                              [("tags",
-                                Array [String "missing_info"; String ""]);
-                               ("string",String "default_action")]);
-                           ("value",
-                            Array
-                              [String "call";
-                               Object
-                                 [("tags",
-                                   Array [String "missing_info"; String ""]);
-                                  ("func",
-                                   Array
-                                     [String "name";
-                                      Object
-                                        [("tags",
-                                          Array
-                                            [String "missing_info";
-                                             String ""]);
-                                         ("name",
-                                          Array
-                                            [String "BareName";
-                                             Object
-                                               [("tags",
-                                                 Array
-                                                   [String "missing_info";
-                                                    String ""]);
-                                                ("name",
-                                                 Object
-                                                   [("tags",
-                                                     Array
-                                                       [String "missing_info";
-                                                        String ""]);
-                                                    ("string",String "Reject")])]])]]);
-                                  ("type_args",Array []);
-                                  ("args",
-                                   Array
-                                     [Array
-                                        [String "Expression";
-                                         Object
-                                           [("tags",
-                                             Array
-                                               [String "missing_info";
-                                                String ""]);
-                                            ("value",
-                                             Array
-                                               [String "int";
-                                                Object
-                                                  [("tags",
-                                                    Array
-                                                      [String "missing_info";
-                                                       String ""]);
-                                                   ("x",
-                                                    Object
-                                                      [("tags",
-                                                        Array
-                                                          [String
-                                                             "missing_info";
-                                                           String ""]);
-                                                       ("value",String "1");
-                                                       ("width_signed",Null)])]])]];
-                                      Array
-                                        [String "Expression";
-                                         Object
-                                           [("tags",
-                                             Array
-                                               [String "missing_info";
-                                                String ""]);
-                                            ("value",
-                                             Array
-                                               [String "int";
-                                                Object
-                                                  [("tags",
-                                                    Array
-                                                      [String "missing_info";
-                                                       String ""]);
-                                                   ("x",
-                                                    Object
-                                                      [("tags",
-                                                        Array
-                                                          [String
-                                                             "missing_info";
-                                                           String ""]);
-                                                       ("value",String "0");
-                                                       ("width_signed",Null)])]])]]])]])]]])]]]``;
-
-EVAL ``petr4_parse_p_params F ^wip_tyenv ^wip_params``
-val wip_vty_updates = ``[(varn_name "headers",p_tau_xtl struct_ty_struct []);
-                         (varn_name "pass",p_tau_bool)]``;
-val wip_vtymap' = ``AUPDATE_LIST ^wip_vtymap ^wip_vty_updates``;
-val wip_ftymap' = ``[(funn_name "Reject",[p_tau_bit 8; p_tau_bit 8],tau_bot);
-         (funn_inst "hash_table",[p_tau_bit 32],tau_bot);
-         (funn_inst "array_table",[p_tau_bit 32],tau_bot);
-         (funn_ext "CounterArray" "add",[p_tau_bit 32; p_tau_bit 32],tau_bot);
-         (funn_ext "CounterArray" "increment",[p_tau_bit 32],tau_bot);
-         (funn_inst "CounterArray",[p_tau_bit 32; p_tau_bool],tau_bot);
-         (funn_name "NoAction",[],tau_bot);
-         (funn_name "verify",[p_tau_bool; p_tau_err],tau_bot);
-         (funn_ext "packet_out" "emit",[p_tau_par "T2"],tau_bot);
-         (funn_ext "packet_in" "length",[],tau_bot);
-         (funn_ext "packet_in" "advance",[p_tau_bit 32],tau_bot);
-         (funn_ext "packet_in" "lookahead",[],tau_bot);
-         (funn_ext "packet_in" "extract",[p_tau_par "T0"; p_tau_bit 32],
-          tau_bot); (funn_ext "packet_in" "extract",[p_tau_par "T"],tau_bot)]``
-
-EVAL ``petr4_parse_locals (^wip_tyenv, ^wip_enummap, ^wip_vtymap', ^wip_ftymap', ^wip_fmap, ^wip_gscope) ([], [], [], stmt_empty, []) (DROP 1 ^wip_locals)``
-
-val wip_tab_obj = optionSyntax.dest_some $ rhs $ concl $ EVAL ``case (EL 1 ^wip_locals) of | Array [String elem_name; obj] => SOME obj | _ => NONE``;
-
-EVAL ``petr4_parse_table (^wip_tyenv, ^wip_enummap, ^wip_vtymap', ^wip_ftymap') ^wip_tab_obj``
 
 *)
 
