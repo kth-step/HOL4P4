@@ -70,7 +70,7 @@ val prog_stmt_def = Define `
 
 
        
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest [stmt] ) ∧
                    (stmt ≠ stmt_empty ∧ status = status_running ) ⇒
@@ -479,7 +479,7 @@ REPEAT STRIP_TAC >| [
    gvs[prog_exp_def] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
                                                   ‘t_tau tau'’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                                  ‘delta_x’, ‘f’])) >>                  
+                                                  ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][]          
  ]         
@@ -508,7 +508,7 @@ REPEAT STRIP_TAC >| [
    gvs[prog_exp_def] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
                                                ‘t_tau tau_bool’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’])) >>                  
+                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][]          
            
@@ -541,7 +541,7 @@ REPEAT STRIP_TAC >| [
    gvs[prog_exp_def] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
                                                ‘t_tau tau'’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’])) >>                  
+                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][]                     
     ]     
@@ -641,7 +641,7 @@ REPEAT STRIP_TAC >| [
      gvs[prog_exp_def] >>
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
                                                  ‘t_tau tau_err’, ‘b'’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                                 ‘delta_x’, ‘f’])) >>                  
+                                                 ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
      gvs[is_const_val_exsist] >>
      srw_tac [SatisfySimps.SATISFY_ss][]          
    ]
@@ -657,7 +657,7 @@ REPEAT STRIP_TAC >| [
    gvs[prog_exp_def] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
                                                ‘t_tau tau_bool’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’])) >>                  
+                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][]
     ]
@@ -685,7 +685,7 @@ REPEAT STRIP_TAC >| [
    gvs[prog_exp_def] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
                                                ‘t_string_names_a x_list’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’])) >>                  
+                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][]
  ]
@@ -759,7 +759,7 @@ REPEAT STRIP_TAC >| [
                                                ‘t_tau (EL x (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list : (e # tau # bool) list)))’,
                                                ‘EL x (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list))’, ‘c’,
                                                ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’])) >>        
+                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>        
    IMP_RES_TAC index_not_const_EL >> gvs[] >>
    
    
@@ -865,7 +865,7 @@ val prog_stmtl_def = Define `
        parseError_in_gs t_scope_list_g [t_scope_list] ∧
 
        
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest stmtl ) ∧
                    (stmtl ≠ [stmt_empty] ∧ status = status_running ) ⇒
@@ -933,36 +933,6 @@ QED
 (* ========================================================================== *)
 
 
-(* new definition for WT_state *)
-(* new definition for WT_state *)
-(* new definition for WT_state *)
-(* new definition for WT_state *)
-(* new definition for WT_state *)
-
-val (WT_state_rules, WT_state_ind, WT_state_cases) = Hol_reln`
-(* defn WT_state *)
-
-( (* WT_state_state *) 
-!  (funnl: funn list) (tsll : t_scope_list list) (scll: scope_list list) (stmtll: stmt_stack list)
-(ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (status:status) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) .
-
- ( LENGTH funnl = LENGTH tsll /\ LENGTH tsll = LENGTH scll /\ LENGTH tsll = LENGTH stmtll ) /\                                                                                                                                                                          
-(WF_ft_order  funnl  delta_g delta_b delta_x  order   /\
-
-type_state_tsll  scll tsll  /\
-
-type_scopes_list  g_scope_list   t_scope_list_g  /\
-
-parseError_in_gs  t_scope_list_g   tsll  /\
-
-WT_c ctx order t_scope_list_g delta_g delta_b delta_x delta_t   /\
-
-( ( type_frames  g_scope_list    (ZIP(funnl,ZIP(stmtll,scll)))    Prs_n      order   t_scope_list_g   tsll  delta_g   delta_b   delta_x   delta_t  ) ))
-
- ==> 
-( ( WT_state ctx  ( ascope ,  g_scope_list ,   ((MAP (\(funn,stmt_stack,scope_list). (funn,stmt_stack,scope_list)) (ZIP(funnl,ZIP(stmtll,scll)))   )) ,  status )  Prs_n  order t_scope_list_g  ( tsll)   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )  )))
-
-`;
 
 
         
@@ -1127,256 +1097,9 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
 );
 
 
-(*
-val e_in_pty_delta_b_def = Define `
-   e_in_pty_delta_b (e:e) (ty:'a itself)  =
-   (! f tau b order tg1 tg2 t_scope_local delta_g delta_x .
-e_typ ([tg1; tg2],t_scope_local)
-          (order,f,delta_g,[],delta_x,[]) e tau b
-==>
-e_typ ([[]; tg2],t_scope_local)
-          (order,f,delta_g,[],delta_x,[]) e tau b)
-`;
-
-
-
-val el_in_pty_delta_b_def = Define `
-   el_in_pty_delta_b (el:e list) (ty:'a itself)  =
-    ! e . MEM e el ==> e_in_pty_delta_b (e:e) (ty:'a itself)
-`;
-
-
-val stel_in_pty_delta_b_def = Define `
-   stel_in_pty_delta_b (stel: (string#e) list ) (ty:'a itself)  =
-    ! e . MEM e (SND (UNZIP stel)) ==> e_in_pty_delta_b (e:e) (ty:'a itself)
-`;
-
-
-
-val stetup_in_pty_delta_b_def = Define `
-   stetup_in_pty_delta_b (stetup: (string#e)) (ty:'a itself)  =
-      e_in_pty_delta_b (SND stetup) ty
-`;
-
-
 
 
         
-
-val stetup_in_pty_delta_b_tac = TRY( OPEN_EXP_TYP_TAC ``e``) >>
-                 SIMP_TAC list_ss [Once e_typ_cases] >>
-                 gvs[clause_name_def, Once e_typ_cases] >>
-                 RES_TAC >>
-		 IMP_RES_TAC t_lookup_funn_not_blk_lemma >>
-                 srw_tac [SatisfySimps.SATISFY_ss][] >>
-		 METIS_TAC[]
-
-
-               
-
-val exp_in_pty_delta_b = prove (  ``
- ! (ty:'a itself) . (
-(! e  . e_in_pty_delta_b (e) ty) /\
-(! el . el_in_pty_delta_b (el) ty) /\
-(! stel . stel_in_pty_delta_b (stel) ty) /\
-(! stetup . stetup_in_pty_delta_b (stetup) ty))
-``,
-
-STRIP_TAC >>
-Induct >>
-fs[e_in_pty_delta_b_def] >>
-REPEAT STRIP_TAC >~ [‘e_typ _ _ (e_call f el ) tau b’] >- 
-
-  (* resolves the : f call*)
-                                   
-   ( OPEN_EXP_TYP_TAC ``(e_call f l)`` >>
-    SIMP_TAC list_ss [Once e_typ_cases] >>
-    gvs[] >>
-    RES_TAC >>
-    Q.EXISTS_TAC `e_tau_d_b_list` >>
-    gvs[] >>
-    
-    REPEAT STRIP_TAC >>
-    fs[el_in_pty_delta_b_def] >>
-    
-    
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL  [`EL i (MAP (λ(e_,tau_,d_,b_). e_) (e_tau_d_b_list: (e # tau # d # bool) list))`])) >>
-    fs[MEM_EL] >> gvs[] >>
-    RES_TAC >> gvs[] >>
-             
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘i’])) >>
-    gvs[] >>
-    fs[e_in_pty_delta_b_def] >>
-    METIS_TAC []                                                                                           
-   ) >~  [‘e_typ _ _ (e_struct stel ) tau b’ ] >- 
-                                   (
-  (* resolves the : struct, header*)
-
-   fs[e_in_pty_delta_b_def, stel_in_pty_delta_b_def] >>
-   OPEN_EXP_TYP_TAC ``(e_struct stel)``>>
-                    
-   SIMP_TAC list_ss [Once e_typ_cases] >>
-   gvs[] >>
-
-   Q.EXISTS_TAC `f_e_tau_b_list` >>
-   gvs[] >>
-   
-   REPEAT STRIP_TAC >>
-   RES_TAC >>
-   
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`EL i (MAP (λ(f_,e_,tau_,b_). e_) (f_e_tau_b_list: (string # e # tau # bool) list))`])) >>
-   fs[MEM_EL] >>
-
-   gvs[ELIM_UNCURRY, UNZIP_rw, EL_MEM] >>
-    METIS_TAC [] ) >~  [‘ e_typ (t_scope_list_g,t_scope_local) (order,f,delta_g,[],[],[])
-          (e_header b stel) tau b'’ ] >- 
- (
- (* resolves the : struct, header*)
-   fs[e_in_pty_delta_b_def, stel_in_pty_delta_b_def] >>
-   OPEN_EXP_TYP_TAC ``(e_header b stel)``>>
-                    
-   SIMP_TAC list_ss [Once e_typ_cases] >>
-   gvs[] >>
-
-   Q.EXISTS_TAC `f_e_tau_b_list` >>
-   gvs[] >>
-   
-   REPEAT STRIP_TAC >>
-   RES_TAC >>
-   
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`EL i (MAP (λ(f_,e_,tau_,b_). e_) (f_e_tau_b_list: (string # e # tau # bool) list))`])) >>
-   fs[MEM_EL] >>
-
-   gvs[ELIM_UNCURRY, UNZIP_rw, EL_MEM] >>
-    METIS_TAC []
- ) >>  cheat (* done with the proof, just refactor  the bottom part*)
-       
-
-
-
-[
-
-Resolves the : v, var, e_list, acc e s, unop, binop, concat, slice, select
-fs[stel_in_pty_delta_b_def, el_in_pty_delta_b_def, e_in_pty_delta_b_def, stetup_in_pty_delta_b_def] >>
-REPEAT STRIP_TAC >>
-gvs[] >>
-METIS_TAC []
-(* resolves the : inductive cases on the properties *)
-,
-
-
-stetup_in_pty_delta_b_tac
-]
-
-)
-
-
-);
-
-
-gvs[]
-
-val lval_typ_in_pty_delta_b_lemma = prove (“
-! lval tau delta_g delta_x order t_scope_local e1 e2 x.
-lval_typ ([e1; e2],t_scope_local)
-         (order,funn_name x,delta_g,[],delta_x,[]) lval (t_tau tau) ⇒
-(lval_typ ([[]; e2],t_scope_local)
-            (order,funn_name x,delta_g,[],delta_x,[]) lval
-            (t_tau tau))   ”,
-             
-Induct_on ‘lval’>>
-REPEAT STRIP_TAC >> 
-gvs[Once lval_typ_cases] >>
-TRY(gvs[Once e_typ_cases]) >>
-SIMP_TAC list_ss [Once lval_typ_cases] >>
-TRY(SIMP_TAC list_ss [Once e_typ_cases]) >>  
-gvs[] >>         
-RES_TAC >>        
-srw_tac [SatisfySimps.SATISFY_ss][]   
-);
-
-
-
-fun OPEN_ANY_STMT_TYP_TAC stmt_term =
-(Q.PAT_X_ASSUM `stmt_typ ([e1; e2],tsl) (order,funn_name x,delta_g,[],delta_x,[]) [] stmt_term ` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_typ_cases] thm)))
-
-
-
-               
-∀ stmt tsl order delta_g delta_b delta_x tdl t e1 e2 x.
-WF_o order ∧  
-ALOOKUP delta_g x = SOME (tdl,t) ∧  
-deltas_order delta_g delta_b delta_x order ∧ 
-stmt_typ ([e1; e2],tsl) (order,(funn_name x),delta_g,[],delta_x,[]) [] stmt ⇒
-stmt_typ ([[]; e2],tsl) (order,(funn_name x),delta_g,[],delta_x,[]) [] stmt
-
-Induct >>
-REPEAT STRIP_TAC >> 
-   
-(* this should resolve most cases *)
-OPEN_ANY_STMT_TYP_TAC ``stmt`` >>
-SIMP_TAC list_ss [Once stmt_typ_cases] >>
-gvs[] >>
-
-ASSUME_TAC exp_in_pty_delta_b >>
-fs[ e_in_pty_delta_b_def]  >>
-RES_TAC >>
-srw_tac [SatisfySimps.SATISFY_ss][]  >| [
-
-IMP_RES_TAC lval_typ_in_pty_delta_b_lemma >>
-srw_tac [SatisfySimps.SATISFY_ss][]
-,
-
-Cases_on ‘f’ >> gvs[t_lookup_funn_def] >> gvs[] >>
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >| [
-
- ‘ ∀f t.
-          (∀x. f = funn_name x ⇒ ∃sig. ALOOKUP delta_g x = SOME sig) ∧
-          (∃sig. ALOOKUP delta_t t = SOME sig) ⇒
-          order (order_elem_f f) (order_elem_t t)’ by (gvs[deltas_order_def] >>
-                                                       gvs[f_decl_in_def, t_decl_in_def] ) >>
-                                               
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘funn_name s'’, ‘s’])) >>
-   srw_tac [boolSimps.DNF_ss][] >>
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘(MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list : (e # tau # bool) list))’, ‘(q,r)’])) >>
- gvs[] >>  
- gvs[WF_o_def]
- ,
-
- ‘ ∀f1 f2.
-          ((∀x. f1 = funn_inst x ⇒ ∃sig. ALOOKUP delta_x x = SOME sig) ∧
-           ∀x x'.
-             f1 = funn_ext x x' ⇒
-             ∃ext_MoE sig a1.
-               ALOOKUP delta_x x = SOME (a1,ext_MoE) ∧
-               ALOOKUP ext_MoE x' = SOME sig) ∧ f_decl_in f2 delta_g ⇒
-          order (order_elem_f f1) (order_elem_f f2)’ by (gvs[deltas_order_def] >>
-                                                       gvs[ext_decl_in_def, t_decl_in_def] ) >>
-                                               
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘funn_inst s'’, ‘s’])) >>
-   srw_tac [boolSimps.DNF_ss][] >>
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘(MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list : (e # tau # bool) list))’, ‘(q,r)’])) >>
- gvs[] >>  
- gvs[WF_o_def]
-
-        
-
-
-  ]         
-
-
-
-       
-  ]
-
-
-
-*)
-
-
-
-         
-
 val ext_not_def_in_mpty_delta_b = prove (“
 ∀ f delta_g delta_b delta_x tdl t.
    typying_domains_ei delta_g delta_b delta_x ∧
@@ -1473,38 +1196,129 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])
 );
 
 
+     
+
+          
+
+
+
+
+val t_scopes_lookup_empty_ctx_lemma = prove (“
+∀ delta_g delta_b e1 e2 s t_scope_list_g q r.
+ALOOKUP delta_g s = SOME (q,r) ∧
+dom_tmap_ei delta_g delta_b ∧
+t_scopes_to_pass (funn_name s) delta_g delta_b [e1; e2] = SOME t_scope_list_g ⇒
+t_scopes_to_pass (funn_name s) delta_g []      [[]; e2] = SOME t_scope_list_g”,
+
+REPEAT STRIP_TAC >>
+gvs[t_scopes_to_pass_def] >>
+gvs[dom_tmap_ei_def, dom_empty_intersection_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>    
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘s’])) >> gvs[] 
+);
+            
+
+val find_star_of_globals_ctx_lemma = prove ( “
+∀ delta_g delta_b func_map b_func_map e1 e2 q r x.
+dom_map_ei func_map b_func_map ∧            
+dom_tmap_ei delta_g delta_b ∧
+dom_g_eq delta_g func_map ∧
+dom_b_eq delta_b b_func_map ∧
+Fb_star_defined b_func_map [e1; e2] ∧
+Fg_star_defined func_map [e1; e2] ∧
+ALOOKUP delta_g x = SOME (q,r) ∧
+find_star_in_globals [e1; e2] (varn_star (funn_name x)) = SOME r ⇒
+find_star_in_globals [[]; e2] (varn_star (funn_name x)) = SOME r”,
+
+REPEAT STRIP_TAC >>
+gvs[find_star_in_globals_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>    
+
+                              
+ fs[dom_tmap_ei_def, dom_map_ei_def ,dom_empty_intersection_def] >>
+ fs[dom_g_eq_def, dom_b_eq_def, dom_eq_def, is_lookup_defined_def] >>
+ fs[Fg_star_defined_def, Fb_star_defined_def, is_lookup_defined_def] >>
+ NTAC 6 (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘x’])) >> gvs[]  ) >| [
+ IMP_RES_TAC lookup_map_none_lemma1 >> gvs[]
+ ,
+ fs[lookup_map_def, topmost_map_def, find_topmost_map_def] >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+ gvs[INDEX_FIND_def] >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) 
+]
+);
+
+
+
+(******************************************)
+
+
+
         
 
-(*from e sr*)
-Theorem dom_eq_imp_NONE:
-∀ delta_g func_map delta_b b_func_map s.
-(dom_g_eq delta_g func_map ⇒
-(ALOOKUP delta_g s = NONE ⇔ ALOOKUP func_map s = NONE))
-∧
-(dom_b_eq delta_b b_func_map ⇒
-(ALOOKUP delta_b s = NONE ⇔ ALOOKUP b_func_map s = NONE))
-Proof
-cheat  
-QED    
+val find_star_of_inst_ctx_lemma = prove ( “
+∀ ext_map r x e1 e2 sig.
+  X_star_not_defined [e1; e2] ∧                                        
+  ALOOKUP ext_map x = SOME sig ∧ 
+  X_star_defined ext_map [e1; e2] ∧              
+  find_star_in_globals [e1; e2] (varn_star (funn_inst x)) = SOME r ⇒
+  find_star_in_globals [[]; e2] (varn_star (funn_inst x)) = SOME r ”,
+                                                                
+REPEAT STRIP_TAC >>
+gvs[find_star_in_globals_def, X_star_not_defined_def, X_star_defined_def, is_lookup_defined_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+REPEAT (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘funn_inst x’, ‘x’])) >> gvs[]) >>
+IMP_RES_TAC lookup_map_none_lemma1 >> gvs[]    
+);       
+
+
+
+val find_star_of_ext_ctx_lemma = prove ( “
+∀ ext_map r x x' e1 e2 sig.
+  X_star_not_defined [e1; e2] ∧                                        
+  ALOOKUP ext_map x  = SOME sig ∧ 
+  X_star_defined ext_map [e1; e2] ∧              
+  find_star_in_globals [e1; e2] (varn_star (funn_ext x x')) = SOME r ⇒
+  find_star_in_globals [[]; e2] (varn_star (funn_ext x x')) = SOME r ”,
+                                                                
+REPEAT STRIP_TAC >>
+gvs[find_star_in_globals_def, X_star_not_defined_def, X_star_defined_def, is_lookup_defined_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+REPEAT (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘funn_ext x x'’, ‘x’])) >> gvs[]) >>
+IMP_RES_TAC lookup_map_none_lemma1 >> gvs[]    
+);       
+
+
+
+
 
 
 
 
 
 val WTFg_empty_empty_db = prove ( “
-∀ func_map order h delta_g delta_b delta_x .
-WTFg func_map order [[]; h] delta_g delta_b delta_x ⇒
-WTFg func_map order [[]; h] delta_g [] delta_x”,
+∀ func_map b_func_map order g1 g2 delta_g delta_b delta_x Prs_n.
+  dom_tmap_ei delta_g delta_b ∧ dom_map_ei func_map b_func_map ∧
+  dom_g_eq delta_g func_map ∧  dom_b_eq delta_b b_func_map ∧
+  Fb_star_defined b_func_map [g1; g2] ∧
+  Fg_star_defined func_map [g1; g2] ∧                
+WTFg func_map order [g1; g2] delta_g delta_b delta_x Prs_n⇒
+WTFg func_map order [[]; g2] delta_g [] delta_x Prs_n”,
 
 gvs[WTFg_cases, func_map_typed_def] >>
 REPEAT STRIP_TAC >>
 
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘stmt’, ‘xdl’, ‘x’])) >> gvs[] >>
+Q.EXISTS_TAC ‘tau’ >> gvs[] >>
 Q.EXISTS_TAC ‘tdl’ >> gvs[] >>
 Q.EXISTS_TAC ‘t_scope_list_g'’ >>
 gvs[] >>
-gvs[t_scopes_to_pass_def] >>
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) 
+gvs[t_lookup_funn_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+IMP_RES_TAC t_scopes_lookup_empty_ctx_lemma >> gvs[] >>
+IMP_RES_TAC find_star_of_globals_ctx_lemma >> gvs[]
 );
 
 
@@ -1512,9 +1326,11 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])
 
         
 val WTFX_empty_empty_db = prove ( “
-∀ func_map (ext_map: 'a ext_map ) order h delta_g delta_b delta_x .              
-WTX ext_map order [[]; h] delta_g delta_b delta_x ⇒
-WTX ext_map order [[]; h] delta_g [] delta_x ” ,
+∀ func_map (ext_map: 'a ext_map ) order g1 g2 delta_g delta_b delta_x .
+  X_star_not_defined [g1; g2] ∧
+  X_star_defined ext_map [g1; g2] ∧
+WTX ext_map order [g1; g2] delta_g delta_b delta_x ⇒
+WTX ext_map order [[]; g2] delta_g [] delta_x ” ,
                                   
 REPEAT STRIP_TAC >>
 gvs[WTX_cases] >>
@@ -1525,98 +1341,140 @@ CONJ_TAC >| [
         
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’, ‘x’, ‘IoE’, ‘MoE’])) >> gvs[] >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’])) >> gvs[] >>
- qexistsl_tac [‘tdl’,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
+ qexistsl_tac [‘tdl’, ‘tau’ ,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
               
  gvs[t_scopes_to_pass_def] >>
- REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+ 
+ 
+ gvs[t_lookup_funn_def] >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+ IMP_RES_TAC find_star_of_inst_ctx_lemma
  ,
  gvs[extern_MoE_typed_def] >>
  REPEAT STRIP_TAC >>
         
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’, ‘x’,‘x'’ ,‘IoEsig’, ‘MoE’, ‘MoE_map’])) >> gvs[] >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’])) >> gvs[] >>
- qexistsl_tac [‘tdl’,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
+ qexistsl_tac [‘tdl’,‘tau’,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
               
  gvs[t_scopes_to_pass_def] >>
- REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])     
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])  >>
+
+ gvs[t_lookup_funn_def] >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+ IMP_RES_TAC find_star_of_ext_ctx_lemma        
 ]
 );
+  
+
+
+         
+  
+                           
+
             
-
-
-
-
-
 val WT_c_empty_db = prove (
-“∀ f  delta_b delta_g delta_x delta_t passed_delta_b passed_delta_t
-     apply_table_f (ext_map: 'a ext_map) func_map b_func_map tbl_map pars_map applt_table_f order tau tdl
-     t_scope_list_g' gscope passed_gscope.          
-t_lookup_funn f delta_g passed_delta_b delta_x = SOME (tdl,tau) ∧
+“∀ f delta_b delta_g delta_x delta_t passed_delta_b passed_delta_t
+       apply_table_f (ext_map: 'a ext_map) func_map b_func_map tbl_map pars_map order tau
+       tdl gscope g_scope_passed tslg passed_tslg  Prs_n.          
+
+t_lookup_funn f delta_g passed_delta_b delta_x = SOME (tdl, tau)∧
 t_tbl_to_pass f delta_b delta_t = SOME passed_delta_t ∧
 t_map_to_pass f delta_b = SOME passed_delta_b ∧
-t_scopes_to_pass f delta_g delta_b t_scope_list_g' =SOME t_scope_list_g' ∧
-scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope ∧
+t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ∧
+scopes_to_pass f func_map b_func_map gscope = SOME g_scope_passed ∧
 
 WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-          order t_scope_list_g' delta_g delta_b delta_x delta_t ⇒
+          order tslg delta_g delta_b delta_x delta_t Prs_n ⇒
 ∃passed_b_func_map passed_tbl_map.
           map_to_pass f b_func_map = SOME passed_b_func_map ∧
           tbl_to_pass f b_func_map tbl_map = SOME passed_tbl_map ∧
           WT_c
             (apply_table_f,ext_map,func_map,passed_b_func_map,pars_map,
-             passed_tbl_map) order t_scope_list_g' delta_g passed_delta_b
-            delta_x passed_delta_t”,
+             passed_tbl_map) order passed_tslg delta_g passed_delta_b delta_x
+            passed_delta_t Prs_n”,
 
  REPEAT STRIP_TAC >>
 
  gvs[t_tbl_to_pass_def, t_map_to_pass_def] >>
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])  >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])  >>
+ 
+ gvs[tbl_to_pass_def, map_to_pass_def] >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
-gvs[tbl_to_pass_def, map_to_pass_def] >>
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+ gvs[scopes_to_pass_def, t_scopes_to_pass_def] >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+ 
+ gvs[t_lookup_funn_def] >>
+ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+ 
+ TRY (  gvs[WT_c_cases] >>                                 
+        IMP_RES_TAC dom_eq_imp_NONE >> gvs[]
+     ) >>
+ 
+ 
+ 
+ ‘dom_map_ei func_map [] ∧ dom_tmap_ei delta_g [] ∧
+  typying_domains_ei delta_g [] delta_x ∧ dom_b_eq [] [] ∧
+  dom_t_eq [] [] ∧ WTFb [] order [[]; EL 1 tslg] delta_g [] delta_x [] Prs_n ’ by
+   (gvs [dom_map_ei_def, dom_tmap_ei_def, typying_domains_ei_def] >>
+    gvs [dom_empty_intersection_def] >> gvs[] >>
+    gvs [dom_b_eq_def, dom_t_eq_def, dom_eq_def, is_lookup_defined_def] >>
+    SIMP_TAC list_ss [WTFb_cases, func_map_blk_typed_def, clause_name_def] >> gvs[]) >> gvs[] >>
+ 
+ 
+ 
+ ‘table_map_typed [] apply_table_f delta_g [] order ∧
+  f_in_apply_tbl [] apply_table_f’ by ( gvs [f_in_apply_tbl_def] >>
+                                        gvs[table_map_typed_def] >>
+                                        gvs[]) >> gvs[] >>
+ 
+ ‘ Fg_star_defined func_map [[]; EL 1 tslg] ∧
+   Fb_star_defined [] [[]; EL 1 tslg]  ’ by  
+   (gvs [Fb_star_defined_def, is_lookup_defined_def] >> gvs[] >>
+    gvs [Fg_star_defined_def, is_lookup_defined_def] >> gvs[]) >> gvs[] >>
+ 
+ 
+ (subgoal ‘X_star_defined ext_map [[]; EL 1 tslg]’ >- (
+   fs[quantHeuristicsTheory.LIST_LENGTH_2] >> gvs[] >>
+   gvs[X_star_defined_def, is_lookup_defined_def] >> REPEAT STRIP_TAC >> gvs[]
+   ) >> gvs[]
+ ) >>
+   
+ fs[quantHeuristicsTheory.LIST_LENGTH_2] >> gvs[] >>
 
-gvs[scopes_to_pass_def, t_scopes_to_pass_def] >>
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+ (subgoal ‘X_star_not_defined [[]; e2]’ >- (
+   gvs[X_star_not_defined_def] >> REPEAT STRIP_TAC >> gvs[]
+   )                                          
+ ) >> gvs[] >> rw[] >>
 
-gvs[t_lookup_funn_def] >>
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-
-TRY (  gvs[WT_c_cases] >>                                 
-IMP_RES_TAC dom_eq_imp_NONE >> gvs[]
-) >>
-
-
-(gvs [dom_map_ei_def, dom_tmap_ei_def, typying_domains_ei_def] >>
- gvs [dom_empty_intersection_def] >> gvs[] >>
- gvs [dom_b_eq_def, dom_t_eq_def, dom_eq_def, is_lookup_defined_def] >>
- SIMP_TAC list_ss [WTFb_cases, func_map_blk_typed_def, clause_name_def] >> gvs[]) >> gvs[] >>
-       
-
-
-‘table_map_typed [] apply_table_f delta_g [] order ∧
-        f_in_apply_tbl [] apply_table_f’ by ( gvs [f_in_apply_tbl_def] >>
-                                              gvs[table_map_typed_def] >>
-                                              gvs[]) >> gvs[] >>
-                                              
-Cases_on ‘t_scope_list_g'’ >> gvs[] >>
-Cases_on ‘t’ >> gvs[] >>
-gvs [Fb_star_defined_def, is_lookup_defined_def] >> gvs[] >>
-
-
-IMP_RES_TAC WTFg_empty_empty_db >> gvs[] >>
-IMP_RES_TAC  WTFX_empty_empty_db  >> gvs[]
+  IMP_RES_TAC WTFg_empty_empty_db >>                     
+  IMP_RES_TAC WTFX_empty_empty_db
 );
 
 
 
+val t_scopes_passed_parseError = prove (“
+∀ tslg tscl passed_tslg f delta_b delta_g.
+t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ∧
+parseError_in_gs tslg tscl ⇒
+parseError_in_gs passed_tslg tscl ”,               
+
+REPEAT STRIP_TAC >>
+gvs[t_scopes_to_pass_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+gvs[parseError_in_gs_def]
+)
 
 
 
 
 
-                
 
 
+
+                              
 
 
        
@@ -1645,7 +1503,7 @@ val WT_state_imp_frame_typ_single = prove (
                                                   tbl_to_pass f b_func_map tbl_map = SOME passed_tbl_map ∧
                                                   t_tbl_to_pass f delta_b delta_t = SOME passed_delta_t ∧            
                                                              
-WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t   ∧
+WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t Prs_n   ∧
 type_scopes_list  passed_gscope passed_tslg   ∧
 parseError_in_gs passed_tslg [HD tsll] ∧
 (frame_typ  ( passed_tslg ,  (HD tsll) ) (order, f, (delta_g, passed_delta_b, delta_x, passed_delta_t)) Prs_n  passed_gscope locale stmtl ) ”,
@@ -1654,41 +1512,41 @@ parseError_in_gs passed_tslg [HD tsll] ∧
 REPEAT GEN_TAC >>
 STRIP_TAC >>     
 gvs[Once WT_state_cases] >>
-PairCases_on ‘x0’ >> gvs[] >>
-gvs[type_state_tsll_def] >>
 
+
+subgoal ‘locale = HD scll ∧ f = HD funnl ∧ stmtl = HD stmtll’ >-  (
+    ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:funn`` , ``:'b`` |-> ``:stmt list`` , ``:γ`` |-> ``:(varn#v#lval option)list list`` ] ZIP_HD_tri_1)  >> 
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`funnl`, ‘stmtll’, ‘scll’, ‘f’, ‘stmtl’, ‘locale’]))  >>  gvs[] ) >>
+   
+fs[] >> gvs[] >>
+         
+gvs[type_state_tsll_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
 subgoal ‘0 < LENGTH scll’ >- (Cases_on ‘scll’ >> gvs[]  ) >> gvs[] >>
 gvs[type_frame_tsl_def] >>
 
-subgoal ‘locale = HD scll ’ >-  (
-    ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:funn`` , ``:'b`` |-> ``:stmt list`` , ``:γ`` |-> ``:(varn#v#lval option)list list`` ] ZIP_HD_tri_1)  >> 
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`funnl`, ‘stmtll’, ‘scll’]))  >>  gvs[] ) >>
-    
+                       
 gvs[type_frames_def, type_frame_tsl_def] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
+
+                     
 Cases_on ‘tsll’ >> gvs[] >>
+gvs[map_distrub] >>
+
+         
 IMP_RES_TAC parseError_in_gs_normalization >> gvs[] >>
 
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
-(*
-‘ ∃ passed_gscope .  scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope
-                       ∧  type_scopes_list passed_gscope t_scope_list_g'’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
-*)
-
-
-
-‘ ∃ g_scope_passed .  scopes_to_pass f func_map b_func_map gscope = SOME g_scope_passed
+‘ ∃ g_scope_passed .  scopes_to_pass (HD funnl) func_map b_func_map gscope = SOME g_scope_passed
                        ∧  type_scopes_list g_scope_passed passed_tslg’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
+Cases_on ‘scopes_to_pass (HD funnl) func_map b_func_map gscope’ >> gvs[] >>
 
-        
-srw_tac [SatisfySimps.SATISFY_ss][] >>
-
+         
 gvs[frame_typ_cases] >>
-srw_tac [SatisfySimps.SATISFY_ss][] >>
-IMP_RES_TAC type_scopes_list_detr >> rfs[] >> gvs[] >>
-IMP_RES_TAC WT_c_empty_db >> gvs[] >>
+IMP_RES_TAC WT_c_empty_db >> gvs[] >> 
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_d_list’, ‘tau’])) >> gvs[] >>
 
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_d_list’, ‘tau’])) >> gvs[]    
+IMP_RES_TAC parseError_in_gs_normalization >>
+IMP_RES_TAC t_scopes_passed_parseError           
 );
 
 
@@ -1696,32 +1554,30 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_d_list’, ‘tau’])) >> gv
 
 
 val WT_state_HD_of_list = prove (“
-∀  ascope gscope f stmtl locale status Prs_n  order tslg tsll delta_g delta_b delta_x delta_t
-       apply_table_f  ext_map  func_map  b_func_map  pars_map tbl_map passed_tbl_map t.
+∀  ascope gscope f stmtl locale status Prs_n order tslg tsll delta_g delta_b
+       delta_x delta_t apply_table_f ext_map func_map b_func_map pars_map
+       tbl_map t.
+    
+    WT_state  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map )
+              (ascope,gscope,(f,stmtl,locale)::t,status) Prs_n  order tslg
+              tsll (delta_g,delta_b,delta_x,delta_t) ⇒
 
-
-WT_state (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-         (ascope,gscope,(f,stmtl,locale)::t,status) Prs_n order tslg tsll
-         (delta_g,delta_b,delta_x,delta_t) ⇒
-         
-type_scopes_list gscope tslg ∧
-type_scopes_list locale (HD tsll) ∧
-star_not_in_sl locale ∧
-
-∃passed_tslg passed_gscope passed_delta_b passed_b_func_map passed_tbl_map passed_delta_t.
-         t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ∧
-         scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope ∧
-         map_to_pass f b_func_map = SOME passed_b_func_map ∧
-         t_map_to_pass f delta_b = SOME passed_delta_b ∧
-         tbl_to_pass f b_func_map tbl_map = SOME passed_tbl_map ∧
-         t_tbl_to_pass f delta_b delta_t = SOME passed_delta_t ∧
-
-                       
-         WT_c (apply_table_f,ext_map,func_map,passed_b_func_map,pars_map,passed_tbl_map)
-               order passed_tslg delta_g passed_delta_b delta_x passed_delta_t ∧
-         type_scopes_list passed_gscope passed_tslg ∧
-         parseError_in_gs passed_tslg [HD tsll] ∧
- frame_typ (passed_tslg,HD tsll) (order,f,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope locale stmtl”,
+       type_scopes_list  (gscope)  (tslg) ∧
+       type_scopes_list  (locale) (HD tsll)   ∧
+       star_not_in_sl (locale) ∧
+  
+             ∃ passed_tslg passed_gscope passed_delta_b passed_b_func_map passed_tbl_map passed_delta_t.
+                                              t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ∧                                    
+                                               scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope ∧
+                                                  map_to_pass f b_func_map = SOME passed_b_func_map ∧
+                                                  t_map_to_pass f delta_b = SOME passed_delta_b   ∧
+                                                  tbl_to_pass f b_func_map tbl_map = SOME passed_tbl_map ∧
+                                                  t_tbl_to_pass f delta_b delta_t = SOME passed_delta_t ∧            
+                                                             
+WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t Prs_n   ∧
+type_scopes_list  passed_gscope passed_tslg   ∧
+parseError_in_gs passed_tslg [HD tsll] ∧
+(frame_typ  ( passed_tslg ,  (HD tsll) ) (order, f, (delta_g, passed_delta_b, delta_x, passed_delta_t)) Prs_n  passed_gscope locale stmtl )”,
 
 
 REPEAT GEN_TAC >>
@@ -1733,36 +1589,36 @@ gvs[type_state_tsll_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
  subgoal ‘0 < LENGTH scll’ >- (Cases_on ‘scll’ >> gvs[] ) >> gvs[] >>
 
-subgoal ‘locale = HD scll ’ >-  (Cases_on ‘scll’ >> gvs[] >>
-                                 Cases_on ‘stmtll’ >> gvs[] >>
-                                 Cases_on ‘funnl’ >> gvs[] ) >>
+subgoal ‘locale = HD scll ∧ f = HD funnl ∧ stmtl = HD stmtll’ >-  (Cases_on ‘scll’ >> gvs[] >>
+                                                                   Cases_on ‘stmtll’ >> gvs[] >>
+                                                                   Cases_on ‘funnl’ >> gvs[] ) >>
+lfs[] >> gvs[] >>                                                                   
 gvs[type_frame_tsl_def] >>
-
-Cases_on ‘tsll’ >> gvs[] >>
-IMP_RES_TAC parseError_in_gs_normalization   >> gvs[] >>
 
 gvs[type_frames_def, type_frame_tsl_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
+gvs[map_distrub] >>
 
-Cases_on ‘ (ZIP (funnl,ZIP (stmtll,scll)))’ >> gvs[] >> 
-PairCases_on ‘h'’ >> gvs[] >>
 
-‘ ∃ g_scope_passed .  scopes_to_pass f func_map b_func_map gscope = SOME g_scope_passed
+‘ ∃ g_scope_passed .  scopes_to_pass (HD funnl) func_map b_func_map gscope = SOME g_scope_passed
                        ∧  type_scopes_list g_scope_passed passed_tslg’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
-
-srw_tac [SatisfySimps.SATISFY_ss][] >>
+Cases_on ‘scopes_to_pass (HD funnl) func_map b_func_map gscope’ >> gvs[] >>
 
 gvs[frame_typ_cases] >>
-srw_tac [SatisfySimps.SATISFY_ss][] >>
-IMP_RES_TAC type_scopes_list_detr >> rfs[] >> gvs[] >>
 IMP_RES_TAC WT_c_empty_db >> gvs[] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_d_list’, ‘tau’])) >> gvs[] >>  
 
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_d_list’, ‘tau’])) >> gvs[]   
-  
+
+IMP_RES_TAC parseError_in_gs_normalization >>
+IMP_RES_TAC t_scopes_passed_parseError >>
+Cases_on ‘tsll’ >> gvs[] >> IMP_RES_TAC parseError_in_gs_normalization          
 );
 
 
 
+
+
+        
 val WT_state_imp_t_funn_lookup_HD = prove ( “
 ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map ascope gscope stmtl locale t status Prs_n order tslg
         delta_g delta_b delta_x delta_t tsll.
@@ -1779,8 +1635,6 @@ gvs[WT_state_cases, type_frames_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >> gvs[] >>
  subgoal ‘0 < LENGTH scll’ >- (Cases_on ‘scll’ >> gvs[]  ) >> gvs[] >>
    Cases_on ‘ (ZIP (funnl,ZIP (stmtll,scll)))’ >> gvs[] >> 
-   PairCases_on ‘h’ >> gvs[] >>
-
  gvs[frame_typ_cases, Once stmtl_typ_cases] >>
 
  IMP_RES_TAC t_map_to_pass_delta_b_cases >> gvs[] >| [
@@ -1954,7 +1808,25 @@ REPEAT STRIP_TAC >| [
 
 
 
+      (********************)
+
+
+
+
+
+
+
+
 (*
+
+
+
+
+
+
+
+        
+
 
 ∀ lval s x x' v scopest.
 lookup_map scopest (varn_name x) = SOME (v,SOME (lval_field lval s)) ==>
@@ -1971,7 +1843,6 @@ gvs[topmost_map_def, find_topmost_map_def]
       
 
 
-      (********************)
 
 
 
@@ -2198,7 +2069,7 @@ Cases_on ‘notret status'’ >| [
     IMP_RES_TAC WT_state_imp_t_funn_lookup_HD >>
     
     ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-     order tslg delta_g delta_b delta_x delta_t’ by gvs[WT_state_cases] >>           
+     order tslg delta_g delta_b delta_x delta_t Prs_n’ by gvs[WT_state_cases] >>           
     drule  tfunn_imp_sig_body_lookup >> REPEAT STRIP_TAC >>
     METIS_TAC []   
     ) >>
@@ -2223,7 +2094,7 @@ Cases_on ‘notret status'’ >| [
   ASSUME_TAC Fg_star_lemma1 >>
   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
                                     [‘passed_tslg’,‘f’, ‘func_map’, ‘delta_g’, ‘passed_delta_b’, ‘delta_x’, ‘order’, ‘passed_b_func_map’,
-                                     ‘passed_gscope’,‘ext_map’,‘stmt’,‘xdl’,‘apply_table_f’,‘pars_map’,‘passed_tbl_map’,‘passed_delta_t’])) >> gvs[] >>
+                                     ‘passed_gscope’,‘ext_map’,‘stmt’,‘xdl’,‘apply_table_f’,‘pars_map’,‘passed_tbl_map’,‘passed_delta_t’, ‘Prs_n’])) >> gvs[] >>
                                      
   IMP_RES_TAC passed_b_same_lookup_sig_body >> 
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘func_map’, ‘ext_map’])) >> gvs[] >>

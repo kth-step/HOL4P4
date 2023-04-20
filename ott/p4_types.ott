@@ -888,7 +888,7 @@ val t_scopes_to_pass_def = Define `
 (*based on the specs, the extern cannot be called from functions *)
 
 val func_map_typed_def = Define `
-func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g delta_b delta_x =
+func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g delta_b delta_x Prs_n =
 ! f stmt xdl x  .
  ( (f = funn_name x) /\
    (ALOOKUP func_map x = SOME (stmt, xdl)) )
@@ -900,7 +900,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    (same_dir xdl tdl) /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
-   ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,[],delta_x,[])) [] (stmt) ) /\
+   ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,[],delta_x,[])) Prs_n (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt))
 `;
@@ -910,7 +910,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
 
 
 val func_map_blk_typed_def = Define `
-func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x delta_t =
+func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n =
 ! f stmt xdl x .
  ( (f = funn_name x) /\
    (ALOOKUP b_func_map x = SOME (stmt, xdl))
@@ -922,7 +922,7 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
    (same_dir xdl tdl) /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
-   ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,delta_t)) [] (stmt) ) /\
+   ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,delta_t)) Prs_n (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt)
 
@@ -1161,6 +1161,11 @@ X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
 
 
 
+val X_star_not_defined_def = Define `
+X_star_not_defined (t_scope_list_g:t_scope_list_g) =
+! f x x' . (f = funn_inst x \/ f = funn_ext x x') ==> (
+            ~ (is_lookup_defined (EL 1 t_scope_list_g) (varn_star f)))
+`;
 
 }}
 
@@ -1169,15 +1174,15 @@ X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
 defns
 WTFg :: '' ::=
 defn
- func_map -| order t_scope_list_g delta_g delta_b delta_x :: :: WTFg :: WTFg_
+ func_map -| order t_scope_list_g delta_g delta_b delta_x Prs_n :: :: WTFg :: WTFg_
 {{ com global functions well typed }}
-{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
+{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[Prs_n]] }}
 by
 
 
-func_map_typed func_map order t_scope_list_g delta_g delta_b delta_x
+func_map_typed func_map order t_scope_list_g delta_g delta_b delta_x Prs_n
 --------------------------------------------------------- :: global
-func_map -| order t_scope_list_g delta_g delta_b delta_x
+func_map -| order t_scope_list_g delta_g delta_b delta_x Prs_n
 
 
 
@@ -1185,15 +1190,15 @@ func_map -| order t_scope_list_g delta_g delta_b delta_x
 defns
 WTFb :: '' ::=
 defn
- b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t :: :: WTFb :: WTFb_
+ b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n :: :: WTFb :: WTFb_
 {{ com actions and local functions well typed }}
-{{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] }}
+{{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Prs_n]]}}
 by
 
 
-func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t
+func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 --------------------------------------------------------- :: block
-b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 
 
 
@@ -1219,9 +1224,9 @@ ext_map -| order t_scope_list_g delta_g delta_b delta_x
 defns
 WT_c :: '' ::=
 defn
- ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t :: :: WT_c :: WT_c_
+ ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n :: :: WT_c :: WT_c_
 {{ com context well typed }}
-{{ tex [[ctx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] }}
+{{ tex [[ctx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Prs_n]] }}
 by
 
 % TODO: remove dom_tmap_ei ( delta_g , delta_b ) because the prop is satisfies in typying_domains_ei
@@ -1240,13 +1245,14 @@ dom_t_eq ( delta_t , tbl_map )
 Fg_star_defined ( func_map , t_scope_list_g )
 Fb_star_defined ( b_func_map , t_scope_list_g )
 X_star_defined  ( ext_map , t_scope_list_g )
-func_map -| order t_scope_list_g delta_g delta_b delta_x
-b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t
+X_star_not_defined t_scope_list_g
+func_map -| order t_scope_list_g delta_g delta_b delta_x Prs_n
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 ext_map -| order t_scope_list_g delta_g delta_b delta_x
 table_map_typed tbl_map apply_table_f delta_g delta_b order
 f_in_apply_tbl tbl_map apply_table_f
 --------------------------------------- :: c
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 
 
 
@@ -1286,7 +1292,8 @@ val t_tbl_to_pass_def = Define `
 
 val type_frames_def = Define `
 type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
-(order:order) (t_scope_list_g:t_scope_list_g)  (t_scopes_frames:t_scopes_frames)  (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) =
+(order:order) (t_scope_list_g:t_scope_list_g)  (t_scopes_frames:t_scopes_frames)  (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) 
+func_map b_func_map =
 
 ∀ i funnl stml scl .
      
@@ -1295,12 +1302,12 @@ type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
      scl = MAP (λ(f,stml,scl). scl) frames_list) ⇒
    
     (i < LENGTH frames_list ==>
-       ∃ passed_tslg passed_delta_b passed_delta_t. 
+       ∃ passed_tslg passed_delta_b passed_delta_t passed_gscope. 
           t_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME passed_tslg ∧
           t_map_to_pass (EL i funnl) delta_b =  SOME passed_delta_b ∧ 
           t_tbl_to_pass (EL i funnl) delta_b delta_t = SOME passed_delta_t /\
-          frame_typ (passed_tslg,EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n g_scope_list (EL i scl) (EL i stml))     
-
+          scopes_to_pass (EL i funnl) func_map b_func_map g_scope_list = SOME passed_gscope /\
+          frame_typ (passed_tslg,EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope (EL i scl) (EL i stml))     
 `;
 
 
@@ -1375,12 +1382,15 @@ ctx state Prs_n order ( t_scope_list_g , t_scopes_frames ) delta :: :: WT_state 
 by
 
 
+% We need type_scopes_list for globals because we need to know that the scopes are typed before we do the passing
+% we need type_state_tsll because it is easier for teh proof, 
+
+%parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ]
 WF [ funn1 , .. , funnn ] delta_g delta_b delta_x order
 type_state_tsll ( scope_list1 , .. , scope_listn ) [ t_scope_list1 , .. , t_scope_listn ]
 type_scopes_list g_scope_list t_scope_list_g
-parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ]
-ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t
-( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
+ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) func_map b_func_map
 ---------------------------------------------------------------------- :: state
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
 

@@ -628,10 +628,10 @@ formula :: formula_ ::=
 | length_is_2 ( t_scope_list_g ) :: M :: length_is_2
   {{ hol ( 2 = LENGTH [[t_scope_list_g]] ) }}
 
-| func_map_typed func_map order t_scope_list_g delta_g delta_b delta_x :: ::  func_map_typed 
-  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }} 
-| func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t :: :: func_map_blk_typed
-  {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] ) }} 
+| func_map_typed func_map order t_scope_list_g delta_g delta_b delta_x Prs_n :: ::  func_map_typed 
+  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[Prs_n]] ) }} 
+| func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n :: :: func_map_blk_typed
+  {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Prs_n]] ) }} 
 | extern_map_IoE_typed ext_map t_scope_list_g delta_g delta_b delta_x :: :: extern_map_IoE_typed
   {{ hol ( extern_map_IoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }}
 | extern_MoE_typed ext_map t_scope_list_g delta_g delta_b delta_x :: :: extern_MoE_typed
@@ -658,6 +658,8 @@ formula :: formula_ ::=
   {{ hol ( Fb_star_defined [[b_func_map]]  [[t_scope_list_g]] ) }}
 | X_star_defined  ( ext_map , t_scope_list_g ) :: :: X_star_defined
   {{ hol ( X_star_defined [[ext_map]]  [[t_scope_list_g]] ) }}
+| X_star_not_defined t_scope_list_g :: :: X_star_not_defined
+  {{ hol (X_star_not_defined [[t_scope_list_g]]) }}  
 | parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ] :: :: parseError_in_gs
   {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
 | f_in_apply_tbl tbl_map apply_table_f :: :: f_in_apply_tbl
@@ -684,8 +686,8 @@ formula :: formula_ ::=
   {{ hol (LENGTH [[delta_b]] = LENGTH [[b_func_map]] ) }} 
 | length_eq delta_t tbl_map :: :: length_eq_tbl  
   {{ hol (LENGTH [[delta_t]] = LENGTH [[tbl_map]] ) }} 
-| ( g_scope_list , frame_list , status ) -||| Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) :: :: type_frames
-  {{ hol ( type_frames [[g_scope_list]] [[frame_list]] [[Prs_n]] [[order]] [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] ) }}
+| ( g_scope_list , frame_list , status ) -||| Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) func_map b_func_map :: :: type_frames
+  {{ hol ( type_frames [[g_scope_list]] [[frame_list]] [[Prs_n]] [[order]] [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[func_map]] [[b_func_map]] ) }}
 
 | ext_is_defined delta_x funn :: :: ext_is_defined
   {{ hol ext_is_defined [[delta_x]] [[funn]] }}

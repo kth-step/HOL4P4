@@ -2043,20 +2043,19 @@ IMP_RES_TAC ZIP_EQ_NIL_tri
 QED
 
 
-val ZIP_LENGTH_tri = prove (
-“∀ al bl cl l .
+Theorem ZIP_LENGTH_tri:
+∀ al bl cl l .
   LENGTH al = LENGTH bl ∧ LENGTH bl = LENGTH cl ∧
   l = ZIP (al,ZIP (bl,cl)) ⇒
   LENGTH l = LENGTH al ∧
   LENGTH l = LENGTH bl ∧
-  LENGTH l = LENGTH cl ”,
-         
-
+  LENGTH l = LENGTH cl 
+Proof
 Cases_on ‘al’ >>
 Cases_on ‘bl’ >>
 Cases_on ‘cl’ >>
 gvs[]
-);
+QED
 
 
 

@@ -77,15 +77,16 @@ val _ = new_theory "stmt_subject_reduction";
   is the programmable blocks names so it is the main  *)
 
 val res_frame_typ_def = Define ‘
-res_frame_typ (order, (delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list gscope framel func_map b_func_map=
+res_frame_typ (order, f, (delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list gscope framel func_map b_func_map=
 ∀i. 0 <= i ∧ i < LENGTH framel ⇒
-    ∃stmt_stack f_name local_scope_list Prs_n passed_gscope passed_delta_b passed_delta_t passed_tslg.   
-             EL i framel = (f_name,stmt_stack,local_scope_list) ∧
+    ∃stmt_stack f_name local_scope_list passed_gscope passed_delta_b passed_delta_t passed_tslg.   
+      EL i framel = (f_name,stmt_stack,local_scope_list) ∧
+             order (order_elem_f f_name) (order_elem_f f) ∧ 
              t_passed_elem f_name delta_g delta_b delta_t t_scope_list_g = (SOME passed_delta_b,  SOME passed_delta_t , SOME passed_tslg) ∧
              scopes_to_pass f_name func_map b_func_map gscope = SOME passed_gscope ∧
 
-                
-             frame_typ (passed_tslg,t_scope_list) (order, f_name, (delta_g, passed_delta_b, delta_x, passed_delta_t)) Prs_n  passed_gscope local_scope_list stmt_stack
+             frame_typ (passed_tslg,t_scope_list) (order, f_name, (delta_g, passed_delta_b, delta_x, passed_delta_t))
+                                                   Prs_n  passed_gscope local_scope_list stmt_stack
 ’;
 
 
@@ -102,7 +103,7 @@ apply_table_f ext_map func_map b_func_map pars_map tbl_map.
        parseError_in_gs t_scope_list_g [t_scope_list] ∧
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧
                         
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest [stmt] ) ∧
              
@@ -110,7 +111,7 @@ apply_table_f ext_map func_map b_func_map pars_map tbl_map.
                    ( ascope',  gscope' , framel ++ [ (f, stmtl , scopest')] , status')) ⇒
         
        (∃ t_scope_list'.
-          res_frame_typ (order, (delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel func_map b_func_map) ∧
+          res_frame_typ T_e Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map) ∧
           
        (∃ t_scope_list''  .
          LENGTH t_scope_list'' = (LENGTH stmtl - LENGTH [stmt]) ∧
@@ -308,18 +309,20 @@ QED
         
 (* NOTE that in the res_frame, we take the previous T_e to calculate the new T_e *)
 val frame_typ_imp_res_frame_single = prove (
-  “ ∀ tsgl tscl c Prs_n gscope t_scope_list_g t_scope_list_fr (f_called:funn) copied_in_scope stmt_called func_map b_func_map passed_gscope passed_delta_b passed_delta_t passed_tslg order delta_g delta_b delta_x delta_t .
-     scopes_to_pass f_called func_map b_func_map gscope = SOME passed_gscope ∧
-     t_passed_elem f_called delta_g delta_b delta_t t_scope_list_g = (SOME passed_delta_b,SOME passed_delta_t,SOME passed_tslg) ∧               
-     frame_typ (passed_tslg,t_scope_list_fr) (order,f_called,delta_g,passed_delta_b,delta_x,passed_delta_t) []
+  “ ∀ tsgl tscl c Prs_n gscope t_scope_list_g t_scope_list_fr (f_called:funn) copied_in_scope stmt_called
+           func_map b_func_map passed_gscope passed_delta_b passed_delta_t passed_tslg order delta_g delta_b delta_x delta_t f.
+        order (order_elem_f f_called) (order_elem_f f) ∧   
+        scopes_to_pass f_called func_map b_func_map gscope = SOME passed_gscope ∧
+        t_passed_elem f_called delta_g delta_b delta_t t_scope_list_g = (SOME passed_delta_b,SOME passed_delta_t,SOME passed_tslg) ∧               
+         frame_typ (passed_tslg,t_scope_list_fr) (order,f_called,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n
                passed_gscope copied_in_scope [stmt_called] ⇒
-   res_frame_typ (order,delta_g,delta_b,delta_x,delta_t) t_scope_list_g t_scope_list_fr gscope [(f_called,[stmt_called],copied_in_scope)] func_map b_func_map ”,
+        res_frame_typ (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n t_scope_list_g t_scope_list_fr gscope [(f_called,[stmt_called],copied_in_scope)] func_map b_func_map ”,
 
 fs[res_frame_typ_def] >>
 REPEAT STRIP_TAC >>
 ‘i=0’ by fs[] >>       
 fs[Once EL] >>
-Q.EXISTS_TAC ‘[]’ >>              
+Q.EXISTS_TAC ‘Prs_n’ >>              
 gvs[] 
 );
 
@@ -373,7 +376,7 @@ fun ASSUME_SR_EXP_FOR e =  ASSUME_TAC SR_e >>
 fun INST_SR_EXP_FOR (e', tau, b) = FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e', ‘gscope’, ‘scopest’,
                           ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’,
                           tau,b, ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,
-                          ‘stmt_called’,‘copied_in_scope’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’,
+                          ‘stmt_called’,‘copied_in_scope’, ‘Prs_n’ ,‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’,
                           ‘pars_map’, ‘tbl_map’])) >>
                           gvs[]
                                                                
@@ -386,12 +389,12 @@ val SR_stmt_newframe = prove (“
        type_scopes_list  (scopest) (t_scope_list)   ∧
        star_not_in_sl (scopest) ∧
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest [stmt] ) ∧
        (stmt_red c ( ascope ,  gscope  ,           [ (f, [stmt], scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl , scopest')] , status')) ⇒
-       (∃ t_scope_list'. res_frame_typ (order,(delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel func_map b_func_map) ”,
+       (∃ t_scope_list'. res_frame_typ (order,f,(delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map) ”,
 
                                   
 Induct >>
@@ -685,10 +688,10 @@ IMP_RES_TAC LIST_REL_LENGTH
 val typ_scope_list_ext_out_scope_lemma = prove (
   “ ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map
     order tslg delta_g delta_b delta_x ascope ascope'
-          gscope scopest  scopest' v ext_fun tsl tau tdl delta_t .
+          gscope scopest  scopest' v ext_fun tsl tau tdl delta_t Prs_n.
           
 WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-     order tslg delta_g delta_b delta_x delta_t ∧
+     order tslg delta_g delta_b delta_x delta_t Prs_n ∧
 SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x ∧
 args_t_same (MAP FST tdl) tsl ∧    
 type_scopes_list scopest tsl ∧
@@ -2760,7 +2763,7 @@ RES_TAC
 fun INST_SR2_EXP_FOR (e', tau, b, frl) = PairCases_on ‘c’ >> rename1 ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’ >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e', ‘gscope’, ‘scopest’, frl, ‘tsl’, ‘tslg’, tau, b,
                                       ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] 
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] 
 
 
 val stmt_to_stmt_single = prove (“
@@ -2768,7 +2771,7 @@ val stmt_to_stmt_single = prove (“
        scopest scopest' gscope gscope' ascope ascope' status status'  framel f Prs_n 
        tdl tau.                                      
                                         
- WT_c c order tslg delta_g delta_b delta_x delta_t  ∧                                
+ WT_c c order tslg delta_g delta_b delta_x delta_t  Prs_n ∧                                
  type_scopes_list scopest tsl ∧
  type_scopes_list gscope tslg ∧
  star_not_in_sl scopest ∧
@@ -3130,7 +3133,7 @@ STRIP_TAC >|  [
     ‘tslg’, ‘ (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
     ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,
     ‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’ ,‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
    gvs[] >>
 
 
@@ -3259,7 +3262,7 @@ STRIP_TAC >|  [
                   ‘ (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
                   ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,
                   ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
 
      gvs[] >>
      gvs[] >>             
@@ -3291,7 +3294,7 @@ STRIP_TAC >|  [
  ASSUME_TAC typ_scope_list_ext_out_scope_lemma >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
          [`f`, `apply_table_f`, ‘ext_map’,‘func_map’,‘b_func_map’,‘pars_map’,‘tbl_map’,‘order’,‘tslg’,‘delta_g’,‘delta_b’,‘delta_x’,
-               ‘ascope’,‘ascope'’,‘gscope’,‘scopest’,‘scopest'’,‘v’,‘ext_fun’,‘tsl’,‘tau’,‘tdl’, ‘delta_t’])) >>
+               ‘ascope’,‘ascope'’,‘gscope’,‘scopest’,‘scopest'’,‘v’,‘ext_fun’,‘tsl’,‘tau’,‘tdl’, ‘delta_t’, ‘Prs_n’])) >>
  gvs[]        
 ]                                                                          
 );                                  
@@ -3579,7 +3582,7 @@ fun STMT_STMT_SR_TAC stmt_term =
       drule (INST_TYPE [``:'a`` |-> ``:'b``] stmt_to_stmt_single)  >>
       STRIP_TAC >>
 
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [ stmt_term  , ‘stmt_res’, ‘t_scope_list’, ‘scopest’, ‘scopest'’,‘gscope’,‘gscope'’ , ‘ascope’, ‘ascope'’, ‘status’,‘status'’, ‘framel’,‘f’,‘Prs_n’,‘tau_d_list’,‘tau’])) >>
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [ stmt_term  , ‘stmt_res’, ‘t_scope_list’, ‘scopest’, ‘scopest'’,‘gscope’,‘gscope'’ , ‘ascope’, ‘ascope'’, ‘status’,‘status'’, ‘framel’,‘f’,‘tau_d_list’,‘tau’])) >>
     gvs[] >>      
 
       subgoal ‘args_t_same (MAP FST tau_d_list) t_scope_list’ >-
@@ -3841,14 +3844,14 @@ val sr_stmtl_def = Define `
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧
 
                                
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n ) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest stmtl ) ∧
              
        (stmt_red c ( ascope ,  gscope  ,           [ (f, stmtl, scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status')) ⇒
        (∃ t_scope_list' .
-       res_frame_typ (order,(delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel func_map b_func_map ) ∧
+       res_frame_typ (order,f,(delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map ) ∧
        (
        LENGTH stmtl ≤ LENGTH stmtl' ⇒
        ∃ t_scope_list''  .  LENGTH t_scope_list'' = (LENGTH stmtl' - LENGTH stmtl) ∧
@@ -4118,13 +4121,13 @@ val SR_stmtl_newframe = prove (“
        type_scopes_list  (scopest) (t_scope_list)   ∧
        star_not_in_sl (scopest) ∧
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧        
-       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t ) ∧
+       (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest (stmtl) ) ∧
        (stmt_red c ( ascope ,  gscope  ,           [ (f, stmtl, scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status')) ⇒
        (∃ t_scope_list'.
-         res_frame_typ (order, (delta_g, delta_b, delta_x, delta_t)) t_scope_list_g t_scope_list' gscope framel func_map b_func_map) ”,
+         res_frame_typ (order, f,(delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map) ”,
 
 STRIP_TAC >>
 Cases_on ‘stmtl’ >| [
@@ -4287,20 +4290,22 @@ val (WT_state_rules, WT_state_ind, WT_state_cases) = Hol_reln`
 
 ( (* WT_state_state *) 
 !  (funnl: funn list) (tsll : t_scope_list list) (scll: scope_list list) (stmtll: stmt_stack list)
-(ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (status:status) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) .
+(ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (status:status) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) apply_table_f ext_map func_map b_func_map pars_map tbl_map .
 
  ( LENGTH funnl = LENGTH tsll /\ LENGTH tsll = LENGTH scll /\ LENGTH tsll = LENGTH stmtll ) /\                                                                                                                                                                          
 (WF_ft_order  funnl  delta_g delta_b delta_x order   /\
 
-type_state_tsll  scll tsll  /\
+ type_state_tsll  scll tsll  /\ 
 
 type_scopes_list  g_scope_list   t_scope_list_g  /\
 
 parseError_in_gs  t_scope_list_g   tsll  /\
 
-WT_c ctx order t_scope_list_g delta_g delta_b delta_x delta_t   /\
+(ctx = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧                  
 
-( ( type_frames  g_scope_list    (ZIP(funnl,ZIP(stmtll,scll)))    Prs_n   order   t_scope_list_g   tsll  delta_g   delta_b   delta_x   delta_t  ) ))
+WT_c ctx order t_scope_list_g delta_g delta_b delta_x delta_t  Prs_n /\
+
+( ( type_frames  g_scope_list    (ZIP(funnl,ZIP(stmtll,scll)))    Prs_n   order   t_scope_list_g   tsll  delta_g   delta_b   delta_x   delta_t  func_map b_func_map) ))
 
  ==> 
 ( ( WT_state ctx  ( ascope ,  g_scope_list ,   (ZIP(funnl,ZIP(stmtll,scll)) ) ,  status )  Prs_n  order t_scope_list_g  ( tsll)   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )  )))
@@ -4376,32 +4381,30 @@ Induct >> gvs[] >> REPEAT STRIP_TAC >>
 
 (*TODO: take the proof from progress to here *)
 val WT_state_HD_of_list = prove (“
-∀  ascope gscope f stmtl locale status Prs_n  order tslg tsll delta_g delta_b delta_x delta_t                                 
-       apply_table_f  ext_map  func_map  b_func_map  pars_map tbl_map passed_tbl_map t.
+∀  ascope gscope f stmtl locale status Prs_n order tslg tsll delta_g delta_b
+       delta_x delta_t apply_table_f ext_map func_map b_func_map pars_map
+       tbl_map t.
+    
+    WT_state  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map )
+              (ascope,gscope,(f,stmtl,locale)::t,status) Prs_n  order tslg
+              tsll (delta_g,delta_b,delta_x,delta_t) ⇒
 
-
-WT_state (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-         (ascope,gscope,(f,stmtl,locale)::t,status) Prs_n order tslg tsll
-         (delta_g,delta_b,delta_x,delta_t) ⇒
-         
-type_scopes_list gscope tslg ∧
-type_scopes_list locale (HD tsll) ∧
-star_not_in_sl locale ∧
-
-∃passed_tslg passed_gscope passed_delta_b passed_b_func_map passed_tbl_map passed_delta_t.
-         t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ∧
-         scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope ∧
-         map_to_pass f b_func_map = SOME passed_b_func_map ∧
-         t_map_to_pass f delta_b = SOME passed_delta_b ∧
-         tbl_to_pass f b_func_map tbl_map = SOME passed_tbl_map ∧
-         t_tbl_to_pass f delta_b delta_t = SOME passed_delta_t ∧
-
-                       
-         WT_c (apply_table_f,ext_map,func_map,passed_b_func_map,pars_map,passed_tbl_map)
-               order passed_tslg delta_g passed_delta_b delta_x passed_delta_t ∧
-         type_scopes_list passed_gscope passed_tslg ∧
-         parseError_in_gs passed_tslg [HD tsll] ∧
- frame_typ (passed_tslg,HD tsll) (order,f,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope locale stmtl”, cheat);
+       type_scopes_list  (gscope)  (tslg) ∧
+       type_scopes_list  (locale) (HD tsll)   ∧
+       star_not_in_sl (locale) ∧
+  
+             ∃ passed_tslg passed_gscope passed_delta_b passed_b_func_map passed_tbl_map passed_delta_t.
+                                              t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ∧                                    
+                                               scopes_to_pass f func_map b_func_map gscope = SOME passed_gscope ∧
+                                                  map_to_pass f b_func_map = SOME passed_b_func_map ∧
+                                                  t_map_to_pass f delta_b = SOME passed_delta_b   ∧
+                                                  tbl_to_pass f b_func_map tbl_map = SOME passed_tbl_map ∧
+                                                  t_tbl_to_pass f delta_b delta_t = SOME passed_delta_t ∧            
+                                                             
+WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t Prs_n   ∧
+type_scopes_list  passed_gscope passed_tslg   ∧
+parseError_in_gs passed_tslg [HD tsll] ∧
+(frame_typ  ( passed_tslg ,  (HD tsll) ) (order, f, (delta_g, passed_delta_b, delta_x, passed_delta_t)) Prs_n  passed_gscope locale stmtl )”, cheat);
 
 
 
@@ -4516,12 +4519,12 @@ gvs[]
          
 
 val res_fr_typ_imp_typ_tsl = prove (“
-∀ c tslg tsl gscope locale f stmtl func_map b_func_map.
-res_frame_typ c tslg tsl gscope [(f,stmtl,locale)] func_map b_func_map ⇒
+∀ T_e Prs_n tslg tsl gscope locale f stmtl func_map b_func_map.
+res_frame_typ T_e  Prs_n tslg tsl gscope [(f,stmtl,locale)] func_map b_func_map ⇒
 type_frame_tsl locale tsl ”,
 
 REPEAT STRIP_TAC >>
-PairCases_on ‘c’ >>
+PairCases_on ‘T_e’ >>
 gvs[res_frame_typ_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
 gvs[frame_typ_cases]
@@ -4564,16 +4567,7 @@ gvs[] >>
 gvs[EL_CONS, PRE_SUB1]
 );
 
-Theorem dom_eq_imp_NONE:
-∀ delta_g func_map delta_b b_func_map s.
-(dom_g_eq delta_g func_map ⇒
-(ALOOKUP delta_g s = NONE ⇔ ALOOKUP func_map s = NONE))
-∧
-(dom_b_eq delta_b b_func_map ⇒
-(ALOOKUP delta_b s = NONE ⇔ ALOOKUP b_func_map s = NONE))
-Proof
-  cheat
-QED  
+ 
 
 
 
@@ -4646,166 +4640,74 @@ IMP_RES_TAC return_imp_same_g_base_case
 QED  
 
 
+Theorem create_frame_in_stmt_same_g:
+∀stmt stmt' stmt_called (c:'a ctx) ascope ascope' gscope gscope' f locale locale' f_called stmt_stack copied_in_scope.
+stmt_red c (ascope,gscope,[(f,[stmt],locale)],status_running)
+           (ascope',gscope', [(f_called,[stmt_called],copied_in_scope); (f,stmt_stack ⧺ [stmt'],locale')],status_running) ⇒
+     gscope = gscope' 
+Proof
+Induct >>
+REPEAT GEN_TAC >>
+STRIP_TAC >>
+gvs[Once stmt_red_cases] >>
+METIS_TAC []
+QED
+
+
+
+Theorem create_frame_in_stmt_same_g2:
+  ∀stmt stmt_called (c:'a ctx) ascope ascope' gscope gscope' f locale locale'
+       f_called copied_in_scope stmt_stack' status status'.
+stmt_red c (ascope,gscope,[(f,[stmt],locale)],status)
+           (ascope',gscope', [(f_called,[stmt_called],copied_in_scope); (f,stmt_stack',locale')],status') ⇒
+     gscope = gscope' 
+Proof
+Induct >>
+REPEAT GEN_TAC >>
+STRIP_TAC >>
+gvs[Once stmt_red_cases] >>
+IMP_RES_TAC create_frame_in_stmt_same_g 
+QED
 
         
-
-
-
-(*
-
-(
-
-WT_c (apply_table_f,ext_map,func_map,b_func_map',pars_map,
-                passed_tbl_map) order passed_tslg delta_g passed_delta_b
-               delta_x passed_delta_t   ∧
-
-WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-               order tslg delta_g delta_b delta_x delta_t ∧
-
-                       
-
-type_scopes_list gscope tslg ∧
-type_scopes_list gscope' tslg ∧
-
-scopes_to_pass funn func_map b_func_map gscope = SOME g_scope_list' ∧
-t_scopes_to_pass funn delta_g delta_b tslg = SOME passed_tslg ∧
-map_to_pass funn b_func_map = SOME b_func_map'∧
-t_map_to_pass funn delta_b = SOME passed_delta_b ∧
-tbl_to_pass funn b_func_map tbl_map = SOME passed_tbl_map ∧
-t_tbl_to_pass funn delta_b delta_t = SOME passed_delta_t ∧
-             
-res_frame_typ (order,delta_g,passed_delta_b,delta_x,passed_delta_t)
-          passed_tslg t_scope_list' g_scope_list'
-          [(f_called,[stmt_called],copied_in_scope)] func_map b_func_map' ⇒
-
-
-type_frames gscope'
-          ((f_called,[stmt_called],copied_in_scope)::
-               (funn,stmtl',scope_list')::t) Prs_n order tslg
-          (t_scope_list'::(t_scope_list'' ⧺ HD tsll)::TL tsll) delta_g
-          delta_b delta_x delta_t
-
+Theorem create_frame_in_stmt_same_g3:
+∀ stmtl stmtl' (c:'a ctx) f f_called stmt_called copied_in_scope ascope ascope' gscope gscope' scope_list scope_list' status status' .
+stmt_red c (ascope, gscope,   [(f,stmtl,scope_list)],status)
+           (ascope',gscope', [(f_called,[stmt_called],copied_in_scope); (f,stmtl',scope_list')],status') ⇒
+ gscope = gscope'
+Proof
 REPEAT STRIP_TAC >>
-gvs[type_frames_def] >>
+gvs[Once stmt_red_cases] >>
+IMP_RES_TAC create_frame_in_stmt_same_g >>
+IMP_RES_TAC create_frame_in_stmt_same_g2
+QED
+
+
+
+
+
+val WF_ft_order_called_f = prove (“
+∀ order f_called f fl delta_g delta_b delta_x.                                  
+order (order_elem_f f_called) (order_elem_f f) ∧
+WF_ft_order (f::fl) delta_g delta_b delta_x order ⇒
+WF_ft_order (f_called::f::fl) delta_g delta_b delta_x order”,
+
+gvs[WF_ft_order_cases] >>
+gvs[ordered_list_def] >>
 REPEAT STRIP_TAC >>
-gvs[Once EL_compute] >>
-CASE_TAC >| [
-  gvs[EL_CONS] >>
-  gvs[res_frame_typ_def] >>
-  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
-  gvs[t_passed_elem_def] >>
-  srw_tac [SatisfySimps.SATISFY_ss][] >>
-  NTAC 2 gvs[Once WT_c_cases]        
-  gvs[tbl_to_pass_def, t_tbl_to_pass_def, map_to_pass_def, t_map_to_pass_def, scopes_to_pass_def, t_scopes_to_pass_def] >>
-  REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-IMP_RES_TAC dom_eq_imp_NONE >> gvs[] >>                     
+SIMP_TAC list_ss [Once EL_compute] >>
+CASE_TAC >>
+gvs[EL_CONS]
+);       
 
-                
-
-]
-        
-*)                                    
+(**************************)
 
 
 
-
-(*
-
-
-SOME gscope' = scopes_to_retrieve funn func_map b_func_map gscope g_scope_list'' ∧
-t_scopes_to_pass funn delta_g delta_b tslg = SOME passed_tslg ∧
-scopes_to_pass funn func_map b_func_map gscope = SOME g_scope_list' ∧
-map_to_pass funn b_func_map = SOME b_func_map' ∧
-t_map_to_pass funn delta_b = SOME passed_delta_b ∧
-tbl_to_pass funn b_func_map tbl_map = SOME passed_tbl_map ∧
-t_tbl_to_pass funn delta_b delta_t = SOME passed_delta_t ∧
-
-type_scopes_list gscope' tslg ∧              
-type_scopes_list g_scope_list' passed_tslg ∧
-
-
-WT_c (apply_table_f,ext_map,func_map,b_func_map',pars_map,
-                passed_tbl_map) order passed_tslg delta_g passed_delta_b
-               delta_x passed_delta_t ∧
-
+  (*
+                                 
 
                  
-frame_typ (passed_tslg,t_scope_list'' ⧺ HD tsll)
-          (order,funn,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n
-          g_scope_list'' scope_list' stmtl' ∧
-                                      
-WT_state (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-          (ascope,gscope,(funn,stmt_stack,scope_list)::t,status) Prs_n order
-          tslg tsll (delta_g,delta_b,delta_x,delta_t) ⇒
-
-
-type_frames gscope' ((funn,stmtl',scope_list')::t) Prs_n order tslg
-                    ((t_scope_list'' ⧺ HD tsll)::TL tsll) delta_g delta_b delta_x delta_t
-
-
-
-
-REPEAT STRIP_TAC >>
-gvs[type_frames_def] >>
-REPEAT STRIP_TAC >>
-gvs[Once EL_compute] >>
-CASE_TAC >| [
-  gvs[EL_CONS] >>
-  gvs[res_frame_typ_def] >>
-  gvs[frame_typ_cases] >>
-
-
-
-  
- cheat
- ,
-
-
-  gvs[GSYM EL_CONS] >>
-  ‘i>0’ by gvs[] >>
-    gvs[PRE_SUB1, EL_CONS] >>
-
-  gvs[res_frame_typ_def] >>
-
-  
-  
-
-                       
-  Q.EXISTS_TAC ‘tau_d_list’ >>
-  Q.EXISTS_TAC ‘tau’ >>
-  gvs[] >>
-        
-  gvs[WT_state_cases] >> 
-  gvs[type_frames_def] >>
-  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘i’])) >>
-  gvs[map_distrub]
-  Q.EXISTS_TAC ‘passed_tslg'’                   
-  gvs[GSYM ZIP_tri_id2]
-
-            
-
-]
-
-
-
-
-
-
-
-*)
-
-
-
-
-
-
-
-
-
-
-
-
-                                      
 
             
 Theorem SR_state:
@@ -4829,7 +4731,8 @@ gvs[Once frames_red_cases] >| [
 
  IMP_RES_TAC WT_state_HD_of_list >> gvs[] >>
  IMP_RES_TAC frame_to_multi_frame_transition1 >> gvs[] >>
- 
+
+             
  ASSUME_TAC SR_stmtl_stmtl >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘stmt_stack’])) >>
  gvs[sr_stmtl_def] >>     
@@ -4846,7 +4749,7 @@ gvs[Once frames_red_cases] >| [
  SIMP_TAC list_ss [WT_state_cases] >> gvs[] >>
  
  ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-  order tslg delta_g delta_b delta_x delta_t’ by gvs[Once WT_state_cases] >> gvs[] >>
+  order tslg delta_g delta_b delta_x delta_t Prs_n’ by gvs[Once WT_state_cases] >> gvs[] >>
  
  
  (* When typing the frames in the state aftre making a statement reduction will depend on the length of the resulted statement stack
@@ -4870,12 +4773,20 @@ gvs[Once frames_red_cases] >| [
      ‘LENGTH t + 1  = LENGTH tsll’ by (IMP_RES_TAC WT_state_frame_len >> gvs[ADD1] ) >>
      gvs[list_length1] >>
 
-          
+
+                       
      (* function being ordered: gotta prove this ffs going back to SR! TODO: add this  *)
      subgoal ‘WF_ft_order (f_called::funn::MAP (λ(f,stmt,sc). f) t) delta_g delta_b delta_x order’ >-
       (
-      ‘WF_ft_order (f_called::funn::MAP (λ(f,stmt,sc). f) t) delta_g delta_b delta_x order’ by cheat >>
-      gvs[]
+        ‘order (order_elem_f f_called) (order_elem_f funn)’ by
+           (gvs[res_frame_typ_def] >>
+            FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >> gvs[]) >>
+            
+        gvs[WT_state_cases] >>
+        ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:funn``, ``:'b`` |-> ``:stmt list``, ``:'c`` |-> ``:scope_list``] ZIP_tri_sep_ind)  >>
+        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘t’,‘funnl’,‘stmtll’,‘scll’, ‘funn’,‘stmt_stack’,‘scope_list’])) >> gvs[] >>
+            
+        IMP_RES_TAC WF_ft_order_called_f >>  gvs[]
       ) >> gvs[] >>
      
            
@@ -4915,7 +4826,12 @@ gvs[Once frames_red_cases] >| [
 
 
                         
-     gvs[GSYM ZIP_tri_id2] >>
+     gvs[GSYM ZIP_tri_id2] >>  (* the sub proofs above are done not using this info below*)
+     ‘g_scope_list' = g_scope_list''’ by IMP_RES_TAC create_frame_in_stmt_same_g3
+     rfs[]
+
+
+              
               cheat
     
         
@@ -5050,3 +4966,5 @@ QED
 *)
 
 val _ = export_theory ();
+
+
