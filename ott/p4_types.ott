@@ -167,6 +167,20 @@ star_not_in_ts (s:t_scope) =
   ! f . (ALOOKUP s (varn_star f) = NONE)
 `;
 
+val Err_not_in_ts_def = Define `
+Err_not_in_ts (s:t_scope) =
+   (ALOOKUP s (varn_name "parseError") = NONE)
+`;
+
+
+val star_Err_not_in_ts_def = Define `
+star_Err_not_in_ts (s:t_scope) =
+  (Err_not_in_ts s /\ star_not_in_ts s)
+`;
+
+
+
+
 val parseError_in_gs_def  = Define `
 parseError_in_gs (t_scope_list_g:t_scope list) ( t_scope_list_list : t_scope list list) =
   ((ALOOKUP (EL 1 t_scope_list_g) (varn_name "parseError") = SOME tau_err ) /\
@@ -710,7 +724,7 @@ t_scopes_tup T_e Prs_n |- stmt2
 t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 
-star_not_in_ts t_scope
+star_Err_not_in_ts t_scope
 ( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
 ( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin t_scope stmt end 
@@ -885,6 +899,14 @@ val t_scopes_to_pass_def = Define `
 `;
 
 
+
+val not_parseError_str =  Define `
+not_parseError_str xdl =
+   EVERY (\(x,d). x ≠ "parseError") xdl
+`;
+
+
+
 (*based on the specs, the extern cannot be called from functions *)
 
 val func_map_typed_def = Define `
@@ -898,6 +920,7 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] /\ 
      find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir xdl tdl) /\
+   not_parseError_str xdl /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
    ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,[],delta_x,[])) Prs_n (stmt) ) /\
@@ -920,6 +943,7 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
    (SOME (tdl,tau) = t_lookup_funn f [] delta_b [] ) /\
    find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir xdl tdl) /\
+   not_parseError_str xdl /\ 
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
    ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,delta_t)) Prs_n (stmt) ) /\
@@ -955,6 +979,7 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_
    SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
    find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir xdl tdl) /\
+    not_parseError_str xdl /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
    (t_scope' = mk_tscope xdl tdl  ) /\ 
@@ -982,6 +1007,7 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
    SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
    find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir xdl tdl) /\
+    not_parseError_str xdl /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
    (t_scope' = mk_tscope xdl tdl ) /\ 
    ( ALL_DISTINCT (MAP FST xdl) ) /\

@@ -965,6 +965,12 @@ Induct >>
 RW_TAC list_ss [MAP]
 );
 
+Theorem map_fst_EQ:
+!l . MAP (λx. FST x) l = MAP FST l
+Proof
+Induct >>
+RW_TAC list_ss [MAP]
+QED
 
 val map_fst_snd_EQ =
 prove(``

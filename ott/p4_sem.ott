@@ -650,8 +650,8 @@ formula :: formula_ ::=
   {{ hol ( dom_x_eq [[delta_x]] [[ext_map]] ) }}
 | dom_t_eq ( delta_t , tbl_map ) :: :: dom_t_eq
   {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }} 
-| star_not_in_ts t_scope :: :: star_not_in_ts
-  {{ hol ( star_not_in_ts [[t_scope]] )}}   
+| star_Err_not_in_ts t_scope :: :: star_Err_not_in_ts
+  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}   
 | Fg_star_defined ( func_map , t_scope_list_g ) :: :: Fg_star_defined
   {{ hol ( Fg_star_defined [[func_map]] [[t_scope_list_g]] ) }}
 | Fb_star_defined ( b_func_map , t_scope_list_g ) :: :: Fb_star_defined
