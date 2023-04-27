@@ -1325,29 +1325,49 @@ QED
 
 
 
-Theorem INDEX_FIND_EQ_SOME_0:
-!l P j e. (INDEX_FIND 0 P l = SOME (j, e)) <=> (
-       (j < LENGTH l) /\
-       (EL j l = e) /\ P e /\
-       (!j'. j' < j ==> ~(P (EL j' l))))
+
+Theorem INDEX_FIND_EL:
+∀ l e  P j . 
+INDEX_FIND 0 P l = SOME (j,e) ⇒
+EL j l = e
 Proof
-cheat
-QED
 
-
-
-Theorem index_not_const_in_range:
-  ∀ el i.
-index_not_const el = SOME i ⇒
-i < LENGTH el
-Proof
+Induct >>
 REPEAT STRIP_TAC >>
-fs[index_not_const_def] >>
-Cases_on ‘INDEX_FIND 0 (λe. ¬is_const e) el’ >>
-gvs[] >>
-PairCases_on ‘x’ >> gvs[] >>
-gvs[INDEX_FIND_EQ_SOME_0]
+IMP_RES_TAC index_find_first >> gvs[] >>
+gvs[INDEX_FIND_def] >>
+Cases_on ‘P h’ >> gvs[] >>
+ASSUME_TAC P_hold_on_next >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’, ‘l’, ‘P’, ‘(j,e)’])) >>
+gvs[ADD1] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘e’, ‘P’, ‘j-1’])) >>
+gvs[EL_CONS, PRE_SUB1]    
 QED
+
+
+
+
+val EL_not_prob_on_list = prove ( “
+∀ l h P j.
+j < LENGTH l + 1 ∧  
+(∀j'. j' < j ⇒ ¬P (EL j' (h::l))) ⇒
+∀j'. j' < j − 1 ⇒ ¬P (EL j' l) ”, 
+
+
+REPEAT STRIP_TAC >>
+gvs[] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘j'+1’])) >>
+gvs[] >>
+Cases_on ‘l’ >>     
+gvs[ADD1]>>
+gvs[EL_CONS, PRE_SUB1] 
+);                         
+
+
+                
+
+        
+
 
 Theorem index_find_concat1:
 ! l1 l2 n P.
@@ -2020,6 +2040,74 @@ Cases_on `i=0` >| [
 QED
 
 
+
+
+Theorem INDEX_FIND_EQ_SOME_0:
+!l P j e. (INDEX_FIND 0 P l = SOME (j, e)) <=> (
+       (j < LENGTH l) /\
+       (EL j l = e) /\ P e /\
+       (!j'. j' < j ==> ~(P (EL j' l))))
+Proof
+
+Induct >-
+gvs[INDEX_FIND_def] >>
+REPEAT STRIP_TAC >>
+EQ_TAC >> STRIP_TAC >| [
+    
+ IMP_RES_TAC P_holds_on_curent >> fs[] >>
+ IMP_RES_TAC index_find_length >> fs[] >>
+ IMP_RES_TAC index_find_first >> fs[] >>
+ IMP_RES_TAC INDEX_FIND_EL               
+ ,
+        
+ SIMP_TAC list_ss [INDEX_FIND_def] >>
+ CASE_TAC >> gvs[] >| [
+          
+     SIMP_TAC list_ss [Once EL_compute] >>
+     CASE_TAC >> gvs[] >>
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
+     gvs[]
+     ,
+     
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘P’, ‘j-1’, ‘EL (j-1) l’])) >>
+     gvs[] >>
+     ‘0 < LENGTH l’ by (Cases_on ‘l’ >>
+                        gvs[]>>
+                        ‘j=0’ by fs[] >> lfs[] ) >> gvs[] >>
+        
+     IMP_RES_TAC EL_not_prob_on_list >>
+     gvs[] >>
+     
+     ASSUME_TAC P_hold_on_next >>
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’, ‘l’, ‘P’, ‘(j,EL j (h::l))’])) >>
+     rfs[ADD1] >>
+     
+     ‘0<j’ by (Cases_on ‘j’ >> gvs[ADD1]) >> gvs[] >>
+     
+     Cases_on ‘l’ >>     
+     gvs[ADD1]>>
+     gvs[EL_CONS, PRE_SUB1]                
+]]        
+QED
+
+
+
+Theorem index_not_const_in_range:
+  ∀ el i.
+index_not_const el = SOME i ⇒
+i < LENGTH el
+Proof
+REPEAT STRIP_TAC >>
+fs[index_not_const_def] >>
+Cases_on ‘INDEX_FIND 0 (λe. ¬is_const e) el’ >>
+gvs[] >>
+PairCases_on ‘x’ >> gvs[] >>
+gvs[INDEX_FIND_EQ_SOME_0]
+QED
+
+
+
+        
 Theorem ZIP_EQ_NIL_tri: 
 ∀ al bl cl.
 LENGTH al = LENGTH bl ∧
