@@ -88,7 +88,6 @@ val sr_exp_def = Define `
              order (order_elem_f f_called) (order_elem_f f) ∧      
              t_passed_elem f_called delta_g delta_b delta_t t_scope_list_g = (SOME passed_delta_b,  SOME passed_delta_t , SOME passed_tslg) ∧             
              scopes_to_pass f_called func_map b_func_map gscope = SOME passed_gscope ∧
-             parseError_in_gs passed_tslg  [t_scope_list_fr] ∧             
 	     frame_typ (passed_tslg,t_scope_list_fr)  (order,  f_called , (delta_g,passed_delta_b, delta_x, passed_delta_t)) Prs_n passed_gscope copied_in_scope [stmt_called] )
             )
 `;
@@ -1221,7 +1220,6 @@ val e_resulted_frame_is_WT = prove ( ``
           order (order_elem_f f_called) (order_elem_f f) ∧
           t_passed_elem f_called delta_g delta_b delta_t t_scope_list_g = (SOME passed_delta_b,SOME passed_delta_t,SOME passed_tslg) ∧
           scopes_to_pass f_called func_map b_func_map gscope = SOME passed_gscope ∧
-          parseError_in_gs passed_tslg  [t_scope_list_fr] ∧                            
           frame_typ (passed_tslg,t_scope_list_fr) (order,f_called,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope copied_in_scope [stmt_called] ``,
 
 REPEAT STRIP_TAC >>

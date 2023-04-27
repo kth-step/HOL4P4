@@ -664,7 +664,8 @@ formula :: formula_ ::=
   {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
 | f_in_apply_tbl tbl_map apply_table_f :: :: f_in_apply_tbl
   {{ hol ( f_in_apply_tbl [[tbl_map]] [[apply_table_f]] ) }}
-
+| star_not_in_sl scope_list :: :: star_not_in_sl
+  {{ hol (star_not_in_sl [[scope_list]] ) }}
 
 | type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack :: :: type_ith_stmt 
   {{ hol ( type_ith_stmt [[t_scope_list_g]] [[t_scope_list]] [[T_e]] [[Prs_n]] [[stmt_stack]] ) }}

@@ -829,6 +829,8 @@ by
 
 [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
 args_t_same [ tau1 , .. , taun ]  t_scope_list
+star_not_in_sl scope_list
+parseError_in_gs t_scope_list_g [ t_scope_list ]
 type_frame_tsl scope_list t_scope_list
 type_scopes_list g_scope_list t_scope_list_g
 ( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |- stmt_stack
