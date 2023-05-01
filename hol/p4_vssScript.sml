@@ -326,7 +326,14 @@ Definition vss_output_f_def:
      | SOME (INL (core_v_ext_packet_out data_crc)) =>
       (case ALOOKUP v_map "outCtrl" of
        | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
-        SOME (in_out_list++[(headers++data_crc, v2n bl)], (counter, ext_obj_map, v_map, ctrl))
+        let
+         port_out = v2n bl
+        in
+         if port_out = 15
+         then
+          SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
+         else
+          SOME (in_out_list++[(headers++data_crc, port_out)], (counter, ext_obj_map, v_map, ctrl))
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
