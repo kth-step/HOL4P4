@@ -176,18 +176,23 @@ Definition ebpf_inputPort_to_num_def:
 End
 
 (* TODO: Outsource obtaining the output port to an external function? *)
+(* This will also look up the value of "pass" and only output a packet if it is true *)
 Definition ebpf_output_f_def:
  ebpf_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
-  (case ebpf_lookup_obj ext_obj_map v_map "packet" of
-   | SOME (INL (core_v_ext_packet_in bl)) =>
-      (case ALOOKUP v_map "inCtrl" of
-       | SOME (v_struct fields) =>
-        (case ebpf_inputPort_to_num fields of
-         | SOME port =>
-          SOME (in_out_list++[(bl, port)], (counter, ext_obj_map, v_map, ctrl))
-         | NONE => NONE)
-       | _ => NONE)
-   | _ => NONE)
+  case ALOOKUP v_map "accept" of
+  | SOME (v_bool T) =>
+   (case ebpf_lookup_obj ext_obj_map v_map "packet" of
+    | SOME (INL (core_v_ext_packet_in bl)) =>
+     (case ALOOKUP v_map "inCtrl" of
+      | SOME (v_struct fields) =>
+       (case ebpf_inputPort_to_num fields of
+        | SOME port =>
+         SOME (in_out_list++[(bl, port)], (counter, ext_obj_map, v_map, ctrl))
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | SOME (v_bool F) => SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
+  | NONE => NONE
 End
 
 Definition ebpf_apply_table_f_def:
