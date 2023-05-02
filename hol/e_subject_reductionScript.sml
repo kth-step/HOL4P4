@@ -1176,7 +1176,7 @@ QED
 
 
 
-val Fg_star_lemma2 = prove ( ``
+Theorem Fg_star_lemma2:
 ! t_scope_list_g f func_map tau delta_g delta_b delta_x order
 b_func_map gscope (ext_map: 'a ext_map) tau tdl
   stmt xdl apply_table_f pars_map tbl_map delta_t Prs_n.
@@ -1189,13 +1189,14 @@ b_func_map gscope (ext_map: 'a ext_map) tau tdl
          order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n /\
 	 SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x ==>
     (? tau' . SOME tau' = find_star_in_globals t_scope_list_g (varn_star f) /\
-                   tau = tau' ) ``,
+                   tau = tau' ) 
+Proof                   
 REPEAT STRIP_TAC >>
 IMP_RES_TAC Fg_star_lemma1 >>
 gvs[] >>
 Cases_on `t_lookup_funn f delta_g delta_b delta_x` >> rfs[] >>
 PairCases_on `x` >> gvs[]
-);
+QED
 
 
 
