@@ -19,6 +19,7 @@ core_v_ext =
 (* Header methods *)
 (******************)
 
+(* TODO: Perform this on list only? *)
 Definition min_size_in_bits:
  (min_size_in_bits (v_header valid_bit []) = SOME 0) /\
  (min_size_in_bits (v_header valid_bit (h::t)) =
@@ -38,6 +39,7 @@ Definition min_size_in_bits:
  (min_size_in_bits _ = NONE)
 End
 
+(* TODO: Perform this on list only? *)
 Definition min_size_in_bytes:
  (min_size_in_bytes (v_header valid_bit x_v_l) =
   case min_size_in_bits (v_header valid_bit x_v_l) of
