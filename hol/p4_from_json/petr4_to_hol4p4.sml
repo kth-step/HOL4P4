@@ -34,6 +34,14 @@ fun ascope_of_arch arch_opt_tm =
  else "``:'a``"
 ;
 
+fun astr_of_arch arch_opt_tm =
+ if is_arch_vss $ dest_some arch_opt_tm
+ then "vss"
+ else if is_arch_ebpf $ dest_some arch_opt_tm
+ then "ebpf"
+ else raise Fail ("Unknown architecture: "^(term_to_string arch_opt_tm))
+;
+
 (* Returns the astate type of the architecture (as a term) as a string, for outputting *)
 fun astate_of_arch arch_opt_tm =
  if is_arch_vss $ dest_some arch_opt_tm
@@ -56,7 +64,7 @@ fun actx_of_arch arch_opt_tm =
 (* Flags for determining type of output *)
 val unicode = false;
 val raw_output = true;
-(* Flags used here *)
+
 val _ = Parse.current_backend := (if (raw_output) then PPBackEnd.raw_terminal else
                                      PPBackEnd.vt100_terminal);
 val _ = Feedback.set_trace "Unicode" (if unicode then 1 else 0);
@@ -101,8 +109,12 @@ val ethernet_header_uninit =
                   [(``"dstAddr"``, mk_v_biti_arb 48),
                    (``"srcAddr"``, mk_v_biti_arb 48),
                    (``"etherType"``, mk_v_biti_arb 16)];
-val parsed_packet_struct_uninit =
+val ebpf_parsed_packet_struct_uninit =
+ mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ipv4"``, ipv4_header_uninit)];
+val vss_parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
+
+
 
 fun output_hol4p4_incipit valname outstream =
  let
@@ -159,6 +171,8 @@ fun hex_to_bin s =
 datatype stf_restype =
    io of stf_iotype * int * string
  | setdefault of string * string * string * int list
+ (* Block name, table name, keys, action name, action arguments *)
+ | add of string * string * term * string * int list
  | none;
 
 fun parse_stf_io_line s stf_iotype =
@@ -221,19 +235,7 @@ fun parse_stf_setdefault_line tokens =
  end
 ;
 
-(* TODO: pay forward rest instead of s? *)
-(*
-val s = "setdefault pipe.t pipe.Reject(rej:0, bar:1)"
-*)
-fun parse_stf_line s =
- case String.tokens (fn c => c = #" ") s of
-   "packet" :: rest => parse_stf_io_line s packet
- | "expect" :: rest => parse_stf_io_line s expect
- | "setdefault" :: rest => parse_stf_setdefault_line rest
- | _ => none
-;
-
-fun string_to_term s =
+fun bit_string_to_term s =
  let
   fun char_to_bool c =
    case c of
@@ -245,6 +247,65 @@ fun string_to_term s =
  end
 ;
 
+(* Parses a list of hex strings in the format "0x0004FFFF" into HOL4P4 bitv values *)
+fun parse_keys [] = []
+ |  parse_keys (h::t) =
+  let
+   (* TODO: Fields are assumed to be in order *)
+   val (field_name, hex_str) = split_string h #":"
+   val hex_str' = String.extract (hex_str, 2, NONE)
+   val bin_str = hex_to_bin hex_str'
+   val bitv_tm = mk_e_v $ mk_v_bit (mk_pair (bit_string_to_term bin_str, term_of_int $ size bin_str))
+  in
+   (bitv_tm::parse_keys t)
+  end
+;
+
+fun parse_stf_add_line tokens =
+ let
+  (* Split up tokens into table, keys, and action *)
+  (* Rewritten to avoid exhaustiveness warning *)
+  val table_token = el 1 tokens
+  val priority_token = el 2 tokens
+  val rest_tokens = List.drop (tokens, 2)
+  val (key_tokens, rest_tokens2) = foldr (fn (a, (b, c)) => if String.isPrefix "key." a then ((String.extract (a, 4, NONE))::b, c) else (b, a::c)) ([],[]) rest_tokens
+  val action_token = String.concat rest_tokens2
+
+  (* Get block and table name *)
+  val (block_name, table) = split_string table_token #"."
+
+  (* TODO: No actual type inference takes place here, we just assume the input has the correct
+   *       leading zeroes *)
+  val keys = mk_list (parse_keys key_tokens, e_ty)
+
+  (* Note that arguments are no longer separated by whitespaces in "action" *)
+  (* TODO: Generalise this, so global actions can also be used? *)
+  val (_, action) = split_string action_token #"."
+  val (action_name, args) = split_string_incl action #"("
+  val args_list = String.tokens (fn ch => ch = #",") (String.substring(args, 1, size args - 2))
+  (* TODO: Different number formats? *)
+  val args_list' = map (fn tok => snd (split_string tok #":")) args_list
+ in
+  case ints_from_string args_list' of
+    SOME ints =>
+     add (block_name, table, keys, action_name, ints)
+  | NONE => none
+ end
+;
+
+(* TODO: pay forward rest instead of s? *)
+(*
+val s = "setdefault pipe.t pipe.Reject(rej:0, bar:1)"
+*)
+fun parse_stf_line s =
+ case String.tokens (fn c => c = #" ") s of
+   "packet" :: rest => parse_stf_io_line s packet
+ | "expect" :: rest => parse_stf_io_line s expect
+ | "add" :: rest => parse_stf_add_line rest
+ | "setdefault" :: rest => parse_stf_setdefault_line rest
+ | _ => none
+;
+
 fun stf_iotype_to_str iot = 
  if iot = packet
  then "packet"
@@ -253,7 +314,7 @@ fun stf_iotype_to_str iot =
 
 fun output_in_out outstream valname n (iot, port, data) =
  let
-  val data_tm = string_to_term data
+  val data_tm = bit_string_to_term data
   val port_tm = term_of_int port
   val tm = mk_pair (data_tm, port_tm)
  in
@@ -277,6 +338,22 @@ fun output_actx_setdefault outstream valname block_name table_name action_name a
                   valname, "_actx", " \"",
                   block_name, "\" \"",
                   table_name, "\" \"",
+                  action_name, "\" ",
+                  args, "``;\n\n"]
+  val _ = TextIO.output (outstream, outstring);
+ in
+  ()
+ end
+;
+
+fun output_astate_add outstream valname arch_opt table_name keys action_name args =
+ let
+  val outstring =
+   String.concat ["val ", valname, "_astate = optionSyntax.dest_some $ rhs $ concl $ EVAL ``",
+                  (astr_of_arch arch_opt)^"_add_ctrl ^",
+                  valname, "_astate", " \"",
+                  table_name, "\" ",
+                  term_to_string keys, " \"",
                   action_name, "\" ",
                   args, "``;\n\n"]
   val _ = TextIO.output (outstream, outstring);
@@ -358,17 +435,27 @@ local
 	   let
 	    val _ = output_actx_setdefault outstream valname block_name table_name action_name (term_to_string args_term)
 	   in
-	    parse_stf' (ftymap, blftymap) outstream valname packet arch_opt_tm (n+1) NONE instream
+	    parse_stf' (ftymap, blftymap) outstream valname packet arch_opt_tm n NONE instream
 	   end
         (* TODO: Raise exception or print error message to output? *)
          | NONE => raise Fail ("Could not parse action arguments in setdefault stf command"))
+     | add (block_name, table_name, keys, action_name, args) =>
+        (case infer_args (ftymap, blftymap) block_name action_name args of
+           SOME args_term =>
+	   let
+	    val _ = output_astate_add outstream valname arch_opt_tm table_name keys action_name (term_to_string args_term)
+	   in
+	    parse_stf' (ftymap, blftymap) outstream valname packet arch_opt_tm n NONE instream
+	   end
+        (* TODO: Raise exception or print error message to output? *)
+         | NONE => raise Fail ("Could not parse action arguments in add stf command"))
      | io (parsed_stf_iotype, port, data) =>
         (case prev_line_opt of
            NONE =>
           (* TODO: Check that parsed_stf_iotype is "packet"? *)
           parse_stf' (ftymap, blftymap) outstream valname expect arch_opt_tm n (SOME (parsed_stf_iotype, port, data)) instream
          | SOME prev_stf_line =>
-	  if stf_iotype = expect
+	  if parsed_stf_iotype = expect
 	  then
            (* Print packet-expect theorem *)
 	   let
@@ -458,9 +545,9 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 				   ("b_in", v_ext_ref 0);
 				   ("b_out", v_ext_ref 1);
 				   ("data_crc", v_ext_ref 2);
-				   ("parsedHeaders", (^parsed_packet_struct_uninit));
-				   ("headers", (^parsed_packet_struct_uninit));
-				   ("outputHeaders", (^parsed_packet_struct_uninit));
+				   ("parsedHeaders", (^vss_parsed_packet_struct_uninit));
+				   ("headers", (^vss_parsed_packet_struct_uninit));
+				   ("outputHeaders", (^vss_parsed_packet_struct_uninit));
 				   ("parseError", v_err "NoError")]:(string, v) alist``,
                                 init_ctrl]
      (* ab index, input list, output list, ascope *)
@@ -494,7 +581,8 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 				ext_obj_map,
                                 (* TODO: Initial v_map - hard-coded for now *)
 				``[("packet", v_ext_ref 0);
-				   ("headers", v_struct []);
+                                   ("packet_copy", v_ext_ref 1);
+				   ("headers", (^ebpf_parsed_packet_struct_uninit));
 				   ("accept", v_bool ARB);
                                    ("parseError", v_err "NoError")]:(string, v) alist``,
                                 init_ctrl]
@@ -528,9 +616,12 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 ;
 
 (* Print test:
-
- val args = ["1", "2", "test-examples/ebpf_stf_only/action_call_ebpf.json", "test-examples/ebpf_stf_only/action_call_ebpf.log", "test-examples/ebpf_stf_only/action_call_ebpfScript.sml", "ebpf", "Y"];
+ (* OK *)
  val args = ["1", "2", "test-examples/ebpf_stf_only/action_call_table_ebpf.json", "test-examples/ebpf_stf_only/action_call_table_ebpf.log", "test-examples/ebpf_stf_only/action_call_table_ebpfScript.sml", "ebpf", "Y"];
+ (* OK *)
+ val args = ["1", "2", "test-examples/ebpf_stf_only/action_call_ebpf.json", "test-examples/ebpf_stf_only/action_call_ebpf.log", "test-examples/ebpf_stf_only/action_call_ebpfScript.sml", "ebpf", "Y"];
+
+ val args = ["1", "2", "test-examples/ebpf_stf_only/key_ebpf.json", "test-examples/ebpf_stf_only/key_ebpf.log", "test-examples/ebpf_stf_only/key_ebpfScript.sml", "ebpf", "Y"];
 
 *)
 
