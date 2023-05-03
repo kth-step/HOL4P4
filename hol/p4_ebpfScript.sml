@@ -74,7 +74,11 @@ Definition ebpf_input_f_def:
       * function for ebpf_ascope. *)
      (* TODO: Slightly vestigial from the VSS model *)
      let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",v_bit (w4 (n2w p)))]) in
-      SOME (t, (counter, ext_obj_map', v_map', ctrl):ebpf_ascope)
+     (case ALOOKUP v_map' "packet_copy" of
+      | SOME (v_ext_ref i') =>
+       let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet_out bl)) in
+       SOME (t, (counter, ext_obj_map'', v_map', ctrl):ebpf_ascope)
+      | _ => NONE)
     | _ => NONE))
 End
 
@@ -181,8 +185,8 @@ Definition ebpf_output_f_def:
  ebpf_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
   case ALOOKUP v_map "accept" of
   | SOME (v_bool T) =>
-   (case ebpf_lookup_obj ext_obj_map v_map "packet" of
-    | SOME (INL (core_v_ext_packet_in bl)) =>
+   (case ebpf_lookup_obj ext_obj_map v_map "packet_copy" of
+    | SOME (INL (core_v_ext_packet_out bl)) =>
      (case ALOOKUP v_map "inCtrl" of
       | SOME (v_struct fields) =>
        (case ebpf_inputPort_to_num fields of
