@@ -23,4 +23,9 @@ val (arch_ebpf_tm, mk_arch_ebpf, dest_arch_ebpf, is_arch_ebpf) =
 
 val arch_ebpf_NONE_tm = mk_arch_ebpf $ mk_none ``:ebpf_pkg_t``;
 
+val (arch_v1model_tm, mk_arch_v1model, dest_arch_v1model, is_arch_v1model) =
+  syntax_fns1 "petr4_to_hol4p4" "arch_v1model";
+
+val arch_v1model_NONE_tm = mk_arch_v1model $ mk_none ``:v1model_pkg_t``;
+
 end

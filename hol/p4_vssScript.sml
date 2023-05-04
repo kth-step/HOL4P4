@@ -217,7 +217,7 @@ Definition vss_input_f_def:
             let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet_out data_crc)) in
              (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
               * function for vss_ascope. *)
-             let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",(v_bit (w4 (n2w p))))]) in
+             let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort", v_bit (w4 (n2w p)))]) in
               SOME (t, (counter, ext_obj_map'', v_map', ctrl):vss_ascope)
            | _ => NONE)
          | _ => NONE)

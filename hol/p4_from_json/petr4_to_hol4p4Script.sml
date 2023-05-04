@@ -277,6 +277,8 @@ End
  * ctrl: Cannot be built from petr4 output
  * status: Should always start as Running *)
 
+(* Some types which are used throughout the .p4 parser which are not part of the HOL4P4 state or
+ * context *)
 val _ = type_abbrev("tyenv", ``:(string, p_tau) alist``);
 val _ = type_abbrev("enummap", ``:num # (string # (string, v) alist) list``);
 val _ = type_abbrev("ftymap", ``:(funn # (p_tau list, tau) alist)``);
@@ -292,9 +294,15 @@ Datatype:
 End
 
 Datatype:
+ v1model_pkg_t =
+  v1model_pkg_V1Switch
+End
+
+Datatype:
  arch_t =
     arch_vss (vss_pkg_t option)
   | arch_ebpf (ebpf_pkg_t option)
+  | arch_v1model (v1model_pkg_t option)
 End
 
 
@@ -2323,6 +2331,11 @@ Definition petr4_parse_element_def:
         SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, SOME (arch_ebpf (SOME ebpf_pkg_ebpfFilter)), ab_list')
        | SOME (arch_ebpf _) =>
         NONE_msg ("Duplicate top-level package instantiations")
+       (* V1Model: Only one top-level package exists *)
+       | SOME (arch_v1model (NONE)) =>
+        SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, SOME (arch_v1model (SOME v1model_pkg_V1Switch)), ab_list')
+       | SOME (arch_v1model _) =>
+        NONE_msg ("Duplicate top-level package instantiations")
        | _ => NONE_msg ("Unexpected top-level package instantiation"))
      | NONE_msg msg => NONE_msg msg)
    else NONE_msg ("Unknown declaration element type: "++elem_name)
@@ -2413,7 +2426,15 @@ Definition vss_init_ctrl_def:
   (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type ctrl_params b_func_map decl_list
                        body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])
-                      | _ => []) pblock_map)):ebpf_ctrl
+                      | _ => []) pblock_map)):vss_ctrl
+End
+
+Definition v1model_init_ctrl_def:
+ v1model_init_ctrl pblock_map =
+  (FLAT (MAP (\ (pblock_name, pblock). case pblock of
+                      | pblock_regular pbl_type ctrl_params b_func_map decl_list
+                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])
+                      | _ => []) pblock_map)):v1model_ctrl
 End
 
 (*
