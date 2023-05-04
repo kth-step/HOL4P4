@@ -26,4 +26,11 @@ val mk_arch_ebpf   : term -> term
 
 val arch_ebpf_NONE_tm : term
 
+val arch_v1model_tm   : term
+val dest_arch_v1model : term -> term
+val is_arch_v1model   : term -> bool
+val mk_arch_v1model   : term -> term
+
+val arch_v1model_NONE_tm : term
+
 end

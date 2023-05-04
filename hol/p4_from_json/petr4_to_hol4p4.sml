@@ -4,18 +4,20 @@ open PPBackEnd optionSyntax pairSyntax numSyntax listSyntax;
 open parse_jsonTheory;
 open petr4_to_hol4p4Theory;
 
-open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib;
+open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib p4_v1modelLib;
 
 (* For EVAL *)
 open ASCIInumbersLib;
 
-datatype arch = vss | ebpf;
+datatype arch = vss | ebpf | v1model;
 
 fun parse_arch arch_str =
  if arch_str = "vss"
  then SOME vss
  else if arch_str = "ebpf"
  then SOME ebpf
+ else if arch_str = "v1model"
+ then SOME v1model
  else NONE
 ;
 
@@ -23,6 +25,7 @@ fun arch_to_term arch_opt =
  case arch_opt of
    SOME vss => mk_some arch_vss_NONE_tm
  | SOME ebpf => mk_some arch_ebpf_NONE_tm
+ | SOME v1model => mk_some arch_v1model_NONE_tm
  | NONE => mk_none ``:arch_t``
 ;
 
@@ -31,6 +34,8 @@ fun ascope_of_arch arch_opt_tm =
  then "``:vss_ascope``"
  else if is_arch_ebpf $ dest_some arch_opt_tm
  then "``:ebpf_ascope``"
+ else if is_arch_v1model $ dest_some arch_opt_tm
+ then "``:v1model_ascope``"
  else "``:'a``"
 ;
 
@@ -39,6 +44,8 @@ fun astr_of_arch arch_opt_tm =
  then "vss"
  else if is_arch_ebpf $ dest_some arch_opt_tm
  then "ebpf"
+ else if is_arch_v1model $ dest_some arch_opt_tm
+ then "v1model"
  else raise Fail ("Unknown architecture: "^(term_to_string arch_opt_tm))
 ;
 
@@ -48,6 +55,8 @@ fun astate_of_arch arch_opt_tm =
  then SOME "vss_ascope astate"
  else if is_arch_ebpf $ dest_some arch_opt_tm
  then SOME "ebpf_ascope astate"
+ else if is_arch_v1model $ dest_some arch_opt_tm
+ then SOME "v1model_ascope astate"
  else NONE
 ;
 
@@ -57,6 +66,8 @@ fun actx_of_arch arch_opt_tm =
  then SOME "vss_ascope actx"
  else if is_arch_ebpf $ dest_some arch_opt_tm
  then SOME "ebpf_ascope actx"
+ else if is_arch_v1model $ dest_some arch_opt_tm
+ then SOME "v1model_ascope actx"
  else NONE
 ;
 
@@ -89,7 +100,7 @@ fun output_hol4_val outstream (name, tm, ty_opt) =
  end
 ;
 
-(* TODO: Replace these with a general solution ASAP *)
+(* TODO: Replace these with a softcoded solution *)
 val ipv4_header_uninit =
  mk_v_header_list F 
                   [(``"version"``, mk_v_biti_arb 4),
@@ -113,6 +124,24 @@ val ebpf_parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ipv4"``, ipv4_header_uninit)];
 val vss_parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
+
+val v1model_standard_metadata_uninit =
+ mk_v_struct_list [(``"ingress_port"``, mk_v_biti_arb 9),
+                   (``"egress_spec"``, mk_v_biti_arb 9),
+                   (``"egress_port"``, mk_v_biti_arb 9),
+                   (``"instance_type"``, mk_v_biti_arb 32),
+                   (``"packet_length"``, mk_v_biti_arb 32),
+                   (``"enq_timestamp"``, mk_v_biti_arb 32),
+                   (``"enq_qdepth"``, mk_v_biti_arb 19),
+                   (``"deq_timedelta"``, mk_v_biti_arb 32),
+                   (``"deq_qdepth"``, mk_v_biti_arb 19),
+                   (``"ingress_global_timestamp"``, mk_v_biti_arb 48),
+                   (``"egress_global_timestamp"``, mk_v_biti_arb 48),
+                   (``"mcast_grp"``, mk_v_biti_arb 16),
+                   (``"egress_rid"``, mk_v_biti_arb 16),
+                   (``"checksum_error"``, mk_v_biti_arb 1),
+                   (``"parser_error"``, ``v_err "NoError"``),
+                   (``"priority"``, mk_v_biti_arb 3)];
 
 
 
@@ -169,6 +198,7 @@ fun hex_to_bin s =
 ;
 
 datatype stf_restype =
+ (* packet/expect, port and packet itself *)
    io of stf_iotype * int * string
  | setdefault of string * string * string * int list
  (* Block name, table name, keys, action name, action arguments *)
@@ -519,6 +549,23 @@ fun ebpf_add_ffblocks_to_ab_list ab_list_tm =
  end
 ;
 
+fun v1model_add_ffblocks_to_ab_list ab_list_tm =
+ let
+  val (ab_list, ab_list_ty) = dest_list ab_list_tm
+  val ab_list' = [``arch_block_inp``,
+                  (el 1 ab_list),
+                  ``arch_block_ffbl "parser_runtime"``,
+                  (el 2 ab_list),
+                  (el 3 ab_list),
+                  (el 4 ab_list),
+                  (el 5 ab_list),
+                  (el 6 ab_list),
+                  ``arch_block_out``]
+ in
+  (mk_list (ab_list', ab_list_ty))
+ end
+;
+
 fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pblock_map ab_list_tm arch_opt_tm =
  let
   val actx_astate_opt =
@@ -585,6 +632,40 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 				   ("headers", (^ebpf_parsed_packet_struct_uninit));
 				   ("accept", v_bool ARB);
                                    ("parseError", v_err "NoError")]:(string, v) alist``,
+                                init_ctrl]
+     (* ab index, input list, output list, ascope *)
+     val aenv = list_mk_pair [term_of_int 0,
+                              (* TODO: Input must be added separately elsewhere *)
+                              mk_list ([], ``:in_out``),
+                              (* TODO: Output must be added separately elsewhere *)
+                              mk_list ([], ``:in_out``), ascope]
+     (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
+     val astate = list_mk_pair [aenv,
+			        mk_list ([``[]:scope``], scope_ty),
+			        arch_frame_list_empty_tm,
+			        status_running_tm]
+    in
+     SOME (actx, astate)
+    end
+   else if (is_arch_v1model $ dest_some arch_opt_tm) then
+    let
+     val fmap' = rhs $ concl $ EVAL ``AUPDATE_LIST ^v1model_func_map ^fmap``
+     val actx =
+      rhs $ concl $ SIMP_CONV list_ss [] $
+       list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map, v1model_ffblock_map,
+		     v1model_input_f, v1model_output_f,
+		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
+		     v1model_ext_map, fmap']
+     (* TODO: Initialise ext_obj_map... *)
+     val ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
+			  (1, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+     val init_ctrl = rhs $ concl $ EVAL ``v1model_init_ctrl ^pblock_map``;
+     val ascope = list_mk_pair [term_of_int 2,
+				ext_obj_map,
+                                (* TODO: Initial v_map - hard-coded for now *)
+				``[("b_in", v_ext_ref 0);
+				   ("b_out", v_ext_ref 1);
+				   ("standard_metadata", (^v1model_standard_metadata_uninit))]:(string, v) alist``,
                                 init_ctrl]
      (* ab index, input list, output list, ascope *)
      val aenv = list_mk_pair [term_of_int 0,
