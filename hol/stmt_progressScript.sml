@@ -577,7 +577,7 @@ REPEAT STRIP_TAC >| [
       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
       gvs[] >>
       gvs[Once stmt_typ_cases] >>
-      Q.EXISTS_TAC ‘tau_d_list’ >>
+      Q.EXISTS_TAC ‘tau_x_d_list’ >>
       Q.EXISTS_TAC ‘tau’ >>
       gvs[] >>             
       REPEAT STRIP_TAC >>
@@ -812,7 +812,7 @@ REPEAT STRIP_TAC >| [
          PairCases_on ‘x’ >> gvs[] >>
          fs[WT_c_cases, WTX_cases, extern_map_IoE_typed_def] >> gvs[] >>
          FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`q`,‘s’,‘r’,‘x'1’])) >> gvs[] >>
-         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’])) >> gvs[] >>
+         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’, ‘lol’])) >> gvs[] >>
          srw_tac [SatisfySimps.SATISFY_ss][]
        ]
      ]
@@ -838,7 +838,7 @@ REPEAT STRIP_TAC >| [
        
        fs[WT_c_cases, WTX_cases, extern_MoE_typed_def] >> gvs[] >>
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘q’,‘s’,‘s0’,‘x'0’])) >> gvs[] >>
-       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’])) >> gvs[] >>
+       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’, ‘lol’])) >> gvs[] >>
        srw_tac [SatisfySimps.SATISFY_ss][]
                
        ]
@@ -1012,10 +1012,10 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])
         
 
 val t_lookup_funn_not_blk_lemma = prove (
-“ ∀ delta_g delta_b delta_x f tdl tau .
-SOME (tdl,tau) = t_lookup_funn f delta_g [] delta_x ⇒
+“ ∀ delta_g delta_b delta_x f txdl tau .
+SOME (txdl,tau) = t_lookup_funn f delta_g [] delta_x ⇒
 dom_tmap_ei delta_g delta_b ⇒
-SOME (tdl,tau) = t_lookup_funn f delta_g delta_b delta_x
+SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x
 ”,
 
 REPEAT STRIP_TAC >>
@@ -1033,9 +1033,9 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
 
         
 val ext_not_def_in_mpty_delta_b = prove (“
-∀ f delta_g delta_b delta_x tdl t.
+∀ f delta_g delta_b delta_x txdl t.
    typying_domains_ei delta_g delta_b delta_x ∧
-   t_lookup_funn f delta_g [] delta_x = SOME (tdl,t) ∧
+   t_lookup_funn f delta_g [] delta_x = SOME (txdl,t) ∧
    ext_is_defined delta_x f ∧
    ext_not_defined delta_g [] f ⇒
    ext_not_defined delta_g delta_b f”,
@@ -1194,7 +1194,7 @@ Cases_on ‘scopes_to_pass (HD funnl) func_map b_func_map gscope’ >> gvs[] >>
          
 gvs[frame_typ_cases] >>
 IMP_RES_TAC WT_c_empty_db >> gvs[] >> 
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_d_list’, ‘tau’])) >> gvs[] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_x_d_list’, ‘tau’])) >> gvs[] >>
 
 IMP_RES_TAC parseError_in_gs_normalization >>
 IMP_RES_TAC t_scopes_passed_parseError           
@@ -1215,8 +1215,8 @@ val WT_state_imp_t_funn_lookup_HD = prove ( “
    WT_state (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
           (ascope,gscope,(f,stmtl,locale)::t,status)
           Prs_n order tslg tsll (delta_g,delta_b,delta_x,delta_t) ⇒
-   ∃  tdl t .
-        t_lookup_funn f delta_g delta_b delta_x = SOME (tdl,t) ”,
+   ∃  txdl t .
+        t_lookup_funn f delta_g delta_b delta_x = SOME (txdl,t) ”,
 
 
 REPEAT STRIP_TAC >>
@@ -1560,7 +1560,7 @@ LENGTH copy_to_ss > 1 ⇒
 REPEAT STRIP_TAC >>
 gvs[update_return_frame_def]
 
-
+*)
 
 
 
@@ -1597,18 +1597,18 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘passed_gscope’,‘loca
                   
 SIMP_TAC list_ss [Once frames_red_cases] >>
 srw_tac [boolSimps.DNF_ss][] >>
+  gvs[Once frame_typ_cases, type_frame_tsl_def] >>       
 
 Cases_on ‘notret status'’ >| [
 
          (* if the status is not return, comp1 holds *)
-         
   DISJ1_TAC >>
+
   Q.EXISTS_TAC ‘status'’ >>
   srw_tac [][clause_name_def] >>
   Q.EXISTS_TAC ‘ascope'’ >>
 
   CONV_TAC $ RESORT_EXISTS_CONV rev >>              
-
   Q.EXISTS_TAC ‘gscope'’ >>
   Q.EXISTS_TAC ‘framel ⧺ [(f,stmtl',scopest')]’ >>
   srw_tac [][] >>
@@ -1728,7 +1728,7 @@ Cases_on ‘notret status'’ >| [
                                 
 QED
 
-*)
+
 
                 
 val _ = export_theory ();

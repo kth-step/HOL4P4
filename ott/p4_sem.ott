@@ -532,9 +532,9 @@ formula :: formula_ ::=
 | tau = find_star_in_globals ( t_scope_list_g , varn ) :: :: find_star_in_globals
   {{ tex [[tau]] = \mathrm{find_star_in_globals} ([[t_scope_list_g]], [[varn]]) }}
   {{ hol SOME [[tau]] =  find_star_in_globals [[t_scope_list_g]] [[varn]]}}
-| [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x ) :: :: fun_type
+| [ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x ) :: :: fun_type
 %  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_b]] \cup [[delta_g]] ([[funn]]) }}
-  {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] [[delta_x]]}}
+  {{ hol SOME ([[tau1 x1 d1 .. taun xn dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] [[delta_x]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
   {{ hol (([[unop]] <> unop_neg)) }}
@@ -651,7 +651,9 @@ formula :: formula_ ::=
 | dom_t_eq ( delta_t , tbl_map ) :: :: dom_t_eq
   {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }} 
 | star_Err_not_in_ts t_scope :: :: star_Err_not_in_ts
-  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}   
+  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}
+| lvalop_not_none t_scope :: :: lvalop_not_none
+  {{ hol ( lvalop_not_none [[t_scope]] )}}
 | Fg_star_defined ( func_map , t_scope_list_g ) :: :: Fg_star_defined
   {{ hol ( Fg_star_defined [[func_map]] [[t_scope_list_g]] ) }}
 | Fb_star_defined ( b_func_map , t_scope_list_g ) :: :: Fb_star_defined
@@ -1724,13 +1726,14 @@ val initialise_var_stars_def = Define `
  * where the declarations have been made *)
 val declare_list_in_scope_def = Define `
   declare_list_in_scope (t_scope:t_scope, scope:scope) =
-    FOLDR (\(x,t) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) t_scope
+    FOLDR (\(x,(t,lvalop) ) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) t_scope
 `;
 
-(* Same as the above, but with the empty scope *)
+(* Same as the above, but with the empty scope
+   NOTE: the lvalop here is always none when entering a new block *)
 val declare_list_in_fresh_scope_def = Define `
   declare_list_in_fresh_scope (t_scope:t_scope) =
-    (MAP (\(x,t). (x , (arb_from_tau t, NONE))) t_scope)
+    (MAP (\(x,(t,lvalop)). (x , (arb_from_tau t, NONE))) t_scope)
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
@@ -1803,7 +1806,7 @@ val args_of_pbl_def = Define `
 
 val copyout_def = Define `
   copyout xlist dlist gsl ss ss_curr =
-    case update_return_frame xlist dlist (ss++gsl) ss_curr of
+    case update_return_frame xlist dlist (ss++gsl) (LAST ss_curr) of
     |(SOME updated_return_ss =>
       case (LENGTH updated_return_ss) of
       | 0 => NONE

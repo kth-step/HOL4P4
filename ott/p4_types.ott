@@ -178,15 +178,17 @@ star_Err_not_in_ts (s:t_scope) =
   (Err_not_in_ts s /\ star_not_in_ts s)
 `;
 
-
+val lvalop_not_none_def = Define `
+lvalop_not_none (s:t_scope) =
+   EVERY (\(x,t,lop). lop = NONE) s
+`;
 
 
 val parseError_in_gs_def  = Define `
 parseError_in_gs (t_scope_list_g:t_scope list) ( t_scope_list_list : t_scope list list) =
-  ((ALOOKUP (EL 1 t_scope_list_g) (varn_name "parseError") = SOME tau_err ) /\
+  ((ALOOKUP (EL 1 t_scope_list_g) (varn_name "parseError") = SOME (tau_err,NONE)) /\
    (ALOOKUP (EL 0 t_scope_list_g) (varn_name "parseError") = NONE) /\
   (! i . i < LENGTH t_scope_list_list ==> lookup_map (EL i t_scope_list_list) (varn_name "parseError") = NONE ))
-
 `;  
 
 
@@ -195,7 +197,7 @@ here the lists of the typing scope lists *)
 val lookup_tau_def = Define `
   lookup_tau (ts:t_scope list) (t_scope_list_g:t_scope list) x =
     case lookup_map (ts++t_scope_list_g) x of
-    | SOME t => SOME t
+    | SOME t => SOME (FST t)
     | _ => NONE
 `;
 
@@ -203,7 +205,7 @@ val lookup_tau_def = Define `
 val find_star_in_globals_def = Define `
   find_star_in_globals (t_scope_list_g:t_scope_list_g) x =
     case lookup_map (t_scope_list_g) x of
-    | SOME t => SOME t
+    | SOME t => SOME (FST t)
     | _ => NONE
 `;
 
@@ -215,22 +217,22 @@ val t_lookup_funn_def = Define `
     case funn of
     | (funn_name x) =>
      (case ALOOKUP delta_b x of
-      | SOME (tdl, t) => SOME (tdl, t)
+      | SOME (txdl, t) => SOME (txdl, t)
       | NONE =>
        (case ALOOKUP delta_g x of
-        | SOME (tdl, t) => SOME (tdl, t)
+        | SOME (txdl, t) => SOME (txdl, t)
         | NONE => NONE
        )
      )
     | (funn_inst x) =>
      (case ALOOKUP delta_x x of
-      | SOME (SOME(tdl, t), _) => SOME (tdl, t)
+      | SOME (SOME(txdl, t), _) => SOME (txdl, t)
       | _ => NONE)
     | (funn_ext x x') =>
      (case ALOOKUP delta_x x of
       | SOME (_, ext_MoE) =>
        (case ALOOKUP ext_MoE x' of
-	      | SOME (tdl, t) => SOME (tdl, t)
+	      | SOME (txdl, t) => SOME (txdl, t)
 	      | _ => NONE)
       | _ => NONE)
   )
@@ -249,8 +251,8 @@ ext_is_defined (delta_x:delta_x) funn =
        ( ∃ a1 ext_MoE . ALOOKUP delta_x x = SOME (a1,ext_MoE)))
   ∧                            
 (! x x' . funn = funn_ext x x' ⇒
-       ( ∃ a1 ext_MoE tdl t. ALOOKUP delta_x x = SOME (a1,ext_MoE) ∧
-         ALOOKUP ext_MoE x' = SOME (tdl, t)))
+       ( ∃ a1 ext_MoE txdl t. ALOOKUP delta_x x = SOME (a1,ext_MoE) ∧
+         ALOOKUP ext_MoE x' = SOME (txdl, t)))
 `;
 
 
@@ -459,21 +461,13 @@ similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
 
 
 
-(* checks if a typing scope can type a scope which is the operation 
-*      t_scope |- scope   *)
-
-val type_scope_def = Define `
-type_scope (scope:scope) (t_scope:t_scope) =
-  similar (\x y . (v_typ (FST (x)) (y) F ) ) scope 
-`;
-
-
 (*check if a list of scopes can be typed with respect to a list of typing scopes 
        [t_scope1...t_scopen] |- [scope1 ... scopen]
+       Here we also check that the lvals are the same in the scope and the typing scope
 *)
 val type_scopes_list_def = Define `
 type_scopes_list (sl:scope list) (tsl:t_scope list) =
- similarl (\x y . (v_typ (FST (x)) (t_tau y) F ) ) sl tsl
+ similarl (\(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sl tsl
 `;
 
 
@@ -524,10 +518,11 @@ type_frame_tsl (sl:scope list) (tsl: t_scope list) =
 type each other. NOTE: the global frames we keep the return functions variables stars. 
 thus we do not check it's absence 
   ψ_G_list ⊢ γ_g_list
+  TODO: remove it, unused.
 *)
 val type_globals_tsl_def = Define `
 type_globals_tsl (sl:scope list) (tsl: t_scope list)  =
-similarl (\x y . (v_typ (FST (x)) (t_tau y) F ) ) sl tsl
+ similarl (\(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sl tsl
 `;
 
 
@@ -562,7 +557,7 @@ tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
 ( t_scope_list_g , t_scope_list ) T_e |- var varn : ( tau , true )
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x )
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x )
 tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 ----------------------------------- :: star
 ( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- var ( star , funn' ) : ( tau , true )
@@ -620,7 +615,7 @@ t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] +
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x ) 
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x ) 
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
 order funn' funn
@@ -724,6 +719,7 @@ t_scopes_tup T_e Prs_n |- stmt2
 t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 
+lvalop_not_none t_scope
 star_Err_not_in_ts t_scope
 ( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
@@ -752,7 +748,7 @@ t_scopes_tup T_e Prs_n |-  transition e
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , ( empty ) )
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , ( empty ) )
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  e  : ( tau , b )
 --------------------------------------- :: return
 t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |-  return e
@@ -788,7 +784,7 @@ type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack =
    the functions args in the context tl *)
 val args_t_same_def = Define `
 args_t_same (tl:tau list) (t_scope_list:t_scope_list) =
-(MAP SND (LAST t_scope_list) = tl) 
+(MAP (\(x,t,lvop).t) (LAST t_scope_list) = tl)  
 `;
 
 
@@ -825,9 +821,8 @@ t_scopes_tup T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: fram
 {{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
 by
 
-%note that in this rule will be mainly used to rewrite the definitions once we are typing the result frame of an expression reduction.
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
 args_t_same [ tau1 , .. , taun ]  t_scope_list
 star_not_in_sl scope_list
 parseError_in_gs t_scope_list_g [ t_scope_list ]
@@ -871,16 +866,16 @@ mk_varn (xl:string list) =
 
 
 
-(* given a list of (string,dir) list and a list of (tau,dir) list, return a typing scope*)
-  val mk_tscope_def = Define `
-    mk_tscope xdl tdl =
-   ZIP (mk_varn  (MAP FST xdl ) , MAP FST tdl ) 
-   `;
+(* given a list of (tau,string,dir) list and a list of lval, return a typing scope *)
+    val mk_tscope_def = Define `
+    mk_tscope (txdl: (tau#string#d) list) (lol: (lval option) list) =
+    ZIP (mk_varn  (MAP (\(t,x,d). x) txdl ) ,  ZIP ( (MAP (\(t,x,d). t) txdl ) , lol) )
+`;
 
 (* check if the direction list is the same in both lists *)
-  val same_dir_def = Define `
-    same_dir xdl tdl =
-   (MAP SND xdl = MAP SND tdl)
+  val same_dir_x_def = Define `
+    same_dir_x xdl txdl =
+   (xdl = MAP SND txdl)
    `;
 
 
@@ -910,21 +905,22 @@ not_parseError_str xdl =
 
 
 (*based on the specs, the extern cannot be called from functions *)
-
+(* lol is lval option list *)
 val func_map_typed_def = Define `
 func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g delta_b delta_x Prs_n =
-! f stmt xdl x  .
+! f stmt xdl x lol .
  ( (f = funn_name x) /\
    (ALOOKUP func_map x = SOME (stmt, xdl)) )
    ==>
 
-   ? tau tdl (t_scope':t_scope) t_scope_list_g'. 
-   (SOME (tdl,tau) = t_lookup_funn f delta_g [] [] /\ 
+   ? tau txdl (t_scope':t_scope) t_scope_list_g'. 
+   (SOME (txdl,tau) = t_lookup_funn f delta_g [] [] /\ 
      find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
-   (same_dir xdl tdl) /\
+   (same_dir_x xdl txdl) /\
+    (LENGTH lol = LENGTH txdl) /\
    not_parseError_str xdl /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
-   (t_scope' = mk_tscope xdl tdl ) /\ 
+   (t_scope' = mk_tscope txdl lol) /\ 
    ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,[],delta_x,[])) Prs_n (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt))
@@ -936,18 +932,18 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
 
 val func_map_blk_typed_def = Define `
 func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n =
-! f stmt xdl x .
+! f stmt xdl x lol.
  ( (f = funn_name x) /\
    (ALOOKUP b_func_map x = SOME (stmt, xdl))
 ) ==>
 
-   ? tau tdl (t_scope':t_scope) t_scope_list_g'.
-   (SOME (tdl,tau) = t_lookup_funn f [] delta_b [] ) /\
+   ? tau txdl (t_scope':t_scope) t_scope_list_g'.
+   (SOME (txdl,tau) = t_lookup_funn f [] delta_b [] ) /\
    find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
-   (same_dir xdl tdl) /\
+   (same_dir_x xdl txdl) /\
    not_parseError_str xdl /\ 
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
-   (t_scope' = mk_tscope xdl tdl ) /\ 
+   (t_scope' = mk_tscope txdl lol ) /\ 
    ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,delta_t)) Prs_n (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt)
@@ -974,17 +970,17 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_
          f = funn_inst x /\
 	 ALOOKUP ext_map x = SOME (SOME (xdl,IoE),MoE) ==>
 
-   ! (a:'a) (g_scope_list:g_scope_list) local_scopes .
+   ! (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
 
-   ? tdl tau (t_scope':t_scope) (a':'a)  scope_list' v t_scope_list_g'.
+   ? txdl tau (t_scope':t_scope) (a':'a)  scope_list' v t_scope_list_g'.
 
-   SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
    find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
-   (same_dir xdl tdl) /\
+   (same_dir_x xdl txdl) /\
     not_parseError_str xdl /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
-   (t_scope' = mk_tscope xdl tdl  ) /\ 
+   (t_scope' = mk_tscope txdl lol ) /\ 
 	 SOME (a',scope_list', v) = IoE (a,g_scope_list, local_scopes ) /\
 	 v_typ v (t_tau tau) F /\
    star_not_in_sl (scope_list') /\
@@ -1002,16 +998,16 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
 	 ALOOKUP ext_map x = SOME (IoEsig, MoE) /\
 	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
   
-  !  (a:'a) (g_scope_list:g_scope_list) local_scopes .
+  !  (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
 
-  ? tdl tau t_scope'  (a':'a)  (scope_list': scope list) (v:v)  t_scope_list_g'.
+  ? txdl tau t_scope'  (a':'a)  (scope_list': scope list) (v:v)  t_scope_list_g'.
 
-   SOME (tdl,tau) = t_lookup_funn f [] [] delta_x /\
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
    find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
-   (same_dir xdl tdl) /\
+   (same_dir_x xdl txdl) /\
     not_parseError_str xdl /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
-   (t_scope' = mk_tscope xdl tdl ) /\ 
+   (t_scope' = mk_tscope txdl lol) /\ 
    ( ALL_DISTINCT (MAP FST xdl) ) /\
 
 	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, local_scopes  )) /\
@@ -1048,14 +1044,14 @@ table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g del
 !  s mkl f' f el' el vl ascope  .
     ALOOKUP tbl_map s = SOME (mkl,f',el') /\
     apply_table_f (s,el,mkl, (f',el'),ascope) = SOME (f,vl) ==>
-     ? tdl .
+     ? txdl .
        LENGTH mkl = LENGTH el /\
-       SOME (tdl,tau_bot) = t_lookup_funn (funn_name f) delta_g delta_b [] /\
+       SOME (txdl,tau_bot) = t_lookup_funn (funn_name f) delta_g delta_b [] /\
        is_consts vl /\
-       is_directionless (MAP SND tdl) /\
-       LENGTH tdl = LENGTH vl /\
-       (! i . i < LENGTH tdl ==>
-              v_typ (EL i ( vl_of_el vl)) (t_tau (EL i (MAP FST tdl))) F) /\
+       is_directionless (MAP (\(t,x,d).d) txdl) /\
+       LENGTH txdl = LENGTH vl /\
+       (! i . i < LENGTH txdl ==>
+              v_typ (EL i ( vl_of_el vl)) (t_tau (EL i (MAP (\(t,x,d).t) txdl))) F) /\
        order ( order_elem_f (funn_name f)) (order_elem_t s )        
 `;            
 
@@ -1295,7 +1291,7 @@ val t_map_to_pass_def = Define `
   case funn of
    | (funn_name x) =>
     (case ALOOKUP delta_b x of
-     | SOME (tdl,t) => SOME delta_b
+     | SOME (txdl,t) => SOME delta_b
      | NONE => SOME []
     )
    | _ => SOME []
@@ -1306,7 +1302,7 @@ val t_tbl_to_pass_def = Define `
   case funn of
    | (funn_name x) =>
     (case ALOOKUP delta_b x of
-     | SOME (tdl,t) => SOME delta_t
+     | SOME (txdl,t) => SOME delta_t
      | NONE => SOME []
     )
    | _ => SOME []

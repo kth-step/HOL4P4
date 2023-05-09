@@ -451,15 +451,14 @@ fs[type_scopes_list_def] >> rw[] >| [
  drule R_lookup_map_scopesl >>
  rpt strip_tac >>
 
- LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`x'`, `varn`, `(v,x1)`])) >>
- gvs[] 
+ LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`x'`, `varn`, `(v,x1)`])) >>
+ gvs[] >>
+ PairCases_on ‘x'’ >> gvs[]
  ,
+        
  drule R_implies_lookup_map_scopesl >>
- rpt strip_tac >>
-
- LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`tau`, `varn`, `v`])) >>
+ rpt strip_tac >> 
+ LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`x`, `varn`, `x`])) >>
  gvs[]
  ,
 
@@ -468,9 +467,8 @@ fs[type_scopes_list_def] >> rw[] >| [
  drule R_lookup_map_scopesl >>
  rpt strip_tac >>
 
- LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`tau`, `varn`, `(x0,x1)`])) >>
- gvs[] 
+ LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`x'`, `varn`, `(x0,x1)`])) >>
+  PairCases_on ‘x'’ >> gvs[]
 ]
 QED
 
@@ -508,7 +506,7 @@ rpt strip_tac >| [
    drule R_implies_lookup_map_scopesl >>
    rpt strip_tac >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`tau`, `(varn_star f)`, `(x0,x1)`])) >>
+   [`x`, `(varn_star f)`, `(x0,x1)`])) >>
    gvs[]
    ,
    PairCases_on `x'` >> gvs[]
@@ -884,7 +882,6 @@ gvs[]
 
 
 
-
 val var_lval_is_typed = prove ( ``
 ! e v tau gtsl gscope tsl scopest T_e .
 star_not_in_sl scopest /\
@@ -922,17 +919,16 @@ gvs[]  >| [
 
  `type_scopes_list (scopest ⧺ gscope) (tsl ⧺ gtsl)` by
   (IMP_RES_TAC type_scopes_list_APPEND) >>
- ASSUME_TAC R_lookup_map_scopesl >>
  gvs[type_scopes_list_def] >>
 
 
  ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:(v#lval option)``,
-                        ``:'b`` |-> ``:tau``] R_lookup_map_scopesl)  >>
+                        ``:'b`` |-> ``:(tau#lval option)``] R_lookup_map_scopesl)  >>
 			 
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`(λx y. v_typ (FST x) (t_tau y) F)`, `(tau')`, `(varn_name s)`,
+ [‘(λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2)’ , `(x)`, `(varn_name s)`,
   `(v'',x1)`, `(tsl ⧺ gtsl)`,`(scopest ⧺ gscope)`])) >>
- gvs[]
+ PairCases_on ‘x’ >> gvs[]
  ,
  
  (`? v'' . SOME v'' = lookup_vexp2 scopest gscope (varn_star f) ` by
@@ -958,13 +954,14 @@ gvs[]  >| [
  gvs[] >>
 
  ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:(v#lval option)``,
-                        ``:'b`` |-> ``:tau``] R_lookup_map_scopesl)  >>
+                        ``:'b`` |-> ``:(tau#lval option)``] R_lookup_map_scopesl)  >>
 
 		 
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`(λx y. v_typ (FST x) (t_tau y) F)`, `(tau')`, `(varn_star f)`,
+ [‘(λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2)’, `x`, `(varn_star f)`,
   `(v'',x1)`, `(gtsl)`,`(gscope)`])) >>
- gvs[type_scopes_list_def]
+ gvs[type_scopes_list_def] >>
+ PairCases_on ‘x’ >> gvs[]
 ]
 );
 
@@ -1329,28 +1326,7 @@ subgoal `(∀i. i < LENGTH e_tau_d_b_t_list ⇒
 
 
 
-val map_distrub_penta = prove ( ``
-! l1 l2 l3 l4 l5.
-(LENGTH l1 = LENGTH l2 /\
-LENGTH l2 = LENGTH l3 /\
-LENGTH l3 = LENGTH l4 /\
-LENGTH l4 = LENGTH l5) ==>
-((MAP (λ(a,b,c,d,e). a) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l1 /\
- (MAP (λ(a,b,c,d,e). b) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l2 /\
- (MAP (λ(a,b,c,d,e). c) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l3 /\
- (MAP (λ(a,b,c,d,e). d) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l4 /\
- (MAP (λ(a,b,c,d,e). e) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l5
-) ``,
 
-Induct_on `l1` >>
-Induct_on `l2` >>
-Induct_on `l3` >>
-Induct_on `l4` >>
-Induct_on `l5` >>
-
-REPEAT STRIP_TAC >>
-gvs[]
-);
 
 
 
@@ -1952,8 +1928,8 @@ gvs[is_const_def, clause_name_def] >>
 
 
 (* the cases should be on if there is an element unreduced yet? *)
-Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
-                 (MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list) = NONE) ` >| [
+Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
+                 (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) = NONE) ` >| [
 
  DISJ1_TAC >>
  
@@ -1963,10 +1939,10 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`c0`, `c1`, `c2`, `c3`, `c4`, `c5`, `order`, `t_scope_list_g`,
    `delta_g`, `delta_b`, `delta_x`,
-   `(MAP (λ(e_,tau_,d_,b_).(tau_,d_)) (e_tau_d_b_list : (e # tau # d # bool) list))`,
+   `(MAP (λ(e_,tau_,x_,d_,b_).(tau_,x_,d_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
    `tau'`, `f` , ‘delta_t’, ‘Prs_n’  ])) >> gvs[] >>
 
- Q.EXISTS_TAC `ZIP ((MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list),
+ Q.EXISTS_TAC `ZIP ((MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list),
                    ZIP(MAP FST xdl,MAP SND xdl))` >>
 
  Q.EXISTS_TAC `stmt` >>
@@ -1974,18 +1950,18 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
  rfs[map_quad_zip112, map_tri_zip12] >>
  fs[GSYM UNZIP_MAP] >>
 
- `MAP SND (MAP (λ(e_,tau_,d_,b_). (tau_,d_)) e_tau_d_b_list) =
-          (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)` by fs[MAP_snd_quad_12_1] >>
- gvs[] >>
+ `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
+          (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by cheat >>
+ gvs[] >> rfs[] >>
 
 
  ASSUME_TAC wf_arg_full_implied_2 >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`(MAP FST (xdl : (string # d) list))`,
-    `(MAP (λ(e_,tau_,d_,b_). b_) (e_tau_d_b_list : (e # tau # d # bool) list))`,
-    `(MAP (λ(e_,tau_,d_,b_). e_) (e_tau_d_b_list : (e # tau # d # bool) list))`,
-    `(MAP (λ(e_,tau_,d_,b_). d_) (e_tau_d_b_list : (e # tau # d # bool) list))`,
-    `(MAP (λ(e_,tau_,d_,b_). tau_) (e_tau_d_b_list : (e # tau # d # bool) list))`,
+    `(MAP (λ(e_,tau_,x_,d_,b_). b_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
+    `(MAP (λ(e_,tau_,x_,d_,b_). e_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
+    `(MAP (λ(e_,tau_,x_,d_,b_). d_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
+    `(MAP (λ(e_,tau_,x_,d_,b_). tau_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
     `t_scope_list_g`,
     `gscope`, `t_scope_list`, `scopest`, `(order,f',delta_g,delta_b,delta_x,delta_t)`])) >>
   gvs[] >> 
@@ -1997,18 +1973,18 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
  ASSUME_TAC copyin_eq_rw >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`(MAP FST (xdl : (string # d) list))`,
-    `(MAP (λ(e_,tau_,d_,b_). d_) (e_tau_d_b_list : (e # tau # d # bool) list))`,
-    `(MAP (λ(e_,tau_,d_,b_). e_) (e_tau_d_b_list : (e # tau # d # bool) list))`,
+    `(MAP (λ(e_,tau_,x_,d_,b_). d_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
+    `(MAP (λ(e_,tau_,x_,d_,b_). e_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
     `gscope`,  `scopest`, `scope`])) >>
     gvs[] >> 
     gvs[] >>
 
- Q.EXISTS_TAC `THE(copyin (MAP FST xdl) (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
-                (MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list) gscope scopest)` >>
+ Q.EXISTS_TAC `THE(copyin (MAP FST xdl) (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
+                (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) gscope scopest)` >>
  gvs[] >>
 
- Cases_on `copyin (MAP FST xdl) (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
-              (MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list) gscope scopest` >| [
+ Cases_on ` copyin (MAP FST xdl) (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
+          (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) gscope scopest` >| [
 	  
    IMP_RES_TAC wf_arg_list_NONE2 >>
    gvs[] >>
@@ -2028,7 +2004,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`c0`, `c1`, `c2`, `c3`, `c4`, `c5`, `order`, `t_scope_list_g`,
    `delta_g`, `delta_b`, `delta_x`,
-   `(MAP (λ(e_,tau_,d_,b_).(tau_,d_)) (e_tau_d_b_list : (e # tau # d # bool) list))`,
+   `(MAP (λ(e_,tau_,x_,d_,b_).(tau_,x_,d_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
    `tau'`, `f`, ‘delta_t’, ‘Prs_n’])) >> gvs[] >>
 
 
@@ -2041,18 +2017,16 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
  fs[prog_exp_list_def] >>
  
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`EL i (MAP (λ(e_,tau_,d_,b_). e_)
-   (e_tau_d_b_list : (e # tau # d # bool) list))`])) >> gvs[] >>
+   [`EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`])) >> gvs[] >>
 
- `MEM (EL i (MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list))
-            (MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list)` by fs[EL_MEM] >>
+ `MEM (EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list ))
+            (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list )` by fs[EL_MEM] >>
  gvs[] >>
  fs[prog_exp_def] >>  
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, `t_scope_list_g`,
-   `(t_tau (EL i (MAP (λ(e_,tau_,d_,b_). tau_)
-   (e_tau_d_b_list : (e # tau # d # bool) list))))`,
-   `(EL i (MAP (λ(e_,tau_,d_,b_). b_) (e_tau_d_b_list : (e # tau # d # bool) list)))`,
+   `(t_tau (EL i (MAP (λ(e_,tau_,x_,d_,b_). tau_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))))`,
+   `(EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list)))`,
    `(c0,c1,c2,c3,c4,c5)`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f'`, ‘Prs_n’])) >> gvs[] >>
  
  IMP_RES_TAC unred_arg_index_result >| [
@@ -2060,8 +2034,8 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
    gvs[] >>
 
    Q.EXISTS_TAC `framel` >>
-   Q.EXISTS_TAC `ZIP ( MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list ,
-     	         ZIP (LUPDATE e' i (MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list) ,
+   Q.EXISTS_TAC `ZIP ( MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list ,
+     	         ZIP (LUPDATE e' i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) ,
 		 ZIP (MAP FST xdl,MAP SND xdl)))` >>
 
    Q.EXISTS_TAC `i` >>
@@ -2075,8 +2049,8 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
      ,
      rfs[map_quad_zip112] >>
      fs[GSYM UNZIP_MAP] >>
-     `MAP SND (MAP (λ(e_,tau_,d_,b_). (tau_,d_)) e_tau_d_b_list) =
-                     (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)` by fs[MAP_snd_quad_12_1] >>
+     `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
+                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by cheat >>
      gvs[]
      ,
      rfs[map_quad_zip112] 
@@ -2092,8 +2066,8 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
     gvs[] >>
 
     Q.EXISTS_TAC `framel` >>
-    Q.EXISTS_TAC `ZIP ( MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list ,
-       	          ZIP (LUPDATE e' i (MAP (λ(e_,tau_,d_,b_). e_) e_tau_d_b_list) ,
+    Q.EXISTS_TAC `ZIP ( MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list ,
+       	          ZIP (LUPDATE e' i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) ,
 		  ZIP (MAP FST xdl,MAP SND xdl)))` >>
 		  
     Q.EXISTS_TAC `i` >>
@@ -2107,8 +2081,8 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)
       ,
       rfs[map_quad_zip112] >>
       fs[GSYM UNZIP_MAP] >>
-      `MAP SND (MAP (λ(e_,tau_,d_,b_). (tau_,d_)) e_tau_d_b_list) =
-                      (MAP (λ(e_,tau_,d_,b_). d_) e_tau_d_b_list)` by fs[MAP_snd_quad_12_1] >>
+      `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
+                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by cheat >>
       gvs[]
       ,
       rfs[map_quad_zip112] 

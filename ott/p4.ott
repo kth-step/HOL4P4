@@ -531,9 +531,9 @@ taul :: taul_ ::=
 
 Ftau :: Ftau ::=
 {{ com function names types }}
-{{ hol ( ( tau # d ) list # tau) }}
-| [ tau1 d1 , .. , taun dn ] tau :: M :: list
-  {{ hol ([[tau1 d1 .. taun dn]] [[tau]]) }}
+{{ hol ( ( tau # x # d ) list # tau) }}
+| [ tau1 x1 d1 , .. , taun xn dn ] tau :: M :: list
+  {{ hol ([[tau1 x1 d1 .. taun xn dn]] [[tau]]) }}
 
 
 embed
@@ -544,7 +544,7 @@ grammar
 
 
 t_scope {{ tex \psi }} :: t_scope_ ::=
-{{ hol ((varn, tau) alist) }}
+{{ hol ((varn, ( tau # lval option)) alist) }}
 {{ com typing scope }}
 | empty :: M :: empty
   {{ com empty typing scope }}

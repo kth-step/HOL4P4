@@ -1827,6 +1827,19 @@ EVAL_TAC
 QED
 
 
+Theorem map_rw5_3:
+!l . MAP (\(a,b,c,d,e). (a,b,c)) l = ZIP (MAP (\(a,b,c,d,e). a) l, ZIP ( MAP (\(a,b,c,d,e). b) l, MAP (\(a,b,c,d,e). c) l)) /\
+     MAP (\(a,b,c,d,e). (b,c,d)) l = ZIP (MAP (\(a,b,c,d,e). b) l, ZIP ( MAP (\(a,b,c,d,e). c) l, MAP (\(a,b,c,d,e). d) l)) /\
+     MAP (\(a,b,c,d,e). (c,d,e)) l = ZIP (MAP (\(a,b,c,d,e). c) l, ZIP ( MAP (\(a,b,c,d,e). d) l, MAP (\(a,b,c,d,e). e) l)) 
+Proof
+REPEAT CONJ_TAC >>
+Induct >>
+REPEAT STRIP_TAC >>
+fs[GSYM UNZIP_MAP] >>
+PairCases_on `h` >>
+EVAL_TAC
+QED
+
 Theorem map_simp_1: 
 ! l1 l2.
           MAP SND (MAP (λ(e_,tau_,d_,b_). (tau_,d_)) l1 ) =
@@ -1911,6 +1924,72 @@ Induct_on `l''` >>
 rw[lambda_unzip_quad] >>
 fs[ELIM_UNCURRY]
 QED
+
+
+Theorem map_distrub_penta:
+! l1 l2 l3 l4 l5.
+(LENGTH l1 = LENGTH l2 /\
+LENGTH l2 = LENGTH l3 /\
+LENGTH l3 = LENGTH l4 /\
+LENGTH l4 = LENGTH l5) ==>
+((MAP (λ(a,b,c,d,e). a) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l1 /\
+ (MAP (λ(a,b,c,d,e). b) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l2 /\
+ (MAP (λ(a,b,c,d,e). c) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l3 /\
+ (MAP (λ(a,b,c,d,e). d) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l4 /\
+ (MAP (λ(a,b,c,d,e). e) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = l5 ∧
+ (MAP (λ(a,b,c,d,e). (b,c,d)) (ZIP (l1,ZIP (l2,ZIP (l3,ZIP (l4,l5)))))) = ZIP(l2,ZIP(l3,l4))    
+) 
+Proof
+Induct_on `l1` >>
+Induct_on `l2` >>
+Induct_on `l3` >>
+Induct_on `l4` >>
+Induct_on `l5` >>
+
+REPEAT STRIP_TAC >>
+gvs[]
+QED
+
+
+
+Theorem ZIP_tri_id1:
+(∀l . l = ZIP (MAP (λx. FST x) l, ZIP (MAP (λx. FST (SND x)) l,MAP (λx. SND (SND x)) l)))
+Proof          
+Induct >>
+gvs[] 
+QED
+
+
+Theorem ZIP_tri_id2:        
+∀l.  l = ZIP (MAP (λ(a,b,c). a) l, ZIP (MAP (λ(a,b,c). b) l,MAP (λ(a,b,c). c) l))
+Proof          
+Induct >>
+gvs[] >>
+REPEAT STRIP_TAC >>
+PairCases_on ‘h’ >> gvs[]
+QED
+
+
+
+Theorem ZIP_tri_sep_ind:
+∀ l al bl cl a b c .
+LENGTH al = LENGTH bl ∧ LENGTH bl = LENGTH cl ∧  
+(a,b,c)::l =  (ZIP (al,ZIP (bl,cl))) ⇒
+(a::MAP (λ(al_,bl_,cl_). al_) l) = al ∧
+(b::MAP (λ(al_,bl_,cl_). bl_) l) = bl ∧
+(c::MAP (λ(al_,bl_,cl_). cl_) l) = cl 
+Proof
+Induct_on ‘al’ >>
+Induct_on ‘bl’ >>
+Induct_on ‘cl’ >>
+REPEAT STRIP_TAC >>
+gvs[] >>
+gvs[map_distrub]
+QED
+
+
+
+
 
 
 
