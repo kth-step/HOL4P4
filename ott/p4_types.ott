@@ -788,6 +788,54 @@ args_t_same (tl:tau list) (t_scope_list:t_scope_list) =
 `;
 
 
+
+
+(* given a list of strings, mk_varn makes a list of variable names for that list *)
+
+val mk_varn_def = Define `
+mk_varn (xl:string list) =
+    MAP (\x. varn_name x ) xl
+`;
+
+
+
+val extract_elem_tri_def = Define ‘
+   extract_elem_tri l =
+     (MAP (λ(a,b,c). a) l, MAP (λ(a,b,c). b) l , MAP (λ(a,b,c). c) l )                                        
+’;
+
+
+val out_lval_consistent_def = Define ‘
+   out_lval_consistent (lol:lval option list) (dl:d list) =
+   LIST_REL (λ lop d. lop ≠ NONE ⇔ is_d_out d)  lol dl             
+’;
+
+
+val sig_tscope_consistent_def = Define ‘
+    sig_tscope_consistent (f:funn) delta_g delta_b delta_x (t_scope_list:t_scope_list) =
+
+    (∀txdl tau xl tl dl varnl tl' lol.
+      t_lookup_funn f delta_g delta_b delta_x = SOME (txdl,tau) ⇒
+                
+      extract_elem_tri txdl = (tl,xl,dl) ∧
+      extract_elem_tri (LAST t_scope_list) = (varnl,tl',lol) ⇒
+      
+      mk_varn xl = varnl ∧ tl = tl' ∧ out_lval_consistent lol dl)
+’;
+
+
+
+val t_scopes_consistent_def = Define ‘
+    t_scopes_consistent T_e (t_scope_list_caller:t_scope_list) (t_scope_list_g: t_scope_list_g) (t_scope_list_called: t_scope_list) =
+    ∀ x t lop. ALOOKUP (LAST t_scope_list_called) x = SOME (t, SOME lop) ⇒
+                       lval_typ (t_scope_list_g,t_scope_list_caller) T_e lop (t_tau t)
+’;
+
+
+
+
+
+
 }}
 
 
@@ -823,6 +871,7 @@ by
 
 
 [ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
+sig_tscope_consistent funn delta_g delta_b delta_x t_scope_list
 args_t_same [ tau1 , .. , taun ]  t_scope_list
 star_not_in_sl scope_list
 parseError_in_gs t_scope_list_g [ t_scope_list ]
@@ -854,16 +903,6 @@ val end_stmt_is_ret_def = Define `
   (end_stmt_is_ret (stmt_block dl stmt) = end_stmt_is_ret (stmt)) /\
   (end_stmt_is_ret (stmt_seq stmt1 stmt2) = (end_stmt_is_ret (stmt1) \/ end_stmt_is_ret (stmt2)) ) 
 `;
-
-
-(* given a list of strings, mk_varn makes a list of variable names for that list *)
-
-val mk_varn_def = Define `
-mk_varn (xl:string list) =
-    MAP (\x. varn_name x ) xl
-`;
-
-
 
 
 (* given a list of (tau,string,dir) list and a list of lval, return a typing scope *)
@@ -917,10 +956,9 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    (SOME (txdl,tau) = t_lookup_funn f delta_g [] [] /\ 
      find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
    (same_dir_x xdl txdl) /\
-    (LENGTH lol = LENGTH txdl) /\
    not_parseError_str xdl /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
-   (t_scope' = mk_tscope txdl lol) /\ 
+   (t_scope' = mk_tscope txdl lol) /\
    ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,[],delta_x,[])) Prs_n (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt))
@@ -943,7 +981,7 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
    (same_dir_x xdl txdl) /\
    not_parseError_str xdl /\ 
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
-   (t_scope' = mk_tscope txdl lol ) /\ 
+   (t_scope' = mk_tscope txdl lol ) /\
    ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,delta_t)) Prs_n (stmt) ) /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    ( end_stmt_is_ret stmt)
@@ -980,7 +1018,7 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_
     not_parseError_str xdl /\
    ( ALL_DISTINCT (MAP FST xdl) ) /\
    (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
-   (t_scope' = mk_tscope txdl lol ) /\ 
+   (t_scope' = mk_tscope txdl lol ) /\
 	 SOME (a',scope_list', v) = IoE (a,g_scope_list, local_scopes ) /\
 	 v_typ v (t_tau tau) F /\
    star_not_in_sl (scope_list') /\

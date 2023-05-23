@@ -679,8 +679,8 @@ formula :: formula_ ::=
   {{ hol ( type_state_tsll [[scope_list1 .. scope_listn]] [[t_scope_list1 .. t_scope_listm]] )  }}
 | t_scope_list_g' = t_scopes_to_pass ( funn , delta_g , delta_b , t_scope_list_g ) :: :: t_scopes_to_pass
   {{ hol ( SOME [[t_scope_list_g']] = t_scopes_to_pass [[funn]] [[delta_g]] [[delta_b]] [[t_scope_list_g]] ) }}
-
-
+| sig_tscope_consistent funn delta_g delta_b delta_x t_scope_list :: :: sig_tscope_consistent
+  {{ hol sig_tscope_consistent [[funn]] [[delta_g]] [[delta_b]] [[delta_x]] [[t_scope_list]]  }}
 | args_t_same [ tau1 , .. , taun ]  t_scope_list :: :: args_t_same
   {{ hol (args_t_same  ([[tau1 .. taun]]) t_scope_list ) }}
 | length_greq ( t_scope1 , .. , t_scopem ) ( stmt1 , .. , stmtn ) :: :: length_greq
@@ -1643,6 +1643,9 @@ val assign_def = Define `
      | _ => NONE ) /\
   (assign ss v lval_null =
     SOME ss
+  ) /\ (
+  assign ss v (lval_paren lval) = 
+    assign ss v lval
   )
 `;
 
@@ -1806,7 +1809,7 @@ val args_of_pbl_def = Define `
 
 val copyout_def = Define `
   copyout xlist dlist gsl ss ss_curr =
-    case update_return_frame xlist dlist (ss++gsl) (LAST ss_curr) of
+    case update_return_frame xlist dlist (ss++gsl) [LAST ss_curr] of
     |(SOME updated_return_ss =>
       case (LENGTH updated_return_ss) of
       | 0 => NONE
@@ -2519,17 +2522,20 @@ by
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ frame_list'' , status ) -f-> ( ascope' , g_scope_list''' , frame_list' ++ frame_list'' , status' )
 
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
-% TODO change tbl_map here to e mpty
+
+
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
   b_func_map' = map_to_pass funn b_func_map
   tbl_map' = tbl_to_pass funn b_func_map tbl_map
   ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
-  g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
-   g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' )
-  ( g_scope_list''''' , scope_list''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'''' , scope_list' , scope_list'' )
+  g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
+  g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' ) 
+  g_scope_list''''' = scopes_to_pass ( funn' , func_map , b_func_map , g_scope_list'''' )
+  ( g_scope_list'''''' , scope_list''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list''''' , scope_list' , scope_list'' )
+  g_scope_list''''''' = scopes_to_retrieve ( funn' , func_map , b_func_map , g_scope_list'''' , g_scope_list'''''' )
   ----------------------------------- :: comp2
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f-> ( ascope' , g_scope_list''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f->  ( ascope' , g_scope_list''''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
