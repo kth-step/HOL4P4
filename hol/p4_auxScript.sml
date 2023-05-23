@@ -958,12 +958,12 @@ QED
 
 
 (* Mapping, EL and MEM thms*)
-val map_snd_EQ =
-prove(``
-!l . MAP (λx. SND x) l = MAP SND l``,
+Theorem map_snd_EQ:
+!l . MAP (λx. SND x) l = MAP SND l
+Proof
 Induct >>
 RW_TAC list_ss [MAP]
-);
+QED
 
 Theorem map_fst_EQ:
 !l . MAP (λx. FST x) l = MAP FST l

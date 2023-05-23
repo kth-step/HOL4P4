@@ -787,19 +787,11 @@ gvs[]
 
 val e_T_get_lval = prove ( ``
 ! e gtsl tsl gscope scopest T_e tau .
- type_scopes_list gscope gtsl  /\
- type_scopes_list scopest tsl  /\
 e_typ (gtsl,tsl) T_e e (tau) T ==>
 ? v . get_lval_of_e e = SOME (v) ``,
 
 REPEAT STRIP_TAC >>
-PairCases_on `T_e` >>
-ASSUME_TAC e_lval_tlval >>
-
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-         `e`, `T`, `tsl`, `gtsl`, `T_e0`,`T_e1`,`T_e2`,`T_e3`,`T_e4`,`T_e5`,
-	 ` tau`, `gscope`, `scopest`])) >>
-gvs[] >>
+IMP_RES_TAC e_lval_tlval >>
 fs[is_e_lval_def] >>
 Cases_on `get_lval_of_e e` >> gvs[]
 );
@@ -1193,46 +1185,6 @@ REPEAT STRIP_TAC >|[
 );
 
 
-
-
-(*TODO: same proof as above, should be addded together *)
-val out_is_lval_normalisation = prove ( ``
-! dl bl d b .
-out_is_lval (d::dl) (b::bl) <=>
-(out_is_lval (dl) (bl) /\ (is_d_out (d) ⇒ b)) ``,
-
-gvs[out_is_lval_def] >>
-REPEAT STRIP_TAC >>
-EQ_TAC >>
-REPEAT STRIP_TAC >| [
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`i+1`])) >>
- gvs[] >>
- fs[EL_CONS] >>
- fs[PRE_SUB1]
- ,
-  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`0`])) >>
- fs[] 
- ,
- fs[Once EL_compute] >>
- CASE_TAC >>
- gvs[EL_CONS] >>
-
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`i-1`])) >>
-
- gvs[] >>
- Cases_on `i ≤ 1` >| [
-  `i=1` by fs[] >> rw[] >>
-  rfs[]
- ,
-  fs[PRE_SUB1] >>
-
-  rfs[GSYM EL] >>
-  gvs[ADD1]
-]
-]);
 
 
 
