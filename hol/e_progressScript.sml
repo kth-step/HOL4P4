@@ -1472,6 +1472,19 @@ gvs[]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+        
+
 Theorem PROG_e:
 ! (ty:'a itself) .
 (!e. prog_exp e ty) /\
@@ -1903,7 +1916,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
  fs[GSYM UNZIP_MAP] >>
 
  `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
-          (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by cheat >>
+          (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by gvs[MAP_MAP_txd] >>
  gvs[] >> rfs[] >>
 
 
@@ -2002,7 +2015,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
      rfs[map_quad_zip112] >>
      fs[GSYM UNZIP_MAP] >>
      `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
-                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by cheat >>
+                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by gvs[MAP_MAP_txd] >>
      gvs[]
      ,
      rfs[map_quad_zip112] 
@@ -2034,7 +2047,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
       rfs[map_quad_zip112] >>
       fs[GSYM UNZIP_MAP] >>
       `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
-                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by cheat >>
+                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by  gvs[MAP_MAP_txd] >>
       gvs[]
       ,
       rfs[map_quad_zip112] 

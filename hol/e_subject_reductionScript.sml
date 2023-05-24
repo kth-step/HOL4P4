@@ -4979,19 +4979,19 @@ gvs[map_fst_EQ]
 );
 
 
-val MAP_FST_3_2 = prove (“
+Theorem MAP_FST_3_2:
 ∀l .
   MAP FST (MAP (λ(e_,x_,d_). (x_,d_)) l) = MAP  (λ(e_,x_,d_). (x_)) l ∧
-  MAP SND (MAP (λ(e_,x_,d_). (x_,d_)) l) = MAP  (λ(e_,x_,d_). (d_)) l ”,
-
+  MAP SND (MAP (λ(e_,x_,d_). (x_,d_)) l) = MAP  (λ(e_,x_,d_). (d_)) l
+Proof  
 Induct >> gvs[] >>
 REPEAT STRIP_TAC >> PairCases_on ‘h’ >> gvs[]
-);
+QED
 
 
         
      
-val MAP_MAP_txd = prove (“
+Theorem MAP_MAP_txd:
 ∀l.
 MAP (λ(t,x,d). t) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) l) =
 MAP (λ(e_,tau_,x_,d_,b_). (tau_)) l  ∧
@@ -5001,18 +5001,17 @@ MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) l) =
 MAP (λ(e_,tau_,x_,d_,b_). (d_)) l ∧
 MAP FST          (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) l) =
 MAP (λ(e_,tau_,x_,d_,b_). (tau_)) l
-
-                        ”,
-
+Proof
 Induct >> gvs[] >>
 REPEAT STRIP_TAC >> PairCases_on ‘h’ >> gvs[]
-);
+QED
 
 
-val MAP_SND_4_2 = prove (“
-∀ l . MAP (λ(e_,e'_,x_,d_). d_) l = MAP SND (MAP (λ(e_,e'_,x_,d_). (x_,d_)) l) ”,
+Theorem MAP_SND_4_2:
+∀ l . MAP (λ(e_,e'_,x_,d_). d_) l = MAP SND (MAP (λ(e_,e'_,x_,d_). (x_,d_)) l)
+Proof
 Induct_on ‘l’ >> gvs[] >> REPEAT STRIP_TAC >> PairCases_on ‘h’ >> gvs[]
-);
+QED
 
 
 

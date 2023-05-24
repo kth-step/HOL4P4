@@ -735,6 +735,18 @@ gvs[similar_def]
 
 
 
+val map_lemma_local_tmp = prove (“
+∀ txdl lol .
+MAP (λx. SND (SND x))
+          (ZIP
+             (mk_varn (MAP (λx. FST (SND x)) txdl),
+              ZIP (MAP FST txdl,MAP (λtxd. lol) txdl))) =
+        MAP (λtxd. lol) txdl ”,
+
+Induct >>
+REPEAT STRIP_TAC >>
+gvs[mk_varn_def]
+);
 
 
 
@@ -743,7 +755,8 @@ gvs[similar_def]
 
 
 
-                                
+
+
 
         
 
@@ -785,7 +798,7 @@ STRIP_TAC  >| [
  gvs[] >>
       
                                     
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’, ‘lol’])) >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’, ‘MAP (\txd. lol ) (txdl : (tau # string # d) list)’])) >>
  gvs[] >>
 
  Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] >>
@@ -817,19 +830,17 @@ STRIP_TAC  >| [
  srw_tac [] [] >>
      
  (* we know that ts contains the same types as the input*)
- subgoal ‘  [tsc] = [ZIP (MAP FST tsc ,ZIP(MAP (λ(t,x,d). t)  txdl, lol ))]’ >-
+ subgoal ‘  [tsc] = [ZIP (MAP FST tsc ,ZIP(MAP (λ(t,x,d). t)  txdl, MAP (λtxd. lol) txdl ))]’ >-
   ( gvs[ELIM_UNCURRY, map_fst_EQ ] >>
                       
     ASSUME_TAC LOL_ext_sc_same_as_input >>
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘sc’, ‘outsc’,
                                                 ‘ZIP (mk_varn (MAP (λx. FST (SND x)) (txdl : (tau # string # d) list)),
-                                                               ZIP (MAP FST (txdl : (tau # string # d) list),lol))’,
-                                                ‘tsc’, ‘lol’])) >>
+                                                      ZIP (MAP FST (txdl : (tau # string # d) list),
+                                                           MAP (λtxd. lol) txdl ))’,
+                                                ‘tsc’, ‘MAP (λtxd. lol) (txdl : (tau # string # d) list)’])) >>
    gvs[] >>
-  ‘MAP (λx. SND (SND x))
-          (ZIP (mk_varn (MAP (λx. FST (SND x)) txdl),ZIP (MAP FST txdl,lol))) =
-        lol’ by cheat >> 
-    METIS_TAC [ZIP_tri_id1]    
+   METIS_TAC [ZIP_tri_id1, map_lemma_local_tmp ]    
   ) >>
                  
  IMP_RES_TAC typ_ext_out_scope_lemma >>
@@ -854,7 +865,7 @@ STRIP_TAC  >| [
  gvs[] >>
       
                                     
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’, ‘lol’])) >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’, ‘MAP (\txd. lol ) (txdl : (tau # string # d) list)’])) >>
  gvs[] >>
  Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] >>
 
@@ -882,19 +893,17 @@ STRIP_TAC  >| [
   srw_tac [] [] >>
 
  (* we know that ts contains the same types as the input*)
- subgoal ‘  [tsc] = [ZIP (MAP FST tsc ,ZIP(MAP (λ(t,x,d). t)  txdl, lol ))]’ >-
+ subgoal ‘  [tsc] = [ZIP (MAP FST tsc ,ZIP(MAP (λ(t,x,d). t)  txdl, MAP (λtxd. lol) txdl ))]’ >-
   ( gvs[ELIM_UNCURRY, map_fst_EQ ] >>
                       
     ASSUME_TAC LOL_ext_sc_same_as_input >>
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘sc’, ‘outsc’,
                                                 ‘ZIP (mk_varn (MAP (λx. FST (SND x)) (txdl : (tau # string # d) list)),
-                                                               ZIP (MAP FST (txdl : (tau # string # d) list),lol))’,
-                                                ‘tsc’, ‘lol’])) >>
+                                                      ZIP (MAP FST (txdl : (tau # string # d) list),
+                                                           MAP (λtxd. lol) txdl))’,
+                                                ‘tsc’, ‘MAP (λtxd. lol) (txdl : (tau # string # d) list)’])) >>
    gvs[] >>
-  ‘MAP (λx. SND (SND x))
-          (ZIP (mk_varn (MAP (λx. FST (SND x)) txdl),ZIP (MAP FST txdl,lol))) =
-        lol’ by cheat >> 
-    METIS_TAC [ZIP_tri_id1]    
+   METIS_TAC [ZIP_tri_id1, map_lemma_local_tmp ]     
   ) >>
                  
  IMP_RES_TAC typ_ext_out_scope_lemma >>
@@ -5222,7 +5231,7 @@ gvs[Once EL_compute]
 );
 
 
-val scopes_to_ret_is_wt = prove (“    
+Theorem scopes_to_ret_is_wt:  
 ∀ funn delta_g delta_b func_map b_func_map tslg passed_gscope  gscope passed_tslg ret_gscope .
   dom_b_eq delta_b b_func_map ∧
   dom_g_eq delta_g func_map ∧
@@ -5232,7 +5241,8 @@ val scopes_to_ret_is_wt = prove (“
    type_scopes_list passed_gscope passed_tslg ∧
    type_scopes_list gscope tslg ∧
    SOME ret_gscope = scopes_to_retrieve funn func_map b_func_map gscope passed_gscope ==>
-   type_scopes_list ret_gscope tslg”,
+   type_scopes_list ret_gscope tslg
+Proof   
 
 gvs[t_scopes_to_pass_def, scopes_to_retrieve_def] >>
 REPEAT STRIP_TAC >>
@@ -5244,7 +5254,7 @@ gvs[quantHeuristicsTheory.LIST_LENGTH_2] >>
 
 simp_tac list_ss [Once type_scopes_list_normalize] >>
 IMP_RES_TAC type_scopes_list_normalize >> gvs[]           
-);
+QED
 
 
 
@@ -6348,7 +6358,7 @@ gvs[Once stmt_red_cases] >| [
 
 
       
-val status_ret_in_stmt_typed = prove (“
+Theorem status_ret_in_stmt_typed:
 ∀stmt stmtl ascope ascope' gscope gscope' scopest scopest' framel status
        status' t_scope_list t_scope_list_g order delta_g delta_b delta_t
        delta_x f Prs_n c.
@@ -6358,17 +6368,17 @@ val status_ret_in_stmt_typed = prove (“
      stmt_red c
        (ascope,gscope,[(f,[stmt],scopest)],status)
        (ascope',gscope',framel ⧺ [(f,stmtl,scopest')],status') ⇒
-     ret_status_typed status' (order,f,delta_g,delta_b,delta_x,delta_t)”,
-
+     ret_status_typed status' (order,f,delta_g,delta_b,delta_x,delta_t)
+Proof
 gvs[ret_status_typed_def] >>
 REPEAT STRIP_TAC >>
 gvs[] >>
 IMP_RES_TAC status_ret_in_stmt_typed_verbose
-);
+QED
 
 
 
-val status_ret_in_stmtl_typed_verbose = prove (“
+Theorem status_ret_in_stmtl_typed_verbose:
 
 ∀stmtl stmtl' ascope ascope' gscope gscope' scopest scopest' framel
         t_scope_list t_scope_list_g order delta_g delta_b delta_t
@@ -6380,7 +6390,8 @@ frame_typ (t_scope_list_g,t_scope_list)
 stmt_red c (ascope,gscope,[(f,stmtl,scopest)],status_running)
           (ascope',gscope',framel ⧺ [(f,stmtl',scopest')],status_returnv v) ∧
 SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ⇒
-        v_typ v (t_tau tau) F ”,
+        v_typ v (t_tau tau) F 
+Proof        
 Induct >>
 REPEAT STRIP_TAC >>
 gvs[Once stmt_red_cases] >| [
@@ -6434,7 +6445,7 @@ gvs[Once stmt_red_cases] >| [
   ,                                     
   IMP_RES_TAC stmt_case_ext_stat_typed                                               
   ]
-);
+QED
 
 
 
@@ -6491,13 +6502,14 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])
 
 
 
-val assign_in_global_typed_output = prove (
-“∀ tslg gscl gscl' f tau v.
+Theorem assign_in_global_typed_output:
+∀ tslg gscl gscl' f tau v.
 type_scopes_list gscl tslg ∧
 v_typ v (t_tau tau) F ∧                
 SOME tau = find_star_in_globals tslg (varn_star f) ∧
 SOME gscl' = assign gscl v (lval_varname (varn_star f)) ⇒
-type_scopes_list gscl' tslg ”,
+type_scopes_list gscl' tslg
+Proof
 
 REPEAT STRIP_TAC >>
 gvs[find_star_in_globals_def] >>
@@ -6533,7 +6545,7 @@ CASE_TAC >> gvs[]  >| [
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘(x'0,x'1)’, ‘r’])) >> gvs[]
       
 ]
-);
+QED
 
 
 
@@ -8011,7 +8023,6 @@ METIS_TAC[co_typed_verbose_final]) >>
 
   
  gvs[GSYM ZIP_tri_id2] >>
-(* ‘type_frame_tsl (scope_list'³') (HD t)’ by cheat >>  (* easy to prove *) *)
 
 drule WT_state_of_copyout >> gvs[] >> REPEAT STRIP_TAC >> RES_TAC
 
@@ -8023,6 +8034,11 @@ QED
 
 
 
+
+
+
+
+        
                                         
         
         
