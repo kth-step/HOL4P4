@@ -952,7 +952,7 @@ rw [notret_def]
          (*determinism proof frame list*)
 (**************************************************)
 (**************************************************)
-(*
+
 val P4_frame_det =
 prove ( `` ! frame ty. det_frame frame ty ``,
 Cases_on `frame` >>
@@ -969,8 +969,8 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
   FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
   rw[] >>
   Cases_on ‘map_to_pass q b_func_map’ >> gvs[] >>    
- Cases_on `scopes_to_pass q func_map b_func_map g_scope_list` >>
-  Cases_on ‘table_to_pass [] tbl_map’ >> gvs[] >>        
+ Cases_on ‘scopes_to_pass q func_map b_func_map g_scope_list ’>> gvs[] >>
+  Cases_on ‘tbl_to_pass q b_func_map tbl_map’ >> gvs[] >>        
   rw[] >>
   ASSUME_TAC P4_stmtl_det >>
   fs [det_stmtl_def]  >>
@@ -1003,108 +1003,91 @@ Cases_on `t` >| [
   RES_TAC
 ,
 
-	 (*multiple frame  h::h'::t' *)
+  (*multiple frame  h::h'::t' *)
   FULL_SIMP_TAC (srw_ss()) [det_framel_def] >>
   REPEAT STRIP_TAC >>
   FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
   rw[]  >>          
-  Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >| [
-       (*comp1-comp1*)
-    rw[] >>
-    Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list`>>
-    rw[] >>
-    
+  Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >>
+  Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >>
+  Cases_on  ‘tbl_to_pass funn b_func_map tbl_map’ >> gvs[] >>
+  Cases_on  ‘scopes_to_pass funn func_map b_func_map g_scope_list’>> gvs[] >| [
+    (*************)
+    (*comp1-comp1*)
+    (*************) 
+
+    gvs[] >>   
     ASSUME_TAC P4_stmtl_det >>
     fs [det_stmtl_def]  >>
-
-    Cases_on ‘table_to_pass (h'::t') tbl_map’ >>
-    gvs[] >>
-       
-    RES_TAC >>    rw[] >>
+    RES_TAC >> rw[] >>
     rfs[same_state_def] >>
+    ‘ g_scope_list''' =  g_scope_list'⁵'’ by METIS_TAC [SOME_EL,SOME_11]
+    ,
+    
+    (*************)
+    (*comp1-comp2*)
+    (*************)       
+    
+    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
+    ASSUME_TAC P4_stmt_det >>
+    fs [det_stmt_def, same_state_def]  >>
+    RES_TAC >>
+    rfs[notret_def] >>
+    TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
+    rw[] >>
+    rfs[notret_def]>>
+    IMP_RES_TAC lemma_v_red_forall >>
+
+    gvs[] >>
+    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
+
+    RES_TAC >> gvs[] >>
+    gvs[notret_def]
+    ,
+    
+    (*************)
+    (*comp2-comp1*)
+    (*************)       
+
+
+    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
+    ASSUME_TAC P4_stmt_det >>
+    fs [det_stmt_def, same_state_def]  >>
+    RES_TAC >>
+    rfs[notret_def] >>
+    TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
+    rw[] >>
+    rfs[notret_def]>>
+    IMP_RES_TAC lemma_v_red_forall >>
+
+    gvs[] >>
+    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
+
+    RES_TAC >> gvs[] >>
+    gvs[notret_def]
+
+    ,
         
-    ` g_scope_list''' =  g_scope_list'⁵'` by METIS_TAC [SOME_EL,SOME_11]
-       ,
-
-       (*************)
-       (*comp1-comp2*)
-       (*************)       
-
-    fs[]>>rw[] >>
-    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>
-    Cases_on ‘table_to_pass ((funn'',stmt_stack'',scope_list'')::t') tbl_map’ >> gvs[] >>
-
-
-              
-    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
-    rfs [notret_def]>>
-    ASSUME_TAC P4_stmt_det >>
-    fs [det_stmt_def, same_state_def]  >>
+    (*************)
+    (*comp2-comp2*)
+    (*************)
+         
+    ASSUME_TAC P4_stmtl_det >>
+    fs [det_stmtl_def]  >>
     RES_TAC >>
-    rfs[notret_def] >>
-    TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
-    rw[] >>
-    rfs[notret_def]>>
-       IMP_RES_TAC lemma_v_red_forall >>
-
-     gvs[clause_name_def]
-
-     IMP_RES_TAC 
-
-                
-     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
-     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
-     fs[notret_def]
-
-       ,
-
-       (*************)
-       (*comp2-comp1*)
-       (*************)       
-
-
-    fs[]>>rw[] >>
-    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
-    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
-    rfs [notret_def]>>
-    ASSUME_TAC P4_stmt_det >>
-    fs [det_stmt_def, same_state_def]  >>
-    RES_TAC >>
-    rfs[notret_def] >>
-    TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
-    rw[] >>
-    rfs[notret_def]>>
-       IMP_RES_TAC lemma_v_red_forall >>
-
-     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
-     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
-     fs[notret_def]
-
-       ,
-       (*************)
-       (*comp2-comp2*)
-       (*************)
-
-       rw[] >>
-       Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> rw[]>>
-       Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list` >> fs[] >> rw[] >>      
-       ASSUME_TAC P4_stmtl_det >>
-       fs [det_stmtl_def]  >>
-       RES_TAC >>
-       fs [same_state_def] >> 
-       gvs[] >>
-       Cases_on `assign g_scope_list'³' v (lval_varname (varn_star funn))`  >> fs[]   >> rw[] >> 
-       Cases_on `scopes_to_retrieve funn func_map b_func_map g_scope_list
-          g_scope_list'⁴'` >> rw[] >>
-       Cases_on `copyout (MAP (λ(x_,d_). x_) x_d_list) (MAP (λ(x_,d_). d_) x_d_list)
-          g_scope_list'⁶' scope_list' scope_list''`>>   
-       fs[] >> rw[]
+    fs [same_state_def] >> 
+    gvs[] >>
+          
+    Cases_on ‘assign g_scope_list'³' v (lval_varname (varn_star funn))’  >> gvs[] >>
+    Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'⁴'’ >> gvs[] >>
+    Cases_on ‘lookup_funn_sig_body funn func_map b_func_map ext_map’ >> gvs[] >>
+    Cases_on ‘scopes_to_pass funn' func_map b_func_map g_scope_list'⁵'’ >> gvs[] >>         
+    Cases_on ‘copyout (MAP (λ(x_,d_). x_) x_d_list) (MAP (λ(x_,d_). d_) x_d_list) g_scope_list'⁶' scope_list' scope_list''’>>  gvs[] >>
+    Cases_on ‘scopes_to_retrieve funn' func_map b_func_map g_scope_list'⁵' g_scope_list'⁸'’ >> gvs[]         
   ]
-  
 ]]
 QED
 
-*)
 
 
 val _ = export_theory ();
