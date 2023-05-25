@@ -15,7 +15,7 @@ open ottTheory;
 open pairTheory;
 open rich_listTheory;
 
-val _ = new_theory "deter";
+val _ = new_theory "p4_deter";
 
 (*Tactics*)
 

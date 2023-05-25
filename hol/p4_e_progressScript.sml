@@ -19,7 +19,7 @@ open arithmeticTheory;
 open alistTheory;
 open numeralTheory;
 open intLib;
-open e_subject_reductionTheory;
+open p4_e_subject_reductionTheory;
 
 
 fun OPEN_EXP_RED_TAC exp_term =
@@ -35,7 +35,7 @@ fun OPEN_V_TYP_TAC v_term =
 fun OPEN_EXP_TYP_TAC exp_term =
 (Q.PAT_X_ASSUM ` e_typ (t1,t2) t ^exp_term ta bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_typ_cases] thm)))
 
-val _ = new_theory "e_progress";
+val _ = new_theory "p4_e_progress";
 
 
 (******    Type progress for expressions  ******)

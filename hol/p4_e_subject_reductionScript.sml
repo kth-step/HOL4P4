@@ -6,7 +6,7 @@ open p4Lib;
 open blastLib bitstringLib;
 open p4Theory;
 open p4_auxTheory;
-open deterTheory;
+open p4_deterTheory;
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -48,7 +48,7 @@ val EXP_GOAL_TYP_IH_TAC = SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
                           fs[];
 
 
-val _ = new_theory "e_subject_reduction";
+val _ = new_theory "p4_e_subject_reduction";
 
 
 
