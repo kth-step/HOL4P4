@@ -111,7 +111,7 @@ funn_list {{ tex f_list }} :: funn_list_ ::=
 | [ funn1 , .. , funnn ] :: :: fl
 
 
-order_elem {{ tex \sqsubset_{f,t} }} :: order_elem_ ::= 
+order_elem {{ tex ft }} :: order_elem_ ::= 
 {{ com the individual elements of the order in the state are fun name or tables names }}
 | funn :: :: f
 | x :: :: t
@@ -121,7 +121,7 @@ embed
 }}
 grammar
 
-order {{ tex \bar { \sqsubset_{f,t} } }} :: order_ ::= 
+order {{ tex \sqsubset }} :: order_ ::= 
 {{ com list of elements that are funn or table names, this should be given }}
 {{ hol (order_elem -> order_elem -> bool ) }}
 
@@ -140,7 +140,7 @@ Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
 {{ hol ( [[Prs_n]] )}}
 
 
-T_e {{ tex T_e }} :: T_e_ ::=
+T_e {{ tex T_{\Delta} }} :: T_e_ ::=
 {{ hol ( order # funn # delta ) }}
 | ( order , funn , delta ) :: M :: tup
 {{ hol ( [[order]] , [[funn]] , [[delta]] ) }}
@@ -178,6 +178,7 @@ star_Err_not_in_ts (s:t_scope) =
   (Err_not_in_ts s /\ star_not_in_ts s)
 `;
 
+(*TODO: rename this, it is actually NONE *)
 val lvalop_not_none_def = Define `
 lvalop_not_none (s:t_scope) =
    EVERY (\(x,t,lop). lop = NONE) s
@@ -543,7 +544,7 @@ e_typ :: '' ::=
 defn
 t_scopes_tup T_e |- e : ( t , boolv ) :: :: e_typ :: e_typ_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[t]] , [[boolv]] ) }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [[e]] : ( [[t]] , [[boolv]] ) }}
 by
 
 
@@ -567,7 +568,7 @@ t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn 
 ----------------------------------- :: struct
 t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ f1 tau1 , .. , fn taun ] , false  )
 
-
+boolv : ( bool , false  )
 t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 ----------------------------------- :: header
 t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ f1 tau1 , .. , fn taun ] , false  )
@@ -609,7 +610,7 @@ t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , b )
 
 
 t_scopes_tup T_e |- e : ( tau , b' )
-( v1 , .. , vn ) : ( tau , b )
+v1 , .. , vn : ( tau , b )
 ----------------------------------- :: select
 t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
 
@@ -659,7 +660,7 @@ lval_typ :: '' ::=
 defn
 t_scopes_tup T_e |-l lval : ( t , true ) :: :: lval_typ :: lval_typ_
 {{ com lval types }}
-{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[lval]] : ( [[t]] , true ) }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [[lval]] : ( [[t]] , { \top }  ) }}
 by
 
 
@@ -689,7 +690,7 @@ stmt_typ :: '' ::=
 defn
 t_scopes_tup T_e Prs_n |- stmt  :: :: stmt_typ :: stmt_typ_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt]] }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \, [[Prs_n]] \; \vdash [[stmt]] }}
 by
 
 
@@ -845,7 +846,7 @@ stmtl_typ :: '' ::=
 defn
 t_scopes_tup T_e Prs_n |- stmt_stack  :: :: stmtl_typ :: stmtl_typ_
 {{ com statement list types }}
-{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt_stack]] }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \, [[Prs_n]]  \; \vdash [[stmt_stack]] }}
 by
 
 
@@ -866,7 +867,7 @@ frame_typ :: '' ::=
 defn
 t_scopes_tup T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: frame_typ :: frame_typ_
 {{ com frame types }}
-{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \, [[Prs_n]]  \; \vdash ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
 by
 
 

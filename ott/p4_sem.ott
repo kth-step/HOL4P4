@@ -485,8 +485,10 @@ formula :: formula_ ::=
 | b_func_map' = map_to_pass funn b_func_map :: :: map_to_pass
   {{ com pass either empty or the local function's mapping depending on funn location }}
   {{ hol  SOME [[b_func_map']] = map_to_pass [[funn]] [[b_func_map]] }}
+  {{ tex [[b_func_map']] = \mathrm{map\_to\_pass} ([[funn]], [[b_func_map]]) }} 
 | tbl_map' = tbl_to_pass funn b_func_map tbl_map :: :: tbl_to_pass
   {{ hol SOME [[tbl_map']] = tbl_to_pass [[funn]] [[b_func_map]] [[tbl_map]]}}
+  {{ tex [[tbl_map']] = \mathrm{tbl\_to\_pass} ([[funn]], [[b_func_map]] , [[tbl_map]]) }} 
 | scope' = declare_list_in_scope ( t_scope , scope ) :: M :: decl_in_scope  
   {{ com update a scope with a list of declarations }}
   {{ hol [[scope']] = declare_list_in_scope ([[t_scope]], [[scope]]) }}
@@ -524,16 +526,16 @@ formula :: formula_ ::=
    % (*typing rules related formulas*)
 | w = width bitv :: M :: width
   {{ com width of bitstring}}
-  {{ tex [[w]] = width \ [[bitv]] }}
+  {{ tex [[w]] = \mathrm{width} \ ([[bitv]]) }}
   {{ hol ([[w]] = bs_width [[bitv]]) }}
 | tau = lookup_tau ( t_scope_list , t_scope_list_g , varn ) :: :: topmost
   {{ tex [[tau]] = \mathrm{topmost} ([[t_scope_list]] , [[t_scope_list_g]] , [[varn]]) }}
   {{ hol SOME [[tau]] =  lookup_tau [[t_scope_list]] [[t_scope_list_g]] [[varn]] }}
 | tau = find_star_in_globals ( t_scope_list_g , varn ) :: :: find_star_in_globals
-  {{ tex [[tau]] = \mathrm{find_star_in_globals} ([[t_scope_list_g]], [[varn]]) }}
+  {{ tex [[tau]] = \mathrm{lookup\_type} \; ([[t_scope_list_g]], [[varn]]) }}
   {{ hol SOME [[tau]] =  find_star_in_globals [[t_scope_list_g]] [[varn]]}}
 | [ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x ) :: :: fun_type
-%  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_b]] \cup [[delta_g]] ([[funn]]) }}
+ % {{ tex ([(\tau_1, x_1, d_1) , \ldots, (\tau_n, x_n, d_n)] , tau ) = \mathrm{t\_lookup\_funn} ( [[funn]] , [[delta_g]] , [[delta_b]] , [[delta_x]] ) }}
   {{ hol SOME ([[tau1 x1 d1 .. taun xn dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] [[delta_x]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
@@ -542,7 +544,7 @@ formula :: formula_ ::=
 | is_bool_neg unop :: M :: is_bool_neg
   {{ com not bool negation }}
   {{ hol (([[unop]] = unop_neg)) }}
-  {{ tex [[unop]] \eq \mathit{!} }}
+  {{ tex [[unop]] = \; \mathit{!} }}
 | width_in_range w :: M :: width_in_range
   {{ com bitstring widthlarger than 0}}
   {{ hol ([[w]] > 0 /\ [[w]] <= 64 ) }}
@@ -569,8 +571,8 @@ formula :: formula_ ::=
 
 |  v_list : ( taul , false )  :: :: type_all_v
   {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau ( EL i [[taul]] )) F ) }}
-  {{ tex [[v_list]] : ( [[taul]] , F ) }}
-|  ( v1 , .. , vm ) : ( tau , b )  :: :: type_all_v_one_t
+  {{ tex [[v_list]] : ( [[taul]] , \bot ) }}
+|  v1 , .. , vm : ( tau , b )  :: :: type_all_v_one_t
   {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
@@ -584,6 +586,8 @@ formula :: formula_ ::=
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (t_tau (EL i [[tau1 .. taun]])) (EL i [[b1 .. bo]]) ) }}
+  {{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }}
+
 
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
   {{ hol ( out_is_lval [[d1 .. dn]] [[b1 .. bm]] ) }}
@@ -622,8 +626,10 @@ formula :: formula_ ::=
 | table_map_typed tbl_map apply_table_f delta_g delta_b order :: :: table_map_typed
   {{ hol ( table_map_typed [[tbl_map]] [[apply_table_f]] [[delta_g]] [[delta_b]] [[order]] ) }}  
 | MEM x x_list :: :: x_in_xlist
+  {{ tex [[x]] \in [[x_list]] }} 
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
 | not_star ( varn ) :: :: not_star  
+  {{ tex \forall f. \;  [[varn]] \neq \ast^f }} 
   {{ hol ( ! funn.  [[varn]] <> (varn_star funn) ) }} 
 | length_is_2 ( t_scope_list_g ) :: M :: length_is_2
   {{ hol ( 2 = LENGTH [[t_scope_list_g]] ) }}

@@ -6511,8 +6511,6 @@ REPEAT STRIP_TAC >| [
      SIMP_TAC list_ss [map_rw2] >>
      fs[]
      ,
-     fs[Once v_typ_cases, clause_name_def]
-     ,
      RES_TAC >>
      IMP_RES_TAC evl_types_vl_blist >>
      IMP_RES_TAC evl_types_vl_F >>
