@@ -266,7 +266,10 @@ gvs[find_star_in_globals_def, X_star_not_defined_def, X_star_defined_def, is_loo
 REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
 REPEAT (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘funn_inst x’, ‘x’])) >> gvs[]) >>
-IMP_RES_TAC lookup_map_none_lemma1 >> gvs[]    
+IMP_RES_TAC lookup_map_none_lemma1 >> gvs[] >>
+
+gvs[lookup_map_def, topmost_map_def, find_topmost_map_def, INDEX_FIND_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])            
 QED
 
 
@@ -287,7 +290,10 @@ gvs[find_star_in_globals_def, X_star_not_defined_def, X_star_defined_def, is_loo
 REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
 REPEAT (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘funn_ext x x'’, ‘x’])) >> gvs[]) >>
-IMP_RES_TAC lookup_map_none_lemma1 >> gvs[]    
+IMP_RES_TAC lookup_map_none_lemma1 >> gvs[] >>
+
+gvs[lookup_map_def, topmost_map_def, find_topmost_map_def, INDEX_FIND_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])   
 QED      
 
 
@@ -437,7 +443,8 @@ Proof
  fs[quantHeuristicsTheory.LIST_LENGTH_2] >> gvs[] >>
 
  (subgoal ‘X_star_not_defined [[]; e2]’ >- (
-   gvs[X_star_not_defined_def] >> REPEAT STRIP_TAC >> gvs[]
+   gvs[X_star_not_defined_def] >> REPEAT STRIP_TAC >> gvs[] >>
+   gvs[is_lookup_defined_def]
    )                                          
  ) >> gvs[] >> rw[] >>
 

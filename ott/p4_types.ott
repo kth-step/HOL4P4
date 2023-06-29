@@ -91,7 +91,7 @@ delta_x {{ tex \Delta_{ext} }} :: delta_x_ ::=
 
 
 
-delta_t {{ tex \Delta_{tbl} }} :: delta_t_ ::=
+delta_t {{ tex \mathbb{T} }} :: delta_t_ ::=
 {{ com types of tables}}
 {{ hol (string, taul) alist }}
 | ( empty ) :: M :: empty
@@ -127,7 +127,7 @@ order {{ tex \sqsubset }} :: order_ ::=
 
 
 
-Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
+Prs_n {{ tex \mathbb{P} }} :: Prs_n_ ::=
 %list contains the names of the table names
 {{ hol (string list) }}
 | empty :: M :: empty
@@ -140,7 +140,7 @@ Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
 {{ hol ( [[Prs_n]] )}}
 
 
-T_e {{ tex T_{\Delta} }} :: T_e_ ::=
+T_e {{ tex \Gamma }} :: T_e_ ::=
 {{ hol ( order # funn # delta ) }}
 | ( order , funn , delta ) :: M :: tup
 {{ hol ( [[order]] , [[funn]] , [[delta]] ) }}
@@ -1076,7 +1076,8 @@ is_directionless dl =  EVERY (\d. d = d_none) dl
 `;
 
 
-(* el is the key list, f' is default action, el' default action's data/args *)
+(* el is the key list, f' is default action, el' default action's data/args
+Here we mean that the function/action being called from the table can be in either global or local  *)
 val table_map_typed_def = Define `
 table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g delta_b order =
 
@@ -1227,7 +1228,7 @@ X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
 val X_star_not_defined_def = Define `
 X_star_not_defined (t_scope_list_g:t_scope_list_g) =
 ! f x x' . (f = funn_inst x \/ f = funn_ext x x') ==> (
-            ~ (is_lookup_defined (EL 1 t_scope_list_g) (varn_star f)))
+            ~ (is_lookup_defined (EL 0 t_scope_list_g) (varn_star f)))
 `;
 
 }}
@@ -1293,6 +1294,7 @@ defn
 by
 
 % TODO: remove dom_tmap_ei ( delta_g , delta_b ) because the prop is satisfies in typying_domains_ei
+% TODO: parser map has nothing to do with those semantics, shall we say that Prs_n is the domain or pars_map? ...
 
 WF_o order
 length_is_2 ( t_scope_list_g )
@@ -1435,7 +1437,7 @@ deltas_order delta_g delta_b delta_x order
 WF funn_list delta_g delta_b delta_x order
 
 
-
+%TODO update this definition according to what we have in HOL4.
 defns
 WT_state :: '' ::=
 defn
