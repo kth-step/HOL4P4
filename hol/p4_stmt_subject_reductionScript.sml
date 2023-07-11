@@ -634,8 +634,47 @@ fs[similar_def]
 
 
 
-
 val similar_ext_out_scope_lemma = prove (“
+∀ sc sc' varnl varnl' tl.
+similar (λsi so. SND si = SND so) sc sc' ∧
+similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc' (ZIP (varnl,tl)) ∧
+similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc (ZIP (varnl',tl)) ⇒
+similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc' (ZIP (varnl',tl))
+
+                                     ”,
+reverse (               
+Induct_on ‘sc’ >>
+Induct_on ‘sc'’ >>
+Induct_on ‘tl’ >>
+Induct_on ‘varnl’ >>
+Induct_on ‘varnl'’ >>
+REPEAT STRIP_TAC) >-
+ (
+ SIMP_TAC list_ss [Once similar_normalize2] >> gvs[] >> CONJ_TAC >| [
+     (*head case*)
+     gvs[Once similar_normalize2] >>
+     PairCases_on ‘h'’ >>
+     PairCases_on ‘h''''’ >>
+     gvs[similar_def]                                 
+     ,
+     (*IH case*)
+     rfs[Once similar_normalize2] >> 
+     RES_TAC
+   ]
+ ) >>
+
+srw_tac [][ZIP, ZIP_def] >>       
+gvs[similar_def] >>
+ TRY (PairCases_on ‘h’) >>
+ TRY (PairCases_on ‘h'’) >>
+ TRY(PairCases_on ‘y’) >>
+ fsrw_tac [][LENGTH_ZIP_MIN] >>
+ rfs[ZIP_def]
+);
+
+                                        
+
+val similar_ext_out_scope_lemma2 = prove (“
 ∀ sc sc' varnl varnl' tl.
 similar (λsi so. SND si = SND so ∧ SND si = NONE) sc sc' ∧
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc' (ZIP (varnl,tl)) ∧
