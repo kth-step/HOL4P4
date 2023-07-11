@@ -342,7 +342,7 @@ CONJ_TAC >| [
  REPEAT STRIP_TAC >>
         
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’, ‘x’, ‘IoE’, ‘MoE’])) >> gvs[] >>
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’, ‘lol’])) >> gvs[] >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’])) >> gvs[] >>
  qexistsl_tac [‘txdl’, ‘tau’ ,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
               
  gvs[t_scopes_to_pass_def] >>
@@ -357,7 +357,7 @@ CONJ_TAC >| [
  REPEAT STRIP_TAC >>
         
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’, ‘x’,‘x'’ ,‘IoEsig’, ‘MoE’, ‘MoE_map’])) >> gvs[] >>
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’, ‘lol’])) >> gvs[] >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’])) >> gvs[] >>
  qexistsl_tac [‘txdl’,‘tau’,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
               
  gvs[t_scopes_to_pass_def] >>
@@ -1769,7 +1769,7 @@ val stmt_case_ext_stat_typed = prove (“
         REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
         gvs[extern_map_IoE_typed_def] >>
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘q’, ‘s’, ‘ext_fun’, ‘r’])) >> gvs[] >>
-        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘ascope’, ‘gscope’, ‘scopest’, ‘lol’])) >> gvs[] >>
+        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘ascope’, ‘gscope’, ‘scopest’])) >> gvs[] >>
         Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] >>
         gvs[t_lookup_funn_def]
         ,                                                 
@@ -1777,7 +1777,7 @@ val stmt_case_ext_stat_typed = prove (“
         REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
         gvs[extern_MoE_typed_def] >>
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘q'’, ‘s’, ‘s0’, ‘q’, ‘r’, ‘ext_fun’])) >> gvs[] >>
-        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘ascope’, ‘gscope’, ‘scopest’, ‘lol’])) >> gvs[] >>
+        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘ascope’, ‘gscope’, ‘scopest’])) >> gvs[] >>
         Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] >>
         gvs[t_lookup_funn_def]                                    
   ]

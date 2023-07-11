@@ -837,16 +837,16 @@ STRIP_TAC  >| [
  gvs[] >>
       
                                     
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’, ‘MAP (\txd. lol ) (txdl : (tau # string # d) list)’])) >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’])) >>
  gvs[] >>
 
  Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] >>
 
  (* the output scope sc is only of length 1*)
  IMP_RES_TAC tsl_singletone_exsists >>
- gvs[] >>
+ gvs[] 
 
-
+(*
  (* show that txdl and txdl ' are the same *) 
  IMP_RES_TAC t_lookup_funn_ext_lemma >>                  
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_g`, `delta_b`])) >>
@@ -855,14 +855,14 @@ STRIP_TAC  >| [
           
  (* we know that the scopest (initial one) must be of size 1 *)
  IMP_RES_TAC ext_sc_same_as_input_LENGTH >>
- ‘LENGTH scopest = 1’ by gvs[] >>
+ (*‘LENGTH scopest = 1’ by gvs[] >>
  ‘∃ outsc. scopest = [outsc]’ by  fs[quantHeuristicsTheory.LIST_LENGTH_1] >>
 
  (* same for the typing scope*)
  ‘LENGTH tsl = 1’ by (IMP_RES_TAC type_scopes_list_LENGTH >>   gvs[]) >>
  ‘∃ tsc. tsl = [tsc]’ by  fs[quantHeuristicsTheory.LIST_LENGTH_1] >>
  gvs[] >>
-
+ *)
 
  fs[args_t_same_def, same_dir_x_def] >> 
  gvs[mk_tscope_def] >>
@@ -887,7 +887,7 @@ STRIP_TAC  >| [
      
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`MAP FST (tsc : (varn # tau) list)`])) >>
  srw_tac [][] >>    
- METIS_TAC []
+ METIS_TAC [] *)
  ,
         
  (*ext methods *)
@@ -904,10 +904,10 @@ STRIP_TAC  >| [
  gvs[] >>
       
                                     
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’, ‘MAP (\txd. lol ) (txdl : (tau # string # d) list)’])) >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’])) >>
  gvs[] >>
- Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] >>
-
+ Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] 
+(*
  IMP_RES_TAC tsl_singletone_exsists >>
  gvs[] >>
             
@@ -950,7 +950,7 @@ STRIP_TAC  >| [
      
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`MAP FST (tsc : (varn # tau) list)`])) >>
  srw_tac [][] >>    
- METIS_TAC []         
+ METIS_TAC []    *)     
   ]
 );
                 

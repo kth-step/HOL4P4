@@ -1001,7 +1001,7 @@ similarl (\ si so . (SND si = SND so)) scopest scopest_out `;
 
 
 (*note the statement here can only be the black box*)
-
+(*
 val extern_map_IoE_typed_def = Define `
 extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
 
@@ -1027,8 +1027,34 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_
 	 type_scopes_list scope_list' [t_scope'] /\
    ext_sc_same_as_input local_scopes scope_list'
 `;
+*)
 
+(* t_scope' is unused, remove it*)
+val extern_map_IoE_typed_def = Define `
+extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
 
+! f (xdl : (string # d) list) x IoE MoE.
+         f = funn_inst x /\
+	 ALOOKUP ext_map x = SOME (SOME (xdl,IoE),MoE) ==>
+
+   ! (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
+
+   ? txdl tau (t_scope':t_scope) (a':'a)  scope_list' v t_scope_list_g'.
+
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+    not_parseError_str xdl /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol ) /\
+	 SOME (a',scope_list', v) = IoE (a,g_scope_list, local_scopes ) /\
+	 v_typ v (t_tau tau) F /\
+   star_not_in_sl (scope_list') /\
+   (! t_scopel''. (type_scopes_list local_scopes t_scopel'') ==> (type_scopes_list scope_list' t_scopel''))
+`;
+
+(*
 val extern_MoE_typed_def = Define `
 extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
 
@@ -1055,6 +1081,34 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
 	 type_scopes_list scope_list' [t_scope'] /\
    ext_sc_same_as_input local_scopes scope_list'
 `;
+*)
+
+val extern_MoE_typed_def = Define `
+extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
+
+! f xdl x x' IoEsig MoE MoE_map  .
+         f = funn_ext x x' /\
+	 ALOOKUP ext_map x = SOME (IoEsig, MoE) /\
+	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
+  
+  !  (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
+
+  ? txdl tau t_scope'  (a':'a)  (scope_list': scope list) (v:v)  t_scope_list_g'.
+
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+    not_parseError_str xdl /\
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol) /\ 
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+
+	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, local_scopes  )) /\
+	 v_typ v (t_tau tau) F /\
+   star_not_in_sl (scope_list') /\
+   (! t_scopel''. (type_scopes_list local_scopes t_scopel'') ==> (type_scopes_list scope_list' t_scopel''))
+`;
+
 
 
 (************************************)

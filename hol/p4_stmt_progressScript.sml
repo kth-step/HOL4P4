@@ -813,7 +813,7 @@ REPEAT STRIP_TAC >| [
          PairCases_on ‘x’ >> gvs[] >>
          fs[WT_c_cases, WTX_cases, extern_map_IoE_typed_def] >> gvs[] >>
          FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`q`,‘s’,‘r’,‘x'1’])) >> gvs[] >>
-         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’, ‘lol’])) >> gvs[] >>
+         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’])) >> gvs[] >>
          srw_tac [SatisfySimps.SATISFY_ss][]
        ]
      ]
@@ -839,7 +839,7 @@ REPEAT STRIP_TAC >| [
        
        fs[WT_c_cases, WTX_cases, extern_MoE_typed_def] >> gvs[] >>
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘q’,‘s’,‘s0’,‘x'0’])) >> gvs[] >>
-       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’, ‘lol’])) >> gvs[] >>
+       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘gscope’,‘scopest’])) >> gvs[] >>
        srw_tac [SatisfySimps.SATISFY_ss][]
                
        ]

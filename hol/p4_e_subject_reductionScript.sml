@@ -1146,7 +1146,7 @@ REPEAT STRIP_TAC >| [
  [`x0`, `s`, `x1'`, `x1`])) >> gvs[] >>
 
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`a`, `g_scope`, `local_scope`, ‘lol’])) >> gvs[] >>
+ [`a`, `g_scope`, `local_scope`])) >> gvs[] >>
         
  IMP_RES_TAC t_lookup_funn_ext_lemma >>
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_g`,`delta_b`])) >>
@@ -1167,7 +1167,7 @@ REPEAT STRIP_TAC >| [
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
  [`x0'`, `s`, `s0`, `x0`, `x1`, `x1'`])) >> gvs[] >>                                
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`a`, `g_scope`, `local_scope`, ‘lol’])) >> gvs[] >>
+ [`a`, `g_scope`, `local_scope`])) >> gvs[] >>
                                    
  IMP_RES_TAC t_lookup_funn_ext_lemma >>
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
@@ -1446,7 +1446,7 @@ REPEAT STRIP_TAC >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`q'`, `s`, `r'`, `x'1`])) >> gvs[] >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`a`, `g_scope`, `local_scope`, ‘lol’])) >> gvs[] >>
+   [`a`, `g_scope`, `local_scope`])) >> gvs[] >>
 
 
    gvs[same_dir_x_def] >>
@@ -1482,7 +1482,7 @@ REPEAT STRIP_TAC >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`$var$(x'0')`, `s`, `s0`, `x'0`, `x'1`, `$var$(x'1')`])) >> gvs[] >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`a`, `g_scope`, `local_scope`, ‘lol’])) >> gvs[] >>
+   [`a`, `g_scope`, `local_scope`])) >> gvs[] >>
                                      
    RES_TAC >> gvs[same_dir_x_def] >>
 
