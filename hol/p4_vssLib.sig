@@ -30,4 +30,8 @@ val vss_ext_map : term
 val vss_ffblock_map : term
 val vss_func_map : term
 
+val vss_init_counter : term
+val vss_init_ext_obj_map : term
+val vss_init_v_map : term
+
 end

@@ -2,7 +2,7 @@ structure p4_vssLib :> p4_vssLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open listSyntax;
+open listSyntax numSyntax;
 
 open p4Syntax p4_coreLib;
 
@@ -33,7 +33,7 @@ val vss_init_global_scope =
 (* Architectural context (generic externs) *)
 
 val vss_packet_in_map =
- ``[("extract", ([("this", d_in); ("hdr", d_out)], vss_packet_in_extract))]:vss_ascope ext_fun_map``;
+ ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], vss_packet_in_extract))]:vss_ascope ext_fun_map``;
 
 val vss_packet_out_map =
  ``[("emit", ([("this", d_in); ("data", d_in)], vss_packet_out_emit))]:vss_ascope ext_fun_map``;
@@ -72,5 +72,46 @@ val vss_ext_map =
 ("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))]):vss_ascope ext_map``;
 
 val vss_func_map = core_func_map;
+
+(***********************)
+(* Architectural state *)
+
+val vss_init_counter = term_of_int 3;
+
+val vss_init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
+			      (1, INL (core_v_ext_packet_out []));
+			      (2, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+
+val ipv4_header_uninit =
+ mk_v_header_list F 
+                  [(``"version"``, mk_v_biti_arb 4),
+                   (``"ihl"``, mk_v_biti_arb 4),
+                   (``"diffserv"``, mk_v_biti_arb 8),
+                   (``"totalLen"``, mk_v_biti_arb 16),
+                   (``"identification"``, mk_v_biti_arb 16),
+                   (``"flags"``, mk_v_biti_arb 3),
+                   (``"fragOffset"``, mk_v_biti_arb 13),
+                   (``"ttl"``, mk_v_biti_arb 8),
+                   (``"protocol"``, mk_v_biti_arb 8),
+                   (``"hdrChecksum"``, mk_v_biti_arb 16),
+                   (``"srcAddr"``, mk_v_biti_arb 32),
+                   (``"dstAddr"``, mk_v_biti_arb 32)];
+val ethernet_header_uninit =
+ mk_v_header_list F
+                  [(``"dstAddr"``, mk_v_biti_arb 48),
+                   (``"srcAddr"``, mk_v_biti_arb 48),
+                   (``"etherType"``, mk_v_biti_arb 16)];
+val vss_parsed_packet_struct_uninit =
+ mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
+
+val vss_init_v_map = ``^core_init_v_map ++
+                       [("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
+			("outCtrl", v_struct [("outputPort", ^(mk_v_biti_arb 4))]);
+			("b_in", v_ext_ref 0);
+			("b_out", v_ext_ref 1);
+			("data_crc", v_ext_ref 2);
+			("parsedHeaders", (^vss_parsed_packet_struct_uninit));
+			("headers", (^vss_parsed_packet_struct_uninit));
+			("outputHeaders", (^vss_parsed_packet_struct_uninit))]:(string, v) alist``;
 
 end

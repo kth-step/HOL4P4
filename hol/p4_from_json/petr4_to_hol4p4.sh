@@ -1,6 +1,13 @@
 #!/bin/bash
 
 JSON_PATH=$1
+LOG_PATH=$2
+
+if [ "$#" -ne 2 ]; then
+    echo "petr4_to_hol4p4.sh requires two arguments: the first a path to a P4 program in petr4 JSON format, the second a path to a log file"
+    exit 1
+fi
+
 
 # Whether to strip the .json files of debug information (file and line of code of element, et.c.)
 # This makes it a lot faster to process, but also removes the information for later use
@@ -20,5 +27,5 @@ else
 fi
 
 set -e
-"$(dirname "$(which Holmake)")/buildheap" --gcthreads=1 --holstate="p4_from_json-heap" petr4_to_hol4p4 "$JSON_PATH" $2 "${JSON_PATH%.json}Script.sml" "$arch" "$stf"
+"$(dirname "$(which Holmake)")/buildheap" --gcthreads=1 --holstate="p4_from_json-heap" petr4_to_hol4p4 "$JSON_PATH" "$LOG_PATH" "${JSON_PATH%.json}Script.sml" "$arch" "$stf"
 exit 0
