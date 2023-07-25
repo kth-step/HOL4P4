@@ -21,4 +21,8 @@ val ebpf_ext_map : term
 val ebpf_ffblock_map : term
 val ebpf_func_map : term
 
+val ebpf_init_counter : term
+val ebpf_init_ext_obj_map : term
+val ebpf_init_v_map : term
+
 end

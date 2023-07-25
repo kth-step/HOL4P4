@@ -2107,12 +2107,13 @@ Definition petr4_p_tau_pars_to_string_def:
    | NONE => NONE)
 End
 
-(* TODO: Create a ptymap, also store parameters for type inference there? *)
 Definition petr4_parse_package_type_def:
  petr4_parse_package_type (tyenv, ptymap) package_type =
   case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params"] package_type of
   | SOME [tags; annot; name; type_params; Array params] =>
    (case petr4_parse_p_params T tyenv params of
+     (* res_dirs contains tuples of parameter names and directions *)
+     (* e_params contains tuples of parameter varn_names and p_types *)
     | SOME_msg (res_dirs, e_params) =>
      (case petr4_p_tau_pars_to_string (MAP SND e_params) of
       | SOME str_tys =>
@@ -2273,28 +2274,33 @@ Definition petr4_parse_element_def:
      | SOME_msg tyenv' =>
       SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    (* TODO: Constants are added to the global scope, also vtymap if not arbitrary-length constant... *)
    else if elem_name = "Constant" then
     (case petr4_parse_constant (tyenv, enummap, vtymap, ftymap, gscope) obj of
      | SOME_msg (vtymap', gscope') =>
       SOME_msg (tyenv, enummap, vtymap', ftymap, blftymap, fmap, bltymap, ptymap, gscope', pblock_map, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    else if elem_name = "Struct" then
     (case petr4_parse_struct tyenv obj struct_ty_struct of
      | SOME_msg tyenv' =>
       SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    else if elem_name = "Header" then
     (case petr4_parse_struct tyenv obj struct_ty_header of
      | SOME_msg tyenv' =>
       SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    (* TODO: Fix default parameter values *)
    else if elem_name = "ParserType" then
     (case petr4_parse_block_type (tyenv, fmap, bltymap, gscope) pbl_type_parser obj of
      | SOME_msg bltymap' =>
       SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap', ptymap, gscope, pblock_map, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    (* TODO: Fix default parameter values *)
    else if elem_name = "ControlType" then
     (case petr4_parse_block_type (tyenv, fmap, bltymap, gscope) pbl_type_control obj of
@@ -2307,16 +2313,19 @@ Definition petr4_parse_element_def:
      | SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', gscope', pblock_map') =>
       SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', ptymap, gscope', pblock_map', arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    else if elem_name = "control" then
     (case petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map) obj of
      | SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', gscope', pblock_map') =>
       SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', ptymap, gscope', pblock_map', arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    else if elem_name = "PackageType" then
     (case petr4_parse_package_type (tyenv, ptymap) obj of
      | SOME_msg (tyenv', ptymap') =>
       SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap', gscope, pblock_map, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    else if elem_name = "Instantiation" then
     (case petr4_parse_top_level_inst (tyenv, bltymap, ptymap) obj of
      | SOME_msg (ab_list', pkg_name) =>
@@ -2338,6 +2347,7 @@ Definition petr4_parse_element_def:
         NONE_msg ("Duplicate top-level package instantiations")
        | _ => NONE_msg ("Unexpected top-level package instantiation"))
      | NONE_msg msg => NONE_msg msg)
+
    else NONE_msg ("Unknown declaration element type: "++elem_name)
    (* TODO: ??? *)
   | _ => NONE_msg "Unknown JSON format of element"
@@ -2417,24 +2427,21 @@ Definition ebpf_init_ctrl_def:
  ebpf_init_ctrl pblock_map =
   (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type ctrl_params b_func_map decl_list
-                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])
-                      | _ => []) pblock_map)):ebpf_ctrl
+                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
 End
 
 Definition vss_init_ctrl_def:
  vss_init_ctrl pblock_map =
   (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type ctrl_params b_func_map decl_list
-                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])
-                      | _ => []) pblock_map)):vss_ctrl
+                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):vss_ctrl
 End
 
 Definition v1model_init_ctrl_def:
  v1model_init_ctrl pblock_map =
   (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type ctrl_params b_func_map decl_list
-                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])
-                      | _ => []) pblock_map)):v1model_ctrl
+                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
 End
 
 (*
@@ -2484,7 +2491,7 @@ rhs $ concl $ EVAL ``p4_init_ctrl [("prs",
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/good/valid_ebpf.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/ebpf_stf_only/key_ebpf.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
 
@@ -2495,8 +2502,9 @@ val wip_test_tm = dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json_preamble ^(r
 
 (* The index of the list in wip_test_tm at which conversion to HOL4P4 runs into an error
  * (note the correspondence with the usage below in p4_from_json_def) *)
-val index_of_error = ``18:num``;
+val index_of_error = ``19:num``;
 
+(* TODO: Change names to be generic *)
 val wip_control_inst_tm = rhs $ concl $ EVAL ``EL (^index_of_error) ^wip_test_tm``;
 
 (* Re-definition of p4_from_json that only converts up until index_of_error *)
@@ -2518,7 +2526,7 @@ val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_blftymap, wip_fmap, wip
 (***********************************************)
 
 (* MANUAL DEBUG: From here on, start by choosing sub-case of petr4_parse_element *)
-EVAL ``petr4_parse_control (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_fmap, ^wip_bltymap, ^wip_gscope, ^wip_pblockmap) ^wip_obj``
+EVAL ``petr4_parse_top_level_inst (^wip_tyenv, ^wip_bltymap, ^wip_ptymap) ^wip_obj``
 
 
 *)
