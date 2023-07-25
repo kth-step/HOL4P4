@@ -5,14 +5,21 @@ open p4Theory p4_auxTheory p4_coreTheory;
 val _ = new_theory "p4_v1model";
 
 (* TODO: v1model uses a checksum in the verify_checksum and update_checksum externs *)
-val _ = Hol_datatype `
- v1model_v_ext = v1model_v_ext_ipv4_checksum of word16 list`;
-val _ = type_abbrev("v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
+Datatype:
+ v1model_v_ext =
+   v1model_v_ext_ipv4_checksum (word16 list)
+ | v1model_v_ext_counter
+ | v1model_v_ext_direct_counter
+ | v1model_v_ext_meter
+ | v1model_v_ext_direct_meter
+ | v1model_v_ext_register
+End
+val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
 
 val _ = type_abbrev("v1model_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
 
 (* The architectural state type of the V1Model architecture model *)
-val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v_ext) alist) # ((string, v) alist) # v1model_ctrl)``);
+val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl)``);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)

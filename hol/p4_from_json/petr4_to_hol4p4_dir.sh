@@ -6,7 +6,7 @@ JSONS_PATH=$1
 N=8
 
 # Replace if you want to write to a different log file
-log="petr4_to_hol4p4.log"
+log="petr4_to_hol4p4_stf.log"
 
 if [ -f "$log" ] ; then
     rm "$log"

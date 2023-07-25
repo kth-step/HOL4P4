@@ -129,7 +129,7 @@ Definition packet_in_extract_gen:
  (packet_in_extract_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   (case lookup_lval_header scope_list (lval_varname (varn_name "hdr")) of
+   (case lookup_lval_header scope_list (lval_varname (varn_name "headerLvalue")) of
     | SOME (valid_bit, x_v_l) =>
      (case lookup_ascope_gen ascope_lookup ascope i of
       | SOME ((INL (core_v_ext_packet_in packet_in_bl)):(core_v_ext, 'b) sum) =>
@@ -139,7 +139,7 @@ Definition packet_in_extract_gen:
          then
           (case set_header_fields x_v_l packet_in_bl of
            | SOME x_v_l' =>
-            (case assign scope_list (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "hdr")) of
+            (case assign scope_list (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "headerLvalue")) of
              | SOME scope_list' =>
               SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_in (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', v_bot)
              | NONE => NONE)

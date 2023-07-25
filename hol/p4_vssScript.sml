@@ -4,8 +4,10 @@ open p4Theory p4_auxTheory p4_coreTheory;
 
 val _ = new_theory "p4_vss";
 
-val _ = Hol_datatype ` 
- vss_v_ext = vss_v_ext_ipv4_checksum of word16 list`;
+Datatype:
+ vss_v_ext =
+   vss_v_ext_ipv4_checksum (word16 list)
+End
 val _ = type_abbrev("v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
 val _ = type_abbrev("vss_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);

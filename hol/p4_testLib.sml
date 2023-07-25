@@ -164,6 +164,8 @@ fun mk_eth_frame_ok data =
 fun ascope_ty_from_arch arch =
  if arch = "vss"
  then ``:vss_ascope``
+ else if arch = "v1model"
+ then ``:v1model_ascope``
  else if arch = "ebpf"
  then ``:ebpf_ascope``
  else ``:'a``
@@ -367,7 +369,7 @@ fun get_existentials eval_thm =
   val final_state = the_final_state eval_thm
   val steps = last $ snd $ strip_comb $ lhs $ concl eval_thm
   val (aenv', g_scope_list', arch_frame_list', status') = dest_astate final_state
-  (* TODO: Below line might not generalise well in future *)
+  (* TODO: Below line might not generalise well in future if the aenv type changes *)
   val (ab_index', _, _, ascope') = dest_vss_aenv aenv'
  in
   [steps, ab_index', ascope', g_scope_list', arch_frame_list', status']
@@ -391,6 +393,7 @@ fun debug_arch_from_step arch actx astate nsteps =
  let
   val astate' = eval_and_print_result arch actx astate nsteps
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+(* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
 (*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
 (*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
  in

@@ -498,4 +498,15 @@ Definition p4_replace_input_def:
      ((ab_index, [input], outputl, ascope), gscope, afl, status))
 End
 
+Definition p4_append_input_list_def:
+ (p4_append_input_list [] (astate:'a astate) = astate) /\
+ (p4_append_input_list (h::t) (astate:'a astate) =
+   case astate of
+   | (aenv, gscope, afl, status) =>
+    p4_append_input_list t
+     (case aenv of
+      | (ab_index, inputl, outputl, ascope) => 
+       ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
+End
+
 val _ = export_theory ();

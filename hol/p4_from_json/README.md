@@ -20,3 +20,10 @@
 `parse_stf.sml` parses an `.stf` specification of a test.
 
 `petr4_to_hol4p4.sml` is the internal mechanism of `petr4_to_hol4p4_dir.sh` that does the actual format transformation from petr4 JSON to HOL4P4. `petr4_to_hol4p4Script.sml` holds the theorems needed for this, and `petr4_to_hol4p4Syntax.sml` the syntax library.
+
+#How to debug test files
+
+Use `debug_arch_from_step`
+```
+val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), (i, in_out_list, in_out_list', ascope)) = debug_arch_from_step "text_arch" test_name_actx test_name_astate nsteps
+```
