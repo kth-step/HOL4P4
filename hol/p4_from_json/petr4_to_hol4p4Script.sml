@@ -2,7 +2,7 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 val _ = new_theory "petr4_to_hol4p4";
 
-open stringTheory ASCIInumbersTheory;
+open stringTheory listTheory ASCIInumbersTheory;
 open parse_jsonTheory;
 open p4Theory p4_auxTheory;
 
@@ -639,6 +639,7 @@ End
 
 (* Like ALOOKUP, but also requires the number of arguments to match
  * Required due to overloaded function names, e.g. extract in packet_in *)
+(* TODO: Should this really return a tuple and not only the args? Check where this is used... *)
 Definition find_fty_match_args_def:
  find_fty_match_args ftymap funn numargs =
   case FIND (\ (funn', (tyargs', tyret')). if funn = funn' then (numargs = LENGTH tyargs') else F) ftymap of
@@ -646,14 +647,37 @@ Definition find_fty_match_args_def:
   | NONE => NONE
 End
 
+Triviality find_fty_match_args_LENGTH:
+!ftymap funn numargs res.
+ find_fty_match_args ftymap funn numargs = SOME res ==>
+ LENGTH (FST res) = numargs
+Proof
+fs[find_fty_match_args_def] >>
+rpt strip_tac >>
+fs[FIND_def] >>
+Cases_on ‘(INDEX_FIND 0
+                (\(funn',tyargs',tyret').
+                     funn = funn' /\ numargs = LENGTH tyargs') ftymap)’ >> (fs[]) >- (
+Cases_on ‘x’ >>
+imp_res_tac index_find_first >>
+PairCases_on ‘r’ >>
+gvs[]
+)
+QED
+
+Definition json_p_tau_opt_list_size_def:
+ json_p_tau_opt_list_size json_p_tau_opt_list =
+  let (json_list, p_tau_opt_list) = UNZIP json_p_tau_opt_list in
+   json3_size json_list
+End
+
 (* The image of this function is the type union of expressions (INL)
  * and natural numbers (INR) (for arbitrary-width integers).
  * Regular petr4_parse_expression is a wrapper for this which
  * rejects the INR result *)
-(* Definition petr4_parse_expression_gen_def: *)
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
-val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
-`(petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (exp, p_tau_opt) =
+Definition petr4_parse_expression_gen_def:
+(petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap) (exp, p_tau_opt) =
   case exp of
   (* TODO: Null can occur in case of return without value - works generally? *)
   | Null => SOME_msg (INL (e_v v_bot))
@@ -812,7 +836,7 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
           | SOME_msg res_args =>
            SOME_msg (INL (e_call res_func_name' res_args))
           | NONE_msg func_name_msg => NONE_msg ("could not parse function call arguments: "++func_name_msg))
-        | NONE => get_error_msg "could not retrieve type of functiion: " func_name)
+        | NONE => get_error_msg "could not retrieve type of function: " func_name)
       (* validity manipulation is modeled in HOL4P4 as a method call *)
       | SOME (SOME res_validity, SOME validity_arg) =>
        SOME_msg (INL (e_call res_validity [validity_arg]))
@@ -844,9 +868,20 @@ val _ = TotalDefn.tDefine "petr4_parse_expression_gen"
      | NONE_msg exp_msg => NONE_msg ("could not parse arguments: "++exp_msg)
    else NONE_msg ("unsupported argument type: "++argtype)
   | _ => get_error_msg "unknown JSON format of argument: " (FST h))
-`
-cheat
-;
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json, p_tau_opt)) => json_size json | (INR (maps, json_list)) => json_p_tau_opt_list_size json_list)` >>
+fs[json_p_tau_opt_list_size_def] >>
+rpt strip_tac >> (fs[json_size_def]) >- (
+ subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
+ fs []
+) >- (
+ subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
+ fs []
+) >- (
+ subgoal ‘LENGTH args = LENGTH p_1'6'’ >- (imp_res_tac find_fty_match_args_LENGTH >> fs[]) >>
+ fs[listTheory.UNZIP_ZIP]
+)
+End
 
 (* TODO: Why does this not use tyenv? Remove tyenv? *)
 Definition petr4_parse_expression_def:
@@ -1135,8 +1170,8 @@ Definition p4_seq_append_stmt_def:
 End
 
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
-val _ = TotalDefn.tDefine "petr4_parse_stmts"
- `(petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, apply_map) [] = SOME_msg stmt_empty) /\
+Definition petr4_parse_stmts_def:
+ (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, apply_map) [] = SOME_msg stmt_empty) /\
   (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, apply_map) (h::t) =
   case h of
   | Array [String stmt_name; Object stmt_details] =>
@@ -1243,31 +1278,24 @@ val _ = TotalDefn.tDefine "petr4_parse_stmts"
      SOME_msg (p4_seq_append_stmt stmt_empty stmts_res)
     | NONE_msg stmts_msg => NONE_msg stmts_msg)
   | _ => get_error_msg "unknown JSON format of statement: " h)
-(* /\
- (petr4_parse_stmts (tyenv, enummap, vtymap, gscope, apply_map) [] =
-  SOME_msg []) /\
- (petr4_parse_stmts (tyenv, enummap, vtymap, gscope, apply_map) (h::t) =
-  case petr4_parse_stmts (tyenv, enummap, vtymap, gscope, apply_map) h of
-   | SOME_msg stmt_res =>
-    (case petr4_parse_stmts (tyenv, enummap, vtymap, gscope, apply_map) t of
-     | SOME_msg stmts_res => SOME_msg (stmt_res::stmts_res)
-     | NONE_msg stmts_msg => NONE_msg stmts_msg)
-   | NONE_msg stmt_msg => NONE_msg ("could not parse stmts: "++stmt_msg))*)`
-cheat
-;
-(*
-Definition petr4_parse_stmts_def:
- (petr4_parse_stmts (tyenv, gscope) [] =
-  SOME_msg []) /\
- (petr4_parse_stmts (tyenv, gscope) (h::t) =
-  case petr4_parse_stmt (tyenv, gscope) h of
-   | SOME_msg stmt_res =>
-    (case petr4_parse_stmts (tyenv, gscope) t of
-     | SOME_msg stmts_res => SOME_msg (stmt_res::stmts_res)
-     | NONE_msg stmts_msg => NONE_msg stmts_msg)
-   | NONE_msg stmt_msg => NONE_msg ("could not parse stmts: "++stmt_msg))
+Termination
+WF_REL_TAC `measure ( \ (maps, json_list). json3_size json_list)` >>
+rpt strip_tac >> (fs[json_size_def]) >- (
+ (* Case block *)
+ fs[json_parse_obj_def, json_dest_obj_def] >>
+ Cases_on ‘p_2''’ >> (fs[]) >>
+ rw[] >>
+ Cases_on ‘l’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘t'’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘q' = "annotations"’ >> (fs[]) >>
+ Cases_on ‘t''’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘q'' = "statements"’ >> (fs[]) >>
+ Cases_on ‘json_parse_obj' [] t'’ >> (fs[json_size_def])
+)
 End
-*)
 
 
 (********************************************************)
