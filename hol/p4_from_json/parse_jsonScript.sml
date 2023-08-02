@@ -53,6 +53,18 @@ Proof
   >> res_tac >> fs[json_size_def]
 QED
 
+(*
+(* In the case of empty strings, json1_size is less than twice json3_size *)
+Theorem json1_json3_equal:
+!json_list. json1_size (ZIP (REPLICATE (LENGTH json_list) "", json_list)) < 2*json3_size json_list
+Proof
+Induct >- (
+ fs[json_size_def]
+) >>
+fs[json_size_def]
+QED
+*)
+
 Definition concat_with_def:
   (concat_with [] c = []) /\
   (concat_with [s] c = s) /\
@@ -580,6 +592,7 @@ Termination
   >> fs[]
 End
 
+(*
 Theorem lex_json_to_string_eq_json_to_tok:
   !obj. lex (FLAT $ json_to_string obj) [] = INL $ json_to_tok obj
 Proof
@@ -609,6 +622,7 @@ Theorem json_to_tok_parse_eq_ID:
 Proof
   cheat
 QED
+*)
 
 (*
 Examples:
