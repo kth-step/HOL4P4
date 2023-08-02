@@ -78,9 +78,9 @@ val vss_func_map = core_func_map;
 
 val vss_init_counter = term_of_int 3;
 
-val vss_init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
-			      (1, INL (core_v_ext_packet_out []));
-			      (2, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+val vss_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
+			      (1, INL (core_v_ext_packet []));
+			      (2, INL (core_v_ext_packet []))]:(num, vss_sum_v_ext) alist``;
 
 val ipv4_header_uninit =
  mk_v_header_list F 

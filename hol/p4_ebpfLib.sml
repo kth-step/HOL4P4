@@ -55,8 +55,8 @@ val ebpf_func_map = core_func_map;
 
 val ebpf_init_counter = term_of_int 2;
 
-val ebpf_init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
-                               (1, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+val ebpf_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
+                               (1, INL (core_v_ext_packet []))]:(num, ebpf_sum_v_ext) alist``;
 
 val ipv4_header_uninit =
  mk_v_header_list F 

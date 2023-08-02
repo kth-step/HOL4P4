@@ -616,7 +616,7 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
   val (ab_list, ab_list_ty) = dest_list ab_list_tm
   val ab_list' = [``arch_block_inp``,
                   (el 1 ab_list),
-                  ``arch_block_ffbl "parser_runtime"``,
+                  ``arch_block_ffbl "postparser"``,
                   (el 2 ab_list),
                   (el 3 ab_list),
                   (el 4 ab_list),

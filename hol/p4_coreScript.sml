@@ -8,10 +8,10 @@ val _ = new_theory "p4_core";
 (* core ext type *)
 (*****************)
 
+(* TODO: Unified separate packet_in and packet_out *)
 val _ = Hol_datatype ` 
 core_v_ext =
-   core_v_ext_packet_in of (bool list)
- | core_v_ext_packet_out of (bool list)`;
+   core_v_ext_packet of (bool list)`;
 
 (* TODO: Definitions with _gen get specialised later by the different architectures *)
 
@@ -20,29 +20,57 @@ core_v_ext =
 (******************)
 
 (* TODO: Perform this on list only? *)
-Definition min_size_in_bits:
- (min_size_in_bits (v_header valid_bit []) = SOME 0) /\
- (min_size_in_bits (v_header valid_bit (h::t)) =
+(* NOTE: This features more types that we can actually extract to, to facilitate re-use *)
+Definition size_in_bits_def:
+ (size_in_bits (v_bool b) = SOME 1) /\
+ (size_in_bits (v_bit (bl, n)) = SOME n) /\
+ (size_in_bits (v_header valid_bit []) = SOME 0) /\
+ (size_in_bits (v_struct []) = SOME 0) /\
+ (size_in_bits (v_header valid_bit (h::t)) =
   case SND h of
   | (v_bit (bl, num)) => 
-   (case min_size_in_bits (v_header valid_bit t) of
+   (case size_in_bits (v_header valid_bit t) of
     | SOME num' => SOME (num + num')
     | NONE => NONE
    )
   | (v_bool _) =>
-   (case min_size_in_bits (v_header valid_bit t) of
+   (case size_in_bits (v_header valid_bit t) of
+    | SOME num' => SOME (1 + num')
+    | NONE => NONE
+   )
+  | (v_struct fields) =>
+   (case size_in_bits (v_header valid_bit t) of
+    | SOME num' =>
+     (case size_in_bits (v_struct fields) of
+      | SOME num'' =>
+       SOME (num'' + num')
+      | NONE => NONE
+     )
+    | NONE => NONE
+   )
+  | _ => NONE
+ ) /\
+ (size_in_bits (v_struct (h::t)) =
+  case SND h of
+  | (v_bit (bl, num)) => 
+   (case size_in_bits (v_struct t) of
+    | SOME num' => SOME (num + num')
+    | NONE => NONE
+   )
+  | (v_bool _) =>
+   (case size_in_bits (v_struct t) of
     | SOME num' => SOME (1 + num')
     | NONE => NONE
    )
   | _ => NONE
  ) /\
- (min_size_in_bits _ = NONE)
+ (size_in_bits _ = NONE)
 End
 
 (* TODO: Perform this on list only? *)
-Definition min_size_in_bytes:
- (min_size_in_bytes (v_header valid_bit x_v_l) =
-  case min_size_in_bits (v_header valid_bit x_v_l) of
+Definition size_in_bytes:
+ (size_in_bytes (v_header valid_bit x_v_l) =
+  case size_in_bits (v_header valid_bit x_v_l) of
   | SOME num => SOME ((num+7) DIV 8)
   | NONE => NONE
  )
@@ -108,16 +136,25 @@ Definition lookup_lval_header:
  )
 End
 
-(* Helper function to extract *)
-Definition set_header_fields':
+Definition set_header_fields'_def:
  (set_header_fields' []     acc _ = SOME acc) /\
  (set_header_fields' (h::t) acc packet_in =
   case h of
   | (x:x, (v_bool b)) => set_header_fields' t ((x, (v_bool (HD packet_in)))::acc) (DROP 1 packet_in)
   | (x, (v_bit (bv, l))) => set_header_fields' t ((x, (v_bit (TAKE l packet_in, l)))::acc) (DROP l packet_in)
-  | _ => NONE
- )
+  | (x, (v_struct x_v_l)) =>
+   (case size_in_bits (v_struct x_v_l) of
+    | SOME n =>
+     (case set_header_fields' x_v_l [] (TAKE n packet_in) of
+      | SOME acc' =>
+       set_header_fields' t ((x, v_struct acc')::acc) (DROP n packet_in)
+      | NONE => NONE)
+    | NONE => NONE)
+  | _ => NONE)
+Termination
+WF_REL_TAC `measure ( \ (t, acc, packet_in). v1_size t)`
 End
+
 Definition set_header_fields:
  (set_header_fields x_v_l packet_in = set_header_fields' x_v_l [] packet_in)
 End
@@ -132,8 +169,8 @@ Definition packet_in_extract_gen:
    (case lookup_lval_header scope_list (lval_varname (varn_name "headerLvalue")) of
     | SOME (valid_bit, x_v_l) =>
      (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext_packet_in packet_in_bl)):(core_v_ext, 'b) sum) =>
-       (case min_size_in_bits (v_header valid_bit x_v_l) of
+      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+       (case size_in_bits (v_header valid_bit x_v_l) of
         | SOME size =>
          if size <= LENGTH packet_in_bl
          then
@@ -141,7 +178,7 @@ Definition packet_in_extract_gen:
            | SOME x_v_l' =>
             (case assign scope_list (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "headerLvalue")) of
              | SOME scope_list' =>
-              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_in (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', v_bot)
+              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', v_bot)
              | NONE => NONE)
            | NONE => NONE)
          else
@@ -194,18 +231,18 @@ Definition packet_out_emit_gen:
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case lookup_ascope_gen ascope_lookup ascope i of
-    | SOME (INL (core_v_ext_packet_out packet_out_bl)) =>
+    | SOME (INL (core_v_ext_packet packet_out_bl)) =>
      (case lookup_lval scope_list (lval_varname (varn_name "data")) of
       | SOME (v_header F x_v_l) => SOME (ascope, scope_list, v_bot)
       | SOME (v_header T x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, v_bot)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, v_bot)
         | NONE => NONE)
       | SOME (v_struct x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet_out (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, v_bot)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, v_bot)
         | NONE => NONE)
       | SOME _ => NONE
       | NONE => NONE)

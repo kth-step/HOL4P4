@@ -69,14 +69,15 @@ Definition ebpf_input_f_def:
   | ((bl,p)::t) =>
    (case ALOOKUP v_map "packet" of
     | SOME (v_ext_ref i) =>
-     let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet_in bl)) in
+     let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet bl)) in
      (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
       * function for ebpf_ascope. *)
-     (* TODO: Slightly vestigial from the VSS model *)
+     (* TODO: Slightly vestigial from the VSS model:
+      * needed to remember port when packet is accepted. Change to a more elegant solution later *)
      let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",v_bit (w4 (n2w p)))]) in
      (case ALOOKUP v_map' "packet_copy" of
       | SOME (v_ext_ref i') =>
-       let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet_out bl)) in
+       let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet bl)) in
        SOME (t, (counter, ext_obj_map'', v_map', ctrl):ebpf_ascope)
       | _ => NONE)
     | _ => NONE))
@@ -186,7 +187,7 @@ Definition ebpf_output_f_def:
   case ALOOKUP v_map "accept" of
   | SOME (v_bool T) =>
    (case ebpf_lookup_obj ext_obj_map v_map "packet_copy" of
-    | SOME (INL (core_v_ext_packet_out bl)) =>
+    | SOME (INL (core_v_ext_packet bl)) =>
      (case ALOOKUP v_map "inCtrl" of
       | SOME (v_struct fields) =>
        (case ebpf_inputPort_to_num fields of
