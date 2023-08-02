@@ -63,15 +63,14 @@ End
 (**********************************************************)
 
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
-(* NOTE: "b" renamed to "b_in" *)
 Definition v1model_input_f_def:
  (v1model_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   case io_list of
   | [] => NONE
   | ((bl,p)::t) =>
-   (case ALOOKUP v_map "b_in" of
+   (case ALOOKUP v_map "b" of
     | SOME (v_ext_ref i) =>
-     let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet_in bl)) in
+     let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet bl)) in
      (case ALOOKUP v_map "standard_metadata" of
       | SOME (v_struct struct) =>
        let v_map' = AUPDATE v_map ("standard_metadata", v_struct (AUPDATE struct ("ingress_port", v_bit (w9 (n2w p))))) in
@@ -153,16 +152,13 @@ Definition v1model_lookup_obj_def:
   | _ => NONE
 End
 
-(* This is just an artifact of our formalisation, to transfer b_in to b_out - needed as long as they are modeled separately *)
-Definition v1model_parser_runtime_def:
- v1model_parser_runtime ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
-  (case v1model_lookup_obj ext_obj_map v_map "b_in" of
-   | SOME (INL (core_v_ext_packet_in bl)) =>
-    (case ALOOKUP v_map "b_out" of
-     | SOME (v_ext_ref i') =>
-      let ext_obj_map' = AUPDATE ext_obj_map (i', INL (core_v_ext_packet_in bl)) in
-       SOME (counter, ext_obj_map', v_map, ctrl)
-     | _ => NONE)
+(* Simply transfers the value of parsedHdr to hdr *)
+Definition v1model_postparser_def:
+ v1model_postparser ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+  (case ALOOKUP v_map "parsedHdr" of
+   | SOME v =>
+    let v_map' = AUPDATE v_map ("hdr", v) in
+     SOME (counter, ext_obj_map, v_map', ctrl)
    | _ => NONE)
 End
 
@@ -170,13 +166,13 @@ End
 (* NOTE: "b" renamed to "b_out" *)
 Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
-  (case v1model_lookup_obj ext_obj_map v_map "b_out" of
-   | SOME (INL (core_v_ext_packet_out bl)) =>
+  (case v1model_lookup_obj ext_obj_map v_map "b" of
+   | SOME (INL (core_v_ext_packet bl)) =>
     (case ALOOKUP v_map "standard_metadata" of
      | SOME (v_struct struct) =>
       (case ALOOKUP struct "egress_spec" of
-       | SOME (v_bit (bl, n)) =>
-        let port_out = v2n bl in
+       | SOME (v_bit (port_bl, n)) =>
+        let port_out = v2n port_bl in
          SOME (in_out_list++[(bl, port_out)], (counter, ext_obj_map, v_map, ctrl))
        | _ => NONE)
      | _ => NONE)

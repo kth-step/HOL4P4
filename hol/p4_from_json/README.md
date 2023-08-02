@@ -23,7 +23,7 @@
 
 #How to debug test files
 
-Use `debug_arch_from_step`
+Use `debug_arch_from_step`:
 ```
-val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), (i, in_out_list, in_out_list', ascope)) = debug_arch_from_step "text_arch" test_name_actx test_name_astate nsteps
+ val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "text_arch" test_name_actx test_name_astate nsteps
 ```

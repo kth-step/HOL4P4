@@ -42,7 +42,7 @@ val v1model_copyout_pbl = ``v1model_copyout_pbl``;
 val v1model_apply_table_f = ``v1model_apply_table_f``;
 
 (* Fixed-function block map *)
-val v1model_ffblock_map = ``[("parser_runtime", ffblock_ff v1model_parser_runtime)]``;
+val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser)]``;
 
 (* Extern (object) function map *)
 val v1model_ext_map =
@@ -56,10 +56,9 @@ val v1model_func_map = core_func_map;
 (***********************)
 (* Architectural state *)
 
-val v1model_init_counter = term_of_int 2;
+val v1model_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []))]:(num, v1model_sum_v_ext) alist``;
 
-val v1model_init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
-			          (1, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+val v1model_init_counter = rhs $ concl $ EVAL “LENGTH ^v1model_init_ext_obj_map”;
 
 val v1model_standard_metadata_uninit =
  mk_v_struct_list [(``"ingress_port"``, mk_v_biti_arb 9),
@@ -82,10 +81,24 @@ val v1model_standard_metadata_uninit =
 val v1model_meta_uninit =
  mk_v_struct_list [];
 
+val v1model_row_uninit =
+ mk_v_struct_list [(``"e"``, mk_v_biti_arb 8),
+                   (``"t"``, mk_v_biti_arb 16),
+                   (``"l"``, mk_v_biti_arb 8),
+                   (``"r"``, mk_v_biti_arb 8),
+                   (``"v"``, mk_v_biti_arb 8)];
+
+val v1model_hdr_uninit =
+ mk_v_header_list F [(``"hdr"``, v1model_row_uninit)];
+
+val v1model_header_uninit =
+ mk_v_struct_list [(``"h"``, v1model_hdr_uninit)];
+
 val v1model_init_v_map = ``^core_init_v_map ++
-                           [("b_in", v_ext_ref 0);
-			    ("b_out", v_ext_ref 1);
+                           [("b", v_ext_ref 0);
+                            ("parsedHdr", (^v1model_header_uninit));
+                            ("meta", (^v1model_meta_uninit));
 			    ("standard_metadata", (^v1model_standard_metadata_uninit));
-                            ("meta", (^v1model_meta_uninit))]:(string, v) alist``;
+                            ("hdr", (^v1model_header_uninit))]:(string, v) alist``;
 
 end

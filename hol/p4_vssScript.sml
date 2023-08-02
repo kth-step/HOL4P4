@@ -8,12 +8,12 @@ Datatype:
  vss_v_ext =
    vss_v_ext_ipv4_checksum (word16 list)
 End
-val _ = type_abbrev("v_ext", ``:(core_v_ext, vss_v_ext) sum``);
+val _ = type_abbrev("vss_sum_v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
 val _ = type_abbrev("vss_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
 
 (* The architectural state type of the VSS architecture model *)
-val _ = type_abbrev("vss_ascope", ``:(num # ((num, v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
+val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -213,10 +213,10 @@ Definition vss_input_f_def:
        | SOME data_crc =>
         (case ALOOKUP v_map "b_in" of
          | SOME (v_ext_ref i) =>
-          let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet_in header)) in
+          let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet header)) in
           (case ALOOKUP v_map "data_crc" of
            | SOME (v_ext_ref i') =>
-            let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet_out data_crc)) in
+            let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet data_crc)) in
              (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
               * function for vss_ascope. *)
              let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort", v_bit (w4 (n2w p)))]) in
@@ -323,9 +323,9 @@ End
 Definition vss_output_f_def:
  vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
   (case vss_lookup_obj ext_obj_map v_map "b_out" of
-   | SOME (INL (core_v_ext_packet_out headers)) =>
+   | SOME (INL (core_v_ext_packet headers)) =>
     (case vss_lookup_obj ext_obj_map v_map "data_crc" of
-     | SOME (INL (core_v_ext_packet_out data_crc)) =>
+     | SOME (INL (core_v_ext_packet data_crc)) =>
       (case ALOOKUP v_map "outCtrl" of
        | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
         let
