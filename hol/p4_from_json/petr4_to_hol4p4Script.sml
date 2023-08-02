@@ -72,52 +72,53 @@ p_tau =
  | p_tau_par string
 End
 
-(* TODO: Rewrite this... *)
-val _ = TotalDefn.tDefine "deparameterise_tau"
-`(deparameterise_tau t =
+(* TODO: Rewrite this? *)
+Definition deparameterise_tau_def:
+(deparameterise_tau t =
   case t of
   | p_tau_bool => SOME tau_bool
   | p_tau_bit num_exp => SOME (tau_bit num_exp)
   | p_tau_bot => SOME tau_bot
   | p_tau_xtl struct_ty fields =>
-   let (f_names, f_types) = UNZIP fields in
-   (case deparameterise_taus f_types of
-    | SOME tau_l => SOME (tau_xtl struct_ty (ZIP(f_names, tau_l)))
-    | NONE => NONE
-   )
+   (case deparameterise_taus fields of
+    | SOME fields' => SOME (tau_xtl struct_ty fields')
+    | NONE => NONE)
   | p_tau_xl x_list => SOME (tau_xl x_list)
   | p_tau_err => SOME tau_err
   | p_tau_ext ext_name => SOME tau_ext
-  (* Cannot be translated to non-parameterized type *)
+  (* TODO: Cannot be translated to package type *)
+  | p_tau_pkg pkg_name => NONE
+  (* TODO: Cannot be translated to non-parameterized type *)
   | p_tau_par param_name => NONE) /\
 (deparameterise_taus [] = SOME []) /\
-(deparameterise_taus (h::t) =
-  case deparameterise_tau h of
+(deparameterise_taus ((name, p_tau)::t) =
+  case deparameterise_tau p_tau of
   | SOME tau =>
    (case deparameterise_taus t of
-    | SOME tau_l => SOME (tau::tau_l)
+    | SOME tau_l => SOME ((name, tau)::tau_l)
     | NONE => NONE)
-  | NONE => NONE)`
-cheat
-;
+  | NONE => NONE)
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL p_tau) => p_tau_size p_tau | (INR p_tau_list) => p_tau1_size p_tau_list)`
+End
 
-(* Note: this assigns the extern object name "" to all extern types *)
-val _ = TotalDefn.tDefine "parameterise_tau"
-`(parameterise_tau t =
+Definition parameterise_tau_def:
+(parameterise_tau t =
   case t of
   | tau_bool => p_tau_bool
   | tau_bit num_exp => (p_tau_bit num_exp)
   | tau_bot => p_tau_bot
   | tau_xtl struct_ty fields =>
-   let (f_names, f_types) = UNZIP fields in
-    (p_tau_xtl struct_ty (ZIP(f_names, parameterise_taus f_types)))
+   (p_tau_xtl struct_ty (parameterise_taus fields))
   | tau_xl x_list => (p_tau_xl x_list)
   | tau_err => p_tau_err
   | tau_ext => p_tau_ext "") /\
 (parameterise_taus [] = []) /\
-(parameterise_taus (h::t) = ((parameterise_tau h)::(parameterise_taus t)))`
-cheat
-;
+(parameterise_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_taus t)))
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL tau) => tau_size tau | (INR tau_list) => tau1_size tau_list)`
+End
+
 
 (******************)
 (* PRE-PROCESSING *)
