@@ -14,6 +14,7 @@ val eval_under_assum :
 val eval_under_assum_break : term -> term -> term list -> thm -> int list -> thm
 val dest_astate : term -> term * term * term * term
 val dest_vss_aenv : term -> term * term * term * term
+val dest_vss_ascope : term -> term * term * term * term
 val dest_vss_actx :
    term ->
      term * term * term * term * term * term * term * term * term * term
