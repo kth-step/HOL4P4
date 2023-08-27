@@ -346,6 +346,18 @@ fun dest_vss_aenv aenv =
 
 (* TODO: Move to syntax file *)
 (* TODO: Change name, should be generic *)
+fun dest_vss_ascope ascope =
+ let
+  val (counter, ascope') = dest_pair ascope
+  val (ext_obj_map, ascope'') = dest_pair ascope'
+  val (v_map, ctrl) = dest_pair ascope''
+ in
+  (counter, ext_obj_map, v_map, ctrl)
+ end
+;
+
+(* TODO: Move to syntax file *)
+(* TODO: Change name, should be generic *)
 fun dest_vss_actx actx =
  let
   val (ab_list, actx') = dest_pair actx
@@ -377,14 +389,16 @@ fun get_existentials eval_thm =
 in
 fun p4_eval_test_tac aenv_ty actx astate =
  let
+  (* eval_steps repeatedly evaluates until NONE is reached *)
   val step_thm = eval_step aenv_ty actx astate
   val [n, ab_index', ascope', g_scope_list', arch_frame_list', status'] =
    get_existentials step_thm
  in
+  (* Perform consecutive exists_tac on all existentially quantified variables in the
+   * theorem *)
   (foldr (fn (a, b) => a >> b) ALL_TAC
    (map exists_tac [n, ab_index', ascope', g_scope_list', arch_frame_list', status']))
-   >>
-   fs [step_thm, p4_replace_input_def]
+  >> fs [step_thm, p4_replace_input_def]
  end
 end;
 
@@ -398,6 +412,19 @@ fun debug_arch_from_step arch actx astate nsteps =
 (*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
  in
   (dest_vss_actx actx, (dest_vss_aenv aenv, g_scope_list, arch_frame_list, status))
+ end
+;
+
+(* Same as the above, but returns a ctx and a state - use when debugging e.g. eval_step *)
+fun debug_arch_from_step_alt arch actx astate nsteps =
+ let
+  val astate' = eval_and_print_result arch actx astate nsteps
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
+(* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
+(*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
+ in
+  (actx, list_mk_pair [aenv, g_scope_list, arch_frame_list, status])
  end
 ;
 

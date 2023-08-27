@@ -140,14 +140,14 @@ Definition set_header_fields'_def:
  (set_header_fields' []     acc _ = SOME acc) /\
  (set_header_fields' (h::t) acc packet_in =
   case h of
-  | (x:x, (v_bool b)) => set_header_fields' t ((x, (v_bool (HD packet_in)))::acc) (DROP 1 packet_in)
-  | (x, (v_bit (bv, l))) => set_header_fields' t ((x, (v_bit (TAKE l packet_in, l)))::acc) (DROP l packet_in)
+  | (x:x, (v_bool b)) => set_header_fields' t (acc++[(x, (v_bool (HD packet_in)))]) (DROP 1 packet_in)
+  | (x, (v_bit (bv, l))) => set_header_fields' t (acc++[(x, (v_bit (TAKE l packet_in, l)))]) (DROP l packet_in)
   | (x, (v_struct x_v_l)) =>
    (case size_in_bits (v_struct x_v_l) of
     | SOME n =>
      (case set_header_fields' x_v_l [] (TAKE n packet_in) of
       | SOME acc' =>
-       set_header_fields' t ((x, v_struct acc')::acc) (DROP n packet_in)
+       set_header_fields' t (acc++[(x, v_struct acc')]) (DROP n packet_in)
       | NONE => NONE)
     | NONE => NONE)
   | _ => NONE)
@@ -176,7 +176,7 @@ Definition packet_in_extract_gen:
          then
           (case set_header_fields x_v_l packet_in_bl of
            | SOME x_v_l' =>
-            (case assign scope_list (v_header T (REVERSE x_v_l')) (lval_varname (varn_name "headerLvalue")) of
+            (case assign scope_list (v_header T x_v_l') (lval_varname (varn_name "headerLvalue")) of
              | SOME scope_list' =>
               SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', v_bot)
              | NONE => NONE)
