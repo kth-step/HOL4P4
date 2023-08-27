@@ -89,7 +89,7 @@ val v1model_row_uninit =
                    (``"v"``, mk_v_biti_arb 8)];
 
 val v1model_hdr_uninit =
- mk_v_header_list F [(``"hdr"``, v1model_row_uninit)];
+ mk_v_header_list F [(``"row"``, v1model_row_uninit)];
 
 val v1model_header_uninit =
  mk_v_struct_list [(``"h"``, v1model_hdr_uninit)];

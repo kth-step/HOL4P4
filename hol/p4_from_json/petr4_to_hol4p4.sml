@@ -451,8 +451,8 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
     end
 
   val theorem =
-   String.concat ["?n ab_index' ", terms_to_string out_vars,
-                  "ascope' g_scope_list' arch_frame_list' status'.\n",
+   String.concat ["?n ab_index' ascope' g_scope_list' arch_frame_list' status' ",
+                  terms_to_string out_vars, ".\n",
                   "arch_multi_exec ^", actx, " ^",
                   valname, "_astate",
                   (* ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)")))), *)
@@ -628,8 +628,9 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
  end
 ;
 
-fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pblock_map ab_list_tm arch_opt_tm =
+fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm =
  let
+  (* TODO: Eliminate code duplication here... *)
   val actx_astate_opt =
    if (is_arch_vss $ dest_some arch_opt_tm) then
     let
@@ -695,23 +696,30 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 		     v1model_input_f, v1model_output_f,
 		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
 		     v1model_ext_map, fmap']
-     val init_ctrl = rhs $ concl $ EVAL ``v1model_init_ctrl ^pblock_map``;
-     val ascope = list_mk_pair [v1model_init_counter,
-				v1model_init_ext_obj_map,
-                                v1model_init_v_map,
-                                init_ctrl]
-     (* ab index, input list, output list, ascope *)
-     (* Note: Input is added later elsewhere *)
-     val aenv = list_mk_pair [term_of_int 0,
-                              mk_list ([], ``:in_out``),
-                              mk_list ([], ``:in_out``), ascope]
-     (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
-     val astate = list_mk_pair [aenv,
-			        mk_list ([``[]:scope``], scope_ty),
-			        arch_frame_list_empty_tm,
-			        status_running_tm]
+     val init_ctrl_opt = rhs $ concl $ EVAL ``v1model_init_ctrl ^pblock_map ^tbl_updates_tm``;
     in
-     SOME (actx, astate)
+     if is_some init_ctrl_opt
+     then
+      let
+       val init_ctrl = dest_some init_ctrl_opt
+       val ascope = list_mk_pair [v1model_init_counter,
+				  v1model_init_ext_obj_map,
+				  v1model_init_v_map,
+				  init_ctrl]
+       (* ab index, input list, output list, ascope *)
+       (* Note: Input is added later elsewhere *)
+       val aenv = list_mk_pair [term_of_int 0,
+				mk_list ([], ``:in_out``),
+				mk_list ([], ``:in_out``), ascope]
+       (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
+       val astate = list_mk_pair [aenv,
+				  mk_list ([``[]:scope``], scope_ty),
+				  arch_frame_list_empty_tm,
+				  status_running_tm]
+      in
+       SOME (actx, astate)
+      end
+     else raise Fail ("Could not initialise control plane configuration")
     end
    else if (is_none arch_opt_tm) then
     (* TODO *)
@@ -807,10 +815,11 @@ fun main() =
 val (ftymap, blftymap) = (el 4 res_list, el 5 res_list)
 val fmap = (el 6 res_list)
 val pblock_map = (el 10 res_list)
-val ab_list_tm = (el 12 res_list)
-val arch_opt_tm = (el 11 res_list)
+val tbl_entries = (el 11 res_list)
+val arch_opt_tm = (el 12 res_list)
+val ab_list_tm = (el 13 res_list)
 *)
-         val _ = output_hol4p4_vals outstream valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 12 res_list) (el 11 res_list);
+         val _ = output_hol4p4_vals outstream valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list);
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in
@@ -824,7 +833,7 @@ val arch_opt_tm = (el 11 res_list)
 	val _ = TextIO.outputSubstr (outstream, Substring.full ("FAIL: Could not parse "^filename^(". "^(parse_error^"\n"))));
 	val _ = TextIO.closeOut outstream;
        in
-	print parse_error
+	print (parse_error^"\n")
        end
      end
     else
