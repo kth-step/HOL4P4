@@ -49,7 +49,7 @@ fun astr_of_arch arch_opt_tm =
  else raise Fail ("Unknown architecture: "^(term_to_string arch_opt_tm))
 ;
 
-(* Returns the astate type of the architecture (as a term) as a string, for outputting *)
+(* Returns the astate type of the architecture (as a term) as a string, for output *)
 fun astate_of_arch arch_opt_tm =
  if is_arch_vss $ dest_some arch_opt_tm
  then SOME "vss_ascope astate"
@@ -375,42 +375,6 @@ fun process_arbs_list (ll: term list list) acc_init =
   (fn (a,b,c) => (a, map (fn c => mk_list (c, bool)) b, c)) (process_arbs_list' ll acc_init ([], []))
  end;
 
-(*
-(* Row breaks for legibility *)
-fun output_test_theorem outstream valname arch_opt n (out_port, out_data) =
- let
-  val (vars, out_data') = process_arbs out_data
-  val actx = (valname^"_actx")
-  val _ = TextIO.output (outstream, "Theorem "^(valname^("_test"^((Int.toString n)^":\n"))));
-  val _ = TextIO.output (outstream, "?n ab_index' ");
-  val _ = TextIO.output (outstream, term_to_string vars);
-  val _ = TextIO.output (outstream, " ascope' g_scope_list' arch_frame_list' status'.\n");
-  val _ = TextIO.output (outstream, "arch_multi_exec ^"^(actx^(" ^"^(valname^("_test"^((Int.toString n)^"_astate n =\n"))))));
-  val _ = TextIO.output (outstream, " SOME ((ab_index', [], [("^((Int.toString out_port)^(", "^((term_to_string out_data')^")], ascope'), g_scope_list', arch_frame_list', status')\n"))));
-  val _ = TextIO.output (outstream, "Proof\n");
-  val _ = TextIO.output (outstream, "p4_eval_test_tac "^((ascope_of_arch arch_opt)^" "^(valname^("_actx "^(valname^"_test"^((Int.toString n)^"_astate\n"))))));
-  val _ = TextIO.output (outstream, "QED\n\n");
- in
-  ()
- end
-;
-
-fun output_test_reject_theorem outstream valname arch_opt n =
- let
-  val actx = (valname^"_actx")
-  val _ = TextIO.output (outstream, "Theorem "^(valname^("_test"^((Int.toString n)^":\n"))));
-  val _ = TextIO.output (outstream, "?n ab_index' ascope' g_scope_list' arch_frame_list' status'.\n");
-  val _ = TextIO.output (outstream, "arch_multi_exec ^"^(actx^(" ^"^(valname^("_test"^((Int.toString n)^"_astate n =\n"))))));
-  val _ = TextIO.output (outstream, " SOME ((ab_index', [], [], ascope'), g_scope_list', arch_frame_list', status')\n");
-  val _ = TextIO.output (outstream, "Proof\n");
-  val _ = TextIO.output (outstream, "p4_eval_test_tac "^((ascope_of_arch arch_opt)^" "^(valname^("_actx "^(valname^"_test"^((Int.toString n)^"_astate\n"))))));
-  val _ = TextIO.output (outstream, "QED\n\n");
- in
-  ()
- end
-;
-*)
-
 fun terms_to_string [] = ""
   | terms_to_string (h::t) =
  let
@@ -462,18 +426,6 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
                   " ", valname, "_actx ", valname, "_astate\n",
                   "QED\n\n"];
   val _ = TextIO.output (outstream, theorem);
-
-(*
-  val _ = TextIO.output (outstream, "?n ab_index' ");
-  val _ = TextIO.output (outstream, terms_to_string out_vars);
-  val _ = TextIO.output (outstream, "ascope' g_scope_list' arch_frame_list' status'.\n");
-  val state_str = ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)"))));
-  val _ = TextIO.output (outstream, "arch_multi_exec ^"^(actx^(" "^(state_str^(" n =\n")))));
-  val _ = TextIO.output (outstream, " SOME ((ab_index', [], "^((term_to_string out_packets)^", ascope'), g_scope_list', arch_frame_list', status')\n"));
-  val _ = TextIO.output (outstream, "Proof\n");
-  val _ = TextIO.output (outstream, "p4_eval_test_tac "^((ascope_of_arch arch_opt)^" "^(valname^("_actx "^(valname^("_astate\n"))))));
-  val _ = TextIO.output (outstream, "QED\n\n");
-*)
  in
   ()
  end
@@ -628,6 +580,35 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
  end
 ;
 
+fun vss_add_param_vars_to_v_map init_v_map tau =
+ let
+  val uninit_H_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau”
+ in
+  rhs $ concl $ EVAL “AUPDATE_LIST ^init_v_map [("parsedHeaders", ^uninit_H_val_tm);
+                                                ("headers", ^uninit_H_val_tm);
+                                                ("outputHeaders", ^uninit_H_val_tm)]”
+ end
+;
+
+fun ebpf_add_param_vars_to_v_map init_v_map tau =
+ let
+  val uninit_H_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau”
+ in
+  rhs $ concl $ EVAL “AUPDATE_LIST ^init_v_map [("headers", ^uninit_H_val_tm)]”
+ end
+;
+
+fun v1model_add_param_vars_to_v_map init_v_map (tau1,tau2) =
+ let
+  val uninit_H_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau1”
+  val uninit_M_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau2”
+ in
+  rhs $ concl $ EVAL “AUPDATE_LIST ^init_v_map [("parsedHdr", ^uninit_H_val_tm);
+                                                ("hdr", ^uninit_H_val_tm);
+                                                ("meta", ^uninit_M_val_tm)]”
+ end
+;
+
 fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm =
  let
   (* TODO: Eliminate code duplication here... *)
@@ -642,23 +623,32 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 		     vss_input_f, vss_output_f,
 		     vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
 		     vss_ext_map, fmap']
-     val init_ctrl = rhs $ concl $ EVAL ``vss_init_ctrl ^pblock_map``;
-     val ascope = list_mk_pair [term_of_int 3,
-				vss_init_ext_obj_map,
-                                vss_init_v_map,
-                                init_ctrl]
-     (* ab index, input list, output list, ascope *)
-     (* Note: Input is added later elsewhere *)
-     val aenv = list_mk_pair [term_of_int 0,
-                              mk_list ([], ``:in_out``),
-                              mk_list ([], ``:in_out``), ascope]
-     (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
-     val astate = list_mk_pair [aenv,
-			        mk_list ([``[]:scope``], scope_ty),
-			        arch_frame_list_empty_tm,
-			        status_running_tm]
+     val init_ctrl_opt = rhs $ concl $ EVAL ``vss_init_ctrl ^pblock_map ^tbl_updates_tm``
     in
-     SOME (actx, astate)
+     if is_some init_ctrl_opt
+     then
+      let
+       val init_ctrl = dest_some init_ctrl_opt
+       (* Here, the initial v_map is completed with the type-parameterized variables *)
+       val vss_init_v_map' = vss_add_param_vars_to_v_map vss_init_v_map (dest_vss_pkg_VSS $ dest_some $ dest_arch_vss $ dest_some arch_opt_tm)
+       val ascope = list_mk_pair [term_of_int 3,
+				  vss_init_ext_obj_map,
+				  vss_init_v_map',
+				  init_ctrl]
+       (* ab index, input list, output list, ascope *)
+       (* Note: Input is added later elsewhere *)
+       val aenv = list_mk_pair [term_of_int 0,
+				mk_list ([], ``:in_out``),
+				mk_list ([], ``:in_out``), ascope]
+       (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
+       val astate = list_mk_pair [aenv,
+				  mk_list ([``[]:scope``], scope_ty),
+				  arch_frame_list_empty_tm,
+				  status_running_tm]
+      in
+       SOME (actx, astate)
+      end
+     else raise Fail ("Could not initialise control plane configuration")
     end
    else if (is_arch_ebpf $ dest_some arch_opt_tm) then
     let
@@ -669,23 +659,32 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 		     ebpf_input_f, ebpf_output_f,
 		     ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
 		     ebpf_ext_map, fmap']
-     val init_ctrl = rhs $ concl $ EVAL ``ebpf_init_ctrl ^pblock_map``;
-     val ascope = list_mk_pair [ebpf_init_counter,
-				ebpf_init_ext_obj_map,
-                                ebpf_init_v_map,
-                                init_ctrl]
-     (* ab index, input list, output list, ascope *)
-     (* Note: Input is added later elsewhere *)
-     val aenv = list_mk_pair [term_of_int 0,
-                              mk_list ([], ``:in_out``),
-                              mk_list ([], ``:in_out``), ascope]
-     (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
-     val astate = list_mk_pair [aenv,
-			        mk_list ([``[]:scope``], scope_ty),
-			        arch_frame_list_empty_tm,
-			        status_running_tm]
+     val init_ctrl_opt = rhs $ concl $ EVAL ``ebpf_init_ctrl ^pblock_map ^tbl_updates_tm``;
     in
-     SOME (actx, astate)
+     if is_some init_ctrl_opt
+     then
+      let
+       val init_ctrl = dest_some init_ctrl_opt
+       (* Here, the initial v_map is completed with the type-parameterized variables *)
+       val ebpf_init_v_map' = ebpf_add_param_vars_to_v_map ebpf_init_v_map (dest_ebpf_pkg_ebpfFilter $ dest_some $ dest_arch_ebpf $ dest_some arch_opt_tm)
+       val ascope = list_mk_pair [ebpf_init_counter,
+				  ebpf_init_ext_obj_map,
+				  ebpf_init_v_map',
+				  init_ctrl]
+       (* ab index, input list, output list, ascope *)
+       (* Note: Input is added later elsewhere *)
+       val aenv = list_mk_pair [term_of_int 0,
+				mk_list ([], ``:in_out``),
+				mk_list ([], ``:in_out``), ascope]
+       (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
+       val astate = list_mk_pair [aenv,
+				  mk_list ([``[]:scope``], scope_ty),
+				  arch_frame_list_empty_tm,
+				  status_running_tm]
+      in
+       SOME (actx, astate)
+      end
+     else raise Fail ("Could not initialise control plane configuration")
     end
    else if (is_arch_v1model $ dest_some arch_opt_tm) then
     let
@@ -702,9 +701,11 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
      then
       let
        val init_ctrl = dest_some init_ctrl_opt
+       (* Here, the initial v_map is completed with the type-parameterized variables *)
+       val v1model_init_v_map' = v1model_add_param_vars_to_v_map v1model_init_v_map (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm)
        val ascope = list_mk_pair [v1model_init_counter,
 				  v1model_init_ext_obj_map,
-				  v1model_init_v_map,
+				  v1model_init_v_map',
 				  init_ctrl]
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)

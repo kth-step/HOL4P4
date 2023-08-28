@@ -284,19 +284,20 @@ val _ = type_abbrev("tyenv", ``:(string, p_tau) alist``);
 val _ = type_abbrev("enummap", ``:num # (string # (string, v) alist) list``);
 val _ = type_abbrev("ftymap", ``:(funn # (p_tau list, tau) alist)``);
 
+(* The tau signifies the type argument(s) *)
 Datatype:
  vss_pkg_t =
-  vss_pkg_VSS
+  vss_pkg_VSS tau
 End
 
 Datatype:
  ebpf_pkg_t =
-  ebpf_pkg_ebpfFilter
+  ebpf_pkg_ebpfFilter tau
 End
 
 Datatype:
  v1model_pkg_t =
-  v1model_pkg_V1Switch
+  v1model_pkg_V1Switch tau tau
 End
 
 Datatype:
@@ -313,7 +314,7 @@ End
 Definition petr4_parse_width_def:
  petr4_parse_width json_list =
   case json_list of
-  | [String width; Null] => 
+  | [String width; Null] =>
    (case fromDecString width of
     | SOME w_num => SOME (p_tau_bit w_num)
     | NONE => NONE)
@@ -1927,16 +1928,6 @@ Definition petr4_process_arch_specific_properties_def:
  petr4_process_arch_specific_properties props = SOME_msg props
 End
 
-(*
-petr4_process_actions
-:(((string # json list) list # json list) option_msg_t -> α) -> α
-
-:((string # e list) list # json list) option_msg_t ->
-((e # α) list # (string # e list) # (e list # string # json list) list)
-option_msg_t
-
-*)
-
 Definition petr4_process_properties_def:
  petr4_process_properties (tyenv, enummap, vtymap, ftymap) props =
   case petr4_process_key (tyenv, enummap, vtymap, ftymap) props of
@@ -2169,8 +2160,9 @@ Definition petr4_parse_states_def:
    | _ => get_error_msg "unknown JSON format of parser state: " h)
 End
 
+(* TODO: Remove "THE" hack? Shouldn't make difference... *)
 Definition petr4_parse_parser_def:
- petr4_parse_parser (tyenv, enummap, vtymap, ftymap, blftymap, fmap:func_map, bltymap, gscope, pblock_map:pblock_map) parser =
+ petr4_parse_parser (tyenv, enummap, vtymap, ftymap, blftymap, fmap:func_map, bltymap, gscope, pblock_map) parser =
   case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
                        "constructor_params"; "locals"; "states"] parser of
    | SOME [tags; annot; name; Array typarams; Array params; Array constructor_params; Array locals; Array states] =>
@@ -2183,7 +2175,7 @@ Definition petr4_parse_parser_def:
          | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries) =>
           (case petr4_parse_states (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope) [] states of
            | SOME_msg pars_map =>
-            SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (parser_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, (pblock_regular pbl_type_parser pars_params b_func_map decl_list (stmt_seq inits (stmt_trans (e_v (v_str "start")))) pars_map tbl_map)))
+            SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (parser_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pblock_regular pbl_type_parser pars_params b_func_map decl_list (stmt_seq inits (stmt_trans (e_v (v_str "start")))) pars_map tbl_map), MAP (THE o deparameterise_tau o SND) vty_updates)))
            | NONE_msg states_msg => NONE_msg ("Could not parse states: "++states_msg++" while parsing parser "++parser_name))
          | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing parser "++parser_name))
        | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing parser "++parser_name))
@@ -2195,8 +2187,9 @@ End
 (***********)
 (* Control *)
 
+(* TODO: Remove "THE" hack? Shouldn't make difference... *)
 Definition petr4_parse_control_def:
- petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map:pblock_map, tbl_entries) control =
+ petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, tbl_entries) control =
   case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
                        "constructor_params"; "locals"; "apply"] control of
    | SOME [tags; annot; name; Array typarams; Array params; Array constructor_params; Array locals; apply] =>
@@ -2213,7 +2206,7 @@ Definition petr4_parse_control_def:
            | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries) =>
             (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, apply_map) stmts of
              | SOME_msg res_apply =>
-              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, (pblock_regular pbl_type_control ctrl_params b_func_map decl_list (stmt_seq inits res_apply) ([]:pars_map) tbl_map)), tbl_entries)
+              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control ctrl_params b_func_map decl_list (stmt_seq inits res_apply) ([]:pars_map) tbl_map)), MAP (THE o deparameterise_tau o SND) vty_updates), tbl_entries)
              | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
            | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
          | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing control "++control_name))
@@ -2304,6 +2297,13 @@ Definition petr4_get_arch_block_pbl_def:
    | NONE => NONE
 End
 
+Definition get_arch_block_pbl_name_def:
+ get_arch_block_pbl_name arch_block =
+  case arch_block of
+   | (arch_block_pbl pbl_name params) => SOME pbl_name
+   | _ => NONE
+End
+
 Definition petr4_get_arch_block_pbls_def:
  (petr4_get_arch_block_pbls _ [] = SOME []) /\
  (petr4_get_arch_block_pbls bltymap ((h1,h2)::t) =
@@ -2359,7 +2359,7 @@ End
 
 (* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
 Definition petr4_parse_element_def:
- petr4_parse_element (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map:pblock_map, tbl_entries, arch_pkg_opt, ab_list) json =
+ petr4_parse_element (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map:(string # (pblock # tau list)) list, tbl_entries, arch_pkg_opt, ab_list) json =
   case json of
   | Array [String elem_name; obj] =>
    if elem_name = "Error" then
@@ -2444,6 +2444,7 @@ Definition petr4_parse_element_def:
      | SOME_msg bltymap' =>
       SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap', ptymap, gscope, pblock_map, tbl_entries, arch_pkg_opt, ab_list)
      | NONE_msg msg => NONE_msg msg)
+
    (* TODO: Fix parser and control I/O *)
    else if elem_name = "Parser" then
     (case petr4_parse_parser (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map) obj of
@@ -2469,17 +2470,35 @@ Definition petr4_parse_element_def:
       (case arch_pkg_opt of
        (* VSS: Only one top-level package exists *)
        | SOME (arch_vss (NONE)) =>
-        SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, SOME (arch_vss (SOME vss_pkg_VSS)), vss_add_ff_blocks ab_list')
+        (case get_arch_block_pbl_name (EL 0 ab_list') of
+         | SOME pbl_name =>
+          (case ALOOKUP pblock_map pbl_name of
+           | SOME (pblock, argtys) => 
+            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, SOME (arch_vss (SOME (vss_pkg_VSS (EL 1 argtys)))), vss_add_ff_blocks ab_list')
+           | _ => NONE_msg ("Unknown programmable block in top-level package instantiation: "++pbl_name))
+         | NONE => NONE_msg ("Invalid block in top-level package instantiation"))
        | SOME (arch_vss _) =>
         NONE_msg ("Duplicate top-level package instantiations")
        (* eBPF: Only one top-level package exists *)
        | SOME (arch_ebpf (NONE)) =>
-        SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, SOME (arch_ebpf (SOME ebpf_pkg_ebpfFilter)), ab_list')
+        (case get_arch_block_pbl_name (EL 0 ab_list') of
+         | SOME pbl_name =>
+          (case ALOOKUP pblock_map pbl_name of
+           | SOME (pblock, argtys) => 
+            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, SOME (arch_ebpf (SOME (ebpf_pkg_ebpfFilter (EL 1 argtys)))), ab_list')
+           | _ => NONE_msg ("Unknown programmable block in top-level package instantiation: "++pbl_name))
+         | NONE => NONE_msg ("Invalid block in top-level package instantiation"))
        | SOME (arch_ebpf _) =>
         NONE_msg ("Duplicate top-level package instantiations")
        (* V1Model: Only one top-level package exists *)
        | SOME (arch_v1model (NONE)) =>
-        SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, SOME (arch_v1model (SOME v1model_pkg_V1Switch)), ab_list')
+        (case get_arch_block_pbl_name (EL 0 ab_list') of
+         | SOME pbl_name =>
+          (case ALOOKUP pblock_map pbl_name of
+           | SOME (pblock, argtys) => 
+            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, SOME (arch_v1model (SOME (v1model_pkg_V1Switch (EL 1 argtys) (EL 2 argtys)))), ab_list')
+           | _ => NONE_msg ("Unknown programmable block in top-level package instantiation: "++pbl_name))
+         | NONE => NONE_msg ("Invalid block in top-level package instantiation"))
        | SOME (arch_v1model _) =>
         NONE_msg ("Duplicate top-level package instantiations")
        | _ => NONE_msg ("Unexpected top-level package instantiation"))
@@ -2498,11 +2517,21 @@ Definition petr4_parse_elements_def:
                      | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],(0,[]),[],[(funn_ext "header" "isValid",[],tau_bool); (funn_ext "header" "setValid",[],tau_bot); (funn_ext "header" "setInvalid",[],tau_bot)],[],[],[],[],[],[],[],arch_pkg_opt,[])) json_list
 End
 
+(* Removes the list of arguments stored in pblock_map, which is only used during the
+ * final step of parsing when inferring type arguments *)
+Definition clean_pblock_map_def:
+ clean_pblock_map res_msg =
+  case res_msg of
+  | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, arch_pkg_opt, ab_list) =>
+   SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map, tbl_entries, arch_pkg_opt, ab_list)
+  | NONE_msg msg => NONE_msg msg
+End
+
 Definition p4_from_json_def:
 (p4_from_json json_parse_result arch_pkg_opt =
  case p4_from_json_preamble json_parse_result of
  | SOME_msg json_list =>
-  petr4_parse_elements json_list arch_pkg_opt
+  clean_pblock_map $ petr4_parse_elements json_list arch_pkg_opt
  | NONE_msg msg => NONE_msg msg)
 End
 
@@ -2576,16 +2605,22 @@ End
 (* Get initial mappings for ctrl from the programmable blocks map *)
 Definition ebpf_init_ctrl_def:
  ebpf_init_ctrl pblock_map tbl_updates =
-  (FLAT (MAP (\ (pblock_name, pblock). case pblock of
+  let
+   init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type ctrl_params b_func_map decl_list
                        body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
+  in
+   init_ctrl_gen init_tbl_map tbl_updates
 End
 
 Definition vss_init_ctrl_def:
  vss_init_ctrl pblock_map tbl_updates =
-  (FLAT (MAP (\ (pblock_name, pblock). case pblock of
+  let
+   init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type ctrl_params b_func_map decl_list
                        body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):vss_ctrl
+  in
+   init_ctrl_gen init_tbl_map tbl_updates
 End
 
 Definition v1model_init_ctrl_def:
@@ -2598,23 +2633,6 @@ Definition v1model_init_ctrl_def:
    init_ctrl_gen init_tbl_map tbl_updates
 End
 
-(*
-
-["Entries",{"tags":["missing_info",""],
- "entries":[{"tags":["missing_info",""],
-             "annotations":[],
-             "matches":[["Expression",{"tags":["missing_info",""],"expr":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"1","width_signed":null}}]}]],
-             "action":{"tags":["missing_info",""],"annotations":[],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"a_with_control_params"}}],
-                      "args":[["Expression",{"tags":["missing_info",""],"value":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"1","width_signed":null}}]}]]}},
-	    {"tags":["missing_info",""],
-	     "annotations":[],
-	     "matches":[["Expression",{"tags":["missing_info",""],"expr":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"2","width_signed":null}}]}]],
-	     "action":{"tags":["missing_info",""],"annotations":[],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"a_with_control_params"}}],
-		       "args":[["Expression",{"tags":["missing_info",""],"value":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"2","width_signed":null}}]}]]}}
- ]
-]
-
-*)
 
 (*********)
 (* TESTS *)

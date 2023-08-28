@@ -77,7 +77,7 @@ val v1model_standard_metadata_uninit =
                    (``"checksum_error"``, mk_v_biti_arb 1),
                    (``"parser_error"``, ``v_err "NoError"``),
                    (``"priority"``, mk_v_biti_arb 3)];
-
+(*
 val v1model_meta_uninit =
  mk_v_struct_list [];
 
@@ -93,12 +93,9 @@ val v1model_hdr_uninit =
 
 val v1model_header_uninit =
  mk_v_struct_list [(``"h"``, v1model_hdr_uninit)];
-
+*)
 val v1model_init_v_map = ``^core_init_v_map ++
                            [("b", v_ext_ref 0);
-                            ("parsedHdr", (^v1model_header_uninit));
-                            ("meta", (^v1model_meta_uninit));
-			    ("standard_metadata", (^v1model_standard_metadata_uninit));
-                            ("hdr", (^v1model_header_uninit))]:(string, v) alist``;
+			    ("standard_metadata", (^v1model_standard_metadata_uninit))]:(string, v) alist``;
 
 end

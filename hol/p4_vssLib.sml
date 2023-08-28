@@ -81,7 +81,7 @@ val vss_init_counter = term_of_int 3;
 val vss_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
 			      (1, INL (core_v_ext_packet []));
 			      (2, INL (core_v_ext_packet []))]:(num, vss_sum_v_ext) alist``;
-
+(*
 val ipv4_header_uninit =
  mk_v_header_list F 
                   [(``"version"``, mk_v_biti_arb 4),
@@ -103,15 +103,12 @@ val ethernet_header_uninit =
                    (``"etherType"``, mk_v_biti_arb 16)];
 val vss_parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
-
+*)
 val vss_init_v_map = ``^core_init_v_map ++
                        [("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
 			("outCtrl", v_struct [("outputPort", ^(mk_v_biti_arb 4))]);
 			("b_in", v_ext_ref 0);
 			("b_out", v_ext_ref 1);
-			("data_crc", v_ext_ref 2);
-			("parsedHeaders", (^vss_parsed_packet_struct_uninit));
-			("headers", (^vss_parsed_packet_struct_uninit));
-			("outputHeaders", (^vss_parsed_packet_struct_uninit))]:(string, v) alist``;
+			("data_crc", v_ext_ref 2)]:(string, v) alist``;
 
 end
