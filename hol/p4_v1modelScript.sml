@@ -45,8 +45,17 @@ Definition v1model_packet_out_emit:
 End
     
 (**********************************************************)
-(*                     EXTERN OBJECTS                     *)
+(*             EXTERN OBJECTS AND FUNCTIONS               *)
 (**********************************************************)
+
+(* NOTE: 511 is the default drop port *)
+Definition v1model_mark_to_drop_def:
+ v1model_mark_to_drop (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
+  case assign scope_list (v_bit (fixwidth 9 (n2v 511), 9)) (lval_field (lval_varname (varn_name "standard_metadata")) "egress_spec") of
+   | SOME scope_list' =>
+    SOME (v1model_ascope, g_scope_list, scope_list', status_returnv v_bot)
+   | NONE => NONE
+End
 
 (**********************)
 (* Checksum methods   *)
@@ -173,7 +182,9 @@ Definition v1model_output_f_def:
       (case ALOOKUP struct "egress_spec" of
        | SOME (v_bit (port_bl, n)) =>
         let port_out = v2n port_bl in
-         SOME (in_out_list++[(bl, port_out)], (counter, ext_obj_map, v_map, ctrl))
+         if port_out = 511
+         then SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
+         else SOME (in_out_list++[(bl, port_out)], (counter, ext_obj_map, v_map, ctrl))
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)

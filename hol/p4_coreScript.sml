@@ -212,6 +212,17 @@ Definition flatten_v_l:
       | SOME l' => SOME (l++l')
       | NONE => NONE)
     | NONE => NONE)
+  | v_header validity [] =>
+   (case flatten_v_l t of
+    | SOME l => SOME l
+    | NONE => NONE)
+  | v_header validity (h'::t') =>
+   (case flatten_v_l [SND h'] of
+    | SOME l =>
+     (case flatten_v_l ((v_struct t')::t) of
+      | SOME l' => SOME (l++l')
+      | NONE => NONE)
+    | NONE => NONE)
   | v_bit (bl, n) =>
    (case flatten_v_l t of
     | SOME l => SOME (bl++l)
