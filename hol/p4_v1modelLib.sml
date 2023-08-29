@@ -17,6 +17,9 @@ val v1model_init_global_scope = ``[]:scope``;
 (*******************************************)
 (* Architectural context (generic externs) *)
 
+val v1model_objectless_map =
+ ``[("mark_to_drop", (stmt_ext, [("standard_metadata", d_inout)], v1model_mark_to_drop))]``;
+
 val v1model_packet_in_map =
  ``[("extract", (stmt_ext, [("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract))]``;
 
@@ -47,7 +50,8 @@ val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser)]``;
 (* Extern (object) function map *)
 val v1model_ext_map =
  ``((^(inst [``:'a`` |-> ``:v1model_ascope``] core_ext_map))
-    ++ [("packet_in", (NONE, (^v1model_packet_in_map)));
+    ++ [("", (NONE, (^v1model_objectless_map)));
+        ("packet_in", (NONE, (^v1model_packet_in_map)));
         ("packet_out", (NONE, (^v1model_packet_out_map)))])``;
 
 (* Function map *)
