@@ -8,7 +8,11 @@ val _ = new_theory "p4_core";
 (* core ext type *)
 (*****************)
 
-(* TODO: Unified separate packet_in and packet_out *)
+(* TODO: Separate packet_in and packet_out?  *)
+
+(* packet_in:
+     https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-packet-data-extraction
+*)
 val _ = Hol_datatype ` 
 core_v_ext =
    core_v_ext_packet of (bool list)`;
@@ -108,6 +112,10 @@ Definition header_set_invalid:
   | _ => NONE
  )
 End
+
+(* TODO: Advance
+   https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-skip-bits
+*)
 
 
 (*********************)
