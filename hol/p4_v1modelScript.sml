@@ -4,6 +4,11 @@ open p4Theory p4_auxTheory p4_coreTheory;
 
 val _ = new_theory "p4_v1model";
 
+(* Useful documentation and reference links:
+   https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
+   https://github.com/p4lang/behavioral-model/blob/main/targets/simple_switch/simple_switch.cpp
+*)
+
 (* TODO: v1model uses a checksum in the verify_checksum and update_checksum externs *)
 Datatype:
  v1model_v_ext =
@@ -53,7 +58,10 @@ Definition v1model_mark_to_drop_def:
  v1model_mark_to_drop (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
   case assign scope_list (v_bit (fixwidth 9 (n2v 511), 9)) (lval_field (lval_varname (varn_name "standard_metadata")) "egress_spec") of
    | SOME scope_list' =>
-    SOME (v1model_ascope, g_scope_list, scope_list', status_returnv v_bot)
+    (case assign scope_list' (v_bit (fixwidth 16 (n2v 0), 16)) (lval_field (lval_varname (varn_name "standard_metadata")) "mcast_grp") of
+     | SOME scope_list'' =>
+      SOME (v1model_ascope, g_scope_list, scope_list'', status_returnv v_bot)
+     | NONE => NONE)
    | NONE => NONE
 End
 
