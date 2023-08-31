@@ -45,6 +45,10 @@ Definition v1model_packet_in_extract:
  v1model_packet_in_extract = packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update
 End
 
+Definition v1model_packet_in_advance:
+ v1model_packet_in_advance = packet_in_advance_gen v1model_ascope_lookup v1model_ascope_update
+End
+
 Definition v1model_packet_out_emit:
  v1model_packet_out_emit = packet_out_emit_gen v1model_ascope_lookup v1model_ascope_update
 End
@@ -55,12 +59,12 @@ End
 
 (* NOTE: 511 is the default drop port *)
 Definition v1model_mark_to_drop_def:
- v1model_mark_to_drop (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
+ v1model_mark_to_drop (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case assign scope_list (v_bit (fixwidth 9 (n2v 511), 9)) (lval_field (lval_varname (varn_name "standard_metadata")) "egress_spec") of
    | SOME scope_list' =>
     (case assign scope_list' (v_bit (fixwidth 16 (n2v 0), 16)) (lval_field (lval_varname (varn_name "standard_metadata")) "mcast_grp") of
      | SOME scope_list'' =>
-      SOME (v1model_ascope, g_scope_list, scope_list'', status_returnv v_bot)
+      SOME (v1model_ascope, scope_list'', status_returnv v_bot)
      | NONE => NONE)
    | NONE => NONE
 End
@@ -144,8 +148,15 @@ Definition v1model_copyin_pbl_def:
  v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):v1model_ascope, pbl_type) =
   case v1model_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (* Note: no initialisation of parser error here *)
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ]
+   (* NOTE: parseError used in a hacky way here, to keep verify statement and certain externs generic *)
+   (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
+    | SOME scope =>
+     if pbl_type = pbl_type_parser
+     then
+      SOME (initialise_parse_error scope)
+     else
+      SOME scope
+    | NONE => NONE)
   | NONE => NONE
 End
 
@@ -154,9 +165,22 @@ Definition v1model_copyout_pbl_def:
  v1model_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope, dlist, xlist, pbl_type, (status:status)) =
   case copyout xlist dlist [ [] ; [] ] [v_map_to_scope v_map] g_scope_list of
   | SOME (_, [v_map_scope]) =>
-   (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):v1model_ascope)
-    | NONE => NONE)
+   if pbl_type = pbl_type_parser
+   then
+   (* NOTE: parseError used in a hacky way here, to keep verify statement and certain externs generic *)
+    (case lookup_lval g_scope_list (lval_varname (varn_name "parseError")) of
+     | SOME v =>
+      (case assign [v_map_scope] v (lval_varname (varn_name "parseError")) of
+       | SOME [v_map_scope'] =>
+        (case scope_to_vmap v_map_scope' of
+         | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):v1model_ascope)
+         | NONE => NONE)
+       | _ => NONE)
+     | _ => NONE)
+   else
+    (case scope_to_vmap v_map_scope of
+     | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):v1model_ascope)
+     | NONE => NONE)
   | _ => NONE
 End
 
@@ -169,13 +193,33 @@ Definition v1model_lookup_obj_def:
   | _ => NONE
 End
 
-(* Simply transfers the value of parsedHdr to hdr *)
+(* Transfers the value of parsedHdr to hdr and the parserError value to standard_metadata,
+ * then resets the shared packet "b" (TODO: Fix that hack) and saves its content in "b_temp" *)
 Definition v1model_postparser_def:
  v1model_postparser ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
-  (case ALOOKUP v_map "parsedHdr" of
-   | SOME v =>
-    let v_map' = AUPDATE v_map ("hdr", v) in
-     SOME (counter, ext_obj_map, v_map', ctrl)
+  (case ALOOKUP v_map "b" of
+   | SOME (v_ext_ref i) =>
+    (case ALOOKUP ext_obj_map i of
+     | SOME (INL (core_v_ext_packet bl)) =>
+      (case ALOOKUP v_map "b_temp" of
+       | SOME (v_ext_ref i') =>
+        (case ALOOKUP v_map "parsedHdr" of
+         | SOME v =>
+          let v_map' = AUPDATE v_map ("hdr", v) in
+           (case ALOOKUP v_map "parseError" of
+            | SOME v' =>
+             (case assign [v_map_to_scope v_map'] v' (lval_field (lval_varname (varn_name "standard_metadata")) "parser_error") of
+              | SOME [v_map_scope] =>
+               (case scope_to_vmap v_map_scope of
+                | SOME v_map'' =>
+                 let (counter', ext_obj_map', v_map''', ctrl') = (v1model_ascope_update (counter, ext_obj_map, v_map'', ctrl) i' (INL (core_v_ext_packet bl))) in
+   SOME (v1model_ascope_update (counter', ext_obj_map', v_map''', ctrl') i (INL (core_v_ext_packet [])))
+                | NONE => NONE)
+              | _ => NONE)
+            | NONE => NONE)
+         | _ => NONE)
+       | _ => NONE)
+     | _ => NONE)
    | _ => NONE)
 End
 
@@ -185,14 +229,17 @@ Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   (case v1model_lookup_obj ext_obj_map v_map "b" of
    | SOME (INL (core_v_ext_packet bl)) =>
-    (case ALOOKUP v_map "standard_metadata" of
-     | SOME (v_struct struct) =>
-      (case ALOOKUP struct "egress_spec" of
-       | SOME (v_bit (port_bl, n)) =>
-        let port_out = v2n port_bl in
-         if port_out = 511
-         then SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
-         else SOME (in_out_list++[(bl, port_out)], (counter, ext_obj_map, v_map, ctrl))
+    (case v1model_lookup_obj ext_obj_map v_map "b_temp" of
+     | SOME (INL (core_v_ext_packet bl')) =>
+      (case ALOOKUP v_map "standard_metadata" of
+       | SOME (v_struct struct) =>
+        (case ALOOKUP struct "egress_spec" of
+         | SOME (v_bit (port_bl, n)) =>
+          let port_out = v2n port_bl in
+           if port_out = 511
+           then SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
+           else SOME (in_out_list++[(bl++bl', port_out)], (counter, ext_obj_map, v_map, ctrl))
+         | _ => NONE)
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)

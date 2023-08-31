@@ -24,8 +24,9 @@ Definition is_v_bool:
  (is_v_bool _ = F)
 End
 
+(* NOTE: Error messages serialised using 32 bits *)
 Definition is_v_err:
- (is_v_err (e_v (v_err x)) = T) /\
+ (is_v_err (e_v (v_bit bitv)) = T) /\
  (is_v_err _ = F)
 End
 
@@ -118,17 +119,11 @@ Definition binop_exec:
  (binop_exec binop_neq (v_bool b1) (v_bool b2) =
   SOME (v_bool (b1 <> b2)))
  /\
- (binop_exec binop_neq (v_err x1) (v_err x2) =
-  SOME (v_bool (x1 <> x2)))
- /\
  (binop_exec binop_eq (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bool (bitv1 = bitv2)))
  /\
  (binop_exec binop_eq (v_bool b1) (v_bool b2) =
   SOME (v_bool (b1 = b2)))
- /\
- (binop_exec binop_eq (v_err x1) (v_err x2) =
-  SOME (v_bool (x1 = x2)))
  /\
  (binop_exec binop_and (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bit (bitv_bl_binop band bitv1 bitv2)))
@@ -215,11 +210,11 @@ Definition stmt_exec_init:
 End
 
 Definition stmt_exec_verify:
- (stmt_exec_verify (e_v (v_bool T)) (e_v (v_err x)) =
+ (stmt_exec_verify (e_v (v_bool T)) (e_v (v_bit bitv)) =
   SOME stmt_empty)
   /\
- (stmt_exec_verify (e_v (v_bool F)) (e_v (v_err x)) =
-  SOME (stmt_seq (stmt_ass (lval_varname (varn_name "parseError")) ((e_v (v_err x)))) (stmt_trans (e_v (v_str "reject")))))
+ (stmt_exec_verify (e_v (v_bool F)) (e_v (v_bit bitv)) =
+  SOME (stmt_seq (stmt_ass (lval_varname (varn_name "parseError")) ((e_v (v_bit bitv)))) (stmt_trans (e_v (v_str "reject")))))
   /\
  (stmt_exec_verify _ _ = NONE)
 End
@@ -556,8 +551,8 @@ Definition stmt_exec:
   (case lookup_ext_fun funn ext_map of
    | SOME ext_fun =>
     (case ext_fun (ascope, g_scope_list, scope_list) of
-     | SOME (ascope', scope_list', v) =>
-      SOME (ascope', g_scope_list, [(funn, [stmt_empty], scope_list')], status_returnv v)
+     | SOME (ascope', scope_list', status') =>
+      SOME (ascope', g_scope_list, [(funn, [stmt_empty], scope_list')], status')
      | NONE => NONE)
    | NONE => NONE))
   /\
@@ -1312,11 +1307,11 @@ stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (asc
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (?ext_fun.
    lookup_ext_fun funn ext_map = SOME ext_fun /\
-   ?scope_list'' ascope'' v''.
-    ext_fun (ascope, g_scope_list, scope_list) = SOME (ascope'', scope_list'', v'') /\
+   ?scope_list'' ascope'' status''.
+    ext_fun (ascope, g_scope_list, scope_list) = SOME (ascope'', scope_list'', status'') /\
     g_scope_list' = g_scope_list /\
     frame_list' = [(funn, stmt_empty::stmt_stack, scope_list'')] /\
-    status' = status_returnv v'' /\
+    status' = status'' /\
     scope_list <> [] /\
     ascope' = ascope'')
 Proof

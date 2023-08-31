@@ -112,8 +112,9 @@ v :: v_ ::=
   {{ com struct }}
 | header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
   {{ com header }}
-| errmsg x :: :: err
-  {{ com error message }}
+%Error messages are now serialised as 32-bit 0, 1, 2, ... based on order of declaration.
+%| errmsg x :: :: err
+%  {{ com error message }}
 | ext_ref i :: :: ext_ref
   {{ com extern object reference }}
 | bot :: :: bot
@@ -428,7 +429,7 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 %An extern function/method updates the scope list, global scope list and arch scope directly.
 %Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
-{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # v) option)) }}
+{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # status) option)) }}
 
 %%%%%%%%%%%
 % Context %
@@ -505,9 +506,10 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ com no value }}
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
-  {{ com struct }} 
-| err :: :: err
-  {{ com error }}
+  {{ com struct }}
+%TODO: Why is the string literal type a list?
+| x_list :: :: xl   
+  {{ com string literal }}
 | ext :: :: ext
   {{ com extern }}
 
@@ -585,7 +587,7 @@ stmt :: stmt_ ::=
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
 | verify e e' :: :: verify
-  %e is the predicate, e' is the error message
+  %e is the predicate, e' is the (serialised) error message
   {{ com verify }}
 | transition e :: :: trans
   {{ com transition }}

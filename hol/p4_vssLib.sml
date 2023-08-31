@@ -33,7 +33,8 @@ val vss_init_global_scope =
 (* Architectural context (generic externs) *)
 
 val vss_packet_in_map =
- ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], vss_packet_in_extract))]:vss_ascope ext_fun_map``;
+ ``[("extract", ([("this", d_in); ("parseError", d_inout); ("headerLvalue", d_out)], vss_packet_in_extract));
+    ("advance", ([("this", d_in); ("bits", d_in)], vss_packet_in_advance))]``;
 
 val vss_packet_out_map =
  ``[("emit", ([("this", d_in); ("data", d_in)], vss_packet_out_emit))]:vss_ascope ext_fun_map``;

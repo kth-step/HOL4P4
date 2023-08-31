@@ -17,7 +17,8 @@ val ebpf_init_global_scope =
 (* Architectural context (generic externs) *)
 
 val ebpf_packet_in_map =
- ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], ebpf_packet_in_extract))]``;
+ ``[("extract", ([("this", d_in); ("parseError", d_inout); ("headerLvalue", d_out)], ebpf_packet_in_extract));
+    ("advance", ([("this", d_in); ("bits", d_in)], ebpf_packet_in_advance))]``;
 
 val ebpf_packet_out_map =
  ``[("emit", ([("this", d_in); ("data", d_in)], ebpf_packet_out_emit))]``;
