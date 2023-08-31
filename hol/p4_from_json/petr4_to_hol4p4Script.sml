@@ -63,7 +63,6 @@ p_tau =
  (* Note that structs can be type-parametrized *)
  | p_tau_xtl struct_ty ((x#p_tau) list)
  | p_tau_xl x_list
- | p_tau_err
  (* The string is the name of the extern object *)
  | p_tau_ext string
  (* The string is the name of the package *)
@@ -84,7 +83,6 @@ Definition deparameterise_tau_def:
     | SOME fields' => SOME (tau_xtl struct_ty fields')
     | NONE => NONE)
   | p_tau_xl x_list => SOME (tau_xl x_list)
-  | p_tau_err => SOME tau_err
   | p_tau_ext ext_name => SOME tau_ext
   (* TODO: Cannot be translated to package type *)
   | p_tau_pkg pkg_name => NONE
@@ -111,7 +109,6 @@ Definition parameterise_tau_def:
   | tau_xtl struct_ty fields =>
    (p_tau_xtl struct_ty (parameterise_taus fields))
   | tau_xl x_list => (p_tau_xl x_list)
-  | tau_err => p_tau_err
   | tau_ext => p_tau_ext "") /\
 (parameterise_taus [] = []) /\
 (parameterise_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_taus t)))
@@ -216,7 +213,7 @@ Definition json_parse_arr_list'_def:
    (\s.
     (case INDEX_FIND 0 (\name_f. (FST name_f) = s) name_f_l of
      | SOME (i, name_f) =>
-      (* t can be empty if we're dealing with an error *)
+      (* TODO: can t be empty if we're dealing with an error? *)
       (case t of
        | [] =>
         (SND name_f) Null
@@ -407,7 +404,7 @@ Definition petr4_parse_ptype_def:
                  | _ => NONE)
                | _ => NONE));
      ("bool", \json'. SOME p_tau_bool);
-     ("error", \json'. SOME p_tau_err);
+     ("error", \json'. SOME (p_tau_bit 32));
      ("name", \json'. OPTION_BIND (petr4_parse_tyname json')
                                   (\name. case ALOOKUP tyenv name of
                                    | SOME p_tau => SOME p_tau
@@ -1051,21 +1048,23 @@ Definition petr4_parse_method_call_def:
               (case funn of
                (* Extern object method, or method without associated object *)
                | (funn_ext ext_name extfun_name) =>
-                if ext_name = ""
-                then SOME_msg (stmt_ass lval_null (e_call funn res_args))
+                (* Note special treatment of verify *)
+                if ((ext_name = "") /\ (extfun_name = "verify"))
+                then
+                 (* TODO: Make error check for res_args format *)
+                 SOME_msg (stmt_verify (EL 0 res_args) (EL 1 res_args))
+                (* TODO: Special treatment of extract here wrt parseError *)
                 else
                  (case obj_opt of
                   | SOME obj =>
-                   SOME_msg (stmt_ass lval_null (e_call funn (obj::res_args)))
+                   if ((ext_name = "packet_in") /\ (extfun_name = "extract"))
+                   then
+                    SOME_msg (stmt_ass lval_null (e_call funn (obj::((e_var (varn_name "parseError"))::res_args))))
+                   else
+                    SOME_msg (stmt_ass lval_null (e_call funn (obj::res_args)))
                   | NONE => get_error_msg "no object provided for extern object method call: " func)
-               (* TODO: This can either be an extern or not... *)
-               (* Note special treatment of verify *)
                | (funn_name fun_name) =>
-                (if fun_name = "verify" then
-                  (* TODO: Make error check for res_args format *)
-                  SOME_msg (stmt_verify (EL 0 res_args) (EL 1 res_args))
-                 else 
-                  SOME_msg (stmt_ass lval_null (e_call funn res_args)))
+                SOME_msg (stmt_ass lval_null (e_call funn res_args))
                | _ => get_error_msg "unknown type of method call: " func)
              | NONE_msg args_msg => NONE_msg ("could not parse method call: "++args_msg))
            | NONE => get_error_msg "type inference information not found for method call: " func)

@@ -21,7 +21,8 @@ val v1model_objectless_map =
  ``[("mark_to_drop", (stmt_ext, [("standard_metadata", d_inout)], v1model_mark_to_drop))]``;
 
 val v1model_packet_in_map =
- ``[("extract", (stmt_ext, [("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract))]``;
+ ``[("extract", (stmt_ext, [("this", d_in); ("parseError", d_inout); ("headerLvalue", d_out)], v1model_packet_in_extract));
+    ("advance", (stmt_ext, [("this", d_in); ("bits", d_in)], v1model_packet_in_advance))]``;
 
 val v1model_packet_out_map =
  ``[("emit", (stmt_ext, [("this", d_in); ("data", d_in)], v1model_packet_out_emit))]``;
@@ -60,7 +61,7 @@ val v1model_func_map = core_func_map;
 (***********************)
 (* Architectural state *)
 
-val v1model_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []))]:(num, v1model_sum_v_ext) alist``;
+val v1model_init_ext_obj_map = ``[(0, INL (core_v_ext_packet [])); (1, INL (core_v_ext_packet []))]:(num, v1model_sum_v_ext) alist``;
 
 val v1model_init_counter = rhs $ concl $ EVAL “LENGTH ^v1model_init_ext_obj_map”;
 
@@ -79,7 +80,7 @@ val v1model_standard_metadata_uninit =
                    (``"mcast_grp"``, mk_v_biti_arb 16),
                    (``"egress_rid"``, mk_v_biti_arb 16),
                    (``"checksum_error"``, mk_v_biti_arb 1),
-                   (``"parser_error"``, ``v_err "NoError"``),
+                   (``"parser_error"``, mk_v_biti_arb 32),
                    (``"priority"``, mk_v_biti_arb 3)];
 
 val v1model_standard_metadata_zeroed =
@@ -97,7 +98,7 @@ val v1model_standard_metadata_zeroed =
                    (``"mcast_grp"``, mk_v_bitii (0, 16)),
                    (``"egress_rid"``, mk_v_bitii (0, 16)),
                    (``"checksum_error"``, mk_v_bitii (0, 1)),
-                   (``"parser_error"``, ``v_err "NoError"``),
+                   (``"parser_error"``, mk_v_bitii (0, 32)),
                    (``"priority"``, mk_v_bitii (0, 3))];
 (*
 val v1model_meta_uninit =
@@ -118,6 +119,7 @@ val v1model_header_uninit =
 *)
 val v1model_init_v_map = ``^core_init_v_map ++
                            [("b", v_ext_ref 0);
+                            ("b_temp", v_ext_ref 1);
 			    ("standard_metadata", (^v1model_standard_metadata_zeroed))]:(string, v) alist``;
 
 end

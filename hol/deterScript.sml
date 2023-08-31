@@ -1645,7 +1645,7 @@ Cases_on `t` >| [
        IMP_RES_TAC lemma_v_red_forall >>
 
      Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
-     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
+     Cases_on `ext_fun (ascope,g_scope_list'',scope_list)` >>fs[] >>rw[] >>
      fs[notret_def]
 
        ,
@@ -1669,7 +1669,7 @@ Cases_on `t` >| [
        IMP_RES_TAC lemma_v_red_forall >>
 
      Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
-     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
+     Cases_on `ext_fun (ascope,g_scope_list'',scope_list)` >>fs[] >>rw[] >>
      fs[notret_def]
 
        ,

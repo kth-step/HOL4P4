@@ -333,9 +333,9 @@ by
   x : ( [ x1 , .. , xn ] , false  )
 
 
-  x : ( [ x ] , false  )
------------------------------------ :: err
-  errmsg x : ( err , false  )
+%  x : ( [ x ] , false  )
+%----------------------------------- :: err
+%  errmsg x : ( err , false  )
 
 
  v1 , .. , vn : ( [ tau1 , .. , taun ] , false  )

@@ -311,10 +311,10 @@ formula :: formula_ ::=
   {{ com lookup of an extern function }}
   {{ tex [[ext_fun]] = \mathrm{lookup\_ext\_fun} ( [[funn]] , [[ext_map]] ) }}
   {{ hol (SOME [[ext_fun]] = lookup_ext_fun [[funn]] [[ext_map]]) }}
-| ( ascope' , scope_list' , v ) = ext_fun ( ascope , g_scope_list , scope_list ) :: :: ext_apply
+| ( ascope' , scope_list' , status ) = ext_fun ( ascope , g_scope_list , scope_list ) :: :: ext_apply
   {{ com application of an extern function }}
-  {{ tex ([[ascope']], \, [[scope_list']], \, [[v]]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]]) }}
-  {{ hol (SOME ([[ascope']], [[scope_list']], [[v]]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]])) }}
+  {{ tex ([[ascope']], \, [[scope_list']], \, [[status]]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]]) }}
+  {{ hol (SOME ([[ascope']], [[scope_list']], [[status]]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]])) }}
 
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
@@ -455,10 +455,6 @@ formula :: formula_ ::=
   {{ com lval is parseError }}
   {{ hol ([[lval]] = lval_varname (varn_name "parseError")) }}
   {{ tex [[lval]] = \mathit{parseError} }}
-| v = errmsg "NoError" :: M :: is_no_error
-  {{ com v is NoError }}
-  {{ hol ([[v]] = v_err "NoError") }}
-  {{ tex [[v]] = \mathit{NoError} }}
 | ( g_scope_list' , scope_list' ) = declare ( g_scope_list , scope_list , x , t ) :: M :: declare
   {{ com declare variable of type }}
   {{ hol (([[g_scope_list']], [[scope_list']]) = declare [[g_scope_list]] [[scope_list]] [[x]] [[t]]) }}
@@ -1346,7 +1342,6 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_header boolv ((x,v)::t)) =
     v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_header boolv []) = v_header F []) /\
-  (init_out_v (v_err errmsg) = v_err ARB) /\
   (init_out_v v_uninit = v_uninit) /\
   (init_out_v v_bot = v_bot)
 `
@@ -1384,7 +1379,6 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
   (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
   (arb_from_tau tau_bot    = v_bot)   /\
   (arb_from_tau (tau_xl [x]) = (v_str ARB)) /\
-  (arb_from_tau tau_err   = (v_err ARB)) /\
   (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
   (arb_from_tau (tau_xtl struct_ty_struct (xtl) ) =
     (v_struct ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ) /\
@@ -1530,9 +1524,10 @@ val initialise_def = Define `
 `;
 
 (* Initialises parseError in a scope. *)
+(* NOTE: NoError serialised to 0 *)
 val initialise_parse_error_def = Define `
   (initialise_parse_error (scope:scope) =
-    AUPDATE scope (varn_name "parseError", (v_err "NoError", NONE))
+    AUPDATE scope (varn_name "parseError", (v_bit (fixwidth 32 (n2v 0),32), NONE))
   )
 `;
 
@@ -2074,13 +2069,10 @@ bitv NE bitv' = b
 ----------------------------------- :: neq
 ctx g_scope_list scope_list ( bitv NE bitv' ) ~> ( b , empty )
 
-(x <> x') = b
------------------------------------ :: neq_error
-ctx g_scope_list scope_list ( (errmsg x) NE (errmsg x') ) ~> ( b , empty )
-
 b NE b' = b''
 ----------------------------------- :: neq_bool
 ctx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
+
 
 %%%%%%%%%%%%%
 %Equal
@@ -2088,13 +2080,6 @@ ctx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
 bitv EQ bitv' = b
 ----------------------------------- :: eq
 ctx g_scope_list scope_list ( bitv EQ bitv' ) ~> ( b , empty )
-
-
-(x EQ x') = b
------------------------------------ :: eq_error
-ctx g_scope_list scope_list ( (errmsg x) EQ (errmsg x') ) ~> ( b , empty )
-
-
 
 b EQ b' = b''
 ----------------------------------- :: eq_bool
@@ -2223,14 +2208,14 @@ by
 
 %Case predicate holds
   ------------------------------------------------- :: verify_3
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify true ( errmsg x ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ verify true ( bitv ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list ) ] , Running )
 
 
 %Case predicate does not hold
   x' = parseError
   x'' = "reject"
   ------------------------------------------------- :: verify_4
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify false ( errmsg x ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign x' ( errmsg x ) ; transition x'' ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ verify false ( bitv ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign x' ( bitv ) ; transition x'' ] , scope_list ) ] , Running )
 
 
 %%%%%%%%%%%%%%
@@ -2258,9 +2243,9 @@ by
 %%%%%%%%%%%%%%
 %Extern
   ext_fun = lookup_ext_fun ( funn , ext_map )
-  ( ascope' , scope_list' , v ) = ext_fun ( ascope , g_scope_list , scope_list )
+  ( ascope' , scope_list' , status ) = ext_fun ( ascope , g_scope_list , scope_list )
   ----------------------------------- :: ext
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list' ) ] , Ret v )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list' ) ] , status )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2292,7 +2277,7 @@ by
   ctx ( ascope , g_scope_list , [ ( funn , [ verify e e' ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ verify e'' e' ] , scope_list ) ] , Running )
   
 
-%Reduction step of error message
+%Reduction step of (serialised) error message
   ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
   ------------------------------------------------- :: verify_e2
   ctx ( ascope , g_scope_list , [ ( funn , [ verify b e ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ verify b e' ] , scope_list ) ] , Running )

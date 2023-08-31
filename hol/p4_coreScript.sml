@@ -32,7 +32,7 @@ Definition size_in_bits_def:
  (size_in_bits (v_struct []) = SOME 0) /\
  (size_in_bits (v_header valid_bit (h::t)) =
   case SND h of
-  | (v_bit (bl, num)) => 
+  | (v_bit (bl, num)) =>
    (case size_in_bits (v_header valid_bit t) of
     | SOME num' => SOME (num + num')
     | NONE => NONE
@@ -84,7 +84,7 @@ Definition header_is_valid:
  (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
-   SOME (ascope, scope_list, v_bool valid_bit)
+   SOME (ascope, scope_list, status_returnv (v_bool valid_bit))
   | _ => NONE
  )
 End
@@ -95,7 +95,7 @@ Definition header_set_valid:
   | SOME (v_header valid_bit x_v_l) =>
    (case assign scope_list (v_header T x_v_l) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>
-     SOME (ascope, scope_list', v_bot)
+     SOME (ascope, scope_list', status_returnv v_bot)
     | NONE => NONE)
   | _ => NONE
  )
@@ -107,15 +107,11 @@ Definition header_set_invalid:
   | SOME (v_header valid_bit x_v_l) =>
    (case assign scope_list (v_header F x_v_l) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>             
-     SOME (ascope, scope_list', v_bot)
+     SOME (ascope, scope_list', status_returnv v_bot)
     | NONE => NONE)
   | _ => NONE
  )
 End
-
-(* TODO: Advance
-   https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-skip-bits
-*)
 
 
 (*********************)
@@ -186,14 +182,49 @@ Definition packet_in_extract_gen:
            | SOME x_v_l' =>
             (case assign scope_list (v_header T x_v_l') (lval_varname (varn_name "headerLvalue")) of
              | SOME scope_list' =>
-              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', v_bot)
+              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', status_returnv v_bot)
              | NONE => NONE)
            | NONE => NONE)
          else
-          (case assign scope_list (v_err "PacketTooShort") (lval_varname (varn_name "parseError")) of
-           | SOME scope_list' => SOME (ascope, scope_list', v_bot)
+          (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+          (case assign scope_list (v_bit (fixwidth 32 (n2v 1), 32)) (lval_varname (varn_name "parseError")) of
+           | SOME scope_list' => SOME (ascope, scope_list', status_trans "reject")
            | NONE => NONE)
         | NONE => NONE)
+       | _ => NONE)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+(* Advance
+   https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-skip-bits
+*)
+
+Definition lookup_lval_bit32:
+ (lookup_lval_bit32 ss bit32_lval =
+  case lookup_lval ss bit32_lval of
+   | SOME (v_bit (bitv, 32)) => SOME (v2n bitv)
+   | _ => NONE
+ )
+End
+
+Definition packet_in_advance_gen:
+ (packet_in_advance_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case lookup_lval_bit32 scope_list (lval_varname (varn_name "bits")) of
+    | SOME n_bits =>
+     (case lookup_ascope_gen ascope_lookup ascope i of
+      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+       if n_bits <= LENGTH packet_in_bl
+       then
+        SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
+       else
+        (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+        (case assign scope_list (v_bit (fixwidth 32 (n2v 1), 32)) (lval_varname (varn_name "parseError")) of
+         | SOME scope_list' => SOME (ascope, scope_list', status_returnv v_bot)
+         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
   | _ => NONE
@@ -252,16 +283,16 @@ Definition packet_out_emit_gen:
    (case lookup_ascope_gen ascope_lookup ascope i of
     | SOME (INL (core_v_ext_packet packet_out_bl)) =>
      (case lookup_lval scope_list (lval_varname (varn_name "data")) of
-      | SOME (v_header F x_v_l) => SOME (ascope, scope_list, v_bot)
+      | SOME (v_header F x_v_l) => SOME (ascope, scope_list, status_returnv v_bot)
       | SOME (v_header T x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, v_bot)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
         | NONE => NONE)
       | SOME (v_struct x_v_l) =>
        (case flatten_v_l (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, v_bot)
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
         | NONE => NONE)
       | SOME _ => NONE
       | NONE => NONE)
