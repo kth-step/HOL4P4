@@ -229,7 +229,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   Cases_on `stmt_stack` >| [
    ALL_TAC,
 
-   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool T)) (e_v (v_err s))`` ``[]:frame_list`` ``[stmt_empty]``) >>
+   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool T)) (e_v (v_bit bitv))`` ``[]:frame_list`` ``[stmt_empty]``) >>
    fs [clause_name_def]
   ] >> (
    metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_3", clause_name_def]
@@ -238,7 +238,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   Cases_on `stmt_stack` >| [
    ALL_TAC,
 
-   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool F)) (e_v (v_err s))`` ``[]:frame_list`` ``[stmt']:stmt list``) >>
+   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool F)) (e_v (v_bit bitv))`` ``[]:frame_list`` ``[stmt']:stmt list``) >>
    fs [clause_name_def]
   ] >> (
    metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_4", clause_name_def]

@@ -34,6 +34,10 @@ Definition vss_packet_in_extract:
  vss_packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update
 End
 
+Definition vss_packet_in_advance:
+ vss_packet_in_advance = packet_in_advance_gen vss_ascope_lookup vss_ascope_update
+End
+
 Definition vss_packet_out_emit:
  vss_packet_out_emit = packet_out_emit_gen vss_ascope_lookup vss_ascope_update
 End
@@ -54,7 +58,7 @@ Definition Checksum16_construct:
   let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum ([]:word16 list))) in
   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
-    SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', v_bot)
+    SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
    | NONE => NONE)
  )
 End
@@ -67,7 +71,7 @@ Definition Checksum16_clear:
  (Checksum16_clear ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:word16 list))), v_map, ctrl), scope_list, v_bot)
+   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:word16 list))), v_map, ctrl), scope_list, status_returnv v_bot)
   | _ => NONE
  )
 End
@@ -131,7 +135,7 @@ Definition Checksum16_update:
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
      (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
       | SOME checksum_incr =>
-       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, v_bot)
+       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE
@@ -173,7 +177,7 @@ Definition Checksum16_get:
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, (v_bit (w16 (compute_checksum16 ipv4_checksum))))
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (w16 (compute_checksum16 ipv4_checksum))))
     | _ => NONE)
   | _ => NONE
  )

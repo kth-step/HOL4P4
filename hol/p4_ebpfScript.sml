@@ -40,6 +40,10 @@ Definition ebpf_packet_in_extract:
  ebpf_packet_in_extract = packet_in_extract_gen ebpf_ascope_lookup ebpf_ascope_update
 End
 
+Definition ebpf_packet_in_advance:
+ ebpf_packet_in_advance = packet_in_advance_gen ebpf_ascope_lookup ebpf_ascope_update
+End
+
 Definition ebpf_packet_out_emit:
  ebpf_packet_out_emit = packet_out_emit_gen ebpf_ascope_lookup ebpf_ascope_update
 End

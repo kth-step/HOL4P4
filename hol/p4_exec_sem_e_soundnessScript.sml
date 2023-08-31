@@ -289,13 +289,9 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
    irule ((valOf o find_clause_e_red) "e_neq"),
 
-   irule ((valOf o find_clause_e_red) "e_neq_error"),
-
    irule ((valOf o find_clause_e_red) "e_eq_bool"),
 
    irule ((valOf o find_clause_e_red) "e_eq"),
-
-   irule ((valOf o find_clause_e_red) "e_eq_error"),
 
    irule ((valOf o find_clause_e_red) "e_and"),
 

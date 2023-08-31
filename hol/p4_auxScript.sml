@@ -2270,7 +2270,6 @@ Definition v_to_tau_def:
               | NONE => NONE)
             | _ => NONE)) /\
   (v_to_tau (v_header boolv []) = SOME (tau_xtl struct_ty_header [])) /\
-  (v_to_tau (v_err errmsg) = SOME tau_err) /\
   (v_to_tau v_bot = SOME tau_bot) /\
   (v_to_tau _ = NONE)
   (* TODO: tau_str? *)
