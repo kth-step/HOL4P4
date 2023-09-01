@@ -16,8 +16,11 @@ val ebpf_init_global_scope =
 (*******************************************)
 (* Architectural context (generic externs) *)
 
+val ebpf_objectless_map =
+ ``[("verify", (stmt_ext, [("err", d_in)], ebpf_verify))]``;
+
 val ebpf_packet_in_map =
- ``[("extract", (stmt_ext, [("this", d_in); ("parseError", d_inout); ("headerLvalue", d_out)], ebpf_packet_in_extract));
+ ``[("extract", (stmt_ext, [("this", d_in); ("headerLvalue", d_out)], ebpf_packet_in_extract));
     ("advance", (stmt_ext, [("this", d_in); ("bits", d_in)], ebpf_packet_in_advance))]``;
 
 val ebpf_packet_out_map =
@@ -46,7 +49,8 @@ val ebpf_ffblock_map = ``[]``;
 
 val ebpf_ext_map =
  ``((^(inst [``:'a`` |-> ``:ebpf_ascope``] core_ext_map))
-    ++ [("packet_in", (NONE, (^ebpf_packet_in_map)));
+    ++ [("", (NONE, ^ebpf_objectless_map));
+        ("packet_in", (NONE, (^ebpf_packet_in_map)));
         ("packet_out", (NONE, (^ebpf_packet_out_map)))])``;
 
 val ebpf_func_map = core_func_map;

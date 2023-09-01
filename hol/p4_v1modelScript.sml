@@ -41,16 +41,26 @@ Definition v1model_ascope_update_def:
    (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
 End
 
+Definition v1model_ascope_update_v_map_def:
+ v1model_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) str v =
+   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
+End
+
 Definition v1model_packet_in_extract:
- v1model_packet_in_extract = packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update
+ v1model_packet_in_extract = packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
 Definition v1model_packet_in_advance:
- v1model_packet_in_advance = packet_in_advance_gen v1model_ascope_lookup v1model_ascope_update
+ v1model_packet_in_advance = packet_in_advance_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
 Definition v1model_packet_out_emit:
  v1model_packet_out_emit = packet_out_emit_gen v1model_ascope_lookup v1model_ascope_update
+End
+
+Definition v1model_verify:
+ (v1model_verify (ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
+  verify_gen v1model_ascope_update_v_map (ascope, g_scope_list, scope_list, status))
 End
     
 (**********************************************************)
@@ -145,42 +155,24 @@ End
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition v1model_copyin_pbl_def:
- v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):v1model_ascope, pbl_type) =
+ v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   case v1model_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (* NOTE: parseError used in a hacky way here, to keep verify statement and certain externs generic *)
    (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
     | SOME scope =>
-     if pbl_type = pbl_type_parser
-     then
-      SOME (initialise_parse_error scope)
-     else
-      SOME scope
+     SOME scope
     | NONE => NONE)
   | NONE => NONE
 End
 
 (* Note that this re-uses the copyout function intended for P4 functions *)
 Definition v1model_copyout_pbl_def:
- v1model_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope, dlist, xlist, pbl_type, (status:status)) =
+ v1model_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope, dlist, xlist, (status:status)) =
   case copyout xlist dlist [ [] ; [] ] [v_map_to_scope v_map] g_scope_list of
   | SOME (_, [v_map_scope]) =>
-   if pbl_type = pbl_type_parser
-   then
-   (* NOTE: parseError used in a hacky way here, to keep verify statement and certain externs generic *)
-    (case lookup_lval g_scope_list (lval_varname (varn_name "parseError")) of
-     | SOME v =>
-      (case assign [v_map_scope] v (lval_varname (varn_name "parseError")) of
-       | SOME [v_map_scope'] =>
-        (case scope_to_vmap v_map_scope' of
-         | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):v1model_ascope)
-         | NONE => NONE)
-       | _ => NONE)
-     | _ => NONE)
-   else
-    (case scope_to_vmap v_map_scope of
-     | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):v1model_ascope)
-     | NONE => NONE)
+   (case scope_to_vmap v_map_scope of
+    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):v1model_ascope)
+    | NONE => NONE)
   | _ => NONE
 End
 

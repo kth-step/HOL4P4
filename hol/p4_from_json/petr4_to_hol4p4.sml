@@ -743,13 +743,13 @@ fun format_for_hol4 (str: string) : string =
 
 (* Print test:
  (* OK *)
- val args = ["1", "2", "test-examples/ebpf_stf_only/action_call_table_ebpf.json", "test-examples/ebpf_stf_only/action_call_table_ebpf.log", "test-examples/ebpf_stf_only/action_call_table_ebpfScript.sml", "ebpf", "Y"];
+ val args = ["1", "2", "test-examples/ebpf_stf_only/action_call_table_ebpf.json", "test-examples/ebpf_stf_only/action_call_table_ebpf.log", "ebpf", "Y"];
  (* OK *)
- val args = ["1", "2", "test-examples/ebpf_stf_only/action_call_ebpf.json", "test-examples/ebpf_stf_only/action_call_ebpf.log", "test-examples/ebpf_stf_only/action_call_ebpfScript.sml", "ebpf", "Y"];
+ val args = ["1", "2", "test-examples/ebpf_stf_only/test_ebpf.json", "test-examples/ebpf_stf_only/test_ebpf.log", "ebpf", "Y"];
 
- val args = ["1", "2", "test-examples/stf_only/issue2176-bmv2.json", "test-examples/stf_only/issue2176-bmv2.log", "test-examples/stf_only/issue2176-bmv2Script.sml", "v1model", "Y"];
+ val args = ["1", "2", "test-examples/stf_only/parser_error-bmv2.json", "test-examples/stf_only/parser_error-bmv2.log", "v1model", "Y"];
 
- val args = ["1", "2", "test-examples/stf_only/bvec-hdr-bmv2.json", "test-examples/stf_only/bvec-hdr-bmv2.log", "test-examples/stf_only/bvec-hdr-bmv2Script.sml", "v1model", "Y"];
+ val args = ["1", "2", "test-examples/stf_only/bvec-hdr-bmv2.json", "test-examples/stf_only/bvec-hdr-bmv2.log", "v1model", "Y"];
 
 *)
 
@@ -757,29 +757,33 @@ fun main() =
  let
   val args = CommandLine.arguments()
  in
-  if length args >= 4
+  if length args >= 3
   then
    let
     val filename = el 3 args;
     val logname = el 4 args;
-    val scriptname = el 5 args;
-    val arch_opt = if length args >= 6 then parse_arch (el 6 args) else NONE;
+    val arch_opt = if length args >= 5 then parse_arch (el 5 args) else NONE;
     val arch_opt_tm = arch_to_term arch_opt;
 
     (* NOTE: This will just remove the suffix .json *)
     val valname_no_suffix = List.drop (rev $ explode filename, 5);
     val stfname_opt =
-     if length args = 7
+     if length args = 6
      then 
-      if (el 7 args) = "Y"
+      if (el 6 args) = "Y"
       then SOME ((implode $ rev valname_no_suffix)^".stf")
       else NONE
      else NONE;
 
+    (* TODO: Done in one split instead? *)
     val valname_no_prefix =
      (List.take (valname_no_suffix, Lib.index (fn c => c = #"/") valname_no_suffix))
      handle HOL_ERR _ => valname_no_suffix;
+    val valname_prefix =
+     (List.drop (valname_no_suffix, Lib.index (fn c => c = #"/") valname_no_suffix))
+     handle HOL_ERR _ => [];
     val valname = format_for_hol4 $ implode $ rev $ valname_no_prefix;
+    val prefix = implode $ rev $ valname_prefix;
 
     val outstream = TextIO.openAppend logname;
    in
@@ -810,7 +814,7 @@ fun main() =
        in
         let
          (* TODO: Take this as an argument instead *)
-         val outstream = TextIO.openOut scriptname;
+         val outstream = TextIO.openOut (prefix^(valname^"Script.sml"));
          val _ = output_hol4p4_incipit valname outstream;
 (* Debug:
 val (ftymap, blftymap) = (el 4 res_list, el 5 res_list)

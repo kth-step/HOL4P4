@@ -48,7 +48,7 @@ Cases_on `arch_frame_list` >> (
   ) >>
   Cases_on `x` >>
   fs [] >>
-  Cases_on `copyin_pbl (MAP FST l',MAP SND l',l,ascope,p)` >> (
+  Cases_on `copyin_pbl (MAP FST l',MAP SND l',l,ascope)` >> (
    fs []
   ) >>
   Cases_on `oLASTN 1 g_scope_list` >> (
@@ -121,7 +121,7 @@ Cases_on `arch_frame_list` >> (
   Cases_on `x` >>
   fs [state_fin_exec_def] >>
   Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND l',MAP FST l',p,
+             (g_scope_list,ascope,MAP SND l',MAP FST l',
               set_fin_status p status_running)` >> (
    fs []
   ) >>
@@ -181,7 +181,7 @@ Cases_on `arch_frame_list` >> (
  Cases_on `x` >>
  fs [] >>
  Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND l'',MAP FST l'',p,
+             (g_scope_list,ascope,MAP SND l'',MAP FST l'',
               set_fin_status p (status_returnv v))` >> (
   fs []
  ) >>
@@ -206,7 +206,7 @@ Cases_on `arch_frame_list` >> (
  ) >| [
   (* programmable block return *)
   Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND l'',MAP FST l'',p,
+             (g_scope_list,ascope,MAP SND l'',MAP FST l'',
               set_fin_status p (status_trans s))` >> (
    fs []
   ) >>

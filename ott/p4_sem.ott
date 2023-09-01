@@ -334,10 +334,14 @@ formula :: formula_ ::=
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
   {{ hol (ALOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
-| x = parseError :: M :: pars_err
-  {{ com parser error literal }}
-  {{ hol ([[x]] = "parseError") }}
-  {{ tex [[x]] = ``\mathit{parseError}" }}
+| f = "" :: M :: emptystr
+  {{ com string is empty }}
+  {{ hol ([[f]] = "") }}
+  {{ tex [[f]] = ``" }}
+| f = "verify" :: M :: verif_str
+  {{ com string is verify }}
+  {{ hol ([[f]] = "verify") }}
+  {{ tex [[f]] = ``verify" }}
   %Dummy to keep syntax highlighting from freaking out: "
 | v = lookup_lval ( scope_list , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
@@ -378,9 +382,9 @@ formula :: formula_ ::=
   {{ hol ([[x]] = "start") }}
   {{ tex [[x]] = ``\mathit{start}" }}
   %Dummy to keep syntax highlighting from freaking out: "
-| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope , pbl_type ) :: M :: copyin_pbl
+| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope ) :: M :: copyin_pbl
   {{ com copy in to programmable blocks }}
-  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]], [[pbl_type]])) }}
+  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]])) }}
 | scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scope_list ) :: M :: copyin
   {{ com build new scope and copyin }}
   {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
@@ -396,13 +400,13 @@ formula :: formula_ ::=
 | ( g_scope_list , scope_list' ) = separate scope_list :: M :: separate_scopes
   {{ com separate scopes into globals and locals after assignment }}
   {{ hol ( ( SOME [[g_scope_list]] ,  SOME [[scope_list']] ) = separate [[scope_list]] ) }}
-  {{ tex ( [[g_scope_list]] ,  [[scope_list']] ) = \mathrm{separate}([[scope_list]])  }}  
-| ascope' = copyout_pbl ( scope_list , ascope , d_list , ( x1 , .. , xn ) , pbl_type , status ) :: M :: copyout_pbl
+  {{ tex ( [[g_scope_list]] , [[scope_list']] ) = \mathrm{separate}([[scope_list]])  }}  
+| ascope' = copyout_pbl ( scope_list , ascope , d_list , ( x1 , .. , xn ) , status ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
-  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [[x1 .. xn]], [[pbl_type]], [[status]])) }}
-| ascope' = copyout_pbl ( scope_list , ascope , d_list , [ x ] , pbl_type , status ) :: M :: copyout_pbl_sing
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [[x1 .. xn]], [[status]])) }}
+| ascope' = copyout_pbl ( scope_list , ascope , d_list , [ x ] , status ) :: M :: copyout_pbl_sing
   {{ com copy out singleton from programmable blocks }}
-  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [ [[x]] ], [[pbl_type]], [[status]])) }}
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [ [[x]] ], [[status]])) }}
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
   {{ tex \mathrm{not\_empty} \; [[stmt]] }}
@@ -2210,12 +2214,13 @@ by
   ------------------------------------------------- :: verify_3
   ctx ( ascope , g_scope_list , [ ( funn , [ verify true ( bitv ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list ) ] , Running )
 
-
+%TODO: This currently reduces to an extern call that handles the "false" case of verify.
+% verify could be directly modeled as an extern call, without the need of a statement intermediary.
 %Case predicate does not hold
-  x' = parseError
-  x'' = "reject"
+  f = ""
+  f' = "verify"
   ------------------------------------------------- :: verify_4
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify false ( bitv ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign x' ( bitv ) ; transition x'' ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ verify false ( bitv ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign null ( call ( f f' ) ( bitv ) ) ] , scope_list ) ] , Running )
 
 
 %%%%%%%%%%%%%%
@@ -2351,7 +2356,7 @@ by
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( f )
-  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope , pbl_type )
+  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
   scope'' = declare_list_in_scope ( decl_list , scope' )
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
@@ -2398,7 +2403,7 @@ by
   status' = set_fin_status ( pbl_type , status )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope... TODO: Test this...
-  ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , pbl_type , status' )
+  ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , status' )
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: pbl_ret
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , lastn 1 g_scope_list , arch_frame_list_empty , Running )

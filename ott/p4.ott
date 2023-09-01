@@ -137,6 +137,8 @@ funn :: funn_ ::=
   {{ com extern object instantiation }}
 | f f' :: :: ext
   {{ com extern method call }}
+| ( funn ) :: X :: paren
+  {{ hol ([[funn]]) }}
 
 %An abstract variable name
 varn :: varn_ ::=
@@ -675,12 +677,12 @@ output_f {{ tex { \mathit{out}_A } }} :: output_f_ ::=
 %This function is used to copy things from the architecture when a programmable block begins
 copyin_pbl {{ tex { \mathit{in}_p } }} :: copyin_pbl_ ::=
 {{ com copy-in to programmable blocks function }}
-{{ hol ((x list # d list # e list # ascope_ty # pbl_type) -> scope option) }}
+{{ hol ((x list # d list # e list # ascope_ty) -> scope option) }}
 
 %This function is used to copy out things to the architecture after a programmable block is finished
 copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
-{{ hol ((g_scope list # ascope_ty # d list # x list # pbl_type # status) -> ascope_ty option) }}
+{{ hol ((g_scope list # ascope_ty # d list # x list # status) -> ascope_ty option) }}
 
 %This function takes a table name, arguments, match kinds and the architectural scope and returns an action with arguments
 apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
