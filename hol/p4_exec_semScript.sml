@@ -214,7 +214,7 @@ Definition stmt_exec_verify:
   SOME stmt_empty)
   /\
  (stmt_exec_verify (e_v (v_bool F)) (e_v (v_bit bitv)) =
-  SOME (stmt_seq (stmt_ass (lval_varname (varn_name "parseError")) ((e_v (v_bit bitv)))) (stmt_trans (e_v (v_str "reject")))))
+  SOME (stmt_ass lval_null (e_call (funn_ext "" "verify") [(e_v (v_bit bitv))])))
   /\
  (stmt_exec_verify _ _ = NONE)
 End
@@ -2283,7 +2283,7 @@ val arch_exec_def = Define `
           then
            (* pbl_ret *)
            (* TODO: OK to only copy out from block-global scope here? *)
-           (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, pbl_type, set_fin_status pbl_type status) of
+           (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, set_fin_status pbl_type status) of
             | SOME scope' =>
              SOME ((i+1, in_out_list, in_out_list', scope'), LASTN 1 g_scope_list,
                    arch_frame_list_empty, status_running)
@@ -2332,7 +2332,7 @@ val arch_exec_def = Define `
         (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
         (if LENGTH el = LENGTH x_d_list
          then
-          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope, pbl_type) of
+          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
            | SOME scope' =>
             (case oLASTN 1 g_scope_list of
              | SOME [g_scope] =>

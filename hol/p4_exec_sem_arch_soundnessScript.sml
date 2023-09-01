@@ -55,7 +55,7 @@ Cases_on `arch_frame_list` >> (
   PairCases_on `x` >>
   rename1 `lookup_block_sig_body s b_func_map = SOME (stmt,x_d_list)` >>
   fs [] >>
-  Cases_on `copyin_pbl (MAP FST x_d_list,MAP SND x_d_list,l,ascope,p)` >> (
+  Cases_on `copyin_pbl (MAP FST x_d_list,MAP SND x_d_list,l,ascope)` >> (
    fs []
   ) >>
   Cases_on `oLASTN 1 g_scope_list` >> (
@@ -134,7 +134,7 @@ Cases_on `arch_frame_list` >> (
   rename1 `lookup_block_sig_body s b_func_map = SOME (stmt,x_d_list)` >>
   fs [] >>
   Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND x_d_list,MAP FST x_d_list,p,
+             (g_scope_list,ascope,MAP SND x_d_list,MAP FST x_d_list,
               set_fin_status p status_running)` >> (
    fs []
   ) >>
@@ -204,7 +204,7 @@ Cases_on `arch_frame_list` >> (
  rename1 `lookup_block_sig_body s b_func_map = SOME (stmt,x_d_list)` >>
  fs [] >>
  Cases_on `copyout_pbl
-             (g_scope_list, ascope, MAP SND x_d_list, MAP FST x_d_list, p,
+             (g_scope_list, ascope, MAP SND x_d_list, MAP FST x_d_list,
               set_fin_status p (status_returnv v))` >> (
   fs []
  ) >>
@@ -236,7 +236,7 @@ Cases_on `arch_frame_list` >> (
   rename1 `lookup_block_sig_body s' b_func_map = SOME (stmt,x_d_list)` >>
   fs [] >>
   Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND x_d_list,MAP FST x_d_list,p,
+             (g_scope_list,ascope,MAP SND x_d_list,MAP FST x_d_list,
               set_fin_status p (status_trans s))` >> (
    fs []
   ) >>

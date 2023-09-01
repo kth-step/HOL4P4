@@ -36,16 +36,26 @@ Definition ebpf_ascope_update_def:
    (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
 End
 
+Definition ebpf_ascope_update_v_map_def:
+ ebpf_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope) str v =
+   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
+End
+
 Definition ebpf_packet_in_extract:
- ebpf_packet_in_extract = packet_in_extract_gen ebpf_ascope_lookup ebpf_ascope_update
+ ebpf_packet_in_extract = packet_in_extract_gen ebpf_ascope_lookup ebpf_ascope_update ebpf_ascope_update_v_map
 End
 
 Definition ebpf_packet_in_advance:
- ebpf_packet_in_advance = packet_in_advance_gen ebpf_ascope_lookup ebpf_ascope_update
+ ebpf_packet_in_advance = packet_in_advance_gen ebpf_ascope_lookup ebpf_ascope_update ebpf_ascope_update_v_map
 End
 
 Definition ebpf_packet_out_emit:
  ebpf_packet_out_emit = packet_out_emit_gen ebpf_ascope_lookup ebpf_ascope_update
+End
+
+Definition ebpf_verify:
+ (ebpf_verify (ascope:ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+  verify_gen ebpf_ascope_update_v_map (ascope, g_scope_list, scope_list))
 End
     
 (**********************************************************)
@@ -127,41 +137,22 @@ End
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition ebpf_copyin_pbl_def:
- ebpf_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope, pbl_type) =
+ ebpf_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
   case ebpf_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
-    | SOME scope =>
-     if pbl_type = pbl_type_parser
-     then
-      SOME (initialise_parse_error scope)
-     else
-      SOME scope
-    | NONE => NONE)
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ]
   | NONE => NONE
 End
 
 (* TODO: Does anything need to be looked up for this function? *)
 (* Note that this re-uses the copyout function intended for P4 functions *)
 Definition ebpf_copyout_pbl_def:
- ebpf_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope, dlist, xlist, pbl_type, (status:status)) =
+ ebpf_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope, dlist, xlist, (status:status)) =
   case copyout xlist dlist [ [] ; [] ] [v_map_to_scope v_map] g_scope_list of
   | SOME (_, [v_map_scope]) =>
-   if pbl_type = pbl_type_parser
-   then
-    (case lookup_lval g_scope_list (lval_varname (varn_name "parseError")) of
-     | SOME v =>
-      (case assign [v_map_scope] v (lval_varname (varn_name "parseError")) of
-       | SOME [v_map_scope'] =>
-        (case scope_to_vmap v_map_scope' of
-         | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):ebpf_ascope)
-         | NONE => NONE)
-       | _ => NONE)
-     | _ => NONE)
-   else
-    (case scope_to_vmap v_map_scope of
-     | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):ebpf_ascope)
-     | NONE => NONE)
+   (case scope_to_vmap v_map_scope of
+    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):ebpf_ascope)
+    | NONE => NONE)
   | _ => NONE
 End
 
