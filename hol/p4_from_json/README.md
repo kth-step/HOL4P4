@@ -11,7 +11,7 @@
 
 #HOL4 files
 
-`exclude.sml` contains a list of tuples of categories (categorized by what blocks them from being parsed, as a string description) of tests and the test names themselves. Used to not re-transform tests you know will fail.
+`excluded.sml` contains a list of tuples of categories (categorized by what blocks them from being parsed, as a string description) of tests and the test names themselves. Used to not re-transform tests you know will fail.
 
 `parse_vss_test.sml` is intended to demonstrate that the HOL4P4 terms obtained from petr4 match the hand-written ones.
 

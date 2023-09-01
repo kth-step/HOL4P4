@@ -17,7 +17,21 @@ val _ = Hol_datatype `
 core_v_ext =
    core_v_ext_packet of (bool list)`;
 
-(* TODO: Definitions with _gen get specialised later by the different architectures *)
+(* NOTE: Definitions with _gen get specialised later by the different architectures *)
+
+(**********************)
+(* Objectless methods *)
+(**********************)
+
+(* NOTE: For now, this only covers the "false" case of verify *)
+Definition verify_gen:
+ (verify_gen ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "err")) of
+  | SOME (v_bit bitv) =>
+   SOME (ascope_update_v_map ascope "parseError" (v_bit bitv), scope_list, status_trans "reject")
+  | _ => NONE
+ )
+End
 
 (******************)
 (* Header methods *)
@@ -126,6 +140,7 @@ Definition lookup_ascope_gen:
  )
 End
 
+(* TODO: Is this really needed as a separate function? *)
 Definition update_ascope_gen:
  (update_ascope_gen ascope_update (ascope:'a) (ext_ref:num) (v_ext:(core_v_ext, 'b) sum) =
   (ascope_update ascope ext_ref v_ext):'a
@@ -167,7 +182,7 @@ End
 (* TODO: Extend to cover extraction to header stacks *)
 (* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
 Definition packet_in_extract_gen:
- (packet_in_extract_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (packet_in_extract_gen ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case lookup_lval_header scope_list (lval_varname (varn_name "headerLvalue")) of
@@ -186,10 +201,8 @@ Definition packet_in_extract_gen:
              | NONE => NONE)
            | NONE => NONE)
          else
-          (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          (case assign scope_list (v_bit (fixwidth 32 (n2v 1), 32)) (lval_varname (varn_name "parseError")) of
-           | SOME scope_list' => SOME (ascope, scope_list', status_trans "reject")
-           | NONE => NONE)
+          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+          SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -210,7 +223,7 @@ Definition lookup_lval_bit32:
 End
 
 Definition packet_in_advance_gen:
- (packet_in_advance_gen ascope_lookup ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (packet_in_advance_gen ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case lookup_lval_bit32 scope_list (lval_varname (varn_name "bits")) of
@@ -222,9 +235,7 @@ Definition packet_in_advance_gen:
         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
        else
         (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-        (case assign scope_list (v_bit (fixwidth 32 (n2v 1), 32)) (lval_varname (varn_name "parseError")) of
-         | SOME scope_list' => SOME (ascope, scope_list', status_returnv v_bot)
-         | NONE => NONE)
+        SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
        | _ => NONE)
     | NONE => NONE)
   | _ => NONE

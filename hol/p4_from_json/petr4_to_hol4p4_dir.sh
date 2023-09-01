@@ -16,7 +16,7 @@ for f in "${JSONS_PATH}"*.json; do
     if [ -s "$f" ]; then
 	(
 	    echo "Parsing $f..."
-	    ./petr4_to_hol4p4.sh "$f" "$log" > "${f%.json}Script.sml"
+	    ./petr4_to_hol4p4.sh "$f" "$log"
 	) &
 
 	if [[ $(jobs -r -p | wc -l) -ge $N ]]; then

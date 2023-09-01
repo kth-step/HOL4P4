@@ -1049,19 +1049,18 @@ Definition petr4_parse_method_call_def:
                (* Extern object method, or method without associated object *)
                | (funn_ext ext_name extfun_name) =>
                 (* Note special treatment of verify *)
-                if ((ext_name = "") /\ (extfun_name = "verify"))
+                if ext_name = ""
                 then
-                 (* TODO: Make error check for res_args format *)
-                 SOME_msg (stmt_verify (EL 0 res_args) (EL 1 res_args))
-                (* TODO: Special treatment of extract here wrt parseError *)
+                 (if extfun_name = "verify"
+                  then
+                   (* TODO: Make error check for res_args format *)
+                   SOME_msg (stmt_verify (EL 0 res_args) (EL 1 res_args))
+                  else
+                   SOME_msg (stmt_ass lval_null (e_call funn res_args)))
                 else
                  (case obj_opt of
                   | SOME obj =>
-                   if ((ext_name = "packet_in") /\ (extfun_name = "extract"))
-                   then
-                    SOME_msg (stmt_ass lval_null (e_call funn (obj::((e_var (varn_name "parseError"))::res_args))))
-                   else
-                    SOME_msg (stmt_ass lval_null (e_call funn (obj::res_args)))
+                   SOME_msg (stmt_ass lval_null (e_call funn (obj::res_args)))
                   | NONE => get_error_msg "no object provided for extern object method call: " func)
                | (funn_name fun_name) =>
                 SOME_msg (stmt_ass lval_null (e_call funn res_args))

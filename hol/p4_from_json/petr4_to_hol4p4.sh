@@ -27,5 +27,5 @@ else
 fi
 
 set -e
-"$(dirname "$(which Holmake)")/buildheap" --gcthreads=1 --holstate="p4_from_json-heap" petr4_to_hol4p4 "$JSON_PATH" "$LOG_PATH" "${JSON_PATH%.json}Script.sml" "$arch" "$stf"
+"$(dirname "$(which Holmake)")/buildheap" --gcthreads=1 --holstate="p4_from_json-heap" petr4_to_hol4p4 "$JSON_PATH" "$LOG_PATH" "$arch" "$stf"
 exit 0

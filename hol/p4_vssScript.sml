@@ -30,17 +30,28 @@ Definition vss_ascope_update_def:
    (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
 End
 
+Definition vss_ascope_update_v_map_def:
+ vss_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl):vss_ascope) str v =
+   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
+End
+
 Definition vss_packet_in_extract:
- vss_packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update
+ vss_packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
 End
 
 Definition vss_packet_in_advance:
- vss_packet_in_advance = packet_in_advance_gen vss_ascope_lookup vss_ascope_update
+ vss_packet_in_advance = packet_in_advance_gen vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
 End
 
 Definition vss_packet_out_emit:
  vss_packet_out_emit = packet_out_emit_gen vss_ascope_lookup vss_ascope_update
 End
+
+Definition vss_verify:
+ (vss_verify (ascope:vss_ascope, g_scope_list:g_scope_list, scope_list) =
+  verify_gen vss_ascope_update_v_map (ascope, g_scope_list, scope_list))
+End
+
 
 (**********************************************************)
 (*                     EXTERN OBJECTS                     *)
@@ -257,40 +268,21 @@ End
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition vss_copyin_pbl_def:
- vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):vss_ascope, pbl_type) =
+ vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
   case vss_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
-    | SOME scope =>
-     if pbl_type = pbl_type_parser
-     then
-      SOME (initialise_parse_error scope)
-     else
-      SOME scope
-    | NONE => NONE)
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ]
   | NONE => NONE
 End
 
 (* TODO: Does anything need to be looked up for this function? *)
 Definition vss_copyout_pbl_def:
- vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, pbl_type, (status:status)) =
-  case copyout_pbl_gen xlist dlist g_scope_list v_map of
-  | SOME [v_map_scope] =>
-   if pbl_type = pbl_type_parser
-   then
-    (case lookup_lval g_scope_list (lval_varname (varn_name "parseError")) of
-     | SOME v =>
-      (case assign [v_map_scope] v (lval_varname (varn_name "parseError")) of
-       | SOME [v_map_scope'] =>
-        (case scope_to_vmap v_map_scope' of
-         | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
-         | NONE => NONE)
-       | _ => NONE)
-     | _ => NONE)
-   else
-    (case scope_to_vmap v_map_scope of
-     | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
-     | NONE => NONE)
+ vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, (status:status)) =
+  case copyout xlist dlist [ [] ; [] ] [v_map_to_scope v_map] g_scope_list of
+  | SOME (_, [v_map_scope]) =>
+   (case scope_to_vmap v_map_scope of
+    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
+    | NONE => NONE)
   | _ => NONE
 End
 
