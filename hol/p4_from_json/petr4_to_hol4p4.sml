@@ -747,9 +747,9 @@ fun format_for_hol4 (str: string) : string =
  (* OK *)
  val args = ["1", "2", "test-examples/ebpf_stf_only/test_ebpf.json", "test-examples/ebpf_stf_only/test_ebpf.log", "ebpf", "Y"];
 
- val args = ["1", "2", "test-examples/stf_only/parser_error-bmv2.json", "test-examples/stf_only/parser_error-bmv2.log", "v1model", "Y"];
+ val args = ["1", "2", "test-examples/stf_only/key-bmv2.json", "test-examples/stf_only/key-bmv2.log", "v1model", "Y"];
 
- val args = ["1", "2", "test-examples/stf_only/bvec-hdr-bmv2.json", "test-examples/stf_only/bvec-hdr-bmv2.log", "v1model", "Y"];
+ val args = ["1", "2", "test-examples/stf_only/array-copy-bmv2.json", "test-examples/stf_only/array-copy-bmv2.log", "v1model", "Y"];
 
 *)
 
@@ -782,12 +782,13 @@ fun main() =
     val valname_prefix =
      (List.drop (valname_no_suffix, Lib.index (fn c => c = #"/") valname_no_suffix))
      handle HOL_ERR _ => [];
-    val valname = format_for_hol4 $ implode $ rev $ valname_no_prefix;
+    val valname_raw = implode $ rev $ valname_no_prefix;
+    val valname = format_for_hol4 valname_raw;
     val prefix = implode $ rev $ valname_prefix;
 
     val outstream = TextIO.openAppend logname;
    in
-    if not $ exists (fn el => el = valname) (List.concat $ snd $ unzip exclude_descs)
+    if not $ exists (fn el => el = valname_raw) (List.concat $ snd $ unzip exclude_descs)
     then
      let
       val instream = TextIO.openIn filename;
@@ -834,7 +835,7 @@ val ab_list_tm = (el 13 res_list)
       else
        let
 	val parse_error = stringLib.fromHOLstring $ dest_NONE_msg final_res_tup
-         handle HOL_ERR _ => "Parsing of JSON was not completed, yielding a incompletely reduced RHS without error message (you might want to check that EVAL works correctly)";
+         handle HOL_ERR _ => "Parsing of JSON was not completed, yielding a incompletely reduced RHS without error message (you might want to check the result of EVAL-ing p4_from_json)";
 	val _ = TextIO.outputSubstr (outstream, Substring.full ("FAIL: Could not parse "^filename^(". "^(parse_error^"\n"))));
 	val _ = TextIO.closeOut outstream;
        in
@@ -843,7 +844,7 @@ val ab_list_tm = (el 13 res_list)
      end
     else
      let
-      val desc = case get_error_desc valname exclude_descs of SOME desc' => desc' | NONE => "unknown fix";
+      val desc = case get_error_desc valname_raw exclude_descs of SOME desc' => desc' | NONE => "unknown fix";
       val _ = TextIO.outputSubstr (outstream, Substring.full ("EXCLUDED: "^(filename^" requires "^((desc)^"\n"))));
       val _ = TextIO.closeOut outstream;
      in
