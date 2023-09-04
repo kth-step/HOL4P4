@@ -59,8 +59,8 @@ Definition v1model_packet_out_emit:
 End
 
 Definition v1model_verify:
- (v1model_verify (ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
-  verify_gen v1model_ascope_update_v_map (ascope, g_scope_list, scope_list, status))
+ (v1model_verify (ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  verify_gen v1model_ascope_update_v_map (ascope, g_scope_list, scope_list))
 End
     
 (**********************************************************)

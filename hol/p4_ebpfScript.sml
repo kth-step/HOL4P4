@@ -54,8 +54,8 @@ Definition ebpf_packet_out_emit:
 End
 
 Definition ebpf_verify:
- (ebpf_verify (ascope:ebpf_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
-  verify_gen ebpf_ascope_update_v_map (ascope, g_scope_list, scope_list, status))
+ (ebpf_verify (ascope:ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+  verify_gen ebpf_ascope_update_v_map (ascope, g_scope_list, scope_list))
 End
     
 (**********************************************************)

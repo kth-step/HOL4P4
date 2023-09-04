@@ -48,8 +48,8 @@ Definition vss_packet_out_emit:
 End
 
 Definition vss_verify:
- (vss_verify (ascope:vss_ascope, g_scope_list:g_scope_list, scope_list, status:status) =
-  verify_gen vss_ascope_update_v_map (ascope, g_scope_list, scope_list, status))
+ (vss_verify (ascope:vss_ascope, g_scope_list:g_scope_list, scope_list) =
+  verify_gen vss_ascope_update_v_map (ascope, g_scope_list, scope_list))
 End
 
 (**********************************************************)

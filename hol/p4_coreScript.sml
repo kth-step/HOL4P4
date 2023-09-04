@@ -25,10 +25,10 @@ core_v_ext =
 
 (* NOTE: For now, this only covers the "false" case of verify *)
 Definition verify_gen:
- (verify_gen ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list, status:status) =
+ (verify_gen ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "err")) of
   | SOME (v_bit bitv) =>
-   SOME (ascope_update_v_map ascope "parseError" (v_bit bitv), g_scope_list, scope_list, status_trans "reject")
+   SOME (ascope_update_v_map ascope "parseError" (v_bit bitv), scope_list, status_trans "reject")
   | _ => NONE
  )
 End
