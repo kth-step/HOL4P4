@@ -75,7 +75,7 @@ val parse_ipv4_body =
 val vss_parser_pmap = ``[("start", (^start_body));
                          ("parse_ipv4", (^parse_ipv4_body))]:pars_map``;
 
-val vss_parser_decl_list = ``[(varn_name "ck", tau_ext)]``;
+val vss_parser_decl_list = ``[(varn_name "ck", tau_ext, NONE)]:t_scope``;
 val vss_parser_inits =
  mk_stmt_seq_list [``stmt_ass lval_null (e_call (funn_inst "Checksum16") [(^e_ck)])``,
                    ``stmt_trans (e_v (v_str "start"))``];
@@ -155,7 +155,7 @@ val vss_pipe_body =
 		    dmac_match,
 		    smac_match]);
 
-val vss_pipe_decl_list = ``[(varn_name "nextHop", tau_bit 32)]``;
+val vss_pipe_decl_list = ``[(varn_name "nextHop", tau_bit 32, NONE)]:t_scope``;
 
 val vss_pipe_pbl = ``pblock_regular pbl_type_control [("headers", d_inout); ("parseError", d_in); ("inCtrl", d_in); ("outCtrl", d_out)] (^vss_pipe_bfunc_map) (^vss_pipe_decl_list) (^vss_pipe_body) [] (^vss_pipe_tblmap)``;
 
@@ -183,7 +183,7 @@ val stmt_deparser_cond =
 
 val stmt_deparser_emit2 = ``stmt_ass lval_null (e_call (funn_ext "packet_out" "emit") [e_var (varn_name "b"); (^e_ip)])``;
 
-val vss_deparser_decl_list = ``[(varn_name "ck", tau_ext)]``;
+val vss_deparser_decl_list = ``[(varn_name "ck", tau_ext, NONE)]:t_scope``;
 
 val stmt_deparser_inits = ``stmt_ass lval_null (e_call (funn_inst "Checksum16") [(^e_ck)])``;
 

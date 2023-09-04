@@ -104,7 +104,7 @@ val init_ctrl = ``[("ipv4_match",
 val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
 
 (* TODO: Make syntax functions *)
-val init_aenv = ``(^(pairSyntax.list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
+val init_aenv = ``(^(pairSyntax.list_mk_pair [``0:num``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
 
 (* TODO: Make syntax functions *)
 val init_astate =
@@ -119,24 +119,33 @@ val init_astate =
 (* Single reduction: *)
 EVAL ``arch_exec p4_vss_actx (^init_astate)``;
 
-(* Shorthand: *)
-val vss_actx = ``p4_vss_actx``;
+(* Expanded shorthand: *)
+val vss_actx = rhs $ concl $ EVAL ``p4_vss_actx``;
 
 (* Multiple reductions: *)
 (* In V1, this ended at 131 steps for TTL=1 in input *)
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 223;
+val nsteps = 74;
 val astate = init_astate;
-val actx = p4_vss_actx;
+val actx = vss_actx;
 *)
 
 (* FOR DEBUGGING:
 
-val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
+val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
 
-val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
+val [counter, ext_obj_map, v_map, ctrl] = spine_pair ascope;
+
+
+val test = rhs $ concl $ EVAL ``EL ^i ^ab_list``;
+val x = ``"parser"``;
+val test = rhs $ concl $ EVAL ``^copyout_pbl (^g_scope_list, ^scope, [d_none; d_out], ["b"; "p"], pbl_type_parser, set_fin_status pbl_type_parser ^status)``;
+
+val test = rhs $ concl $ EVAL ``copyout ["b"; "p"] [d_none; d_out] [ [] ; [] ] [v_map_to_scope ^v_map] ^g_scope_list``;
+
+val test = rhs $ concl $ EVAL ``update_return_frame ["b"; "p"] [d_none; d_out] ([v_map_to_scope ^v_map]++[ [] ; [] ]) [LAST ^g_scope_list]``;
 
 (********** Nested exec sems ***********)
 
@@ -144,7 +153,9 @@ val [counter, ext_obj_map, v_map, ctrl] = spine_pair scope;
 val ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status)) = debug_frames_from_step actx astate nsteps;
 
 (* NOTE: New g_scope_list from scopes_to_pass, use to debug stmt_exec *)
-val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "start") ^func_map ^b_func_map ^g_scope_list``;
+val g_scope_list' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``scopes_to_pass (funn_name "pipe") ^func_map ^b_func_map ^g_scope_list``;
+val b_func_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``map_to_pass (funn_name "pipe") ^b_func_map``;
+val tbl_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL ``tbl_to_pass (funn_name "pipe") ^b_func_map ^tbl_map``;
 
 (* NOTE: For debugging stmt_exec (top element of frame list) *)
 val frame_list = ``[(funn_ext "packet_out" "emit",

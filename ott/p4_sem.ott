@@ -482,9 +482,9 @@ formula :: formula_ ::=
   {{ com global and block scopes to retrieve based on function location }}
   {{ hol (SOME[[g_scope_list'']] = scopes_to_retrieve [[funn]] [[func_map]] [[b_func_map]] [[g_scope_list]] [[g_scope_list']]) }}
   {{ tex [[g_scope_list'']] = \mathrm{scopes\_to\_retrieve} ([[funn]], [[func_map]], [[b_func_map]], [[g_scope_list]], [[g_scope_list']]) }}
-| b_func_map' = map_to_pass funn b_func_map :: :: map_to_pass
+| b_func_map' = map_to_pass funn b_func_map func_map :: :: map_to_pass
   {{ com pass either empty or the local function's mapping depending on funn location }}
-  {{ hol  SOME [[b_func_map']] = map_to_pass [[funn]] [[b_func_map]] }}
+  {{ hol  SOME [[b_func_map']] = map_to_pass [[funn]] [[b_func_map]] [[func_map]] }}
   {{ tex [[b_func_map']] = \mathrm{map\_to\_pass} ([[funn]], [[b_func_map]]) }} 
 | tbl_map' = tbl_to_pass funn b_func_map tbl_map :: :: tbl_to_pass
   {{ hol SOME [[tbl_map']] = tbl_to_pass [[funn]] [[b_func_map]] [[tbl_map]]}}
@@ -1975,13 +1975,12 @@ val scopes_to_retrieve_def = Define `
    else it should be empty, because functions defined globally or extern should not be calling locals *)
 
 val map_to_pass_def = Define `
- map_to_pass (funn:funn) (b_func_map:b_func_map) =
+ map_to_pass (funn:funn) (b_func_map:b_func_map) (func_map:func_map) =
   case funn of
    | (funn_name x) =>
-    (case ALOOKUP b_func_map x of
-     | SOME (stmt, x_d_l) => SOME b_func_map
-     | NONE => SOME []
-    )
+    (case ALOOKUP func_map x of
+     | SOME (stmt, x_d_l) => SOME []
+     | NONE => SOME b_func_map)
    | _ => SOME []
 `;
 
@@ -1991,9 +1990,8 @@ val tbl_to_pass_def = Define `
   case funn of
    | (funn_name x) =>
     (case ALOOKUP b_func_map x of
-     | SOME (stmt, x_d_l) => SOME tbl_map
-     | NONE => SOME []
-    )
+     | SOME (stmt, x_d_l) => NONE
+     | _ => SOME tbl_map)
    | _ => SOME []
 `;
 
@@ -2519,7 +2517,7 @@ defn
 by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  b_func_map' = map_to_pass funn b_func_map
+  b_func_map' = map_to_pass funn b_func_map func_map
   tbl_map' = tbl_to_pass funn b_func_map tbl_map
   ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
   notret( status' , frame_list'' )
@@ -2531,7 +2529,7 @@ by
 
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  b_func_map' = map_to_pass funn b_func_map
+  b_func_map' = map_to_pass funn b_func_map func_map
   tbl_map' = tbl_to_pass funn b_func_map tbl_map
   ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
