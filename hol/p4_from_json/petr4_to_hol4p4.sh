@@ -1,4 +1,6 @@
 #!/bin/bash
+#This script takes a directory containing .json files exported by petr4 (JSON_PATH) and a path to a log file (LOG_PATH),
+#then uses petr4_to_hol4p4 to transform the all programs in .json format found in JSON_PATH into HOL4P4 format.
 
 JSON_PATH=$1
 LOG_PATH=$2

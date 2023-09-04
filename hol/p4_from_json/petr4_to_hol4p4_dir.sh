@@ -1,9 +1,10 @@
 #!/bin/bash
+#This script is used to transform all P4 programs in .json representation found in JSONS_PATH to HOL4P4 representation.
 
 JSONS_PATH=$1
 
 # Number of processes - lower to stabilise system
-N=8
+N=1
 
 # Replace if you want to write to a different log file
 log="petr4_to_hol4p4_stf.log"

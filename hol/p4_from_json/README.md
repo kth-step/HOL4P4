@@ -1,6 +1,6 @@
 #Shell scripts
 
-`petr4_json_export.sh` uses petr4 to transform .p4 programs to JSON. It takes a path as a command line argument and will transform all .p4 programs found there to .json files. Note that this involves a hard-coded "P4_INCLUDE" variable that should point to .p4 files contain architecture descriptions.
+`petr4_json_export.sh` uses petr4 to transform .p4 programs to JSON. It takes a path to a directory with .p4 programs and a path to common includes (e.g. architecture descriptions such as v1model.p4, ...) as command line arguments and will transform all .p4 programs found to .json representation.
 
 `strip_json_info.sh` takes a file name as a command-line argument and tries to remove debug information from the JSON in the file.
 
@@ -12,8 +12,6 @@
 #HOL4 files
 
 `excluded.sml` contains a list of tuples of categories (categorized by what blocks them from being parsed, as a string description) of tests and the test names themselves. Used to not re-transform tests you know will fail.
-
-`parse_vss_test.sml` is intended to demonstrate that the HOL4P4 terms obtained from petr4 match the hand-written ones.
 
 `parse_jsonScript.sml` is a theory of generic JSON objects.
 
