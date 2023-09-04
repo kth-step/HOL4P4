@@ -1,4 +1,5 @@
 #!/bin/bash
+#This script is used to deduce which architecture a P4 program belongs to, based on its includes.
 
 if grep -q "#include <ebpf_model.p4>" "$1"; then
     echo "ebpf"
