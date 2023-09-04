@@ -310,6 +310,7 @@ e :: e_ ::=
 | concat e1 e2 :: :: concat
   {{ com concatenation of bit-strings }}
 | e1 [ e2 : e3 ] :: :: slice
+  %TODO: Should this instead have two values as 2nd and 3rd params?
   {{ com bit-slice }}
 | call funn ( e1 , .. , en ) :: :: call
   {{ com function or extern call }}

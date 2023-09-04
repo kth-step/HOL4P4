@@ -24,9 +24,14 @@ Definition is_v_bool:
  (is_v_bool _ = F)
 End
 
+Definition is_v_bit:
+ (is_v_bit (e_v (v_bit bitv)) = T) /\
+ (is_v_bit _ = F)
+End
+
 (* NOTE: Error messages serialised using 32 bits *)
 Definition is_v_err:
- (is_v_err (e_v (v_bit bitv)) = T) /\
+ (is_v_err (e_v (v_bit (bl, 32))) = T) /\
  (is_v_err _ = F)
 End
 
@@ -177,6 +182,20 @@ Definition e_exec_select:
   | NONE => SOME x)
   /\
  (e_exec_select _ _ _ = NONE)
+End
+
+Definition e_exec_concat:
+ (e_exec_concat (e_v (v_bit bitv1)) (e_v (v_bit bitv2)) =
+  SOME (v_bit (bitv_concat bitv1 bitv2)))
+  /\
+ (e_exec_concat _ _ = NONE)
+End
+
+Definition e_exec_slice:
+ (e_exec_slice (e_v (v_bit bitv1)) (e_v (v_bit bitv2)) (e_v (v_bit bitv3)) =
+  SOME (v_bit (slice bitv1 bitv2 bitv3)))
+  /\
+ (e_exec_slice _ _ _ = NONE)
 End
 
 (********************************)
@@ -344,6 +363,41 @@ val e_exec = TotalDefn.tDefine "e_exec" `
    (case e_exec ctx g_scope_list scope_list e of
     | SOME (e', frame_list) => SOME (e_select e' v_x_l x, frame_list)
     | NONE => NONE))
+  /\
+ (*****************)
+ (* Concatenation *)
+ (e_exec ctx g_scope_list scope_list (e_concat e1 e2) =
+  if is_v_bit e1
+  then 
+   (if is_v_bit e2
+    then 
+     (case e_exec_concat e1 e2 of
+      | SOME v => SOME (e_v v, [])
+      | NONE => NONE)
+    else
+     (case e_exec ctx g_scope_list scope_list e2 of
+      | SOME (e2', frame_list) => SOME (e_concat e1 e2', frame_list)
+      | NONE => NONE))
+  else
+   (case e_exec ctx g_scope_list scope_list e1 of
+    | SOME (e1', frame_list) => SOME (e_concat e1' e2, frame_list)
+    | NONE => NONE))
+  /\
+ (***********)
+ (* Slicing *)
+ (e_exec ctx g_scope_list scope_list (e_slice e1 e2 e3) =
+  if (is_v_bit e2 /\ is_v_bit e3)
+  then
+   (if is_v_bit e1
+    then 
+     (case e_exec_slice e1 e2 e3 of
+      | SOME v => SOME (e_v v, [])
+      | NONE => NONE)
+    else
+     (case e_exec ctx g_scope_list scope_list e1 of
+      | SOME (e1', frame_list) => SOME (e_slice e1' e2 e3, frame_list)
+      | NONE => NONE))
+   else NONE)
   /\
  (e_exec _ _ _ _ = NONE)
 `
@@ -669,7 +723,7 @@ rpt strip_tac >| [
    fs []
   ) >>
   PairCases_on `x'` >>
-  fs []  
+  fs []
  ],
 
  (* TODO: Weird blob goal... *)
@@ -794,6 +848,51 @@ rpt strip_tac >| [
   PairCases_on `x` >>
   fs [],
 
+  (* Concatenation *)
+  Cases_on `is_v_bit e` >> Cases_on `is_v_bit e0` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_concat e e0` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scope_list e0` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs [],
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs [],
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
+  (* Slicing *)
+  Cases_on `is_v_bit e0` >> Cases_on `is_v_bit e1'` >> (
+   fs []
+  ) >>
+  Cases_on `is_v_bit e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_slice e e0 e1'` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
   (* Function call *)
   Cases_on `e_exec ctx g_scope_list scope_list (e_call f l)` >> (
    fs []
@@ -824,6 +923,48 @@ rpt strip_tac >| [
    fs []
   ) >>
   PairCases_on `x'` >>
+  fs []
+ ],
+
+ (* Slicing *)
+ Cases_on `is_v_bit e1` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_slice e1 e2 e3` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e1` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs []
+ ],
+
+ (* Concatenation *)
+ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_concat e1 e2` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e2` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  Cases_on `e_exec ctx g_scope_list scope_list e1` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  Cases_on `e_exec ctx g_scope_list scope_list e1` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
   fs []
  ],
 
