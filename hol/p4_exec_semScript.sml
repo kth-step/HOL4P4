@@ -63,6 +63,20 @@ Definition e_exec_unop:
  (e_exec_unop _ _ = NONE)
 End
 
+Definition cast_exec:
+ (cast_exec cast (v_bit bitv) = SOME (v_bit $ bitv_cast cast bitv))
+ /\
+ (cast_exec cast (v_bool b) = SOME (v_bit $ bool_cast cast b))
+ /\
+ (cast_exec cast v = NONE)
+End
+
+Definition e_exec_cast:
+ (e_exec_cast (cast_unsigned n) (e_v v) = cast_exec n v)
+  /\
+ (e_exec_cast _ _ = NONE)
+End
+
 (* TODO: Split binop into binop, binpred, ... to reduce copypaste? *)
 Definition binop_exec:
  (binop_exec binop_mul (v_bit bitv1) (v_bit bitv2) =
@@ -284,7 +298,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
       SOME (e_acc e_v_struct' x, frame_list)
      | NONE => NONE))
   /\
- (******************************)
+ (*********************************)
  (* Struct/header field reduction *)
  (e_exec ctx g_scope_list scope_list (e_struct x_e_l) =
   case unred_mem_index (MAP SND x_e_l) of
@@ -312,6 +326,19 @@ val e_exec = TotalDefn.tDefine "e_exec" `
           SOME (e_var (varn_star funn), [(funn, [stmt], [scope])])
          | NONE => NONE))
      else NONE
+    | NONE => NONE))
+  /\
+ (********)
+ (* Cast *)
+ (e_exec ctx g_scope_list scope_list (e_cast cast e) =
+  if is_v e
+  then
+   (case e_exec_cast cast e of
+    | SOME v => SOME (e_v v, [])
+    | NONE => NONE)
+  else
+   (case e_exec ctx g_scope_list scope_list e of
+    | SOME (e', frame_list) => SOME (e_cast cast e', frame_list)
     | NONE => NONE))
   /\
  (********************)
@@ -726,6 +753,21 @@ rpt strip_tac >| [
   fs []
  ],
 
+ (* Unop *)
+ Cases_on `is_v e` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_cast cast e` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs []
+ ],
+
  (* TODO: Weird blob goal... *)
  Cases_on `e1` >> (
   fs [e_exec]
@@ -783,6 +825,21 @@ rpt strip_tac >| [
    fs []
   ],
 
+  (* Cast *)
+  Cases_on `is_v e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_cast c e` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
   (* TODO: Interesting... *)
   Cases_on `case e of
              e_v v =>
@@ -812,6 +869,10 @@ rpt strip_tac >| [
                 NONE => NONE
               | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
            | e_unop v29 v30 =>
+             (case e_exec ctx g_scope_list scope_list e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_cast v29 v30 =>
              (case e_exec ctx g_scope_list scope_list e of
                 NONE => NONE
               | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))

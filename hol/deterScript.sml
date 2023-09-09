@@ -822,6 +822,25 @@ FULL_SIMP_TAC (srw_ss()) [det_exp_def] )
 ,
 
 (*****************************)
+(*     cast case             *)
+(*****************************)
+SIMP_TAC (srw_ss()) [det_exp_def] >>
+REPEAT STRIP_TAC >>
+Cases_on `c` >>
+OPEN_EXP_RED_TAC ``(e_cast (cast_unsigned n) e)`` >>
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+RW_TAC (srw_ss()) [] >>
+
+OPEN_EXP_RED_TAC ``(e_cast (cast_unsigned n) e)`` >>
+RW_TAC (srw_ss()) [] >>
+FULL_SIMP_TAC (srw_ss()) [det_exp_def] >>
+RES_TAC >>
+FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
+REPEAT (IMP_RES_TAC lemma_v_red_forall >>
+FULL_SIMP_TAC (srw_ss()) [det_exp_def] )
+,
+
+(*****************************)
 (*    binop case             *)
 (*****************************)
 (

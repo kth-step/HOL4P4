@@ -126,6 +126,10 @@ formula :: formula_ ::=
 | + bitv = bitv' :: M :: un_plus
   %Note P4 spec says this is a noop
   {{ hol ([[bitv]] = [[bitv']]) }}
+| ( unsigned n ) bitv = bitv' :: M :: cast_bitv
+  {{ hol (bitv_cast [[n]] [[bitv]] = [[bitv']]) }}
+| ( unsigned n ) b = bitv :: M :: cast_from_bool
+  {{ hol (bool_cast [[n]] [[b]] = [[bitv]]) }}
 | bitv * bitv' = bitv'' :: M :: mul
   {{ hol (bitv_binop binop_mul [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 | bitv / bitv' = bitv'' :: M :: div
@@ -628,6 +632,14 @@ val bitv_bl_unop_def = Define `
   bitv_bl_unop unop (bl, n) = (unop bl, n)
 `;
 
+val bitv_cast_def = Define `
+  bitv_cast n' (v, n) = (fixwidth n' v, n')
+`;
+
+val bool_cast_def = Define `
+  bool_cast n' b = (fixwidth n' [b], n')
+`;
+
 val bitv_bl_binop_def = Define `
   bitv_bl_binop binop (bl, n) (bl', n') = (fixwidth n (binop bl bl'), n)
 `;
@@ -955,6 +967,7 @@ val bitv_unop_def = Define `
 /\  (bitv_unop unop (v, 63) = (w2v ((get_word_unop unop) ((v2w v): 63 word)), 63) )
 /\  (bitv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
 `;
+
 val get_word_binop_def = Define `
     (get_word_binop binop_mul = word_mul)
 /\  (get_word_binop binop_div = word_div)
@@ -1043,10 +1056,19 @@ val bitv_binop_def = Define `
 `;
 
 val get_word_binpred_def = Define `
-    (get_word_binpred binop_le = word_le)
-/\  (get_word_binpred binop_ge = word_ge)
-/\  (get_word_binpred binop_lt = word_lt)
-/\  (get_word_binpred binop_gt = word_gt)
+    (get_word_binpred binop_le = word_ls)
+/\  (get_word_binpred binop_ge = word_hs)
+/\  (get_word_binpred binop_lt = word_lo)
+/\  (get_word_binpred binop_gt = word_hi)
+/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
+/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
+`;
+
+val get_word_binpred_def = Define `
+    (get_word_binpred binop_le = word_ls)
+/\  (get_word_binpred binop_ge = word_hs)
+/\  (get_word_binpred binop_lt = word_lo)
+/\  (get_word_binpred binop_gt = word_hi)
 /\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
 /\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
 `;
@@ -1938,6 +1960,12 @@ ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: unop_arg
 ctx g_scope_list scope_list ( unop e ) ~> ( unop e' , frame_list )
 
+%Casts
+
+ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+----------------------------------- :: cast_arg
+ctx g_scope_list scope_list ( cast e ) ~> ( cast e' , frame_list )
+
 %Binary operations
 
 ctx g_scope_list scope_list ( e ) ~> ( e'' , frame_list )
@@ -1983,6 +2011,18 @@ ctx g_scope_list scope_list ( - bitv ) ~> ( bitv' , empty )
 + bitv = bitv'
 ----------------------------------- :: un_plus
 ctx g_scope_list scope_list ( + bitv ) ~> ( bitv' , empty )
+
+%%%%%%%
+%Casts%
+%%%%%%%
+
+( unsigned n ) bitv = bitv'
+----------------------------------- :: cast_bitv
+ctx g_scope_list scope_list ( ( unsigned n ) bitv ) ~> ( bitv' , empty )
+
+( unsigned n ) b = bitv
+----------------------------------- :: cast_bool
+ctx g_scope_list scope_list ( ( unsigned n ) b ) ~> ( bitv , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%

@@ -238,6 +238,11 @@ unop {{ tex \ominus }}:: unop_ ::=
 | + :: :: un_plus
   {{ com unary plus }}
 
+cast :: cast_ ::=
+| ( unsigned n ) :: :: unsigned
+  {{ com unsigned cast }}
+  {{ tex ( unsigned [[n]] ) }}
+
 binop {{ tex \oplus }} :: binop_ ::=
 | * :: :: mul
   {{ com multiplication }}
@@ -304,6 +309,9 @@ e :: e_ ::=
 | unop e :: :: unop
   {{ com unary operation }}
   {{ tex [[unop]] [[e]] }}
+| cast e :: :: cast
+  {{ com cast }}
+  {{ tex [[cast]] [[e]] }}
 | e1 binop e2 :: :: binop
   {{ com binary operation }}
   {{ tex [[e1]] [[binop]] [[e2]] }}

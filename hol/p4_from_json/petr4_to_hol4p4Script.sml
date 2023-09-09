@@ -819,6 +819,42 @@ Definition petr4_parse_expression_gen_def:
         | NONE => NONE_msg ("could not parse string to integer: "++value_str))
       | _ => get_error_msg "unsupported integer type: " width_signed)
     | _ => get_error_msg "could not obtain value and width of integer literal: " x)
+  (* Cast *)
+(*
+["cast"
+ {"tags":["missing_info",""],
+  "type":["bit",
+          {"tags":["missing_info",""],
+           "expr":["int",
+                   {"tags":["missing_info",""],
+                    "x":{"tags":["missing_info",""],
+                         "value":"32",
+                         "width_signed":null}}
+                  ]
+          }],
+  "expr":["binary_op",
+          {"tags":["missing_info",""],
+           "op":["Mul",{"tags":["missing_info",""]}],
+           "args":[["expression_member",{"tags":["missing_info",""],"expr":["expression_member",{"tags":["missing_info",""],"expr":["name",{"tags":["missing_info",""],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"hdr"}}]}],"name":{"tags":["missing_info",""],"string":"byte"}}],"name":{"tags":["missing_info",""],"string":"byte"}}],["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"8","width_signed":null}}]]}]
+ }
+]
+*)
+  | Array [String "cast";
+     Object [("tags", tags);
+             ("type", cast_type);
+             ("expr", op)]] =>
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (op, NONE) of
+    | SOME_msg res_op =>
+     (case petr4_parse_type tyenv cast_type of
+      | SOME (tau_bit n) =>
+       (case res_op of
+        | INL op_exp =>
+         SOME_msg (INL (e_cast (cast_unsigned n) op_exp))
+        | INR op_const =>
+         SOME_msg (INL (e_v (v_bit (fixwidth n (n2v op_const), n)))))
+      | SOME _ => get_error_msg "unsupported cast type: " cast_type
+      | NONE => get_error_msg "unknown cast type: " cast_type)
+    | NONE_msg op_msg => NONE_msg op_msg)
   (* Unary operation *)
   | Array [String "unary_op";
      Object [("tags", tags);
@@ -826,7 +862,6 @@ Definition petr4_parse_expression_gen_def:
              ("arg", op)]] =>
    (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (op, NONE) of
     | SOME_msg res_op =>
-     (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
      (case petr4_unop_lookup optype of
       | SOME unop =>
        (case res_op of
