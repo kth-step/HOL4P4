@@ -552,6 +552,44 @@ Cases_on `is_v e` >| [
 ]
 QED
 
+Theorem e_cast_exec_sound_red:
+!type e c.
+e_exec_sound type e ==>
+e_exec_sound type (e_cast c e)
+Proof
+fs [e_exec_sound] >>
+rpt strip_tac >>
+Cases_on `is_v e` >| [
+ Cases_on `e_exec_cast c e` >> (
+  fs [e_exec] >>
+  rw []
+ ) >>
+ Cases_on `e` >> (
+  fs [is_v]
+ ) >>
+ (* Different concrete cases *)
+ Cases_on `c` >> (
+  Cases_on `v` >> (
+   fs [e_exec_cast, cast_exec]
+  ) >>
+  rw []
+ ) >| [
+  irule ((valOf o find_clause_e_red) "e_cast_bool") >>
+  fs [clause_name_def],
+
+  irule ((valOf o find_clause_e_red) "e_cast_bitv") >>
+  fs [clause_name_def]
+ ],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+  fs [e_exec]
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ METIS_TAC [(valOf o find_clause_e_red) "e_cast_arg", clause_name_def]
+]
+QED
+
 Theorem e_call_exec_sound_red:
 !type f l.
 l_sound type l ==>
@@ -724,6 +762,9 @@ rpt strip_tac >| [
 
  (* e list: inductive step *)
  fs [l_sound_equiv, l_sound_exec],
+
+ (* Cast *)
+ fs [e_cast_exec_sound_red],
 
  (* Field access *)
  fs [e_acc_exec_sound_red],
