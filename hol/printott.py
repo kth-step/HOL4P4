@@ -1,7 +1,7 @@
 # Python program to print cumbersome-to-write parts of the p4 ott specification
 
 #The maximum bit-string size
-max = 64
+max = 128
 
 # print word wrappers
 for i in range(2, max+1):
