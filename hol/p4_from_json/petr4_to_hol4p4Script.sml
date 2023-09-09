@@ -370,6 +370,48 @@ Definition petr4_parse_type_name_def:
    petr4_parse_tyname
 End
 
+Definition petr4_num_binop_lookup_def:
+ petr4_num_binop_lookup optype (op1, op2) =
+  ALOOKUP [("Plus", op1 + op2);
+           ("Minus", op1 - op2);
+           ("Mul", op1 * op2);
+           ("Div", op1 DIV op2)] optype
+End
+
+(* Parses compile-time known constants, e.g. in bitstring widths *)
+(* TODO: Adding error messages needs adding them to where this is used *)
+Definition petr4_parse_compiletime_constantexp_def:
+ petr4_parse_compiletime_constantexp exp =
+  case exp of
+  | Array [String "int";
+     Object [("tags", tags);
+             ("x", x)]] =>
+   (case x of
+    | Object [("tags", tags2);
+              ("value", String value_str);
+              ("width_signed", width_signed)] =>
+     (case width_signed of
+      | Null => fromDecString value_str
+      (* TODO: Not sure if this can happen here... *)
+      | Array [Number (Positive, width) NONE NONE; Bool F] => fromDecString value_str
+      | _ => NONE)
+    | _ => NONE)
+  (* Binary operation *)
+  | Array [String "binary_op";
+     Object [("tags", tags);
+             ("op", Array [String optype; op_tags]);
+             ("args", Array [op1; op2])]] =>
+   (case petr4_parse_compiletime_constantexp op1 of
+    | SOME res_op1 =>
+     (case petr4_parse_compiletime_constantexp op2 of
+      | SOME res_op2 =>
+       (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
+       petr4_num_binop_lookup optype (res_op1, res_op2)
+      | NONE => NONE)
+    | NONE => NONE)
+  | _ => NONE
+End
+
 (* TODO: Expand as you encounter more types *)
 (* If type specialisation is ignored via "ignore_tyspec", type-specialised types
  * will be treated as their base type: this will result in p_tau_par.
@@ -392,16 +434,9 @@ Definition petr4_parse_ptype_def:
    ([("bit", \json'.
               (case json_parse_obj ["tags"; "expr"] json' of
                | SOME [tags; expr] =>
-                (case json_parse_arr "int" SOME expr of
-                 | SOME int_obj =>
-                  (case json_parse_obj ["tags"; "x"] int_obj of
-                   | SOME [int_tags; x_obj] =>
-                    (case json_parse_obj ["tags"; "value"; "width_signed"] x_obj of
-                     | SOME [x_tags; value; width] =>
-                      petr4_parse_width [value; width]
-                     | _ => NONE)
-                   | _ => NONE)
-                 | _ => NONE)
+                (case petr4_parse_compiletime_constantexp expr of
+                 | SOME n => SOME (p_tau_bit n)
+                 | NONE => NONE)
                | _ => NONE));
      ("bool", \json'. SOME p_tau_bool);
      ("error", \json'. SOME (p_tau_bit 32));
@@ -684,6 +719,38 @@ Definition json_p_tau_opt_list_size_def:
    json3_size json_list
 End
 
+Definition msg_opt_INL_def:
+ (msg_opt_INL (SOME_msg (e:e)) = (SOME_msg ((INL e):(e + num)))) /\
+ (msg_opt_INL (NONE_msg msg) = (NONE_msg msg))
+End
+
+(* This gathers all known extern functions which have type arguments that don't appear
+ * among their arguments. *)
+(* TODO: This is architecture-dependent in general... *)
+Definition incomplete_typeinf_def:
+ incomplete_typeinf funn =
+  case funn of
+  | (funn_ext ext_obj ext_fun) =>
+   (if ext_obj = "packet_in" /\  ext_fun = "lookahead"
+    then T
+    else F)
+  | _ => F
+End
+
+Definition add_typeinf_dummy_args_def:
+ add_typeinf_dummy_args tyenv res_func_name res_args tyargs =
+  case
+   FOLDL (\ args_opt tyarg.
+          case args_opt of
+          | SOME args =>
+           (case petr4_parse_type tyenv tyarg of
+            | SOME type => SOME (args++[(e_v $ arb_from_tau type)])
+            | NONE => NONE)
+          | NONE => NONE) (SOME []) tyargs of
+   | SOME dummy_args => SOME_msg (e_call res_func_name (res_args++dummy_args))
+   | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
+End
+
 (* The image of this function is the type union of expressions (INL)
  * and natural numbers (INR) (for arbitrary-width integers).
  * Regular petr4_parse_expression is a wrapper for this which
@@ -847,7 +914,13 @@ Definition petr4_parse_expression_gen_def:
         | SOME (arg_tys, ret_ty) =>
          (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (args, MAP SOME arg_tys)) of
           | SOME_msg res_args =>
-           SOME_msg (INL (e_call res_func_name' res_args))
+           (* TODO: Here, check if function's arguments has incomplete type information.
+            * If so, parse tyargs to types, then create a dummy values for them and pass as arguments *)
+           if incomplete_typeinf res_func_name'
+           then
+            msg_opt_INL $ add_typeinf_dummy_args tyenv res_func_name' res_args tyargs
+           else
+            SOME_msg (INL (e_call res_func_name' res_args))
           | NONE_msg func_name_msg => NONE_msg ("could not parse function call arguments: "++func_name_msg))
         | NONE => get_error_msg "could not retrieve type of function: " func_name)
       (* validity manipulation is modeled in HOL4P4 as a method call *)
@@ -1024,6 +1097,18 @@ Definition petr4_parse_struct_def:
    | NONE_msg msg => NONE_msg ("Could not parse struct: "++msg)
 End
 
+Definition petr4_postprocess_extern_method_call_def:
+ petr4_postprocess_extern_method_call tyenv funn res_args tyargs =
+  if incomplete_typeinf funn
+  then
+   (case add_typeinf_dummy_args tyenv funn res_args tyargs of
+    | SOME_msg e =>
+     SOME_msg (stmt_ass lval_null e)
+    | NONE_msg msg => NONE_msg msg)
+  else
+   SOME_msg (stmt_ass lval_null (e_call funn res_args))
+End
+
 (**********************)
 (* Common: statements *)
 
@@ -1032,7 +1117,7 @@ Definition petr4_parse_method_call_def:
   case stmt_details of
   | [(f0, tags); (* No check for this, since it's only thrown away *)
      (f1, func); (* Expression: either a name or a member (in case of extern object's method) *)
-     (f2, tyargs); (* TODO: Type arguments. Typically an empty list: currently thrown away *)
+     (f2, Array tyargs); (* TODO: Type arguments. Typically an empty list: currently thrown away *)
      (f3, Array args)] => (* Argument list: typically expressions *)
    if f1 = "func" then
     (if f2 = "type_args" then
@@ -1056,11 +1141,11 @@ Definition petr4_parse_method_call_def:
                    (* TODO: Make error check for res_args format *)
                    SOME_msg (stmt_verify (EL 0 res_args) (EL 1 res_args))
                   else
-                   SOME_msg (stmt_ass lval_null (e_call funn res_args)))
+                   petr4_postprocess_extern_method_call tyenv (funn_ext ext_name extfun_name) res_args tyargs)
                 else
                  (case obj_opt of
                   | SOME obj =>
-                   SOME_msg (stmt_ass lval_null (e_call funn (obj::res_args)))
+                   petr4_postprocess_extern_method_call tyenv (funn_ext ext_name extfun_name) (obj::res_args) tyargs
                   | NONE => get_error_msg "no object provided for extern object method call: " func)
                | (funn_name fun_name) =>
                 SOME_msg (stmt_ass lval_null (e_call funn res_args))

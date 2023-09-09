@@ -155,18 +155,26 @@ Definition lookup_lval_header:
  )
 End
 
-Definition set_header_fields'_def:
- (set_header_fields' []     acc _ = SOME acc) /\
- (set_header_fields' (h::t) acc packet_in =
+(* Partial, but does the job where it is used *)
+Definition set_bool:
+ (set_bool packet_in = v_bool (HD packet_in))
+End
+Definition set_bit:
+ (set_bit n packet_in = v_bit (TAKE n packet_in, n))
+End
+
+Definition set_fields_def:
+ (set_fields []     acc _ = SOME acc) /\
+ (set_fields (h::t) acc packet_in =
   case h of
-  | (x:x, (v_bool b)) => set_header_fields' t (acc++[(x, (v_bool (HD packet_in)))]) (DROP 1 packet_in)
-  | (x, (v_bit (bv, l))) => set_header_fields' t (acc++[(x, (v_bit (TAKE l packet_in, l)))]) (DROP l packet_in)
+  | (x:x, (v_bool b)) => set_fields t (acc++[(x, set_bool packet_in)]) (DROP 1 packet_in)
+  | (x, (v_bit (bv, l))) => set_fields t (acc++[(x, set_bit l packet_in)]) (DROP l packet_in)
   | (x, (v_struct x_v_l)) =>
    (case size_in_bits (v_struct x_v_l) of
     | SOME n =>
-     (case set_header_fields' x_v_l [] (TAKE n packet_in) of
+     (case set_fields x_v_l [] (TAKE n packet_in) of
       | SOME acc' =>
-       set_header_fields' t (acc++[(x, v_struct acc')]) (DROP n packet_in)
+       set_fields t (acc++[(x, v_struct acc')]) (DROP n packet_in)
       | NONE => NONE)
     | NONE => NONE)
   | _ => NONE)
@@ -174,13 +182,29 @@ Termination
 WF_REL_TAC `measure ( \ (t, acc, packet_in). v1_size t)`
 End
 
-Definition set_header_fields:
- (set_header_fields x_v_l packet_in = set_header_fields' x_v_l [] packet_in)
+Definition set_header:
+ (set_header x_v_l packet_in =
+  case set_fields x_v_l [] packet_in of
+  | SOME x_v_l' => SOME (v_header T x_v_l')
+  | NONE => NONE)
+End
+
+Definition set_struct:
+ (set_struct x_v_l packet_in =
+  case set_fields x_v_l [] packet_in of
+  | SOME x_v_l' => SOME (v_struct x_v_l')
+  | NONE => NONE)
+End
+
+Definition set_v:
+ (set_v (v_bit (bitv, n)) packet_in = SOME (set_bit n packet_in)) /\
+ (set_v (v_bool b)        packet_in = SOME (set_bool packet_in)) /\
+ (set_v (v_struct x_v_l)  packet_in = (set_struct x_v_l packet_in)) /\
+ (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in))
 End
 
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
-(* Note the usage of "REVERSE" to keep the order of fields in the header the same *)
 Definition packet_in_extract_gen:
  (packet_in_extract_gen ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -193,9 +217,9 @@ Definition packet_in_extract_gen:
         | SOME size =>
          if size <= LENGTH packet_in_bl
          then
-          (case set_header_fields x_v_l packet_in_bl of
-           | SOME x_v_l' =>
-            (case assign scope_list (v_header T x_v_l') (lval_varname (varn_name "headerLvalue")) of
+          (case set_header x_v_l packet_in_bl of
+           | SOME header =>
+            (case assign scope_list header (lval_varname (varn_name "headerLvalue")) of
              | SOME scope_list' =>
               SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', status_returnv v_bot)
              | NONE => NONE)
@@ -203,6 +227,33 @@ Definition packet_in_extract_gen:
          else
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
           SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
+        | NONE => NONE)
+       | _ => NONE)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+(* See https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-packet-lookahead *)
+Definition packet_in_lookahead_gen:
+ (packet_in_lookahead_gen ascope_lookup ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "dummy_T")) of
+    | SOME dummy_v =>
+     (case lookup_ascope_gen ascope_lookup ascope i of
+      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+       (case size_in_bits dummy_v of
+        | SOME size =>
+         if size <= LENGTH packet_in_bl
+         then
+          (case set_v dummy_v packet_in_bl of
+           | SOME v =>
+            SOME (ascope, scope_list, status_returnv v)
+           | NONE => NONE)
+         else
+          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+          SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
