@@ -4,6 +4,65 @@ open mlibUseful;
 
 val exclude_descs =
  [(*
+    Header unions
+    FAIL: Could not parse .*\/(.*?)\. Unknown declaration element type: HeaderUnion
+  *)
+  ("adding header unions to HOL4P4",
+   [(* With STF: *)
+    "header-bool-bmv2",
+    "issue1879-bmv2",
+    "issue561-1-bmv2",
+    "issue561-2-bmv2",
+    "issue561-3-bmv2",
+    "issue561-5-bmv2",
+    "issue561-4-bmv2",
+    "issue561-7-bmv2",
+    "issue561-6-bmv2",
+    "union1-bmv2",
+    "union3-bmv2",
+    "union2-bmv2",
+    "union-valid-bmv2",
+    "union-bmv2",
+    (* Without STF: *)
+    "bvec_union-bmv2",
+    "declarations",
+    "header",
+    "issue1897-bmv2",
+    "issue561",
+    "issue982",
+    "spec-ex10",
+    "spec-ex29",
+    "union-key",
+    "union4-bmv2"]),
+(*
+    Variable-width integers
+    FAIL: Could not parse .*\/(.*?)\. .*varbit.*
+*)
+  ("adding dynamically-sized bit-strings to HOL4P4",
+   [(* With STF: *)
+    "checksum1-bmv2",
+    "equality-varbit-bmv2",
+    "equality-bmv2",
+    "issue1025-bmv2",
+    "issue447-1-bmv2",
+    "issue447-2-bmv2",
+    "issue447-3-bmv2",
+    "issue447-4-bmv2",
+    "issue447-bmv2",
+    "issue447-5-bmv2",
+    "test-parserinvalidargument-error-bmv2",
+    (* Without STF: *)
+    "annotation-bug",
+    "crash-typechecker",
+    "equality",
+    "issue1291-bmv2",
+    "issue1560-bmv2",
+    "issue1765-bmv2",
+    "issue561-bmv2",
+    "match",
+    "spec-ex08",
+    "spec-ex18"]),
+  (*
    Header stacks
    FAIL: Could not parse .*\/(.*?)\. .*? \["header_stack".*
   *)
@@ -49,6 +108,17 @@ val exclude_descs =
     "stack-bvec-bmv2",
     "uninit"]),
 (*
+    Bit string access
+    FAIL: Could not parse .*\/(.*?)\. .*?: \["bit_string_access".*
+*)
+  ("extending JSON-to-HOL4P4 parser to properly support bit string access",
+   [(* With STF: *)
+    "issue1000-bmv2",
+    "issue870_ebpf",
+    "issue-2123-3-bmv2",
+    "issue2343-bmv2",
+    "match-on-exprs-bmv2"]),
+(*
     Lists
     FAIL: Could not parse .*\/(.*?)\. .*list.*
 *)
@@ -86,37 +156,6 @@ val exclude_descs =
     "specialization",
     "struct_init"]),
 (*
-    Header unions
-    FAIL: Could not parse .*\/(.*?)\. Unknown declaration element type: HeaderUnion
-*)
-  ("adding header unions to HOL4P4",
-   [(* With STF: *)
-    "header-bool-bmv2",
-    "issue1879-bmv2",
-    "issue561-1-bmv2",
-    "issue561-2-bmv2",
-    "issue561-3-bmv2",
-    "issue561-5-bmv2",
-    "issue561-4-bmv2",
-    "issue561-7-bmv2",
-    "issue561-6-bmv2",
-    "union1-bmv2",
-    "union3-bmv2",
-    "union2-bmv2",
-    "union-valid-bmv2",
-    "union-bmv2",
-    (* Without STF: *)
-    "bvec_union-bmv2",
-    "declarations",
-    "header",
-    "issue1897-bmv2",
-    "issue561",
-    "issue982",
-    "spec-ex10",
-    "spec-ex29",
-    "union-key",
-    "union4-bmv2"]),
-(*
     Match kind
     FAIL: Could not parse .*\/(.*?)\. .*? could not parse match kind.*
 *)
@@ -129,71 +168,6 @@ val exclude_descs =
     "action_profile-bmv2.json",
     "action_selector_shared-bmv2.json",
     "issue297-bmv2.json"]),
-(*
-    Casts
-    FAIL: Could not parse .*\/(.*?)\. .*cast.*
-*)
-  ("adding casts to HOL4P4",
-   [(* With STF: *)
-    "arith-inline-bmv2",
-    "arith-bmv2",
-    "arith2-bmv2",
-    "arith4-bmv2",
-    "arith3-bmv2",
-    "count_ebpf",
-    "issue1755-1-bmv2",
-    "issue1566-bmv2",
-    "issue983-bmv2",
-    "valid_ebpf",
-    (* Without STF: *)
-    "bool_cast",
-    "bitwise-cast",
-    "direct-action1",
-    "direct-action",
-    "hash-bmv2",
-    "initializer",
-    "issue1097-2-bmv2",
-    "issue1538.json",
-    "issue1566",
-    "issue1713-bmv2",
-    "issue2104",
-    "issue2148.json",
-    "issue2151",
-    "issue2335-1",
-    "issue2260-2.json",
-    "issue584-1",
-    "spec-ex25",
-    "strength6",
-    "strength3",
-    "useless-cast"]),
-(*
-    Variable-width integers
-    FAIL: Could not parse .*\/(.*?)\. .*varbit.*
-*)
-  ("adding dynamically-sized bit-strings to HOL4P4",
-   [(* With STF: *)
-    "checksum1-bmv2",
-    "equality-varbit-bmv2",
-    "equality-bmv2",
-    "issue1025-bmv2",
-    "issue447-1-bmv2",
-    "issue447-2-bmv2",
-    "issue447-3-bmv2",
-    "issue447-4-bmv2",
-    "issue447-bmv2",
-    "issue447-5-bmv2",
-    "test-parserinvalidargument-error-bmv2",
-    (* Without STF: *)
-    "annotation-bug",
-    "crash-typechecker",
-    "equality",
-    "issue1291-bmv2",
-    "issue1560-bmv2",
-    "issue1765-bmv2",
-    "issue561-bmv2",
-    "match",
-    "spec-ex08",
-    "spec-ex18"]),
 (*
     Serializable enumeration types
     FAIL: Could not parse .*\/(.*?)\. Unknown declaration element type: SerializableEnum
@@ -238,6 +212,13 @@ val exclude_descs =
    [(* With STF: *)
     "issue1814-1-bmv2"]),
 (*
+    CounterArray extern (manually spotted)
+*)
+  ("adding counter array extern to HOL4P4",
+   [(* With STF: *)
+    "count_ebpf",
+    "valid_ebpf"]),
+(*
     Better support for enumeration types (manually spotted)
 *)
   ("extending JSON-to-HOL4P4 parser to more properly support enumeration types",
@@ -250,17 +231,6 @@ val exclude_descs =
   ("adding hit bit of tables to HOL4P4",
    [(* With STF: *)
     "hit_ebpf"]),
-(*
-    Bit string access
-    FAIL: Could not parse .*\/(.*?)\. .*?: \["bit_string_access".*
-*)
-  ("extending JSON-to-HOL4P4 parser to properly support bit string access",
-   [(* With STF: *)
-    "issue1000-bmv2",
-    "issue870_ebpf",
-    "issue-2123-3-bmv2",
-    "issue2343-bmv2",
-    "match-on-exprs-bmv2"]),
 (*
     Switch statement
     FAIL: Could not parse .*\/(.*?)\. .*?: unknown statement name: switch.*
