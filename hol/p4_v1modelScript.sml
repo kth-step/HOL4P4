@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib ottLib;
 
-open p4Theory p4_auxTheory p4_coreTheory;
+open p4Theory p4Syntax p4_auxTheory p4_coreTheory;
 
 val _ = new_theory "p4_v1model";
 
@@ -50,6 +50,10 @@ Definition v1model_packet_in_extract:
  v1model_packet_in_extract = packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
+Definition v1model_packet_in_lookahead:
+ v1model_packet_in_lookahead = packet_in_lookahead_gen v1model_ascope_lookup v1model_ascope_update_v_map
+End
+
 Definition v1model_packet_in_advance:
  v1model_packet_in_advance = packet_in_advance_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
@@ -93,6 +97,28 @@ End
 (*                     MODEL-SPECIFIC                     *)
 (**********************************************************)
 
+(* TODO: The reset values of standard metadata *)
+val v1model_standard_metadata_zeroed =
+ listSyntax.mk_list
+  (map pairSyntax.mk_pair
+   [(``"ingress_port"``, mk_v_bitii (0, 9)),
+    (``"egress_spec"``, mk_v_bitii (0, 9)),
+    (``"egress_port"``, mk_v_bitii (0, 9)),
+    (``"instance_type"``, mk_v_bitii (0, 32)),
+    (``"packet_length"``, mk_v_bitii (0, 32)),
+    (``"enq_timestamp"``, mk_v_bitii (0, 32)),
+    (``"enq_qdepth"``, mk_v_bitii (0, 19)),
+    (``"deq_timedelta"``, mk_v_bitii (0, 32)),
+    (``"deq_qdepth"``, mk_v_bitii (0, 19)),
+    (``"ingress_global_timestamp"``, mk_v_bitii (0, 48)),
+    (``"egress_global_timestamp"``, mk_v_bitii (0, 48)),
+    (``"mcast_grp"``, mk_v_bitii (0, 16)),
+    (``"egress_rid"``, mk_v_bitii (0, 16)),
+    (``"checksum_error"``, mk_v_bitii (0, 1)),
+    (``"parser_error"``, mk_v_bitii (0, 32)),
+    (``"priority"``, mk_v_bitii (0, 3))],
+   “:(string # v)”);
+
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
 Definition v1model_input_f_def:
  (v1model_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
@@ -104,8 +130,9 @@ Definition v1model_input_f_def:
      let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet bl)) in
      (case ALOOKUP v_map "standard_metadata" of
       | SOME (v_struct struct) =>
-       let v_map' = AUPDATE v_map ("standard_metadata", v_struct (AUPDATE struct ("ingress_port", v_bit (w9 (n2w p))))) in
-       SOME (t, (counter, ext_obj_map', v_map', ctrl):v1model_ascope)
+       let v_map' = AUPDATE v_map ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed) ("ingress_port", v_bit (w9 (n2w p))))) in
+       let v_map'' = AUPDATE v_map' ("parseError", v_bit (fixwidth 32 (n2v 0),32)) in
+       SOME (t, (counter, ext_obj_map', v_map'', ctrl):v1model_ascope)
       | _ => NONE)
     | _ => NONE))
 End
