@@ -251,12 +251,6 @@ val exclude_descs =
    [(* With STF: *)
     "hit_ebpf"]),
 (*
-    Better support for compile-time computable values (manually spotted)
-*)
-  ("extending JSON-to-HOL4P4 parser to more properly support compile-time computable values",
-   [(* With STF: *)
-    "issue1768-bmv2"]),
-(*
     Bit string access
     FAIL: Could not parse .*\/(.*?)\. .*?: \["bit_string_access".*
 *)

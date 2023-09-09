@@ -39,6 +39,10 @@ Definition vss_packet_in_extract:
  vss_packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
 End
 
+Definition vss_packet_in_lookahead:
+ vss_packet_in_lookahead = packet_in_lookahead_gen vss_ascope_lookup vss_ascope_update_v_map
+End
+
 Definition vss_packet_in_advance:
  vss_packet_in_advance = packet_in_advance_gen vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
 End

@@ -23,6 +23,7 @@ val v1model_objectless_map =
 
 val v1model_packet_in_map =
  ``[("extract", (stmt_ext, [("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));
+    ("lookahead", (stmt_ext, [("this", d_in); ("dummy_T", d_in)], v1model_packet_in_lookahead));
     ("advance", (stmt_ext, [("this", d_in); ("bits", d_in)], v1model_packet_in_advance))]``;
 
 val v1model_packet_out_map =
@@ -84,23 +85,6 @@ val v1model_standard_metadata_uninit =
                    (``"parser_error"``, mk_v_biti_arb 32),
                    (``"priority"``, mk_v_biti_arb 3)];
 
-val v1model_standard_metadata_zeroed =
- mk_v_struct_list [(``"ingress_port"``, mk_v_bitii (0, 9)),
-                   (``"egress_spec"``, mk_v_bitii (0, 9)),
-                   (``"egress_port"``, mk_v_bitii (0, 9)),
-                   (``"instance_type"``, mk_v_bitii (0, 32)),
-                   (``"packet_length"``, mk_v_bitii (0, 32)),
-                   (``"enq_timestamp"``, mk_v_bitii (0, 32)),
-                   (``"enq_qdepth"``, mk_v_bitii (0, 19)),
-                   (``"deq_timedelta"``, mk_v_bitii (0, 32)),
-                   (``"deq_qdepth"``, mk_v_bitii (0, 19)),
-                   (``"ingress_global_timestamp"``, mk_v_bitii (0, 48)),
-                   (``"egress_global_timestamp"``, mk_v_bitii (0, 48)),
-                   (``"mcast_grp"``, mk_v_bitii (0, 16)),
-                   (``"egress_rid"``, mk_v_bitii (0, 16)),
-                   (``"checksum_error"``, mk_v_bitii (0, 1)),
-                   (``"parser_error"``, mk_v_bitii (0, 32)),
-                   (``"priority"``, mk_v_bitii (0, 3))];
 (*
 val v1model_meta_uninit =
  mk_v_struct_list [];
@@ -121,6 +105,6 @@ val v1model_header_uninit =
 val v1model_init_v_map = ``^core_init_v_map ++
                            [("b", v_ext_ref 0);
                             ("b_temp", v_ext_ref 1);
-			    ("standard_metadata", (^v1model_standard_metadata_zeroed))]:(string, v) alist``;
+			    ("standard_metadata", (^v1model_standard_metadata_uninit))]:(string, v) alist``;
 
 end
