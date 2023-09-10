@@ -123,6 +123,8 @@ End
 (* NOTE: This deals with "\"unused\"" in the situation where "" can also occur *)
 (* TODO: Normally this would require a length of t check, but we know it will always
  * end in ]] due to petr4 format *)
+(* TODO: Not needed? *)
+(*
 Definition p4_preprocess_str_def:
 (p4_preprocess_str [] = []) /\
 (p4_preprocess_str (h::t) =
@@ -136,6 +138,7 @@ Definition p4_preprocess_str_def:
       else (h::(p4_preprocess_str t))
  else (h::(p4_preprocess_str t)))
 End
+*)
 
 Definition json_to_string_wrap_def:
  json_to_string_wrap json = (FOLDL (\ str acc. str++acc) []) (json_to_string json)
@@ -593,7 +596,8 @@ Definition exp_to_p_tau_def:
       | SOME (fld, res_tau) => SOME res_tau
       | NONE => NONE)
     | _ => NONE)
-  | (e_var (varn_name varname)) => ALOOKUP vtymap (varn_name varname) 
+  | (e_var (varn_name varname)) => ALOOKUP vtymap (varn_name varname)
+  | (e_binop op1 binop op2) => exp_to_p_tau vtymap op1
   | _ => NONE
 End
 

@@ -476,7 +476,7 @@ Definition lex_def:
     else if c = #"\"" then
       case lex_str cs [] of
       | SOME (tok, cs) => lex cs (tok::acc)
-      | NONE => INR $ "unbalanced string" ++ TAKE 10 (c::cs)
+      | NONE => INR $ "unbalanced string: " ++ TAKE 10 (c::cs)
     else if c = #"t" \/ c = #"f" then
       case lex_bool (c::cs) of
       | SOME (tok, cs) => lex cs (tok::acc)
