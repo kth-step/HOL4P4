@@ -113,9 +113,8 @@ val exclude_descs =
 *)
   ("extending JSON-to-HOL4P4 parser to properly support bit string access",
    [(* With STF: *)
-    "issue1000-bmv2",
     "issue870_ebpf",
-    "issue-2123-3-bmv2",
+    "issue983-bmv2",
     "issue2343-bmv2",
     "match-on-exprs-bmv2"]),
 (*
@@ -202,8 +201,10 @@ val exclude_descs =
 *)
   ("adding nested control blocks to HOL4P4",
    [(* With STF: *)
+    "arith-inline-bmv2",
     "arith2-inline-bmv2",
     "default_action-bmv2",
+    "key-bmv2",
     "two_ebpf"]),
 (*
     Register extern (manually spotted)
@@ -211,6 +212,12 @@ val exclude_descs =
   ("adding register extern to HOL4P4",
    [(* With STF: *)
     "issue1814-1-bmv2"]),
+(*
+    Counter extern (manually spotted)
+*)
+  ("adding counter extern to HOL4P4",
+   [(* With STF: *)
+    "issue1566-bmv2"]),
 (*
     CounterArray extern (manually spotted)
 *)
@@ -230,7 +237,8 @@ val exclude_descs =
 *)
   ("adding hit bit of tables to HOL4P4",
    [(* With STF: *)
-    "hit_ebpf"]),
+    "hit_ebpf",
+    "key-issue-1020_ebpf"]),
 (*
     Switch statement
     FAIL: Could not parse .*\/(.*?)\. .*?: unknown statement name: switch.*
@@ -288,14 +296,8 @@ val exclude_descs =
 *)
   ("extending HOL4P4 to allow more expressions as table keys",
    [(* With STF: *)
-    "key-issue-1020_ebpf"]),
-(*
-    Better JSON postprocessing to avoid unbalanced string quotes (manually spotted)
-*)
-  ("improving JSON postprocessing to avoid unbalanced string quotes",
-   [(* With STF: *)
-    "key-bmv2"])
-
+    "issue1000-bmv2",
+    "issue-2123-3-bmv2"])
 ];
 
 fun get_error_desc testname [] = NONE
