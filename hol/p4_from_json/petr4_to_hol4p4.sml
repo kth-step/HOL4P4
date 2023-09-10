@@ -743,13 +743,15 @@ fun format_for_hol4 (str: string) : string =
 
 (* Print test:
  (* OK *)
- val args = ["1", "2", "test-examples/ebpf_stf_only/action_call_table_ebpf.json", "test-examples/ebpf_stf_only/action_call_table_ebpf.log", "ebpf", "Y"];
+ val args = ["1", "2", "validation_tests/action_call_table_ebpf.json", "validation_tests/action_call_table_ebpf.log", "ebpf", "Y"];
  (* OK *)
- val args = ["1", "2", "test-examples/ebpf_stf_only/test_ebpf.json", "test-examples/ebpf_stf_only/test_ebpf.log", "ebpf", "Y"];
+ val args = ["1", "2", "validation_tests/test_ebpf.json", "validation_tests/test_ebpf.log", "ebpf", "Y"];
 
- val args = ["1", "2", "test-examples/stf_only/key-bmv2.json", "test-examples/stf_only/key-bmv2.log", "v1model", "Y"];
+ val args = ["1", "2", "validation_tests/key-bmv2.json", "testlog", "v1model", "Y"];
 
- val args = ["1", "2", "test-examples/stf_only/array-copy-bmv2.json", "test-examples/stf_only/array-copy-bmv2.log", "v1model", "Y"];
+ val args = ["1", "2", "test.json", "testlog", "v1model", "Y"];
+
+ val args = ["1", "2", "validation_tests/array-copy-bmv2.json", "validation_tests/array-copy-bmv2.log", "v1model", "Y"];
 
 *)
 
@@ -798,7 +800,8 @@ fun main() =
       (* Lexing + parsing to HOL4 JSON *)
       (* TODO: Rename *)
       val vss_parse_thm =
-       EVAL ``parse (OUTL (lex (p4_preprocess_str (^vss_input_tm)) ([]:token list))) [] T``;
+(*        EVAL ``parse (OUTL (lex (p4_preprocess_str (^vss_input_tm)) ([]:token list))) [] T``; *)
+       EVAL ``parse (OUTL (lex (^vss_input_tm) ([]:token list))) [] T``;
       (* TODO: Check if result is INR (OK) or INL (print error) *)
       (* Parsing to HOL4P4 JSON *)
       val vss_parse_clean = EVAL ``p4_from_json ^(rhs $ concl vss_parse_thm) ^(arch_opt_tm)``;
