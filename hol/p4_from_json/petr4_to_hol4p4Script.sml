@@ -378,7 +378,8 @@ Definition petr4_num_binop_lookup_def:
   ALOOKUP [("Plus", op1 + op2);
            ("Minus", op1 - op2);
            ("Mul", op1 * op2);
-           ("Div", op1 DIV op2)] optype
+           ("Div", op1 DIV op2);
+           ("Mod", op1 MOD op2)] optype
 End
 
 (* Parses compile-time known constants, e.g. in bitstring widths *)
