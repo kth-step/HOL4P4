@@ -197,6 +197,29 @@ val mk_e_ext_call_list =
    (#2 (syntax_fns2 "p4" "e_call")) (mk_funn_ext (objname, metname),
                                      listSyntax.mk_list (l, e_ty)));
 
+(*******)
+(* tau *)
+(*******)
+
+val struct_ty_struct_tm = prim_mk_const {Name="struct_ty_struct", Thy="p4"};
+val struct_ty_header_tm = prim_mk_const {Name="struct_ty_header", Thy="p4"};
+
+val tau_ty = mk_type ("tau", []);
+
+val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit, is_tau_bit) =
+  syntax_fns1 "p4" "tau_bit";
+val mk_tau_bit =
+  mk_tau_bit_tmp o (fn n => term_of_int n);
+
+val (tau_xtl_tm, mk_tau_xtl_tmp, dest_tau_xtl, is_tau_xtl) =
+  syntax_fns2 "p4" "tau_xtl";
+fun mk_x_tau_l x_tau_l = mk_list (map mk_pair $ zip (map fromMLstring $ map fst x_tau_l) (map snd x_tau_l), “:(x # tau)”);
+val mk_tau_struct =
+  mk_tau_xtl_tmp o (fn x_tau_l => (struct_ty_struct_tm, mk_x_tau_l x_tau_l));
+val mk_tau_header =
+  mk_tau_xtl_tmp o (fn x_tau_l => (struct_ty_header_tm, mk_x_tau_l x_tau_l));
+
+
 (********)
 (* stmt *)
 (********)
