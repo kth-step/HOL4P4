@@ -214,6 +214,21 @@ val e_red_tm : term
 val is_e_red : term -> bool
 val mk_e_red : term * term * term * term * term * term -> term
 
+val struct_ty_struct_tm : term
+val struct_ty_header_tm : term
+val tau_ty : hol_type
+
+val dest_tau_bit : term -> term
+val is_tau_bit : term -> bool
+val mk_tau_bit : int -> term
+val tau_bit_tm : term
+
+val dest_tau_xtl : term -> term * term
+val is_tau_xtl : term -> bool
+val tau_xtl_tm : term
+val mk_tau_struct : (string * term) list -> term
+val mk_tau_header : (string * term) list -> term
+
 val dest_stmt_red : term -> term * term * term
 val is_stmt_red : term -> bool
 val mk_stmt_red : term * term * term -> term

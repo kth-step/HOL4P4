@@ -71,6 +71,9 @@ fun actx_of_arch arch_opt_tm =
  else NONE
 ;
 
+(* TODO: Use this everywhere? *)
+fun eval_rhs tm = rhs $ concl $ EVAL tm;
+
 (*
 (* Flags for determining type of output *)
 val unicode = false;
@@ -433,7 +436,7 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
 
 fun infer_args (ftymap, blftymap) block_name action_name args =
  let
-  val inferred_args = rhs $ concl $ EVAL ``p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map term_of_int args, num))``
+  val inferred_args = eval_rhs ``p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map term_of_int args, num))``
  in
   if (is_some inferred_args)
   then SOME (dest_some inferred_args)
@@ -582,9 +585,9 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
 
 fun vss_add_param_vars_to_v_map init_v_map tau =
  let
-  val uninit_H_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau”
+  val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau”
  in
-  rhs $ concl $ EVAL “AUPDATE_LIST ^init_v_map [("parsedHeaders", ^uninit_H_val_tm);
+  eval_rhs “AUPDATE_LIST ^init_v_map [("parsedHeaders", ^uninit_H_val_tm);
                                                 ("headers", ^uninit_H_val_tm);
                                                 ("outputHeaders", ^uninit_H_val_tm)]”
  end
@@ -592,18 +595,18 @@ fun vss_add_param_vars_to_v_map init_v_map tau =
 
 fun ebpf_add_param_vars_to_v_map init_v_map tau =
  let
-  val uninit_H_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau”
+  val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau”
  in
-  rhs $ concl $ EVAL “AUPDATE_LIST ^init_v_map [("headers", ^uninit_H_val_tm)]”
+  eval_rhs “AUPDATE_LIST ^init_v_map [("headers", ^uninit_H_val_tm)]”
  end
 ;
 
 fun v1model_add_param_vars_to_v_map init_v_map (tau1,tau2) =
  let
-  val uninit_H_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau1”
-  val uninit_M_val_tm = rhs $ concl $ EVAL “arb_from_tau ^tau2”
+  val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau1”
+  val uninit_M_val_tm = eval_rhs “arb_from_tau ^tau2”
  in
-  rhs $ concl $ EVAL “AUPDATE_LIST ^init_v_map [("parsedHdr", ^uninit_H_val_tm);
+  eval_rhs “AUPDATE_LIST ^init_v_map [("parsedHdr", ^uninit_H_val_tm);
                                                 ("hdr", ^uninit_H_val_tm);
                                                 ("meta", ^uninit_M_val_tm)]”
  end
@@ -615,7 +618,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
   val actx_astate_opt =
    if (is_arch_vss $ dest_some arch_opt_tm) then
     let
-     val fmap' = rhs $ concl $ EVAL ``AUPDATE_LIST ^vss_func_map ^fmap``
+     val fmap' = eval_rhs ``AUPDATE_LIST ^vss_func_map ^fmap``
      (* TODO: Make appropriate additions to ab_list_tm here *)
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
@@ -623,7 +626,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 		     vss_input_f, vss_output_f,
 		     vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
 		     vss_ext_map, fmap']
-     val init_ctrl_opt = rhs $ concl $ EVAL ``vss_init_ctrl ^pblock_map ^tbl_updates_tm``
+     val init_ctrl_opt = eval_rhs ``vss_init_ctrl ^pblock_map ^tbl_updates_tm``
     in
      if is_some init_ctrl_opt
      then
@@ -652,14 +655,14 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
     end
    else if (is_arch_ebpf $ dest_some arch_opt_tm) then
     let
-     val fmap' = rhs $ concl $ EVAL ``AUPDATE_LIST ^ebpf_func_map ^fmap``
+     val fmap' = eval_rhs ``AUPDATE_LIST ^ebpf_func_map ^fmap``
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
        list_mk_pair [ebpf_add_ffblocks_to_ab_list ab_list_tm, pblock_map, ebpf_ffblock_map,
 		     ebpf_input_f, ebpf_output_f,
 		     ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
 		     ebpf_ext_map, fmap']
-     val init_ctrl_opt = rhs $ concl $ EVAL ``ebpf_init_ctrl ^pblock_map ^tbl_updates_tm``;
+     val init_ctrl_opt = eval_rhs ``ebpf_init_ctrl ^pblock_map ^tbl_updates_tm``;
     in
      if is_some init_ctrl_opt
      then
@@ -688,14 +691,14 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
     end
    else if (is_arch_v1model $ dest_some arch_opt_tm) then
     let
-     val fmap' = rhs $ concl $ EVAL ``AUPDATE_LIST ^v1model_func_map ^fmap``
+     val fmap' = eval_rhs ``AUPDATE_LIST ^v1model_func_map ^fmap``
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
        list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map, v1model_ffblock_map,
 		     v1model_input_f, v1model_output_f,
 		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
 		     v1model_ext_map, fmap']
-     val init_ctrl_opt = rhs $ concl $ EVAL ``v1model_init_ctrl ^pblock_map ^tbl_updates_tm``;
+     val init_ctrl_opt = eval_rhs ``v1model_init_ctrl ^pblock_map ^tbl_updates_tm``;
     in
      if is_some init_ctrl_opt
      then
