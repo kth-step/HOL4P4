@@ -2,7 +2,7 @@ open HolKernel Parse bossLib boolSyntax;
 open testutils;
 open PPBackEnd optionSyntax pairSyntax numSyntax listSyntax;
 open parse_jsonTheory;
-open petr4_to_hol4p4Theory;
+open petr4_to_hol4p4Theory p4_arch_auxTheory;
 
 open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib p4_v1modelLib;
 
@@ -105,7 +105,7 @@ fun output_hol4_val outstream (name, tm, ty_opt) =
 
 fun output_hol4p4_incipit valname outstream =
  let
-  val _ = TextIO.output (outstream, "open HolKernel Parse bossLib boolSyntax;\nopen p4_testLib p4_stfTheory;\n\n");
+  val _ = TextIO.output (outstream, "open HolKernel Parse bossLib boolSyntax;\nopen p4_testLib p4_arch_auxTheory;\n\n");
   val _ = TextIO.output (outstream, "val _ = new_theory \""^(valname^"\";\n\n"));
  in
   ()
@@ -601,17 +601,6 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
  end
 ;
 
-fun v1model_add_param_vars_to_v_map init_v_map (tau1,tau2) =
- let
-  val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau1”
-  val uninit_M_val_tm = eval_rhs “arb_from_tau ^tau2”
- in
-  eval_rhs “AUPDATE_LIST ^init_v_map [("parsedHdr", ^uninit_H_val_tm);
-                                                ("hdr", ^uninit_H_val_tm);
-                                                ("meta", ^uninit_M_val_tm)]”
- end
-;
-
 fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm =
  let
   (* TODO: Eliminate code duplication here... *)
@@ -692,6 +681,8 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
    else if (is_arch_v1model $ dest_some arch_opt_tm) then
     let
      val fmap' = eval_rhs ``AUPDATE_LIST ^v1model_func_map ^fmap``
+     val tparams = eval_rhs “(\ (tau1, tau2). (arb_from_tau tau1, arb_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
+     val v1model_input_f = “v1model_input_f ^tparams”
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
        list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map, v1model_ffblock_map,
@@ -704,11 +695,11 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
      then
       let
        val init_ctrl = dest_some init_ctrl_opt
-       (* Here, the initial v_map is completed with the type-parameterized variables *)
-       val v1model_init_v_map' = v1model_add_param_vars_to_v_map v1model_init_v_map (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm)
-       val ascope = list_mk_pair [v1model_init_counter,
-				  v1model_init_ext_obj_map,
-				  v1model_init_v_map',
+       (* ctrl is initialised from the onset, whereas extern objects are initialised at the
+        * start of the pipeline with v1model_input_f *)
+       val ascope = list_mk_pair [“ARB:num”,
+				  “ARB:v1model_ascope ext_map”,
+				  “ARB:(string, v) alist”,
 				  init_ctrl]
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)
