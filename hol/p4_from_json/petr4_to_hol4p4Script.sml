@@ -825,25 +825,6 @@ Definition petr4_parse_expression_gen_def:
       | _ => get_error_msg "unsupported integer type: " width_signed)
     | _ => get_error_msg "could not obtain value and width of integer literal: " x)
   (* Cast *)
-(*
-["cast"
- {"tags":["missing_info",""],
-  "type":["bit",
-          {"tags":["missing_info",""],
-           "expr":["int",
-                   {"tags":["missing_info",""],
-                    "x":{"tags":["missing_info",""],
-                         "value":"32",
-                         "width_signed":null}}
-                  ]
-          }],
-  "expr":["binary_op",
-          {"tags":["missing_info",""],
-           "op":["Mul",{"tags":["missing_info",""]}],
-           "args":[["expression_member",{"tags":["missing_info",""],"expr":["expression_member",{"tags":["missing_info",""],"expr":["name",{"tags":["missing_info",""],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"hdr"}}]}],"name":{"tags":["missing_info",""],"string":"byte"}}],"name":{"tags":["missing_info",""],"string":"byte"}}],["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"8","width_signed":null}}]]}]
- }
-]
-*)
   | Array [String "cast";
      Object [("tags", tags);
              ("type", cast_type);
@@ -1011,8 +992,8 @@ End
 
 (* TODO: Why does this not use tyenv? Remove tyenv? *)
 Definition petr4_parse_expression_def:
- petr4_parse_expression (tyenv, enummap:enummap, vtymap, ftymap, extfun_list) (exp, tau_opt) =
-  case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, tau_opt) of
+ petr4_parse_expression (tyenv, enummap:enummap, vtymap, ftymap, extfun_list) (exp, p_tau_opt) =
+  case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, p_tau_opt) of
   | SOME_msg (INR n) => get_error_msg "no type inference information provided for integer constant: " exp
   | SOME_msg (INL exp) => SOME_msg exp
   | NONE_msg exp_msg => NONE_msg ("could not parse value: "++exp_msg)
@@ -1030,23 +1011,39 @@ Definition petr4_parse_expressions_def:
    | NONE_msg exp_msg => NONE_msg ("could not parse expressions: "++exp_msg))
 End
 
+(* "Mini big-step semantics" *)
+(* TODO: Move somewhere? This could maybe be useful... *)
 Definition exp_to_val_def:
- exp_to_val exp =
+ exp_to_val gscope exp =
   case exp of
   | (e_v val) => SOME val
+  | (e_var var) =>
+   (case ALOOKUP gscope var of
+    | SOME (v, lval_opt) => SOME v
+    | NONE => NONE)
+  | (e_binop e1 binop e2) =>
+   (case exp_to_val gscope e1 of
+    | SOME (v_bit bitv) =>
+     (case exp_to_val gscope e2 of
+      | SOME (v_bit bitv') =>
+       (case bitv_binop binop bitv bitv' of
+        | SOME bitv'' => SOME (v_bit bitv'')
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
   | _ => NONE
 End
 
 (* NOTE: Should vtymap be needed at top level?
  *       Remove tyenv, doesn't seem to be needed? *)
 Definition petr4_parse_value_def:
- petr4_parse_value (tyenv, enummap:enummap, vtymap, ftymap, extfun_list) (exp, tau_opt) =
-  case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, tau_opt) of
-  | SOME_msg (INR n) => SOME_msg (INR n)
+ petr4_parse_value (tyenv, enummap:enummap, vtymap, ftymap, gscope, extfun_list) (exp, p_tau_opt) =
+  case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, p_tau_opt) of
   | SOME_msg (INL res_exp) =>
-   (case exp_to_val res_exp of
-    | SOME val => SOME_msg (INL val)
+   (case exp_to_val gscope res_exp of
+    | SOME val => SOME_msg val
     | NONE => get_error_msg "expression could not be parsed as value: " exp)
+  | SOME_msg (INR n) => get_error_msg "type inference failed for integer constant: " exp
   | NONE_msg exp_msg => NONE_msg ("could not parse value: "++exp_msg)
 End
 
@@ -1056,15 +1053,14 @@ End
 (* TODO: Tau not used for any check? *)
 (* TODO: Update vtymap here? *)
 Definition petr4_constant_to_scopeupdate_def:
- petr4_constant_to_scopeupdate (tyenv, enummap, vtymap, ftymap, extfun_list) json =
+ petr4_constant_to_scopeupdate (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) json =
   case json_parse_obj ["tags"; "annotations"; "type"; "name"; "value"] json of
   | SOME [tags; annot; json_type; name; json_value] =>
-   (case petr4_parse_type tyenv json_type of
-    | SOME tau =>
+   (case petr4_parse_ptype F tyenv json_type of
+    | SOME p_tau =>
      (case petr4_parse_name name of
       | SOME c_name =>
-       (* TODO: No type inference for global constants? *)
-       (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, extfun_list) (json_value, NONE) of
+       (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (json_value, SOME p_tau) of
         | SOME_msg value => SOME_msg (varn_name c_name, value)
         | NONE_msg val_msg => NONE_msg val_msg)
       | NONE => get_error_msg "could not parse name: " name)
@@ -1075,15 +1071,12 @@ End
 (* This is used to parse global constants *)
 Definition petr4_parse_constant_def:
  petr4_parse_constant (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) constant =
-  case petr4_constant_to_scopeupdate (tyenv, enummap, vtymap, ftymap, extfun_list) constant of
+  case petr4_constant_to_scopeupdate (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) constant of
    | SOME_msg (varn, val) =>
-    (case val of
-     | INL v =>
-      (case v_to_tau v of
-       | SOME tau =>
-        SOME_msg (AUPDATE vtymap (varn, parameterise_tau tau), AUPDATE gscope (varn, val))
-       | NONE => get_error_msg "unsupported type of constant: " constant)
-     | INR n => SOME_msg (vtymap, AUPDATE gscope (varn, val)))
+    (case v_to_tau val of
+     | SOME tau =>
+      SOME_msg (AUPDATE vtymap (varn, parameterise_tau tau), AUPDATE gscope (varn, val, NONE))
+     | NONE => get_error_msg "unsupported type of constant: " constant)
    | NONE_msg const_msg => NONE_msg ("Could not parse constant: "++const_msg) (* TODO: Print constant name using nested msg *)
 End
 
@@ -1273,7 +1266,7 @@ Definition petr4_parse_return_def:
 End
 
 Definition petr4_parse_var_def:
- petr4_parse_var (tyenv, enummap, vtymap, ftymap, extfun_list) var =
+ petr4_parse_var (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) var =
   case json_parse_obj ["tags"; "annotations"; "type"; "name"; "init"] var of
   | SOME [tags; annot; json_type; name; opt_init] =>
    (case petr4_parse_type tyenv json_type of
@@ -1288,10 +1281,9 @@ Definition petr4_parse_var_def:
           | Null =>
            SOME_msg (varn_name var_name, tau_var, NONE)
           | val_exp =>
-           (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, extfun_list) (val_exp, SOME (parameterise_tau tau_var)) of
-            | SOME_msg (INL val) =>
+           (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (val_exp, SOME (parameterise_tau tau_var)) of
+            | SOME_msg val =>
              SOME_msg (varn_name var_name, tau_var, SOME val)
-            | SOME_msg (INR n) => get_error_msg "type inference failed for integer constant: " val_exp
             | NONE_msg init_val_msg => NONE_msg ("could not parse initial value: "++init_val_msg)))
         | NONE => get_error_msg "could not parse name: " name)
 (*
@@ -1395,7 +1387,7 @@ Definition petr4_parse_stmts_def:
        ("decl", decl)] =>
      (case json_parse_arr "Variable" SOME decl of
       | SOME decl_obj =>
-       (case petr4_parse_var (tyenv, enummap, vtymap, ftymap, extfun_list) decl_obj of
+       (case petr4_parse_var (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) decl_obj of
         | SOME_msg (varn, tau, init_val_opt) => 
          (case petr4_parse_stmts (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, gscope, apply_map, extfun_list) t of
           | SOME_msg stmts_res =>
@@ -2145,7 +2137,7 @@ Definition petr4_parse_locals_def:
       petr4_parse_locals (tyenv, enummap, vtymap, ftymap_upd::ftymap, fmap, gscope, extfun_list) (AUPDATE b_func_map (fa_name, (add_explicit_return fa_body, fa_params)), tbl_map, decl_list, inits, apply_map, tbl_entries) t
      | NONE_msg f_msg => NONE_msg ("could not parse block-local action: "++f_msg))
    | Array [String "Variable"; var_obj] =>
-    (case petr4_parse_var (tyenv, enummap, vtymap, ftymap, extfun_list) var_obj of
+    (case petr4_parse_var (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) var_obj of
      | SOME_msg (varn, tau, init_opt) =>
       (case init_opt of
        | SOME init_val =>
