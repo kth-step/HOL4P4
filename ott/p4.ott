@@ -227,8 +227,14 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ tex \bmod }}
 | + :: :: add
   {{ com addition }}
+| sat_add :: :: sat_add
+  {{ com saturating addition }}
+  {{ tex \lvert + \rvert }}
 | - :: :: sub
   {{ com subtraction }}
+| sat_sub :: :: sat_sub
+  {{ com saturating subtraction }}
+  {{ tex \lvert - \rvert }}
 | SHL :: :: shl
   {{ com logical left-shift }}
   {{ tex \ll }}

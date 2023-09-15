@@ -350,6 +350,14 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
    ) >>
    irule ((valOf o find_clause_e_red) "e_add"),
 
+   Cases_on `bitv_binop binop_sat_add p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_sat_add"),
+
    Cases_on `bitv_binop binop_sub p p'` >> (
     fs []
    ) >>
@@ -357,6 +365,14 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
     fs []
    ) >>
    irule ((valOf o find_clause_e_red) "e_sub"),
+
+   Cases_on `bitv_binop binop_sat_sub p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_sat_sub"),
 
    irule ((valOf o find_clause_e_red) "e_shl"),
 
