@@ -138,8 +138,12 @@ formula :: formula_ ::=
   {{ hol (bitv_binop binop_mod [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 | bitv + bitv' = bitv'' :: M :: add
   {{ hol (bitv_binop binop_add [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv sat_add bitv' = bitv'' :: M :: sat_add
+  {{ hol (bitv_binop binop_sat_add [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 | bitv - bitv' = bitv'' :: M :: sub
   {{ hol (bitv_binop binop_sub [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv sat_sub bitv' = bitv'' :: M :: sat_sub
+  {{ hol (bitv_binop binop_sat_sub [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 %TODO: Unify the below eq_ to equality over values?
 | bitv EQ bitv' = b :: M :: eq_word
   {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
@@ -1293,7 +1297,9 @@ val get_word_binop_def = Define `
 /\  (get_word_binop binop_div = word_div)
 /\  (get_word_binop binop_mod = word_mod)
 /\  (get_word_binop binop_add = word_add)
+/\  (get_word_binop binop_sat_add = saturate_add)
 /\  (get_word_binop binop_sub = word_sub)
+/\  (get_word_binop binop_sat_sub = saturate_sub)
 /\  (get_word_binop binop_shl = word_lsl_bv)
 /\  (get_word_binop binop_shr = word_lsr_bv)
 /\  (get_word_binop binop_and = word_and)
@@ -2505,12 +2511,20 @@ bitv + bitv' = bitv''
 ----------------------------------- :: add
 ctx g_scope_list scope_list ( bitv + bitv' ) ~> ( bitv'' , empty )
 
+bitv sat_add bitv' = bitv''
+----------------------------------- :: sat_add
+ctx g_scope_list scope_list ( bitv sat_add bitv' ) ~> ( bitv'' , empty )
+
 %%%%%%%%%%%%
 %Subtraction
 
 bitv - bitv' = bitv''
 ----------------------------------- :: sub
 ctx g_scope_list scope_list ( bitv - bitv' ) ~> ( bitv'' , empty )
+
+bitv sat_sub bitv' = bitv''
+----------------------------------- :: sat_sub
+ctx g_scope_list scope_list ( bitv sat_sub bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%

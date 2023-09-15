@@ -99,8 +99,18 @@ Definition binop_exec:
   | SOME bitv3 => SOME (v_bit bitv3)
   | NONE => NONE)
  /\
+ (binop_exec binop_sat_add (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_sat_add bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
  (binop_exec binop_sub (v_bit bitv1) (v_bit bitv2) =
   case bitv_binop binop_sub bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_sat_sub (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_sat_sub bitv1 bitv2 of
   | SOME bitv3 => SOME (v_bit bitv3)
   | NONE => NONE)
  /\

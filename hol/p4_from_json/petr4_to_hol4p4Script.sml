@@ -667,27 +667,35 @@ Definition petr4_unop_lookup_def:
            ("UMinus", unop_neg_signed)] unop_str
 End
 
-(* TODO: Saturating addition/subtraction, ++? *)
+(* TODO: Annoying special treatment of concat... *)
 Definition petr4_binop_lookup_def:
- petr4_binop_lookup binop_str = 
-  ALOOKUP [("Plus", binop_add);
-           ("Minus", binop_sub);
-           ("Mul", binop_mul);
-           ("Div", binop_div);
-           ("Mod", binop_mod);
-           ("Shl", binop_shl);
-           ("Shr", binop_shr);
-           ("Le", binop_le);
-           ("Ge", binop_ge);
-           ("Lt", binop_lt);
-           ("Gt", binop_gt);
-           ("Eq", binop_eq);
-           ("NotEq", binop_neq);
-           ("BitAnd", binop_and);
-           ("BitXor", binop_xor);
-           ("BitOr", binop_or);
-           ("And", binop_bin_and);
-           ("Or", binop_bin_or)] binop_str
+ petr4_binop_lookup binop_str =   
+   if binop_str = "PlusPlus"
+   then SOME ( \op1 op2. (e_concat op1 op2))
+   else
+    case
+     (ALOOKUP [("Plus", binop_add);
+               ("PlusSat", binop_sat_add);
+               ("Minus", binop_sub);
+               ("MinusSat", binop_sat_sub);
+               ("Mul", binop_mul);
+               ("Div", binop_div);
+               ("Mod", binop_mod);
+               ("Shl", binop_shl);
+               ("Shr", binop_shr);
+               ("Le", binop_le);
+               ("Ge", binop_ge);
+               ("Lt", binop_lt);
+               ("Gt", binop_gt);
+               ("Eq", binop_eq);
+               ("NotEq", binop_neq);
+               ("BitAnd", binop_and);
+               ("BitXor", binop_xor);
+               ("BitOr", binop_or);
+               ("And", binop_bin_and);
+               ("Or", binop_bin_or)] binop_str) of
+     | SOME binop => SOME ( \op1 op2. (e_binop op1 binop op2))
+     | NONE => NONE
 End
 
 (* Like ALOOKUP, but also requires the number of arguments to match
@@ -869,19 +877,19 @@ Definition petr4_parse_expression_gen_def:
       | SOME_msg res_op2 =>
        (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
        (case petr4_binop_lookup optype of
-        | SOME binop =>
+        | SOME mk_binop =>
          (case (res_op1, res_op2) of
-          | (INL op1_exp, INL op2_exp) => SOME_msg (INL (e_binop op1_exp binop op2_exp))
+          | (INL op1_exp, INL op2_exp) => SOME_msg (INL (mk_binop op1_exp op2_exp))
           | (INL op1_exp, INR op2_const) =>
            (case exp_to_p_tau vtymap op1_exp of
             | SOME (p_tau_bit n) =>
-             SOME_msg (INL (e_binop op1_exp binop (e_v (v_bit (fixwidth n (n2v op2_const), n)))))
+             SOME_msg (INL (mk_binop op1_exp (e_v (v_bit (fixwidth n (n2v op2_const), n)))))
             | SOME _ => get_error_msg "non-bitstring type inference unsupported for expression: " exp
             | NONE => get_error_msg "type inference failed for expression: " exp)
           | (INR op1_const, INL op2_exp) =>
            (case exp_to_p_tau vtymap op2_exp of
             | SOME (p_tau_bit n) =>
-             SOME_msg (INL (e_binop (e_v (v_bit (fixwidth n (n2v op1_const), n))) binop op2_exp))
+             SOME_msg (INL (mk_binop (e_v (v_bit (fixwidth n (n2v op1_const), n))) op2_exp))
             | SOME _ => get_error_msg "non-bitstring type inference unsupported for expression: " exp
             | NONE => get_error_msg "type inference failed for expression: " exp)
           | _ => get_error_msg "type inference failed, since expression contains binop on constants: " exp)
@@ -949,6 +957,24 @@ Definition petr4_parse_expression_gen_def:
        SOME_msg (INL (e_call res_validity [validity_arg]))
       | _ => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
+
+  (* Bit slice *)
+  | Array [String "bit_string_access";
+           Object [("tags", tags);
+                   ("bits", bits);
+                   ("lo", lo);
+                   ("hi", hi)]] =>
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (bits, NONE) of
+    | SOME_msg (INL bits_exp) =>
+     (case petr4_parse_compiletime_constantexp lo of
+      | SOME lo_n =>
+       (case petr4_parse_compiletime_constantexp hi of
+        | SOME hi_n =>
+         (* TODO: Hard-coded to width 16 here, this could be just nums instead *)
+         SOME_msg (INL (e_slice bits_exp (e_v $ v_bit (w16 (n2w hi_n))) (e_v $ v_bit (w16 (n2w lo_n)))))
+        | NONE => get_error_msg "could not parse compile-time constant: " hi)
+      | NONE => get_error_msg "could not parse compile-time constant: " lo)
+    | SOME_msg _ => get_error_msg "cannot slice: " bits)
   | _ => get_error_msg "unknown JSON format of expression: " exp) /\
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 (* TODO: Why should this do any type inference? Can that be restricted to parse_expression_gen? *)
