@@ -147,6 +147,8 @@ formula :: formula_ ::=
 %TODO: Unify the below eq_ to equality over values?
 | bitv EQ bitv' = b :: M :: eq_word
   {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
+| varbitv EQ varbitv' = b :: M :: eq_varword
+  {{ hol (([[varbitv]] = [[varbitv']]) <=> [[b]]) }}
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
 | ( x EQ x' ) = b :: M :: eq_error
@@ -1938,15 +1940,33 @@ val copyin_def = Define `
  * in the topmost scope where a is defined,
  * written as ε[a -> v], colloquially known as assignment.
  * Note that this function is used in the assignment and return rules *)
+(* TODO: This does ridiculous duplication of work... *)
+(* TODO: Varbit assignment was hacked into this, it could just as well be a separate rule *)
 val assign_def = Define `
   (assign ss v (lval_varname x) =
-    case find_topmost_map ss x of
-    | SOME (i, sc) =>
-      (case lookup_out ss x of
-       | SOME str_opt =>
-         SOME (LUPDATE (AUPDATE sc (x, (v, str_opt))) (i) ss)
-       | NONE => NONE)
-    | _ => NONE) /\
+   (case v of
+    | (v_varbit (bl, n, n_max)) =>
+     (case lookup_lval ss (lval_varname x) of
+      | SOME (v_varbit (bl', n', n_max')) =>
+       if n_max = n_max'
+       then
+	(case find_topmost_map ss x of
+	 | SOME (i, sc) =>
+	   (case lookup_out ss x of
+	    | SOME str_opt =>
+	      SOME (LUPDATE (AUPDATE sc (x, ((v_varbit (bl, n, n_max)), str_opt))) (i) ss)
+	    | NONE => NONE)
+	 | _ => NONE)
+       else NONE
+      | _ => NONE)
+    | _ =>
+     (case find_topmost_map ss x of
+      | SOME (i, sc) =>
+	(case lookup_out ss x of
+	 | SOME str_opt =>
+	   SOME (LUPDATE (AUPDATE sc (x, (v, str_opt))) (i) ss)
+	 | NONE => NONE)
+      | _ => NONE))) /\
   (assign ss v (lval_field lval f) =
     case lookup_lval ss lval of
     | SOME (v_struct f_v_l) =>
@@ -2590,6 +2610,10 @@ ctx g_scope_list scope_list ( bitv EQ bitv' ) ~> ( b , empty )
 b EQ b' = b''
 ----------------------------------- :: eq_bool
 ctx g_scope_list scope_list ( b EQ b' ) ~> ( b'' , empty )
+
+varbitv EQ varbitv' = b
+----------------------------------- :: eq_varbit
+ctx g_scope_list scope_list ( varbitv EQ varbitv' ) ~> ( b , empty )
 
 
 %%%%%%%%%%%%%

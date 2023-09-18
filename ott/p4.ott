@@ -93,6 +93,12 @@ bitv :: bitv_ ::=
 | bl n :: M :: bl
   {{ hol ([[bl]], [[n]]) }}
 
+varbitv :: varbitv_ ::=
+{{ hol (bl # num # num) }}
+{{ com variable-width bit-string }}
+| bl n n' :: M :: vbl
+  {{ hol ([[bl]], [[n]], [[n']]) }}
+
 %Fence so that ott does not put packet_in before boolv
 embed
 {{ hol
@@ -106,6 +112,8 @@ v :: v_ ::=
   {{ com boolean value }}
 | bitv :: :: bit
   {{ com bit-string }}
+| varbitv :: :: varbit
+  {{ com variable-width bit-string }}
 | x :: :: str
   {{ com string literal }} 
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
@@ -506,7 +514,10 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ com boolean }}
 | bs num_exp :: :: bit
   {{ com bit-string }}
-  {{ tex { { \mathbf{bs} }^{[[num_exp]]} } }}   
+  {{ tex { { \mathbf{bs} }^{[[num_exp]]} } }}
+| vbs num_exp num_exp' :: :: varbit
+  {{ com variable-width bit-string }}
+  {{ tex { { \mathbf{vbs} }^{[[num_exp]], [[num_exp']]} } }}   
 | bot :: :: bot
   {{ com no value }}
   {{ tex \bot}}
