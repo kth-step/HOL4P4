@@ -67,6 +67,34 @@ QED
      
 
 
+Theorem arch_path_imples_conc:
+ ∀ n actx i io1 io2 a gsl framel status i' io1' io2' a' gsl' framel' status' thread2.
+  trace_path ( \i f. arch_red actx i f) n ((i,io1,io2,a),gsl,framel,status) ((i',io1',io2',a'),gsl',framel',status') ⇒
+  trace_path ( \i f. conc_red actx i f) n ((io1 ,io2 ,a ), ((i ,gsl ,framel ,status ) , thread2))
+                                          ((io1',io2',a'), ((i',gsl',framel',status') , thread2))
+Proof
+Induct_on ‘n’ >>
+gvs[trace_path_def] >>
+REPEAT STRIP_TAC >> 
+gvs[NRC] >>
+PairCases_on ‘f’ >>
+
+Q.EXISTS_TAC ‘((f1,f2,f3),((f0,f4,f5,f6),thread2))’ >>
+CONJ_TAC >| [
+
+    SIMP_TAC list_ss [Once conc_red_cases]>>
+    DISJ1_TAC>>             
+    PairCases_on ‘thread2’ >>
+    PairCases_on ‘actx’ >>
+    srw_tac [][clause_name_def]
+    ,
+    RES_TAC >>    
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘thread2’]))
+  ] 
+       
+QED
+     
+
        
 
 
