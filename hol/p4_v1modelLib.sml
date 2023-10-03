@@ -23,7 +23,7 @@ val v1model_objectless_map =
 
 val v1model_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));
-    ("lookahead", ([("this", d_in); ("dummy_T", d_in)], v1model_packet_in_lookahead));
+    ("lookahead", ([("this", d_in); ("targ1", d_in)], v1model_packet_in_lookahead));
     ("advance", ([("this", d_in); ("bits", d_in)], v1model_packet_in_advance))]``;
 
 val v1model_packet_out_map =
@@ -50,12 +50,17 @@ val v1model_apply_table_f = ``v1model_apply_table_f``;
 (* Fixed-function block map *)
 val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser)]``;
 
+val v1model_Register_map =
+ ``[("read", (stmt_ext, [("this", d_in); ("result", d_out); ("index", d_in)], Register_read));
+    ("write", (stmt_ext, [("this", d_in); ("index", d_in); ("value", d_in)], Register_write))]``;
+
 (* Extern (object) function map *)
 val v1model_ext_map =
  ``((^(inst [``:'a`` |-> ``:v1model_ascope``] core_ext_map))
     ++ [("", (NONE, (^v1model_objectless_map)));
         ("packet_in", (NONE, (^v1model_packet_in_map)));
-        ("packet_out", (NONE, (^v1model_packet_out_map)))])``;
+        ("packet_out", (NONE, (^v1model_packet_out_map)));
+        ("Register", SOME (stmt_ext, [("this", d_out); ("size", d_none); ("targ1", d_in)], Register_construct), (^v1model_Register_map))])``;
 
 (* Function map *)
 val v1model_func_map = core_func_map;
