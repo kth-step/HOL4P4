@@ -32,7 +32,7 @@ Cases_on `frame_list` >| [
  Cases_on `scopes_to_pass h0 func_map b_func_map g_scope_list` >> (
   fs []
  ) >>
- Cases_on `map_to_pass h0 b_func_map func_map` >> (
+ Cases_on `map_to_pass h0 b_func_map` >> (
   fs []
  ) >>
  Cases_on `tbl_to_pass h0 b_func_map tbl_map` >> (
@@ -64,7 +64,7 @@ Cases_on `frame_list` >| [
  Cases_on `scopes_to_pass h0 func_map b_func_map g_scope_list` >> (
   fs []
  ) >>
- Cases_on `map_to_pass h0 b_func_map func_map` >> (
+ Cases_on `map_to_pass h0 b_func_map` >> (
   fs []
  ) >>
  Cases_on `tbl_to_pass h0 b_func_map tbl_map` >> (
@@ -126,7 +126,6 @@ Cases_on `frame_list` >| [
   Cases_on `scopes_to_retrieve h'0 func_map b_func_map x''' x'''''0` >> (
    fs []
   ) >>
-
   rw [] >>
   IMP_RES_TAC stmt_exec_status_returnv_inv >>
   rw [] >>

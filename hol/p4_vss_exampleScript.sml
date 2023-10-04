@@ -81,7 +81,7 @@ val vss_parser_inits =
                    ``stmt_trans (e_v (v_str "start"))``];
 
 val vss_parser_pbl =
- ``pblock_regular pbl_type_parser [("b", d_none); ("p", d_out)] [] (^vss_parser_decl_list) (^vss_parser_inits) (^vss_parser_pmap) []``;
+ ``pblock_regular pbl_type_parser [("parser", (^vss_parser_inits, [("b", d_none); ("p", d_out)]))] (^vss_parser_decl_list) (^vss_parser_pmap) []``;
 
 val vss_parser_ab =
  ``arch_block_pbl "parser" [e_var (varn_name "b_in"); e_var (varn_name "parsedHeaders")]``;
@@ -157,7 +157,7 @@ val vss_pipe_body =
 
 val vss_pipe_decl_list = ``[(varn_name "nextHop", tau_bit 32, NONE)]:t_scope``;
 
-val vss_pipe_pbl = ``pblock_regular pbl_type_control [("headers", d_inout); ("parseError", d_in); ("inCtrl", d_in); ("outCtrl", d_out)] (^vss_pipe_bfunc_map) (^vss_pipe_decl_list) (^vss_pipe_body) [] (^vss_pipe_tblmap)``;
+val vss_pipe_pbl = ``pblock_regular pbl_type_control (("pipe", (^vss_pipe_body, [("headers", d_inout); ("parseError", d_in); ("inCtrl", d_in); ("outCtrl", d_out)]))::(^vss_pipe_bfunc_map)) (^vss_pipe_decl_list) [] (^vss_pipe_tblmap)``;
 
 val vss_pipe_ab = ``arch_block_pbl "pipe" [e_var (varn_name "headers"); e_var (varn_name "parseError"); e_var (varn_name "inCtrl"); e_var (varn_name "outCtrl")]``;
 
@@ -195,7 +195,7 @@ val vss_deparser_body =
 		    stmt_deparser_cond,
 		    stmt_deparser_emit2]);
 
-val vss_deparser_pbl = ``pblock_regular pbl_type_control [("p", d_inout); ("b", d_none)] [] (^vss_deparser_decl_list) (^vss_deparser_body) [] (^vss_deparser_tblmap)``;
+val vss_deparser_pbl = ``pblock_regular pbl_type_control [("deparser", (^vss_deparser_body, [("p", d_inout); ("b", d_none)]))] (^vss_deparser_decl_list) [] (^vss_deparser_tblmap)``;
 
 val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeaders"); e_var (varn_name "b_out")]``;
 

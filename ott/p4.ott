@@ -658,7 +658,7 @@ pbl_type :: pbl_type_ ::=
 
 pblock {{ tex { \mathit{pblock} } }} :: pblock_ ::=
 {{ com programmable block }}
-| pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map :: :: regular
+| pbl_type b_func_map t_scope pars_map tbl_map :: :: regular
 
 ffblock {{ tex { \mathit{ffblock} } }} :: ffblock_ ::=
 {{ com fixed-function block }}

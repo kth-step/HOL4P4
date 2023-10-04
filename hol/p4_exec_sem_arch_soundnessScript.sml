@@ -48,7 +48,14 @@ Cases_on `arch_frame_list` >> (
   ) >>
   Cases_on `x` >>
   fs [] >>
-  Cases_on `copyin_pbl (MAP FST l',MAP SND l',l,ascope,p)` >> (
+  rename1 `pblock_regular p b_func_map t_scope pars_map tbl_map` >>
+  Cases_on `lookup_block_sig_body s b_func_map` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  rename1 `lookup_block_sig_body s b_func_map = SOME (stmt,x_d_list)` >>
+  fs [] >>
+  Cases_on `copyin_pbl (MAP FST x_d_list,MAP SND x_d_list,l,ascope,p)` >> (
    fs []
   ) >>
   Cases_on `oLASTN 1 g_scope_list` >> (
@@ -60,13 +67,13 @@ Cases_on `arch_frame_list` >> (
   Cases_on `t` >> (
    fs []
   ) >>
-  Cases_on `initialise_var_stars func_map l0 ext_map [declare_list_in_scope (l1,x); h]` >> (
+  Cases_on `initialise_var_stars func_map b_func_map ext_map [declare_list_in_scope (t_scope,x); h]` >> (
    fs []
   ) >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_init") >>
   fs [clause_name_def] >>
-  qexistsl_tac [`ZIP (l, ZIP (MAP FST l', MAP SND l'))`, `x`] >>
+  qexistsl_tac [`ZIP (l, ZIP (MAP FST x_d_list, MAP SND x_d_list))`, `x`] >>
   fs [] >>
   rpt strip_tac >| [
    fs [map_tri_zip12],
@@ -120,15 +127,21 @@ Cases_on `arch_frame_list` >> (
   ) >>
   Cases_on `x` >>
   fs [state_fin_exec_def] >>
+  Cases_on `lookup_block_sig_body s l'` >> (
+   fs []
+  ) >>
+  Cases_on `x` >>
+  rename1 `lookup_block_sig_body s b_func_map = SOME (stmt,x_d_list)` >>
+  fs [] >>
   Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND l',MAP FST l',p,
+             (g_scope_list,ascope,MAP SND x_d_list,MAP FST x_d_list,p,
               set_fin_status p status_running)` >> (
    fs []
   ) >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
   fs [clause_name_def, state_fin_def] >>
-  qexists_tac `ZIP (l, ZIP (MAP FST l', MAP SND l'))` >>
+  qexists_tac `ZIP (l, ZIP (MAP FST x_d_list, MAP SND x_d_list))` >>
   rpt strip_tac >| [
    fs [map_tri_zip12],
 
@@ -147,7 +160,7 @@ Cases_on `arch_frame_list` >> (
   ) >>
   Cases_on `x` >>
   fs [state_fin_exec_equiv, state_fin_def] >>
-  Cases_on `frames_exec (apply_table_f,ext_map,func_map,l0,l2,l3)
+  Cases_on `frames_exec (apply_table_f,ext_map,func_map,l'',l1,l2)
              (ascope,g_scope_list,l,status_running)` >> (
    fs []
   ) >>
@@ -156,15 +169,18 @@ Cases_on `arch_frame_list` >> (
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_exec") >>
   fs [clause_name_def] >>
+(*
   qexists_tac `ZIP (l', l'')` >>
   rpt strip_tac >| [
    fs [map_tri_zip12],
 
    fs [map_tri_zip12],
-
+*)
    assume_tac frame_list_exec_sound_red >>
    fs [frame_list_exec_sound]
+(*
   ]
+*)
  ],
 
  (* programmable block return *)
@@ -180,15 +196,22 @@ Cases_on `arch_frame_list` >> (
  ) >>
  Cases_on `x` >>
  fs [] >>
+ Cases_on `lookup_block_sig_body s l''` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ rename1 `lookup_block_sig_body s b_func_map = SOME (stmt,x_d_list)` >>
+ fs [] >>
  Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND l'',MAP FST l'',p,
+             (g_scope_list, ascope, MAP SND x_d_list, MAP FST x_d_list, p,
               set_fin_status p (status_returnv v))` >> (
   fs []
  ) >>
  rw [] >>
  irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
  fs [clause_name_def] >>
- qexists_tac `ZIP (l', l'')` >>
+ qexists_tac `ZIP (l', x_d_list)` >>
  fs [map_tri_zip12],
 
  (* programmable block transition *)
@@ -205,33 +228,41 @@ Cases_on `arch_frame_list` >> (
   fs []
  ) >| [
   (* programmable block return *)
+  Cases_on `lookup_block_sig_body s' l''` >> (
+   fs []
+  ) >>
+  Cases_on `x` >>
+  fs [] >>
+  rename1 `lookup_block_sig_body s' b_func_map = SOME (stmt,x_d_list)` >>
+  fs [] >>
   Cases_on `copyout_pbl
-             (g_scope_list,ascope,MAP SND l'',MAP FST l'',p,
+             (g_scope_list,ascope,MAP SND x_d_list,MAP FST x_d_list,p,
               set_fin_status p (status_trans s))` >> (
    fs []
   ) >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
   fs [clause_name_def] >>
-  qexists_tac `ZIP (l', l'')` >>
+  qexists_tac `ZIP (l', x_d_list)` >>
   fs [map_tri_zip12],
 
   (* parser transition *)
   Cases_on `p` >> (
    fs []
   ) >>
-  Cases_on `ALOOKUP l2 s` >> (
+  Cases_on `ALOOKUP l1 s` >> (
    fs []
   ) >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_parser_trans") >>
-  fs [clause_name_def, state_fin_def] >>
+  fs [clause_name_def, state_fin_def] (* >>
   qexists_tac `ZIP (l', l'')` >>
   rpt strip_tac >| [
    fs [map_tri_zip12],
 
    fs [map_tri_zip12]
   ]
+*)
  ]
 ]
 QED
