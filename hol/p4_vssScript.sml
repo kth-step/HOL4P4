@@ -282,8 +282,8 @@ End
 (* TODO: Does anything need to be looked up for this function? *)
 Definition vss_copyout_pbl_def:
  vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, (status:status)) =
-  case copyout xlist dlist [ [] ; [] ] [v_map_to_scope v_map] g_scope_list of
-  | SOME (_, [v_map_scope]) =>
+  case copyout_pbl_gen xlist dlist g_scope_list v_map of
+  | SOME [v_map_scope] =>
    (case scope_to_vmap v_map_scope of
     | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
     | NONE => NONE)
