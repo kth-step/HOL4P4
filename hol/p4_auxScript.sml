@@ -1029,7 +1029,7 @@ Theorem bitv_binop_inner_lemma:
 Proof
 REPEAT GEN_TAC >>
 SIMP_TAC (srw_ss()) [Once bitv_binop_inner_def] >>
-NTAC 64 (IF_CASES_TAC >>
+NTAC 128 (IF_CASES_TAC >>
 FULL_SIMP_TAC std_ss [])
 QED
 
