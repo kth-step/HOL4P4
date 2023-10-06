@@ -16,7 +16,7 @@ val core_func_map = ``[(^no_action_fun)]:func_map``;
 
 (* TODO: Should isValid be an expression instead? *)
 val core_header_map =
- ``[("isValid", (stmt_ext, [("this", d_in)], (header_is_valid:'a ext_fun)))]:'a ext_fun_map``;
+ ``[("isValid", ([("this", d_in)], (header_is_valid:'a ext_fun)))]:'a ext_fun_map``;
 
 (* Note: packet_in and packet_out extern function maps are found in specific architecture files *)
 

@@ -15,7 +15,7 @@ open ottTheory;
 open pairTheory;
 open rich_listTheory;
 
-val _ = new_theory "deter";
+val _ = new_theory "p4_deter";
 
 (*Tactics*)
 
@@ -138,16 +138,6 @@ val det_framel_def = Define `
 
 (*lemmas and thms*)
 
-(*********Reduction of vars lemmas ************)
-
-Theorem lemma_v_red_forall:
-! c s sl e l fl.
-~ e_red c s sl (e_v (l)) e fl
-Proof
-RW_TAC (srw_ss()) [Once e_red_cases]
-QED
-
-
 (********* lookup_funn_sig_body eq ************)
 
 val fun_body_map_EQ =
@@ -159,600 +149,6 @@ lookup_funn_sig      funn func_map b_func_map ext_map = SOME (sdl') ==>
 REPEAT STRIP_TAC >>
 rfs [lookup_funn_sig_def] 
 );
-
-
-
-(*********Mapping equv. lemmas ************)
-
-val lemma_MAP1 =
-prove (``! l l'  .
-          (MAP (λ(e_,x_,d_). (x_,d_)) l =
-        MAP (λ(e_,e'_,x_,d_). (x_,d_)) l') ==> 
-        ((MAP (λ(e_,x_,d_). d_) l) = (MAP (λ(e_,e'_,x_,d_). d_) l')) /\
-        ((MAP (λ(e_,x_,d_). x_) l) = (MAP (λ(e_,e'_,x_,d_). x_) l'))``,
-
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-Cases_on `r''` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-val lemma_MAP2 =
-prove (``
-! l l' .
-        (MAP (λ(e_,e'_,x_,d_). (x_,d_)) l =
-        MAP (λ(e_,e'_,x_,d_). (x_,d_)) l') ==>
-	(MAP (λ(e_,e'_,x_,d_). d_) l =
-        MAP (λ(e_,e'_,x_,d_). d_) l') ``,
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-Cases_on `r` >>
-Cases_on `r''` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-val lemma_MAP3 =
-prove ( ``
-!l l' .
-        (MAP (λ(e_,x_,d_). (x_,d_)) l =
-        MAP (λ(e_,x_,d_). (x_,d_)) l') ==>
-	(MAP (λ(e_,x_,d_). (x_)) l =
-        MAP (λ(e_,x_,d_). (x_)) l') /\
-	(MAP (λ(e_,x_,d_). (d_)) l =
-        MAP (λ(e_,x_,d_). (d_)) l') ``,
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-val MAP4 =
-prove ( ``
-!l l' .
-        ( l =  l') ==>
-	(MAP (λ(x_,d_). (x_)) l =
-        MAP (λ(x_,d_). (x_)) l) /\
-	(MAP (λ(x_,d_). (d_)) l' =
-        MAP (λ(x_,d_). (d_)) l') ``,
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-val lemma_MAP5 =
-prove ( ``
-!l l' .
-        ( MAP (λ(f_,e_,e'_). (f_,e_)) l =
-        MAP (λ(f_,e_,e'_). (f_,e_)) l') ==>
-	(MAP (λ(f_,e_,e'_). (f_)) l =
-        MAP (λ(f_,e_,e'_). (f_)) l') /\
-	(MAP (λ(f_,e_,e'_). (e_)) l =
-        MAP (λ(f_,e_,e'_). (e_)) l') ``,
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-Cases_on `h` >>
-Cases_on `h'` >>
-Cases_on `r` >>
-Cases_on `r'` >>
-REV_FULL_SIMP_TAC list_ss []
-);
-
-
-
-val lemma_MAP6 =
-prove ( ``
-!l l'. (MAP (λ(f_,e_,e'_). f_) l = MAP (λ(f_,e_,e'_). f_) l') /\
- (MAP (λ(f_,e_,e'_). e_) l = MAP (λ(f_,e_,e'_). e_) l') /\
- (MAP (λ(f_,e_,e'_). e'_)l = MAP (λ(f_,e_,e'_). e'_) l') ==>
- MAP (λ(f_,e_,e'_). (f_,e'_)) l =
-        MAP (λ(f_,e_,e'_). (f_,e'_)) l' ``,
-
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-
-
-Cases_on `h'` >>
-Cases_on `r` >>
-REV_FULL_SIMP_TAC list_ss [] >>
-fs [ELIM_UNCURRY]
-);	
-
-
-val lemma_MAP7 =
-prove ( ``
-!l l'. MAP (λ(f_,e_,e'_). (f_,e_)) l =
-        MAP (λ(f_,e_,v_). (f_,e_)) l' ==>
-MAP (λ(f_,e_,e'_). (e_)) l =
-        MAP (λ(f_,e_,v_). (e_)) l' ``,
-Induct_on `l` >>
-Induct_on `l'` >>
-FULL_SIMP_TAC list_ss [] >>
-NTAC 3 STRIP_TAC>>
-Cases_on `h'` >>
-Cases_on `r` >>
-REV_FULL_SIMP_TAC list_ss [] >>
-fs [ELIM_UNCURRY]
-);
-
-
-
-(********* lval and is_const lemmas ************)
-
-val lemma_const_notlval =
-prove (``!e. is_const e ==> ~ is_e_lval e``,
-Cases_on `e` >>
-EVAL_TAC
-);
-
-val lemma_lval_notconst =
-prove (``!e. is_e_lval e ==> ~ is_const e``,
-Cases_on `e` >>
-EVAL_TAC
-);
-
-val lemma_dir_EQ =
-prove (``!d. (¬is_d_out d = is_d_none_in d) /\ (is_d_out d = ¬is_d_none_in d) ``,
-Cases_on `d` >>
-EVAL_TAC
-);
-
-
-
-(********* Proving the mono P Q  lemmas ************)
-
-(**************************
-P is (is_d_none_in d ∧ ¬is_const e)
-Q is ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
-show that P ==> not Q
-**************************)
-
-val dir_const_imp1 =
-prove(`` ! d e.(is_d_none_in d ∧ ¬is_const e)
-	     ==> ~((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e)) ``,
-NTAC 3 STRIP_TAC >>
-SIMP_TAC std_ss [] >>
-DISJ1_TAC>>
-METIS_TAC[]
-);
-
-
-val dir_const_imp2 =
-prove(``
-(∀y. (λ(d,e). is_d_none_in (d) ∧ ¬is_const (e)) y ⇒
-             ($¬ ∘
-              (λ(d,e).
-                   (is_d_none_in (d) ⇒ is_const (e)) ∧
-                   (¬is_d_none_in (d) ⇒ is_e_lval (e)))) y)``,
-
-STRIP_TAC>>
-Cases_on `y`>>
-FULL_SIMP_TAC std_ss [dir_const_imp1] 
-);
-
-
-
-val dir_const_imp3 =
-prove(`` ! d e. ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
-                     ==> ~(is_d_none_in d ∧ ¬is_const e) ``,
-NTAC 3 STRIP_TAC >>
-SIMP_TAC std_ss [] >>
-METIS_TAC[]
-);
-
-
-val dir_const_imp4 =
-prove(``
-(∀y. (λ(d,e). ¬is_arg_red d e) y ⇒
-             ¬(λ(d,e). is_arg_red d e) y)``,
-
-STRIP_TAC>>
-Cases_on `y`>>
-FULL_SIMP_TAC std_ss [dir_const_imp1, is_arg_red_def, lemma_dir_EQ]
-);
-
-
-(***************************
-Show that
-INDEX_FIND 0 P l = SOME x ==> P(x)
-****************************)
-
-val index_some1 =
-prove(``!l n. ((INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e)
-                  l) = SOME x)  ==> (λ(d,e). is_d_none_in d ∧ ¬is_const e) (SND x) ``,
-Induct >| [
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-,
-REPEAT STRIP_TAC >>
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-Cases_on `(λ(d,e). is_d_none_in d ∧ ¬is_const e) h` >>
-RW_TAC (list_ss) [] >>
-Q.PAT_X_ASSUM `∀n. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`SUC n`])) >>
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-RW_TAC (list_ss) [] 
-]
-);
-
-
-(***************************
-Show that 
-(INDEX_FIND n P l = NONE) = ~ EXISTS P l
-****************************)
-
-val index_some2 =
-prove(``! l n. (( INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = NONE) =
-       ~(EXISTS (λ(d,e). is_d_none_in d ∧ ¬is_const e) l)``,
-Induct >|[
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-,
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-Cases_on `(λ(d,e). is_d_none_in d ∧ ¬is_const e) h` >|[
-FULL_SIMP_TAC list_ss [SND]
-,
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-]
-]
-);
-
-
-(***************************
-Show that for a generic P (Lemma T4)
-(INDEX_FIND n P l = NONE) = ~ EXISTS P
-****************************)
-
-val index_none_not_exist =
-prove(``! l  n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)``,
-Induct >|[
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]
-,
-FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
-REPEAT STRIP_TAC >>
-Cases_on `P h` >>
-FULL_SIMP_TAC list_ss []
-]
-);
-
-
-(***************************
-Show that (equivelnt to above)
-(INDEX_FIND n P l = NONE) = EVERY ~P l
-Here just write P and substitute later.
-****************************)
-
-val index_none_not_every =
-prove(``! l P n. (( INDEX_FIND n (P) l) = NONE) = (EVERY ($¬ ∘ P) l)``,
-FULL_SIMP_TAC list_ss [NOT_EXISTS, index_none_not_exist]
-);
-
-
-
-(***************************
-WE CANT SHOW THIS:
-! l P n. (( INDEX_FIND n P l) = NONE) = ~(( INDEX_FIND n P l) = SOME x)
-BUT WE CAN SHOW
-! l P n. (( INDEX_FIND n P l) = NONE) ==> ~(( INDEX_FIND n P l) = SOME x)
-Here just write P and substitute later.
-****************************)
-
-val index_none_not_some =
-prove(``! l P n. (( INDEX_FIND n P l) = NONE) ==> ~(( INDEX_FIND n P l) = SOME x) ``,
-FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES]
-);
-
-
-val index_none_not_none =
-prove(``! l P n. (( INDEX_FIND n P l) = SOME x) ==> ~(( INDEX_FIND n P l) = NONE) ``,
-FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [NOT_SOME_NONE, option_CLAUSES]
-);
-
-(***************************
-Show that Lemma T6
-(?x . INDEX_FIND n P l = SOME x) = EXISTS P l
-Here just write P and substitute later.
-****************************)
-
-val not_index_none_exist =
-prove(``
-∀ l n P. ~ (INDEX_FIND n P l = NONE) ⇔ EXISTS P l ``,
-REPEAT GEN_TAC >>
-ASSUME_TAC index_none_not_exist>>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF]
-);
-
-
-val not_index_none_some =
-prove(``
-∀ l n P.~ (INDEX_FIND n P l = NONE) = ? x. ( INDEX_FIND n P l) = SOME x``,
-REPEAT GEN_TAC >>
-Cases_on `INDEX_FIND n P l ` >>
-FULL_SIMP_TAC (std_ss) [NOT_SOME_NONE,option_CLAUSES ]
-);
-
-
-val exists_index_some =
-prove(``!  l P n. (?x .(( INDEX_FIND n P l) = SOME x)) = (EXISTS P l)``,
-REPEAT GEN_TAC >>
-ASSUME_TAC index_none_not_exist>>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-ASSUME_TAC not_index_none_exist >>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-ASSUME_TAC not_index_none_some>>
-Q.PAT_X_ASSUM `∀l n P. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `n`, `P`])) >>
-
-FULL_SIMP_TAC (srw_ss()) [not_index_none_some, not_index_none_exist , index_none_not_exist ]
-);
-
-
-
-
-
-(***************************
-Show Lemma T2.1
-! PQ . (∀x. P x ⇒ Q x) ⇒ (∃x. FI n P x) ⇒ ∃x. FI n Q x
-****************************)
-
-
-val P_Q_mono1 =
-prove (``! P Q l. ((! (x) . (P x ==>  Q x) ) ==>
-((EXISTS P l) ==>
-(EXISTS Q l)))``,
-REPEAT STRIP_TAC >>
-ASSUME_TAC MONO_EXISTS >>
-FULL_SIMP_TAC list_ss[MONO_EXISTS ]
-);
-
-
-val P_Q_mono2 =
-prove (``
-! P Q l n. ((!  (y) . (P y ==>  Q y) ) ==>
-((? v. INDEX_FIND n P l = SOME v) ==>
-(? v. INDEX_FIND n Q l = SOME v)))
-
-``,
-REPEAT STRIP_TAC >>
-ASSUME_TAC (ISPECL [``P: (α -> bool)``, ``Q:(α -> bool)``, ``l:(α list)``] P_Q_mono1) >>
-(*twice*)
-ASSUME_TAC  exists_index_some >>
-Q.PAT_X_ASSUM `∀l P n. (∃x. INDEX_FIND n P l = SOME x) ⇔ EXISTS P l`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `P`, `n`])) >>
-
-ASSUME_TAC  exists_index_some >>
-Q.PAT_X_ASSUM `∀l P n. (∃x. INDEX_FIND n P l = SOME x) ⇔ EXISTS P l`
-( STRIP_ASSUME_TAC o (Q.SPECL [`l`, `Q`, `n`])) >>
-RES_TAC>>
-fs []
-);
-
-
-(***************************
-If a minimum index found, then the arg list is unreduced
-****************************)
-
-val lemma_args =
-prove (`` ! dl el i. (unred_arg_index dl el = SOME i) ==> ~ check_args_red dl el ``,
-Cases_on `dl`>>
-Cases_on `el` >|[
-
-rfs [unred_arg_index_def, check_args_red_def] >>
-Cases_on ` find_unred_arg [] []`>>
-rfs [find_unred_arg_def, INDEX_FIND_def]
-,
-
-rfs [unred_arg_index_def, check_args_red_def] >>
-Cases_on ` find_unred_arg [] (h::t)`>>
-rfs [find_unred_arg_def, INDEX_FIND_def, ZIP_def]
-,
-
-rfs [unred_arg_index_def, check_args_red_def] >>
-Cases_on ` find_unred_arg (h::t) []`>>
-rfs [find_unred_arg_def, INDEX_FIND_def, ZIP_def]
-,
-
-SIMP_TAC (list_ss) [unred_arg_index_def]>>
-REWRITE_TAC [check_args_red_def]>>
-Cases_on ` find_unred_arg (h::t) (h'::t')`
->|[
-REPEAT STRIP_TAC >>
-rfs [find_unred_arg_def, INDEX_FIND_def, ZIP_def]
-,
-
-rfs [find_unred_arg_def] >>
-rfs [INDEX_FIND_def, ZIP_def]>>
-Cases_on `¬is_arg_red h h'`>| [
-rfs [is_arg_red_def] 
-,
-STRIP_TAC >>
-FULL_SIMP_TAC (list_ss) [] >>
-
-ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:d#e``] P_Q_mono2) >>
-
-Q.PAT_X_ASSUM `∀P Q l n. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [
-`λ(d,e). ¬is_arg_red d e `,
-`($¬ ∘ (λ(d,e). is_arg_red d e))`,
-`ZIP (t,t')`,
-`1`
-])) >>
-FULL_SIMP_TAC std_ss [dir_const_imp4] >>
-
-RES_TAC>>
-ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:d#e``] exists_index_some) >>
-
-Q.PAT_X_ASSUM `∀l P n. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [
-`ZIP (t,t') `,
-`($¬ ∘ (λ(d,e). is_arg_red d e))`,
-`1`
-])) >>
-fs[]
-
-]]]);
-
-
-
-(*******list of const and const thms  **************)
-val not_exist_every =
-prove(``  ! el . ~(EXISTS (\e. ~(is_const e)) el) = (EVERY (\e. is_const e ) el) ``,
-STRIP_TAC >>
-EQ_TAC >>
-REWRITE_TAC[EVERY_NOT_EXISTS]>>
-fs[]
-);
-
-
-val lconst_every =
-prove(``  ! el . is_consts el = (EVERY (\e. is_const e ) el) ``,
-REWRITE_TAC[is_consts_def]>>
-fs[not_exist_every]
-);
-
-
-
-val lconst_const_imp =
-prove(`` !l i.  (index_not_const l = SOME i) ==> ~ is_consts l	``,
-STRIP_TAC>>
-FULL_SIMP_TAC std_ss [index_not_const_def, INDEX_FIND_def] >>
-Cases_on `INDEX_FIND 0 (λe. ¬is_const e) l ` >>
-fs[] >>
-STRIP_TAC >>
-rw[is_consts_def] >>
-ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:e``] exists_index_some) >>
-
-Q.PAT_X_ASSUM `∀l P n. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [
-`l`,
-`(λe. ¬is_const e)`,
-`0`
-])) >>
-
-rfs[combinTheory.o_DEF]
-);
-
-
-val unred_mem_not_const =
-prove(``
-!l i. unred_mem_index (l) = SOME i ==> ~ is_consts (l) ``,
-NTAC 3 STRIP_TAC>>
-FULL_SIMP_TAC std_ss [unred_mem_index_def] >>
-Cases_on `unred_mem l` >>
-fs[is_consts_def, unred_mem_def] >>
-IMP_RES_TAC index_none_not_none >>
-FULL_SIMP_TAC (std_ss) [combinTheory.o_DEF] >>
-IMP_RES_TAC index_none_not_none >>
-IMP_RES_TAC not_index_none_exist
-);
-
-val ured_mem_length =
-prove(`` !l i . (unred_mem_index l = SOME i) ==> i < LENGTH l ``,
-REPEAT STRIP_TAC >>
-fs[unred_mem_index_def] >>
-Cases_on `unred_mem l`>>
-fs[] >>
-fs[unred_mem_def] >>
-Cases_on `x` >>
-IMP_RES_TAC index_find_length >>
-fs []
-);
-
-
-(* Mapping, EL and MEM thms*)
-val map_snd_EQ =
-prove(``
-!l . MAP (λx. SND x) l = MAP SND l``,
-Induct >>
-RW_TAC list_ss [MAP]
-);
-
-
-val map_fst_snd_EQ =
-prove(``
-!l. MAP (λx. FST (SND x)) l = (MAP SND (MAP (λx. (FST x,FST (SND x))) l)) ``,
-Induct >>
-RW_TAC list_ss [MAP]
-);
-
-
-
-val mem_el_map1 =
-prove(`` ! l i .
-MEM (EL i (MAP (λ(f_,e_). e_) l))
-               (MAP (λ(f_,e_). e_) l) ==>
-MEM (EL i (MAP (λ(f_,e_). e_) l))
-               (SND (UNZIP (MAP (λ(f_,e_). (f_,e_)) l)))	``,
-
-REPEAT STRIP_TAC >>
-FULL_SIMP_TAC list_ss [UNZIP_MAP] >>
-FULL_SIMP_TAC list_ss [SND_EQ_EQUIV, SND_PAIR_MAP] >>
-fs [ELIM_UNCURRY] >>
-FULL_SIMP_TAC list_ss [map_snd_EQ]
-);
-
-
-val mem_el_map2 =
-prove(`` ! l i .
-MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
-               (MAP (λ(f_,e_,e'_). e_) l) ==>
-MEM (EL i (MAP (λ(f_,e_,e'_). e_) l))
-               (SND (UNZIP (MAP (λ(f_,e_,e'_). (f_,e_)) l)))	``,
-
-REPEAT STRIP_TAC >>
-FULL_SIMP_TAC list_ss [UNZIP_MAP] >>
-FULL_SIMP_TAC list_ss [SND_EQ_EQUIV, SND_PAIR_MAP] >>
-fs [ELIM_UNCURRY] >>
-FULL_SIMP_TAC list_ss [map_snd_EQ, map_fst_snd_EQ] 
-);
-	  
-
-
-
-
-
 
 
 
@@ -1572,7 +968,9 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
   REPEAT STRIP_TAC >>
   FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
   rw[] >>
-  Cases_on `scopes_to_pass q func_map b_func_map g_scope_list` >>
+  Cases_on ‘map_to_pass q b_func_map’ >> gvs[] >>    
+ Cases_on ‘scopes_to_pass q func_map b_func_map g_scope_list ’>> gvs[] >>
+  Cases_on ‘tbl_to_pass q b_func_map tbl_map’ >> gvs[] >>        
   rw[] >>
   ASSUME_TAC P4_stmtl_det >>
   fs [det_stmtl_def]  >>
@@ -1583,10 +981,6 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
 ]
 
 );
-
-
-
-
 
 
 
@@ -1609,32 +1003,32 @@ Cases_on `t` >| [
   RES_TAC
 ,
 
-	 (*multiple frame  h::h'::t' *)
+  (*multiple frame  h::h'::t' *)
   FULL_SIMP_TAC (srw_ss()) [det_framel_def] >>
   REPEAT STRIP_TAC >>
   FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
-  rw[] >| [
-       (*comp1-comp1*)
-    rw[] >>
-    Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list`>>
-    rw[] >>
+  rw[]  >>          
+  Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >>
+  Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >>
+  Cases_on  ‘tbl_to_pass funn b_func_map tbl_map’ >> gvs[] >>
+  Cases_on  ‘scopes_to_pass funn func_map b_func_map g_scope_list’>> gvs[] >| [
+    (*************)
+    (*comp1-comp1*)
+    (*************) 
 
+    gvs[] >>   
     ASSUME_TAC P4_stmtl_det >>
     fs [det_stmtl_def]  >>
-
+    RES_TAC >> rw[] >>
     rfs[same_state_def] >>
-    RES_TAC >>    rw[] >>
-    ` g_scope_list''' =  g_scope_list'⁵'` by METIS_TAC [SOME_EL,SOME_11]
-       ,
-
-       (*************)
-       (*comp1-comp2*)
-       (*************)       
-
-    fs[]>>rw[] >>
-    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
+    ‘ g_scope_list''' =  g_scope_list'⁵'’ by METIS_TAC [SOME_EL,SOME_11]
+    ,
+    
+    (*************)
+    (*comp1-comp2*)
+    (*************)       
+    
     FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
-    rfs [notret_def]>>
     ASSUME_TAC P4_stmt_det >>
     fs [det_stmt_def, same_state_def]  >>
     RES_TAC >>
@@ -1642,23 +1036,21 @@ Cases_on `t` >| [
     TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
     rw[] >>
     rfs[notret_def]>>
-       IMP_RES_TAC lemma_v_red_forall >>
+    IMP_RES_TAC lemma_v_red_forall >>
 
-     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
-     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
-     fs[notret_def]
+    gvs[] >>
+    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
 
-       ,
+    RES_TAC >> gvs[] >>
+    gvs[notret_def]
+    ,
+    
+    (*************)
+    (*comp2-comp1*)
+    (*************)       
 
-       (*************)
-       (*comp2-comp1*)
-       (*************)       
 
-
-    fs[]>>rw[] >>
-    Cases_on  `scopes_to_pass funn func_map b_func_map g_scope_list`>> fs[]>>rw[] >>                        
     FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
-    rfs [notret_def]>>
     ASSUME_TAC P4_stmt_det >>
     fs [det_stmt_def, same_state_def]  >>
     RES_TAC >>
@@ -1666,36 +1058,35 @@ Cases_on `t` >| [
     TRY( OPEN_STMT_RED_TAC ``stmt_empty`` >> fs []) >>
     rw[] >>
     rfs[notret_def]>>
-       IMP_RES_TAC lemma_v_red_forall >>
+    IMP_RES_TAC lemma_v_red_forall >>
 
-     Cases_on  `lookup_ext_fun funn ext_map ` >>fs[] >>rw[] >>
-     Cases_on `ext_fun (ascope,g_scope_list'',scope_list,status_running)` >>fs[] >>rw[] >>
-     fs[notret_def]
+    gvs[] >>
+    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
 
-       ,
-       (*************)
-       (*comp2-comp2*)
-       (*************)
+    RES_TAC >> gvs[] >>
+    gvs[notret_def]
 
-       rw[] >>
-       Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> rw[]>>
-       Cases_on `scopes_to_pass funn func_map b_func_map g_scope_list` >> fs[] >> rw[] >>      
-       ASSUME_TAC P4_stmtl_det >>
-       fs [det_stmtl_def]  >>
-       RES_TAC >>
-       fs [same_state_def] >> 
-       gvs[] >>
-       Cases_on `assign g_scope_list'³' v (lval_varname (varn_star funn))`  >> fs[]   >> rw[] >> 
-       Cases_on `scopes_to_retrieve funn func_map b_func_map g_scope_list
-          g_scope_list'⁴'` >> rw[] >>
-       Cases_on `copyout (MAP (λ(x_,d_). x_) x_d_list) (MAP (λ(x_,d_). d_) x_d_list)
-          g_scope_list'⁶' scope_list' scope_list''`>>   
-       fs[] >> rw[]
+    ,
+        
+    (*************)
+    (*comp2-comp2*)
+    (*************)
+         
+    ASSUME_TAC P4_stmtl_det >>
+    fs [det_stmtl_def]  >>
+    RES_TAC >>
+    fs [same_state_def] >> 
+    gvs[] >>
+          
+    Cases_on ‘assign g_scope_list'³' v (lval_varname (varn_star funn))’  >> gvs[] >>
+    Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'⁴'’ >> gvs[] >>
+    Cases_on ‘lookup_funn_sig_body funn func_map b_func_map ext_map’ >> gvs[] >>
+    Cases_on ‘scopes_to_pass funn' func_map b_func_map g_scope_list'⁵'’ >> gvs[] >>         
+    Cases_on ‘copyout (MAP (λ(x_,d_). x_) x_d_list) (MAP (λ(x_,d_). d_) x_d_list) g_scope_list'⁶' scope_list' scope_list''’>>  gvs[] >>
+    Cases_on ‘scopes_to_retrieve funn' func_map b_func_map g_scope_list'⁵' g_scope_list'⁸'’ >> gvs[]         
   ]
-  
 ]]
 QED
-
 
 
 

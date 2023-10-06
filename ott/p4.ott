@@ -143,16 +143,7 @@ varn :: varn_ ::=
   {{ com variable name }}
 | ( star , funn ) :: :: star 
   {{ com function return placeholder }}
-
-lval :: lval_ ::=
-| varn :: :: varname
-  {{ com variable name }}
-| null :: :: null
-  {{ com null variable }} 
-| lval . f :: :: field
-  {{ com field access }}
-| ( lval ) :: X :: paren
-  {{ hol ([[lval]]) }}
+  {{ tex  \ast ^ [[funn]]  }}
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -170,25 +161,6 @@ status {{ tex t }}:: status_ ::=
 | Trans x :: I :: trans
   {{ com transition to parser state }}
   {{ tex { \mathbf{tra} \; [[x]] } }}
-
-%This is the structure that maps variable names to values (and with copy-out variables)
-scope {{ tex \gamma }} :: scope_ ::=
-{{ hol ((varn, (v # lval option)) alist) }}
-{{ com variable environment of current scope }}
-| empty :: M :: empty
-  {{ com empty scope }}
-  {{ hol [] }}
-  {{ tex {\gamma}_{\emptyset} }}
-| ( scope ) :: S :: paren
-  {{ hol ([[scope]]) }}
-  {{ tex  [[scope]] }}
-
-%A global scope is of the same type as a regular scope, but is used and typeset differently
-g_scope {{ tex \gamma_{ \mathrm{G} } }} :: g_scope_ ::=
-{{ com global scope }}
-{{ hol scope }}
-| scope :: M :: global
-  {{ hol ([[scope]]) }}
 
 mk {{ tex \mathit{mk} }} :: mk_ ::=
 {{ com matching kinds }}
@@ -353,7 +325,48 @@ e_list :: e_list_ ::=
 | ( e_list ) :: S :: paren
   {{ hol ([[e_list]]) }}
 
-%Fence between t and decl_list
+
+lval :: lval_ ::=
+| varn :: :: varname
+  {{ com variable name }}
+| null :: :: null
+  {{ com null variable }} 
+| lval . f :: :: field
+  {{ com field access }}
+| lval [ e1 : e2 ]  :: :: slice
+  {{ com slice array }}  
+| ( lval ) :: X :: paren
+  {{ hol ([[lval]]) }}
+
+
+embed
+{{ hol
+
+}}
+grammar
+
+%This is the structure that maps variable names to values (and with copy-out variables)
+scope {{ tex \gamma }} :: scope_ ::=
+{{ hol ((varn, (v # lval option)) alist) }}
+{{ com variable environment of current scope }}
+| empty :: M :: empty
+  {{ com empty scope }}
+  {{ hol [] }}
+  {{ tex {\gamma}_{\emptyset} }}
+| ( scope ) :: S :: paren
+  {{ hol ([[scope]]) }}
+  {{ tex  [[scope]] }}
+
+%A global scope is of the same type as a regular scope, but is used and typeset differently
+g_scope {{ tex \gamma_{ \mathrm{G} } }} :: g_scope_ ::=
+{{ com global scope }}
+{{ hol scope }}
+| scope :: M :: global
+  {{ hol ([[scope]]) }}
+
+
+
+%Fence between gscope and g_scope_list
 embed
 {{ hol
 
@@ -416,7 +429,6 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 %Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
 {{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # v) option)) }}
-
 
 %%%%%%%%%%%
 % Context %
@@ -494,12 +506,20 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
   {{ com struct }} 
-| x_list :: :: xl   
-  {{ com string literal }}
 | err :: :: err
   {{ com error }}
 | ext :: :: ext
   {{ com extern }}
+
+
+
+t {{ tex t }} :: t_ ::=
+{{ com type }}
+| tau :: :: tau
+  {{ com BASE TYPE }}
+| x_list :: :: string_names_a   
+  {{ com represents parser states' names ex. a , not literals "a" }} 
+
 
 
 taul :: taul_ ::=
@@ -511,9 +531,28 @@ taul :: taul_ ::=
 
 Ftau :: Ftau ::=
 {{ com function names types }}
-{{ hol ( ( tau # d ) list # tau) }}
-| [ tau1 d1 , .. , taun dn ] tau :: M :: list
-  {{ hol ([[tau1 d1 .. taun dn]] [[tau]]) }}
+{{ hol ( ( tau # x # d ) list # tau) }}
+| [ tau1 x1 d1 , .. , taun xn dn ] tau :: M :: list
+  {{ hol ([[tau1 x1 d1 .. taun xn dn]] [[tau]]) }}
+
+
+embed
+{{ hol
+
+}}
+grammar
+
+
+t_scope {{ tex \psi }} :: t_scope_ ::=
+{{ hol ((varn, ( tau # lval option)) alist) }}
+{{ com typing scope }}
+| empty :: M :: empty
+  {{ com empty typing scope }}
+  {{ hol [] }}
+  {{ tex {\psi}_{ \emptyset } }}
+| ( t_scope ) :: S :: paren
+  {{ hol ([[t_scope]]) }}
+  {{ tex  [[t_scope]] }}
 
 
 %Fence between types and statement
@@ -523,9 +562,6 @@ embed
 }}
 grammar
 
-decl_list {{ tex { \overline{ \mathit{decl} } } }} :: decl_list_ ::=
-{{ hol ((varn # tau) list) }}
-{{ com list of abstract variable name and type tuples to represent declarations }}
 
 %%%%%%%%%%%%%%
 % Statements %
@@ -541,9 +577,9 @@ stmt :: stmt_ ::=
   {{ tex [[lval]] \mathrel{\mathop:}= [[e]] }}
 | if e then stmt1 else stmt2 :: :: cond
   {{ com conditional }}
-| begin decl_list stmt end :: :: block
+| begin t_scope stmt end :: :: block
   {{ com block }}
-  {{ tex \{ [[decl_list]] \, [[stmt]] \} }}
+  {{ tex \{ [[t_scope]] \, [[stmt]] \} }}
 | return e :: :: ret
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
@@ -577,10 +613,11 @@ b_func_map {{ tex F_b }} :: b_func_map_ ::=
 {{ hol ((string, (stmt # (string # d) list)) alist) }}
 
 %This maps extern function names of an individual object obj to their implementations
-%Note the stmt in order to accommodate return by using return statements
+% method signature sig is = ((string # d) list # ext_fun) 
+
 ext_fun_map {{ tex X_{ \mathrm{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
-{{ hol ((string, (stmt # (string # d) list # ext_fun)) alist) }}
+{{ hol ((string, ((string # d) list # ext_fun)) alist) }}
 
 %Fence between ext_fun_map and ext_map
 embed
@@ -592,11 +629,17 @@ grammar
 %This maps extern object names to tuples of optional constructors and the function map of the object in question
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol ((string, (((stmt # (string # d) list # ext_fun) option) # ext_fun_map)) alist) }}
+{{ hol ((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist) }}
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
 {{ hol ((string, ((mk list) # (x # e_list))) alist) }}
+| empty :: :: empty
+  {{ com empty table map }}
+  {{ hol ([]:((string, ((mk list) # (x # e_list))) alist)) }}
+| ( tbl_map ) :: S :: paren
+  {{ hol ([[tbl_map]]) }}
+
 
 pars_map {{ tex P }} :: pars_map_ ::=
 {{ com parser state map }}
@@ -615,7 +658,7 @@ pbl_type :: pbl_type_ ::=
 
 pblock {{ tex { \mathit{pblock} } }} :: pblock_ ::=
 {{ com programmable block }}
-| pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map :: :: regular
+| pbl_type b_func_map t_scope pars_map tbl_map :: :: regular
 
 ffblock {{ tex { \mathit{ffblock} } }} :: ffblock_ ::=
 {{ com fixed-function block }}

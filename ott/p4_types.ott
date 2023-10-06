@@ -7,24 +7,10 @@ open wordsTheory;
 grammar
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Typing scopes and lists
+% Typing scope lists
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-t_scope {{ tex \psi }} :: t_scope_ ::=
-{{ hol ((varn, tau) alist) }}
-{{ com typing scope }}
-| empty :: M :: empty
-  {{ com empty typing scope }}
-  {{ hol [] }}
-  {{ tex {\psi}_{ \emptyset } }}
-| ( t_scope ) :: S :: paren
-  {{ hol ([[t_scope]]) }}
-  {{ tex  [[t_scope]] }}
 
-embed
-{{ hol
-}}
-grammar
 
 t_scope_list_g {{ tex \overrightarrow{\psi_G} }} :: t_scope_list_g_ ::=
 {{ hol (t_scope list) }}
@@ -36,7 +22,7 @@ t_scope_list_g {{ tex \overrightarrow{\psi_G} }} :: t_scope_list_g_ ::=
 
 t_scope_list {{ tex \overrightarrow{\psi} }} :: t_scope_list_ ::=
 {{ hol (t_scope list) }}
-{{ com ddd}}
+{{ com typing a scope_list for each frame}}
 | emptytss :: M :: empty
   {{ hol ([]:t_scope list) }}
   {{ tex [\;] }}
@@ -49,6 +35,18 @@ embed
 {{ hol
 }}
 grammar
+
+t_scopes_frames {{ tex {\Psi} }} :: t_scopes_frames_ ::=
+{{ hol (t_scope_list list) }}
+{{ com typing a scope_list for all frames }}
+| emptytssl :: M :: empty
+  {{ hol ([]:t_scope_list list) }}
+  {{ tex [\;] }}
+| [ t_scope_list1 , .. , t_scope_listn ] :: M :: list
+  {{ hol ([[t_scope_list1 .. t_scope_listn]]) }}
+| [ t_scope_list ] ++ t_scopes_frames :: M :: scopel_concat  
+  {{ hol ( [ [[t_scope_list]] ] ++ [[t_scopes_frames]]) }}
+
 
 t_scopes_tup {{ tex \psi_t }} :: t_scopes_tup_ ::=
 {{ hol (t_scope_list_g # t_scope_list) }}
@@ -69,39 +67,67 @@ grammar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 delta_g {{ tex \Delta_{glb} }} :: delta_g_ ::=
 {{ com types of functions defined globally}}
-{{ hol (funn, Ftau) alist }}
+{{ hol (string, Ftau) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
 
 delta_b {{ tex \Delta_{blk} }} :: delta_b_ ::=
 {{ com types of functions defined locally}}
-{{ hol (funn, Ftau) alist }}
+{{ hol (string, Ftau) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
 
-delta_t {{ tex \Delta_{tbl} }} :: delta_t_ ::=
+% map between the name of the extern object name to the type it has (which we call instan).
+%The option string represent the methods calls of the original extern object.
+delta_x {{ tex \Delta_{ext} }} :: delta_x_ ::=
+{{ com types of extern instan and methods}}
+{{ hol (string, ( Ftau option # (string , Ftau ) alist )) alist }}
+| ( empty ) :: M :: empty
+  {{ com empty function map }}
+  {{ hol [] }}
+
+
+
+
+delta_t {{ tex \mathbb{T} }} :: delta_t_ ::=
 {{ com types of tables}}
 {{ hol (string, taul) alist }}
 | ( empty ) :: M :: empty
   {{ com empty function map }}
-  {{ hol FEMPTY }}
+  {{ hol [] }}
 
-delta {{ tex \Delta_{tbl} }} :: delta_ ::=
-{{ hol ( delta_g # delta_b # delta_t ) }}
-| ( delta_g , delta_b , delta_t ) :: M :: tup
+delta {{ tex \Delta }} :: delta_ ::=
+{{ hol ( delta_g # delta_b # delta_x # delta_t ) }}
+| ( delta_g , delta_b , delta_x , delta_t ) :: M :: tup
   {{ com empty function map }}
-  {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_t]] ) }}
+  {{ hol ( [[delta_g]] , [[delta_b]] , [[delta_x]] , [[delta_t]] ) }}
 
 
-order {{ tex \sqsubset }} :: order_ ::=
+
+funn_list {{ tex f_list }} :: funn_list_ ::=
 {{ hol ( funn list ) }}
 | [ funn1 , .. , funnn ] :: :: fl
 
 
+order_elem {{ tex ft }} :: order_elem_ ::= 
+{{ com the individual elements of the order in the state are fun name or tables names }}
+| funn :: :: f
+| x :: :: t
 
-Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
+embed
+{{ hol
+}}
+grammar
+
+order {{ tex \sqsubset }} :: order_ ::= 
+{{ com list of elements that are funn or table names, this should be given }}
+{{ hol (order_elem -> order_elem -> bool ) }}
+
+
+
+Prs_n {{ tex \mathbb{P} }} :: Prs_n_ ::=
 %list contains the names of the table names
 {{ hol (string list) }}
 | empty :: M :: empty
@@ -114,7 +140,7 @@ Prs_n {{ tex Prs_n }} :: Prs_n_ ::=
 {{ hol ( [[Prs_n]] )}}
 
 
-T_e {{ tex T_e }} :: T_e_ ::=
+T_e {{ tex \Gamma }} :: T_e_ ::=
 {{ hol ( order # funn # delta ) }}
 | ( order , funn , delta ) :: M :: tup
 {{ hol ( [[order]] , [[funn]] , [[delta]] ) }}
@@ -136,10 +162,35 @@ val bs_width_def = Define `
 `;
 
 
-val WF_def = Define `
-(WF order) =    (( !x.   ~order x x ) /\
-  		       	 ( !x y.  order x y ==> ~order y x) /\
-                 ( !x y z. order x y /\ order y z ==> order x z))`;
+val star_not_in_ts_def = Define `
+star_not_in_ts (s:t_scope) =
+  ! f . (ALOOKUP s (varn_star f) = NONE)
+`;
+
+val Err_not_in_ts_def = Define `
+Err_not_in_ts (s:t_scope) =
+   (ALOOKUP s (varn_name "parseError") = NONE)
+`;
+
+
+val star_Err_not_in_ts_def = Define `
+star_Err_not_in_ts (s:t_scope) =
+  (Err_not_in_ts s /\ star_not_in_ts s)
+`;
+
+(*TODO: rename this, it is actually NONE *)
+val lvalop_not_none_def = Define `
+lvalop_not_none (s:t_scope) =
+   EVERY (\(x,t,lop). lop = NONE) s
+`;
+
+
+val parseError_in_gs_def  = Define `
+parseError_in_gs (t_scope_list_g:t_scope list) ( t_scope_list_list : t_scope list list) =
+  ((ALOOKUP (EL 1 t_scope_list_g) (varn_name "parseError") = SOME (tau_err,NONE)) /\
+   (ALOOKUP (EL 0 t_scope_list_g) (varn_name "parseError") = NONE) /\
+  (! i . i < LENGTH t_scope_list_list ==> lookup_map (EL i t_scope_list_list) (varn_name "parseError") = NONE ))
+`;  
 
 
 (* find the type of the top most scope that contains x 
@@ -147,7 +198,7 @@ here the lists of the typing scope lists *)
 val lookup_tau_def = Define `
   lookup_tau (ts:t_scope list) (t_scope_list_g:t_scope list) x =
     case lookup_map (ts++t_scope_list_g) x of
-    | SOME t => SOME t
+    | SOME t => SOME (FST t)
     | _ => NONE
 `;
 
@@ -155,18 +206,68 @@ val lookup_tau_def = Define `
 val find_star_in_globals_def = Define `
   find_star_in_globals (t_scope_list_g:t_scope_list_g) x =
     case lookup_map (t_scope_list_g) x of
-    | SOME t => SOME t
+    | SOME t => SOME (FST t)
     | _ => NONE
 `;
 
 
 (* lookup the functions type *)
+
 val t_lookup_funn_def = Define `
-  t_lookup_funn (delta_g:delta_g) (delta_b:delta_b) (funn:funn) =
-    case ALOOKUP (delta_g++delta_b) funn of
-    | SOME (tdl , t) => SOME (tdl , t)
-    | NONE  => NONE
+  (t_lookup_funn (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) =
+    case funn of
+    | (funn_name x) =>
+     (case ALOOKUP delta_b x of
+      | SOME (txdl, t) => SOME (txdl, t)
+      | NONE =>
+       (case ALOOKUP delta_g x of
+        | SOME (txdl, t) => SOME (txdl, t)
+        | NONE => NONE
+       )
+     )
+    | (funn_inst x) =>
+     (case ALOOKUP delta_x x of
+      | SOME (SOME(txdl, t), _) => SOME (txdl, t)
+      | _ => NONE)
+    | (funn_ext x x') =>
+     (case ALOOKUP delta_x x of
+      | SOME (_, ext_MoE) =>
+       (case ALOOKUP ext_MoE x' of
+	      | SOME (txdl, t) => SOME (txdl, t)
+	      | _ => NONE)
+      | _ => NONE)
+  )
 `;
+
+
+
+
+
+val ext_is_defined_def = Define `
+ext_is_defined (delta_x:delta_x) funn =
+! f . funn = funn_name f ⇒
+( ALOOKUP delta_x f = NONE )
+  ∧                            
+(! x . funn = funn_inst x ⇒
+       ( ∃ a1 ext_MoE . ALOOKUP delta_x x = SOME (a1,ext_MoE)))
+  ∧                            
+(! x x' . funn = funn_ext x x' ⇒
+       ( ∃ a1 ext_MoE txdl t. ALOOKUP delta_x x = SOME (a1,ext_MoE) ∧
+         ALOOKUP ext_MoE x' = SOME (txdl, t)))
+`;
+
+
+
+val ext_not_defined_def = Define `
+    ext_not_defined delta_g delta_b funn =
+((∀f.    funn = funn_name f ⇒
+            ALOOKUP delta_g f = NONE ∧ ALOOKUP delta_b f = NONE) ∧
+(∀x.    funn = funn_inst x ⇒
+            ALOOKUP delta_g x = NONE ∧ ALOOKUP delta_b x = NONE) ∧
+(∀x x'. funn = funn_ext x x' ⇒
+         ALOOKUP delta_g x = NONE ∧ ALOOKUP delta_b x = NONE))   `;  
+
+
 
 
 
@@ -202,7 +303,7 @@ bits_length_check w (vec1) (vec2) =
 
 
 (* given three bitstrings that are aruments to the slicing operations, convert the 
-bitstrings into constants and check if they adhere to teh specification's length requirements *)
+bitstrings into constants and check if they adhere to the specification's length requirements *)
 val slice_length_check_def = Define `
 slice_length_check w (vec1,len1) (vec2,len2) =
       bits_length_check w (v2n vec1) (v2n vec2)
@@ -216,9 +317,10 @@ vec_to_const (vec,len) =
 
 
 (* check if the dir is out, then the boolean b must be lval *)
+
 val out_is_lval_def = Define `
 out_is_lval dl bl =
- EVERY (\ (dir,b) . is_d_out dir ==> b ) (ZIP(dl, bl))
+ ! i .  (i < LENGTH dl) ==> (is_d_out (EL i dl) ==> (EL i bl))
 `;
 
 
@@ -254,9 +356,14 @@ is_bool_op (oper:binop) =
 ((oper = binop_bin_and) \/
 (oper = binop_bin_or) \/
 (oper = binop_neq) \/
-(oper = binop_eq))  (*make sure to ask about this part, shall we create new ones for the bool*)
+(oper = binop_eq))
 `;
 
+val is_err_bool_def = Define `
+is_err_bool (oper:binop) =
+((oper = binop_neq) \/
+(oper = binop_eq))  
+`;
 
 (* checks if exery literial x in list xl, is a parser state name indeed*)
 val literials_in_P_state_def = Define `
@@ -270,37 +377,24 @@ val bs_width_def = Define `
 `;
 
 
-
-val ordered_check_def = Define `
-ordered_check (x:funn) y order =
-  case INDEX_FIND 0 (\x' . x' = x ) (order) of
-  | SOME (n , x ) =>
-    ( case INDEX_FIND 0 (\y' . y' = y ) (order) of
-      | SOME ( m , y ) => if (n < m) then (SOME T) else (SOME F)
-      | NONE => NONE
-    )
-  | NONE => NONE
-`;
-
-
-val ordered_def = Define `
-ordered (x:funn) y order =
-  THE (ordered_check (x:funn) y order)
-`;
-
-
+(* "order" is a STRICT partial relation that relates two components.
+   This has the features of irreflexivity, antisymmetry, & transitivity 
+   with order we mean that x defined before y *)
 
 val WF_o_def = Define `
-(WF_o order) =    (( !(x:funn).   ~ (ordered x x order) ) /\
-  		 ( !x y.  ordered x y order ==> ~ordered y x order) /\
-       ( !x y z. ordered x y order/\ ordered y z order ==> ordered x z order))`;
+(WF_o order) =    (( !(x:order_elem).   ~ (order x x) ) /\
+  		 ( !x y.   order x y  ==> ~order y x ) /\
+       ( !x y z. order x y /\ order y z  ==> order x z ))`;
 
 
-
-val replicate_types_def = Define `
-replicate_types (decl : decl_list) =
-  FOLDR (\(x,t) f. AUPDATE f (x , t)) [] decl
+(* given a list l and an order given by the configuration order *)
+val ordered_list_def = Define `
+ordered_list order l  =
+    ! i . i < LENGTH l - 2  ==> order (EL i l) (EL (SUC i) l)
 `;
+
+
+
 
 
 }}
@@ -308,9 +402,9 @@ replicate_types (decl : decl_list) =
 defns
 v_typ :: '' ::=
 defn
- v : ( tau , boolv )  :: :: v_typ :: v_
+ v : ( t , boolv )  :: :: v_typ :: v_typ_
 {{ com values types }}
-{{ tex [[v]] : ( [[tau]] , [[boolv]] ) }}
+{{ tex [[v]] : ( [[t]] , [[boolv]] ) }}
 by
 
  
@@ -327,9 +421,8 @@ by
   bot : ( bot , false  )
 
 %in pen and paper it will be presented as a set of possible values
-%TODO try to make it a set later
   MEM x [ x1 , .. , xn ]
------------------------------------ :: x
+----------------------------------- :: string_literal
   x : ( [ x1 , .. , xn ] , false  )
 
 
@@ -349,151 +442,140 @@ by
  header boolv { x1 = v1 ; .. ; xn = vn } : ( header [ x1 tau1 , .. , xn taun ] , false  )
 
 
-
+----------------------------------- :: ext_ref
+ ext_ref i : ( ext , false)
 
 embed
 {{ hol
 
-(*finds the domain (variable names) set of a scope *)
-val scope_domain_def = Define `
-scope_domain (scope:scope) = 
-  FDOM (alist_to_fmap scope)
-`;
 
-(* finds a typing scope domain *)
-val ts_domain_def = Define `
-ts_domain (t_scope:t_scope) = 
-  FDOM (alist_to_fmap t_scope)
-`;
+(* create a relation between two scopes *)
 
-(* fetches the domain of each scope in a typing list*)
-val tsl_domain_def = Define `
-tsl_domain (tsl: t_scope list) =
- FOLDR  (\(t_scope) l. (ts_domain t_scope)::l ) [] (tsl) 
-`;
-
-(*
-
-TODO: Make every definition as quantifier
-
-*)
+(* Single scope similarity *)
+val similar_def = Define `
+similar R l1 l2 = LIST_REL (\x y . (R (SND x) (SND y) ) /\ (FST x = FST y) ) l1 l2 `;
 
 
-(*in a list of typing scopes, get the domain of each typing then 
-check of varn is a member for every single domain 
-used for star checkup in the locals *)
-val tsl_check_member_def = Define `
-tsl_check_member (f:varn) (tsl) =
- EVERY (\doml. (f IN doml))  (tsl_domain tsl)
-`;
+(*list of scopes similarity*)
+val similarl_def = Define `
+similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
 
-
-val tsl_check_star_member_def = Define `
-tsl_check_star_member (tsl) =
-  ! x . EVERY (\doml. ~((varn_star x) IN doml)) (tsl_domain tsl)
-`;
-
-(* finds the value v of a given variable name vn from a certain scope *)
-val fetch_val_from_scope_def = Define `
-  fetch_val_from_scope (scope:scope) (vn) =
-  case (ALOOKUP (scope) (vn)) of
-  | SOME (v,opt) => SOME v
-  | _ => NONE
-`;
-
-
-(* fetches the type tau of a given variable name in the typing scope t_scope*)
-val fetch_tau_val_from_tscope_def = Define `
-  fetch_tau_val_from_tscope (t_scope:t_scope) (vn) =
-  case (ALOOKUP (t_scope) (vn)) of
-  | SOME (t) => SOME t
-  | _ => NONE
-`;
-
-
-
-(* for variable name vn, check if it well typed *)
-val single_vn_typed_def = Define `
-single_vn_typed (t_scope:t_scope) (scope:scope) (vn:varn)=
- case fetch_val_from_scope scope vn of
- | SOME v => ( case fetch_tau_val_from_tscope t_scope vn of
-         | SOME t => SOME (v_typ v t F)
-	       | NONE => NONE)
-| NONE => NONE 
-`;
-
-
-
-(* checks if a typing scope can type a scope which is the operation 
-*      t_scope |- scope   *)
-val type_scope_def = Define `
-type_scope (t_scope:t_scope) (scope:scope) =
-EVERY (\(vn,t). (THE (single_vn_typed t_scope scope vn) /\ 
-                ts_domain t_scope = scope_domain scope ) ) (t_scope)
-`;
 
 
 (*check if a list of scopes can be typed with respect to a list of typing scopes 
        [t_scope1...t_scopen] |- [scope1 ... scopen]
+       Here we also check that the lvals are the same in the scope and the typing scope
 *)
 val type_scopes_list_def = Define `
-type_scopes_list (tsl:t_scope list) (sl:scope list) =
-EVERY (\(t_scope,scope). type_scope t_scope scope  ) (ZIP (tsl,sl))
+type_scopes_list (sl:scope list) (tsl:t_scope list) =
+ similarl (\(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sl tsl
 `;
 
 
-(*type the local scopes of a state, make sure 
-that none of those lists contains a star*)
-val type_locals_tsll_def = Define `
-type_locals_tsll (tsll: t_scope list list) (sll:scope list list) =
-EVERY (\(tsl,sl). type_scopes_list tsl sl /\
-tsl_check_star_member (tsl)) (ZIP (tsll,sll))
+
+(* checks if a variable varn is a variable name or not, it is used later to check 
+that star is not a member of the local frame. WF property. 
+*)
+val is_varn_name_def = Define `
+  (is_varn_name (varn_name _) = T) /\
+  (is_varn_name _ = F)
 `;
 
-(* type the global scope in a state *)
+
+
+(*in a given scope and a typing scope, the domain is the same and also all variables are 
+ not return /function place holders (aka var star) 
+ *)
+val star_not_in_s_def = Define `
+star_not_in_s (s:scope) =
+  ! f . (ALOOKUP s (varn_star f) = NONE)
+`;
+
+
+(*in a given scope list (in one frame) and a typing scope (of one frame), the domain 
+ of each scope in the list is the same and also none of the scopes contain 
+ a function place holder variable star 
+ *)
+val star_not_in_sl_def = Define `
+star_not_in_sl (sl) =
+ EVERY (\s.  (star_not_in_s s)  ) sl
+`;
+
+
+
+(* To type one single frame, all scopes (list of scopes) should be able to be typed 
+   by the typyng list of scopes tsl, and also, the domain of each list is the same.
+   The domains should comtain only variable names, and no var star
+*)
+val type_frame_tsl_def = Define `
+type_frame_tsl (sl:scope list) (tsl: t_scope list) =
+( type_scopes_list sl tsl   /\
+  star_not_in_sl (sl))
+`;
+
+
+
+(* type the global scope in a state: To type a global it is enough that all variables can 
+type each other. NOTE: the global frames we keep the return functions variables stars. 
+thus we do not check it's absence 
+  ψ_G_list ⊢ γ_g_list
+  TODO: remove it, unused.
+*)
 val type_globals_tsl_def = Define `
-type_globals_tsl (tsll: t_scope list list) (sll:scope list list) =
-EVERY (\(tsl,sl). type_scopes_list tsl sl) (ZIP (tsll,sll))
+type_globals_tsl (sl:scope list) (tsl: t_scope list)  =
+ similarl (\(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sl tsl
 `;
+
+
+(* To type all frame's scopes, all frames's scopes should be able to be typed 
+   by the typing list of scopes tsll, and also, the domain of each frame is the same.
+*)
+val type_state_tsll_def = Define `
+type_state_tsll (sll:scope_list list) (tsll: t_scope_list list) =
+ ! i . i < LENGTH sll ==>
+type_frame_tsl (EL i sll) (EL i tsll)
+`;
+
 }}
 
 
 defns
 e_typ :: '' ::=
 defn
-t_scopes_tup T_e |- e : ( tau , boolv ) :: :: e_typ :: e_
+t_scopes_tup T_e |- e : ( t , boolv ) :: :: e_typ :: e_typ_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] \vdash [[e]] : ( [[tau]] , [[boolv]] ) }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [[e]] : ( [[t]] , [[boolv]] ) }}
 by
 
 
-v : ( tau , b )
+v : ( t , b )
 ----------------------------------- :: v
-t_scopes_tup T_e |- v : ( tau , b )
+t_scopes_tup T_e |- v : ( t , b )
 
-
+not_star (varn)
 tau = lookup_tau ( t_scope_list , t_scope_list_g , varn )
 ----------------------------------- :: var
 ( t_scope_list_g , t_scope_list ) T_e |- var varn : ( tau , true )
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn )
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x )
 tau = find_star_in_globals ( t_scope_list_g , ( star , funn' ) )
 ----------------------------------- :: star
-( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_t )  ) |- var ( star , funn' ) : ( tau , true )
+( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- var ( star , funn' ) : ( tau , true )
 
 
-t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ]  )
 ----------------------------------- :: struct
 t_scopes_tup T_e |- eStruct { f1 = e1 ; .. ; fn = en } : ( struct [ f1 tau1 , .. , fn taun ] , false  )
 
-
-t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , false  )
+boolv : ( bool , false  )
+t_scopes_tup T_e |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 ----------------------------------- :: header
 t_scopes_tup T_e |- eHeader boolv { f1 = e1 ; .. ; fn = en } : ( header [ f1 tau1 , .. , fn taun ] , false  )
 
 
 not_bool_neg unop
+width_in_range w
 t_scopes_tup T_e |- e : ( bs w , b )
 ----------------------------------- :: not_neg
 t_scopes_tup T_e |- unop e : ( bs w , false  )
@@ -520,29 +602,29 @@ t_scopes_tup T_e |-  concat e e'  : ( bs ( w1 + w2 ) , false  )
 
 w1 = vec_to_const bitv
 w2 = vec_to_const bitv'
-t_scopes_tup T_e |- e : ( bs w , true )
+t_scopes_tup T_e |- e : ( bs w , b )
 bits_length_check ( w , w1 , w2 )
 ----------------------------------- :: slice
-t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , true )
+t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , b )
 
 
 
-t_scopes_tup T_e |- e : ( tau , false  )
-( v1 , .. , vn ) : ( tau , false  )
+t_scopes_tup T_e |- e : ( tau , b' )
+v1 , .. , vn : ( tau , b )
 ----------------------------------- :: select
 t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn' ) 
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] )
 out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bn ]
-ordered funn' funn order
+order funn' funn
 ----------------------------------- :: call
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- call funn' ( e1 , .. , en ) : ( tau , false  )
 
 
-
+width_in_range w
 t_scopes_tup T_e |-  e   : ( bs w , b )
 t_scopes_tup T_e |-  e'  : ( bs w , b' )
 is_bv_op binop
@@ -557,6 +639,14 @@ is_bool_op binop
 t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 
+t_scopes_tup T_e |-  e   : ( err , b )
+t_scopes_tup T_e |-  e'  : ( err , b' )
+is_err_bool binop
+------------------------------------ :: binop_err
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
+
+
+width_in_range w
 t_scopes_tup T_e |-  e   : ( bs w , b )
 t_scopes_tup T_e |-  e'  : ( bs w , b' )
 is_bv_bool_op binop
@@ -566,11 +656,41 @@ t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 
 defns
+lval_typ :: '' ::=
+defn
+t_scopes_tup T_e |-l lval : ( t , true ) :: :: lval_typ :: lval_typ_
+{{ com lval types }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [[lval]] : ( [[t]] , { \top }  ) }}
+by
+
+
+( t_scope_list_g , t_scope_list ) T_e |- var varn : ( tau , true )
+----------------------------------- :: var
+( t_scope_list_g , t_scope_list ) T_e |-l varn : ( tau , true )
+
+
+t_scopes_tup T_e |-l lval : ( struct_ty [ x1 tau1 , .. , xn taun ] , true )
+correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau )
+----------------------------------- :: acc
+t_scopes_tup T_e |-l lval . x : ( tau , true )
+
+
+w1 = vec_to_const bitv
+w2 = vec_to_const bitv'
+t_scopes_tup T_e |-l lval : ( bs w , true )
+bits_length_check ( w , w1 , w2 )
+----------------------------------- :: slice
+t_scopes_tup T_e |-l lval [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , true )
+
+
+
+
+defns
 stmt_typ :: '' ::=
 defn
-t_scopes_tup T_e Prs_n |- stmt  :: :: stmt_typ :: stmt_
+t_scopes_tup T_e Prs_n |- stmt  :: :: stmt_typ :: stmt_typ_
 {{ com expression types }}
-{{ tex [[t_scopes_tup]] [[T_e]] [[Prs_n]] |- [[stmt]] }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \, [[Prs_n]] \; \vdash [[stmt]] }}
 by
 
 
@@ -580,10 +700,10 @@ t_scopes_tup T_e Prs_n |- empty_stmt
 
 
 
-t_scopes_tup T_e |- var varn : ( tau , true )
+t_scopes_tup T_e |-l lval : ( tau , true )
 t_scopes_tup T_e |-  e    : ( tau , b )
 --------------------------------------- :: assign
-t_scopes_tup T_e Prs_n |- assign varn e
+t_scopes_tup T_e Prs_n |- assign lval e
 
 
 
@@ -600,11 +720,11 @@ t_scopes_tup T_e Prs_n |- stmt2
 t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 
-
- t_scope = replicate_types decl_list
+lvalop_not_none t_scope
+star_Err_not_in_ts t_scope
 ( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
-( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin decl_list stmt end 
+( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin t_scope stmt end 
 
 
 
@@ -614,9 +734,9 @@ t_scopes_tup T_e Prs_n |- stmt2
 t_scopes_tup T_e Prs_n |-  stmt1 ; stmt2 
 
 
-
+% all constraints of star should be applicable on the err_msg
 t_scopes_tup T_e |-  e  : ( bool , b )
-t_scopes_tup T_e |-  e'  : ( [ x1 , .. , xn ] , b' )
+t_scopes_tup T_e |-  e'  : ( err , b' )
 --------------------------------------- :: verify
 t_scopes_tup T_e Prs_n |-  verify e e' 
 
@@ -629,17 +749,113 @@ t_scopes_tup T_e Prs_n |-  transition e
 
 
 
-[ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) 
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) |-  e  : ( tau , b )
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , ( empty ) )
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |-  e  : ( tau , b )
 --------------------------------------- :: return
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  return e
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |-  return e
 
 
-
- delta_t ( tbl ) = [ tau1 , .. , taun ]
- t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
+order ( order_elem_t tbl ) funn     
+delta_t ( tbl ) = [ tau1 , .. , taun ]
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) |- ( e1 , .. , en ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bn ] ) 
 --------------------------------------- :: apply
-t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t )  ) Prs_n |-  apply tbl ( e1 , .. , en ) 
+
+
+ext_is_defined delta_x funn
+ext_not_defined delta_g delta_b funn
+--------------------------------------- :: ext
+t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_x , delta_t )  ) Prs_n |-  ext
+
+
+
+
+
+embed
+{{ hol
+
+val type_ith_stmt_def = Define `
+type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack =
+! i . i < LENGTH stmt_stack ==>
+      stmt_typ (t_scope_list_g, ( DROP i t_scope_list)  ) T_e Prs_n (EL i stmt_stack)
+`;
+
+
+(* checks if the first (initial) typing scope of the frame contains the same types as the one expected from 
+   the functions args in the context tl *)
+val args_t_same_def = Define `
+args_t_same (tl:tau list) (t_scope_list:t_scope_list) =
+(MAP (\(x,t,lvop).t) (LAST t_scope_list) = tl)  
+`;
+
+
+
+
+(* given a list of strings, mk_varn makes a list of variable names for that list *)
+
+val mk_varn_def = Define `
+mk_varn (xl:string list) =
+    MAP (\x. varn_name x ) xl
+`;
+
+
+
+val extract_elem_tri_def = Define ‘
+   extract_elem_tri l =
+     (MAP (λ(a,b,c). a) l, MAP (λ(a,b,c). b) l , MAP (λ(a,b,c). c) l )                                        
+’;
+
+
+val out_lval_consistent_def = Define ‘
+   out_lval_consistent (lol:lval option list) (dl:d list) =
+   LIST_REL (λ lop d. lop ≠ NONE ⇔ is_d_out d)  lol dl             
+’;
+
+
+val sig_tscope_consistent_def = Define ‘
+    sig_tscope_consistent (f:funn) delta_g delta_b delta_x (t_scope_list:t_scope_list) =
+
+    (∀txdl tau xl tl dl varnl tl' lol.
+      t_lookup_funn f delta_g delta_b delta_x = SOME (txdl,tau) ⇒
+                
+      extract_elem_tri txdl = (tl,xl,dl) ∧
+      extract_elem_tri (LAST t_scope_list) = (varnl,tl',lol) ⇒
+      
+      mk_varn xl = varnl ∧ tl = tl' ∧ out_lval_consistent lol dl)
+’;
+
+
+
+val t_scopes_consistent_def = Define ‘
+    t_scopes_consistent T_e (t_scope_list_caller:t_scope_list) (t_scope_list_g: t_scope_list_g) (t_scope_list_called: t_scope_list) =
+    ∀ x t lop. ALOOKUP (LAST t_scope_list_called) x = SOME (t, SOME lop) ⇒
+                       lval_typ (t_scope_list_g,t_scope_list_caller) T_e lop (t_tau t)
+’;
+
+
+
+
+
+
+}}
+
+
+
+defns
+stmtl_typ :: '' ::=
+defn
+t_scopes_tup T_e Prs_n |- stmt_stack  :: :: stmtl_typ :: stmtl_typ_
+{{ com statement list types }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \, [[Prs_n]]  \; \vdash [[stmt_stack]] }}
+by
+
+
+length_greq ( t_scope1 , .. , t_scopem ) ( stmt1 , .. , stmtn )
+not_empty [ stmt1 , .. , stmtn ] 
+type_ith_stmt t_scope_list_g [ t_scope1 , .. , t_scopem ] T_e Prs_n [ stmt1 , .. , stmtn ] 
+--------------------------------------- :: list
+( t_scope_list_g , [ t_scope1 , .. , t_scopem ] ) T_e Prs_n |- [ stmt1 , .. , stmtn ]
+
 
 
 
@@ -647,18 +863,477 @@ t_scopes_tup ( order , funn , ( delta_g , delta_b , delta_t )  ) Prs_n |-  apply
 
 
 defns
-WT_f :: '' ::=
+frame_typ :: '' ::=
 defn
- func_map order t_scope_list_g delta_g  :: :: WT_f :: WT_f_
-{{ com values types }}
-{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] }}
+t_scopes_tup T_e Prs_n |- ( g_scope_list , scope_list , stmt_stack )  :: :: frame_typ :: frame_typ_
+{{ com frame types }}
+{{ tex [[t_scopes_tup]] \, [[T_e]] \, [[Prs_n]]  \; \vdash ( [[g_scope_list]] , [[scope_list]] , [[stmt_stack]] )  }}
 by
 
 
-WF_o order
-%TODO:cont the big implication.
---------------------------------------- :: global
-func_map order t_scope_list_g delta_g
+[ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x )
+sig_tscope_consistent funn delta_g delta_b delta_x t_scope_list
+args_t_same [ tau1 , .. , taun ]  t_scope_list
+star_not_in_sl scope_list
+parseError_in_gs t_scope_list_g [ t_scope_list ]
+type_frame_tsl scope_list t_scope_list
+type_scopes_list g_scope_list t_scope_list_g
+( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |- stmt_stack
+not_empty stmt_stack 
+--------------------------------------- :: stmtl
+( t_scope_list_g , t_scope_list ) ( order , funn , ( delta_g , delta_b , delta_x , delta_t ) ) Prs_n |- ( g_scope_list , scope_list , stmt_stack ) 
+
+
+
+
+embed
+{{ hol
+
+
+
+(* given a statement, check whether the end statement is a return statement *)
+
+val end_stmt_is_ret_def = Define `
+  (end_stmt_is_ret (stmt_ret e) = T ) /\
+  (end_stmt_is_ret (stmt_ext) = T ) /\   (*this should be false because if P4 you should not call an ext from a function*)
+  (end_stmt_is_ret (stmt_empty) = F ) /\
+  (end_stmt_is_ret (stmt_verify e e') = F) /\
+  (end_stmt_is_ret (stmt_trans e) = F ) /\
+  (end_stmt_is_ret (stmt_app x el) = F ) /\
+  (end_stmt_is_ret (stmt_cond e stmt1 stmt2) = (end_stmt_is_ret (stmt1) /\ end_stmt_is_ret (stmt2) )) /\ 
+  (end_stmt_is_ret (stmt_block dl stmt) = end_stmt_is_ret (stmt)) /\
+  (end_stmt_is_ret (stmt_seq stmt1 stmt2) = (end_stmt_is_ret (stmt1) \/ end_stmt_is_ret (stmt2)) ) 
+`;
+
+
+(* given a list of (tau,string,dir) list and a list of lval, return a typing scope *)
+    val mk_tscope_def = Define `
+    mk_tscope (txdl: (tau#string#d) list) (lol: (lval option) list) =
+    ZIP (mk_varn  (MAP (\(t,x,d). x) txdl ) ,  ZIP ( (MAP (\(t,x,d). t) txdl ) , lol) )
+`;
+
+(* check if the direction list is the same in both lists *)
+  val same_dir_x_def = Define `
+    same_dir_x xdl txdl =
+   (xdl = MAP SND txdl)
+   `;
+
+
+
+val t_scopes_to_pass_def = Define `
+ t_scopes_to_pass (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (t_scope_list_g:t_scope_list_g) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP delta_b x of
+     | SOME (stmt, x_d_l) => SOME t_scope_list_g
+     | NONE =>
+      (case ALOOKUP delta_g x of
+       | SOME (stmt, x_d_l) => SOME ([ []; EL 1 t_scope_list_g])
+       | NONE => SOME t_scope_list_g
+      )
+    )
+   | _ => SOME ([ []; EL 1 t_scope_list_g])
+`;
+
+
+
+val not_parseError_str =  Define `
+not_parseError_str xdl =
+   EVERY (\(x,d). x ≠ "parseError") xdl
+`;
+
+
+(* should we simplify it? we already know t_scopes_to_pass should always the second part? *)
+(*based on the specs, the extern cannot be called from functions *)
+(* lol is lval option list *)
+val func_map_typed_def = Define `
+func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g delta_b delta_x Prs_n =
+! f stmt xdl x lol .
+ ( (f = funn_name x) /\
+   (ALOOKUP func_map x = SOME (stmt, xdl)) )
+   ==>
+
+   ? tau txdl (t_scope':t_scope) t_scope_list_g'. 
+   (SOME (txdl,tau) = t_lookup_funn f delta_g [] [] /\ 
+     find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+   not_parseError_str xdl /\
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol) /\
+   ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,[],delta_x,[])) Prs_n (stmt) ) /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+   ( end_stmt_is_ret stmt))
+`;
+
+
+
+
+
+val func_map_blk_typed_def = Define `
+func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n =
+! f stmt xdl x lol.
+ ( (f = funn_name x) /\
+   (ALOOKUP b_func_map x = SOME (stmt, xdl))
+) ==>
+
+   ? tau txdl (t_scope':t_scope) t_scope_list_g'.
+   (SOME (txdl,tau) = t_lookup_funn f [] delta_b [] ) /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+   not_parseError_str xdl /\ 
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol ) /\
+   ( stmt_typ ( t_scope_list_g'  ,  [t_scope'] ) (  order, f , (delta_g,delta_b,delta_x,delta_t)) Prs_n (stmt) ) /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+   ( end_stmt_is_ret stmt)
+
+`;
+
+
+
+(* a definition to check that the lval op is always NONE 
+   and also the varn names are still the same, this we get from similarl definition *)
+val ext_sc_same_as_input_def = Define `
+ext_sc_same_as_input (scopest: scope_list) (scopest_out : scope_list) =
+similarl (\ si so . (SND si = SND so)) scopest scopest_out `;
+
+
+
+
+(*note the statement here can only be the black box*)
+(*
+val extern_map_IoE_typed_def = Define `
+extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
+
+! f (xdl : (string # d) list) x IoE MoE.
+         f = funn_inst x /\
+	 ALOOKUP ext_map x = SOME (SOME (xdl,IoE),MoE) ==>
+
+   ! (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
+
+   ? txdl tau (t_scope':t_scope) (a':'a)  scope_list' v t_scope_list_g'.
+
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+    not_parseError_str xdl /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol ) /\
+	 SOME (a',scope_list', v) = IoE (a,g_scope_list, local_scopes ) /\
+	 v_typ v (t_tau tau) F /\
+   star_not_in_sl (scope_list') /\
+
+	 type_scopes_list scope_list' [t_scope'] /\
+   ext_sc_same_as_input local_scopes scope_list'
+`;
+*)
+
+(* t_scope' is unused, remove it*)
+val extern_map_IoE_typed_def = Define `
+extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
+
+! f (xdl : (string # d) list) x IoE MoE.
+         f = funn_inst x /\
+	 ALOOKUP ext_map x = SOME (SOME (xdl,IoE),MoE) ==>
+
+   ! (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
+
+   ? txdl tau (t_scope':t_scope) (a':'a)  scope_list' v t_scope_list_g'.
+
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+    not_parseError_str xdl /\
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol ) /\
+	 SOME (a',scope_list', v) = IoE (a,g_scope_list, local_scopes ) /\
+	 v_typ v (t_tau tau) F /\
+   star_not_in_sl (scope_list') /\
+   (! t_scopel''. (type_scopes_list local_scopes t_scopel'') ==> (type_scopes_list scope_list' t_scopel''))
+`;
+
+(*
+val extern_MoE_typed_def = Define `
+extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
+
+! f xdl x x' IoEsig MoE MoE_map  .
+         f = funn_ext x x' /\
+	 ALOOKUP ext_map x = SOME (IoEsig, MoE) /\
+	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
+  
+  !  (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
+
+  ? txdl tau t_scope'  (a':'a)  (scope_list': scope list) (v:v)  t_scope_list_g'.
+
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+    not_parseError_str xdl /\
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol) /\ 
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+
+	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, local_scopes  )) /\
+	 v_typ v (t_tau tau) F /\
+   star_not_in_sl (scope_list') /\
+	 type_scopes_list scope_list' [t_scope'] /\
+   ext_sc_same_as_input local_scopes scope_list'
+`;
+*)
+
+val extern_MoE_typed_def = Define `
+extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
+
+! f xdl x x' IoEsig MoE MoE_map  .
+         f = funn_ext x x' /\
+	 ALOOKUP ext_map x = SOME (IoEsig, MoE) /\
+	 ALOOKUP MoE x'    = SOME (xdl, MoE_map) ==>
+  
+  !  (a:'a) (g_scope_list:g_scope_list) local_scopes lol.
+
+  ? txdl tau t_scope'  (a':'a)  (scope_list': scope list) (v:v)  t_scope_list_g'.
+
+   SOME (txdl,tau) = t_lookup_funn f [] [] delta_x /\
+   find_star_in_globals t_scope_list_g (varn_star f) = SOME tau /\
+   (same_dir_x xdl txdl) /\
+    not_parseError_str xdl /\
+   (t_scopes_to_pass f delta_g delta_b t_scope_list_g = SOME t_scope_list_g') /\
+   (t_scope' = mk_tscope txdl lol) /\ 
+   ( ALL_DISTINCT (MAP FST xdl) ) /\
+
+	 (SOME (a',scope_list', v) = MoE_map (a,g_scope_list, local_scopes  )) /\
+	 v_typ v (t_tau tau) F /\
+   star_not_in_sl (scope_list') /\
+   (! t_scopel''. (type_scopes_list local_scopes t_scopel'') ==> (type_scopes_list scope_list' t_scopel''))
+`;
+
+
+
+(************************************)
+(* f from table call is well typed **)
+(************************************)
+
+
+(* f'  : default action 
+   el' : keys to match with 
+   f   : is the action to accply 
+   vl  : is action data   
+   the action can never be an extern *)
+
+
+
+
+val is_directionless_def = Define `
+is_directionless dl =  EVERY (\d. d = d_none) dl
+`;
+
+
+(* el is the key list, f' is default action, el' default action's data/args
+Here we mean that the function/action being called from the table can be in either global or local  *)
+val table_map_typed_def = Define `
+table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g delta_b order =
+
+!  s mkl f' f el' el vl ascope  .
+    ALOOKUP tbl_map s = SOME (mkl,f',el') /\
+    apply_table_f (s,el,mkl, (f',el'),ascope) = SOME (f,vl) ==>
+     ? txdl .
+       LENGTH mkl = LENGTH el /\
+       SOME (txdl,tau_bot) = t_lookup_funn (funn_name f) delta_g delta_b [] /\
+       is_consts vl /\
+       is_directionless (MAP (\(t,x,d).d) txdl) /\
+       LENGTH txdl = LENGTH vl /\
+       (! i . i < LENGTH txdl ==>
+              v_typ (EL i ( vl_of_el vl)) (t_tau (EL i (MAP (\(t,x,d).t) txdl))) F) /\
+       order ( order_elem_f (funn_name f)) (order_elem_t s )        
+`;            
+
+(*****************)
+(*  domain       *)
+(*****************)
+(* takes two lists and checks if the current contents of the domains are different*)
+
+
+
+(* use this definition whereever the equivelent holds *)
+val is_lookup_defined_def = Define `
+    is_lookup_defined l1 x =
+     ? y . ALOOKUP l1 x = SOME y 
+`;
+
+
+(* NOTE: this will be used for functions maps and the types of the functions *)
+val dom_eq_def = Define `
+dom_eq l1 l2 =
+! f . ((is_lookup_defined l1 f) <=> (is_lookup_defined l2 f)) 
+`;
+
+
+(* domain empty intersection, given two assosiative lists, the domains should not intersect 
+   with eachother *)
+val dom_empty_intersection_def = Define `
+dom_empty_intersection l1 l2 =
+! f . (ALOOKUP l1 f = NONE \/ ALOOKUP l2 f = NONE)
+`;
+
+
+(* functions map empty intersection *)
+val dom_map_ei_def = Define `
+dom_map_ei (func_map:func_map) (b_func_map:b_func_map) =
+  dom_empty_intersection func_map b_func_map
+`;
+
+
+(* domain of the typing function map *)
+val dom_tmap_ei_def = Define `
+dom_tmap_ei (delta_g:delta_g) (delta_b:delta_b) =
+  dom_empty_intersection delta_g delta_b
+`;
+
+
+val typying_domains_ei_def = Define `
+typying_domains_ei (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) =
+  (dom_empty_intersection delta_g delta_x /\
+  dom_empty_intersection delta_b delta_x /\
+  dom_empty_intersection delta_g delta_b)
+`;
+
+
+val dom_g_eq_def = Define `
+dom_g_eq (delta_g:delta_g) (func_map:func_map) =
+  dom_eq delta_g func_map
+`;
+
+
+
+val dom_b_eq_def = Define `
+dom_b_eq (delta_b:delta_b) (b_func_map:b_func_map) =
+  dom_eq delta_b b_func_map
+`;
+
+val dom_t_eq_def = Define `
+dom_t_eq (delta_t:delta_t) (tbl_map:tbl_map) =
+  dom_eq delta_t tbl_map
+`;
+
+
+val dom_x_eq_def = Define `
+dom_x_eq (delta_x:delta_x) (ext_map: 'a ext_map) =
+! f .
+	 (dom_eq delta_x ext_map) /\  
+   (! a1 a2 ext_fun_map ext_MoE.
+	       ( ALOOKUP delta_x f = SOME (a1,ext_MoE) /\
+          ALOOKUP ext_map f = SOME (a2,ext_fun_map) ) ==>
+
+	         IS_SOME(a1)= IS_SOME(a2) /\
+          (dom_eq ext_MoE ext_fun_map)
+	 )
+`;
+
+
+
+
+
+
+
+
+val f_in_apply_tbl_def = Define ‘
+     f_in_apply_tbl (tbl_map:tbl_map) (apply_table_f: 'a apply_table_f) =
+∀ s mk x el key_list ascope.
+ALOOKUP tbl_map s = SOME (mk, x ,el) ⇒
+ ∃ f vl .   apply_table_f (s,key_list,mk,(x,el),ascope) = SOME (f,vl)    
+    ’;
+
+
+
+(* represents 
+!f ∈ domain( Fg ). var(star,f) ∈ domain(gsl_t[1])
+*)
+
+val Fg_star_defined_def = Define `
+Fg_star_defined (func_map:func_map) (t_scope_list_g:t_scope_list_g) =
+! x . (is_lookup_defined func_map x)
+             <=>
+      (is_lookup_defined (EL 1 t_scope_list_g) (varn_star (funn_name x)))
+`;
+
+
+val Fb_star_defined_def = Define `
+Fb_star_defined (b_func_map:b_func_map) (t_scope_list_g:t_scope_list_g) =
+! x . (is_lookup_defined b_func_map x)
+             <=>
+      (is_lookup_defined (EL 0 t_scope_list_g) (varn_star (funn_name x)))
+`;
+
+
+
+val X_star_defined_def = Define `
+X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
+! f x x' . (f = funn_inst x \/ f = funn_ext x x') ==> (
+           (is_lookup_defined ext_map x)
+             <=>
+            (is_lookup_defined (EL 1 t_scope_list_g) (varn_star f)))
+`;
+
+
+
+
+val X_star_not_defined_def = Define `
+X_star_not_defined (t_scope_list_g:t_scope_list_g) =
+! f x x' . (f = funn_inst x \/ f = funn_ext x x') ==> (
+            ~ (is_lookup_defined (EL 0 t_scope_list_g) (varn_star f)))
+`;
+
+}}
+
+
+
+defns
+WTFg :: '' ::=
+defn
+ func_map -| order t_scope_list_g delta_g delta_b delta_x Prs_n :: :: WTFg :: WTFg_
+{{ com global functions well typed }}
+{{ tex [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[Prs_n]] }}
+by
+
+
+func_map_typed func_map order t_scope_list_g delta_g delta_b delta_x Prs_n
+--------------------------------------------------------- :: global
+func_map -| order t_scope_list_g delta_g delta_b delta_x Prs_n
+
+
+
+
+defns
+WTFb :: '' ::=
+defn
+ b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n :: :: WTFb :: WTFb_
+{{ com actions and local functions well typed }}
+{{ tex  [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Prs_n]]}}
+by
+
+
+func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+--------------------------------------------------------- :: block
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+
+
+
+
+defns
+WTX :: '' ::=
+defn
+ ext_map -| order t_scope_list_g delta_g delta_b delta_x  :: :: WTX :: WTX_
+{{ com extern well typed }}
+{{ tex  [[ext_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}
+by
+
+extern_map_IoE_typed ext_map t_scope_list_g delta_g delta_b delta_x
+extern_MoE_typed ext_map t_scope_list_g delta_g delta_b delta_x
+--------------------------------------------------------- :: ext
+ext_map -| order t_scope_list_g delta_g delta_b delta_x
+
 
 
 
@@ -667,16 +1342,180 @@ func_map order t_scope_list_g delta_g
 defns
 WT_c :: '' ::=
 defn
- ctx order t_scope_list_g delta_g delta_b :: :: WT_c :: WT_c_
-{{ com values types }}
-{{ tex [[ctx]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] }}
+ ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n :: :: WT_c :: WT_c_
+{{ com context well typed }}
+{{ tex [[ctx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Prs_n]] }}
+by
+
+% TODO: remove dom_tmap_ei ( delta_g , delta_b ) because the prop is satisfies in typying_domains_ei
+% TODO: parser map has nothing to do with those semantics, shall we say that Prs_n is the domain or pars_map? ...
+
+WF_o order
+length_is_2 ( t_scope_list_g )
+length_eq delta_b b_func_map
+length_eq delta_t tbl_map
+dom_map_ei ( func_map , b_func_map )
+dom_tmap_ei ( delta_g , delta_b )
+typying_domains_ei ( delta_g , delta_b , delta_x )
+dom_g_eq ( delta_g , func_map )
+dom_b_eq ( delta_b , b_func_map )
+dom_x_eq ( delta_x , ext_map )
+dom_t_eq ( delta_t , tbl_map )
+Fg_star_defined ( func_map , t_scope_list_g )
+Fb_star_defined ( b_func_map , t_scope_list_g )
+X_star_defined  ( ext_map , t_scope_list_g )
+X_star_not_defined t_scope_list_g
+func_map -| order t_scope_list_g delta_g delta_b delta_x Prs_n
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+ext_map -| order t_scope_list_g delta_g delta_b delta_x
+table_map_typed tbl_map apply_table_f delta_g delta_b order
+f_in_apply_tbl tbl_map apply_table_f
+--------------------------------------- :: c
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+
+
+
+
+embed
+{{ hol
+
+
+
+val t_map_to_pass_def = Define `
+ t_map_to_pass (funn:funn) (delta_b:delta_b) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP delta_b x of
+     | SOME (txdl,t) => SOME delta_b
+     | NONE => SOME []
+    )
+   | _ => SOME []
+`;
+
+val t_tbl_to_pass_def = Define `
+ t_tbl_to_pass (funn:funn) (delta_b:delta_b) (delta_t:delta_t) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP delta_b x of
+     | SOME (txdl,t) => SOME delta_t
+     | NONE => SOME []
+    )
+   | _ => SOME []
+`;
+
+
+
+       
+
+
+
+val type_frames_def = Define `
+type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
+(order:order) (t_scope_list_g:t_scope_list_g)  (t_scopes_frames:t_scopes_frames)  (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) 
+func_map b_func_map =
+
+∀ i funnl stml scl .
+     
+    (funnl = MAP (λ(f,stml,scl). f) frames_list ∧
+     stml = MAP (λ(f,stml,scl). stml) frames_list ∧
+     scl = MAP (λ(f,stml,scl). scl) frames_list) ⇒
+   
+    (i < LENGTH frames_list ==>
+       ∃ passed_tslg passed_delta_b passed_delta_t passed_gscope. 
+          t_scopes_to_pass (EL i funnl) delta_g delta_b t_scope_list_g = SOME passed_tslg ∧
+          t_map_to_pass (EL i funnl) delta_b =  SOME passed_delta_b ∧ 
+          t_tbl_to_pass (EL i funnl) delta_b delta_t = SOME passed_delta_t /\
+          scopes_to_pass (EL i funnl) func_map b_func_map g_scope_list = SOME passed_gscope /\
+          frame_typ (passed_tslg,EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope (EL i scl) (EL i stml))     
+`;
+
+
+
+
+
+val f_decl_in_def = Define
+‘f_decl_in (funn_name x) l =
+ ∃ sig . ALOOKUP l x = SOME sig ’;
+   
+
+val t_decl_in_def = Define
+‘t_decl_in t l =
+  ∃ sig . ALOOKUP l t = SOME sig’;
+    
+
+val IoE_decl_in_def = Define ` 
+  IoE_decl_in (funn_inst x) l =
+    ∃ sig . ALOOKUP l x = SOME sig
+`;
+
+val MoE_decl_in_def = Define ` 
+  MoE_decl_in (funn_ext x x') l =
+    ( ∃ ext_MoE sig a1. ALOOKUP l x = SOME (a1, ext_MoE) ∧ ALOOKUP ext_MoE x' = SOME sig ) 
+`;
+
+
+val deltas_order_def = Define
+ ` deltas_order (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (order:order) =
+
+    (* order of ext and global functions : ext defined before global *)
+
+((∀s s'.   IoE_decl_in (funn_inst s) delta_x ∧ f_decl_in (funn_name s') delta_g ⇒
+          order (order_elem_f (funn_inst s)) (order_elem_f (funn_name s'))) ∧
+          
+(∀s s' s''. MoE_decl_in (funn_ext s s') delta_x ∧ f_decl_in (funn_name s'') delta_g ⇒
+            order (order_elem_f (funn_ext s s')) (order_elem_f (funn_name s''))) ∧
+
+
+    (* order of global and local functions : global defined before local *)           
+
+(∀s s'.   f_decl_in (funn_name s) delta_g ∧ f_decl_in (funn_name s') delta_b ⇒
+          order (order_elem_f (funn_name s)) (order_elem_f (funn_name s'))))
+ `;
+
+}}
+
+
+
+defns
+WF_ft_order :: '' ::=
+defn
+WF funn_list delta_g delta_b delta_x order :: :: WF_ft_order :: WF_ft_order_
+{{ com well formed order }}
+{{ tex WF_ft_order [[funn_list]] [[delta_g]] [[delta_b]] [[delta_x]] [[order]] }}
 by
 
 
+ordered_list order [ funn1 , .. , funnn ] 
+deltas_order delta_g delta_b delta_x order
+---------------------------------------------------------------------- :: ft
+WF funn_list delta_g delta_b delta_x order
 
-WF_o order
-%intersection_of_domains_is_null_between func_map b_func_map 
-%TODO:cont the big implication.
---------------------------------------- :: c
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) order t_scope_list_g delta_g delta_b 
+
+%TODO update this definition according to what we have in HOL4.
+defns
+WT_state :: '' ::=
+defn
+ctx state Prs_n order ( t_scope_list_g , t_scopes_frames ) delta :: :: WT_state :: WT_state_
+{{ com context well typed }}
+{{ tex WT [[ctx]] [[state]] [[Prs_n]] [[order]] [[t_scope_list_g]] [[t_scopes_frames]] [[delta]] }}
+by
+
+
+% We need type_scopes_list for globals because we need to know that the scopes are typed before we do the passing
+% we need type_state_tsll because it is easier for teh proof, 
+
+%parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ]
+WF [ funn1 , .. , funnn ] delta_g delta_b delta_x order
+type_state_tsll ( scope_list1 , .. , scope_listn ) [ t_scope_list1 , .. , t_scope_listn ]
+type_scopes_list g_scope_list t_scope_list_g
+ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) func_map b_func_map
+---------------------------------------------------------------------- :: state
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
+
+
+
+
+
+
 

@@ -58,6 +58,8 @@ frame_list {{ tex \overline{\Phi} }} :: frame_list_ ::=
 | tl frame_list :: M :: tl
   {{ hol (TL [[frame_list]]) }}
   {{ tex \mathrm{tl} ([[frame_list]]) }}
+| [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] :: M :: extract  
+  {{ hol ([[ [ ( funn1 , stmt_stack1 , scope_list1 ) ] .. [ ( funnn , stmt_stackn , scope_listn ) ] ]]) }}
 | ( frame_list ) :: M :: paren
   {{ hol ([[frame_list]]) }}
   {{ tex [[frame_list]] }}
@@ -315,7 +317,7 @@ formula :: formula_ ::=
   {{ com application of an extern function }}
   {{ tex ([[ascope']], \, [[scope_list']], \, [[v]]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]]) }}
   {{ hol (SOME ([[ascope']], [[scope_list']], [[v]]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]])) }}
-
+  
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
 | i = length ( e_list ) :: M :: num_len
@@ -419,9 +421,9 @@ formula :: formula_ ::=
 | ffblock = ffblock_map ( f ) :: M :: lookup_ffb
   {{ com fixed-function block lookup }}
   {{ hol (ALOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
-| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
-  {{ com obtain body and args of pblock }}
-  {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
+%| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
+%  {{ com obtain body and args of pblock }}
+%  {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
 | arch_block = ab_list [ i ] :: M :: ab_index
   {{ com ab at index i }}
   {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
@@ -480,15 +482,21 @@ formula :: formula_ ::=
   {{ com global and block scopes to retrieve based on function location }}
   {{ hol (SOME[[g_scope_list'']] = scopes_to_retrieve [[funn]] [[func_map]] [[b_func_map]] [[g_scope_list]] [[g_scope_list']]) }}
   {{ tex [[g_scope_list'']] = \mathrm{scopes\_to\_retrieve} ([[funn]], [[func_map]], [[b_func_map]], [[g_scope_list]], [[g_scope_list']]) }}
-
-| scope' = declare_list_in_scope ( decl_list , scope ) :: M :: decl_in_scope  
+| b_func_map' = map_to_pass funn b_func_map :: :: map_to_pass
+  {{ com pass either empty or the local function's mapping depending on funn location }}
+  {{ hol  SOME [[b_func_map']] = map_to_pass [[funn]] [[b_func_map]] }}
+  {{ tex [[b_func_map']] = \mathrm{map\_to\_pass} ([[funn]], [[b_func_map]]) }} 
+| tbl_map' = tbl_to_pass funn b_func_map tbl_map :: :: tbl_to_pass
+  {{ hol SOME [[tbl_map']] = tbl_to_pass [[funn]] [[b_func_map]] [[tbl_map]]}}
+  {{ tex [[tbl_map']] = \mathrm{tbl\_to\_pass} ([[funn]], [[b_func_map]] , [[tbl_map]]) }} 
+| scope' = declare_list_in_scope ( t_scope , scope ) :: M :: decl_in_scope  
   {{ com update a scope with a list of declarations }}
-  {{ hol [[scope']] = declare_list_in_scope ([[decl_list]], [[scope]]) }}
-  {{ tex [[scope']] = \mathrm{replicate} ([[decl_list]], [[scope]]) }}
-| scope = declare_list_in_fresh_scope ( decl_list ) :: M :: decl_in_fresh_scope  
+  {{ hol [[scope']] = declare_list_in_scope ([[t_scope]], [[scope]]) }}
+  {{ tex [[scope']] = \mathrm{replicate} ([[t_scope]], [[scope]]) }}
+| scope = declare_list_in_fresh_scope ( t_scope ) :: M :: decl_in_fresh_scope  
   {{ com create a scope from the list of declarations }}
-  {{ hol [[scope]] = declare_list_in_fresh_scope ([[decl_list]]) }}
-  {{ tex [[scope]] = \mathrm{replicate} ([[decl_list]]) }}
+  {{ hol [[scope]] = declare_list_in_fresh_scope ([[t_scope]]) }}
+  {{ tex [[scope]] = \mathrm{replicate} ([[t_scope]]) }}
 
 | ( g_scope_list' , scope_list'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scope_list , scope_list' ) :: M :: copyout
    %scope_list is the callee stack, whereas scope_list' is the caller stack
@@ -505,6 +513,11 @@ formula :: formula_ ::=
   %TODO: LaTeX hack here...
   {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
   {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map ) :: M :: block_sig_body
+  {{ com look up the body and signature of a block (for now, held in the local function map) }}
+  %TODO: LaTeX hack here...
+  {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_block\_sig\_body} ([[f]], [[b_func_map]]) }}
+  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_block_sig_body [[f]] [[b_func_map]]) }}
 | [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig
   {{ com look up the signature of an abstract function name }}
   %TODO: LaTeX hack here...
@@ -518,26 +531,28 @@ formula :: formula_ ::=
    % (*typing rules related formulas*)
 | w = width bitv :: M :: width
   {{ com width of bitstring}}
-  {{ tex [[w]] = width \ [[bitv]] }}
+  {{ tex [[w]] = \mathrm{width} \ ([[bitv]]) }}
   {{ hol ([[w]] = bs_width [[bitv]]) }}
 | tau = lookup_tau ( t_scope_list , t_scope_list_g , varn ) :: :: topmost
   {{ tex [[tau]] = \mathrm{topmost} ([[t_scope_list]] , [[t_scope_list_g]] , [[varn]]) }}
   {{ hol SOME [[tau]] =  lookup_tau [[t_scope_list]] [[t_scope_list_g]] [[varn]] }}
 | tau = find_star_in_globals ( t_scope_list_g , varn ) :: :: find_star_in_globals
-  {{ tex [[tau]] = \mathrm{find_star_in_globals} ([[t_scope_list_g]], [[varn]]) }}
+  {{ tex [[tau]] = \mathrm{lookup\_type} \; ([[t_scope_list_g]], [[varn]]) }}
   {{ hol SOME [[tau]] =  find_star_in_globals [[t_scope_list_g]] [[varn]]}}
-| [ tau1 d1 , .. , taun dn ] tau = t_lookup_funn ( delta_g , delta_b , funn ) :: :: fun_type
-%  {{ tex ([\tau_1 d1 .. \tau_n dn]] [[tau]] ) = [[delta_g]] \cup [[delta_b]] ([[funn]]) }}
-  {{ hol SOME ([[tau1 d1 .. taun dn]],[[tau]]) =  t_lookup_funn [[delta_g]] [[delta_b]] [[funn]]}}
+| [ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn , delta_g , delta_b , delta_x ) :: :: fun_type
+ % {{ tex ([(\tau_1, x_1, d_1) , \ldots, (\tau_n, x_n, d_n)] , tau ) = \mathrm{t\_lookup\_funn} ( [[funn]] , [[delta_g]] , [[delta_b]] , [[delta_x]] ) }}
+  {{ hol SOME ([[tau1 x1 d1 .. taun xn dn]],[[tau]]) = t_lookup_funn [[funn]] [[delta_g]] [[delta_b]] [[delta_x]]}}
 | not_bool_neg unop :: M :: not_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] <> unop_neg_signed)) }}
+  {{ hol (([[unop]] <> unop_neg)) }}
   {{ tex [[unop]] \neq \mathit{!} }}
 | is_bool_neg unop :: M :: is_bool_neg
   {{ com not bool negation }}
-  {{ hol (([[unop]] = unop_neg_signed)) }}
-  {{ tex [[unop]] \eq \mathit{!} }}
-
+  {{ hol (([[unop]] = unop_neg)) }}
+  {{ tex [[unop]] = \; \mathit{!} }}
+| width_in_range w :: M :: width_in_range
+  {{ com bitstring widthlarger than 0}}
+  {{ hol ([[w]] > 0 /\ [[w]] <= 64 ) }}
 | length ( taul ) = m :: M :: find_t_length
   {{ tex [[m]] = length ([[taul]])}}
   {{ hol ([[m]] = LENGTH [[taul]]) }}
@@ -558,11 +573,12 @@ formula :: formula_ ::=
   {{ com bracketed }}
   {{ tex ([[formula]]\!) }}
   {{ hol ([[formula]]) }}
+
 |  v_list : ( taul , false )  :: :: type_all_v
-  {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (EL i [[taul]]) F ) }}
-  {{ tex [[v_list]] : ( [[taul]] , F ) }}
-|  ( v1 , .. , vm ) : ( tau , false )  :: :: type_all_v_one_t
-  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) ([[tau]]) F ) }}    
+  {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau ( EL i [[taul]] )) F ) }}
+  {{ tex [[v_list]] : ( [[taul]] , \bot ) }}
+|  v1 , .. , vm : ( tau , b )  :: :: type_all_v_one_t
+  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
 | correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau ) :: :: correct_field_type
@@ -574,7 +590,10 @@ formula :: formula_ ::=
 | w = vec_to_const bitv  :: :: vec_to_const
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
-  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) (EL i [[b1 .. bo]]) ) }}
+  {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (t_tau (EL i [[tau1 .. taun]])) (EL i [[b1 .. bo]]) ) }}
+  {{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }}
+
+
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
   {{ hol ( out_is_lval [[d1 .. dn]] [[b1 .. bm]] ) }}
 | is_bv_op binop :: :: is_bv_op 
@@ -582,7 +601,9 @@ formula :: formula_ ::=
 | is_bv_bool_op binop :: :: is_bv_bool_op   
   {{ hol is_bv_bool_op [[binop]]}}
 | is_bool_op binop :: :: is_bool_op   
-  {{ hol is_bool_op [[binop]]}}  
+  {{ hol is_bool_op [[binop]]}}
+| is_err_bool binop :: :: is_err_bool
+  {{ hol is_err_bool [[binop]]}}  
 | in e Prs_n :: :: eInPrs  
   {{ hol MEM [[e]] [[Prs_n]]}}  
 | in tbl Tbl_n :: :: eInTbl  
@@ -591,14 +612,101 @@ formula :: formula_ ::=
   {{ hol (ALOOKUP [[delta_t]] [[tbl]] = SOME ([[tau1 .. taun]])) }}
 | literials_in_P_state [ x1 , .. , xn ] Prs_n :: :: literials_in_P_state
   {{ hol (literials_in_P_state [[x1 .. xn]] [[Prs_n]]) }}
-| ordered funn funn' order :: :: ordered
-  {{ hol (ordered [[funn]] [[funn']] [[order]]) }}
-| t_scope = replicate_types decl_list :: :: types_repl
-  {{ hol ( [[t_scope]] = replicate_types [[decl_list]]) }}
-| WF_o order :: :: WF_order
+
+| order funn funn' :: :: ordered_f_pair
+  {{ hol ([[order]] (order_elem_f [[funn]]) (order_elem_f [[funn']])) }}
+| order ( order_elem_t tbl ) funn :: :: ordered_tbl_f_pair  
+  {{ hol ([[order]] (order_elem_t [[tbl]]) (order_elem_f [[funn]])) }}
+
+| ordered_list order [ funn1 , .. , funnn ]  :: :: ordered_list_f
+  {{ hol (ordered_list [[order]] ( MAP (\f. order_elem_f f ) [[funn1 .. funnn]])  ) }}
+| WF_o order :: :: WF_o
   {{ hol ( WF_o [[order]] )}}
+| deltas_order delta_g delta_b delta_x order :: :: deltas_order 
+  {{ hol (deltas_order [[delta_g]] [[delta_b]] [[delta_x]] [[order]] )}}  
+| WF funnl delta_g delta_b delta_x order :: :: WF_funnl_deltas
+  {{ hol ( WF [[funnl]] [[delta_g]] [[delta_b]] [[delta_x]] [[order]]  )}}
+
+
+| table_map_typed tbl_map apply_table_f delta_g delta_b order :: :: table_map_typed
+  {{ hol ( table_map_typed [[tbl_map]] [[apply_table_f]] [[delta_g]] [[delta_b]] [[order]] ) }}  
 | MEM x x_list :: :: x_in_xlist
+  {{ tex [[x]] \in [[x_list]] }} 
   {{ hol ( MEM [[x]] [[x_list]] ) }} 
+| not_star ( varn ) :: :: not_star  
+  {{ tex \forall f. \;  [[varn]] \neq \ast^f }} 
+  {{ hol ( ! funn.  [[varn]] <> (varn_star funn) ) }} 
+| length_is_2 ( t_scope_list_g ) :: M :: length_is_2
+  {{ hol ( 2 = LENGTH [[t_scope_list_g]] ) }}
+
+| func_map_typed func_map order t_scope_list_g delta_g delta_b delta_x Prs_n :: ::  func_map_typed 
+  {{ hol ( func_map_typed [[func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[Prs_n]] ) }} 
+| func_map_blk_typed b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n :: :: func_map_blk_typed
+  {{ hol ( func_map_blk_typed [[b_func_map]] [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Prs_n]] ) }} 
+| extern_map_IoE_typed ext_map t_scope_list_g delta_g delta_b delta_x :: :: extern_map_IoE_typed
+  {{ hol ( extern_map_IoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] ) }}
+| extern_MoE_typed ext_map t_scope_list_g delta_g delta_b delta_x :: :: extern_MoE_typed
+  {{ hol extern_MoE_typed [[ext_map]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] }}  
+| dom_map_ei ( func_map , b_func_map ) :: :: dom_map_ei
+  {{ hol ( dom_map_ei [[func_map]] [[b_func_map]] ) }}
+| dom_tmap_ei ( delta_g , delta_b ) :: :: dom_tmap_ei
+  {{ hol ( dom_tmap_ei [[delta_g]] [[delta_b]] ) }}
+| typying_domains_ei ( delta_g , delta_b , delta_x )  :: :: typying_domains_ei
+  {{ hol ( typying_domains_ei [[delta_g]] [[delta_b]] [[delta_x]] ) }}  
+| dom_g_eq ( delta_g , func_map ) :: ::  dom_g_eq
+  {{ hol ( dom_g_eq [[delta_g]] [[func_map]] ) }}
+| dom_b_eq ( delta_b , b_func_map ) :: :: dom_b_eq
+  {{ hol ( dom_b_eq [[delta_b]] [[b_func_map]] ) }}
+| dom_x_eq ( delta_x , ext_map ) :: :: dom_x_eq
+  {{ hol ( dom_x_eq [[delta_x]] [[ext_map]] ) }}
+| dom_t_eq ( delta_t , tbl_map ) :: :: dom_t_eq
+  {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }} 
+| star_Err_not_in_ts t_scope :: :: star_Err_not_in_ts
+  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}
+| lvalop_not_none t_scope :: :: lvalop_not_none
+  {{ hol ( lvalop_not_none [[t_scope]] )}}
+| Fg_star_defined ( func_map , t_scope_list_g ) :: :: Fg_star_defined
+  {{ hol ( Fg_star_defined [[func_map]] [[t_scope_list_g]] ) }}
+| Fb_star_defined ( b_func_map , t_scope_list_g ) :: :: Fb_star_defined
+  {{ hol ( Fb_star_defined [[b_func_map]]  [[t_scope_list_g]] ) }}
+| X_star_defined  ( ext_map , t_scope_list_g ) :: :: X_star_defined
+  {{ hol ( X_star_defined [[ext_map]]  [[t_scope_list_g]] ) }}
+| X_star_not_defined t_scope_list_g :: :: X_star_not_defined
+  {{ hol (X_star_not_defined [[t_scope_list_g]]) }}  
+| parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ] :: :: parseError_in_gs
+  {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
+| f_in_apply_tbl tbl_map apply_table_f :: :: f_in_apply_tbl
+  {{ hol ( f_in_apply_tbl [[tbl_map]] [[apply_table_f]] ) }}
+| star_not_in_sl scope_list :: :: star_not_in_sl
+  {{ hol (star_not_in_sl [[scope_list]] ) }}
+
+| type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack :: :: type_ith_stmt 
+  {{ hol ( type_ith_stmt [[t_scope_list_g]] [[t_scope_list]] [[T_e]] [[Prs_n]] [[stmt_stack]] ) }}
+| type_frame_tsl scope_list t_scope_list :: :: type_frame_tsl
+  {{ hol ( type_frame_tsl [[scope_list]] [[t_scope_list]] ) }}
+| type_scopes_list g_scope_list t_scope_list_g :: :: type_scopes_list
+  {{ hol ( type_scopes_list [[g_scope_list]] [[t_scope_list_g]] ) }}
+| type_state_tsll ( scope_list1 , .. , scope_listn ) [ t_scope_list1 , .. , t_scope_listm ] :: :: type_state_tsll
+  {{ hol ( type_state_tsll [[scope_list1 .. scope_listn]] [[t_scope_list1 .. t_scope_listm]] )  }}
+| t_scope_list_g' = t_scopes_to_pass ( funn , delta_g , delta_b , t_scope_list_g ) :: :: t_scopes_to_pass
+  {{ hol ( SOME [[t_scope_list_g']] = t_scopes_to_pass [[funn]] [[delta_g]] [[delta_b]] [[t_scope_list_g]] ) }}
+| sig_tscope_consistent funn delta_g delta_b delta_x t_scope_list :: :: sig_tscope_consistent
+  {{ hol sig_tscope_consistent [[funn]] [[delta_g]] [[delta_b]] [[delta_x]] [[t_scope_list]]  }}
+| args_t_same [ tau1 , .. , taun ]  t_scope_list :: :: args_t_same
+  {{ hol (args_t_same  ([[tau1 .. taun]]) t_scope_list ) }}
+| length_greq ( t_scope1 , .. , t_scopem ) ( stmt1 , .. , stmtn ) :: :: length_greq
+  {{ hol (LENGTH [[t_scope1 .. t_scopem]]  >= LENGTH [[stmt1 .. stmtn]] ) }}
+| length_eq delta_b b_func_map :: :: length_eq 
+  {{ hol (LENGTH [[delta_b]] = LENGTH [[b_func_map]] ) }} 
+| length_eq delta_t tbl_map :: :: length_eq_tbl  
+  {{ hol (LENGTH [[delta_t]] = LENGTH [[tbl_map]] ) }} 
+| ( g_scope_list , frame_list , status ) -||| Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) func_map b_func_map :: :: type_frames
+  {{ hol ( type_frames [[g_scope_list]] [[frame_list]] [[Prs_n]] [[order]] [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[func_map]] [[b_func_map]] ) }}
+
+| ext_is_defined delta_x funn :: :: ext_is_defined
+  {{ hol ext_is_defined [[delta_x]] [[funn]] }}
+| ext_not_defined delta_g delta_b funn :: :: ext_not_defined
+  {{ hol ext_not_defined [[delta_g]] [[delta_b]] [[funn]] }}
 
 
 embed
@@ -1138,6 +1246,20 @@ val slice_def = Define `
   slice (v, n) (vec1, len1) (vec2, len2) = bitv_bitslice (v , n) (v2n (vec1)) (v2n (vec2))
 `;
 
+
+(* given an lval being a slicing operation, take only the parts that are required in the slicing *)
+val slice_lval_def = Define `
+  (slice_lval (v_bit (v, bl)) (e1) (e2) =
+     ( case e1 of
+     | (e_v (v_bit (v1, bl1))) =>
+       ( case e2 of
+       | (e_v (v_bit (v2, bl2))) => SOME ( v_bit (slice (v, bl) (v1, bl1) (v2, bl2)) )
+       | _ => NONE )
+     | _ => NONE
+     ))
+`;
+
+
 val is_var_def = Define `
   (is_var (e_var _) = T) /\
   (is_var _ = F)
@@ -1230,14 +1352,23 @@ val lookup_vexp2_def = Define `
 
 
 
-(* Look up the value of a l-value (variables + fields of struct-valued variables) in
- * a scope stack. *)
+(* Look up the value of a l-value (variables + fields of struct-valued variables + slice) in
+ * a scope stack. 
+ * for the slicing operation, e1 and e2 needs to be strictly v bits *)
 val lookup_lval_def = Define `
   (lookup_lval (ss:scope list) (lval_varname x) = lookup_v ss x) /\
   (lookup_lval (ss:scope list) (lval_field lval f) =
      case lookup_lval ss lval of
      | SOME v => acc_f v f
-     | NONE => NONE)
+     | NONE => NONE) /\
+ (lookup_lval (ss:scope list) (lval_slice lval e1 e2) =
+    case lookup_lval ss lval of
+     | SOME (v_bit (v, bl)) => (slice_lval (v_bit (v, bl)) e1 e2)
+     | _ => NONE
+     ) /\
+ (lookup_lval (ss:scope list) (lval_null) = NONE ) /\
+ (lookup_lval (ss:scope list) (lval_paren lval) = lookup_lval ss lval) 
+
 `;
 
 (* TODO: This is ambiguous with regard to inout... *)
@@ -1259,11 +1390,16 @@ val is_d_out_def = Define `
   (is_d_out _ = F)
 `;
 
+
 val get_lval_of_e_def = Define `
   (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
   (get_lval_of_e (e_acc e x) =
    case get_lval_of_e e of
    | SOME lval => SOME (lval_field lval x)
+   | NONE => NONE) /\
+   (get_lval_of_e (e_slice e ev1 ev2) =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_slice lval ev1 ev2)
    | NONE => NONE) /\
   (get_lval_of_e _ = NONE)
 `;
@@ -1344,7 +1480,7 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_struct []) = v_struct []) /\
   (init_out_v (v_header boolv ((x,v)::t)) =
-    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
+    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\ 
   (init_out_v (v_header boolv []) = v_header F []) /\
   (init_out_v (v_err errmsg) = v_err ARB) /\
   (init_out_v v_uninit = v_uninit) /\
@@ -1383,22 +1519,22 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
   (arb_from_tau tau_bool   = (v_bool ARB))  /\
   (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
   (arb_from_tau tau_bot    = v_bot)   /\
-  (arb_from_tau (tau_xl [x]) = (v_str ARB)) /\
   (arb_from_tau tau_err   = (v_err ARB)) /\
   (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
-  (arb_from_tau (tau_xtl struct_ty_struct (xtl) ) =
-    (v_struct ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ) /\
-  (  (arb_from_tau (tau_xtl struct_ty_header (xtl)) =
-    (v_header ARB ((FOLDR (\(x,t) l.  (x , (arb_from_tau t))::l ) ([]) xtl ))) ))  
+  (arb_from_tau (tau_xtl struct_ty_struct [] ) =  v_struct [] ) /\ 
+  (arb_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =  
+   v_struct ((x0,arb_from_tau t0)::(MAP (λ(x,t). (x,arb_from_tau t)) xtl))) /\
+  (arb_from_tau (tau_xtl struct_ty_header [] ) =  v_header ARB [] ) /\            
+  (arb_from_tau (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
+    v_header ARB ((x0,arb_from_tau t0)::(MAP (λ(x,t). (x,arb_from_tau t)) xtl))) 
   `
- (fs [tau_size_def] >>
- WF_REL_TAC `measure tau_size` >>
+ (WF_REL_TAC `measure tau_size` >>
  REPEAT STRIP_TAC >>
  FULL_SIMP_TAC std_ss [] >>
+ fs [tau_size_def] >>  
  `tau_size t < tau1_size xtl` suffices_by (
-  fs []
- ) >>
- IMP_RES_TAC tau1_size_mem );
+  fs [] ) >>  
+ IMP_RES_TAC tau1_size_mem);
 
 
 
@@ -1459,11 +1595,33 @@ val copyin_def = Define `
     all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl)
 `;
 
+(* in bl' slice from v2 to v1 and in that section add bl in those positions
+   relpace_bits ([F;F;F],3) ([T;T;T;T;T;T],6) 3 1 = [T; T; F; F; F; T]
+  *)
+val  relpace_bits_def = Define `
+relpace_bits (bl,(v:num)) (bl',v') v1 v2 =
+(SEG (v'-v1 -1) (0) bl') ++ bl ++ (SEG (v2) (0)  bl') `;  
+
+
+     
+(* assign to slice returns that value being replaces in a slicing assignment.
+   i.e. assign the value bit vb to vb' where vb should replace only the positions from ev2 to ev1 in vb' *)
+
+val  assign_to_slice_def = Define `
+assign_to_slice vb vb' ev1 ev2 =
+( case ev1 of
+     | (e_v (v_bit (bl1, n1))) =>
+       (case ev2 of
+       | (e_v (v_bit (bl2, n2))) => SOME ( v_bit ((relpace_bits vb vb' (v2n bl1) (v2n bl2)), SND vb')  )
+       | _ => NONE )
+     | _ => NONE
+     )`; 
 
 (* Updates a scope stack by mapping the variable name a to the value v
  * in the topmost scope where a is defined,
  * written as ε[a -> v], colloquially known as assignment.
  * Note that this function is used in the assignment and return rules *)
+ (*TODO: fix assignment to include the slicing*)
 val assign_def = Define `
   (assign ss v (lval_varname x) =
     case find_topmost_map ss x of
@@ -1483,10 +1641,22 @@ val assign_def = Define `
       (case INDEX_OF f (MAP FST f_v_l) of
        | SOME i => assign ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
        | NONE => NONE)
-    | _ => NONE
-  ) /\
+    | _ => NONE) /\    
+  (assign ss v (lval_slice lval ev1 ev2) =
+     case v of
+     | v_bit vb => (
+           case lookup_lval ss lval of
+           | SOME (v_bit vb') =>
+               (case assign_to_slice vb vb' ev1 ev2 of
+                | SOME v_res => assign ss v_res lval
+                | _ => NONE )
+           | _ => NONE)
+     | _ => NONE ) /\
   (assign ss v lval_null =
     SOME ss
+  ) /\ (
+  assign ss v (lval_paren lval) = 
+    assign ss v lval
   )
 `;
 
@@ -1569,14 +1739,15 @@ val initialise_var_stars_def = Define `
 (* Takes a list of declaration tuples (x, t) and a scope, and returns a scope
  * where the declarations have been made *)
 val declare_list_in_scope_def = Define `
-  declare_list_in_scope (decl_list:decl_list, scope:scope) =
-    FOLDR (\(x,t) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) decl_list
+  declare_list_in_scope (t_scope:t_scope, scope:scope) =
+    FOLDR (\(x,(t,lvalop) ) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) t_scope
 `;
 
-(* Same as the above, but with the empty scope *)
+(* Same as the above, but with the empty scope
+   NOTE: the lvalop here is always none when entering a new block *)
 val declare_list_in_fresh_scope_def = Define `
-  declare_list_in_fresh_scope (decl_list:decl_list) =
-    declare_list_in_scope (decl_list, [])
+  declare_list_in_fresh_scope (t_scope:t_scope) =
+    (MAP (\(x,(t,lvalop)). (x , (arb_from_tau t, NONE))) t_scope)
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
@@ -1594,14 +1765,14 @@ val lookup_funn_sig_body_def = Define `
      )
     | (funn_inst x) =>
      (case ALOOKUP ext_map x of
-      | SOME (SOME (stmt, x_d_l, _), _) => SOME (stmt, x_d_l)
+      | SOME (SOME (x_d_l, _), _) => SOME (stmt_ext, x_d_l)
       | _ => NONE)
     | (funn_ext x x') =>
      (case ALOOKUP ext_map x of
       | SOME (_, ext_fun_map) =>
        (case ALOOKUP ext_fun_map x' of
-	| SOME (stmt, x_d_l, _) => SOME (stmt, x_d_l)
-	| _ => NONE)
+	      | SOME (x_d_l, _) => SOME (stmt_ext, x_d_l)
+	      | _ => NONE)
       | _ => NONE)
   )
 `;
@@ -1612,6 +1783,12 @@ val lookup_funn_sig_def = Define `
     | SOME (_, x_d_l) => SOME x_d_l
     | NONE => NONE
   )
+`;
+
+(* TODO: Need a separate definition for this? *)
+val lookup_block_sig_body_def = Define `
+ lookup_block_sig_body f b_func_map =
+  ALOOKUP b_func_map f
 `;
 
 (* Given lists of variable names and directions, a caller's scope stack ss
@@ -1638,9 +1815,11 @@ val update_return_frame_def = Define `
       (ZIP(xlist, dlist))
 `;
 
+(*
 val args_of_pbl_def = Define `
-  args_of_pbl (pblock_regular pbl_type x_d_list b_func_map decl_list stmt pars_map tbl_map) = x_d_list
+  args_of_pbl (pblock_regular pbl_type b_func_map t_scope pars_map tbl_map) = x_d_list
 `;
+*)
 
 (* Implements the whole copyout operation to the caller scope stack. Given list of arguments
  * of the funtion i.e. names and directions, global scope list, caller scope stack and current
@@ -1649,7 +1828,7 @@ val args_of_pbl_def = Define `
 
 val copyout_def = Define `
   copyout xlist dlist gsl ss ss_curr =
-    case update_return_frame xlist dlist (ss++gsl) ss_curr of
+    case update_return_frame xlist dlist (ss++gsl) [LAST ss_curr] of
     |(SOME updated_return_ss =>
       case (LENGTH updated_return_ss) of
       | 0 => NONE
@@ -1750,15 +1929,13 @@ val lookup_ext_fun_def = Define `
    case ALOOKUP ext_map f of
    | SOME (_, ext_fun_map) =>
     (case ALOOKUP ext_fun_map f' of
-     | SOME (_, _, ext_fun) =>
-      SOME ext_fun
+     | SOME (_, ext_fun) => SOME ext_fun
      | NONE => NONE)
    | NONE => NONE) /\
   (lookup_ext_fun (funn_inst f) ext_map =
    case ALOOKUP ext_map f of
-   | SOME (SOME (_, _, ext_fun), _) =>
-    SOME ext_fun
-   | NONE => NONE) /\
+   | SOME (SOME (_, ext_fun), _) => SOME ext_fun
+   | _ => NONE) /\
   (lookup_ext_fun (funn_name f) ext_map = NONE)
 `;
 
@@ -1803,6 +1980,34 @@ val scopes_to_retrieve_def = Define `
       )
     )
    | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
+`;
+
+
+
+(* if the function is defined locally, then the map of the locals will be passed 
+   else it should be empty, because functions defined globally or extern should not be calling locals *)
+
+val map_to_pass_def = Define `
+ map_to_pass (funn:funn) (b_func_map:b_func_map) =
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP b_func_map x of
+     | SOME (stmt, x_d_l) => SOME b_func_map
+     | NONE => SOME []
+    )
+   | _ => SOME []
+`;
+
+
+val tbl_to_pass_def = Define `
+ tbl_to_pass (funn:funn) (b_func_map:b_func_map) (tbl_map:tbl_map) = 
+  case funn of
+   | (funn_name x) =>
+    (case ALOOKUP b_func_map x of
+     | SOME (stmt, x_d_l) => SOME tbl_map
+     | NONE => SOME []
+    )
+   | _ => SOME []
 `;
 
 
@@ -2201,10 +2406,10 @@ by
 %Block
 
 
-  ( scope ) = declare_list_in_fresh_scope ( decl_list )
+  ( scope ) = declare_list_in_fresh_scope ( t_scope )
   scope_list' =  [ scope ] ++ scope_list
   ----------------------------------- :: block_enter
-  ctx ( ascope , g_scope_list , [ ( funn , [ begin decl_list stmt end ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scope_list' ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ begin t_scope stmt end ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scope_list' ) ] , Running )
 
   not_empty stmt
   not_empty stmt_stack
@@ -2327,21 +2532,29 @@ defn
 by
 
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
+  b_func_map' = map_to_pass funn b_func_map
+  tbl_map' = tbl_to_pass funn b_func_map tbl_map
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
   notret( status' , frame_list'' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
   ----------------------------------- :: comp1
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ frame_list'' , status ) -f-> ( ascope' , g_scope_list''' , frame_list' ++ frame_list'' , status' )
 
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
+
+
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
-  g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
+  b_func_map' = map_to_pass funn b_func_map
+  tbl_map' = tbl_to_pass funn b_func_map tbl_map
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
-   g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' )
-  ( g_scope_list''''' , scope_list''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list'''' , scope_list' , scope_list'' )
+  g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
+  g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' ) 
+  g_scope_list''''' = scopes_to_pass ( funn' , func_map , b_func_map , g_scope_list'''' )
+  ( g_scope_list'''''' , scope_list''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list''''' , scope_list' , scope_list'' )
+  g_scope_list''''''' = scopes_to_retrieve ( funn' , func_map , b_func_map , g_scope_list'''' , g_scope_list'''''' )
   ----------------------------------- :: comp2
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f-> ( ascope' , g_scope_list''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f->  ( ascope' , g_scope_list''''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2365,9 +2578,10 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list'' , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( f )
+  pbl_type b_func_map t_scope pars_map tbl_map = pblock_map ( f )
+  ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map )
   scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope , pbl_type )
-  scope'' = declare_list_in_scope ( decl_list , scope' )
+  scope'' = declare_list_in_scope ( t_scope , scope' )
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
 %Note that the below means that the var_star of globally-defined functions is redefined every time pbl_init is applied 
@@ -2391,14 +2605,14 @@ by
 
 %TODO: This could be solved directly at statement level... This is essentially the old pars_state rule
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
+  parser b_func_map t_scope pars_map tbl_map = pblock_map ( x )
   not_final_state ( x' )
   stmt' = pars_map ( x' )
   ----------------------------------- :: parser_trans
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , Running )
 
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( x )
+  pbl_type b_func_map t_scope pars_map tbl_map = pblock_map ( x )
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , frame_list , Running ) -f-> ( ascope' , g_scope_list' , frame_list' , status' )
   ----------------------------------- :: pbl_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope' ) , g_scope_list' , frame_list' , status' )
@@ -2408,7 +2622,8 @@ by
 %TODO: 13.3 of spec says: "An architecture must specify the behavior when the accept and reject states are reached. [...]", so copyout function must take status also
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map decl_list stmt pars_map tbl_map = pblock_map ( f )
+  pbl_type b_func_map t_scope pars_map tbl_map = pblock_map ( f )
+  ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map )
   state_fin ( status , frame_list )
   status' = set_fin_status ( pbl_type , status )
   %Q: Why no scopes from frame_list after global scopes?

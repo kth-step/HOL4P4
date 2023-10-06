@@ -25,7 +25,7 @@ val ether_ty_ok = mk_v_bitii (2048, 16);
 val stmt_start_trans =
  ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
 
-val start_body = mk_stmt_block (``[]:decl_list``, mk_stmt_seq_list [stmt_start_extract, stmt_start_trans]);
+val start_body = mk_stmt_block (``[]:t_scope``, mk_stmt_seq_list [stmt_start_extract, stmt_start_trans]);
 
 
 (* parse_ipv4 parser state *)
@@ -63,7 +63,7 @@ val stmt_parse_ipv4_verify3 = ``stmt_verify (^e_ck_eq_16w0) (^e_err_checksum)``;
 val stmt_parse_ipv4_trans = ``stmt_trans (e_v (v_str "accept"))``;
 
 val parse_ipv4_body =
- mk_stmt_block (``[]:decl_list``,
+ mk_stmt_block (``[]:t_scope``,
   mk_stmt_seq_list [stmt_parse_ipv4_extract,
 		    stmt_parse_ipv4_verify1,
 		    stmt_parse_ipv4_verify2,
@@ -75,13 +75,13 @@ val parse_ipv4_body =
 val vss_parser_pmap = ``[("start", (^start_body));
                          ("parse_ipv4", (^parse_ipv4_body))]:pars_map``;
 
-val vss_parser_decl_list = ``[(varn_name "ck", tau_ext)]``;
+val vss_parser_decl_list = ``[(varn_name "ck", tau_ext, NONE)]:t_scope``;
 val vss_parser_inits =
  mk_stmt_seq_list [``stmt_ass lval_null (e_call (funn_inst "Checksum16") [(^e_ck)])``,
                    ``stmt_trans (e_v (v_str "start"))``];
 
 val vss_parser_pbl =
- ``pblock_regular pbl_type_parser [("b", d_none); ("p", d_out)] [] (^vss_parser_decl_list) (^vss_parser_inits) (^vss_parser_pmap) []``;
+ ``pblock_regular pbl_type_parser [("parser", (^vss_parser_inits, [("b", d_none); ("p", d_out)]))] (^vss_parser_decl_list) (^vss_parser_pmap) []``;
 
 val vss_parser_ab =
  ``arch_block_pbl "parser" [e_var (varn_name "b_in"); e_var (varn_name "parsedHeaders")]``;
@@ -148,16 +148,16 @@ val dmac_match =
 val smac_match = mk_stmt_app (``"smac"``, ``[e_acc (e_var (varn_name "outCtrl")) "outputPort"]``);
 
 val vss_pipe_body =
- mk_stmt_block (``[]:decl_list``,
+ mk_stmt_block (``[]:t_scope``,
   mk_stmt_seq_list [stmt_parseerror,
 		    stmt_ipv4_match,
 		    check_ttl_match,
 		    dmac_match,
 		    smac_match]);
 
-val vss_pipe_decl_list = ``[(varn_name "nextHop", tau_bit 32)]``;
+val vss_pipe_decl_list = ``[(varn_name "nextHop", tau_bit 32, NONE)]:t_scope``;
 
-val vss_pipe_pbl = ``pblock_regular pbl_type_control [("headers", d_inout); ("parseError", d_in); ("inCtrl", d_in); ("outCtrl", d_out)] (^vss_pipe_bfunc_map) (^vss_pipe_decl_list) (^vss_pipe_body) [] (^vss_pipe_tblmap)``;
+val vss_pipe_pbl = ``pblock_regular pbl_type_control (("pipe", (^vss_pipe_body, [("headers", d_inout); ("parseError", d_in); ("inCtrl", d_in); ("outCtrl", d_out)]))::(^vss_pipe_bfunc_map)) (^vss_pipe_decl_list) [] (^vss_pipe_tblmap)``;
 
 val vss_pipe_ab = ``arch_block_pbl "pipe" [e_var (varn_name "headers"); e_var (varn_name "parseError"); e_var (varn_name "inCtrl"); e_var (varn_name "outCtrl")]``;
 
@@ -183,19 +183,19 @@ val stmt_deparser_cond =
 
 val stmt_deparser_emit2 = ``stmt_ass lval_null (e_call (funn_ext "packet_out" "emit") [e_var (varn_name "b"); (^e_ip)])``;
 
-val vss_deparser_decl_list = ``[(varn_name "ck", tau_ext)]``;
+val vss_deparser_decl_list = ``[(varn_name "ck", tau_ext, NONE)]:t_scope``;
 
 val stmt_deparser_inits = ``stmt_ass lval_null (e_call (funn_inst "Checksum16") [(^e_ck)])``;
 
 val vss_deparser_tblmap = ``[]:tbl_map``;
 val vss_deparser_body =
- mk_stmt_block (``[]:decl_list``,
+ mk_stmt_block (``[]:t_scope``,
   mk_stmt_seq_list [stmt_deparser_inits,
                     stmt_deparser_emit,
 		    stmt_deparser_cond,
 		    stmt_deparser_emit2]);
 
-val vss_deparser_pbl = ``pblock_regular pbl_type_control [("p", d_inout); ("b", d_none)] [] (^vss_deparser_decl_list) (^vss_deparser_body) [] (^vss_deparser_tblmap)``;
+val vss_deparser_pbl = ``pblock_regular pbl_type_control [("deparser", (^vss_deparser_body, [("p", d_inout); ("b", d_none)]))] (^vss_deparser_decl_list) [] (^vss_deparser_tblmap)``;
 
 val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeaders"); e_var (varn_name "b_out")]``;
 

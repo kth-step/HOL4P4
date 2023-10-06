@@ -1,0 +1,154 @@
+\section{Type System}
+
+
+
+
+
+%clarify all symbols
+
+%grammar of : t,tau,struct_ty
+% each type in the grammar's meaning
+% explain a typing scope, the typing scope list, and the typing scope tuples
+% explain deltas
+% explain order
+% explain T_e
+
+%%%
+%%% values typing rules
+%%%
+
+
+
+
+\newcommand{\valuetype}[2]{\mathit{#1} : ( #2 , \mathit{boolv} )}
+\newcommand{\boolv}{\mathit{boolv}}
+\newcommand{\true}{\top}
+\newcommand{\false}{\bot}
+\newcommand{\bitvector}[1]{\mathbf{bs}^{ #1 }}
+\newcommand{\botval}{\mathbf{bot}}
+\newcommand{\literal}[1]{\left[ #1_{\mathrm{1}} , .. \, , #1_{\mathrm{n}} \right]}
+\newcommand{\err}{\mathbf{err}}
+
+
+\newcommand{\vstruct}[1]{\ottkw{struct} \{\, #1 \,\}}
+\newcommand{\structtyp}[1]{\ottkw{struct} [\, #1 \,]}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\var}[1]{\mathrm{#1}}
+
+\newcommand{\structxv}[2]{#1_{\var{1}} = #2_{\mathrm{1}};\, .. \, ;\, #1_{\var{n}} = #2_{\mathrm{n}}}
+\newcommand{\structxtau}[2]{#1_{\var{1}}\, #2_{1}, .. \, , #1_{\var{n}}\, #2_{n}}
+
+\newcommand{\ejudjtyp}[5]{ $ #1 \, #2 \; \vdash #3 : ( #4 , #5 )$}
+
+\newcommand{\Td}{T_{\Delta}}
+
+
+\newcommand{\typingscopest}{$\Psi_t$}
+\newcommand{\typingscopestup}[2]{()}
+
+
+
+
+
+\subsection{Values typing rules}
+The type of a value $v$ is represented by the judgment shape $\valuetype{v}{t}$, where $v$ is associated with a type $t$ and a boolean flag indicating whether the value is an l-value or not. The boolean flag is $\boolv \in \{ \true, \false \}$, where $\true$ indicates an l-value. Since the value can never be an l-value, the $\boolv$ flag is always false.
+
+\textsc{v\_typ\_bool}: standard typing rule. \\
+\textsc{v\_typ\_bit}: a bitvector is typed with $\bitvector{w}$, where $w$ is the width of the bitstring $\ottnt{bitv}$. \\
+\textsc{v\_typ\_bot}: a value $\botval$ (used when no value is being returned from a function call) is typed as $\bot$. \\
+\textsc{v\_typ\_string\_literal}: a literal value $x$ is typed with $\literal{x}$, if it is in the list of all possible literals $x \in \literal{x}$. \\
+\textsc{v\_typ\_err}: an error message is typed with the type $\err$ if the value accompanied with it is a literal. \\
+\textsc{v\_typ\_ext\_ref}: a reference to extern objects in the architecture is typed with $\ottkw{ext}$. \\
+\textsc{v\_typ\_struct}: a value struct $\vstruct{\structxv{x}{v}}$ is typed with $\structtyp{\structxtau{x}{\tau}}$, if for each literal $x_{\var{i}} \in \literal{x}$, the value at the same index $v_i$ is typed with the $\tau_i$ at the same index.
+\textsc{v\_typ\_header}: a value header is typed in a similar manner as the value struct, however the validty bit should be typed as $\ottkw{bool}$. 
+
+\vspace{1pt}
+\begin{figure}[ht!]
+    \begin{ottdefnblock}[#1]{$ \ottnt{v}  : (  t  ,  \ottnt{boolv}  ) $}{\ottcom{values types}} \end{ottdefnblock}
+    \ottusedrule{\ottdrulevXXtypXXbool{}}
+    \ottusedrule{\ottdrulevXXtypXXbit{}}
+    \ottusedrule{\ottdrulevXXtypXXbot{}}
+    \ottusedrule{\ottdrulevXXtypXXstringXXliteral{}}
+    \ottusedrule{\ottdrulevXXtypXXerr{}}
+    \ottusedrule{\ottdrulevXXtypXXextXXref{}}
+    \ottusedrule{\ottdrulevXXtypXXstruct{}} \\
+    \ottusedrule{\ottdrulevXXtypXXheader{}}
+\end{figure}
+
+
+
+%%%
+%%% Expressions typing rules
+%%%
+\newpage
+\subsection{Expressions typing rules}
+The type of an expression $\expr$ is represented by the judgment \ejudjtyp {\Psi_t}{\Td}{e}{t}{\boolv}.  
+
+
+
+\begin{figure}[ht!]
+    \begin{ottdefnblock}[#1]{$ \psi_t  \,  T_e  \; \vdash  \expr  : (  t  ,  \ottnt{boolv}  ) $}{\ottcom{expression types}} \end{ottdefnblock}
+    \ottusedrule{\ottdruleeXXtypXXv{}}
+    \ottusedrule{\ottdruleeXXtypXXvar{}}
+    \ottusedrule{\ottdruleeXXtypXXstar{}}
+    \ottusedrule{\ottdruleeXXtypXXstruct{}}
+    \ottusedrule{\ottdruleeXXtypXXheader{}}
+    \ottusedrule{\ottdruleeXXtypXXnotXXneg{}}
+    \ottusedrule{\ottdruleeXXtypXXisXXneg{}}
+    \ottusedrule{\ottdruleeXXtypXXacc{}}
+    \ottusedrule{\ottdruleeXXtypXXconcat{}}
+\end{figure}
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdruleeXXtypXXslice{}}
+    \ottusedrule{\ottdruleeXXtypXXselect{}}
+    \ottusedrule{\ottdruleeXXtypXXcall{}}
+    \ottusedrule{\ottdruleeXXtypXXbinopXXbv{}}
+    \ottusedrule{\ottdruleeXXtypXXbinopXXbool{}}
+    \ottusedrule{\ottdruleeXXtypXXbinopXXerr{}}
+    \ottusedrule{\ottdruleeXXtypXXbinopXXbvXXbool{}}
+\end{figure}
+
+%%%
+%%% lval typing rules
+%%%
+\newpage
+\subsection{Lvals typing rules}
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulelvalXXtypXXvar{}}
+    \ottusedrule{\ottdrulelvalXXtypXXacc{}}
+    \ottusedrule{\ottdrulelvalXXtypXXslice{}}
+\end{figure}
+
+%%%
+%%% Satetement typing rules
+%%%
+\newpage
+\subsection{Statements typing rules}
+
+\begin{figure}[ht!]
+    \ottusedrule{\ottdrulestmtXXtypXXempty{}}
+    \ottusedrule{\ottdrulestmtXXtypXXassign{}}
+    \ottusedrule{\ottdrulestmtXXtypXXassignXXnull{}}
+    \ottusedrule{\ottdrulestmtXXtypXXif{}}
+    \ottusedrule{\ottdrulestmtXXtypXXdecl{}}
+    \ottusedrule{\ottdrulestmtXXtypXXseq{}}
+    \ottusedrule{\ottdrulestmtXXtypXXverify{}}
+    \ottusedrule{\ottdrulestmtXXtypXXtransition{}}
+    \ottusedrule{\ottdrulestmtXXtypXXreturn{}}
+    \ottusedrule{\ottdrulestmtXXtypXXapply{}}
+    \ottusedrule{\ottdrulestmtXXtypXXext{}}
+\end{figure}
+
+
+
+%%%
+%%% Satetement list typing rules
+%%%
+\newpage
+\subsection{Statement list typing rules}
+\ottdefnsstmtlXXtyp
+
+

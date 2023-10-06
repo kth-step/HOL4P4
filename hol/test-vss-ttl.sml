@@ -104,7 +104,7 @@ val init_ctrl = ``[("ipv4_match",
 val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
 
 (* TODO: Make syntax functions *)
-val init_aenv = ``(^(list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
+val init_aenv = ``(^(list_mk_pair [``0:num``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
 
 (* TODO: Make syntax functions *)
 val init_astate =
@@ -173,7 +173,7 @@ val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 (* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 57; *)
 GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 171;
 
-(* Solution: Use EVAL directly with re-defined function that has a property that easily enable the theorem.
+(* Solution: Use EVAL directly with re-defined function that has a property that easily enables the theorem.
  * This re-defined function should have no effect on the theorem statement other than through this property *)
 (* Takes around 2 seconds to run *)
 
@@ -192,14 +192,14 @@ End
 
 (* Re-definition of vss_ext_map *)
 val vss_Checksum16_map' =
- ``[("clear", (stmt_ext, [("this", d_in)], Checksum16_clear));
-    ("update", (stmt_ext, [("this", d_in); ("data", d_in)], Checksum16_update));
-    ("get", (stmt_ext, [("this", d_in)], Checksum16_get'))]``;
+ ``[("clear", ([("this", d_in)], Checksum16_clear));
+    ("update", ([("this", d_in); ("data", d_in)], Checksum16_update));
+    ("get", ([("this", d_in)], Checksum16_get'))]``;
 val vss_ext_map' =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
     ++ [("packet_in", (NONE, (^packet_in_map)));
         ("packet_out", (NONE, (^packet_out_map)));
-("Checksum16", SOME (stmt_ext, [("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))])``;
+("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))])``;
 
 
 val vss_actx_list = spine_pair $ rhs $ concl p4_vss_actx_def;
