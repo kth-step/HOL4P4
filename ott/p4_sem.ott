@@ -2648,11 +2648,11 @@ defn
 by
 
 
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list , status ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , status ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
   ----------------------------------- :: conc1
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) )
 
 
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i' , in_out_list , in_out_list' , ascope ) , g_scope_list' , arch_frame_list' , status' ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i' , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , status' ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
   ----------------------------------- :: conc2
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) ) )
