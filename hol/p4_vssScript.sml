@@ -35,7 +35,7 @@ End
 Definition packet_out_emit:
  packet_out_emit = packet_out_emit_gen vss_ascope_lookup vss_ascope_update
 End
-    
+
 (**********************************************************)
 (*                     EXTERN OBJECTS                     *)
 (**********************************************************)
@@ -246,23 +246,6 @@ Definition vss_reduce_nonout_def:
  (vss_reduce_nonout (_, _, v_map) = NONE)
 End
 
-(* TODO: Remove these and keep "v_map" as just a regular scope? *)
-Definition v_map_to_scope_def:
- (v_map_to_scope [] = []) /\
- (v_map_to_scope (((k, v)::t):(string, v) alist) =
-  ((varn_name k, (v, NONE:lval option))::v_map_to_scope t)
- )
-End
-
-Definition scope_to_vmap_def:
- (scope_to_vmap [] = SOME []) /\
- (scope_to_vmap ((vn, (v:v, lval_opt:lval option))::t) =
-  case vn of
-   | (varn_name k) => oCONS ((k, v), scope_to_vmap t)
-   | _ => NONE
- )
-End
-
 (* TODO: Since the same thing should be initialised
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)
@@ -283,11 +266,10 @@ Definition vss_copyin_pbl_def:
 End
 
 (* TODO: Does anything need to be looked up for this function? *)
-(* Note that this re-uses the copyout function intended for P4 functions *)
 Definition vss_copyout_pbl_def:
  vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, pbl_type, (status:status)) =
-  case copyout xlist dlist [ [] ; [] ] [v_map_to_scope v_map] g_scope_list of
-  | SOME (_, [v_map_scope]) =>
+  case copyout_pbl_gen xlist dlist g_scope_list v_map of
+  | SOME [v_map_scope] =>
    if pbl_type = pbl_type_parser
    then
     (case lookup_lval g_scope_list (lval_varname (varn_name "parseError")) of

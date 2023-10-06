@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib ottLib;
 
-open p4Theory;
+open p4Theory p4_auxTheory;
 
 val _ = new_theory "p4_core";
 
@@ -210,6 +210,33 @@ Definition packet_out_emit_gen:
     | _ => NONE)
   | _ => NONE
  )
+End
+
+(*****************)
+(* Architectural *)
+(*****************)
+
+(* TODO: Remove these and keep "v_map" as just a regular scope? *)
+Definition v_map_to_scope_def:
+ (v_map_to_scope [] = []) /\
+ (v_map_to_scope (((k, v)::t):(string, v) alist) =
+  ((varn_name k, (v, NONE:lval option))::v_map_to_scope t)
+ )
+End
+
+Definition scope_to_vmap_def:
+ (scope_to_vmap [] = SOME []) /\
+ (scope_to_vmap ((vn, (v:v, lval_opt:lval option))::t) =
+  case vn of
+   | (varn_name k) => oCONS ((k, v), scope_to_vmap t)
+   | _ => NONE
+ )
+End
+
+Definition copyout_pbl_gen_def:
+ copyout_pbl_gen xlist dlist g_scope_list v_map =
+  let v_map_scope = v_map_to_scope v_map in
+   update_return_frame xlist dlist [v_map_scope] g_scope_list
 End
 
 val _ = export_theory ();

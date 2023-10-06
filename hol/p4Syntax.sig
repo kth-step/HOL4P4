@@ -198,10 +198,10 @@ val is_arch_block_pbl : term -> bool
 val mk_arch_block_pbl : term * term -> term
 
 val dest_pblock_regular :
-   term -> term * term * term * term * term * term * term
+   term -> term * term * term * term * term
 val is_pblock_regular : term -> bool
 val mk_pblock_regular :
-   term * term * term * term * term * term * term -> term
+   term * term * term * term * term -> term
 val pblock_regular_tm : term
 
 val arch_frame_list_regular_tm : term

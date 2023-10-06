@@ -421,9 +421,9 @@ formula :: formula_ ::=
 | ffblock = ffblock_map ( f ) :: M :: lookup_ffb
   {{ com fixed-function block lookup }}
   {{ hol (ALOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
-| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
-  {{ com obtain body and args of pblock }}
-  {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
+%| ( ( x1 , d1 ) , .. , ( xn , dn ) ) = args_of_pbl ( pblock ) :: M :: body_args_pb
+%  {{ com obtain body and args of pblock }}
+%  {{ hol (([[x1 d1 .. xn dn]]) = args_of_pbl [[pblock]] ) }}
 | arch_block = ab_list [ i ] :: M :: ab_index
   {{ com ab at index i }}
   {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
@@ -513,6 +513,11 @@ formula :: formula_ ::=
   %TODO: LaTeX hack here...
   {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
   {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map ) :: M :: block_sig_body
+  {{ com look up the body and signature of a block (for now, held in the local function map) }}
+  %TODO: LaTeX hack here...
+  {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_block\_sig\_body} ([[f]], [[b_func_map]]) }}
+  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_block_sig_body [[f]] [[b_func_map]]) }}
 | [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig
   {{ com look up the signature of an abstract function name }}
   %TODO: LaTeX hack here...
@@ -1780,6 +1785,12 @@ val lookup_funn_sig_def = Define `
   )
 `;
 
+(* TODO: Need a separate definition for this? *)
+val lookup_block_sig_body_def = Define `
+ lookup_block_sig_body f b_func_map =
+  ALOOKUP b_func_map f
+`;
+
 (* Given lists of variable names and directions, a caller's scope stack ss
  * and a callees scope_stack ss_curr, updates the caller's scope stack
  * according to the calling conventions. *)
@@ -1804,9 +1815,11 @@ val update_return_frame_def = Define `
       (ZIP(xlist, dlist))
 `;
 
+(*
 val args_of_pbl_def = Define `
-  args_of_pbl (pblock_regular pbl_type x_d_list b_func_map t_scope stmt pars_map tbl_map) = x_d_list
+  args_of_pbl (pblock_regular pbl_type b_func_map t_scope pars_map tbl_map) = x_d_list
 `;
+*)
 
 (* Implements the whole copyout operation to the caller scope stack. Given list of arguments
  * of the funtion i.e. names and directions, global scope list, caller scope stack and current
@@ -2565,7 +2578,8 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list'' , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( f )
+  pbl_type b_func_map t_scope pars_map tbl_map = pblock_map ( f )
+  ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map )
   scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope , pbl_type )
   scope'' = declare_list_in_scope ( t_scope , scope' )
   g_scope_list' = lastn 1 g_scope_list
@@ -2591,14 +2605,14 @@ by
 
 %TODO: This could be solved directly at statement level... This is essentially the old pars_state rule
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  parser ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( x )
+  parser b_func_map t_scope pars_map tbl_map = pblock_map ( x )
   not_final_state ( x' )
   stmt' = pars_map ( x' )
   ----------------------------------- :: parser_trans
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , Running )
 
   pbl x ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( x )
+  pbl_type b_func_map t_scope pars_map tbl_map = pblock_map ( x )
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , frame_list , Running ) -f-> ( ascope' , g_scope_list' , frame_list' , status' )
   ----------------------------------- :: pbl_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope' ) , g_scope_list' , frame_list' , status' )
@@ -2608,7 +2622,8 @@ by
 %TODO: 13.3 of spec says: "An architecture must specify the behavior when the accept and reject states are reached. [...]", so copyout function must take status also
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type ( ( x1 , d1 ) , .. , ( xn , dn ) ) b_func_map t_scope stmt pars_map tbl_map = pblock_map ( f )
+  pbl_type b_func_map t_scope pars_map tbl_map = pblock_map ( f )
+  ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map )
   state_fin ( status , frame_list )
   status' = set_fin_status ( pbl_type , status )
   %Q: Why no scopes from frame_list after global scopes?

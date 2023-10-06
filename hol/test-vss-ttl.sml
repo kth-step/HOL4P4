@@ -104,7 +104,7 @@ val init_ctrl = ``[("ipv4_match",
 val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
 
 (* TODO: Make syntax functions *)
-val init_aenv = ``(^(list_mk_pair [``0``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
+val init_aenv = ``(^(list_mk_pair [``0:num``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
 
 (* TODO: Make syntax functions *)
 val init_astate =
@@ -173,7 +173,7 @@ val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 (* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 57; *)
 GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 171;
 
-(* Solution: Use EVAL directly with re-defined function that has a property that easily enable the theorem.
+(* Solution: Use EVAL directly with re-defined function that has a property that easily enables the theorem.
  * This re-defined function should have no effect on the theorem statement other than through this property *)
 (* Takes around 2 seconds to run *)
 

@@ -173,7 +173,7 @@ fun eval_and_print_rest actx astate nsteps =
  el 2 $ snd $ strip_comb $ (eval_and_print_result actx astate nsteps);
 
 (* TODO: Add debug print output *)
-(* TODO: Make variant that executes until packet is output *)
+(* TODO: Make version that executes until packet is output *)
 local
 fun the_final_state step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 
@@ -296,7 +296,7 @@ fun debug_frames_from_step actx astate nsteps =
   val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv
   val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx
   val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
-  val (pbl_type, x_d_list, b_func_map, decl_list, stmt, pars_map, tbl_map) = dest_pblock_regular $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
+  val (pbl_type, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock_regular $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
   val frame_list = dest_arch_frame_list_regular arch_frame_list
  in
   ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
