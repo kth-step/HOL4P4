@@ -23,12 +23,16 @@ core_v_ext =
 (* Objectless methods *)
 (**********************)
 
-(* NOTE: For now, this only covers the "false" case of verify *)
 Definition verify_gen:
  (verify_gen ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "err")) of
-  | SOME (v_bit bitv) =>
-   SOME (ascope_update_v_map ascope "parseError" (v_bit bitv), scope_list, status_trans "reject")
+  case lookup_lval scope_list (lval_varname (varn_name "condition")) of
+  | SOME (v_bool T) =>
+   SOME (ascope, scope_list, status_returnv v_bot)
+  | SOME (v_bool F) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "err")) of
+    | SOME (v_bit bitv) =>
+     SOME (ascope_update_v_map ascope "parseError" (v_bit bitv), scope_list, status_trans "reject")
+    | _ => NONE)
   | _ => NONE
  )
 End

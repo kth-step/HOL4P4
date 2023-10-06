@@ -347,10 +347,6 @@ formula :: formula_ ::=
   {{ com string is empty }}
   {{ hol ([[f]] = "") }}
   {{ tex [[f]] = ``" }}
-| f = "verify" :: M :: verif_str
-  {{ com string is verify }}
-  {{ hol ([[f]] = "verify") }}
-  {{ tex [[f]] = ``verify" }}
   %Dummy to keep syntax highlighting from freaking out: "
 | v = lookup_lval ( scope_list , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
@@ -2914,22 +2910,6 @@ by
 
 
 %%%%%%%%%%%%%%
-%Verify
-
-%Case predicate holds
-  ------------------------------------------------- :: verify_3
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify true ( bitv ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list ) ] , Running )
-
-%TODO: This currently reduces to an extern call that handles the "false" case of verify.
-% verify could be directly modeled as an extern call, without the need of a statement intermediary.
-%Case predicate does not hold
-  f = ""
-  f' = "verify"
-  ------------------------------------------------- :: verify_4
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify false ( bitv ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign null ( call ( f f' ) ( bitv ) ) ] , scope_list ) ] , Running )
-
-
-%%%%%%%%%%%%%%
 %Transition
 
   ------------------------------------------------- :: trans
@@ -2980,18 +2960,6 @@ by
   ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: cond_e
   ctx ( ascope , g_scope_list , [ ( funn , [ if e then stmt1 else stmt2 ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ if e' then stmt1 else stmt2 ] , scope_list ) ] , Running )
-
-
-%Reduction step of verify predicate
-  ctx g_scope_list scope_list ( e ) ~> ( e'' , frame_list )
-  ------------------------------------------------- :: verify_e1
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify e e' ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ verify e'' e' ] , scope_list ) ] , Running )
-  
-
-%Reduction step of (serialised) error message
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
-  ------------------------------------------------- :: verify_e2
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify b e ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ verify b e' ] , scope_list ) ] , Running )
 
 
 %Reduction step of transition

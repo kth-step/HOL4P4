@@ -4,6 +4,7 @@ sig
 
 val vss_arch_ty : hol_type
 
+val vss_objectless_map : term
 val vss_packet_in_map : term
 val vss_packet_out_map : term
 

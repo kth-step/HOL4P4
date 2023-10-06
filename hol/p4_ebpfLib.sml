@@ -17,7 +17,7 @@ val ebpf_init_global_scope =
 (* Architectural context (generic externs) *)
 
 val ebpf_objectless_map =
- ``[("verify", ([("err", d_in)], ebpf_verify))]``;
+ ``[("verify", ([("condition", d_in); ("err", d_in)], ebpf_verify))]``;
 
 val ebpf_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], ebpf_packet_in_extract));

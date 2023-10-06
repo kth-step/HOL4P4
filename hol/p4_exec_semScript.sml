@@ -252,16 +252,6 @@ Definition stmt_exec_init:
  (stmt_exec_init varn (e_v v) ss = initialise ss varn v)
 End
 
-Definition stmt_exec_verify:
- (stmt_exec_verify (e_v (v_bool T)) (e_v (v_bit bitv)) =
-  SOME stmt_empty)
-  /\
- (stmt_exec_verify (e_v (v_bool F)) (e_v (v_bit bitv)) =
-  SOME (stmt_ass lval_null (e_call (funn_ext "" "verify") [(e_v (v_bit bitv))])))
-  /\
- (stmt_exec_verify _ _ = NONE)
-End
-
 Definition stmt_exec_trans:
  (stmt_exec_trans (e_v (v_str x)) = SOME (status_trans x))
   /\
@@ -541,33 +531,6 @@ Definition stmt_exec:
     | SOME (e', frame_list) =>
      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_ass lval e'], scope_list)], status_running)
     | _ => NONE))
-  /\
- (**********)
- (* Verify *)
- (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_verify e1 e2], scope_list)], status_running) =
-  if is_v e1
-  then
-   if is_v_bool e1
-   then
-    if is_v e2
-    then
-     if is_v_err e2
-     then
-      (case stmt_exec_verify e1 e2 of
-       | SOME stmt => SOME (ascope, g_scope_list, [(funn, [stmt], scope_list)], status_running)
-       | NONE => NONE)
-     else NONE
-    else
-     (case e_exec ctx g_scope_list scope_list e2 of
-      | SOME (e2', frame_list) =>
-       SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_verify e1 e2'], scope_list)], status_running)
-      | NONE => NONE)
-    else NONE
-  else
-   (case e_exec ctx g_scope_list scope_list e1 of
-    | SOME (e1', frame_list) =>
-     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_verify e1' e2], scope_list)], status_running)
-    | NONE => NONE))
   /\
  (**************)
  (* Transition *)
@@ -1164,106 +1127,6 @@ Cases_on `is_v e` >> (
 ]
 QED
 
-Theorem exec_stmt_verify_SOME_REWRS:
-!ctx ascope ascope' g_scope_list g_scope_list' funn e1 e2 stmt_stack frame_list' scope_list status'.
-stmt_exec ctx (ascope, g_scope_list, [(funn, (stmt_verify e1 e2)::stmt_stack, scope_list)], status_running) =
-        SOME (ascope', g_scope_list', frame_list', status') <=>
- (is_v e1 ==> is_v_bool e1) /\
- (~is_v e1 ==>
-  ?e1' frame_list''.
-   e_exec ctx g_scope_list scope_list e1 = SOME (e1', frame_list'') /\
-   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1' e2)::stmt_stack,scope_list)]) /\
- ((is_v e1 /\ is_v e2) ==>
-  is_v_err e2 /\
-  ?stmt'. stmt_exec_verify e1 e2 = SOME stmt' /\
-  frame_list' = [(funn,stmt'::stmt_stack,scope_list)]) /\
- ((is_v e1 /\ ~is_v e2) ==>
-  ?e2' frame_list''.
-   e_exec ctx g_scope_list scope_list e2 = SOME (e2', frame_list'') /\
-   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1 e2')::stmt_stack,scope_list)]) /\
- g_scope_list' = g_scope_list /\
- scope_list <> [] /\
- ascope' = ascope /\
- status' = status_running
-Proof
-rpt strip_tac >>
-Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v e1` >> (
- fs [stmt_exec]
-) >| [
- Cases_on `is_v_bool e1` >> (
-  fs []
- ) >>
- Cases_on `is_v e2` >> (
-  fs []
- ) >| [
-  Cases_on `is_v_err e2` >> (
-   fs []
-  ) >>
-  Cases_on `stmt_exec_verify e1 e2` >> (
-   fs []
-  ) >>
-  metis_tac [],
-
-  Cases_on `e_exec ctx g_scope_list (h::t) e2` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >> (
-   fs []
-  ) >>
-  metis_tac []
- ],
-
- Cases_on `e_exec ctx g_scope_list (h::t) e1` >> (
-  fs []
- ) >>
- PairCases_on `x` >> (
-  fs []
- ) >>
- metis_tac [],
-
- Cases_on `is_v_bool e1` >> (
-  fs []
- ) >>
- Cases_on `is_v e2` >> (
-  fs []
- ) >| [
-  Cases_on `is_v_err e2` >> (
-   fs []
-  ) >>
-  Cases_on `stmt_exec_verify e1 e2` >> (
-   fs []
-  ) >>
-  metis_tac [],
-
-  Cases_on `e_exec ctx g_scope_list (h::t) e2` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [] >>
-  IMP_RES_TAC e_exec_new_frame >> (
-   fs []
-  ) >| [
-   metis_tac [],
-
-   metis_tac []
-  ]
- ],
-
- Cases_on `e_exec ctx g_scope_list (h::t) e1` >> (
-  fs []
- ) >>
- PairCases_on `x` >>
- fs [] >>
- IMP_RES_TAC e_exec_new_frame >> (
-  fs []
- ) >| [
-  metis_tac [],
-
-  metis_tac []
- ]
-]
-QED
-
 Theorem exec_stmt_trans_SOME_REWRS:
 !ctx ascope ascope' g_scope_list g_scope_list' funn e stmt_stack frame_list' scope_list status'.
 stmt_exec ctx (ascope, g_scope_list, [(funn, (stmt_trans e)::stmt_stack, scope_list)], status_running) =
@@ -1695,15 +1558,6 @@ Cases_on `stmt` >> (
   ]
  ],
 
- (* Verify *)
- fs [exec_stmt_verify_SOME_REWRS] >>
- Cases_on `is_v e` >> (
-  fs []
- ) >>
- Cases_on `is_v e0` >> (
-  fs []
- ),
-
  (* Transition *)
  fs [exec_stmt_trans_SOME_REWRS] >>
  Cases_on `is_v e` >> (
@@ -1791,14 +1645,6 @@ rpt strip_tac >| [
  PairCases_on `x'` >> (
   fs []
  ),
-
- (* Verify *)
- fs [exec_stmt_verify_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
-
- (* Verify (stack case) *)
- fs [exec_stmt_verify_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
 
  (* Return *)
  fs [exec_stmt_ret_SOME_REWRS] >>
@@ -2171,7 +2017,6 @@ QED
 val exec_stmt_REWRS =
   [exec_stmt_ext_SOME_REWRS,
    exec_stmt_app_SOME_REWRS,
-   exec_stmt_verify_SOME_REWRS,
    exec_stmt_ret_SOME_REWRS,
    exec_stmt_trans_SOME_REWRS,
    exec_stmt_cond_SOME_REWRS,
@@ -2209,10 +2054,6 @@ rpt strip_tac >| [
  rpt strip_tac >>
  qexistsl_tac [`[stmt_empty]`, `scope_list''`] >>
  fs [],
-
- fs [exec_stmt_verify_SOME_REWRS],
-
- fs [exec_stmt_verify_SOME_REWRS],
 
  fs [exec_stmt_ret_SOME_REWRS] >>
  rpt strip_tac >>
@@ -2265,7 +2106,8 @@ rpt strip_tac >| [
  rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
  fs [exec_stmt_ext_SOME_REWRS] >>
  rpt strip_tac >>
- qexistsl_tac [`stmt_empty::v232::v233`, `scope_list''`] >>
+ rename1 `stmt_empty::v218::v219` >>
+ qexistsl_tac [`stmt_empty::v218::v219`, `scope_list''`] >>
  fs [],
 
  (* TODO: Written to avoid time-consuming simplification *)

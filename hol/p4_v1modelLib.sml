@@ -19,7 +19,7 @@ val v1model_init_global_scope = ``[]:scope``;
 
 val v1model_objectless_map =
  ``[("mark_to_drop", ([("standard_metadata", d_inout)], v1model_mark_to_drop));
-    ("verify", ([("err", d_in)], v1model_verify))]``;
+    ("verify", ([("condition", d_in); ("err", d_in)], v1model_verify))]``;
 
 val v1model_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));

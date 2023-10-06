@@ -198,93 +198,6 @@ Cases_on `index_not_const e_l` >> (
 ]
 QED
 
-Theorem stmt_verify_exec_sound_red:
-!type e1 e2.
-e_exec_sound type e1 ==>
-e_exec_sound type e2 ==>
-stmt_exec_sound type (stmt_verify e1 e2)
-Proof
-fs [stmt_exec_sound, e_exec_sound] >>
-rpt strip_tac >>
-pairLib.PairCases_on `ctx` >>
-rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
-pairLib.PairCases_on `state'` >>
-rename1 `(state'0,g_scope_list',state'2,state'3)` >>
-rename1 `(ascope',g_scope_list',frame_list',status')` >>
-Cases_on `status` >> (
- fs [stmt_exec]
-) >>
-fs [exec_stmt_verify_SOME_REWRS] >>
-Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
- (* First case *)
- Cases_on `e1` >> Cases_on `e2` >> (
-  fs [stmt_exec_verify]
- ) >>
- Cases_on `v` >> Cases_on `v'` >> (
-  fs [stmt_exec_verify]
- ) >>
- Cases_on `b` >> (
-  fs [stmt_exec_verify]
- ) >| [
-  Cases_on `stmt_stack` >| [
-   ALL_TAC,
-
-   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool T)) (e_v (v_bit bitv))`` ``[]:frame_list`` ``[stmt_empty]``) >>
-   fs [clause_name_def]
-  ] >> (
-   metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_3", clause_name_def]
-  ),
-
-  Cases_on `stmt_stack` >| [
-   ALL_TAC,
-
-   irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool F)) (e_v (v_bit bitv))`` ``[]:frame_list`` ``[stmt']:stmt list``) >>
-   fs [clause_name_def]
-  ] >> (
-   metis_tac [(valOf o find_clause_stmt_red) "stmt_verify_4", clause_name_def]
-  )
- ],
-
- (* Second case - second operand unreduced *)
- Cases_on `e1` >> (
-  fs [is_v]
- ) >>
- Cases_on `v` >> (
-  fs [is_v_bool]
- ) >>
- Cases_on `stmt_stack` >| [
-  ALL_TAC,
-
-  irule (specl_stmt_block_exec ``stmt_verify (e_v (v_bool b)) e2`` ``frame_list'':frame_list`` ``[stmt_verify (e_v (v_bool b)) e2']``) >>
-  fs [clause_name_def]
- ] >> (
-  metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e2"), clause_name_def]
- ),
-
- (* Third case - first operand unreduced *)
- fs [] >>
- Cases_on `stmt_stack` >| [
-  ALL_TAC,
-
-  irule (specl_stmt_block_exec ``stmt_verify e1 e2`` ``frame_list'':frame_list`` ``[stmt_verify e1' e2]``) >>
-  fs [clause_name_def]
- ] >> (
-  metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def]
- ),
-
- (* Fourth case - both operands unreduced *)
- fs [] >>
- Cases_on `stmt_stack` >| [
-  ALL_TAC,
-
-  irule (specl_stmt_block_exec ``stmt_verify e1 e2`` ``frame_list'':frame_list`` ``[stmt_verify e1' e2]``) >>
-  fs [clause_name_def]
- ] >> (
-  metis_tac [((valOf o find_clause_stmt_red) "stmt_verify_e1"), clause_name_def]
- )
-]
-QED
-
 Theorem stmt_ass_exec_sound_red:
 !type lval e.
 e_exec_sound type e ==>
@@ -524,9 +437,6 @@ rpt strip_tac >| [
 
  (* Transition statement *)
  fs [stmt_trans_exec_sound_red],
-
- (* Verify statement *)
- fs [stmt_verify_exec_sound_red],
 
  (* Apply statement *)
  fs [stmt_app_exec_sound_red],

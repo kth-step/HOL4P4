@@ -600,9 +600,6 @@ stmt :: stmt_ ::=
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
-| verify e e' :: :: verify
-  %e is the predicate, e' is the (serialised) error message
-  {{ com verify }}
 | transition e :: :: trans
   {{ com transition }}
   {{ tex \mathbf{transition}\, [[e]] }}

@@ -33,7 +33,7 @@ val vss_init_global_scope =
 (* Architectural context (generic externs) *)
 
 val vss_objectless_map =
- ``[("verify", ([("err", d_in)], vss_verify))]``;
+ ``[("verify", ([("condition", d_in); ("err", d_in)], vss_verify))]``;
 
 val vss_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], vss_packet_in_extract));
@@ -75,7 +75,7 @@ val vss_ext_map =
     ++ [("", (NONE, (^vss_objectless_map)));
         ("packet_in", (NONE, (^vss_packet_in_map)));
         ("packet_out", (NONE, (^vss_packet_out_map)));
-("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))]):vss_ascope ext_map``;
+        ("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))]):vss_ascope ext_map``;
 
 val vss_func_map = core_func_map;
 

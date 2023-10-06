@@ -1189,15 +1189,9 @@ Definition petr4_parse_method_call_def:
               (case funn of
                (* Extern object method, or method without associated object *)
                | (funn_ext ext_name extfun_name) =>
-                (* Note special treatment of verify *)
                 if ext_name = ""
                 then
-                 (if extfun_name = "verify"
-                  then
-                   (* TODO: Make error check for res_args format *)
-                   SOME_msg (stmt_verify (EL 0 res_args) (EL 1 res_args))
-                  else
-                   petr4_postprocess_extern_method_call tyenv (funn_ext ext_name extfun_name) res_args tyargs)
+                 petr4_postprocess_extern_method_call tyenv (funn_ext ext_name extfun_name) res_args tyargs
                 else
                  (case obj_opt of
                   | SOME obj =>
@@ -1587,7 +1581,6 @@ Definition is_final_stmt_return_def:
  | stmt_ret e => T
  | stmt_seq stmt1 stmt2 =>
   is_final_stmt_return stmt2  
- | stmt_verify e1 e2 => F
  | stmt_trans e => F
  | stmt_app x el => F
  | stmt_ext => F
