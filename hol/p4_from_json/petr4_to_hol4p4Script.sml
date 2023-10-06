@@ -62,7 +62,7 @@ p_tau =
  | p_tau_bot
  (* Note that structs can be type-parametrized *)
  | p_tau_xtl struct_ty ((x#p_tau) list)
- | p_tau_xl x_list
+ | p_tau_lit
  (* The string is the name of the extern object *)
  | p_tau_ext string
  (* The string is the name of the package *)
@@ -82,7 +82,7 @@ Definition deparameterise_tau_def:
    (case deparameterise_taus fields of
     | SOME fields' => SOME (tau_xtl struct_ty fields')
     | NONE => NONE)
-  | p_tau_xl x_list => SOME (tau_xl x_list)
+  | p_tau_lit => SOME tau_lit
   | p_tau_ext ext_name => SOME tau_ext
   (* TODO: Cannot be translated to package type *)
   | p_tau_pkg pkg_name => NONE
@@ -108,7 +108,7 @@ Definition parameterise_tau_def:
   | tau_bot => p_tau_bot
   | tau_xtl struct_ty fields =>
    (p_tau_xtl struct_ty (parameterise_taus fields))
-  | tau_xl x_list => (p_tau_xl x_list)
+  | tau_lit => p_tau_lit
   | tau_ext => p_tau_ext "") /\
 (parameterise_taus [] = []) /\
 (parameterise_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_taus t)))

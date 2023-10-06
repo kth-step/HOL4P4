@@ -1955,9 +1955,9 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_struct []) = v_struct []) /\
   (init_out_v (v_header boolv ((x,v)::t)) =
-    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\ 
+    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_header boolv []) = v_header F []) /\
-  (init_out_v v_uninit = v_uninit) /\
+  (init_out_v (v_ext_ref i) = v_ext_ref i) /\
   (init_out_v v_bot = v_bot)
 `
 (WF_REL_TAC `measure v_size` >>
@@ -1993,7 +1993,7 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
   (arb_from_tau tau_bool   = (v_bool ARB))  /\
   (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
   (arb_from_tau tau_bot    = v_bot)   /\
-  (arb_from_tau (tau_xl [x]) = (v_str ARB)) /\
+  (arb_from_tau (tau_lit) = (v_str ARB)) /\
   (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
   (arb_from_tau (tau_xtl struct_ty_struct [] ) =  v_struct [] ) /\ 
   (arb_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =  
