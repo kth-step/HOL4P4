@@ -4,7 +4,7 @@
 JSONS_PATH=$1
 
 # Number of processes - lower to stabilise system
-N=1
+N=$2
 
 # Replace if you want to write to a different log file
 log="petr4_to_hol4p4_stf.log"

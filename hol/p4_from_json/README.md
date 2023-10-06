@@ -4,7 +4,7 @@
 
 `strip_json_info.sh` takes a file name as a command-line argument and tries to remove debug information from the JSON in the file.
 
-`petr4_to_hol4p4_dir.sh` takes a path as a command-line argument and tries to transform all .json files found there into HOL4P4 .sml files (using `petr4_to_hol4p4.sh`). Note that this has the following hard-coded variables:
+`petr4_to_hol4p4_dir.sh` takes a path and a number of threads as command-line arguments and tries to transform all .json files found in the path into HOL4P4 .sml files (using `petr4_to_hol4p4.sh`). Note that this has the following hard-coded variables:
 * N: The number of processes to use. Rule of thumb: don't use all (virtual) cores on your computer, or instability may ensue.
 * log: The log file to write results for every test
 * remove_debug: This flag decides whether the `strip_json_info.sh` script will be used on all .json files involved, removing very verbose debug information, shrinking the size of the .json considerably.
