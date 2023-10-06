@@ -524,8 +524,6 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
   {{ com struct }}
-| lit :: :: lit
-  {{ com string literal }}
 | ext :: :: ext
   {{ com extern }}
 

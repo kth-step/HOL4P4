@@ -1993,7 +1993,6 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
   (arb_from_tau tau_bool   = (v_bool ARB))  /\
   (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
   (arb_from_tau tau_bot    = v_bot)   /\
-  (arb_from_tau (tau_lit) = (v_str ARB)) /\
   (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
   (arb_from_tau (tau_xtl struct_ty_struct [] ) =  v_struct [] ) /\ 
   (arb_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =  
