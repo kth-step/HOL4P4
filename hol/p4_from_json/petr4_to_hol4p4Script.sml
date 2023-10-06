@@ -1419,8 +1419,8 @@ Definition petr4_parse_stmts_def:
           | SOME_msg stmts_res =>
            (case init_val_opt of
             | SOME init_val =>
-             SOME_msg (stmt_block [(varn, tau)] (stmt_seq (stmt_ass (lval_varname varn) (e_v init_val)) stmts_res))
-            | NONE => SOME_msg (stmt_block [(varn, tau)] stmts_res))
+             SOME_msg (stmt_block [(varn, tau, NONE)] (stmt_seq (stmt_ass (lval_varname varn) (e_v init_val)) stmts_res))
+            | NONE => SOME_msg (stmt_block [(varn, tau, NONE)] stmts_res))
           | NONE_msg stmts_msg => NONE_msg stmts_msg)
         | NONE_msg varn_tau_msg => NONE_msg ("could not parse declaration: "++varn_tau_msg))
       | _ => get_error_msg "unknown JSON format of declaration: " decl)
@@ -1760,7 +1760,7 @@ Definition petr4_parse_inst_def:
           | SOME_msg res_args => 
            (case petr4_parse_name name of
             | SOME inst_name =>
-             SOME_msg (decl_list++[(varn_name inst_name, tau_ext)],
+             SOME_msg (decl_list++[(varn_name inst_name, tau_ext, NONE)],
                        p4_seq_append_stmt inits (stmt_ass lval_null (e_call (funn_inst type_name) ([e_var (varn_name inst_name)]++res_args))),
                        (varn_name inst_name, p_tau_ext type_name))
             | NONE => get_error_msg "could not parse name: " name)
@@ -2167,9 +2167,9 @@ Definition petr4_parse_locals_def:
      | SOME_msg (varn, tau, init_opt) =>
       (case init_opt of
        | SOME init_val =>
-        petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau)], stmt_seq inits (stmt_ass (lval_varname varn) (e_v init_val)), apply_map, tbl_entries) t
+        petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau, NONE)], stmt_seq inits (stmt_ass (lval_varname varn) (e_v init_val)), apply_map, tbl_entries) t
        | NONE =>
-        petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau)], inits, apply_map, tbl_entries) t)
+        petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau, NONE)], inits, apply_map, tbl_entries) t)
      | NONE_msg var_msg => NONE_msg ("could not parse block-local variable: "++var_msg))
    | Array [String "Table"; tab_obj] =>
     (case petr4_parse_table (tyenv, enummap, vtymap, ftymap, extfun_list) tab_obj of
@@ -2307,7 +2307,7 @@ End
 
 (* TODO: Remove "THE" hack? Shouldn't make difference... *)
 Definition petr4_parse_parser_def:
- petr4_parse_parser (tyenv, enummap, vtymap, ftymap, blftymap, fmap:func_map, bltymap, gscope, pblock_map, extfun_list) parser =
+ petr4_parse_parser (tyenv, enummap:enummap, vtymap, ftymap, blftymap, fmap:func_map, bltymap, gscope, pblock_map, extfun_list) parser =
   case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
                        "constructor_params"; "locals"; "states"] parser of
    | SOME [tags; annot; name; Array typarams; Array params; Array constructor_params; Array locals; Array states] =>
@@ -2320,7 +2320,7 @@ Definition petr4_parse_parser_def:
          | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries) =>
           (case petr4_parse_states (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, extfun_list) [] states of
            | SOME_msg pars_map =>
-            SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (parser_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pblock_regular pbl_type_parser pars_params b_func_map decl_list (stmt_seq inits (stmt_trans (e_v (v_str "start")))) pars_map tbl_map), MAP (THE o deparameterise_tau o SND) vty_updates)))
+            SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (parser_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pblock_regular pbl_type_parser (b_func_map++[(parser_name, (stmt_seq inits (stmt_trans (e_v (v_str "start"))), pars_params))]) decl_list pars_map tbl_map), MAP (THE o deparameterise_tau o SND) vty_updates)))
            | NONE_msg states_msg => NONE_msg ("Could not parse states: "++states_msg++" while parsing parser "++parser_name))
          | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing parser "++parser_name))
        | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing parser "++parser_name))
@@ -2351,7 +2351,7 @@ Definition petr4_parse_control_def:
            | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries) =>
             (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, apply_map, extfun_list) stmts of
              | SOME_msg res_apply =>
-              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control ctrl_params b_func_map decl_list (stmt_seq inits res_apply) ([]:pars_map) tbl_map)), MAP (THE o deparameterise_tau o SND) vty_updates), tbl_entries)
+              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control (b_func_map++[(control_name, (stmt_seq inits res_apply, ctrl_params))]) decl_list ([]:pars_map) tbl_map)), MAP (THE o deparameterise_tau o SND) vty_updates), tbl_entries)
              | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
            | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
          | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing control "++control_name))
@@ -2686,15 +2686,15 @@ End
 Definition is_control_pblock_def:
  is_control_pblock pblock =
   case pblock of
-  | (pblock_regular pbl_type_parser pars_params b_func_map decl_list inits pars_map tbl_map) => F
-  | (pblock_regular pbl_type_control pars_params b_func_map decl_list inits pars_map tbl_map) => T
+  | (pblock_regular pbl_type_parser b_func_map decl_list pars_map tbl_map) => F
+  | (pblock_regular pbl_type_control b_func_map decl_list pars_map tbl_map) => T
 End
 *)
 
 Definition pblock_get_tbl_map_def:
  pblock_get_tbl_map pblock =
   case pblock of
-  | (pblock_regular pbl_type pars_params b_func_map decl_list inits pars_map tbl_map) => tbl_map
+  | (pblock_regular pbl_type b_func_map decl_list pars_map tbl_map) => tbl_map
 End
 
 Definition ctrl_from_pblock_map_def:
@@ -2754,8 +2754,7 @@ Definition ebpf_init_ctrl_def:
  ebpf_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | pblock_regular pbl_type ctrl_params b_func_map decl_list
-                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
+                      | pblock_regular pbl_type b_func_map decl_list state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
   in
    init_ctrl_gen init_tbl_map tbl_updates
 End
@@ -2764,8 +2763,8 @@ Definition vss_init_ctrl_def:
  vss_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | pblock_regular pbl_type ctrl_params b_func_map decl_list
-                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):vss_ctrl
+                      | pblock_regular pbl_type b_func_map decl_list state_map tbl_map =>
+                       ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):vss_ctrl
   in
    init_ctrl_gen init_tbl_map tbl_updates
 End
@@ -2774,8 +2773,7 @@ Definition v1model_init_ctrl_def:
  v1model_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | pblock_regular pbl_type ctrl_params b_func_map decl_list
-                       body state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
+                      | pblock_regular pbl_type b_func_map decl_list state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
   in
    init_ctrl_gen init_tbl_map tbl_updates
 End
@@ -2784,10 +2782,10 @@ End
 Definition p4_replace_tbl_default_def:
  p4_replace_tbl_default (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) block_name table_name action_name args =
   case ALOOKUP pblock_map block_name of
-  | SOME (pblock_regular pbl_type_control ctrl_params b_func_map decl_list body ([]:pars_map) tbl_map) =>
+  | SOME (pblock_regular pbl_type_control b_func_map decl_list ([]:pars_map) tbl_map) =>
    (case ALOOKUP tbl_map table_name of
     | SOME (mk_l, (old_action_name, old_args)) =>
-     SOME (ab_list, AUPDATE pblock_map (block_name, (pblock_regular pbl_type_control ctrl_params b_func_map decl_list body ([]:pars_map) (AUPDATE tbl_map (table_name, (mk_l, (action_name, args)))))),
+     SOME (ab_list, AUPDATE pblock_map (block_name, (pblock_regular pbl_type_control b_func_map decl_list ([]:pars_map) (AUPDATE tbl_map (table_name, (mk_l, (action_name, args)))))),
              ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
     | NONE => NONE)
   | _ => NONE
