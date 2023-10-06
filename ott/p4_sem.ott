@@ -102,15 +102,6 @@ astate {{ tex { \ensuremath{s_A} } }} :: astate_ ::=
   {{ com tuple }}
   {{ hol ([[aenv]], [[g_scope_list]], [[arch_frame_list]], [[status]]) }}
 
-
-%% Concurrent state
-cstate {{ tex { \ensuremath{s_c} } }} :: cstate_ ::=
-{{ com concurrent state }}
-{{ hol ((in_out_list # in_out_list # ascope_ty) # ((num # g_scope_list # arch_frame_list # status) # (num # g_scope_list # arch_frame_list # status))) }}
-| ( (  in_out_list , in_out_list' , ascope ) , ( ( num_exp , g_scope_list , arch_frame_list , status ) , ( num_exp' , g_scope_list' , arch_frame_list' , status' ) ) ) :: M :: tup
-  {{ com (shared , ( thread | thread )) }}
-  {{ hol ((  [[in_out_list]] , [[in_out_list']] , [[ascope]] ) , ( ( [[num_exp]] , [[g_scope_list]] , [[arch_frame_list]] , [[status]] ) , ( [[num_exp']] , [[g_scope_list']] , [[arch_frame_list']] , [[status']] ) )) }}
-
 %%%%%%%%%%%%%%%%%%%%%%%%
 % Expression semantics %
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -2630,29 +2621,3 @@ by
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
 %      	    Set status to Ended? Then all rules would need to exclude having the Ended status
-
-
-
-
-
-
-
-
-
-defns
-  conc_sem :: '' ::=
-defn
-  actx cstate --'> cstate' :: :: conc_red :: conc_
-  {{ com concurrency semantics }}
-  {{ tex [[actx]] \vdash [[cstate]] {\dashrightarrow}_{c} [[cstate']] }}
-by
-
-
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , status ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
-  ----------------------------------- :: conc1
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) )
-
-
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i' , in_out_list , in_out_list' , ascope ) , g_scope_list' , frame_list' , status' ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
-  ----------------------------------- :: conc2
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) ) )
