@@ -252,7 +252,6 @@ val WT_state_imp_frame_typ_single = prove (
                                                              
 WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t Prs_n   ∧
 type_scopes_list  passed_gscope passed_tslg   ∧
-parseError_in_gs passed_tslg [HD tsll] ∧
 (frame_typ  ( passed_tslg ,  (HD tsll) ) (order, f, (delta_g, passed_delta_b, delta_x, passed_delta_t)) Prs_n  passed_gscope locale stmtl ) ”,
 
 
@@ -281,7 +280,6 @@ Cases_on ‘tsll’ >> gvs[] >>
 gvs[map_distrub] >>
 
          
-IMP_RES_TAC parseError_in_gs_normalization >> gvs[] >>
 
 ‘ ∃ g_scope_passed .  scopes_to_pass (HD funnl) func_map b_func_map gscope = SOME g_scope_passed
                        ∧  type_scopes_list g_scope_passed passed_tslg’ by (gvs[Once WT_c_cases] >> IMP_RES_TAC typed_imp_scopes_to_pass_lemma >> gvs[]) >>
@@ -290,10 +288,8 @@ Cases_on ‘scopes_to_pass (HD funnl) func_map b_func_map gscope’ >> gvs[] >>
          
 gvs[frame_typ_cases] >>
 IMP_RES_TAC WT_c_empty_db >> gvs[] >> 
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_x_d_list’, ‘tau’])) >> gvs[] >>
-
-IMP_RES_TAC parseError_in_gs_normalization >>
-IMP_RES_TAC t_scopes_passed_parseError           
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_x_d_list’, ‘tau’])) >> gvs[] 
+         
 );
 
 
@@ -991,11 +987,11 @@ REPEAT STRIP_TAC >>
 
 
 
-
-
-
-
-        
+(*
+EVAL “bool_cast 1 T”
+EVAL “ bitv_cast 2 ([T;F;F], 3) ”
+EVAL “slice_lval (v_bit ([F;F;T;T], 4)) (e_v(v_bit([T;F],2))) (e_v(v_bit([F],1))) ”
+*)        
 
 Theorem PROG_framel:
   ∀ ty framel. prog_state framel ty

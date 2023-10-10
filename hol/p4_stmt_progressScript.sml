@@ -66,7 +66,6 @@ val prog_stmt_def = Define `
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
        type_scopes_list  (scopest) (t_scope_list)   ∧
        star_not_in_sl (scopest) ∧
-       parseError_in_gs t_scope_list_g [t_scope_list] ∧
 
 
        
@@ -618,7 +617,7 @@ REPEAT STRIP_TAC >| [
  (*****************************)
  (*   stmt_verify             *)
  (*****************************)
-
+(*
  SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
  Cases_on `is_const e` >| [
    Cases_on `is_const e0` >| [
@@ -662,7 +661,7 @@ REPEAT STRIP_TAC >| [
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][]
     ]
- ,
+ , *)
  
  (*****************************)
  (*   stmt_trans              *)
@@ -863,7 +862,6 @@ val prog_stmtl_def = Define `
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
        type_scopes_list  (scopest) (t_scope_list)   ∧
        star_not_in_sl (scopest) ∧
-       parseError_in_gs t_scope_list_g [t_scope_list] ∧
 
        
        (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
