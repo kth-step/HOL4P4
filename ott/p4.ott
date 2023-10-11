@@ -62,6 +62,8 @@ num_exp :: num_exp ::=
   {{ hol 1 }}
 | i :: M :: i
   {{ hol [[i]] }}
+| n :: M :: n
+  {{ hol [[n]] }}  
 | num_exp + num_exp' :: M :: add
   {{ hol ( [[num_exp]] + [[num_exp']] ) }}
 | num_exp - num_exp' :: M :: sub
@@ -137,8 +139,8 @@ funn :: funn_ ::=
   {{ com extern object instantiation }}
 | f f' :: :: ext
   {{ com extern method call }}
-| ( funn ) :: X :: paren
-  {{ hol ([[funn]]) }}
+%| ( funn ) :: X :: paren
+%  {{ hol ([[funn]]) }}
 
 %An abstract variable name
 varn :: varn_ ::=

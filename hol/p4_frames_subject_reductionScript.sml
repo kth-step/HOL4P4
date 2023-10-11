@@ -71,8 +71,6 @@ type_state_tsll  scll tsll  /\
 
 type_scopes_list  g_scope_list   t_scope_list_g  /\
 
-parseError_in_gs  t_scope_list_g   tsll  /\ 
-
 (ctx = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧                  
 
 WT_c ctx order t_scope_list_g delta_g delta_b delta_x delta_t  Prs_n /\
@@ -343,7 +341,8 @@ CONJ_TAC >| [
         
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’, ‘x’, ‘IoE’, ‘MoE’])) >> gvs[] >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’])) >> gvs[] >>
- qexistsl_tac [‘txdl’, ‘tau’ ,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
+
+ qexistsl_tac [‘txdl’, ‘tau’ ,‘a'’, ‘scope_list'’,‘status’, ‘t_scope_list_g'’] >> gvs[] >>
               
  gvs[t_scopes_to_pass_def] >>
  REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
@@ -358,7 +357,7 @@ CONJ_TAC >| [
         
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’, ‘x’,‘x'’ ,‘IoEsig’, ‘MoE’, ‘MoE_map’])) >> gvs[] >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘a’, ‘g_scope_list’, ‘local_scopes’])) >> gvs[] >>
- qexistsl_tac [‘txdl’,‘tau’,‘a'’, ‘scope_list'’,‘v’, ‘t_scope_list_g'’] >> gvs[] >>
+ qexistsl_tac [‘txdl’,‘tau’,‘a'’, ‘scope_list'’,‘status’, ‘t_scope_list_g'’] >> gvs[] >>
               
  gvs[t_scopes_to_pass_def] >>
  REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[])  >>
@@ -457,7 +456,7 @@ QED
 
 
 
-        
+(*        
 Theorem parseError_in_gs_normalization:         
 ∀ tslg  t h .
 parseError_in_gs tslg (h::t) ⇒
@@ -472,7 +471,7 @@ gvs[parseError_in_gs_def] >> rw[] >| [
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`SUC i`])) >> gvs[]
   ]                    
 QED
-
+*)
 
 
         
@@ -495,7 +494,6 @@ Theorem WT_state_HD_of_list:
                                                              
 WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t Prs_n   ∧
 type_scopes_list  passed_gscope passed_tslg   ∧
-parseError_in_gs passed_tslg [HD tsll] ∧
 (frame_typ  ( passed_tslg ,  (HD tsll) ) (order, f, (delta_g, passed_delta_b, delta_x, passed_delta_t)) Prs_n  passed_gscope locale stmtl )
 Proof
 
@@ -527,10 +525,7 @@ gvs[frame_typ_cases] >>
 IMP_RES_TAC WT_c_empty_db >> gvs[] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_x_d_list’, ‘tau’])) >> gvs[] >>  
 
-
-IMP_RES_TAC parseError_in_gs_normalization >>
-IMP_RES_TAC t_scopes_passed_parseError >>
-Cases_on ‘tsll’ >> gvs[] >> IMP_RES_TAC parseError_in_gs_normalization
+Cases_on ‘tsll’ >> gvs[] 
 QED
 
 
@@ -1584,7 +1579,7 @@ Cases_on ‘i=0’ >> gvs[] >| [
 
 
         
-
+(*
 
 val parseError_doub_lemma = prove (“
 ∀ tscl tsll tslg tslg'.        
@@ -1660,7 +1655,7 @@ gvs[DROP_1]
 ]
  );       
 
-
+*)
 
 
 val WF_ft_order_imp_HD = prove (“
@@ -1747,6 +1742,7 @@ val stmt_case_ret_stat_typed = prove (“
  );                                    
                        
 
+                   
 val stmt_case_ext_stat_typed = prove (“
 ∀ascope ascope' gscope scopest scopest' t_scope_list t_scope_list_g order
        delta_g delta_b delta_t delta_x f Prs_n v tau txdl apply_table_f
@@ -1756,10 +1752,10 @@ val stmt_case_ext_stat_typed = prove (“
      frame_typ (t_scope_list_g,t_scope_list)
        (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n gscope scopest
        [stmt_ext] ∧
-     SOME (ascope',scopest',v) = ext_fun (ascope,gscope,scopest) ∧
+     SOME (ascope',scopest', status_returnv v) = ext_fun (ascope,gscope,scopest) ∧
      SOME ext_fun = lookup_ext_fun f ext_map ∧
      SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ⇒
-     v_typ v (t_tau tau) F”,
+     v_typ v (t_tau tau) F    ”,
 
  REPEAT STRIP_TAC >>            
  EXP_IS_WT_IN_FRAME_TAC “[stmt_ext]” >>
@@ -1779,7 +1775,7 @@ val stmt_case_ext_stat_typed = prove (“
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘q'’, ‘s’, ‘s0’, ‘q’, ‘r’, ‘ext_fun’])) >> gvs[] >>
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘ascope’, ‘gscope’, ‘scopest’])) >> gvs[] >>
         Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] >>
-        gvs[t_lookup_funn_def]                                    
+        gvs[t_lookup_funn_def]
   ]
 );
 
@@ -3065,19 +3061,6 @@ gvs[Once frames_red_cases] >| [
 
 
 
-
-     subgoal ‘parseError_in_gs tslg (t_scope_list'::(t_scope_list'' ⧺ HD tsll)::TL tsll) ’ >-
-      ( ‘parseError_in_gs tslg tsll’ by gvs[WT_state_cases] >>
-        gvs[res_frame_typ_def] >>
-        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
-        gvs[] >>
-        srw_tac [SatisfySimps.SATISFY_ss][] >>
-        gvs[frame_typ_cases]>>
-        IMP_RES_TAC parseError_tri_lemma
-      ) >> gvs[] >>
-                
-
-
                         
      gvs[GSYM ZIP_tri_id2] >>
               (* the sub proofs above are done not using this info below*)
@@ -3150,15 +3133,7 @@ gvs[Once frames_red_cases] >| [
       dom_tmap_ei delta_g delta_b ∧ LENGTH tslg = 2’ by gvs[WT_c_cases] >>
       IMP_RES_TAC scopes_to_ret_is_wt
       ) >> gvs[] >>
-     
-
-
-     subgoal ‘parseError_in_gs tslg ((t_scope_list'' ⧺ HD tsll)::TL tsll)’ >-
-      (
-      gvs[frame_typ_cases] >>
-      ‘parseError_in_gs tslg tsll’ by gvs[WT_state_cases] >>
-       IMP_RES_TAC parseError_doub_lemma
-      ) >> gvs[] >>
+    
 
     
      (* to show that all the frames are well typed *)
@@ -3234,13 +3209,6 @@ gvs[Once frames_red_cases] >| [
    IMP_RES_TAC scopes_to_ret_is_wt
    ) >> gvs[] >>
   
-
-  subgoal ‘parseError_in_gs tslg (DROP 1 (HD tsll)::TL tsll)’ >-
-  ( gvs[frame_typ_cases] >>
-    ‘parseError_in_gs tslg tsll’ by gvs[WT_state_cases] >>
-    ‘LENGTH tsll > 0’ by (Cases_on ‘tsll’ >> gvs[]) >> 
-     IMP_RES_TAC parseError_DROP_lemma                 
-   ) >> gvs[] >>
  
  gvs[GSYM ZIP_tri_id2] >>
 
@@ -3307,11 +3275,6 @@ gvs[Once frames_red_cases] >| [
     IMP_RES_TAC WF_ft_order_imp_HD
    )>> gvs[] >>
   
-
- ‘parseError_in_gs tslg t’ by (
-   IMP_RES_TAC parseError_in_gs_normalization >> gvs[] ) >> gvs[] >>
-
-
 
    
    (* return status is well typed with respect to the return type *)

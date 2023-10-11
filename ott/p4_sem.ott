@@ -553,9 +553,12 @@ formula :: formula_ ::=
   {{ com not bool negation }}
   {{ hol (([[unop]] = unop_neg)) }}
   {{ tex [[unop]] = \; \mathit{!} }}
-| width_in_range w :: M :: width_in_range
+| width_in_range w :: :: width_in_range
   {{ com bitstring widthlarger than 0}}
   {{ hol ([[w]] > 0 /\ [[w]] <= 64 ) }}
+| width_in_range n :: M :: width_in_rangen
+  {{ com bitstring widthlarger than 0}}
+  {{ hol ([[n]] > 0 /\ [[n]] <= 64 ) }}  
 | length ( taul ) = m :: M :: find_t_length
   {{ tex [[m]] = length ([[taul]])}}
   {{ hol ([[m]] = LENGTH [[taul]]) }}
@@ -595,6 +598,8 @@ formula :: formula_ ::=
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (t_tau (EL i [[tau1 .. taun]])) (EL i [[b1 .. bo]]) ) }}
   {{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }}
+| exists_tau_bool t_scopes_tup T_e |-  e  : ( tau , b ) :: :: cast_type
+  {{ hol ? b tp. ( e_typ [[t_scopes_tup]] [[T_e]] [[e]] tp b /\ ? n . ( tp = t_tau (tau_bit n) \/ tp = t_tau (tau_bool ) ) ) }}
 
 
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
@@ -664,8 +669,8 @@ formula :: formula_ ::=
   {{ hol ( dom_x_eq [[delta_x]] [[ext_map]] ) }}
 | dom_t_eq ( delta_t , tbl_map ) :: :: dom_t_eq
   {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }} 
-| star_Err_not_in_ts t_scope :: :: star_Err_not_in_ts
-  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}
+%| star_Err_not_in_ts t_scope :: :: star_Err_not_in_ts
+%  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}
 | lvalop_not_none t_scope :: :: lvalop_not_none
   {{ hol ( lvalop_not_none [[t_scope]] )}}
 | Fg_star_defined ( func_map , t_scope_list_g ) :: :: Fg_star_defined
@@ -676,8 +681,10 @@ formula :: formula_ ::=
   {{ hol ( X_star_defined [[ext_map]]  [[t_scope_list_g]] ) }}
 | X_star_not_defined t_scope_list_g :: :: X_star_not_defined
   {{ hol (X_star_not_defined [[t_scope_list_g]]) }}  
-| parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ] :: :: parseError_in_gs
-  {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
+%| parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ] :: :: parseError_in_gs
+%  {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
+| star_not_in_ts t_scope :: :: star_not_in_ts
+  {{ hol (star_not_in_ts [[t_scope]]) }}  
 | f_in_apply_tbl tbl_map apply_table_f :: :: f_in_apply_tbl
   {{ hol ( f_in_apply_tbl [[tbl_map]] [[apply_table_f]] ) }}
 | star_not_in_sl scope_list :: :: star_not_in_sl
@@ -2673,6 +2680,8 @@ ctx g_scope_list scope_list ( + bitv ) ~> ( bitv' , empty )
 ( unsigned n ) bitv = bitv'
 ----------------------------------- :: cast_bitv
 ctx g_scope_list scope_list ( ( unsigned n ) bitv ) ~> ( bitv' , empty )
+
+% TODO: fix this cast to take only 1 unsigned not n
 
 ( unsigned n ) b = bitv
 ----------------------------------- :: cast_bool

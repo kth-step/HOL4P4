@@ -20,7 +20,7 @@ val _ = new_theory "p4_deter";
 (*Tactics*)
 
 fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red j scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
 
 fun OPEN_STMT_RED_TAC stm_term =
 (Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
@@ -216,6 +216,27 @@ FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
 REPEAT (IMP_RES_TAC lemma_v_red_forall >>
 FULL_SIMP_TAC (srw_ss()) [det_exp_def] )
 ,
+
+(*****************************)
+(*     cast case             *)
+(*****************************)
+SIMP_TAC (srw_ss()) [det_exp_def] >>
+REPEAT STRIP_TAC >>
+OPEN_EXP_RED_TAC ``(e_cast c e)`` >>
+OPEN_EXP_RED_TAC ``(e_cast c e)`` >>
+                 
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+RW_TAC (srw_ss()) [] >>
+
+FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
+FULL_SIMP_TAC (srw_ss()) [det_exp_def] >>
+RES_TAC >>
+gvs[same_frame_exp_def]>>
+REPEAT (IMP_RES_TAC lemma_v_red_forall >>
+        FULL_SIMP_TAC (srw_ss()) [det_exp_def] )
+
+
+,        
 
 (*****************************)
 (*    binop case             *)
@@ -691,7 +712,7 @@ REV_FULL_SIMP_TAC (srw_ss()) []
 (*****************************)
 (*   stmt_verify             *)
 (*****************************)
-(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
+(*(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
 OPEN_STMT_RED_TAC ``(stmt_verify e e')`` >>
 REV_FULL_SIMP_TAC (srw_ss()) []) >> 
@@ -704,7 +725,7 @@ ASSUME_TAC P4_exp_det >>
 fs [det_exp_def]  >>
 RES_TAC >>
 fs [same_frame_exp_def]
-,
+,*)
 
 (*****************************)
 (*   stmt_trans              *)
@@ -1042,7 +1063,13 @@ Cases_on `t` >| [
     TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
 
     RES_TAC >> gvs[] >>
+    gvs[notret_def] >>
+  
+    Cases_on ‘lookup_ext_fun funn ext_map’ >> gvs[] >>
+    Cases_on ‘ext_fun (ascope,g_scope_list'',scope_list)’ >> gvs[] >>
     gvs[notret_def]
+
+                    
     ,
     
     (*************)
@@ -1064,8 +1091,12 @@ Cases_on `t` >| [
     TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
 
     RES_TAC >> gvs[] >>
-    gvs[notret_def]
+    gvs[notret_def] >>
 
+    Cases_on ‘lookup_ext_fun funn ext_map’ >> gvs[] >>
+    Cases_on ‘ext_fun (ascope,g_scope_list'',scope_list)’ >> gvs[] >>
+    gvs[notret_def]
+        
     ,
         
     (*************)
