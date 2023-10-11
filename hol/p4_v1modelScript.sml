@@ -102,13 +102,6 @@ Definition replicate_arb:
   REPLICATE length ((REPLICATE width (ARB:bool)), width)
 End
 
-(*
-EVAL “replicate_arb (v2n (w2v (5w:word32))) 2”
-
-EVAL “lookup_lval scope_list (lval_varname (varn_name "size"))”
-
-*)
-
 Definition register_construct:
  (register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
