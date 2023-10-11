@@ -747,17 +747,17 @@ Definition incomplete_typeinf_def:
   | _ => F
 End
 
-Definition add_typeinf_dummy_args_def:
- add_typeinf_dummy_args tyenv res_func_name res_args tyargs =
+Definition get_typeinf_dummy_args_def:
+ get_typeinf_dummy_args tyenv tyargs =
   case
-   FOLDL (\ args_opt tyarg.
+   FOLDL ( \ args_opt tyarg.
           case args_opt of
           | SOME args =>
            (case petr4_parse_type tyenv tyarg of
             | SOME type => SOME (args++[(e_v $ arb_from_tau type)])
             | NONE => NONE)
           | NONE => NONE) (SOME []) tyargs of
-   | SOME dummy_args => SOME_msg (e_call res_func_name (res_args++dummy_args))
+   | SOME dummy_args => SOME_msg dummy_args
    | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
 End
 
@@ -944,7 +944,10 @@ Definition petr4_parse_expression_gen_def:
             * If so, parse tyargs to types, then create a dummy values for them and pass as arguments *)
            if incomplete_typeinf res_func_name'
            then
-            msg_opt_INL $ add_typeinf_dummy_args tyenv res_func_name' res_args tyargs
+            (case get_typeinf_dummy_args tyenv tyargs of
+             | SOME_msg dummy_args =>
+              SOME_msg (INL (e_call res_func_name' (res_args++dummy_args)))
+             | NONE_msg dummy_msg => NONE_msg ("could not parse function call type arguments: "++dummy_msg))
            else
             SOME_msg (INL (e_call res_func_name' res_args))
           | NONE_msg func_name_msg => NONE_msg ("could not parse function call arguments: "++func_name_msg))
@@ -971,7 +974,7 @@ Definition petr4_parse_expression_gen_def:
          SOME_msg (INL (e_slice bits_exp (e_v $ v_bit (w16 (n2w hi_n))) (e_v $ v_bit (w16 (n2w lo_n)))))
         | NONE => get_error_msg "could not parse compile-time constant: " hi)
       | NONE => get_error_msg "could not parse compile-time constant: " lo)
-    | SOME_msg _ => get_error_msg "cannot slice: " bits)
+    | _ => get_error_msg "unknown format of bit-slice: " bits)
   | _ => get_error_msg "unknown JSON format of expression: " exp) /\
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 (* TODO: Why should this do any type inference? Can that be restricted to parse_expression_gen? *)
@@ -1157,9 +1160,9 @@ Definition petr4_postprocess_extern_method_call_def:
  petr4_postprocess_extern_method_call tyenv funn res_args tyargs =
   if incomplete_typeinf funn
   then
-   (case add_typeinf_dummy_args tyenv funn res_args tyargs of
-    | SOME_msg e =>
-     SOME_msg (stmt_ass lval_null e)
+   (case get_typeinf_dummy_args tyenv tyargs of
+    | SOME_msg targs =>
+     SOME_msg (stmt_ass lval_null (e_call funn (res_args++targs)))
     | NONE_msg msg => NONE_msg msg)
   else
    SOME_msg (stmt_ass lval_null (e_call funn res_args))
@@ -1733,6 +1736,28 @@ End
 (**********)
 (* Parser *)
 
+(* This parses a type specialisation (as encountered during instantiation) to
+ * a list of pseudo-type arguments targ1, targ2, ... *)
+Definition petr4_parse_targs_def:
+ petr4_parse_targs tyenv json_type =
+  case json_type of
+  | Array [String "specialized";
+     Object [("tags", tags);
+             ("base", base_type);
+             ("args", Array targs)]] =>
+   (case petr4_parse_type tyenv base_type of
+    | SOME tau_ext =>
+     (case petr4_parse_type_name base_type of
+      | SOME type_name =>
+       (case get_typeinf_dummy_args tyenv targs of
+        | SOME_msg targs_res => SOME_msg (type_name, targs_res)
+        | NONE_msg targs_msg => NONE_msg ("could not parse type specialisation: "++targs_msg))
+      | _ => get_error_msg "could not parse type name: " json_type)
+    | SOME _ => get_error_msg "base type is not extern: " base_type
+    | NONE => get_error_msg "could not parse base type: " base_type)
+  | _ => get_error_msg "unknown JSON format of type specialisation: " json_type
+End
+
 (* TODO: Infer types of arguments *)
 Definition petr4_parse_inst_def:
  petr4_parse_inst (tyenv, enummap, vtymap, ftymap, decl_list, inits, extfun_list) inst =
@@ -1740,25 +1765,21 @@ Definition petr4_parse_inst_def:
   (* TODO: Use init field *)
   case json_parse_obj ["tags"; "annotations"; "type"; "args"; "name"; "init"] inst of
   | SOME [tags; annot; json_type; Array args; name; init] =>
-   (case petr4_parse_type tyenv json_type of
-    | SOME tau_ext =>
-     (case petr4_parse_type_name json_type of
-      | SOME type_name =>
-       (case find_fty_match_args ftymap (funn_inst type_name) (LENGTH args) of
-        | SOME (arg_tys, ret_ty) =>
-         (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (args, MAP SOME arg_tys)) of
-          | SOME_msg res_args => 
-           (case petr4_parse_name name of
-            | SOME inst_name =>
-             SOME_msg (decl_list++[(varn_name inst_name, tau_ext, NONE)],
-                       p4_seq_append_stmt inits (stmt_ass lval_null (e_call (funn_inst type_name) ([e_var (varn_name inst_name)]++res_args))),
-                       (varn_name inst_name, p_tau_ext type_name))
-            | NONE => get_error_msg "could not parse name: " name)
-          | NONE_msg args_msg => NONE_msg ("could not parse instantiation arguments: "++args_msg))
-        | NONE => get_error_msg "could not find type information of instantiation: " json_type)
-      | _ => get_error_msg "could not parse type name: " json_type)
-    | SOME _ => get_error_msg "type of instantiation is not extern: " inst
-    | NONE => get_error_msg "could not parse type: " json_type)
+   (case petr4_parse_targs tyenv json_type of
+    | SOME_msg (type_name, targs) =>
+     (case find_fty_match_args ftymap (funn_inst type_name) (LENGTH args) of
+      | SOME (arg_tys, ret_ty) =>
+       (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (args, MAP SOME arg_tys)) of
+        | SOME_msg res_args => 
+         (case petr4_parse_name name of
+          | SOME inst_name =>
+           SOME_msg (decl_list++[(varn_name inst_name, tau_ext, NONE)],
+                     p4_seq_append_stmt inits (stmt_ass lval_null (e_call (funn_inst type_name) ([e_var (varn_name inst_name)]++(res_args++targs)))),
+                     (varn_name inst_name, p_tau_ext type_name))
+          | NONE => get_error_msg "could not parse name: " name)
+        | NONE_msg args_msg => NONE_msg ("could not parse instantiation arguments: "++args_msg))
+      | NONE => get_error_msg "could not find type information of instantiation: " json_type)
+    | NONE_msg targs_msg => NONE_msg ("could not parse instantiation type: "++targs_msg))
   | _ => get_error_msg "unknown JSON format of instantiation: " inst
 End
 
@@ -2480,6 +2501,7 @@ End
 (* Petr4 JSON element *)
 (**********************)
 
+(* TODO: Warning: ARBs here *)
 (* TODO: Move? *)
 Definition vss_add_ff_blocks_def:
  vss_add_ff_blocks [parser; pipe; deparser] =

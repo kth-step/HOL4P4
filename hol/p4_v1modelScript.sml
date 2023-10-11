@@ -102,8 +102,15 @@ Definition replicate_arb:
   REPLICATE length ((REPLICATE width (ARB:bool)), width)
 End
 
-Definition Register_construct:
- (Register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+(*
+EVAL “replicate_arb (v2n (w2v (5w:word32))) 2”
+
+EVAL “lookup_lval scope_list (lval_varname (varn_name "size"))”
+
+*)
+
+Definition register_construct:
+ (register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
@@ -118,8 +125,8 @@ Definition Register_construct:
  )
 End
 
-Definition Register_read:
- (Register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+Definition register_read:
+ (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -139,8 +146,8 @@ Definition Register_read:
  )
 End
 
-Definition Register_write:
- (Register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+Definition register_write:
+ (register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "value")) of
