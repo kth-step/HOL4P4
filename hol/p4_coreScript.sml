@@ -243,7 +243,7 @@ Definition packet_in_lookahead_gen:
  (packet_in_lookahead_gen ascope_lookup ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   (case lookup_lval scope_list (lval_varname (varn_name "dummy_T")) of
+   (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
     | SOME dummy_v =>
      (case lookup_ascope_gen ascope_lookup ascope i of
       | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>

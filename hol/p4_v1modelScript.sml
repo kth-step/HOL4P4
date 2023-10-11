@@ -17,7 +17,7 @@ Datatype:
  | v1model_v_ext_direct_counter
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
- | v1model_v_ext_register
+ | v1model_v_ext_register ((bool list # num) list)
 End
 val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
 
@@ -92,6 +92,72 @@ End
 
 (*************************)
 (* TODO: update_checksum *)
+
+(**************)
+(* Register   *)
+(**************)
+
+Definition replicate_arb:
+ replicate_arb length width =
+  REPLICATE length ((REPLICATE width (ARB:bool)), width)
+End
+
+Definition register_construct:
+ (register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "size")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
+    | SOME (v_bit (bl', n')) =>
+     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (replicate_arb (v2n bl) n'))) in
+     (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+      | SOME scope_list' =>
+       SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
+      | NONE => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+Definition register_read:
+ (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+    | SOME (v_ext_ref i) =>
+     (case ALOOKUP ext_obj_map i of
+      | SOME (INR (v1model_v_ext_register array)) =>
+       (case oEL (v2n bl) array of
+        | SOME (bl', n') =>
+         (case assign scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
+          | SOME scope_list' =>
+           SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
+          | NONE => NONE)
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+Definition register_write:
+ (register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "value")) of
+    | SOME (v_bit (bl', n')) =>
+     (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+      | SOME (v_ext_ref i) =>
+       (case ALOOKUP ext_obj_map i of
+        | SOME (INR (v1model_v_ext_register array)) =>
+         let array' = LUPDATE (bl', n') (v2n bl) array in
+         let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_register array')) in
+          SOME ((counter, ext_obj_map', v_map, ctrl), scope_list, status_returnv v_bot)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
 
 (**********************************************************)
 (*                     MODEL-SPECIFIC                     *)
