@@ -37,15 +37,15 @@ val e_ip_v = ``e_acc (^e_ip) "version"``; (* p.ip.version *)
 val ip_v0_ok = mk_v_bitii (4, 4); (* Correct IP version number: 4w4 *)
 val e_4w4 = mk_e_v ip_v0_ok; (* 4w4 (as expression) *)
 val e_ip_v_eq_4w4 = ``e_binop (^e_ip_v) binop_eq (^e_4w4)``; (* p.ip.version == 4w4 *)
-val e_err_version = ``e_v (v_err "IPv4IncorrectVersion")``; (* error.IPv4IncorrectVersion *)
-val stmt_parse_ipv4_verify1 = ``stmt_verify (^e_ip_v_eq_4w4) (^e_err_version)``;
+val e_err_version = ``e_v ^(mk_v_bitii (8, 32))``; (* error.IPv4IncorrectVersion *)
+val stmt_parse_ipv4_verify1 = ``stmt_ass lval_null (e_call (funn_ext "" "verify") [(^e_ip_v_eq_4w4); (^e_err_version)])``;
 
 val e_ip_ihl = ``e_acc (^e_ip) "ihl"``; (* p.ip.ihl *)
 val ip_ihl_ok = mk_v_bitii (5, 4); (* Correct IHL: 4w5 *)
 val e_4w5 = mk_e_v ip_ihl_ok; (* 4w5 (as expression) *)
 val e_ip_ihl_eq_4w5 = ``e_binop (^e_ip_ihl) binop_eq (^e_4w5)``; (* p.ip.ihl == 4w5 *)
-val e_err_options = ``e_v (v_err "IPv4OptionsNotSupported")``; (* error.IPv4OptionsNotSupported *)
-val stmt_parse_ipv4_verify2 = ``stmt_verify (^e_ip_ihl_eq_4w5) (^e_err_options)``;
+val e_err_options = ``e_v ^(mk_v_bitii (7, 32))``; (* error.IPv4OptionsNotSupported *)
+val stmt_parse_ipv4_verify2 = ``stmt_ass lval_null (e_call (funn_ext "" "verify") [(^e_ip_ihl_eq_4w5); (^e_err_options)])``;
 
 val e_ck = mk_e_var_name "ck";
 val stmt_parse_ipv4_clear =
@@ -57,8 +57,8 @@ val stmt_parse_ipv4_update =
 val ck_ok = mk_v_bitii (0, 16); (* 16w0 *)
 val e_16w0 = mk_e_v ck_ok; (* 16w0 (as expression) *)
 val e_ck_eq_16w0 = ``e_binop (e_call (funn_ext "Checksum16" "get") [(^e_ck)]) binop_eq (^e_16w0)``; (* ck.get() == 16w0 *)
-val e_err_checksum = ``e_v (v_err "IPv4ChecksumError")``; (* error.IPv4ChecksumError *)
-val stmt_parse_ipv4_verify3 = ``stmt_verify (^e_ck_eq_16w0) (^e_err_checksum)``;
+val e_err_checksum = ``e_v ^(mk_v_bitii (9, 32))``; (* error.IPv4ChecksumError *)
+val stmt_parse_ipv4_verify3 = ``stmt_ass lval_null (e_call (funn_ext "" "verify") [(^e_ck_eq_16w0); (^e_err_checksum)])``;
 
 val stmt_parse_ipv4_trans = ``stmt_trans (e_v (v_str "accept"))``;
 
@@ -124,7 +124,7 @@ val vss_pipe_bfunc_map =
 
 (* Body *)
 val e_parseerror_cond =
- mk_e_binop (``(e_var (varn_name "parseError"))``, binop_neq_tm, ``(e_v (v_err "NoError"))``);
+ mk_e_binop (``(e_var (varn_name "parseError"))``, binop_neq_tm, ``(e_v ^(mk_v_bitii (0, 32)))``);
 val stmt_parseerror_then =
  mk_stmt_seq (mk_stmt_ass (lval_null_tm, mk_e_call (``funn_name "Drop_action"``, ``[]:e list``)) , mk_stmt_ret ``e_v v_bot``);
 

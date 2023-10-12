@@ -65,7 +65,7 @@ EQ_TAC >| [
   fs [l_sound, l_sound_exec]
  ) >>
  rpt strip_tac >| [
-  PAT_X_ASSUM ``!x. _`` (fn thm => ASSUME_TAC (SPEC ``(0:num)`` thm)) >>
+  PAT_X_ASSUM ``!x e. _`` (fn thm => ASSUME_TAC (SPEC ``0:num`` thm)) >>
   fs [oEL_def],
 
   `l_sound type (h::l)` suffices_by (
@@ -109,6 +109,115 @@ QED
 Definition x_e_l_exec_sound:
  (x_e_l_exec_sound type (x_e_l:(string # e) list) = l_sound type (MAP SND x_e_l))
 End
+
+Theorem e_concat_exec_sound_red:
+!type e1 e2.
+e_exec_sound type e1 ==>
+e_exec_sound type e2 ==>
+e_exec_sound type (e_concat e1 e2)
+Proof
+fs [e_exec_sound] >>
+rpt strip_tac >>
+fs [e_exec] >>
+Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
+ fs []
+) >| [
+ Cases_on `e_exec_concat e1 e2` >> (
+  fs []
+ ) >>
+ Cases_on `e1` >> Cases_on `e2` >> (
+  fs [is_v_bit]
+ ) >>
+ Cases_on `v` >> Cases_on `v'` >> (
+  fs [e_exec_concat]
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ rw [] >>
+ irule ((valOf o find_clause_e_red) "e_concat_v") >>
+ fs [clause_name_def],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
+  fs [e_exec]
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ Cases_on `e1` >> (
+  fs [is_v_bit]
+ ) >>
+ Cases_on `v` >> (
+  fs [is_v_bit]
+ ) >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_concat_arg2"), clause_name_def],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
+  fs [e_exec]
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ Cases_on `e2` >> (
+  fs [is_v_bit]
+ ) >>
+ Cases_on `v` >> (
+  fs [is_v_bit]
+ ) >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_concat_arg1"), clause_name_def],
+
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
+  fs [e_exec]
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_concat_arg1"), clause_name_def]
+]
+QED
+
+Theorem e_slice_exec_sound_red:
+!type e1 e2 e3.
+e_exec_sound type e1 ==>
+e_exec_sound type e2 ==>
+e_exec_sound type e3 ==>
+e_exec_sound type (e_slice e1 e2 e3)
+Proof
+fs [e_exec_sound] >>
+rpt strip_tac >>
+fs [e_exec] >>
+Cases_on `is_v_bit e1` >> (
+ fs []
+) >| [
+ Cases_on `e_exec_slice e1 e2 e3` >> (
+  fs []
+ ) >>
+ Cases_on `e1` >> Cases_on `e2` >> Cases_on `e3` >> (
+  fs [is_v_bit]
+ ) >>
+ Cases_on `v` >> Cases_on `v'` >> Cases_on `v''` >> (
+  fs [e_exec_slice]
+ ) >>
+ rw [] >>
+ irule ((valOf o find_clause_e_red) "e_slice_v") >>
+ fs [clause_name_def],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
+  fs [e_exec]
+ ) >>
+ Cases_on `x` >> (
+  fs []
+ ) >>
+ Cases_on `e2` >> Cases_on `e3` >> (
+  fs [is_v_bit]
+ ) >>
+ Cases_on `v` >> Cases_on `v'` >> (
+  fs [is_v_bit]
+ ) >>
+ METIS_TAC [((valOf o find_clause_e_red) "e_slice_arg1"), clause_name_def]
+]
+QED
 
 Theorem e_acc_exec_sound_red:
 !type e x.
@@ -241,6 +350,14 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
    ) >>
    irule ((valOf o find_clause_e_red) "e_add"),
 
+   Cases_on `bitv_binop binop_sat_add p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_sat_add"),
+
    Cases_on `bitv_binop binop_sub p p'` >> (
     fs []
    ) >>
@@ -248,6 +365,14 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
     fs []
    ) >>
    irule ((valOf o find_clause_e_red) "e_sub"),
+
+   Cases_on `bitv_binop binop_sat_sub p p'` >> (
+    fs []
+   ) >>
+   Cases_on `x` >> (
+    fs []
+   ) >>
+   irule ((valOf o find_clause_e_red) "e_sat_sub"),
 
    irule ((valOf o find_clause_e_red) "e_shl"),
 
@@ -289,13 +414,9 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
    irule ((valOf o find_clause_e_red) "e_neq"),
 
-   irule ((valOf o find_clause_e_red) "e_neq_error"),
-
    irule ((valOf o find_clause_e_red) "e_eq_bool"),
 
    irule ((valOf o find_clause_e_red) "e_eq"),
-
-   irule ((valOf o find_clause_e_red) "e_eq_error"),
 
    irule ((valOf o find_clause_e_red) "e_and"),
 
@@ -444,6 +565,44 @@ Cases_on `is_v e` >| [
  Cases_on `x` >>
  fs [] >>
  METIS_TAC [(valOf o find_clause_e_red) "e_unop_arg", clause_name_def]
+]
+QED
+
+Theorem e_cast_exec_sound_red:
+!type e c.
+e_exec_sound type e ==>
+e_exec_sound type (e_cast c e)
+Proof
+fs [e_exec_sound] >>
+rpt strip_tac >>
+Cases_on `is_v e` >| [
+ Cases_on `e_exec_cast c e` >> (
+  fs [e_exec] >>
+  rw []
+ ) >>
+ Cases_on `e` >> (
+  fs [is_v]
+ ) >>
+ (* Different concrete cases *)
+ Cases_on `c` >> (
+  Cases_on `v` >> (
+   fs [e_exec_cast, cast_exec]
+  ) >>
+  rw []
+ ) >| [
+  irule ((valOf o find_clause_e_red) "e_cast_bool") >>
+  fs [clause_name_def],
+
+  irule ((valOf o find_clause_e_red) "e_cast_bitv") >>
+  fs [clause_name_def]
+ ],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
+  fs [e_exec]
+ ) >>
+ Cases_on `x` >>
+ fs [] >>
+ METIS_TAC [(valOf o find_clause_e_red) "e_cast_arg", clause_name_def]
 ]
 QED
 
@@ -608,17 +767,20 @@ rpt strip_tac >| [
  (* e list: base case *)
  fs [l_sound],
 
- (* TODO: bitvector slice - not in exec sem yet *)
- fs [e_exec_sound, e_exec],
+ (* Bitvector slice *)
+ fs [e_slice_exec_sound_red],
 
- (* TODO: bitvector concatenation - not in exec sem yet *)
- fs [e_exec_sound, e_exec],
+ (* Bitvector concatenation *)
+ fs [e_concat_exec_sound_red],
 
  (* Binary operation *)
  fs [e_binop_exec_sound_red],
 
  (* e list: inductive step *)
  fs [l_sound_equiv, l_sound_exec],
+
+ (* Cast *)
+ fs [e_cast_exec_sound_red],
 
  (* Field access *)
  fs [e_acc_exec_sound_red],

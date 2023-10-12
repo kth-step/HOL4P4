@@ -4,8 +4,9 @@ sig
 
 val vss_arch_ty : hol_type
 
-val packet_in_map : term
-val packet_out_map : term
+val vss_objectless_map : term
+val vss_packet_in_map : term
+val vss_packet_out_map : term
 
 val REAL_PORT_COUNT_tm : term
 
@@ -29,5 +30,9 @@ val vss_copyout_pbl : term
 val vss_ext_map : term
 val vss_ffblock_map : term
 val vss_func_map : term
+
+val vss_init_counter : term
+val vss_init_ext_obj_map : term
+val vss_init_v_map : term
 
 end

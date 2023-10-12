@@ -75,7 +75,7 @@ val sr_exp_def = Define `
        (type_scopes_list  (gscope)  (t_scope_list_g) ) /\
        (type_scopes_list  (scopest) (t_scope_list)) /\
        (star_not_in_sl (scopest)  ) /\
-       (parseError_in_gs t_scope_list_g  [t_scope_list]) ∧             
+       (* (parseError_in_gs t_scope_list_g  [t_scope_list]) ∧ *)            
            
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧
        (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) /\
@@ -1172,7 +1172,7 @@ REPEAT STRIP_TAC >| [
  IMP_RES_TAC t_lookup_funn_ext_lemma >>
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
  [`delta_g`,`delta_b`])) >>
- srw_tac [SatisfySimps.SATISFY_ss][]
+ srw_tac [SatisfySimps.SATISFY_ss][]    
 ]
 QED
 
@@ -1218,7 +1218,7 @@ val e_resulted_frame_is_WT = prove ( ``
     type_scopes_list gscope t_scope_list_g /\
     type_scopes_list scopest t_scope_list /\
     star_not_in_sl scopest /\
-    parseError_in_gs t_scope_list_g  [t_scope_list] ∧             
+    (*parseError_in_gs t_scope_list_g  [t_scope_list] ∧ *)            
                    
     e_typ (t_scope_list_g,t_scope_list) (order,f,delta_g,delta_b,delta_x,delta_t) e (tau) b /\
     WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
@@ -1372,7 +1372,7 @@ SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x  ==>
     lookup_funn_sig_body f func_map b_func_map ext_map ∧
     MAP (\(t,x,d).d) txdl = MAP SND xdl ∧
     MAP (\(t,x,d).x) txdl = MAP FST xdl ∧                          
-    not_parseError_str xdl ∧    
+    (*not_parseError_str xdl ∧  *)  
     LENGTH (MAP SND xdl) = LENGTH (MAP SND txdl) ∧
     ALL_DISTINCT (MAP FST xdl)
 Proof
@@ -3700,7 +3700,7 @@ val type_of_v_def = TotalDefn.tDefine "type_of_v" `
 (type_of_v (v_bool boolv) = t_tau tau_bool) /\
 (type_of_v (v_bit (bl, n)) = t_tau (tau_bit n)) /\
 (type_of_v (v_bot) = t_tau tau_bot) /\
-(type_of_v (v_err x) = t_tau tau_err) /\
+(*(type_of_v (v_err x) = t_tau tau_err) /\*)
 (type_of_v (v_str x) = t_string_names_a [x] ) /\
 (type_of_v (v_struct xvl) =
   t_tau (tau_xtl struct_ty_struct ( MAP (\xv . (FST xv ,  rm_t (type_of_v (SND xv))   )) xvl   ) ) ) /\
@@ -3962,9 +3962,7 @@ fs[init_out_v_typed_def, init_out_v_def] >| [
    ]
  ]
  ,
- fs[Once v_typ_cases]
- ,
- fs[init_out_svl_typed_def]
+ fs[Once v_typ_cases, init_out_svl_typed_def]
  ,
 
  fs[init_out_svl_typed_def] >>
@@ -4926,7 +4924,7 @@ QED
 
 
 
-
+(*
 Theorem t_scopes_passed_parseError:
 ∀ tslg tscl passed_tslg f delta_b delta_g.
 t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ∧
@@ -4938,7 +4936,7 @@ gvs[t_scopes_to_pass_def] >>
 REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 gvs[parseError_in_gs_def]
 QED
-
+*)
 
 
 
@@ -5231,9 +5229,29 @@ REPEAT STRIP_TAC >-
 
 
 
+Theorem bv_casting_length1:
+∀ n' v n.  n' = bs_width (bitv_cast n' (v,n))
+Proof               
+gvs[bitv_cast_def, bs_width_def, fixwidth_def, DROP]
+QED
 
-        
-                                                                                                                                        
+Theorem bv_casting_length2:
+∀ n' bitv.  n' = bs_width (bitv_cast n' bitv)
+Proof               
+REPEAT STRIP_TAC >> Cases_on ‘bitv’ >>
+gvs[bitv_cast_def, bs_width_def, fixwidth_def, DROP]
+QED
+
+Theorem bool_casting_length:        
+∀ n b'. n = bs_width (bool_cast n b')
+Proof
+gvs[bool_cast_def, bs_width_def, fixwidth_def, DROP]
+QED
+
+
+
+
+                        
 
 (****************)
 (****************)
@@ -5505,6 +5523,42 @@ REPEAT STRIP_TAC >| [
  srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
 ]
 
+,
+
+(****************)
+(*  Cast        *)
+(****************) 
+REPEAT STRIP_TAC  >>
+SIMP_TAC (srw_ss()) [sr_exp_def] >>
+REPEAT STRIP_TAC >| [
+    
+    gvs[Once e_red_cases] >| [
+    OPEN_EXP_TYP_TAC ``(e_cast c e)`` >>
+    gvs[sr_exp_def] >>
+    EXP_GOAL_TYP_IH_TAC
+    ,
+    OPEN_EXP_TYP_TAC ``e_cast (cast_unsigned n) (e_v (v_bit bitv))`` >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    METIS_TAC[bv_casting_length2]    
+    ,
+    OPEN_EXP_TYP_TAC ``e_cast (cast_unsigned n) (e_v (v_bool b'))`` >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    METIS_TAC[bool_casting_length, clause_name_def]              
+    ]
+    ,
+    
+ fs[] >>
+ gvs[Once e_red_cases] >>
+ OPEN_EXP_TYP_TAC ``(e_cast c e)`` >>
+ rfs[] >>
+ srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
+]
 
 ,
 
@@ -6024,10 +6078,10 @@ REPEAT STRIP_TAC >| [
     gvs[t_scopes_consistent_def] >> REPEAT STRIP_TAC >>
     ASSUME_TAC wf_arg_imp_lval_typ_sinlge_list >>
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘e_x_d_list’,
-                                                ‘ZIP (MAP (λ(e_,tau_,x_,d_,b_). (tau_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list) ,
-                                                      MAP (λ(e_,tau_,x_,d_,b_). (b_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list)    )’,
-                                                ‘t’, ‘lop’,‘(order,f',delta_g,delta_b,delta_x,delta_t)’, ‘t_scope_list_g’, ‘t_scope_list’,
-                                                ‘(scopest ⧺ gscope)’, ‘x’])) >> gvs[] >>
+    ‘ZIP (MAP (λ(e_,tau_,x_,d_,b_). (tau_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list) ,
+          MAP (λ(e_,tau_,x_,d_,b_). (b_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list)    )’,
+    ‘t’, ‘lop’,‘(order,f',delta_g,delta_b,delta_x,delta_t)’, ‘t_scope_list_g’, ‘t_scope_list’,
+     ‘(scopest ⧺ gscope)’, ‘x’])) >> gvs[] >>
     gvs[map_rw_doub]
     ,
     (* prove that the called function f' t_scope with the sig *)
@@ -6048,8 +6102,8 @@ REPEAT STRIP_TAC >| [
                   
         
    ,     
-   IMP_RES_TAC t_scopes_passed_parseError >>
-   gvs[parseError_in_gs_def]  >>            
+  (* IMP_RES_TAC t_scopes_passed_parseError >>
+   gvs[parseError_in_gs_def]  >>           
    REPEAT STRIP_TAC >>
    `i=0` by fs[] >>
    rw[] >>
@@ -6061,7 +6115,7 @@ REPEAT STRIP_TAC >| [
    gvs[] >>
    gvs[MAP_MAP_txd] >>
    gvs[MAP_FST_3_2]      
-   ,
+   ,  *)
 
    REPEAT STRIP_TAC >>
    `i=0` by fs[] >>

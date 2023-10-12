@@ -128,6 +128,10 @@ formula :: formula_ ::=
 | + bitv = bitv' :: M :: un_plus
   %Note P4 spec says this is a noop
   {{ hol ([[bitv]] = [[bitv']]) }}
+| ( unsigned n ) bitv = bitv' :: M :: cast_bitv
+  {{ hol (bitv_cast [[n]] [[bitv]] = [[bitv']]) }}
+| ( unsigned n ) b = bitv :: M :: cast_from_bool
+  {{ hol (bool_cast [[n]] [[b]] = [[bitv]]) }}
 | bitv * bitv' = bitv'' :: M :: mul
   {{ hol (bitv_binop binop_mul [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 | bitv / bitv' = bitv'' :: M :: div
@@ -136,8 +140,12 @@ formula :: formula_ ::=
   {{ hol (bitv_binop binop_mod [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 | bitv + bitv' = bitv'' :: M :: add
   {{ hol (bitv_binop binop_add [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv sat_add bitv' = bitv'' :: M :: sat_add
+  {{ hol (bitv_binop binop_sat_add [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 | bitv - bitv' = bitv'' :: M :: sub
   {{ hol (bitv_binop binop_sub [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
+| bitv sat_sub bitv' = bitv'' :: M :: sat_sub
+  {{ hol (bitv_binop binop_sat_sub [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 %TODO: Unify the below eq_ to equality over values?
 | bitv EQ bitv' = b :: M :: eq_word
   {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
@@ -313,11 +321,10 @@ formula :: formula_ ::=
   {{ com lookup of an extern function }}
   {{ tex [[ext_fun]] = \mathrm{lookup\_ext\_fun} ( [[funn]] , [[ext_map]] ) }}
   {{ hol (SOME [[ext_fun]] = lookup_ext_fun [[funn]] [[ext_map]]) }}
-| ( ascope' , scope_list' , v ) = ext_fun ( ascope , g_scope_list , scope_list ) :: :: ext_apply
+| ( ascope' , scope_list' , status ) = ext_fun ( ascope , g_scope_list , scope_list ) :: :: ext_apply
   {{ com application of an extern function }}
-  {{ tex ([[ascope']], \, [[scope_list']], \, [[v]]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]]) }}
-  {{ hol (SOME ([[ascope']], [[scope_list']], [[v]]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]])) }}
-  
+  {{ tex ([[ascope']], \, [[scope_list']], \, [[status]]) = [[ext_fun]] \, ([[ascope]], \, [[g_scope_list]] , \, [[scope_list]]) }}
+  {{ hol (SOME ([[ascope']], [[scope_list']], [[status]]) = [[ext_fun]] ([[ascope]], [[g_scope_list]], [[scope_list]])) }}
 %MISC (TODO: Sort these)
 %TODO: Equalities and inequalities on numerals
 | i = length ( e_list ) :: M :: num_len
@@ -336,10 +343,10 @@ formula :: formula_ ::=
 | stmt = pars_map ( x ) :: M :: pars_lookup
   {{ com parser state map lookup }}
   {{ hol (ALOOKUP [[pars_map]] [[x]] = SOME ([[stmt]])) }}
-| x = parseError :: M :: pars_err
-  {{ com parser error literal }}
-  {{ hol ([[x]] = "parseError") }}
-  {{ tex [[x]] = ``\mathit{parseError}" }}
+| f = "" :: M :: emptystr
+  {{ com string is empty }}
+  {{ hol ([[f]] = "") }}
+  {{ tex [[f]] = ``" }}
   %Dummy to keep syntax highlighting from freaking out: "
 | v = lookup_lval ( scope_list , lval ) :: M :: lookup_lval
   {{ com instantaneous lookup of lvals }}
@@ -380,9 +387,9 @@ formula :: formula_ ::=
   {{ hol ([[x]] = "start") }}
   {{ tex [[x]] = ``\mathit{start}" }}
   %Dummy to keep syntax highlighting from freaking out: "
-| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope , pbl_type ) :: M :: copyin_pbl
+| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope ) :: M :: copyin_pbl
   {{ com copy in to programmable blocks }}
-  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]], [[pbl_type]])) }}
+  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]])) }}
 | scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scope_list ) :: M :: copyin
   {{ com build new scope and copyin }}
   {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
@@ -398,13 +405,13 @@ formula :: formula_ ::=
 | ( g_scope_list , scope_list' ) = separate scope_list :: M :: separate_scopes
   {{ com separate scopes into globals and locals after assignment }}
   {{ hol ( ( SOME [[g_scope_list]] ,  SOME [[scope_list']] ) = separate [[scope_list]] ) }}
-  {{ tex ( [[g_scope_list]] ,  [[scope_list']] ) = \mathrm{separate}([[scope_list]])  }}  
-| ascope' = copyout_pbl ( scope_list , ascope , d_list , ( x1 , .. , xn ) , pbl_type , status ) :: M :: copyout_pbl
+  {{ tex ( [[g_scope_list]] , [[scope_list']] ) = \mathrm{separate}([[scope_list]])  }}  
+| ascope' = copyout_pbl ( scope_list , ascope , d_list , ( x1 , .. , xn ) , status ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
-  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [[x1 .. xn]], [[pbl_type]], [[status]])) }}
-| ascope' = copyout_pbl ( scope_list , ascope , d_list , [ x ] , pbl_type , status ) :: M :: copyout_pbl_sing
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [[x1 .. xn]], [[status]])) }}
+| ascope' = copyout_pbl ( scope_list , ascope , d_list , [ x ] , status ) :: M :: copyout_pbl_sing
   {{ com copy out singleton from programmable blocks }}
-  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [ [[x]] ], [[pbl_type]], [[status]])) }}
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [ [[x]] ], [[status]])) }}
 | not_empty stmt :: M :: not_empty
   {{ com check so that statement is not the empty statement }}
   {{ tex \mathrm{not\_empty} \; [[stmt]] }}
@@ -457,10 +464,6 @@ formula :: formula_ ::=
   {{ com lval is parseError }}
   {{ hol ([[lval]] = lval_varname (varn_name "parseError")) }}
   {{ tex [[lval]] = \mathit{parseError} }}
-| v = errmsg "NoError" :: M :: is_no_error
-  {{ com v is NoError }}
-  {{ hol ([[v]] = v_err "NoError") }}
-  {{ tex [[v]] = \mathit{NoError} }}
 | ( g_scope_list' , scope_list' ) = declare ( g_scope_list , scope_list , x , t ) :: M :: declare
   {{ com declare variable of type }}
   {{ hol (([[g_scope_list']], [[scope_list']]) = declare [[g_scope_list]] [[scope_list]] [[x]] [[t]]) }}
@@ -550,9 +553,12 @@ formula :: formula_ ::=
   {{ com not bool negation }}
   {{ hol (([[unop]] = unop_neg)) }}
   {{ tex [[unop]] = \; \mathit{!} }}
-| width_in_range w :: M :: width_in_range
+| width_in_range w :: :: width_in_range
   {{ com bitstring widthlarger than 0}}
   {{ hol ([[w]] > 0 /\ [[w]] <= 64 ) }}
+| width_in_range n :: M :: width_in_rangen
+  {{ com bitstring widthlarger than 0}}
+  {{ hol ([[n]] > 0 /\ [[n]] <= 64 ) }}  
 | length ( taul ) = m :: M :: find_t_length
   {{ tex [[m]] = length ([[taul]])}}
   {{ hol ([[m]] = LENGTH [[taul]]) }}
@@ -592,6 +598,8 @@ formula :: formula_ ::=
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (t_tau (EL i [[tau1 .. taun]])) (EL i [[b1 .. bo]]) ) }}
   {{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }}
+| exists_tau_bool t_scopes_tup T_e |-  e  : ( tau , b ) :: :: cast_type
+  {{ hol ? b tp. ( e_typ [[t_scopes_tup]] [[T_e]] [[e]] tp b /\ ? n . ( tp = t_tau (tau_bit n) \/ tp = t_tau (tau_bool ) ) ) }}
 
 
 | out_is_lval  [ d1 , .. , dn ]  [ b1 , .. , bm ] :: :: out_is_lval
@@ -661,8 +669,8 @@ formula :: formula_ ::=
   {{ hol ( dom_x_eq [[delta_x]] [[ext_map]] ) }}
 | dom_t_eq ( delta_t , tbl_map ) :: :: dom_t_eq
   {{ hol ( dom_t_eq [[delta_t]] [[tbl_map]] ) }} 
-| star_Err_not_in_ts t_scope :: :: star_Err_not_in_ts
-  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}
+%| star_Err_not_in_ts t_scope :: :: star_Err_not_in_ts
+%  {{ hol ( star_Err_not_in_ts [[t_scope]] )}}
 | lvalop_not_none t_scope :: :: lvalop_not_none
   {{ hol ( lvalop_not_none [[t_scope]] )}}
 | Fg_star_defined ( func_map , t_scope_list_g ) :: :: Fg_star_defined
@@ -673,8 +681,10 @@ formula :: formula_ ::=
   {{ hol ( X_star_defined [[ext_map]]  [[t_scope_list_g]] ) }}
 | X_star_not_defined t_scope_list_g :: :: X_star_not_defined
   {{ hol (X_star_not_defined [[t_scope_list_g]]) }}  
-| parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ] :: :: parseError_in_gs
-  {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
+%| parseError_in_gs t_scope_list_g [ t_scope_list1 , .. , t_scope_listn ] :: :: parseError_in_gs
+%  {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
+| star_not_in_ts t_scope :: :: star_not_in_ts
+  {{ hol (star_not_in_ts [[t_scope]]) }}  
 | f_in_apply_tbl tbl_map apply_table_f :: :: f_in_apply_tbl
   {{ hol ( f_in_apply_tbl [[tbl_map]] [[apply_table_f]] ) }}
 | star_not_in_sl scope_list :: :: star_not_in_sl
@@ -734,6 +744,14 @@ val acc_f_def = Define `
 
 val bitv_bl_unop_def = Define `
   bitv_bl_unop unop (bl, n) = (unop bl, n)
+`;
+
+val bitv_cast_def = Define `
+  bitv_cast n' (v, n) = (fixwidth n' v, n')
+`;
+
+val bool_cast_def = Define `
+  bool_cast n' b = (fixwidth n' [b], n')
 `;
 
 val bitv_bl_binop_def = Define `
@@ -997,6 +1015,262 @@ Definition w64_def:
   w64 w = ((w2v:64 word -> bool list) w,64)
 End
 
+Definition w65_def:
+  w65 w = ((w2v:65 word -> bool list) w,65)
+End
+
+Definition w66_def:
+  w66 w = ((w2v:66 word -> bool list) w,66)
+End
+
+Definition w67_def:
+  w67 w = ((w2v:67 word -> bool list) w,67)
+End
+
+Definition w68_def:
+  w68 w = ((w2v:68 word -> bool list) w,68)
+End
+
+Definition w69_def:
+  w69 w = ((w2v:69 word -> bool list) w,69)
+End
+
+Definition w70_def:
+  w70 w = ((w2v:70 word -> bool list) w,70)
+End
+
+Definition w71_def:
+  w71 w = ((w2v:71 word -> bool list) w,71)
+End
+
+Definition w72_def:
+  w72 w = ((w2v:72 word -> bool list) w,72)
+End
+
+Definition w73_def:
+  w73 w = ((w2v:73 word -> bool list) w,73)
+End
+
+Definition w74_def:
+  w74 w = ((w2v:74 word -> bool list) w,74)
+End
+
+Definition w75_def:
+  w75 w = ((w2v:75 word -> bool list) w,75)
+End
+
+Definition w76_def:
+  w76 w = ((w2v:76 word -> bool list) w,76)
+End
+
+Definition w77_def:
+  w77 w = ((w2v:77 word -> bool list) w,77)
+End
+
+Definition w78_def:
+  w78 w = ((w2v:78 word -> bool list) w,78)
+End
+
+Definition w79_def:
+  w79 w = ((w2v:79 word -> bool list) w,79)
+End
+
+Definition w80_def:
+  w80 w = ((w2v:80 word -> bool list) w,80)
+End
+
+Definition w81_def:
+  w81 w = ((w2v:81 word -> bool list) w,81)
+End
+
+Definition w82_def:
+  w82 w = ((w2v:82 word -> bool list) w,82)
+End
+
+Definition w83_def:
+  w83 w = ((w2v:83 word -> bool list) w,83)
+End
+
+Definition w84_def:
+  w84 w = ((w2v:84 word -> bool list) w,84)
+End
+
+Definition w85_def:
+  w85 w = ((w2v:85 word -> bool list) w,85)
+End
+
+Definition w86_def:
+  w86 w = ((w2v:86 word -> bool list) w,86)
+End
+
+Definition w87_def:
+  w87 w = ((w2v:87 word -> bool list) w,87)
+End
+
+Definition w88_def:
+  w88 w = ((w2v:88 word -> bool list) w,88)
+End
+
+Definition w89_def:
+  w89 w = ((w2v:89 word -> bool list) w,89)
+End
+
+Definition w90_def:
+  w90 w = ((w2v:90 word -> bool list) w,90)
+End
+
+Definition w91_def:
+  w91 w = ((w2v:91 word -> bool list) w,91)
+End
+
+Definition w92_def:
+  w92 w = ((w2v:92 word -> bool list) w,92)
+End
+
+Definition w93_def:
+  w93 w = ((w2v:93 word -> bool list) w,93)
+End
+
+Definition w94_def:
+  w94 w = ((w2v:94 word -> bool list) w,94)
+End
+
+Definition w95_def:
+  w95 w = ((w2v:95 word -> bool list) w,95)
+End
+
+Definition w96_def:
+  w96 w = ((w2v:96 word -> bool list) w,96)
+End
+
+Definition w97_def:
+  w97 w = ((w2v:97 word -> bool list) w,97)
+End
+
+Definition w98_def:
+  w98 w = ((w2v:98 word -> bool list) w,98)
+End
+
+Definition w99_def:
+  w99 w = ((w2v:99 word -> bool list) w,99)
+End
+
+Definition w100_def:
+  w100 w = ((w2v:100 word -> bool list) w,100)
+End
+
+Definition w101_def:
+  w101 w = ((w2v:101 word -> bool list) w,101)
+End
+
+Definition w102_def:
+  w102 w = ((w2v:102 word -> bool list) w,102)
+End
+
+Definition w103_def:
+  w103 w = ((w2v:103 word -> bool list) w,103)
+End
+
+Definition w104_def:
+  w104 w = ((w2v:104 word -> bool list) w,104)
+End
+
+Definition w105_def:
+  w105 w = ((w2v:105 word -> bool list) w,105)
+End
+
+Definition w106_def:
+  w106 w = ((w2v:106 word -> bool list) w,106)
+End
+
+Definition w107_def:
+  w107 w = ((w2v:107 word -> bool list) w,107)
+End
+
+Definition w108_def:
+  w108 w = ((w2v:108 word -> bool list) w,108)
+End
+
+Definition w109_def:
+  w109 w = ((w2v:109 word -> bool list) w,109)
+End
+
+Definition w110_def:
+  w110 w = ((w2v:110 word -> bool list) w,110)
+End
+
+Definition w111_def:
+  w111 w = ((w2v:111 word -> bool list) w,111)
+End
+
+Definition w112_def:
+  w112 w = ((w2v:112 word -> bool list) w,112)
+End
+
+Definition w113_def:
+  w113 w = ((w2v:113 word -> bool list) w,113)
+End
+
+Definition w114_def:
+  w114 w = ((w2v:114 word -> bool list) w,114)
+End
+
+Definition w115_def:
+  w115 w = ((w2v:115 word -> bool list) w,115)
+End
+
+Definition w116_def:
+  w116 w = ((w2v:116 word -> bool list) w,116)
+End
+
+Definition w117_def:
+  w117 w = ((w2v:117 word -> bool list) w,117)
+End
+
+Definition w118_def:
+  w118 w = ((w2v:118 word -> bool list) w,118)
+End
+
+Definition w119_def:
+  w119 w = ((w2v:119 word -> bool list) w,119)
+End
+
+Definition w120_def:
+  w120 w = ((w2v:120 word -> bool list) w,120)
+End
+
+Definition w121_def:
+  w121 w = ((w2v:121 word -> bool list) w,121)
+End
+
+Definition w122_def:
+  w122 w = ((w2v:122 word -> bool list) w,122)
+End
+
+Definition w123_def:
+  w123 w = ((w2v:123 word -> bool list) w,123)
+End
+
+Definition w124_def:
+  w124 w = ((w2v:124 word -> bool list) w,124)
+End
+
+Definition w125_def:
+  w125 w = ((w2v:125 word -> bool list) w,125)
+End
+
+Definition w126_def:
+  w126 w = ((w2v:126 word -> bool list) w,126)
+End
+
+Definition w127_def:
+  w127 w = ((w2v:127 word -> bool list) w,127)
+End
+
+Definition w128_def:
+  w128 w = ((w2v:128 word -> bool list) w,128)
+End
+
 val bitv_unop_def = Define `
     (bitv_unop unop (v, 1) = (w2v ((get_word_unop unop) ((v2w v): 1 word)), 1) )
 /\  (bitv_unop unop (v, 2) = (w2v ((get_word_unop unop) ((v2w v): 2 word)), 2) )
@@ -1062,13 +1336,80 @@ val bitv_unop_def = Define `
 /\  (bitv_unop unop (v, 62) = (w2v ((get_word_unop unop) ((v2w v): 62 word)), 62) )
 /\  (bitv_unop unop (v, 63) = (w2v ((get_word_unop unop) ((v2w v): 63 word)), 63) )
 /\  (bitv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
+/\  (bitv_unop unop (v, 65) = (w2v ((get_word_unop unop) ((v2w v): 65 word)), 65) )
+/\  (bitv_unop unop (v, 66) = (w2v ((get_word_unop unop) ((v2w v): 66 word)), 66) )
+/\  (bitv_unop unop (v, 67) = (w2v ((get_word_unop unop) ((v2w v): 67 word)), 67) )
+/\  (bitv_unop unop (v, 68) = (w2v ((get_word_unop unop) ((v2w v): 68 word)), 68) )
+/\  (bitv_unop unop (v, 69) = (w2v ((get_word_unop unop) ((v2w v): 69 word)), 69) )
+/\  (bitv_unop unop (v, 70) = (w2v ((get_word_unop unop) ((v2w v): 70 word)), 70) )
+/\  (bitv_unop unop (v, 71) = (w2v ((get_word_unop unop) ((v2w v): 71 word)), 71) )
+/\  (bitv_unop unop (v, 72) = (w2v ((get_word_unop unop) ((v2w v): 72 word)), 72) )
+/\  (bitv_unop unop (v, 73) = (w2v ((get_word_unop unop) ((v2w v): 73 word)), 73) )
+/\  (bitv_unop unop (v, 74) = (w2v ((get_word_unop unop) ((v2w v): 74 word)), 74) )
+/\  (bitv_unop unop (v, 75) = (w2v ((get_word_unop unop) ((v2w v): 75 word)), 75) )
+/\  (bitv_unop unop (v, 76) = (w2v ((get_word_unop unop) ((v2w v): 76 word)), 76) )
+/\  (bitv_unop unop (v, 77) = (w2v ((get_word_unop unop) ((v2w v): 77 word)), 77) )
+/\  (bitv_unop unop (v, 78) = (w2v ((get_word_unop unop) ((v2w v): 78 word)), 78) )
+/\  (bitv_unop unop (v, 79) = (w2v ((get_word_unop unop) ((v2w v): 79 word)), 79) )
+/\  (bitv_unop unop (v, 80) = (w2v ((get_word_unop unop) ((v2w v): 80 word)), 80) )
+/\  (bitv_unop unop (v, 81) = (w2v ((get_word_unop unop) ((v2w v): 81 word)), 81) )
+/\  (bitv_unop unop (v, 82) = (w2v ((get_word_unop unop) ((v2w v): 82 word)), 82) )
+/\  (bitv_unop unop (v, 83) = (w2v ((get_word_unop unop) ((v2w v): 83 word)), 83) )
+/\  (bitv_unop unop (v, 84) = (w2v ((get_word_unop unop) ((v2w v): 84 word)), 84) )
+/\  (bitv_unop unop (v, 85) = (w2v ((get_word_unop unop) ((v2w v): 85 word)), 85) )
+/\  (bitv_unop unop (v, 86) = (w2v ((get_word_unop unop) ((v2w v): 86 word)), 86) )
+/\  (bitv_unop unop (v, 87) = (w2v ((get_word_unop unop) ((v2w v): 87 word)), 87) )
+/\  (bitv_unop unop (v, 88) = (w2v ((get_word_unop unop) ((v2w v): 88 word)), 88) )
+/\  (bitv_unop unop (v, 89) = (w2v ((get_word_unop unop) ((v2w v): 89 word)), 89) )
+/\  (bitv_unop unop (v, 90) = (w2v ((get_word_unop unop) ((v2w v): 90 word)), 90) )
+/\  (bitv_unop unop (v, 91) = (w2v ((get_word_unop unop) ((v2w v): 91 word)), 91) )
+/\  (bitv_unop unop (v, 92) = (w2v ((get_word_unop unop) ((v2w v): 92 word)), 92) )
+/\  (bitv_unop unop (v, 93) = (w2v ((get_word_unop unop) ((v2w v): 93 word)), 93) )
+/\  (bitv_unop unop (v, 94) = (w2v ((get_word_unop unop) ((v2w v): 94 word)), 94) )
+/\  (bitv_unop unop (v, 95) = (w2v ((get_word_unop unop) ((v2w v): 95 word)), 95) )
+/\  (bitv_unop unop (v, 96) = (w2v ((get_word_unop unop) ((v2w v): 96 word)), 96) )
+/\  (bitv_unop unop (v, 97) = (w2v ((get_word_unop unop) ((v2w v): 97 word)), 97) )
+/\  (bitv_unop unop (v, 98) = (w2v ((get_word_unop unop) ((v2w v): 98 word)), 98) )
+/\  (bitv_unop unop (v, 99) = (w2v ((get_word_unop unop) ((v2w v): 99 word)), 99) )
+/\  (bitv_unop unop (v, 100) = (w2v ((get_word_unop unop) ((v2w v): 100 word)), 100) )
+/\  (bitv_unop unop (v, 101) = (w2v ((get_word_unop unop) ((v2w v): 101 word)), 101) )
+/\  (bitv_unop unop (v, 102) = (w2v ((get_word_unop unop) ((v2w v): 102 word)), 102) )
+/\  (bitv_unop unop (v, 103) = (w2v ((get_word_unop unop) ((v2w v): 103 word)), 103) )
+/\  (bitv_unop unop (v, 104) = (w2v ((get_word_unop unop) ((v2w v): 104 word)), 104) )
+/\  (bitv_unop unop (v, 105) = (w2v ((get_word_unop unop) ((v2w v): 105 word)), 105) )
+/\  (bitv_unop unop (v, 106) = (w2v ((get_word_unop unop) ((v2w v): 106 word)), 106) )
+/\  (bitv_unop unop (v, 107) = (w2v ((get_word_unop unop) ((v2w v): 107 word)), 107) )
+/\  (bitv_unop unop (v, 108) = (w2v ((get_word_unop unop) ((v2w v): 108 word)), 108) )
+/\  (bitv_unop unop (v, 109) = (w2v ((get_word_unop unop) ((v2w v): 109 word)), 109) )
+/\  (bitv_unop unop (v, 110) = (w2v ((get_word_unop unop) ((v2w v): 110 word)), 110) )
+/\  (bitv_unop unop (v, 111) = (w2v ((get_word_unop unop) ((v2w v): 111 word)), 111) )
+/\  (bitv_unop unop (v, 112) = (w2v ((get_word_unop unop) ((v2w v): 112 word)), 112) )
+/\  (bitv_unop unop (v, 113) = (w2v ((get_word_unop unop) ((v2w v): 113 word)), 113) )
+/\  (bitv_unop unop (v, 114) = (w2v ((get_word_unop unop) ((v2w v): 114 word)), 114) )
+/\  (bitv_unop unop (v, 115) = (w2v ((get_word_unop unop) ((v2w v): 115 word)), 115) )
+/\  (bitv_unop unop (v, 116) = (w2v ((get_word_unop unop) ((v2w v): 116 word)), 116) )
+/\  (bitv_unop unop (v, 117) = (w2v ((get_word_unop unop) ((v2w v): 117 word)), 117) )
+/\  (bitv_unop unop (v, 118) = (w2v ((get_word_unop unop) ((v2w v): 118 word)), 118) )
+/\  (bitv_unop unop (v, 119) = (w2v ((get_word_unop unop) ((v2w v): 119 word)), 119) )
+/\  (bitv_unop unop (v, 120) = (w2v ((get_word_unop unop) ((v2w v): 120 word)), 120) )
+/\  (bitv_unop unop (v, 121) = (w2v ((get_word_unop unop) ((v2w v): 121 word)), 121) )
+/\  (bitv_unop unop (v, 122) = (w2v ((get_word_unop unop) ((v2w v): 122 word)), 122) )
+/\  (bitv_unop unop (v, 123) = (w2v ((get_word_unop unop) ((v2w v): 123 word)), 123) )
+/\  (bitv_unop unop (v, 124) = (w2v ((get_word_unop unop) ((v2w v): 124 word)), 124) )
+/\  (bitv_unop unop (v, 125) = (w2v ((get_word_unop unop) ((v2w v): 125 word)), 125) )
+/\  (bitv_unop unop (v, 126) = (w2v ((get_word_unop unop) ((v2w v): 126 word)), 126) )
+/\  (bitv_unop unop (v, 127) = (w2v ((get_word_unop unop) ((v2w v): 127 word)), 127) )
+/\  (bitv_unop unop (v, 128) = (w2v ((get_word_unop unop) ((v2w v): 128 word)), 128) )
 `;
+
 val get_word_binop_def = Define `
     (get_word_binop binop_mul = word_mul)
 /\  (get_word_binop binop_div = word_div)
 /\  (get_word_binop binop_mod = word_mod)
 /\  (get_word_binop binop_add = word_add)
+/\  (get_word_binop binop_sat_add = saturate_add)
 /\  (get_word_binop binop_sub = word_sub)
+/\  (get_word_binop binop_sat_sub = saturate_sub)
 /\  (get_word_binop binop_shl = word_lsl_bv)
 /\  (get_word_binop binop_shr = word_lsr_bv)
 /\  (get_word_binop binop_and = word_and)
@@ -1141,6 +1482,70 @@ val bitv_binop_inner_def = Define `
 /\  (bitv_binop_inner binop v v' 62 = SOME (w2v ((get_word_binop binop) ((v2w v): 62 word) ((v2w v'): 62 word)), 62) )
 /\  (bitv_binop_inner binop v v' 63 = SOME (w2v ((get_word_binop binop) ((v2w v): 63 word) ((v2w v'): 63 word)), 63) )
 /\  (bitv_binop_inner binop v v' 64 = SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64) )
+/\  (bitv_binop_inner binop v v' 65 = SOME (w2v ((get_word_binop binop) ((v2w v): 65 word) ((v2w v'): 65 word)), 65) )
+/\  (bitv_binop_inner binop v v' 66 = SOME (w2v ((get_word_binop binop) ((v2w v): 66 word) ((v2w v'): 66 word)), 66) )
+/\  (bitv_binop_inner binop v v' 67 = SOME (w2v ((get_word_binop binop) ((v2w v): 67 word) ((v2w v'): 67 word)), 67) )
+/\  (bitv_binop_inner binop v v' 68 = SOME (w2v ((get_word_binop binop) ((v2w v): 68 word) ((v2w v'): 68 word)), 68) )
+/\  (bitv_binop_inner binop v v' 69 = SOME (w2v ((get_word_binop binop) ((v2w v): 69 word) ((v2w v'): 69 word)), 69) )
+/\  (bitv_binop_inner binop v v' 70 = SOME (w2v ((get_word_binop binop) ((v2w v): 70 word) ((v2w v'): 70 word)), 70) )
+/\  (bitv_binop_inner binop v v' 71 = SOME (w2v ((get_word_binop binop) ((v2w v): 71 word) ((v2w v'): 71 word)), 71) )
+/\  (bitv_binop_inner binop v v' 72 = SOME (w2v ((get_word_binop binop) ((v2w v): 72 word) ((v2w v'): 72 word)), 72) )
+/\  (bitv_binop_inner binop v v' 73 = SOME (w2v ((get_word_binop binop) ((v2w v): 73 word) ((v2w v'): 73 word)), 73) )
+/\  (bitv_binop_inner binop v v' 74 = SOME (w2v ((get_word_binop binop) ((v2w v): 74 word) ((v2w v'): 74 word)), 74) )
+/\  (bitv_binop_inner binop v v' 75 = SOME (w2v ((get_word_binop binop) ((v2w v): 75 word) ((v2w v'): 75 word)), 75) )
+/\  (bitv_binop_inner binop v v' 76 = SOME (w2v ((get_word_binop binop) ((v2w v): 76 word) ((v2w v'): 76 word)), 76) )
+/\  (bitv_binop_inner binop v v' 77 = SOME (w2v ((get_word_binop binop) ((v2w v): 77 word) ((v2w v'): 77 word)), 77) )
+/\  (bitv_binop_inner binop v v' 78 = SOME (w2v ((get_word_binop binop) ((v2w v): 78 word) ((v2w v'): 78 word)), 78) )
+/\  (bitv_binop_inner binop v v' 79 = SOME (w2v ((get_word_binop binop) ((v2w v): 79 word) ((v2w v'): 79 word)), 79) )
+/\  (bitv_binop_inner binop v v' 80 = SOME (w2v ((get_word_binop binop) ((v2w v): 80 word) ((v2w v'): 80 word)), 80) )
+/\  (bitv_binop_inner binop v v' 81 = SOME (w2v ((get_word_binop binop) ((v2w v): 81 word) ((v2w v'): 81 word)), 81) )
+/\  (bitv_binop_inner binop v v' 82 = SOME (w2v ((get_word_binop binop) ((v2w v): 82 word) ((v2w v'): 82 word)), 82) )
+/\  (bitv_binop_inner binop v v' 83 = SOME (w2v ((get_word_binop binop) ((v2w v): 83 word) ((v2w v'): 83 word)), 83) )
+/\  (bitv_binop_inner binop v v' 84 = SOME (w2v ((get_word_binop binop) ((v2w v): 84 word) ((v2w v'): 84 word)), 84) )
+/\  (bitv_binop_inner binop v v' 85 = SOME (w2v ((get_word_binop binop) ((v2w v): 85 word) ((v2w v'): 85 word)), 85) )
+/\  (bitv_binop_inner binop v v' 86 = SOME (w2v ((get_word_binop binop) ((v2w v): 86 word) ((v2w v'): 86 word)), 86) )
+/\  (bitv_binop_inner binop v v' 87 = SOME (w2v ((get_word_binop binop) ((v2w v): 87 word) ((v2w v'): 87 word)), 87) )
+/\  (bitv_binop_inner binop v v' 88 = SOME (w2v ((get_word_binop binop) ((v2w v): 88 word) ((v2w v'): 88 word)), 88) )
+/\  (bitv_binop_inner binop v v' 89 = SOME (w2v ((get_word_binop binop) ((v2w v): 89 word) ((v2w v'): 89 word)), 89) )
+/\  (bitv_binop_inner binop v v' 90 = SOME (w2v ((get_word_binop binop) ((v2w v): 90 word) ((v2w v'): 90 word)), 90) )
+/\  (bitv_binop_inner binop v v' 91 = SOME (w2v ((get_word_binop binop) ((v2w v): 91 word) ((v2w v'): 91 word)), 91) )
+/\  (bitv_binop_inner binop v v' 92 = SOME (w2v ((get_word_binop binop) ((v2w v): 92 word) ((v2w v'): 92 word)), 92) )
+/\  (bitv_binop_inner binop v v' 93 = SOME (w2v ((get_word_binop binop) ((v2w v): 93 word) ((v2w v'): 93 word)), 93) )
+/\  (bitv_binop_inner binop v v' 94 = SOME (w2v ((get_word_binop binop) ((v2w v): 94 word) ((v2w v'): 94 word)), 94) )
+/\  (bitv_binop_inner binop v v' 95 = SOME (w2v ((get_word_binop binop) ((v2w v): 95 word) ((v2w v'): 95 word)), 95) )
+/\  (bitv_binop_inner binop v v' 96 = SOME (w2v ((get_word_binop binop) ((v2w v): 96 word) ((v2w v'): 96 word)), 96) )
+/\  (bitv_binop_inner binop v v' 97 = SOME (w2v ((get_word_binop binop) ((v2w v): 97 word) ((v2w v'): 97 word)), 97) )
+/\  (bitv_binop_inner binop v v' 98 = SOME (w2v ((get_word_binop binop) ((v2w v): 98 word) ((v2w v'): 98 word)), 98) )
+/\  (bitv_binop_inner binop v v' 99 = SOME (w2v ((get_word_binop binop) ((v2w v): 99 word) ((v2w v'): 99 word)), 99) )
+/\  (bitv_binop_inner binop v v' 100 = SOME (w2v ((get_word_binop binop) ((v2w v): 100 word) ((v2w v'): 100 word)), 100) )
+/\  (bitv_binop_inner binop v v' 101 = SOME (w2v ((get_word_binop binop) ((v2w v): 101 word) ((v2w v'): 101 word)), 101) )
+/\  (bitv_binop_inner binop v v' 102 = SOME (w2v ((get_word_binop binop) ((v2w v): 102 word) ((v2w v'): 102 word)), 102) )
+/\  (bitv_binop_inner binop v v' 103 = SOME (w2v ((get_word_binop binop) ((v2w v): 103 word) ((v2w v'): 103 word)), 103) )
+/\  (bitv_binop_inner binop v v' 104 = SOME (w2v ((get_word_binop binop) ((v2w v): 104 word) ((v2w v'): 104 word)), 104) )
+/\  (bitv_binop_inner binop v v' 105 = SOME (w2v ((get_word_binop binop) ((v2w v): 105 word) ((v2w v'): 105 word)), 105) )
+/\  (bitv_binop_inner binop v v' 106 = SOME (w2v ((get_word_binop binop) ((v2w v): 106 word) ((v2w v'): 106 word)), 106) )
+/\  (bitv_binop_inner binop v v' 107 = SOME (w2v ((get_word_binop binop) ((v2w v): 107 word) ((v2w v'): 107 word)), 107) )
+/\  (bitv_binop_inner binop v v' 108 = SOME (w2v ((get_word_binop binop) ((v2w v): 108 word) ((v2w v'): 108 word)), 108) )
+/\  (bitv_binop_inner binop v v' 109 = SOME (w2v ((get_word_binop binop) ((v2w v): 109 word) ((v2w v'): 109 word)), 109) )
+/\  (bitv_binop_inner binop v v' 110 = SOME (w2v ((get_word_binop binop) ((v2w v): 110 word) ((v2w v'): 110 word)), 110) )
+/\  (bitv_binop_inner binop v v' 111 = SOME (w2v ((get_word_binop binop) ((v2w v): 111 word) ((v2w v'): 111 word)), 111) )
+/\  (bitv_binop_inner binop v v' 112 = SOME (w2v ((get_word_binop binop) ((v2w v): 112 word) ((v2w v'): 112 word)), 112) )
+/\  (bitv_binop_inner binop v v' 113 = SOME (w2v ((get_word_binop binop) ((v2w v): 113 word) ((v2w v'): 113 word)), 113) )
+/\  (bitv_binop_inner binop v v' 114 = SOME (w2v ((get_word_binop binop) ((v2w v): 114 word) ((v2w v'): 114 word)), 114) )
+/\  (bitv_binop_inner binop v v' 115 = SOME (w2v ((get_word_binop binop) ((v2w v): 115 word) ((v2w v'): 115 word)), 115) )
+/\  (bitv_binop_inner binop v v' 116 = SOME (w2v ((get_word_binop binop) ((v2w v): 116 word) ((v2w v'): 116 word)), 116) )
+/\  (bitv_binop_inner binop v v' 117 = SOME (w2v ((get_word_binop binop) ((v2w v): 117 word) ((v2w v'): 117 word)), 117) )
+/\  (bitv_binop_inner binop v v' 118 = SOME (w2v ((get_word_binop binop) ((v2w v): 118 word) ((v2w v'): 118 word)), 118) )
+/\  (bitv_binop_inner binop v v' 119 = SOME (w2v ((get_word_binop binop) ((v2w v): 119 word) ((v2w v'): 119 word)), 119) )
+/\  (bitv_binop_inner binop v v' 120 = SOME (w2v ((get_word_binop binop) ((v2w v): 120 word) ((v2w v'): 120 word)), 120) )
+/\  (bitv_binop_inner binop v v' 121 = SOME (w2v ((get_word_binop binop) ((v2w v): 121 word) ((v2w v'): 121 word)), 121) )
+/\  (bitv_binop_inner binop v v' 122 = SOME (w2v ((get_word_binop binop) ((v2w v): 122 word) ((v2w v'): 122 word)), 122) )
+/\  (bitv_binop_inner binop v v' 123 = SOME (w2v ((get_word_binop binop) ((v2w v): 123 word) ((v2w v'): 123 word)), 123) )
+/\  (bitv_binop_inner binop v v' 124 = SOME (w2v ((get_word_binop binop) ((v2w v): 124 word) ((v2w v'): 124 word)), 124) )
+/\  (bitv_binop_inner binop v v' 125 = SOME (w2v ((get_word_binop binop) ((v2w v): 125 word) ((v2w v'): 125 word)), 125) )
+/\  (bitv_binop_inner binop v v' 126 = SOME (w2v ((get_word_binop binop) ((v2w v): 126 word) ((v2w v'): 126 word)), 126) )
+/\  (bitv_binop_inner binop v v' 127 = SOME (w2v ((get_word_binop binop) ((v2w v): 127 word) ((v2w v'): 127 word)), 127) )
+/\  (bitv_binop_inner binop v v' 128 = SOME (w2v ((get_word_binop binop) ((v2w v): 128 word) ((v2w v'): 128 word)), 128) )
 /\  (bitv_binop_inner binop v v' _ = NONE )
 `;
 val bitv_binop_def = Define `
@@ -1151,10 +1556,19 @@ val bitv_binop_def = Define `
 `;
 
 val get_word_binpred_def = Define `
-    (get_word_binpred binop_le = word_le)
-/\  (get_word_binpred binop_ge = word_ge)
-/\  (get_word_binpred binop_lt = word_lt)
-/\  (get_word_binpred binop_gt = word_gt)
+    (get_word_binpred binop_le = word_ls)
+/\  (get_word_binpred binop_ge = word_hs)
+/\  (get_word_binpred binop_lt = word_lo)
+/\  (get_word_binpred binop_gt = word_hi)
+/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
+/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
+`;
+
+val get_word_binpred_def = Define `
+    (get_word_binpred binop_le = word_ls)
+/\  (get_word_binpred binop_ge = word_hs)
+/\  (get_word_binpred binop_lt = word_lo)
+/\  (get_word_binpred binop_gt = word_hi)
 /\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
 /\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
 `;
@@ -1224,6 +1638,70 @@ val bitv_binpred_inner_def = Define `
 /\  (bitv_binpred_inner binpred v v' 62 = SOME (((get_word_binpred binpred) ((v2w v): 62 word) ((v2w v'): 62 word)):boolv) )
 /\  (bitv_binpred_inner binpred v v' 63 = SOME (((get_word_binpred binpred) ((v2w v): 63 word) ((v2w v'): 63 word)):boolv) )
 /\  (bitv_binpred_inner binpred v v' 64 = SOME (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 65 = SOME (((get_word_binpred binpred) ((v2w v): 65 word) ((v2w v'): 65 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 66 = SOME (((get_word_binpred binpred) ((v2w v): 66 word) ((v2w v'): 66 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 67 = SOME (((get_word_binpred binpred) ((v2w v): 67 word) ((v2w v'): 67 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 68 = SOME (((get_word_binpred binpred) ((v2w v): 68 word) ((v2w v'): 68 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 69 = SOME (((get_word_binpred binpred) ((v2w v): 69 word) ((v2w v'): 69 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 70 = SOME (((get_word_binpred binpred) ((v2w v): 70 word) ((v2w v'): 70 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 71 = SOME (((get_word_binpred binpred) ((v2w v): 71 word) ((v2w v'): 71 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 72 = SOME (((get_word_binpred binpred) ((v2w v): 72 word) ((v2w v'): 72 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 73 = SOME (((get_word_binpred binpred) ((v2w v): 73 word) ((v2w v'): 73 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 74 = SOME (((get_word_binpred binpred) ((v2w v): 74 word) ((v2w v'): 74 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 75 = SOME (((get_word_binpred binpred) ((v2w v): 75 word) ((v2w v'): 75 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 76 = SOME (((get_word_binpred binpred) ((v2w v): 76 word) ((v2w v'): 76 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 77 = SOME (((get_word_binpred binpred) ((v2w v): 77 word) ((v2w v'): 77 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 78 = SOME (((get_word_binpred binpred) ((v2w v): 78 word) ((v2w v'): 78 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 79 = SOME (((get_word_binpred binpred) ((v2w v): 79 word) ((v2w v'): 79 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 80 = SOME (((get_word_binpred binpred) ((v2w v): 80 word) ((v2w v'): 80 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 81 = SOME (((get_word_binpred binpred) ((v2w v): 81 word) ((v2w v'): 81 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 82 = SOME (((get_word_binpred binpred) ((v2w v): 82 word) ((v2w v'): 82 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 83 = SOME (((get_word_binpred binpred) ((v2w v): 83 word) ((v2w v'): 83 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 84 = SOME (((get_word_binpred binpred) ((v2w v): 84 word) ((v2w v'): 84 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 85 = SOME (((get_word_binpred binpred) ((v2w v): 85 word) ((v2w v'): 85 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 86 = SOME (((get_word_binpred binpred) ((v2w v): 86 word) ((v2w v'): 86 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 87 = SOME (((get_word_binpred binpred) ((v2w v): 87 word) ((v2w v'): 87 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 88 = SOME (((get_word_binpred binpred) ((v2w v): 88 word) ((v2w v'): 88 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 89 = SOME (((get_word_binpred binpred) ((v2w v): 89 word) ((v2w v'): 89 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 90 = SOME (((get_word_binpred binpred) ((v2w v): 90 word) ((v2w v'): 90 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 91 = SOME (((get_word_binpred binpred) ((v2w v): 91 word) ((v2w v'): 91 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 92 = SOME (((get_word_binpred binpred) ((v2w v): 92 word) ((v2w v'): 92 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 93 = SOME (((get_word_binpred binpred) ((v2w v): 93 word) ((v2w v'): 93 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 94 = SOME (((get_word_binpred binpred) ((v2w v): 94 word) ((v2w v'): 94 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 95 = SOME (((get_word_binpred binpred) ((v2w v): 95 word) ((v2w v'): 95 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 96 = SOME (((get_word_binpred binpred) ((v2w v): 96 word) ((v2w v'): 96 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 97 = SOME (((get_word_binpred binpred) ((v2w v): 97 word) ((v2w v'): 97 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 98 = SOME (((get_word_binpred binpred) ((v2w v): 98 word) ((v2w v'): 98 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 99 = SOME (((get_word_binpred binpred) ((v2w v): 99 word) ((v2w v'): 99 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 100 = SOME (((get_word_binpred binpred) ((v2w v): 100 word) ((v2w v'): 100 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 101 = SOME (((get_word_binpred binpred) ((v2w v): 101 word) ((v2w v'): 101 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 102 = SOME (((get_word_binpred binpred) ((v2w v): 102 word) ((v2w v'): 102 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 103 = SOME (((get_word_binpred binpred) ((v2w v): 103 word) ((v2w v'): 103 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 104 = SOME (((get_word_binpred binpred) ((v2w v): 104 word) ((v2w v'): 104 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 105 = SOME (((get_word_binpred binpred) ((v2w v): 105 word) ((v2w v'): 105 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 106 = SOME (((get_word_binpred binpred) ((v2w v): 106 word) ((v2w v'): 106 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 107 = SOME (((get_word_binpred binpred) ((v2w v): 107 word) ((v2w v'): 107 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 108 = SOME (((get_word_binpred binpred) ((v2w v): 108 word) ((v2w v'): 108 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 109 = SOME (((get_word_binpred binpred) ((v2w v): 109 word) ((v2w v'): 109 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 110 = SOME (((get_word_binpred binpred) ((v2w v): 110 word) ((v2w v'): 110 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 111 = SOME (((get_word_binpred binpred) ((v2w v): 111 word) ((v2w v'): 111 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 112 = SOME (((get_word_binpred binpred) ((v2w v): 112 word) ((v2w v'): 112 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 113 = SOME (((get_word_binpred binpred) ((v2w v): 113 word) ((v2w v'): 113 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 114 = SOME (((get_word_binpred binpred) ((v2w v): 114 word) ((v2w v'): 114 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 115 = SOME (((get_word_binpred binpred) ((v2w v): 115 word) ((v2w v'): 115 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 116 = SOME (((get_word_binpred binpred) ((v2w v): 116 word) ((v2w v'): 116 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 117 = SOME (((get_word_binpred binpred) ((v2w v): 117 word) ((v2w v'): 117 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 118 = SOME (((get_word_binpred binpred) ((v2w v): 118 word) ((v2w v'): 118 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 119 = SOME (((get_word_binpred binpred) ((v2w v): 119 word) ((v2w v'): 119 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 120 = SOME (((get_word_binpred binpred) ((v2w v): 120 word) ((v2w v'): 120 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 121 = SOME (((get_word_binpred binpred) ((v2w v): 121 word) ((v2w v'): 121 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 122 = SOME (((get_word_binpred binpred) ((v2w v): 122 word) ((v2w v'): 122 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 123 = SOME (((get_word_binpred binpred) ((v2w v): 123 word) ((v2w v'): 123 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 124 = SOME (((get_word_binpred binpred) ((v2w v): 124 word) ((v2w v'): 124 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 125 = SOME (((get_word_binpred binpred) ((v2w v): 125 word) ((v2w v'): 125 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 126 = SOME (((get_word_binpred binpred) ((v2w v): 126 word) ((v2w v'): 126 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 127 = SOME (((get_word_binpred binpred) ((v2w v): 127 word) ((v2w v'): 127 word)):boolv) )
+/\  (bitv_binpred_inner binpred v v' 128 = SOME (((get_word_binpred binpred) ((v2w v): 128 word) ((v2w v'): 128 word)):boolv) )
 /\  (bitv_binpred_inner binpred v v' _ = NONE )
 `;
 val bitv_binpred_def = Define `
@@ -1480,10 +1958,9 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
   (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_struct []) = v_struct []) /\
   (init_out_v (v_header boolv ((x,v)::t)) =
-    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\ 
+    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
   (init_out_v (v_header boolv []) = v_header F []) /\
-  (init_out_v (v_err errmsg) = v_err ARB) /\
-  (init_out_v v_uninit = v_uninit) /\
+  (init_out_v (v_ext_ref i) = v_ext_ref i) /\
   (init_out_v v_bot = v_bot)
 `
 (WF_REL_TAC `measure v_size` >>
@@ -1519,7 +1996,6 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
   (arb_from_tau tau_bool   = (v_bool ARB))  /\
   (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
   (arb_from_tau tau_bot    = v_bot)   /\
-  (arb_from_tau tau_err   = (v_err ARB)) /\
   (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
   (arb_from_tau (tau_xtl struct_ty_struct [] ) =  v_struct [] ) /\ 
   (arb_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =  
@@ -1700,9 +2176,10 @@ val initialise_def = Define `
 `;
 
 (* Initialises parseError in a scope. *)
+(* NOTE: NoError serialised to 0 *)
 val initialise_parse_error_def = Define `
   (initialise_parse_error (scope:scope) =
-    AUPDATE scope (varn_name "parseError", (v_err "NoError", NONE))
+    AUPDATE scope (varn_name "parseError", (v_bit (fixwidth 32 (n2v 0),32), NONE))
   )
 `;
 
@@ -2144,6 +2621,12 @@ ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: unop_arg
 ctx g_scope_list scope_list ( unop e ) ~> ( unop e' , frame_list )
 
+%Casts
+
+ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+----------------------------------- :: cast_arg
+ctx g_scope_list scope_list ( cast e ) ~> ( cast e' , frame_list )
+
 %Binary operations
 
 ctx g_scope_list scope_list ( e ) ~> ( e'' , frame_list )
@@ -2190,6 +2673,20 @@ ctx g_scope_list scope_list ( - bitv ) ~> ( bitv' , empty )
 ----------------------------------- :: un_plus
 ctx g_scope_list scope_list ( + bitv ) ~> ( bitv' , empty )
 
+%%%%%%%
+%Casts%
+%%%%%%%
+
+( unsigned n ) bitv = bitv'
+----------------------------------- :: cast_bitv
+ctx g_scope_list scope_list ( ( unsigned n ) bitv ) ~> ( bitv' , empty )
+
+% TODO: fix this cast to take only 1 unsigned not n
+
+( unsigned n ) b = bitv
+----------------------------------- :: cast_bool
+ctx g_scope_list scope_list ( ( unsigned n ) b ) ~> ( bitv , empty )
+
 
 %%%%%%%%%%%%%%%%%%%%
 %Binary expressions%
@@ -2223,12 +2720,20 @@ bitv + bitv' = bitv''
 ----------------------------------- :: add
 ctx g_scope_list scope_list ( bitv + bitv' ) ~> ( bitv'' , empty )
 
+bitv sat_add bitv' = bitv''
+----------------------------------- :: sat_add
+ctx g_scope_list scope_list ( bitv sat_add bitv' ) ~> ( bitv'' , empty )
+
 %%%%%%%%%%%%
 %Subtraction
 
 bitv - bitv' = bitv''
 ----------------------------------- :: sub
 ctx g_scope_list scope_list ( bitv - bitv' ) ~> ( bitv'' , empty )
+
+bitv sat_sub bitv' = bitv''
+----------------------------------- :: sat_sub
+ctx g_scope_list scope_list ( bitv sat_sub bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%
@@ -2279,13 +2784,10 @@ bitv NE bitv' = b
 ----------------------------------- :: neq
 ctx g_scope_list scope_list ( bitv NE bitv' ) ~> ( b , empty )
 
-(x <> x') = b
------------------------------------ :: neq_error
-ctx g_scope_list scope_list ( (errmsg x) NE (errmsg x') ) ~> ( b , empty )
-
 b NE b' = b''
 ----------------------------------- :: neq_bool
 ctx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
+
 
 %%%%%%%%%%%%%
 %Equal
@@ -2293,13 +2795,6 @@ ctx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
 bitv EQ bitv' = b
 ----------------------------------- :: eq
 ctx g_scope_list scope_list ( bitv EQ bitv' ) ~> ( b , empty )
-
-
-(x EQ x') = b
------------------------------------ :: eq_error
-ctx g_scope_list scope_list ( (errmsg x) EQ (errmsg x') ) ~> ( b , empty )
-
-
 
 b EQ b' = b''
 ----------------------------------- :: eq_bool
@@ -2424,21 +2919,6 @@ by
 
 
 %%%%%%%%%%%%%%
-%Verify
-
-%Case predicate holds
-  ------------------------------------------------- :: verify_3
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify true ( errmsg x ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list ) ] , Running )
-
-
-%Case predicate does not hold
-  x' = parseError
-  x'' = "reject"
-  ------------------------------------------------- :: verify_4
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify false ( errmsg x ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign x' ( errmsg x ) ; transition x'' ] , scope_list ) ] , Running )
-
-
-%%%%%%%%%%%%%%
 %Transition
 
   ------------------------------------------------- :: trans
@@ -2463,9 +2943,9 @@ by
 %%%%%%%%%%%%%%
 %Extern
   ext_fun = lookup_ext_fun ( funn , ext_map )
-  ( ascope' , scope_list' , v ) = ext_fun ( ascope , g_scope_list , scope_list )
+  ( ascope' , scope_list' , status ) = ext_fun ( ascope , g_scope_list , scope_list )
   ----------------------------------- :: ext
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list' ) ] , Ret v )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list' ) ] , status )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2489,18 +2969,6 @@ by
   ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
   ----------------------------------- :: cond_e
   ctx ( ascope , g_scope_list , [ ( funn , [ if e then stmt1 else stmt2 ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ if e' then stmt1 else stmt2 ] , scope_list ) ] , Running )
-
-
-%Reduction step of verify predicate
-  ctx g_scope_list scope_list ( e ) ~> ( e'' , frame_list )
-  ------------------------------------------------- :: verify_e1
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify e e' ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ verify e'' e' ] , scope_list ) ] , Running )
-  
-
-%Reduction step of error message
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
-  ------------------------------------------------- :: verify_e2
-  ctx ( ascope , g_scope_list , [ ( funn , [ verify b e ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ verify b e' ] , scope_list ) ] , Running )
 
 
 %Reduction step of transition
@@ -2580,7 +3048,7 @@ by
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   pbl_type b_func_map t_scope pars_map tbl_map = pblock_map ( f )
   ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map )
-  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope , pbl_type )
+  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
   scope'' = declare_list_in_scope ( t_scope , scope' )
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
@@ -2628,7 +3096,7 @@ by
   status' = set_fin_status ( pbl_type , status )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope... TODO: Test this...
-  ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , pbl_type , status' )
+  ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , status' )
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: pbl_ret
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , lastn 1 g_scope_list , arch_frame_list_empty , Running )

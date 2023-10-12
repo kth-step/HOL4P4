@@ -1469,16 +1469,7 @@ gvs[]
 
 
 
-
-
-
-
-
-
-
-
-
-
+        
 
 
 
@@ -1632,6 +1623,50 @@ Cases_on `is_const e` >| [
 ,
 
 (****************)
+(*  cast       *)
+(****************) 
+
+SIMP_TAC list_ss [prog_exp_def] >>
+REPEAT STRIP_TAC >>
+RW_TAC (srw_ss()) [Once e_red_cases] >>
+
+rw[] >>
+srw_tac [boolSimps.DNF_ss][] >>
+
+Cases_on `is_const e` >| [
+ 
+ gvs[clause_name_def] >>
+ Cases_on `e` >>
+ fs[is_const_def] >>
+ gvs[Once e_red_cases]  >>                
+
+ (*from the typing rules we know *)
+ Cases_on ‘c’ >>
+ gvs[] >>
+               
+ OPEN_EXP_TYP_TAC ``(e_cast (cast_unsigned n) (e_v v))`` >> fs[] >>
+ OPEN_EXP_TYP_TAC ``e_v v`` >> fs[] >>
+
+ gvs[Once e_red_cases]  >>                
+ OPEN_V_TYP_TAC ``v`` >> gvs[clause_name_def] 
+ ,
+        
+
+ OPEN_EXP_TYP_TAC ``(e_cast c e)`` >>
+ fs[prog_exp_def] >>
+ 
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+  [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
+   `tp`, ` b'`, ` c'`, ` order`, `delta_g`, ` delta_b`,
+   ` delta_t`, ` delta_x`,`f`, ‘Prs_n’])) >>
+
+ gvs[] >>
+ srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
+
+  ]        
+,
+
+(****************)
 (*  binop       *)
 (****************)  
 
@@ -1739,7 +1774,7 @@ rpt strip_tac >>
    ,
 
    (* both IH of is_err_bool b*)
-   fs[prog_exp_def] >>
+   (*fs[prog_exp_def] >>
     
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
@@ -1748,7 +1783,7 @@ rpt strip_tac >>
    gvs[] >>
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][] 
-   ,
+   , *)
 
    (* both IH of is_bv_bool_op b *)
    fs[prog_exp_def] >>

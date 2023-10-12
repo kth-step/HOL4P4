@@ -65,9 +65,9 @@ val parsed_packet_struct_uninit =
 
 val init_counter = ``3:num``;
 
-val init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
-                          (1, INL (core_v_ext_packet_out []));
-                          (2, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+val init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
+                          (1, INL (core_v_ext_packet []));
+                          (2, INL (core_v_ext_packet []))]:(num, (core_v_ext + vss_v_ext)) alist``;
 
 (* All variables used in the architectural scope need to be declared *)
 (* NOTE: the output packet is here called "data_crc". VSS spec has both input and output called "b" *)
@@ -79,7 +79,7 @@ val init_v_map = ``[("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
                     ("parsedHeaders", (^parsed_packet_struct_uninit));
                     ("headers", (^parsed_packet_struct_uninit));
                     ("outputHeaders", (^parsed_packet_struct_uninit));
-                    ("parseError", v_err "NoError")]:(string, v) alist``;
+                    ("parseError", ^(mk_v_bitii (0,32)))]:(string, v) alist``;
 
 (* Regular ethernet output ports are numbered 0-7 *)
 val init_ctrl = ``[("ipv4_match",
@@ -127,21 +127,22 @@ val vss_actx = rhs $ concl $ EVAL ``p4_vss_actx``;
 (* In V2, this ends at 210 steps for TTL=1 in input *)
 
 (*
-val nsteps = 74;
+val nsteps = 63;
 val astate = init_astate;
 val actx = vss_actx;
 *)
 
 (* FOR DEBUGGING:
 
-val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step actx astate nsteps;
+val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "vss" actx astate nsteps;
 
 val [counter, ext_obj_map, v_map, ctrl] = spine_pair ascope;
 
 
 val test = rhs $ concl $ EVAL ``EL ^i ^ab_list``;
 val x = ``"parser"``;
-val test = rhs $ concl $ EVAL ``^copyout_pbl (^g_scope_list, ^scope, [d_none; d_out], ["b"; "p"], pbl_type_parser, set_fin_status pbl_type_parser ^status)``;
+val test = rhs $ concl $ EVAL ``ALOOKUP ^pblock_map ^x``;
+val test = rhs $ concl $ EVAL ``^copyout_pbl (^g_scope_list, ^ascope, [d_none; d_out], ["b"; "p"], set_fin_status pbl_type_parser ^status)``;
 
 val test = rhs $ concl $ EVAL ``copyout ["b"; "p"] [d_none; d_out] [ [] ; [] ] [v_map_to_scope ^v_map] ^g_scope_list``;
 
@@ -174,40 +175,40 @@ val [ascope', g_scope_list', frame_list', status'] = spine_pair $ optionSyntax.d
 (* TODO: Make "exec arch block" function *)
 
 (* arch_in: input read into b, data_crc and inCtrl *)
-eval_and_print_aenv vss_actx init_astate 1;
+eval_and_print_aenv "vss" vss_actx init_astate 1;
 
 (* arch_pbl_init: parser block arguments read into b and p *)
-eval_and_print_rest vss_actx init_astate 2;
+eval_and_print_rest "vss" vss_actx init_astate 2;
 
 (* After a number of arch_pbl_exec steps: status set to status_trans "accept" *)
-eval_and_print_rest vss_actx init_astate 63;
+eval_and_print_rest "vss" vss_actx init_astate 72;
 
-(* arch_pbl_ret: parseError and parsedHeaders copied out to arch scope *)
-eval_and_print_aenv vss_actx init_astate 64;
+(* arch_pbl_ret: parsedHeaders copied out to arch scope *)
+eval_and_print_aenv "vss" vss_actx init_astate 73;
 
 (* arch_ffbl: Parser Runtime *)
-eval_and_print_aenv vss_actx init_astate 65;
+eval_and_print_aenv "vss" vss_actx init_astate 74;
 
 (* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 66;
+eval_and_print_rest "vss" vss_actx init_astate 75;
 
 (* arch_control_exec: *)
-eval_and_print_rest vss_actx init_astate 140;
+eval_and_print_rest "vss" vss_actx init_astate 149;
 
 (* arch_pbl_ret: outCtrl written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 141;
+eval_and_print_aenv "vss" vss_actx init_astate 150;
 
 (* arch_ffbl: pre-Deparser *)
-eval_and_print_aenv vss_actx init_astate 142;
+eval_and_print_aenv "vss" vss_actx init_astate 151;
 
 (* arch_pbl_init: arguments read into pbl-global scope, frame initialised *)
-eval_and_print_rest vss_actx init_astate 143;
+eval_and_print_rest "vss" vss_actx init_astate 152;
 
 (* arch_pbl_exec *)
-eval_and_print_rest vss_actx init_astate 193;
+eval_and_print_rest "vss" vss_actx init_astate 202;
 
 (* arch_pbl_ret: p written to arch scope *)
-eval_and_print_aenv vss_actx init_astate 194;
+eval_and_print_aenv "vss" vss_actx init_astate 203;
 
 (* arch_out: output read into output stream *)
-eval_and_print_aenv vss_actx init_astate 195;
+eval_and_print_aenv "vss" vss_actx init_astate 204;

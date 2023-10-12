@@ -62,6 +62,8 @@ num_exp :: num_exp ::=
   {{ hol 1 }}
 | i :: M :: i
   {{ hol [[i]] }}
+| n :: M :: n
+  {{ hol [[n]] }}  
 | num_exp + num_exp' :: M :: add
   {{ hol ( [[num_exp]] + [[num_exp']] ) }}
 | num_exp - num_exp' :: M :: sub
@@ -112,8 +114,9 @@ v :: v_ ::=
   {{ com struct }}
 | header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
   {{ com header }}
-| errmsg x :: :: err
-  {{ com error message }}
+%Error messages are now serialised as 32-bit 0, 1, 2, ... based on order of declaration.
+%| errmsg x :: :: err
+%  {{ com error message }}
 | ext_ref i :: :: ext_ref
   {{ com extern object reference }}
 | bot :: :: bot
@@ -136,6 +139,8 @@ funn :: funn_ ::=
   {{ com extern object instantiation }}
 | f f' :: :: ext
   {{ com extern method call }}
+%| ( funn ) :: X :: paren
+%  {{ hol ([[funn]]) }}
 
 %An abstract variable name
 varn :: varn_ ::=
@@ -207,6 +212,11 @@ unop {{ tex \ominus }}:: unop_ ::=
 | + :: :: un_plus
   {{ com unary plus }}
 
+cast :: cast_ ::=
+| ( unsigned n ) :: :: unsigned
+  {{ com unsigned cast }}
+  {{ tex ( unsigned [[n]] ) }}
+
 binop {{ tex \oplus }} :: binop_ ::=
 | * :: :: mul
   {{ com multiplication }}
@@ -219,8 +229,14 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ tex \bmod }}
 | + :: :: add
   {{ com addition }}
+| sat_add :: :: sat_add
+  {{ com saturating addition }}
+  {{ tex \lvert + \rvert }}
 | - :: :: sub
   {{ com subtraction }}
+| sat_sub :: :: sat_sub
+  {{ com saturating subtraction }}
+  {{ tex \lvert - \rvert }}
 | SHL :: :: shl
   {{ com logical left-shift }}
   {{ tex \ll }}
@@ -273,12 +289,16 @@ e :: e_ ::=
 | unop e :: :: unop
   {{ com unary operation }}
   {{ tex [[unop]] [[e]] }}
+| cast e :: :: cast
+  {{ com cast }}
+  {{ tex [[cast]] [[e]] }}
 | e1 binop e2 :: :: binop
   {{ com binary operation }}
   {{ tex [[e1]] [[binop]] [[e2]] }}
 | concat e1 e2 :: :: concat
   {{ com concatenation of bit-strings }}
 | e1 [ e2 : e3 ] :: :: slice
+  %TODO: Should this instead have two values as 2nd and 3rd params?
   {{ com bit-slice }}
 | call funn ( e1 , .. , en ) :: :: call
   {{ com function or extern call }}
@@ -428,7 +448,7 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 %An extern function/method updates the scope list, global scope list and arch scope directly.
 %Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
-{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # v) option)) }}
+{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # status) option)) }}
 
 %%%%%%%%%%%
 % Context %
@@ -505,9 +525,7 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ com no value }}
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
-  {{ com struct }} 
-| err :: :: err
-  {{ com error }}
+  {{ com struct }}
 | ext :: :: ext
   {{ com extern }}
 
@@ -584,9 +602,6 @@ stmt :: stmt_ ::=
   {{ com return }}
 | stmt1 ; stmt2 :: :: seq
   {{ com sequence }}
-| verify e e' :: :: verify
-  %e is the predicate, e' is the error message
-  {{ com verify }}
 | transition e :: :: trans
   {{ com transition }}
   {{ tex \mathbf{transition}\, [[e]] }}
@@ -719,12 +734,12 @@ output_f {{ tex { \mathit{out}_A } }} :: output_f_ ::=
 %This function is used to copy things from the architecture when a programmable block begins
 copyin_pbl {{ tex { \mathit{in}_p } }} :: copyin_pbl_ ::=
 {{ com copy-in to programmable blocks function }}
-{{ hol ((x list # d list # e list # ascope_ty # pbl_type) -> scope option) }}
+{{ hol ((x list # d list # e list # ascope_ty) -> scope option) }}
 
 %This function is used to copy out things to the architecture after a programmable block is finished
 copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
-{{ hol ((g_scope list # ascope_ty # d list # x list # pbl_type # status) -> ascope_ty option) }}
+{{ hol ((g_scope list # ascope_ty # d list # x list # status) -> ascope_ty option) }}
 
 %This function takes a table name, arguments, match kinds and the architectural scope and returns an action with arguments
 apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=

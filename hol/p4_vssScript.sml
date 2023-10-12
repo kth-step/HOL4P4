@@ -4,14 +4,16 @@ open p4Theory p4_auxTheory p4_coreTheory;
 
 val _ = new_theory "p4_vss";
 
-val _ = Hol_datatype ` 
- vss_v_ext = vss_v_ext_ipv4_checksum of word16 list`;
-val _ = type_abbrev("v_ext", ``:(core_v_ext, vss_v_ext) sum``);
+Datatype:
+ vss_v_ext =
+   vss_v_ext_ipv4_checksum (word16 list)
+End
+val _ = type_abbrev("vss_sum_v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
 val _ = type_abbrev("vss_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
 
 (* The architectural state type of the VSS architecture model *)
-val _ = type_abbrev("vss_ascope", ``:(num # ((num, v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
+val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -28,13 +30,32 @@ Definition vss_ascope_update_def:
    (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
 End
 
-Definition packet_in_extract:
- packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update
+Definition vss_ascope_update_v_map_def:
+ vss_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl):vss_ascope) str v =
+   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
 End
 
-Definition packet_out_emit:
- packet_out_emit = packet_out_emit_gen vss_ascope_lookup vss_ascope_update
+Definition vss_packet_in_extract:
+ vss_packet_in_extract = packet_in_extract_gen vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
 End
+
+Definition vss_packet_in_lookahead:
+ vss_packet_in_lookahead = packet_in_lookahead_gen vss_ascope_lookup vss_ascope_update_v_map
+End
+
+Definition vss_packet_in_advance:
+ vss_packet_in_advance = packet_in_advance_gen vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
+End
+
+Definition vss_packet_out_emit:
+ vss_packet_out_emit = packet_out_emit_gen vss_ascope_lookup vss_ascope_update
+End
+
+Definition vss_verify:
+ (vss_verify (ascope:vss_ascope, g_scope_list:g_scope_list, scope_list) =
+  verify_gen vss_ascope_update_v_map (ascope, g_scope_list, scope_list))
+End
+
 
 (**********************************************************)
 (*                     EXTERN OBJECTS                     *)
@@ -52,7 +73,7 @@ Definition Checksum16_construct:
   let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum ([]:word16 list))) in
   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
-    SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', v_bot)
+    SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
    | NONE => NONE)
  )
 End
@@ -65,7 +86,7 @@ Definition Checksum16_clear:
  (Checksum16_clear ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:word16 list))), v_map, ctrl), scope_list, v_bot)
+   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:word16 list))), v_map, ctrl), scope_list, status_returnv v_bot)
   | _ => NONE
  )
 End
@@ -129,7 +150,7 @@ Definition Checksum16_update:
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
      (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
       | SOME checksum_incr =>
-       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, v_bot)
+       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE
@@ -171,7 +192,7 @@ Definition Checksum16_get:
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, (v_bit (w16 (compute_checksum16 ipv4_checksum))))
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (w16 (compute_checksum16 ipv4_checksum))))
     | _ => NONE)
   | _ => NONE
  )
@@ -211,13 +232,13 @@ Definition vss_input_f_def:
        | SOME data_crc =>
         (case ALOOKUP v_map "b_in" of
          | SOME (v_ext_ref i) =>
-          let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet_in header)) in
+          let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet header)) in
           (case ALOOKUP v_map "data_crc" of
            | SOME (v_ext_ref i') =>
-            let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet_out data_crc)) in
+            let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet data_crc)) in
              (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
               * function for vss_ascope. *)
-             let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",(v_bit (w4 (n2w p))))]) in
+             let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort", v_bit (w4 (n2w p)))]) in
               SOME (t, (counter, ext_obj_map'', v_map', ctrl):vss_ascope)
            | _ => NONE)
          | _ => NONE)
@@ -251,40 +272,21 @@ End
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition vss_copyin_pbl_def:
- vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):vss_ascope, pbl_type) =
+ vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
   case vss_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
-    | SOME scope =>
-     if pbl_type = pbl_type_parser
-     then
-      SOME (initialise_parse_error scope)
-     else
-      SOME scope
-    | NONE => NONE)
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ]
   | NONE => NONE
 End
 
 (* TODO: Does anything need to be looked up for this function? *)
 Definition vss_copyout_pbl_def:
- vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, pbl_type, (status:status)) =
+ vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, (status:status)) =
   case copyout_pbl_gen xlist dlist g_scope_list v_map of
   | SOME [v_map_scope] =>
-   if pbl_type = pbl_type_parser
-   then
-    (case lookup_lval g_scope_list (lval_varname (varn_name "parseError")) of
-     | SOME v =>
-      (case assign [v_map_scope] v (lval_varname (varn_name "parseError")) of
-       | SOME [v_map_scope'] =>
-        (case scope_to_vmap v_map_scope' of
-         | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
-         | NONE => NONE)
-       | NONE => NONE)
-     | _ => NONE)
-   else
-    (case scope_to_vmap v_map_scope of
-     | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
-     | NONE => NONE)
+   (case scope_to_vmap v_map_scope of
+    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
+    | NONE => NONE)
   | _ => NONE
 End
 
@@ -321,12 +323,19 @@ End
 Definition vss_output_f_def:
  vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
   (case vss_lookup_obj ext_obj_map v_map "b_out" of
-   | SOME (INL (core_v_ext_packet_out headers)) =>
+   | SOME (INL (core_v_ext_packet headers)) =>
     (case vss_lookup_obj ext_obj_map v_map "data_crc" of
-     | SOME (INL (core_v_ext_packet_out data_crc)) =>
+     | SOME (INL (core_v_ext_packet data_crc)) =>
       (case ALOOKUP v_map "outCtrl" of
        | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
-        SOME (in_out_list++[(headers++data_crc, v2n bl)], (counter, ext_obj_map, v_map, ctrl))
+        let
+         port_out = v2n bl
+        in
+         if port_out = 15
+         then
+          SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
+         else
+          SOME (in_out_list++[(headers++data_crc, port_out)], (counter, ext_obj_map, v_map, ctrl))
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)

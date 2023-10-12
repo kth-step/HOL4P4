@@ -34,7 +34,7 @@ fun OPEN_V_TYP_TAC v_term =
 
                
 fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red j scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
 
 fun OPEN_ANY_EXP_RED_TAC exp_term =
 (Q.PAT_X_ASSUM `e_red c scope scopest exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
@@ -179,6 +179,8 @@ REPEAT STRIP_TAC >| [
  ,
  FR_LEN_IND_CASE “e_unop u e”
  ,
+ FR_LEN_IND_CASE “e_cast c e”       
+ ,       
  FR_LEN_IND_CASE “e_binop e b e'”
  ,
  FR_LEN_IND_CASE “e_concat e e'” 
@@ -290,13 +292,13 @@ STRIP_TAC >| [
  RES_TAC >>
  gvs[]
  ,
- FR_LEN_STMT_IND_CASE “stmt_verify e e0” >>
+ (*FR_LEN_STMT_IND_CASE “stmt_verify e e0” >>
  gvs[] >>
  ASSUME_TAC fr_len_from_e_theorem >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`])) >>
  fs[fr_len_exp_def] >> gvs[] >>
  RES_TAC >> gvs[]
- ,
+ ,*)
  FR_LEN_STMT_IND_CASE “stmt_trans e” 
  ,
  OPEN_STMT_RED_TAC “stmt_app s l” >>
@@ -518,7 +520,7 @@ REPEAT STRIP_TAC >| [
 
  ,
  (* verify statement *)
- IMP_RES_TAC fr_len_from_a_frame_theorem >| [
+(* IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    OPEN_ANY_STMT_RED_TAC >>
    gvs[] >|[
      (* verify e1 *)                    
@@ -544,8 +546,8 @@ REPEAT STRIP_TAC >| [
      ]     
    ,
    fs[res_frame_typ_def]
-   ]
- ,
+   ] 
+ , *)
  (** statement trans **)
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    OPEN_ANY_STMT_RED_TAC >> gvs[] >>
@@ -1330,8 +1332,6 @@ REPEAT STRIP_TAC >| [
    (FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`(EL x (MAP (λ(x_,v_,tau_). v_) (x_v_tau_list' : (string # v # tau) list)))`])) >>
     rfs[EL_MEM] ) >>
  fs[deter_v_typed_def]
- ,
- fs[Once v_typ_cases]
  ,
  fs[Once v_typ_cases]
  ,
@@ -2978,7 +2978,7 @@ val stmt_to_stmt_single = prove (“
  type_scopes_list scopest tsl ∧
  type_scopes_list gscope tslg ∧
  star_not_in_sl scopest ∧
- parseError_in_gs tslg [tsl] ∧
+ (*parseError_in_gs tslg [tsl] ∧*)
 
  SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ∧
  args_t_same (MAP FST txdl) tsl ∧
@@ -3048,8 +3048,8 @@ STRIP_TAC >|  [
 (*****************************)
 
 (* remove the induction hypothesis *)
- schneiderUtils.POP_NO_TAC 10 >>
  schneiderUtils.POP_NO_TAC 9 >>
+ schneiderUtils.POP_NO_TAC 8 >>
 
         
  (* we need to prove it directly from the IH *)
@@ -3133,7 +3133,7 @@ STRIP_TAC >|  [
 (*****************************)
 (*   stmt_seq                *)
 (*****************************)
- schneiderUtils.POP_NO_TAC 9 >>
+ schneiderUtils.POP_NO_TAC 8 >>
 
  OPEN_STMT_RED_TAC “stmt_seq stmt stmt'” >>
  FIRST_X_ASSUM MP_TAC >>
@@ -3165,7 +3165,7 @@ STRIP_TAC >|  [
 (*****************************)
 (*   stmt_verify             *)
 (*****************************)
-
+ (* 
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    (* whenever there is a frame, it means that there were a reduction in e or e' *)
    OPEN_STMT_TYP_TAC “stmt_verify e e0” >>
@@ -3267,7 +3267,7 @@ STRIP_TAC >|  [
    srw_tac [SatisfySimps.SATISFY_ss][]
   ]  
  ]                                        
- ,
+ , *)
  
  (*****************************)
  (*   stmt_trans              *)
@@ -3498,7 +3498,7 @@ STRIP_TAC >|  [
  ASSUME_TAC typ_scope_list_ext_out_scope_lemma >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
          [`f`, `apply_table_f`, ‘ext_map’,‘func_map’,‘b_func_map’,‘pars_map’,‘tbl_map’,‘order’,‘tslg’,‘delta_g’,‘delta_b’,‘delta_x’,
-               ‘ascope’,‘ascope'’,‘gscope’,‘scopest’,‘scopest'’,‘v’,‘ext_fun’,‘tsl’,‘tau’,‘txdl’, ‘delta_t’, ‘Prs_n’])) >>
+               ‘ascope’,‘ascope'’,‘gscope’,‘scopest’,‘scopest'’,‘status'’,‘ext_fun’,‘tsl’,‘tau’,‘txdl’, ‘delta_t’, ‘Prs_n’])) >>
  gvs[]        
 ]                                                                          
 );                                  
@@ -3769,7 +3769,7 @@ QED
 
 
 
-        
+(*        
 Theorem Err_not_in_HD:
 ∀ l tsl tgl.
 parseError_in_gs tgl [tsl] ∧
@@ -3792,7 +3792,7 @@ gvs[] >>
 IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >> 
 gvs[]
 QED
-                     
+ *)                    
 
 
 
@@ -3963,8 +3963,6 @@ gvs[] >| [
      SIMP_TAC list_ss [Once star_not_in_sl_normalization] >>     
      gvs[star_Err_not_in_ts_def, star_not_in_decl_ts] 
      ,
-     gvs[Err_not_in_HD] 
-     ,
      SIMP_TAC list_ss [Once type_scopes_list_normalize] >>
      gvs[declare_typed]
      ,
@@ -4069,14 +4067,14 @@ gvs[] >| [
  (*   stmt_verify             *)
  (*****************************)
 
-  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
+(*  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
   gvs[] >| [
     fs[Once stmt_red_cases] >>
     gvs[] 
     ,  
     STMT_STMT_SR_TAC ‘stmt_verify e e0’
    ]       
- ,
+ , *)
 
  (*****************************)
  (*   stmt_trans              *)
@@ -4344,7 +4342,7 @@ Cases_on ‘i=0’ >> gvs[]   >|  [
 
 
 
-        
+(*        
 val parseError_singleton_normalization = prove (“       
 ∀ l h tslg.
 parseError_in_gs tslg [h::l] ⇒
@@ -4379,7 +4377,7 @@ gvs[DROP_1] >> REPEAT STRIP_TAC >>
 IMP_RES_TAC parseError_singleton_normalization
 );
 
-
+*)
                       
         
 
@@ -4416,9 +4414,7 @@ srw_tac [boolSimps.DNF_ss][] >| [
  Cases_on ‘scopest’ >>
  gvs[] >>         
  gvs[type_frame_tsl_def] >>
- gvs[type_scopes_list_def, similarl_def, star_not_in_sl_def]
- ,
- IMP_RES_TAC parseError_singleton_normalization                  
+ gvs[type_scopes_list_def, similarl_def, star_not_in_sl_def]              
  ,
  gvs[type_frame_tsl_def] >>
  Cases_on ‘scopest’ >> gvs[] >-
@@ -4595,8 +4591,7 @@ Cases_on ‘stmtl’ >| [
    fs[]
    ,
    IMP_RES_TAC frame_type_block_exit_in_sr >> gvs[] >>
-   srw_tac [][]   >>
-   IMP_RES_TAC parseError_DROP      
+   srw_tac [][]   
   ]                               
  ]
 ]]

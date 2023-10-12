@@ -65,9 +65,9 @@ val parsed_packet_struct_uninit =
 
 val init_counter = ``3:num``;
 
-val init_ext_obj_map = ``[(0, INL (core_v_ext_packet_in []));
-                          (1, INL (core_v_ext_packet_out []));
-                          (2, INL (core_v_ext_packet_out []))]:(num, v_ext) alist``;
+val init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
+                          (1, INL (core_v_ext_packet []));
+                          (2, INL (core_v_ext_packet []))]:(num, (core_v_ext + vss_v_ext)) alist``;
 
 (* All variables used in the architectural scope need to be declared *)
 (* NOTE: the output packet is here called "data_crc". VSS spec has both input and output called "b" *)
@@ -79,7 +79,7 @@ val init_v_map = ``[("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
                     ("parsedHeaders", (^parsed_packet_struct_uninit));
                     ("headers", (^parsed_packet_struct_uninit));
                     ("outputHeaders", (^parsed_packet_struct_uninit));
-                    ("parseError", v_err "NoError")]:(string, v) alist``;
+                    ("parseError", ^(mk_v_bitii (0,32)))]:(string, v) alist``;
 
 (* Regular ethernet output ports are numbered 0-7 *)
 val init_ctrl = ``[("ipv4_match",
@@ -165,13 +165,12 @@ val ass2 =
      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = vss_updated_checksum16 [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
 val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 
-(* 171 steps for TTL=1 packet to get forwarded to CPU *)
+(* 180 steps for TTL=1 packet to get forwarded to CPU *)
 
 (* Solution: Use stepwise EVAL with assumptions *)
 (* Takes around 20 seconds to run *)
 
-(* GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 57; *)
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 171;
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 180;
 
 (* Solution: Use EVAL directly with re-defined function that has a property that easily enables the theorem.
  * This re-defined function should have no effect on the theorem statement other than through this property *)
@@ -184,7 +183,7 @@ Definition Checksum16_get':
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, (v_bit (w16 0w)))
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (w16 0w)))
     | _ => NONE)
   | _ => NONE
  )
@@ -197,9 +196,10 @@ val vss_Checksum16_map' =
     ("get", ([("this", d_in)], Checksum16_get'))]``;
 val vss_ext_map' =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
-    ++ [("packet_in", (NONE, (^packet_in_map)));
-        ("packet_out", (NONE, (^packet_out_map)));
-("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))])``;
+    ++ [("", (NONE, (^vss_objectless_map)));
+        ("packet_in", (NONE, (^vss_packet_in_map)));
+        ("packet_out", (NONE, (^vss_packet_out_map)));
+        ("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))]):vss_ascope ext_map``;
 
 
 val vss_actx_list = spine_pair $ rhs $ concl p4_vss_actx_def;
@@ -214,11 +214,11 @@ Definition p4_vss_actx'_def:
 End
 val ctx' = ``p4_vss_actx'``;
 
-(* EVAL-uate until packet is output (happens to be step 171) *)
-GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 171``;
+(* EVAL-uate until packet is output (happens to be step 180) *)
+GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 180``;
 
 (* Solution: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
 (* Takes 58 steps, then another 100, then 13 *)
-GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [58, 100, 13];
+GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [64, 103, 13];

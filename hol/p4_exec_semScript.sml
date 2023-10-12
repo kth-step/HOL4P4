@@ -24,8 +24,14 @@ Definition is_v_bool:
  (is_v_bool _ = F)
 End
 
+Definition is_v_bit:
+ (is_v_bit (e_v (v_bit bitv)) = T) /\
+ (is_v_bit _ = F)
+End
+
+(* NOTE: Error messages serialised using 32 bits *)
 Definition is_v_err:
- (is_v_err (e_v (v_err x)) = T) /\
+ (is_v_err (e_v (v_bit (bl, 32))) = T) /\
  (is_v_err _ = F)
 End
 
@@ -57,6 +63,20 @@ Definition e_exec_unop:
  (e_exec_unop _ _ = NONE)
 End
 
+Definition cast_exec:
+ (cast_exec cast (v_bit bitv) = SOME (v_bit $ bitv_cast cast bitv))
+ /\
+ (cast_exec cast (v_bool b) = SOME (v_bit $ bool_cast cast b))
+ /\
+ (cast_exec cast v = NONE)
+End
+
+Definition e_exec_cast:
+ (e_exec_cast (cast_unsigned n) (e_v v) = cast_exec n v)
+  /\
+ (e_exec_cast _ _ = NONE)
+End
+
 (* TODO: Split binop into binop, binpred, ... to reduce copypaste? *)
 Definition binop_exec:
  (binop_exec binop_mul (v_bit bitv1) (v_bit bitv2) =
@@ -79,8 +99,18 @@ Definition binop_exec:
   | SOME bitv3 => SOME (v_bit bitv3)
   | NONE => NONE)
  /\
+ (binop_exec binop_sat_add (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_sat_add bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
  (binop_exec binop_sub (v_bit bitv1) (v_bit bitv2) =
   case bitv_binop binop_sub bitv1 bitv2 of
+  | SOME bitv3 => SOME (v_bit bitv3)
+  | NONE => NONE)
+ /\
+ (binop_exec binop_sat_sub (v_bit bitv1) (v_bit bitv2) =
+  case bitv_binop binop_sat_sub bitv1 bitv2 of
   | SOME bitv3 => SOME (v_bit bitv3)
   | NONE => NONE)
  /\
@@ -118,17 +148,11 @@ Definition binop_exec:
  (binop_exec binop_neq (v_bool b1) (v_bool b2) =
   SOME (v_bool (b1 <> b2)))
  /\
- (binop_exec binop_neq (v_err x1) (v_err x2) =
-  SOME (v_bool (x1 <> x2)))
- /\
  (binop_exec binop_eq (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bool (bitv1 = bitv2)))
  /\
  (binop_exec binop_eq (v_bool b1) (v_bool b2) =
   SOME (v_bool (b1 = b2)))
- /\
- (binop_exec binop_eq (v_err x1) (v_err x2) =
-  SOME (v_bool (x1 = x2)))
  /\
  (binop_exec binop_and (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bit (bitv_bl_binop band bitv1 bitv2)))
@@ -184,6 +208,20 @@ Definition e_exec_select:
  (e_exec_select _ _ _ = NONE)
 End
 
+Definition e_exec_concat:
+ (e_exec_concat (e_v (v_bit bitv1)) (e_v (v_bit bitv2)) =
+  SOME (v_bit (bitv_concat bitv1 bitv2)))
+  /\
+ (e_exec_concat _ _ = NONE)
+End
+
+Definition e_exec_slice:
+ (e_exec_slice (e_v (v_bit bitv1)) (e_v (v_bit bitv2)) (e_v (v_bit bitv3)) =
+  SOME (v_bit (slice bitv1 bitv2 bitv3)))
+  /\
+ (e_exec_slice _ _ _ = NONE)
+End
+
 (********************************)
 (* Statement-related shorthands *)
 
@@ -212,16 +250,6 @@ End
 
 Definition stmt_exec_init:
  (stmt_exec_init varn (e_v v) ss = initialise ss varn v)
-End
-
-Definition stmt_exec_verify:
- (stmt_exec_verify (e_v (v_bool T)) (e_v (v_err x)) =
-  SOME stmt_empty)
-  /\
- (stmt_exec_verify (e_v (v_bool F)) (e_v (v_err x)) =
-  SOME (stmt_seq (stmt_ass (lval_varname (varn_name "parseError")) ((e_v (v_err x)))) (stmt_trans (e_v (v_str "reject")))))
-  /\
- (stmt_exec_verify _ _ = NONE)
 End
 
 Definition stmt_exec_trans:
@@ -270,7 +298,7 @@ val e_exec = TotalDefn.tDefine "e_exec" `
       SOME (e_acc e_v_struct' x, frame_list)
      | NONE => NONE))
   /\
- (******************************)
+ (*********************************)
  (* Struct/header field reduction *)
  (e_exec ctx g_scope_list scope_list (e_struct x_e_l) =
   case unred_mem_index (MAP SND x_e_l) of
@@ -298,6 +326,19 @@ val e_exec = TotalDefn.tDefine "e_exec" `
           SOME (e_var (varn_star funn), [(funn, [stmt], [scope])])
          | NONE => NONE))
      else NONE
+    | NONE => NONE))
+  /\
+ (********)
+ (* Cast *)
+ (e_exec ctx g_scope_list scope_list (e_cast cast e) =
+  if is_v e
+  then
+   (case e_exec_cast cast e of
+    | SOME v => SOME (e_v v, [])
+    | NONE => NONE)
+  else
+   (case e_exec ctx g_scope_list scope_list e of
+    | SOME (e', frame_list) => SOME (e_cast cast e', frame_list)
     | NONE => NONE))
   /\
  (********************)
@@ -349,6 +390,41 @@ val e_exec = TotalDefn.tDefine "e_exec" `
    (case e_exec ctx g_scope_list scope_list e of
     | SOME (e', frame_list) => SOME (e_select e' v_x_l x, frame_list)
     | NONE => NONE))
+  /\
+ (*****************)
+ (* Concatenation *)
+ (e_exec ctx g_scope_list scope_list (e_concat e1 e2) =
+  if is_v_bit e1
+  then 
+   (if is_v_bit e2
+    then 
+     (case e_exec_concat e1 e2 of
+      | SOME v => SOME (e_v v, [])
+      | NONE => NONE)
+    else
+     (case e_exec ctx g_scope_list scope_list e2 of
+      | SOME (e2', frame_list) => SOME (e_concat e1 e2', frame_list)
+      | NONE => NONE))
+  else
+   (case e_exec ctx g_scope_list scope_list e1 of
+    | SOME (e1', frame_list) => SOME (e_concat e1' e2, frame_list)
+    | NONE => NONE))
+  /\
+ (***********)
+ (* Slicing *)
+ (e_exec ctx g_scope_list scope_list (e_slice e1 e2 e3) =
+  if (is_v_bit e2 /\ is_v_bit e3)
+  then
+   (if is_v_bit e1
+    then 
+     (case e_exec_slice e1 e2 e3 of
+      | SOME v => SOME (e_v v, [])
+      | NONE => NONE)
+    else
+     (case e_exec ctx g_scope_list scope_list e1 of
+      | SOME (e1', frame_list) => SOME (e_slice e1' e2 e3, frame_list)
+      | NONE => NONE))
+   else NONE)
   /\
  (e_exec _ _ _ _ = NONE)
 `
@@ -456,33 +532,6 @@ Definition stmt_exec:
      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_ass lval e'], scope_list)], status_running)
     | _ => NONE))
   /\
- (**********)
- (* Verify *)
- (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_verify e1 e2], scope_list)], status_running) =
-  if is_v e1
-  then
-   if is_v_bool e1
-   then
-    if is_v e2
-    then
-     if is_v_err e2
-     then
-      (case stmt_exec_verify e1 e2 of
-       | SOME stmt => SOME (ascope, g_scope_list, [(funn, [stmt], scope_list)], status_running)
-       | NONE => NONE)
-     else NONE
-    else
-     (case e_exec ctx g_scope_list scope_list e2 of
-      | SOME (e2', frame_list) =>
-       SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_verify e1 e2'], scope_list)], status_running)
-      | NONE => NONE)
-    else NONE
-  else
-   (case e_exec ctx g_scope_list scope_list e1 of
-    | SOME (e1', frame_list) =>
-     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_verify e1' e2], scope_list)], status_running)
-    | NONE => NONE))
-  /\
  (**************)
  (* Transition *)
  (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_trans e], scope_list)], status_running) =
@@ -556,8 +605,8 @@ Definition stmt_exec:
   (case lookup_ext_fun funn ext_map of
    | SOME ext_fun =>
     (case ext_fun (ascope, g_scope_list, scope_list) of
-     | SOME (ascope', scope_list', v) =>
-      SOME (ascope', g_scope_list, [(funn, [stmt_empty], scope_list')], status_returnv v)
+     | SOME (ascope', scope_list', status') =>
+      SOME (ascope', g_scope_list, [(funn, [stmt_empty], scope_list')], status')
      | NONE => NONE)
    | NONE => NONE))
   /\
@@ -674,7 +723,22 @@ rpt strip_tac >| [
    fs []
   ) >>
   PairCases_on `x'` >>
-  fs []  
+  fs []
+ ],
+
+ (* Unop *)
+ Cases_on `is_v e` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_cast cast e` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs []
  ],
 
  (* TODO: Weird blob goal... *)
@@ -734,6 +798,21 @@ rpt strip_tac >| [
    fs []
   ],
 
+  (* Cast *)
+  Cases_on `is_v e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_cast c e` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
   (* TODO: Interesting... *)
   Cases_on `case e of
              e_v v =>
@@ -763,6 +842,10 @@ rpt strip_tac >| [
                 NONE => NONE
               | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
            | e_unop v29 v30 =>
+             (case e_exec ctx g_scope_list scope_list e of
+                NONE => NONE
+              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
+           | e_cast v29 v30 =>
              (case e_exec ctx g_scope_list scope_list e of
                 NONE => NONE
               | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
@@ -799,6 +882,51 @@ rpt strip_tac >| [
   PairCases_on `x` >>
   fs [],
 
+  (* Concatenation *)
+  Cases_on `is_v_bit e` >> Cases_on `is_v_bit e0` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_concat e e0` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scope_list e0` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs [],
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs [],
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
+  (* Slicing *)
+  Cases_on `is_v_bit e0` >> Cases_on `is_v_bit e1'` >> (
+   fs []
+  ) >>
+  Cases_on `is_v_bit e` >> (
+   fs []
+  ) >| [
+   Cases_on `e_exec_slice e e0 e1'` >> (
+    fs []
+   ),
+
+   Cases_on `e_exec ctx g_scope_list scope_list e` >> (
+    fs []
+   ) >>
+   PairCases_on `x` >>
+   fs []
+  ],
+
   (* Function call *)
   Cases_on `e_exec ctx g_scope_list scope_list (e_call f l)` >> (
    fs []
@@ -829,6 +957,48 @@ rpt strip_tac >| [
    fs []
   ) >>
   PairCases_on `x'` >>
+  fs []
+ ],
+
+ (* Slicing *)
+ Cases_on `is_v_bit e1` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_slice e1 e2 e3` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e1` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs []
+ ],
+
+ (* Concatenation *)
+ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
+  fs []
+ ) >| [
+  Cases_on `e_exec_concat e1 e2` >> (
+   fs []
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scope_list e2` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  Cases_on `e_exec ctx g_scope_list scope_list e1` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
+  fs [],
+
+  Cases_on `e_exec ctx g_scope_list scope_list e1` >> (
+   fs []
+  ) >>
+  PairCases_on `x` >>
   fs []
  ],
 
@@ -953,106 +1123,6 @@ Cases_on `is_v e` >> (
   metis_tac [],
 
   metis_tac []  
- ]
-]
-QED
-
-Theorem exec_stmt_verify_SOME_REWRS:
-!ctx ascope ascope' g_scope_list g_scope_list' funn e1 e2 stmt_stack frame_list' scope_list status'.
-stmt_exec ctx (ascope, g_scope_list, [(funn, (stmt_verify e1 e2)::stmt_stack, scope_list)], status_running) =
-        SOME (ascope', g_scope_list', frame_list', status') <=>
- (is_v e1 ==> is_v_bool e1) /\
- (~is_v e1 ==>
-  ?e1' frame_list''.
-   e_exec ctx g_scope_list scope_list e1 = SOME (e1', frame_list'') /\
-   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1' e2)::stmt_stack,scope_list)]) /\
- ((is_v e1 /\ is_v e2) ==>
-  is_v_err e2 /\
-  ?stmt'. stmt_exec_verify e1 e2 = SOME stmt' /\
-  frame_list' = [(funn,stmt'::stmt_stack,scope_list)]) /\
- ((is_v e1 /\ ~is_v e2) ==>
-  ?e2' frame_list''.
-   e_exec ctx g_scope_list scope_list e2 = SOME (e2', frame_list'') /\
-   frame_list' = frame_list'' ++ [(funn,(stmt_verify e1 e2')::stmt_stack,scope_list)]) /\
- g_scope_list' = g_scope_list /\
- scope_list <> [] /\
- ascope' = ascope /\
- status' = status_running
-Proof
-rpt strip_tac >>
-Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v e1` >> (
- fs [stmt_exec]
-) >| [
- Cases_on `is_v_bool e1` >> (
-  fs []
- ) >>
- Cases_on `is_v e2` >> (
-  fs []
- ) >| [
-  Cases_on `is_v_err e2` >> (
-   fs []
-  ) >>
-  Cases_on `stmt_exec_verify e1 e2` >> (
-   fs []
-  ) >>
-  metis_tac [],
-
-  Cases_on `e_exec ctx g_scope_list (h::t) e2` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >> (
-   fs []
-  ) >>
-  metis_tac []
- ],
-
- Cases_on `e_exec ctx g_scope_list (h::t) e1` >> (
-  fs []
- ) >>
- PairCases_on `x` >> (
-  fs []
- ) >>
- metis_tac [],
-
- Cases_on `is_v_bool e1` >> (
-  fs []
- ) >>
- Cases_on `is_v e2` >> (
-  fs []
- ) >| [
-  Cases_on `is_v_err e2` >> (
-   fs []
-  ) >>
-  Cases_on `stmt_exec_verify e1 e2` >> (
-   fs []
-  ) >>
-  metis_tac [],
-
-  Cases_on `e_exec ctx g_scope_list (h::t) e2` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [] >>
-  IMP_RES_TAC e_exec_new_frame >> (
-   fs []
-  ) >| [
-   metis_tac [],
-
-   metis_tac []
-  ]
- ],
-
- Cases_on `e_exec ctx g_scope_list (h::t) e1` >> (
-  fs []
- ) >>
- PairCases_on `x` >>
- fs [] >>
- IMP_RES_TAC e_exec_new_frame >> (
-  fs []
- ) >| [
-  metis_tac [],
-
-  metis_tac []
  ]
 ]
 QED
@@ -1312,11 +1382,11 @@ stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (asc
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (?ext_fun.
    lookup_ext_fun funn ext_map = SOME ext_fun /\
-   ?scope_list'' ascope'' v''.
-    ext_fun (ascope, g_scope_list, scope_list) = SOME (ascope'', scope_list'', v'') /\
+   ?scope_list'' ascope'' status''.
+    ext_fun (ascope, g_scope_list, scope_list) = SOME (ascope'', scope_list'', status'') /\
     g_scope_list' = g_scope_list /\
     frame_list' = [(funn, stmt_empty::stmt_stack, scope_list'')] /\
-    status' = status_returnv v'' /\
+    status' = status'' /\
     scope_list <> [] /\
     ascope' = ascope'')
 Proof
@@ -1488,15 +1558,6 @@ Cases_on `stmt` >> (
   ]
  ],
 
- (* Verify *)
- fs [exec_stmt_verify_SOME_REWRS] >>
- Cases_on `is_v e` >> (
-  fs []
- ) >>
- Cases_on `is_v e0` >> (
-  fs []
- ),
-
  (* Transition *)
  fs [exec_stmt_trans_SOME_REWRS] >>
  Cases_on `is_v e` >> (
@@ -1584,14 +1645,6 @@ rpt strip_tac >| [
  PairCases_on `x'` >> (
   fs []
  ),
-
- (* Verify *)
- fs [exec_stmt_verify_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
-
- (* Verify (stack case) *)
- fs [exec_stmt_verify_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
 
  (* Return *)
  fs [exec_stmt_ret_SOME_REWRS] >>
@@ -1964,7 +2017,6 @@ QED
 val exec_stmt_REWRS =
   [exec_stmt_ext_SOME_REWRS,
    exec_stmt_app_SOME_REWRS,
-   exec_stmt_verify_SOME_REWRS,
    exec_stmt_ret_SOME_REWRS,
    exec_stmt_trans_SOME_REWRS,
    exec_stmt_cond_SOME_REWRS,
@@ -2002,10 +2054,6 @@ rpt strip_tac >| [
  rpt strip_tac >>
  qexistsl_tac [`[stmt_empty]`, `scope_list''`] >>
  fs [],
-
- fs [exec_stmt_verify_SOME_REWRS],
-
- fs [exec_stmt_verify_SOME_REWRS],
 
  fs [exec_stmt_ret_SOME_REWRS] >>
  rpt strip_tac >>
@@ -2058,7 +2106,8 @@ rpt strip_tac >| [
  rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
  fs [exec_stmt_ext_SOME_REWRS] >>
  rpt strip_tac >>
- qexistsl_tac [`stmt_empty::v232::v233`, `scope_list''`] >>
+ rename1 `stmt_empty::v218::v219` >>
+ qexistsl_tac [`stmt_empty::v218::v219`, `scope_list''`] >>
  fs [],
 
  (* TODO: Written to avoid time-consuming simplification *)
@@ -2288,7 +2337,7 @@ val arch_exec_def = Define `
           then
            (* pbl_ret *)
            (* TODO: OK to only copy out from block-global scope here? *)
-           (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, pbl_type, set_fin_status pbl_type status) of
+           (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, set_fin_status pbl_type status) of
             | SOME scope' =>
              SOME ((i+1, in_out_list, in_out_list', scope'), LASTN 1 g_scope_list,
                    arch_frame_list_empty, status_running)
@@ -2337,7 +2386,7 @@ val arch_exec_def = Define `
         (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
         (if LENGTH el = LENGTH x_d_list
          then
-          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope, pbl_type) of
+          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
            | SOME scope' =>
             (case oLASTN 1 g_scope_list of
              | SOME [g_scope] =>
@@ -2440,6 +2489,20 @@ Cases_on `arch_multi_exec actx (aenv,g_scope_list,arch_frame_list,status) m` >> 
 PairCases_on `x` >>
 qexistsl_tac [`(x0,x1,x2,x3)`, `x4`, `x5`, `x6`] >>
 fs []
+QED
+
+Theorem arch_multi_exec_comp_n_tl:
+!n m actx assl aenv g_scope_list arch_frame_list status aenv' g_scope_list' arch_frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) n =
+  SOME (aenv', g_scope_list', arch_frame_list', status') ==>
+arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') m =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'') ==>
+arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (n+m) =
+  SOME (aenv'', g_scope_list'', arch_frame_list'', status'')
+Proof
+rpt strip_tac >>
+gs[] >>
+fs [arch_multi_exec_add]
 QED
 
 Theorem arch_multi_exec_comp_1_tl_assl:

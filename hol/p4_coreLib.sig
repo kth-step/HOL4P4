@@ -8,4 +8,6 @@ val core_func_map : term
 
 val core_ext_map : term
 
+val core_init_v_map : term
+
 end

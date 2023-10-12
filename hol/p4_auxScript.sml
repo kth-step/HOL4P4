@@ -1029,7 +1029,7 @@ Theorem bitv_binop_inner_lemma:
 Proof
 REPEAT GEN_TAC >>
 SIMP_TAC (srw_ss()) [Once bitv_binop_inner_def] >>
-NTAC 64 (IF_CASES_TAC >>
+NTAC 128 (IF_CASES_TAC >>
 FULL_SIMP_TAC std_ss [])
 QED
 
@@ -2249,10 +2249,59 @@ gvs[]
 QED
 
 
+Definition v_to_tau_def:
+  (v_to_tau (v_bool boolv) = SOME tau_bool) /\
+  (v_to_tau (v_bit (bl, n)) = SOME (tau_bit n)) /\
+  (v_to_tau (v_struct ((x,v)::t)) =
+   OPTION_BIND (v_to_tau (v_struct t))
+    (\ res. case res of
+            | tau_xtl struct_ty_struct t' =>
+             (case v_to_tau v of
+              | SOME tau => SOME (tau_xtl struct_ty_struct ((x,tau)::t'))
+              | NONE => NONE)
+            | _ => NONE)) /\
+  (v_to_tau (v_struct []) = SOME (tau_xtl struct_ty_struct [])) /\
+  (v_to_tau (v_header boolv ((x,v)::t)) =
+   OPTION_BIND (v_to_tau (v_header boolv t))
+    (\ res. case res of
+            | tau_xtl struct_ty_header t' =>
+             (case v_to_tau v of
+              | SOME tau => SOME (tau_xtl struct_ty_header ((x,tau)::t'))
+              | NONE => NONE)
+            | _ => NONE)) /\
+  (v_to_tau (v_header boolv []) = SOME (tau_xtl struct_ty_header [])) /\
+  (v_to_tau v_bot = SOME tau_bot) /\
+  (v_to_tau _ = NONE)
+  (* TODO: tau_str? *)
+Termination
+ WF_REL_TAC `measure v_size` >>
+ fs [v_size_def] >>
+ REPEAT STRIP_TAC >>
+ `v_size v' < v1_size t` suffices_by (
+  fs []
+ ) >>
+ METIS_TAC [v1_size_mem]
+End
 
+(* Replaces the input list with a single input in a given architectural state *)
+Definition p4_replace_input_def:
+ p4_replace_input input (astate:'a astate) =
+  case astate of
+  | (aenv, gscope, afl, status) =>
+   (case aenv of
+    | (ab_index, inputl, outputl, ascope) => 
+     ((ab_index, [input], outputl, ascope), gscope, afl, status))
+End
 
-
-
-
+Definition p4_append_input_list_def:
+ (p4_append_input_list [] (astate:'a astate) = astate) /\
+ (p4_append_input_list (h::t) (astate:'a astate) =
+   case astate of
+   | (aenv, gscope, afl, status) =>
+    p4_append_input_list t
+     (case aenv of
+      | (ab_index, inputl, outputl, ascope) => 
+       ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
+End
 
 val _ = export_theory ();
