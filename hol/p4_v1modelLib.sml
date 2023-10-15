@@ -14,6 +14,12 @@ val v1model_arch_ty = ``:v1model_ascope``;
 (* TODO: Nothing other than enumeration types? *)
 val v1model_init_global_scope = ``[]:scope``;
 
+val v1model_init_ext_obj_map = “[]:(num, v1model_sum_v_ext) alist”;
+
+val v1model_init_counter = rhs $ concl $ EVAL “LENGTH ^v1model_init_ext_obj_map”;
+
+val v1model_init_v_map = ``^core_init_v_map:(string, v) alist``;
+
 (*******************************************)
 (* Architectural context (generic externs) *)
 
