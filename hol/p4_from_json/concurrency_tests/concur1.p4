@@ -5,6 +5,8 @@ struct headers {}
 
 struct metadata {}
 
+register<bit<16>>(1) r;
+
 parser MyParser(packet_in packet,
                 out headers hdr,
                 inout metadata meta,
@@ -22,7 +24,6 @@ control MyVerifyChecksum(inout headers hdr,
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    register<bit<16>>(1) r;
     bit<16> tmp;
 
     action read_register(){
@@ -33,9 +34,11 @@ control MyIngress(inout headers hdr,
 
     table flowlet{
         actions = {read_register;}
+        const default_action = read_register;
     }
     table new_flowlet{
         actions = {write_register;}
+        const default_action = write_register;
     }
 
     apply
