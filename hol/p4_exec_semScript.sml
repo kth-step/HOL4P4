@@ -2435,6 +2435,13 @@ val arch_multi_exec = Define `
   | NONE => NONE)
 `;
 
+Theorem arch_multi_exec_1:
+!actx s s'.
+ arch_multi_exec actx s 1 = SOME s' <=> arch_exec actx s = SOME s'
+Proof
+cheat
+QED
+
 Theorem arch_multi_exec_add:
 !actx aenv g_scope_list arch_frame_list status m n.
 arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (m+n) =
