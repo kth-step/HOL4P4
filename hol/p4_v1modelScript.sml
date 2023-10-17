@@ -66,6 +66,23 @@ Definition v1model_verify:
  (v1model_verify (ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   verify_gen v1model_ascope_update_v_map (ascope, g_scope_list, scope_list))
 End
+
+(**********************************************)
+(*             HELPER FUNCTIONS               *)
+(**********************************************)
+
+Definition v1model_ascope_read_ext_obj_def:
+ v1model_ascope_read_ext_obj ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) vname =
+  case ALOOKUP v_map vname of
+  | SOME (v_ext_ref n) =>
+   ALOOKUP ext_obj_map n
+  | _ => NONE
+End
+
+Definition v1model_ascope_of_conc_state_def:
+ v1model_ascope_of_conc_state (io1,io2,(ascope:v1model_ascope)) =
+  ascope
+End
     
 (**********************************************************)
 (*             EXTERN OBJECTS AND FUNCTIONS               *)
@@ -185,10 +202,6 @@ val v1model_standard_metadata_zeroed =
     (``"priority"``, mk_v_bitii (0, 3))],
    “:(string # v)”);
 
-val v1model_init_ext_obj_map = “[]:(num, v1model_sum_v_ext) alist”;
-
-val v1model_init_counter = rhs $ concl $ EVAL “LENGTH ^v1model_init_ext_obj_map”;
-
 (*
 val v1model_standard_metadata_uninit =
  mk_v_struct_list [(``"ingress_port"``, mk_v_biti_arb 9),
@@ -225,7 +238,6 @@ val v1model_hdr_uninit =
 val v1model_header_uninit =
  mk_v_struct_list [(``"h"``, v1model_hdr_uninit)];
 *)
-val v1model_init_v_map = ``^core_init_v_map:(string, v) alist``;
 
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
 Definition v1model_input_f_def:
@@ -237,12 +249,13 @@ Definition v1model_input_f_def:
    (* let counter' = ^v1model_init_counter in *)
    let ext_obj_map' = AUPDATE ext_obj_map (counter, INL (core_v_ext_packet bl)) in
    let counter' = counter + 2 in
-   let v_map' = AUPDATE_LIST ^v1model_init_v_map [("b", v_ext_ref counter);
-                                                  ("b_temp", v_ext_ref (counter+1));
-                                                  ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed) ("ingress_port", v_bit (w9 (n2w p)))));
-                                                  ("parsedHdr", tau1_uninit_v);
-                                                  ("hdr", tau1_uninit_v);
-                                                  ("meta", tau2_uninit_v)] in
+   (* TODO: Currently, no garbage collection in v_map is done *)
+   let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref counter);
+                                    ("b_temp", v_ext_ref (counter+1));
+                                    ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed) ("ingress_port", v_bit (w9 (n2w p)))));
+                                    ("parsedHdr", tau1_uninit_v);
+                                    ("hdr", tau1_uninit_v);
+                                    ("meta", tau2_uninit_v)] in
     SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope))
 End
 

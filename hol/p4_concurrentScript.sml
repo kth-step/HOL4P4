@@ -21,7 +21,7 @@ val _ = new_theory "p4_concurrent";
 
 
 Definition trace_path_def:
-trace_path R (n:num) init fin = NRC R (n:num) init fin
+ trace_path R (n:num) init fin = NRC R (n:num) init fin
 End
 
 
@@ -66,7 +66,14 @@ ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:((in_out_list # in_out_list # 'a) # ((num 
 RES_TAC
 QED
 
-     
+Theorem conc_paths_compose_alt:
+!init mid fin actx m n.
+ trace_path ( \i f. conc_red actx i f) n init mid ==>
+ trace_path ( \i f. conc_red actx i f) m mid fin ==>
+ trace_path ( \i f. conc_red actx i f) (m+n) init fin           
+Proof
+metis_tac[conc_paths_compose]
+QED
 
 
 Theorem arch_path_implies_conc_thread1:
@@ -142,11 +149,25 @@ Induct_on ‘n’ >| [
  rpt strip_tac >>
  subgoal ‘?s''. arch_multi_exec actx s n = SOME s'' /\
                 arch_multi_exec actx s'' 1 = SOME s'’ >- (
-  cheat
+  fs [arithmeticTheory.SUC_ONE_ADD] >>
+  PairCases_on ‘s’ >>
+  FULL_SIMP_TAC empty_ss [Once ADD_SYM] >>
+  fs[arch_multi_exec_add] >>
+  Cases_on ‘arch_multi_exec actx ((s0,s1,s2,s3),s4,s5,s6) n’ >> (
+   fs[]
+  ) >>
+  PairCases_on ‘x’ >>
+  fs[]
  ) >>
  metis_tac [arch_exec_trace_1, arch_paths_compose, arithmeticTheory.SUC_ONE_ADD]
 ]
 QED
+
+(* TODO: Statuses superfluous? *)
+Definition p4_conc_finished_def:
+ p4_conc_finished ((io1, io2, a), ((i1:num, gsl1, framel1, status1), (i2:num, gsl2, framel2, status2))) =
+  (io1 = [] /\ i1 = 0 /\ i2 = 0 /\ status1 = status_running /\ status2 = status_running)
+End
 
 
 
