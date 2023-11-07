@@ -97,12 +97,12 @@ val mk_v_str = (#2 (syntax_fns1 "p4" "v_str")) o fromMLstring;
 val (v_struct_tm, mk_v_struct, dest_v_struct, is_v_struct) =
   syntax_fns1 "p4" "v_struct";
 fun mk_v_struct_list x_v_l =
-  mk_v_struct (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v)``));
+  mk_v_struct (listSyntax.mk_list ((map (fn (a, b) => mk_pair (fromMLstring a, b)) x_v_l), ``:(string # v)``));
 
 val (v_header_tm, mk_v_header, dest_v_header, is_v_header) =
   syntax_fns2 "p4" "v_header";
 fun mk_v_header_list vbit x_v_l =
-  mk_v_header (vbit, (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v) ``)));
+  mk_v_header (vbit, (listSyntax.mk_list ((map (fn (a, b) => mk_pair (fromMLstring a, b)) x_v_l), ``:(string # v) ``)));
 
 val v_bot_tm = prim_mk_const {Name="v_bot", Thy="p4"};
 fun is_v_bot tm = term_eq tm v_bot_tm;
@@ -205,6 +205,9 @@ val struct_ty_struct_tm = prim_mk_const {Name="struct_ty_struct", Thy="p4"};
 val struct_ty_header_tm = prim_mk_const {Name="struct_ty_header", Thy="p4"};
 
 val tau_ty = mk_type ("tau", []);
+
+val tau_bool_tm = prim_mk_const {Name="tau_bool", Thy="p4"};
+fun is_tau_bool tm = term_eq tm tau_bool_tm;
 
 val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit, is_tau_bit) =
   syntax_fns1 "p4" "tau_bit";

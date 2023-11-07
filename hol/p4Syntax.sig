@@ -43,14 +43,14 @@ val is_v_struct : term -> bool
 val mk_v_struct : term -> term
 val v_struct_tm : term
 
-val mk_v_struct_list : (term * term) list -> term
+val mk_v_struct_list : (string * term) list -> term
 
 val dest_v_header : term -> term * term
 val is_v_header : term -> bool
 val mk_v_header : term * term -> term
 val v_header_tm : term
 
-val mk_v_header_list : term -> (term * term) list -> term
+val mk_v_header_list : term -> (string * term) list -> term
 
 val v_bot_tm : term
 val is_v_bot : term -> bool
@@ -217,6 +217,9 @@ val mk_e_red : term * term * term * term * term * term -> term
 val struct_ty_struct_tm : term
 val struct_ty_header_tm : term
 val tau_ty : hol_type
+
+val tau_bool_tm : term
+val is_tau_bool : term -> bool
 
 val dest_tau_bit : term -> term
 val is_tau_bit : term -> bool

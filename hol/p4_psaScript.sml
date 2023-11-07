@@ -34,6 +34,13 @@ val _ = type_abbrev("psa_ctrl", ``:(string, (e_list, string # e_list) alist) ali
 (* The architectural state type of the PSA model *)
 val _ = type_abbrev("psa_ascope", ``:(num # ((num, psa_sum_v_ext) alist) # ((string, v) alist) # psa_ctrl)``);
 
+(* TODO: These are target-specific and can not be preset in general - have to be read from psa.p4 and
+ * stored in v_map *)
+(*
+val psa_port_recirculate = “4294967290:num”;
+val psa_port_cpu = “4294967293:num”;
+*)
+
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
 (**********************************************************)
@@ -102,7 +109,7 @@ End
 
 Definition InternetChecksum_construct:
  (InternetChecksum_construct ((counter, ext_obj_map, v_map, ctrl):psa_ascope, g_scope_list:g_scope_list, scope_list) =
-  let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (psa_v_ext_checksum ([]:word16 list))) in
+  let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (psa_v_ext_internet_checksum ([]:word16 list))) in
   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
     SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
@@ -119,10 +126,10 @@ Definition InternetChecksum_add:
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
-    | SOME (INR (psa_v_ext_checksum ipv4_checksum)) =>
+    | SOME (INR (psa_v_ext_internet_checksum ipv4_checksum)) =>
      (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
       | SOME checksum_incr =>
-       SOME ((counter, AUPDATE ext_obj_map (i, INR (psa_v_ext_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, status_returnv v_bot)
+       SOME ((counter, AUPDATE ext_obj_map (i, INR (psa_v_ext_internet_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE
@@ -138,7 +145,7 @@ Definition InternetChecksum_get:
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
-    | SOME (INR (psa_v_ext_checksum ipv4_checksum)) =>
+    | SOME (INR (psa_v_ext_internet_checksum ipv4_checksum)) =>
      SOME ((counter, ext_obj_map, v_map, ctrl):psa_ascope, scope_list, status_returnv (v_bit (w16 (compute_checksum16 ipv4_checksum))))
     | _ => NONE)
   | _ => NONE
@@ -154,6 +161,8 @@ End
 (*                     MODEL-SPECIFIC                     *)
 (**********************************************************)
 
+(* TODO: Note that this assumes the widths of some types, which are target-specific *)
+
 (***********************)
 (* Architectural state *)
 
@@ -167,7 +176,7 @@ val psa_ingress_parser_input_metadata_t =
  mk_tau_header
   [("ingress_port", mk_tau_bit 32),
    ("packet_path", mk_tau_bit 32)];
-val ingress_parser_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^ingress_parser_input_metadata_t”;
+val psa_ingress_parser_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^psa_ingress_parser_input_metadata_t”;
 
 val psa_ingress_input_metadata_t =
  mk_tau_header
@@ -175,7 +184,8 @@ val psa_ingress_input_metadata_t =
    ("packet_path", mk_tau_bit 32),
    ("ingress_timestamp", mk_tau_bit 64),
    ("parser_error", mk_tau_bit 32)];
-val ingress_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^ingress_input_metadata_t”;
+val psa_ingress_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^psa_ingress_input_metadata_t”;
+
 
 val psa_ingress_output_metadata_t =
  mk_tau_header
@@ -186,7 +196,16 @@ val psa_ingress_output_metadata_t =
    ("resubmit", tau_bool_tm),
    ("multicast_group", mk_tau_bit 32),
    ("egress_port", mk_tau_bit 32)];
-val ingress_output_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^ingress_output_metadata_t”;
+val psa_ingress_output_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^psa_ingress_output_metadata_t”;
+val psa_ingress_output_metadata_t_initial_v =
+  mk_v_header_list (F,
+   [("class_of_service", mk_v_bitii (0, 8)),
+    ("clone", mk_v_bool F),
+    ("clone_session_id", mk_v_biti_arb 16),
+    ("drop", mk_v_bool T),
+    ("resubmit", mk_v_bool F),
+    ("multicast_group", mk_v_bitii (0, 32)),
+    ("egress_port", mk_v_biti_arb 32)];)
 
 
 
@@ -194,7 +213,7 @@ val psa_egress_parser_input_metadata_t =
  mk_tau_header
   [("egress_port", mk_tau_bit 32),
    ("packet_path", mk_tau_bit 32)];
-val egress_parser_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^egress_parser_input_metadata_t”;
+val psa_egress_parser_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^psa_egress_parser_input_metadata_t”;
 
 val psa_egress_input_metadata_t =
  mk_tau_header
@@ -204,19 +223,19 @@ val psa_egress_input_metadata_t =
    ("instance", mk_tau_bit 16),
    ("egress_timestamp", mk_tau_bit 64),
    ("parser_error", mk_tau_bit 32)];
-val egress_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^egress_input_metadata_t”;
+val psa_egress_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^psa_egress_input_metadata_t”;
 
 val psa_egress_output_metadata_t =
  mk_tau_header
   [("clone", tau_bool_tm),
    ("clone_session_id", mk_tau_bit 16),
    ("drop", tau_bool_tm)];
-val egress_output_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^egress_output_metadata_t”;
+val psa_egress_output_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^psa_egress_output_metadata_t”;
 
 val psa_egress_deparser_input_metadata_t =
  mk_tau_header
   [("egress_port", mk_tau_bit 32)];
-val egress_deparser_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^egress_deparser_input_metadata_t”;
+val psa_egress_deparser_input_metadata_t_uninit_v = rhs $ concl $ EVAL “arb_from_tau ^psa_egress_deparser_input_metadata_t”;
 
 val psa_init_v_map = “^core_init_v_map ++
                         [("pkt", v_ext_ref 0);
@@ -240,12 +259,12 @@ Definition psa_input_f_def:
                                               ("resubmit_meta", tau4_uninit_v);
                                               ("recirculate_meta", tau5_uninit_v);
                                               ("clone_i2e_meta", tau6_uninit_v);
-                                              ("istd", ^ingress_parser_input_metadata_t_uninit_v);
-                                              ("ostd", ^ingress_output_metadata_t_uninit_v)] in
+                                              ("istd", ^psa_ingress_parser_input_metadata_t_uninit_v);
+                                              ("ostd", ^psa_ingress_output_metadata_t_initial_v)] in
     SOME (t, (counter', ext_obj_map', v_map', ctrl):psa_ascope))
 End
 
-(* TODO: Generalise and move to core? Duplicated in all three architectures... *)
+(* TODO: Generalise and move to core? Duplicated in all architectures... *)
 Definition psa_reduce_nonout_def:
  (psa_reduce_nonout ([], elist, v_map) =
   SOME []
@@ -350,8 +369,8 @@ Definition psa_post_ingressdeparser_def:
                                                ("clone_i2e_meta", tau4_uninit_v);
                                                ("clone_e2e_meta", tau5_uninit_v);
                                                ("recirculate_meta", tau6_uninit_v);
-                                               ("istd", ^egress_parser_input_metadata_t_uninit_v);
-                                               ("ostd", ^egress_output_metadata_t_uninit_v)] in
+                                               ("istd", ^psa_egress_parser_input_metadata_t_uninit_v);
+                                               ("ostd", ^psa_egress_output_metadata_t_uninit_v)] in
     SOME (counter, ext_obj_map', v_map', ctrl)
    | _ => NONE)
 End
@@ -384,6 +403,7 @@ Definition psa_output_f_def:
         (case ALOOKUP struct "egress_port" of
          | SOME (v_bit (port_bl, n)) =>
           let port_out = v2n port_bl in
+           (* Default drop port *)
            if port_out = 511
            then SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
            else SOME (in_out_list++[(bl++bl', port_out)], (counter, ext_obj_map, v_map, ctrl))
