@@ -102,6 +102,11 @@ val dest_bitv_unop : term -> term * term
 val is_bitv_unop : term -> bool
 val mk_bitv_unop : term * term -> term
 
+val dest_e_cast : term -> term * term
+val e_cast_tm : term
+val is_e_cast : term -> bool
+val mk_e_cast : term * term -> term
+
 val unop_neg_tm : term
 val unop_compl_tm : term
 val unop_neg_signed_tm : term
@@ -136,6 +141,16 @@ val binop_or_tm : term
 val binop_bin_and_tm : term
 val binop_bin_or_tm : term
 
+val dest_e_concat : term -> term * term
+val e_concat_tm : term
+val is_e_concat : term -> bool
+val mk_e_concat : term * term -> term
+
+val dest_e_slice : term -> term * term * term
+val e_slice_tm : term
+val is_e_slice : term -> bool
+val mk_e_slice : term * term * term -> term
+
 val dest_e_acc : term -> term * term
 val e_acc_tm : term
 val is_e_acc : term -> bool
@@ -147,6 +162,21 @@ val is_e_call : term -> bool
 val mk_e_call : term * term -> term
 
 val mk_e_ext_call_list : string * string * term list -> term
+
+val dest_e_select : term -> term * term * term
+val e_select_tm : term
+val is_e_select : term -> bool
+val mk_e_select : term * term * term -> term
+
+val dest_e_struct : term -> term
+val e_struct_tm : term
+val is_e_struct : term -> bool
+val mk_e_struct : term -> term
+
+val dest_e_header : term -> term * term
+val e_header_tm : term
+val is_e_header : term -> bool
+val mk_e_header : term * term -> term
 
 val stmt_empty_tm : term
 val is_stmt_empty : term -> bool

@@ -161,6 +161,9 @@ val unop_compl_tm = prim_mk_const {Name="unop_compl", Thy="p4"};
 val unop_neg_signed_tm = prim_mk_const {Name="unop_neg_signed", Thy="p4"};
 val unop_un_plus_tm = prim_mk_const {Name="unop_un_plus", Thy="p4"};
 
+val (e_cast_tm,  mk_e_cast, dest_e_cast, is_e_cast) =
+  syntax_fns2 "p4" "e_cast";
+
 val (e_binop_tm,  mk_e_binop, dest_e_binop, is_e_binop) =
   syntax_fns3 "p4"  "e_binop";
 val (bitv_binop_tm, mk_bitv_binop, dest_bitv_binop, is_bitv_binop) =
@@ -184,6 +187,12 @@ val binop_or_tm  = prim_mk_const {Name="binop_or",  Thy="p4"};
 val binop_bin_and_tm = prim_mk_const {Name="binop_bin_and", Thy="p4"};
 val binop_bin_or_tm  = prim_mk_const {Name="binop_bin_or",  Thy="p4"};
 
+val (e_concat_tm,  mk_e_concat, dest_e_concat, is_e_concat) =
+  syntax_fns2 "p4" "e_concat";
+
+val (e_slice_tm,  mk_e_slice, dest_e_slice, is_e_slice) =
+  syntax_fns3 "p4" "e_slice";
+
 val (e_acc_tm, mk_e_acc_tmp, dest_e_acc, is_e_acc) =
   syntax_fns2 "p4" "e_acc";
 val mk_e_acc =
@@ -196,6 +205,15 @@ val mk_e_ext_call_list =
   (fn (objname, metname, l) =>
    (#2 (syntax_fns2 "p4" "e_call")) (mk_funn_ext (objname, metname),
                                      listSyntax.mk_list (l, e_ty)));
+
+val (e_select_tm,  mk_e_select, dest_e_select, is_e_select) =
+  syntax_fns3 "p4" "e_select";
+
+val (e_struct_tm,  mk_e_struct, dest_e_struct, is_e_struct) =
+  syntax_fns1 "p4" "e_struct";
+
+val (e_header_tm,  mk_e_header, dest_e_header, is_e_header) =
+  syntax_fns2 "p4" "e_header";
 
 (*******)
 (* tau *)
