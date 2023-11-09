@@ -2435,6 +2435,20 @@ val arch_multi_exec = Define `
   | NONE => NONE)
 `;
 
+Theorem arch_multi_exec_1:
+!actx s s'.
+ arch_multi_exec actx s 1 = SOME s' <=> arch_exec actx s = SOME s'
+Proof
+rpt strip_tac >>
+PairCases_on ‘s’ >>
+REWRITE_TAC [arithmeticTheory.ONE, arch_multi_exec] >>
+Cases_on ‘arch_exec actx ((s0,s1,s2,s3),s4,s5,s6)’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[]
+QED
+
 Theorem arch_multi_exec_add:
 !actx aenv g_scope_list arch_frame_list status m n.
 arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (m+n) =

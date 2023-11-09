@@ -697,9 +697,9 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
        val init_ctrl = dest_some init_ctrl_opt
        (* ctrl is initialised from the onset, whereas extern objects are initialised at the
         * start of the pipeline with v1model_input_f *)
-       val ascope = list_mk_pair [“ARB:num”,
-				  “ARB:v1model_ascope ext_map”,
-				  “ARB:(string, v) alist”,
+       val ascope = list_mk_pair [v1model_init_counter,
+				  v1model_init_ext_obj_map,
+				  v1model_init_v_map,
 				  init_ctrl]
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)

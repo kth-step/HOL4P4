@@ -5,6 +5,9 @@ sig
 val v1model_arch_ty : hol_type
 
 val v1model_init_global_scope : term
+val v1model_init_ext_obj_map : term
+val v1model_init_counter : term
+val v1model_init_v_map : term
 
 val v1model_packet_in_map : term
 val v1model_packet_out_map : term
