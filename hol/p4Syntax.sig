@@ -92,6 +92,11 @@ val is_e_var : term -> bool
 val mk_e_var : term -> term
 val mk_e_var_name : string -> term
 
+val dest_e_list : term -> term
+val e_list_tm : term
+val is_e_list : term -> bool
+val mk_e_list : term -> term
+
 val dest_e_unop : term -> term * term
 val e_unop_tm : term
 val is_e_unop : term -> bool
@@ -191,6 +196,11 @@ val is_stmt_seq : term -> bool
 val mk_stmt_seq : term * term -> term
 val stmt_seq_tm : term
 
+val dest_stmt_trans : term -> term
+val is_stmt_trans : term -> bool
+val mk_stmt_trans : term -> term
+val stmt_trans_tm : term
+
 val dest_stmt_cond : term -> term * term * term
 val is_stmt_cond : term -> bool
 val mk_stmt_cond : term * term * term -> term
@@ -211,12 +221,14 @@ val is_stmt_app : term -> bool
 val mk_stmt_app : term * term -> term
 val stmt_app_tm : term
 
+val stmt_ext_tm : term
+val is_stmt_ext : term -> bool
+
 val mk_stmt_seq_list : term list -> term
 
 val d_ty : hol_type
 
 
-val arch_frame_list_empty_tm : term
 
 val scope_ty : hol_type
 
@@ -233,6 +245,9 @@ val is_pblock_regular : term -> bool
 val mk_pblock_regular :
    term * term * term * term * term -> term
 val pblock_regular_tm : term
+
+val arch_frame_list_empty_tm : term
+val is_arch_frame_list_empty : term -> bool
 
 val arch_frame_list_regular_tm : term
 val dest_arch_frame_list_regular : term -> term

@@ -53,6 +53,15 @@ fun list_of_novuple (a, b, c, d, e, f, g, h, i) = [a, b, c, d, e, f, g, h, i];
 fun mk_novop tm = HolKernel.list_mk_icomb tm o list_of_novuple;
 val syntax_fns9 = HolKernel.syntax_fns {n = 9, dest = dest_novop, make = mk_novop};
 
+fun dest_decop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]) =>
+         if same_const t c then (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10) else raise e
+    | _ => raise e;
+fun list_of_decuple (a, b, c, d, e, f, g, h, i, j) = [a, b, c, d, e, f, g, h, i, j];
+fun mk_decop tm = HolKernel.list_mk_icomb tm o list_of_decuple;
+val syntax_fns10 = HolKernel.syntax_fns {n = 10, dest = dest_decop, make = mk_decop};
+
 (* TODO: Move to ottSyntax *)
 open ottTheory;
 val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
@@ -152,6 +161,9 @@ val (e_var_tm,  mk_e_var, dest_e_var, is_e_var) =
   syntax_fns1 "p4" "e_var";
 val mk_e_var_name = (#2 (syntax_fns1 "p4" "e_var")) o mk_varn_name o fromMLstring;
 
+val (e_list_tm,  mk_e_list, dest_e_list, is_e_list) =
+  syntax_fns1 "p4" "e_list";
+
 val (e_unop_tm,  mk_e_unop, dest_e_unop, is_e_unop) =
   syntax_fns2 "p4" "e_unop";
 val (bitv_unop_tm, mk_bitv_unop, dest_bitv_unop, is_bitv_unop) =
@@ -215,6 +227,23 @@ val (e_struct_tm,  mk_e_struct, dest_e_struct, is_e_struct) =
 val (e_header_tm,  mk_e_header, dest_e_header, is_e_header) =
   syntax_fns2 "p4" "e_header";
 
+(*****)
+(* d *)
+(*****)
+
+val d_in_tm = prim_mk_const {Name="d_in", Thy="p4"};
+fun is_d_in tm = term_eq tm d_in_tm;
+
+val d_out_tm = prim_mk_const {Name="d_out", Thy="p4"};
+fun is_d_out tm = term_eq tm d_out_tm;
+
+val d_inout_tm = prim_mk_const {Name="d_inout", Thy="p4"};
+fun is_d_inout tm = term_eq tm d_inout_tm;
+
+val d_none_tm = prim_mk_const {Name="d_none", Thy="p4"};
+fun is_d_none tm = term_eq tm d_none_tm;
+
+
 (*******)
 (* tau *)
 (*******)
@@ -254,8 +283,12 @@ val (stmt_block_tm, mk_stmt_block, dest_stmt_block, is_stmt_block) =
   syntax_fns2 "p4"  "stmt_block";
 val (stmt_ret_tm, mk_stmt_ret, dest_stmt_ret, is_stmt_ret) =
   syntax_fns1 "p4"  "stmt_ret";
+val (stmt_trans_tm, mk_stmt_trans, dest_stmt_trans, is_stmt_trans) =
+  syntax_fns1 "p4"  "stmt_trans";
 val (stmt_app_tm, mk_stmt_app, dest_stmt_app, is_stmt_app) =
   syntax_fns2 "p4"  "stmt_app";
+val stmt_ext_tm = prim_mk_const {Name="stmt_ext", Thy="p4"};
+fun is_stmt_ext tm = term_eq tm stmt_ext_tm;
 
 fun mk_stmt_seq_list' (h::[]) = h
   | mk_stmt_seq_list' (h::t) =
@@ -271,8 +304,6 @@ val d_ty = mk_type ("d", []);
 (* State *)
 (*********)
 
-val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy="p4"};
-
 val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
@@ -284,11 +315,18 @@ val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 val (arch_block_pbl_tm,  mk_arch_block_pbl, dest_arch_block_pbl, is_arch_block_pbl) =
   syntax_fns2 "p4" "arch_block_pbl";
 
+val (arch_block_pbl_tm,  mk_arch_block_pbl, dest_arch_block_pbl, is_arch_block_pbl) =
+  syntax_fns2 "p4" "arch_block_pbl";
+
 val (pblock_regular_tm,  mk_pblock_regular, dest_pblock_regular, is_pblock_regular) =
   syntax_fns5 "p4" "pblock_regular";
 
+val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy="p4"};
+fun is_arch_frame_list_empty tm = term_eq tm arch_frame_list_empty_tm;
 val (arch_frame_list_regular_tm,  mk_arch_frame_list_regular, dest_arch_frame_list_regular, is_arch_frame_list_regular) =
   syntax_fns1 "p4" "arch_frame_list_regular";
+
+
 
 (**************)
 (* Reductions *)
