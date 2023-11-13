@@ -183,6 +183,15 @@ val e_header_tm : term
 val is_e_header : term -> bool
 val mk_e_header : term * term -> term
 
+val d_in_tm : term
+val is_d_in : term -> bool
+val d_out_tm : term
+val is_d_out : term -> bool
+val d_inout_tm : term
+val is_d_inout : term -> bool
+val d_none_tm : term
+val is_d_none : term -> bool
+
 val stmt_empty_tm : term
 val is_stmt_empty : term -> bool
 
