@@ -6,6 +6,8 @@ open pairSyntax listSyntax numSyntax computeLib hurdUtils;
 
 open p4Theory p4_exec_semTheory p4Syntax p4_exec_semSyntax;
 
+open symb_execTheory p4_symb_execTheory;
+
 open evalwrapLib p4_testLib;
 
 open optionSyntax;
@@ -673,5 +675,35 @@ fun symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_co
   else symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm [(path_cond, step_thm, (fuel-1))] []
  end
 end;
+
+fun p4_prove_postcond rewr_thms postcond step_thm =
+ let
+  val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
+  (* TODO: srw_ss??? *)
+  val postcond_thm = EQT_ELIM $ SIMP_CONV (srw_ss()) rewr_thms $ mk_comb (postcond, the_final_state_imp step_thm)
+ in
+  MATCH_MP prel_res_thm postcond_thm
+ end
+;
+
+(* TODO: Note that the resulting contract has the initial assumption as precondition, i.e. no precondition
+ * strengthening takes place. *)
+fun p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond =
+ let
+  val path_cond_step_list =
+   symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max;
+  (* Add postcondition *)
+  val step_post_thm_list = map (p4_prove_postcond [packet_has_port_def] postcond o snd) path_cond_step_list
+  (* Rewrite to a contract format *)
+  val ct_thm_list = map (MATCH_MP p4_symb_exec_to_contract) step_post_thm_list
+  (* TODO: Make a general unification strategy - this only works for 1 or 2 elements *)
+  val unified_ct_thm =
+   if length ct_thm_list = 1
+   then el 1 ct_thm_list
+   else MATCH_MP (MATCH_MP p4_symb_exec_unify (el 1 ct_thm_list)) (el 2 ct_thm_list)
+ in
+  unified_ct_thm
+ end
+;
 
 end
