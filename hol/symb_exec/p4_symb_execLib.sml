@@ -585,6 +585,23 @@ fun p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm (path_cond, 
  end
 ;
 
+(* Function that decides whether we are finished or not *)
+(* TODO: This is a P4-specific function that has been factored out, make it an argument of
+ * the generic symb_exec *)
+fun p4_is_finished step_thm =
+ let
+  val astate = the_final_state_imp step_thm
+  val (aenv, _, _, _) = dest_astate astate
+  val (i, io_list, _, _) = dest_aenv aenv
+ in
+  (* Whenever the result of taking one step is at block index 0 with no further input
+   * in the input queue, we're finished *)
+  if int_of_term i = 0 andalso null $ fst $ dest_list io_list
+  then true
+  else false
+ end
+;
+
 local
 (* Symbolic execution with branching on if-then-else
  * Width-first scheduling (positive case first)
@@ -609,8 +626,8 @@ fun symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm [] finish
      (* Branch + prune *)
      let
       (* Get new path conditions for the positive and negative cases *)
-      val path_cond_pos = CONJ path_cond (ASSUME (mk_eq (branch_cond, T)))
-      val path_cond_neg = CONJ path_cond (ASSUME (mk_eq (branch_cond, F)))
+      val path_cond_pos = CONJ path_cond (ASSUME branch_cond)
+      val path_cond_neg = CONJ path_cond (ASSUME $ mk_neg branch_cond)
       (* Check if the new path conditions contradict themselves *)
       val is_path_cond_pos_F = Feq $ concl (SIMP_RULE std_ss [] path_cond_pos)
       val is_path_cond_neg_F = Feq $ concl (SIMP_RULE std_ss [] path_cond_neg)
@@ -634,8 +651,13 @@ fun symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm [] finish
       val next_step_thm =
        p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm (path_cond, step_thm)
      in
-      symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm
-                 (t@[(path_cond, next_step_thm, fuel-1)]) finished_list
+      if p4_is_finished next_step_thm
+      then
+       symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm
+		  t (finished_list@[(path_cond, next_step_thm)])
+      else
+       symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm
+		  (t@[(path_cond, next_step_thm, fuel-1)]) finished_list
      end)
 in
 fun symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
