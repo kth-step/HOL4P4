@@ -139,6 +139,7 @@ GEN_ALL $ eval_under_assum p4_v1modelLib.v1model_arch_ty symb_exec1_actx symb_ex
 val symb_exec1_astate_symb = rhs $ concl $ EVAL “(p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],ARB,ARB,ARB,[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
 
+open p4_auxTheory;
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
@@ -150,17 +151,22 @@ val stop_consts_never = []
 val path_cond = (ASSUME T)
 val fuel = 2
 val n_max = 50;
+val precond = “T”;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 (* For debugging:
-val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl
+val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 *)
 
 (* For debugging, branch happens here:
-val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
+val (res_tree, res_elems) =
  symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+
+val [res_elem1, res_elem2] = res_elems
+
+val (res_id1, res_cond1, res_thm1) = res_elem1
 *)
 
-open p4_auxTheory;
+
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)

@@ -40,4 +40,28 @@ fs[p4_contract_def] >>
 metis_tac []
 QED
 
+(* For branching and unification *)
+
+(* OLD, with superfluous base case
+Definition list_disj_def:
+ (list_disj [] = T) /\
+ (list_disj (h::t) = (h \/ list_disj t))
+End
+*)
+(* TODO: What should the base case be? *)
+Definition list_disj_def:
+ (list_disj (h::t) =
+  if t = []
+  then h
+  else (h \/ list_disj t))
+End
+
+Definition p4_contract_list_def:
+ (p4_contract_list [] P ctx s Q = p4_contract P ctx s Q) /\
+ (p4_contract_list (h::t) P ctx s Q =
+  if t = []
+  then p4_contract (h /\ P) ctx s Q
+  else (p4_contract (h /\ P) ctx s Q /\ p4_contract_list t P ctx s Q))
+End
+
 val _ = export_theory ();
