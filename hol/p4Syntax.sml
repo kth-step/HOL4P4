@@ -7,6 +7,7 @@ open stringSyntax optionSyntax pairSyntax listSyntax
      wordsSyntax numSyntax bitstringSyntax;
 open p4Theory;
 
+val ERR = mk_HOL_ERR "p4Syntax"
 
 fun dest_quinop c e tm =
    case with_exn strip_comb tm e of
@@ -308,6 +309,12 @@ val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 
+fun dest_frame frame =
+ case spine_pair frame of
+    [funn, stmt_stack, scope_list] => (funn, stmt_stack, scope_list)
+  | _ => raise (ERR "dest_frame" ("Unsupported frame shape: "^(term_to_string frame)))
+;
+
 (********)
 (* Arch *)
 (********)
@@ -326,6 +333,26 @@ fun is_arch_frame_list_empty tm = term_eq tm arch_frame_list_empty_tm;
 val (arch_frame_list_regular_tm,  mk_arch_frame_list_regular, dest_arch_frame_list_regular, is_arch_frame_list_regular) =
   syntax_fns1 "p4" "arch_frame_list_regular";
 
+fun dest_actx actx =
+ case spine_pair actx of
+    [ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map] => (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map)
+  | _ => raise (ERR "dest_actx" ("Unsupported actx shape: "^(term_to_string actx)))
+;
+fun dest_astate astate =
+ case spine_pair astate of
+    [aenv, g_scope_list, arch_frame_list, status] => (aenv, g_scope_list, arch_frame_list, status)
+  | _ => raise (ERR "dest_astate" ("Unsupported astate shape: "^(term_to_string astate)))
+;
+(* TODO: Is this a hack? *)
+fun dest_aenv aenv =
+ let
+  val (i, aenv') = dest_pair aenv
+  val (io_list, aenv'') = dest_pair aenv'
+  val (io_list', ascope) = dest_pair aenv''
+ in
+  (i, io_list, io_list', ascope)
+ end
+;
 
 
 (**************)
@@ -338,12 +365,19 @@ val (e_red_tm,  mk_e_red, dest_e_red, is_e_red) =
 val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
   syntax_fns3 "p4" "stmt_red";
 
+
 (***********************)
 (* Auxiliary functions *)
 (***********************)
 
+val (is_e_lval_tm, mk_is_e_lval, dest_is_e_lval, is_is_e_lval) =
+  syntax_fns1 "p4" "is_e_lval";
+
 val (lookup_vexp_tm, mk_lookup_vexp, dest_lookup_vexp, is_lookup_vexp) =
   syntax_fns2 "p4" "lookup_v";
+
+val (lookup_funn_sig_tm, mk_lookup_funn_sig, dest_lookup_funn_sig, is_lookup_funn_sig) =
+  syntax_fns4 "p4" "lookup_funn_sig";
 
 val (assign_tm, mk_assign, dest_assign, is_assign) =
   syntax_fns3 "p4" "assign";

@@ -189,11 +189,21 @@ fun eval_and_print_rest arch actx astate nsteps =
 
 val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
 
+fun the_final_state_imp step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+
+fun get_actx step_thm =
+ let
+  val step_thm_tm = concl step_thm
+ in
+  #1 $ dest_arch_multi_exec $ fst $ dest_eq $ 
+   (if is_imp step_thm_tm
+    then snd $ dest_imp $ step_thm_tm
+    else step_thm_tm)
+ end
+
 (* TODO: Add debug print output *)
 (* TODO: Make version that executes until packet is output *)
 local
-fun the_final_state_imp step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
-
 (* Stepwise evaluation under assumptions *)
 fun eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm 0 = step_thm
   | eval_under_assum' arch_ty ctx stop_consts_rewr stop_consts_never ctxt comp_thm step_thm fuel =

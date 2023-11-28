@@ -16,17 +16,7 @@ val ERR = mk_HOL_ERR "p4_symb_exec"
 
 datatype path_tree = empty | node of int * thm * (path_tree list);
 
-(* path_tree test functions:
-
-fun sum [] = 0
-  | sum (x::xs) = x + sum xs;
-
-fun count_nodes empty = 0
-  | count_nodes (node (_, next_nodes_list)) = 1 + (sum $ map count_nodes next_nodes_list);
-
-*)
-
-(* TODO: This is brutally unoptimised *)
+(* TODO: Optimize? *)
 fun insert_nodes' empty (at_id, thm, new_nodes) _ = NONE
   | insert_nodes' (node (id, thm, nodes)) (at_id, new_thm, new_nodes) nodes_temp = 
    if at_id = id
@@ -51,57 +41,6 @@ fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
  | NONE =>
   raise (ERR "insert_nodes" "Inserting new path node at unknown or occupied position ");
 
-
-(* TODO: Rename "branch condition"? Is this terminology OK? *)
-
-(* TODO: The below two are also found in p4_testLib.sml - put elsewhere? *)
-fun the_final_state_imp step_thm =
- let
-  val step_thm_tm = concl step_thm
- in
-  dest_some $ snd $ dest_eq $ 
-   (if is_imp step_thm_tm
-    then snd $ dest_imp $ step_thm_tm
-    else step_thm_tm)
- end
-val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
-
-fun get_actx step_thm =
- let
-  val step_thm_tm = concl step_thm
- in
-  #1 $ dest_arch_multi_exec $ fst $ dest_eq $ 
-   (if is_imp step_thm_tm
-    then snd $ dest_imp $ step_thm_tm
-    else step_thm_tm)
- end
-
-(* TODO: Move to syntax library *)
-fun dest_frame frame =
- case spine_pair frame of
-    [funn, stmt_stack, scope_list] => (funn, stmt_stack, scope_list)
-  | _ => raise (ERR "dest_frame" ("Unsupported frame shape: "^(term_to_string frame)))
-;
-fun dest_actx actx =
- case spine_pair actx of
-    [ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map] => (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map)
-  | _ => raise (ERR "dest_actx" ("Unsupported actx shape: "^(term_to_string actx)))
-;
-fun dest_astate astate =
- case spine_pair astate of
-    [aenv, g_scope_list, arch_frame_list, status] => (aenv, g_scope_list, arch_frame_list, status)
-  | _ => raise (ERR "dest_astate" ("Unsupported astate shape: "^(term_to_string astate)))
-;
-(* TODO: Fix this hack *)
-fun dest_aenv aenv =
- let
-  val (i, aenv') = dest_pair aenv
-  val (io_list, aenv'') = dest_pair aenv'
-  val (io_list', ascope) = dest_pair aenv''
- in
-  (i, io_list, io_list', ascope)
- end
-;
 
 fun get_b_func_map i ab_list pblock_map =
  let
@@ -181,11 +120,9 @@ fun astate_get_branch_data astate =
  | NONE => no_branch
 ;
 
-(* TODO: This should be done in pre-processing, not at every step *)
-fun get_f_maps step_thm =
+(* TODO: OPTIMIZE: This should be done once in pre-processing, not at every step *)
+fun get_f_maps (astate, actx) =
  let
-  val astate = the_final_state_imp step_thm
-  val actx = get_actx step_thm
   val (ab_list, pblock_map, _, _, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
   val (aenv, _, _, _) = dest_astate astate
   val (i, _, _, _) = dest_aenv aenv
@@ -193,26 +130,27 @@ fun get_f_maps step_thm =
  in
   case get_b_func_map i ab_list pblock_map of
     SOME b_func_map => (func_map, b_func_map, ext_fun_map)
+  (* TODO: Get rid of term parsing *)
   | NONE => (func_map, “[]:b_func_map”, ext_fun_map)
  end
 ;
 
-(* TODO: Get rid of EVAL hack *)
+(* TODO: Get rid of EVAL-ing HOL4 definition for computation? *)
 fun get_funn_dirs funn (func_map, b_func_map, ext_fun_map) =
  let
-  val funn_sig_opt = rhs $ concl $ EVAL “lookup_funn_sig ^funn ^func_map ^b_func_map ^ext_fun_map”
+  val funn_sig_opt = rhs $ concl $ EVAL $ mk_lookup_funn_sig (funn, func_map, b_func_map, ext_fun_map)
  in
   if is_some funn_sig_opt
   then
-    fst $ dest_list $ rhs $ concl $ EVAL “MAP SND ^(dest_some funn_sig_opt)”
+   (map (snd o dest_pair)) $ fst $ dest_list $ dest_some funn_sig_opt
   else raise (ERR "get_funn_dirs" ("Signature of funn not found in function maps: "^(term_to_string funn)))
  end
 ;
 
-(* TODO: Get rid of EVAL hack *)
+(* TODO: Get rid of EVAL re-use of HOL4 definition? *)
 fun is_arg_red (arg, dir) =
  if is_d_out dir
- then term_eq T (rhs $ concl $ EVAL “is_e_lval ^arg”) (* Must be lval *)
+ then term_eq T (rhs $ concl $ EVAL $ mk_is_e_lval arg) (* Must be lval *)
  else is_e_v arg (* Must be constant *)
 ;
 
@@ -617,9 +555,9 @@ fun p4_should_branch step_thm =
          val key_branch_conds = map (fn key => mk_eq (sel_bit, key)) keys
          (* Default branch: i.e., neither of the above hold *)
          val def_branch_cond = list_mk_conj $ map (fn key_eq => mk_neg key_eq) key_branch_conds
-         (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem nad simple rewrites,
+         (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple rewrites,
           * and not in-place with tactics *)
-         val disj_thm = prove(mk_disj (list_mk_disj key_branch_conds, def_branch_cond), (* fs[] >> *)metis_tac[])
+         val disj_thm = prove(mk_disj (list_mk_disj key_branch_conds, def_branch_cond), metis_tac[])
         in
          SOME (key_branch_conds@[def_branch_cond], disj_thm)
         end
@@ -638,8 +576,7 @@ fun p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm (path_cond, 
    eval_ctxt_gen (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts)
                  (stop_consts_never@p4_stop_eval_consts) path_cond
                  (mk_arch_multi_exec (ctx, astate, 1));
-  (* TODO: This could take only astate and actx as args *)
-  val (func_map, b_func_map, ext_fun_map) = get_f_maps step_thm
+  val (func_map, b_func_map, ext_fun_map) = get_f_maps (astate, ctx)
   (* TODO: Do this in a nicer way... *)
   val next_e_opt = astate_get_next_e (func_map, b_func_map, ext_fun_map) astate
   val extra_rewr_thms =
@@ -691,6 +628,7 @@ fun p4_is_finished step_thm =
  end
 ;
 
+(* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
 local
 (* Symbolic execution with branching on if-then-else
  * Width-first scheduling (positive case first) of execution
@@ -795,6 +733,7 @@ fun p4_contract_replace_precond contract new_precond =
  end
 ;
 
+(* TODO: Currently this is the bottleneck, with the unification proofs taking 10+ seconds *)
 local
 fun p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) [] =
    (case List.find (fn (id', ct_thm) => id = id') id_ctthm_list of
@@ -824,11 +763,11 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) [] =
      then hd path_tree_list_leafs
      else foldl (fn (thm, thm') => CONJ thm' thm) (hd path_tree_list_leafs) (tl path_tree_list_leafs)
    in
-    (* TODO: OPTIMIZE: Inefficient. Formulate theorem with list of assumptions, et.c. *)
+    (* TODO: OPTIMIZE: Inefficient. Formulate general theorem with list of assumptions, et.c.?
+     * Use definitions and rewrite to compress (context...)? *)
     prove(ct_goal,
           assume_tac path_tree_list_leafs_thm >>
-          assume_tac disj_thm >>
-          fs[p4_contract_def] >>
+          FULL_SIMP_TAC std_ss [p4_contract_def, disj_thm] >>
           metis_tac [])
    end
   | p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, (h::t))) path_tree_list_leafs =
@@ -858,13 +797,6 @@ fun p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_co
   val id_ctthm_list = map (fn (a,b) => (a, MATCH_MP p4_symb_exec_to_contract b)) id_step_post_thm_list
 
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree
-(*
-  (* TODO: Make a general unification strategy - this only works for 1 or 2 elements *)
-  val unified_ct_thm =
-   if length ct_thm_list = 1
-   then el 1 ct_thm_list
-   else MATCH_MP (MATCH_MP p4_symb_exec_unify (el 1 ct_thm_list)) (el 2 ct_thm_list)
-*)
  in
   unified_ct_thm
  end

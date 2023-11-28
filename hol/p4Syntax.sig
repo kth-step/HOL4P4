@@ -243,6 +243,8 @@ val scope_ty : hol_type
 
 val status_running_tm : term
 
+val dest_frame : term -> term * term * term
+
 val arch_block_pbl_tm : term
 val dest_arch_block_pbl : term -> term * term
 val is_arch_block_pbl : term -> bool
@@ -262,6 +264,12 @@ val arch_frame_list_regular_tm : term
 val dest_arch_frame_list_regular : term -> term
 val is_arch_frame_list_regular : term -> bool
 val mk_arch_frame_list_regular : term -> term
+
+val dest_actx :
+   term ->
+     term * term * term * term * term * term * term * term * term * term
+val dest_astate : term -> term * term * term * term
+val dest_aenv : term -> term * term * term * term
 
 val dest_e_red : term -> term * term * term * term * term * term
 val e_red_tm : term
@@ -288,6 +296,16 @@ val is_stmt_red : term -> bool
 val mk_stmt_red : term * term * term -> term
 val stmt_red_tm : term
 
+
+val dest_is_e_lval : term -> term
+val is_e_lval_tm : term
+val is_is_e_lval : term -> bool
+val mk_is_e_lval : term -> term
+
+val dest_lookup_funn_sig : term -> term * term * term * term
+val is_lookup_funn_sig : term -> bool
+val lookup_funn_sig_tm : term
+val mk_lookup_funn_sig : term * term * term * term -> term
 
 val dest_assign : term -> term * term * term
 val is_assign : term -> bool
