@@ -149,9 +149,7 @@ val init_astate = symb_exec1_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val path_cond = (ASSUME T)
-val fuel = 2
 val n_max = 50;
-val precond = “T”;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
