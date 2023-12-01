@@ -35,12 +35,24 @@ fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
 
 (* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
 local
-(* Symbolic execution with branching on if-then-else
- * Width-first scheduling (positive case first) of execution
- * Note that branching consumes one step of (SML function) fuel
- * Here, the static ctxt and the dynamic path condition have been merged.
- * Currently, the path condition is stripped down as much as possible from p4-specific stuff
- * (another design priority could be legibility and keeping the connection to the P4 constructs). *)
+(* Generic symbolic execution
+ * This has four language-specific parameters:
+ *
+ * lang_regular_step (thm * thm -> thm): Takes one regular step in the language lang
+ *   (takes a path condition in theorem form and a step theorem and transforms it into
+ *    a new step theorem)
+ *
+ * lang_init_step_thm (thm): Step theorem for zero steps
+ *
+ * lang_should_branch (thm -> (term list * thm) option): Decides whether to branch
+ * by looking at the current step theorem. Returns NONE if branching should not
+ * happen, and a list of different branch conditions (used to update the path conditions)
+ * and a disjunction theorem stating that the disjunction of the branch conditions holds.
+
+ * lang_is_finished (thm -> bool): Decides whether symbolic execution should continue
+ * on this path by looking at the current step theorem.
+ *
+ * Note that branching consumes one step of (SML function) fuel *)
 fun symb_exec' lang_funs npaths path_tree [] finished_list = (path_tree, finished_list)
   | symb_exec' lang_funs npaths path_tree ((path_id, path_cond, step_thm, 0)::t) finished_list =
    symb_exec' lang_funs npaths path_tree t (finished_list@[(path_id, path_cond, step_thm)])

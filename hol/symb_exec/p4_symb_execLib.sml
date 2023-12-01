@@ -493,8 +493,6 @@ val p4_stop_eval_consts =
 ];
 
 (* Function that decides whether to branch or not *)
-(* TODO: This is a P4-specific function that has been factored out, make it an argument of
- * the generic symb_exec *)
 fun p4_should_branch step_thm =
  let
   val astate = the_final_state_imp step_thm
@@ -584,8 +582,6 @@ fun p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm (path_cond, 
 ;
 
 (* Function that decides whether we are finished or not *)
-(* TODO: This is a P4-specific function that has been factored out, make it an argument of
- * the generic symb_exec *)
 fun p4_is_finished step_thm =
  let
   val astate = the_final_state_imp step_thm
@@ -600,6 +596,9 @@ fun p4_is_finished step_thm =
  end
 ;
 
+(* Here, the static ctxt and the dynamic path condition have been merged.
+ * Currently, the path condition is stripped down as much as possible from p4-specific stuff
+ * (another design priority could be legibility and keeping the connection to the P4 constructs). *)
 fun p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
  let
   val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl
