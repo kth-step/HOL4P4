@@ -159,6 +159,10 @@ val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_e
 val (res_tree, res_elems) =
  symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
 
+   Join happens here:
+val (res_tree, res_elems) =
+ symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+
 val [res_elem1, res_elem2] = res_elems
 
 val (res_id1, res_cond1, res_thm1) = res_elem1

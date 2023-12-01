@@ -721,6 +721,7 @@ fun p4_prove_postcond rewr_thms postcond step_thm =
  end
 ;
 
+(*
 (* TODO: Move to syntax library *)
 val (contract_tm, mk_contract, dest_contract, is_contract) =
   syntax_fns4 "p4_symb_exec" "p4_contract";
@@ -732,43 +733,38 @@ fun p4_contract_replace_precond contract new_precond =
   mk_contract (new_precond, context, init_state, postcond)
  end
 ;
+*)
 
-(* TODO: Currently this is the bottleneck, with the unification proofs taking 10+ seconds *)
 local
 fun p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) [] =
    (case List.find (fn (id', ct_thm) => id = id') id_ctthm_list of
      SOME (id'', thm) => thm
    | NONE => raise (ERR "p4_unify_path_tree" ("Could not find contract with id: "^(int_to_string id))))
-  |  p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) path_tree_list_leafs =
+  | p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) path_tree_list_leafs =
    (* Unify *)
-   (* 1. Make goal term by picking first element of path_tree_list and removing first antecedent *)
-   (* 2. Crudely prove this from all theorems in path_tree list and disj_thm *)
    let
-    (* Unclear if new precond should be the first of the hypotheses, or the conjunct of all but the last *)
-    (* TODO: This tries to obtain the precondition to unify to from the path condition.
-     * Unsure if it is the hypothesis (if any) of disj_thm or something else. *)
-    val new_precond =
-     let
-      val disj_hyp = hyp disj_thm
-     in
-      if null disj_hyp
-      then T
-      else el 1 $ hyp disj_thm
-     end
-
-    val ct_goal = p4_contract_replace_precond (concl $ el 1 path_tree_list_leafs) new_precond
-    (* TODO: Make nicer *)
-    val path_tree_list_leafs_thm =
-     if length path_tree_list_leafs = 1
-     then hd path_tree_list_leafs
-     else foldl (fn (thm, thm') => CONJ thm' thm) (hd path_tree_list_leafs) (tl path_tree_list_leafs)
+    val (imp_disj_thm, path_tree_list_leafs_thm) =
+     if null $ hyp disj_thm
+     then
+      (* TODO: Make nicer *)
+      (PURE_REWRITE_RULE [Once imp_REWR] $ REWRITE_RULE [disj_list_REWR2, listTheory.APPEND] disj_thm,
+       if length path_tree_list_leafs = 1
+       then PURE_REWRITE_RULE [Once p4_contract_imp_REWR] (hd path_tree_list_leafs)
+       else foldl (fn (thm, thm') => CONJ thm' (PURE_REWRITE_RULE [Once p4_contract_imp_REWR] thm))
+	     (PURE_REWRITE_RULE [Once p4_contract_imp_REWR] $ hd path_tree_list_leafs)
+	     (tl path_tree_list_leafs))
+     else
+      (* TODO: Make nicer *)
+      (REWRITE_RULE [disj_list_REWR3, listTheory.APPEND] disj_thm,
+       if length path_tree_list_leafs = 1
+       then hd path_tree_list_leafs
+       else foldl (fn (thm, thm') => CONJ thm' thm)
+	     (hd path_tree_list_leafs)
+	     (tl path_tree_list_leafs))
+    val p4_contract_list_thm =
+     REWRITE_RULE [p4_contract_list_REWR, listTheory.APPEND] path_tree_list_leafs_thm
    in
-    (* TODO: OPTIMIZE: Inefficient. Formulate general theorem with list of assumptions, et.c.?
-     * Use definitions and rewrite to compress (context...)? *)
-    prove(ct_goal,
-          assume_tac path_tree_list_leafs_thm >>
-          FULL_SIMP_TAC std_ss [p4_contract_def, disj_thm] >>
-          metis_tac [])
+    MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen imp_disj_thm) p4_contract_list_thm
    end
   | p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, (h::t))) path_tree_list_leafs =
    (* Recursive call *)
