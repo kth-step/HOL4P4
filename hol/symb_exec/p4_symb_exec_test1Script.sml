@@ -161,7 +161,7 @@ val (res_tree, res_elems) =
 
    Join happens here:
 val (res_tree, res_elems) =
- symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+ symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 44;
 
 val [res_elem1, res_elem2] = res_elems
 

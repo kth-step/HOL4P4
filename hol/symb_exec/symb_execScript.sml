@@ -31,7 +31,7 @@ Q.PAT_X_ASSUM ‘!h. h \/ disj_list (A ++ B) <=> disj_list (B ++ h::A)’ (fn th
 metis_tac[]
 QED
 
-Theorem disj_list_REWR2:
+Theorem disj_list_REWR:
  !a b B C.
  (((a \/ b) \/ disj_list C) <=> (b \/ disj_list (C++[a]))) /\
  ((a \/ disj_list B) <=> (disj_list (B++[a]))) /\
@@ -42,7 +42,7 @@ fs[disj_list_def] >>
 metis_tac[]
 QED
 
-Theorem disj_list_REWR3:
+Theorem disj_list_imp_REWR:
  !P a b B C.
  ((P ==> ((a \/ b) \/ disj_list C)) <=> (P ==> (b \/ disj_list (C++[a])))) /\
  ((P ==> (a \/ disj_list B)) <=> (P ==> (disj_list (B++[a])))) /\
@@ -51,7 +51,7 @@ Proof
 Cases_on ‘P’ >> (
   fs[]
 ) >>
-fs[disj_list_REWR2]
+fs[disj_list_REWR]
 QED
 
 Theorem imp_REWR:

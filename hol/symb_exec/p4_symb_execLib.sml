@@ -8,39 +8,11 @@ open p4Theory p4_exec_semTheory p4Syntax p4_exec_semSyntax;
 
 open symb_execTheory p4_symb_execTheory;
 
-open evalwrapLib p4_testLib;
+open evalwrapLib p4_testLib symb_execLib;
 
 open optionSyntax;
 
 val ERR = mk_HOL_ERR "p4_symb_exec"
-
-datatype path_tree = empty | node of int * thm * (path_tree list);
-
-(* TODO: Optimize? *)
-fun insert_nodes' empty (at_id, thm, new_nodes) _ = NONE
-  | insert_nodes' (node (id, thm, nodes)) (at_id, new_thm, new_nodes) nodes_temp = 
-   if at_id = id
-   then
-    if null nodes
-    then SOME (node (id, new_thm, new_nodes))
-    else NONE (* Erroneously trying to insert new nodes in occupied position *)
-   else
-    if null nodes
-    then NONE (* Reached end of search *)
-    else
-     case insert_nodes' (hd nodes) (at_id, new_thm, new_nodes) [] of
-       SOME new_node =>
-      SOME (node (id, new_thm, nodes_temp@(new_node::(tl nodes))))
-     | NONE =>
-      insert_nodes' (node (id, thm, tl nodes)) (at_id, new_thm, new_nodes) (nodes_temp@[hd nodes]);
-
-fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
- case insert_nodes' path_tree (at_id, new_thm, new_nodes) [] of
-   SOME new_path_tree =>
-  new_path_tree
- | NONE =>
-  raise (ERR "insert_nodes" "Inserting new path node at unknown or occupied position ");
-
 
 fun get_b_func_map i ab_list pblock_map =
  let
@@ -628,112 +600,15 @@ fun p4_is_finished step_thm =
  end
 ;
 
-(* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
-local
-(* Symbolic execution with branching on if-then-else
- * Width-first scheduling (positive case first) of execution
- * Note that branching consumes one step of (SML function) fuel
- * Here, the static ctxt and the dynamic path condition have been merged.
- * Currently, the path condition is stripped down as much as possible from p4-specific stuff
- * (another design priority could be legibility and keeping the connection to the P4 constructs). *)
-fun symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm npaths path_tree [] finished_list =
- (path_tree, finished_list)
-  | symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm npaths path_tree 
-               ((path_id, path_cond, step_thm, 0)::t) finished_list =
-   symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm npaths path_tree t
-              (finished_list@[(path_id, path_cond, step_thm)])
-  | symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm npaths path_tree
-               ((path_id, path_cond, step_thm, fuel)::t) finished_list =
-   (* Check if we should branch or take regular step
-    * p4_should_branch can be made an argument: it takes the current step theorem
-    * and returns a term with the branch condition, with which you can split the
-    * path condition *)
-   (case p4_should_branch step_thm of
-     SOME (branch_cond_list, path_disj_thm) =>
-     (* Branch + prune *)
-     let
-      (* Get all path conditions in the shape of Cn /\ P ==> P /\ Cn *)
-      (* TODO: Why this tautological shape? Why store path_cond as a theorem and not a term? *)
-      val new_path_conds = map (CONJ path_cond o ASSUME) branch_cond_list
-
-      (* Simplify: some path conditions will now take the shape Cn /\ P ==> Cn /\ P <=> F *)
-      val new_path_conds' = map (SIMP_RULE std_ss []) new_path_conds
-
-
-      (* TODO: OPTIMIZE: Check if branch results in just one new path - then we don't need to add
-       * a new node to the tree, just replace data in the existing one *)
-      val (npaths', new_path_elems) =
-       foldl
-        (fn (path_cond, (curr_path_id, curr_path_cond_list)) =>
-	 if Feq $ concl path_cond 
-	 then (curr_path_id, curr_path_cond_list)
-	 else (curr_path_id+1,
-               (* TODO: OPTIMIZE: Cons instead of append? will reverse order *)
-               (curr_path_cond_list@[(curr_path_id+1, path_cond, DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm, fuel-1)])))
-        (npaths, [])
-        new_path_conds'
-
-      (* TODO: Using TRUTH as a placeholder - use thm option type in path_tree instead? *)
-      val new_path_nodes = map (fn (a,b,c,d) => node (a, TRUTH, [])) new_path_elems
-
-      val new_path_tree = insert_nodes path_tree (path_id, path_disj_thm, new_path_nodes)
-     in
-      symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm npaths' new_path_tree 
-                 (t@new_path_elems) finished_list
-     end
-    | NONE =>
-     (* Do not branch - compute one regular step *)
-     let
-      val next_step_thm =
-       p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm (path_cond, step_thm)
-     in
-      if p4_is_finished next_step_thm
-      then
-       symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm npaths path_tree 
-		  t (finished_list@[(path_id, path_cond, next_step_thm)])
-      else
-       symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm npaths path_tree 
-		  (t@[(path_id, path_cond, next_step_thm, fuel-1)]) finished_list
-     end)
-in
-fun symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
  let
-  (* TODO: Also branch check here? *)
-  val step_thm =
-   eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 1));
-  (* TODO: Make an argument called "init_comp_thm" and pass arch_multi_exec_comp_n_tl_assl *)
-  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl;
+  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl
+  val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
+  val regular_step = p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm
  in
-  if fuel = 1
-  (* TODO: Using TRUTH as a placeholder - use thm option type in path_tree instead? *)
-  then (node (1,TRUTH,[]), [(1, path_cond, step_thm)])
-  else symb_exec' arch_ty ctx stop_consts_rewr stop_consts_never comp_thm 1 (node (1, TRUTH, [])) [(1, path_cond, step_thm, (fuel-1))] []
- end
-end;
-
-fun p4_prove_postcond rewr_thms postcond step_thm =
- let
-  val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
-  (* TODO: OPTIMIZE: srw_ss??? *)
-  val postcond_thm = EQT_ELIM $ SIMP_CONV (srw_ss()) rewr_thms $ mk_comb (postcond, the_final_state_imp step_thm)
- in
-  MATCH_MP prel_res_thm postcond_thm
+  symb_exec (regular_step, init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel
  end
 ;
-
-(*
-(* TODO: Move to syntax library *)
-val (contract_tm, mk_contract, dest_contract, is_contract) =
-  syntax_fns4 "p4_symb_exec" "p4_contract";
-
-fun p4_contract_replace_precond contract new_precond =
- let
-  val (precond, context, init_state, postcond) = dest_contract contract
- in
-  mk_contract (new_precond, context, init_state, postcond)
- end
-;
-*)
 
 local
 fun p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) [] =
@@ -747,7 +622,7 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) [] =
      if null $ hyp disj_thm
      then
       (* TODO: Make nicer *)
-      (PURE_REWRITE_RULE [Once imp_REWR] $ REWRITE_RULE [disj_list_REWR2, listTheory.APPEND] disj_thm,
+      (PURE_REWRITE_RULE [Once imp_REWR] $ REWRITE_RULE [disj_list_REWR, listTheory.APPEND] disj_thm,
        if length path_tree_list_leafs = 1
        then PURE_REWRITE_RULE [Once p4_contract_imp_REWR] (hd path_tree_list_leafs)
        else foldl (fn (thm, thm') => CONJ thm' (PURE_REWRITE_RULE [Once p4_contract_imp_REWR] thm))
@@ -755,7 +630,7 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, disj_thm, [])) [] =
 	     (tl path_tree_list_leafs))
      else
       (* TODO: Make nicer *)
-      (REWRITE_RULE [disj_list_REWR3, listTheory.APPEND] disj_thm,
+      (REWRITE_RULE [disj_list_imp_REWR, listTheory.APPEND] disj_thm,
        if length path_tree_list_leafs = 1
        then hd path_tree_list_leafs
        else foldl (fn (thm, thm') => CONJ thm' thm)
@@ -779,13 +654,23 @@ fun p4_unify_path_tree id_ctthm_list path_tree =
 end
 ;
 
+fun p4_prove_postcond rewr_thms postcond step_thm =
+ let
+  val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
+  (* TODO: OPTIMIZE: srw_ss??? *)
+  val postcond_thm = EQT_ELIM $ SIMP_CONV (srw_ss()) rewr_thms $ mk_comb (postcond, the_final_state_imp step_thm)
+ in
+  MATCH_MP prel_res_thm postcond_thm
+ end
+;
+
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
 fun p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond =
  let
   (* Perform symbolic execution until all branches are finished *)
   val (path_tree, path_cond_step_list) =
-   symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max;
+   p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max;
   (* Add postcondition to resulting n-step theorem *)
   val id_step_post_thm_list =
    map (fn (a,b,c) => (a, p4_prove_postcond [packet_has_port_def] postcond c)) path_cond_step_list
