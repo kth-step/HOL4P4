@@ -336,7 +336,7 @@ End
 
 (* Transfers the value of parsedHdr to hdr and the parserError value to standard_metadata,
  * then resets the shared packet "b" (TODO: Fix that hack) and saves its content in "b_temp" *)
-(* TODO: Note that this also resets parseError to 0 for later parsers *)
+(* TODO: Note that this also resets parseError to 0 *)
 Definition v1model_postparser_def:
  v1model_postparser ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   (case ALOOKUP v_map "b" of

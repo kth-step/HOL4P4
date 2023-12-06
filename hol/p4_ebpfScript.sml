@@ -80,6 +80,7 @@ End
  * of this are mandatory fields. Depending on the IHL header
  * field, 0-46 bytes of option field follows. *)
 (* NOTE: "b" renamed to "b_in" *)
+(* TODO: Note that this also resets parseError to 0 *)
 Definition ebpf_input_f_def:
  (ebpf_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
   case io_list of
@@ -93,10 +94,11 @@ Definition ebpf_input_f_def:
      (* TODO: Slightly vestigial from the VSS model:
       * needed to remember port when packet is accepted. Change to a more elegant solution later *)
      let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",v_bit (w4 (n2w p)))]) in
-     (case ALOOKUP v_map' "packet_copy" of
+     let v_map'' = AUPDATE v_map' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
+     (case ALOOKUP v_map'' "packet_copy" of
       | SOME (v_ext_ref i') =>
        let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet bl)) in
-       SOME (t, (counter, ext_obj_map'', v_map', ctrl):ebpf_ascope)
+       SOME (t, (counter, ext_obj_map'', v_map'', ctrl):ebpf_ascope)
       | _ => NONE)
     | _ => NONE))
 End

@@ -219,6 +219,7 @@ End
  * of this are mandatory fields. Depending on the IHL header
  * field, 0-46 bytes of option field follows. *)
 (* NOTE: "b" renamed to "b_in" *)
+(* TODO: Note that this also resets parseError to 0 *)
 Definition vss_input_f_def:
   (vss_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
    case io_list of
@@ -239,7 +240,8 @@ Definition vss_input_f_def:
              (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
               * function for vss_ascope. *)
              let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort", v_bit (w4 (n2w p)))]) in
-              SOME (t, (counter, ext_obj_map'', v_map', ctrl):vss_ascope)
+             let v_map'' = AUPDATE v_map' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
+              SOME (t, (counter, ext_obj_map'', v_map'', ctrl):vss_ascope)
            | _ => NONE)
          | _ => NONE)
        | NONE => NONE)

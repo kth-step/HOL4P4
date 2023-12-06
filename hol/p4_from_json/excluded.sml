@@ -74,13 +74,6 @@ val exclude_descs =
    ["table-entries-optional-bmv2",
     "table-entries-range-bmv2"]),
 (*
-    Serializable enumeration types
-    FAIL: Could not parse .*\/(.*?)\. Unknown declaration element type: SerializableEnum
-*)
-  ("desugaring serializable enumeration types in the JSON-to-HOL4P4 parser",
-   ["cast-senum",
-    "table-entries-ser-enum-bmv2"]),
-(*
     Signed integers
     FAIL: Could not parse .*\/(.*?)\. .*?: \["int".*
 *)
@@ -97,6 +90,8 @@ val exclude_descs =
   ("adding or desugaring nested control blocks in the JSON-to-HOL4P4 parser",
    ["arith-inline-bmv2",
     "arith2-inline-bmv2",
+    "decl-soundness",
+    "enum-bmv2",
     "default_action-bmv2",
     "key-bmv2",
     "two_ebpf"]),
@@ -113,15 +108,9 @@ val exclude_descs =
 (*
     CounterArray extern (manually spotted)
 *)
-  ("adding counter array extern to eBPF mdoe",
+  ("adding counter array extern to eBPF model",
    ["count_ebpf",
     "valid_ebpf"]),
-(*
-    Better support for enumeration types (manually spotted)
-*)
-  ("extending JSON-to-HOL4P4 parser to more properly support enumeration types",
-   ["decl-soundness",
-    "enum-bmv2"]),
 (*
     Return struct of table application
 *)
@@ -163,7 +152,8 @@ val exclude_descs =
 *)
   ("extending HOL4P4 to allow more expressions as table keys",
    ["issue1000-bmv2",
-    "issue-2123-3-bmv2"])
+    "issue-2123-3-bmv2",
+    "table-entries-ser-enum-bmv2"])
 ];
 
 fun get_error_desc testname [] = NONE
