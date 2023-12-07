@@ -28,6 +28,6 @@ val core_ext_map =
 (* TODO: parseError can have different implementations in different architectures, fix this hack
  * In the architecture-specific files, all parameters of programmable blocks
  * should be added to this, as well as any architecture-specific variables. *)
-val core_init_v_map = ``[("parseError", ^(mk_v_bitii (0, 32)))]:(string, v) alist``;
+val core_init_v_map = ``[("parseError", v_bit (fixwidth 32 (n2v 0), 32) )]:(string, v) alist``;
 
 end

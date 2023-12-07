@@ -279,7 +279,7 @@ End
  * context *)
 val _ = type_abbrev("tyenv", ``:(string, p_tau) alist``);
 val _ = type_abbrev("enummap", ``:num # (string # (string, v) alist) list``);
-val _ = type_abbrev("ftymap", ``:(funn # (p_tau list, tau) alist)``);
+val _ = type_abbrev("ftymap", ``:((funn, (p_tau list # tau)) alist)``);
 
 (* The tau signifies the type argument(s) *)
 Datatype:
@@ -534,8 +534,7 @@ Definition petr4_parse_enum_def:
   case json_parse_obj ["tags"; "annotations"; "name"; "members"] json of
   | SOME [tags; annot; name; Array members] =>
    (case petr4_enum_to_enummapupdates enummap name members of
-    | SOME enummap' =>
-     SOME_msg enummap'
+    | SOME enummap' => SOME_msg enummap'
     | NONE => get_error_msg "Could not parse enumeration type: " json)
   | _ => get_error_msg "Unknown JSON format of enumeration type: " json
 End
@@ -699,7 +698,7 @@ End
  * Required due to overloaded function names, e.g. extract in packet_in *)
 (* TODO: Should this really return a tuple and not only the args? Check where this is used... *)
 Definition find_fty_match_args_def:
- find_fty_match_args ftymap funn numargs =
+ find_fty_match_args (ftymap:ftymap) funn numargs =
   case FIND (\ (funn', (tyargs', tyret')). if funn = funn' then (numargs = LENGTH tyargs') else F) ftymap of
   | SOME fty => SOME (SND fty)
   | NONE => NONE
@@ -1062,6 +1061,7 @@ End
 
 (* NOTE: Should vtymap be needed at top level?
  *       Remove tyenv, doesn't seem to be needed? *)
+(* TODO: Merge with petr4_parse_compiletime_constantexp? *)
 Definition petr4_parse_value_def:
  petr4_parse_value (tyenv, enummap:enummap, vtymap, ftymap, gscope, extfun_list) (exp, p_tau_opt) =
   case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, p_tau_opt) of
@@ -1104,6 +1104,55 @@ Definition petr4_parse_constant_def:
       SOME_msg (AUPDATE vtymap (varn, parameterise_tau tau), AUPDATE gscope (varn, val, NONE))
      | NONE => get_error_msg "unsupported type of constant: " constant)
    | NONE_msg const_msg => NONE_msg ("Could not parse constant: "++const_msg) (* TODO: Print constant name using nested msg *)
+End
+
+(**********************)
+(* Serializable enums *)
+
+(* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
+(* TODO: Remove superfluous parameters *)
+Definition petr4_parse_serialization_def:
+ (petr4_parse_serialization (tyenv, enummap:enummap, vtymap, gscope:g_scope) expected_tau [] = SOME_msg []) /\
+ (petr4_parse_serialization (tyenv, enummap, vtymap, gscope) expected_tau (h::t) =
+  case h of
+  | Array [name; exp] =>
+   (case petr4_parse_name name of
+    | SOME mem_name =>
+     (* Note serialization values may be compile-time known constants in general *)
+     (case petr4_parse_value (tyenv, enummap, vtymap, []:ftymap, gscope, []) (exp, SOME expected_tau) of
+       | SOME_msg val_res =>
+        (case petr4_parse_serialization (tyenv, enummap, vtymap, gscope) expected_tau t of
+         | SOME_msg serialization_res => SOME_msg ((mem_name, val_res)::serialization_res)
+         | NONE_msg serialization_msg => NONE_msg serialization_msg)
+       | NONE_msg exp_msg => NONE_msg ("could not parse serialization type member value: "++exp_msg))
+    | NONE => get_error_msg "could not parse name: " name)
+  | _ => get_error_msg "unknown JSON format of serialization type member: " h)
+End
+
+Definition petr4_parse_serializable_enum_def:
+ petr4_parse_serializable_enum (tyenv, enummap, vtymap, gscope) json =
+  case json_parse_obj ["tags"; "annotations"; "type"; "name"; "members"] json of
+  | SOME [tags; annot; type; name; Array members] =>
+   (case petr4_parse_ptype F tyenv type of
+    | SOME enum_type =>
+     (case petr4_parse_name name of
+      | SOME enum_name =>
+       (* Note serialization values may be compile-time known constants in general *)
+       (case petr4_parse_serialization (tyenv, enummap, vtymap, gscope) enum_type members of
+        | SOME_msg enummap_ser_updates =>
+         (case ALOOKUP (SND enummap) enum_name of
+          | SOME enum_mem_map =>
+           SOME_msg (AUPDATE tyenv (enum_name, enum_type),
+                     (FST enummap,
+                      AUPDATE (SND enummap) (enum_name,
+                       AUPDATE_LIST enum_mem_map enummap_ser_updates)))
+          | NONE =>
+           SOME_msg (AUPDATE tyenv (enum_name, enum_type),
+                     (FST enummap, AUPDATE (SND enummap) (enum_name, enummap_ser_updates))))
+        | NONE_msg serialization_msg => NONE_msg serialization_msg)
+      | NONE => get_error_msg "Could not parse name: " name)
+    | NONE => get_error_msg "Could not parse type: " type)
+  | _ => get_error_msg "Unknown JSON format of serializable enumeration type: " json
 End
 
 (*******************)
@@ -2193,24 +2242,29 @@ End
 Datatype:
  match_res_t =
     match_res_default
-  | match_res_exp (e list)
+  | match_res_exp (v list)
 End
 
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 Definition petr4_parse_matches_def:
- (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau [] = SOME_msg (match_res_exp [])) /\
- (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau (h::t) =
+ (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau [] = SOME_msg (match_res_exp [])) /\
+ (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau (h::t) =
   case h of
   | Array [String "Expression";
            Object [("tags", tags); ("expr", exp)]] =>
-   (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, SOME expected_tau) of
-     | SOME_msg exp_res =>
-      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau t of
-       | SOME_msg (match_res_exp matches_res) => SOME_msg (match_res_exp (exp_res::matches_res))
+   (* TODO: Note that this is technically more restrictive than the P4 definition, where select cases are expressions,
+    *       not necessarily values. Most targets probably restrict to values in practice though. *)
+   (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (exp, SOME expected_tau) of
+     | SOME_msg val_res =>
+      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau t of
+       | SOME_msg (match_res_exp matches_res) => SOME_msg (match_res_exp (val_res::matches_res))
        | SOME_msg (match_res_default) => SOME_msg (match_res_default)
        | NONE_msg matches_msg => NONE_msg matches_msg)
      | NONE_msg exp_msg => NONE_msg ("could not parse select match case: "++exp_msg))
   | Array [String "Default";
+           Object [("tags", tags)]] =>
+   SOME_msg (match_res_default)
+  | Array [String "DontCare";
            Object [("tags", tags)]] =>
    SOME_msg (match_res_default)
   | _ => get_error_msg "unknown JSON format of select case match: " h)
@@ -2223,19 +2277,15 @@ Datatype:
 End
 
 Definition petr4_parse_case_def:
- petr4_parse_case (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau select_case =
+ petr4_parse_case (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau select_case =
   case json_parse_obj ["tags"; "matches"; "next"] select_case of
    | SOME [tags; Array match_exps; name] =>
     (case petr4_parse_name name of
      | SOME state_name =>
-      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau match_exps of
-       | SOME_msg (match_res_exp [exp_res]) =>
-        (case v_of_e exp_res of
-         | SOME v =>
-          SOME_msg (match_exp (v, state_name))
-         | NONE => get_error_msg "non-value expressions as select match cases not yet supported: " (Array match_exps))
-       | SOME_msg (match_res_default) =>
-        SOME_msg (match_default state_name)
+      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau match_exps of
+       (* TODO: Permit list of values *)
+       | SOME_msg (match_res_exp [val_res]) => SOME_msg (match_exp (val_res, state_name))
+       | SOME_msg match_res_default => SOME_msg (match_default state_name)
        | SOME_msg _ => get_error_msg "lists of case matches not yet supported" (Array match_exps)
        | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
      | NONE => get_error_msg "could not parse name: " name)
@@ -2244,16 +2294,16 @@ End
 
 (* TODO: Rewrite from tail-recursive to avoid code duplication? *)
 Definition petr4_parse_cases_def:
- (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau [] =
+ (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau [] =
   SOME_msg ([], NONE)) /\
- (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau (h::t) =
-  case petr4_parse_case (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau h of
+ (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau (h::t) =
+  case petr4_parse_case (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau h of
    | SOME_msg (match_exp exp_case_res) =>
-    (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau t of
+    (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau t of
      | SOME_msg (exp_cases_res, def_case_res) => SOME_msg (exp_case_res::exp_cases_res, def_case_res)
      | NONE_msg cases_msg => NONE_msg cases_msg)
    | SOME_msg (match_default def_case_res) =>
-    (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, extfun_list) expected_tau t of
+    (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau t of
      | SOME_msg (exp_cases_res, NONE) => SOME_msg (exp_cases_res, SOME def_case_res)
      | SOME_msg _ => get_error_msg "duplicate default case: " h
      | NONE_msg cases_msg => NONE_msg cases_msg)
@@ -2281,7 +2331,7 @@ Definition petr4_parse_trans_def:
       (* TODO: Fix this *)
       (case exp_to_p_tau vtymap exp_res of
        | SOME p_tau =>
-        (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, extfun_list) p_tau cases of
+        (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) p_tau cases of
          | SOME_msg (cases_res, def_case_res) =>
           (* TODO: Note that reject is always default next state unless otherwise specified...
            * Hard-coded in petr4 semantics or in spec? *)
@@ -2535,6 +2585,12 @@ Definition petr4_parse_element_def:
     (case petr4_parse_enum enummap obj of
      | SOME_msg enummap' =>
       SOME_msg (tyenv, enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, arch_pkg_opt, ab_list, extfun_list)
+     | NONE_msg msg => NONE_msg msg)
+
+   else if elem_name = "SerializableEnum" then
+    (case petr4_parse_serializable_enum (tyenv, enummap, vtymap, gscope) obj of
+     | SOME_msg (tyenv', enummap') =>
+      SOME_msg (tyenv', enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries, arch_pkg_opt, ab_list, extfun_list)
      | NONE_msg msg => NONE_msg msg)
 
    (* WIP: Extern object types added to the type environment, since parameters to blocks
