@@ -2304,4 +2304,17 @@ Definition p4_append_input_list_def:
        ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
 End
 
+(**************************)
+(* For symbolic execution *)
+
+(* Used for path unification *)
+Theorem IMP_HYP_CASES:
+!A B C.
+(A /\ C ==> B) ==>
+(~A /\ C ==> B) ==>
+C ==> B
+Proof
+metis_tac[]
+QED
+
 val _ = export_theory ();

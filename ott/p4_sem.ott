@@ -1573,15 +1573,6 @@ val get_word_binpred_def = Define `
 /\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
 `;
 
-val get_word_binpred_def = Define `
-    (get_word_binpred binop_le = word_ls)
-/\  (get_word_binpred binop_ge = word_hs)
-/\  (get_word_binpred binop_lt = word_lo)
-/\  (get_word_binpred binop_gt = word_hi)
-/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
-/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
-`;
-
 val bitv_binpred_inner_def = Define `
     (bitv_binpred_inner binpred v v' 1 = SOME (((get_word_binpred binpred) ((v2w v): 1 word) ((v2w v'): 1 word)):boolv) )
 /\  (bitv_binpred_inner binpred v v' 2 = SOME (((get_word_binpred binpred) ((v2w v): 2 word) ((v2w v'): 2 word)):boolv) )

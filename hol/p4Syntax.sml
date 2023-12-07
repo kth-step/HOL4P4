@@ -7,6 +7,7 @@ open stringSyntax optionSyntax pairSyntax listSyntax
      wordsSyntax numSyntax bitstringSyntax;
 open p4Theory;
 
+val ERR = mk_HOL_ERR "p4Syntax"
 
 fun dest_quinop c e tm =
    case with_exn strip_comb tm e of
@@ -52,6 +53,15 @@ fun dest_novop c e tm =
 fun list_of_novuple (a, b, c, d, e, f, g, h, i) = [a, b, c, d, e, f, g, h, i];
 fun mk_novop tm = HolKernel.list_mk_icomb tm o list_of_novuple;
 val syntax_fns9 = HolKernel.syntax_fns {n = 9, dest = dest_novop, make = mk_novop};
+
+fun dest_decop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]) =>
+         if same_const t c then (t1, t2, t3, t4, t5, t6, t7, t8, t9, t10) else raise e
+    | _ => raise e;
+fun list_of_decuple (a, b, c, d, e, f, g, h, i, j) = [a, b, c, d, e, f, g, h, i, j];
+fun mk_decop tm = HolKernel.list_mk_icomb tm o list_of_decuple;
+val syntax_fns10 = HolKernel.syntax_fns {n = 10, dest = dest_decop, make = mk_decop};
 
 (* TODO: Move to ottSyntax *)
 open ottTheory;
@@ -152,6 +162,9 @@ val (e_var_tm,  mk_e_var, dest_e_var, is_e_var) =
   syntax_fns1 "p4" "e_var";
 val mk_e_var_name = (#2 (syntax_fns1 "p4" "e_var")) o mk_varn_name o fromMLstring;
 
+val (e_list_tm,  mk_e_list, dest_e_list, is_e_list) =
+  syntax_fns1 "p4" "e_list";
+
 val (e_unop_tm,  mk_e_unop, dest_e_unop, is_e_unop) =
   syntax_fns2 "p4" "e_unop";
 val (bitv_unop_tm, mk_bitv_unop, dest_bitv_unop, is_bitv_unop) =
@@ -160,6 +173,9 @@ val unop_neg_tm = prim_mk_const {Name="unop_neg", Thy="p4"};
 val unop_compl_tm = prim_mk_const {Name="unop_compl", Thy="p4"};
 val unop_neg_signed_tm = prim_mk_const {Name="unop_neg_signed", Thy="p4"};
 val unop_un_plus_tm = prim_mk_const {Name="unop_un_plus", Thy="p4"};
+
+val (e_cast_tm,  mk_e_cast, dest_e_cast, is_e_cast) =
+  syntax_fns2 "p4" "e_cast";
 
 val (e_binop_tm,  mk_e_binop, dest_e_binop, is_e_binop) =
   syntax_fns3 "p4"  "e_binop";
@@ -184,6 +200,12 @@ val binop_or_tm  = prim_mk_const {Name="binop_or",  Thy="p4"};
 val binop_bin_and_tm = prim_mk_const {Name="binop_bin_and", Thy="p4"};
 val binop_bin_or_tm  = prim_mk_const {Name="binop_bin_or",  Thy="p4"};
 
+val (e_concat_tm,  mk_e_concat, dest_e_concat, is_e_concat) =
+  syntax_fns2 "p4" "e_concat";
+
+val (e_slice_tm,  mk_e_slice, dest_e_slice, is_e_slice) =
+  syntax_fns3 "p4" "e_slice";
+
 val (e_acc_tm, mk_e_acc_tmp, dest_e_acc, is_e_acc) =
   syntax_fns2 "p4" "e_acc";
 val mk_e_acc =
@@ -196,6 +218,32 @@ val mk_e_ext_call_list =
   (fn (objname, metname, l) =>
    (#2 (syntax_fns2 "p4" "e_call")) (mk_funn_ext (objname, metname),
                                      listSyntax.mk_list (l, e_ty)));
+
+val (e_select_tm,  mk_e_select, dest_e_select, is_e_select) =
+  syntax_fns3 "p4" "e_select";
+
+val (e_struct_tm,  mk_e_struct, dest_e_struct, is_e_struct) =
+  syntax_fns1 "p4" "e_struct";
+
+val (e_header_tm,  mk_e_header, dest_e_header, is_e_header) =
+  syntax_fns2 "p4" "e_header";
+
+(*****)
+(* d *)
+(*****)
+
+val d_in_tm = prim_mk_const {Name="d_in", Thy="p4"};
+fun is_d_in tm = term_eq tm d_in_tm;
+
+val d_out_tm = prim_mk_const {Name="d_out", Thy="p4"};
+fun is_d_out tm = term_eq tm d_out_tm;
+
+val d_inout_tm = prim_mk_const {Name="d_inout", Thy="p4"};
+fun is_d_inout tm = term_eq tm d_inout_tm;
+
+val d_none_tm = prim_mk_const {Name="d_none", Thy="p4"};
+fun is_d_none tm = term_eq tm d_none_tm;
+
 
 (*******)
 (* tau *)
@@ -236,8 +284,12 @@ val (stmt_block_tm, mk_stmt_block, dest_stmt_block, is_stmt_block) =
   syntax_fns2 "p4"  "stmt_block";
 val (stmt_ret_tm, mk_stmt_ret, dest_stmt_ret, is_stmt_ret) =
   syntax_fns1 "p4"  "stmt_ret";
+val (stmt_trans_tm, mk_stmt_trans, dest_stmt_trans, is_stmt_trans) =
+  syntax_fns1 "p4"  "stmt_trans";
 val (stmt_app_tm, mk_stmt_app, dest_stmt_app, is_stmt_app) =
   syntax_fns2 "p4"  "stmt_app";
+val stmt_ext_tm = prim_mk_const {Name="stmt_ext", Thy="p4"};
+fun is_stmt_ext tm = term_eq tm stmt_ext_tm;
 
 fun mk_stmt_seq_list' (h::[]) = h
   | mk_stmt_seq_list' (h::t) =
@@ -253,11 +305,15 @@ val d_ty = mk_type ("d", []);
 (* State *)
 (*********)
 
-val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy="p4"};
-
 val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
+
+fun dest_frame frame =
+ case spine_pair frame of
+    [funn, stmt_stack, scope_list] => (funn, stmt_stack, scope_list)
+  | _ => raise (ERR "dest_frame" ("Unsupported frame shape: "^(term_to_string frame)))
+;
 
 (********)
 (* Arch *)
@@ -266,11 +322,38 @@ val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 val (arch_block_pbl_tm,  mk_arch_block_pbl, dest_arch_block_pbl, is_arch_block_pbl) =
   syntax_fns2 "p4" "arch_block_pbl";
 
+val (arch_block_pbl_tm,  mk_arch_block_pbl, dest_arch_block_pbl, is_arch_block_pbl) =
+  syntax_fns2 "p4" "arch_block_pbl";
+
 val (pblock_regular_tm,  mk_pblock_regular, dest_pblock_regular, is_pblock_regular) =
   syntax_fns5 "p4" "pblock_regular";
 
+val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy="p4"};
+fun is_arch_frame_list_empty tm = term_eq tm arch_frame_list_empty_tm;
 val (arch_frame_list_regular_tm,  mk_arch_frame_list_regular, dest_arch_frame_list_regular, is_arch_frame_list_regular) =
   syntax_fns1 "p4" "arch_frame_list_regular";
+
+fun dest_actx actx =
+ case spine_pair actx of
+    [ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map] => (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map)
+  | _ => raise (ERR "dest_actx" ("Unsupported actx shape: "^(term_to_string actx)))
+;
+fun dest_astate astate =
+ case spine_pair astate of
+    [aenv, g_scope_list, arch_frame_list, status] => (aenv, g_scope_list, arch_frame_list, status)
+  | _ => raise (ERR "dest_astate" ("Unsupported astate shape: "^(term_to_string astate)))
+;
+(* TODO: Is this a hack? *)
+fun dest_aenv aenv =
+ let
+  val (i, aenv') = dest_pair aenv
+  val (io_list, aenv'') = dest_pair aenv'
+  val (io_list', ascope) = dest_pair aenv''
+ in
+  (i, io_list, io_list', ascope)
+ end
+;
+
 
 (**************)
 (* Reductions *)
@@ -282,12 +365,19 @@ val (e_red_tm,  mk_e_red, dest_e_red, is_e_red) =
 val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
   syntax_fns3 "p4" "stmt_red";
 
+
 (***********************)
 (* Auxiliary functions *)
 (***********************)
 
+val (is_e_lval_tm, mk_is_e_lval, dest_is_e_lval, is_is_e_lval) =
+  syntax_fns1 "p4" "is_e_lval";
+
 val (lookup_vexp_tm, mk_lookup_vexp, dest_lookup_vexp, is_lookup_vexp) =
   syntax_fns2 "p4" "lookup_v";
+
+val (lookup_funn_sig_tm, mk_lookup_funn_sig, dest_lookup_funn_sig, is_lookup_funn_sig) =
+  syntax_fns4 "p4" "lookup_funn_sig";
 
 val (assign_tm, mk_assign, dest_assign, is_assign) =
   syntax_fns3 "p4" "assign";

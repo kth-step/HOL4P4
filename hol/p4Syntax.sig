@@ -92,6 +92,11 @@ val is_e_var : term -> bool
 val mk_e_var : term -> term
 val mk_e_var_name : string -> term
 
+val dest_e_list : term -> term
+val e_list_tm : term
+val is_e_list : term -> bool
+val mk_e_list : term -> term
+
 val dest_e_unop : term -> term * term
 val e_unop_tm : term
 val is_e_unop : term -> bool
@@ -101,6 +106,11 @@ val bitv_unop_tm : term
 val dest_bitv_unop : term -> term * term
 val is_bitv_unop : term -> bool
 val mk_bitv_unop : term * term -> term
+
+val dest_e_cast : term -> term * term
+val e_cast_tm : term
+val is_e_cast : term -> bool
+val mk_e_cast : term * term -> term
 
 val unop_neg_tm : term
 val unop_compl_tm : term
@@ -136,6 +146,16 @@ val binop_or_tm : term
 val binop_bin_and_tm : term
 val binop_bin_or_tm : term
 
+val dest_e_concat : term -> term * term
+val e_concat_tm : term
+val is_e_concat : term -> bool
+val mk_e_concat : term * term -> term
+
+val dest_e_slice : term -> term * term * term
+val e_slice_tm : term
+val is_e_slice : term -> bool
+val mk_e_slice : term * term * term -> term
+
 val dest_e_acc : term -> term * term
 val e_acc_tm : term
 val is_e_acc : term -> bool
@@ -147,6 +167,30 @@ val is_e_call : term -> bool
 val mk_e_call : term * term -> term
 
 val mk_e_ext_call_list : string * string * term list -> term
+
+val dest_e_select : term -> term * term * term
+val e_select_tm : term
+val is_e_select : term -> bool
+val mk_e_select : term * term * term -> term
+
+val dest_e_struct : term -> term
+val e_struct_tm : term
+val is_e_struct : term -> bool
+val mk_e_struct : term -> term
+
+val dest_e_header : term -> term * term
+val e_header_tm : term
+val is_e_header : term -> bool
+val mk_e_header : term * term -> term
+
+val d_in_tm : term
+val is_d_in : term -> bool
+val d_out_tm : term
+val is_d_out : term -> bool
+val d_inout_tm : term
+val is_d_inout : term -> bool
+val d_none_tm : term
+val is_d_none : term -> bool
 
 val stmt_empty_tm : term
 val is_stmt_empty : term -> bool
@@ -160,6 +204,11 @@ val dest_stmt_seq : term -> term * term
 val is_stmt_seq : term -> bool
 val mk_stmt_seq : term * term -> term
 val stmt_seq_tm : term
+
+val dest_stmt_trans : term -> term
+val is_stmt_trans : term -> bool
+val mk_stmt_trans : term -> term
+val stmt_trans_tm : term
 
 val dest_stmt_cond : term -> term * term * term
 val is_stmt_cond : term -> bool
@@ -181,16 +230,20 @@ val is_stmt_app : term -> bool
 val mk_stmt_app : term * term -> term
 val stmt_app_tm : term
 
+val stmt_ext_tm : term
+val is_stmt_ext : term -> bool
+
 val mk_stmt_seq_list : term list -> term
 
 val d_ty : hol_type
 
 
-val arch_frame_list_empty_tm : term
 
 val scope_ty : hol_type
 
 val status_running_tm : term
+
+val dest_frame : term -> term * term * term
 
 val arch_block_pbl_tm : term
 val dest_arch_block_pbl : term -> term * term
@@ -204,10 +257,19 @@ val mk_pblock_regular :
    term * term * term * term * term -> term
 val pblock_regular_tm : term
 
+val arch_frame_list_empty_tm : term
+val is_arch_frame_list_empty : term -> bool
+
 val arch_frame_list_regular_tm : term
 val dest_arch_frame_list_regular : term -> term
 val is_arch_frame_list_regular : term -> bool
 val mk_arch_frame_list_regular : term -> term
+
+val dest_actx :
+   term ->
+     term * term * term * term * term * term * term * term * term * term
+val dest_astate : term -> term * term * term * term
+val dest_aenv : term -> term * term * term * term
 
 val dest_e_red : term -> term * term * term * term * term * term
 val e_red_tm : term
@@ -234,6 +296,16 @@ val is_stmt_red : term -> bool
 val mk_stmt_red : term * term * term -> term
 val stmt_red_tm : term
 
+
+val dest_is_e_lval : term -> term
+val is_e_lval_tm : term
+val is_is_e_lval : term -> bool
+val mk_is_e_lval : term -> term
+
+val dest_lookup_funn_sig : term -> term * term * term * term
+val is_lookup_funn_sig : term -> bool
+val lookup_funn_sig_tm : term
+val mk_lookup_funn_sig : term * term * term * term -> term
 
 val dest_assign : term -> term * term * term
 val is_assign : term -> bool

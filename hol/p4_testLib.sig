@@ -6,6 +6,10 @@ val mk_ipv4_packet_ok : term -> int -> term
 val mk_ipv4_packet_ok_ttl : term -> int -> term
 val mk_eth_frame_ok : term -> term
 
+val get_actx : thm -> term
+val simple_arith_ss : simpLib.simpset
+val the_final_state_imp : thm -> term
+
 val eval_and_print_result : string -> term -> term -> int -> term
 val eval_and_print_aenv : string -> term -> term -> int -> term
 val eval_and_print_rest : string -> term -> term -> int -> term
