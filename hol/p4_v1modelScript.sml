@@ -21,7 +21,7 @@ Datatype:
 End
 val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
 
-val _ = type_abbrev("v1model_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
+val _ = type_abbrev("v1model_ctrl", ``:(string, (e_list -> bool, string # e_list) alist) alist``);
 
 (* The architectural state type of the V1Model architecture model *)
 val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl)``);
@@ -396,8 +396,8 @@ Definition v1model_apply_table_f_def:
    | SOME table =>
     (* TODO: This now implicitly uses only exact matching against stored tables.
      * Ideally, this should be able to use lpm and other matching kinds *)
-    (case ALOOKUP table e_l of
-     | SOME (x'', e_l'') => SOME (x'', e_l'')
+    (case FIND ( \ (pred, val). pred e_l) table of
+     | SOME (_, (x'', e_l'')) => SOME (x'', e_l'')
      | NONE => SOME (x', e_l'))
    | NONE => NONE)
 End
