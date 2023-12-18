@@ -396,8 +396,8 @@ Definition v1model_apply_table_f_def:
    | SOME table =>
     (* TODO: This now implicitly uses only exact matching against stored tables.
      * Ideally, this should be able to use lpm and other matching kinds *)
-    (case FIND ( \ (pred, val). pred e_l) table of
-     | SOME (_, (x'', e_l'')) => SOME (x'', e_l'')
+    (case AFIND_PRED table e_l of
+     | SOME (x'', e_l'') => SOME (x'', e_l'')
      | NONE => SOME (x', e_l'))
    | NONE => NONE)
 End

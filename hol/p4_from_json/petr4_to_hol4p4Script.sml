@@ -1998,12 +1998,13 @@ Definition petr4_parse_entries_def:
  (petr4_parse_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_types (h::t) =
    case json_parse_obj ["tags"; "annotations"; "matches"; "action"] h of
    | SOME [tags; annot; Array matches; action] =>
+    (* TODO: This hard-codes equality comparison into keys of table update *)
     (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (matches, key_types)) of
      | SOME_msg matches_res =>
       (case petr4_parse_action (tyenv, enummap, vtymap, ftymap, extfun_list) action of
        | SOME_msg (action_name, args) =>
         (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_types t of
-         | SOME_msg res_msg => SOME_msg ((matches_res, (action_name, args))::res_msg)
+         | SOME_msg res_msg => SOME_msg (((\k. matches_res = k), (action_name, args))::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg exp_msg => NONE_msg ("could not parse table entry action: "++exp_msg))
      | NONE_msg matches_msg => NONE_msg ("could not parse table entry key matches: "++matches_msg))
@@ -2807,7 +2808,9 @@ Definition init_ctrl_entry_gen_def:
  init_ctrl_entry_gen tbl_map (tbl_name, updates) =
   case ALOOKUP tbl_map tbl_name of
   | SOME tbl =>
-   SOME (AUPDATE tbl_map (tbl_name, (AUPDATE_LIST tbl updates)))
+   (* TODO: Note that this doesn't remove old table entries *)
+   (* TODO: Double-check order of updates: This is critical. Last update must be first *)
+   SOME (AUPDATE tbl_map (tbl_name, (REVERSE updates)++tbl))
   | NONE => NONE
 End
 

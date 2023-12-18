@@ -328,12 +328,13 @@ fun output_actx_setdefault outstream valname block_name table_name action_name a
 
 fun output_astate_add outstream valname arch_opt table_name keys action_name args =
  let
+  (* TODO: This needs to process "keys" further, in order to determine what to print exactly *)
   val outstring =
    String.concat ["val ", valname, "_astate = optionSyntax.dest_some $ rhs $ concl $ EVAL ``",
                   (astr_of_arch arch_opt)^"_add_ctrl ^",
                   valname, "_astate", " \"",
                   table_name, "\" ",
-                  term_to_string keys, " \"",
+                  "(\\e_l. e_l = ", term_to_string keys, ") \"",
                   action_name, "\" ",
                   args, "``;\n\n"]
   val _ = TextIO.output (outstream, outstring);
@@ -588,8 +589,8 @@ fun vss_add_param_vars_to_v_map init_v_map tau =
   val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau”
  in
   eval_rhs “AUPDATE_LIST ^init_v_map [("parsedHeaders", ^uninit_H_val_tm);
-                                                ("headers", ^uninit_H_val_tm);
-                                                ("outputHeaders", ^uninit_H_val_tm)]”
+                                      ("headers", ^uninit_H_val_tm);
+                                      ("outputHeaders", ^uninit_H_val_tm)]”
  end
 ;
 

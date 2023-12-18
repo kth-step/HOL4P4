@@ -394,4 +394,12 @@ Definition copyout_pbl_gen_def:
    update_return_frame xlist dlist [v_map_scope] g_scope_list
 End
 
+(* For use in table matching *)
+Definition AFIND_PRED_def:
+ AFIND_PRED l k =
+  case FIND (\ (set, _). set k) l of
+  | SOME (_, act_args) => SOME act_args
+  | NONE => NONE
+End
+
 val _ = export_theory ();

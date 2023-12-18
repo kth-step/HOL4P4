@@ -16,7 +16,7 @@ End
 
 val _ = type_abbrev("ebpf_sum_v_ext", ``:(core_v_ext, ebpf_v_ext) sum``);
 
-val _ = type_abbrev("ebpf_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
+val _ = type_abbrev("ebpf_ctrl", ``:(string, (e_list -> bool, string # e_list) alist) alist``);
 
 (* The architectural state type of the eBPF architecture model *)
 val _ = type_abbrev("ebpf_ascope", ``:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl)``);
@@ -209,7 +209,7 @@ Definition ebpf_apply_table_f_def:
    | SOME table =>
     (* TODO: This now implicitly uses only exact matching against stored tables.
      * Ideally, this should be able to use lpm and other matching kinds *)
-    (case ALOOKUP table e_l of
+    (case AFIND_PRED table e_l of
      | SOME (x'', e_l'') => SOME (x'', e_l'')
      | NONE => SOME (x', e_l'))
    | NONE => NONE
