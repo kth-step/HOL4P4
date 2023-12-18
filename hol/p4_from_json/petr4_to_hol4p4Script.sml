@@ -2810,7 +2810,7 @@ Definition init_ctrl_entry_gen_def:
   | SOME tbl =>
    (* TODO: Note that this doesn't remove old table entries *)
    (* TODO: Double-check order of updates: This is critical. Last update must be first *)
-   SOME (AUPDATE tbl_map (tbl_name, (REVERSE updates)++tbl))
+   SOME (AUPDATE tbl_map (tbl_name, updates++tbl))
   | NONE => NONE
 End
 
