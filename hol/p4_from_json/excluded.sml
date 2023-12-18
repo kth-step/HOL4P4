@@ -133,12 +133,10 @@ val exclude_descs =
   ("adding exit statement to HOL4P4",
    ["issue2225-bmv2"]),
 (*
-    Bit masks
-    FAIL: Could not parse .*\/(.*?)\. .*?: \["mask".*
+    LPM and priority of table entries (manually spotted)
 *)
-  ("adding bit masks to HOL4P4",
-   ["table-entries-exact-ternary-bmv2",
-    "table-entries-lpm-bmv2",
+  ("adding LPM and table entry priorities to HOL4P4",
+   ["table-entries-lpm-bmv2",
     "table-entries-priority-bmv2",
     "v1model-const-entries-bmv2"]),
 (*
@@ -152,7 +150,8 @@ val exclude_descs =
   ("extending HOL4P4 to allow more expressions as table keys",
    ["issue1000-bmv2",
     "issue-2123-3-bmv2",
-    "table-entries-ser-enum-bmv2"])
+    (* Casts + serializable enumeration types *)
+     "table-entries-ser-enum-bmv2"])
 ];
 
 fun get_error_desc testname [] = NONE
