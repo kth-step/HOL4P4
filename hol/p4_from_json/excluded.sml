@@ -140,7 +140,6 @@ val exclude_descs =
    ["table-entries-exact-ternary-bmv2",
     "table-entries-lpm-bmv2",
     "table-entries-priority-bmv2",
-    "table-entries-ternary-bmv2",
     "v1model-const-entries-bmv2"]),
 (*
     "Don't care" (underscore) argument (manually spotted)
