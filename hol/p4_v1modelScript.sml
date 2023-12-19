@@ -21,7 +21,16 @@ Datatype:
 End
 val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
 
-val _ = type_abbrev("v1model_ctrl", ``:(string, (e_list -> bool, string # e_list) alist) alist``);
+(* The control plane representation:
+
+   (* the table name *)
+   (string, 
+     (* the key of a table entry: first element is a predicate for matching, second is priority *)
+    ((e_list -> bool, num),
+     (* the action of a table entry: string is action name, e_list is arguments *)
+     string # e_list) alist) alist``)
+*)
+val _ = type_abbrev("v1model_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
 
 (* The architectural state type of the V1Model architecture model *)
 val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl)``);
@@ -388,18 +397,16 @@ Definition v1model_output_f_def:
    | _ => NONE)
 End
 
+(* TODO: Are match_kinds needed at all in the dynamic semantics? *)
 Definition v1model_apply_table_f_def:
  v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
-  (case ALOOKUP ctrl x of
+  case ALOOKUP ctrl x of
    | SOME table =>
-    (* TODO: This now implicitly uses only exact matching against stored tables.
-     * Ideally, this should be able to use lpm and other matching kinds *)
-    (case AFIND_PRED table e_l of
-     | SOME (x'', e_l'') => SOME (x'', e_l'')
-     | NONE => SOME (x', e_l'))
-   | NONE => NONE)
+    (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+   | NONE => NONE
 End
 
 val _ = export_theory ();

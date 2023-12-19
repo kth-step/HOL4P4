@@ -394,12 +394,31 @@ Definition copyout_pbl_gen_def:
    update_return_frame xlist dlist [v_map_scope] g_scope_list
 End
 
+(*
 (* For use in table matching *)
 Definition AFIND_PRED_def:
  AFIND_PRED l k =
   case FIND (\ (set, _). set k) l of
   | SOME (_, act_args) => SOME act_args
   | NONE => NONE
+End
+*)
+
+(* TODO: Are match_kinds needed at all in the dynamic semantics? *)
+Definition FOLDL_MATCH_def:
+ (FOLDL_MATCH e_l res [] = res) /\
+ (FOLDL_MATCH e_l (res_act, res_prio_opt:num option) (((k,prio),v)::t) =
+  if k e_l
+  then
+   (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+   case res_prio_opt of
+   | SOME res_prio =>
+    if prio > res_prio
+    then
+     FOLDL_MATCH e_l (v, SOME prio) t
+    else FOLDL_MATCH e_l (res_act, res_prio_opt) t
+   | NONE => FOLDL_MATCH e_l (v, SOME prio) t
+  else FOLDL_MATCH e_l (res_act, res_prio_opt) t)
 End
 
 val _ = export_theory ();
