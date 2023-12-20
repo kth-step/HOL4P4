@@ -1975,52 +1975,61 @@ Definition petr4_parse_entry_def:
  (petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) [] = SOME_msg []) /\
  (petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) ((key, (key_type, mk))::t) =
   case key of
-  | Array [String "Expression";
-           Object [("tags", tags); ("expr", exp)]] =>
-   (case exp of
-    | Array [String "mask"; mask_obj] =>
-     (case json_parse_obj ["tags"; "expr"; "mask"] mask_obj of
-      | SOME [mask_tags; mask_exp; mask] =>
-       (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask_exp, SOME key_type) of
-        | SOME_msg val_res =>
-         (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask, SOME key_type) of
-           | SOME_msg mask_res =>
+  | Array [String key_str; key_obj] =>
+   if key_str = "Expression"
+   then
+    (case json_parse_obj ["tags"; "expr"] key_obj of
+     | SOME [tags; exp] =>
+      (case exp of
+       | Array [String exp_str; exp_obj] =>
+        if exp_str = "mask"
+        then
+         (case json_parse_obj ["tags"; "expr"; "mask"] exp_obj of
+          | SOME [mask_tags; mask_exp; mask] =>
+           (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask_exp, SOME key_type) of
+            | SOME_msg val_res =>
+             (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask, SOME key_type) of
+               | SOME_msg mask_res =>
+                if mk = mk_lpm
+                then
+                 (case p4_get_prefix_length mask_res of
+                  | SOME n =>
+                   (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                    | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, n)::entry_res)
+                    | NONE_msg entry_msg => NONE_msg entry_msg)
+                  | NONE => get_error_msg "could not get prefix length of table entry: " exp_obj)
+                else
+                 (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                  | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, 0)::entry_res)
+                  | NONE_msg entry_msg => NONE_msg entry_msg)
+               | NONE_msg mask_exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++mask_exp_msg))
+            | NONE_msg exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++exp_msg))
+          | _ => get_error_msg "unknown JSON format of bit mask table entry: " exp_obj)
+        else
+         (* TODO: Matches should be restricted to constants known at compile time *)
+         (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (exp, SOME key_type) of
+           | SOME_msg val_res =>
             if mk = mk_lpm
             then
-             (case p4_get_prefix_length mask_res of
+             (case p4_get_v_bit_width val_res of
               | SOME n =>
                (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-                | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, n)::entry_res)
+                | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), n)::entry_res)
                 | NONE_msg entry_msg => NONE_msg entry_msg)
-              | NONE => get_error_msg "could not get prefix length of table entry: " mask_obj)
+              | NONE => get_error_msg "could not get width of constant table entry: " exp)
             else
              (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-              | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, 0)::entry_res)
+              | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), 0)::entry_res)
               | NONE_msg entry_msg => NONE_msg entry_msg)
-           | NONE_msg mask_exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++mask_exp_msg))
-        | NONE_msg exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++exp_msg))
-      | _ => get_error_msg "unknown JSON format of bit mask table entry: " mask_obj)
-    | _ =>
-     (* TODO: Matches should be restricted to constants known at compile time *)
-     (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (exp, SOME key_type) of
-       | SOME_msg val_res =>
-        if mk = mk_lpm
-        then
-         (case p4_get_v_bit_width val_res of
-          | SOME n =>
-           (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-            | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), n)::entry_res)
-            | NONE_msg entry_msg => NONE_msg entry_msg)
-          | NONE => get_error_msg "could not get width of constant table entry: " exp)
-        else
-         (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-          | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), 0)::entry_res)
-          | NONE_msg entry_msg => NONE_msg entry_msg)
-       | NONE_msg exp_msg => NONE_msg ("could not parse constant table entry: "++exp_msg)))
-  | Array [String "DontCare"; dc_obj] =>
-   (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-    | SOME_msg entry_res => SOME_msg ((( \ k. T), 0)::entry_res)
-    | NONE_msg entry_msg => NONE_msg entry_msg)
+           | NONE_msg exp_msg => NONE_msg ("could not parse constant table entry: "++exp_msg))
+       | _ => get_error_msg "unknown JSON format of table entry key expression: " exp)
+     | _ => get_error_msg "unknown JSON format of table entry key: " key_obj)
+   else if key_str = "DontCare"
+   then
+    (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+     | SOME_msg entry_res => SOME_msg ((( \ k. T), 0)::entry_res)
+     | NONE_msg entry_msg => NONE_msg entry_msg)
+   else get_error_msg "unknown JSON format of table entry: " key
   | _ => get_error_msg "unknown JSON format of table entry: " key)
 End
 
@@ -2445,10 +2454,10 @@ Definition petr4_parse_control_def:
         (case petr4_parse_p_params F tyenv params of
          | SOME_msg (ctrl_params, vty_updates) =>
           (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, ftymap, fmap, gscope, extfun_list) ([], [], [], stmt_empty, [], []) locals of
-           | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries) =>
+           | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries') =>
             (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, apply_map, extfun_list) stmts of
              | SOME_msg res_apply =>
-              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control (b_func_map++[(control_name, (stmt_seq inits res_apply, ctrl_params))]) decl_list ([]:pars_map) tbl_map)), MAP (THE o deparameterise_tau o SND) vty_updates), tbl_entries)
+              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control (b_func_map++[(control_name, (stmt_seq inits res_apply, ctrl_params))]) decl_list ([]:pars_map) tbl_map)), MAP (THE o deparameterise_tau o SND) vty_updates), tbl_entries++tbl_entries')
              | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
            | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
          | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing control "++control_name))
@@ -2905,20 +2914,19 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/ebpf_stf_only/key_ebpf.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "validation_tests/v1model-const-entries-bmv2.json";
 
-val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
+val wip_parse_thm = EVAL ``parse (OUTL (lex (^wip_tm) ([]:token list))) [] T``;
 
 (* More detailed debugging:
 open petr4_to_hol4p4Syntax;
 
 val wip_test_tm = dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json_preamble ^(rhs $ concl wip_parse_thm)``;
 
-(* The index of the list in wip_test_tm at which conversion to HOL4P4 runs into an error
+(* The index of the list in wip_test_tm at where you want to start debugging
  * (note the correspondence with the usage below in p4_from_json_def) *)
-val index_of_error = ``19:num``;
+val index_of_error = ``56:num``;
 
-(* TODO: Change names to be generic *)
 val wip_control_inst_tm = rhs $ concl $ EVAL ``EL (^index_of_error) ^wip_test_tm``;
 
 (* Re-definition of p4_from_json that only converts up until index_of_error *)
@@ -2932,14 +2940,16 @@ Definition p4_from_json_def:
 End
 
 (* The object to be converted to HOL4P4 at index_of_error *)
+(* TODO: Currently, this is assumed to be a control block, which is extracted *)
 val wip_obj = optionSyntax.dest_some $ rhs $ concl $ EVAL ``case (^wip_control_inst_tm) of | Array [String elem_name; obj] => SOME obj | _ => NONE``;
 
 (* The result immediately prior to index_of_error, which gives us the debugging variables *)
-val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_blftymap, wip_fmap, wip_bltymap, wip_ptymap, wip_gscope, wip_pblockmap, wip_arch_pkg_opt, wip_ab_list] = pairSyntax.spine_pair $ dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm) (SOME (arch_ebpf (NONE)))``;
+val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_blftymap, wip_fmap, wip_bltymap, wip_ptymap, wip_gscope, wip_pblock_map, wip_tbl_entries, wip_arch_pkg_opt, wip_ab_list, wip_extfun_list] = pairSyntax.spine_pair $ dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm) (SOME (arch_v1model (NONE)))``;
 
 (***********************************************)
 
 (* MANUAL DEBUG: From here on, start by choosing sub-case of petr4_parse_element *)
+EVAL ``petr4_parse_element (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_blftymap, ^wip_fmap, ^wip_bltymap, ^wip_ptymap, ^wip_gscope, ^wip_pblock_map, ^wip_tbl_entries, ^wip_arch_pkg_opt, ^wip_ab_list, ^wip_extfun_list) ^wip_control_inst_tm``
 EVAL ``petr4_parse_top_level_inst (^wip_tyenv, ^wip_bltymap, ^wip_ptymap) ^wip_obj``
 
 

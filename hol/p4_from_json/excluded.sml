@@ -133,12 +133,10 @@ val exclude_descs =
   ("adding exit statement to HOL4P4",
    ["issue2225-bmv2"]),
 (*
-    LPM and priority of table entries (manually spotted)
+    Priority of table entries (manually spotted)
 *)
-  ("adding LPM and table entry priorities to HOL4P4",
-   ["table-entries-lpm-bmv2",
-    "table-entries-priority-bmv2",
-    "v1model-const-entries-bmv2"]),
+  ("adding TDI (lowest first) table entry priorities for v1model to HOL4P4",
+   ["table-entries-priority-bmv2"]),
 (*
     "Don't care" (underscore) argument (manually spotted)
 *)
