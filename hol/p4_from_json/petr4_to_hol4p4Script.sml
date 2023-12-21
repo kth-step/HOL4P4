@@ -1056,6 +1056,11 @@ Definition exp_to_val_def:
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
+  | (e_cast (cast_unsigned m) e) =>
+   (case exp_to_val gscope e of
+    | SOME (v_bit bitv) => SOME (v_bit (bitv_cast m bitv))
+    | SOME (v_bool b) => SOME (v_bit (bool_cast m b))
+    | _ => NONE)
   | _ => NONE
 End
 

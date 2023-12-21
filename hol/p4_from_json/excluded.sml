@@ -143,9 +143,7 @@ val exclude_descs =
 *)
   ("extending HOL4P4 to allow more expressions as table keys",
    ["issue1000-bmv2",
-    "issue-2123-3-bmv2",
-    (* Casts + serializable enumeration types *)
-    "table-entries-ser-enum-bmv2"])
+    "issue-2123-3-bmv2"])
 ];
 
 fun get_error_desc testname [] = NONE
