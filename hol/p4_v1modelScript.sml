@@ -9,6 +9,19 @@ val _ = new_theory "p4_v1model";
    https://github.com/p4lang/behavioral-model/blob/main/targets/simple_switch/simple_switch.cpp
 *)
 
+(* NOTE ON CONTROL PLANE APIS
+ * By default, this model is set up to work with TDI-style tables, where priority annotation
+ * leads to smallest priority winning out in case of multiple matches (for ternary match kinds).
+ * Change this by setting the value of CONTROL_PLANE_API to correspond with the control plane
+ * API you want to model.
+ *
+ * TDI (default): 0
+ * P4Runtime API: 1
+ *
+ * *)
+
+val CONTROL_PLANE_API = 0;
+
 (* TODO: v1model uses a checksum in the verify_checksum and update_checksum externs *)
 Datatype:
  v1model_v_ext =
@@ -395,18 +408,37 @@ Definition v1model_output_f_def:
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
-End
+End  
 
-(* TODO: Are match_kinds needed at all in the dynamic semantics? *)
-Definition v1model_apply_table_f_def:
- v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
-  (* TODO: Note that this function could do other stuff here depending on table name.
-   *       Ideally, one could make a general, not hard-coded, solution for this *)
-  case ALOOKUP ctrl x of
-   | SOME table =>
-    (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-   | NONE => NONE
-End
+(* This assumes that tables contains at most one LPM key,
+ * with other keys being exact if one LPM key is present.
+ * Note that table priority is runtime-dependent, with only partial P4 language
+ * support. *)
+val v1model_apply_table_f_def =
+ if CONTROL_PLANE_API = 0
+ then xDefine "v1model_apply_table_f"
+  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+    (* TODO: Note that this function could do other stuff here depending on table name.
+     *       Ideally, one could make a general, not hard-coded, solution for this *)
+    case ALOOKUP ctrl x of
+     | SOME table =>
+      if (MEM mk_lpm mk_list)
+      then
+       (* Largest priority wins (like for P4Runtime API - should be equivalent to TDI
+        * for tables that contain at most one LPM key, with others exact) *)
+       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+      else
+       (* Smallest priority wins (like for TDI) *)
+       SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) 1 table)
+     | NONE => NONE’
+ else xDefine "v1model_apply_table_f"
+  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+    (* TODO: Note that this function could do other stuff here depending on table name.
+     *       Ideally, one could make a general, not hard-coded, solution for this *)
+    case ALOOKUP ctrl x of
+     | SOME table =>
+      (* Largest priority wins *)
+      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+     | NONE => NONE’;
 
 val _ = export_theory ();

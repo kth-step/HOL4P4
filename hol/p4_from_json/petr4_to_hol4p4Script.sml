@@ -2038,17 +2038,59 @@ Definition get_max_prio_def:
  (get_max_prio (h::t) acc = get_max_prio t (MAX h acc))
 End
 
+Definition petr4_annot_is_priority_def:
+ petr4_annot_is_priority annot =
+  case json_parse_obj ["tags"; "name"; "body"] annot of
+  | SOME [tags; name; body] =>
+   (case json_parse_obj ["tags"; "string"] name of
+    | SOME [tags'; String string] =>
+     if string = "priority"
+     then T
+     else F
+    | _ => F)
+  | _ => F
+End
+
+(* TODO: Currently, rest of annotations are discarded *)
+Definition petr4_parse_priority_def:
+ petr4_parse_priority annot =
+  case FIND_EXTRACT_ONE petr4_annot_is_priority annot of
+  | SOME (prio, annot') =>
+   (case json_parse_obj ["tags"; "name"; "body"] prio of
+    | SOME [tags; name; body] =>
+     (case body of
+      | Array [String unparsed_str; prio_obj] =>
+       if unparsed_str = "Unparsed"
+       then
+        (case json_parse_obj ["tags"; "str"] prio_obj of
+         | SOME [tags; Array str_list] =>
+          (case str_list of
+           | [str_obj] =>
+            (case json_parse_obj ["tags"; "string"] str_obj of
+             | SOME [tags''; String string] => SOME $ s2n 10 UNHEX string
+             | _ => NONE)
+           | _ => NONE)
+         | _ => NONE)
+        else NONE
+      | _ => NONE)
+    | _ => NONE)
+  | NONE => NONE
+End
+
 Definition petr4_parse_entries_def:
  (petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list [] = SOME_msg []) /\
  (petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list (h::t) =
    case json_parse_obj ["tags"; "annotations"; "matches"; "action"] h of
-   | SOME [tags; annot; Array matches; action] =>
+   (* TODO: Get priority from annotation *)
+   | SOME [tags; Array annot; Array matches; action] =>
     (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (matches, key_type_mk_list)) of
      | SOME_msg matches_res =>
       (case petr4_parse_action (tyenv, enummap, vtymap, ftymap, extfun_list) action of
        | SOME_msg (action_name, args) =>
         (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list t of
-         | SOME_msg res_msg => SOME_msg (((( \ k. match_all $ ZIP (MAP FST matches_res, k)), get_max_prio (MAP SND matches_res) 0), (action_name, args))::res_msg)
+         | SOME_msg res_msg =>
+          let prio' = (case petr4_parse_priority annot of | SOME annot_prio => annot_prio | NONE => (get_max_prio (MAP SND matches_res) 0)) in
+           SOME_msg (((( \ k. match_all $ ZIP (MAP FST matches_res, k)), prio'), (action_name, args))::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg exp_msg => NONE_msg ("could not parse table entry action: "++exp_msg))
      | NONE_msg matches_msg => NONE_msg ("could not parse table entry key matches: "++matches_msg))

@@ -410,7 +410,7 @@ Definition FOLDL_MATCH_def:
  (FOLDL_MATCH e_l (res_act, res_prio_opt:num option) (((k,prio),v)::t) =
   if k e_l
   then
-   (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+   (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
    case res_prio_opt of
    | SOME res_prio =>
     if prio > res_prio
@@ -419,6 +419,25 @@ Definition FOLDL_MATCH_def:
     else FOLDL_MATCH e_l (res_act, res_prio_opt) t
    | NONE => FOLDL_MATCH e_l (v, SOME prio) t
   else FOLDL_MATCH e_l (res_act, res_prio_opt) t)
+End
+
+(* Alternative version, which uses smallest priority *)
+Definition FOLDL_MATCH_alt_def:
+ (FOLDL_MATCH_alt e_l res acc [] = res) /\
+ (FOLDL_MATCH_alt e_l (res_act, res_prio_opt:num option) acc (((k,prio),v)::t) =
+  if k e_l
+  then
+   (* TODO: Smallest priority wins (like for TDI) is hard-coded,
+    *       other than priority zero. *)
+   case res_prio_opt of
+   | SOME res_prio =>
+    let prio' = if (prio = 0) then acc else prio in
+    if (prio' < res_prio)
+    then
+     FOLDL_MATCH_alt e_l (v, SOME prio') (acc+1) t
+    else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t
+   | NONE => FOLDL_MATCH_alt e_l (v, SOME prio) (acc+1) t
+  else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t)
 End
 
 val _ = export_theory ();
