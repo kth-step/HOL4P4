@@ -16,7 +16,7 @@ End
 
 val _ = type_abbrev("ebpf_sum_v_ext", ``:(core_v_ext, ebpf_v_ext) sum``);
 
-val _ = type_abbrev("ebpf_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
+val _ = type_abbrev("ebpf_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
 
 (* The architectural state type of the eBPF architecture model *)
 val _ = type_abbrev("ebpf_ascope", ``:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl)``);
@@ -207,11 +207,8 @@ Definition ebpf_apply_table_f_def:
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   case ALOOKUP ctrl x of
    | SOME table =>
-    (* TODO: This now implicitly uses only exact matching against stored tables.
-     * Ideally, this should be able to use lpm and other matching kinds *)
-    (case ALOOKUP table e_l of
-     | SOME (x'', e_l'') => SOME (x'', e_l'')
-     | NONE => SOME (x', e_l'))
+    (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
    | NONE => NONE
 End
 

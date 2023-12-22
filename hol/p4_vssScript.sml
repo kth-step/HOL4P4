@@ -10,7 +10,7 @@ Datatype:
 End
 val _ = type_abbrev("vss_sum_v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
-val _ = type_abbrev("vss_ctrl", ``:(string, (e_list, string # e_list) alist) alist``);
+val _ = type_abbrev("vss_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
 
 (* The architectural state type of the VSS architecture model *)
 val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
@@ -370,11 +370,8 @@ Definition vss_apply_table_f_def:
   else
    (case ALOOKUP ctrl x of
     | SOME table =>
-     (* TODO: This now implicitly uses only exact matching against stored tables.
-      * Ideally, this should be able to use lpm and other matching kinds *)
-     (case ALOOKUP table e_l of
-      | SOME (x'', e_l'') => SOME (x'', e_l'')
-      | NONE => SOME (x', e_l'))
+     (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+     SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
     | NONE => NONE)
 End
 

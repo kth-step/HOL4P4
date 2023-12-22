@@ -1056,6 +1056,11 @@ Definition exp_to_val_def:
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
+  | (e_cast (cast_unsigned m) e) =>
+   (case exp_to_val gscope e of
+    | SOME (v_bit bitv) => SOME (v_bit (bitv_cast m bitv))
+    | SOME (v_bool b) => SOME (v_bit (bool_cast m b))
+    | _ => NONE)
   | _ => NONE
 End
 
@@ -1945,65 +1950,152 @@ Definition petr4_parse_default_action_def:
   | _ => get_error_msg "unknown format of table property field: " default_action
 End
 
-(* TODO: Note that this presupposes a default_action field is present if any optional field is *)
-(* TODO: Fix this mess... *)
-(*
-Definition petr4_build_table_def:
- petr4_build_table (tyenv, enummap, vtymap, ftymap) keys_obj custom_obj_opt custom_obj_opt2 =
-  case petr4_parse_keys (tyenv, enummap, vtymap, ftymap) keys_obj of
-  | SOME_msg keys_res =>
-   (case custom_obj_opt of
-    | SOME custom_obj =>
-     (case custom_obj_opt2 of
-      | SOME custom_obj2 =>
-       (* See if first custom object is an action *)
-       (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) custom_obj of
-        | SOME_msg default_action =>
-         SOME_msg (keys_res, default_action)
-       (* If not, second may be an action *)
-        | NONE_msg def_act_msg =>
-         (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) custom_obj2 of
-          | SOME_msg default_action2 =>
-           SOME_msg (keys_res, default_action2)
-          | NONE_msg def_act_msg2 => NONE_msg ("either "++(def_act_msg++(" or "++def_act_msg2)))))
-      | NONE =>
-       (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap) custom_obj of
-        | SOME_msg default_action =>
-         SOME_msg (keys_res, default_action)
-        | NONE_msg def_act_msg => NONE_msg def_act_msg))
-    | NONE =>
-     SOME_msg (keys_res, ("NoAction", [])))
-  | NONE_msg keys_msg => NONE_msg keys_msg
+(* TODO: Move? *)
+Definition p4_get_v_bit_width_def:
+ p4_get_v_bit_width v =
+  case v of
+  | v_bit (bl, n) => SOME n
+  | _ => NONE
 End
-*)
+
+(* TODO: Move? *)
+Definition count_prefix_def:
+ (count_prefix [] (acc:num) = acc) /\
+ (count_prefix (T::t) acc = count_prefix t (acc+1)) /\
+ (count_prefix (F::t) acc = acc)
+End
+
+(* TODO: Move? *)
+Definition p4_get_prefix_length_def:
+ p4_get_prefix_length v =
+  case v of
+  | v_bit (bl, n) => SOME (count_prefix bl 0)
+  | _ => NONE
+End
 
 (* TODO: Merge with petr4_parse_matches *)
+(* TODO: This always gives everything priority 0 unless match kind is LPM, in which
+ * case the priority becomes the length of the prefix *)
 Definition petr4_parse_entry_def:
- (petr4_parse_entry (tyenv, enummap, vtymap, ftymap, extfun_list) [] = SOME_msg []) /\
- (petr4_parse_entry (tyenv, enummap, vtymap, ftymap, extfun_list) ((key, key_type)::t) =
+ (petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) [] = SOME_msg []) /\
+ (petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) ((key, (key_type, mk))::t) =
   case key of
-  | Array [String "Expression";
-           Object [("tags", tags); ("expr", exp)]] =>
-   (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, SOME key_type) of
-     | SOME_msg exp_res =>
-      (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, extfun_list) t of
-       | SOME_msg entry_res => SOME_msg (exp_res::entry_res)
-       | NONE_msg entry_msg => NONE_msg entry_msg)
-     | NONE_msg exp_msg => NONE_msg ("could not parse table entry: "++exp_msg))
+  | Array [String key_str; key_obj] =>
+   if key_str = "Expression"
+   then
+    (case json_parse_obj ["tags"; "expr"] key_obj of
+     | SOME [tags; exp] =>
+      (case exp of
+       | Array [String exp_str; exp_obj] =>
+        if exp_str = "mask"
+        then
+         (case json_parse_obj ["tags"; "expr"; "mask"] exp_obj of
+          | SOME [mask_tags; mask_exp; mask] =>
+           (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask_exp, SOME key_type) of
+            | SOME_msg val_res =>
+             (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask, SOME key_type) of
+               | SOME_msg mask_res =>
+                if mk = mk_lpm
+                then
+                 (case p4_get_prefix_length mask_res of
+                  | SOME n =>
+                   (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                    | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, n)::entry_res)
+                    | NONE_msg entry_msg => NONE_msg entry_msg)
+                  | NONE => get_error_msg "could not get prefix length of table entry: " exp_obj)
+                else
+                 (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                  | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, 0)::entry_res)
+                  | NONE_msg entry_msg => NONE_msg entry_msg)
+               | NONE_msg mask_exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++mask_exp_msg))
+            | NONE_msg exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++exp_msg))
+          | _ => get_error_msg "unknown JSON format of bit mask table entry: " exp_obj)
+        else
+         (* TODO: Matches should be restricted to constants known at compile time *)
+         (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (exp, SOME key_type) of
+           | SOME_msg val_res =>
+            if mk = mk_lpm
+            then
+             (case p4_get_v_bit_width val_res of
+              | SOME n =>
+               (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), n)::entry_res)
+                | NONE_msg entry_msg => NONE_msg entry_msg)
+              | NONE => get_error_msg "could not get width of constant table entry: " exp)
+            else
+             (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+              | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), 0)::entry_res)
+              | NONE_msg entry_msg => NONE_msg entry_msg)
+           | NONE_msg exp_msg => NONE_msg ("could not parse constant table entry: "++exp_msg))
+       | _ => get_error_msg "unknown JSON format of table entry key expression: " exp)
+     | _ => get_error_msg "unknown JSON format of table entry key: " key_obj)
+   else if key_str = "DontCare"
+   then
+    (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+     | SOME_msg entry_res => SOME_msg ((( \ k. T), 0)::entry_res)
+     | NONE_msg entry_msg => NONE_msg entry_msg)
+   else get_error_msg "unknown JSON format of table entry: " key
   | _ => get_error_msg "unknown JSON format of table entry: " key)
 End
 
+Definition get_max_prio_def:
+ (get_max_prio [] acc = acc) /\
+ (get_max_prio (h::t) acc = get_max_prio t (MAX h acc))
+End
+
+Definition petr4_annot_is_priority_def:
+ petr4_annot_is_priority annot =
+  case json_parse_obj ["tags"; "name"; "body"] annot of
+  | SOME [tags; name; body] =>
+   (case json_parse_obj ["tags"; "string"] name of
+    | SOME [tags'; String string] =>
+     if string = "priority"
+     then T
+     else F
+    | _ => F)
+  | _ => F
+End
+
+(* TODO: Currently, rest of annotations are discarded *)
+Definition petr4_parse_priority_def:
+ petr4_parse_priority annot =
+  case FIND_EXTRACT_ONE petr4_annot_is_priority annot of
+  | SOME (prio, annot') =>
+   (case json_parse_obj ["tags"; "name"; "body"] prio of
+    | SOME [tags; name; body] =>
+     (case body of
+      | Array [String unparsed_str; prio_obj] =>
+       if unparsed_str = "Unparsed"
+       then
+        (case json_parse_obj ["tags"; "str"] prio_obj of
+         | SOME [tags; Array str_list] =>
+          (case str_list of
+           | [str_obj] =>
+            (case json_parse_obj ["tags"; "string"] str_obj of
+             | SOME [tags''; String string] => SOME $ s2n 10 UNHEX string
+             | _ => NONE)
+           | _ => NONE)
+         | _ => NONE)
+        else NONE
+      | _ => NONE)
+    | _ => NONE)
+  | NONE => NONE
+End
+
 Definition petr4_parse_entries_def:
- (petr4_parse_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_types [] = SOME_msg []) /\
- (petr4_parse_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_types (h::t) =
+ (petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list [] = SOME_msg []) /\
+ (petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list (h::t) =
    case json_parse_obj ["tags"; "annotations"; "matches"; "action"] h of
-   | SOME [tags; annot; Array matches; action] =>
-    (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (matches, key_types)) of
+   (* TODO: Get priority from annotation *)
+   | SOME [tags; Array annot; Array matches; action] =>
+    (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (matches, key_type_mk_list)) of
      | SOME_msg matches_res =>
       (case petr4_parse_action (tyenv, enummap, vtymap, ftymap, extfun_list) action of
        | SOME_msg (action_name, args) =>
-        (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_types t of
-         | SOME_msg res_msg => SOME_msg ((matches_res, (action_name, args))::res_msg)
+        (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list t of
+         | SOME_msg res_msg =>
+          let prio' = (case petr4_parse_priority annot of | SOME annot_prio => annot_prio | NONE => (get_max_prio (MAP SND matches_res) 0)) in
+           SOME_msg (((( \ k. match_all $ ZIP (MAP FST matches_res, k)), prio'), (action_name, args))::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg exp_msg => NONE_msg ("could not parse table entry action: "++exp_msg))
      | NONE_msg matches_msg => NONE_msg ("could not parse table entry key matches: "++matches_msg))
@@ -2110,14 +2202,14 @@ Definition petr4_process_size_def:
 End
 
 Definition petr4_process_entries_def:
- petr4_process_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_list props =
+ petr4_process_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_mk_list props =
   case FIND_EXTRACT_ONE petr4_property_is_entries props of
   | SOME (entries, props') =>
    (case entries of
     | Array [String "Entries"; entries_obj] =>
      (case json_parse_obj ["tags"; "entries"] entries_obj of
       | SOME [tags; Array entries_list] =>
-       (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_list entries_list of
+       (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_mk_list entries_list of
         | SOME_msg entries_res => SOME_msg (entries_res, props')
         | NONE_msg msg => NONE_msg msg)
       | _ => get_error_msg "could not parse table entries: " entries_obj)
@@ -2134,7 +2226,7 @@ Definition petr4_process_arch_specific_properties_def:
 End
 
 Definition petr4_process_properties_def:
- petr4_process_properties (tyenv, enummap, vtymap, ftymap, extfun_list) props =
+ petr4_process_properties (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) props =
   case petr4_process_key (tyenv, enummap, vtymap, ftymap, extfun_list) props of
   | SOME_msg (key_mk_list, props') =>
    (case petr4_process_actions (tyenv, enummap, vtymap, ftymap) props' of
@@ -2145,7 +2237,7 @@ Definition petr4_process_properties_def:
         | SOME_msg props'''' =>
          (case exps_to_p_taus vtymap (MAP FST key_mk_list) of
           | SOME key_list =>
-           (case petr4_process_entries (tyenv, enummap, vtymap, ftymap, extfun_list) key_list props'''' of
+           (case petr4_process_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP(key_list, MAP SND key_mk_list)) props'''' of
             | SOME_msg (entries, props''''') =>
              (* TODO: implementation field is eBPF-specific? *)
              (case petr4_process_arch_specific_properties props''''' of
@@ -2192,14 +2284,14 @@ End
 *)
 
 Definition petr4_parse_table_def:
- petr4_parse_table (tyenv, enummap, vtymap, ftymap, extfun_list) table =
+ petr4_parse_table (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) table =
   case json_parse_obj ["tags"; "annotations"; "name"; "properties"] table of
   | SOME [tags; annot; name; Array props] =>
    (* Properties are: Key, Actions
     * Optional properties: size, default_action, entries, largest_priority_wins, priority_delta *)
    (case petr4_parse_name name of
     | SOME tbl_name =>
-     (case petr4_process_properties (tyenv, enummap, vtymap, ftymap, extfun_list) props of
+     (case petr4_process_properties (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) props of
       | SOME_msg (keys, default_action, entries) => SOME_msg ((tbl_name, (SND $ UNZIP keys, default_action)), (tbl_name, FST $ UNZIP keys), (tbl_name, entries))
       | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg))
     | NONE => get_error_msg "could not parse name: " name)
@@ -2232,7 +2324,7 @@ Definition petr4_parse_locals_def:
         petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau, NONE)], inits, apply_map, tbl_entries) t)
      | NONE_msg var_msg => NONE_msg ("could not parse block-local variable: "++var_msg))
    | Array [String "Table"; tab_obj] =>
-    (case petr4_parse_table (tyenv, enummap, vtymap, ftymap, extfun_list) tab_obj of
+    (case petr4_parse_table (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) tab_obj of
      | SOME_msg (tbl_map_entry, apply_map_entry, tbl_entry_updates) =>
       petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, AUPDATE apply_map apply_map_entry, tbl_entries++[tbl_entry_updates]) t
      | NONE_msg tbl_msg => NONE_msg ("could not parse table: "++tbl_msg))
@@ -2409,10 +2501,10 @@ Definition petr4_parse_control_def:
         (case petr4_parse_p_params F tyenv params of
          | SOME_msg (ctrl_params, vty_updates) =>
           (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, ftymap, fmap, gscope, extfun_list) ([], [], [], stmt_empty, [], []) locals of
-           | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries) =>
+           | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries') =>
             (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, apply_map, extfun_list) stmts of
              | SOME_msg res_apply =>
-              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control (b_func_map++[(control_name, (stmt_seq inits res_apply, ctrl_params))]) decl_list ([]:pars_map) tbl_map)), MAP (THE o deparameterise_tau o SND) vty_updates), tbl_entries)
+              SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control (b_func_map++[(control_name, (stmt_seq inits res_apply, ctrl_params))]) decl_list ([]:pars_map) tbl_map)), MAP (THE o deparameterise_tau o SND) vty_updates), tbl_entries++tbl_entries')
              | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
            | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
          | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing control "++control_name))
@@ -2807,7 +2899,9 @@ Definition init_ctrl_entry_gen_def:
  init_ctrl_entry_gen tbl_map (tbl_name, updates) =
   case ALOOKUP tbl_map tbl_name of
   | SOME tbl =>
-   SOME (AUPDATE tbl_map (tbl_name, (AUPDATE_LIST tbl updates)))
+   (* TODO: Note that this doesn't remove old table entries *)
+   (* TODO: Double-check order of updates: This is critical. Last update must be first *)
+   SOME (AUPDATE tbl_map (tbl_name, updates++tbl))
   | NONE => NONE
 End
 
@@ -2867,20 +2961,19 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "test-examples/ebpf_stf_only/key_ebpf.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "validation_tests/v1model-const-entries-bmv2.json";
 
-val wip_parse_thm = EVAL ``parse (OUTL (lex (p4_preprocess_str (^wip_tm)) ([]:token list))) [] T``;
+val wip_parse_thm = EVAL ``parse (OUTL (lex (^wip_tm) ([]:token list))) [] T``;
 
 (* More detailed debugging:
 open petr4_to_hol4p4Syntax;
 
 val wip_test_tm = dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json_preamble ^(rhs $ concl wip_parse_thm)``;
 
-(* The index of the list in wip_test_tm at which conversion to HOL4P4 runs into an error
+(* The index of the list in wip_test_tm at where you want to start debugging
  * (note the correspondence with the usage below in p4_from_json_def) *)
-val index_of_error = ``19:num``;
+val index_of_error = ``56:num``;
 
-(* TODO: Change names to be generic *)
 val wip_control_inst_tm = rhs $ concl $ EVAL ``EL (^index_of_error) ^wip_test_tm``;
 
 (* Re-definition of p4_from_json that only converts up until index_of_error *)
@@ -2894,14 +2987,16 @@ Definition p4_from_json_def:
 End
 
 (* The object to be converted to HOL4P4 at index_of_error *)
+(* TODO: Currently, this is assumed to be a control block, which is extracted *)
 val wip_obj = optionSyntax.dest_some $ rhs $ concl $ EVAL ``case (^wip_control_inst_tm) of | Array [String elem_name; obj] => SOME obj | _ => NONE``;
 
 (* The result immediately prior to index_of_error, which gives us the debugging variables *)
-val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_blftymap, wip_fmap, wip_bltymap, wip_ptymap, wip_gscope, wip_pblockmap, wip_arch_pkg_opt, wip_ab_list] = pairSyntax.spine_pair $ dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm) (SOME (arch_ebpf (NONE)))``;
+val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_blftymap, wip_fmap, wip_bltymap, wip_ptymap, wip_gscope, wip_pblock_map, wip_tbl_entries, wip_arch_pkg_opt, wip_ab_list, wip_extfun_list] = pairSyntax.spine_pair $ dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm) (SOME (arch_v1model (NONE)))``;
 
 (***********************************************)
 
 (* MANUAL DEBUG: From here on, start by choosing sub-case of petr4_parse_element *)
+EVAL ``petr4_parse_element (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_blftymap, ^wip_fmap, ^wip_bltymap, ^wip_ptymap, ^wip_gscope, ^wip_pblock_map, ^wip_tbl_entries, ^wip_arch_pkg_opt, ^wip_ab_list, ^wip_extfun_list) ^wip_control_inst_tm``
 EVAL ``petr4_parse_top_level_inst (^wip_tyenv, ^wip_bltymap, ^wip_ptymap) ^wip_obj``
 
 

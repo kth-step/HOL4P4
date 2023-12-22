@@ -161,8 +161,8 @@ datatype stf_restype =
  (* packet/expect, port and packet itself *)
    io of stf_iotype * int * term list
  | setdefault of string * string * string * int list
- (* Block name, table name, keys, action name, action arguments *)
- | add of string * string * term * string * int list
+ (* Block name, table name, keys, priority, action name, action arguments *)
+ | add of string * string * term * string * string * int list
  | none;
 
 fun parse_stf_io_line s stf_iotype =
@@ -254,6 +254,8 @@ fun parse_stf_add_line tokens =
   (* Get block and table name *)
   val (block_name, table) = split_string table_token #"."
 
+  val priority = priority_token
+
   (* TODO: No actual type inference takes place here, we just assume the input has the correct
    *       leading zeroes *)
   val keys = mk_list (parse_keys key_tokens, e_ty)
@@ -268,7 +270,7 @@ fun parse_stf_add_line tokens =
  in
   case ints_from_string args_list' of
     SOME ints =>
-     add (block_name, table, keys, action_name, ints)
+     add (block_name, table, keys, priority, action_name, ints)
   | NONE => none
  end
 ;
@@ -326,14 +328,15 @@ fun output_actx_setdefault outstream valname block_name table_name action_name a
  end
 ;
 
-fun output_astate_add outstream valname arch_opt table_name keys action_name args =
+fun output_astate_add outstream valname arch_opt table_name keys priority action_name args =
  let
+  (* TODO: This needs to process "keys" further, in order to determine what to print exactly *)
   val outstring =
    String.concat ["val ", valname, "_astate = optionSyntax.dest_some $ rhs $ concl $ EVAL ``",
                   (astr_of_arch arch_opt)^"_add_ctrl ^",
                   valname, "_astate", " \"",
                   table_name, "\" ",
-                  term_to_string keys, " \"",
+                  "((\\e_l. e_l = ", term_to_string keys, "), ", priority, ":num) \"",
                   action_name, "\" ",
                   args, "``;\n\n"]
   val _ = TextIO.output (outstream, outstring);
@@ -471,11 +474,11 @@ local
 	   end
         (* TODO: Raise exception or print error message to output? *)
          | NONE => raise Fail ("Could not parse action arguments in setdefault stf command"))
-     | add (block_name, table_name, keys, action_name, args) =>
+     | add (block_name, table_name, keys, priority, action_name, args) =>
         (case infer_args (ftymap, blftymap) block_name action_name args of
            SOME args_term =>
 	   let
-	    val _ = output_astate_add outstream valname arch_opt_tm table_name keys action_name (term_to_string args_term)
+	    val _ = output_astate_add outstream valname arch_opt_tm table_name keys priority action_name (term_to_string args_term)
 	   in
 	    parse_stf' (ftymap, blftymap) outstream valname arch_opt_tm (input_list, output_list) instream
 	   end
@@ -588,8 +591,8 @@ fun vss_add_param_vars_to_v_map init_v_map tau =
   val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau”
  in
   eval_rhs “AUPDATE_LIST ^init_v_map [("parsedHeaders", ^uninit_H_val_tm);
-                                                ("headers", ^uninit_H_val_tm);
-                                                ("outputHeaders", ^uninit_H_val_tm)]”
+                                      ("headers", ^uninit_H_val_tm);
+                                      ("outputHeaders", ^uninit_H_val_tm)]”
  end
 ;
 

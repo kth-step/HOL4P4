@@ -64,6 +64,7 @@ val exclude_descs =
   ("fixing JSON-to-HOL4P4 parser to parse struct values",
    ["constant-in-calculation-bmv2",
     "issue655",
+    (* Also requires bitmasks for matches in select expression *)
     "issue995-bmv2",
     "recursive-casts"]),
 (*
@@ -133,16 +134,6 @@ val exclude_descs =
   ("adding exit statement to HOL4P4",
    ["issue2225-bmv2"]),
 (*
-    Bit masks
-    FAIL: Could not parse .*\/(.*?)\. .*?: \["mask".*
-*)
-  ("adding bit masks to HOL4P4",
-   ["table-entries-exact-ternary-bmv2",
-    "table-entries-lpm-bmv2",
-    "table-entries-priority-bmv2",
-    "table-entries-ternary-bmv2",
-    "v1model-const-entries-bmv2"]),
-(*
     "Don't care" (underscore) argument (manually spotted)
 *)
   ("adding don't-care function arguments to HOL4P4",
@@ -152,8 +143,7 @@ val exclude_descs =
 *)
   ("extending HOL4P4 to allow more expressions as table keys",
    ["issue1000-bmv2",
-    "issue-2123-3-bmv2",
-    "table-entries-ser-enum-bmv2"])
+    "issue-2123-3-bmv2"])
 ];
 
 fun get_error_desc testname [] = NONE
