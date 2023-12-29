@@ -85,18 +85,18 @@ val init_v_map = ``[("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
 val init_ctrl = ``[("ipv4_match",
                     (* IPv4 matching maps IP destination address to
                      * a next hop IPv4 address and output port *)
-                    [( [e_v ^(mk_v_bitii (0,32))],
+                    [(($= [e_v ^(mk_v_bitii (0,32))] , 0:num),
                        ("Set_nhop", [e_v ^(mk_v_bitii (1,32));
                                      e_v ^(mk_v_bitii (0,4))]) )]
                    );
                    ("dmac",
                     (* Destination MAC addess is computed from next hop IPv4 address *)
-                    [( [e_v ^(mk_v_bitii (1,32))],
+                    [(($= [e_v ^(mk_v_bitii (1,32))], 0),
                        ("Set_dmac", [e_v ^(mk_v_bitii (1,48))]) )]
                    );
                    ("smac",
                     (* Source MAC addess is computed from output port *)
-                    [( [e_v ^(mk_v_bitii (0,4))],
+                    [(($= [e_v ^(mk_v_bitii (0,4))], 0),
                        ("Set_smac", [e_v ^(mk_v_bitii (0,48))]) )]
                    )]``;
 
