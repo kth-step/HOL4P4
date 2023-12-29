@@ -95,7 +95,7 @@ val exclude_descs =
     Nested control blocks (manually spotted)
 *)
   ("adding or desugaring nested control blocks in the JSON-to-HOL4P4 parser",
-   ["arith-inline-bmv2",
+   [(*"arith-inline-bmv2",*)
     "arith2-inline-bmv2",
     "decl-soundness",
     "enum-bmv2",
