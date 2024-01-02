@@ -12,30 +12,30 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
   * [Concurrency](ott/p4_sem.ott#L3116-L3132) 
 
 * [Executable semantics](hol/p4_exec_semScript.sml), more specifically:
-  * [Expression](hol/p4_exec_semScript.sml#L279-L457) 
-  * [Statement](hol/p4_exec_semScript.sml#L504-L671) 
-  * [Frame](hol/p4_exec_semScript.sml#L2171-L2249) 
-  * [Architecture](hol/p4_exec_semScript.sml#L2324-L2424) 
+  * [Expression](hol/p4_exec_semScript.sml#L279-L457)
+  * [Statement](hol/p4_exec_semScript.sml#L504-L671)
+  * [Frame](hol/p4_exec_semScript.sml#L2171-L2249)
+  * [Architecture](hol/p4_exec_semScript.sml#L2324-L2424)
 
-* [Type System](ott/p4_types.ott), more specifically:
-  * [Values](ott/p4_types.ott#L402-L447)
+* [Type system](ott/p4_types.ott), more specifically:
+  * [Value](ott/p4_types.ott#L402-L447)
   * [Expression](ott/p4_types.ott#L542-L661)
   * [Statement](ott/p4_types.ott#L693-L780)
   * [Frame](ott/p4_types.ott#L855-L896)
-  * [Architecture](ott/p4_types.ott#L1454-L1484) 
+  * [Architecture](ott/p4_types.ott#L1454-L1484)
 
-* Architecture instantiation
+* Architecture instantiations
   * [eBPF](hol/p4_ebpfScript.sml)
   * [VSS](hol/p4_vssScript.sml)
   * [V1Model](hol/p4_v1modelScript.sml)
 
 * [Proof of determinism for the semantics](hol/p4_deterScript.sml)
 
-* Soundness proof for:
-  * [expression](hol/p4_exec_sem_e_soundnessScript.sml#L755-L833)
-  * [statement](hol/p4_exec_sem_stmt_soundnessScript.sml#L458-L475)
+* Proof of soundness of the executable semantics:
+  * [Expression](hol/p4_exec_sem_e_soundnessScript.sml#L755-L833)
+  * [Statement](hol/p4_exec_sem_stmt_soundnessScript.sml#L458-L475)
   * [Frame](hol/p4_exec_sem_frames_soundnessScript.sml#L16-L155)
-  * [architecture](hol/p4_exec_sem_arch_soundnessScript.sml#L17-L268)
+  * [Architecture](hol/p4_exec_sem_arch_soundnessScript.sml#L17-L268)
 
 
 * Type preservation proof for:
@@ -48,12 +48,12 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
   * [Statement](hol/p4_stmt_progressScript.sml#L885-L923)
   * [Frame](hol/p4_frames_progressScript.sml#L996-L1295)
 
-* [p4 parser to SML (with Petr4 backend)](hol/p4_from_json) 
+* [.p4 import tool (using Petr4 as backend)](hol/p4_from_json)
 
 * [Verification, testing and debugging tools](hol/p4_testLib.sml)
 
 * Examples: 
-  * VSS: [Concrete execution](hol/test-vss.sml), [Packet non-interference](hol/test-vss-ttl.sml)
+  * VSS: [Concrete execution](hol/test-vss.sml), [Data non-interference](hol/test-vss-ttl.sml)
   * Pipeline interference: [Concrete execution](hol/p4_from_json/concurrency_tests/concur1_interferenceScript.sml), [Concurrency theory](hol/p4_concurrentScript.sml)
 
 ## Installation
