@@ -46,7 +46,7 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
 * Type progress proof for:
   * [Expression](hol/p4_e_progressScript.sml#L1479-L2367)
   * [Statement](hol/p4_stmt_progressScript.sml#L885-L923)
-  * [Frame](hol/p4_frame_progressScript.sml#L996-L1295)
+  * [Frame](hol/p4_frames_progressScript.sml#L996-L1295)
 
 * [p4 parser to SML (with Petr4 backend)](hol/p4_from_json) 
 
