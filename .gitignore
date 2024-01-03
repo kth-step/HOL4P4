@@ -6,7 +6,13 @@
 hol/*Theory.sig
 hol/*Theory.sml
 hol/p4Script.sml
-hol/p4-heap
+hol/*-heap
+hol/p4_from_json/*Theory.sig
+hol/p4_from_json/*Theory.sml
+hol/p4_from_json/*-heap
+hol/symb_exec/*Theory.sig
+hol/symb_exec/*Theory.sml
+hol/symb_exec/*-heap
 
 ## LaTeX stuff
 *.aux
@@ -17,6 +23,16 @@ hol/p4-heap
 *.synctex.gz
 *.bbl
 *.blg
+
+## Validation tests
+hol/p4_from_json/validation_tests/*.p4
+hol/p4_from_json/validation_tests/*.stf
+hol/p4_from_json/validation_tests/*.json
+hol/p4_from_json/validation_tests/*.sml
+hol/p4_from_json/validation_tests/*.sig
+hol/p4_from_json/validation_tests/*-heap
+hol/p4_from_json/p4include
+
 
 ## Emacs
 *~
