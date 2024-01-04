@@ -62,8 +62,13 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
 
 
 ## Installation
+To set up the development environment, you can either use the provided Docker image or build it from scratch.
 
-Installation instructions for Ubuntu can be found in [INSTALL.md](INSTALL.md).
+### Using Docker
+TODO: ADD docker steps here.
+
+### Manual Installation 
+instructions for Ubuntu can be found in [INSTALL.md](INSTALL.md).
 
 ## Papers
 
