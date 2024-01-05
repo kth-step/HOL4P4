@@ -6,10 +6,13 @@ This guide assumes a fresh install of Ubuntu 22.04.
 
 * HOL4 
 * Ott
+* Petr4
 * Git
 * Python 3
 
 ## Installation
+
+You may skip steps for components you already have installed.
 
 First, navigate to the directory where you want to put the source code of Poly/ML and HOL4. Then, in the terminal:
 
@@ -38,13 +41,19 @@ First, navigate to the directory where you want to put the source code of Poly/M
 	
 	If you are annoyed that bin/build gives errors when compiling SAT solvers, you may add the `gcc` flag `-std=c++14` to their respective `Makefile`s. However, these errors should not affect this project.
 
-	Again, edit `~/.bashrc`, now adding:
+	If you want to be able to persistently compile HOL4 theories from anywhere, edit `~/.bashrc`, now adding:
 
 		export PATH=$PATH:[installation directory]/HOL/bin
 	
 	where `[installation directory]` is substituted with the directory you cloned HOL4 in, then
 
 		source ~/.bashrc
+		
+	Otherwise, if you don't want the HOL4 installation to be persistent on your system, simply run
+	
+		export PATH=$PATH:[installation directory]/HOL/bin
+		
+	in the terminal window you want to be able to compile HOL4 theories from.
 
 4. Install OPAM
 
@@ -58,16 +67,30 @@ First, navigate to the directory where you want to put the source code of Poly/M
 5. Install Ott 0.32
 
 		opam pin add ott 0.32
+		
+6. Clone HOL4P4 and install Petr4 0.1.3
+
+	Navigate to the directory where you want to install this repo, and do the following:
+
+		git clone https://github.com/kth-step/HOL4P4.git
+		cd HOL4P4
+		
+	then clone Petr4 in this location (do this even if you intend to use an existing Petr4 installation, this allows HOL4P4 to access example .p4 files for validation):
+
+		git clone https://github.com/verified-network-toolchain/petr4.git
+		cd petr4
+		git checkout 0.1.3
+	
+	Then, follow the instructions for installing Petr4 from source [here](https://github.com/verified-network-toolchain/petr4/tree/0.1.3#installing-from-source), using version 0.1.12 of p4pp.
+	
+	Finally, do
+	
+		cd ..
+		make hol
+		
+	This will build the HOL4 theories and associated libraries.
 
 You may need to repeat `eval $(opam env)` depending on your choice in step 4 in order to use `ott` in the terminal.
-
-Then, navigate to the directory where you want to install this repo, and do the following:
-
-	git clone https://github.com/kth-step/HOL4P4.git
-	cd HOL4P4
-	make hol
-
-This will build the HOL4 theories and associated libraries.
 
 ## Building documentation
 

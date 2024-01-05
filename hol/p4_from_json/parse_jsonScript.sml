@@ -596,7 +596,7 @@ End
 Theorem lex_json_to_string_eq_json_to_tok:
   !obj. lex (FLAT $ json_to_string obj) [] = INL $ json_to_tok obj
 Proof
-  cheat
+  TODO
 QED
 
 (* Correctness: serialise then parse *)
@@ -604,7 +604,7 @@ QED
 Theorem parse_json_to_tok_eq_ID:
   !obj. parse (json_to_tok obj) [] T = INR (obj,[],[])
 Proof
-  cheat
+  TODO
 QED
 
 Theorem parse_json_to_string_eq_ID:
@@ -620,7 +620,7 @@ Theorem json_to_tok_parse_eq_ID:
   !obj ts. parse ts [] T = INR (obj, [], [])
   ==> json_to_tok obj = ts
 Proof
-  cheat
+  TODO
 QED
 *)
 

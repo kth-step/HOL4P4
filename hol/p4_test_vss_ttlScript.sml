@@ -1,5 +1,7 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
+val _ = new_theory "p4_test_vss_ttl";
+
 open pairSyntax wordsSyntax listSyntax bitstringSyntax numSyntax;
 open p4Syntax;
 open testLib;
@@ -222,3 +224,5 @@ GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 180``;
 
 (* Takes 58 steps, then another 100, then 13 *)
 GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [64, 103, 13];
+
+val _ = export_theory ();

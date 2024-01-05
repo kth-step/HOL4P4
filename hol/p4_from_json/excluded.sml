@@ -75,6 +75,12 @@ val exclude_descs =
    ["table-entries-optional-bmv2",
     "table-entries-range-bmv2"]),
 (*
+    Introduction of tuple types (manually spotted)
+*)
+  ("supporting tuple types",
+   ["checksum2-bmv2",
+    "checksum3-bmv2"]),
+(*
     Signed integers
     FAIL: Could not parse .*\/(.*?)\. .*?: \["int".*
 *)
@@ -97,21 +103,27 @@ val exclude_descs =
     "key-bmv2",
     "two_ebpf"]),
 (*
-    Register extern (manually spotted)
+    Register extern of V1Model (manually spotted)
 *)
-  ("adding register extern to V1Model model",
-   ["issue1814-1-bmv2"]),
+  ("importing more types of register extern in V1Model model",
+   ["issue1814-1-bmv2",
+    "issue1097-2-bmv2"]),
 (*
-    Counter extern (manually spotted)
+    Counter extern of V1Model (manually spotted)
 *)
   ("adding counter extern to V1Model model",
    ["issue1566-bmv2"]),
 (*
-    CounterArray extern (manually spotted)
+    CounterArray extern of eBPF (manually spotted)
 *)
   ("adding counter array extern to eBPF model",
    ["count_ebpf",
     "valid_ebpf"]),
+(*
+    adding checksum extern functions to V1Model model
+*)
+  ("adding checksum extern functions to V1Model model",
+   ["issue655-bmv2"]),
 (*
     Return struct of table application
 *)

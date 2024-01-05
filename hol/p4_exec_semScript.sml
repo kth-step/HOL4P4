@@ -2572,7 +2572,7 @@ Theorem stmt_multi_exec_sound_red:
   stmt_multi_exec ctx state fuel = SOME state' ==>
   stmt_clos_red ctx state state'
 Proof
- cheat
+ TODO
 QED
 *)
 
@@ -2599,7 +2599,7 @@ Theorem sem_expr_exe_cake_equiv:
  !e stacks.
   e_exec_cake e stacks status_running = e_exec_multi e stacks status_running
 Proof
- cheat
+ TODO
 QED
 *)
 
