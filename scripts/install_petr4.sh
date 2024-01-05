@@ -31,6 +31,8 @@ done
 #Then, checkout version 0.1.3 and use it afterward
 git checkout 0.1.3
 sudo apt-get install -y m4 libgmp-dev
+# Run this just to be sure
+eval $(opam env)
 opam install . --deps-only -y
 opam pin add p4pp 0.1.12 -y
 make
