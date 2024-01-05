@@ -2,7 +2,7 @@
 #This script is used as a quick-and-dirty way to install all prerequisites and compile HOL4P4 on a fresh Ubuntu 22.04 installation.
 
 sudo apt-get update
-sudo apt-get install -y build-essential git python3
+sudo apt-get install -y build-essential git python3 file
 
 #Path to where this file is located
 FILE=$(readlink -f "$0")
@@ -19,10 +19,10 @@ FILEPATH=$(dirname "$FILE")
 . ${FILEPATH}/install_hol4.sh ${PWD} ${PWD}
 
 #TODO Tested with OCaml 4.13.1 - fix version?
-. ${FILEPATH}/install_opam.sh
+#. ${FILEPATH}/install_opam.sh
 
-. ${FILEPATH}/install_ott.sh
+#. ${FILEPATH}/install_ott.sh
 
-. ${FILEPATH}/install_petr4.sh ${FILEPATH}/.. ${PWD}
+#. ${FILEPATH}/install_petr4.sh ${FILEPATH}/.. ${PWD}
 
 
