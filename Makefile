@@ -10,7 +10,10 @@ hol/p4_from_json: hol
 	Holmake -r -I hol/p4_from_json
 	
 validate: hol/p4_from_json
-	./hol/p4_from_json/validate.sh
+	cd hol/p4_from_json && ./validate.sh
+	
+concurrency: hol/p4_from_json
+	Holmake -r -I hol/p4_from_json/concurrency_tests
 
 docs/semantics/p4_defs.tex: ott/p4.ott
 	ott -o $@ -tex_wrap false $< -i ott/p4_sem.ott -i ott/p4_types.ott

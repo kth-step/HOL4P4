@@ -1,11 +1,12 @@
 open HolKernel Parse bossLib boolSyntax;
+
+val _ = new_theory "concur1_interference";
+
 open p4_testLib p4_arch_auxTheory;
 open p4_concurrentTheory p4_v1modelTheory;
 open bitstringTheory;
 
 open pairSyntax p4Syntax p4_concurrentSyntax p4_v1modelLib;
-
-val _ = new_theory "concur1_interference";
 
 val concur1_actx = ``([arch_block_inp;
   arch_block_pbl "MyParser"
@@ -129,7 +130,7 @@ val concur1_shared_s =
     (1:num, (* Number of extern objects *)
      [(0:num, INR (v1model_v_ext_register [(fixwidth 16 [], 16)]))]:(num # (core_v_ext + v1model_v_ext)) list,
      (^v1model_init_v_map++["r", v_ext_ref 0]),
-     [("flowlet",[]:(e list # string # e list) list); ("new_flowlet",[])])
+     [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])])
    )``;
 
 val concur1_t1_s =
@@ -205,7 +206,7 @@ val shared_s' =
    ("standard_metadata",
     v_struct ^shared_s'_standard_metadata);
    ("parsedHdr",v_struct []); ("hdr",v_struct []); ("meta",v_struct [])],
-  [("flowlet",[]:(e list # string # e list) list); ("new_flowlet",[])])”;
+  [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])])”;
 
 val shared_s'' =
 “([]:(bool list # num) list,[([T], 0:num); ([F], 0)],5:num,
@@ -217,7 +218,7 @@ val shared_s'' =
    ("standard_metadata",
     v_struct ^shared_s'_standard_metadata);
    ("parsedHdr",v_struct []); ("hdr",v_struct []); ("meta",v_struct [])],
-  [("flowlet",[]:(e list # string # e list) list); ("new_flowlet",[])])”;
+  [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])])”;
 
 val init_conc_state = list_mk_pair[concur1_shared_s, concur1_t1_s, concur1_t2_s];
 
@@ -243,7 +244,7 @@ val trace2_thm =
  end;
 
 Theorem concur1_trace_path_interference:
- ?n t1_s' t2_s' shared_s' shared_s''.
+?n t1_s' t2_s' shared_s' shared_s''.
   (trace_path ( \s s'. conc_red ^concur1_actx s s') n (^concur1_shared_s, (^concur1_t1_s, ^concur1_t2_s))
                                             (shared_s', (t1_s', t2_s')) /\
    p4_conc_finished (shared_s', (t1_s', t2_s')) /\
