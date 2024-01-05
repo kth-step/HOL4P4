@@ -1,4 +1,5 @@
-This directory contains tests that are supposed to succeed for HOL4P4.
+
+This directory contains validation tests.
 
 Example of debugging a proof that does not go through:
 
@@ -18,3 +19,4 @@ val ascope_ty = aenv_ty;
 (* Basic info *)
  val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" issue1768_bmv2_actx issue1768_bmv2_astate 36
 ```
+
