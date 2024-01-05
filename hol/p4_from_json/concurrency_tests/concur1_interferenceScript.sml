@@ -1,4 +1,4 @@
-open HolKernel Parse bossLib boolSyntax;
+open HolKernel Parse bossLib boolSyntax boolLib liteLib simpLib;
 
 val _ = new_theory "concur1_interference";
 
