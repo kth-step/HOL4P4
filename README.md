@@ -68,4 +68,4 @@ To set up the development environment, follow instructions in [INSTALL.md](INSTA
 
 A. Alshnakat, D. Lundberg, R. Guanciale, M. Dam and K. Palmskog, "HOL4P4: Semantics for a Verified Data Plane", in P4 Workshop in Europe (EuroP4 '22), 2022.
 
-A. Alshnakat, D. Lundberg, R. Guanciale, and M. Dam "HOL4P4: mechanized small-step semantics for P4", to appear in (OOPSLA '24).
+A. Alshnakat, D. Lundberg, R. Guanciale, and M. Dam "HOL4P4: Mechanized Small-Step Semantics for P4", to appear in (OOPSLA '24).

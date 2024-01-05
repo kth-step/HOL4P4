@@ -1,4 +1,15 @@
-# Installation for Ubuntu 22.04
+# Using the Dockerfile
+
+If you want to try out HOL4P4 in a more containerised fashion, you can do so using Docker. First, install Docker which in Ubuntu can be done with
+
+	sudo apt-get install docker.io
+	
+Then, build and run the Docker image (in the root directory of this repo containing the Dockerfile):
+
+	docker build -t hol4p4 .
+	docker run -it hol4p4
+
+# Manual Installation for Ubuntu 22.04
 
 This guide assumes a fresh install of Ubuntu 22.04.
 
@@ -101,3 +112,9 @@ You can also use `make docs/semantics/main.pdf` to build the documentation of th
 ## How to edit and interact with theories
 
 The same tools used to edit HOL4 theories and run the HOL4 REPL can also be used for this project. Specifically, we recommend Emacs - a full guide for using HOL4 with Emacs can be found [here](https://hol-theorem-prover.org/HOL-interaction.pdf).
+
+# Automatic installation scripts for Ubuntu 22.04
+
+The `scripts` directory contains installation scripts. These may be run when installing HOL4P4 e.g. on a fresh virtual machine by
+
+	scripts/install.sh && scripts/install2.sh
