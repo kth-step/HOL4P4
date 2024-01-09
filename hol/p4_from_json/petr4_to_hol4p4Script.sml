@@ -1389,8 +1389,8 @@ Definition p4_prefix_vars_in_stmt_def:
     (p4_prefix_vars_in_e prefix e)
     (p4_prefix_vars_in_stmt prefix stmt1)
     (p4_prefix_vars_in_stmt prefix stmt2)
-  | stmt_block decl_list stmt =>
-   stmt_block decl_list (p4_prefix_vars_in_stmt prefix stmt)
+  | stmt_block decl_list stmt' =>
+   stmt_block decl_list (p4_prefix_vars_in_stmt prefix stmt')
   | stmt_ret e => stmt_ret (p4_prefix_vars_in_e prefix e)
   | stmt_seq stmt1 stmt2 =>
    stmt_seq (p4_prefix_vars_in_stmt prefix stmt1)
@@ -1409,6 +1409,21 @@ End
 Definition p4_prefix_vars_in_b_func_map_def:
  p4_prefix_vars_in_b_func_map prefix (b_func_map:b_func_map) =
   MAP ( \ (fname, (body, args)). (fname, (p4_prefix_vars_in_stmt prefix body, p4_prefix_vars_in_args prefix args))) b_func_map
+End
+
+Definition p4_stmt_contains_return_def:
+ p4_stmt_contains_return stmt =
+  case stmt of
+  | stmt_cond e stmt1 stmt2 =>
+   (p4_stmt_contains_return stmt1) \/
+   (p4_stmt_contains_return stmt2)
+  | stmt_block decl_list stmt =>
+   (p4_stmt_contains_return stmt)
+  | stmt_ret e => T
+  | stmt_seq stmt1 stmt2 =>
+   (p4_stmt_contains_return stmt1) \/
+   (p4_stmt_contains_return stmt2)
+  | _ => F
 End
 
 Definition petr4_parse_method_call_def:
@@ -1471,13 +1486,16 @@ Definition petr4_parse_method_call_def:
                    | SOME ((name, (body, params)), b_func_map') =>
                     (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
                      | SOME_msg res_args =>
-                      (* TODO: Prefixing of variables in body happens here *)
-                      (case petr4_inline_block app_name (p4_prefix_vars_in_stmt app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
-                       | SOME_msg (decl_list', stmt) =>
-                        (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
-                        (* TODO: Prefixing of variables in local functions here, prove it is OK *)
-                        SOME_msg (p4_prefix_vars_in_b_func_map app_name b_func_map', tbl_map, p4_remove_copyout_lval_decl_list $ p4_prefix_decl_list app_name (decl_list'++decl_list), stmt)
-                       | NONE_msg inline_msg => NONE_msg inline_msg)
+                      if p4_stmt_contains_return body
+                      then NONE_msg ("nested control block "++(app_name++(" of type "++(block_type_name++" contains a return statement, which is unsupported by the inlining scheme"))))
+                      else
+                       (* TODO: Prefixing of variables in body happens here *)
+                       (case petr4_inline_block app_name (p4_prefix_vars_in_stmt app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
+                        | SOME_msg (decl_list', stmt) =>
+                         (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
+                         (* TODO: Prefixing of variables in local functions here, prove it is OK *)
+                         SOME_msg (p4_prefix_vars_in_b_func_map app_name b_func_map', tbl_map, p4_remove_copyout_lval_decl_list $ p4_prefix_decl_list app_name (decl_list'++decl_list), stmt)
+                        | NONE_msg inline_msg => NONE_msg inline_msg)
                      | NONE_msg args_msg => NONE_msg ("could not parse nested control block: "++args_msg))
                    | NONE => NONE_msg ("could not find instantiation of nested control block: "++block_type_name))
                  | _ => NONE_msg ("could not find control block: "++block_type_name))
