@@ -1349,7 +1349,21 @@ Definition p4_prefix_vars_in_e_def:
    e_header b (MAP ( \ (x,e). (x, p4_prefix_vars_in_e prefix e)) x_e_l)
   | _ => e
 Termination
-cheat
+WF_REL_TAC `measure (e_size o SND)` >>
+fs[e_size_def] >>
+rpt strip_tac >| [
+ IMP_RES_TAC e1_tuple_size_mem >>
+ fs[],
+
+ IMP_RES_TAC e3_size_mem >>
+ fs[],
+
+ IMP_RES_TAC e3_size_mem >>
+ fs[],
+
+ IMP_RES_TAC e1_tuple_size_mem >>
+ fs[]
+]
 End
 
 Definition p4_prefix_vars_in_lval_def:
@@ -3227,7 +3241,10 @@ Definition FILTER_DUPLICATES_def:
  (FILTER_DUPLICATES (h::t) =
   (h::(FILTER_DUPLICATES (FILTER ($<> h) t))))
 Termination
-cheat
+WF_REL_TAC `measure LENGTH` >>
+rpt strip_tac >>
+ASSUME_TAC (Q.SPECL [`(\y. h <> y)`, `t`] rich_listTheory.LENGTH_FILTER_LEQ) >>
+fs[prim_recTheory.LESS_THM]
 End
 
 (* TODO: Put in files with other arch-specific stuff? *)
