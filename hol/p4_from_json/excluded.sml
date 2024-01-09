@@ -92,22 +92,11 @@ val exclude_descs =
     (* Manually spotted *)
     "saturated-bmv2"]),
 (*
-    Nested control blocks (manually spotted)
+    Enumeration type declarations (manually spotted)
 *)
-  ("adding or desugaring nested control blocks in the JSON-to-HOL4P4 parser",
-   [
-(* Enumeration type declarations
-  Could not parse apply: could not parse declaration: could not parse type: ["name",{"tags":["missing_info",""],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"Choice"}}]}] while parsing control compute
-*)
-    "decl-soundness",
-(* Enumeration type declarations
-Could not parse apply: could not parse declaration: could not parse type: ["name",{"tags":["missing_info",""],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"Choice"}}]}] while parsing control compute
-*)
-    "enum-bmv2",
-    (* TODO: could not parse action arguments in "add" STF command. Due to field having name? *)
-    "key-bmv2",
-    (* TODO: could not parse action arguments in "add" STF command. Due to field having name? *)
-    "two_ebpf"]),
+  ("adding support for enumeration type declarations in the JSON-to-HOL4P4 parser",
+   ["decl-soundness",
+    "enum-bmv2"]),
 (*
     Register extern of V1Model (manually spotted)
 *)
