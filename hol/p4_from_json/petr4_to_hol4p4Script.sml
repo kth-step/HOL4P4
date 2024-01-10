@@ -1253,39 +1253,6 @@ Definition p4_seq_append_stmt_def:
   | _ => (stmt_seq stmt1 stmt2)
 End
 
-(*
-Definition petr4_inline_block_def:
- (petr4_inline_block body _ _ _ [] = SOME_msg body) /\
- (petr4_inline_block body t_scope copyin copyout (((param_name, param_dir), arg, param_type)::((param', arg', param_type')::t)) = 
-  (* This should just build on t_scope, copyin and copyout *)
-  if is_d_out param_dir
-  then
-   (case get_lval_of_e arg of
-    | SOME arg_lval =>
-     let copyin' = if is_d_in param_dir then (p4_seq_append_stmt copyin (stmt_ass (lval_varname (varn_name param_name)) arg)) else copyin in
-     let copyout' = if is_d_out param_dir then (p4_seq_append_stmt copyout (stmt_ass arg_lval (e_var (varn_name param_name)))) else copyout in
-     petr4_inline_block body (t_scope++[(varn_name param_name, (param_type, SOME arg_lval))]) copyin' copyout' ((param', arg', param_type')::t)
-    | NONE => NONE_msg ("Could not inline programmable block: argument passed into "++(param_name++" does not correspond to l-value.")))
-  else
-   let copyin' = (p4_seq_append_stmt copyin (stmt_ass (lval_varname (varn_name param_name)) arg)) in
-   petr4_inline_block body (t_scope++[(varn_name param_name, (param_type, NONE))]) copyin' copyout ((param', arg', param_type')::t)
- ) /\
- (petr4_inline_block body t_scope copyin copyout [((param_name, param_dir), arg, param_type)] = 
-  if is_d_out param_dir
-  then
-   (case get_lval_of_e arg of
-    | SOME arg_lval =>
-     let copyin' = if is_d_in param_dir then (p4_seq_append_stmt copyin (stmt_ass (lval_varname (varn_name param_name)) arg)) else copyin in
-     let copyout' = if is_d_out param_dir then (p4_seq_append_stmt copyout (stmt_ass arg_lval (e_var (varn_name param_name)))) else copyout in
-     SOME_msg (stmt_block (t_scope++[(varn_name param_name, (param_type, SOME arg_lval))]) (p4_seq_append_stmt copyin' (stmt_seq body copyout')))
-    | NONE => NONE_msg ("Could not inline programmable block: argument passed into "++(param_name++" does not correspond to l-value.")))
-  else
-   let copyin' = (p4_seq_append_stmt copyin (stmt_ass (lval_varname (varn_name param_name)) arg)) in
-   SOME_msg (stmt_block (t_scope++[(varn_name param_name, (param_type, NONE))]) (stmt_seq copyin' (stmt_seq body copyout)))
- )
-End
-*)
-
 Definition p4_prefix_vars_in_varn_def:
  p4_prefix_vars_in_varn prefix varn =
   case varn of
@@ -1302,8 +1269,16 @@ Definition petr4_inline_block_def:
   then
    (case get_lval_of_e arg of
     | SOME arg_lval =>
-     let copyin' = if is_d_in param_dir then (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn prefix (varn_name param_name))) arg)) else copyin in
-     let copyout' = if is_d_out param_dir then (p4_seq_append_stmt copyout (stmt_ass arg_lval (e_var (p4_prefix_vars_in_varn prefix (varn_name param_name))))) else copyout in
+     let copyin' =
+      if (param_dir <> d_out)
+      then (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn prefix (varn_name param_name))) arg))
+      else (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn prefix (varn_name param_name))) (e_v $ arb_from_tau param_type)))
+     in
+     let copyout' =
+      if is_d_out param_dir
+      then (p4_seq_append_stmt copyout (stmt_ass arg_lval (e_var (p4_prefix_vars_in_varn prefix (varn_name param_name)))))
+      else copyout
+     in
      petr4_inline_block prefix body (t_scope++[(varn_name param_name, (param_type, SOME arg_lval))]) copyin' copyout' t
     | NONE => NONE_msg ("Could not inline programmable block: argument passed into "++(param_name++" does not correspond to l-value.")))
   else
@@ -1390,7 +1365,7 @@ Definition p4_prefix_vars_in_stmt_def:
     (p4_prefix_vars_in_stmt prefix stmt1)
     (p4_prefix_vars_in_stmt prefix stmt2)
   | stmt_block decl_list stmt' =>
-   stmt_block decl_list (p4_prefix_vars_in_stmt prefix stmt')
+   stmt_block (p4_prefix_decl_list prefix decl_list) (p4_prefix_vars_in_stmt prefix stmt')
   | stmt_ret e => stmt_ret (p4_prefix_vars_in_e prefix e)
   | stmt_seq stmt1 stmt2 =>
    stmt_seq (p4_prefix_vars_in_stmt prefix stmt1)
