@@ -2538,6 +2538,10 @@ Definition petr4_process_properties_def:
   | NONE_msg key_msg => NONE_msg key_msg
 End
 
+Definition str_contains_def:
+ str_contains s c = MEM c $ EXPLODE s
+End
+
 Definition petr4_parse_table_def:
  petr4_parse_table (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) table =
   case json_parse_obj ["tags"; "annotations"; "name"; "properties"] table of
@@ -2546,9 +2550,12 @@ Definition petr4_parse_table_def:
     * Optional properties: size, default_action, entries, largest_priority_wins, priority_delta *)
    (case petr4_parse_name name of
     | SOME tbl_name =>
-     (case petr4_process_properties (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) props of
-      | SOME_msg (keys, default_action, entries) => SOME_msg ((tbl_name, (MAP (FST o SND) keys, default_action)), (tbl_name, MAP FST keys), (tbl_name, entries), (tbl_name, MAP (SND o SND) keys))
-      | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg))
+     if str_contains tbl_name #"."
+     then get_error_msg "(local) table name contains a period, which is unsupported by the inlining scheme: " name
+     else
+      (case petr4_process_properties (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) props of
+       | SOME_msg (keys, default_action, entries) => SOME_msg ((tbl_name, (MAP (FST o SND) keys, default_action)), (tbl_name, MAP FST keys), (tbl_name, entries), (tbl_name, MAP (SND o SND) keys))
+       | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg))
     | NONE => get_error_msg "could not parse name: " name)
   | _ => get_error_msg "unknown JSON format of table: " table
 End
