@@ -1,6 +1,6 @@
 open HolKernel Parse bossLib boolSyntax;
 open testutils;
-open PPBackEnd optionSyntax pairSyntax numSyntax listSyntax;
+open PPBackEnd optionSyntax pairSyntax numSyntax listSyntax stringLib;
 open parse_jsonTheory;
 open petr4_to_hol4p4Theory p4_arch_auxTheory;
 
@@ -238,9 +238,22 @@ fun ints_from_string []     = SOME []
     | NONE => NONE)
 ;
 
-fun parse_stf_setdefault_line tokens =
+fun parse_stf_setdefault_line (pblock_map, ttymap) tokens =
  let
-  val (block_name, table) = split_string (el 1 tokens) #"."
+  val table_token = el 1 tokens
+  (* TODO: This checks first prefix is a top-level block or not: the import tool should reject
+   * programs with instance names equal to top-level block names for this to work *)
+  val (block_name, table) =
+   if is_none $ eval_rhs “ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring $ fst $ split_string table_token #".")”
+   then
+    let
+     val pbl_name_opt = eval_rhs “p4_pblock_of_tbl ^(stringSyntax.fromMLstring table_token) ^pblock_map”
+    in
+     if is_some pbl_name_opt
+     then (fromHOLstring $ dest_some pbl_name_opt, table_token)
+     else raise Fail ("Could not find table "^(table_token^" in pblock_map"))
+    end
+   else split_string table_token #"."
   (* Note that arguments are no longer separated by whitespaces in "action" *)
   (* TODO: Note that this currently does not support distinguishing between
    * duplicate action names in nested blocks *)
@@ -272,11 +285,10 @@ fun parse_keys [] = SOME []
   end
 ;
 
-fun parse_stf_add_line tokens =
+fun parse_stf_add_line (pblock_map, ttymap) tokens =
  let
   (* Split up tokens into table, keys, and action *)
   (* Rewritten to avoid exhaustiveness warning *)
-  val table_token = el 1 tokens
   val (priority_token, tokens') =
    if List.all (Char.isDigit) $ explode (el 2 tokens)
    then (el 2 tokens, List.drop (tokens, 2))
@@ -288,8 +300,19 @@ fun parse_stf_add_line tokens =
   (* TODO: See 14.4 and 18.3.1.5 of the P4 spec - table names need not be unique in program.
    * The current treatment here does not support distinguishing between tables with the same local
    * names *)
-  val (block_name, _) = split_string table_token #"."
-  val (_, table) = split_string_rev table_token #"."
+  (* TODO: Warn against collisions (table names featuring instance names identical to block names) *)
+  val table_token = el 1 tokens
+  val (block_name, table) =
+   if is_none $ eval_rhs “ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring $ fst $ split_string table_token #".")”
+   then
+    let
+     val pbl_name_opt = eval_rhs “p4_pblock_of_tbl ^(stringSyntax.fromMLstring table_token) ^pblock_map”
+    in
+     if is_some pbl_name_opt
+     then (fromHOLstring $ dest_some pbl_name_opt, table_token)
+     else raise Fail ("Could not find table "^(table_token^" in pblock_map"))
+    end
+   else split_string table_token #"."
 
   val priority = priority_token
 
@@ -314,15 +337,12 @@ fun parse_stf_add_line tokens =
 ;
 
 (* TODO: pay forward rest instead of s? *)
-(*
-val s = "setdefault pipe.t pipe.Reject(rej:0, bar:1)"
-*)
-fun parse_stf_line s =
+fun parse_stf_line (pblock_map, ttymap) s =
  case String.tokens (fn c => c = #" ") s of
    "packet" :: rest => parse_stf_io_line s packet
  | "expect" :: rest => parse_stf_io_line s expect
- | "add" :: rest => parse_stf_add_line rest
- | "setdefault" :: rest => parse_stf_setdefault_line rest
+ | "add" :: rest => parse_stf_add_line (pblock_map, ttymap) rest 
+ | "setdefault" :: rest => parse_stf_setdefault_line (pblock_map, ttymap) rest
  | _ => none
 ;
 
@@ -368,7 +388,6 @@ fun output_actx_setdefault outstream valname block_name table_name action_name a
 
 fun output_astate_add outstream valname arch_opt table_name keys priority action_name args =
  let
-  (* TODO: This needs to process "keys" further, in order to determine what to print exactly *)
   val outstring =
    String.concat ["val ", valname, "_astate = optionSyntax.dest_some $ rhs $ concl $ EVAL ``",
                   (astr_of_arch arch_opt)^"_add_ctrl ^",
@@ -402,10 +421,7 @@ fun process_arbs' [] acc (vars, l') = (vars, l', acc)
       process_arbs' t (acc + 1) (vars@[var], l'@[var])
      end
     else process_arbs' t acc (vars, l'@[h]);
-(*
-fun process_arbs (l: term list) =
- (fn (a,b,c) => (mk_list (a, bool), mk_list (b, bool))) (process_arbs' l 0 ([], []));
-*)
+
 fun process_arbs_list (ll: term list list) acc_init =
  let
   fun process_arbs_list' [] acc (vars, data) = (vars, data, acc)
@@ -477,7 +493,9 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
 
 fun infer_keys ttymap table_name keys =
  let
-  val inferred_keys = eval_rhs ``p4_infer_keys (^ttymap) ^(stringSyntax.fromMLstring table_name) ^(listSyntax.mk_list(map term_of_int keys, num))``
+  (* TODO: This relies on tables in different block declarations not having identical names... *)
+  (* Note that ttymap doesn't need prefixes, since types don't change due to nesting.*)
+  val inferred_keys = eval_rhs ``p4_infer_keys (^ttymap) ^(stringSyntax.fromMLstring $ snd $ split_string_rev table_name #".") ^(listSyntax.mk_list(map term_of_int keys, num))``
 (*
   val _ = print (("Inferring keys of table "^table_name)^"\n")
   val _ = print (("ttymap: "^(term_to_string ttymap))^"\n")
@@ -512,10 +530,10 @@ fun to_hol_list_string l =
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
 (* TODO: Here, we should also print the function that performs the test and check *)
 local
- fun parse_stf' (ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream =
+ fun parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream =
   case TextIO.inputLine instream of
     SOME s =>
-     (case parse_stf_line (drop_last s) of
+     (case parse_stf_line (pblock_map, ttymap) (drop_last s) of
        (* Using result from parse_stf_setdefault_line: *)
        setdefault (block_name, table_name, action_name, args) =>
         (case infer_args (ftymap, blftymap) block_name action_name args of
@@ -523,7 +541,7 @@ local
 	   let
 	    val _ = output_actx_setdefault outstream valname block_name table_name action_name (term_to_string args_term)
 	   in
-	    parse_stf' (ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
+	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
 	   end
         (* TODO: Raise exception or print error message to output? *)
          | NONE => raise Fail ("Could not parse action arguments in setdefault stf command"))
@@ -535,7 +553,7 @@ local
 	   let
 	    val _ = output_astate_add outstream valname arch_opt_tm table_name keys_tm priority action_name (term_to_string args_term)
 	   in
-	    parse_stf' (ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
+	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
 	   end
         (* TODO: Raise exception or print error message to output? *)
          | NONE => raise Fail ("Could not parse action arguments in add stf command"))
@@ -543,9 +561,9 @@ local
      | io (stf_iotype, port, data) =>
       if stf_iotype = packet
       then
-       parse_stf' (ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list@[(port, data)], output_list) instream
+       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list@[(port, data)], output_list) instream
       else
-       parse_stf' (ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list@[(port, data)]) instream
+       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list@[(port, data)]) instream
 (*
         (case prev_line_opt of
            NONE =>
@@ -572,7 +590,7 @@ local
 	    parse_stf' (ftymap, blftymap) outstream valname packet arch_opt_tm (n+1) (SOME (parsed_stf_iotype, port, data)) instream
 	   end)
 *)
-     | none => parse_stf' (ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream)
+     | none => parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream)
    | NONE =>
     let
      val _ = output_test_list_theorem outstream valname arch_opt_tm (input_list, output_list)
@@ -580,7 +598,7 @@ local
      ()
     end
 in
- fun parse_stf outstream stfname_opt valname (ftymap, blftymap, ttymap) arch_opt_tm =
+ fun parse_stf outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap) arch_opt_tm =
   case stfname_opt of
    SOME stfname =>
     let
@@ -589,7 +607,7 @@ in
               Write only a single new astate and following theorem at the end, which
               has all input packets in the input queue in order and all outputs in the
               output queue in order. *)
-     val _ = parse_stf' (ftymap, blftymap, ttymap) outstream valname arch_opt_tm ([],[]) instream;
+     val _ = parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm ([],[]) instream;
      val _ = TextIO.closeIn instream;
     in
      ()
@@ -675,6 +693,10 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 		     vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
 		     vss_ext_map, fmap']
      val init_ctrl_opt = eval_rhs ``vss_init_ctrl ^pblock_map ^tbl_updates_tm``
+(*
+     val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
+     val _ = print ("tbl_updates :"^((term_to_string tbl_updates_tm)^"\n"))
+*)
     in
      if is_some init_ctrl_opt
      then
@@ -699,7 +721,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
       in
        SOME (actx, astate)
       end
-     else raise Fail ("Could not initialise control plane configuration")
+     else raise Fail ("Could not initialise control plane configuration for "^valname)
     end
    else if (is_arch_ebpf $ dest_some arch_opt_tm) then
     let
@@ -711,6 +733,10 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 		     ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
 		     ebpf_ext_map, fmap']
      val init_ctrl_opt = eval_rhs ``ebpf_init_ctrl ^pblock_map ^tbl_updates_tm``;
+(*
+     val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
+     val _ = print ("tbl_updates :"^((term_to_string tbl_updates_tm)^"\n"))
+*)
     in
      if is_some init_ctrl_opt
      then
@@ -735,7 +761,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
       in
        SOME (actx, astate)
       end
-     else raise Fail ("Could not initialise control plane configuration")
+     else raise Fail ("Could not initialise control plane configuration for "^valname)
     end
    else if (is_arch_v1model $ dest_some arch_opt_tm) then
     let
@@ -749,6 +775,10 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
 		     v1model_ext_map, fmap']
      val init_ctrl_opt = eval_rhs ``v1model_init_ctrl ^pblock_map ^tbl_updates_tm``;
+(*
+     val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
+     val _ = print ("tbl_updates :"^((term_to_string tbl_updates_tm)^"\n"))
+*)
     in
      if is_some init_ctrl_opt
      then
@@ -773,7 +803,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
       in
        SOME (actx, astate)
       end
-     else raise Fail ("Could not initialise control plane configuration")
+     else raise Fail ("Could not initialise control plane configuration for "^valname)
     end
    else if (is_none arch_opt_tm) then
     (* TODO *)
@@ -784,7 +814,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
             map (output_hol4_val outstream) (map (fn (a, b, c) => (valname^("_"^a), b, c))
                               [("actx", actx, actx_of_arch arch_opt_tm), ("astate", astate, astate_of_arch arch_opt_tm)])
           | NONE => [()];
-  val _ = parse_stf outstream stfname_opt valname (ftymap, blftymap, ttymap_tm) arch_opt_tm
+  val _ = parse_stf outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap_tm) arch_opt_tm
  in
   ()
  end
