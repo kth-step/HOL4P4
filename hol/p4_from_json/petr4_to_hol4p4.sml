@@ -318,8 +318,6 @@ fun parse_stf_add_line (pblock_map, ttymap) tokens =
 
   (* Note that arguments are no longer separated by whitespaces in "action" *)
   (* TODO: Generalise this, so global actions can also be used? *)
-  (* TODO: Note that this currently does not support distinguishing between
-   * duplicate action names in nested blocks *)
   val (_, action) = split_string_rev action_token #"."
   val (action_name, args) = split_string_incl action #"("
   val args_list = String.tokens (fn ch => ch = #",") (String.substring(args, 1, size args - 2))
@@ -528,7 +526,6 @@ fun to_hol_list_string l =
 ;
 
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
-(* TODO: Here, we should also print the function that performs the test and check *)
 local
  fun parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream =
   case TextIO.inputLine instream of
@@ -543,7 +540,6 @@ local
 	   in
 	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
 	   end
-        (* TODO: Raise exception or print error message to output? *)
          | NONE => raise Fail ("Could not parse action arguments in setdefault stf command"))
      | add (block_name, table_name, keys, priority, action_name, args) =>
       (case infer_keys ttymap table_name keys of
@@ -555,7 +551,6 @@ local
 	   in
 	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
 	   end
-        (* TODO: Raise exception or print error message to output? *)
          | NONE => raise Fail ("Could not parse action arguments in add stf command"))
        | NONE => raise Fail ("Could not parse keys in add stf command"))
      | io (stf_iotype, port, data) =>
@@ -564,32 +559,6 @@ local
        parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list@[(port, data)], output_list) instream
       else
        parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list@[(port, data)]) instream
-(*
-        (case prev_line_opt of
-           NONE =>
-          (* TODO: Check that parsed_stf_iotype is "packet"? *)
-          parse_stf' (ftymap, blftymap) outstream valname expect arch_opt_tm n (SOME (parsed_stf_iotype, port, data)) instream
-         | SOME prev_stf_line =>
-	  if parsed_stf_iotype = expect
-	  then
-           (* Print packet-expect theorem *)
-	   let
-	    val _ = output_in_out outstream valname n prev_stf_line
-	    val _ = output_test_astate outstream valname n
-	    val _ = output_test_theorem outstream valname arch_opt_tm n (port, data)
-	   in
-	    parse_stf' (ftymap, blftymap) outstream valname packet arch_opt_tm (n+1) NONE instream
-	   end
-	  else
-           (* Print packet-reject theorem *)
-	   let
-	    val _ = output_in_out outstream valname n prev_stf_line
-	    val _ = output_test_astate outstream valname n
-	    val _ = output_test_reject_theorem outstream valname arch_opt_tm n
-	   in
-	    parse_stf' (ftymap, blftymap) outstream valname packet arch_opt_tm (n+1) (SOME (parsed_stf_iotype, port, data)) instream
-	   end)
-*)
      | none => parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream)
    | NONE =>
     let

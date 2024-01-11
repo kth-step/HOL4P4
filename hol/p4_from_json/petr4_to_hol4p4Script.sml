@@ -55,7 +55,6 @@ End
 
 (* This is defined as an extension to "tau" (defined in p4Theory) that also
  * includes type parameters *)
-(* TODO: Why does this have to store names of objects? *)
 Datatype:
 p_tau =
    p_tau_bool   (* Note that the integer width must be a compile-time known value *)
@@ -85,11 +84,8 @@ Definition deparameterise_tau_def:
     | SOME fields' => SOME (tau_xtl struct_ty fields')
     | NONE => NONE)
   | p_tau_ext ext_name => SOME tau_ext
-  (* TODO: Cannot be translated to block type *)
   | p_tau_blk blk_name => NONE
-  (* TODO: Cannot be translated to package type *)
   | p_tau_pkg pkg_name => NONE
-  (* TODO: Cannot be translated to non-parameterized type *)
   | p_tau_par param_name => NONE) /\
 (deparameterise_x_taus [] = SOME []) /\
 (deparameterise_x_taus ((name, p_tau)::t) =
@@ -1297,10 +1293,6 @@ Definition p4_prefix_decl_list_def:
   MAP ( \ (h1, h2). (p4_prefix_vars_in_varn prefix h1, h2)) decl_list
 End
 
-
-(**********************)
-(* Common: statements *)
-
 (* Sets the optional copyout L-value to NONE for all variables *)
 Definition p4_remove_copyout_lval_decl_list_def:
  p4_remove_copyout_lval_decl_list (decl_list:t_scope) =
@@ -1435,6 +1427,10 @@ Definition p4_stmt_contains_return_def:
    (p4_stmt_contains_return stmt2)
   | _ => F
 End
+
+
+(**********************)
+(* Common: statements *)
 
 Definition petr4_parse_method_call_def:
  petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmt_details =
@@ -2091,14 +2087,6 @@ Definition petr4_parse_inst_def:
       | SOME (p_tau_blk _) =>
        (case petr4_parse_name name of
         | SOME blk_name =>
-        (* TODO: What can be done here already?
-         * Declarations: order should not matter with proper renaming, so can either be
-         * fetched from pblock_map and inserted here, or be inserted at start of inlined
-         * section via a new block.
-         * Initialisations: Should be inserted at the start of the inlined section
-         * Value-type map updates: This must be done at this point in order to find the
-         * block type with it is applied.
-         * *)
          SOME_msg (decl_list,
                    inits,
                    (varn_name blk_name, p_tau_blk type_name))
@@ -2800,20 +2788,6 @@ Definition petr4_merge_upds_def:
         ) (SOME []) upds
 End
 
-(* All three structures with updates are alists, so they are merged in the same manner *)
-Definition petr4_merge_all_upds_def:
- petr4_merge_all_upds (b_func_map_upds, tbl_map_upds, decl_list_upds) =
-  case petr4_merge_upds b_func_map_upds of
-  | SOME b_func_map_upds' =>
-  (case petr4_merge_upds tbl_map_upds of
-   | SOME tbl_map_upds' =>
-    (case petr4_merge_upds decl_list_upds of
-     | SOME decl_list_upds' => SOME (b_func_map_upds', tbl_map_upds', decl_list_upds')
-     | NONE => NONE)
-   | NONE => NONE)
-  | NONE => NONE
-End
-
 (* TODO: Remove "THE" hack? Shouldn't make difference... *)
 Definition petr4_parse_control_def:
  petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, tbl_entries_map, extfun_list, ttymap) control =
@@ -3324,7 +3298,6 @@ Definition ebpf_init_ctrl_def:
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type b_func_map decl_list state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
-   (* TODO: Duplicates may occur due to processing of nested blocks: double-check this handling is correct *)
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
@@ -3338,7 +3311,6 @@ Definition vss_init_ctrl_def:
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type b_func_map decl_list state_map tbl_map =>
                        ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):vss_ctrl
-   (* TODO: Duplicates may occur due to processing of nested blocks: double-check this handling is correct *)
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
@@ -3351,7 +3323,6 @@ Definition v1model_init_ctrl_def:
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | pblock_regular pbl_type b_func_map decl_list state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
-   (* TODO: Duplicates may occur due to processing of nested blocks: double-check this handling is correct *)
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
