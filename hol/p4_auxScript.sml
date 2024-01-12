@@ -2347,23 +2347,28 @@ Definition p4_match_mask_def:
     | _ => F)
   | _ => F
 End
-(*
-Definition p4_match_mask_def:
- p4_match_mask (e_v k_bitv) (v_bit (v'', n'')) (v_bit (v, n)) =
-  (case k_bitv of
-   | v_bit (v', n') =>
-    (case bitv_binop binop_and (v', n') (v, n) of
-     | SOME res =>
-      (case bitv_binop binop_and (v'', n'') (v, n) of
-       | SOME res' => 
-        (case bitv_binpred binop_eq res res' of
-         | SOME bool => bool
-         | NONE => F)
-       | NONE => F)
-     | NONE => F)
-   | _ => F)
+
+Definition p4_match_range_def:
+ p4_match_range lo hi k =
+  case k of
+  | e_v k_bitv =>
+   (case lo of
+    | v_bit (v, n) =>
+     (case k_bitv of
+      | v_bit (v', n') =>
+       (case hi of
+        | v_bit (v'', n'') =>
+         (case bitv_binpred binop_ge (v', n') (v, n) of
+          | SOME T =>
+           (case bitv_binpred binop_le (v', n') (v'', n'') of
+            | SOME T => T
+            | _ => F)
+          | _ => F)
+        | _ => F)
+      | _ => F)
+    | _ => F)
+  | _ => F
 End
-*)
 
 (**************************)
 (* For symbolic execution *)

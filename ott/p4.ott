@@ -167,6 +167,7 @@ status {{ tex t }}:: status_ ::=
   {{ com transition to parser state }}
   {{ tex { \mathbf{tra} \; [[x]] } }}
 
+%TODO: Currently architecture-specific match kinds are hard-coded here. This might not be very tidy, but also has no ill effect.
 mk {{ tex \mathit{mk} }} :: mk_ ::=
 {{ com matching kinds }}
 | exact :: :: exact
@@ -175,6 +176,12 @@ mk {{ tex \mathit{mk} }} :: mk_ ::=
   {{ tex \mathrm{ternary} }}
 | lpm :: :: lpm
   {{ tex \mathrm{lpm} }}
+| range :: :: range
+  {{ tex \mathrm{range} }}
+| optional :: :: optional
+  {{ tex \mathrm{optional} }}
+| selector :: :: selector
+  {{ tex \mathrm{selector} }}
 
 %Fence between mk and mk_list
 embed

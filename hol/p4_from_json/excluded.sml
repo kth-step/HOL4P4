@@ -53,7 +53,7 @@ val exclude_descs =
     Bit slice lvalues
     FAIL: Could not parse .*\/(.*?)\. .*?: \["bit_string_access".*
 *)
-  ("extending JSON-to-HOL4P4 parser to properly support bit slice lvalues",
+  ("extending import tool to properly support bit slice lvalues",
    ["issue870_ebpf",
     "issue983-bmv2",
     "match-on-exprs-bmv2"]),
@@ -61,23 +61,14 @@ val exclude_descs =
     Struct values
     FAIL: Could not parse .*\/(.*?)\. .*list.*
 *)
-  ("fixing JSON-to-HOL4P4 parser to parse struct values",
+  ("fixing import tool to parse struct values",
    ["constant-in-calculation-bmv2",
     "issue655",
-    (* Also requires bitmasks for matches in select expression *)
-    "issue995-bmv2",
     "recursive-casts"]),
-(*
-    Introduction of new match kinds
-    FAIL: Could not parse .*\/(.*?)\. .*? could not parse match kind.*
-*)
-  ("supporting introduction of new match kinds",
-   ["table-entries-optional-bmv2",
-    "table-entries-range-bmv2"]),
 (*
     Introduction of tuple types (manually spotted)
 *)
-  ("supporting tuple types",
+  ("adding tuple types to HOL4P4",
    ["checksum2-bmv2",
     "checksum3-bmv2"]),
 (*
@@ -94,7 +85,7 @@ val exclude_descs =
 (*
     Enumeration type declarations (manually spotted)
 *)
-  ("adding support for enumeration type declarations in the JSON-to-HOL4P4 parser",
+  ("adding support for enumeration type declarations in the import tool",
    ["decl-soundness",
     "enum-bmv2"]),
 (*
@@ -123,11 +114,14 @@ val exclude_descs =
     "issue2170-bmv2",
     "switch_ebpf"]),
 (*
-    Range expressions
+    Set expressions in select expression
     FAIL: Could not parse .*\/(.*?)\. .*?: \["range".*
 *)
-  ("adding range expressions to HOL4P4",
-   ["issue-2123-2-bmv2"]),
+  ("adding set expressions in select expressions to HOL4P4",
+   ["issue995-bmv2",
+    "issue1000-bmv2",
+    "issue-2123-2-bmv2",
+    "issue-2123-3-bmv2"),
 (*
     Exit statement
     FAIL: Could not parse .*\/(.*?)\. .*?: unknown statement name: exit.*
@@ -137,14 +131,8 @@ val exclude_descs =
 (*
     "Don't care" (underscore) argument (manually spotted)
 *)
-  ("adding don't-care function arguments to HOL4P4",
+  ("fixing don't-care function arguments in import tool",
    ["issue774-4-bmv2"]),
-(*
-    Permitting more free expressions as table keys (manually spotted)
-*)
-  ("extending HOL4P4 to allow more expressions as table keys",
-   ["issue1000-bmv2",
-    "issue-2123-3-bmv2"])
 ];
 
 fun get_error_desc testname [] = NONE

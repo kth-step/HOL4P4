@@ -2120,6 +2120,12 @@ Definition petr4_parse_match_kind_def:
    then SOME_msg mk_ternary
    else if mk_str = "lpm"
    then SOME_msg mk_lpm
+   else if mk_str = "range"
+   then SOME_msg mk_range
+   else if mk_str = "optional"
+   then SOME_msg mk_optional
+   else if mk_str = "selector"
+   then SOME_msg mk_selector
    else NONE_msg ("unknown match kind: "++mk_str)
   | _ => get_error_msg "unknown JSON format of match kind: " match_kind
 End
@@ -2252,7 +2258,7 @@ Definition p4_get_prefix_length_def:
 End
 
 (* TODO: Merge with petr4_parse_matches *)
-(* TODO: This always gives everything priority 0 unless match kind is LPM, in which
+(* This always gives everything priority 0 unless match kind is LPM, in which
  * case the priority becomes the length of the prefix *)
 Definition petr4_parse_entry_def:
  (petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) [] = SOME_msg []) /\
@@ -2265,6 +2271,7 @@ Definition petr4_parse_entry_def:
      | SOME [tags; exp] =>
       (case exp of
        | Array [String exp_str; exp_obj] =>
+        (* Mask expressions constitute a special case *)
         if exp_str = "mask"
         then
          (case json_parse_obj ["tags"; "expr"; "mask"] exp_obj of
@@ -2288,6 +2295,22 @@ Definition petr4_parse_entry_def:
                | NONE_msg mask_exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++mask_exp_msg))
             | NONE_msg exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++exp_msg))
           | _ => get_error_msg "unknown JSON format of bit mask table entry: " exp_obj)
+        (* Range expressions constitute another special case *)
+        else if exp_str = "range"
+        then
+         (case json_parse_obj ["tags"; "lo"; "hi"] exp_obj of
+          | SOME [range_tags; range_lo; range_hi] =>
+           (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (range_lo, SOME key_type) of
+            | SOME_msg lo_res =>
+             (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (range_hi, SOME key_type) of
+               | SOME_msg hi_res =>
+                (* Cannot be LPM *)
+                (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                 | SOME_msg entry_res => SOME_msg ((p4_match_range lo_res hi_res, 0)::entry_res)
+                 | NONE_msg entry_msg => NONE_msg entry_msg)
+               | NONE_msg hi_msg => NONE_msg ("could not parse range table entry expression: "++hi_msg))
+            | NONE_msg lo_msg => NONE_msg ("could not parse range table entry expression: "++lo_msg))
+          | _ => get_error_msg "unknown JSON format of range table entry: " exp_obj)
         else
          (* TODO: Matches should be restricted to constants known at compile time *)
          (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (exp, SOME key_type) of
