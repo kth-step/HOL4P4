@@ -109,12 +109,6 @@ val exclude_descs =
   ("adding counter extern to V1Model model",
    ["issue1566-bmv2"]),
 (*
-    CounterArray extern of eBPF (manually spotted)
-*)
-  ("adding counter array extern to eBPF model",
-   ["count_ebpf",
-    "valid_ebpf"]),
-(*
     adding checksum extern functions to V1Model model
 *)
   ("adding checksum extern functions to V1Model model",
