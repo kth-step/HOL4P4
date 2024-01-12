@@ -971,7 +971,6 @@ Definition petr4_parse_expression_gen_def:
        SOME_msg (INL (e_call res_validity [validity_arg]))
       | _ => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
-
   (* Bit slice *)
   | Array [String "bit_string_access";
            Object [("tags", tags);
@@ -996,6 +995,12 @@ Definition petr4_parse_expression_gen_def:
   SOME_msg []) /\
  (petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) (h::t) =
   case h of
+  | (Array [String argtype; Object [("tags", tags)]], p_tau_opt) =>
+   if argtype = "Missing" then
+    (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) t of
+     | SOME_msg exps_res => SOME_msg ((e_v v_bot)::exps_res)
+     | NONE_msg exps_msg => NONE_msg exps_msg)
+   else NONE_msg ("unsupported argument type: "++argtype)
   | (Array [String argtype; Object [("tags", tags); ("value", exp)]], p_tau_opt) =>
    if argtype = "Expression" then
     case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, extfun_list) (exp, NONE) of
@@ -1019,6 +1024,9 @@ Termination
 WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json, p_tau_opt)) => json_size json | (INR (maps, json_list)) => json_p_tau_opt_list_size json_list)` >>
 fs[json_p_tau_opt_list_size_def] >>
 rpt strip_tac >> (fs[json_size_def]) >- (
+ subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
+ fs []
+) >- (
  subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
  fs []
 ) >- (

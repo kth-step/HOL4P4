@@ -121,18 +121,19 @@ val exclude_descs =
    ["issue995-bmv2",
     "issue1000-bmv2",
     "issue-2123-2-bmv2",
-    "issue-2123-3-bmv2"),
+    "issue-2123-3-bmv2"]),
 (*
     Exit statement
     FAIL: Could not parse .*\/(.*?)\. .*?: unknown statement name: exit.*
 *)
   ("adding exit statement to HOL4P4",
-   ["issue2225-bmv2"]),
+   ["issue2225-bmv2"])(*,
 (*
     "Don't care" (underscore) argument (manually spotted)
 *)
   ("fixing don't-care function arguments in import tool",
    ["issue774-4-bmv2"]),
+*)
 ];
 
 fun get_error_desc testname [] = NONE

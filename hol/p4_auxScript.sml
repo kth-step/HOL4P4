@@ -573,20 +573,6 @@ PairCases_on `h` >>
 gvs[]
 QED
 
-(********* lval and is_const lemmas ************)
-
-val lemma_const_notlval =
-prove (``!e. is_const e ==> ~ is_e_lval e``,
-Cases_on `e` >>
-EVAL_TAC
-);
-
-val lemma_lval_notconst =
-prove (``!e. is_e_lval e ==> ~ is_const e``,
-Cases_on `e` >>
-EVAL_TAC
-);
-
 val lemma_dir_EQ =
 prove (``!d. (¬is_d_out d = is_d_none_in d) /\ (is_d_out d = ¬is_d_none_in d) ``,
 Cases_on `d` >>

@@ -1870,6 +1870,7 @@ val is_d_out_def = Define `
 
 
 val get_lval_of_e_def = Define `
+  (get_lval_of_e (e_v v_bot) = SOME lval_null) /\
   (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
   (get_lval_of_e (e_acc e x) =
    case get_lval_of_e e of

@@ -207,16 +207,28 @@ Definition set_v:
  (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in))
 End
 
+Definition lookup_lval_header:
+ (lookup_lval_header ss header_lval =
+  case lookup_lval ss header_lval of
+   | SOME (v_header valid_bit x_v_l) => SOME (valid_bit, x_v_l)
+   | _ => NONE
+ )
+End
+
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
 Definition packet_in_extract_gen:
  (packet_in_extract_gen ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   (case lookup_lval_header scope_list (lval_varname (varn_name "headerLvalue")) of
-    | SOME (valid_bit, x_v_l) =>
-     (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+   (case lookup_ascope_gen ascope_lookup ascope i of
+    | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+
+     (case lookup_lval scope_list (lval_varname (varn_name "headerLvalue")) of
+      | SOME v_bot =>
+       (* TODO: This would require information from a dummy type argument, which must be accounted for in import tool... *)
+
+      | SOME (v_header valid_bit x_v_l) =>
        (case size_in_bits (v_header valid_bit x_v_l) of
         | SOME size =>
          if size <= LENGTH packet_in_bl
@@ -232,8 +244,8 @@ Definition packet_in_extract_gen:
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
           SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
         | NONE => NONE)
-       | _ => NONE)
-    | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
   | _ => NONE
  )
 End
