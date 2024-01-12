@@ -92,16 +92,11 @@ val exclude_descs =
     (* Manually spotted *)
     "saturated-bmv2"]),
 (*
-    Nested control blocks (manually spotted)
+    Enumeration type declarations (manually spotted)
 *)
-  ("adding or desugaring nested control blocks in the JSON-to-HOL4P4 parser",
-   ["arith-inline-bmv2",
-    "arith2-inline-bmv2",
-    "decl-soundness",
-    "enum-bmv2",
-    "default_action-bmv2",
-    "key-bmv2",
-    "two_ebpf"]),
+  ("adding support for enumeration type declarations in the JSON-to-HOL4P4 parser",
+   ["decl-soundness",
+    "enum-bmv2"]),
 (*
     Register extern of V1Model (manually spotted)
 *)
@@ -113,12 +108,6 @@ val exclude_descs =
 *)
   ("adding counter extern to V1Model model",
    ["issue1566-bmv2"]),
-(*
-    CounterArray extern of eBPF (manually spotted)
-*)
-  ("adding counter array extern to eBPF model",
-   ["count_ebpf",
-    "valid_ebpf"]),
 (*
     adding checksum extern functions to V1Model model
 *)

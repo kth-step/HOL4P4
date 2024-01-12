@@ -9,7 +9,7 @@ val _ = new_theory "p4_ebpf";
 (* TODO: Make actual representations of these extern objects *)
 Datatype:
  ebpf_v_ext =
-   ebpf_v_ext_counterArray
+   ebpf_v_ext_counterArray (word32 list)
  | ebpf_v_ext_array_table
  | ebpf_v_ext_hash_table
 End
@@ -67,6 +67,76 @@ End
 (**********************************************************)
 
 (* TODO: Models of all the extern objects in eBPF *)
+
+(************************)
+(* CounterArray methods *)
+(************************)
+
+(*************)
+(* construct *)
+
+(* Note that the "sparse" flag of the constructor is irrelevant for our representation, so this isn't used here. *)
+Definition CounterArray_construct:
+ (CounterArray_construct ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "max_index")) of
+  | SOME (v_bit (bl,n)) =>
+   let bitstring_list = REPLICATE (v2n bl) ((n2w 0):word32) in
+   let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (ebpf_v_ext_counterArray bitstring_list)) in
+   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+    | SOME scope_list' =>
+     SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+(*************)
+(* increment *)
+
+(* Note that this always succeeds: if index is out of range, nothing will be updated *)
+Definition update_index_def:
+ (update_index _ _ [] = []) /\
+ (update_index upd 0 (h::t) = ((upd h)::t)) /\
+ (update_index upd (SUC n) (h::t) = (h::(update_index upd n t)))
+End
+
+Definition CounterArray_increment:
+ (CounterArray_increment ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case ALOOKUP ext_obj_map i of
+    | SOME (INR (ebpf_v_ext_counterArray bitstring_list)) =>
+     (case lookup_lval scope_list (lval_varname (varn_name "index")) of
+      | SOME (v_bit (bl,n)) =>
+       let bitstring_list' = update_index ($word_add (1w:word32)) (v2n bl) bitstring_list in
+        SOME ((counter, AUPDATE ext_obj_map (i, INR (ebpf_v_ext_counterArray bitstring_list')), v_map, ctrl), scope_list, status_returnv v_bot)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+(*******)
+(* add *)
+
+Definition CounterArray_add:
+ (CounterArray_add ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case ALOOKUP ext_obj_map i of
+    | SOME (INR (ebpf_v_ext_counterArray bitstring_list)) =>
+     (case lookup_lval scope_list (lval_varname (varn_name "index")) of
+      | SOME (v_bit (bl,n)) =>
+       (case lookup_lval scope_list (lval_varname (varn_name "value")) of
+        | SOME (v_bit (bl',n')) =>
+         let bitstring_list' = update_index ($word_add ((v2w bl'):word32)) (v2n bl) bitstring_list in
+          SOME ((counter, AUPDATE ext_obj_map (i, INR (ebpf_v_ext_counterArray bitstring_list')), v_map, ctrl), scope_list, status_returnv v_bot)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
 
 (**********************************************************)
 (*                     MODEL-SPECIFIC                     *)

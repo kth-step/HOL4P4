@@ -25,6 +25,32 @@ The simplest way to try this out is to use the `Makefile` in the root directory 
 
 `petr4_to_hol4p4.sml` is the internal mechanism of `petr4_to_hol4p4_dir.sh` that does the actual format transformation from petr4 JSON to HOL4P4. `petr4_to_hol4p4Script.sml` holds the theorems needed for this, and `petr4_to_hol4p4Syntax.sml` the syntax library.
 
+## Some notes on program transformations
+
+In order to accomodate P4 programs in the syntax of HOL4P4, a bit of desugaring must be done. The most significant of these concern inlining. Currently, only nested control blocks are supported and not nested parser blocks. This works in the following manner:
+
+When instantiated blocks are applied (called), the apply block (body) of the nested block is inlined in the parent block, with all variables and tables prefixed with the instance name. The copy-in copy-out mechanism of block parameters is handled as follows:
+
+Copy-in:
+	* If the parameter is out, then the (prefixed) parameter is havoc-ed (by using arb_from_tau to assign a value with all bits as ARBs to it)
+	* Otherwise, assign the argument to the (prefixed) parameter.
+	
+Copy-out:
+	* If the parameter is out or inout, then assign the (prefixed) parameter to the L-value of the argument.
+	* Otherwise, do nothing (note that this is safe since the import tool will halt with an error if prefixed variables of the inlined programmable block intersect with those of the parent block)
+	
+Actions (local functions) of inlined blocks must be able to access the block variables of their respective block. For this reason, all block variables of the nested block are added (prefixed) to the declaration list of the parent block (as opposed to being introduced inside a block) with their copy-out L-values set to NONE.
+
+As an exception to the above, the local function maps `b_func_map` of the parent and child blocks are merged with no prefixing of action names, with the import tool halting with an error if name collisions are found for different entries.
+	
+After processing the entire program is complete, blocks which only occur as nested blocks will be removed from the pblock_map to avoid clutter.
+	
+Note that if the same block is instantiated twice, it uses different tables, while if it is instantiated once but applied twice, the same table is used.
+
+This method cannot distinguish between tables of the same name in non-nested control blocks, nor between instances of the same name in separate programmable blocks. To avoid name collisions across nestings, all table names with dots are disallowed by the import tool.
+
+Also, this method does not permit nested blocks from using a return statement to finish. Accordingly, the import tool halts with an error if inlining of programmable blocks with bodies containing return statements is attempted.
+
 ## How to debug test files
 
 Use `debug_arch_from_step`:

@@ -48,11 +48,16 @@ val ebpf_apply_table_f = ``ebpf_apply_table_f``;
 (* Fixed-function block map *)
 val ebpf_ffblock_map = ``[]``;
 
+val ebpf_CounterArray_map =
+ ``[("increment", ([("this", d_in); ("index", d_in)], CounterArray_increment));
+    ("add", ([("this", d_in); ("index", d_in); ("value", d_in)], CounterArray_add))]:ebpf_ascope ext_fun_map``;
+
 val ebpf_ext_map =
  ``((^(inst [``:'a`` |-> ``:ebpf_ascope``] core_ext_map))
     ++ [("", (NONE, ^ebpf_objectless_map));
         ("packet_in", (NONE, (^ebpf_packet_in_map)));
-        ("packet_out", (NONE, (^ebpf_packet_out_map)))])``;
+        ("packet_out", (NONE, (^ebpf_packet_out_map)));
+        ("CounterArray", SOME ([("this", d_out); ("max_index", d_none); ("sparse", d_none)], CounterArray_construct), (^ebpf_CounterArray_map))])``;
 
 val ebpf_func_map = core_func_map;
 

@@ -112,6 +112,13 @@ Proof
  fs [listTheory.MEM_SPLIT, e1_size_append, e_size_def]
 QED
 
+Theorem e1_tuple_size_mem:
+ !x e x_e_l. MEM (x,e) x_e_l ==> e_size e < e1_size x_e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, e1_size_append, e_size_def]
+QED
+
 Theorem e3_size_mem:
  !e e_l. MEM e e_l ==> e_size e < e3_size e_l
 Proof
