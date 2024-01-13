@@ -3014,31 +3014,6 @@ Definition petr4_parse_top_level_inst_def:
   | _ => get_error_msg "Unknown JSON format of instantiation: " inst
 End
 
-Definition petr4_parse_top_level_inst_def:
- petr4_parse_top_level_inst (tyenv, bltymap, ptymap) inst =
-  case json_parse_obj ["tags"; "annotations"; "type"; "args"; "name"; "init"] inst of
-  | SOME [tags; annot; type; Array args; name; init] =>
-   (* TODO: This should allow also specialised type names *)
-   (case petr4_parse_type_name type of
-    | SOME inst_type_name =>
-     (case ALOOKUP tyenv inst_type_name of
-      | SOME (p_tau_pkg pkg_name) =>
-       (case ALOOKUP ptymap inst_type_name of
-        | SOME pkg_param_tys =>
-         (case petr4_parse_pblock_insts args of
-          | SOME args_res =>
-           (case petr4_get_arch_block_pbls bltymap (ZIP (args_res, pkg_param_tys)) of
-            | SOME ab_pbls => SOME_msg (ab_pbls, pkg_name)
-            | NONE => get_error_msg "Could not parse programmable block instantiations: " (Array args))
-          | NONE => get_error_msg "Could not parse top-level instantiation arguments: " (Array args))
-        | NONE => get_error_msg "Unknown package type: " type)
-      | SOME (p_tau_ext ext_name) =>
-       (get_error_msg "Top-level extern instantiations currently unsupported by HOL4P4: " inst)
-      | _ => get_error_msg "Unknown type of top-level instantiation: " inst)
-    | NONE => get_error_msg "Could not parse name: " name)
-  | _ => get_error_msg "Unknown JSON format of instantiation: " inst
-End
-
 
 (**********************)
 (* Petr4 JSON element *)
