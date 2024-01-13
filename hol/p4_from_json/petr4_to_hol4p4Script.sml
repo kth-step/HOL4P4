@@ -598,6 +598,17 @@ Definition width_of_p_tau_def:
   | _ => NONE
 End
 
+Definition n_of_e_bitv_def:
+ n_of_e_bitv e =
+  case e of
+  | (e_v v) =>
+   (case v of
+    | (v_bit (bl, n)) =>
+     SOME (v2n bl)
+    | _ => NONE)
+  | _ => NONE
+End
+
 (* TODO: Only relevant for bitstrings, for now... *)
 (* TODO: Extend tau to cover field access of structs, et.c. *)
 (* TODO: vtymap uses varn_name to later use varn_star for case of function call *)
@@ -614,6 +625,14 @@ Definition exp_to_p_tau_def:
     | _ => NONE)
   | (e_var (varn_name varname)) => ALOOKUP vtymap (varn_name varname)
   | (e_binop op1 binop op2) => exp_to_p_tau vtymap op1
+  | (e_slice e hi lo) => 
+   (case n_of_e_bitv hi of
+    | SOME n =>
+     (case n_of_e_bitv lo of
+      | SOME n' =>
+       SOME (p_tau_bit ((n - n') + 1))
+      | NONE => NONE)
+    | NONE => NONE)
   | _ => NONE
 End
 
@@ -1537,6 +1556,10 @@ Definition exp_to_lval_def:
    (case exp_to_lval exp' of
     | SOME lval => SOME (lval_field lval field_name)
     | NONE => NONE)
+  | (e_slice exp' exp'' exp''') =>
+   (case exp_to_lval exp' of
+    | SOME lval => SOME (lval_slice lval exp'' exp''')
+    | NONE => NONE)
   | _ => NONE
 End
 
@@ -1546,11 +1569,19 @@ Definition infer_rhs_type_def:
   case lval of
   | lval_varname varn =>
    ALOOKUP vtymap varn
-  | lval_field lval fld =>
-   (case infer_rhs_type vtymap lval of
+  | lval_field lval' fld =>
+   (case infer_rhs_type vtymap lval' of
     | SOME (p_tau_xtl struct_ty flds) =>
      ALOOKUP flds fld
     | _ => NONE)
+  | lval_slice lval' exp exp' =>
+   (case n_of_e_bitv exp of
+    | SOME n =>
+     (case n_of_e_bitv exp' of
+      | SOME n' =>
+       SOME (p_tau_bit ((n - n') + 1))
+      | NONE => NONE)
+    | NONE => NONE)
   | _ => NONE
 End
 

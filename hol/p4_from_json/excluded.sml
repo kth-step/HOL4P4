@@ -50,27 +50,13 @@ val exclude_descs =
     "subparser-with-header-stack-bmv2",
     "ternary2-bmv2"]),
 (*
-    Bit slice lvalues
-    FAIL: Could not parse .*\/(.*?)\. .*?: \["bit_string_access".*
-*)
-  ("extending import tool to properly support bit slice lvalues",
-   ["issue870_ebpf",
-    "issue983-bmv2",
-    "match-on-exprs-bmv2"]),
-(*
-    Struct values
-    FAIL: Could not parse .*\/(.*?)\. .*list.*
-*)
-  ("fixing import tool to parse struct values",
-   ["constant-in-calculation-bmv2",
-    "issue655",
-    "recursive-casts"]),
-(*
     Introduction of tuple types (manually spotted)
 *)
   ("adding tuple types to HOL4P4",
-   ["checksum2-bmv2",
-    "checksum3-bmv2"]),
+   ["constant-in-calculation-bmv2",
+    "checksum2-bmv2",
+    "checksum3-bmv2",
+    "issue655-bmv2"]),
 (*
     Signed integers
     FAIL: Could not parse .*\/(.*?)\. .*?: \["int".*
@@ -103,11 +89,6 @@ val exclude_descs =
 *)
   ("adding counter extern to V1Model model",
    ["issue1566-bmv2"]),
-(*
-    adding checksum extern functions to V1Model model
-*)
-  ("adding checksum extern functions to V1Model model",
-   ["issue655-bmv2"]),
 (*
     Return struct of table application
 *)
