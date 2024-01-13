@@ -224,6 +224,9 @@ cast :: cast_ ::=
 | ( unsigned n ) :: :: unsigned
   {{ com unsigned cast }}
   {{ tex ( unsigned [[n]] ) }}
+| ( bool ) :: :: bool
+  {{ com bool cast }}
+  {{ tex ( bool ) }}
 
 binop {{ tex \oplus }} :: binop_ ::=
 | * :: :: mul
