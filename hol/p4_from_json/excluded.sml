@@ -89,11 +89,15 @@ val exclude_descs =
    ["decl-soundness",
     "enum-bmv2"]),
 (*
-    Register extern of V1Model (manually spotted)
+    To-bool cast (manually spotted)
 *)
-  ("importing more types of register extern in V1Model model",
-   ["issue1814-1-bmv2",
-    "issue1097-2-bmv2"]),
+  ("supporting to-bool cast in HOL4P4",
+   ["issue1814-1-bmv2"]),
+(*
+    Top-level extern instantiations (manually spotted)
+*)
+  ("supporting top-level extern instantiations in HOL4P4",
+   ["issue1097-2-bmv2"]),
 (*
     Counter extern of V1Model (manually spotted)
 *)
@@ -121,7 +125,7 @@ val exclude_descs =
    ["issue995-bmv2",
     "issue1000-bmv2",
     "issue-2123-2-bmv2",
-    "issue-2123-3-bmv2"),
+    "issue-2123-3-bmv2"]),
 (*
     Exit statement
     FAIL: Could not parse .*\/(.*?)\. .*?: unknown statement name: exit.*
@@ -132,7 +136,7 @@ val exclude_descs =
     "Don't care" (underscore) argument (manually spotted)
 *)
   ("fixing don't-care function arguments in import tool",
-   ["issue774-4-bmv2"]),
+   ["issue774-4-bmv2"])
 ];
 
 fun get_error_desc testname [] = NONE
