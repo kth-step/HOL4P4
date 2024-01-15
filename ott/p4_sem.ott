@@ -2074,9 +2074,10 @@ val copyin_def = Define `
 (* in bl' slice from v2 to v1 and in that section add bl in those positions
    relpace_bits ([F;F;F],3) ([T;T;T;T;T;T],6) 3 1 = [T; T; F; F; F; T]
   *)
-val  relpace_bits_def = Define `
-relpace_bits (bl,(v:num)) (bl',v') v1 v2 =
-(SEG (v'-v1 -1) (0) bl') ++ bl ++ (SEG (v2) (0)  bl') `;  
+val relpace_bits_def = Define `
+ relpace_bits (bl,(v:num)) (bl',v') v1 v2 =
+  (SEG ((v'-v1)-1) 0 bl') ++ bl ++ (SEG v2 (v'-v2) bl')
+`;
 
 
      

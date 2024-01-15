@@ -380,9 +380,13 @@ End
 (* Parses a type to a string, should return NONE if type is not a named type *)
 Definition petr4_parse_type_name_def:
  petr4_parse_type_name json =
-  OPTION_BIND
-   (json_parse_arr "name" SOME json)
-   petr4_parse_tyname
+   json_parse_arr_list
+     [("name", petr4_parse_tyname);
+      ("specialized", \json'.
+                       (case json_parse_obj ["tags"; "base"; "args"] json' of
+                        | SOME [tags; base; args] =>
+                         (json_parse_arr "name" petr4_parse_tyname base)
+                        | _ => NONE));] json
 End
 
 Definition petr4_num_binop_lookup_def:
@@ -594,6 +598,17 @@ Definition width_of_p_tau_def:
   | _ => NONE
 End
 
+Definition n_of_e_bitv_def:
+ n_of_e_bitv e =
+  case e of
+  | (e_v v) =>
+   (case v of
+    | (v_bit (bl, n)) =>
+     SOME (v2n bl)
+    | _ => NONE)
+  | _ => NONE
+End
+
 (* TODO: Only relevant for bitstrings, for now... *)
 (* TODO: Extend tau to cover field access of structs, et.c. *)
 (* TODO: vtymap uses varn_name to later use varn_star for case of function call *)
@@ -610,6 +625,14 @@ Definition exp_to_p_tau_def:
     | _ => NONE)
   | (e_var (varn_name varname)) => ALOOKUP vtymap (varn_name varname)
   | (e_binop op1 binop op2) => exp_to_p_tau vtymap op1
+  | (e_slice e hi lo) => 
+   (case n_of_e_bitv hi of
+    | SOME n =>
+     (case n_of_e_bitv lo of
+      | SOME n' =>
+       SOME (p_tau_bit ((n - n') + 1))
+      | NONE => NONE)
+    | NONE => NONE)
   | _ => NONE
 End
 
@@ -1533,6 +1556,10 @@ Definition exp_to_lval_def:
    (case exp_to_lval exp' of
     | SOME lval => SOME (lval_field lval field_name)
     | NONE => NONE)
+  | (e_slice exp' exp'' exp''') =>
+   (case exp_to_lval exp' of
+    | SOME lval => SOME (lval_slice lval exp'' exp''')
+    | NONE => NONE)
   | _ => NONE
 End
 
@@ -1542,11 +1569,19 @@ Definition infer_rhs_type_def:
   case lval of
   | lval_varname varn =>
    ALOOKUP vtymap varn
-  | lval_field lval fld =>
-   (case infer_rhs_type vtymap lval of
+  | lval_field lval' fld =>
+   (case infer_rhs_type vtymap lval' of
     | SOME (p_tau_xtl struct_ty flds) =>
      ALOOKUP flds fld
     | _ => NONE)
+  | lval_slice lval' exp exp' =>
+   (case n_of_e_bitv exp of
+    | SOME n =>
+     (case n_of_e_bitv exp' of
+      | SOME n' =>
+       SOME (p_tau_bit ((n - n') + 1))
+      | NONE => NONE)
+    | NONE => NONE)
   | _ => NONE
 End
 
@@ -2953,28 +2988,29 @@ Definition petr4_get_arch_block_pbls_def:
    | NONE => NONE)
 End
 
+(* TODO: This should also parse top-level instantiation of externs *)
 Definition petr4_parse_top_level_inst_def:
  petr4_parse_top_level_inst (tyenv, bltymap, ptymap) inst =
   case json_parse_obj ["tags"; "annotations"; "type"; "args"; "name"; "init"] inst of
   | SOME [tags; annot; type; Array args; name; init] =>
    (case petr4_parse_type_name type of
     | SOME inst_type_name =>
-     (case ALOOKUP ptymap inst_type_name of
-      | SOME pkg_param_tys =>
-       (* Check type of inst in tyenv (extern object or package) *)
-       (case ALOOKUP tyenv inst_type_name of
-        | SOME (p_tau_pkg pkg_name) =>
+     (* Check type of inst in tyenv (extern object or package) *)
+     (case ALOOKUP tyenv inst_type_name of
+      | SOME (p_tau_pkg pkg_name) =>
+       (case ALOOKUP ptymap inst_type_name of
+        | SOME pkg_param_tys =>
          (case petr4_parse_pblock_insts args of
           | SOME args_res =>
            (case petr4_get_arch_block_pbls bltymap (ZIP (args_res, pkg_param_tys)) of
             | SOME ab_pbls => SOME_msg (ab_pbls, pkg_name)
             | NONE => get_error_msg "Could not parse programmable block instantiations: " (Array args))
           | NONE => get_error_msg "Could not parse top-level instantiation arguments: " (Array args))
-        | SOME (p_tau_ext ext_name) =>
-         (get_error_msg "Top-level extern instantiations currently unsupported by HOL4P4: " inst)
-        | _ => get_error_msg "Unknown type of top-level instantiation: " inst)
-      | NONE => get_error_msg "Unknown package type: " type)
-    | NONE => get_error_msg "Could not parse name: " name)
+        | NONE => get_error_msg "Unknown package type: " type)
+      | SOME (p_tau_ext ext_name) =>
+       (get_error_msg "Top-level extern instantiations currently unsupported by HOL4P4: " inst)
+      | _ => get_error_msg "Unknown type of top-level instantiation: " inst)
+    | NONE => get_error_msg "Could not parse type name (may be top-level extern instantiation): " type)
   | _ => get_error_msg "Unknown JSON format of instantiation: " inst
 End
 
