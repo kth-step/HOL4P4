@@ -67,7 +67,11 @@ fun astate_get_top_stmt astate =
  end
 ;
 
-datatype branch_data = no_branch | conditional of term | select of term * (term list) * term;
+datatype branch_data =
+   no_branch
+ | conditional of term
+ | select of term * (term list) * term
+ | apply of term * term;
 
 (* Returns the information needed to perform a branch *)
 fun astate_get_branch_data astate =
@@ -87,6 +91,9 @@ fun astate_get_branch_data astate =
      then select $ (fn (a,b,c) => (a,fst $ dest_list b,c)) $ dest_e_select e
      else no_branch
     end 
+   else if is_stmt_app stmt' 
+   (* TODO: Should also work for lists of expressions of length more than 1 *)
+   then apply $ dest_stmt_app stmt'
    else no_branch
   end
  | NONE => no_branch
@@ -492,7 +499,9 @@ val p4_stop_eval_consts =
   “word_hi”
 ];
 
-(* Function that decides whether to branch or not *)
+(* Function that decides whether to branch or not: returns NONE if no branch should
+ * be performed, otherwise SOME of a list of cases and a theorem stating the disjunction
+ * between them *)
 fun p4_should_branch step_thm =
  let
   val astate = the_final_state_imp step_thm
@@ -521,6 +530,7 @@ fun p4_should_branch step_thm =
         val sel_bit = dest_v_bit sel_val
        in
         let
+         (* TODO: This should also handle lists of values *)
          (* The branch cases for equality with the different keys *)
          val key_branch_conds = map (fn key => mk_eq (sel_bit, key)) keys
          (* Default branch: i.e., neither of the above hold *)
@@ -533,6 +543,46 @@ fun p4_should_branch step_thm =
         end
        end
       else raise (ERR "p4_should_branch" ("Unsupported select value type: "^(term_to_string sel_val)))
+     end
+    else NONE
+    (* Branch point: table application *)
+  | apply (tbl_name, e) =>
+    if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso not $ null $ free_vars e
+    then
+     let
+      (* TODO: This should also handle set types as keys, in which case this is not an
+       * equality, but set membership of app_bit *)
+      (* TODO: This should also handle lists of values *)
+      (* 1. Extract ctrl from ascope *)
+      val ctrl = #4 $ dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate
+      (* 2. Extract key sets from ascope using tbl_name *)
+      val tbl_opt = rhs $ concl $ EVAL “ALOOKUP ^ctrl ^tbl_name”
+     in
+      if is_some tbl_opt
+      then
+       let
+	val tbl = dest_some tbl_opt
+	(* 3. Construct different branch cases for all the key sets
+	 *    N.B.: Can now be logically overlapping! *)
+	(* The branch cases for equality with the different table entry keys *)
+	val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
+
+(* TODO *)
+val test_conv_rhs = rhs o concl o (SIMP_CONV std_ss [listTheory.ZIP, p4_auxTheory.match_all_def, p4Theory.e_11, p4Theory.v_11])
+
+
+	val key_branch_conds = map (fn key => test_conv_rhs $ mk_comb (key, e)) keys
+	(* 4. Construct default branch case  *)
+	(* Default branch: i.e., neither of the above hold *)
+	val def_branch_cond = list_mk_conj $ map (fn key_comb => test_conv_rhs $ mk_neg key_comb) key_branch_conds
+	(* 5. Construct disjunction theorem, which now is not a strict disjunction *)
+	(* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
+	 * rewrites, and not in-place with tactics *)
+	val disj_thm = prove(mk_disj (list_mk_disj key_branch_conds, def_branch_cond), metis_tac[])
+       in
+	SOME (key_branch_conds@[def_branch_cond], disj_thm)
+       end
+      else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
      end
     else NONE
   | no_branch => NONE

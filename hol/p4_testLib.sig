@@ -16,10 +16,8 @@ val eval_and_print_rest : string -> term -> term -> int -> term
 val eval_under_assum :
    hol_type -> term -> term -> term list -> term list -> thm -> int -> thm
 val eval_under_assum_break : term -> term -> term list -> thm -> int list -> thm
-val dest_astate : term -> term * term * term * term
-val dest_vss_aenv : term -> term * term * term * term
-val dest_vss_ascope : term -> term * term * term * term
-val dest_vss_actx :
+val dest_ascope : term -> term * term * term * term
+val dest_actx :
    term ->
      term * term * term * term * term * term * term * term * term * term
 val debug_arch_from_step :
