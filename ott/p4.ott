@@ -137,6 +137,8 @@ funn :: funn_ ::=
   {{ com function name }}
 | inst f :: :: inst
   {{ com extern object instantiation }}
+| app tbl :: :: app
+  {{ com table application }}
 | f f' :: :: ext
   {{ com extern method call }}
 %| ( funn ) :: X :: paren
@@ -308,13 +310,13 @@ e :: e_ ::=
   %TODO: Should this instead have two values as 2nd and 3rd params?
   {{ com bit-slice }}
 | call funn ( e1 , .. , en ) :: :: call
-  {{ com function or extern call }}
+  {{ com function or extern call, or table application }}
 | select e { v1 : x1 ; ... ; vn : xn } x :: :: select
   {{ com select }}
 | eStruct { x1 = e1 ; ... ; xn = en } :: :: struct
   {{ com struct }}
 | eHeader boolv { x1 = e1 ; ... ; xn = en } :: :: header
-  {{ com header }}  
+  {{ com header }}
 | ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
@@ -612,12 +614,12 @@ stmt :: stmt_ ::=
 | transition e :: :: trans
   {{ com transition }}
   {{ tex \mathbf{transition}\, [[e]] }}
-| apply tbl ( e1 , .. , en ) :: :: app
-  {{ com apply }}
- % {{ tex \mathbf{apply} \, [[tbl]] \, [[e_list]] }}
 | ext :: :: ext
   {{ com extern }}
   {{ tex \blacksquare  }}
+| apply :: :: apply
+  {{ com apply }}
+  {{ tex \mathbf{apply} }}
 
 %Fence between stmt and func_map
 embed
@@ -655,7 +657,7 @@ ext_map {{ tex X }} :: ext_map_ ::=
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
-{{ hol ((string, ((mk list) # (x # e_list))) alist) }}
+{{ hol ((string, ((mk list) # (x # e_list) # num)) alist) }}
 | empty :: :: empty
   {{ com empty table map }}
   {{ hol ([]:((string, ((mk list) # (x # e_list))) alist)) }}
@@ -751,7 +753,7 @@ copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 %This function takes a table name, arguments, match kinds and the architectural scope and returns an action with arguments
 apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
 {{ com apply table function }}
-{{ hol ((x # e_list # mk_list # (x # e_list) # ascope_ty) -> (x # e_list) option) }}
+{{ hol ((x # e_list # mk_list # (x # e_list) # ascope_ty) -> (x # e_list # bool) option) }}
 
 %Fence between ab_list and actx
 embed

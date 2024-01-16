@@ -312,18 +312,26 @@ formula :: formula_ ::=
   {{ tex [[frame_list]] \neq [ \, ] }}
 
 %Apply table
-| tbl_map ( tbl ) = ( mk_list , ( x , e_list ) ) :: :: find_key
+| tbl_map ( tbl ) = ( mk_list , ( x , e_list ) , i ) :: :: find_key
   {{ com find the match kinds and default action in the table map }}
-  {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[mk_list]] , ( [[x]] , [[e_list]] ) ) }}
-  {{ hol ( ALOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mk_list]] , ( [[x]] , [[e_list]] ) ) ) }}
-| apply_table_f ( tbl , e_list , mk_list , ( f , e_list' ) , ascope ) = ( f' , e_list'' ) :: :: apply_table  
+  {{ tex \mathrm{Tb}\, [[tbl]]\, =\, ( [[mk_list]] , ( [[x]] , [[e_list]] ) , [[i]]) }}
+  {{ hol ( ALOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mk_list]] , ( [[x]] , [[e_list]] ) , [[i]]) ) }}
+| apply_table_f ( tbl , e_list , mk_list , ( f , e_list' ) , ascope ) = ( f' , e_list'' , b ) :: :: apply_table  
   {{ com fetch the action name and parameters from the control plane }}
-  {{ tex [[apply_table_f]]\, ( [[tbl]] , \, [[e_list]], \, [[mk_list]], ( [[f]] , [[e_list']] ), \, [[ascope]]\, ) = \,( [[f']] , [[e_list'']] ) }}
-  {{ hol ([[apply_table_f]] ( [[tbl]] , [[e_list]] , [[mk_list]] , ( [[f]] , [[e_list']] ), [[ascope]]) = SOME ( [[f']] , [[e_list'']] ) ) }}
+  {{ tex [[apply_table_f]]\, ( [[tbl]] , \, [[e_list]], \, [[mk_list]], ( [[f]] , [[e_list']] ), \, [[ascope]]\, ) = \,( [[f']] , [[e_list'']] , [[b]] ) }}
+  {{ hol ([[apply_table_f]] ( [[tbl]] , [[e_list]] , [[mk_list]] , ( [[f]] , [[e_list']] ), [[ascope]]) = SOME ( [[f']] , [[e_list'']] , [[b]]) ) }}
 | index_not_const e_list = i :: :: indexofnotconst 
   {{ com get the first index of the unred expression to const}}
   {{ tex i = \mathrm{min} \, \{ j . \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
   {{ hol (index_not_const [[e_list]] = SOME [[i]]) }}
+| tbl = lookup_tbl_name ( funn ) :: :: lookup_tbl_name 
+  {{ com lookup table name of funn }}
+  {{ tex [[tbl]] = \mathrm{lookup\_tbl\_name} ( [[funn]] ) }}
+  {{ hol (lookup_tbl_name [[funn]] = SOME [[tbl]]) }}
+| lval = "res_struct" :: M :: lval_res_struct
+  {{ com L-value is res_struct }}
+  {{ hol ([[lval]] = lval_varn (varn_name "res_struct")) }}
+  {{ tex [[lval]] = ``res\_struct" }}
 
 % extern
 | ext_fun = lookup_ext_fun ( funn , ext_map ) :: :: ext_fun_lookup
@@ -481,10 +489,10 @@ formula :: formula_ ::=
   {{ com initialise variable to value }}
   {{ hol ([[scope_list']] = initialise [[scope_list]] [[varn]] [[v]]) }}
   {{ tex [[scope_list']] = \mathrm{initialise} ([[scope_list]], [[varn]], [[v]]) }}
-| g_scope_list' = initialise_var_stars func_map b_func_map ext_map g_scope_list :: M :: initialise_var_stars
+| g_scope_list' = initialise_var_stars func_map b_func_map ext_map tbl_map g_scope_list :: M :: initialise_var_stars
   {{ com initialise var_star variables }}
-  {{ hol (SOME [[g_scope_list']] = initialise_var_stars [[func_map]] [[b_func_map]] [[ext_map]] [[g_scope_list]]) }}
-  {{ tex [[g_scope_list']] = \mathrm{initialise\_var\_stars} ([[func_map]], [[b_func_map]], [[ext_map]], [[g_scope_list]]) }}
+  {{ hol (SOME [[g_scope_list']] = initialise_var_stars [[func_map]] [[b_func_map]] [[ext_map]] [[tbl_map]] [[g_scope_list]]) }}
+  {{ tex [[g_scope_list']] = \mathrm{initialise\_var\_stars} ([[func_map]], [[b_func_map]], [[ext_map]], [[tbl_map]], [[g_scope_list]]) }}
 
 | g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list ) :: M :: scopes_to_pass
   {{ com global and block scopes to pass based on function location }}
@@ -520,21 +528,21 @@ formula :: formula_ ::=
   {{ com expression is not fully reduced }}
   {{ tex ~ { \mathrm{fully\_reduced} } \, [[e]] }}
   {{ hol (~(fully_reduced [[e]])) }}
-| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig_body
+| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map , tbl_map ) :: M :: fun_sig_body
   {{ com look up the body and signature of an abstract function name }}
   %TODO: LaTeX hack here...
-  {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
-  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+  {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]], [[tbl_map]]) }}
+  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]] [[tbl_map]]) }}
 | ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_block_sig_body ( f , b_func_map ) :: M :: block_sig_body
   {{ com look up the body and signature of a block (for now, held in the local function map) }}
   %TODO: LaTeX hack here...
   {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_block\_sig\_body} ([[f]], [[b_func_map]]) }}
   {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_block_sig_body [[f]] [[b_func_map]]) }}
-| [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig
+| [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map , tbl_map ) :: M :: fun_sig
   {{ com look up the signature of an abstract function name }}
   %TODO: LaTeX hack here...
-  {{ tex ((x_1, d_1), \ldots, (x_n, d_n)) = \mathrm{lookup\_funn\_sig} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
-  {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+  {{ tex ((x_1, d_1), \ldots, (x_n, d_n)) = \mathrm{lookup\_funn\_sig} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]], [[tbl_map]]) }}
+  {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[b_func_map]] [[ext_map]] [[tbl_map]]) }}
 | parser_not_finished frame_list :: M :: parser_not_finished
   {{ com parser state is not finished }}
   {{ hol (parser_not_finished [[frame_list]]) }}
@@ -2077,7 +2085,7 @@ val copyin_def = Define `
 val relpace_bits_def = Define `
  relpace_bits (bl,(v:num)) (bl',v') v1 v2 =
   (SEG ((v'-v1)-1) 0 bl') ++ bl ++ (SEG v2 (v'-v2) bl')
-`;
+`; 
 
 
      
@@ -2192,6 +2200,13 @@ val var_star_updates_of_func_map_def = Define `
   )
 `;
 
+val var_star_updates_of_tbl_map_def = Define `
+  (var_star_updates_of_tbl_map (tbl_map:tbl_map) =
+   let varnames = (MAP FST tbl_map) in
+   MAP ( \x. (varn_star (funn_app x), (v_bot, (NONE:lval option)))) varnames
+  )
+`;
+
 (* Obtains the varn_star updates of an extern map *)
 val var_star_updates_of_ext_map_def = Define `
  (var_star_updates_of_ext_map ([]:ext_map) = []) /\
@@ -2206,10 +2221,10 @@ val var_star_updates_of_ext_map_def = Define `
 
 (* Initialises varn_star variables in function maps *)
 val initialise_var_stars_def = Define `
-  (initialise_var_stars func_map b_func_map ext_map g_scope_list =
+  (initialise_var_stars func_map b_func_map ext_map tbl_map g_scope_list =
    case g_scope_list of
    | [bg_scope; gg_scope] =>
-    SOME ([AUPDATE_LIST bg_scope (var_star_updates_of_func_map b_func_map); AUPDATE_LIST gg_scope ((var_star_updates_of_func_map func_map)++(var_star_updates_of_ext_map ext_map))])
+    SOME ([AUPDATE_LIST bg_scope ((var_star_updates_of_func_map b_func_map)++(var_star_updates_of_tbl_map tbl_map)); AUPDATE_LIST gg_scope ((var_star_updates_of_func_map func_map)++(var_star_updates_of_ext_map ext_map))])
    | _ => NONE
   )
 `;
@@ -2228,9 +2243,16 @@ val declare_list_in_fresh_scope_def = Define `
     (MAP (\(x,(t,lvalop)). (x , (arb_from_tau t, NONE))) t_scope)
 `;
 
+val get_tbl_x_d_l_def = Define `
+ (get_tbl_x_d_l 0 = []) /\
+ (get_tbl_x_d_l (SUC n_args) =
+  (("key"++(toString n_args), d_in)::(get_tbl_x_d_l n_args))
+ )
+`;
+
 (* Looks up the function signature and body for an abstract function name. *)
 val lookup_funn_sig_body_def = Define `
-  (lookup_funn_sig_body (funn:funn) (func_map:func_map) (b_func_map:b_func_map) (ext_map:'a ext_map) =
+  (lookup_funn_sig_body (funn:funn) (func_map:func_map) (b_func_map:b_func_map) (ext_map:'a ext_map) (tbl_map:tbl_map) =
     case funn of
     | (funn_name x) =>
      (case ALOOKUP b_func_map x of
@@ -2252,12 +2274,17 @@ val lookup_funn_sig_body_def = Define `
 	      | SOME (x_d_l, _) => SOME (stmt_ext, x_d_l)
 	      | _ => NONE)
       | _ => NONE)
+    | (funn_app x) =>
+     (case ALOOKUP tbl_map x of
+      | SOME (_, _, n_args) =>
+       SOME (stmt_seq stmt_apply (stmt_ret (e_var (varn_name "res_struct"))), get_tbl_x_d_l n_args)
+      | NONE => NONE)
   )
 `;
 
 val lookup_funn_sig_def = Define `
-  (lookup_funn_sig funn func_map b_func_map ext_map =
-    case lookup_funn_sig_body funn func_map b_func_map ext_map of
+  (lookup_funn_sig funn func_map b_func_map ext_map tbl_map =
+    case lookup_funn_sig_body funn func_map b_func_map ext_map tbl_map of
     | SOME (_, x_d_l) => SOME x_d_l
     | NONE => NONE
   )
@@ -2267,6 +2294,13 @@ val lookup_funn_sig_def = Define `
 val lookup_block_sig_body_def = Define `
  lookup_block_sig_body f b_func_map =
   ALOOKUP b_func_map f
+`;
+
+val lookup_tbl_name_def = Define `
+ lookup_tbl_name funn =
+  case funn of
+  | funn_app tbl => SOME tbl
+  | _ => NONE
 `;
 
 (* Given lists of variable names and directions, a caller's scope stack ss
@@ -2414,7 +2448,8 @@ val lookup_ext_fun_def = Define `
    case ALOOKUP ext_map f of
    | SOME (SOME (_, ext_fun), _) => SOME ext_fun
    | _ => NONE) /\
-  (lookup_ext_fun (funn_name f) ext_map = NONE)
+  (lookup_ext_fun (funn_name f) ext_map = NONE) /\
+  (lookup_ext_fun (funn_app f) ext_map = NONE)
 `;
 
 
@@ -2425,18 +2460,20 @@ val lookup_ext_fun_def = Define `
 val scopes_to_pass_def = Define `
  scopes_to_pass (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map) (g_scope_list:g_scope_list) =
   case funn of
-   | (funn_name x) =>
+   | funn_name x =>
     (case ALOOKUP b_func_map x of
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
       (case ALOOKUP func_map_g x of
        | SOME (stmt, x_d_l) => SOME ([ []; EL 1 g_scope_list])
-        (* If x is not found in b_func_map or func_map_g we must be at
-         * base level without having called any function *)
+        (* If x is not found in b_func_map or func_map_g we must either
+         * be at base level without having called any function,
+         * or inside a table application frame *)
         (* TODO: Should this be a special funn? "funn_base" or something? *)
        | NONE => SOME g_scope_list
       )
     )
+   | funn_app x => SOME g_scope_list
    | _ => SOME ([ []; EL 1 g_scope_list])
 `;
 
@@ -2447,7 +2484,7 @@ val scopes_to_pass_def = Define `
 val scopes_to_retrieve_def = Define `
  scopes_to_retrieve (funn:funn) (func_map_g:func_map) (b_func_map:b_func_map) (g_scope_list_og:g_scope_list) (g_scope_list:g_scope_list) =
   case funn of
-   | (funn_name x) =>
+   | funn_name x =>
     (case ALOOKUP b_func_map x of
      | SOME (stmt, x_d_l) => SOME g_scope_list
      | NONE =>
@@ -2457,6 +2494,7 @@ val scopes_to_retrieve_def = Define `
        | NONE => SOME g_scope_list
       )
     )
+   | funn_app x => SOME g_scope_list
    | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
 `;
 
@@ -2473,6 +2511,7 @@ val map_to_pass_def = Define `
      | SOME (stmt, x_d_l) => SOME b_func_map
      | NONE => SOME []
     )
+   | funn_app x => SOME b_func_map
    | _ => SOME []
 `;
 
@@ -2485,6 +2524,7 @@ val tbl_to_pass_def = Define `
      | SOME (stmt, x_d_l) => SOME tbl_map
      | NONE => SOME []
     )
+   | funn_app x => SOME tbl_map
    | _ => SOME []
 `;
 
@@ -2511,14 +2551,14 @@ ctx g_scope_list scope_list ( var varn ) ~> ( v ,  empty )
 %Function/method call
 
 %Function call construction of new frame
-( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
+( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map , tbl_map )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scope_list )
 ----------------------------------- :: call_newframe
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( var ( star , funn ) , [ ( funn , [ stmt ] , [ scope' ] ) ] )
 
 %Function call reduction of arguments
-[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
+[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map , tbl_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) g_scope_list scope_list ( e ) ~> ( e' , frame_list )
@@ -2927,12 +2967,16 @@ by
 
 
 %%%%%%%%%%%%%%
-%The action is treated as a function call
-  is_consts ( e1 , .. , en )
-  tbl_map ( tbl ) = ( [ mk1 , .. , mkn ] , ( f' , [ e'1 , .. , e'o ] ) )
-  apply_table_f ( tbl , ( e1 , .. , en ) , ( [ mk1 , .. , mkn ] ) , ( f' , [ e'1 , .. , e'o ] ) , ascope ) = ( f , ( v1 , .. , vm ) )
+%Apply
+
+  tbl = lookup_tbl_name ( funn )
+  tbl_map ( tbl ) = ( [ mk1 , .. , mkn ] , ( f' , [ e'1 , .. , e'o ] ) , i )
+  apply_table_f ( tbl , ( e1 , .. , en ) , ( [ mk1 , .. , mkn ] ) , ( f' , [ e'1 , .. , e'o ] ) , ascope ) = ( f , ( v1 , .. , vm ) , b )
+  lval = "res_struct"
+  ! b = b'
+  scope_list' = assign ( scope_list , struct { hit = b ; miss = b' ; action_run = f } , lval )
   ----------------------------------- :: apply_table_v
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign null ( call f ( v1 , .. , vm ) ) ] , scope_list ) ] , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ apply ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign null ( call f ( v1 , .. , vm ) ) ] , scope_list ) ] , Running )
 
 
 %%%%%%%%%%%%%%
@@ -2978,15 +3022,6 @@ by
   ctx ( ascope , g_scope_list , [ ( funn , [ transition e ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ transition e' ] , scope_list ) ] , Running )
 
 
-%Reduction step of match-action expression
-  index_not_const [ e1 , .. , en ] = i
-  e = [ e1 , .. , en ] [ i ]
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
-  [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
-  ----------------------------------- :: apply_table_e
-  ctx ( ascope , g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ apply tbl ( e'1 , .. , e'n ) ] , scope_list ) ] , Running )
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics (list of frames) %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3016,7 +3051,7 @@ by
   b_func_map' = map_to_pass funn b_func_map
   tbl_map' = tbl_to_pass funn b_func_map tbl_map
   ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
-  ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
+  ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map , tbl_map )
   g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
   g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' ) 
   g_scope_list''''' = scopes_to_pass ( funn' , func_map , b_func_map , g_scope_list'''' )
@@ -3054,7 +3089,7 @@ by
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
 %Note that the below means that the var_star of globally-defined functions is redefined every time pbl_init is applied 
-  g_scope_list''' = initialise_var_stars func_map b_func_map ext_map g_scope_list''
+  g_scope_list''' = initialise_var_stars func_map b_func_map ext_map tbl_map g_scope_list''
   ----------------------------------- :: pbl_init
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list''' , [ ( f , [ stmt ] , [ empty ] ) ] , Running )
 
