@@ -6,7 +6,7 @@ DEPENDENCIES   = ../arch
 # configuration
 # ----------------------------------
 HOLHEAP        = 
-NEWHOLHEAP     = p4_from_json-heap
+NEWHOLHEAP     = import_tool-heap
 
 HEAPINC_EXTRA  = wordsLib
 

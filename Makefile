@@ -24,8 +24,8 @@ hol/deter: hol hol/exec
 hol/examples: hol hol/arch hol/test_tools
 	Holmake -r -I hol/examples
 
-hol/p4_from_json: hol hol/arch
-	Holmake -r -I hol/p4_from_json
+hol/import_tool: hol hol/arch
+	Holmake -r -I hol/import_tool
 	
 hol/progress_preservation: hol hol/deter
 	Holmake -r -I hol/progress_preservation
@@ -33,11 +33,11 @@ hol/progress_preservation: hol hol/deter
 hol/symb_exec: hol hol/exec hol/test_tools
 	Holmake -r -I hol/symb_exec
 
-validate: hol/p4_from_json
-	cd hol/p4_from_json && ./validate.sh
+validate: hol/import_tool
+	cd hol/import_tool && ./validate.sh
 	
-concurrency_tests: hol/p4_from_json hol/test_tools hol/concurrency
-	Holmake -r -I hol/p4_from_json/concurrency_tests
+concurrency_tests: hol/import_tool hol/test_tools hol/concurrency
+	Holmake -r -I hol/import_tool/concurrency_tests
 
 docs/semantics/p4_defs.tex: ott/p4.ott
 	ott -o $@ -tex_wrap false $< -i ott/p4_sem.ott -i ott/p4_types.ott
@@ -56,7 +56,7 @@ clean:
 	cd progress_preservation && Holmake cleanAll && cd .. && \
 	cd symb_exec && Holmake cleanAll && cd .. && \
 	cd test_tools && Holmake cleanAll && cd .. && \
-	cd p4_from_json && Holmake cleanAll && \
+	cd import_tool && Holmake cleanAll && \
 	cd concurrency_tests && Holmake cleanAll && cd .. && \
 	cd validation_tests && Holmake cleanAll \
 

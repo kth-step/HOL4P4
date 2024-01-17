@@ -45,10 +45,10 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
   * [Frame](hol/p4_exec_sem_frames_soundnessScript.sml#L16-L155)
   * [Architecture](hol/p4_exec_sem_arch_soundnessScript.sml#L17-L268)
 
-* [.p4 import tool (using Petr4 as backend)](hol/p4_from_json)
+* [.p4 import tool (using Petr4 as backend)](hol/import_tool)
 
 * Case studies: 
-  * Pipeline interference: [Concrete execution](hol/p4_from_json/concurrency_tests/concur1_interferenceScript.sml), [Concurrency theory](hol/p4_concurrentScript.sml)
+  * Pipeline interference: [Concrete execution](hol/import_tool/concurrency_tests/concur1_interferenceScript.sml), [Concurrency theory](hol/p4_concurrentScript.sml)
   * VSS: [Concrete execution](hol/test-vss.sml), [Data non-interference](hol/test-vss-ttl.sml)
 
 

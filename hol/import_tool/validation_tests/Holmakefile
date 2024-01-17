@@ -5,7 +5,7 @@ DEPENDENCIES   = ../../test_tools
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../p4_from_json-heap
+HOLHEAP        = ../import_tool-heap
 NEWHOLHEAP     = validation-heap
 
 HEAPINC_EXTRA  = wordsLib
