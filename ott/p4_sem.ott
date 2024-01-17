@@ -246,10 +246,10 @@ formula :: formula_ ::=
   {{ hol SOME [[v]] =  lookup_vexp2 [[scope_list]] [[g_scope_list]] [[varn]]}} 
 | ( v , a ) = lookup_tup ( scope_list , varn ) :: :: lookup_tup
   {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[scope_list]], [[varn]]) }}
-| x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
+| x' = { v_list1 : x1 ; ... ; v_listn : xn } x ( v1 , ... , vm ) :: M :: sel_access
   {{ com access of string in select key-value list }}
-  {{ hol [[x']] = sel [[v]] [[v1 x1 ... vn xn]] [[x]]}}
-  {{ tex [[x']] = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) }}
+  {{ hol [[x']] = sel [[v1 ... vm]] [[v_list1 x1 ... v_listn xn]] [[x]]}}
+  {{ tex [[x']] = \{ vl_1 : x_1 ; ... ; vl_n : x_n ; \_ : x \} (v_1 , ... , v_m) }}
 | check_args_red d_list e_list :: M :: signature_check  
   {{ com check if arguments are isvar or isconst }}
   {{ tex \forall i \leqslant n. \, ((d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e_i ) \land (d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e_i))  }}
@@ -2590,9 +2590,9 @@ v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
 ctx g_scope_list scope_list ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
 
 %Case select lookup
-x' = { v1 : x1 ; ... ; vn : xn } x ( v )
+x' = { v_list1 : x1 ; ... ; v_listn : xn } x ( v1 , ... , vm )
 ----------------------------------- :: sel_acc
-ctx g_scope_list scope_list ( select v { v1 : x1 ; ... ; vn : xn } x ) ~> ( x' ,  empty )
+ctx g_scope_list scope_list ( select ( v1 , ... , vm ) { v_list1 : x1 ; ... ; v_listn : xn } x ) ~> ( x' ,  empty )
 
 %concatenation of two bitstrings 
 
@@ -2624,10 +2624,12 @@ ctx g_scope_list scope_list ( bitv [ bitv' : bitv'' ] ) ~> ( bitv''' , empty )
 
 
 %Select
-
+unred_mem_index [ e1 , ... , em ] = i
+e = [ e1 , ... , em ] [ i ]
 ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+[ e'1 , ... , e'm ] =' update ( e' , i , [ e1 , ... , em ] )
 ----------------------------------- :: sel_arg
-ctx g_scope_list scope_list ( select e { v1 : x1 ; ... ; vn : xn } x ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , frame_list )
+ctx g_scope_list scope_list ( select ( e1 , ... , em ) { v_list1 : x1 ; ... ; v_listn : xn } x ) ~> ( select ( e'1 , ... , e'm ) { v_list1 : x1 ; ... ; v_listn : xn } x , frame_list )
 
 
 %Unary operations

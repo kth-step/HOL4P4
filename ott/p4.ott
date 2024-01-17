@@ -119,6 +119,11 @@ v :: v_ ::=
 %  {{ com error message }}
 | ext_ref i :: :: ext_ref
   {{ com extern object reference }}
+% Set types
+| range bitv1 bitv2 :: :: range
+  {{ com range }}
+| mask bitv1 bitv2 :: :: mask
+  {{ com bit-mask }}
 | bot :: :: bot
   {{ com no value }}
 
@@ -309,7 +314,7 @@ e :: e_ ::=
   {{ com bit-slice }}
 | call funn ( e1 , .. , en ) :: :: call
   {{ com function or extern call }}
-| select e { v1 : x1 ; ... ; vn : xn } x :: :: select
+| select ( e1 , .. , en ) { v_list1 : x1 ; ... ; v_listn : xn } x :: :: select
   {{ com select }}
 | eStruct { x1 = e1 ; ... ; xn = en } :: :: struct
   {{ com struct }}
