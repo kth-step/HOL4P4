@@ -24,13 +24,13 @@ hol/p4Script.sml
 *.fdb_latexmk
 
 ## Validation tests
-hol/p4_from_json/validation_tests/*.p4
-hol/p4_from_json/validation_tests/*.stf
-hol/p4_from_json/validation_tests/*.json
-hol/p4_from_json/validation_tests/*.sml
-hol/p4_from_json/validation_tests/*.sig
-hol/p4_from_json/validation_tests/*-heap
-hol/p4_from_json/p4include
+hol/import_tool/validation_tests/*.p4
+hol/import_tool/validation_tests/*.stf
+hol/import_tool/validation_tests/*.json
+hol/import_tool/validation_tests/*.sml
+hol/import_tool/validation_tests/*.sig
+hol/import_tool/validation_tests/*-heap
+hol/import_tool/p4include
 
 
 ## Emacs
