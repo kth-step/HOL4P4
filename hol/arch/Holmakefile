@@ -5,7 +5,7 @@ DEPENDENCIES   = ..
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../p4-heap
+HOLHEAP        = 
 NEWHOLHEAP     = arch-heap
 
 HEAPINC_EXTRA  = wordsLib

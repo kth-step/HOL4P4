@@ -3,16 +3,12 @@
 *.uo
 *.ui
 *.dat
-hol/*Theory.sig
-hol/*Theory.sml
+*Theory.sig
+*Theory.sml
+*-heap
+## Generated from Ott
 hol/p4Script.sml
-hol/*-heap
-hol/p4_from_json/*Theory.sig
-hol/p4_from_json/*Theory.sml
-hol/p4_from_json/*-heap
-hol/symb_exec/*Theory.sig
-hol/symb_exec/*Theory.sml
-hol/symb_exec/*-heap
+
 
 ## LaTeX stuff
 *.aux
@@ -22,7 +18,10 @@ hol/symb_exec/*-heap
 *.run.xml
 *.synctex.gz
 *.bbl
+*-blx.bib
 *.blg
+*.fls
+*.fdb_latexmk
 
 ## Validation tests
 hol/p4_from_json/validation_tests/*.p4

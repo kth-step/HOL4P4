@@ -1,6 +1,7 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open p4Theory listTheory;
+open p4_exec_semTheory;
 
 open symb_execTheory;
 

@@ -4,6 +4,8 @@ open p4Theory;
 
 open p4_symb_execLib;
 
+open p4_v1modelTheory;
+
 val _ = new_theory "p4_symb_exec_test2";
 
 (* Test 2:

@@ -1,11 +1,11 @@
 # includes
 # ----------------------------------
-DEPENDENCIES   = ../deter
+DEPENDENCIES   = .. ../deter
 
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../deter/deter-heap
+HOLHEAP        = 
 NEWHOLHEAP     = progress_preservation-heap
 
 HEAPINC_EXTRA  = wordsLib

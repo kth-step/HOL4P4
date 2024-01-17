@@ -5,7 +5,7 @@ DEPENDENCIES   = ../exec
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../exec/exec-heap
+HOLHEAP        = 
 NEWHOLHEAP     = deter-heap
 
 HEAPINC_EXTRA  = wordsLib

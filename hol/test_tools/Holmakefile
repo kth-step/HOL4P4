@@ -1,6 +1,6 @@
 # includes
 # ----------------------------------
-DEPENDENCIES   = ../arch ../exec
+DEPENDENCIES   = .. ../arch ../exec
 
 
 # configuration

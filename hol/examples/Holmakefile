@@ -1,12 +1,12 @@
 # includes
 # ----------------------------------
-DEPENDENCIES   = .. ../exec ../test_tools
+DEPENDENCIES   = .. ../arch ../test_tools
 
 
 # configuration
 # ----------------------------------
 HOLHEAP        = 
-NEWHOLHEAP     = p4_symbexec-heap
+NEWHOLHEAP     = examples-heap
 
 HEAPINC_EXTRA  = wordsLib
 
