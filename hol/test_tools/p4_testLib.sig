@@ -9,6 +9,7 @@ val mk_eth_frame_ok : term -> term
 val get_actx : thm -> term
 val simple_arith_ss : simpLib.simpset
 val the_final_state_imp : thm -> term
+val ascope_ty_from_arch : string -> hol_type
 
 val eval_and_print_result : string -> term -> term -> int -> term
 val eval_and_print_aenv : string -> term -> term -> int -> term
@@ -41,8 +42,5 @@ val p4_eval_test_tac : hol_type -> term -> term -> tactic
 
 val eval_step_fuel : hol_type -> term -> term -> int -> thm
 val eval_step : hol_type -> term -> term -> thm
-
-val get_trace_thread_n : string -> term -> term -> int -> int -> thm
-val get_trace_thread_next_n : string -> term -> thm -> int -> int -> thm
 
 end

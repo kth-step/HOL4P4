@@ -1,12 +1,12 @@
 # includes
 # ----------------------------------
-DEPENDENCIES   = ..
+DEPENDENCIES   = ../test_tools
 
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../p4-heap
-NEWHOLHEAP     = p4_from_json-heap
+HOLHEAP        = 
+NEWHOLHEAP     = concurrency-heap
 
 HEAPINC_EXTRA  = wordsLib
 

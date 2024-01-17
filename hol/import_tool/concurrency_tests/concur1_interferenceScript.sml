@@ -2,7 +2,7 @@ open HolKernel Parse bossLib boolSyntax boolLib liteLib simpLib;
 
 val _ = new_theory "concur1_interference";
 
-open p4_testLib p4_arch_auxTheory;
+open p4_concurrentLib p4_testLib p4_arch_auxTheory;
 open p4_concurrentTheory p4_v1modelTheory;
 open bitstringTheory;
 

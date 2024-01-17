@@ -1,12 +1,12 @@
 # includes
 # ----------------------------------
-DEPENDENCIES   = ..
+DEPENDENCIES   = ../arch
 
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../p4_from_json-heap
-NEWHOLHEAP     = validation-heap
+HOLHEAP        = 
+NEWHOLHEAP     = import_tool-heap
 
 HEAPINC_EXTRA  = wordsLib
 

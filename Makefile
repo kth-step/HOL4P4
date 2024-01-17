@@ -6,14 +6,38 @@ hol/p4Script.sml: ott/p4.ott ott/p4_sem.ott ott/p4_types.ott
 hol: hol/p4Script.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
 	Holmake -r -I hol
 	
-hol/p4_from_json: hol
-	Holmake -r -I hol/p4_from_json
+hol/arch: hol
+	Holmake -r -I hol/arch
 	
-validate: hol/p4_from_json
-	cd hol/p4_from_json && ./validate.sh
+hol/exec: hol
+	Holmake -r -I hol/exec
 	
-concurrency: hol/p4_from_json
-	Holmake -r -I hol/p4_from_json/concurrency_tests
+hol/test_tools: hol hol/arch hol/exec
+	Holmake -r -I hol/test_tools
+	
+hol/concurrency: hol hol/test_tools
+	Holmake -r -I hol/concurrency
+
+hol/deter: hol hol/exec
+	Holmake -r -I hol/deter
+	
+hol/examples: hol hol/arch hol/test_tools
+	Holmake -r -I hol/examples
+
+hol/import_tool: hol hol/arch
+	Holmake -r -I hol/import_tool
+	
+hol/progress_preservation: hol hol/deter
+	Holmake -r -I hol/progress_preservation
+	
+hol/symb_exec: hol hol/exec hol/test_tools
+	Holmake -r -I hol/symb_exec
+
+validate: hol/import_tool
+	cd hol/import_tool && ./validate.sh
+	
+concurrency_tests: hol/import_tool hol/test_tools hol/concurrency
+	Holmake -r -I hol/import_tool/concurrency_tests
 
 docs/semantics/p4_defs.tex: ott/p4.ott
 	ott -o $@ -tex_wrap false $< -i ott/p4_sem.ott -i ott/p4_types.ott
@@ -23,6 +47,17 @@ docs/semantics/main.pdf: docs/semantics/p4_defs.tex docs/semantics/main.tex docs
 
 clean:
 	rm -f docs/semantics/p4_defs.tex hol/p4Script.sml
-	cd hol && Holmake clean -r && cd p4_from_json && Holmake clean && cd validation_tests && Holmake clean
+	cd hol && Holmake -r cleanAll && \
+	cd arch && Holmake cleanAll && cd .. && \
+	cd concurrency && Holmake cleanAll && cd .. && \
+	cd deter && Holmake cleanAll && cd .. && \
+	cd examples && Holmake cleanAll && cd .. && \
+	cd exec && Holmake cleanAll && cd .. && \
+	cd progress_preservation && Holmake cleanAll && cd .. && \
+	cd symb_exec && Holmake cleanAll && cd .. && \
+	cd test_tools && Holmake cleanAll && cd .. && \
+	cd import_tool && Holmake cleanAll && \
+	cd concurrency_tests && Holmake cleanAll && cd .. && \
+	cd validation_tests && Holmake cleanAll \
 
 .PHONY: default clean hol
