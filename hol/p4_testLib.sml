@@ -193,6 +193,13 @@ val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
 
 fun the_final_state_imp step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 
+fun the_final_state_hyp_imp step_thm =
+ let
+  val (hyp, step_tm) = dest_imp $ concl step_thm
+ in
+  (hyp, optionSyntax.dest_some $ snd $ dest_eq step_tm)
+ end 
+
 fun get_actx step_thm =
  let
   val step_thm_tm = concl step_thm

@@ -4,30 +4,30 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open hurdUtils;
 
-datatype path_tree = empty | node of int * thm * (path_tree list);
+datatype path_tree = empty | node of int * term * thm * (path_tree list);
 
 val ERR = mk_HOL_ERR "symb_exec"
 
 (* TODO: Optimize? *)
-fun insert_nodes' empty (at_id, thm, new_nodes) _ = NONE
-  | insert_nodes' (node (id, thm, nodes)) (at_id, new_thm, new_nodes) nodes_temp = 
+fun insert_nodes' empty (at_id, tm, thm, new_nodes) _ = NONE
+  | insert_nodes' (node (id, tm, thm, nodes)) (at_id, new_tm, new_thm, new_nodes) nodes_temp = 
    if at_id = id
    then
     if null nodes
-    then SOME (node (id, new_thm, new_nodes))
+    then SOME (node (id, new_tm, new_thm, new_nodes))
     else NONE (* Erroneously trying to insert new nodes in occupied position *)
    else
     if null nodes
     then NONE (* Reached end of search *)
     else
-     case insert_nodes' (hd nodes) (at_id, new_thm, new_nodes) [] of
+     case insert_nodes' (hd nodes) (at_id, new_tm, new_thm, new_nodes) [] of
        SOME new_node =>
-      SOME (node (id, new_thm, nodes_temp@(new_node::(tl nodes))))
+      SOME (node (id, new_tm, new_thm, nodes_temp@(new_node::(tl nodes))))
      | NONE =>
-      insert_nodes' (node (id, thm, tl nodes)) (at_id, new_thm, new_nodes) (nodes_temp@[hd nodes]);
+      insert_nodes' (node (id, tm, thm, tl nodes)) (at_id, new_tm, new_thm, new_nodes) (nodes_temp@[hd nodes]);
 
-fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
- case insert_nodes' path_tree (at_id, new_thm, new_nodes) [] of
+fun insert_nodes path_tree (at_id, new_tm, new_thm, new_nodes) =
+ case insert_nodes' path_tree (at_id, new_tm, new_thm, new_nodes) [] of
    SOME new_path_tree =>
   new_path_tree
  | NONE =>
@@ -95,9 +95,9 @@ fun symb_exec' lang_funs npaths path_tree [] finished_list = (path_tree, finishe
         new_path_conds'
 
       (* TODO: Using TRUTH as a placeholder - use thm option type in path_tree instead? *)
-      val new_path_nodes = map (fn (a,b,c,d,e) => node (a, TRUTH, [])) new_path_elems
+      val new_path_nodes = map (fn (a,b,c,d,e) => node (a, T, TRUTH, [])) new_path_elems
 
-      val new_path_tree = insert_nodes path_tree (path_id, path_disj_thm, new_path_nodes)
+      val new_path_tree = insert_nodes path_tree (path_id, concl path_cond, path_disj_thm, new_path_nodes)
      in
 (*
 val npaths = npaths'
@@ -126,7 +126,7 @@ val nobranch_flag = true
 in
 fun symb_exec (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) path_cond fuel =
  symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) 1
-            (node (1, TRUTH, [])) [(1, path_cond, lang_init_step_thm, fuel, false)] []
+            (node (1, T, TRUTH, [])) [(1, path_cond, lang_init_step_thm, fuel, false)] []
 end;
 
 end

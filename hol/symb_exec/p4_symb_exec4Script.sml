@@ -139,7 +139,7 @@ val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch;
 val lang_is_finished = p4_is_finished;
 
-(* That is, remaining fuel *)
+(* Remaining fuel *)
 val fuel = 1;
 val nobranch_flag = false;
 val npaths = 1;
@@ -153,16 +153,8 @@ val (path_tree, [(path_id, path_cond, step_thm)]) =
 val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)]) =
  p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 24;
 
-val path_cond = path_cond_res;
-
- p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 50;
-
-
 *)
 
-(* TODO *)
-(*
 val contract_thm = p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
-*)
 
 val _ = export_theory ();

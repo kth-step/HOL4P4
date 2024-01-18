@@ -21,16 +21,16 @@ End
 
 (* TODO: This can be written using FOLDL *)
 Definition p4_contract_list_def:
- (p4_contract_list P (h::[]) ctx s Q = p4_contract (P ==> h) ctx s Q) /\
- (p4_contract_list P (h::t) ctx s Q = (p4_contract (P ==> h) ctx s Q /\ p4_contract_list P t ctx s Q)) /\
+ (p4_contract_list P (h::[]) ctx s Q = p4_contract (P /\ h) ctx s Q) /\
+ (p4_contract_list P (h::t) ctx s Q = (p4_contract (P /\ h) ctx s Q /\ p4_contract_list P t ctx s Q)) /\
  (p4_contract_list P [] ctx s Q = T)
 End
 
 Theorem p4_contract_list_REWR:
  !R P P_list ctx s Q b.
- (((p4_contract (R ==> P) ctx s Q /\ b) /\ p4_contract_list R P_list ctx s Q) <=> (b /\ p4_contract_list R (P::P_list) ctx s Q)) /\
- ((p4_contract (R ==> P) ctx s Q /\ p4_contract_list R P_list ctx s Q) <=> p4_contract_list R (P::P_list) ctx s Q) /\
- ((p4_contract (R ==> P) ctx s Q /\ b) <=> (b /\ p4_contract_list R [P] ctx s Q))
+ (((p4_contract (R /\ P) ctx s Q /\ b) /\ p4_contract_list R P_list ctx s Q) <=> (b /\ p4_contract_list R (P::P_list) ctx s Q)) /\
+ ((p4_contract (R /\ P) ctx s Q /\ p4_contract_list R P_list ctx s Q) <=> p4_contract_list R (P::P_list) ctx s Q) /\
+ ((p4_contract (R /\ P) ctx s Q /\ b) <=> (b /\ p4_contract_list R [P] ctx s Q))
 Proof
 Cases_on ‘P_list’ >> (
  fs[p4_contract_list_def] >>
@@ -38,9 +38,23 @@ Cases_on ‘P_list’ >> (
 )
 QED
 
+(* Sometimes the conjunction has been flipped. Then this is useful.
+ * (CONJ_COMM is looping and so a hassle to use) *)
+Theorem p4_contract_list_GSYM_REWR:
+ !R P P_list ctx s Q b.
+ (((p4_contract (P /\ R) ctx s Q /\ b) /\ p4_contract_list R P_list ctx s Q) <=> (b /\ p4_contract_list R (P::P_list) ctx s Q)) /\
+ ((p4_contract (P /\ R) ctx s Q /\ p4_contract_list R P_list ctx s Q) <=> p4_contract_list R (P::P_list) ctx s Q) /\
+ ((p4_contract (P /\ R) ctx s Q /\ b) <=> (b /\ p4_contract_list R [P] ctx s Q))
+Proof
+Cases_on ‘P_list’ >> (
+ fs[p4_contract_list_def, CONJ_COMM] >>
+ metis_tac[]
+)
+QED
+
 Theorem p4_contract_imp_REWR:
  !P ctx s Q.
- ((p4_contract P ctx s Q) <=> (p4_contract (T ==> P) ctx s Q))
+ ((p4_contract P ctx s Q) <=> (p4_contract (T /\ P) ctx s Q))
 Proof
 fs[p4_contract_def]
 QED
@@ -70,25 +84,23 @@ fs[p4_contract_def] >>
 metis_tac []
 QED
 
-(* Note that the point with this theorem is to explicitly
- * incorporate R ==> disj_list P_list ("disj_thm") as a premise,
- * so you don't need to rewrite or reason using
- * it when obtaining the conclusion *)
+(* Note that the point with this theorem is to avoid
+ * brute-force rewriting or reasoning using disj_thm
+ * when obtaining the conclusion *)
 Theorem p4_symb_exec_unify_n_gen:
-!P_list R P' ctx s Q.
-(R ==> disj_list P_list) ==>
+!P_list R ctx s Q.
+disj_list P_list ==>
 p4_contract_list R P_list ctx s Q ==>
 p4_contract R ctx s Q
 Proof
 Induct_on ‘P_list’ >> (
  fs [disj_list_def, p4_contract_list_def, p4_contract_def]
 ) >>
-rpt strip_tac >>
-Cases_on ‘P_list’ >> (
- fs [disj_list_def, p4_contract_list_def, p4_contract_def]
-) >>
-rpt strip_tac >>
-fs[]
+rpt strip_tac >> (
+ Cases_on ‘P_list’ >> (
+  fs [disj_list_def, p4_contract_list_def, p4_contract_def]
+ )
+)
 QED
 
 val _ = export_theory ();
