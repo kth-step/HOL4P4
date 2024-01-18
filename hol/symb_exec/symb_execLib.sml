@@ -54,16 +54,19 @@ local
  *
  * Note that branching consumes one step of (SML function) fuel *)
 fun symb_exec' lang_funs npaths path_tree [] finished_list = (path_tree, finished_list)
-  | symb_exec' lang_funs npaths path_tree ((path_id, path_cond, step_thm, 0)::t) finished_list =
+  | symb_exec' lang_funs npaths path_tree ((path_id, path_cond, step_thm, 0, nobranch_flag)::t) finished_list =
    symb_exec' lang_funs npaths path_tree t (finished_list@[(path_id, path_cond, step_thm)])
   | symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
-               path_tree ((path_id, path_cond, step_thm, fuel)::t) finished_list =
+               path_tree ((path_id, path_cond, step_thm, fuel, nobranch_flag)::t) finished_list =
    (* Check if we should branch or take regular step
     * lang_should_branch can be made an argument: it takes the current step theorem
     * and returns a term with the branch condition, with which you can split the
     * path condition *)
-   (case lang_should_branch step_thm of
+   (case (if nobranch_flag then NONE else lang_should_branch step_thm) of
      SOME (branch_cond_list, path_disj_thm) =>
+(*
+ val SOME (branch_cond_list, path_disj_thm) = lang_should_branch step_thm
+*)
      (* Branch + prune *)
      let
       (* Get all path conditions in the shape of Cn /\ P ==> P /\ Cn *)
@@ -86,15 +89,23 @@ fun symb_exec' lang_funs npaths path_tree [] finished_list = (path_tree, finishe
                (curr_path_cond_list@[(curr_path_id+1,
                                       path_cond,
                                       DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm,
-                                      fuel-1)])))
+                                      fuel-1,
+                                      true)])))
         (npaths, [])
         new_path_conds'
 
       (* TODO: Using TRUTH as a placeholder - use thm option type in path_tree instead? *)
-      val new_path_nodes = map (fn (a,b,c,d) => node (a, TRUTH, [])) new_path_elems
+      val new_path_nodes = map (fn (a,b,c,d,e) => node (a, TRUTH, [])) new_path_elems
 
       val new_path_tree = insert_nodes path_tree (path_id, path_disj_thm, new_path_nodes)
      in
+(*
+val npaths = npaths'
+val path_tree = new_path_tree
+
+val (path_id, path_cond, step_thm, fuel) = hd new_path_elems
+val nobranch_flag = true
+*)
       symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths'
                   new_path_tree (t@new_path_elems) finished_list
      end
@@ -110,12 +121,12 @@ fun symb_exec' lang_funs npaths path_tree [] finished_list = (path_tree, finishe
                   path_tree t (finished_list@[(path_id, path_cond, next_step_thm)])
       else
        symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
-                  path_tree (t@[(path_id, path_cond, next_step_thm, fuel-1)]) finished_list
+                  path_tree (t@[(path_id, path_cond, next_step_thm, fuel-1, false)]) finished_list
      end)
 in
 fun symb_exec (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) path_cond fuel =
  symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) 1
-            (node (1, TRUTH, [])) [(1, path_cond, lang_init_step_thm, fuel)] []
+            (node (1, TRUTH, [])) [(1, path_cond, lang_init_step_thm, fuel, false)] []
 end;
 
 end

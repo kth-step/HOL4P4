@@ -429,7 +429,7 @@ val v1model_apply_table_f_def =
        SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
       else
        (* Smallest priority wins (like for TDI) *)
-       SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) 1 table)
+       SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
      | NONE => NONE’
  else xDefine "v1model_apply_table_f"
   ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =

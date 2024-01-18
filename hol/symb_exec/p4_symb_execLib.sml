@@ -5,7 +5,7 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 open pairSyntax listSyntax numSyntax computeLib hurdUtils;
 
 open p4Theory p4_exec_semTheory p4Syntax p4_exec_semSyntax;
-
+open p4_coreTheory;
 open symb_execTheory p4_symb_execTheory;
 
 open evalwrapLib p4_testLib symb_execLib;
@@ -569,12 +569,13 @@ fun p4_should_branch step_thm =
 
 (* TODO *)
 val test_conv_rhs = rhs o concl o (SIMP_CONV std_ss [listTheory.ZIP, p4_auxTheory.match_all_def, p4Theory.e_11, p4Theory.v_11])
+val test_conv_rhs2 = rhs o concl o (SIMP_CONV std_ss [listTheory.ZIP])
 
 
-	val key_branch_conds = map (fn key => test_conv_rhs $ mk_comb (key, e)) keys
+	val key_branch_conds = map (fn key => test_conv_rhs2 $ mk_comb (key, e)) keys
 	(* 4. Construct default branch case  *)
 	(* Default branch: i.e., neither of the above hold *)
-	val def_branch_cond = list_mk_conj $ map (fn key_comb => test_conv_rhs $ mk_neg key_comb) key_branch_conds
+	val def_branch_cond = list_mk_conj $ map (fn key_comb => mk_neg key_comb) key_branch_conds
 	(* 5. Construct disjunction theorem, which now is not a strict disjunction *)
 	(* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
 	 * rewrites, and not in-place with tactics *)
@@ -589,13 +590,36 @@ val test_conv_rhs = rhs o concl o (SIMP_CONV std_ss [listTheory.ZIP, p4_auxTheor
  end
 ;
 
+(* TODO: Move to syntax file *)
+val (FOLDL_MATCH_symb_exec_tm,  mk_FOLDL_MATCH_symb_exec, dest_FOLDL_MATCH_symb_exec, is_FOLDL_MATCH_symb_exec) =
+  syntax_fns3 "p4_core" "FOLDL_MATCH_symb_exec";
+val (match_all_tm,  mk_match_all, dest_match_all, is_match_all) =
+  syntax_fns1 "p4_aux" "match_all";
+
 fun p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm (path_cond, step_thm) =
  let
+(*
+  val table_rewrs = FOLDL_MATCH_symb_exec_def
+  (* Need to stop and use path condition for this *)
+  val table_stop_consts = [FOLDL_MATCH_symb_exec_tm]
+*)
+  val table_stop_consts = [match_all_tm]
+(*
+val path_cond_test = SIMP_RULE std_ss [listTheory.ZIP, p4_auxTheory.match_all_def, p4Theory.e_11, p4Theory.v_11] path_cond
+*)
+
+
   val astate = the_final_state_imp step_thm
   val step_thm2 =
-   eval_ctxt_gen (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts)
+   eval_ctxt_gen (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts)
                  (stop_consts_never@p4_stop_eval_consts) path_cond
                  (mk_arch_multi_exec (ctx, astate, 1));
+(*
+val stop_consts1 = (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts);
+val stop_consts2 = (stop_consts_never@p4_stop_eval_consts@table_stop_consts_never);
+val ctxt = (CONJ table_rewrs path_cond);
+val tm = (mk_arch_multi_exec (ctx, astate, 1));
+*)
   val (func_map, b_func_map, ext_fun_map) = get_f_maps (astate, ctx)
   (* TODO: Do this in a nicer way... *)
   val next_e_opt = astate_get_next_e (func_map, b_func_map, ext_fun_map) astate
@@ -655,6 +679,12 @@ fun p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
   val regular_step = p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm
  in
+(*
+val lang_regular_step = p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm;
+val lang_init_step_thm = init_step_thm;
+val lang_should_branch = p4_should_branch;
+val lang_is_finished = p4_is_finished;
+*)
   symb_exec (regular_step, init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel
  end
 ;
