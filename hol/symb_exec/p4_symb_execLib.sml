@@ -565,18 +565,27 @@ fun p4_should_branch step_thm =
 	(* 3. Construct different branch cases for all the key sets
 	 *    N.B.: Can now be logically overlapping! *)
 	(* The branch cases for equality with the different table entry keys *)
+        (* TODO: Ensure this obtains the entries in correct order *)
 	val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
         (* This simplifies a key slightly *)
         val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.ZIP])
 	val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
+	val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
+
+	val key_branch_conds' = snd $ foldl (fn (a,(b,c)) => (if null b then b else tl b , (if length b = 1 then a else mk_conj ((list_mk_conj (tl b)), a))::c) ) (key_branch_conds_neg, []) (rev key_branch_conds)
+
+
 	(* 4. Construct default branch case: i.e., neither of the above hold *)
+(*
 	val def_branch_cond = list_mk_conj $ map (fn key_comb => mk_neg key_comb) key_branch_conds
+*)
+	val def_branch_cond = list_mk_conj key_branch_conds_neg
 	(* 5. Construct disjunction theorem, which now is not a strict disjunction *)
 	(* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
 	 * rewrites, and not in-place with tactics *)
-	val disj_thm = prove(mk_disj (list_mk_disj key_branch_conds, def_branch_cond), metis_tac[])
+	val disj_thm = prove(mk_disj (list_mk_disj key_branch_conds', def_branch_cond), metis_tac[])
        in
-	SOME (key_branch_conds@[def_branch_cond], disj_thm)
+	SOME (key_branch_conds'@[def_branch_cond], disj_thm)
        end
       else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
      end
@@ -586,8 +595,6 @@ fun p4_should_branch step_thm =
 ;
 
 (* TODO: Move to syntax file *)
-val (FOLDL_MATCH_symb_exec_tm,  mk_FOLDL_MATCH_symb_exec, dest_FOLDL_MATCH_symb_exec, is_FOLDL_MATCH_symb_exec) =
-  syntax_fns3 "p4_core" "FOLDL_MATCH_symb_exec";
 val (match_all_tm,  mk_match_all, dest_match_all, is_match_all) =
   syntax_fns1 "p4_aux" "match_all";
 
@@ -596,7 +603,6 @@ fun p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm (path_cond, 
   (* We can't let evaluation open match_all, or we won't be able to use our path condition,
    * where branch cases for table application are phrased in terms of match_all *)
   val table_stop_consts = [match_all_tm]
-
   val astate = the_final_state_imp step_thm
   val step_thm2 =
    eval_ctxt_gen (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts)
@@ -674,6 +680,7 @@ val lang_is_finished = p4_is_finished;
 *)
   symb_exec (regular_step, init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel
  end
+  handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
 
 (* This takes a list of n-step theorems resulting from executing the P4 program (with IDs)
@@ -696,7 +703,7 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, [])) [] =
      * disj_list, and then do the same with the entries of path_tree_list_leafs using
      * p4_contract_list. *)
     val (disj_list_thm, path_tree_list_leafs_thm) =
-      (REWRITE_RULE [disj_list_REWR, listTheory.APPEND] disj_thm,
+      (REWRITE_RULE [disj_list_REWR, disj_list_extra_REWR, listTheory.APPEND] disj_thm,
        if length path_tree_list_leafs = 1
        then hd path_tree_list_leafs
        else foldl (fn (thm, thm') => CONJ thm' thm)
@@ -713,21 +720,31 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, [])) [] =
 (* DEBUG: Two iterations, for debugging a simple branch:
 val (node (id, path_cond, disj_thm, (h::t))) = path_tree;
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
-val path_tree_list_leafs = (ctthm'::[])
+val path_tree_list_leafs = ([ctthm'])
 
 val (node (id, path_cond, disj_thm, (h::t))) = (node (id, path_cond, disj_thm, t));
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
-val path_tree_list_leafs = (ctthm'::path_tree_list_leafs)
+val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
+
+(* Two more, for multi-case: *)
+val (node (id, path_cond, disj_thm, (h::t))) = (node (id, path_cond, disj_thm, t));
+val ctthm' = p4_unify_path_tree' id_ctthm_list h []
+val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
+
+val (node (id, path_cond, disj_thm, (h::t))) = (node (id, path_cond, disj_thm, t));
+val ctthm' = p4_unify_path_tree' id_ctthm_list h []
+val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
 *)
    (* Recursive call *)
    let
     val ctthm' = p4_unify_path_tree' id_ctthm_list h []
    in
-    p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, t)) (ctthm'::path_tree_list_leafs)
+    p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, t)) (path_tree_list_leafs@[ctthm'])
    end
 in 
 fun p4_unify_path_tree id_ctthm_list path_tree =
  p4_unify_path_tree' id_ctthm_list path_tree []
+  handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_unify_path_tree" (HOL_ERR exn));
 end
 ;
 
@@ -775,7 +792,7 @@ fun p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_co
   (* Rewrite n-step theorems to a contract format *)
   val id_ctthm_list = map (fn (a,b) => (a, MATCH_MP p4_symb_exec_to_contract b)) id_step_post_thm_list
   (* Unify all contracts *)
-  val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree
+  val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
  in
   unified_ct_thm
  end

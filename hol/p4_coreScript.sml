@@ -403,7 +403,7 @@ Definition AFIND_PRED_def:
   | NONE => NONE
 End
 *)
-
+(*
 (* TODO: Do all this sorting once and for all before the program starts,
  * then make it the responsibility of the control plane to update the
  * table with the right format
@@ -456,8 +456,8 @@ Definition FOLDL_MATCH_def:
   let entries' = sort_table insert_largest_prio [] entries in
    (FOLDL_MATCH_symb_exec e_l ((\ ((a,b),c). (a,b)) res) entries', NONE:num option)
 End
+*)
 
-(*
 (* TODO: Are match_kinds needed at all in the dynamic semantics? *)
 Definition FOLDL_MATCH_def:
  (FOLDL_MATCH e_l res [] = res) /\
@@ -474,8 +474,8 @@ Definition FOLDL_MATCH_def:
    | NONE => FOLDL_MATCH e_l (v, SOME prio) t
   else FOLDL_MATCH e_l (res_act, res_prio_opt) t)
 End
-*)
 
+(*
 Definition update_prios_def:
  (update_prios acc [] = []) /\
  (update_prios acc (((k,prio),v)::t) =
@@ -489,8 +489,8 @@ Definition FOLDL_MATCH_alt_def:
   let entries'' = sort_table insert_smallest_prio [] entries' in
    (FOLDL_MATCH_symb_exec e_l ((\ ((a,b),c). (a,b)) res) entries'', NONE:num option)
 End
+*)
 
-(*
 (* Alternative version, which uses smallest priority *)
 Definition FOLDL_MATCH_alt_def:
  (FOLDL_MATCH_alt e_l res acc [] = res) /\
@@ -509,6 +509,5 @@ Definition FOLDL_MATCH_alt_def:
    | NONE => FOLDL_MATCH_alt e_l (v, SOME prio) (acc+1) t
   else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t)
 End
-*)
 
 val _ = export_theory ();

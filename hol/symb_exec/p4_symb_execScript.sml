@@ -21,17 +21,22 @@ End
 
 (* TODO: This can be written using FOLDL *)
 Definition p4_contract_list_def:
+ (p4_contract_list P [] ctx s Q = T) /\
  (p4_contract_list P (h::[]) ctx s Q = p4_contract (P /\ h) ctx s Q) /\
- (p4_contract_list P (h::t) ctx s Q = (p4_contract (P /\ h) ctx s Q /\ p4_contract_list P t ctx s Q)) /\
- (p4_contract_list P [] ctx s Q = T)
+ (p4_contract_list P (h::t) ctx s Q = (p4_contract (P /\ h) ctx s Q /\ p4_contract_list P t ctx s Q))
 End
 
 Theorem p4_contract_list_REWR:
- !R P P_list ctx s Q b.
- (((p4_contract (R /\ P) ctx s Q /\ b) /\ p4_contract_list R P_list ctx s Q) <=> (b /\ p4_contract_list R (P::P_list) ctx s Q)) /\
- ((p4_contract (R /\ P) ctx s Q /\ p4_contract_list R P_list ctx s Q) <=> p4_contract_list R (P::P_list) ctx s Q) /\
- ((p4_contract (R /\ P) ctx s Q /\ b) <=> (b /\ p4_contract_list R [P] ctx s Q))
+ !R P P_list P_list' ctx s Q b.
+ ((p4_contract_list R P_list ctx s Q /\ p4_contract (R /\ P) ctx s Q) <=>
+   p4_contract_list R (P_list++[P]) ctx s Q)
+ /\
+ ((p4_contract (R /\ P) ctx s Q /\ b) <=> (p4_contract_list R [P] ctx s Q /\ b))
 Proof
+fs[p4_contract_list_def] >>
+Induct_on ‘P_list’ >> (
+ fs[p4_contract_list_def]
+) >>
 Cases_on ‘P_list’ >> (
  fs[p4_contract_list_def] >>
  metis_tac[]
@@ -39,13 +44,16 @@ Cases_on ‘P_list’ >> (
 QED
 
 (* Sometimes the conjunction has been flipped. Then this is useful.
- * (CONJ_COMM is looping and so a hassle to use) *)
+ * (CONJ_COMM is looping and so a hassle to use in proof procedures, among other reasons) *)
 Theorem p4_contract_list_GSYM_REWR:
  !R P P_list ctx s Q b.
- (((p4_contract (P /\ R) ctx s Q /\ b) /\ p4_contract_list R P_list ctx s Q) <=> (b /\ p4_contract_list R (P::P_list) ctx s Q)) /\
- ((p4_contract (P /\ R) ctx s Q /\ p4_contract_list R P_list ctx s Q) <=> p4_contract_list R (P::P_list) ctx s Q) /\
- ((p4_contract (P /\ R) ctx s Q /\ b) <=> (b /\ p4_contract_list R [P] ctx s Q))
+ ((p4_contract_list R P_list ctx s Q /\ (p4_contract (P /\ R) ctx s Q)) <=> (p4_contract_list R (P_list++[P]) ctx s Q)) /\
+ ((p4_contract (P /\ R) ctx s Q /\ b) <=> (p4_contract_list R [P] ctx s Q /\ b))
 Proof
+fs[p4_contract_list_def] >>
+Induct_on ‘P_list’ >> (
+ fs[p4_contract_list_def, CONJ_COMM]
+) >>
 Cases_on ‘P_list’ >> (
  fs[p4_contract_list_def, CONJ_COMM] >>
  metis_tac[]

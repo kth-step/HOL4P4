@@ -4,7 +4,7 @@ open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec4";
+val _ = new_theory "p4_symb_exec_test4";
 
 val symb_exec4_actx = ``([arch_block_inp;
   arch_block_pbl "p"

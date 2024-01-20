@@ -33,15 +33,26 @@ QED
 
 Theorem disj_list_REWR:
  !a b B C.
- (((a \/ b) \/ disj_list C) <=> (b \/ disj_list (C++[a]))) /\
- ((a \/ disj_list B) <=> (disj_list (B++[a]))) /\
- ((a \/ b) <=> (b \/ disj_list [a]))
+ (((b \/ disj_list C)) <=> (disj_list (b::C))) /\
+ ((a \/ b) <=> (a \/ disj_list [b]))
 Proof
 ONCE_REWRITE_TAC[disj_list_COMM] >>
 fs[disj_list_def] >>
 metis_tac[]
 QED
 
+Theorem disj_list_extra_REWR:
+ !a A B.
+ disj_list (a::[disj_list B]) = disj_list (a::B) /\
+ disj_list ((disj_list B)::A) = disj_list (B++A)
+Proof
+Induct_on ‘A’ >> Induct_on ‘B’ >> (
+ fs[disj_list_def]
+) >>
+metis_tac[]
+QED
+
+(*
 Theorem disj_list_imp_REWR:
  !P a b B C.
  ((P ==> ((a \/ b) \/ disj_list C)) <=> (P ==> (b \/ disj_list (C++[a])))) /\
@@ -53,6 +64,7 @@ Cases_on ‘P’ >> (
 ) >>
 fs[disj_list_REWR]
 QED
+*)
 
 Theorem imp_REWR:
  !P.

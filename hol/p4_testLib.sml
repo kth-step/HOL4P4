@@ -198,7 +198,8 @@ fun the_final_state_hyp_imp step_thm =
   val (hyp, step_tm) = dest_imp $ concl step_thm
  in
   (hyp, optionSyntax.dest_some $ snd $ dest_eq step_tm)
- end 
+ end
+;
 
 fun get_actx step_thm =
  let
