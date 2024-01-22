@@ -17,6 +17,14 @@ Definition disj_list_def:
  (disj_list [] = F)
 End
 
+Definition symb_disj_def:
+ symb_disj a b = (a \/ b)
+End
+
+Definition symb_conj_def:
+ symb_conj a b = (a /\ b)
+End
+
 Theorem disj_list_COMM:
  !A B.
  (disj_list (A++B) <=> disj_list (B++A))
@@ -52,25 +60,68 @@ Induct_on ‘A’ >> Induct_on ‘B’ >> (
 metis_tac[]
 QED
 
-(*
-Theorem disj_list_imp_REWR:
- !P a b B C.
- ((P ==> ((a \/ b) \/ disj_list C)) <=> (P ==> (b \/ disj_list (C++[a])))) /\
- ((P ==> (a \/ disj_list B)) <=> (P ==> (disj_list (B++[a])))) /\
- ((P ==> (a \/ b)) <=> (P ==> (b \/ disj_list [a])))
+Theorem disj_list_EXCLUDED_MIDDLE:
+ !a.
+ disj_list [a; ~a]
 Proof
-Cases_on ‘P’ >> (
-  fs[]
-) >>
-fs[disj_list_REWR]
+fs[disj_list_def]
 QED
-*)
 
-Theorem imp_REWR:
- !P.
- P <=> (T ==> P)
+Theorem disj_list_CONJ:
+!a A.
+(a /\ disj_list A) <=> (disj_list (MAP ( \b. symb_conj a b) A))
 Proof
-fs[]
+Induct_on ‘A’ >> (
+ fs[disj_list_def, symb_conj_def]
+) >>
+metis_tac[]
+QED
+
+Theorem disj_list_symb_disj_REWR:
+ !h h' t.
+ (disj_list (h::(h'::[])) = symb_disj h h') /\
+ (disj_list (h::t) = symb_disj h (disj_list t))
+Proof
+fs[disj_list_def, symb_disj_def]
+QED
+
+Theorem disj_list_symb_disj_REWR_extra:
+ !h t.
+ (disj_list (h::[(disj_list t)]) = disj_list (h::t))
+Proof
+fs[disj_list_def]
+QED
+
+Theorem symb_disj_F:
+ !a b.
+ (symb_disj F b = b) /\
+ (symb_disj a F = a)
+Proof
+fs[symb_disj_def]
+QED
+
+(* This is used to keep track of which symbolic branches were made,
+ * and later join them. The reason of the definition is to be able
+ * to easily syntactically separate path condition and different
+ * branch cases.
+ * This is stored in the path_tree structure *)
+Definition symb_branch_cases_def:
+ symb_branch_cases path_cond case_list =
+  (path_cond ==> disj_list case_list)
+End
+
+Theorem add_assum:
+!A B.
+(A ==> (symb_conj A B)) <=> (A ==> B)
+Proof
+fs[symb_conj_def]
+QED
+
+Theorem symb_conj_case:
+!A B.
+A ==> ((symb_conj A B) <=> B)
+Proof
+fs[symb_conj_def]
 QED
 
 val _ = export_theory ();

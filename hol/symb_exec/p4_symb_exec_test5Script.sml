@@ -139,7 +139,6 @@ val postcond = “(\s. ~(packet_has_port s 1)):v1model_ascope astate -> bool”;
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
-  val regular_step = p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm
 
 val lang_regular_step = p4_regular_step ctx stop_consts_rewr stop_consts_never comp_thm;
 val lang_init_step_thm = init_step_thm;

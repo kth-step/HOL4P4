@@ -151,17 +151,20 @@ val n_max = 50;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
+
+val fuel = 1
 *)
 
 (* For debugging, branch happens here:
 
-open p4_auxTheory;
+val (path_tree, [(path_id, path_cond, step_thm)]) =
+ p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 24;
 
-val (res_tree, res_elems) =
+val (path_tree, [(path_id, path_cond, step_thm), (path_id2, path_cond2, step_thm2)]) =
  p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
 
    Join happens here:
-val (res_tree, res_elems) =
+val (path_tree, [(path_id, path_cond_res, step_thm)]) =
  p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 44;
 
 val [res_elem1, res_elem2] = res_elems

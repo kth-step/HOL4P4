@@ -95,6 +95,7 @@ QED
 (* Note that the point with this theorem is to avoid
  * brute-force rewriting or reasoning using disj_thm
  * when obtaining the conclusion *)
+(*
 Theorem p4_symb_exec_unify_n_gen:
 !P_list R ctx s Q.
 disj_list P_list ==>
@@ -107,6 +108,23 @@ Induct_on ‘P_list’ >> (
 rpt strip_tac >> (
  Cases_on ‘P_list’ >> (
   fs [disj_list_def, p4_contract_list_def, p4_contract_def]
+ )
+)
+QED
+*)
+Theorem p4_symb_exec_unify_n_gen:
+!P_list R ctx s Q.
+symb_branch_cases R P_list ==>
+p4_contract_list R P_list ctx s Q ==>
+p4_contract R ctx s Q
+Proof
+Induct_on ‘P_list’ >> (
+ fs [symb_branch_cases_def, disj_list_def, p4_contract_list_def, p4_contract_def]
+) >>
+rpt strip_tac >> (
+ Cases_on ‘P_list’ >> (
+  fs [symb_branch_cases_def, disj_list_def, p4_contract_list_def, p4_contract_def] >>
+  metis_tac[]
  )
 )
 QED

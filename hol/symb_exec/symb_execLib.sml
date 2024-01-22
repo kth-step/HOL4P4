@@ -1,33 +1,34 @@
 structure symb_execLib :> symb_execLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
+open hurdUtils listTheory listSyntax;
 
-open hurdUtils;
+open symb_execTheory symb_execSyntax;
 
-datatype path_tree = empty | node of int * term * thm * (path_tree list);
+datatype path_tree = empty | node of int * thm * (path_tree list);
 
 val ERR = mk_HOL_ERR "symb_exec"
 
 (* TODO: Optimize? *)
-fun insert_nodes' empty (at_id, tm, thm, new_nodes) _ = NONE
-  | insert_nodes' (node (id, tm, thm, nodes)) (at_id, new_tm, new_thm, new_nodes) nodes_temp = 
+fun insert_nodes' empty (at_id, thm, new_nodes) _ = NONE
+  | insert_nodes' (node (id, thm, nodes)) (at_id, new_thm, new_nodes) nodes_temp = 
    if at_id = id
    then
     if null nodes
-    then SOME (node (id, new_tm, new_thm, new_nodes))
+    then SOME (node (id, new_thm, new_nodes))
     else NONE (* Erroneously trying to insert new nodes in occupied position *)
    else
     if null nodes
     then NONE (* Reached end of search *)
     else
-     case insert_nodes' (hd nodes) (at_id, new_tm, new_thm, new_nodes) [] of
+     case insert_nodes' (hd nodes) (at_id, new_thm, new_nodes) [] of
        SOME new_node =>
-      SOME (node (id, new_tm, new_thm, nodes_temp@(new_node::(tl nodes))))
+      SOME (node (id, new_thm, nodes_temp@(new_node::(tl nodes))))
      | NONE =>
-      insert_nodes' (node (id, tm, thm, tl nodes)) (at_id, new_tm, new_thm, new_nodes) (nodes_temp@[hd nodes]);
+      insert_nodes' (node (id, thm, tl nodes)) (at_id, new_thm, new_nodes) (nodes_temp@[hd nodes]);
 
-fun insert_nodes path_tree (at_id, new_tm, new_thm, new_nodes) =
- case insert_nodes' path_tree (at_id, new_tm, new_thm, new_nodes) [] of
+fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
+ case insert_nodes' path_tree (at_id, new_thm, new_nodes) [] of
    SOME new_path_tree =>
   new_path_tree
  | NONE =>
@@ -35,6 +36,14 @@ fun insert_nodes path_tree (at_id, new_tm, new_thm, new_nodes) =
 
 (* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
 local
+(* TODO: Factor out *)
+fun p4_conv path_cond_tm tm =
+ let
+  val thm = ((PURE_REWRITE_CONV [symb_conj_def]) THENC (CHANGED_CONV blastLib.BBLAST_CONV)) tm
+   handle HOL_ERR msg => (SPECL [path_cond_tm, snd $ dest_symb_conj tm] add_assum)
+ in
+  if Feq $ rhs $ concl thm then SOME thm else SOME (SPECL [path_cond_tm, snd $ dest_symb_conj tm] add_assum)
+ end
 (* Generic symbolic execution
  * This has four language-specific parameters:
  *
@@ -63,41 +72,79 @@ fun symb_exec' lang_funs npaths path_tree [] finished_list = (path_tree, finishe
     * and returns a term with the branch condition, with which you can split the
     * path condition *)
    (case (if nobranch_flag then NONE else lang_should_branch step_thm) of
-     SOME (branch_cond_list, path_disj_thm) =>
-(*
- val SOME (branch_cond_list, path_disj_thm) = lang_should_branch step_thm
+     SOME disj_thm =>
+(* Debug:
+ val SOME disj_thm = lang_should_branch step_thm
 *)
      (* Branch + prune *)
      let
-      (* Get all path conditions in the shape of Cn /\ P ==> P /\ Cn *)
-      (* TODO: Why this tautological shape? Why store path_cond as a theorem and not a term? *)
-      val new_path_conds = map (CONJ path_cond o ASSUME) branch_cond_list
 
-      (* Simplify: some path conditions will now take the shape Cn /\ P ==> Cn /\ P <=> F *)
-      (* TODO: This rule might also be a language parameter *)
-      val new_path_conds' = map (SIMP_RULE std_ss []) new_path_conds
+(* Debug:
+
+val path_cond = ASSUME “c <=> T”;
+val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
+
+*)
+      (* TODO: This relies on the fact that PURE_REWRITE_RULE retains path
+       * condition T as a conjunct. Is
+       * this a hack? Should symb_branch_cases be used from the get-go?
+       * Could introduce definitions/abbreviations instead. *)
+
+      (* 1. Get disj_list with path condition conjoined *)
+      val path_cond_tm = concl path_cond
+      val path_disj_thm = CONJ path_cond disj_thm;
+      val disj_list_rewr_thm = PURE_REWRITE_RULE [MAP, BETA_THM] (SPECL [path_cond_tm, dest_disj_list' $ concl disj_thm] disj_list_CONJ);
+      val path_disj_thm2 = PURE_REWRITE_RULE [disj_list_rewr_thm] path_disj_thm;
+
+      (* 2. Get theorems stating contradictions - or other simplifications - among
+       * any of the disjuncts *)
+      (* Note: if the term is unchanged, the path condition must be the first conjunct *)
+      val F_thm_list = foldl (fn (tm, rewrs) => case p4_conv path_cond_tm tm of SOME thm => (thm::rewrs) | NONE => rewrs) [] (dest_disj_list $ concl path_disj_thm2);
+      val path_disj_thm3 = PURE_REWRITE_RULE F_thm_list path_disj_thm2;
+
+      (* 3. Remove F-entries from the disj_list *)
+      val path_disj_thm4 =
+       PURE_REWRITE_RULE [GSYM disj_list_symb_disj_REWR, disj_list_symb_disj_REWR_extra] $
+       PURE_REWRITE_RULE [disj_list_symb_disj_REWR, symb_disj_F] path_disj_thm3;
+      val new_path_conds = dest_disj_list $ concl $ PURE_REWRITE_RULE [symb_conj_def] path_disj_thm4;
+
+      (* 4. Remove the path condition as conjunct from the list entries, keeping it as an assumption *)
+      (* TODO: Here, path condition can be simplified. But then it also becomes harder to
+       * rewrite with... *)
+      val path_disj_thm5 = SIMP_RULE (pure_ss++boolSimps.CONG_ss) [symb_conj_case, EQ_REFL] (DISCH_ALL path_disj_thm4);
+      val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
+
 
       (* TODO: OPTIMIZE: Check if branch results in just one new path - then we don't need to add
        * a new node to the tree, just replace data in the existing one *)
       val (npaths', new_path_elems) =
        foldl
         (fn (path_cond, (curr_path_id, curr_path_cond_list)) =>
-	 if Feq $ concl path_cond 
-	 then (curr_path_id, curr_path_cond_list)
-	 else (curr_path_id+1,
-               (* TODO: OPTIMIZE: Cons instead of append? will reverse order *)
-               (curr_path_cond_list@[(curr_path_id+1,
-                                      path_cond,
-                                      DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm,
-                                      fuel-1,
-                                      true)])))
+	 (curr_path_id+1,
+	  (* TODO: OPTIMIZE: Cons instead of append? will reverse order *)
+          (* New path IDs are assigned in increments of 1 from the existing max (npaths) *)
+	  (curr_path_cond_list@[(curr_path_id+1,
+                                 (* The path condition, as a theorem *)
+				 path_cond,
+                                 (* The current step theorem, rewritten using the path condition as
+                                  * a theorem (will add path condition as a premise) *)
+				 DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm,
+                                 (* Branching consumes 1 fuel *)
+				 fuel-1,
+                                 (* This flags tells the symbolic execution to not branch this
+                                  * path on next encounter *)
+				 true)])))
         (npaths, [])
-        new_path_conds'
+        (map ASSUME new_path_conds)
 
-      (* TODO: Using TRUTH as a placeholder - use thm option type in path_tree instead? *)
-      val new_path_nodes = map (fn (a,b,c,d,e) => node (a, T, TRUTH, [])) new_path_elems
+      (* The new path tree nodes are mostly placeholders until further branches take place,
+       * but they do already store the path ID (first element) *)
+      (* TODO: Using TRUTH as placeholder - use option type in path_tree instead? *)
+      val new_path_nodes = map (fn (a,b,c,d,e) => node (a, TRUTH, [])) new_path_elems
 
-      val new_path_tree = insert_nodes path_tree (path_id, concl path_cond, path_disj_thm, new_path_nodes)
+      (* This updates the node holding the path which was branched: it now gets assigned a
+       * path disjunction theorem *)
+      val new_path_tree = insert_nodes path_tree (path_id, path_disj_thm6, new_path_nodes)
      in
 (*
 val npaths = npaths'
@@ -126,7 +173,7 @@ val nobranch_flag = true
 in
 fun symb_exec (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) path_cond fuel =
  symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) 1
-            (node (1, T, TRUTH, [])) [(1, path_cond, lang_init_step_thm, fuel, false)] []
+            (node (1, TRUTH, [])) [(1, path_cond, lang_init_step_thm, fuel, false)] []
 end;
 
 end

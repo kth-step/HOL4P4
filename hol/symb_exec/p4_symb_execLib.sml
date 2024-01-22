@@ -6,9 +6,10 @@ open pairSyntax listSyntax numSyntax computeLib hurdUtils;
 
 open p4Theory p4_exec_semTheory p4Syntax p4_exec_semSyntax;
 open p4_coreTheory;
-open symb_execTheory p4_symb_execTheory;
+open symb_execTheory symb_execSyntax p4_symb_execTheory;
 
-open evalwrapLib p4_testLib symb_execLib;
+open evalwrapLib p4_testLib;
+open symb_execLib;
 
 open optionSyntax;
 
@@ -514,10 +515,11 @@ fun p4_should_branch step_thm =
     let
      val branch_cond' = dest_v_bool $ dest_e_v branch_cond
     in
-     SOME ([branch_cond', mk_neg branch_cond'], (SPEC branch_cond' boolTheory.EXCLUDED_MIDDLE))
+     SOME (SPEC branch_cond' disj_list_EXCLUDED_MIDDLE)
     end
    else NONE
     (* Branch point: select expression (in transition statement) *)
+    (* TODO: For value sets, this needs to be generalised slightly, similar to the apply case *)
   | select (e, keys, def) =>
     if is_e_v e andalso not $ null $ free_vars e
     then
@@ -530,16 +532,15 @@ fun p4_should_branch step_thm =
         val sel_bit = dest_v_bit sel_val
        in
         let
-         (* TODO: This should also handle lists of values *)
          (* The branch cases for equality with the different keys *)
          val key_branch_conds = map (fn key => mk_eq (sel_bit, key)) keys
          (* Default branch: i.e., neither of the above hold *)
          val def_branch_cond = list_mk_conj $ map (fn key_eq => mk_neg key_eq) key_branch_conds
-         (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple rewrites,
-          * and not in-place with tactics *)
-         val disj_thm = prove(mk_disj (list_mk_disj key_branch_conds, def_branch_cond), metis_tac[])
+         (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
+          * specialisation or rewrites, and not in-place with tactics *)
+         val disj_thm = prove(mk_disj_list (key_branch_conds@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
         in
-         SOME (key_branch_conds@[def_branch_cond], disj_thm)
+         SOME disj_thm
         end
        end
       else raise (ERR "p4_should_branch" ("Unsupported select value type: "^(term_to_string sel_val)))
@@ -547,12 +548,12 @@ fun p4_should_branch step_thm =
     else NONE
     (* Branch point: table application *)
   | apply (tbl_name, e) =>
+(*
+val apply (tbl_name, e) = apply (“"t"”, “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”)
+*)
     if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso not $ null $ free_vars e
     then
      let
-      (* TODO: This should also handle set types as keys, in which case this is not an
-       * equality, but set membership of app_bit *)
-      (* TODO: This should also handle lists of values *)
       (* 1. Extract ctrl from ascope *)
       val ctrl = #4 $ dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate
       (* 2. Extract key sets from ascope using tbl_name *)
@@ -565,7 +566,8 @@ fun p4_should_branch step_thm =
 	(* 3. Construct different branch cases for all the key sets
 	 *    N.B.: Can now be logically overlapping! *)
 	(* The branch cases for equality with the different table entry keys *)
-        (* TODO: Ensure this obtains the entries in correct order *)
+        (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
+         * funny priorities in the table *)
 	val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
         (* This simplifies a key slightly *)
         val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.ZIP])
@@ -576,16 +578,13 @@ fun p4_should_branch step_thm =
 
 
 	(* 4. Construct default branch case: i.e., neither of the above hold *)
-(*
-	val def_branch_cond = list_mk_conj $ map (fn key_comb => mk_neg key_comb) key_branch_conds
-*)
 	val def_branch_cond = list_mk_conj key_branch_conds_neg
 	(* 5. Construct disjunction theorem, which now is not a strict disjunction *)
-	(* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
-	 * rewrites, and not in-place with tactics *)
-	val disj_thm = prove(mk_disj (list_mk_disj key_branch_conds', def_branch_cond), metis_tac[])
+         (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
+          * specialisation or rewrites, and not in-place with tactics *)
+        val disj_thm = prove(mk_disj_list (key_branch_conds'@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
        in
-	SOME (key_branch_conds'@[def_branch_cond], disj_thm)
+        SOME disj_thm
        end
       else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
      end
@@ -689,49 +688,45 @@ val lang_is_finished = p4_is_finished;
  * The result is a single contract phrased in terms of p4_contract_def, with the
  * initial path condition as precondition *)
 local
-fun p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, [])) [] =
+fun p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) [] =
    (case List.find (fn (id', ct_thm) => id = id') id_ctthm_list of
      SOME (id'', thm) => thm
    | NONE => raise (ERR "p4_unify_path_tree" ("Could not find contract with id: "^(int_to_string id))))
-  | p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, [])) path_tree_list_leafs =
+  | p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) path_tree_list_leafs =
    (* Unify *)
    let
     (* The idea is to use p4_symb_exec_unify_n_gen to unify all
-     * paths resulting from a single branch (i.e. in the list of a node in path_tree).
-     *
-     * First, take the disjuncts in disj_thm and rewrite them to a list format using
-     * disj_list, and then do the same with the entries of path_tree_list_leafs using
-     * p4_contract_list. *)
-    val (disj_list_thm, path_tree_list_leafs_thm) =
-      (REWRITE_RULE [disj_list_REWR, disj_list_extra_REWR, listTheory.APPEND] disj_thm,
-       if length path_tree_list_leafs = 1
-       then hd path_tree_list_leafs
-       else foldl (fn (thm, thm') => CONJ thm' thm)
-	     (hd path_tree_list_leafs)
-	     (tl path_tree_list_leafs))
+     * paths resulting from a single branch (i.e. in the list of a node in path_tree). *)
+    val path_tree_list_leafs_thm =
+     if length path_tree_list_leafs = 1
+     then hd path_tree_list_leafs
+     else foldl (fn (thm, thm') => CONJ thm' thm)
+	   (hd path_tree_list_leafs)
+	   (tl path_tree_list_leafs)
+    val path_cond_tm = fst $ dest_symb_branch_cases $ concl path_disj_thm
     val p4_contract_list_thm =
-     PURE_REWRITE_RULE [SPEC path_cond p4_contract_list_GSYM_REWR,
-                        SPEC path_cond p4_contract_list_REWR,
+     PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_GSYM_REWR,
+                        SPEC path_cond_tm p4_contract_list_REWR,
                         listTheory.APPEND] path_tree_list_leafs_thm
    in
-    MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen disj_list_thm) p4_contract_list_thm
+     MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen path_disj_thm) p4_contract_list_thm
    end
-  | p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, (h::t))) path_tree_list_leafs =
+  | p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, (h::t))) path_tree_list_leafs =
 (* DEBUG: Two iterations, for debugging a simple branch:
-val (node (id, path_cond, disj_thm, (h::t))) = path_tree;
+val (node (id, path_disj_thm, (h::t))) = path_tree;
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
 val path_tree_list_leafs = ([ctthm'])
 
-val (node (id, path_cond, disj_thm, (h::t))) = (node (id, path_cond, disj_thm, t));
+val (node (id, path_disj_thm, (h::t))) = (node (id, path_disj_thm, t));
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
 val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
 
 (* Two more, for multi-case: *)
-val (node (id, path_cond, disj_thm, (h::t))) = (node (id, path_cond, disj_thm, t));
+val (node (id, path_disj_thm, (h::t))) = (node (id, path_disj_thm, t));
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
 val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
 
-val (node (id, path_cond, disj_thm, (h::t))) = (node (id, path_cond, disj_thm, t));
+val (node (id, path_disj_thm, (h::t))) = (node (id, path_disj_thm, t));
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
 val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
 *)
@@ -739,7 +734,7 @@ val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
    let
     val ctthm' = p4_unify_path_tree' id_ctthm_list h []
    in
-    p4_unify_path_tree' id_ctthm_list (node (id, path_cond, disj_thm, t)) (path_tree_list_leafs@[ctthm'])
+    p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, t)) (path_tree_list_leafs@[ctthm'])
    end
 in 
 fun p4_unify_path_tree id_ctthm_list path_tree =
