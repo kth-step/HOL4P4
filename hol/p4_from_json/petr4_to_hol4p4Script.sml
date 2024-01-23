@@ -1546,8 +1546,8 @@ Definition p4_prefix_vars_funs_in_e_def:
    e_slice (p4_prefix_vars_funs_in_e gscope b_func_map prefix e') (p4_prefix_vars_funs_in_e gscope b_func_map prefix e'') (p4_prefix_vars_funs_in_e gscope b_func_map prefix e''')
   | e_call funn el =>
    e_call (p4_prefix_funn b_func_map prefix funn) (MAP (p4_prefix_vars_funs_in_e gscope b_func_map prefix) el)
-  | e_select e' v_x_l x =>
-   e_select (p4_prefix_vars_funs_in_e gscope b_func_map prefix e') v_x_l x
+  | e_select e' s_l_x_l x =>
+   e_select (p4_prefix_vars_funs_in_e gscope b_func_map prefix e') s_l_x_l x
   | e_struct x_e_l =>
    e_struct (MAP ( \ (x,e). (x, p4_prefix_vars_funs_in_e gscope b_func_map prefix e)) x_e_l)
   | e_header b x_e_l =>
@@ -1565,6 +1565,8 @@ rpt strip_tac >| [
 
  IMP_RES_TAC e3_size_mem >>
  fs[],
+
+ cheat,
 
  IMP_RES_TAC e1_tuple_size_mem >>
  fs[]
@@ -2713,11 +2715,18 @@ Definition petr4_parse_default_action_def:
   | _ => get_error_msg "unknown format of table property field: " default_action
 End
 
+Definition p4_get_v_bitv_def:
+ p4_get_v_bitv v =
+  case v of
+  | v_bit (bl, n) => SOME (bl,n)
+  | _ => NONE
+End
+
 (* TODO: Move? *)
 Definition p4_get_v_bit_width_def:
  p4_get_v_bit_width v =
-  case v of
-  | v_bit (bl, n) => SOME n
+  case p4_get_v_bitv v of
+  | SOME (bl, n) => SOME n
   | _ => NONE
 End
 
@@ -2731,8 +2740,8 @@ End
 (* TODO: Move? *)
 Definition p4_get_prefix_length_def:
  p4_get_prefix_length v =
-  case v of
-  | v_bit (bl, n) => SOME (count_prefix bl 0)
+  case p4_get_v_bitv v of
+  | SOME (bl, n) => SOME (count_prefix bl 0)
   | _ => NONE
 End
 
@@ -2757,21 +2766,27 @@ Definition petr4_parse_entry_def:
           | SOME [mask_tags; mask_exp; mask] =>
            (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask_exp, SOME key_type) of
             | SOME_msg val_res =>
-             (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask, SOME key_type) of
-               | SOME_msg mask_res =>
-                if mk = mk_lpm
-                then
-                 (case p4_get_prefix_length mask_res of
-                  | SOME n =>
-                   (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-                    | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, n)::entry_res)
-                    | NONE_msg entry_msg => NONE_msg entry_msg)
-                  | NONE => get_error_msg "could not get prefix length of table entry: " exp_obj)
-                else
-                 (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-                  | SOME_msg entry_res => SOME_msg ((p4_match_mask val_res mask_res, 0)::entry_res)
-                  | NONE_msg entry_msg => NONE_msg entry_msg)
-               | NONE_msg mask_exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++mask_exp_msg))
+             (case p4_get_v_bitv val_res of
+              | SOME val_bitv =>
+               (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (mask, SOME key_type) of
+                 | SOME_msg mask_res =>
+                  (case p4_get_v_bitv mask_res of
+                   | SOME mask_bitv =>
+                    if mk = mk_lpm
+                    then
+                     (case p4_get_prefix_length mask_res of
+                      | SOME n =>
+                       (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                        | SOME_msg entry_res => SOME_msg ((s_mask val_bitv mask_bitv, n)::entry_res)
+                        | NONE_msg entry_msg => NONE_msg entry_msg)
+                      | NONE => get_error_msg "could not get prefix length of table entry: " exp_obj)
+                    else
+                     (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                      | SOME_msg entry_res => SOME_msg ((s_mask val_bitv mask_bitv, 0)::entry_res)
+                      | NONE_msg entry_msg => NONE_msg entry_msg)
+                   | _ => get_error_msg "bitmask mask is not a bitv: " mask)
+                 | NONE_msg mask_exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++mask_exp_msg))
+               | _ => get_error_msg "bitmask value is not a bitv: " mask_exp)
             | NONE_msg exp_msg => NONE_msg ("could not parse bit mask table entry expression: "++exp_msg))
           | _ => get_error_msg "unknown JSON format of bit mask table entry: " exp_obj)
         (* Range expressions constitute another special case *)
@@ -2781,13 +2796,19 @@ Definition petr4_parse_entry_def:
           | SOME [range_tags; range_lo; range_hi] =>
            (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (range_lo, SOME key_type) of
             | SOME_msg lo_res =>
-             (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (range_hi, SOME key_type) of
-               | SOME_msg hi_res =>
-                (* Cannot be LPM *)
-                (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-                 | SOME_msg entry_res => SOME_msg ((p4_match_range lo_res hi_res, 0)::entry_res)
-                 | NONE_msg entry_msg => NONE_msg entry_msg)
-               | NONE_msg hi_msg => NONE_msg ("could not parse range table entry expression: "++hi_msg))
+             (case p4_get_v_bitv lo_res of
+              | SOME lo_bitv =>
+               (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (range_hi, SOME key_type) of
+                | SOME_msg hi_res =>
+                 (case p4_get_v_bitv hi_res of
+                  | SOME hi_bitv =>
+                   (* Cannot be LPM *)
+                   (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+                    | SOME_msg entry_res => SOME_msg ((s_range lo_bitv hi_bitv, 0)::entry_res)
+                    | NONE_msg entry_msg => NONE_msg entry_msg)
+                  | _ => get_error_msg "range upper bound is not a bitv: " range_hi)
+                | NONE_msg hi_msg => NONE_msg ("could not parse range table entry expression: "++hi_msg))
+              | _ => get_error_msg "range lower bound is not a bitv: " range_lo)
             | NONE_msg lo_msg => NONE_msg ("could not parse range table entry expression: "++lo_msg))
           | _ => get_error_msg "unknown JSON format of range table entry: " exp_obj)
         else
@@ -2799,12 +2820,12 @@ Definition petr4_parse_entry_def:
              (case p4_get_v_bit_width val_res of
               | SOME n =>
                (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-                | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), n)::entry_res)
+                | SOME_msg entry_res => SOME_msg ((s_sing val_res, n)::entry_res)
                 | NONE_msg entry_msg => NONE_msg entry_msg)
               | NONE => get_error_msg "could not get width of constant table entry: " exp)
             else
              (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-              | SOME_msg entry_res => SOME_msg ((( \ k. k = (e_v val_res)), 0)::entry_res)
+              | SOME_msg entry_res => SOME_msg ((s_sing val_res, 0)::entry_res)
               | NONE_msg entry_msg => NONE_msg entry_msg)
            | NONE_msg exp_msg => NONE_msg ("could not parse constant table entry: "++exp_msg))
        | _ => get_error_msg "unknown JSON format of table entry key expression: " exp)
@@ -2812,7 +2833,7 @@ Definition petr4_parse_entry_def:
    else if key_str = "DontCare"
    then
     (case petr4_parse_entry (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-     | SOME_msg entry_res => SOME_msg ((( \ k. T), 0)::entry_res)
+     | SOME_msg entry_res => SOME_msg ((s_univ, 0)::entry_res)
      | NONE_msg entry_msg => NONE_msg entry_msg)
    else get_error_msg "unknown JSON format of table entry: " key
   | _ => get_error_msg "unknown JSON format of table entry: " key)
@@ -2875,7 +2896,7 @@ Definition petr4_parse_entries_def:
         (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list t of
          | SOME_msg res_msg =>
           let prio' = (case petr4_parse_priority annot of | SOME annot_prio => annot_prio | NONE => (get_max_prio (MAP SND matches_res) 0)) in
-           SOME_msg (((( \ k. match_all $ ZIP (MAP FST matches_res, k)), prio'), (action_name, args))::res_msg)
+           SOME_msg (((( \ k. match_all_e k (MAP FST matches_res)), prio'), (action_name, args))::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg exp_msg => NONE_msg ("could not parse table entry action: "++exp_msg))
      | NONE_msg matches_msg => NONE_msg ("could not parse table entry key matches: "++matches_msg))
@@ -3105,16 +3126,10 @@ Definition petr4_parse_locals_def:
    | _ => get_error_msg "unknown JSON format of local: " h)
 End
 
-Datatype:
- match_res_t =
-    match_res_default
-  | match_res_exp (v list)
-End
-
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 Definition petr4_parse_matches_def:
- (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau [] = SOME_msg (match_res_exp [])) /\
- (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau (h::t) =
+ (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) [] = SOME_msg []) /\
+ (petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) ((h,expected_tau)::t) =
   case h of
   | Array [String "Expression";
            Object [("tags", tags); ("expr", exp)]] =>
@@ -3122,57 +3137,57 @@ Definition petr4_parse_matches_def:
     *       not necessarily values. Most targets probably restrict to values in practice though. *)
    (case petr4_parse_value (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (exp, SOME expected_tau) of
      | SOME_msg val_res =>
-      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau t of
-       | SOME_msg (match_res_exp matches_res) => SOME_msg (match_res_exp (val_res::matches_res))
-       | SOME_msg (match_res_default) => SOME_msg (match_res_default)
+      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+       | SOME_msg matches_res => SOME_msg ((s_sing val_res)::matches_res)
        | NONE_msg matches_msg => NONE_msg matches_msg)
      | NONE_msg exp_msg => NONE_msg ("could not parse select match case: "++exp_msg))
   | Array [String "Default";
            Object [("tags", tags)]] =>
-   SOME_msg (match_res_default)
+   (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+    | SOME_msg matches_res => SOME_msg (s_univ::matches_res)
+    | NONE_msg matches_msg => NONE_msg matches_msg)
   | Array [String "DontCare";
            Object [("tags", tags)]] =>
-  SOME_msg (match_res_default)
+   (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+    | SOME_msg matches_res => SOME_msg (s_univ::matches_res)
+    | NONE_msg matches_msg => NONE_msg matches_msg)
   | _ => get_error_msg "unknown JSON format of select case match: " h)
 End
 
-Datatype:
- match_t =
-    match_default string
-  | match_exp (v # string)
-End
-
 Definition petr4_parse_case_def:
- petr4_parse_case (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau select_case =
+ petr4_parse_case (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_taus select_case =
   case json_parse_obj ["tags"; "matches"; "next"] select_case of
    | SOME [tags; Array match_exps; name] =>
     (case petr4_parse_name name of
      | SOME state_name =>
-      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau match_exps of
-       (* TODO: Permit list of values *)
-       | SOME_msg (match_res_exp [val_res]) => SOME_msg (match_exp (val_res, state_name))
-       | SOME_msg match_res_default => SOME_msg (match_default state_name)
-       | SOME_msg _ => get_error_msg "lists of case matches not yet supported" (Array match_exps)
+      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP(match_exps,expected_taus)) of
+       | SOME_msg matches_res => SOME_msg (matches_res, state_name)
        | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
      | NONE => get_error_msg "could not parse name: " name)
    | _ => get_error_msg "unknown JSON format of case: " select_case
 End
 
+Definition is_default_case_def:
+ (is_default_case [] = T) /\
+ (is_default_case (h::t) =
+  if h = s_univ
+  then (is_default_case t)
+  else F)
+End
+
 (* TODO: Rewrite from tail-recursive to avoid code duplication? *)
 Definition petr4_parse_cases_def:
- (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau [] =
-  SOME_msg ([], NONE)) /\
- (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau (h::t) =
-  case petr4_parse_case (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau h of
-   | SOME_msg (match_exp exp_case_res) =>
-    (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau t of
-     | SOME_msg (exp_cases_res, def_case_res) => SOME_msg (exp_case_res::exp_cases_res, def_case_res)
-     | NONE_msg cases_msg => NONE_msg cases_msg)
-   | SOME_msg (match_default def_case_res) =>
-    (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_tau t of
-     | SOME_msg (exp_cases_res, NONE) => SOME_msg (exp_cases_res, SOME def_case_res)
-     | SOME_msg _ => get_error_msg "duplicate default case: " h
-     | NONE_msg cases_msg => NONE_msg cases_msg)
+ (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_taus [] =
+  SOME_msg []) /\
+ (petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_taus (h::t) =
+  case petr4_parse_case (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_taus h of
+   | SOME_msg exp_case_res =>
+    if is_default_case (FST exp_case_res)
+    then SOME_msg [exp_case_res]
+    else
+     (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) expected_taus t of
+      | SOME_msg exp_cases_res => SOME_msg (exp_case_res::exp_cases_res)
+      | NONE_msg cases_msg => NONE_msg cases_msg)
    | NONE_msg case_msg => NONE_msg ("could not parse cases: "++case_msg))
 End
 
@@ -3192,18 +3207,14 @@ Definition petr4_parse_trans_def:
              ("exprs", Array exps);
              ("cases", Array cases)]] =>
     (case petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP(exps, REPLICATE (LENGTH exps) NONE)) of
-     (* TODO: Support multiple expressions *)
-     | SOME_msg [exp_res] =>
-      (* TODO: Fix this *)
-      (case exp_to_p_tau (vtymap, ftymap) exp_res of
-       | SOME p_tau =>
-        (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) p_tau cases of
-         | SOME_msg (cases_res, def_case_res) =>
-          (case def_case_res of
-           | SOME def_case => 
-            SOME_msg (stmt_trans (e_select exp_res cases_res def_case), F)
-           | NONE => 
-            SOME_msg (stmt_trans (e_select exp_res cases_res "set_no_match"), T))
+     | SOME_msg exps_res =>
+      (case exps_to_p_taus vtymap exps_res of
+       | SOME p_taus =>
+        (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) p_taus cases of
+         | SOME_msg cases_res =>
+          if is_default_case (FST $ LAST cases_res)
+          then SOME_msg (stmt_trans (e_select (e_struct (ZIP(REPLICATE (LENGTH exps_res) "",exps_res))) (BUTLASTN 1 cases_res) (SND $ LAST cases_res)), F)
+          else SOME_msg (stmt_trans (e_select (e_struct (ZIP(REPLICATE (LENGTH exps_res) "",exps_res))) cases_res "set_no_match"), T)
          | NONE_msg cases_msg => get_error_msg (cases_msg++" while parsing transition: ") (Array trans))
        | NONE => get_error_msg "could not parse type of transition expressions: " (Array exps))
      | NONE_msg exps_msg => get_error_msg (exps_msg++" while parsing transition: ") (Array trans)
