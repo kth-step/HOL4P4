@@ -120,10 +120,6 @@ v :: v_ ::=
 | ext_ref i :: :: ext_ref
   {{ com extern object reference }}
 % Set types
-| range bitv1 bitv2 :: :: range
-  {{ com range }}
-| mask bitv1 bitv2 :: :: mask
-  {{ com bit-mask }}
 | bot :: :: bot
   {{ com no value }}
 
@@ -288,6 +284,57 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
+
+s :: s_ ::=
+{{ com set }}
+| v :: :: sing
+  {{ com singleton }}
+| bitv bitv' :: :: range
+  {{ com interval }}
+| bitv bitv' :: :: mask
+  {{ com bit mask }}
+| univ :: :: univ
+  {{ com universal }}
+
+%TODO: You could alternatively add another layer called "match"
+%match :: match_ ::=
+%{{ com select match }}
+%| v :: :: val
+%  {{ com exact value }}
+%| s :: :: set
+%  {{ com set }}
+
+%Fence between s and s_list
+embed
+{{ hol
+
+}}
+grammar
+
+s_list {{ tex \mathit{s\_list} }} :: s_list_ ::=
+{{ com list of select s cases }}
+{{ hol (s list) }}
+| empty :: :: empty
+  {{ com empty s case list }}
+  {{ hol ([]:s list) }}
+| [ s1 , .. , sn ] :: M :: list
+  {{ com list of s cases }}
+  {{ hol ([[s1 .. sn]]) }}
+| ( s_list ) :: S :: paren
+  {{ hol ([[s_list]]) }}
+
+%match_list {{ tex \mathit{match\_list} }} :: match_list_ ::=
+%{{ com list of select match cases }}
+%{{ hol (match list) }}
+%| empty :: :: empty
+%  {{ com empty match case list }}
+%  {{ hol ([]:match list) }}
+%| [ match1 , .. , matchn ] :: M :: list
+%  {{ com list of match cases }}
+%  {{ hol ([[match1 .. matchn]]) }}
+%| ( match_list ) :: S :: paren
+%  {{ hol ([[match_list]]) }}
+
 e :: e_ ::=
 {{ com expression }}
 | v :: :: v
@@ -314,7 +361,7 @@ e :: e_ ::=
   {{ com bit-slice }}
 | call funn ( e1 , .. , en ) :: :: call
   {{ com function or extern call }}
-| select ( e1 , .. , en ) { v_list1 : x1 ; ... ; v_listn : xn } x :: :: select
+| select e { s_list1 : x1 ; ... ; s_listn : xn } x :: :: select
   {{ com select }}
 | eStruct { x1 = e1 ; ... ; xn = en } :: :: struct
   {{ com struct }}

@@ -23,7 +23,7 @@ val e_eth_ty =
  ``e_acc (e_acc (e_var (varn_name "p")) "ethernet") "etherType"``;
 val ether_ty_ok = mk_v_bitii (2048, 16);
 val stmt_start_trans =
- ``stmt_trans (e_select (^e_eth_ty) ([((^ether_ty_ok), "parse_ipv4")]) "reject")``;
+ ``stmt_trans (e_select [(^e_eth_ty)] ([([(s_sing ^ether_ty_ok)], "parse_ipv4")]) "reject")``;
 
 val start_body = mk_stmt_block (``[]:t_scope``, mk_stmt_seq_list [stmt_start_extract, stmt_start_trans]);
 
