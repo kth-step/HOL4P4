@@ -2325,64 +2325,6 @@ Definition p4_append_input_list_def:
        ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
 End
 
-Definition match_all_def:
- (match_all [] = T) /\
- (match_all ((h, h')::t) =
-   if h h'
-   then match_all t
-   else F)
-End
-
-(* TODO: Silly hack. Handle partiality earlier and let it result in NONE instead of just F
- *       or being undefined. Since things are being evaluated all the time, we ideally want
- *       this to not evaluate unnecessarily - not trivial since this function is being held
- *       in the state *)
-Definition p4_match_mask_def:
- p4_match_mask val mask k =
-  case k of
-  | e_v k_bitv =>
-   (case mask of
-    | v_bit (v, n) =>
-     (case k_bitv of
-      | v_bit (v', n') =>
-       (case val of
-        | v_bit (v'', n'') =>
-         (case bitv_binop binop_and (v', n') (v, n) of
-          | SOME res =>
-           (case bitv_binop binop_and (v'', n'') (v, n) of
-            | SOME res' => 
-             (case bitv_binpred binop_eq res res' of
-              | SOME bool => bool
-              | NONE => F)
-            | NONE => F)
-          | NONE => F)
-        | _ => F)
-      | _ => F)
-    | _ => F)
-  | _ => F
-End
-
-Definition p4_match_range_def:
- p4_match_range lo hi k =
-  case k of
-  | e_v k_bitv =>
-   (case lo of
-    | v_bit (v, n) =>
-     (case k_bitv of
-      | v_bit (v', n') =>
-       (case hi of
-        | v_bit (v'', n'') =>
-         (case bitv_binpred binop_ge (v', n') (v, n) of
-          | SOME T =>
-           (case bitv_binpred binop_le (v', n') (v'', n'') of
-            | SOME T => T
-            | _ => F)
-          | _ => F)
-        | _ => F)
-      | _ => F)
-    | _ => F)
-  | _ => F
-End
 
 
 (**************************)

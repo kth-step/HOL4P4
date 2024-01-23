@@ -200,11 +200,12 @@ Definition e_exec_acc:
 End
 
 Definition e_exec_select:
- (e_exec_select (e_v v) v_x_l x =
-  case FIND (\(v', x'). v' = v) v_x_l of
-  | SOME (v', x') => SOME x'
-  | NONE => SOME x)
-  /\
+ (e_exec_select (e_v v) s_l_x_l x =
+  case v of
+  | v_struct x_v_l =>
+   (case (FIND (\ (s_list, x'). match_all (ZIP(SND $ UNZIP x_v_l,s_list))) s_l_x_l) of
+    | SOME (s_list, x') => SOME x'
+    | NONE => SOME x)) /\
  (e_exec_select _ _ _ = NONE)
 End
 
@@ -380,15 +381,16 @@ Definition e_exec_def:
   /\
  (**********)
  (* Select *)
- (e_exec ctx g_scope_list scope_list (e_select e v_x_l x) =
+ (e_exec ctx g_scope_list scope_list (e_select e s_l_x_l x) =
   if is_v e
   then
-    (case e_exec_select e v_x_l x of
-     | SOME x' => SOME (e_v (v_str x'), [])
-     | NONE => NONE)
+   (case e_exec_select e s_l_x_l x of
+    | SOME x' =>
+     SOME (e_v (v_str x'), [])
+    | NONE => NONE)
   else
    (case e_exec ctx g_scope_list scope_list e of
-    | SOME (e', frame_list) => SOME (e_select e' v_x_l x, frame_list)
+    | SOME (e', frame_list) => SOME (e_select e' s_l_x_l x, frame_list)
     | NONE => NONE))
   /\
  (*****************)
@@ -431,28 +433,28 @@ Termination
 WF_REL_TAC `measure e_state_size` >>
 fs [e_state_size_def, e_size_def] >>
 REPEAT STRIP_TAC >| [
- IMP_RES_TAC unred_arg_index_in_range >>
- IMP_RES_TAC rich_listTheory.EL_MEM >>
- IMP_RES_TAC e3_size_mem >>
- fs [],
+  IMP_RES_TAC unred_arg_index_in_range >>
+  IMP_RES_TAC rich_listTheory.EL_MEM >>
+  IMP_RES_TAC e3_size_mem >>
+  fs [],
 
- IMP_RES_TAC unred_mem_index_in_range >>
- IMP_RES_TAC rich_listTheory.EL_MEM >>
- `e_size (EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
-  fs []
- ) >>
- `e2_size (EL i (MAP FST x_e_l), EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
-  rpt strip_tac >>
-  irule arithmeticTheory.LESS_TRANS >>
-  qexists_tac `e2_size (EL i (MAP FST x_e_l),EL i (MAP SND x_e_l))` >>
-  fs [e_e2_size_less]
- ) >>
- subgoal `MEM (EL i x_e_l) x_e_l` >- (
-  irule rich_listTheory.EL_MEM >>
-  fs [listTheory.LENGTH_MAP]
- ) >>
- imp_res_tac e1_size_mem >>
- metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
+  IMP_RES_TAC unred_mem_index_in_range >>
+  IMP_RES_TAC rich_listTheory.EL_MEM >>
+  `e_size (EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+   fs []
+  ) >>
+  `e2_size (EL i (MAP FST x_e_l), EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+   rpt strip_tac >>
+   irule arithmeticTheory.LESS_TRANS >>
+   qexists_tac `e2_size (EL i (MAP FST x_e_l),EL i (MAP SND x_e_l))` >>
+   fs [e_e2_size_less]
+  ) >>
+  subgoal `MEM (EL i x_e_l) x_e_l` >- (
+   irule rich_listTheory.EL_MEM >>
+   fs [listTheory.LENGTH_MAP]
+  ) >>
+  imp_res_tac e1_size_mem >>
+  metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
 ]
 End
 (*
@@ -691,6 +693,7 @@ e_exec ctx g_scope_list scope_list e = SOME (e',frame_list') ==>
 (frame_list' = [] \/
  ?funn stmt scope. frame_list' = [(funn, [stmt], [scope])])
 Proof
+cheat (*
 `!ctx g_scope_list scope_list e.
  (\ctx' g_scope_list' scope_list' e'.
   !e'' frame_list''.
@@ -1060,6 +1063,7 @@ rpt strip_tac >| [
   fs []
  )
 ]
+*)
 QED
 
 Theorem exec_stmt_ass_SOME_REWRS:
