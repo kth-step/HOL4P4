@@ -1466,7 +1466,7 @@ End
 (* Common: statements *)
 
 Definition petr4_parse_method_call_def:
- petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmt_details =
+ petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list, action_list) stmt_details =
   case stmt_details of
   | [(f0, tags); (* No check for this, since it's only thrown away *)
      (f1, func); (* Expression: either a name or a member (in case of extern object's method) *)
@@ -1499,7 +1499,12 @@ Definition petr4_parse_method_call_def:
                     | NONE_msg postproc_ext_msg => NONE_msg postproc_ext_msg)
                   | NONE => get_error_msg "no object provided for extern object method call: " func)
                | (funn_name fun_name) =>
-                SOME_msg ([], [], [], [], [], (stmt_ass lval_null (e_call funn res_args)))
+                (* For action, insert extra first argument with hit bit as ARB *)
+                if MEM fun_name action_list
+                then
+                 SOME_msg ([], [], [], [], (stmt_ass lval_null (e_call funn ((e_v $ b_bool ARB)::res_args))))
+                else
+                 SOME_msg ([], [], [], [], (stmt_ass lval_null (e_call funn res_args)))
                | _ => get_error_msg "unknown type of method call: " func)
              | NONE_msg args_msg => NONE_msg ("could not parse method call: "++args_msg))
            | NONE => get_error_msg "type inference information not found for method call: " func)
@@ -1762,7 +1767,7 @@ Definition petr4_parse_stmts_def:
   case h of
   | Array [String stmt_name; Object stmt_details] =>
    if stmt_name = "method_call" then
-    (case petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmt_details of
+    (case petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) stmt_details of
      | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list', call_res) =>
       (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
        | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list, stmts_res) =>
@@ -1966,11 +1971,10 @@ Definition petr4_parse_p_params_def:
    | _ => get_error_msg "could not parse parameters: " h)
 End
 
-(* TODO: Not needed anymore? *)
 Definition update_vtymap_fun_def:
  (update_vtymap_fun vty_updates funtype =
   case funtype of
-  | funtype_action => vty_updates
+  | funtype_action => ((varn_name "hit", tau_bool)::vty_updates)
   | funtype_function => vty_updates
   | funtype_ext_function => vty_updates
   | funtype_ext_obj_function obj_name => []
@@ -1990,7 +1994,7 @@ End
 (* Parses the shared parts of actions and functions *)
 (* TODO: Rename this *)
 Definition petr4_parse_fun_body_def:
- petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) (body, name, params, funtype) =
+ petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list, action_list) (body, name, params, funtype) =
   case json_parse_obj ["tags"; "annotations"; "statements"] body of
    | SOME [body_tags; body_annot; Array stmts] =>
     (case petr4_parse_name name of
@@ -2013,32 +2017,32 @@ End
 (* Used by functions for parsing top-level functions and similar, also used directly
  * for parsing block-local actions and extern object methods *)
 Definition petr4_fun_to_fmapupdate_def:
- petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) fun funtype =
+ petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list, action_list) fun funtype =
   case funtype of
   | funtype_action =>
    (case json_parse_obj ["tags"; "annotations"; "name"; "params"; "body"] fun of
     | SOME [tags; annot; name; Array params; body] =>
-     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) (body, name, params, funtype)
+     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list, action_list) (body, name, params, funtype)
     | _ => get_error_msg "unknown JSON format of action: " fun)
   | funtype_function =>
    (case json_parse_obj ["tags"; "return"; "name"; "type_params"; "params"; "body"] fun of
     | SOME [tags; ret_ty; name; Array typarams; Array params; body] =>
-     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) (body, name, params, funtype)
+     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list, action_list) (body, name, params, funtype)
     | _ => get_error_msg "unknown JSON format of function: " fun)
   | funtype_ext_function =>
    (case json_parse_obj ["tags"; "annotations"; "return"; "name"; "type_params"; "params"] fun of
     | SOME [tags; annot; ret_ty; name; Array typarams; Array params] =>
-     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) (Object [("tags", Null); ("annotations", Null); ("statements", Array [])], name, params, funtype)
+     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list, action_list) (Object [("tags", Null); ("annotations", Null); ("statements", Array [])], name, params, funtype)
     | _ => get_error_msg "unknown JSON format of extern function: " fun)
   | funtype_ext_obj_function obj_name =>
    (case json_parse_obj ["tags"; "annotations"; "return"; "name"; "type_params"; "params"] fun of
     | SOME [tags; annot; ret_ty; name; Array typarams; Array params] =>
-     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) (Object [("tags", Null); ("annotations", Null); ("statements", Array [])], name, params, funtype)
+     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list, action_list) (Object [("tags", Null); ("annotations", Null); ("statements", Array [])], name, params, funtype)
     | _ => get_error_msg "unknown JSON format of extern function: " fun)
   | funtype_ext_obj_constructor obj_name =>
    (case json_parse_obj ["tags"; "annotations"; "name"; "params"] fun of
     | SOME [tags; annot; name; Array params] =>
-     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) (Object [("tags", Null); ("annotations", Null); ("statements", Array [])], name, params, funtype)
+     petr4_parse_fun_body (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list, action_list) (Object [("tags", Null); ("annotations", Null); ("statements", Array [])], name, params, funtype)
     | _ => get_error_msg "unknown JSON format of extern constructor: " fun)
 End
 
@@ -2065,14 +2069,26 @@ Definition add_explicit_return_def:
   else (stmt_seq stmt (stmt_ret (e_v v_bot)))
 End
 
+(* This adds *)
+Definition add_apply_result_inline_def:
+ add_apply_result_inline stmt =
+  if is_final_stmt_return stmt
+  then stmt
+  else (stmt_seq (stmt_ass (varn_name "gen_apply_result") res_) stmt)
+End
+
 
 (* TODO: Decide whether to put action in global or local function map here, re-use in parse_locals *)
 (* Parses a top-level action (note that this can't see any tables, since those can only be defined in control blocks) *)
 Definition petr4_parse_actiondef_def:
- petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) action =
-  case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, [], extfun_list) action funtype_action of
+ petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list, action_list) action =
+  case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, [], extfun_list, action_list) action funtype_action of
    | SOME_msg ((fa_name, (fa_body, fa_params)), ftymap_upd) =>
-    SOME_msg (ftymap_upd::ftymap, [fa_name], AUPDATE fmap (fa_name, (add_explicit_return fa_body, fa_params)))
+    let fa_params' = (("hit", d_in)::fa_params) in
+    if ALL_DISTINCT ("gen_apply_result"::(MAP FST fa_params'))
+    then
+     SOME_msg (ftymap_upd::ftymap, [fa_name], AUPDATE fmap (fa_name, (add_explicit_return fa_body, fa_params')))
+    else NONE_msg ("Inlining scheme for apply expressions caused overlapping parameter names (hit or gen_apply_result) while parsing action "++fa_name)
    | NONE_msg msg => NONE_msg ("Could not parse action: "++msg)
 End
 
@@ -2080,17 +2096,17 @@ End
 (* TODO: Set return type properly *)
 (* Parses a top-level function *)
 Definition petr4_parse_function_def:
- petr4_parse_function (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) function =
-  case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, [], extfun_list) function funtype_function of
+ petr4_parse_function (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list, action_list) function =
+  case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, [], extfun_list, action_list) function funtype_function of
    | SOME_msg (fmap_upd, (f_name, (f_argtys, _))) =>
     SOME_msg ((f_name, (f_argtys, tau_bot))::ftymap, AUPDATE fmap fmap_upd)
    | NONE_msg msg => NONE_msg ("Could not parse function: "++msg)
 End
 
-(* Parses a top-level extern function, saves the name in extfun_list *)
+(* Parses a top-level extern function, saves the name in extfun_list, action_list *)
 Definition petr4_parse_extfun_def:
- petr4_parse_extfun (tyenv, enummap, vtymap, ftymap, extfun_list) extfun =
-  case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, []:func_map, []:scope, [], extfun_list) extfun funtype_ext_function of
+ petr4_parse_extfun (tyenv, enummap, vtymap, ftymap, extfun_list, action_list) extfun =
+  case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, []:func_map, []:scope, [], extfun_list, action_list) extfun funtype_ext_function of
    | SOME_msg ((extfun_name, _), ftymap_upd) =>
     SOME_msg (AUPDATE ftymap ftymap_upd, extfun_list++[extfun_name])
    | NONE_msg m_msg => NONE_msg ("could not parse extern function: "++m_msg)
@@ -3024,7 +3040,7 @@ Definition petr4_parse_control_def:
                   then
                    (case petr4_merge_upds (decl_list++decl_list_upds) of
                     | SOME decl_list' =>
-                    SOME_msg (AUPDATE tyenv (control_name, p_tau_blk control_name), enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control b_func_map'' decl_list' ([]:pars_map) tbl_map')), MAP (THE o deparameterise_tau o SND) vty_updates), (tbl_entries_map++[(control_name, AUPDATE_LIST tbl_entries' tbl_entries_upds)]), AUPDATE_LIST ttymap ttymap')
+                    SOME_msg (AUPDATE tyenv (control_name, p_tau_blk control_name), enummap, vtymap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control b_func_map'' decl_list' ([]:pars_map) tbl_map')), MAP (THE o deparameterise_tau o SND) vty_updates), (tbl_entries_map++[(control_name, AUPDATE_LIST tbl_entries' tbl_entries_upds)]), action_list', AUPDATE_LIST ttymap ttymap')
                     | NONE => NONE_msg ("Duplicate variable (parameter) name in nested control block while parsing control "++control_name))
                   else NONE_msg ("Taboo variable found among block variables in block: "++control_name)
                  | NONE => NONE_msg ("Duplicate table name in nested control block while parsing control "++control_name))

@@ -29,7 +29,7 @@ The simplest way to try this out is to use the `Makefile` in the root directory 
 
 In order to accommodate P4 programs in the syntax of HOL4P4, a bit of desugaring must be done.
 
-### Nested programmable blocks
+### Nested control blocks
 
 The most significant program transformation concerns inlining of nested blocks. Currently, only nested control blocks are supported and not nested parser blocks. This works in the following manner:
 
@@ -60,6 +60,20 @@ The new programmable block-variables resulting from the above procedure will be 
 ### Select expressions
 
 Select expressions with no default case will get a new default case that maps to the state "set_no_match", which contains only a "verify(false, error.NoMatch)" statement. The import tool will halt with an error if "set_no_match" is encountered among the regular states of the P4 program. The "set_no_match" state will only appear in programs with default-less select expressions.
+
+### Table application in expressions
+
+To accommodate table application in expressions and their returned structs, the following can be done:
+
+* All actions are given an additional in-directed first parameter called "hit". The import tool disallows P4 programs with actions with pre-existing parameters named "hit".
+* An assignment is prepended to the body of all actions, which contain an assignment of "hit" to "apply_result_hit", which is a global variable (the import tool disallows P4 programs to have global variables, programmable-block variables, declared variables and action arguments called "apply_result_hit").
+* Default actions of tables pass false as argument to "hit". Actions corresponding to table entries pass true. Action calls in the regular P4 code pass ARB.
+* Whenever a table application is encountered by the import tool inside an expression `e` in a statement `stmt`, the following is done:
+  + A new statement `stmt1` consisting of assignment to a temporary variable `tmp1` of the sub-expression `e1` preceding the table application in evaluation order (e.g. the first operand of a binary expression, if the table application is the second), if any, is constructed.
+  + Appended sequentially to `stmt1` is `stmt2`: first the apply statement corresponding to the apply expression (same arguments), then an assignment to the global variable "apply_result1" of the struct expression `{ hit : apply_result_hit ; miss : !apply_result_hit ; action_result : table_bitv }`, where `table_bitv` is the action name serialised to a bitvector based on order of declaration in the program. In case the apply expression is occupying a short-circuit position in `e`, `stmt2` is enclosed in the appropriate conditional statement on `tmp1`.
+  + Inside `e`, the variable `tmp1` takes the position of `e1` and `apply_result1` that of the table application.
+  + The above procedure is then followed recursively, in case the apply expression was encountered as the first operand of `e`, incrementing the indices of `apply_result` and `tmp`.
+* Occurrences of the table name in the code are then serialised in the same manner as for the `apply_result` struct.
 
 ## How to debug test files
 
