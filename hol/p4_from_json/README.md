@@ -25,9 +25,13 @@ The simplest way to try this out is to use the `Makefile` in the root directory 
 
 `petr4_to_hol4p4.sml` is the internal mechanism of `petr4_to_hol4p4_dir.sh` that does the actual format transformation from petr4 JSON to HOL4P4. `petr4_to_hol4p4Script.sml` holds the theorems needed for this, and `petr4_to_hol4p4Syntax.sml` the syntax library.
 
-## Some notes on program transformations
+## Program transformations
 
-In order to accomodate P4 programs in the syntax of HOL4P4, a bit of desugaring must be done. The most significant of these concern inlining. Currently, only nested control blocks are supported and not nested parser blocks. This works in the following manner:
+In order to accommodate P4 programs in the syntax of HOL4P4, a bit of desugaring must be done.
+
+### Nested programmable blocks
+
+The most significant program transformation concerns inlining of nested blocks. Currently, only nested control blocks are supported and not nested parser blocks. This works in the following manner:
 
 When instantiated blocks are applied (called), the apply block (body) of the nested block is inlined in the parent block, with all variables and tables prefixed with the instance name. The copy-in copy-out mechanism of block parameters is handled as follows:
 
@@ -50,6 +54,12 @@ Note that if the same block is instantiated twice, it uses different tables, whi
 This method cannot distinguish between tables of the same name in non-nested control blocks, nor between instances of the same name in separate programmable blocks. To avoid name collisions across nestings, all table names with dots are disallowed by the import tool.
 
 Also, this method does not permit nested blocks from using a return statement to finish. Accordingly, the import tool halts with an error if inlining of programmable blocks with bodies containing return statements is attempted.
+
+The new programmable block-variables resulting from the above procedure will be added to a "taboo list" - if these are encountered among the programmable block-variables of the parent block or in any variable declaration before the inlined block, the import tool will halt with an error.
+
+### Select expressions
+
+Select expressions with no default case will get a new default case that maps to the state "set_no_match", which contains only a "verify(false, error.NoMatch)" statement. The import tool will halt with an error if "set_no_match" is encountered among the regular states of the P4 program. The "set_no_match" state will only appear in programs with default-less select expressions.
 
 ## How to debug test files
 

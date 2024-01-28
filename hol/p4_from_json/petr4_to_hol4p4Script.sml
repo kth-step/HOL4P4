@@ -2745,7 +2745,7 @@ Definition petr4_parse_trans_def:
              ("next", next)]] =>
    (case petr4_parse_name next of
     | SOME next_state =>
-     SOME_msg (stmt_trans (e_v (v_str next_state)))
+     SOME_msg (stmt_trans (e_v (v_str next_state)), F)
     | NONE => get_error_msg "could not parse name: " next)
   | [String "Select";
      Object [("tags", tags);
@@ -2759,18 +2759,27 @@ Definition petr4_parse_trans_def:
        | SOME p_tau =>
         (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) p_tau cases of
          | SOME_msg (cases_res, def_case_res) =>
-          (* TODO: Note that reject is always default next state unless otherwise specified...
-           * Hard-coded in petr4 semantics or in spec? *)
           (case def_case_res of
            | SOME def_case => 
-            SOME_msg (stmt_trans (e_select exp_res cases_res def_case))
+            SOME_msg (stmt_trans (e_select exp_res cases_res def_case), F)
            | NONE => 
-            SOME_msg (stmt_trans (e_select exp_res cases_res "reject")))
+            SOME_msg (stmt_trans (e_select exp_res cases_res "set_no_match"), T))
          | NONE_msg cases_msg => get_error_msg (cases_msg++" while parsing transition: ") (Array trans))
        | NONE => get_error_msg "could not parse type of " (Array exps))
      | NONE_msg exps_msg => get_error_msg (exps_msg++" while parsing transition: ") (Array trans)
      | _ => get_error_msg ("lists of expressions in select statements not supported, encountered while parsing transition: ") (Array trans))
   | _ => get_error_msg "unknown JSON format of transition: " (Array trans)
+End
+
+Definition add_set_no_match_state_def:
+ add_set_no_match_state pars_map =
+  if EXISTS (\ (n, stmt). n = "set_no_match") pars_map
+  then NONE_msg "encountered reserved parser state name set_no_match in P4 program"
+  else
+   SOME_msg (AUPDATE pars_map ("set_no_match",
+                              stmt_ass lval_null (e_call (funn_ext "" "verify")
+                               [e_v (v_bool F);
+                                e_v (v_bit (fixwidth 32 (n2v 2), 32))])))
 End
 
 (* TODO: This ignores nested programmable blocks, for now *)
@@ -2785,8 +2794,13 @@ Definition petr4_parse_states_def:
       (case petr4_parse_stmts (tyenv,enummap,vtymap,ftymap,gscope,[],[],[],extfun_list) stmts of
        | SOME_msg (_, _, _, _, _, stmts_res) =>
         (case petr4_parse_trans (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) trans of
-         | SOME_msg trans_res =>
+         | SOME_msg (trans_res, F) =>
           petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) (AUPDATE pars_map (state_name, stmt_seq stmts_res trans_res)) t
+         | SOME_msg (trans_res, T) =>
+          (case petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) (AUPDATE pars_map (state_name, stmt_seq stmts_res trans_res)) t of
+           | SOME_msg pars_map =>
+            add_set_no_match_state pars_map
+           | NONE_msg stats_msg => NONE_msg stats_msg)
          | NONE_msg trans_msg => NONE_msg ("could not parse parser state: "++trans_msg))
        | NONE_msg stmts_msg => NONE_msg ("could not parse parser state body: "++stmts_msg))
      | NONE => get_error_msg "could not parse name: " name)
