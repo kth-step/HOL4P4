@@ -766,6 +766,16 @@ Definition json_p_tau_opt_list_size_def:
    json3_size json_list
 End
 
+(*
+Datatype:
+ exp_res_t =
+    Number num
+  | Exp e
+  (* table.apply().action_run expression to be inlined *)
+  | InlineActRun string
+End
+*)
+
 Definition msg_opt_INL_def:
  (msg_opt_INL (SOME_msg (e:e)) = (SOME_msg ((INL e):(e + num)))) /\
  (msg_opt_INL (NONE_msg msg) = (NONE_msg msg))
@@ -1655,18 +1665,106 @@ Definition petr4_parse_var_def:
   | _ => get_error_msg "unknown JSON format of variable: " var
 End
 
+(*
+["switch",
+ {"tags":["missing_info",""],
+  "expr":["expression_member",{"tags":["missing_info",""],"expr":["call",{"tags":["missing_info",""],"func":["expression_member",{"tags":["missing_info",""],"expr":["name",{"tags":["missing_info",""],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"Check_src_ip"}}]}],"name":{"tags":["missing_info",""],"string":"apply"}}],"type_args":[],"args":[]}],"name":{"tags":["missing_info",""],"string":"action_run"}}],
+  "cases":[
+   ["Action",
+    {"tags":["missing_info",""],
+     "label":["name",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"Reject"}}],
+     "code":{"tags":["missing_info",""],"annotations":[],"statements":[["assignment",{"tags":["missing_info",""],"lhs":["name",{"tags":["missing_info",""],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"pass"}}]}],"rhs":["false",{"tags":["missing_info",""]}]}]]}
+    }],
+
+   ["Action",
+    {"tags":["missing_info",""],
+     "label":["name",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"NoAction"}}],
+     "code":{"tags":["missing_info",""],"annotations":[],"statements":[]}}]]}]
+*)
+
+(*
+Definition petr4_parse_switch_case_def:
+ petr4_parse_switch_case (tyenv, enummap:enummap, vtymap, ftymap, extfun_list) p_tau exp =
+  | NONE_msg exp_msg => NONE_msg ("could not parse value: "++exp_msg)
+End
+*)
+
+(* TODO: use parse_arr and parse_obj *)
+Definition petr4_parse_switch_cases_def:
+ (petr4_parse_switch_cases p_tau [] =
+  SOME_msg []) /\
+ (petr4_parse_switch_cases p_tau (h::t) =
+  (case h of
+   | Array [String "Action";
+      Object [("tags", tags);
+              ("label", label);
+              ("code", code)]] =>
+    (case petr4_parse_type_name label of
+     | SOME label_res =>
+      (case json_parse_obj ["tags"; "annotations"; "statements"] code of
+       | SOME stmts =>
+        (case petr4_parse_switch_cases p_tau t of
+         | SOME_msg exps_res => SOME_msg ((label_res, stmts)::exps_res)
+         | NONE_msg exps_msg => NONE_msg exps_msg)
+       | NONE => get_error_msg "unknown JSON format of switch case code: " code)
+     | NONE => get_error_msg "could not parse switch case action name: " label)
+   | _ => get_error_msg "unknown JSON format of switch case: " h)
+ )
+End
+
+Definition combine_stmts_res_def:
+ (combine_stmts_res f [] = SOME_msg ([], [], [], [], [], [])) /\
+ (combine_stmts_res f (h::t) =
+  case f h of
+  | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
+   (case combine_stmts_res f t of
+    | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', stmts_res_list) =>
+     SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list++taboo_list', (stmts_res::stmts_res_list))
+    | NONE_msg msg' => NONE_msg msg')
+  | NONE_msg msg => NONE_msg msg)
+End
+
+(* TODO: Write better version *)
+(* Currently only switches without fallthrough cases *)
+Definition inline_switch_def:
+ (inline_switch e [] = stmt_empty) /\
+ (inline_switch e ((l,s)::t) =
+  stmt_cond (e_binop e binop_eq l) s (inline_switch e t)
+ )
+End
+
+Definition serialise_actions'_def:
+ (serialise_actions' action_list [] = SOME_msg []) /\
+ (serialise_actions' action_list (h::t) =
+  case INDEX_FIND 0 (\el. el = h) action_list of
+  | SOME (i, _) =>
+   (case serialise_actions' action_list t of
+    | SOME_msg ser_res =>
+     SOME_msg ((e_v $ v_bit (fixwidth 32 (n2v i), 32))::ser_res)
+    | NONE_msg ser_msg => NONE_msg ser_msg)
+  | NONE => NONE_msg ("could not serialise action "++h)
+ )
+End
+
+(* TODO: In case of shadowing, last (visible) defined action with the name is used *)
+Definition serialise_actions_def:
+ (serialise_actions action_list actions =
+  serialise_actions' (REVERSE action_list) actions
+ )
+End
+
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 (* Note that the three first elements of the returned tuple are only used for
  * nested control blocks. *)
 Definition petr4_parse_stmts_def:
- (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, (tbl_entries_map:(string # ((string, (((e_list -> bool) # num), string # e_list) alist) alist)) list), extfun_list) [] = SOME_msg ([], [], [], [], [], stmt_empty)) /\
-  (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) (h::t) =
+ (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, (tbl_entries_map:(string # ((string, (((e_list -> bool) # num), string # e_list) alist) alist)) list), action_list, extfun_list) [] = SOME_msg ([], [], [], [], [], stmt_empty)) /\
+  (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) (h::t) =
   case h of
   | Array [String stmt_name; Object stmt_details] =>
    if stmt_name = "method_call" then
     (case petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmt_details of
      | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list', call_res) =>
-      (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+      (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
        | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list, stmts_res) =>
         SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list'++taboo_list, p4_seq_append_stmt call_res stmts_res)
        | NONE_msg stmts_msg => NONE_msg stmts_msg)
@@ -1674,7 +1772,7 @@ Definition petr4_parse_stmts_def:
    else if stmt_name = "assignment" then
     (case petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) stmt_details of
      | SOME_msg ass_res =>
-      (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+      (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
        | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
         SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, p4_seq_append_stmt ass_res stmts_res)
        | NONE_msg stmts_msg => NONE_msg stmts_msg)
@@ -1692,11 +1790,11 @@ Definition petr4_parse_stmts_def:
         (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, extfun_list) (cond, NONE) of
          | SOME_msg cond_res =>
           (* TODO: Will this work, since the cases are always a singleton list of a block statement? *)
-          (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) [true_case] of
+          (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) [true_case] of
            | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, true_case_res) =>
-            (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) [false_case] of
+            (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) [false_case] of
              | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', false_case_res) =>
-              (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+              (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
                | SOME_msg (b_func_map_upds'', tbl_map_upds'', decl_list_upds'', tbl_entries_upds'', taboo_list'', stmts_res) =>
                 SOME_msg (b_func_map_upds++b_func_map_upds'++b_func_map_upds'',
                           tbl_map_upds++tbl_map_upds'++tbl_map_upds'',
@@ -1719,9 +1817,9 @@ Definition petr4_parse_stmts_def:
      if f1 = "block" then
       (case json_parse_obj ["tags"; "annotations"; "statements"] block of
        | SOME [tags; annotations; Array stmts] =>
-        (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmts of
+        (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) stmts of
          | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) => 
-          (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+          (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
            | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', t_res) =>
             SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list++taboo_list', p4_seq_append_stmt (stmt_block [] stmts_res) t_res)
            | NONE_msg t_msg => NONE_msg t_msg)
@@ -1734,7 +1832,7 @@ Definition petr4_parse_stmts_def:
    else if stmt_name = "return" then
     (case petr4_parse_return (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) stmt_details of
      | SOME_msg ret_res =>
-      (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+      (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
        | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
         SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, p4_seq_append_stmt ret_res stmts_res)
        | NONE_msg stmts_msg => NONE_msg stmts_msg)
@@ -1749,7 +1847,7 @@ Definition petr4_parse_stmts_def:
       | SOME decl_obj =>
        (case petr4_parse_var (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) decl_obj of
         | SOME_msg (varn, tau, init_val_opt) =>
-         (case petr4_parse_stmts (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+         (case petr4_parse_stmts (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
           | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
            if MEM varn taboo_list
            then get_error_msg "taboo variable name found when parsing declaration statement: " decl_obj
@@ -1762,19 +1860,44 @@ Definition petr4_parse_stmts_def:
         | NONE_msg varn_tau_msg => NONE_msg ("could not parse declaration: "++varn_tau_msg))
       | _ => get_error_msg "unknown JSON format of declaration: " decl)
     | _ => get_error_msg "unknown JSON format of declaration: " (Object stmt_details)
+   else if stmt_name = "switch" then
+    case stmt_details of
+    | [("tags", tags);
+       ("expr", expr);
+       ("cases", Array cases)] =>
+     (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, extfun_list) (expr, NONE) of
+      | SOME_msg expr_res =>
+       (case exp_to_p_tau vtymap expr_res of
+        | SOME p_tau =>
+         (case petr4_parse_switch_cases p_tau cases of
+          | SOME_msg cases_res =>
+           let (labels, stmts) = UNZIP cases_res in
+           (case serialise_actions' action_list labels of
+            | SOME_msg labels' =>
+             (case combine_stmts_res (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list)) stmts of
+              | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res_list) =>
+               SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, inline_switch expr_res (ZIP(labels',stmts_res_list)))
+              | NONE_msg stmts_msg => NONE_msg stmts_msg)
+            | NONE_msg act_msg => NONE_msg act_msg)
+          | NONE_msg cases_msg => NONE_msg cases_msg)
+        | NONE => get_error_msg "could not parse type of exp: " expr)
+      | NONE_msg expr_msg => NONE_msg ("could not parse switch expression: "++expr_msg))
+    | _ => get_error_msg "unknown JSON format of switch: " (Object stmt_details)
    else if stmt_name = "empty_statement" then
-    case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+    case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
     | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
      SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, p4_seq_append_stmt stmt_empty stmts_res)
     | NONE_msg stmts_msg => NONE_msg stmts_msg
    else NONE_msg ("unknown statement name: "++stmt_name)
   | Null =>
-   (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) t of
+   (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
     | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
      SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, p4_seq_append_stmt stmt_empty stmts_res)
     | NONE_msg stmts_msg => NONE_msg stmts_msg)
   | _ => get_error_msg "unknown JSON format of statement: " h)
 Termination
+cheat
+(*
 WF_REL_TAC `measure ( \ (maps, json_list). json3_size json_list)` >>
 rpt strip_tac >> (fs[json_size_def]) >- (
  (* Case block *)
@@ -1791,6 +1914,7 @@ rpt strip_tac >> (fs[json_size_def]) >- (
  Cases_on ‘q'' = "statements"’ >> (fs[]) >>
  Cases_on ‘json_parse_obj' [] t'’ >> (fs[json_size_def])
 )
+*)
 End
 
 
@@ -1875,7 +1999,7 @@ Definition petr4_parse_fun_body_def:
        | SOME_msg (fa_params, p_vty_updates) =>
         (* Note that no programmable blocks can be nested inside functions *)
         (* Note that no tables can be applied inside functions *)
-        (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap (update_vtymap_fun p_vty_updates funtype), ftymap, gscope, [], apply_map, [], extfun_list) stmts of
+        (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap (update_vtymap_fun p_vty_updates funtype), ftymap, gscope, [], apply_map, [], [], extfun_list) stmts of
          | SOME_msg (_, _, _, _, _, fa_body) =>
           SOME_msg ((fa_name, (fa_body, fa_params)),
                     (get_funn_name funtype fa_name, (MAP SND p_vty_updates, tau_bot)))
@@ -1948,7 +2072,7 @@ Definition petr4_parse_actiondef_def:
  petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) action =
   case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, [], extfun_list) action funtype_action of
    | SOME_msg ((fa_name, (fa_body, fa_params)), ftymap_upd) =>
-    SOME_msg (ftymap_upd::ftymap, AUPDATE fmap (fa_name, (add_explicit_return fa_body, fa_params)))
+    SOME_msg (ftymap_upd::ftymap, [fa_name], AUPDATE fmap (fa_name, (add_explicit_return fa_body, fa_params)))
    | NONE_msg msg => NONE_msg ("Could not parse action: "++msg)
 End
 
@@ -2628,22 +2752,22 @@ End
 
 (* TODO: Use json_parse_arr_list *)
 Definition petr4_parse_locals_def:
- (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) (b_func_map:b_func_map, tbl_map:tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) [] =
-  SOME_msg (vtymap, ftymap, b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap)) /\
- (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) (h::t) =
+ (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) (b_func_map:b_func_map, tbl_map:tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) [] =
+  SOME_msg (vtymap, ftymap, b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap, action_list)) /\
+ (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) (b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) (h::t) =
   case h of
    | Array [String local_string; local_obj] =>
     if local_string = "Instantiation"
     then
      (case petr4_parse_inst (tyenv, enummap, vtymap, ftymap, decl_list, inits, extfun_list) local_obj of
       | SOME_msg (decl_list', inits', vty_upd) =>
-       petr4_parse_locals (tyenv, enummap, AUPDATE vtymap vty_upd, ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list', inits', apply_map, tbl_entries, ttymap) t
+       petr4_parse_locals (tyenv, enummap, AUPDATE vtymap vty_upd, ftymap, fmap, gscope, action_list, extfun_list) (b_func_map, tbl_map, decl_list', inits', apply_map, tbl_entries, ttymap) t
       | NONE_msg inst_msg => NONE_msg ("could not parse instantiation: "++inst_msg))
     else if local_string = "Action"
     then
      (case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, apply_map, extfun_list) local_obj funtype_action of
       | SOME_msg ((fa_name, (fa_body, fa_params)), ftymap_upd) =>
-       petr4_parse_locals (tyenv, enummap, vtymap, ftymap_upd::ftymap, fmap, gscope, extfun_list) (AUPDATE b_func_map (fa_name, (add_explicit_return fa_body, fa_params)), tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) t
+       petr4_parse_locals (tyenv, enummap, vtymap, ftymap_upd::ftymap, fmap, gscope, action_list++[fa_name], extfun_list) (AUPDATE b_func_map (fa_name, (add_explicit_return fa_body, fa_params)), tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) t
       | NONE_msg f_msg => NONE_msg ("could not parse block-local action: "++f_msg))
     else if local_string = "Variable"
     then
@@ -2651,15 +2775,15 @@ Definition petr4_parse_locals_def:
       | SOME_msg (varn, tau, init_opt) =>
        (case init_opt of
         | SOME init_val =>
-         petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau, NONE)], stmt_seq inits (stmt_ass (lval_varname varn) (e_v init_val)), apply_map, tbl_entries, ttymap) t
+         petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, action_list, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau, NONE)], stmt_seq inits (stmt_ass (lval_varname varn) (e_v init_val)), apply_map, tbl_entries, ttymap) t
         | NONE =>
-         petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau, NONE)], inits, apply_map, tbl_entries, ttymap) t)
+         petr4_parse_locals (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, fmap, gscope, action_list, extfun_list) (b_func_map, tbl_map, decl_list++[(varn, tau, NONE)], inits, apply_map, tbl_entries, ttymap) t)
       | NONE_msg var_msg => NONE_msg ("could not parse block-local variable: "++var_msg))
     else if local_string = "Table"
     then
      (case petr4_parse_table (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) local_obj of
       | SOME_msg (tbl_map_entry, apply_map_entry, tbl_entry_updates, ttymap_update) =>
-       petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, AUPDATE apply_map apply_map_entry, tbl_entries++[tbl_entry_updates], AUPDATE ttymap ttymap_update) t
+       petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) (b_func_map, AUPDATE tbl_map tbl_map_entry, decl_list, inits, AUPDATE apply_map apply_map_entry, tbl_entries++[tbl_entry_updates], AUPDATE ttymap ttymap_update) t
       | NONE_msg tbl_msg => NONE_msg ("could not parse table: "++tbl_msg))
     else get_error_msg "unknown JSON format of local: " h
    | _ => get_error_msg "unknown JSON format of local: " h)
@@ -2791,7 +2915,7 @@ Definition petr4_parse_states_def:
    | SOME [tags; annot; name; Array stmts; Array trans] =>
     (case petr4_parse_name name of
      | SOME state_name =>
-      (case petr4_parse_stmts (tyenv,enummap,vtymap,ftymap,gscope,[],[],[],extfun_list) stmts of
+      (case petr4_parse_stmts (tyenv,enummap,vtymap,ftymap,gscope,[],[],[],[],extfun_list) stmts of
        | SOME_msg (_, _, _, _, _, stmts_res) =>
         (case petr4_parse_trans (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) trans of
          | SOME_msg (trans_res, F) =>
@@ -2818,8 +2942,8 @@ Definition petr4_parse_parser_def:
       (* TODO: Modify vtymap directly here instead? *)
       (case petr4_parse_p_params F tyenv params of
        | SOME_msg (pars_params, vty_updates) =>
-        (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, ftymap, fmap, gscope, extfun_list) ([], [], [], stmt_empty, [], [], []) locals of
-         | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) =>
+        (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, ftymap, fmap, gscope, [], extfun_list) ([], [], [], stmt_empty, [], [], []) locals of
+         | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap, action_list') =>
           (case petr4_parse_states (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, extfun_list) [] states of
            | SOME_msg pars_map =>
             SOME_msg (tyenv, enummap, vtymap, ftymap, AUPDATE blftymap (parser_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pblock_regular pbl_type_parser (b_func_map++[(parser_name, (stmt_seq inits (stmt_trans (e_v (v_str "start"))), pars_params))]) decl_list pars_map tbl_map), MAP (THE o deparameterise_tau o SND) vty_updates)))
@@ -2869,7 +2993,7 @@ End
 
 (* TODO: Remove "THE" hack? Shouldn't make difference... *)
 Definition petr4_parse_control_def:
- petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, tbl_entries_map, extfun_list, ttymap) control =
+ petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, tbl_entries_map, action_list, extfun_list, ttymap) control =
   case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
                        "constructor_params"; "locals"; "apply"] control of
    | SOME [tags; annot; name; Array typarams; Array params; Array constructor_params; Array locals; apply] =>
@@ -2882,9 +3006,9 @@ Definition petr4_parse_control_def:
         (* TODO: Modify vtymap directly here instead? *)
         (case petr4_parse_p_params F tyenv params of
          | SOME_msg (ctrl_params, vty_updates) =>
-          (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, ftymap, fmap, gscope, extfun_list) ([], [], [], stmt_empty, [], [], []) locals of
-           | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries', ttymap') =>
-            (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmts of
+          (case petr4_parse_locals (tyenv, enummap, AUPDATE_LIST vtymap vty_updates, ftymap, fmap, gscope, action_list, extfun_list) ([], [], [], stmt_empty, [], [], []) locals of
+           | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries', ttymap', action_list') =>
+            (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap' vty_updates, ftymap', gscope, pblock_map, apply_map, tbl_entries_map, action_list', extfun_list) stmts of
              | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, res_apply) =>
               let b_func_map' = (b_func_map++[(control_name, (stmt_seq inits res_apply, ctrl_params))]) in
               (* TODO: Try new names instead of returning errors *)
@@ -3078,31 +3202,31 @@ End
 
 (* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
 Definition petr4_parse_element_def:
- petr4_parse_element (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map:(string # (pblock # tau list)) list, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap) json =
+ petr4_parse_element (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map:(string # (pblock # tau list)) list, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) json =
   case json of
   | Array [String elem_name; obj] =>
    if elem_name = "Error" then
     (case petr4_parse_error enummap obj of
      | SOME_msg enummap' =>
-      SOME_msg (tyenv, enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv, enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "MatchKind" then
     (case petr4_parse_match_kind_typedef enummap obj of
      | SOME_msg enummap' =>
-      SOME_msg (tyenv, enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv, enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "Enum" then
     (case petr4_parse_enum enummap obj of
      | SOME_msg enummap' =>
-      SOME_msg (tyenv, enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv, enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "SerializableEnum" then
     (case petr4_parse_serializable_enum (tyenv, enummap, vtymap, gscope) obj of
      | SOME_msg (tyenv', enummap') =>
-      SOME_msg (tyenv', enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv', enummap', vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    (* WIP: Extern object types added to the type environment, since parameters to blocks
@@ -3110,83 +3234,83 @@ Definition petr4_parse_element_def:
    else if elem_name = "ExternObject" then
     (case petr4_parse_ext_object (tyenv, enummap, vtymap, ftymap, extfun_list) obj of
      | SOME_msg (tyenv', ftymap') =>
-      SOME_msg (tyenv', enummap, vtymap, ftymap', blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv', enummap, vtymap, ftymap', blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "ExternFunction" then
     (case petr4_parse_extfun (tyenv, enummap, vtymap, ftymap, extfun_list) obj of
      | SOME_msg (ftymap', extfun_list') =>
-      SOME_msg (tyenv, enummap, vtymap, ftymap', blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list', ttymap)
+      SOME_msg (tyenv, enummap, vtymap, ftymap', blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list', ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "Action" then
     (case petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) obj of
-     | SOME_msg (ftymap', fmap') =>
-      SOME_msg (tyenv, enummap, vtymap, ftymap', blftymap, fmap', bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+     | SOME_msg (ftymap', action_list_upds, fmap') =>
+      SOME_msg (tyenv, enummap, vtymap, ftymap', blftymap, fmap', bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list++action_list_upds, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "Function" then
     (case petr4_parse_function (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list) obj of
      | SOME_msg (ftymap', fmap') =>
-      SOME_msg (tyenv, enummap, vtymap, ftymap', blftymap, fmap', bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv, enummap, vtymap, ftymap', blftymap, fmap', bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "TypeDef" then
     (case petr4_parse_typedef tyenv obj of
      | SOME_msg tyenv' =>
-      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    (* TODO: Constants are added to the global scope, also vtymap if not arbitrary-length constant... *)
    else if elem_name = "Constant" then
     (case petr4_parse_constant (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) obj of
      | SOME_msg (vtymap', gscope') =>
-      SOME_msg (tyenv, enummap, vtymap', ftymap, blftymap, fmap, bltymap, ptymap, gscope', pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv, enummap, vtymap', ftymap, blftymap, fmap, bltymap, ptymap, gscope', pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "Struct" then
     (case petr4_parse_struct tyenv obj struct_ty_struct of
      | SOME_msg tyenv' =>
-      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "Header" then
     (case petr4_parse_struct tyenv obj struct_ty_header of
      | SOME_msg tyenv' =>
-      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    (* TODO: Fix default parameter values *)
    else if elem_name = "ParserType" then
     (case petr4_parse_block_type (tyenv, fmap, bltymap, gscope) pbl_type_parser obj of
      | SOME_msg bltymap' =>
-      SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap', ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap', ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    (* TODO: Fix default parameter values *)
    else if elem_name = "ControlType" then
     (case petr4_parse_block_type (tyenv, fmap, bltymap, gscope) pbl_type_control obj of
      | SOME_msg bltymap' =>
-      SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap', ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap', ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    (* TODO: Fix parser and control I/O *)
    else if elem_name = "Parser" then
     (case petr4_parse_parser (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, extfun_list) obj of
      | SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', gscope', pblock_map') =>
-      SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', ptymap, gscope', pblock_map', tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', ptymap, gscope', pblock_map', tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "control" then
-    (case petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, tbl_entries_map, extfun_list, ttymap) obj of
+    (case petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, tbl_entries_map, action_list, extfun_list, ttymap) obj of
      | SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', gscope', pblock_map', tbl_entries_map', ttymap') =>
-      SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', ptymap, gscope', pblock_map', tbl_entries_map', arch_pkg_opt, ab_list, extfun_list, ttymap')
+      SOME_msg (tyenv', enummap', vtymap', ftymap', blftymap', fmap', bltymap', ptymap, gscope', pblock_map', tbl_entries_map', arch_pkg_opt, ab_list, action_list, extfun_list, ttymap')
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "PackageType" then
     (case petr4_parse_package_type (tyenv, ptymap) obj of
      | SOME_msg (tyenv', ptymap') =>
-      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap', gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap)
+      SOME_msg (tyenv', enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap', gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "Instantiation" then
@@ -3199,7 +3323,7 @@ Definition petr4_parse_element_def:
          | SOME pbl_name =>
           (case ALOOKUP pblock_map pbl_name of
            | SOME (pblock, argtys) =>
-            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_vss (SOME (vss_pkg_VSS (EL 1 argtys)))), vss_add_ff_blocks ab_list', extfun_list, ttymap)
+            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_vss (SOME (vss_pkg_VSS (EL 1 argtys)))), vss_add_ff_blocks ab_list', action_list, extfun_list, ttymap)
            | _ => NONE_msg ("Unknown programmable block in top-level package instantiation: "++pbl_name))
          | NONE => NONE_msg ("Invalid block in top-level package instantiation"))
        | SOME (arch_vss _) =>
@@ -3210,7 +3334,7 @@ Definition petr4_parse_element_def:
          | SOME pbl_name =>
           (case ALOOKUP pblock_map pbl_name of
            | SOME (pblock, argtys) => 
-            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_ebpf (SOME (ebpf_pkg_ebpfFilter (EL 1 argtys)))), ab_list', extfun_list, ttymap)
+            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_ebpf (SOME (ebpf_pkg_ebpfFilter (EL 1 argtys)))), ab_list', action_list, extfun_list, ttymap)
            | _ => NONE_msg ("Unknown programmable block in top-level package instantiation: "++pbl_name))
          | NONE => NONE_msg ("Invalid block in top-level package instantiation"))
        | SOME (arch_ebpf _) =>
@@ -3221,7 +3345,7 @@ Definition petr4_parse_element_def:
          | SOME pbl_name =>
           (case ALOOKUP pblock_map pbl_name of
            | SOME (pblock, argtys) =>
-            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_v1model (SOME (v1model_pkg_V1Switch (EL 1 argtys) (EL 2 argtys)))), ab_list', extfun_list, ttymap)
+            SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_v1model (SOME (v1model_pkg_V1Switch (EL 1 argtys) (EL 2 argtys)))), ab_list', action_list, extfun_list, ttymap)
            | _ => NONE_msg ("Unknown programmable block in top-level package instantiation: "++pbl_name))
          | NONE => NONE_msg ("Invalid block in top-level package instantiation"))
        | SOME (arch_v1model _) =>
@@ -3239,17 +3363,17 @@ Definition petr4_parse_elements_def:
  petr4_parse_elements json_list arch_pkg_opt =
   FOLDL ( \ res_opt json. case res_opt of
                      | SOME_msg res => petr4_parse_element res json
-                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],(0,[]),[],[(funn_ext "header" "isValid",[],tau_bool); (funn_ext "header" "setValid",[],tau_bot); (funn_ext "header" "setInvalid",[],tau_bot)],[],[],[],[],[],[],[],arch_pkg_opt,[],[],[])) json_list
+                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],(0,[]),[],[(funn_ext "header" "isValid",[],tau_bool); (funn_ext "header" "setValid",[],tau_bot); (funn_ext "header" "setInvalid",[],tau_bot)],[],[],[],[],[],[],[],arch_pkg_opt,[],[],[],[])) json_list
 End
 
 (* Removes the list of arguments stored in pblock_map, which is only used during the
  * final step of parsing when inferring type arguments
- * Removes extfun_list *)
+ * Removes extfun_list and action_list *)
 (* TODO: Do more stuff *)
 Definition clean_result_def:
  clean_result res_msg =
   case res_msg of
-  | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, extfun_list, ttymap) =>
+  | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) =>
    SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map, p4_clean_tbl_entries_map tbl_entries_map ab_list, arch_pkg_opt, ab_list, ttymap)
   | NONE_msg msg => NONE_msg msg
 End
