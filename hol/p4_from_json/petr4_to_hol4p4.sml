@@ -506,9 +506,10 @@ fun infer_keys ttymap table_name keys =
  end
 ;
 
-fun infer_args (ftymap, blftymap) block_name action_name args =
+fun infer_args (ftymap, blftymap) is_default block_name action_name args =
  let
-  val inferred_args = eval_rhs ``p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map term_of_int args, num))``
+  val inferred_args =
+   eval_rhs ``case p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map term_of_int args, num)) of | SOME args => SOME ([e_v (v_bool T); e_v (v_bool ^(if is_default then F else T))]++args) | NONE => NONE``
  in
   if (is_some inferred_args)
   then SOME (dest_some inferred_args)
@@ -533,7 +534,7 @@ local
      (case parse_stf_line (pblock_map, ttymap) (drop_last s) of
        (* Using result from parse_stf_setdefault_line: *)
        setdefault (block_name, table_name, action_name, args) =>
-        (case infer_args (ftymap, blftymap) block_name action_name args of
+        (case infer_args (ftymap, blftymap) true block_name action_name args of
            SOME args_term =>
 	   let
 	    val _ = output_actx_setdefault outstream valname block_name table_name action_name (term_to_string args_term)
@@ -544,7 +545,7 @@ local
      | add (block_name, table_name, keys, priority, action_name, args) =>
       (case infer_keys ttymap table_name keys of
         SOME keys_tm =>
-        (case infer_args (ftymap, blftymap) block_name action_name args of
+        (case infer_args (ftymap, blftymap) false block_name action_name args of
            SOME args_term =>
 	   let
 	    val _ = output_astate_add outstream valname arch_opt_tm table_name keys_tm priority action_name (term_to_string args_term)
@@ -649,6 +650,9 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
 
 fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm =
  let
+  val gscope_init_vars = “[(varn_name "gen_apply_result", (v_struct [("hit", v_bool ARB);
+                            ("miss", v_bool ARB);
+                            ("action_run", v_bit (REPLICATE 32 ARB, 32))], NONE:lval option))]”
   (* TODO: Eliminate code duplication here... *)
   val actx_astate_opt =
    if (is_arch_vss $ dest_some arch_opt_tm) then
@@ -684,7 +688,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 				mk_list ([], ``:in_out``), ascope]
        (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``[]:scope``], scope_ty),
+				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in
@@ -724,7 +728,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
 				mk_list ([], ``:in_out``), ascope]
        (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``[]:scope``], scope_ty),
+				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in
@@ -764,9 +768,9 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
        val aenv = list_mk_pair [term_of_int 0,
 				mk_list ([], ``:in_out``),
 				mk_list ([], ``:in_out``), ascope]
-       (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
+       (* aenv, global scope, arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``[]:scope``], scope_ty),
+				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in

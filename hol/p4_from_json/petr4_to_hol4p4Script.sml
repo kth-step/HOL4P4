@@ -1903,15 +1903,20 @@ Definition petr4_parse_stmts_def:
             | SOME_msg labels' =>
              (case combine_stmts_res (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list)) stmts of
               | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res_list) =>
-               let stmt =
-                stmt_block [(varn_name tbl_name,
-                            (tau_xtl struct_ty_struct [("hit", tau_bool);
-                                                       ("miss", tau_bool);
-                                                       ("action_run", tau_bit 32)], NONE))]
-                           (stmt_seq
-                            (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (varn_name "gen_apply_result")))
-                            (inline_switch expr_res (ZIP(labels',stmts_res_list)))) in
-                SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list++[varn_name tbl_name], stmt)
+               (case ALOOKUP apply_map tbl_name of
+                | SOME keys =>
+                 let stmt =
+                  stmt_block [(varn_name tbl_name,
+                              (tau_xtl struct_ty_struct [("hit", tau_bool);
+                                                         ("miss", tau_bool);
+                                                         ("action_run", tau_bit 32)], NONE))]
+                             (stmt_seq
+                              (stmt_app tbl_name keys)
+                              (stmt_seq
+                               (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (varn_name "gen_apply_result")))
+                               (inline_switch expr_res (ZIP(labels',stmts_res_list))))) in
+                  SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list++[varn_name tbl_name], stmt)
+                | NONE => NONE_msg ("table not found: "++tbl_name))
               | NONE_msg stmts_msg => NONE_msg stmts_msg)
             | NONE_msg act_msg => NONE_msg act_msg)
           | NONE_msg cases_msg => NONE_msg cases_msg)
@@ -3470,14 +3475,10 @@ Definition clean_result_def:
  clean_result res_msg =
   case res_msg of
   | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) =>
-   (* gen_apply_result is added last so we can more easily check during parsing that it's never
-    * introduced *)
-    let struct = (v_struct [("hit", v_bool ARB);
-                            ("miss", v_bool ARB);
-                            ("action_run", v_bit (REPLICATE 32 ARB, 32))]) in
-   (case AUPDATE_FRESH gscope (varn_name "gen_apply_result", (struct, NONE)) of
+   (* TODO: Currently, gscope' is not passed on, since it is initialised later (for now) *)
+   (case AUPDATE_FRESH gscope (varn_name "gen_apply_result", (v_bot, NONE)) of
     SOME gscope' => 
-     SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope', MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map, p4_clean_tbl_entries_map tbl_entries_map ab_list, arch_pkg_opt, ab_list, ttymap)
+     SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map, p4_clean_tbl_entries_map tbl_entries_map ab_list, arch_pkg_opt, ab_list, ttymap)
     | NONE => NONE_msg "reserved variable name gen_apply_result was found among global variables in P4 program")
   | NONE_msg msg => NONE_msg msg
 End
