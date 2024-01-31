@@ -220,7 +220,8 @@ Definition json_parse_arr'_def:
  (json_parse_arr' name f (h::[t]) =
   OPTION_BIND
    (json_dest_str h)
-   (\s. if s = name then f t else NONE))
+   (\s. if s = name then f t else NONE)) /\
+ (json_parse_arr' _  _ _ = NONE)
 End
 
 (* Returns the JSON that is the second element of json iff
@@ -1086,9 +1087,7 @@ Definition petr4_parse_expression_gen_def:
    else NONE_msg ("unsupported argument type: "++argtype)
   | _ => get_error_msg "unknown JSON format of argument: " (FST h))
 Termination
-cheat
-(*
-WF_REL_TAC `measure ( \ t. case t of | (Exp (maps, json, p_tau_opt)) => json_size json | (Number (maps, json_list)) => json_p_tau_opt_list_size json_list)` >>
+WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json, p_tau_opt)) => json_size json | (INR (maps, json_list)) => json_p_tau_opt_list_size json_list)` >>
 fs[json_p_tau_opt_list_size_def] >>
 rpt strip_tac >> (fs[json_size_def]) >- (
  subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
@@ -1100,7 +1099,6 @@ rpt strip_tac >> (fs[json_size_def]) >- (
  subgoal ‘LENGTH args = LENGTH p_1'6'’ >- (imp_res_tac find_fty_match_args_LENGTH >> fs[]) >>
  fs[listTheory.UNZIP_ZIP]
 )
-*)
 End
 
 (* TODO: Why does this not use tyenv? Remove tyenv? *)
@@ -1717,35 +1715,124 @@ Definition petr4_parse_switch_cases_def:
  (petr4_parse_switch_cases p_tau [] =
   SOME_msg []) /\
  (petr4_parse_switch_cases p_tau (h::t) =
-  (case h of
-   | Array [String "Action";
-      Object [("tags", tags);
-              ("label", label);
-              ("code", code)]] =>
-    (case petr4_parse_case_name label of
-     | SOME label_res =>
-      (case json_parse_obj ["tags"; "annotations"; "statements"] code of
-       | SOME [tags; annotations; Array stmts] =>
-        (case petr4_parse_switch_cases p_tau t of
-         | SOME_msg exps_res => SOME_msg ((label_res, stmts)::exps_res)
-         | NONE_msg exps_msg => NONE_msg exps_msg)
-       | _ => get_error_msg "unknown JSON format of switch case code: " code)
-     | NONE => get_error_msg "could not parse switch case action name: " label)
+  (case json_parse_arr "Action" SOME h of
+   | SOME act_obj =>
+    (case json_parse_obj ["tags"; "label"; "code"] act_obj of
+     | SOME [tags; label; code] =>
+      (case petr4_parse_case_name label of
+       | SOME label_res =>
+        (case json_parse_obj ["tags"; "annotations"; "statements"] code of
+         | SOME [tags'; annotations; Array stmts] =>
+          (case petr4_parse_switch_cases p_tau t of
+           | SOME_msg exps_res => SOME_msg ((label_res, stmts)::exps_res)
+           | NONE_msg exps_msg => NONE_msg exps_msg)
+         | _ => get_error_msg "unknown JSON format of switch case code: " code)
+       | NONE => get_error_msg "could not parse switch case action name: " label)
+     | _ => get_error_msg "unknown JSON format of switch case action: " act_obj)
    | _ => get_error_msg "unknown JSON format of switch case: " h)
  )
 End
 
-Definition combine_stmts_res_def:
- (combine_stmts_res f [] = SOME_msg ([], [], [], [], [], [])) /\
- (combine_stmts_res f (h::t) =
-  case f h of
-  | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
-   (case combine_stmts_res f t of
-    | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', stmts_res_list) =>
-     SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list++taboo_list', (stmts_res::stmts_res_list))
-    | NONE_msg msg' => NONE_msg msg')
-  | NONE_msg msg => NONE_msg msg)
-End
+Triviality get_error_msg_distinct:
+ !str obj str'. get_error_msg str obj <> SOME_msg str'
+Proof
+fs[get_error_msg_def]
+QED
+
+Triviality json_parse_arr_size:
+ !str json json'.
+ json_parse_arr str SOME json = SOME json' ==>
+ json_size json' < json_size json
+Proof
+rpt strip_tac >>
+fs[json_parse_arr_def] >>
+Cases_on ‘json’ >> (fs[json_dest_arr_def]) >>
+rw[] >>
+Cases_on ‘l’ >> (fs[json_parse_arr'_def]) >>
+Cases_on ‘t’ >> (fs[json_parse_arr'_def]) >>
+Cases_on ‘t'’ >> (fs[json_parse_arr'_def, json_size_def])
+QED
+
+Triviality json_parse_obj_size:
+ !str_list json json_list.
+ json_parse_obj str_list json = SOME json_list ==>
+ json3_size json_list < json_size json
+Proof
+Induct_on ‘json_list’ >- (
+ rpt strip_tac >>
+ fs[json_parse_obj_def, json_dest_obj_def] >>
+ Cases_on ‘json’ >> (fs[json_size_def])
+) >>
+rpt strip_tac >>
+fs[json_parse_obj_def] >>
+Cases_on ‘json’ >> (fs[json_dest_obj_def]) >>
+rw[] >>
+Cases_on ‘str_list’ >> (fs[json_parse_obj'_def, json_size_def]) >>
+(Cases_on ‘l’ >> (fs[json_parse_obj'_def, json_size_def])) >>
+
+Cases_on ‘h''’ >> (fs[json_parse_obj'_def, json_size_def]) >>
+Cases_on ‘json_parse_obj' t t'’ >> (fs[json_parse_obj'_def, json_size_def]) >>
+rw[] >>
+subgoal ‘(case (Object t') of
+                Object obj => SOME obj
+              | Array v8 => NONE
+              | String v9 => NONE
+              | Number v10 v11 v12 => NONE
+              | Bool v13 => NONE
+              | Null => NONE) =
+             SOME t'’ >- (
+ fs[]
+) >>
+subgoal ‘json3_size json_list < json_size (Object t')’ >- (
+ metis_tac[]
+) >>
+fs[json_size_def]
+QED
+
+Triviality petr4_parse_switch_cases_size:
+ !p_tau cases cases_res labels stmts.
+ petr4_parse_switch_cases p_tau cases = SOME_msg cases_res ==>
+ (labels,stmts) = UNZIP cases_res ==>
+ SUM (MAP (\el. json3_size el + 1) stmts) < (json3_size cases + 1)
+Proof
+Induct_on ‘cases’ >- (
+ rpt strip_tac >>
+ fs[petr4_parse_switch_cases_def] >>
+ rw[] >>
+ fs[UNZIP]
+) >>
+rpt strip_tac >>
+fs[petr4_parse_switch_cases_def] >>
+Cases_on ‘json_parse_arr "Action" SOME h’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘json_parse_obj ["tags"; "label"; "code"] x’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘x'’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘t’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘t'’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘t’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘petr4_parse_case_name h''’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘json_parse_obj ["tags"; "annotations"; "statements"] h'3'’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘x''’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘t’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘t'’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘h'6'’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘t’ >> (fs[get_error_msg_distinct]) >>
+Cases_on ‘petr4_parse_switch_cases p_tau cases ’ >> (fs[get_error_msg_distinct]) >>
+rw[] >>
+fs[UNZIP] >>
+Cases_on ‘labels’ >> (fs[]) >>
+Cases_on ‘stmts’ >> (fs[]) >>
+subgoal ‘(t, t') = UNZIP a’ >- (
+ fs[]
+) >>
+res_tac >>
+rfs[] >>
+subgoal ‘json3_size l + 1 < json3_size [h]’ >- (
+ imp_res_tac json_parse_arr_size >>
+ imp_res_tac json_parse_obj_size >>
+ fs[json_size_def]
+) >>
+fs[json_size_def]
+QED
 
 (* TODO: Write better version *)
 (* Currently only switches without fallthrough cases *)
@@ -1901,7 +1988,7 @@ Definition petr4_parse_stmts_def:
            let (labels, stmts) = UNZIP cases_res in
            (case serialise_actions action_list labels of
             | SOME_msg labels' =>
-             (case combine_stmts_res (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list)) stmts of
+             (case petr4_parse_stmts_list (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) stmts of
               | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res_list) =>
                (case ALOOKUP apply_map tbl_name of
                 | SOME keys =>
@@ -1935,13 +2022,21 @@ Definition petr4_parse_stmts_def:
     | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
      SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, p4_seq_append_stmt stmt_empty stmts_res)
     | NONE_msg stmts_msg => NONE_msg stmts_msg)
-  | _ => get_error_msg "unknown JSON format of statement: " h)
+  | _ => get_error_msg "unknown JSON format of statement: " h) /\
+ (* Same signature as above, but parses elementwise without merging into a single stmt *)
+ (petr4_parse_stmts_list (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) [] =
+  SOME_msg ([], [], [], [], [], [])) /\
+ (petr4_parse_stmts_list (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) (h::t) =
+  case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) h of
+  | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
+   (case petr4_parse_stmts_list (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
+    | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', stmts_res_list) =>
+     SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list++taboo_list', (stmts_res::stmts_res_list))
+    | NONE_msg msg' => NONE_msg msg')
+  | NONE_msg msg => NONE_msg msg)
 Termination
-cheat
-(*
-WF_REL_TAC `measure ( \ (maps, json_list). json3_size json_list)` >>
+WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json_list)) => json3_size json_list | (INR (maps, json_list_list)) => SUM (MAP (\ el . json3_size el + 1) json_list_list))` >>
 rpt strip_tac >> (fs[json_size_def]) >- (
- (* Case block *)
  fs[json_parse_obj_def, json_dest_obj_def] >>
  Cases_on ‘p_2''’ >> (fs[]) >>
  rw[] >>
@@ -1954,8 +2049,12 @@ rpt strip_tac >> (fs[json_size_def]) >- (
  Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
  Cases_on ‘q'' = "statements"’ >> (fs[]) >>
  Cases_on ‘json_parse_obj' [] t'’ >> (fs[json_size_def])
+) >- (
+ (* Switch case *)
+ IMP_RES_TAC petr4_parse_switch_cases_size >>
+ res_tac >>
+ fs[json_size_def]
 )
-*)
 End
 
 
