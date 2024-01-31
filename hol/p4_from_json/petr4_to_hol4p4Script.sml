@@ -2241,7 +2241,6 @@ Definition replace_action_args_def:
   | _ => stmt
 End
 
-
 (* TODO: Decide whether to put action in global or local function map here, re-use in parse_locals *)
 (* Parses a top-level action (note that this can't see any tables, since those can only be defined in control blocks) *)
 Definition petr4_parse_actiondef_def:
@@ -2502,6 +2501,11 @@ Definition petr4_parse_keys_def:
    | _ => get_error_msg "unknown JSON format of key: " h)
 End
 
+(* Used to add arguments to actions inside table *)
+Definition add_desugar_args_def:
+ add_desugar_args hit args = [(e_v $ v_bool T); (e_v $ v_bool hit)]++args
+End
+
 Definition petr4_parse_action_def:
  petr4_parse_action (tyenv, enummap, vtymap, ftymap, extfun_list) action =
   case json_parse_obj ["tags"; "annotations"; "name"; "args"] action of
@@ -2527,22 +2531,12 @@ Definition petr4_parse_action_def:
        | _ => get_error_msg "could not parse action name into funn: " name)
      | NONE_msg act_name_msg => NONE_msg ("could not parse action: "++act_name_msg))
 *)
-(* OLD:
-    (case petr4_parse_bare_name name of
-     | SOME action_name =>
-      (case petr4_parse_args (tyenv, enummap, vtymap, ftymap) (ZIP (args, REPLICATE (LENGTH args) NONE)) of
-       | SOME_msg [] => SOME_msg (action_name, []:e list)
-       | SOME_msg _ => get_error_msg "could not parse action arguments (expected empty list): " (Array args)
-       | NONE_msg args_msg => NONE_msg args_msg)
-     | NONE => get_error_msg "could not parse action name (expected BareName): " name)
-   | _ => get_error_msg "unknown JSON format of action: " action
-*)
     (case petr4_parse_bare_name name of
      | SOME action_name =>
       (case find_fty_match_args ftymap (funn_name action_name) (LENGTH args) of
        | SOME (arg_tys, ret_ty) =>
         (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (args, MAP SOME arg_tys)) of
-         | SOME_msg args_res => SOME_msg (action_name, args_res)
+         | SOME_msg args_res => SOME_msg (action_name, add_desugar_args T args_res)
          | NONE_msg args_msg => NONE_msg args_msg)
        | NONE => get_error_msg "type inference information not found for action: " name)
      | NONE => get_error_msg "could not parse action name (expected BareName): " name)
@@ -2840,10 +2834,10 @@ Definition petr4_process_default_action_def:
    (case default_action of
     | Array [String "Custom"; custom_obj] =>
      (case petr4_parse_default_action (tyenv, enummap, vtymap, ftymap, extfun_list) custom_obj of
-      | SOME_msg (action_name, args) => SOME_msg ((action_name, args), props')
+      | SOME_msg (action_name, args) => SOME_msg ((action_name, add_desugar_args F args), props')
       | NONE_msg msg => NONE_msg msg)
     | _ => get_error_msg "unknown default action property format: " default_action)
-  | NONE => SOME_msg (("NoAction", []), props)
+  | NONE => SOME_msg (("NoAction", add_desugar_args F []), props)
 End
 
 (* TODO: Add stuff here as needed *)
@@ -2894,10 +2888,10 @@ Definition petr4_process_properties_def:
               | SOME_msg arch_props_res =>
                (case key_mk_tau_list of
                 | [] =>
-                 if default_action = ("NoAction", [])
+                 if (FST default_action) = "NoAction"
                  then
                   (case action_names of
-                   | [action_name] => SOME_msg ([], (action_name, []), entries)
+                   | [action_name] => SOME_msg ([], (action_name, add_desugar_args F []), entries)
                    | _ => SOME_msg ([], default_action, entries))
                  else SOME_msg ([], default_action, entries)
                 | _ => SOME_msg (key_mk_tau_list, default_action, entries))
