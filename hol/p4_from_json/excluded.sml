@@ -50,9 +50,9 @@ val exclude_descs =
     "subparser-with-header-stack-bmv2",
     "ternary2-bmv2"]),
 (*
-    Introduction of tuple types (manually spotted)
+    Tuple types (manually spotted)
 *)
-  ("adding tuple types to HOL4P4",
+  ("desugaring tuple types in import tool",
    ["constant-in-calculation-bmv2",
     "checksum2-bmv2",
     "checksum3-bmv2",
@@ -82,7 +82,7 @@ val exclude_descs =
 (*
     Top-level extern instantiations (manually spotted)
 *)
-  ("supporting top-level extern instantiations in HOL4P4",
+  ("supporting top-level extern instantiations in import tool",
    ["issue1097-2-bmv2"]),
 (*
     Counter extern of V1Model (manually spotted)
@@ -92,11 +92,9 @@ val exclude_descs =
 (*
     Return struct of table application
 *)
-  ("adding hit bit, action_run et.c. to table application in HOL4P4",
+  ("adding support for desugaring more table application expressions to import tool",
    ["hit_ebpf",
     "key-issue-1020_ebpf",
-    "issue2153-bmv2",
-    "issue2170-bmv2",
     "switch_ebpf"]),
 (*
     Set expressions in select expression

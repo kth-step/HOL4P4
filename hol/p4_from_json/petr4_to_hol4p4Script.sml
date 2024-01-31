@@ -1887,7 +1887,6 @@ Definition petr4_parse_stmts_def:
         SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, p4_seq_append_stmt ass_res stmts_res)
        | NONE_msg stmts_msg => NONE_msg stmts_msg)
      | NONE_msg ass_msg => NONE_msg ass_msg)
-   (* Note: conditional statement is recursive *)
    else if stmt_name = "conditional" then
     case stmt_details of
     | [(f0, tags); (* No check for this, since it's only thrown away *)
@@ -1992,17 +1991,20 @@ Definition petr4_parse_stmts_def:
               | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res_list) =>
                (case ALOOKUP apply_map tbl_name of
                 | SOME keys =>
-                 let stmt =
-                  stmt_block [(varn_name tbl_name,
-                              (tau_xtl struct_ty_struct [("hit", tau_bool);
-                                                         ("miss", tau_bool);
-                                                         ("action_run", tau_bit 32)], NONE))]
-                             (stmt_seq
-                              (stmt_app tbl_name keys)
-                              (stmt_seq
-                               (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (varn_name "gen_apply_result")))
-                               (inline_switch expr_res (ZIP(labels',stmts_res_list))))) in
-                  SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list++[varn_name tbl_name], stmt)
+                 (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
+                  | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', t_res) =>
+                   let stmt =
+                    stmt_block [(varn_name tbl_name,
+                                (tau_xtl struct_ty_struct [("hit", tau_bool);
+                                                           ("miss", tau_bool);
+                                                           ("action_run", tau_bit 32)], NONE))]
+                               (stmt_seq
+                                (stmt_app tbl_name keys)
+                                (stmt_seq
+                                 (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (varn_name "gen_apply_result")))
+                                 (inline_switch expr_res (ZIP(labels',stmts_res_list))))) in
+                    SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list++(taboo_list'++[varn_name tbl_name]), p4_seq_append_stmt stmt t_res)
+                  | NONE_msg t_msg => NONE_msg t_msg)
                 | NONE => NONE_msg ("table not found: "++tbl_name))
               | NONE_msg stmts_msg => NONE_msg stmts_msg)
             | NONE_msg act_msg => NONE_msg act_msg)
