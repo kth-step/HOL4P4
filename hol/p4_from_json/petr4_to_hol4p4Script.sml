@@ -262,6 +262,15 @@ End
 
 (* TODO: Pre-parse JSON into alternative JSON format that has enumerated type for fields instead of strings to avoid excessive string matching? *)
 
+(************************************)
+(* PROGRAM TRANSFORMATION CONSTANTS *)
+
+val apply_result_placeholder = “"gen_apply_result"”;
+val apply_result_placeholder_varn = “varn_name ^apply_result_placeholder”;
+
+val reserved_globals = “[^apply_result_placeholder_varn]”
+
+
 (**********************)
 (* HOL4 JSON TO P4OTT *)
 
@@ -764,9 +773,9 @@ End
 (* TODO: Should this really return a tuple and not only the args? Check where this is used... *)
 Definition find_fty_match_args_def:
  find_fty_match_args (ftymap:ftymap) funn numargs =
-  case FIND (\ (funn', (tyargs', tyret')). if funn = funn' then (numargs = LENGTH tyargs') else F) ftymap of
-  | SOME fty => SOME (SND fty)
-  | NONE => NONE
+   (case FIND (\ (funn', (tyargs', tyret')). if funn = funn' then (numargs = LENGTH tyargs') else F) ftymap of
+    | SOME fty => SOME (SND fty)
+    | NONE => NONE)
 End
 
 Triviality find_fty_match_args_LENGTH:
@@ -1003,7 +1012,7 @@ Definition petr4_parse_expression_gen_def:
       | NONE => NONE_msg "enumeration type map does not contain the error type.")
     | NONE => get_error_msg "could not parse name: " name)
   (* Function call *)
-  (* Note that actions don't have return values, and so can be ruled out here *)
+  (* Note extra arguments for actions (when used to parse actions in tables) added later *)
   | Array [String "call";
            Object [("tags", tags);
                    ("func", func_name);
@@ -1191,10 +1200,13 @@ Definition petr4_parse_constant_def:
  petr4_parse_constant (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) constant =
   case petr4_constant_to_scopeupdate (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) constant of
    | SOME_msg (varn, val) =>
-    (case v_to_tau val of
-     | SOME tau =>
-      SOME_msg (AUPDATE vtymap (varn, parameterise_tau tau), AUPDATE gscope (varn, val, NONE))
-     | NONE => get_error_msg "unsupported type of constant: " constant)
+    if ~(MEM varn ^reserved_globals)
+    then
+     (case v_to_tau val of
+      | SOME tau =>
+       SOME_msg (AUPDATE vtymap (varn, parameterise_tau tau), AUPDATE gscope (varn, val, NONE))
+      | NONE => get_error_msg "unsupported type of constant: " constant)
+    else get_error_msg "global constant has name reserved by HOL4P4: " constant
    | NONE_msg const_msg => NONE_msg ("Could not parse constant: "++const_msg) (* TODO: Print constant name using nested msg *)
 End
 
@@ -1323,10 +1335,14 @@ End
 
 (* These are the two primitive prefixing schemes *)
 Definition p4_prefix_vars_in_varn_def:
- p4_prefix_vars_in_varn prefix varn =
-  case varn of
-  | varn_name s => (varn_name (prefix++("_"++s)))
-  | _ => varn
+ p4_prefix_vars_in_varn gscope prefix varn =
+  if MEM varn (MAP FST gscope)
+  then varn
+  else
+   (case varn of
+    | varn_name s =>
+     (varn_name (prefix++("_"++s)))
+    | _ => varn)
 End
 Definition p4_prefix_tbl_def:
  p4_prefix_tbl prefix tbl = (prefix++("."++tbl))
@@ -1334,8 +1350,8 @@ End
 
 (* Here, prefixing of copyin-copyout parts happen *)
 Definition petr4_inline_block_def:
- (petr4_inline_block prefix body t_scope copyin copyout [] = SOME_msg (t_scope, p4_seq_append_stmt copyin (stmt_seq body copyout))) /\
- (petr4_inline_block prefix body t_scope copyin copyout (((param_name, param_dir), arg, param_type)::t) = 
+ (petr4_inline_block gscope prefix body t_scope copyin copyout [] = SOME_msg (t_scope, p4_seq_append_stmt copyin (stmt_seq body copyout))) /\
+ (petr4_inline_block gscope prefix body t_scope copyin copyout (((param_name, param_dir), arg, param_type)::t) = 
   (* This should just build on t_scope, copyin and copyout *)
   if is_d_out param_dir
   then
@@ -1343,26 +1359,26 @@ Definition petr4_inline_block_def:
     | SOME arg_lval =>
      let copyin' =
       if (param_dir <> d_out)
-      then (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn prefix (varn_name param_name))) arg))
-      else (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn prefix (varn_name param_name))) (e_v $ arb_from_tau param_type)))
+      then (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn gscope prefix (varn_name param_name))) arg))
+      else (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn gscope prefix (varn_name param_name))) (e_v $ arb_from_tau param_type)))
      in
      let copyout' =
       if is_d_out param_dir
-      then (p4_seq_append_stmt copyout (stmt_ass arg_lval (e_var (p4_prefix_vars_in_varn prefix (varn_name param_name)))))
+      then (p4_seq_append_stmt copyout (stmt_ass arg_lval (e_var (p4_prefix_vars_in_varn gscope prefix (varn_name param_name)))))
       else copyout
      in
-     petr4_inline_block prefix body (t_scope++[(varn_name param_name, (param_type, SOME arg_lval))]) copyin' copyout' t
+     petr4_inline_block gscope prefix body (t_scope++[(varn_name param_name, (param_type, SOME arg_lval))]) copyin' copyout' t
     | NONE => NONE_msg ("Could not inline programmable block: argument passed into "++(param_name++" does not correspond to l-value.")))
   else
-   let copyin' = (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn prefix (varn_name param_name))) arg)) in
-   petr4_inline_block prefix body (t_scope++[(varn_name param_name, (param_type, NONE))]) copyin' copyout t
+   let copyin' = (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn gscope prefix (varn_name param_name))) arg)) in
+   petr4_inline_block gscope prefix body (t_scope++[(varn_name param_name, (param_type, NONE))]) copyin' copyout t
  )
 End
 
 (* Adds a prefix to the varname of every entry in a decl_list *)
 Definition p4_prefix_decl_list_def:
- p4_prefix_decl_list prefix (decl_list:t_scope) =
-  MAP ( \ (h1, h2). (p4_prefix_vars_in_varn prefix h1, h2)) decl_list
+ p4_prefix_decl_list gscope prefix (decl_list:t_scope) =
+  MAP ( \ (h1, h2). (p4_prefix_vars_in_varn gscope prefix h1, h2)) decl_list
 End
 
 (* Sets the optional copyout L-value to NONE for all variables *)
@@ -1372,30 +1388,30 @@ Definition p4_remove_copyout_lval_decl_list_def:
 End
 
 Definition p4_prefix_vars_in_e_def:
- p4_prefix_vars_in_e prefix e =
+ p4_prefix_vars_in_e gscope prefix e =
   case e of
-  | e_var varn => e_var (p4_prefix_vars_in_varn prefix varn)
-  | e_list el => e_list (MAP (p4_prefix_vars_in_e prefix) el)
-  | e_acc e' x => e_acc (p4_prefix_vars_in_e prefix e') x
-  | e_unop unop e' => e_unop unop (p4_prefix_vars_in_e prefix e')
-  | e_cast cast e' => e_cast cast (p4_prefix_vars_in_e prefix e')
+  | e_var varn => e_var (p4_prefix_vars_in_varn gscope prefix varn)
+  | e_list el => e_list (MAP (p4_prefix_vars_in_e gscope prefix) el)
+  | e_acc e' x => e_acc (p4_prefix_vars_in_e gscope prefix e') x
+  | e_unop unop e' => e_unop unop (p4_prefix_vars_in_e gscope prefix e')
+  | e_cast cast e' => e_cast cast (p4_prefix_vars_in_e gscope prefix e')
   | e_binop e' binop e'' =>
-   e_binop (p4_prefix_vars_in_e prefix e') binop (p4_prefix_vars_in_e prefix e'')
+   e_binop (p4_prefix_vars_in_e gscope prefix e') binop (p4_prefix_vars_in_e gscope prefix e'')
   | e_concat e' e'' =>
-   e_concat (p4_prefix_vars_in_e prefix e') (p4_prefix_vars_in_e prefix e'')
+   e_concat (p4_prefix_vars_in_e gscope prefix e') (p4_prefix_vars_in_e gscope prefix e'')
   | e_slice e' e'' e''' =>
-   e_slice (p4_prefix_vars_in_e prefix e') (p4_prefix_vars_in_e prefix e'') (p4_prefix_vars_in_e prefix e''')
+   e_slice (p4_prefix_vars_in_e gscope prefix e') (p4_prefix_vars_in_e gscope prefix e'') (p4_prefix_vars_in_e gscope prefix e''')
   | e_call funn el =>
-   e_call funn (MAP (p4_prefix_vars_in_e prefix) el)
+   e_call funn (MAP (p4_prefix_vars_in_e gscope prefix) el)
   | e_select e' v_x_l x =>
-   e_select (p4_prefix_vars_in_e prefix e') v_x_l x
+   e_select (p4_prefix_vars_in_e gscope prefix e') v_x_l x
   | e_struct x_e_l =>
-   e_struct (MAP ( \ (x,e). (x, p4_prefix_vars_in_e prefix e)) x_e_l)
+   e_struct (MAP ( \ (x,e). (x, p4_prefix_vars_in_e gscope prefix e)) x_e_l)
   | e_header b x_e_l =>
-   e_header b (MAP ( \ (x,e). (x, p4_prefix_vars_in_e prefix e)) x_e_l)
+   e_header b (MAP ( \ (x,e). (x, p4_prefix_vars_in_e gscope prefix e)) x_e_l)
   | _ => e
 Termination
-WF_REL_TAC `measure (e_size o SND)` >>
+WF_REL_TAC `measure (e_size o SND o SND)` >>
 fs[e_size_def] >>
 rpt strip_tac >| [
  IMP_RES_TAC e1_tuple_size_mem >>
@@ -1413,37 +1429,37 @@ rpt strip_tac >| [
 End
 
 Definition p4_prefix_vars_in_lval_def:
- p4_prefix_vars_in_lval prefix lval =
+ p4_prefix_vars_in_lval gscope prefix lval =
   case lval of
   | lval_varname varn =>
-   lval_varname (p4_prefix_vars_in_varn prefix varn)
+   lval_varname (p4_prefix_vars_in_varn gscope prefix varn)
   | lval_field lval' x =>
-   lval_field (p4_prefix_vars_in_lval prefix lval') x
+   lval_field (p4_prefix_vars_in_lval gscope prefix lval') x
   | lval_slice lval' e e' =>
-   lval_slice (p4_prefix_vars_in_lval prefix lval') (p4_prefix_vars_in_e prefix e) (p4_prefix_vars_in_e prefix e')
-  | lval_paren lval' => p4_prefix_vars_in_lval prefix lval'
+   lval_slice (p4_prefix_vars_in_lval gscope prefix lval') (p4_prefix_vars_in_e gscope prefix e) (p4_prefix_vars_in_e gscope prefix e')
+  | lval_paren lval' => p4_prefix_vars_in_lval gscope prefix lval'
   | _ => lval
 End
 
 (* TODO: Note that this also prefixes tables currently *)
 Definition p4_prefix_vars_in_stmt_def:
- p4_prefix_vars_in_stmt prefix stmt =
+ p4_prefix_vars_in_stmt gscope prefix stmt =
   case stmt of
   | stmt_ass lval e =>
-   stmt_ass (p4_prefix_vars_in_lval prefix lval) (p4_prefix_vars_in_e prefix e)
+   stmt_ass (p4_prefix_vars_in_lval gscope prefix lval) (p4_prefix_vars_in_e gscope prefix e)
   | stmt_cond e stmt1 stmt2 =>
    stmt_cond
-    (p4_prefix_vars_in_e prefix e)
-    (p4_prefix_vars_in_stmt prefix stmt1)
-    (p4_prefix_vars_in_stmt prefix stmt2)
+    (p4_prefix_vars_in_e gscope prefix e)
+    (p4_prefix_vars_in_stmt gscope prefix stmt1)
+    (p4_prefix_vars_in_stmt gscope prefix stmt2)
   | stmt_block decl_list stmt' =>
-   stmt_block (p4_prefix_decl_list prefix decl_list) (p4_prefix_vars_in_stmt prefix stmt')
-  | stmt_ret e => stmt_ret (p4_prefix_vars_in_e prefix e)
+   stmt_block (p4_prefix_decl_list gscope prefix decl_list) (p4_prefix_vars_in_stmt gscope prefix stmt')
+  | stmt_ret e => stmt_ret (p4_prefix_vars_in_e gscope prefix e)
   | stmt_seq stmt1 stmt2 =>
-   stmt_seq (p4_prefix_vars_in_stmt prefix stmt1)
-            (p4_prefix_vars_in_stmt prefix stmt2)
-  | stmt_trans e => stmt_trans (p4_prefix_vars_in_e prefix e)
-  | stmt_app x el => stmt_app (p4_prefix_tbl prefix x) (MAP (p4_prefix_vars_in_e prefix) el)
+   stmt_seq (p4_prefix_vars_in_stmt gscope prefix stmt1)
+            (p4_prefix_vars_in_stmt gscope prefix stmt2)
+  | stmt_trans e => stmt_trans (p4_prefix_vars_in_e gscope prefix e)
+  | stmt_app x el => stmt_app (p4_prefix_tbl prefix x) (MAP (p4_prefix_vars_in_e gscope prefix) el)
   | _ => stmt
 End
 
@@ -1452,9 +1468,10 @@ Definition p4_prefix_vars_in_args_def:
   MAP ( \ (argname, dir). (prefix++("_"++argname), dir)) args
 End
 
+(* Note that this should not prefix global variables *)
 Definition p4_prefix_vars_in_b_func_map_def:
- p4_prefix_vars_in_b_func_map prefix (b_func_map:b_func_map) =
-  MAP ( \ (fname, (body, args)). (fname, (p4_prefix_vars_in_stmt prefix body, p4_prefix_vars_in_args prefix args))) b_func_map
+ p4_prefix_vars_in_b_func_map gscope prefix (b_func_map:b_func_map) =
+  MAP ( \ (fname, (body, args)). (fname, (p4_prefix_vars_in_stmt gscope prefix body, p4_prefix_vars_in_args prefix args))) b_func_map
 End
 
 Definition p4_prefix_tbls_in_tbl_map_def:
@@ -1505,7 +1522,7 @@ End
 (* Common: statements *)
 
 Definition petr4_parse_method_call_def:
- petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list, action_list) stmt_details =
+ petr4_parse_method_call (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) stmt_details =
   case stmt_details of
   | [(f0, tags); (* No check for this, since it's only thrown away *)
      (f1, func); (* Expression: either a name or a member (in case of extern object's method) *)
@@ -1518,6 +1535,12 @@ Definition petr4_parse_method_call_def:
        | SOME_msg exp =>
         (case exp_to_funn (vtymap, extfun_list) exp of
          | SOME (SOME funn, obj_opt) =>
+          let add_args =
+           case funn of
+            | funn_name fname =>
+             (* For action, insert extra arguments with from_table F and hit bit as ARB *)
+             if MEM fname action_list then [e_v $ v_bool F; e_v $ v_bool ARB] else []
+            | _ => [] in
           (case find_fty_match_args ftymap funn (LENGTH args) of
            | SOME (arg_tys, ret_ty) =>
             (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, extfun_list) (ZIP (args, MAP SOME arg_tys)) of
@@ -1538,12 +1561,7 @@ Definition petr4_parse_method_call_def:
                     | NONE_msg postproc_ext_msg => NONE_msg postproc_ext_msg)
                   | NONE => get_error_msg "no object provided for extern object method call: " func)
                | (funn_name fun_name) =>
-                (* For action, insert extra arguments with from_table F and hit bit as ARB *)
-                if MEM fun_name action_list
-                then
-                 SOME_msg ([], [], [], [], [], (stmt_ass lval_null (e_call funn ([e_v $ v_bool F; e_v $ v_bool ARB]++res_args))))
-                else
-                 SOME_msg ([], [], [], [], [], (stmt_ass lval_null (e_call funn res_args)))
+                 SOME_msg ([], [], [], [], [], (stmt_ass lval_null (e_call funn (add_args++res_args))))
                | _ => get_error_msg "unknown type of method call: " func)
              | NONE_msg args_msg => NONE_msg ("could not parse method call: "++args_msg))
            | NONE => get_error_msg "type inference information not found for method call: " func)
@@ -1573,14 +1591,14 @@ Definition petr4_parse_method_call_def:
                       then NONE_msg ("nested control block "++(app_name++(" of type "++(block_type_name++" contains a return statement, which is unsupported by the inlining scheme"))))
                       else
                        (* TODO: Prefixing of variables in body happens here *)
-                       (case petr4_inline_block app_name (p4_prefix_vars_in_stmt app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
+                       (case petr4_inline_block gscope app_name (p4_prefix_vars_in_stmt gscope app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
                         | SOME_msg (decl_list', stmt) =>
                          (case ALOOKUP tbl_entries_map block_type_name of
                           | SOME tbl_entries =>
                            (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
-                           let inline_decl_list = p4_prefix_decl_list app_name (decl_list'++decl_list) in
+                           let inline_decl_list = p4_prefix_decl_list gscope app_name (decl_list'++decl_list) in
                            (* TODO: Prefixing of variables in local functions here, prove it is OK *)
-                           SOME_msg (p4_prefix_vars_in_b_func_map app_name b_func_map',
+                           SOME_msg (p4_prefix_vars_in_b_func_map gscope app_name b_func_map',
                                      p4_prefix_tbls_in_tbl_map app_name tbl_map,
                                      (* decl_list' is the parameters, decl_list is the pblock variables *)
                                      p4_remove_copyout_lval_decl_list inline_decl_list,
@@ -1844,13 +1862,13 @@ Definition inline_switch_def:
 End
 
 Definition serialise_actions'_def:
- (serialise_actions' action_list [] = SOME_msg []) /\
- (serialise_actions' action_list (h::t) =
+ (serialise_actions' len action_list [] = SOME_msg []) /\
+ (serialise_actions' len action_list (h::t) =
   case INDEX_FIND 0 (\el. el = h) action_list of
   | SOME (i, _) =>
-   (case serialise_actions' action_list t of
+   (case serialise_actions' len action_list t of
     | SOME_msg ser_res =>
-     SOME_msg ((e_v $ v_bit (fixwidth 32 (n2v i), 32))::ser_res)
+     SOME_msg ((e_v $ v_bit (fixwidth 32 (n2v ((len-i)-1)), 32))::ser_res)
     | NONE_msg ser_msg => NONE_msg ser_msg)
   | NONE => NONE_msg (("could not serialise action: "++h)++"; not found in action list "++(merge_string_list action_list))
  )
@@ -1859,7 +1877,7 @@ End
 (* TODO: In case of shadowing, last (visible) defined action with the name is used... *)
 Definition serialise_actions_def:
  (serialise_actions action_list actions =
-  serialise_actions' action_list actions
+  serialise_actions' (LENGTH action_list) (REVERSE action_list) actions
  )
 End
 
@@ -1958,7 +1976,7 @@ Definition petr4_parse_stmts_def:
         | SOME_msg (varn, tau, init_val_opt) =>
          (case petr4_parse_stmts (tyenv, enummap, AUPDATE vtymap (varn, parameterise_tau tau), ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
           | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res) =>
-           if MEM varn ((varn_name "gen_apply_result")::taboo_list)
+           if MEM varn ((^apply_result_placeholder_varn)::taboo_list)
            then get_error_msg "taboo variable name found when parsing declaration statement: " decl_obj
            else
             (case init_val_opt of
@@ -2001,7 +2019,7 @@ Definition petr4_parse_stmts_def:
                                (stmt_seq
                                 (stmt_app tbl_name keys)
                                 (stmt_seq
-                                 (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (varn_name "gen_apply_result")))
+                                 (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (^apply_result_placeholder_varn)))
                                  (inline_switch expr_res (ZIP(labels',stmts_res_list))))) in
                     SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list++(taboo_list'++[varn_name tbl_name]), p4_seq_append_stmt stmt t_res)
                   | NONE_msg t_msg => NONE_msg t_msg)
@@ -2128,6 +2146,7 @@ Definition get_funn_name_def:
   | funtype_ext_obj_constructor obj_name => (funn_inst obj_name))
 End
 
+(* TODO: Add return value type *)
 (* Parses the shared parts of actions and functions *)
 (* TODO: Rename this *)
 Definition petr4_parse_fun_body_def:
@@ -2142,7 +2161,11 @@ Definition petr4_parse_fun_body_def:
         (* Note that no tables can be applied inside functions *)
         (case petr4_parse_stmts (tyenv, enummap, AUPDATE_LIST vtymap (update_vtymap_fun p_vty_updates funtype), ftymap, gscope, [], apply_map, [], action_list, extfun_list) stmts of
          | SOME_msg (_, _, _, _, _, fa_body) =>
-          SOME_msg ((fa_name, (fa_body, fa_params)),
+          let add_params =
+           if funtype = funtype_action
+           then [("from_table", d_in); ("hit", d_in)]
+           else [] in
+          SOME_msg ((fa_name, (fa_body, add_params++fa_params)),
                     (get_funn_name funtype fa_name, (MAP SND p_vty_updates, tau_bot)))
          | NONE_msg stmts_msg => NONE_msg stmts_msg)
        | NONE_msg params_msg => NONE_msg params_msg)
@@ -2150,7 +2173,6 @@ Definition petr4_parse_fun_body_def:
    | _ => get_error_msg "unknown JSON format of function or action body: " body
 End
 
-(* TODO: Add return statements as appropriate *)
 (* Used by functions for parsing top-level functions and similar, also used directly
  * for parsing block-local actions and extern object methods *)
 Definition petr4_fun_to_fmapupdate_def:
@@ -2214,7 +2236,7 @@ Definition add_apply_result_inline_def:
     let struct = (e_struct [("hit", e_var (varn_name "hit"));
                             ("miss", e_unop unop_neg (e_var (varn_name "hit")));
                             ("action_run", ser_res)]) in
-    SOME_msg (stmt_seq (stmt_cond (e_var (varn_name "from_table")) (stmt_ass (lval_varname (varn_name "gen_apply_result")) struct) stmt_empty) stmt)
+    SOME_msg (stmt_seq (stmt_cond (e_var (varn_name "from_table")) (stmt_ass (lval_varname (^apply_result_placeholder_varn)) struct) stmt_empty) stmt)
    | NONE_msg ser_msg => NONE_msg ser_msg
    | _ => NONE_msg ("different than expected number of action serialisations was returned for: "++(action_name++" using action list "++(merge_string_list action_list))))
 End
@@ -2246,15 +2268,14 @@ End
 (* TODO: Decide whether to put action in global or local function map here, re-use in parse_locals *)
 (* Parses a top-level action (note that this can't see any tables, since those can only be defined in control blocks) *)
 Definition petr4_parse_actiondef_def:
- petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list, action_list) action =
+ petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) action =
   case petr4_fun_to_fmapupdate (tyenv, enummap, vtymap, ftymap, fmap, gscope, [], action_list, extfun_list) action funtype_action of
    | SOME_msg ((fa_name, (fa_body, fa_params)), ftymap_upd) =>
-    let fa_params' = ([("from_table", d_in); ("hit", d_in)]++fa_params) in
-    if ALL_DISTINCT ("gen_apply_result"::(MAP FST fa_params'))
+    if ALL_DISTINCT ((^apply_result_placeholder)::(MAP FST fa_params))
     then
      (case add_apply_result_inline (action_list++[fa_name]) (add_explicit_return fa_body) fa_name of
       | SOME_msg fa_body' =>
-       SOME_msg (ftymap_upd::ftymap, [fa_name], (fa_name, (replace_action_args fa_body' action_list, fa_params')))
+       SOME_msg (ftymap_upd::ftymap, [fa_name], (fa_name, (replace_action_args fa_body' action_list, fa_params)))
       | NONE_msg inl_msg => NONE_msg inl_msg)
     else NONE_msg ("Inlining scheme for apply expressions caused overlapping parameter names (hit or gen_apply_result) while parsing action "++fa_name)
    | NONE_msg msg => NONE_msg ("Could not parse action: "++msg)
@@ -2573,6 +2594,7 @@ Definition petr4_parse_default_action_def:
        SOME_msg (action_name, args)
       | SOME_msg (e_var (varn_name action_name)) =>
        SOME_msg (action_name, [])
+      | NONE_msg exp_msg => NONE_msg ("could not parse default action: "++exp_msg)
       | _ => get_error_msg "unknown format of default action name: " action)
      else get_error_msg ("unknown table property field ("++(custom_name++"): ")) default_action
     | NONE => get_error_msg "could not parse name: " name)
@@ -2944,7 +2966,7 @@ Definition petr4_parse_locals_def:
       | NONE_msg inst_msg => NONE_msg ("could not parse instantiation: "++inst_msg))
     else if local_string = "Action"
     then
-     (case petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list, action_list) local_obj of
+     (case petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) local_obj of
       | SOME_msg (ftymap', action_list_upds, fmap_upd) =>
        petr4_parse_locals (tyenv, enummap, vtymap, ftymap'++ftymap, fmap, gscope, action_list++action_list_upds, extfun_list) (AUPDATE b_func_map fmap_upd, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) t
       | NONE_msg actiondef_msg => NONE_msg ("could not parse block-local action: "++actiondef_msg)
@@ -3173,15 +3195,14 @@ End
 
 Definition check_taboos_def:
  check_taboos gscope decl_list ctrl_params taboo_list control_name f =
-  let taboo_list' = ((varn_name "gen_apply_result")::taboo_list) in
   let decl_list' = (MAP FST decl_list) in
   let ctrl_params' = (MAP (varn_name o FST) ctrl_params) in
   let gscope' = (MAP FST gscope) in
-  if (EVERY (\ el. ~(MEM el decl_list')) taboo_list')
+  if (EVERY (\ el. ~(MEM el decl_list')) taboo_list)
   then
-   (if (EVERY (\ el. ~(MEM el ctrl_params')) taboo_list')
+   (if (EVERY (\ el. ~(MEM el ctrl_params')) taboo_list)
     then
-     (if (EVERY (\ el. ~(MEM el gscope')) taboo_list')
+     (if (EVERY (\ el. ~(MEM el gscope')) taboo_list)
       then f
       else NONE_msg (("Taboo variable from block: "++control_name)++" found among global variables"))
     else NONE_msg ("Taboo variable found among block parameters in block: "++control_name))
@@ -3440,7 +3461,7 @@ Definition petr4_parse_element_def:
      | NONE_msg msg => NONE_msg msg)
 
    else if elem_name = "Action" then
-    (case petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, extfun_list, action_list) obj of
+    (case petr4_parse_actiondef (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) obj of
      | SOME_msg (ftymap', action_list_upds, fmap_upd) =>
       SOME_msg (tyenv, enummap, vtymap, ftymap', blftymap, AUPDATE fmap fmap_upd, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list++action_list_upds, extfun_list, ttymap)
      | NONE_msg msg => NONE_msg msg)
@@ -3559,7 +3580,7 @@ Definition petr4_parse_elements_def:
  petr4_parse_elements json_list arch_pkg_opt =
   FOLDL ( \ res_opt json. case res_opt of
                      | SOME_msg res => petr4_parse_element res json
-                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],(0,[]),[],[(funn_ext "header" "isValid",[],tau_bool); (funn_ext "header" "setValid",[],tau_bot); (funn_ext "header" "setInvalid",[],tau_bot)],[],[],[],[],[],[],[],arch_pkg_opt,[],[],[],[])) json_list
+                     | NONE_msg msg => NONE_msg msg) (SOME_msg ([("bit", p_tau_bit 1)],(0,[]),[],[(funn_ext "header" "isValid",[],tau_bool); (funn_ext "header" "setValid",[],tau_bot); (funn_ext "header" "setInvalid",[],tau_bot)],[],[],[],[],[((^apply_result_placeholder_varn), (v_bot, NONE))],[],[],arch_pkg_opt,[],[],[],[])) json_list
 End
 
 (* Removes the list of arguments stored in pblock_map, which is only used during the
@@ -3570,11 +3591,7 @@ Definition clean_result_def:
  clean_result res_msg =
   case res_msg of
   | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) =>
-   (* TODO: Currently, gscope' is not passed on, since it is initialised later (for now) *)
-   (case AUPDATE_FRESH gscope (varn_name "gen_apply_result", (v_bot, NONE)) of
-    SOME gscope' => 
-     SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map, p4_clean_tbl_entries_map tbl_entries_map ab_list, arch_pkg_opt, ab_list, ttymap)
-    | NONE => NONE_msg "reserved variable name gen_apply_result was found among global variables in P4 program")
+   SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map, p4_clean_tbl_entries_map tbl_entries_map ab_list, arch_pkg_opt, ab_list, ttymap)
   | NONE_msg msg => NONE_msg msg
 End
 
@@ -3759,7 +3776,7 @@ End
 
 (* CURRENT WIP *)
 
-val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "validation_tests/v1model-const-entries-bmv2.json";
+val wip_tm = stringLib.fromMLstring $ TextIO.inputAll $ TextIO.openIn "validation_tests/issue2170-bmv2.json";
 
 val wip_parse_thm = EVAL ``parse (OUTL (lex (^wip_tm) ([]:token list))) [] T``;
 
@@ -3770,7 +3787,7 @@ val wip_test_tm = dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json_preamble ^(r
 
 (* The index of the list in wip_test_tm at where you want to start debugging
  * (note the correspondence with the usage below in p4_from_json_def) *)
-val index_of_error = ``56:num``;
+val index_of_error = ``4:num``;
 
 val wip_control_inst_tm = rhs $ concl $ EVAL ``EL (^index_of_error) ^wip_test_tm``;
 
@@ -3785,17 +3802,37 @@ Definition p4_from_json_def:
 End
 
 (* The object to be converted to HOL4P4 at index_of_error *)
-(* TODO: Currently, this is assumed to be a control block, which is extracted *)
 val wip_obj = optionSyntax.dest_some $ rhs $ concl $ EVAL ``case (^wip_control_inst_tm) of | Array [String elem_name; obj] => SOME obj | _ => NONE``;
 
 (* The result immediately prior to index_of_error, which gives us the debugging variables *)
-val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_blftymap, wip_fmap, wip_bltymap, wip_ptymap, wip_gscope, wip_pblock_map, wip_tbl_entries, wip_arch_pkg_opt, wip_ab_list, wip_extfun_list] = pairSyntax.spine_pair $ dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm) (SOME (arch_v1model (NONE)))``;
+val [wip_tyenv, wip_enummap, wip_vtymap, wip_ftymap, wip_blftymap, wip_fmap, wip_bltymap, wip_ptymap, wip_gscope, wip_pblock_map, wip_tbl_entries, wip_arch_pkg_opt, wip_ab_list, wip_action_list, wip_extfun_list, wip_ttymap] = pairSyntax.spine_pair $ dest_SOME_msg $ rhs $ concl $ EVAL ``p4_from_json ^(rhs $ concl wip_parse_thm) (SOME (arch_v1model (NONE)))``;
 
 (***********************************************)
 
 (* MANUAL DEBUG: From here on, start by choosing sub-case of petr4_parse_element *)
-EVAL ``petr4_parse_element (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_blftymap, ^wip_fmap, ^wip_bltymap, ^wip_ptymap, ^wip_gscope, ^wip_pblock_map, ^wip_tbl_entries, ^wip_arch_pkg_opt, ^wip_ab_list, ^wip_extfun_list) ^wip_control_inst_tm``
-EVAL ``petr4_parse_top_level_inst (^wip_tyenv, ^wip_bltymap, ^wip_ptymap) ^wip_obj``
+EVAL ``petr4_parse_element (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_blftymap, ^wip_fmap, ^wip_bltymap, ^wip_ptymap, ^wip_gscope, ^wip_pblock_map, ^wip_tbl_entries, ^wip_arch_pkg_opt, ^wip_ab_list, ^wip_action_list, ^wip_extfun_list, ^wip_ttymap) ^wip_control_inst_tm``;
+
+EVAL ``petr4_parse_actiondef (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_fmap, ^wip_gscope, ^wip_action_list, ^wip_extfun_list) ^wip_obj``
+
+EVAL ``petr4_fun_to_fmapupdate (^wip_tyenv, ^wip_enummap, ^wip_vtymap, ^wip_ftymap, ^wip_fmap, ^wip_gscope, [], ^wip_action_list, ^wip_extfun_list) ^wip_obj funtype_action``
+
+EVAL ``ALL_DISTINCT ((^apply_result_placeholder)::(MAP FST [("from_table",d_in); ("hit",d_in)]))``
+
+EVAL ``add_apply_result_inline (^wip_action_list++["NoAction"]) (add_explicit_return stmt_empty) "NoAction"``
+
+EVAL ``replace_action_args (stmt_seq
+          (stmt_cond (e_var (varn_name "from_table"))
+             (stmt_ass (lval_varname (varn_name "gen_apply_result"))
+                (e_struct
+                   [("hit",e_var (varn_name "hit"));
+                    ("miss",e_unop unop_neg (e_var (varn_name "hit")));
+                    ("action_run",
+                     e_v
+                       (v_bit
+                          ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                            F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],
+                           32)))])) stmt_empty)
+          (stmt_seq stmt_empty (stmt_ret (e_v v_bot)))) ^wip_action_list``
 
 
 *)
