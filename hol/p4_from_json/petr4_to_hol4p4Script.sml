@@ -1566,8 +1566,6 @@ rpt strip_tac >| [
  IMP_RES_TAC e3_size_mem >>
  fs[],
 
- cheat,
-
  IMP_RES_TAC e1_tuple_size_mem >>
  fs[]
 ]

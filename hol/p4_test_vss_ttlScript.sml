@@ -207,16 +207,16 @@ val ctx' = ``p4_vss_actx'``;
 
 (* EVAL-uate until packet is output (happens to be step 180) *)
 (* Theorem on line below proves data non-interference using proof approach 2 *)
-GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 180``;
+GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 181``;
 
 
 (**************************************************)
 (* Version 3: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
-(* Takes 64 steps, then another 103, then 13 *)
+(* Takes 65 steps, then another 103, then 13 *)
 (* Theorem on line below proves data non-interference using proof approach 3 *)
-GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [64, 103, 13];
+GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [65, 103, 13];
 
 
 val _ = export_theory ();
