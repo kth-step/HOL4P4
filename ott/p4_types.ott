@@ -245,15 +245,15 @@ val t_lookup_funn_def = Define `
 
 val ext_is_defined_def = Define `
 ext_is_defined (delta_x:delta_x) funn =
-! f . funn = funn_name f ⇒
-( ALOOKUP delta_x f = NONE )
+((! f . funn = funn_name f ⇒
+( ALOOKUP delta_x f = NONE ))
   ∧                            
 (! x . funn = funn_inst x ⇒
        ( ∃ a1 ext_MoE . ALOOKUP delta_x x = SOME (a1,ext_MoE)))
   ∧                            
 (! x x' . funn = funn_ext x x' ⇒
        ( ∃ a1 ext_MoE txdl t. ALOOKUP delta_x x = SOME (a1,ext_MoE) ∧
-         ALOOKUP ext_MoE x' = SOME (txdl, t)))
+         ALOOKUP ext_MoE x' = SOME (txdl, t))))
 `;
 
 
