@@ -8,8 +8,12 @@ git clone https://github.com/HOL-Theorem-Prover/HOL.git
 cd HOL
 git checkout kananaskis-14
 # Add compilation flags to avoid ISO C++17 incompatibility errors
-sed -i 's/CFLAGS    = -Wall -ffloat-store -fno-strict-aliasing.*/& -std=c++14/g' src/HolSat/sat_solvers/minisat/Makefile
-sed -i 's/g++ -O3 Proof.o File.o zc2hs.cpp -o zc2hs.*/& -std=c++14/g' src/HolSat/sat_solvers/zc2hs/Makefile
+# Note: Only done for amd64, doing this patch on aarch64 results in worse errors
+if [[ $(dpkg --print-architecture) == "amd64" ]]
+then
+	sed -i 's/CFLAGS    = -Wall -ffloat-store -fno-strict-aliasing.*/& -std=c++14/g' src/HolSat/sat_solvers/minisat/Makefile
+	sed -i 's/g++ -O3 Proof.o File.o zc2hs.cpp -o zc2hs.*/& -std=c++14/g' src/HolSat/sat_solvers/zc2hs/Makefile
+fi
 poly < tools/smart-configure.sml
 bin/build
 # For bash
