@@ -2390,7 +2390,7 @@ val sel_def = Define `
    (case (FIND (\(s_list, x'). match_all (ZIP(SND $ UNZIP x_v_list,s_list))) s_list_x_list) of
     | SOME (s_list, x') => x'
     | NONE => x)
-  | _ => NONE
+  | _ => x
 `;
 
 val fully_reduced_def = Define `
