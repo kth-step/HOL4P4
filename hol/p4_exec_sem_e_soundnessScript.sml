@@ -491,9 +491,9 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 QED
 
 Theorem e_select_exec_sound_red:
-!type el l s.
-l_sound type el ==>
-e_exec_sound type (e_select el l s)
+!type e l s.
+e_exec_sound type e ==>
+e_exec_sound type (e_select e l s)
 Proof
 cheat
 (*
@@ -791,6 +791,9 @@ rpt strip_tac >| [
  (* x_e *)
  fs [x_e_exec_sound],
 
+ (* Select expression *)
+ fs [e_select_exec_sound_red],
+
  (* Unary operation *)
  fs [e_unop_exec_sound_red],
 
@@ -799,9 +802,6 @@ rpt strip_tac >| [
 
  (* Function/extern call *)
  fs [e_call_exec_sound_red],
-
- (* Select expression *)
- fs [e_select_exec_sound_red],
 
  (* Struct *)
  fs [e_struct_exec_sound_red],

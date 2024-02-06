@@ -205,7 +205,8 @@ Definition e_exec_select:
   | v_struct x_v_l =>
    (case (FIND (\ (s_list, x'). match_all (ZIP(SND $ UNZIP x_v_l,s_list))) s_l_x_l) of
     | SOME (s_list, x') => SOME x'
-    | NONE => SOME x)) /\
+    | NONE => SOME x)
+  | _ => SOME x) /\
  (e_exec_select _ _ _ = NONE)
 End
 
@@ -385,8 +386,7 @@ Definition e_exec_def:
   if is_v e
   then
    (case e_exec_select e s_l_x_l x of
-    | SOME x' =>
-     SOME (e_v (v_str x'), [])
+    | SOME x' => SOME (e_v (v_str x'), [])
     | NONE => NONE)
   else
    (case e_exec ctx g_scope_list scope_list e of
