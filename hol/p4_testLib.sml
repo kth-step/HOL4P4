@@ -193,6 +193,14 @@ val simple_arith_ss = pure_ss++numSimps.REDUCE_ss
 
 fun the_final_state_imp step_thm = optionSyntax.dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 
+fun the_final_state_hyp_imp step_thm =
+ let
+  val (hyp, step_tm) = dest_imp $ concl step_thm
+ in
+  (hyp, optionSyntax.dest_some $ snd $ dest_eq step_tm)
+ end
+;
+
 fun get_actx step_thm =
  let
   val step_thm_tm = concl step_thm
@@ -333,32 +341,8 @@ fun eval_step ascope_ty actx astate =
 end;
 
 (* TODO: Move to syntax file *)
-(* TODO: spine_pair *)
-fun dest_astate astate =
- let
-  val (aenv, astate') = dest_pair astate
-  val (g_scope_list, astate'') = dest_pair astate'
-  val (arch_frame_list, status) = dest_pair astate''
- in
-  (aenv, g_scope_list, arch_frame_list, status)
- end
-;
-
-(* TODO: Move to syntax file *)
-(* TODO: Change name, should be generic *)
-fun dest_vss_aenv aenv =
- let
-  val (i, aenv') = dest_pair aenv
-  val (in_out_list, aenv'') = dest_pair aenv'
-  val (in_out_list', ascope) = dest_pair aenv''
- in
-  (i, in_out_list, in_out_list', ascope)
- end
-;
-
-(* TODO: Move to syntax file *)
-(* TODO: Change name, should be generic *)
-fun dest_vss_ascope ascope =
+(* TODO: This happens to work with all current architectures *)
+fun dest_ascope ascope =
  let
   val (counter, ascope') = dest_pair ascope
   val (ext_obj_map, ascope'') = dest_pair ascope'
@@ -369,8 +353,8 @@ fun dest_vss_ascope ascope =
 ;
 
 (* TODO: Move to syntax file *)
-(* TODO: Change name, should be generic *)
-fun dest_vss_actx actx =
+(* TODO: This happens to work with all current architectures *)
+fun dest_actx actx =
  let
   val (ab_list, actx') = dest_pair actx
   val (pblock_map, actx'') = dest_pair actx'
@@ -394,7 +378,7 @@ fun get_existentials eval_thm =
   val steps = last $ snd $ strip_comb $ lhs $ concl eval_thm
   val (aenv', g_scope_list', arch_frame_list', status') = dest_astate final_state
   (* TODO: Below line might not generalise well in future if the aenv type changes *)
-  val (ab_index', _, _, ascope') = dest_vss_aenv aenv'
+  val (ab_index', _, _, ascope') = dest_aenv aenv'
  in
   [steps, ab_index', ascope', g_scope_list', arch_frame_list', status']
  end
@@ -420,10 +404,10 @@ fun debug_arch_from_step arch actx astate nsteps =
   val astate' = eval_and_print_result arch actx astate nsteps
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
 (* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
-(*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
-(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
+(*  val (i, in_out_list, in_out_list', scope) = dest_aenv aenv *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx *)
  in
-  (dest_vss_actx actx, (dest_vss_aenv aenv, g_scope_list, arch_frame_list, status))
+  (dest_actx actx, (dest_aenv aenv, g_scope_list, arch_frame_list, status))
  end
 ;
 
@@ -433,8 +417,8 @@ fun debug_arch_from_step_alt arch actx astate nsteps =
   val astate' = eval_and_print_result arch actx astate nsteps
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
 (* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
-(*  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv *)
-(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx *)
+(*  val (i, in_out_list, in_out_list', scope) = dest_aenv aenv *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx *)
  in
   (actx, list_mk_pair [aenv, g_scope_list, arch_frame_list, status])
  end
@@ -446,8 +430,8 @@ fun debug_frames_from_step arch actx astate nsteps =
  let
   val astate' = eval_and_print_result arch actx astate nsteps
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
-  val (i, in_out_list, in_out_list', scope) = dest_vss_aenv aenv
-  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_vss_actx actx
+  val (i, in_out_list, in_out_list', scope) = dest_aenv aenv
+  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx
   val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
   val (pbl_type, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock_regular $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
   val frame_list = dest_arch_frame_list_regular arch_frame_list

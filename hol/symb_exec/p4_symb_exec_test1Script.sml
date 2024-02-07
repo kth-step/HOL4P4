@@ -137,9 +137,7 @@ GEN_ALL $ eval_under_assum p4_v1modelLib.v1model_arch_ty symb_exec1_actx symb_ex
 *)
 
 val symb_exec1_astate_symb = rhs $ concl $ EVAL “(p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],ARB,ARB,ARB,[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
-
-open p4_auxTheory;
+   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
@@ -153,15 +151,21 @@ val n_max = 50;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
+
+val fuel = 1
 *)
 
 (* For debugging, branch happens here:
-val (res_tree, res_elems) =
- symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+
+val (path_tree, [(path_id, path_cond, step_thm)]) =
+ p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 24;
+
+val (path_tree, [(path_id, path_cond, step_thm), (path_id2, path_cond2, step_thm2)]) =
+ p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
 
    Join happens here:
-val (res_tree, res_elems) =
- symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 44;
+val (path_tree, [(path_id, path_cond_res, step_thm)]) =
+ p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 44;
 
 val [res_elem1, res_elem2] = res_elems
 

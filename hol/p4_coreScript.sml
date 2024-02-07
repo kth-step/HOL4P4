@@ -403,6 +403,60 @@ Definition AFIND_PRED_def:
   | NONE => NONE
 End
 *)
+(*
+(* TODO: Do all this sorting once and for all before the program starts,
+ * then make it the responsibility of the control plane to update the
+ * table with the right format
+ *
+ * Current solution is crazy stupid hack with same signatures as before *)
+
+(* New table matching algorithm tailored for symbolic execution:
+   1. Sort by priority: insert every entry in new list as soon as
+      entry of higher priority is encountered, before that entry.
+      Flip depending on which priority implementation is being modeled.
+   2. Just iterate through the result without bothering to keep track about priority.
+*)
+
+Definition insert_def:
+ (insert f e [] = [e]) /\
+ (insert f ((k,prio),v) (((k',prio'),v')::t) =
+  if f prio prio'
+  then (((k,prio),v)::(((k',prio'),v')::t))
+  else (((k',prio'),v')::(insert f ((k,prio),v) t)))
+End
+
+(* TODO: None never wins, but should not even exist in this list *)
+Definition insert_largest_prio_def:
+ insert_largest_prio e l = insert (\ p:num p'. p > p') e l
+End
+
+Definition insert_smallest_prio_def:
+ insert_smallest_prio e l = insert (\ p:num p'. p < p') e l
+End
+
+(* TODO: dumb sorting algorithm? *)
+Definition sort_table_def:
+ (sort_table f acc [] = acc) /\
+ (sort_table f acc (h::t) =
+  sort_table f (f h acc) t)
+End
+
+(* Simplest possible "Inner kernel" of matching that is meant
+ * to be rewritten using path condition *)
+Definition FOLDL_MATCH_symb_exec_def:
+ (FOLDL_MATCH_symb_exec e_l res [] = res) /\
+ (FOLDL_MATCH_symb_exec e_l res_act (((k,p),v)::t) =
+  if k e_l
+  then FOLDL_MATCH_symb_exec e_l v t
+  else FOLDL_MATCH_symb_exec e_l res_act t)
+End
+
+Definition FOLDL_MATCH_def:
+ FOLDL_MATCH e_l (res:(string # e list) # (num option)) entries =
+  let entries' = sort_table insert_largest_prio [] entries in
+   (FOLDL_MATCH_symb_exec e_l ((\ ((a,b),c). (a,b)) res) entries', NONE:num option)
+End
+*)
 
 (* TODO: Are match_kinds needed at all in the dynamic semantics? *)
 Definition FOLDL_MATCH_def:
@@ -420,6 +474,22 @@ Definition FOLDL_MATCH_def:
    | NONE => FOLDL_MATCH e_l (v, SOME prio) t
   else FOLDL_MATCH e_l (res_act, res_prio_opt) t)
 End
+
+(*
+Definition update_prios_def:
+ (update_prios acc [] = []) /\
+ (update_prios acc (((k,prio),v)::t) =
+  let prio' = if prio = (0:num) then acc else prio in
+   (((k,prio'),v)::(update_prios (acc+1) t)))
+End
+
+Definition FOLDL_MATCH_alt_def:
+ FOLDL_MATCH_alt e_l (res:(string # e list) # (num option)) n entries =
+  let entries' = update_prios n entries in
+  let entries'' = sort_table insert_smallest_prio [] entries' in
+   (FOLDL_MATCH_symb_exec e_l ((\ ((a,b),c). (a,b)) res) entries'', NONE:num option)
+End
+*)
 
 (* Alternative version, which uses smallest priority *)
 Definition FOLDL_MATCH_alt_def:

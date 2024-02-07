@@ -114,7 +114,7 @@ val symb_exec2_actx = ``([arch_block_inp;
  [("NoAction",stmt_seq stmt_empty (stmt_ret (e_v v_bot)),[])]):v1model_ascope actx``;
 
 val symb_exec2_astate_symb = rhs $ concl $ EVAL “(p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],ARB,ARB,ARB,[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
+   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
 
 
 (* symb_exec: *)
