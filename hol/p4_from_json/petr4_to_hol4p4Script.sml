@@ -136,9 +136,8 @@ End
 
 Definition deparameterise_taus_def:
 (deparameterise_taus p_tau_l =
- case deparameterise_x_taus (ZIP(REPLICATE (LENGTH p_tau_l) "",p_tau_l)) of
- | SOME x_tau_l => SOME (SND $ UNZIP x_tau_l)
- | NONE => NONE)
+ deparameterise_x_taus (ZIP(REPLICATE (LENGTH p_tau_l) "",p_tau_l)) >>=
+ \x_tau_l. SOME (SND $ UNZIP x_tau_l))
 End
 
 Definition parameterise_tau_def:
@@ -208,9 +207,8 @@ Definition json_parse_obj'_def:
  (json_parse_obj' (h2::t2) ((k, v)::t) =
   if k = h2
   then
-   (case json_parse_obj' t2 t of
-    | SOME vl => SOME (v::vl)
-    | NONE => NONE)
+   json_parse_obj' t2 t >>=
+   \vl. SOME (v::vl)
   else NONE)
 End
 
@@ -219,15 +217,15 @@ End
  * the provided list of strings *)
 Definition json_parse_obj_def:
  json_parse_obj fields json =
-  OPTION_BIND (json_dest_obj json) (json_parse_obj' fields) 
+  json_dest_obj json >>=
+  json_parse_obj' fields
 End
 
 Definition json_parse_arr'_def:
  (json_parse_arr' _  _ [] = NONE) /\
  (json_parse_arr' name f (h::[t]) =
-  OPTION_BIND
-   (json_dest_str h)
-   (\s. if s = name then f t else NONE)) /\
+   json_dest_str h >>=
+   \s. if s = name then f t else NONE) /\
  (json_parse_arr' _  _ _ = NONE)
 End
 
@@ -237,25 +235,23 @@ End
  * a specific pattern found in petr4 JSON exports. *)
 Definition json_parse_arr_def:
  json_parse_arr name f json =
-  OPTION_BIND (json_dest_arr json) (json_parse_arr' name f)
+  json_dest_arr json >>=
+  json_parse_arr' name f
 End
 
 Definition json_parse_arr_list'_def:
  (json_parse_arr_list' _ [] = NONE) /\
  (json_parse_arr_list' name_f_l (h::t) =
-  OPTION_BIND
-   (json_dest_str h)
-   (\s.
-    (case INDEX_FIND 0 (\name_f. (FST name_f) = s) name_f_l of
-     | SOME (i, name_f) =>
-      (* TODO: can t be empty if we're dealing with an error? *)
-      (case t of
-       | [] =>
-        (SND name_f) Null
-       | [t'] =>
-        (SND name_f) t'
-       | _ => NONE)
-     | _ => NONE)))
+   json_dest_str h >>=
+   \s. INDEX_FIND 0 (\name_f. (FST name_f) = s) name_f_l >>=
+   \ (i, name_f).
+    (* TODO: can t be empty if we're dealing with an error? *)
+    (case t of
+     | [] =>
+      (SND name_f) Null
+     | [t'] =>
+      (SND name_f) t'
+     | _ => NONE))
 End
 
 (* Parses the JSON element using one of the options in name_f_l, depending
@@ -355,15 +351,13 @@ Definition petr4_parse_width_def:
  petr4_parse_width json_list =
   case json_list of
   | (width::(null::[])) =>
-   (case json_dest_str width of
-    | SOME width_res =>
-     if json_is_null null
-     then
-      (case fromDecString width_res of
-       | SOME w_num => SOME (p_tau_bit w_num)
-       | NONE => NONE)
-     else NONE
-    | NONE => NONE)
+   json_dest_str width >>=
+   \width_res.
+    if json_is_null null
+    then
+     fromDecString width_res >>=
+     \w_num. SOME (p_tau_bit w_num)
+    else NONE
   | _ => NONE
 End
 
@@ -383,8 +377,8 @@ End
 (* Different one-off format for switch cases *)
 Definition petr4_parse_case_name_def:
  petr4_parse_case_name case_name =
-  case json_parse_arr "name" SOME case_name of
-  | SOME name_obj =>
+  json_parse_arr "name" SOME case_name >>=
+  \name_obj.
    (case json_parse_obj ["tags"; "name"] name_obj of
     | SOME [tags'; name'] =>
      (case json_parse_obj ["tags"; "string"] name' of
@@ -397,22 +391,18 @@ End
 Definition petr4_parse_names_def:
  (petr4_parse_names [] = SOME []) /\
  (petr4_parse_names (h::t) =
-   case petr4_parse_name h of
-   | SOME res_hd =>
-    (case petr4_parse_names t of
-     | SOME res_tl => SOME (res_hd::res_tl)
-     | NONE => NONE)
-   | _ => NONE)
+   petr4_parse_name h >>=
+   \res_hd. petr4_parse_names t >>=
+   \res_tl. SOME (res_hd::res_tl))
 End
 
 Definition petr4_parse_bare_name_def:
  petr4_parse_bare_name bname =
-  case json_parse_arr "BareName" SOME bname of
-   | SOME bname_obj =>
-    (case json_parse_obj ["tags"; "name"] bname_obj of
-     | SOME [tags; name] => petr4_parse_name name
-     | _ => NONE)
-   | _ => NONE
+  json_parse_arr "BareName" SOME bname >>=
+  \bname_obj.
+   (case json_parse_obj ["tags"; "name"] bname_obj of
+    | SOME [tags; name] => petr4_parse_name name
+    | _ => NONE)
 End
 
 (* Parses a named type *)
@@ -446,58 +436,115 @@ Definition petr4_num_binop_lookup_def:
            ("Mod", op1 MOD op2)] optype
 End
 
+Triviality get_error_msg_distinct:
+ !str obj str'. get_error_msg str obj <> SOME_msg str'
+Proof
+fs[get_error_msg_def]
+QED
+
+Triviality json_parse_arr_size:
+ !str json json'.
+ json_parse_arr str SOME json = SOME json' ==>
+ json_size json' < json_size json
+Proof
+rpt strip_tac >>
+fs[json_parse_arr_def, app_opt_def] >>
+Cases_on ‘json’ >> (fs[json_dest_arr_def]) >>
+rw[] >>
+Cases_on ‘l’ >> (fs[json_parse_arr'_def]) >>
+Cases_on ‘t’ >> (fs[json_parse_arr'_def]) >>
+Cases_on ‘t'’ >> (fs[json_parse_arr'_def, json_size_def, app_opt_def])
+QED
+
+Triviality json_parse_obj_size:
+ !str_list json json_list.
+ json_parse_obj str_list json = SOME json_list ==>
+ json3_size json_list < json_size json
+Proof
+Induct_on ‘json_list’ >- (
+ rpt strip_tac >>
+ fs[json_parse_obj_def, json_dest_obj_def, app_opt_def] >>
+ Cases_on ‘json’ >> (fs[json_size_def])
+) >>
+rpt strip_tac >>
+fs[json_parse_obj_def, app_opt_def] >>
+Cases_on ‘json’ >> (fs[json_dest_obj_def]) >>
+rw[] >>
+Cases_on ‘str_list’ >> (fs[json_parse_obj'_def, json_size_def]) >>
+(Cases_on ‘l’ >> (fs[json_parse_obj'_def, json_size_def])) >>
+
+Cases_on ‘h''’ >> (fs[json_parse_obj'_def, json_size_def, app_opt_def]) >>
+Cases_on ‘json_parse_obj' t t'’ >> (fs[json_parse_obj'_def, json_size_def]) >>
+rw[] >>
+subgoal ‘(case (Object t') of
+                Object obj => SOME obj
+              | Array v8 => NONE
+              | String v9 => NONE
+              | Number v10 v11 v12 => NONE
+              | Bool v13 => NONE
+              | Null => NONE) =
+             SOME t'’ >- (
+ fs[]
+) >>
+subgoal ‘json3_size json_list < json_size (Object t')’ >- (
+ metis_tac[]
+) >>
+fs[json_size_def]
+QED
+
 (* Parses compile-time known constants, e.g. in bitstring widths *)
 (* TODO: Should the return type be option_msg?  *)
 Definition petr4_parse_compiletime_constantexp_def:
  petr4_parse_compiletime_constantexp exp =
   case json_dest_arr exp of
   | SOME [exptype_str; x_obj] =>
-   (case json_dest_str exptype_str of
-    | SOME exptype =>
-     if exptype = "int"
-     then
-      (case json_parse_obj ["tags"; "x"] x_obj of
-       | SOME [tags; x] =>
-        (case json_parse_obj ["tags"; "value"; "width_signed"] x of
-         | SOME [tags'; value_str; width_signed] =>
-          (case json_dest_str value_str of
-           | SOME value =>
-            (case width_signed of
-             | Null => fromDecString value
-             (* TODO: Not sure if this can happen here... *)
-             | Array [Number (Positive, width) NONE NONE; Bool F] =>
-              fromDecString value
-             | _ => NONE)
+   json_dest_str exptype_str >>=
+   \exptype.
+    if exptype = "int"
+    then
+     (case json_parse_obj ["tags"; "x"] x_obj of
+      | SOME [tags; x] =>
+       (case json_parse_obj ["tags"; "value"; "width_signed"] x of
+        | SOME [tags'; value_str; width_signed] =>
+         json_dest_str value_str >>=
+         \value.
+          (case width_signed of
+           | Null => fromDecString value
+           (* TODO: Not sure if this can happen here... *)
+           | Array [Number (Positive, width) NONE NONE; Bool F] =>
+            fromDecString value
            | _ => NONE)
-         | _ => NONE)
-       | _ => NONE)
-     else if exptype = "binary_op"
-     then (* Binary operation *)
-      (case json_parse_obj ["tags"; "op"; "args"] x_obj of
-       | SOME [tags; op; args] =>
-        (case json_dest_arr op of
-         | SOME [optype_str; op_tags] =>
-          (case json_dest_str optype_str of
-           | SOME optype =>
-            (case json_dest_arr args of
-             | SOME [op1; op2] =>
-              (case petr4_parse_compiletime_constantexp op1 of
-               | SOME res_op1 =>
-                (case petr4_parse_compiletime_constantexp op2 of
-                 | SOME res_op2 =>
-                  (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
-                  petr4_num_binop_lookup optype (res_op1, res_op2)
-                 | NONE => NONE)
-               | NONE => NONE)
-             | _ => NONE)
+        | _ => NONE)
+      | _ => NONE)
+    else if exptype = "binary_op"
+    then (* Binary operation *)
+     (case json_parse_obj ["tags"; "op"; "args"] x_obj of
+      | SOME [tags; op; args] =>
+       (case json_dest_arr op of
+        | SOME [optype_str; op_tags] =>
+         json_dest_str optype_str >>=
+         \optype.
+          (case json_dest_arr args of
+           | SOME [op1; op2] =>
+            petr4_parse_compiletime_constantexp op1 >>=
+            \res_op1. petr4_parse_compiletime_constantexp op2 >>=
+             (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
+             \res_op2. petr4_num_binop_lookup optype (res_op1, res_op2)
            | _ => NONE)
-         | _ => NONE)
-       | _ => NONE)
-     else NONE
-    | _ => NONE)
+        | _ => NONE)
+      | _ => NONE)
+    else NONE
   | _ => NONE
 Termination
-cheat
+WF_REL_TAC `measure json_size` >>
+rpt strip_tac >> (
+ Cases_on ‘exp’ >> (fs[json_dest_arr_def, json_size_def]) >>
+ Cases_on ‘op’ >> (fs[]) >>
+ Cases_on ‘args’ >> (fs[]) >>
+ rw[] >>
+ imp_res_tac json_parse_obj_size >>
+ fs[json_size_def]
+)
 End
 
 (* TODO: Expand as you encounter more types *)
@@ -513,8 +560,8 @@ Definition petr4_parse_ptype_def:
     then [("specialized", \json'.
                            (case json_parse_obj ["tags"; "base"; "args"] json' of
                             | SOME [tags; base; args] =>
-                             OPTION_BIND (petr4_parse_type_name base)
-                                  (\name. SOME (p_tau_par name))
+                             petr4_parse_type_name base >>=
+                             \name. SOME (p_tau_par name)
                             | _ => NONE))]
     else []
   in
@@ -522,16 +569,15 @@ Definition petr4_parse_ptype_def:
    ([("bit", \json'.
               (case json_parse_obj ["tags"; "expr"] json' of
                | SOME [tags; expr] =>
-                (case petr4_parse_compiletime_constantexp expr of
-                 | SOME n => SOME (p_tau_bit n)
-                 | NONE => NONE)
+                petr4_parse_compiletime_constantexp expr >>=
+                \n. SOME (p_tau_bit n)
                | _ => NONE));
      ("bool", \json'. SOME p_tau_bool);
      ("error", \json'. SOME (p_tau_bit 32));
-     ("name", \json'. OPTION_BIND (petr4_parse_tyname json')
-                                  (\name. case ALOOKUP tyenv name of
-                                   | SOME p_tau => SOME p_tau
-                                   | NONE => SOME (p_tau_par name)));
+     ("name", \json'. petr4_parse_tyname json' >>=
+                      (\name. case ALOOKUP tyenv name of
+                       | SOME p_tau => SOME p_tau
+                       | NONE => SOME (p_tau_par name)));
      (* Note. It's OK to map the string type to p_tau_bot, since we never want to
       * do type inference in expressions of this type. *)
      ("string", \json'. SOME p_tau_bot)]++arr_optional) json
@@ -540,9 +586,8 @@ End
 (* Version for non-parameterized types *)
 Definition petr4_parse_type_def:
  petr4_parse_type tyenv json =
-  case petr4_parse_ptype F tyenv json of
-  | SOME p_tau => deparameterise_tau p_tau
-  | NONE => NONE
+  petr4_parse_ptype F tyenv json >>=
+  \p_tau. deparameterise_tau p_tau
 End
 
 (* TODO: Avoid explicit case matching on list possible? *)
@@ -552,9 +597,8 @@ Definition petr4_typedef_to_tyenvupdate_def:
   | SOME [tags; annot; ty_name; typ_or_decl] =>
    opt_pair
     (petr4_parse_name ty_name)
-    (OPTION_BIND
-     (json_parse_arr "Left" SOME typ_or_decl)
-     (petr4_parse_ptype F tyenv))
+    (json_parse_arr "Left" SOME typ_or_decl >>=
+     petr4_parse_ptype F tyenv)
   | _ => NONE
 End
 
@@ -687,20 +731,15 @@ Definition exp_to_p_tau_def:
   | (e_acc struct fld) =>
    (case exp_to_p_tau vtymap struct of
     | SOME (p_tau_xtl struct_ty f_t_list) =>
-     (case (FIND (\ (f, t). f = fld)  f_t_list) of
-      | SOME (fld, res_tau) => SOME res_tau
-      | NONE => NONE)
+     (FIND (\ (f, t). f = fld)  f_t_list) >>=
+      \ (fld, res_tau). SOME res_tau
     | _ => NONE)
   | (e_var (varn_name varname)) => ALOOKUP vtymap (varn_name varname)
   | (e_binop op1 binop op2) => exp_to_p_tau vtymap op1
   | (e_slice e hi lo) => 
-   (case n_of_e_bitv hi of
-    | SOME n =>
-     (case n_of_e_bitv lo of
-      | SOME n' =>
-       SOME (p_tau_bit ((n - n') + 1))
-      | NONE => NONE)
-    | NONE => NONE)
+   n_of_e_bitv hi >>=
+   \n. n_of_e_bitv lo >>=
+   \n'. SOME (p_tau_bit ((n - n') + 1))
   | _ => NONE
 End
 
@@ -708,12 +747,9 @@ End
 Definition exps_to_p_taus_def:
  (exps_to_p_taus vtymap [] = SOME []) /\
  (exps_to_p_taus vtymap (h::t) = 
-  case exp_to_p_tau vtymap h of
-  | SOME p_tau =>
-   (case exps_to_p_taus vtymap t of
-    | SOME res => SOME (p_tau::res)
-    | NONE => NONE)
-  | NONE => NONE)
+  exp_to_p_tau vtymap h >>=
+  \p_tau. exps_to_p_taus vtymap t >>=
+  \res. SOME (p_tau::res))
 End
 
 Definition exp_to_funn_def:
@@ -756,9 +792,8 @@ Definition tyu_l_only_def:
 (tyu_l_only (h::t) =
   case h of
   | (INL a) =>
-   (case tyu_l_only t of
-    | SOME l => SOME (a::l)
-    | NONE => NONE)
+   tyu_l_only t >>=
+   \l. SOME (a::l)
   | _ => NONE)
 End
 
@@ -866,9 +901,8 @@ Definition get_typeinf_dummy_args_def:
    FOLDL ( \ args_opt tyarg.
           case args_opt of
           | SOME args =>
-           (case petr4_parse_type tyenv tyarg of
-            | SOME type => SOME (args++[(e_v $ arb_from_tau type)])
-            | NONE => NONE)
+           petr4_parse_type tyenv tyarg >>=
+           \type. SOME (args++[(e_v $ arb_from_tau type)])
           | NONE => NONE) (SOME []) tyargs of
    | SOME dummy_args => SOME_msg dummy_args
    | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
@@ -1783,62 +1817,6 @@ Definition petr4_parse_switch_cases_def:
  )
 End
 
-Triviality get_error_msg_distinct:
- !str obj str'. get_error_msg str obj <> SOME_msg str'
-Proof
-fs[get_error_msg_def]
-QED
-
-Triviality json_parse_arr_size:
- !str json json'.
- json_parse_arr str SOME json = SOME json' ==>
- json_size json' < json_size json
-Proof
-rpt strip_tac >>
-fs[json_parse_arr_def] >>
-Cases_on ‘json’ >> (fs[json_dest_arr_def]) >>
-rw[] >>
-Cases_on ‘l’ >> (fs[json_parse_arr'_def]) >>
-Cases_on ‘t’ >> (fs[json_parse_arr'_def]) >>
-Cases_on ‘t'’ >> (fs[json_parse_arr'_def, json_size_def])
-QED
-
-Triviality json_parse_obj_size:
- !str_list json json_list.
- json_parse_obj str_list json = SOME json_list ==>
- json3_size json_list < json_size json
-Proof
-Induct_on ‘json_list’ >- (
- rpt strip_tac >>
- fs[json_parse_obj_def, json_dest_obj_def] >>
- Cases_on ‘json’ >> (fs[json_size_def])
-) >>
-rpt strip_tac >>
-fs[json_parse_obj_def] >>
-Cases_on ‘json’ >> (fs[json_dest_obj_def]) >>
-rw[] >>
-Cases_on ‘str_list’ >> (fs[json_parse_obj'_def, json_size_def]) >>
-(Cases_on ‘l’ >> (fs[json_parse_obj'_def, json_size_def])) >>
-
-Cases_on ‘h''’ >> (fs[json_parse_obj'_def, json_size_def]) >>
-Cases_on ‘json_parse_obj' t t'’ >> (fs[json_parse_obj'_def, json_size_def]) >>
-rw[] >>
-subgoal ‘(case (Object t') of
-                Object obj => SOME obj
-              | Array v8 => NONE
-              | String v9 => NONE
-              | Number v10 v11 v12 => NONE
-              | Bool v13 => NONE
-              | Null => NONE) =
-             SOME t'’ >- (
- fs[]
-) >>
-subgoal ‘json3_size json_list < json_size (Object t')’ >- (
- metis_tac[]
-) >>
-fs[json_size_def]
-QED
-
 Triviality petr4_parse_switch_cases_size:
  !p_tau cases cases_res labels stmts.
  petr4_parse_switch_cases p_tau cases = SOME_msg cases_res ==>
@@ -2089,23 +2067,23 @@ Definition petr4_parse_stmts_def:
 Termination
 WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json_list)) => json3_size json_list | (INR (maps, json_list_list)) => SUM (MAP (\ el . json3_size el + 1) json_list_list))` >>
 rpt strip_tac >> (fs[json_size_def]) >- (
- fs[json_parse_obj_def, json_dest_obj_def] >>
+ fs[json_parse_obj_def, json_dest_obj_def, app_opt_def] >>
  Cases_on ‘p_2''’ >> (fs[]) >>
  rw[] >>
- Cases_on ‘l’ >> (fs[json_parse_obj'_def]) >>
- Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
- Cases_on ‘t'’ >> (fs[json_parse_obj'_def]) >>
- Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘l’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
+ Cases_on ‘t'’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
  Cases_on ‘q' = "annotations"’ >> (fs[]) >>
- Cases_on ‘t''’ >> (fs[json_parse_obj'_def]) >>
- Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘t''’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
  Cases_on ‘q'' = "statements"’ >> (fs[]) >>
- Cases_on ‘json_parse_obj' [] t'’ >> (fs[json_size_def])
+ Cases_on ‘json_parse_obj' [] t'’ >> (fs[json_size_def, app_opt_def])
 ) >- (
  (* Switch case *)
  IMP_RES_TAC petr4_parse_switch_cases_size >>
  res_tac >>
- fs[json_size_def]
+ fs[json_size_def, app_opt_def]
 )
 End
 
