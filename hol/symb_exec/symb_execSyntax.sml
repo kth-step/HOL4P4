@@ -18,4 +18,10 @@ val (symb_branch_cases_tm,
      is_symb_branch_cases) =
  syntax_fns2 "symb_exec" "symb_branch_cases";
 
+val (symb_conj_tm,
+     mk_symb_conj,
+     dest_symb_conj,
+     is_symb_conj) =
+ syntax_fns2 "symb_exec" "symb_conj";
+
 end

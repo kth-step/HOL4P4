@@ -15,4 +15,9 @@ val mk_symb_branch_cases : term * term -> term
 val dest_symb_branch_cases : term -> term * term
 val is_symb_branch_cases : term -> bool
 
+val dest_symb_conj : term -> term * term
+val is_symb_conj : term -> bool
+val mk_symb_conj : term * term -> term
+val symb_conj_tm : term
+
 end
