@@ -80,6 +80,11 @@ val exclude_descs =
   ("supporting to-bool cast in HOL4P4",
    ["issue1814-1-bmv2"]),
 (*
+    To-struct cast (manually spotted)
+*)
+  ("supporting to-struct cast in HOL4P4",
+   ["recursive-casts"]),
+(*
     Top-level extern instantiations (manually spotted)
 *)
   ("supporting top-level extern instantiations in import tool",
