@@ -1012,7 +1012,8 @@ Definition petr4_parse_expression_gen_def:
      Object [("tags", tags);
              ("op", Array [String optype; op_tags]);
              ("arg", op)]] =>
-   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op, NONE) of
+   (* TODO: All unary operations preserve type? *)
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op, p_tau_opt) of
     | SOME_msg res_op =>
      (case petr4_unop_lookup optype of
       | SOME unop =>
@@ -1029,13 +1030,15 @@ Definition petr4_parse_expression_gen_def:
      Object [("tags", tags);
              ("op", Array [String optype; op_tags]);
              ("args", Array [op1; op2])]] =>
-   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op1, NONE) of
-    | SOME_msg res_op1 =>
-     (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op2, NONE) of
-      | SOME_msg res_op2 =>
-       (* TODO: Treat comparisons, bit shift+concat and regular binops differently *)
-       (case petr4_binop_lookup optype of
-        | SOME mk_binop =>
+   (case petr4_binop_lookup optype of
+    | SOME mk_binop =>
+     let p_tau_opt_left = if MEM optype ["Plus"; "PlusSat"; "Minus"; "MinusSat"; "Mul"; "Shl"; "Shr"; "BitAnd"; "BitXor"; "BitOr"] then p_tau_opt else NONE in
+     let p_tau_opt_right = if MEM optype ["Plus"; "PlusSat"; "Minus"; "MinusSat"; "Mul"; "BitAnd"; "BitXor"; "BitOr"] then p_tau_opt else NONE in
+     (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op1, p_tau_opt_left) of
+      | SOME_msg res_op1 =>
+       (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op2, p_tau_opt_right) of
+        | SOME_msg res_op2 =>
+         (* TODO: Double-check this type inference works as intended in all cases *)
          (case (res_op1, res_op2) of
           | (Exp op1_exp, Exp op2_exp) => SOME_msg (Exp (mk_binop op1_exp op2_exp))
           | (Exp op1_exp, Number op2_const) =>
@@ -1051,9 +1054,9 @@ Definition petr4_parse_expression_gen_def:
             | SOME _ => get_error_msg "non-bitstring type inference unsupported for expression: " exp
             | NONE => get_error_msg "type inference failed for expression: " exp)
           | _ => get_error_msg "expression contains binop on constants or apply exp: " exp)
-        | NONE => NONE_msg ("unknown optype: "++optype))
-      | NONE_msg op2_msg => NONE_msg op2_msg)
-    | NONE_msg op1_msg => NONE_msg op1_msg)
+        | NONE_msg op2_msg => NONE_msg op2_msg)
+      | NONE_msg op1_msg => NONE_msg op1_msg)
+    | NONE => NONE_msg ("unknown optype: "++optype))
   (* Enumeration type value *)
   (* TODO: Is this the only thing encoded by type_member? *)
   | Array [String "type_member";
