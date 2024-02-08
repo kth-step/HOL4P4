@@ -6,6 +6,13 @@ open p4_symb_execLib;
 
 val _ = new_theory "p4_symb_exec_test5";
 
+(* Test 5:
+ * There's a single table application, with four possible outcomes.
+ * The pre-set entries rules out the postcondition not holding, so
+ * postcondition holds for all branches.
+ *
+ * This tests if multi-case branching on apply statement works. *)
+
 val symb_exec5_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -150,20 +157,33 @@ val symb_exec5_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
   [("t",
     [(((λk.
             match_all
-              (ZIP ([(λk. k = e_v (v_bit ([F; F; F; F; F; F; F; T],8)))],k))),
-       0),"set_out_port",[e_v (v_bool T); e_v (v_bool T); e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))]);
+              (ZIP
+                 (MAP (λe. THE (v_of_e e)) k,
+                  [s_sing (v_bit ([F; F; F; F; F; F; F; T],8))]))),0),
+      "set_out_port",
+      [e_v (v_bool T); e_v (v_bool T);
+       e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))]);
      (((λk.
             match_all
-              (ZIP ([(λk. k = e_v (v_bit ([F; F; F; F; F; F; T; F],8)))],k))),
-       0),"set_out_port",[e_v (v_bool T); e_v (v_bool T); e_v (v_bit ([F; F; F; T; F; T; T; T; T],9))]);
+              (ZIP
+                 (MAP (λe. THE (v_of_e e)) k,
+                  [s_sing (v_bit ([F; F; F; F; F; F; T; F],8))]))),0),
+      "set_out_port",
+      [e_v (v_bool T); e_v (v_bool T);
+       e_v (v_bit ([F; F; F; T; F; T; T; T; T],9))]);
      (((λk.
             match_all
-              (ZIP ([(λk. k = e_v (v_bit ([F; F; F; F; F; F; T; T],8)))],k))),
-       0),"set_out_port",[e_v (v_bool T); e_v (v_bool T); e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])]),
+              (ZIP
+                 (MAP (λe. THE (v_of_e e)) k,
+                  [s_sing (v_bit ([F; F; F; F; F; F; T; T],8))]))),0),
+      "set_out_port",
+      [e_v (v_bool T); e_v (v_bool T);
+       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])]),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool ARB); ("miss",v_bool ARB);
-       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],arch_frame_list_empty,status_running):v1model_ascope astate``;
+       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
+ arch_frame_list_empty,status_running):v1model_ascope astate``;
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
