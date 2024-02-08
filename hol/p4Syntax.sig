@@ -321,4 +321,9 @@ val is_unred_arg_index : term -> bool
 val mk_unred_arg_index : term * term -> term
 val unred_arg_index_tm : term
 
+val dest_match_all : term -> term
+val is_match_all : term -> bool
+val match_all_tm : term
+val mk_match_all : term -> term
+
 end

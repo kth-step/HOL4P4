@@ -6,6 +6,13 @@ open p4_symb_execLib;
 
 val _ = new_theory "p4_symb_exec_test4";
 
+(* Test 4:
+ * There's a single table application, with two possible outcomes.
+ * A pre-set entry rules out the postcondition not holding, so
+ * postcondition holds for all branches.
+ *
+ * This tests if branching on apply statement works. *)
+
 val symb_exec4_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -150,12 +157,17 @@ val symb_exec4_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
   [("t",
     [(((λk.
             match_all
-              (ZIP ([(λk. k = e_v (v_bit ([F; F; F; F; F; F; F; T],8)))],k))),
-       0),"set_out_port",[e_v (v_bool T); e_v (v_bool T); e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))])])]),
+              (ZIP
+                 (MAP (λe. THE (v_of_e e)) k,
+                  [s_sing (v_bit ([F; F; F; F; F; F; F; T],8))]))),0),
+      "set_out_port",
+      [e_v (v_bool T); e_v (v_bool T);
+       e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))])])]),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool ARB); ("miss",v_bool ARB);
-       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],arch_frame_list_empty,status_running):v1model_ascope astate``;
+       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
+ arch_frame_list_empty,status_running):v1model_ascope astate``;
 
 
 (* symb_exec: *)
@@ -180,7 +192,7 @@ val lang_is_finished = p4_is_finished;
 
 (* Remaining fuel *)
 val fuel = 1;
-val nobranch_flag = false;
+val nobranch_flag = true;
 val npaths = 1;
 *)
 
@@ -188,6 +200,8 @@ val npaths = 1;
 
 val (path_tree, [(path_id, path_cond, step_thm)]) =
  p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 23;
+
+val path_cond = ASSUME “e8 = T”;
 
 val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)]) =
  p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 24;

@@ -121,8 +121,13 @@ val symb_exec2_actx = ``([arch_block_inp;
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
-val symb_exec2_astate_symb = rhs $ concl $ EVAL “(p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
+val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
+   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),
+ [[(varn_name "gen_apply_result",
+    v_struct
+      [("hit",v_bool ARB); ("miss",v_bool ARB);
+       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
+ arch_frame_list_empty,status_running):v1model_ascope astate”;
 
 
 (* symb_exec: *)

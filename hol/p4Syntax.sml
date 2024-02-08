@@ -399,4 +399,7 @@ val (all_arg_update_for_newscope_tm, mk_all_arg_update_for_newscope, dest_all_ar
 val (unred_arg_index_tm, mk_unred_arg_index, dest_unred_arg_index, is_unred_arg_index) =
   syntax_fns2 "p4" "unred_arg_index";
 
+val (match_all_tm,  mk_match_all, dest_match_all, is_match_all) =
+  syntax_fns1 "p4" "match_all";
+
 end
