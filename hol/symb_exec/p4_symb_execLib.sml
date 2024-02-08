@@ -597,6 +597,8 @@ val apply (tbl_name, e) = apply (“"t"”, “[e_v (v_bit ([e1; e2; e3; e4; e5;
         (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
          * funny priorities in the table *)
 	val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
+        (* This simplifies a key until only the match_all application can be reduced next *)
+        val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.MAP, optionTheory.THE_DEF, BETA_THM, listTheory.ZIP, v_of_e_def])
 	val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
 	val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
 
