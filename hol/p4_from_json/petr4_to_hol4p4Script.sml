@@ -3158,9 +3158,15 @@ Definition petr4_parse_case_def:
    | SOME [tags; Array match_exps; name] =>
     (case petr4_parse_name name of
      | SOME state_name =>
-      (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP(match_exps,expected_taus)) of
-       | SOME_msg matches_res => SOME_msg (matches_res, state_name)
-       | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
+      let n_matches = LENGTH expected_taus in
+      if (LENGTH match_exps = n_matches)
+      then
+       (case petr4_parse_matches (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP(match_exps,expected_taus)) of
+        | SOME_msg matches_res => SOME_msg (matches_res, state_name)
+        | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
+      else
+       (* Only the default case has fewer elements than expected *)
+       SOME_msg (REPLICATE n_matches s_univ, state_name)
      | NONE => get_error_msg "could not parse name: " name)
    | _ => get_error_msg "unknown JSON format of case: " select_case
 End
