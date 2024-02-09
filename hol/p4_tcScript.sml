@@ -29,10 +29,9 @@ open optionTheory;
 (*
 
 TODO:
-1. ext_is_defined is incorrect, fix teh parenthesis in type system
-2. extend the type system to include 128 bit
-3. 
-
+1. extend the type system to include 128 bit
+2. remove the basic definition because it is not really executable outside, make it total def 
+3. refactor the proofs
 *)
 
 
@@ -2393,9 +2392,9 @@ QED
 
 
              
-        
-                 
-Definition stmt_tc:
+ (*Definition stmt_tc:*)       
+val stmt_tc = Define `                 
+
   (*empty stmt*)
   ( stmt_tc t_scopes_tup (T_e:T_e) (P:Prs_n) stmt_empty  = T ) ∧
 
@@ -2500,7 +2499,7 @@ Definition stmt_tc:
   ( stmt_tc (tslg,tsl) (ord,f,(d_g,d_b,d_x,d_t)) P (stmt_ext)  =
      (ext_not_defined_exec d_g d_b f ∧ ext_is_defined_exec d_x f)
   ) 
-End
+`;
            
 
 val stmt_tc = save_thm("stmt_tc", stmt_tc);
