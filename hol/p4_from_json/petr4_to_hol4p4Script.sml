@@ -2182,14 +2182,6 @@ Definition get_funn_name_def:
   | funtype_ext_obj_constructor obj_name => (funn_inst obj_name))
 End
 
-(*
-["Function",
- {"tags":["missing_info",""],
-  "return":["bit",{"tags":["missing_info",""],"expr":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"16","width_signed":null}}]}],
-  "name":{"tags":["missing_info",""],"string":"function_with_side_effect"},
-  "type_params":[],
-  "params":[{"tags":["missing_info",""],"annotations":[],"direction":["InOut",{"tags":["missing_info",""]}],"typ":["bit",{"tags":["missing_info",""],"expr":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"16","width_signed":null}}]}],"variable":{"tags":["missing_info",""],"string":"eth_type"},"opt_value":null}],"body":{"tags":["missing_info",""],"annotations":[],"statements":[["assignment",{"tags":["missing_info",""],"lhs":["name",{"tags":["missing_info",""],"name":["BareName",{"tags":["missing_info",""],"name":{"tags":["missing_info",""],"string":"eth_type"}}]}],"rhs":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"2054","width_signed":null}}]}],["return",{"tags":["missing_info",""],"expr":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"2","width_signed":[16,false]}}]}]]}}]
-*)
 Definition petr4_parse_ret_ty_opt_def:
  petr4_parse_ret_ty_opt tyenv funtype fa_name ret_ty_opt =
   case ret_ty_opt of
