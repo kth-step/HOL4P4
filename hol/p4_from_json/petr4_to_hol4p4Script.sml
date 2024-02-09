@@ -727,7 +727,7 @@ End
 Definition exp_to_p_tau_def:
  exp_to_p_tau (vtymap, ftymap) exp =
   case exp of
-  | (e_v b_bool) => SOME p_tau_bool
+  | (e_v $ v_bool b) => SOME p_tau_bool
   | (e_v (v_bit (bl, n))) => SOME (p_tau_bit n)
   | (e_acc struct fld) =>
    (case exp_to_p_tau (vtymap, ftymap) struct of
@@ -1031,7 +1031,7 @@ Definition petr4_parse_expression_gen_def:
        (case res_op of
         | Exp op_exp =>
          SOME_msg (Exp (e_unop unop op_exp))
-        | Number op_const =>
+        | _ =>
          (* TODO: Infer type directly from tau_opt *)
          get_error_msg "type inference or apply expression unsupported for unops: " exp)
       | NONE => NONE_msg ("unknown optype: "++optype))
@@ -1263,7 +1263,7 @@ Definition petr4_parse_value_def:
    (case exp_to_val gscope res_exp of
     | SOME val => SOME_msg val
     | NONE => get_error_msg "expression could not be parsed as value: " exp)
-  | SOME_msg (Number n) => get_error_msg "type inference failed for integer constant: " exp
+  | SOME_msg _ => get_error_msg "type inference failed for integer constant: " exp
   | NONE_msg exp_msg => NONE_msg ("could not parse value: "++exp_msg)
 End
 
