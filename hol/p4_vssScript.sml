@@ -95,52 +95,6 @@ End
 (**********)
 (* update *)
 
-(* TODO: Add recursive cases *)
-Definition header_entry2v:
- (header_entry2v (x:x, v) =
-  case v of
-  | (v_bit (bl, n)) => SOME bl
-  | _ => NONE
- )
-End
-
-Definition header_entries2v:
- (header_entries2v [] = SOME []) /\
- (header_entries2v (h::t) =
-  case header_entry2v h of
-  | SOME bl =>
-  (case header_entries2v t of
-   | SOME bl2 => SOME (bl++bl2)
-   | NONE => NONE)
-  | NONE => NONE
- )
-End
-
-
-TotalDefn.tDefine "v2w16s'" `
- (v2w16s' [] = []) /\
- (v2w16s' v =
-  ((v2w (TAKE 16 v)):word16)::(v2w16s' (DROP 16 v))
- )`
-(WF_REL_TAC `measure LENGTH` >>
- fs []);
-
-Definition v2w16s:
- (v2w16s v = if (LENGTH v) MOD 16 = 0 then SOME (v2w16s' v) else NONE)
-End
-
-Definition get_checksum_incr:
- (get_checksum_incr scope_list ext_data_name =
-   (case lookup_lval scope_list ext_data_name of
-    | SOME (v_bit (bl, n)) => if n = 16 then SOME [(v2w bl):word16] else NONE
-    | SOME (v_header vbit h_list) =>
-     (case header_entries2v h_list of
-      | SOME bl => v2w16s bl
-      | NONE => NONE)
-    | _ => NONE)
- )
-End
-
 (* Note that this assumes the order of fields in the header is correct *)
 Definition Checksum16_update:
  (Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
@@ -160,31 +114,6 @@ End
 
 (*******)
 (* get *)
-
-Definition add_ones_complement_def:
- add_ones_complement (x, y) = 
-  let
-   (result,carry_out,overflow) = add_with_carry(x,y,F)
-  in
-   if carry_out
-   then result + 1w
-   else result
-End
-
-Definition sub_ones_complement_def:
- sub_ones_complement (x, y) =
-   let
-    (result,carry_out,overflow) = add_with_carry(x, word_1comp y,F)
-   in
-    if carry_out
-    then result + 1w
-    else word_1comp result
-End
-
-Definition compute_checksum16_def:
- compute_checksum16 (w16_list:word16 list) = 
-  word_1comp (FOLDR (CURRY add_ones_complement) (0w:word16) w16_list)
-End
 
 Definition Checksum16_get:
  (Checksum16_get ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =

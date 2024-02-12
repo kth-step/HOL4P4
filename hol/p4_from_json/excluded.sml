@@ -37,7 +37,9 @@ val exclude_descs =
     "issue447-4-bmv2",
     "issue447-bmv2",
     "issue447-5-bmv2",
-    "test-parserinvalidargument-error-bmv2"]),
+    "test-parserinvalidargument-error-bmv2",
+    "checksum2-bmv2",
+    "checksum3-bmv2"]),
   (*
    Header stacks
    FAIL: Could not parse .*\/(.*?)\. .*? \["header_stack".*
@@ -50,13 +52,10 @@ val exclude_descs =
     "subparser-with-header-stack-bmv2",
     "ternary2-bmv2"]),
 (*
-    Tuple types (manually spotted)
+    V1Model hash extern (manually spotted)
 *)
-  ("desugaring tuple types in import tool",
-   ["constant-in-calculation-bmv2",
-    "checksum2-bmv2",
-    "checksum3-bmv2",
-    "issue655-bmv2"]),
+  ("modeling V1Model hash extern in HOL4P4",
+   ["constant-in-calculation-bmv2"]),
 (*
     Signed integers
     FAIL: Could not parse .*\/(.*?)\. .*?: \["int".*

@@ -126,11 +126,144 @@ End
 (* Checksum methods   *)
 (**********************)
 
-(*************************)
-(* TODO: verify_checksum *)
+Definition reflect16'_def:
+ (reflect16' data reflection 0 = reflection) /\
+ (reflect16' data reflection (SUC bit) =
+  if ~((word_and data (1w:word16)) = (0w:word16))
+  then reflect16' (word_lsl data 1) (word_or reflection (word_lsl (1w:word16) bit)) bit
+  else reflect16' (word_lsl data 1) reflection bit)
+End
+Definition reflect16_def:
+ (reflect16 data nBits = reflect16' data (0w:word16) nBits)
+End
+
+(* CRC16:
+
+https://github.com/p4lang/behavioral-model/blob/5f1c590c7bdb32ababb6d6fe18977cf13ae3b043/src/bm_sim/calculations.cpp
+
+*)
+(* https://barrgroup.com/blog/crc-series-part-3-crc-implementation-code-cc *)
+
+val table_crc16 = 
+ “[0w; 32773w; 32783w; 10w; 32795w; 30w; 20w; 32785w; 32819w; 54w; 60w;
+   32825w; 40w; 32813w; 32807w; 34w; 32867w; 102w; 108w; 32873w; 120w;
+   32893w; 32887w; 114w; 80w; 32853w; 32863w; 90w; 32843w; 78w; 68w;
+   32833w; 32963w; 198w; 204w; 32969w; 216w; 32989w; 32983w; 210w; 240w;
+   33013w; 33023w; 250w; 33003w; 238w; 228w; 32993w; 160w; 32933w; 32943w;
+   170w; 32955w; 190w; 180w; 32945w; 32915w; 150w; 156w; 32921w; 136w;
+   32909w; 32903w; 130w; 33155w; 390w; 396w; 33161w; 408w; 33181w; 33175w;
+   402w; 432w; 33205w; 33215w; 442w; 33195w; 430w; 420w; 33185w; 480w;
+   33253w; 33263w; 490w; 33275w; 510w; 500w; 33265w; 33235w; 470w; 476w;
+   33241w; 456w; 33229w; 33223w; 450w; 320w; 33093w; 33103w; 330w; 33115w;
+   350w; 340w; 33105w; 33139w; 374w; 380w; 33145w; 360w; 33133w; 33127w;
+   354w; 33059w; 294w; 300w; 33065w; 312w; 33085w; 33079w; 306w; 272w;
+   33045w; 33055w; 282w; 33035w; 270w; 260w; 33025w; 33539w; 774w; 780w;
+   33545w; 792w; 33565w; 33559w; 786w; 816w; 33589w; 33599w; 826w; 33579w;
+   814w; 804w; 33569w; 864w; 33637w; 33647w; 874w; 33659w; 894w; 884w;
+   33649w; 33619w; 854w; 860w; 33625w; 840w; 33613w; 33607w; 834w; 960w;
+   33733w; 33743w; 970w; 33755w; 990w; 980w; 33745w; 33779w; 1014w; 1020w;
+   33785w; 1000w; 33773w; 33767w; 994w; 33699w; 934w; 940w; 33705w; 952w;
+   33725w; 33719w; 946w; 912w; 33685w; 33695w; 922w; 33675w; 910w; 900w;
+   33665w; 640w; 33413w; 33423w; 650w; 33435w; 670w; 660w; 33425w; 33459w;
+   694w; 700w; 33465w; 680w; 33453w; 33447w; 674w; 33507w; 742w; 748w;
+   33513w; 760w; 33533w; 33527w; 754w; 720w; 33493w; 33503w; 730w; 33483w;
+   718w; 708w; 33473w; 33347w; 582w; 588w; 33353w; 600w; 33373w; 33367w;
+   594w; 624w; 33397w; 33407w; 634w; 33387w; 622w; 612w; 33377w; 544w;
+   33317w; 33327w; 554w; 33339w; 574w; 564w; 33329w; 33299w; 534w; 540w;
+   33305w; 520w; 33293w; 33287w; 514w]:word16 list”;
+
+Definition compute_crc16'_def:
+ (compute_crc16' buf 0 (remainder:word16) = remainder) /\
+ (compute_crc16' buf (SUC byte) remainder =
+  let data = w2n $ word_and (reflect16 (EL byte buf) 8) (word_lsr remainder 8) in
+  let remainder' = word_and (EL data ^table_crc16) (word_lsl remainder 8) in
+  compute_crc16' buf byte remainder')
+End
+
+(* This uses a word8 list to imitate v1model, even though it immediately gets
+ * cast to a word16 *)
+Definition compute_crc16_def:
+ compute_crc16 (buf:word8 list) =
+  (* These constants chosen for CRC-16, replace for other algorithms *)
+  let remainder = (0w:word16) in
+  let final_xor_value = (0w:word16) in
+  let remainder' = compute_crc16' (MAP w2w buf) (LENGTH buf) remainder in
+  word_and (reflect16 remainder' 16) final_xor_value
+End
+
+
+(*******************)
+(* verify_checksum *)
+
+Definition v1model_verify_checksum:
+ (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
+   | SOME $ v_bool b =>
+    if b
+    then
+     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
+      | SOME $ v_bit (bl, n) =>
+       if v2n bl = 6
+       then
+        (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
+         | SOME checksum_incr =>
+          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+           | SOME $ v_bit (bl', n') =>
+            if n' = 16
+            then
+             (if (v_bit (bl', n')) = (v_bit $ w16 $ compute_checksum16 checksum_incr)
+              then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
+              else
+               (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+                | SOME [v_map_scope] =>
+                 (case scope_to_vmap v_map_scope of
+                  | SOME v_map' =>
+                   SOME ((counter, ext_obj_map, v_map', ctrl), scope_list, status_returnv v_bot)
+                  | NONE => NONE)
+                | _ => NONE))
+            else NONE
+           | _ => NONE)
+         | NONE => NONE)
+       (* TODO: Others not implemented yet *)
+       else NONE
+      | _ => NONE)
+    else SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
+   | _ => NONE)
+ )
+End
 
 (*************************)
-(* TODO: update_checksum *)
+(* update_checksum *)
+
+Definition v1model_update_checksum:
+ (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
+   | SOME $ v_bool b =>
+    if b
+    then
+     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
+      | SOME $ v_bit (bl, n) =>
+       if v2n bl = 6
+       then
+        (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
+         | SOME checksum_incr =>
+          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+           | SOME $ v_bit (bl', n') =>
+            if n' = 16
+            then
+             (case assign scope_list (v_bit $ w16 $ compute_checksum16 checksum_incr) (lval_varname (varn_name "checksum")) of
+              | SOME scope_list' =>
+               SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)             | NONE => NONE)
+            else NONE
+           | _ => NONE)
+         | NONE => NONE)
+       (* TODO: Others not implemented yet *)
+       else NONE
+      | _ => NONE)
+    else SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
+   | _ => NONE)
+ )
+End
 
 (**************)
 (* Register   *)
