@@ -367,6 +367,88 @@ Definition packet_out_emit_gen:
  )
 End
 
+(************)
+(* Checksum *)
+(************)
+
+Definition header_entries2v:
+ (header_entries2v [] = SOME []) /\
+ (header_entries2v (h::t) =
+  case header_entry2v h of
+  | SOME bl =>
+  (case header_entries2v t of
+   | SOME bl2 => SOME (bl++bl2)
+   | NONE => NONE)
+  | NONE => NONE
+ ) /\
+ (header_entry2v (x:x, v) =
+  case v of
+  | (v_bit (bl, n)) => SOME bl
+  | (v_struct x_v_l) => header_entries2v x_v_l
+  | (v_header validity x_v_l) => header_entries2v x_v_l
+  | _ => NONE
+ )
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL x_v_l) => v1_size x_v_l | (INR (x,v)) => v_size v)`
+End
+
+
+Definition v2w16s'_def:
+ (v2w16s' [] = []) /\
+ (v2w16s' v =
+  ((v2w (TAKE 16 v)):word16)::(v2w16s' (DROP 16 v))
+ )
+Termination
+WF_REL_TAC `measure LENGTH` >>
+fs []
+End
+
+Definition v2w16s:
+ (v2w16s v = if (LENGTH v) MOD 16 = 0 then SOME (v2w16s' v) else NONE)
+End
+
+Definition get_checksum_incr:
+ (get_checksum_incr scope_list ext_data_name =
+   (case lookup_lval scope_list ext_data_name of
+    | SOME (v_bit (bl, n)) =>
+     if n MOD 16 = 0 then SOME (v2w16s' bl) else NONE
+    | SOME (v_header vbit f_list) =>
+     (case header_entries2v f_list of
+      | SOME bl => v2w16s bl
+      | NONE => NONE)
+    | SOME (v_struct f_list) =>
+     (case header_entries2v f_list of
+      | SOME bl => v2w16s bl
+      | NONE => NONE)
+    | _ => NONE)
+ )
+End
+
+Definition add_ones_complement_def:
+ add_ones_complement (x, y) = 
+  let
+   (result,carry_out,overflow) = add_with_carry(x,y,F)
+  in
+   if carry_out
+   then result + 1w
+   else result
+End
+
+Definition sub_ones_complement_def:
+ sub_ones_complement (x, y) =
+   let
+    (result,carry_out,overflow) = add_with_carry(x, word_1comp y,F)
+   in
+    if carry_out
+    then result + 1w
+    else word_1comp result
+End
+
+Definition compute_checksum16_def:
+ compute_checksum16 (w16_list:word16 list) = 
+  word_1comp (FOLDR (CURRY add_ones_complement) (0w:word16) w16_list)
+End
+
 (*****************)
 (* Architectural *)
 (*****************)

@@ -317,7 +317,7 @@ End
 (* Some types which are used throughout the .p4 parser which are not part of the HOL4P4 state or
  * context *)
 val _ = type_abbrev("tyenv", ``:(string, p_tau) alist``);
-val _ = type_abbrev("enummap", ``:num # (string # (string, v) alist) list``);
+val _ = type_abbrev("enummap", ``:(string # (string, v) alist) list``);
 val _ = type_abbrev("ftymap", ``:((funn, (p_tau list # p_tau)) alist)``);
 
 (* The tau signifies the type argument(s) *)
@@ -635,26 +635,23 @@ Definition petr4_enum_to_enummapupdates_def:
    then
     (case petr4_parse_names members of
      | SOME enum_members => 
-      (case ALOOKUP (SND enummap) enum_name of
+      (case ALOOKUP enummap enum_name of
        | SOME enum_mem_map =>
-        SOME (FST enummap + LENGTH enum_members,
-              AUPDATE (SND enummap) (enum_name,
-                AUPDATE_LIST enum_mem_map (ZIP (enum_members,
-                                                MAP get_32bitv (COUNT_LIST_interval (FST enummap) (LENGTH enum_members))))))
+        SOME (AUPDATE enummap (enum_name,
+              AUPDATE_LIST enum_mem_map (ZIP (enum_members,
+                                              MAP get_32bitv (COUNT_LIST_interval (LENGTH enum_mem_map) (LENGTH enum_members))))))
        | NONE =>
-        SOME (FST enummap + LENGTH enum_members,
-              AUPDATE (SND enummap) (enum_name,
-                AUPDATE_LIST [] (ZIP (enum_members,
-                                      MAP get_32bitv (COUNT_LIST_interval (FST enummap) (LENGTH enum_members)))))))
+        SOME (AUPDATE enummap (enum_name,
+              AUPDATE_LIST [] (ZIP (enum_members,
+                                    MAP get_32bitv (COUNT_LIST_interval 0 (LENGTH enum_members)))))))
      | NONE => NONE)
-   else if (ALOOKUP (SND enummap) enum_name = NONE)
+   else if (ALOOKUP enummap enum_name = NONE)
    then
     (case petr4_parse_names members of
      | SOME enum_members =>
-      SOME (FST enummap + LENGTH enum_members,
-              AUPDATE (SND enummap) (enum_name,
-                AUPDATE_LIST [] (ZIP (enum_members,
-                                      MAP get_32bitv (COUNT_LIST_interval (FST enummap) (LENGTH enum_members))))))
+      SOME (AUPDATE enummap (enum_name,
+             AUPDATE_LIST [] (ZIP (enum_members,
+                                   MAP get_32bitv (COUNT_LIST_interval 0 (LENGTH enum_members))))))
      | NONE => NONE)
    else NONE
   | NONE => NONE
@@ -1078,7 +1075,7 @@ Definition petr4_parse_expression_gen_def:
     | SOME enum_type_name =>
      (case petr4_parse_name name of
       | SOME enum_field_name =>
-       (case ALOOKUP (SND enummap) enum_type_name of
+       (case ALOOKUP enummap enum_type_name of
         | SOME enum_type_map =>
          (case ALOOKUP enum_type_map enum_field_name of
           | SOME enum_val =>
@@ -1093,7 +1090,7 @@ Definition petr4_parse_expression_gen_def:
                    ("err", name)]] =>
    (case petr4_parse_name name of
     | SOME error_name =>
-     (case ALOOKUP (SND enummap) "error" of
+     (case ALOOKUP enummap "error" of
       | SOME error_map =>
        (case ALOOKUP error_map error_name of
         | SOME error_val =>
@@ -1158,6 +1155,14 @@ Definition petr4_parse_expression_gen_def:
         | NONE => get_error_msg "could not parse compile-time constant: " hi)
       | NONE => get_error_msg "could not parse compile-time constant: " lo)
     | _ => get_error_msg "unknown format of bit-slice: " bits)
+  (* Tuple *)
+  | Array [String "list";
+           Object [("tags", tags);
+                   ("values", Array exp_list)]] =>
+   (case petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP(exp_list, REPLICATE (LENGTH exp_list) NONE)) of
+    | SOME_msg exp_list_res =>
+     SOME_msg (Exp (e_struct (ZIP(MAP toString $ TL $ COUNT_LIST ((LENGTH exp_list_res) + 1), exp_list_res))))
+    | NONE_msg exps_msg => NONE_msg ("could not parse tuple element: "++exps_msg))
   | _ => get_error_msg "unknown JSON format of expression: " exp) /\
 (* TODO: Use OPTION_BIND, parse_arr and parse_obj *)
 (* TODO: Why should this do any type inference? Can that be restricted to parse_expression_gen? *)
@@ -1184,9 +1189,23 @@ Definition petr4_parse_expression_gen_def:
      | SOME_msg (InlineApp s_l exp_app) => get_error_msg "apply expressions as arguments disallowed by import tool: " exp
      | NONE_msg exp_msg => NONE_msg ("could not parse arguments: "++exp_msg)
    else NONE_msg ("unsupported argument type: "++argtype)
-  | _ => get_error_msg "unknown JSON format of argument: " (FST h))
+  | _ => get_error_msg "unknown JSON format of argument: " (FST h)) /\
+ (petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) [] =
+  SOME_msg []) /\
+ (petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) ((h1, h2)::t) =
+  case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (h1, h2) of
+  | SOME_msg (Number n) => get_error_msg "no type inference information provided for integer constant: " h1
+  | SOME_msg (InlineApp s_l e) => get_error_msg "apply expression in unsupported location: " h1
+  | SOME_msg (Exp exp_res) =>
+    (case petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
+     | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
+     | NONE_msg exps_msg => NONE_msg exps_msg)
+   | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
 Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json, p_tau_opt)) => json_size json | (INR (maps, json_list)) => json_p_tau_opt_list_size json_list)` >>
+WF_REL_TAC `measure ( \ t. case t of
+                           | (INL (maps, json, p_tau_opt)) => json_size json
+                           | (INR $ INL (maps, json_list)) => json_p_tau_opt_list_size json_list
+                           | (INR $ INR (maps, json_list)) => json_p_tau_opt_list_size json_list)` >>
 fs[json_p_tau_opt_list_size_def] >>
 rpt strip_tac >> (fs[json_size_def]) >- (
  subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
@@ -1195,12 +1214,15 @@ rpt strip_tac >> (fs[json_size_def]) >- (
  subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
  fs []
 ) >- (
- subgoal ‘LENGTH args = LENGTH p_1'6'’ >- (imp_res_tac find_fty_match_args_LENGTH >> fs[]) >>
+ subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
+ fs []
+) >- (
+ subgoal ‘LENGTH args = LENGTH p_1'5'’ >- (imp_res_tac find_fty_match_args_LENGTH >> fs[]) >>
  fs[listTheory.UNZIP_ZIP]
 )
 End
 
-(* TODO: Why does this not use tyenv? Remove tyenv? *)
+(* TODO: Baking this into the above messes up the termination proof... *)
 Definition petr4_parse_expression_def:
  petr4_parse_expression (tyenv, enummap:enummap, vtymap, ftymap, gscope, extfun_list) (exp, p_tau_opt) =
   case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (exp, p_tau_opt) of
@@ -1208,18 +1230,6 @@ Definition petr4_parse_expression_def:
   | SOME_msg (Exp e) => SOME_msg e
   | SOME_msg (InlineApp s_l e) => get_error_msg "apply expression in unsupported location: " exp
   | NONE_msg exp_msg => NONE_msg ("could not parse value: "++exp_msg)
-End
-
-Definition petr4_parse_expressions_def:
- (petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) [] =
-  SOME_msg []) /\
- (petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) ((h1, h2)::t) =
-  case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (h1, h2) of
-   | SOME_msg exp_res =>
-    (case petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
-     | SOME_msg exps_res => SOME_msg (exp_res::exps_res)
-     | NONE_msg exps_msg => NONE_msg exps_msg)
-   | NONE_msg exp_msg => NONE_msg ("could not parse expressions: "++exp_msg))
 End
 
 (* "Mini big-step semantics" *)
@@ -1336,15 +1346,14 @@ Definition petr4_parse_serializable_enum_def:
        (* Note serialization values may be compile-time known constants in general *)
        (case petr4_parse_serialization (tyenv, enummap, vtymap, gscope) enum_type members of
         | SOME_msg enummap_ser_updates =>
-         (case ALOOKUP (SND enummap) enum_name of
+         (case ALOOKUP enummap enum_name of
           | SOME enum_mem_map =>
            SOME_msg (AUPDATE tyenv (enum_name, enum_type),
-                     (FST enummap,
-                      AUPDATE (SND enummap) (enum_name,
+                     (AUPDATE enummap (enum_name,
                        AUPDATE_LIST enum_mem_map enummap_ser_updates)))
           | NONE =>
            SOME_msg (AUPDATE tyenv (enum_name, enum_type),
-                     (FST enummap, AUPDATE (SND enummap) (enum_name, enummap_ser_updates))))
+                     (AUPDATE enummap (enum_name, enummap_ser_updates))))
         | NONE_msg serialization_msg => NONE_msg serialization_msg)
       | NONE => get_error_msg "Could not parse name: " name)
     | NONE => get_error_msg "Could not parse type: " type)
@@ -2094,7 +2103,7 @@ Termination
 WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json_list)) => json3_size json_list | (INR (maps, json_list_list)) => SUM (MAP (\ el . json3_size el + 1) json_list_list))` >>
 rpt strip_tac >> (fs[json_size_def]) >- (
  fs[json_parse_obj_def, json_dest_obj_def, app_opt_def] >>
- Cases_on ‘p_2''’ >> (fs[]) >>
+ Cases_on ‘p_2'’ >> (fs[]) >>
  rw[] >>
  Cases_on ‘l’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
  Cases_on ‘h’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
@@ -3635,7 +3644,7 @@ Definition petr4_parse_elements_def:
  petr4_parse_elements json_list arch_pkg_opt =
   FOLDL ( \ res_opt json. case res_opt of
                      | SOME_dbg res => petr4_parse_element res json
-                     | NONE_dbg data msg => NONE_dbg data msg) (SOME_dbg ([("bit", p_tau_bit 1)],(0,[]),[],[(funn_ext "header" "isValid",[],p_tau_bool); (funn_ext "header" "setValid",[],p_tau_bot); (funn_ext "header" "setInvalid",[],p_tau_bot)],[],[],[],[],[((^apply_result_placeholder_varn), (v_bot, NONE))],[],[],arch_pkg_opt,[],[],[],[])) json_list
+                     | NONE_dbg data msg => NONE_dbg data msg) (SOME_dbg ([("bit", p_tau_bit 1)],[],[],[(funn_ext "header" "isValid",[],p_tau_bool); (funn_ext "header" "setValid",[],p_tau_bot); (funn_ext "header" "setInvalid",[],p_tau_bot)],[],[],[],[],[((^apply_result_placeholder_varn), (v_bot, NONE))],[],[],arch_pkg_opt,[],[],[],[])) json_list
 End
 
 (* Removes the list of arguments stored in pblock_map, which is only used during the
