@@ -3212,7 +3212,7 @@ Definition petr4_parse_trans_def:
              ("cases", Array cases)]] =>
     (case petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP(exps, REPLICATE (LENGTH exps) NONE)) of
      | SOME_msg exps_res =>
-      (case exps_to_p_taus vtymap exps_res of
+      (case exps_to_p_taus (vtymap, ftymap) exps_res of
        | SOME p_taus =>
         (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) p_taus cases of
          | SOME_msg cases_res =>
