@@ -255,10 +255,14 @@ fun parse_stf_setdefault_line (pblock_map, ttymap) tokens =
     end
    else split_string table_token #"."
   (* Note that arguments are no longer separated by whitespaces in "action" *)
-  (* TODO: Note that this currently does not support distinguishing between
-   * duplicate action names in nested blocks *)
-  val (_, action) = split_string_rev (String.concat (tl tokens)) #"."
-  val (action_name, args) = split_string_incl action #"("
+  (* TODO: It seems to be a quirk of the STF files that they have a format with
+   * the pblock as optional prefix - this is a naughty hack that may fail *)
+  val (prefix, action) = split_string (String.concat (tl tokens)) #"."
+  val action' =
+   if Teq $ eval_rhs ``IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)``
+   then action
+   else if prefix <> "" then (prefix^("."^action)) else action
+  val (action_name, args) = split_string_incl action' #"("
   val args_list = String.tokens (fn ch => ch = #",") (String.substring(args, 1, size args - 2))
   val args_list' = map (fn tok => snd (split_string tok #":")) args_list
  in
@@ -317,9 +321,14 @@ fun parse_stf_add_line (pblock_map, ttymap) tokens =
   val priority = priority_token
 
   (* Note that arguments are no longer separated by whitespaces in "action" *)
-  (* TODO: Generalise this, so global actions can also be used? *)
-  val (_, action) = split_string_rev action_token #"."
-  val (action_name, args) = split_string_incl action #"("
+  (* TODO: It seems to be a quirk of the STF files that they have a format with
+   * the pblock as optional prefix - this is a naughty hack that may fail *)
+  val (prefix, action) = split_string action_token #"."
+  val action' =
+   if Teq $ eval_rhs ``IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)``
+   then action
+   else if prefix <> "" then (prefix^("."^action)) else action
+  val (action_name, args) = split_string_incl action' #"("
   val args_list = String.tokens (fn ch => ch = #",") (String.substring(args, 1, size args - 2))
   (* TODO: Different number formats? *)
   val args_list' = map (fn tok => snd (split_string tok #":")) args_list
