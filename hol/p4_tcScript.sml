@@ -2401,7 +2401,7 @@ val stmt_tc = Define `
   (* assignment *)
   ( stmt_tc (tslg,tsl) T_e P (stmt_ass lval_null e)   =
     ( case (typeOf_e e tslg tsl T_e) of
-      | SOME (t_tau tau, T) => T
+      | SOME (t_tau tau, b) => T
       | _ => F                                      
     )
   )∧
@@ -2510,7 +2510,7 @@ val _ = save_thm("stmt_tc_ind", stmt_tc_ind);
                          
 
 
-
+(* Test
 
 
 EVAL “stmt_tc (tslg,tsl) T_e P (stmt_cond (e_binop (e_v (v_bool T)) binop_eq (e_v (v_bool T))) stmt_empty stmt_empty)”; (*true*)
@@ -2528,14 +2528,18 @@ EVAL “stmt_tc ([],[]) ^T_efun6 [] (stmt_ret (e_v (v_bool T)) )”; (*true*)
 
 
      
-val ord1_def = Define
-‘ord1 (order_elem_t  "tbl" ) (order_elem_f  (funn_name "z")) = T ’;
-     
 
+val ord = 
+“ord1 (order_elem_t  "tbl" ) (order_elem_f  (funn_name "z")) ∧
+ ord1 (order_elem_t  "tbl" ) (order_elem_f  (funn_name "a")) ∧
+ ~ ord1 (order_elem_t  "tbl" ) (order_elem_f  (_))
+ ”;
+
+      
 val T_efun7 = “ (ord1,funn_name "z",([],[],[],[("tbl",[tau_bool])])) : T_e”;     
 EVAL “stmt_tc ([],[]) ^T_efun7 [] (stmt_app "tbl" [])”; (*false*)
 EVAL “stmt_tc ([],[]) ^T_efun7 [] (stmt_app "tbl" [e_v (v_bool T)])”; (*true*)
-
+*)
 
 
 
@@ -2713,6 +2717,12 @@ QED
 
                          
 
-        
+(* last thing is to define the order relation *)
+
+Definition order_check_def:              
+  order_check l a b =
+    ((THE(INDEX_OF a l )) <  (THE(INDEX_OF b l )))   
+End
+    
      
 val _ = export_theory ();
