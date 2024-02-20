@@ -12,81 +12,13 @@ open pairSyntax;
 val _ = new_theory "petr4_to_hol4p4_tc";
 
      
-
-(* extract block local info: name of pbl, functions declared inside with their input type and return type*)
-Definition extract_fmap_def:
-  extract_fmap json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt, ab_list, ttymap) => fmap
- | NONE_msg msg => ([]: (string#stmt#(string#d)list)list)      
-End
-
-
-(* extract block local info: name of pbl, functions declared inside with their input type and return type*)
-Definition extract_blftymap_def:
-  extract_blftymap json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt, ab_list, ttymap) => blftymap
- | NONE_msg msg => ([]:(string # (funn # p_tau list # p_tau) list) list)       
-End
-
-
-
-Definition extract_ftymap_def:
-  extract_ftymap json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt, ab_list, ttymap) => ftymap
- | NONE_msg msg => []      
-End
-
-        
-(* extract prog block map contains: name, kind of block, body and signature name and dir *)
-Definition extract_pblock_map_def:
-  extract_pblock json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt, ab_list, ttymap) => pblock_map
- | NONE_msg msg => ([]:(string # pblock)list)       
-End
-
-(* extract tables types *)
-Definition extract_dt_def:
-  extract_dt json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt, ab_list, ttymap) => ttymap
- | NONE_msg msg => ([]: (string # tau list) list )   
-End
-
-Definition extract_arch_pkg_opt_def:
-  extract_arch_pkg_opt json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt1, ab_list, ttymap) => arch_pkg_opt1
- | NONE_msg msg => NONE
-End
-
-Definition extract_vtymap_def:
-extract_vtymap json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt, ab_list, ttymap) => vtymap
- | NONE_msg msg => []
-End
-
-
-Definition extract_ab_list_def:
-extract_ab_list json_parse_result arch_pkg_opt =
- case (p4_from_json json_parse_result arch_pkg_opt) of
- | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt, ab_list, ttymap) => ab_list
- | NONE_msg msg => []
-End
         
 (* ========================================================================== *)
 (*                                                                            *)
-(*                         Types here                                         *)
+(*                         Misc defs                                          *)
 (*                                                                            *)
 (* ========================================================================== *)
    
-
- (* TODO TODO: so much overhead on the let exract function, I should extract only once and just work with it all along *)  
-
         
 Definition remove_duplicates:
   remove_duplicates [] = [] ∧
@@ -110,17 +42,6 @@ End
 
 
 
-
-
-
-
-
-
-
-
-        
-(***************************************)
-
 Definition extract_1st_tri_def:
 extract_1st_tri (l: ('a # 'b # 'c) list) =
  MAP (\(a,b,c).a) l
@@ -138,15 +59,23 @@ End
 
 
 
+
+(* -------------------------------------------- *)
+(*                                              *)
+(*                 Extract db                   *)
+(*                                              *)
+(* -------------------------------------------- *)
+
+
+
+                        
 Definition extract_bfuncmap_from_pblock_def:
 extract_bfuncmap_from_pblock ((pblock_regular pbl_type b_func_map t_scope pars_map tbl_map):pblock) =
 b_func_map
 End
 
-        
-     
-        
-           
+
+
 (* exracts local functions signature from each block *)
 Definition extract_sig_of_xpblockl_def:
 extract_tuples_of_xpblockl (xpblockl: (string # pblock) list) =
@@ -155,13 +84,7 @@ let bfuncmapl = MAP extract_bfuncmap_from_pblock pbl in
     MAP (\(x,sigl). (x,   ZIP(extract_1st_tri sigl ,   extract_3rd_tri sigl)   ) ) (ZIP(xl,bfuncmapl))
 End  
 
-        
 
-
-
-
-           
-           
 
 Definition keep_funn_name:
  keep_funn_name (ftlt :(funn # tau list # tau option)) = 
@@ -169,7 +92,6 @@ Definition keep_funn_name:
  | funn_name x => SOME (x , SND ftlt)
  | _ => NONE
 End 
-
 
 
         
@@ -180,8 +102,6 @@ Definition keep_funn_name_in_list_def:
   | SOME (x , tl, rt_type) => ((x , tl, rt_type)::keep_funn_name_in_list ftltl)
   | NONE => (keep_funn_name_in_list ftltl))                              
 End 
-
-
 
 
     
@@ -212,7 +132,6 @@ End
 
 
 
-
 Definition search_sigl_db:
   (search_sigl_db [] fxdl = [] ) ∧
   ( search_sigl_db (ftlt::ftltl_filtered:(string # tau list # tau option) list )
@@ -231,6 +150,7 @@ Definition mk_sig_db:
 End           
         
 
+
 Definition mk_db_def:
   mk_db (l: ((string # (string # (string # d) list) list) #
                                string # (funn # tau list # tau option) list)
@@ -239,21 +159,7 @@ Definition mk_db_def:
 End
 
 
-
-
-
-(*                                
-        
-(* so much info about teh pbl and ext in them, this is to initialize everything*)
-Definition mk_db_init_def:
-  mk_db_init json_parse_result arch_pkg_opt =
-  let pbl_fmaps = (extract_tuples_of_xpblockl (extract_pblock json_parse_result arch_pkg_opt)) in
-    let f_tl_rt = remove_duplicates((blftymap_switch_type (extract_blftymap json_parse_result arch_pkg_opt))) in
-     (*mk_db*) (ZIP(pbl_fmaps,f_tl_rt))  
-End
-*)
-
-(* we need to keep track of teh order the arch has the programmable blocks, important to
+(* we need to keep track of theorder the arch has the programmable blocks, important to
    a later task (creating the block local copied in scope of pb, the only way to connect them is via the order,
    which entails all the constructs in the output tuple should follow that order )*)
 
@@ -267,10 +173,7 @@ extract_pbl_order (ab_list:arch_block list) =
   MAP (\ arch_block_pbl. extract_x_from_ab_arch_block arch_block_pbl ) ab_list
 End
 
-
-
-
-        
+     
 Definition reorder_arch_constructs_def:
 reorder_arch_constructs [] pbl_sigl = [] ∧
 reorder_arch_constructs (x::pbl_order) pbl_sigl  =
@@ -280,18 +183,13 @@ case ALOOKUP pbl_sigl x of
 End    
 
 
-
-
-
         
-(* so much info about teh pbl and ext in them, this is to initialize everything*)
+(* so much info about thepbl and ext in them, this is to initialize everything*)
 Definition mk_db_init_def:
-  mk_db_init json_parse_result arch_pkg_opt =
-  let pbl_fmaps = (extract_tuples_of_xpblockl (extract_pblock json_parse_result arch_pkg_opt)) in
-    let f_tl_rt = remove_duplicates((blftymap_switch_type (extract_blftymap json_parse_result arch_pkg_opt))) in
-
-
-      let ab_list = extract_ab_list json_parse_result arch_pkg_opt in
+  mk_db_init pblock_map blftymap ab_list =
+  let pbl_fmaps = (extract_tuples_of_xpblockl pblock_map) in
+    let f_tl_rt = remove_duplicates(blftymap_switch_type blftymap) in
+        
         let pbl_order = extract_pbl_order ab_list in
               
             let db = mk_db (ZIP(pbl_fmaps,f_tl_rt)) in
@@ -300,15 +198,11 @@ End
 
 
 
-        
-
-(*******************************************)
-
-
-
-
-
-
+(* -------------------------------------------- *)
+(*                                              *)
+(*                 Extract dg                   *)
+(*                                              *)
+(* -------------------------------------------- *)
 
 
 Definition search_sig_dg:
@@ -346,18 +240,19 @@ End
      
   
 Definition mk_dg_init_def:
-  mk_dg_init json_parse_result arch_pkg_opt =
-    let f_tl_rtl = (ftymap_switch_type (extract_ftymap json_parse_result arch_pkg_opt)) in   (* might contain local functions, it is filtered below *)
-    let fsxdl = extract_fmap json_parse_result arch_pkg_opt in
-     ( FLAT (mk_dg_from_fmap f_tl_rtl fsxdl) ) : delta_g
+  mk_dg_init ftymap fmap =
+    let f_tl_rtl = ftymap_switch_type ftymap in   (* might contain local functions, it is filtered below *)
+     ( FLAT (mk_dg_from_fmap f_tl_rtl fmap) ) : delta_g
 End
 
 
 
 
-(*********************)
-(* externs *)
-
+(* -------------------------------------------- *)
+(*                                              *)
+(*                 Extract dx                   *)
+(*                                              *)
+(* -------------------------------------------- *)
 
 
 (* fetched and fixed from P4_v1modelLib.sml *)        
@@ -427,7 +322,7 @@ End
 *)
 
 
-(* TODO: update teh archs after finishing*)        
+(* TODO: update the archs after finishing*)        
 Definition arch_extern_gen_def:
 arch_extern_gen (arch_opt_tm : arch_t option) =
 case arch_opt_tm of
@@ -437,21 +332,19 @@ case arch_opt_tm of
   | NONE =>  init_arch_v1model_ext
 End
 
-
-
 Definition mk_dx_init_def:
   mk_dx_init arch_pkg_opt =
     (arch_extern_gen (arch_pkg_opt)) : delta_x
 End
 
 
-        
+      
 
-
-
-
-
-(**************** tables dt **************)
+(* -------------------------------------------- *)
+(*                                              *)
+(*                 Extract dt                   *)
+(*                                              *)
+(* -------------------------------------------- *)
 
 
 
@@ -485,16 +378,10 @@ End
            
                   
 Definition mk_dt_init_def:
-  mk_dt_init json_parse_result arch_pkg_opt =
-  let pbl_tbl = (extract_tables_of_xpblockl (extract_pblock json_parse_result arch_pkg_opt)) in
-    let tbl_typel = extract_dt json_parse_result arch_pkg_opt in
-
-      let ab_list = extract_ab_list json_parse_result arch_pkg_opt in
+  mk_dt_init pblock_map tbl_typel ab_list  =
+  let pbl_tbl = (extract_tables_of_xpblockl pblock_map) in
         let pbl_order = extract_pbl_order ab_list in
-              
           let (dt:(string#delta_t) list) = mk_dt pbl_tbl tbl_typel  in
-
-              
              reorder_arch_constructs pbl_order  dt
 End
 
@@ -502,14 +389,11 @@ End
 
 
 
-
-
-
-
-
-
-
-
+(* -------------------------------------------- *)
+(*                                              *)
+(*              Extract g_tscope                *)
+(*                                              *)
+(* -------------------------------------------- *)
         
 
 
@@ -517,7 +401,7 @@ End
 (* tyenv  - EL 1 list contains the type map of things that can be typedef
    vtymap - EL 3 list has the global variables *)
 
-(* TODO: double check teh results, and add the missing initil values*)
+(* TODO: double check theresults, and add the missing initil values*)
 
 
 val typeOf_gen_apply_result = “tau_xtl struct_ty_struct
@@ -532,15 +416,10 @@ val typeOf_gen_apply_result = “tau_xtl struct_ty_struct
 (* gen_apply_result always exsists in the global scope, it's type is tau bot*)
 Definition init_g_tscope_def:
 init_g_tscope =
-[(varn_name "gen_apply_result", ^typeOf_gen_apply_result,NONE); (* TODO: what is teh difference between this one and the EL 9 res_list v_boy*)
+[(varn_name "gen_apply_result", ^typeOf_gen_apply_result,NONE); (* TODO: what is thedifference between this one and the EL 9 res_list v_boy*)
  (varn_name "from_table",tau_bool,NONE);
  (varn_name "hit",tau_bool,NONE)]: t_scope
 End
-
-
-
-
-        
 
 
 
@@ -580,9 +459,7 @@ Definition  mk_g_tscope_with_ext_inst_stars_def:
 End
 
 
-
-
-        
+     
 (* same for ext method call *)
 
 Definition extract_type_method_def:
@@ -601,13 +478,8 @@ End
 
 
 
-   
-
 Definition mk_gtsc_def:
-  mk_gtsc json_parse_result arch_pkg_opt =
-  let gvars = (extract_vtymap json_parse_result arch_pkg_opt) in
-    let (dg = mk_dg_init json_parse_result arch_pkg_opt) in
-      let (dx = mk_dx_init arch_pkg_opt) in
+  mk_gtsc gvars dg dx =
       (
           FLAT (mk_g_tscope_with_ext_methods_stars dx) ++
           mk_g_tscope_with_ext_inst_stars dx ++
@@ -621,26 +493,17 @@ End
 
 
 
+(* -------------------------------------------- *)
+(*                                              *)
+(*              Extract b_tscope                *)
+(*                                              *)
+(* -------------------------------------------- *)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-(****************** make block local variable map (copied in not teh actual locals defined there) variable typing map ***)
+(****************** make block local variable map (copied in not theactual locals defined there) variable typing map ***)
 (* for each programmable block, we first need to get the copied in types of the programmable blocks:*)
 (* to do so, first infer the type variable <H> <M> that you can find
-   and based on teh arch definitions, those are most likely headers and structs, and for each archtecure this number differs based on:
+   and based on thearch definitions, those are most likely headers and structs, and for each archtecure this number differs based on:
    https://github.com/p4lang/p4c/blob/main/p4include/core.p4
    https://github.com/p4lang/p4c/blob/main/backends/ebpf/p4include/ebpf_model.p4
    https://github.com/p4lang/p4c/blob/main/p4include/v1model.p4
@@ -648,7 +511,7 @@ End
    
 *)
 
-(* now carefully match those types with teh programmable blocks based on the type of teh programmable block
+(* now carefully match those types with theprogrammable blocks based on the type of theprogrammable block
    in el 10 of res_list :pblock_map
    i.e. for each arch, the expected type that is static should be defined first
    then for each actual programmable block that we parse, match those with the types variable *)
@@ -695,12 +558,8 @@ arch_ebpf_type_of_pb_copied_args arch_pkg_opt =
 End
 
 
-
-
-
-        
-        
-(* now to continoue with teh next step is to fetch the arch programmable blocks from el 10*)
+     
+(* now to continoue with thenext step is to fetch the arch programmable blocks from el 10*)
 Definition match_pb_name_to_its_def:
   match_pb_name_to_its (pb_name:string) (pb:pblock) =
   let b_func_map = extract_bfuncmap_from_pblock pb  in
@@ -730,7 +589,7 @@ map_sigl_to_archl (pbl_sigl: (string#(string # d)list) list ) (arch_based_sigl: 
 End
         
     
-(* do not forget that there is a t_scope for teh programmable block tuple should be taken into account *)
+(* do not forget that there is a t_scope for theprogrammable block tuple should be taken into account *)
 
 
 Definition extract_tscope_from_pblock_def:
@@ -748,46 +607,39 @@ End
 
            
 Definition mk_copied_in_blk_local:
-  mk_copied_in_blk_local json_parse_result arch_pkg_opt =
-  let arch_pkg_opt_selected = extract_arch_pkg_opt json_parse_result arch_pkg_opt in
+  mk_copied_in_blk_local arch_pkg_opt_selected pbl ab_list =
+  let pbl_sigl =  extract_pipeline_and_sig pbl in
+    let arch_based_sigl =  arch_ebpf_type_of_pb_copied_args arch_pkg_opt_selected  in
       
-    let pbl  = extract_pblock json_parse_result arch_pkg_opt  in
-        let pbl_sigl =  extract_pipeline_and_sig pbl in
-          let arch_based_sigl =  arch_ebpf_type_of_pb_copied_args arch_pkg_opt_selected  in
+      let t_scopel = extract_tscopel_from_pblockl pbl in
+        
+        (* first use the order in ab_list *)
+        
+        let pbl_order = extract_pbl_order ab_list in
 
-let t_scopel = extract_tscopel_from_pblockl pbl in
-
+          let correct_pbl_order = reorder_arch_constructs pbl_order  pbl_sigl in                
+            let correct_t_scopel_order = reorder_arch_constructs pbl_order  t_scopel in
               
-          (* first use the order in ab_list *)
-          let ab_list = extract_ab_list json_parse_result arch_pkg_opt in
-            let pbl_order = extract_pbl_order ab_list in
-
-
+              let db_copied_in_arch = map_sigl_to_archl correct_pbl_order arch_based_sigl in
                 
-
-              let correct_pbl_order = reorder_arch_constructs pbl_order  pbl_sigl in                
-                let correct_t_scopel_order = reorder_arch_constructs pbl_order  t_scopel in
-
-                    
-                  let db_copied_in_arch = map_sigl_to_archl correct_pbl_order arch_based_sigl in
-
-                      MAP2 (\(x,y1) (x,y2). (x, y1 ++ y2)  ) db_copied_in_arch correct_t_scopel_order
+                MAP2 (\(x,y1) (x,y2). (x, y1 ++ y2)  ) db_copied_in_arch correct_t_scopel_order
 End
 
 
 
+(* -------------------------------------------- *)
+(*                                              *)
+(*            Extract order list                *)
+(*                                              *)
+(* -------------------------------------------- *)
 
-
-
-
-(*********************************************)
-
-(* now create the order of teh functions in the code...
-   for each programmable block, you need to find the names of the order of the actions and which one calls teh other one.
-   *)
+(* now create the order of thefunctions in the code...
+   for each programmable block, you need to find the names of the order of the actions and which one calls theother one.
+ *)
+ 
  (* The steps:
     1, within the same programmable block, get the actions and create an order for them
-    2, order each action you find with anything in teh global functions or externs.
+    2, order each action you find with anything in theglobal functions or externs.
        use ord action _
     3, Now the global functions, let's just hope that they are nicely ordered and not to do so much work
     4, after finishing collenting those
@@ -833,13 +685,7 @@ ord_fx (dx: delta_x)  =
 End
         
 
- 
-
-
-
-        
-
-                                                                                        
+                                                                                       
 Definition mk_ord_tup_def:
 mk_ord_tup (pb_name:string) (db:delta_b)  (dg: delta_g) (dx: delta_x) (dt: (string#delta_t)list) =
 FLAT (ord_fxx dx) ++
@@ -849,128 +695,10 @@ REVERSE(ord_d db) ++
 ord_dt dt pb_name ++
 [order_elem_f (funn_name pb_name)]
 End       
-        
-
-(*
-val relation_name = "ord55" 
-val anoud_list_test = 
-“[((order_elem_t  "tbl") , (order_elem_t  "z") );  ((order_elem_t  "tbl") , (order_elem_t  "a"))]”;         
-val result_t = ASSUME “abc = ^anoud_list_test”;
-(*concl result_t*)
-def_order_of_pblocals "ord56" result_t
-
-        
-val anoud_list = snd (dest_eq (concl result_t));
-
-
-    
-open pairSyntax;
-
-     
-val anoud_semi_ready = map dest_pair (fst (dest_list anoud_list))
-     
-  
-val rel_ord_tm = mk_var (relation_name, “:order_elem -> order_elem -> bool”); 
-
-(* works only for one line*)    
-(*val line_tm = “^rel_ord_tm ^(fst (hd anoud_semi_ready)) ^(snd (hd anoud_semi_ready)) = T”; *)
-
-fun line_tm_fun (a,b) = “^rel_ord_tm ^a ^b = T”;
-
-val all_lines_tms = map line_tm_fun anoud_semi_ready;
-val last_line_tm = “^rel_ord_tm (_) (_) = F”;
-
-val really_all_lines_tms = all_lines_tms @ [last_line_tm];
-
-(*
-val rel_def_tm  = “^line_tm ∧  ^final_line_tm”;
-mk_conj (line_tm , final_line_tm)
-*)
-                                           
-val rel_def_tm  = list_mk_conj really_all_lines_tms;
-val ord_x = Define ‘^rel_def_tm’
-*)
-
-
-
-
-
-(*
-fun def_order_of_pblocals rel_nm tupl_thm =
-let
-val relation_name = rel_nm
-val result_t = tupl_thm                         
-val anoud_list = snd (dest_eq (concl result_t));
-val anoud_semi_ready = map dest_pair (fst (dest_list anoud_list))
-val rel_ord_tm = mk_var (relation_name, “:order_elem -> order_elem -> bool”); 
-fun line_tm_fun (a,b) = “^rel_ord_tm ^a ^b = T”;
-val all_lines_tms = map line_tm_fun anoud_semi_ready;
-val last_line_tm = “^rel_ord_tm (_) (_) = F”;
-val really_all_lines_tms = all_lines_tms @ [last_line_tm];                             
-val rel_def_tm  = list_mk_conj really_all_lines_tms;
-val ord_x = Define ‘^rel_def_tm’
-in
-  ord_x
-end
-
-
-
-
-def_order_of_pblocals "ord56" result_t
-*)
-
-                      
-(*
-val new_ord = EVAL “EVERY (UNCURRY ord1) [((order_elem_t  "tbl" ), (order_elem_f  (funn_name "z")));((order_elem_t  "tbl" ), (order_elem_f  (funn_name "a")))]”;
-
-
-
-                 
-val ord1_def = Define
-‘ord1 (order_elem_t  "tbl" ) (order_elem_f  (funn_name "z")) = T ∧
- ord1 (order_elem_t  "tbl" ) (order_elem_f  (funn_name "a")) = T ∧
- ord1 (_) (_) = F     
-’;
-
-
-val T_efun7a = “ (ord55, funn_name "z",([],[],[],[("tbl",[tau_bool])])) : T_e”;    
-EVAL “stmt_tc ([],[]) ^T_efun7a [] (stmt_app "tbl" [e_v (v_bool T)])”; (*true*)
-
-val T_efun7b = “ (ord1,funn_name "g",([],[],[],[("tbl",[tau_bool])])) : T_e”;       
-EVAL “stmt_tc ([],[]) ^T_efun7b [] (stmt_app "tbl" [e_v (v_bool T)])”; (*false*)
-*)
-
-
-
-
-
-     
-
-(**********************************)
-
-
-
-
-
-(*        
-Definition tup_to_ord_def:
-tup_to_ord (l: (order_elem # order_elem) list) = 
-  AND_EL (MAP (\(el1,el2). ORD1 T el1 el2) l)
-End
-
-
-EVAL “ tup_to_ord [(order_elem_t "tbl1", order_elem_t  "tbl2");(order_elem_t  "tbl2", order_elem_t  "tbl3")]”
-      
-
-Definition tup_to_ord_def:
-tup_to_ord (l: (order_elem # order_elem) list) = 
-  AND_EL (MAP (\(el1,el2). ord1 T el1 el2) l)
-End
-*)
 
 
         
-          
+             
 Definition for_each_pbl_mk_ord_tup_def:
 for_each_pbl_mk_ord_tup (xdbl:(string # delta_b) list) (dg: delta_g) (dx: delta_x) (dt: (string#delta_t)list) =
  MAP (\(pb_name, db). (pb_name,  (mk_ord_tup pb_name db dg dx dt))  ) xdbl           
@@ -979,14 +707,12 @@ End
 
 
 
-   
- 
 
-
-(******************** collect parser states names ***************)
-
-
-
+(* -------------------------------------------- *)
+(*                                              *)
+(*             Extract Parser stn               *)
+(*                                              *)
+(* -------------------------------------------- *)
 
 
 
@@ -1008,10 +734,9 @@ End
 
 
 Definition mk_P_init_def:
-  mk_P_init json_parse_result arch_pkg_opt =
-  let pbl_pmap = (extract_prs_map_of_xpblockl (extract_pblock json_parse_result arch_pkg_opt)) in
+  mk_P_init pblock_map ab_list =
+  let pbl_pmap = (extract_prs_map_of_xpblockl pblock_map) in
 
-      let ab_list = extract_ab_list json_parse_result arch_pkg_opt in
         let pbl_order = extract_pbl_order ab_list in
              
              reorder_arch_constructs pbl_order  pbl_pmap
@@ -1020,12 +745,18 @@ End
 
 
 
-(******************** statements ***************)
+
+
+(* -------------------------------------------- *)
+(*                                              *)
+(*          Extract statement list              *)
+(*                                              *)
+(* -------------------------------------------- *)
+
+
 
 (* exatract stmts
 for control, one only, for prs exatrct a list of them*)
-
-
 
 
 Definition extract_pars_stmt_from_pblock_def:
@@ -1040,7 +771,7 @@ extract_prs_stmt_from_xpblockl (xpblockl: (string # pblock) list) =
 End 
 
 
-(* the body to type is teh same one that has the name of pb block, the rest are actions and
+(* the body to type is thesame one that has the name of pb block, the rest are actions and
    functions defined in the same scope*)
 Definition match_pb_name_to_its_stmt_def:
   match_pb_name_to_its_stmt (pb_name:string) (pb:pblock) =
@@ -1064,12 +795,11 @@ End
            
 
 Definition mk_stmt_init_def:
-  mk_stmt_init json_parse_result arch_pkg_opt =
-  let pbl_prs_stmtl = (extract_prs_stmt_from_xpblockl  (extract_pblock json_parse_result arch_pkg_opt)) in
-    let pbl_og_stmtl = (extract_stmt_of_xpblockl  (extract_pblock json_parse_result arch_pkg_opt)) in
+  mk_stmt_init pblock_map ab_list =
+  let pbl_prs_stmtl = (extract_prs_stmt_from_xpblockl  pblock_map) in
+    let pbl_og_stmtl = (extract_stmt_of_xpblockl  pblock_map) in
     let pbl_stmtl = merge_stmtl pbl_og_stmtl pbl_prs_stmtl in
       
-        let ab_list = extract_ab_list json_parse_result arch_pkg_opt in
         let pbl_order = extract_pbl_order ab_list in
              
              reorder_arch_constructs pbl_order  pbl_stmtl 
@@ -1085,31 +815,31 @@ End
 
 
 
-
-
-
-
-
-
+Definition extract_info_def:
+  extract_fmap json_parse_result arch_pkg_opt =
+  case (p4_from_json json_parse_result arch_pkg_opt) of
+  | SOME_msg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map,vab_list, arch_pkg_opt1, ab_list, ttymap) =>
+      (vtymap, ftymap,blftymap,fmap, pblock_map,arch_pkg_opt1, ab_list,ttymap)
+  | NONE_msg msg => ([],[],[],[],[], NONE,[],[])      
+End
    
 
 (* to print the output and debug, this is the easiest to observe*)
 
 Definition typing_maps_def:
   typing_maps json_parse_result arch_pkg_opt =
-  ( mk_dg_init json_parse_result arch_pkg_opt,
-    mk_db_init json_parse_result arch_pkg_opt,
-    mk_dx_init arch_pkg_opt,
-    mk_dt_init json_parse_result arch_pkg_opt,
-    mk_gtsc json_parse_result arch_pkg_opt,
-    mk_copied_in_blk_local json_parse_result arch_pkg_opt,
-    mk_P_init json_parse_result arch_pkg_opt,       
-  (for_each_pbl_mk_ord_tup (mk_db_init json_parse_result arch_pkg_opt)
-                            (mk_dg_init json_parse_result arch_pkg_opt)
-                            (mk_dx_init arch_pkg_opt)
-                            (mk_dt_init json_parse_result arch_pkg_opt)),
-  mk_stmt_init json_parse_result arch_pkg_opt
-  )
+    let (vtymap, ftymap,blftymap,fmap, pblock_map,arch_pkg_opt1, ab_list,ttymap) = extract_fmap json_parse_result arch_pkg_opt in
+      let dg = mk_dg_init ftymap fmap in
+          let db = mk_db_init pblock_map blftymap ab_list in
+            let dx = mk_dx_init arch_pkg_opt in
+              let dt = mk_dt_init pblock_map ttymap ab_list in
+                let gtsc = mk_gtsc vtymap dg dx in
+                  let blksc = mk_copied_in_blk_local arch_pkg_opt1 pblock_map ab_list in
+                    let p = mk_P_init pblock_map ab_list in
+                        let ord = for_each_pbl_mk_ord_tup db dg dx dt in
+                          let stmtl = mk_stmt_init pblock_map ab_list in
+                                                     
+  ( dg, db, dx, dt, gtsc, blksc, p, ord, stmtl )
 End
 
 
@@ -1141,15 +871,7 @@ mk_final_tc_maps_helper ((ftm)::ftml) =
 | (s::sl) => ((s,rest)::(mk_final_tc_maps_helper ((sl,rest)::ftml)))
 End
 
-(*
-EVAL “mk_final_tc_maps_helper [([s1;s2], a,b);([s3;s4], x,y)]”
-EVAL “mk_final_tc_maps_helper [[s1], a]”
-EVAL “mk_final_tc_maps_helper [[], a]”
-*)
-
-
-        
-      
+ 
 
 Definition mk_final_tc_maps_def:
 mk_final_tc_maps json_parse_result arch_pkg_opt =
