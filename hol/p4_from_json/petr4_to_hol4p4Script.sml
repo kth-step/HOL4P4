@@ -1710,10 +1710,10 @@ Definition petr4_parse_method_call_def:
               (case ALOOKUP vtymap (varn_name app_name) of
                | SOME (p_tau_blk block_type_name) =>
                 (case ALOOKUP pblock_map block_type_name of
-                 | SOME ((pblock_regular pbl_type_control b_func_map decl_list pars_map tbl_map), param_types) =>
+                 | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock, param_types) =>
                   (case FIND_EXTRACT_ONE (\ (k,v). k = block_type_name) b_func_map of
                    (* Params has format (string # dir) *)
-                   | SOME ((name, (body, params)), b_func_map') =>
+                   | SOME ((name, (body, params')), b_func_map') =>
                     (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
                      | SOME_msg res_args =>
                       if p4_stmt_contains_return body
@@ -3243,7 +3243,7 @@ Definition petr4_parse_parser_def:
          | SOME_msg (vtymap', ftymap', b_func_map, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap, action_list') =>
           (case petr4_parse_states (tyenv, enummap, vtymap', ftymap', gscope, extfun_list) [] states of
            | SOME_msg pars_map =>
-            SOME_msg (tyenv, enummap, ftymap, AUPDATE blftymap (parser_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pblock_regular pbl_type_parser (b_func_map++[(parser_name, (stmt_seq inits (stmt_trans (e_v (v_str "start"))), pars_params))]) decl_list pars_map tbl_map), MAP (THE o deparameterise_tau o SND) vty_updates)))
+            SOME_msg (tyenv, enummap, ftymap, AUPDATE blftymap (parser_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pbl_type_parser, pars_params, (b_func_map++[(parser_name, (stmt_seq inits (stmt_trans (e_v (v_str "start"))), []))]), decl_list, pars_map, tbl_map), MAP (THE o deparameterise_tau o SND) vty_updates)))
            | NONE_msg states_msg => NONE_msg ("Could not parse states: "++states_msg++" while parsing parser "++parser_name))
          | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing parser "++parser_name))
        | NONE_msg blparams_msg => NONE_msg ("Could not parse block parameters: "++blparams_msg++" while parsing parser "++parser_name))
@@ -3326,7 +3326,7 @@ Definition petr4_parse_control_def:
               (* All elements of decl_list_upds are taboo, but not all taboo variables are in decl_list_upds *)
               check_taboos gscope decl_list ctrl_params taboo_list control_name 
 (
-              let b_func_map' = (b_func_map++[(control_name, (stmt_seq inits res_apply, ctrl_params))]) in
+              let b_func_map' = (b_func_map++[(control_name, (stmt_seq inits res_apply, []))]) in
               (* TODO: Try new names instead of returning errors *)
               (* This will safely merge inlined variables, functions and tables
                * (if any conflicting maps are encountered, the import tool will stop with an error) *)
@@ -3336,7 +3336,7 @@ Definition petr4_parse_control_def:
                  | SOME tbl_map' =>
                   (case petr4_merge_upds (decl_list++decl_list_upds) of
                    | SOME decl_list' =>
-                   SOME_msg (AUPDATE tyenv (control_name, p_tau_blk control_name), enummap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pblock_regular pbl_type_control b_func_map'' decl_list' ([]:pars_map) tbl_map')), MAP (THE o deparameterise_tau o SND) vty_updates), (tbl_entries_map++[(control_name, AUPDATE_LIST tbl_entries' tbl_entries_upds)]), action_list', AUPDATE_LIST ttymap ttymap')
+                   SOME_msg (AUPDATE tyenv (control_name, p_tau_blk control_name), enummap, ftymap, AUPDATE blftymap (control_name, ftymap'), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pbl_type_control, ctrl_params, b_func_map'', decl_list', ([]:pars_map), tbl_map')), MAP (THE o deparameterise_tau o SND) vty_updates), (tbl_entries_map++[(control_name, AUPDATE_LIST tbl_entries' tbl_entries_upds)]), action_list', AUPDATE_LIST ttymap ttymap')
                    | NONE => NONE_msg ("Duplicate variable (parameter) name in nested control block while parsing control "++control_name))
                  | NONE => NONE_msg ("Duplicate table name in nested control block while parsing control "++control_name))
                | NONE => NONE_msg ("Local function in nested control block has same name as (and is different from) local function in parent block; encountered while parsing control "++control_name))
@@ -3703,7 +3703,7 @@ End
 Definition pblock_get_tbl_map_def:
  pblock_get_tbl_map pblock =
   case pblock of
-  | (pblock_regular pbl_type b_func_map decl_list pars_map tbl_map) => tbl_map
+  | (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map) => tbl_map
 End
 
 Definition ctrl_from_pblock_map_def:
@@ -3784,7 +3784,7 @@ Definition p4_pblock_of_tbl_def:
  p4_pblock_of_tbl tbl pblock_map =
   case (FIND (\ (pbl_name, pblock).
 	      case pblock of
-	      | pblock_regular pbl_type b_func_map t_scope pars_map tbl_map =>
+	      | (pbl_type, params, b_func_map, t_scope, pars_map, tbl_map) =>
 	       (case ALOOKUP tbl_map tbl of
 		| SOME res => T
 		| NONE => F)) pblock_map) of
@@ -3810,7 +3810,7 @@ Definition ebpf_init_ctrl_def:
  ebpf_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | pblock_regular pbl_type b_func_map decl_list state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
@@ -3822,7 +3822,7 @@ Definition vss_init_ctrl_def:
  vss_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | pblock_regular pbl_type b_func_map decl_list state_map tbl_map =>
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) =>
                        ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):vss_ctrl
   in
   let
@@ -3835,7 +3835,7 @@ Definition v1model_init_ctrl_def:
  v1model_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | pblock_regular pbl_type b_func_map decl_list state_map tbl_map => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
@@ -3848,10 +3848,10 @@ End
 Definition p4_replace_tbl_default_def:
  p4_replace_tbl_default (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) block_name table_name action_name args =
   case ALOOKUP pblock_map block_name of
-  | SOME (pblock_regular pbl_type_control b_func_map decl_list ([]:pars_map) tbl_map) =>
+  | SOME (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), tbl_map) =>
    (case ALOOKUP tbl_map table_name of
     | SOME (mk_l, (old_action_name, old_args)) =>
-     SOME (ab_list, AUPDATE pblock_map (block_name, (pblock_regular pbl_type_control b_func_map decl_list ([]:pars_map) (AUPDATE tbl_map (table_name, (mk_l, (action_name, args)))))),
+     SOME (ab_list, AUPDATE pblock_map (block_name, (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), (AUPDATE tbl_map (table_name, (mk_l, (action_name, args)))))),
              ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
     | NONE => NONE)
   | _ => NONE

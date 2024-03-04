@@ -2327,11 +2327,11 @@ val arch_exec_def = Define `
   (case EL i ab_list of
    | (arch_block_pbl x el) =>
     (case ALOOKUP pblock_map x of
-     | SOME (pblock_regular pbl_type b_func_map decl_list pars_map tbl_map) =>
+     | SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) =>
       if state_fin_exec status frame_list
       then
-       (case lookup_block_sig_body x b_func_map of
-        | SOME (stmt, x_d_list) =>
+       (case lookup_block_body x b_func_map of
+        | SOME stmt =>
          (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
          (if LENGTH el = LENGTH x_d_list
           then
@@ -2380,9 +2380,9 @@ val arch_exec_def = Define `
    | (arch_block_pbl x el) =>
     (case ALOOKUP pblock_map x of
      (* pbl_init *)
-     | SOME (pblock_regular pbl_type b_func_map decl_list pars_map tbl_map) =>
-      (case lookup_block_sig_body x b_func_map of
-       | SOME (stmt, x_d_list) =>
+     | SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) =>
+      (case lookup_block_body x b_func_map of
+       | SOME stmt =>
         (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
         (if LENGTH el = LENGTH x_d_list
          then
