@@ -325,9 +325,6 @@ val (arch_block_pbl_tm,  mk_arch_block_pbl, dest_arch_block_pbl, is_arch_block_p
 val (arch_block_pbl_tm,  mk_arch_block_pbl, dest_arch_block_pbl, is_arch_block_pbl) =
   syntax_fns2 "p4" "arch_block_pbl";
 
-val (pblock_regular_tm,  mk_pblock_regular, dest_pblock_regular, is_pblock_regular) =
-  syntax_fns5 "p4" "pblock_regular";
-
 val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy="p4"};
 fun is_arch_frame_list_empty tm = term_eq tm arch_frame_list_empty_tm;
 val (arch_frame_list_regular_tm,  mk_arch_frame_list_regular, dest_arch_frame_list_regular, is_arch_frame_list_regular) =
@@ -351,6 +348,17 @@ fun dest_aenv aenv =
   val (io_list', ascope) = dest_pair aenv''
  in
   (i, io_list, io_list', ascope)
+ end
+;
+
+fun dest_pblock pblock =
+ let
+  val (pbl_type, pblock') = dest_pair pblock
+  val (b_func_map, pblock'') = dest_pair pblock'
+  val (decl_list, pblock''') = dest_pair pblock''
+  val (pars_map, tbl_map) = dest_pair pblock'''
+ in
+  (pbl_type, b_func_map, decl_list, pars_map, tbl_map)
  end
 ;
 

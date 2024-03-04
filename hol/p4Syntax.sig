@@ -250,13 +250,6 @@ val dest_arch_block_pbl : term -> term * term
 val is_arch_block_pbl : term -> bool
 val mk_arch_block_pbl : term * term -> term
 
-val dest_pblock_regular :
-   term -> term * term * term * term * term
-val is_pblock_regular : term -> bool
-val mk_pblock_regular :
-   term * term * term * term * term -> term
-val pblock_regular_tm : term
-
 val arch_frame_list_empty_tm : term
 val is_arch_frame_list_empty : term -> bool
 
@@ -270,6 +263,7 @@ val dest_actx :
      term * term * term * term * term * term * term * term * term * term
 val dest_astate : term -> term * term * term * term
 val dest_aenv : term -> term * term * term * term
+val dest_pblock : term -> term * term * term * term * term
 
 val dest_e_red : term -> term * term * term * term * term * term
 val e_red_tm : term

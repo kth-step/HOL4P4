@@ -678,9 +678,17 @@ pbl_type :: pbl_type_ ::=
 | parser :: :: parser
 | control :: :: control
 
+%Fence between pbl_type and pblock
+embed
+{{ hol
+
+}}
+grammar
+
 pblock {{ tex { \mathit{pblock} } }} :: pblock_ ::=
 {{ com programmable block }}
-| pbl_type b_func_map t_scope pars_map tbl_map :: :: regular
+{{ hol (pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map) }}
+%| pbl_type ((string # d) list) b_func_map t_scope pars_map tbl_map :: :: regular
 
 ffblock {{ tex { \mathit{ffblock} } }} :: ffblock_ ::=
 {{ com fixed-function block }}
