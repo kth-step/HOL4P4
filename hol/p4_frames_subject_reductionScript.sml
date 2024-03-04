@@ -3443,6 +3443,543 @@ QED
 
 
 
+open p4_frames_subject_reductionTheory;
+open p4_frames_progressTheory;
+
+
+(* ================================================= *)
+(*              well typed Envirounment              *)
+(* ================================================= *)
+
+val (WT_E_rules, WT_E_ind, WT_E_cases) = Hol_reln`
+(
+∀ ab_list copyin_pbl copyout_pbl ffblock_map input_f output_f pblock_map (apply_table_f:'a apply_table_f)
+          (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map)
+          (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x)
+          (delta_t:delta_t) (Prs_n:Prs_n) i . 
+      
+   (EL i ab_list = arch_block_inp ⇒
+    ∃in_out_list1' ascope'. SOME (in_out_list1',ascope') = input_f (in_out_list1,ascope)
+   ) ∧
+
+     
+   (EL i ab_list = arch_block_pbl f el ⇒
+    ∃ pbl_type b_func_map t_scope pars_map tbl_map.
+      ALOOKUP  pblock_map   f  = SOME  (pblock_regular pbl_type b_func_map t_scope pars_map tbl_map)
+      ⇒     
+      deltas_order delta_g delta_b delta_x order ∧
+      WT_c (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+   )
+ 
+       
+ ==
+ WT_E i (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map )
+      order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+)
+
+`;
+
+
+
+
+(* ================================================= *)
+(*               typing rules for arch               *)
+(* ================================================= *)
+
+val (WT_arch_rules, WT_arch_ind, WT_arch_cases) = Hol_reln`                         
+( 
+!  (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f)
+   (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map)
+   (func_map:func_map) (i:i) (in_out_list1:in_out_list) (in_out_list2:in_out_list) (ascope:'a)
+   (g_scope_list:g_scope_list) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g)
+   (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) i.
+  (* if status tra, ret ⇒ EL i ab_list = arch_block f .... ....then in WT_E there should be a *)
+
+   ( WT_E i ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧  
+
+
+     
+  (EL i ab_list = arch_block_pbl f el ⇒
+  (ALOOKUP  pblock_map   f  = SOME  (pblock_regular pbl_type b_func_map t_scope pars_map tbl_map))) ∧   
+            
+  ( WT_state (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, framel, status) Prs_n order t_scope_list_g  tsll (delta_g,delta_b,delta_x,delta_t))
+  ==> 
+ (WT_arch ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map )
+  ((i , in_out_list1 , in_out_list2 ,  ascope ) , g_scope_list , arch_frame_list_regular framel  , status)
+  Prs_n  order t_scope_list_g  tsll  (delta_g,delta_b,delta_x,delta_t)
+ )
+)
+
+
+
+∧
+
+
+
+( 
+!  (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f)
+   (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map)
+   (func_map:func_map) (i:i) (in_out_list1:in_out_list) (in_out_list2:in_out_list) (ascope:'a)
+   (g_scope_list:g_scope_list) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g)
+   (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) i.
+
+  status = status_running ∧
+
+  (EL i ab_list = arch_block_inp ∨
+   EL i ab_list = arch_block_out ∨
+   ∃ x .EL i ab_list = arch_block_ffbl x ∨
+   ∃ x el .EL i ab_list = arch_block_pbl x el) ∧
+
+  (* arch input *)
+  (EL i ab_list = arch_block_inp ⇒
+   NONE  ≠ input_f (in_out_list1,ascope) )  ∧
+
+  (* arch init *)
+  (EL i ab_list = arch_block_pbl s l ⇒
+   (ALOOKUP pblock_map s = SOME (pblock_regular pbl_type b_func_map t_scope pars_map tbl_map) ∧
+    lookup_block_sig_body s b_func_map = SOME (stmt,xdl) ∧
+    copyin_pbl (MAP FST xdl, MAP SND xdl, l, ascope) =  SOME scope' ∧
+      SOME g_scope_list' = initialise_var_stars func_map b_func_map ext_map  (declare_list_in_scope (t_scope,scope')::LASTN 1 g_scope_list)         
+   )
+  )
+   
+    
+  ⇒
+ 
+ (WT_arch ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map )
+  ((i , in_out_list1 , in_out_list2 ,  ascope ) , g_scope_list , arch_frame_list_empty  , status)
+  Prs_n  order t_scope_list_g  tsll  (delta_g,delta_b,delta_x,delta_t)
+ )
+)
+`;
+
+
+
+
+
+(* ================================================= *)
+(*           Subject reduction for arch              *)
+(* ================================================= *)
+
+
+val sr_arch_def = Define `
+ sr_arch (framel) (ty:'a itself) =
+∀  (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (i':i) (in_out_list1:in_out_list) (in_out_list1':in_out_list) (in_out_list2:in_out_list) (in_out_list2':in_out_list) (ascope:'a) (ascope':'a) (g_scope_list:g_scope_list) (g_scope_list':g_scope_list) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) framel'  status status' tsll.
+  
+   
+   (* should remove  wt E from here because each arch frame has a different b_func_map and table map?*)
+
+   ( WT_E i ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map )
+       order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
+       
+   (WT_arch ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map )
+    ((i , in_out_list1 , in_out_list2 ,  ascope ) , g_scope_list , framel , status)
+    Prs_n  order t_scope_list_g  tsll  (delta_g,delta_b,delta_x,delta_t)
+   )
+   ∧             
+   (arch_red ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )
+    ((i  , in_out_list1  , in_out_list2  ,  ascope )  , g_scope_list  , framel  , status)
+    ((i' , in_out_list1' , in_out_list2' ,  ascope' ) , g_scope_list' , framel' , status')    
+   )
+
+    ⇒
+
+∃  tsll' .
+  (WT_arch ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map )
+   ((i' , in_out_list1' , in_out_list2' ,  ascope' ) , g_scope_list' , framel' , status')
+      Prs_n  order t_scope_list_g  tsll'  (delta_g,delta_b,delta_x,delta_t)
+  )                   
+`;
+
+
+
+
+
+Theorem type_state_tsll_empty_lemma:
+type_state_tsll [[[]]] [[[]]]
+Proof
+gvs[type_state_tsll_def] >>
+Induct >> gvs[] >>                     
+REPEAT STRIP_TAC >>    
+gvs[type_state_tsll_def, type_frame_tsl_def, type_scopes_list_def,
+    similarl_def, similar_def, LIST_REL_def, star_not_in_sl_def, star_not_in_s_def]
+QED
+
+
+
+Theorem mk_tscope_empty_lemma:
+  ∀ txdl . mk_tscope txdl [] = []
+Proof                               
+Induct >> gvs[mk_tscope_def, mk_varn_def, ZIP_def]
+QED
+
+
+
+val lookup_in_b_pb_name = prove (“
+∀ f b_func_map func_map ext_map stmt xdl .
+SOME (stmt,xdl) = lookup_block_sig_body f b_func_map ⇒
+(∃ stmt' xdl' . SOME (stmt',xdl') = lookup_funn_sig_body (funn_name f) func_map b_func_map ext_map  ∧ stmt = stmt' ∧  xdl  =xdl')
+”,
+
+REPEAT STRIP_TAC >>                                                  
+gvs[lookup_block_sig_body_def, lookup_funn_sig_body_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) 
+);                     
+
+
+
+                                
+Theorem lookup_pb_in_db:                     
+  ∀delta_g delta_b func_map b_func_map f sxdl ext_map delta_x order
+       t_scope_list_g pars_map tbl_map apply_table_f delta_t Prs_n.
+SOME sxdl = lookup_block_sig_body f b_func_map ∧
+WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+     order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n  ⇒
+(
+(ALOOKUP func_map f = NONE /\
+ ALOOKUP delta_g f = NONE /\        
+ALOOKUP b_func_map f = SOME sxdl /\
+ (?sig . ALOOKUP delta_b f = SOME sig) 
+))
+Proof
+REPEAT GEN_TAC >> STRIP_TAC >>
+gvs[Once WT_c_cases] >>
+gvs[lookup_block_sig_body_def] >>
+gvs[dom_b_eq_def, dom_g_eq_def, dom_eq_def, is_lookup_defined_def] >>
+gvs[typying_domains_ei_def, dom_empty_intersection_def] >>
+gvs[dom_tmap_ei_def, dom_map_ei_def, dom_empty_intersection_def] >>
+
+                     
+REPEAT (
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘f’])) >>      
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >> gvs[]
+) >>
+
+METIS_TAC []
+QED
+
+
+
+(*
+type_scopes_list g_scope_list' t_scope_list_g ∧
+WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+     order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n ∧        
+SOME (stmt,xdl) = lookup_block_sig_body f b_func_map ⇒     
+type_frames g_scope_list' [(funn_name f,[stmt],[[]])] Prs_n order
+          t_scope_list_g [[[]]] delta_g delta_b delta_x delta_t func_map b_func_map
+
+REPEAT STRIP_TAC >>
+IMP_RES_TAC lookup_pb_in_db >>
+
+          
+gvs[type_frames_def] >>
+Induct >> gvs[] >>
+gvs[Once frame_typ_cases, clause_name_def] >>
+gvs[Once stmtl_typ_cases] >>
+gvs[type_ith_stmt_def] >>
+
+
+gvs[t_scopes_to_pass_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+gvs[scopes_to_pass_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+gvs[t_map_to_pass_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+gvs[t_tbl_to_pass_def] >>
+REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+gvs[t_lookup_funn_def, clause_name_def] >> PairCases_on ‘sig’ >> gvs[]>>
+
+gvs[star_not_in_sl_def, star_not_in_s_def] >>
+
+SIMP_TAC list_ss [type_frame_tsl_def, type_scopes_list_def,
+    similarl_def, similar_def, LIST_REL_def, star_not_in_sl_def, star_not_in_s_def] >>
+
+gvs[args_t_same_def]
+*)
+
+    
+
+
+            
+
+Theorem SR_arch:
+∀ ty framel . sr_arch framel ty
+Proof
+REPEAT STRIP_TAC >>
+gvs[sr_arch_def] >>
+REPEAT STRIP_TAC >>
+gvs[Once arch_red_cases] >| [
+    (* arch in*)
+    gvs[Once WT_arch_cases] >>
+    SIMP_TAC list_ss [Once WT_arch_cases] >>
+    srw_tac [boolSimps.DNF_ss][] >>
+    Cases_on ‘EL (i + 1) ab_list’ >> gvs[] >>
+
+    cheat         
+    gvs[Once WT_E_cases]
+
+             
+    ,
+    (* make a rule for arch init*)
+    gvs[Once WT_arch_cases] >>
+    SIMP_TAC list_ss [Once WT_arch_cases] >>
+    srw_tac [boolSimps.DNF_ss][] >>
+    CONV_TAC $ RESORT_EXISTS_CONV rev >>
+    qexistsl_tac [‘tbl_map’,‘t_scope’, ‘pbl_type’, ‘pars_map’, ‘f’, ‘(MAP (λ(e_,x_,d_). e_) e_x_d_list)’, ‘b_func_map’] >>
+    gvs[] >>
+   
+    gvs[Once WT_state_cases] >>
+    gvs[Once WT_E_cases] >>
+
+    
+    CONV_TAC $ RESORT_EXISTS_CONV rev>>
+    qexistsl_tac [‘[[stmt]]’,‘[[[]]]’,‘[funn_name f]’, ‘[[[]]]’] >>
+    gvs[type_state_tsll_empty_lemma] >>
+
+    subgoal ‘WF_ft_order [funn_name f] delta_g delta_b delta_x order’ >-
+     (
+     gvs[WF_ft_order_cases, clause_name_def] >>
+     REPEAT STRIP_TAC >>
+     gvs[ordered_list_def] >>
+     gvs[WT_c_cases, WF_o_def]
+        
+     ) >> gvs[] >>
+
+
+     gvs[t_scopes_consistent_list_def] >>
+
+    CONJ_TAC >|[
+        cheat
+        ,
+        gvs[type_frames_def] >>
+        REPEAT STRIP_TAC >>
+        (*TODO - MEETING:  arch init should have an extra part of the tuple that gives the signature of teh pb_block, not from F_b *)
+                             
+      ]
+             
+    ,
+    (* arch ffbl*)
+    gvs[Once WT_arch_cases] >>
+    SIMP_TAC list_ss [Once WT_arch_cases] >>
+    srw_tac [boolSimps.DNF_ss][] >>
+    Cases_on ‘EL (i + 1) ab_list’ >> gvs[] >>
+             
+
+    ,
+    (* arch out*)
+    gvs[Once WT_arch_cases] >>
+    SIMP_TAC list_ss [Once WT_arch_cases] >>
+    srw_tac [boolSimps.DNF_ss][] >>
+    Cases_on ‘HD ab_list’ >> gvs[]
+    ,
+    (* make a rule for arch trans*)
+
+  gvs[Once WT_arch_cases] >>
+    SIMP_TAC list_ss [Once WT_arch_cases] >>
+  srw_tac [boolSimps.DNF_ss][] >>
+          
+       (* assume that the statements in teh pars_map are well typed*)
+
+
+             
+    cheat
+    ,
+    (*pbl_exec*)
+    ASSUME_TAC SR_state >> 
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘ty’,‘frame_list’])) >>
+    gvs[sr_state_def]>>
+    gvs[Once WT_arch_cases] >>
+    SIMP_TAC list_ss [Once WT_arch_cases] >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘frame_list'’,
+                                                ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,
+                                                ‘ascope’, ‘ascope'’,
+                                                ‘g_scope_list’, ‘g_scope_list'’,
+                                                ‘status_running’, ‘status'’,
+                                                ‘t_scope_list_g’, 
+                                                ‘order’,
+                                                ‘delta_g’, ‘delta_b’,
+                                                ‘delta_t’, ‘delta_x’,
+                                                ‘Prs_n’, ‘tsll ’  
+                                               ])) >>
+    
+    gvs[] >> Q.EXISTS_TAC ‘tsll'’ >> gvs[]
+    ,
+    (*arch_return*)
+    gvs[Once WT_arch_cases] >>
+    SIMP_TAC list_ss [Once WT_arch_cases] >>
+    srw_tac [boolSimps.DNF_ss][] >>
+    Cases_on ‘EL (i + 1) ab_list’ >> gvs[]
+  ]
+QED
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(*
+val prog_state_def = Define `
+ prog_state (framel) (ty:'a itself) =
+∀ (c:'a ctx) ascope  gscope   status  tslg tsll order delta_g delta_b delta_t delta_x Prs_n .
+      
+  (WT_state c ( ascope ,  gscope  , framel  , status) Prs_n  order tslg tsll (delta_g, delta_b, delta_x, delta_t))
+      ∧ framel ≠ []  ∧ status = status_running ∧
+     (∀ (f:funn) (local_scope: scope list) (t:frame_list) . framel ≠ ((f,[stmt_empty],local_scope)::t))
+  ⇒
+
+     ∃ status' ascope' gscope' framel'.
+       (frames_red c ( ascope ,  gscope  , framel  , status)
+                     ( ascope',  gscope' , framel' , status'))                   
+`;
+
+Theorem PROG_framel:
+  ∀ ty framel. prog_state framel ty
+Proof
+cheat
+QED
+*)
+
+               
+
+val prog_arch_def = Define `
+ prog_arch (framel) (ty:'a itself) =
+∀  (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (i':i) (in_out_list1:in_out_list) (in_out_list2:in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t)  status tsll.
+
+   ( WT_E i ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
+
+
+   (WT_arch ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map )
+    ((i , in_out_list1 , in_out_list2 ,  ascope ) , g_scope_list , framel , status)
+    Prs_n  order t_scope_list_g  tsll  (delta_g,delta_b,delta_x,delta_t)
+   )
+   ⇒            
+  
+   ∃ i' in_out_list1' in_out_list2' ascope' g_scope_list' framel' status'.
+   (arch_red ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )
+    ((i  , in_out_list1  , in_out_list2  ,  ascope )  , g_scope_list  , framel  , status)
+    ((i' , in_out_list1' , in_out_list2' ,  ascope' ) , g_scope_list' , framel' , status')    
+   )                 
+`;
+
+
+        
+
+
+Theorem prog_arch:
+∀ ty framel . prog_arch framel ty
+Proof
+REPEAT STRIP_TAC >>
+gvs[prog_arch_def] >>
+REPEAT STRIP_TAC >>
+Cases_on ‘framel’ >> gvs[] >| [
+    (*empty arch frame list *)
+
+SIMP_TAC list_ss [Once arch_red_cases] >>  
+gvs[] >>
+Cases_on ‘EL i ab_list’ >> gvs[] >| [
+   (* arch input *)
+      gvs[WT_arch_cases, clause_name_def] >>
+      gvs[WT_E_cases] >>
+
+      Q.EXISTS_TAC ‘FST (THE (input_f (in_out_list1,ascope)))’ >>
+      Q.EXISTS_TAC ‘SND (THE (input_f (in_out_list1,ascope)))’ >>
+      Cases_on ‘input_f (in_out_list1,ascope)’ >> gvs[]
+
+      ,
+   (* arch init *)
+       
+
+        
+
+    ]
+
+,
+
+
+    (*NOT empty arch frame list*)
+    SIMP_TAC list_ss [Once arch_red_cases] >>
+    srw_tac [boolSimps.DNF_ss][] >>
+    Cases_on ‘state_fin status l’ >> gvs[]  >| [
+     (* state finale --> arch return *)
+       NTAC 2 DISJ2_TAC >> 
+       
+
+
+
+
+
+
+
+  ]
+
+
+
+
+
+
+
+
+
+            
+    DISJ1_TAC >>
+    
+    ASSUME_TAC PROG_framel >> 
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘ty’,‘l’])) >>
+    gvs[prog_state_def]>>
+    gvs[Once WT_arch_cases] >>
+    gvs[WT_E_cases, ]
+    gvs[WT_state_cases]
+             
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘frame_list'’,
+                                                ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,
+                                                ‘ascope’, ‘ascope'’,
+                                                ‘g_scope_list’, ‘g_scope_list'’,
+                                                ‘status_running’, ‘status'’,
+                                                ‘t_scope_list_g’, 
+                                                ‘order’,
+                                                ‘delta_g’, ‘delta_b’,
+                                                ‘delta_t’, ‘delta_x’,
+                                                ‘Prs_n’, ‘tsll ’  
+                                               ])) >>
+    
+    gvs[] >> Q.EXISTS_TAC ‘tsll'’ >> gvs[]
+
+  ]
+
+
+
+
+
+
+
+
+
+
+            
+  ]
+QED
+
+
+        
+
+
 
 val _ = export_theory ();
 
