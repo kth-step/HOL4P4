@@ -36,22 +36,20 @@ The most significant program transformation concerns inlining of nested blocks. 
 When instantiated blocks are applied (called), the apply block (body) of the nested block is inlined in the parent block, with all variables and tables prefixed with the instance name. The copy-in copy-out mechanism of block parameters is handled as follows:
 
 Copy-in:
-	* If the parameter is out, then the (prefixed) parameter is havoc-ed (by using arb_from_tau to assign a value with all bits as ARBs to it)
-	* Otherwise, assign the argument to the (prefixed) parameter.
+* If the parameter is `out`, then the (prefixed) parameter is havoc-ed (by using `arb_from_tau` to assign a value with all bits as `ARB`s to it)
+* Otherwise, assign the argument to the (prefixed) parameter.
 	
 Copy-out:
-	* If the parameter is out or inout, then assign the (prefixed) parameter to the L-value of the argument.
-	* Otherwise, do nothing (note that this is safe since the import tool will halt with an error if prefixed variables of the inlined programmable block intersect with those of the parent block)
-	
+* If the parameter is `out` or `inout`, then assign the (prefixed) parameter to the L-value of the argument.
+* Otherwise, do nothing (note that this is safe since the import tool will halt with an error if prefixed variables of the inlined programmable block intersect with those of the parent block)
+
 Actions (local functions) of inlined blocks must be able to access the block variables of their respective block. For this reason, all block variables of the nested block are added (prefixed) to the declaration list of the parent block (as opposed to being introduced inside a block) with their copy-out L-values set to NONE.
 
-As an exception to the above, the local function maps `b_func_map` of the parent and child blocks are merged with no prefixing of action names, with the import tool halting with an error if name collisions are found for different entries.
+The local function maps `b_func_map` of the parent and child blocks are merged with action names prefixed in the latter, with the import tool halting with an error if name collisions are found for different entries.
 
 After processing the entire program is complete, blocks which only occur as nested blocks will be removed from the pblock_map to avoid clutter.
 	
 Note that if the same block is instantiated twice, it uses different tables, while if it is instantiated once but applied twice, the same table is used.
-
-This method cannot distinguish between tables of the same name in non-nested control blocks, nor between instances of the same name in separate programmable blocks. To avoid name collisions across nestings, all table names with dots are disallowed by the import tool.
 
 Also, this method does not permit nested blocks from using a return statement to finish. Accordingly, the import tool halts with an error if inlining of programmable blocks with bodies containing return statements is attempted.
 
@@ -59,7 +57,7 @@ The new programmable block-variables resulting from the above procedure will be 
 
 ### Select expressions
 
-Select expressions with no default case will get a new default case that maps to the state "set_no_match", which contains only a "verify(false, error.NoMatch)" statement. The import tool will halt with an error if "set_no_match" is encountered among the regular states of the P4 program. The "set_no_match" state will only appear in programs with default-less select expressions.
+Select expressions with no default case will get a new default case that maps to the state `set_no_match`, which contains only a `verify(false, error.NoMatch)` statement. The import tool will halt with an error if `set_no_match` is encountered among the regular states of the P4 program. The `set_no_match` state will only appear in programs with default-less select expressions.
 
 ### Table application in expressions
 
