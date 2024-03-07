@@ -449,6 +449,22 @@ Definition compute_checksum16_def:
   word_1comp (FOLDR (CURRY add_ones_complement) (0w:word16) w16_list)
 End
 
+Definition get_bitlist_def:
+ get_bitlist scope_list ext_data_name =
+  case lookup_lval scope_list ext_data_name of
+   | SOME (v_bit (bl, n)) => SOME bl
+   | SOME (v_header vbit f_list) =>
+    (case header_entries2v f_list of
+     | SOME bl => SOME bl
+     | NONE => NONE)
+   | SOME (v_struct f_list) =>
+    (case header_entries2v f_list of
+     | SOME bl => SOME bl
+     | NONE => NONE)
+   | _ => NONE
+End
+
+
 (*****************)
 (* Architectural *)
 (*****************)
@@ -475,6 +491,16 @@ Definition copyout_pbl_gen_def:
   let v_map_scope = v_map_to_scope v_map in
    update_return_frame xlist dlist [v_map_scope] g_scope_list
 End
+
+(* A separate definition so that symbolic execution can choose to not evaluate it
+ * and rewrite with assumptions instead *)
+Definition get_port_number_def:
+ get_port_number bl = v2n bl
+End
+
+(************************************)
+(* Miscellaneous common definitions *)
+(************************************)
 
 (*
 (* For use in table matching *)

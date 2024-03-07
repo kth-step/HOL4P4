@@ -440,6 +440,32 @@ fun debug_frames_from_step arch actx astate nsteps =
  end
 ;
 
+fun replace_ext_impl ctx_tm ext_name method_name method_tm =
+ let
+  val actx_list = spine_pair ctx_tm;
+
+  val actx_list_8first = List.take (actx_list, 8);
+
+  val ext_map = el 9 actx_list;
+
+  val ext_map' =
+   let
+    val res_opt = rhs $ concl $ EVAL ``ext_map_replace_impl ^ext_map ^(stringLib.fromMLstring ext_name) ^(stringLib.fromMLstring method_name) ^method_tm``;
+   in
+    if is_some res_opt
+    then dest_some res_opt
+    else raise (mk_HOL_ERR "p4_testLib" "replace_ext_impl" ("extern name "^ext_name^" and/or method name "^method_name^" could not be found in ext_map"))
+   end;
+
+  val actx_list_10 = List.last actx_list;
+  val actx_list' = (actx_list_8first@[ext_map'])@[actx_list_10];
+  val actx' = list_mk_pair actx_list';
+ in
+  actx'
+ end
+;
+
+
 (***********************)
 (* Concurrency-related *)
 

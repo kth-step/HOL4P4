@@ -5,7 +5,7 @@ val _ = new_theory "symb_exec";
 Theorem symb_exec_add_postcond:
 !P f s s' Q.
 (P ==> f s = SOME s') ==>
-Q s' ==>
+(P ==> Q s') ==>
 (P ==> f s = SOME s' /\ Q s')
 Proof
 metis_tac []
@@ -15,6 +15,10 @@ Definition disj_list_def:
 (* (disj_list (h::[]) = h) /\ *)
  (disj_list (h::t) = (h \/ disj_list t)) /\
  (disj_list [] = F)
+End
+
+Definition symb_true_def:
+ symb_true = T
 End
 
 Definition symb_disj_def:
@@ -122,6 +126,12 @@ Theorem symb_conj_case:
 A ==> ((symb_conj A B) <=> B)
 Proof
 fs[symb_conj_def]
+QED
+
+Theorem AND_IMP_INTRO_SYM:
+!A B C. A ==> B ==> C <=> B /\ A ==> C
+Proof
+metis_tac[]
 QED
 
 val _ = export_theory ();

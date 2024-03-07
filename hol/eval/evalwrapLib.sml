@@ -34,14 +34,23 @@ fun unify_same_free_vars ctxt tm =
  * given list of constants   stop_consts1  and  stop_consts2
  * whose definition should not be unfolded in the first and second evaluation
  * step, respectively.
+ * Makes sure to keep LHS unchanged, and to only rewrite when necessary.
  *)
 fun eval_ctxt_gen stop_consts1 stop_consts2 ctxt tm =
   RESTR_EVAL_CONV stop_consts1 tm
   |> PROVE_HYP ctxt
-  |> CONV_RULE $ RAND_CONV
-    (REWRITE_CONV [ctxt] THENC RESTR_EVAL_CONV stop_consts2)
+  |> (fn thm =>
+      let
+       val rhs_with_ctxt_conv =
+        (ONCE_REWRITE_CONV [REWRITE_CONV [ctxt] (rhs $ concl thm)]
+         handle UNCHANGED => ALL_CONV)
+      in
+       (CONV_RULE $ RAND_CONV
+        (rhs_with_ctxt_conv THENC RESTR_EVAL_CONV stop_consts2)) thm
+      end)
   |> DISCH_CONJUNCTS_ALL
 ;
+
 
 (*
  * same as eval_ctxt_gen but unifies free variables in  ctxt_tm  and  tm ,

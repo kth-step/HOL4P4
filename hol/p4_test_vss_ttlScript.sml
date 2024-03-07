@@ -220,7 +220,7 @@ val p4_vss_actx'_tm = list_mk_pair vss_actx_list';
 
 (* Re-definition of p4_vss_actx' *)
 Definition p4_vss_actx'_def:
-  p4_vss_actx' = ^p4_vss_actx'_tm
+  p4_vss_actx' = ^(replace_ext_impl (rhs $ concl p4_vss_actx_def) "Checksum16" "get" “Checksum16_get'”)
 End
 val ctx' = ``p4_vss_actx'``;
 
