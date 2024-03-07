@@ -28,54 +28,52 @@ val symb_exec3_actx = ``([arch_block_inp;
   arch_block_pbl "update" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
   arch_block_pbl "deparser" [e_var (varn_name "b"); e_var (varn_name "hdr")];
   arch_block_out],
- [("p",
-   pblock_regular pbl_type_parser
-     [("p",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),
-       [("b",d_none); ("h",d_out); ("m",d_inout); ("sm",d_inout)])]
-     [(varn_name "sel_e",tau_bit 1,NONE)]
-     [("start",
-       stmt_seq
-         (stmt_seq
-            (stmt_ass lval_null
-               (e_call (funn_ext "packet_in" "extract")
-                  [e_var (varn_name "b"); e_acc (e_var (varn_name "h")) "h"]))
-            (stmt_ass (lval_varname (varn_name "sel_e"))
-               (e_cast (cast_unsigned 1)
-                  (e_acc (e_acc (e_acc (e_var (varn_name "h")) "h") "row")
-                     "e"))))
-         (stmt_trans
-            (e_select (e_var (varn_name "sel_e"))
-               [(v_bit ([T],1),"accept"); (v_bit ([F],1),"reject")] "reject")))]
-     []);
-  ("vrfy",
-   pblock_regular pbl_type_control
-     [("vrfy",stmt_seq stmt_empty stmt_empty,[("h",d_inout); ("m",d_inout)])]
-     [] [] []);
-  ("update",
-   pblock_regular pbl_type_control
-     [("update",stmt_seq stmt_empty stmt_empty,[("h",d_inout); ("m",d_inout)])]
-     [] [] []);
-  ("egress",
-   pblock_regular pbl_type_control
-     [("egress",stmt_seq stmt_empty stmt_empty,
-       [("h",d_inout); ("m",d_inout); ("sm",d_inout)])] [] [] []);
-  ("deparser",
-   pblock_regular pbl_type_control
-     [("deparser",
-       stmt_seq stmt_empty
-         (stmt_ass lval_null
-            (e_call (funn_ext "packet_out" "emit")
-               [e_var (varn_name "b"); e_acc (e_var (varn_name "h")) "h"])),
-       [("b",d_none); ("h",d_in)])] [] [] []);
-  ("ingress",
-   pblock_regular pbl_type_control
-     [("ingress",
-       stmt_seq stmt_empty
-         (stmt_ass
-            (lval_field (lval_varname (varn_name "standard_meta"))
-               "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9)))),
-       [("h",d_inout); ("m",d_inout); ("standard_meta",d_inout)])] [] [] [])],
- [("postparser",ffblock_ff v1model_postparser)],
+ [("p",pbl_type_parser,
+   [("b",d_none); ("h",d_out); ("m",d_inout); ("sm",d_inout)],
+   [("p",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),[])],
+   [(varn_name "sel_e",tau_bit 1,NONE)],
+   [("start",
+     stmt_seq
+       (stmt_seq
+          (stmt_ass lval_null
+             (e_call (funn_ext "packet_in" "extract")
+                [e_var (varn_name "b"); e_acc (e_var (varn_name "h")) "h"]))
+          (stmt_ass (lval_varname (varn_name "sel_e"))
+             (e_cast (cast_unsigned 1)
+                (e_acc (e_acc (e_acc (e_var (varn_name "h")) "h") "row") "e"))))
+       (stmt_trans
+          (e_select (e_var (varn_name "sel_e"))
+             [(v_bit ([T],1),"accept"); (v_bit ([F],1),"reject")]
+             "set_no_match")));
+    ("set_no_match",
+     stmt_ass lval_null
+       (e_call (funn_ext "" "verify")
+          [e_v (v_bool F);
+           e_v
+             (v_bit
+                ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                  F; F; F; F; F; F; F; F; F; F; T; F],32))]))],[]);
+  ("vrfy",pbl_type_control,[("h",d_inout); ("m",d_inout)],
+   [("vrfy",stmt_seq stmt_empty stmt_empty,[])],[],[],[]);
+  ("update",pbl_type_control,[("h",d_inout); ("m",d_inout)],
+   [("update",stmt_seq stmt_empty stmt_empty,[])],[],[],[]);
+  ("egress",pbl_type_control,[("h",d_inout); ("m",d_inout); ("sm",d_inout)],
+   [("egress",stmt_seq stmt_empty stmt_empty,[])],[],[],[]);
+  ("deparser",pbl_type_control,[("b",d_none); ("h",d_in)],
+   [("deparser",
+     stmt_seq stmt_empty
+       (stmt_ass lval_null
+          (e_call (funn_ext "packet_out" "emit")
+             [e_var (varn_name "b"); e_acc (e_var (varn_name "h")) "h"])),[])],
+   [],[],[]);
+  ("ingress",pbl_type_control,
+   [("h",d_inout); ("m",d_inout); ("standard_meta",d_inout)],
+   [("ingress",
+     stmt_seq stmt_empty
+       (stmt_ass
+          (lval_field (lval_varname (varn_name "standard_meta"))
+             "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9)))),[])],
+   [],[],[])],[("postparser",ffblock_ff v1model_postparser)],
  v1model_input_f
    (v_struct
       [("h",
@@ -98,7 +96,13 @@ val symb_exec3_actx = ``([arch_block_inp;
     ("setInvalid",[("this",d_inout)],header_set_invalid)]);
   ("",NONE,
    [("mark_to_drop",[("standard_metadata",d_inout)],v1model_mark_to_drop);
-    ("verify",[("condition",d_in); ("err",d_in)],v1model_verify)]);
+    ("verify",[("condition",d_in); ("err",d_in)],v1model_verify);
+    ("verify_checksum",
+     [("condition",d_in); ("data",d_in); ("checksum",d_in); ("algo",d_none)],
+     v1model_verify_checksum);
+    ("update_checksum",
+     [("condition",d_in); ("data",d_in); ("checksum",d_inout);
+      ("algo",d_none)],v1model_update_checksum)]);
   ("packet_in",NONE,
    [("extract",[("this",d_in); ("headerLvalue",d_out)],
      v1model_packet_in_extract);
@@ -111,7 +115,20 @@ val symb_exec3_actx = ``([arch_block_inp;
      ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct),
    [("read",[("this",d_in); ("result",d_out); ("index",d_in)],register_read);
     ("write",[("this",d_in); ("index",d_in); ("value",d_in)],register_write)])],
- [("NoAction",stmt_seq stmt_empty (stmt_ret (e_v v_bot)),[])]):v1model_ascope actx``;
+ [("NoAction",
+   stmt_seq
+     (stmt_cond (e_var (varn_name "from_table"))
+        (stmt_ass (lval_varname (varn_name "gen_apply_result"))
+           (e_struct
+              [("hit",e_var (varn_name "hit"));
+               ("miss",e_unop unop_neg (e_var (varn_name "hit")));
+               ("action_run",
+                e_v
+                  (v_bit
+                     ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                       F; F; F; F; F; F; F; F; F; F; F; F; F; F],32)))]))
+        stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
+   [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
 val symb_exec3_astate_symb = rhs $ concl $ EVAL “(p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;

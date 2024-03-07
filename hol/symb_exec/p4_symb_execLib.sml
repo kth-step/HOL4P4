@@ -26,9 +26,7 @@ fun get_b_func_map i ab_list pblock_map =
    in
     case List.find (fn (name, data) => term_eq name arch_block_name) ((map dest_pair) $ fst $ dest_list pblock_map) of
       SOME (_, pblock) =>
-     if is_pblock_regular pblock 
-     then SOME $ #2 $ dest_pblock_regular pblock
-     else NONE
+     SOME $ #3 $ dest_pblock pblock
     | NONE => NONE
    end
   else NONE
@@ -106,7 +104,6 @@ fun get_f_maps (astate, actx) =
   val (ab_list, pblock_map, _, _, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
   val (aenv, _, _, _) = dest_astate astate
   val (i, _, _, _) = dest_aenv aenv
-  val b_func_map_opt = get_b_func_map i ab_list pblock_map
  in
   case get_b_func_map i ab_list pblock_map of
     SOME b_func_map => (func_map, b_func_map, ext_fun_map)
