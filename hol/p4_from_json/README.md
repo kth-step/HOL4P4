@@ -36,22 +36,20 @@ The most significant program transformation concerns inlining of nested blocks. 
 When instantiated blocks are applied (called), the apply block (body) of the nested block is inlined in the parent block, with all variables and tables prefixed with the instance name. The copy-in copy-out mechanism of block parameters is handled as follows:
 
 Copy-in:
-	* If the parameter is out, then the (prefixed) parameter is havoc-ed (by using arb_from_tau to assign a value with all bits as ARBs to it)
-	* Otherwise, assign the argument to the (prefixed) parameter.
+* If the parameter is `out`, then the (prefixed) parameter is havoc-ed (by using `arb_from_tau` to assign a value with all bits as `ARB`s to it)
+* Otherwise, assign the argument to the (prefixed) parameter.
 	
 Copy-out:
-	* If the parameter is out or inout, then assign the (prefixed) parameter to the L-value of the argument.
-	* Otherwise, do nothing (note that this is safe since the import tool will halt with an error if prefixed variables of the inlined programmable block intersect with those of the parent block)
-	
+* If the parameter is `out` or `inout`, then assign the (prefixed) parameter to the L-value of the argument.
+* Otherwise, do nothing (note that this is safe since the import tool will halt with an error if prefixed variables of the inlined programmable block intersect with those of the parent block)
+
 Actions (local functions) of inlined blocks must be able to access the block variables of their respective block. For this reason, all block variables of the nested block are added (prefixed) to the declaration list of the parent block (as opposed to being introduced inside a block) with their copy-out L-values set to NONE.
 
-As an exception to the above, the local function maps `b_func_map` of the parent and child blocks are merged with no prefixing of action names, with the import tool halting with an error if name collisions are found for different entries.
+The local function maps `b_func_map` of the parent and child blocks are merged with action names prefixed in the latter, with the import tool halting with an error if name collisions are found for different entries.
 
 After processing the entire program is complete, blocks which only occur as nested blocks will be removed from the pblock_map to avoid clutter.
 	
 Note that if the same block is instantiated twice, it uses different tables, while if it is instantiated once but applied twice, the same table is used.
-
-This method cannot distinguish between tables of the same name in non-nested control blocks, nor between instances of the same name in separate programmable blocks. To avoid name collisions across nestings, all table names with dots are disallowed by the import tool.
 
 Also, this method does not permit nested blocks from using a return statement to finish. Accordingly, the import tool halts with an error if inlining of programmable blocks with bodies containing return statements is attempted.
 
@@ -59,7 +57,7 @@ The new programmable block-variables resulting from the above procedure will be 
 
 ### Select expressions
 
-Select expressions with no default case will get a new default case that maps to the state "set_no_match", which contains only a "verify(false, error.NoMatch)" statement. The import tool will halt with an error if "set_no_match" is encountered among the regular states of the P4 program. The "set_no_match" state will only appear in programs with default-less select expressions.
+Select expressions with no default case will get a new default case that maps to the state `set_no_match`, which contains only a `verify(false, error.NoMatch)` statement. The import tool will halt with an error if `set_no_match` is encountered among the regular states of the P4 program. The `set_no_match` state will only appear in programs with default-less select expressions.
 
 ### Table application in expressions
 
@@ -83,3 +81,46 @@ Use `debug_arch_from_step`:
 ```
  val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "text_arch" test_name_actx test_name_astate nsteps
 ```
+
+## Adding your own tests
+Before performing the steps below, make sure you have ran `make hol && cd hol/p4_from_json && Holmake` in the `HOL4P4` directory to compile the necessary theories (alternatively, `make validate`, which will also run the tests).
+
+Adding your own tests in the same style as HOL4P4’s validation tests is simple. To do so, start by taking the P4 program you would want to test and place it in `hol/p4_from_json/user_tests`. For example, take `hol/p4_from_json/validation_tests/arith2-bmv2.p4` with some small modification. Then, you need to add a STF specification (see e.g. `hol/p4_from_json/validation_tests/arith2-bmv2.stf`):
+
+```
+# header = { bit<32> a; bit<32> b; bit<8> c; }
+# In the output C = A < B
+
+packet 0 00000000 00000001 00
+expect 0 00000000 00000001 01
+
+packet 0 00000000 00000000 00
+expect 0 00000000 00000000 00
+
+packet 0 00000001 00000000 00
+expect 0 00000001 00000000 00
+
+packet 0 00000001 00000002 00
+expect 0 00000001 00000002 01
+
+packet 0 00000011 00000022 00
+expect 0 00000011 00000022 01
+
+packet 0 FFFFFFFF 00000001 00
+expect 0 FFFFFFFF 00000001 00
+
+packet 0 FFFFFFFF FFFFFFFE 00
+expect 0 FFFFFFFF FFFFFFFE 00
+```
+
+Here, `packet` signifies the incoming packet and `expect` the outgoing one, with the first 0 after each of these commands being the port number. You may use * for wildcard bits in both input and output. Adapt as needed for your program, copy the `Holmakefile` from `hol/p4_from_json/validation_tests/` to `hol/p4_from_json/user_tests`, and then run
+
+```
+./petr4_json_export.sh user_tests/ p4include/
+
+./petr4_to_hol4p4_dir.sh user_tests/
+```
+
+in the `hol/p4_from_json` directory, generating the .sml file (note that hyphens in the .p4 file name will also be replaced with underscores). `petr4_to_hol4p4_dir.sh` takes an optional second argument which is the number of threads which should perform the conversions in parallel, in case you have extra horsepower to spare. To compile the test, then run
+
+	cd user_tests && Holmake arith2_bmv2Theory
