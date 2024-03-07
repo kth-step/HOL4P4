@@ -83,3 +83,46 @@ Use `debug_arch_from_step`:
 ```
  val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "text_arch" test_name_actx test_name_astate nsteps
 ```
+
+## Adding your own tests
+Before performing the steps below, make sure you have ran `make hol && cd hol/p4_from_json && Holmake` in the `HOL4P4` directory to compile the necessary theories (alternatively, `make validate`, which will also run the tests).
+
+Adding your own tests in the same style as HOL4P4’s validation tests is simple. To do so, start by taking the P4 program you would want to test and place it in `hol/p4_from_json/user_tests`. For example, take `hol/p4_from_json/validation_tests/arith2-bmv2.p4` with some small modification. Then, you need to add a STF specification (see e.g. `hol/p4_from_json/validation_tests/arith2-bmv2.stf`):
+
+```
+# header = { bit<32> a; bit<32> b; bit<8> c; }
+# In the output C = A < B
+
+packet 0 00000000 00000001 00
+expect 0 00000000 00000001 01
+
+packet 0 00000000 00000000 00
+expect 0 00000000 00000000 00
+
+packet 0 00000001 00000000 00
+expect 0 00000001 00000000 00
+
+packet 0 00000001 00000002 00
+expect 0 00000001 00000002 01
+
+packet 0 00000011 00000022 00
+expect 0 00000011 00000022 01
+
+packet 0 FFFFFFFF 00000001 00
+expect 0 FFFFFFFF 00000001 00
+
+packet 0 FFFFFFFF FFFFFFFE 00
+expect 0 FFFFFFFF FFFFFFFE 00
+```
+
+Here, `packet` signifies the incoming packet and `expect` the outgoing one, with the first 0 after each of these commands being the port number. You may use * for wildcard bits in both input and output. Adapt as needed for your program, copy the `Holmakefile` from `hol/p4_from_json/validation_tests/` to `hol/p4_from_json/user_tests`, and then run
+
+```
+./petr4_json_export.sh user_tests/ p4include/
+
+./petr4_to_hol4p4_dir.sh user_tests/
+```
+
+in the `hol/p4_from_json` directory, generating the .sml file (note that hyphens in the .p4 file name will also be replaced with underscores). `petr4_to_hol4p4_dir.sh` takes an optional second argument which is the number of threads which should perform the conversions in parallel, in case you have extra horsepower to spare. To compile the test, then run
+
+	cd user_tests && Holmake arith2_bmv2Theory

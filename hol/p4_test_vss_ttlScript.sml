@@ -13,9 +13,12 @@ open alistTheory;
 
 (* This file includes complete test runs of the VSS example in the P4 spec for a TTL that is low enough to send the packet to CPU, with the bits in other fields that don't affect this computation set to free variables. *)
 
+(******************************)
+(*   Example program terms    *)
+(******************************)
+
 (*********************)
 (*   Input packets   *)
-(*********************)
 
 (* TODO: Currently the input is Ethernet frames *)
 
@@ -34,7 +37,6 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 
 (*********************)
 (*   Initial state   *)
-(*********************)
 
 (* OK input at port 1 *)
 val init_inlist_ok = mk_list ([mk_pair (input_ok, input_port_ok)], ``:in_out``);
@@ -109,14 +111,16 @@ val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_
 val init_aenv = ``(^(list_mk_pair [``0:num``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
 
 (* TODO: Make syntax functions *)
+(* The initial architectural state *)
 val init_astate =
  ``(^(pairSyntax.list_mk_pair [init_aenv,
                                mk_list ([vss_init_global_scope], scope_ty),
                                arch_frame_list_empty_tm,
                                status_running_tm])):vss_ascope astate``;
 
-(*******************************************)
-(*   Architecture-level semantics tests    *)
+(***************************************)
+(*   Data non-interference theorems    *)
+(***************************************)
 
 val ctx = ``p4_vss_actx``;
 val stop_consts_rewr = [``compute_checksum16``];
@@ -167,14 +171,18 @@ val ass2 =
      v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = vss_updated_checksum16 [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
 val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 
-(* 180 steps for TTL=1 packet to get forwarded to CPU *)
-
-(* Solution: Use stepwise EVAL with assumptions *)
+(*************************************************)
+(* Version 1: Use stepwise EVAL with assumptions *)
 (* Takes around 20 seconds to run *)
 
+(* 180 steps for TTL=1 packet to get forwarded to CPU *)
+
+(* Theorem on line below proves data non-interference using proof approach 1 *)
 GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 180;
 
-(* Solution: Use EVAL directly with re-defined function that has a property that easily enables the theorem.
+
+(************************************************************************************************************)
+(* Version 2: Use EVAL directly with re-defined function that has a property that easily enables the theorem.
  * This re-defined function should have no effect on the theorem statement other than through this property *)
 (* Takes around 2 seconds to run *)
 
@@ -217,12 +225,17 @@ End
 val ctx' = ``p4_vss_actx'``;
 
 (* EVAL-uate until packet is output (happens to be step 180) *)
+(* Theorem on line below proves data non-interference using proof approach 2 *)
 GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 180``;
 
-(* Solution: Use repeated EVAL-under-assumptions *)
+
+(**************************************************)
+(* Version 3: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
 (* Takes 58 steps, then another 100, then 13 *)
+(* Theorem on line below proves data non-interference using proof approach 3 *)
 GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [64, 103, 13];
+
 
 val _ = export_theory ();
