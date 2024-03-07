@@ -1564,13 +1564,25 @@ val bitv_binop_def = Define `
     else NONE
 `;
 
+Definition bit_eq_def:
+ (bit_eq (T, T) = T) /\
+ (bit_eq (T, F) = F) /\
+ (bit_eq (F, T) = F) /\
+ (bit_eq (F, F) = T)
+End
+
+Definition word_eq_def:
+ (word_eq w1 w2 =
+  AND_EL (MAP bit_eq (ZIP(w2v w1, w2v w2))))
+End
+
 val get_word_binpred_def = Define `
     (get_word_binpred binop_le = word_ls)
 /\  (get_word_binpred binop_ge = word_hs)
 /\  (get_word_binpred binop_lt = word_lo)
 /\  (get_word_binpred binop_gt = word_hi)
-/\  (get_word_binpred binop_neq = (\w1 w2. ~(w1 = w2)))
-/\  (get_word_binpred binop_eq = (\w1 w2. w1 = w2))
+/\  (get_word_binpred binop_neq = (\w1 w2. ~(word_eq w1 w2)))
+/\  (get_word_binpred binop_eq = (\w1 w2. word_eq w1 w2))
 `;
 
 val bitv_binpred_inner_def = Define `
