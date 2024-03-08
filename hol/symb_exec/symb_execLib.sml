@@ -23,7 +23,7 @@ fun insert_nodes' empty (at_id, thm, new_nodes) _ = NONE
     else
      case insert_nodes' (hd nodes) (at_id, new_thm, new_nodes) [] of
        SOME new_node =>
-      SOME (node (id, new_thm, nodes_temp@(new_node::(tl nodes))))
+      SOME (node (id, thm, nodes_temp@(new_node::(tl nodes))))
      | NONE =>
       insert_nodes' (node (id, thm, tl nodes)) (at_id, new_thm, new_nodes) (nodes_temp@[hd nodes]);
 
@@ -111,15 +111,21 @@ val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
       (* 4. Remove the path condition as conjunct from the list entries, keeping it as an assumption *)
       (* TODO: Here, path condition can be simplified. But then it also becomes harder to
        * rewrite with... *)
-      val path_disj_thm5 = SIMP_RULE (pure_ss++boolSimps.CONG_ss) [symb_conj_case, EQ_REFL] (DISCH_ALL path_disj_thm4);
-      val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
+      (* TODO: Don't translate back and forth to symb_true here, do once and for all and at end *)
+      val path_disj_thm4' = PURE_REWRITE_RULE [GSYM symb_true_def] (DISCH_ALL path_disj_thm4)
 
+      val path_disj_thm5 = SIMP_RULE ((pure_ss++boolSimps.BOOL_ss++boolSimps.CONG_ss)-*["NOT_CLAUSES"]) [CONJUNCT2 NOT_CLAUSES, symb_conj_case, EQ_REFL] path_disj_thm4';
+
+      val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
+      val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
+ 
+      val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
 
       (* TODO: OPTIMIZE: Check if branch results in just one new path - then we don't need to add
        * a new node to the tree, just replace data in the existing one *)
       val (npaths', new_path_elems) =
        foldl
-        (fn (path_cond, (curr_path_id, curr_path_cond_list)) =>
+        (fn ((path_cond, branch_cond), (curr_path_id, curr_path_cond_list)) =>
 	 (curr_path_id+1,
 	  (* TODO: OPTIMIZE: Cons instead of append? will reverse order *)
           (* New path IDs are assigned in increments of 1 from the existing max (npaths) *)
@@ -128,14 +134,17 @@ val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
 				 path_cond,
                                  (* The current step theorem, rewritten using the path condition as
                                   * a theorem (will add path condition as a premise) *)
-				 DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm,
+                                 (* Old: *)
+                                 (* DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm *)
+                                 (* New, a bit of a silly hack: *)
+                                 PURE_REWRITE_RULE [SPEC branch_cond AND_IMP_INTRO_SYM] $ DISCH_CONJUNCTS_ALL $ ADD_ASSUM branch_cond step_thm,
                                  (* Branching consumes 1 fuel *)
 				 fuel-1,
                                  (* This flags tells the symbolic execution to not branch this
                                   * path on next encounter *)
 				 true)])))
         (npaths, [])
-        (map ASSUME new_path_conds)
+        (zip (map ASSUME new_path_conds) new_branch_cond_tms)
 
       (* The new path tree nodes are mostly placeholders until further branches take place,
        * but they do already store the path ID (first element) *)
@@ -144,7 +153,7 @@ val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
 
       (* This updates the node holding the path which was branched: it now gets assigned a
        * path disjunction theorem *)
-      val new_path_tree = insert_nodes path_tree (path_id, path_disj_thm6, new_path_nodes)
+      val new_path_tree = insert_nodes path_tree (path_id, path_disj_thm7, new_path_nodes)
      in
 (*
 val npaths = npaths'

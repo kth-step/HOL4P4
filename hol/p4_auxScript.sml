@@ -2290,6 +2290,19 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
+(* TODO: Hack to eliminate lots of syntax fiddling in p4_testLib *)
+Definition ext_map_replace_impl_def:
+ (ext_map_replace_impl ext_map ext_name method_name new_impl =
+  case ALOOKUP ext_map ext_name of
+  | SOME (constructor, methods) =>
+   (case ALOOKUP methods method_name of
+    | SOME (args, old_impl) =>
+     SOME $ AUPDATE ext_map (ext_name, (constructor, AUPDATE methods (method_name, (args, new_impl))))
+    | NONE => NONE)
+  | NONE => NONE
+ )
+End
+
 (* Replaces the input list with a single input in a given architectural state *)
 Definition p4_replace_input_def:
  p4_replace_input input (astate:'a astate) =

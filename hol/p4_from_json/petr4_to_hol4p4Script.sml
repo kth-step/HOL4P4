@@ -744,11 +744,11 @@ Definition exp_to_p_tau_def:
    \n. n_of_e_bitv lo >>=
    \n'. SOME (p_tau_bit ((n - n') + 1))
   | (e_call funn e_l) =>
-   (* Lookahead exception: first arg is dummy type argument *)
+   (* Lookahead exception: second arg is dummy type argument *)
    if funn = (funn_ext "packet_in" "lookahead")
    then
     (case e_l of
-     | [e] => exp_to_p_tau (vtymap, ftymap) e
+     | [e1;e2] => exp_to_p_tau (vtymap, ftymap) e2
      | _ => NONE)
    else
     (ALOOKUP ftymap funn >>=
@@ -1138,9 +1138,30 @@ Definition petr4_parse_expression_gen_def:
         | (e_var (varn_name tbl_name)) =>
          SOME_msg (InlineApp [tbl_name] (e_var (varn_name tbl_name)))
         | _ => get_error_msg "could not parse table name: " func_name)
-      (* validity manipulation is modeled in HOL4P4 as a method call *)
-      | SOME (SOME res_validity, SOME validity_arg) =>
-       SOME_msg (Exp (e_call res_validity [validity_arg]))
+      (* Extern method calls. Also, validity manipulation is modeled in HOL4P4 as a
+       * method call *)
+      | SOME (SOME ext_method, SOME ext_arg) =>
+      (* TODO: Do type inference for method calls *)
+(*
+       (case find_fty_match_args ftymap ext_method (LENGTH args) of
+        | SOME (arg_tys, ret_ty) =>
+*)
+         (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, REPLICATE (LENGTH args) NONE)) of
+          | SOME_msg res_args =>
+           (* TODO: Here, check if function's arguments has incomplete type information.
+            * If so, parse tyargs to types, then create a dummy values for them and pass as arguments *)
+           if incomplete_typeinf ext_method
+           then
+            (case get_typeinf_dummy_args tyenv tyargs of
+             | SOME_msg dummy_args =>
+              SOME_msg (Exp (e_call ext_method (([ext_arg]++res_args)++dummy_args)))
+             | NONE_msg dummy_msg => NONE_msg ("could not parse method call type arguments: "++dummy_msg))
+           else
+            SOME_msg (Exp (e_call ext_method ([ext_arg]++res_args)))
+          | NONE_msg func_name_msg => NONE_msg ("could not parse method call arguments: "++func_name_msg))
+(*
+        | NONE => get_error_msg "could not retrieve type of method call: " func_name)
+*)
       | _ => get_error_msg "could not parse called function name: " func_name)
     | _ => get_error_msg "unknown format of called function name: " func_name)
   (* Bit slice *)
@@ -3186,7 +3207,7 @@ Definition petr4_parse_trans_def:
            | NONE => 
             SOME_msg (stmt_trans (e_select exp_res cases_res "set_no_match"), T))
          | NONE_msg cases_msg => get_error_msg (cases_msg++" while parsing transition: ") (Array trans))
-       | NONE => get_error_msg "could not parse type of " (Array exps))
+       | NONE => get_error_msg "could not parse type of transition expressions: " (Array exps))
      | NONE_msg exps_msg => get_error_msg (exps_msg++" while parsing transition: ") (Array trans)
      | _ => get_error_msg ("lists of expressions in select statements not supported, encountered while parsing transition: ") (Array trans))
   | _ => get_error_msg "unknown JSON format of transition: " (Array trans)

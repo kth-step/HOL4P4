@@ -26,9 +26,7 @@ fun get_b_func_map i ab_list pblock_map =
    in
     case List.find (fn (name, data) => term_eq name arch_block_name) ((map dest_pair) $ fst $ dest_list pblock_map) of
       SOME (_, pblock) =>
-     if is_pblock_regular pblock 
-     then SOME $ #2 $ dest_pblock_regular pblock
-     else NONE
+     SOME $ #3 $ dest_pblock pblock
     | NONE => NONE
    end
   else NONE
@@ -106,7 +104,6 @@ fun get_f_maps (astate, actx) =
   val (ab_list, pblock_map, _, _, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
   val (aenv, _, _, _) = dest_astate astate
   val (i, _, _, _) = dest_aenv aenv
-  val b_func_map_opt = get_b_func_map i ab_list pblock_map
  in
   case get_b_func_map i ab_list pblock_map of
     SOME b_func_map => (func_map, b_func_map, ext_fun_map)
@@ -320,6 +317,9 @@ fun next_subexp_has_free_vars (func_map, b_func_map, ext_fun_map) e =
  | NONE => false
 ;
 
+(* (debugging from astate_get_next_e_syntax_f)
+val stmt = (el 1 stmt_stack')
+*)
 fun stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) stmt =
  if is_stmt_empty stmt
  then NONE
@@ -342,14 +342,7 @@ fun stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) stmt =
    else SOME (#1 o dest_stmt_cond)
   end
  else if is_stmt_block stmt
- then
-  let
-   val (t_scope, stmt') = dest_stmt_block stmt
-  in
-   (case stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) stmt' of
-      SOME f => SOME (f o snd o dest_stmt_block)
-    | NONE => NONE)
-  end
+ then NONE
  else if is_stmt_ret stmt
  then 
   let
@@ -399,6 +392,13 @@ fun get_next_e (func_map, b_func_map, ext_fun_map) stmt =
  | NONE => NONE
 ;
 
+fun get_first_frame_components frame_list =
+ (* To avoid warnings *)
+  case strip_pair (el 1 frame_list) of
+    [funn, stmt_stack, scope_list] => (funn, stmt_stack, scope_list)
+  | _ => raise (ERR "astate_get_next_e_syntax_f" ("Unknown frame format: "^(term_to_string (el 1 frame_list))))
+;
+
 fun astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate =
  let
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate
@@ -413,13 +413,16 @@ fun astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate =
     then NONE
     else
      let
-      val [funn, stmt_stack, scope_list] = strip_pair (el 1 frame_list)
+      val (funn, stmt_stack, scope_list) = get_first_frame_components frame_list
       val stmt_stack' = fst $ dest_list stmt_stack
      in
       if null stmt_stack'
       then NONE
       else
       (case stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) (el 1 stmt_stack') of
+(*
+val SOME next_e_syntax_f = stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) (el 1 stmt_stack')
+*)
          SOME next_e_syntax_f =>
         SOME (next_e_syntax_f o (el 1) o fst o dest_list o (el 2) o strip_pair o (el 1) o fst o dest_list o dest_arch_frame_list_regular o #3 o dest_astate)
        | NONE => NONE)
@@ -443,7 +446,7 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
     then NONE
     else
      let
-      val [funn, stmt_stack, scope_list] = strip_pair (el 1 frame_list)
+      val (funn, stmt_stack, scope_list) = get_first_frame_components frame_list
       val stmt_stack' = fst $ dest_list stmt_stack
      in
       if null stmt_stack'
@@ -618,9 +621,15 @@ val tm = (mk_arch_multi_exec (ctx, astate, 1));
   val next_e_opt = astate_get_next_e (func_map, b_func_map, ext_fun_map) astate
   val extra_rewr_thms =
    (case astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate of
+(*
+val SOME next_e_syntax_f = astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate
+*)
       NONE => [] (* Reduction did not even consider reducing an e *)
     | SOME next_e_syntax_f =>
      (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate) of
+(*
+val SOME next_subexp_syntax_f = e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate)
+*)
         SOME next_subexp_syntax_f =>
        let
         val next_subexp = next_subexp_syntax_f (next_e_syntax_f astate)
@@ -645,7 +654,12 @@ val tm = (mk_arch_multi_exec (ctx, astate, 1));
  in
   SIMP_RULE simple_arith_ss extra_rewr_thms
    (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2)
+  handle (HOL_ERR exn) =>
+   raise (if (is_none $ rhs $ snd $ dest_imp $ concl step_thm2)
+        then (ERR "" ("Unexpected reduction to NONE from frame list: "^(term_to_string $ #3 $ dest_astate $ the_final_state_imp step_thm)))
+        else (HOL_ERR exn))
  end
+  handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn))
 ;
 
 (* Function that decides whether a HOL4P4 program is finished or not *)
@@ -736,6 +750,7 @@ val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
    in
     p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, t)) (path_tree_list_leafs@[ctthm'])
    end
+  | p4_unify_path_tree' _ _ _ = raise (ERR "p4_unify_path_tree" "Unknown path tree format")
 in 
 fun p4_unify_path_tree id_ctthm_list path_tree =
  p4_unify_path_tree' id_ctthm_list path_tree []
@@ -747,8 +762,10 @@ end
 fun p4_prove_postcond rewr_thms postcond step_thm =
  let
   val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
+  val (hypo, step_tm) = dest_imp $ concl step_thm
+  val res_state_tm = dest_some $ snd $ dest_eq step_tm
   (* TODO: OPTIMIZE: srw_ss??? *)
-  val postcond_thm = EQT_ELIM $ SIMP_CONV (srw_ss()) rewr_thms $ mk_comb (postcond, the_final_state_imp step_thm)
+  val postcond_thm = EQT_ELIM $ SIMP_CONV (srw_ss()) rewr_thms $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
  in
   MATCH_MP prel_res_thm postcond_thm
  end
@@ -790,6 +807,28 @@ fun p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_co
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
  in
   unified_ct_thm
+ end
+;
+
+fun dest_step_thm step_thm =
+ dest_astate $ dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
+;
+
+fun p4_debug_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+ let
+  val (path_tree, state_list) = p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel
+  val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
+ in
+  (path_tree, state_list_tms)
+ end
+;
+
+fun p4_debug_symb_exec_frame_lists arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+ let
+  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel
+  val arch_frame_list_tms = map (fn (path_id, path_cond, (tm1, tm2, tm3, tm4)) => tm3) state_list_tms
+ in
+  (path_tree, arch_frame_list_tms)
  end
 ;
 
