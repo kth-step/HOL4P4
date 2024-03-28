@@ -987,7 +987,10 @@ Definition petr4_parse_expression_gen_def:
            (case fromDecString value_str of
             | SOME n => SOME_msg (Exp (e_v (v_bit (fixwidth w (n2v n), w))))
             | NONE => NONE_msg ("could not parse string to integer: "++value_str))
-          | NONE => get_error_msg "could not obtain width of expression type: " exp)
+          | NONE =>
+           (case fromDecString value_str of
+            | SOME n => SOME_msg (Number n)
+            | NONE => NONE_msg ("could not parse string to integer after failing to obtain width of expression type: "++value_str)))
         | NONE =>
          (case fromDecString value_str of
           | SOME n => SOME_msg (Number n)
