@@ -199,25 +199,6 @@ Definition Checksum16_get':
  )
 End
 
-(* Re-definition of vss_ext_map *)
-val vss_Checksum16_map' =
- ``[("clear", ([("this", d_in)], Checksum16_clear));
-    ("update", ([("this", d_in); ("data", d_in)], Checksum16_update));
-    ("get", ([("this", d_in)], Checksum16_get'))]``;
-val vss_ext_map' =
- ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
-    ++ [("", (NONE, (^vss_objectless_map)));
-        ("packet_in", (NONE, (^vss_packet_in_map)));
-        ("packet_out", (NONE, (^vss_packet_out_map)));
-        ("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map'))]):vss_ascope ext_map``;
-
-
-val vss_actx_list = spine_pair $ rhs $ concl p4_vss_actx_def;
-val vss_actx_list_8first = List.take (vss_actx_list, 8);
-val vss_actx_list_10 = List.last vss_actx_list;
-val vss_actx_list' = (vss_actx_list_8first@[vss_ext_map'])@[vss_actx_list_10];
-val p4_vss_actx'_tm = list_mk_pair vss_actx_list';
-
 (* Re-definition of p4_vss_actx' *)
 Definition p4_vss_actx'_def:
   p4_vss_actx' = ^(replace_ext_impl (rhs $ concl p4_vss_actx_def) "Checksum16" "get" “Checksum16_get'”)
@@ -233,7 +214,7 @@ GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 180``;
 (* Version 3: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
-(* Takes 58 steps, then another 100, then 13 *)
+(* Takes 64 steps, then another 103, then 13 *)
 (* Theorem on line below proves data non-interference using proof approach 3 *)
 GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [64, 103, 13];
 

@@ -39,15 +39,11 @@ fun unify_same_free_vars ctxt tm =
 fun eval_ctxt_gen stop_consts1 stop_consts2 ctxt tm =
   RESTR_EVAL_CONV stop_consts1 tm
   |> PROVE_HYP ctxt
+  (* TODO: Why doesn't RIGHT_CONV_RULE work? *)
   |> (fn thm =>
-      let
-       val rhs_with_ctxt_conv =
-        (ONCE_REWRITE_CONV [REWRITE_CONV [ctxt] (rhs $ concl thm)]
-         handle UNCHANGED => ALL_CONV)
-      in
-       (CONV_RULE $ RAND_CONV
-        (rhs_with_ctxt_conv THENC RESTR_EVAL_CONV stop_consts2)) thm
-      end)
+      (CONV_RULE $ RAND_CONV
+       ((ONCE_REWRITE_CONV [REWRITE_CONV [ctxt] (rhs $ concl thm)]
+	handle UNCHANGED => ALL_CONV) THENC RESTR_EVAL_CONV stop_consts2)) thm)
   |> DISCH_CONJUNCTS_ALL
 ;
 
