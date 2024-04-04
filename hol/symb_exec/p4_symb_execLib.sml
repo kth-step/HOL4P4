@@ -889,6 +889,16 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, s
 
   val astate = the_final_state_imp step_thm
   val (func_map, b_func_map, ext_fun_map) = get_f_maps (astate, ctx)
+
+  (* DEBUG *)
+  val _ =
+   if debug_flag
+   then
+    case astate_get_top_stmt astate of
+       NONE => ()
+     | SOME stmt => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
+   else ()
+
     val step_thm2 = eval_ctxt path_cond astate
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["evaluation-in-context: ",
