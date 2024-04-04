@@ -1,3 +1,13 @@
+"""
+This script is used to analyze verbose output of the P4 symbolic executor.
+
+Copy-paste the output in the HOL4 REPL to a log file, then run this script on the file.
+Make sure to not accidentally copy over results from multiple runs.
+
+Usage: python3 count_reds.py [logfile]
+"""
+
+
 import re
 import sys
 
