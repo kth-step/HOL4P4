@@ -184,6 +184,6 @@ val (res_id1, res_cond1, res_thm1) = res_elem1
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
 
 val _ = export_theory ();

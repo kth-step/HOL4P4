@@ -2,9 +2,12 @@ signature p4_testLib =
 sig
   include Abbrev
 
+val fixedwidth_freevars : string * int -> term
+
 val mk_ipv4_packet_ok : term -> int -> term
 val mk_ipv4_packet_ok_ttl : term -> int -> term
 val mk_eth_frame_ok : term -> term
+val mk_symb_packet : int -> term
 
 val get_actx : thm -> term
 val simple_arith_ss : simpLib.simpset

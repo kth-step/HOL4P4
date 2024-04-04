@@ -3024,12 +3024,7 @@ Definition petr4_process_properties_def:
               | SOME_msg arch_props_res =>
                (case key_mk_tau_list of
                 | [] =>
-                 if (FST default_action) = "NoAction"
-                 then
-                  (case action_names of
-                   | [action_name] => SOME_msg ([], (action_name, add_desugar_args F []), entries)
-                   | _ => SOME_msg ([], default_action, entries))
-                 else SOME_msg ([], default_action, entries)
+                 SOME_msg ([], default_action, entries)
                 | _ => SOME_msg (key_mk_tau_list, default_action, entries))
               | NONE_msg arch_props_msg => NONE_msg arch_props_msg)
             | NONE_msg entries_props_msg => NONE_msg entries_props_msg)

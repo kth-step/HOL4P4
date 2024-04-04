@@ -194,6 +194,6 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
 
 val _ = export_theory ();

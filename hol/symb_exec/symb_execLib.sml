@@ -94,7 +94,7 @@ val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
       val path_cond_tm = concl path_cond
       val path_disj_thm = CONJ path_cond disj_thm;
       val disj_list_rewr_thm = PURE_REWRITE_RULE [MAP, BETA_THM] (SPECL [path_cond_tm, dest_disj_list' $ concl disj_thm] disj_list_CONJ);
-      val path_disj_thm2 = PURE_REWRITE_RULE [disj_list_rewr_thm] path_disj_thm;
+      val path_disj_thm2 = PURE_REWRITE_RULE [MAP, BETA_THM, disj_list_rewr_thm] path_disj_thm;
 
       (* 2. Get theorems stating contradictions - or other simplifications - among
        * any of the disjuncts *)
@@ -118,7 +118,7 @@ val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
 
       val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
       val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
- 
+
       val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
 
       (* TODO: OPTIMIZE: Check if branch results in just one new path - then we don't need to add
@@ -135,7 +135,7 @@ val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
                                  (* The current step theorem, rewritten using the path condition as
                                   * a theorem (will add path condition as a premise) *)
                                  (* Old: *)
-                                 (* DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm *)
+				 (* DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm *)
                                  (* New, a bit of a silly hack: *)
                                  PURE_REWRITE_RULE [SPEC branch_cond AND_IMP_INTRO_SYM] $ DISCH_CONJUNCTS_ALL $ ADD_ASSUM branch_cond step_thm,
                                  (* Branching consumes 1 fuel *)
@@ -168,8 +168,17 @@ val nobranch_flag = true
     | NONE =>
      (* Do not branch - compute one regular step *)
      let
+
+      (* DEBUG *)
+      val time_start = Time.now();
+
       val next_step_thm =
        lang_regular_step (path_cond, step_thm)
+      val _ = print (String.concat ["Finished regular symbolic execution step of path ID ",
+                                    (Int.toString path_id), " in ",
+                                    (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+                                    " ms, fuel remaining: ",
+                                    (Int.toString (fuel - 1)), "\n"])
      in
       if lang_is_finished next_step_thm
       then
