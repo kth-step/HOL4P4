@@ -183,6 +183,21 @@ val e_header_tm : term
 val is_e_header : term -> bool
 val mk_e_header : term * term -> term
 
+val dest_s_sing : term -> term
+val is_s_sing : term -> bool
+val mk_s_sing : term -> term
+val s_sing_tm : term
+val dest_s_range : term -> term * term
+val is_s_range : term -> bool
+val mk_s_range : term * term -> term
+val s_range_tm : term
+val dest_s_mask : term -> term * term
+val is_s_mask : term -> bool
+val mk_s_mask : term * term -> term
+val s_mask_tm : term
+val s_univ_tm : term
+val is_s_univ : term -> bool
+
 val d_in_tm : term
 val is_d_in : term -> bool
 val d_out_tm : term

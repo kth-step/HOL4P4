@@ -551,10 +551,35 @@ fun p4_should_branch step_thm =
   | select (e, keys, def) =>
     if is_e_v e andalso not $ null $ free_vars e
     then
-     let
-      val sel_val = dest_e_v e
-     in
-      if is_v_bit sel_val
+     if is_v_struct $ dest_e_v e
+     then
+      let
+       val struct_list = dest_v_struct_fields $ dest_e_v e
+       (* TODO: Use syntax function for match_all *)
+       val key_branch_conds = map (fn key => key_conv ``match_all $ ZIP( ^(mk_list(struct_list, ``:v``)) , FST ^key)``) keys
+       val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
+
+       val key_branch_conds' = snd $ foldl (fn (a,(b,c)) => (if null b then b else tl b , (if length b = 1 then a else mk_conj ((list_mk_conj (tl b)), a))::c) ) (key_branch_conds_neg, []) (rev key_branch_conds)
+
+       (* 4. Construct default branch case: i.e., neither of the above hold *)
+       val def_branch_cond = list_mk_conj key_branch_conds_neg
+       (* Check is default case is even possible to reach *)
+       val def_branch_cond_thm = SIMP_CONV bool_ss [match_all_def, match_def, p4Theory.s_case_def, pairTheory.CLOSED_PAIR_EQ, p4Theory.v_11, listTheory.CONS_11, satTheory.AND_INV] def_branch_cond
+
+       (* 5. Construct disjunction theorem, which now is not a strict disjunction *)
+       (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
+	* specialisation or rewrites, and not in-place with tactics *)
+       val disj_thm =
+        if Feq $ snd $ dest_eq $ concl def_branch_cond_thm
+        then
+         prove(mk_disj_list (key_branch_conds'), REWRITE_TAC [disj_list_def] >> metis_tac[def_branch_cond_thm])
+        else
+         prove(mk_disj_list (key_branch_conds'@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
+       in
+        SOME disj_thm
+       end
+(* OLD
+      else if is_v_bit sel_val
       then
        let
         val sel_bit = dest_v_bit sel_val
@@ -571,8 +596,8 @@ fun p4_should_branch step_thm =
          SOME disj_thm
         end
        end
-      else raise (ERR "p4_should_branch" ("Unsupported select value type: "^(term_to_string sel_val)))
-     end
+*)
+     else raise (ERR "p4_should_branch" ("Unsupported select value type: "^(term_to_string e)))
     else NONE
     (* Branch point: table application *)
   | apply (tbl_name, e) =>
@@ -597,8 +622,6 @@ val apply (tbl_name, e) = apply (“"t"”, “[e_v (v_bit ([e1; e2; e3; e4; e5;
         (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
          * funny priorities in the table *)
 	val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
-        (* This simplifies a key until only the match_all application can be reduced next *)
-        val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.MAP, optionTheory.THE_DEF, BETA_THM, listTheory.ZIP, v_of_e_def])
 	val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
 	val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
 
@@ -632,9 +655,6 @@ fun term_to_debug_string tm =
  end
 ;
 *)
-
-val (match_all_tm,  mk_match_all, dest_match_all, is_match_all) =
-  syntax_fns1 "p4_aux" "match_all";
 
 fun p4_regular_step_get_err_msg path_cond step_thm =
  let
@@ -976,8 +996,8 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, s
      raise (if (is_none $ rhs $ snd $ dest_imp $ concl step_thm2)
 	   then (ERR "p4_regular_step" ("Unexpected reduction to NONE from frame list: "^(term_to_string $ #3 $ dest_astate $ the_final_state_imp step_thm)))
 	   else (HOL_ERR exn))
-  end
-  handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (p4_regular_step_get_err_msg path_cond step_thm)) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
+ end
+ handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (p4_regular_step_get_err_msg path_cond step_thm)) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
 ;
 
 (* Function that decides whether a HOL4P4 program is finished or not *)
