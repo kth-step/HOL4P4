@@ -228,6 +228,18 @@ val (e_struct_tm,  mk_e_struct, dest_e_struct, is_e_struct) =
 val (e_header_tm,  mk_e_header, dest_e_header, is_e_header) =
   syntax_fns2 "p4" "e_header";
 
+val (s_sing_tm,  mk_s_sing, dest_s_sing, is_s_sing) =
+  syntax_fns1 "p4" "s_sing";
+
+val (s_range_tm,  mk_s_range, dest_s_range, is_s_range) =
+  syntax_fns2 "p4" "s_range";
+
+val (s_mask_tm,  mk_s_mask, dest_s_mask, is_s_mask) =
+  syntax_fns2 "p4" "s_mask";
+
+val s_univ_tm = prim_mk_const {Name="s_univ", Thy="p4"};
+fun is_s_univ tm = term_eq tm s_univ_tm;
+
 (*****)
 (* d *)
 (*****)
