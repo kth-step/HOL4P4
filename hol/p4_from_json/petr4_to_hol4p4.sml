@@ -657,8 +657,14 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
  end
 ;
 
-fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm =
+fun output_hol4p4_vals outstream output_ftymaps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm =
  let
+  val extra_terms =
+   if output_ftymaps
+   then [("blftymap", blftymap, SOME "(string, ((funn, (p_tau list # p_tau)) alist)) alist"),
+         ("ftymap", ftymap, SOME "((funn, (p_tau list # p_tau)) alist)")]
+   else []
+
   val gscope_init_vars = “[(varn_name "gen_apply_result", (v_struct [("hit", v_bool ARB);
                             ("miss", v_bool ARB);
                             ("action_run", v_bit (REPLICATE 32 ARB, 32))], NONE:lval option))]”
@@ -794,7 +800,7 @@ fun output_hol4p4_vals outstream valname stfname_opt (ftymap, blftymap) fmap pbl
   val _ = case actx_astate_opt of
            SOME (actx, astate) =>
             map (output_hol4_val outstream) (map (fn (a, b, c) => (valname^("_"^a), b, c))
-                              [("actx", actx, actx_of_arch arch_opt_tm), ("astate", astate, astate_of_arch arch_opt_tm)])
+                              (extra_terms@[("actx", actx, actx_of_arch arch_opt_tm), ("astate", astate, astate_of_arch arch_opt_tm)]))
           | NONE => [()];
   val _ = parse_stf outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap_tm) arch_opt_tm
  in
@@ -808,15 +814,15 @@ fun format_for_hol4 (str: string) : string =
 
 (* Print test:
  (* OK *)
- val args = ["1", "2", "validation_tests/action_call_table_ebpf.json", "validation_tests/action_call_table_ebpf.log", "ebpf", "Y"];
+ val args = ["1", "2", "validation_tests/action_call_table_ebpf.json", "validation_tests/action_call_table_ebpf.log", "ebpf", "concrete_stf"];
  (* OK *)
- val args = ["1", "2", "validation_tests/test_ebpf.json", "validation_tests/test_ebpf.log", "ebpf", "Y"];
+ val args = ["1", "2", "validation_tests/test_ebpf.json", "validation_tests/test_ebpf.log", "ebpf", "concrete_stf"];
 
- val args = ["1", "2", "validation_tests/key-bmv2.json", "testlog", "v1model", "Y"];
+ val args = ["1", "2", "validation_tests/key-bmv2.json", "testlog", "v1model", "concrete_stf"];
 
- val args = ["1", "2", "test.json", "testlog", "v1model", "Y"];
+ val args = ["1", "2", "test.json", "testlog", "v1model", "concrete_stf"];
 
- val args = ["1", "2", "validation_tests/array-copy-bmv2.json", "validation_tests/array-copy-bmv2.log", "v1model", "Y"];
+ val args = ["1", "2", "../../../p4-ipsec/p4/p4/basic.json", "testlog", "v1model", "symbolic"];
 
 *)
 
@@ -824,7 +830,7 @@ fun main() =
  let
   val args = CommandLine.arguments()
  in
-  if length args >= 3
+  if length args >= 4
   then
    let
     val filename = el 3 args;
@@ -837,10 +843,17 @@ fun main() =
     val stfname_opt =
      if length args = 6
      then 
-      if (el 6 args) = "Y"
+      if (el 6 args) = "concrete_stf"
       then SOME ((implode $ rev valname_no_suffix)^".stf")
       else NONE
      else NONE;
+    val output_ftymaps =
+     if length args = 6
+     then 
+      if (el 6 args) = "symbolic"
+      then true
+      else false
+     else false;
 
     (* TODO: Done in one split instead? *)
     val valname_no_prefix =
@@ -894,7 +907,7 @@ val arch_opt_tm = (el 12 res_list)
 val ab_list_tm = (el 13 res_list)
 val ttymap_tm = (el 14 res_list)
 *)
-         val _ = output_hol4p4_vals outstream valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list);
+         val _ = output_hol4p4_vals outstream output_ftymaps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list);
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in

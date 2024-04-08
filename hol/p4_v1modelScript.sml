@@ -31,6 +31,8 @@ Datatype:
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
  | v1model_v_ext_register ((bool list # num) list)
+ (* From IPSec example *)
+ | v1model_v_ext_ipsec_crypt
 End
 val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
 
@@ -324,6 +326,124 @@ Definition register_write:
          let array' = LUPDATE (bl', n') (v2n bl) array in
          let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_register array')) in
           SOME ((counter, ext_obj_map', v_map, ctrl), scope_list, status_returnv v_bot)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+(*******************)
+(* IPSec methods   *)
+(*******************)
+
+(* TODO: Initialises nothing, for now... *)
+Definition ipsec_crypt_construct_def:
+ (ipsec_crypt_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+   let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_ipsec_crypt)) in
+   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+    | SOME scope_list' =>
+     SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
+    | NONE => NONE)
+ )
+End
+
+Definition set_validity_def:
+  (set_validity validity (v_struct ((x,v)::t)) = v_struct (((x, set_validity validity v))::(MAP (\(x',v'). (x', set_validity validity v')) t))) /\
+  (set_validity validity (v_struct []) = v_struct []) /\
+  (set_validity validity (v_header boolv ((x,v)::t)) =
+    v_header validity (( (x, set_validity validity v) )::(MAP (\(x',v'). (x', set_validity validity v')) t))) /\
+  (set_validity validity (v_header boolv []) = v_header validity []) /\
+  (set_validity _ (v:v) = v)
+Termination
+ WF_REL_TAC `measure (\ (validity,v). v_size v)` >>
+ fs [v_size_def] >>
+ REPEAT STRIP_TAC >>
+ `v_size v' < v1_size t` suffices_by (
+  fs []
+ ) >>
+ METIS_TAC [v1_size_mem]
+End
+
+(* TODO: This should return NONE, and then be rewritten by assumptions to include fresh
+ * free variables *)
+Definition ipsec_crypt_decrypt_aes_ctr_def:
+ (ipsec_crypt_decrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  | SOME ipv4_header =>
+   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+    | SOME esp_header =>
+     (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
+      | SOME standard_metadata =>
+       (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+        | SOME scope_list' =>
+         (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+          | SOME scope_list'' =>
+           (case assign scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
+            | SOME scope_list''' =>
+             SOME ((counter, ext_obj_map, v_map, ctrl), scope_list''', status_returnv v_bot)
+            | _ => NONE)
+          | _ => NONE)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+Definition ipsec_crypt_encrypt_aes_ctr_def:
+ (ipsec_crypt_encrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  | SOME ipv4_header =>
+   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+    | SOME esp_header =>
+     (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+      | SOME scope_list' =>
+       (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+        | SOME scope_list'' =>
+         SOME ((counter, ext_obj_map, v_map, ctrl), scope_list'', status_returnv v_bot)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+Definition ipsec_crypt_encrypt_null_def:
+ (ipsec_crypt_encrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  | SOME ipv4_header =>
+   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+    | SOME esp_header =>
+     (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+      | SOME scope_list' =>
+       (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+        | SOME scope_list'' =>
+         SOME ((counter, ext_obj_map, v_map, ctrl), scope_list'', status_returnv v_bot)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+Definition ipsec_crypt_decrypt_null_def:
+ (ipsec_crypt_decrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  | SOME ipv4_header =>
+   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+    | SOME esp_header =>
+     (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
+      | SOME standard_metadata =>
+       (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+        | SOME scope_list' =>
+         (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+          | SOME scope_list'' =>
+           (case assign scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
+            | SOME scope_list''' =>
+             SOME ((counter, ext_obj_map, v_map, ctrl), scope_list''', status_returnv v_bot)
+            | _ => NONE)
+          | _ => NONE)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
