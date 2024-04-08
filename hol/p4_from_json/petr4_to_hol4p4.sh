@@ -23,11 +23,11 @@ arch=$(./petr4_get_arch.sh "${JSON_PATH%.json}.p4")
 
 # Check if .stf file exists
 if [ -e "${JSON_PATH%.json}.stf" ]; then
-    stf="Y"
+    mode="concrete_stf"
 else
-    stf="N"
+    mode="concrete"
 fi
 
 set -e
-"$(dirname "$(which Holmake)")/buildheap" --gcthreads=1 --holstate="p4_from_json-heap" petr4_to_hol4p4 "$JSON_PATH" "$LOG_PATH" "$arch" "$stf"
+"$(dirname "$(which Holmake)")/buildheap" --gcthreads=1 --holstate="p4_from_json-heap" petr4_to_hol4p4 "$JSON_PATH" "$LOG_PATH" "$arch" "$mode"
 exit 0
