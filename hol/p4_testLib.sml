@@ -162,14 +162,18 @@ fun mk_eth_frame_ok data =
   end
 ;
 
+fun mk_symb_packet_prefix prefix nbits =
+ let
+  val bits = fixedwidth_freevars (prefix, nbits);
+ in
+   bits
+ end
+;
+
 (* Creates a packet with nbits free variables as bits *)
 fun mk_symb_packet nbits =
-  let
-    (* All bits have same prefix for now. *)
-    val i = fixedwidth_freevars ("i", nbits);
-  in
-    i
-  end
+ (* All bits have same prefix for now. *)
+ mk_symb_packet_prefix "i" nbits
 ;
 
 (* TODO: Do this smarter, with exceptions *)

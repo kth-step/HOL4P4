@@ -15,6 +15,9 @@ open optionSyntax;
 
 val ERR = mk_HOL_ERR "p4_symb_exec"
 
+(* Prefix used by the symbolic execution when inserting free HOL4 variables *)
+val p4_symb_arg_prefix = "a";
+
 fun dbg_print debug_flag string =
  if debug_flag
  then print string
@@ -879,8 +882,8 @@ fun dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt =
   in
    (* TODO: A little overkill. Make a stmt_get_next_e_syntax_f_list instead *)
    (case dbg_print_e_list_red (func_map, b_func_map, ext_fun_map) (fst $ dest_list e_list) of
-      true => ()
-    | false => print (String.concat ["\nReducing apply statement...\n\n"]))
+      true => print (String.concat ["\nReducing apply statement...\n\n"])
+    | false => ())
   end
  else if is_stmt_ext stmt
  then print (String.concat ["\nReducing extern statement...\n\n"])
@@ -1032,7 +1035,10 @@ val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch;
 val lang_is_finished = p4_is_finished;
 *)
-  symb_exec (regular_step, init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel
+  if List.exists (fn b => b = true) $ map (String.isPrefix p4_symb_arg_prefix) $ map (fst o dest_var) $ free_vars $ concl init_step_thm
+  then raise (ERR "p4_symb_exec" ("Found free variables with the prefix \""^(p4_symb_arg_prefix^"\" in the initial step theorem: this prefix is reserved for use by the symbolic execution.")))
+  else
+   symb_exec (regular_step, init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel
  end
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
