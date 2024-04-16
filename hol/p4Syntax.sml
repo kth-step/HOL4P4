@@ -262,14 +262,21 @@ fun is_d_none tm = term_eq tm d_none_tm;
 (*******)
 
 val struct_ty_struct_tm = prim_mk_const {Name="struct_ty_struct", Thy="p4"};
+fun is_struct_ty_struct tm = term_eq tm struct_ty_struct_tm;
 val struct_ty_header_tm = prim_mk_const {Name="struct_ty_header", Thy="p4"};
+fun is_struct_ty_header tm = term_eq tm struct_ty_header_tm;
 
 val tau_ty = mk_type ("tau", []);
 
-val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit, is_tau_bit) =
+val tau_bool_tm = prim_mk_const {Name="tau_bool", Thy="p4"};
+fun is_tau_bool tm = term_eq tm tau_bool_tm;
+
+val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit_tmp, is_tau_bit) =
   syntax_fns1 "p4" "tau_bit";
 val mk_tau_bit =
   mk_tau_bit_tmp o (fn n => term_of_int n);
+val dest_tau_bit =
+  int_of_term o dest_tau_bit_tmp;
 
 val (tau_xtl_tm, mk_tau_xtl_tmp, dest_tau_xtl, is_tau_xtl) =
   syntax_fns2 "p4" "tau_xtl";

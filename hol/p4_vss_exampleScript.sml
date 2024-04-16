@@ -91,12 +91,12 @@ val vss_parser_ab =
 (*   Pipe   *)
 
 val ipv4_match_table =
- ``("ipv4_match", [mk_lpm], ("Drop_action",[]:e_list))``;
+ ``("ipv4_match", [mk_lpm], ["Drop_action"; "Set_nhop"], ("Drop_action",[]:e_list))``;
 val check_ttl_table =
- ``("check_ttl", [mk_exact], ("NoAction", []:e_list))``;
-val dmac_table = ``("dmac", [mk_exact], ("Drop_action",[]:e_list))``;
+ ``("check_ttl", [mk_exact], ["Send_to_cpu"; "NoAction"], ("NoAction", []:e_list))``;
+val dmac_table = ``("dmac", [mk_exact], ["Drop_action"; "Set_dmac"], ("Drop_action",[]:e_list))``;
 val smac_table =
- ``("smac", [mk_exact], ("Drop_action",[]:e_list))``;
+ ``("smac", [mk_exact], ["Drop_action"; "Set_smac"], ("Drop_action",[]:e_list))``;
 val vss_pipe_tblmap = ``[(^ipv4_match_table);
                          (^check_ttl_table);
                          (^dmac_table);

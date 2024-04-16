@@ -9,6 +9,12 @@ datatype path_tree = empty | node of int * thm * (path_tree list);
 
 val ERR = mk_HOL_ERR "symb_exec"
 
+fun dbg_print debug_flag string =
+ if debug_flag
+ then print string
+ else ()
+;
+
 (* TODO: Optimize? *)
 fun insert_nodes' empty (at_id, thm, new_nodes) _ = NONE
   | insert_nodes' (node (id, thm, nodes)) (at_id, new_thm, new_nodes) nodes_temp = 
@@ -65,7 +71,7 @@ fun p4_conv path_cond_tm tm =
 fun symb_exec' lang_funs npaths path_tree [] finished_list = (path_tree, finished_list)
   | symb_exec' lang_funs npaths path_tree ((path_id, path_cond, step_thm, 0, nobranch_flag)::t) finished_list =
    symb_exec' lang_funs npaths path_tree t (finished_list@[(path_id, path_cond, step_thm)])
-  | symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
+  | symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
                path_tree ((path_id, path_cond, step_thm, fuel, nobranch_flag)::t) finished_list =
    (* Check if we should branch or take regular step
     * lang_should_branch can be made an argument: it takes the current step theorem
@@ -162,7 +168,7 @@ val path_tree = new_path_tree
 val (path_id, path_cond, step_thm, fuel) = hd new_path_elems
 val nobranch_flag = true
 *)
-      symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths'
+      symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths'
                   new_path_tree (t@new_path_elems) finished_list
      end
     | NONE =>
@@ -174,23 +180,24 @@ val nobranch_flag = true
 
       val next_step_thm =
        lang_regular_step (path_cond, step_thm)
-      val _ = print (String.concat ["Finished regular symbolic execution step of path ID ",
-                                    (Int.toString path_id), " in ",
-                                    (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
-                                    " ms, fuel remaining: ",
-                                    (Int.toString (fuel - 1)), "\n"])
+      val _ = dbg_print debug_flag
+       (String.concat ["Finished regular symbolic execution step of path ID ",
+		       (Int.toString path_id), " in ",
+		       (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+		       " ms, fuel remaining: ",
+		       (Int.toString (fuel - 1)), "\n"])
      in
       if lang_is_finished next_step_thm
       then
-       symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
+       symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
                   path_tree t (finished_list@[(path_id, path_cond, next_step_thm)])
       else
-       symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
+       symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) npaths
                   path_tree (t@[(path_id, path_cond, next_step_thm, fuel-1, false)]) finished_list
      end)
 in
-fun symb_exec (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) path_cond fuel =
- symb_exec' (lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) 1
+fun symb_exec (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) path_cond fuel =
+ symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) 1
             (node (1, TRUTH, [])) [(1, path_cond, lang_init_step_thm, fuel, false)] []
 end;
 

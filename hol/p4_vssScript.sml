@@ -290,18 +290,21 @@ Definition ctrl_check_ttl:
 End
 
 Definition vss_apply_table_f_def:
- vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+ vss_apply_table_f (x, e_l, mk_list:mk_list, actions, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
-  if x = "check_ttl"
+  if MEM x actions
   then
-   ctrl_check_ttl e_l
-  else
-   (case ALOOKUP ctrl x of
-    | SOME table =>
-     (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-     SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-    | NONE => NONE)
+   if x = "check_ttl"
+   then
+    ctrl_check_ttl e_l
+   else
+    (case ALOOKUP ctrl x of
+     | SOME table =>
+      (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+     | NONE => NONE)
+  else NONE
 End
 
 val _ = export_theory ();
