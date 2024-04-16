@@ -3,6 +3,7 @@ sig
   include Abbrev
 
 val p4_symb_exec:
+   int ->
    bool ->
    hol_type ->
      (thm * term) ->
@@ -16,6 +17,12 @@ val p4_symb_exec_prove_contract:
    bool ->
    hol_type ->
      term -> (term * term) -> string list -> term -> term list -> term list -> thm -> (thm -> bool) option -> int -> term -> thm
+
+val p4_symb_exec_prove_contract_conc:
+   bool ->
+   hol_type ->
+     term -> (term * term) -> string list ->
+       term -> term list -> term list -> thm -> (thm -> bool) option -> int -> term -> thm
 
 val p4_debug_symb_exec:
    hol_type ->
