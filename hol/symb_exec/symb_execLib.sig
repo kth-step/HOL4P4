@@ -10,4 +10,9 @@ val symb_exec:
  bool * (thm * thm -> thm) * thm * (thm -> thm option) *
   (thm -> bool) -> thm -> int -> path_tree * (int * thm * thm) list
 
+val symb_exec_conc:
+   bool * (thm * thm -> thm) * thm * (thm -> thm option) *
+    (thm -> bool) -> thm -> int -> int ->
+     path_tree * (int * thm * thm) list
+
 end
