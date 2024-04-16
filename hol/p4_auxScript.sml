@@ -6,6 +6,13 @@ open listTheory rich_listTheory;
 open pairTheory optionTheory arithmeticTheory;
 open p4Theory;
 
+(* OPTION_BIND as infix *)
+Definition app_opt_def:
+ $>>= x_opt f =
+  OPTION_BIND x_opt f
+End
+val _ = set_fixity ">>=" (Infixl 801);
+
 val oCONS_def = Define `
  (oCONS (h, SOME t) =
   SOME (h::t)
@@ -2333,6 +2340,109 @@ Definition ext_map_replace_impl_def:
    (case ALOOKUP methods method_name of
     | SOME (args, old_impl) =>
      SOME $ AUPDATE ext_map (ext_name, (constructor, AUPDATE methods (method_name, (args, new_impl))))
+    | NONE => NONE)
+  | NONE => NONE
+ )
+End
+
+(*************************)
+(* Types with parameters *)
+
+(* This is defined as an extension to "tau" (defined in p4Theory) that also
+ * includes type parameters *)
+Datatype:
+p_tau =
+   p_tau_bool   (* Note that the integer width must be a compile-time known value *)
+ | p_tau_bit num_exp
+ | p_tau_bot
+ (* Note that structs can be type-parametrized *)
+ | p_tau_xtl struct_ty ((x#p_tau) list)
+ (* The string is the name of the extern object *)
+ | p_tau_ext string
+ (* The string is the name of the programmable block *)
+ | p_tau_blk string
+ (* The string is the name of the package *)
+ | p_tau_pkg string
+ (* The string is the name of the type parameter *)
+ | p_tau_par string
+End
+
+(* TODO: Rewrite the below to use list of p_taus instead of list of string, p_tau tuples? *)
+Definition deparameterise_tau_def:
+(deparameterise_tau t =
+  case t of
+  | p_tau_bool => SOME tau_bool
+  | p_tau_bit num_exp => SOME (tau_bit num_exp)
+  | p_tau_bot => SOME tau_bot
+  | p_tau_xtl struct_ty fields =>
+   deparameterise_x_taus fields >>= \fields'.
+   SOME (tau_xtl struct_ty fields')
+  | p_tau_ext ext_name => SOME tau_ext
+  | p_tau_blk blk_name => NONE
+  | p_tau_pkg pkg_name => NONE
+  | p_tau_par param_name => NONE) /\
+(deparameterise_x_taus [] = SOME []) /\
+(deparameterise_x_taus ((name, p_tau)::t) =
+  deparameterise_tau p_tau >>=
+  \tau. deparameterise_x_taus t >>=
+  \tau_l. SOME ((name, tau)::tau_l))
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL p_tau) => p_tau_size p_tau | (INR p_tau_list) => p_tau1_size p_tau_list)`
+End
+
+Definition deparameterise_taus_def:
+(deparameterise_taus p_tau_l =
+ deparameterise_x_taus (ZIP(REPLICATE (LENGTH p_tau_l) "",p_tau_l)) >>=
+ \x_tau_l. SOME (SND $ UNZIP x_tau_l))
+End
+
+Definition parameterise_tau_def:
+(parameterise_tau t =
+  case t of
+  | tau_bool => p_tau_bool
+  | tau_bit num_exp => (p_tau_bit num_exp)
+  | tau_bot => p_tau_bot
+  | tau_xtl struct_ty fields =>
+   (p_tau_xtl struct_ty (parameterise_x_taus fields))
+  | tau_ext => p_tau_ext "") /\
+(parameterise_x_taus [] = []) /\
+(parameterise_x_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_x_taus t)))
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL tau) => tau_size tau | (INR tau_list) => tau1_size tau_list)`
+End
+
+Definition parameterise_taus_def:
+ parameterise_taus tau_l =
+  SND $ UNZIP $ parameterise_x_taus (ZIP(REPLICATE (LENGTH tau_l) "",tau_l))
+End
+
+Definition deparameterise_ftymap_entries_def:
+ (deparameterise_ftymap_entries [] = SOME []) /\
+ (deparameterise_ftymap_entries ((funn, (argtys, ret_ty))::t) =
+  case funn of
+  | (funn_ext _ _) => deparameterise_ftymap_entries t
+  | (funn_inst _) => deparameterise_ftymap_entries t
+  | (funn_name _) =>
+   (case deparameterise_taus argtys of
+    | SOME argtys' =>
+     (case deparameterise_tau ret_ty of
+      | SOME ret_ty' =>
+       (case deparameterise_ftymap_entries t of
+	| SOME res =>
+	 SOME ((funn, (argtys', ret_ty'))::res)
+	| NONE => NONE)
+      | NONE => NONE)
+    | NONE => NONE)
+ )
+End
+
+Definition deparameterise_b_ftymap_entries_def:
+ (deparameterise_b_ftymap_entries [] = SOME []) /\
+ (deparameterise_b_ftymap_entries ((b_name, ftymap)::t) =
+  case deparameterise_ftymap_entries ftymap of
+  | SOME ftymap' =>
+   (case deparameterise_b_ftymap_entries t of
+    | SOME res => SOME ((b_name, ftymap)::res)
     | NONE => NONE)
   | NONE => NONE
  )

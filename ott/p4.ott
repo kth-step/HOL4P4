@@ -707,10 +707,10 @@ ext_map {{ tex X }} :: ext_map_ ::=
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
-{{ hol ((string, ((mk list) # (x # e_list))) alist) }}
+{{ hol ((string, ((mk list) # x_list # (x # e_list))) alist) }}
 | empty :: :: empty
   {{ com empty table map }}
-  {{ hol ([]:((string, ((mk list) # (x # e_list))) alist)) }}
+  {{ hol ([]:((string, ((mk list) # x_list # (x # e_list))) alist)) }}
 | ( tbl_map ) :: S :: paren
   {{ hol ([[tbl_map]]) }}
 
@@ -811,7 +811,7 @@ copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 %This function takes a table name, arguments, match kinds and the architectural scope and returns an action with arguments
 apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
 {{ com apply table function }}
-{{ hol ((x # e_list # mk_list # (x # e_list) # ascope_ty) -> (x # e_list) option) }}
+{{ hol ((x # e_list # mk_list # x_list # (x # e_list) # ascope_ty) -> (x # e_list) option) }}
 
 %Fence between ab_list and actx
 embed

@@ -286,10 +286,16 @@ val is_e_red : term -> bool
 val mk_e_red : term * term * term * term * term * term -> term
 
 val struct_ty_struct_tm : term
+val is_struct_ty_struct : term -> bool
 val struct_ty_header_tm : term
+val is_struct_ty_header : term  -> bool
+
 val tau_ty : hol_type
 
-val dest_tau_bit : term -> term
+val is_tau_bool : term -> bool
+val tau_bool_tm : term
+
+val dest_tau_bit : term -> int
 val is_tau_bit : term -> bool
 val mk_tau_bit : int -> term
 val tau_bit_tm : term

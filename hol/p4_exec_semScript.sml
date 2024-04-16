@@ -577,10 +577,10 @@ Definition stmt_exec:
      | NONE => NONE)
    | NONE =>
     (case ALOOKUP tbl_map t_name of
-     | SOME (mk_l, (default_f, default_f_args)) =>
+     | SOME (mk_l, actions, (default_f, default_f_args)) =>
       (if LENGTH mk_l = LENGTH e_l
        then
-        (case apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) of
+        (case apply_table_f (t_name, e_l, mk_l, actions, (default_f, default_f_args), ascope) of
          | SOME (f, f_args) =>
           (if is_consts_exec f_args
            then
@@ -1264,8 +1264,8 @@ Theorem exec_stmt_app_SOME_REWRS:
 !apply_table_f ext_map func_map b_func_map pars_map tbl_map ascope ascope' g_scope_list g_scope_list' funn t_name e_l stmt_stack frame_list' scope_list status'.
 stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, (stmt_app t_name e_l)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
- (index_not_const e_l = NONE  ==> ?mk_l f f_args default_f default_f_args. ALOOKUP tbl_map t_name = SOME (mk_l, (default_f, default_f_args)) /\
-                       apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
+ (index_not_const e_l = NONE  ==> ?mk_l actions f f_args default_f default_f_args. ALOOKUP tbl_map t_name = SOME (mk_l, actions, (default_f, default_f_args)) /\
+                       apply_table_f (t_name, e_l, mk_l, actions, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
                        is_consts_exec f_args /\
                        LENGTH mk_l = LENGTH e_l /\
                        frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scope_list)]) /\
@@ -1286,7 +1286,7 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  ) >>
  PairCases_on `x` >>
  fs [] >>
- Cases_on `apply_table_f (t_name,e_l,x0,(x1,x2),ascope)` >> (
+ Cases_on `apply_table_f (t_name,e_l,x0,x1,(x2,x3),ascope)` >> (
   fs []
  ) >>
  PairCases_on `x` >> (
@@ -1306,7 +1306,7 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  ) >>
  PairCases_on `x` >>
  fs [] >>
- Cases_on `apply_table_f (t_name,e_l,x0,(x1,x2),ascope)` >> (
+ Cases_on `apply_table_f (t_name,e_l,x0,x1,(x2,x3),ascope)` >> (
   fs []
  ) >>
  PairCases_on `x` >>

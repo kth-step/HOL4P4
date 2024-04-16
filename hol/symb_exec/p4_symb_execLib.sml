@@ -18,12 +18,6 @@ val ERR = mk_HOL_ERR "p4_symb_exec"
 (* Prefix used by the symbolic execution when inserting free HOL4 variables *)
 val p4_symb_arg_prefix = "a";
 
-fun dbg_print debug_flag string =
- if debug_flag
- then print string
- else ()
-;
-
 fun get_b_func_map i ab_list pblock_map =
  let
   val arch_block = el ((int_of_term i) + 1) (fst $ dest_list ab_list)
@@ -531,10 +525,86 @@ fun dest_v_struct_fields strct =
 (* This simplifies a key until only the match_all application can be reduced next *)
 val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.MAP, optionTheory.THE_DEF, BETA_THM, listTheory.ZIP, v_of_e_def]);
 
+
+(* TODO: Fix code duplication *)
+fun get_fv_arg_of_tau tau fv_index =
+ if is_tau_bool tau
+ then (mk_e_v $ mk_v_bool $ mk_var (p4_symb_arg_prefix^(Int.toString fv_index), “:bool”),
+       fv_index + 1)
+ else if is_tau_bit tau
+ then
+  let
+   val width = dest_tau_bit tau
+  in
+   (mk_e_v $ mk_v_bit (mk_pair (fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, width), term_of_int width)), fv_index + width)
+  end
+ else if is_tau_xtl tau
+ then
+  let
+   val (struct_ty_tm, x_tau'_l) = (fn (a,b) => (a, map dest_pair $ fst $ dest_list b)) $ dest_tau_xtl tau
+  in
+   if is_struct_ty_struct struct_ty_tm
+   then
+    let
+     val (x_v_l', new_fv_index) = foldl (fn (x_tau', (x_v_list, fv_index')) => ((fn (v', fv_index'') => ((fst x_tau', v')::x_v_list, fv_index'')) (get_fv_arg_of_tau (snd x_tau') fv_index'))) ([],fv_index) x_tau'_l
+    in
+     (mk_e_v $ mk_v_struct_list x_v_l', new_fv_index)
+    end
+   else if is_struct_ty_header struct_ty_tm
+   then
+    let
+     val (x_v_l', new_fv_index) = foldl (fn (x_tau', (x_v_list, fv_index')) => ((fn (v', fv_index'') => ((fst x_tau', v')::x_v_list, fv_index'')) (get_fv_arg_of_tau (snd x_tau') fv_index'))) ([],fv_index+1) x_tau'_l
+    in
+     (mk_e_v $ mk_v_header_list (mk_v_bool $ mk_var (p4_symb_arg_prefix^(Int.toString fv_index), “:bool”)) x_v_l', new_fv_index)
+    end
+   else raise (ERR "get_fv_arg_of_tau" ("Unsupported struct_ty subtype: "^(term_to_string struct_ty_tm)))
+  end
+ else raise (ERR "get_fv_arg_of_tau" ("Unsupported tau subtype: "^(term_to_string tau)))
+;
+
+fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
+ let
+  val b_fty_map_lookup_opt = rhs $ concl $ EVAL “ALOOKUP ^block_name ^b_fty_map”
+  (* TODO: b_fty_map_lookup *)
+ in
+  if is_some b_fty_map_lookup_opt
+  then
+   let
+    val local_fty_map = fst $ dest_pair $ dest_some b_fty_map_lookup_opt
+    val local_fty_map_lookup_opt = rhs $ concl $ EVAL “ALOOKUP ^funn ^local_fty_map”
+   in
+    if is_some local_fty_map_lookup_opt
+    then
+     let
+      val ftys = fst $ dest_list $ dest_some local_fty_map_lookup_opt
+     in
+      (* TODO: Compute FV arg *)
+      foldl (fn (argty, (args, fv_index')) => ((fn (arg', fv_index'') => (arg'::args, fv_index'')) (get_fv_arg_of_tau argty fv_index'))) ([],fv_index) ftys
+     end
+    else
+     let
+      val fty_map_lookup_opt = rhs $ concl $ EVAL “ALOOKUP ^funn ^fty_map”
+     in
+      if is_some fty_map_lookup_opt
+      then
+       let
+	val ftys = fst $ dest_list $ dest_some fty_map_lookup_opt
+       in
+	(* TODO: Compute FV arg *)
+	foldl (fn (argty, (args, fv_index')) => ((fn (arg', fv_index'') => (arg'::args, fv_index'')) (get_fv_arg_of_tau argty fv_index'))) ([],fv_index) ftys
+       end
+      else raise (ERR "get_freevars_call" ("Function not found in any function map: "^(term_to_string funn)))
+     end
+   end
+  else raise (ERR "get_freevars_call" ("Block not found in blftymap: "^(term_to_string block_name)))
+ end
+;
+
 (* Function that decides whether to branch or not: returns NONE if no branch should
  * be performed, otherwise SOME of a list of cases and a theorem stating the disjunction
  * between them *)
-fun p4_should_branch step_thm =
+(* TODO: (fty_map, b_fty_map) and const_actions_tables only needed for apply statement *)
+fun p4_should_branch (fty_map, b_fty_map) const_actions_tables step_thm =
  let
   val (path_tm, astate) = the_final_state_hyp_imp step_thm
  in
@@ -605,7 +675,15 @@ fun p4_should_branch step_thm =
     (* Branch point: table application *)
   | apply (tbl_name, e) =>
 (*
-val apply (tbl_name, e) = apply (“"t"”, “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”)
+val apply (tbl_name, e) = apply
+    (“"spd"”,
+     “[e_v
+         (v_bit
+            ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135; ip136;
+              ip137; ip138; ip139; ip140; ip141; ip142; ip143; ip144; ip145;
+              ip146; ip147; ip148; ip149; ip150; ip151; ip152; ip153; ip154;
+              ip155; ip156; ip157; ip158; ip159],32));
+       e_v (v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8))]”)
 *)
     if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso not $ null $ free_vars e
     then
@@ -614,33 +692,50 @@ val apply (tbl_name, e) = apply (“"t"”, “[e_v (v_bit ([e1; e2; e3; e4; e5;
       val ctrl = #4 $ dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate
       (* 2. Extract key sets from ascope using tbl_name *)
       val tbl_opt = rhs $ concl $ EVAL “ALOOKUP ^ctrl ^tbl_name”
+        (* TODO: This should now use get_freevars_call (fty_map,b_fty_map) funn block_name fv_index
+
+Need: list of possible actions for each table (as strings or funns).
+Need: list of which tables have fixed entries (const_actions_tables), old version should be used for these
+
+*)
      in
-      if is_some tbl_opt
+      if exists (fn el => term_eq el tbl_name) const_actions_tables
       then
-       let
-	val tbl = dest_some tbl_opt
-	(* 3. Construct different branch cases for all the key sets
-	 *    N.B.: Can now be logically overlapping! *)
-	(* The branch cases for equality with the different table entry keys *)
-        (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
-         * funny priorities in the table *)
-	val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
-	val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
-	val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
+       (* Old version is really only sound for tables with const entries. *)
+       if is_some tbl_opt
+       then
+	let
+	 val tbl = dest_some tbl_opt
+	 (* 3. Construct different branch cases for all the key sets
+	  *    N.B.: Can now be logically overlapping! *)
+	 (* The branch cases for equality with the different table entry keys *)
+	 (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
+	  * funny priorities in the table *)
+ (*
+ #2 $ dest_astate astate
 
-	val key_branch_conds' = snd $ foldl (fn (a,(b,c)) => (if null b then b else tl b , (if length b = 1 then a else mk_conj ((list_mk_conj (tl b)), a))::c) ) (key_branch_conds_neg, []) (rev key_branch_conds)
+  get_freevars_call (fty_map,b_fty_map) funn block_name fv_index
+ *)
+
+	 val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
+	 val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
+	 val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
+
+	 val key_branch_conds' = snd $ foldl (fn (a,(b,c)) => (if null b then b else tl b , (if length b = 1 then a else mk_conj ((list_mk_conj (tl b)), a))::c) ) (key_branch_conds_neg, []) (rev key_branch_conds)
 
 
-	(* 4. Construct default branch case: i.e., neither of the above hold *)
-	val def_branch_cond = list_mk_conj key_branch_conds_neg
-	(* 5. Construct disjunction theorem, which now is not a strict disjunction *)
-         (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
-          * specialisation or rewrites, and not in-place with tactics *)
-        val disj_thm = prove(mk_disj_list (key_branch_conds'@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
-       in
-        SOME disj_thm
-       end
-      else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
+	 (* 4. Construct default branch case: i.e., neither of the above hold *)
+	 val def_branch_cond = list_mk_conj key_branch_conds_neg
+	 (* 5. Construct disjunction theorem, which now is not a strict disjunction *)
+	  (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
+	   * specialisation or rewrites, and not in-place with tactics *)
+	 val disj_thm = prove(mk_disj_list (key_branch_conds'@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
+
+	in
+	 SOME disj_thm
+	end
+       else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
+      else (* TODO: Placeholder *) SOME TRUTH
      end
     else NONE
   | no_branch => NONE
@@ -975,7 +1070,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, s
     let
 
      (* DEBUG *)
-     val time_start = Time.now();
+     val time_start2 = Time.now();
 
      val res =
       SIMP_RULE simple_arith_ss extra_rewr_thms
@@ -990,8 +1085,9 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, s
 
      (* DEBUG *)
      val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
-				   (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+				   (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start2)),
 				   " ms\n"])
+
     in
      res
     end
@@ -1003,7 +1099,9 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, s
  handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (p4_regular_step_get_err_msg path_cond step_thm)) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
 ;
 
-(* Function that decides whether a HOL4P4 program is finished or not *)
+(* Function that decides whether a HOL4P4 program is finished or not:
+ * here, when processing of all symbolic input packets are finished.
+ * Used as a default when no other function is specified. *)
 fun p4_is_finished step_thm =
  let
   val astate = the_final_state_imp step_thm
@@ -1018,27 +1116,51 @@ fun p4_is_finished step_thm =
  end
 ;
 
+fun preprocess_ftymaps (fty_map, b_fty_map) =
+ let
+  val fty_map_opt = rhs $ concl $ EVAL “deparameterise_ftymap_entries ^fty_map”
+  val b_fty_map_opt = rhs $ concl $ EVAL “deparameterise_b_ftymap_entries ^b_fty_map”
+ in
+  if is_some fty_map_opt
+  then
+   if is_some b_fty_map_opt
+   then (dest_some fty_map_opt, dest_some b_fty_map_opt)
+   else raise (ERR "preprocess_ftymaps" "Could not deparameterise block-local function type map.")
+  else raise (ERR "preprocess_ftymaps" "Could not deparameterise function type map.")
+ end
+;
+
 (* The main symbolic execution.
  * Here, the static ctxt and the dynamic path condition have been merged. *)
-fun p4_symb_exec debug_flag arch_ty (ctx_def, ctx) init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_symb_exec debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt fuel =
  let
+  (* Pre-process ftymap and b_fty_map *)
+  val (fty_map', b_fty_map') = preprocess_ftymaps (fty_map, b_fty_map)
+
+  (* Pre-process const_actions_tables *)
+  val const_actions_tables' = map stringSyntax.fromMLstring const_actions_tables
+
   val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
   val table_stop_consts = [match_all_tm]
   val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
   val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm
+  val is_finished =
+   if isSome p4_is_finished_alt_opt
+   then valOf p4_is_finished_alt_opt
+   else p4_is_finished
  in
 (* DEBUG:
 val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm;
 val lang_init_step_thm = init_step_thm;
-val lang_should_branch = p4_should_branch;
-val lang_is_finished = p4_is_finished;
+val lang_should_branch = p4_should_branch (fty_map', b_fty_map') const_actions_tables';
+val lang_is_finished = is_finished;
 *)
   if List.exists (fn b => b = true) $ map (String.isPrefix p4_symb_arg_prefix) $ map (fst o dest_var) $ free_vars $ concl init_step_thm
   then raise (ERR "p4_symb_exec" ("Found free variables with the prefix \""^(p4_symb_arg_prefix^"\" in the initial step theorem: this prefix is reserved for use by the symbolic execution.")))
   else
-   symb_exec (regular_step, init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel
+   symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables', is_finished) path_cond fuel
  end
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
@@ -1140,7 +1262,7 @@ fun p4_prove_postcond rewr_thms postcond step_thm =
  * postcond: the postcondition, a term which is a predicate on the architectural state *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract debug_flag arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond =
+fun p4_symb_exec_prove_contract debug_flag arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond =
  let
 
   (* DEBUG *)
@@ -1151,7 +1273,7 @@ fun p4_symb_exec_prove_contract debug_flag arch_ty ctx init_astate stop_consts_r
 
   (* Perform symbolic execution until all branches are finished *)
   val (path_tree, path_cond_step_list) =
-   p4_symb_exec debug_flag arch_ty (ctx_def, ctx) init_astate stop_consts_rewr stop_consts_never path_cond n_max;
+   p4_symb_exec debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max;
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished entire symbolic execution stage in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s, trying to prove postcondition...\n\n"]);
@@ -1187,21 +1309,21 @@ fun dest_step_thm step_thm =
  dest_astate $ dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 ;
 
-fun p4_debug_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
  let
   val ctx_name = "ctx"
   val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 
-  val (path_tree, state_list) = p4_symb_exec true arch_ty (ctx_def, ctx) init_astate stop_consts_rewr stop_consts_never path_cond fuel
+  val (path_tree, state_list) = p4_symb_exec true arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
  in
   (path_tree, state_list_tms)
  end
 ;
 
-fun p4_debug_symb_exec_frame_lists arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
  let
-  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond fuel
+  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel
   val arch_frame_list_tms = map (fn (path_id, path_cond, (tm1, tm2, tm3, tm4)) => tm3) state_list_tms
  in
   (path_tree, arch_frame_list_tms)

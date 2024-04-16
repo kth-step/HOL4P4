@@ -60,8 +60,12 @@ fun get_ipv4_checksum (version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, src, ds
   end
 ;
 
+fun fixedwidth_freevars_fromindex (fname, start_index, width) =
+ mk_list (List.tabulate (width, (fn index => mk_var (fname^(Int.toString (start_index + index)), bool))), bool)
+;
+
 fun fixedwidth_freevars (fname, width) =
- mk_list (List.tabulate (width, (fn index => mk_var (fname^(Int.toString index), bool))), bool)
+ fixedwidth_freevars_fromindex (fname, 0, width)
 ;
 
 (* Creates a bitstring representation of an IPv4 packet, given the
