@@ -159,6 +159,7 @@ val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
+val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec1_actx
 val init_astate = symb_exec1_astate_symb
@@ -194,6 +195,29 @@ val (res_id1, res_cond1, res_thm1) = res_elem1
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx (symb_exec1_ftymap, symb_exec1_blftymap) [] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (symb_exec1_ftymap, symb_exec1_blftymap) [] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
+
+(*
+
+val path_cond = (ASSUME T);
+val n_max = 50;
+val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
+val nthreads_max = 1;
+val debug_flag = false;
+val fuel = 100
+
+  val ctx_name = "ctx"
+  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
+
+  val table_stop_consts = [match_all_tm]
+  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+
+val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
+
+  val p4_init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
+
+symb_exec_conc (p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm, p4_init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel 4
+
+*)
 
 val _ = export_theory ();
