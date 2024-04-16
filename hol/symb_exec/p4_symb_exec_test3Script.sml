@@ -13,6 +13,10 @@ val _ = new_theory "p4_symb_exec_test3";
  *
  * This tests if branching on select statement and following pruning works. *)
 
+val symb_exec3_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
+
+val symb_exec3_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
+
 val symb_exec3_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -160,6 +164,6 @@ val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx (symb_exec3_ftymap, symb_exec3_blftymap) [] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
 
 val _ = export_theory ();

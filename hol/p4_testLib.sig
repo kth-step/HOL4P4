@@ -2,6 +2,7 @@ signature p4_testLib =
 sig
   include Abbrev
 
+val fixedwidth_freevars_fromindex : string * int * int -> term
 val fixedwidth_freevars : string * int -> term
 
 val mk_ipv4_packet_ok : term -> int -> term

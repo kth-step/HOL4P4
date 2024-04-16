@@ -9,13 +9,6 @@ open p4Theory p4_auxTheory;
 (* For EVAL *)
 open ASCIInumbersLib;
 
-(* OPTION_BIND as infix *)
-Definition app_opt_def:
- $>>= x_opt f =
-  OPTION_BIND x_opt f
-End
-val _ = set_fixity ">>=" (Infixl 801);
-
 (* Finds an element e obeying P in l, then returns a tuple of e and l with e removed *)
 Definition FIND_EXTRACT_def:
  FIND_EXTRACT P l =
@@ -90,74 +83,6 @@ End
 Definition opt_msg_bind_def:
  (opt_msg_bind (NONE_msg msg) f f' = NONE_msg $ f' msg) /\
  (opt_msg_bind (SOME_msg x) f f' = f x)
-End
-
-(* This is defined as an extension to "tau" (defined in p4Theory) that also
- * includes type parameters *)
-Datatype:
-p_tau =
-   p_tau_bool   (* Note that the integer width must be a compile-time known value *)
- | p_tau_bit num_exp
- | p_tau_bot
- (* Note that structs can be type-parametrized *)
- | p_tau_xtl struct_ty ((x#p_tau) list)
- (* The string is the name of the extern object *)
- | p_tau_ext string
- (* The string is the name of the programmable block *)
- | p_tau_blk string
- (* The string is the name of the package *)
- | p_tau_pkg string
- (* The string is the name of the type parameter *)
- | p_tau_par string
-End
-
-(* TODO: Rewrite the below to use list of p_taus instead of list of string, p_tau tuples? *)
-Definition deparameterise_tau_def:
-(deparameterise_tau t =
-  case t of
-  | p_tau_bool => SOME tau_bool
-  | p_tau_bit num_exp => SOME (tau_bit num_exp)
-  | p_tau_bot => SOME tau_bot
-  | p_tau_xtl struct_ty fields =>
-   deparameterise_x_taus fields >>= \fields'.
-   SOME (tau_xtl struct_ty fields')
-  | p_tau_ext ext_name => SOME tau_ext
-  | p_tau_blk blk_name => NONE
-  | p_tau_pkg pkg_name => NONE
-  | p_tau_par param_name => NONE) /\
-(deparameterise_x_taus [] = SOME []) /\
-(deparameterise_x_taus ((name, p_tau)::t) =
-  deparameterise_tau p_tau >>=
-  \tau. deparameterise_x_taus t >>=
-  \tau_l. SOME ((name, tau)::tau_l))
-Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL p_tau) => p_tau_size p_tau | (INR p_tau_list) => p_tau1_size p_tau_list)`
-End
-
-Definition deparameterise_taus_def:
-(deparameterise_taus p_tau_l =
- deparameterise_x_taus (ZIP(REPLICATE (LENGTH p_tau_l) "",p_tau_l)) >>=
- \x_tau_l. SOME (SND $ UNZIP x_tau_l))
-End
-
-Definition parameterise_tau_def:
-(parameterise_tau t =
-  case t of
-  | tau_bool => p_tau_bool
-  | tau_bit num_exp => (p_tau_bit num_exp)
-  | tau_bot => p_tau_bot
-  | tau_xtl struct_ty fields =>
-   (p_tau_xtl struct_ty (parameterise_x_taus fields))
-  | tau_ext => p_tau_ext "") /\
-(parameterise_x_taus [] = []) /\
-(parameterise_x_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_x_taus t)))
-Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL tau) => tau_size tau | (INR tau_list) => tau1_size tau_list)`
-End
-
-Definition parameterise_taus_def:
- parameterise_taus tau_l =
-  SND $ UNZIP $ parameterise_x_taus (ZIP(REPLICATE (LENGTH tau_l) "",tau_l))
 End
 
 
@@ -1621,7 +1546,7 @@ End
 
 Definition p4_prefix_tbls_in_tbl_map_def:
  p4_prefix_tbls_in_tbl_map b_func_map prefix (tbl_map:tbl_map) =
-  MAP ( \ (tbl_name, (mk_l, (def_action, e_l))). (prefix++("."++tbl_name), (mk_l, (p4_prefix_fname b_func_map prefix def_action, e_l)))) tbl_map
+  MAP ( \ (tbl_name, (mk_l, action_names, (def_action, e_l))). (prefix++("."++tbl_name), (mk_l, MAP (p4_prefix_fname b_func_map prefix) action_names, (p4_prefix_fname b_func_map prefix def_action, e_l)))) tbl_map
 End
 
 Definition p4_prefix_tbls_funs_in_tbl_entries_def:
@@ -3043,8 +2968,8 @@ Definition petr4_process_properties_def:
               | SOME_msg arch_props_res =>
                (case key_mk_tau_list of
                 | [] =>
-                 SOME_msg ([], default_action, entries)
-                | _ => SOME_msg (key_mk_tau_list, default_action, entries))
+                 SOME_msg ([], action_names, default_action, entries)
+                | _ => SOME_msg (key_mk_tau_list, action_names, default_action, entries))
               | NONE_msg arch_props_msg => NONE_msg arch_props_msg)
             | NONE_msg entries_props_msg => NONE_msg entries_props_msg)
           | NONE => NONE_msg "could not get types of key expressions")
@@ -3071,8 +2996,8 @@ Definition petr4_parse_table_def:
      then get_error_msg "(local) table name contains a period, which is unsupported by the inlining scheme: " name
      else
       (case petr4_process_properties (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) props of
-       | SOME_msg (keys, default_action, entries) =>
-        SOME_msg ((tbl_name, (MAP (FST o SND) keys, default_action)), (tbl_name, MAP FST keys), (tbl_name, entries), (tbl_name, MAP (SND o SND) keys))
+       | SOME_msg (keys, action_names, default_action, entries) =>
+        SOME_msg ((tbl_name, (MAP (FST o SND) keys, action_names, default_action)), (tbl_name, MAP FST keys), (tbl_name, entries), (tbl_name, MAP (SND o SND) keys))
        | NONE_msg prop_msg => NONE_msg ("could not parse properties: "++prop_msg))
     | NONE => get_error_msg "could not parse name: " name)
   | _ => get_error_msg "unknown JSON format of table: " table
@@ -3547,6 +3472,7 @@ Definition p4_clean_tbl_entries_map_def:
 End
 
 (* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
+(* NOTE: action_list is a list of all functions which are actions. *)
 Definition petr4_parse_element_def:
  petr4_parse_element (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map:(string # (pblock # tau list)) list, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) json =
   case json of
@@ -3884,8 +3810,8 @@ Definition p4_replace_tbl_default_def:
   case ALOOKUP pblock_map block_name of
   | SOME (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), tbl_map) =>
    (case ALOOKUP tbl_map table_name of
-    | SOME (mk_l, (old_action_name, old_args)) =>
-     SOME (ab_list, AUPDATE pblock_map (block_name, (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), (AUPDATE tbl_map (table_name, (mk_l, (action_name, args)))))),
+    | SOME (mk_l, action_names, (old_action_name, old_args)) =>
+     SOME (ab_list, AUPDATE pblock_map (block_name, (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), (AUPDATE tbl_map (table_name, (mk_l, action_names, (action_name, args)))))),
              ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
     | NONE => NONE)
   | _ => NONE

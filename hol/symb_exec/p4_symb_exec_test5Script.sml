@@ -13,6 +13,10 @@ val _ = new_theory "p4_symb_exec_test5";
  *
  * This tests if multi-case branching on apply statement works. *)
 
+val symb_exec5_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
+
+val symb_exec5_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
+
 val symb_exec5_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -225,6 +229,6 @@ val step_thm = step_thm2;
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx (symb_exec5_ftymap, symb_exec5_blftymap) ["t"] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
 
 val _ = export_theory ();
