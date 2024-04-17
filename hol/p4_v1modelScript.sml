@@ -670,7 +670,7 @@ End
 val v1model_apply_table_f_def =
  if CONTROL_PLANE_API = 0
  then xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, actions, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
     (* TODO: Note that this function could do other stuff here depending on table name.
      *       Ideally, one could make a general, not hard-coded, solution for this *)
     case ALOOKUP ctrl x of
@@ -679,19 +679,34 @@ val v1model_apply_table_f_def =
       then
        (* Largest priority wins (like for P4Runtime API - should be equivalent to TDI
         * for tables that contain at most one LPM key, with others exact) *)
-       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+       let
+        res = (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+       in
+        if MEM (FST res) actions
+        then SOME res
+        else NONE
       else
        (* Smallest priority wins (like for TDI) *)
-       SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
+       let
+        res = (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
+       in
+        if MEM (FST res) actions
+        then SOME res
+        else NONE
      | NONE => NONE’
  else xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, actions, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
     (* TODO: Note that this function could do other stuff here depending on table name.
      *       Ideally, one could make a general, not hard-coded, solution for this *)
     case ALOOKUP ctrl x of
      | SOME table =>
       (* Largest priority wins *)
-      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+      let
+       res = (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+      in
+       if MEM (FST res) actions
+       then SOME res
+       else NONE
      | NONE => NONE’;
 
 val _ = export_theory ();

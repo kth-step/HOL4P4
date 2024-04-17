@@ -129,4 +129,31 @@ rpt strip_tac >> (
 )
 QED
 
+(*
+(* Line of reasoning:
+ * 1. All actions must be from the "action names" list of the apply table call.
+ * 2. All results in ctrl must be well-typed according to the function type maps.
+
+ctrl_is_well_typed: For all arguments to apply_table_f, if the table_name is in tbl_map,
+ the result is among the set of actions in action_names for that table, and then the
+ arguments to that action are well-typed according to the function type maps.
+*)
+Theorem p4_app_nchotomy_example:
+!ctrl.
+ctrl_is_well_typed (ftymap, blftymap) apply_table_f ctrl ==>
+ALOOKUP tbl_map table_name = (mk_list, action_names, default) ==>
+(?i0 i1 i2 i3 i4 i5 i6 i7 i8 i9 i10 i11 i12 i13 i14 i15
+  i16 i17 i18 i19 i20 i21 i22 i23 i24 i25 i26 i27 i28 i29
+  i30 i31 i32 i33 i34 i35.
+  apply_table_f ((table_name, e_list, mk_list, action_names, default, (counter, ext_obj_map, v_map, ctrl)) =
+   SOME ("Set_nhop", [v_bit ([i0; i1; i2; i3; i4; i5; i6; i7; i8; i9; i10; i11; i12; i13; i14; i15;
+     i16; i17; i18; i19; i20; i21; i22; i23; i24; i25; i26; i27; i28; i29;
+     i30; i31], 32);
+                      v_bit ([i32; i33; i34; i35] , 4)]) \/
+(apply_table_f ((table_name, e_list, mk_list, action_names, default, (counter, ext_obj_map, v_map, ctrl)) = SOME ("NoAction", [])
+Proof
+cheat
+QED
+*)
+
 val _ = export_theory ();
