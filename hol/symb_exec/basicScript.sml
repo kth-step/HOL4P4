@@ -1026,11 +1026,11 @@ val basic_actx = ``([arch_block_inp;
     (varn_name "notify_soft",tau_bool,NONE);
     (varn_name "counters",tau_ext,NONE);
     (varn_name "ipsecCrypt",tau_ext,NONE)],[],
-   [("spd",[mk_lpm; mk_exact],"drop",[e_v (v_bool T); e_v (v_bool F)]);
-    ("forward",[mk_lpm],"drop",[e_v (v_bool T); e_v (v_bool F)]);
-    ("sad_decrypt",[mk_exact; mk_exact; mk_exact],"NoAction",
+   [("spd",[mk_lpm; mk_exact],["add_spd_mark";"drop"],"drop",[e_v (v_bool T); e_v (v_bool F)]);
+    ("forward",[mk_lpm],["l3_forward";"l2_forward";"drop"],"drop",[e_v (v_bool T); e_v (v_bool F)]);
+    ("sad_decrypt",[mk_exact; mk_exact; mk_exact],["NoAction";"esp_decrypt_aes_ctr";"esp_decrypt_null"],"NoAction",
      [e_v (v_bool T); e_v (v_bool F)]);
-    ("sad_encrypt",[mk_lpm],"sadb_acquire",[e_v (v_bool T); e_v (v_bool F)])]);
+    ("sad_encrypt",[mk_lpm],["esp_encrypt_aes_ctr";"esp_encrypt_null";"sadb_acquire"],"sadb_acquire",[e_v (v_bool T); e_v (v_bool F)])]);
   ("MyEgress",pbl_type_control,
    [("hdr",d_inout); ("meta",d_inout); ("standard_metadata",d_inout)],
    [("MyEgress",stmt_seq stmt_empty stmt_empty,[])],[],[],[]);
