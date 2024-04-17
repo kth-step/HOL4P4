@@ -98,7 +98,7 @@ val symb_exec5_actx = ``([arch_block_inp;
                 "egress_spec") (e_v (v_bit ([F; F; T; T; F; F; T; F; T],9))))
           (stmt_ret (e_v v_bot))),[("from_table",d_in); ("hit",d_in)])],[],
    [],
-   [("t",[mk_exact],"set_default_out_port",[e_v (v_bool T); e_v (v_bool F)])])],
+   [("t",[mk_exact],["set_out_port";"set_default_out_port"],"set_default_out_port",[e_v (v_bool T); e_v (v_bool F)])])],
  [("postparser",ffblock_ff v1model_postparser)],
  v1model_input_f
    (v_struct
