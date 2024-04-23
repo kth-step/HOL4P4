@@ -373,11 +373,12 @@ fun dest_aenv aenv =
 fun dest_pblock pblock =
  let
   val (pbl_type, pblock') = dest_pair pblock
-  val (b_func_map, pblock'') = dest_pair pblock'
-  val (decl_list, pblock''') = dest_pair pblock''
-  val (pars_map, tbl_map) = dest_pair pblock'''
+  val (params, pblock'') = dest_pair pblock'
+  val (b_func_map, pblock''') = dest_pair pblock''
+  val (decl_list, pblock'''') = dest_pair pblock'''
+  val (pars_map, tbl_map) = dest_pair pblock''''
  in
-  (pbl_type, b_func_map, decl_list, pars_map, tbl_map)
+  (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map)
  end
 ;
 
