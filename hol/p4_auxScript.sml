@@ -2298,6 +2298,18 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
+Definition v_to_tau_list_def:
+ (v_to_tau_list [] = SOME []) /\
+ (v_to_tau_list ((e_v h)::t) =
+  case v_to_tau_list t of
+  | SOME taus =>
+   (case v_to_tau h of
+    | SOME tau => SOME (tau::taus)
+    | NONE => NONE)
+  | NONE => NONE) /\
+ (v_to_tau_list _ = NONE)
+End
+
 (* TODO: Hack to eliminate lots of syntax fiddling in p4_testLib *)
 Definition ext_map_replace_impl_def:
  (ext_map_replace_impl ext_map ext_name method_name new_impl =
@@ -2443,7 +2455,7 @@ Definition deparameterise_b_ftymap_entries_def:
   case deparameterise_ftymap_entries ftymap of
   | SOME ftymap' =>
    (case deparameterise_b_ftymap_entries t of
-    | SOME res => SOME ((b_name, ftymap)::res)
+    | SOME res => SOME ((b_name, ftymap')::res)
     | NONE => NONE)
   | NONE => NONE
  )

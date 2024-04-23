@@ -43,6 +43,31 @@ fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
  | NONE =>
   raise (ERR "insert_nodes" "Inserting new path node at unknown or occupied position ");
 
+(* Takes a step theorem Q and a branch condition of the shape
+ *   (?e1 ... en. P (e1 ... en))
+ * (possibly with n=0) and converts it to the new step theorem
+ *   P (e1 ... en) ==> Q
+ * with e1 ... en as free variables, also returns the new branch condition
+ * tupled with this result.
+ * *)
+fun convert_exists branch_cond step_thm =
+ let
+  val thm = DISCH_CONJUNCTS_ALL $ ADD_ASSUM branch_cond step_thm
+  val (ante, cons) = dest_imp $ concl thm
+ in
+  (* Don't remove the boolSyntax prefix *)
+  if boolSyntax.is_exists ante
+  then
+   let
+    val (vars, ante') = strip_exists ante
+    val tm' = mk_imp (ante', cons)
+   in
+    (prove(tm', SIMP_TAC bool_ss [step_thm]), ante')
+   end
+  else (thm, branch_cond)
+ end
+;
+
 (* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
 (* TODO: Factor out *)
 fun p4_conv path_cond_tm tm =
@@ -72,7 +97,7 @@ fun update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_bra
 			     (* Old: *)
 			     (* DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm *)
 			     (* New, a bit of a silly hack: *)
-			     PURE_REWRITE_RULE [SPEC branch_cond AND_IMP_INTRO_SYM] $ DISCH_CONJUNCTS_ALL $ ADD_ASSUM branch_cond step_thm,
+                             (fn (thm, tm) => PURE_REWRITE_RULE [SPEC tm AND_IMP_INTRO_SYM] thm) $ convert_exists branch_cond step_thm,
 			     (* Branching consumes 1 fuel *)
 			     fuel-1,
 			     (* This flags tells the symbolic execution to not branch this
@@ -148,9 +173,8 @@ local
  (* Generic symbolic execution
   * This has four language-specific parameters:
   *
-  * lang_regular_step (thm * thm -> thm): Takes one regular step in the language lang
-  *   (takes a path condition in theorem form and a step theorem and transforms it into
-  *    a new step theorem)
+  * lang_regular_step (thm -> thm): Takes one regular step in the language lang
+  *   (takes a step theorem and transforms it into a new step theorem)
   *
   * lang_init_step_thm (thm): Step theorem for zero steps
   *
@@ -158,7 +182,7 @@ local
   * by looking at the current step theorem. Returns NONE if branching should not
   * happen, and a list of different branch conditions (used to update the path conditions)
   * and a disjunction theorem stating that the disjunction of the branch conditions holds.
-
+  *
   * lang_is_finished (thm -> bool): Decides whether symbolic execution should continue
   * on this path by looking at the current step theorem.
   *
@@ -201,7 +225,7 @@ local
        val time_start = Time.now();
 
        val next_step_thm =
-	lang_regular_step (path_cond, step_thm)
+	lang_regular_step step_thm
        val _ = dbg_print debug_flag
 	(String.concat ["Finished regular symbolic execution step of path ID ",
 			(Int.toString path_id), " in ",
@@ -247,7 +271,7 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_sho
     val time_start = Time.now();
 
     val next_step_thm =
-     lang_regular_step (path_cond, step_thm)
+     lang_regular_step step_thm
 
     val _ = dbg_print debug_flag
      (String.concat ["Finished regular symbolic execution step of path ID ",

@@ -278,7 +278,7 @@ val dest_actx :
      term * term * term * term * term * term * term * term * term * term
 val dest_astate : term -> term * term * term * term
 val dest_aenv : term -> term * term * term * term
-val dest_pblock : term -> term * term * term * term * term
+val dest_pblock : term -> term * term * term * term * term * term
 
 val dest_e_red : term -> term * term * term * term * term * term
 val e_red_tm : term

@@ -451,7 +451,7 @@ fun debug_frames_from_step arch actx astate nsteps =
   val (i, in_out_list, in_out_list', scope) = dest_aenv aenv
   val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx
   val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
-  val (pbl_type, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
+  val (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
   val frame_list = dest_arch_frame_list_regular arch_frame_list
  in
   ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
