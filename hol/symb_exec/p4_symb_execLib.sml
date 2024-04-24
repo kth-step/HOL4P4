@@ -604,7 +604,7 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  * be performed, otherwise SOME of a list of cases and a theorem stating the disjunction
  * between them *)
 (* TODO: (fty_map, b_fty_map) and const_actions_tables only needed for apply statement *)
-fun p4_should_branch (fty_map, b_fty_map) const_actions_tables ctx_def step_thm =
+fun p4_should_branch (fty_map, b_fty_map) const_actions_tables ctx_def (fv_index, step_thm) =
  let
   val (path_tm, astate) = the_final_state_hyp_imp step_thm
  in
@@ -616,7 +616,7 @@ fun p4_should_branch (fty_map, b_fty_map) const_actions_tables ctx_def step_thm 
     let
      val branch_cond' = dest_v_bool $ dest_e_v branch_cond
     in
-     SOME (SPEC branch_cond' disj_list_EXCLUDED_MIDDLE)
+     SOME (SPEC branch_cond' disj_list_EXCLUDED_MIDDLE, [fv_index, fv_index])
     end
    else NONE
     (* Branch point: select expression (in transition statement) *)
@@ -642,14 +642,16 @@ fun p4_should_branch (fty_map, b_fty_map) const_actions_tables ctx_def step_thm 
        (* 5. Construct disjunction theorem, which now is not a strict disjunction *)
        (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
 	* specialisation or rewrites, and not in-place with tactics *)
-       val disj_thm =
+       val (disj_thm, fv_indices) =
         if Feq $ snd $ dest_eq $ concl def_branch_cond_thm
         then
-         prove(mk_disj_list (key_branch_conds'), REWRITE_TAC [disj_list_def] >> metis_tac[def_branch_cond_thm])
+         (prove(mk_disj_list (key_branch_conds'), REWRITE_TAC [disj_list_def] >> metis_tac[def_branch_cond_thm]),
+          List.tabulate (length key_branch_conds', fn n => fv_index))
         else
-         prove(mk_disj_list (key_branch_conds'@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
+         (prove(mk_disj_list (key_branch_conds'@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[]),
+          List.tabulate ((length key_branch_conds') + 1, fn n => fv_index))
        in
-        SOME disj_thm
+        SOME (disj_thm, fv_indices)
        end
 (* OLD
       else if is_v_bit sel_val
@@ -684,12 +686,6 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
       val ctrl = #4 $ dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate
       (* 2. Extract key sets from ascope using tbl_name *)
       val tbl_opt = rhs $ concl $ EVAL “ALOOKUP ^ctrl ^tbl_name”
-        (* TODO: This should now use get_freevars_call (fty_map,b_fty_map) funn block_name fv_index
-
-Uses: list of possible actions for each table (as strings or funns).
-Uses: list of which tables have fixed entries (const_actions_tables), old version should be used for these
-
-*)
      in
       if is_some tbl_opt
       then
@@ -703,11 +699,6 @@ Uses: list of which tables have fixed entries (const_actions_tables), old versio
 	 (* The branch cases for equality with the different table entry keys *)
 	 (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
 	  * funny priorities in the table *)
- (*
- #2 $ dest_astate astate
-
-  get_freevars_call (fty_map,b_fty_map) funn block_name fv_index
- *)
 
 	 val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
 	 val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
@@ -722,9 +713,10 @@ Uses: list of which tables have fixed entries (const_actions_tables), old versio
 	  (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
 	   * specialisation or rewrites, and not in-place with tactics *)
 	 val disj_thm = prove(mk_disj_list (key_branch_conds'@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
+         val fv_indices = List.tabulate ((length key_branch_conds') + 1, fn n => fv_index)
 
 	in
-	 SOME disj_thm
+	 SOME (disj_thm, fv_indices)
 	end
       else
        (* Table with unknown entries *)
@@ -752,7 +744,7 @@ Uses: list of which tables have fixed entries (const_actions_tables), old versio
 
         val (disj_tms, fv_indices) = unzip $ map (fn action_name =>
          let
-	  val (action_args, fv_index') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block 0
+	  val (action_args, fv_index') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block fv_index
 	  val action_args' = rhs $ concl $ EVAL (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, (action_args)))
 	  val action = mk_pair (action_name, action_args')
 	  val res_case = list_mk_exists (rev $ free_vars action_args, mk_eq (case_lhs, action))
@@ -833,7 +825,7 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
         val disj_thm = prove (mk_disj_list disj_tms', cheat)
 
        in
-	SOME disj_thm
+	SOME (disj_thm, fv_indices')
        end
       else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
      end
