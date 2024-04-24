@@ -129,31 +129,27 @@ rpt strip_tac >> (
 )
 QED
 
-(*
-(* Line of reasoning:
- * 1. All actions must be from the "action names" list of the apply table call.
- * 2. All results in ctrl must be well-typed according to the function type maps.
-
-ctrl_is_well_typed: For all arguments to apply_table_f, if the table_name is in tbl_map,
- the result is among the set of actions in action_names for that table, and then the
- arguments to that action are well-typed according to the function type maps.
-*)
-Theorem p4_app_nchotomy_example:
-!ctrl.
-ctrl_is_well_typed (ftymap, blftymap) apply_table_f ctrl ==>
-ALOOKUP tbl_map table_name = (mk_list, action_names, default) ==>
-(?i0 i1 i2 i3 i4 i5 i6 i7 i8 i9 i10 i11 i12 i13 i14 i15
-  i16 i17 i18 i19 i20 i21 i22 i23 i24 i25 i26 i27 i28 i29
-  i30 i31 i32 i33 i34 i35.
-  apply_table_f ((table_name, e_list, mk_list, action_names, default, (counter, ext_obj_map, v_map, ctrl)) =
-   SOME ("Set_nhop", [v_bit ([i0; i1; i2; i3; i4; i5; i6; i7; i8; i9; i10; i11; i12; i13; i14; i15;
-     i16; i17; i18; i19; i20; i21; i22; i23; i24; i25; i26; i27; i28; i29;
-     i30; i31], 32);
-                      v_bit ([i32; i33; i34; i35] , 4)]) \/
-(apply_table_f ((table_name, e_list, mk_list, action_names, default, (counter, ext_obj_map, v_map, ctrl)) = SOME ("NoAction", [])
-Proof
-cheat
-QED
-*)
+Definition ctrl_is_well_formed_def:
+ ctrl_is_well_formed (ftymap, blftymap) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
+  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
+   ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
+    !tbl mk_l actions default_f default_f_args.
+     ALOOKUP tbl_map tbl = SOME (mk_l, actions, (default_f, default_f_args)) ==>
+      !e_l f f_args.
+      apply_table_f (tbl, e_l, mk_l, actions, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
+       MEM f actions /\
+       (EL 0 f_args = (e_v (v_bool T))) /\
+       (f = default_f ==> ?b. EL 1 f_args = (e_v (v_bool b))) /\
+       (f <> default_f ==> EL 1 f_args = (e_v (v_bool T))) /\
+       ((?ftys ret_ty local_ftymap. ALOOKUP blftymap block_name = SOME local_ftymap /\
+        ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+        v_to_tau_list (DROP 2 f_args) = SOME (ftys)) \/
+       (ALOOKUP blftymap block_name = NONE \/
+        (?local_ftymap.
+         ALOOKUP blftymap block_name = SOME local_ftymap /\
+         ALOOKUP local_ftymap (funn_name f) = NONE) /\
+        (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+         v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
+End
 
 val _ = export_theory ();
