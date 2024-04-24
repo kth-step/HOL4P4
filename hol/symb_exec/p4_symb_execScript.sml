@@ -135,7 +135,7 @@ Definition ctrl_is_well_formed_def:
    ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
     !tbl mk_l actions default_f default_f_args.
      ALOOKUP tbl_map tbl = SOME (mk_l, actions, (default_f, default_f_args)) ==>
-      !e_l f f_args.
+      !e_l. ?f f_args.
       apply_table_f (tbl, e_l, mk_l, actions, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
        MEM f actions /\
        (EL 0 f_args = (e_v (v_bool T))) /\
