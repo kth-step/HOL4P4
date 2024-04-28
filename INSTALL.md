@@ -31,21 +31,21 @@ First, navigate to the directory where you want to put the source code of Poly/M
 
 		sudo apt-get install build-essential git python3
 
-2. Install Poly/ML 5.9
+2. Install Poly/ML 5.9.1
 
 		git clone https://github.com/polyml/polyml.git
 		cd polyml
-		git checkout v5.9
+		git checkout v5.9.1
 		./configure --prefix=/usr
 		make
 		sudo make install
 		cd ..
 
-3. Install HOL4 Kananaskis-14
+3. Install HOL4 Trindemossen-1
 	
 		git clone https://github.com/HOL-Theorem-Prover/HOL.git
 		cd HOL
-		git checkout kananaskis-14
+		git checkout trindemossen-1
 		poly < tools/smart-configure.sml
 		bin/build
 		cd ..

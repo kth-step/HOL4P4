@@ -118,7 +118,7 @@ e_exec_sound type (e_concat e1 e2)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
-fs [e_exec] >>
+fs [e_exec_def] >>
 Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
  fs []
 ) >| [
@@ -139,7 +139,7 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
  fs [clause_name_def],
 
  Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
   fs []
@@ -153,7 +153,7 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
  METIS_TAC [((valOf o find_clause_e_red) "e_concat_arg2"), clause_name_def],
 
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
   fs []
@@ -168,7 +168,7 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
 
 
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
   fs []
@@ -186,7 +186,7 @@ e_exec_sound type (e_slice e1 e2 e3)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
-fs [e_exec] >>
+fs [e_exec_def] >>
 Cases_on `is_v_bit e1` >> (
  fs []
 ) >| [
@@ -204,7 +204,7 @@ Cases_on `is_v_bit e1` >> (
  fs [clause_name_def],
 
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
   fs []
@@ -226,7 +226,7 @@ e_exec_sound type (e_acc e x)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
-fs [e_exec] >>
+fs [e_exec_def] >>
 Cases_on `is_v e` >> (
  fs []
 ) >| [
@@ -284,10 +284,10 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  Cases_on `is_short_circuitable b` >- (
   (* Short-circuit *)
   Cases_on `b` >> Cases_on `v` >> (
-   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
+   fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
   ) >> (
    Cases_on `b` >> (
-    fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
+    fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
    )
   ) >| [
    irule ((valOf o find_clause_e_red) "e_bin_and2") >>
@@ -305,7 +305,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  ) >>
  fs [] >>
  Cases_on `e_exec_binop (e_v v) b e2` >> (
-  fs [e_exec] >>
+  fs [e_exec_def] >>
   rw []
  ) >>
  (* Different concrete cases *)
@@ -436,10 +436,10 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   fs [] >>
   rw [] >>
   Cases_on `v` >> (
-   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
+   fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
   ) >>
   Cases_on `b'` >> Cases_on `b` >> (
-   fs [is_short_circuitable_def, e_exec, is_v, e_exec_short_circuit]
+   fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
   ) >| [
    irule ((valOf o find_clause_e_red) "e_bin_and2") >>
    fs [clause_name_def],
@@ -455,7 +455,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   ]
  ) >>
  Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
   fs [is_v]
@@ -464,7 +464,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
  (* First operand is not fully reduced *)
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >> (
   Cases_on `e1` >> (
    fs [is_v]
@@ -477,7 +477,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
  (* No operand is fully reduced *)
  Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >> (
   Cases_on `e1` >> (
    fs [is_v]
@@ -501,7 +501,7 @@ Cases_on `is_v e` >| [
  Cases_on `e` >> (
   fs [is_v]
  ) >>
- fs [e_exec, e_exec_select] >>
+ fs [e_exec_def, e_exec_select] >>
  Cases_on `FIND (\(v',x'). v' = v) l` >> (
   fs [is_v]
  ) >- (
@@ -515,7 +515,7 @@ Cases_on `is_v e` >| [
  irule ((valOf o find_clause_e_red) "e_sel_acc") >>
  fs [sel_def, clause_name_def],
 
- fs [e_exec, e_exec_select] >>
+ fs [e_exec_def, e_exec_select] >>
  Cases_on `e_exec ctx g_scope_list scopes_stack e` >- (
   fs []
  ) >>
@@ -536,7 +536,7 @@ fs [e_exec_sound] >>
 rpt strip_tac >>
 Cases_on `is_v e` >| [
  Cases_on `e_exec_unop u e` >> (
-  fs [e_exec] >>
+  fs [e_exec_def] >>
   rw []
  ) >>
  Cases_on `e` >> (
@@ -560,7 +560,7 @@ Cases_on `is_v e` >| [
  fs [clause_name_def],
 
  Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >>
  Cases_on `x` >>
  fs [] >>
@@ -577,7 +577,7 @@ fs [e_exec_sound] >>
 rpt strip_tac >>
 Cases_on `is_v e` >| [
  Cases_on `e_exec_cast c e` >> (
-  fs [e_exec] >>
+  fs [e_exec_def] >>
   rw []
  ) >>
  Cases_on `e` >> (
@@ -598,7 +598,7 @@ Cases_on `is_v e` >| [
  ],
 
  Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >>
  Cases_on `x` >>
  fs [] >>
@@ -615,7 +615,7 @@ fs [e_exec_sound] >>
 rpt strip_tac >>
 PairCases_on `ctx` >>
 rename1 `(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)` >>
-fs [e_exec] >>
+fs [e_exec_def] >>
 Cases_on `lookup_funn_sig_body f func_map b_func_map ext_map` >> (
  fs []
 ) >>
@@ -678,7 +678,7 @@ e_exec_sound type (e_struct x_e_l)
 Proof
 fs [e_exec_sound] >>
 rpt strip_tac >>
-fs [e_exec] >>
+fs [e_exec_def] >>
 Cases_on `unred_mem_index (MAP SND x_e_l)` >> (
  fs []
 ) >| [
@@ -795,7 +795,7 @@ rpt strip_tac >| [
  fs [e_unop_exec_sound_red],
 
  (* TODO: List expression - not in exec sem yet *)
- fs [e_exec_sound, e_exec],
+ fs [e_exec_sound, e_exec_def],
 
  (* Function/extern call *)
  fs [e_call_exec_sound_red],
@@ -804,7 +804,7 @@ rpt strip_tac >| [
  fs [e_struct_exec_sound_red],
 
  (* TODO: Header expression - not in exec sem yet *)
- fs [e_exec_sound, e_exec],
+ fs [e_exec_sound, e_exec_def],
 
  (* x_e list: inductive case *)
  Cases_on `p` >>
@@ -819,10 +819,10 @@ rpt strip_tac >| [
  metis_tac [l_sound_MEM],
 
  (* Constant value: Irreducible *)
- fs [e_exec_sound, e_exec],
+ fs [e_exec_sound, e_exec_def],
 
  (* Variable lookup *)
- fs [e_exec_sound, e_exec] >>
+ fs [e_exec_sound, e_exec_def] >>
  rpt strip_tac >>
  Cases_on `lookup_vexp2 scopes_stack g_scope_list v` >> (
   fs []

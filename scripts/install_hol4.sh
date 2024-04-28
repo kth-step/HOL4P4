@@ -6,7 +6,7 @@ CURR_DIR=$2
 cd ${INSTALL_DIR}
 git clone https://github.com/HOL-Theorem-Prover/HOL.git
 cd HOL
-git checkout kananaskis-14
+git checkout trindemossen-1
 # Add compilation flags to avoid ISO C++17 incompatibility errors
 # Note: Only done for amd64, doing this patch on aarch64 results in worse errors
 if [[ $(dpkg --print-architecture) == "amd64" ]]
