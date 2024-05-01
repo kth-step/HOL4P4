@@ -6,7 +6,7 @@ open pairSyntax listSyntax numSyntax computeLib hurdUtils;
 
 open p4Theory p4_exec_semTheory p4Syntax p4_exec_semSyntax;
 open p4_coreTheory;
-open symb_execTheory symb_execSyntax p4_symb_execTheory;
+open symb_execTheory symb_execSyntax p4_symb_execTheory p4_bigstepTheory;
 
 open evalwrapLib p4_testLib;
 open symb_execLib;
@@ -67,6 +67,18 @@ fun astate_get_top_stmt astate =
   then NONE
   else SOME $ el 1 $ fst $ dest_list $ #2 $ dest_frame $ el 1 $ fst $ dest_list $ dest_arch_frame_list_regular arch_frame_list
  end
+;
+
+fun arch_frame_list_get_top_funn_stmt arch_frame_list =
+ if is_arch_frame_list_empty arch_frame_list
+ then NONE
+ else
+  let
+   val top_frame = el 1 $ fst $ dest_list $ dest_arch_frame_list_regular arch_frame_list
+   val (funn, stmt_stack, _) = dest_frame top_frame
+  in
+   SOME (funn, el 1 $ fst $ dest_list stmt_stack)
+  end
 ;
 
 datatype branch_data =
@@ -496,10 +508,12 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
  * *)
 
 (* RESTR_EVAL_RULE constants: *)
-val p4_stop_eval_consts =
+val p4_stop_eval_consts_unary =
  [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
-  “word_2comp”,
-  “word_mul”,
+  “word_2comp”
+ ];
+val p4_stop_eval_consts_binary =
+ [“word_mul”,
   “word_div”,
   “word_mod”,
   “word_add”,
@@ -516,6 +530,8 @@ val p4_stop_eval_consts =
   “word_lo”,
   “word_hi”
 ];
+
+val p4_stop_eval_consts = p4_stop_eval_consts_unary@p4_stop_eval_consts_binary;
 
 (* TODO: Move *)
 fun dest_v_struct_fields strct =
@@ -742,6 +758,9 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
          * depending on the match kinds involved *)
 	val case_lhs = “FST $ FOLDL_MATCH_alt ^e (^default_action, NONE) (1:num) ^tbl”
 
+        (* TODO: This map should be a foldl, so that the same free variables don't appear in
+         * different disjuncts *)
+(*
         val (disj_tms, fv_indices) = unzip $ map (fn action_name =>
          let
 	  val (action_args, fv_index') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block fv_index
@@ -751,6 +770,18 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
          in
           (res_case, fv_index')
          end) (fst $ dest_list action_names)
+*)
+        val (fv_index''', disj_tms) = foldl (fn (action_name, (fv_index', res_list)) =>
+         let
+	  val (action_args, fv_index'') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block fv_index'
+	  val action_args' = rhs $ concl $ EVAL (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, (action_args)))
+	  val action = mk_pair (action_name, action_args')
+	  val res_case = list_mk_exists (rev $ free_vars action_args, mk_eq (case_lhs, action))
+         in
+          (fv_index'', (res_case::res_list))
+         end) (fv_index, []) (fst $ dest_list action_names)
+        val fv_indices = (replicate (fv_index''', length disj_tms))
+
         val fv_indices' = fv_indices@[0]
         val disj_tms' = disj_tms@[mk_eq (case_lhs, default_action)]
 
@@ -852,19 +883,16 @@ fun p4_regular_step_get_err_msg step_thm =
   val (assl, exec_thm) = dest_imp $ concl step_thm
   val (exec_tm, res_opt) = dest_eq exec_thm
   val (_, _, nsteps) = dest_arch_multi_exec exec_tm
-  (* TODO: Print path condition? *)
-  (* TODO: Get next stmt to be reduced in proper format *)
 (* DEBUG: *)
-  val _ = print "\n\nDEBUG OUTPUT: State prior to failure is:\n";
-  val _ = print $ term_to_string $ dest_some res_opt;
-  val _ = print "\n\nDEBUG OUTPUT: Path condition prior to failure is:\n";
-  val _ = print $ term_to_string assl;
+  val _ = print "\n\nstep_thm prior to failure:\n";
+  val _ = print $ term_to_string $ concl step_thm;
   val _ = print "\n\n";
-
+(*
   val next_state_str =
    if is_some res_opt
    then (term_to_string $ dest_some res_opt)
    else "NONE"
+*)
  in
   (("error encountered at (regular) step "^(term_to_string nsteps))^".")
 (*
@@ -1077,6 +1105,131 @@ fun dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt =
  else raise (ERR "dbg_print_stmt_red" ("Unsupported statement: "^(term_to_string stmt)))
 ;
 
+fun p4_funn_name_not_in_func_map funn func_map =
+ if is_funn_name funn
+ then
+  let
+   val fname = dest_funn_name funn
+  in
+   (* TODO: Do this on SML level *)
+   optionSyntax.is_none $ rhs $ concl $ EVAL “ALOOKUP ^func_map ^fname”
+  end
+ else false
+;
+
+(* TODO: Actually, both this and the bigstep semantics should be able
+ * to look inside expressions that are not shortcuttable *)
+fun p4_e_is_shortcuttable e =
+ (* Shortcuttable expressions *)
+ if is_e_var e
+ then true
+ else if is_e_acc e
+ then p4_e_is_shortcuttable $ fst $ dest_e_acc e
+ else if is_e_cast e
+ then p4_e_is_shortcuttable $ snd $ dest_e_cast e
+ else if is_e_unop e
+ then p4_e_is_shortcuttable $ snd $ dest_e_unop e
+ else if is_e_binop e
+ then p4_e_is_shortcuttable $ #2 $ dest_e_binop e
+ else if is_e_concat e
+ then p4_e_is_shortcuttable $ fst $ dest_e_concat e
+ else if is_e_slice e
+ then p4_e_is_shortcuttable $ #1 $ dest_e_slice e
+ (* Expressions with shortcuttable subexpressions *)
+(* TODO: Requires keeping track of argument direction in big-step semantics
+ else if is_e_call e
+ then p4_e_l_is_shortcuttable $ fst $ dest_list $ snd $ dest_e_call e
+*)
+(* TODO: Requires reducing header expression
+ else if is_e_select e
+ then p4_e_is_shortcuttable $ #1 $ dest_e_select e
+*)
+ else false
+and p4_e_l_is_shortcuttable (h::t) =
+ if is_e_v h
+ then p4_e_l_is_shortcuttable t
+ else p4_e_is_shortcuttable h
+  | p4_e_l_is_shortcuttable [] = false
+;
+
+(* TODO: This leaves open the possibility of nested stmt_seq, but the import tool should
+ * not enable that - throw exception if this is found to be the case? *)
+fun p4_is_shortcuttable (SOME (funn, stmt)) func_map =
+ if p4_funn_name_not_in_func_map funn func_map
+ then
+  if is_stmt_seq stmt
+  then
+   let
+    val stmt' = fst $ dest_stmt_seq stmt
+   in
+    if is_stmt_empty stmt'
+    then true
+    else if is_stmt_ass stmt'
+    then p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt'
+    else false
+   end
+(* Do not allow to shortcut just stmt_empty
+  else if is_stmt_empty stmt
+  then true
+*)
+  else if is_stmt_ass stmt
+  then p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt
+  else false
+ else false
+  | p4_is_shortcuttable NONE _ = false
+;
+
+(* TODO: Move *)
+val (bigstep_arch_exec_tm,  mk_bigstep_arch_exec, dest_bigstep_arch_exec, is_bigstep_arch_exec) =
+  syntax_fns2 "p4_bigstep" "bigstep_arch_exec";
+
+(* TODO: Move *)
+val (in_local_fun_tm,  mk_in_local_fun, dest_in_local_fun, is_in_local_fun) =
+  syntax_fns2 "p4_bigstep" "in_local_fun";
+
+(* TODO: Move *)
+val (in_local_fun'_tm,  mk_in_local_fun', dest_in_local_fun', is_in_local_fun') =
+  syntax_fns2 "p4_bigstep" "in_local_fun'";
+
+(* TODO: Move *)
+(* TODO: This should simplify the scopes after shortcutting *)
+local
+fun word_conv word =
+ if null $ free_vars word
+ then EVAL word
+ else raise UNCHANGED
+;
+
+val word_convs_unary =
+ map
+ (fn wordop =>
+  {conv = K (K word_conv),
+   key= SOME ([], ``^wordop w``),
+   (* TODO: Better names *)
+   name = term_to_string wordop,
+   trace = 2}) p4_stop_eval_consts_unary
+;
+val word_convs_binary =
+ map
+ (fn wordop =>
+  {conv = K (K word_conv),
+   key= SOME ([], ``^wordop w w'``),
+   (* TODO: Better names *)
+   name = term_to_string wordop,
+   trace = 2}) p4_stop_eval_consts_binary
+;
+
+in
+val p4_wordops_ss =
+  SSFRAG {ac = [],
+          congs = [],
+          convs = word_convs_unary@word_convs_binary,
+          dprocs = [],
+          filter = NONE,
+          name = SOME "p4_wordops_ss",
+          rewrs = []};
+end;
+
 fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
  let
   (* DEBUG *)
@@ -1102,92 +1255,145 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
 
   val (func_map, b_func_map, ext_fun_map) = get_f_maps (astate, ctx)
 
-  (* DEBUG *)
-  val _ =
-   if debug_flag
-   then
-    case astate_get_top_stmt astate of
-       NONE => ()
-     | SOME stmt => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
-   else ()
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate
+  val stmt_funn_opt = arch_frame_list_get_top_funn_stmt arch_frame_list
+ in
+  if p4_is_shortcuttable stmt_funn_opt func_map
+  then
+   (* TODO: Take shortcut *)
+   let
+    (* DEBUG *)
+    val _ =
+     if debug_flag
+     then
+      case stmt_funn_opt of
+	 NONE => ()
+       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
+     else ()
 
-  val step_thm2 = eval_ctxt (ASSUME ante) astate
+    val bigstep_thm = RESTR_EVAL_CONV p4_stop_eval_consts $ mk_bigstep_arch_exec (g_scope_list, arch_frame_list)
 
-  (* DEBUG *)
-  val _ = dbg_print debug_flag (String.concat ["evaluation-in-context: ",
-				(LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
-				" ms\n"])
+    (* DEBUG *)
+    val _ = dbg_print debug_flag (String.concat ["shortcutting: ",
+				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+				  " ms\n"])
 
-  (* DEBUG:
-  val stop_consts1 = (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts);
-  val stop_consts2 = (stop_consts_never@p4_stop_eval_consts);
-  val ctxt = path_cond;
-  val tm = (mk_arch_multi_exec (ctx, astate, 1));
-  *)
-    (* No timing printed for the below, it takes less than 0 ms *)
-    (* TODO: Do this in a nicer way... *)
-  (* ???
-    val next_e_opt = astate_get_next_e (func_map, b_func_map, ext_fun_map) astate
-  *)
-    val extra_rewr_thms =
-     (case astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate of
-  (*
-  val SOME next_e_syntax_f = astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate
-  *)
-	NONE => [] (* Reduction did not even consider reducing an e *)
-      | SOME next_e_syntax_f =>
-       (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate) of
-  (*
-  val SOME next_subexp_syntax_f = e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate)
-  *)
-	  SOME next_subexp_syntax_f =>
-	 let
-	  val next_subexp = next_subexp_syntax_f (next_e_syntax_f astate)
-	 in
-	  if (null $ free_vars $ next_subexp) andalso (not $ is_e_call next_subexp)
-	  then (* Reduction from a subexp without free variables *)
-	   let
-	    (* Then, get the resulting subexp *)
-	    val subexp_red_res =
-	     next_subexp_syntax_f $ next_e_syntax_f $ the_final_state_imp step_thm2
-	    (* Evaluate the subexp without restrictions *)
-	    val subexp_red_res_EVAL = EVAL subexp_red_res
-	   in
-	    (* Now, rewrite with this result *)
-	    [subexp_red_res_EVAL]
-	   end
-	  else [] (* Reduction from e_call, or a subexp with free variables *)
-	 end
-	| NONE => []))
+
+    (* Simplify the word operations that contain no free variables *)
+    val bigstep_thm' = SIMP_RULE (empty_ss++p4_wordops_ss) [] bigstep_thm
+    (* TODO: Make version of bigstep_arch_exec_comp that uses abbreviated ctx, plus
+     * in_local_fun that uses ctx instead of func_map *)
+(*
+    val is_local_thm = EQT_ELIM $ EVAL $ mk_in_local_fun (func_map, arch_frame_list)
+*)
+
+    val is_local_thm = EVAL_RULE $ SIMP_CONV std_ss ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (“ctx”, arch_frame_list)
+
+    (* DEBUG *)
+    val time_start2 = Time.now();
+
+    val res =
+     SIMP_RULE simple_arith_ss []
+      (MATCH_MP (MATCH_MP (MATCH_MP bigstep_arch_exec_comp' (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
+
+    (* DEBUG *)
+    val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
+				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start2)),
+				  " ms\n"])
+
    in
-    let
+    res
+   end
+  else
+   (* OLD regular step *)
+   let
+    (* DEBUG *)
+    val _ =
+     if debug_flag
+     then
+      case stmt_funn_opt of
+	 NONE => ()
+       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
+     else ()
 
-     (* DEBUG *)
-     val time_start2 = Time.now();
+    val step_thm2 = eval_ctxt (ASSUME ante) astate
 
-     val res =
-      SIMP_RULE simple_arith_ss extra_rewr_thms
-       (MATCH_MP (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))
+    (* DEBUG *)
+    val _ = dbg_print debug_flag (String.concat ["evaluation-in-context: ",
+				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+				  " ms\n"])
 
-  (* TEST:
-     val res =
-      SIMP_RULE simple_arith_ss extra_rewr_thms
-       (PURE_REWRITE_RULE [(PURE_REWRITE_RULE [GSYM ctx_def] step_thm2), REFL_CLAUSE, Once IMP_CLAUSES]
-	(SPECL ((fn (a,b,c,d) => [``1:num``,a,b,c,d]) $ dest_astate $ the_final_state_imp step_thm2) (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm))))
-  *)
+    (* DEBUG:
+    val stop_consts1 = (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts);
+    val stop_consts2 = (stop_consts_never@p4_stop_eval_consts);
+    val ctxt = path_cond;
+    val tm = (mk_arch_multi_exec (ctx, astate, 1));
+    *)
+      (* No timing printed for the below, it takes less than 0 ms *)
+      (* TODO: Do this in a nicer way... *)
+    (* ???
+      val next_e_opt = astate_get_next_e (func_map, b_func_map, ext_fun_map) astate
+    *)
+      val extra_rewr_thms =
+       (case astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate of
+    (*
+    val SOME next_e_syntax_f = astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate
+    *)
+	  NONE => [] (* Reduction did not even consider reducing an e *)
+	| SOME next_e_syntax_f =>
+	 (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate) of
+    (*
+    val SOME next_subexp_syntax_f = e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate)
+    *)
+	    SOME next_subexp_syntax_f =>
+	   let
+	    val next_subexp = next_subexp_syntax_f (next_e_syntax_f astate)
+	   in
+	    if (null $ free_vars $ next_subexp) andalso (not $ is_e_call next_subexp)
+	    then (* Reduction from a subexp without free variables *)
+	     let
+	      (* Then, get the resulting subexp *)
+	      val subexp_red_res =
+	       next_subexp_syntax_f $ next_e_syntax_f $ the_final_state_imp step_thm2
+	      (* Evaluate the subexp without restrictions *)
+	      val subexp_red_res_EVAL = EVAL subexp_red_res
+	     in
+	      (* Now, rewrite with this result *)
+	      [subexp_red_res_EVAL]
+	     end
+	    else [] (* Reduction from e_call, or a subexp with free variables *)
+	   end
+	  | NONE => []))
+     in
+      let
 
-     (* DEBUG *)
-     val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
-				   (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start2)),
-				   " ms\n"])
+       (* DEBUG *)
+       val time_start2 = Time.now();
 
-    in
-     res
-    end
-    handle (HOL_ERR exn) =>
-     raise (if (is_none $ rhs $ snd $ dest_imp $ concl step_thm2)
-	   then (ERR "p4_regular_step" ("Unexpected reduction to NONE from frame list: "^(term_to_string $ #3 $ dest_astate $ the_final_state_imp step_thm)))
-	   else (HOL_ERR exn))
+       val res =
+	SIMP_RULE simple_arith_ss extra_rewr_thms
+	 (MATCH_MP (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))
+
+    (* TEST:
+       val res =
+	SIMP_RULE simple_arith_ss extra_rewr_thms
+	 (PURE_REWRITE_RULE [(PURE_REWRITE_RULE [GSYM ctx_def] step_thm2), REFL_CLAUSE, Once IMP_CLAUSES]
+	  (SPECL ((fn (a,b,c,d) => [``1:num``,a,b,c,d]) $ dest_astate $ the_final_state_imp step_thm2) (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm))))
+    *)
+
+       (* DEBUG *)
+       val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
+				     (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start2)),
+				     " ms\n"])
+
+      in
+       res
+      end
+      handle (HOL_ERR exn) =>
+       raise (if (is_none $ rhs $ snd $ dest_imp $ concl step_thm2)
+	     then (ERR "p4_regular_step" ("Unexpected reduction to NONE from frame list: "^(term_to_string $ #3 $ dest_astate $ the_final_state_imp step_thm)))
+	     else (HOL_ERR exn))
+  end
  end
  handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (p4_regular_step_get_err_msg step_thm)) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
 ;
@@ -1276,6 +1482,26 @@ val syntax_fns5 = HolKernel.syntax_fns {n = 5, dest = dest_quinop, make = mk_qui
 val (p4_contract_list_tm, mk_p4_contract_list, dest_p4_contract_list, is_p4_contract_list) =
  syntax_fns5 "p4_symb_exec" "p4_contract_list";
 
+val (p4_contract_tm, mk_p4_contract, dest_p4_contract, is_p4_contract) =
+ syntax_fns4 "p4_symb_exec" "p4_contract";
+
+fun insert_existentials path_cond_tm (path_cond_case, thm) =
+ let
+  val (precond, ctx, init_state, postcond) = dest_p4_contract $ concl thm
+  val (conjs, conj_last) = dest_conj precond
+  val vars = ((filter (fn el => String.isPrefix p4_symb_arg_prefix $ fst $ dest_var el)) o free_vars_lr) precond
+  val precond' = mk_conj (path_cond_tm, path_cond_case)
+  val goal_contract = mk_p4_contract (precond', ctx, init_state, postcond)
+  val res =
+   prove(goal_contract,
+	 ASSUME_TAC (GENL vars thm) >>
+	 FULL_SIMP_TAC bool_ss [p4_contract_def] >>
+	 metis_tac[])
+ in
+  res
+ end
+;
+
 (* This takes a list of n-step theorems resulting from executing the P4 program (with IDs)
  * as well as a path tree structure, and uses this to merge all the branches using a
  * depth-first strategy.
@@ -1298,10 +1524,20 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) [] =
 	   (hd path_tree_list_leafs)
 	   (tl path_tree_list_leafs)
     val (path_cond_tm, path_cond_rest_tm) = dest_symb_branch_cases $ concl path_disj_thm
+
+(* OLD
     val p4_contract_list_thm =
      PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_GSYM_REWR,
                         SPEC path_cond_tm p4_contract_list_REWR,
                         listTheory.APPEND] path_tree_list_leafs_thm
+*)
+    val path_cond_rest_tm_list = fst $ dest_list path_cond_rest_tm
+    val new_p4_contracts = (LIST_CONJ (map (insert_existentials path_cond_tm) (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))))
+    val p4_contract_list_thm =
+     PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_REWR2,
+                        SPEC path_cond_tm p4_contract_list_GSYM_REWR,
+			SPEC path_cond_tm p4_contract_list_REWR,
+			listTheory.APPEND] new_p4_contracts
 (* TODO:
    Here, the path_disj_thm which has been passed, together with the list of contracts,
    needs to prove the contract without paths.
@@ -1311,18 +1547,23 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) [] =
    3. Make a nice procedure for this.
 
 *)
+(* OLD
     val (precond, _, ctx, init_state, postcond) =
      dest_p4_contract_list $ concl p4_contract_list_thm
     val goal_p4_contract_list =
      mk_p4_contract_list (precond, path_cond_rest_tm, ctx, init_state, postcond)
-    val gen_vars = (filter (fn el => String.isPrefix p4_symb_arg_prefix $ fst $ dest_var el)) $ free_vars $ concl p4_contract_list_thm
+    val gen_vars = (filter (fn el => String.isPrefix p4_symb_arg_prefix $ fst $ dest_var el)) $ free_vars_lr $ concl p4_contract_list_thm
     val p4_contract_list_thm' =
      prove(goal_p4_contract_list,
       ASSUME_TAC (GENL gen_vars p4_contract_list_thm) >>
       FULL_SIMP_TAC bool_ss [p4_contract_list_def, p4_contract_def])
+*)
 
    in
+     MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen path_disj_thm) p4_contract_list_thm
+(* OLD
      MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen path_disj_thm) p4_contract_list_thm'
+*)
    end
   | p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, (h::t))) path_tree_list_leafs =
 (* DEBUG: Two iterations, for debugging a simple branch:
@@ -1425,6 +1666,16 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
   val time_start = Time.now();
 
   (* Unify all contracts *)
+(*
+val thm = snd $ el 13 id_ctthm_list
+
+val id_ctthm_list_old = id_ctthm_list;
+
+val id_ctthm_list' = map (fn (n, thm) => (n, insert_existentials thm)) id_ctthm_list
+val id_ctthm_list_new = id_ctthm_list'
+val id_ctthm_list = id_ctthm_list_old
+
+*)
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
 
   (* DEBUG *)

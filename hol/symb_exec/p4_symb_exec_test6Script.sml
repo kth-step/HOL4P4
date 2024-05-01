@@ -234,7 +234,7 @@ val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
-val debug_flag = true;
+val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec6_actx
 val ctx_name = "ctx"
@@ -295,6 +295,15 @@ val (n, path_cond_res, step_thm) = (n10, path_cond_res10, step_thm10)
 
 *)
 
+(*
+val time_start = Time.now();
+val p4_symb_exec_fun = (p4_symb_exec 1)
+*)
 val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+(*
+val _ = print (String.concat ["Total time consumption: ",
+                              (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+                              " ms\n"]);
+*)
 
 val _ = export_theory ();
