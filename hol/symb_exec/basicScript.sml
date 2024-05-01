@@ -1,4 +1,4 @@
-open HolKernel Parse bossLib boolSyntax;
+open HolKernel boolLib liteLib simpLib Parse bossLib;
 open p4_testLib;
 
 open p4_symb_execLib;
@@ -175,7 +175,18 @@ val basic_actx = ``([arch_block_inp;
     ("standard_metadata",d_inout)],
    [("MyParser",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),[])],
    [],
-   [("start",stmt_seq stmt_empty (stmt_trans (e_v (v_str "parse_ethernet"))));
+   [("start",
+     stmt_seq
+       (stmt_seq
+          (stmt_ass
+             (lval_field
+                (lval_field (lval_varname (varn_name "meta")) "user_metadata")
+                "spd_mark") (e_v (v_bit ([F; F; F; F],4))))
+          (stmt_ass
+             (lval_field
+                (lval_field (lval_varname (varn_name "meta")) "user_metadata")
+                "bypass") (e_v (v_bool F))))
+       (stmt_trans (e_v (v_str "parse_ethernet"))));
     ("parse_ethernet",
      stmt_seq
        (stmt_ass lval_null
@@ -1026,11 +1037,16 @@ val basic_actx = ``([arch_block_inp;
     (varn_name "notify_soft",tau_bool,NONE);
     (varn_name "counters",tau_ext,NONE);
     (varn_name "ipsecCrypt",tau_ext,NONE)],[],
-   [("spd",[mk_lpm; mk_exact],["add_spd_mark";"drop"],"drop",[e_v (v_bool T); e_v (v_bool F)]);
-    ("forward",[mk_lpm],["l3_forward";"l2_forward";"drop"],"drop",[e_v (v_bool T); e_v (v_bool F)]);
-    ("sad_decrypt",[mk_exact; mk_exact; mk_exact],["NoAction";"esp_decrypt_aes_ctr";"esp_decrypt_null"],"NoAction",
+   [("spd",[mk_lpm; mk_exact],["add_spd_mark"; "drop"],"drop",
      [e_v (v_bool T); e_v (v_bool F)]);
-    ("sad_encrypt",[mk_lpm],["esp_encrypt_aes_ctr";"esp_encrypt_null";"sadb_acquire"],"sadb_acquire",[e_v (v_bool T); e_v (v_bool F)])]);
+    ("forward",[mk_lpm],["l3_forward"; "l2_forward"; "drop"],"drop",
+     [e_v (v_bool T); e_v (v_bool F)]);
+    ("sad_decrypt",[mk_exact; mk_exact; mk_exact],
+     ["NoAction"; "esp_decrypt_aes_ctr"; "esp_decrypt_null"],"NoAction",
+     [e_v (v_bool T); e_v (v_bool F)]);
+    ("sad_encrypt",[mk_lpm],
+     ["esp_encrypt_aes_ctr"; "esp_encrypt_null"; "sadb_acquire"],
+     "sadb_acquire",[e_v (v_bool T); e_v (v_bool F)])]);
   ("MyEgress",pbl_type_control,
    [("hdr",d_inout); ("meta",d_inout); ("standard_metadata",d_inout)],
    [("MyEgress",stmt_seq stmt_empty stmt_empty,[])],[],[],[]);
@@ -1276,29 +1292,30 @@ val input = rhs $ concl $ EVAL “^eth_input ++ (^ipv4_input ++ ^esp_input)”;
 
 val basic_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^input,0)] ^basic_astate”;
 
-(* These are defined to enable easier debugging *)
-val arch_ty = p4_v1modelLib.v1model_arch_ty
-val ctx = basic_actx
-val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_ctx" (mk_eq(mk_var("basic_ctx", type_of ctx), ctx))
-val init_astate = basic_astate_symb
-val stop_consts_rewr = []
-val stop_consts_never = []
-val path_cond = (ASSUME T)
-val n_max = 100;
-val postcond = “(\s. T):v1model_ascope astate -> bool”;
 
-(* TODO: Free variables in register extern objects *)
+(* RE-DEFINITIONS OF TROUBLESOME EXTERNS *)
 
-(*
+Definition v1model_update_checksum':
+ (v1model_update_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case assign scope_list (v_bit $ ((REPLICATE 16 (ARB:bool)), 16)) (lval_varname (varn_name "checksum")) of
+   | SOME scope_list' =>
+    SOME ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, scope_list', status_returnv v_bot)
+   | NONE => NONE
+ )
+End
 
-(* Something goes wrong after step 78, when retrieving the result of table application *)
-val (path_tree, [(path_id1, path_cond1, step_thm1), (path_id2, path_cond2, step_thm2), (path_id3, path_cond3, step_thm3)]) =
- p4_symb_exec true arch_ty (ctx_def,ctx) (basic_ftymap, basic_blftymap) init_astate stop_consts_rewr stop_consts_never path_cond 78;
+val pre_ctx = basic_actx;
 
-val step_thm = step_thm2
+Definition ctx'_def:
+  ctx' = ^(replace_ext_impl pre_ctx "" "update_checksum" “v1model_update_checksum'”)
+End
 
-spd table
+val ctx = rhs $ concl $ EVAL ``ctx'``;
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_ctx" (mk_eq(mk_var("basic_ctx", type_of ctx), ctx));
 
+(* OLD
+val ctx = basic_actx;
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_ctx" (mk_eq(mk_var("basic_ctx", type_of ctx), ctx));
 *)
 
 fun is_finished' i_end step_thm =
@@ -1314,8 +1331,26 @@ fun is_finished' i_end step_thm =
  end
 ;
 
+(* These are defined to enable easier debugging *)
+val (fty_map, b_fty_map) = (basic_ftymap, basic_blftymap);
+val const_actions_tables = [];
+val arch_ty = p4_v1modelLib.v1model_arch_ty
+val init_astate = basic_astate_symb
+val stop_consts_rewr = []
+val stop_consts_never = []
+val path_cond = (ASSUME T)
+val n_max = 300;
+val debug_flag = true;
+val p4_is_finished_alt_opt = (SOME (is_finished' 5));
+val postcond = “(\s. T):v1model_ascope astate -> bool”;
+
+(* TODO: Free variables in register extern objects *)
+
 val time_start = Time.now();
-val contract_thm = p4_symb_exec_prove_contract true arch_ty ctx (basic_ftymap, basic_blftymap) [] init_astate stop_consts_rewr stop_consts_never path_cond (SOME (is_finished' 2)) n_max postcond;
+(*
+val p4_symb_exec_fun = (p4_symb_exec 1)
+*)
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (basic_ftymap, basic_blftymap) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);

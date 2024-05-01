@@ -60,6 +60,13 @@ Cases_on ‘P_list’ >> (
 )
 QED
 
+Theorem p4_contract_list_REWR2:
+ !R P_list P_list' ctx s Q.
+ ((p4_contract_list R P_list ctx s Q /\ p4_contract_list R P_list' ctx s Q) <=> (p4_contract_list R (P_list++P_list') ctx s Q))
+Proof
+cheat
+QED
+
 Theorem p4_contract_imp_REWR:
  !P ctx s Q.
  ((p4_contract P ctx s Q) <=> (p4_contract (T /\ P) ctx s Q))

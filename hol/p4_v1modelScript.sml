@@ -365,8 +365,8 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
-(* TODO: This should return NONE, and then be rewritten by assumptions to include fresh
- * free variables *)
+(* TODO: This is currently a placeholder implementation.
+ * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_decrypt_aes_ctr_def:
  (ipsec_crypt_decrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
@@ -391,6 +391,8 @@ Definition ipsec_crypt_decrypt_aes_ctr_def:
  )
 End
 
+(* TODO: This is currently a placeholder implementation.
+ * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_encrypt_aes_ctr_def:
  (ipsec_crypt_encrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
@@ -409,6 +411,8 @@ Definition ipsec_crypt_encrypt_aes_ctr_def:
  )
 End
 
+(* TODO: This is currently a placeholder implementation.
+ * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_encrypt_null_def:
  (ipsec_crypt_encrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
@@ -427,6 +431,8 @@ Definition ipsec_crypt_encrypt_null_def:
  )
 End
 
+(* TODO: This is currently a placeholder implementation.
+ * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_decrypt_null_def:
  (ipsec_crypt_decrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
