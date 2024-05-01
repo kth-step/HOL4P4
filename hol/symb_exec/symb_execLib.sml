@@ -61,8 +61,18 @@ fun convert_exists branch_cond step_thm =
    let
     val (vars, ante') = strip_exists ante
     val tm' = mk_imp (ante', cons)
+    (* DEBUG
+    val _ = print "Attempting proof in convert_exists...\n"
+    *)
    in
-    (prove(tm', SIMP_TAC bool_ss [step_thm]), ante')
+    (* TODO: Why doesn't SIMP_TAC bool_ss [step_thm] work here? investigate... *)
+    (prove(tm', fs [step_thm]), ante')
+(*
+     handle exc => (raise (ERR "convert_exists" "Failed to prove conversion of existential quantifiers in step theorem"))
+*)
+     handle exc => (print (String.concat ["branch_cond: ", term_to_string branch_cond, "\n",
+                                          "step_thm: ", term_to_string $ concl step_thm, "\n"]);
+                    raise (ERR "convert_exists" "Failed to prove conversion of existential quantifiers in step theorem"))
    end
   else (thm, branch_cond)
  end
