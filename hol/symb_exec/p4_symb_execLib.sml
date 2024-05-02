@@ -578,6 +578,14 @@ fun get_fv_arg_of_tau tau fv_index =
  else raise (ERR "get_fv_arg_of_tau" ("Unsupported tau subtype: "^(term_to_string tau)))
 ;
 
+fun get_fv_args fv_index ftys =
+ let
+  val (args, fv_index') = (fn (a, b) => (mk_list(a,e_ty),b)) (foldl (fn (argty, (args, fv_index')) => ((fn (arg', fv_index'') => (arg'::args, fv_index'')) (get_fv_arg_of_tau argty fv_index'))) ([],fv_index) ftys)
+ in
+  (args, fv_index')
+ end
+;
+
 fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  let
   val b_fty_map_lookup_opt = rhs $ concl $ EVAL “ALOOKUP ^b_fty_map ^block_name”
@@ -594,8 +602,7 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
      let
       val ftys = fst $ dest_list $ fst $ dest_pair $ dest_some local_fty_map_lookup_opt
      in
-      (* TODO: Compute FV arg *)
-      (fn (a, b) => (mk_list(a,e_ty),b) ) (foldl (fn (argty, (args, fv_index')) => ((fn (arg', fv_index'') => (arg'::args, fv_index'')) (get_fv_arg_of_tau argty fv_index'))) ([],fv_index) ftys)
+      get_fv_args fv_index ftys
      end
     else
      let
@@ -606,8 +613,7 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
        let
 	val ftys = fst $ dest_list $ fst $ dest_pair $ dest_some fty_map_lookup_opt
        in
-	(* TODO: Compute FV arg *)
-	(fn (a, b) => (mk_list(a,e_ty),b) ) (foldl (fn (argty, (args, fv_index')) => ((fn (arg', fv_index'') => (arg'::args, fv_index'')) (get_fv_arg_of_tau argty fv_index'))) ([],fv_index) ftys)
+	get_fv_args fv_index ftys
        end
       else raise (ERR "get_freevars_call" ("Function not found in any function map: "^(term_to_string funn)))
      end
@@ -774,16 +780,18 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
         val (fv_index''', disj_tms) = foldl (fn (action_name, (fv_index', res_list)) =>
          let
 	  val (action_args, fv_index'') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block fv_index'
-	  val action_args' = rhs $ concl $ EVAL (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, (action_args)))
+	  val action_args' = rhs $ concl $ EVAL (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, action_args))
 	  val action = mk_pair (action_name, action_args')
-	  val res_case = list_mk_exists (rev $ free_vars action_args, mk_eq (case_lhs, action))
+	  val res_case = list_mk_exists (free_vars_lr action_args, mk_eq (case_lhs, action))
          in
           (fv_index'', (res_case::res_list))
          end) (fv_index, []) (fst $ dest_list action_names)
-        val fv_indices = (replicate (fv_index''', length disj_tms))
+        (* Reverse order of disj_tms to get free variables in order of increasing index *)
+        val disj_tms' = rev disj_tms
+        val fv_indices = (replicate (fv_index''', length disj_tms'))
 
-        val fv_indices' = fv_indices@[0]
-        val disj_tms' = disj_tms@[mk_eq (case_lhs, default_action)]
+        val fv_indices' = fv_indices@[fv_index]
+        val disj_tms'' = disj_tms'@[mk_eq (case_lhs, default_action)]
 
 (*
 Problem: existential quantifier needs to enclose the entire disjunct in disj_thm...
@@ -853,7 +861,7 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
 *)
 
         (* TODO: Fix cheat... *)
-        val disj_thm = prove (mk_disj_list disj_tms', cheat)
+        val disj_thm = prove (mk_disj_list disj_tms'', cheat)
 
        in
 	SOME (disj_thm, fv_indices')
@@ -1229,6 +1237,9 @@ val p4_wordops_ss =
           name = SOME "p4_wordops_ss",
           rewrs = []};
 end;
+(*
+val (id, path_cond_thm, step_thm) = el 1 path_cond_step_list
+*)
 
 fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
  let
@@ -1274,10 +1285,12 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
     val bigstep_thm = RESTR_EVAL_CONV p4_stop_eval_consts $ mk_bigstep_arch_exec (g_scope_list, arch_frame_list)
 
     (* DEBUG *)
-    val _ = dbg_print debug_flag (String.concat ["shortcutting: ",
+    val _ = dbg_print debug_flag (String.concat ["Shortcutting: ",
 				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
 				  " ms\n"])
 
+    (* DEBUG *)
+    val time_start2 = Time.now();
 
     (* Simplify the word operations that contain no free variables *)
     val bigstep_thm' = SIMP_RULE (empty_ss++p4_wordops_ss) [] bigstep_thm
@@ -1287,10 +1300,23 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
     val is_local_thm = EQT_ELIM $ EVAL $ mk_in_local_fun (func_map, arch_frame_list)
 *)
 
-    val is_local_thm = EVAL_RULE $ SIMP_CONV std_ss ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (“ctx”, arch_frame_list)
+    (* DEBUG *)
+    val _ = dbg_print debug_flag (String.concat ["Simplifying word ops on constants: ",
+				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start2)),
+				  " ms\n"])
 
     (* DEBUG *)
-    val time_start2 = Time.now();
+    val time_start3 = Time.now();
+
+    val is_local_thm = EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, arch_frame_list)
+
+    (* DEBUG *)
+    val _ = dbg_print debug_flag (String.concat ["Proving locality of local fun: ",
+				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start3)),
+				  " ms\n"])
+
+    (* DEBUG *)
+    val time_start4 = Time.now();
 
     val res =
      SIMP_RULE simple_arith_ss []
@@ -1298,7 +1324,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
-				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start2)),
+				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start4)),
 				  " ms\n"])
 
    in
@@ -1485,18 +1511,287 @@ val (p4_contract_list_tm, mk_p4_contract_list, dest_p4_contract_list, is_p4_cont
 val (p4_contract_tm, mk_p4_contract, dest_p4_contract, is_p4_contract) =
  syntax_fns4 "p4_symb_exec" "p4_contract";
 
+(*
+length path_cond_rest_tm_list
+ val path_cond_case = el 1 path_cond_rest_tm_list
+ val thm = el 1 (CONJUNCTS path_tree_list_leafs_thm)
+
+val path_cond_tm =
+   “((T ∧
+      match_all
+        [(v_bit
+            ([eth96; eth97; eth98; eth99; eth100; eth101; eth102; eth103;
+              eth104; eth105; eth106; eth107; eth108; eth109; eth110; eth111],
+             16),
+          s_sing
+            (v_bit ([F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F],16)))]) ∧
+     match_all
+       [(v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8),
+         s_sing (v_bit ([F; F; T; T; F; F; T; F],8)))]) ∧
+    ∃a288 a289 a290 a291 a292 a293 a294 a295 a296 a297 a298 a299 a300 a301
+        a302 a303 a304 a305 a306 a307 a308 a309 a310 a311 a312 a313 a314 a315
+        a316 a317 a318 a319 a160 a161 a162 a163 a164 a165 a166 a167 a168 a169
+        a170 a171 a172 a173 a174 a175 a176 a177 a178 a179 a180 a181 a182 a183
+        a184 a185 a186 a187 a188 a189 a190 a191 a192 a193 a194 a195 a196 a197
+        a198 a199 a200 a201 a202 a203 a204 a205 a206 a207 a208 a209 a210 a211
+        a212 a213 a214 a215 a216 a217 a218 a219 a220 a221 a222 a223 a224 a225
+        a226 a227 a228 a229 a230 a231 a232 a233 a234 a235 a236 a237 a238 a239
+        a240 a241 a242 a243 a244 a245 a246 a247 a248 a249 a250 a251 a252 a253
+        a254 a255 a256 a257 a258 a259 a260 a261 a262 a263 a264 a265 a266 a267
+        a268 a269 a270 a271 a272 a273 a274 a275 a276 a277 a278 a279 a280 a281
+        a282 a283 a284 a285 a286 a287 a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11
+        a12 a13 a14 a15 a16 a17 a18 a19 a20 a21 a22 a23 a24 a25 a26 a27 a28
+        a29 a30 a31 a32 a33 a34 a35 a36 a37 a38 a39 a40 a41 a42 a43 a44 a45
+        a46 a47 a48 a49 a50 a51 a52 a53 a54 a55 a56 a57 a58 a59 a60 a61 a62
+        a63 a64 a65 a66 a67 a68 a69 a70 a71 a72 a73 a74 a75 a76 a77 a78 a79
+        a80 a81 a82 a83 a84 a85 a86 a87 a88 a89 a90 a91 a92 a93 a94 a95 a96
+        a97 a98 a99 a100 a101 a102 a103 a104 a105 a106 a107 a108 a109 a110
+        a111 a112 a113 a114 a115 a116 a117 a118 a119 a120 a121 a122 a123 a124
+        a125 a126 a127 a128 a129 a130 a131 a132 a133 a134 a135 a136 a137 a138
+        a139 a140 a141 a142 a143 a144 a145 a146 a147 a148 a149 a150 a151 a152
+        a153 a154 a155 a156 a157 a158 a159.
+      FST
+        (FOLDL_MATCH_alt
+           [e_v
+              (v_bit
+                 ([ip96; ip97; ip98; ip99; ip100; ip101; ip102; ip103; ip104;
+                   ip105; ip106; ip107; ip108; ip109; ip110; ip111; ip112;
+                   ip113; ip114; ip115; ip116; ip117; ip118; ip119; ip120;
+                   ip121; ip122; ip123; ip124; ip125; ip126; ip127],32));
+            e_v
+              (v_bit
+                 ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135;
+                   ip136; ip137; ip138; ip139; ip140; ip141; ip142; ip143;
+                   ip144; ip145; ip146; ip147; ip148; ip149; ip150; ip151;
+                   ip152; ip153; ip154; ip155; ip156; ip157; ip158; ip159],32));
+            e_v
+              (v_bit
+                 ([esp0; esp1; esp2; esp3; esp4; esp5; esp6; esp7; esp8;
+                   esp9; esp10; esp11; esp12; esp13; esp14; esp15; esp16;
+                   esp17; esp18; esp19; esp20; esp21; esp22; esp23; esp24;
+                   esp25; esp26; esp27; esp28; esp29; esp30; esp31],32))]
+           (("NoAction",[e_v (v_bool T); e_v (v_bool F)]),NONE) 1 []) =
+      ("esp_decrypt_aes_ctr",
+       [e_v (v_bool T); e_v (v_bool T);
+        e_v
+          (v_bit
+             ([a288; a289; a290; a291; a292; a293; a294; a295; a296; a297;
+               a298; a299; a300; a301; a302; a303; a304; a305; a306; a307;
+               a308; a309; a310; a311; a312; a313; a314; a315; a316; a317;
+               a318; a319],32));
+        e_v
+          (v_bit
+             ([a160; a161; a162; a163; a164; a165; a166; a167; a168; a169;
+               a170; a171; a172; a173; a174; a175; a176; a177; a178; a179;
+               a180; a181; a182; a183; a184; a185; a186; a187; a188; a189;
+               a190; a191; a192; a193; a194; a195; a196; a197; a198; a199;
+               a200; a201; a202; a203; a204; a205; a206; a207; a208; a209;
+               a210; a211; a212; a213; a214; a215; a216; a217; a218; a219;
+               a220; a221; a222; a223; a224; a225; a226; a227; a228; a229;
+               a230; a231; a232; a233; a234; a235; a236; a237; a238; a239;
+               a240; a241; a242; a243; a244; a245; a246; a247; a248; a249;
+               a250; a251; a252; a253; a254; a255; a256; a257; a258; a259;
+               a260; a261; a262; a263; a264; a265; a266; a267; a268; a269;
+               a270; a271; a272; a273; a274; a275; a276; a277; a278; a279;
+               a280; a281; a282; a283; a284; a285; a286; a287],128));
+        e_v
+          (v_bit
+             ([a0; a1; a2; a3; a4; a5; a6; a7; a8; a9; a10; a11; a12; a13;
+               a14; a15; a16; a17; a18; a19; a20; a21; a22; a23; a24; a25;
+               a26; a27; a28; a29; a30; a31; a32; a33; a34; a35; a36; a37;
+               a38; a39; a40; a41; a42; a43; a44; a45; a46; a47; a48; a49;
+               a50; a51; a52; a53; a54; a55; a56; a57; a58; a59; a60; a61;
+               a62; a63; a64; a65; a66; a67; a68; a69; a70; a71; a72; a73;
+               a74; a75; a76; a77; a78; a79; a80; a81; a82; a83; a84; a85;
+               a86; a87; a88; a89; a90; a91; a92; a93; a94; a95; a96; a97;
+               a98; a99; a100; a101; a102; a103; a104; a105; a106; a107;
+               a108; a109; a110; a111; a112; a113; a114; a115; a116; a117;
+               a118; a119; a120; a121; a122; a123; a124; a125; a126; a127;
+               a128; a129; a130; a131; a132; a133; a134; a135; a136; a137;
+               a138; a139; a140; a141; a142; a143; a144; a145; a146; a147;
+               a148; a149; a150; a151; a152; a153; a154; a155; a156; a157;
+               a158; a159],160))])”: term
+
+val path_cond_case =
+   “∃a352 a353 a354 a355 a356 a357 a358 a359 a360.
+      FST
+        (FOLDL_MATCH_alt
+           [e_v
+              (v_bit
+                 ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135;
+                   ip136; ip137; ip138; ip139; ip140; ip141; ip142; ip143;
+                   ip144; ip145; ip146; ip147; ip148; ip149; ip150; ip151;
+                   ip152; ip153; ip154; ip155; ip156; ip157; ip158; ip159],32))]
+           (("drop",[e_v (v_bool T); e_v (v_bool F)]),NONE) 1 []) =
+      ("l3_forward",
+       [e_v (v_bool T); e_v (v_bool T);
+        e_v
+          (v_bit ([a352; a353; a354; a355; a356; a357; a358; a359; a360],9))])”;
+
+val thm =
+ prove(“p4_contract
+       ((((T ∧
+           match_all
+             [(v_bit
+                 ([eth96; eth97; eth98; eth99; eth100; eth101; eth102;
+                   eth103; eth104; eth105; eth106; eth107; eth108; eth109;
+                   eth110; eth111],16),
+               s_sing
+                 (v_bit ([F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F],16)))]) ∧
+          match_all
+            [(v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8),
+              s_sing (v_bit ([F; F; T; T; F; F; T; F],8)))]) ∧
+         FST
+           (FOLDL_MATCH_alt
+              [e_v
+                 (v_bit
+                    ([ip96; ip97; ip98; ip99; ip100; ip101; ip102; ip103;
+                      ip104; ip105; ip106; ip107; ip108; ip109; ip110; ip111;
+                      ip112; ip113; ip114; ip115; ip116; ip117; ip118; ip119;
+                      ip120; ip121; ip122; ip123; ip124; ip125; ip126; ip127],
+                     32));
+               e_v
+                 (v_bit
+                    ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135;
+                      ip136; ip137; ip138; ip139; ip140; ip141; ip142; ip143;
+                      ip144; ip145; ip146; ip147; ip148; ip149; ip150; ip151;
+                      ip152; ip153; ip154; ip155; ip156; ip157; ip158; ip159],
+                     32));
+               e_v
+                 (v_bit
+                    ([esp0; esp1; esp2; esp3; esp4; esp5; esp6; esp7; esp8;
+                      esp9; esp10; esp11; esp12; esp13; esp14; esp15; esp16;
+                      esp17; esp18; esp19; esp20; esp21; esp22; esp23; esp24;
+                      esp25; esp26; esp27; esp28; esp29; esp30; esp31],32))]
+              (("NoAction",[e_v (v_bool T); e_v (v_bool F)]),NONE) 1 []) =
+         ("esp_decrypt_aes_ctr",
+          [e_v (v_bool T); e_v (v_bool T);
+           e_v
+             (v_bit
+                ([a288; a289; a290; a291; a292; a293; a294; a295; a296; a297;
+                  a298; a299; a300; a301; a302; a303; a304; a305; a306; a307;
+                  a308; a309; a310; a311; a312; a313; a314; a315; a316; a317;
+                  a318; a319],32));
+           e_v
+             (v_bit
+                ([a160; a161; a162; a163; a164; a165; a166; a167; a168; a169;
+                  a170; a171; a172; a173; a174; a175; a176; a177; a178; a179;
+                  a180; a181; a182; a183; a184; a185; a186; a187; a188; a189;
+                  a190; a191; a192; a193; a194; a195; a196; a197; a198; a199;
+                  a200; a201; a202; a203; a204; a205; a206; a207; a208; a209;
+                  a210; a211; a212; a213; a214; a215; a216; a217; a218; a219;
+                  a220; a221; a222; a223; a224; a225; a226; a227; a228; a229;
+                  a230; a231; a232; a233; a234; a235; a236; a237; a238; a239;
+                  a240; a241; a242; a243; a244; a245; a246; a247; a248; a249;
+                  a250; a251; a252; a253; a254; a255; a256; a257; a258; a259;
+                  a260; a261; a262; a263; a264; a265; a266; a267; a268; a269;
+                  a270; a271; a272; a273; a274; a275; a276; a277; a278; a279;
+                  a280; a281; a282; a283; a284; a285; a286; a287],128));
+           e_v
+             (v_bit
+                ([a0; a1; a2; a3; a4; a5; a6; a7; a8; a9; a10; a11; a12; a13;
+                  a14; a15; a16; a17; a18; a19; a20; a21; a22; a23; a24; a25;
+                  a26; a27; a28; a29; a30; a31; a32; a33; a34; a35; a36; a37;
+                  a38; a39; a40; a41; a42; a43; a44; a45; a46; a47; a48; a49;
+                  a50; a51; a52; a53; a54; a55; a56; a57; a58; a59; a60; a61;
+                  a62; a63; a64; a65; a66; a67; a68; a69; a70; a71; a72; a73;
+                  a74; a75; a76; a77; a78; a79; a80; a81; a82; a83; a84; a85;
+                  a86; a87; a88; a89; a90; a91; a92; a93; a94; a95; a96; a97;
+                  a98; a99; a100; a101; a102; a103; a104; a105; a106; a107;
+                  a108; a109; a110; a111; a112; a113; a114; a115; a116; a117;
+                  a118; a119; a120; a121; a122; a123; a124; a125; a126; a127;
+                  a128; a129; a130; a131; a132; a133; a134; a135; a136; a137;
+                  a138; a139; a140; a141; a142; a143; a144; a145; a146; a147;
+                  a148; a149; a150; a151; a152; a153; a154; a155; a156; a157;
+                  a158; a159],160))])) ∧
+        FST
+          (FOLDL_MATCH_alt
+             [e_v
+                (v_bit
+                   ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135;
+                     ip136; ip137; ip138; ip139; ip140; ip141; ip142; ip143;
+                     ip144; ip145; ip146; ip147; ip148; ip149; ip150; ip151;
+                     ip152; ip153; ip154; ip155; ip156; ip157; ip158; ip159],
+                    32))] (("drop",[e_v (v_bool T); e_v (v_bool F)]),NONE) 1
+             []) =
+        ("l3_forward",
+         [e_v (v_bool T); e_v (v_bool T);
+          e_v
+            (v_bit ([a352; a353; a354; a355; a356; a357; a358; a359; a360],9))]))
+       ctx
+       ((0,
+         [([eth0; eth1; eth2; eth3; eth4; eth5; eth6; eth7; eth8; eth9;
+            eth10; eth11; eth12; eth13; eth14; eth15; eth16; eth17; eth18;
+            eth19; eth20; eth21; eth22; eth23; eth24; eth25; eth26; eth27;
+            eth28; eth29; eth30; eth31; eth32; eth33; eth34; eth35; eth36;
+            eth37; eth38; eth39; eth40; eth41; eth42; eth43; eth44; eth45;
+            eth46; eth47; eth48; eth49; eth50; eth51; eth52; eth53; eth54;
+            eth55; eth56; eth57; eth58; eth59; eth60; eth61; eth62; eth63;
+            eth64; eth65; eth66; eth67; eth68; eth69; eth70; eth71; eth72;
+            eth73; eth74; eth75; eth76; eth77; eth78; eth79; eth80; eth81;
+            eth82; eth83; eth84; eth85; eth86; eth87; eth88; eth89; eth90;
+            eth91; eth92; eth93; eth94; eth95; eth96; eth97; eth98; eth99;
+            eth100; eth101; eth102; eth103; eth104; eth105; eth106; eth107;
+            eth108; eth109; eth110; eth111; ip0; ip1; ip2; ip3; ip4; ip5;
+            ip6; ip7; ip8; ip9; ip10; ip11; ip12; ip13; ip14; ip15; ip16;
+            ip17; ip18; ip19; ip20; ip21; ip22; ip23; ip24; ip25; ip26; ip27;
+            ip28; ip29; ip30; ip31; ip32; ip33; ip34; ip35; ip36; ip37; ip38;
+            ip39; ip40; ip41; ip42; ip43; ip44; ip45; ip46; ip47; ip48; ip49;
+            ip50; ip51; ip52; ip53; ip54; ip55; ip56; ip57; ip58; ip59; ip60;
+            ip61; ip62; ip63; ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71;
+            ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79; ip80; ip81; ip82;
+            ip83; ip84; ip85; ip86; ip87; ip88; ip89; ip90; ip91; ip92; ip93;
+            ip94; ip95; ip96; ip97; ip98; ip99; ip100; ip101; ip102; ip103;
+            ip104; ip105; ip106; ip107; ip108; ip109; ip110; ip111; ip112;
+            ip113; ip114; ip115; ip116; ip117; ip118; ip119; ip120; ip121;
+            ip122; ip123; ip124; ip125; ip126; ip127; ip128; ip129; ip130;
+            ip131; ip132; ip133; ip134; ip135; ip136; ip137; ip138; ip139;
+            ip140; ip141; ip142; ip143; ip144; ip145; ip146; ip147; ip148;
+            ip149; ip150; ip151; ip152; ip153; ip154; ip155; ip156; ip157;
+            ip158; ip159; esp0; esp1; esp2; esp3; esp4; esp5; esp6; esp7;
+            esp8; esp9; esp10; esp11; esp12; esp13; esp14; esp15; esp16;
+            esp17; esp18; esp19; esp20; esp21; esp22; esp23; esp24; esp25;
+            esp26; esp27; esp28; esp29; esp30; esp31; esp32; esp33; esp34;
+            esp35; esp36; esp37; esp38; esp39; esp40; esp41; esp42; esp43;
+            esp44; esp45; esp46; esp47; esp48; esp49; esp50; esp51; esp52;
+            esp53; esp54; esp55; esp56; esp57; esp58; esp59; esp60; esp61;
+            esp62; esp63],0)],[],0,[],
+         [("parseError",
+           v_bit
+             ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+               F; F; F; F; F; F; F; F; F; F; F],32))],
+         [("spd",[]); ("forward",[]); ("sad_decrypt",[]); ("sad_encrypt",[])]),
+        [[(varn_name "gen_apply_result",
+           v_struct
+             [("hit",v_bool ARB); ("miss",v_bool ARB);
+              ("action_run",
+               v_bit
+                 ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                   ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                   ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))],
+           NONE)]],arch_frame_list_empty,status_running) (λs. T)”, cheat);
+
+
+*)
 fun insert_existentials path_cond_tm (path_cond_case, thm) =
  let
   val (precond, ctx, init_state, postcond) = dest_p4_contract $ concl thm
   val (conjs, conj_last) = dest_conj precond
-  val vars = ((filter (fn el => String.isPrefix p4_symb_arg_prefix $ fst $ dest_var el)) o free_vars_lr) precond
+  val vars = (((filter (fn el => String.isPrefix p4_symb_arg_prefix $ fst $ dest_var el)) o free_vars_lr)) precond
   val precond' = mk_conj (path_cond_tm, path_cond_case)
   val goal_contract = mk_p4_contract (precond', ctx, init_state, postcond)
+(*
+  val time_start = Time.now();
+ *)
   val res =
    prove(goal_contract,
-	 ASSUME_TAC (GENL vars thm) >>
-	 FULL_SIMP_TAC bool_ss [p4_contract_def] >>
-	 metis_tac[])
+         assume_tac (REWRITE_RULE [p4_contract_def] (GENL vars thm)) >>
+	 rewrite_tac [p4_contract_def] >>
+	 metis_tac []);
+(*
+  (* DEBUG *)
+  val _ = print (String.concat ["\nInserted existentials in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
+ *)
  in
   res
  end
@@ -1525,48 +1820,29 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) [] =
 	   (tl path_tree_list_leafs)
     val (path_cond_tm, path_cond_rest_tm) = dest_symb_branch_cases $ concl path_disj_thm
 
-(* OLD
-    val p4_contract_list_thm =
-     PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_GSYM_REWR,
-                        SPEC path_cond_tm p4_contract_list_REWR,
-                        listTheory.APPEND] path_tree_list_leafs_thm
-*)
     val path_cond_rest_tm_list = fst $ dest_list path_cond_rest_tm
+(* DEBUG
+    val time_start = Time.now();
+    val _ = print ("Unifying contracts of path ID "^((Int.toString id)^".\n"))
+*)
     val new_p4_contracts = (LIST_CONJ (map (insert_existentials path_cond_tm) (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))))
     val p4_contract_list_thm =
      PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_REWR2,
                         SPEC path_cond_tm p4_contract_list_GSYM_REWR,
 			SPEC path_cond_tm p4_contract_list_REWR,
 			listTheory.APPEND] new_p4_contracts
-(* TODO:
-   Here, the path_disj_thm which has been passed, together with the list of contracts,
-   needs to prove the contract without paths.
-
-   1. State the goal contract.
-   2. Prove the goal contract using the two theorems.
-   3. Make a nice procedure for this.
-
-*)
-(* OLD
-    val (precond, _, ctx, init_state, postcond) =
-     dest_p4_contract_list $ concl p4_contract_list_thm
-    val goal_p4_contract_list =
-     mk_p4_contract_list (precond, path_cond_rest_tm, ctx, init_state, postcond)
-    val gen_vars = (filter (fn el => String.isPrefix p4_symb_arg_prefix $ fst $ dest_var el)) $ free_vars_lr $ concl p4_contract_list_thm
-    val p4_contract_list_thm' =
-     prove(goal_p4_contract_list,
-      ASSUME_TAC (GENL gen_vars p4_contract_list_thm) >>
-      FULL_SIMP_TAC bool_ss [p4_contract_list_def, p4_contract_def])
+(* DEBUG
+    val _ = print (String.concat ["\nDone in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
 *)
 
    in
      MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen path_disj_thm) p4_contract_list_thm
-(* OLD
-     MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen path_disj_thm) p4_contract_list_thm'
-*)
    end
   | p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, (h::t))) path_tree_list_leafs =
 (* DEBUG: Two iterations, for debugging a simple branch:
+(*
+val (h::t) = t
+*)
 val (node (id, path_disj_thm, (h::t))) = path_tree; (* h *)
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
 val path_tree_list_leafs = ([ctthm'])
@@ -1666,16 +1942,6 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
   val time_start = Time.now();
 
   (* Unify all contracts *)
-(*
-val thm = snd $ el 13 id_ctthm_list
-
-val id_ctthm_list_old = id_ctthm_list;
-
-val id_ctthm_list' = map (fn (n, thm) => (n, insert_existentials thm)) id_ctthm_list
-val id_ctthm_list_new = id_ctthm_list'
-val id_ctthm_list = id_ctthm_list_old
-
-*)
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
 
   (* DEBUG *)

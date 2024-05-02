@@ -1350,6 +1350,15 @@ val time_start = Time.now();
 (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
+(* Commit 7daf3ad:
+Using all threads yield "Total time consumption: 885548 ms" (14m, 45s, 548ms)
+All threads minus two yield "Total time consumption: 845613 ms" (14m, 5s, 613ms)
+Single thread yields
+ "Finished entire symbolic execution stage in 972s" for symbolic execution phase, trying to prove postcondition...
+  Finished proof of postcondition for all step theorems in 9s, trying to rewrite step theorems to contract format...
+  Finished rewriting step theorems to contract format in 0s, trying to unify contracts...
+  Finished unification of all contracts in 170s." (19m, 11s)
+*)
 val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (basic_ftymap, basic_blftymap) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
