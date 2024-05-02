@@ -1148,16 +1148,31 @@ fun p4_e_is_shortcuttable e =
  else if is_e_call e
  then p4_e_l_is_shortcuttable $ fst $ dest_list $ snd $ dest_e_call e
 *)
-(* TODO: Requires reducing header expression
+ else if is_e_struct e
+ then p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ dest_e_struct e
+ else if is_e_header e
+ then p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e
  else if is_e_select e
  then p4_e_is_shortcuttable $ #1 $ dest_e_select e
-*)
  else false
 and p4_e_l_is_shortcuttable (h::t) =
  if is_e_v h
  then p4_e_l_is_shortcuttable t
  else p4_e_is_shortcuttable h
   | p4_e_l_is_shortcuttable [] = false
+;
+
+(* Base cases for p4_is_shortcuttable *)
+fun p4_is_shortcuttable' stmt =
+ if is_stmt_ass stmt
+ then p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt
+ else if is_stmt_ret stmt
+ then p4_e_is_shortcuttable $ dest_stmt_ret stmt
+ else if is_stmt_trans stmt
+ then p4_e_is_shortcuttable $ dest_stmt_trans stmt
+ else if is_stmt_app stmt
+ then p4_e_l_is_shortcuttable $ (fst o dest_list) $ snd $ dest_stmt_app stmt
+ else false
 ;
 
 (* TODO: This leaves open the possibility of nested stmt_seq, but the import tool should
@@ -1172,20 +1187,31 @@ fun p4_is_shortcuttable (SOME (funn, stmt)) func_map =
    in
     if is_stmt_empty stmt'
     then true
-    else if is_stmt_ass stmt'
-    then p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt'
-    else false
+    else p4_is_shortcuttable' stmt'
    end
-(* Do not allow to shortcut just stmt_empty
+(* Do not allow to shortcut just stmt_empty, since this can lead to status changes
   else if is_stmt_empty stmt
   then true
 *)
-  else if is_stmt_ass stmt
-  then p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt
-  else false
+  else p4_is_shortcuttable' stmt
  else false
   | p4_is_shortcuttable NONE _ = false
 ;
+
+(* TODO: To be able to do function shortcutting:
+ Rewrite the is_shortcuttable functions to return one of three options:
+ no_shortcut
+ regular_shortcut
+ function_shortcut
+
+ Either convert the function maps to SML versions once at start, or make an
+ in-place solution.
+
+ Make SML version of "is_e_lval"
+
+ Extend the big-step semantics by adding an option parameter that can hold function maps?
+
+*)
 
 (* TODO: Move *)
 val (bigstep_arch_exec_tm,  mk_bigstep_arch_exec, dest_bigstep_arch_exec, is_bigstep_arch_exec) =
