@@ -43,6 +43,12 @@ fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
  | NONE =>
   raise (ERR "insert_nodes" "Inserting new path node at unknown or occupied position ");
 
+fun count_leaves (node (id, thm, nodes)) =
+ if null nodes
+ then 1
+ else foldl (fn (el, n) => (count_leaves el) + n) 0 nodes
+  | count_leaves empty = 0;
+
 (* Takes a step theorem Q and a branch condition of the shape
  *   (?e1 ... en. P (e1 ... en))
  * (possibly with n=0) and converts it to the new step theorem
