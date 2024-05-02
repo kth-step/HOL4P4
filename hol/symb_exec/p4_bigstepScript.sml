@@ -38,7 +38,6 @@ Definition bigstep_e_exec_def:
     else SOME (e_acc e_v_struct' x, n')
    | NONE => NONE))
   /\
-(*
  (*********************************)
  (* Struct/header field reduction *)
  (bigstep_e_exec scope_lists (e_struct x_e_l) n =
@@ -47,7 +46,6 @@ Definition bigstep_e_exec_def:
    SOME (e_struct (ZIP (MAP FST x_e_l, e_l')) , n')
   | NONE => NONE)
   /\
-*)
  (********)
  (* Cast *)
  (bigstep_e_exec scope_lists (e_cast cast e) n =
@@ -147,6 +145,7 @@ Definition bigstep_e_exec_def:
 (*
  (************************)
  (* Function/extern call *)
+ (* TODO: Needs directions... *)
  (bigstep_e_exec scope_lists (e_call funn e_l) n =
   case bigstep_e_exec_l scope_lists e_l n of
   | SOME (e_l', n') =>
@@ -156,16 +155,13 @@ Definition bigstep_e_exec_def:
 *)
  (**********)
  (* Select *)
-(*
  (bigstep_e_exec scope_lists (e_select e s_l_x_l x) n =
   case bigstep_e_exec scope_lists e n of
   | SOME (e', n') =>
    SOME (e_select e' s_l_x_l x, n')
   | NONE => NONE)
  /\
-*)
  (bigstep_e_exec scope_lists e n = SOME (e,n))
-(*
  /\
  (bigstep_e_exec_l scope_lists [] n = SOME ([],n))
  /\
@@ -176,13 +172,9 @@ Definition bigstep_e_exec_def:
     | SOME (t', n'') => SOME (h'::t', n'')
     | NONE => NONE)
   | NONE => NONE)
-*)
-End
-(*
 Termination
 cheat
 End
-*)
 
 Definition bigstep_stmt_exec_def:
  (bigstep_stmt_exec scope_lists (stmt_ass lval e) n =
@@ -210,17 +202,10 @@ Definition bigstep_stmt_exec_def:
  (**********************)
  (* NESTED EXPRESSIONS *)
  (**********************)
-(*
  (bigstep_stmt_exec scope_lists (stmt_ret e) n =
   (case bigstep_e_exec scope_lists e n of
    | SOME (e', n') =>
     SOME (stmt_ret e', scope_lists, n')
-   | _ => NONE))
-  /\
- (bigstep_stmt_exec scope_lists (stmt_cond e stmt1 stmt2) n =
-  (case bigstep_e_exec scope_lists e n of
-   | SOME (e', n') =>
-    SOME (stmt_cond e' stmt1 stmt2, scope_lists, n')
    | _ => NONE))
   /\
  (bigstep_stmt_exec scope_lists (stmt_trans e) n =
@@ -229,13 +214,20 @@ Definition bigstep_stmt_exec_def:
     SOME (stmt_trans e', scope_lists, n')
    | _ => NONE))
   /\
+(* TODO: Some problem with p4_symb_exec_test2
+ (bigstep_stmt_exec scope_lists (stmt_cond e stmt1 stmt2) n =
+  (case bigstep_e_exec scope_lists e n of
+   | SOME (e', n') =>
+    SOME (stmt_cond e' stmt1 stmt2, scope_lists, n')
+   | _ => NONE))
+  /\
+*)
  (bigstep_stmt_exec scope_lists (stmt_app t_name e_l) n =
   (case bigstep_e_exec_l scope_lists e_l n of
    | SOME (e_l', n') =>
     SOME (stmt_app t_name e_l', scope_lists, n')
    | _ => NONE))
   /\
-*)
  (bigstep_stmt_exec scope_lists stmt n =
   SOME (stmt, scope_lists, n))
 End
