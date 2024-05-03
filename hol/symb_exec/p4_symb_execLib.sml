@@ -1334,7 +1334,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
     (* DEBUG *)
     val time_start3 = Time.now();
 
-    val is_local_thm = EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, arch_frame_list)
+    val is_local_thm = EVAL_RULE $ REWRITE_CONV ([(!ctx_def), in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl (!ctx_def), arch_frame_list)
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Proving locality of local fun: ",
@@ -1346,7 +1346,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
 
     val res =
      SIMP_RULE simple_arith_ss []
-      (MATCH_MP (MATCH_MP (MATCH_MP bigstep_arch_exec_comp' (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
+      (MATCH_MP (MATCH_MP (MATCH_MP bigstep_arch_exec_comp' (PURE_REWRITE_RULE [GSYM (!ctx_def)] step_thm)) is_local_thm) bigstep_thm')
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
@@ -1368,7 +1368,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
        | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
      else ()
 
-    val step_thm2 = eval_ctxt (ASSUME ante) astate
+    val step_thm2 = (!eval_ctxt) (ASSUME ante) astate
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["evaluation-in-context: ",
@@ -1424,13 +1424,13 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
 
        val res =
 	SIMP_RULE simple_arith_ss extra_rewr_thms
-	 (MATCH_MP (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))
+	 (MATCH_MP (MATCH_MP (!comp_thm) (PURE_REWRITE_RULE [GSYM (!ctx_def)] step_thm)) (PURE_REWRITE_RULE [GSYM (!ctx_def)] step_thm2))
 
     (* TEST:
        val res =
 	SIMP_RULE simple_arith_ss extra_rewr_thms
 	 (PURE_REWRITE_RULE [(PURE_REWRITE_RULE [GSYM ctx_def] step_thm2), REFL_CLAUSE, Once IMP_CLAUSES]
-	  (SPECL ((fn (a,b,c,d) => [``1:num``,a,b,c,d]) $ dest_astate $ the_final_state_imp step_thm2) (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm))))
+	  (SPECL ((fn (a,b,c,d) => [``1:num``,a,b,c,d]) $ dest_astate $ the_final_state_imp step_thm2) (MATCH_MP (!comp_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm))))
     *)
 
        (* DEBUG *)
@@ -1485,17 +1485,20 @@ fun preprocess_ftymaps (fty_map, b_fty_map) =
  * Here, the static ctxt and the dynamic path condition have been merged. *)
 fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt fuel =
  let
+  (* TODO: Hack... *)
+  val ctx_def = ref ctx_def
+
   (* Pre-process ftymap and b_fty_map *)
   val (fty_map', b_fty_map') = preprocess_ftymaps (fty_map, b_fty_map)
 
   (* Pre-process const_actions_tables *)
   val const_actions_tables' = map stringSyntax.fromMLstring const_actions_tables
 
-  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl
+  val comp_thm = ref (INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl)
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
   val table_stop_consts = [match_all_tm]
-  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  val eval_ctxt = ref (p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1))))
   val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
@@ -1516,8 +1519,8 @@ val (fty_map, b_fty_map) = (fty_map', b_fty_map')
   else
    if nthreads_max > 1
    then
-     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' ctx_def, is_finished) path_cond fuel nthreads_max
-   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' ctx_def, is_finished) path_cond fuel
+     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' (!ctx_def), is_finished) path_cond fuel nthreads_max
+   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' (!ctx_def), is_finished) path_cond fuel
  end
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
