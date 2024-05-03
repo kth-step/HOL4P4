@@ -106,7 +106,6 @@ fun astate_get_branch_data astate =
      else no_branch
     end 
    else if is_stmt_app stmt' 
-   (* TODO: Should also work for lists of expressions of length more than 1 *)
    then apply $ dest_stmt_app stmt'
    else no_branch
   end
@@ -360,15 +359,6 @@ fun stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) stmt =
   end
  else if is_stmt_block stmt
  then NONE
-(*
-  let
-   val (t_scope, stmt') = dest_stmt_block stmt
-  in
-   (case stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) stmt' of
-      SOME f => SOME (f o snd o dest_stmt_block)
-    | NONE => NONE)
-  end
-*)
  else if is_stmt_ret stmt
  then 
   let
@@ -446,7 +436,7 @@ fun astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate =
       then NONE
       else
       (case stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) (el 1 stmt_stack') of
-(*
+(* DEBUG
 val SOME next_e_syntax_f = stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) (el 1 stmt_stack')
 *)
          SOME next_e_syntax_f =>
@@ -1050,9 +1040,14 @@ and dbg_print_arg_list_red (func_map, b_func_map, ext_fun_map) [] =
 ;
 
 (* TODO: Add # seq nestings to debug output *)
-fun dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt =
+fun dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status =
  if is_stmt_empty stmt
- then print (String.concat ["\nReducing empty statement...\n\n"])
+ then
+  if is_status_running status
+  then print (String.concat ["\nReducing empty statement...\n\n"])
+  else if is_status_trans status
+  then print (String.concat ["\nReducing parser state transition...\n\n"])
+  else raise (ERR "dbg_print_stmt_red" ("Unsupported status for empty statement: "^(term_to_string status)))
  else if is_stmt_ass stmt
  then
   let
@@ -1087,7 +1082,7 @@ fun dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt =
   let
    val (stmt', stmt'') = dest_stmt_seq stmt
   in
-   dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt'
+   dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt' status
   end
  else if is_stmt_trans stmt
  then 
@@ -1125,12 +1120,18 @@ fun p4_funn_name_not_in_func_map funn func_map =
  else false
 ;
 
+datatype e_shortcut_data =
+   e_shortcut
+ (* term is the expression which could not be shortcut *)
+ | e_no_shortcut of term
+ | e_fully_reduced;
+
 (* TODO: Actually, both this and the bigstep semantics should be able
  * to look inside expressions that are not shortcuttable *)
 fun p4_e_is_shortcuttable e =
  (* Shortcuttable expressions *)
  if is_e_var e
- then true
+ then e_shortcut
  else if is_e_acc e
  then p4_e_is_shortcuttable $ fst $ dest_e_acc e
  else if is_e_cast e
@@ -1154,48 +1155,143 @@ fun p4_e_is_shortcuttable e =
  then p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e
  else if is_e_select e
  then p4_e_is_shortcuttable $ #1 $ dest_e_select e
- else false
+ else if is_e_v e
+ then e_fully_reduced
+ else (e_no_shortcut e)
 and p4_e_l_is_shortcuttable (h::t) =
  if is_e_v h
  then p4_e_l_is_shortcuttable t
  else p4_e_is_shortcuttable h
-  | p4_e_l_is_shortcuttable [] = false
+  | p4_e_l_is_shortcuttable [] = e_fully_reduced
 ;
+
+datatype stmt_shortcut_data =
+   stmt_shortcut
+ (* term is the expression which could not be shortcut *)
+ | stmt_no_shortcut_e of term
+ (* term is the statement which could not be shortcut *)
+ | stmt_no_shortcut_stmt of term;
 
 (* Base cases for p4_is_shortcuttable *)
 fun p4_is_shortcuttable' stmt =
  if is_stmt_ass stmt
- then p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt
+ then
+  (case p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt of
+     e_no_shortcut e => stmt_no_shortcut_e e
+   | _ => stmt_shortcut)
  else if is_stmt_ret stmt
- then p4_e_is_shortcuttable $ dest_stmt_ret stmt
+ then
+  (case p4_e_is_shortcuttable $ dest_stmt_ret stmt of
+     e_no_shortcut e => stmt_no_shortcut_e e
+   | e_fully_reduced => stmt_no_shortcut_stmt stmt
+   | _ => stmt_shortcut)
  else if is_stmt_trans stmt
- then p4_e_is_shortcuttable $ dest_stmt_trans stmt
+ then
+  (case p4_e_is_shortcuttable $ dest_stmt_trans stmt of
+     e_no_shortcut e => stmt_no_shortcut_e e
+   | e_fully_reduced => stmt_no_shortcut_stmt stmt
+   | _ => stmt_shortcut)
  else if is_stmt_app stmt
- then p4_e_l_is_shortcuttable $ (fst o dest_list) $ snd $ dest_stmt_app stmt
- else false
+ then
+  (case p4_e_l_is_shortcuttable $ (fst o dest_list) $ snd $ dest_stmt_app stmt of
+     e_no_shortcut e => stmt_no_shortcut_e e
+   | e_fully_reduced => stmt_no_shortcut_stmt stmt
+   | _ => stmt_shortcut)
+ else if is_stmt_cond stmt
+ then
+  (case p4_e_is_shortcuttable $ #1 $ dest_stmt_cond stmt of
+     e_no_shortcut e => stmt_no_shortcut_e e
+   | e_fully_reduced => stmt_no_shortcut_stmt stmt
+   | _ => stmt_shortcut)
+ else stmt_no_shortcut_stmt stmt
+;
+
+datatype shortcut_result =
+   res_shortcut
+ | res_f_args_shortcut
+ | res_nonlocal
+ | res_no_shortcut_arch
+ | res_no_shortcut_stmt of term
+ | res_no_shortcut_e of term;
+
+fun shortcut_result_eq sh1 sh2 =
+ case sh1 of
+   res_shortcut =>
+  (case sh2 of
+     res_shortcut => true
+   | _ => false)
+ | res_f_args_shortcut =>
+  (case sh2 of
+     res_f_args_shortcut => true
+   | _ => false)
+ | res_nonlocal =>
+  (case sh2 of
+     res_nonlocal => true
+   | _ => false)
+ | res_no_shortcut_arch =>
+  (case sh2 of
+     res_no_shortcut_arch => true
+   | _ => false)
+ | res_no_shortcut_stmt tm =>
+  (case sh2 of
+     res_no_shortcut_stmt tm' => term_eq tm tm'
+   | _ => false)
+ | res_no_shortcut_e tm =>
+  (case sh2 of
+     res_no_shortcut_e tm' => term_eq tm tm'
+   | _ => false)
+;
+
+fun get_shortcut_result stmt_shortcut_data =
+ case stmt_shortcut_data of
+   stmt_shortcut => res_shortcut
+ | stmt_no_shortcut_e e => res_no_shortcut_e e
+ | stmt_no_shortcut_stmt stmt => res_no_shortcut_stmt stmt
+;
+
+fun get_next_stmt stmt =
+ if is_stmt_seq stmt
+ then
+  let
+   val stmt' = fst $ dest_stmt_seq stmt
+  in
+   get_next_stmt stmt'
+  end
+ else stmt
 ;
 
 (* TODO: This leaves open the possibility of nested stmt_seq, but the import tool should
  * not enable that - throw exception if this is found to be the case? *)
-fun p4_is_shortcuttable (SOME (funn, stmt)) func_map =
+fun p4_is_shortcuttable (funn, stmt) func_map =
  if p4_funn_name_not_in_func_map funn func_map
  then
   if is_stmt_seq stmt
   then
    let
-    val stmt' = fst $ dest_stmt_seq stmt
+    val stmt' = get_next_stmt stmt
    in
     if is_stmt_empty stmt'
-    then true
-    else p4_is_shortcuttable' stmt'
+    then res_shortcut
+    else get_shortcut_result $ p4_is_shortcuttable' stmt'
    end
 (* Do not allow to shortcut just stmt_empty, since this can lead to status changes
-  else if is_stmt_empty stmt
-  then true
 *)
-  else p4_is_shortcuttable' stmt
- else false
-  | p4_is_shortcuttable NONE _ = false
+  else get_shortcut_result $ p4_is_shortcuttable' stmt
+ else res_nonlocal
+;
+
+(* Is function argument reduction shortcuttable? *)
+fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
+ if is_e_call e
+ then
+  (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
+     SOME e' =>
+    (case p4_e_is_shortcuttable e' of
+       e_no_shortcut e'' => res_no_shortcut_e e''
+     | e_fully_reduced => res_no_shortcut_e e'
+     | e_shortcut => res_f_args_shortcut)
+   | NONE => res_no_shortcut_e e)
+ else (res_no_shortcut_e e)
 ;
 
 (* TODO: To be able to do function shortcutting:
@@ -1205,9 +1301,7 @@ fun p4_is_shortcuttable (SOME (funn, stmt)) func_map =
  function_shortcut
 
  Either convert the function maps to SML versions once at start, or make an
- in-place solution.
-
- Make SML version of "is_e_lval"
+ in-place solution (use get_next_subexp (func_map, b_func_map, ext_fun_map) e).
 
  Extend the big-step semantics by adding an option parameter that can hold function maps?
 
@@ -1215,7 +1309,11 @@ fun p4_is_shortcuttable (SOME (funn, stmt)) func_map =
 
 (* TODO: Move *)
 val (bigstep_arch_exec_tm,  mk_bigstep_arch_exec, dest_bigstep_arch_exec, is_bigstep_arch_exec) =
-  syntax_fns2 "p4_bigstep" "bigstep_arch_exec";
+  syntax_fns3 "p4_bigstep" "bigstep_arch_exec";
+val bigstep_arch_exec_none = optionSyntax.mk_none “:('a actx # b_func_map)”;
+
+val (bigstep_arch_exec'_tm,  mk_bigstep_arch_exec', dest_bigstep_arch_exec', is_bigstep_arch_exec') =
+  syntax_fns3 "p4_bigstep" "bigstep_arch_exec'";
 
 (* TODO: Move *)
 val (in_local_fun_tm,  mk_in_local_fun, dest_in_local_fun, is_in_local_fun) =
@@ -1294,10 +1392,19 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
 
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate
   val stmt_funn_opt = arch_frame_list_get_top_funn_stmt arch_frame_list
+  val shortcut =
+   case stmt_funn_opt of
+     SOME stmt_funn =>
+    (case p4_is_shortcuttable stmt_funn func_map of
+       res_shortcut => res_shortcut
+     | res_no_shortcut_e e =>
+      p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
+     | other => other)
+   | NONE => res_no_shortcut_arch
  in
-  if p4_is_shortcuttable stmt_funn_opt func_map
+  if (shortcut_result_eq shortcut res_shortcut) orelse (shortcut_result_eq shortcut res_f_args_shortcut)
   then
-   (* TODO: Take shortcut *)
+   (* Take regular shortcut *)
    let
     (* DEBUG *)
     val _ =
@@ -1305,13 +1412,19 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
      then
       case stmt_funn_opt of
 	 NONE => ()
-       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
+       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
      else ()
 
-    val bigstep_thm = RESTR_EVAL_CONV p4_stop_eval_consts $ mk_bigstep_arch_exec (g_scope_list, arch_frame_list)
+    val bigstep_tm =
+     if shortcut_result_eq shortcut res_shortcut
+     then mk_bigstep_arch_exec (bigstep_arch_exec_none, g_scope_list, arch_frame_list)
+     else mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list)
+    val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_EVAL_CONV p4_stop_eval_consts bigstep_tm
 
     (* DEBUG *)
-    val _ = dbg_print debug_flag (String.concat ["Shortcutting: ",
+    val _ = dbg_print debug_flag (String.concat ["Shortcutting ",
+                                  term_to_string $ el 3 $ pairSyntax.strip_pair $ dest_some $ rhs $ concl bigstep_thm,
+                                  ": ",
 				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
 				  " ms\n"])
 
@@ -1320,8 +1433,6 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
 
     (* Simplify the word operations that contain no free variables *)
     val bigstep_thm' = SIMP_RULE (empty_ss++p4_wordops_ss) [] bigstep_thm
-    (* TODO: Make version of bigstep_arch_exec_comp that uses abbreviated ctx, plus
-     * in_local_fun that uses ctx instead of func_map *)
 (*
     val is_local_thm = EQT_ELIM $ EVAL $ mk_in_local_fun (func_map, arch_frame_list)
 *)
@@ -1344,9 +1455,13 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
     (* DEBUG *)
     val time_start4 = Time.now();
 
+    val shortcut_comp_thm =
+     if shortcut_result_eq shortcut res_shortcut
+     then bigstep_arch_exec_comp'_NONE
+     else bigstep_arch_exec_comp'_SOME
     val res =
      SIMP_RULE simple_arith_ss []
-      (MATCH_MP (MATCH_MP (MATCH_MP bigstep_arch_exec_comp' (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
+      (MATCH_MP (MATCH_MP (MATCH_MP shortcut_comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
@@ -1365,7 +1480,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
      then
       case stmt_funn_opt of
 	 NONE => ()
-       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
+       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
      else ()
 
     val step_thm2 = eval_ctxt (ASSUME ante) astate
