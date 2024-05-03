@@ -257,6 +257,17 @@ val d_ty : hol_type
 val scope_ty : hol_type
 
 val status_running_tm : term
+val is_status_running : term -> bool
+
+val dest_status_trans : term -> term
+val is_status_trans : term -> bool
+val mk_status_trans : term -> term
+val status_trans_tm : term
+
+val dest_status_returnv : term -> term
+val is_status_returnv : term -> bool
+val mk_status_returnv : term -> term
+val status_returnv_tm : term
 
 val dest_frame : term -> term * term * term
 

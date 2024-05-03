@@ -159,7 +159,7 @@ val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
-val debug_flag = false;
+val debug_flag = true;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec1_actx
 val (fty_map, b_fty_map) = (symb_exec1_ftymap, symb_exec1_blftymap)

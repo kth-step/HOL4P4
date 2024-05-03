@@ -85,7 +85,7 @@ fun convert_exists branch_cond step_thm =
 ;
 
 (* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
-(* TODO: Factor out *)
+(* TODO: Can this be considered to be P4-dependent or not? *)
 fun p4_conv path_cond_tm tm =
  let
   val thm = ((PURE_REWRITE_CONV [symb_conj_def]) THENC (CHANGED_CONV blastLib.BBLAST_CONV)) tm
@@ -103,7 +103,6 @@ fun update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_bra
    foldl
     (fn ((fv_index, (path_cond, branch_cond)), (curr_path_id, curr_path_cond_list)) =>
      (curr_path_id+1,
-      (* TODO: OPTIMIZE: Cons instead of append? will reverse order *)
       (* New path IDs are assigned in increments of 1 from the existing max (npaths) *)
       (curr_path_cond_list@[(curr_path_id+1,
 			     (* Current index for free variables introduced by the symbolic execution *)
@@ -167,7 +166,15 @@ fun symb_branch disj_thm path_cond =
   val path_disj_thm4 =
    PURE_REWRITE_RULE [GSYM disj_list_symb_disj_REWR, disj_list_symb_disj_REWR_extra] $
    PURE_REWRITE_RULE [disj_list_symb_disj_REWR, symb_disj_F] path_disj_thm3;
-  val new_path_conds = dest_disj_list $ concl $ PURE_REWRITE_RULE [symb_conj_def] path_disj_thm4;
+  (* TODO: Discover no new paths already here? *)
+  val new_path_conds =
+   let
+    val disj_list = concl $ PURE_REWRITE_RULE [symb_conj_def] path_disj_thm4;
+   in
+    if is_disj_list disj_list
+    then dest_disj_list disj_list
+    else [disj_list]
+   end
 
   (* 4. Remove the path condition as conjunct from the list entries, keeping it as an assumption *)
   (* TODO: Here, path condition can be simplified. But then it also becomes harder to
@@ -176,13 +183,18 @@ fun symb_branch disj_thm path_cond =
   val path_disj_thm4' = PURE_REWRITE_RULE [GSYM symb_true_def] (DISCH_ALL path_disj_thm4)
 
   val path_disj_thm5 = SIMP_RULE ((pure_ss++boolSimps.BOOL_ss++boolSimps.CONG_ss)-*["NOT_CLAUSES"]) [CONJUNCT2 NOT_CLAUSES, symb_conj_case, EQ_REFL] path_disj_thm4';
-
-  val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
-  val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
-
-  val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
  in
-  (new_path_conds, path_disj_thm7, new_branch_cond_tms)
+  if Teq $ concl path_disj_thm5
+  then NONE
+  else
+   let
+    val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
+    val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
+
+    val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
+   in
+    SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms)
+   end
  end
 ;
 
@@ -217,24 +229,28 @@ local
     (case (if nobranch_flag then NONE else lang_should_branch (fv_index, step_thm)) of
       SOME (disj_thm, fv_indices) =>
  (* Debug:
-  val SOME disj_thm = lang_should_branch step_thm
+  val SOME (disj_thm, fv_indices) = lang_should_branch (fv_index, step_thm)
  *)
-      (* Branch + prune *)
-      let
-       (* TODO: Better names *)
-       val (new_path_conds, path_disj_thm7, new_branch_cond_tms) = symb_branch disj_thm path_cond
-       val (npaths', new_path_tree, new_path_elems) = update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel)
-      in
- (*
- val npaths = npaths'
- val path_tree = new_path_tree
+     (case symb_branch disj_thm path_cond of
+        (* TODO: Better names *)
+       (* Branch + prune *)
+        SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) =>
+       let
+	val (npaths', new_path_tree, new_path_elems) = update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel)
+       in
+  (*
+  val npaths = npaths'
+  val path_tree = new_path_tree
 
- val (path_id, path_cond, step_thm, fuel) = hd new_path_elems
- val nobranch_flag = true
- *)
-       symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (npaths',
-		   new_path_tree, (t@new_path_elems), finished_list)
-      end
+  val (path_id, path_cond, step_thm, fuel) = hd new_path_elems
+  val nobranch_flag = true
+  *)
+	symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (npaths',
+		    new_path_tree, (t@new_path_elems), finished_list)
+       end
+       (* No new paths *)
+      | NONE =>
+       symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (npaths, path_tree, (t@[(path_id, fv_index, path_cond, step_thm, fuel-1, true)]), finished_list))
      | NONE =>
       (* Do not branch - compute one regular step *)
       let
@@ -265,24 +281,26 @@ in
 	     (node (1, TRUTH, [])), [(1, 0, path_cond, lang_init_step_thm, fuel, false)], [])
 end;
 
-fun symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state) =
+fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state) =
  let
   val (npaths, path_tree, (path_id, fv_index, path_cond, step_thm, fuel, nobranch_flag)) = get_job ()
  in
   case (if nobranch_flag then NONE else (lang_should_branch (fv_index, step_thm))) of
     SOME (disj_thm, fv_indices) =>
-   let
-    (* TODO: How to safely update npaths and new_path_tree? This isn't done here... *)
     (* symb_branch should return not a new path tree, but the nodes which should be inserted.
      * get_job should not return npaths and path_tree. There should then be a new method which updates
      * path_tree and npaths based on the new nodes which should be added (basically: safe version of insert_nodes). *)
-    (* TODO: Better names *)
-    val (new_path_conds, path_disj_thm7, new_branch_cond_tms) = symb_branch disj_thm path_cond
-   in
-   (update_shared_state (new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel);
-    register_new_worker_n (fn () => (symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))) ((length (new_path_conds))-1);
-    symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
-   end
+   (case symb_branch disj_thm path_cond of
+      (* TODO: Better names *)
+     (* Branch + prune *)
+      SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) =>
+     (update_shared_state (new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel);
+      register_new_worker_n (fn () => (symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))) ((length (new_path_conds))-1);
+      symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
+     (* No new paths *)
+    | NONE =>
+     (append_jobs [(path_id, fv_index, path_cond, step_thm, fuel-1, true)];
+      symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state)))
   | NONE =>
    let
     (* DEBUG *)
@@ -305,8 +323,8 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_sho
     then
      if finish_job (path_id, path_cond, next_step_thm)
      then ()
-     else symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state)
-    else (append_jobs [(path_id, fv_index, path_cond, next_step_thm, fuel', false)]; symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
+     else symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state)
+    else (append_jobs [(path_id, fv_index, path_cond, next_step_thm, fuel', false)]; symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
    end
  end
 ;
@@ -365,7 +383,7 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
    end;
 
   val time_start = Time.now();
-  val _ = register_new_worker (fn () => symb_exec_conc' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
+  val _ = register_new_worker (fn () => symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
  in
    (wait (all_done, mutex_exec);
     (* TODO: Safe? *)
