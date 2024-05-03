@@ -327,6 +327,13 @@ val d_ty = mk_type ("d", []);
 val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
+fun is_status_running tm = term_eq tm status_running_tm;
+
+val (status_trans_tm,  mk_status_trans, dest_status_trans, is_status_trans) =
+  syntax_fns1 "p4" "status_trans";
+
+val (status_returnv_tm,  mk_status_returnv, dest_status_returnv, is_status_returnv) =
+  syntax_fns1 "p4" "status_returnv";
 
 fun dest_frame frame =
  case spine_pair frame of
