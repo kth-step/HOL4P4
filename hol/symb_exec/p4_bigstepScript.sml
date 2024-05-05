@@ -268,10 +268,16 @@ Definition bigstep_stmt_exec_def:
    | _ => NONE))
   /\
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_cond e stmt1 stmt2) n =
-  (case bigstep_e_exec scope_lists e n of
-   | SOME (e', n') =>
-    SOME (stmt_cond e' stmt1 stmt2, scope_lists, n')
-   | _ => NONE))
+  (case e of
+   | e_call funn e_l =>
+    (case bigstep_f_arg_exec func_maps_opt scope_lists (funn, e_l) n of
+     | SOME (e_l', n') => SOME (stmt_cond (e_call funn e_l') stmt1 stmt2, scope_lists, n')
+     | NONE => NONE)
+   | _ =>
+    (case bigstep_e_exec scope_lists e n of
+     | SOME (e', n') =>
+      SOME (stmt_cond e' stmt1 stmt2, scope_lists, n')
+     | _ => NONE)))
   /\
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_app t_name e_l) n =
   (case bigstep_e_exec_l scope_lists e_l n of
@@ -318,7 +324,9 @@ Definition bigstep_arch_exec_def:
  (bigstep_arch_exec _ _ _ = NONE)
 End
 
-(* Takes entire ctx, but no b_func_map *)
+(* Used for reduction of function arguments *)
+(* Takes entire ctx, but no b_func_map. Hands over to bigstep_arch_exec when this has been sorted *)
+(* TODO: Is an option type really necessary for the aenv, actx tuple? *)
 Definition bigstep_arch_exec'_def:
  (bigstep_arch_exec' (aenv_ctx_opt:('a aenv # 'a actx) option) (g_scope_list:g_scope_list) (arch_frame_list_regular frame_list) =
   case aenv_ctx_opt of
