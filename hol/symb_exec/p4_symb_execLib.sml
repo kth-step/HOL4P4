@@ -1280,18 +1280,44 @@ fun p4_is_shortcuttable (funn, stmt) func_map =
  else res_nonlocal
 ;
 
-(* Is function argument reduction shortcuttable? *)
-fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
- if is_e_call e
+fun get_ok_calls stmt =
+ if is_stmt_ass stmt
  then
-  (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
-     SOME e' =>
-    (case p4_e_is_shortcuttable e' of
-       e_no_shortcut e'' => res_no_shortcut_e e''
-     | e_fully_reduced => res_no_shortcut_e e'
-     | e_shortcut => res_f_args_shortcut)
-   | NONE => res_no_shortcut_e e)
- else (res_no_shortcut_e e)
+  let
+   val e = snd $ dest_stmt_ass stmt
+  in
+   if is_e_call e
+   then SOME e
+   else NONE
+  end
+ else if is_stmt_cond stmt
+ then
+  let
+   val e = #1 $ dest_stmt_cond stmt
+  in
+   if is_e_call e
+   then SOME e
+   else NONE
+  end
+ else NONE
+;
+
+(* Is function argument reduction shortcuttable? *)
+fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) stmt =
+ (case get_ok_calls stmt of
+    SOME e =>
+   (* TODO: For now, we also require the statement to be an assignment
+    * or conditional with the call as expression. Later, this function
+    * should only take the expression from a negative p4_is_shortcuttable
+    * result *)
+   (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
+      SOME e' =>
+     (case p4_e_is_shortcuttable e' of
+	e_no_shortcut e'' => res_no_shortcut_e e''
+      | e_fully_reduced => res_no_shortcut_e e'
+      | e_shortcut => res_f_args_shortcut)
+    | NONE => res_no_shortcut_e e)
+  | NONE => (res_no_shortcut_stmt stmt))
 ;
 
 (* TODO: To be able to do function shortcutting:
@@ -1394,27 +1420,27 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
   val stmt_funn_opt = arch_frame_list_get_top_funn_stmt arch_frame_list
   val shortcut =
    case stmt_funn_opt of
-     SOME stmt_funn =>
-    (case p4_is_shortcuttable stmt_funn func_map of
+     SOME (funn, stmt) =>
+    (case p4_is_shortcuttable (funn, stmt) func_map of
        res_shortcut => res_shortcut
      | res_no_shortcut_e e =>
-      p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
+      (* TODO: Use the e *)
+      p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) stmt
      | other => other)
    | NONE => res_no_shortcut_arch
+  (* DEBUG *)
+  val _ =
+   if debug_flag
+   then
+    case stmt_funn_opt of
+       NONE => print (String.concat ["\nReducing architectural step...\n\n"])
+     | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
+   else ()
  in
   if (shortcut_result_eq shortcut res_shortcut) orelse (shortcut_result_eq shortcut res_f_args_shortcut)
   then
    (* Take regular shortcut *)
    let
-    (* DEBUG *)
-    val _ =
-     if debug_flag
-     then
-      case stmt_funn_opt of
-	 NONE => ()
-       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
-     else ()
-
     val bigstep_tm =
      if shortcut_result_eq shortcut res_shortcut
      then mk_bigstep_arch_exec (bigstep_arch_exec_none, g_scope_list, arch_frame_list)
@@ -1423,7 +1449,13 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Shortcutting ",
-                                  term_to_string $ el 3 $ pairSyntax.strip_pair $ dest_some $ rhs $ concl bigstep_thm,
+                                  let
+                                   val n_tm = el 3 $ pairSyntax.strip_pair $ dest_some $ rhs $ concl bigstep_thm
+                                  in
+                                   if int_of_term n_tm = 0
+                                   then raise (ERR "p4_regular_step" ("Shortcutting zero steps (looping): "^(term_to_string arch_frame_list)))
+                                   else term_to_string n_tm
+                                  end,
                                   ": ",
 				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
 				  " ms\n"])
@@ -1474,15 +1506,6 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
   else
    (* OLD regular step *)
    let
-    (* DEBUG *)
-    val _ =
-     if debug_flag
-     then
-      case stmt_funn_opt of
-	 NONE => ()
-       | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
-     else ()
-
     val step_thm2 = eval_ctxt (ASSUME ante) astate
 
     (* DEBUG *)
