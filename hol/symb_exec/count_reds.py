@@ -11,6 +11,7 @@ Usage: python3 count_reds.py [logfile]
 import re
 import sys
 
+#Counts number and total time consumption for regular reductions
 def reds_count(string,pattern):
     d = {}
     for match in pattern.finditer(string):
@@ -21,6 +22,19 @@ def reds_count(string,pattern):
             d[type] = (n + 1, t + int(time))
         except KeyError:
             d[type] = d[type]
+    return d
+
+#Counts number and total time consumption for shortcuts
+def shortcut_count(string,pattern):
+    d = {}
+    for match in pattern.finditer(string):
+        try:
+            number = match.group(1)
+            time = match.group(2)
+            (n, t) = d.get("shortcut") or (0,0)
+            d["shortcut"] = (n + int(number), t + int(time))
+        except KeyError:
+            d["shortcut"] = d["shortcut"]
     return d
 
 def string_time(time_ms):
@@ -56,8 +70,16 @@ def print_result(dct):
 
 file = open(sys.argv[1],"r")
 data = file.read()
-pattern = re.compile('Reducing[ ]([^.]*?)\.\.\..*?in[ ](\d+?)[ ]ms', re.MULTILINE|re.DOTALL)
+# For regular reductions, line of text after periods cannot start with "S" as in "Shortcutting"
+pattern = re.compile('Reducing[ ]([^.]*?)\.\.\.\s\s[^S].*?in[ ](\d+?)[ ]ms', re.MULTILINE|re.DOTALL)
 
-print_result(reds_count(data,pattern))
+# For shortcutting, line of text after periods cannot start with "e" as in "eval-in-ctxt"
+pattern2 = re.compile('Reducing[ ][^.]*?\.\.\.\s\s[^e].*?(\d+?):.*?in[ ](\d+?)[ ]ms', re.MULTILINE|re.DOTALL)
+
+res_dict = reds_count(data,pattern)
+
+res_dict.update(shortcut_count(data,pattern2))
+
+print_result(res_dict)
 
 file.close()
