@@ -112,6 +112,9 @@ fun astate_get_branch_data astate =
  | NONE => no_branch
 ;
 
+(* TODO: Get rid of term parsing *)
+val b_func_map_entry_ty = “:(string # stmt # (string # d) list)”;
+
 (* TODO: OPTIMIZE: This should be done once in pre-processing, not at every step *)
 fun get_f_maps (astate, actx) =
  let
@@ -122,8 +125,7 @@ fun get_f_maps (astate, actx) =
  in
   case get_b_func_map i ab_list pblock_map of
     SOME b_func_map => (func_map, b_func_map, ext_fun_map)
-  (* TODO: Get rid of term parsing *)
-  | NONE => (func_map, “[]:b_func_map”, ext_fun_map)
+  | NONE => (func_map, mk_list ([], b_func_map_entry_ty), ext_fun_map)
  end
 ;
 
@@ -535,7 +537,7 @@ val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.MAP, optionTheory.THE
 (* TODO: Fix code duplication *)
 fun get_fv_arg_of_tau tau fv_index =
  if is_tau_bool tau
- then (mk_e_v $ mk_v_bool $ mk_var (p4_symb_arg_prefix^(Int.toString fv_index), “:bool”),
+ then (mk_e_v $ mk_v_bool $ mk_var (p4_symb_arg_prefix^(Int.toString fv_index), bool),
        fv_index + 1)
  else if is_tau_bit tau
  then
@@ -561,7 +563,7 @@ fun get_fv_arg_of_tau tau fv_index =
     let
      val (x_v_l', new_fv_index) = foldl (fn (x_tau', (x_v_list, fv_index')) => ((fn (v', fv_index'') => ((fst x_tau', v')::x_v_list, fv_index'')) (get_fv_arg_of_tau (snd x_tau') fv_index'))) ([],fv_index+1) x_tau'_l
     in
-     (mk_e_v $ mk_v_header_list (mk_v_bool $ mk_var (p4_symb_arg_prefix^(Int.toString fv_index), “:bool”)) x_v_l', new_fv_index)
+     (mk_e_v $ mk_v_header_list (mk_v_bool $ mk_var (p4_symb_arg_prefix^(Int.toString fv_index), bool)) x_v_l', new_fv_index)
     end
    else raise (ERR "get_fv_arg_of_tau" ("Unsupported struct_ty subtype: "^(term_to_string struct_ty_tm)))
   end
@@ -576,16 +578,20 @@ fun get_fv_args fv_index ftys =
  end
 ;
 
+(* TODO: Move *)
+val (alookup_tm,  mk_alookup, dest_alookup, is_alookup) =
+  syntax_fns2 "alist" "ALOOKUP";
+
 fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  let
-  val b_fty_map_lookup_opt = rhs $ concl $ EVAL “ALOOKUP ^b_fty_map ^block_name”
+  val b_fty_map_lookup_opt = rhs $ concl $ EVAL $ mk_alookup (b_fty_map, block_name)
   (* TODO: b_fty_map_lookup *)
  in
   if is_some b_fty_map_lookup_opt
   then
    let
     val local_fty_map = dest_some b_fty_map_lookup_opt
-    val local_fty_map_lookup_opt = rhs $ concl $ EVAL “ALOOKUP ^local_fty_map ^funn”
+    val local_fty_map_lookup_opt = rhs $ concl $ EVAL $ mk_alookup (local_fty_map, funn)
    in
     if is_some local_fty_map_lookup_opt
     then
@@ -596,7 +602,7 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
      end
     else
      let
-      val fty_map_lookup_opt = rhs $ concl $ EVAL “ALOOKUP ^fty_map ^funn”
+      val fty_map_lookup_opt = rhs $ concl $ EVAL $ mk_alookup (fty_map, funn)
      in
       if is_some fty_map_lookup_opt
       then
@@ -641,7 +647,7 @@ fun p4_should_branch (fty_map, b_fty_map) const_actions_tables ctx_def (fv_index
       let
        val struct_list = dest_v_struct_fields $ dest_e_v e
        (* TODO: Use syntax function for match_all *)
-       val key_branch_conds = map (fn key => key_conv ``match_all $ ZIP( ^(mk_list(struct_list, ``:v``)) , FST ^key)``) keys
+       val key_branch_conds = map (fn key => key_conv (mk_match_all (mk_zip (mk_list(struct_list, v_ty), mk_fst key)))) keys
        val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
 
        val key_branch_conds' = snd $ foldl (fn (a,(b,c)) => (if null b then b else tl b , (if length b = 1 then a else mk_conj ((list_mk_conj (tl b)), a))::c) ) (key_branch_conds_neg, []) (rev key_branch_conds)
@@ -697,7 +703,7 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
       (* 1. Extract ctrl from ascope *)
       val ctrl = #4 $ dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate
       (* 2. Extract key sets from ascope using tbl_name *)
-      val tbl_opt = rhs $ concl $ EVAL “ALOOKUP ^ctrl ^tbl_name”
+      val tbl_opt = rhs $ concl $ EVAL $ mk_alookup (ctrl, tbl_name)
      in
       if is_some tbl_opt
       then
@@ -744,8 +750,8 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
          * pre-computed *)
 
         (* TODO: handle Exceptions if result is not SOME *)
-        val tbl_map = #6 $ dest_pblock $ dest_some $ rhs $ concl $ EVAL “ALOOKUP ^pblock_map ^curr_block”
-        val (action_names, default_action) = dest_pair $ snd $ dest_pair $ dest_some $ rhs $ concl $ EVAL “ALOOKUP ^tbl_map ^tbl_name”
+        val tbl_map = #6 $ dest_pblock $ dest_some $ rhs $ concl $ EVAL $ mk_alookup (pblock_map, curr_block)
+        val (action_names, default_action) = dest_pair $ snd $ dest_pair $ dest_some $ rhs $ concl $ EVAL $ mk_alookup (tbl_map, tbl_name)
         val (default_action_name, default_action_args) = dest_pair default_action
         (* NOTE: We shouldn't filter out the default action name here - it will have
          * different "hit" dummy arg if it resulted from a hit or a default case. *)
@@ -1115,7 +1121,7 @@ fun p4_funn_name_not_in_func_map funn func_map =
    val fname = dest_funn_name funn
   in
    (* TODO: Do this on SML level *)
-   optionSyntax.is_none $ rhs $ concl $ EVAL “ALOOKUP ^func_map ^fname”
+   optionSyntax.is_none $ rhs $ concl $ EVAL $ mk_alookup (func_map, fname)
   end
  else false
 ;
@@ -1362,7 +1368,7 @@ val word_convs_unary =
  map
  (fn wordop =>
   {conv = K (K word_conv),
-   key= SOME ([], ``^wordop w``),
+   key= SOME ([], mk_comb (wordop, mk_var ("w", wordsSyntax.mk_word_type Type.alpha))),
    (* TODO: Better names *)
    name = term_to_string wordop,
    trace = 2}) p4_stop_eval_consts_unary
@@ -1371,7 +1377,7 @@ val word_convs_binary =
  map
  (fn wordop =>
   {conv = K (K word_conv),
-   key= SOME ([], ``^wordop w w'``),
+   key= SOME ([], mk_comb (mk_comb (wordop, mk_var ("w", wordsSyntax.mk_word_type Type.alpha)), mk_var ("w'", wordsSyntax.mk_word_type Type.alpha))),
    (* TODO: Better names *)
    name = term_to_string wordop,
    trace = 2}) p4_stop_eval_consts_binary
