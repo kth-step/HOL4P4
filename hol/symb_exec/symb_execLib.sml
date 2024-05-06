@@ -137,8 +137,12 @@ fun update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_bra
  end
 ;
 
-fun symb_branch disj_thm path_cond =
+fun symb_branch debug_flag disj_thm path_cond =
  let
+  val _ = dbg_print debug_flag
+   (String.concat ["\nPerforming symbolic branch using disj_thm\n",
+		   (term_to_string $ concl disj_thm), "\n and path condition \n",
+		   (term_to_string $ concl path_cond), "\n\n"])
  (* Debug:
 
  val path_cond = ASSUME “c <=> T”;
@@ -231,7 +235,7 @@ local
  (* Debug:
   val SOME (disj_thm, fv_indices) = lang_should_branch (fv_index, step_thm)
  *)
-     (case symb_branch disj_thm path_cond of
+     (case symb_branch debug_flag disj_thm path_cond of
         (* TODO: Better names *)
        (* Branch + prune *)
         SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) =>
@@ -282,15 +286,11 @@ in
 end;
 
 fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state) =
- let
-  val (npaths, path_tree, (path_id, fv_index, path_cond, step_thm, fuel, nobranch_flag)) = get_job ()
- in
-  case (if nobranch_flag then NONE else (lang_should_branch (fv_index, step_thm))) of
+ case get_job () of
+   SOME (path_id, fv_index, path_cond, step_thm, fuel, nobranch_flag) =>
+  (case (if nobranch_flag then NONE else (lang_should_branch (fv_index, step_thm))) of
     SOME (disj_thm, fv_indices) =>
-    (* symb_branch should return not a new path tree, but the nodes which should be inserted.
-     * get_job should not return npaths and path_tree. There should then be a new method which updates
-     * path_tree and npaths based on the new nodes which should be added (basically: safe version of insert_nodes). *)
-   (case symb_branch disj_thm path_cond of
+   (case symb_branch debug_flag disj_thm path_cond of
       (* TODO: Better names *)
      (* Branch + prune *)
       SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) =>
@@ -326,7 +326,14 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
      else symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state)
     else (append_jobs [(path_id, fv_index, path_cond, next_step_thm, fuel', false)]; symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
    end
- end
+ (* TODO: Silly, but works against silent exceptions *)
+ handle Interrupt => (broadcastInterrupt(); print "Interrupt exception!\n"; raise Interrupt)
+ handle exc => (broadcastInterrupt();
+                print (String.concat ["Exception raised on path ID ", (Int.toString path_id), "\n",
+                       "with ", (Int.toString fuel), " fuel remaining,\n",
+                       "free variable index ", (Int.toString fv_index), ",\n",
+                       "and step_thm\n", (term_to_string $ concl step_thm), "\n"]); raise exc))
+ | NONE => ()
 ;
 
 fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) path_cond fuel nthreads_max =
@@ -341,7 +348,23 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
   val mutex_exec = mutex()
 
   fun get_job () =
-   protect mutex_exec (fn () => (let val res = (!npaths_ref, !path_tree_ref, hd (!work_queue)) in work_queue := tl (!work_queue); res end)) ();
+   protect mutex_exec (fn () =>
+    (let
+      val queue = (!work_queue)
+     in
+      if not (null queue)
+      then
+       let
+        val res = (hd queue)
+       in
+        (work_queue := tl queue; SOME res)
+       end
+      else
+       (nthreads_ref := !nthreads_ref - 1;
+	(if !nthreads_ref = 0
+	 then (signal all_done; NONE)
+	 else NONE))
+     end)) ();
 
   fun append_jobs jobs =
    protect mutex_exec (fn jobs' => (work_queue := ((!work_queue)@jobs'))) jobs;
@@ -384,10 +407,13 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
 
   val time_start = Time.now();
   val _ = register_new_worker (fn () => symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
+
+  (* TODO: Hack, enables this thread to shut down *)
+  val _ = setAttributes [EnableBroadcastInterrupt true]
  in
    (wait (all_done, mutex_exec);
     (* TODO: Safe? *)
-    (!path_tree_ref, !done_list)
+     (!path_tree_ref, !done_list)
 (*
     print (String.concat ["Result: ",
                    String.concat $ map (fn el => (el^" ")) (map (term_to_string o concl o #3) (!done_list)),
