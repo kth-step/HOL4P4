@@ -57,31 +57,15 @@ fun count_leaves (node (id, thm, nodes)) =
  * tupled with this result.
  * *)
 fun convert_exists branch_cond step_thm =
- let
-  val thm = DISCH_CONJUNCTS_ALL $ ADD_ASSUM branch_cond step_thm
-  val (ante, cons) = dest_imp $ concl thm
- in
-  (* Don't remove the boolSyntax prefix *)
-  if boolSyntax.is_exists ante
-  then
-   let
-    val (vars, ante') = strip_exists ante
-    val tm' = mk_imp (ante', cons)
-    (* DEBUG
-    val _ = print "Attempting proof in convert_exists...\n"
-    *)
-   in
-    (* TODO: Why doesn't SIMP_TAC bool_ss [step_thm] work here? investigate... *)
-    (prove(tm', fs [step_thm]), ante')
-(*
-     handle exc => (raise (ERR "convert_exists" "Failed to prove conversion of existential quantifiers in step theorem"))
-*)
-     handle exc => (print (String.concat ["branch_cond: ", term_to_string branch_cond, "\n",
-                                          "step_thm: ", term_to_string $ concl step_thm, "\n"]);
-                    raise (ERR "convert_exists" "Failed to prove conversion of existential quantifiers in step theorem"))
-   end
-  else (thm, branch_cond)
- end
+ (* Don't remove the boolSyntax prefix *)
+ if boolSyntax.is_exists branch_cond
+ then
+  let
+   val branch_cond' = snd $ strip_exists branch_cond
+  in
+   (SPEC branch_cond' (MATCH_MP IMP_ADD_CONJ step_thm))
+  end
+ else (PURE_REWRITE_RULE [SPEC branch_cond AND_IMP_INTRO_SYM] $ DISCH_CONJUNCTS_ALL $ ADD_ASSUM branch_cond step_thm)
 ;
 
 (* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
@@ -95,8 +79,13 @@ fun p4_conv path_cond_tm tm =
  end
 ;
 
-fun update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel) =
+fun update_path_tree debug_flag (npaths, path_tree, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel) =
  let
+  val time_start = Time.now();
+
+  val _ = dbg_print debug_flag
+   (String.concat ["\n\nUpdating path tree...\n\n"])
+
   (* TODO: OPTIMIZE: Check if branch results in just one new path - then we don't need to add
    * a new node to the tree, just replace data in the existing one *)
   val (npaths', new_path_elems) =
@@ -111,10 +100,7 @@ fun update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_bra
 			     path_cond,
 			     (* The current step theorem, rewritten using the path condition as
 			      * a theorem (will add path condition as a premise) *)
-			     (* Old: *)
-			     (* DISCH_CONJUNCTS_ALL $ REWRITE_RULE [path_cond] step_thm *)
-			     (* New, a bit of a silly hack: *)
-                             (fn (thm, tm) => PURE_REWRITE_RULE [SPEC tm AND_IMP_INTRO_SYM] thm) $ convert_exists branch_cond step_thm,
+                             (convert_exists branch_cond step_thm),
 			     (* Branching consumes 1 fuel *)
 			     fuel-1,
 			     (* This flags tells the symbolic execution to not branch this
@@ -132,6 +118,10 @@ fun update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_bra
    * path disjunction theorem *)
   val new_path_tree = insert_nodes path_tree (path_id, path_disj_thm7, new_path_nodes)
 
+  val _ = dbg_print debug_flag (String.concat ["Finished path_tree update in: ",
+				(LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+				" ms\n"])
+
  in
   (npaths', new_path_tree, new_path_elems)
  end
@@ -139,10 +129,8 @@ fun update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_bra
 
 fun symb_branch debug_flag disj_thm path_cond =
  let
-  val _ = dbg_print debug_flag
-   (String.concat ["\nPerforming symbolic branch using disj_thm\n",
-		   (term_to_string $ concl disj_thm), "\n and path condition \n",
-		   (term_to_string $ concl path_cond), "\n\n"])
+  val time_start = Time.now();
+
  (* Debug:
 
  val path_cond = ASSUME “c <=> T”;
@@ -187,18 +175,25 @@ fun symb_branch debug_flag disj_thm path_cond =
   val path_disj_thm4' = PURE_REWRITE_RULE [GSYM symb_true_def] (DISCH_ALL path_disj_thm4)
 
   val path_disj_thm5 = SIMP_RULE ((pure_ss++boolSimps.BOOL_ss++boolSimps.CONG_ss)-*["NOT_CLAUSES"]) [CONJUNCT2 NOT_CLAUSES, symb_conj_case, EQ_REFL] path_disj_thm4';
- in
-  if Teq $ concl path_disj_thm5
-  then NONE
-  else
-   let
-    val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
-    val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
 
-    val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
-   in
-    SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms)
-   end
+  val res =
+   if Teq $ concl path_disj_thm5
+   then NONE
+   else
+    let
+     val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
+     val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
+
+     val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
+    in
+     SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms)
+    end
+
+  val _ = dbg_print debug_flag (String.concat ["Finished symbolic branch in: ",
+				(LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+				" ms\n"])
+ in
+  res
  end
 ;
 
@@ -235,26 +230,37 @@ local
  (* Debug:
   val SOME (disj_thm, fv_indices) = lang_should_branch (fv_index, step_thm)
  *)
-     (case symb_branch debug_flag disj_thm path_cond of
-        (* TODO: Better names *)
-       (* Branch + prune *)
-        SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) =>
-       let
-	val (npaths', new_path_tree, new_path_elems) = update_path_tree (npaths, path_tree, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel)
-       in
-  (*
-  val npaths = npaths'
-  val path_tree = new_path_tree
+     let
+      val _ = dbg_print debug_flag
+       (String.concat ["\n\nPerforming symbolic branch...\n\n",
+		       (* "from step_thm:\n", (term_to_string $ concl step_thm), *)
+		       "using disj_thm:\n", (term_to_string $ concl disj_thm),
+		       "\n and path condition \n", (term_to_string $ concl path_cond), "\n\n"])
+     in
+      (case symb_branch debug_flag disj_thm path_cond of
+(*
+ val SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) = symb_branch debug_flag disj_thm path_cond
+*)
+	 (* TODO: Better names *)
+	(* Branch + prune *)
+	 SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) =>
+	let
+	 val (npaths', new_path_tree, new_path_elems) = update_path_tree debug_flag (npaths, path_tree, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel)
+	in
+   (*
+   val npaths = npaths'
+   val path_tree = new_path_tree
 
-  val (path_id, path_cond, step_thm, fuel) = hd new_path_elems
-  val nobranch_flag = true
-  *)
-	symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (npaths',
-		    new_path_tree, (t@new_path_elems), finished_list)
-       end
-       (* No new paths *)
-      | NONE =>
-       symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (npaths, path_tree, (t@[(path_id, fv_index, path_cond, step_thm, fuel-1, true)]), finished_list))
+   val (path_id, path_cond, step_thm, fuel) = hd new_path_elems
+   val nobranch_flag = true
+   *)
+	 symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (npaths',
+		     new_path_tree, (t@new_path_elems), finished_list)
+	end
+	(* No new paths *)
+       | NONE =>
+	symb_exec' (debug_flag, lang_regular_step, lang_init_step_thm, lang_should_branch, lang_is_finished) (npaths, path_tree, (t@[(path_id, fv_index, path_cond, step_thm, fuel-1, true)]), finished_list))
+      end
      | NONE =>
       (* Do not branch - compute one regular step *)
       let
@@ -263,7 +269,7 @@ local
        val time_start = Time.now();
 
        val next_step_thm =
-	lang_regular_step step_thm
+	lang_regular_step nobranch_flag step_thm
        val _ = dbg_print debug_flag
 	(String.concat ["Finished regular symbolic execution step of path ID ",
 			(Int.toString path_id), " in ",
@@ -294,7 +300,7 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
       (* TODO: Better names *)
      (* Branch + prune *)
       SOME (new_path_conds, path_disj_thm7, new_branch_cond_tms) =>
-     (update_shared_state (new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel);
+     (update_shared_state debug_flag (new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel);
       register_new_worker_n (fn () => (symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))) ((length (new_path_conds))-1);
       symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
      (* No new paths *)
@@ -307,7 +313,8 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
     val time_start = Time.now();
 
     val next_step_thm =
-     lang_regular_step step_thm
+     lang_regular_step nobranch_flag step_thm
+      handle exc => (broadcastInterrupt(); print "Exception when running lang_regular_step!\n"; raise exc)
 
     val _ = dbg_print debug_flag
      (String.concat ["Finished regular symbolic execution step of path ID ",
@@ -369,10 +376,10 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
   fun append_jobs jobs =
    protect mutex_exec (fn jobs' => (work_queue := ((!work_queue)@jobs'))) jobs;
 
-  fun update_shared_state (new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel) =
+  fun update_shared_state debug_flag (new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel) =
    protect mutex_exec (fn () =>
     (let
-      val (npaths', new_path_tree, new_path_elems) = update_path_tree (!npaths_ref, !path_tree_ref, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel);
+      val (npaths', new_path_tree, new_path_elems) = update_path_tree debug_flag (!npaths_ref, !path_tree_ref, new_path_conds, path_disj_thm7, new_branch_cond_tms, fv_indices) (path_id, step_thm, fuel);
       val _ = (npaths_ref := npaths');
       val _ = (path_tree_ref := new_path_tree);
       val _ = (work_queue := ((!work_queue)@new_path_elems));

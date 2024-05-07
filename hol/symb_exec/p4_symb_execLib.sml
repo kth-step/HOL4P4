@@ -11,7 +11,7 @@ open symb_execTheory symb_execSyntax p4_symb_execTheory p4_bigstepTheory;
 open evalwrapLib p4_testLib;
 open symb_execLib;
 
-open optionSyntax;
+open optionSyntax listSyntax (* wordsSyntax *);
 
 val ERR = mk_HOL_ERR "p4_symb_exec"
 
@@ -499,6 +499,33 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
  * 
  * *)
 
+(* TODO: Not sure if opening wordsSyntax and fixing the below causes some weirdness *)
+(*
+(* RESTR_EVAL_RULE constants: *)
+val p4_stop_eval_consts_unary =
+ [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
+  word_2comp_tm
+ ];
+val p4_stop_eval_consts_binary =
+ [word_mul_tm,
+  word_div_tm,
+  word_mod_tm,
+  word_add_tm,
+  saturate_add_tm,
+  word_sub_tm,
+  saturate_sub_tm,
+  word_lsl_bv_tm, (* TODO: OK to evaluate if second operand has no free variables *)
+  word_lsr_bv_tm, (* TODO: OK to evaluate if second operand has no free variables *)
+  (* “word_and”, (* Should be OK? w2v (v2w [x; F; T] && v2w [y; F; T]) = [x ∧ y; F; T] *) *)
+  (* “word_xor”, (* Should be OK? w2v (v2w [x; F; T] ⊕ v2w [y; F; T]) = [x ⇎ y; F; F] *) *)
+  (* “word_or”, (* Should be OK? w2v (v2w [x; F; T] ‖ v2w [y; F; T]) = [x ∨ y; F; T] *) *)
+  word_ls_tm,
+  word_hs_tm,
+  word_lo_tm,
+  word_hi_tm
+];
+*)
+
 (* RESTR_EVAL_RULE constants: *)
 val p4_stop_eval_consts_unary =
  [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
@@ -622,11 +649,18 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  * be performed, otherwise SOME of a list of cases and a theorem stating the disjunction
  * between them *)
 (* TODO: (fty_map, b_fty_map) and const_actions_tables only needed for apply statement *)
-fun p4_should_branch (fty_map, b_fty_map) const_actions_tables ctx_def (fv_index, step_thm) =
+fun p4_should_branch (fty_map, b_fty_map) const_actions_tables (debug_flag, ctx_def) (fv_index, step_thm) =
  let
+  (* DEBUG *)
+  val time_start = Time.now();
+
+  (* DEBUG *)
+  val _ = dbg_print debug_flag (String.concat ["\nComputing whether symbolic branch should take place...\n"])
+
   val (path_tm, astate) = the_final_state_hyp_imp step_thm
- in
-  case astate_get_branch_data astate of
+
+  val res =
+   (case astate_get_branch_data astate of
     (* Branch point: conditional statement *)
     conditional branch_cond =>
    if is_e_v branch_cond andalso not $ null $ free_vars branch_cond
@@ -718,7 +752,10 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 	 (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
 	  * funny priorities in the table *)
 
-	 val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
+         val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
+(* TODO: For some reason, changing the line above to the one below causes infinite looping...
+	 val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ (^(mk_map (fst_tm, tbl)))”
+*)
 	 val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
 	 val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
 
@@ -744,7 +781,7 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
         val i = #1 $ dest_aenv $ #1 $ dest_astate astate
         (* TODO: Unify with the syntactic function obtaining the state above? *)
         val (ab_list, pblock_map, _, _, _, _, _, _, _, _) = dest_actx $ rhs $ concl ctx_def
-        val (curr_block, _) = dest_arch_block_pbl $ rhs $ concl $ EVAL “EL (^i) (^ab_list)”
+        val (curr_block, _) = dest_arch_block_pbl $ rhs $ concl $ EVAL $ mk_el (i, ab_list)
 
         (* TODO: All of the information extracted from the ctx below could be
          * pre-computed *)
@@ -865,7 +902,13 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
       else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
      end
     else NONE
-  | no_branch => NONE
+  | no_branch => NONE)
+
+  val _ = dbg_print debug_flag (String.concat ["\nFinished symbolic branch decision computations in ",
+				(LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
+				" ms\n"])
+ in
+  res
  end
 ;
 
@@ -907,6 +950,17 @@ fun p4_regular_step_get_err_msg step_thm =
 
 fun p4_eval_ctxt_gen (stop_consts1, stop_consts2, mk_exec) path_cond astate =
  eval_ctxt_gen stop_consts1 stop_consts2 path_cond (mk_exec astate)
+;
+
+(* TODO: Fix naming for the three below, remove unnecessary abstraction *)
+(* This is just evaluating a term and adding an assumption, without rewriting *)
+fun norewr_eval_ctxt_gen stop_consts ctxt tm =
+  RESTR_EVAL_CONV stop_consts tm
+  |> PROVE_HYP ctxt
+  |> DISCH_CONJUNCTS_ALL
+;
+fun p4_norewr_eval_ctxt_gen (stop_consts, mk_exec) path_cond astate =
+ norewr_eval_ctxt_gen stop_consts path_cond (mk_exec astate)
 ;
 
 (* TODO: Expression reduction debug output *)
@@ -1139,13 +1193,31 @@ fun p4_e_is_shortcuttable e =
  if is_e_var e
  then e_shortcut
  else if is_e_acc e
- then p4_e_is_shortcuttable $ fst $ dest_e_acc e
+ then
+  (case p4_e_is_shortcuttable $ fst $ dest_e_acc e of
+     e_no_shortcut e' => e_no_shortcut e'
+   | _ => e_shortcut)
  else if is_e_cast e
- then p4_e_is_shortcuttable $ snd $ dest_e_cast e
+ then
+  (case p4_e_is_shortcuttable $ snd $ dest_e_cast e of
+     e_no_shortcut e' => e_no_shortcut e'
+   | _ => e_shortcut)
  else if is_e_unop e
- then p4_e_is_shortcuttable $ snd $ dest_e_unop e
+ then
+  (case p4_e_is_shortcuttable $ snd $ dest_e_unop e of
+     e_no_shortcut e' => e_no_shortcut e'
+   | _ => e_shortcut)
  else if is_e_binop e
- then p4_e_is_shortcuttable $ #2 $ dest_e_binop e
+ then
+  (case p4_e_is_shortcuttable $ #2 $ dest_e_binop e of
+     e_no_shortcut e' => e_no_shortcut e'
+   | e_shortcut => e_shortcut
+   | e_fully_reduced =>
+    (case p4_e_is_shortcuttable $ #3 $ dest_e_binop e of
+       e_no_shortcut e' => e_no_shortcut e'
+     | e_shortcut => e_shortcut
+     | e_fully_reduced => e_shortcut))
+ (* TODO: Fix concat and slicing *)
  else if is_e_concat e
  then p4_e_is_shortcuttable $ fst $ dest_e_concat e
  else if is_e_slice e
@@ -1156,9 +1228,15 @@ fun p4_e_is_shortcuttable e =
  then p4_e_l_is_shortcuttable $ fst $ dest_list $ snd $ dest_e_call e
 *)
  else if is_e_struct e
- then p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ dest_e_struct e
+ then
+  (case p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ dest_e_struct e of
+     e_no_shortcut e' => e_no_shortcut e'
+   | _ => e_shortcut)
  else if is_e_header e
- then p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e
+ then
+  (case p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e of
+     e_no_shortcut e' => e_no_shortcut e'
+   | _ => e_shortcut)
  else if is_e_select e
  then p4_e_is_shortcuttable $ #1 $ dest_e_select e
  else if is_e_v e
@@ -1326,19 +1404,6 @@ fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) stmt =
   | NONE => (res_no_shortcut_stmt stmt))
 ;
 
-(* TODO: To be able to do function shortcutting:
- Rewrite the is_shortcuttable functions to return one of three options:
- no_shortcut
- regular_shortcut
- function_shortcut
-
- Either convert the function maps to SML versions once at start, or make an
- in-place solution (use get_next_subexp (func_map, b_func_map, ext_fun_map) e).
-
- Extend the big-step semantics by adding an option parameter that can hold function maps?
-
-*)
-
 (* TODO: Move *)
 val (bigstep_arch_exec_tm,  mk_bigstep_arch_exec, dest_bigstep_arch_exec, is_bigstep_arch_exec) =
   syntax_fns3 "p4_bigstep" "bigstep_arch_exec";
@@ -1397,7 +1462,7 @@ end;
 val (id, path_cond_thm, step_thm) = el 1 path_cond_step_list
 *)
 
-fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
+fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
   val time_start = Time.now();
@@ -1443,7 +1508,10 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
      | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
    else ()
  in
-  if (shortcut_result_eq shortcut res_shortcut) orelse (shortcut_result_eq shortcut res_f_args_shortcut)
+  (* TODO: If use_eval_in_ctxt, this should never shortcut apply or select statements, which
+   * need to use assumptions in the middle of execution. Fix this when you enable shortcutting
+   * these *)
+  if ((shortcut_result_eq shortcut res_shortcut) orelse (shortcut_result_eq shortcut res_f_args_shortcut))
   then
    (* Take regular shortcut *)
    let
@@ -1512,7 +1580,10 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm step_thm =
   else
    (* OLD regular step *)
    let
-    val step_thm2 = eval_ctxt (ASSUME ante) astate
+    val step_thm2 =
+     if use_eval_in_ctxt
+     then eval_ctxt (ASSUME ante) astate
+     else norewr_eval_ctxt (ASSUME ante) astate
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["evaluation-in-context: ",
@@ -1640,16 +1711,17 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 
   val table_stop_consts = [match_all_tm]
   val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm
+  val norewr_eval_ctxt = p4_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
    then valOf p4_is_finished_alt_opt
    else p4_is_finished
  in
 (* DEBUG:
-val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm;
+val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm;
 val lang_init_step_thm = init_step_thm;
-val lang_should_branch = p4_should_branch (fty_map', b_fty_map') const_actions_tables' ctx_def;
+val lang_should_branch = p4_should_branch (fty_map', b_fty_map') const_actions_tables' (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
 
 val const_actions_tables = const_actions_tables'
@@ -1660,8 +1732,8 @@ val (fty_map, b_fty_map) = (fty_map', b_fty_map')
   else
    if nthreads_max > 1
    then
-     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' ctx_def, is_finished) path_cond fuel nthreads_max
-   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' ctx_def, is_finished) path_cond fuel
+     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel nthreads_max
+   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel
  end
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
