@@ -1586,7 +1586,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
      else norewr_eval_ctxt (ASSUME ante) astate
 
     (* DEBUG *)
-    val _ = dbg_print debug_flag (String.concat ["evaluation-in-context: ",
+    val _ = dbg_print debug_flag (String.concat [(if use_eval_in_ctxt then "evaluation-in-context: " else "evaluation: "),
 				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
 				  " ms\n"])
 
@@ -1662,7 +1662,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
 	     else (HOL_ERR exn))
   end
  end
- handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (p4_regular_step_get_err_msg step_thm)) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
+ handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (String.concat ["Exception: ", #message exn, " in function ", #origin_function exn, " from structure ", #origin_structure exn, p4_regular_step_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
 ;
 
 (* Function that decides whether a HOL4P4 program is finished or not:

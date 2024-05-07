@@ -197,7 +197,6 @@ fun symb_branch debug_flag disj_thm path_cond =
  end
 ;
 
-
 local
  (* Generic symbolic execution
   * This has four language-specific parameters:
@@ -314,7 +313,9 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
 
     val next_step_thm =
      lang_regular_step nobranch_flag step_thm
-      handle exc => (broadcastInterrupt(); print "Exception when running lang_regular_step!\n"; raise exc)
+      (* TODO: broadcastInterrupt doesn't seem to work properly *)
+      handle Interrupt => ((* broadcastInterrupt(); *) print "Interrupt exception when running lang_regular_step!\n"; raise Interrupt)
+      handle exc => ((* broadcastInterrupt(); *) print "Exception when running lang_regular_step!\n"; raise exc)
 
     val _ = dbg_print debug_flag
      (String.concat ["Finished regular symbolic execution step of path ID ",
@@ -334,8 +335,8 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
     else (append_jobs [(path_id, fv_index, path_cond, next_step_thm, fuel', false)]; symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state))
    end
  (* TODO: Silly, but works against silent exceptions *)
- handle Interrupt => (broadcastInterrupt(); print "Interrupt exception!\n"; raise Interrupt)
- handle exc => (broadcastInterrupt();
+ handle Interrupt => ((* broadcastInterrupt(); *) print "Interrupt exception!\n"; raise Interrupt)
+ handle exc => ((* broadcastInterrupt(); *)
                 print (String.concat ["Exception raised on path ID ", (Int.toString path_id), "\n",
                        "with ", (Int.toString fuel), " fuel remaining,\n",
                        "free variable index ", (Int.toString fv_index), ",\n",
