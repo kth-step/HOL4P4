@@ -1347,8 +1347,11 @@ val postcond = “(\s. T):v1model_ascope astate -> bool”;
 (* TODO: Free variables in register extern objects *)
 
 val time_start = Time.now();
-(*
-val p4_symb_exec_fun = (p4_symb_exec 1)
+(* TEST
+
+val (path_tree, [(path_id, path_cond, step_thm)]) =
+ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt 5;
+
 *)
 (* Commit 7daf3ad:
 Using all threads yield "Total time consumption: 885548 ms" (14m, 45s, 548ms)

@@ -145,12 +145,16 @@ val symb_exec3_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
+val debug_flag = false
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec3_actx
+val (fty_map, b_fty_map) = (symb_exec3_ftymap, symb_exec3_blftymap)
+val const_actions_tables = []
 val init_astate = symb_exec3_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val path_cond = ASSUME “e8 = T”
+val p4_is_finished_alt_opt = NONE
 val n_max = 50;
 val postcond = “(\s. packet_has_port s 1):v1model_ascope astate -> bool”;
 (* For debugging:
@@ -162,8 +166,13 @@ val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
  symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
 *)
 
+(*
+  val ctx_name = "ctx"
+  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
+*)
+
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty ctx (symb_exec3_ftymap, symb_exec3_blftymap) [] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
 
 val _ = export_theory ();
