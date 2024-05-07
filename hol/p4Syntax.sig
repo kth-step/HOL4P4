@@ -15,6 +15,8 @@ val varn_name_tm : term
 val varn_star_tm : term
 val is_varn_star : term -> bool
 
+val v_ty : hol_type
+
 val dest_e_v : term -> term
 val e_v_tm : term
 val is_e_v : term -> bool
