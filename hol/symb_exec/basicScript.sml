@@ -1352,6 +1352,1096 @@ val time_start = Time.now();
 val (path_tree, [(path_id, path_cond, step_thm)]) =
  p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt 5;
 
+
+
+
+val step_thm = prove(“(T ∧
+ match_all
+   [(v_bit
+       ([eth96; eth97; eth98; eth99; eth100; eth101; eth102; eth103; eth104;
+         eth105; eth106; eth107; eth108; eth109; eth110; eth111],16),
+     s_sing (v_bit ([F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F],16)))]) ∧
+¬match_all
+  [(v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8),
+    s_sing (v_bit ([F; F; T; T; F; F; T; F],8)))] ⇒
+arch_multi_exec ctx
+  ((0,
+    [([eth0; eth1; eth2; eth3; eth4; eth5; eth6; eth7; eth8; eth9; eth10;
+       eth11; eth12; eth13; eth14; eth15; eth16; eth17; eth18; eth19; eth20;
+       eth21; eth22; eth23; eth24; eth25; eth26; eth27; eth28; eth29; eth30;
+       eth31; eth32; eth33; eth34; eth35; eth36; eth37; eth38; eth39; eth40;
+       eth41; eth42; eth43; eth44; eth45; eth46; eth47; eth48; eth49; eth50;
+       eth51; eth52; eth53; eth54; eth55; eth56; eth57; eth58; eth59; eth60;
+       eth61; eth62; eth63; eth64; eth65; eth66; eth67; eth68; eth69; eth70;
+       eth71; eth72; eth73; eth74; eth75; eth76; eth77; eth78; eth79; eth80;
+       eth81; eth82; eth83; eth84; eth85; eth86; eth87; eth88; eth89; eth90;
+       eth91; eth92; eth93; eth94; eth95; eth96; eth97; eth98; eth99; eth100;
+       eth101; eth102; eth103; eth104; eth105; eth106; eth107; eth108;
+       eth109; eth110; eth111; ip0; ip1; ip2; ip3; ip4; ip5; ip6; ip7; ip8;
+       ip9; ip10; ip11; ip12; ip13; ip14; ip15; ip16; ip17; ip18; ip19; ip20;
+       ip21; ip22; ip23; ip24; ip25; ip26; ip27; ip28; ip29; ip30; ip31;
+       ip32; ip33; ip34; ip35; ip36; ip37; ip38; ip39; ip40; ip41; ip42;
+       ip43; ip44; ip45; ip46; ip47; ip48; ip49; ip50; ip51; ip52; ip53;
+       ip54; ip55; ip56; ip57; ip58; ip59; ip60; ip61; ip62; ip63; ip64;
+       ip65; ip66; ip67; ip68; ip69; ip70; ip71; ip72; ip73; ip74; ip75;
+       ip76; ip77; ip78; ip79; ip80; ip81; ip82; ip83; ip84; ip85; ip86;
+       ip87; ip88; ip89; ip90; ip91; ip92; ip93; ip94; ip95; ip96; ip97;
+       ip98; ip99; ip100; ip101; ip102; ip103; ip104; ip105; ip106; ip107;
+       ip108; ip109; ip110; ip111; ip112; ip113; ip114; ip115; ip116; ip117;
+       ip118; ip119; ip120; ip121; ip122; ip123; ip124; ip125; ip126; ip127;
+       ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135; ip136; ip137;
+       ip138; ip139; ip140; ip141; ip142; ip143; ip144; ip145; ip146; ip147;
+       ip148; ip149; ip150; ip151; ip152; ip153; ip154; ip155; ip156; ip157;
+       ip158; ip159; esp0; esp1; esp2; esp3; esp4; esp5; esp6; esp7; esp8;
+       esp9; esp10; esp11; esp12; esp13; esp14; esp15; esp16; esp17; esp18;
+       esp19; esp20; esp21; esp22; esp23; esp24; esp25; esp26; esp27; esp28;
+       esp29; esp30; esp31; esp32; esp33; esp34; esp35; esp36; esp37; esp38;
+       esp39; esp40; esp41; esp42; esp43; esp44; esp45; esp46; esp47; esp48;
+       esp49; esp50; esp51; esp52; esp53; esp54; esp55; esp56; esp57; esp58;
+       esp59; esp60; esp61; esp62; esp63],0)],[],0,[],
+    [("parseError",
+      v_bit
+        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+          F; F; F; F; F; F; F; F; F; F],32))],
+    [("spd",[]); ("forward",[]); ("sad_decrypt",[]); ("sad_encrypt",[])]),
+   [[(varn_name "gen_apply_result",
+      v_struct
+        [("hit",v_bool ARB); ("miss",v_bool ARB);
+         ("action_run",
+          v_bit
+            ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))],NONE)]],
+   arch_frame_list_empty,status_running) 34 =
+SOME
+  ((1,[],[],2,
+    [(0,
+      INL
+        (core_v_ext_packet
+           [esp0; esp1; esp2; esp3; esp4; esp5; esp6; esp7; esp8; esp9;
+            esp10; esp11; esp12; esp13; esp14; esp15; esp16; esp17; esp18;
+            esp19; esp20; esp21; esp22; esp23; esp24; esp25; esp26; esp27;
+            esp28; esp29; esp30; esp31; esp32; esp33; esp34; esp35; esp36;
+            esp37; esp38; esp39; esp40; esp41; esp42; esp43; esp44; esp45;
+            esp46; esp47; esp48; esp49; esp50; esp51; esp52; esp53; esp54;
+            esp55; esp56; esp57; esp58; esp59; esp60; esp61; esp62; esp63]))],
+    [("parseError",
+      v_bit
+        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+          F; F; F; F; F; F; F; F; F; F],32)); ("b",v_ext_ref 0);
+     ("b_temp",v_ext_ref 1);
+     ("standard_metadata",
+      v_struct
+        [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("instance_type",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("packet_length",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("deq_timedelta",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("deq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("ingress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("egress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("mcast_grp",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("egress_rid",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("checksum_error",v_bit ([F],1));
+         ("parser_error",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("priority",v_bit ([F; F; F],3))]);
+     ("parsedHdr",
+      v_struct
+        [("cpu_header",
+          v_header ARB
+            [("zeros",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],64));
+             ("reason",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("port",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("ethernet",
+          v_header ARB
+            [("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("etherType",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))]);
+         ("ipv4",
+          v_header ARB
+            [("version",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("ihl",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("diffserv",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("totalLen",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("identification",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("flags",v_bit ([ARB; ARB; ARB],3));
+             ("fragOffset",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB],13));
+             ("ttl",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("protocol",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("hdrChecksum",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]);
+         ("esp",
+          v_header ARB
+            [("spi",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("sequenceNumber",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))])]);
+     ("hdr",
+      v_struct
+        [("cpu_header",
+          v_header ARB
+            [("zeros",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],64));
+             ("reason",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("port",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("ethernet",
+          v_header ARB
+            [("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("etherType",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))]);
+         ("ipv4",
+          v_header ARB
+            [("version",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("ihl",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("diffserv",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("totalLen",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("identification",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("flags",v_bit ([ARB; ARB; ARB],3));
+             ("fragOffset",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB],13));
+             ("ttl",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("protocol",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("hdrChecksum",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]);
+         ("esp",
+          v_header ARB
+            [("spi",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("sequenceNumber",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))])]);
+     ("meta",
+      v_struct
+        [("intrinsic_metadata",
+          v_struct
+            [("ingress_global_timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("user_metadata",
+          v_struct
+            [("spd_mark",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("bypass",v_bool ARB)]);
+         ("esp_meta",
+          v_struct
+            [("payloadLength",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))])])],
+    [("spd",[]); ("forward",[]); ("sad_decrypt",[]); ("sad_encrypt",[])]),
+   [[(varn_name "packet",v_ext_ref 0,NONE);
+     (varn_name "hdr",
+      v_struct
+        [("cpu_header",
+          v_header F
+            [("zeros",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],64));
+             ("reason",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("port",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("ethernet",
+          v_header T
+            [("dstAddr",
+              v_bit
+                ([eth0; eth1; eth2; eth3; eth4; eth5; eth6; eth7; eth8; eth9;
+                  eth10; eth11; eth12; eth13; eth14; eth15; eth16; eth17;
+                  eth18; eth19; eth20; eth21; eth22; eth23; eth24; eth25;
+                  eth26; eth27; eth28; eth29; eth30; eth31; eth32; eth33;
+                  eth34; eth35; eth36; eth37; eth38; eth39; eth40; eth41;
+                  eth42; eth43; eth44; eth45; eth46; eth47],48));
+             ("srcAddr",
+              v_bit
+                ([eth48; eth49; eth50; eth51; eth52; eth53; eth54; eth55;
+                  eth56; eth57; eth58; eth59; eth60; eth61; eth62; eth63;
+                  eth64; eth65; eth66; eth67; eth68; eth69; eth70; eth71;
+                  eth72; eth73; eth74; eth75; eth76; eth77; eth78; eth79;
+                  eth80; eth81; eth82; eth83; eth84; eth85; eth86; eth87;
+                  eth88; eth89; eth90; eth91; eth92; eth93; eth94; eth95],48));
+             ("etherType",
+              v_bit
+                ([eth96; eth97; eth98; eth99; eth100; eth101; eth102; eth103;
+                  eth104; eth105; eth106; eth107; eth108; eth109; eth110;
+                  eth111],16))]);
+         ("ipv4",
+          v_header T
+            [("version",v_bit ([ip0; ip1; ip2; ip3],4));
+             ("ihl",v_bit ([ip4; ip5; ip6; ip7],4));
+             ("diffserv",
+              v_bit ([ip8; ip9; ip10; ip11; ip12; ip13; ip14; ip15],8));
+             ("totalLen",
+              v_bit
+                ([ip16; ip17; ip18; ip19; ip20; ip21; ip22; ip23; ip24; ip25;
+                  ip26; ip27; ip28; ip29; ip30; ip31],16));
+             ("identification",
+              v_bit
+                ([ip32; ip33; ip34; ip35; ip36; ip37; ip38; ip39; ip40; ip41;
+                  ip42; ip43; ip44; ip45; ip46; ip47],16));
+             ("flags",v_bit ([ip48; ip49; ip50],3));
+             ("fragOffset",
+              v_bit
+                ([ip51; ip52; ip53; ip54; ip55; ip56; ip57; ip58; ip59; ip60;
+                  ip61; ip62; ip63],13));
+             ("ttl",
+              v_bit ([ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71],8));
+             ("protocol",
+              v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8));
+             ("hdrChecksum",
+              v_bit
+                ([ip80; ip81; ip82; ip83; ip84; ip85; ip86; ip87; ip88; ip89;
+                  ip90; ip91; ip92; ip93; ip94; ip95],16));
+             ("srcAddr",
+              v_bit
+                ([ip96; ip97; ip98; ip99; ip100; ip101; ip102; ip103; ip104;
+                  ip105; ip106; ip107; ip108; ip109; ip110; ip111; ip112;
+                  ip113; ip114; ip115; ip116; ip117; ip118; ip119; ip120;
+                  ip121; ip122; ip123; ip124; ip125; ip126; ip127],32));
+             ("dstAddr",
+              v_bit
+                ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135;
+                  ip136; ip137; ip138; ip139; ip140; ip141; ip142; ip143;
+                  ip144; ip145; ip146; ip147; ip148; ip149; ip150; ip151;
+                  ip152; ip153; ip154; ip155; ip156; ip157; ip158; ip159],32))]);
+         ("esp",
+          v_header F
+            [("spi",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("sequenceNumber",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))])],
+      SOME (lval_varname (varn_name "parsedHdr")));
+     (varn_name "meta",
+      v_struct
+        [("intrinsic_metadata",
+          v_struct
+            [("ingress_global_timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("user_metadata",
+          v_struct [("spd_mark",v_bit ([F; F; F; F],4)); ("bypass",v_bool F)]);
+         ("esp_meta",
+          v_struct
+            [("payloadLength",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))])],
+      SOME (lval_varname (varn_name "meta")));
+     (varn_name "standard_metadata",
+      v_struct
+        [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("instance_type",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("packet_length",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("deq_timedelta",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("deq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("ingress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("egress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("mcast_grp",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("egress_rid",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("checksum_error",v_bit ([F],1));
+         ("parser_error",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("priority",v_bit ([F; F; F],3))],
+      SOME (lval_varname (varn_name "standard_metadata")));
+     (varn_star (funn_name "MyParser"),v_bot,NONE)];
+    [(varn_name "gen_apply_result",
+      v_struct
+        [("hit",v_bool ARB); ("miss",v_bool ARB);
+         ("action_run",
+          v_bit
+            ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))],NONE);
+     (varn_star (funn_name "NoAction"),v_bot,NONE);
+     (varn_star (funn_ext "header" "isValid"),v_bot,NONE);
+     (varn_star (funn_ext "header" "setValid"),v_bot,NONE);
+     (varn_star (funn_ext "header" "setInvalid"),v_bot,NONE);
+     (varn_star (funn_ext "" "mark_to_drop"),v_bot,NONE);
+     (varn_star (funn_ext "" "verify"),v_bot,NONE);
+     (varn_star (funn_ext "" "verify_checksum"),v_bot,NONE);
+     (varn_star (funn_ext "" "update_checksum"),v_bot,NONE);
+     (varn_star (funn_ext "packet_in" "extract"),v_bot,NONE);
+     (varn_star (funn_ext "packet_in" "lookahead"),v_bot,NONE);
+     (varn_star (funn_ext "packet_in" "advance"),v_bot,NONE);
+     (varn_star (funn_ext "packet_out" "emit"),v_bot,NONE);
+     (varn_star (funn_inst "register"),v_bot,NONE);
+     (varn_star (funn_ext "register" "read"),v_bot,NONE);
+     (varn_star (funn_ext "register" "write"),v_bot,NONE);
+     (varn_star (funn_inst "ipsec_crypt"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "decrypt_aes_ctr"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "encrypt_aes_ctr"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "encrypt_null"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "decrypt_null"),v_bot,NONE)]],
+   arch_frame_list_regular
+     [(funn_name "parse_ipv4",
+       [stmt_trans
+          (e_select
+             (e_v
+                (v_struct
+                   [("",
+                     v_bit
+                       ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8))]))
+             [([s_sing (v_bit ([F; F; T; T; F; F; T; F],8))],"parse_esp")]
+             "accept")],[[]])],status_running)”,
+cheat);
+
+
+val step_thm = prove(“(T ∧
+ match_all
+   [(v_bit
+       ([eth96; eth97; eth98; eth99; eth100; eth101; eth102; eth103; eth104;
+         eth105; eth106; eth107; eth108; eth109; eth110; eth111],16),
+     s_sing (v_bit ([F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F],16)))]) ∧
+match_all
+  [(v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8),
+    s_sing (v_bit ([F; F; T; T; F; F; T; F],8)))] ⇒
+arch_multi_exec ctx
+  ((0,
+    [([eth0; eth1; eth2; eth3; eth4; eth5; eth6; eth7; eth8; eth9; eth10;
+       eth11; eth12; eth13; eth14; eth15; eth16; eth17; eth18; eth19; eth20;
+       eth21; eth22; eth23; eth24; eth25; eth26; eth27; eth28; eth29; eth30;
+       eth31; eth32; eth33; eth34; eth35; eth36; eth37; eth38; eth39; eth40;
+       eth41; eth42; eth43; eth44; eth45; eth46; eth47; eth48; eth49; eth50;
+       eth51; eth52; eth53; eth54; eth55; eth56; eth57; eth58; eth59; eth60;
+       eth61; eth62; eth63; eth64; eth65; eth66; eth67; eth68; eth69; eth70;
+       eth71; eth72; eth73; eth74; eth75; eth76; eth77; eth78; eth79; eth80;
+       eth81; eth82; eth83; eth84; eth85; eth86; eth87; eth88; eth89; eth90;
+       eth91; eth92; eth93; eth94; eth95; eth96; eth97; eth98; eth99; eth100;
+       eth101; eth102; eth103; eth104; eth105; eth106; eth107; eth108;
+       eth109; eth110; eth111; ip0; ip1; ip2; ip3; ip4; ip5; ip6; ip7; ip8;
+       ip9; ip10; ip11; ip12; ip13; ip14; ip15; ip16; ip17; ip18; ip19; ip20;
+       ip21; ip22; ip23; ip24; ip25; ip26; ip27; ip28; ip29; ip30; ip31;
+       ip32; ip33; ip34; ip35; ip36; ip37; ip38; ip39; ip40; ip41; ip42;
+       ip43; ip44; ip45; ip46; ip47; ip48; ip49; ip50; ip51; ip52; ip53;
+       ip54; ip55; ip56; ip57; ip58; ip59; ip60; ip61; ip62; ip63; ip64;
+       ip65; ip66; ip67; ip68; ip69; ip70; ip71; ip72; ip73; ip74; ip75;
+       ip76; ip77; ip78; ip79; ip80; ip81; ip82; ip83; ip84; ip85; ip86;
+       ip87; ip88; ip89; ip90; ip91; ip92; ip93; ip94; ip95; ip96; ip97;
+       ip98; ip99; ip100; ip101; ip102; ip103; ip104; ip105; ip106; ip107;
+       ip108; ip109; ip110; ip111; ip112; ip113; ip114; ip115; ip116; ip117;
+       ip118; ip119; ip120; ip121; ip122; ip123; ip124; ip125; ip126; ip127;
+       ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135; ip136; ip137;
+       ip138; ip139; ip140; ip141; ip142; ip143; ip144; ip145; ip146; ip147;
+       ip148; ip149; ip150; ip151; ip152; ip153; ip154; ip155; ip156; ip157;
+       ip158; ip159; esp0; esp1; esp2; esp3; esp4; esp5; esp6; esp7; esp8;
+       esp9; esp10; esp11; esp12; esp13; esp14; esp15; esp16; esp17; esp18;
+       esp19; esp20; esp21; esp22; esp23; esp24; esp25; esp26; esp27; esp28;
+       esp29; esp30; esp31; esp32; esp33; esp34; esp35; esp36; esp37; esp38;
+       esp39; esp40; esp41; esp42; esp43; esp44; esp45; esp46; esp47; esp48;
+       esp49; esp50; esp51; esp52; esp53; esp54; esp55; esp56; esp57; esp58;
+       esp59; esp60; esp61; esp62; esp63],0)],[],0,[],
+    [("parseError",
+      v_bit
+        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+          F; F; F; F; F; F; F; F; F; F],32))],
+    [("spd",[]); ("forward",[]); ("sad_decrypt",[]); ("sad_encrypt",[])]),
+   [[(varn_name "gen_apply_result",
+      v_struct
+        [("hit",v_bool ARB); ("miss",v_bool ARB);
+         ("action_run",
+          v_bit
+            ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))],NONE)]],
+   arch_frame_list_empty,status_running) 34 =
+SOME
+  ((1,[],[],2,
+    [(0,
+      INL
+        (core_v_ext_packet
+           [esp0; esp1; esp2; esp3; esp4; esp5; esp6; esp7; esp8; esp9;
+            esp10; esp11; esp12; esp13; esp14; esp15; esp16; esp17; esp18;
+            esp19; esp20; esp21; esp22; esp23; esp24; esp25; esp26; esp27;
+            esp28; esp29; esp30; esp31; esp32; esp33; esp34; esp35; esp36;
+            esp37; esp38; esp39; esp40; esp41; esp42; esp43; esp44; esp45;
+            esp46; esp47; esp48; esp49; esp50; esp51; esp52; esp53; esp54;
+            esp55; esp56; esp57; esp58; esp59; esp60; esp61; esp62; esp63]))],
+    [("parseError",
+      v_bit
+        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+          F; F; F; F; F; F; F; F; F; F],32)); ("b",v_ext_ref 0);
+     ("b_temp",v_ext_ref 1);
+     ("standard_metadata",
+      v_struct
+        [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("instance_type",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("packet_length",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("deq_timedelta",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("deq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("ingress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("egress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("mcast_grp",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("egress_rid",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("checksum_error",v_bit ([F],1));
+         ("parser_error",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("priority",v_bit ([F; F; F],3))]);
+     ("parsedHdr",
+      v_struct
+        [("cpu_header",
+          v_header ARB
+            [("zeros",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],64));
+             ("reason",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("port",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("ethernet",
+          v_header ARB
+            [("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("etherType",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))]);
+         ("ipv4",
+          v_header ARB
+            [("version",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("ihl",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("diffserv",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("totalLen",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("identification",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("flags",v_bit ([ARB; ARB; ARB],3));
+             ("fragOffset",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB],13));
+             ("ttl",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("protocol",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("hdrChecksum",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]);
+         ("esp",
+          v_header ARB
+            [("spi",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("sequenceNumber",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))])]);
+     ("hdr",
+      v_struct
+        [("cpu_header",
+          v_header ARB
+            [("zeros",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],64));
+             ("reason",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("port",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("ethernet",
+          v_header ARB
+            [("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48));
+             ("etherType",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))]);
+         ("ipv4",
+          v_header ARB
+            [("version",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("ihl",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("diffserv",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("totalLen",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("identification",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("flags",v_bit ([ARB; ARB; ARB],3));
+             ("fragOffset",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB],13));
+             ("ttl",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("protocol",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+             ("hdrChecksum",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("srcAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("dstAddr",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]);
+         ("esp",
+          v_header ARB
+            [("spi",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("sequenceNumber",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))])]);
+     ("meta",
+      v_struct
+        [("intrinsic_metadata",
+          v_struct
+            [("ingress_global_timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("user_metadata",
+          v_struct
+            [("spd_mark",v_bit ([ARB; ARB; ARB; ARB],4));
+             ("bypass",v_bool ARB)]);
+         ("esp_meta",
+          v_struct
+            [("payloadLength",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))])])],
+    [("spd",[]); ("forward",[]); ("sad_decrypt",[]); ("sad_encrypt",[])]),
+   [[(varn_name "packet",v_ext_ref 0,NONE);
+     (varn_name "hdr",
+      v_struct
+        [("cpu_header",
+          v_header F
+            [("zeros",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],64));
+             ("reason",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("port",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16));
+             ("timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("ethernet",
+          v_header T
+            [("dstAddr",
+              v_bit
+                ([eth0; eth1; eth2; eth3; eth4; eth5; eth6; eth7; eth8; eth9;
+                  eth10; eth11; eth12; eth13; eth14; eth15; eth16; eth17;
+                  eth18; eth19; eth20; eth21; eth22; eth23; eth24; eth25;
+                  eth26; eth27; eth28; eth29; eth30; eth31; eth32; eth33;
+                  eth34; eth35; eth36; eth37; eth38; eth39; eth40; eth41;
+                  eth42; eth43; eth44; eth45; eth46; eth47],48));
+             ("srcAddr",
+              v_bit
+                ([eth48; eth49; eth50; eth51; eth52; eth53; eth54; eth55;
+                  eth56; eth57; eth58; eth59; eth60; eth61; eth62; eth63;
+                  eth64; eth65; eth66; eth67; eth68; eth69; eth70; eth71;
+                  eth72; eth73; eth74; eth75; eth76; eth77; eth78; eth79;
+                  eth80; eth81; eth82; eth83; eth84; eth85; eth86; eth87;
+                  eth88; eth89; eth90; eth91; eth92; eth93; eth94; eth95],48));
+             ("etherType",
+              v_bit
+                ([eth96; eth97; eth98; eth99; eth100; eth101; eth102; eth103;
+                  eth104; eth105; eth106; eth107; eth108; eth109; eth110;
+                  eth111],16))]);
+         ("ipv4",
+          v_header T
+            [("version",v_bit ([ip0; ip1; ip2; ip3],4));
+             ("ihl",v_bit ([ip4; ip5; ip6; ip7],4));
+             ("diffserv",
+              v_bit ([ip8; ip9; ip10; ip11; ip12; ip13; ip14; ip15],8));
+             ("totalLen",
+              v_bit
+                ([ip16; ip17; ip18; ip19; ip20; ip21; ip22; ip23; ip24; ip25;
+                  ip26; ip27; ip28; ip29; ip30; ip31],16));
+             ("identification",
+              v_bit
+                ([ip32; ip33; ip34; ip35; ip36; ip37; ip38; ip39; ip40; ip41;
+                  ip42; ip43; ip44; ip45; ip46; ip47],16));
+             ("flags",v_bit ([ip48; ip49; ip50],3));
+             ("fragOffset",
+              v_bit
+                ([ip51; ip52; ip53; ip54; ip55; ip56; ip57; ip58; ip59; ip60;
+                  ip61; ip62; ip63],13));
+             ("ttl",
+              v_bit ([ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71],8));
+             ("protocol",
+              v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8));
+             ("hdrChecksum",
+              v_bit
+                ([ip80; ip81; ip82; ip83; ip84; ip85; ip86; ip87; ip88; ip89;
+                  ip90; ip91; ip92; ip93; ip94; ip95],16));
+             ("srcAddr",
+              v_bit
+                ([ip96; ip97; ip98; ip99; ip100; ip101; ip102; ip103; ip104;
+                  ip105; ip106; ip107; ip108; ip109; ip110; ip111; ip112;
+                  ip113; ip114; ip115; ip116; ip117; ip118; ip119; ip120;
+                  ip121; ip122; ip123; ip124; ip125; ip126; ip127],32));
+             ("dstAddr",
+              v_bit
+                ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135;
+                  ip136; ip137; ip138; ip139; ip140; ip141; ip142; ip143;
+                  ip144; ip145; ip146; ip147; ip148; ip149; ip150; ip151;
+                  ip152; ip153; ip154; ip155; ip156; ip157; ip158; ip159],32))]);
+         ("esp",
+          v_header F
+            [("spi",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+             ("sequenceNumber",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))])],
+      SOME (lval_varname (varn_name "parsedHdr")));
+     (varn_name "meta",
+      v_struct
+        [("intrinsic_metadata",
+          v_struct
+            [("ingress_global_timestamp",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                 48))]);
+         ("user_metadata",
+          v_struct [("spd_mark",v_bit ([F; F; F; F],4)); ("bypass",v_bool F)]);
+         ("esp_meta",
+          v_struct
+            [("payloadLength",
+              v_bit
+                ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                  ARB; ARB; ARB; ARB],16))])],
+      SOME (lval_varname (varn_name "meta")));
+     (varn_name "standard_metadata",
+      v_struct
+        [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+         ("instance_type",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("packet_length",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("enq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("deq_timedelta",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("deq_qdepth",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],19));
+         ("ingress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("egress_global_timestamp",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F],48));
+         ("mcast_grp",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("egress_rid",
+          v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+         ("checksum_error",v_bit ([F],1));
+         ("parser_error",
+          v_bit
+            ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+              F; F; F; F; F; F; F; F; F; F; F],32));
+         ("priority",v_bit ([F; F; F],3))],
+      SOME (lval_varname (varn_name "standard_metadata")));
+     (varn_star (funn_name "MyParser"),v_bot,NONE)];
+    [(varn_name "gen_apply_result",
+      v_struct
+        [("hit",v_bool ARB); ("miss",v_bool ARB);
+         ("action_run",
+          v_bit
+            ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+              ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))],NONE);
+     (varn_star (funn_name "NoAction"),v_bot,NONE);
+     (varn_star (funn_ext "header" "isValid"),v_bot,NONE);
+     (varn_star (funn_ext "header" "setValid"),v_bot,NONE);
+     (varn_star (funn_ext "header" "setInvalid"),v_bot,NONE);
+     (varn_star (funn_ext "" "mark_to_drop"),v_bot,NONE);
+     (varn_star (funn_ext "" "verify"),v_bot,NONE);
+     (varn_star (funn_ext "" "verify_checksum"),v_bot,NONE);
+     (varn_star (funn_ext "" "update_checksum"),v_bot,NONE);
+     (varn_star (funn_ext "packet_in" "extract"),v_bot,NONE);
+     (varn_star (funn_ext "packet_in" "lookahead"),v_bot,NONE);
+     (varn_star (funn_ext "packet_in" "advance"),v_bot,NONE);
+     (varn_star (funn_ext "packet_out" "emit"),v_bot,NONE);
+     (varn_star (funn_inst "register"),v_bot,NONE);
+     (varn_star (funn_ext "register" "read"),v_bot,NONE);
+     (varn_star (funn_ext "register" "write"),v_bot,NONE);
+     (varn_star (funn_inst "ipsec_crypt"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "decrypt_aes_ctr"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "encrypt_aes_ctr"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "encrypt_null"),v_bot,NONE);
+     (varn_star (funn_ext "ipsec_crypt" "decrypt_null"),v_bot,NONE)]],
+   arch_frame_list_regular
+     [(funn_name "parse_ipv4",
+       [stmt_trans
+          (e_select
+             (e_v
+                (v_struct
+                   [("",
+                     v_bit
+                       ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8))]))
+             [([s_sing (v_bit ([F; F; T; T; F; F; T; F],8))],"parse_esp")]
+             "accept")],[[]])],status_running)”,
+cheat);
+
 *)
 (* Commit 7daf3ad:
 Using all threads yield "Total time consumption: 885548 ms" (14m, 45s, 548ms)
@@ -1362,7 +2452,7 @@ Single thread yields
   Finished rewriting step theorems to contract format in 0s, trying to unify contracts...
   Finished unification of all contracts in 170s." (19m, 11s)
 *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (basic_ftymap, basic_blftymap) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty ctx (basic_ftymap, basic_blftymap) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);
