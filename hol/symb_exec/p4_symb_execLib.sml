@@ -1364,44 +1364,18 @@ fun p4_is_shortcuttable (funn, stmt) func_map =
  else res_nonlocal
 ;
 
-fun get_ok_calls stmt =
- if is_stmt_ass stmt
- then
-  let
-   val e = snd $ dest_stmt_ass stmt
-  in
-   if is_e_call e
-   then SOME e
-   else NONE
-  end
- else if is_stmt_cond stmt
- then
-  let
-   val e = #1 $ dest_stmt_cond stmt
-  in
-   if is_e_call e
-   then SOME e
-   else NONE
-  end
- else NONE
-;
-
 (* Is function argument reduction shortcuttable? *)
-fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) stmt =
- (case get_ok_calls stmt of
-    SOME e =>
-   (* TODO: For now, we also require the statement to be an assignment
-    * or conditional with the call as expression. Later, this function
-    * should only take the expression from a negative p4_is_shortcuttable
-    * result *)
-   (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
-      SOME e' =>
-     (case p4_e_is_shortcuttable e' of
-	e_no_shortcut e'' => res_no_shortcut_e e''
-      | e_fully_reduced => res_no_shortcut_e e'
-      | e_shortcut => res_f_args_shortcut)
-    | NONE => res_no_shortcut_e e)
-  | NONE => (res_no_shortcut_stmt stmt))
+fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
+ if is_e_call e
+ then
+  (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
+     SOME e' =>
+    (case p4_e_is_shortcuttable e' of
+       e_no_shortcut e'' => res_no_shortcut_e e''
+     | e_fully_reduced => res_no_shortcut_e e'
+     | e_shortcut => res_f_args_shortcut)
+   | NONE => res_no_shortcut_e e)
+ else res_no_shortcut_e e
 ;
 
 (* TODO: Move *)
@@ -1495,8 +1469,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     (case p4_is_shortcuttable (funn, stmt) func_map of
        res_shortcut => res_shortcut
      | res_no_shortcut_e e =>
-      (* TODO: Use the e *)
-      p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) stmt
+      p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
      | other => other)
    | NONE => res_no_shortcut_arch
   (* DEBUG *)
