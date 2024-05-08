@@ -548,6 +548,36 @@ fun p4_should_branch step_thm =
    else NONE
     (* Branch point: select expression (in transition statement) *)
     (* TODO: For value sets, this needs to be generalised slightly, similar to the apply case *)
+(*
+
+val strct = ``v_struct [("a",v_bit ([a], 1)); ("b",v_bit ([b], 1))]``
+val struct_list = dest_v_struct_fields strct;
+val keys = [``[s_sing (v_bit ([F],1)); s_sing (v_bit ([F],1))]``,
+            ``[s_sing (v_bit ([T],1)); s_sing (v_bit ([T],1))]``];
+
+val e = ``e_v $ v_struct [("a",v_bit ([a], 1))]``;
+val struct_list = dest_v_struct_fields $ dest_e_v e;
+val keys = [``[s_sing (v_bit ([F],1))]``, ``[s_sing (v_bit ([T],1))]``];
+
+[([s_sing (v_bit ([F],1))],"parse_port_metadata");
+ ([s_sing (v_bit ([T],1))],"parse_resubmit")]
+
+mk_match_all
+
+(λk. match_all
+      (ZIP
+	 (MAP (λe. THE (v_of_e e)) k,
+	  [s_sing (v_bit ([T; F; T; F; T; F; T; F],8));
+	   s_sing
+	     (v_bit
+		([F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T],16))])))
+
+“disj_list
+      [match_all [(v_bit ([a],1),s_sing (v_bit ([F],1)))];
+       ¬match_all [(v_bit ([a],1),s_sing (v_bit ([F],1)))] ∧
+       match_all [(v_bit ([a],1),s_sing (v_bit ([T],1)))]]”
+
+*)
   | select (e, keys, def) =>
     if is_e_v e andalso not $ null $ free_vars e
     then
@@ -887,6 +917,69 @@ fun dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt =
  else raise (ERR "dbg_print_stmt_red" ("Unsupported statement: "^(term_to_string stmt)))
 ;
 
+fun shortcut_seq_empty (func_map, b_func_map, ext_fun_map) debug_flag stmt =
+ if is_stmt_seq stmt
+ then
+  let
+   val (stmt', stmt'') = dest_stmt_seq stmt
+  in
+   if is_stmt_empty stmt'
+   then
+    let
+   val _ = if debug_flag then (print (String.concat ["\nReducing empty statement...\n\n"])) else ()
+    in
+     true
+    end
+   else shortcut_seq_empty (func_map, b_func_map, ext_fun_map) debug_flag stmt'
+  end
+ else
+  let
+   val _ = if debug_flag then dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt else ()
+  in
+   false
+  end
+;
+
+datatype shortcut_type =
+   no_shortcut
+ | seq_empty of term (* frame list *)
+ | localexp of term (* frame list *)
+;
+
+fun p4_shortcut_step (func_map, b_func_map, ext_fun_map) debug_flag astate ctx = 
+ let
+  val (func_map, b_func_map, ext_fun_map) = get_f_maps (astate, ctx)
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate
+ in
+  if is_arch_frame_list_regular arch_frame_list
+  then
+   let
+    val frame_list_tm = dest_arch_frame_list_regular arch_frame_list
+    val frame_tm_list = fst $ dest_list frame_list_tm
+   in
+    if not $ null frame_tm_list
+    then
+     let
+      val stmt_stack_tm = el 2 $ strip_pair $ hd frame_tm_list
+      val stmt_tm_list = fst $ dest_list stmt_stack_tm
+     in
+      if not $ null frame_tm_list
+      then
+       let
+	val stmt = hd stmt_tm_list
+       in
+	if shortcut_seq_empty (func_map, b_func_map, ext_fun_map) debug_flag stmt
+        then seq_empty frame_list_tm
+        else no_shortcut
+       end
+      else no_shortcut
+     end
+    else no_shortcut
+   end
+  else no_shortcut
+ end
+;
+
 fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, step_thm) =
  let
   (* DEBUG *)
@@ -910,17 +1003,20 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, s
 *)
 
   val astate = the_final_state_imp step_thm
+  (* Take shortcut? If so, yield the frame list in question.
+   * TODO: Make datatype for this return value *)
   val (func_map, b_func_map, ext_fun_map) = get_f_maps (astate, ctx)
-
-  (* DEBUG *)
-  val _ =
-   if debug_flag
-   then
-    case astate_get_top_stmt astate of
-       NONE => ()
-     | SOME stmt => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt
-   else ()
-
+ in
+  case p4_shortcut_step (func_map, b_func_map, ext_fun_map) debug_flag astate ctx of
+    seq_empty frame_list_tm =>
+   let
+    val red_seq_empty_thm = EVAL $ mk_red_seq_empty frame_list_tm
+   in
+    SIMP_RULE simple_arith_ss []
+     (MATCH_MP (MATCH_MP arch_multi_exec_comp_1_tl_assl_seq_empty red_seq_empty_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm))
+   end
+  | _ =>
+   let
     val step_thm2 = eval_ctxt path_cond astate
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["evaluation-in-context: ",
@@ -996,8 +1092,9 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm (path_cond, s
      raise (if (is_none $ rhs $ snd $ dest_imp $ concl step_thm2)
 	   then (ERR "p4_regular_step" ("Unexpected reduction to NONE from frame list: "^(term_to_string $ #3 $ dest_astate $ the_final_state_imp step_thm)))
 	   else (HOL_ERR exn))
+  end
  end
- handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (p4_regular_step_get_err_msg path_cond step_thm)) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
+  handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (p4_regular_step_get_err_msg path_cond step_thm)) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
 ;
 
 (* Function that decides whether a HOL4P4 program is finished or not *)

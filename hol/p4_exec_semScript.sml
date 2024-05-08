@@ -2549,6 +2549,1017 @@ gs [] >>
 fs [arch_multi_exec_add]
 QED
 
+Definition stmt_next_is_assign_def:
+ (stmt_next_is_assign stmt = 
+  case stmt of
+  | stmt_seq stmt' stmt'' =>
+   stmt_next_is_assign stmt'
+  | stmt_ass lval e => is_v e
+  | _ => F
+ )
+End
+
+(*
+Definition stmt_next_is_empty_def:
+ (stmt_next_is_empty stmt = 
+  case stmt of
+  | stmt_seq stmt' stmt'' =>
+   stmt_next_is_empty stmt'
+  | stmt_empty => T
+  | _ => F
+ )
+End
+*)
+
+Definition stmt_red_seq_empty_def:
+ (stmt_red_seq_empty stmt =
+  case stmt of
+  | stmt_seq stmt' stmt'' =>
+   if stmt' = stmt_empty
+   then SOME stmt''
+   else
+    (case stmt_red_seq_empty stmt' of
+     | SOME stmt''' =>
+      SOME (stmt_seq stmt''' stmt'')
+     | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+Definition e_red_localexp_def:
+ e_red_localexp e =
+  case e of
+  | (e_acc e' x) =>
+   if is_v e'
+   then e_exec_acc (e_acc e' x)
+   else e_red_localexp e'
+  | (e_cast cast e') =>
+   if is_v e'
+   then OPTION_BIND (e_exec_cast cast e') (SOME o e_v)
+   else e_red_localexp e'
+  | (e_concat e1 e2) =>
+   if is_v_bit e1
+   then
+    (if is_v_bit e2
+     then OPTION_BIND (e_exec_concat e1 e2) (SOME o e_v)
+     else e_red_localexp e2)
+   else e_red_localexp e1
+  | (e_slice e1 e2 e3) =>
+   if (is_v_bit e2 /\ is_v_bit e3)
+   then
+    (if is_v_bit e1
+     then OPTION_BIND (e_exec_slice e1 e2 e3) (SOME o e_v)
+     else e_red_localexp e1)
+   else NONE
+  | _ => NONE
+End
+
+Definition stmt_red_localexp_def:
+ stmt_red_localexp stmt =
+  case stmt of
+  | stmt_seq stmt' stmt'' =>
+   (case stmt_red_localexp stmt' of
+    | SOME stmt''' =>
+     SOME (stmt_seq stmt''' stmt'')
+    | NONE => NONE)
+  | stmt_ass lval e =>
+   (case e_red_localexp e of
+    | SOME e' => SOME $ stmt_ass lval e'
+    | NONE => NONE)
+  | stmt_trans e =>
+   (case e_red_localexp e of
+    | SOME e' => SOME $ stmt_trans e'
+    | NONE => NONE)
+  | stmt_cond e stmt1 stmt2 =>
+   (case e_red_localexp e of
+    | SOME e' => SOME $ stmt_cond e' stmt1 stmt2
+    | NONE => NONE)
+  | stmt_app t_name e_l => NONE
+(* TODO: NONE, for now... *)
+(*
+   (case e_l_red_localexp e_l of
+    | SOME e' => stmt_app t_name e_l'
+    | NONE => NONE)
+*)
+  | stmt_ret e =>
+   (case e_red_localexp e of
+    | SOME e' => SOME $ stmt_ret e'
+    | NONE => NONE)
+  | _ => NONE
+End
+
+(*
+Definition stmt_next_is_seq_empty_def:
+ (stmt_next_is_seq_empty stmt = 
+  case stmt of
+  | stmt_seq stmt' stmt'' =>
+   stmt_next_is_empty stmt'
+  | _ => F
+ )
+End
+*)
+
+(*
+Definition next_is_seq_empty_def:
+ (next_is_seq_empty [] = F) /\
+ (next_is_seq_empty (((funn, stmt::t', scope_list)::t):frame list) =
+  stmt_next_is_seq_empty stmt
+ ) /\
+ (next_is_seq_empty (((funn, [], scope_list)::t):frame list) = F)
+End
+*)
+
+Definition red_seq_empty_def:
+ (red_seq_empty [] = NONE) /\
+ (red_seq_empty (((funn, stmt::t', scope_list)::t):frame list) =
+  case stmt_red_seq_empty stmt of
+  | SOME stmt' => SOME ((funn, stmt'::t', scope_list)::t)
+  | NONE => NONE
+ ) /\
+ (red_seq_empty (((funn, [], scope_list)::t):frame list) = NONE)
+End
+
+(* "Local" expressions that only need the expression itself to evaluate *)
+Definition red_localexp_def:
+ (red_localexp [] = NONE) /\
+ (red_localexp (((funn, stmt::t', scope_list)::t):frame list) =
+  case stmt_red_localexp stmt of
+  | SOME stmt' => SOME ((funn, stmt'::t', scope_list)::t)
+  | NONE => NONE
+ ) /\
+ (red_localexp (((funn, [], scope_list)::t):frame list) = NONE)
+End
+
+
+Definition next_is_assign_def:
+ (next_is_assign [] = F) /\
+ (next_is_assign (((funn, stmt::t', scope_list)::t):frame list) =
+  stmt_next_is_assign stmt
+ ) /\
+ (next_is_assign (((funn, [], scope_list)::t):frame list) = F)
+End
+
+(* Proof of Assign component-hiding theorem:
+(* Seq reduction follows from nested reduction *)
+Theorem test_thm1:
+!actx aenv g_scope_list funn stmt scope_list aenv' g_scope_list' stmt' stmt'' t t'.
+~is_empty stmt ==>
+arch_exec actx (aenv,g_scope_list,arch_frame_list_regular [(funn, [stmt], scope_list)],status_running) =
+ SOME (aenv', g_scope_list', arch_frame_list_regular [(funn, [stmt'], scope_list)], status_running) ==>
+arch_exec actx
+          (aenv,g_scope_list,
+           arch_frame_list_regular
+             ((funn,stmt_seq stmt stmt''::t',scope_list)::t),status_running) =
+        SOME (aenv',g_scope_list',arch_frame_list_regular
+             ((funn,stmt_seq stmt' stmt''::t',scope_list)::t),status_running)
+Proof
+cheat
+QED
+
+(* Minimal form is equivalent to induction form *)
+Theorem test_thm2:
+!actx aenv g_scope_list funn stmt scope_list aenv' g_scope_list' stmt' t t'.
+(arch_exec actx (aenv,g_scope_list,arch_frame_list_regular (((funn, stmt::t', scope_list))::t),status_running) =
+ SOME (aenv', g_scope_list', arch_frame_list_regular (((funn, stmt'::t', scope_list))::t), status_running)) <=>
+(arch_exec actx (aenv,g_scope_list,arch_frame_list_regular [(funn, [stmt], scope_list)],status_running) =
+ SOME (aenv', g_scope_list', arch_frame_list_regular [(funn, [stmt'], scope_list)], status_running))
+Proof
+cheat
+QED
+
+Theorem test_thm3:
+!actx astate astate'.
+arch_exec actx astate = SOME astate' <=>
+arch_multi_exec actx astate 1 = SOME astate'
+Proof
+cheat
+QED
+
+(* Nested reduction follows from seq reduction *)
+Theorem test_thm4:
+!actx aenv g_scope_list funn stmt scope_list aenv' g_scope_list' stmt' stmt'' t t'.
+~is_empty stmt ==>
+arch_exec actx
+          (aenv,g_scope_list,
+           arch_frame_list_regular
+             ((funn,stmt_seq stmt stmt''::t',scope_list)::t),status_running) =
+        SOME (aenv',g_scope_list',arch_frame_list_regular
+             ((funn,stmt_seq stmt' stmt''::t',scope_list)::t),status_running) ==>
+arch_exec actx (aenv,g_scope_list,arch_frame_list_regular [(funn, [stmt], scope_list)],status_running) =
+ SOME (aenv', g_scope_list', arch_frame_list_regular [(funn, [stmt'], scope_list)], status_running)
+Proof
+cheat
+QED
+
+Theorem arch_multi_exec_assign:
+!stmt funn t' scope_list t aenv status ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f func_map g_scope_list aenv' g_scope_list' arch_frame_list' status' ext_map.
+ stmt_next_is_assign stmt ==>
+ arch_multi_exec
+  (ab_list,pblock_map,[],(\x. SOME x),(\x. SOME x),(\x. SOME []),
+   copyout_pbl,apply_table_f,[],func_map)
+  (aenv,g_scope_list,arch_frame_list_regular ((funn, stmt::t', scope_list)::t),status) 1 =
+   SOME (aenv',g_scope_list',arch_frame_list',status') ==>
+ arch_multi_exec
+  (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
+   copyout_pbl,apply_table_f,ext_map,func_map)
+  (aenv,g_scope_list,arch_frame_list_regular ((funn, stmt::t', scope_list)::t),status) 1 =
+   SOME (aenv',g_scope_list',arch_frame_list',status')
+Proof
+Induct_on ‘stmt’ >| [
+ fs [stmt_next_is_assign_def],
+
+ ALL_TAC,
+
+ rpt strip_tac >>
+ fs [stmt_next_is_assign_def],
+
+ rpt strip_tac >>
+ fs [stmt_next_is_assign_def],
+
+ rpt strip_tac >>
+ fs [stmt_next_is_assign_def],
+
+ ALL_TAC,
+
+ rpt strip_tac >>
+ fs [stmt_next_is_assign_def],
+
+ rpt strip_tac >>
+ fs [stmt_next_is_assign_def],
+
+ fs [stmt_next_is_assign_def]
+] >| [
+  rpt strip_tac >>
+  FULL_SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
+  fs [arch_multi_exec] >>
+  PairCases_on ‘aenv’ >>
+  fs [arch_exec_def] >>
+  Cases_on ‘EL aenv0 ab_list’ >> (
+   fs []
+  ) >>
+  Cases_on ‘ALOOKUP pblock_map s’ >> (
+   fs []
+  ) >>
+  Cases_on ‘x’ >> (
+   fs []
+  ) >>
+  Cases_on ‘state_fin_exec status ((funn,stmt_ass l e::t',scope_list)::t)’ >> (
+   fs []
+  ) >>
+  Cases_on ‘status’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [frames_exec]
+  ) >| [
+   ALL_TAC,
+
+   PairCases_on ‘h’ >>
+   fs [frames_exec]
+  ] >> (
+   Cases_on ‘scopes_to_pass funn func_map l'' g_scope_list’ >> (
+    fs []
+   ) >>
+   Cases_on ‘map_to_pass funn l''’ >> (
+    fs []
+   ) >>
+   Cases_on ‘tbl_to_pass funn l'' l2’ >> (
+    fs []
+   ) >>
+   Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+              (aenv3,x,[(funn,stmt_ass l e::t',scope_list)],status_running)’ >> (
+    fs []
+   ) >>
+   PairCases_on ‘x'3'’ >>
+   fs [exec_stmt_ass_SOME_REWRS] >>
+   Cases_on ‘is_v e’ >> (
+    fs [next_is_assign_def, stmt_next_is_assign_def]
+   ) >>
+   Cases_on ‘scopes_to_retrieve funn func_map l'' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   cheat
+ ) >>
+
+ rpt strip_tac >>
+ FULL_SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
+ fs [arch_multi_exec] >>
+ fs[GSYM test_thm3] >>
+ subgoal ‘?stmt''. arch_frame_list' = arch_frame_list_regular
+             ((funn,stmt_seq stmt'' stmt'::t',scope_list)::t)’ >- (
+  cheat
+ ) >>
+ rw[] >>
+ subgoal ‘status = status_running’ >- (
+  cheat
+ ) >>
+ subgoal ‘status' = status_running’ >- (
+  cheat
+ ) >>
+ rw[] >>
+ irule test_thm1 >>
+ subgoal ‘~is_empty stmt’ >- (
+  cheat
+ ) >>
+ fs[] >>
+ fs[GSYM test_thm2] >>
+ subgoal ‘stmt_next_is_assign stmt’ >- (
+  cheat
+ ) >>
+ fs[GSYM test_thm3] >>
+ IMP_RES_TAC test_thm4 >>
+ fs[GSYM test_thm2] >>
+
+
+
+
+(********)
+
+   Cases_on ‘is_v e’ >> (
+    fs [next_is_assign_def, stmt_next_is_assign_def]
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   )
+  ) >>
+  Cases_on ‘is_v e’ >> (
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  ),
+
+
+
+
+
+ Cases_on ‘h1’ >- (
+  fs [next_is_assign_def, stmt_next_is_assign_def]
+ ) >>
+
+
+  )
+
+  Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+             (aenv3,x,[(h0,stmt_ass l'' e::t,h2)],status_running)’ >> (
+   fs []
+  ) >>
+  PairCases_on ‘x'3'’ >>
+  fs [exec_stmt_ass_SOME_REWRS] >>
+  Cases_on ‘h2’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [stmt_exec]
+  ) >- (
+   Cases_on ‘is_v e’ >> (
+    fs [next_is_assign_def, stmt_next_is_assign_def]
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   )
+  ) >>
+  Cases_on ‘is_v e’ >> (
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  ),
+
+
+
+
+
+FULL_SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
+fs [arch_multi_exec] >>
+PairCases_on ‘aenv’ >>
+fs [arch_exec_def] >>
+Cases_on ‘EL aenv0 ab_list’ >> (
+ fs []
+) >>
+Cases_on ‘ALOOKUP pblock_map s’ >> (
+ fs []
+) >>
+Cases_on ‘x’ >> (
+ fs []
+) >>
+Induct_on ‘frame_list’ >> (
+ fs [frames_exec, next_is_assign_def]
+) >>
+Induct_on ‘h’ >> (
+ fs [next_is_assign_def]
+) >>
+gen_tac >>
+Induct_on ‘p_2’ >> (
+ fs [next_is_assign_def]
+) >>
+Induct_on ‘p_1'’ >> (
+ fs [next_is_assign_def]
+) >>
+Induct_on ‘h’ >> (
+ fs [next_is_assign_def]
+) >| [
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  rpt strip_tac >>
+  Cases_on ‘state_fin_exec status
+                 ((p_1,stmt_ass l'' e::p_1',p_2)::frame_list)’ >> (
+   fs []
+  ) >>
+  Cases_on ‘status’ >> (
+   fs []
+  ) >>
+  Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+             (aenv3,x,[(h0,stmt_ass l'' e::t,h2)],status_running)’ >> (
+   fs []
+  ) >>
+  PairCases_on ‘x'3'’ >>
+  fs [exec_stmt_ass_SOME_REWRS] >>
+  Cases_on ‘h2’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [stmt_exec]
+  ) >- (
+   Cases_on ‘is_v e’ >> (
+    fs [next_is_assign_def, stmt_next_is_assign_def]
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   )
+  ) >>
+  Cases_on ‘is_v e’ >> (
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  )
+
+
+
+
+PairCases_on ‘h’ >>
+,Cases_on ‘t’ >> (
+ fs [frames_exec]
+) >| [
+ ALL_TAC,
+
+ PairCases_on ‘h’ >>
+ fs [frames_exec]
+] >> (
+ Cases_on ‘scopes_to_pass h0 func_map l' g_scope_list’ >> (
+  fs []
+ ) >>
+ Cases_on ‘map_to_pass h0 l'’ >> (
+  fs []
+ ) >>
+ Cases_on ‘tbl_to_pass h0 l' l2’ >> (
+  fs []
+ ) >>
+ Cases_on ‘h1’ >- (
+  fs [next_is_assign_def, stmt_next_is_assign_def]
+ ) >>
+ Induct_on ‘h’ >| [
+  (* Handles all except ass and seq *)
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  (* ass *)
+  rpt strip_tac >>
+  Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+             (aenv3,x,[(h0,stmt_ass l'' e::t,h2)],status_running)’ >> (
+   fs []
+  ) >>
+  PairCases_on ‘x'3'’ >>
+  fs [exec_stmt_ass_SOME_REWRS] >>
+  Cases_on ‘h2’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [stmt_exec]
+  ) >- (
+   Cases_on ‘is_v e’ >> (
+    fs [next_is_assign_def, stmt_next_is_assign_def]
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   )
+  ) >>
+  Cases_on ‘is_v e’ >> (
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  ),
+
+  rpt strip_tac >>
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  rpt strip_tac >>
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  rpt strip_tac >>
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  (* seq *)
+  rpt strip_tac >>
+  subgoal ‘~state_fin_exec status_running [(h0,h::t,h2)]’ >- (
+   cheat
+  ) >>
+  fs[] >>
+  subgoal ‘next_is_assign [(h0,h::t,h2)]’ >- (
+   (* Since next_is_assign applies to the enclosing seq *)
+   cheat
+  ) >>
+  fs[] >>
+  Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+             (aenv3,x,[(h0,stmt_seq h h'::t,h2)],status_running)’ >> (
+   fs []
+  ) >>
+  PairCases_on ‘x'3'’ >>
+  fs [exec_stmt_seq_SOME_REWRS] >>
+  Cases_on ‘is_empty h’ >- (
+   Cases_on ‘h’ >> (
+    fs [is_empty]
+   ) >>
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  (* 3 subgoals from RHS of REWR theorem *)
+  fs[] >| [
+   subgoal ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+                 (aenv3,x,[(h0,h::t,h2)],status_running) = SOME (x'''0,x'''1,[(h0,stmt1'::t,scope_list')] (*[(h0,stmt_seq stmt1' h'::t,scope_list')]*),x'''3)’ >- (
+   (* Since we have the result of stmt_exec of the enclosing seq *)
+    cheat
+   ) >>
+   fs[] >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   rw[] >>
+   (* An assignment was reduced, that can't change status *)
+   subgoal ‘status' = status_running’ >- (
+    cheat
+   ) >>
+   gs[] >>
+   subgoal ‘~state_fin_exec status_running [(h0,h::t,h2)]’ >- (
+    fs[state_fin_exec_def] >>
+    Cases_on ‘h’ >> (
+     fs[is_empty]
+    )
+   ) >>
+   fs[] >>
+   Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,x',l1,x'')
+                 (aenv3,x,[(h0,h::t,h2)],status_running)’ >> (
+    fs []
+   ) >>
+   PairCases_on ‘x'3'’ >>
+   fs[] >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list $var$(x'''1')’ >> (
+    fs []
+   ) >>
+   subgoal ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+                 (aenv3,x,[(h0,h::t,h2)],status_running) = SOME (x'''0,x'''1,[(h0,stmt_seq stmt1' h'::t,scope_list')],x'''3)’ >- (
+   (* Since we have the result of stmt_exec of the enclosing seq *)
+    cheat
+   ) >>
+
+
+
+
+
+   Cases_on ‘h2’ >> (
+    fs []
+   ) >>
+   Cases_on ‘t’ >> (
+    fs [stmt_exec]
+   ) >- (
+    Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+     fs []
+    ) >>
+    (* Induct??? *)
+    Induct_on ‘s'’ >>
+    cheat
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat,
+
+   Cases_on ‘h2’ >> (
+    fs []
+   ) >>
+   Cases_on ‘t’ >> (
+    fs [stmt_exec]
+   ) >- (
+    Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+     fs []
+    ) >>
+    (* Induct??? *)
+    cheat
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat,
+
+   Cases_on ‘h2’ >> (
+    fs []
+   ) >>
+   Cases_on ‘t’ >> (
+    fs [stmt_exec]
+   ) >- (
+    Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+     fs []
+    ) >>
+    (* Induct??? *)
+    cheat
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat
+  ],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def]  
+ ]
+)
+(*
+rpt strip_tac >>
+FULL_SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
+fs [arch_multi_exec] >>
+PairCases_on ‘aenv’ >>
+fs [arch_exec_def] >>
+Cases_on ‘EL aenv0 ab_list’ >> (
+ fs []
+) >>
+Cases_on ‘ALOOKUP pblock_map s’ >> (
+ fs []
+) >>
+Cases_on ‘x’ >> (
+ fs []
+) >>
+Cases_on ‘state_fin_exec status frame_list’ >> (
+ fs []
+) >>
+Cases_on ‘status’ >> (
+ fs []
+) >>
+Cases_on ‘frame_list’ >> (
+ fs [frames_exec]
+) >>
+(* TODO: Make lemma here instead of copypasting? *)
+PairCases_on ‘h’ >>
+(* TODO: Induction instead of case split? *)
+Cases_on ‘t’ >> (
+ fs [frames_exec]
+) >- (
+ Cases_on ‘scopes_to_pass h0 func_map l' g_scope_list’ >> (
+  fs []
+ ) >>
+ Cases_on ‘map_to_pass h0 l'’ >> (
+  fs []
+ ) >>
+ Cases_on ‘tbl_to_pass h0 l' l2’ >> (
+  fs []
+ ) >>
+ Cases_on ‘h1’ >- (
+  fs [next_is_assign_def, stmt_next_is_assign_def]
+ ) >>
+ Cases_on ‘h’ >| [
+  (* Handles all except ass and seq *)
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  (* ass *)
+  Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+             (aenv3,x,[(h0,stmt_ass l'' e::t,h2)],status_running)’ >> (
+   fs []
+  ) >>
+  PairCases_on ‘x'3'’ >>
+  fs [exec_stmt_ass_SOME_REWRS] >>
+  Cases_on ‘h2’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [stmt_exec]
+  ) >- (
+   Cases_on ‘is_v e’ >> (
+    fs [next_is_assign_def, stmt_next_is_assign_def]
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   )
+  ) >>
+  Cases_on ‘is_v e’ >> (
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  ),
+
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  (* seq *)
+  Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+             (aenv3,x,[(h0,stmt_seq s' s0::t,h2)],status_running)’ >> (
+   fs []
+  ) >>
+  PairCases_on ‘x'3'’ >>
+  fs [exec_stmt_seq_SOME_REWRS] >>
+  Cases_on ‘is_empty s'’ >- (
+   Cases_on ‘s'’ >> (
+    fs [is_empty]
+   ) >>
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  (* 3 subgoals from RHS of REWR theorem *)
+  fs[] >| [
+   Cases_on ‘h2’ >> (
+    fs []
+   ) >>
+   Cases_on ‘t’ >> (
+    fs [stmt_exec]
+   ) >- (
+    Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+     fs []
+    ) >>
+    (* Induct??? *)
+    cheat
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat,
+
+   Cases_on ‘h2’ >> (
+    fs []
+   ) >>
+   Cases_on ‘t’ >> (
+    fs [stmt_exec]
+   ) >- (
+    Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+     fs []
+    ) >>
+    (* Induct??? *)
+    cheat
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat,
+
+   Cases_on ‘h2’ >> (
+    fs []
+   ) >>
+   Cases_on ‘t’ >> (
+    fs [stmt_exec]
+   ) >- (
+    Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+     fs []
+    ) >>
+    (* Induct??? *)
+    cheat
+   ) >>
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat
+  ],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def],
+
+  fs [next_is_assign_def, stmt_next_is_assign_def]  
+ ]
+) >>
+PairCases_on ‘h’ >>
+fs [frames_exec] >>
+Cases_on ‘scopes_to_pass h0 func_map l' g_scope_list’ >> (
+ fs []
+) >>
+Cases_on ‘map_to_pass h0 l'’ >> (
+ fs []
+) >>
+Cases_on ‘tbl_to_pass h0 l' l2’ >> (
+ fs []
+) >>
+Cases_on ‘h1’ >- (
+ fs [next_is_assign_def, stmt_next_is_assign_def]
+) >>
+Cases_on ‘h’ >| [
+ (* Handles all except ass and seq *)
+ fs [next_is_assign_def, stmt_next_is_assign_def],
+
+ (* ass *)
+ (* TODO: Same as above *)
+ (* Case split on goal: use exec_stmt_ass_SOME_REWRS on assumption. SOME case is proved
+  * in the positive case, NONE-cases for the goal cause contradictions with assumption *)
+ Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+            (aenv3,x,[(h0,stmt_ass l'' e::t,h2)],status_running)’ >> (
+  fs []
+ ) >>
+ PairCases_on ‘x'3'’ >>
+ fs [exec_stmt_ass_SOME_REWRS] >>
+ Cases_on ‘h2’ >> (
+  fs []
+ ) >>
+ Cases_on ‘t’ >> (
+  fs [stmt_exec]
+ ) >- (
+  Cases_on ‘is_v e’ >> (
+   fs [next_is_assign_def, stmt_next_is_assign_def]
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  )
+ ) >>
+ Cases_on ‘is_v e’ >> (
+  fs [next_is_assign_def, stmt_next_is_assign_def]
+ ) >>
+ Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+  fs []
+ ),
+
+ fs [next_is_assign_def, stmt_next_is_assign_def],
+
+ fs [next_is_assign_def, stmt_next_is_assign_def],
+
+ fs [next_is_assign_def, stmt_next_is_assign_def],
+
+ (* seq *)
+ Cases_on ‘stmt_exec (apply_table_f,[],func_map,x',l1,x'')
+            (aenv3,x,[(h0,stmt_seq s' s0::t,h2)],status_running)’ >> (
+  fs []
+ ) >>
+ PairCases_on ‘x'3'’ >>
+ fs [exec_stmt_seq_SOME_REWRS] >>
+ Cases_on ‘is_empty s'’ >- (
+  Cases_on ‘s'’ >> (
+   fs [is_empty]
+  ) >>
+  fs [next_is_assign_def, stmt_next_is_assign_def]
+ ) >>
+ (* 3 subgoals??? *)
+ fs[] >| [
+  Cases_on ‘h2’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [stmt_exec]
+  ) >- (
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  ) >>
+  (* Induct??? *)
+  cheat,
+
+  Cases_on ‘h2’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [stmt_exec]
+  ) >- (
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  ) >>
+  (* Induct??? *)
+  cheat,
+
+  Cases_on ‘h2’ >> (
+   fs []
+  ) >>
+  Cases_on ‘t’ >> (
+   fs [stmt_exec]
+  ) >- (
+   Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+    fs []
+   ) >>
+   (* Induct??? *)
+   cheat
+  ) >>
+  Cases_on ‘scopes_to_retrieve h0 func_map l' g_scope_list x'''1’ >> (
+   fs []
+  ) >>
+  (* Induct??? *)
+  cheat
+ ],
+
+ fs [next_is_assign_def, stmt_next_is_assign_def],
+
+ fs [next_is_assign_def, stmt_next_is_assign_def],
+
+ fs [next_is_assign_def, stmt_next_is_assign_def]  
+]
+*)
+QED
+*)
+
+(* For use when next statement is an assignment of a fully reduced value *)
+(* NOTE: Need func_map for scopes_to_pass in frame sem *)
+(* TODO: Reduce only the assign statement alone in the frame_list *)
+(* TODO: Filter out unused variables in g_scope_list, then update preexisting one with result *)
+(* TODO: Hide entire aenv (arch dependent? Introduce new type for executable semantics with
+ * empty_aenv as subtype (going to NONE when non-empty is expected)?) *)
+(* TODO: Hide functions in ctxt *)
+Theorem arch_multi_exec_comp_1_tl_assl_assign:
+!n ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map assl aenv g_scope_list arch_frame_list status aenv' g_scope_list' frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
+next_is_assign frame_list' ==>
+(assl ==> arch_multi_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) (aenv, g_scope_list, arch_frame_list, status) n =
+  SOME (aenv', g_scope_list', arch_frame_list_regular frame_list', status')) ==>
+(assl ==> arch_multi_exec (ab_list, pblock_map, [], (\x. SOME x), (\x. SOME x), (\x. SOME []), copyout_pbl, apply_table_f, [], func_map) (aenv', g_scope_list', arch_frame_list_regular frame_list', status') 1 =
+  SOME (aenv', g_scope_list'', arch_frame_list'', status'')) ==>
+(assl ==> arch_multi_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) (aenv, g_scope_list, arch_frame_list, status) (n+1) =
+  SOME (aenv', g_scope_list'', arch_frame_list'', status''))
+Proof
+cheat
+(*
+rpt strip_tac >>
+gs [] >>
+IMP_RES_TAC arch_multi_exec_assign >>
+irule arch_multi_exec_comp_n_tl >>
+metis_tac[]
+*)
+QED
+
+(* TODO: More antecedents: not about to leave block? ...
+ * These must be guaranteed from result of the previous reduction + red_seq_empty:
+ * ~state_fin_exec status_running frame_list'
+   Must hold since stmt stack is not [stmt_empty] and status is status_running
+ * EL i ab_list = (arch_block_pbl x el)
+   Previous reduction must have been to a block_pbl, since result was regular frame list,
+   and so cannot be pbl_ret, which is the only reduction that can exit a block_pbl.
+   (note that this also means x and el are the same)
+ * ALOOKUP pblock_map x = SOME (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map)
+   By the above, this must have the same result.
+ * Frame list OK shape is implicit in red_seq_empty,
+ * scopes_to_pass funn' func_map b_func_map g_scope_list = SOME g_scope_list'
+   funn' must be in b_func_map or in func_map, or last reduction would not have been able to
+   compute scopes_to_pass (if executing regularly or returning) or lookup_funn_sig_body (if calling)
+ * map_to_pass funn' b_func_map = SOME b_func_map'
+ * tbl_to_pass funn' b_func_map tbl_map = tbl_map'
+   Always OK.
+ * *)
+Theorem arch_multi_exec_comp_1_tl_assl_seq_empty:
+!n assl ctx aenv g_scope_list arch_frame_list status aenv' g_scope_list' frame_list' frame_list''.
+red_seq_empty frame_list' = SOME frame_list'' ==>
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status) n =
+  SOME (aenv', g_scope_list', arch_frame_list_regular frame_list', status_running)) ==>
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status) (n+1) =
+  SOME (aenv', g_scope_list', arch_frame_list_regular frame_list'', status_running))
+Proof
+cheat
+(*
+rpt strip_tac >>
+gs [] >>
+IMP_RES_TAC arch_multi_exec_assign >>
+irule arch_multi_exec_comp_n_tl >>
+metis_tac[]
+*)
+QED
+
+Theorem arch_multi_exec_comp_1_tl_assl_localexp:
+!n assl ctx aenv g_scope_list arch_frame_list status aenv' g_scope_list' frame_list' frame_list''.
+red_localexp frame_list' = SOME frame_list'' ==>
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status) n =
+  SOME (aenv', g_scope_list', arch_frame_list_regular frame_list', status_running)) ==>
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status) (n+1) =
+  SOME (aenv', g_scope_list', arch_frame_list_regular frame_list'', status_running))
+Proof
+cheat
+(*
+rpt strip_tac >>
+gs [] >>
+IMP_RES_TAC arch_multi_exec_assign >>
+irule arch_multi_exec_comp_n_tl >>
+metis_tac[]
+*)
+QED
+
         
 (**********)
 (*  Misc  *)
