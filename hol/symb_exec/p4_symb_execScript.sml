@@ -14,6 +14,40 @@ Definition packet_has_port_def:
   | _ => F
 End
 
+(* TODO: Just preliminary. Find out why packet is not found in output packet queue *)
+(*
+Definition get_packet'_def:
+ get_packet' ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+  case ALOOKUP ext_obj_map 0 of
+  | SOME (INL (core_v_ext_packet bit_list)) => SOME bit_list
+  | _ => NONE
+End
+*)
+
+Definition get_packet_def:
+ get_packet ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+  case io_list' of
+  | [(packet, port)] => SOME packet
+  | _ => NONE
+End
+
+Definition packet_dropped_def:
+ packet_dropped ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+  case io_list' of
+  | [] =>
+   (case ALOOKUP v_map "standard_metadata" of
+    | SOME (v_struct struct) =>
+     (case ALOOKUP struct "egress_spec" of
+      | SOME (v_bit (port_bl, n)) =>
+       let port_out = v2n port_bl in
+        if port_out = 511
+        then T
+        else F
+      | _ => F)
+    | _ => F)
+  | _ => F
+End
+
 Definition p4_contract_def:
  p4_contract P ctx s Q =
   (P ==> ?n. arch_multi_exec ctx s n <> NONE /\ !s'. arch_multi_exec ctx s n = SOME s' ==> Q s')

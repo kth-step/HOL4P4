@@ -53,8 +53,7 @@ fun count_leaves (node (id, thm, nodes)) =
  *   (?e1 ... en. P (e1 ... en))
  * (possibly with n=0) and converts it to the new step theorem
  *   P (e1 ... en) ==> Q
- * with e1 ... en as free variables, also returns the new branch condition
- * tupled with this result.
+ * with e1 ... en as free variables.
  * *)
 fun convert_exists branch_cond step_thm =
  (* Don't remove the boolSyntax prefix *)
