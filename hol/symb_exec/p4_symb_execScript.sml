@@ -171,6 +171,32 @@ rpt strip_tac >> (
 QED
 
 Definition ctrl_is_well_formed_def:
+ ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
+  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map.
+   ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
+   ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
+    !tbl mk_l actions default_f default_f_args.
+     ALOOKUP tbl_map tbl = SOME (mk_l, (default_f, default_f_args)) ==>
+     ALOOKUP action_names_map tbl = SOME actions ==>
+      !e_l. ?f f_args.
+      apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
+       MEM f actions /\
+       (EL 0 f_args = (e_v (v_bool T))) /\
+       (f = default_f ==> ?b. EL 1 f_args = (e_v (v_bool b))) /\
+       (f <> default_f ==> EL 1 f_args = (e_v (v_bool T))) /\
+       ((?ftys ret_ty local_ftymap. ALOOKUP blftymap block_name = SOME local_ftymap /\
+        ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+        v_to_tau_list (DROP 2 f_args) = SOME (ftys)) \/
+       (ALOOKUP blftymap block_name = NONE \/
+        (?local_ftymap.
+         ALOOKUP blftymap block_name = SOME local_ftymap /\
+         ALOOKUP local_ftymap (funn_name f) = NONE) /\
+        (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+         v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
+End
+
+(* Old definition, using action list stored in in tbl_map:
+Definition ctrl_is_well_formed_def:
  ctrl_is_well_formed (ftymap, blftymap) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
   !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
    ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
@@ -192,5 +218,6 @@ Definition ctrl_is_well_formed_def:
         (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
          v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
 End
+*)
 
 val _ = export_theory ();
