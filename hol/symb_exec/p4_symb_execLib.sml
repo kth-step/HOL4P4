@@ -8,7 +8,7 @@ open p4Theory p4_exec_semTheory p4Syntax p4_exec_semSyntax;
 open p4_coreTheory;
 open symb_execTheory symb_execSyntax p4_symb_execTheory p4_bigstepTheory;
 
-open evalwrapLib p4_testLib;
+open evalwrapLib p4_testLib bitstringLib;
 open symb_execLib;
 
 open optionSyntax listSyntax (* wordsSyntax *);
@@ -105,7 +105,7 @@ fun astate_get_branch_data astate =
      then select $ (fn (a,b,c) => (a,fst $ dest_list b,c)) $ dest_e_select e
      else no_branch
     end 
-   else if is_stmt_app stmt' 
+   else if is_stmt_app stmt'
    then apply $ dest_stmt_app stmt'
    else no_branch
   end
@@ -1364,9 +1364,50 @@ fun p4_is_shortcuttable (funn, stmt) func_map =
  else res_nonlocal
 ;
 
+fun contains_e_call e =
+ if is_e_var e
+ then false
+ else if is_e_acc e
+ then
+  contains_e_call $ fst $ dest_e_acc e
+ else if is_e_cast e
+ then
+  contains_e_call $ snd $ dest_e_cast e
+ else if is_e_unop e
+ then
+  contains_e_call $ snd $ dest_e_unop e
+ else if is_e_binop e
+ then
+  if contains_e_call $ #2 $ dest_e_binop e
+  then true
+  else contains_e_call $ #3 $ dest_e_binop e
+ (* TODO: Fix concat and slicing *)
+ else if is_e_concat e
+ then contains_e_call $ fst $ dest_e_concat e
+ else if is_e_slice e
+ then contains_e_call $ #1 $ dest_e_slice e
+ else if is_e_call e
+ then true
+ else if is_e_struct e
+ then contains_e_call_list $ ((map (snd o dest_pair)) o fst o dest_list) $ dest_e_struct e
+ else if is_e_header e
+ then contains_e_call_list $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e
+ else if is_e_select e
+ then contains_e_call $ #1 $ dest_e_select e
+ else if is_e_v e
+ then false
+ else false
+and contains_e_call_list (h::t) =
+ if contains_e_call h
+ then true
+ else contains_e_call_list t
+  | contains_e_call_list [] = false
+;
+
 (* Is function argument reduction shortcuttable? *)
 fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
- if is_e_call e
+ (* TODO: Currently, nested calls are not handled by the bigstep semantics and must be ruled out here. *)
+ if is_e_call e andalso (not $ contains_e_call_list $ fst $ dest_list $ snd $ dest_e_call e)
  then
   (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
      SOME e' =>
@@ -1727,9 +1768,11 @@ val (p4_contract_tm, mk_p4_contract, dest_p4_contract, is_p4_contract) =
  syntax_fns4 "p4_symb_exec" "p4_contract";
 
 (*
-length path_cond_rest_tm_list
- val path_cond_case = el 1 path_cond_rest_tm_list
- val thm = el 1 (CONJUNCTS path_tree_list_leafs_thm)
+val path_cond_case_thm_list = (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))
+
+length path_cond_case_thm_list
+ val path_cond_case = fst $ el 1 path_cond_case_thm_list
+ val thm = snd $ el 1 path_cond_case_thm_list
 
 val path_cond_tm =
    “((T ∧
@@ -1988,6 +2031,7 @@ val thm =
 
 
 *)
+
 fun insert_existentials path_cond_tm (path_cond_case, thm) =
  let
   val (precond, ctx, init_state, postcond) = dest_p4_contract $ concl thm
@@ -1998,11 +2042,31 @@ fun insert_existentials path_cond_tm (path_cond_case, thm) =
 (*
   val time_start = Time.now();
  *)
+(* OLD
+  val res =
+   prove(“^goal_contract”,
+         assume_tac (REWRITE_RULE [p4_contract_def] (GENL vars thm)) >>
+	 rewrite_tac [p4_contract_def] >>
+         ASM_SIMP_TAC bool_ss [] >>
+	 METIS_TAC []);
+*)
+(* This seems to work, but looks hacky... *)
+
   val res =
    prove(goal_contract,
          assume_tac (REWRITE_RULE [p4_contract_def] (GENL vars thm)) >>
 	 rewrite_tac [p4_contract_def] >>
-	 metis_tac []);
+         TRY (
+          rpt disch_tac >>
+	  rpt (PAT_X_ASSUM “A /\ B” (fn thm => (STRIP_THM_THEN (fn thm' => ASSUME_TAC thm') thm))) >>
+	  rpt (PAT_X_ASSUM “?a. _” (fn thm => (STRIP_THM_THEN (fn thm' => ASSUME_TAC thm') thm))) >>
+	  res_tac >>
+	  qexists_tac ‘n'’ >-
+	  ASM_REWRITE_TAC[]
+         ) >>
+         ASM_SIMP_TAC bool_ss [] >>
+         metis_tac[]);
+
 (*
   (* DEBUG *)
   val _ = print (String.concat ["\nInserted existentials in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
@@ -2096,10 +2160,33 @@ fun p4_prove_postcond rewr_thms postcond step_thm =
   val (hypo, step_tm) = dest_imp $ concl step_thm
   val res_state_tm = dest_some $ snd $ dest_eq step_tm
   (* TODO: OPTIMIZE: srw_ss??? *)
-  val postcond_thm = EQT_ELIM $ SIMP_CONV (srw_ss()) rewr_thms $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+  val postcond_thm = EQT_ELIM $ SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
  in
   MATCH_MP prel_res_thm postcond_thm
  end
+;
+
+(* TODO: make better solution for this *)
+val prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def];
+
+(* DEBUG
+val step_thms = map #3 path_cond_step_list;
+
+val h = el 2 step_thms
+val step_thm = h
+val rewr_thms = prove_postcond_rewr_thms
+*)
+fun p4_prove_postconds_debug' postcond []     _ = []
+  | p4_prove_postconds_debug' postcond (h::t) n =
+ let
+  val res = p4_prove_postcond prove_postcond_rewr_thms postcond h
+   handle exc => (print (("Error when proving postcondition for step theorem at index "^(Int.toString n))^"\n"); raise exc)
+ in
+  (res::(p4_prove_postconds_debug' postcond t (n + 1)))
+ end
+;
+fun p4_prove_postconds_debug postcond step_thms =
+ p4_prove_postconds_debug' postcond step_thms 0
 ;
 
 (* This function is the main workhorse for proving contracts on HOL4P4 programs.
@@ -2142,8 +2229,16 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
   val time_start = Time.now();
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
+  (* TODO: Should definitions below be arguments? *)
   val id_step_post_thm_list =
-   map (fn (a,b,c) => (a, p4_prove_postcond [packet_has_port_def] postcond c)) path_cond_step_list
+   if debug_flag
+   then
+    let
+     val (l', l'') = unzip $ map (fn (a,b,c) => (a, c)) path_cond_step_list
+    in
+     zip l' (p4_prove_postconds_debug postcond l'')
+    end
+   else map (fn (a,b,c) => (a, p4_prove_postcond prove_postcond_rewr_thms postcond c)) path_cond_step_list
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished proof of postcondition for all step theorems in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s, trying to rewrite step theorems to contract format...\n\n"]);
