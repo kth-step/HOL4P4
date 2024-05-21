@@ -17,6 +17,8 @@ val symb_exec4_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) al
 
 val symb_exec4_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
 
+val symb_exec4_pblock_action_names_map = ``[]:((string, (string, string list) alist) alist)``;
+
 val symb_exec4_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -98,7 +100,7 @@ val symb_exec4_actx = ``([arch_block_inp;
                 "egress_spec") (e_v (v_bit ([F; F; T; T; F; F; T; F; T],9))))
           (stmt_ret (e_v v_bot))),[("from_table",d_in); ("hit",d_in)])],[],
    [],
-   [("t",[mk_exact],["set_out_port"; "set_default_out_port"],"set_default_out_port",[e_v (v_bool T); e_v (v_bool F)])])],
+   [("t",[mk_exact],"set_default_out_port",[e_v (v_bool T); e_v (v_bool F)])])],
  [("postparser",ffblock_ff v1model_postparser)],
  v1model_input_f
    (v_struct
@@ -212,6 +214,6 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty ctx (symb_exec4_ftymap, symb_exec4_blftymap) ["t"] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty ctx (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) ["t"] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
 
 val _ = export_theory ();

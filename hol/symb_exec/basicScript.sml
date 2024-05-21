@@ -153,6 +153,8 @@ val basic_ftymap = ``[(funn_ext "ipsec_crypt" "decrypt_null",
  (funn_ext "" "assume",[p_tau_bool],p_tau_bot);
  (funn_ext "" "log_msg",[p_tau_bot; p_tau_par "T21"],p_tau_bot)]:((funn, (p_tau list # p_tau)) alist)``;
 
+val basic_pblock_action_names_map = ``[("MyIngress", [("spd",["add_spd_mark"; "drop"]);("forward",["l3_forward"; "l2_forward"; "drop"]);("sad_decrypt",["NoAction"; "esp_decrypt_aes_ctr"; "esp_decrypt_null"]);("sad_encrypt",["esp_encrypt_aes_ctr"; "esp_encrypt_null"; "sadb_acquire"])])]:((string, (string, string list) alist) alist)``;
+
 val basic_actx = ``([arch_block_inp;
   arch_block_pbl "MyParser"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -1037,15 +1039,13 @@ val basic_actx = ``([arch_block_inp;
     (varn_name "notify_soft",tau_bool,NONE);
     (varn_name "counters",tau_ext,NONE);
     (varn_name "ipsecCrypt",tau_ext,NONE)],[],
-   [("spd",[mk_lpm; mk_exact],["add_spd_mark"; "drop"],"drop",
+   [("spd",[mk_lpm; mk_exact],"drop",
      [e_v (v_bool T); e_v (v_bool F)]);
-    ("forward",[mk_lpm],["l3_forward"; "l2_forward"; "drop"],"drop",
+    ("forward",[mk_lpm],"drop",
      [e_v (v_bool T); e_v (v_bool F)]);
-    ("sad_decrypt",[mk_exact; mk_exact; mk_exact],
-     ["NoAction"; "esp_decrypt_aes_ctr"; "esp_decrypt_null"],"NoAction",
+    ("sad_decrypt",[mk_exact; mk_exact; mk_exact],"NoAction",
      [e_v (v_bool T); e_v (v_bool F)]);
     ("sad_encrypt",[mk_lpm],
-     ["esp_encrypt_aes_ctr"; "esp_encrypt_null"; "sadb_acquire"],
      "sadb_acquire",[e_v (v_bool T); e_v (v_bool F)])]);
   ("MyEgress",pbl_type_control,
    [("hdr",d_inout); ("meta",d_inout); ("standard_metadata",d_inout)],
@@ -1362,7 +1362,7 @@ Single thread yields
   Finished rewriting step theorems to contract format in 0s, trying to unify contracts...
   Finished unification of all contracts in 170s." (19m, 11s)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (basic_ftymap, basic_blftymap) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (basic_ftymap, basic_blftymap, basic_pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);

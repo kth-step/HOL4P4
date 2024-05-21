@@ -272,18 +272,13 @@ Definition ebpf_output_f_def:
 End
 
 Definition ebpf_apply_table_f_def:
- ebpf_apply_table_f (x, e_l, mk_list:mk_list, actions, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
+ ebpf_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   case ALOOKUP ctrl x of
    | SOME table =>
     (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-    let
-     res = (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-    in
-     if MEM (FST res) actions
-     then SOME res
-     else NONE
+    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
    | NONE => NONE
 End
 

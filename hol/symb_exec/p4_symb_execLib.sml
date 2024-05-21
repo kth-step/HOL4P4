@@ -649,7 +649,7 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  * be performed, otherwise SOME of a list of cases and a theorem stating the disjunction
  * between them *)
 (* TODO: (fty_map, b_fty_map) and const_actions_tables only needed for apply statement *)
-fun p4_should_branch (fty_map, b_fty_map) const_actions_tables (debug_flag, ctx_def) (fv_index, step_thm) =
+fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables (debug_flag, ctx_def) (fv_index, step_thm) =
  let
   (* DEBUG *)
   val time_start = Time.now();
@@ -788,7 +788,9 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 
         (* TODO: handle Exceptions if result is not SOME *)
         val tbl_map = #6 $ dest_pblock $ dest_some $ rhs $ concl $ EVAL $ mk_alookup (pblock_map, curr_block)
-        val (action_names, default_action) = dest_pair $ snd $ dest_pair $ dest_some $ rhs $ concl $ EVAL $ mk_alookup (tbl_map, tbl_name)
+        val action_names_map = dest_some $ rhs $ concl $ EVAL $ mk_alookup (pblock_action_names_map, curr_block)
+        val action_names = dest_some $ rhs $ concl $ EVAL $ mk_alookup (action_names_map, tbl_name)
+        val default_action = snd $ dest_pair $ dest_some $ rhs $ concl $ EVAL $ mk_alookup (tbl_map, tbl_name)
         val (default_action_name, default_action_args) = dest_pair default_action
         (* NOTE: We shouldn't filter out the default action name here - it will have
          * different "hit" dummy arg if it resulted from a hit or a default case. *)
@@ -1712,7 +1714,7 @@ fun preprocess_ftymaps (fty_map, b_fty_map) =
 
 (* The main symbolic execution.
  * Here, the static ctxt and the dynamic path condition have been merged. *)
-fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt fuel =
+fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt fuel =
  let
   (* Pre-process ftymap and b_fty_map *)
   val (fty_map', b_fty_map') = preprocess_ftymaps (fty_map, b_fty_map)
@@ -1746,8 +1748,8 @@ val (fty_map, b_fty_map) = (fty_map', b_fty_map')
   else
    if nthreads_max > 1
    then
-     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel nthreads_max
-   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map') const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel
+     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel nthreads_max
+   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel
  end
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
@@ -2211,7 +2213,7 @@ fun p4_prove_postconds_debug postcond step_thms =
  * postcond: the postcondition, a term which is a predicate on the architectural state *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond =
+fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond =
  let
 
   (* DEBUG *)
@@ -2222,7 +2224,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
 
   (* Perform symbolic execution until all branches are finished *)
   val (path_tree, path_cond_step_list) =
-   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max;
+   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max;
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished entire symbolic execution stage in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s, trying to prove postcondition...\n\n"]);
@@ -2279,21 +2281,21 @@ fun dest_step_thm step_thm =
  dest_astate $ dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 ;
 
-fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
  let
   val ctx_name = "ctx"
   val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 
-  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE fuel
+  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
  in
   (path_tree, state_list_tms)
  end
 ;
 
-fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
  let
-  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel
+  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel
   val arch_frame_list_tms = map (fn (path_id, path_cond, (tm1, tm2, tm3, tm4)) => tm3) state_list_tms
  in
   (path_tree, arch_frame_list_tms)

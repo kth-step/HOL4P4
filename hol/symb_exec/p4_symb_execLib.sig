@@ -7,7 +7,7 @@ val p4_symb_exec:
    bool ->
    hol_type ->
      (thm * term) ->
-       (term * term) ->
+       (term * term * term) ->
          string list -> 
 	   term ->
 	     term list ->
@@ -16,18 +16,18 @@ val p4_symb_exec:
 val p4_symb_exec_prove_contract:
    bool ->
    hol_type ->
-     term -> (term * term) -> string list -> term -> term list -> term list -> thm -> (thm -> bool) option -> int -> term -> thm
+     term -> (term * term * term) -> string list -> term -> term list -> term list -> thm -> (thm -> bool) option -> int -> term -> thm
 
 val p4_symb_exec_prove_contract_conc:
    bool ->
    hol_type ->
-     term -> (term * term) -> string list ->
+     term -> (term * term * term) -> string list ->
        term -> term list -> term list -> thm -> (thm -> bool) option -> int -> term -> thm
 
 val p4_debug_symb_exec:
    hol_type ->
      term ->
-       (term * term) -> 
+       (term * term * term) -> 
          string list -> 
 	   term ->
 	     term list ->
@@ -40,7 +40,7 @@ val p4_debug_symb_exec:
 val p4_debug_symb_exec_frame_lists:
    hol_type ->
      term ->
-       (term * term) ->
+       (term * term * term) ->
          string list -> 
 	   term ->
 	     term list ->
