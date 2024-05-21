@@ -20,6 +20,8 @@ val symb_exec6_blftymap =
 
 val symb_exec6_ftymap = ``[(funn_name "NoAction", ([], p_tau_bot))]:((funn, (p_tau list # p_tau)) alist)``;
 
+val symb_exec6_pblock_action_names_map = ``[("ingress", [("t2", ["NoAction"; "set_l"])])]:((string, (string, string list) alist) alist)``;
+
 val symb_exec6_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -125,9 +127,9 @@ val symb_exec6_actx = ``([arch_block_inp;
                 "egress_spec") (e_v (v_bit ([F; F; T; T; F; F; T; F; T],9))))
           (stmt_ret (e_v v_bot))),[("from_table",d_in); ("hit",d_in)])],[],
    [],
-   [("t2",[mk_exact],["NoAction"; "set_l"],"NoAction",
+   [("t2",[mk_exact],"NoAction",
      [e_v (v_bool T); e_v (v_bool F)]);
-    ("t1",[mk_exact],["set_default_out_port"; "set_out_port"],
+    ("t1",[mk_exact],
      "set_default_out_port",[e_v (v_bool T); e_v (v_bool F)])])],
  [("postparser",ffblock_ff v1model_postparser)],
  v1model_input_f
@@ -239,7 +241,7 @@ val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec6_actx
 val ctx_name = "ctx"
 val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
-val (fty_map, b_fty_map) = (symb_exec6_ftymap, symb_exec6_blftymap)
+val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec6_ftymap, symb_exec6_blftymap, symb_exec6_pblock_action_names_map)
 val const_actions_tables = ["t1"]
 val init_astate = symb_exec6_astate_symb
 val stop_consts_rewr = []
@@ -299,7 +301,7 @@ val (n, path_cond_res, step_thm) = (n10, path_cond_res10, step_thm10)
 val time_start = Time.now(); (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

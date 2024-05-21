@@ -657,12 +657,13 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
  end
 ;
 
-fun output_hol4p4_vals outstream output_ftymaps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm =
+fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
  let
   val extra_terms =
-   if output_ftymaps
+   if output_extra_maps
    then [("blftymap", blftymap, SOME "(string, ((funn, (p_tau list # p_tau)) alist)) alist"),
-         ("ftymap", ftymap, SOME "((funn, (p_tau list # p_tau)) alist)")]
+         ("ftymap", ftymap, SOME "((funn, (p_tau list # p_tau)) alist)"),
+         ("pblock_action_names_map", pblock_action_names_map_tm, SOME "((string, ((string, string) alist)) alist)")]
    else []
 
   val gscope_init_vars = “[(varn_name "gen_apply_result", (v_struct [("hit", v_bool ARB);
@@ -847,7 +848,7 @@ fun main() =
       then SOME ((implode $ rev valname_no_suffix)^".stf")
       else NONE
      else NONE;
-    val output_ftymaps =
+    val output_extra_maps =
      if length args = 6
      then 
       if (el 6 args) = "symbolic"
@@ -906,8 +907,9 @@ val tbl_entries = (el 11 res_list)
 val arch_opt_tm = (el 12 res_list)
 val ab_list_tm = (el 13 res_list)
 val ttymap_tm = (el 14 res_list)
+val pblock_action_names_map_tm = (el 15 res_list)
 *)
-         val _ = output_hol4p4_vals outstream output_ftymaps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list);
+         val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in

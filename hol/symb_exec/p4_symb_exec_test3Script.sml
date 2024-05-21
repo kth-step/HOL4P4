@@ -17,6 +17,8 @@ val symb_exec3_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) al
 
 val symb_exec3_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
 
+val symb_exec3_pblock_action_names_map = ``[]:((string, (string, string list) alist) alist)``;
+
 val symb_exec3_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -148,7 +150,7 @@ val symb_exec3_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
 val debug_flag = false
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec3_actx
-val (fty_map, b_fty_map) = (symb_exec3_ftymap, symb_exec3_blftymap)
+val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec3_ftymap, symb_exec3_blftymap, symb_exec3_pblock_action_names_map)
 val const_actions_tables = []
 val init_astate = symb_exec3_astate_symb
 val stop_consts_rewr = []
@@ -173,6 +175,6 @@ val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
 
 val _ = export_theory ();

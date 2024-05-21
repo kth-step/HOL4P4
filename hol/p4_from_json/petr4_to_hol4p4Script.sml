@@ -245,6 +245,10 @@ val _ = type_abbrev("tyenv", ``:(string, p_tau) alist``);
 val _ = type_abbrev("enummap", ``:(string # (string, v) alist) list``);
 val _ = type_abbrev("ftymap", ``:((funn, (p_tau list # p_tau)) alist)``);
 
+(* pblock and tbl_map with list of actions stored *)
+val _ = type_abbrev("tbl_map_extra", ``:((string, ((mk list) # x_list # (x # e_list))) alist)``);
+val _ = type_abbrev("pblock_extra", ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map_extra)``);
+
 (* The tau signifies the type argument(s) *)
 Datatype:
  vss_pkg_t =
@@ -1545,7 +1549,7 @@ Definition p4_prefix_vars_in_b_func_map_def:
 End
 
 Definition p4_prefix_tbls_in_tbl_map_def:
- p4_prefix_tbls_in_tbl_map b_func_map prefix (tbl_map:tbl_map) =
+ p4_prefix_tbls_in_tbl_map b_func_map prefix (tbl_map:tbl_map_extra) =
   MAP ( \ (tbl_name, (mk_l, action_names, (def_action, e_l))). (prefix++("."++tbl_name), (mk_l, MAP (p4_prefix_fname b_func_map prefix) action_names, (p4_prefix_fname b_func_map prefix def_action, e_l)))) tbl_map
 End
 
@@ -1659,7 +1663,7 @@ Definition petr4_parse_method_call_def:
               (case ALOOKUP vtymap (varn_name app_name) of
                | SOME (p_tau_blk block_type_name) =>
                 (case ALOOKUP pblock_map block_type_name of
-                 | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock, param_types) =>
+                 | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
                   (case FIND_EXTRACT_ONE (\ (k,v). k = block_type_name) b_func_map of
                    (* Params has format (string # dir) *)
                    | SOME ((name, (body, params')), b_func_map') =>
@@ -3005,7 +3009,7 @@ End
 
 (* TODO: Use json_parse_arr_list *)
 Definition petr4_parse_locals_def:
- (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) (b_func_map:b_func_map, local_ftymap, tbl_map:tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) [] =
+ (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) (b_func_map:b_func_map, local_ftymap, tbl_map:tbl_map_extra, decl_list, inits, apply_map, tbl_entries, ttymap) [] =
   SOME_msg (vtymap, b_func_map, local_ftymap, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap, action_list)) /\
  (petr4_parse_locals (tyenv, enummap, vtymap, ftymap, fmap, gscope, action_list, extfun_list) (b_func_map, local_ftymap, tbl_map, decl_list, inits, apply_map, tbl_entries, ttymap) (h::t) =
   case h of
@@ -3458,9 +3462,19 @@ Definition p4_get_pbl_def:
              | _ => F) ab_list
 End
 
+Definition p4_extract_action_names_map_def:
+ p4_extract_action_names_map ((pblock_name, ((pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, args))) =
+  let
+   (tbl_map', action_names_map) = UNZIP $ MAP (\ (tbl_name, (mk_l, action_names, default_action)). ((tbl_name, (mk_l, default_action)), (tbl_name, action_names))) tbl_map
+  in
+   ((pblock_name, ((pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map'), args)), (pblock_name, action_names_map))
+End
+
 Definition p4_clean_pblock_map_def:
  p4_clean_pblock_map pblock_map ab_list =
-  FILTER (\ (pbl_name, pbl). IS_SOME $ p4_get_pbl ab_list pbl_name) pblock_map
+  let pblock_map' = FILTER (\ (pbl_name, pbl). IS_SOME $ p4_get_pbl ab_list pbl_name) pblock_map in
+  let (pblock_map'', pblock_action_names_map) = UNZIP $ MAP p4_extract_action_names_map pblock_map' in
+   (pblock_map'', pblock_action_names_map)
 End
 
 (* This transforms the tbl_entries_map into a list of (global, with prefixes) tbl_updates *)
@@ -3474,7 +3488,7 @@ End
 (* TODO: Make wrapper function for errors, so error messages can include the local variable context *)
 (* NOTE: action_list is a list of all functions which are actions. *)
 Definition petr4_parse_element_def:
- petr4_parse_element (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map:(string # (pblock # tau list)) list, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) json =
+ petr4_parse_element (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map:(string # (pblock_extra # tau list)) list, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) json =
   case json of
   | Array [String elem_name; obj] =>
    if elem_name = "Error" then
@@ -3595,7 +3609,7 @@ Definition petr4_parse_element_def:
          | SOME pbl_name =>
           (case ALOOKUP pblock_map pbl_name of
            | SOME (pblock, argtys) =>
-            SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_vss (SOME (vss_pkg_VSS (EL 1 argtys)))), vss_add_ff_blocks ab_list', action_list, extfun_list, ttymap)
+            SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, SOME (arch_vss (SOME (vss_pkg_VSS (EL 1 argtys)))), vss_add_ff_blocks ab_list', action_list, extfun_list, ttymap)
            | _ => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Unknown programmable block in top-level package instantiation: "++pbl_name))
          | NONE => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Invalid block in top-level package instantiation"))
        | SOME (arch_vss _) =>
@@ -3605,8 +3619,8 @@ Definition petr4_parse_element_def:
         (case get_arch_block_pbl_name (EL 0 ab_list') of
          | SOME pbl_name =>
           (case ALOOKUP pblock_map pbl_name of
-           | SOME (pblock, argtys) => 
-            SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_ebpf (SOME (ebpf_pkg_ebpfFilter (EL 1 argtys)))), ab_list', action_list, extfun_list, ttymap)
+           | SOME (pblock, argtys) =>
+            SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, SOME (arch_ebpf (SOME (ebpf_pkg_ebpfFilter (EL 1 argtys)))), ab_list', action_list, extfun_list, ttymap)
            | _ => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Unknown programmable block in top-level package instantiation: "++pbl_name))
          | NONE => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Invalid block in top-level package instantiation"))
        | SOME (arch_ebpf _) =>
@@ -3617,7 +3631,7 @@ Definition petr4_parse_element_def:
          | SOME pbl_name =>
           (case ALOOKUP pblock_map pbl_name of
            | SOME (pblock, argtys) =>
-            SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, p4_clean_pblock_map pblock_map ab_list', tbl_entries_map, SOME (arch_v1model (SOME (v1model_pkg_V1Switch (EL 1 argtys) (EL 2 argtys)))), ab_list', action_list, extfun_list, ttymap)
+            SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, SOME (arch_v1model (SOME (v1model_pkg_V1Switch (EL 1 argtys) (EL 2 argtys)))), ab_list', action_list, extfun_list, ttymap)
            | _ => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Unknown programmable block in top-level package instantiation: "++pbl_name))
          | NONE => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Invalid block in top-level package instantiation"))
        | SOME (arch_v1model _) =>
@@ -3627,6 +3641,7 @@ Definition petr4_parse_element_def:
      | NONE_msg msg => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) msg)
 
    else NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Unknown declaration element type: "++elem_name)
+
    (* TODO: ??? *)
   | _ => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) "Unknown JSON format of element"
 End
@@ -3648,8 +3663,11 @@ Definition clean_result_def:
  clean_result res_msg =
   case res_msg of
   | SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) =>
-   SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map, p4_clean_tbl_entries_map tbl_entries_map ab_list, arch_pkg_opt, ab_list, ttymap)
-  | NONE_dbg data msg => NONE_dbg data msg
+   let (pblock_map', pblock_action_names_map) = p4_clean_pblock_map pblock_map ab_list in
+   SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, MAP (\ (key:string, (v1:pblock, v2:tau list)). (key, v1)) pblock_map', p4_clean_tbl_entries_map tbl_entries_map ab_list, arch_pkg_opt, ab_list, ttymap, pblock_action_names_map)
+  | NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) msg =>
+   let (pblock_map', pblock_action_names_map) = p4_clean_pblock_map pblock_map ab_list in
+   NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map', tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap, pblock_action_names_map) msg
 End
 
 Definition p4_from_json_def:
@@ -3810,8 +3828,8 @@ Definition p4_replace_tbl_default_def:
   case ALOOKUP pblock_map block_name of
   | SOME (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), tbl_map) =>
    (case ALOOKUP tbl_map table_name of
-    | SOME (mk_l, action_names, (old_action_name, old_args)) =>
-     SOME (ab_list, AUPDATE pblock_map (block_name, (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), (AUPDATE tbl_map (table_name, (mk_l, action_names, (action_name, args)))))),
+    | SOME (mk_l, (old_action_name, old_args)) =>
+     SOME (ab_list, AUPDATE pblock_map (block_name, (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), (AUPDATE tbl_map (table_name, (mk_l, (action_name, args)))))),
              ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
     | NONE => NONE)
   | _ => NONE
