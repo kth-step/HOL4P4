@@ -13,6 +13,12 @@ Definition app_opt_def:
 End
 val _ = set_fixity ">>=" (Infixl 801);
 
+Theorem SUC_ADD_ONE:
+!n. SUC n = n + 1
+Proof
+fs[]
+QED
+
 val oCONS_def = Define `
  (oCONS (h, SOME t) =
   SOME (h::t)
@@ -69,6 +75,20 @@ Proof
 Cases_on `i` >> (
  fs [oTAKE_def]
 )
+QED
+
+Theorem oDROP_APPEND:
+!l1 l2.
+oDROP (LENGTH l1) (l1 ++ l2) = SOME l2
+Proof
+cheat
+QED
+
+Theorem oTAKE_APPEND:
+!l1 l2.
+oTAKE (LENGTH l1) (l1 ++ l2) = SOME l1
+Proof
+cheat
 QED
 
 (* e_size: size of an e
