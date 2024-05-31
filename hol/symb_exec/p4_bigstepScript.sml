@@ -1370,6 +1370,7 @@ scope_lists = top_scope::(scope_list ++ g_scope_list') ==>
 Proof
 rpt gen_tac >> rpt disch_tac >>
 subgoal ‘LENGTH g_scope_list' = 2’ >- (
+ (* TODO: ??? *)
  cheat
 ) >>
 rpt strip_tac >> (
@@ -1734,14 +1735,156 @@ Proof
 cheat
 QED
 
-Theorem bigstep_arch_exec_comp'_NONE:
-!assl ctx g_scope_list arch_frame_list status aenv' g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n aenv.
-(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status) n = SOME (aenv', g_scope_list', arch_frame_list', status_running)) ==>
-in_local_fun' ctx arch_frame_list' ==>
-bigstep_arch_exec NONE (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
-(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME (aenv', g_scope_list'', arch_frame_list'', status_running))
+Theorem bigstep_arch_exec_local:
+!g_scope_list arch_frame_list g_scope_list' arch_frame_list' n (ctx:'a actx) aenv'
+g_scope_list'' arch_frame_list''.
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
+        SOME (g_scope_list',arch_frame_list',n) ==>
+in_local_fun' ctx arch_frame_list ==>
+!n' aenv.
+n' <= n ==>
+arch_multi_exec ctx (aenv,g_scope_list,arch_frame_list,status_running) n' =
+ SOME (aenv',g_scope_list'',arch_frame_list'',status_running) ==>
+in_local_fun' ctx arch_frame_list''
 Proof
 cheat
+QED
+
+Theorem bigstep_arch_exec_zero:
+!g_scope_list arch_frame_list g_scope_list' arch_frame_list'.
+bigstep_arch_exec NONE g_scope_list arch_frame_list =
+ SOME (g_scope_list',arch_frame_list',0) ==>
+g_scope_list = g_scope_list' /\ arch_frame_list = arch_frame_list'
+Proof
+Induct_on ‘arch_frame_list’ >> (
+ fs[bigstep_arch_exec_def]
+) >>
+Cases_on ‘l’ >> (
+ fs[bigstep_arch_exec_def]
+) >>
+PairCases_on ‘h’ >>
+fs[] >>
+Cases_on ‘h1’ >> (
+ fs[]
+) >>
+ fs[bigstep_exec_def] >>
+rpt strip_tac >> (
+ Cases_on ‘bigstep_stmt_exec NONE (h2 ++ g_scope_list) h 0’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘separate x1’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘q’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘r’ >> (
+  fs[]
+ ) >>
+ rw[] >>
+ (* Use bigstep_stmt_exec_zero *)
+ cheat
+)
+QED
+
+Theorem bigstep_arch_exec_SOME_trace:
+!n (ctx:'a actx) aenv g_scope_list arch_frame_list g_scope_list' arch_frame_list'.
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
+ SOME (g_scope_list',arch_frame_list',n+1) ==>
+?g_scope_list'' arch_frame_list''.
+arch_multi_exec ctx (aenv,g_scope_list,arch_frame_list,status_running) 1 =
+ SOME (aenv,g_scope_list'',arch_frame_list'',status_running) /\
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list'' arch_frame_list'' =
+ SOME (g_scope_list',arch_frame_list',n)
+Proof
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ fs[bigstep_arch_exec_def] >>
+ qexistsl_tac [‘g_scope_list'’, ‘arch_frame_list'’] >>
+ rpt strip_tac >| [
+  (* Use soundness *)
+  cheat,
+
+  (* Use bigstep_arch_exec_stop *)
+  metis_tac[bigstep_arch_exec_stop]
+ ]
+) >>
+rpt strip_tac >>
+(* TODO: ??? *)
+cheat
+QED
+
+Theorem bigstep_arch_exec_stop:
+!n g_scope_list arch_frame_list g_scope_list' arch_frame_list'.
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
+ SOME (g_scope_list',arch_frame_list',n) ==>
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list' =
+ SOME (g_scope_list',arch_frame_list',0)
+Proof
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ metis_tac[bigstep_arch_exec_zero]
+) >>
+rpt strip_tac >>
+fs[SUC_ADD_ONE] >>
+imp_res_tac bigstep_arch_exec_SOME_trace >>
+qpat_x_assum ‘!ctx aenv. ?g_scope_list'' arch_frame_list''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘ctx’, ‘aenv’] thm)) >>
+fs[] >>
+res_tac
+QED
+
+Theorem bigstep_arch_exec_comp'_NONE:
+!n' n assl ctx g_scope_list arch_frame_list aenv' g_scope_list' g_scope_list'' arch_frame_list' arch_frame_list'' aenv.
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) n = SOME (aenv', g_scope_list', arch_frame_list', status_running)) ==>
+in_local_fun' (ctx:'a actx) arch_frame_list' ==>
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME (aenv', g_scope_list'', arch_frame_list'', status_running))
+Proof
+Induct_on ‘n'’ >- (
+ rpt strip_tac >>
+ (* If zero steps were taken by bigstep_arch_exec, g_scope_list' and arch_frame_list
+  * must be preserved *)
+ fs[bigstep_arch_exec_def, bigstep_arch_exec_zero] >>
+ irule bigstep_arch_exec_zero >>
+ fs[]
+) >>
+rpt strip_tac >>
+fs[] >>
+subgoal ‘?g_scope_list''' arch_frame_list'''.
+         arch_multi_exec ctx (aenv',g_scope_list',arch_frame_list',status_running) 1 =
+          SOME (aenv',g_scope_list''',arch_frame_list''',status_running) /\
+         bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list''' arch_frame_list''' =
+          SOME (g_scope_list'',arch_frame_list'',n')’ >- (
+ (* There must be an additional valid state after 1 step from n-step state, since
+  * the big-step execution takes n'+1 steps from this state.
+  * When executing the big-step semantics from this state, you reach the same end state
+  * as if executing the big-step semantics from n-step state. *)
+ gs[bigstep_arch_exec_SOME_trace]
+) >>
+subgoal ‘arch_multi_exec ctx (aenv,g_scope_list,arch_frame_list,status_running) (SUC n) =
+          SOME (aenv',g_scope_list''',arch_frame_list''',status_running)’ >- (
+ fs[SUC_ADD_ONE] >>
+ irule arch_multi_exec_comp_n_tl >>
+ qexistsl_tac [‘aenv'’, ‘arch_frame_list'’, ‘g_scope_list'’, ‘status_running’] >>
+ fs[]
+) >>
+fs[] >>
+subgoal ‘in_local_fun' (ctx:'a actx) arch_frame_list'3'’ >- (
+ (* If big-step execution starts in a local function, all executions of equal or
+  * fewer steps must also remain in the same local function *)
+ irule bigstep_arch_exec_local >>
+ qexistsl_tac [‘aenv'’, ‘aenv'’, ‘arch_frame_list'’, ‘arch_frame_list''’, ‘g_scope_list'’,
+               ‘g_scope_list''’, ‘g_scope_list'3'’, ‘SUC n'’, ‘1’] >>
+ fs[]
+) >>
+res_tac >>
+subgoal ‘n + SUC n' = n' + SUC n’ >- (
+ decide_tac
+) >>
+ASM_REWRITE_TAC []
 QED
 
 Theorem bigstep_arch_exec_comp'_SOME:
