@@ -21,181 +21,6 @@ Definition lookup_vexp_def:
   | NONE => NONE
 End
 
-Definition bigstep_e_exec_def:
- (********************)
- (* Variable look-up *)
- (bigstep_e_exec (scope_lists:scope_list) (e_var x) n =
-  case lookup_vexp scope_lists x of
-  | SOME v => SOME (e_v v, n + 1)
-  | NONE => NONE)
-  /\
- (******************************)
- (* Struct/header field access *)
- (bigstep_e_exec scope_lists (e_acc e_v_struct x) n =
-  (case bigstep_e_exec scope_lists e_v_struct n of
-   | SOME (e_v_struct', n') =>
-    if is_v e_v_struct'
-    then
-     (case e_exec_acc (e_acc e_v_struct' x) of
-      | SOME v => SOME (v, n'+1)
-      | NONE => NONE)
-    else SOME (e_acc e_v_struct' x, n')
-   | NONE => NONE))
-  /\
- (*********************************)
- (* Struct/header field reduction *)
- (bigstep_e_exec scope_lists (e_struct x_e_l) n =
-  case bigstep_e_exec_l scope_lists (MAP SND x_e_l) n of
-  | SOME (e_l', n') =>
-   if (EVERY is_v e_l')
-   then
-    SOME (e_v $ v_struct (ZIP (MAP FST x_e_l, vl_of_el e_l')) , n'+1)
-   else
-    SOME (e_struct (ZIP (MAP FST x_e_l, e_l')) , n')
-  | NONE => NONE)
-  /\
- (********)
- (* Cast *)
- (bigstep_e_exec scope_lists (e_cast cast e) n =
-  (case bigstep_e_exec scope_lists e n of
-   | SOME (e', n') =>
-    if is_v e'
-    then
-     (case e_exec_cast cast e' of
-      | SOME v => SOME (e_v v, n'+1)
-      | NONE => NONE)
-    else
-     SOME (e_cast cast e', n')
-   | NONE => NONE))
-  /\
- (********************)
- (* Unary arithmetic *)
- (bigstep_e_exec scope_lists (e_unop unop e) n =
-  (case bigstep_e_exec scope_lists e n of
-   | SOME (e', n') =>
-    if is_v e'
-    then 
-     (case e_exec_unop unop e' of
-      | SOME v => SOME (e_v v, n'+1)
-      | NONE => NONE)
-    else
-     SOME (e_unop unop e', n')
-   | NONE => NONE))
-  /\
- (*********************)
- (* Binary arithmetic *)
- (bigstep_e_exec scope_lists (e_binop e1 binop e2) n =
-  (case bigstep_e_exec scope_lists e1 n of
-   | SOME (e1', n') =>
-    (case e1' of
-     | (e_v v) =>
-      if is_short_circuitable binop
-      then
-       (case e_exec_short_circuit v binop e2 of
-        | SOME e' => SOME (e', n'+1)
-        | NONE => NONE)
-      else
-       (case bigstep_e_exec scope_lists e2 n' of
-        | SOME (e2', n'') =>
-         if is_v e2'
-         then
-          (case e_exec_binop e1' binop e2' of
-           | SOME v' => SOME (e_v v', n''+1)
-           | NONE => NONE)
-         else
-          SOME (e_binop e1' binop e2', n'')
-        | NONE => NONE)
-     | _ =>
-      SOME (e_binop e1' binop e2, n'))
-   | NONE => NONE))
-  /\
- (*****************)
- (* Concatenation *)
- (bigstep_e_exec scope_lists (e_concat e1 e2) n =
-  case bigstep_e_exec scope_lists e1 n of
-  | SOME (e1', n') =>
-   if is_v_bit e1'
-   then
-    (case bigstep_e_exec scope_lists e2 n' of
-     | SOME (e2', n'') =>
-      (if is_v_bit e2'
-       then 
-        (case e_exec_concat e1' e2' of
-         | SOME v => SOME (e_v v, n''+1)
-         | NONE => NONE)
-       else
-        SOME (e_concat e1' e2', n''))
-     | NONE => NONE)
-   else
-    SOME (e_concat e1' e2, n')
-  | NONE => NONE)
-  /\
- (***********)
- (* Slicing *)
- (bigstep_e_exec scope_lists (e_slice e1 e2 e3) n =
-  if (is_v_bit e2 /\ is_v_bit e3)
-  then
-   (case bigstep_e_exec scope_lists e1 n of
-    | SOME (e1', n') =>
-     if is_v_bit e1'
-     then 
-      (case e_exec_slice e1' e2 e3 of
-       | SOME v => SOME (e_v v, n'+1)
-       | NONE => NONE)
-     else
-      SOME (e_slice e1' e2 e3, n')
-    | NONE => NONE)
-   else NONE)
-  /\
- (**********************)
- (* NESTED EXPRESSIONS *)
- (**********************)
-(*
- (************************)
- (* Function/extern call *)
- (* TODO: Needs directions... *)
- (bigstep_e_exec scope_lists (e_call funn e_l) n =
-  case bigstep_e_exec_l scope_lists e_l n of
-  | SOME (e_l', n') =>
-   SOME (e_call funn e_l', n')
-  | NONE => NONE)
- /\
-*)
- (**********)
- (* Select *)
- (bigstep_e_exec scope_lists (e_select e s_l_x_l x) n =
-  case bigstep_e_exec scope_lists e n of
-  | SOME (e', n') =>
-   SOME (e_select e' s_l_x_l x, n')
-  | NONE => NONE)
- /\
- (bigstep_e_exec scope_lists e n = SOME (e,n))
- /\
- (bigstep_e_exec_l scope_lists [] n = SOME ([],n))
- /\
- (bigstep_e_exec_l scope_lists (h::t) n =
-  case bigstep_e_exec scope_lists h n of
-  | SOME (h', n') =>
-   if is_v h'
-   then
-    (case bigstep_e_exec_l scope_lists t n' of
-     | SOME (t', n'') => SOME (h'::t', n'')
-     | NONE => NONE)
-   else SOME (h'::t, n')
-  | NONE => NONE)
-Termination
-WF_REL_TAC `measure ( \ t. case t of
-                           | (INL (scope_lists, e, n)) => e_size e
-                           | (INR (scope_lists, e_l, n)) => e3_size e_l)` >>
-fs[e_size_def] >>
-Induct_on ‘x_e_l’ >> (
- fs[e_size_def]
-) >>
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-fs[e_size_def]
-End
-
 (* Alternative experimental version for easier proofs *)
 Definition bigstep_e_exec'_def:
  (********************)
@@ -376,23 +201,23 @@ End
 Definition bigstep_f_arg_exec'_def:
  (bigstep_f_arg_exec' scope_lists (d,e) n =
   if ~((d = d_out) \/ (d = d_inout))
-  then bigstep_e_exec scope_lists e n
+  then bigstep_e_exec' scope_lists (INL e) n
   else if is_e_lval e
-  then SOME (e, n)
+  then SOME (INL e, n)
   else NONE
  )
 End
 
-Definition bigstep_f_arg_exec'_l_def:
- (bigstep_f_arg_exec'_l scope_lists [] n = SOME ([],n))
+Definition bigstep_f_arg_exec_l_def:
+ (bigstep_f_arg_exec_l scope_lists [] n = SOME ([],n))
  /\
- (bigstep_f_arg_exec'_l scope_lists (h::t) n =
+ (bigstep_f_arg_exec_l scope_lists (h::t) n =
   case bigstep_f_arg_exec' scope_lists h n of
-  | SOME (h', n') =>
-   (case bigstep_f_arg_exec'_l scope_lists t n' of
+  | SOME (INL h', n') =>
+   (case bigstep_f_arg_exec_l scope_lists t n' of
     | SOME (t', n'') => SOME (h'::t', n'')
     | NONE => NONE)
-  | NONE => NONE)
+  | _ => NONE)
 End
 
 (* NOTE: This can return no reductions in case the next item to be reduced in
@@ -403,7 +228,7 @@ Definition bigstep_f_arg_exec_def:
    | SOME (func_map, b_func_map, ext_fun_map) =>
     (case lookup_funn_sig funn func_map b_func_map ext_fun_map of
      | SOME x_d_l =>
-      bigstep_f_arg_exec'_l scope_lists (ZIP (MAP SND x_d_l, e_l)) n
+      bigstep_f_arg_exec_l scope_lists (ZIP (MAP SND x_d_l, e_l)) n
      | NONE => NONE)
    | NONE => SOME (e_l, n))
  )
@@ -418,8 +243,8 @@ Definition bigstep_stmt_exec_def:
      | SOME (e_l', n') => SOME (stmt_ass lval (e_call funn e_l'), scope_lists, n')
      | NONE => NONE)
    | _ =>
-    (case bigstep_e_exec scope_lists e n of
-     | SOME (e', n') =>
+    (case bigstep_e_exec' scope_lists (INL e) n of
+     | SOME (INL e', n') =>
       if is_v e'
       then
        (case stmt_exec_ass lval e' scope_lists of
@@ -443,14 +268,14 @@ Definition bigstep_stmt_exec_def:
  (* NESTED EXPRESSIONS *)
  (**********************)
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_ret e) n =
-  (case bigstep_e_exec scope_lists e n of
-   | SOME (e', n') =>
+  (case bigstep_e_exec' scope_lists (INL e) n of
+   | SOME (INL e', n') =>
     SOME (stmt_ret e', scope_lists, n')
    | _ => NONE))
   /\
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_trans e) n =
-  (case bigstep_e_exec scope_lists e n of
-   | SOME (e', n') =>
+  (case bigstep_e_exec' scope_lists (INL e) n of
+   | SOME (INL e', n') =>
     SOME (stmt_trans e', scope_lists, n')
    | _ => NONE))
   /\
@@ -461,14 +286,14 @@ Definition bigstep_stmt_exec_def:
      | SOME (e_l', n') => SOME (stmt_cond (e_call funn e_l') stmt1 stmt2, scope_lists, n')
      | NONE => NONE)
    | _ =>
-    (case bigstep_e_exec scope_lists e n of
-     | SOME (e', n') =>
+    (case bigstep_e_exec' scope_lists (INL e) n of
+     | SOME (INL e', n') =>
       SOME (stmt_cond e' stmt1 stmt2, scope_lists, n')
      | _ => NONE)))
   /\
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_app t_name e_l) n =
-  (case bigstep_e_exec_l scope_lists e_l n of
-   | SOME (e_l', n') =>
+  (case bigstep_e_exec' scope_lists (INR e_l) n of
+   | SOME (INR e_l', n') =>
     SOME (stmt_app t_name e_l', scope_lists, n')
    | _ => NONE))
   /\
@@ -531,7 +356,7 @@ Definition bigstep_arch_exec'_def:
 End
 
 val bigstep_e_exec_case_tac =
- Cases_on ‘bigstep_e_exec scope_lists e'' 0’ >> (
+ Cases_on ‘bigstep_e_exec' scope_lists (INL e'') 0’ >> (
   fs[]
  ) >>
  PairCases_on ‘x’ >>
@@ -539,7 +364,7 @@ val bigstep_e_exec_case_tac =
 ;
 
 val bigstep_e_exec_case'_tac =
- Cases_on ‘bigstep_e_exec scope_lists e n’ >> (
+ Cases_on ‘bigstep_e_exec' scope_lists (INL e) n’ >> (
   fs[]
  ) >>
  PairCases_on ‘x’ >>
@@ -1279,19 +1104,8 @@ Induct_on ‘t’ >- (
   fs[bigstep_e_exec'_struct_REWR] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
   fs[e_size_def, e3_e1_size] >>
-  subgoal ‘INR (MAP SND l) <> (INR (MAP SND (ZIP (MAP FST l,e_l')))):(e + e list)’ >- (
-   cheat
-  ) >>
-  res_tac >>
-  ‘e_l' = MAP SND (ZIP (MAP FST l,e_l'))’ suffices_by (
-   metis_tac[]
-  ) >>
   imp_res_tac bigstep_e_exec'_unchanged >>
-  fs[] >>
-  subgoal ‘LENGTH (MAP FST l) = LENGTH e_l'’ >- (
-   cheat
-  ) >>
-  fs[listTheory.MAP_ZIP],
+  gvs[ZIP_MAP_FST_SND],
 
   (* header *)
   fs[bigstep_e_exec'_def]
@@ -1377,40 +1191,6 @@ Cases_on ‘e’ >> Cases_on ‘e'’ >> (
 )
 QED
 
-(* TODO: Fix or remove?
-fun bigstep_e_exec_sound_single_rec_tac tmq1 tmq2 =
- Cases_on ‘is_v e’ >> (
-  fs[]
- ) >- (
-  (* Base case *)
-  Cases_on ‘e’ >> (
-   fs[is_v, bigstep_e_exec_def]
-  ) >>
-  Cases_on tmq1 >> (
-   fs[]
-  )
- ) >>
- (* Recursive case *)
- Cases_on ‘bigstep_e_exec (scope_list ++ g_scope_list') e 0’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘is_v x0’ >> (
-  fs[]
- ) >| [
-  Cases_on tmq2 >> (
-   fs[]
-  ) >>
-  imp_res_tac bigstep_e_exec_not_v,
-
-  rfs[] >>
-  res_tac >>
-  fs[]
- ]
-;
-*)
-
 Theorem bigstep_e_exec'_v:
 !v scope_list g_scope_list' n.
 bigstep_e_exec' (scope_list ++ g_scope_list') (INL (e_v v)) n = SOME (INL $ e_v v, n)
@@ -1418,6 +1198,7 @@ Proof
 fs[bigstep_e_exec'_def]
 QED
 
+(* OLD
 Theorem bigstep_e_exec'_all_red:
 !e_l scope_lists n.
 unred_mem_index e_l = NONE ==>
@@ -1434,6 +1215,7 @@ bigstep_e_exec' scope_lists (INL (EL x e_l)) n = SOME (INL e', n+1) /\ e_l' = LU
 Proof
 cheat
 QED
+*)
 
 Triviality unred_mem_index_NONE:
 !e_l.
@@ -1925,7 +1707,8 @@ scope_lists = top_scope::(scope_list ++ g_scope_list') ==>
 Proof
 rpt gen_tac >> rpt disch_tac >>
 subgoal ‘LENGTH g_scope_list' = 2’ >- (
- (* TODO: ??? *)
+ (* TODO: Assert that LENGTH g_scope_list' = 2 in the "separate" function? *)
+ (* TODO: Double-check assumptions where scope_lists_separate is used *)
  cheat
 ) >>
 rpt strip_tac >> (
@@ -1936,6 +1719,233 @@ gs[arithmeticTheory.ADD_SUC] >>
 FULL_SIMP_TAC pure_ss [GSYM SUC_ADD_ONE] >>
 fs[oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
 QED
+
+Theorem bigstep_stmt_exec_imp:
+!stmt stmt' scope_lists scope_lists' n m.
+bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option) scope_lists stmt n = SOME (stmt', scope_lists', m) ==>
+((n <= m) /\
+(n = m ==> (stmt = stmt' /\ scope_lists = scope_lists')))
+Proof
+Induct_on ‘stmt’ >> (
+ rpt gen_tac >>
+ rpt disch_tac
+) >| [
+ (* empty *)
+ fs[bigstep_stmt_exec_def],
+
+ (* assign *)
+ fs[bigstep_stmt_exec_def] >>
+ Cases_on ‘is_v e’ >> (
+  fs[]
+ ) >- (
+  Cases_on ‘e’ >> (
+   fs[is_v]
+  ) >>
+  fs[bigstep_e_exec'_def, is_v] >>
+  Cases_on ‘stmt_exec_ass l (e_v v) scope_lists’ >> (
+   fs[]
+  )
+ ) >>
+ Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
+  gs[bigstep_f_arg_exec_def]
+ ) >>
+ Cases_on ‘bigstep_e_exec' scope_lists (INL e) n’ >> (
+  fs[]
+ ) >- (
+  Cases_on ‘e’ >> (
+   fs[]
+  )
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘x0’ >> (
+  fs[]
+ ) >> (
+  Cases_on ‘is_v x’ >> (
+   fs[]
+  ) >- (
+   Cases_on ‘stmt_exec_ass l x scope_lists’ >> (
+    fs[]
+   ) >> (
+    Cases_on ‘e’ >> (
+     fs[]
+    )
+   ) >> (
+    gvs[is_v] >>
+    imp_res_tac bigstep_e_exec'_incr >>
+    decide_tac
+   )
+  ) >> (
+   Cases_on ‘e’ >> (
+    fs[]
+   )
+  ) >> (
+   gvs[is_v] >>
+   imp_res_tac bigstep_e_exec'_incr >>
+   fs[] >>
+   Cases_on ‘n = m’ >> (
+    gvs[]
+   ) >>
+   imp_res_tac bigstep_e_exec'_unchanged >>
+   fs[]
+  )
+ ) >>
+ Cases_on ‘e’ >> (
+  fs[]
+ ),
+
+ (* Conditional *)
+ fs[bigstep_stmt_exec_def] >>
+ Cases_on ‘is_v e’ >> (
+  fs[]
+ ) >- (
+  Cases_on ‘e’ >> (
+   fs[is_v]
+  ) >>
+  fs[bigstep_e_exec'_def, is_v]
+ ) >>
+ Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
+  gs[bigstep_f_arg_exec_def]
+ ) >>
+ Cases_on ‘bigstep_e_exec' scope_lists (INL e) n’ >> (
+  fs[]
+ ) >- (
+  Cases_on ‘e’ >> (
+   fs[]
+  )
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘x0’ >> (
+  fs[]
+ ) >- (
+  Cases_on ‘e’ >> (
+   fs[]
+  ) >> (
+   gvs[is_v] >>
+   imp_res_tac bigstep_e_exec'_incr
+  ) >> (
+   fs[] >>
+   Cases_on ‘n = m’ >> (
+    gvs[]
+   ) >>
+   imp_res_tac bigstep_e_exec'_unchanged >>
+   fs[]
+  )
+ ) >>
+ Cases_on ‘e’ >> (
+  fs[]
+ ),
+ 
+ (* block *)
+ fs[bigstep_stmt_exec_def],
+
+ (* return *)
+ fs[bigstep_stmt_exec_def] >>
+ Cases_on ‘get_v e <> NONE’ >> (
+  fs[]
+ ) >- (
+  subgoal ‘?x. get_v e = SOME x’ >- (
+   fs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS]
+  ) >>
+  Cases_on ‘e’ >> (
+   fs[get_v]
+  ) >>
+  fs[bigstep_stmt_exec_def, bigstep_e_exec'_def]
+ ) >>
+ (* e reduction *)
+ Cases_on ‘bigstep_e_exec' scope_lists (INL e) n’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ gs[] >>
+ Cases_on ‘x0’ >> (
+  fs[]
+ ) >>
+ gvs[] >>
+ imp_res_tac bigstep_e_exec'_incr >>
+ fs[] >>
+ Cases_on ‘n = m’ >> (
+  gvs[]
+ ) >>
+ imp_res_tac bigstep_e_exec'_unchanged >>
+ fs[],
+
+ (* seq - sole recursive case *)
+ fs[bigstep_stmt_exec_def] >>
+ Cases_on ‘is_empty stmt’ >> (
+  fs[] >>
+  res_tac >>
+  Cases_on ‘n +1 = m’ >> (
+   gvs[]
+  )
+ ) >>
+ (* Nested statement execution *)
+ Cases_on ‘bigstep_stmt_exec NONE scope_lists stmt n’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘is_empty x0’ >> (
+  fs[]
+ ) >- (
+  res_tac >>
+  fs[]
+ ) >>
+ res_tac >>
+ fs[],
+
+ (* transition *)
+ fs[bigstep_stmt_exec_def] >>
+ Cases_on ‘bigstep_e_exec' scope_lists (INL e) n’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ gs[] >>
+ Cases_on ‘x0’ >> (
+  fs[]
+ ) >>
+ gvs[] >>
+ imp_res_tac bigstep_e_exec'_incr >>
+ fs[] >>
+ Cases_on ‘n = m’ >> (
+  gvs[]
+ ) >>
+ imp_res_tac bigstep_e_exec'_unchanged >>
+ fs[],
+
+ (* apply *)
+ fs[bigstep_stmt_exec_def] >>
+ Cases_on ‘bigstep_e_exec' scope_lists (INR l) n’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ gs[] >>
+ Cases_on ‘x0’ >> (
+  fs[]
+ ) >>
+ imp_res_tac bigstep_e_exec'_incr >>
+ fs[] >>
+ Cases_on ‘n = m’ >> (
+  gvs[]
+ ) >>
+ imp_res_tac bigstep_e_exec'_unchanged >>
+ fs[],
+
+ (* ext *)
+ fs[bigstep_stmt_exec_def]
+]
+QED
+
+(*
+Theorem bigstep_stmt_exec_unchanged:
+!stmt stmt' scope_lists scope_lists' n.
+bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option) scope_lists stmt n = SOME (stmt', scope_lists', n) ==>
+stmt = stmt' /\ scope_lists = scope_lists'
+Proof
+cheat
+QED
+*)
 
 (* TODO: Prove where that arch_frame_list_regular is obtained for all SOME results? *)
 Theorem bigstep_stmt_exec_sound:
@@ -1963,7 +1973,7 @@ Induct_on ‘h’ >> (
    Cases_on ‘e’ >> (
     fs[is_v]
    ) >>
-   fs[bigstep_stmt_exec_def, bigstep_e_exec_def, is_v] >>
+   fs[bigstep_stmt_exec_def, bigstep_e_exec'_def, is_v] >>
    Cases_on ‘stmt_exec_ass l (e_v v) (top_scope::(scope_list ++ g_scope_list'))’ >> (
     fs[]
    )
@@ -1973,7 +1983,7 @@ Induct_on ‘h’ >> (
   Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
    gs[bigstep_f_arg_exec_def]
   ) >>
-  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ g_scope_list')) e 0’ >> (
+  Cases_on ‘bigstep_e_exec' (top_scope::(scope_list ++ g_scope_list')) (INL e) 0’ >> (
    fs[]
   ) >- (
    Cases_on ‘e’ >> (
@@ -1982,6 +1992,7 @@ Induct_on ‘h’ >> (
   ) >>
   PairCases_on ‘x’ >>
   fs[] >>
+  (* TODO: Skip subgoal, make case splitting directly instead? *)
   subgoal ‘x1 = 1’ >- (
    cheat
   ) >>
@@ -1993,10 +2004,13 @@ Induct_on ‘h’ >> (
    fs[]
   ) >> (
    (* All different cases of e *)
-   Cases_on ‘is_v x0’ >> (
+   Cases_on ‘x0’ >> (
+    fs[]
+   ) >>
+   Cases_on ‘is_v x’ >> (
     fs[]
    ) >- (
-    Cases_on ‘stmt_exec_ass l x0 (top_scope::(scope_list ++ g_scope_list'))’ >> (
+    Cases_on ‘stmt_exec_ass l x (top_scope::(scope_list ++ g_scope_list'))’ >> (
      fs[]
     )
    ) >>
@@ -2018,14 +2032,14 @@ Induct_on ‘h’ >> (
    Cases_on ‘v’ >> (
     fs[is_v_bool]
    ) >>
-   fs[bigstep_stmt_exec_def, bigstep_e_exec_def]
+   fs[bigstep_stmt_exec_def, bigstep_e_exec'_def]
   ) >>
   (* e reduction *)
   fs[bigstep_stmt_exec_def] >>
   Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
    gs[bigstep_f_arg_exec_def]
   ) >>
-  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ g_scope_list')) e 0’ >> (
+  Cases_on ‘bigstep_e_exec' (top_scope::(scope_list ++ g_scope_list')) (INL e) 0’ >> (
    fs[]
   ) >- (
    Cases_on ‘e’ >> (
@@ -2035,12 +2049,21 @@ Induct_on ‘h’ >> (
   PairCases_on ‘x’ >>
   fs[] >>
   subgoal ‘x1 = 1’ >- (
-   cheat
+   Cases_on ‘e’ >> (
+    fs[]
+   ) >> (
+    Cases_on ‘x0’ >> (
+     fs[]
+    )
+   )
   ) >>
   fs[] >>
   FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
   imp_res_tac bigstep_e_exec_sound >>
   fs[] >>
+  Cases_on ‘x0’ >> (
+   fs[]
+  ) >>
   Cases_on ‘e’ >> (
    fs[]
   ) >> (
@@ -2066,15 +2089,18 @@ Induct_on ‘h’ >> (
    Cases_on ‘e’ >> (
     fs[get_v]
    ) >>
-   fs[bigstep_stmt_exec_def, bigstep_e_exec_def]
+   fs[bigstep_stmt_exec_def, bigstep_e_exec'_def]
   ) >>
   (* e reduction *)
   fs[bigstep_stmt_exec_def] >>
-  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ g_scope_list')) e 0’ >> (
+  Cases_on ‘bigstep_e_exec' (top_scope::(scope_list ++ g_scope_list')) (INL e) 0’ >> (
    fs[]
   ) >>
   PairCases_on ‘x’ >>
   gs[] >>
+  Cases_on ‘x0’ >> (
+   fs[]
+  ) >>
   rw[] >>
   FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
   imp_res_tac bigstep_e_exec_sound >>
@@ -2083,8 +2109,52 @@ Induct_on ‘h’ >> (
   metis_tac[]
  ),
 
- (* seq - recursive case *)
- cheat,
+ (* seq - sole recursive case *)
+ (* Make case split on statement stack - virtually same proof
+  * for both cases, other than naming of certain variables *)
+ Cases_on ‘t’ >> (
+  fs[stmt_exec, bigstep_stmt_exec_def]
+ ) >> (
+  (* Go through regular and big-step execution simultaneously
+   * prove soundness for every case *)
+  Cases_on ‘is_empty h’ >> (
+   fs[]
+  ) >- (
+   (* Everything unchanged, by looking at step counter
+    * of bigstep_stmt_exec *)
+   imp_res_tac bigstep_stmt_exec_imp >>
+   fs[] >>
+   irule scope_lists_separate >>
+   metis_tac[]
+  ) >>
+  (* Nested statement execution *)
+  Cases_on ‘bigstep_stmt_exec NONE (top_scope::(scope_list ++ g_scope_list'))
+             h 0’ >> (
+   fs[]
+  ) >>
+  PairCases_on ‘x’ >>
+  fs[] >>
+  (* Need to get to end of bigstep statement execution to get final
+   * step counter for induction hypothesis *)
+  Cases_on ‘is_empty x0’ >> (
+   fs[]
+  ) >- (
+   subgoal ‘x2 = 0’ >- (
+    (* Must be the case since step counter is strictly increasing *)
+    imp_res_tac bigstep_stmt_exec_imp >>
+    fs[]
+   ) >>
+   fs[] >>
+   (* h and x0 must be the same since 0 steps were taken: but contradiction
+    * since step counter says no steps were taken *)
+   imp_res_tac bigstep_stmt_exec_imp >>
+   fs[]
+  ) >>
+  gs[] >>
+  (* Use induction hypothesis *)
+  res_tac >>
+  fs[]
+ ),
 
  (* transition *)
  Cases_on ‘t’ >> (
@@ -2101,18 +2171,22 @@ Induct_on ‘h’ >> (
     ) >>
     Cases_on ‘v’ >> (
      fs[is_v, is_v_str]
-    ) >>
-    fs[bigstep_stmt_exec_def, bigstep_e_exec_def]
+    ) >> (
+     (* Contradiction, since only expression reduction can be done for transition *)
+     fs[bigstep_stmt_exec_def, bigstep_e_exec'_def]
+    )
    )
   ) >>
-  (* e reduction *)
+  (* nested e reduction *)
   fs[bigstep_stmt_exec_def] >>
-  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ g_scope_list')) e 0’ >> (
+  Cases_on ‘bigstep_e_exec' (top_scope::(scope_list ++ g_scope_list')) (INL e) 0’ >> (
    fs[]
   ) >>
   PairCases_on ‘x’ >>
-  gs[] >>
-  rw[] >>
+  Cases_on ‘x0’ >> (
+   fs[]
+  ) >>
+  gvs[] >>
   FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
   imp_res_tac bigstep_e_exec_sound >>
   fs[] >>
@@ -2128,24 +2202,53 @@ Induct_on ‘h’ >> (
    fs[]
   ) >- (
    (* Contradiction on l being reduced, while index_not_const l = NONE *)
-   cheat
+   fs[bigstep_stmt_exec_def] >>
+   Cases_on ‘bigstep_e_exec' (top_scope::(scope_list ++ g_scope_list')) (INR l) 0’ >> (
+    fs[]
+   ) >>
+   PairCases_on ‘x’ >>
+   fs[] >>
+   Cases_on ‘x0’ >> (
+    fs[]
+   ) >>
+   gvs[] >>
+   FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
+   imp_res_tac bigstep_e_exec_sound >>
+   Cases_on ‘l’ >> (
+    fs[bigstep_e_exec'_def]
+   ) >>
+   PAT_X_ASSUM “!tbl_map pars_map func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘x''’, ‘pars_map’, ‘func_map’, ‘ext_map’, ‘x'’, ‘apply_table_f’] thm)) >>
+   fs[] >>
+   subgoal ‘!h. index_not_const (h::t) = unred_mem_index (h::t)’ >- (
+    fs[index_not_const_def, unred_mem_index_def, unred_mem_def]
+   ) >>
+   fs[]
   ) >>
   (* e reduction *)
   fs[bigstep_stmt_exec_def] >>
-  Cases_on ‘bigstep_e_exec_l (top_scope::(scope_list ++ g_scope_list')) l 0’ >> (
+  Cases_on ‘bigstep_e_exec' (top_scope::(scope_list ++ g_scope_list')) (INR l) 0’ >> (
    fs[]
   ) >>
   PairCases_on ‘x'3'’ >>
-  gs[] >>
-  rw[] >>
-  FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
-  cheat
-(*
-  imp_res_tac bigstep_e_exec_l_sound >>
   fs[] >>
+  Cases_on ‘x'''0’ >> (
+   gvs[]
+  ) >>
+  FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
+  imp_res_tac bigstep_e_exec_sound >>
+  Cases_on ‘l’ >> (
+   fs[bigstep_e_exec'_def]
+  ) >>
+  PAT_X_ASSUM “!tbl_map pars_map func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘x''’, ‘pars_map’, ‘func_map’, ‘ext_map’, ‘x'’, ‘apply_table_f’] thm)) >>
+  fs[] >>
+  subgoal ‘!h. index_not_const (h::t) = unred_mem_index (h::t)’ >- (
+   fs[index_not_const_def, unred_mem_index_def, unred_mem_def]
+  ) >>
+  gvs[] >>
+  FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
   irule scope_lists_separate >>
-  metis_tac[]
-*)
+  qexists_tac ‘((top_scope::scope_list) ++ g_scope_list')’ >>
+  fs[]
  ),
 
  (* ext *)
@@ -2345,6 +2448,51 @@ rpt strip_tac >> (
 )
 QED
 
+Theorem bigstep_arch_exec_stop:
+!n g_scope_list arch_frame_list g_scope_list' arch_frame_list'.
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
+ SOME (g_scope_list',arch_frame_list',n) ==>
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list' =
+ SOME (g_scope_list',arch_frame_list',0)
+Proof
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ metis_tac[bigstep_arch_exec_zero]
+) >>
+rpt strip_tac >>
+fs[SUC_ADD_ONE] >>
+Cases_on ‘arch_frame_list’ >> (
+ fs[bigstep_arch_exec_def]
+) >>
+Cases_on ‘l’ >> (
+ fs[]
+) >>
+PairCases_on ‘h’ >> (
+ fs[]
+) >>
+Cases_on ‘h1’ >> (
+ fs[]
+) >>
+Cases_on ‘bigstep_exec NONE (g_scope_list,h2) h’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >> (
+ fs[]
+) >>
+gvs[bigstep_arch_exec_def] >>
+Cases_on ‘bigstep_exec NONE (g_scope_list',x2) x0’ >> (
+ fs[]
+) >- (
+ (* TODO: bigstep_stmt_exec_stop *)
+ cheat
+) >>
+PairCases_on ‘x’ >> (
+ fs[]
+) >>
+(* TODO: bigstep_stmt_exec_stop *)
+cheat
+QED
+
 Theorem bigstep_arch_exec_SOME_trace:
 !n (ctx:'a actx) aenv g_scope_list arch_frame_list g_scope_list' arch_frame_list'.
 bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
@@ -2370,25 +2518,6 @@ Induct_on ‘n’ >- (
 rpt strip_tac >>
 (* TODO: ??? *)
 cheat
-QED
-
-Theorem bigstep_arch_exec_stop:
-!n g_scope_list arch_frame_list g_scope_list' arch_frame_list'.
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
- SOME (g_scope_list',arch_frame_list',n) ==>
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list' =
- SOME (g_scope_list',arch_frame_list',0)
-Proof
-Induct_on ‘n’ >- (
- rpt strip_tac >>
- metis_tac[bigstep_arch_exec_zero]
-) >>
-rpt strip_tac >>
-fs[SUC_ADD_ONE] >>
-imp_res_tac bigstep_arch_exec_SOME_trace >>
-qpat_x_assum ‘!ctx aenv. ?g_scope_list'' arch_frame_list''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘ctx’, ‘aenv’] thm)) >>
-fs[] >>
-res_tac
 QED
 
 Theorem bigstep_arch_exec_comp'_NONE:
