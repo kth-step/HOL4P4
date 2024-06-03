@@ -77,18 +77,54 @@ Cases_on `i` >> (
 )
 QED
 
+Theorem oDROP_DROP:
+!l n.
+n <= LENGTH l ==>
+oDROP n l = SOME (DROP n l)
+Proof
+Induct >> (
+ fs[oDROP_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘n’ >> (
+ fs[oDROP_def]
+)
+QED
+
+Theorem oTAKE_TAKE:
+!l n.
+n <= LENGTH l ==>
+oTAKE n l = SOME (TAKE n l)
+Proof
+Induct >> (
+ fs[oTAKE_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘n’ >> (
+ fs[oTAKE_def]
+)
+QED
+
 Theorem oDROP_APPEND:
 !l1 l2.
 oDROP (LENGTH l1) (l1 ++ l2) = SOME l2
 Proof
-cheat
+rpt strip_tac >>
+subgoal ‘oDROP (LENGTH l1) (l1 ++ l2) = SOME (DROP (LENGTH l1) (l1 ++ l2))’ >- (
+ fs[oDROP_DROP]
+) >>
+fs[rich_listTheory.DROP_LENGTH_APPEND]
 QED
 
 Theorem oTAKE_APPEND:
 !l1 l2.
 oTAKE (LENGTH l1) (l1 ++ l2) = SOME l1
 Proof
-cheat
+rpt strip_tac >>
+subgoal ‘oTAKE (LENGTH l1) (l1 ++ l2) = SOME (TAKE (LENGTH l1) (l1 ++ l2))’ >- (
+ fs[oTAKE_TAKE]
+) >>
+fs[rich_listTheory.TAKE_LENGTH_APPEND]
 QED
 
 (* e_size: size of an e
