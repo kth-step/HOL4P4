@@ -1425,6 +1425,7 @@ fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
 val (bigstep_arch_exec_tm,  mk_bigstep_arch_exec, dest_bigstep_arch_exec, is_bigstep_arch_exec) =
   syntax_fns3 "p4_bigstep" "bigstep_arch_exec";
 val bigstep_arch_exec_none = optionSyntax.mk_none “:('a actx # b_func_map)”;
+val bigstep_arch_exec_none_v1model = optionSyntax.mk_none “:(v1model_ascope actx # b_func_map)”;
 
 val (bigstep_arch_exec'_tm,  mk_bigstep_arch_exec', dest_bigstep_arch_exec', is_bigstep_arch_exec') =
   syntax_fns3 "p4_bigstep" "bigstep_arch_exec'";
@@ -1435,7 +1436,7 @@ val (in_local_fun_tm,  mk_in_local_fun, dest_in_local_fun, is_in_local_fun) =
 
 (* TODO: Move *)
 val (in_local_fun'_tm,  mk_in_local_fun', dest_in_local_fun', is_in_local_fun') =
-  syntax_fns2 "p4_bigstep" "in_local_fun'";
+  syntax_fns3 "p4_bigstep" "in_local_fun'";
 
 (* TODO: Move *)
 (* TODO: This should simplify the scopes after shortcutting *)
@@ -1484,7 +1485,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
   (* DEBUG *)
   val time_start = Time.now();
 
-  val (ante, astate) = the_final_state_hyp_imp step_thm
+  val (ante, astate, nsteps) = the_final_state_hyp_imp_n step_thm
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nCommencing regular step from state with path condition: ",
 				(term_to_string $ ante),
@@ -1531,10 +1532,16 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
   then
    (* Take regular shortcut *)
    let
+    (* For function argument reduction *)
+    val bigstep_fargs_ctx_SOME = mk_some $ mk_pair (aenv, ctx)
+    (* Note that this is always NONE, for some reason this type of big-step execution
+     * is not allowed to perform function argument reductions *)
+    val bigstep_ctx_NONE = mk_none $ mk_prod (type_of ctx, type_of b_func_map)
+
     val bigstep_tm =
      if shortcut_result_eq shortcut res_shortcut
-     then mk_bigstep_arch_exec (bigstep_arch_exec_none, g_scope_list, arch_frame_list)
-     else mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list)
+     then mk_bigstep_arch_exec (bigstep_ctx_NONE, g_scope_list, arch_frame_list)
+     else mk_bigstep_arch_exec' (bigstep_fargs_ctx_SOME, g_scope_list, arch_frame_list)
     val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_EVAL_CONV p4_stop_eval_consts bigstep_tm
 
     (* DEBUG *)
@@ -1567,7 +1574,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     (* DEBUG *)
     val time_start3 = Time.now();
 
-    val is_local_thm = EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, arch_frame_list)
+    val is_local_thm = EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, arch_frame_list, nsteps)
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Proving locality of local fun: ",
