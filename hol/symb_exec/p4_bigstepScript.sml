@@ -234,23 +234,6 @@ Definition bigstep_f_arg_exec_def:
  )
 End
 
-(*
-Soundness proofs:
-
-End goal:
-bigstep_A ==> n-step(old small-step A)_A
-   bigstep_S ==> new n-small-step_S
-   bigstep_E ==> new n-small-step_E
-
-   n-small-step_E (e, n) = e' ==> n-small_S (ass var e, n) = ass var e'
-
-new n-small-step_A ==> old n-small-step_A
-
-new n-small-step_S  ==> old n-small-step_S
-
-new n-small-step_S (s, n) = s' ==> n-small-step_A (state(s), n) = state(s')
-*)
-
 Definition bigstep_stmt_exec_def:
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_ass lval e) n =
  (* Note that reduction of e_call arguments on top level only is allowed *)
@@ -371,28 +354,6 @@ Definition bigstep_arch_exec'_def:
  ) /\
  (bigstep_arch_exec' _ _ _ = NONE)
 End
-
-val bigstep_e_exec_case_tac =
- Cases_on ‘bigstep_e_exec scope_lists (INL e'') 0’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[]
-;
-
-val bigstep_e_exec_case'_tac =
- Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[]
-;
-
- (* TODO
-val induct_traverse_e_then_tac tac =
-
-;
-*)
 
 Triviality e3_e1_size:
  !l. e3_size (MAP SND l) < e1_size l + 1
@@ -1716,331 +1677,319 @@ res_tac >>
 fs[]
 QED
 
-Definition bigstep_e_exec_max_def:
- (********************)
- (* Variable look-up *)
- (bigstep_e_exec_max m (scope_lists:scope_list) (INL (e_var x)) n =
-  if n = m
-  then SOME (INL (e_var x), n)
-  else
-   case lookup_vexp scope_lists x of
-   | SOME v => SOME (INL $ e_v v, n + 1)
-   | NONE => NONE)
-  /\
- (******************************)
- (* Struct/header field access *)
- (bigstep_e_exec_max m scope_lists (INL (e_acc e_v_struct x)) n =
-  if n = m
-  then SOME (INL (e_acc e_v_struct x), n)
-  else
-  (case bigstep_e_exec_max m scope_lists (INL e_v_struct) n of
-   | SOME (INL $ e_v_struct', n') =>
-    if is_v e_v_struct' /\ n' <> m
-    then
-     (case e_exec_acc (e_acc e_v_struct' x) of
-      | SOME v => SOME (INL $ v, n'+1)
-      | NONE => NONE)
-    else SOME (INL $ e_acc e_v_struct' x, n')
-   | _ => NONE))
-  /\
- (*********************************)
- (* Struct/header field reduction *)
- (bigstep_e_exec_max m scope_lists (INL (e_struct x_e_l)) n =
-  if n = m
-  then SOME (INL (e_struct x_e_l), n)
-  else
-   case bigstep_e_exec_max m scope_lists (INR (MAP SND x_e_l)) n of
-   | SOME (INR $ e_l', n') =>
-    if (EVERY is_v e_l') /\ n' <> m
-    then
-     SOME (INL $ e_v $ v_struct (ZIP (MAP FST x_e_l, vl_of_el e_l')) , n'+1)
-    else
-     SOME (INL $ e_struct (ZIP (MAP FST x_e_l, e_l')) , n')
-   | _ => NONE)
-  /\
- (********)
- (* Cast *)
- (bigstep_e_exec_max m scope_lists (INL (e_cast cast e)) n =
-  if n = m
-  then SOME (INL (e_cast cast e), n)
-  else
-   (case bigstep_e_exec scope_lists (INL e) n of
-    | SOME (INL $ e', n') =>
-     if is_v e' /\ n' <> m
-     then
-      (case e_exec_cast cast e' of
-       | SOME v => SOME (INL $ e_v v, n'+1)
-       | NONE => NONE)
-     else
-      SOME (INL $ e_cast cast e', n')
-    | _ => NONE))
-  /\
- (********************)
- (* Unary arithmetic *)
- (bigstep_e_exec_max m scope_lists (INL (e_unop unop e)) n =
-  if n = m
-  then SOME (INL (e_unop unop e), n)
-  else
-   (case bigstep_e_exec_max m scope_lists (INL e) n of
-    | SOME (INL $ e', n') =>
-     if is_v e' /\ n' <> m
-     then 
-      (case e_exec_unop unop e' of
-       | SOME v => SOME (INL $ e_v v, n'+1)
-       | NONE => NONE)
-     else
-      SOME (INL $ e_unop unop e', n')
-    | _ => NONE))
-  /\
- (*********************)
- (* Binary arithmetic *)
- (bigstep_e_exec_max m scope_lists (INL (e_binop e1 binop e2)) n =
-  if n = m
-  then SOME (INL (e_binop e1 binop e2), n)
-  else
-   (case bigstep_e_exec_max m scope_lists (INL e1) n of
-    | SOME (INL $ e1', n') =>
-     if n' <> m
-     then
-      (case e1' of
-       | (e_v v) =>
-        if is_short_circuitable binop
-        then
-         (case e_exec_short_circuit v binop e2 of
-          | SOME e' => SOME (INL $ e', n'+1)
-          | NONE => NONE)
-        else
-         (case bigstep_e_exec_max m scope_lists (INL e2) n' of
-          | SOME (INL $ e2', n'') =>
-           if is_v e2' /\ n'' <> m
-           then
-            (case e_exec_binop e1' binop e2' of
-             | SOME v' => SOME (INL $ e_v v', n''+1)
-             | NONE => NONE)
-           else
-            SOME (INL $ e_binop e1' binop e2', n'')
-          | _ => NONE)
-       | _ =>
-        SOME (INL $ e_binop e1' binop e2, n'))
-     else SOME (INL $ e_binop e1' binop e2, n')
-    | _ => NONE))
-  /\
- (*****************)
- (* Concatenation *)
- (bigstep_e_exec_max m scope_lists (INL (e_concat e1 e2)) n =
-  if n = m
-  then SOME (INL (e_concat e1 e2), n)
-  else
-  case bigstep_e_exec_max m scope_lists (INL e1) n of
-  | SOME (INL $ e1', n') =>
-   if is_v_bit e1' /\ n' <> m
-   then
-    (case bigstep_e_exec_max m scope_lists (INL e2) n' of
-     | SOME (INL $ e2', n'') =>
-      (if is_v_bit e2' /\ n'' <> m
-       then 
-        (case e_exec_concat e1' e2' of
-         | SOME v => SOME (INL $ e_v v, n''+1)
-         | NONE => NONE)
-       else
-        SOME (INL $ e_concat e1' e2', n''))
-     | _ => NONE)
-   else
-    SOME (INL $ e_concat e1' e2, n')
+(* TODO: This can probably just NONE the new frames *)
+Definition e_multi_exec_def:
+ (e_multi_exec _ _ _ e 0 = SOME e)
+ /\
+ (e_multi_exec (ctx:'a ctx) g_scope_list scope_list e (SUC fuel) =
+  case e_exec ctx g_scope_list scope_list e of
+  | SOME (e', []) => e_multi_exec ctx g_scope_list scope_list e' fuel
   | _ => NONE)
-  /\
- (***********)
- (* Slicing *)
- (bigstep_e_exec_max m scope_lists (INL (e_slice e1 e2 e3)) n =
-  if n = m
-  then SOME (INL (e_slice e1 e2 e3), n)
-  else
-  if (is_v_bit e2 /\ is_v_bit e3)
-  then
-   (case bigstep_e_exec_max m scope_lists (INL e1) n of
-    | SOME (INL $ e1', n') =>
-     if is_v_bit e1' /\ n' <> m
-     then 
-      (case e_exec_slice e1' e2 e3 of
-       | SOME v => SOME (INL $ e_v v, n'+1)
-       | NONE => NONE)
-     else
-      SOME (INL $ e_slice e1' e2 e3, n')
+End
+
+Definition e_multi_exec'_def:
+ (e_multi_exec' _ _ _ e 0 = SOME e)
+ /\
+ (e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e (SUC fuel) =
+  case e_multi_exec' ctx g_scope_list scope_list e fuel of
+  | SOME e' =>
+   (case e_exec ctx g_scope_list scope_list e' of
+    | SOME (e'', []) => SOME e''
     | _ => NONE)
-   else NONE)
-  /\
- (**********)
- (* Select *)
- (bigstep_e_exec_max m scope_lists (INL (e_select e s_l_x_l x)) n =
-  if n = m
-  then SOME (INL (e_select e s_l_x_l x), n)
-  else
-   case bigstep_e_exec_max m scope_lists (INL e) n of
-   | SOME (INL $ e', n') =>
-    SOME (INL $ e_select e' s_l_x_l x, n')
-   | _ => NONE)
- /\
- (bigstep_e_exec_max m scope_lists (INL e) n = SOME (INL $ e,n))
- /\
- (bigstep_e_exec_max m scope_lists (INR []) n = SOME (INR $ [],n))
- /\
- (bigstep_e_exec_max m scope_lists (INR (h::t)) n =
-  case bigstep_e_exec_max m scope_lists (INL h) n of
-  | SOME (INL h', n') =>
-   if is_v h' /\ n' <> m
-   then
-    (case bigstep_e_exec_max m scope_lists (INR t) n' of
-     | SOME (INR t', n'') => SOME (INR $ h'::t', n'')
-     | _ => NONE)
-   else SOME (INR $ h'::t, n')
   | _ => NONE)
-Termination
-WF_REL_TAC `measure ( \ (m, scope_lists, t, n). case t of
-                           | (INL e) => e_size e
-                           | (INR e_l) => e3_size e_l)` >>
-fs[e_size_def] >>
-Induct_on ‘x_e_l’ >> (
- fs[e_size_def]
+End
+
+Theorem e_acc_v_not_red:
+!e e' (ctx:'a ctx) g_scope_list scope_list.
+~is_v e' ==>
+e_exec ctx g_scope_list scope_list e = SOME (e',[]) ==>
+~is_v e
+Proof
+rpt strip_tac >>
+Cases_on ‘e’ >> (
+ fs[is_v, e_exec]
+)
+QED
+
+Theorem bigstep_e_acc_exec_sound_n_not_v:
+!ctx g_scope_list' scope_list e e' n f.
+~is_v e' ==>
+e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list e n = SOME e' ==>
+e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list (e_acc e f) n = SOME (e_acc e' f)
+Proof
+Induct_on ‘n’ >- (
+ fs[e_multi_exec'_def]
 ) >>
 rpt strip_tac >>
-PairCases_on ‘h’ >>
-fs[e_size_def] >>
+fs[e_multi_exec'_def] >>
+Cases_on ‘e_multi_exec' ctx g_scope_list' scope_list e n’ >> (
+ fs[]
+) >>
+Cases_on ‘e_exec ctx g_scope_list' scope_list x’ >> (
+ fs[]
+) >>
+PairCases_on ‘x'’ >>
+fs[] >>
+Cases_on ‘x'1’ >> (
+ fs[]
+) >>
+gvs[] >>
+subgoal ‘~is_v x’ >- (
+ imp_res_tac e_acc_v_not_red
+) >>
 res_tac >>
+fs[] >>
+gvs[] >>
+Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc x f)’ >> (
+ gs[e_exec]
+) >>
+PairCases_on ‘x'’ >>
 fs[]
-End
+QED
 
-(*
-Theorem bigstep_e_exec_imp_bigstep_e_exec_max:
-!scope_lists t n m t' res.
-bigstep_e_exec scope_lists t n = SOME (t', m) ==>
-bigstep_e_exec_max (m+1) scope_lists t n = SOME (t', m)
+Theorem bigstep_e_acc_exec_sound_n_v:
+!ctx g_scope_list' scope_list e e' n f.
+is_v e' ==>
+e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list e n = SOME e' ==>
+e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list (e_acc e f) (SUC n) = e_exec_acc (e_acc e' f)
 Proof
-cheat
-(*
-measureInduct_on ‘( \ t. case t of
-                           | (INL e) => e_size e
-                           | (INR e_l) => e3_size e_l) t’ >>
-Induct_on ‘t’ >- (
- (* INL case *)
- Induct_on ‘x’ >> (
-  rpt strip_tac
- ) >| [
-  fs[bigstep_e_exec_def, bigstep_e_exec_max_def],
-
-  cheat,
-
-  cheat,
-
-  cheat,
-
-  fs[bigstep_e_exec_def, bigstep_e_exec_max_def] >>
-  Cases_on ‘n <> m + 1’ >> (
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ fs[e_multi_exec'_def] >>
+ Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc e' f)’ >> (
+  fs[]
+ ) >> (
+  gs[e_exec] >>
+  Cases_on ‘e_exec_acc (e_acc e' f)’ >> (
    fs[]
-  ) >- (
-   Cases_on ‘bigstep_e_exec scope_lists (INL x) n’ >> (
-    fs[]
-   ) >>
-   PairCases_on ‘x'’ >>
-   fs[] >>
-   Cases_on ‘x'0’ >>
-   fs[] >>
-   Cases_on ‘is_v x'’ >> (
-    fs[]
-   ) >- (
-    Cases_on ‘e_exec_unop u x'’ >> (
-     fs[]
-    ) >>
-    gvs[] >>
-    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-    fs[e_size_def] >>
-    res_tac >>
-    subgoal ‘bigstep_e_exec_max (x'1 + 2) scope_lists (INL x) n = SOME (INL x',x'1)’ >- (
-     cheat
-    ) >>
-    fs[]
-   ) >>
-   gvs[] >>
-   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
-   res_tac >>
+  )
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[]
+) >>
+rpt strip_tac >>
+fs[e_multi_exec'_def] >>
+Cases_on ‘e_multi_exec' ctx g_scope_list' scope_list e n’ >> (
+ fs[]
+) >>
+subgoal ‘~is_v x’ >- (
+ rpt strip_tac >>
+ Cases_on ‘e_exec ctx g_scope_list' scope_list x’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x'’ >>
+ fs[] >>
+ Cases_on ‘x'1’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘x’ >> (
+  fs[is_v, e_exec]
+ )
+) >>
+imp_res_tac bigstep_e_acc_exec_sound_n_not_v >>
+fs[] >>
+Cases_on ‘e_exec ctx g_scope_list' scope_list x’ >> (
+ fs[]
+) >>
+PairCases_on ‘x'’ >>
+fs[] >>
+Cases_on ‘x'1’ >> (
+ fs[]
+) >>
+gvs[] >>
+Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc x f)’ >> (
+ gs[e_exec]
+) >>
+PairCases_on ‘x'’ >>
+fs[] >>
+Cases_on ‘x'1’ >> (
+ fs[]
+) >>
+gvs[] >>
+Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc e' f)’ >> (
+ gs[e_exec]
+) >> (
+ Cases_on ‘e_exec_acc (e_acc e' f)’ >> (
+  fs[]
+ )
+) >>
+PairCases_on ‘x'’ >>
+fs[]
+QED
+
+Theorem bigstep_e_exec_sound_n:
+!e n scope_list g_scope_list' e' ctx.
+bigstep_e_exec (scope_list ++ g_scope_list') (INL e) 0 = SOME (INL e', n) ==>
+ e_multi_exec' (ctx:'a ctx)
+        g_scope_list' scope_list e n = SOME e'
+Proof
+Induct_on ‘e’ >- (
+ (* value *)
+ Cases_on ‘n’ >> (
+  fs[e_multi_exec'_def, bigstep_e_exec_def]
+ )
+) >- (
+ (* variable *)
+ cheat
+) >- (
+ (* list *)
+ fs[e_multi_exec'_def, bigstep_e_exec_def]
+) >- (
+ (* access *)
+ rpt strip_tac >>
+ fs[bigstep_e_exec_def] >>
+ Cases_on ‘bigstep_e_exec (scope_list ++ g_scope_list') (INL e) 0’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘x0’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘is_v x’ >> (
+  fs[]
+ ) >- (
+  Cases_on ‘e_exec_acc (e_acc x s)’ >> (
    fs[]
   ) >>
-   Cases_on ‘bigstep_e_exec scope_lists (INL x) (m + 1)’ >> (
-    fs[]
-   ) >>
-   PairCases_on ‘x'’ >>
-   fs[] >>
-   Cases_on ‘x'0’ >>
-   fs[] >>
-   Cases_on ‘is_v x'’ >> (
-    fs[]
-   ) >- (
-    Cases_on ‘e_exec_unop u x'’ >> (
-     fs[]
-    ) >>
-    gvs[] >>
-    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-    fs[e_size_def] >>
-    res_tac >>
-    (* Contradiction *)
-    cheat
-   ) >>
-   gvs[] >>
-    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-    fs[e_size_def] >>
-    res_tac >>
-    (* Contradiction *)
-    cheat
-   )
-
-
-
-
-cheat
-*)
+  gvs[] >>
+  PAT_X_ASSUM “e_exec_acc (e_acc x s) = SOME e'” (fn thm => REWRITE_TAC [GSYM thm]) >>
+  fs[GSYM SUC_ADD_ONE] >>
+  irule bigstep_e_acc_exec_sound_n_v >>
+  fs[]
+ ) >>
+ gvs[] >>
+ res_tac >>
+ imp_res_tac bigstep_e_acc_exec_sound_n_not_v >>
+ fs[]
+) >- (
+ (* unary arithmetic *)
+ cheat
+) >- (
+ (* cast *)
+ cheat
+) >- (
+ (* binary arithmetic *)
+ cheat
+) >- (
+ (* concat *)
+ cheat
+) >- (
+ (* slicing *)
+ cheat
+) >- (
+ (* call *)
+ fs[e_multi_exec'_def, bigstep_e_exec_def]
+) >- (
+ (* select *)
+ cheat
+) >- (
+ (* struct *)
+ cheat
+) >> (
+ (* header *)
+ cheat
+)
 QED
-*)
 
-Definition bigstep_f_arg_exec'_max_def:
- (bigstep_f_arg_exec'_max m scope_lists (d,e) n =
-  if ~((d = d_out) \/ (d = d_inout))
-  then bigstep_e_exec_max m scope_lists (INL e) n
-  else if is_e_lval e
-  then SOME (INL e, n)
+Definition stmt_multi_exec'_check_state_def:
+ (stmt_multi_exec'_check_state ((ascope, [g_scope1; g_scope2], [(funn, [stmt], scope_list)], status_running):'a state)
+                               ((ascope', [g_scope1'; g_scope2'], [(funn', [stmt'], scope_list')], status_running):'a state) =
+  if ascope = ascope' /\ funn = funn' /\ LENGTH scope_list = LENGTH scope_list'
+  then SOME (ascope, [g_scope1; g_scope2], [(funn, [stmt], scope_list)], status_running)
   else NONE
- )
-End
-
-(* TODO: OK for the proofs with just a single check? *)
-Definition bigstep_f_arg_exec_l_max_def:
- (bigstep_f_arg_exec_l_max m scope_lists [] n = SOME ([],n))
+)
  /\
- (bigstep_f_arg_exec_l_max m scope_lists (h::t) n =
-  if n = m
-  then SOME (MAP SND (h::t), n)
-  else
-   (case bigstep_f_arg_exec'_max m scope_lists h n of
-   | SOME (INL h', n') =>
-    (case bigstep_f_arg_exec_l_max m scope_lists t n' of
-     | SOME (t', n'') => SOME (h'::t', n'')
-     | NONE => NONE)
-   | _ => NONE))
+ (stmt_multi_exec'_check_state _ _ = NONE)
 End
 
-(* NOTE: This can return no reductions in case the next item to be reduced in
- * e_l is a function call *)
-Definition bigstep_f_arg_exec_max_def:
- (bigstep_f_arg_exec_max m func_maps_opt scope_lists (funn, e_l) n =
-  (case func_maps_opt of
-   | SOME (func_map, b_func_map, ext_fun_map) =>
-    (case lookup_funn_sig funn func_map b_func_map ext_fun_map of
-     | SOME x_d_l =>
-      bigstep_f_arg_exec_l_max m scope_lists (ZIP (MAP SND x_d_l, e_l)) n
-     | NONE => NONE)
-   | NONE => SOME (e_l, n))
+Definition stmt_multi_exec'_def:
+ (stmt_multi_exec' _ state 0 = SOME state)
+ /\
+ (stmt_multi_exec' (ctx:'a ctx) state (SUC fuel) =
+  case stmt_multi_exec' ctx state fuel of
+  | SOME state' =>
+   stmt_exec ctx state'
+  | _ => NONE)
+End
+
+Theorem bigstep_stmt_ass_exec_sound_n_not_v:
+!n ctx g_scope_list top_scope scope_list ascope funn l e e'.
+~is_v e' ==>
+e_multi_exec' (ctx:'a ctx) g_scope_list (top_scope::scope_list) e n = SOME e' ==>
+stmt_multi_exec' (ctx:'a ctx)
+ (ascope, g_scope_list,
+  [(funn, [stmt_ass l e], (top_scope::scope_list))], status_running) n =
+ SOME (ascope, g_scope_list,
+       [(funn, [stmt_ass l e'], (top_scope::scope_list))],
+       status_running)
+Proof
+Induct_on ‘n’ >- (
+ fs[e_multi_exec'_def, stmt_multi_exec'_def]
+) >>
+rpt strip_tac >>
+fs[e_multi_exec'_def, stmt_multi_exec'_def] >>
+Cases_on ‘e_multi_exec' ctx g_scope_list (top_scope::scope_list) e n’ >> (
+ fs[]
+) >>
+Cases_on ‘e_exec ctx g_scope_list (top_scope::scope_list) x’ >> (
+ fs[]
+) >>
+PairCases_on ‘x'’ >>
+fs[] >>
+Cases_on ‘x'1’ >> (
+ fs[]
+) >>
+gvs[] >>
+subgoal ‘~is_v x’ >- (
+ imp_res_tac e_acc_v_not_red
+) >>
+res_tac >>
+fs[stmt_exec]
+QED
+
+Theorem bigstep_stmt_ass_exec_sound_n_v:
+!n ctx g_scope_list top_scope scope_list ascope funn lval e e' scope_list'' g_scope_list' scope_list'.
+is_v e' ==>
+e_multi_exec' (ctx:'a ctx) g_scope_list (top_scope::scope_list) e n = SOME e' ==>
+stmt_exec_ass lval e' ((top_scope::scope_list)++g_scope_list) = SOME scope_list'' ==>
+separate scope_list'' = (SOME g_scope_list', SOME scope_list') ==>
+stmt_multi_exec' (ctx:'a ctx)
+ (ascope, g_scope_list,
+  [(funn, [stmt_ass lval e], (top_scope::scope_list))], status_running) (SUC n) =
+ SOME (ascope, g_scope_list',
+       [(funn, [stmt_empty], scope_list')],
+       status_running)
+Proof
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ fs[stmt_multi_exec'_def, e_multi_exec'_def] >>
+ Cases_on ‘e'’ >> (
+  gvs[stmt_exec, is_v]
  )
-End
-
+) >>
+rpt strip_tac >>
+fs[e_multi_exec'_def, stmt_multi_exec'_def] >>
+Cases_on ‘e_multi_exec' ctx g_scope_list (top_scope::scope_list) e n’ >> (
+ fs[]
+) >>
+Cases_on ‘e_exec ctx g_scope_list (top_scope::scope_list) x’ >> (
+ fs[]
+) >>
+PairCases_on ‘x'’ >>
+fs[] >>
+Cases_on ‘x'1’ >> (
+ fs[]
+) >>
+subgoal ‘~is_v x’ >- (
+ rpt strip_tac >>
+ Cases_on ‘x’ >> (
+  fs[is_v, e_exec]
+ )
+) >>
+imp_res_tac bigstep_stmt_ass_exec_sound_n_not_v >>
+fs[stmt_exec]
+QED
 
 Theorem scope_lists_separate:
 !scope_lists top_scope scope_list scope_list' g_scope_list' g_scope_list''.
@@ -2059,6 +2008,114 @@ FULL_SIMP_TAC pure_ss [GSYM SUC_ADD_ONE] >>
 fs[oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
 QED
 
+Theorem bigstep_stmt_ass_exec_sound_n_call:
+!top_scope scope_list g_scope_list funn funn' lval e_l e_l' n (ctx:'a ctx) ascope.
+bigstep_f_arg_exec (NONE:(func_map # b_func_map # 'a ext_map) option) (top_scope::(scope_list ++ g_scope_list)) (funn',e_l) 0 = SOME (e_l', n) ==>
+stmt_multi_exec' ctx
+ (ascope, g_scope_list, [(funn,[stmt_ass lval (e_call funn' e_l)],top_scope::scope_list)],status_running) n =
+  SOME (ascope, g_scope_list, [(funn,[stmt_ass lval (e_call funn' e_l')], top_scope::scope_list)], status_running)
+Proof
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ fs[stmt_multi_exec'_def, bigstep_f_arg_exec_def]
+) >>
+rpt strip_tac >>
+fs[stmt_multi_exec'_def, bigstep_f_arg_exec_def]
+QED
+
+(* TODO: Use separate to handle scope lists *)
+Theorem bigstep_stmt_exec_sound_n:
+!n scope_list scope_lists' scope_list' funn ascope stmt stmt' stmt_stack top_scope g_scope_list g_scope_list' ctx.
+bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option) ((top_scope::scope_list)++g_scope_list) stmt 0 = SOME (stmt', scope_lists', n) ==>
+ LENGTH g_scope_list = 2 ==>
+ separate scope_lists' = (SOME g_scope_list',SOME scope_list') ==>
+ stmt_multi_exec' (ctx:'a ctx) (ascope:'a, g_scope_list:g_scope_list, [(funn, [stmt], (top_scope::scope_list))], status_running) n = SOME (ascope, g_scope_list', [(funn, [stmt'], scope_list')], status_running)
+Proof
+Induct_on ‘stmt’ >- (
+ (* empty *)
+ fs[stmt_multi_exec'_def, bigstep_stmt_exec_def] >>
+ rpt strip_tac >> (
+  gs[separate_def, SUC_ADD_ONE] >>
+  gs[GSYM SUC_ADD_ONE, oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
+ )
+) >- (
+ (* assignment *)
+ fs[stmt_multi_exec'_def, bigstep_stmt_exec_def] >>
+ rpt strip_tac >>
+ (* Rule this out first... *)
+ Cases_on ‘?funn e_l. e = e_call funn e_l’ >- (
+  gs[] >>
+  Cases_on ‘bigstep_f_arg_exec NONE (top_scope::(scope_list ++ g_scope_list))
+              (funn',e_l) 0’ >> (
+   fs[]
+  ) >>
+  PairCases_on ‘x’ >>
+  fs[] >>
+  Cases_on ‘x0’ >> (
+   fs[]
+  ) >> (
+   gvs[] >>
+   subgoal ‘g_scope_list = g_scope_list'’ >- (
+    metis_tac[scope_lists_separate]
+   ) >>
+   subgoal ‘top_scope::scope_list = scope_list'’ >- (
+    metis_tac[scope_lists_separate]
+   ) >>
+   gvs[stmt_multi_exec'_def, bigstep_f_arg_exec_def]
+  )
+ ) >>
+ Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ g_scope_list)) (INL e) 0’ >> (
+  fs[]
+ ) >- (
+  (* Case e is e_call *)
+  Cases_on ‘e’ >> (
+   fs[]
+  )
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘x0’ >> (
+  fs[]
+ ) >- (
+  Cases_on ‘is_v x’ >> (
+   fs[]
+  ) >- (
+   Cases_on ‘stmt_exec_ass l x (top_scope::(scope_list ++ g_scope_list))’ >> (
+    fs[]
+   ) >> (
+    Cases_on ‘e’ >> (
+     gvs[]
+    )
+   ) >> (
+    FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
+    imp_res_tac bigstep_e_exec_sound_n >>
+    qpat_x_assum ‘!ctx. _’ (fn thm => ASSUME_TAC (Q.SPEC ‘ctx’ thm)) >>
+    imp_res_tac bigstep_stmt_ass_exec_sound_n_v >>
+    fs[SUC_ADD_ONE]
+   )
+  ) >>
+  Cases_on ‘e’ >> (
+   gvs[]
+  ) >> (
+   FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
+   imp_res_tac bigstep_e_exec_sound_n >>
+   qpat_x_assum ‘!ctx. _’ (fn thm => ASSUME_TAC (Q.SPEC ‘ctx’ thm)) >>
+   imp_res_tac bigstep_stmt_ass_exec_sound_n_not_v >>
+   fs[] >>
+   irule scope_lists_separate >>
+   fs[]
+  )
+ ) >>
+ Cases_on ‘e’ >> (
+  gvs[]
+ )
+) >> (
+ (* The rest of the statements *)
+ cheat
+)
+QED
+
+(* TODO: Add length of scope lists identical? *)
 Theorem bigstep_stmt_exec_imp:
 !stmt stmt' scope_lists scope_lists' n m.
 bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option) scope_lists stmt n = SOME (stmt', scope_lists', m) ==>
@@ -2614,244 +2671,6 @@ Induct_on ‘h’ >> (
 ]
 QED
 
-Theorem bigstep_arch_exec_sound_NONE_1:
-!i ab_list x el pblock_map pbl_type x_d_list b_func_map decl_list pars_map tbl_map funn stmt_stack scope_list top_scope frame_list func_map in_out_list in_out_list' ascope g_scope_list g_scope_list' g_scope_list'' arch_frame_list' g_scope_list''' ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map.
-(EL i ab_list = (arch_block_pbl x el)) ==>
-(ALOOKUP pblock_map x = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map)) ==>
-~(state_fin_exec status_running ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) ==>
-scopes_to_pass funn func_map b_func_map g_scope_list = SOME g_scope_list' ==>
-map_to_pass funn b_func_map <> NONE ==>
-tbl_to_pass funn b_func_map tbl_map <> NONE ==>
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list'', arch_frame_list', 1) ==>
-scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' = SOME g_scope_list''' ==>
-arch_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) ((i, in_out_list, in_out_list', ascope), g_scope_list, (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)), status_running) = SOME ((i, in_out_list, in_out_list', ascope), g_scope_list''', arch_frame_list', status_running)
-Proof
-fs [arch_exec_def] >>
-rpt strip_tac >>
-fs [state_fin_exec_equiv, state_fin_def] >>
-Cases_on ‘map_to_pass funn b_func_map’ >> (
- fs[]
-) >>
-Cases_on ‘tbl_to_pass funn b_func_map tbl_map’ >> (
- fs[]
-) >>
-Cases_on ‘tbl_to_pass funn b_func_map tbl_map’ >> (
- fs[]
-) >>
-Cases_on ‘g_scope_list'’ >> (
- fs[bigstep_arch_exec_def]
-) >>
-Cases_on ‘t’ >> (
- fs[bigstep_arch_exec_def]
-) >>
-Cases_on ‘t'’ >> (
- fs[bigstep_arch_exec_def]
-) >>
-Cases_on ‘stmt_stack’ >> (
- fs[]
-) >>
-fs[bigstep_exec_def] >>
-Cases_on ‘bigstep_stmt_exec NONE ((top_scope::scope_list) ++ [h; h']) h'' 0’ >> (
- fs[]
-) >>
-PairCases_on ‘x'4'’ >>
-fs[] >>
-Cases_on ‘separate x''''1’ >> (
- fs[]
-) >>
-Cases_on ‘q’ >> (
- fs[]
-) >>
-Cases_on ‘r’ >> (
- fs[]
-) >>
-rw[] >>
-Cases_on `frames_exec
-             (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-             (ascope,g_scope_list,
-              (funn,h''::t,top_scope::scope_list)::frame_list,status_running)` >> (
- fs []
-) >- (
- fs[bigstep_arch_exec_def] >>
- Cases_on ‘frame_list’ >> (
-  fs[bigstep_exec_def, frames_exec]
- ) >| [
-  ALL_TAC,
-
-  PairCases_on ‘h'3'’ >>
-  fs[bigstep_exec_def, frames_exec]
- ] >> (
-  FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
-  imp_res_tac bigstep_stmt_exec_sound >>
-  gs[]
- )
-) >>
-PairCases_on ‘x'3'’ >>
-fs[bigstep_arch_exec_def] >>
-Cases_on ‘frame_list’ >> (
- fs[bigstep_exec_def, frames_exec]
-) >| [
- ALL_TAC,
-
- PairCases_on ‘h'3'’ >>
- fs[bigstep_exec_def, frames_exec]
-] >> (
- FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
- imp_res_tac bigstep_stmt_exec_sound >>
- gs[] >> (
-  FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
-  imp_res_tac bigstep_stmt_exec_sound >>
-  gs[]
- )
-)
-QED
-
-(*
-Theorem bigstep_stmt_exec_stop:
-!n m scope_lists scope_lists' stmt stmt'.
-bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option) scope_lists stmt n =
- SOME (stmt',scope_lists',m) ==>
-!m'. bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option) scope_lists' stmt' m' =
- SOME (stmt',scope_lists',m')
-Proof
-cheat
-QED
-*)
-
-Theorem bigstep_arch_exec_SOME_g_scope:
-!ctx_b_func_map_opt g_scope_list arch_frame_list result.
-bigstep_arch_exec ctx_b_func_map_opt g_scope_list
- arch_frame_list = SOME result ==>
-?g_scope1 g_scope2.
- g_scope_list = [g_scope1; g_scope2]
-Proof
-rpt strip_tac >>
-Cases_on ‘g_scope_list’ >- (
- fs[bigstep_arch_exec_def]
-) >>
-Cases_on ‘t’ >- (
- fs[bigstep_arch_exec_def]
-) >>
-Cases_on ‘arch_frame_list’ >- ( 
- fs[bigstep_arch_exec_def]
-) >>
-Cases_on ‘t'’ >> (
- fs[bigstep_arch_exec_def]
-)
-QED
-
-(* TODO: make sane *)
-Definition bigstep_stmt_exec_max_def:
- (bigstep_stmt_exec_max m func_maps_opt scope_lists (stmt_ass lval e) n =
- (* Note that reduction of e_call arguments on top level only is allowed *)
-  if n = m
-  then SOME (stmt_ass lval e, scope_lists, n)
-  else
-  (case e of
-   | e_call funn e_l =>
-    (case bigstep_f_arg_exec_max m func_maps_opt scope_lists (funn, e_l) n of
-     | SOME (e_l', n') => SOME (stmt_ass lval (e_call funn e_l'), scope_lists, n')
-     | NONE => NONE)
-   | _ =>
-    (case bigstep_e_exec_max m scope_lists (INL e) n of
-     | SOME (INL e', n') =>
-      if is_v e' /\ n' <> m
-      then
-       (case stmt_exec_ass lval e' scope_lists of
-        | SOME scope_lists' =>
-         SOME (stmt_empty, scope_lists', n'+1)
-        | NONE => NONE)
-      else SOME (stmt_ass lval e', scope_lists, n')
-     | _ => NONE)))
-  /\
- (bigstep_stmt_exec_max m func_maps_opt scope_lists (stmt_seq stmt1 stmt2) n =
-  if n = m
-  then SOME (stmt_seq stmt1 stmt2, scope_lists, n)
-  else if is_empty stmt1
-  then bigstep_stmt_exec_max m func_maps_opt scope_lists stmt2 (n+1)
-  else
-   (case bigstep_stmt_exec_max m func_maps_opt scope_lists stmt1 n of
-    | SOME (stmt1', scope_lists', n') =>
-     if is_empty stmt1' /\ n' <> m
-     then bigstep_stmt_exec_max m func_maps_opt scope_lists' stmt2 (n'+1)
-     else SOME (stmt_seq stmt1' stmt2, scope_lists', n')
-    | _ => NONE)) /\
- (**********************)
- (* NESTED EXPRESSIONS *)
- (**********************)
- (bigstep_stmt_exec_max m func_maps_opt scope_lists (stmt_ret e) n =
-  if n = m
-  then SOME (stmt_ret e, scope_lists, n)
-  else
-   (case bigstep_e_exec_max m scope_lists (INL e) n of
-    | SOME (INL e', n') =>
-     SOME (stmt_ret e', scope_lists, n')
-    | _ => NONE))
-  /\
- (bigstep_stmt_exec_max m func_maps_opt scope_lists (stmt_trans e) n =
-  if n = m
-  then SOME (stmt_trans e, scope_lists, n)
-  else
-   (case bigstep_e_exec_max m scope_lists (INL e) n of
-    | SOME (INL e', n') =>
-     SOME (stmt_trans e', scope_lists, n')
-    | _ => NONE))
-  /\
- (bigstep_stmt_exec_max m func_maps_opt scope_lists (stmt_cond e stmt1 stmt2) n =
-  if n = m
-  then SOME (stmt_cond e stmt1 stmt2, scope_lists, n)
-  else
-  (case e of
-   | e_call funn e_l =>
-    (case bigstep_f_arg_exec_max m func_maps_opt scope_lists (funn, e_l) n of
-     | SOME (e_l', n') => SOME (stmt_cond (e_call funn e_l') stmt1 stmt2, scope_lists, n')
-     | NONE => NONE)
-   | _ =>
-    (case bigstep_e_exec_max m scope_lists (INL e) n of
-     | SOME (INL e', n') =>
-      SOME (stmt_cond e' stmt1 stmt2, scope_lists, n')
-     | _ => NONE)))
-  /\
- (bigstep_stmt_exec_max m func_maps_opt scope_lists (stmt_app t_name e_l) n =
-  if n = m
-  then SOME (stmt_app t_name e_l, scope_lists, n)
-  else
-  (case bigstep_e_exec_max m scope_lists (INR e_l) n of
-   | SOME (INR e_l', n') =>
-    SOME (stmt_app t_name e_l', scope_lists, n')
-   | _ => NONE))
-  /\
- (bigstep_stmt_exec_max m func_maps_opt scope_lists stmt n =
-  SOME (stmt, scope_lists, n))
-End
-Definition bigstep_exec_max_def:
- bigstep_exec_max m func_maps_opt (g_scope_list, scope_list) stmt =
-  case bigstep_stmt_exec_max m func_maps_opt (scope_list++g_scope_list) stmt 0 of
-  | SOME (stmt', scope_lists, n) =>
-   (case separate scope_lists of
-    | (SOME g_scope_list', SOME scope_list') =>
-     SOME (stmt', g_scope_list', scope_list', n)
-    | _ => NONE)
-  | NONE => NONE
-End
-Definition bigstep_arch_exec_max_def:
- (bigstep_arch_exec_max m ctx_b_func_map_opt ([g_scope1; g_scope2]:g_scope_list) (arch_frame_list_regular frame_list) =
-  case frame_list of
-  | ((funn, stmt_stack, scope_list)::t) =>
-   (case stmt_stack of
-    | (stmt::t') =>
-     let func_maps_opt = (case ctx_b_func_map_opt of
-                          | NONE => NONE
-                          | SOME (((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx), b_func_map) => SOME (func_map, b_func_map, ext_map)) in
-       (case bigstep_exec_max m func_maps_opt ([g_scope1; g_scope2], scope_list) stmt of
-        | SOME (stmt', g_scope_list', scope_list', n) =>
-         SOME (g_scope_list', arch_frame_list_regular ((funn, (stmt'::t'), scope_list')::t), n)
-        | _ => NONE)
-    | _ => NONE)
-  | _ => NONE
- ) /\
- (bigstep_arch_exec_max _ _ _ _ = NONE)
-End
 
 Definition in_local_fun_def:
  (in_local_fun func_map (arch_frame_list_regular ((funn_name fname, stmt_stack, scope_list)::frame_list)) =
@@ -2859,812 +2678,14 @@ Definition in_local_fun_def:
  (in_local_fun func_map _ = F)
 End
 
+(* TODO: Add constraint that scope_list must be non-empty *)
 Definition in_local_fun'_def:
  (in_local_fun' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) (arch_frame_list_regular ((funn_name fname, stmt_stack, scope_list)::frame_list)) n =
   ((ALOOKUP func_map fname = NONE) /\ n <> 0)) /\
  (in_local_fun' ctx _ _ = F)
 End
 
-Theorem bigstep_e_exec_max_sound_bigstep:
- !t top_scope scope_list g_scope1 g_scope2 t' n n'.
- bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) t n = SOME (t', n') ==>
-!m.
- m > n' ==>
- bigstep_e_exec_max m (top_scope::(scope_list ++ [g_scope1; g_scope2])) t n = SOME (t', n')
-Proof
-Induct_on ‘t’ >- (
- Induct_on ‘x’ >- (
-  rpt strip_tac >>
-  fs[bigstep_e_exec_def, bigstep_e_exec_max_def]
- ) >- (
-  (* var *)
-  cheat
- ) >- (
-  (* list *)
-  cheat
- ) >- (
-  (* acc *)
-  cheat
- ) >- (
-  (* unop *)
-  rpt strip_tac >>
-  fs[bigstep_e_exec_max_def] >>
-  Cases_on ‘n = m’ >> (
-   fs[]
-  ) >- (
-   imp_res_tac bigstep_e_exec_incr >>
-   fs[]
-  ) >>
-  fs[bigstep_e_exec_unop_REWR] >> (
-   res_tac >>
-   subgoal ‘m > n''’ >- (
-    fs[]
-   ) >>
-   res_tac >>
-   fs[]
-  )
- ) >> (
-  cheat
- )
-) >>
-cheat
-QED
-
-Theorem bigstep_stmt_exec_max_sound_bigstep:
- !stmt top_scope scope_list g_scope1 g_scope2 stmt' scopes_list' n n'.
- bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option)
-          (top_scope::(scope_list ++ [g_scope1; g_scope2])) stmt n = SOME (stmt',scopes_list',n') ==>
-!m.
- m > n' ==>
- bigstep_stmt_exec_max m (NONE:(func_map # b_func_map # 'a ext_map) option)
-               (top_scope::(scope_list ++ [g_scope1; g_scope2])) stmt n = SOME (stmt', scopes_list', n')
-Proof
-cheat
-(* OLD
-Induct_on ‘stmt’ >- (
- rpt strip_tac >>
- fs[bigstep_stmt_exec_def, bigstep_stmt_exec_max_def]
-) >- (
- (* Assign case - the only case with stop condition *)
- rpt strip_tac >>
- subgoal ‘n <= n'’ >- (
-  (* By properties of bigstep_stmt_exec (prove this before unfolding definition) *)
-  cheat
- ) >>
- fs[bigstep_stmt_exec_def] >>
- Cases_on ‘is_v e’ >- (
-  Cases_on ‘e’ >> (
-   fs[is_v]
-  ) >>
-  fs[bigstep_stmt_exec_max_def] >>
-  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-             (INL (e_v v)) n’ >> (
-   fs[]
-  ) >>
-  PairCases_on ‘x’ >>
-  Cases_on ‘x0’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘is_v x’ >> (
-   fs[]
-  ) >- (
-   Cases_on ‘stmt_exec_ass l x
-             (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >> (
-    fs[]
-   ) >>
-   subgoal ‘bigstep_e_exec_max m
-                      (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL (e_v v)) n = SOME (INL x,x1)’ >- (
-    (* soundness of bigstep_e_exec_max *)
-    irule bigstep_e_exec_max_sound_bigstep >>
-    fs[] >>
-    qexists_tac ‘n + 1’ >>
-    fs[]
-   ) >>
-   fs[] >>
-   Cases_on ‘x1 = m’ >> (
-    fs[]
-   )
-  ) >>
-  gvs[] >>
-  subgoal ‘bigstep_e_exec_max m
-                     (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL (e_v v)) n = SOME (INL x,n')’ >- (
-   (* soundness of bigstep_e_exec_max *)
-   irule bigstep_e_exec_max_sound_bigstep >>
-   fs[] >>
-   qexists_tac ‘n + 1’ >>
-   fs[]
-  ) >>
-  fs[] 
- ) >>
- Cases_on ‘?f e_l. e = e_call f e_l’ >- (
-  cheat
- ) >>
- (* Now, case split on e. Remaining cases can all be resolved by the same tactic *)
- Cases_on ‘e’ >> (
-  fs[is_v]
- ) >- (
-  fs[bigstep_stmt_exec_max_def] >>
-  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-             (INL (e_var v)) n’ >> (
-   fs[]
-  ) >>
-  PairCases_on ‘x’ >>
-  Cases_on ‘x0’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘is_v x’ >> (
-   fs[]
-  ) >> (
-   Cases_on ‘stmt_exec_ass l x
-             (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >> (
-    fs[]
-   ) >>
-   subgoal ‘bigstep_e_exec_max m
-                      (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL (e_var v)) n = SOME (INL x,x1)’ >- (
-    (* soundness of bigstep_e_exec_max *)
-    irule bigstep_e_exec_max_sound_bigstep >>
-    fs[] >>
-    qexists_tac ‘n + 1’ >>
-    fs[]
-   ) >>
-   fs[]
-  ) >>
-  gvs[] >>
-  subgoal ‘bigstep_e_exec_max m
-             (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-             (INL (e_var v)) n = SOME (INL x,n')’ >- (
-   (* soundness of bigstep_e_exec_max *)
-   irule bigstep_e_exec_max_sound_bigstep >>
-   fs[] >>
-   qexists_tac ‘n + 1’ >>
-   fs[]
-  ) >>
-  fs[]
- ) >> (
-  cheat
- )
-) >- (
- (* cond *)
- cheat
-) >- (
- (* block *)
- cheat
-) >- (
- (* ret *)
- cheat
-) >- (
- (* Seq - recursive case *)
- rpt strip_tac >>
- fs[bigstep_stmt_exec_def, bigstep_stmt_exec_max_def] >>
- Cases_on ‘is_empty stmt’ >> (
-  fs[]
- ) >>
- Cases_on ‘bigstep_stmt_exec NONE
-             (top_scope::(scope_list ++ [g_scope1; g_scope2])) stmt n’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘is_empty x0’ >> (
-  fs[]
- ) >- (
-  res_tac >>
-  subgoal ‘m > x2’ >- (
-   (* Since m > n' and bigstep_stmt_exec starts from x2+1 and goes to n' *)
-   cheat
-  ) >>
-  res_tac >>
-  fs[] >>
-  subgoal ‘?top_scope scope_list g_scope1' g_scope2'.
-           x1 = (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >- (
-   (* Well-formedness of bigstep_stmt_exec (and bigstep_stmt_exec_max) results *)
-   cheat
-  ) >>
-  fs[]
- ) >>
- res_tac >>
- subgoal ‘m > x2’ >- (
-  fs[]
- ) >>
- res_tac >>
- fs[]
-) >> (
- cheat
-)
-*)
-QED
-
-fun bigstep_arch_exec_max_sound_bigstep_tac stmt_tm =
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- gvs[] >>
- fs[bigstep_arch_exec_def, bigstep_exec_def] >>
- tmCases_on “bigstep_stmt_exec NONE
-               (top_scope::(scope_list ++ [g_scope1; g_scope2])) ^stmt_tm 0” [] >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘separate x1’ >> (
-  fs[]
- ) >>
- Cases_on ‘q’ >> (
-  fs[]
- ) >>
- Cases_on ‘r’ >> (
-  fs[]
- ) >>
- gvs[] >>
- fs[bigstep_arch_exec_max_def, bigstep_exec_max_def] >>
- SUBGOAL_THEN “bigstep_stmt_exec_max m NONE
-               (top_scope::(scope_list ++ [g_scope1; g_scope2])) ^stmt_tm 0 = SOME (x0,x1,n) /\ m > n” (fn thm => ASSUME_TAC thm) >- (
-  (* soundness of bigstep_stmt_exec_max *)
-  fs[] >>
-  irule bigstep_stmt_exec_max_sound_bigstep >>
-  fs[]
- ) >>
- fs[]
-;
-
-Theorem bigstep_arch_exec_max_sound_bigstep:
-!g_scope_list funn stmt_stack top_scope scope_list frame_list g_scope_list' arch_frame_list' n.
- bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list:g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list', arch_frame_list', n) ==>
- !m. m > n ==>
- bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) (g_scope_list:g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list', arch_frame_list', n)
-Proof
-(* TODO: Can this be solved via just applying big-step max stmt soundness directly? *)
-Induct_on ‘stmt_stack’ >- (
- cheat
-) >>
-Induct_on ‘h’ >- (
- (* empty *)
- bigstep_arch_exec_max_sound_bigstep_tac “stmt_empty”
-) >- (
- (* ass *)
- bigstep_arch_exec_max_sound_bigstep_tac “stmt_ass l e”
-) >- (
- (* cond *)
- bigstep_arch_exec_max_sound_bigstep_tac “stmt_cond e h h'”
-) >- (
- (* block - not reduced *)
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- gvs[] >>
- fs[bigstep_arch_exec_def, bigstep_exec_def, bigstep_stmt_exec_def] >>
- fs[bigstep_arch_exec_max_def, bigstep_exec_max_def, bigstep_stmt_exec_max_def]
-) >- (
- (* ret *)
- bigstep_arch_exec_max_sound_bigstep_tac “stmt_ret e”
-) >- (
- (* seq - recursive case *)
- bigstep_arch_exec_max_sound_bigstep_tac “stmt_seq h h'”
-) >>
-cheat
-QED
-
-Definition bigstep_arch_exec_max_multi_def:
- (bigstep_arch_exec_max_multi 0 ctx_b_func_map_opt ([g_scope1; g_scope2]:g_scope_list) (arch_frame_list_regular frame_list) =
-  SOME (([g_scope1; g_scope2]:g_scope_list), (arch_frame_list_regular frame_list), 0)) /\
- (bigstep_arch_exec_max_multi (SUC m) ctx_b_func_map_opt ([g_scope1; g_scope2]:g_scope_list) (arch_frame_list_regular frame_list) =
-  case bigstep_arch_exec_max 1 ctx_b_func_map_opt ([g_scope1; g_scope2]:g_scope_list) (arch_frame_list_regular frame_list) of
-  | SOME (g_scope_list', arch_frame_list', n) =>
-   bigstep_arch_exec_max_multi m ctx_b_func_map_opt ([g_scope1; g_scope2]:g_scope_list) (arch_frame_list_regular frame_list)
-  | NONE => NONE)
-End
-
-
-
-(* Use other zero theorems *)
-Theorem bigstep_arch_exec_max_zero:
-!m g_scope_list g_scope_list' arch_frame_list arch_frame_list'.
-bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list = SOME (g_scope_list',arch_frame_list',0) ==>
-g_scope_list' = g_scope_list /\ arch_frame_list' = arch_frame_list
-Proof
-cheat
-QED
-
-Theorem bigstep_arch_exec_max_change_limit:
-!n m m' g_scope_list g_scope_list' arch_frame_list arch_frame_list'.
-m > n ==>
-bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list = SOME (g_scope_list',arch_frame_list',n) ==>
-m' >= n ==>
-bigstep_arch_exec_max m' (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list = SOME (g_scope_list',arch_frame_list',n)
-Proof
-cheat
-QED
-
-Theorem bigstep_arch_exec_max_limit_result:
-!n m g_scope_list g_scope_list' arch_frame_list arch_frame_list'.
-bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list = SOME (g_scope_list',arch_frame_list',n) ==>
-n <= m
-Proof
-cheat
-QED
-
-(* TODO: Use other stop theorems *)
-Theorem bigstep_arch_exec_max_stop:
-!m m' n n' g_scope_list g_scope_list' g_scope_list'' arch_frame_list arch_frame_list' arch_frame_list''.
-m > n ==>
-bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list = SOME (g_scope_list',arch_frame_list',n) ==>
-bigstep_arch_exec_max m' (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list' = SOME (g_scope_list'',arch_frame_list'',n') ==>
-n' = 0 /\ g_scope_list'' = g_scope_list' /\ arch_frame_list'' = arch_frame_list'
-Proof
-cheat
-QED
-
-Theorem bigstep_arch_exec_max_add:
-!m m' g_scope_list arch_frame_list.
-bigstep_arch_exec_max (m+m') (NONE:('a actx # b_func_map) option) g_scope_list
-          arch_frame_list =
- case bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) g_scope_list
-          arch_frame_list of
- | SOME (g_scope_list',arch_frame_list',n) =>
-  (case bigstep_arch_exec_max m' (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list' of
-   | SOME (g_scope_list'',arch_frame_list'',n') =>
-    SOME (g_scope_list'',arch_frame_list'',n+n')
-   | NONE => NONE)
- | NONE => NONE
-Proof
-Induct_on ‘m’ >- (
- rpt strip_tac >>
- Cases_on ‘bigstep_arch_exec_max 0 NONE g_scope_list arch_frame_list’ >> (
-  fs []
- ) >- (
-  (* Can only happen if NONE happens before any steps are taken *)
-  cheat
- ) >>
- fs[] >>
- PairCases_on `x` >>
- fs[] >>
- imp_res_tac bigstep_arch_exec_max_limit_result >>
- fs[] >>
- imp_res_tac bigstep_arch_exec_max_zero >>
- fs[] >>
- Cases_on ‘bigstep_arch_exec_max m' NONE g_scope_list arch_frame_list’ >> (
-  fs []
- ) >>
- PairCases_on `x` >>
- fs[]
-) >>
-rpt strip_tac >>
-Cases_on ‘bigstep_arch_exec_max (SUC m) NONE g_scope_list arch_frame_list’ >> (
- fs []
-) >- (
- (* Something about also encountering NONE if max is raised *)
- cheat
-) >>
-PairCases_on `x` >>
-fs[] >>
-Cases_on ‘bigstep_arch_exec_max m' NONE x0 x1’ >> (
- fs []
-) >- (
- (* Something about also encountering NONE if max is raised *)
- cheat
-) >>
-(* ??? *)
-cheat
-
-
 (*
-fs [arch_multi_exec, arithmeticTheory.ADD_CLAUSES] >>
-Cases_on `arch_exec actx (aenv,g_scope_list,arch_frame_list,status)` >> (
- fs []
-) >>
-PairCases_on `x` >>
-fs []
-cheat
-*)
-QED
-
-Theorem bigstep_arch_exec_max_1_add:
-!m g_scope_list arch_frame_list g_scope_list''' arch_frame_list''' n''.
-1+m > n'' ==>
-bigstep_arch_exec_max (1+m) (NONE:('a actx # b_func_map) option) g_scope_list
-          arch_frame_list = SOME (g_scope_list''',arch_frame_list''',n'') ==>
-bigstep_arch_exec_max (1+m) (NONE:('a actx # b_func_map) option) g_scope_list
-          arch_frame_list =
- case bigstep_arch_exec_max 1 (NONE:('a actx # b_func_map) option) g_scope_list
-          arch_frame_list of
- | SOME (g_scope_list',arch_frame_list',n) =>
-  (case bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list' of
-   | SOME (g_scope_list'',arch_frame_list'',n') =>
-    SOME (g_scope_list'',arch_frame_list'',n+n')
-   | NONE => NONE)
- | NONE => NONE
-Proof
-rpt strip_tac >>
-Cases_on ‘bigstep_arch_exec_max 1 (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list’ >> (
- fs[]
-) >- (
- (* Something about also encountering NONE if max is raised *)
- cheat
-) >>
-PairCases_on ‘x’ >>
-fs[] >>
-Cases_on ‘bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) x0 x1’ >> (
- fs[]
-) >- (
- (* Something about also encountering NONE if max is raised *)
- cheat
-) >>
-PairCases_on ‘x’ >>
-fs[] >>
-cheat
-QED
-
-Theorem bigstep_arch_exec_max_split_1_hd:
-!n m g_scope_list funn stmt_stack top_scope scope_list frame_list g_scope_list' arch_frame_list'.
-m > n + 1 ==>
-bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) g_scope_list
-          (arch_frame_list_regular
-             ((funn,stmt_stack,top_scope::scope_list)::frame_list)) =
-        SOME (g_scope_list',arch_frame_list',SUC n) ==>
-?arch_frame_list'' g_scope_list''.
- bigstep_arch_exec_max 1 (NONE:('a actx # b_func_map) option) g_scope_list
-  (arch_frame_list_regular
-   ((funn,stmt_stack,top_scope::scope_list)::frame_list)) =
-  SOME (g_scope_list'',arch_frame_list'',1) /\
- bigstep_arch_exec_max (n+1) (NONE:('a actx # b_func_map) option) g_scope_list''
-  arch_frame_list'' =
-  SOME (g_scope_list',arch_frame_list', n)
-Proof
-rpt strip_tac >>
-Cases_on ‘m’ >- (
- fs[]
-) >>
-fs[SUC_ADD_ONE] >>
-FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_COMM] >>
-Q.SUBGOAL_THEN ‘bigstep_arch_exec_max (1 + n') (NONE:('a actx # b_func_map) option) g_scope_list (arch_frame_list_regular
-             ((funn,stmt_stack,top_scope::scope_list)::frame_list)) =
-        case bigstep_arch_exec_max 1 (NONE:('a actx # b_func_map) option) g_scope_list (arch_frame_list_regular
-             ((funn,stmt_stack,top_scope::scope_list)::frame_list)) of
-          NONE => NONE
-        | SOME (g_scope_list',arch_frame_list',n) =>
-          case
-            bigstep_arch_exec_max n' (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list'
-          of
-            NONE => NONE
-          | SOME (g_scope_list'',arch_frame_list'',n') =>
-            SOME (g_scope_list'',arch_frame_list'',n + n')’ (fn thm => fs[thm]) >- (
- imp_res_tac bigstep_arch_exec_max_1_add
-) >>
-Cases_on `bigstep_arch_exec_max 1 NONE g_scope_list
-             (arch_frame_list_regular
-                ((funn,stmt_stack,top_scope::scope_list)::frame_list))` >> (
- fs[]
-) >>
-PairCases_on ‘x’ >>
-FULL_SIMP_TAC std_ss [] >>
-fs[] >>
-FULL_SIMP_TAC std_ss [] >>
-subgoal ‘x2 = 1’ >- (
- (* Since the original execution takes n+1 steps, the max 1 first steps
-  * of the execution must be exactly 1 *)
- imp_res_tac bigstep_arch_exec_max_limit_result >>
- Cases_on ‘x2 = 0’ >- (
-  fs[] >>
-  Cases_on ‘bigstep_arch_exec_max n' NONE x0 x1’ >- (
-   fs[]
-  ) >>
-  PairCases_on ‘x’ >>
-  fs[] >>
-  subgoal ‘1 > 0’ >- (
-   fs[]
-  ) >>
-  imp_res_tac bigstep_arch_exec_max_stop >>
-  decide_tac
- ) >>
- fs[]
-) >>
-fs[] >>
-Cases_on `bigstep_arch_exec_max n' NONE x0 x1` >> (
- fs []
-) >>
-PairCases_on ‘x’ >>
-fs [GSYM bigstep_arch_exec_max_add] >>
-irule bigstep_arch_exec_max_change_limit >>
-fs[] >>
-qexists_tac ‘n'’ >>
-fs[]
-
-(* OLD
-rpt strip_tac >>
-Cases_on ‘m’ >- (
- fs[]
-) >>
-fs[SUC_ADD_ONE] >>
-FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_COMM] >>
-fs [Once bigstep_arch_exec_max_add] >>
-Cases_on `bigstep_arch_exec_max 1 NONE g_scope_list
-             (arch_frame_list_regular
-                ((funn,stmt_stack,top_scope::scope_list)::frame_list))` >> (
- fs []
-) >>
-PairCases_on ‘x’ >>
-FULL_SIMP_TAC std_ss [] >>
-subgoal ‘x2 = 1’ >- (
- (* Since the original execution takes n+1 steps, the max 1 first steps
-  * of the execution must be exactly 1 *)
- imp_res_tac bigstep_arch_exec_max_limit_result >>
- Cases_on ‘x2 = 0’ >- (
-  fs[] >>
-  Cases_on ‘bigstep_arch_exec_max n' NONE x0 x1’ >- (
-   fs[]
-  ) >>
-  PairCases_on ‘x’ >>
-  fs[] >>
-  subgoal ‘1 > 0’ >- (
-   fs[]
-  ) >>
-  imp_res_tac bigstep_arch_exec_max_stop >>
-  decide_tac
- ) >>
- fs[]
-) >>
-fs[] >>
-Cases_on `bigstep_arch_exec_max n' NONE x0 x1` >> (
- fs []
-) >>
-PairCases_on ‘x’ >>
-fs [GSYM bigstep_arch_exec_max_add] >>
-irule bigstep_arch_exec_max_change_limit >>
-fs[] >>
-qexists_tac ‘n'’ >>
-fs[]
-*)
-QED
-
-Theorem bigstep_arch_exec_max_SOME_g_scope:
-!m ctx_b_func_map_opt g_scope_list arch_frame_list result.
-bigstep_arch_exec_max m ctx_b_func_map_opt g_scope_list
- arch_frame_list = SOME result ==>
-?g_scope1 g_scope2.
- g_scope_list = [g_scope1; g_scope2]
-Proof
-rpt strip_tac >>
-Cases_on ‘g_scope_list’ >- (
- fs[bigstep_arch_exec_max_def]
-) >>
-Cases_on ‘t’ >- (
- fs[bigstep_arch_exec_max_def]
-) >>
-Cases_on ‘arch_frame_list’ >- ( 
- fs[bigstep_arch_exec_max_def]
-) >>
-Cases_on ‘t'’ >> (
- fs[bigstep_arch_exec_max_def]
-)
-QED
-
-Theorem bigstep_arch_exec_max_sound_NONE:
-!i ab_list x el pblock_map pbl_type x_d_list b_func_map decl_list pars_map tbl_map funn stmt_stack top_scope scope_list frame_list func_map in_out_list in_out_list' ascope g_scope_list g_scope_list' g_scope_list'' arch_frame_list' n m g_scope_list''' ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map.
-(EL i ab_list = (arch_block_pbl x el)) ==>
-(ALOOKUP pblock_map x = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map)) ==>
-~(state_fin_exec status_running ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) ==>
-scopes_to_pass funn func_map b_func_map g_scope_list = SOME g_scope_list' ==>
-map_to_pass funn b_func_map <> NONE ==>
-tbl_to_pass funn b_func_map tbl_map <> NONE ==>
-m > n ==>
-bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list'', arch_frame_list', n) ==>
-in_local_fun func_map arch_frame_list' ==>
-scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' = SOME g_scope_list''' ==>
-arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) ((i, in_out_list, in_out_list', ascope), g_scope_list, (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)), status_running) n = SOME ((i, in_out_list, in_out_list', ascope), g_scope_list''', arch_frame_list', status_running)
-Proof
-Induct_on ‘n’ >- (
- (* Trivial? 0-step, plus some retrieval of scopes *)
- cheat
-) >>
-rpt strip_tac >>
-SIMP_TAC pure_ss [SUC_ADD_ONE, Once arithmeticTheory.ADD_SYM] >>
-irule arch_multi_exec_comp_n_tl >>
-subgoal ‘?arch_frame_list'' g_scope_list'.
-          bigstep_arch_exec_max 1 (NONE:('a actx # b_func_map) option) g_scope_list
-          (arch_frame_list_regular
-             ((funn,stmt_stack,top_scope::scope_list)::frame_list)) =
-        SOME (g_scope_list',arch_frame_list'',1) /\
-          bigstep_arch_exec_max (n+1) (NONE:('a actx # b_func_map) option) g_scope_list'
-          arch_frame_list'' =
-        SOME (g_scope_list'',arch_frame_list', n)’ >- (
- (* From decomposition theorem of bigstep_arch_exec_max. Note n+1 steps as max
-  * for second part of execution. *)
- irule bigstep_arch_exec_max_split_1_hd >>
- qexists_tac ‘m’ >>
- fs[] >>
- subgoal ‘g_scope_list' = g_scope_list’ >- (
-  fs[scopes_to_pass_def] >>
-  imp_res_tac bigstep_arch_exec_max_SOME_g_scope >>
-  fs[] >>
-  subgoal ‘?stmt_stack' top_scope' scope_list'. arch_frame_list' = arch_frame_list_regular
-               ((funn,stmt_stack',top_scope'::scope_list')::frame_list)’ >- (
-   (* From well-formedness of bigstep_arch_exec_max result *)
-   cheat
-  ) >>
-  Cases_on ‘funn’ >> (
-   fs[in_local_fun_def]
-  ) >>
-  Cases_on ‘ALOOKUP b_func_map s’ >> (
-   fs[]
-  )
- ) >>
- fs[]
-) >>
-subgoal ‘?stmt_stack' top_scope'. arch_frame_list'' = arch_frame_list_regular
-             ((funn,stmt_stack',top_scope'::scope_list)::frame_list)’ >- (
- (* From well-formedness of bigstep_stmt_exec result *)
- cheat
-) >>
-fs[] >>
-subgoal ‘arch_multi_exec
-            (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
-             copyout_pbl,apply_table_f,ext_map,func_map)
-            ((i,in_out_list,in_out_list',ascope),g_scope_list,arch_frame_list_regular
-               ((funn,stmt_stack,top_scope::scope_list)::frame_list),status_running) 1 =
-          SOME
-            ((i,in_out_list,in_out_list',ascope),g_scope_list'4',
-             arch_frame_list_regular
-             ((funn,stmt_stack',top_scope'::scope_list)::frame_list),status_running)’ >- (
- (* From 1-step soundness of bigstep_arch_exec_max *)
- cheat
-) >>
-qexistsl_tac [‘(i,in_out_list,in_out_list',ascope)’, ‘arch_frame_list''’, ‘g_scope_list'4'’, ‘status_running’] >>
-fs[] >>
-PAT_X_ASSUM “!i. _” (fn thm => irule thm) >>
-fs[] >>
-rpt strip_tac >- (
- (* stmt_stack' must not be [stmt_empty]. If we can't prove this with existing assumptions,
-  * we can make this map to NONE in the big-step semantics, since we never want to apply the
-  * big-step semantics to this state, since it terminates the block and is not part of the
-  * pbl_exec rule. *)
- cheat
-) >>
-qexistsl_tac [‘g_scope_list'4'’, ‘g_scope_list''’, ‘n+1’] >>
-fs[] >>
-(* The rest follows from the fact that we're executing inside a local function
- * Need: ?f. funn = funn_name f /\ ALOOKUP func_map f = NONE *)
-Cases_on ‘arch_frame_list'’ >> (
- fs[in_local_fun_def]
-) >>
-Cases_on ‘l’ >> (
- fs[in_local_fun_def]
-) >>
-PairCases_on ‘h’ >>
-Cases_on ‘h0’ >> (
- fs[in_local_fun_def]
-) >>
-subgoal ‘funn = funn_name s’ >- (
- (* From well-formedness of bigstep_stmt_exec result *)
- cheat
-) >>
-fs[scopes_to_pass_def, scopes_to_retrieve_def, in_local_fun_def] >>
-CASE_TAC >> (
- gs[]
-)
-QED
-
-(*
-Theorem test_lemma:
-!n ctx g_scope_list g_scope_list' arch_frame_list arch_frame_list' env.
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list
-          arch_frame_list =
-        SOME (g_scope_list',arch_frame_list',SUC n) ==>
-         ?g_scope_list'' arch_frame_list''.
-          arch_multi_exec
-          (ctx:'a actx)
-          (env,g_scope_list,
-           arch_frame_list,
-           status_running) n =
-            SOME
-              (env,g_scope_list'',
-                arch_frame_list'',status_running) /\
-          bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list''
-           arch_frame_list'' =
-           SOME (g_scope_list',arch_frame_list',1)
-Proof
-Induct_on ‘n’ >- (
- cheat
-) >>
-rpt strip_tac >>
-subgoal ‘?g_scope_list'' arch_frame_list''. bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list'' arch_frame_list'' =
-        SOME (g_scope_list',arch_frame_list',(SUC n))’ >- (
- cheat
-) >>
-res_tac >>
-PAT_X_ASSUM “!env ctx. ?g_scope_list'3' arch_frame_list'3'.
-         arch_multi_exec ctx
-           (env,g_scope_list'',arch_frame_list'',status_running) n =
-         SOME (env,g_scope_list'3',arch_frame_list'3',status_running) /\
-         bigstep_arch_exec NONE g_scope_list'3' arch_frame_list'3' =
-         SOME (g_scope_list',arch_frame_list',1)” (fn thm => ASSUME_TAC (Q.SPECL [‘env’, ‘ctx’] thm)) >>
-fs[] >>
-
-qexistsl_tac [‘g_scope_list'3'’, ‘arch_frame_list'3'’] >>
-fs[] >>
-SIMP_TAC pure_ss [SUC_ADD_ONE] >>
-irule arch_multi_exec_comp_n_tl >>
-qexistsl_tac [‘env’, ‘arch_frame_list''’, ‘g_scope_list''’, ‘status_running’] >>
-fs[] >>
-(* Lemma that remains to be proved: *)
-subgoal ‘bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
-        SOME (g_scope_list',arch_frame_list',SUC (SUC n)) ==>
-         bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list'' arch_frame_list'' =
-        SOME (g_scope_list',arch_frame_list',SUC n) ==>
-        !ctx env.
-         arch_multi_exec (ctx:'a actx) (env,g_scope_list,arch_frame_list,status_running) 1 =
-        SOME (env,g_scope_list'',arch_frame_list'',status_running)’ >- (
- rpt strip_tac >>
- cheat
-) >>
-res_tac >>
-fs[]
-QED
-*)
-
-Theorem bigstep_arch_exec_max_multi_sound_bigstep_max:
-!m g_scope_list funn stmt_stack top_scope scope_list frame_list g_scope_list' arch_frame_list' n.
- bigstep_arch_exec_max m (NONE:('a actx # b_func_map) option) (g_scope_list:g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list', arch_frame_list', n) ==>
- bigstep_arch_exec_max_multi m (NONE:('a actx # b_func_map) option) (g_scope_list:g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list', arch_frame_list', n)
-Proof
-Induct_on ‘stmt_stack’ >- (
- cheat
-) >>
-Induct_on ‘m’ >> (
- cheat
-) >>
-rpt strip_tac >>
-cheat
-(* By structural induction:
-(* TODO: Can this be solved via just applying big-step max stmt soundness directly? *)
-Induct_on ‘stmt_stack’ >- (
- cheat
-) >>
-Induct_on ‘h’ >> (
- Cases_on ‘m’ >- (
-  cheat
- )
-) >- (
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_max_SOME_g_scope >>
- fs[bigstep_arch_exec_max_multi_def, bigstep_arch_exec_max_def] >>
- Cases_on ‘bigstep_exec_max (SUC n) NONE
-             ([g_scope1; g_scope2],top_scope::scope_list) stmt_empty’ >- (
-  fs[]
- ) >>
- Cases_on ‘x’ >> (
-  fs[]
- ) >>
- PairCases_on ‘r’ >>
- fs[] >>
- fs[bigstep_arch_exec_max_multi_def, bigstep_arch_exec_max_def] >>
- (* OK here, but not OK for recursive case... *)
- cheat
-) >- (
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_max_SOME_g_scope >>
- fs[bigstep_arch_exec_max_multi_def, bigstep_arch_exec_max_def] >>
-) >>
-cheat
-*)
-QED
-
-(* Version using bigstep_arch_exec_max_multi *)
-Theorem bigstep_arch_exec_sound_NONE':
-!i ab_list x el pblock_map pbl_type x_d_list b_func_map decl_list pars_map tbl_map funn stmt_stack top_scope scope_list frame_list func_map in_out_list in_out_list' ascope g_scope_list g_scope_list' g_scope_list'' arch_frame_list' n g_scope_list''' ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map.
-(EL i ab_list = (arch_block_pbl x el)) ==>
-(ALOOKUP pblock_map x = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map)) ==>
-~(state_fin_exec status_running ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) ==>
-scopes_to_pass funn func_map b_func_map g_scope_list = SOME g_scope_list' ==>
-map_to_pass funn b_func_map <> NONE ==>
-tbl_to_pass funn b_func_map tbl_map <> NONE ==>
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list'', arch_frame_list', n) ==>
-in_local_fun func_map arch_frame_list' ==>
-scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' = SOME g_scope_list''' ==>
-arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) ((i, in_out_list, in_out_list', ascope), g_scope_list, (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)), status_running) n = SOME ((i, in_out_list, in_out_list', ascope), g_scope_list''', arch_frame_list', status_running)
-Proof
-
-
-
-QED
-
 Theorem bigstep_arch_exec_sound_NONE:
 !i ab_list x el pblock_map pbl_type x_d_list b_func_map decl_list pars_map tbl_map funn stmt_stack top_scope scope_list frame_list func_map in_out_list in_out_list' ascope g_scope_list g_scope_list' g_scope_list'' arch_frame_list' n g_scope_list''' ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map.
 (EL i ab_list = (arch_block_pbl x el)) ==>
@@ -3677,545 +2698,6 @@ bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_li
 in_local_fun func_map arch_frame_list' ==>
 scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' = SOME g_scope_list''' ==>
 arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) ((i, in_out_list, in_out_list', ascope), g_scope_list, (arch_frame_list_regular ((funn, stmt_stack, (top_scope::scope_list))::frame_list)), status_running) n = SOME ((i, in_out_list, in_out_list', ascope), g_scope_list''', arch_frame_list', status_running)
-Proof
-rpt strip_tac >>
-irule bigstep_arch_exec_max_sound_NONE >>
-fs[] >>
-imp_res_tac bigstep_arch_exec_max_sound_bigstep >>
-fs[] >>
-qexistsl_tac [‘g_scope_list''’, ‘n + 1’] >>
-fs[]
-(*
-Induct_on ‘n’ >- (
- cheat
-) >>
-rpt strip_tac >>
-SIMP_TAC pure_ss [SUC_ADD_ONE] >>
-irule arch_multi_exec_comp_n_tl >>
-Q.SUBGOAL_THEN ‘bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list'
-          (arch_frame_list_regular
-             ((funn,stmt_stack,top_scope::scope_list)::frame_list)) =
-        SOME (g_scope_list'',arch_frame_list',SUC n) ==>
-         ?g_scope_list''' arch_frame_list''.
-          arch_multi_exec
-          (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
-           copyout_pbl,apply_table_f,ext_map,func_map)
-          ((i,in_out_list,in_out_list',ascope),g_scope_list',
-           (arch_frame_list_regular
-             ((funn,stmt_stack,top_scope::scope_list)::frame_list)),
-           status_running) n =
-            SOME
-              ((i,in_out_list,in_out_list',ascope),g_scope_list''',
-                arch_frame_list'',status_running) /\
-          bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list'''
-           arch_frame_list'' =
-           SOME (g_scope_list'',arch_frame_list',1)’ (fn thm => imp_res_tac thm) >- (
- rpt strip_tac >>
- (* By test_lemma *)
- cheat
-) >>
-qexistsl_tac [‘(i,in_out_list,in_out_list',ascope)’, ‘arch_frame_list''’,‘g_scope_list'4'’, ‘status_running’] >>
-fs[] >>
-subgoal ‘g_scope_list = g_scope_list'’ >- (
- cheat
-) >>
-fs[] >>
-subgoal ‘?stmt_stack' top_scope'. arch_frame_list'' = arch_frame_list_regular
-             ((funn,stmt_stack',top_scope'::scope_list)::frame_list)’ >- (
- (* Not hard to prove, implicit in bigstep_stmt_exec_sound *)
- cheat
-) >>
-fs[] >>
-(* OK by one-step soundness *)
-cheat
-(* OLD
-PAT_X_ASSUM “!i. _” (fn thm => irule thm) >>
-fs[] >>
-rpt strip_tac >- (
- (* stmt_stack' must not be [stmt_empty]. If we can't prove this with existing assumptions,
-  * we can make this map to NONE in the big-step semantics, since we never want to apply the
-  * big-step semantics to this state, since it terminates the block and is not part of the
-  * pbl_exec rule. *)
- cheat
-) >>
-qexistsl_tac [‘g_scope_list'4'’, ‘g_scope_list''’] >>
-fs[] >>
-(* The rest follows from the fact that we're executing inside a local function
- * Need: ?f. funn = funn_name f /\ ALOOKUP func_map f = NONE *)
-(*
-Cases_on ‘arch_frame_list'’ >> (
- fs[in_local_fun_def]
-) >>
-Cases_on ‘l’ >> (
- fs[in_local_fun_def]
-) >>
-PairCases_on ‘h’ >>
-Cases_on ‘h0’ >> (
- fs[in_local_fun_def]
-) >>
-subgoal ‘funn = funn_name s’ >- (
- (* Big-step execution stays inside the same function *)
- cheat
-) >>
-fs[scopes_to_pass_def, scopes_to_retrieve_def, in_local_fun_def] >>
-CASE_TAC >> (
- gs[]
-)
-*)
-cheat
-*)
-*)
-QED
-
-(*
-Theorem bigstep_e_exec_ass_arch_sound:
-!e e' l funn stmt_stack top_scope scope_list scope_list' frame_list g_scope1 g_scope2 g_scope_list' n ctx aenv.
-bigstep_e_exec
- (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) 0 =
-  SOME (INL e', n) ==>
-        arch_multi_exec
-          (ctx:'a actx)
-          (aenv,[g_scope1; g_scope2],
-           arch_frame_list_regular
-             ((funn,(stmt_ass l e)::stmt_stack,top_scope::scope_list)::
-                  frame_list),status_running) n =
-        SOME
-          (aenv,g_scope_list',
-           arch_frame_list_regular
-             ((funn,(stmt_ass l e')::stmt_stack,scope_list')::
-                  frame_list),status_running)
-Proof
-Induct_on ‘e’ >- (
- cheat
-) >- (
- cheat
-) >- (
- cheat
-) >- (
- rpt strip_tac >>
- fs[bigstep_e_exec_def] >>
- Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-             (INL e) 0’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
-  fs[]
- ) >>
- Cases_on ‘x0’ >> (
-  fs[]
- ) >>
- res_tac >>
-cheat
-QED
-
-Theorem bigstep_stmt_exec_ass_arch_sound:
-!e funn stmt' stmt_stack top_scope scope_list scope_list' frame_list g_scope1 g_scope2 g_scope_list' n scopes_list' l ctx aenv.
-bigstep_stmt_exec (NONE:(func_map # b_func_map # 'a ext_map) option)
- (top_scope::(scope_list ++ [g_scope1; g_scope2])) (stmt_ass l e) 0 =
-  SOME (stmt', scopes_list', n) ==>
-separate scopes_list' = (SOME g_scope_list',SOME scope_list') ==>
-        arch_multi_exec
-          (ctx:'a actx)
-          (aenv,[g_scope1; g_scope2],
-           arch_frame_list_regular
-             ((funn,(stmt_ass l e)::stmt_stack,top_scope::scope_list)::
-                  frame_list),status_running) n =
-        SOME
-          (aenv,g_scope_list',
-           arch_frame_list_regular
-             ((funn,stmt'::stmt_stack,scope_list')::
-                  frame_list),status_running)
-Proof
-fs[bigstep_stmt_exec_def] >>
-rpt strip_tac >>
-Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-              (INL e) 0’ >> (
- fs[]
-) >- (
- (* Call *)
- cheat
-) >>
-PairCases_on ‘x’ >>
-Cases_on ‘x0’ >> (
- fs[]
-) >- (
-  Cases_on ‘is_v x’ >> (
-   fs[]
-  )
-
-) >>
-(* Call or nothing *)
-cheat
-
-(* Inducting on e seems to make little sense here... *)
-(*
-Induct_on ‘e’ >- (
- rpt strip_tac >>
- (* Evaluation *)
- cheat
-) >- (
- rpt strip_tac >>
- (* Evaluation *)
- cheat
-) >- (
- rpt strip_tac >>
- cheat
-) >- (
- rpt strip_tac >>
- fs[bigstep_stmt_exec_def] >>
- Cases_on ‘bigstep_e_exec
-                  (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-                  (INL e) 0’ >> (
-  fs[]
- ) >>
-) >- (
- cheat
-) >- (
- cheat
-) >>
-cheat
-*)
-QED
-
-(* Test proof by structural induction *)
-Theorem bigstep_arch_exec_sound_structural_NONE:
-!i ab_list x el pblock_map pbl_type x_d_list b_func_map decl_list pars_map tbl_map funn stmt stmt_stack top_scope scope_list frame_list func_map in_out_list in_out_list' ascope g_scope_list g_scope_list' g_scope_list'' arch_frame_list' n g_scope_list''' ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map.
-(EL i ab_list = (arch_block_pbl x el)) ==>
-(ALOOKUP pblock_map x = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map)) ==>
-~(state_fin_exec status_running ((funn, stmt::stmt_stack, (top_scope::scope_list))::frame_list)) ==>
-scopes_to_pass funn func_map b_func_map g_scope_list = SOME g_scope_list' ==>
-map_to_pass funn b_func_map <> NONE ==>
-tbl_to_pass funn b_func_map tbl_map <> NONE ==>
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) (arch_frame_list_regular ((funn, stmt::stmt_stack, (top_scope::scope_list))::frame_list)) = SOME (g_scope_list'', arch_frame_list', n) ==>
-scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' = SOME g_scope_list''' ==>
-arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) ((i, in_out_list, in_out_list', ascope), g_scope_list, (arch_frame_list_regular ((funn, stmt::stmt_stack, (top_scope::scope_list))::frame_list)), status_running) n = SOME ((i, in_out_list, in_out_list', ascope), g_scope_list''', arch_frame_list', status_running)
-Proof
-Induct_on ‘stmt’ >| [
- (* empty *)
- cheat,
-
- (* ass *)
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- gvs[] >>
- fs[bigstep_arch_exec_def, bigstep_exec_def] >>
- Cases_on ‘is_v e’ >- (
-  fs[bigstep_stmt_exec_def] >>
-  Cases_on ‘e’ >> (
-   fs[is_v]
-  ) >>
-  Cases_on ‘bigstep_e_exec
-                 (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-                 (INL (e_v v)) 0’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘x'’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘q’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘is_v x'’ >> (
-   fs[]
-  ) >- (
-   Cases_on ‘stmt_exec_ass l x'
-                 (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >> (
-    fs[]
-   ) >>
-   Cases_on ‘separate x''’ >> (
-    fs[]
-   ) >>
-   Cases_on ‘q’ >> (
-    fs[]
-   ) >>
-   Cases_on ‘r'’ >> (
-    fs[]
-   ) >>
-   gvs[] >>
-   (* e_v case trivially OK already above by evaluation *)
-   cheat
-  ) >>
-  cheat
- ) >>
- Cases_on ‘?funn' e_l. e = e_call funn e_l’ >- (
-  gs[bigstep_stmt_exec_def, bigstep_f_arg_exec_def] >>
-  cheat
- ) >>
- Cases_on ‘bigstep_stmt_exec NONE
-             (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-             (stmt_ass l e) 0’ >> (
-  fs[]
- ) >>
- Cases_on ‘x'’ >> (
-  fs[]
- ) >>
- Cases_on ‘r’ >> (
-  fs[]
- ) >>
- Cases_on ‘separate q'’ >> (
-  fs[]
- ) >>
- Cases_on ‘q''’ >> (
-  fs[]
- ) >>
- Cases_on ‘r’ >> (
-  fs[]
- ) >>
-
-  Cases_on ‘e’ >> (
-   fs[is_v]
-  ) >- (
-   gvs[] >>
-  ) >>
-
-,
-
- (* ass *)
- cheat,
-
- (* cond *)
- cheat,
-
- (* block *)
- cheat,
-
- (* ret *)
- cheat,
-
- (* seq *)
- cheat,
-
- (* trans *)
- cheat,
-
- (* app *)
- cheat,
-
- (* ext *)
- cheat,
-
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- gvs[] >>
- fs[bigstep_arch_exec_def, bigstep_exec_def, bigstep_stmt_exec_def] >>
- Cases_on ‘separate (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >>
- Cases_on ‘q’ >>
- Cases_on ‘r’ >> (
-  fs[arch_multi_exec_def]
- ) >>
- gvs[] >>
- (* OK after scope manipulation stuff *)
- cheat,
-
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- gvs[] >>
- fs[bigstep_arch_exec_def, bigstep_exec_def] >>
- Cases_on ‘is_v e’ >- (
-  fs[bigstep_stmt_exec_def] >>
-  Cases_on ‘e’ >> (
-   fs[is_v]
-  ) >>
-  Cases_on ‘bigstep_e_exec
-                 (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-                 (INL (e_v v)) 0’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘x'’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘q’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘is_v x'’ >> (
-   fs[]
-  ) >- (
-   Cases_on ‘stmt_exec_ass l x'
-                 (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >> (
-    fs[]
-   ) >>
-   Cases_on ‘separate x''’ >> (
-    fs[]
-   ) >>
-   Cases_on ‘q’ >> (
-    fs[]
-   ) >>
-   Cases_on ‘r'’ >> (
-    fs[]
-   ) >>
-   gvs[] >>
-   cheat
-  ) >>
-  cheat
- ) >>
- Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
-  gs[bigstep_stmt_exec_def, bigstep_f_arg_exec_def] >>
-  cheat
- ) >>
- (* TODO: Compute all non-recursive cases *)
- Cases_on ‘e’ >> (
-  fs[is_v, bigstep_stmt_exec_def]
- ) >- (
-  Cases_on ‘bigstep_e_exec
-                  (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-                  (INL (e_var v)) 0’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘x'’ >> (
-   fs[]
-  ) >>
-  cheat
- ) >- (
-  cheat
- ) >- (
-  Cases_on ‘bigstep_e_exec
-                 (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-                 (INL (e_acc e' s)) 0’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘x'’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘q’ >> (
-   fs[]
-  ) >>
-
-(*
-  Cases_on ‘x'’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘q’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘is_v x'’ >> (
-   fs[]
-  ) >- (
-   Cases_on ‘stmt_exec_ass l x'
-                 (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >> (
-    fs[]
-   ) >>
-   Cases_on ‘separate x''’ >> (
-    fs[]
-   ) >>
-  ) >>
-  cheat
-*)
-  ) >>
-  Cases_on ‘e’ >> (
-   fs[is_v]
-  ) >>
- ) >>
-
-) >>
-cheat
-QED
-*)
-(*
-(* Alternative version which exposes top statement *)
-Theorem bigstep_arch_exec_sound_NONE_alt:
-!stmt i ab_list x el pblock_map pbl_type x_d_list b_func_map decl_list pars_map tbl_map funn  stmt_stack top_scope scope_list frame_list func_map in_out_list in_out_list' ascope g_scope_list g_scope_list' g_scope_list'' arch_frame_list' n g_scope_list''' ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map.
-(EL i ab_list = (arch_block_pbl x el)) ==>
-(ALOOKUP pblock_map x = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map)) ==>
-~(state_fin_exec status_running ((funn, (stmt::stmt_stack), (top_scope::scope_list))::frame_list)) ==>
-scopes_to_pass funn func_map b_func_map g_scope_list = SOME g_scope_list' ==>
-map_to_pass funn b_func_map <> NONE ==>
-tbl_to_pass funn b_func_map tbl_map <> NONE ==>
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) (arch_frame_list_regular ((funn, (stmt::stmt_stack), (top_scope::scope_list))::frame_list)) = SOME (g_scope_list'', arch_frame_list', n) ==>
-scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' = SOME g_scope_list''' ==>
-arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) ((i, in_out_list, in_out_list', ascope), g_scope_list, (arch_frame_list_regular ((funn, (stmt::stmt_stack), (top_scope::scope_list))::frame_list)), status_running) n = SOME ((i, in_out_list, in_out_list', ascope), g_scope_list''', arch_frame_list', status_running)
-Proof
-Induct_on ‘stmt’ >- (
- cheat
-) >- (
- rpt strip_tac >>
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- gvs[] >>
- fs[bigstep_arch_exec_def] >>
- Cases_on ‘bigstep_exec NONE ([g_scope1; g_scope2],top_scope::scope_list)
-             (stmt_ass l e)’ >> (
-  fs[]
- ) >>
-  PairCases_on ‘x'’ >>
-  fs[] >>
-  gvs[] >>
-  fs[bigstep_exec_def] >>
-  Cases_on ‘bigstep_stmt_exec NONE
-               (top_scope::(scope_list ++ [g_scope1; g_scope2])) (stmt_ass l e)
-               0’ >> (
-   fs[]
-  ) >>
-  PairCases_on ‘x'’ >>
-  fs[] >>
-  fs[bigstep_stmt_exec_def] >>
-  Cases_on ‘bigstep_e_exec
-                  (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) 0’ >> (
-   fs[]
-  ) >- (
-   cheat
-  ) >>
-  Cases_on ‘n’ >- (
-   cheat
-  ) >>
-  fs[arch_multi_exec_def, arch_exec_def] >>
-  Cases_on ‘frame_list’ >> (
-   fs[frames_exec]
-  ) >>
-  Cases_on ‘map_to_pass funn b_func_map’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘tbl_to_pass funn b_func_map tbl_map’ >> (
-   fs[frames_exec]
-  ) >>
-  fs[stmt_exec] >>
- ) >>
-) >>
-cheat
-QED
-*)
-
-(*
-Theorem bigstep_arch_exec_sound_SOME:
-!i ab_list x el pblock_map pbl_type x_d_list b_func_map decl_list pars_map tbl_map funn stmt_stack scope_list frame_list func_map g_scope_list g_scope_list' g_scope_list'' arch_frame_list' n g_scope_list''' ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map aenv.
-(EL i ab_list = (arch_block_pbl x el)) ==>
-(ALOOKUP pblock_map x = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map)) ==>
-~(state_fin_exec status_running ((funn, stmt_stack, scope_list)::frame_list)) ==>
-scopes_to_pass funn func_map b_func_map g_scope_list = SOME g_scope_list' ==>
-map_to_pass funn b_func_map <> NONE ==>
-tbl_to_pass funn b_func_map tbl_map <> NONE ==>
-bigstep_arch_exec (SOME ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), b_func_map)) (g_scope_list':g_scope_list) (arch_frame_list_regular ((funn, stmt_stack, scope_list)::frame_list)) = SOME (g_scope_list'', arch_frame_list', n) ==>
-scopes_to_retrieve funn func_map b_func_map g_scope_list g_scope_list'' = SOME g_scope_list''' ==>
-arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) (aenv, g_scope_list, (arch_frame_list_regular ((funn, stmt_stack, scope_list)::frame_list)), status_running) n = SOME (aenv, g_scope_list''', arch_frame_list', status_running)
-Proof
-cheat
-QED
-*)
-
-(*
-(* If funn can't be found in the global function map, we don't need to fiddle
- * with the g_scope_list *)
-Theorem bigstep_arch_exec_comp_NONE:
-!assl ab_list pblock_map func_map g_scope_list arch_frame_list status aenv' g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map aenv.
-(assl ==> arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) (aenv, g_scope_list, arch_frame_list, status) n = SOME (aenv', g_scope_list', arch_frame_list', status_running)) ==>
-in_local_fun func_map arch_frame_list' ==>
-bigstep_arch_exec NONE (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
-(assl ==> arch_multi_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME (aenv', g_scope_list'', arch_frame_list'', status_running))
-Proof
-cheat
-QED
-*)
-
-(*
-Theorem bigstep_arch_exec_local:
-!g_scope_list arch_frame_list g_scope_list' arch_frame_list' n (ctx:'a actx) aenv'
-g_scope_list'' arch_frame_list''.
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
-        SOME (g_scope_list',arch_frame_list',n) ==>
-in_local_fun' ctx arch_frame_list n ==>
-!n' aenv.
-n' <= n ==>
-arch_multi_exec ctx (aenv,g_scope_list,arch_frame_list,status_running) n' =
- SOME (aenv',g_scope_list'',arch_frame_list'',status_running) ==>
-in_local_fun' ctx arch_frame_list'' n'
 Proof
 cheat
 QED
@@ -4269,31 +2751,6 @@ rpt strip_tac >> (
 )
 QED
 
-(*
-Theorem bigstep_arch_exec_stop:
-!n g_scope_list arch_frame_list g_scope_list' arch_frame_list'.
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
- SOME (g_scope_list',arch_frame_list',n) ==>
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list' arch_frame_list' =
- SOME (g_scope_list',arch_frame_list',0)
-Proof
-Induct_on ‘n’ >- (
- rpt strip_tac >>
- metis_tac[bigstep_arch_exec_zero]
-) >>
-rpt strip_tac >>
-(* TODO: Prove the below as separate theorem *)
-subgoal ‘?g_scope_list'' arch_frame_list''.
-         bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list arch_frame_list =
-          SOME (g_scope_list'',arch_frame_list'',1) /\
-         bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list'' arch_frame_list'' =
-           SOME (g_scope_list',arch_frame_list',n)’ >- (
- cheat
-) >>
-res_tac
-QED
-*)
-
 Definition arch_exec_init_sane_def:
  arch_exec_init_sane
   ((ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,copyout_pbl,
@@ -4315,178 +2772,6 @@ Definition arch_exec_init_sane_def:
 End
 
 (*
-Theorem bigstep_arch_exec_SOME_trace:
-!n (ctx:'a actx) aenv g_scope_list frame_list g_scope_list' arch_frame_list'.
-arch_exec_init_sane ctx aenv g_scope_list frame_list status_running ==>
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list (arch_frame_list_regular frame_list) =
- SOME (g_scope_list',arch_frame_list',n+1) ==>
-?g_scope_list'' arch_frame_list''.
-arch_multi_exec ctx (aenv,g_scope_list,(arch_frame_list_regular frame_list),status_running) 1 =
- SOME (aenv,g_scope_list'',arch_frame_list'',status_running) /\
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list'' arch_frame_list'' =
- SOME (g_scope_list',arch_frame_list',n)
-Proof
-Induct_on ‘n’ >- (
- rpt strip_tac >>
- qexistsl_tac [‘g_scope_list'’, ‘arch_frame_list'’] >>
- imp_res_tac bigstep_arch_exec_stop >>
- fs[] >>
- PairCases_on ‘ctx’ >>
- PairCases_on ‘aenv’ >>
- fs[arch_exec_init_sane_def] >>
- gvs[] >>
- subgoal ‘g_scope_list = g_scope_list''’ >- (
-  (* Locality *)
-  cheat
- ) >>
- fs[] >>
- subgoal ‘g_scope_list = g_scope_list''’ >- (
-  (* Locality *)
-  cheat
- ) >>
- imp_res_tac bigstep_arch_exec_sound_NONE >>
- subgoal ‘scopes_to_retrieve funn ctx9 b_func_map g_scope_list''
-            g_scope_list' = SOME g_scope_list'’ >- (
-  cheat
- ) >>
- fs[]
-) >>
-
-rpt strip_tac >>
-PairCases_on ‘ctx’ >>
-PairCases_on ‘aenv’ >>
-fs[arch_exec_init_sane_def] >>
-gvs[] >>
-subgoal ‘g_scope_list = g_scope_list''’ >- (
- (* Locality *)
- cheat
-) >>
-fs[] >>
-subgoal ‘g_scope_list = g_scope_list''’ >- (
- (* Locality *)
- cheat
-) >>
-imp_res_tac bigstep_arch_exec_sound_NONE >>
-subgoal ‘scopes_to_retrieve funn ctx9 b_func_map g_scope_list''
-           g_scope_list' = SOME g_scope_list'’ >- (
- cheat
-) >>
-fs[] >>
-
-(* Use composition theorem for arch_multi_exec to show existence of execution
- * to state after 1 step. Then, ??? *)
-cheat
-
-(* OLD
-Induct_on ‘n’ >- (
- rpt strip_tac >>
- qexistsl_tac [‘g_scope_list'’, ‘arch_frame_list'’] >>
- (* rpt strip_tac >| [ *)
-  (* Use soundness *)
- Cases_on ‘g_scope_list’ >> (
-  fs[bigstep_arch_exec_def]
- ) >>
- Cases_on ‘t’ >> (
-  fs[bigstep_arch_exec_def]
- ) >>
- Cases_on ‘t'’ >> (
-  fs[bigstep_arch_exec_def]
- ) >>
- Cases_on ‘frame_list’ >> (
-  fs[bigstep_arch_exec_def]
- ) >>
- PairCases_on ‘h''’ >>
- fs[] >>
- Cases_on ‘h''1’ >> (
-  fs[]
- ) >>
- fs[bigstep_exec_def] >>
- Cases_on ‘bigstep_stmt_exec NONE (h''2 ++ [h; h']) h'' 0’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >> (
-  fs[]
- ) >>
- Cases_on ‘separate x1’ >> (
-  fs[]
- ) >>
- Cases_on ‘q’ >> (
-  fs[]
- ) >>
- Cases_on ‘r’ >> (
-  fs[]
- ) >>
- gvs[] >>
- PairCases_on ‘ctx’ >>
- PairCases_on ‘aenv’ >>
- fs[arch_exec_init_sane_def] >>
- Cases_on ‘h''2’ >- (
-  (* TODO: Put this somewhere... *)
-  cheat
- ) >>
- FULL_SIMP_TAC pure_ss [GSYM listTheory.APPEND] >>
- imp_res_tac bigstep_stmt_exec_sound >>
- fs[] >>
- res_tac >>
- SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
- rpt strip_tac >| [
-  fs[arch_multi_exec_def] >>
-  fs[arch_exec_def] >>
-  fs[frames_exec] >>
-  Cases_on ‘t’ >> (
-   fs[frames_exec]
-  ) >- (
-   fs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS] >>
-   subgoal ‘g_scope_list'' = [h; h']’ >- (
-    (* By locality somehow *)
-    cheat
-   ) >>
-   fs[] >>
-   subgoal ‘scopes_to_retrieve h''0 ctx9 b_func_map [h; h'] g_scope_list' = SOME g_scope_list'’ >- (
-    (* By locality somehow *)
-    cheat
-   ) >>
-   fs[]
-  ) >>
-  PairCases_on ‘h'4'’ >>
-  fs[frames_exec] >>
-  fs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS] >>
-  subgoal ‘g_scope_list'' = [h; h']’ >- (
-   (* By locality somehow *)
-   cheat
-  ) >>
-  fs[] >>
-  subgoal ‘scopes_to_retrieve h''0 ctx9 b_func_map [h; h'] g_scope_list' = SOME g_scope_list'’ >- (
-   (* By locality somehow *)
-   cheat
-  ) >>
-  fs[],
-
-  Cases_on ‘g_scope_list'’ >- (
-   (* Cannot have empty resulting g_scope_list in stmt_exec with non-empty initial g_scope_list *)
-   cheat
-  ) >>
-  Cases_on ‘t'3'’ >- (
-   (* Cannot have singleton resulting g_scope_list in stmt_exec with 2-element initial g_scope_list *)
-   cheat
-  ) >>
-  Cases_on ‘t'4'’ >- (
-   fs[bigstep_arch_exec_def, bigstep_exec_def] >>
-   imp_res_tac bigstep_stmt_exec_stop >>
-   subgoal ‘x1 = x' ++ [h'4'; h'5']’ >- (
-    cheat
-   ) >>
-   fs[]
-  ) >>
-  (* Cannot have three-element resulting g_scope_list in stmt_exec with 2-element initial g_scope_list *)
-  cheat
- ]
-) >>
-rpt strip_tac >>
-*)
-QED
-*)
-
 Theorem bigstep_stmt_exec_stmt_unchanged:
 !ctx_b_func_map_opt scope_lists scope_lists' stmt n m.
 bigstep_stmt_exec (ctx_b_func_map_opt:(func_map # b_func_map # 'a ext_map) option) scope_lists stmt n = SOME (stmt, scope_lists', m) ==>
@@ -4494,56 +2779,58 @@ n = m
 Proof
 cheat
 QED
+*)
 
-Theorem bigstep_arch_exec_arch_frame_list_unchanged:
-!ctx_b_func_map_opt g_scope_list arch_frame_list g_scope_list' arch_frame_list' n.
-bigstep_arch_exec ctx_b_func_map_opt g_scope_list
- arch_frame_list = SOME (g_scope_list', arch_frame_list', n) ==>
-(arch_frame_list = arch_frame_list') ==> (n = 0)
+(* The properties of the result that follow from bigstep_arch_exec yielding a
+ * SOME result. *)
+Theorem bigstep_arch_exec_SOME_imp:
+!ctx_b_func_map_opt g_scope_list g_scope_list' arch_frame_list arch_frame_list' n.
+bigstep_arch_exec ctx_b_func_map_opt g_scope_list arch_frame_list = SOME (g_scope_list', arch_frame_list', n) ==>
+(?g_scope1 g_scope2.
+ g_scope_list = [g_scope1; g_scope2]) /\
+(?frame_list. arch_frame_list = arch_frame_list_regular frame_list) /\
+(* TODO: Holds, but not needed for now... 
+(?g_scope1' g_scope2'.
+ g_scope_list' = [g_scope1'; g_scope2']) /\
+*)
+(?frame_list'. arch_frame_list' = arch_frame_list_regular frame_list')
 Proof
-rpt strip_tac >>
-imp_res_tac bigstep_arch_exec_SOME_g_scope >>
-Cases_on ‘arch_frame_list’ >- ( 
+rpt gen_tac >>
+rpt disch_tac >>
+Cases_on ‘g_scope_list’ >- (
  fs[bigstep_arch_exec_def]
 ) >>
-Cases_on ‘l’ >- ( 
+Cases_on ‘t’ >- (
  fs[bigstep_arch_exec_def]
 ) >>
-PairCases_on ‘h’ >>
-Cases_on ‘h1’ >> (
- gvs[] >>
+fs[] >>
+Cases_on ‘arch_frame_list’ >> (
  fs[bigstep_arch_exec_def]
 ) >>
-fs[bigstep_exec_def] >>
-Cases_on ‘ctx_b_func_map_opt’ >> (
+Cases_on ‘t'’ >> (
+ fs[bigstep_arch_exec_def]
+) >>
+Cases_on ‘l’ >> (
  fs[]
-) >| [
- Cases_on ‘bigstep_stmt_exec NONE (h2 ++ [g_scope1; g_scope2]) h 0’ >> (
-  fs[]
- ),
-
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘bigstep_stmt_exec (SOME (x9,x10,x8))
-                (h2 ++ [g_scope1; g_scope2]) h 0’ >> (
-  fs[]
- )
-] >> (
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘separate x1’ >> (
-  fs[]
- ) >>
- Cases_on ‘q’ >> (
-  fs[]
- ) >>
- Cases_on ‘r’ >> (
-  fs[]
- ) >>
- rw[] >>
- imp_res_tac bigstep_stmt_exec_stmt_unchanged >>
+) >>
+PairCases_on ‘h''’ >>
+fs[] >>
+Cases_on ‘h''1’ >> (
  fs[]
-)
+) >>
+Cases_on ‘bigstep_exec
+             (case ctx_b_func_map_opt of
+                NONE => NONE
+              | SOME
+                ((ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
+                  copyout_pbl,apply_table_f,ext_map,func_map),b_func_map) =>
+                SOME (func_map,b_func_map,ext_map)) ([h; h'],h''2)
+             h''’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[] >>
+metis_tac[]
 QED
 
 (* TODO: Move *)
@@ -4679,16 +2966,185 @@ Cases_on ‘ALOOKUP x4' s'’ >> (
 gvs[]
 QED
 
-(* TODO: use bigstep_arch_exec_imp *)
-Theorem bigstep_arch_exec_local:
-!n g_scope_list g_scope_list' f h1 scopes scopes' frame_list arch_frame_list'.
-bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list
-          (arch_frame_list_regular ((funn_name f,h1,scopes)::frame_list)) =
-        SOME (g_scope_list',arch_frame_list',n) ==>
- ?h1' scopes'. arch_frame_list' = (arch_frame_list_regular ((funn_name f,h1',scopes')::frame_list))
+Definition arch_multi_exec'_def:
+ (arch_multi_exec' _ astate 0 = SOME astate)
+ /\
+ (arch_multi_exec' (actx:'a actx) astate (SUC fuel) =
+  case arch_multi_exec' actx astate fuel of
+  | SOME astate' =>
+   arch_exec actx astate'
+  | _ => NONE)
+End
+
+Theorem bigstep_arch_exec_sound_n_stmt:
+!n h ascope g_scope1 g_scope2 funn x0 g_scope_list' x2 actx ctx aenv h0 h' t t' t''.
+stmt_multi_exec' (ctx:'a ctx) (ascope, [g_scope1; g_scope2]:g_scope_list, [(funn,[h],h'::t'')], status_running) n =
+ SOME (ascope,g_scope_list',[(funn, [x0], x2)],status_running) ==>
+ arch_multi_exec' (actx:'a actx)
+  (aenv,[g_scope1; g_scope2],
+   arch_frame_list_regular ((h0,h::t',h'::t'')::t),status_running) n =
+   SOME
+    (aenv,g_scope_list',arch_frame_list_regular ((h0,x0::t',x2)::t),
+     status_running)
 Proof
+Induct_on ‘n’ >> (
+ rpt strip_tac >>
+ fs[arch_multi_exec'_def, stmt_multi_exec'_def]
+) >>
+Cases_on ‘stmt_multi_exec' ctx
+            (ascope,[g_scope1; g_scope2],[(funn,[h],h'::t'')],status_running)
+            n’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[] >>
+(* TODO: Change stmt_multi_exec' to return NONE if any if the below are
+ * broken. This shouldn't be any problem for soundness theorems since the bigstep
+ * semantics keeps these invariants *)
+subgoal ‘x0' = ascope /\
+         ?g_scope1' g_scope2'. x1 = [g_scope1'; g_scope2'] /\
+         ?stmt' h'' t'''. x2' = [(funn,[stmt'],h''::t''')] /\
+         x3 = status_running ’ >- (
+ cheat
+) >>
+fs[] >>
+res_tac >>
+PairCases_on ‘actx’ >>
+PairCases_on ‘aenv’ >>
+fs[arch_exec_def] >>
+(* From top-level soundness theorem/ composition theorem *)
+subgoal ‘?x el. EL aenv0 actx0 = arch_block_pbl x el’ >- (
+ cheat
+) >>
+fs[] >>
+subgoal ‘?pbl_type x_d_list b_func_map decl_list pars_map tbl_map. ALOOKUP actx1 x = SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map)’ >- (
+ cheat
+) >>
+fs[] >>
+subgoal ‘~state_fin_exec status_running ((h0,stmt'::t',h''::t'³')::t)’ >- (
+ cheat
+) >>
+Cases_on ‘t’ >> (
+ fs[]
+) >- (
+ fs[frames_exec] >>
+ (* Needs all the to-pass information + identification of components of stmt_exec *)
+ cheat
+) >>
+PairCases_on ‘h'3'’ >>
+fs[frames_exec] >>
+(* Needs all the to-pass information + identification of components of stmt_exec *)
 cheat
 QED
+
+Theorem bigstep_arch_exec_sound_n:
+!n g_scope_list g_scope_list' frame_list frame_list' aenv actx.
+bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list (arch_frame_list_regular frame_list) = SOME (g_scope_list', (arch_frame_list_regular frame_list'), n) ==>
+arch_multi_exec' (actx:'a actx) ((aenv:'a aenv), g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME (aenv, g_scope_list', arch_frame_list_regular frame_list', status_running)
+Proof
+Cases_on ‘frame_list’ >- (
+ rpt strip_tac >>
+ imp_res_tac bigstep_arch_exec_SOME_imp >>
+ fs[bigstep_arch_exec_def]
+) >>
+rpt strip_tac >>
+imp_res_tac bigstep_arch_exec_SOME_imp >>
+fs[arch_multi_exec'_def, bigstep_arch_exec_def] >>
+Cases_on ‘frame_list’ >> (
+ fs[]
+) >>
+PairCases_on ‘h'’ >>
+fs[] >>
+Cases_on ‘h'1’ >> (
+ fs[]
+) >>
+Cases_on ‘bigstep_exec NONE ([g_scope1; g_scope2],h'2) h'’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[] >>
+gvs[] >>
+fs[bigstep_exec_def] >>
+Cases_on ‘bigstep_stmt_exec NONE (h'2 ++ [g_scope1; g_scope2]) h' 0’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[] >>
+Cases_on ‘separate x1’ >> (
+ fs[]
+) >>
+Cases_on ‘q’ >> (
+ fs[]
+) >>
+Cases_on ‘r’ >> (
+ fs[]
+) >>
+gvs[] >>
+(* Scope list non-empty should probably be added to in_local_fun' assumption, which can then be passed along to this theorem *)
+Cases_on ‘h'2’ >- (
+ cheat
+) >>
+(* TODO: We should be able to prove here that no ext was reduced by bigstep_arch_exec, in particular that next stmt to be reduced is not an ext *)
+imp_res_tac bigstep_stmt_exec_sound_n >>
+fs[] >>
+res_tac >>
+metis_tac[bigstep_arch_exec_sound_n_stmt]
+QED
+
+Theorem arch_multi_exec'_sound:
+!n g_scope_list g_scope_list' frame_list arch_frame_list' aenv aenv' actx status'.
+arch_multi_exec' (actx:'a actx) ((aenv:'a aenv), g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME (aenv', g_scope_list', arch_frame_list', status') ==>
+arch_multi_exec (actx:'a actx) (aenv, g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME (aenv', g_scope_list', arch_frame_list', status')
+Proof
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ fs[arch_multi_exec'_def, arch_multi_exec_def]
+) >>
+rpt strip_tac >>
+fs[arch_multi_exec'_def] >>
+Cases_on ‘arch_multi_exec' actx
+             (aenv,g_scope_list,arch_frame_list_regular frame_list,
+              status_running) n’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+res_tac >>
+(* Use theorem to split execution of arch_multi_exec into 1+n *)
+FULL_SIMP_TAC pure_ss [SUC_ADD_ONE, Once arithmeticTheory.ADD_SYM] >>
+FULL_SIMP_TAC pure_ss [arch_multi_exec_add, Once arithmeticTheory.ONE] >>
+fs[arch_multi_exec_def]
+QED
+
+
+Theorem arch_multi_exec_sound:
+!n g_scope_list g_scope_list' frame_list arch_frame_list' aenv aenv' actx status' .
+arch_multi_exec (actx:'a actx) ((aenv:'a aenv), g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME (aenv', g_scope_list', arch_frame_list', status') ==>
+arch_multi_exec' (actx:'a actx) (aenv, g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME (aenv', g_scope_list', arch_frame_list', status')
+Proof
+Induct_on ‘n’ >- (
+ rpt strip_tac >>
+ fs[arch_multi_exec'_def, arch_multi_exec_def]
+) >>
+rpt strip_tac >>
+FULL_SIMP_TAC pure_ss [SUC_ADD_ONE, Once arithmeticTheory.ADD_SYM] >>
+FULL_SIMP_TAC pure_ss [arch_multi_exec_add, Once arithmeticTheory.ONE] >>
+Cases_on ‘arch_multi_exec actx
+             (aenv,g_scope_list,arch_frame_list_regular frame_list,
+              status_running) n’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+res_tac >>
+fs[arch_multi_exec'_def, GSYM SUC_ADD_ONE] >>
+FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ONE] >>
+fs[arch_multi_exec_def] >>
+Cases_on ‘arch_exec actx ((x0,x1,x2,x3),x4,x5,x6)’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[]
+QED
+
 
 Theorem bigstep_arch_exec_comp'_NONE:
 !n' n assl ctx g_scope_list frame_list aenv' g_scope_list' g_scope_list'' arch_frame_list' arch_frame_list'' aenv.
@@ -4697,151 +3153,12 @@ in_local_fun' (ctx:'a actx) arch_frame_list' n ==>
 bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
 (assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list_regular frame_list, status_running) (n+n') = SOME (aenv', g_scope_list'', arch_frame_list'', status_running))
 Proof
-Induct_on ‘n'’ >- (
- rpt strip_tac >>
- (* If zero steps were taken by bigstep_arch_exec, g_scope_list' and arch_frame_list
-  * must be preserved *)
- fs[bigstep_arch_exec_def, bigstep_arch_exec_zero] >>
- irule bigstep_arch_exec_zero >>
- fs[]
-) >>
 rpt strip_tac >>
-fs[] >>
-Cases_on ‘arch_frame_list'’ >- (
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- fs[bigstep_arch_exec_def]
-) >>
-Cases_on ‘l’ >- (
- imp_res_tac bigstep_arch_exec_SOME_g_scope >>
- fs[bigstep_arch_exec_def]
-) >>
-PairCases_on ‘h’ >>
-Cases_on ‘h2’ >- (
- (* TODO: Rule out empty scope list somehow... *)
- cheat
-) >>
-subgoal ‘arch_multi_exec ctx (aenv',g_scope_list',arch_frame_list_regular ((h0,h1,h::t')::t),status_running) (SUC n') =
-          SOME (aenv',g_scope_list'',arch_frame_list'',status_running)’ >- (
- PairCases_on ‘ctx’ >>
- PairCases_on ‘aenv'’ >>
- irule bigstep_arch_exec_sound_NONE >>
- (* Need the "sane state stuff" for the intermediate state (after n steps) *)
- rpt strip_tac >- (
-  fs[state_fin_exec_def] >>
-  Cases_on ‘t’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘h1’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘h'’ >> (
-   fs[]
-  ) >>
-  Cases_on ‘t’ >> (
-   fs[]
-  ) >>
-  (* Must rule out that the statement stack in the middle state is [stmt_empty] *)
-  imp_res_tac bigstep_arch_exec_SOME_g_scope >>
-  fs[] >>
-  subgoal ‘(arch_frame_list_regular [(h0,[stmt_empty],h::t')]) = arch_frame_list''’ >- (
-   fs[bigstep_arch_exec_def, bigstep_exec_def, bigstep_stmt_exec_def] >>
-   Cases_on ‘separate (h::(t' ++ [g_scope1; g_scope2]))’ >> Cases_on ‘q’ >> Cases_on ‘r’ >> (
-    fs[]
-   )
-  ) >>
-  imp_res_tac bigstep_arch_exec_arch_frame_list_unchanged >>
-  fs[]
- ) >- (
-  Cases_on ‘h0’ >> (
-   fs[in_local_fun'_def]
-  ) >>
-  Cases_on ‘n’ >> (
-   fs[]
-  ) >>
-  imp_res_tac arch_multi_exec_arch_frame_list_regular >>
-  fs[] >>
-  qexists_tac ‘g_scope_list'’ >>
-  fs[] >>
-  rpt strip_tac >| [
-   fs[tbl_to_pass_def] >>
-   Cases_on ‘ALOOKUP b_func_map s’ >> (
-    fs[]
-   ),
-
-   fs[map_to_pass_def] >>
-   Cases_on ‘ALOOKUP b_func_map s’ >> (
-    fs[]
-   ),
-
-   fs[scopes_to_pass_def] >>
-   Cases_on ‘ALOOKUP b_func_map s’ >> (
-    fs[]
-   ),
-
-   fs[scopes_to_retrieve_def] >>
-   Cases_on ‘ALOOKUP b_func_map s’ >> (
-    fs[]
-   )
-  ]
- ) >>
- Cases_on ‘h0’ >> (
-  fs[in_local_fun'_def]
- ) >>
- imp_res_tac bigstep_arch_exec_local >>
- fs[in_local_fun_def]
-) >>
 irule arch_multi_exec_comp_n_tl >>
-metis_tac[]
-(*
-subgoal ‘?g_scope_list''' arch_frame_list'''.
-         arch_multi_exec ctx (aenv',g_scope_list',arch_frame_list',status_running) 1 =
-          SOME (aenv',g_scope_list''',arch_frame_list''',status_running) /\
-         bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list''' arch_frame_list''' =
-          SOME (g_scope_list'',arch_frame_list'',n')’ >- (
- (* There must be an additional valid state after 1 step from n-step state, since
-  * the big-step execution takes n'+1 steps from this state.
-  * When executing the big-step semantics from this state, you reach the same end state
-  * as if executing the big-step semantics from n-step state. *)
- PairCases_on ‘ctx’ >>
- PairCases_on ‘aenv’ >>
- imp_res_tac in_local_fun'_imp >>
- gvs[] >>
- Cases_on ‘frame_list’ >- (
-  cheat
- ) >>
- PairCases_on ‘h’ >>
- imp_res_tac arch_multi_exec_imp >>
- (* TODO: Here, we should be able to extract lots of information from ctx and aenv
-  * from the fact that n steps were completed from starting from them. This can then be fed to
-  * bigstep_arch_exec_SOME_trace *)
- irule bigstep_arch_exec_SOME_trace >>
- PairCases_on ‘aenv'’ >>
- gs[arch_exec_init_sane_def] >>
- cheat
-) >>
-subgoal ‘arch_multi_exec ctx (aenv,g_scope_list,arch_frame_list,status_running) (SUC n) =
-          SOME (aenv',g_scope_list''',arch_frame_list''',status_running)’ >- (
- fs[SUC_ADD_ONE] >>
- irule arch_multi_exec_comp_n_tl >>
- qexistsl_tac [‘aenv'’, ‘arch_frame_list'’, ‘g_scope_list'’, ‘status_running’] >>
- fs[] >>
- cheat
-) >>
-fs[] >>
-subgoal ‘in_local_fun' (ctx:'a actx) arch_frame_list'3'’ >- (
- (* If big-step execution starts in a local function, all executions of equal or
-  * fewer steps must also remain in the same local function *)
- irule bigstep_arch_exec_local >>
- qexistsl_tac [‘aenv'’, ‘aenv'’, ‘arch_frame_list'’, ‘arch_frame_list''’, ‘g_scope_list'’,
-               ‘g_scope_list''’, ‘g_scope_list'3'’, ‘SUC n'’, ‘1’] >>
- fs[]
-) >>
-res_tac >>
-subgoal ‘n + SUC n' = n' + SUC n’ >- (
- decide_tac
-) >>
-ASM_REWRITE_TAC []
-*)
+imp_res_tac bigstep_arch_exec_SOME_imp >>
+gvs[] >>
+imp_res_tac bigstep_arch_exec_sound_n >>
+metis_tac[arch_multi_exec'_sound]
 QED
 
 Theorem bigstep_arch_exec_comp'_SOME:
