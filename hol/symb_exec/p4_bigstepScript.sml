@@ -1904,11 +1904,11 @@ Definition stmt_multi_exec'_check_state_def:
 End
 
 Theorem stmt_multi_exec'_check_state_second:
-!ascope g_scope1 g_scope2 funn stmt stmt' scope_list scope_list' state2 g_scope_list'.
-stmt_multi_exec'_check_state ((ascope, [g_scope1; g_scope2], [(funn, [stmt], scope_list)], status_running):'a state) state2 = SOME (ascope,g_scope_list',[(funn,[stmt'],scope_list')],status_running) ==>
+!stmts ascope g_scope1 g_scope2 funn stmt stmt' scope_list scope_list' state2 g_scope_list'.
+stmt_multi_exec'_check_state ((ascope, [g_scope1; g_scope2], [(funn, stmt::stmts, scope_list)], status_running):'a state) state2 = SOME (ascope,g_scope_list',[(funn,stmt'::stmts,scope_list')],status_running) ==>
 ?g_scope1' g_scope2'.
 g_scope_list' = [g_scope1'; g_scope2'] /\
-state2 = (ascope, g_scope_list', [(funn, [stmt'], scope_list')], status_running)
+state2 = (ascope, g_scope_list', [(funn, stmt'::stmts, scope_list')], status_running)
 Proof
 rpt strip_tac >>
 PairCases_on ‘state2’ >>
@@ -1934,13 +1934,12 @@ Cases_on ‘state23’ >> (
 Cases_on ‘h''1’ >- (
  fs[stmt_multi_exec'_check_state_def]
 ) >>
-Cases_on ‘t’ >- (
+Cases_on ‘t’ >> (
  qexistsl_tac [‘h’, ‘h'’] >>
  (* Odd looping issue here... *)
  FULL_SIMP_TAC pure_ss [stmt_multi_exec'_check_state_def] >>
  fs[]
-) >>
-fs[stmt_multi_exec'_check_state_def]
+)
 QED
 
 Definition stmt_multi_exec'_def:
@@ -1956,11 +1955,11 @@ Definition stmt_multi_exec'_def:
 End
 
 Theorem stmt_multi_exec'_SOME_imp:
-!ctx ascope g_scope1 g_scope2 funn stmt scope_list n ascope' g_scope_list' arch_frame_list' status'.
-stmt_multi_exec' (ctx:'a ctx) ((ascope, [g_scope1; g_scope2], [(funn, [stmt], scope_list)], status_running):'a state) n =
+!stmts ctx ascope g_scope1 g_scope2 funn stmt scope_list n ascope' g_scope_list' arch_frame_list' status'.
+stmt_multi_exec' (ctx:'a ctx) ((ascope, [g_scope1; g_scope2], [(funn, stmt::stmts, scope_list)], status_running):'a state) n =
  SOME ((ascope', g_scope_list', arch_frame_list', status'):'a state) ==>
 ascope = ascope' /\ ?g_scope1' g_scope2'. g_scope_list' = [g_scope1'; g_scope2'] /\
-?stmt' scope_list'. arch_frame_list' = [(funn, [stmt'], scope_list')] /\
+?stmt' scope_list'. arch_frame_list' = [(funn, stmt'::stmts, scope_list')] /\
 LENGTH scope_list = LENGTH scope_list' /\ status' = status_running
 Proof
 rpt gen_tac >> rpt disch_tac >>
@@ -1970,7 +1969,7 @@ Cases_on ‘n’ >> (
  metis_tac[]
 ) >>
 Cases_on ‘stmt_multi_exec' ctx
-             (ascope,[g_scope1; g_scope2],[(funn,[stmt],scope_list)],
+             (ascope,[g_scope1; g_scope2],[(funn,stmt::stmts,scope_list)],
               status_running) n'’ >> (
  fs[]
 ) >>
@@ -2002,8 +2001,9 @@ Cases_on ‘h''1’ >> (
 ) >>
 Cases_on ‘t’ >> (
  fs[stmt_multi_exec'_check_state_def]
-) >>
-metis_tac[]
+) >> (
+ metis_tac[]
+)
 QED
 
 Theorem bigstep_stmt_ass_exec_sound_n_not_v:
@@ -3248,8 +3248,8 @@ End
 
 Theorem bigstep_arch_exec_sound_n_stmt:
 !n h g_scope1 g_scope2 x0 g_scope_list' x2 ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map b_func_map pars_map tbl_map i in_out_list in_out_list' ascope funn h' t t' t''.
- stmt_multi_exec' ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map):'a ctx) (ascope, [g_scope1; g_scope2]:g_scope_list, [(funn,[h],h'::t'')], status_running) n =
- SOME (ascope,g_scope_list',[(funn, [x0], x2)],status_running) ==>
+ stmt_multi_exec' ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map):'a ctx) (ascope, [g_scope1; g_scope2]:g_scope_list, [(funn,h::t',h'::t'')], status_running) n =
+ SOME (ascope,g_scope_list',[(funn, x0::t', x2)],status_running) ==>
  arch_multi_exec' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx)
   ((i,in_out_list,in_out_list',ascope),[g_scope1; g_scope2],
    arch_frame_list_regular ((funn,h::t',h'::t'')::t),status_running) n =
@@ -3262,18 +3262,15 @@ Induct_on ‘n’ >> (
  fs[arch_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘stmt_multi_exec' (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-            (ascope,[g_scope1; g_scope2],[(funn,[h],h'::t'')],status_running)
+            (ascope,[g_scope1; g_scope2],[(funn,h::t',h'::t'')],status_running)
             n’ >> (
  fs[]
 ) >>
 PairCases_on ‘x’ >>
 fs[] >>
-(* TODO: Change stmt_multi_exec' to return NONE if any if the below are
- * broken. This shouldn't be any problem for soundness theorems since the bigstep
- * semantics keeps these invariants *)
 subgoal ‘x0' = ascope /\
          ?g_scope1' g_scope2'. x1 = [g_scope1'; g_scope2'] /\
-         ?stmt' scope_list'. x2' = [(funn,[stmt'],scope_list')] /\
+         ?stmt' scope_list'. x2' = [(funn,stmt'::t',scope_list')] /\
          x3 = status_running ’ >- (
  imp_res_tac stmt_multi_exec'_SOME_imp >>
  fs[]
@@ -3312,14 +3309,12 @@ Cases_on ‘t’ >> (
  ) >>
  fs[] >>
  Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-             (ascope,[g_scope1'; g_scope2'],[(funn,[stmt'],scope_list')],
+             (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::t',scope_list')],
               status_running)’ >> (
   fs[]
  ) >>
  imp_res_tac stmt_multi_exec'_check_state_second >>
  gvs[] >>
- imp_res_tac stmt_exec_lemma >>
- fs[] >>
  (* By locality *)
  subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
                [g_scope1''; g_scope2''] = SOME [g_scope1''; g_scope2'']’ >- (
@@ -3343,14 +3338,12 @@ subgoal ‘tbl_to_pass funn b_func_map tbl_map = SOME tbl_map’ >- (
  cheat
 ) >>
 Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-            (ascope,[g_scope1'; g_scope2'],[(funn,[stmt'],scope_list')],
+            (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::t',scope_list')],
              status_running)’ >> (
  fs[]
 ) >>
 imp_res_tac stmt_multi_exec'_check_state_second >>
 gvs[] >>
-imp_res_tac stmt_exec_lemma >>
-fs[] >>
 (* By locality *)
 subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
               [g_scope1''; g_scope2''] = SOME [g_scope1''; g_scope2'']’ >- (
@@ -3411,7 +3404,7 @@ fs[] >>
 res_tac >>
 PairCases_on ‘actx’ >>
 PairCases_on ‘aenv’ >>
-metis_tac[bigstep_arch_exec_sound_n_stmt]
+metis_tac[stmt_multi_exec'_stmt_stack, bigstep_arch_exec_sound_n_stmt]
 QED
 
 Theorem arch_multi_exec'_sound:
