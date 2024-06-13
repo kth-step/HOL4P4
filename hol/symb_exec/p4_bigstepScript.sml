@@ -1943,7 +1943,7 @@ Cases_on ‘t’ >> (
 QED
 
 Definition stmt_multi_exec'_def:
- (stmt_multi_exec' _ state 0 = stmt_multi_exec'_check_state state state)
+ (stmt_multi_exec' ctx state 0 = stmt_multi_exec'_check_state state state)
  /\
  (stmt_multi_exec' (ctx:'a ctx) state (SUC fuel) =
   case stmt_multi_exec' ctx state fuel of
@@ -1955,7 +1955,7 @@ Definition stmt_multi_exec'_def:
 End
 
 Theorem stmt_multi_exec'_SOME_imp:
-!stmts ctx ascope g_scope1 g_scope2 funn stmt scope_list n ascope' g_scope_list' arch_frame_list' status'.
+!ctx stmts ascope g_scope1 g_scope2 funn stmt scope_list n ascope' g_scope_list' arch_frame_list' status'.
 stmt_multi_exec' (ctx:'a ctx) ((ascope, [g_scope1; g_scope2], [(funn, stmt::stmts, scope_list)], status_running):'a state) n =
  SOME ((ascope', g_scope_list', arch_frame_list', status'):'a state) ==>
 ascope = ascope' /\ ?g_scope1' g_scope2'. g_scope_list' = [g_scope1'; g_scope2'] /\
@@ -1999,8 +1999,8 @@ Cases_on ‘x'3’ >> (
 Cases_on ‘h''1’ >> (
  fs[stmt_multi_exec'_check_state_def]
 ) >>
-Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+Cases_on ‘h''0’ >> (
+ gs[stmt_multi_exec'_check_state_def]
 ) >> (
  metis_tac[]
 )
@@ -2018,6 +2018,7 @@ stmt_multi_exec' (ctx:'a ctx)
        status_running)
 Proof
 Induct_on ‘n’ >- (
+ rpt strip_tac >>
  fs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 rpt strip_tac >>
@@ -2941,19 +2942,63 @@ Induct_on ‘h’ >> (
 ]
 QED
 
+Definition funn_is_local_or_global_def:
+ (funn_is_local_or_global (func_map:func_map) (b_func_map:b_func_map) funn =
+  case funn of
+  | funn_name x =>
+   (case ALOOKUP func_map x of
+    | NONE => IS_SOME $ ALOOKUP b_func_map x
+    | _ => T)
+  | _ => F
+)
+End
 
 Definition in_local_fun_def:
- (in_local_fun func_map (arch_frame_list_regular ((funn_name fname, stmt_stack, scope_list)::frame_list)) =
-  (ALOOKUP func_map fname = NONE)) /\
- (in_local_fun func_map _ = F)
+ (in_local_fun (func_map:func_map) (b_func_map:b_func_map) (arch_frame_list_regular [(funn_name fname, stmt_stack, scope_list)]) =
+  ((scope_list <> []) /\
+   (ALOOKUP func_map fname = NONE) /\ (IS_SOME $ ALOOKUP b_func_map fname))) /\
+ (in_local_fun func_map b_func_map (arch_frame_list_regular ((funn_name fname, stmt_stack, scope_list)::frame_list)) =
+  ((scope_list <> []) /\
+   (ALOOKUP func_map fname = NONE) /\ (IS_SOME $ ALOOKUP b_func_map fname))) /\
+ (in_local_fun _ _ _ = F)
 End
 
-(* TODO: Add constraint that scope_list must be non-empty *)
+(* Since stmt_exec yields NONE for execution starting in scope_list that is empty,
+ * and since the big-step semantics does not check the length of scope_list, a
+ * non-emptiness requirement on scope_list has been added here *)
 Definition in_local_fun'_def:
- (in_local_fun' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) (arch_frame_list_regular ((funn_name fname, stmt_stack, scope_list)::frame_list)) n =
-  ((ALOOKUP func_map fname = NONE) /\ n <> 0)) /\
- (in_local_fun' ctx _ _ = F)
+ (in_local_fun' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) i (arch_frame_list_regular [(funn_name fname, stmt_stack, scope_list)]) n =
+  ((scope_list <> []) /\
+   (ALOOKUP func_map fname = NONE) /\
+   (case EL i ab_list of
+    | arch_block_pbl x el =>
+     (case ALOOKUP pblock_map x of
+      | SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map) =>
+       IS_SOME $ ALOOKUP b_func_map fname
+      | NONE => F)
+    | _ => F) /\
+   n <> 0)) /\
+ (in_local_fun' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) i (arch_frame_list_regular ((funn_name fname, stmt_stack, scope_list)::frame_list)) n =
+  ((scope_list <> []) /\
+   (ALOOKUP func_map fname = NONE) /\
+   (case EL i ab_list of
+    | arch_block_pbl x el =>
+     (case ALOOKUP pblock_map x of
+      | SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map) =>
+       IS_SOME $ ALOOKUP b_func_map fname
+      | NONE => F)
+    | _ => F) /\
+   n <> 0)) /\
+ (in_local_fun' ctx _ _ _ = F)
 End
+
+Theorem in_local_fun'_imp:
+!ctx i arch_frame_list n.
+in_local_fun' ctx i arch_frame_list n ==> n <> 0
+Proof
+cheat
+QED
+
 
 (*
 Theorem bigstep_arch_exec_sound_NONE:
@@ -3236,6 +3281,30 @@ Cases_on ‘ALOOKUP x4' s'’ >> (
 gvs[]
 QED
 
+(*
+Definition arch_multi_exec'_check_state_def:
+ (arch_multi_exec'_check_state (((i,in_out_list,in_out_list',ascope), [g_scope1; g_scope2], arch_frame_list_regular [(funn, stmt::stmts, scope_list)], status_running):'a astate)
+                               (((i',in_out_list'',in_out_list''',ascope'), [g_scope1'; g_scope2'], arch_frame_list_regular [(funn', stmt'::stmts', scope_list')], status_running):'a astate) =
+  if ascope = ascope' /\ funn = funn' /\ stmts = stmts' /\ LENGTH scope_list = LENGTH scope_list' /\ i = i'
+  then SOME ((i',in_out_list'',in_out_list''',ascope'),
+             [g_scope1'; g_scope2'],
+             arch_frame_list_regular [(funn, stmt'::stmts, scope_list')], status_running)
+  else NONE
+)
+ /\
+ (arch_multi_exec'_check_state (((i,in_out_list,in_out_list',ascope), [g_scope1; g_scope2], arch_frame_list_regular ((funn, stmt::stmts, scope_list)::frame_list), status_running):'a astate)
+                               (((i',in_out_list'',in_out_list''',ascope'), [g_scope1'; g_scope2'], arch_frame_list_regular ((funn', stmt'::stmts', scope_list')::frame_list'), status_running):'a astate) =
+  if ascope = ascope' /\ funn = funn' /\ stmts = stmts' /\ LENGTH scope_list = LENGTH scope_list' /\ i = i' /\ frame_list = frame_list'
+  then SOME ((i',in_out_list'',in_out_list''',ascope'),
+             [g_scope1'; g_scope2'],
+             arch_frame_list_regular ((funn, stmt'::stmts, scope_list')::frame_list'), status_running)
+  else NONE
+)
+ /\
+ (arch_multi_exec'_check_state _ _ = NONE)
+End
+*)
+
 Definition arch_multi_exec'_def:
  (arch_multi_exec' _ astate 0 = SOME astate)
  /\
@@ -3243,11 +3312,34 @@ Definition arch_multi_exec'_def:
   case arch_multi_exec' actx astate fuel of
   | SOME astate' =>
    arch_exec actx astate'
+(*
+   (case arch_exec actx astate' of
+    | SOME astate'' => arch_multi_exec'_check_state astate astate''
+    | NONE => NONE)
+*)
   | _ => NONE)
 End
 
+(*
+Theorem arch_multi_exec'_SOME_imp:
+!stmts ctx i i' in_out_list in_out_list' in_out_list'' in_out_list''' ascope g_scope1 g_scope2 funn stmt scope_list frame_list n ascope' g_scope_list' arch_frame_list' status'.
+arch_multi_exec' (ctx:'a actx) (((i,in_out_list,in_out_list',ascope), [g_scope1; g_scope2], arch_frame_list_regular ((funn, stmt::stmts, scope_list)::frame_list), status_running):'a astate) n =
+ SOME (((i',in_out_list'',in_out_list''',ascope'), g_scope_list', arch_frame_list', status'):'a astate) ==>
+i = i' /\ ascope = ascope' /\ ?g_scope1' g_scope2'. g_scope_list' = [g_scope1'; g_scope2'] /\
+?stmt' scope_list'. arch_frame_list' = arch_frame_list_regular ((funn, stmt'::stmts, scope_list')::frame_list) /\
+LENGTH scope_list = LENGTH scope_list' /\ status' = status_running
+Proof
+cheat
+QED
+*)
+
 Theorem bigstep_arch_exec_sound_n_stmt:
-!n h g_scope1 g_scope2 x0 g_scope_list' x2 ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map b_func_map pars_map tbl_map i in_out_list in_out_list' ascope funn h' t t' t''.
+!n h g_scope1 g_scope2 x0 g_scope_list' x2 ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map b_func_map pars_map tbl_map i in_out_list in_out_list' ascope funn h' t t' t'' x' el pbl_type x_d_list decl_list.
+
+EL i ab_list = arch_block_pbl x' el ==>
+ALOOKUP pblock_map x' = SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map) ==>
+in_local_fun func_map b_func_map (arch_frame_list_regular [(funn,x0::t',x2)]) ==>
+
  stmt_multi_exec' ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map):'a ctx) (ascope, [g_scope1; g_scope2]:g_scope_list, [(funn,h::t',h'::t'')], status_running) n =
  SOME (ascope,g_scope_list',[(funn, x0::t', x2)],status_running) ==>
  arch_multi_exec' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx)
@@ -3276,67 +3368,6 @@ subgoal ‘x0' = ascope /\
  fs[]
 ) >>
 fs[] >>
-res_tac >>
-fs[arch_exec_def] >>
-(* From top-level soundness theorem/ composition theorem *)
-subgoal ‘?x el. EL i ab_list = arch_block_pbl x el’ >- (
- cheat
-) >>
-fs[] >>
-subgoal ‘?pbl_type x_d_list decl_list. ALOOKUP pblock_map x = SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map)’ >- (
- cheat
-) >>
-fs[] >>
-subgoal ‘~state_fin_exec status_running ((funn,stmt'::t',scope_list')::t)’ >- (
- cheat
-) >>
-Cases_on ‘t’ >> (
- fs[]
-) >- (
- fs[frames_exec] >>
- (* Needs all the to-pass information + identification of components of stmt_exec
-  * possibly that scope_list' is non-empty *)
- gvs[] >>
- (* Since we're in a local function - get this premise from above *)
- subgoal ‘scopes_to_pass funn func_map b_func_map [g_scope1'; g_scope2'] = SOME [g_scope1'; g_scope2']’ >- (
-  cheat
- ) >>
- subgoal ‘map_to_pass funn b_func_map = SOME b_func_map’ >- (
-  cheat
- ) >>
- subgoal ‘tbl_to_pass funn b_func_map tbl_map = SOME tbl_map’ >- (
-  cheat
- ) >>
- fs[] >>
- Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-             (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::t',scope_list')],
-              status_running)’ >> (
-  fs[]
- ) >>
- imp_res_tac stmt_multi_exec'_check_state_second >>
- gvs[] >>
- (* By locality *)
- subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
-               [g_scope1''; g_scope2''] = SOME [g_scope1''; g_scope2'']’ >- (
-  cheat
- ) >>
- fs[]
-) >>
-PairCases_on ‘h''’ >>
-(* Identical to the previous case below this point *)
-fs[frames_exec] >>
-(* Needs all the to-pass information + identification of components of stmt_exec
- * possibly that scope_list' is non-empty *)
-gvs[] >>
-subgoal ‘scopes_to_pass funn func_map b_func_map [g_scope1'; g_scope2'] = SOME [g_scope1'; g_scope2']’ >- (
- cheat
-) >>
-subgoal ‘map_to_pass funn b_func_map = SOME b_func_map’ >- (
- cheat
-) >>
-subgoal ‘tbl_to_pass funn b_func_map tbl_map = SOME tbl_map’ >- (
- cheat
-) >>
 Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
             (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::t',scope_list')],
              status_running)’ >> (
@@ -3344,18 +3375,97 @@ Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_ma
 ) >>
 imp_res_tac stmt_multi_exec'_check_state_second >>
 gvs[] >>
-(* By locality *)
+subgoal ‘in_local_fun
+         func_map b_func_map
+         (arch_frame_list_regular [(funn,stmt'::t',scope_list')])’ >- (
+ Cases_on ‘funn’ >> (
+  fs[in_local_fun_def]
+ ) >>
+ imp_res_tac stmt_multi_exec'_SOME_imp >>
+ Cases_on ‘scope_list''’ >> (
+  fs[]
+ )
+) >>
+res_tac >>
+fs[arch_exec_def] >>
+Cases_on ‘t’ >> (
+ fs[]
+) >- (
+ fs[frames_exec] >>
+ (* From top-level soundness theorem/ composition theorem *)
+ subgoal ‘~state_fin_exec status_running [(funn,stmt'::t',scope_list')]’ >- (
+  fs[state_fin_exec_def] >>
+  Cases_on ‘stmt'’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘t'’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘scope_list'’ >> (
+   fs[stmt_exec]
+  )
+ ) >>
+ fs[] >>
+ (* Needs all the to-pass information + identification of components of stmt_exec
+  * possibly that scope_list' is non-empty *)
+ (* Since we're in a local function - get this premise from above *)
+ subgoal ‘scopes_to_pass funn func_map b_func_map [g_scope1'; g_scope2'] = SOME [g_scope1'; g_scope2'] /\
+          map_to_pass funn b_func_map = SOME b_func_map /\
+          tbl_to_pass funn b_func_map tbl_map = SOME tbl_map’ >- (
+  Cases_on ‘funn’ >> (
+   fs[in_local_fun_def, scopes_to_pass_def, map_to_pass_def, tbl_to_pass_def]
+  ) >>
+  Cases_on ‘ALOOKUP b_func_map s’ >> (
+   fs[]
+  )
+ ) >>
+ fs[] >>
+ gvs[] >>
+ subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
+               [g_scope1''; g_scope2''] = SOME [g_scope1''; g_scope2'']’ >- (
+  Cases_on ‘funn’ >> (
+   fs[in_local_fun_def, scopes_to_retrieve_def]
+  ) >>
+  CASE_TAC
+ ) >>
+ fs[]
+) >>
+PairCases_on ‘h''’ >>
+fs[frames_exec, state_fin_exec_def] >>
+(* Needs all the to-pass information + identification of components of stmt_exec
+ * possibly that scope_list' is non-empty *)
+gvs[] >>
+subgoal ‘scopes_to_pass funn func_map b_func_map [g_scope1'; g_scope2'] = SOME [g_scope1'; g_scope2'] /\
+          map_to_pass funn b_func_map = SOME b_func_map /\
+          tbl_to_pass funn b_func_map tbl_map = SOME tbl_map’ >- (
+ Cases_on ‘funn’ >> (
+  fs[in_local_fun_def, scopes_to_pass_def, map_to_pass_def, tbl_to_pass_def]
+ ) >>
+ Cases_on ‘ALOOKUP b_func_map s’ >> (
+  fs[]
+ )
+) >>
 subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
               [g_scope1''; g_scope2''] = SOME [g_scope1''; g_scope2'']’ >- (
- cheat
+ Cases_on ‘funn’ >> (
+  fs[in_local_fun_def, scopes_to_retrieve_def]
+ ) >>
+ CASE_TAC
 ) >>
 fs[]
 QED
 
 Theorem bigstep_arch_exec_sound_n:
-!n g_scope_list g_scope_list' frame_list frame_list' aenv actx.
+!n func_map g_scope_list g_scope_list' frame_list frame_list' x el pbl_type x_d_list b_func_map decl_list pars_map tbl_map ab_list pblock_map ffblock_map input_f output_f copyin_pbl
+           copyout_pbl apply_table_f ext_map i in_out_list in_out_list' ascope.
+
+EL i ab_list = arch_block_pbl x el ==>
+ALOOKUP pblock_map x = SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map) ==>
+in_local_fun func_map b_func_map (arch_frame_list_regular frame_list) ==>
+
 bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list (arch_frame_list_regular frame_list) = SOME (g_scope_list', (arch_frame_list_regular frame_list'), n) ==>
-arch_multi_exec' (actx:'a actx) ((aenv:'a aenv), g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME (aenv, g_scope_list', arch_frame_list_regular frame_list', status_running)
+arch_multi_exec' ((ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
+           copyout_pbl,apply_table_f,ext_map,func_map):'a actx) (((i,in_out_list,in_out_list',ascope):'a aenv), g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list_regular frame_list', status_running)
 Proof
 Cases_on ‘frame_list’ >- (
  rpt strip_tac >>
@@ -3376,16 +3486,16 @@ Cases_on ‘h'1’ >> (
 Cases_on ‘bigstep_exec NONE ([g_scope1; g_scope2],h'2) h'’ >> (
  fs[]
 ) >>
-PairCases_on ‘x’ >>
+PairCases_on ‘x'’ >>
 fs[] >>
 gvs[] >>
 fs[bigstep_exec_def] >>
 Cases_on ‘bigstep_stmt_exec NONE (h'2 ++ [g_scope1; g_scope2]) h' 0’ >> (
  fs[]
 ) >>
-PairCases_on ‘x’ >>
+PairCases_on ‘x'’ >>
 fs[] >>
-Cases_on ‘separate x1’ >> (
+Cases_on ‘separate x'1’ >> (
  fs[]
 ) >>
 Cases_on ‘q’ >> (
@@ -3397,14 +3507,31 @@ Cases_on ‘r’ >> (
 gvs[] >>
 (* Scope list non-empty should probably be added to in_local_fun' assumption, which can then be passed along to this theorem *)
 Cases_on ‘h'2’ >- (
- cheat
+ Cases_on ‘h'0’ >> (
+  fs[in_local_fun_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[in_local_fun_def]
+ )
 ) >>
 imp_res_tac bigstep_stmt_exec_sound_n >>
 fs[] >>
 res_tac >>
-PairCases_on ‘actx’ >>
-PairCases_on ‘aenv’ >>
-metis_tac[stmt_multi_exec'_stmt_stack, bigstep_arch_exec_sound_n_stmt]
+irule bigstep_arch_exec_sound_n_stmt >>
+Cases_on ‘h'0’ >> (
+ fs[in_local_fun_def]
+) >>
+strip_tac >- (
+ metis_tac[stmt_multi_exec'_stmt_stack]
+) >>
+Cases_on ‘t’ >> (
+ fs[in_local_fun_def] >>
+ qpat_x_assum ‘!funn. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘funn’, ‘ctx’, ‘ascope’] thm)) >>
+ imp_res_tac stmt_multi_exec'_SOME_imp >>
+ Cases_on ‘scope_list'’ >> (
+  fs[]
+ )
+)
 QED
 
 Theorem arch_multi_exec'_sound:
@@ -3463,26 +3590,50 @@ QED
 
 
 Theorem bigstep_arch_exec_comp'_NONE:
-!n' n assl ctx g_scope_list frame_list aenv' g_scope_list' g_scope_list'' arch_frame_list' arch_frame_list'' aenv.
-(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME (aenv', g_scope_list', arch_frame_list', status_running)) ==>
-in_local_fun' (ctx:'a actx) arch_frame_list' n ==>
+!n' n assl ctx g_scope_list frame_list i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' arch_frame_list' arch_frame_list'' aenv.
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) ==>
+in_local_fun' (ctx:'a actx) i arch_frame_list' n ==>
 bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
-(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list_regular frame_list, status_running) (n+n') = SOME (aenv', g_scope_list'', arch_frame_list'', status_running))
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list_regular frame_list, status_running) (n+n') = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list'', arch_frame_list'', status_running))
 Proof
 rpt strip_tac >>
 irule arch_multi_exec_comp_n_tl >>
 imp_res_tac bigstep_arch_exec_SOME_imp >>
 gvs[] >>
+PairCases_on ‘ctx’ >>
+subgoal ‘?x el. EL i ctx0 = arch_block_pbl x el /\
+         ?pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
+          ALOOKUP ctx1 x =
+           SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map)’ >- (
+ imp_res_tac in_local_fun'_imp >>
+ Cases_on ‘n’ >> (
+  fs[]
+ ) >>
+ imp_res_tac arch_multi_exec_arch_frame_list_regular >>
+ metis_tac[]
+) >>
+subgoal ‘in_local_fun ctx9 b_func_map (arch_frame_list_regular frame_list')’ >- (
+ Cases_on ‘frame_list'’ >> (
+  fs[in_local_fun'_def, in_local_fun_def]
+ ) >>
+ PairCases_on ‘h’ >>
+ Cases_on ‘h0’ >> (
+  fs[in_local_fun'_def, in_local_fun_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[in_local_fun'_def, in_local_fun_def]
+ )
+) >>
 imp_res_tac bigstep_arch_exec_sound_n >>
 metis_tac[arch_multi_exec'_sound]
 QED
 
 Theorem bigstep_arch_exec_comp'_SOME:
-!assl ctx g_scope_list arch_frame_list status aenv' g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n aenv.
-(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status) n = SOME (aenv', g_scope_list', arch_frame_list', status_running)) ==>
-in_local_fun' ctx arch_frame_list' n ==>
-bigstep_arch_exec' (SOME (aenv', ctx)) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
-(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME (aenv', g_scope_list'', arch_frame_list'', status_running))
+!assl ctx g_scope_list arch_frame_list status i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n aenv.
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) ==>
+in_local_fun' ctx i arch_frame_list' n ==>
+bigstep_arch_exec' (SOME ((i,in_out_list,in_out_list',ascope), ctx)) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list'', arch_frame_list'', status_running))
 Proof
 cheat
 QED
