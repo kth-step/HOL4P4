@@ -2993,10 +2993,24 @@ Definition in_local_fun'_def:
 End
 
 Theorem in_local_fun'_imp:
-!ctx i arch_frame_list n.
+!(ctx:'a actx) i arch_frame_list n.
 in_local_fun' ctx i arch_frame_list n ==> n <> 0
 Proof
-cheat
+rpt strip_tac >>
+PairCases_on ‘ctx’ >>
+Cases_on ‘arch_frame_list’ >> (
+ fs[in_local_fun'_def]
+) >>
+Cases_on ‘l’ >> (
+ fs[in_local_fun'_def]
+) >>
+PairCases_on ‘h’ >>
+Cases_on ‘h0’ >> (
+ fs[in_local_fun'_def]
+) >>
+Cases_on ‘t’ >> (
+ fs[in_local_fun'_def]
+)
 QED
 
 
