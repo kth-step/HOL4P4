@@ -693,7 +693,6 @@ e_exec ctx g_scope_list scope_list e = SOME (e',frame_list') ==>
 (frame_list' = [] \/
  ?funn stmt scope. frame_list' = [(funn, [stmt], [scope])])
 Proof
-cheat (*
 `!ctx g_scope_list scope_list e.
  (\ctx' g_scope_list' scope_list' e'.
   !e'' frame_list''.
@@ -1022,7 +1021,7 @@ rpt strip_tac >| [
  Cases_on `is_v e` >> (
   fs []
  ) >| [
-  Cases_on `e_exec_select e v_x_l x` >> (
+  Cases_on `e_exec_select e s_l_x_l x` >> (
    fs []
   ),
 
@@ -1063,7 +1062,6 @@ rpt strip_tac >| [
   fs []
  )
 ]
-*)
 QED
 
 Theorem exec_stmt_ass_SOME_REWRS:
