@@ -412,6 +412,21 @@ Cases_on `P h` >> (
 )
 QED
 
+Theorem INDEX_FIND_SOME_EXISTS:
+!l i P.
+IS_SOME $ INDEX_FIND i P l <=> (EXISTS P l)
+Proof
+rpt strip_tac >>
+eq_tac >> (
+ strip_tac >>
+ CCONTR_TAC
+) >- (
+ imp_res_tac (GSYM INDEX_FIND_NONE_EXISTS) >>
+ fs[]
+) >>
+FULL_SIMP_TAC std_ss [INDEX_FIND_NONE_EXISTS]
+QED
+
 Theorem INDEX_FIND_NONE_EVERY:
 !l P.
 (INDEX_FIND 0 (\x. ~P x) l = NONE) ==>
@@ -464,6 +479,49 @@ Cases_on `INDEX_FIND 0 (\e. ~is_const e) el` >> (
  Cases_on `x` >>
  fs []
 ]
+QED
+
+Theorem is_v_is_const:
+!e. is_v e = is_const e
+Proof
+strip_tac >>
+Cases_on ‘e’ >> (
+ fs[is_v, is_const_def]
+)
+QED
+
+(* TODO: Merge with the above? *)
+Theorem EVERY_is_v_unred_mem_index:
+!e_l.
+EVERY is_v e_l ==>
+unred_mem_index e_l = NONE
+Proof
+rpt strip_tac >>
+CCONTR_TAC >>
+fs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS] >>
+imp_res_tac unred_mem_not_const >>
+fs[is_consts_def] >>
+FULL_SIMP_TAC pure_ss [EVERY_NOT_EXISTS] >>
+fs[is_v_is_const] >>
+metis_tac[EVERY_NOT_EXISTS]
+QED
+
+Theorem not_EVERY_is_v_unred_mem_index:
+!e_l.
+~EVERY is_v e_l ==>
+?i. unred_mem_index e_l = SOME i
+Proof
+rpt strip_tac >>
+fs [unred_mem_index_def, unred_mem_def, is_consts_def, ZIP_def, INDEX_FIND_def] >>
+Cases_on ‘INDEX_FIND 0 (\e. ~is_const e) e_l’ >> (
+ fs[]
+) >- (
+ imp_res_tac INDEX_FIND_NONE_EVERY >>
+ fs[GSYM is_v_is_const] >>
+ metis_tac[EVERY_NOT_EXISTS]
+) >>
+PairCases_on ‘x’ >>
+fs[]
 QED
 
 (* TODO: Bake this into the definition instead? *)
