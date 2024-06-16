@@ -2025,6 +2025,48 @@ val exec_stmt_REWRS =
    exec_stmt_seq_SOME_REWRS];
 *)
 
+
+(* Reduction of a single statement is invariant over the addition of a lower statement stack. *)
+(* Converse to stmt_exec_block *)
+Theorem stmt_exec_lemma:
+!ctx ascope g_scope1 g_scope2 g_scope1' g_scope2' funn stmt stmt' stmts scope_list scope_list'.
+stmt_exec (ctx:'a ctx)
+          (ascope,[g_scope1; g_scope2],[(funn,[stmt],scope_list)],
+           status_running) =
+ SOME (ascope,[g_scope1'; g_scope2'],[(funn,[stmt'],scope_list')],status_running) ==>
+stmt_exec (ctx:'a ctx)
+               (ascope,[g_scope1; g_scope2],[(funn,stmt::stmts,scope_list)],
+                status_running) =
+ SOME (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::stmts,scope_list')],status_running)
+Proof
+Induct_on ‘stmt’ >- (
+ rpt strip_tac >>
+ Cases_on ‘scope_list’ >> (
+  fs[stmt_exec]
+ )
+) >- (
+ fs[exec_stmt_ass_SOME_REWRS]
+) >- (
+ fs[exec_stmt_cond_SOME_REWRS]
+) >- (
+ fs[exec_stmt_block_SOME_REWRS]
+) >- (
+ fs[exec_stmt_ret_SOME_REWRS]
+) >- (
+ fs[exec_stmt_seq_SOME_REWRS]
+) >- (
+ fs[exec_stmt_trans_SOME_REWRS]
+) >- (
+ rpt strip_tac >>
+ PairCases_on ‘ctx’ >>
+ fs[exec_stmt_app_SOME_REWRS]
+) >- (
+ rpt strip_tac >>
+ PairCases_on ‘ctx’ >>
+ fs[exec_stmt_ext_SOME_REWRS]
+)
+QED
+
 (* This states an invariant of the steps where the final status is Return *)
 Theorem stmt_exec_status_returnv_inv:
 !ctx ascope ascope' g_scope_list g_scope_list' funn stmt_stack scope_list frame_list' v.
@@ -2543,6 +2585,137 @@ Proof
 rpt strip_tac >>
 gs [] >>
 fs [arch_multi_exec_add]
+QED
+
+Theorem arch_multi_exec_arch_frame_list_regular:
+!ab_list pblock_map ffblock_map input_f output_f copyin_pbl
+ copyout_pbl apply_table_f ext_map func_map aenv g_scope_list g_scope_list' frame_list frame_list' n i io_list io_list' ascope.
+arch_multi_exec (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
+        copyout_pbl,apply_table_f,ext_map,func_map)
+          (aenv,g_scope_list,arch_frame_list_regular frame_list,
+           status_running) (SUC n) =
+        SOME
+          ((i,io_list,io_list',ascope),g_scope_list',
+           arch_frame_list_regular frame_list',status_running) ==>
+?x el pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
+ EL i ab_list = arch_block_pbl x el /\
+ ALOOKUP pblock_map x =
+          SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map)
+Proof
+rpt strip_tac >>
+fs[SUC_ADD_ONE] >>
+FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_SYM] >>
+fs[arch_multi_exec_add] >>
+Cases_on ‘arch_multi_exec
+             (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
+              copyout_pbl,apply_table_f,ext_map,func_map)
+             (aenv,g_scope_list,arch_frame_list_regular frame_list,
+              status_running) n’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[] >>
+FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ONE] >>
+fs[arch_multi_exec] >>
+Cases_on ‘x5’ >- (
+ Cases_on ‘x6’ >> (
+  fs[arch_exec_def]
+ ) >>
+ Cases_on ‘EL x0 ab_list’ >> (
+  fs[]
+ ) >| [
+  Cases_on ‘input_f (x1,x3)’ >> (
+   fs[]
+  ) >>
+  PairCases_on ‘x’ >>
+  fs[],
+
+  Cases_on ‘ALOOKUP pblock_map s’ >> (
+   fs[]
+  ) >>
+  PairCases_on ‘x’ >>
+  fs[] >>
+  Cases_on ‘lookup_block_body s x2'’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘LENGTH l = LENGTH x1'’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘copyin_pbl (MAP FST x1',MAP SND x1',l,x3)’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘oLASTN 1 x4’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘x''’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘t’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘initialise_var_stars func_map x2' ext_map
+               [declare_list_in_scope (x3',x'); h]’ >> (
+   fs[]
+  ) >>
+  gvs[],
+
+  Cases_on ‘ALOOKUP ffblock_map s’ >> (
+   fs[]
+  ) >>
+  Cases_on ‘x’ >>
+  fs[] >>
+  Cases_on ‘f x3’ >> (
+   fs[]
+  ),
+
+  Cases_on ‘output_f (x2,x3)’ >> (
+   fs[]
+  ) >>
+  PairCases_on ‘x’ >>
+  fs[]
+ ]
+) >>
+fs[arch_exec_def] >>
+Cases_on ‘EL x0 ab_list’ >> (
+ fs[]
+) >>
+Cases_on ‘ALOOKUP pblock_map s’ >> (
+ fs[]
+) >>
+PairCases_on ‘x’ >>
+fs[] >>
+Cases_on ‘state_fin_exec x6 l’ >> (
+ fs[]
+) >- (
+ Cases_on ‘lookup_block_body s x2'’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘LENGTH l' = LENGTH x1'’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘copyout_pbl
+              (x4,x3,MAP SND x1',MAP FST x1',set_fin_status x0' x6)’ >> (
+  fs[]
+ )
+) >>
+Cases_on ‘x6’ >> (
+ fs[]
+) >- (
+ Cases_on ‘frames_exec (apply_table_f,ext_map,func_map,x2',x4',x5)
+              (x3,x4,l,status_running)’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ gvs[]
+) >>
+Cases_on ‘x0'’ >> (
+ fs[]
+) >>
+Cases_on ‘ALOOKUP x4' s'’ >> (
+ fs[]
+) >>
+gvs[]
 QED
 
         
