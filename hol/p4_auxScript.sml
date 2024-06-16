@@ -2414,6 +2414,57 @@ Definition ext_map_replace_impl_def:
  )
 End
 
+Theorem assign_LENGTH:
+!scope_list v lval scope_list'.
+assign scope_list v lval = SOME scope_list' ==>
+LENGTH scope_list' = LENGTH scope_list
+Proof
+Induct_on ‘lval’ >> (
+ fs[assign_def]
+) >| [
+ rpt strip_tac >>
+ Cases_on ‘find_topmost_map scope_list v’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘lookup_out scope_list v’ >> (
+  fs[]
+ ) >>
+ metis_tac[listTheory.LENGTH_LUPDATE],
+
+ rpt strip_tac >>
+ Cases_on ‘lookup_lval scope_list lval’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘x’ >> (
+  fs[]
+ ) >> (
+  Cases_on ‘INDEX_OF s (MAP FST l)’ >> (
+   fs[]
+  ) >>
+  res_tac
+ ),
+
+ rpt strip_tac >>
+ Cases_on ‘v’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘lookup_lval scope_list lval’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘x’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘assign_to_slice p p' e0 e’ >> (
+  fs[]
+ ) >>
+ res_tac,
+
+ metis_tac[]
+]
+QED
+
 (*************************)
 (* Types with parameters *)
 
