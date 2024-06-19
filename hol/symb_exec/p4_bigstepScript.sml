@@ -1688,7 +1688,7 @@ fs[]
 QED
 
 (* TODO: rename "fuel" to "nsteps" or something else, since it has to do with a
- * complelled number of reductions *)
+ * compelled number of reductions *)
 
 (* This will just yield NONE for new frames *)
 Definition e_multi_exec_def:
@@ -2566,6 +2566,145 @@ Cases_on ‘t’ >> (
 )
 QED
 
+Theorem stmt_multi_exec'_check_state_eq_NONE:
+!ascope g_scope_list frame_list status.
+stmt_multi_exec'_check_state (ascope,g_scope_list,frame_list,status)
+ (ascope,g_scope_list,frame_list,status) = NONE <=>
+(status <> status_running) \/ (LENGTH g_scope_list <> 2) \/
+~(?funn stmt stmts scope_list.
+  frame_list = [(funn,stmt::stmts,scope_list)])
+Proof
+rpt strip_tac >>
+eq_tac >> (
+ Cases_on ‘g_scope_list’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘status’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘frame_list’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ PairCases_on ‘h''’ >>
+ Cases_on ‘h''1’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ )
+)
+QED
+
+Theorem stmt_multi_exec'_check_state_NONE:
+!ascope g_scope_list frame_list status ascope' g_scope_list' frame_list' status'.
+stmt_multi_exec'_check_state (ascope,g_scope_list,frame_list,status)
+ (ascope',g_scope_list',frame_list',status') = NONE <=>
+(ascope <> ascope') \/
+(status <> status_running) \/ (status' <> status_running) \/
+(LENGTH g_scope_list <> 2) \/ (LENGTH g_scope_list' <> 2) \/
+~(?funn stmt stmt' stmts scope_list scope_list'.
+  frame_list = [(funn,stmt::stmts,scope_list)] /\
+  frame_list' = [(funn,stmt'::stmts,scope_list')] /\ LENGTH scope_list = LENGTH scope_list')
+Proof
+rpt strip_tac >>
+eq_tac >- (
+ Cases_on ‘g_scope_list’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘status’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘frame_list’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ PairCases_on ‘h''’ >>
+ Cases_on ‘h''1’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘frame_list'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ PairCases_on ‘h'3'’ >>
+ Cases_on ‘h'''1’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘status'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ rpt strip_tac >>
+ gvs[stmt_multi_exec'_check_state_def] >>
+ Cases_on ‘g_scope_list'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ )
+) >>
+rpt strip_tac >>
+Cases_on ‘g_scope_list’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘frame_list’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+PairCases_on ‘h''’ >>
+Cases_on ‘status’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘h''1’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘g_scope_list'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t''’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘frame_list'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+PairCases_on ‘h'5'’ >>
+Cases_on ‘status'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘h'''''1’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+)
+QED
+
 Definition stmt_multi_exec'_def:
  (stmt_multi_exec' ctx state 0 = stmt_multi_exec'_check_state state state)
  /\
@@ -2627,6 +2766,30 @@ Cases_on ‘h''0’ >> (
  gs[stmt_multi_exec'_check_state_def]
 ) >> (
  metis_tac[]
+)
+QED
+
+Theorem stmt_multi_exec'_imp_NONE:
+!ctx stmts ascope g_scope_list frame_list n status.
+(status <> status_running \/ LENGTH g_scope_list <> 2 \/
+ ~(?funn stmt stmts scope_list.
+  frame_list = [(funn,stmt::stmts,scope_list)])) ==>
+stmt_multi_exec' (ctx:'a ctx) ((ascope, g_scope_list, frame_list, status):'a state) n = NONE
+Proof
+rpt strip_tac >> (
+ Cases_on ‘n’ >> (
+   fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ ) >- (
+  metis_tac[stmt_multi_exec'_check_state_NONE]
+ ) >>
+ Cases_on ‘stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n'’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘stmt_exec ctx x’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x'’ >>
+ metis_tac[stmt_multi_exec'_check_state_NONE]
 )
 QED
 
@@ -2984,7 +3147,55 @@ Theorem stmt_multi_exec'_check_state_SOME:
 stmt_multi_exec'_check_state state1 state2 = SOME state3 ==>
 state3 = state2
 Proof
-cheat
+rpt strip_tac >>
+(* Cases of state1 *)
+PairCases_on ‘state1’ >>
+Cases_on ‘state11’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘state12’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+PairCases_on ‘h''’ >>
+Cases_on ‘state13’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘h''1’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+(* Cases of state2 *)
+PairCases_on ‘state2’ >>
+Cases_on ‘state21’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t''’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘state22’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+PairCases_on ‘h'5'’ >>
+Cases_on ‘state23’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘h'''''1’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+)
 QED
 
 Theorem stmt_multi_exec'_check_state_id:
@@ -2992,30 +3203,116 @@ Theorem stmt_multi_exec'_check_state_id:
 stmt_multi_exec'_check_state state1 state2 = SOME state3 ==>
 stmt_multi_exec'_check_state state3 state3 = SOME state3
 Proof
-cheat
+rpt strip_tac >>
+(* Cases of state1 *)
+PairCases_on ‘state1’ >>
+Cases_on ‘state11’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘state12’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+PairCases_on ‘h''’ >>
+Cases_on ‘state13’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘h''1’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+(* Cases of state2 *)
+PairCases_on ‘state2’ >>
+Cases_on ‘state21’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t''’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘state22’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘t'’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+PairCases_on ‘h'5'’ >>
+Cases_on ‘state23’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+Cases_on ‘h'''''1’ >> (
+ fs[stmt_multi_exec'_check_state_def]
+) >>
+gvs[stmt_multi_exec'_check_state_def]
 QED
 
+(* TODO: Merge with stmt_multi_exec'_check_state_SOME? *)
 Theorem stmt_multi_exec'_check_state_imp:
 !st1 st2 st3 st4 st'1 st'2 st'3 st'4.
 stmt_multi_exec'_check_state (st1, st2, st3, st4) (st'1, st'2, st'3, st'4) = SOME (st'1, st'2, st'3, st'4) ==>
 st1 = st'1 /\ st4 = status_running /\ st'4 = status_running /\
 LENGTH st2 = 2 /\ LENGTH st'2 = 2 /\
-?funn stmt stmt' stmts scope_list.
+?funn stmt stmt' stmts scope_list scope_list'.
  st3 = [(funn,stmt::stmts,scope_list)] /\
- st'3 = [(funn,stmt'::stmts,scope_list)]
+ st'3 = [(funn,stmt'::stmts,scope_list')] /\ LENGTH scope_list = LENGTH scope_list'
 Proof
-cheat
-QED
-
-Theorem stmt_multi_exec'_check_state_NONE:
-!ascope g_scope_list frame_list status.
-stmt_multi_exec'_check_state (ascope,g_scope_list,frame_list,status)
- (ascope,g_scope_list,frame_list,status) = NONE ==>
-(status <> status_running) \/ (LENGTH g_scope_list <> 2) \/
-~(?funn stmt stmts scope_list.
-  frame_list = [(funn,stmt::stmts,scope_list)])
-Proof
-cheat
+rpt strip_tac >> (
+ (* Cases of st1 *)
+ Cases_on ‘st2’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘st3’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ PairCases_on ‘h''’ >>
+ Cases_on ‘st4’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘h''1’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ (* Cases of st2 *)
+ Cases_on ‘st'2’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t''’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘st'3’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘t'’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ PairCases_on ‘h'5'’ >>
+ Cases_on ‘st'4’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ ) >>
+ Cases_on ‘h'''''1’ >> (
+  fs[stmt_multi_exec'_check_state_def]
+ )
+)
 QED
 
 Theorem test_thm:
@@ -3083,7 +3380,7 @@ subgoal ‘x0 = x''0 /\ x3 = status_running /\ x''3 = status_running /\
          LENGTH x1 = 2 /\ LENGTH x''1 = 2 /\
          ?funn stmt stmt' stmts scope_list scope_list'.
          x2 = [(funn,stmt::stmts,scope_list)] /\
-         x''2 = [(funn,stmt'::stmts,scope_list)]’ >- (
+         x''2 = [(funn,stmt'::stmts,scope_list')] /\ LENGTH scope_list = LENGTH scope_list'’ >- (
  imp_res_tac stmt_multi_exec'_check_state_SOME >>
  gvs[] >>
  imp_res_tac stmt_multi_exec'_check_state_imp >>
@@ -3128,29 +3425,29 @@ Cases_on ‘h''''''1’ >> (
 )
 QED
 
-Theorem stmt_multi_exec'_NONE_status:
+Triviality stmt_multi_exec'_NONE_status:
 !ctx n ascope g_scope_list frame_list status.
 status <> status_running ==>
 stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n = NONE
 Proof
-cheat
+metis_tac[stmt_multi_exec'_imp_NONE]
 QED
 
-Theorem stmt_multi_exec'_NONE_g_scope_list:
+Triviality stmt_multi_exec'_NONE_g_scope_list:
 !ctx n ascope g_scope_list frame_list status.
 LENGTH g_scope_list <> 2 ==>
 stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n = NONE
 Proof
-cheat
+metis_tac[stmt_multi_exec'_imp_NONE]
 QED
 
-Theorem stmt_multi_exec'_NONE_frame_list:
+Triviality stmt_multi_exec'_NONE_frame_list:
 !ctx n ascope g_scope_list frame_list status.
 ~(?funn stmt stmts scope_list.
   frame_list = [(funn,stmt::stmts,scope_list)]) ==>
 stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n = NONE
 Proof
-cheat
+metis_tac[stmt_multi_exec'_imp_NONE]
 QED
 
 Theorem stmt_multi_exec'_add:
@@ -3168,7 +3465,7 @@ Induct_on ‘n’ >- (
             (ascope,g_scope_list,frame_list,status)’ >> (
   fs[]
  ) >- (
-  imp_res_tac stmt_multi_exec'_check_state_NONE >- (
+  imp_res_tac stmt_multi_exec'_check_state_eq_NONE >- (
    fs[stmt_multi_exec'_NONE_status]
   ) >- (
    fs[stmt_multi_exec'_NONE_g_scope_list]
