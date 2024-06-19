@@ -2589,10 +2589,10 @@ QED
 
 Theorem arch_multi_exec_arch_frame_list_regular:
 !ab_list pblock_map ffblock_map input_f output_f copyin_pbl
- copyout_pbl apply_table_f ext_map func_map aenv g_scope_list g_scope_list' frame_list frame_list' n i io_list io_list' ascope.
+ copyout_pbl apply_table_f ext_map func_map aenv g_scope_list g_scope_list' arch_frame_list frame_list' n i io_list io_list' ascope.
 arch_multi_exec (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
         copyout_pbl,apply_table_f,ext_map,func_map)
-          (aenv,g_scope_list,arch_frame_list_regular frame_list,
+          (aenv,g_scope_list,arch_frame_list,
            status_running) (SUC n) =
         SOME
           ((i,io_list,io_list',ascope),g_scope_list',
@@ -2609,7 +2609,7 @@ fs[arch_multi_exec_add] >>
 Cases_on ‘arch_multi_exec
              (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
               copyout_pbl,apply_table_f,ext_map,func_map)
-             (aenv,g_scope_list,arch_frame_list_regular frame_list,
+             (aenv,g_scope_list,arch_frame_list,
               status_running) n’ >> (
  fs[]
 ) >>
