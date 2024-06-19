@@ -1432,11 +1432,11 @@ val (bigstep_arch_exec'_tm,  mk_bigstep_arch_exec', dest_bigstep_arch_exec', is_
 
 (* TODO: Move *)
 val (in_local_fun_tm,  mk_in_local_fun, dest_in_local_fun, is_in_local_fun) =
-  syntax_fns2 "p4_bigstep" "in_local_fun";
+  syntax_fns3 "p4_bigstep" "in_local_fun";
 
 (* TODO: Move *)
 val (in_local_fun'_tm,  mk_in_local_fun', dest_in_local_fun', is_in_local_fun') =
-  syntax_fns3 "p4_bigstep" "in_local_fun'";
+  syntax_fns4 "p4_bigstep" "in_local_fun'";
 
 (* TODO: Move *)
 (* TODO: This should simplify the scopes after shortcutting *)
@@ -1510,11 +1510,19 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
   val shortcut =
    case stmt_funn_opt of
      SOME (funn, stmt) =>
-    (case p4_is_shortcuttable (funn, stmt) func_map of
-       res_shortcut => res_shortcut
-     | res_no_shortcut_e e =>
-      p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
-     | other => other)
+    (* TODO: Temporary hack to restrict application of big-step semantics
+     * to control block + block-local functions *)
+    if
+     (if is_funn_name funn
+      then Teq $ rhs $ concl $ EVAL (mk_is_some $ mk_alookup (b_func_map, dest_funn_name funn))
+      else false)
+    then
+     (case p4_is_shortcuttable (funn, stmt) func_map of
+	res_shortcut => res_shortcut
+      | res_no_shortcut_e e =>
+       p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
+      | other => other)
+    else res_no_shortcut_arch
    | NONE => res_no_shortcut_arch
   (* DEBUG *)
   val _ =
@@ -1532,16 +1540,17 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
   then
    (* Take regular shortcut *)
    let
-    (* For function argument reduction *)
-    val bigstep_fargs_ctx_SOME = mk_some $ mk_pair (aenv, ctx)
-    (* Note that this is always NONE, for some reason this type of big-step execution
-     * is not allowed to perform function argument reductions *)
-    val bigstep_ctx_NONE = mk_none $ mk_prod (type_of ctx, type_of b_func_map)
 
-    val bigstep_tm =
+    val block_index = #1 $ dest_aenv aenv
+
+    val (is_local_thm, bigstep_tm) =
      if shortcut_result_eq shortcut res_shortcut
-     then mk_bigstep_arch_exec (bigstep_ctx_NONE, g_scope_list, arch_frame_list)
-     else mk_bigstep_arch_exec' (bigstep_fargs_ctx_SOME, g_scope_list, arch_frame_list)
+     (* Non-function argument reduction *)
+     then (EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+           mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
+     (* Function argument reduction *)
+     else (EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+           mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
     val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_EVAL_CONV p4_stop_eval_consts bigstep_tm
 
     (* DEBUG *)
@@ -1574,8 +1583,6 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     (* DEBUG *)
     val time_start3 = Time.now();
 
-    val is_local_thm = EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, arch_frame_list, nsteps)
-
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Proving locality of local fun: ",
 				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start3)),
@@ -1588,6 +1595,31 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
      if shortcut_result_eq shortcut res_shortcut
      then bigstep_arch_exec_comp'_NONE
      else bigstep_arch_exec_comp'_SOME
+(*
+val shortcut_comp_thm = Q.ISPECL [‘2’, ‘2’, ‘T’, ‘^ctx’] shortcut_comp_thm
+val shortcut_comp_thm = PURE_REWRITE_RULE [GSYM ctx_def] shortcut_comp_thm
+
+val test = snd $ dest_imp $ concl step_thm
+val test_lhs = fst $ dest_eq $ test
+val (testfun, [testctx, teststate, testn]) = strip_comb test_lhs
+val testty = mk_itself $ type_of testctx;
+
+val shortcut_comp_thm' = INST_TYPE [Type.alpha |-> arch_ty] shortcut_comp_thm
+val test2ty = mk_itself $ type_of test2ctx;
+
+
+MATCH_MP bigstep_arch_exec_comp'_NONE step_thm
+
+
+val test2 = snd $ dest_imp $ fst $ dest_imp $ concl $ SPEC_ALL shortcut_comp_thm'
+val test2_lhs = fst $ dest_eq $ test2
+val (test2fun, [test2ctx, test2state, test2n]) = strip_comb test2_lhs
+
+ALPHA testty test2ty;
+
+ALPHA testfun test2fun;
+
+*)
     val res =
      SIMP_RULE simple_arith_ss []
       (MATCH_MP (MATCH_MP (MATCH_MP shortcut_comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
