@@ -4,11 +4,11 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open pairSyntax listSyntax numSyntax computeLib hurdUtils;
 
-open p4Theory p4_exec_semTheory p4Syntax p4_exec_semSyntax;
+open p4Theory p4_exec_semTheory;
 open p4_coreTheory;
-open symb_execTheory symb_execSyntax p4_symb_execTheory p4_bigstepTheory;
+open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 
-open evalwrapLib p4_testLib bitstringLib;
+open evalwrapLib p4_testLib bitstringLib symb_execSyntax p4Syntax p4_exec_semSyntax;
 open symb_execLib;
 
 open optionSyntax listSyntax (* wordsSyntax *);
@@ -17,6 +17,186 @@ val ERR = mk_HOL_ERR "p4_symb_exec"
 
 (* Prefix used by the symbolic execution when inserting free HOL4 variables *)
 val p4_symb_arg_prefix = "a";
+
+fun same_const_disj_list [] tm = K false tm
+ | same_const_disj_list [x] tm = same_const x tm
+ | same_const_disj_list (h::t) tm =
+ same_const h tm orelse (same_const_disj_list t tm);
+
+(* RESTR_EVAL_RULE constants: *)
+val p4_stop_eval_consts_unary =
+ [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
+  “word_2comp”
+ ];
+val p4_stop_eval_consts_binary =
+ [“word_mul”,
+  “word_div”,
+  “word_mod”,
+  “word_add”,
+  “saturate_add”,
+  “word_sub”,
+  “saturate_sub”,
+  “word_lsl_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
+  “word_lsr_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
+  (* “word_and”, (* Should be OK? w2v (v2w [x; F; T] && v2w [y; F; T]) = [x ∧ y; F; T] *) *)
+  (* “word_xor”, (* Should be OK? w2v (v2w [x; F; T] ⊕ v2w [y; F; T]) = [x ⇎ y; F; F] *) *)
+  (* “word_or”, (* Should be OK? w2v (v2w [x; F; T] ‖ v2w [y; F; T]) = [x ∨ y; F; T] *) *)
+  “word_ls”,
+  “word_hs”,
+  “word_lo”,
+  “word_hi”
+];
+
+val p4_stop_eval_consts = p4_stop_eval_consts_unary@p4_stop_eval_consts_binary;
+
+(* Customized CBV_CONV for HOL4P4 evaluation *)
+local
+ val list_of_thys = ["p4", "p4_aux", "p4_exec_sem",
+		     "p4_core", "p4_v1model", "p4_ebpf", "p4_vss", "p4_bigstep"]
+
+ fun filtered_thm_names name =
+  (not $ String.isSuffix "_aux" name) andalso
+  (not $ String.isSuffix "_AUX" name) andalso
+  (not $ String.isSuffix "_primitive" name) andalso
+  (not $ String.isSuffix "_primitive_def" name) andalso 
+  (not $ String.isSuffix "_ind" name) andalso
+  (not $ String.isSuffix "_UNION" name) andalso
+  ((String.isSuffix "_def" name)) orelse
+   (String.isSuffix "_11" name) orelse
+   (String.isSuffix "_distinct" name)
+
+ fun add_thy thy compset =
+  let
+   val thy_defs = definitions thy
+   val thy_thms = thms thy
+   val filtered_list =
+    map snd $ filter (fn (name, thm) => filtered_thm_names name)
+     (List.concat [thy_defs, thy_thms])
+   val _ = map (fn thm => computeLib.add_thms [thm] compset handle ERR => ()) filtered_list
+  in
+   ()
+  end;
+
+ fun add_thy_list thys compset =
+  let
+   val _ = map (fn thy => add_thy thy compset) thys
+  in
+   ()
+  end
+ ;
+
+ fun add_definitions thy compset =
+  let
+   val thy_defs =
+    map snd $ filter (fn (name, thm) => filtered_thm_names name) (definitions thy)
+   val thy_def_thms = map snd $ filter (fn (name, thm) => String.isSuffix "_def" name) (thms thy)
+   val _ = map (fn thm => computeLib.add_thms [thm] compset) (thy_def_thms)
+  in
+   ()
+  end
+ ;
+
+ val hol4p4_compset = reduceLib.num_compset ()
+ val _ =
+  foldl (fn (f, compset) => let val _ = f compset in compset end)
+   hol4p4_compset
+   [pairLib.add_pair_compset, optionLib.OPTION_rws, (wordsLib.add_words_compset true),
+    stringLib.add_string_compset, alistLib.add_alist_compset]
+ val _ = add_thy_list list_of_thys hol4p4_compset
+ val _ = computeLib.add_thms [alistTheory.AFUPDKEY_def] hol4p4_compset
+ (* TODO: Nice to have? *)
+ val _ = computeLib.add_thms [sumTheory.INR_11, sumTheory.INL_11, sumTheory.INR_INL_11, sumTheory.INR_neq_INL] hol4p4_compset
+ val _ = computeLib.scrub_const hol4p4_compset “conc_red”
+
+(* TODO: Scrub these? They look annoying...
+ val _ = scrub_const hol4p4_compset “header_entries2v_UNION”
+ val _ = scrub_const hol4p4_compset “deparameterise_tau_def_UNION”
+ val _ = scrub_const hol4p4_compset “parameterise_tau_def_UNION”
+*)
+
+ local
+  open clauses;
+  open computeLib;
+
+  fun is_conv transform =
+   case transform of
+    (RRules thmlist) => false
+   | (Conversion conv) => true
+
+  fun copy_compset_item_thms [] to_compset = ()
+   |  copy_compset_item_thms (h::t) to_compset =
+    case h of
+    (RRules thmlist) =>
+     let
+      val _ = add_thms thmlist to_compset
+     in
+      copy_compset_item_thms t to_compset
+     end
+    | (Conversion conv) =>
+     copy_compset_item_thms t to_compset
+
+ in
+ fun copy_compset_thms from_compset to_compset =
+  let
+   val from_compset_items = listItems from_compset
+  in
+   foldl (fn (item, ()) => copy_compset_item_thms item to_compset) ()
+    (map snd from_compset_items)
+  end
+ end
+ (* TODO: Brute-force solution. Fix later. *)
+ val _ = copy_compset_thms computeLib.the_compset hol4p4_compset
+
+
+(* To compare between the two compsets:
+
+(use p4_symb_exec_test1Script or similar to find an init_state)
+
+Using hol4p4_compset:
+   val test_thm = Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV hol4p4_compset) (mk_arch_multi_exec (ctx, astate, 1))
+
+val astate2 = the_final_state test_thm
+
+   val test_thm2 = Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV hol4p4_compset) (mk_arch_multi_exec (ctx, astate2, 1))
+
+(* Doesn't seem the PMATCH conv is critical, since you can evaluate execution without it *)
+ val _ = scrub_const computeLib.the_compset “PMATCH”
+Using the_compset:
+   Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV computeLib.the_compset) (mk_arch_multi_exec (ctx, init_astate, 2))
+
+
+To display the transformations in the two different compsets:
+
+ val _ = PolyML.print_depth 9001;
+
+ val default_thms = fst $ unzip $ listItems computeLib.the_compset;
+
+ val custom_thms = fst $ unzip $ listItems hol4p4_compset;
+
+ val in_default_notin_custom = filter (fn thm => not $ exists (fn thm' => thm' = thm) custom_thms) default_thms;
+
+ val in_custom_notin_default = filter (fn thm => not $ exists (fn thm' => thm' = thm) default_thms) custom_thms;
+
+************************************************************
+
+val convs_in_the_compset = List.filter (fn e => List.exists (fn e' => is_conv e') (snd e)) (listItems computeLib.the_compset)
+val theories_with_convs = map (snd o fst) convs_in_the_compset
+
+val convs_in_hol4p4_compset = List.filter (fn e => List.exists (fn e' => is_conv e') (snd e)) (listItems hol4p4_compset)
+val theories_with_convs = map (snd o fst) convs_in_hol4p4_compset
+
+*)
+
+in
+ fun get_HOL4P4_CONV thms_to_add =
+  let
+   val _ = add_thms thms_to_add hol4p4_compset
+  in
+   computeLib.CBV_CONV hol4p4_compset
+  end
+end
+
+val HOL4P4_CONV = get_HOL4P4_CONV []
 
 fun get_b_func_map i ab_list pblock_map =
  let
@@ -526,32 +706,6 @@ val p4_stop_eval_consts_binary =
 ];
 *)
 
-(* RESTR_EVAL_RULE constants: *)
-val p4_stop_eval_consts_unary =
- [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
-  “word_2comp”
- ];
-val p4_stop_eval_consts_binary =
- [“word_mul”,
-  “word_div”,
-  “word_mod”,
-  “word_add”,
-  “saturate_add”,
-  “word_sub”,
-  “saturate_sub”,
-  “word_lsl_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
-  “word_lsr_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
-  (* “word_and”, (* Should be OK? w2v (v2w [x; F; T] && v2w [y; F; T]) = [x ∧ y; F; T] *) *)
-  (* “word_xor”, (* Should be OK? w2v (v2w [x; F; T] ⊕ v2w [y; F; T]) = [x ⇎ y; F; F] *) *)
-  (* “word_or”, (* Should be OK? w2v (v2w [x; F; T] ‖ v2w [y; F; T]) = [x ∨ y; F; T] *) *)
-  “word_ls”,
-  “word_hs”,
-  “word_lo”,
-  “word_hi”
-];
-
-val p4_stop_eval_consts = p4_stop_eval_consts_unary@p4_stop_eval_consts_binary;
-
 (* TODO: Move *)
 fun dest_v_struct_fields strct =
  (map (snd o dest_pair)) $ fst $ dest_list $ dest_v_struct strct
@@ -950,19 +1104,32 @@ fun p4_regular_step_get_err_msg step_thm =
  end
 ;
 
+(* TODO: Upstream the RESTR_CBV_CONV to main HOL4P4 repo? *)
+
+fun RESTR_CBV_CONV compset clist =
+  Lib.with_flag (stoppers, SOME (same_const_disj_list clist)) (CBV_CONV compset);
+
+fun get_RESTR_HOL4P4_CONV clist thms_to_add =
+  Lib.with_flag (stoppers, SOME (same_const_disj_list clist)) (get_HOL4P4_CONV thms_to_add);
+
 fun p4_eval_ctxt_gen (stop_consts1, stop_consts2, mk_exec) path_cond astate =
  eval_ctxt_gen stop_consts1 stop_consts2 path_cond (mk_exec astate)
 ;
 
 (* TODO: Fix naming for the three below, remove unnecessary abstraction *)
 (* This is just evaluating a term and adding an assumption, without rewriting *)
+(*
 fun norewr_eval_ctxt_gen stop_consts ctxt tm =
   RESTR_EVAL_CONV stop_consts tm
   |> PROVE_HYP ctxt
   |> DISCH_CONJUNCTS_ALL
 ;
-fun p4_norewr_eval_ctxt_gen (stop_consts, mk_exec) path_cond astate =
- norewr_eval_ctxt_gen stop_consts path_cond (mk_exec astate)
+*)
+fun get_norewr_eval_ctxt_gen stop_consts thms_to_add tm =
+  get_RESTR_HOL4P4_CONV stop_consts thms_to_add tm
+;
+fun p4_get_norewr_eval_ctxt_gen (stop_consts, thms_to_add, mk_exec) astate =
+ get_norewr_eval_ctxt_gen stop_consts thms_to_add (mk_exec astate)
 ;
 
 (* TODO: Expression reduction debug output *)
@@ -1443,7 +1610,7 @@ val (in_local_fun'_tm,  mk_in_local_fun', dest_in_local_fun', is_in_local_fun') 
 local
 fun word_conv word =
  if null $ free_vars word
- then EVAL word
+ then HOL4P4_CONV word
  else raise UNCHANGED
 ;
 
@@ -1524,6 +1691,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
       | other => other)
     else res_no_shortcut_arch
    | NONE => res_no_shortcut_arch
+
   (* DEBUG *)
   val _ =
    if debug_flag
@@ -1595,31 +1763,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
      if shortcut_result_eq shortcut res_shortcut
      then bigstep_arch_exec_comp'_NONE
      else bigstep_arch_exec_comp'_SOME
-(*
-val shortcut_comp_thm = Q.ISPECL [‘2’, ‘2’, ‘T’, ‘^ctx’] shortcut_comp_thm
-val shortcut_comp_thm = PURE_REWRITE_RULE [GSYM ctx_def] shortcut_comp_thm
 
-val test = snd $ dest_imp $ concl step_thm
-val test_lhs = fst $ dest_eq $ test
-val (testfun, [testctx, teststate, testn]) = strip_comb test_lhs
-val testty = mk_itself $ type_of testctx;
-
-val shortcut_comp_thm' = INST_TYPE [Type.alpha |-> arch_ty] shortcut_comp_thm
-val test2ty = mk_itself $ type_of test2ctx;
-
-
-MATCH_MP bigstep_arch_exec_comp'_NONE step_thm
-
-
-val test2 = snd $ dest_imp $ fst $ dest_imp $ concl $ SPEC_ALL shortcut_comp_thm'
-val test2_lhs = fst $ dest_eq $ test2
-val (test2fun, [test2ctx, test2state, test2n]) = strip_comb test2_lhs
-
-ALPHA testty test2ty;
-
-ALPHA testfun test2fun;
-
-*)
     val res =
      SIMP_RULE simple_arith_ss []
       (MATCH_MP (MATCH_MP (MATCH_MP shortcut_comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
@@ -1638,7 +1782,7 @@ ALPHA testfun test2fun;
     val step_thm2 =
      if use_eval_in_ctxt
      then eval_ctxt (ASSUME ante) astate
-     else norewr_eval_ctxt (ASSUME ante) astate
+     else norewr_eval_ctxt astate
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat [(if use_eval_in_ctxt then "evaluation-in-context: " else "evaluation: "),
@@ -1676,7 +1820,11 @@ ALPHA testfun test2fun;
 	     let
 	      (* Then, get the resulting subexp *)
 	      val subexp_red_res =
-	       next_subexp_syntax_f $ next_e_syntax_f $ the_final_state_imp step_thm2
+               if use_eval_in_ctxt
+               then
+	        next_subexp_syntax_f $ next_e_syntax_f $ the_final_state_imp step_thm2
+               else
+                next_subexp_syntax_f $ next_e_syntax_f $ (optionSyntax.dest_some $ snd $ dest_eq $ concl step_thm2)
 	      (* Evaluate the subexp without restrictions *)
 	      val subexp_red_res_EVAL = EVAL subexp_red_res
 	     in
@@ -1694,7 +1842,15 @@ ALPHA testfun test2fun;
 
        val res =
 	SIMP_RULE simple_arith_ss extra_rewr_thms
+(* Non-conj version:
 	 (MATCH_MP (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))
+*)
+         (if use_eval_in_ctxt
+          then
+	   (MATCH_MP comp_thm (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2)))
+          else
+          (* TODO: Specialise type of composition theorem before? *)
+	  (MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
 
     (* TEST:
        val res =
@@ -1753,7 +1909,7 @@ fun preprocess_ftymaps (fty_map, b_fty_map) =
 
 (* The main symbolic execution.
  * Here, the static ctxt and the dynamic path condition have been merged. *)
-fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt fuel =
+fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt fuel =
  let
   (* Pre-process ftymap and b_fty_map *)
   val (fty_map', b_fty_map') = preprocess_ftymaps (fty_map, b_fty_map)
@@ -1761,12 +1917,12 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   (* Pre-process const_actions_tables *)
   val const_actions_tables' = map stringSyntax.fromMLstring const_actions_tables
 
-  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl
+  val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl_conj
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
   val table_stop_consts = [match_all_tm]
   val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-  val norewr_eval_ctxt = p4_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
   val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
@@ -2252,7 +2408,7 @@ fun p4_prove_postconds_debug postcond step_thms =
  * postcond: the postcondition, a term which is a predicate on the architectural state *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond =
+fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond =
  let
 
   (* DEBUG *)
@@ -2263,7 +2419,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
 
   (* Perform symbolic execution until all branches are finished *)
   val (path_tree, path_cond_step_list) =
-   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max;
+   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished entire symbolic execution stage in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s, trying to prove postcondition...\n\n"]);
@@ -2320,21 +2476,21 @@ fun dest_step_thm step_thm =
  dest_astate $ dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 ;
 
-fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
  let
   val ctx_name = "ctx"
   val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 
-  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE fuel
+  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
  in
   (path_tree, state_list_tms)
  end
 ;
 
-fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel =
+fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
  let
-  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond fuel
+  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel
   val arch_frame_list_tms = map (fn (path_id, path_cond, (tm1, tm2, tm3, tm4)) => tm3) state_list_tms
  in
   (path_tree, arch_frame_list_tms)

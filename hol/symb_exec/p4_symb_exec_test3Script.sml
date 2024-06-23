@@ -175,6 +175,6 @@ val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond;
 
 val _ = export_theory ();
