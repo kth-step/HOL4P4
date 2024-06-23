@@ -19,7 +19,7 @@ Proof
 Induct_on `frame_list` >> (
  fs [frame_list_exec_sound] >>
  Cases_on `status` >> (
-  fs [frames_exec]
+  fs [frames_exec_def]
  )
 ) >>
 rpt strip_tac >>
@@ -28,7 +28,7 @@ rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 Cases_on `frame_list` >| [
  (* Single frame (comp1) *)
  pairLib.PairCases_on `h` >>
- fs [frames_exec] >>
+ fs [frames_exec_def] >>
  Cases_on `scopes_to_pass h0 func_map b_func_map g_scope_list` >> (
   fs []
  ) >>
@@ -60,7 +60,7 @@ Cases_on `frame_list` >| [
  (* Multiple frames *)
  pairLib.PairCases_on `h` >>
  pairLib.PairCases_on `h'` >>
- fs [frames_exec] >>
+ fs [frames_exec_def] >>
  Cases_on `scopes_to_pass h0 func_map b_func_map g_scope_list` >> (
   fs []
  ) >>

@@ -231,6 +231,6 @@ val step_thm = step_thm2;
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc true arch_ty ctx (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc true arch_ty ctx (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond;
 
 val _ = export_theory ();
