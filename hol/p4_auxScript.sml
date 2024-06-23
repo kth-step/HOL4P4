@@ -19,21 +19,21 @@ Proof
 fs[]
 QED
 
-val oCONS_def = Define `
+Definition oCONS_def:
  (oCONS (h, SOME t) =
   SOME (h::t)
  ) /\
  (oCONS (_, NONE) =
   NONE
  )
-`;
+End
 
-val oLASTN_def = Define `
+Definition oLASTN_def:
  (oLASTN n l =
   case oTAKE n (REVERSE l) of
   | SOME l' => SOME (REVERSE l')
   | NONE => NONE)
-`;
+End
 
 Theorem oTAKE_imp_TAKE:
 !i l l'.

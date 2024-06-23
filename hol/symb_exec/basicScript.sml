@@ -1295,7 +1295,7 @@ val basic_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^input,0)] 
 
 (* RE-DEFINITIONS OF TROUBLESOME EXTERNS *)
 
-Definition v1model_update_checksum':
+Definition v1model_update_checksum'_def:
  (v1model_update_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case assign scope_list (v_bit $ ((REPLICATE 16 (ARB:bool)), 16)) (lval_varname (varn_name "checksum")) of
    | SOME scope_list' =>
@@ -1349,8 +1349,8 @@ val postcond = “(\s. (packet_dropped s \/ (?bit_list. get_packet s = SOME bit_
 val time_start = Time.now();
 (* TEST
 
-val (path_tree, [(path_id, path_cond, step_thm)]) =
- p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt 5;
+val (path_tree, res_list) =
+ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, basic_pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt 112;
 
 *)
 (* Commit 7daf3ad:
@@ -1362,7 +1362,7 @@ Single thread yields
   Finished rewriting step theorems to contract format in 0s, trying to unify contracts...
   Finished unification of all contracts in 170s." (19m, 11s)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (basic_ftymap, basic_blftymap, basic_pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (basic_ftymap, basic_blftymap, basic_pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt n_max postcond;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);

@@ -70,23 +70,23 @@ Definition v1model_ascope_update_v_map_def:
    (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
 End
 
-Definition v1model_packet_in_extract:
+Definition v1model_packet_in_extract_def:
  v1model_packet_in_extract = packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
-Definition v1model_packet_in_lookahead:
+Definition v1model_packet_in_lookahead_def:
  v1model_packet_in_lookahead = packet_in_lookahead_gen v1model_ascope_lookup v1model_ascope_update_v_map
 End
 
-Definition v1model_packet_in_advance:
+Definition v1model_packet_in_advance_def:
  v1model_packet_in_advance = packet_in_advance_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
-Definition v1model_packet_out_emit:
+Definition v1model_packet_out_emit_def:
  v1model_packet_out_emit = packet_out_emit_gen v1model_ascope_lookup v1model_ascope_update
 End
 
-Definition v1model_verify:
+Definition v1model_verify_def:
  (v1model_verify (ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   verify_gen v1model_ascope_update_v_map (ascope, g_scope_list, scope_list))
 End
@@ -197,7 +197,7 @@ End
 (*******************)
 (* verify_checksum *)
 
-Definition v1model_verify_checksum:
+Definition v1model_verify_checksum_def:
  (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
@@ -237,7 +237,7 @@ End
 (*************************)
 (* update_checksum *)
 
-Definition v1model_update_checksum:
+Definition v1model_update_checksum_def:
  (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
@@ -271,12 +271,12 @@ End
 (* Register   *)
 (**************)
 
-Definition replicate_arb:
+Definition replicate_arb_def:
  replicate_arb length width =
   REPLICATE length ((REPLICATE width (ARB:bool)), width)
 End
 
-Definition register_construct:
+Definition register_construct_def:
  (register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
   | SOME (v_bit (bl, n)) =>
@@ -292,7 +292,7 @@ Definition register_construct:
  )
 End
 
-Definition register_read:
+Definition register_read_def:
  (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
@@ -313,7 +313,7 @@ Definition register_read:
  )
 End
 
-Definition register_write:
+Definition register_write_def:
  (register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>

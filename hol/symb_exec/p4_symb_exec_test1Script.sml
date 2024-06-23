@@ -176,20 +176,27 @@ val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascop
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 
-val fuel = 1
+val fuel = 2
+
+val ctx_name = "ctx"
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
+
+val (path_tree, [(path_id, path_cond, step_thm)]) =
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 1;
 *)
+
 
 (* For debugging, branch happens here:
 
 val (path_tree, [(path_id, path_cond, step_thm)]) =
- p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 24;
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 24;
 
 val (path_tree, [(path_id, path_cond, step_thm), (path_id2, path_cond2, step_thm2)]) =
- p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 25;
 
    Join happens here:
 val (path_tree, [(path_id, path_cond_res, step_thm)]) =
- p4_symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 44;
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 44;
 
 val [res_elem1, res_elem2] = res_elems
 
@@ -198,7 +205,7 @@ val (res_id1, res_cond1, res_thm1) = res_elem1
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond;
 
 (*
 

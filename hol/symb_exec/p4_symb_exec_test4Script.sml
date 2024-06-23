@@ -214,6 +214,6 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty ctx (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) ["t"] init_astate stop_consts_rewr stop_consts_never path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty ctx (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) ["t"] init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond;
 
 val _ = export_theory ();
