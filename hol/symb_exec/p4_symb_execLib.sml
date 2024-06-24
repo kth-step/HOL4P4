@@ -2,16 +2,13 @@ structure p4_symb_execLib :> p4_symb_execLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open pairSyntax listSyntax numSyntax computeLib hurdUtils;
+open pairSyntax listSyntax numSyntax optionSyntax computeLib;
 
 open p4Theory p4_exec_semTheory;
-open p4_coreTheory;
 open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 
-open evalwrapLib p4_testLib bitstringLib symb_execSyntax p4Syntax p4_exec_semSyntax;
+open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
 open symb_execLib;
-
-open optionSyntax listSyntax (* wordsSyntax *);
 
 val ERR = mk_HOL_ERR "p4_symb_exec"
 
@@ -23,7 +20,7 @@ fun same_const_disj_list [] tm = K false tm
  | same_const_disj_list (h::t) tm =
  same_const h tm orelse (same_const_disj_list t tm);
 
-(* RESTR_EVAL_RULE constants: *)
+(* RESTR_HOL4P4_CONV constants: *)
 val p4_stop_eval_consts_unary =
  [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
   “word_2comp”
@@ -123,25 +120,58 @@ local
     (RRules thmlist) => false
    | (Conversion conv) => true
 
-  fun copy_compset_item_thms [] to_compset = ()
-   |  copy_compset_item_thms (h::t) to_compset =
+  (* Annoying to see theorems multiple times. This removes at least
+   * the most blatant duplication. *)
+  fun filter_duplicate_thms _ [] = []
+    | filter_duplicate_thms trs (h::t) =
+     if (exists (fn thm => term_eq (concl h) (concl thm)) t) orelse
+        (exists (fn thm => term_eq (concl h) (concl thm)) trs)
+     then filter_duplicate_thms trs t
+     else (h::(filter_duplicate_thms trs t))
+
+  fun aggregate_thms l [] = l
+   | aggregate_thms l (h::t) =
     case h of
     (RRules thmlist) =>
-     let
-      val _ = add_thms thmlist to_compset
-     in
-      copy_compset_item_thms t to_compset
-     end
+      aggregate_thms (thmlist@l) t 
     | (Conversion conv) =>
-     copy_compset_item_thms t to_compset
+     aggregate_thms l t
+
+  fun copy_compset_item_thms' old_thms new_transformations to_compset =
+    let
+     val new_thms = aggregate_thms [] new_transformations
+     val _ = add_thms (filter_duplicate_thms old_thms new_thms) to_compset
+    in 
+     ()
+    end
+
+  fun copy_compset_item_thms to_compset_items (name, transformations) to_compset =
+   let
+    val existing_entry_transformations =
+     case List.find (fn (a,b) => a = name) to_compset_items of
+       SOME entry => (aggregate_thms []) $ snd entry
+     | NONE => []
+   in
+    copy_compset_item_thms' existing_entry_transformations transformations to_compset
+   end
+  ;
 
  in
  fun copy_compset_thms from_compset to_compset =
   let
    val from_compset_items = listItems from_compset
+
+   val to_compset_items = listItems to_compset
+(* Doesn't work if you filter out duplicate entries. This means that some necessary additions are to
+ * existing same constants.
+*)
+(*
+   val to_compset_entries = map fst $ listItems to_compset
+   val from_compset_items = filter (fn (name, transformations) => not $ exists (fn el => name = el) to_compset_entries) from_compset_items
+*)
   in
-   foldl (fn (item, ()) => copy_compset_item_thms item to_compset) ()
-    (map snd from_compset_items)
+   foldl (fn (item, ()) => copy_compset_item_thms to_compset_items item to_compset) ()
+    (from_compset_items)
   end
  end
  (* TODO: Brute-force solution. Fix later. *)
@@ -196,7 +226,9 @@ in
   end
 end
 
-val HOL4P4_CONV = get_HOL4P4_CONV []
+val HOL4P4_CONV = get_HOL4P4_CONV [];
+
+val HOL4P4_RULE = Conv.CONV_RULE HOL4P4_CONV;
 
 fun get_b_func_map i ab_list pblock_map =
  let
@@ -309,10 +341,9 @@ fun get_f_maps (astate, actx) =
  end
 ;
 
-(* TODO: Get rid of EVAL-ing HOL4 definition for computation? *)
 fun get_funn_dirs funn (func_map, b_func_map, ext_fun_map) =
  let
-  val funn_sig_opt = rhs $ concl $ EVAL $ mk_lookup_funn_sig (funn, func_map, b_func_map, ext_fun_map)
+  val funn_sig_opt = rhs $ concl $ HOL4P4_CONV $ mk_lookup_funn_sig (funn, func_map, b_func_map, ext_fun_map)
  in
   if is_some funn_sig_opt
   then
@@ -321,10 +352,9 @@ fun get_funn_dirs funn (func_map, b_func_map, ext_fun_map) =
  end
 ;
 
-(* TODO: Get rid of EVAL re-use of HOL4 definition? *)
 fun is_arg_red (arg, dir) =
  if (is_d_out dir orelse is_d_inout dir)
- then term_eq T (rhs $ concl $ EVAL $ mk_is_e_lval arg) (* Must be lval *)
+ then term_eq T (rhs $ concl $ HOL4P4_CONV $ mk_is_e_lval arg) (* Must be lval *)
  else is_e_v arg (* Must be constant *)
 ;
 
@@ -681,7 +711,7 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
 
 (* TODO: Not sure if opening wordsSyntax and fixing the below causes some weirdness *)
 (*
-(* RESTR_EVAL_RULE constants: *)
+(* RESTR_HOL4P4_CONV constants: *)
 val p4_stop_eval_consts_unary =
  [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
   word_2comp_tm
@@ -765,14 +795,14 @@ val (alookup_tm,  mk_alookup, dest_alookup, is_alookup) =
 
 fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  let
-  val b_fty_map_lookup_opt = rhs $ concl $ EVAL $ mk_alookup (b_fty_map, block_name)
+  val b_fty_map_lookup_opt = rhs $ concl $ HOL4P4_CONV $ mk_alookup (b_fty_map, block_name)
   (* TODO: b_fty_map_lookup *)
  in
   if is_some b_fty_map_lookup_opt
   then
    let
     val local_fty_map = dest_some b_fty_map_lookup_opt
-    val local_fty_map_lookup_opt = rhs $ concl $ EVAL $ mk_alookup (local_fty_map, funn)
+    val local_fty_map_lookup_opt = rhs $ concl $ HOL4P4_CONV $ mk_alookup (local_fty_map, funn)
    in
     if is_some local_fty_map_lookup_opt
     then
@@ -783,7 +813,7 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
      end
     else
      let
-      val fty_map_lookup_opt = rhs $ concl $ EVAL $ mk_alookup (fty_map, funn)
+      val fty_map_lookup_opt = rhs $ concl $ HOL4P4_CONV $ mk_alookup (fty_map, funn)
      in
       if is_some fty_map_lookup_opt
       then
@@ -891,7 +921,7 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
       (* 1. Extract ctrl from ascope *)
       val ctrl = #4 $ dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate
       (* 2. Extract key sets from ascope using tbl_name *)
-      val tbl_opt = rhs $ concl $ EVAL $ mk_alookup (ctrl, tbl_name)
+      val tbl_opt = rhs $ concl $ HOL4P4_CONV $ mk_alookup (ctrl, tbl_name)
      in
       if is_some tbl_opt
       then
@@ -906,9 +936,9 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 	 (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
 	  * funny priorities in the table *)
 
-         val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ MAP FST ^tbl”
+         val keys = fst $ dest_list $ rhs $ concl $ HOL4P4_CONV “MAP FST $ MAP FST ^tbl”
 (* TODO: For some reason, changing the line above to the one below causes infinite looping...
-	 val keys = fst $ dest_list $ rhs $ concl $ EVAL “MAP FST $ (^(mk_map (fst_tm, tbl)))”
+	 val keys = fst $ dest_list $ rhs $ concl $ HOL4P4_CONV “MAP FST $ (^(mk_map (fst_tm, tbl)))”
 *)
 	 val key_branch_conds = map (fn key => key_conv $ mk_comb (key, e)) keys
 	 val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
@@ -935,16 +965,16 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
         val i = #1 $ dest_aenv $ #1 $ dest_astate astate
         (* TODO: Unify with the syntactic function obtaining the state above? *)
         val (ab_list, pblock_map, _, _, _, _, _, _, _, _) = dest_actx $ rhs $ concl ctx_def
-        val (curr_block, _) = dest_arch_block_pbl $ rhs $ concl $ EVAL $ mk_el (i, ab_list)
+        val (curr_block, _) = dest_arch_block_pbl $ rhs $ concl $ HOL4P4_CONV $ mk_el (i, ab_list)
 
         (* TODO: All of the information extracted from the ctx below could be
          * pre-computed *)
 
         (* TODO: handle Exceptions if result is not SOME *)
-        val tbl_map = #6 $ dest_pblock $ dest_some $ rhs $ concl $ EVAL $ mk_alookup (pblock_map, curr_block)
-        val action_names_map = dest_some $ rhs $ concl $ EVAL $ mk_alookup (pblock_action_names_map, curr_block)
-        val action_names = dest_some $ rhs $ concl $ EVAL $ mk_alookup (action_names_map, tbl_name)
-        val default_action = snd $ dest_pair $ dest_some $ rhs $ concl $ EVAL $ mk_alookup (tbl_map, tbl_name)
+        val tbl_map = #6 $ dest_pblock $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (pblock_map, curr_block)
+        val action_names_map = dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (pblock_action_names_map, curr_block)
+        val action_names = dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (action_names_map, tbl_name)
+        val default_action = snd $ dest_pair $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbl_map, tbl_name)
         val (default_action_name, default_action_args) = dest_pair default_action
         (* NOTE: We shouldn't filter out the default action name here - it will have
          * different "hit" dummy arg if it resulted from a hit or a default case. *)
@@ -959,7 +989,7 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
         val (disj_tms, fv_indices) = unzip $ map (fn action_name =>
          let
 	  val (action_args, fv_index') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block fv_index
-	  val action_args' = rhs $ concl $ EVAL (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, (action_args)))
+	  val action_args' = rhs $ concl $ HOL4P4_CONV (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, (action_args)))
 	  val action = mk_pair (action_name, action_args')
 	  val res_case = list_mk_exists (rev $ free_vars action_args, mk_eq (case_lhs, action))
          in
@@ -969,7 +999,7 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
         val (fv_index''', disj_tms) = foldl (fn (action_name, (fv_index', res_list)) =>
          let
 	  val (action_args, fv_index'') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block fv_index'
-	  val action_args' = rhs $ concl $ EVAL (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, action_args))
+	  val action_args' = rhs $ concl $ HOL4P4_CONV (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, action_args))
 	  val action = mk_pair (action_name, action_args')
 	  val res_case = list_mk_exists (free_vars_lr action_args, mk_eq (case_lhs, action))
          in
@@ -1109,8 +1139,10 @@ fun p4_regular_step_get_err_msg step_thm =
 fun RESTR_CBV_CONV compset clist =
   Lib.with_flag (stoppers, SOME (same_const_disj_list clist)) (CBV_CONV compset);
 
-fun get_RESTR_HOL4P4_CONV clist thms_to_add =
+fun get_RESTR_HOL4P4_CONV thms_to_add clist =
   Lib.with_flag (stoppers, SOME (same_const_disj_list clist)) (get_HOL4P4_CONV thms_to_add);
+
+val RESTR_HOL4P4_CONV = get_RESTR_HOL4P4_CONV [];
 
 fun p4_eval_ctxt_gen (stop_consts1, stop_consts2, mk_exec) path_cond astate =
  eval_ctxt_gen stop_consts1 stop_consts2 path_cond (mk_exec astate)
@@ -1120,13 +1152,13 @@ fun p4_eval_ctxt_gen (stop_consts1, stop_consts2, mk_exec) path_cond astate =
 (* This is just evaluating a term and adding an assumption, without rewriting *)
 (*
 fun norewr_eval_ctxt_gen stop_consts ctxt tm =
-  RESTR_EVAL_CONV stop_consts tm
+  RESTR_HOL4P4_CONV stop_consts tm
   |> PROVE_HYP ctxt
   |> DISCH_CONJUNCTS_ALL
 ;
 *)
 fun get_norewr_eval_ctxt_gen stop_consts thms_to_add tm =
-  get_RESTR_HOL4P4_CONV stop_consts thms_to_add tm
+  get_RESTR_HOL4P4_CONV thms_to_add stop_consts tm
 ;
 fun p4_get_norewr_eval_ctxt_gen (stop_consts, thms_to_add, mk_exec) astate =
  get_norewr_eval_ctxt_gen stop_consts thms_to_add (mk_exec astate)
@@ -1344,7 +1376,7 @@ fun p4_funn_name_not_in_func_map funn func_map =
    val fname = dest_funn_name funn
   in
    (* TODO: Do this on SML level *)
-   optionSyntax.is_none $ rhs $ concl $ EVAL $ mk_alookup (func_map, fname)
+   optionSyntax.is_none $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (func_map, fname)
   end
  else false
 ;
@@ -1681,7 +1713,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
      * to control block + block-local functions *)
     if
      (if is_funn_name funn
-      then Teq $ rhs $ concl $ EVAL (mk_is_some $ mk_alookup (b_func_map, dest_funn_name funn))
+      then Teq $ rhs $ concl $ HOL4P4_CONV (mk_is_some $ mk_alookup (b_func_map, dest_funn_name funn))
       else false)
     then
      (case p4_is_shortcuttable (funn, stmt) func_map of
@@ -1714,12 +1746,12 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     val (is_local_thm, bigstep_tm) =
      if shortcut_result_eq shortcut res_shortcut
      (* Non-function argument reduction *)
-     then (EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     then (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
      (* Function argument reduction *)
-     else (EVAL_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     else (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
-    val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_EVAL_CONV p4_stop_eval_consts bigstep_tm
+    val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_HOL4P4_CONV p4_stop_eval_consts bigstep_tm
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Shortcutting ",
@@ -1740,7 +1772,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     (* Simplify the word operations that contain no free variables *)
     val bigstep_thm' = SIMP_RULE (empty_ss++p4_wordops_ss) [] bigstep_thm
 (*
-    val is_local_thm = EQT_ELIM $ EVAL $ mk_in_local_fun (func_map, arch_frame_list)
+    val is_local_thm = EQT_ELIM $ HOL4P4_CONV $ mk_in_local_fun (func_map, arch_frame_list)
 *)
 
     (* DEBUG *)
@@ -1826,7 +1858,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
                else
                 next_subexp_syntax_f $ next_e_syntax_f $ (optionSyntax.dest_some $ snd $ dest_eq $ concl step_thm2)
 	      (* Evaluate the subexp without restrictions *)
-	      val subexp_red_res_EVAL = EVAL subexp_red_res
+	      val subexp_red_res_EVAL = HOL4P4_CONV subexp_red_res
 	     in
 	      (* Now, rewrite with this result *)
 	      [subexp_red_res_EVAL]
@@ -1895,8 +1927,8 @@ fun p4_is_finished step_thm =
 
 fun preprocess_ftymaps (fty_map, b_fty_map) =
  let
-  val fty_map_opt = rhs $ concl $ EVAL “deparameterise_ftymap_entries ^fty_map”
-  val b_fty_map_opt = rhs $ concl $ EVAL “deparameterise_b_ftymap_entries ^b_fty_map”
+  val fty_map_opt = rhs $ concl $ HOL4P4_CONV “deparameterise_ftymap_entries ^fty_map”
+  val b_fty_map_opt = rhs $ concl $ HOL4P4_CONV “deparameterise_b_ftymap_entries ^b_fty_map”
  in
   if is_some fty_map_opt
   then
