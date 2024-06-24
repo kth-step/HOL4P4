@@ -7,6 +7,8 @@ open symb_execTheory symb_execSyntax;
 
 (* May give errors, don't fret about it *)
 open Thread Mutex ConditionVar ThreadLib;
+(* TODO: Try using "synchronized" from Multithreading.sml instead of "protect"
+ * from ThreadLib.sml *)
 
 datatype path_tree = empty | node of int * thm * (path_tree list);
 
