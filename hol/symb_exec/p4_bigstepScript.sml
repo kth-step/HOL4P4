@@ -17,7 +17,7 @@ Theorem is_v_is_const:
 Proof
 strip_tac >>
 Cases_on ‘e’ >> (
- fs[is_v_def, is_const_def]
+ gs[is_v_def, is_const_def]
 )
 QED
 
@@ -29,11 +29,11 @@ unred_mem_index e_l = NONE
 Proof
 rpt strip_tac >>
 CCONTR_TAC >>
-fs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS] >>
+gs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS] >>
 imp_res_tac unred_mem_not_const >>
-fs[is_consts_def] >>
+gs[is_consts_def] >>
 FULL_SIMP_TAC pure_ss [EVERY_NOT_EXISTS] >>
-fs[is_v_is_const] >>
+gs[is_v_is_const] >>
 metis_tac[EVERY_NOT_EXISTS]
 QED
 
@@ -43,16 +43,16 @@ Theorem not_EVERY_is_v_unred_mem_index:
 ?i. unred_mem_index e_l = SOME i
 Proof
 rpt strip_tac >>
-fs [unred_mem_index_def, unred_mem_def, is_consts_def, ZIP_def, INDEX_FIND_def] >>
+gs [unred_mem_index_def, unred_mem_def, is_consts_def, ZIP_def, INDEX_FIND_def, AllCaseEqs()] >>
 Cases_on ‘INDEX_FIND 0 (\e. ~is_const e) e_l’ >> (
- fs[]
+ gs[]
 ) >- (
  imp_res_tac INDEX_FIND_NONE_EVERY >>
- fs[GSYM is_v_is_const] >>
+ gs[GSYM is_v_is_const] >>
  metis_tac[EVERY_NOT_EXISTS]
 ) >>
 PairCases_on ‘x’ >>
-fs[]
+gs[]
 QED
 
 (***********************)
@@ -232,13 +232,13 @@ Termination
 WF_REL_TAC `measure ( \ (scope_lists, t, n). case t of
                            | (INL e) => e_size e
                            | (INR e_l) => e3_size e_l)` >>
-fs[e_size_def] >>
+gs[e_size_def] >>
 Induct_on ‘x_e_l’ >> (
- fs[e_size_def]
+ gs[e_size_def]
 ) >>
 rpt strip_tac >>
 PairCases_on ‘h’ >>
-fs[e_size_def]
+gs[e_size_def]
 End
 
 (* TODO: No reduction to L-values, for now *)
@@ -403,12 +403,12 @@ Triviality e3_e1_size:
  !l. e3_size (MAP SND l) < e1_size l + 1
 Proof
 Induct_on ‘l’ >> (
- fs[e_size_def]
+ gs[e_size_def]
 ) >>
 Induct_on ‘h’ >>
 gen_tac >>
-Induct_on ‘p_2’ >> (
- fs[e_size_def]
+Cases_on ‘p_2’ >> (
+ gs[e_size_def]
 )
 QED
 
@@ -420,10 +420,7 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def] >>
- Cases_on ‘lookup_vexp scope_lists var’ >> (
-  fs[]
- )
+ gs[bigstep_e_exec_def, AllCaseEqs()]
 )
 QED
 
@@ -439,21 +436,7 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
-) >- (
- Cases_on ‘bigstep_e_exec scope_lists (INL x) n’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x'’ >>
- fs[] >>
- Cases_on ‘x'0’ >>
- fs[] >>
- Cases_on ‘is_v x'’ >> (
-  fs[]
- ) >>
- Cases_on ‘e_exec_acc (e_acc x' s)’ >> (
-  fs[]
- )
+ gs[bigstep_e_exec_def, AllCaseEqs()]
 )
 QED
 
@@ -469,20 +452,7 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
-) >>
-Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
- fs[]
-) >>
-PairCases_on ‘x’ >>
-fs[] >>
-Cases_on ‘x0’ >>
-fs[] >>
-Cases_on ‘is_v x’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec_unop unop x’ >> (
- fs[]
+ gs[bigstep_e_exec_def, AllCaseEqs()]
 )
 QED
 
@@ -498,21 +468,7 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
-) >- (
- Cases_on ‘bigstep_e_exec scope_lists (INL x) n’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x'’ >>
- fs[] >>
- Cases_on ‘x'0’ >>
- fs[] >>
- Cases_on ‘is_v x'’ >> (
-  fs[]
- ) >>
- Cases_on ‘e_exec_cast cast x'’ >> (
-  fs[]
- )
+ gs[bigstep_e_exec_def, AllCaseEqs()]
 )
 QED
 
@@ -541,45 +497,26 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
+ gs[bigstep_e_exec_def]
 ) >- (
  Cases_on ‘bigstep_e_exec scope_lists (INL e1) n’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘is_v x’ >> (
-  fs[]
+  gs[]
  ) >> (
   Cases_on ‘x’ >> (
-   fs[is_v_def]
+   gs[is_v_def]
   )
  ) >>
- Cases_on ‘is_short_circuitable binop’ >> (
-  fs[]
- ) >- (
-  Cases_on ‘e_exec_short_circuit v binop e2’ >> (
-   fs[]
-  )
- ) >>
- Cases_on ‘bigstep_e_exec scope_lists (INL e2) x1’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘x0’ >>
- fs[] >>
- Cases_on ‘is_v x’ >> (
-  fs[]
- ) >>
- Cases_on ‘e_exec_binop (e_v v) binop x’ >> (
-  fs[]
- )
+ gs[AllCaseEqs()]
 ) >> (
  Cases_on ‘e1'’ >> (
-  fs[is_v_def]
+  gs[is_v_def]
  )
 )
 QED
@@ -602,30 +539,7 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
-) >>
-Cases_on ‘bigstep_e_exec scope_lists (INL e1) n’ >> (
- fs[]
-) >>
-PairCases_on ‘x’ >>
-fs[] >>
-Cases_on ‘x0’ >>
-fs[] >>
-Cases_on ‘is_v_bit x’ >> (
- fs[]
-) >>
-Cases_on ‘bigstep_e_exec scope_lists (INL e2) x1’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'0’ >>
-fs[] >>
-Cases_on ‘is_v_bit x'’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec_concat x x'’ >> (
- fs[]
+ gs[bigstep_e_exec_def, AllCaseEqs()]
 )
 QED
 
@@ -643,20 +557,7 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
-) >>
-Cases_on ‘bigstep_e_exec scope_lists (INL e1) n’ >> (
- fs[]
-) >>
-PairCases_on ‘x’ >>
-fs[] >>
-Cases_on ‘x0’ >>
-fs[] >>
-Cases_on ‘is_v_bit x’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec_slice x e2 e3’ >> (
- fs[]
+ gs[bigstep_e_exec_def, AllCaseEqs()]
 )
 QED
 
@@ -670,15 +571,8 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
-) >>
-Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'0’ >>
-fs[]
+ gs[bigstep_e_exec_def, AllCaseEqs()]
+)
 QED
 
 Theorem bigstep_e_exec_struct_REWR:
@@ -693,30 +587,13 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  rpt strip_tac >>
- fs [bigstep_e_exec_def]
-) >- (
- Cases_on ‘bigstep_e_exec scope_lists (INR (MAP SND x_e_l)) n’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘x0’ >>
- fs[] >>
- Cases_on ‘EVERY is_v y’ >> (
-  FULL_SIMP_TAC bool_ss []
- ) >> (
-  fs[]
- )
-) >>
-subgoal ‘~EVERY is_v e_l'’ >- (
- fs[]
-) >>
-FULL_SIMP_TAC bool_ss []
+ gs [bigstep_e_exec_def, AllCaseEqs()]
+)
 QED
 
 val bigstep_e_exec_ind_hyp_tac =
  PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  res_tac >>
  decide_tac
 ;
@@ -724,7 +601,7 @@ val bigstep_e_exec_ind_hyp_tac =
 val bigstep_e_exec_2_ind_hyp_tac =
  PAT_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
  PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  res_tac >>
  decide_tac
 ;
@@ -743,34 +620,34 @@ Induct_on ‘t’ >- (
   rpt strip_tac
  ) >| [
   (* v *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* var *)
-  fs[bigstep_e_exec_var_REWR],
+  gs[bigstep_e_exec_var_REWR],
 
   (* list *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* acc *)
-  fs[bigstep_e_exec_acc_REWR] >>
+  gs[bigstep_e_exec_acc_REWR] >>
   rpt strip_tac >> (
    bigstep_e_exec_ind_hyp_tac
   ),
 
   (* unop *)
-  fs[bigstep_e_exec_unop_REWR] >>
+  gs[bigstep_e_exec_unop_REWR] >>
   rpt strip_tac >> (
    bigstep_e_exec_ind_hyp_tac
   ),
 
   (* cast *)
-  fs[bigstep_e_exec_cast_REWR] >>
+  gs[bigstep_e_exec_cast_REWR] >>
   rpt strip_tac >> (
    bigstep_e_exec_ind_hyp_tac
   ),
 
   (* binop *)
-  fs[bigstep_e_exec_binop_REWR] >>
+  gs[bigstep_e_exec_binop_REWR] >>
   rpt strip_tac >- (
    bigstep_e_exec_ind_hyp_tac
   ) >- (
@@ -781,7 +658,7 @@ Induct_on ‘t’ >- (
   bigstep_e_exec_ind_hyp_tac,
 
   (* concat *)
-  fs[bigstep_e_exec_concat_REWR] >>
+  gs[bigstep_e_exec_concat_REWR] >>
   rpt strip_tac >- (
    bigstep_e_exec_2_ind_hyp_tac
   ) >- (
@@ -790,86 +667,86 @@ Induct_on ‘t’ >- (
   bigstep_e_exec_ind_hyp_tac,
 
   (* slice *)
-  fs[bigstep_e_exec_slice_REWR] >>
+  gs[bigstep_e_exec_slice_REWR] >>
   rpt strip_tac >> (
    bigstep_e_exec_ind_hyp_tac
   ),
 
   (* call *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* select *)
-  fs[bigstep_e_exec_select_REWR] >>
+  gs[bigstep_e_exec_select_REWR] >>
   rpt strip_tac >>
   bigstep_e_exec_ind_hyp_tac,
 
   (* struct *)
-  fs[bigstep_e_exec_struct_REWR] >>
+  gs[bigstep_e_exec_struct_REWR] >>
   rpt strip_tac >> (
    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-   fs[e_size_def, e3_e1_size] >>
+   gs[e_size_def, e3_e1_size] >>
    res_tac >>
    decide_tac
   ),
 
   (* header *)
-  fs[bigstep_e_exec_def]
+  gs[bigstep_e_exec_def]
  ]
 (* INR *)
 ) >>
 Induct_on ‘y’ >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
+ gs[bigstep_e_exec_def]
 ) >>
 Cases_on ‘bigstep_e_exec scope_lists (INL h) n’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x0’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘bigstep_e_exec scope_lists (INR y) x1’ >> (
- fs[]
+ gs[]
 ) >- (
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  res_tac >>
  decide_tac
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'0’ >>
-fs[] >- (
+gs[] >- (
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  res_tac >>
  decide_tac
 ) >>
 PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
-fs[e_size_def] >>
+gs[e_size_def] >>
 PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR y)’] thm)) >>
-fs[e_size_def] >>
+gs[e_size_def] >>
 res_tac >>
 Cases_on ‘is_v x’ >> (
- fs[]
+ gs[]
 )
 QED
 
 val bigstep_e_exec_unchanged_ind_hyp_tac =
  imp_res_tac bigstep_e_exec_incr >>
  PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  res_tac >>
- fs[]
+ gs[]
 ;
 
 val bigstep_e_exec_unchanged_2_ind_hyp_tac =
  imp_res_tac bigstep_e_exec_incr >>
  PAT_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
  PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  res_tac >>
- fs[]
+ gs[]
 ;
 
 Theorem bigstep_e_exec_unchanged:
@@ -886,26 +763,26 @@ Induct_on ‘t’ >- (
   rpt strip_tac
  ) >| [
   (* v *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* var *)
-  fs[bigstep_e_exec_var_REWR],
+  gs[bigstep_e_exec_var_REWR],
 
   (* list *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* acc *)
-  fs[bigstep_e_exec_acc_REWR] >> (
+  gs[bigstep_e_exec_acc_REWR] >> (
    bigstep_e_exec_unchanged_ind_hyp_tac
   ),
 
   (* unop *)
-  fs[bigstep_e_exec_unop_REWR] >> (
+  gs[bigstep_e_exec_unop_REWR] >> (
    bigstep_e_exec_unchanged_ind_hyp_tac
   ),
 
   (* cast *)
-  fs[bigstep_e_exec_cast_REWR] >> (
+  gs[bigstep_e_exec_cast_REWR] >> (
    bigstep_e_exec_unchanged_ind_hyp_tac
   ),
 
@@ -924,7 +801,7 @@ Induct_on ‘t’ >- (
    ) >>
    fs[] >>
    res_tac >>
-   fs[]
+   gs[]
   ) >>
   bigstep_e_exec_unchanged_ind_hyp_tac,
 
@@ -941,77 +818,76 @@ Induct_on ‘t’ >- (
    ) >>
    fs[] >>
    res_tac >>
-   fs[]
+   gs[]
   ) >>
   bigstep_e_exec_unchanged_ind_hyp_tac,
 
   (* slice *)
-  fs[bigstep_e_exec_slice_REWR] >> (
+  gs[bigstep_e_exec_slice_REWR] >> (
    bigstep_e_exec_unchanged_ind_hyp_tac
   ),
 
   (* call *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* select *)
-  fs[bigstep_e_exec_select_REWR] >>
+  gs[bigstep_e_exec_select_REWR] >>
   rpt strip_tac >>
   bigstep_e_exec_unchanged_ind_hyp_tac,
 
   (* struct *)
-  fs[bigstep_e_exec_struct_REWR] >> (
+  gs[bigstep_e_exec_struct_REWR] >> (
    imp_res_tac bigstep_e_exec_incr >>
    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-   fs[e_size_def, e3_e1_size] >>
+   gs[e_size_def, e3_e1_size] >>
    res_tac >>
    gvs[GSYM ZIP_MAP_FST_SND]
   ),
 
   (* header *)
-  fs[bigstep_e_exec_def]
+  gs[bigstep_e_exec_def]
  ]
 (* INR *)
 ) >>
 Induct_on ‘y’ >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
+ gs[bigstep_e_exec_def]
 ) >>
 Cases_on ‘bigstep_e_exec scope_lists (INL h) n’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x0’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘bigstep_e_exec scope_lists (INR y) x1’ >> (
- fs[]
+ gs[]
 ) >- (
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
  gs[e_size_def] >>
  res_tac >>
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'0’ >>
-fs[] >- (
+gs[] >- (
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
  gs[e_size_def] >>
  res_tac >>
- fs[]
+ gs[]
 ) >>
 imp_res_tac bigstep_e_exec_incr >>
 PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
-fs[e_size_def] >>
+gs[e_size_def] >>
 PAT_ASSUM “!y'.
           (case y' of INL e => e_size e | INR e_l => e3_size e_l) <
           e3_size y + (e_size h + 1) ==>
           !t' scope_lists n.
             bigstep_e_exec scope_lists y' n = SOME (t',n) ==> y' = t'” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR y)’] thm)) >>
-
 fs[e_size_def] >>
 Cases_on ‘is_v x’ >> (
- fs[]
+ gs[]
 ) >- (
  gvs[] >>
  subgoal ‘x1 = n’ >- (
@@ -1019,18 +895,19 @@ Cases_on ‘is_v x’ >> (
  ) >>
  fs[] >>
  res_tac >>
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 res_tac >>
-fs[]
+gs[]
 QED
 
+(* TODO: Revisit this *)
 fun bigstep_e_exec_not_eq_ind_hyp_tac tmq =
  PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
  fs[e_size_def] >>
  subgoal tmq >- (
-  fs[]
+  gs[]
  ) >>
  res_tac
 ;
@@ -1050,86 +927,86 @@ Induct_on ‘t’ >- (
   rpt strip_tac
  ) >| [
   (* v *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* var *)
-  fs[bigstep_e_exec_var_REWR],
+  gs[bigstep_e_exec_var_REWR],
 
   (* list *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* acc *)
-  fs[bigstep_e_exec_acc_REWR] >>
+  gs[bigstep_e_exec_acc_REWR] >>
   bigstep_e_exec_not_eq_ind_hyp_tac ‘INL x <> ((INL e_v_struct):(e + e list))’,
 
   (* unop *)
-  fs[bigstep_e_exec_unop_REWR] >>
+  gs[bigstep_e_exec_unop_REWR] >>
   bigstep_e_exec_not_eq_ind_hyp_tac ‘INL x <> ((INL e'):(e + e list))’,
 
   (* cast *)
-  fs[bigstep_e_exec_cast_REWR] >>
+  gs[bigstep_e_exec_cast_REWR] >>
   bigstep_e_exec_not_eq_ind_hyp_tac ‘INL x <> ((INL e'):(e + e list))’,
 
   (* binop *)
-  fs[bigstep_e_exec_binop_REWR] >- (
+  gs[bigstep_e_exec_binop_REWR] >- (
    imp_res_tac bigstep_e_exec_incr >>
    subgoal ‘n' = 0’ >- (
-    fs[]
+    gs[]
    ) >>
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >>
   bigstep_e_exec_not_eq_ind_hyp_tac ‘INL x <> ((INL e1'):(e + e list))’,
 
   (* concat *)
-  fs[bigstep_e_exec_concat_REWR] >- (
+  gs[bigstep_e_exec_concat_REWR] >- (
    imp_res_tac bigstep_e_exec_incr >>
    subgoal ‘n' = 0’ >- (
-    fs[]
+    gs[]
    ) >>
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >>
   bigstep_e_exec_not_eq_ind_hyp_tac ‘INL x <> ((INL e1'):(e + e list))’,
 
   (* slice *)
-  fs[bigstep_e_exec_slice_REWR] >>
+  gs[bigstep_e_exec_slice_REWR] >>
   bigstep_e_exec_not_eq_ind_hyp_tac ‘INL x <> ((INL e1'):(e + e list))’,
 
   (* call *)
-  fs[bigstep_e_exec_def],
+  gs[bigstep_e_exec_def],
 
   (* select *)
-  fs[bigstep_e_exec_select_REWR] >>
+  gs[bigstep_e_exec_select_REWR] >>
   bigstep_e_exec_not_eq_ind_hyp_tac ‘INL x <> ((INL e'):(e + e list))’,
 
   (* struct *)
-  fs[bigstep_e_exec_struct_REWR] >>
+  gs[bigstep_e_exec_struct_REWR] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-  fs[e_size_def, e3_e1_size] >>
+  gs[e_size_def, e3_e1_size] >>
   imp_res_tac bigstep_e_exec_unchanged >>
   gvs[ZIP_MAP_FST_SND],
 
   (* header *)
-  fs[bigstep_e_exec_def]
+  gs[bigstep_e_exec_def]
  ]
 ) >>
 (* INR *)
 Induct_on ‘y’ >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
+ gs[bigstep_e_exec_def]
 ) >>
 Cases_on ‘bigstep_e_exec scope_lists (INL h) 0’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x0’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘bigstep_e_exec scope_lists (INR y) x1’ >> (
- fs[]
+ gs[]
 ) >- (
  gvs[] >>
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
@@ -1137,9 +1014,9 @@ Cases_on ‘bigstep_e_exec scope_lists (INR y) x1’ >> (
  res_tac
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'0’ >>
-fs[] >- (
+gs[] >- (
  gvs[] >>
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
  gs[e_size_def] >>
@@ -1147,23 +1024,23 @@ fs[] >- (
 ) >>
 imp_res_tac bigstep_e_exec_incr >>
 PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
-fs[e_size_def] >>
+gs[e_size_def] >>
 PAT_ASSUM “!y'.
           (case y' of INL e => e_size e | INR e_l => e3_size e_l) <
           e3_size y + (e_size h + 1) ==>
           !t'' scope_lists'.
             y' <> t'' ==> bigstep_e_exec scope_lists' y' 0 <> SOME (t'',0)” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR y)’] thm)) >>
-fs[e_size_def] >>
+gs[e_size_def] >>
 Cases_on ‘is_v x’ >> (
- fs[]
+ gs[]
 ) >- (
  gvs[] >>
  imp_res_tac bigstep_e_exec_unchanged >>
- fs[]
+ gs[]
 ) >>
 gs[] >>
 imp_res_tac bigstep_e_exec_unchanged >>
-fs[]
+gs[]
 QED
 
 Theorem bigstep_e_exec_not_v_bit:
@@ -1176,9 +1053,7 @@ Proof
 rpt strip_tac >>
 rw[] >>
 imp_res_tac bigstep_e_exec_unchanged >>
-Cases_on ‘e’ >> Cases_on ‘e'’ >> (
- fs[is_v_bit_def]
-)
+gs[is_v_bit_def, AllCaseEqs()]
 QED
 
 Theorem bigstep_e_exec_not_v:
@@ -1191,16 +1066,14 @@ Proof
 rpt strip_tac >>
 rw[] >>
 imp_res_tac bigstep_e_exec_unchanged >>
-Cases_on ‘e’ >> Cases_on ‘e'’ >> (
- fs[is_v_def]
-)
+gs[is_v_def, AllCaseEqs()]
 QED
 
 Theorem bigstep_e_exec_v:
 !v scope_list g_scope_list' n.
 bigstep_e_exec (scope_list ++ g_scope_list') (INL (e_v v)) n = SOME (INL $ e_v v, n)
 Proof
-fs[bigstep_e_exec_def]
+gs[bigstep_e_exec_def]
 QED
 
 Triviality unred_mem_index_NONE:
@@ -1209,28 +1082,28 @@ EVERY is_v e_l ==>
 unred_mem_index e_l = NONE
 Proof
 Induct >- (
- fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
+ gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
 ) >>
 rpt strip_tac >>
-fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def] >>
+gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def] >>
 subgoal ‘is_const h’ >- (
  Cases_on ‘h’ >> (
-  fs[is_v_def, is_const_def]
+  gs[is_v_def, is_const_def]
  )
 ) >>
-fs[] >>
+gs[] >>
  Cases_on ‘INDEX_FIND 1 (\e. ~is_const e) e_l’ >> (
-  fs[]
+  gs[]
  ) >>
 PairCases_on ‘x’ >>
-fs[] >>
+gs[] >>
 imp_res_tac index_find_first >>
 Cases_on ‘INDEX_FIND 0 (\e. ~is_const e) e_l’ >- (
- fs[] >>
- fs[Q.SPECL [‘e_l’, ‘1:num’] (INDEX_FIND_add)]
+ gs[] >>
+ gs[Q.SPECL [‘e_l’, ‘1:num’] (INDEX_FIND_add)]
 ) >>
 PairCases_on ‘x’ >>
-fs[]
+gs[]
 QED
 
 Theorem bigstep_e_exec_sound:
@@ -1262,138 +1135,137 @@ Induct_on ‘t’ >- (
 
   (* var *)
   rw[] >>
-  fs[bigstep_e_exec_var_REWR] >>
-  fs[e_exec_def, lookup_vexp_def, lookup_vexp2_def] >>
+  gs[bigstep_e_exec_var_REWR] >>
+  gs[e_exec_def, lookup_vexp_def, lookup_vexp2_def] >>
   Cases_on ‘lookup_map (scope_list ++ g_scope_list') v’ >> (
-   fs[]
+   gs[]
   ) >>
   PairCases_on ‘x’ >>
-  fs[],
+  gs[],
 
   (* list *)
   gvs[bigstep_e_exec_def],
 
   (* acc *)
   rw[] >>
-  fs[bigstep_e_exec_acc_REWR] >> (
+  gs[bigstep_e_exec_acc_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >- (
    Cases_on ‘is_v x’ >> (
-    fs[]
+    gs[]
    ) >- (
     Cases_on ‘x’ >> (
-     fs[is_v_def, bigstep_e_exec_def]
+     gs[is_v_def, bigstep_e_exec_def]
     )
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >>
-  fs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
   fs[] >>
   Cases_on ‘is_v x’ >> (
    fs[]
   ) >>
   Cases_on ‘x’ >> (
-   fs[is_v_def, bigstep_e_exec_def]
+   gs[is_v_def, bigstep_e_exec_def, AllCaseEqs()]
   ),
 
   (* unop *)
   rw[] >>
-  fs[bigstep_e_exec_unop_REWR] >> (
+  gs[bigstep_e_exec_unop_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >- (
    Cases_on ‘is_v x’ >> (
-    fs[]
+    gs[]
    ) >- (
     Cases_on ‘x’ >> (
-     fs[is_v_def, bigstep_e_exec_def]
+     fs[is_v_def, bigstep_e_exec_def, AllCaseEqs()]
     )
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >>
-  fs[] >>
+  gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
   fs[] >>
   Cases_on ‘is_v x’ >> (
-   fs[]
+   gs[]
   ) >>
   Cases_on ‘x’ >> (
-   fs[is_v_def, bigstep_e_exec_def]
+   gs[is_v_def, bigstep_e_exec_def]
   ),
 
   (* cast *)
   rw[] >>
-  fs[bigstep_e_exec_cast_REWR] >> (
+  gs[bigstep_e_exec_cast_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >- (
    Cases_on ‘is_v x’ >> (
-    fs[]
+    gs[]
    ) >- (
     Cases_on ‘x’ >> (
-     fs[is_v_def, bigstep_e_exec_def]
+     gs[is_v_def, bigstep_e_exec_def]
     )
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >>
-  fs[] >>
+  gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
   fs[] >>
   Cases_on ‘is_v x’ >> (
-   fs[]
+   gs[]
   ) >>
   Cases_on ‘x’ >> (
-   fs[is_v_def, bigstep_e_exec_def]
+   gs[is_v_def, bigstep_e_exec_def]
   ),
 
   (* binop *)
   rw[] >>
-  fs[bigstep_e_exec_binop_REWR] >> (
+  gs[bigstep_e_exec_binop_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >- (
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >- (
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[] >>
+   gs[] >>
    Cases_on ‘x’ >> (
     gvs[is_v_def]
    )
   ) >- (
    Cases_on ‘is_v x’ >> (
-    fs[]
+    gs[]
    ) >- (
     Cases_on ‘x’ >> (
      gvs[is_v_def]
     ) >- (
      Cases_on ‘is_v x'’ >> (
-      fs[]
+      gs[]
      ) >- (
       Cases_on ‘x'’ >> (
        gvs[is_v_def]
       ) >>
-      fs[bigstep_e_exec_def]
+      gs[bigstep_e_exec_def]
      ) >>
-     fs[bigstep_e_exec_def] >>
+     gs[bigstep_e_exec_def] >>
      gvs[] >>
      PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
-     fs[e_size_def] >>
+     gs[e_size_def] >>
      res_tac >>
      fs[]
     )
@@ -1406,44 +1278,44 @@ Induct_on ‘t’ >- (
     ) >>
     fs[] >>
     imp_res_tac bigstep_e_exec_unchanged >>
-    fs[]
+    gs[]
    ) >>
-   fs[] >>
+   gs[] >>
    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
    Cases_on ‘x’ >> (
     gvs[is_v_def]
    ) >> (
-    fs[e_size_def] >>
+    gs[e_size_def] >>
     res_tac >>
     fs[] >>
     imp_res_tac bigstep_e_exec_unchanged >>
-    fs[]
+    gs[]
    )
   ) >- (
-   fs[] >>
+   gs[] >>
    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    res_tac >>
    fs[] >>
    Cases_on ‘x’ >> (
-    fs[bigstep_e_exec_def]
+    gs[bigstep_e_exec_def]
    )
   ),
 
   (* concat *)
   rw[] >>
-  fs[bigstep_e_exec_concat_REWR] >> (
+  gs[bigstep_e_exec_concat_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >- (
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >- (
    Cases_on ‘is_v_bit x’ >> (
-    fs[]
+    gs[]
    ) >- (
     Cases_on ‘x’ >> (
      gvs[is_v_bit_def]
@@ -1452,23 +1324,23 @@ Induct_on ‘t’ >- (
      gvs[is_v_bit_def]
     ) >>
     Cases_on ‘is_v_bit x'’ >> (
-     fs[]
+     gs[]
     ) >- (
      Cases_on ‘x'’ >> (
       gvs[is_v_bit_def]
      ) >>
-     fs[bigstep_e_exec_def]
+     gs[bigstep_e_exec_def]
     ) >>
     subgoal ‘n' = 0’ >- (
-     fs[bigstep_e_exec_def]
+     gs[bigstep_e_exec_def]
     ) >>
-    fs[] >>
+    gs[] >>
     PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
-    fs[e_size_def] >>
+    gs[e_size_def] >>
     res_tac >>
     fs[] >>
     imp_res_tac bigstep_e_exec_unchanged >>
-    fs[]
+    gs[]
    ) >>
    imp_res_tac bigstep_e_exec_incr >>
    subgoal ‘n' = 1’ >- (
@@ -1478,56 +1350,56 @@ Induct_on ‘t’ >- (
     ) >>
     fs[] >>
     imp_res_tac bigstep_e_exec_unchanged >>
-    fs[]
+    gs[]
    ) >>
-   fs[] >>
+   gs[] >>
    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    res_tac >>
    fs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >- (
-   fs[] >>
+   gs[] >>
    PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    res_tac >>
    fs[] >>
    Cases_on ‘is_v_bit x’ >> (
-    fs[]
+    gs[]
    ) >>
    Cases_on ‘x’ >> (
     gvs[is_v_bit_def]
    ) >>
-   fs[bigstep_e_exec_def]
+   gs[bigstep_e_exec_def]
   ),
 
   (* slice *)
   rw[] >>
-  fs[bigstep_e_exec_slice_REWR] >> (
+  gs[bigstep_e_exec_slice_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >- (
    Cases_on ‘is_v_bit x’ >> (
-    fs[]
+    gs[]
    ) >- (
     Cases_on ‘x’ >> (
-     fs[is_v_bit_def, bigstep_e_exec_def]
+     gs[is_v_bit_def, bigstep_e_exec_def]
     )
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   ) >>
-  fs[] >>
+  gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
   fs[] >>
   Cases_on ‘is_v_bit x’ >> (
-   fs[]
+   gs[]
   ) >>
   Cases_on ‘x’ >> (
-   fs[is_v_bit_def, bigstep_e_exec_def]
+   gs[is_v_bit_def, bigstep_e_exec_def]
   ),
 
   (* call *) 
@@ -1535,51 +1407,47 @@ Induct_on ‘t’ >- (
 
   (* select *)
   rw[] >>
-  fs[bigstep_e_exec_select_REWR] >> (
+  gs[bigstep_e_exec_select_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >>
   Cases_on ‘is_v x’ >> (
-   fs[]
+   gs[]
   ) >- (
    Cases_on ‘x’ >> (
-    fs[is_v_def, bigstep_e_exec_def]
+    gs[is_v_def, bigstep_e_exec_def]
    )
   ) >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
   fs[],
 
   (* struct *)
   rw[] >>
-  fs[bigstep_e_exec_struct_REWR] >> (
+  gs[bigstep_e_exec_struct_REWR] >> (
    rw[] >>
-   fs[e_exec_def]
+   gs[e_exec_def]
   ) >- (
-   fs[] >>
+   gs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[] >>
+   gs[] >>
    Cases_on ‘unred_mem_index e_l'’ >> (
-    fs[]
+    gs[]
    ) >>
    (* Contradiction on unreduced element in e_l' *)
    imp_res_tac unred_mem_index_NONE >>
-   fs[]
+   gs[]
   ) >>
-  fs[] >>
+  gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-  fs[e_size_def, e3_e1_size] >>
+  gs[e_size_def, e3_e1_size] >>
   res_tac >>
-  Cases_on ‘l’ >- (
-   fs[bigstep_e_exec_def, e_exec_def]
-  ) >>
-  fs[e_exec_def] >>
-  Cases_on ‘unred_mem_index (SND h::MAP SND t)’ >> (
-   fs[]
-  ) >>
   PAT_X_ASSUM “!tbl_map pars_map func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘tbl_map’, ‘pars_map’, ‘func_map’, ‘ext_map’, ‘b_func_map’, ‘apply_table_f’] thm)) >>
-  fs[],
+  Cases_on ‘l’ >- (
+   gs[bigstep_e_exec_def, e_exec_def]
+  ) >>
+  fs[e_exec_def],
 
   (* header *)
   gvs[bigstep_e_exec_def]
@@ -1588,27 +1456,9 @@ Induct_on ‘t’ >- (
 (* INR *)
 Induct_on ‘y’ >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
-) >>
-Cases_on ‘bigstep_e_exec (scope_list ++ g_scope_list') (INL h) 0’ >> (
- fs[]
-) >>
-PairCases_on ‘x’ >>
-fs[] >>
-Cases_on ‘x0’ >>
-fs[] >>
-Cases_on ‘is_v x’ >> (
- fs[]
+ gs[bigstep_e_exec_def, AllCaseEqs()]
 ) >- (
- (* Same as with old definition *)
- Cases_on ‘bigstep_e_exec (scope_list ++ g_scope_list') (INR y) x1’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x'’ >>
- fs[] >>
- Cases_on ‘x'0’ >>
- fs[] >>
- subgoal ‘x1 = 0 \/ x1 = 1’ >- (
+ subgoal ‘n' = 0 \/ n' = 1’ >- (
   imp_res_tac bigstep_e_exec_incr >>
   decide_tac
  ) >- (
@@ -1626,38 +1476,38 @@ Cases_on ‘is_v x’ >> (
   PAT_X_ASSUM “!tbl_map pars_map func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘tbl_map’, ‘pars_map’, ‘func_map’, ‘ext_map’, ‘b_func_map’, ‘apply_table_f’] thm)) >>
   fs[] >>
   gvs[] >- (
-   fs[bigstep_e_exec_def]
+   gs[bigstep_e_exec_def]
   ) >>
-  fs[] >>
+  gs[] >>
   qexists_tac ‘i+1’ >>
   gvs[] >>
   rpt strip_tac >- (
    (* Not true? h could be any expression that is not reduced further.. *)
    subgoal ‘is_const h’ >- (
     Cases_on ‘h’ >> (
-     fs[is_v_def, is_const_def]
+     gs[is_v_def, is_const_def]
     )
    ) >>
-   fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def] >>
-   fs[Q.SPECL [‘y’, ‘1:num’] (INDEX_FIND_add)] >>
+   gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def] >>
+   gs[Q.SPECL [‘y’, ‘1:num’] (INDEX_FIND_add)] >>
    Cases_on ‘INDEX_FIND 0 (\e. ~is_const e) y’ >> (
-    fs[]
+    gs[]
    ) >>
    PairCases_on ‘x’ >>
-   fs[]
+   gs[]
   ) >>
   qexists_tac ‘e'’ >>
   subgoal ‘(EL (i + 1) (h::y)) = (EL i y)’ >- (
-   fs[GSYM p4_auxTheory.SUC_ADD_ONE, EL_restricted]
+   gs[GSYM p4_auxTheory.SUC_ADD_ONE, EL_restricted]
   ) >>
-  fs[GSYM p4_auxTheory.SUC_ADD_ONE, LUPDATE_def]
+  gs[GSYM p4_auxTheory.SUC_ADD_ONE, LUPDATE_def]
  ) >>
  (* x1 = 1: h reduction contributes the step *)
  gvs[] >>
  subgoal ‘~is_const h’ >- (
   CCONTR_TAC >>
   Cases_on ‘h’ >> (
-   fs[is_const_def, bigstep_e_exec_def]
+   gs[is_const_def, bigstep_e_exec_def]
   )
  ) >>
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
@@ -1665,9 +1515,9 @@ Cases_on ‘is_v x’ >> (
  res_tac >>
  fs[] >>
  qexists_tac ‘0’ >>
- fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, LUPDATE_def] >>
+ gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, LUPDATE_def] >>
  imp_res_tac bigstep_e_exec_unchanged >>
- fs[]
+ gs[]
 ) >>
 (* New case *)
 gvs[] >>
@@ -1675,10 +1525,10 @@ qexists_tac ‘0’ >>
 subgoal ‘~is_const h’ >- (
  CCONTR_TAC >>
  Cases_on ‘h’ >> (
-  fs[is_const_def, bigstep_e_exec_def]
+  gs[is_const_def, bigstep_e_exec_def]
  )
 ) >>
-fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, LUPDATE_def] >>
+gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, LUPDATE_def] >>
 PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
 fs[e_size_def] >>
 res_tac >>
@@ -1769,10 +1619,10 @@ e_exec ctx g_scope_list scope_list e = SOME (e',[]) ==>
 Proof
 rpt strip_tac >>
 Cases_on ‘e'’ >> (
- fs[is_v_def]
+ gs[is_v_def]
 ) >> (
  Cases_on ‘e’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[is_v_def, e_exec_def]
  )
 )
 QED
@@ -1784,33 +1634,15 @@ e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list e n = SOME e' ==>
 e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list (e_acc e f) n = SOME (e_acc e' f)
 Proof
 Induct_on ‘n’ >- (
- fs[e_multi_exec'_def]
+ gs[e_multi_exec'_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def] >>
-Cases_on ‘e_multi_exec' ctx g_scope_list' scope_list e n’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec ctx g_scope_list' scope_list x’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
-subgoal ‘~is_v x’ >- (
+gs[e_multi_exec'_def, AllCaseEqs()] >>
+subgoal ‘~is_v e''’ >- (
  metis_tac[e_exec_not_v]
 ) >>
 res_tac >>
-fs[] >>
-gvs[] >>
-Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc x f)’ >> (
- gs[e_exec_def]
-) >>
-PairCases_on ‘x'’ >>
-fs[]
+fs[e_exec_def]
 QED
 
 Theorem bigstep_e_acc_exec_sound_n_v:
@@ -1821,66 +1653,54 @@ e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list (e_acc e f) (SUC n) = e_exec
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def] >>
+ gs[e_multi_exec'_def] >>
  Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc e' f)’ >> (
-  fs[]
- ) >> (
-  gs[e_exec_def] >>
-  Cases_on ‘e_exec_acc (e_acc e' f)’ >> (
-   fs[]
-  )
+  gs[]
  ) >>
- PairCases_on ‘x’ >>
- fs[]
+ gs[AllCaseEqs(), e_exec_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def] >>
+gs[e_multi_exec'_def] >>
 Cases_on ‘e_multi_exec' ctx g_scope_list' scope_list e n’ >> (
- fs[]
+ gs[]
 ) >>
 subgoal ‘~is_v x’ >- (
  rpt strip_tac >>
  Cases_on ‘e_exec ctx g_scope_list' scope_list x’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x'’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x'1’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[is_v_def, e_exec_def]
  )
 ) >>
 imp_res_tac bigstep_e_acc_exec_sound_n_not_v >>
-fs[] >>
+gs[] >>
 Cases_on ‘e_exec ctx g_scope_list' scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc x f)’ >> (
  gs[e_exec_def]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 Cases_on ‘e_exec ctx g_scope_list' scope_list (e_acc e' f)’ >> (
- gs[e_exec_def]
-) >> (
- Cases_on ‘e_exec_acc (e_acc e' f)’ >> (
-  fs[]
- )
-) >>
-PairCases_on ‘x'’ >>
-fs[]
+ gs[e_exec_def, AllCaseEqs()]
+)
 QED
 
 Theorem bigstep_e_unop_exec_sound_n_not_v:
@@ -1889,34 +1709,14 @@ Theorem bigstep_e_unop_exec_sound_n_not_v:
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e n = SOME e' ==>
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_unop unop e) n = SOME (e_unop unop e')
 Proof
-Induct_on ‘n’ >- (
- fs[e_multi_exec'_def]
+Induct_on ‘n’ >> (
+ gs[e_multi_exec'_def, e_exec_def, AllCaseEqs()]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def] >>
-Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
-subgoal ‘~is_v x’ >- (
- metis_tac[e_exec_not_v]
-) >>
+imp_res_tac e_exec_not_v >>
 res_tac >>
 fs[] >>
-gvs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list (e_unop unop e)’ >> (
- gs[e_exec_def]
-) >>
-PairCases_on ‘x'’ >>
-fs[]
+gs[e_exec_def, AllCaseEqs()]
 QED
 
 Theorem bigstep_e_unop_exec_sound_n_v:
@@ -1926,57 +1726,13 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e n = SOME e' ==>
 e_exec_unop unop e' = SOME v ==>
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_unop unop e) (SUC n) = SOME (e_v v)
 Proof
-Induct_on ‘n’ >- (
- rpt strip_tac >>
- fs[e_multi_exec'_def] >>
- Cases_on ‘e_exec ctx g_scope_list scope_list (e_unop unop e')’ >> (
-  fs[]
- ) >> (
-  gvs[e_exec_def]
- )
+Induct_on ‘n’ >> (
+ gs[e_multi_exec'_def, e_exec_def, AllCaseEqs()]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def] >>
-Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
- fs[]
-) >>
-subgoal ‘~is_v x’ >- (
- rpt strip_tac >>
- Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x'’ >>
- fs[] >>
- Cases_on ‘x'1’ >> (
-  fs[]
- ) >>
- Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
- )
-) >>
+imp_res_tac e_exec_not_v >>
 imp_res_tac bigstep_e_unop_exec_sound_n_not_v >>
-fs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list (e_unop unop x)’ >> (
- gs[e_exec_def]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list (e_unop unop e')’ >> (
- gvs[e_exec_def]
-)
+gs[e_exec_def]
 QED
 
 Theorem bigstep_e_cast_exec_sound_n_not_v:
@@ -1985,34 +1741,14 @@ Theorem bigstep_e_cast_exec_sound_n_not_v:
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e n = SOME e' ==>
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_cast cast e) n = SOME (e_cast cast e')
 Proof
-Induct_on ‘n’ >- (
- fs[e_multi_exec'_def]
+Induct_on ‘n’ >> (
+ gs[e_multi_exec'_def, e_exec_def, AllCaseEqs()]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def] >>
-Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
-subgoal ‘~is_v x’ >- (
- metis_tac[e_exec_not_v]
-) >>
+imp_res_tac e_exec_not_v >>
 res_tac >>
 fs[] >>
-gvs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list (e_cast cast e)’ >> (
- gs[e_exec_def]
-) >>
-PairCases_on ‘x'’ >>
-fs[]
+gs[e_exec_def, AllCaseEqs()]
 QED
 
 Theorem bigstep_e_cast_exec_sound_n_v:
@@ -2022,57 +1758,13 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e n = SOME e' ==>
 e_exec_cast cast e' = SOME v ==>
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_cast cast e) (SUC n) = SOME (e_v v)
 Proof
-Induct_on ‘n’ >- (
- rpt strip_tac >>
- fs[e_multi_exec'_def] >>
- Cases_on ‘e_exec ctx g_scope_list scope_list (e_cast cast e')’ >> (
-  fs[]
- ) >> (
-  gvs[e_exec_def]
- )
+Induct_on ‘n’ >> (
+ gs[e_multi_exec'_def, e_exec_def, AllCaseEqs()]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def] >>
-Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
- fs[]
-) >>
-subgoal ‘~is_v x’ >- (
- rpt strip_tac >>
- Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x'’ >>
- fs[] >>
- Cases_on ‘x'1’ >> (
-  fs[]
- ) >>
- Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
- )
-) >>
+imp_res_tac e_exec_not_v >>
 imp_res_tac bigstep_e_cast_exec_sound_n_not_v >>
-fs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list (e_cast cast x)’ >> (
- gs[e_exec_def]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
-Cases_on ‘e_exec ctx g_scope_list scope_list (e_cast cast e')’ >> (
- gvs[e_exec_def]
-)
+gs[e_exec_def]
 QED
 
 Theorem bigstep_e_binop_exec_sound_n_first:
@@ -2081,26 +1773,14 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e1 n = SOME e1' ==>
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_binop e1 binop e2) n = SOME (e_binop e1' binop e2)
 Proof
 Induct_on ‘n’ >> (
- rpt strip_tac >>
- fs[e_multi_exec'_def]
+ gs[e_multi_exec'_def, e_exec_def, AllCaseEqs()]
 ) >>
-Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e1 n’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
+rpt strip_tac >>
 imp_res_tac e_exec_not_v >>
 res_tac >>
 fs[e_exec_def] >>
-Cases_on ‘x’ >> (
- fs[is_v_def]
+Cases_on ‘e'’ >> (
+ gs[is_v_def]
 )
 QED
 
@@ -2114,75 +1794,51 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_binop e binop e')
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def] >>
+ gs[e_multi_exec'_def] >>
  Cases_on ‘e_exec ctx g_scope_list scope_list (e_binop (e_v v) binop e')’ >> (
-  fs[]
- ) >> (
-  gs[e_exec_def] >>
-  Cases_on ‘e_exec_short_circuit v binop e'’ >> (
-   fs[]
-  )
- ) >>
- PairCases_on ‘x’ >>
- fs[]
-) >>
-rpt strip_tac >>
-fs[e_multi_exec'_def] >>
-Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
- fs[]
-) >>
-subgoal ‘~is_v x’ >- (
- rpt strip_tac >>
- Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x'’ >>
- fs[] >>
- Cases_on ‘x'1’ >> (
-  fs[]
- ) >>
- Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[e_exec_def, AllCaseEqs()]
  )
 ) >>
-imp_res_tac bigstep_e_binop_exec_sound_n_first >>
-fs[] >>
+rpt strip_tac >>
+gs[e_multi_exec'_def] >>
+Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
+ gs[]
+) >>
 Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
+subgoal ‘~is_v x’ >- (
+ metis_tac[e_exec_not_v]
+) >>
+imp_res_tac bigstep_e_binop_exec_sound_n_first >>
 gvs[] >>
 Cases_on ‘e_exec ctx g_scope_list scope_list (e_binop x binop e')’ >> (
  gs[e_exec_def]
 ) >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def]
+  gs[is_v_def]
  )
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def]
+  gs[is_v_def]
  ) >> (
   gvs[e_exec_def] >>
   Cases_on ‘e_exec_short_circuit v binop e'’ >> (
-   fs[]
+   gs[]
   )
  )
 ) >>
-Cases_on ‘x’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec_short_circuit v' binop e'’ >> (
- fs[]
-)
+gs[AllCaseEqs()]
 QED
 
 Theorem bigstep_e_binop_exec_sound_n_second:
@@ -2196,40 +1852,40 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_binop e1 binop e2)
 Proof
 Induct_on ‘n'’ >> (
  rpt strip_tac >>
- fs[e_multi_exec'_def] >>
+ gs[e_multi_exec'_def] >>
  imp_res_tac bigstep_e_binop_exec_sound_n_first >>
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e2 n'’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 Q.SUBGOAL_THEN ‘n + SUC n' = SUC (n' + n)’ (fn thm => REWRITE_TAC [thm]) >- (
  decide_tac
 ) >>
-fs[e_multi_exec'_def] >>
+gs[e_multi_exec'_def] >>
 subgoal ‘e_multi_exec' ctx g_scope_list scope_list (e_binop e1 binop e2)
              (n' + n) = SOME (e_binop e1' binop x)’ >- (
   qpat_x_assum ‘!ctx. _’ (fn thm => irule thm) >>
-  fs[]
+  gs[]
 ) >>
 fs[arithmeticTheory.ADD_SYM] >>
-fs[e_exec_def] >>
+gs[e_exec_def] >>
 Cases_on ‘e1'’ >> (
- fs[is_v_def]
+ gs[is_v_def]
 ) >>
 subgoal ‘~is_v x’ >- (
  metis_tac[e_exec_not_v]
 ) >>
-fs[]
+gs[]
 QED
 
 Theorem bigstep_e_binop_exec_sound_n_both:
@@ -2246,9 +1902,9 @@ Proof
 rpt strip_tac >>
 imp_res_tac bigstep_e_binop_exec_sound_n_second >>
 imp_res_tac bigstep_e_binop_exec_sound_n_first >>
-fs[e_multi_exec'_def, e_exec_def] >>
+gs[e_multi_exec'_def, e_exec_def] >>
 Cases_on ‘e1'’ >> (
- fs[is_v_def]
+ gs[is_v_def]
 )
 QED
 
@@ -2258,26 +1914,15 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e1 n = SOME e1' ==>
 e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_concat e1 e2) n = SOME (e_concat e1' e2)
 Proof
 Induct_on ‘n’ >> (
- rpt strip_tac >>
- fs[e_multi_exec'_def]
+ gs[e_multi_exec'_def, e_exec_def, AllCaseEqs()]
 ) >>
-Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e1 n’ >> (
- fs[]
-) >>
-Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
-) >>
-PairCases_on ‘x'’ >>
-fs[] >>
-Cases_on ‘x'1’ >> (
- fs[]
-) >>
-gvs[] >>
+rpt strip_tac >>
 imp_res_tac e_exec_not_v >>
 res_tac >>
-fs[e_exec_def] >>
-Cases_on ‘x’ >> (
- fs[is_v_def, is_v_bit_def]
+fs[] >>
+gs[e_exec_def, AllCaseEqs()] >>
+Cases_on ‘e'’ >> (
+ gs[is_v_def, is_v_bit_def]
 )
 QED
 
@@ -2291,43 +1936,43 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_concat e1 e2)
 Proof
 Induct_on ‘n'’ >> (
  rpt strip_tac >>
- fs[e_multi_exec'_def] >>
+ gs[e_multi_exec'_def] >>
  imp_res_tac bigstep_e_concat_exec_sound_n_first >>
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e2 n'’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 Q.SUBGOAL_THEN ‘n + SUC n' = SUC (n' + n)’ (fn thm => REWRITE_TAC [thm]) >- (
  decide_tac
 ) >>
-fs[e_multi_exec'_def] >>
+gs[e_multi_exec'_def] >>
 subgoal ‘e_multi_exec' ctx g_scope_list scope_list (e_concat e1 e2)
              (n' + n) = SOME (e_concat e1' x)’ >- (
   qpat_x_assum ‘!ctx. _’ (fn thm => irule thm) >>
-  fs[]
+  gs[]
 ) >>
 fs[arithmeticTheory.ADD_SYM] >>
-fs[e_exec_def] >>
+gs[e_exec_def] >>
 Cases_on ‘e1'’ >> (
- fs[is_v_bit_def]
+ gs[is_v_bit_def]
 ) >>
 subgoal ‘~is_v_bit x’ >- (
  imp_res_tac e_exec_not_v >>
  Cases_on ‘x’ >> (
-  fs[is_v_def, is_v_bit_def]
+  gs[is_v_def, is_v_bit_def]
  )
 ) >>
-fs[]
+gs[]
 QED
 
 Theorem bigstep_e_concat_exec_sound_n_both:
@@ -2343,12 +1988,11 @@ Proof
 rpt strip_tac >>
 imp_res_tac bigstep_e_concat_exec_sound_n_second >>
 imp_res_tac bigstep_e_concat_exec_sound_n_first >>
-fs[e_multi_exec'_def, e_exec_def] >>
+gs[e_multi_exec'_def, e_exec_def] >>
 Cases_on ‘e1'’ >> (
- fs[is_v_bit_def]
+ gs[is_v_bit_def]
 )
 QED
-
 
 Theorem bigstep_e_slice_exec_sound_n_first:
 !ctx g_scope_list scope_list e1 e1' e2 e3 n.
@@ -2360,25 +2004,25 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_slice e1 e2 e3)
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[e_multi_exec'_def]
+ gs[e_multi_exec'_def]
 ) >>
 Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e1 n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 imp_res_tac e_exec_not_v >>
 res_tac >>
 fs[e_exec_def] >>
 Cases_on ‘x’ >> (
- fs[is_v_def, is_v_bit_def]
+ gs[is_v_def, is_v_bit_def]
 )
 QED
 
@@ -2394,42 +2038,42 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_slice e1 e2 e3)
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def] >>
+ gs[e_multi_exec'_def] >>
  Cases_on ‘e_exec ctx g_scope_list scope_list (e_slice e1' e2 e3)’ >> (
-  fs[]
+  gs[]
  ) >> (
   gvs[e_exec_def]
  )
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def] >>
+gs[e_multi_exec'_def] >>
 Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e1 n’ >> (
- fs[]
+ gs[]
 ) >>
 (* TODO: Get this result direcly from lemma... *)
 subgoal ‘~is_v_bit x’ >- (
  rpt strip_tac >>
  Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x'’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x'1’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘x’ >> (
-  fs[is_v_bit_def, e_exec_def]
+  gs[is_v_bit_def, e_exec_def]
  )
 ) >>
 imp_res_tac bigstep_e_slice_exec_sound_n_first >>
-fs[] >>
+gs[] >>
 Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 Cases_on ‘e_exec ctx g_scope_list scope_list (e_slice x e2 e3)’ >> (
@@ -2445,25 +2089,25 @@ e_multi_exec' (ctx:'a ctx) g_scope_list scope_list (e_select e1 cases default)
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[e_multi_exec'_def]
+ gs[e_multi_exec'_def]
 ) >>
 Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e1 n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 imp_res_tac e_exec_not_v >>
 res_tac >>
 fs[e_exec_def] >>
 Cases_on ‘x’ >> (
- fs[is_v_def, is_v_bit_def]
+ gs[is_v_def, is_v_bit_def]
 )
 QED
 
@@ -2474,7 +2118,7 @@ unred_mem_index l = SOME i ==>
 ~EVERY is_v l
 Proof
 rpt strip_tac >>
-fs[EVERY_is_v_unred_mem_index]
+gs[EVERY_is_v_unred_mem_index]
 QED
 
 Theorem e_multi_exec'_list'_LENGTH:
@@ -2485,24 +2129,24 @@ e_multi_exec'_list' ctx g_scope_list scope_list
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[e_multi_exec'_list'_def, unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
+ gs[e_multi_exec'_list'_def, unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
 ) >>
 Cases_on ‘e_multi_exec'_list' ctx g_scope_list
                scope_list e_l n’ >- (
- fs[]
+ gs[]
 ) >>
 res_tac >>
-fs[] >>
+gs[] >>
 Cases_on ‘INDEX_FIND 0 (\e. ~is_const e) x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘e_exec ctx g_scope_list scope_list (EL x'0 x)’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘$var$(x'1')’ >> (
  gvs[]
 )
@@ -2513,7 +2157,7 @@ Theorem e_multi_exec'_list'_empty:
 e_multi_exec'_list' ctx g_scope_list scope_list [] (SUC n) = NONE
 Proof
 Induct_on ‘n’ >> (
- fs[e_multi_exec'_list'_def, unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
+ gs[e_multi_exec'_list'_def, unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
 )
 QED
 
@@ -2525,37 +2169,37 @@ if EVERY is_v e_l' then (e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list (e_
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def, e_multi_exec'_list'_def] >>
+ gs[e_multi_exec'_def, e_multi_exec'_list'_def] >>
  gs[e_exec_def] >>
  Cases_on ‘EVERY is_v e_l'’ >> (
   FULL_SIMP_TAC pure_ss []
  ) >- (
   subgoal ‘unred_mem_index e_l' = NONE’ >- (
-   fs[EVERY_is_v_unred_mem_index]
+   gs[EVERY_is_v_unred_mem_index]
   ) >>
-  fs[]
+  gs[]
  ) >>
  subgoal ‘?i. unred_mem_index e_l' = SOME i’ >- (
-  fs[not_EVERY_is_v_unred_mem_index]
+  gs[not_EVERY_is_v_unred_mem_index]
  ) >>
  gvs[ZIP_MAP_FST_SND]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
+gs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
 Cases_on ‘EVERY is_v e_l'’ >> (
  FULL_SIMP_TAC pure_ss []
 ) >- (
- fs[] >>
+ gs[] >>
  Cases_on ‘x_e_l’ >> (
-  fs[e_multi_exec'_list'_def, e_multi_exec'_def]
+  gs[e_multi_exec'_list'_def, e_multi_exec'_def]
  ) >>
- fs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
+ gs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
  Cases_on ‘e_multi_exec'_list' ctx g_scope_list' scope_list
               (SND h::MAP SND t) n’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘unred_mem_index x’ >- (
-  fs[]
+  gs[]
  ) >>
  gvs[] >>
  FULL_SIMP_TAC pure_ss [GSYM MAP] >>
@@ -2565,70 +2209,70 @@ Cases_on ‘EVERY is_v e_l'’ >> (
   metis_tac[unred_mem_index_SOME]
  ) >>
  FULL_SIMP_TAC pure_ss [] >>
- fs[e_exec_def] >>
+ gs[e_exec_def] >>
  (* TODO: Prove the below earlier *)
  subgoal ‘LENGTH (MAP SND (h::t)) = LENGTH x’ >- (
   imp_res_tac e_multi_exec'_list'_LENGTH >>
-  fs[]
+  gs[]
  ) >>
- fs[MAP_ZIP] >>
+ gs[MAP_ZIP] >>
  Cases_on ‘e_exec ctx g_scope_list' scope_list (EL x' x)’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x''’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x''1’ >> (
-  fs[]
+  gs[]
  ) >>
  gvs[] >>
- fs[e_exec_def, MAP_ZIP] >>
+ gs[e_exec_def, MAP_ZIP] >>
  subgoal ‘unred_mem_index (LUPDATE x''0 x' x) = NONE’ >- (
-  fs[EVERY_is_v_unred_mem_index]
+  gs[EVERY_is_v_unred_mem_index]
  ) >>
- fs[]
+ gs[]
 ) >>
 (* Pretty much identical to the above *)
-fs[] >>
+gs[] >>
 Cases_on ‘x_e_l’ >> (
- fs[e_multi_exec'_list'_def, e_multi_exec'_def]
+ gs[e_multi_exec'_list'_def, e_multi_exec'_def]
 ) >>
 Cases_on ‘e_multi_exec'_list' ctx g_scope_list' scope_list
              (SND h::MAP SND t) n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘unred_mem_index x’ >- (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 FULL_SIMP_TAC pure_ss [GSYM MAP] >>
 res_tac >>
 fs[] >>
 subgoal ‘~EVERY is_v x’ >- (
- fs[unred_mem_index_def, unred_mem_def, GSYM is_v_is_const] >>
+ gs[unred_mem_index_def, unred_mem_def, GSYM is_v_is_const] >>
  Cases_on ‘INDEX_FIND 0 (\e. ~is_v e) x’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x''’ >>
  subgoal ‘IS_SOME $ INDEX_FIND 0 (\e. ~is_v e) x’ >- (
-  fs[optionTheory.IS_SOME_EXISTS]
+  gs[optionTheory.IS_SOME_EXISTS]
  ) >>
- fs[INDEX_FIND_SOME_EXISTS] >>
+ gs[INDEX_FIND_SOME_EXISTS] >>
  metis_tac[]
 ) >>
 FULL_SIMP_TAC pure_ss [] >>
-fs[e_exec_def] >>
+gs[e_exec_def] >>
 subgoal ‘LENGTH (MAP SND (h::t)) = LENGTH x’ >- (
  imp_res_tac e_multi_exec'_list'_LENGTH >>
- fs[]
+ gs[]
 ) >>
-fs[MAP_ZIP] >>
+gs[MAP_ZIP] >>
 Cases_on ‘e_exec ctx g_scope_list' scope_list (EL x' x)’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x''’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x''1’ >> (
- fs[]
+ gs[]
 )
 QED
 
@@ -2642,38 +2286,38 @@ e_multi_exec'_list' ctx g_scope_list scope_list (e::e_l) n = SOME (e'::e_l')
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
+ gs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
  subgoal ‘n' = 0’ >- (
-  fs[]
+  gs[]
  ) >>
  fs[e_multi_exec'_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
+gs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
 Cases_on ‘SUC n = n'’ >- (
  gvs[] >>
- fs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
+ gs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
  Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
-  fs[]
+  gs[]
  ) >>
  res_tac >>
  gvs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
  Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x'’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x'1’ >>
  gvs[] >>
  subgoal ‘~is_v x’ >- (
   Cases_on ‘x’ >> (
-   fs[is_v_def, e_exec_def]
+   gs[is_v_def, e_exec_def]
   )
  ) >>
  subgoal ‘unred_mem_index (x::e_l) = SOME 0’ >- (
-  fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, is_v_is_const]
+  gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, is_v_is_const]
  ) >>
- fs[LUPDATE_def]
+ gs[LUPDATE_def]
 ) >>
 gvs[] >>
 subgoal ‘SUC n - n' = SUC (n - n')’ >- (
@@ -2681,19 +2325,18 @@ subgoal ‘SUC n - n' = SUC (n - n')’ >- (
 ) >>
 fs[] >>
 Cases_on ‘e_l’ >> (
- fs[]
+ gs[]
 ) >- (
- fs[e_multi_exec'_list'_empty]
+ gs[e_multi_exec'_list'_empty]
 ) >>
-fs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
+gs[e_multi_exec'_list'_def, e_multi_exec'_def] >>
 Cases_on ‘e_multi_exec'_list' ctx g_scope_list scope_list (h::t) (n - n')’ >> (
- fs[]
+ gs[]
 ) >>
 res_tac >>
-fs[] >>
-(* Looks OK after some case splitting *)
+gs[] >>
 Cases_on ‘n > n'’ >> (
- fs[e_multi_exec'_list'_def, e_multi_exec'_def]
+ gs[e_multi_exec'_list'_def, e_multi_exec'_def]
 ) >> (
  Cases_on ‘unred_mem_index x’ >> (
   gvs[]
@@ -2703,31 +2346,30 @@ Cases_on ‘n > n'’ >> (
  res_tac >>
  fs[] >>
  subgoal ‘unred_mem_index (e'::x) = SOME (x'+1)’ >- (
-  fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, is_v_is_const] >>
-  fs[Once INDEX_FIND_add] >>
+  fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, is_v_is_const, Once INDEX_FIND_add] >>
   Cases_on ‘INDEX_FIND 0 (\e. ~is_const e) x’ >> (
-   fs[]
+   gs[]
   ) >>
   PairCases_on ‘x''’ >>
-  fs[] >>
+  gs[] >>
   Cases_on ‘x''1’ >>
   gvs[]
  ) >>
- fs[] >>
+ gs[] >>
  Cases_on ‘e_exec ctx g_scope_list scope_list (EL x' x)’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x''’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x''1’ >>
  gvs[] >>
  subgoal ‘e_exec ctx g_scope_list scope_list (EL (x' + 1) (e'::x)) = SOME (x''0,[])’ >- (
   ‘EL (x' + 1) (e'::x) = EL x' x’ suffices_by (
-   fs[]
+   gs[]
   ) >>
-  fs[GSYM SUC_ADD_ONE]
+  gs[GSYM SUC_ADD_ONE]
  ) >>
- fs[GSYM SUC_ADD_ONE, LUPDATE_def]
+ gs[GSYM SUC_ADD_ONE, LUPDATE_def]
 )
 QED
 
@@ -2738,28 +2380,28 @@ e_multi_exec'_list' ctx g_scope_list scope_list (e::e_l) n = SOME (e'::e_l)
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[e_multi_exec'_list'_def, e_multi_exec'_def]
+ gs[e_multi_exec'_list'_def, e_multi_exec'_def]
 ) >>
 Cases_on ‘e_multi_exec' ctx g_scope_list scope_list e n’ >> (
- fs[]
+ gs[]
 ) >>
 res_tac >>
 fs[] >>
 subgoal ‘~is_v x’ >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[is_v_def, e_exec_def]
  )
 ) >>
 subgoal ‘unred_mem_index (x::e_l) = SOME 0’ >- (
- fs[unred_mem_index_def, unred_mem_def, GSYM is_v_is_const, INDEX_FIND_def]
+ gs[unred_mem_index_def, unred_mem_def, GSYM is_v_is_const, INDEX_FIND_def]
 ) >>
 (* OK *)
-fs[] >>
+gs[] >>
 Cases_on ‘e_exec ctx g_scope_list scope_list x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >>
 gvs[LUPDATE_def]
 QED
@@ -2793,7 +2435,7 @@ Induct_on ‘t’ >- (
   (* variable *)
   gvs[bigstep_e_exec_var_REWR] >>
   Cases_on ‘n’ >> (
-   fs[]
+   gs[]
   ) >>
   FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ONE, e_multi_exec'_def] >>
   gvs[e_exec_def, lookup_vexp_def, lookup_vexp2_def]
@@ -2817,13 +2459,13 @@ Induct_on ‘t’ >- (
     imp_res_tac bigstep_e_exec_incr >>
     decide_tac
    ) >>
-   fs[GSYM SUC_ADD_ONE] >>
+   gs[GSYM SUC_ADD_ONE] >>
    irule bigstep_e_acc_exec_sound_n_v >>
-   fs[] >>
+   gs[] >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    res_tac >>
-   fs[] >>
+   gs[] >>
    (* Done after some arithmetic, use ((x'1 -n') + n') *)
    subgoal ‘n'' = (n - 1) + n'’ >- (
     imp_res_tac bigstep_e_exec_incr >>
@@ -2835,29 +2477,26 @@ Induct_on ‘t’ >- (
   ) >>
   gvs[] >>
   irule bigstep_e_acc_exec_sound_n_not_v >>
-  fs[] >>
+  gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
-  fs[]
+  gs[]
  ) >- (
   (* unary arithmetic *)
   gvs[bigstep_e_exec_unop_REWR] >- (
-(*
-   qpat_x_assum ‘e_exec_unop u e' = SOME v’ (fn thm => REWRITE_TAC [GSYM thm]) >>
-*)
    Q.SUBGOAL_THEN ‘n = SUC (n'' - n')’ (fn thm => REWRITE_TAC [thm]) >- (
     imp_res_tac bigstep_e_exec_incr >>
     decide_tac
    ) >>
-   fs[GSYM SUC_ADD_ONE] >>
+   gs[GSYM SUC_ADD_ONE] >>
    irule bigstep_e_unop_exec_sound_n_v >>
    qexists_tac ‘e'’ >>
-   fs[] >>
+   gs[] >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    res_tac >>
-   fs[] >>
+   gs[] >>
    (* Done after some arithmetic, use ((x'1 -n') + n') *)
    subgoal ‘n'' = (n - 1) + n'’ >- (
     imp_res_tac bigstep_e_exec_incr >>
@@ -2869,11 +2508,11 @@ Induct_on ‘t’ >- (
   ) >>
   gvs[] >>
   irule bigstep_e_unop_exec_sound_n_not_v >>
-  fs[] >>
+  gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
-  fs[]
+  gs[]
  ) >- (
   (* cast *)
   gvs[bigstep_e_exec_cast_REWR] >- (
@@ -2881,14 +2520,14 @@ Induct_on ‘t’ >- (
     imp_res_tac bigstep_e_exec_incr >>
     decide_tac
    ) >>
-   fs[GSYM SUC_ADD_ONE] >>
+   gs[GSYM SUC_ADD_ONE] >>
    irule bigstep_e_cast_exec_sound_n_v >>
    qexists_tac ‘e'’ >>
-   fs[] >>
+   gs[] >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    res_tac >>
-   fs[] >>
+   gs[] >>
    (* Done after some arithmetic, use ((x'1 -n') + n') *)
    subgoal ‘n'' = (n - 1) + n'’ >- (
     imp_res_tac bigstep_e_exec_incr >>
@@ -2900,11 +2539,11 @@ Induct_on ‘t’ >- (
   ) >>
   gvs[] >>
   irule bigstep_e_cast_exec_sound_n_not_v >>
-  fs[] >>
+  gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   res_tac >>
-  fs[]
+  gs[]
  ) >- (
   (* binary arithmetic *)
   gvs[bigstep_e_exec_binop_REWR] >- (
@@ -2914,14 +2553,14 @@ Induct_on ‘t’ >- (
     imp_res_tac bigstep_e_exec_incr >>
     decide_tac
    ) >>
-   fs[GSYM SUC_ADD_ONE] >>
+   gs[GSYM SUC_ADD_ONE] >>
    irule bigstep_e_binop_exec_sound_n_first_shortcircuit >>
-   fs[] >>
+   gs[] >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'' - n')’, ‘n'’] thm)) >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    res_tac >>
    fs[]
   ) >- (
@@ -2931,14 +2570,14 @@ Induct_on ‘t’ >- (
     decide_tac
    ) >>
    irule bigstep_e_binop_exec_sound_n_both >>
-   fs[] >>
+   gs[] >>
    qpat_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'3' - n'')’, ‘n''’] thm)) >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'' - n')’, ‘n'’] thm)) >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    res_tac >>
    fs[]
   ) >- (
@@ -2948,23 +2587,23 @@ Induct_on ‘t’ >- (
     decide_tac
    ) >>
    irule bigstep_e_binop_exec_sound_n_second >>
-   fs[] >>
+   gs[] >>
    qpat_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n + n') - n''’, ‘n''’] thm)) >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'' - n')’, ‘n'’] thm)) >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    res_tac >>
    fs[]
   ) >>
   (* Reduction of 1st operand only *)
   irule bigstep_e_binop_exec_sound_n_first >>
   qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n + n') - n'’, ‘n'’] thm)) >>
-  fs[] >>
+  gs[] >>
   res_tac >>
   fs[]
  ) >- (
@@ -2976,14 +2615,14 @@ Induct_on ‘t’ >- (
     decide_tac
    ) >>
    irule bigstep_e_concat_exec_sound_n_both >>
-   fs[] >>
+   gs[] >>
    qpat_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'3' - n'')’, ‘n''’] thm)) >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'' - n')’, ‘n'’] thm)) >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    res_tac >>
    fs[]
   ) >- (
@@ -2993,23 +2632,23 @@ Induct_on ‘t’ >- (
     decide_tac
    ) >>
    irule bigstep_e_concat_exec_sound_n_second >>
-   fs[] >>
+   gs[] >>
    qpat_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n + n') - n''’, ‘n''’] thm)) >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'' - n')’, ‘n'’] thm)) >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    res_tac >>
    fs[]
   ) >>
   (* Reduction of 1st operand *)
   irule bigstep_e_concat_exec_sound_n_first >>
   qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n + n') - n'’, ‘n'’] thm)) >>
-  fs[] >>
+  gs[] >>
   res_tac >>
   fs[]
  ) >- (
@@ -3020,21 +2659,21 @@ Induct_on ‘t’ >- (
     decide_tac
    ) >>
    irule bigstep_e_slice_exec_sound_n_full >>
-   fs[] >>
+   gs[] >>
    qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n'' - n')’, ‘n'’] thm)) >>
    imp_res_tac bigstep_e_exec_incr >>
-   fs[] >>
+   gs[] >>
    res_tac >>
    fs[]
   ) >>
   (* Reduction of operand to be sliced *)
   irule bigstep_e_slice_exec_sound_n_first >>
   qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n + n') - n'’, ‘n'’] thm)) >>
-  fs[] >>
+  gs[] >>
   res_tac >>
   fs[]
  ) >- (
@@ -3047,42 +2686,42 @@ Induct_on ‘t’ >- (
   gvs[bigstep_e_exec_select_REWR] >>
   irule bigstep_e_select_exec_sound_n_first >>
   qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   qpat_x_assum ‘!n''. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(n + n') - n'’, ‘n'’] thm)) >>
-  fs[] >>
+  gs[] >>
   res_tac >>
   fs[]
  ) >- (
   (* struct *)
   gvs[bigstep_e_exec_struct_REWR] >- (
    Cases_on ‘l’ >- (
-    fs[bigstep_e_exec_def, GSYM SUC_ADD_ONE] >>
+    gs[bigstep_e_exec_def, GSYM SUC_ADD_ONE] >>
     subgoal ‘n = 1’ >- (
      decide_tac
     ) >>
     fs[] >>
     FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ONE] >>
-    fs[e_multi_exec'_def, e_exec_def, unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
+    gs[e_multi_exec'_def, e_exec_def, unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
    ) >>
    qpat_x_assum ‘!y. _’ (fn thm => assume_tac (Q.SPECL [‘(INR (MAP SND ((h::t):(string # e) list)))’] thm)) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    subgoal ‘e3_size (MAP SND (h::t)) < e1_size (h::t) + 1’ >- (
-    fs[e3_e1_size]
+    gs[e3_e1_size]
    ) >>
-   fs[e_size_def] >>
+   gs[e_size_def] >>
    qpat_x_assum ‘!n'' n'3'. _’ (fn thm => assume_tac (Q.SPECL [‘n'' - n'’, ‘n'’] thm)) >>
-   fs[] >>
+   gs[] >>
    subgoal ‘n'' - n' + n' = n''’ >- (
     imp_res_tac bigstep_e_exec_incr >>
     decide_tac
    ) >>
-   fs[] >>
+   gs[] >>
    res_tac >>
    fs[] >>
    qpat_x_assum ‘!ctx. _’ (fn thm => assume_tac (Q.SPECL [‘ctx’] thm)) >>
-   fs[] >>
+   gs[] >>
    Cases_on ‘n’ >> (
-    fs[]
+    gs[]
    ) >>
    FULL_SIMP_TAC pure_ss [GSYM SUC_ADD_ONE, GSYM MAP] >>
    imp_res_tac bigstep_e_struct_exec_sound_n >>
@@ -3093,13 +2732,13 @@ Induct_on ‘t’ >- (
    fs[]
   ) >>
   qpat_x_assum ‘!y. _’ (fn thm => assume_tac (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   subgoal ‘e3_size (MAP SND l) < e1_size l + 1’ >- (
-   fs[e3_e1_size]
+   gs[e3_e1_size]
   ) >>
-  fs[e_size_def] >>
+  gs[e_size_def] >>
   qpat_x_assum ‘!n'' n'3'. _’ (fn thm => assume_tac (Q.SPECL [‘n’, ‘n'’] thm)) >>
-  fs[] >>
+  gs[] >>
   res_tac >>
   fs[] >>
   qpat_x_assum ‘!ctx. _’ (fn thm => assume_tac (Q.SPECL [‘ctx’] thm)) >>
@@ -3107,9 +2746,9 @@ Induct_on ‘t’ >- (
   Cases_on ‘l’ >- (
    gvs[bigstep_e_exec_def]
   ) >>
-  fs[] >>
-  Q.SUBGOAL_THEN ‘~EVERY is_v e_l'’ (fn thm => fs[thm]) >- (
-   fs[]
+  gs[] >>
+  Q.SUBGOAL_THEN ‘~EVERY is_v e_l'’ (fn thm => gs[thm]) >- (
+   gs[]
   )
  ) >> (
   (* header *)
@@ -3121,51 +2760,51 @@ Induct_on ‘t’ >- (
 (* INR case *)
 Induct_on ‘y’ >> (
  rpt strip_tac >>
- fs[bigstep_e_exec_def]
+ gs[bigstep_e_exec_def]
 ) >- (
  Cases_on ‘n’ >> (
-  fs[e_multi_exec'_list'_def]
+  gs[e_multi_exec'_list'_def]
  )
 ) >>
 Cases_on ‘bigstep_e_exec (scope_list ++ g_scope_list') (INL h) n'’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x0’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘is_v x’ >> (
- fs[]
+ gs[]
 ) >- (
  Cases_on ‘bigstep_e_exec (scope_list ++ g_scope_list') (INR y) x1’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x'’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x'0’ >>
- fs[] >>
+ gs[] >>
  gvs[] >>
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  qpat_x_assum ‘!n'' n'3'. _’ (fn thm => assume_tac (Q.SPECL [‘x1 - n'’, ‘n'’] thm)) >>
- fs[] >>
+ gs[] >>
  subgoal ‘x1 - n' + n' = x1’ >- (
   imp_res_tac bigstep_e_exec_incr >>
   decide_tac
  ) >>
- fs[] >>
+ gs[] >>
  res_tac >>
  qpat_x_assum ‘!ctx. _’ (fn thm => assume_tac (Q.SPECL [‘ctx’] thm)) >>
- fs[] >>
+ gs[] >>
  PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR y)’] thm)) >>
- fs[e_size_def] >>
+ gs[e_size_def] >>
  qpat_x_assum ‘!n'' n'3'. _’ (fn thm => assume_tac (Q.SPECL [‘n + n' - x1’, ‘x1’] thm)) >>
- fs[] >>
+ gs[] >>
  subgoal ‘n + n' - x1 + x1 = n + n'’ >- (
   imp_res_tac bigstep_e_exec_incr >>
   decide_tac
  ) >>
- fs[] >>
+ gs[] >>
  res_tac >>
  qpat_x_assum ‘!ctx. ?e_l'.
           INR y' = INR e_l' /\
@@ -3181,7 +2820,7 @@ Cases_on ‘is_v x’ >> (
 gvs[] >>
 irule e_multi_exec'_list'_comp0 >>
 PAT_ASSUM “!y'. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL h)’] thm)) >>
-fs[e_size_def] >>
+gs[e_size_def] >>
 qpat_x_assum ‘!n'' n'3'. _’ (fn thm => assume_tac (Q.SPECL [‘n’, ‘n'’] thm)) >>
 res_tac >>
 qpat_x_assum ‘!ctx. _’ (fn thm => assume_tac (Q.SPECL [‘ctx’] thm)) >>
@@ -3195,15 +2834,10 @@ bigstep_e_exec (scope_list ++ g_scope_list') (INL e) n' = SOME (INL e', n'+n) ==
 Proof
 rpt strip_tac >>
 imp_res_tac bigstep_e_exec_sound_n >>
-qpat_x_assum ‘!e''.
-          INL e = INL e'' ==>
-          !ctx. ?e'3'.
-            INL e' = INL e'3' /\
-            e_multi_exec' ctx g_scope_list' scope_list e'' n = SOME e'3'’ (fn thm => ASSUME_TAC (Q.SPEC ‘e’ thm)) >>
-fs[]
+gvs[]
 QED
 
-(* Must commonly used version of bigstep_e_exec_sound_n_INL *)
+(* Most commonly used version of bigstep_e_exec_sound_n_INL *)
 Theorem bigstep_e_exec_sound_n_INL_zero:
 !e e' n n' scope_list g_scope_list' ctx.
 bigstep_e_exec (scope_list ++ g_scope_list') (INL e) n' = SOME (INL e', n' + n) ==>
@@ -3211,8 +2845,7 @@ bigstep_e_exec (scope_list ++ g_scope_list') (INL e) n' = SOME (INL e', n' + n) 
 Proof
 rpt strip_tac >>
 irule bigstep_e_exec_sound_n_INL >>
-qexists_tac ‘n'’ >>
-fs[]
+metis_tac[]
 QED
 
 Theorem bigstep_e_exec_sound_n_INR:
@@ -3222,13 +2855,7 @@ bigstep_e_exec (scope_list ++ g_scope_list') (INR e_l) n' = SOME (INR e_l', n'+n
 Proof
 rpt strip_tac >>
 imp_res_tac bigstep_e_exec_sound_n >>
-qpat_x_assum ‘!e_l''.
-          INR e_l = INR e_l'' ==>
-          !ctx. ?e_l'3'.
-            INR e_l' = INR e_l'3' /\
-            e_multi_exec'_list' ctx g_scope_list' scope_list e_l'' n =
-            SOME e_l'3'’ (fn thm => ASSUME_TAC (Q.SPEC ‘e_l’ thm)) >>
-fs[]
+gvs[]
 QED
 
 Theorem bigstep_e_exec_sound_n_INR_zero:
@@ -3238,8 +2865,7 @@ bigstep_e_exec (scope_list ++ g_scope_list') (INR e_l) n' = SOME (INR e_l', n'+n
 Proof
 rpt strip_tac >>
 irule bigstep_e_exec_sound_n_INR >>
-qexists_tac ‘n'’ >>
-fs[]
+metis_tac[]
 QED
 
 Definition stmt_multi_exec'_check_state_def:
@@ -3263,32 +2889,32 @@ Proof
 rpt strip_tac >>
 PairCases_on ‘state2’ >>
 Cases_on ‘state21’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘state22’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h''’ >>
 Cases_on ‘state23’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h''1’ >- (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
  qexistsl_tac [‘h’, ‘h'’] >>
  (* Odd looping issue here... *)
  FULL_SIMP_TAC pure_ss [stmt_multi_exec'_check_state_def] >>
- fs[]
+ gs[]
 )
 QED
 
@@ -3303,26 +2929,26 @@ Proof
 rpt strip_tac >>
 eq_tac >> (
  Cases_on ‘g_scope_list’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘status’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘frame_list’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  PairCases_on ‘h''’ >>
  Cases_on ‘h''1’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  )
 )
 QED
@@ -3341,93 +2967,93 @@ Proof
 rpt strip_tac >>
 eq_tac >- (
  Cases_on ‘g_scope_list’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘status’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘frame_list’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  PairCases_on ‘h''’ >>
  Cases_on ‘h''1’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘frame_list'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  PairCases_on ‘h'3'’ >>
  Cases_on ‘h'''1’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘status'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  rpt strip_tac >>
  gvs[stmt_multi_exec'_check_state_def] >>
  Cases_on ‘g_scope_list'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  )
 ) >>
 rpt strip_tac >>
 Cases_on ‘g_scope_list’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘frame_list’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h''’ >>
 Cases_on ‘status’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘g_scope_list'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t''’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘frame_list'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h'5'’ >>
 Cases_on ‘status'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h'''''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 )
 QED
 
@@ -3453,40 +3079,40 @@ LENGTH scope_list = LENGTH scope_list' /\ status' = status_running
 Proof
 rpt gen_tac >> rpt disch_tac >>
 Cases_on ‘n’ >> (
- fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >- (
  metis_tac[]
 ) >>
 Cases_on ‘stmt_multi_exec' ctx
              (ascope,[g_scope1; g_scope2],[(funn,stmt::stmts,scope_list)],
               status_running) n'’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘stmt_exec ctx x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
 Cases_on ‘x'1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘x'2’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h''’ >>
 Cases_on ‘x'3’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h''0’ >> (
  gs[stmt_multi_exec'_check_state_def]
@@ -3504,15 +3130,15 @@ stmt_multi_exec' (ctx:'a ctx) ((ascope, g_scope_list, frame_list, status):'a sta
 Proof
 rpt strip_tac >> (
  Cases_on ‘n’ >> (
-   fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+   gs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
  ) >- (
   metis_tac[stmt_multi_exec'_check_state_NONE]
  ) >>
  Cases_on ‘stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n'’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘stmt_exec ctx x’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x'’ >>
  metis_tac[stmt_multi_exec'_check_state_NONE]
@@ -3532,20 +3158,20 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def, stmt_multi_exec'_def] >>
+gs[e_multi_exec'_def, stmt_multi_exec'_def] >>
 Cases_on ‘e_multi_exec' ctx [g_scope1; g_scope2] (top_scope::scope_list) e n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx [g_scope1; g_scope2] (top_scope::scope_list) x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 subgoal ‘~is_v x’ >- (
@@ -3565,18 +3191,18 @@ Proof
 rpt strip_tac >>
 subgoal ‘?scope_list_rev. scope_list = REVERSE scope_list_rev’ >- (
  qexists_tac ‘REVERSE scope_list’ >>
- fs[]
+ gs[]
 ) >>
-fs[separate_def] >>
+gs[separate_def] >>
 Cases_on ‘scope_list_rev’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘t’ >> (
- fs[]
+ gs[]
 ) >>
-fs[SUC_ADD_ONE, APPEND] >>
+gs[SUC_ADD_ONE, APPEND] >>
 subgoal ‘LENGTH t' = LENGTH (REVERSE t')’ >- (
- fs[]
+ gs[]
 ) >>
 FULL_SIMP_TAC pure_ss [GSYM APPEND_ASSOC] >>
 FULL_SIMP_TAC pure_ss [oDROP_APPEND, oTAKE_APPEND] >>
@@ -3591,37 +3217,37 @@ LENGTH scope_list > 2 ==>
 separate scope_list = (SOME [g_scope1'; g_scope2'],SOME (top_scope::scope_list'))
 Proof
 Induct >> (
- fs[]
+ gs[]
 ) >>
 rpt strip_tac >>
 Cases_on ‘LENGTH scope_list = 2’ >- (
- fs[] >>
+ gs[] >>
  subgoal ‘?e1 e2. scope_list = [e1; e2]’ >- (
   Cases_on ‘scope_list’ >> (
-   fs[]
+   gs[]
   ) >>
   Cases_on ‘t’ >> (
-   fs[]
+   gs[]
   )
  ) >>
  qexistsl_tac [‘e1’, ‘e2’, ‘h’, ‘[]’] >>
- fs[separate_def] >>
+ gs[separate_def] >>
  FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ONE, oDROP_def] >>
  FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ONE, oTAKE_def] >>
- fs[]
+ gs[]
 ) >>
-fs[] >>
+gs[] >>
 FULL_SIMP_TAC pure_ss [separate_def, Once arithmeticTheory.ONE, oDROP_def, oTAKE_def] >>
 subgoal ‘?i. i > 2 /\ i = LENGTH scope_list’ >- (
- fs[]
+ gs[]
 ) >>
-fs[] >>
+gs[] >>
 qexistsl_tac [‘g_scope1'’, ‘g_scope2'’, ‘h’, ‘(top_scope::scope_list')’] >>
-fs[] >>
+gs[] >>
 Q.SUBGOAL_THEN ‘SUC (LENGTH scope_list) − 2 = SUC ((LENGTH scope_list) − 2)’ (fn thm => FULL_SIMP_TAC pure_ss [thm]) >- (
  decide_tac
 ) >>
-fs[oDROP_def, oTAKE_def]
+gs[oDROP_def, oTAKE_def]
 QED
 
 Theorem bigstep_stmt_ass_exec_sound_n_v:
@@ -3639,43 +3265,43 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[stmt_multi_exec'_def, e_multi_exec'_def] >>
+ gs[stmt_multi_exec'_def, e_multi_exec'_def] >>
  Cases_on ‘e'’ >> (
   gvs[stmt_exec_def, is_v_def, stmt_multi_exec'_check_state_def]
  ) >>
- fs[stmt_exec_ass_def] >>
+ gs[stmt_exec_ass_def] >>
  imp_res_tac assign_LENGTH >>
  imp_res_tac separate_SOME_imp >>
- fs[]
+ gs[]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def, stmt_multi_exec'_def] >>
+gs[e_multi_exec'_def, stmt_multi_exec'_def] >>
 Cases_on ‘e_multi_exec' ctx [g_scope1; g_scope2] (top_scope::scope_list) e n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx [g_scope1; g_scope2] (top_scope::scope_list) x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 subgoal ‘~is_v x’ >- (
  rpt strip_tac >>
  Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[is_v_def, e_exec_def]
  )
 ) >>
 imp_res_tac bigstep_stmt_ass_exec_sound_n_not_v >>
-fs[stmt_exec_def, stmt_multi_exec'_check_state_def] >>
+gs[stmt_exec_def, stmt_multi_exec'_check_state_def] >>
 Cases_on ‘e'’ >> (
- fs[is_v_def]
+ gs[is_v_def]
 ) >>
-fs[stmt_exec_ass_def] >>
+gs[stmt_exec_ass_def] >>
 imp_res_tac assign_LENGTH >>
 imp_res_tac separate_SOME_imp >>
-fs[]
+gs[]
 QED
 
 Theorem scope_lists_separate:
@@ -3689,10 +3315,10 @@ rpt gen_tac >> rpt disch_tac >>
 rpt strip_tac >> (
  rw[]
 ) >>
-fs[separate_def] >>
+gs[separate_def] >>
 gs[arithmeticTheory.ADD_SUC] >>
 FULL_SIMP_TAC pure_ss [GSYM SUC_ADD_ONE] >>
-fs[oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
+gs[oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
 QED
 
 Theorem bigstep_stmt_ass_exec_sound_n_call:
@@ -3704,7 +3330,7 @@ stmt_multi_exec' ctx
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[stmt_multi_exec'_def, bigstep_f_arg_exec_def, stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_def, bigstep_f_arg_exec_def, stmt_multi_exec'_check_state_def]
 )
 QED
 
@@ -3720,20 +3346,20 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def, stmt_multi_exec'_def] >>
+gs[e_multi_exec'_def, stmt_multi_exec'_def] >>
 Cases_on ‘e_multi_exec' ctx [g_scope1; g_scope2] (top_scope::scope_list) e n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx [g_scope1; g_scope2] (top_scope::scope_list) x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 res_tac >>
@@ -3742,31 +3368,31 @@ Cases_on ‘stmt_exec ctx
              (ascope,[g_scope1; g_scope2],
               [(funn,[stmt_cond x stmt1 stmt2],top_scope::scope_list)],
               status_running)’ >> (
- fs[]
+ gs[]
 ) >- (
  gs[stmt_exec_def, stmt_multi_exec'_check_state_def] >>
  Cases_on ‘is_v_bool x’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘x’ >> (
-  fs[is_v_bool_def]
+  gs[is_v_bool_def]
  ) >>
  Cases_on ‘v’ >> (
-  fs[is_v_bool_def]
+  gs[is_v_bool_def]
  ) >>
  Cases_on ‘b’ >> (
-  fs[stmt_exec_cond_def]
+  gs[stmt_exec_cond_def]
  )
 ) >>
 subgoal ‘~is_v x’ >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[is_v_def, e_exec_def]
  )
 ) >>
 gs[stmt_exec_def] >>
 subgoal ‘~is_v_bool x’ >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def, is_v_bool_def]
+  gs[is_v_def, is_v_bool_def]
  )
 ) >>
 gvs[stmt_multi_exec'_check_state_def]
@@ -3784,20 +3410,20 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def, stmt_multi_exec'_def] >>
+gs[e_multi_exec'_def, stmt_multi_exec'_def] >>
 Cases_on ‘e_multi_exec' ctx [g_scope1; g_scope2] (top_scope::scope_list) e n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx [g_scope1; g_scope2] (top_scope::scope_list) x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 res_tac >>
@@ -3806,22 +3432,22 @@ Cases_on ‘stmt_exec ctx
              (ascope,[g_scope1; g_scope2],
               [(funn,[stmt_ret x],top_scope::scope_list)],
               status_running)’ >> (
- fs[]
+ gs[]
 ) >- (
  gs[stmt_exec_def, stmt_multi_exec'_check_state_def] >>
  Cases_on ‘get_v x’ >> (
-  fs[]
+  gs[]
  )
 ) >>
 subgoal ‘~is_v x’ >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[is_v_def, e_exec_def]
  )
 ) >>
 gs[stmt_exec_def] >>
 subgoal ‘get_v x = NONE’ >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def, get_v_def]
+  gs[is_v_def, get_v_def]
  )
 ) >>
 gvs[stmt_multi_exec'_check_state_def]
@@ -3844,25 +3470,25 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
+ gs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
  Cases_on ‘stmt’ >> (
   gvs[is_empty_def]
  ) >>
- fs[stmt_exec_def, is_empty_def, stmt_multi_exec'_check_state_def]
+ gs[stmt_exec_def, is_empty_def, stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘stmt_multi_exec' ctx
             (ascope,[g_scope1; g_scope2],
              [(funn,[stmt'],top_scope::scope_list)],status_running) n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘stmt_exec ctx x’ >> (
- fs[]
+ gs[]
 ) >>
 imp_res_tac stmt_multi_exec'_check_state_second >>
 gvs[stmt_multi_exec'_check_state_def] >>
 PairCases_on ‘x’ >>
 imp_res_tac stmt_multi_exec'_SOME_imp >>
-fs[] >>
+gs[] >>
 res_tac >>
 qpat_x_assum ‘!stmt'4'. _’ (fn thm => ASSUME_TAC (Q.SPEC ‘stmt_empty’ thm)) >>
 fs[is_empty_def, stmt_multi_exec'_check_state_def]
@@ -3877,50 +3503,50 @@ rpt strip_tac >>
 (* Cases of state1 *)
 PairCases_on ‘state1’ >>
 Cases_on ‘state11’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘state12’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h''’ >>
 Cases_on ‘state13’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 (* Cases of state2 *)
 PairCases_on ‘state2’ >>
 Cases_on ‘state21’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t''’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘state22’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h'5'’ >>
 Cases_on ‘state23’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h'''''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 )
 QED
 
@@ -3933,50 +3559,50 @@ rpt strip_tac >>
 (* Cases of state1 *)
 PairCases_on ‘state1’ >>
 Cases_on ‘state11’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘state12’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h''’ >>
 Cases_on ‘state13’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 (* Cases of state2 *)
 PairCases_on ‘state2’ >>
 Cases_on ‘state21’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t''’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘state22’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h'5'’ >>
 Cases_on ‘state23’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h'''''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 gvs[stmt_multi_exec'_check_state_def]
 QED
@@ -3994,49 +3620,49 @@ Proof
 rpt strip_tac >> (
  (* Cases of st1 *)
  Cases_on ‘st2’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘st3’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  PairCases_on ‘h''’ >>
  Cases_on ‘st4’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘h''1’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  (* Cases of st2 *)
  Cases_on ‘st'2’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t''’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘st'3’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘t'’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  PairCases_on ‘h'5'’ >>
  Cases_on ‘st'4’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  ) >>
  Cases_on ‘h'''''1’ >> (
-  fs[stmt_multi_exec'_check_state_def]
+  gs[stmt_multi_exec'_check_state_def]
  )
 )
 QED
@@ -4065,41 +3691,41 @@ of
 Proof
 Induct_on ‘m’ >- (
  rpt strip_tac >>
- fs [stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
+ gs [stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
  Cases_on ‘stmt_multi_exec'_check_state (x0,x1,x2,x3) (x0,x1,x2,x3)’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘stmt_exec ctx x’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘stmt_multi_exec'_check_state (x0,x1,x2,x3) x'’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x''’ >>
- fs[] >>
+ gs[] >>
  imp_res_tac stmt_multi_exec'_check_state_id >>
- fs[]
+ gs[]
 ) >>
 rpt strip_tac >>
-fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
+gs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
 Cases_on ‘stmt_multi_exec'_check_state (x0,x1,x2,x3) (x0,x1,x2,x3)’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘stmt_exec ctx x’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘stmt_multi_exec'_check_state (x0,x1,x2,x3) x'’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x''’ >>
-fs[] >>
+gs[] >>
 qpat_x_assum ‘!ctx. _’ (fn thm => ASSUME_TAC (GSYM thm)) >>
-fs[] >>
+gs[] >>
 Cases_on ‘stmt_multi_exec' ctx (x''0,x''1,x''2,x''3) m’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘stmt_exec ctx x''’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'3'’ >>
 subgoal ‘x0 = x''0 /\ x3 = status_running /\ x''3 = status_running /\
@@ -4114,40 +3740,40 @@ subgoal ‘x0 = x''0 /\ x3 = status_running /\ x''3 = status_running /\
 ) >>
 gs[] >>
 Cases_on ‘x1’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘t’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘x''1’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘t’ >> (
- fs[]
+ gs[]
 ) >>
 (* TODO: Split out into lemma... *)
 gvs [stmt_multi_exec'_check_state_def] >>
 Cases_on ‘x'''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘x'''2’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 PairCases_on ‘h'6'’ >>
 Cases_on ‘x'''3’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘h''''''1’ >> (
- fs[stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_check_state_def]
 )
 QED
 
@@ -4186,39 +3812,39 @@ stmt_multi_exec' ctx (ascope, g_scope_list, frame_list, status) (m+n) =
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs [stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
+ gs [stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
  Cases_on ‘stmt_multi_exec'_check_state (ascope,g_scope_list,frame_list,status)
             (ascope,g_scope_list,frame_list,status)’ >> (
-  fs[]
+  gs[]
  ) >- (
   imp_res_tac stmt_multi_exec'_check_state_eq_NONE >- (
-   fs[stmt_multi_exec'_NONE_status]
+   gs[stmt_multi_exec'_NONE_status]
   ) >- (
-   fs[stmt_multi_exec'_NONE_g_scope_list]
+   gs[stmt_multi_exec'_NONE_g_scope_list]
   ) >>
-  fs[stmt_multi_exec'_NONE_frame_list]
+  gs[stmt_multi_exec'_NONE_frame_list]
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  metis_tac[stmt_multi_exec'_check_state_SOME]
 ) >>
 rpt strip_tac >>
 Q.SUBGOAL_THEN ‘m + SUC n = SUC m + n’ (fn thm => REWRITE_TAC [thm]) >- (
  decide_tac
 ) >>
-fs[] >>
+gs[] >>
 Q.SUBGOAL_THEN ‘SUC n = 1 + n’ (fn thm => REWRITE_TAC [thm]) >- (
  decide_tac
 ) >>
-fs[] >>
+gs[] >>
 REWRITE_TAC [Once arithmeticTheory.ONE] >>
-fs [stmt_multi_exec'_def, stmt_multi_exec'_check_state_def, arithmeticTheory.ADD_CLAUSES] >>
+gs [stmt_multi_exec'_def, stmt_multi_exec'_check_state_def, arithmeticTheory.ADD_CLAUSES] >>
 Cases_on ‘stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
 (* Boils down to proving order m,1 and 1,m equivalence *)
-fs[stmt_multi_exec'_hd_tl]
+gs[stmt_multi_exec'_hd_tl]
 QED
 
 Theorem bigstep_stmt_seq_exec_sound_n_first:
@@ -4237,26 +3863,26 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘stmt_multi_exec' ctx
             (ascope,[g_scope1; g_scope2],
              [(funn,[stmt],top_scope::scope_list)],status_running) n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘stmt_exec ctx x’ >> (
- fs[]
+ gs[]
 ) >>
 imp_res_tac stmt_multi_exec'_check_state_second >>
 gvs[stmt_multi_exec'_check_state_def] >>
 PairCases_on ‘x’ >>
 imp_res_tac stmt_multi_exec'_SOME_imp >>
-fs[] >>
+gs[] >>
 res_tac >>
 qpat_x_assum ‘!stmt'. _’ (fn thm => ASSUME_TAC (Q.SPEC ‘stmt'’ thm)) >>
 fs[] >>
 Cases_on ‘scope_list''’ >> (
- fs[stmt_exec_def]
+ gs[stmt_exec_def]
 ) >>
 Cases_on ‘stmt'3'’ >> (
  gvs[is_empty_def, stmt_exec_def, stmt_multi_exec'_check_state_def]
@@ -4274,7 +3900,7 @@ stmt_multi_exec' ctx (ascope, g_scope_list, frame_list, status) (n+m) =
 Proof
 rpt strip_tac >>
 FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_COMM] >>
-fs [stmt_multi_exec'_add]
+gs[stmt_multi_exec'_add]
 QED
 
 Theorem bigstep_stmt_seq_exec_sound_n_both:
@@ -4324,14 +3950,14 @@ subgoal ‘stmt_multi_exec' ctx
           (ascope,[g_scope1'; g_scope2'],[(funn,[stmt_seq stmt'' stmt'],h::t)],
            status_running)’ >- (
  irule bigstep_stmt_seq_exec_sound_n_first >>
- fs[]
+ gs[]
 ) >>
 Q.SUBGOAL_THEN ‘SUC (n + n') = n + SUC n'’ (fn thm => REWRITE_TAC [thm]) >- (
  decide_tac
 ) >>
 irule stmt_multi_exec'_comp_n_tl >>
 qexistsl_tac [‘ascope’, ‘[(funn,[stmt_seq stmt'' stmt'],h::t)]’, ‘[g_scope1'; g_scope2']’, ‘status_running’] >>
-fs[]
+gs[]
 QED
 
 Theorem bigstep_stmt_trans_exec_sound_n:
@@ -4346,34 +3972,34 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_def, stmt_multi_exec'_def] >>
+gs[e_multi_exec'_def, stmt_multi_exec'_def] >>
 Cases_on ‘e_multi_exec' ctx [g_scope1; g_scope2] (top_scope::scope_list) e n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘e_exec ctx [g_scope1; g_scope2] (top_scope::scope_list) x’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x'1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 res_tac >>
 fs[] >>
 subgoal ‘~is_v x’ >- (
  Cases_on ‘x’ >> (
-  fs[is_v_def, e_exec_def]
+  gs[is_v_def, e_exec_def]
  )
 ) >>
 Cases_on ‘stmt_exec ctx
              (ascope,[g_scope1; g_scope2],
               [(funn,[stmt_trans x],top_scope::scope_list)],
               status_running)’ >> (
- fs[]
+ gs[]
 ) >> (
  gvs[stmt_exec_def, stmt_multi_exec'_check_state_def]
 )
@@ -4391,36 +4017,36 @@ stmt_multi_exec' (ctx:'a ctx)
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[e_multi_exec'_list'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[e_multi_exec'_list'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 rpt strip_tac >>
-fs[e_multi_exec'_list'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
+gs[e_multi_exec'_list'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
 Cases_on ‘e_l’ >- (
  (* ??? Disallow empty list? Check proof state where this is used...
   * Maybe write a wrapper for e_multi_exec'_list' that returns NONE for empty list... *)
  Cases_on ‘e_multi_exec'_list' ctx [g_scope1; g_scope2]
                 (top_scope::scope_list) [] n’ >- (
-  fs[]
+  gs[]
  ) >>
  imp_res_tac e_multi_exec'_list'_LENGTH >>
- fs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
+ gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
 ) >>
-fs[e_multi_exec'_list'_def] >>
+gs[e_multi_exec'_list'_def] >>
 Cases_on ‘e_multi_exec'_list' ctx [g_scope1; g_scope2]
              (top_scope::scope_list) (h::t) n’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘unred_mem_index x’ >- (
- fs[]
+ gs[]
 ) >>
-fs[] >>
+gs[] >>
 Cases_on ‘e_exec ctx [g_scope1; g_scope2] (top_scope::scope_list) (EL x' x)’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x''’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘x''1’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 res_tac >>
@@ -4428,9 +4054,9 @@ PairCases_on ‘ctx’ >>
 fs[stmt_exec_def] >>
 (* Done, modulo some fiddling? *)
 subgoal ‘index_not_const x = SOME x'’ >- (
- fs[index_not_const_def, unred_mem_index_def, unred_mem_def]
+ gs[index_not_const_def, unred_mem_index_def, unred_mem_def]
 ) >>
-fs[e_multi_exec'_list'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+gs[e_multi_exec'_list'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 QED
 
 Theorem stmt_exec_ass_LENGTH:
@@ -4440,7 +4066,7 @@ LENGTH scope_lists' = LENGTH scope_lists
 Proof
 rpt strip_tac >>
 Cases_on ‘e’ >> (
- fs[stmt_exec_ass_def]
+ gs[stmt_exec_ass_def]
 ) >>
 imp_res_tac assign_LENGTH
 QED
@@ -4456,19 +4082,19 @@ Induct_on ‘stmt’ >> (
  rpt disch_tac
 ) >| [
  (* empty *)
- fs[bigstep_stmt_exec_def],
+ gs[bigstep_stmt_exec_def],
 
  (* assign *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  Cases_on ‘is_v e’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘e’ >> (
-   fs[is_v_def]
+   gs[is_v_def]
   ) >>
-  fs[bigstep_e_exec_def, is_v_def] >>
+  gs[bigstep_e_exec_def, is_v_def] >>
   Cases_on ‘stmt_exec_ass l (e_v v) scope_lists’ >> (
-   fs[]
+   gs[]
   ) >>
   imp_res_tac stmt_exec_ass_LENGTH >>
   gs[]
@@ -4477,25 +4103,25 @@ Induct_on ‘stmt’ >> (
   gs[bigstep_f_arg_exec_def]
  ) >>
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘e’ >> (
-   fs[]
+   gs[]
   )
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >> (
   Cases_on ‘is_v x’ >> (
-   fs[]
+   gs[]
   ) >- (
    Cases_on ‘stmt_exec_ass l x scope_lists’ >> (
-    fs[]
+    gs[]
    ) >> (
     Cases_on ‘e’ >> (
-     fs[]
+     gs[]
     )
    ) >> (
     gvs[is_v_def] >>
@@ -4505,164 +4131,164 @@ Induct_on ‘stmt’ >> (
    )
   ) >> (
    Cases_on ‘e’ >> (
-    fs[]
+    gs[]
    )
   ) >> (
    gvs[is_v_def] >>
    imp_res_tac bigstep_e_exec_incr >>
    imp_res_tac stmt_exec_ass_LENGTH >>
-   fs[] >>
+   gs[] >>
    Cases_on ‘n = m’ >> (
     gvs[]
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   )
  ) >>
  Cases_on ‘e’ >> (
-  fs[]
+  gs[]
  ),
 
  (* Conditional *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  Cases_on ‘is_v e’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘e’ >> (
-   fs[is_v_def]
+   gs[is_v_def]
   ) >>
-  fs[bigstep_e_exec_def, is_v_def]
+  gs[bigstep_e_exec_def, is_v_def]
  ) >>
  Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
   gs[bigstep_f_arg_exec_def]
  ) >>
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘e’ >> (
-   fs[]
+   gs[]
   )
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘e’ >> (
-   fs[]
+   gs[]
   ) >> (
    gvs[is_v_def] >>
    imp_res_tac bigstep_e_exec_incr
   ) >> (
-   fs[] >>
+   gs[] >>
    Cases_on ‘n = m’ >> (
     gvs[]
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   fs[]
+   gs[]
   )
  ) >>
  Cases_on ‘e’ >> (
-  fs[]
+  gs[]
  ),
  
  (* block *)
- fs[bigstep_stmt_exec_def],
+ gs[bigstep_stmt_exec_def],
 
  (* return *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  Cases_on ‘get_v e <> NONE’ >> (
-  fs[]
+  gs[]
  ) >- (
   subgoal ‘?x. get_v e = SOME x’ >- (
-   fs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS]
+   gs[GSYM quantHeuristicsTheory.IS_SOME_EQ_NOT_NONE, optionTheory.IS_SOME_EXISTS]
   ) >>
   Cases_on ‘e’ >> (
-   fs[get_v_def]
+   gs[get_v_def]
   ) >>
-  fs[bigstep_stmt_exec_def, bigstep_e_exec_def]
+  gs[bigstep_stmt_exec_def, bigstep_e_exec_def]
  ) >>
  (* e reduction *)
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >>
  gvs[] >>
  imp_res_tac bigstep_e_exec_incr >>
- fs[] >>
+ gs[] >>
  Cases_on ‘n = m’ >> (
   gvs[]
  ) >>
  imp_res_tac bigstep_e_exec_unchanged >>
- fs[],
+ gs[],
 
  (* seq - sole recursive case *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  Cases_on ‘is_empty stmt’ >> (
-  fs[] >>
+  gs[] >>
   res_tac >>
   Cases_on ‘n +1 = m’ >> (
    gvs[]
   )
- ) >>
- (* Nested statement execution *)
- Cases_on ‘bigstep_stmt_exec NONE scope_lists stmt n’ >> (
-  fs[]
- ) >>
- PairCases_on ‘x’ >>
- fs[] >>
- Cases_on ‘is_empty x0’ >> (
-  fs[]
- ) >- (
+ ) >> (
+  Cases_on ‘bigstep_stmt_exec NONE scope_lists stmt n’ >> (
+   gs[]
+  ) >>
+  PairCases_on ‘x’ >>
+  gs[] >>
+  Cases_on ‘is_empty x0’ >> (
+   gs[]
+  ) >- (
+   res_tac >>
+   fs[]
+  ) >>
   res_tac >>
   fs[]
- ) >>
- res_tac >>
- gs[],
+ ),
 
  (* transition *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >>
  gvs[] >>
  imp_res_tac bigstep_e_exec_incr >>
- fs[] >>
+ gs[] >>
  Cases_on ‘n = m’ >> (
   gvs[]
  ) >>
  imp_res_tac bigstep_e_exec_unchanged >>
- fs[],
+ gs[],
 
  (* apply *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  Cases_on ‘bigstep_e_exec scope_lists (INR l) n’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >>
  imp_res_tac bigstep_e_exec_incr >>
- fs[] >>
+ gs[] >>
  Cases_on ‘n = m’ >> (
   gvs[]
  ) >>
  imp_res_tac bigstep_e_exec_unchanged >>
- fs[],
+ gs[],
 
  (* ext *)
- fs[bigstep_stmt_exec_def]
+ gs[bigstep_stmt_exec_def]
 ]
 QED
 
@@ -4675,14 +4301,14 @@ Proof
 Induct_on ‘l’ >> (
  rpt strip_tac >>
  Cases_on ‘n’ >> (
-  fs[oDROP_def, oTAKE_def]
+  gs[oDROP_def, oTAKE_def]
  )
 ) >>
 Cases_on ‘oTAKE n' l’ >> (
- fs[]
+ gs[]
 ) >>
 res_tac >>
-fs[]
+gs[]
 QED
 
 Theorem bigstep_stmt_exec_sound_n:
@@ -4693,40 +4319,40 @@ stmt_multi_exec' (ctx:'a ctx) (ascope:'a, [g_scope1; g_scope2]:g_scope_list, [(f
 Proof
 Induct_on ‘stmt’ >- (
  (* empty *)
- fs[stmt_multi_exec'_def, bigstep_stmt_exec_def, stmt_multi_exec'_check_state_def] >>
+ gs[stmt_multi_exec'_def, bigstep_stmt_exec_def, stmt_multi_exec'_check_state_def] >>
  rpt strip_tac >> (
   subgoal ‘n = 0’ >- (
    decide_tac
   ) >>
   fs[separate_def, SUC_ADD_ONE, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
-  gs[GSYM SUC_ADD_ONE, oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
+  fs[GSYM SUC_ADD_ONE, oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
  )
 ) >- (
  (* assignment *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
  (* Rule this out first... *)
  Cases_on ‘?funn e_l. e = e_call funn e_l’ >- (
   gs[] >>
   Cases_on ‘bigstep_f_arg_exec NONE (top_scope::(scope_list ++ [g_scope1; g_scope2]))
               (funn',e_l) n'’ >> (
-   fs[]
+   gs[]
   ) >>
   PairCases_on ‘x’ >>
-  fs[] >>
+  gs[] >>
   Cases_on ‘x0’ >> (
-   fs[]
+   gs[]
   ) >> (
    gvs[] >>
    subgoal ‘[g_scope1; g_scope2] = g_scope_list'’ >- (
     subgoal ‘LENGTH [g_scope1; g_scope2] = 2’ >- (
-     fs[]
+     gs[]
     ) >>
     metis_tac[scope_lists_separate]
    ) >>
    subgoal ‘top_scope::scope_list = scope_list'’ >- (
     subgoal ‘LENGTH [g_scope1; g_scope2] = 2’ >- (
-     fs[]
+     gs[]
     ) >>
     metis_tac[scope_lists_separate]
    ) >>
@@ -4738,22 +4364,22 @@ Induct_on ‘stmt’ >- (
   )
  ) >>
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘e’ >> (
-   fs[]
+   gs[]
   )
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘is_v x’ >> (
-   fs[]
+   gs[]
   ) >- (
    Cases_on ‘stmt_exec_ass l x (top_scope::(scope_list ++ [g_scope1; g_scope2]))’ >> (
-    fs[]
+    gs[]
    ) >> (
     Cases_on ‘e’ >> (
      gvs[]
@@ -4769,16 +4395,16 @@ Induct_on ‘stmt’ >- (
     qpat_x_assum ‘!ctx. _’ (fn thm => ASSUME_TAC (Q.SPEC ‘ctx’ thm)) >>
     subgoal ‘LENGTH scope_lists' > 2’ >- (
      Cases_on ‘x’ >> (
-      fs[is_v_def]
+      gs[is_v_def]
      ) >>
-     fs[stmt_exec_ass_def] >>
+     gs[stmt_exec_ass_def] >>
      imp_res_tac assign_LENGTH >>
-     fs[]
+     gs[]
     ) >>
     imp_res_tac separate_SOME_imp >>
     imp_res_tac bigstep_stmt_ass_exec_sound_n_v >>
     Cases_on ‘n’ >> (
-     fs[SUC_ADD_ONE]
+     gs[SUC_ADD_ONE]
     )
    )
   ) >>
@@ -4789,9 +4415,9 @@ Induct_on ‘stmt’ >- (
    imp_res_tac bigstep_e_exec_sound_n_INL_zero >>
    qpat_x_assum ‘!ctx. _’ (fn thm => ASSUME_TAC (Q.SPEC ‘ctx’ thm)) >>
    imp_res_tac bigstep_stmt_ass_exec_sound_n_not_v >>
-   fs[] >>
+   gs[] >>
    irule scope_lists_separate >>
-   fs[]
+   gs[]
   )
  ) >>
  Cases_on ‘e’ >> (
@@ -4799,30 +4425,30 @@ Induct_on ‘stmt’ >- (
  )
 ) >- (
  (* conditional *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
  (* Rule this out first... *)
  Cases_on ‘?funn e_l. e = e_call funn e_l’ >- (
   gs[] >>
   Cases_on ‘bigstep_f_arg_exec NONE (top_scope::(scope_list ++ [g_scope1; g_scope2]))
               (funn',e_l) n'’ >> (
-   fs[]
+   gs[]
   ) >>
   PairCases_on ‘x’ >>
-  fs[] >>
+  gs[] >>
   Cases_on ‘x0’ >> (
-   fs[]
+   gs[]
   ) >> (
    gvs[] >>
    subgoal ‘[g_scope1; g_scope2] = g_scope_list'’ >- (
     subgoal ‘LENGTH [g_scope1; g_scope2] = 2’ >- (
-     fs[]
+     gs[]
     ) >>
     metis_tac[scope_lists_separate]
    ) >>
    subgoal ‘top_scope::scope_list = scope_list'’ >- (
     subgoal ‘LENGTH [g_scope1; g_scope2] = 2’ >- (
-     fs[]
+     gs[]
     ) >>
     metis_tac[scope_lists_separate]
    ) >>
@@ -4834,16 +4460,16 @@ Induct_on ‘stmt’ >- (
   )
  ) >>
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
-  fs[]
+  gs[]
  ) >- (
   Cases_on ‘e’ >> (
-   fs[]
+   gs[]
   )
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >> (
   Cases_on ‘e’ >> (
    gvs[]
@@ -4853,31 +4479,31 @@ Induct_on ‘stmt’ >- (
   imp_res_tac bigstep_e_exec_sound_n_INL_zero >>
   qpat_x_assum ‘!ctx. _’ (fn thm => ASSUME_TAC (Q.SPEC ‘ctx’ thm)) >>
   imp_res_tac bigstep_stmt_cond_exec_sound_n >>
-  fs[] >>
+  gs[] >>
   irule scope_lists_separate >>
-  fs[]
+  gs[]
  )
 ) >- (
  (* block *)
- fs[stmt_multi_exec'_def, bigstep_stmt_exec_def, stmt_multi_exec'_check_state_def] >>
+ gs[stmt_multi_exec'_def, bigstep_stmt_exec_def, stmt_multi_exec'_check_state_def] >>
  rpt strip_tac >> (
   subgoal ‘n = 0’ >- (
    decide_tac
   ) >>
   fs[separate_def, SUC_ADD_ONE, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
-  gs[GSYM SUC_ADD_ONE, oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
+  fs[GSYM SUC_ADD_ONE, oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
  )
 ) >- (
  (* return *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >>
  gvs[] >>
  FULL_SIMP_TAC pure_ss [GSYM APPEND, Once arithmeticTheory.ADD_SYM] >>
@@ -4886,42 +4512,42 @@ Induct_on ‘stmt’ >- (
  imp_res_tac bigstep_stmt_ret_exec_sound_n >>
  gvs[] >>
  irule scope_lists_separate >>
- fs[]
+ gs[]
 ) >- (
 
  (* seq *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
  Cases_on ‘n’ >- (
   Cases_on ‘is_empty stmt’ >> (
-   fs[]
+   gs[]
   ) >- (
    imp_res_tac bigstep_stmt_exec_imp >>
-   fs[]
+   gs[]
   ) >>
   Cases_on ‘bigstep_stmt_exec NONE
              (top_scope::(scope_list ++ [g_scope1; g_scope2])) stmt n'’ >> (
-   fs[]
+   gs[]
   ) >>
   PairCases_on ‘x’ >>
-  fs[] >>
+  gs[] >>
   Cases_on ‘is_empty x0’ >> (
-   fs[]
+   gs[]
   ) >> (
    imp_res_tac bigstep_stmt_exec_imp >>
    gs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
    irule scope_lists_separate >>
-   fs[]
+   gs[]
   )
  ) >>
  Cases_on ‘is_empty stmt’ >> (
-  fs[]
+  gs[]
  ) >- (
   (* Case stmt empty *)
   (* Firstly, stmt' reduced to stmt'' in n'' steps. (use ind.hyp.)
    * Finally, stmt + seq reduced in 1 step. (Expand definition in goal, or use lemma?) *)
   irule bigstep_stmt_seq_exec_sound_n_second >>
-  fs[] >>
+  gs[] >>
   qpat_x_assum ‘!n n' scope_list scope_lists' scope_list' funn ascope stmt''
           top_scope g_scope1 g_scope2 g_scope_list' ctx.
         bigstep_stmt_exec NONE
@@ -4935,16 +4561,16 @@ Induct_on ‘stmt’ >- (
           (ascope,g_scope_list',[(funn,[stmt''],scope_list')],
            status_running)’ (fn thm => irule thm) >>
   qexistsl_tac [‘n' + 1’, ‘scope_lists'’] >>
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘bigstep_stmt_exec NONE
              (top_scope::(scope_list ++ [g_scope1; g_scope2])) stmt n'’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘is_empty x0’ >> (
-  fs[]
+  gs[]
  ) >- (
   (* Case 1st statement reduced to empty *)
   (* Firstly, stmt reduced to stmt_empty in (x2-n') steps. (use ind.hyp.)
@@ -4958,10 +4584,10 @@ Induct_on ‘stmt’ >- (
    (* Need something along the lines of that bigstep_stmt_exec preserves scope list length,
     * then a lemma that says that separate has a result so long as the scope list has length
     * at least 2 *)
-   fs[separate_LENGTH_SOME]
+   gs[separate_LENGTH_SOME]
   ) >>
   qexistsl_tac [‘[g_scope1'; g_scope2']’, ‘x2-n'’, ‘(n' + n'' + 1)-(x2+1)’, ‘(top_scope'::scope_list'')’, ‘x0’] >>
-  fs[] >>
+  gs[] >>
   rpt strip_tac >- (
    qpat_x_assum ‘!n n' scope_list scope_lists' scope_list' funn ascope stmt''
              top_scope g_scope1 g_scope2 g_scope_list' ctx.
@@ -4976,29 +4602,29 @@ Induct_on ‘stmt’ >- (
              (ascope,g_scope_list',[(funn,[stmt''],scope_list')],
               status_running)’ (fn thm => irule thm) >>
    qexistsl_tac [‘x2 + 1’, ‘scope_lists'’] >>
-   fs[] >>
+   gs[] >>
    subgoal ‘x1 = (top_scope'::(scope_list'' ++ [g_scope1'; g_scope2']))’ >- (
     (* Requires a theorem stating the reverse effect of separate *)
-    fs[separate_def] >>
+    gs[separate_def] >>
     gvs[SUC_ADD_ONE] >>
     Cases_on ‘x1’ >> (
-     fs[GSYM SUC_ADD_ONE]
+     gs[GSYM SUC_ADD_ONE]
     ) >>
-    fs[oDROP_def, oTAKE_def] >>
+    gs[oDROP_def, oTAKE_def] >>
     Cases_on ‘oTAKE (LENGTH scope_list) t’ >> (
-     fs[]
+     gs[]
     ) >>
     gvs[] >>
     imp_res_tac bigstep_stmt_exec_imp >>
     irule oDROP_oTAKE >>
     qexists_tac ‘LENGTH scope_list’ >>
-    fs[]
+    gs[]
    ) >>
    subgoal ‘n' + n'' - x2 + (x2 + 1) = n' + SUC n''’ >- (
     imp_res_tac bigstep_stmt_exec_imp >>
     decide_tac
    ) >>
-   fs[SUC_ADD_ONE]
+   gs[SUC_ADD_ONE]
   ) >>
   qpat_x_assum ‘!n n' scope_list scope_lists' scope_list' funn ascope stmt''
            top_scope g_scope1 g_scope2 g_scope_list' ctx.
@@ -5013,7 +4639,7 @@ Induct_on ‘stmt’ >- (
            (ascope,g_scope_list',[(funn,[stmt''],scope_list')],
             status_running)’ (fn thm => irule thm) >>
   qexistsl_tac [‘n'’, ‘x1’] >>
-  fs[] >>
+  gs[] >>
   imp_res_tac bigstep_stmt_exec_imp >>
   decide_tac
  ) >>
@@ -5026,18 +4652,18 @@ Induct_on ‘stmt’ >- (
  ) >>
  res_tac >>
  irule bigstep_stmt_seq_exec_sound_n_first >>
- fs[]
+ gs[]
 ) >- (
  (* trans *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >>
  gvs[] >>
  FULL_SIMP_TAC pure_ss [GSYM APPEND, Once arithmeticTheory.ADD_SYM] >>
@@ -5046,18 +4672,18 @@ Induct_on ‘stmt’ >- (
  imp_res_tac bigstep_stmt_trans_exec_sound_n >>
  gvs[] >>
  irule scope_lists_separate >>
- fs[]
+ gs[]
 ) >- (
  (* apply *)
- fs[bigstep_stmt_exec_def] >>
+ gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INR l) n'’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >>
- fs[] >>
+ gs[] >>
  Cases_on ‘x0’ >> (
-  fs[]
+  gs[]
  ) >>
  gvs[] >>
  FULL_SIMP_TAC pure_ss [GSYM APPEND, Once arithmeticTheory.ADD_SYM] >>
@@ -5067,16 +4693,16 @@ Induct_on ‘stmt’ >- (
  imp_res_tac bigstep_stmt_app_exec_sound_n >>
  gvs[] >>
  irule scope_lists_separate >>
- fs[]
+ gs[]
 ) >- (
  (* extern *)
- fs[stmt_multi_exec'_def, bigstep_stmt_exec_def, stmt_multi_exec'_check_state_def] >>
+ gs[stmt_multi_exec'_def, bigstep_stmt_exec_def, stmt_multi_exec'_check_state_def] >>
  rpt strip_tac >> (
   subgoal ‘n = 0’ >- (
    decide_tac
   ) >>
   fs[separate_def, SUC_ADD_ONE, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
-  gs[GSYM SUC_ADD_ONE, oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
+  fs[GSYM SUC_ADD_ONE, oDROP_def, oTAKE_def, oDROP_APPEND, oTAKE_APPEND]
  )
 )
 QED
@@ -5088,30 +4714,30 @@ Theorem stmt_multi_exec'_stmt_stack:
  stmt_multi_exec' (ctx:'a ctx) (ascope:'a, [g_scope1; g_scope2]:g_scope_list, [(funn, stmt::stmts, (top_scope::scope_list))], status_running) n = SOME (ascope, g_scope_list', [(funn, stmt'::stmts, scope_list')], status_running)
 Proof
 Induct_on ‘n’ >- (
- fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 rpt strip_tac >>
-fs[stmt_multi_exec'_def] >>
+gs[stmt_multi_exec'_def] >>
 Cases_on ‘stmt_multi_exec' ctx
              (ascope,[g_scope1; g_scope2],
               [(funn,[stmt],top_scope::scope_list)],status_running) n’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
 Cases_on ‘stmt_exec ctx (x0,x1,x2,x3)’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
 imp_res_tac stmt_multi_exec'_check_state_second >>
 subgoal ‘x0 = ascope /\ ?g_scope1'' g_scope2''. x1 = [g_scope1''; g_scope2''] /\ ?stmt' scope_list'. x2 = [(funn, [stmt'], scope_list')] /\ x3 = status_running’ >- (
  imp_res_tac stmt_multi_exec'_SOME_imp >>
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 res_tac >>
 fs[] >>
 imp_res_tac stmt_exec_lemma >>
-fs[stmt_multi_exec'_check_state_def]
+gs[stmt_multi_exec'_check_state_def]
 QED
 
 Definition funn_is_local_or_global_def:
@@ -5124,18 +4750,6 @@ Definition funn_is_local_or_global_def:
   | _ => F
 )
 End
-
-(*
-Definition in_local_fun_def:
- (in_local_fun (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (arch_frame_list_regular [(funn_name fname, stmt_stack, scope_list)]) =
-  ((scope_list <> []) /\
-   (ALOOKUP func_map fname = NONE) /\ (IS_SOME $ ALOOKUP b_func_map fname \/ IS_SOME $ ALOOKUP pars_map fname ))) /\
- (in_local_fun func_map b_func_map pars_map (arch_frame_list_regular ((funn_name fname, stmt_stack, scope_list)::frame_list)) =
-  ((scope_list <> []) /\
-   (ALOOKUP func_map fname = NONE) /\ (IS_SOME $ ALOOKUP b_func_map fname \/ IS_SOME $ ALOOKUP pars_map fname ))) /\
- (in_local_fun _ _ _ _ = F)
-End
-*)
 
 Definition in_local_fun_def:
  (in_local_fun (func_map:func_map) (b_func_map:b_func_map) (arch_frame_list_regular [(funn_name fname, stmt_stack, scope_list)]) =
@@ -5183,17 +4797,17 @@ Proof
 rpt strip_tac >>
 PairCases_on ‘ctx’ >>
 Cases_on ‘arch_frame_list’ >> (
- fs[in_local_fun'_def]
+ gs[in_local_fun'_def]
 ) >>
 Cases_on ‘l’ >> (
- fs[in_local_fun'_def]
+ gs[in_local_fun'_def]
 ) >>
 PairCases_on ‘h’ >>
 Cases_on ‘h0’ >> (
- fs[in_local_fun'_def]
+ gs[in_local_fun'_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[in_local_fun'_def]
+ gs[in_local_fun'_def]
 )
 QED
 
@@ -5206,38 +4820,38 @@ Proof
 rpt gen_tac >>
 rpt disch_tac >>
 Cases_on ‘g_scope_list’ >> (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 Cases_on ‘t’ >> (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 Cases_on ‘t'’ >> Cases_on ‘arch_frame_list’ >> (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 Cases_on ‘l’ >> (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 PairCases_on ‘h''’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘h''1’ >> (
- fs[]
+ gs[]
 ) >>
-fs[bigstep_exec_def] >>
+gs[bigstep_exec_def] >>
 rpt strip_tac >> (
  Cases_on ‘bigstep_stmt_exec NONE (h''2 ++ [h; h']) h'' 0’ >> (
-  fs[]
+  gs[]
  ) >>
  PairCases_on ‘x’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘separate x1’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘q’ >> (
-  fs[]
+  gs[]
  ) >>
  Cases_on ‘r’ >> (
-  fs[]
+  gs[]
  ) >>
  rw[] >>
  imp_res_tac bigstep_stmt_exec_imp >>
@@ -5282,25 +4896,25 @@ Proof
 rpt gen_tac >>
 rpt disch_tac >>
 Cases_on ‘g_scope_list’ >- (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 Cases_on ‘t’ >- (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
-fs[] >>
+gs[] >>
 Cases_on ‘arch_frame_list’ >> (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 Cases_on ‘t'’ >> (
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 Cases_on ‘l’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘h''’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘h''1’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘bigstep_exec
              (case ctx_b_func_map_opt of
@@ -5310,10 +4924,10 @@ Cases_on ‘bigstep_exec
                   copyout_pbl,apply_table_f,ext_map,func_map),b_func_map) =>
                 SOME (func_map,b_func_map,ext_map)) ([h; h'],h''2)
              h''’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
-fs[] >>
+gs[] >>
 metis_tac[]
 QED
 
@@ -5360,27 +4974,27 @@ in_local_fun func_map b_func_map (arch_frame_list_regular [(funn,x0::t',x2)]) ==
 Proof
 Induct_on ‘n’ >> (
  rpt strip_tac >>
- fs[arch_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
+ gs[arch_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
 Cases_on ‘stmt_multi_exec' (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
             (ascope,[g_scope1; g_scope2],[(funn,h::t',h'::t'')],status_running)
             n’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
-fs[] >>
+gs[] >>
 subgoal ‘x0' = ascope /\
          ?g_scope1' g_scope2'. x1 = [g_scope1'; g_scope2'] /\
          ?stmt' scope_list'. x2' = [(funn,stmt'::t',scope_list')] /\
          x3 = status_running ’ >- (
  imp_res_tac stmt_multi_exec'_SOME_imp >>
- fs[]
+ gs[]
 ) >>
-fs[] >>
+gs[] >>
 Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
             (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::t',scope_list')],
              status_running)’ >> (
- fs[]
+ gs[]
 ) >>
 imp_res_tac stmt_multi_exec'_check_state_second >>
 gvs[] >>
@@ -5388,33 +5002,33 @@ subgoal ‘in_local_fun
          func_map b_func_map
          (arch_frame_list_regular [(funn,stmt'::t',scope_list')])’ >- (
  Cases_on ‘funn’ >> (
-  fs[in_local_fun_def]
+  gs[in_local_fun_def]
  ) >>
  imp_res_tac stmt_multi_exec'_SOME_imp >>
  Cases_on ‘scope_list''’ >> (
-  fs[]
+  gs[]
  )
 ) >>
 res_tac >>
 fs[arch_exec_def] >>
 Cases_on ‘t’ >> (
- fs[]
+ gs[]
 ) >- (
- fs[frames_exec_def] >>
+ gs[frames_exec_def] >>
  (* From top-level soundness theorem/ composition theorem *)
  subgoal ‘~state_fin_exec status_running [(funn,stmt'::t',scope_list')]’ >- (
-  fs[state_fin_exec_def] >>
+  gs[state_fin_exec_def] >>
   Cases_on ‘stmt'’ >> (
-   fs[]
+   gs[]
   ) >>
   Cases_on ‘t'’ >> (
-   fs[]
+   gs[]
   ) >>
   Cases_on ‘scope_list'’ >> (
-   fs[stmt_exec_def]
+   gs[stmt_exec_def]
   )
  ) >>
- fs[] >>
+ gs[] >>
  (* Needs all the to-pass information + identification of components of stmt_exec
   * possibly that scope_list' is non-empty *)
  (* Since we're in a local function - get this premise from above *)
@@ -5423,25 +5037,25 @@ Cases_on ‘t’ >> (
            tbl_to_pass funn b_func_map tbl_map = SOME tbl_map)
             ’ >- (
   Cases_on ‘funn’ >> (
-   fs[in_local_fun_def, scopes_to_pass_def, map_to_pass_def, tbl_to_pass_def]
+   gs[in_local_fun_def, scopes_to_pass_def, map_to_pass_def, tbl_to_pass_def]
   ) >>
   Cases_on ‘ALOOKUP b_func_map s’ >> (
-   fs[]
+   gs[]
   )
  ) >>
- fs[] >>
+ gs[] >>
  gvs[] >>
  subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
                [g_scope1''; g_scope2''] = SOME [g_scope1''; g_scope2'']’ >- (
   Cases_on ‘funn’ >> (
-   fs[in_local_fun_def, scopes_to_retrieve_def]
+   gs[in_local_fun_def, scopes_to_retrieve_def]
   ) >>
   CASE_TAC
  ) >>
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘h''’ >>
-fs[frames_exec_def, state_fin_exec_def] >>
+gs[frames_exec_def, state_fin_exec_def] >>
 (* Needs all the to-pass information + identification of components of stmt_exec
  * possibly that scope_list' is non-empty *)
 gvs[] >>
@@ -5449,20 +5063,20 @@ subgoal ‘scopes_to_pass funn func_map b_func_map [g_scope1'; g_scope2'] = SOME
           map_to_pass funn b_func_map = SOME b_func_map /\
           tbl_to_pass funn b_func_map tbl_map = SOME tbl_map’ >- (
  Cases_on ‘funn’ >> (
-  fs[in_local_fun_def, scopes_to_pass_def, map_to_pass_def, tbl_to_pass_def]
+  gs[in_local_fun_def, scopes_to_pass_def, map_to_pass_def, tbl_to_pass_def]
  ) >>
  Cases_on ‘ALOOKUP b_func_map s’ >> (
-  fs[]
+  gs[]
  )
 ) >>
 subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
               [g_scope1''; g_scope2''] = SOME [g_scope1''; g_scope2'']’ >- (
  Cases_on ‘funn’ >> (
-  fs[in_local_fun_def, scopes_to_retrieve_def]
+  gs[in_local_fun_def, scopes_to_retrieve_def]
  ) >>
  CASE_TAC
 ) >>
-fs[]
+gs[]
 QED
 
 Theorem bigstep_arch_exec_sound_n:
@@ -5480,66 +5094,66 @@ Proof
 Cases_on ‘frame_list’ >- (
  rpt strip_tac >>
  imp_res_tac bigstep_arch_exec_SOME_imp >>
- fs[bigstep_arch_exec_def]
+ gs[bigstep_arch_exec_def]
 ) >>
 rpt strip_tac >>
 imp_res_tac bigstep_arch_exec_SOME_imp >>
-fs[arch_multi_exec'_def, bigstep_arch_exec_def] >>
+gs[arch_multi_exec'_def, bigstep_arch_exec_def] >>
 Cases_on ‘frame_list’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘h'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘h'1’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘bigstep_exec NONE ([g_scope1; g_scope2],h'2) h'’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 gvs[] >>
-fs[bigstep_exec_def] >>
+gs[bigstep_exec_def] >>
 Cases_on ‘bigstep_stmt_exec NONE (h'2 ++ [g_scope1; g_scope2]) h' 0’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x'’ >>
-fs[] >>
+gs[] >>
 Cases_on ‘separate x'1’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘q’ >> (
- fs[]
+ gs[]
 ) >>
 Cases_on ‘r’ >> (
- fs[]
+ gs[]
 ) >>
 gvs[] >>
 (* Scope list non-empty should probably be added to in_local_fun' assumption, which can then be passed along to this theorem *)
 Cases_on ‘h'2’ >- (
  Cases_on ‘h'0’ >> (
-  fs[in_local_fun_def]
+  gs[in_local_fun_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[in_local_fun_def]
+  gs[in_local_fun_def]
  )
 ) >>
 imp_res_tac (SIMP_RULE std_ss [] $ Q.SPECL [‘n’, ‘0’] bigstep_stmt_exec_sound_n) >>
-fs[] >>
+gs[] >>
 res_tac >>
 irule bigstep_arch_exec_sound_n_stmt >>
 Cases_on ‘h'0’ >> (
- fs[in_local_fun_def]
+ gs[in_local_fun_def]
 ) >>
 strip_tac >- (
  metis_tac[stmt_multi_exec'_stmt_stack]
 ) >>
 Cases_on ‘t’ >> (
- fs[in_local_fun_def] >>
+ gs[in_local_fun_def] >>
  qpat_x_assum ‘!funn. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘funn’, ‘ctx’, ‘ascope’] thm)) >>
  imp_res_tac stmt_multi_exec'_SOME_imp >>
  Cases_on ‘scope_list'’ >> (
-  fs[]
+  gs[]
  )
 )
 QED
@@ -5551,23 +5165,22 @@ arch_multi_exec (actx:'a actx) (aenv, g_scope_list, arch_frame_list_regular fram
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[arch_multi_exec'_def, arch_multi_exec_def]
+ gs[arch_multi_exec'_def, arch_multi_exec_def]
 ) >>
 rpt strip_tac >>
-fs[arch_multi_exec'_def] >>
+gs[arch_multi_exec'_def] >>
 Cases_on ‘arch_multi_exec' actx
              (aenv,g_scope_list,arch_frame_list_regular frame_list,
               status_running) n’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
 res_tac >>
 (* Use theorem to split execution of arch_multi_exec into 1+n *)
 FULL_SIMP_TAC pure_ss [SUC_ADD_ONE, Once arithmeticTheory.ADD_SYM] >>
 FULL_SIMP_TAC pure_ss [arch_multi_exec_add, Once arithmeticTheory.ONE] >>
-fs[arch_multi_exec_def]
+gs[arch_multi_exec_def]
 QED
-
 
 Theorem arch_multi_exec_sound:
 !n g_scope_list g_scope_list' frame_list arch_frame_list' aenv aenv' actx status' .
@@ -5576,7 +5189,7 @@ arch_multi_exec' (actx:'a actx) (aenv, g_scope_list, arch_frame_list_regular fra
 Proof
 Induct_on ‘n’ >- (
  rpt strip_tac >>
- fs[arch_multi_exec'_def, arch_multi_exec_def]
+ gs[arch_multi_exec'_def, arch_multi_exec_def]
 ) >>
 rpt strip_tac >>
 FULL_SIMP_TAC pure_ss [SUC_ADD_ONE, Once arithmeticTheory.ADD_SYM] >>
@@ -5584,18 +5197,18 @@ FULL_SIMP_TAC pure_ss [arch_multi_exec_add, Once arithmeticTheory.ONE] >>
 Cases_on ‘arch_multi_exec actx
              (aenv,g_scope_list,arch_frame_list_regular frame_list,
               status_running) n’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
 res_tac >>
 fs[arch_multi_exec'_def, GSYM SUC_ADD_ONE] >>
 FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ONE] >>
-fs[arch_multi_exec_def] >>
+gs[arch_multi_exec_def] >>
 Cases_on ‘arch_exec actx ((x0,x1,x2,x3),x4,x5,x6)’ >> (
- fs[]
+ gs[]
 ) >>
 PairCases_on ‘x’ >>
-fs[]
+gs[]
 QED
 
 
@@ -5617,21 +5230,21 @@ subgoal ‘?x el. EL i ctx0 = arch_block_pbl x el /\
            SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map)’ >- (
  imp_res_tac in_local_fun'_imp >>
  Cases_on ‘n’ >> (
-  fs[]
+  gs[]
  ) >>
  imp_res_tac arch_multi_exec_arch_frame_list_regular >>
  metis_tac[]
 ) >>
 subgoal ‘in_local_fun ctx9 b_func_map (arch_frame_list_regular frame_list)’ >- (
  Cases_on ‘frame_list’ >> (
-  fs[in_local_fun'_def, in_local_fun_def]
+  gs[in_local_fun'_def, in_local_fun_def]
  ) >>
  PairCases_on ‘h’ >>
  Cases_on ‘h0’ >> (
-  fs[in_local_fun'_def, in_local_fun_def]
+  gs[in_local_fun'_def, in_local_fun_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[in_local_fun'_def, in_local_fun_def]
+  gs[in_local_fun'_def, in_local_fun_def]
  )
 ) >>
 imp_res_tac bigstep_arch_exec_sound_n >>
@@ -5666,21 +5279,21 @@ subgoal ‘?x el. EL i ctx0 = arch_block_pbl x el /\
            SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map)’ >- (
  imp_res_tac in_local_fun'_imp >>
  Cases_on ‘n’ >> (
-  fs[]
+  gs[]
  ) >>
  imp_res_tac arch_multi_exec_arch_frame_list_regular >>
  metis_tac[]
 ) >>
 subgoal ‘in_local_fun ctx9 b_func_map (arch_frame_list_regular frame_list)’ >- (
  Cases_on ‘frame_list’ >> (
-  fs[in_local_fun'_def, in_local_fun_def]
+  gs[in_local_fun'_def, in_local_fun_def]
  ) >>
  PairCases_on ‘h’ >>
  Cases_on ‘h0’ >> (
-  fs[in_local_fun'_def, in_local_fun_def]
+  gs[in_local_fun'_def, in_local_fun_def]
  ) >>
  Cases_on ‘t’ >> (
-  fs[in_local_fun'_def, in_local_fun_def]
+  gs[in_local_fun'_def, in_local_fun_def]
  )
 ) >>
 cheat
