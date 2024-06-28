@@ -228,6 +228,18 @@ val (e_struct_tm,  mk_e_struct, dest_e_struct, is_e_struct) =
 val (e_header_tm,  mk_e_header, dest_e_header, is_e_header) =
   syntax_fns2 "p4" "e_header";
 
+val (s_sing_tm,  mk_s_sing, dest_s_sing, is_s_sing) =
+  syntax_fns1 "p4" "s_sing";
+
+val (s_range_tm,  mk_s_range, dest_s_range, is_s_range) =
+  syntax_fns2 "p4" "s_range";
+
+val (s_mask_tm,  mk_s_mask, dest_s_mask, is_s_mask) =
+  syntax_fns2 "p4" "s_mask";
+
+val s_univ_tm = prim_mk_const {Name="s_univ", Thy="p4"};
+fun is_s_univ tm = term_eq tm s_univ_tm;
+
 (*****)
 (* d *)
 (*****)
@@ -250,14 +262,21 @@ fun is_d_none tm = term_eq tm d_none_tm;
 (*******)
 
 val struct_ty_struct_tm = prim_mk_const {Name="struct_ty_struct", Thy="p4"};
+fun is_struct_ty_struct tm = term_eq tm struct_ty_struct_tm;
 val struct_ty_header_tm = prim_mk_const {Name="struct_ty_header", Thy="p4"};
+fun is_struct_ty_header tm = term_eq tm struct_ty_header_tm;
 
 val tau_ty = mk_type ("tau", []);
 
-val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit, is_tau_bit) =
+val tau_bool_tm = prim_mk_const {Name="tau_bool", Thy="p4"};
+fun is_tau_bool tm = term_eq tm tau_bool_tm;
+
+val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit_tmp, is_tau_bit) =
   syntax_fns1 "p4" "tau_bit";
 val mk_tau_bit =
   mk_tau_bit_tmp o (fn n => term_of_int n);
+val dest_tau_bit =
+  int_of_term o dest_tau_bit_tmp;
 
 val (tau_xtl_tm, mk_tau_xtl_tmp, dest_tau_xtl, is_tau_xtl) =
   syntax_fns2 "p4" "tau_xtl";
@@ -308,6 +327,13 @@ val d_ty = mk_type ("d", []);
 val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty));
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
+fun is_status_running tm = term_eq tm status_running_tm;
+
+val (status_trans_tm,  mk_status_trans, dest_status_trans, is_status_trans) =
+  syntax_fns1 "p4" "status_trans";
+
+val (status_returnv_tm,  mk_status_returnv, dest_status_returnv, is_status_returnv) =
+  syntax_fns1 "p4" "status_returnv";
 
 fun dest_frame frame =
  case spine_pair frame of
@@ -354,11 +380,12 @@ fun dest_aenv aenv =
 fun dest_pblock pblock =
  let
   val (pbl_type, pblock') = dest_pair pblock
-  val (b_func_map, pblock'') = dest_pair pblock'
-  val (decl_list, pblock''') = dest_pair pblock''
-  val (pars_map, tbl_map) = dest_pair pblock'''
+  val (params, pblock'') = dest_pair pblock'
+  val (b_func_map, pblock''') = dest_pair pblock''
+  val (decl_list, pblock'''') = dest_pair pblock'''
+  val (pars_map, tbl_map) = dest_pair pblock''''
  in
-  (pbl_type, b_func_map, decl_list, pars_map, tbl_map)
+  (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map)
  end
 ;
 
@@ -398,5 +425,8 @@ val (all_arg_update_for_newscope_tm, mk_all_arg_update_for_newscope, dest_all_ar
 
 val (unred_arg_index_tm, mk_unred_arg_index, dest_unred_arg_index, is_unred_arg_index) =
   syntax_fns2 "p4" "unred_arg_index";
+
+val (match_all_tm,  mk_match_all, dest_match_all, is_match_all) =
+  syntax_fns1 "p4" "match_all";
 
 end

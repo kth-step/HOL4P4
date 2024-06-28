@@ -14,6 +14,40 @@ Definition packet_has_port_def:
   | _ => F
 End
 
+(* TODO: Just preliminary. Find out why packet is not found in output packet queue *)
+(*
+Definition get_packet'_def:
+ get_packet' ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+  case ALOOKUP ext_obj_map 0 of
+  | SOME (INL (core_v_ext_packet bit_list)) => SOME bit_list
+  | _ => NONE
+End
+*)
+
+Definition get_packet_def:
+ get_packet ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+  case io_list' of
+  | [(packet, port)] => SOME packet
+  | _ => NONE
+End
+
+Definition packet_dropped_def:
+ packet_dropped ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+  case io_list' of
+  | [] =>
+   (case ALOOKUP v_map "standard_metadata" of
+    | SOME (v_struct struct) =>
+     (case ALOOKUP struct "egress_spec" of
+      | SOME (v_bit (port_bl, n)) =>
+       let port_out = v2n port_bl in
+        if port_out = 511
+        then T
+        else F
+      | _ => F)
+    | _ => F)
+  | _ => F
+End
+
 Definition p4_contract_def:
  p4_contract P ctx s Q =
   (P ==> ?n. arch_multi_exec ctx s n <> NONE /\ !s'. arch_multi_exec ctx s n = SOME s' ==> Q s')
@@ -58,6 +92,13 @@ Cases_on ‘P_list’ >> (
  fs[p4_contract_list_def, CONJ_COMM] >>
  metis_tac[]
 )
+QED
+
+Theorem p4_contract_list_REWR2:
+ !R P_list P_list' ctx s Q.
+ ((p4_contract_list R P_list ctx s Q /\ p4_contract_list R P_list' ctx s Q) <=> (p4_contract_list R (P_list++P_list') ctx s Q))
+Proof
+cheat
 QED
 
 Theorem p4_contract_imp_REWR:
@@ -128,5 +169,55 @@ rpt strip_tac >> (
  )
 )
 QED
+
+Definition ctrl_is_well_formed_def:
+ ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
+  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map.
+   ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
+   ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
+    !tbl mk_l actions default_f default_f_args.
+     ALOOKUP tbl_map tbl = SOME (mk_l, (default_f, default_f_args)) ==>
+     ALOOKUP action_names_map tbl = SOME actions ==>
+      !e_l. ?f f_args.
+      apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
+       MEM f actions /\
+       (EL 0 f_args = (e_v (v_bool T))) /\
+       (f = default_f ==> ?b. EL 1 f_args = (e_v (v_bool b))) /\
+       (f <> default_f ==> EL 1 f_args = (e_v (v_bool T))) /\
+       ((?ftys ret_ty local_ftymap. ALOOKUP blftymap block_name = SOME local_ftymap /\
+        ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+        v_to_tau_list (DROP 2 f_args) = SOME (ftys)) \/
+       (ALOOKUP blftymap block_name = NONE \/
+        (?local_ftymap.
+         ALOOKUP blftymap block_name = SOME local_ftymap /\
+         ALOOKUP local_ftymap (funn_name f) = NONE) /\
+        (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+         v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
+End
+
+(* Old definition, using action list stored in in tbl_map:
+Definition ctrl_is_well_formed_def:
+ ctrl_is_well_formed (ftymap, blftymap) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
+  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
+   ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
+    !tbl mk_l actions default_f default_f_args.
+     ALOOKUP tbl_map tbl = SOME (mk_l, actions, (default_f, default_f_args)) ==>
+      !e_l. ?f f_args.
+      apply_table_f (tbl, e_l, mk_l, actions, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
+       MEM f actions /\
+       (EL 0 f_args = (e_v (v_bool T))) /\
+       (f = default_f ==> ?b. EL 1 f_args = (e_v (v_bool b))) /\
+       (f <> default_f ==> EL 1 f_args = (e_v (v_bool T))) /\
+       ((?ftys ret_ty local_ftymap. ALOOKUP blftymap block_name = SOME local_ftymap /\
+        ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+        v_to_tau_list (DROP 2 f_args) = SOME (ftys)) \/
+       (ALOOKUP blftymap block_name = NONE \/
+        (?local_ftymap.
+         ALOOKUP blftymap block_name = SOME local_ftymap /\
+         ALOOKUP local_ftymap (funn_name f) = NONE) /\
+        (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+         v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
+End
+*)
 
 val _ = export_theory ();

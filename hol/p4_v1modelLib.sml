@@ -62,13 +62,20 @@ val v1model_register_map =
  ``[("read", ([("this", d_in); ("result", d_out); ("index", d_in)], register_read));
     ("write", ([("this", d_in); ("index", d_in); ("value", d_in)], register_write))]``;
 
+val v1model_ipsec_crypt_map =
+ ``[("decrypt_aes_ctr", ([("ipv4", d_inout); ("esp", d_inout); ("standard_metadata", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_decrypt_aes_ctr));
+    ("encrypt_aes_ctr", ([("ipv4", d_inout); ("esp", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_encrypt_aes_ctr));
+    ("encrypt_null", ([("ipv4", d_inout); ("esp", d_inout)], ipsec_crypt_encrypt_null));
+    ("decrypt_null", ([("ipv4", d_inout); ("esp", d_inout); ("standard_metadata", d_inout)], ipsec_crypt_decrypt_null))]``;
+
 (* Extern (object) function map *)
 val v1model_ext_map =
  ``((^(inst [``:'a`` |-> ``:v1model_ascope``] core_ext_map))
     ++ [("", (NONE, (^v1model_objectless_map)));
         ("packet_in", (NONE, (^v1model_packet_in_map)));
         ("packet_out", (NONE, (^v1model_packet_out_map)));
-        ("register", SOME ([("this", d_out); ("size", d_none); ("targ1", d_in)], register_construct), (^v1model_register_map))])``;
+        ("register", SOME ([("this", d_out); ("size", d_none); ("targ1", d_in)], register_construct), (^v1model_register_map));
+        ("ipsec_crypt", SOME ([("this", d_out)], ipsec_crypt_construct), (^v1model_ipsec_crypt_map))])``;
 
 (* Function map *)
 val v1model_func_map = core_func_map;

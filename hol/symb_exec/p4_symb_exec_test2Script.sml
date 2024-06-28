@@ -13,6 +13,12 @@ val _ = new_theory "p4_symb_exec_test2";
  *
  * This tests if basic pruning works. *)
 
+val symb_exec2_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
+
+val symb_exec2_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
+
+val symb_exec2_pblock_action_names_map = ``[]:((string, (string, string list) alist) alist)``;
+
 val symb_exec2_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
@@ -121,12 +127,18 @@ val symb_exec2_actx = ``([arch_block_inp;
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
-val symb_exec2_astate_symb = rhs $ concl $ EVAL “(p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
+val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
+   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),
+ [[(varn_name "gen_apply_result",
+    v_struct
+      [("hit",v_bool ARB); ("miss",v_bool ARB);
+       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
+ arch_frame_list_empty,status_running):v1model_ascope astate”;
 
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
+val debug_flag = true
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec2_actx
 val init_astate = symb_exec2_astate_symb
@@ -143,10 +155,16 @@ val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_e
 (* For debugging, branch happens here:
 val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
  symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+
+val const_actions_tables = []
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "ctx" (mk_eq(mk_var("ctx", type_of ctx), ctx))
+val (fty_map, b_fty_map) = (symb_exec2_ftymap, symb_exec2_blftymap)
+
+val (path_tree, [(id, path_cond_res, step_thm)]) = p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE 17;
 *)
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract false arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (symb_exec2_ftymap, symb_exec2_blftymap, symb_exec2_pblock_action_names_map) [] init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond;
 
 val _ = export_theory ();

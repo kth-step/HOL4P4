@@ -300,7 +300,7 @@ Definition vss_apply_table_f_def:
    (case ALOOKUP ctrl x of
     | SOME table =>
      (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-     SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
     | NONE => NONE)
 End
 
