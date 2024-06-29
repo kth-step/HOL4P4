@@ -1112,7 +1112,6 @@ fs[is_arg_red_def] >>
 fs[wf_arg_def] >| [
  fs[out_is_lval_def] >>
 
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
  gvs[] >>
  IMP_RES_TAC e_lval_WT >> gvs[]
  ,
@@ -1344,10 +1343,6 @@ REPEAT STRIP_TAC  >>
 Q.EXISTS_TAC `[(varn_name x , THE (one_arg_val_for_newscope (d) (e) ss))]` >>
 
 fs[copyin_abstract_def] >>
-NTAC 2 STRIP_TAC >>
-`i=0 /\ 0 <1` by fs[] >>
-rw[] >>
-
 IMP_RES_TAC wf_imp_val_lval >>
 gvs[]
 );

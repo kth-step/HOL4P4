@@ -434,44 +434,33 @@ Proof
  
  
  (subgoal ‘X_star_defined ext_map [[]; EL 1 tslg]’ >- (
-   fs[quantHeuristicsTheory.LIST_LENGTH_2] >> gvs[] >>
+   fs[] >> gvs[] >>
    gvs[X_star_defined_def, is_lookup_defined_def] >> REPEAT STRIP_TAC >> gvs[]
    ) >> gvs[]
  ) >>
    
- fs[quantHeuristicsTheory.LIST_LENGTH_2] >> gvs[] >>
+ fs[] >> gvs[] >>
 
- (subgoal ‘X_star_not_defined [[]; e2]’ >- (
+ (subgoal ‘X_star_not_defined [[]; EL 1 tslg]’ >- (
    gvs[X_star_not_defined_def] >> REPEAT STRIP_TAC >> gvs[] >>
    gvs[is_lookup_defined_def]
    )                                          
  ) >> gvs[] >> rw[] >>
 
-  IMP_RES_TAC WTFg_empty_empty_db >>                     
-  IMP_RES_TAC WTFX_empty_empty_db
+
+ Cases_on ‘tslg’ >> gvs[] >>
+ Cases_on ‘t’ >> gvs[] >>
+ 
+ IMP_RES_TAC WTFg_empty_empty_db >>
+ IMP_RES_TAC WTFX_empty_empty_db >>
+ fs[]
+            
 QED
 
 
 
 
 
-
-(*        
-Theorem parseError_in_gs_normalization:         
-∀ tslg  t h .
-parseError_in_gs tslg (h::t) ⇒
-parseError_in_gs tslg [h] ∧
-parseError_in_gs tslg t
-Proof
-REPEAT GEN_TAC >> STRIP_TAC >>                      
-gvs[parseError_in_gs_def] >> rw[] >| [
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i`])) >> gvs[] >>
-  ‘i=0’ by gvs[] >> lfs[] 
- ,
-  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`SUC i`])) >> gvs[]
-  ]                    
-QED
-*)
 
 
         
@@ -590,7 +579,6 @@ Cases_on ‘tsll’ >>
 REPEAT STRIP_TAC >>
 gvs[type_state_tsll_def] >>
  REPEAT STRIP_TAC >| [                
- ‘i=0’ by gvs[] >> lfs[] >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>   
  gvs[] 
  ,
@@ -636,7 +624,6 @@ type_frame_tsl locale tsl ”,
 REPEAT STRIP_TAC >>
 PairCases_on ‘T_e’ >>
 gvs[res_frame_typ_def] >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
 gvs[frame_typ_cases]
 );
 
@@ -688,6 +675,17 @@ gvs[Once EL_compute]
 );
 
 
+
+
+Theorem LIST_LENGTH_2_simp:
+ ∀ l .  LENGTH l = 2 ⇔ ∃ a b . l = [a;b]
+Proof        
+ Induct >> gvs[] >>
+ Cases_on ‘l’ >> gvs[]
+QED
+
+             
+        
 Theorem scopes_to_ret_is_wt:  
 ∀ funn delta_g delta_b func_map b_func_map tslg passed_gscope  gscope passed_tslg ret_gscope .
   dom_b_eq delta_b b_func_map ∧
@@ -707,7 +705,7 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
 IMP_RES_TAC dom_eq_imp_NONE >> gvs[] >>
 IMP_RES_TAC type_scopes_list_LENGTH >>
-gvs[quantHeuristicsTheory.LIST_LENGTH_2] >>
+gvs[LIST_LENGTH_2_simp] >>
 
 simp_tac list_ss [Once type_scopes_list_normalize] >>
 IMP_RES_TAC type_scopes_list_normalize >> gvs[]           
@@ -731,7 +729,11 @@ gvs[Once stmt_red_cases]
 
 
 
+fun OPEN_ANY_STMT_RED_TAC a =
+(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(f,[stm_term],gam)],st) stat`
+ (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
 
+ 
 Theorem return_imp_same_g_base_case:
 ∀ stmt stmtl' c ascope ascope' gscope gscope' f  v framel locale locale'.
 stmt_red c (ascope,gscope,[(f,[stmt],locale)],status_running)
@@ -741,7 +743,7 @@ Proof
 Induct >>
 REPEAT GEN_TAC >>
 STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+OPEN_ANY_STMT_RED_TAC “anystmt” >>
 METIS_TAC []
 QED                                                                              
 
@@ -767,7 +769,7 @@ Proof
 Induct >>
 REPEAT GEN_TAC >>
 STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+OPEN_ANY_STMT_RED_TAC “anystmt” >>
 METIS_TAC []
 QED
 
@@ -783,8 +785,8 @@ Proof
 Induct >>
 REPEAT GEN_TAC >>
 STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
-IMP_RES_TAC create_frame_in_stmt_same_g 
+OPEN_ANY_STMT_RED_TAC “anystmt” >>
+IMP_RES_TAC create_frame_in_stmt_same_g >> gvs[] >> METIS_TAC[]
 QED
 
         
@@ -889,7 +891,7 @@ t_scopes_to_pass f_called delta_g passed_delta_b passed_tslg = SOME passed_tslg'
 t_scopes_to_pass f_called delta_g        delta_b        tslg = SOME passed_tslg' ”,
 
 REPEAT GEN_TAC >> STRIP_TAC >>
-gvs[quantHeuristicsTheory.LIST_LENGTH_2] >>
+gvs[LIST_LENGTH_2_simp] >>
    
 gvs[t_map_to_pass_def] >>
 REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
@@ -929,7 +931,7 @@ scopes_to_pass f_called func_map b_func_map          gscope' = SOME passed_gscop
                                  
 REPEAT GEN_TAC >> STRIP_TAC >>
 IMP_RES_TAC type_scopes_list_LENGTH >>
-gvs[quantHeuristicsTheory.LIST_LENGTH_2] >>
+gvs[LIST_LENGTH_2_simp] >>
    
 gvs[map_to_pass_def] >>
 REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
@@ -1023,7 +1025,7 @@ LENGTH gscope = 2 ∧
    gscope = gscope' ”  ,  
 
 REPEAT GEN_TAC >> STRIP_TAC >>
-gvs[quantHeuristicsTheory.LIST_LENGTH_2] >>
+gvs[LIST_LENGTH_2_simp] >>
 
        
 gvs[t_map_to_pass_def] >>
@@ -1130,7 +1132,6 @@ CASE_TAC >| [
   (* first we need to show that the newly created frame is well typed with all the passes that are happening *)  
   gvs[EL_CONS] >>
   gvs[res_frame_typ_def] >>
-  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
   gvs[] >>
   gvs[t_passed_elem_def] >>
   
@@ -1256,7 +1257,7 @@ scopes_to_pass f func_map b_func_map gscope' = SOME g_scope_list'' ” ,
 REPEAT GEN_TAC >> STRIP_TAC >>
 IMP_RES_TAC type_scopes_list_LENGTH >>
 gvs[] >>
-gvs[quantHeuristicsTheory.LIST_LENGTH_2] >>
+gvs[LIST_LENGTH_2_simp] >>
 
 gvs[t_map_to_pass_def] >>
 REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
@@ -1275,7 +1276,7 @@ gvs[dom_b_eq_def, dom_g_eq_def, dom_eq_def, is_lookup_defined_def] >>
 REPEAT (FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘s’])) >> fs[]) >>
 gvs[] >>
 
-gvs[quantHeuristicsTheory.LIST_LENGTH_2] >>                                   
+gvs[LIST_LENGTH_2_simp] >>                                   
 IMP_RES_TAC type_scopes_list_normalize2 >> gvs[] >>
 gvs[type_scopes_list_def, similarl_def, similar_def] >> gvs[]
 );
@@ -1713,7 +1714,6 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[]
                
 fun EXP_IS_WT_IN_FRAME_TAC frm = OPEN_FRAME_TYP_TAC frm >>
                                fs[stmtl_typ_cases, type_ith_stmt_def] >>
-                               FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
                                gvs[] >>
                                rfs[Once stmt_typ_cases]
 
@@ -1738,6 +1738,7 @@ val stmt_case_ret_stat_typed = prove (“
  IMP_RES_TAC t_lookup_funn_not_x >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘delta_x’])) >> gvs[] >>
  gvs[Once e_typ_cases] >>
+ Cases_on ‘t_lookup_funn f delta_g delta_b []’ >> gvs[] >>         
  IMP_RES_TAC v_typ_always_lval >> gvs[]
  );                                    
                        
@@ -1798,7 +1799,7 @@ val status_ret_in_stmt_typed_verbose = prove (“
 
 Induct >>
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >| [
+OPEN_ANY_STMT_RED_TAC “anystmt” >> gvs[] >| [
     (* return statement *)
     IMP_RES_TAC stmt_case_ret_stat_typed
     ,
@@ -1865,10 +1866,18 @@ SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ⇒
 Proof        
 Induct >>
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >| [
+fs[Once stmt_red_cases] >| [
+
+   ASSUME_TAC status_ret_in_stmt_typed_verbose >>
+
+  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘stmt1’,‘[stmt1']’, ‘ascope’, ‘ascope'’, ‘gscope’, ‘gscope'’, ‘scopest’, ‘scopest'’, ‘[]’, ‘status_running’,
+                                                 ‘t_scope_list’, ‘t_scope_list_g’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’,
+                                                 ‘c’,‘ v’,‘tau’, ‘txdl’])) >> gvs[] >>
 
 
-  subgoal ‘frame_typ (t_scope_list_g,t_scope_list)
+   
+   
+   subgoal ‘frame_typ (t_scope_list_g,t_scope_list)
             (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n  gscope scopest
             [stmt1]’ >-
     (EXP_IS_WT_IN_FRAME_TAC “[stmt_seq stmt stmt']” >>
@@ -1881,18 +1890,21 @@ gvs[Once stmt_red_cases] >| [
      srw_tac [boolSimps.DNF_ss][] >>
      srw_tac [][type_ith_stmt_def] >>
      ‘i=0’ by fs[] >> srw_tac [][]
-    ) >>
-   ASSUME_TAC status_ret_in_stmt_typed_verbose >>
+    ) >> gvs[]
 
-  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘stmt1’,‘[stmt1']’, ‘ascope’, ‘ascope'’, ‘gscope’, ‘gscope'’, ‘scopest’, ‘scopest'’, ‘[]’, ‘status_running’,
-                                                 ‘t_scope_list’, ‘t_scope_list_g’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’,
-                                                 ‘c’,‘ v’,‘tau’, ‘txdl’])) >> gvs[]
+    
   ,
+
+   ASSUME_TAC status_ret_in_stmt_typed_verbose >>
+  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘h’,‘stmt_stack'’, ‘ascope’, ‘ascope'’, ‘gscope’, ‘gscope'’, ‘scopest’, ‘scopest'’, ‘framel’, ‘status_running’,
+                                                 ‘t_scope_list’, ‘t_scope_list_g’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’,
+                                                 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘ v’,‘tau’, ‘txdl’])) >> gvs[] >>
+   
    subgoal ‘frame_typ (t_scope_list_g,t_scope_list)
             (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n  gscope scopest
             [h]’ >-
     (
-
+    
     fs[Once frame_typ_cases] >>
     fs[Once stmtl_typ_cases] >>
     fs[Once type_ith_stmt_def] >>
@@ -1905,16 +1917,11 @@ gvs[Once stmt_red_cases] >| [
     Cases_on ‘ t_lookup_funn f delta_g delta_b delta_x’ >> gvs[] >>
      REPEAT STRIP_TAC >>        
      ‘i=0’ by fs[] >> srw_tac [][]
-    ) >>
-   ASSUME_TAC status_ret_in_stmt_typed_verbose >>
-  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘h’,‘stmt_stack'’, ‘ascope’, ‘ascope'’, ‘gscope’, ‘gscope'’, ‘scopest’, ‘scopest'’, ‘framel’, ‘status_running’,
-                                                 ‘t_scope_list’, ‘t_scope_list_g’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’,
-                                                 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘ v’,‘tau’, ‘txdl’])) >> gvs[]
-   
+    ) >> gvs[]
   ,
-  IMP_RES_TAC stmt_case_ret_stat_typed          
+  IMP_RES_TAC stmt_case_ret_stat_typed >> METIS_TAC[]         
   ,                                     
-  IMP_RES_TAC stmt_case_ext_stat_typed                                               
+  IMP_RES_TAC stmt_case_ext_stat_typed >> METIS_TAC[]                                               
   ]
 QED
 
@@ -2105,7 +2112,7 @@ val local_sc_same_stmt1 = prove (“
 
 Induct_on ‘stmt’ >>
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+OPEN_ANY_STMT_RED_TAC “anystmt” >>
 gvs[] >>
 METIS_TAC []
 );
@@ -2120,7 +2127,7 @@ scope_list' = scope_list  ”,
 
 Induct_on ‘stmt’ >>
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+OPEN_ANY_STMT_RED_TAC “anystmt” >>
 gvs[] >>
 METIS_TAC []
 );
@@ -2391,7 +2398,7 @@ type_state_tsll [THE (oTAKE ( n − 2) (scl ⧺ gscope))] [tscl]”,
 
 REPEAT STRIP_TAC >>
 gvs[type_state_tsll_def] >>
-REPEAT STRIP_TAC >> ‘i=0’ by simp[] >> lfs[] >>
+REPEAT STRIP_TAC  >> lfs[] >>
 gvs[type_frame_tsl_def] >>  IMP_RES_TAC  type_scopes_list_LENGTH >> gvs[]>>
 Cases_on ‘(oTAKE (LENGTH tscl) (scl ⧺ gscope))’ >> gvs[] >>
 METIS_TAC[oTAKE_is_not_empty,  oTAKE_LENGTH_lemma1]
@@ -3040,7 +3047,7 @@ gvs[Once frames_red_cases] >| [
               (t_scope_list'::(t_scope_list'' ⧺ HD tsll)::TL tsll) ’ >-
       (
       ‘type_frame_tsl copied_in_scope t_scope_list' ’ by (IMP_RES_TAC res_fr_typ_imp_typ_tsl >> gvs[] ) >>
-      ‘type_frame_tsl scope_list' (t_scope_list'' ⧺ HD tsll) ’ by gvs[Once frame_typ_cases]  >>
+      ‘type_frame_tsl scope_list' (t_scope_list'' ⧺ HD tsll) ’ by fs[Once frame_typ_cases]  >>
       ‘type_state_tsll (MAP (λ(f,stmt,sc). sc) t) (TL tsll)’ by IMP_RES_TAC WT_state_imp_tl_tsll >>
       IMP_RES_TAC type_tsll_hd_hd_l
       ) >> gvs[] >>
@@ -3053,7 +3060,7 @@ gvs[Once frames_red_cases] >| [
      subgoal ‘type_scopes_list gscope' tslg ’ >-
       (
      ‘type_scopes_list gscope tslg’ by (gvs[WT_state_cases] )   >> 
-     ‘type_scopes_list g_scope_list'' passed_tslg’ by gvs[Once frame_typ_cases] >>
+     ‘type_scopes_list g_scope_list'' passed_tslg’ by fs[Once frame_typ_cases] >>
      ‘dom_b_eq delta_b b_func_map ∧ dom_g_eq delta_g func_map ∧
       dom_tmap_ei delta_g delta_b ∧ LENGTH tslg = 2’ by gvs[WT_c_cases] >>
      IMP_RES_TAC scopes_to_ret_is_wt
@@ -3079,7 +3086,6 @@ gvs[Once frames_red_cases] >| [
        
        gvs[Once WT_state_cases] >>
        gvs[Once res_frame_typ_def] >>
-       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
        gvs[] >>
        
        ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:funn``, ``:'b`` |-> ``:stmt list``, ``:'c`` |-> ``:scope_list``] ZIP_tri_sep_ind)  >>
@@ -3120,7 +3126,7 @@ gvs[Once frames_red_cases] >| [
      subgoal ‘type_state_tsll (scope_list'::MAP (λ(f,stmt,sc). sc) t)
               ((t_scope_list'' ⧺ HD tsll)::TL tsll) ’ >-
       (
-      ‘type_frame_tsl scope_list' (t_scope_list'' ⧺ HD tsll) ’ by gvs[Once frame_typ_cases]  >>
+      ‘type_frame_tsl scope_list' (t_scope_list'' ⧺ HD tsll) ’ by fs[Once frame_typ_cases]  >>
       ‘type_state_tsll (MAP (λ(f,stmt,sc). sc) t) (TL tsll)’ by IMP_RES_TAC WT_state_imp_tl_tsll >>
       IMP_RES_TAC type_tsll_hd_l
       ) >> gvs[] >>
@@ -3128,7 +3134,7 @@ gvs[Once frames_red_cases] >| [
      subgoal ‘type_scopes_list gscope' tslg ’ >-
       (
       ‘type_scopes_list gscope tslg’ by (gvs[WT_state_cases] )   >> 
-      ‘type_scopes_list g_scope_list'' passed_tslg’ by gvs[Once frame_typ_cases] >>
+      ‘type_scopes_list g_scope_list'' passed_tslg’ by fs[Once frame_typ_cases] >>
       ‘dom_b_eq delta_b b_func_map ∧ dom_g_eq delta_g func_map ∧
       dom_tmap_ei delta_g delta_b ∧ LENGTH tslg = 2’ by gvs[WT_c_cases] >>
       IMP_RES_TAC scopes_to_ret_is_wt
@@ -3194,7 +3200,7 @@ gvs[Once frames_red_cases] >| [
            (DROP 1 (HD tsll)::TL tsll)’ >-
   (
   ‘type_scopes_list gscope tslg’ by (gvs[WT_state_cases] )   >> 
-  ‘type_frame_tsl scope_list' (DROP 1 (HD tsll)) ’ by gvs[Once frame_typ_cases]  >>
+  ‘type_frame_tsl scope_list' (DROP 1 (HD tsll)) ’ by fs[Once frame_typ_cases]  >>
   ‘type_state_tsll (MAP (λ(f,stmt,sc). sc) t) (TL tsll)’ by IMP_RES_TAC WT_state_imp_tl_tsll >>
   IMP_RES_TAC type_tsll_hd_l
   ) >> gvs[] >>
@@ -3202,8 +3208,8 @@ gvs[Once frames_red_cases] >| [
 
   subgoal ‘type_scopes_list gscope' tslg ’ >-
   (
-  ‘type_scopes_list gscope tslg’ by (gvs[WT_state_cases] )   >> 
-   ‘type_scopes_list g_scope_list' passed_tslg’ by gvs[Once frame_typ_cases] >>
+  ‘type_scopes_list gscope tslg’ by (fs[WT_state_cases] )   >> 
+   ‘type_scopes_list g_scope_list' passed_tslg’ by fs[Once frame_typ_cases] >>
    ‘dom_b_eq delta_b b_func_map ∧ dom_g_eq delta_g func_map ∧
     dom_tmap_ei delta_g delta_b ∧ LENGTH tslg = 2’ by gvs[WT_c_cases] >>
    IMP_RES_TAC scopes_to_ret_is_wt
@@ -3425,7 +3431,7 @@ METIS_TAC[co_typed_verbose_final]) >>
  ‘type_frame_tsl scope_list'³' (HD t) ’ by (gvs[type_state_tsll_def] >> 
                                             FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >> gvs[]) >> 
  ‘type_state_tsll (MAP (λ(f,stmt,sc). sc) frame_list) (TL t)’ by (REPEAT (IMP_RES_TAC type_state_tsll_normalization >> gvs[]) ) >>
-   IMP_RES_TAC type_tsll_hd_l  >> METIS_TAC[CONS, quantHeuristicsTheory.HD_TL_EQ_THMS]
+ IMP_RES_TAC type_tsll_hd_l  >> Cases_on ‘t’ >> gvs[]
 
   ) >> gvs[] >>
 
