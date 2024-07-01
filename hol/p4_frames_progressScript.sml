@@ -84,7 +84,6 @@ Cases_on ‘tsll’ >>
 REPEAT STRIP_TAC >>
 gvs[type_state_tsll_def] >>
  REPEAT STRIP_TAC >| [                
-‘i=0’ by gvs[] >> lfs[] >>
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>   
 gvs[] 
 ,

@@ -353,7 +353,7 @@ Theorem fr_len_from_a_stmtl_theorem:
             ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status')) ⇒
       ((LENGTH framel = 1 ∧ ∃f_called stmt_called copied_in_scope. framel = [(f_called,[stmt_called],copied_in_scope)]) ∨ (LENGTH framel = 0))  
 Proof
-Induct >>
+Cases >>
 REPEAT GEN_TAC >-
 gvs[Once stmt_red_cases] >>
 REPEAT STRIP_TAC >>
@@ -364,7 +364,15 @@ ASSUME_TAC fr_len_from_e_theorem >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`])) >>
 LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>                  
 fs[fr_len_exp_def] >> gvs[] >>
-RES_TAC >> gvs[] 
+RES_TAC >> gvs[] >>
+
+(*case stmt apply e*)
+
+ASSUME_TAC fr_len_from_e_theorem >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`])) >>
+LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`(EL i (MAP (λ(e_,e'_). e_) (e_e'_list: (e # e) list)))`])) >>                  
+fs[fr_len_exp_def] >> gvs[] >>
+RES_TAC >> gvs[]   
 QED
 
 
@@ -378,7 +386,6 @@ QED
 
 fun EXP_IS_WT_IN_FRAME_TAC frm = OPEN_FRAME_TYP_TAC frm >>
                                fs[stmtl_typ_cases, type_ith_stmt_def] >>
-                               FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
                                gvs[] >>
                                rfs[Once stmt_typ_cases]      
 
@@ -500,7 +507,6 @@ REPEAT STRIP_TAC >| [
        SIMP_TAC list_ss [Once frame_typ_cases] >>
 
        fs[stmtl_typ_cases, type_ith_stmt_def] >>
-       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
        gvs[] >>
 
        OPEN_STMT_TYP_TAC “stmt_seq stmt stmt'” >>
@@ -519,35 +525,6 @@ REPEAT STRIP_TAC >| [
    ]
 
  ,
- (* verify statement *)
-(* IMP_RES_TAC fr_len_from_a_frame_theorem >| [
-   OPEN_ANY_STMT_RED_TAC >>
-   gvs[] >|[
-     (* verify e1 *)                    
-     EXP_IS_WT_IN_FRAME_TAC “[stmt_verify e e0]” >>     
-     ASSUME_SR_EXP_FOR ‘e’ >>
-     INST_SR_EXP_FOR (‘e'''’,‘(t_tau tau_bool)’,‘b’) >>
-     gvs[type_frame_tsl_def] >>
-     qexistsl_tac [‘t_scope_list_fr’] >>
-     drule frame_typ_imp_res_frame_single >> gvs[]  
-     ,
-     (* verify e2 *)
-
-     fs[Once frame_typ_cases, stmtl_typ_cases, type_ith_stmt_def] >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
-     gvs[] >>
-     rfs[Once stmt_typ_cases] >> 
-
-     ASSUME_SR_EXP_FOR ‘e0’ >>
-     INST_SR_EXP_FOR (‘e''’,‘(t_tau tau_err)’,‘b''’) >>
-     gvs[type_frame_tsl_def] >>
-     qexistsl_tac [‘t_scope_list_fr’] >>
-     drule frame_typ_imp_res_frame_single >> gvs[] 
-     ]     
-   ,
-   fs[res_frame_typ_def]
-   ] 
- , *)
  (** statement trans **)
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    OPEN_ANY_STMT_RED_TAC >> gvs[] >>
@@ -998,7 +975,7 @@ QED
               
 
 
-Theorem assign_to_null_same_scl:
+Theorem assign_to_null_same_lemma:
 ∀ scl scl' v .              
 SOME scl' = assign (scl) v lval_null ⇔
 scl' = scl
@@ -1279,11 +1256,8 @@ REPEAT STRIP_TAC >| [
  ‘LENGTH (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) =
   LENGTH (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list') ’ by fs[LENGTH_MAP, MAP_EQ_EVERY2] >>
  gvs[] >>
-
- ‘MAP (λ(x_,v_,tau_). x_) x_v_tau_list =
-  MAP (λ(x_,v_,tau_). x_) x_v_tau_list'’ by IMP_RES_TAC lemma_MAP5 >> gvs[] >>                   
- ‘MAP (λ(x_,v_,tau_). v_) x_v_tau_list =
-  MAP (λ(x_,v_,tau_). v_) x_v_tau_list'’ by IMP_RES_TAC lemma_MAP5 >> gvs[] >>
+ 
+ IMP_RES_TAC lemma_MAP5 >> gvs[] >>                   
 
  SIMP_TAC list_ss [map_tmp_lemma] >> gvs[] >>
 
@@ -1310,10 +1284,7 @@ REPEAT STRIP_TAC >| [
   LENGTH (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list') ’ by fs[LENGTH_MAP, MAP_EQ_EVERY2] >>
  gvs[] >>
 
- ‘MAP (λ(x_,v_,tau_). x_) x_v_tau_list =
-  MAP (λ(x_,v_,tau_). x_) x_v_tau_list'’ by IMP_RES_TAC lemma_MAP5 >> gvs[] >>                   
- ‘MAP (λ(x_,v_,tau_). v_) x_v_tau_list =
-  MAP (λ(x_,v_,tau_). v_) x_v_tau_list'’ by IMP_RES_TAC lemma_MAP5 >> gvs[] >>
+ IMP_RES_TAC lemma_MAP5 >> gvs[] >>                   
 
  SIMP_TAC list_ss [map_tmp_lemma] >> gvs[] >>
 
@@ -1470,7 +1441,7 @@ gvs[] >>
  type_scopes_list sl tscl' ∧
  type_scopes_list sl tscl ’ by (IMP_RES_TAC type_scopes_list_normalize >> gvs[]) >>
 
-IMP_RES_TAC type_scopes_list_single_detr >> gvs[] >> METIS_TAC []
+METIS_TAC [type_scopes_list_single_detr]
 QED
 
 
@@ -1738,32 +1709,6 @@ CASE_TAC >> gvs[]  >| [
 QED
                      
 
-
-
-Theorem  separate_global_local_single:               
-∀ l scopest ts tslg gscope  .                    
-LENGTH tslg = 2 ∧
-type_scopes_list (l) (ts::tslg) ∧                     
-(SOME gscope,SOME scopest) = separate (l) ⇒
-type_scopes_list gscope (tslg) ∧
-type_scopes_list scopest [ts]
-Proof
-Induct >> gvs[] >-
- (REPEAT STRIP_TAC >> IMP_RES_TAC type_scopes_list_LENGTH >> gvs[]) >>
-
-REPEAT STRIP_TAC >>
-IMP_RES_TAC type_scopes_list_LENGTH >> gvs[] >>
-       
-‘type_scopes_list [h] [ts] ∧
-type_scopes_list l tslg’  by  (IMP_RES_TAC type_scopes_list_normalize >> gvs[]) >>
-                                          
-fs[separate_def] >>
-‘SOME gscope = oDROP (SUC 0) (h::l)’ by fs[] >>
-gvs[oDROP_def] >>
-
-‘SOME scopest = oTAKE (SUC 0) (h::gscope)’ by fs[] >>
-gvs[oTAKE_def]
-QED        
 
 
 
@@ -2606,11 +2551,15 @@ gvs[Once lval_typ_cases] >| [
  ASSUME_TAC lookup_lval_varn_is_wt  >>
  fs[Once lval_typ_cases] >>
  gvs[] >>
- RES_TAC               
+ RES_TAC
+        
  ,
  fs[lookup_lval_def] >> gvs[] >>
  Cases_on ‘lookup_lval (scopest ⧺ gscope) l’ >> gvs[] >>
- ‘v_typ x (t_tau (tau_xtl struct_ty x_tau_list)) F’ by IMP_RES_TAC lookup_struct_is_wt >>
+ OPEN_LVAL_TYP_TAC “lval_field l s” >> gvs[] >>
+          
+ subgoal ‘v_typ x (t_tau (tau_xtl struct_ty x_tau_list)) F’ >- ( IMP_RES_TAC lookup_struct_is_wt) >>
+
  IMP_RES_TAC acc_struct_val_typed
  ,
  fs[lookup_lval_def] >> gvs[] >>
@@ -2618,18 +2567,24 @@ gvs[Once lval_typ_cases] >| [
  Cases_on ‘x’ >> gvs[] >> 
  PairCases_on ‘p'’ >> gvs[] >>
 
+ OPEN_LVAL_TYP_TAC “lval_slice l e0 e” >> gvs[] >>    
+
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
  [`tslg`, ‘T_e’, ‘tsl’, ‘gscope’, ‘scopest’,‘w'’,‘(p'0,p'1)’])) >> gvs[] >>
 
  fs[Once v_typ_cases] >>
  PairCases_on ‘bitv’ >>
- PairCases_on ‘bitv'’ >>       
+ PairCases_on ‘bitv'’ >>
 
- gvs[slice_lval_def] >>
+ gvs[slice_lval_def] >>                     
  gvs[bits_length_check_def] >>
  gvs[slice_def] >>
  gvs[bitv_bitslice_def] >>
- gvs[vec_to_const_def, bs_width_def]
+ gvs[vec_to_const_def, bs_width_def, clause_name_def]
+ ,
+
+  OPEN_LVAL_TYP_TAC “lval_paren l” >> gvs[]
+
 ]
 );
 
@@ -2936,7 +2891,6 @@ gvs[find_topmost_map_def] >>
  
 Cases_on ‘INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc varn)) tslg’>> gvs[] >>
 gvs[INDEX_FIND_EQ_SOME_0] >>
-fs[quantHeuristicsTheory.LIST_LENGTH_2] >> gvs[] >>
 ‘x'0 = 0 ∨ x'0 = 1’ by simp[] >> gvs[] 
 QED
 
@@ -3161,113 +3115,6 @@ STRIP_TAC >|  [
    gvs[] 
  ]
  ,
-
-(*****************************)
-(*   stmt_verify             *)
-(*****************************)
- (* 
- IMP_RES_TAC fr_len_from_a_frame_theorem >| [
-   (* whenever there is a frame, it means that there were a reduction in e or e' *)
-   OPEN_STMT_TYP_TAC “stmt_verify e e0” >>
-   fs[clause_name_def] >>
-
-   OPEN_STMT_RED_TAC “stmt_verify e e0” >>
-   gvs[] >>
-
-   SIMP_TAC list_ss [Once stmt_typ_cases] >>
-   gvs[clause_name_def] >>
-   fs[type_frame_tsl_def]
-     
-
-   (* for both cases we use the SR_e *) >| [
-
-     (*from e to e'''*)
-     ASSUME_SR_EXP_FOR ‘e’ >>
-     INST_SR2_EXP_FOR (‘e'''’, ‘t_tau tau_bool’, ‘b’, ‘[(f_called,[stmt_called],copied_in_scope)]’)  >>
-     gvs[] >>             
-     srw_tac [SatisfySimps.SATISFY_ss][]
-     ,
-     (*from e0 to e''*)
-     ASSUME_SR_EXP_FOR ‘e0’ >>
-     INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau_err’, ‘b'’, ‘[(f_called,[stmt_called],copied_in_scope)]’)  >>
-     gvs[] >>             
-     srw_tac [SatisfySimps.SATISFY_ss][]
-   ]
-   ,
-   (*when new frame is empty, then we do not have an exp reduction *)
-
-   OPEN_STMT_TYP_TAC “stmt_verify e e0” >>
-   fs[clause_name_def] >>
-
-   OPEN_STMT_RED_TAC “stmt_verify e e0” >>
-   gvs[] >| [
-     fs[type_frame_tsl_def] >>
-     SIMP_TAC list_ss [Once stmt_typ_cases] >>
-     gvs[clause_name_def]
-     ,      
-     fs[type_frame_tsl_def] >>
-     SIMP_TAC list_ss [Once stmt_typ_cases] >>
-     gvs[clause_name_def] >>
-                      
-     SIMP_TAC list_ss [Once stmt_typ_cases] >>
-     gvs[clause_name_def] >>
-     CONJ_TAC >| [
-
-      Q.EXISTS_TAC ‘tau_err’ >> 
-      Q.EXISTS_TAC ‘b'’ >>
-                 
-      gvs[Once lval_typ_cases, clause_name_def] >>
-      gvs[Once e_typ_cases, clause_name_def] >>
-      gvs[parseError_in_gs_def] >>
-      SIMP_TAC list_ss [Once e_typ_cases, clause_name_def] >> gvs[] >>
-      gvs[lookup_tau_def] >>
-    
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >> gvs[] >>           
-      Cases_on ‘lookup_map (tsl ⧺ tslg) (varn_name "parseError")’ >> gvs[lookup_map_concat_none] >| [
-        ‘LENGTH tslg = 2 ’ by gvs[Once WT_c_cases] >>
-        IMP_RES_TAC lookup_map_none_lemma1 >> gvs[]                                             
-        ,
-        ‘LENGTH tslg = 2 ’ by gvs[Once WT_c_cases] >>
-         PairCases_on ‘x'’ >>  gvs[] >>     
-        ‘∀t. lookup_map tslg (varn_name "parseError") = SOME t ⇒ (x'0,x'1) = t’ by 
-         (IMP_RES_TAC  (INST_TYPE [``:'a`` |-> ``:(tau#lval option)``] lookup_map_gsl_only))  >>
-        FIRST_X_ASSUM MP_TAC >> SIMP_TAC list_ss [lookup_map_def] >>
-        Cases_on ‘topmost_map tslg (varn_name "parseError")’ >> gvs[] >>              
-        IMP_RES_TAC lookup_map_imp_gsl >>
-        IMP_RES_TAC ALOOKUP_imp_lookup_map_lemma  >> gvs[]          
-      ]     
-     ,
-     SIMP_TAC list_ss [Once stmt_typ_cases] >>
-     gvs[clause_name_def] >>
-                       
-     SIMP_TAC list_ss [Once e_typ_cases] >>
-     gvs[clause_name_def] >>  
-
-     SIMP_TAC list_ss [Once v_typ_cases] >>
-     gvs[clause_name_def] >>
-     Q.EXISTS_TAC ‘["reject"]’ >> gvs[literials_in_P_state_def]           
-   ]
-   ,
-
-   (* when e reduces but not creating any frames*)
-
-   SIMP_TAC list_ss [Once stmt_typ_cases] >>
-   gvs[clause_name_def] >> fs[type_frame_tsl_def] >>
-   ASSUME_SR_EXP_FOR ‘e’ >>
-   INST_SR2_EXP_FOR (‘e'''’, ‘t_tau tau_bool’, ‘b’, ‘[]’)  >>
-   gvs[] >>             
-   srw_tac [SatisfySimps.SATISFY_ss][]
-   ,
- 
-   SIMP_TAC list_ss [Once stmt_typ_cases] >>
-   gvs[clause_name_def] >> fs[type_frame_tsl_def] >>
-   ASSUME_SR_EXP_FOR ‘e0’ >>
-   INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau_err’, ‘b'’, ‘[]’)  >>
-   gvs[] >>             
-   srw_tac [SatisfySimps.SATISFY_ss][]
-  ]  
- ]                                        
- , *)
  
  (*****************************)
  (*   stmt_trans              *)
@@ -3767,35 +3614,6 @@ QED
 
 
 
-
-
-(*        
-Theorem Err_not_in_HD:
-∀ l tsl tgl.
-parseError_in_gs tgl [tsl] ∧
-star_Err_not_in_ts l ⇒
-parseError_in_gs tgl [l::tsl]
-Proof
-
-gvs[parseError_in_gs_def, star_Err_not_in_ts_def, Err_not_in_ts_def] >>
-REPEAT STRIP_TAC >>
-‘i=0’ by simp[] >> lfs[] >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
-gvs[] >>
-
-
-gvs[lookup_map_def,topmost_map_def, find_topmost_map_def, INDEX_FIND_def] >>
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-IMP_RES_TAC P_NONE_hold >>
-IMP_RES_TAC P_NONE_hold2 >>
-gvs[] >>
-IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >> 
-gvs[]
-QED
- *)                    
-
-
-
 val extract_tri_LAST = prove (“                     
 ∀ t_scope_list l.
 LENGTH t_scope_list ≥ 1 ⇒
@@ -3897,7 +3715,6 @@ fs[Once frame_typ_cases] >>
 fs[Once stmtl_typ_cases] >>
 fs[Once type_ith_stmt_def] >>
 
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
 gvs[] >| [
  (*****************************)
  (*   stmt_empty              *)
@@ -4062,19 +3879,6 @@ gvs[] >| [
    STMT_STMT_SR_TAC ‘stmt_seq stmt stmt'’
   ]         
  ,
-
- (*****************************)
- (*   stmt_verify             *)
- (*****************************)
-
-(*  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
-  gvs[] >| [
-    fs[Once stmt_red_cases] >>
-    gvs[] 
-    ,  
-    STMT_STMT_SR_TAC ‘stmt_verify e e0’
-   ]       
- , *)
 
  (*****************************)
  (*   stmt_trans              *)
@@ -4250,26 +4054,20 @@ srw_tac [boolSimps.DNF_ss][] >>
 gvs[ADD1] >>
 
 SIMP_TAC list_ss [Once EL_compute] >>       
-Cases_on ‘i=0’ >> gvs[]   >|  [
- (* handles the s1 case *)
- LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
- gvs[]
- ,
- 
- SIMP_TAC list_ss [Once EL_compute] >>
- Cases_on ‘PRE i = 0’ >> gvs[] >| [
-
-   (* handles s2 *)
-   gvs[PRE_SUB1] >>
-   ‘i=1’ by gvs[] >> fs[] >>           
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`1`])) >> gvs[]
-   ,
-   gvs[] >>       
-   gvs[PRE_SUB1] >>  
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i`])) >>
-   gvs[] >>
-   ‘i>1’ by gvs[] >> gvs[EL_2_lemma]
-   ]
+Cases_on ‘i=0’ >> gvs[] >>
+SIMP_TAC list_ss [Once EL_compute] >>
+Cases_on ‘PRE i = 0’ >> gvs[] >| [
+                                       
+  (* handles s2 *)
+  gvs[PRE_SUB1] >>
+  ‘i=1’ by gvs[] >> fs[] >>           
+  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`1`])) >> gvs[]
+  ,
+  gvs[] >>       
+  gvs[PRE_SUB1] >>  
+  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i`])) >>
+  gvs[] >>
+  ‘i>1’ by gvs[] >> gvs[EL_2_lemma]
 ]
 
 );
@@ -4341,43 +4139,6 @@ Cases_on ‘i=0’ >> gvs[]   >|  [
 
 
 
-
-(*        
-val parseError_singleton_normalization = prove (“       
-∀ l h tslg.
-parseError_in_gs tslg [h::l] ⇒
-parseError_in_gs tslg [l] ”,
-
-
-gvs[parseError_in_gs_def] >>
-REPEAT STRIP_TAC >>
-‘i=0’ by gvs[] >> lfs[] >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
-
-gvs[lookup_map_def, topmost_map_def, find_topmost_map_def, INDEX_FIND_def] >> 
-REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-
-IMP_RES_TAC P_NONE_hold >>
-IMP_RES_TAC P_NONE_hold2 >>
-IMP_RES_TAC P_current_next_same >>
-gvs[]
-);
-
-
-        
-val parseError_DROP = prove (“
-∀ tslg tsl.                             
-parseError_in_gs tslg [tsl] ⇒
-parseError_in_gs tslg [DROP 1 tsl] ”,
-
-Cases_on ‘tsl’ >-
-gvs[lookup_map_def, topmost_map_def, find_topmost_map_def, INDEX_FIND_def] >> 
-
-gvs[DROP_1] >> REPEAT STRIP_TAC >>
-IMP_RES_TAC parseError_singleton_normalization
-);
-
-*)
                       
         
 

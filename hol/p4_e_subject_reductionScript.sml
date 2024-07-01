@@ -2093,6 +2093,7 @@ fs[]
 );
 
 
+(*        
 val lval_typ_deltas_lemma = prove (“
 ! lval tau f order t_scope_list_g t_scope_list_g s delta_g delta_b
  delta_x delta_t Prs_n order t_scope_local ty.
@@ -2114,7 +2115,11 @@ TRY(SIMP_TAC list_ss [Once e_typ_cases]) >>
 gvs[] >| [
     gvs[] >>
     IMP_RES_TAC t_lookup_funn_lemma >>     
-    srw_tac [SatisfySimps.SATISFY_ss][]       
+    srw_tac [SatisfySimps.SATISFY_ss][]
+    ,
+
+
+    cheat
     ,
     gvs[] >> RES_TAC >> METIS_TAC []
     ,
@@ -2122,7 +2127,7 @@ gvs[] >| [
   ]
 );
             
-
+*)
 
         
 (*
@@ -2577,8 +2582,7 @@ REPEAT STRIP_TAC >>
 Cases_on `dxel = []` >| [
  gvs[]
  ,
- INST_FST [`0`] >>
- INST_FST [`i`] >>
+
 
  Cases_on `LENGTH dxel = i` >| [
    gvs[] >>
@@ -2835,22 +2839,14 @@ Induct_on `el` >>
 Induct_on `dl` >>
 fs[] >| [
  fs[copyin_abstract_def] >>
- REPEAT STRIP_TAC  >| [
-   `i=0` by fs[] >>
-   fs[] >>
-   INST_FST [`0`] >> fs[]
-   ,
-   INST_FST [`0`] >> fs[] >>
-   Cases_on `scope` >> fs[]
- ]
+ REPEAT STRIP_TAC >>
+ Cases_on `scope` >> fs[]
+                       
  ,
 
  REPEAT STRIP_TAC >| [
 
    fs[copyin_abstract_def] >>
-   NTAC 2 STRIP_TAC >>
-   `i=0` by fs[] >>
-   fs[] >>
    INST_FST [`0`]
    ,
 
@@ -2870,7 +2866,7 @@ fs[] >| [
 
      INST_FST [`1`] >> fs[] >>
    
-     Cases_on `one_arg_val_for_newscope h0 h2 ss` >> fs[] >>
+     Cases_on `one_arg_val_for_newscope h h' ss` >> fs[] >>
      Cases_on `scope` >> fs[]
      ,
 
@@ -2920,15 +2916,11 @@ REPEAT STRIP_TAC >| [
  INST_FST [`0`]
  ,
  fs[copyin_abstract_def] >>
- INST_FST [`0`] >>
  Cases_on `scope` >> fs[]
  ,
  PairCases_on `h` >>
  fs[] >>
  fs[copyin_abstract_def] >>
- NTAC 2 STRIP_TAC >>
- `i=0` by fs[] >>
- fs[] >>
  INST_FST [`0`]
  ,
  PairCases_on `h` >>
@@ -3198,8 +3190,6 @@ Induct >>
 REPEAT STRIP_TAC >| [
 
  fs[copyin_abstract_def] >>
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`0`])) >>
  gvs[] >>
  Cases_on `scope` >> fs[]
  ,
@@ -3483,10 +3473,7 @@ val wf_arg_list_implied = prove (``
 REPEAT STRIP_TAC >>
 fs[wf_arg_list_def] >>
 
-REPEAT STRIP_TAC >>
 
-`i = 0` by fs[] >>
-rw[Once EL_compute] >>
 fs[wf_arg_def] >>
 
 fs[update_arg_for_newscope_def] >>
@@ -3519,8 +3506,6 @@ REPEAT STRIP_TAC >>
 Cases_on `dxel = []` >| [
  gvs[]
  ,
- INST_FST [`0`] >>
- INST_FST [`i`] >>
 
  Cases_on `LENGTH dxel = i` >| [
    gvs[] >>
@@ -4060,12 +4045,12 @@ REPEAT (
 
  subgoal `v = EL z'0 (MAP (λ(x_,v_,tau_). v_) x_v_tau_list)` >-
   (IMP_RES_TAC EL_simp5 >>
-   gvs[] ) >>
+   METIS_TAC[] ) >>
 
  subgoal `EL z'0 (MAP (λ(x_,v_,tau_). tau_) x_v_tau_list) = tau ` >-
  (IMP_RES_TAC EL_ZIP_simp >>
   fs[] >>
-  gvs[] ) >>
+  METIS_TAC[] ) >>
 
  subgoal `v_typ v (t_tau tau) F` >-
  (INST_FST [`z'0`] >>
@@ -4132,6 +4117,7 @@ OPEN_V_TYP_TAC ``strct`` >>
 fs[FIND_def] >>
 Cases_on `z` >> gvs[] >>
 
+         
 `q < LENGTH (MAP (λ(x_,v_,tau_). (x_,tau_)) x_v_tau_list)` by IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
 `EL q (MAP (λ(x_,v_,tau_). (x_,tau_)) x_v_tau_list) = (x0,tau)` by IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >>
 
@@ -4147,13 +4133,13 @@ Cases_on `z` >> gvs[] >>
 IMP_RES_TAC INDEX_FIND_same_list >> 
 gvs[] >>
 RES_TAC >>
+    
 
 (subgoal ` v = EL q (MAP (λ(x_,v_,tau_). v_) x_v_tau_list)` >-
- (`EL q (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) = (x0',v)` by fsrw_tac [] [INDEX_FIND_EQ_SOME_0] >>
+  ( 
+  `EL q (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) = (x0',v)` by fsrw_tac [] [INDEX_FIND_EQ_SOME_0] >>
    IMP_RES_TAC EL_simp5 >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-   [`v`, `x0'`])) >>
-   gvs[]
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`v`, `x0'`])) >> rfs[]
  )) >>
 gvs[]
 QED
@@ -4326,8 +4312,6 @@ Cases_on `is_d_out d` >>
 SIMP_TAC list_ss [similarl_def, similar_def] >>
 fs[mk_varn_def] >>
 fs[copyin_abstract_def] >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-[`0`])) >>
 fs[] >>
 
 
@@ -4355,15 +4339,19 @@ gvs[] >| [
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
     [`e`,`tau`,  `lval`, `T_e`, `gscope`, `t_g`,
     `scopest`, `t_sl`, `b`, `d`, `x`])) >>
-    gvs[type_scopes_list_def] >>
-    fs[wf_arg_def] >>
+    gvs[type_scopes_list_def] >> 
+    fs[wf_arg_def] >> gvs[] >> 
+
+                 
     (* out *)
     ASSUME_TAC init_typed >>
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
     [`ty`])) >>
     fs[] >>
-    fs[init_out_v_typed_def]
+    fs[init_out_v_typed_def] >>
 
+    
+    METIS_TAC[] 
   ,
 
   subgoal `scope' = [(varn_name x,x'0,x'1)]` >-
@@ -4549,7 +4537,6 @@ Induct >| [
  subgoal `(HD scope'::TL scope' ) = scope'` >-
  (IMP_RES_TAC args_ci_scope_LENGTH2 >> gvs[] >>
   `LENGTH scope' > 0` by fs[] >>
-  fs[quantHeuristicsTheory.HD_TL_EQ_THMS] >>
   fs[NOT_NIL_EQ_LENGTH_NOT_0]) >>
 
 
@@ -4578,7 +4565,6 @@ Induct >| [
              TL (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list) ) =
              (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list)` >-
   (`LENGTH e_tau_x_d_b_list > 0` by fs[] >> 
-   fs[quantHeuristicsTheory.HD_TL_EQ_THMS] >>
    fs[NOT_NIL_EQ_LENGTH_NOT_0]) >>
 
 
@@ -4851,7 +4837,7 @@ gvs[] >>
     IMP_RES_TAC LENGTH_imp_NULL >>
     gvs[LENGTH_NOT_NULL] ))>>
      
-‘(HD tsl)::(TL tsl) = tsl’ by gvs[CONS] >>
+‘(HD tsl)::(TL tsl) = tsl’ by METIS_TAC[CONS] >>
 ‘type_scopes_list (h::sl) (HD tsl::TL tsl)’ by fs[] >>
 
 fs[Once type_scopes_list_normalize]   
@@ -4870,7 +4856,7 @@ REPEAT STRIP_TAC >>
 gvs[] >>
 IMP_RES_TAC type_scopes_list_LENGTH >>
 gvs[] >>
-gvs[Once type_scopes_list_normalize]
+IMP_RES_TAC type_scopes_list_normalize >> gvs[]      
 QED
 
 
@@ -4967,8 +4953,6 @@ gvs[topmost_map_def, find_topmost_map_def] >>
 REPEAT STRIP_TAC >>
 REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 gvs[INDEX_FIND_EQ_SOME_0] >>
-
-‘q=0’ by gvs[]  >> lfs[] >>
       
 ASSUME_TAC lookup_parse_err_in_xdl >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’,‘tl’])) >>
@@ -5103,7 +5087,7 @@ QED
 
                                         
 
-(* teh otherside of the implications hold at lval_typ_imp_e_typ *)
+(* the otherside of the implications hold at lval_typ_imp_e_typ *)
 
 val e_typ_imp_lval_typ = prove (“ 
 ∀ e l tau t b T_e gtsl tsl. 
@@ -5171,7 +5155,6 @@ lval_typ (tslg,tsl) T_e lop (t_tau t) ”,
 REPEAT STRIP_TAC >>
 Cases_on ‘a=x’ >> gvs[] >>
 gvs[out_is_lval_def, wf_arg_def] >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
 Cases_on ‘is_d_out d’ >> gvs[] >>              
 IMP_RES_TAC e_typ_imp_lval_typ>>
 gvs[] >>
@@ -5314,8 +5297,8 @@ rw[] >|[
  subgoal `type_scopes_list [] []` >-
  fs[type_scopes_list_def, similarl_def] >>
 
- gvs[] >>
- IMP_RES_TAC varn_is_typed
+
+ IMP_RES_TAC varn_is_typed >>  gvs[]
 ] 
 
 ,
@@ -6118,7 +6101,6 @@ REPEAT STRIP_TAC >| [
    ,  *)
 
    REPEAT STRIP_TAC >>
-   `i=0` by fs[] >>
    rw[] >>
   
    gvs[MAP_MAP_txd] >>
@@ -6685,6 +6667,10 @@ QED
 
 
 val _ = export_theory ();
+
+
+
+
 
 
 

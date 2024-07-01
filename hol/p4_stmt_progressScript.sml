@@ -83,12 +83,7 @@ val prog_stmt_def = Define `
 
       
 
-val frame_typ_into_stmt_typ_tac = gvs[Once frame_typ_cases] >>                        
-                    gvs[Once stmtl_typ_cases] >>
-                    gvs[type_ith_stmt_def] >>
-                    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
-                    gvs[] >>
-                    gvs[Once stmt_typ_cases]
+
 
       
 val vl_of_el_ev = prove (“                       
@@ -124,8 +119,8 @@ val oDROP_exists = prove (“
 Induct >>
 Induct_on ‘i’ >>            
 
-REPEAT STRIP_TAC >> 
-gvs[oDROP_def] >> 
+REPEAT STRIP_TAC >>
+fs[oDROP_def] >>
 gvs[ADD1] >>
 
 Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >-
@@ -133,7 +128,7 @@ Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >-
 
 ‘i + 2 =LENGTH sl’ by gvs[] >>
 Cases_on ‘i’ >> gvs[] >>
-gvs[oDROP_def]  
+gvs[oDROP_def]
 );
 
 
@@ -145,17 +140,16 @@ Induct >>
 Induct_on ‘i’ >>            
 
 REPEAT STRIP_TAC >> 
-gvs[oTAKE_def] >> 
+fs[oTAKE_def] >> 
 gvs[ADD1] >>
 
-Cases_on ‘oTAKE i sl’ >> gvs[] >>
-        
-Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >-
- 
+Cases_on ‘oTAKE i sl’ >> gvs[] >>     
+Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >>
+  
 (‘i=LENGTH sl -2’ by gvs[] >> lfs[] ) >>
 
 ‘i + 2 =LENGTH sl’ by gvs[] >> Cases_on ‘i’ >> gvs[] >>
-gvs[oTAKE_def]  
+gvs[oTAKE_def]  >> fs[]
 );
 
 
@@ -247,9 +241,7 @@ REPEAT STRIP_TAC >>
 QED
                
 
-
-
-
+               
 Theorem assignment_scope_exists:                                
 ∀  scopest gscope t_scope_list t_scope_list_g tau b l v T_e.
 LENGTH scopest ≥ 1 ∧
@@ -315,8 +307,8 @@ gvs[Once e_typ_cases]  >| [
  
  gvs[assign_def] >>
  
- Cases_on ‘v'’ >> gvs[Once v_typ_cases] >>
- 
+ Cases_on ‘v'’ >>  OPEN_V_TYP_TAC ‘anything’ >> gvs[] >>
+
  (Cases_on ‘INDEX_OF s (MAP FST (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list))’ >>
   gvs[] >-
    ( IMP_RES_TAC correct_field_type_FIND >>
@@ -382,16 +374,20 @@ gvs[Once e_typ_cases]  >| [
   (* slice *)
                      
   OPEN_LVAL_TYP_TAC “(lval_slice l e0 e)” >> gvs[] >>
-   
+                    
        
   IMP_RES_TAC lval_typ_imp_e_typ >>
   ASSUME_TAC e_lval_WT >> gvs[] >>
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`, ‘t_tau (tau_bit w)’,‘t_scope_list_g’,‘gscope’,‘t_scope_list’, ‘scopest’, ‘T_e’])) >> gvs[] >>
   
+
+  gvs[Once e_typ_cases] >> 
   gvs[assign_def] >>
-  
-  Cases_on ‘v'’ >> gvs[Once v_typ_cases] >>
-  Cases_on ‘v’ >> gvs[Once v_typ_cases] >>
+                  
+  Cases_on ‘v'’ >> OPEN_V_TYP_TAC ‘anything’ >> gvs[] >>
+  Cases_on ‘v’ >> OPEN_V_TYP_TAC ‘anything’ >> gvs[] >>
+
+           
   REPEAT BasicProvers.FULL_CASE_TAC >> gvs[] >| [
     PairCases_on ‘p’ >>  PairCases_on ‘p'’ >>  PairCases_on ‘bitv’ >>  PairCases_on ‘bitv'’ >> gvs[] >>
     gvs[assign_to_slice_def]                                                                                              
@@ -400,21 +396,23 @@ gvs[Once e_typ_cases]  >| [
     
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`scopest`, ‘gscope’,‘t_scope_list’,‘t_scope_list_g’, ‘(tau_bit p1)’, ‘F’,
                                                   ‘x’, ‘T_e’])) >> gvs[] >>
-      
-    gvs[Once e_typ_cases] >>            
-    gvs[vec_to_const_def] >>
-                       
-    IMP_RES_TAC bit_slice_typed >>
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`p1`])) >>           
-    REPEAT ( gvs[Once v_typ_cases] >>            
-             gvs[bs_width_def] >>            
-             gvs[vec_to_const_def] >>       
-             srw_tac [SatisfySimps.SATISFY_ss][])                        
+
+    gvs[assign_to_slice_def] >>
+                
+                    
+    gvs[Once e_typ_cases, get_lval_of_e_def, is_e_lval_def] >>            
+    fs[Once v_typ_cases] >> gvs[] >>
+       
+   ( gvs[Once v_typ_cases] >> fs[]) >>           
+    gvs[bs_width_def] >>            
+    gvs[vec_to_const_def] >>       
+    srw_tac [SatisfySimps.SATISFY_ss][] >>
+    gvs[vec_to_const_def, bs_width_def]                     
     ]
   ,
 
    (*lval paren *)     
-  gvs[Once lval_typ_cases]
+    OPEN_LVAL_TYP_TAC “(lval_paren l)” >> gvs[]
  ]
 QED
 
@@ -422,6 +420,13 @@ QED
                 
 
 
+
+val frame_typ_into_stmt_typ_tac = gvs[Once frame_typ_cases] >>                        
+gvs[Once stmtl_typ_cases] >>
+gvs[type_ith_stmt_def] >>
+gvs[] >>
+gvs[Once stmt_typ_cases]
+   
                                                   
 
 Theorem PROG_stmt:
@@ -446,18 +451,17 @@ REPEAT STRIP_TAC >| [
    gvs[Once frame_typ_cases] >>                        
    gvs[Once stmtl_typ_cases] >>
    gvs[type_ith_stmt_def] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
    gvs[] >>
-   gvs[Once stmt_typ_cases] >>
+   fs[Once stmt_typ_cases] >> gvs[] >> 
    
    ‘LENGTH t_scope_list_g = 2’ by fs[WT_c_cases] >>         
    ‘LENGTH t_scope_list_g = LENGTH gscope’ by ( IMP_RES_TAC type_scopes_list_LENGTH >> gvs[] ) >>
-   ‘LENGTH scopest >= 1’ by ( IMP_RES_TAC type_scopes_list_LENGTH >> gvs[] )   >| [
+   ‘LENGTH scopest >= 1’ by ( METIS_TAC[type_scopes_list_LENGTH])   >| [
      gvs[clause_name_def] >>
      srw_tac [SatisfySimps.SATISFY_ss][assignment_scope_exists]        
      ,
      gvs[assign_def] >>
-     ‘LENGTH (scopest ⧺ gscope) >= 3 ’ by gvs[] >>
+     ‘LENGTH (scopest ⧺ gscope) >= 3 ’ by simp[] >>
      drule separate_exists >> REPEAT STRIP_TAC >> srw_tac [SatisfySimps.SATISFY_ss][]
       ]       
 
@@ -468,7 +472,6 @@ REPEAT STRIP_TAC >| [
    gvs[Once frame_typ_cases] >>                        
    gvs[Once stmtl_typ_cases] >>
    gvs[type_ith_stmt_def] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
    gvs[] >>
    gvs[Once stmt_typ_cases] >>
 
@@ -574,7 +577,6 @@ REPEAT STRIP_TAC >| [
       gvs[frame_typ_cases] >>                        
       gvs[stmtl_typ_cases] >>
       gvs[type_ith_stmt_def] >>
-      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>
       gvs[] >>
       gvs[Once stmt_typ_cases] >>
       Q.EXISTS_TAC ‘tau_x_d_list’ >>
@@ -614,54 +616,6 @@ REPEAT STRIP_TAC >| [
  ]                                           
  ,
 
- (*****************************)
- (*   stmt_verify             *)
- (*****************************)
-(*
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
- Cases_on `is_const e` >| [
-   Cases_on `is_const e0` >| [
-     (* verify T/F  err  *)
-     gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
-     frame_typ_into_stmt_typ_tac >>           
-     gvs[Once e_typ_cases, Once v_typ_cases] >>
-     Cases_on ‘boolv’ >>         
-     srw_tac [SatisfySimps.SATISFY_ss][] >>        
-     gvs[Once e_typ_cases, Once v_typ_cases, clause_name_def]                         
-     ,
-     (* verify T/F  e *)
-     gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
-     frame_typ_into_stmt_typ_tac >>           
-     gvs[Once e_typ_cases, Once v_typ_cases] >>
-     
-
-     ‘∀e0. prog_exp e0 ty’ by ( ASSUME_TAC PROG_e >>
-                                FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`]))) >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e0`])) >>           
-     gvs[prog_exp_def] >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
-                                                 ‘t_tau tau_err’, ‘b'’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                                 ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
-     gvs[is_const_val_exsist] >>
-     srw_tac [SatisfySimps.SATISFY_ss][]          
-   ]
-   ,
-   (* verify e e' *)
-   
-   gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
-   frame_typ_into_stmt_typ_tac >>           
-   
-   ‘∀e. prog_exp e ty’ by ( ASSUME_TAC PROG_e >>
-                            FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`]))) >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>           
-   gvs[prog_exp_def] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
-                                               ‘t_tau tau_bool’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
-   gvs[is_const_val_exsist] >>
-   srw_tac [SatisfySimps.SATISFY_ss][]
-    ]
- , *)
  
  (*****************************)
  (*   stmt_trans              *)

@@ -371,11 +371,6 @@ literials_in_P_state (xl: x list) (Prs_n:Prs_n) =
 EVERY (\(x). MEM x Prs_n) (xl)
 `;
 
-(* returns the width of the bitstring *)
-val bs_width_def = Define `
-  bs_width (bl, (n:num)) = n
-`;
-
 
 (* "order" is a STRICT partial relation that relates two components.
    This has the features of irreflexivity, antisymmetry, & transitivity 

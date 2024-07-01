@@ -276,7 +276,7 @@ val e_state_size_def = Define `
  *       This would reduce warnings *)
 (* TODO: Use let-statements to avoid duplicate "MAP FST", et cetera *)
 (* Defn.tgoal (Hol_defn "e_exec" ` *)
-val e_exec = TotalDefn.tDefine "e_exec" `
+Definition e_exec_def:
  (********************)
  (* Variable look-up *)
  (e_exec (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e_var x) =
@@ -427,41 +427,39 @@ val e_exec = TotalDefn.tDefine "e_exec" `
    else NONE)
   /\
  (e_exec _ _ _ _ = NONE)
-`
-(WF_REL_TAC `measure e_state_size` >>
- fs [e_state_size_def, e_size_def] >>
- REPEAT STRIP_TAC >| [
-  IMP_RES_TAC unred_arg_index_in_range >>
-  IMP_RES_TAC rich_listTheory.EL_MEM >>
-  IMP_RES_TAC e3_size_mem >>
-  fs [],
+Termination
+WF_REL_TAC `measure e_state_size` >>
+fs [e_state_size_def, e_size_def] >>
+REPEAT STRIP_TAC >| [
+ IMP_RES_TAC unred_arg_index_in_range >>
+ IMP_RES_TAC rich_listTheory.EL_MEM >>
+ IMP_RES_TAC e3_size_mem >>
+ fs [],
 
-  IMP_RES_TAC unred_mem_index_in_range >>
-  IMP_RES_TAC rich_listTheory.EL_MEM >>
-  `e_size (EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
-   fs []
-  ) >>
-  `e2_size (EL i (MAP FST x_e_l), EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
-   rpt strip_tac >>
-   irule arithmeticTheory.LESS_TRANS >>
-   qexists_tac `e2_size (EL i (MAP FST x_e_l),EL i (MAP SND x_e_l))` >>
-   fs [e_e2_size_less]
-  ) >>
-  subgoal `MEM (EL i x_e_l) x_e_l` >- (
-   irule rich_listTheory.EL_MEM >>
-   fs [listTheory.LENGTH_MAP]
-  ) >>
-  imp_res_tac e1_size_mem >>
-  metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
- ]
-);
-(* TODO: Is the below line too hacky? Also, should the theorem only be referred to as "e_exec_def"? *)
-val e_exec = save_thm("e_exec", e_exec);
-
+ IMP_RES_TAC unred_mem_index_in_range >>
+ IMP_RES_TAC rich_listTheory.EL_MEM >>
+ `e_size (EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+  fs []
+ ) >>
+ `e2_size (EL i (MAP FST x_e_l), EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+  rpt strip_tac >>
+  irule arithmeticTheory.LESS_TRANS >>
+  qexists_tac `e2_size (EL i (MAP FST x_e_l),EL i (MAP SND x_e_l))` >>
+  fs [e_e2_size_less]
+ ) >>
+ subgoal `MEM (EL i x_e_l) x_e_l` >- (
+  irule rich_listTheory.EL_MEM >>
+  fs [listTheory.LENGTH_MAP]
+ ) >>
+ imp_res_tac e1_size_mem >>
+ metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
+]
+End
+(*
 val e_exec_ind = tryfind (uncurry DB.fetch) [("scratch", "e_exec_ind"),
                                              ("p4_exec_sem", "e_exec_ind")];
 val _ = save_thm("e_exec_ind", e_exec_ind);
-
+*)
 
 (*
 val measure_stmt_state_size_def = Define `
@@ -703,7 +701,7 @@ Proof
  metis_tac []
 ) >>
 irule e_exec_ind >>
-fs [e_exec] >>
+fs [e_exec_def] >>
 rpt strip_tac >| [
  Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> (
   fs []
@@ -743,7 +741,7 @@ rpt strip_tac >| [
 
  (* TODO: Weird blob goal... *)
  Cases_on `e1` >> (
-  fs [e_exec]
+  fs [e_exec_def]
  ) >| [
   Cases_on `is_short_circuitable binop` >> (
    fs []

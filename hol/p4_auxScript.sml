@@ -802,9 +802,7 @@ val P_Q_mono1 =
 prove (``! P Q l. ((! (x) . (P x ==>  Q x) ) ==>
 ((EXISTS P l) ==>
 (EXISTS Q l)))``,
-REPEAT STRIP_TAC >>
-ASSUME_TAC MONO_EXISTS >>
-FULL_SIMP_TAC list_ss[MONO_EXISTS ]
+metis_tac[MONO_EXISTS, EXISTS_MEM]
 );
 
 
@@ -2121,7 +2119,10 @@ Cases_on `i=0` >| [
    FULL_SIMP_TAC list_ss [CONS, NULL_LENGTH, NULL_DEF, NULL_EQ]
    ) >>
 
- fs[EL_CONS]
+ subgoal `0 < (i-1)` >- (
+  fs[]
+ ) >>
+ metis_tac[]
 ]
 QED
 
@@ -2381,19 +2382,6 @@ Definition p4_match_range_def:
       | _ => F)
     | _ => F)
   | _ => F
-End
-
-(* TODO: Hack to eliminate lots of syntax fiddling in p4_testLib *)
-Definition ext_map_replace_impl_def:
- (ext_map_replace_impl ext_map ext_name method_name new_impl =
-  case ALOOKUP ext_map ext_name of
-  | SOME (constructor, methods) =>
-   (case ALOOKUP methods method_name of
-    | SOME (args, old_impl) =>
-     SOME $ AUPDATE ext_map (ext_name, (constructor, AUPDATE methods (method_name, (args, new_impl))))
-    | NONE => NONE)
-  | NONE => NONE
- )
 End
 
 

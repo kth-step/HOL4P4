@@ -801,39 +801,39 @@ Theorem P4_stmtl_det:
 Proof
 
 Cases_on `stmtl` >| [
-FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
-,
-
-FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
-REPEAT STRIP_TAC >>
-Cases_on `t` >| [
-ASSUME_TAC P4_stmt_det >>
-fs [det_stmt_def, same_state_def]  >>
-RES_TAC >>
-fs []
-,
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >> fs [same_state_def] >>
-rw[] >>
-ASSUME_TAC P4_stmt_det >>
-rfs [det_stmt_def, same_state_def]  >>
-
-TRY (PAT_ASSUM `` ∀stmt._``
-( STRIP_ASSUME_TAC o (Q.SPECL [`h`,
-`(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)`,
-`ascope`,
-`ss`,
-`(ascope'³',g_scope_list'³',
-           frame_list'' ⧺ [(f,stmt_stack'',scope_list'')],status'³')`,
-`(ascope'',g_scope_list'',
-           frame_list' ⧺ [(f,stmt_stack',scope_list')],status'')`,
-`g_scope_list`,
-`f`,
-`status`
-])) >>
-RES_TAC >>
-fs [])
-]]
+    FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
+    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
+    ,
+    
+    FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
+    REPEAT STRIP_TAC >>
+    Cases_on `t` >| [
+        ASSUME_TAC P4_stmt_det >>
+        fs [det_stmt_def, same_state_def]  >>
+        RES_TAC >>
+        fs []
+        ,
+        FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >> fs [same_state_def] >>
+        rw[] >>
+        ASSUME_TAC P4_stmt_det >>
+        rfs [det_stmt_def, same_state_def]  >>
+        
+         (PAT_ASSUM `` ∀stmt._``
+                                 ( STRIP_ASSUME_TAC o (Q.SPECL [`h`,
+                                                                 `(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)`,
+                                                                 `ascope`,
+                                                                 `ss`,
+                                                                 `(ascope'³',g_scope_list'³',
+                                                                   frame_list'' ⧺ [(f,stmt_stack'',scope_list'')],status'³')`,
+                                                                 `(ascope'',g_scope_list'',
+                                                                   frame_list' ⧺ [(f,stmt_stack',scope_list')],status'')`,
+                                                                 `g_scope_list`,
+                                                                 `f`,
+                                                                 `status`
+                                                               ])) >>
+             RES_TAC >>
+             fs [])
+      ]]
 QED
 
 
@@ -1060,15 +1060,19 @@ Cases_on `t` >| [
     IMP_RES_TAC lemma_v_red_forall >>
 
     gvs[] >>
-    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
+    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[clause_name_def] >>
 
-    RES_TAC >> gvs[] >>
+    ASSUME_TAC P4_frame_det >>
+    fs [det_frame_def]  >>
+    RES_TAC >>
+    
+    rfs[] >>
     gvs[notret_def] >>
-  
     Cases_on ‘lookup_ext_fun funn ext_map’ >> gvs[] >>
-    Cases_on ‘ext_fun (ascope,g_scope_list'',scope_list)’ >> gvs[] >>
+    Cases_on ‘ext_fun (ascope,g_scope_list'',scope_list)’ >> gvs[] >>  
+    
     gvs[notret_def]
-
+       
                     
     ,
     
@@ -1088,13 +1092,17 @@ Cases_on `t` >| [
     IMP_RES_TAC lemma_v_red_forall >>
 
     gvs[] >>
-    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[] >>
+    TRY (Cases_on ‘scopes_to_retrieve funn func_map b_func_map g_scope_list’) >> gvs[clause_name_def] >>
 
-    RES_TAC >> gvs[] >>
+    ASSUME_TAC P4_frame_det >>
+    fs [det_frame_def]  >>
+    RES_TAC >>
+    
+    rfs[] >>
     gvs[notret_def] >>
-
     Cases_on ‘lookup_ext_fun funn ext_map’ >> gvs[] >>
-    Cases_on ‘ext_fun (ascope,g_scope_list'',scope_list)’ >> gvs[] >>
+    Cases_on ‘ext_fun (ascope,g_scope_list'',scope_list)’ >> gvs[] >>  
+    
     gvs[notret_def]
         
     ,
