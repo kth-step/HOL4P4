@@ -239,8 +239,6 @@ val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
 val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec6_actx
-val ctx_name = "ctx"
-val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec6_ftymap, symb_exec6_blftymap, symb_exec6_pblock_action_names_map)
 val const_actions_tables = ["t1"]
 val init_astate = symb_exec6_astate_symb
@@ -254,6 +252,9 @@ val fuel = 1;
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
+
+val ctx_name = "ctx"
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 
 val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm;
 val lang_init_step_thm = init_step_thm;
