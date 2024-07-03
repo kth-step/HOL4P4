@@ -103,7 +103,14 @@ local
  val _ = computeLib.add_thms [alistTheory.AFUPDKEY_def] hol4p4_compset
  (* TODO: Nice to have? *)
  val _ = computeLib.add_thms [sumTheory.INR_11, sumTheory.INL_11, sumTheory.INR_INL_11, sumTheory.INR_neq_INL] hol4p4_compset
+(* TODO: Not the name in Trindemossen?
  val _ = computeLib.scrub_const hol4p4_compset “conc_red”
+*)
+(*
+   val _ = Globals.max_print_depth := 9000;
+   val _ = Globals.max_print_length := 9001;
+   val to_compset_entries = List.filter (fn (name, transformations) => fst name = "conc_red_rules") $ listItems hol4p4_compset
+*)
 
 (* TODO: Scrub these? They look annoying...
  val _ = scrub_const hol4p4_compset “header_entries2v_UNION”
