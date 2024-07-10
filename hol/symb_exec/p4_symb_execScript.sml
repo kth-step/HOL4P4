@@ -98,7 +98,23 @@ Theorem p4_contract_list_REWR2:
  !R P_list P_list' ctx s Q.
  ((p4_contract_list R P_list ctx s Q /\ p4_contract_list R P_list' ctx s Q) <=> (p4_contract_list R (P_list++P_list') ctx s Q))
 Proof
-cheat
+fs[p4_contract_list_def] >>
+Induct_on ‘P_list’ >> (
+ gs[p4_contract_list_def]
+) >>
+Cases_on ‘P_list’ >> (
+ gs[p4_contract_list_def]
+) >- (
+ Cases_on ‘P_list'’ >> (
+  gs[p4_contract_list_def]
+ )
+) >>
+rpt strip_tac >>
+eq_tac >> (
+ rpt strip_tac >>
+ res_tac >>
+ gs[p4_contract_list_def]
+)
 QED
 
 Theorem p4_contract_imp_REWR:

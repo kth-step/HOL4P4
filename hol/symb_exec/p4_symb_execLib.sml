@@ -1725,8 +1725,10 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     then
      (case p4_is_shortcuttable (funn, stmt) func_map of
 	res_shortcut => res_shortcut
-      | res_no_shortcut_e e =>
+      | res_no_shortcut_e e => res_no_shortcut_e e
+(*
        p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
+*)
       | other => other)
     else res_no_shortcut_arch
    | NONE => res_no_shortcut_arch
