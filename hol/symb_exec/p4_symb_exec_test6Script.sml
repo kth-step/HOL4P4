@@ -244,6 +244,7 @@ val const_actions_tables = ["t1"]
 val init_astate = symb_exec6_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
+val thms_to_add = []
 val path_cond = ASSUME “e8 = T”
 val p4_is_finished_alt_opt = NONE
 val n_max = 150;
@@ -256,7 +257,12 @@ val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_cons
 val ctx_name = "ctx"
 val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 
-val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm;
+(*
+val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+*)
+
+val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm;
 val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch (fty_map', b_fty_map') const_actions_tables' ctx_def;
 val lang_is_finished = is_finished;
@@ -270,7 +276,7 @@ val npaths = 1;
 (* For debugging, first apply happens here, after step 23:
 
 val (path_tree, [(path_id, path_cond_res, step_thm)]) =
- p4_symb_exec false arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE 23;
+ p4_symb_exec 1 false arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE 23;
 
 * Second apply happens here, after step 44:
 

@@ -2337,7 +2337,7 @@ QED
 
 Definition v_to_tau_def:
   (v_to_tau (v_bool boolv) = SOME tau_bool) /\
-  (v_to_tau (v_bit (bl, n)) = SOME (tau_bit n)) /\
+  (v_to_tau (v_bit (bl, n)) = if LENGTH bl = n then SOME (tau_bit n) else NONE) /\
   (v_to_tau (v_struct ((x,v)::t)) =
    OPTION_BIND (v_to_tau (v_struct t))
     (\ res. case res of
@@ -2371,15 +2371,72 @@ End
 
 Definition v_to_tau_list_def:
  (v_to_tau_list [] = SOME []) /\
- (v_to_tau_list ((e_v h)::t) =
-  case v_to_tau_list t of
-  | SOME taus =>
-   (case v_to_tau h of
-    | SOME tau => SOME (tau::taus)
-    | NONE => NONE)
-  | NONE => NONE) /\
+ (v_to_tau_list (h::t) =
+  case h of
+  | e_v v =>
+  (case v_to_tau_list t of
+   | SOME taus =>
+    (case v_to_tau v of
+     | SOME tau => SOME (tau::taus)
+     | NONE => NONE)
+   | NONE => NONE)
+  | _=> NONE) /\
  (v_to_tau_list _ = NONE)
 End
+
+Theorem v_to_tau_list_empty:
+!l.
+v_to_tau_list l = SOME [] ==>
+l = []
+Proof
+Induct_on ‘l’ >> (
+ rpt strip_tac >>
+ gs[v_to_tau_list_def]
+) >>
+Cases_on ‘h’ >> (
+ gs[v_to_tau_list_def, AllCaseEqs()]
+)
+QED
+
+Theorem v_to_tau_bit:
+!v n.
+v_to_tau v = SOME (tau_bit n) ==>
+?bits.
+v = v_bit (bits,n) /\ LENGTH bits = n
+Proof
+Cases_on ‘v’ >> (
+ gs[v_to_tau_def]
+) >- (
+ Cases_on ‘p’ >> (
+  gs[v_to_tau_def]
+ )
+) >- (
+ Cases_on ‘l’ >> (
+  gs[v_to_tau_def] >>
+  Cases_on ‘h’ >> (
+   gs[v_to_tau_def, AllCaseEqs()]
+  )
+ )
+) >- (
+ Cases_on ‘l’ >> (
+  gs[v_to_tau_def] >>
+  Cases_on ‘h’ >> (
+   gs[v_to_tau_def, AllCaseEqs()]
+  )
+ )
+)
+QED
+
+Theorem bits_LENGTH:
+!bits n.
+LENGTH bits = n ==>
+n > 0 ==>
+?b t. bits = b::t /\ LENGTH t = n-1
+Proof
+Induct_on ‘bits’ >> (
+ gs[]
+)
+QED
 
 (* Replaces the input list with a single input in a given architectural state *)
 Definition p4_replace_input_def:
