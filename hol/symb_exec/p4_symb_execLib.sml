@@ -988,7 +988,13 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 
         (* TODO: Depending on control plane API, this should use FOLDL_MATCH_alt instead
          * depending on the match kinds involved *)
-	val case_lhs = “FST $ FOLDL_MATCH_alt ^e (^default_action, NONE) (1:num) ^tbl”
+        (* TODO: CURRENTLY ONLY WORKS FOR V1MODEL, FIX! *)
+        val mk_list = fst $ dest_pair $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbl_map, tbl_name)
+        val mem_lpm = Teq $ rhs $ concl $ EVAL “MEM mk_lpm ^mk_list”
+	val case_lhs =
+         if mem_lpm
+         then “FST $ FOLDL_MATCH ^e (^default_action, NONE) ^tbl”
+         else “FST $ FOLDL_MATCH_alt ^e (^default_action, NONE) (1:num) ^tbl”
 
         (* TODO: This map should be a foldl, so that the same free variables don't appear in
          * different disjuncts *)
@@ -1019,55 +1025,25 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
         val fv_indices' = fv_indices@[fv_index]
         val disj_tms'' = disj_tms'@[mk_eq (case_lhs, default_action)]
 
-(*
-Problem: existential quantifier needs to enclose the entire disjunct in disj_thm...
-
-But observe that f.ex.:
-
-prove(“((?b. (f = SOME b)) ==> ((if IS_SOME f then stmt1 else stmt2) = stmt1)) <=>
-       (!b. ((f = SOME b)) ==> ((if IS_SOME f then stmt1 else stmt2) = stmt1))”,
-rw[] >>
-fs[]
-);
-
-*)
-
 (* TODO: How to use ctrl_is_well_formed here:
 
-val (ftymap, blftymap) = preprocess_ftymaps (symb_exec6_ftymap, symb_exec6_blftymap) 
+val e = “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”;
+val (fty_map, b_fty_map) = preprocess_ftymaps (symb_exec6_ftymap, symb_exec6_blftymap)
+
+(* basic:
+
+val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
+val pblock_action_names_map = basic_pblock_action_names_map
+
+*)
 
 val (_, pblock_map, _, _, _, _, _, apply_table_f, _, _)= dest_actx $ snd $ dest_eq $ concl $ ctx_def;
 
 val pre_ascope =  #1 $ dest_astate init_astate
 val ascope =  #4 $ dest_ascope pre_ascope
 
-val wf_assumption = prove(“ctrl_is_well_formed (^ftymap, ^blftymap) (^pblock_map:pblock_map, ^apply_table_f) (^ascope)”, cheat);
-
-prove(“FST
-        (FOLDL_MATCH_alt [e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]
-           (("NoAction",[e_v (v_bool T); e_v (v_bool F)]),NONE) 1 t2_ctrl) =
-      ("NoAction",[e_v (v_bool T); e_v (v_bool T)]) \/
-      (?a0 a1 a2 a3 a4 a5 a6 a7.
-        FST
-          (FOLDL_MATCH_alt [e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]
-             (("NoAction",[e_v (v_bool T); e_v (v_bool F)]),NONE) 1 t2_ctrl) =
-        ("set_l",
-         [e_v (v_bool T); e_v (v_bool T);
-          e_v (v_bit ([a0; a1; a2; a3; a4; a5; a6; a7],8))])) \/
-      FST
-        (FOLDL_MATCH_alt [e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]
-           (("NoAction",[e_v (v_bool T); e_v (v_bool F)]),NONE) 1 t2_ctrl) =
-      ("NoAction",[e_v (v_bool T); e_v (v_bool F)])”,
-
-ASSUME_TAC wf_assumption >>
-fs[ctrl_is_well_formed_def] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“"ingress"”] thm) >>
-fs[] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“"t2"”] thm) >>
-fs[] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”] thm) >>
-(* TODO: Need arch for this... *)
-fs[p4_v1modelTheory.v1model_apply_table_f_def]
+val wf_assumption = prove(“ctrl_is_well_formed (^fty_map, ^b_fty_map, ^pblock_action_names_map) (^pblock_map:pblock_map, ^apply_table_f) (^ascope)”,
+cheat
 );
 
 (* Sanity check: *)
@@ -1086,8 +1062,76 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
 
 *)
 
-        (* TODO: Fix cheat... *)
-        val disj_thm = prove (mk_disj_list disj_tms'', cheat)
+	val (_, pblock_map, _, _, _, _, _, apply_table_f, _, _) =
+         dest_actx $ snd $ dest_eq $ concl $ ctx_def;
+
+	val pre_ascope =  #1 $ dest_astate astate;
+	val ascope =  #4 $ dest_ascope pre_ascope;
+
+        (* TODO: Fix cheat: add this to path condition *)
+	val wf_assumption = prove(“ctrl_is_well_formed (^fty_map, ^b_fty_map, ^pblock_action_names_map) (^pblock_map:pblock_map, ^apply_table_f) (^ascope)”,
+	 cheat
+	);
+
+	fun v_list_case_tac thm =
+	 let
+	  val list = snd $ dest_comb $ lhs $ concl thm
+	 in
+	  if is_nil list
+	  then FULL_SIMP_TAC bool_ss [p4_auxTheory.v_to_tau_list_empty]
+	  else tmCases_on list [] >> (gs[p4_auxTheory.v_to_tau_list_def, AllCaseEqs()])
+	 end
+
+(*
+	val _ = dbg_print debug_flag (String.concat ["\nWell-formedness assumption is:\n\n",
+				      term_to_string $ concl wf_assumption,
+				      "\n\n",
+				      "table is: ", term_to_string tbl_name, "\n\n",
+				      "proof goal is:\n\n",
+				      term_to_string (mk_disj_list disj_tms''),
+				      "\n\n"])
+*)
+
+        val disj_thm = prove (mk_disj_list disj_tms'',
+	 assume_tac wf_assumption >>
+	 (* Use table application function for the relevant architecture *)
+	 gs[ctrl_is_well_formed_def, p4_v1modelTheory.v1model_apply_table_f_def, disj_list_def] >>
+         (* If there are multiple tables to choose from, you must specialise with the current
+          * table name. Otherwise, you can't, so just skip. *)
+         try $ (qpat_x_assum ‘_’ (fn thm =>
+                                 if (type_of $ fst $ dest_forall $ concl thm) = stringSyntax.string_ty
+                                 then assume_tac $ SPEC tbl_name thm >> gs[]
+                                 else assume_tac thm)) >>
+	 (* Use the apply expression list and specialise the remains of the wf assumption with it *)
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPEC e thm) >>
+	 gvs[] >> (
+	  (* Hard-coded additional arguments (with Booleans stating result from table match,
+           * default match) treated first *)
+	  Cases_on ‘f_args’ >> (
+	   gs[listTheory.oEL_def]
+	  ) >>
+	  Cases_on ‘t’ >> (
+	   gs[listTheory.oEL_def, p4_auxTheory.v_to_tau_list_empty]
+	  ) >>
+	  gvs[p4_auxTheory.v_to_tau_list_empty]
+	 ) >>
+
+         (* Break apart the v_to_tau_list into separate v_to_tau premises *)
+	 rpt (
+	  qpat_assum ‘v_to_tau_list l = SOME taus’ (fn thm => v_list_case_tac thm)
+	 ) >>
+	 gvs[p4_auxTheory.v_to_tau_def, AllCaseEqs()] >>
+
+         (* TODO: Make this work for Booleans too *)
+         (* Obtain the bits in the bitstrings of the individual v_to_tau premises *)
+         rpt (
+          imp_res_tac p4_auxTheory.v_to_tau_bit >>
+	  rpt (
+	   imp_res_tac p4_auxTheory.bits_LENGTH >>
+	   gs[p4_auxTheory.v_to_tau_list_empty]
+	  )
+         )
+        )
 
        in
 	SOME (disj_thm, fv_indices')
