@@ -47,6 +47,8 @@ val v_struct_tm : term
 
 val mk_v_struct_list : (term * term) list -> term
 
+val dest_v_struct_fields : term -> term list
+
 val dest_v_header : term -> term * term
 val is_v_header : term -> bool
 val mk_v_header : term * term -> term

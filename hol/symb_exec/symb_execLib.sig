@@ -15,4 +15,6 @@ val symb_exec_conc:
     (thm -> bool) -> thm -> int -> int ->
      path_tree * (int * thm * thm) list
 
+val prove_postconds: bool -> thm list -> term -> (int * thm * thm) list -> (int * thm) list
+
 end
