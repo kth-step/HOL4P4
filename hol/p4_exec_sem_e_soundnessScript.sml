@@ -495,39 +495,20 @@ Theorem e_select_exec_sound_red:
 e_exec_sound type e ==>
 e_exec_sound type (e_select e l s)
 Proof
-cheat
-(*
-fs [e_exec_sound] >>
+gs[e_exec_sound] >>
 rpt strip_tac >>
-Cases_on `is_v e` >| [
- Cases_on `e` >> (
-  fs [is_v_def]
+Cases_on ‘is_v e’ >- (
+ Cases_on ‘e’ >> (
+  gs[is_v_def]
  ) >>
- fs [e_exec_def, e_exec_select] >>
- Cases_on `FIND (\(v',x'). v' = v) l` >> (
-  fs [is_v_def]
- ) >- (
-  rw [] >>
+ gvs[e_exec_def, e_exec_select_def, is_v_def, AllCaseEqs()] >> (
   irule ((valOf o find_clause_e_red) "e_sel_acc") >>
-  fs [sel_def, clause_name_def]
- ) >>
- Cases_on `x` >>
- fs [] >>
- rw [] >>
- irule ((valOf o find_clause_e_red) "e_sel_acc") >>
- fs [sel_def, clause_name_def],
-
- fs [e_exec_def, e_exec_select] >>
- Cases_on `e_exec ctx g_scope_list scopes_stack e` >- (
-  fs []
- ) >>
- Cases_on `x` >>
- fs [] >>
- rw [] >>
- irule ((valOf o find_clause_e_red) "e_sel_arg") >>
- fs [clause_name_def]
-]
-*)
+  gs[sel_def, clause_name_def]
+ )
+) >>
+gvs[e_exec_def, e_exec_select_def, AllCaseEqs()] >>
+irule ((valOf o find_clause_e_red) "e_sel_arg") >>
+gs[clause_name_def]
 QED
 
 Theorem e_unop_exec_sound_red:

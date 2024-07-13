@@ -434,4 +434,50 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
  end
 ;
 
+(****************************)
+(* Generic helper functions *)
+(****************************)
+
+(* These generic functions help in implementing language-specific symbolic execution machinery. *)
+
+(* Proves that postcond holds for the final state of a step_thm *)
+fun prove_postcond rewr_thms postcond step_thm =
+ let
+  val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
+  val (hypo, step_tm) = dest_imp $ concl step_thm
+  val res_state_tm = optionSyntax.dest_some $ snd $ dest_eq step_tm
+  (* TODO: OPTIMIZE: srw_ss??? *)
+  val postcond_thm = EQT_ELIM $ SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+ in
+  MATCH_MP prel_res_thm postcond_thm
+ end
+;
+
+(* DEBUG
+val step_thms = map #3 path_cond_step_list;
+
+val h = el 2 step_thms
+val step_thm = h
+val rewr_thms = prove_postcond_rewr_thms
+*)
+fun prove_postconds_debug' rewr_thms postcond []     _ = []
+  | prove_postconds_debug' rewr_thms postcond (h::t) n =
+ let
+  val res = prove_postcond rewr_thms postcond h
+   handle exc => (print (("Error when proving postcondition for n-step theorem at index "^(Int.toString n))^"\n"); raise exc)
+ in
+  (res::(prove_postconds_debug' rewr_thms postcond t (n + 1)))
+ end
+;
+fun prove_postconds debug_flag rewr_thms postcond path_cond_step_list =
+ if debug_flag
+ then
+  let
+   val (l', l'') = unzip $ map (fn (a,b,c) => (a, c)) path_cond_step_list
+  in
+   zip l' (prove_postconds_debug' rewr_thms postcond l'' 0)
+  end
+ else map (fn (a,b,c) => (a, prove_postcond rewr_thms postcond c)) path_cond_step_list
+;
+
 end

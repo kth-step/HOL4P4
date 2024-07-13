@@ -8,7 +8,7 @@ open p4Theory p4_exec_semTheory;
 open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 
 open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
-open symb_execLib;
+open auxLib symb_execLib;
 
 val ERR = mk_HOL_ERR "p4_symb_exec"
 
@@ -743,10 +743,6 @@ val p4_stop_eval_consts_binary =
 ];
 *)
 
-(* TODO: Move *)
-fun dest_v_struct_fields strct =
- (map (snd o dest_pair)) $ fst $ dest_list $ dest_v_struct strct
-;
 
 (* This simplifies a key until only the match_all application can be reduced next *)
 val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.MAP, optionTheory.THE_DEF, BETA_THM, listTheory.ZIP, v_of_e_def]);
@@ -795,10 +791,6 @@ fun get_fv_args fv_index ftys =
   (args, fv_index')
  end
 ;
-
-(* TODO: Move *)
-val (alookup_tm,  mk_alookup, dest_alookup, is_alookup) =
-  syntax_fns2 "alist" "ALOOKUP";
 
 fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  let
@@ -2435,41 +2427,7 @@ fun p4_unify_path_tree id_ctthm_list path_tree =
 end
 ;
 
-(* Proves that postcond holds for the final state of a step_thm *)
-fun p4_prove_postcond rewr_thms postcond step_thm =
- let
-  val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
-  val (hypo, step_tm) = dest_imp $ concl step_thm
-  val res_state_tm = dest_some $ snd $ dest_eq step_tm
-  (* TODO: OPTIMIZE: srw_ss??? *)
-  val postcond_thm = EQT_ELIM $ SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
- in
-  MATCH_MP prel_res_thm postcond_thm
- end
-;
-
-(* TODO: make better solution for this *)
-val prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def];
-
-(* DEBUG
-val step_thms = map #3 path_cond_step_list;
-
-val h = el 2 step_thms
-val step_thm = h
-val rewr_thms = prove_postcond_rewr_thms
-*)
-fun p4_prove_postconds_debug' postcond []     _ = []
-  | p4_prove_postconds_debug' postcond (h::t) n =
- let
-  val res = p4_prove_postcond prove_postcond_rewr_thms postcond h
-   handle exc => (print (("Error when proving postcondition for step theorem at index "^(Int.toString n))^"\n"); raise exc)
- in
-  (res::(p4_prove_postconds_debug' postcond t (n + 1)))
- end
-;
-fun p4_prove_postconds_debug postcond step_thms =
- p4_prove_postconds_debug' postcond step_thms 0
-;
+val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def];
 
 (* This function is the main workhorse for proving contracts on HOL4P4 programs.
  * The parameters are:
@@ -2511,16 +2469,18 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
   val time_start = Time.now();
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
-  (* TODO: Should definitions below be arguments? *)
   val id_step_post_thm_list =
+   prove_postconds debug_flag p4_prove_postcond_rewr_thms postcond path_cond_step_list
+(*
    if debug_flag
    then
     let
      val (l', l'') = unzip $ map (fn (a,b,c) => (a, c)) path_cond_step_list
     in
-     zip l' (p4_prove_postconds_debug postcond l'')
+     zip l' (prove_postconds_debug p4_prove_postcond_rewr_thms postcond l'')
     end
-   else map (fn (a,b,c) => (a, p4_prove_postcond prove_postcond_rewr_thms postcond c)) path_cond_step_list
+   else map (fn (a,b,c) => (a, prove_postcond p4_prove_postcond_rewr_thms postcond c)) path_cond_step_list
+*)
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished proof of postcondition for all step theorems in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s, trying to rewrite step theorems to contract format...\n\n"]);
