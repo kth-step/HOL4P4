@@ -242,11 +242,12 @@ val basic_actx = ``([arch_block_inp;
                       (stmt_ass lval_null
                          (e_call (funn_inst "register")
                             [e_var (varn_name "counters");
+                            (* TODO: The below value should be 1024 - currently it is shrunk*)
                              e_v
                                (v_bit
                                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                                    F; F; F; F; F; F; F; T; F; F; F; F; F; F;
-                                    F; F; F; F],32));
+                                    F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                                    F; F; F; T],32));
                              e_v
                                (v_bit
                                   ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
@@ -1248,15 +1249,15 @@ val basic_actx = ``([arch_block_inp;
     ("write",[("this",d_in); ("index",d_in); ("value",d_in)],register_write)]);
   ("ipsec_crypt",SOME ([("this",d_out)],ipsec_crypt_construct),
    [("decrypt_aes_ctr",
-     [("ipv4",d_inout); ("esp",d_inout); ("standard_metadata",d_inout);
+     [("this",d_in); ("ipv4",d_inout); ("esp",d_inout); ("standard_metadata",d_inout);
       ("key",d_in); ("key_hmac",d_in)],ipsec_crypt_decrypt_aes_ctr);
     ("encrypt_aes_ctr",
-     [("ipv4",d_inout); ("esp",d_inout); ("key",d_in); ("key_hmac",d_in)],
+     [("this",d_in); ("ipv4",d_inout); ("esp",d_inout); ("key",d_in); ("key_hmac",d_in)],
      ipsec_crypt_encrypt_aes_ctr);
-    ("encrypt_null",[("ipv4",d_inout); ("esp",d_inout)],
+    ("encrypt_null",[("this",d_in); ("ipv4",d_inout); ("esp",d_inout)],
      ipsec_crypt_encrypt_null);
     ("decrypt_null",
-     [("ipv4",d_inout); ("esp",d_inout); ("standard_metadata",d_inout)],
+     [("this",d_in); ("ipv4",d_inout); ("esp",d_inout); ("standard_metadata",d_inout)],
      ipsec_crypt_decrypt_null)])],
  [("NoAction",
    stmt_seq
@@ -1274,7 +1275,7 @@ val basic_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
 val basic_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("spd",[]); ("forward",[]); ("sad_decrypt",[]); ("sad_encrypt",[])]),
+  [("spd",spd_tbl); ("forward",forward_tbl); ("sad_decrypt",sad_decrypt_tbl); ("sad_encrypt",sad_encrypt_tbl)]),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool ARB); ("miss",v_bool ARB);
@@ -1304,11 +1305,120 @@ Definition v1model_update_checksum'_def:
  )
 End
 
+Definition register_read'_def:
+ (register_read' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+   | SOME (v_ext_ref i) =>
+    (case ALOOKUP ext_obj_map i of
+     | SOME (INR (v1model_v_ext_register array)) =>
+      (case oEL 0 array of
+       | SOME (bl', n') =>
+        (case assign scope_list (v_bit (REPLICATE n' ARB, n')) (lval_varname (varn_name "result")) of
+         | SOME scope_list' =>
+          SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
+         | NONE => NONE)
+       | NONE => NONE)
+     | _ => NONE)
+   | _ => NONE
+ )
+End
+
+Definition register_write'_def:
+ (register_write' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+     (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+      | SOME (v_ext_ref i) =>
+       (case ALOOKUP ext_obj_map i of
+        | SOME (INR (v1model_v_ext_register array)) =>
+        (* TODO: Write ARBs to array?
+         let array' = LUPDATE (bl', n') (v2n bl) array in
+         let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_register array')) in
+         *)
+          SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
+        | _ => NONE)
+      | _ => NONE)
+ )
+End
+
 val pre_ctx = basic_actx;
 
+(* TODO: Move *)
+fun replace_ext_impls ctx_tm [] = ctx_tm
+  | replace_ext_impls ctx_tm ((ext_name, method_name, method_tm)::t) =
+ let
+  val ctx_tm' = replace_ext_impl ctx_tm ext_name method_name method_tm
+ in
+  replace_ext_impls ctx_tm' t
+ end
+;
+
 Definition ctx'_def:
-  ctx' = ^(replace_ext_impl pre_ctx "" "update_checksum" “v1model_update_checksum'”)
+  ctx' = ^(replace_ext_impls pre_ctx [("", "update_checksum", “v1model_update_checksum'”),
+                                      ("register", "read", “register_read'”),
+                                      ("register", "write", “register_write'”)])
 End
+
+        (*
+
+Extern approximation triggered if function name in top frame is in list, and any of the local
+variables and extern object mapped to using "this" contain free variables or ARBs?
+Better: Provide extern-specific function to decide whether to branch or not, with default behaviour being every occurrence of extern.
+
+val externs_to_approx =
+ [(("", "update_checksum"), (NONE, update_checksum_approx));
+  (("register", "read"), (NONE, register_read_approx));
+  (("register", "write"), (NONE, register_write_approx))]
+
+  update_checksum: freeze eval at compute_checksum16, then add assumption for symbolic result of this.
+   This is easier than the below: do this first.
+
+  register_construct:
+   1. This should have an inner construct that generates the register array from a (constant) number.
+      The symbolic assumption becomes firstly the result of the above function in terms of
+      free variables, secondly a shorthand for the whole memory that is kept. These should somehow be put into the path condition as two conjuncts - would that work?
+
+val massive_tm = “[ARB; ARB; ARB]:bool list”
+
+val massive_tm_abbrev = mk_eq (massive_tm, mk_var("some_fresh_var", “:bool list”));
+val massive_thm_abbrev = prove(mk_exists (mk_var("some_fresh_var", “:bool list”), massive_tm_abbrev), gs[]);
+
+val test_thm = prove(“A ∧ B ⇒ (C ∧ P (^massive_tm))”, cheat);
+
+val hide_thm = ASSUME $ markerLib.mk_hide "some_fresh_var" (concl massive_tm_abbrev)
+
+val test_thm2 = ASM_REWRITE_RULE [Once CONJ_COMM, GSYM CONJ_ASSOC] $ hurdUtils.DISCH_CONJUNCTS_ALL $ UNDISCH_ALL $ ASM_REWRITE_RULE [] $ ADD_ASSUM massive_tm_abbrev test_thm;
+
+And when unifying:
+    
+Note that the theorem used when unifying has en existentially quantified fresh variable:
+
+val test_thm3 = prove(“A ∧ B ⇒ C ∧ P [ARB:bool; ARB; ARB]”,
+ASSUME_TAC (GEN_ALL test_thm2) >>
+rpt disch_tac >>
+ASSUME_TAC massive_thm_abbrev >>
+gs[]);
+
+(* OLD
+FULL_SIMP_TAC pure_ss [GSYM massive_thm_abbrev]  ASM_REWRITE_RULE [Once CONJ_COMM, GSYM CONJ_ASSOC] $ hurdUtils.DISCH_CONJUNCTS_ALL $ UNDISCH_ALL $ SIMP_RULE (srw_ss()) [GSYM massive_thm_abbrev] $ test_thm2;
+*)
+
+Maybe you can also separate the path condition you use for eval-in-ctxt with the one used for composition. In general, use a subset of the whole path condition for eval-in-ctxt usage. Then, you can remove the "abbreviation assumption" from the assumptions used when rewriting, yet still keep it in the path condition.
+The process of doing the above can maybe be simplified by adding some kind of marker to "abbreviation assumptions". However, they abbreviation assumptions must be accumulated into the final contract, there seems to be no way around that.
+
+Note that in this exact case when the values of the initial register array are all ARBs, I can actually use a definition to hide all the values... But when should this be introduced?
+
+  register_read:
+   1. Define extern implementation in terms of function f1 from index and object to result.
+      First, the register array should be looked up (register object can't be symbolic).
+   2. Approximation uses 1) the type of an entry in the array and 2) index and 3) the object
+      to give the result in terms of symbolic bits.
+
+  register_write:
+   1. Define extern implementation in terms of function f1 from index, object and value to result.
+      First, the register array should be looked up (register object can't be symbolic).
+   2. Approximation uses 1) the type of an entry in the array and 2) index to give the result in
+      terms of a "write update" to the extern object. This 
+        
+        *)
 
 val ctx = rhs $ concl $ EVAL ``ctx'``;
 val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_ctx" (mk_eq(mk_var("basic_ctx", type_of ctx), ctx));
@@ -1317,6 +1427,24 @@ val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_ctx" (mk_eq(mk_var("basic_
 val ctx = basic_actx;
 val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_ctx" (mk_eq(mk_var("basic_ctx", type_of ctx), ctx));
 *)
+
+(* Additional parts of the context relevant only to symbolic execution *)
+val fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_ftymap_entries ^basic_ftymap”
+val b_fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_b_ftymap_entries ^basic_blftymap”
+
+val basic_ty_ctx_tm = “(^fty_map', ^b_fty_map', ^basic_pblock_action_names_map)”
+val symb_exec_ty_ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "ty_ctx" (mk_eq(mk_var("ty_ctx", type_of basic_ty_ctx_tm), basic_ty_ctx_tm))
+
+val basic_pblock_map = #2 $ p4Syntax.dest_actx basic_actx;
+val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of basic_pblock_map), basic_pblock_map))
+
+val basic_wf_sad_encrypt_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ty_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("sad_encrypt",sad_encrypt_tbl)”
+
+val basic_wf_sad_decrypt_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ty_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("sad_decrypt",sad_decrypt_tbl)”
+
+val basic_wf_forward_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ty_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("forward",forward_tbl)”
+
+val basic_wf_spd_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ty_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("spd",spd_tbl)”
 
 fun is_finished' i_end step_thm =
  let
@@ -1332,25 +1460,35 @@ fun is_finished' i_end step_thm =
 ;
 
 (* These are defined to enable easier debugging *)
-val (fty_map, b_fty_map) = (basic_ftymap, basic_blftymap);
+val (fty_map, b_fty_map, pblock_action_names_map) = (basic_ftymap, basic_blftymap, basic_pblock_action_names_map);
 val const_actions_tables = [];
 val arch_ty = p4_v1modelLib.v1model_arch_ty
+val path_cond_defs = [symb_exec_ty_ctx_def, symb_exec_pblock_map_def]
 val init_astate = basic_astate_symb
-val stop_consts_rewr = []
+val stop_consts_rewr = [“v1model_is_drop_port”]
 val stop_consts_never = []
-val path_cond = (ASSUME T)
+val thms_to_add = [v1model_update_checksum'_def, register_read'_def, register_write'_def]
+val path_cond = ASSUME “^basic_wf_sad_encrypt_tbl_tm /\
+                        ^basic_wf_sad_decrypt_tbl_tm /\
+                        ^basic_wf_forward_tbl_tm /\
+                        ^basic_wf_spd_tbl_tm”
 val n_max = 300;
 val debug_flag = true;
 val p4_is_finished_alt_opt = NONE (* (SOME (is_finished' 5)) *);
-val postcond = “(\s. (packet_dropped s \/ (?bit_list. get_packet s = SOME bit_list /\ LENGTH bit_list = 336))):v1model_ascope astate -> bool”;
+val postcond = “(\s. (packet_dropped s \/ (?bit_list. get_packet s = SOME bit_list /\ (LENGTH bit_list = 272 \/ LENGTH bit_list = 336 \/ LENGTH bit_list = 400 \/ LENGTH bit_list = 480 \/ LENGTH bit_list = 544)))):v1model_ascope astate -> bool”;
 
 (* TODO: Free variables in register extern objects *)
 
 val time_start = Time.now();
 (* TEST
 
+   val (path_tree, res_list) =
+ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, basic_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt 1;
+
 val (path_tree, res_list) =
- p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, basic_pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt 112;
+ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, basic_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt 110;
+
+val (fv_index, path_cond, step_thm) = el 2 res_list
 
 *)
 (* Commit 7daf3ad:
@@ -1362,7 +1500,7 @@ Single thread yields
   Finished rewriting step theorems to contract format in 0s, trying to unify contracts...
   Finished unification of all contracts in 170s." (19m, 11s)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (basic_ftymap, basic_blftymap, basic_pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);

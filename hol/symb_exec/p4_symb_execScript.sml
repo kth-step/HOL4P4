@@ -4,6 +4,7 @@ open p4Theory listTheory;
 
 open symb_execTheory;
 
+(* TODO: Split into file used by symbolic execution and file used by contract derivation *)
 val _ = new_theory "p4_symb_exec";
 
 Definition packet_has_port_def:
@@ -187,8 +188,8 @@ rpt strip_tac >> (
 QED
 
 (* TODO: Annoying that entire ascope is used. You can make more efficient versions that only use ctrl, tailored for individual architectures. *)
-Definition ctrl_is_well_formed_def:
- ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
+Definition v1model_ctrl_is_well_formed_def:
+ v1model_ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) ctrl =
   !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map.
    ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
    ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
@@ -198,8 +199,8 @@ Definition ctrl_is_well_formed_def:
       !e_l.
       (* TODO: Keep the requirement that LENGTH e_l = LENGTH mk_l here? *)
       LENGTH e_l = LENGTH mk_l ==>
-      ?f f_args.
-      apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
+      !counter ext_obj_map v_map. ?f f_args.
+      v1model_apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
        (* f is in the list of actions for the table *)
        MEM f actions /\
        (* first argument is the Boolean T, signifying that the function call resulted from table application *)
@@ -251,5 +252,46 @@ Definition ctrl_is_well_formed_def:
          v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
 End
 *)
+
+Definition v1model_tbl_is_well_formed_def:
+ v1model_tbl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) (tbl_name, tbl_entries) =
+  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map.
+   ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
+   ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
+    !mk_l actions default_f default_f_args.
+     ALOOKUP tbl_map tbl_name = SOME (mk_l, (default_f, default_f_args)) ==>
+     ALOOKUP action_names_map tbl_name = SOME actions ==>
+      !e_l.
+      (* TODO: Keep the requirement that LENGTH e_l = LENGTH mk_l here? *)
+      LENGTH e_l = LENGTH mk_l ==>
+      !ctrl. ALOOKUP ctrl tbl_name = SOME tbl_entries ==>
+      !counter ext_obj_map v_map. ?f f_args.
+      v1model_apply_table_f (tbl_name, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
+       (* f is in the list of actions for the table *)
+       MEM f actions /\
+       (* first argument is the Boolean T, signifying that the function call resulted from table application *)
+       (oEL 0 f_args = SOME (e_v (v_bool T))) /\
+       (* first argument is either:
+        * a Boolean, if action name is that of the default action... *)
+       (f = default_f ==> ?b. oEL 1 f_args = SOME (e_v (v_bool b))) /\
+       (* or the Boolean T, if action name is not that of the default action. *)
+       (f <> default_f ==> oEL 1 f_args = SOME (e_v (v_bool T))) /\
+       (* Furthermore, the types of the arguments must agree with those associated with the action
+        * in the relevant ftymap. *)
+       (* Case 1: Block name is found in blftymap, and function name in the local ftymap.
+         * Then, that local function type map applies. *)
+       ((?ftys ret_ty local_ftymap.
+         ALOOKUP blftymap block_name = SOME local_ftymap /\
+         ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+         v_to_tau_list (DROP 2 f_args) = SOME (ftys)) \/
+        (* Case 2: Either block name can't be found in blftymap, or function name can't be found in local ftymap.
+         * Then, the global function type map applies. *)
+        (ALOOKUP blftymap block_name = NONE \/
+         (?local_ftymap.
+          ALOOKUP blftymap block_name = SOME local_ftymap /\
+          ALOOKUP local_ftymap (funn_name f) = NONE) /\
+        (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+         v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
+End
 
 val _ = export_theory ();

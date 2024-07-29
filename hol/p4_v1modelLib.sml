@@ -2,7 +2,7 @@ structure p4_v1modelLib :> p4_v1modelLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open listSyntax numSyntax;
+open listSyntax numSyntax pairSyntax;
 
 open p4Syntax p4_coreLib;
 
@@ -45,6 +45,7 @@ val v1model_input_f = ``v1model_input_f``;
 
 (* Output function term *)
 val v1model_output_f = ``v1model_output_f``;
+val v1model_is_drop_port = ``v1model_is_drop_port``;
 
 (* Programmable block input function term *)
 val v1model_copyin_pbl = ``v1model_copyin_pbl``;
@@ -63,10 +64,10 @@ val v1model_register_map =
     ("write", ([("this", d_in); ("index", d_in); ("value", d_in)], register_write))]``;
 
 val v1model_ipsec_crypt_map =
- ``[("decrypt_aes_ctr", ([("ipv4", d_inout); ("esp", d_inout); ("standard_metadata", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_decrypt_aes_ctr));
-    ("encrypt_aes_ctr", ([("ipv4", d_inout); ("esp", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_encrypt_aes_ctr));
-    ("encrypt_null", ([("ipv4", d_inout); ("esp", d_inout)], ipsec_crypt_encrypt_null));
-    ("decrypt_null", ([("ipv4", d_inout); ("esp", d_inout); ("standard_metadata", d_inout)], ipsec_crypt_decrypt_null))]``;
+ ``[("decrypt_aes_ctr", ([("this", d_in); ("ipv4", d_inout); ("esp", d_inout); ("standard_metadata", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_decrypt_aes_ctr));
+    ("encrypt_aes_ctr", ([("this", d_in); ("ipv4", d_inout); ("esp", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_encrypt_aes_ctr));
+    ("encrypt_null", ([("this", d_in); ("ipv4", d_inout); ("esp", d_inout)], ipsec_crypt_encrypt_null));
+    ("decrypt_null", ([("this", d_in); ("ipv4", d_inout); ("esp", d_inout); ("standard_metadata", d_inout)], ipsec_crypt_decrypt_null))]``;
 
 (* Extern (object) function map *)
 val v1model_ext_map =
@@ -79,5 +80,18 @@ val v1model_ext_map =
 
 (* Function map *)
 val v1model_func_map = core_func_map;
+
+(*****************)
+(* Miscellaneous *)
+
+fun dest_v1model_ascope v1model_ascope =
+ let
+  val (ext_counter, v1model_ascope') = dest_pair v1model_ascope
+  val (ext_obj_map, v1model_ascope'') = dest_pair v1model_ascope'
+  val (v_map, ctrl) = dest_pair v1model_ascope''
+ in
+  (ext_counter, ext_obj_map, v_map, ctrl)
+ end
+;
 
 end

@@ -147,7 +147,7 @@ local
   fun copy_compset_item_thms' old_thms new_transformations to_compset =
     let
      val new_thms = aggregate_thms [] new_transformations
-     val _ = add_thms (filter_duplicate_thms old_thms new_thms) to_compset
+     val _ = computeLib.add_thms (filter_duplicate_thms old_thms new_thms) to_compset
     in 
      ()
     end
@@ -227,13 +227,15 @@ val theories_with_convs = map (snd o fst) convs_in_hol4p4_compset
 in
  fun get_HOL4P4_CONV thms_to_add =
   let
-   val _ = add_thms thms_to_add hol4p4_compset
+   val _ = computeLib.add_thms thms_to_add hol4p4_compset
   in
    computeLib.CBV_CONV hol4p4_compset
   end
 end
 
 val HOL4P4_CONV = get_HOL4P4_CONV [];
+
+val HOL4P4_TAC = CONV_TAC HOL4P4_CONV;
 
 val HOL4P4_RULE = Conv.CONV_RULE HOL4P4_CONV;
 
@@ -252,6 +254,25 @@ fun get_b_func_map i ab_list pblock_map =
     | NONE => NONE
    end
   else NONE
+ end
+;
+
+(********************)
+(* p4_should_branch *)
+
+fun p4_should_branch_get_err_msg step_thm =
+ let
+  (* Get number of steps *)
+  val (assl, exec_thm) = dest_imp $ concl step_thm
+  val (exec_tm, res_opt) = dest_eq exec_thm
+  val (_, _, nsteps) = dest_arch_multi_exec exec_tm
+
+  val _ = print "\n\nstep_thm prior to failure:\n";
+  val _ = print $ term_to_string $ concl step_thm;
+  val _ = print "\n\n";
+
+ in
+  (("error encountered during branch decision or disjunction theorem proof, after (regular) step "^(term_to_string nsteps))^".")
  end
 ;
 
@@ -304,7 +325,8 @@ datatype branch_data =
    no_branch
  | conditional of term
  | select of term * (term list) * term
- | apply of term * term;
+ | apply of term * term
+ | output of term;
 
 (* Returns the information needed to perform a branch *)
 fun astate_get_branch_data astate =
@@ -328,7 +350,31 @@ fun astate_get_branch_data astate =
    then apply $ dest_stmt_app stmt'
    else no_branch
   end
- | NONE => no_branch
+ | NONE =>
+  (* TODO: Generalise this, or at least extend it to other architectures *)
+  (* TODO: Fix this hack: this indirectly uses the fact that last block has index 8 in
+   * V1Model in HOL4P4 *)
+ let
+  val ascope = #1 $ dest_astate astate
+  val (i, _, _, ascope) = dest_ascope ascope
+ in
+  if (int_of_term $ i) = 8 andalso
+     (type_of ascope = p4_v1modelLib.v1model_arch_ty)
+  then
+   let
+    val (_, _, v_map, _) = p4_v1modelLib.dest_v1model_ascope ascope
+    (* TODO: Hack, fix EVAL *)
+    val port_v_bit =
+     dest_some $ rhs $ concl $ EVAL “(case ALOOKUP ^v_map "standard_metadata" of
+				      | SOME (v_struct struct) =>
+				       ALOOKUP struct "egress_spec"
+				      | _ => NONE)”
+    val port_bl = fst $ dest_pair $ dest_v_bit port_v_bit
+   in
+    output port_bl
+   end
+  else no_branch
+ end
 ;
 
 (* TODO: Get rid of term parsing *)
@@ -555,6 +601,8 @@ fun next_subexp_has_free_vars (func_map, b_func_map, ext_fun_map) e =
 (* (debugging from astate_get_next_e_syntax_f)
 val stmt = (el 1 stmt_stack')
 *)
+(* This returns the next expression to be reduced - note that this here means
+ * the whole expression, not the exact minimal subexpression that is next to be reduced. *)
 fun stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) stmt =
  if is_stmt_empty stmt
  then NONE
@@ -692,30 +740,6 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
  end
 ;
 
-
-(* Symbolic executor should do similar things as eval_under_assum, but on every iteration
- * check if conditional is next to be reduced, then next_e_has_free_vars.
- *
- * Handler consists of:
- * get_branch_cond: Function that tells if to perform branch. Returns NONE if no, SOME cond
- * if yes, where cond is the condition (a term) to branch upon. Only needs the current
- * step_thm as parameter.
- *
- * comp_thm: Theorem which composes step theorems
- *
- * take_regular_step: Function that returns a new step theorem. The core problem to solve
- * when implementing this is deciding what to eval/rewrite.
- *
- * new free variable introduction *)
-
-(* eval_under_assum used like:
-   eval_under_assum v1model_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt nsteps_max;
- * ctxt is a static evaluation context with theorems to rewrite with (use ASSUME on terms)
- * stop_consts_rewr and stop_consts_never are used for handling externs - telling the
- * evaluation when to halt
- * 
- * *)
-
 (* TODO: Not sure if opening wordsSyntax and fixing the below causes some weirdness *)
 (*
 (* RESTR_HOL4P4_CONV constants: *)
@@ -786,7 +810,7 @@ fun get_fv_arg_of_tau tau fv_index =
 
 fun get_fv_args fv_index ftys =
  let
-  val (args, fv_index') = (fn (a, b) => (mk_list(a,e_ty),b)) (foldl (fn (argty, (args, fv_index')) => ((fn (arg', fv_index'') => (arg'::args, fv_index'')) (get_fv_arg_of_tau argty fv_index'))) ([],fv_index) ftys)
+  val (args, fv_index') = (fn (a, b) => (listSyntax.mk_list(a,e_ty),b)) (foldl (fn (argty, (args, fv_index')) => ((fn (arg', fv_index'') => (args@[arg'], fv_index'')) (get_fv_arg_of_tau argty fv_index'))) ([],fv_index) ftys)
  in
   (args, fv_index')
  end
@@ -828,16 +852,72 @@ fun get_freevars_call (fty_map,b_fty_map) funn block_name fv_index =
  end
 ;
 
+(* TODO: Move *)
+val (v_to_tau_tm,  mk_v_to_tau, dest_v_to_tau, is_v_to_tau) =
+  syntax_fns1 "p4_aux" "v_to_tau";
+
+val get_bitv_bits_tac =
+ qpat_x_assum ‘v_to_tau _ = SOME (tau_bit _)’
+  (fn v_to_tau_thm => 
+   let
+    val tm = concl v_to_tau_thm
+    val v_tm = dest_v_to_tau $ lhs tm
+    val n_bits = dest_tau_bit $ dest_some $ rhs tm
+    val bit_list = fixedwidth_freevars ("b", n_bits)
+   in
+    qpat_assum ‘^v_tm = v_bit (_, ^(term_of_int n_bits))’
+     (fn v_bit_thm => 
+      let
+       val v_bit_tm = concl v_bit_thm
+       val bitvector_tm = fst $ dest_pair $ dest_v_bit $ rhs v_bit_tm
+      in
+       assume_tac
+	(prove(boolSyntax.list_mk_exists ((fst $ dest_list bit_list), (mk_eq (bitvector_tm, bit_list))),
+	  assume_tac v_to_tau_thm >>
+	  assume_tac v_bit_thm >>
+          subgoal ‘LENGTH ^bitvector_tm = ^(term_of_int n_bits)’ >- (
+           imp_res_tac p4_auxTheory.v_to_tau_bit >>
+           gs[]
+          ) >>
+	  (* TODO: This below is still a bit inefficient... *)
+	  rpt $ goal_term (fn tm => tmCases_on (lhs $ snd $ strip_exists tm) []
+	  (* Need to have LENGTH and rewrite that can resolve e.g. SUC (SUC 0) = 160. *)
+				    >- (
+				     FULL_SIMP_TAC pure_ss [listTheory.LENGTH] >>
+				     qpat_x_assum ‘n = n'’ (fn thm => assume_tac (SIMP_RULE std_ss [] thm)) >>
+				     FULL_SIMP_TAC pure_ss [])
+				    >> goal_term (fn tm => exists_tac (fst $ dest_cons $ lhs $ snd $ strip_exists tm) >> SIMP_TAC pure_ss [Once listTheory.CONS_11, Once REFL_CLAUSE, Once AND_CLAUSES])) >>
+
+	  goal_term (fn tm => tmCases_on (lhs tm) [] >> gs[])
+	))
+      end
+     )
+   end)
+;
+
+fun get_freevars_list (prefix, n) =
+ List.tabulate (n, (fn n' => mk_var (prefix^(Int.toString (n')), bool)))
+;
+
+fun mk_n_disj n =
+ list_mk_disj $ get_freevars_list ("d", n)
+;
+
+fun mk_n_filter_disj bool_list =
+ list_mk_disj $ map fst $ filter (fn (a,b) => b) $ zip (get_freevars_list ("d", length bool_list)) bool_list
+;
+(* TODO: Upstream tactic that selects disjuncts based on patterns? *)
+fun get_disj_thm bool_list = 
+ prove(mk_imp(mk_n_filter_disj bool_list, mk_n_disj (length bool_list)), metis_tac[])
+;
+
 (* Function that decides whether to branch or not: returns NONE if no branch should
  * be performed, otherwise SOME of a list of cases and a theorem stating the disjunction
  * between them *)
-(* TODO: (fty_map, b_fty_map) and const_actions_tables only needed for apply statement *)
-fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables (debug_flag, ctx_def) (fv_index, step_thm) =
+fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs (debug_flag, ctx_def) (fv_index, step_thm) =
  let
   (* DEBUG *)
   val time_start = Time.now();
-
-  (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nComputing whether symbolic branch should take place...\n"])
 
   val (path_tm, astate) = the_final_state_hyp_imp step_thm
@@ -855,7 +935,6 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
     end
    else NONE
     (* Branch point: select expression (in transition statement) *)
-    (* TODO: For value sets, this needs to be generalised slightly, similar to the apply case *)
   | select (e, keys, def) =>
     if is_e_v e andalso not $ null $ free_vars e
     then
@@ -888,33 +967,38 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
        in
         SOME (disj_thm, fv_indices)
        end
-(* OLD
-      else if is_v_bit sel_val
-      then
-       let
-        val sel_bit = dest_v_bit sel_val
-       in
-        let
-         (* The branch cases for equality with the different keys *)
-         val key_branch_conds = map (fn key => mk_eq (sel_bit, key)) keys
-         (* Default branch: i.e., neither of the above hold *)
-         val def_branch_cond = list_mk_conj $ map (fn key_eq => mk_neg key_eq) key_branch_conds
-         (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
-          * specialisation or rewrites, and not in-place with tactics *)
-         val disj_thm = prove(mk_disj_list (key_branch_conds@[def_branch_cond]), REWRITE_TAC [disj_list_def] >> metis_tac[])
-        in
-         SOME disj_thm
-        end
-       end
-*)
      else raise (ERR "p4_should_branch" ("Unsupported select value type: "^(term_to_string e)))
     else NONE
     (* Branch point: table application *)
   | apply (tbl_name, e) =>
 (*
 val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”);
+
+basic:
+val apply (tbl_name, e) = apply
+    (“"spd"”,
+     “[e_v
+       (v_bit
+	  ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135; ip136;
+	    ip137; ip138; ip139; ip140; ip141; ip142; ip143; ip144; ip145;
+	    ip146; ip147; ip148; ip149; ip150; ip151; ip152; ip153; ip154;
+	    ip155; ip156; ip157; ip158; ip159],32));
+       e_v (v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8))]”);
+
+ARBs:
+val apply (tbl_name, e) = apply
+    (“"forward"”,
+     “[e_v
+       (v_bit
+	  ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+	    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+	    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]”);
+
 *)
-    if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso not $ null $ free_vars e
+    if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso
+       (* Perform a symbolic branch if the apply expression (list) contains
+        * free variables or ARBs (hack) *)
+       (not $ null $ free_vars e orelse HOLset.member (all_atoms e, “ARB:bool”))
     then
      let
       (* 1. Extract ctrl from ascope *)
@@ -926,7 +1010,6 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
       then
        if exists (fn el => term_eq el tbl_name) const_actions_tables
        then
-       (* Old version is really only sound for tables with const entries. *)
 	let
 	 val tbl = dest_some tbl_opt
 	 (* 3. Construct different branch cases for all the key sets
@@ -934,7 +1017,6 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 	 (* The branch cases for equality with the different table entry keys *)
 	 (* TODO: Ensure this obtains the entries in correct order - here be dragons in case of
 	  * funny priorities in the table *)
-
          val keys = fst $ dest_list $ rhs $ concl $ HOL4P4_CONV “MAP FST $ MAP FST ^tbl”
 (* TODO: For some reason, changing the line above to the one below causes infinite looping...
 	 val keys = fst $ dest_list $ rhs $ concl $ HOL4P4_CONV “MAP FST $ (^(mk_map (fst_tm, tbl)))”
@@ -943,7 +1025,6 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 	 val key_branch_conds_neg = map mk_neg $ rev key_branch_conds
 
 	 val key_branch_conds' = snd $ foldl (fn (a,(b,c)) => (if null b then b else tl b , (if length b = 1 then a else mk_conj ((list_mk_conj (tl b)), a))::c) ) (key_branch_conds_neg, []) (rev key_branch_conds)
-
 
 	 (* 4. Construct default branch case: i.e., neither of the above hold *)
 	 val def_branch_cond = list_mk_conj key_branch_conds_neg
@@ -961,6 +1042,12 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
        let
 	val tbl = dest_some tbl_opt
 
+(* For debugging symb_exec6:
+ val i = “4:num”;
+
+basic:
+ val i = “4:num”;
+*)
         val i = #1 $ dest_aenv $ #1 $ dest_astate astate
         (* TODO: Unify with the syntactic function obtaining the state above? *)
         val (ab_list, pblock_map, _, _, _, _, _, _, _, _) = dest_actx $ rhs $ concl ctx_def
@@ -970,10 +1057,10 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
          * pre-computed *)
 
         (* TODO: handle Exceptions if result is not SOME *)
-        val tbl_map = #6 $ dest_pblock $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (pblock_map, curr_block)
+        val (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (pblock_map, curr_block)
         val action_names_map = dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (pblock_action_names_map, curr_block)
         val action_names = dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (action_names_map, tbl_name)
-        val default_action = snd $ dest_pair $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbl_map, tbl_name)
+        val (mk_l, default_action) = dest_pair $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbl_map, tbl_name)
         val (default_action_name, default_action_args) = dest_pair default_action
         (* NOTE: We shouldn't filter out the default action name here - it will have
          * different "hit" dummy arg if it resulted from a hit or a default case. *)
@@ -1006,7 +1093,7 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 	  val (action_args, fv_index'') = get_freevars_call (fty_map,b_fty_map) “funn_name ^action_name” curr_block fv_index'
 	  val action_args' = rhs $ concl $ HOL4P4_CONV (mk_append (“[e_v (v_bool T); e_v (v_bool T)]”, action_args))
 	  val action = mk_pair (action_name, action_args')
-	  val res_case = list_mk_exists (free_vars_lr action_args, mk_eq (case_lhs, action))
+	  val res_case = boolSyntax.list_mk_exists (free_vars_lr action_args, mk_eq (case_lhs, action))
          in
           (fv_index'', (res_case::res_list))
          end) (fv_index, []) (fst $ dest_list action_names)
@@ -1022,21 +1109,17 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
 val e = “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”;
 val (fty_map, b_fty_map) = preprocess_ftymaps (symb_exec6_ftymap, symb_exec6_blftymap)
 
-(* basic:
+(* For basic.p4:
 
 val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 val pblock_action_names_map = basic_pblock_action_names_map
 
 *)
 
-val (_, pblock_map, _, _, _, _, _, apply_table_f, _, _)= dest_actx $ snd $ dest_eq $ concl $ ctx_def;
+val (_, pblock_map, _, _, _, _, _, _, _, _)= dest_actx $ snd $ dest_eq $ concl $ ctx_def;
 
-val pre_ascope =  #1 $ dest_astate init_astate
-val ascope =  #4 $ dest_ascope pre_ascope
-
-val wf_assumption = prove(“ctrl_is_well_formed (^fty_map, ^b_fty_map, ^pblock_action_names_map) (^pblock_map:pblock_map, ^apply_table_f) (^ascope)”,
-cheat
-);
+val ascope =  #1 $ dest_astate init_astate
+val ctrl =  #4 $ dest_v1model_ascope $ #4 $ dest_ascope pre_ascope
 
 (* Sanity check: *)
 prove(“F”,
@@ -1054,27 +1137,16 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
 
 *)
 
-	val (_, pblock_map, _, _, _, _, _, apply_table_f, _, _) =
-         dest_actx $ snd $ dest_eq $ concl $ ctx_def;
-
-	val pre_ascope =  #1 $ dest_astate astate;
-	val ascope =  #4 $ dest_ascope pre_ascope;
-
-        (* TODO: Fix cheat: add this to path condition *)
-	val wf_assumption = prove(“ctrl_is_well_formed (^fty_map, ^b_fty_map, ^pblock_action_names_map) (^pblock_map:pblock_map, ^apply_table_f) (^ascope)”,
-	 cheat
-	);
-
-	fun v_list_case_tac thm =
+        fun v_list_case_tac thm =
 	 let
 	  val list = snd $ dest_comb $ lhs $ concl thm
 	 in
 	  if is_nil list
-	  then FULL_SIMP_TAC bool_ss [p4_auxTheory.v_to_tau_list_empty]
-	  else tmCases_on list [] >> (gs[p4_auxTheory.v_to_tau_list_def, AllCaseEqs()])
+	  then (* FULL_SIMP_TAC bool_ss [p4_auxTheory.v_to_tau_list_empty] *) ALL_TAC
+	  else tmCases_on list [] >> ( gs[p4_auxTheory.v_to_tau_list_def, AllCaseEqs()] )
 	 end
 
-(*
+(* DEBUG:
 	val _ = dbg_print debug_flag (String.concat ["\nWell-formedness assumption is:\n\n",
 				      term_to_string $ concl wf_assumption,
 				      "\n\n",
@@ -1082,55 +1154,108 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
 				      "proof goal is:\n\n",
 				      term_to_string (mk_disj_list disj_tms''),
 				      "\n\n"])
+
+*)
+(*
+val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 *)
 
-        val disj_thm = prove (mk_disj_list disj_tms'',
-	 assume_tac wf_assumption >>
-	 (* Use table application function for the relevant architecture *)
-	 gs[ctrl_is_well_formed_def, p4_v1modelTheory.v1model_apply_table_f_def, disj_list_def] >>
-         (* If there are multiple tables to choose from, you must specialise with the current
-          * table name. Otherwise, you can't, so just skip. *)
-         try $ (qpat_x_assum ‘_’ (fn thm =>
-                                 if (type_of $ fst $ dest_forall $ concl thm) = stringSyntax.string_ty
-                                 then assume_tac $ SPEC tbl_name thm >> gs[]
-                                 else assume_tac thm)) >>
-	 (* Use the apply expression list and specialise the remains of the wf assumption with it *)
+        val disj_thm = prove (mk_imp (path_tm, mk_disj_list disj_tms''),
+	 strip_tac >>
+(* Remove all well-formedness assumptions on irrelevant tables. *)
+         try $ (qpat_x_assum ‘v1model_tbl_is_well_formed _ _ (^tbl_name,^tbl)’ (fn thm =>
+                              (rpt $ qpat_x_assum ‘_’ (fn thm' => ALL_TAC)) >> assume_tac thm)) >>
+         REWRITE_TAC [disj_list_def] >>
+	 FULL_SIMP_TAC pure_ss (path_cond_defs@[Once v1model_tbl_is_well_formed_def, Once p4_v1modelTheory.v1model_apply_table_f_def]) >>
+
+         (* Specialise the well-formedness assumption and simplify it in isolation *)
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [curr_block, pbl_type, params, b_func_map, decl_list, pars_map, tbl_map] thm) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [action_names_map] thm) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [mk_l, action_names, default_action_name, default_action_args] thm) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
 	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPEC e thm) >>
-	 gvs[] >> (
-	  (* Hard-coded additional arguments (with Booleans stating result from table match,
-           * default match) treated first *)
-	  Cases_on ‘f_args’ >> (
-	   gs[listTheory.oEL_def]
-	  ) >>
-	  Cases_on ‘t’ >> (
-	   gs[listTheory.oEL_def, p4_auxTheory.v_to_tau_list_empty]
-	  ) >>
-	  gvs[p4_auxTheory.v_to_tau_list_empty]
-	 ) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPEC ctrl thm) >>
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
+         (* TODO: Avoid srw_ss() if possible... *)
+	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] thm) >>
 
-         (* Break apart the v_to_tau_list into separate v_to_tau premises *)
-	 rpt (
-	  qpat_assum ‘v_to_tau_list l = SOME taus’ (fn thm => v_list_case_tac thm)
-	 ) >>
-	 gvs[p4_auxTheory.v_to_tau_def, AllCaseEqs()] >>
+	 (goal_term (fn tm => markerLib.ABBREV_TAC “goal:bool = ^tm”) >>
+	  qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => markerLib.hide_tac "goal" thm) >>
 
-         (* TODO: Make this work for Booleans too *)
-         (* Obtain the bits in the bitstrings of the individual v_to_tau premises *)
-         rpt (
-          imp_res_tac p4_auxTheory.v_to_tau_bit >>
-	  rpt (
-	   imp_res_tac p4_auxTheory.bits_LENGTH >>
-	   gs[p4_auxTheory.v_to_tau_list_empty]
-	  )
-         )
+	  gs[] >>
+
+	  markerLib.unhide_tac "goal" >>
+	  markerLib.UNABBREV_TAC "goal") >> (
+           qpat_assum ‘f = _’ (fn thm => let val fname = rhs $ concl thm in
+	   goal_term (fn tm =>
+	    let
+	     val disj_bool_list = (map (fn tm' => if term_eq (fst $ dest_pair $ rhs $ snd $ boolSyntax.strip_exists tm') fname then true else false)) $ boolSyntax.strip_disj tm
+	    in
+	     irule (get_disj_thm disj_bool_list)
+	    end) end)
+          ) >>
+          (* Below this point, each resulting action is a separate subgoal. *)
+          (
+           (* TODO: Doesn't seem like it's worth it to use markerLib to hide and abbreviate the goal
+            * anywhere in this step. *)
+	   (* 1. Hard-coded additional arguments (with Booleans stating result from table match,
+	    * default match) treated first *)
+	   subgoal ‘?f_args' b. f_args = [e_v (v_bool T); e_v (v_bool b)]++f_args'’ >- (
+	    Cases_on ‘f_args’ >> (
+	     fs [listTheory.oEL_def]
+	    ) >>
+	    Cases_on ‘t’ >> (
+	     fs [listTheory.oEL_def, p4_auxTheory.v_to_tau_list_empty]
+	    ) >>
+	    fs[]
+	   ) >>
+           (* Needs to use goal, since this might finish the proof in the case of
+            * function with no real args - should you check goal? *)
+	   gs[listTheory.oEL_def, p4_auxTheory.v_to_tau_list_empty] >>
+
+	   (* 2. Break apart the v_to_tau_list into separate v_to_tau premises *)
+           (* TODO: This is the greatest bottleneck... *)
+	   goal_term (fn tm => markerLib.ABBREV_TAC “f_args_temp:e list = f_args'”) >>
+	   goal_term (fn tm => markerLib.ABBREV_TAC “goal:bool = ^tm”) >>
+	   qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => markerLib.hide_tac "goal" thm) >>
+	   goal_term (fn tm => markerLib.ABBREV_TAC “f_args_temp':e list = f_args_temp”) >>
+	   rpt (
+	    qpat_assum ‘v_to_tau_list l = SOME taus’ (fn thm => v_list_case_tac thm)
+	   ) >>
+	   markerLib.unhide_tac "goal" >>
+	   markerLib.UNABBREV_TAC "goal" >>
+	   FULL_SIMP_TAC list_ss [p4_auxTheory.v_to_tau_def, AllCaseEqs(), p4Theory.e_11] >>
+
+	   (* TODO: Make this work for Booleans in arguments too *)
+	   (* 3. Obtain the bits in the bitstrings of the individual v_to_tau premises *)
+	   imp_res_tac p4_auxTheory.v_to_tau_bit >>
+	   rpt get_bitv_bits_tac >>
+           FULL_SIMP_TAC pure_ss [] >>
+	   goal_term (fn tm =>
+	    let
+	     val vars = flatten $ map (free_vars_lr o lhs) $ boolSyntax.strip_conj $ snd $ boolSyntax.strip_exists tm
+	    in
+	     (map_every $ exists_tac) vars
+	    end) >>
+           SIMP_TAC bool_ss []
         )
-
+        )
        in
 	SOME (disj_thm, fv_indices')
        end
       else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
      end
     else NONE
+  (* Branch point: emission of packet in final block *)
+  | output port_bl =>
+   if (not $ null $ free_vars port_bl orelse HOLset.member (all_atoms port_bl, “ARB:bool”))
+   then
+    (* TODO: Fix hack... *)
+    SOME (SPEC “v1model_is_drop_port ^port_bl” disj_list_EXCLUDED_MIDDLE, [fv_index, fv_index])
+   else NONE
   | no_branch => NONE)
 
   val _ = dbg_print debug_flag (String.concat ["\nFinished symbolic branch decision computations in ",
@@ -1139,19 +1264,11 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
  in
   res
  end
+ handle (HOL_ERR exn) => raise (ERR "p4_should_branch" (String.concat ["Exception: ", #message exn, " in function ", #origin_function exn, " from structure ", #origin_structure exn, p4_should_branch_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_should_branch" (HOL_ERR exn)) *)
 ;
 
-(*
-fun term_to_debug_string tm =
- let
-  val tm_str_opt = String.fromString $ term_to_string tm
- in
-  if isSome tm_str_opt
-  then valOf tm_str_opt
-  else ("\n\n (ERROR: Could not convert escape characters, printing term verbatim) \n\n"^(term_to_string tm))
- end
-;
-*)
+(*******************)
+(* p4_regular_step *)
 
 fun p4_regular_step_get_err_msg step_thm =
  let
@@ -1159,11 +1276,11 @@ fun p4_regular_step_get_err_msg step_thm =
   val (assl, exec_thm) = dest_imp $ concl step_thm
   val (exec_tm, res_opt) = dest_eq exec_thm
   val (_, _, nsteps) = dest_arch_multi_exec exec_tm
-(* DEBUG: *)
+
   val _ = print "\n\nstep_thm prior to failure:\n";
   val _ = print $ term_to_string $ concl step_thm;
   val _ = print "\n\n";
-(*
+(* DEBUG:
   val next_state_str =
    if is_some res_opt
    then (term_to_string $ dest_some res_opt)
@@ -1171,7 +1288,7 @@ fun p4_regular_step_get_err_msg step_thm =
 *)
  in
   (("error encountered at (regular) step "^(term_to_string nsteps))^".")
-(*
+(* DEBUG:
   (("error encountered at step "^(term_to_string nsteps))^(". State prior to failure is: ")^((next_state_str)^(" \n\n and path condition is: "^(term_to_debug_string $ concl path_cond))))
 *)
  end
@@ -1351,6 +1468,8 @@ fun dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status =
   then print (String.concat ["\nReducing empty statement...\n\n"])
   else if is_status_trans status
   then print (String.concat ["\nReducing parser state transition...\n\n"])
+  else if is_status_returnv status
+  then print (String.concat ["\nReducing programmable block exit...\n\n"])
   else raise (ERR "dbg_print_stmt_red" ("Unsupported status for empty statement: "^(term_to_string status)))
  else if is_stmt_ass stmt
  then
@@ -1936,6 +2055,8 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
  handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (String.concat ["Exception: ", #message exn, " in function ", #origin_function exn, " from structure ", #origin_structure exn, p4_regular_step_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
 ;
 
+(******************)
+(* p4_is_finished *)
 (* Function that decides whether a HOL4P4 program is finished or not:
  * here, when processing of all symbolic input packets are finished.
  * Used as a default when no other function is specified. *)
@@ -1953,6 +2074,12 @@ fun p4_is_finished step_thm =
  end
 ;
 
+
+(***********************)
+(* Top-level functions *)
+(* The below functions use symb_execLib to prove contracts, or to get intermediate symbolic
+ * execution results. *)
+
 fun preprocess_ftymaps (fty_map, b_fty_map) =
  let
   val fty_map_opt = rhs $ concl $ HOL4P4_CONV “deparameterise_ftymap_entries ^fty_map”
@@ -1969,7 +2096,7 @@ fun preprocess_ftymaps (fty_map, b_fty_map) =
 
 (* The main symbolic execution.
  * Here, the static ctxt and the dynamic path condition have been merged. *)
-fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt fuel =
+fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt fuel =
  let
   (* Pre-process ftymap and b_fty_map *)
   val (fty_map', b_fty_map') = preprocess_ftymaps (fty_map, b_fty_map)
@@ -1992,7 +2119,7 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 (* DEBUG:
 val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm;
 val lang_init_step_thm = init_step_thm;
-val lang_should_branch = p4_should_branch (fty_map', b_fty_map') const_actions_tables' (debug_flag, ctx_def);
+val lang_should_branch = p4_should_branch (fty_map', b_fty_map') const_actions_tables' path_cond_defs (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
 
 val const_actions_tables = const_actions_tables'
@@ -2003,8 +2130,8 @@ val (fty_map, b_fty_map) = (fty_map', b_fty_map')
   else
    if nthreads_max > 1
    then
-     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel nthreads_max
-   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' (debug_flag, ctx_def), is_finished) path_cond fuel
+     symb_exec_conc (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def), is_finished) path_cond fuel nthreads_max
+   else symb_exec (debug_flag, regular_step, init_step_thm, p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def), is_finished) path_cond fuel
  end
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
@@ -2298,16 +2425,7 @@ fun insert_existentials path_cond_tm (path_cond_case, thm) =
   val goal_contract = mk_p4_contract (precond', ctx, init_state, postcond)
 (*
   val time_start = Time.now();
- *)
-(* OLD
-  val res =
-   prove(“^goal_contract”,
-         assume_tac (REWRITE_RULE [p4_contract_def] (GENL vars thm)) >>
-	 rewrite_tac [p4_contract_def] >>
-         ASM_SIMP_TAC bool_ss [] >>
-	 METIS_TAC []);
 *)
-(* This seems to work, but looks hacky... *)
 
   val res =
    prove(goal_contract,
@@ -2322,12 +2440,13 @@ fun insert_existentials path_cond_tm (path_cond_case, thm) =
 	  ASM_REWRITE_TAC[]
          ) >>
          ASM_SIMP_TAC bool_ss [] >>
+         (* TODO: See if you can re-use tricks from the apply-branch with unknown table content here *)
          metis_tac[]);
 
 (*
   (* DEBUG *)
   val _ = print (String.concat ["\nInserted existentials in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
- *)
+*)
  in
   res
  end
@@ -2410,7 +2529,8 @@ fun p4_unify_path_tree id_ctthm_list path_tree =
 end
 ;
 
-val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def];
+(* TODO: Should be possible to add to these? Ugly if it has architecture-dependent stuff... *)
+val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def];
 
 (* This function is the main workhorse for proving contracts on HOL4P4 programs.
  * The parameters are:
@@ -2434,7 +2554,7 @@ val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_d
  * postcond: the postcondition, a term which is a predicate on the architectural state *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond =
+fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond =
  let
 
   (* DEBUG *)
@@ -2445,7 +2565,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
 
   (* Perform symbolic execution until all branches are finished *)
   val (path_tree, path_cond_step_list) =
-   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
+   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished entire symbolic execution stage in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s, trying to prove postcondition...\n\n"]);
@@ -2504,21 +2624,21 @@ fun dest_step_thm step_thm =
  dest_astate $ dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 ;
 
-fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
+fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
  let
   val ctx_name = "ctx"
   val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 
-  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE fuel
+  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
  in
   (path_tree, state_list_tms)
  end
 ;
 
-fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
+fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
  let
-  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel
+  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel
   val arch_frame_list_tms = map (fn (path_id, path_cond, (tm1, tm2, tm3, tm4)) => tm3) state_list_tms
  in
   (path_tree, arch_frame_list_tms)

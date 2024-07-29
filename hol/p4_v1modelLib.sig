@@ -14,6 +14,7 @@ val v1model_packet_out_map : term
 
 val v1model_input_f : term
 val v1model_output_f : term
+val v1model_is_drop_port : term
 
 val v1model_copyin_pbl : term
 val v1model_copyout_pbl : term
@@ -23,5 +24,7 @@ val v1model_apply_table_f : term
 val v1model_ffblock_map : term
 val v1model_ext_map : term
 val v1model_func_map : term
+
+val dest_v1model_ascope : term -> term * term * term * term
 
 end

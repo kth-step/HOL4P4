@@ -58,7 +58,7 @@ fun count_leaves (node (id, thm, nodes)) =
  * with e1 ... en as free variables.
  * *)
 fun convert_exists branch_cond step_thm =
- (* Don't remove the boolSyntax prefix *)
+ (* Don't remove the boolSyntax prefix: conflict between boolSyntax and listSyntax *)
  if boolSyntax.is_exists branch_cond
  then
   let
@@ -67,6 +67,25 @@ fun convert_exists branch_cond step_thm =
    (SPEC branch_cond' (MATCH_MP IMP_ADD_CONJ step_thm))
   end
  else (PURE_REWRITE_RULE [SPEC branch_cond AND_IMP_INTRO_SYM] $ DISCH_CONJUNCTS_ALL $ ADD_ASSUM branch_cond step_thm)
+;
+
+(* Takes a path condition in the shape of a term and
+ * changes the last conjunct to one without existentially
+ * quantified variables (if it has any). *)
+fun convert_exists_path_cond path_cond_tm =
+ let
+  val conjs = strip_conj path_cond_tm
+  val last_conj = last conjs
+ in
+  if boolSyntax.is_exists last_conj
+  then
+   let
+    val last_conj' = snd $ strip_exists last_conj
+   in
+    list_mk_conj (rev (last_conj'::(tl $ rev conjs)))
+   end
+  else path_cond_tm
+ end
 ;
 
 (* TODO: Rename "branch condition" to something else? Is this terminology OK? *)
@@ -108,7 +127,7 @@ fun update_path_tree debug_flag (npaths, path_tree, new_path_conds, path_disj_th
 			      * path on next encounter *)
 			     true)])))
     (npaths, [])
-    (zip fv_indices (zip (map ASSUME new_path_conds) new_branch_cond_tms))
+    (zip fv_indices (zip (map (ASSUME o convert_exists_path_cond) new_path_conds) new_branch_cond_tms))
 
   (* The new path tree nodes are mostly placeholders until further branches take place,
    * but they do already store the path ID (first element) *)
@@ -137,6 +156,10 @@ fun symb_branch debug_flag disj_thm path_cond =
  val path_cond = ASSUME “c <=> T”;
  val disj_thm = prove(“disj_list [a; b; ~c]”, cheat);
 
+ val path_cond = ASSUME “a /\ T /\ c”;
+ val disj_thm = prove(“c ==> (b1 \/ b2)”, cheat);
+ val test = REWRITE_RULE [path_cond] disj_thm;
+
  *)
   (* TODO: This relies on the fact that PURE_REWRITE_RULE retains path
    * condition T as a conjunct. Is
@@ -145,8 +168,17 @@ fun symb_branch debug_flag disj_thm path_cond =
 
   (* 1. Get disj_list with path condition conjoined *)
   val path_cond_tm = concl path_cond
-  val path_disj_thm = CONJ path_cond disj_thm;
-  val disj_list_rewr_thm = PURE_REWRITE_RULE [MAP, BETA_THM] (SPECL [path_cond_tm, dest_disj_list' $ concl disj_thm] disj_list_CONJ);
+  (* This is used in the situation when disj_thm is in the shape A ==> B1 \/ ... \/ Bn, and A can be
+   * resolved by the path condition. *)
+  val disj_thm' = if is_imp $ concl disj_thm
+                  then REWRITE_RULE [path_cond] disj_thm
+                  else disj_thm
+  val _ = if is_imp $ concl disj_thm'
+          then raise (ERR "symb_branch" "Antecedent of disj_thm could not be proved from path condition")
+          else ()
+  val path_disj_thm = CONJ path_cond disj_thm';
+
+  val disj_list_rewr_thm = PURE_REWRITE_RULE [MAP, BETA_THM] (SPECL [path_cond_tm, dest_disj_list' $ concl disj_thm'] disj_list_CONJ);
   val path_disj_thm2 = PURE_REWRITE_RULE [MAP, BETA_THM, disj_list_rewr_thm] path_disj_thm;
 
   (* 2. Get theorems stating contradictions - or other simplifications - among
@@ -447,7 +479,7 @@ fun prove_postcond rewr_thms postcond step_thm =
   val (hypo, step_tm) = dest_imp $ concl step_thm
   val res_state_tm = optionSyntax.dest_some $ snd $ dest_eq step_tm
   (* TODO: OPTIMIZE: srw_ss??? *)
-  val postcond_thm = EQT_ELIM $ SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+  val postcond_thm = EQT_ELIM $ (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
  in
   MATCH_MP prel_res_thm postcond_thm
  end
@@ -456,15 +488,20 @@ fun prove_postcond rewr_thms postcond step_thm =
 (* DEBUG
 val step_thms = map #3 path_cond_step_list;
 
-val h = el 2 step_thms
+(* basic: Index 24, 32, 52, 67 are interesting *)
+val h = el 24 step_thms
+val h = el 32 step_thms
+val h = el 52 step_thms
+val h = el 67 step_thms
+
 val step_thm = h
-val rewr_thms = prove_postcond_rewr_thms
+val rewr_thms = p4_prove_postcond_rewr_thms
 *)
 fun prove_postconds_debug' rewr_thms postcond []     _ = []
   | prove_postconds_debug' rewr_thms postcond (h::t) n =
  let
   val res = prove_postcond rewr_thms postcond h
-   handle exc => (print (("Error when proving postcondition for n-step theorem at index "^(Int.toString n))^"\n"); raise exc)
+   handle exc => (print (("Error when proving postcondition for n-step theorem at 0-index "^(Int.toString n))^"\n"); raise exc)
  in
   (res::(prove_postconds_debug' rewr_thms postcond t (n + 1)))
  end
