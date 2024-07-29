@@ -195,6 +195,7 @@ val symb_exec5_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
 (* Parameter assignment for debugging: *)
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec5_actx
+val path_cond_defs = []
 val init_astate = symb_exec5_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
@@ -231,6 +232,6 @@ val step_thm = step_thm2;
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc true arch_ty ctx (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc true arch_ty ctx (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond;
 
 val _ = export_theory ();

@@ -8,10 +8,10 @@ val _ = new_theory "p4_symb_exec_test6";
 
 (* Test 6:
  * There are two table applications, one with two possible outcomes,
- * one with unknown outcome.
+ * one with unknown outcome (totally unknown table configuration).
  *
  * This tests if regular branching on apply statement and
- * branching on apply statements with unknown works. *)
+ * branching on apply statements with unknown table entries works. *)
 
 val symb_exec6_blftymap =
  ``[("ingress", [(funn_name "set_default_out_port", ([], p_tau_bot));
@@ -234,6 +234,19 @@ val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
        ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate``;
 
+(* Additional parts of the context relevant only to symbolic execution *)
+val fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_ftymap_entries ^symb_exec6_ftymap”
+val b_fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_b_ftymap_entries ^symb_exec6_blftymap”
+
+val symb_exec6_ctx_tm = “(^fty_map', ^b_fty_map', ^symb_exec6_pblock_action_names_map)”
+val symb_exec_ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "symb_exec_ctx" (mk_eq(mk_var("symb_exec_ctx", type_of symb_exec6_ctx_tm), symb_exec6_ctx_tm))
+
+val symb_exec6_pblock_map = #2 $ p4Syntax.dest_actx symb_exec6_actx;
+val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of symb_exec6_pblock_map), symb_exec6_pblock_map))
+val symb_exec6_ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope $ #4 $ p4Syntax.dest_aenv $ #1 $ p4Syntax.dest_astate symb_exec6_astate_symb;
+val symb_exec6_wf_tm = “v1model_ctrl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) (^symb_exec6_ctrl)”
+val symb_exec6_wf_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("t2",t2_ctrl)”
+
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
 val debug_flag = false;
@@ -241,11 +254,12 @@ val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec6_actx
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec6_ftymap, symb_exec6_blftymap, symb_exec6_pblock_action_names_map)
 val const_actions_tables = ["t1"]
+val path_cond_defs = [symb_exec_ctx_def, symb_exec_pblock_map_def]
 val init_astate = symb_exec6_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME “e8 = T”
+val path_cond = ASSUME “e8 = T /\ ^symb_exec6_wf_tbl_tm”
 val p4_is_finished_alt_opt = NONE
 val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
@@ -286,33 +300,16 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2), 
 val path_cond = path_cond2_res;
 val step_thm = step_thm2;
 
-* Error after step 45:
-
-val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2), (n3, path_cond3_res, step_thm3), (n4, path_cond4_res, step_thm4), (n5, path_cond5_res, step_thm5), (n6, path_cond6_res, step_thm6)]) =
- p4_symb_exec false arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE 45;
-
-val path_cond = path_cond5_res;
-val step_thm = step_thm5;
-
-(* Some error in 10th, 13th and 16th paths exiting deparser? *)
-
-val (path_tree, res_list) =
- p4_symb_exec false arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE 78;
-
-val (n10, path_cond_res10, step_thm10) = el 12 res_list;
-val (n, path_cond_res, step_thm) = (n10, path_cond_res10, step_thm10)
-
 *)
 
 
 val time_start = Time.now(); (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
-                              " ms\n"]); (*
-*)
+                              " ms\n"]);
 
 val _ = export_theory ();

@@ -647,8 +647,21 @@ Definition v1model_postparser_def:
    | _ => NONE)
 End
 
+(* Note that this split-up of functions is so that the symbolic execution
+ * can handle symbolic branch on output port.
+ * TODO: Use the v directly (and not the port_bl) in order to
+ * make sense to also use as a control plane assumption, specifically on
+ * the argument of an action. *)
+Definition v1model_is_drop_port_def:
+ v1model_is_drop_port port_bl =
+  if v2n port_bl = 511
+  then T
+  else F
+End
+
 (* TODO: Outsource obtaining the output port to an external function? *)
 (* NOTE: "b" renamed to "b_out" *)
+(* A little clumsy with the double v2n, but that makes things easier *)
 Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   (case v1model_lookup_obj ext_obj_map v_map "b" of
@@ -659,10 +672,7 @@ Definition v1model_output_f_def:
        | SOME (v_struct struct) =>
         (case ALOOKUP struct "egress_spec" of
          | SOME (v_bit (port_bl, n)) =>
-          let port_out = v2n port_bl in
-           if port_out = 511
-           then SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
-           else SOME (in_out_list++[(bl++bl', port_out)], (counter, ext_obj_map, v_map, ctrl))
+          SOME (in_out_list++(if v1model_is_drop_port port_bl then [] else [(bl++bl', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl))
          | _ => NONE)
        | _ => NONE)
      | _ => NONE)
