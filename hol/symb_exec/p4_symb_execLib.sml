@@ -2416,40 +2416,163 @@ val thm =
 
 *)
 
+fun p4_int_of_symb_argvar var =
+ let
+  val varname = fst $ dest_var var
+  val i = string_to_int $ unprefix p4_symb_arg_prefix varname
+ in
+  i
+ end
+;
+
+fun var_compare var1 var2 =
+ (p4_int_of_symb_argvar var1) < (p4_int_of_symb_argvar var2)
+;
+
 fun insert_existentials path_cond_tm (path_cond_case, thm) =
  let
-  val (precond, ctx, init_state, postcond) = dest_p4_contract $ concl thm
-  val (conjs, conj_last) = dest_conj precond
+  val (precond, contract_ctx, init_state, contract_postcond) = dest_p4_contract $ concl thm
   val vars = (((filter (fn el => String.isPrefix p4_symb_arg_prefix $ fst $ dest_var el)) o free_vars_lr)) precond
   val precond' = mk_conj (path_cond_tm, path_cond_case)
-  val goal_contract = mk_p4_contract (precond', ctx, init_state, postcond)
+  val goal_contract = mk_p4_contract (precond', contract_ctx, init_state, contract_postcond)
+
 (*
   val time_start = Time.now();
 *)
 
+(* “^goal_contract” *)
   val res =
    prove(goal_contract,
-         assume_tac (REWRITE_RULE [p4_contract_def] (GENL vars thm)) >>
-	 rewrite_tac [p4_contract_def] >>
-         TRY (
-          rpt disch_tac >>
-	  rpt (PAT_X_ASSUM “A /\ B” (fn thm => (STRIP_THM_THEN (fn thm' => ASSUME_TAC thm') thm))) >>
-	  rpt (PAT_X_ASSUM “?a. _” (fn thm => (STRIP_THM_THEN (fn thm' => ASSUME_TAC thm') thm))) >>
-	  res_tac >>
-	  qexists_tac ‘n'’ >-
-	  ASM_REWRITE_TAC[]
-         ) >>
-         ASM_SIMP_TAC bool_ss [] >>
-         (* TODO: See if you can re-use tricks from the apply-branch with unknown table content here *)
-         metis_tac[]);
+         (if boolSyntax.is_exists path_cond_case
+          then
+           (* This is the demanding case: when there are existential quantifiers involved *)
+	   assume_tac (REWRITE_RULE [p4_contract_def] (GENL vars thm)) >>
+	   rewrite_tac [p4_contract_def] >>
+	   goal_term (fn tm =>
+	    let
+	     val exec_imp_postcond_tm = snd $ boolSyntax.dest_imp tm
+	    in
+	     markerLib.ABBREV_TAC “exec_imp_postcond:bool = ^exec_imp_postcond_tm”
+	    end) >>
+           qpat_x_assum ‘Abbrev (exec_imp_postcond <=> _)’ (fn thm => markerLib.hide_tac "exec_imp_postcond" thm) >>
+           disch_tac >>
+           (* The underscore will try anything, but there's only one assumption that will work,
+            * it's a hassle to match only that one though *)
+           qpat_x_assum ‘_’ (fn thm => irule thm) >>
+	   rpt conj_tac >> (
+	    qpat_assum ‘_’ (fn thm' =>
+	    let
+	     val conjs = boolSyntax.strip_conj $ concl thm'
+	     val existvars_freeconjs = map boolSyntax.strip_exists conjs
+	    in
+	     goal_term (fn tm =>
+	      let
+	       val (goal_vars, goal_tm) = boolSyntax.strip_exists tm
+	      in
+               (* If the goal_tm exists among the conjs.. *)
+	       if List.exists (fn tm' => term_eq tm tm') conjs
+               (* ... then just use asm_rewrite_tac *)
+	       then ASM_REWRITE_TAC[]
 
-(*
+	       else
+                (case List.find (fn (a,b) => term_eq goal_tm b) existvars_freeconjs of
+                  SOME (exist_vars, match_conj) =>
+                  (if null exist_vars
+                   then
+                    (* The goal can be directly given witnesses *)
+                    (((map_every $ exists_tac) goal_vars) >> ASM_REWRITE_TAC[])
+                   else
+                    (* There is a matching assumption, but it has existentials in the wrong order. *)
+                    let
+                     val conj_index = Lib.index (fn (a,b) => term_eq goal_tm b) existvars_freeconjs
+
+                     val matching_conjunct = el (conj_index+1) $ BODY_CONJUNCTS thm'
+
+                     val sort_thm = RESORT_EXISTS_CONV (sort var_compare) tm
+                    in
+		     (qpat_x_assum ‘_’ (fn thm' => ALL_TAC) >>
+		      assume_tac matching_conjunct >>
+		      ASM_REWRITE_TAC [sort_thm] >>
+		      (* TODO: The below needed? Above tactic should solve... *)
+		      FULL_SIMP_TAC std_ss [] >>
+		      (((map_every $ exists_tac) goal_vars) >> ASM_REWRITE_TAC[]))
+                    end
+                  )
+                 (* TODO: Weird case: the conjunct has been rearranged somehow *)
+                | NONE =>
+		 let
+		  val sort_thm = RESORT_EXISTS_CONV (sort var_compare) tm
+
+		  val assum_exists_vars = flatten $ map fst existvars_freeconjs
+
+		  val goal_vars' = List.filter (fn a => not $ List.exists (fn a' => term_eq a' a) assum_exists_vars) $ (sort var_compare) goal_vars
+		 in
+		  (ONCE_REWRITE_TAC [sort_thm] >>
+		   ((map_every $ exists_tac) goal_vars') >>
+		   ASM_REWRITE_TAC[])
+		 end)
+(* OLD
+                 (((map_every $ exists_tac) goal_vars) >> ASM_REWRITE_TAC[]))
+*)
+	      end)
+	    end)
+ (* Should match conj_tac *)
+           )
+(* OLD
+	    qpat_assum ‘_’ (fn thm' =>
+	    let
+	     val conjs = strip_conj $ concl thm'
+	    in
+	     goal_term (fn tm =>
+	      let
+	       val (goal_vars, goal_tm) = boolSyntax.strip_exists tm
+	      in
+               (* If the goal exists among the conjs.. *)
+	       if List.exists (fn tm' => term_eq tm tm') conjs
+               (* ... then just use asm_rewrite_tac *)
+	       then
+                ASM_REWRITE_TAC[]
+               (* ... otherwise, provide witnesses in order *)
+	       else (((map_every $ exists_tac) goal_vars) >> ASM_REWRITE_TAC[])
+	      end)
+	    end)
+	   )
+*)
+(* OLDER
+	   TRY (
+	    rpt disch_tac >>
+	    rpt (PAT_X_ASSUM “A /\ B” (fn thm => (STRIP_THM_THEN (fn thm' => ASSUME_TAC thm') thm))) >>
+	    rpt (PAT_X_ASSUM “?a. _” (fn thm => (STRIP_THM_THEN (fn thm' => ASSUME_TAC thm') thm))) >>
+	    res_tac >>
+	    qexists_tac ‘n'’ >-
+	    ASM_REWRITE_TAC[]
+	   ) >>
+	   ASM_SIMP_TAC bool_ss [] >>
+	   metis_tac[]
+*)
+         else
+         (* Simple case: no quantifiers. *)
+         assume_tac thm >>
+	 irule p4_contract_pre_str >>
+	 exists_tac precond >>
+	 fs[]));
+
   (* DEBUG *)
   val _ = print (String.concat ["\nInserted existentials in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
-*)
  in
   res
  end
+;
+
+(* TODO: Move *)
+fun get_node get_id (node (at_id, thm, children)) =
+ if get_id = at_id
+ then SOME (node (at_id, thm, children))
+ else
+  foldl (fn (child, res_opt) =>
+         case res_opt of
+           NONE => get_node get_id child
+         | SOME res => SOME res) NONE children
 ;
 
 (* This takes a list of n-step theorems resulting from executing the P4 program (with IDs)
@@ -2478,7 +2601,19 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) [] =
     val path_cond_rest_tm_list = fst $ dest_list path_cond_rest_tm
 (* DEBUG
     val time_start = Time.now();
+*)
     val _ = print ("Unifying contracts of path ID "^((Int.toString id)^".\n"))
+
+(* Single application of insert_existentials:
+
+val test1 = (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))
+
+length test1
+
+val (path_cond_case, thm) = (el 1 test1);
+
+(insert_existentials path_cond_tm) (path_cond_case, thm)
+
 *)
     val new_p4_contracts = (LIST_CONJ (map (insert_existentials path_cond_tm) (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))))
     val p4_contract_list_thm =
@@ -2494,11 +2629,23 @@ fun p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) [] =
      MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen path_disj_thm) p4_contract_list_thm
    end
   | p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, (h::t))) path_tree_list_leafs =
-(* DEBUG: Two iterations, for debugging a simple branch:
+(* DEBUG:
 (*
-val (h::t) = t
+val orig_path_tree = path_tree;
+(* To enter next layer of the tree using one of the next nodes: *)
+val path_tree = h
+(* Then repeatedly, (choosing the leftmost path): *)
+val (node (id, path_disj_thm, (h::t))) = h;
+
+(* get new h
+val SOME h = get_node 19 path_tree;
+val node_19 = h;
+val (node (id, path_disj_thm, (h::t))) = h;
+
+length t
 *)
-val (node (id, path_disj_thm, (h::t))) = path_tree; (* h *)
+
+val (node (id, path_disj_thm, (h::t))) = path_tree;
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
 val path_tree_list_leafs = ([ctthm'])
 
@@ -2506,14 +2653,8 @@ val (node (id, path_disj_thm, (h::t))) = (node (id, path_disj_thm, t));
 val ctthm' = p4_unify_path_tree' id_ctthm_list h []
 val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
 
-(* Two more, for multi-case: *)
-val (node (id, path_disj_thm, (h::t))) = (node (id, path_disj_thm, t));
-val ctthm' = p4_unify_path_tree' id_ctthm_list h []
-val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
-
-val (node (id, path_disj_thm, (h::t))) = (node (id, path_disj_thm, t));
-val ctthm' = p4_unify_path_tree' id_ctthm_list h []
-val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
+(* Reset path_tree to go back to starting position: *)
+val path_tree = orig_path_tree;
 *)
    (* Recursive call *)
    let
@@ -2558,6 +2699,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
  let
 
   (* DEBUG *)
+  (* val p4_symb_exec_fun = (p4_symb_exec 1); *)
   val time_start = Time.now();
 
   val ctx_name = "ctx"
