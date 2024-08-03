@@ -27,7 +27,7 @@ Definition oCONS_def:
   NONE
  )
 End
-
+        
 Definition oLASTN_def:
  (oLASTN n l =
   case oTAKE n (REVERSE l) of
@@ -125,6 +125,14 @@ subgoal ‘oTAKE (LENGTH l1) (l1 ++ l2) = SOME (TAKE (LENGTH l1) (l1 ++ l2))’ 
  fs[oTAKE_TAKE]
 ) >>
 fs[rich_listTheory.TAKE_LENGTH_APPEND]
+QED
+
+Theorem oEL_SOME:
+!i list.
+i < LENGTH list ==>
+?elem. oEL i list = SOME elem
+Proof
+fs[listTheory.oEL_EQ_EL]
 QED
 
 (* e_size: size of an e

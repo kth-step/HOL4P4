@@ -78,6 +78,14 @@ Cases_on ‘P_list’ >> (
 )
 QED
 
+Theorem p4_contract_list_trivial_REWR:
+ !R P ctx s Q.
+ p4_contract (R /\ P) ctx s Q <=>
+   p4_contract_list R [P] ctx s Q
+Proof
+fs[p4_contract_list_def]
+QED
+
 (* Sometimes the conjunction has been flipped. Then this is useful.
  * (CONJ_COMM is looping and so a hassle to use in proof procedures, among other reasons) *)
 Theorem p4_contract_list_GSYM_REWR:
@@ -310,5 +318,46 @@ Definition v1model_tbl_is_well_formed_def:
         (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
          v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
 End
+
+Definition wellformed_register_array_def:
+(wellformed_register_array width [] = T) /\
+(wellformed_register_array width ((bl:bool list,n)::t) =
+ if n = width /\ LENGTH bl = width
+ then wellformed_register_array width t
+ else F)
+End
+        
+Theorem wellformed_register_array_EVERY:
+!width array.
+wellformed_register_array width array <=>
+EVERY (\(bl,n). LENGTH bl = width /\ n = width) array
+Proof
+Induct_on ‘array’ >> (
+ gs[wellformed_register_array_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘h’ >>
+gs[wellformed_register_array_def] >>
+metis_tac[]
+QED
+
+Theorem wellformed_register_array_oEL:
+!width array.
+wellformed_register_array width array ==>
+!i bl n. oEL i array = SOME (bl, n) ==> LENGTH bl = width /\ n = width
+Proof
+rpt gen_tac >>
+rpt disch_tac >>
+rpt gen_tac >>
+rpt disch_tac >>
+gs[wellformed_register_array_EVERY] >>
+subgoal ‘i < LENGTH array’ >- (
+ fs[listTheory.oEL_EQ_EL]
+) >>
+gs[listTheory.EVERY_EL] >>
+res_tac >>
+fs[listTheory.oEL_EQ_EL] >>
+qpat_x_assum ‘(bl,n) = EL i array’ (fn thm => fs [GSYM thm])
+QED
 
 val _ = export_theory ();

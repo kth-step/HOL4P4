@@ -1254,9 +1254,6 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
     else NONE
   (* Branch point: extern *)
   | extern =>
-   (* TODO: Disable, for now... *)
-   NONE
-(*
    let
     (* TODO: Fix the hard-coded: let user supply list of externs *)
     (* We can evade some checks since we know we're executing an extern *)
@@ -1270,7 +1267,7 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
      let
       val (ext_obj_tm, ext_method_tm) = dest_funn_ext funn
       val ext_obj = stringSyntax.fromHOLstring ext_obj_tm
-      val ext_method = stringSyntax.fromHOLstring ext_method_tm         
+      val ext_method = stringSyntax.fromHOLstring ext_method_tm
      in
       if (ext_obj = "register") andalso (ext_method = "read")
       then
@@ -1283,20 +1280,62 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 
 	val ascope = #4 $ dest_aenv aenv
 	(* TODO: V1Model *)
-	val ext_obj_map = #2 $ p4_v1modelLib.dest_v1model_ascope aenv
+	val ext_obj_map = #2 $ p4_v1modelLib.dest_v1model_ascope ascope
 	val array = snd $ dest_comb $ fst $ sumSyntax.dest_inr $ dest_some $ rhs $ concl $ HOL4P4_CONV “ALOOKUP ^ext_obj_map ^ext_ref”
 	val entry_width = snd $ dest_pair $ rhs $ concl $ HOL4P4_CONV “EL 0 ^array”
 
 	(* 2. Prove approximation theorem *)
-	val tm1 = “v1model_register_read_inner ^array ^array_index”
+	val tm1 = “v1model_register_read_inner ^entry_width ^array_index ^array”
 	(* TODO: Hack, make function that returns list *)
 	val approx_vars = fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, int_of_term entry_width)
 	val rhs_tm = mk_pair (approx_vars, entry_width)
-	val concl = list_mk_exists (fst $ dest_list approx_vars, mk_eq (tm1, rhs_tm))
+	val consequent = mk_disj_list [list_mk_exists (fst $ dest_list approx_vars, mk_eq (tm1, rhs_tm))]
+
+(* Unless you cache, these have to be proved every single time *)
+val list_var = mk_var("list", “:bool list”)
+val list_hyp = mk_eq(mk_length list_var, entry_width)
+val list_exists_thm = prove(mk_forall (list_var, mk_imp (list_hyp, list_mk_exists(fst $ dest_list approx_vars, mk_eq (list_var, approx_vars)))), 
+rpt strip_tac >>
+rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
+);
+
+(*
+val old_array = array
+
+val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+             ARB; ARB; ARB; ARB; ARB; ARB],32);
+           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+             ARB; ARB; ARB; ARB; ARB; ARB],32);
+           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+             ARB; ARB; ARB; ARB; ARB; ARB],32)]”
+*)
+
 	val approx_thm =
-	 prove(concl,
-	  (* TODO: Use the fact that (v2n array_index_v) < LENGTH array *)
-	  cheat
+         (* “^consequent” *)
+	 prove(consequent,
+          (* As soon as possible, hide the big array *)
+          markerLib.ABBREV_TAC “(array:(bool list # num) list) = ^array” >>
+          qpat_x_assum ‘Abbrev (array = _)’ (fn thm => markerLib.hide_tac "big_array" thm) >>
+          (* TODO: V1Model hack *)
+          SIMP_TAC std_ss [disj_list_def, p4_v1modelTheory.v1model_register_read_inner_def] >>
+          subgoal ‘wellformed_register_array ^entry_width array’ >- (
+           markerLib.unhide_tac "big_array" >>
+           markerLib.UNABBREV_TAC "array" >>
+           (* TODO: May want to use path cond here if you abbreviate array using assumptions *)
+           EVAL_TAC
+          ) >>
+          CASE_TAC >- (
+           EVAL_TAC >>
+           ntac (int_of_term entry_width) (exists_tac (mk_arb bool)) >>
+           REWRITE_TAC []
+          ) >>
+          Cases_on ‘x’ >>
+	  imp_res_tac p4_symb_execTheory.wellformed_register_array_oEL >>
+          imp_res_tac list_exists_thm >>
+          RW_TAC std_ss []
 	 );
        in
 	SOME (approx_thm, [fv_index+(int_of_term entry_width)])
@@ -1305,7 +1344,6 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
      end
     else NONE
    end
-*)
   (* Branch point: emission of packet in final block *)
   | output port_bl =>
    if (not $ null $ free_vars port_bl orelse HOLset.member (all_atoms port_bl, “ARB:bool”))
@@ -2668,10 +2706,14 @@ val (path_cond_case, thm) = (el 1 test1);
 *)
     val new_p4_contracts = (LIST_CONJ (map (insert_existentials path_cond_tm) (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))))
     val p4_contract_list_thm =
-     PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_REWR2,
-                        SPEC path_cond_tm p4_contract_list_GSYM_REWR,
-			SPEC path_cond_tm p4_contract_list_REWR,
-			listTheory.APPEND] new_p4_contracts
+     if length path_tree_list_leafs = 1
+     then
+      PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_trivial_REWR] new_p4_contracts
+     else
+      PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_REWR2,
+			 SPEC path_cond_tm p4_contract_list_GSYM_REWR,
+			 SPEC path_cond_tm p4_contract_list_REWR,
+			 listTheory.APPEND] new_p4_contracts
 (* DEBUG
     val _ = print (String.concat ["\nDone in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
 *)
