@@ -141,12 +141,15 @@ val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
 val debug_flag = true
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec2_actx
+val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec2_ftymap, symb_exec2_blftymap, symb_exec2_pblock_action_names_map)
 val const_actions_tables = []
 val path_cond_defs = []
 val init_astate = symb_exec2_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
+val thms_to_add = []
 val path_cond = ASSUME “v2w [e1; e2; e3; e4; e5; e6; e7; e8] <+ (v2w [T; F; F; F; F; F; F; F]):word8”
+val p4_is_finished_alt_opt = NONE
 val fuel = 2
 val n_max = 50;
 val postcond = “(\s. packet_has_port s 1):v1model_ascope astate -> bool”;
@@ -167,6 +170,6 @@ val (path_tree, [(id, path_cond_res, step_thm)]) = p4_symb_exec 1 debug_flag arc
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (symb_exec2_ftymap, symb_exec2_blftymap, symb_exec2_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE n_max postcond;
 
 val _ = export_theory ();

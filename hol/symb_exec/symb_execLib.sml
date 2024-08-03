@@ -45,6 +45,17 @@ fun insert_nodes path_tree (at_id, new_thm, new_nodes) =
  | NONE =>
   raise (ERR "insert_nodes" "Inserting new path node at unknown or occupied position ");
 
+fun get_node get_id (node (at_id, thm, children)) =
+ if get_id = at_id
+ then SOME (node (at_id, thm, children))
+ else
+  foldl (fn (child, res_opt) =>
+         case res_opt of
+           NONE => get_node get_id child
+         | SOME res => SOME res) NONE children
+  | get_node _ empty = NONE
+;
+
 fun count_leaves (node (id, thm, nodes)) =
  if null nodes
  then 1

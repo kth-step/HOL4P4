@@ -323,6 +323,7 @@ fun arch_frame_list_get_top_funn_stmt arch_frame_list =
 
 datatype branch_data =
    no_branch
+ | extern
  | conditional of term
  | select of term * (term list) * term
  | apply of term * term
@@ -345,9 +346,11 @@ fun astate_get_branch_data astate =
      if is_e_select e
      then select $ (fn (a,b,c) => (a,fst $ dest_list b,c)) $ dest_e_select e
      else no_branch
-    end 
+    end
    else if is_stmt_app stmt'
    then apply $ dest_stmt_app stmt'
+   else if is_stmt_ext stmt'
+   then extern
    else no_branch
   end
  | NONE =>
@@ -1249,6 +1252,60 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
       else raise (ERR "p4_should_branch" ("Table not found in ctrl: "^(term_to_string tbl_name)))
      end
     else NONE
+  (* Branch point: extern *)
+  | extern =>
+   (* TODO: Disable, for now... *)
+   NONE
+(*
+   let
+    (* TODO: Fix the hard-coded: let user supply list of externs *)
+    (* We can evade some checks since we know we're executing an extern *)
+    val (aenv, _, arch_frame_list, _) = dest_astate astate
+    val top_frame = hd $ fst $ dest_list $ dest_arch_frame_list_regular $ arch_frame_list
+    val (funn, stmt_stack, scope_list) = dest_frame top_frame
+   in
+    if is_funn_ext funn
+    then
+     (* TODO: What is going on here? Print debug output... *)
+     let
+      val (ext_obj_tm, ext_method_tm) = dest_funn_ext funn
+      val ext_obj = stringSyntax.fromHOLstring ext_obj_tm
+      val ext_method = stringSyntax.fromHOLstring ext_method_tm         
+     in
+      if (ext_obj = "register") andalso (ext_method = "read")
+      then
+       let
+	(* TODO: Complete the below. Should work for register_read''. *)
+	(* 1. Get first entry of register array (for entry width) *)
+	val array_index = fst $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "index"))”
+  (* TODO: dest_v_ext_ref *)
+	val ext_ref = dest_v_ext_ref $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "this"))”
+
+	val ascope = #4 $ dest_aenv aenv
+	(* TODO: V1Model *)
+	val ext_obj_map = #2 $ p4_v1modelLib.dest_v1model_ascope aenv
+	val array = snd $ dest_comb $ fst $ sumSyntax.dest_inr $ dest_some $ rhs $ concl $ HOL4P4_CONV “ALOOKUP ^ext_obj_map ^ext_ref”
+	val entry_width = snd $ dest_pair $ rhs $ concl $ HOL4P4_CONV “EL 0 ^array”
+
+	(* 2. Prove approximation theorem *)
+	val tm1 = “v1model_register_read_inner ^array ^array_index”
+	(* TODO: Hack, make function that returns list *)
+	val approx_vars = fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, int_of_term entry_width)
+	val rhs_tm = mk_pair (approx_vars, entry_width)
+	val concl = list_mk_exists (fst $ dest_list approx_vars, mk_eq (tm1, rhs_tm))
+	val approx_thm =
+	 prove(concl,
+	  (* TODO: Use the fact that (v2n array_index_v) < LENGTH array *)
+	  cheat
+	 );
+       in
+	SOME (approx_thm, [fv_index+(int_of_term entry_width)])
+       end
+      else NONE
+     end
+    else NONE
+   end
+*)
   (* Branch point: emission of packet in final block *)
   | output port_bl =>
    if (not $ null $ free_vars port_bl orelse HOLset.member (all_atoms port_bl, “ARB:bool”))
@@ -1266,6 +1323,7 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
  end
  handle (HOL_ERR exn) => raise (ERR "p4_should_branch" (String.concat ["Exception: ", #message exn, " in function ", #origin_function exn, " from structure ", #origin_structure exn, p4_should_branch_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_should_branch" (HOL_ERR exn)) *)
 ;
+
 
 (*******************)
 (* p4_regular_step *)
@@ -2151,6 +2209,9 @@ val (p4_contract_list_tm, mk_p4_contract_list, dest_p4_contract_list, is_p4_cont
 val (p4_contract_tm, mk_p4_contract, dest_p4_contract, is_p4_contract) =
  syntax_fns4 "p4_symb_exec" "p4_contract";
 
+val (p4_contract'_tm, mk_p4_contract', dest_p4_contract', is_p4_contract') =
+ syntax_fns3 "p4_symb_exec" "p4_contract'";
+
 (*
 val path_cond_case_thm_list = (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))
 
@@ -2557,22 +2618,12 @@ fun insert_existentials path_cond_tm (path_cond_case, thm) =
 	 exists_tac precond >>
 	 fs[]));
 
-  (* DEBUG *)
+(*
   val _ = print (String.concat ["\nInserted existentials in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
+*)
  in
   res
  end
-;
-
-(* TODO: Move *)
-fun get_node get_id (node (at_id, thm, children)) =
- if get_id = at_id
- then SOME (node (at_id, thm, children))
- else
-  foldl (fn (child, res_opt) =>
-         case res_opt of
-           NONE => get_node get_id child
-         | SOME res => SOME res) NONE children
 ;
 
 (* This takes a list of n-step theorems resulting from executing the P4 program (with IDs)
@@ -2656,6 +2707,7 @@ val path_tree_list_leafs = (path_tree_list_leafs@[ctthm'])
 (* Reset path_tree to go back to starting position: *)
 val path_tree = orig_path_tree;
 *)
+*)
    (* Recursive call *)
    let
     val ctthm' = p4_unify_path_tree' id_ctthm_list h []
@@ -2669,6 +2721,36 @@ fun p4_unify_path_tree id_ctthm_list path_tree =
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_unify_path_tree" (HOL_ERR exn));
 end
 ;
+
+(* TODO: Does this exist elsewhere? *)
+fun varname_free_in_tm varname tm =
+ not $ List.exists (fn varname' => varname' = varname) $ map (fst o dest_var) $ free_vars tm
+;
+
+fun make_new_precond path_cond init_astate =
+ let
+  val state_var = mk_var("s", type_of init_astate)
+  val path_cond_tm = concl path_cond
+ in
+  if (varname_free_in_tm "s" path_cond_tm) andalso (varname_free_in_tm "s" init_astate)
+  then mk_abs(state_var, mk_conj (concl path_cond, mk_eq (state_var, init_astate)))
+  else raise (ERR "make_new_precond" ("Variable name s occupied in path condition or initial state."))
+ end
+;
+
+(* TODO: Obtain tuple from contact_thm instead? *)
+fun prove_contract' contract_thm (path_cond, init_astate, ctx_lhs, postcond) =
+(* “^(mk_p4_contract' (make_new_precond path_cond init_astate, ctx_lhs, postcond))” *)
+ prove (mk_p4_contract' (make_new_precond path_cond init_astate, ctx_lhs, postcond),
+  assume_tac contract_thm >>
+  (* TODO: fs really needed? *)
+  fs[p4_contract_def, p4_contract'_def] >>
+  (* Most proved at this point already, some need extra guidance *)
+  exists_tac (mk_var("n", num)) >>
+  ASM_REWRITE_TAC[]
+ )
+;
+
 
 (* TODO: Should be possible to add to these? Ugly if it has architecture-dependent stuff... *)
 val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def];
@@ -2740,6 +2822,9 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
 
   (* Unify all contracts *)
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
+  (* Fix contract format *)
+  val ctx_lhs = lhs $ concl ctx_def
+  val unified_ct_thm' = prove_contract' unified_ct_thm (path_cond, init_astate, ctx_lhs, postcond);
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished unification of all contracts in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s.\n\n"]);

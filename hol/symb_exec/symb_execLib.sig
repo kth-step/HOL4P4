@@ -4,6 +4,9 @@ sig
 
 datatype path_tree = empty | node of int * thm * (path_tree list);
 
+(* For debugging *)
+val get_node : int -> path_tree -> path_tree option
+
 val dbg_print : bool -> string -> unit
 
 val symb_exec:
