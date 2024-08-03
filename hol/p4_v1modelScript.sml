@@ -292,6 +292,7 @@ Definition register_construct_def:
  )
 End
 
+(* OLD:
 Definition register_read_def:
  (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
@@ -312,7 +313,41 @@ Definition register_read_def:
   | _ => NONE
  )
 End
+*)
 
+(* Simply replaces the oEL of a v2n index *)
+Definition v1model_register_read_inner_def:
+ (v1model_register_read_inner n'' array_index_v array =
+  case oEL (v2n array_index_v) array of
+  | SOME res => res
+  | NONE => (REPLICATE n'' (ARB:bool), n'')
+ )
+End
+
+(* Note that register_read always has a result, according to v1model.p4. *)
+Definition register_read_def:
+ (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+    | SOME (v_ext_ref i) =>
+     (case ALOOKUP ext_obj_map i of
+      | SOME (INR (v1model_v_ext_register array)) =>
+       (* TODO: HACK, looking up the result variable to get the result width. *)
+       (case lookup_lval scope_list (lval_varname (varn_name "result")) of
+        | SOME (v_bit (bl'', n'')) =>      
+         let (bl', n') = v1model_register_read_inner n'' bl array in
+           (case assign scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
+            | SOME scope_list' =>
+             SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
+            | NONE => NONE)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+        
 Definition register_write_def:
  (register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
