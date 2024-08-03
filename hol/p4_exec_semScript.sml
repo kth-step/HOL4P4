@@ -547,6 +547,7 @@ Definition stmt_exec_def:
  (***************)
  (* Conditional *)
  (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_cond e stmt1 stmt2], scope_list)], status_running) =
+  (* TODO: Make this more efficient by using a single get_v_bool e *)
   if is_v_bool e
   then
    (case stmt_exec_cond e of

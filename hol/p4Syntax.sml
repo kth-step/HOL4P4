@@ -100,6 +100,9 @@ fun mk_v_biti_arb width =
 val (v_bool_tm, mk_v_bool, dest_v_bool, is_v_bool) =
   syntax_fns1 "p4" "v_bool";
 
+val (ext_ref_tm, mk_v_ext_ref, dest_v_ext_ref, is_v_ext_ref) =
+  syntax_fns1 "p4" "v_ext_ref";
+
 val (v_str_tm, _, dest_v_str, is_v_str) =
   syntax_fns1 "p4" "v_str";
 val mk_v_str = (#2 (syntax_fns1 "p4" "v_str")) o fromMLstring;

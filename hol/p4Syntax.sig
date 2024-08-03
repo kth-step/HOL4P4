@@ -35,6 +35,11 @@ val is_v_bool : term -> bool
 val mk_v_bool : term -> term
 val v_bool_tm : term
 
+val dest_v_ext_ref : term -> term
+val ext_ref_tm : term
+val is_v_ext_ref : term -> bool
+val mk_v_ext_ref : term -> term
+
 val dest_v_str : term -> term
 val is_v_str : term -> bool
 val v_str_tm : term

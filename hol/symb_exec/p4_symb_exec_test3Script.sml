@@ -7,7 +7,7 @@ open p4_symb_execLib;
 val _ = new_theory "p4_symb_exec_test3";
 
 (* Test 3:
- * There's a single select statement that branches on the LSB.
+ * There's a single select expression that branches on the LSB.
  * Postcondition holds only for "accept".
  * The precondition states that the accept case should be selected.
  *

@@ -187,6 +187,23 @@ rpt strip_tac >> (
 )
 QED
 
+Theorem p4_contract_pre_str:
+!P P' ctx s Q.
+(P' ==> P) ==>
+(p4_contract P ctx s Q ==>
+p4_contract P' ctx s Q)
+Proof
+fs[p4_contract_def]
+QED
+
+Definition p4_contract'_def:
+ p4_contract' P ctx Q <=>
+  !s.
+   P s ==>
+   ?n. arch_multi_exec ctx s n <> NONE /\
+       !s'. arch_multi_exec ctx s n = SOME s' ==> Q s'
+End
+
 (* TODO: Annoying that entire ascope is used. You can make more efficient versions that only use ctrl, tailored for individual architectures. *)
 Definition v1model_ctrl_is_well_formed_def:
  v1model_ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) ctrl =
