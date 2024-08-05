@@ -10,234 +10,12 @@ open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
 open auxLib symb_execLib p4_bigstepSyntax;
 
+open p4_convLib;
+
 val ERR = mk_HOL_ERR "p4_symb_exec"
 
 (* Prefix used by the symbolic execution when inserting free HOL4 variables *)
 val p4_symb_arg_prefix = "a";
-
-fun same_const_disj_list [] tm = K false tm
- | same_const_disj_list [x] tm = same_const x tm
- | same_const_disj_list (h::t) tm =
- same_const h tm orelse (same_const_disj_list t tm);
-
-(* RESTR_HOL4P4_CONV constants: *)
-val p4_stop_eval_consts_unary =
- [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
-  “word_2comp”
- ];
-val p4_stop_eval_consts_binary =
- [“word_mul”,
-  “word_div”,
-  “word_mod”,
-  “word_add”,
-  “saturate_add”,
-  “word_sub”,
-  “saturate_sub”,
-  “word_lsl_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
-  “word_lsr_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
-  (* “word_and”, (* Should be OK? w2v (v2w [x; F; T] && v2w [y; F; T]) = [x ∧ y; F; T] *) *)
-  (* “word_xor”, (* Should be OK? w2v (v2w [x; F; T] ⊕ v2w [y; F; T]) = [x ⇎ y; F; F] *) *)
-  (* “word_or”, (* Should be OK? w2v (v2w [x; F; T] ‖ v2w [y; F; T]) = [x ∨ y; F; T] *) *)
-  “word_ls”,
-  “word_hs”,
-  “word_lo”,
-  “word_hi”
-];
-
-val p4_stop_eval_consts = p4_stop_eval_consts_unary@p4_stop_eval_consts_binary;
-
-(* Customized CBV_CONV for HOL4P4 evaluation *)
-local
- val list_of_thys = ["p4", "p4_aux", "p4_exec_sem",
-		     "p4_core", "p4_v1model", "p4_ebpf", "p4_vss", "p4_bigstep"]
-
- fun filtered_thm_names name =
-  (not $ String.isSuffix "_aux" name) andalso
-  (not $ String.isSuffix "_AUX" name) andalso
-  (not $ String.isSuffix "_primitive" name) andalso
-  (not $ String.isSuffix "_primitive_def" name) andalso 
-  (not $ String.isSuffix "_ind" name) andalso
-  (not $ String.isSuffix "_UNION" name) andalso
-  ((String.isSuffix "_def" name)) orelse
-   (String.isSuffix "_11" name) orelse
-   (String.isSuffix "_distinct" name)
-
- fun add_thy thy compset =
-  let
-   val thy_defs = definitions thy
-   val thy_thms = thms thy
-   val filtered_list =
-    map snd $ filter (fn (name, thm) => filtered_thm_names name)
-     (List.concat [thy_defs, thy_thms])
-   val _ = map (fn thm => computeLib.add_thms [thm] compset handle ERR => ()) filtered_list
-  in
-   ()
-  end;
-
- fun add_thy_list thys compset =
-  let
-   val _ = map (fn thy => add_thy thy compset) thys
-  in
-   ()
-  end
- ;
-
- fun add_definitions thy compset =
-  let
-   val thy_defs =
-    map snd $ filter (fn (name, thm) => filtered_thm_names name) (definitions thy)
-   val thy_def_thms = map snd $ filter (fn (name, thm) => String.isSuffix "_def" name) (thms thy)
-   val _ = map (fn thm => computeLib.add_thms [thm] compset) (thy_def_thms)
-  in
-   ()
-  end
- ;
-
- val hol4p4_compset = reduceLib.num_compset ()
- val _ =
-  foldl (fn (f, compset) => let val _ = f compset in compset end)
-   hol4p4_compset
-   [pairLib.add_pair_compset, optionLib.OPTION_rws, (wordsLib.add_words_compset true),
-    stringLib.add_string_compset, alistLib.add_alist_compset]
- val _ = add_thy_list list_of_thys hol4p4_compset
- val _ = computeLib.add_thms [alistTheory.AFUPDKEY_def] hol4p4_compset
- (* TODO: Nice to have? *)
- val _ = computeLib.add_thms [sumTheory.INR_11, sumTheory.INL_11, sumTheory.INR_INL_11, sumTheory.INR_neq_INL] hol4p4_compset
-(* TODO: Not the name in Trindemossen?
- val _ = computeLib.scrub_const hol4p4_compset “conc_red”
-*)
-(*
-   val _ = Globals.max_print_depth := 9000;
-   val _ = Globals.max_print_length := 9001;
-   val to_compset_entries = List.filter (fn (name, transformations) => fst name = "conc_red_rules") $ listItems hol4p4_compset
-*)
-
-(* TODO: Scrub these? They look annoying...
- val _ = scrub_const hol4p4_compset “header_entries2v_UNION”
- val _ = scrub_const hol4p4_compset “deparameterise_tau_def_UNION”
- val _ = scrub_const hol4p4_compset “parameterise_tau_def_UNION”
-*)
-
- local
-  open clauses;
-  open computeLib;
-
-  fun is_conv transform =
-   case transform of
-    (RRules thmlist) => false
-   | (Conversion conv) => true
-
-  (* Annoying to see theorems multiple times. This removes at least
-   * the most blatant duplication. *)
-  fun filter_duplicate_thms _ [] = []
-    | filter_duplicate_thms trs (h::t) =
-     if (exists (fn thm => term_eq (concl h) (concl thm)) t) orelse
-        (exists (fn thm => term_eq (concl h) (concl thm)) trs)
-     then filter_duplicate_thms trs t
-     else (h::(filter_duplicate_thms trs t))
-
-  fun aggregate_thms l [] = l
-   | aggregate_thms l (h::t) =
-    case h of
-    (RRules thmlist) =>
-      aggregate_thms (thmlist@l) t 
-    | (Conversion conv) =>
-     aggregate_thms l t
-
-  fun copy_compset_item_thms' old_thms new_transformations to_compset =
-    let
-     val new_thms = aggregate_thms [] new_transformations
-     val _ = computeLib.add_thms (filter_duplicate_thms old_thms new_thms) to_compset
-    in 
-     ()
-    end
-
-  fun copy_compset_item_thms to_compset_items (name, transformations) to_compset =
-   let
-    val existing_entry_transformations =
-     case List.find (fn (a,b) => a = name) to_compset_items of
-       SOME entry => (aggregate_thms []) $ snd entry
-     | NONE => []
-   in
-    copy_compset_item_thms' existing_entry_transformations transformations to_compset
-   end
-  ;
-
- in
- fun copy_compset_thms from_compset to_compset =
-  let
-   val from_compset_items = listItems from_compset
-
-   val to_compset_items = listItems to_compset
-(* Doesn't work if you filter out duplicate entries. This means that some necessary additions are to
- * existing same constants.
-*)
-(*
-   val to_compset_entries = map fst $ listItems to_compset
-   val from_compset_items = filter (fn (name, transformations) => not $ exists (fn el => name = el) to_compset_entries) from_compset_items
-*)
-  in
-   foldl (fn (item, ()) => copy_compset_item_thms to_compset_items item to_compset) ()
-    (from_compset_items)
-  end
- end
- (* TODO: Brute-force solution. Fix later. *)
- val _ = copy_compset_thms computeLib.the_compset hol4p4_compset
-
-
-(* To compare between the two compsets:
-
-(use p4_symb_exec_test1Script or similar to find an init_state)
-
-Using hol4p4_compset:
-   val test_thm = Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV hol4p4_compset) (mk_arch_multi_exec (ctx, astate, 1))
-
-val astate2 = the_final_state test_thm
-
-   val test_thm2 = Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV hol4p4_compset) (mk_arch_multi_exec (ctx, astate2, 1))
-
-(* Doesn't seem the PMATCH conv is critical, since you can evaluate execution without it *)
- val _ = scrub_const computeLib.the_compset “PMATCH”
-Using the_compset:
-   Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV computeLib.the_compset) (mk_arch_multi_exec (ctx, init_astate, 2))
-
-
-To display the transformations in the two different compsets:
-
- val _ = PolyML.print_depth 9001;
-
- val default_thms = fst $ unzip $ listItems computeLib.the_compset;
-
- val custom_thms = fst $ unzip $ listItems hol4p4_compset;
-
- val in_default_notin_custom = filter (fn thm => not $ exists (fn thm' => thm' = thm) custom_thms) default_thms;
-
- val in_custom_notin_default = filter (fn thm => not $ exists (fn thm' => thm' = thm) default_thms) custom_thms;
-
-************************************************************
-
-val convs_in_the_compset = List.filter (fn e => List.exists (fn e' => is_conv e') (snd e)) (listItems computeLib.the_compset)
-val theories_with_convs = map (snd o fst) convs_in_the_compset
-
-val convs_in_hol4p4_compset = List.filter (fn e => List.exists (fn e' => is_conv e') (snd e)) (listItems hol4p4_compset)
-val theories_with_convs = map (snd o fst) convs_in_hol4p4_compset
-
-*)
-
-in
- fun get_HOL4P4_CONV thms_to_add =
-  let
-   val _ = computeLib.add_thms thms_to_add hol4p4_compset
-  in
-   computeLib.CBV_CONV hol4p4_compset
-  end
-end
-
-val HOL4P4_CONV = get_HOL4P4_CONV [];
-
-val HOL4P4_TAC = CONV_TAC HOL4P4_CONV;
-
-val HOL4P4_RULE = Conv.CONV_RULE HOL4P4_CONV;
 
 fun get_b_func_map i ab_list pblock_map =
  let
@@ -742,34 +520,6 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
    end
  end
 ;
-
-(* TODO: Not sure if opening wordsSyntax and fixing the below causes some weirdness *)
-(*
-(* RESTR_HOL4P4_CONV constants: *)
-val p4_stop_eval_consts_unary =
- [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
-  word_2comp_tm
- ];
-val p4_stop_eval_consts_binary =
- [word_mul_tm,
-  word_div_tm,
-  word_mod_tm,
-  word_add_tm,
-  saturate_add_tm,
-  word_sub_tm,
-  saturate_sub_tm,
-  word_lsl_bv_tm, (* TODO: OK to evaluate if second operand has no free variables *)
-  word_lsr_bv_tm, (* TODO: OK to evaluate if second operand has no free variables *)
-  (* “word_and”, (* Should be OK? w2v (v2w [x; F; T] && v2w [y; F; T]) = [x ∧ y; F; T] *) *)
-  (* “word_xor”, (* Should be OK? w2v (v2w [x; F; T] ⊕ v2w [y; F; T]) = [x ⇎ y; F; F] *) *)
-  (* “word_or”, (* Should be OK? w2v (v2w [x; F; T] ‖ v2w [y; F; T]) = [x ∨ y; F; T] *) *)
-  word_ls_tm,
-  word_hs_tm,
-  word_lo_tm,
-  word_hi_tm
-];
-*)
-
 
 (* This simplifies a key until only the match_all application can be reduced next *)
 val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.MAP, optionTheory.THE_DEF, BETA_THM, listTheory.ZIP, v_of_e_def]);
@@ -1475,35 +1225,6 @@ fun p4_regular_step_get_err_msg step_thm =
  end
 ;
 
-(* TODO: Upstream the RESTR_CBV_CONV to main HOL4P4 repo? *)
-
-fun RESTR_CBV_CONV compset clist =
-  Lib.with_flag (stoppers, SOME (same_const_disj_list clist)) (CBV_CONV compset);
-
-fun get_RESTR_HOL4P4_CONV thms_to_add clist =
-  Lib.with_flag (stoppers, SOME (same_const_disj_list clist)) (get_HOL4P4_CONV thms_to_add);
-
-val RESTR_HOL4P4_CONV = get_RESTR_HOL4P4_CONV [];
-
-fun p4_eval_ctxt_gen (stop_consts1, stop_consts2, mk_exec) path_cond astate =
- eval_ctxt_gen stop_consts1 stop_consts2 path_cond (mk_exec astate)
-;
-
-(* TODO: Fix naming for the three below, remove unnecessary abstraction *)
-(* This is just evaluating a term and adding an assumption, without rewriting *)
-(*
-fun norewr_eval_ctxt_gen stop_consts ctxt tm =
-  RESTR_HOL4P4_CONV stop_consts tm
-  |> PROVE_HYP ctxt
-  |> DISCH_CONJUNCTS_ALL
-;
-*)
-fun get_norewr_eval_ctxt_gen stop_consts thms_to_add tm =
-  get_RESTR_HOL4P4_CONV thms_to_add stop_consts tm
-;
-fun p4_get_norewr_eval_ctxt_gen (stop_consts, thms_to_add, mk_exec) astate =
- get_norewr_eval_ctxt_gen stop_consts thms_to_add (mk_exec astate)
-;
 
 (* TODO: Expression reduction debug output *)
 fun dbg_print_e_red (func_map, b_func_map, ext_fun_map) e =
@@ -1963,48 +1684,6 @@ fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
  else res_no_shortcut_e e
 ;
 
-(* TODO: Move *)
-(* TODO: This should simplify the scopes after shortcutting *)
-local
-fun word_conv word =
- if null $ free_vars word
- then HOL4P4_CONV word
- else raise UNCHANGED
-;
-
-val word_convs_unary =
- map
- (fn wordop =>
-  {conv = K (K word_conv),
-   key= SOME ([], mk_comb (wordop, mk_var ("w", wordsSyntax.mk_word_type Type.alpha))),
-   (* TODO: Better names *)
-   name = term_to_string wordop,
-   trace = 2}) p4_stop_eval_consts_unary
-;
-val word_convs_binary =
- map
- (fn wordop =>
-  {conv = K (K word_conv),
-   key= SOME ([], mk_comb (mk_comb (wordop, mk_var ("w", wordsSyntax.mk_word_type Type.alpha)), mk_var ("w'", wordsSyntax.mk_word_type Type.alpha))),
-   (* TODO: Better names *)
-   name = term_to_string wordop,
-   trace = 2}) p4_stop_eval_consts_binary
-;
-
-in
-val p4_wordops_ss =
-  SSFRAG {ac = [],
-          congs = [],
-          convs = word_convs_unary@word_convs_binary,
-          dprocs = [],
-          filter = NONE,
-          name = SOME "p4_wordops_ss",
-          rewrs = []};
-end;
-(*
-val (id, path_cond_thm, step_thm) = el 1 path_cond_step_list
-*)
-
 fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
@@ -2023,8 +1702,8 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
   val astate = the_final_state_imp step_thm
   val multi_exec_tm = mk_arch_multi_exec (ctx, astate, 1);
   val step_thm2 =
-   eval_ctxt_gen (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts)
-                 (stop_consts_never@p4_stop_eval_consts) path_cond
+   eval_ctxt_gen (stop_consts_rewr@stop_consts_never)
+                 (stop_consts_never) path_cond
                  multi_exec_tm;
 *)
 
@@ -2079,7 +1758,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
      (* Function argument reduction *)
      else (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
-    val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_HOL4P4_CONV p4_stop_eval_consts bigstep_tm
+    val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_HOL4P4_CONV_stop_consts bigstep_tm
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Shortcutting ",
@@ -2150,8 +1829,8 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
 				  " ms\n"])
 
     (* DEBUG:
-    val stop_consts1 = (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts);
-    val stop_consts2 = (stop_consts_never@p4_stop_eval_consts);
+    val stop_consts1 = (stop_consts_rewr@stop_consts_never);
+    val stop_consts2 = (stop_consts_never);
     val ctxt = path_cond;
     val tm = (mk_arch_multi_exec (ctx, astate, 1));
     *)
@@ -2286,11 +1965,12 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   val const_actions_tables' = map stringSyntax.fromMLstring const_actions_tables
 
   val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl_conj
+
+  (* TODO: Use eval_ctxt defined below for init_step_thm? *)
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
-  val table_stop_consts = [match_all_tm]
-  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), stop_consts_never, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
   val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
