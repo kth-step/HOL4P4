@@ -417,6 +417,9 @@ val (is_e_lval_tm, mk_is_e_lval, dest_is_e_lval, is_is_e_lval) =
 val (lookup_vexp_tm, mk_lookup_vexp, dest_lookup_vexp, is_lookup_vexp) =
   syntax_fns2 "p4" "lookup_v";
 
+val (lookup_lval_tm, mk_lookup_lval, dest_lookup_lval, is_lookup_lval) =
+  syntax_fns2 "p4" "lookup_lval";
+
 val (lookup_funn_sig_tm, mk_lookup_funn_sig, dest_lookup_funn_sig, is_lookup_funn_sig) =
   syntax_fns4 "p4" "lookup_funn_sig";
 
