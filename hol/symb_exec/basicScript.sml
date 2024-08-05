@@ -1305,40 +1305,6 @@ Definition v1model_update_checksum'_def:
  )
 End
 
-Definition register_read'_def:
- (register_read' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "this")) of
-   | SOME (v_ext_ref i) =>
-    (case ALOOKUP ext_obj_map i of
-     | SOME (INR (v1model_v_ext_register array)) =>
-      (case oEL 0 array of
-       | SOME (bl', n') =>
-        (case assign scope_list (v_bit (REPLICATE n' ARB, n')) (lval_varname (varn_name "result")) of
-         | SOME scope_list' =>
-          SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
-         | NONE => NONE)
-       | NONE => NONE)
-     | _ => NONE)
-   | _ => NONE
- )
-End
-
-Definition register_write'_def:
- (register_write' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-     (case lookup_lval scope_list (lval_varname (varn_name "this")) of
-      | SOME (v_ext_ref i) =>
-       (case ALOOKUP ext_obj_map i of
-        | SOME (INR (v1model_v_ext_register array)) =>
-        (* TODO: Write ARBs to array?
-         let array' = LUPDATE (bl', n') (v2n bl) array in
-         let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_register array')) in
-         *)
-          SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
-        | _ => NONE)
-      | _ => NONE)
- )
-End
-
 val pre_ctx = basic_actx;
 
 (* TODO: Move *)
@@ -1352,9 +1318,7 @@ fun replace_ext_impls ctx_tm [] = ctx_tm
 ;
 
 Definition ctx'_def:
-  ctx' = ^(replace_ext_impls pre_ctx [("", "update_checksum", “v1model_update_checksum'”),
-                                      ("register", "read", “register_read'”),
-                                      ("register", "write", “register_write'”)])
+  ctx' = ^(replace_ext_impls pre_ctx [("", "update_checksum", “v1model_update_checksum'”)])
 End
 
         (*
@@ -1465,9 +1429,9 @@ val const_actions_tables = [];
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val path_cond_defs = [symb_exec_ty_ctx_def, symb_exec_pblock_map_def]
 val init_astate = basic_astate_symb
-val stop_consts_rewr = [“v1model_is_drop_port”]
+val stop_consts_rewr = [“v1model_is_drop_port”, “v1model_register_construct_inner”, “v1model_register_read_inner”, “v1model_register_write_inner”]
 val stop_consts_never = []
-val thms_to_add = [v1model_update_checksum'_def, register_read'_def, register_write'_def]
+val thms_to_add = [v1model_update_checksum'_def]
 val path_cond = ASSUME “^basic_wf_sad_encrypt_tbl_tm /\
                         ^basic_wf_sad_decrypt_tbl_tm /\
                         ^basic_wf_forward_tbl_tm /\
@@ -1477,13 +1441,14 @@ val debug_flag = true;
 val p4_is_finished_alt_opt = NONE (* (SOME (is_finished' 5)) *);
 val postcond = “(\s. (packet_dropped s \/ (?bit_list. get_packet s = SOME bit_list /\ (LENGTH bit_list = 272 \/ LENGTH bit_list = 336 \/ LENGTH bit_list = 400 \/ LENGTH bit_list = 480 \/ LENGTH bit_list = 544)))):v1model_ascope astate -> bool”;
 
-(* TODO: Free variables in register extern objects *)
-
 val time_start = Time.now();
 (* TEST
 
    val (path_tree, res_list) =
  p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, basic_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt 1;
+
+ val (path_tree, res_list) =
+ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, basic_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt 46;
 
 val (path_tree, res_list) =
  p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, basic_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [v1model_update_checksum'_def] path_cond p4_is_finished_alt_opt 110;

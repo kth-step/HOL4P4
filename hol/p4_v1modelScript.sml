@@ -276,13 +276,19 @@ Definition replicate_arb_def:
   REPLICATE length ((REPLICATE width (ARB:bool)), width)
 End
 
+Definition v1model_register_construct_inner_def:
+ (v1model_register_construct_inner length_bl width =
+  replicate_arb (v2n length_bl) width
+ )
+End
+
 Definition register_construct_def:
  (register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
     | SOME (v_bit (bl', n')) =>
-     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (replicate_arb (v2n bl) n'))) in
+     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (v1model_register_construct_inner bl n'))) in
      (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
       | SOME scope_list' =>
        SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
@@ -348,6 +354,12 @@ Definition register_read_def:
  )
 End
         
+Definition v1model_register_write_inner_def:
+ (v1model_register_write_inner update array_index_v (array:(bool list # num) list) =
+  LUPDATE update (v2n array_index_v) array
+ )
+End
+        
 Definition register_write_def:
  (register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
@@ -358,7 +370,7 @@ Definition register_write_def:
       | SOME (v_ext_ref i) =>
        (case ALOOKUP ext_obj_map i of
         | SOME (INR (v1model_v_ext_register array)) =>
-         let array' = LUPDATE (bl', n') (v2n bl) array in
+         let array' = v1model_register_write_inner (bl', n') bl array in
          let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_register array')) in
           SOME ((counter, ext_obj_map', v_map, ctrl), scope_list, status_returnv v_bot)
         | _ => NONE)

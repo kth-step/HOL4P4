@@ -4,6 +4,9 @@ open p4Theory listTheory;
 
 open symb_execTheory;
 
+(* TODO: Hack, sort out *)
+open p4_v1modelTheory;
+
 (* TODO: Split into file used by symbolic execution and file used by contract derivation *)
 val _ = new_theory "p4_symb_exec";
 
@@ -49,6 +52,7 @@ Definition packet_dropped_def:
   | _ => F
 End
 
+(* Note this can be simplified, since HOL4 functions are deterministic *)
 Definition p4_contract_def:
  p4_contract P ctx s Q =
   (P ==> ?n. arch_multi_exec ctx s n <> NONE /\ !s'. arch_multi_exec ctx s n = SOME s' ==> Q s')
@@ -212,6 +216,26 @@ Definition p4_contract'_def:
        !s'. arch_multi_exec ctx s n = SOME s' ==> Q s'
 End
 
+(* Sanity check on the above formulation *)
+Theorem p4_contract'_alt_shape:
+!P ctx Q.
+p4_contract' P ctx Q <=>
+(!s.
+ P s ==>
+ ?n s'. arch_multi_exec ctx s n = SOME s' /\ Q s')
+Proof
+gs[p4_contract'_def] >>
+rpt strip_tac >>
+eq_tac >> (
+ rpt strip_tac >>
+ res_tac >>
+ qexists_tac ‘n’ >>
+ Cases_on ‘arch_multi_exec ctx s n’ >> (
+  gs[]
+ )
+)
+QED
+
 (* TODO: Annoying that entire ascope is used. You can make more efficient versions that only use ctrl, tailored for individual architectures. *)
 Definition v1model_ctrl_is_well_formed_def:
  v1model_ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) ctrl =
@@ -358,6 +382,13 @@ gs[listTheory.EVERY_EL] >>
 res_tac >>
 fs[listTheory.oEL_EQ_EL] >>
 qpat_x_assum ‘(bl,n) = EL i array’ (fn thm => fs [GSYM thm])
+QED
+
+Theorem wellformed_register_array_replicate_arb:
+!m n.
+wellformed_register_array n (replicate_arb m n)
+Proof
+gs[wellformed_register_array_EVERY, replicate_arb_def]
 QED
 
 val _ = export_theory ();
