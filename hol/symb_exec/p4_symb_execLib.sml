@@ -1753,10 +1753,14 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     val (is_local_thm, bigstep_tm) =
      if shortcut_result_eq shortcut res_shortcut
      (* Non-function argument reduction *)
+     then (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+           mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
+(* OLD
      then (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
+*)
      (* Function argument reduction *)
-     else (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     else (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
     val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_HOL4P4_CONV_stop_consts bigstep_tm
 
@@ -1778,9 +1782,6 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
 
     (* Simplify the word operations that contain no free variables *)
     val bigstep_thm' = SIMP_RULE (empty_ss++p4_wordops_ss) [] bigstep_thm
-(*
-    val is_local_thm = EQT_ELIM $ HOL4P4_CONV $ mk_in_local_fun (func_map, arch_frame_list)
-*)
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Simplifying word ops on constants: ",
@@ -1789,14 +1790,6 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
 
     (* DEBUG *)
     val time_start3 = Time.now();
-
-    (* DEBUG *)
-    val _ = dbg_print debug_flag (String.concat ["Proving locality of local fun: ",
-				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start3)),
-				  " ms\n"])
-
-    (* DEBUG *)
-    val time_start4 = Time.now();
 
     val shortcut_comp_thm =
      if shortcut_result_eq shortcut res_shortcut
@@ -1809,7 +1802,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["step_thm composition: ",
-				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start4)),
+				  (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start3)),
 				  " ms\n"])
 
    in

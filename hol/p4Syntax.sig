@@ -337,6 +337,11 @@ val is_e_lval_tm : term
 val is_is_e_lval : term -> bool
 val mk_is_e_lval : term -> term
 
+val dest_lookup_lval : term -> term * term
+val is_lookup_lval : term -> bool
+val lookup_lval_tm : term
+val mk_lookup_lval : term * term -> term
+
 val dest_lookup_funn_sig : term -> term * term * term * term
 val is_lookup_funn_sig : term -> bool
 val lookup_funn_sig_tm : term
