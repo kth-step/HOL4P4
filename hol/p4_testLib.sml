@@ -60,8 +60,16 @@ fun get_ipv4_checksum (version, ihl, dscp, ecn, tl, id, fl, fo, ttl, pr, src, ds
   end
 ;
 
+fun fixedwidth_freevars_fromindex_ty (fname, start_index, width, ty) =
+ mk_list (List.tabulate (width, (fn index => mk_var (fname^(Int.toString (start_index + index)), ty))), ty)
+;
+
+fun fixedwidth_freevars_fromindex (fname, start_index, width) =
+ fixedwidth_freevars_fromindex_ty (fname, start_index, width, bool)
+;
+
 fun fixedwidth_freevars (fname, width) =
- mk_list (List.tabulate (width, (fn index => mk_var (fname^(Int.toString index), bool))), bool)
+ fixedwidth_freevars_fromindex (fname, 0, width)
 ;
 
 (* Creates a bitstring representation of an IPv4 packet, given the
@@ -162,14 +170,18 @@ fun mk_eth_frame_ok data =
   end
 ;
 
+fun mk_symb_packet_prefix prefix nbits =
+ let
+  val bits = fixedwidth_freevars (prefix, nbits);
+ in
+   bits
+ end
+;
+
 (* Creates a packet with nbits free variables as bits *)
 fun mk_symb_packet nbits =
-  let
-    (* All bits have same prefix for now. *)
-    val i = fixedwidth_freevars ("i", nbits);
-  in
-    i
-  end
+ (* All bits have same prefix for now. *)
+ mk_symb_packet_prefix "i" nbits
 ;
 
 (* TODO: Do this smarter, with exceptions *)
@@ -208,6 +220,16 @@ fun the_final_state_hyp_imp step_thm =
   val (hyp, step_tm) = dest_imp $ concl step_thm
  in
   (hyp, optionSyntax.dest_some $ snd $ dest_eq step_tm)
+ end
+;
+
+fun the_final_state_hyp_imp_n step_thm =
+ let
+  val (hyp, step_tm) = dest_imp $ concl step_thm
+  val (exec, final_state) = dest_eq step_tm
+  val steps = #3 $ dest_arch_multi_exec exec
+ in
+  (hyp, optionSyntax.dest_some final_state, steps)
  end
 ;
 
@@ -443,7 +465,7 @@ fun debug_frames_from_step arch actx astate nsteps =
   val (i, in_out_list, in_out_list', scope) = dest_aenv aenv
   val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx
   val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
-  val (pbl_type, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
+  val (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
   val frame_list = dest_arch_frame_list_regular arch_frame_list
  in
   ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))

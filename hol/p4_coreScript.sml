@@ -13,9 +13,10 @@ val _ = new_theory "p4_core";
 (* packet_in:
      https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-packet-data-extraction
 *)
-val _ = Hol_datatype ` 
-core_v_ext =
-   core_v_ext_packet of (bool list)`;
+Datatype:
+ core_v_ext =
+  core_v_ext_packet (bool list)
+End
 
 (* NOTE: Definitions with _gen get specialised later by the different architectures *)
 
@@ -23,7 +24,7 @@ core_v_ext =
 (* Objectless methods *)
 (**********************)
 
-Definition verify_gen:
+Definition verify_gen_def:
  (verify_gen ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "condition")) of
   | SOME (v_bool T) =>
@@ -90,7 +91,7 @@ Definition size_in_bits_def:
 End
 
 (* TODO: Perform this on list only? *)
-Definition size_in_bytes:
+Definition size_in_bytes_def:
  (size_in_bytes (v_header valid_bit x_v_l) =
   case size_in_bits (v_header valid_bit x_v_l) of
   | SOME num => SOME ((num+7) DIV 8)
@@ -98,7 +99,7 @@ Definition size_in_bytes:
  )
 End
 
-Definition header_is_valid:
+Definition header_is_valid_def:
  (header_is_valid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
@@ -107,7 +108,7 @@ Definition header_is_valid:
  )
 End
 
-Definition header_set_valid:
+Definition header_set_valid_def:
  (header_set_valid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
@@ -119,7 +120,7 @@ Definition header_set_valid:
  )
 End
 
-Definition header_set_invalid:
+Definition header_set_invalid_def:
  (header_set_invalid (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_header valid_bit x_v_l) =>
@@ -136,7 +137,7 @@ End
 (* packet_in methods *)
 (*********************)
 
-Definition lookup_ascope_gen:
+Definition lookup_ascope_gen_def:
  (lookup_ascope_gen ascope_lookup (ascope:'a) (ext_ref:num) =
   case ascope_lookup ascope ext_ref of
   | SOME v_ext => SOME (v_ext:(core_v_ext, 'b) sum)
@@ -145,13 +146,13 @@ Definition lookup_ascope_gen:
 End
 
 (* TODO: Is this really needed as a separate function? *)
-Definition update_ascope_gen:
+Definition update_ascope_gen_def:
  (update_ascope_gen ascope_update (ascope:'a) (ext_ref:num) (v_ext:(core_v_ext, 'b) sum) =
   (ascope_update ascope ext_ref v_ext):'a
  )
 End
 
-Definition lookup_lval_header:
+Definition lookup_lval_header_def:
  (lookup_lval_header ss header_lval =
   case lookup_lval ss header_lval of
    | SOME (v_header valid_bit x_v_l) => SOME (valid_bit, x_v_l)
@@ -160,10 +161,10 @@ Definition lookup_lval_header:
 End
 
 (* Partial, but does the job where it is used *)
-Definition set_bool:
+Definition set_bool_def:
  (set_bool packet_in = v_bool (HD packet_in))
 End
-Definition set_bit:
+Definition set_bit_def:
  (set_bit n packet_in = v_bit (TAKE n packet_in, n))
 End
 
@@ -186,21 +187,21 @@ Termination
 WF_REL_TAC `measure ( \ (t, acc, packet_in). v1_size t)`
 End
 
-Definition set_header:
+Definition set_header_def:
  (set_header x_v_l packet_in =
   case set_fields x_v_l [] packet_in of
   | SOME x_v_l' => SOME (v_header T x_v_l')
   | NONE => NONE)
 End
 
-Definition set_struct:
+Definition set_struct_def:
  (set_struct x_v_l packet_in =
   case set_fields x_v_l [] packet_in of
   | SOME x_v_l' => SOME (v_struct x_v_l')
   | NONE => NONE)
 End
 
-Definition set_v:
+Definition set_v_def:
  (set_v (v_bit (bitv, n)) packet_in = SOME (set_bit n packet_in)) /\
  (set_v (v_bool b)        packet_in = SOME (set_bool packet_in)) /\
  (set_v (v_struct x_v_l)  packet_in = (set_struct x_v_l packet_in)) /\
@@ -209,7 +210,7 @@ End
 
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
-Definition packet_in_extract_gen:
+Definition packet_in_extract_gen_def:
  (packet_in_extract_gen ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
@@ -239,7 +240,7 @@ Definition packet_in_extract_gen:
 End
 
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-packet-lookahead *)
-Definition packet_in_lookahead_gen:
+Definition packet_in_lookahead_gen_def:
  (packet_in_lookahead_gen ascope_lookup ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
@@ -269,7 +270,7 @@ End
    https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-skip-bits
 *)
 
-Definition lookup_lval_bit32:
+Definition lookup_lval_bit32_def:
  (lookup_lval_bit32 ss bit32_lval =
   case lookup_lval ss bit32_lval of
    | SOME (v_bit (bitv, 32)) => SOME (v2n bitv)
@@ -277,7 +278,7 @@ Definition lookup_lval_bit32:
  )
 End
 
-Definition packet_in_advance_gen:
+Definition packet_in_advance_gen_def:
  (packet_in_advance_gen ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
@@ -302,7 +303,7 @@ End
 (* packet_out methods *)
 (**********************)
 
-Definition flatten_v_l:
+Definition flatten_v_l_def:
  (flatten_v_l [] = SOME []) /\
  (flatten_v_l (h::t) =
   case h of
@@ -342,7 +343,7 @@ End
 
 (* TODO: Should also support emission from: header stack and header union *)
 (* Note: Nested headers are not allowed, so this is only checked at top level *)
-Definition packet_out_emit_gen:
+Definition packet_out_emit_gen_def:
  (packet_out_emit_gen (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
@@ -371,7 +372,7 @@ End
 (* Checksum *)
 (************)
 
-Definition header_entries2v:
+Definition header_entries2v_def:
  (header_entries2v [] = SOME []) /\
  (header_entries2v (h::t) =
   case header_entry2v h of
@@ -403,11 +404,11 @@ WF_REL_TAC `measure LENGTH` >>
 fs []
 End
 
-Definition v2w16s:
+Definition v2w16s_def:
  (v2w16s v = if (LENGTH v) MOD 16 = 0 then SOME (v2w16s' v) else NONE)
 End
 
-Definition get_checksum_incr:
+Definition get_checksum_incr_def:
  (get_checksum_incr scope_list ext_data_name =
    (case lookup_lval scope_list ext_data_name of
     | SOME (v_bit (bl, n)) =>

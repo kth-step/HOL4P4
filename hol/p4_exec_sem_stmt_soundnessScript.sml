@@ -33,7 +33,7 @@ Proof
 fs [stmt_exec_sound] >>
 rpt strip_tac >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 pairLib.PairCases_on `ctx` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
@@ -58,7 +58,7 @@ Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 pairLib.PairCases_on `ctx` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
@@ -74,7 +74,7 @@ Cases_on `stmt_stack` >> (
  metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_e", clause_name_def],
 
  Cases_on `e` >> (
-  fs [get_v]
+  fs [get_v_def]
  ) >>
  metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_v", clause_name_def],
 
@@ -83,7 +83,7 @@ Cases_on `stmt_stack` >> (
  metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_e", clause_name_def],
 
  Cases_on `e` >> (
-  fs [get_v]
+  fs [get_v_def]
  ) >>
  irule (specl_stmt_block_exec ``stmt_ret e`` ``[]:frame_list`` ``[stmt_empty]``) >>
  fs [clause_name_def] >>
@@ -99,7 +99,7 @@ Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 pairLib.PairCases_on `ctx` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
@@ -111,13 +111,13 @@ Cases_on `is_v e` >> (
  fs []
 ) >| [
  Cases_on `e` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  Cases_on `v` >> (
-  fs [is_v_str]
+  fs [is_v_str_def]
  ) >>
  rw [] >>
- fs [stmt_exec_trans] >>
+ fs [stmt_exec_trans_def] >>
  Cases_on `stmt_stack` >| [
   metis_tac [(valOf o find_clause_stmt_red) "stmt_trans", clause_name_def],
 
@@ -147,7 +147,7 @@ pairLib.PairCases_on `ctx` >>
 rename1 `(ctx0, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 pairLib.PairCases_on `state'` >>
 rename1 `(state'0,g_scope_list',state'2,state'3)` >>
@@ -211,17 +211,17 @@ pairLib.PairCases_on `state'` >>
 rename1 `(state'0,g_scope_list',state'2,state'3)` >>
 rename1 `(ascope',g_scope_list',frame_list',status')` >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 fs [exec_stmt_ass_SOME_REWRS] >>
 Cases_on `is_v e` >> (
  fs []
 ) >| [
  Cases_on `e` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  rw [] >>
- fs [stmt_exec_ass] >>
+ fs [stmt_exec_ass_def] >>
  Cases_on `stmt_stack` >| [
   ALL_TAC,
 
@@ -252,7 +252,7 @@ Proof
 fs [stmt_exec_sound] >>
 rpt strip_tac >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 pairLib.PairCases_on `ctx` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
@@ -264,7 +264,7 @@ Cases_on `is_empty s1` >> (
  fs []
 ) >| [
  Cases_on `s1` >> (
-  fs [is_empty]
+  fs [is_empty_def]
  ) >>
  Cases_on `stmt_stack` >| [
   ALL_TAC,
@@ -331,7 +331,7 @@ Proof
 fs [stmt_exec_sound, e_exec_sound] >>
 rpt strip_tac >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 pairLib.PairCases_on `ctx` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
@@ -343,16 +343,16 @@ Cases_on `is_v_bool e` >> (
  fs []
 ) >| [
  Cases_on `e` >> (
-  fs [is_v_bool]
+  fs [is_v_bool_def]
  ) >>
  Cases_on `v` >> (
-  fs [is_v_bool]
+  fs [is_v_bool_def]
  ) >>
  Cases_on `b` >> (
   fs []
  ) >> (
   Cases_on `b'` >> (
-   fs [stmt_exec_cond]
+   fs [stmt_exec_cond_def]
   )
  ) >| [
   Cases_on `stmt_stack` >| [
@@ -393,7 +393,7 @@ Proof
 fs [stmt_exec_sound] >>
 rpt strip_tac >>
 Cases_on `status` >> (
- fs [stmt_exec]
+ fs [stmt_exec_def]
 ) >>
 pairLib.PairCases_on `ctx` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
@@ -423,7 +423,7 @@ rpt strip_tac >| [
  fs [stmt_exec_sound] >>
  rpt strip_tac >>
  Cases_on `status` >> Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
-  fs [stmt_exec]
+  fs [stmt_exec_def]
  ) >>
  rw [] >>
  irule ((valOf o find_clause_stmt_red) "stmt_block_exit") >>
@@ -462,10 +462,10 @@ Cases_on `stmt_stack` >> (
  fs [stmt_stack_exec_sound] >>
  rpt strip_tac >>
  Cases_on `status` >> (
-  fs [stmt_exec]
+  fs [stmt_exec_def]
  ) >>
  Cases_on `scope_list` >> (
-  fs [stmt_exec]
+  fs [stmt_exec_def]
  )
 ) >>
 assume_tac (SPECL [``type:'a itself``, ``h:stmt``] stmt_exec_sound_red) >>
