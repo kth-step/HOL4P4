@@ -27,4 +27,19 @@ val v1model_func_map : term
 
 val dest_v1model_ascope : term -> term * term * term * term
 
+val dest_v1model_register_construct_inner : term -> term * term
+val is_v1model_register_construct_inner : term -> bool
+val mk_v1model_register_construct_inner : term * term -> term
+val v1model_register_construct_inner_tm : term
+
+val dest_v1model_register_read_inner : term -> term * term * term
+val is_v1model_register_read_inner : term -> bool
+val mk_v1model_register_read_inner : term * term * term -> term
+val v1model_register_read_inner_tm : term
+
+val dest_v1model_register_write_inner : term -> term * term * term
+val is_v1model_register_write_inner : term -> bool
+val mk_v1model_register_write_inner : term * term * term -> term
+val v1model_register_write_inner_tm : term
+
 end

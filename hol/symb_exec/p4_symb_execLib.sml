@@ -10,7 +10,7 @@ open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
 open auxLib symb_execLib p4_bigstepSyntax;
 
-open p4_convLib;
+open p4_convLib p4_symb_exec_v1modelLib;
 
 val ERR = mk_HOL_ERR "p4_symb_exec"
 
@@ -1018,13 +1018,13 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
       val ext_obj = stringSyntax.fromHOLstring ext_obj_tm
      in
       if (ext_obj = "register")
-      then
+      then approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list
+(*
        let
 	(* Array size *)
 	val array_size = fst $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "size"))”
 	val targ1_width = snd $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "targ1"))”
 
-	val ascope = #4 $ dest_aenv aenv
 	(* TODO: V1Model *)
 	val tm1 = “v1model_register_construct_inner ^array_size ^targ1_width”
 
@@ -1072,6 +1072,7 @@ val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; AR
        in
 	SOME (approx_thm, [fv_index+1])
        end
+*)
       else NONE
      end
     else if is_funn_ext funn
@@ -1081,9 +1082,11 @@ val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; AR
       val (ext_obj_tm, ext_method_tm) = dest_funn_ext funn
       val ext_obj = stringSyntax.fromHOLstring ext_obj_tm
       val ext_method = stringSyntax.fromHOLstring ext_method_tm
+      val ascope = #4 $ dest_aenv aenv
      in
       if (ext_obj = "register") andalso (ext_method = "read")
-      then
+      then approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope
+(*
        let
 	(* 1. Get first entry of register array (for entry width) *)
 	val array_index = fst $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "index"))”
@@ -1175,6 +1178,7 @@ val array2 = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; A
        in
 	SOME (approx_thm', [fv_index+(int_of_term entry_width)])
        end
+*)
       else NONE
      end
     else NONE

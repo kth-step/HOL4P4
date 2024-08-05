@@ -94,4 +94,13 @@ fun dest_v1model_ascope v1model_ascope =
  end
 ;
 
+val (v1model_register_construct_inner_tm,  mk_v1model_register_construct_inner, dest_v1model_register_construct_inner, is_v1model_register_construct_inner) =
+  syntax_fns2 "p4_v1model" "v1model_register_construct_inner";
+
+val (v1model_register_read_inner_tm,  mk_v1model_register_read_inner, dest_v1model_register_read_inner, is_v1model_register_read_inner) =
+  syntax_fns3 "p4_v1model" "v1model_register_read_inner";
+
+val (v1model_register_write_inner_tm,  mk_v1model_register_write_inner, dest_v1model_register_write_inner, is_v1model_register_write_inner) =
+  syntax_fns3 "p4_v1model" "v1model_register_write_inner";
+
 end
