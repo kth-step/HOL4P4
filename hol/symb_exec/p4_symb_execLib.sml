@@ -1478,7 +1478,7 @@ fun p4_e_is_shortcuttable e =
    | _ => e_shortcut)
  else if is_e_binop e
  then
-  (case p4_e_is_shortcuttable $ #2 $ dest_e_binop e of
+  (case p4_e_is_shortcuttable $ #1 $ dest_e_binop e of
      e_no_shortcut e' => e_no_shortcut e'
    | e_shortcut => e_shortcut
    | e_fully_reduced =>
@@ -1492,7 +1492,8 @@ fun p4_e_is_shortcuttable e =
  else if is_e_slice e
  then p4_e_is_shortcuttable $ #1 $ dest_e_slice e
  (* Expressions with shortcuttable subexpressions *)
-(* TODO: Requires keeping track of argument direction in big-step semantics
+(* TODO: Requires keeping track of argument direction in big-step semantics *)
+(*
  else if is_e_call e
  then p4_e_l_is_shortcuttable $ fst $ dest_list $ snd $ dest_e_call e
 *)
@@ -1676,16 +1677,26 @@ and contains_e_call_list (h::t) =
 (* Is function argument reduction shortcuttable? *)
 fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
  (* TODO: Currently, nested calls are not handled by the bigstep semantics and must be ruled out here. *)
- if is_e_call e andalso (not $ contains_e_call_list $ fst $ dest_list $ snd $ dest_e_call e)
- then
-  (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
-     SOME e' =>
-    (case p4_e_is_shortcuttable e' of
-       e_no_shortcut e'' => res_no_shortcut_e e''
-     | e_fully_reduced => res_no_shortcut_e e'
-     | e_shortcut => res_f_args_shortcut)
-   | NONE => res_no_shortcut_e e)
- else res_no_shortcut_e e
+ let
+  val (funn, e_list_tm) = dest_e_call e
+  val d_list = get_funn_dirs funn (func_map, b_func_map, ext_fun_map)
+  val e_list = fst $ dest_list $ e_list_tm
+ in
+  if is_e_call e andalso (not $ contains_e_call_list e_list)
+  then
+   (case e_get_next_subexp_syntax_f_args (func_map, b_func_map, ext_fun_map) (zip e_list d_list) 0 of
+      SOME (f, i) =>
+     let
+      val e' = (el (i+1) e_list)
+     in
+      (case p4_e_is_shortcuttable e' of
+	 e_no_shortcut e'' => res_no_shortcut_e e''
+       | e_fully_reduced => res_no_shortcut_e e'
+       | e_shortcut => res_f_args_shortcut)
+     end
+    | NONE => res_no_shortcut_e e)
+  else res_no_shortcut_e e
+ end
 ;
 
 fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm use_eval_in_ctxt step_thm =
@@ -1717,6 +1728,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
   val stmt_funn_opt = arch_frame_list_get_top_funn_stmt arch_frame_list
   val shortcut =
    case stmt_funn_opt of
+(* val SOME (funn, stmt) = stmt_funn_opt *)
      SOME (funn, stmt) =>
     (* TODO: Temporary hack to restrict application of big-step semantics
      * to control block + block-local functions *)
@@ -1727,10 +1739,11 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     then
      (case p4_is_shortcuttable (funn, stmt) func_map of
 	res_shortcut => res_shortcut
-      | res_no_shortcut_e e => res_no_shortcut_e e
-(*
-       p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
-*)
+      | res_no_shortcut_e e => (* val res_no_shortcut_e e = p4_is_shortcuttable (funn, stmt) func_map *)
+       if is_e_call e
+       then
+        p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
+       else res_no_shortcut_e e
       | other => other)
     else res_no_shortcut_arch
    | NONE => res_no_shortcut_arch

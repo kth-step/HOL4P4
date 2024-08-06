@@ -240,7 +240,7 @@ rpt strip_tac >>
 PairCases_on ‘h’ >>
 gs[e_size_def]
 End
-(*
+
 (* TODO: No reduction to L-values, for now *)
 Definition bigstep_f_arg_exec'_def:
  (bigstep_f_arg_exec' scope_lists (d,e) n =
@@ -290,19 +290,16 @@ Definition bigstep_f_arg_exec_def:
    | NONE => SOME (e_l, n))
  )
 End
-*)
 
 Definition bigstep_stmt_exec_def:
  (bigstep_stmt_exec (func_maps_opt:(func_map # b_func_map # 'a ext_map) option) scope_lists (stmt_ass lval e) n =
  (* Note that reduction of e_call arguments on top level only is allowed *)
- (*
   (case e of
    | e_call funn e_l =>
     (case bigstep_f_arg_exec func_maps_opt scope_lists (funn, e_l) n of
      | SOME (e_l', n') => SOME (stmt_ass lval (e_call funn e_l'), scope_lists, n')
      | NONE => NONE)
    | _ =>
- *)
     (case bigstep_e_exec scope_lists (INL e) n of
      | SOME (INL e', n') =>
       if is_v e'
@@ -313,7 +310,7 @@ Definition bigstep_stmt_exec_def:
         | NONE => NONE)
       else SOME (stmt_ass lval e', scope_lists, n')
      | _ => NONE))
-      (* ) *)
+      )
   /\
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_seq stmt1 stmt2) n =
   if is_empty stmt1
@@ -341,18 +338,16 @@ Definition bigstep_stmt_exec_def:
    | _ => NONE))
   /\
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_cond e stmt1 stmt2) n =
-(*
   (case e of
    | e_call funn e_l =>
     (case bigstep_f_arg_exec func_maps_opt scope_lists (funn, e_l) n of
      | SOME (e_l', n') => SOME (stmt_cond (e_call funn e_l') stmt1 stmt2, scope_lists, n')
      | NONE => NONE)
    | _ =>
-*)
     (case bigstep_e_exec scope_lists (INL e) n of
      | SOME (INL e', n') =>
       SOME (stmt_cond e' stmt1 stmt2, scope_lists, n')
-     | _ => NONE)) (* ) *)
+     | _ => NONE)) )
   /\
  (bigstep_stmt_exec func_maps_opt scope_lists (stmt_app t_name e_l) n =
   (case bigstep_e_exec scope_lists (INR e_l) n of
@@ -611,15 +606,15 @@ eq_tac >> (
 QED
 
 val bigstep_e_exec_ind_hyp_tac =
- PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
+ qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
  gs[e_size_def] >>
  res_tac >>
  decide_tac
 ;
 
 val bigstep_e_exec_2_ind_hyp_tac =
- PAT_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
- PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
+ qpat_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x)’] thm)) >>
+ qpat_x_assum ‘!y. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘(INL x')’] thm)) >>
  gs[e_size_def] >>
  res_tac >>
  decide_tac
@@ -4121,18 +4116,16 @@ Induct_on ‘stmt’ >> (
   imp_res_tac stmt_exec_ass_LENGTH >>
   gs[]
  ) >>
-(* 
  Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
   gs[bigstep_f_arg_exec_def]
  ) >>
-*)
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[]
   )
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
@@ -4168,10 +4161,10 @@ Induct_on ‘stmt’ >> (
    imp_res_tac bigstep_e_exec_unchanged >>
    gs[]
   )
- ) (* >>
+ ) >>
  Cases_on ‘e’ >> (
   gs[]
- ) *),
+ ),
 
  (* Conditional *)
  gs[bigstep_stmt_exec_def] >>
@@ -4183,18 +4176,16 @@ Induct_on ‘stmt’ >> (
   ) >>
   gs[bigstep_e_exec_def, is_v_def]
  ) >>
-(*
  Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
   gs[bigstep_f_arg_exec_def]
  ) >>
-*)
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[]
   )
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
@@ -4213,10 +4204,10 @@ Induct_on ‘stmt’ >> (
    imp_res_tac bigstep_e_exec_unchanged >>
    gs[]
   )
- ) (*>>
+ ) >>
  Cases_on ‘e’ >> (
   gs[]
- ) *),
+ ),
  
  (* block *)
  gs[bigstep_stmt_exec_def],
@@ -4318,7 +4309,7 @@ Induct_on ‘stmt’ >> (
 ]
 QED
 
-(*
+
 Theorem bigstep_f_arg_exec_l_imp:
 !d_e_l e_l' scope_lists n m.
 bigstep_f_arg_exec_l scope_lists d_e_l n = SOME (e_l', m) ==>
@@ -4387,7 +4378,6 @@ Cases_on ‘l1’ >> (
  gvs[oZIP_def, AllCaseEqs()]
 )
 QED
-*)
 
 (* TODO: Merge with the above? *)
 Theorem bigstep_stmt_exec_SOME_imp:
@@ -4418,7 +4408,6 @@ Induct_on ‘stmt’ >> (
   imp_res_tac stmt_exec_ass_LENGTH >>
   gs[]
  ) >>
-(*
  Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
   gs[bigstep_f_arg_exec_def] >>
   imp_res_tac bigstep_f_arg_exec_l_imp >>
@@ -4429,17 +4418,16 @@ Induct_on ‘stmt’ >> (
   gvs[] >>
   metis_tac[oZIP_lemma]
  ) >>
-*)
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[AllCaseEqs()]
   ) >>
   imp_res_tac bigstep_f_arg_exec_l_imp >>
   gvs[] >>
   metis_tac[oZIP_lemma]
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
@@ -4458,11 +4446,9 @@ Induct_on ‘stmt’ >> (
     gvs[is_v_def] >>
     imp_res_tac bigstep_e_exec_incr >>
     imp_res_tac stmt_exec_ass_LENGTH >>
-(*
     imp_res_tac bigstep_f_arg_exec_l_imp >>
-*)
     gs[] >>
-    metis_tac[(* oZIP_lemma *) ]
+    metis_tac[oZIP_lemma]
    )
   ) >> (
    Cases_on ‘e’ >> (
@@ -4481,7 +4467,7 @@ Induct_on ‘stmt’ >> (
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
    gs[]
-  ) (* >- (
+  ) >- (
    imp_res_tac oZIP_lemma >>
    gvs[] >>
    imp_res_tac bigstep_f_arg_exec_l_imp >>
@@ -4490,8 +4476,8 @@ Induct_on ‘stmt’ >> (
   imp_res_tac oZIP_lemma >>
   gvs[] >>
   imp_res_tac bigstep_f_arg_exec_l_imp >>
-  metis_tac[] *)
- ) (* >>
+  metis_tac[]
+ ) >>
  Cases_on ‘e’ >> (
   gs[is_v_def] >>
   gvs[is_v_def, AllCaseEqs()] >>
@@ -4509,7 +4495,7 @@ Induct_on ‘stmt’ >> (
   gvs[] >>
   imp_res_tac bigstep_f_arg_exec_l_imp >>
   metis_tac[]
- ) *),
+ ),
 
  (* Conditional *)
  gs[bigstep_stmt_exec_def] >>
@@ -4521,7 +4507,6 @@ Induct_on ‘stmt’ >> (
   ) >>
   gs[bigstep_e_exec_def, is_v_def]
  ) >>
-(*
  Cases_on ‘?funn' e_l. e = e_call funn e_l’ >> (
   gs[bigstep_f_arg_exec_def]
  ) >- (
@@ -4530,17 +4515,16 @@ Induct_on ‘stmt’ >> (
   imp_res_tac bigstep_f_arg_exec_l_imp >>
   metis_tac[]
  ) >>
-*)
  Cases_on ‘bigstep_e_exec scope_lists (INL e) n’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[AllCaseEqs()]
   ) >>
   imp_res_tac oZIP_lemma >>
   imp_res_tac bigstep_f_arg_exec_l_imp >>
   metis_tac[]
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
@@ -4557,20 +4541,20 @@ Induct_on ‘stmt’ >> (
     gvs[]
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   gs[] (* >> (
+   gs[] >> (
     imp_res_tac oZIP_lemma >>
     imp_res_tac bigstep_f_arg_exec_l_imp >>
     metis_tac[]
-   ) *)
+   )
   )
- ) (* >>
+ ) >>
  Cases_on ‘e’ >> (
   gs[AllCaseEqs()]
  ) >>
  imp_res_tac bigstep_f_arg_exec_l_imp >>
  gs[] >>
  imp_res_tac oZIP_lemma >>
- metis_tac[] *),
+ metis_tac[],
  
  (* block *)
  gs[bigstep_stmt_exec_def],
@@ -4691,7 +4675,7 @@ res_tac >>
 gs[]
 QED
 
-        (*
+
 (**************************************)
 (* Approach: add indices to arguments *)
 (**************************************)
@@ -5057,7 +5041,6 @@ res_tac >>
 fs[stmt_exec_def, stmt_multi_exec'_check_state_def]
 *)
 QED
-*)
 
 Theorem bigstep_stmt_exec_sound_n:
 !n n' scope_list scope_lists' scope_list' funn ascope stmt stmt' top_scope g_scope1 g_scope2 g_scope_list' ctx.
@@ -5079,7 +5062,6 @@ Induct_on ‘stmt’ >- (
  (* assignment *)
  gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
-(*
  (* Rule this out first... *)
  Cases_on ‘?funn e_l. e = e_call funn e_l’ >- (
   gs[] >>
@@ -5112,14 +5094,13 @@ Induct_on ‘stmt’ >- (
    fs[separate_def, SUC_ADD_ONE, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
   )
  ) >>
-*)
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[]
   )
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
@@ -5169,15 +5150,14 @@ Induct_on ‘stmt’ >- (
    irule scope_lists_separate >>
    gs[]
   )
- ) (* >>
+ ) >>
  Cases_on ‘e’ >> (
   gvs[]
- ) *)
+ )
 ) >- (
  (* conditional *)
  gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
-(*
  (* Rule this out first... *)
  Cases_on ‘?funn e_l. e = e_call funn e_l’ >- (
   gs[] >>
@@ -5210,14 +5190,13 @@ Induct_on ‘stmt’ >- (
    fs[stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
   )
  ) >>
-*)
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[]
   )
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
@@ -5485,7 +5464,6 @@ Induct_on ‘stmt’ >- (
  (* assignment *)
  gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
-(* 
  (* Rule this out first... *)
  Cases_on ‘?funn e_l. e = e_call funn e_l’ >- (
   gs[] >>
@@ -5534,14 +5512,13 @@ Induct_on ‘stmt’ >- (
   gs[is_v_def] >>
   cheat
  ) >>
-*)
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[bigstep_e_exec_def, AllCaseEqs()]
   )
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
@@ -5591,16 +5568,15 @@ Induct_on ‘stmt’ >- (
    irule scope_lists_separate >>
    gs[]
   )
- ) (* >>
+ ) >>
  Cases_on ‘e’ >> (
   gvs[]
- ) *)
+ )
 ) >- (
 
  (* conditional *)
  gs[bigstep_stmt_exec_def] >>
  rpt strip_tac >>
-(*
  (* Rule this out first... *)
  Cases_on ‘?funn e_l. e = e_call funn e_l’ >- (
   gs[] >>
@@ -5649,14 +5625,13 @@ Induct_on ‘stmt’ >- (
   gs[is_v_def] >>
   cheat
  ) >>
-*)
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
   gs[]
- ) (* >- (
+ ) >- (
   Cases_on ‘e’ >> (
    gs[]
   )
- ) *) >>
+ ) >>
  PairCases_on ‘x’ >>
  gs[] >>
  Cases_on ‘x0’ >> (
