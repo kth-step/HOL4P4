@@ -1440,6 +1440,7 @@ val n_max = 300;
 val debug_flag = true;
 val p4_is_finished_alt_opt = NONE (* (SOME (is_finished' 5)) *);
 val postcond = “(\s. (packet_dropped s \/ (?bit_list. get_packet s = SOME bit_list /\ (LENGTH bit_list = 272 \/ LENGTH bit_list = 336 \/ LENGTH bit_list = 400 \/ LENGTH bit_list = 480 \/ LENGTH bit_list = 544)))):v1model_ascope astate -> bool”;
+val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def, p4_symb_execTheory.get_packet_def, p4_symb_execTheory.packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def];
 
 val time_start = Time.now();
 (* TEST
@@ -1465,7 +1466,7 @@ Single thread yields
   Finished rewriting step theorems to contract format in 0s, trying to unify contracts...
   Finished unification of all contracts in 170s." (19m, 11s)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);

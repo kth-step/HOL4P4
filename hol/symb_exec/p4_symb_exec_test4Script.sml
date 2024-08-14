@@ -187,6 +187,7 @@ val stop_consts_never = []
 val path_cond = ASSUME “e8 = T”
 val n_max = 50;
 val postcond = “(\s. ~(packet_has_port s 1)):v1model_ascope astate -> bool”;
+val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
@@ -215,6 +216,6 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty ctx (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty (def_term ctx) (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond postcond_rewr_thms;
 
 val _ = export_theory ();

@@ -2,24 +2,23 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open p4Theory;
 
-open p4_symb_execLib;
+open p4_symb_execTheory p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test2";
+val _ = new_theory "p4_symb_exec_test1_decomp";
 
-(* Test 2:
+(* Test 1:
  * There's a single if-statement that branches on symbolic bits.
- * Postcondition holds only for the then-branch.
- * The precondition states that the then-branch should be taken.
+ * Postcondition holds regardless of which path was taken.
  *
- * This tests if basic pruning works. *)
+ * This tests if basic branching and unification works. *)
 
-val symb_exec2_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
+val symb_exec1_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
 
-val symb_exec2_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
+val symb_exec1_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
 
-val symb_exec2_pblock_action_names_map = ``[]:((string, (string, string list) alist) alist)``;
+val symb_exec1_pblock_action_names_map = ``[]:((string, (string, string list) alist) alist)``;
 
-val symb_exec2_actx = ``([arch_block_inp;
+val symb_exec1_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
      e_var (varn_name "meta"); e_var (varn_name "standard_metadata")];
@@ -127,7 +126,7 @@ val symb_exec2_actx = ``([arch_block_inp;
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
-val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
+val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),
  [[(varn_name "gen_apply_result",
     v_struct
@@ -135,42 +134,75 @@ val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
        ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate”;
 
-
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
-val debug_flag = true
+val debug_flag = true;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
-val ctx = symb_exec2_actx
-val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec2_ftymap, symb_exec2_blftymap, symb_exec2_pblock_action_names_map)
+val ctx = symb_exec1_actx
+val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec1_ftymap, symb_exec1_blftymap, symb_exec1_pblock_action_names_map)
 val const_actions_tables = []
 val path_cond_defs = []
-val init_astate = symb_exec2_astate_symb
+val init_astate = symb_exec1_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME “v2w [e1; e2; e3; e4; e5; e6; e7; e8] <+ (v2w [T; F; F; F; F; F; F; F]):word8”
+val path_cond = (ASSUME T)
 val p4_is_finished_alt_opt = NONE
-val fuel = 2
 val n_max = 50;
-val postcond = “(\s. packet_has_port s 1):v1model_ascope astate -> bool”;
+val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
-(* For debugging:
-val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
+
+
+(* State finish criterion: "parser just finished" *)
+val block_index_stop = “2”
+val p4_is_finished_alt_opt1 = SOME (fn step_thm => Teq $ rhs $ concl $ EVAL “p4_block_next ^(optionSyntax.dest_some $ rhs $ snd $ dest_imp $ concl step_thm) ^block_index_stop”);
+
+
+(* TODO: Why does the initial state not have anything mapped to by ext reference 1? *)
+(* Get well-formedness property after parser block just finished *)
+val p4_v1model_parser_wellformed_def = (fn defn => let val _ = Defn.save_defn defn in Defn.fetch_eqns defn end) $ get_v1model_wellformed_defs ctx init_astate;
+
+
+(* Define ctx outside p4_symb_execLib, to avoid re-definitions *)
+val ctx_name = "ctx"
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
+
+(* Get intermediate state *)
+val (path_tree1, res_list1) =
+ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt1 50;
+val (fv_index1, disj_thm1, step_thm1) = hd res_list1
+
+(*
+(* Test: Does the well-formedness property hold in the intermediate state? *)
+val wellformed_ok_thm = prove(“p4_v1model_parser_wellformed ^(optionSyntax.dest_some $ rhs $ snd $ dest_imp $ concl step_thm1)”,
+(* Extremely inefficient, but does the job *)
+gs[p4_v1model_parser_wellformed_def]
+);
 *)
 
-(* For debugging, branch happens here:
-val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
- symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+(* 1. Prove a contract from initial to intermediate state *)
+val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
+                      p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8)):v1model_ascope astate -> bool”;
+val postcond_rewr_thms1 = [p4_v1model_parser_wellformed_def, p4_v1model_lookup_avar_def, lookup_lval_def, p4_v1modelTheory.v_map_to_scope_def]
+(* DEBUG
 
-val const_actions_tables = []
-val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "ctx" (mk_eq(mk_var("ctx", type_of ctx), ctx))
-val (fty_map, b_fty_map) = (symb_exec2_ftymap, symb_exec2_blftymap)
+val p4_is_finished_alt_opt = p4_is_finished_alt_opt1
+val postcond = postcond1
+val postcond_rewr_thms = postcond_rewr_thms1
 
-val (path_tree, [(id, path_cond_res, step_thm)]) = p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE 17;
 *)
+val contract_thm1 = p4_symb_exec_prove_contract debug_flag arch_ty (def_thm ctx_def) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt1 n_max postcond1 postcond_rewr_thms1;
 
-(* Finishes at 45 steps (one step of which is a symbolic branch)
- * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE n_max postcond postcond_rewr_thms;
+(* 2. Introduce a new initial state from the fact that p4_v1model_parser_wellformed holds.
+ *    The weakest possible state that satisfies WF: this is the state where all
+ *    the existentially quantified variables are free variables. This can be obtained from the
+ *    definition *)
+val init_astate2 = rhs $ snd $ strip_exists $ rhs $ snd $ dest_forall $ concl p4_v1model_parser_wellformed_def;
+
+(* 3. Prove a contract from the intermediate to final state *)
+val contract_thm2 = p4_symb_exec_prove_contract debug_flag arch_ty (def_thm ctx_def) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate2 stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
+
+(* 4. Combine the contracts *)
+val combined_contract = p4_combine_contracts contract_thm1 contract_thm2 p4_v1model_parser_wellformed_def;
 
 val _ = export_theory ();

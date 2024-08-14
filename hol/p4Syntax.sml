@@ -158,6 +158,8 @@ val (funn_ext_tm, _, dest_funn_ext, is_funn_ext) =
 val mk_funn_ext =
 (#2 (syntax_fns2 "p4" "funn_ext")) o (fn (objname, metname) => (fromMLstring objname, fromMLstring metname));
 
+val funn_ty = mk_type ("funn", []);
+
 (*****)
 (* e *)
 (*****)
@@ -326,11 +328,14 @@ fun mk_stmt_seq_list [] = stmt_empty_tm
 
 val d_ty = mk_type ("d", []);
 
+val stmt_stack_ty = mk_list_type $ mk_type ("stmt", []);
+
 (*********)
 (* State *)
 (*********)
 
 val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty));
+val scope_stack_ty = mk_list_type $ scope_ty;
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
 fun is_status_running tm = term_eq tm status_running_tm;
@@ -341,10 +346,15 @@ val (status_trans_tm,  mk_status_trans, dest_status_trans, is_status_trans) =
 val (status_returnv_tm,  mk_status_returnv, dest_status_returnv, is_status_returnv) =
   syntax_fns1 "p4" "status_returnv";
 
+val frame_ty = list_mk_prod [funn_ty, stmt_stack_ty, scope_stack_ty];
+
 fun dest_frame frame =
  case spine_pair frame of
     [funn, stmt_stack, scope_list] => (funn, stmt_stack, scope_list)
   | _ => raise (ERR "dest_frame" ("Unsupported frame shape: "^(term_to_string frame)))
+;
+fun mk_frame (funn, stmt_stack, scope_stack) =
+ list_mk_pair [funn, stmt_stack, scope_stack]
 ;
 
 (********)
@@ -372,6 +382,9 @@ fun dest_astate astate =
     [aenv, g_scope_list, arch_frame_list, status] => (aenv, g_scope_list, arch_frame_list, status)
   | _ => raise (ERR "dest_astate" ("Unsupported astate shape: "^(term_to_string astate)))
 ;
+fun mk_astate (aenv, g_scope_list, arch_frame_list, status) =
+ list_mk_pair [aenv, g_scope_list, arch_frame_list, status]
+;
 (* TODO: Is this a hack? *)
 fun dest_aenv aenv =
  let
@@ -381,6 +394,9 @@ fun dest_aenv aenv =
  in
   (i, io_list, io_list', ascope)
  end
+;
+fun mk_aenv (i, io_list, io_list', ascope) =
+ list_mk_pair [i, io_list, io_list', ascope]
 ;
 
 fun dest_pblock pblock =

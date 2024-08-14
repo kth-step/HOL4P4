@@ -278,7 +278,10 @@ val is_status_returnv : term -> bool
 val mk_status_returnv : term -> term
 val status_returnv_tm : term
 
+val frame_ty : hol_type
+
 val dest_frame : term -> term * term * term
+val mk_frame : term * term * term -> term
 
 val arch_block_pbl_tm : term
 val dest_arch_block_pbl : term -> term * term
@@ -297,7 +300,9 @@ val dest_actx :
    term ->
      term * term * term * term * term * term * term * term * term * term
 val dest_astate : term -> term * term * term * term
+val mk_astate : term * term * term * term -> term
 val dest_aenv : term -> term * term * term * term
+val mk_aenv : term * term * term * term -> term
 val dest_pblock : term -> term * term * term * term * term * term
 
 val dest_e_red : term -> term * term * term * term * term * term

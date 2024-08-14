@@ -14,32 +14,51 @@ open auxLib symb_execLib p4_bigstepSyntax;
 (* TODO: Note that this list of includes relies upon the heap that is used *)
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open computeLib;
+open wordsSyntax computeLib;
 open p4Syntax;
 open evalwrapLib;
 
 (* RESTR_HOL4P4_CONV constants: *)
 val p4_stop_eval_consts_unary =
  [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
-  “word_2comp”
+(*
+  “word_2comp:'a word -> 'a word”
+*)
+  word_2comp_tm
  ];
 val p4_stop_eval_consts_binary =
- [“word_mul”,
-  “word_div”,
-  “word_mod”,
-  “word_add”,
-  “saturate_add”,
-  “word_sub”,
-  “saturate_sub”,
-  “word_lsl_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
-  “word_lsr_bv”, (* TODO: OK to evaluate if second operand has no free variables *)
+ [
+(*
+“word_mul:'a word -> 'a word -> 'a word”,
+  “word_div:'a word -> 'a word -> 'a word”,
+  “word_mod:'a word -> 'a word -> 'a word”,
+  “word_add:'a word -> 'a word -> 'a word”,
+  “saturate_add:'a word -> 'a word -> 'a word”,
+  “word_sub:'a word -> 'a word -> 'a word”,
+  “saturate_sub:'a word -> 'a word -> 'a word”,
+  “word_lsl_bv:'a word -> 'a word -> 'a word”, (* TODO: OK to evaluate if second operand has no free variables *)
+  “word_lsr_bv:'a word -> 'a word -> 'a word”, (* TODO: OK to evaluate if second operand has no free variables *)
   (* “word_and”, (* Should be OK? w2v (v2w [x; F; T] && v2w [y; F; T]) = [x ∧ y; F; T] *) *)
   (* “word_xor”, (* Should be OK? w2v (v2w [x; F; T] ⊕ v2w [y; F; T]) = [x ⇎ y; F; F] *) *)
   (* “word_or”, (* Should be OK? w2v (v2w [x; F; T] ‖ v2w [y; F; T]) = [x ∨ y; F; T] *) *)
-  “word_ls”,
-  “word_hs”,
-  “word_lo”,
-  “word_hi”
+  “word_ls:'a word -> 'a word -> bool”,
+  “word_hs:'a word -> 'a word -> bool”,
+  “word_lo:'a word -> 'a word -> bool”,
+  “word_hi:'a word -> 'a word -> bool”
+*)
+  word_mul_tm,
+  word_div_tm,
+  word_mod_tm,
+  word_add_tm,
+  saturate_add_tm,
+  word_sub_tm,
+  saturate_sub_tm,
+  word_lsl_bv_tm,
+  word_lsr_bv_tm,
+  word_ls_tm,
+  word_hs_tm,
+  word_lo_tm,
+  word_hi_tm
 ];
 
 (* TODO: Merge with the below? *)
