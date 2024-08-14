@@ -256,7 +256,7 @@ local
   * and a disjunction theorem stating that the disjunction of the branch conditions holds.
   *
   * lang_is_finished (thm -> bool): Decides whether symbolic execution should continue
-  * on this path by looking at the current step theorem.
+  * on this path by looking at the current step theorem: check is performed after taking a step.
   *
   * Note that branching consumes one step of (SML function) fuel *)
  fun symb_exec' lang_funs (npaths, path_tree, [], finished_list) = (path_tree, finished_list)
@@ -484,13 +484,21 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
 (* These generic functions help in implementing language-specific symbolic execution machinery. *)
 
 (* Proves that postcond holds for the final state of a step_thm *)
+(* val rewr_thms = postcond_rewr_thms
+
+val rewr_thms = rewr_thms@[lookup_v_def, lookup_map_def, topmost_map_def, find_topmost_map_def]
+
+open p4Theory;
+
+*)
+(* TODO: This should take a HOL4P4_CONV *)
 fun prove_postcond rewr_thms postcond step_thm =
  let
   val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
   val (hypo, step_tm) = dest_imp $ concl step_thm
   val res_state_tm = optionSyntax.dest_some $ snd $ dest_eq step_tm
-  (* TODO: OPTIMIZE: srw_ss??? *)
-  val postcond_thm = EQT_ELIM $ (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+  (* TODO: OPTIMIZE: srw_ss??? EVAL_CONV? *)
+  val postcond_thm = EQT_ELIM $ (computeLib.EVAL_CONV THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
  in
   MATCH_MP prel_res_thm postcond_thm
  end
@@ -498,6 +506,7 @@ fun prove_postcond rewr_thms postcond step_thm =
 
 (* DEBUG
 val step_thms = map #3 path_cond_step_list;
+val step_thm = hd step_thms
 
 (* basic: Index 24, 32, 52, 67 are interesting *)
 val h = el 24 step_thms
@@ -505,8 +514,7 @@ val h = el 32 step_thms
 val h = el 52 step_thms
 val h = el 67 step_thms
 
-val step_thm = h
-val rewr_thms = p4_prove_postcond_rewr_thms
+val rewr_thms = postcond_rewr_thms
 *)
 fun prove_postconds_debug' rewr_thms postcond []     _ = []
   | prove_postconds_debug' rewr_thms postcond (h::t) n =

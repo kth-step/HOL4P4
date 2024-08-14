@@ -2556,6 +2556,24 @@ gs[] >>
 fs [arch_multi_exec_add]
 QED
 
+(* TODO: use only this shape... *)
+Theorem arch_multi_exec_comp_n_tl_alt:
+!n m actx s s' s''.
+arch_multi_exec actx s n =
+  SOME s' ==>
+arch_multi_exec actx s' m =
+  SOME s'' ==>
+arch_multi_exec actx s (n+m) =
+  SOME s''
+Proof
+rpt strip_tac >>
+gs[] >>
+PairCases_on ‘s’ >>
+PairCases_on ‘s'’ >>
+PairCases_on ‘s''’ >>
+fs [arch_multi_exec_add]
+QED
+
 Theorem arch_multi_exec_comp_1_tl_assl:
 !m actx assl aenv g_scope_list arch_frame_list status aenv' g_scope_list' arch_frame_list' status' aenv'' g_scope_list'' arch_frame_list'' status''.
 (assl ==> arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) 1 =

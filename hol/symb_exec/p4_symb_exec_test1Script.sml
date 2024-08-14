@@ -126,31 +126,6 @@ val symb_exec1_actx = ``([arch_block_inp;
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
-
-(*
-(* Concrete state from old example program *)
-val symb_exec1_astate = rhs $ concl $ EVAL “(p4_append_input_list [([F; F; F; F; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0);
- ([F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; T; F; F; F; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0);
- ([T; T; T; T; F; F; T; T; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0);
- ([T; T; T; T; F; T; F; F; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] (((0,[],[],ARB,ARB,ARB,[]),[[]],arch_frame_list_empty,status_running):v1model_ascope astate))”;
-*)
-
-(*
-(* eval_under_assum: *)
-GEN_ALL $ eval_under_assum p4_v1modelLib.v1model_arch_ty symb_exec1_actx symb_exec1_astate [] [] (ASSUME T) 10;
-*)
-
-(* As symbolic packet, generate something like this:
-  
-   data = [b1; b2; b3; b4; b5; b6; b7; b8]
-   port = p
-
-*)
-
 val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),
  [[(varn_name "gen_apply_result",
@@ -170,10 +145,12 @@ val path_cond_defs = []
 val init_astate = symb_exec1_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
+val thms_to_add = []
 val path_cond = (ASSUME T)
 val p4_is_finished_alt_opt = NONE
 val n_max = 50;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
+val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 
@@ -202,11 +179,12 @@ val (path_tree, [(path_id, path_cond_res, step_thm)]) =
 val [res_elem1, res_elem2] = res_elems
 
 val (res_id1, res_cond1, res_thm1) = res_elem1
+
 *)
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
 
 (*
 

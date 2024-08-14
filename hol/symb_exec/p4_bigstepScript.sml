@@ -6604,4 +6604,36 @@ Proof
 metis_tac[bigstep_arch_exec_comp'_SOME]
 QED
 
+(******************************************)
+(* Combined small-step big-step execution *)
+
+(* TODO: Decide when to use big-step semantics, use the minimal
+ * big-step semantics. Can you make a new datatype that is returned
+ * by in_local_fun that can distinguish? *)
+Definition small_big_exec_def:
+ small_big_exec ctx astate =
+  case arch_exec ctx astate of
+  | SOME ((i',in_out_list',in_out_list'',ascope'),g_scope_list',arch_frame_list',status) =>
+   if in_local_fun' ctx i' arch_frame_list' 1
+   then
+    (case bigstep_arch_exec' (SOME ((i',in_out_list',in_out_list'',ascope'), ctx)) g_scope_list' arch_frame_list' of
+     | SOME (g_scope_list'', arch_frame_list'', n'') =>
+      SOME (((i',in_out_list',in_out_list'',ascope'),g_scope_list'',arch_frame_list'',status_running), n''+1)
+     | NONE => NONE)
+   else
+    SOME (((i',in_out_list',in_out_list'',ascope'),g_scope_list',arch_frame_list',status), 1)
+  | _ => NONE
+End
+
+Theorem small_big_exec_comp_conj:
+!assl ctx g_scope_list arch_frame_list status i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n aenv i' in_out_list'' in_out_list''' ascope' status'.
+((assl ==> arch_multi_exec (ctx:'a actx) ((aenv, g_scope_list, arch_frame_list, status_running):'a astate) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status)) /\
+
+small_big_exec ctx ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status) = SOME (((i',in_out_list'',in_out_list''',ascope'), g_scope_list'', arch_frame_list'', status'), n')) ==>
+
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME ((i',in_out_list'',in_out_list''',ascope'), g_scope_list'', arch_frame_list'', status'))
+Proof
+cheat
+QED
+
 val _ = export_theory ();

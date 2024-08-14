@@ -2,7 +2,9 @@ structure p4_symb_execLib :> p4_symb_execLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open pairSyntax listSyntax numSyntax optionSyntax computeLib;
+open pairSyntax listSyntax numSyntax optionSyntax stringSyntax computeLib markerLib;
+
+open listTheory p4_auxTheory optionTheory pairTheory;
 
 open p4Theory p4_exec_semTheory;
 open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
@@ -144,7 +146,7 @@ fun astate_get_branch_data astate =
   then
    let
     val (_, _, v_map, _) = p4_v1modelLib.dest_v1model_ascope ascope
-    (* TODO: Hack, fix EVAL *)
+    (* TODO: Hack, do in SML *)
     val port_v_bit =
      dest_some $ rhs $ concl $ EVAL “(case ALOOKUP ^v_map "standard_metadata" of
 				      | SOME (v_struct struct) =>
@@ -522,7 +524,7 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
 ;
 
 (* This simplifies a key until only the match_all application can be reduced next *)
-val key_conv = rhs o concl o (SIMP_CONV std_ss [listTheory.MAP, optionTheory.THE_DEF, BETA_THM, listTheory.ZIP, v_of_e_def]);
+val key_conv = rhs o concl o (SIMP_CONV std_ss [MAP, THE_DEF, BETA_THM, ZIP, v_of_e_def]);
 
 
 (* TODO: Fix code duplication *)
@@ -629,17 +631,17 @@ val get_bitv_bits_tac =
 	  assume_tac v_to_tau_thm >>
 	  assume_tac v_bit_thm >>
           subgoal ‘LENGTH ^bitvector_tm = ^(term_of_int n_bits)’ >- (
-           imp_res_tac p4_auxTheory.v_to_tau_bit >>
+           imp_res_tac v_to_tau_bit >>
            gs[]
           ) >>
 	  (* TODO: This below is still a bit inefficient... *)
 	  rpt $ goal_term (fn tm => tmCases_on (lhs $ snd $ strip_exists tm) []
 	  (* Need to have LENGTH and rewrite that can resolve e.g. SUC (SUC 0) = 160. *)
 				    >- (
-				     FULL_SIMP_TAC pure_ss [listTheory.LENGTH] >>
+				     FULL_SIMP_TAC pure_ss [LENGTH] >>
 				     qpat_x_assum ‘n = n'’ (fn thm => assume_tac (SIMP_RULE std_ss [] thm)) >>
 				     FULL_SIMP_TAC pure_ss [])
-				    >> goal_term (fn tm => exists_tac (fst $ dest_cons $ lhs $ snd $ strip_exists tm) >> SIMP_TAC pure_ss [Once listTheory.CONS_11, Once REFL_CLAUSE, Once AND_CLAUSES])) >>
+				    >> goal_term (fn tm => exists_tac (fst $ dest_cons $ lhs $ snd $ strip_exists tm) >> SIMP_TAC pure_ss [Once CONS_11, Once REFL_CLAUSE, Once AND_CLAUSES])) >>
 
 	  goal_term (fn tm => tmCases_on (lhs tm) [] >> gs[])
 	))
@@ -704,7 +706,7 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
        (* 4. Construct default branch case: i.e., neither of the above hold *)
        val def_branch_cond = list_mk_conj key_branch_conds_neg
        (* Check is default case is even possible to reach *)
-       val def_branch_cond_thm = SIMP_CONV bool_ss [match_all_def, match_def, p4Theory.s_case_def, pairTheory.CLOSED_PAIR_EQ, p4Theory.v_11, listTheory.CONS_11, satTheory.AND_INV] def_branch_cond
+       val def_branch_cond_thm = SIMP_CONV bool_ss [match_all_def, match_def, s_case_def, CLOSED_PAIR_EQ, v_11, CONS_11, satTheory.AND_INV] def_branch_cond
 
        (* 5. Construct disjunction theorem, which now is not a strict disjunction *)
        (* TODO: OPTIMIZE: Prove this nchotomy theorem using a template theorem and simple
@@ -822,7 +824,8 @@ basic:
          * depending on the match kinds involved *)
         (* TODO: CURRENTLY ONLY WORKS FOR V1MODEL, FIX! *)
         val mk_list = fst $ dest_pair $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbl_map, tbl_name)
-        val mem_lpm = Teq $ rhs $ concl $ EVAL “MEM mk_lpm ^mk_list”
+        (* TODO: The below doesn't work with HOL4P4_CONV *)
+        val mem_lpm = Teq $ rhs $ concl $ REWRITE_CONV [MEM] (mk_mem (“mk_lpm”, mk_list))
 	val case_lhs =
          if mem_lpm
          then “FST $ FOLDL_MATCH ^e (^default_action, NONE) ^tbl”
@@ -896,7 +899,7 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
 	 in
 	  if is_nil list
 	  then (* FULL_SIMP_TAC bool_ss [p4_auxTheory.v_to_tau_list_empty] *) ALL_TAC
-	  else tmCases_on list [] >> ( gs[p4_auxTheory.v_to_tau_list_def, AllCaseEqs()] )
+	  else tmCases_on list [] >> ( gs[v_to_tau_list_def, AllCaseEqs()] )
 	 end
 
 (* DEBUG:
@@ -935,13 +938,13 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
          (* TODO: Avoid srw_ss() if possible... *)
 	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] thm) >>
 
-	 (goal_term (fn tm => markerLib.ABBREV_TAC “goal:bool = ^tm”) >>
-	  qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => markerLib.hide_tac "goal" thm) >>
+	 (goal_term (fn tm => ABBREV_TAC “goal:bool = ^tm”) >>
+	  qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => hide_tac "goal" thm) >>
 
 	  gs[] >>
 
-	  markerLib.unhide_tac "goal" >>
-	  markerLib.UNABBREV_TAC "goal") >> (
+	  unhide_tac "goal" >>
+	  UNABBREV_TAC "goal") >> (
            qpat_assum ‘f = _’ (fn thm => let val fname = rhs $ concl thm in
 	   goal_term (fn tm =>
 	    let
@@ -958,33 +961,33 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 	    * default match) treated first *)
 	   subgoal ‘?f_args' b. f_args = [e_v (v_bool T); e_v (v_bool b)]++f_args'’ >- (
 	    Cases_on ‘f_args’ >> (
-	     fs [listTheory.oEL_def]
+	     fs [oEL_def]
 	    ) >>
 	    Cases_on ‘t’ >> (
-	     fs [listTheory.oEL_def, p4_auxTheory.v_to_tau_list_empty]
+	     fs [oEL_def, v_to_tau_list_empty]
 	    ) >>
 	    fs[]
 	   ) >>
            (* Needs to use goal, since this might finish the proof in the case of
             * function with no real args - should you check goal? *)
-	   gs[listTheory.oEL_def, p4_auxTheory.v_to_tau_list_empty] >>
+	   gs[oEL_def, v_to_tau_list_empty] >>
 
 	   (* 2. Break apart the v_to_tau_list into separate v_to_tau premises *)
            (* TODO: This is the greatest bottleneck... *)
-	   goal_term (fn tm => markerLib.ABBREV_TAC “f_args_temp:e list = f_args'”) >>
-	   goal_term (fn tm => markerLib.ABBREV_TAC “goal:bool = ^tm”) >>
-	   qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => markerLib.hide_tac "goal" thm) >>
-	   goal_term (fn tm => markerLib.ABBREV_TAC “f_args_temp':e list = f_args_temp”) >>
+	   goal_term (fn tm => ABBREV_TAC “f_args_temp:e list = f_args'”) >>
+	   goal_term (fn tm => ABBREV_TAC “goal:bool = ^tm”) >>
+	   qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => hide_tac "goal" thm) >>
+	   goal_term (fn tm => ABBREV_TAC “f_args_temp':e list = f_args_temp”) >>
 	   rpt (
 	    qpat_assum ‘v_to_tau_list l = SOME taus’ (fn thm => v_list_case_tac thm)
 	   ) >>
-	   markerLib.unhide_tac "goal" >>
-	   markerLib.UNABBREV_TAC "goal" >>
-	   FULL_SIMP_TAC list_ss [p4_auxTheory.v_to_tau_def, AllCaseEqs(), p4Theory.e_11] >>
+	   unhide_tac "goal" >>
+	   UNABBREV_TAC "goal" >>
+	   FULL_SIMP_TAC list_ss [v_to_tau_def, AllCaseEqs(), e_11] >>
 
 	   (* TODO: Make this work for Booleans in arguments too *)
 	   (* 3. Obtain the bits in the bitstrings of the individual v_to_tau premises *)
-	   imp_res_tac p4_auxTheory.v_to_tau_bit >>
+	   imp_res_tac v_to_tau_bit >>
 	   rpt get_bitv_bits_tac >>
            FULL_SIMP_TAC pure_ss [] >>
 	   goal_term (fn tm =>
@@ -1688,6 +1691,280 @@ fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
  else res_no_shortcut_e e
 ;
 
+val (symb_exec_abbrevs_tm,  mk_symb_exec_abbrevs, dest_symb_exec_abbrevs, is_symb_exec_abbrevs) =
+  syntax_fns1 "p4_symb_exec" "symb_exec_abbrevs";
+
+val (stmt_stack_abbrev_tm,  mk_stmt_stack_abbrev, dest_stmt_stack_abbrev, is_stmt_stack_abbrev) =
+  syntax_fns1 "p4_symb_exec" "stmt_stack_abbrev";
+
+val (frame_stack_abbrev_tm,  mk_frame_stack_abbrev, dest_frame_stack_abbrev, is_frame_stack_abbrev) =
+  syntax_fns1 "p4_symb_exec" "frame_stack_abbrev";
+
+val (ascope_abbrev_tm,  mk_ascope_abbrev, dest_ascope_abbrev, is_ascope_abbrev) =
+  syntax_fns1 "p4_symb_exec" "ascope_abbrev";
+
+(* This function replaces the tail of the frame stack with a
+ * free variable, and adds the equality between these to the
+ * hypotheses of the theorem. *)
+fun abbreviate_frame_stack step_thm =
+ let
+  val (ante, concl_step) = dest_imp $ concl step_thm
+  val (prestate, poststate_opt) = dest_eq concl_step
+  val poststate = dest_some poststate_opt
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate poststate
+  val arch_frame_list' = dest_arch_frame_list_regular arch_frame_list
+ in
+  let
+   val (arch_frame_list'', list_ty) = dest_list arch_frame_list'
+  in
+   if length arch_frame_list'' = 1
+   then step_thm
+   else
+    let
+     (* 2. Take the sub-term to abbreviate and pick something to abbreviate it to *)
+     val arch_frame_list_tl = mk_list (tl arch_frame_list'', list_ty)
+     val abbrev_var = mk_var("frame_stack_tl", mk_list_type frame_ty)
+     val abbrev_tm = mk_eq (abbrev_var, arch_frame_list_tl)
+
+     (* 3. Construct a pattern to mark the sub-term to abbreviate in the conclusion of step_thm *)
+     val pat_tm = mk_imp (ante, mk_eq (prestate, mk_some $ mk_astate(aenv, g_scope_list, mk_arch_frame_list_regular $ mk_cons (hd arch_frame_list'', abbrev_var), status)))
+
+    in
+     (* 4. Perform the actual abbreviation *)
+     (* TODO: Use symb_exec_abbrevs *)
+     SUBST [abbrev_var |-> GSYM (ASSUME abbrev_tm)] pat_tm step_thm
+    end
+  end
+ end
+;
+
+(* This function replaces the tail of the stmt stack with a
+ * free variable, and adds the equality between these to the
+ * hypotheses of the theorem. *)
+fun abbreviate_stmt_stack step_thm =
+ let
+  val (ante, concl_step) = dest_imp $ concl step_thm
+  val (prestate, poststate_opt) = dest_eq concl_step
+  val poststate = dest_some poststate_opt
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate poststate
+  val arch_frame_list' = dest_arch_frame_list_regular arch_frame_list
+ in
+  let
+   val (arch_frame_list'', list_ty) = dest_list arch_frame_list'
+   val (funn, stmt_stack, scope_stack) = dest_frame $ hd arch_frame_list''
+   val (stmt_stack', stmt_ty) = dest_list stmt_stack
+  in
+   if length stmt_stack' = 1
+   then step_thm
+   else
+    let
+
+     val stmt_stack_tl = mk_list (tl stmt_stack', stmt_ty)
+     val abbrev_var = mk_var("stmt_stack_tl", mk_list_type stmt_ty)
+     val abbrev_tm = mk_eq (abbrev_var, stmt_stack_tl)
+
+     (* 3. Construct a pattern to mark the sub-term to abbreviate in the conclusion of step_thm *)
+     val pat_tm = mk_imp (ante, mk_eq (prestate, mk_some $ mk_astate(aenv, g_scope_list, mk_arch_frame_list_regular (mk_cons (mk_frame (funn, mk_cons (hd stmt_stack', abbrev_var), scope_stack) , mk_list (tl arch_frame_list'', list_ty))), status)))
+
+    in
+     (* 4. Perform the actual abbreviation *)
+     (* TODO: Use symb_exec_abbrevs *)
+     SUBST [abbrev_var |-> GSYM (ASSUME abbrev_tm)] pat_tm step_thm
+    end
+  end
+ end
+;
+
+(* This function replaces the arch scope with a
+ * free variable, and adds the equality between these to the
+ * hypotheses of the theorem. *)
+fun abbreviate_ascope step_thm =
+ let
+  val (ante, concl_step) = dest_imp $ concl step_thm
+  val (prestate, poststate_opt) = dest_eq concl_step
+  val poststate = dest_some poststate_opt
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate poststate
+  val (block_index, io_list, io_list', ascope) = dest_aenv aenv
+ in
+  let
+   (* 2. Take the sub-term to abbreviate and pick something to abbreviate it to *)
+   val abbrev_var = mk_var("ascope", type_of ascope)
+   val abbrev_tm = mk_eq (abbrev_var, ascope)
+
+   (* 3. Construct a pattern to mark the sub-term to abbreviate in the conclusion of step_thm *)
+   val pat_tm = mk_imp (ante, mk_eq (prestate, mk_some $ mk_astate(mk_aenv (block_index, io_list, io_list', abbrev_var), g_scope_list, arch_frame_list, status)))
+
+  in
+   (* 4. Perform the actual abbreviation *)
+   (* TODO: Use symb_exec_abbrevs *)
+   SUBST [abbrev_var |-> GSYM (ASSUME abbrev_tm)] pat_tm step_thm
+  end
+ end
+;
+
+(* Returns a tuple of three Boolean flags signifying which of the
+ * abbreviations in symb_exec_abbrevs that are inactive *)
+(* TODO: You could also keep track of this purely in SML, 
+ * if the abbreviation function returns which abbreviations were
+ * made *)
+fun check_abbreviations ante =
+ if is_conj ante
+ then
+  let
+   val (first_conj, conj_tl) = dest_conj ante
+  in
+   if is_symb_exec_abbrevs first_conj
+   then
+    let
+     val abbrevs = strip_conj $ dest_symb_exec_abbrevs first_conj
+    in
+     (List.exists is_stmt_stack_abbrev abbrevs,
+      List.exists is_frame_stack_abbrev abbrevs,
+      List.exists is_ascope_abbrev abbrevs)
+    end
+   (* No symb_exec_abbrevs: no active abbreviations *)
+   else (true, true, true)
+(*
+   if is_symb_exec_abbrevs first_conj
+   then
+    let
+     val (stmt_stack_tl_abbrev_opt, frame_stack_tl_abbrev_opt, ascope_abbrev_opt) = dest_symb_exec_abbrevs first_conj
+    in
+     (is_none stmt_stack_tl_abbrev_opt, is_none frame_stack_tl_abbrev_opt, is_none ascope_abbrev_opt)
+    end
+   (* No symb_exec_abbrevs: no active abbreviations *)
+   else (true, true, true)
+*)
+  end
+ (* Unmodified path condition: No active abbreviations *)
+ else (true, true, true)
+;
+
+(* Abbreviates everything that is not currently abbreviated: use
+ * this after evaluating steps *)
+fun abbreviate step_thm =
+ let
+  val (ante, concl_step) = dest_imp $ concl step_thm
+  val (abbreviate_stmt_stack, abbreviate_frame_list, abbreviate_ascope) = check_abbreviations ante
+
+  (* 1. Disassemble the step_thm to prepare for making any abbreviation *)
+  val (prestate, poststate_opt) = dest_eq concl_step
+  val poststate = dest_some poststate_opt
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate poststate
+  val arch_frame_list' = dest_arch_frame_list_regular arch_frame_list
+  val (block_index, io_list, io_list', ascope) = dest_aenv aenv
+
+  (* Cancel frame stack abbreviation if frame stack is too small *)
+  val (arch_frame_list'', list_ty) = dest_list arch_frame_list'
+  val abbreviate_frame_list =
+   if abbreviate_frame_list
+   then not (length arch_frame_list'' = 1)
+   else false
+
+  (* Cancel stmt stack abbreviation if stmt stack is too small *)
+  val (funn, stmt_stack, scope_stack) = dest_frame $ hd arch_frame_list''
+  val (stmt_stack', stmt_ty) = dest_list stmt_stack
+  val abbreviate_stmt_stack =
+   if abbreviate_stmt_stack
+   then not (length stmt_stack' = 1)
+   else false
+(*
+  val (abbreviate_stmt_stack, abbreviate_frame_list, abbreviate_ascope) = (true, true, true)
+*)
+
+  val substs = []
+  val subst_rewrs = []
+
+  (* Statement stack tail *)
+  val stmt_stack_tl = mk_list (tl stmt_stack', stmt_ty)
+  val (stmt_stack_abbrev_var, substs', subst_rewrs') =
+   if abbreviate_stmt_stack
+   then
+    let
+     val stmt_stack_abbrev_var = mk_var("stmt_stack_tl", mk_list_type stmt_ty)
+     val stmt_stack_abbrev_tm = mk_eq (stmt_stack_abbrev_var, stmt_stack_tl)
+    in
+     (stmt_stack_abbrev_var,
+      [stmt_stack_abbrev_var |-> GSYM (ASSUME stmt_stack_abbrev_tm)]@substs,
+      [GSYM $ SPEC (stmt_stack_abbrev_tm) stmt_stack_abbrev_def]@subst_rewrs)
+    end
+   else (stmt_stack_tl, substs, subst_rewrs)
+
+  (* Frame stack tail *)
+  val arch_frame_list_tl = mk_list (tl arch_frame_list'', list_ty)
+  val (frame_list_abbrev_var, substs'', subst_rewrs'') =
+   if abbreviate_frame_list
+   then
+    let
+     val frame_list_abbrev_var = mk_var("frame_stack_tl", mk_list_type frame_ty)
+     val frame_list_abbrev_tm = mk_eq (frame_list_abbrev_var, arch_frame_list_tl)
+    in
+     (frame_list_abbrev_var,
+      [frame_list_abbrev_var |-> GSYM (ASSUME frame_list_abbrev_tm)]@substs',
+      [GSYM $ SPEC (frame_list_abbrev_tm) frame_stack_abbrev_def]@subst_rewrs')
+    end
+   else (arch_frame_list_tl, substs', subst_rewrs')
+
+  (* ascope *)
+  val (ascope_abbrev_var, substs''', subst_rewrs''') =
+   if abbreviate_ascope
+   then
+    let
+     val ascope_abbrev_var = mk_var("ascope", type_of ascope)
+     val ascope_abbrev_tm = mk_eq (ascope_abbrev_var, ascope)
+    in
+     (ascope_abbrev_var,
+      [ascope_abbrev_var |-> GSYM (ASSUME ascope_abbrev_tm)]@substs'',
+      [GSYM $ SPEC (ascope_abbrev_tm) ascope_abbrev_def]@subst_rewrs'')
+    end
+   else (ascope, substs'', subst_rewrs'')
+
+
+  val pat_tm = mk_imp (ante, mk_eq (prestate, mk_some $ mk_astate(mk_aenv (block_index, io_list, io_list', ascope_abbrev_var), g_scope_list, mk_arch_frame_list_regular (mk_cons (mk_frame (funn, mk_cons (hd stmt_stack', stmt_stack_abbrev_var), scope_stack) , frame_list_abbrev_var)), status)))
+
+  val step_thm' = PURE_ONCE_REWRITE_RULE subst_rewrs''' $ hurdUtils.DISCH_CONJUNCTS_ALL $ SUBST substs''' pat_tm step_thm
+
+ in
+  (* 4. Perform the actual abbreviation *)
+  (* TODO: Convert imp to conj in path cond *)
+  PURE_ONCE_REWRITE_RULE [GSYM $ SPEC (fst $ dest_imp $ concl step_thm') symb_exec_abbrevs_def] step_thm'
+ end
+;
+
+(* TODO: Upstream? *)
+local
+fun subst_of_list' [] acc = (rev acc):('a, 'b) subst
+  | subst_of_list' ((a,b)::t) acc =
+ subst_of_list' t (({redex=a, residue=b})::acc)
+in
+fun subst_of_list list = subst_of_list' list []
+end
+;
+
+(* TODO: Do this for multiple abbreviations in one go. *)
+fun deabbreviate (deabbrev_stmt_stack, deabbrev_frame_stack, deabbrev_ascope) step_thm =
+ let
+  val abbrevs = List.filter (fn el => is_symb_exec_abbrevs el) $ strip_conj $ fst $ dest_imp $ concl step_thm
+  (* TODO: Selectively pick out the abbreviations you want to deabbreviate *)
+ in
+  if length abbrevs = 1
+  then
+   let
+    val rewr_thm = PURE_REWRITE_CONV [symb_exec_abbrevs_def, stmt_stack_abbrev_def, frame_stack_abbrev_def, ascope_abbrev_def] (hd abbrevs)
+    val (abbrev_vars, big_tms) = unzip $ map dest_eq $ strip_conj $ snd $ dest_eq $ concl rewr_thm
+    val refl_thm =
+     if length big_tms = 1
+     then (REFL (hd big_tms))
+     else
+      List.foldl (fn (a,b) => CONJ b (REFL a)) (REFL $ hd big_tms) (tl big_tms)
+   in
+    MP (INST (subst_of_list (zip abbrev_vars big_tms)) step_thm) refl_thm
+   end
+  (* Presumably, this means that length abbrevs = 0 *)
+  else step_thm
+ end
+;
+
 fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
@@ -1743,6 +2020,49 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
        NONE => print (String.concat ["\nReducing architectural step...\n\n"])
      | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
    else ()
+  (* TODO: Perform abbreviation/deabbreviation here? *)
+(*
+(* 1. Take the step theorem and disassemble it *)
+val test_thm = step_thm;
+
+val (ante, concl_step) = dest_imp $ concl step_thm
+val (prestate, poststate_opt) = dest_eq concl_step
+val poststate = dest_some poststate_opt
+val (aenv, g_scope_list, arch_frame_list, status) = dest_astate poststate
+
+(* 2. Take the sub-term to abbreviate and pick something to abbreviate it to *)
+val subs_tm = aenv;
+val abc_tm = ``(aenv:v1model_ascope aenv)``;
+val eq_tm = ``^abc_tm = ^subs_tm``
+
+(* 3. Construct a pattern to mark the sub-term to abbreviate in the conclusion of step_thm *)
+val B_tm = ``(B:v1model_ascope aenv)``;
+val pat_tm = “^(mk_imp (ante, mk_eq (prestate, mk_some $ mk_astate(B_tm, g_scope_list, arch_frame_list, status))))”
+
+(* 4. Perform the actual abbreviation *)
+
+val changed_thm = SUBST [B_tm |-> GSYM (ASSUME eq_tm)] pat_tm test_thm
+
+val changed_thm = REWRITE_RULE [GSYM (ASSUME eq_tm)] test_thm;
+
+(* 4. Deabbreviate - requires the stuff from step 2 *)
+
+(* Changing back using instantiation + evaluation: *)
+val changed_back_thm = BETA_RULE (CONV_RULE (RATOR_CONV EVAL) (INST [abc_tm |-> subs_tm] (DISCH_ALL changed_thm)));
+
+(* Changing back using instantiation + modus ponens: *)
+val changed_back_thm = MP (INST [abc_tm |-> subs_tm] (DISCH_ALL changed_thm)) (REFL subs_tm);
+(* Alternative variant: *)
+val changed_back_thm = MP (DISCH_ALL (INST [abc_tm |-> subs_tm] (changed_thm))) (REFL subs_tm);
+
+val changed_back_thm = REWRITE_RULE [gen_rev_thm] (DISCH_ALL (INST [abc_tm |-> subs_tm] (changed_thm)));
+
+*****************************
+
+(* TODO: Is this faster or slower? *)
+SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
+
+*)
  in
   (* TODO: If use_eval_in_ctxt, this should never shortcut apply or select statements, which
    * need to use assumptions in the middle of execution. Fix this when you enable shortcutting
@@ -1886,6 +2206,9 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
 	   (MATCH_MP comp_thm (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2)))
           else
           (* TODO: Specialise type of composition theorem before? *)
+(* small-big:
+	  (MATCH_MP small_big_exec_comp_conj (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
+*)
 	  (MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
 
     (* TEST:
@@ -1951,6 +2274,9 @@ fun preprocess_ftymaps (fty_map, b_fty_map) =
  end
 ;
 
+val (small_big_exec_tm, mk_small_big_exec, dest_small_big_exec, is_small_big_exec) =
+ syntax_fns2 "p4_bigstep" "small_big_exec";
+
 (* The main symbolic execution.
  * Here, the static ctxt and the dynamic path condition have been merged. *)
 fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt fuel =
@@ -1967,6 +2293,9 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
   val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), stop_consts_never, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+(*
+  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_small_big_exec (ctx, astate)))
+*)
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
   val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm
   val is_finished =
@@ -2313,9 +2642,9 @@ fun insert_existentials path_cond_tm (path_cond_case, thm) =
 	    let
 	     val exec_imp_postcond_tm = snd $ boolSyntax.dest_imp tm
 	    in
-	     markerLib.ABBREV_TAC “exec_imp_postcond:bool = ^exec_imp_postcond_tm”
+	     ABBREV_TAC “exec_imp_postcond:bool = ^exec_imp_postcond_tm”
 	    end) >>
-           qpat_x_assum ‘Abbrev (exec_imp_postcond <=> _)’ (fn thm => markerLib.hide_tac "exec_imp_postcond" thm) >>
+           qpat_x_assum ‘Abbrev (exec_imp_postcond <=> _)’ (fn thm => hide_tac "exec_imp_postcond" thm) >>
            disch_tac >>
            (* The underscore will try anything, but there's only one assumption that will work,
             * it's a hassle to match only that one though *)
@@ -2475,7 +2804,7 @@ val (path_cond_case, thm) = (el 1 test1);
       PURE_REWRITE_RULE [SPEC path_cond_tm p4_contract_list_REWR2,
 			 SPEC path_cond_tm p4_contract_list_GSYM_REWR,
 			 SPEC path_cond_tm p4_contract_list_REWR,
-			 listTheory.APPEND] new_p4_contracts
+			 APPEND] new_p4_contracts
 (* DEBUG
     val _ = print (String.concat ["\nDone in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s\n\n"]);
 *)
@@ -2555,9 +2884,14 @@ fun prove_contract' contract_thm (path_cond, init_astate, ctx_lhs, postcond) =
  )
 ;
 
-
+(*
 (* TODO: Should be possible to add to these? Ugly if it has architecture-dependent stuff... *)
 val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def];
+*)
+
+datatype defn_data =
+   def_term of term
+ | def_thm of thm;
 
 (* This function is the main workhorse for proving contracts on HOL4P4 programs.
  * The parameters are:
@@ -2578,20 +2912,31 @@ val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_d
  *
  * n_max: the maximum number of steps the symbolic execution can take per branch.
  *
- * postcond: the postcondition, a term which is a predicate on the architectural state *)
+ * postcond: the postcondition, a term which is a predicate on the architectural state
+ *
+ * postcond_rewr_thms: additional theorems used when proving the postcondition *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond =
+fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms =
  let
 
   (* DEBUG *)
-  (* val p4_symb_exec_fun = (p4_symb_exec 1); *)
   val time_start = Time.now();
 
-  val ctx_name = "ctx"
-  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
+  val (ctx, ctx_def) =
+   case ctx_data of
+     def_term ctx_tm =>
+    let
+     val ctx_name = "ctx"
+    in
+     (ctx_tm, hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx_tm), ctx_tm)))
+    end
+   | def_thm ctx_def =>
+    (rhs $ concl ctx_def, ctx_def)
 
   (* Perform symbolic execution until all branches are finished *)
+  (* DEBUG *)
+  (* val p4_symb_exec_fun = (p4_symb_exec 1); *)
   val (path_tree, path_cond_step_list) =
    p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
 
@@ -2602,16 +2947,16 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
   val id_step_post_thm_list =
-   prove_postconds debug_flag p4_prove_postcond_rewr_thms postcond path_cond_step_list
+   prove_postconds debug_flag postcond_rewr_thms postcond path_cond_step_list
 (*
    if debug_flag
    then
     let
      val (l', l'') = unzip $ map (fn (a,b,c) => (a, c)) path_cond_step_list
     in
-     zip l' (prove_postconds_debug p4_prove_postcond_rewr_thms postcond l'')
+     zip l' (prove_postconds_debug postcond_rewr_thms postcond l'')
     end
-   else map (fn (a,b,c) => (a, prove_postcond p4_prove_postcond_rewr_thms postcond c)) path_cond_step_list
+   else map (fn (a,b,c) => (a, prove_postcond postcond_rewr_thms postcond c)) path_cond_step_list
 *)
 
   (* DEBUG *)
@@ -2635,7 +2980,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx (fty
   val _ = dbg_print debug_flag (String.concat ["\nFinished unification of all contracts in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s.\n\n"]);
 
  in
-  unified_ct_thm
+  unified_ct_thm'
  end
 ;
 
@@ -2656,10 +3001,18 @@ fun dest_step_thm step_thm =
  dest_astate $ dest_some $ snd $ dest_eq $ snd $ dest_imp $ concl step_thm
 ;
 
-fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
+fun p4_debug_symb_exec arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
  let
-  val ctx_name = "ctx"
-  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
+  val (ctx, ctx_def) =
+   case ctx_data of
+     def_term ctx_tm =>
+    let
+     val ctx_name = "ctx"
+    in
+     (ctx_tm, hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx_tm), ctx_tm)))
+    end
+   | def_thm ctx_def =>
+    (rhs $ concl ctx_def, ctx_def)
 
   val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
@@ -2668,12 +3021,221 @@ fun p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map)
  end
 ;
 
-fun p4_debug_symb_exec_frame_lists arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
+fun p4_debug_symb_exec_frame_lists arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel =
  let
-  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel
+  val (path_tree, state_list_tms) = p4_debug_symb_exec arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond fuel
   val arch_frame_list_tms = map (fn (path_id, path_cond, (tm1, tm2, tm3, tm4)) => tm3) state_list_tms
  in
   (path_tree, arch_frame_list_tms)
+ end
+;
+
+
+(* From petr4_to_hol4p4.sml:
+          val ab_list' = [``arch_block_inp``,
+                  (el 1 ab_list), (* Parser *)
+                  ``arch_block_ffbl "postparser"``,
+                  (el 2 ab_list), (* VerifyChecksum *)
+                  (el 3 ab_list), (* Ingress *)
+                  (el 4 ab_list), (* Egress *)
+                  (el 5 ab_list), (* ComputeChecksum *)
+                  (el 6 ab_list), (* Deparser *)
+                  ``arch_block_out``]
+*)
+
+(* "well-formedness" here means that the content of all the parts of the astate are in agreement
+ * with those of a valid execution of a V1Model program, with the following additional assumptions:
+
+ Both input and output lists are empty;
+ No program-specific persistent externs exists.
+
+*)
+
+(*
+open p4Syntax;
+open optionSyntax listSyntax pairSyntax numSyntax stringSyntax;
+
+open p4_testLib;
+*)
+
+fun mk_v_bit_freevars (prefix, nbits) =
+ let
+  val bits = fixedwidth_freevars (prefix, nbits);
+ in
+   (fst $ dest_list bits, mk_v_bit $ mk_pair (bits, term_of_int nbits))
+ end
+;
+
+(* TODO: Currently inherits some stuff from the initial state - this can probably be largely
+ * generalised *)
+(* TODO: Automatically account for types of program-specific block parameters *)
+(* TODO: Currently, gets postparser only *)
+fun get_v1model_wellformed_defs actx init_astate =
+ let
+  (* Obtain the function maps for generating star variables *)
+  val (_, _, _, _, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
+
+  (* Obtain the control plane configuration from the initial state - this is used directly
+   * for the intermediate state *)
+  val aenv = #1 $ dest_astate init_astate
+  val ascope = #4 $ dest_aenv aenv
+  val ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope ascope
+
+  (* Start filling v_map up with the platform-specific variables *)
+  val (pe_free_vars, pe_v) = mk_v_bit_freevars ("pe", 32)
+  val v_map' = mk_list ([mk_pair (fromMLstring "parseError", pe_v),
+                         mk_pair (fromMLstring "b", mk_v_ext_ref $ term_of_int 0),
+                         mk_pair (fromMLstring "b_temp", mk_v_ext_ref $ term_of_int 1)], mk_prod (string_ty, v_ty))
+  (* TODO: Hack, for enabling testing: *)
+  val v_map'' = rhs $ concl $ EVAL $ mk_append (v_map', “[("standard_metadata",
+             v_struct
+               [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                ("instance_type",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                ("packet_length",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                ("enq_timestamp",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                ("enq_qdepth",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],
+                    19));
+                ("deq_timedelta",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                ("deq_qdepth",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],
+                    19));
+                ("ingress_global_timestamp",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F],48));
+                ("egress_global_timestamp",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F],48));
+                ("mcast_grp",
+                 v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                ("egress_rid",
+                 v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                ("checksum_error",v_bit ([F],1));
+                ("parser_error",
+                 v_bit
+                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                ("priority",v_bit ([F; F; F],3))]);
+            ("parsedHdr",
+             v_struct
+               [("h",
+                 v_header T
+                   [("row",
+                     v_struct
+                       [("e",v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8));
+                        ("t",
+                         v_bit
+                           ([F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T],
+                            16)); ("l",v_bit ([F; F; F; F; F; F; F; F],8));
+                        ("r",v_bit ([F; F; F; F; F; F; F; F],8));
+                        ("v",v_bit ([T; F; T; T; F; F; F; F],8))])])]);
+            ("hdr",
+             v_struct
+               [("h",
+                 v_header ARB
+                   [("row",
+                     v_struct
+                       [("e",
+                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+                        ("t",
+                         v_bit
+                           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
+                             ARB; ARB; ARB; ARB; ARB; ARB; ARB],16));
+                        ("l",
+                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+                        ("r",
+                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+                        ("v",
+                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8))])])]);
+            ("meta",v_struct [])]:(string # v) list”)
+
+  (* Note: Should agree with updates of initialise_var_stars_def to global scope in exec sem *)
+  val var_stars = rhs $ concl $ EVAL “(var_star_updates_of_func_map ^func_map)++(var_star_updates_of_ext_map ^ext_fun_map)”
+
+  (* Note: Apply result desugaring variable is hard-coded into the architecture models *)
+  val hit_var = mk_var("hit", bool)
+  val miss_var = mk_var("miss", bool)
+  val (ar_free_vars, ar_v) = mk_v_bit_freevars ("r", 32)
+  val gen_apply_result_var = “(varn_name "gen_apply_result",
+             v_struct
+               [("hit",v_bool ^hit_var); ("miss",v_bool ^miss_var);
+                ("action_run", ^ar_v)],
+             NONE:lval option)”
+
+  val g_scope_list' = mk_list ([mk_cons (gen_apply_result_var, var_stars)], scope_ty)
+
+  (* TODO: Block-specific hack *)
+  val hack_vars = fst $ dest_list $ fixedwidth_freevars_fromindex ("e", 1, 8)
+  (* TODO: Make this work for ctrl tables that are not constants *)
+  val def_free_vars = [“packet_tail:bool list”]@pe_free_vars@[hit_var, miss_var]@ar_free_vars@hack_vars
+ in
+  Defn.mk_defn "p4_v1model_parser_wellformed"
+   “p4_v1model_parser_wellformed astate <=>
+     ^(list_mk_exists(def_free_vars, 
+     “(astate:v1model_ascope astate) =
+     ((2, [], [], (2, [(0,INL (core_v_ext_packet packet_tail))], ^v_map'', ^ctrl)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
+ end
+;
+
+(* This takes two contracts in p4_contract' formulation, and composes them sequentially.
+ * wellformed_def is a definition stating the intermediate state is well-formed *)
+fun p4_combine_contracts contract1 contract2 wellformed_def =
+ let
+  val (pre1, ctx1, post1) = dest_p4_contract' $ concl contract1
+  val (pre2, ctx2, post2) = dest_p4_contract' $ concl contract2
+ in
+ (* “^(mk_p4_contract' (pre1, ctx2, post2))” *)
+  prove(mk_p4_contract' (pre1, ctx1, post2),
+  (let
+    val gen_contract2 = (GEN_ALL contract2)
+    val vars = fst $ strip_forall $ concl $ gen_contract2
+   in
+    assume_tac contract1 >>
+    assume_tac gen_contract2 >>
+    FULL_SIMP_TAC bool_ss [p4_contract'_alt_shape, wellformed_def] >>
+    qpat_x_assum ‘!vars. _’ (fn thm => ASSUME_TAC $ SPECL vars thm) >>
+    FULL_SIMP_TAC std_ss []
+   end) >> (
+    (* Combine the two executions *)
+    qexistsl_tac [‘n + n'’, ‘s''’] >>
+    rfs[] >>
+    PairCases_on ‘s''’ >>
+    irule arch_multi_exec_comp_n_tl >>
+    (* Use constraints on middle state:
+     * Currently, this looks for all instances of p4_v1model_lookup_avar. *)
+    (* TODO: Use HOL4P4_CONV? *)
+    rpt (qpat_x_assum ‘p4_v1model_lookup_avar _ _ = _’ (fn thm => ASSUME_TAC $ EVAL_RULE thm)) >>
+    FULL_SIMP_TAC std_ss []
+   )
+  )
+      
+(* TODO: See if you can use abbreviations anywhere...
+   markerLib.ABBREV_TAC “init_state1 = ^init_state1” >>
+   qpat_x_assum ‘Abbrev (init_state1 = _)’ (fn thm => markerLib.hide_tac "hide_init_state1" thm) >>
+
+     markerLib.unhide_tac "hide_init_state1" >>
+     markerLib.UNABBREV_TAC "init_state1" >>
+*)
  end
 ;
 

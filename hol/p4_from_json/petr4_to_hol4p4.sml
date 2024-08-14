@@ -626,13 +626,13 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
  let
   val (ab_list, ab_list_ty) = dest_list ab_list_tm
   val ab_list' = [``arch_block_inp``,
-                  (el 1 ab_list),
+                  (el 1 ab_list), (* Parser *)
                   ``arch_block_ffbl "postparser"``,
-                  (el 2 ab_list),
-                  (el 3 ab_list),
-                  (el 4 ab_list),
-                  (el 5 ab_list),
-                  (el 6 ab_list),
+                  (el 2 ab_list), (* VerifyChecksum *)
+                  (el 3 ab_list), (* Ingress *)
+                  (el 4 ab_list), (* Egress *)
+                  (el 5 ab_list), (* ComputeChecksum *)
+                  (el 6 ab_list), (* Deparser *)
                   ``arch_block_out``]
  in
   (mk_list (ab_list', ab_list_ty))

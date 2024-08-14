@@ -391,4 +391,110 @@ Proof
 gs[wellformed_register_array_EVERY, replicate_arb_def]
 QED
 
+
+(*
+(* Use this to easily identify abbreviations: a tuple is is used
+ * to easily identifies which abbreviations are currently in play *)
+Definition symb_exec_abbrevs_def:
+ (symb_exec_abbrevs stmt_stack_tl_abbrev_opt frame_stack_tl_abbrev_opt ascope_abbrev_opt =
+  EVERY (\abbrev_opt. case abbrev_opt of NONE => T | SOME abbrev => abbrev) [stmt_stack_tl_abbrev_opt; frame_stack_tl_abbrev_opt; ascope_abbrev_opt]
+ )
+End
+*)
+(*
+Definition symb_exec_abbrevs_def:
+ (symb_exec_abbrevs [] = T) /\
+ (symb_exec_abbrevs (h::t) = 
+  (h /\ symb_exec_abbrevs t))
+End
+
+Theorem symb_exec_abbrevs_intro:
+!A B C.
+A /\ B /\ C <=>
+symb_exec_abbrevs (SOME A) (SOME B) (SOME C)
+Proof
+gs[symb_exec_abbrevs_def]
+QED
+
+Theorem symb_exec_abbrevs_intro:
+!A B C.
+ (A /\ B /\ C) <=> symb_exec_abbrevs [A; B; C]
+Proof
+gs[symb_exec_abbrevs_def]
+QED
+*)
+        
+Definition symb_exec_abbrevs_def:
+ (symb_exec_abbrevs P = P:bool)
+End
+
+Definition stmt_stack_abbrev_def:
+ (stmt_stack_abbrev P = P:bool)
+End
+
+Definition frame_stack_abbrev_def:
+ (frame_stack_abbrev P = P:bool)
+End
+
+Definition ascope_abbrev_def:
+ (ascope_abbrev P = P:bool)
+End
+
+Definition p4_block_next_def:
+ (p4_block_next (((i, in_out_list, in_out_list', ascope), [g_scope],
+                  arch_frame_list_empty, status_running):'a astate) i' =
+  if i = i'
+  then T
+  else F) /\
+ (p4_block_next _ _ = F)
+End
+
+(* TODO: The below not usable in practice due to quantifiers...
+Theorem p4_contract'_seq:
+!P Q R ctx.
+p4_contract' P ctx Q ==>
+p4_contract' Q ctx R ==>
+p4_contract' P ctx R
+Proof
+gs[p4_contract'_alt_shape] >>
+rpt strip_tac >>
+res_tac >>
+res_tac >>
+qexistsl_tac [‘n + n'’, ‘s''’] >>
+gs[] >>
+irule arch_multi_exec_comp_n_tl_alt >>
+metis_tac[]
+QED
+
+Theorem p4_contract'_pre_str:
+!P P' Q ctx.
+(!s. P' s ==> P s) ==>
+p4_contract' P ctx Q ==>
+p4_contract' P' ctx Q
+Proof
+gs[p4_contract'_alt_shape] >>
+rpt strip_tac >>
+res_tac
+QED
+*)
+
+(*
+(* TODO: Does this already exist elsewhere? As an SML function? *)
+Definition get_pblock_def:
+get_pblock ab_list block_index pblock_map =
+case EL (block_index + 1) ab_list of
+   | (arch_block_pbl x el) =>
+    (case ALOOKUP pblock_map x of
+     | SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) => SOME b_func_map
+     | _ => NONE)
+   | _ => NONE
+End
+*)
+
+(* Looks up an L-value in the architectural value map *)
+Definition p4_v1model_lookup_avar_def:
+p4_v1model_lookup_avar varn (((i, in_out_list, in_out_list', (counter, ext_obj_map, v_map, ctrl)), g_scope_list, arch_frame_list, status):v1model_ascope astate) =
+ lookup_lval [v_map_to_scope v_map] varn
+End
+
 val _ = export_theory ();
