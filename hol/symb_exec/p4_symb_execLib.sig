@@ -6,6 +6,8 @@ datatype defn_data =
    def_term of term
  | def_thm of thm;
 
+val p4_wellformed_ss : thm -> simpLib.ssfrag
+
 val p4_symb_exec:
    int ->
    bool ->
@@ -21,13 +23,13 @@ val p4_symb_exec:
 val p4_symb_exec_prove_contract:
    bool ->
    hol_type ->
-     defn_data -> (term * term * term) -> string list -> thm list -> term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> thm
+     defn_data -> (term * term * term) -> string list -> thm list -> term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> simpLib.simpset -> thm
 
 val p4_symb_exec_prove_contract_conc:
    bool ->
    hol_type ->
      defn_data -> (term * term * term) -> string list -> thm list ->
-       term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> thm
+       term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> simpLib.simpset -> thm
 
 val p4_debug_symb_exec:
    hol_type ->
@@ -52,7 +54,9 @@ val p4_debug_symb_exec_frame_lists:
 	     term list ->
 	       term list -> thm list -> thm -> int -> symb_execLib.path_tree * term list
 
-val get_v1model_wellformed_defs : term -> term -> Defn.defn
+val get_v1model_wellformed_defs : term -> term -> term -> Defn.defn
+
+val get_intermediate_state : term -> thm -> term
 
 val p4_combine_contracts: thm -> thm -> thm -> thm
 

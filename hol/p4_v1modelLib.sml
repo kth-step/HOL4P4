@@ -71,7 +71,7 @@ val v1model_ipsec_crypt_map =
 
 (* Extern (object) function map *)
 val v1model_ext_map =
- ``((^(inst [``:'a`` |-> ``:v1model_ascope``] core_ext_map))
+ ``((^(inst [``:'a`` |-> v1model_arch_ty] core_ext_map))
     ++ [("", (NONE, (^v1model_objectless_map)));
         ("packet_in", (NONE, (^v1model_packet_in_map)));
         ("packet_out", (NONE, (^v1model_packet_out_map)));

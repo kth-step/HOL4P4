@@ -497,4 +497,11 @@ p4_v1model_lookup_avar varn (((i, in_out_list, in_out_list', (counter, ext_obj_m
  lookup_lval [v_map_to_scope v_map] varn
 End
 
+Definition p4_v1model_lookup_avar_validity_def:
+p4_v1model_lookup_avar_validity varn (((i, in_out_list, in_out_list', (counter, ext_obj_map, v_map, ctrl)), g_scope_list, arch_frame_list, status):v1model_ascope astate) =
+ case lookup_lval [v_map_to_scope v_map] varn of
+ | SOME $ v_header validity fields => SOME validity
+ | _ => NONE
+End
+
 val _ = export_theory ();

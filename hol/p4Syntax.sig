@@ -320,6 +320,9 @@ val tau_ty : hol_type
 val is_tau_bool : term -> bool
 val tau_bool_tm : term
 
+val is_tau_ext : term -> bool
+val tau_ext_tm : term
+
 val dest_tau_bit : term -> int
 val is_tau_bit : term -> bool
 val mk_tau_bit : int -> term
