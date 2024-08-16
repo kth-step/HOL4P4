@@ -2889,6 +2889,106 @@ fun prove_contract' contract_thm (path_cond, init_astate, ctx_lhs, postcond) =
 val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def];
 *)
 
+
+fun get_bits_of_v v =
+ if is_v_bit v
+ then fst $ dest_list $ fst $ dest_pair $ dest_v_bit v
+ else if is_v_bool v
+ then [dest_v_bool v]
+ else if is_v_ext_ref v
+ then []
+ else if is_v_str v
+ then []
+ else if is_v_struct v
+ then
+  let
+   val fields = dest_v_struct v
+   val field_vs = map (snd o dest_pair) $ fst $ dest_list fields
+   val field_bits = flatten $ map get_bits_of_v field_vs
+  in
+   field_bits
+  end
+ else if is_v_header v
+ then
+  let
+   val (validity_bit, fields) = dest_v_header v
+   val field_vs = map (snd o dest_pair) $ fst $ dest_list fields
+   val field_bits = flatten $ map get_bits_of_v field_vs
+  in
+   (validity_bit::field_bits)
+  end
+ else if is_v_bot v
+ then []
+ else raise (ERR "get_bits_of_v" ("Unsupported v: "^(term_to_string v)))
+;
+
+fun p4_prove_wellformed_state astate wf_def =
+ prove(“^(fst $ dest_comb $ fst $ dest_eq $ snd $ strip_forall $ concl wf_def) ^astate <=> T”,
+  REWRITE_TAC [wf_def] >>
+  goal_term (fn tm =>
+  let
+   val (vars, eqn) = strip_exists tm
+   val (concrete_state, abstract_state) = dest_eq eqn
+   val (aenv, g_scope_list, _, _) = dest_astate concrete_state
+   val (block_index, io_list, io_list', ascope) = dest_aenv aenv
+   val (ext_obj_index, ext_obj_map, v_map, ctrl) = p4_v1modelLib.dest_v1model_ascope ascope
+
+   (* TODO: Fix this *)
+   (* 1. Variables from ext_obj_map
+    *    * Remaining input packet *)
+(*
+   val input_packet_tail_var = snd $ dest_comb $ fst $ sumSyntax.dest_inl $ snd $ dest_pair $ hd $ fst $ dest_list ext_obj_map
+*)
+
+   (* 2. Variables from v_map
+    *    * Block parameters of V1Model *)
+   val v_map_bits = flatten $ map get_bits_of_v $ (map (snd o dest_pair)) $ fst $ dest_list v_map
+
+   (* 3. Variables from g_scope_list
+    *    * Desugaring struct for apply results *)
+   val g_scope_list_bits = get_bits_of_v $ fst $ dest_pair $ snd $ dest_pair $ hd $ fst $ dest_list $ hd $ fst $ dest_list g_scope_list
+  in
+(*
+   exists_tac input_packet_tail_var >>
+*)
+   (map_every $ exists_tac) v_map_bits >>
+   (map_every $ exists_tac) g_scope_list_bits
+  end
+  ) >>
+  REWRITE_TAC[]
+ )
+;
+
+(*
+val astate = (optionSyntax.dest_some $ rhs $ snd $ dest_imp $ concl step_thm1)
+prove(“p4_v1model_parser_wellformed ^astate <=> T”,
+SIMP_TAC (bool_ss++(p4_wellformed_ss wf_def)) []
+);
+*)
+local
+fun wf_conv wf_def =
+ let
+  val wf_tm = fst $ dest_comb $ fst $ dest_eq $ snd $ strip_forall $ concl wf_def
+ in
+  {conv = K (K (fn tm => p4_prove_wellformed_state (snd $ dest_comb tm) wf_def)),
+   key= SOME ([], mk_comb (wf_tm, mk_var ("astate", “:v1model_ascope astate”))),
+   (* TODO: Better names *)
+   name = "Prove wellformedness (v1model)",
+   trace = 2}
+ end
+;
+
+in
+fun p4_wellformed_ss wf_def =
+  SSFRAG {ac = [],
+          congs = [],
+          convs = [wf_conv wf_def],
+          dprocs = [],
+          filter = NONE,
+          name = SOME "p4_wellformed_ss",
+          rewrs = []};
+end;
+
 datatype defn_data =
    def_term of term
  | def_thm of thm;
@@ -2914,10 +3014,12 @@ datatype defn_data =
  *
  * postcond: the postcondition, a term which is a predicate on the architectural state
  *
- * postcond_rewr_thms: additional theorems used when proving the postcondition *)
+ * postcond_rewr_thms: additional theorems used when proving the postcondition
+ * 
+ * postcond_simpset: additional simpset used when proving the postcondition *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms =
+fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset =
  let
 
   (* DEBUG *)
@@ -2947,7 +3049,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
   val id_step_post_thm_list =
-   prove_postconds debug_flag postcond_rewr_thms postcond path_cond_step_list
+   prove_postconds debug_flag postcond_rewr_thms postcond_simpset postcond path_cond_step_list
 (*
    if debug_flag
    then
@@ -3051,13 +3153,6 @@ fun p4_debug_symb_exec_frame_lists arch_ty ctx_data (fty_map, b_fty_map, pblock_
 
 *)
 
-(*
-open p4Syntax;
-open optionSyntax listSyntax pairSyntax numSyntax stringSyntax;
-
-open p4_testLib;
-*)
-
 fun mk_v_bit_freevars (prefix, nbits) =
  let
   val bits = fixedwidth_freevars (prefix, nbits);
@@ -3066,14 +3161,136 @@ fun mk_v_bit_freevars (prefix, nbits) =
  end
 ;
 
-(* TODO: Currently inherits some stuff from the initial state - this can probably be largely
- * generalised *)
-(* TODO: Automatically account for types of program-specific block parameters *)
-(* TODO: Currently, gets postparser only *)
-fun get_v1model_wellformed_defs actx init_astate =
+fun mk_v_bit_freevars_fromindex (prefix, index, nbits) =
+ let
+  val bits = fixedwidth_freevars_fromindex (prefix, index, nbits);
+ in
+   (fst $ dest_list bits, mk_v_bit $ mk_pair (bits, term_of_int nbits))
+ end
+;
+
+(*
+(* The block name *)
+val bname = “"p"”
+
+val ab_list = “[arch_block_inp;
+  arch_block_pbl "p"
+    [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
+     e_var (varn_name "meta"); e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "postparser";
+  arch_block_pbl "vrfy" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
+  arch_block_pbl "ingress"
+    [e_var (varn_name "hdr"); e_var (varn_name "meta");
+     e_var (varn_name "standard_metadata")];
+  arch_block_pbl "egress"
+    [e_var (varn_name "hdr"); e_var (varn_name "meta");
+     e_var (varn_name "standard_metadata")];
+  arch_block_pbl "update" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
+  arch_block_pbl "deparser" [e_var (varn_name "b"); e_var (varn_name "hdr")];
+  arch_block_out]”
+
+val pblock_tymap = symb_exec1_pblock_tymap;
+*)
+
+(* TODO: This must ensure no accidental duplicate free variables are formed.
+ * Simplest way is to use common prefix + passing current fv index *)
+(*
+val prefix = "a"
+val fv_index = 0
+val name_tau = “("row",
+		 tau_xtl struct_ty_struct
+		   [("e",tau_bit 8); ("t",tau_bit 16); ("l",tau_bit 8);
+		    ("r",tau_bit 8); ("v",tau_bit 8)])”
+free_vars_v_of_name_tau "a" 0 name_tau
+*)
+
+fun free_vars_v_of_name_tau prefix fv_index name_tau =
+ let
+  val (name, tau) = dest_pair name_tau
+ in
+  if is_tau_bit tau
+  then
+   let
+    val width = dest_tau_bit tau
+   in
+    (fv_index+width, mk_pair (name, snd $ mk_v_bit_freevars_fromindex (prefix, fv_index, width)))
+   end
+  else if is_tau_xtl tau
+  then
+   let
+    val (struct_ty, struct_elems) = dest_tau_xtl tau
+   in
+     if is_struct_ty_struct struct_ty
+     then
+      let
+       val (fv_index', name_vs) = free_vars_v_of_name_tau_list prefix fv_index (fst $ dest_list struct_elems)
+      in
+       (fv_index', mk_pair (name, mk_v_struct $ mk_list (name_vs, mk_prod (string_ty, v_ty))))
+      end
+     else if is_struct_ty_header struct_ty
+     then
+      let
+       val (fv_index', name_vs) = free_vars_v_of_name_tau_list prefix (fv_index+1) (fst $ dest_list struct_elems)
+      in
+       (fv_index', mk_pair (name, mk_v_header (mk_var (prefix^(Int.toString (fv_index)), bool), mk_list (name_vs, mk_prod (string_ty, v_ty)))))
+      end
+     else raise (ERR "free_vars_v_of_tau" ("Unsupported struct_ty: "^(term_to_string struct_ty)))
+   end
+  else raise (ERR "free_vars_v_of_tau" ("Unsupported tau: "^(term_to_string tau)))
+ end
+and free_vars_v_of_name_tau_list prefix fv_index [] = (fv_index, [])
+  | free_vars_v_of_name_tau_list prefix fv_index (h::t) =
+ let
+  val (fv_index', name_v) = free_vars_v_of_name_tau prefix fv_index h
+  val (fv_index'', name_vs) = free_vars_v_of_name_tau_list prefix fv_index' t
+ in
+  (fv_index'', name_v::name_vs)
+ end
+;
+
+(* TODO: Feedback for all failure cases *)
+fun free_vars_vs_of_bargs bname ab_list pblock_tymap =
+ let
+  (* Get the arg names from the block name and ab_list *)
+  (* TODO: Hack *)
+  val bargs_opt = rhs $ concl $ EVAL “case FIND (\ab. case ab of arch_block_pbl bname bargs => if bname = ^bname then T else F | _ => F) ^ab_list of
+	| SOME (arch_block_pbl bname bargs) => SOME bargs
+	| _ => NONE”
+  val bargnames = mk_list (map (dest_varn_name o dest_e_var) $ fst $ dest_list $ dest_some bargs_opt, string_ty)
+
+  val pblock_tys_opt = rhs $ concl $ EVAL “ALOOKUP ^pblock_tymap ^bname”
+
+  val pblock_tys = dest_some pblock_tys_opt
+
+  val bargname_tau_list = rhs $ concl $ EVAL “ZIP (^bargnames, ^pblock_tys)”
+
+  val bargname_tau_list' = List.filter (not o is_tau_ext o snd o dest_pair) $ fst $ dest_list bargname_tau_list
+  (* TODO: "a" is a temporary solution: what prefixes to use? Remember this gets existentially
+   * quantified later... *)
+  val bargname_v_list = mk_list (snd $ free_vars_v_of_name_tau_list "b" 0 bargname_tau_list', mk_prod (string_ty, v_ty))
+ in
+  bargname_v_list
+ end
+;
+
+val v1model_standard_metadata_name_ty =
+ “("standard_metadata",
+   tau_xtl struct_ty_struct
+     [("ingress_port",tau_bit 9); ("egress_spec",tau_bit 9);
+      ("egress_port",tau_bit 9); ("instance_type",tau_bit 32);
+      ("packet_length",tau_bit 32); ("enq_timestamp",tau_bit 32);
+      ("enq_qdepth",tau_bit 19); ("deq_timedelta",tau_bit 32);
+      ("deq_qdepth",tau_bit 19); ("ingress_global_timestamp",tau_bit 48);
+      ("egress_global_timestamp",tau_bit 48); ("mcast_grp",tau_bit 16);
+      ("egress_rid",tau_bit 16); ("checksum_error",tau_bit 1);
+      ("parser_error",tau_bit 32); ("priority",tau_bit 3)])”
+;
+
+(* TODO: Make this work for case of remaining input *)
+fun get_v1model_wellformed_defs actx init_astate block_index_stop =
  let
   (* Obtain the function maps for generating star variables *)
-  val (_, _, _, _, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
+  val (_, _, _, input_f, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
 
   (* Obtain the control plane configuration from the initial state - this is used directly
    * for the intermediate state *)
@@ -3081,93 +3298,25 @@ fun get_v1model_wellformed_defs actx init_astate =
   val ascope = #4 $ dest_aenv aenv
   val ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope ascope
 
+  (* TODO: V1Model hack *)
+  val (tau1_v, tau2_v) = dest_pair $ snd $ dest_comb input_f
+  val tau1 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau1_v”
+  val tau2 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau2_v”
+
+  val fv_prefix = "b"
+
   (* Start filling v_map up with the platform-specific variables *)
-  val (pe_free_vars, pe_v) = mk_v_bit_freevars ("pe", 32)
+  val (pe_free_vars, pe_v) = mk_v_bit_freevars (fv_prefix, 32)
+  val (fv_index, sm_name_v) = free_vars_v_of_name_tau fv_prefix 32 v1model_standard_metadata_name_ty
+  val (fv_index', ph_name_v) = free_vars_v_of_name_tau fv_prefix fv_index (mk_pair(fromMLstring "parsedHdr" , tau1))
+  val (fv_index'', h_name_v) = free_vars_v_of_name_tau fv_prefix fv_index' (mk_pair(fromMLstring "hdr" , tau1))
+  val (fv_index''', m_name_v) = free_vars_v_of_name_tau fv_prefix fv_index'' (mk_pair(fromMLstring "meta" , tau2))
+
   val v_map' = mk_list ([mk_pair (fromMLstring "parseError", pe_v),
                          mk_pair (fromMLstring "b", mk_v_ext_ref $ term_of_int 0),
-                         mk_pair (fromMLstring "b_temp", mk_v_ext_ref $ term_of_int 1)], mk_prod (string_ty, v_ty))
-  (* TODO: Hack, for enabling testing: *)
-  val v_map'' = rhs $ concl $ EVAL $ mk_append (v_map', “[("standard_metadata",
-             v_struct
-               [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
-                ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
-                ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
-                ("instance_type",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
-                ("packet_length",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
-                ("enq_timestamp",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
-                ("enq_qdepth",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],
-                    19));
-                ("deq_timedelta",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
-                ("deq_qdepth",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],
-                    19));
-                ("ingress_global_timestamp",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F],48));
-                ("egress_global_timestamp",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F],48));
-                ("mcast_grp",
-                 v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
-                ("egress_rid",
-                 v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
-                ("checksum_error",v_bit ([F],1));
-                ("parser_error",
-                 v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F; F; F],32));
-                ("priority",v_bit ([F; F; F],3))]);
-            ("parsedHdr",
-             v_struct
-               [("h",
-                 v_header T
-                   [("row",
-                     v_struct
-                       [("e",v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8));
-                        ("t",
-                         v_bit
-                           ([F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T],
-                            16)); ("l",v_bit ([F; F; F; F; F; F; F; F],8));
-                        ("r",v_bit ([F; F; F; F; F; F; F; F],8));
-                        ("v",v_bit ([T; F; T; T; F; F; F; F],8))])])]);
-            ("hdr",
-             v_struct
-               [("h",
-                 v_header ARB
-                   [("row",
-                     v_struct
-                       [("e",
-                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
-                        ("t",
-                         v_bit
-                           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                             ARB; ARB; ARB; ARB; ARB; ARB; ARB],16));
-                        ("l",
-                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
-                        ("r",
-                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
-                        ("v",
-                         v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8))])])]);
-            ("meta",v_struct [])]:(string # v) list”)
+                         mk_pair (fromMLstring "b_temp", mk_v_ext_ref $ term_of_int 1),
+                         sm_name_v, ph_name_v, h_name_v, m_name_v],
+                        mk_prod (string_ty, v_ty))
 
   (* Note: Should agree with updates of initialise_var_stars_def to global scope in exec sem *)
   val var_stars = rhs $ concl $ EVAL “(var_star_updates_of_func_map ^func_map)++(var_star_updates_of_ext_map ^ext_fun_map)”
@@ -3184,47 +3333,118 @@ fun get_v1model_wellformed_defs actx init_astate =
 
   val g_scope_list' = mk_list ([mk_cons (gen_apply_result_var, var_stars)], scope_ty)
 
-  (* TODO: Block-specific hack *)
-  val hack_vars = fst $ dest_list $ fixedwidth_freevars_fromindex ("e", 1, 8)
   (* TODO: Make this work for ctrl tables that are not constants *)
-  val def_free_vars = [“packet_tail:bool list”]@pe_free_vars@[hit_var, miss_var]@ar_free_vars@hack_vars
+(* OLD
+  val def_free_vars = [“packet_tail:bool list”]@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[hit_var, miss_var]@ar_free_vars
+*)
+  val def_free_vars = (fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[hit_var, miss_var]@ar_free_vars
  in
+  (* TODO: Adjust block index for the block in question, adjust extern map? *)
   Defn.mk_defn "p4_v1model_parser_wellformed"
    “p4_v1model_parser_wellformed astate <=>
      ^(list_mk_exists(def_free_vars, 
      “(astate:v1model_ascope astate) =
-     ((2, [], [], (2, [(0,INL (core_v_ext_packet packet_tail))], ^v_map'', ^ctrl)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
+     ((^block_index_stop, [], [], (2, [(0,INL (core_v_ext_packet [])); (1,INL (core_v_ext_packet []))], ^v_map', ^ctrl)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
+ end
+;
+
+val (p4_v1model_lookup_avar_validity_tm,  mk_p4_v1model_lookup_avar_validity, dest_p4_v1model_lookup_avar_validity, is_p4_v1model_lookup_avar_validity) =
+  syntax_fns2 "p4_symb_exec" "p4_v1model_lookup_avar_validity";
+
+val (p4_v1model_lookup_avar_tm,  mk_p4_v1model_lookup_avar, dest_p4_v1model_lookup_avar, is_p4_v1model_lookup_avar) =
+  syntax_fns2 "p4_symb_exec" "p4_v1model_lookup_avar";
+
+(* postcond is the postcondition of the contract preceding the intermediate state *)
+fun get_intermediate_state postcond wf_def =
+ let
+  val (state_var, predicate) = dest_abs postcond
+  val conjs = strip_conj predicate
+  val usable_conjs = List.filter (fn conj => if is_eq conj then ((fn tm => (is_p4_v1model_lookup_avar tm) orelse (is_p4_v1model_lookup_avar_validity tm)) $ lhs conj) else false) conjs
+  val gen_usable_conjs = map (fn conj => mk_abs (state_var, conj)) usable_conjs
+
+  val init_astate = rhs $ snd $ strip_exists $ rhs $ snd $ dest_forall $ concl wf_def
+
+  val comb_usable_conjs = map (fn conj => mk_comb (conj, init_astate)) gen_usable_conjs
+  (* TODO: EVAL - use HOL4P4_CONV? *)
+  val comb_usable_conjs' = map EVAL comb_usable_conjs
+  val comb_usable_conjs'' = map (strip_conj o rhs o concl) comb_usable_conjs'
+
+  val subst_eqs = map (fn eqn => if is_eq eqn
+                                 then let val (a,b) = dest_eq eqn in (a |-> b) end
+                                 else if is_neg eqn
+                                      then ((dest_neg eqn) |-> F)
+                                      else (eqn |-> T)) $ flatten comb_usable_conjs''
+  val init_astate' = subst subst_eqs init_astate
+ in
+  init_astate'
  end
 ;
 
 (* This takes two contracts in p4_contract' formulation, and composes them sequentially.
  * wellformed_def is a definition stating the intermediate state is well-formed *)
+(* TODO: This can still be made more efficient *)
 fun p4_combine_contracts contract1 contract2 wellformed_def =
  let
   val (pre1, ctx1, post1) = dest_p4_contract' $ concl contract1
   val (pre2, ctx2, post2) = dest_p4_contract' $ concl contract2
+
+  val init_state1 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre1
  in
  (* “^(mk_p4_contract' (pre1, ctx2, post2))” *)
   prove(mk_p4_contract' (pre1, ctx1, post2),
   (let
-    val gen_contract2 = (GEN_ALL contract2)
+    val gen_contract2 = (hol88Lib.GEN_ALL contract2)
     val vars = fst $ strip_forall $ concl $ gen_contract2
    in
     assume_tac contract1 >>
-    assume_tac gen_contract2 >>
-    FULL_SIMP_TAC bool_ss [p4_contract'_alt_shape, wellformed_def] >>
-    qpat_x_assum ‘!vars. _’ (fn thm => ASSUME_TAC $ SPECL vars thm) >>
-    FULL_SIMP_TAC std_ss []
+(*
+    qpat_x_assum ‘!vars. _’ (fn thm => markerLib.ABBREV_TAC “contract2 = ^(concl thm)”) >>
+    qpat_x_assum ‘Abbrev (contract2 = _)’ (fn thm => markerLib.hide_tac "hide_contract2" thm) >>
+
+    goal_term (fn tm => markerLib.ABBREV_TAC “goal = ^tm”) >>
+    qpat_x_assum ‘Abbrev (goal = _)’ (fn thm => markerLib.hide_tac "goal_hide" thm) >>
+
+    rpt (qpat_x_assum ‘?vars. _’ (fn thm => CHOOSE_TAC thm)) >>
+*)
+    (* Somehow massively more efficient than REWRITE_TAC... *)
+    EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [p4_contract'_alt_shape] thm)) >>
+    EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [wellformed_def] thm)) >>
+    SIMP_TAC bool_ss [p4_contract'_alt_shape] >>
+    (* Simplify the first contract *)
+    qpat_x_assum ‘!s. _’ (fn thm => assume_tac (SPEC init_state1 thm)) >>
+    qpat_x_assum ‘A ==> B’ (fn thm => assume_tac (REWRITE_RULE [(EVAL_CONV $ fst $ dest_imp $ concl thm)] thm)) >>
+    FULL_SIMP_TAC pure_ss [] >>
+    qpat_x_assum ‘P s'’ (fn thm => assume_tac (REWRITE_RULE [(EVAL_CONV $ concl thm)] thm)) >>
+    (**********************************************)
+    (* Construction of the intermediate state s'  *)
+
+    (* Split up conjoined assumptions *)
+    rpt (qpat_x_assum ‘A /\ B’ (fn thm => assume_tac (CONJUNCT1 thm) >> assume_tac (CONJUNCT2 thm))) >>
+    (* Eliminate existentially quantified variables *)
+    rpt (qpat_x_assum ‘?vars. _’ (fn thm => CHOOSE_TAC thm)) >>
+
+    qpat_x_assum ‘s' = _’ (fn thm => FULL_SIMP_TAC bool_ss [thm]) >>
+    (* Use all assumptions on looked-up L-values *)
+    rpt (qpat_x_assum ‘p4_v1model_lookup_avar _ _ = _’ (fn thm => (FULL_SIMP_TAC bool_ss [EVAL_RULE thm]))) >>
+    (* Use all assumptions on validity bits *)
+    rpt (qpat_x_assum ‘p4_v1model_lookup_avar_validity _ _ = _’ (fn thm => (FULL_SIMP_TAC bool_ss [EVAL_RULE thm]))) >>
+    
+    (* Introduce the second contract *)
+    qpat_assum ‘arch_multi_exec _ _ _ = _’ (fn thm => assume_tac $ SPECL (free_vars_lr $ rhs $ concl thm) gen_contract2) >>
+    FULL_SIMP_TAC std_ss [p4_contract'_alt_shape]
    end) >> (
     (* Combine the two executions *)
-    qexistsl_tac [‘n + n'’, ‘s''’] >>
+    qexistsl_tac [‘n + n'’, ‘s'’] >>
     rfs[] >>
-    PairCases_on ‘s''’ >>
+    PairCases_on ‘s'’ >>
     irule arch_multi_exec_comp_n_tl >>
+(* OLD
     (* Use constraints on middle state:
-     * Currently, this looks for all instances of p4_v1model_lookup_avar. *)
+     * Currently, this looks for all instances of p4_v1model_lookup_avar, and validity version. *)
     (* TODO: Use HOL4P4_CONV? *)
     rpt (qpat_x_assum ‘p4_v1model_lookup_avar _ _ = _’ (fn thm => ASSUME_TAC $ EVAL_RULE thm)) >>
+    rpt (qpat_x_assum ‘p4_v1model_lookup_avar_validity _ _ = _’ (fn thm => ASSUME_TAC $ EVAL_RULE thm)) >>
+*)
     FULL_SIMP_TAC std_ss []
    )
   )

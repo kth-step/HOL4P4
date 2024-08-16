@@ -279,6 +279,9 @@ val tau_ty = mk_type ("tau", []);
 val tau_bool_tm = prim_mk_const {Name="tau_bool", Thy="p4"};
 fun is_tau_bool tm = term_eq tm tau_bool_tm;
 
+val tau_ext_tm = prim_mk_const {Name="tau_ext", Thy="p4"};
+fun is_tau_ext tm = term_eq tm tau_ext_tm;
+
 val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit_tmp, is_tau_bit) =
   syntax_fns1 "p4" "tau_bit";
 val mk_tau_bit =

@@ -575,7 +575,8 @@ Definition v1model_input_f_def:
   | ((bl,p)::t) =>
    (* TODO: Currently, no garbage collection in ext_obj_map is done *)
    (* let counter' = ^v1model_init_counter in *)
-   let ext_obj_map' = AUPDATE ext_obj_map (counter, INL (core_v_ext_packet bl)) in
+   let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext_packet bl));
+                                                (counter+1, INL (core_v_ext_packet []))] in
    let counter' = counter + 2 in
    (* TODO: Currently, no garbage collection in v_map is done *)
    let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref counter);
