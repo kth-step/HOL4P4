@@ -6,7 +6,7 @@ JSON_PATH=$1
 LOG_PATH=$2
 
 if [ "$#" -ne 2 ]; then
-    echo "petr4_to_hol4p4.sh requires two arguments: the first a path to a P4 program in petr4 JSON format, the second a path to a log file"
+    echo "petr4_to_hol4p4.sh requires two arguments: the first a path to a P4 program in petr4 JSON format, the second a path to a log file."
     exit 1
 fi
 
@@ -20,6 +20,11 @@ if [ "$remove_debug" = true ] ; then
 fi
 
 arch=$(./petr4_get_arch.sh "${JSON_PATH%.json}.p4")
+
+if [ "$arch" = "none" ]; then
+    echo "No architecture found in the associated .p4 file. Check that your P4 program uses a proper architecture, or adapt petr4_get_arch.sh to recognize the right architecture."
+    exit 1
+fi
 
 mode="symbolic"
 
