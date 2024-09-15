@@ -25,10 +25,10 @@ open numeralTheory;
 
 
 fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
 
 fun OPEN_STMT_RED_TAC stm_term =
-(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
 
 fun OPEN_V_TYP_TAC v_term =
 (Q.PAT_X_ASSUM `v_typ v_term t bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once v_typ_cases] thm)))
@@ -5310,7 +5310,7 @@ rw[] >|[
 fs[sr_exp_list_def] >>
 rfs[sr_exp_def] >>
 REPEAT STRIP_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once e_red_cases]
+FULL_SIMP_TAC (srw_ss()) [Once e_sem_cases]
 
 ,
 
@@ -5515,7 +5515,7 @@ REPEAT STRIP_TAC  >>
 SIMP_TAC (srw_ss()) [sr_exp_def] >>
 REPEAT STRIP_TAC >| [
     
-    gvs[Once e_red_cases] >| [
+    gvs[Once e_sem_cases] >| [
     OPEN_EXP_TYP_TAC ``(e_cast c e)`` >>
     gvs[sr_exp_def] >>
     EXP_GOAL_TYP_IH_TAC
@@ -5537,7 +5537,7 @@ REPEAT STRIP_TAC >| [
     ,
     
  fs[] >>
- gvs[Once e_red_cases] >>
+ gvs[Once e_sem_cases] >>
  OPEN_EXP_TYP_TAC ``(e_cast c e)`` >>
  rfs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]

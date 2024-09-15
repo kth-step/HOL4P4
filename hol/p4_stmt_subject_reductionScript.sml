@@ -34,10 +34,10 @@ fun OPEN_V_TYP_TAC v_term =
 
                
 fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red j scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red j scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
 
 fun OPEN_ANY_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red c scope scopest exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red c scope scopest exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
 
                
 fun OPEN_EXP_TYP_TAC exp_term =
@@ -54,11 +54,11 @@ fun OPEN_STMT_TYP_TAC stmt_term =
 
 fun OPEN_STMT_RED_TAC stm_term =
 (Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat`
- (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+ (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
 
 val OPEN_ANY_STMT_RED_TAC =
 (Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[stm_term],gam)],st) stat`
- (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+ (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
  
 fun OPEN_FRAME_TYP_TAC frame_term =
 (Q.PAT_X_ASSUM ` frame_typ (t1,t2) a b h d ^frame_term` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once frame_typ_cases] thm)))
@@ -169,11 +169,11 @@ STRIP_TAC >>
 Induct >>
 fs[fr_len_exp_def] >>
 REPEAT STRIP_TAC >| [
- fs[Once e_red_cases]
+ fs[Once e_sem_cases]
  ,
- fs[Once e_red_cases]
+ fs[Once e_sem_cases]
  ,
- fs[Once e_red_cases]
+ fs[Once e_sem_cases]
  ,
  FR_LEN_IND_CASE “e_acc e s”
  ,
@@ -277,7 +277,7 @@ Proof
 Induct >>
 REPEAT GEN_TAC >>
 STRIP_TAC >| [
- fs[Once stmt_red_cases]
+ fs[Once stmt_sem_cases]
  ,
  FR_LEN_STMT_IND_CASE “stmt_ass l e”
  ,
@@ -308,7 +308,7 @@ STRIP_TAC >| [
  fs[fr_len_exp_def] >> gvs[] >>
  RES_TAC >> gvs[]
  ,
- fs[Once stmt_red_cases]
+ fs[Once stmt_sem_cases]
  ]        
 QED
 
@@ -355,9 +355,9 @@ Theorem fr_len_from_a_stmtl_theorem:
 Proof
 Cases >>
 REPEAT GEN_TAC >-
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 IMP_RES_TAC fr_len_from_a_frame_theorem >> gvs[]>>
 
 ASSUME_TAC fr_len_from_e_theorem >>
@@ -423,7 +423,7 @@ val SR_stmt_newframe = prove (“
                                   
 Induct >>
 REPEAT STRIP_TAC >| [
- fs[Once stmt_red_cases]
+ fs[Once stmt_sem_cases]
  ,
  (** assignment case **)   
  (* we know that the length of the frame framel is either 0 or one from :*)
@@ -2951,7 +2951,7 @@ STRIP_TAC >|  [
  (*****************************)
  (*   stmt_empty              *)
  (*****************************)
- fs[Once stmt_red_cases]
+ fs[Once stmt_sem_cases]
  ,                                      
 
  (*****************************)
@@ -3338,7 +3338,7 @@ STRIP_TAC >|  [
  (*   stmt_ext                *)
  (*****************************)
        
- fs[Once stmt_red_cases] >>
+ fs[Once stmt_sem_cases] >>
  SIMP_TAC list_ss [Once stmt_typ_cases] >>
  gvs[clause_name_def, type_frame_tsl_def] >>
  fs[Once stmt_typ_cases] >>
@@ -3369,7 +3369,7 @@ STRIP_TAC >~ [‘LENGTH stmtl = LENGTH [stmt_seq stmt stmt'] + 1 ∨
 ( OPEN_STMT_RED_TAC “stmt_seq stmt stmt'” >>
   gvs[] >>
   RES_TAC >>
-  gvs[] ) >> fs[Once stmt_red_cases]
+  gvs[] ) >> fs[Once stmt_sem_cases]
 QED
 
     
@@ -3720,7 +3720,7 @@ gvs[] >| [
  (*   stmt_empty              *)
  (*****************************)
                                         
- fs[Once stmt_red_cases]
+ fs[Once stmt_sem_cases]
  ,                                      
 
  (*****************************)
@@ -3729,7 +3729,7 @@ gvs[] >| [
         
  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
  gvs[] >| [
-   fs[Once stmt_red_cases] >>
+   fs[Once stmt_sem_cases] >>
    gvs[] 
    ,
    STMT_STMT_SR_TAC ‘stmt_ass l e’
@@ -3742,7 +3742,7 @@ gvs[] >| [
 
  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
  gvs[] >| [
-  fs[Once stmt_red_cases] >>
+  fs[Once stmt_sem_cases] >>
   gvs[] 
   ,  
   STMT_STMT_SR_TAC ‘stmt_cond e stmt stmt'’
@@ -3761,7 +3761,7 @@ gvs[] >| [
 
    (* requires induction *)
    (* here we should solve for only two cases, seq3 and block enter *)
-   fs[Once stmt_red_cases] >>
+   fs[Once stmt_sem_cases] >>
    gvs[] >>
    
    OPEN_STMT_TYP_TAC “(stmt_block t_scope stmt')” >>
@@ -3801,7 +3801,7 @@ gvs[] >| [
 
  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
  gvs[] >| [
-   fs[Once stmt_red_cases] >>
+   fs[Once stmt_sem_cases] >>
    gvs[] 
    ,  
    STMT_STMT_SR_TAC ‘stmt_ret e’
@@ -3820,7 +3820,7 @@ gvs[] >| [
 
    (* requires induction *)
    (* here we should solve for only two cases, seq3 and block enter *)
-   fs[Once stmt_red_cases] >>
+   fs[Once stmt_sem_cases] >>
    gvs[] >>
 
    OPEN_STMT_TYP_TAC “(stmt_seq stmt1 stmt2)” >>
@@ -3886,7 +3886,7 @@ gvs[] >| [
 
  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
  gvs[] >| [
- fs[Once stmt_red_cases] >>
+ fs[Once stmt_sem_cases] >>
     gvs[] 
     ,  
     STMT_STMT_SR_TAC ‘stmt_trans e’
@@ -3899,7 +3899,7 @@ gvs[] >| [
 
  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
  gvs[] >| [
-   fs[Once stmt_red_cases] >>
+   fs[Once stmt_sem_cases] >>
    gvs[] 
    ,  
    STMT_STMT_SR_TAC ‘stmt_app s l’
@@ -3912,7 +3912,7 @@ gvs[] >| [
 
  IMP_RES_TAC stmtl_len_from_in_frame_theorem >>
  gvs[] >| [
-   fs[Once stmt_red_cases] >>
+   fs[Once stmt_sem_cases] >>
    gvs[] 
    ,  
    STMT_STMT_SR_TAC ‘stmt_ext’
@@ -3973,7 +3973,7 @@ stmt_red c (ascope,gscope,[(f,h::t,scopest)],status)
        clause_name x = clause_name "stmt_block_enter" ∧ ~(t=t') ) ”,
 
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 gvs[clause_name_def]
 );
 
@@ -4230,7 +4230,7 @@ Cases_on ‘stmtl’ >| [
                 ‘delta_b’, ‘delta_t’, ‘delta_x’,‘f’, ‘Prs_n’])) >> gvs[] >>                
    srw_tac [SatisfySimps.SATISFY_ss][]
    ,
-   gvs[Once stmt_red_cases] >| [
+   gvs[Once stmt_sem_cases] >| [
 
      ASSUME_TAC SR_stmt_newframe >>      
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
@@ -4296,7 +4296,7 @@ Cases_on ‘stmtl’ >| [
      srw_tac [SatisfySimps.SATISFY_ss][]
      ,
      
-     gvs[Once stmt_red_cases] >>
+     gvs[Once stmt_sem_cases] >>
      gvs[ADD1] >>
      ‘1 ≤ LENGTH stmt_stack' ’ by gvs[] >>
      
@@ -4334,7 +4334,7 @@ Cases_on ‘stmtl’ >| [
 
    STRIP_TAC >> 
    fs[ADD1] >>
-   gvs[Once stmt_red_cases] >| [
+   gvs[Once stmt_sem_cases] >| [
      (* case block exec removing a  frame *)
 
    ASSUME_TAC SR_single_block >> 

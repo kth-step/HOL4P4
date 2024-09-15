@@ -8,23 +8,24 @@ filename = os.path.dirname(os.path.realpath(__file__)) + os.sep + "p4Script.sml"
 
 #Ott-generated type abbreviations and Hol_datatypes that contain polymorphic types
 #TODO Perform a check that these lines are unchanged in the p4Script.sml file?
-od_hacks = OrderedDict([("val _ = type_abbrev(\"ascope\", ``:('a)``);", ""), #Delete this type abbreviation
+od_hacks = OrderedDict([("Type ascope = ``:('a)``", ""), #Delete this type abbreviation
                         ("val _ = Hol_datatype ` \nffblock =  (* fixed-function block *)\n   ffblock_ff of ff\n`;",
                          "val _ = Hol_datatype ` \nffblock =  (* fixed-function block *)\n   ffblock_ff of 'a ff\n`;"),
-                        ("val _ = type_abbrev(\"ffblock_map\", ``:((string, ffblock) alist)``);",
-                         "val _ = type_abbrev(\"ffblock_map\", ``:((string, 'a ffblock) alist)``);"),
-                        ("val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map)``);",
-                         "val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # ext_map # func_map)``);"),
-                        ("val _ = type_abbrev(\"astate\", ``:(aenv # g_scope_list # arch_frame_list # status)``);",
-                         "val _ = type_abbrev(\"astate\", ``:('a aenv # g_scope_list # arch_frame_list # status)``);"),
-                        ("val _ = type_abbrev(\"ext_fun_map\", ``:((string, ((string # d) list # ext_fun)) alist)``);",
-                         "val _ = type_abbrev(\"ext_fun_map\", ``:((string, ((string # d) list # 'a ext_fun)) alist)``);"),
-                        ("val _ = type_abbrev(\"ext_map\", ``:((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist)``);",
-                         "val _ = type_abbrev(\"ext_map\", ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``);"),
-                        ("val _ = type_abbrev(\"ctx\", ``:(apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map)``);",
-                         "val _ = type_abbrev(\"ctx\", ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map)``);"),
-                        ("val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map)``);",
-                         "val _ = type_abbrev(\"actx\", ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map)``);")])
+                        ("Type ffblock_map = ``:((string, ffblock) alist)``",
+                         "Type ffblock_map = ``:((string, 'a ffblock) alist)``"),
+                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map)``",
+                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # ext_map # func_map)``"),
+                        ("Type astate = ``:(aenv # g_scope_list # arch_frame_list # status)``",
+                         "Type astate = ``:('a aenv # g_scope_list # arch_frame_list # status)``"),
+                        ("Type ext_fun_map = ``:((string, ((string # d) list # ext_fun)) alist)``",
+                         "Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``"),
+                        ("Type ext_map = ``:((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist)``",
+                         "Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``"),
+                        ("Type ctx = ``:(apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map)``",
+                         "Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map)``"),
+                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map)``",
+                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map)``")
+                        ])
 
 #Assign the polymorphic types (found in semantics definitions, et.c.) a proper 'a
 od = OrderedDict([("ascope_ty", "'a"), #Replace this as it appears in type abbreviations

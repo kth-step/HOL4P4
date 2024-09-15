@@ -340,7 +340,7 @@ stmt_red c (ascope,gscope,[(f,[stmt],locale)],status_running)
            (ascope',gscope',framel ⧺ [(f,stmt_stack,locale')], status_returnv v) ⇒
 framel = []”,
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases]
+gvs[Once stmt_sem_cases]
 );
 
 
@@ -352,7 +352,7 @@ stmt_red c (ascope,gscope,[(f,stmtl,locale)],status_running)
            (ascope',gscope',framel ⧺ [(f,stmtl',locale')],status_returnv v) ⇒
    framel = []”,
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 IMP_RES_TAC ret_status_framel_empty_lemma
 );
 
@@ -1022,7 +1022,7 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘passed_gscope’,‘loca
 
 (* now the difference between comp1 and comp2 is the status after the transition being return or not*)
                   
-SIMP_TAC list_ss [Once frames_red_cases] >>
+SIMP_TAC list_ss [Once frames_sem_cases] >>
 srw_tac [boolSimps.DNF_ss][] >>
   gvs[Once frame_typ_cases, type_frame_tsl_def] >>       
 
