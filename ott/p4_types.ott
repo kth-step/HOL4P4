@@ -605,9 +605,8 @@ t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , b )
 
 
 t_scopes_tup T_e |- e : ( tau , b' )
-v1 , .. , vn : ( tau , b )
 ----------------------------------- :: select
-t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
+t_scopes_tup T_e |- select e { s_list1 : x1 ; .. ; s_listn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
 
 
 
