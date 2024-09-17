@@ -6189,22 +6189,25 @@ REPEAT STRIP_TAC >|[
    rfs[clause_name_def] >>
 
    SIMP_TAC (srw_ss()) [sel_def] >>
-   Cases_on ` FIND (λ(ks,s). ks = v) l` >>
-   fs[] >>
-   fs[FIND_def] >>
-   PairCases_on `z` >>
-   fs[] >>
-   IMP_RES_TAC index_mem >>
-   IMP_RES_TAC mem_fst_snd >>
-   fs[ELIM_UNCURRY] >>
-   EVAL_TAC >>
-   rw[]
-   ,
+   Cases_on `v` >> (
+    gs[]
+   ) >>
+   Cases_on `FIND (λ(s_list,x'). match_all (ZIP (SND (UNZIP l'),s_list))) l` >> (
+    fs[] >>
+    fs[FIND_def] >>
+    PairCases_on `z` >>
+    fs[] >>
+    IMP_RES_TAC index_mem >>
+    IMP_RES_TAC mem_fst_snd >>
+    fs[ELIM_UNCURRY] >>
+    EVAL_TAC >>
+    rw[]
+   ),
 
    (*e_sel e*)
 
    rw[] >>
-   OPEN_EXP_TYP_TAC ``(e_select (e) l s)`` >>
+   OPEN_EXP_TYP_TAC ``(e_select e l s)`` >>
    SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
    rfs[clause_name_def] >>
    gvs[] >>
@@ -6220,7 +6223,6 @@ REPEAT STRIP_TAC >|[
    fs[clause_name_def] >> gvs[] >>
 
    Q.EXISTS_TAC `tau'` >>
-   Q.EXISTS_TAC `b'''` >>
    Q.EXISTS_TAC `b''` >>
 
    gvs[] 
