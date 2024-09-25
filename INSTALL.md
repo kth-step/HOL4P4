@@ -18,8 +18,11 @@ This guide assumes a fresh install of Ubuntu 22.04.
 * HOL4
 * Petr4
 * Git
+
+### Optional, for generating HOL4 definitions and documentation
+
 * Python 3
-* Ott (optional - for generating HOL4 definitions and documentation)
+* Ott
 
 ## Installation
 
@@ -27,9 +30,9 @@ You may skip steps for components you already have installed.
 
 First, navigate to the directory where you want to put the source code of Poly/ML and HOL4. Then, in the terminal:
 
-1. Install a C compiler, Git and Python 3
+1. Install a C compiler and Git
 
-		sudo apt-get install build-essential git python3
+		sudo apt-get install build-essential git
 
 2. Install Poly/ML 5.9.1
 
@@ -97,8 +100,9 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		
 	This will build the HOL4 theories and associated libraries.
 	
-6. (Optional) Install the latest version of Ott
+6. (Optional) Install Python 3 and the latest version of Ott
 
+		sudo apt-get install python3
 		opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev
 		opam pin add ott dev -k version
 		
