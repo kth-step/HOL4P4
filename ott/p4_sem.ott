@@ -592,10 +592,12 @@ formula :: formula_ ::=
 |  v_list : ( taul , false )  :: :: type_all_v
   {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau ( EL i [[taul]] )) F ) }}
   {{ tex [[v_list]] : ( [[taul]] , \bot ) }}
-|  v1 , .. , vm : ( tau , b )  :: :: type_all_v_one_t
-  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
+%|  v1 , .. , vm : ( tau , b )  :: :: type_all_v_one_t
+%  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
+| ( s_list1 , .. , s_listn ) : [ s_t_list1 , .. , s_t_listm ]  :: :: type_all_s
+  {{ hol !i. (i < LENGTH [[s_list1 .. s_listn]]) ==> !j. (j < LENGTH (EL i [[s_list1 .. s_listn]])) ==> ( s_typ (EL j (EL i [[s_list1 .. s_listn]])) (EL j (EL i [[s_t_list1 .. s_t_listm]])) ) }}
 | correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau ) :: :: correct_field_type
   {{ hol correct_field_type [[x1 tau1 .. xn taun]] [[x]] [[tau]] }}
 | slice_length_check ( w , bitv' , bitv'' )  :: :: slice_length_check
@@ -604,8 +606,8 @@ formula :: formula_ ::=
   {{ hol bits_length_check [[w]] [[w1]] [[w2]] }}
 | w = vec_to_const bitv  :: :: vec_to_const
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
-|  correct_value_set_types ( [ tau1 , .. , taum ] , [ s_list1 , .. , s_listn ] ) :: :: correct_value_set_types
-  {{ hol correct_value_set_types [[tau1 .. taum]] [[s_list1 .. s_listn]] }}
+|  correct_value_set_types ( [ tau1 , .. , taum ] , [ s_t_list1 , .. , s_t_listn ] ) :: :: correct_value_set_types
+  {{ hol correct_value_set_types [[tau1 .. taum]] [[s_t_list1 .. s_t_listn]] }}
 | is_struct e :: :: is_struct
  {{ hol is_struct [[e]] }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
