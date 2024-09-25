@@ -1,11 +1,11 @@
 .HOLMK
 .hollogs
+.holobjs
 *.uo
 *.ui
 *.dat
 hol/*Theory.sig
 hol/*Theory.sml
-hol/p4Script.sml
 hol/*-heap
 hol/p4_from_json/*Theory.sig
 hol/p4_from_json/*Theory.sml

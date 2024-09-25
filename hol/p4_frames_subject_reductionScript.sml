@@ -170,7 +170,7 @@ stmt_red c (ascope , gscope , [(funn,stmtl,scope_list)], status)
            (ascope', gscope', frame_list               , status') ⇒
    ∃new_frame stmtl' scope_list'.  frame_list =  new_frame++[(funn,stmtl',scope_list')]  ”,             
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >> gvs[] 
+gvs[Once stmt_sem_cases] >> gvs[] 
 );
 
         
@@ -182,7 +182,7 @@ stmt_red c (ascope, gscope,[(funn,stmtl,scope_list)],status)
       frame_list =  new_frame++[(funn,stmtl',scope_list')] ”,             
 
 STRIP_TAC >>
-gvs[Once stmt_red_cases] >> gvs[] >>
+gvs[Once stmt_sem_cases] >> gvs[] >>
 srw_tac [SatisfySimps.SATISFY_ss][] >>
 METIS_TAC []
 );
@@ -722,16 +722,16 @@ LENGTH stmtl > LENGTH stmtl' ⇒
 (LENGTH stmtl − LENGTH stmtl' = 1 ∧ framel = [] ∧ g_scope_list =  g_scope_list' )”,
 
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 gvs[ADD1] >>
-gvs[Once stmt_red_cases]
+gvs[Once stmt_sem_cases]
 );
 
 
 
 fun OPEN_ANY_STMT_RED_TAC a =
 (Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(f,[stm_term],gam)],st) stat`
- (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+ (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
 
  
 Theorem return_imp_same_g_base_case:
@@ -755,7 +755,7 @@ stmt_red c (ascope,gscope,[(f,stmtl,locale)],status_running)
 gscope = gscope' 
 Proof
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 IMP_RES_TAC return_imp_same_g_base_case
 QED  
 
@@ -797,7 +797,7 @@ stmt_red c (ascope, gscope,   [(f,stmtl,scope_list)],status)
  gscope = gscope'
 Proof
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 IMP_RES_TAC create_frame_in_stmt_same_g >>
 IMP_RES_TAC create_frame_in_stmt_same_g2
 QED
@@ -1866,7 +1866,7 @@ SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ⇒
 Proof        
 Induct >>
 REPEAT STRIP_TAC >>
-fs[Once stmt_red_cases] >| [
+fs[Once stmt_sem_cases] >| [
 
    ASSUME_TAC status_ret_in_stmt_typed_verbose >>
 
@@ -2033,7 +2033,7 @@ stmt_red c (ascope,gscope,[(f,[stmt],locale)],status_running)
            (ascope',gscope,[(f,stmt_stack,locale')], status_returnv v) ⇒
 LENGTH stmt_stack = 1 ”,
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases]
+gvs[Once stmt_sem_cases]
 );
 
         
@@ -2044,7 +2044,7 @@ stmt_red c (ascope,gscope,[(f,stmt_stack,locale)],status_running)
 LENGTH stmt_stack = LENGTH stmt_stack'
 Proof
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 gvs[ADD1] >>
 IMP_RES_TAC ret_status_stmt_len_single_lemma
 QED
@@ -2143,7 +2143,7 @@ stmt_red  c
 scope_list' = scope_list  ”,
 
 REPEAT STRIP_TAC >>
-gvs[Once stmt_red_cases] >>
+gvs[Once stmt_sem_cases] >>
 gvs[] >>
 IMP_RES_TAC local_sc_same_stmt2>>
 IMP_RES_TAC local_sc_same_stmt1
@@ -2971,14 +2971,14 @@ STRIP_TAC >>
 Cases_on ‘framel’ >-
 
 (* case when frame is empty*)
- gvs[sr_state_def, Once frames_red_cases] >>
+ gvs[sr_state_def, Once frames_sem_cases] >>
  
 
 (* now we need to do cases on the transition of the frame comp1 and comp2 *)
 gvs[sr_state_def] >>
 REPEAT STRIP_TAC >>
 
-gvs[Once frames_red_cases] >| [
+gvs[Once frames_sem_cases] >| [
 
 
  IMP_RES_TAC WT_state_HD_of_list >> gvs[] >>

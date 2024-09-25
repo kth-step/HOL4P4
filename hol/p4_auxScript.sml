@@ -465,7 +465,7 @@ Theorem lemma_v_red_forall:
 ! c s sl e l fl.
 ~ e_red c s sl (e_v (l)) e fl
 Proof
-RW_TAC (srw_ss()) [Once e_red_cases]
+RW_TAC (srw_ss()) [Once e_sem_cases]
 QED
 
 

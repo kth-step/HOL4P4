@@ -31,7 +31,7 @@ fun OPEN_V_TYP_TAC v_term =
 
                
 fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
 
 fun OPEN_EXP_TYP_TAC exp_term =
 (Q.PAT_X_ASSUM ` e_typ (t1,t2) t ^exp_term ta bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_typ_cases] thm)))
@@ -42,11 +42,11 @@ fun OPEN_STMT_TYP_TAC stmt_term =
         
 fun OPEN_STMT_RED_TAC stm_term =
 (Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat`
- (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+ (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
 
 val OPEN_ANY_STMT_RED_TAC =
 (Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[stm_term],gam)],st) stat`
- (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+ (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
  
 fun OPEN_FRAME_TYP_TAC frame_term =
 (Q.PAT_X_ASSUM ` frame_typ (t1,t2) t a b h d ^frame_term` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once frame_typ_cases] thm)))
@@ -443,7 +443,7 @@ REPEAT STRIP_TAC >| [
  (*   stmt_assign             *)
  (*****************************)
 
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  Cases_on `is_const e` >| [
       
    gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
@@ -492,7 +492,7 @@ REPEAT STRIP_TAC >| [
  (*   stmt_cond               *)
  (*****************************)
 
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  Cases_on `is_const e` >| [
              
    gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
@@ -521,7 +521,7 @@ REPEAT STRIP_TAC >| [
  (*****************************)
  (*   stmt_block              *)
  (*****************************)         
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[clause_name_def]
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[clause_name_def]
                                                 
  ,
 
@@ -529,7 +529,7 @@ REPEAT STRIP_TAC >| [
  (*   stmt_ret                *)
  (*****************************)
         
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  Cases_on `is_const e` >| [
      
    gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall]
@@ -554,12 +554,12 @@ REPEAT STRIP_TAC >| [
  (*   stmt_seq                *)
  (*****************************)
          
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  Cases_on ‘stmt = stmt_empty’ >> gvs[] >| [
             (* seq2 *) 
-   gvs[Once stmt_red_cases, clause_name_def] >>
+   gvs[Once stmt_sem_cases, clause_name_def] >>
    frame_typ_into_stmt_typ_tac >>           
-   gvs[Once stmt_red_cases, clause_name_def]
+   gvs[Once stmt_sem_cases, clause_name_def]
    ,
         
    srw_tac [boolSimps.DNF_ss][] >>
@@ -607,9 +607,9 @@ REPEAT STRIP_TAC >| [
 
      (* seq3 *)
      DISJ2_TAC  >>  
-     gvs[Once stmt_red_cases] >>
+     gvs[Once stmt_sem_cases] >>
      IMP_RES_TAC stmtl_len_from_in_frame_theorem >> gvs[] >>
-     SIMP_TAC list_ss  [Once stmt_red_cases] >> gvs[] >>
+     SIMP_TAC list_ss  [Once stmt_sem_cases] >> gvs[] >>
      srw_tac [boolSimps.DNF_ss][] >>
      srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]        
    ]                                        
@@ -622,7 +622,7 @@ REPEAT STRIP_TAC >| [
  (*****************************)                                       
 
 
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  Cases_on `is_const e` >| [
    gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
    frame_typ_into_stmt_typ_tac >>           
@@ -649,7 +649,7 @@ REPEAT STRIP_TAC >| [
  (*   stmt_app                *)
  (*****************************)  
 
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  srw_tac [boolSimps.DNF_ss][] >>
  Cases_on ‘index_not_const l = NONE’ >| [
    DISJ1_TAC >>
@@ -730,7 +730,7 @@ REPEAT STRIP_TAC >| [
  (*   stmt_ext                *)
  (*****************************)
         
- SIMP_TAC list_ss [Once stmt_red_cases] >> gvs[] >>
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  srw_tac [boolSimps.DNF_ss][clause_name_def] >>
  
  PairCases_on ‘c’ >> gvs[] >>
@@ -842,14 +842,14 @@ Proof
      
 STRIP_TAC >>
 Cases_on ‘stmtl’ >-
- ( fs[prog_stmtl_def, Once stmt_red_cases, empty_frame_not_typed] ) >>
+ ( fs[prog_stmtl_def, Once stmt_sem_cases, empty_frame_not_typed] ) >>
  
 fs[prog_stmtl_def] >>
 REPEAT STRIP_TAC >>
 Cases_on ‘h = stmt_empty’ >> gvs[] >| [
 
  (* if the statement is empty_stmt, then the tail is not empty, so the only thing can be done here is block exit *)
- gvs[Once stmt_red_cases, clause_name_def]
+ gvs[Once stmt_sem_cases, clause_name_def]
  ,
  (* if the statement is not empty_stmt, then we need to check the length of t  *)      
  Cases_on ‘t’ >| [
@@ -863,7 +863,7 @@ Cases_on ‘h = stmt_empty’ >> gvs[] >| [
              
      ,
      (*now the case of block exec and seq *)        
-     gvs[Once stmt_red_cases, clause_name_def] >>
+     gvs[Once stmt_sem_cases, clause_name_def] >>
      IMP_RES_TAC frame_typ_head_of_stmtl  >>     
      ASSUME_TAC PROG_stmt >> 
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘h’])) >>

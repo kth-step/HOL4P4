@@ -89,7 +89,7 @@ gvs[NRC] >>
 PairCases_on ‘f’ >>
 Q.EXISTS_TAC ‘((f1,f2,f3),((f0,f4,f5,f6),thread2))’ >>
 CONJ_TAC >| [
- SIMP_TAC list_ss [Once conc_red_cases]>>
+ SIMP_TAC list_ss [Once conc_sem_cases]>>
  DISJ1_TAC>>             
  PairCases_on ‘thread2’ >>
  PairCases_on ‘actx’ >>
@@ -113,7 +113,7 @@ gvs[NRC] >>
 PairCases_on ‘f’ >>
 Q.EXISTS_TAC ‘((f1,f2,f3),(thread1, (f0,f4,f5,f6)))’ >>
 CONJ_TAC >| [
- SIMP_TAC list_ss [Once conc_red_cases]>>
+ SIMP_TAC list_ss [Once conc_sem_cases]>>
  DISJ2_TAC>>             
  PairCases_on ‘thread1’ >>
  PairCases_on ‘actx’ >>

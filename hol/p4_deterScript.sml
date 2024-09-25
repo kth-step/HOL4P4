@@ -20,10 +20,10 @@ val _ = new_theory "p4_deter";
 (*Tactics*)
 
 fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red j scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red j scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
 
 fun OPEN_STMT_RED_TAC stm_term =
-(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
 
 
 
@@ -168,14 +168,14 @@ Induct >|[
 (*****************************)
 (*       e_v case            *)
 (*****************************)
-RW_TAC (srw_ss()) [same_state_def, det_exp_def, Once e_red_cases]
+RW_TAC (srw_ss()) [same_state_def, det_exp_def, Once e_sem_cases]
 ,
 
 (*****************************)
 (*       e_var case          *)
 (*****************************)
 RW_TAC (srw_ss()) [det_exp_def] >>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def, Once e_red_cases, same_frame_exp_def] >>
+FULL_SIMP_TAC (srw_ss()) [det_exp_def, Once e_sem_cases, same_frame_exp_def] >>
 METIS_TAC [option_case_def]
 ,
 
@@ -183,7 +183,7 @@ METIS_TAC [option_case_def]
 (*    e_list case            *)
 (*****************************)
 RW_TAC (srw_ss()) [det_exp_def] >>
-FULL_SIMP_TAC (srw_ss()) [Once e_red_cases, same_frame_exp_def]
+FULL_SIMP_TAC (srw_ss()) [Once e_sem_cases, same_frame_exp_def]
 ,
 
 (*****************************)
@@ -610,7 +610,7 @@ Induct >|[
 (*****************************)
 (*   stmt_empty              *)
 (*****************************)
-RW_TAC (srw_ss()) [same_state_def, det_stmt_def, Once e_red_cases] >>
+RW_TAC (srw_ss()) [same_state_def, det_stmt_def, Once e_sem_cases] >>
 OPEN_STMT_RED_TAC ``stmt_empty`` >>
 fs []
 ,
@@ -802,7 +802,7 @@ Proof
 
 Cases_on `stmtl` >| [
     FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
-    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases]
+    FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases]
     ,
     
     FULL_SIMP_TAC (srw_ss()) [det_stmtl_def] >>
@@ -813,7 +813,7 @@ Cases_on `stmtl` >| [
         RES_TAC >>
         fs []
         ,
-        FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >> fs [same_state_def] >>
+        FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >> fs [same_state_def] >>
         rw[] >>
         ASSUME_TAC P4_stmt_det >>
         rfs [det_stmt_def, same_state_def]  >>
@@ -848,7 +848,7 @@ stmt_red c
            status_running)
           (ascope, g_scope_list,[(funn,[stmt'],scopes_stack)],status_returnv v) ==> (e = e_v v) ``,
 
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
 
 );
 
@@ -861,7 +861,7 @@ stmt_red c
            status_running)
           (ascope, g_scope_list,[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack')  ``,
 
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
 );
 
 
@@ -874,7 +874,7 @@ stmt_red c
            status_running)
           (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
 
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
 );
 
 
@@ -888,7 +888,7 @@ stmt_red c
            status_running)
           (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
 
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] 
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
 );
 
 
@@ -900,7 +900,7 @@ prove(``
           (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
           (ascope, g_scope_list', frame_list,status_running)``
 ,
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
 rw[] >>
 rfs[lemma_v_red_forall]
 );
@@ -913,7 +913,7 @@ stmt_red c
           (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
           (ascope, g_scope_list', frame_list,status) ==>  (status = status_returnv v)``
 ,
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
 rw[] >>
 rfs[lemma_v_red_forall]
 );
@@ -929,7 +929,7 @@ prove(``
           (ascope, g_scope_list', frame_list,status_returnv v)
 ``
 ,
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
 rw[] >>
 rfs[lemma_v_red_forall]
 );
@@ -949,7 +949,7 @@ prove(``
           (ascope, g_scope_list', frame_list,status_returnv v)
 ``
 ,
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases] >>
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
 rw[] >>
 rfs[lemma_v_red_forall]
 );
@@ -980,14 +980,14 @@ Cases_on `frame` >>
 Cases_on `r`>>
 Cases_on `q'` >| [
 FULL_SIMP_TAC (srw_ss()) [det_frame_def] >>
-FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases, same_state_def] >>
+FULL_SIMP_TAC (srw_ss()) [Once frames_sem_cases, same_state_def] >>
 REPEAT STRIP_TAC >>
-FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def]
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases, same_state_def]
 ,
 
  FULL_SIMP_TAC (srw_ss()) [det_frame_def] >>
   REPEAT STRIP_TAC >>
-  FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
+  FULL_SIMP_TAC (srw_ss()) [Once frames_sem_cases] >>
   rw[] >>
   Cases_on ‘map_to_pass q b_func_map’ >> gvs[] >>    
  Cases_on ‘scopes_to_pass q func_map b_func_map g_scope_list ’>> gvs[] >>
@@ -1013,7 +1013,7 @@ Proof
 Cases_on `framel` >| [
 
 (* empty frame [] *)
-fs [det_framel_def, Once frames_red_cases] 
+fs [det_framel_def, Once frames_sem_cases] 
 ,
 Cases_on `t` >| [
 
@@ -1027,7 +1027,7 @@ Cases_on `t` >| [
   (*multiple frame  h::h'::t' *)
   FULL_SIMP_TAC (srw_ss()) [det_framel_def] >>
   REPEAT STRIP_TAC >>
-  FULL_SIMP_TAC (srw_ss()) [Once frames_red_cases] >>
+  FULL_SIMP_TAC (srw_ss()) [Once frames_sem_cases] >>
   rw[]  >>          
   Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >>
   Cases_on ‘map_to_pass funn b_func_map’ >> gvs[] >>
@@ -1049,7 +1049,7 @@ Cases_on `t` >| [
     (*comp1-comp2*)
     (*************)       
     
-    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
+    FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases, same_state_def] >>
     ASSUME_TAC P4_stmt_det >>
     fs [det_stmt_def, same_state_def]  >>
     RES_TAC >>
@@ -1081,7 +1081,7 @@ Cases_on `t` >| [
     (*************)       
 
 
-    FULL_SIMP_TAC (srw_ss()) [Once stmt_red_cases, same_state_def] >>
+    FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases, same_state_def] >>
     ASSUME_TAC P4_stmt_det >>
     fs [det_stmt_def, same_state_def]  >>
     RES_TAC >>

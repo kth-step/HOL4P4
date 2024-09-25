@@ -23,10 +23,10 @@ open p4_e_subject_reductionTheory;
 
 
 fun OPEN_EXP_RED_TAC exp_term =
-(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_red_cases] thm)))
+(Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
 
 fun OPEN_STMT_RED_TAC stm_term =
-(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_red_cases] thm)))
+(Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
 
 fun OPEN_V_TYP_TAC v_term =
 (Q.PAT_X_ASSUM `v_typ v_term t bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once v_typ_cases] thm)))
@@ -1496,7 +1496,7 @@ fs[prog_exp_def, is_const_def]
 
 fs[prog_exp_def] >>
 rpt strip_tac >>
-SIMP_TAC list_ss [Once e_red_cases] >>
+SIMP_TAC list_ss [Once e_sem_cases] >>
 gvs[] >>
 
 (*now we need to show that there is indeed a value that we can find in
@@ -1516,7 +1516,7 @@ fs[Once e_typ_cases, clause_name_def] >| [
 (*****************)
 
 fs[prog_exp_def] >>
-fs[Once e_red_cases] >>
+fs[Once e_sem_cases] >>
 FULL_SIMP_TAC (srw_ss()) [Once e_typ_cases]
 
 ,
@@ -1531,7 +1531,7 @@ REPEAT STRIP_TAC >>
 OPEN_EXP_TYP_TAC ``(e_acc e s)`` >>
 gvs[] >>
 
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
 
@@ -1582,7 +1582,7 @@ Cases_on `is_const e` >| [
 
 SIMP_TAC list_ss [prog_exp_def] >>
 REPEAT STRIP_TAC >>
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
@@ -1623,7 +1623,7 @@ Cases_on `is_const e` >| [
 
 SIMP_TAC list_ss [prog_exp_def] >>
 REPEAT STRIP_TAC >>
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
@@ -1633,7 +1633,7 @@ Cases_on `is_const e` >| [
  gvs[clause_name_def] >>
  Cases_on `e` >>
  fs[is_const_def] >>
- gvs[Once e_red_cases]  >>                
+ gvs[Once e_sem_cases]  >>                
 
  (*from the typing rules we know *)
  Cases_on ‘c’ >>
@@ -1642,7 +1642,7 @@ Cases_on `is_const e` >| [
  OPEN_EXP_TYP_TAC ``(e_cast (cast_unsigned n) (e_v v))`` >> fs[] >>
  OPEN_EXP_TYP_TAC ``e_v v`` >> fs[] >>
 
- gvs[Once e_red_cases]  >>                
+ gvs[Once e_sem_cases]  >>                
  OPEN_V_TYP_TAC ``v`` >> gvs[clause_name_def] 
  ,
         
@@ -1680,7 +1680,7 @@ rpt strip_tac >>
  
    (* case v op v *)
    
-   RW_TAC (srw_ss()) [Once e_red_cases] >>
+   RW_TAC (srw_ss()) [Once e_sem_cases] >>
    rw[] >>
    srw_tac [boolSimps.DNF_ss][] >>
    OPEN_EXP_TYP_TAC ``(e_binop e _ e')`` >>
@@ -1707,7 +1707,7 @@ rpt strip_tac >>
    
    (* case v op e*)
    
-   SIMP_TAC list_ss [Once e_red_cases] >>
+   SIMP_TAC list_ss [Once e_sem_cases] >>
    OPEN_EXP_TYP_TAC ``(e_binop e _ e')`` >>
    fs[clause_name_def] >>
    gvs[is_const_val_exsist] >>
@@ -1739,7 +1739,7 @@ rpt strip_tac >>
  
  (*case e op e'*)
  
- SIMP_TAC list_ss [Once e_red_cases] >>
+ SIMP_TAC list_ss [Once e_sem_cases] >>
  OPEN_EXP_TYP_TAC ``(e_binop e _ e')`` >>
  fs[clause_name_def] >>
  gvs[is_const_val_exsist] >|[
@@ -1806,7 +1806,7 @@ REPEAT STRIP_TAC >>
 OPEN_EXP_TYP_TAC ``(e_concat e e')`` >>
 gvs[] >>
 
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
 
@@ -1871,7 +1871,7 @@ REPEAT STRIP_TAC >>
 OPEN_EXP_TYP_TAC ``(e_slice e e' e'')`` >>
 gvs[] >>
 
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
 
@@ -1913,7 +1913,7 @@ REPEAT STRIP_TAC >>
 OPEN_EXP_TYP_TAC ``(e_call f l1)`` >>
 gvs[] >>
 
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
 
@@ -2107,7 +2107,7 @@ REPEAT STRIP_TAC >>
 OPEN_EXP_TYP_TAC ``(e_select e l s)`` >>
 gvs[is_const_def, clause_name_def] >>
 
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
 
@@ -2138,7 +2138,7 @@ OPEN_EXP_TYP_TAC ``(e_struct l2)`` >>
 gvs[] >>
 gvs[is_const_def, clause_name_def] >>
 
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
 
@@ -2235,7 +2235,7 @@ OPEN_EXP_TYP_TAC ``(e_header b l2)`` >>
 gvs[] >>
 gvs[is_const_def, clause_name_def] >>
 
-RW_TAC (srw_ss()) [Once e_red_cases] >>
+RW_TAC (srw_ss()) [Once e_sem_cases] >>
 rw[] >>
 srw_tac [boolSimps.DNF_ss][] >>
 
