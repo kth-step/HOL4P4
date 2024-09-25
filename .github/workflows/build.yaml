@@ -38,16 +38,7 @@ jobs:
       - name: Prepare cached dependencies
         timeout-minutes: 35
         run: |
-          ./.github/scripts/install_polyml.sh
-          ./.github/scripts/install_hol4.sh
-
-      - name: Prepare OCaml
-        uses: ocaml/setup-ocaml@v2
-        with:
-          ocaml-compiler: 4.13.x
-
-      - name: Prepare Ott
-        run: opam install ott
+          ./scripts/install.sh && ./scripts/install2.sh
         
       - name: Export Ott files to HOL4 and run Holmake
         run: eval "$(opam env)" && export PATH=$PATH:${{ env.CACHE_DIR }}/hol4_${{ matrix.hol4 }}/bin && make hol
