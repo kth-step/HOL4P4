@@ -326,43 +326,14 @@ End
  *       and adjusting the import tool *)
 Definition correct_value_set_types''_def:
  (correct_value_set_types'' [] = T) /\
- (correct_value_set_types'' ((ty,s)::t) =
-  case s of
-  | s_sing v =>
-   (case v of
-    | v_bool b =>
-     if ty = tau_bool
-     then correct_value_set_types'' t
-     else F
-    | v_bit (bl, n) =>
-     (case ty of
-      | tau_bit n' =>
-       if n = n'
-       then correct_value_set_types'' t
-       else F
-      | _ => F)
-    | _ => F)
-  | s_range (bl, n) (bl', n') =>
-   if n = n'
-   then
-    (case ty of
-     | tau_bit n'' =>
-      if n = n''
-      then correct_value_set_types'' t
-      else F
-     | _ => F)
+ (correct_value_set_types'' ((ty,s_ty)::t) =
+  case s_ty of
+  | s_t_tau tau =>
+   if ty = tau
+   then correct_value_set_types'' t
    else F
-  | s_mask (bl, n) (bl', n') =>
-   if n = n'
-   then
-    (case ty of
-     | tau_bit n'' =>
-      if n = n''
-      then correct_value_set_types'' t
-      else F
-     | _ => F)
-   else F
-  | s_univ => correct_value_set_types'' t
+  | s_t_top =>
+   correct_value_set_types'' t
  )
 End
 
@@ -513,6 +484,31 @@ by
 
 ----------------------------------- :: ext_ref
  ext_ref i : ( ext , false)
+
+defns
+s_typ :: '' ::=
+defn
+ s : s_t  :: :: s_typ :: s_typ_
+{{ com value set types }}
+{{ tex [[s]] : [[s_t]] }}
+by
+
+v : ( tau , b )
+----------------------------------- :: sing
+v : tau
+
+ w = width bitv
+ w = width bitv'
+----------------------------------- :: range
+range bitv bitv' : bs w
+
+ w = width bitv
+ w = width bitv'
+----------------------------------- :: mask
+mask bitv bitv' : bs w
+
+----------------------------------- :: univ
+univ : top
 
 embed
 {{ hol
@@ -681,7 +677,8 @@ t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , b )
 %returning a struct
 is_struct e
 t_scopes_tup T_e |- e : ( struct_ty [ x'1 tau1 , .. , x'n taun ] , b )
-correct_value_set_types ( [ tau1 , .. , taun ] , [ s_list1 , .. , s_listm ] )
+( s_list1 , .. , s_listm ) : [ s_t_list1 , .. , s_t_listm ]
+correct_value_set_types ( [ tau1 , .. , taun ] , [ s_t_list1 , .. , s_t_listm ] )
 ----------------------------------- :: select
 t_scopes_tup T_e |- select e { s_list1 : x1 ; .. ; s_listm : xm } x : ( [ x1 , .. , xm ] ++ [ x ] , false )
 

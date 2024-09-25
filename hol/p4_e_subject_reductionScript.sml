@@ -6211,14 +6211,17 @@ REPEAT STRIP_TAC >| [
    SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
    rfs[clause_name_def] >>
    OPEN_EXP_TYP_TAC ``(e_v v)`` >>
-   rfs[clause_name_def] >> rw[] >>
+   rfs[clause_name_def] >>
+   rw[] >>
    SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
    rfs[clause_name_def] >>
    SIMP_TAC (srw_ss()) [sel_def] >>
    Cases_on `v` >> (
     gs[]
    ) >>
-   Cases_on `FIND (\(s_list,x'). match_all (ZIP (SND (UNZIP l'),s_list))) l` >> (
+   Cases_on `FIND (λ(s_list,x'). match_all (ZIP (SND (UNZIP l),s_list)))
+               (MAP (λ(s_list_,x_,s_t_list_). (s_list_,x_))
+                  s_list_x_s_t_list_list)` >> (
     fs[] >>
     fs[FIND_def] >>
     PairCases_on `z` >>
@@ -6228,6 +6231,20 @@ REPEAT STRIP_TAC >| [
     fs[ELIM_UNCURRY] >>
     EVAL_TAC >>
     rw[]
+   ) >- (
+    subgoal ‘(MAP SND (MAP (λx. (FST x,FST (SND x))) s_list_x_s_t_list_list)) = (MAP (λx. FST (SND x)) s_list_x_s_t_list_list)’ >- (
+     subgoal ‘?s_list x_s_t_list_list. s_list_x_s_t_list_list = ZIP (s_list, x_s_t_list_list) /\ LENGTH s_list = LENGTH x_s_t_list_list’ >- (
+      qexistsl_tac [‘MAP FST s_list_x_s_t_list_list’, ‘MAP SND s_list_x_s_t_list_list’] >>
+      gvs[ZIP_MAP_FST_SND]
+     ) >>
+     gs[GSYM ZIP_MAP] >>
+     gs[MAP_ZIP] >>
+     subgoal ‘((\x. FST (SND x)):(s list # string # s_t list) -> string) = (FST o SND)’ >- (
+      gs[combinTheory.o_DEF]
+     ) >>
+     gs[MAP_ZIP]
+    ) >>
+    gs[]
    ),
 
    (* e_sel e *)
@@ -6244,6 +6261,7 @@ REPEAT STRIP_TAC >| [
    gvs[] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`f`,`stmt`,`s'`,‘Prs_n’,`apply_table_f`, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >>
    fs[clause_name_def] >> gvs[] >>
+   qexists_tac `s_list_x_s_t_list_list` >>
    qexists_tac `x'_tau_list` >>
    qexists_tac `struct_ty` >>
    qexists_tac `b''` >>
@@ -6686,17 +6704,3 @@ QED
 
 
 val _ = export_theory ();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
