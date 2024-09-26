@@ -45,7 +45,7 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		cd ..
 
 3. Install HOL4 Trindemossen-1
-	
+
 		git clone https://github.com/HOL-Theorem-Prover/HOL.git
 		cd HOL
 		git checkout trindemossen-1
@@ -124,4 +124,4 @@ The same tools used to edit HOL4 theories and run the HOL4 REPL can also be used
 
 The `scripts` directory contains installation scripts. These may be run when installing HOL4P4 e.g. on a fresh virtual machine by
 
-	scripts/install.sh && scripts/install2.sh
+	scripts/install.sh
