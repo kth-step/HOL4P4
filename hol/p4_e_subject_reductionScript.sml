@@ -5234,7 +5234,7 @@ QED
 
 
 
-Theorem e_red_struct:
+Theorem e_sem_struct:
 !e apply_table_f ext_map func_map b_func_map pars_map tbl_map gscope scopest e' framel.
 is_struct e ==>
 e_red (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
@@ -5257,10 +5257,10 @@ Cases_on ‘e’ >> (
   Cases_on ‘v’ >> (
    gs[]
   ) >> (
-   gvs[Once e_red_cases]
+   gvs[Once e_sem_cases]
   )
  ) >> (
-  gvs[Once e_red_cases]
+  gvs[Once e_sem_cases]
  )
 )
 QED
@@ -6266,7 +6266,7 @@ REPEAT STRIP_TAC >| [
    qexists_tac `struct_ty` >>
    qexists_tac `b''` >>
    gvs[] >>
-   imp_res_tac e_red_struct
+   imp_res_tac e_sem_struct
  ]
 ,
 
