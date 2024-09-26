@@ -100,6 +100,9 @@ fun mk_v_biti_arb width =
 val (v_bool_tm, mk_v_bool, dest_v_bool, is_v_bool) =
   syntax_fns1 "p4" "v_bool";
 
+val (ext_ref_tm, mk_v_ext_ref, dest_v_ext_ref, is_v_ext_ref) =
+  syntax_fns1 "p4" "v_ext_ref";
+
 val (v_str_tm, _, dest_v_str, is_v_str) =
   syntax_fns1 "p4" "v_str";
 val mk_v_str = (#2 (syntax_fns1 "p4" "v_str")) o fromMLstring;
@@ -108,6 +111,9 @@ val (v_struct_tm, mk_v_struct, dest_v_struct, is_v_struct) =
   syntax_fns1 "p4" "v_struct";
 fun mk_v_struct_list x_v_l =
   mk_v_struct (listSyntax.mk_list ((map (fn (a, b) => mk_pair (a, b)) x_v_l), ``:(string # v)``));
+fun dest_v_struct_fields strct =
+ (map (snd o dest_pair)) $ fst $ dest_list $ dest_v_struct strct
+;
 
 val (v_header_tm, mk_v_header, dest_v_header, is_v_header) =
   syntax_fns2 "p4" "v_header";
@@ -151,6 +157,8 @@ val (funn_ext_tm, _, dest_funn_ext, is_funn_ext) =
   syntax_fns2 "p4" "funn_ext";
 val mk_funn_ext =
 (#2 (syntax_fns2 "p4" "funn_ext")) o (fn (objname, metname) => (fromMLstring objname, fromMLstring metname));
+
+val funn_ty = mk_type ("funn", []);
 
 (*****)
 (* e *)
@@ -228,6 +236,18 @@ val (e_struct_tm,  mk_e_struct, dest_e_struct, is_e_struct) =
 val (e_header_tm,  mk_e_header, dest_e_header, is_e_header) =
   syntax_fns2 "p4" "e_header";
 
+val (s_sing_tm,  mk_s_sing, dest_s_sing, is_s_sing) =
+  syntax_fns1 "p4" "s_sing";
+
+val (s_range_tm,  mk_s_range, dest_s_range, is_s_range) =
+  syntax_fns2 "p4" "s_range";
+
+val (s_mask_tm,  mk_s_mask, dest_s_mask, is_s_mask) =
+  syntax_fns2 "p4" "s_mask";
+
+val s_univ_tm = prim_mk_const {Name="s_univ", Thy="p4"};
+fun is_s_univ tm = term_eq tm s_univ_tm;
+
 (*****)
 (* d *)
 (*****)
@@ -250,14 +270,24 @@ fun is_d_none tm = term_eq tm d_none_tm;
 (*******)
 
 val struct_ty_struct_tm = prim_mk_const {Name="struct_ty_struct", Thy="p4"};
+fun is_struct_ty_struct tm = term_eq tm struct_ty_struct_tm;
 val struct_ty_header_tm = prim_mk_const {Name="struct_ty_header", Thy="p4"};
+fun is_struct_ty_header tm = term_eq tm struct_ty_header_tm;
 
 val tau_ty = mk_type ("tau", []);
 
-val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit, is_tau_bit) =
+val tau_bool_tm = prim_mk_const {Name="tau_bool", Thy="p4"};
+fun is_tau_bool tm = term_eq tm tau_bool_tm;
+
+val tau_ext_tm = prim_mk_const {Name="tau_ext", Thy="p4"};
+fun is_tau_ext tm = term_eq tm tau_ext_tm;
+
+val (tau_bit_tm, mk_tau_bit_tmp, dest_tau_bit_tmp, is_tau_bit) =
   syntax_fns1 "p4" "tau_bit";
 val mk_tau_bit =
   mk_tau_bit_tmp o (fn n => term_of_int n);
+val dest_tau_bit =
+  int_of_term o dest_tau_bit_tmp;
 
 val (tau_xtl_tm, mk_tau_xtl_tmp, dest_tau_xtl, is_tau_xtl) =
   syntax_fns2 "p4" "tau_xtl";
@@ -301,18 +331,33 @@ fun mk_stmt_seq_list [] = stmt_empty_tm
 
 val d_ty = mk_type ("d", []);
 
+val stmt_stack_ty = mk_list_type $ mk_type ("stmt", []);
+
 (*********)
 (* State *)
 (*********)
 
 val scope_ty = mk_list_type $ mk_prod (varn_ty, mk_prod (v_ty, mk_option lval_ty));
+val scope_stack_ty = mk_list_type $ scope_ty;
 
 val status_running_tm = prim_mk_const {Name="status_running", Thy="p4"};
+fun is_status_running tm = term_eq tm status_running_tm;
+
+val (status_trans_tm,  mk_status_trans, dest_status_trans, is_status_trans) =
+  syntax_fns1 "p4" "status_trans";
+
+val (status_returnv_tm,  mk_status_returnv, dest_status_returnv, is_status_returnv) =
+  syntax_fns1 "p4" "status_returnv";
+
+val frame_ty = list_mk_prod [funn_ty, stmt_stack_ty, scope_stack_ty];
 
 fun dest_frame frame =
  case spine_pair frame of
     [funn, stmt_stack, scope_list] => (funn, stmt_stack, scope_list)
   | _ => raise (ERR "dest_frame" ("Unsupported frame shape: "^(term_to_string frame)))
+;
+fun mk_frame (funn, stmt_stack, scope_stack) =
+ list_mk_pair [funn, stmt_stack, scope_stack]
 ;
 
 (********)
@@ -340,6 +385,9 @@ fun dest_astate astate =
     [aenv, g_scope_list, arch_frame_list, status] => (aenv, g_scope_list, arch_frame_list, status)
   | _ => raise (ERR "dest_astate" ("Unsupported astate shape: "^(term_to_string astate)))
 ;
+fun mk_astate (aenv, g_scope_list, arch_frame_list, status) =
+ list_mk_pair [aenv, g_scope_list, arch_frame_list, status]
+;
 (* TODO: Is this a hack? *)
 fun dest_aenv aenv =
  let
@@ -350,15 +398,19 @@ fun dest_aenv aenv =
   (i, io_list, io_list', ascope)
  end
 ;
+fun mk_aenv (i, io_list, io_list', ascope) =
+ list_mk_pair [i, io_list, io_list', ascope]
+;
 
 fun dest_pblock pblock =
  let
   val (pbl_type, pblock') = dest_pair pblock
-  val (b_func_map, pblock'') = dest_pair pblock'
-  val (decl_list, pblock''') = dest_pair pblock''
-  val (pars_map, tbl_map) = dest_pair pblock'''
+  val (params, pblock'') = dest_pair pblock'
+  val (b_func_map, pblock''') = dest_pair pblock''
+  val (decl_list, pblock'''') = dest_pair pblock'''
+  val (pars_map, tbl_map) = dest_pair pblock''''
  in
-  (pbl_type, b_func_map, decl_list, pars_map, tbl_map)
+  (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map)
  end
 ;
 
@@ -384,6 +436,9 @@ val (is_e_lval_tm, mk_is_e_lval, dest_is_e_lval, is_is_e_lval) =
 val (lookup_vexp_tm, mk_lookup_vexp, dest_lookup_vexp, is_lookup_vexp) =
   syntax_fns2 "p4" "lookup_v";
 
+val (lookup_lval_tm, mk_lookup_lval, dest_lookup_lval, is_lookup_lval) =
+  syntax_fns2 "p4" "lookup_lval";
+
 val (lookup_funn_sig_tm, mk_lookup_funn_sig, dest_lookup_funn_sig, is_lookup_funn_sig) =
   syntax_fns4 "p4" "lookup_funn_sig";
 
@@ -398,5 +453,8 @@ val (all_arg_update_for_newscope_tm, mk_all_arg_update_for_newscope, dest_all_ar
 
 val (unred_arg_index_tm, mk_unred_arg_index, dest_unred_arg_index, is_unred_arg_index) =
   syntax_fns2 "p4" "unred_arg_index";
+
+val (match_all_tm,  mk_match_all, dest_match_all, is_match_all) =
+  syntax_fns1 "p4" "match_all";
 
 end

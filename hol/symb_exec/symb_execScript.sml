@@ -134,4 +134,10 @@ Proof
 metis_tac[]
 QED
 
+Theorem IMP_ADD_CONJ:
+!A B C. (A ==> B) ==> ((A /\ C) ==> B)
+Proof
+fs[]
+QED
+
 val _ = export_theory ();

@@ -126,10 +126,10 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
   fs []
  ) >>
  Cases_on `e1` >> Cases_on `e2` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  Cases_on `v` >> Cases_on `v'` >> (
-  fs [e_exec_concat]
+  fs [e_exec_concat_def]
  ) >>
  Cases_on `x` >> (
   fs []
@@ -145,10 +145,10 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
   fs []
  ) >>
  Cases_on `e1` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  Cases_on `v` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  METIS_TAC [((valOf o find_clause_e_red) "e_concat_arg2"), clause_name_def],
 
@@ -159,10 +159,10 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
   fs []
  ) >>
  Cases_on `e2` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  Cases_on `v` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  METIS_TAC [((valOf o find_clause_e_red) "e_concat_arg1"), clause_name_def],
 
@@ -194,10 +194,10 @@ Cases_on `is_v_bit e1` >> (
   fs []
  ) >>
  Cases_on `e1` >> Cases_on `e2` >> Cases_on `e3` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  Cases_on `v` >> Cases_on `v'` >> Cases_on `v''` >> (
-  fs [e_exec_slice]
+  fs [e_exec_slice_def]
  ) >>
  rw [] >>
  irule ((valOf o find_clause_e_red) "e_slice_v") >>
@@ -210,10 +210,10 @@ Cases_on `is_v_bit e1` >> (
   fs []
  ) >>
  Cases_on `e2` >> Cases_on `e3` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  Cases_on `v` >> Cases_on `v'` >> (
-  fs [is_v_bit]
+  fs [is_v_bit_def]
  ) >>
  METIS_TAC [((valOf o find_clause_e_red) "e_slice_arg1"), clause_name_def]
 ]
@@ -234,10 +234,10 @@ Cases_on `is_v e` >> (
   fs []
  ) >>
  Cases_on `e` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  Cases_on `v` >> (
-  fs [e_exec_acc]
+  fs [e_exec_acc_def]
  ) >> (
   Cases_on `FIND (\(k,v). k = x) l` >> (
    fs []
@@ -279,15 +279,15 @@ rpt strip_tac >>
 Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* Both operands are fully reduced *)
  Cases_on `e1` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  Cases_on `is_short_circuitable b` >- (
   (* Short-circuit *)
   Cases_on `b` >> Cases_on `v` >> (
-   fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
+   fs [is_short_circuitable_def, e_exec_def, is_v_def, e_exec_short_circuit_def]
   ) >> (
    Cases_on `b` >> (
-    fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
+    fs [is_short_circuitable_def, e_exec_def, is_v_def, e_exec_short_circuit_def]
    )
   ) >| [
    irule ((valOf o find_clause_e_red) "e_bin_and2") >>
@@ -311,10 +311,10 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  (* Different concrete cases *)
  Cases_on `b` >> (
   Cases_on `e2` >> (
-   fs [is_v]
+   fs [is_v_def]
   ) >>
   Cases_on `v` >> Cases_on `v'` >> (
-   fs [e_exec_binop, binop_exec]
+   fs [e_exec_binop_def, binop_exec_def]
   ) >>
   rw []
  ) >| [
@@ -429,17 +429,17 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
 
  (* Second operand is not fully reduced *)
  Cases_on `e1` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  Cases_on `is_short_circuitable b` >- (
   (* Short-circuit *)
   fs [] >>
   rw [] >>
   Cases_on `v` >> (
-   fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
+   fs [is_short_circuitable_def, e_exec_def, is_v_def, e_exec_short_circuit_def]
   ) >>
   Cases_on `b'` >> Cases_on `b` >> (
-   fs [is_short_circuitable_def, e_exec_def, is_v, e_exec_short_circuit]
+   fs [is_short_circuitable_def, e_exec_def, is_v_def, e_exec_short_circuit_def]
   ) >| [
    irule ((valOf o find_clause_e_red) "e_bin_and2") >>
    fs [clause_name_def],
@@ -458,7 +458,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg2"), clause_name_def],
 
@@ -467,7 +467,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   fs [e_exec_def]
  ) >> (
   Cases_on `e1` >> (
-   fs [is_v]
+   fs [is_v_def]
   ) >> (
    Cases_on `x` >>
    fs [] >>
@@ -480,7 +480,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   fs [e_exec_def]
  ) >> (
   Cases_on `e1` >> (
-   fs [is_v]
+   fs [is_v_def]
   ) >> (
    Cases_on `x` >>
    fs [] >>
@@ -495,36 +495,20 @@ Theorem e_select_exec_sound_red:
 e_exec_sound type e ==>
 e_exec_sound type (e_select e l s)
 Proof
-fs [e_exec_sound] >>
+gs[e_exec_sound] >>
 rpt strip_tac >>
-Cases_on `is_v e` >| [
- Cases_on `e` >> (
-  fs [is_v]
+Cases_on ‘is_v e’ >- (
+ Cases_on ‘e’ >> (
+  gs[is_v_def]
  ) >>
- fs [e_exec_def, e_exec_select] >>
- Cases_on `FIND (\(v',x'). v' = v) l` >> (
-  fs [is_v]
- ) >- (
-  rw [] >>
+ gvs[e_exec_def, e_exec_select_def, is_v_def, AllCaseEqs()] >> (
   irule ((valOf o find_clause_e_red) "e_sel_acc") >>
-  fs [sel_def, clause_name_def]
- ) >>
- Cases_on `x` >>
- fs [] >>
- rw [] >>
- irule ((valOf o find_clause_e_red) "e_sel_acc") >>
- fs [sel_def, clause_name_def],
-
- fs [e_exec_def, e_exec_select] >>
- Cases_on `e_exec ctx g_scope_list scopes_stack e` >- (
-  fs []
- ) >>
- Cases_on `x` >>
- fs [] >>
- rw [] >>
- irule ((valOf o find_clause_e_red) "e_sel_arg") >>
- fs [clause_name_def]
-]
+  gs[sel_def, clause_name_def]
+ )
+) >>
+gvs[e_exec_def, e_exec_select_def, AllCaseEqs()] >>
+irule ((valOf o find_clause_e_red) "e_sel_arg") >>
+gs[clause_name_def]
 QED
 
 Theorem e_unop_exec_sound_red:
@@ -540,12 +524,12 @@ Cases_on `is_v e` >| [
   rw []
  ) >>
  Cases_on `e` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  (* Different concrete cases *)
  Cases_on `u` >> (
   Cases_on `v` >> (
-   fs [e_exec_unop, unop_exec]
+   fs [e_exec_unop_def, unop_exec_def]
   ) >>
   rw []
  ) >| [
@@ -581,12 +565,12 @@ Cases_on `is_v e` >| [
   rw []
  ) >>
  Cases_on `e` >> (
-  fs [is_v]
+  fs [is_v_def]
  ) >>
  (* Different concrete cases *)
  Cases_on `c` >> (
   Cases_on `v` >> (
-   fs [e_exec_cast, cast_exec]
+   fs [e_exec_cast_def, cast_exec_def]
   ) >>
   rw []
  ) >| [

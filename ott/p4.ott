@@ -119,6 +119,7 @@ v :: v_ ::=
 %  {{ com error message }}
 | ext_ref i :: :: ext_ref
   {{ com extern object reference }}
+% Set types
 | bot :: :: bot
   {{ com no value }}
 
@@ -283,6 +284,57 @@ binop {{ tex \oplus }} :: binop_ ::=
   {{ com binary or }}
   {{ tex \lor }}
 
+
+s :: s_ ::=
+{{ com set }}
+| v :: :: sing
+  {{ com singleton }}
+| range bitv bitv' :: :: range
+  {{ com interval }}
+| mask bitv bitv' :: :: mask
+  {{ com bit mask }}
+| univ :: :: univ
+  {{ com universal }}
+
+%TODO: You could alternatively add another layer called "match"
+%match :: match_ ::=
+%{{ com select match }}
+%| v :: :: val
+%  {{ com exact value }}
+%| s :: :: set
+%  {{ com set }}
+
+%Fence between s and s_list
+embed
+{{ hol
+
+}}
+grammar
+
+s_list {{ tex \mathit{s\_list} }} :: s_list_ ::=
+{{ com list of select s cases }}
+{{ hol (s list) }}
+| empty :: :: empty
+  {{ com empty s case list }}
+  {{ hol ([]:s list) }}
+| [ s1 , .. , sn ] :: M :: list
+  {{ com list of s cases }}
+  {{ hol ([[s1 .. sn]]) }}
+| ( s_list ) :: S :: paren
+  {{ hol ([[s_list]]) }}
+
+%match_list {{ tex \mathit{match\_list} }} :: match_list_ ::=
+%{{ com list of select match cases }}
+%{{ hol (match list) }}
+%| empty :: :: empty
+%  {{ com empty match case list }}
+%  {{ hol ([]:match list) }}
+%| [ match1 , .. , matchn ] :: M :: list
+%  {{ com list of match cases }}
+%  {{ hol ([[match1 .. matchn]]) }}
+%| ( match_list ) :: S :: paren
+%  {{ hol ([[match_list]]) }}
+
 e :: e_ ::=
 {{ com expression }}
 | v :: :: v
@@ -309,7 +361,7 @@ e :: e_ ::=
   {{ com bit-slice }}
 | call funn ( e1 , .. , en ) :: :: call
   {{ com function or extern call }}
-| select e { v1 : x1 ; ... ; vn : xn } x :: :: select
+| select e { s_list1 : x1 ; ... ; s_listn : xn } x :: :: select
   {{ com select }}
 | eStruct { x1 = e1 ; ... ; xn = en } :: :: struct
   {{ com struct }}
@@ -545,7 +597,24 @@ t {{ tex t }} :: t_ ::=
 | x_list :: :: string_names_a   
   {{ com represents parser states' names ex. a , not literals "a" }} 
 
+s_t {{ tex s_t }} :: s_t_ ::=
+{{ com value set type }}
+| tau :: :: tau
+  {{ com base type }}
+| top :: :: top
+  {{ com wildcard type }}
 
+s_t_list {{ tex \mathit{s\_t\_list} }} :: s_t_list_ ::=
+{{ com list of value set types }}
+{{ hol (s_t list) }}
+| empty :: :: empty
+  {{ com empty value set type list }}
+  {{ hol ([]:s_t list) }}
+| [ s_t1 , .. , s_tn ] :: M :: list
+  {{ com list of value set types }}
+  {{ hol ([[s_t1 .. s_tn]]) }}
+| ( s_t_list ) :: S :: paren
+  {{ hol ([[s_t_list]]) }}
 
 taul :: taul_ ::=
 {{ hol (tau list) }}

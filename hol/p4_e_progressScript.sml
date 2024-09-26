@@ -2118,11 +2118,10 @@ Cases_on `is_const e` >| [
  fs[prog_exp_def] >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
  [`gscope`, `scopest`, `t_scope_list`, ` t_scope_list_g`,
-   `t_tau tau'`, ` b'`, ` c`, ` order`, `delta_g`,
+   `t_tau (tau_xtl struct_ty x'_tau_list)`, ` b'`, ` c`, ` order`, `delta_g`,
    ` delta_b`, ` delta_t`, ` delta_x`,`f` , ‘Prs_n’])) >>
  gvs[] >>
- srw_tac [SatisfySimps.SATISFY_ss][clause_name_def] >>
- gvs[is_const_def]
+ srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
 ]
 
 ,

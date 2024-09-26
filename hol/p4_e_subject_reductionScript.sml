@@ -5234,7 +5234,39 @@ QED
 
 
 
-                        
+Theorem e_sem_struct:
+!e apply_table_f ext_map func_map b_func_map pars_map tbl_map gscope scopest e' framel.
+is_struct e ==>
+e_red (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+      gscope scopest e e' framel ==>
+is_struct e'
+Proof
+rpt strip_tac >>
+Cases_on ‘e’ >> (
+ gs[is_struct_def]
+) >| [
+ Cases_on ‘v’ >> (
+  gs[]
+ ),
+
+ ALL_TAC
+] >> (
+ Cases_on ‘e'’ >> (
+  gs[]
+ ) >- (
+  Cases_on ‘v’ >> (
+   gs[]
+  ) >> (
+   gvs[Once e_sem_cases]
+  )
+ ) >> (
+  gvs[Once e_sem_cases]
+ )
+)
+QED
+
+
+
 
 (****************)
 (****************)
@@ -6169,76 +6201,81 @@ REPEAT STRIP_TAC >| [
 
 REPEAT STRIP_TAC >>
 SIMP_TAC list_ss [sr_exp_def] >>
-REPEAT STRIP_TAC >|[
-
-
-
+REPEAT STRIP_TAC >| [
  OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
  REV_FULL_SIMP_TAC (srw_ss()) [] >>
  fs[] >| [
-
-(*e_sel v*)
-
+  (* e_sel v *)
    rw[] >>
    OPEN_EXP_TYP_TAC ``(e_select (e_v v) l s)`` >>
    SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
    rfs[clause_name_def] >>
    OPEN_EXP_TYP_TAC ``(e_v v)`` >>
-   rfs[clause_name_def] >> rw[] >>
+   rfs[clause_name_def] >>
+   rw[] >>
    SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
    rfs[clause_name_def] >>
-
    SIMP_TAC (srw_ss()) [sel_def] >>
-   Cases_on ` FIND (λ(ks,s). ks = v) l` >>
-   fs[] >>
-   fs[FIND_def] >>
-   PairCases_on `z` >>
-   fs[] >>
-   IMP_RES_TAC index_mem >>
-   IMP_RES_TAC mem_fst_snd >>
-   fs[ELIM_UNCURRY] >>
-   EVAL_TAC >>
-   rw[]
-   ,
+   Cases_on `v` >> (
+    gs[]
+   ) >>
+   Cases_on `FIND (λ(s_list,x'). match_all (ZIP (SND (UNZIP l),s_list)))
+               (MAP (λ(s_list_,x_,s_t_list_). (s_list_,x_))
+                  s_list_x_s_t_list_list)` >> (
+    fs[] >>
+    fs[FIND_def] >>
+    PairCases_on `z` >>
+    fs[] >>
+    IMP_RES_TAC index_mem >>
+    IMP_RES_TAC mem_fst_snd >>
+    fs[ELIM_UNCURRY] >>
+    EVAL_TAC >>
+    rw[]
+   ) >- (
+    subgoal ‘(MAP SND (MAP (λx. (FST x,FST (SND x))) s_list_x_s_t_list_list)) = (MAP (λx. FST (SND x)) s_list_x_s_t_list_list)’ >- (
+     subgoal ‘?s_list x_s_t_list_list. s_list_x_s_t_list_list = ZIP (s_list, x_s_t_list_list) /\ LENGTH s_list = LENGTH x_s_t_list_list’ >- (
+      qexistsl_tac [‘MAP FST s_list_x_s_t_list_list’, ‘MAP SND s_list_x_s_t_list_list’] >>
+      gvs[ZIP_MAP_FST_SND]
+     ) >>
+     gs[GSYM ZIP_MAP] >>
+     gs[MAP_ZIP] >>
+     subgoal ‘((\x. FST (SND x)):(s list # string # s_t list) -> string) = (FST o SND)’ >- (
+      gs[combinTheory.o_DEF]
+     ) >>
+     gs[MAP_ZIP]
+    ) >>
+    gs[]
+   ),
 
-   (*e_sel e*)
-
+   (* e_sel e *)
    rw[] >>
-   OPEN_EXP_TYP_TAC ``(e_select (e) l s)`` >>
+   OPEN_EXP_TYP_TAC ``(e_select e l s)`` >>
    SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
    rfs[clause_name_def] >>
    gvs[] >>
-
    Q.PAT_X_ASSUM `sr_exp e ty`
-   ((STRIP_ASSUME_TAC o (Q.SPECL
-   [`e'''`,`gscope`,`scopest`,`framel`,`t_scope_list`,`t_scope_list_g`,`t_tau tau'`,
-   `b'`,`order`,`delta_g`,`delta_b`,`delta_t`,`delta_x`,`f` ])) o
-   SIMP_RULE (srw_ss()) [sr_exp_def]) >> gvs[] >>
-
-
+    ((STRIP_ASSUME_TAC o (Q.SPECL
+     [`e'''`,`gscope`,`scopest`,`framel`,`t_scope_list`,`t_scope_list_g`,`t_tau (tau_xtl struct_ty x'_tau_list)`,
+      `b'`,`order`,`delta_g`,`delta_b`,`delta_t`,`delta_x`,`f` ])) o
+    SIMP_RULE (srw_ss()) [sr_exp_def]) >>
+   gvs[] >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`f`,`stmt`,`s'`,‘Prs_n’,`apply_table_f`, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >>
    fs[clause_name_def] >> gvs[] >>
-
-   Q.EXISTS_TAC `tau'` >>
-   Q.EXISTS_TAC `b'''` >>
-   Q.EXISTS_TAC `b''` >>
-
-   gvs[] 
+   qexists_tac `s_list_x_s_t_list_list` >>
+   qexists_tac `x'_tau_list` >>
+   qexists_tac `struct_ty` >>
+   qexists_tac `b''` >>
+   gvs[] >>
+   imp_res_tac e_sem_struct
  ]
 ,
-
 
  fs[] >>
  OPEN_EXP_RED_TAC ``(e_select e l s)`` >>
  OPEN_EXP_TYP_TAC ``(e_select e l s)`` >>
  rfs[] >>
  srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
- 
 ]
-
-
-
-
 ,
 
 (****************)
@@ -6667,17 +6704,3 @@ QED
 
 
 val _ = export_theory ();
-
-
-
-
-
-
-
-
-
-
-
-
-
-

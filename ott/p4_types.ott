@@ -309,6 +309,51 @@ slice_length_check w (vec1,len1) (vec2,len2) =
       bits_length_check w (v2n vec1) (v2n vec2)
 `;
 
+Definition is_struct_def:
+ is_struct e =
+  case e of
+    e_v v =>
+   (case v of
+      v_struct x_v_list => T
+    | _ => F)
+  | e_struct x_e_list => T
+  | _ => F
+End
+
+(* 13.6 Select Expressions of P4 spec: of the possible types, only Boolean and bitvector are
+ * possible in HOL4P4 *)
+(* TODO: Nested tuples are not yet allowed by HOL4P4: this would require generalising the s datatype
+ *       and adjusting the import tool *)
+Definition correct_value_set_types''_def:
+ (correct_value_set_types'' [] = T) /\
+ (correct_value_set_types'' ((ty,s_ty)::t) =
+  case s_ty of
+  | s_t_tau tau =>
+   if ty = tau
+   then correct_value_set_types'' t
+   else F
+  | s_t_top =>
+   correct_value_set_types'' t
+ )
+End
+
+Definition correct_value_set_types'_def:
+ (correct_value_set_types' value_types [] = T) /\
+ (correct_value_set_types' value_types (h::t) =
+  if correct_value_set_types'' (ZIP (value_types, h))
+  then correct_value_set_types' value_types t
+  else F
+ )
+End
+
+(* First, check that the lengths agree *)
+Definition correct_value_set_types_def:
+ correct_value_set_types value_types value_set_types =
+  if EVERY (\l. LENGTH l = LENGTH value_types) value_set_types
+  then correct_value_set_types' value_types value_set_types
+  else F
+End
+
 (* convert from a bit vector to constant *)
 val vec_to_const_def = Define `
 vec_to_const (vec,len) =
@@ -439,6 +484,31 @@ by
 
 ----------------------------------- :: ext_ref
  ext_ref i : ( ext , false)
+
+defns
+s_typ :: '' ::=
+defn
+ s : s_t  :: :: s_typ :: s_typ_
+{{ com value set types }}
+{{ tex [[s]] : [[s_t]] }}
+by
+
+v : ( tau , b )
+----------------------------------- :: sing
+v : tau
+
+ w = width bitv
+ w = width bitv'
+----------------------------------- :: range
+range bitv bitv' : bs w
+
+ w = width bitv
+ w = width bitv'
+----------------------------------- :: mask
+mask bitv bitv' : bs w
+
+----------------------------------- :: univ
+univ : top
 
 embed
 {{ hol
@@ -603,12 +673,14 @@ bits_length_check ( w , w1 , w2 )
 t_scopes_tup T_e |- e [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , b )
 
 
-
-t_scopes_tup T_e |- e : ( tau , b' )
-v1 , .. , vn : ( tau , b )
+%is_struct is used to disallow the situations when e is a function returning a struct, or a field access
+%returning a struct
+is_struct e
+t_scopes_tup T_e |- e : ( struct_ty [ x'1 tau1 , .. , x'n taun ] , b )
+( s_list1 , .. , s_listm ) : [ s_t_list1 , .. , s_t_listm ]
+correct_value_set_types ( [ tau1 , .. , taun ] , [ s_t_list1 , .. , s_t_listm ] )
 ----------------------------------- :: select
-t_scopes_tup T_e |- select e { v1 : x1 ; .. ; vn : xn } x : ( [ x1 , .. , xn ] ++ [ x ] , false  )
-
+t_scopes_tup T_e |- select e { s_list1 : x1 ; .. ; s_listm : xm } x : ( [ x1 , .. , xm ] ++ [ x ] , false )
 
 
 [ tau1 x1 d1 , .. , taun xn dn ] tau = t_lookup_funn ( funn' , delta_g , delta_b , delta_x ) 

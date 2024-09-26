@@ -246,10 +246,10 @@ formula :: formula_ ::=
   {{ hol SOME [[v]] =  lookup_vexp2 [[scope_list]] [[g_scope_list]] [[varn]]}} 
 | ( v , a ) = lookup_tup ( scope_list , varn ) :: :: lookup_tup
   {{ tex ([[v]] , [[a]]) = \mathrm{lookup_tup} ([[scope_list]], [[varn]]) }}
-| x' = { v1 : x1 ; ... ; vn : xn } x ( v ) :: M :: sel_access
+| x' = { s_list1 : x1 ; ... ; s_listn : xn } x v :: M :: sel_access
   {{ com access of string in select key-value list }}
-  {{ hol [[x']] = sel [[v]] [[v1 x1 ... vn xn]] [[x]]}}
-  {{ tex [[x']] = \{ v_1 : x_1 ; ... ; v_n : x_n ; \_ : x \} (v) }}
+  {{ hol [[x']] = sel [[v]] [[s_list1 x1 ... s_listn xn]] [[x]]}}
+  {{ tex [[x']] = \{ sl_1 : x_1 ; ... ; sl_n : x_n ; \_ : x \} [[v]] }}
 | check_args_red d_list e_list :: M :: signature_check  
   {{ com check if arguments are isvar or isconst }}
   {{ tex \forall i \leqslant n. \, ((d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e_i ) \land (d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e_i))  }}
@@ -318,7 +318,7 @@ formula :: formula_ ::=
   {{ hol ( ALOOKUP [[tbl_map]] [[tbl]] = SOME ( [[mk_list]] , ( [[x]] , [[e_list]] ) ) ) }}
 | apply_table_f ( tbl , e_list , mk_list , ( f , e_list' ) , ascope ) = ( f' , e_list'' ) :: :: apply_table  
   {{ com fetch the action name and parameters from the control plane }}
-  {{ tex [[apply_table_f]]\, ( [[tbl]] , \, [[e_list]], \, [[mk_list]], ( [[f]] , [[e_list']] ), \, [[ascope]]\, ) = \,( [[f']] , [[e_list'']] ) }}
+  {{ tex [[apply_table_f]]\, ( [[tbl]] , \, [[e_list]], \, [[mk_list]], \, ( [[f]] , [[e_list']] ), \, [[ascope]]\, ) = \,( [[f']] , [[e_list'']] ) }}
   {{ hol ([[apply_table_f]] ( [[tbl]] , [[e_list]] , [[mk_list]] , ( [[f]] , [[e_list']] ), [[ascope]]) = SOME ( [[f']] , [[e_list'']] ) ) }}
 | index_not_const e_list = i :: :: indexofnotconst 
   {{ com get the first index of the unred expression to const}}
@@ -592,10 +592,12 @@ formula :: formula_ ::=
 |  v_list : ( taul , false )  :: :: type_all_v
   {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau ( EL i [[taul]] )) F ) }}
   {{ tex [[v_list]] : ( [[taul]] , \bot ) }}
-|  v1 , .. , vm : ( tau , b )  :: :: type_all_v_one_t
-  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
+%|  v1 , .. , vm : ( tau , b )  :: :: type_all_v_one_t
+%  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
+| ( s_list1 , .. , s_listn ) : [ s_t_list1 , .. , s_t_listm ]  :: :: type_all_s
+  {{ hol !i. (i < LENGTH [[s_list1 .. s_listn]]) ==> !j. (j < LENGTH (EL i [[s_list1 .. s_listn]])) ==> ( s_typ (EL j (EL i [[s_list1 .. s_listn]])) (EL j (EL i [[s_t_list1 .. s_t_listm]])) ) }}
 | correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau ) :: :: correct_field_type
   {{ hol correct_field_type [[x1 tau1 .. xn taun]] [[x]] [[tau]] }}
 | slice_length_check ( w , bitv' , bitv'' )  :: :: slice_length_check
@@ -604,6 +606,10 @@ formula :: formula_ ::=
   {{ hol bits_length_check [[w]] [[w1]] [[w2]] }}
 | w = vec_to_const bitv  :: :: vec_to_const
   {{ hol ( [[w]] = vec_to_const [[bitv]] ) }}
+|  correct_value_set_types ( [ tau1 , .. , taum ] , [ s_t_list1 , .. , s_t_listn ] ) :: :: correct_value_set_types
+  {{ hol correct_value_set_types [[tau1 .. taum]] [[s_t_list1 .. s_t_listn]] }}
+| is_struct e :: :: is_struct
+ {{ hol is_struct [[e]] }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , [ b1 , .. , bo ] )  :: :: type_all_args
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (t_tau (EL i [[tau1 .. taun]])) (EL i [[b1 .. bo]]) ) }}
   {{ tex [[t_scopes_tup]] \, [[T_e]] \; \vdash [e_1 , \ldots, e_n] : ( [\tau_1 , \ldots, \tau_n] , [b_1 , \ldots, b_n] ) }}
@@ -2328,11 +2334,69 @@ val copyout_def = Define `
     | NONE => NONE
 `;
 
+(* TODO: Handle partiality earlier and let it result in NONE instead of just F
+ *       or being undefined. Since things are being evaluated all the time, we ideally want
+ *       this to not evaluate unnecessarily - not trivial since this function is being held
+ *       in the state *)
+Definition p4_match_mask_def:
+ p4_match_mask val mask k =
+  (case k of
+   | v_bit (v', n') =>
+    (case bitv_binop binop_and (v', n') mask of
+     | SOME res =>
+      (case bitv_binop binop_and val mask of
+       | SOME res' => 
+        (case bitv_binpred binop_eq res res' of
+         | SOME bool => bool
+         | NONE => F)
+       | NONE => F)
+     | NONE => F)
+   | _ => F)
+End
+
+Definition p4_match_range_def:
+ p4_match_range lo hi k =
+  case k of
+   | v_bit (v', n') =>
+    (case bitv_binpred binop_ge (v', n') lo of
+     | SOME T =>
+      (case bitv_binpred binop_le (v', n') hi of
+       | SOME T => T
+       | _ => F)
+     | _ => F)
+   | _ => F
+End
+
+Definition match_def:
+ match v s =
+  case s of
+  | s_sing v' => (v = v')
+  | s_range bitv bitv' => p4_match_range bitv bitv' v
+  | s_mask bitv bitv' => p4_match_mask bitv bitv' v
+  | s_univ => T
+End
+
+Definition match_all_def:
+ (match_all [] = T) /\
+ (match_all ((h, h')::t) =
+   if match h h'
+   then match_all t
+   else F)
+End
+
+(* TODO: Hack *)
+Definition match_all_e_def:
+ match_all_e e_l s_l = match_all (ZIP(vl_of_el e_l, s_l))
+End
+
 val sel_def = Define `
-  sel v (v_x_list) x = 
-    case (FIND (\(ks, s). ks = v) v_x_list) of
-    | SOME (v, x') => x'
-    | NONE => x
+ sel v (s_list_x_list) x =
+  case v of
+  | v_struct x_v_list =>
+   (case (FIND (\(s_list, x'). match_all (ZIP(SND $ UNZIP x_v_list,s_list))) s_list_x_list) of
+    | SOME (s_list, x') => x'
+    | NONE => x)
+  | _ => x
 `;
 
 val fully_reduced_def = Define `
@@ -2590,9 +2654,9 @@ v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
 ctx g_scope_list scope_list ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
 
 %Case select lookup
-x' = { v1 : x1 ; ... ; vn : xn } x ( v )
+x' = { s_list1 : x1 ; ... ; s_listn : xn } x v
 ----------------------------------- :: sel_acc
-ctx g_scope_list scope_list ( select v { v1 : x1 ; ... ; vn : xn } x ) ~> ( x' ,  empty )
+ctx g_scope_list scope_list ( select v { s_list1 : x1 ; ... ; s_listn : xn } x ) ~> ( x' ,  empty )
 
 %concatenation of two bitstrings 
 
@@ -2624,10 +2688,9 @@ ctx g_scope_list scope_list ( bitv [ bitv' : bitv'' ] ) ~> ( bitv''' , empty )
 
 
 %Select
-
 ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
 ----------------------------------- :: sel_arg
-ctx g_scope_list scope_list ( select e { v1 : x1 ; ... ; vn : xn } x ) ~> ( select e' { v1 : x1 ; ... ; vn : xn } x , frame_list )
+ctx g_scope_list scope_list ( select e { s_list1 : x1 ; ... ; s_listn : xn } x ) ~> ( select e' { s_list1 : x1 ; ... ; s_listn : xn } x , frame_list )
 
 
 %Unary operations

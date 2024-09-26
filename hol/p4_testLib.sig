@@ -2,11 +2,14 @@ signature p4_testLib =
 sig
   include Abbrev
 
+val fixedwidth_freevars_fromindex_ty : string * int * int * hol_type -> term
+val fixedwidth_freevars_fromindex : string * int * int -> term
 val fixedwidth_freevars : string * int -> term
 
 val mk_ipv4_packet_ok : term -> int -> term
 val mk_ipv4_packet_ok_ttl : term -> int -> term
 val mk_eth_frame_ok : term -> term
+val mk_symb_packet_prefix : string -> int -> term
 val mk_symb_packet : int -> term
 
 val get_actx : thm -> term
@@ -39,6 +42,7 @@ val debug_frames_from_step :
          (term * term * term * term)
 val the_final_state : thm -> term
 val the_final_state_hyp_imp : thm -> term * term
+val the_final_state_hyp_imp_n : thm -> term * term * term
 val p4_eval_test_tac : hol_type -> term -> term -> tactic
 
 val eval_step_fuel : hol_type -> term -> term -> int -> thm

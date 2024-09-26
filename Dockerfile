@@ -17,7 +17,6 @@ RUN apt update && apt-get install -y -q sudo
 # Then, just run the regular install script
 RUN ./HOL4P4/scripts/install.sh
 WORKDIR /HOL4P4/
-RUN ./scripts/install2.sh
 
 # Test compilation
 #RUN export PATH=$PATH:/HOL4P4/HOL/bin && opam exec -- make hol

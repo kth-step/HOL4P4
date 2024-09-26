@@ -6,21 +6,34 @@ open listTheory rich_listTheory;
 open pairTheory optionTheory arithmeticTheory;
 open p4Theory;
 
-val oCONS_def = Define `
+(* OPTION_BIND as infix *)
+Definition app_opt_def:
+ $>>= x_opt f =
+  OPTION_BIND x_opt f
+End
+val _ = set_fixity ">>=" (Infixl 801);
+
+Theorem SUC_ADD_ONE:
+!n. SUC n = n + 1
+Proof
+fs[]
+QED
+
+Definition oCONS_def:
  (oCONS (h, SOME t) =
   SOME (h::t)
  ) /\
  (oCONS (_, NONE) =
   NONE
  )
-`;
-
-val oLASTN_def = Define `
+End
+        
+Definition oLASTN_def:
  (oLASTN n l =
   case oTAKE n (REVERSE l) of
   | SOME l' => SOME (REVERSE l')
   | NONE => NONE)
-`;
+End
 
 Theorem oTAKE_imp_TAKE:
 !i l l'.
@@ -62,6 +75,64 @@ Proof
 Cases_on `i` >> (
  fs [oTAKE_def]
 )
+QED
+
+Theorem oDROP_DROP:
+!l n.
+n <= LENGTH l ==>
+oDROP n l = SOME (DROP n l)
+Proof
+Induct >> (
+ fs[oDROP_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘n’ >> (
+ fs[oDROP_def]
+)
+QED
+
+Theorem oTAKE_TAKE:
+!l n.
+n <= LENGTH l ==>
+oTAKE n l = SOME (TAKE n l)
+Proof
+Induct >> (
+ fs[oTAKE_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘n’ >> (
+ fs[oTAKE_def]
+)
+QED
+
+Theorem oDROP_APPEND:
+!l1 l2.
+oDROP (LENGTH l1) (l1 ++ l2) = SOME l2
+Proof
+rpt strip_tac >>
+subgoal ‘oDROP (LENGTH l1) (l1 ++ l2) = SOME (DROP (LENGTH l1) (l1 ++ l2))’ >- (
+ fs[oDROP_DROP]
+) >>
+fs[rich_listTheory.DROP_LENGTH_APPEND]
+QED
+
+Theorem oTAKE_APPEND:
+!l1 l2.
+oTAKE (LENGTH l1) (l1 ++ l2) = SOME l1
+Proof
+rpt strip_tac >>
+subgoal ‘oTAKE (LENGTH l1) (l1 ++ l2) = SOME (TAKE (LENGTH l1) (l1 ++ l2))’ >- (
+ fs[oTAKE_TAKE]
+) >>
+fs[rich_listTheory.TAKE_LENGTH_APPEND]
+QED
+
+Theorem oEL_SOME:
+!i list.
+i < LENGTH list ==>
+?elem. oEL i list = SOME elem
+Proof
+fs[listTheory.oEL_EQ_EL]
 QED
 
 (* e_size: size of an e
@@ -347,6 +418,21 @@ REPEAT STRIP_TAC >>
 Cases_on `P h` >> (
  fs []
 )
+QED
+
+Theorem INDEX_FIND_SOME_EXISTS:
+!l i P.
+IS_SOME $ INDEX_FIND i P l <=> (EXISTS P l)
+Proof
+rpt strip_tac >>
+eq_tac >> (
+ strip_tac >>
+ CCONTR_TAC
+) >- (
+ imp_res_tac (GSYM INDEX_FIND_NONE_EXISTS) >>
+ fs[]
+) >>
+FULL_SIMP_TAC std_ss [INDEX_FIND_NONE_EXISTS]
 QED
 
 Theorem INDEX_FIND_NONE_EVERY:
@@ -2259,7 +2345,7 @@ QED
 
 Definition v_to_tau_def:
   (v_to_tau (v_bool boolv) = SOME tau_bool) /\
-  (v_to_tau (v_bit (bl, n)) = SOME (tau_bit n)) /\
+  (v_to_tau (v_bit (bl, n)) = if LENGTH bl = n then SOME (tau_bit n) else NONE) /\
   (v_to_tau (v_struct ((x,v)::t)) =
    OPTION_BIND (v_to_tau (v_struct t))
     (\ res. case res of
@@ -2291,18 +2377,74 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
-(* TODO: Hack to eliminate lots of syntax fiddling in p4_testLib *)
-Definition ext_map_replace_impl_def:
- (ext_map_replace_impl ext_map ext_name method_name new_impl =
-  case ALOOKUP ext_map ext_name of
-  | SOME (constructor, methods) =>
-   (case ALOOKUP methods method_name of
-    | SOME (args, old_impl) =>
-     SOME $ AUPDATE ext_map (ext_name, (constructor, AUPDATE methods (method_name, (args, new_impl))))
-    | NONE => NONE)
-  | NONE => NONE
- )
+Definition v_to_tau_list_def:
+ (v_to_tau_list [] = SOME []) /\
+ (v_to_tau_list (h::t) =
+  case h of
+  | e_v v =>
+  (case v_to_tau_list t of
+   | SOME taus =>
+    (case v_to_tau v of
+     | SOME tau => SOME (tau::taus)
+     | NONE => NONE)
+   | NONE => NONE)
+  | _=> NONE) /\
+ (v_to_tau_list _ = NONE)
 End
+
+Theorem v_to_tau_list_empty:
+!l.
+v_to_tau_list l = SOME [] ==>
+l = []
+Proof
+Induct_on ‘l’ >> (
+ rpt strip_tac >>
+ gs[v_to_tau_list_def]
+) >>
+Cases_on ‘h’ >> (
+ gs[v_to_tau_list_def, AllCaseEqs()]
+)
+QED
+
+Theorem v_to_tau_bit:
+!v n.
+v_to_tau v = SOME (tau_bit n) ==>
+?bits.
+v = v_bit (bits,n) /\ LENGTH bits = n
+Proof
+Cases_on ‘v’ >> (
+ gs[v_to_tau_def]
+) >- (
+ Cases_on ‘p’ >> (
+  gs[v_to_tau_def]
+ )
+) >- (
+ Cases_on ‘l’ >> (
+  gs[v_to_tau_def] >>
+  Cases_on ‘h’ >> (
+   gs[v_to_tau_def, AllCaseEqs()]
+  )
+ )
+) >- (
+ Cases_on ‘l’ >> (
+  gs[v_to_tau_def] >>
+  Cases_on ‘h’ >> (
+   gs[v_to_tau_def, AllCaseEqs()]
+  )
+ )
+)
+QED
+
+Theorem bits_LENGTH:
+!bits n.
+LENGTH bits = n ==>
+n > 0 ==>
+?b t. bits = b::t /\ LENGTH t = n-1
+Proof
+Induct_on ‘bits’ >> (
+ gs[]
+)
+QED
 
 (* Replaces the input list with a single input in a given architectural state *)
 Definition p4_replace_input_def:
@@ -2325,63 +2467,172 @@ Definition p4_append_input_list_def:
        ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
 End
 
-Definition match_all_def:
- (match_all [] = T) /\
- (match_all ((h, h')::t) =
-   if h h'
-   then match_all t
-   else F)
+
+(* TODO: Hack to eliminate lots of syntax fiddling in p4_testLib *)
+Definition ext_map_replace_impl_def:
+ (ext_map_replace_impl ext_map ext_name method_name new_impl =
+  case ALOOKUP ext_map ext_name of
+  | SOME (constructor, methods) =>
+   (case ALOOKUP methods method_name of
+    | SOME (args, old_impl) =>
+     SOME $ AUPDATE ext_map (ext_name, (constructor, AUPDATE methods (method_name, (args, new_impl))))
+    | NONE => NONE)
+  | NONE => NONE
+ )
 End
 
-(* TODO: Silly hack. Handle partiality earlier and let it result in NONE instead of just F
- *       or being undefined. Since things are being evaluated all the time, we ideally want
- *       this to not evaluate unnecessarily - not trivial since this function is being held
- *       in the state *)
-Definition p4_match_mask_def:
- p4_match_mask val mask k =
-  case k of
-  | e_v k_bitv =>
-   (case mask of
-    | v_bit (v, n) =>
-     (case k_bitv of
-      | v_bit (v', n') =>
-       (case val of
-        | v_bit (v'', n'') =>
-         (case bitv_binop binop_and (v', n') (v, n) of
-          | SOME res =>
-           (case bitv_binop binop_and (v'', n'') (v, n) of
-            | SOME res' => 
-             (case bitv_binpred binop_eq res res' of
-              | SOME bool => bool
-              | NONE => F)
-            | NONE => F)
-          | NONE => F)
-        | _ => F)
-      | _ => F)
-    | _ => F)
-  | _ => F
+Theorem assign_LENGTH:
+!scope_list v lval scope_list'.
+assign scope_list v lval = SOME scope_list' ==>
+LENGTH scope_list' = LENGTH scope_list
+Proof
+Induct_on ‘lval’ >> (
+ fs[assign_def]
+) >| [
+ rpt strip_tac >>
+ Cases_on ‘find_topmost_map scope_list v’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘lookup_out scope_list v’ >> (
+  fs[]
+ ) >>
+ metis_tac[listTheory.LENGTH_LUPDATE],
+
+ rpt strip_tac >>
+ Cases_on ‘lookup_lval scope_list lval’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘x’ >> (
+  fs[]
+ ) >> (
+  Cases_on ‘INDEX_OF s (MAP FST l)’ >> (
+   fs[]
+  ) >>
+  res_tac
+ ),
+
+ rpt strip_tac >>
+ Cases_on ‘v’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘lookup_lval scope_list lval’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘x’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘assign_to_slice p p' e0 e’ >> (
+  fs[]
+ ) >>
+ res_tac,
+
+ metis_tac[]
+]
+QED
+
+(*************************)
+(* Types with parameters *)
+
+(* This is defined as an extension to "tau" (defined in p4Theory) that also
+ * includes type parameters *)
+Datatype:
+p_tau =
+   p_tau_bool   (* Note that the integer width must be a compile-time known value *)
+ | p_tau_bit num_exp
+ | p_tau_bot
+ (* Note that structs can be type-parametrized *)
+ | p_tau_xtl struct_ty ((x#p_tau) list)
+ (* The string is the name of the extern object *)
+ | p_tau_ext string
+ (* The string is the name of the programmable block *)
+ | p_tau_blk string
+ (* The string is the name of the package *)
+ | p_tau_pkg string
+ (* The string is the name of the type parameter *)
+ | p_tau_par string
 End
 
-Definition p4_match_range_def:
- p4_match_range lo hi k =
-  case k of
-  | e_v k_bitv =>
-   (case lo of
-    | v_bit (v, n) =>
-     (case k_bitv of
-      | v_bit (v', n') =>
-       (case hi of
-        | v_bit (v'', n'') =>
-         (case bitv_binpred binop_ge (v', n') (v, n) of
-          | SOME T =>
-           (case bitv_binpred binop_le (v', n') (v'', n'') of
-            | SOME T => T
-            | _ => F)
-          | _ => F)
-        | _ => F)
-      | _ => F)
-    | _ => F)
-  | _ => F
+(* TODO: Rewrite the below to use list of p_taus instead of list of string, p_tau tuples? *)
+Definition deparameterise_tau_def:
+(deparameterise_tau t =
+  case t of
+  | p_tau_bool => SOME tau_bool
+  | p_tau_bit num_exp => SOME (tau_bit num_exp)
+  | p_tau_bot => SOME tau_bot
+  | p_tau_xtl struct_ty fields =>
+   deparameterise_x_taus fields >>= \fields'.
+   SOME (tau_xtl struct_ty fields')
+  | p_tau_ext ext_name => SOME tau_ext
+  | p_tau_blk blk_name => NONE
+  | p_tau_pkg pkg_name => NONE
+  | p_tau_par param_name => NONE) /\
+(deparameterise_x_taus [] = SOME []) /\
+(deparameterise_x_taus ((name, p_tau)::t) =
+  deparameterise_tau p_tau >>=
+  \tau. deparameterise_x_taus t >>=
+  \tau_l. SOME ((name, tau)::tau_l))
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL p_tau) => p_tau_size p_tau | (INR p_tau_list) => p_tau1_size p_tau_list)`
+End
+
+Definition deparameterise_taus_def:
+(deparameterise_taus p_tau_l =
+ deparameterise_x_taus (ZIP(REPLICATE (LENGTH p_tau_l) "",p_tau_l)) >>=
+ \x_tau_l. SOME (SND $ UNZIP x_tau_l))
+End
+
+Definition parameterise_tau_def:
+(parameterise_tau t =
+  case t of
+  | tau_bool => p_tau_bool
+  | tau_bit num_exp => (p_tau_bit num_exp)
+  | tau_bot => p_tau_bot
+  | tau_xtl struct_ty fields =>
+   (p_tau_xtl struct_ty (parameterise_x_taus fields))
+  | tau_ext => p_tau_ext "") /\
+(parameterise_x_taus [] = []) /\
+(parameterise_x_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_x_taus t)))
+Termination
+WF_REL_TAC `measure ( \ t. case t of | (INL tau) => tau_size tau | (INR tau_list) => tau1_size tau_list)`
+End
+
+Definition parameterise_taus_def:
+ parameterise_taus tau_l =
+  SND $ UNZIP $ parameterise_x_taus (ZIP(REPLICATE (LENGTH tau_l) "",tau_l))
+End
+
+Definition deparameterise_ftymap_entries_def:
+ (deparameterise_ftymap_entries [] = SOME []) /\
+ (deparameterise_ftymap_entries ((funn, (argtys, ret_ty))::t) =
+  case funn of
+  | (funn_ext _ _) => deparameterise_ftymap_entries t
+  | (funn_inst _) => deparameterise_ftymap_entries t
+  | (funn_name _) =>
+   (case deparameterise_taus argtys of
+    | SOME argtys' =>
+     (case deparameterise_tau ret_ty of
+      | SOME ret_ty' =>
+       (case deparameterise_ftymap_entries t of
+	| SOME res =>
+	 SOME ((funn, (argtys', ret_ty'))::res)
+	| NONE => NONE)
+      | NONE => NONE)
+    | NONE => NONE)
+ )
+End
+
+Definition deparameterise_b_ftymap_entries_def:
+ (deparameterise_b_ftymap_entries [] = SOME []) /\
+ (deparameterise_b_ftymap_entries ((b_name, ftymap)::t) =
+  case deparameterise_ftymap_entries ftymap of
+  | SOME ftymap' =>
+   (case deparameterise_b_ftymap_entries t of
+    | SOME res => SOME ((b_name, ftymap')::res)
+    | NONE => NONE)
+  | NONE => NONE
+ )
 End
 
 
