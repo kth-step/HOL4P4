@@ -21,13 +21,8 @@ if [ ! -e "HOL/bin/Holmake" ]; then
 	fi
 	poly < tools/smart-configure.sml
 	bin/build
-	# For bash
-	echo 'export PATH=$PATH:${INSTALL_DIR}/HOL/bin' >> ~/.bashrc
-	source ~/.bashrc
-	# As environment variable
-	#sed -i "s|\(PATH=[\"].*\)[\"]|\1:$INSTALL_DIR/HOL/bin\"|" /etc/environment
-else
-	echo 'export PATH=$PATH:${INSTALL_DIR}/HOL/bin' >> ~/.bashrc
-	source ~/.bashrc
 fi
+# For bash
+echo 'export PATH=$PATH:${INSTALL_DIR}/HOL/bin' >> ~/.bashrc
+source ~/.bashrc
 cd ${CURR_DIR}

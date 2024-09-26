@@ -24,6 +24,4 @@ FILEPATH=$(dirname "$FILE")
 
 . ${FILEPATH}/install_ott.sh
 
-#. ${FILEPATH}/install_petr4.sh ${FILEPATH}/.. ${PWD}
-
-
+. ${FILEPATH}/install_petr4.sh ${FILEPATH}/.. ${PWD}

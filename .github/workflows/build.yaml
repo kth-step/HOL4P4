@@ -33,23 +33,12 @@ jobs:
         with:
           path: |
             /home/runner/work/HOL4P4/HOL4P4/scripts
-            ## Poly/ML-related (5.7.1)
-            #/usr/local/bin
-            #/usr/lib/pkgconfig
-            #/usr/lib/polyml
-            #/usr/lib/libpolymain.a
-            #/usr/lib/libpolymain.la
-            #/usr/lib/libpolyml.a
-            #/usr/lib/libpolyml.la
-            #/usr/lib/libpolyml.so
-            #/usr/lib/libpolyml.so.14
-            #/usr/lib/libpolyml.so.14.0.0
           key: os-${{ runner.os }}_polyml-${{ matrix.polyml }}_hol4-${{ matrix.hol4 }}
 
       - name: Prepare cached dependencies
         timeout-minutes: 45
         run: |
-          cd scripts && ./install.sh && ./install2.sh
+          cd scripts && ./install.sh
 
       - name: Export Ott files to HOL4 and run Holmake
         run: eval "$(opam env)" && export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make hol
