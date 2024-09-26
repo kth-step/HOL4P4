@@ -62,7 +62,7 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
 
 
 ## Installation
-To set up the development environment, follow instructions in [INSTALL.md](INSTALL.md).
+To set up the development environment, follow the instructions in [INSTALL.md](INSTALL.md).
 
 ## Papers
 
