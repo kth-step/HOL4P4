@@ -2,15 +2,15 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open p4Theory;
 
-open p4_symb_execTheory p4_symb_execLib;
+open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test1_decomp";
+val _ = new_theory "conditional";
 
 (* Test 1:
  * There's a single if-statement that branches on symbolic bits.
  * Postcondition holds regardless of which path was taken.
  *
- * This tests if basic branching and unification works. *)
+ * This tests if branching on an if-statement and unification works. *)
 
 val symb_exec1_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
 
@@ -136,7 +136,7 @@ val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
-val debug_flag = true;
+val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec1_actx
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec1_ftymap, symb_exec1_blftymap, symb_exec1_pblock_action_names_map)
@@ -151,74 +151,63 @@ val p4_is_finished_alt_opt = NONE
 val n_max = 50;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
+val postcond_simpset = pure_ss
+(* For debugging:
+val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 
+val fuel = 2
 
-(* State finish criterion: "block about to start has index block_index_stop" *)
-(* Straightforward from index 2 to 4, problem at 5 since disjunction is needed *)
-val block_index_stop = “2”
-val p4_is_finished_alt_opt1 = SOME (fn step_thm => Teq $ rhs $ concl $ EVAL “p4_block_next ^(optionSyntax.dest_some $ rhs $ snd $ dest_imp $ concl step_thm) ^block_index_stop”);
-
-
-(* TODO: Why does the initial state not have anything mapped to by ext reference 1? *)
-(* Get well-formedness property after parser block just finished *)
-val p4_v1model_parser_wellformed_def = (fn defn => let val _ = Defn.save_defn defn in Defn.fetch_eqns defn end) $ get_v1model_wellformed_defs ctx init_astate block_index_stop;
-val postcond_simpset = (pure_ss++(p4_wellformed_ss p4_v1model_parser_wellformed_def))
-
-
-(* Define ctx outside p4_symb_execLib, to avoid re-definitions *)
 val ctx_name = "ctx"
 val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 
-(* Get intermediate state *)
-val (path_tree1, res_list1) =
- p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt1 50;
-val (fv_index1, disj_thm1, step_thm1) = hd res_list1
+val (path_tree, [(path_id, path_cond, step_thm)]) =
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 1;
+*)
 
-(* 1. Prove a contract from initial to intermediate state *)
-(* Last conjunct needed for block_index stop from 3 onwards *)
-val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
-                      p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8) /\
-                      p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "parsedHdr")) "h") s = SOME T (* /\
-                      p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T *) ):v1model_ascope astate -> bool”;
+
+(* For debugging, branch happens here:
+
+val (path_tree, [(path_id, path_cond, step_thm)]) =
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 24;
+
+val (path_tree, [(path_id, path_cond, step_thm), (path_id2, path_cond2, step_thm2)]) =
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 25;
+
+   Join happens here:
+val (path_tree, [(path_id, path_cond_res, step_thm)]) =
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 44;
+
+val [res_elem1, res_elem2] = res_elems
+
+val (res_id1, res_cond1, res_thm1) = res_elem1
+
+*)
+
+(* Finishes at 45 steps (one step of which is a symbolic branch)
+ * (higher numbers as arguments will work, but do no extra computations) *)
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+
 (*
-(* If block_index_stop is 5 or later *)
-(* TODO: Problems when using disjunctions: "egress_spec is either 1 or 2" *)
-val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
-                      p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8) /\
-                      (p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_meta")) "egress_spec") s = SOME $ v_bit ([F; F; F; F; F; F; F; F; T],9) \/
-                       p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_meta")) "egress_spec") s = SOME $ v_bit ([F; F; F; F; F; F; F; T; F],9)) /\
-                      p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "parsedHdr")) "h") s = SOME T /\
-                      p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T):v1model_ascope astate -> bool”;
+
+val path_cond = (ASSUME T);
+val n_max = 50;
+val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
+val nthreads_max = 1;
+val debug_flag = false;
+val fuel = 100
+
+  val ctx_name = "ctx"
+  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
+
+  val table_stop_consts = [match_all_tm]
+  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+
+val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
+
+  val p4_init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
+
+symb_exec_conc (p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm, p4_init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel 4
+
 *)
-val postcond_rewr_thms1 = [p4_v1model_parser_wellformed_def, p4_v1model_lookup_avar_def, p4_v1model_lookup_avar_validity_def, lookup_lval_def, p4_v1modelTheory.v_map_to_scope_def]
-(* DEBUG
-
-val p4_is_finished_alt_opt = p4_is_finished_alt_opt1
-val postcond = postcond1
-val postcond_rewr_thms = postcond_rewr_thms1
-
-*)
-val contract_thm1 = p4_symb_exec_prove_contract debug_flag arch_ty (def_thm ctx_def) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt1 n_max postcond1 postcond_rewr_thms1 postcond_simpset;
-
-(* 2. Introduce a new initial state from the fact that p4_v1model_parser_wellformed holds.
- *    The weakest possible state that satisfies WF: this is the state where all
- *    the existentially quantified variables are free variables. This can be obtained from the
- *    definition *)
-val init_astate2 = get_intermediate_state postcond1 p4_v1model_parser_wellformed_def;
-
-(* 3. Prove a contract from the intermediate to final state *)
-(* TODO: Contact unification fails when disjunctions in the path condition are involved.
- *       Use simpset for p4_v1model_lookup_avar and similar?
- * Also, the initial path condition should maybe be the initial path condition combined with
- * the postcondition? *)
-val contract_thm2 = p4_symb_exec_prove_contract debug_flag arch_ty (def_thm ctx_def) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate2 stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
-
-(* 4. Combine the contracts *)
-(*
-val contract1 = contract_thm1
-val contract2 = contract_thm2
-val wellformed_def = p4_v1model_parser_wellformed_def
-*)
-val combined_contract = p4_combine_contracts contract_thm1 contract_thm2 p4_v1model_parser_wellformed_def;
 
 val _ = export_theory ();

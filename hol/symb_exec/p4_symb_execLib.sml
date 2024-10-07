@@ -2306,7 +2306,7 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 (* DEBUG:
 val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm;
 val lang_init_step_thm = init_step_thm;
-val lang_should_branch = p4_should_branch (fty_map', b_fty_map') const_actions_tables' path_cond_defs (debug_flag, ctx_def);
+val lang_should_branch = p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
 
 val const_actions_tables = const_actions_tables'

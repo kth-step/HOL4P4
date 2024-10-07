@@ -4,10 +4,11 @@ open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test7";
+val _ = new_theory "register_read";
 
 (* Test 7:
- * There is a large register array. This is read from at an index using symbolic bits. *)
+ * There is a large register array. This is read from at an index using symbolic bits.
+ * The test checks that the symbolic execution does not crash when reading from registers. *)
 
 val symb_exec7_blftymap = ``[("p",[]); ("vrfy",[]); ("update",[]); ("egress",[]); ("deparser",[]);
  ("ingress",[])]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
@@ -275,7 +276,7 @@ val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
-val debug_flag = true;
+val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec7_actx
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec7_ftymap, symb_exec7_blftymap, symb_exec7_pblock_action_names_map)
@@ -285,17 +286,18 @@ val init_astate = symb_exec7_astate_symb
 val stop_consts_rewr = [“v1model_register_read_inner”, “v1model_register_construct_inner”]
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME “T”
+val path_cond = ASSUME T
 val p4_is_finished_alt_opt = NONE
 val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
 val fuel = 1;
 val postcond_rewr_thms = []
+val postcond_simpset = pure_ss
 
 val time_start = Time.now(); (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

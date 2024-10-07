@@ -1403,12 +1403,44 @@ val path_cond = ASSUME “^basic_alt_wf_sad_encrypt_tbl_tm /\
 val n_max = 300;
 val debug_flag = true;
 val p4_is_finished_alt_opt = NONE (* (SOME (is_finished' 5)) *);
+(*
 val postcond = “(\s. (packet_dropped s \/ (?bit_list. get_packet s = SOME bit_list /\ (LENGTH bit_list = 272 \/ LENGTH bit_list = 336 \/ LENGTH bit_list = 400 \/ LENGTH bit_list = 480 \/ LENGTH bit_list = 544)))):v1model_ascope astate -> bool”;
+*)
+(* Pick the bits at the right positions *)
+val etherType = “[eth96; eth97; eth98; eth99; eth100;
+                  eth101; eth102; eth103; eth104; eth105; eth106; eth107; eth108; eth109;
+                  eth110; eth111]:bool list”;
+val protocol = “[ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79]:bool list”
+
+val IPv4 = “[F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F]”
+val ESP = “[F; F; T; T; F; F; T; F]”
+
+(* Alternative version: *)
+val postcond =
+ “(\s. (* Either the package is dropped, *)
+       (packet_dropped s \/
+       (* or, if it's not, *)
+       (?bit_list. get_packet s = SOME bit_list /\
+        (* if etherType isn't IPv4, then packet length stays the same; *)
+        ((^etherType <> ^IPv4 /\ LENGTH bit_list = 336) \/
+         (* if packet length increased, then ethertype must have been IPv4
+          * and protocol can't have been ESP; *)
+         ((LENGTH bit_list = 336 \/ LENGTH bit_list = 400 \/ LENGTH bit_list = 480 \/ LENGTH bit_list = 544) /\
+          (^etherType = ^IPv4 /\ ^protocol <> ^ESP)) \/
+         (* if packet length decreased, then ethertype must have been IPv4
+          * and protocol must have been ESP. *)
+         ((LENGTH bit_list = 336 \/ LENGTH bit_list = 272) /\
+          (^etherType = ^IPv4 /\ ^protocol = ^ESP)))))):v1model_ascope astate -> bool”;
+
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def, p4_symb_execTheory.get_packet_def, p4_symb_execTheory.packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def];
+val postcond_simpset = pure_ss
     
 val time_start = Time.now();
 
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
+(* DEBUG
+val ctx_data = (def_term ctx)
+*)
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);

@@ -245,15 +245,16 @@ local
  (* Generic symbolic execution
   * This has four language-specific parameters:
   *
-  * lang_regular_step (thm -> thm): Takes one regular step in the language lang
-  *   (takes a step theorem and transforms it into a new step theorem)
+  * lang_regular_step (bool -> thm -> thm): Takes one regular step in the language lang
+  *   (takes a step theorem, a flag signifying if this is a regular step just after a branch,
+  *    and transforms it into a new step theorem)
   *
   * lang_init_step_thm (thm): Step theorem for zero steps
   *
-  * lang_should_branch (thm -> (term list * thm) option): Decides whether to branch
+  * lang_should_branch ((int * thm) -> (thm * int list) option): Decides whether to branch
   * by looking at the current step theorem. Returns NONE if branching should not
-  * happen, and a list of different branch conditions (used to update the path conditions)
-  * and a disjunction theorem stating that the disjunction of the branch conditions holds.
+  * happen, and an n-chotomy theorem stating that the disjunction of the branch conditions holds
+  * and a list of updated free variable indices when branching.
   *
   * lang_is_finished (thm -> bool): Decides whether symbolic execution should continue
   * on this path by looking at the current step theorem: check is performed after taking a step.

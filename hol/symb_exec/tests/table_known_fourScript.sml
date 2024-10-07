@@ -4,12 +4,11 @@ open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test5";
+val _ = new_theory "table_known_four";
 
 (* Test 5:
  * There's a single table application, with four possible outcomes.
- * The pre-set entries rules out the postcondition not holding, so
- * postcondition holds for all branches.
+ * The postcondition holds for all pre-set entries.
  *
  * This tests if multi-case branching on apply statement works. *)
 
@@ -193,16 +192,21 @@ val symb_exec5_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
 
 (* symb_exec: *)
 (* Parameter assignment for debugging: *)
+val debug_flag = false
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec5_actx
 val path_cond_defs = []
 val init_astate = symb_exec5_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
-val path_cond = ASSUME “e8 = T”
+val path_cond = ASSUME T
 val n_max = 50;
-val postcond = “(\s. ~(packet_has_port s 1)):v1model_ascope astate -> bool”;
+val postcond = “(\s. packet_has_port s 42 \/
+                     packet_has_port s 47 \/
+                     packet_has_port s 13 \/
+                     packet_has_port s 101):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
+val postcond_simpset = pure_ss
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
@@ -233,6 +237,6 @@ val step_thm = step_thm2;
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc true arch_ty (def_term ctx) (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond postcond_rewr_thms;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty (def_term ctx) (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = export_theory ();

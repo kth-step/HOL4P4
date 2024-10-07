@@ -4,11 +4,13 @@ open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test8";
+val _ = new_theory "register_read_write";
 
 (* Test 8:
  * There is a large register array. This is read from, then written to, at an index
- * using symbolic bits. *)
+ * using symbolic bits.
+ * The test checks that the symbolic execution does not crash when reading from and
+ * writing to registers.*)
 
 val symb_exec8_blftymap = ``[("p",[]); ("vrfy",[]); ("update",[]); ("egress",[]); ("deparser",[]);
  ("ingress",[])]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
@@ -309,11 +311,12 @@ val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
 val fuel = 1;
 val postcond_rewr_thms = []
+val postcond_simpset = pure_ss
 
 val time_start = Time.now(); (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

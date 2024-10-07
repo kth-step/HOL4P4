@@ -4,14 +4,13 @@ open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test3";
+val _ = new_theory "select";
 
 (* Test 3:
  * There's a single select expression that branches on the LSB.
- * Postcondition holds only for "accept".
- * The precondition states that the accept case should be selected.
+ * Postcondition holds for both branches.
  *
- * This tests if branching on select statement and following pruning works. *)
+ * This tests if branching on select statement and following unification works. *)
 
 val symb_exec3_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
 
@@ -156,11 +155,12 @@ val path_cond_defs = []
 val init_astate = symb_exec3_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
-val path_cond = ASSUME “e8 = T”
+val path_cond = ASSUME T
 val p4_is_finished_alt_opt = NONE
 val n_max = 50;
 val postcond = “(\s. packet_has_port s 1):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
+val postcond_simpset = pure_ss
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 *)
@@ -177,6 +177,6 @@ val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = export_theory ();
