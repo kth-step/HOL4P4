@@ -190,7 +190,7 @@ val symb_exec5_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
        ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate``;
 
-(* symb_exec: *)
+
 (* Parameter assignment for debugging: *)
 val debug_flag = false
 val arch_ty = p4_v1modelLib.v1model_arch_ty
@@ -207,6 +207,7 @@ val postcond = “(\s. packet_has_port s 42 \/
                      packet_has_port s 101):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
 val postcond_simpset = pure_ss
+
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))

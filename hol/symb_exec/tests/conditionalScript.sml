@@ -134,7 +134,7 @@ val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
        ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate”;
 
-(* symb_exec: *)
+
 (* Parameter assignment for debugging: *)
 val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
@@ -152,6 +152,7 @@ val n_max = 50;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
 val postcond_simpset = pure_ss
+
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
 
@@ -168,7 +169,7 @@ val (path_tree, [(path_id, path_cond, step_thm)]) =
 (* For debugging, branch happens here:
 
 val (path_tree, [(path_id, path_cond, step_thm)]) =
- p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 24;
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 19;
 
 val (path_tree, [(path_id, path_cond, step_thm), (path_id2, path_cond2, step_thm2)]) =
  p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 25;
@@ -186,28 +187,5 @@ val (res_id1, res_cond1, res_thm1) = res_elem1
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
 val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
-
-(*
-
-val path_cond = (ASSUME T);
-val n_max = 50;
-val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
-val nthreads_max = 1;
-val debug_flag = false;
-val fuel = 100
-
-  val ctx_name = "ctx"
-  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
-
-  val table_stop_consts = [match_all_tm]
-  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-
-val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
-
-  val p4_init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
-
-symb_exec_conc (p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm, p4_init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel 4
-
-*)
 
 val _ = export_theory ();

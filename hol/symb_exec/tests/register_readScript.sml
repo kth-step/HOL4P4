@@ -270,11 +270,10 @@ val b_fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_b
 val symb_exec7_ctx_tm = “(^fty_map', ^b_fty_map', ^symb_exec7_pblock_action_names_map)”
 val symb_exec_ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "symb_exec_ctx" (mk_eq(mk_var("symb_exec_ctx", type_of symb_exec7_ctx_tm), symb_exec7_ctx_tm))
 
-(* TODO: Not needed? *)
 val symb_exec7_pblock_map = #2 $ p4Syntax.dest_actx symb_exec7_actx;
 val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of symb_exec7_pblock_map), symb_exec7_pblock_map))
 
-(* symb_exec: *)
+
 (* Parameter assignment for debugging: *)
 val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
@@ -294,7 +293,8 @@ val fuel = 1;
 val postcond_rewr_thms = []
 val postcond_simpset = pure_ss
 
-val time_start = Time.now(); (*
+val time_start = Time.now();
+(*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
 val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;

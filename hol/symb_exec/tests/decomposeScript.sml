@@ -135,7 +135,7 @@ val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
        ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate”;
 
-(* symb_exec: *)
+
 (* Parameter assignment for debugging: *)
 val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
@@ -159,8 +159,6 @@ val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
 val block_index_stop = “2:num”
 val p4_is_finished_alt_opt1 = SOME (fn step_thm => Teq $ rhs $ concl $ EVAL “p4_block_next ^(optionSyntax.dest_some $ rhs $ snd $ dest_imp $ concl step_thm) ^block_index_stop”);
 
-
-(* TODO: Why does the initial state not have anything mapped to by ext reference 1? *)
 (* Get well-formedness property after parser block just finished *)
 val p4_v1model_parser_wellformed_def = (fn defn => let val _ = Defn.save_defn defn in Defn.fetch_eqns defn end) $ get_v1model_wellformed_defs ctx init_astate block_index_stop;
 val postcond_simpset = (pure_ss++(p4_wellformed_ss p4_v1model_parser_wellformed_def))
@@ -183,7 +181,6 @@ val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T *) ):v1model_ascope astate -> bool”;
 (*
 (* If block_index_stop is 5 or later *)
-(* TODO: Problems when using disjunctions: "egress_spec is either 1 or 2" *)
 val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
                       p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8) /\
                       (p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_meta")) "egress_spec") s = SOME $ v_bit ([F; F; F; F; F; F; F; F; T],9) \/
@@ -208,17 +205,15 @@ val contract_thm1 = p4_symb_exec_prove_contract debug_flag arch_ty (def_thm ctx_
 val init_astate2 = get_intermediate_state postcond1 p4_v1model_parser_wellformed_def;
 
 (* 3. Prove a contract from the intermediate to final state *)
-(* TODO: Contact unification fails when disjunctions in the path condition are involved.
- *       Use simpset for p4_v1model_lookup_avar and similar?
- * Also, the initial path condition should maybe be the initial path condition combined with
- * the postcondition? *)
 val contract_thm2 = p4_symb_exec_prove_contract debug_flag arch_ty (def_thm ctx_def) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate2 stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 (* 4. Combine the contracts *)
-(*
+(* DEBUG
+
 val contract1 = contract_thm1
 val contract2 = contract_thm2
 val wellformed_def = p4_v1model_parser_wellformed_def
+
 *)
 val combined_contract = p4_combine_contracts contract_thm1 contract_thm2 p4_v1model_parser_wellformed_def;
 

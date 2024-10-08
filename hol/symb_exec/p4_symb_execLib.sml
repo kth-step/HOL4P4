@@ -2238,17 +2238,18 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 (******************)
 (* p4_is_finished *)
 (* Function that decides whether a HOL4P4 program is finished or not:
- * here, when processing of all symbolic input packets are finished.
+ * here, when block n is reached. 0 signifies that processing of all
+ * symbolic input packets are finished.
  * Used as a default when no other function is specified. *)
-fun p4_is_finished step_thm =
+fun p4_is_finished n step_thm =
  let
   val astate = the_final_state_imp step_thm
   val (aenv, _, _, _) = dest_astate astate
   val (i, io_list, _, _) = dest_aenv aenv
  in
-  (* Whenever the result of taking one step is at block index 0 with no further input
-   * in the input queue, we're finished *)
-  if int_of_term i = 0 andalso null $ fst $ dest_list io_list
+  (* Whenever the result of taking one step is at block index n with no
+   * further input in the input queue, we're finished *)
+  if int_of_term i = n andalso null $ fst $ dest_list io_list
   then true
   else false
  end
@@ -2301,7 +2302,7 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   val is_finished =
    if isSome p4_is_finished_alt_opt
    then valOf p4_is_finished_alt_opt
-   else p4_is_finished
+   else (p4_is_finished 0)
  in
 (* DEBUG:
 val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm;

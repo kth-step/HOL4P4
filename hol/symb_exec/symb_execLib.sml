@@ -495,7 +495,7 @@ val rewr_thms = rewr_thms@[lookup_v_def, lookup_map_def, topmost_map_def, find_t
 open p4Theory;
 
 *)
-(* TODO: This should take a HOL4P4_CONV *)
+(* TODO: This should take a custom CONV *)
 fun prove_postcond rewr_thms simpset postcond step_thm =
  let
   val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
