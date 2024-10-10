@@ -237,6 +237,11 @@ End
 (*************************)
 (* update_checksum *)
 
+Definition v1model_update_checksum_inner_def:
+ v1model_update_checksum_inner bitlist =
+  v_bit $ w16 $ compute_checksum16 $ v2w16s' bitlist
+End
+
 Definition v1model_update_checksum_def:
  (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
@@ -247,13 +252,14 @@ Definition v1model_update_checksum_def:
       | SOME $ v_bit (bl, n) =>
        if v2n bl = 6
        then
-        (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
+        (case get_checksum_incr' scope_list (lval_varname (varn_name "data")) of
          | SOME checksum_incr =>
           (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
            | SOME $ v_bit (bl', n') =>
             if n' = 16
             then
-             (case assign scope_list (v_bit $ w16 $ compute_checksum16 checksum_incr) (lval_varname (varn_name "checksum")) of
+             (* TODO: This can be made total, since we just looked up the checksum *)
+             (case assign scope_list (v1model_update_checksum_inner checksum_incr) (lval_varname (varn_name "checksum")) of
               | SOME scope_list' =>
                SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)             | NONE => NONE)
             else NONE
@@ -412,8 +418,6 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
-(* TODO: This is currently a placeholder implementation.
- * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_decrypt_aes_ctr_def:
  (ipsec_crypt_decrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
@@ -438,8 +442,6 @@ Definition ipsec_crypt_decrypt_aes_ctr_def:
  )
 End
 
-(* TODO: This is currently a placeholder implementation.
- * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_encrypt_aes_ctr_def:
  (ipsec_crypt_encrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
@@ -458,8 +460,6 @@ Definition ipsec_crypt_encrypt_aes_ctr_def:
  )
 End
 
-(* TODO: This is currently a placeholder implementation.
- * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_encrypt_null_def:
  (ipsec_crypt_encrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
@@ -478,8 +478,6 @@ Definition ipsec_crypt_encrypt_null_def:
  )
 End
 
-(* TODO: This is currently a placeholder implementation.
- * For symbolic execution. This should be rewritten by adding an assumption that introduces fresh free variables *)
 Definition ipsec_crypt_decrypt_null_def:
  (ipsec_crypt_decrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of

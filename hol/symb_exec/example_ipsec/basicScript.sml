@@ -1299,35 +1299,7 @@ val input = rhs $ concl $ EVAL “^eth_input ++ (^ipv4_input ++ ^esp_input)”;
 
 val basic_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^input,0)] ^basic_astate”;
 
-
-(* RE-DEFINITIONS OF TROUBLESOME EXTERNS *)
-
-Definition v1model_update_checksum'_def:
- (v1model_update_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case assign scope_list (v_bit $ ((REPLICATE 16 (ARB:bool)), 16)) (lval_varname (varn_name "checksum")) of
-   | SOME scope_list' =>
-    SOME ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, scope_list', status_returnv v_bot)
-   | NONE => NONE
- )
-End
-
-val pre_ctx = basic_actx;
-
-(* TODO: Move *)
-fun replace_ext_impls ctx_tm [] = ctx_tm
-  | replace_ext_impls ctx_tm ((ext_name, method_name, method_tm)::t) =
- let
-  val ctx_tm' = replace_ext_impl ctx_tm ext_name method_name method_tm
- in
-  replace_ext_impls ctx_tm' t
- end
-;
-
-Definition ctx'_def:
-  ctx' = ^(replace_ext_impls pre_ctx [("", "update_checksum", “v1model_update_checksum'”)])
-End
-
-val ctx = rhs $ concl $ EVAL ``ctx'``;
+val ctx = basic_actx;
 val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_ctx" (mk_eq(mk_var("basic_ctx", type_of ctx), ctx));
 
 
@@ -1359,9 +1331,9 @@ val const_actions_tables = [];
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val path_cond_defs = [symb_exec_ty_ctx_def, symb_exec_pblock_map_def]
 val init_astate = basic_astate_symb
-val stop_consts_rewr = [“v1model_is_drop_port”, “v1model_register_construct_inner”, “v1model_register_read_inner”, “v1model_register_write_inner”]
+val stop_consts_rewr = [“v1model_is_drop_port”, “v1model_register_construct_inner”, “v1model_register_read_inner”, “v1model_register_write_inner”, “v1model_update_checksum_inner”]
 val stop_consts_never = []
-val thms_to_add = [v1model_update_checksum'_def]
+val thms_to_add = []
 val path_cond = ASSUME “^basic_wf_sad_encrypt_tbl_tm /\
                         ^basic_wf_sad_decrypt_tbl_tm /\
                         ^basic_wf_forward_tbl_tm /\

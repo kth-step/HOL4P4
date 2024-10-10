@@ -753,7 +753,7 @@ val apply (tbl_name, e) = apply
     if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso
        (* Perform a symbolic branch if the apply expression (list) contains
         * free variables or ARBs (hack) *)
-       (not $ null $ free_vars e orelse HOLset.member (all_atoms e, “ARB:bool”))
+       (not $ null $ free_vars e orelse HOLset.member (all_atoms e, mk_arb bool))
     then
      let
       (* 1. Extract ctrl from ascope *)
@@ -1080,7 +1080,6 @@ val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; AR
      end
     else if is_funn_ext funn
     then
-     (* TODO: What is going on here? Print debug output... *)
      let
       val (ext_obj_tm, ext_method_tm) = dest_funn_ext funn
       val ext_obj = stringSyntax.fromHOLstring ext_obj_tm
@@ -1089,106 +1088,15 @@ val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; AR
      in
       if (ext_obj = "register") andalso (ext_method = "read")
       then approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope
-(*
-       let
-	(* 1. Get first entry of register array (for entry width) *)
-	val array_index = fst $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "index"))”
-	val ext_ref = dest_v_ext_ref $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "this"))”
-
-	val ascope = #4 $ dest_aenv aenv
-	(* TODO: V1Model *)
-	val ext_obj_map = #2 $ p4_v1modelLib.dest_v1model_ascope ascope
-	val array = snd $ dest_comb $ fst $ sumSyntax.dest_inr $ dest_some $ rhs $ concl $ HOL4P4_CONV “ALOOKUP ^ext_obj_map ^ext_ref”
-        (* TODO: Double-check this works *)
-	val entry_width = snd $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "result"))”
-(*
-	val entry_width = snd $ dest_pair $ rhs $ concl $ HOL4P4_CONV “EL 0 ^array”
-*)
-
-	(* 2. Prove approximation theorem *)
-	val tm1 = “v1model_register_read_inner ^entry_width ^array_index ^array”
-	(* TODO: Hack, make function that returns list *)
-	val approx_vars = fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, int_of_term entry_width)
-	val rhs_tm = mk_pair (approx_vars, entry_width)
-	val goal_tm = mk_disj_list [list_mk_exists (fst $ dest_list approx_vars, mk_eq (tm1, rhs_tm))]
-
-(* Unless you cache, these have to be proved every single time *)
-val list_var = mk_var("list", “:bool list”)
-val list_hyp = mk_eq(mk_length list_var, entry_width)
-val list_exists_thm = prove(mk_forall (list_var, mk_imp (list_hyp, list_mk_exists(fst $ dest_list approx_vars, mk_eq (list_var, approx_vars)))), 
-rpt strip_tac >>
-rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
-);
-
-(*
-val old_array = array
-
-val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32)]”
-
-val array2 = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32)]”
-*)
-
-	val approx_thm =
-         (* “^goal_tm” *)
-	 prove(mk_imp (“wellformed_register_array ^entry_width ^array”, goal_tm),
-          (* As soon as possible, hide the array, which may be big *)
-          markerLib.ABBREV_TAC “(array:(bool list # num) list) = ^array” >>
-          qpat_x_assum ‘Abbrev (array = _)’ (fn thm => markerLib.hide_tac "big_array" thm) >>
-          (* TODO: V1Model hack *)
-          SIMP_TAC std_ss [disj_list_def, p4_v1modelTheory.v1model_register_read_inner_def] >>
-(*
-          subgoal ‘wellformed_register_array ^entry_width array’ >- (
-           markerLib.unhide_tac "big_array" >>
-           markerLib.UNABBREV_TAC "array" >>
-           (* TODO: May want to use path cond here if you abbreviate array using assumptions *)
-           EVAL_TAC
-          ) >>
-*)
-          disch_tac >>
-          CASE_TAC >- (
-           EVAL_TAC >>
-           ntac (int_of_term entry_width) (exists_tac (mk_arb bool)) >>
-           REWRITE_TAC []
-          ) >>
-          Cases_on ‘x’ >>
-	  imp_res_tac p4_symb_execTheory.wellformed_register_array_oEL >>
-          imp_res_tac list_exists_thm >>
-          RW_TAC std_ss []
-	 );
-        (* TODO: The antecedent may be computable. Either check this before or compute it here *)
-        val wf_ante_eval = EVAL “wellformed_register_array ^entry_width ^array”
-
-        val approx_thm' =
-         if Teq $ snd $ dest_eq $ concl wf_ante_eval
-         then MATCH_MP approx_thm (EQT_ELIM wf_ante_eval)
-         else approx_thm
-       in
-	SOME (approx_thm', [fv_index+(int_of_term entry_width)])
-       end
-*)
+      else if (ext_obj = "") andalso (ext_method = "update_checksum")
+      then approx_v1model_update_checksum p4_symb_arg_prefix fv_index scope_list
       else NONE
      end
     else NONE
    end
   (* Branch point: emission of packet in final block *)
   | output port_bl =>
-   if (not $ null $ free_vars port_bl orelse HOLset.member (all_atoms port_bl, “ARB:bool”))
+   if (not $ null $ free_vars port_bl orelse HOLset.member (all_atoms port_bl, mk_arb bool))
    then
     (* TODO: Fix hack... *)
     SOME (SPEC “v1model_is_drop_port ^port_bl” disj_list_EXCLUDED_MIDDLE, [fv_index, fv_index])
@@ -3050,7 +2958,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
   val id_step_post_thm_list =
-   prove_postconds debug_flag postcond_rewr_thms postcond_simpset postcond path_cond_step_list
+   prove_postconds debug_flag postcond_rewr_thms stop_consts_rewr postcond_simpset postcond path_cond_step_list
 (*
    if debug_flag
    then

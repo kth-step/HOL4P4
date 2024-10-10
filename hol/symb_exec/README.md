@@ -85,3 +85,5 @@ and send everything to the REPL to observe debug output of what's going on.
 
 A mid-size example can be found in `example_ipsec` subdirectory. The Python
 script `count_reds.py` can be used on the debug output to generate statistics about the symbolic execution.
+
+The `imp` subdirectory contains an instantiation of the symbolic executor for a simple imperative language with loops.

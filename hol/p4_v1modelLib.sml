@@ -103,4 +103,7 @@ val (v1model_register_read_inner_tm,  mk_v1model_register_read_inner, dest_v1mod
 val (v1model_register_write_inner_tm,  mk_v1model_register_write_inner, dest_v1model_register_write_inner, is_v1model_register_write_inner) =
   syntax_fns3 "p4_v1model" "v1model_register_write_inner";
 
+val (v1model_update_checksum_inner_tm,  mk_v1model_update_checksum_inner, dest_v1model_update_checksum_inner, is_v1model_update_checksum_inner) =
+  syntax_fns1 "p4_v1model" "v1model_update_checksum_inner";
+
 end
