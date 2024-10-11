@@ -245,15 +245,16 @@ local
  (* Generic symbolic execution
   * This has four language-specific parameters:
   *
-  * lang_regular_step (thm -> thm): Takes one regular step in the language lang
-  *   (takes a step theorem and transforms it into a new step theorem)
+  * lang_regular_step (bool -> thm -> thm): Takes one regular step in the language lang
+  *   (takes a step theorem, a flag signifying if this is a regular step just after a branch,
+  *    and transforms it into a new step theorem)
   *
   * lang_init_step_thm (thm): Step theorem for zero steps
   *
-  * lang_should_branch (thm -> (term list * thm) option): Decides whether to branch
+  * lang_should_branch ((int * thm) -> (thm * int list) option): Decides whether to branch
   * by looking at the current step theorem. Returns NONE if branching should not
-  * happen, and a list of different branch conditions (used to update the path conditions)
-  * and a disjunction theorem stating that the disjunction of the branch conditions holds.
+  * happen, and an n-chotomy theorem stating that the disjunction of the branch conditions holds
+  * and a list of updated free variable indices when branching.
   *
   * lang_is_finished (thm -> bool): Decides whether symbolic execution should continue
   * on this path by looking at the current step theorem: check is performed after taking a step.
@@ -490,12 +491,13 @@ val rewr_thms = postcond_rewr_thms
 val simpset = postcond_simpset
 
 val rewr_thms = rewr_thms@[lookup_v_def, lookup_map_def, topmost_map_def, find_topmost_map_def]
+val restr_tms = stop_consts_rewr
 
 open p4Theory;
 
 *)
-(* TODO: This should take a HOL4P4_CONV *)
-fun prove_postcond rewr_thms simpset postcond step_thm =
+(* TODO: This should take a custom CONV *)
+fun prove_postcond rewr_thms restr_tms simpset postcond step_thm =
  let
   val prel_res_thm = HO_MATCH_MP symb_exec_add_postcond step_thm
   val (hypo, step_tm) = dest_imp $ concl step_thm
@@ -503,8 +505,10 @@ fun prove_postcond rewr_thms simpset postcond step_thm =
   (* TODO: OPTIMIZE: srw_ss??? EVAL_CONV? *)
 (*
   val postcond_thm = EQT_ELIM $ (computeLib.EVAL_CONV THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+
+  val postcond_thm = EQT_ELIM $ (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
 *)
-  val postcond_thm = EQT_ELIM $ (SIMP_CONV bool_ss [] THENC SIMP_CONV simpset [] THENC computeLib.EVAL_CONV THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+  val postcond_thm = EQT_ELIM $ (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
  in
   MATCH_MP prel_res_thm postcond_thm
  end
@@ -512,7 +516,7 @@ fun prove_postcond rewr_thms simpset postcond step_thm =
 
 (* DEBUG
 val step_thms = map #3 path_cond_step_list;
-val step_thm = hd step_thms
+val step_thm = el 5 step_thms
 
 (* basic: Index 24, 32, 52, 67 are interesting *)
 val h = el 24 step_thms
@@ -522,24 +526,24 @@ val h = el 67 step_thms
 
 val rewr_thms = postcond_rewr_thms
 *)
-fun prove_postconds_debug' rewr_thms _ postcond []     _ = []
-  | prove_postconds_debug' rewr_thms simpset postcond (h::t) n =
+fun prove_postconds_debug' rewr_thms restr_tms _ postcond []     _ = []
+  | prove_postconds_debug' rewr_thms restr_tms simpset postcond (h::t) n =
  let
-  val res = prove_postcond rewr_thms simpset postcond h
+  val res = prove_postcond rewr_thms restr_tms simpset postcond h
    handle exc => (print (("Error when proving postcondition for n-step theorem at 0-index "^(Int.toString n))^"\n"); raise exc)
  in
-  (res::(prove_postconds_debug' rewr_thms simpset postcond t (n + 1)))
+  (res::(prove_postconds_debug' rewr_thms restr_tms simpset postcond t (n + 1)))
  end
 ;
-fun prove_postconds debug_flag rewr_thms simpset postcond path_cond_step_list =
+fun prove_postconds debug_flag rewr_thms restr_tms simpset postcond path_cond_step_list =
  if debug_flag
  then
   let
    val (l', l'') = unzip $ map (fn (a,b,c) => (a, c)) path_cond_step_list
   in
-   zip l' (prove_postconds_debug' rewr_thms simpset postcond l'' 0)
+   zip l' (prove_postconds_debug' rewr_thms restr_tms simpset postcond l'' 0)
   end
- else map (fn (a,b,c) => (a, prove_postcond rewr_thms simpset postcond c)) path_cond_step_list
+ else map (fn (a,b,c) => (a, prove_postcond rewr_thms restr_tms simpset postcond c)) path_cond_step_list
 ;
 
 end

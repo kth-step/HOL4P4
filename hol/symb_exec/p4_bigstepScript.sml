@@ -69,7 +69,7 @@ End
 Definition bigstep_e_exec_def:
  (********************)
  (* Variable look-up *)
- (bigstep_e_exec (scope_lists:scope_list) (INL (e_var x)) n =
+ (bigstep_e_exec (scope_lists:scope_list) (INL (e_var x)) (n:num) =
   case lookup_vexp scope_lists x of
   | SOME v => SOME (INL $ e_v v, n + 1)
   | NONE => NONE)
@@ -1581,7 +1581,7 @@ End
 
 (* Version for use with e_multi_exec'_list *)
 Definition e_multi_exec'_count_def:
- (e_multi_exec'_count _ _ _ e 0 = SOME (e, 0))
+ (e_multi_exec'_count _ _ _ e 0 = SOME (e, 0:num))
  /\
  (e_multi_exec'_count (ctx:'a ctx) g_scope_list scope_list e (SUC fuel) =
   case e_multi_exec'_count ctx g_scope_list scope_list e fuel of
@@ -1593,7 +1593,7 @@ Definition e_multi_exec'_count_def:
 End
 
 Definition e_multi_exec'_list_def:
- (e_multi_exec'_list _ _ _ e_l 0 = SOME e_l)
+ (e_multi_exec'_list _ _ _ e_l (0:num) = SOME e_l)
  /\
  (e_multi_exec'_list _ _ _ [] _ = SOME [])
  /\
@@ -5966,7 +5966,7 @@ End
  * and since the big-step semantics does not check the length of scope_list, a
  * non-emptiness requirement on scope_list has been added here *)
 Definition in_local_fun'_def:
- (in_local_fun' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) i (arch_frame_list_regular [(funn_name fname, stmt_stack, scope_list)]) n =
+ (in_local_fun' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) i (arch_frame_list_regular [(funn_name fname, stmt_stack, scope_list)]) (n:num) =
   ((scope_list <> []) /\
    (ALOOKUP func_map fname = NONE) /\
    (case EL i ab_list of
@@ -6625,6 +6625,7 @@ Definition small_big_exec_def:
   | _ => NONE
 End
 
+(*
 Theorem small_big_exec_comp_conj:
 !assl ctx g_scope_list arch_frame_list status i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n aenv i' in_out_list'' in_out_list''' ascope' status'.
 ((assl ==> arch_multi_exec (ctx:'a actx) ((aenv, g_scope_list, arch_frame_list, status_running):'a astate) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status)) /\
@@ -6635,5 +6636,6 @@ small_big_exec ctx ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_fra
 Proof
 cheat
 QED
+*)
 
 val _ = export_theory ();

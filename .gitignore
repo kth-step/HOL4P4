@@ -4,15 +4,9 @@
 *.uo
 *.ui
 *.dat
-hol/*Theory.sig
-hol/*Theory.sml
-hol/*-heap
-hol/p4_from_json/*Theory.sig
-hol/p4_from_json/*Theory.sml
-hol/p4_from_json/*-heap
-hol/symb_exec/*Theory.sig
-hol/symb_exec/*Theory.sml
-hol/symb_exec/*-heap
+*Theory.sig
+*Theory.sml
+*-heap
 
 ## LaTeX stuff
 *.aux

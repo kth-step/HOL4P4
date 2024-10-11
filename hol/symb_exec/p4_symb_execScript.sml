@@ -504,4 +504,11 @@ p4_v1model_lookup_avar_validity varn (((i, in_out_list, in_out_list', (counter, 
  | _ => NONE
 End
 
+Theorem w2v_exists:
+!w. ?b0 b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15. w2v (w:word16) = [b0; b1; b2; b3; b4; b5; b6; b7; b8; b9; b10; b11; b12; b13; b14; b15]
+Proof
+rpt strip_tac >>
+fs[bitstringTheory.w2v_def]
+QED
+
 val _ = export_theory ();

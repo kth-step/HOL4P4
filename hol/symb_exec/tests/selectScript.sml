@@ -4,21 +4,21 @@ open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test1";
+val _ = new_theory "select";
 
-(* Test 1:
- * There's a single if-statement that branches on symbolic bits.
- * Postcondition holds regardless of which path was taken.
+(* Test 3:
+ * There's a single select expression that branches on the LSB.
+ * Postcondition holds for both branches.
  *
- * This tests if basic branching and unification works. *)
+ * This tests if branching on select statement and following unification works. *)
 
-val symb_exec1_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
+val symb_exec3_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
 
-val symb_exec1_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
+val symb_exec3_ftymap = ``[]:((funn, (p_tau list # p_tau)) alist)``;
 
-val symb_exec1_pblock_action_names_map = ``[]:((string, (string, string list) alist) alist)``;
+val symb_exec3_pblock_action_names_map = ``[]:((string, (string, string list) alist) alist)``;
 
-val symb_exec1_actx = ``([arch_block_inp;
+val symb_exec3_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
      e_var (varn_name "meta"); e_var (varn_name "standard_metadata")];
@@ -35,13 +35,29 @@ val symb_exec1_actx = ``([arch_block_inp;
   arch_block_out],
  [("p",pbl_type_parser,
    [("b",d_none); ("h",d_out); ("m",d_inout); ("sm",d_inout)],
-   [("p",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),[])],[],
+   [("p",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),[])],
+   [(varn_name "sel_e",tau_bit 1,NONE)],
    [("start",
      stmt_seq
-       (stmt_ass lval_null
-          (e_call (funn_ext "packet_in" "extract")
-             [e_var (varn_name "b"); e_acc (e_var (varn_name "h")) "h"]))
-       (stmt_trans (e_v (v_str "accept"))))],[]);
+       (stmt_seq
+          (stmt_ass lval_null
+             (e_call (funn_ext "packet_in" "extract")
+                [e_var (varn_name "b"); e_acc (e_var (varn_name "h")) "h"]))
+          (stmt_ass (lval_varname (varn_name "sel_e"))
+             (e_cast (cast_unsigned 1)
+                (e_acc (e_acc (e_acc (e_var (varn_name "h")) "h") "row") "e"))))
+       (stmt_trans
+          (e_select (e_struct [("",e_var (varn_name "sel_e"))])
+             [([s_sing (v_bit ([T],1))],"accept");
+              ([s_sing (v_bit ([F],1))],"reject")] "set_no_match")));
+    ("set_no_match",
+     stmt_ass lval_null
+       (e_call (funn_ext "" "verify")
+          [e_v (v_bool F);
+           e_v
+             (v_bit
+                ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                  F; F; F; F; F; F; F; F; F; F; T; F],32))]))],[]);
   ("vrfy",pbl_type_control,[("h",d_inout); ("m",d_inout)],
    [("vrfy",stmt_seq stmt_empty stmt_empty,[])],[],[],[]);
   ("update",pbl_type_control,[("h",d_inout); ("m",d_inout)],
@@ -59,17 +75,10 @@ val symb_exec1_actx = ``([arch_block_inp;
    [("h",d_inout); ("m",d_inout); ("standard_meta",d_inout)],
    [("ingress",
      stmt_seq stmt_empty
-       (stmt_cond
-          (e_binop
-             (e_acc (e_acc (e_acc (e_var (varn_name "h")) "h") "row") "e")
-             binop_lt (e_v (v_bit ([T; F; F; F; F; F; F; F],8))))
-          (stmt_ass
-             (lval_field (lval_varname (varn_name "standard_meta"))
-                "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9))))
-          (stmt_ass
-             (lval_field (lval_varname (varn_name "standard_meta"))
-                "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; T; F],9))))),
-     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser)],
+       (stmt_ass
+          (lval_field (lval_varname (varn_name "standard_meta"))
+             "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9)))),[])],
+   [],[],[])],[("postparser",ffblock_ff v1model_postparser)],
  v1model_input_f
    (v_struct
       [("h",
@@ -126,7 +135,7 @@ val symb_exec1_actx = ``([arch_block_inp;
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
-val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
+val symb_exec3_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),
  [[(varn_name "gen_apply_result",
     v_struct
@@ -134,79 +143,40 @@ val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
        ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate”;
 
-(* symb_exec: *)
+
 (* Parameter assignment for debugging: *)
-val debug_flag = true;
+val debug_flag = false
 val arch_ty = p4_v1modelLib.v1model_arch_ty
-val ctx = symb_exec1_actx
-val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec1_ftymap, symb_exec1_blftymap, symb_exec1_pblock_action_names_map)
+val ctx = symb_exec3_actx
+val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec3_ftymap, symb_exec3_blftymap, symb_exec3_pblock_action_names_map)
 val const_actions_tables = []
 val path_cond_defs = []
-val init_astate = symb_exec1_astate_symb
+val init_astate = symb_exec3_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
-val thms_to_add = []
-val path_cond = (ASSUME T)
+val path_cond = ASSUME T
 val p4_is_finished_alt_opt = NONE
 val n_max = 50;
-val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
+val postcond = “(\s. packet_has_port s 1):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
+val postcond_simpset = pure_ss
+
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
-
-val fuel = 2
-
-val ctx_name = "ctx"
-val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
-
-val (path_tree, [(path_id, path_cond, step_thm)]) =
- p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 1;
 *)
 
-
 (* For debugging, branch happens here:
+val [(path_cond_res, step_thm), (path_cond2_res, step_thm2)] =
+ symb_exec arch_ty ctx init_astate stop_consts_rewr stop_consts_never path_cond 25;
+*)
 
-val (path_tree, [(path_id, path_cond, step_thm)]) =
- p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 24;
-
-val (path_tree, [(path_id, path_cond, step_thm), (path_id2, path_cond2, step_thm2)]) =
- p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 25;
-
-   Join happens here:
-val (path_tree, [(path_id, path_cond_res, step_thm)]) =
- p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 44;
-
-val [res_elem1, res_elem2] = res_elems
-
-val (res_id1, res_cond1, res_thm1) = res_elem1
-
+(*
+  val ctx_name = "ctx"
+  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
 *)
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
-
-(*
-
-val path_cond = (ASSUME T);
-val n_max = 50;
-val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
-val nthreads_max = 1;
-val debug_flag = false;
-val fuel = 100
-
-  val ctx_name = "ctx"
-  val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx), ctx))
-
-  val table_stop_consts = [match_all_tm]
-  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@p4_stop_eval_consts@table_stop_consts), (stop_consts_never@p4_stop_eval_consts), (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-
-val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
-
-  val p4_init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
-
-symb_exec_conc (p4_regular_step (debug_flag, ctx_def, ctx, eval_ctxt) comp_thm, p4_init_step_thm, p4_should_branch, p4_is_finished) path_cond fuel 4
-
-*)
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = export_theory ();

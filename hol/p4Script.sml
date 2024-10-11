@@ -21,9 +21,9 @@ Type bl = ``:bool list`` (* bit-string *)
 Type i = ``:num`` (* natural number *)
 Type m = ``:num`` (* indices *)
 
-Type boolv = ``:bool``
-
 Type bitv = ``:(bl # num)``
+
+Type boolv = ``:bool``
 
 Type num_exp = ``:num``
 
@@ -33,6 +33,11 @@ funn =
    funn_name of x (* function name *)
  | funn_inst of x (* extern object instantiation *)
  | funn_ext of x => x (* extern method call *)
+`;
+val _ = Hol_datatype ` 
+varn = 
+   varn_name of x (* variable name *)
+ | varn_star of funn (* function return placeholder *)
 `;
 val _ = Hol_datatype ` 
 v =  (* value *)
@@ -45,18 +50,13 @@ v =  (* value *)
  | v_bot (* no value *)
 `;
 val _ = Hol_datatype ` 
-varn = 
-   varn_name of x (* variable name *)
- | varn_star of funn (* function return placeholder *)
-`;
-
-Type v_list = ``:(v list)``
-val _ = Hol_datatype ` 
 status =  (* execution status *)
    status_running
  | status_returnv of v
  | status_trans of x (* transition to parser state *)
 `;
+
+Type v_list = ``:(v list)``
 val _ = Hol_datatype ` 
 mk =  (* matching kinds *)
    mk_exact
@@ -68,17 +68,6 @@ mk =  (* matching kinds *)
 `;
 
 
-val _ = Hol_datatype ` 
-unop = 
-   unop_neg (* negation *)
- | unop_compl (* bitwise complement *)
- | unop_neg_signed (* signed negation *)
- | unop_un_plus (* unary plus *)
-`;
-val _ = Hol_datatype ` 
-cast = 
-   cast_unsigned of m (* unsigned cast *)
-`;
 val _ = Hol_datatype ` 
 binop = 
    binop_mul (* multiplication *)
@@ -103,6 +92,30 @@ binop =
  | binop_bin_or (* binary or *)
 `;
 val _ = Hol_datatype ` 
+cast = 
+   cast_unsigned of m (* unsigned cast *)
+`;
+val _ = Hol_datatype ` 
+unop = 
+   unop_neg (* negation *)
+ | unop_compl (* bitwise complement *)
+ | unop_neg_signed (* signed negation *)
+ | unop_un_plus (* unary plus *)
+`;
+
+Type mk_list = ``:(mk list)``
+val _ = Hol_datatype ` 
+s =  (* set *)
+   s_sing of v (* singleton *)
+ | s_range of bitv => bitv (* interval *)
+ | s_mask of bitv => bitv (* bit mask *)
+ | s_univ (* universal *)
+`;
+
+
+
+Type s_list = ``:(s list)``
+val _ = Hol_datatype ` 
 e =  (* expression *)
    e_v of v (* value *)
  | e_var of varn (* variable *)
@@ -114,12 +127,10 @@ e =  (* expression *)
  | e_concat of e => e (* concatenation of bit-strings *)
  | e_slice of e => e => e (* bit-slice *)
  | e_call of funn => e list (* function or extern call *)
- | e_select of e => (v#x) list => x (* select *)
+ | e_select of e => (s_list#x) list => x (* select *)
  | e_struct of (x#e) list (* struct *)
  | e_header of boolv => (x#e) list (* header *)
 `;
-
-Type mk_list = ``:(mk list)``
 
 
 val _ = Hol_datatype ` 
@@ -146,19 +157,19 @@ struct_ty =
  | struct_ty_header
 `;
 val _ = Hol_datatype ` 
-d =  (* parameter direction *)
-   d_in
- | d_out
- | d_inout
- | d_none
-`;
-val _ = Hol_datatype ` 
 tau =  (* type *)
    tau_bool (* boolean *)
  | tau_bit of num_exp (* bit-string *)
  | tau_bot (* no value *)
  | tau_xtl of struct_ty => (x#tau) list (* struct *)
  | tau_ext (* extern *)
+`;
+val _ = Hol_datatype ` 
+d =  (* parameter direction *)
+   d_in
+ | d_out
+ | d_inout
+ | d_none
 `;
 
 Type Ftau = ``:( ( tau # x # d ) list # tau)``
@@ -175,12 +186,19 @@ t =  (* type *)
    t_tau of tau (* BASE TYPE *)
  | t_string_names_a of x_list (* represents parser states' names ex. a , not literals "a" *)
 `;
+val _ = Hol_datatype ` 
+s_t =  (* value set type *)
+   s_t_tau of tau (* base type *)
+ | s_t_top (* wildcard type *)
+`;
 
-Type ff = ``:('a -> 'a option)``
+Type taul = ``:(tau list)``
+
+Type s_t_list = ``:(s_t list)``
 
 Type ext_fun = ``:(('a # g_scope_list # scope_list) -> (('a # scope_list # status) option))``
 
-Type taul = ``:(tau list)``
+Type ff = ``:('a -> 'a option)``
 
 Type d_list = ``:(d list)``
 
@@ -204,42 +222,44 @@ stmt =  (* statement *)
 
 
 
-Type func_map = ``:((string, (stmt # (string # d) list)) alist)``
-
 Type b_func_map = ``:((string, (stmt # (string # d) list)) alist)``
+
+Type func_map = ``:((string, (stmt # (string # d) list)) alist)``
 
 Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``
 
 
 
-Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``
-
 Type pars_map = ``:((string, stmt) alist)``
 
-Type tbl_map = ``:((string, ((mk list) # (x # e_list))) alist)``
+Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``
 
-Type in_out = ``:(bl # num)``
+Type tbl_map = ``:((string, ((mk list) # (x # e_list))) alist)``
 val _ = Hol_datatype ` 
 pbl_type =  (* programmable block type *)
    pbl_type_parser
  | pbl_type_control
 `;
 
+Type in_out = ``:(bl # num)``
 
 
-Type pblock = ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map)``
 val _ = Hol_datatype ` 
 ffblock =  (* fixed-function block *)
    ffblock_ff of 'a ff
 `;
 
+Type pblock = ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map)``
 
 
-Type pblock_map = ``:((string, pblock) alist)``
 
 Type ffblock_map = ``:((string, 'a ffblock) alist)``
 
+Type pblock_map = ``:((string, pblock) alist)``
+
 Type in_out_list = ``:(in_out list)``
+
+Type pblock_list = ``:(pblock list)``
 val _ = Hol_datatype ` 
 arch_block =  (* architectural block *)
    arch_block_inp
@@ -248,19 +268,17 @@ arch_block =  (* architectural block *)
  | arch_block_out
 `;
 
-Type pblock_list = ``:(pblock list)``
 
 
-
-Type input_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
-
-Type output_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
-
-Type copyin_pbl = ``:((x list # d list # e list # 'a) -> scope option)``
+Type apply_table_f = ``:((x # e_list # mk_list # (x # e_list) # 'a) -> (x # e_list) option)``
 
 Type copyout_pbl = ``:((g_scope list # 'a # d list # x list # status) -> 'a option)``
 
-Type apply_table_f = ``:((x # e_list # mk_list # (x # e_list) # 'a) -> (x # e_list) option)``
+Type copyin_pbl = ``:((x list # d list # e list # 'a) -> scope option)``
+
+Type output_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
+
+Type input_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
 
 Type ab_list = ``:(arch_block list)``
 
@@ -289,9 +307,9 @@ arch_frame_list =  (* architecture-level frame list *)
  | arch_frame_list_regular of frame_list (* regular frame list *)
 `;
 
-Type cstate = ``:((in_out_list # in_out_list # 'a) # ((num # g_scope_list # arch_frame_list # status) # (num # g_scope_list # arch_frame_list # status)))``
-
 Type astate = ``:('a aenv # g_scope_list # arch_frame_list # status)``
+
+Type cstate = ``:((in_out_list # in_out_list # 'a) # ((num # g_scope_list # arch_frame_list # status) # (num # g_scope_list # arch_frame_list # status)))``
 val is_const_def = Define `
   (is_const (e_v _) = T) /\
   (is_const _ = F)
@@ -1890,11 +1908,69 @@ val copyout_def = Define `
     | NONE => NONE
 `;
 
+(* TODO: Handle partiality earlier and let it result in NONE instead of just F
+ *       or being undefined. Since things are being evaluated all the time, we ideally want
+ *       this to not evaluate unnecessarily - not trivial since this function is being held
+ *       in the state *)
+Definition p4_match_mask_def:
+ p4_match_mask val mask k =
+  (case k of
+   | v_bit (v', n') =>
+    (case bitv_binop binop_and (v', n') mask of
+     | SOME res =>
+      (case bitv_binop binop_and val mask of
+       | SOME res' => 
+        (case bitv_binpred binop_eq res res' of
+         | SOME bool => bool
+         | NONE => F)
+       | NONE => F)
+     | NONE => F)
+   | _ => F)
+End
+
+Definition p4_match_range_def:
+ p4_match_range lo hi k =
+  case k of
+   | v_bit (v', n') =>
+    (case bitv_binpred binop_ge (v', n') lo of
+     | SOME T =>
+      (case bitv_binpred binop_le (v', n') hi of
+       | SOME T => T
+       | _ => F)
+     | _ => F)
+   | _ => F
+End
+
+Definition match_def:
+ match v s =
+  case s of
+  | s_sing v' => (v = v')
+  | s_range bitv bitv' => p4_match_range bitv bitv' v
+  | s_mask bitv bitv' => p4_match_mask bitv bitv' v
+  | s_univ => T
+End
+
+Definition match_all_def:
+ (match_all [] = T) /\
+ (match_all ((h, h')::t) =
+   if match h h'
+   then match_all t
+   else F)
+End
+
+(* TODO: Hack *)
+Definition match_all_e_def:
+ match_all_e e_l s_l = match_all (ZIP(vl_of_el e_l, s_l))
+End
+
 val sel_def = Define `
-  sel v (v_x_list) x = 
-    case (FIND (\(ks, s). ks = v) v_x_list) of
-    | SOME (v, x') => x'
-    | NONE => x
+ sel v (s_list_x_list) x =
+  case v of
+  | v_struct x_v_list =>
+   (case (FIND (\(s_list, x'). match_all (ZIP(SND $ UNZIP x_v_list,s_list))) s_list_x_list) of
+    | SOME (s_list, x') => x'
+    | NONE => x)
+  | _ => x
 `;
 
 val fully_reduced_def = Define `
@@ -2146,11 +2222,11 @@ Inductive e_sem:
  ==> 
 ( ( e_red ctx g_scope_list scope_list (e_acc (e_v (v_header boolv (f_v_list))) f) (e_v v)  ([]:frame list)  )))
 
-[e_sel_acc:] (! (v_x_list:(v#x) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (x:x) (x':x) .
+[e_sel_acc:] (! (s_list_x_list:(s_list#x) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (x:x) (x':x) .
 (clause_name "e_sel_acc") /\
-(( x'  = sel  v   (v_x_list)   x ))
+(( x'  = sel  v   (s_list_x_list)   x ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_select (e_v v) (v_x_list) x) (e_v (v_str x'))  ([]:frame list)  )))
+( ( e_red ctx g_scope_list scope_list (e_select (e_v v) (s_list_x_list) x) (e_v (v_str x'))  ([]:frame list)  )))
 
 [e_concat_arg1:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (e':e) (e'':e) (frame_list:frame_list) .
 (clause_name "e_concat_arg1") /\
@@ -2182,11 +2258,11 @@ Inductive e_sem:
  ==> 
 ( ( e_red ctx g_scope_list scope_list (e_slice (e_v (v_bit bitv)) (e_v (v_bit bitv')) (e_v (v_bit bitv''))) (e_v (v_bit bitv'''))  ([]:frame list)  )))
 
-[e_sel_arg:] (! (v_x_list:(v#x) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (x:x) (e':e) (frame_list:frame_list) .
+[e_sel_arg:] (! (s_list_x_list:(s_list#x) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (x:x) (e':e) (frame_list:frame_list) .
 (clause_name "e_sel_arg") /\
 (( ( e_red ctx g_scope_list scope_list e e' frame_list )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_select e (v_x_list) x) (e_select e' (v_x_list) x) frame_list )))
+( ( e_red ctx g_scope_list scope_list (e_select e (s_list_x_list) x) (e_select e' (s_list_x_list) x) frame_list )))
 
 [e_unop_arg:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (unop:unop) (e:e) (e':e) (frame_list:frame_list) .
 (clause_name "e_unop_arg") /\
@@ -2638,9 +2714,9 @@ Type t_scope_list_g = ``:(t_scope list)``
 Type t_scope_list = ``:(t_scope list)``
 
 
-Type t_scopes_frames = ``:(t_scope_list list)``
-
 Type t_scopes_tup = ``:(t_scope_list_g # t_scope_list)``
+
+Type t_scopes_frames = ``:(t_scope_list list)``
 
 val _ = Hol_datatype ` 
 order_elem =  (* the individual elements of the order in the state are fun name or tables names *)
@@ -2663,9 +2739,9 @@ Type funn_list = ``:( funn list )``
 
 Type order = ``:(order_elem -> order_elem -> bool )``
 
-Type Prs_n = ``:(string list)``
-
 Type T_e = ``:( order # funn # delta )``
+
+Type Prs_n = ``:(string list)``
 
 
 (*************************************************)
@@ -2825,6 +2901,51 @@ slice_length_check w (vec1,len1) (vec2,len2) =
       bits_length_check w (v2n vec1) (v2n vec2)
 `;
 
+Definition is_struct_def:
+ is_struct e =
+  case e of
+    e_v v =>
+   (case v of
+      v_struct x_v_list => T
+    | _ => F)
+  | e_struct x_e_list => T
+  | _ => F
+End
+
+(* 13.6 Select Expressions of P4 spec: of the possible types, only Boolean and bitvector are
+ * possible in HOL4P4 *)
+(* TODO: Nested tuples are not yet allowed by HOL4P4: this would require generalising the s datatype
+ *       and adjusting the import tool *)
+Definition correct_value_set_types''_def:
+ (correct_value_set_types'' [] = T) /\
+ (correct_value_set_types'' ((ty,s_ty)::t) =
+  case s_ty of
+  | s_t_tau tau =>
+   if ty = tau
+   then correct_value_set_types'' t
+   else F
+  | s_t_top =>
+   correct_value_set_types'' t
+ )
+End
+
+Definition correct_value_set_types'_def:
+ (correct_value_set_types' value_types [] = T) /\
+ (correct_value_set_types' value_types (h::t) =
+  if correct_value_set_types'' (ZIP (value_types, h))
+  then correct_value_set_types' value_types t
+  else F
+ )
+End
+
+(* First, check that the lengths agree *)
+Definition correct_value_set_types_def:
+ correct_value_set_types value_types value_set_types =
+  if EVERY (\l. LENGTH l = LENGTH value_types) value_set_types
+  then correct_value_set_types' value_types value_set_types
+  else F
+End
+
 (* convert from a bit vector to constant *)
 val vec_to_const_def = Define `
 vec_to_const (vec,len) =
@@ -2954,6 +3075,37 @@ Inductive v_typ:
 (clause_name "v_typ_ext_ref")
  ==> 
 ( ( v_typ (v_ext_ref i) (t_tau tau_ext)  F  )))
+End
+(** definitions *)
+
+(* defns s_typ *)
+Inductive s_typ:
+(* defn s_typ *)
+
+[s_typ_sing:] (! (v:v) (tau:tau) (b:b) .
+(clause_name "s_typ_sing") /\
+(( ( v_typ v (t_tau tau)  b  )))
+ ==> 
+( ( s_typ (s_sing v) (s_t_tau tau) )))
+
+[s_typ_range:] (! (bitv:bitv) (bitv':bitv) (w:i) .
+(clause_name "s_typ_range") /\
+(( ( w  = bs_width  bitv ) ) /\
+( ( w  = bs_width  bitv' ) ))
+ ==> 
+( ( s_typ (s_range bitv bitv') (s_t_tau (tau_bit  w )) )))
+
+[s_typ_mask:] (! (bitv:bitv) (bitv':bitv) (w:i) .
+(clause_name "s_typ_mask") /\
+(( ( w  = bs_width  bitv ) ) /\
+( ( w  = bs_width  bitv' ) ))
+ ==> 
+( ( s_typ (s_mask bitv bitv') (s_t_tau (tau_bit  w )) )))
+
+[s_typ_univ:] (
+(clause_name "s_typ_univ")
+ ==> 
+( ( s_typ s_univ s_t_top )))
 End
 
 
@@ -3122,12 +3274,14 @@ Inductive e_typ:
  ==> 
 ( ( e_typ t_scopes_tup T_e (e_slice e (e_v (v_bit bitv)) (e_v (v_bit bitv'))) (t_tau (tau_bit  (   (   (   (   w1   -   w2   )   )   +   1   )   ) ))  b  )))
 
-[e_typ_select:] (! (v_x_list:(v#x) list) (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (x:x) (tau:tau) (b':b) (b:b) .
+[e_typ_select:] (! (s_list_x_s_t_list_list:(s_list#x#s_t_list) list) (x'_tau_list:(x#tau) list) (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (x:x) (struct_ty:struct_ty) (b:b) .
 (clause_name "e_typ_select") /\
-(( ( e_typ t_scopes_tup T_e e (t_tau tau)  b'  )) /\
-( !i. (i< LENGTH  ((MAP (\(v_,x_) . v_) v_x_list)) ) ==> ( v_typ (EL i  ((MAP (\(v_,x_) . v_) v_x_list)) ) (t_tau  tau )  b  ) ))
+(( is_struct  e ) /\
+( ( e_typ t_scopes_tup T_e e (t_tau (tau_xtl struct_ty (x'_tau_list)))  b  )) /\
+( !i. (i < LENGTH  ((MAP (\(s_list_,x_,s_t_list_) . s_list_) s_list_x_s_t_list_list)) ) ==> !j. (j < LENGTH (EL i  ((MAP (\(s_list_,x_,s_t_list_) . s_list_) s_list_x_s_t_list_list)) )) ==> ( s_typ (EL j (EL i  ((MAP (\(s_list_,x_,s_t_list_) . s_list_) s_list_x_s_t_list_list)) )) (EL j (EL i  ((MAP (\(s_list_,x_,s_t_list_) . s_t_list_) s_list_x_s_t_list_list)) )) ) ) /\
+( correct_value_set_types  ((MAP (\(x'_,tau_) . tau_) x'_tau_list))   ((MAP (\(s_list_,x_,s_t_list_) . s_t_list_) s_list_x_s_t_list_list)) ))
  ==> 
-( ( e_typ t_scopes_tup T_e (e_select e (v_x_list) x) (t_string_names_a  (  ( ((MAP (\(v_,x_) . x_) v_x_list)) )   ++   ( ([(x)]) )  ) )  F  )))
+( ( e_typ t_scopes_tup T_e (e_select e ((MAP (\(s_list_,x_,s_t_list_) . (s_list_,x_)) s_list_x_s_t_list_list)) x) (t_string_names_a  (  ( ((MAP (\(s_list_,x_,s_t_list_) . x_) s_list_x_s_t_list_list)) )   ++   ( ([(x)]) )  ) )  F  )))
 
 [e_typ_call:] (! (e_tau_x_d_b_list:(e#tau#x#d#b) list) (t_scopes_tup:t_scopes_tup) (order:order) (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) (funn':funn) (tau:tau) .
 (clause_name "e_typ_call") /\

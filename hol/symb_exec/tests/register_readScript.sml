@@ -4,16 +4,16 @@ open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "p4_symb_exec_test8";
+val _ = new_theory "register_read";
 
-(* Test 8:
- * There is a large register array. This is read from, then written to, at an index
- * using symbolic bits. *)
+(* Test 7:
+ * There is a large register array. This is read from at an index using symbolic bits.
+ * The test checks that the symbolic execution does not crash when reading from registers. *)
 
-val symb_exec8_blftymap = ``[("p",[]); ("vrfy",[]); ("update",[]); ("egress",[]); ("deparser",[]);
+val symb_exec7_blftymap = ``[("p",[]); ("vrfy",[]); ("update",[]); ("egress",[]); ("deparser",[]);
  ("ingress",[])]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
 
-val symb_exec8_ftymap = ``[(funn_ext "Checksum16" "get",[p_tau_par "D9"],p_tau_bit 16);
+val symb_exec7_ftymap = ``[(funn_ext "Checksum16" "get",[p_tau_par "D9"],p_tau_bit 16);
  (funn_inst "Checksum16",[],p_tau_ext "Checksum16");
  (funn_inst "action_selector",
   [p_tau_par "HashAlgorithm"; p_tau_bit 32; p_tau_bit 32],
@@ -85,10 +85,10 @@ val symb_exec8_ftymap = ``[(funn_ext "Checksum16" "get",[p_tau_par "D9"],p_tau_b
  (funn_ext "" "assume",[p_tau_bool],p_tau_bot);
  (funn_ext "" "log_msg",[p_tau_bot; p_tau_par "T21"],p_tau_bot)]:((funn, (p_tau list # p_tau)) alist)``;
 
-val symb_exec8_pblock_action_names_map = ``[("p",[]); ("vrfy",[]); ("update",[]); ("egress",[]); ("deparser",[]);
+val symb_exec7_pblock_action_names_map = ``[("p",[]); ("vrfy",[]); ("update",[]); ("egress",[]); ("deparser",[]);
  ("ingress",[])]:((string, ((string, string) alist)) alist)``;
 
-val symb_exec8_actx = ``([arch_block_inp;
+val symb_exec7_actx = ``([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
      e_var (varn_name "meta"); e_var (varn_name "standard_metadata")];
@@ -150,26 +150,11 @@ val symb_exec8_actx = ``([arch_block_inp;
                       (e_acc
                          (e_acc (e_acc (e_var (varn_name "h")) "h") "row")
                          "t")]))
-             (stmt_seq
-                (stmt_ass lval_null
-                   (e_call (funn_ext "register" "write")
-                      [e_var (varn_name "counters");
-                       e_cast (cast_unsigned 32)
-                         (e_acc
-                            (e_acc (e_acc (e_var (varn_name "h")) "h") "row")
-                            "t");
-                       e_binop (e_var (varn_name "tmp")) binop_add
-                         (e_v
-                            (v_bit
-                               ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                                 F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                                 F; T],32)))]))
-                (stmt_ass
+             (stmt_ass
+                (lval_field
                    (lval_field
-                      (lval_field
-                         (lval_field (lval_varname (varn_name "h")) "h")
-                         "row") "t")
-                   (e_cast (cast_unsigned 16) (e_var (varn_name "tmp"))))))),
+                      (lval_field (lval_varname (varn_name "h")) "h") "row")
+                   "t") (e_cast (cast_unsigned 16) (e_var (varn_name "tmp")))))),
      [])],[(varn_name "counters",tau_ext,NONE)],[],[])],
  [("postparser",ffblock_ff v1model_postparser)],
  v1model_input_f
@@ -241,8 +226,7 @@ val symb_exec8_actx = ``([arch_block_inp;
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
-
-val symb_exec8_astate_symb =
+val symb_exec7_astate_symb =
  rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8;
  t0; t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13; t14; t15;
  F; F; F; F; F; F; F; F;
@@ -280,40 +264,40 @@ val symb_exec8_astate_symb =
        ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate``;
 
+ val fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_ftymap_entries ^symb_exec7_ftymap”
+val b_fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_b_ftymap_entries ^symb_exec7_blftymap”
 
-val fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_ftymap_entries ^symb_exec8_ftymap”
-val b_fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_b_ftymap_entries ^symb_exec8_blftymap”
+val symb_exec7_ctx_tm = “(^fty_map', ^b_fty_map', ^symb_exec7_pblock_action_names_map)”
+val symb_exec_ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "symb_exec_ctx" (mk_eq(mk_var("symb_exec_ctx", type_of symb_exec7_ctx_tm), symb_exec7_ctx_tm))
 
-val symb_exec8_ctx_tm = “(^fty_map', ^b_fty_map', ^symb_exec8_pblock_action_names_map)”
-val symb_exec_ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "symb_exec_ctx" (mk_eq(mk_var("symb_exec_ctx", type_of symb_exec8_ctx_tm), symb_exec8_ctx_tm))
+val symb_exec7_pblock_map = #2 $ p4Syntax.dest_actx symb_exec7_actx;
+val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of symb_exec7_pblock_map), symb_exec7_pblock_map))
 
-(* TODO: Not needed? *)
-val symb_exec8_pblock_map = #2 $ p4Syntax.dest_actx symb_exec8_actx;
-val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of symb_exec8_pblock_map), symb_exec8_pblock_map))
 
-(* symb_exec: *)
 (* Parameter assignment for debugging: *)
-val debug_flag = true;
+val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
-val ctx = symb_exec8_actx
-val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec8_ftymap, symb_exec8_blftymap, symb_exec8_pblock_action_names_map)
+val ctx = symb_exec7_actx
+val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec7_ftymap, symb_exec7_blftymap, symb_exec7_pblock_action_names_map)
 val const_actions_tables = []
 val path_cond_defs = [symb_exec_ctx_def, symb_exec_pblock_map_def]
-val init_astate = symb_exec8_astate_symb
-val stop_consts_rewr = [“v1model_register_construct_inner”, “v1model_register_read_inner”, “v1model_register_write_inner”]
+val init_astate = symb_exec7_astate_symb
+val stop_consts_rewr = [“v1model_register_read_inner”, “v1model_register_construct_inner”]
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME “T”
+val path_cond = ASSUME T
 val p4_is_finished_alt_opt = NONE
 val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
 val fuel = 1;
 val postcond_rewr_thms = []
+val postcond_simpset = pure_ss
 
-val time_start = Time.now(); (*
+val time_start = Time.now();
+(*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

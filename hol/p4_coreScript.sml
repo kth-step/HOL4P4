@@ -425,6 +425,26 @@ Definition get_checksum_incr_def:
  )
 End
 
+(* Alternative version tailored for symbolic execution *)
+Definition get_checksum_incr'_def:
+ (get_checksum_incr' scope_list ext_data_name =
+   (case lookup_lval scope_list ext_data_name of
+    | SOME (v_bit (bl, n)) =>
+     if n MOD 16 = 0 then SOME bl else NONE
+    | SOME (v_header vbit f_list) =>
+     (case header_entries2v f_list of
+      | SOME bl =>
+       if (LENGTH bl) MOD 16 = 0 then SOME bl else NONE
+      | NONE => NONE)
+    | SOME (v_struct f_list) =>
+     (case header_entries2v f_list of
+      | SOME bl =>
+       if (LENGTH bl) MOD 16 = 0 then SOME bl else NONE
+      | NONE => NONE)
+    | _ => NONE)
+ )
+End
+
 Definition add_ones_complement_def:
  add_ones_complement (x, y) = 
   let
