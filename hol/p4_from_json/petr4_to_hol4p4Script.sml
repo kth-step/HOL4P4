@@ -265,12 +265,19 @@ Datatype:
   v1model_pkg_V1Switch tau tau
 End
 
+(* TODO: Fix name *)
+Datatype:
+ xsa_pkg_t =
+  xsa_pkg_pipe tau tau
+End
+
 (* The option type signifies whether the top-level package has been recognized yet *)
 Datatype:
  arch_t =
     arch_vss (vss_pkg_t option)
   | arch_ebpf (ebpf_pkg_t option)
   | arch_v1model (v1model_pkg_t option)
+  | arch_xsa (xsa_pkg_t option)
 End
 
 
@@ -3636,6 +3643,17 @@ Definition petr4_parse_element_def:
          | NONE => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Invalid block in top-level package instantiation"))
        | SOME (arch_v1model _) =>
         NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Duplicate top-level package instantiations")
+       (* XSA: Only one top-level package exists *)
+       | SOME (arch_xsa NONE) =>
+        (case get_arch_block_pbl_name (EL 0 ab_list') of
+         | SOME pbl_name =>
+          (case ALOOKUP pblock_map pbl_name of
+           | SOME (pblock, argtys) =>
+            SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, SOME (arch_xsa (SOME (xsa_pkg_pipe (EL 1 argtys) (EL 2 argtys)))), ab_list', action_list, extfun_list, ttymap)
+           | _ => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Unknown programmable block in top-level package instantiation: "++pbl_name))
+         | NONE => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Invalid block in top-level package instantiation"))
+       | SOME (arch_xsa _) =>
+        NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Duplicate top-level package instantiations")
 
        | _ => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) ("Unexpected top-level package instantiation"))
      | NONE_msg msg => NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap) msg)
@@ -3814,6 +3832,18 @@ Definition v1model_init_ctrl_def:
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
+  in
+  let
+   init_tbl_map' = FILTER_DUPLICATES init_tbl_map
+  in
+   init_ctrl_gen init_tbl_map' tbl_updates
+End
+
+Definition xsa_init_ctrl_def:
+ xsa_init_ctrl pblock_map tbl_updates =
+  let
+   init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):xsa_ctrl
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map

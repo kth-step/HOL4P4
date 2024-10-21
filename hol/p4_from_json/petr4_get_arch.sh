@@ -7,6 +7,9 @@ elif grep -q "#include \"very_simple_model.p4\"" "$1"; then
     echo "vss"
 elif grep -q "#include <v1model.p4>" "$1"; then
     echo "v1model"
+# TODO: Fix
+elif grep -q "#include <xsa.p4>" "$1"; then
+    echo "xsa"
 else
     echo "none"
 fi

@@ -33,4 +33,10 @@ Definition v1model_add_ctrl_def:
   add_ctrl_gen astate
 End
 
+Definition xsa_add_ctrl_def:
+ xsa_add_ctrl (astate:xsa_ascope astate) =
+  add_ctrl_gen astate
+End
+
+
 val _ = export_theory ();

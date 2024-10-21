@@ -4,7 +4,7 @@ open PPBackEnd optionSyntax pairSyntax numSyntax listSyntax stringLib;
 open parse_jsonTheory;
 open petr4_to_hol4p4Theory p4_arch_auxTheory;
 
-open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib p4_v1modelLib;
+open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib p4_v1modelLib p4_xsaLib;
 
 (* For EVAL *)
 open ASCIInumbersLib;
@@ -18,6 +18,8 @@ fun parse_arch arch_str =
  then SOME ebpf
  else if arch_str = "v1model"
  then SOME v1model
+ else if arch_str = "xsa"
+ then SOME xsa
  else NONE
 ;
 
@@ -26,6 +28,7 @@ fun arch_to_term arch_opt =
    SOME vss => mk_some arch_vss_NONE_tm
  | SOME ebpf => mk_some arch_ebpf_NONE_tm
  | SOME v1model => mk_some arch_v1model_NONE_tm
+ | SOME xsa => mk_some arch_xsa_NONE_tm
  | NONE => mk_none ``:arch_t``
 ;
 
@@ -36,6 +39,8 @@ fun ascope_of_arch arch_opt_tm =
  then "``:ebpf_ascope``"
  else if is_arch_v1model $ dest_some arch_opt_tm
  then "``:v1model_ascope``"
+ else if is_arch_xsa $ dest_some arch_opt_tm
+ then "``:xsa_ascope``"
  else "``:'a``"
 ;
 
@@ -46,6 +51,8 @@ fun astr_of_arch arch_opt_tm =
  then "ebpf"
  else if is_arch_v1model $ dest_some arch_opt_tm
  then "v1model"
+ else if is_arch_xsa $ dest_some arch_opt_tm
+ then "xsa"
  else raise Fail ("Unknown architecture: "^(term_to_string arch_opt_tm))
 ;
 
@@ -57,6 +64,8 @@ fun astate_of_arch arch_opt_tm =
  then SOME "ebpf_ascope astate"
  else if is_arch_v1model $ dest_some arch_opt_tm
  then SOME "v1model_ascope astate"
+ else if is_arch_xsa $ dest_some arch_opt_tm
+ then SOME "xsa_ascope astate"
  else NONE
 ;
 
@@ -68,6 +77,8 @@ fun actx_of_arch arch_opt_tm =
  then SOME "ebpf_ascope actx"
  else if is_arch_v1model $ dest_some arch_opt_tm
  then SOME "v1model_ascope actx"
+ else if is_arch_xsa $ dest_some arch_opt_tm
+ then SOME "xsa_ascope actx"
  else NONE
 ;
 
@@ -639,6 +650,20 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
  end
 ;
 
+fun xsa_add_ffblocks_to_ab_list ab_list_tm =
+ let
+  val (ab_list, ab_list_ty) = dest_list ab_list_tm
+  val ab_list' = [``arch_block_inp``,
+                  (el 1 ab_list), (* TODO *)
+                  ``arch_block_ffbl "postparser"``,
+                  (el 2 ab_list), (* TODO *)
+                  (el 3 ab_list), (* TODO *)
+                  ``arch_block_out``]
+ in
+  (mk_list (ab_list', ab_list_ty))
+ end
+;
+
 fun vss_add_param_vars_to_v_map init_v_map tau =
  let
   val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau”
@@ -794,6 +819,50 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
       end
      else raise Fail ("Could not initialise control plane configuration for "^valname)
     end
+
+   else if (is_arch_xsa $ dest_some arch_opt_tm) then
+    let
+     val fmap' = eval_rhs ``AUPDATE_LIST ^xsa_func_map ^fmap``
+     val tparams = eval_rhs “(\ (tau1, tau2). (arb_from_tau tau1, arb_from_tau tau2)) ^(mk_pair (dest_xsa_pkg_pipe $ dest_some $ dest_arch_xsa $ dest_some arch_opt_tm))”
+     val xsa_input_f = “xsa_input_f ^tparams”
+     val actx =
+      rhs $ concl $ SIMP_CONV list_ss [] $
+       list_mk_pair [xsa_add_ffblocks_to_ab_list ab_list_tm, pblock_map, xsa_ffblock_map,
+		     xsa_input_f, xsa_output_f,
+		     xsa_copyin_pbl, xsa_copyout_pbl, xsa_apply_table_f,
+		     xsa_ext_map, fmap']
+     val init_ctrl_opt = eval_rhs ``xsa_init_ctrl ^pblock_map ^tbl_updates_tm``;
+(*
+     val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
+     val _ = print ("tbl_updates :"^((term_to_string tbl_updates_tm)^"\n"))
+*)
+    in
+     if is_some init_ctrl_opt
+     then
+      let
+       val init_ctrl = dest_some init_ctrl_opt
+       (* ctrl is initialised from the onset, whereas extern objects are initialised at the
+        * start of the pipeline with xsa_input_f *)
+       val ascope = list_mk_pair [xsa_init_counter,
+				  xsa_init_ext_obj_map,
+				  xsa_init_v_map,
+				  init_ctrl]
+       (* ab index, input list, output list, ascope *)
+       (* Note: Input is added later elsewhere *)
+       val aenv = list_mk_pair [term_of_int 0,
+				mk_list ([], ``:in_out``),
+				mk_list ([], ``:in_out``), ascope]
+       (* aenv, global scope, arch_frame_list, status *)
+       val astate = list_mk_pair [aenv,
+				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
+				  arch_frame_list_empty_tm,
+				  status_running_tm]
+      in
+       SOME (actx, astate)
+      end
+     else raise Fail ("Could not initialise control plane configuration for "^valname)
+    end
+
    else if (is_none arch_opt_tm) then
     (* TODO *)
     NONE
