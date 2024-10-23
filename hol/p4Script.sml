@@ -196,7 +196,7 @@ Type taul = ``:(tau list)``
 
 Type s_t_list = ``:(s_t list)``
 
-Type ext_fun = ``:(('a # g_scope_list # scope_list) -> (('a # scope_list # status) option))``
+Type ext_fun = ``:(((num -> bool) # num # 'a # g_scope_list # scope_list) -> ((num # 'a # scope_list # status) option))``
 
 Type ff = ``:('a -> 'a option)``
 
@@ -232,9 +232,9 @@ Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``
 
 Type pars_map = ``:((string, stmt) alist)``
 
-Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``
-
 Type tbl_map = ``:((string, ((mk list) # (x # e_list))) alist)``
+
+Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``
 val _ = Hol_datatype ` 
 pbl_type =  (* programmable block type *)
    pbl_type_parser
@@ -280,13 +280,15 @@ Type output_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
 
 Type input_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
 
+Type oracle = ``:(num -> bool)``
+
 Type ab_list = ``:(arch_block list)``
 
 
 
-Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map)``
+Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # oracle)``
 
-Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map)``
+Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map # oracle)``
 
 Type stmt_stack = ``:(stmt list)``
 
@@ -296,9 +298,9 @@ Type frame = ``:(funn # stmt_stack # scope_list)``
 
 Type frame_list = ``:(frame list)``
 
-Type state = ``:('a # g_scope_list # frame_list # status)``
+Type state = ``:(num # 'a # g_scope_list # frame_list # status)``
 
-Type aenv = ``:(num # in_out_list # in_out_list # 'a)``
+Type aenv = ``:(num # in_out_list # in_out_list # 'a # num)``
 
 
 val _ = Hol_datatype ` 
@@ -309,7 +311,7 @@ arch_frame_list =  (* architecture-level frame list *)
 
 Type astate = ``:('a aenv # g_scope_list # arch_frame_list # status)``
 
-Type cstate = ``:((in_out_list # in_out_list # 'a) # ((num # g_scope_list # arch_frame_list # status) # (num # g_scope_list # arch_frame_list # status)))``
+Type cstate = ``:((in_out_list # in_out_list # 'a # num) # ((num # g_scope_list # arch_frame_list # status) # (num # g_scope_list # arch_frame_list # status)))``
 val is_const_def = Define `
   (is_const (e_v _) = T) /\
   (is_const _ = F)
@@ -1543,17 +1545,32 @@ Proof
  fs [listTheory.MEM_SPLIT, v1_size_append, v_size_def]
 QED
 
-val init_out_v_def = TotalDefn.tDefine "init_out_v" `
-  (init_out_v (v_bool boolv) = v_bool ARB) /\
-  (init_out_v (v_bit (bl, n)) = v_bit (extend ARB n [], n)) /\
-  (init_out_v (v_str x) = v_str ARB) /\
-  (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
-  (init_out_v (v_struct []) = v_struct []) /\
-  (init_out_v (v_header boolv ((x,v)::t)) =
-    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
-  (init_out_v (v_header boolv []) = v_header F []) /\
-  (init_out_v (v_ext_ref i) = v_ext_ref i) /\
-  (init_out_v v_bot = v_bot)
+(* TODO: Make this total, using auxiliary list version *)
+Definition init_out_v_def:
+  (init_out_v oracle i (v_bool boolv) = SOME (v_bool (oracle i), i+1)) /\
+  (init_out_v oracle i (v_bit (bl, n)) = SOME (v_bit (extend ARB n [], n), i+n)) /\
+  (* TODO: String stays as ARB... *)
+  (init_out_v oracle i (v_str x) = SOME (v_str ARB, i)) /\
+  (init_out_v oracle i (v_struct ((x,v)::t)) =
+   case init_out_v oracle i v of
+   | SOME (v'', i') =>
+    (case init_out_v oracle i' (v_struct t) of
+     | SOME (v_struct t', i'') => SOME (v_struct ((x, v'')::t'), i'')
+     | _ => NONE)
+   | NONE => NONE) /\
+  (init_out_v _ i (v_struct []) = SOME (v_struct [], i)) /\
+  (init_out_v oracle i (v_header boolv ((x,v)::t)) =
+   case init_out_v oracle i v of
+   | SOME (v'', i') =>
+    (case init_out_v oracle i' (v_struct t) of
+     | SOME (v_struct t', i'') => SOME (v_header F ((x, v'')::t'), i'')
+     | _ => NONE)
+   | NONE => NONE) /\
+  (init_out_v _ i (v_header boolv []) = SOME (v_header F [], i)) /\
+  (init_out_v _ i' (v_ext_ref i) = SOME (v_ext_ref i, i')) /\
+  (init_out_v _ i v_bot = SOME (v_bot, i))
+End
+(*
 `
 (WF_REL_TAC `measure v_size` >>
  fs [v_size_def] >>
@@ -1563,7 +1580,7 @@ val init_out_v_def = TotalDefn.tDefine "init_out_v" `
  ) >>
  METIS_TAC [v1_size_mem]
 );
-
+*)
 
 
 val tau_size_def = DB.fetch "p4" "tau_size_def";
@@ -1610,7 +1627,7 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
- one_arg_val_for_newscope d e ss =
+ one_arg_val_for_newscope oracle i d e ss =
   if is_d_out d
   then
    (case get_lval_of_e e of
@@ -1618,13 +1635,17 @@ val one_arg_val_for_newscope_def = Define `
      (case lookup_lval ss lval of
       | SOME v =>
        if is_d_in d
-       then SOME (v, SOME lval)
-       else SOME (init_out_v v, SOME lval)
+       then SOME (v, SOME lval, i)
+       else
+        (case init_out_v oracle i v of
+         | SOME (v', i') =>
+          SOME (v', SOME lval, i')
+         | NONE => NONE)
       | NONE => NONE)
     | NONE => NONE)
   else
    (case v_of_e e of
-    | SOME v => SOME (v, NONE)
+    | SOME v => SOME (v, NONE, i)
     | NONE => NONE)
 `;
 
@@ -1640,11 +1661,11 @@ Definition AUPDATE_LIST_def:
 End
 
 val update_arg_for_newscope_def = Define `
-  update_arg_for_newscope ss f_opt (d, x, e) =
-    case f_opt of
-    | SOME f =>
-      (case one_arg_val_for_newscope d e ss of
-       | SOME (v, lval_opt) => SOME (AUPDATE f (varn_name x, (v, lval_opt)))
+  update_arg_for_newscope oracle ss f_i_opt (d, x, e) =
+    case f_i_opt of
+    | SOME (f, i) =>
+      (case one_arg_val_for_newscope oracle i d e ss of
+       | SOME (v, lval_opt, i') => SOME (AUPDATE f (varn_name x, (v, lval_opt)), i')
        | NONE => NONE)
     | NONE => NONE
 `;
@@ -1652,15 +1673,15 @@ val update_arg_for_newscope_def = Define `
 (* Fills a fresh scope with the values of the arguments of a called function.
  * Note: used in e_call_newframe *)
 val all_arg_update_for_newscope_def = Define `
-  all_arg_update_for_newscope xlist dlist elist ss = 
-    FOLDL (update_arg_for_newscope ss) (SOME []) (ZIP (dlist, ZIP(xlist, elist)))
+  all_arg_update_for_newscope xlist dlist elist ss oracle oracle_index =
+    FOLDL (update_arg_for_newscope oracle ss) (SOME ([], oracle_index)) (ZIP (dlist, ZIP(xlist, elist)))
 `;
 
 
 (* full copyin definition *)
 val copyin_def = Define `
-  copyin xlist dlist elist gsl ss_curr = 
-    all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl)
+  copyin xlist dlist elist gsl ss_curr oracle oracle_index = 
+    all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl) oracle oracle_index
 `;
 
 (* in bl' slice from v2 to v1 and in that section add bl in those positions
@@ -2148,322 +2169,322 @@ val tbl_to_pass_def = Define `
 Inductive e_sem:
 (* defn e_red *)
 
-[e_lookup:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (varn:varn) (v:v) .
+[e_lookup:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (varn:varn) (v:v) .
 (clause_name "e_lookup") /\
 (( SOME  v  =  lookup_vexp2  scope_list   g_scope_list   varn ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_var varn) (e_v v)  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_var varn) (e_v v)  ([]:frame list)  i )))
 
-[e_call_newframe:] (! (e_x_d_list:(e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (stmt:stmt) (scope':scope) .
+[e_call_newframe:] (! (e_x_d_list:(e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (stmt:stmt) (scope':scope) (i':i) .
 (clause_name "e_call_newframe") /\
 (( (SOME ( stmt ,  ((MAP (\(e_,x_,d_) . (x_,d_)) e_x_d_list)) ) = lookup_funn_sig_body  funn   func_map   b_func_map   ext_map ) ) /\
 ( (check_args_red   ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )     ( ((MAP (\(e_,x_,d_) . e_) e_x_d_list)) )  ) ) /\
-( (SOME  scope'  = copyin  ((MAP (\(e_,x_,d_) . x_) e_x_d_list))    ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )     ( ((MAP (\(e_,x_,d_) . e_) e_x_d_list)) )    g_scope_list   scope_list ) ))
+( (SOME ( scope' ,  i' ) = copyin  ((MAP (\(e_,x_,d_) . x_) e_x_d_list))    ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )     ( ((MAP (\(e_,x_,d_) . e_) e_x_d_list)) )    g_scope_list   scope_list   oracle   i ) ))
  ==> 
-( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list (e_call funn ((MAP (\(e_,x_,d_) . e_) e_x_d_list))) (e_var (varn_star funn))  ([   ( funn  ,   ( ([(stmt)]) )   ,   ( ([(scope')]) )  )   ])  )))
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )  i g_scope_list scope_list (e_call funn ((MAP (\(e_,x_,d_) . e_) e_x_d_list))) (e_var (varn_star funn))  ([   ( funn  ,   ( ([(stmt)]) )   ,   ( ([(scope')]) )  )   ])  i' )))
 
-[e_call_args:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (frame_list:frame_list) (i:i) (e:e) (e':e) .
+[e_call_args:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i':i) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (frame_list:frame_list) (i'':i) (i:i) (e:e) (e':e) .
 (clause_name "e_call_args") /\
 (( (SOME  ((MAP (\(e_,e'_,x_,d_) . (x_,d_)) e_e'_x_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
 ( (unred_arg_index   ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )     ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )   = SOME  i ) ) /\
 ( ( e  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  ) ) /\
-( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list e e' frame_list )) /\
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )  i' g_scope_list scope_list e e' frame_list i'' )) /\
 ( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
  ==> 
-( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list))) frame_list )))
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )  i' g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list))) frame_list i'' )))
 
-[e_eStruct:] (! (f_e_e'_list:(x#e#e) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (frame_list:frame_list) (i:i) (e:e) (e':e) .
+[e_eStruct:] (! (f_e_e'_list:(x#e#e) list) (ctx:'a ctx) (i':i) (g_scope_list:g_scope_list) (scope_list:scope_list) (frame_list:frame_list) (i'':i) (i:i) (e:e) (e':e) .
 (clause_name "e_eStruct") /\
 (( (unred_mem_index   ( ((MAP (\(f_,e_,e'_) . e_) f_e_e'_list)) )   = SOME  i ) ) /\
 ( ( e  = EL  i    ( ((MAP (\(f_,e_,e'_) . e_) f_e_e'_list)) )  ) ) /\
-( ( e_red ctx g_scope_list scope_list e e' frame_list )) /\
+( ( e_red ctx i' g_scope_list scope_list e e' frame_list i'' )) /\
 ( (  ( ((MAP (\(f_,e_,e'_) . e'_) f_e_e'_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(f_,e_,e'_) . e_) f_e_e'_list)) )  )  ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_struct ((MAP (\(f_,e_,e'_) . (f_,e_)) f_e_e'_list))) (e_struct ((MAP (\(f_,e_,e'_) . (f_,e'_)) f_e_e'_list))) frame_list )))
+( ( e_red ctx i' g_scope_list scope_list (e_struct ((MAP (\(f_,e_,e'_) . (f_,e_)) f_e_e'_list))) (e_struct ((MAP (\(f_,e_,e'_) . (f_,e'_)) f_e_e'_list))) frame_list i'' )))
 
-[e_eStruct_to_v:] (! (f_e_v_list:(x#e#v) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) .
+[e_eStruct_to_v:] (! (f_e_v_list:(x#e#v) list) (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) .
 (clause_name "e_eStruct_to_v") /\
 (( (is_consts   ( ((MAP (\(f_,e_,v_) . e_) f_e_v_list)) )  ) ) /\
 ( (  ( ((MAP (\(f_,e_,v_) . v_) f_e_v_list)) )   = vl_of_el   ( ((MAP (\(f_,e_,v_) . e_) f_e_v_list)) )  ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_struct ((MAP (\(f_,e_,v_) . (f_,e_)) f_e_v_list))) (e_v (v_struct ((MAP (\(f_,e_,v_) . (f_,v_)) f_e_v_list))))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_struct ((MAP (\(f_,e_,v_) . (f_,e_)) f_e_v_list))) (e_v (v_struct ((MAP (\(f_,e_,v_) . (f_,v_)) f_e_v_list))))  ([]:frame list)  i )))
 
-[e_s_acc:] (! (f_v_list:(x#v) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (f:x) (v:v) .
+[e_s_acc:] (! (f_v_list:(x#v) list) (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (f:x) (v:v) .
 (clause_name "e_s_acc") /\
 (( (FIND (\(k, v). k =  f )  (f_v_list)  = SOME ( f ,  v )) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_acc (e_v (v_struct (f_v_list))) f) (e_v v)  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_acc (e_v (v_struct (f_v_list))) f) (e_v v)  ([]:frame list)  i )))
 
-[e_acc_arg1:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (f:x) (e':e) (frame_list:frame_list) .
+[e_acc_arg1:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (f:x) (e':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_acc_arg1") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_acc e f) (e_acc e' f) frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_acc e f) (e_acc e' f) frame_list i' )))
 
-[e_eHeader:] (! (f_e_e'_list:(x#e#e) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (boolv:boolv) (frame_list:frame_list) (i:i) (e:e) (e':e) .
+[e_eHeader:] (! (f_e_e'_list:(x#e#e) list) (ctx:'a ctx) (i':i) (g_scope_list:g_scope_list) (scope_list:scope_list) (boolv:boolv) (frame_list:frame_list) (i'':i) (i:i) (e:e) (e':e) .
 (clause_name "e_eHeader") /\
 (( (unred_mem_index   ( ((MAP (\(f_,e_,e'_) . e_) f_e_e'_list)) )   = SOME  i ) ) /\
 ( ( e  = EL  i    ( ((MAP (\(f_,e_,e'_) . e_) f_e_e'_list)) )  ) ) /\
-( ( e_red ctx g_scope_list scope_list e e' frame_list )) /\
+( ( e_red ctx i' g_scope_list scope_list e e' frame_list i'' )) /\
 ( (  ( ((MAP (\(f_,e_,e'_) . e'_) f_e_e'_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(f_,e_,e'_) . e_) f_e_e'_list)) )  )  ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_header boolv ((MAP (\(f_,e_,e'_) . (f_,e_)) f_e_e'_list))) (e_header boolv ((MAP (\(f_,e_,e'_) . (f_,e'_)) f_e_e'_list))) frame_list )))
+( ( e_red ctx i' g_scope_list scope_list (e_header boolv ((MAP (\(f_,e_,e'_) . (f_,e_)) f_e_e'_list))) (e_header boolv ((MAP (\(f_,e_,e'_) . (f_,e'_)) f_e_e'_list))) frame_list i'' )))
 
-[e_eHeader_to_v:] (! (f_e_v_list:(x#e#v) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (boolv:boolv) .
+[e_eHeader_to_v:] (! (f_e_v_list:(x#e#v) list) (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (boolv:boolv) .
 (clause_name "e_eHeader_to_v") /\
 (( (is_consts   ( ((MAP (\(f_,e_,v_) . e_) f_e_v_list)) )  ) ) /\
 ( (  ( ((MAP (\(f_,e_,v_) . v_) f_e_v_list)) )   = vl_of_el   ( ((MAP (\(f_,e_,v_) . e_) f_e_v_list)) )  ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_header boolv ((MAP (\(f_,e_,v_) . (f_,e_)) f_e_v_list))) (e_v (v_header boolv ((MAP (\(f_,e_,v_) . (f_,v_)) f_e_v_list))))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_header boolv ((MAP (\(f_,e_,v_) . (f_,e_)) f_e_v_list))) (e_v (v_header boolv ((MAP (\(f_,e_,v_) . (f_,v_)) f_e_v_list))))  ([]:frame list)  i )))
 
-[e_h_acc:] (! (f_v_list:(x#v) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (boolv:boolv) (f:x) (v:v) .
+[e_h_acc:] (! (f_v_list:(x#v) list) (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (boolv:boolv) (f:x) (v:v) .
 (clause_name "e_h_acc") /\
 (( (FIND (\(k, v). k =  f )  (f_v_list)  = SOME ( f ,  v )) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_acc (e_v (v_header boolv (f_v_list))) f) (e_v v)  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_acc (e_v (v_header boolv (f_v_list))) f) (e_v v)  ([]:frame list)  i )))
 
-[e_sel_acc:] (! (s_list_x_list:(s_list#x) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (x:x) (x':x) .
+[e_sel_acc:] (! (s_list_x_list:(s_list#x) list) (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (x:x) (x':x) .
 (clause_name "e_sel_acc") /\
 (( x'  = sel  v   (s_list_x_list)   x ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_select (e_v v) (s_list_x_list) x) (e_v (v_str x'))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_select (e_v v) (s_list_x_list) x) (e_v (v_str x'))  ([]:frame list)  i )))
 
-[e_concat_arg1:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (e':e) (e'':e) (frame_list:frame_list) .
+[e_concat_arg1:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (e':e) (e'':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_concat_arg1") /\
-(( ( e_red ctx g_scope_list scope_list e e'' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e'' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_concat e e') (e_concat e'' e') frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_concat e e') (e_concat e'' e') frame_list i' )))
 
-[e_concat_arg2:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (e:e) (e':e) (frame_list:frame_list) .
+[e_concat_arg2:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (e:e) (e':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_concat_arg2") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_concat (e_v (v_bit bitv)) e) (e_concat (e_v (v_bit bitv)) e') frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_concat (e_v (v_bit bitv)) e) (e_concat (e_v (v_bit bitv)) e') frame_list i' )))
 
-[e_concat_v:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_concat_v:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_concat_v") /\
 (( ( bitv''  = bitv_concat  bitv   bitv' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_concat (e_v (v_bit bitv)) (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_concat (e_v (v_bit bitv)) (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_slice_arg1:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (bitv:bitv) (bitv':bitv) (e':e) (frame_list:frame_list) .
+[e_slice_arg1:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (bitv:bitv) (bitv':bitv) (e':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_slice_arg1") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_slice e (e_v (v_bit bitv)) (e_v (v_bit bitv'))) (e_slice e' (e_v (v_bit bitv)) (e_v (v_bit bitv'))) frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_slice e (e_v (v_bit bitv)) (e_v (v_bit bitv'))) (e_slice e' (e_v (v_bit bitv)) (e_v (v_bit bitv'))) frame_list i' )))
 
-[e_slice_v:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) (bitv''':bitv) .
+[e_slice_v:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) (bitv''':bitv) .
 (clause_name "e_slice_v") /\
 (( bitv'''  = slice  bitv   bitv'   bitv'' ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_slice (e_v (v_bit bitv)) (e_v (v_bit bitv')) (e_v (v_bit bitv''))) (e_v (v_bit bitv'''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_slice (e_v (v_bit bitv)) (e_v (v_bit bitv')) (e_v (v_bit bitv''))) (e_v (v_bit bitv'''))  ([]:frame list)  i )))
 
-[e_sel_arg:] (! (s_list_x_list:(s_list#x) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (x:x) (e':e) (frame_list:frame_list) .
+[e_sel_arg:] (! (s_list_x_list:(s_list#x) list) (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (x:x) (e':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_sel_arg") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_select e (s_list_x_list) x) (e_select e' (s_list_x_list) x) frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_select e (s_list_x_list) x) (e_select e' (s_list_x_list) x) frame_list i' )))
 
-[e_unop_arg:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (unop:unop) (e:e) (e':e) (frame_list:frame_list) .
+[e_unop_arg:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (unop:unop) (e:e) (e':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_unop_arg") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_unop unop e) (e_unop unop e') frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_unop unop e) (e_unop unop e') frame_list i' )))
 
-[e_cast_arg:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (cast:cast) (e:e) (e':e) (frame_list:frame_list) .
+[e_cast_arg:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (cast:cast) (e:e) (e':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_cast_arg") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_cast cast e) (e_cast cast e') frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_cast cast e) (e_cast cast e') frame_list i' )))
 
-[e_binop_arg1:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (binop:binop) (e':e) (e'':e) (frame_list:frame_list) .
+[e_binop_arg1:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (binop:binop) (e':e) (e'':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_binop_arg1") /\
-(( ( e_red ctx g_scope_list scope_list e e'' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e'' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop e binop e') (e_binop e'' binop e') frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_binop e binop e') (e_binop e'' binop e') frame_list i' )))
 
-[e_binop_arg2:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (binop:binop) (e:e) (e':e) (frame_list:frame_list) .
+[e_binop_arg2:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (binop:binop) (e:e) (e':e) (frame_list:frame_list) (i':i) .
 (clause_name "e_binop_arg2") /\
 (( (~is_short_circuitable  binop ) ) /\
-( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v v) binop e) (e_binop (e_v v) binop e') frame_list )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v v) binop e) (e_binop (e_v v) binop e') frame_list i' )))
 
-[e_neg_bool:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) .
+[e_neg_bool:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) .
 (clause_name "e_neg_bool") /\
 (( (~ b  =  b' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_unop unop_neg (e_v (v_bool  b ))) (e_v (v_bool  b' ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_unop unop_neg (e_v (v_bool  b ))) (e_v (v_bool  b' ))  ([]:frame list)  i )))
 
-[e_compl:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) .
+[e_compl:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) .
 (clause_name "e_compl") /\
 (( (bitv_bl_unop bnot  bitv  =  bitv' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_unop unop_compl (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_unop unop_compl (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  i )))
 
-[e_neg_signed:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) .
+[e_neg_signed:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) .
 (clause_name "e_neg_signed") /\
 (( (bitv_unop unop_neg_signed  bitv  =  bitv' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_unop unop_neg_signed (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_unop unop_neg_signed (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  i )))
 
-[e_un_plus:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) .
+[e_un_plus:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) .
 (clause_name "e_un_plus") /\
 (( ( bitv  =  bitv' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_unop unop_un_plus (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_unop unop_un_plus (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  i )))
 
-[e_cast_bitv:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (n:m) (bitv:bitv) (bitv':bitv) .
+[e_cast_bitv:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (n:m) (bitv:bitv) (bitv':bitv) .
 (clause_name "e_cast_bitv") /\
 (( (bitv_cast  n   bitv  =  bitv' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_cast (cast_unsigned n) (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_cast (cast_unsigned n) (e_v (v_bit bitv))) (e_v (v_bit bitv'))  ([]:frame list)  i )))
 
-[e_cast_bool:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (n:m) (b:b) (bitv:bitv) .
+[e_cast_bool:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (n:m) (b:b) (bitv:bitv) .
 (clause_name "e_cast_bool") /\
 (( (bool_cast  n   b  =  bitv ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_cast (cast_unsigned n) (e_v (v_bool  b ))) (e_v (v_bit bitv))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_cast (cast_unsigned n) (e_v (v_bool  b ))) (e_v (v_bit bitv))  ([]:frame list)  i )))
 
-[e_mul:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_mul:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_mul") /\
 (( (bitv_binop binop_mul  bitv   bitv'  = SOME  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_mul (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_mul (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_div:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_div:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_div") /\
 (( (bitv_binop binop_div  bitv   bitv'  = SOME  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_div (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_div (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_mod:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_mod:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_mod") /\
 (( (bitv_binop binop_mod  bitv   bitv'  = SOME  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_mod (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_mod (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_add:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_add:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_add") /\
 (( (bitv_binop binop_add  bitv   bitv'  = SOME  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_add (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_add (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_sat_add:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_sat_add:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_sat_add") /\
 (( (bitv_binop binop_sat_add  bitv   bitv'  = SOME  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_sat_add (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_sat_add (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_sub:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_sub:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_sub") /\
 (( (bitv_binop binop_sub  bitv   bitv'  = SOME  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_sub (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_sub (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_sat_sub:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_sat_sub:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_sat_sub") /\
 (( (bitv_binop binop_sat_sub  bitv   bitv'  = SOME  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_sat_sub (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_sat_sub (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_shl:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_shl:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_shl") /\
 (( (bitv_bl_binop shiftl  bitv  ((\(bl, n). (v2n bl, n))  bitv' ) =  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_shl (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_shl (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_shr:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_shr:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_shr") /\
 (( (bitv_bl_binop shiftr  bitv  ((\(bl, n). (v2n bl, n))  bitv' ) =  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_shr (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_shr (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_le:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
+[e_le:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
 (clause_name "e_le") /\
 (( ((bitv_binpred binop_le  bitv   bitv' ) = SOME  b ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_le (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_le (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  i )))
 
-[e_ge:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
+[e_ge:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
 (clause_name "e_ge") /\
 (( ((bitv_binpred binop_ge  bitv   bitv' ) = SOME  b ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_ge (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_ge (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  i )))
 
-[e_lt:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
+[e_lt:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
 (clause_name "e_lt") /\
 (( ((bitv_binpred binop_lt  bitv   bitv' ) = SOME  b ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_lt (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_lt (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  i )))
 
-[e_gt:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
+[e_gt:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
 (clause_name "e_gt") /\
 (( ((bitv_binpred binop_gt  bitv   bitv' ) = SOME  b ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_gt (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_gt (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  i )))
 
-[e_neq:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
+[e_neq:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
 (clause_name "e_neq") /\
 (( (( bitv  <>  bitv' ) <=>  b ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_neq (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_neq (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  i )))
 
-[e_neq_bool:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) (b'':b) .
+[e_neq_bool:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) (b'':b) .
 (clause_name "e_neq_bool") /\
 (( (( b  <>  b' ) <=>  b'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bool  b )) binop_neq (e_v (v_bool  b' ))) (e_v (v_bool  b'' ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bool  b )) binop_neq (e_v (v_bool  b' ))) (e_v (v_bool  b'' ))  ([]:frame list)  i )))
 
-[e_eq:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
+[e_eq:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
 (clause_name "e_eq") /\
 (( (( bitv  =  bitv' ) <=>  b ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_eq (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_eq (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([]:frame list)  i )))
 
-[e_eq_bool:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) (b'':b) .
+[e_eq_bool:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) (b'':b) .
 (clause_name "e_eq_bool") /\
 (( ( b  =  b'  <=>  b'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bool  b )) binop_eq (e_v (v_bool  b' ))) (e_v (v_bool  b'' ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bool  b )) binop_eq (e_v (v_bool  b' ))) (e_v (v_bool  b'' ))  ([]:frame list)  i )))
 
-[e_and:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_and:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_and") /\
 (( (bitv_bl_binop band  bitv   bitv'  =  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_and (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_and (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_xor:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_xor:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_xor") /\
 (( (bitv_bl_binop bxor  bitv   bitv'  =  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_xor (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_xor (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_or:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
+[e_or:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_or") /\
 (( (bitv_bl_binop bor  bitv   bitv'  =  bitv'' ) ))
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_or (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_or (e_v (v_bit bitv'))) (e_v (v_bit bitv''))  ([]:frame list)  i )))
 
-[e_bin_and1:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
+[e_bin_and1:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
 (clause_name "e_bin_and1")
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bool  F )) binop_bin_and e) (e_v (v_bool  F ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bool  F )) binop_bin_and e) (e_v (v_bool  F ))  ([]:frame list)  i )))
 
-[e_bin_and2:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
+[e_bin_and2:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
 (clause_name "e_bin_and2")
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bool  T )) binop_bin_and e) e  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bool  T )) binop_bin_and e) e  ([]:frame list)  i )))
 
-[e_bin_or1:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
+[e_bin_or1:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
 (clause_name "e_bin_or1")
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bool  T )) binop_bin_or e) (e_v (v_bool  T ))  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bool  T )) binop_bin_or e) (e_v (v_bool  T ))  ([]:frame list)  i )))
 
-[e_bin_or2:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
+[e_bin_or2:] (! (ctx:'a ctx) (i:i) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) .
 (clause_name "e_bin_or2")
  ==> 
-( ( e_red ctx g_scope_list scope_list (e_binop (e_v (v_bool  F )) binop_bin_or e) e  ([]:frame list)  )))
+( ( e_red ctx i g_scope_list scope_list (e_binop (e_v (v_bool  F )) binop_bin_or e) e  ([]:frame list)  i )))
 End
 (** definitions *)
 
@@ -2471,120 +2492,120 @@ End
 Inductive stmt_sem:
 (* defn stmt_red *)
 
-[stmt_ass_v:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (v:v) (scope_list:scope_list) (g_scope_list':g_scope_list) (scope_list'':scope_list) (scope_list':scope_list) .
+[stmt_ass_v:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (v:v) (scope_list:scope_list) (g_scope_list':g_scope_list) (scope_list'':scope_list) (scope_list':scope_list) .
 (clause_name "stmt_ass_v") /\
 (( (SOME  scope_list'  = assign   (  ( scope_list  ++   (  g_scope_list  )  )  )    v   lval ) ) /\
 ( ( ( SOME  g_scope_list'  ,  SOME  scope_list''  ) = separate  scope_list'  ) ))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval (e_v v)))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list' ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list'' )   ])  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval (e_v v)))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list' ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list'' )   ])  ,  status_running )  )))
 
-[stmt_seq1:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (ascope':'a) (g_scope_list':g_scope_list) (frame_list:frame_list) (stmt_stack':stmt_stack) (stmt1':stmt) (scope_list':scope_list) .
+[stmt_seq1:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (i':i) (ascope':'a) (g_scope_list':g_scope_list) (frame_list:frame_list) (stmt_stack':stmt_stack) (stmt1':stmt) (scope_list':scope_list) .
 (clause_name "stmt_seq1") /\
-(( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt1)]) )   ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list' ,   ( frame_list  ++   ([   ( funn  ,   ( stmt_stack'  ++   ( ([(stmt1')]) )  )   ,  scope_list' )   ])  )  ,  status_running )  )))
+(( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt1)]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope' ,  g_scope_list' ,   ( frame_list  ++   ([   ( funn  ,   ( stmt_stack'  ++   ( ([(stmt1')]) )  )   ,  scope_list' )   ])  )  ,  status_running )  )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_seq stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list' ,   ( frame_list  ++   ([   ( funn  ,   ( stmt_stack'  ++   ( ([((stmt_seq stmt1' stmt2))]) )  )   ,  scope_list' )   ])  )  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_seq stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope' ,  g_scope_list' ,   ( frame_list  ++   ([   ( funn  ,   ( stmt_stack'  ++   ( ([((stmt_seq stmt1' stmt2))]) )  )   ,  scope_list' )   ])  )  ,  status_running )  )))
 
-[stmt_seq2:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt:stmt) (scope_list:scope_list) .
+[stmt_seq2:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt:stmt) (scope_list:scope_list) .
 (clause_name "stmt_seq2")
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_seq stmt_empty stmt))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt)]) )   ,  scope_list )   ])  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_seq stmt_empty stmt))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt)]) )   ,  scope_list )   ])  ,  status_running )  )))
 
-[stmt_seq3:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (ascope':'a) (g_scope_list':g_scope_list) (stmt1':stmt) (scope_list':scope_list) (status:status) .
+[stmt_seq3:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (i':i) (ascope':'a) (g_scope_list':g_scope_list) (stmt1':stmt) (scope_list':scope_list) (status:status) .
 (clause_name "stmt_seq3") /\
-(( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt1)]) )   ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list' ,   ([   ( funn  ,   ( ([(stmt1')]) )   ,  scope_list' )   ])  ,  status )  )) /\
+(( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt1)]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope' ,  g_scope_list' ,   ([   ( funn  ,   ( ([(stmt1')]) )   ,  scope_list' )   ])  ,  status )  )) /\
 ( (status <> status_running) ))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_seq stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list' ,   ([   ( funn  ,   ( ([(stmt1')]) )   ,  scope_list' )   ])  ,  status )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_seq stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope' ,  g_scope_list' ,   ([   ( funn  ,   ( ([(stmt1')]) )   ,  scope_list' )   ])  ,  status )  )))
 
-[stmt_cond2:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) .
+[stmt_cond2:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) .
 (clause_name "stmt_cond2")
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond (e_v (v_bool  T )) stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt1)]) )   ,  scope_list )   ])  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond (e_v (v_bool  T )) stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt1)]) )   ,  scope_list )   ])  ,  status_running )  )))
 
-[stmt_cond3:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) .
+[stmt_cond3:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) .
 (clause_name "stmt_cond3")
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond (e_v (v_bool  F )) stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt2)]) )   ,  scope_list )   ])  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond (e_v (v_bool  F )) stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt2)]) )   ,  scope_list )   ])  ,  status_running )  )))
 
-[stmt_block_enter:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (t_scope:t_scope) (stmt:stmt) (scope_list:scope_list) (scope_list':scope_list) (scope:scope) .
+[stmt_block_enter:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (t_scope:t_scope) (stmt:stmt) (scope_list:scope_list) (scope_list':scope_list) (scope:scope) .
 (clause_name "stmt_block_enter") /\
 ((  ( scope )   = declare_list_in_fresh_scope ( t_scope ) ) /\
 ( ( scope_list'  =   (  ( ([(scope)]) )   ++  scope_list )  ) ))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_block t_scope stmt))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( stmt  ::   ( ([(stmt_empty)]) )  )   ,  scope_list' )   ])  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_block t_scope stmt))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( stmt  ::   ( ([(stmt_empty)]) )  )   ,  scope_list' )   ])  ,  status_running )  )))
 
-[stmt_block_exec:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt:stmt) (stmt_stack:stmt_stack) (scope_list:scope_list) (status:status) (ascope':'a) (g_scope_list':g_scope_list) (frame_list':frame_list) (stmt_stack':stmt_stack) (scope_list':scope_list) (status':status) .
+[stmt_block_exec:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt:stmt) (stmt_stack:stmt_stack) (scope_list:scope_list) (status:status) (i':i) (ascope':'a) (g_scope_list':g_scope_list) (frame_list':frame_list) (stmt_stack':stmt_stack) (scope_list':scope_list) (status':status) .
 (clause_name "stmt_block_exec") /\
 (( ( stmt  <> stmt_empty) ) /\
 ( ( stmt_stack  <> []) ) /\
-( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt)]) )   ,  scope_list )   ])  ,  status )   ( ascope' ,  g_scope_list' ,   ( frame_list'  ++   ([   ( funn  ,  stmt_stack'  ,  scope_list' )   ])  )  ,  status' )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt)]) )   ,  scope_list )   ])  ,  status )   ( i' ,  ascope' ,  g_scope_list' ,   ( frame_list'  ++   ([   ( funn  ,  stmt_stack'  ,  scope_list' )   ])  )  ,  status' )  )))
  ==> 
-( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( stmt  ::  stmt_stack )   ,  scope_list )   ])  ,  status )   ( ascope' ,  g_scope_list' ,   ( frame_list'  ++   ([   ( funn  ,   ( stmt_stack'  ++  stmt_stack )   ,  scope_list' )   ])  )  ,  status' )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( stmt  ::  stmt_stack )   ,  scope_list )   ])  ,  status )   ( i' ,  ascope' ,  g_scope_list' ,   ( frame_list'  ++   ([   ( funn  ,   ( stmt_stack'  ++  stmt_stack )   ,  scope_list' )   ])  )  ,  status' )  )))
 
-[stmt_block_exit:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (status:status) (scope_list':scope_list) .
+[stmt_block_exit:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (status:status) (scope_list':scope_list) .
 (clause_name "stmt_block_exit") /\
 (( ( stmt_stack  <> []) ) /\
 ( ( scope_list'  =   (TL  scope_list )  ) ))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( stmt_empty  ::  stmt_stack )   ,  scope_list )   ])  ,  status )   ( ascope ,  g_scope_list ,   ([   ( funn  ,  stmt_stack  ,  scope_list' )   ])  ,  status )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( stmt_empty  ::  stmt_stack )   ,  scope_list )   ])  ,  status )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,  stmt_stack  ,  scope_list' )   ])  ,  status )  )))
 
-[stmt_trans:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (x:x) (scope_list:scope_list) .
+[stmt_trans:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (x:x) (scope_list:scope_list) .
 (clause_name "stmt_trans")
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_trans (e_v (v_str x))))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list )   ])  ,  (status_trans x) )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_trans (e_v (v_str x))))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list )   ])  ,  (status_trans x) )  )))
 
-[stmt_apply_table_v:] (! (e'_list:e list) (e_mk_list:(e#mk) list) (v_list:v list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (f:x) (f':x) .
+[stmt_apply_table_v:] (! (e'_list:e list) (e_mk_list:(e#mk) list) (v_list:v list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (f:x) (f':x) .
 (clause_name "stmt_apply_table_v") /\
 (( (is_consts   ( ((MAP (\(e_,mk_) . e_) e_mk_list)) )  ) ) /\
 ( ( ALOOKUP  tbl_map   tbl  = SOME (   ( ((MAP (\(e_,mk_) . mk_) e_mk_list)) )   , (  f'  ,   ( (e'_list) )   ) ) ) ) /\
 ( ( apply_table_f  (  tbl  ,   (  ( ((MAP (\(e_,mk_) . e_) e_mk_list)) )  )   ,   (  ( ((MAP (\(e_,mk_) . mk_) e_mk_list)) )  )   , (  f'  ,   ( (e'_list) )   ),  ascope ) = SOME (  f  ,   (  ( ((MAP (\v_ . (e_v v_)) v_list)) )  )   ) ) ))
  ==> 
-( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,mk_) . e_) e_mk_list))))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval_null  ( (e_call (funn_name f) ((MAP (\v_ . (e_v v_)) v_list))) ) ))]) )   ,  scope_list )   ])  ,  status_running )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,mk_) . e_) e_mk_list))))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval_null  ( (e_call (funn_name f) ((MAP (\v_ . (e_v v_)) v_list))) ) ))]) )   ,  scope_list )   ])  ,  status_running )  )))
 
-[stmt_ret_v:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (v:v) (scope_list:scope_list) .
+[stmt_ret_v:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (v:v) (scope_list:scope_list) .
 (clause_name "stmt_ret_v")
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ret (e_v v)))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list )   ])  ,  (status_returnv v) )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ret (e_v v)))]) )   ,  scope_list )   ])  ,  status_running )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list )   ])  ,  (status_returnv v) )  )))
 
-[stmt_ext:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (scope_list:scope_list) (ascope':'a) (scope_list':scope_list) (status:status) (ext_fun:'a ext_fun) .
+[stmt_ext:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (scope_list:scope_list) (i':i) (ascope':'a) (scope_list':scope_list) (status:status) (ext_fun:'a ext_fun) .
 (clause_name "stmt_ext") /\
 (( (SOME  ext_fun  = lookup_ext_fun  funn   ext_map ) ) /\
-( (SOME ( ascope' ,  scope_list' ,  status ) =  ext_fun  ( ascope ,  g_scope_list ,  scope_list )) ))
+( (SOME ( i' ,  ascope' ,  scope_list' ,  status ) =  ext_fun  ( oracle ,  i ,  ascope ,  g_scope_list ,  scope_list )) ))
  ==> 
-( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_ext)]) )   ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list' )   ])  ,  status )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_ext)]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope' ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list' )   ])  ,  status )  )))
 
-[stmt_ret_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (frame_list:frame_list) (e':e) .
+[stmt_ret_e:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (i':i) (frame_list:frame_list) (e':e) .
 (clause_name "stmt_ret_e") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ret e))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ret e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ret e))]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ret e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_ass_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (e:e) (scope_list:scope_list) (frame_list:frame_list) (e':e) .
+[stmt_ass_e:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (e:e) (scope_list:scope_list) (i':i) (frame_list:frame_list) (e':e) .
 (clause_name "stmt_ass_e") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval e))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ass lval e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval e))]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ass lval e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_cond_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (frame_list:frame_list) (e':e) .
+[stmt_cond_e:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (i':i) (frame_list:frame_list) (e':e) .
 (clause_name "stmt_cond_e") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond e stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_cond e' stmt1 stmt2))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond e stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_cond e' stmt1 stmt2))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_trans_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (frame_list:frame_list) (e':e) .
+[stmt_trans_e:] (! (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (i':i) (frame_list:frame_list) (e':e) .
 (clause_name "stmt_trans_e") /\
-(( ( e_red ctx g_scope_list scope_list e e' frame_list )))
+(( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_trans e))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_trans e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_trans e))]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_trans e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_apply_table_e:] (! (e_e'_list:(e#e) list) (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (frame_list:frame_list) (i:i) (e:e) (e':e) .
+[stmt_apply_table_e:] (! (e_e'_list:(e#e) list) (ctx:'a ctx) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (i':i) (frame_list:frame_list) (e:e) (e':e) .
 (clause_name "stmt_apply_table_e") /\
 (( (index_not_const   ( ((MAP (\(e_,e'_) . e_) e_e'_list)) )   = SOME  i ) ) /\
 ( ( e  = EL  i    ( ((MAP (\(e_,e'_) . e_) e_e'_list)) )  ) ) /\
-( ( e_red ctx g_scope_list scope_list e e' frame_list )) /\
+( ( e_red ctx i g_scope_list scope_list e e' frame_list i' )) /\
 ( (  ( ((MAP (\(e_,e'_) . e'_) e_e'_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_) . e_) e_e'_list)) )  )  ) ))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e_) e_e'_list))))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e'_) e_e'_list))))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red ctx  ( i ,  ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e_) e_e'_list))))]) )   ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e'_) e_e'_list))))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 End
 (** definitions *)
 
@@ -2592,23 +2613,23 @@ End
 Inductive frames_sem:
 (* defn frames_red *)
 
-[frames_comp1:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (frame_list'':frame_list) (status:status) (ascope':'a) (g_scope_list''':g_scope_list) (frame_list':frame_list) (status':status) (g_scope_list':g_scope_list) (b_func_map':b_func_map) (tbl_map':tbl_map) (g_scope_list'':g_scope_list) .
+[frames_comp1:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (frame_list'':frame_list) (status:status) (i':i) (ascope':'a) (g_scope_list''':g_scope_list) (frame_list':frame_list) (status':status) (g_scope_list':g_scope_list) (b_func_map':b_func_map) (tbl_map':tbl_map) (g_scope_list'':g_scope_list) .
 (clause_name "frames_comp1") /\
 (( (SOME g_scope_list'  = scopes_to_pass  funn   func_map   b_func_map   g_scope_list ) ) /\
 ( SOME  b_func_map'  = map_to_pass  funn   b_func_map ) /\
 ( SOME  tbl_map'  = tbl_to_pass  funn   b_func_map   tbl_map ) /\
-( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map'  ,  pars_map ,  tbl_map' )   ( ascope ,  g_scope_list' ,   ([   ( funn  ,  stmt_stack  ,  scope_list )   ])  ,  status )   ( ascope' ,  g_scope_list'' ,  frame_list' ,  status' )  )) /\
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map'  ,  pars_map ,  tbl_map' ,  oracle )   ( i ,  ascope ,  g_scope_list' ,   ([   ( funn  ,  stmt_stack  ,  scope_list )   ])  ,  status )   ( i' ,  ascope' ,  g_scope_list'' ,  frame_list' ,  status' )  )) /\
 ( ( ( frame_list''  <> []) ==> notret  status'  ) ) /\
 ( (SOME g_scope_list'''  = scopes_to_retrieve  funn   func_map   b_func_map   g_scope_list   g_scope_list'' ) ))
  ==> 
-( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   (  ([   ( funn  ,  stmt_stack  ,  scope_list )   ])   ++  frame_list'' )  ,  status )   ( ascope' ,  g_scope_list''' ,   ( frame_list'  ++  frame_list'' )  ,  status' )  )))
+( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i ,  ascope ,  g_scope_list ,   (  ([   ( funn  ,  stmt_stack  ,  scope_list )   ])   ++  frame_list'' )  ,  status )   ( i' ,  ascope' ,  g_scope_list''' ,   ( frame_list'  ++  frame_list'' )  ,  status' )  )))
 
-[frames_comp2:] (! (x_d_list:(x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (funn':funn) (stmt_stack':stmt_stack) (scope_list':scope_list) (frame_list:frame_list) (ascope':'a) (g_scope_list''''''':g_scope_list) (scope_list''':scope_list) (g_scope_list':g_scope_list) (b_func_map':b_func_map) (tbl_map':tbl_map) (g_scope_list'':g_scope_list) (stmt_stack'':stmt_stack) (scope_list'':scope_list) (v:v) (stmt''':stmt) (g_scope_list''':g_scope_list) (g_scope_list'''':g_scope_list) (g_scope_list''''':g_scope_list) (g_scope_list'''''':g_scope_list) .
+[frames_comp2:] (! (x_d_list:(x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (funn':funn) (stmt_stack':stmt_stack) (scope_list':scope_list) (frame_list:frame_list) (i':i) (ascope':'a) (g_scope_list''''''':g_scope_list) (scope_list''':scope_list) (g_scope_list':g_scope_list) (b_func_map':b_func_map) (tbl_map':tbl_map) (g_scope_list'':g_scope_list) (stmt_stack'':stmt_stack) (scope_list'':scope_list) (v:v) (stmt''':stmt) (g_scope_list''':g_scope_list) (g_scope_list'''':g_scope_list) (g_scope_list''''':g_scope_list) (g_scope_list'''''':g_scope_list) .
 (clause_name "frames_comp2") /\
 (( (SOME g_scope_list'  = scopes_to_pass  funn   func_map   b_func_map   g_scope_list ) ) /\
 ( SOME  b_func_map'  = map_to_pass  funn   b_func_map ) /\
 ( SOME  tbl_map'  = tbl_to_pass  funn   b_func_map   tbl_map ) /\
-( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map'  ,  pars_map ,  tbl_map' )   ( ascope ,  g_scope_list' ,   ([   ( funn  ,  stmt_stack  ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list'' ,   ([   ( funn  ,  stmt_stack''  ,  scope_list'' )   ])  ,  (status_returnv v) )  )) /\
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map'  ,  pars_map ,  tbl_map' ,  oracle )   ( i ,  ascope ,  g_scope_list' ,   ([   ( funn  ,  stmt_stack  ,  scope_list )   ])  ,  status_running )   ( i' ,  ascope' ,  g_scope_list'' ,   ([   ( funn  ,  stmt_stack''  ,  scope_list'' )   ])  ,  (status_returnv v) )  )) /\
 ( (SOME ( stmt''' ,  (x_d_list) ) = lookup_funn_sig_body  funn   func_map   b_func_map   ext_map ) ) /\
 ( (SOME   (  g_scope_list'''  )   = assign   (  (  g_scope_list''  )  )    v   (lval_varname (varn_star funn)) ) ) /\
 ( (SOME g_scope_list''''  = scopes_to_retrieve  funn   func_map   b_func_map   g_scope_list   g_scope_list''' ) ) /\
@@ -2616,7 +2637,7 @@ Inductive frames_sem:
 ( ( SOME (  g_scope_list''''''  ,  scope_list'''  ) = copyout  ((MAP (\(x_,d_) . x_) x_d_list))    ( ((MAP (\(x_,d_) . d_) x_d_list)) )    g_scope_list'''''   scope_list'   scope_list''  ) ) /\
 ( (SOME g_scope_list'''''''  = scopes_to_retrieve  funn'   func_map   b_func_map   g_scope_list''''   g_scope_list'''''' ) ))
  ==> 
-( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   (  ([   ( funn  ,  stmt_stack  ,  scope_list )   ])   ++   (  (  ([   ( funn'  ,  stmt_stack'  ,  scope_list' )   ])   ++  frame_list )  )  )  ,  status_running )   ( ascope' ,  g_scope_list''''''' ,   (  ([   ( funn'  ,  stmt_stack'  ,  scope_list''' )   ])   ++  frame_list )  ,  status_running )  )))
+( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i ,  ascope ,  g_scope_list ,   (  ([   ( funn  ,  stmt_stack  ,  scope_list )   ])   ++   (  (  ([   ( funn'  ,  stmt_stack'  ,  scope_list' )   ])   ++  frame_list )  )  )  ,  status_running )   ( i' ,  ascope' ,  g_scope_list''''''' ,   (  ([   ( funn'  ,  stmt_stack'  ,  scope_list''' )   ])   ++  frame_list )  ,  status_running )  )))
 End
 (** definitions *)
 
@@ -2624,14 +2645,14 @@ End
 Inductive arch_sem:
 (* defn arch_red *)
 
-[arch_in:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (in_out_list'':in_out_list) (ascope':'a) .
+[arch_in:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i':i) (g_scope_list:g_scope_list) (in_out_list'':in_out_list) (ascope':'a) .
 (clause_name "arch_in") /\
 (( (  arch_block_inp  = EL  i   ab_list  ) ) /\
 ( ( SOME (  in_out_list''  ,  ascope'  ) =  input_f  (  in_out_list  ,  ascope  ) ) ))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  (   i   +   1   )  ,  in_out_list'' ,  in_out_list' ,  ascope' )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  (   i   +   1   )  ,  in_out_list'' ,  in_out_list' ,  ascope' ,   i'  )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
 
-[arch_pbl_init:] (! (e_x_d_list:(e#x#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (g_scope_list''':g_scope_list) (f:x) (stmt:stmt) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (scope':scope) (scope'':scope) (g_scope_list':g_scope_list) (g_scope_list'':g_scope_list) .
+[arch_pbl_init:] (! (e_x_d_list:(e#x#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i':i) (g_scope_list:g_scope_list) (g_scope_list''':g_scope_list) (f:x) (stmt:stmt) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (scope':scope) (scope'':scope) (g_scope_list':g_scope_list) (g_scope_list'':g_scope_list) .
 (clause_name "arch_pbl_init") /\
 (( (  (arch_block_pbl f ((MAP (\(e_,x_,d_) . e_) e_x_d_list)))  = EL  i   ab_list  ) ) /\
 ( (ALOOKUP  pblock_map   f  = SOME (  pbl_type  ,  ((MAP (\(e_,x_,d_) . (x_,d_)) e_x_d_list))  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
@@ -2642,41 +2663,41 @@ Inductive arch_sem:
 ( (  (  g_scope_list''  )   =   (  ( ([(scope'')]) )   ++   (  g_scope_list'  )  )  ) ) /\
 ( (SOME  g_scope_list'''  = initialise_var_stars  func_map   b_func_map   ext_map   g_scope_list'' ) ))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list''' ,  (arch_frame_list_regular  ([   ( (funn_name f)  ,   ( ([(stmt)]) )   ,   ( ([( [] )]) )  )   ]) ) ,  status_running )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list''' ,  (arch_frame_list_regular  ([   ( (funn_name f)  ,   ( ([(stmt)]) )   ,   ( ([( [] )]) )  )   ]) ) ,  status_running )  )))
 
-[arch_ffbl:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (ascope':'a) (x:x) (ff:'a ff) .
+[arch_ffbl:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i':i) (g_scope_list:g_scope_list) (ascope':'a) (x:x) (ff:'a ff) .
 (clause_name "arch_ffbl") /\
 (( (  (arch_block_ffbl x)  = EL  i   ab_list  ) ) /\
 ( (ALOOKUP  ffblock_map   x  = SOME  (ffblock_ff ff) ) ) /\
 ( (SOME  ascope'  =  ff  ( ascope ) ) ))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  (   i   +   1   )  ,  in_out_list ,  in_out_list' ,  ascope' )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  (   i   +   1   )  ,  in_out_list ,  in_out_list' ,  ascope' ,   i'  )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
 
-[arch_out:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (in_out_list'':in_out_list) (ascope':'a) .
+[arch_out:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i':i) (g_scope_list:g_scope_list) (in_out_list'':in_out_list) (ascope':'a) .
 (clause_name "arch_out") /\
 (( (  arch_block_out  = EL  i   ab_list  ) ) /\
 ( ( SOME (  in_out_list''  ,  ascope'  ) =  output_f  (  in_out_list'  ,  ascope  ) ) ))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  0  ,  in_out_list ,  in_out_list'' ,  ascope' )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  0  ,  in_out_list ,  in_out_list'' ,  ascope' ,   i'  )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
 
-[arch_parser_trans:] (! (x_d_list:(x#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (x':x) (g_scope_list':g_scope_list) (stmt':stmt) (x:x) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
+[arch_parser_trans:] (! (x_d_list:(x#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i':i) (g_scope_list:g_scope_list) (frame_list:frame_list) (x':x) (g_scope_list':g_scope_list) (stmt':stmt) (x:x) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
 (clause_name "arch_parser_trans") /\
 (( (  (arch_block_pbl x (e_list))  = EL  i   ab_list  ) ) /\
 ( (ALOOKUP  pblock_map   x  = SOME (  pbl_type_parser  ,  (x_d_list)  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
 ( (( x'  <> "accept") /\ ( x'  <> "reject")) ) /\
 ( (ALOOKUP  pars_map   x'  = SOME ( stmt' )) ))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  (status_trans x') )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list' ,  (arch_frame_list_regular  ([   ( (funn_name x')  ,   ( ([(stmt')]) )   ,   ( ([( [] )]) )  )   ]) ) ,  status_running )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  (status_trans x') )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list' ,  (arch_frame_list_regular  ([   ( (funn_name x')  ,   ( ([(stmt')]) )   ,   ( ([( [] )]) )  )   ]) ) ,  status_running )  )))
 
-[arch_pbl_exec:] (! (x_d_list:(x#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (ascope':'a) (g_scope_list':g_scope_list) (frame_list':frame_list) (status':status) (x:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
+[arch_pbl_exec:] (! (x_d_list:(x#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i':i) (g_scope_list:g_scope_list) (frame_list:frame_list) (ascope':'a) (g_scope_list':g_scope_list) (frame_list':frame_list) (status':status) (x:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
 (clause_name "arch_pbl_exec") /\
 (( (  (arch_block_pbl x (e_list))  = EL  i   ab_list  ) ) /\
 ( (ALOOKUP  pblock_map   x  = SOME (  pbl_type  ,  (x_d_list)  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
-( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,  frame_list ,  status_running )   ( ascope' ,  g_scope_list' ,  frame_list' ,  status' )  )))
+( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i' ,  ascope ,  g_scope_list ,  frame_list ,  status_running )   ( i' ,  ascope' ,  g_scope_list' ,  frame_list' ,  status' )  )))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  status_running )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope' )  ,  g_scope_list' ,  (arch_frame_list_regular frame_list') ,  status' )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  status_running )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope' ,   i'  )  ,  g_scope_list' ,  (arch_frame_list_regular frame_list') ,  status' )  )))
 
-[arch_pbl_ret:] (! (e_x_d_list:(e#x#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (status:status) (ascope':'a) (f:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (stmt:stmt) (status':status) .
+[arch_pbl_ret:] (! (e_x_d_list:(e#x#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i':i) (g_scope_list:g_scope_list) (frame_list:frame_list) (status:status) (ascope':'a) (f:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (stmt:stmt) (status':status) .
 (clause_name "arch_pbl_ret") /\
 (( (  (arch_block_pbl f ((MAP (\(e_,x_,d_) . e_) e_x_d_list)))  = EL  i   ab_list  ) ) /\
 ( (ALOOKUP  pblock_map   f  = SOME (  pbl_type  ,  ((MAP (\(e_,x_,d_) . (x_,d_)) e_x_d_list))  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
@@ -2685,7 +2706,7 @@ Inductive arch_sem:
 ( ( status'  = set_fin_status  pbl_type   status ) ) /\
 ( (SOME  ascope'  =  copyout_pbl  (  (  g_scope_list  )  ,  ascope ,   ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )  ,  ((MAP (\(e_,x_,d_) . x_) e_x_d_list)) ,  status' )) ))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  status )   (  (  (   i   +   1   )  ,  in_out_list ,  in_out_list' ,  ascope' )  ,   (LASTN   1    g_scope_list )  ,  arch_frame_list_empty ,  status_running )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'  )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  status )   (  (  (   i   +   1   )  ,  in_out_list ,  in_out_list' ,  ascope' ,   i'  )  ,   (LASTN   1    g_scope_list )  ,  arch_frame_list_empty ,  status_running )  )))
 End
 (** definitions *)
 
@@ -2693,17 +2714,17 @@ End
 Inductive conc_sem:
 (* defn conc_red *)
 
-[conc_conc1:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i:i) (g_scope_list:g_scope_list) (arch_frame_list:arch_frame_list) (status:status) (i':i) (g_scope_list':g_scope_list) (arch_frame_list':arch_frame_list) (status':status) (in_out_list'':in_out_list) (in_out_list''':in_out_list) (ascope':'a) (i'':i) (g_scope_list'':g_scope_list) (arch_frame_list'':arch_frame_list) (status'':status) .
+[conc_conc1:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i''':i) (i:i) (g_scope_list:g_scope_list) (arch_frame_list:arch_frame_list) (status:status) (i':i) (g_scope_list':g_scope_list) (arch_frame_list':arch_frame_list) (status':status) (in_out_list'':in_out_list) (in_out_list''':in_out_list) (ascope':'a) (i'''':i) (i'':i) (g_scope_list'':g_scope_list) (arch_frame_list'':arch_frame_list) (status'':status) .
 (clause_name "conc_conc1") /\
-(( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list ,  status )   (  (  i''  ,  in_out_list'' ,  in_out_list''' ,  ascope' )  ,  g_scope_list'' ,  arch_frame_list'' ,  status'' )  )))
+(( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope ,   i'''  )  ,  g_scope_list ,  arch_frame_list ,  status )   (  (  i''  ,  in_out_list'' ,  in_out_list''' ,  ascope' ,   i''''  )  ,  g_scope_list'' ,  arch_frame_list'' ,  status'' )  )))
  ==> 
-( ( conc_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   ((   in_out_list  ,  in_out_list'  ,  ascope  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i'   ,  g_scope_list'  ,  arch_frame_list'  ,  status'  ) ))   ((   in_out_list''  ,  in_out_list'''  ,  ascope'  ) , ( (   i''   ,  g_scope_list''  ,  arch_frame_list''  ,  status''  ) , (   i'   ,  g_scope_list'  ,  arch_frame_list'  ,  status'  ) ))  )))
+( ( conc_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   ((   in_out_list  ,  in_out_list'  ,  ascope  ,   i'''  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i'   ,  g_scope_list'  ,  arch_frame_list'  ,  status'  ) ))   ((   in_out_list''  ,  in_out_list'''  ,  ascope'  ,   i''''  ) , ( (   i''   ,  g_scope_list''  ,  arch_frame_list''  ,  status''  ) , (   i'   ,  g_scope_list'  ,  arch_frame_list'  ,  status'  ) ))  )))
 
-[conc_conc2:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i:i) (g_scope_list:g_scope_list) (arch_frame_list:arch_frame_list) (status:status) (i':i) (g_scope_list':g_scope_list) (arch_frame_list':arch_frame_list) (status':status) (in_out_list'':in_out_list) (in_out_list''':in_out_list) (ascope':'a) (i'':i) (g_scope_list'':g_scope_list) (arch_frame_list'':arch_frame_list) (status'':status) .
+[conc_conc2:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (oracle:oracle) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (i''':i) (i:i) (g_scope_list:g_scope_list) (arch_frame_list:arch_frame_list) (status:status) (i':i) (g_scope_list':g_scope_list) (arch_frame_list':arch_frame_list) (status':status) (in_out_list'':in_out_list) (in_out_list''':in_out_list) (ascope':'a) (i'''':i) (i'':i) (g_scope_list'':g_scope_list) (arch_frame_list'':arch_frame_list) (status'':status) .
 (clause_name "conc_conc2") /\
-(( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i'  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list' ,  arch_frame_list' ,  status' )   (  (  i''  ,  in_out_list'' ,  in_out_list''' ,  ascope' )  ,  g_scope_list'' ,  arch_frame_list'' ,  status'' )  )))
+(( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   (  (  i'  ,  in_out_list ,  in_out_list' ,  ascope ,   i'''  )  ,  g_scope_list' ,  arch_frame_list' ,  status' )   (  (  i''  ,  in_out_list'' ,  in_out_list''' ,  ascope' ,   i''''  )  ,  g_scope_list'' ,  arch_frame_list'' ,  status'' )  )))
  ==> 
-( ( conc_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   ((   in_out_list  ,  in_out_list'  ,  ascope  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i'   ,  g_scope_list'  ,  arch_frame_list'  ,  status'  ) ))   ((   in_out_list''  ,  in_out_list'''  ,  ascope'  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i''   ,  g_scope_list''  ,  arch_frame_list''  ,  status''  ) ))  )))
+( ( conc_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  oracle )   ((   in_out_list  ,  in_out_list'  ,  ascope  ,   i'''  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i'   ,  g_scope_list'  ,  arch_frame_list'  ,  status'  ) ))   ((   in_out_list''  ,  in_out_list'''  ,  ascope'  ,   i''''  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i''   ,  g_scope_list''  ,  arch_frame_list''  ,  status''  ) ))  )))
 End
 open bitstringTheory;
 open wordsTheory;
@@ -2718,19 +2739,19 @@ Type t_scopes_tup = ``:(t_scope_list_g # t_scope_list)``
 
 Type t_scopes_frames = ``:(t_scope_list list)``
 
+
+Type delta_g = ``:(string, Ftau) alist``
+
+Type delta_b = ``:(string, Ftau) alist``
+
+Type delta_x = ``:(string, ( Ftau option # (string , Ftau ) alist )) alist``
+
+Type delta_t = ``:(string, taul) alist``
 val _ = Hol_datatype ` 
 order_elem =  (* the individual elements of the order in the state are fun name or tables names *)
    order_elem_f of funn
  | order_elem_t of x
 `;
-
-Type delta_t = ``:(string, taul) alist``
-
-Type delta_x = ``:(string, ( Ftau option # (string , Ftau ) alist )) alist``
-
-Type delta_b = ``:(string, Ftau) alist``
-
-Type delta_g = ``:(string, Ftau) alist``
 
 Type delta = ``:( delta_g # delta_b # delta_x # delta_t )``
 
@@ -3916,7 +3937,7 @@ End
 Inductive WT_c:
 (* defn WT_c *)
 
-[WT_c_c:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) (Prs_n:Prs_n) .
+[WT_c_c:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) (Prs_n:Prs_n) .
 (clause_name "WT_c_c") /\
 (( ( WF_o  order  ) ) /\
 ( ( 2 = LENGTH  t_scope_list_g  ) ) /\
@@ -3939,7 +3960,7 @@ Inductive WT_c:
 ( ( table_map_typed  tbl_map   apply_table_f   delta_g   delta_b   order  ) ) /\
 ( ( f_in_apply_tbl  tbl_map   apply_table_f  ) ))
  ==> 
-( ( WT_c  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n )))
+( ( WT_c  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )  order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n )))
 End
 
 
@@ -4055,7 +4076,7 @@ End
 Inductive WT_state:
 (* defn WT_state *)
 
-[WT_state_state:] (! (funn_stmt_stack_scope_list_t_scope_list_list:(funn#stmt_stack#scope_list#t_scope_list) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (status:status) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) (ctx:'a ctx) .
+[WT_state_state:] (! (funn_stmt_stack_scope_list_t_scope_list_list:(funn#stmt_stack#scope_list#t_scope_list) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (oracle:oracle) (i:i) (ascope:'a) (g_scope_list:g_scope_list) (status:status) (Prs_n:Prs_n) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) (ctx:'a ctx) .
 (clause_name "WT_state_state") /\
 (( ( WF_ft_order (funn_list_fl ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . funn_) funn_stmt_stack_scope_list_t_scope_list_list))) delta_g delta_b delta_x order )) /\
 ( ( type_state_tsll  ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . scope_list_) funn_stmt_stack_scope_list_t_scope_list_list))   ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . t_scope_list_) funn_stmt_stack_scope_list_t_scope_list_list))  ) ) /\
@@ -4063,7 +4084,7 @@ Inductive WT_state:
 ( ( WT_c ctx order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n )) /\
 ( ( type_frames  g_scope_list    ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . (funn_,stmt_stack_,scope_list_)) funn_stmt_stack_scope_list_t_scope_list_list)) )    Prs_n   order   t_scope_list_g   ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . t_scope_list_) funn_stmt_stack_scope_list_t_scope_list_list))   delta_g   delta_b   delta_x   delta_t   func_map   b_func_map  ) ))
  ==> 
-( ( WT_state  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . (funn_,stmt_stack_,scope_list_)) funn_stmt_stack_scope_list_t_scope_list_list)) )  ,  status )  Prs_n order t_scope_list_g  ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . t_scope_list_) funn_stmt_stack_scope_list_t_scope_list_list)) )   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )  )))
+( ( WT_state  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  oracle )   ( i ,  ascope ,  g_scope_list ,   ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . (funn_,stmt_stack_,scope_list_)) funn_stmt_stack_scope_list_t_scope_list_list)) )  ,  status )  Prs_n order t_scope_list_g  ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . t_scope_list_) funn_stmt_stack_scope_list_t_scope_list_list)) )   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )  )))
 End
 
 val _ = export_theory ();

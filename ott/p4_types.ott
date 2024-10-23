@@ -1397,7 +1397,7 @@ ext_map -| order t_scope_list_g delta_g delta_b delta_x
 table_map_typed tbl_map apply_table_f delta_g delta_b order
 f_in_apply_tbl tbl_map apply_table_f
 --------------------------------------- :: c
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , oracle ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 
 
 
@@ -1537,7 +1537,7 @@ type_scopes_list g_scope_list t_scope_list_g
 ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 ( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) func_map b_func_map
 ---------------------------------------------------------------------- :: state
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , oracle ) ( i, ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
 
 
 

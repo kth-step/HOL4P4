@@ -13,18 +13,18 @@ od_hacks = OrderedDict([("Type ascope = ``:('a)``", ""), #Delete this type abbre
                          "val _ = Hol_datatype ` \nffblock =  (* fixed-function block *)\n   ffblock_ff of 'a ff\n`;"),
                         ("Type ffblock_map = ``:((string, ffblock) alist)``",
                          "Type ffblock_map = ``:((string, 'a ffblock) alist)``"),
-                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map)``",
-                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # ext_map # func_map)``"),
+                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map # oracle)``",
+                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # ext_map # func_map # oracle)``"),
                         ("Type astate = ``:(aenv # g_scope_list # arch_frame_list # status)``",
                          "Type astate = ``:('a aenv # g_scope_list # arch_frame_list # status)``"),
                         ("Type ext_fun_map = ``:((string, ((string # d) list # ext_fun)) alist)``",
                          "Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``"),
                         ("Type ext_map = ``:((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist)``",
                          "Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``"),
-                        ("Type ctx = ``:(apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map)``",
-                         "Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map)``"),
-                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map)``",
-                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map)``")
+                        ("Type ctx = ``:(apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map # oracle)``",
+                         "Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # oracle)``"),
+                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map # oracle)``",
+                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map # oracle)``")
                         ])
 
 #Assign the polymorphic types (found in semantics definitions, et.c.) a proper 'a

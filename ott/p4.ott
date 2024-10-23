@@ -507,7 +507,7 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 %An extern function/method updates the scope list, global scope list and arch scope directly.
 %Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
-{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # status) option)) }}
+{{ hol (((num -> bool) # num # ascope_ty # g_scope_list # scope_list) -> ((num # ascope_ty # scope_list # status) option)) }}
 
 %%%%%%%%%%%
 % Context %
@@ -830,6 +830,12 @@ apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
 {{ com apply table function }}
 {{ hol ((x # e_list # mk_list # (x # e_list) # ascope_ty) -> (x # e_list) option) }}
 
+%Random oracle: a function taking an index, producing a bit
+oracle {{ tex { \mathit{oracle} } }} :: oracle_ ::=
+{{ com random oracle }}
+{{ hol (num -> bool) }}
+
+
 %Fence between ab_list and actx
 embed
 {{ hol
@@ -840,15 +846,15 @@ grammar
 %The architectural context stores everything that's needed for, but stays invariant over, architecture-level reductions
 actx {{ tex { \mathit{ctx}_A } }} :: actx_ ::=
 {{ com architectural context }}
-{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map) }}
-| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) :: M :: tup
+{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map # oracle) }}
+| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , oracle ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[apply_table_f]], [[ext_map]], [[func_map]]) }}
+  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[apply_table_f]], [[ext_map]], [[func_map]], [[oracle]]) }}
 
 %The context stores everything that's needed for, but stays invariant over, statement reductions
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map) }}
-| ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) :: M :: tup
+{{ hol (apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map # oracle) }}
+| ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , oracle ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[apply_table_f]], [[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]]) }}
+  {{ hol ([[apply_table_f]], [[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]], [[oracle]]) }}
