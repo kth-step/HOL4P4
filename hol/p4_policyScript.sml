@@ -8,7 +8,7 @@ open p4Theory;
 open p4_auxTheory;
 open p4_coreTheory;
 
-     
+
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -23,12 +23,12 @@ open numeralTheory;
 
 
 
-     
+
 val _ = new_theory "p4_policy";
 
 
 
-val _ = Hol_datatype ` 
+val _ = Hol_datatype `
 h =  (* expression *)
    h_v of x  (* value *)
  | h_acc of h => h (* access *)
@@ -38,24 +38,12 @@ h =  (* expression *)
 
 
 
-
-
-
-
-(*************************************)
-
-
-
-        
-
-
-        
 (* create a mapping instead of this, from the start! *)
 Definition map_of_h_names_def:
   map_of_h_names (tau_xtl st_ty []) st_op = [] ∧
   map_of_h_names (tau_xtl st_ty ((x,t)::xtl)) st_op =
   case st_op of
-  | NONE => 
+  | NONE =>
       (case t of
        | (tau_bit n) => (h_v x)::(map_of_h_names (tau_xtl st_ty xtl) NONE)
        | (tau_xtl st_ty xtl') => (map_of_h_names (tau_xtl st_ty xtl') (SOME (h_v x)))++(map_of_h_names (tau_xtl st_ty xtl) NONE)
@@ -64,12 +52,12 @@ Definition map_of_h_names_def:
       (case t of
        | (tau_bit n) => (h_acc (x') (h_v x))::(map_of_h_names (tau_xtl st_ty xtl) (SOME x'))
        | (tau_xtl st_ty xtl') => (map_of_h_names (tau_xtl st_ty xtl') (SOME (h_acc x' (h_v x))))++(map_of_h_names (tau_xtl st_ty xtl) (SOME x'))
-      )    
+      )
 End
 
 
 
-        
+
 
 
 EVAL “map_of_h_names  (tau_xtl st_ty [("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
@@ -82,7 +70,7 @@ EVAL “map_of_h_names  (tau_xtl st_ty [("a",tau_bit 1);("b",tau_bit 1);("c",tau
                                                             ("blah", tau_xtl st_ty [("a''",tau_bit 1);("b''",tau_bit 1);("c''",tau_bit 1)])])
                                 ]) NONE ”;
 
-                                
+
 EVAL “map_of_h_names  (tau_xtl st_ty [("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
                                 ("internal", tau_xtl st_ty [("a'",tau_bit 1);("b'",tau_bit 1);
                                                             ("blah", tau_xtl st_ty [("a''",tau_bit 1);("b''",tau_bit 1);("c''",tau_bit 1)])]);
@@ -99,9 +87,9 @@ Definition size_xtl_def:
  (size_xtl (tau_xtl st_ty []) =  0) /\
  (size_xtl (tau_xtl st_ty (h::t)) = size_xtl (SND h) + size_xtl (tau_xtl st_ty  t))
 End
-                                
 
-                            
+
+
 
 EVAL “size_xtl  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
                                  ("internal", tau_xtl st_ty [("g",tau_bit 1)])]))”;
@@ -112,26 +100,26 @@ EVAL “size_xtl  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 
                                  ("internal", tau_xtl st_ty [("g",tau_bit 1)]);
                                  ("internal2", tau_xtl st_ty [("g",tau_bit 7)])]))”;
 
-                                 
 
 
 
 
-                                
+
+
 Definition map_of_h_index_def:
   map_of_h_index (tau_xtl st_ty []) acc = [] ∧
   map_of_h_index (tau_xtl st_ty ((x,t)::xtl)) acc =
   case (t) of
   | (tau_bit n) => (acc, (acc + n - 1 ))::(map_of_h_index (tau_xtl st_ty (xtl)) (acc+n))
   | (tau_xtl st_ty xtl') => (map_of_h_index (tau_xtl st_ty (xtl')) (acc))++(map_of_h_index (tau_xtl st_ty (xtl)) (acc + size_xtl (tau_xtl st_ty xtl')))
-End           
-        
+End
 
 
 
-                                
 
-                                
+
+
+
 
 EVAL “map_of_h_index  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
                                  ("internal", tau_xtl st_ty [("g",tau_bit 1)])])) 0”;
@@ -142,45 +130,33 @@ EVAL “map_of_h_index  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",ta
                                  ("internal", tau_xtl st_ty [("g",tau_bit 1)]);
                                  ("internal2", tau_xtl st_ty [("g",tau_bit 7)])])) 0”;
 
-                                 
 
 
 
 
+(*
 Definition mk_h_map_def:
   mk_map_acc_idx hdr =
         ZIP(map_of_h_names hdr,map_of_h_index hdr)
 End
+*)
 
 
 
-
-
-
-
-
-
-
-
-
-(***********************************************************)
-
-
-
-val _ = Hol_datatype ` 
+val _ = Hol_datatype `
 e =  (* expression *)
-e_larger of h  =>  num_exp 
+e_larger of h  =>  num_exp
 | e_less   of h =>  num_exp
-| e_eq   of h => num_exp                                       
+| e_eq   of h => num_exp
 `;
 
 
-val _ = Hol_datatype ` 
+val _ = Hol_datatype `
 c =  (* expression *)
 c_and of c => c
 | c_or   of c => c
 | c_neg   of c
-| c_e   of e 
+| c_e   of e
 `;
 
 
@@ -208,8 +184,8 @@ Definition mk_distinct_def:
   | T => (mk_distinct l)
   | F => x::(mk_distinct l)
 End
-  
 
+(*
 val h_a = “h_v "a" ”;
 val h_b = “h_v "b" ”;
 val h_c = “h_v "c" ”;
@@ -219,13 +195,16 @@ val e_larger1 = “e_larger ^h_a 3”;
 val e_less1   = “e_less ^h_b 3”;
 val e_less2   = “e_less ^h_internal_f 3”;
 val e_eq1     = “e_eq ^h_internal_g 7 ”;
-val c1     = “c_or (c_e ^e_less1) (c_e ^e_less2)”
+val c1     = “c_or (c_e ^e_less1) (c_e ^e_less2)”;
 
 
-        
 
-EVAL “ pos_acc_c  (c_or ^c1 ^c1)  ”
+
+EVAL “ pos_acc_c  (c_or ^c1 ^c1)  ”;
 EVAL “ mk_distinct (pos_acc_c  (c_or ^c1 ^c1) ) ”;
+*)
+
+
 
 (*
 Definition mk_distinct_h_def:
@@ -233,9 +212,9 @@ Definition mk_distinct_h_def:
   mk_distinct x::l =
   case x of
   | (h_v _) => mk_distinct l
-                                | (h_acc)
+  | (h_acc a b) =>
 
-        
+
 End
 *)
 
@@ -250,13 +229,9 @@ End
 
 
 
-        
 
 
-                                       
-        
+
+
+
 val _ = export_theory ();
-
-
-
-
