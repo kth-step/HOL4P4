@@ -143,6 +143,8 @@ formula :: formula_ ::=
   {{ hol (bool_cast [[n]] [[b]] = [[bitv]]) }}
 | ( bool ) bitv = b :: M :: cast_to_bool
   {{ hol (to_bool_cast [[bitv]] = [[b]]) }}
+| ( bool ) b = b' :: M :: cast_id_bool
+  {{ hol (id_bool_cast [[b]] = [[b']]) }}
 | bitv * bitv' = bitv'' :: M :: mul
   {{ hol (bitv_binop binop_mul [[bitv]] [[bitv']] = SOME [[bitv'']]) }}
 | bitv / bitv' = bitv'' :: M :: div
@@ -565,10 +567,10 @@ formula :: formula_ ::=
   {{ hol (([[unop]] = unop_neg)) }}
   {{ tex [[unop]] = \; \mathit{!} }}
 | width_in_range w :: :: width_in_range
-  {{ com bitstring widthlarger than 0}}
+  {{ com bitstring width larger than 0}}
   {{ hol ([[w]] > 0 /\ [[w]] <= 64 ) }}
 | width_in_range n :: M :: width_in_rangen
-  {{ com bitstring widthlarger than 0}}
+  {{ com bitstring width larger than 0}}
   {{ hol ([[n]] > 0 /\ [[n]] <= 64 ) }}  
 | length ( taul ) = m :: M :: find_t_length
   {{ tex [[m]] = length ([[taul]])}}
@@ -773,6 +775,10 @@ val bool_cast_def = Define `
 
 val to_bool_cast_def = Define `
   to_bool_cast (bl, n) = HD $ REVERSE bl
+`;
+
+val id_bool_cast_def = Define `
+  id_bool_cast b = b
 `;
 
 val bitv_bl_binop_def = Define `
@@ -2774,6 +2780,10 @@ ctx g_scope_list scope_list ( ( unsigned n ) b ) ~> ( bitv , empty )
 ( bool ) bitv = b
 ----------------------------------- :: cast_to_bool
 ctx g_scope_list scope_list ( ( bool ) bitv ) ~> ( b , empty )
+
+( bool ) b = b'
+----------------------------------- :: cast_id_bool
+ctx g_scope_list scope_list ( ( bool ) b ) ~> ( b' , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%

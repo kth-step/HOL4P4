@@ -1637,14 +1637,19 @@ Cases_on `is_const e` >| [
 
  (*from the typing rules we know *)
  Cases_on ‘c’ >>
- gvs[] >>
-               
- OPEN_EXP_TYP_TAC ``(e_cast (cast_unsigned n) (e_v v))`` >> fs[] >>
- OPEN_EXP_TYP_TAC ``e_v v`` >> fs[] >>
+ gvs[] >| [            
+  OPEN_EXP_TYP_TAC ``(e_cast (cast_unsigned n) (e_v v))`` >> fs[] >>
+  OPEN_EXP_TYP_TAC ``e_v v`` >> fs[] >> (
+   gvs[Once e_sem_cases]  >>                
+   OPEN_V_TYP_TAC ``v`` >> gvs[clause_name_def]
+  ),
 
- gvs[Once e_sem_cases]  >>                
- OPEN_V_TYP_TAC ``v`` >> gvs[clause_name_def] 
- ,
+  OPEN_EXP_TYP_TAC ``(e_cast cast_bool (e_v v))`` >> fs[] >>
+  OPEN_EXP_TYP_TAC ``e_v v`` >> fs[] >> (
+   gvs[Once e_sem_cases]  >>                
+   OPEN_V_TYP_TAC ``v`` >> gvs[clause_name_def]
+  )
+ ],
         
 
  OPEN_EXP_TYP_TAC ``(e_cast c e)`` >>

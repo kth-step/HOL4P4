@@ -5557,14 +5557,28 @@ REPEAT STRIP_TAC >| [
     gvs[Once e_typ_cases] >>
     gvs[Once v_typ_cases] >>
     gvs[Once v_typ_cases] >>
-    METIS_TAC[bv_casting_length2]    
-    ,
+    METIS_TAC[bv_casting_length2],
+    
     OPEN_EXP_TYP_TAC ``e_cast (cast_unsigned n) (e_v (v_bool b'))`` >>
     gvs[Once e_typ_cases] >>
     gvs[Once e_typ_cases] >>
     gvs[Once v_typ_cases] >>
     gvs[Once v_typ_cases] >>
-    METIS_TAC[bool_casting_length, clause_name_def]              
+    METIS_TAC[bool_casting_length, clause_name_def],
+
+    OPEN_EXP_TYP_TAC ``e_cast cast_bool (e_v (v_bit bitv))`` >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    METIS_TAC[bool_casting_length, clause_name_def],
+
+    OPEN_EXP_TYP_TAC ``e_cast cast_bool (e_v (v_bool b'))`` >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once e_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    gvs[Once v_typ_cases] >>
+    METIS_TAC[bool_casting_length, clause_name_def]
     ]
     ,
     

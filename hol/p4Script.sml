@@ -94,6 +94,7 @@ binop =
 val _ = Hol_datatype ` 
 cast = 
    cast_unsigned of m (* unsigned cast *)
+ | cast_bool (* bool cast *)
 `;
 val _ = Hol_datatype ` 
 unop = 
@@ -341,6 +342,14 @@ val bitv_cast_def = Define `
 
 val bool_cast_def = Define `
   bool_cast n' b = (fixwidth n' [b], n')
+`;
+
+val to_bool_cast_def = Define `
+  to_bool_cast (bl, n) = HD $ REVERSE bl
+`;
+
+val id_bool_cast_def = Define `
+  id_bool_cast b = b
 `;
 
 val bitv_bl_binop_def = Define `
@@ -2325,6 +2334,18 @@ Inductive e_sem:
  ==> 
 ( ( e_red ctx g_scope_list scope_list (e_cast (cast_unsigned n) (e_v (v_bool  b ))) (e_v (v_bit bitv))  ([]:frame list)  )))
 
+[e_cast_to_bool:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (b:b) .
+(clause_name "e_cast_to_bool") /\
+(( (to_bool_cast  bitv  =  b ) ))
+ ==> 
+( ( e_red ctx g_scope_list scope_list (e_cast cast_bool (e_v (v_bit bitv))) (e_v (v_bool  b ))  ([]:frame list)  )))
+
+[e_cast_id_bool:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) .
+(clause_name "e_cast_id_bool") /\
+(( (id_bool_cast  b  =  b' ) ))
+ ==> 
+( ( e_red ctx g_scope_list scope_list (e_cast cast_bool (e_v (v_bool  b ))) (e_v (v_bool  b' ))  ([]:frame list)  )))
+
 [e_mul:] (! (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_mul") /\
 (( (bitv_binop binop_mul  bitv   bitv'  = SOME  bitv'' ) ))
@@ -3324,6 +3345,12 @@ Inductive e_typ:
 ( ? b tp. ( e_typ  t_scopes_tup   T_e   e  tp b /\ ? n . ( tp = t_tau (tau_bit n) \/ tp = t_tau (tau_bool ) ) ) ))
  ==> 
 ( ( e_typ t_scopes_tup T_e (e_cast (cast_unsigned n) e) (t_tau (tau_bit  n ))  F  )))
+
+[e_typ_cast_to_bool:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (tau:tau) (b:b) .
+(clause_name "e_typ_cast_to_bool") /\
+(( ? b tp. ( e_typ  t_scopes_tup   T_e   e  tp b /\ ? n . ( tp = t_tau (tau_bit n) \/ tp = t_tau (tau_bool ) ) ) ))
+ ==> 
+( ( e_typ t_scopes_tup T_e (e_cast cast_bool e) (t_tau tau_bool)  F  )))
 End
 (** definitions *)
 

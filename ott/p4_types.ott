@@ -724,7 +724,12 @@ t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 width_in_range n
 exists_tau_bool t_scopes_tup T_e |-  e  : ( tau , b )
 ------------------------------------ :: cast_bool
-t_scopes_tup T_e |-  ( unsigned n ) e : ( bs n , false  )
+t_scopes_tup T_e |-  ( unsigned n ) e : ( bs n , false )
+
+
+exists_tau_bool t_scopes_tup T_e |-  e  : ( tau , b )
+------------------------------------ :: cast_to_bool
+t_scopes_tup T_e |-  ( bool ) e : ( bool , false )
 
  
 defns
