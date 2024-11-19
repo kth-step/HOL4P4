@@ -666,6 +666,10 @@ Definition exp_to_p_tau_def:
      (FIND (\ (f, t). f = fld)  f_t_list) >>=
       \ (fld, res_tau). SOME res_tau
     | _ => NONE)
+  | (e_cast cast e') =>
+   (case cast of
+    | cast_unsigned n => SOME (p_tau_bit n)
+    | cast_bool => SOME p_tau_bool)
   | (e_var (varn_name varname)) => ALOOKUP vtymap (varn_name varname)
   | (e_binop op1 binop op2) => exp_to_p_tau (vtymap, ftymap) op1
   | (e_slice e hi lo) =>
@@ -948,7 +952,15 @@ Definition petr4_parse_expression_gen_def:
         | Number op_const =>
          SOME_msg (Exp (e_v (v_bit (fixwidth n (n2v op_const), n))))
         | InlineApp s_l app_exp =>
-         get_error_msg "apply expression unsupported for unops: " op)
+         get_error_msg "apply expression unsupported for casts: " op)
+      | SOME tau_bool =>
+       (case res_op of
+        | Exp op_exp =>
+         SOME_msg (Exp (e_cast cast_bool op_exp))
+        | Number op_const =>
+         SOME_msg (Exp (e_v (v_bool (HD $ REVERSE (n2v op_const)))))
+        | InlineApp s_l app_exp =>
+         get_error_msg "apply expression unsupported for casts: " op)
       | SOME _ => get_error_msg "unsupported cast type: " cast_type
       | NONE => get_error_msg "unknown cast type: " cast_type)
     | NONE_msg op_msg => NONE_msg op_msg)
@@ -1662,39 +1674,43 @@ Definition petr4_parse_method_call_def:
              | NONE =>
               (case ALOOKUP vtymap (varn_name app_name) of
                | SOME (p_tau_blk block_type_name) =>
-                (case ALOOKUP pblock_map block_type_name of
-                 | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
-                  (case FIND_EXTRACT_ONE (\ (k,v). k = block_type_name) b_func_map of
-                   (* Params has format (string # dir) *)
-                   | SOME ((name, (body, params')), b_func_map') =>
-                    (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
-                     | SOME_msg res_args =>
-                      if p4_stmt_contains_return body
-                      then NONE_msg ("nested control block "++(app_name++(" of type "++(block_type_name++" contains a return statement, which is unsupported by the inlining scheme"))))
-                      else
-                       (* Prefixing of variables, tables and functions in body happens here *)
-                       (case petr4_inline_block gscope app_name (p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
-                        | SOME_msg (decl_list', stmt) =>
-                         (case ALOOKUP tbl_entries_map block_type_name of
-                          | SOME tbl_entries =>
-                           (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
-                           let inline_decl_list = p4_prefix_decl_list gscope app_name (decl_list'++decl_list) in
-                           (* TODO: Prefixing of variables in local functions here, prove it is OK *)
-                           SOME_msg (p4_prefix_vars_in_b_func_map gscope app_name b_func_map',
-                                     p4_prefix_tbls_in_tbl_map b_func_map' app_name tbl_map,
-                                     (* decl_list' is the parameters, decl_list is the pblock variables *)
-                                     p4_remove_copyout_lval_decl_list inline_decl_list,
-                                     p4_prefix_tbls_funs_in_tbl_entries b_func_map' app_name tbl_entries,
-                                     (* List of taboo variable names *)
-                                     MAP FST inline_decl_list,
-                                     stmt)
-                          | NONE => NONE_msg ("could not find control block in tbl_entries_map: "++block_type_name))
-                        | NONE_msg inline_msg => NONE_msg inline_msg)
-                     | NONE_msg args_msg => NONE_msg ("could not parse nested control block: "++args_msg))
-                   | NONE => NONE_msg ("could not find instantiation of nested control block: "++block_type_name))
-                 | _ => NONE_msg ("could not find control block: "++block_type_name))
+
+              (case ALOOKUP pblock_map block_type_name of
+               | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
+
+                (case FIND_EXTRACT_ONE (\ (k,v). k = block_type_name) b_func_map of
+                 (* Params has format (string # dir) *)
+                 | SOME ((name, (body, params')), b_func_map') =>
+                  (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
+                   | SOME_msg res_args =>
+                    if p4_stmt_contains_return body
+                    then NONE_msg ("nested control block "++(app_name++(" of type "++(block_type_name++" contains a return statement, which is unsupported by the inlining scheme"))))
+                    else
+                     (* Prefixing of variables, tables and functions in body happens here *)
+                     (case petr4_inline_block gscope app_name (p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
+                      | SOME_msg (decl_list', stmt) =>
+                       (case ALOOKUP tbl_entries_map block_type_name of
+                        | SOME tbl_entries =>
+                         (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
+                         let inline_decl_list = p4_prefix_decl_list gscope app_name (decl_list'++decl_list) in
+                         (* TODO: Prefixing of variables in local functions here, prove it is OK *)
+                         SOME_msg (p4_prefix_vars_in_b_func_map gscope app_name b_func_map',
+                                   p4_prefix_tbls_in_tbl_map b_func_map' app_name tbl_map,
+                                   (* decl_list' is the parameters, decl_list is the pblock variables *)
+                                   p4_remove_copyout_lval_decl_list inline_decl_list,
+                                   p4_prefix_tbls_funs_in_tbl_entries b_func_map' app_name tbl_entries,
+                                   (* List of taboo variable names *)
+                                   MAP FST inline_decl_list,
+                                   stmt)
+                        | NONE => NONE_msg ("could not find control block in tbl_entries_map: "++block_type_name))
+                      | NONE_msg inline_msg => NONE_msg inline_msg)
+                   | NONE_msg args_msg => NONE_msg ("could not parse nested control block: "++args_msg))
+                 | NONE => NONE_msg ("could not find instantiation of nested control block: "++block_type_name))
+               | _ => NONE_msg ("could not find control block: "++block_type_name))
+
                | _ =>
-                NONE_msg ("could not find entry of control block name "++app_name++" in type environment"))
+  NONE_msg ("could not find entry of control block name "++app_name++" in value-type map (has it been instantiated in the block?)"))
+               
              | _ =>
               NONE_msg ("could not find entry of table name "++app_name++" in apply map"))
            | _ => get_error_msg "could not parse table name: " func)
@@ -1704,6 +1720,73 @@ Definition petr4_parse_method_call_def:
      else NONE_msg ("unknown JSON object field of method call: "++f2))
    else NONE_msg ("unknown JSON object field of method call: "++f1)
   | _ => get_error_msg "unknown JSON format of method call: " (Object stmt_details)
+End
+
+(* TODO: Currently, this is already handled more or less the same by parse_method_call.
+ * In theory, should this be able to handle blocks that are not instantiated? *)
+Definition petr4_parse_direct_application_def:
+ petr4_parse_direct_application (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmt_details =
+  case stmt_details of
+  | [(f0, tags); (* No check for this, since it's only thrown away *)
+     (f1, type); (* Type: a name *)
+     (f2, Array args)] => (* Argument list: typically expressions *)
+   if f1 = "type" then
+    (if f2 = "args" then
+     (case petr4_parse_type_name type of
+      | SOME app_name =>
+       (case ALOOKUP apply_map app_name of
+        | SOME keys =>
+         (case ALOOKUP tyenv app_name of
+          | SOME block =>
+           NONE_msg ("names of nested control block and table overlapping: "++app_name)
+          | NONE =>
+           SOME_msg ([], [], [], [], [], stmt_app app_name keys))
+        | NONE =>
+         (* TODO: Does the below work if we just skip the lookup and switch block_type_name for app_name? *)
+         (case ALOOKUP vtymap (varn_name app_name) of
+          | SOME (p_tau_blk block_type_name) =>
+
+           (case ALOOKUP pblock_map block_type_name of
+            | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
+             (case FIND_EXTRACT_ONE (\ (k,v). k = block_type_name) b_func_map of
+              (* Params has format (string # dir) *)
+              | SOME ((name, (body, params')), b_func_map') =>
+               (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
+                | SOME_msg res_args =>
+                 if p4_stmt_contains_return body
+                 then NONE_msg ("nested control block "++(app_name++(" of type "++(block_type_name++" contains a return statement, which is unsupported by the inlining scheme"))))
+                 else
+                  (* Prefixing of variables, tables and functions in body happens here *)
+                  (case petr4_inline_block gscope app_name (p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
+                   | SOME_msg (decl_list', stmt) =>
+                    (case ALOOKUP tbl_entries_map block_type_name of
+                     | SOME tbl_entries =>
+                      (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
+                      let inline_decl_list = p4_prefix_decl_list gscope app_name (decl_list'++decl_list) in
+                      (* TODO: Prefixing of variables in local functions here, prove it is OK *)
+                      SOME_msg (p4_prefix_vars_in_b_func_map gscope app_name b_func_map',
+                                p4_prefix_tbls_in_tbl_map b_func_map' app_name tbl_map,
+                                (* decl_list' is the parameters, decl_list is the pblock variables *)
+                                p4_remove_copyout_lval_decl_list inline_decl_list,
+                                p4_prefix_tbls_funs_in_tbl_entries b_func_map' app_name tbl_entries,
+                                (* List of taboo variable names *)
+                                MAP FST inline_decl_list,
+                                stmt)
+                     | NONE => NONE_msg ("could not find control block in tbl_entries_map: "++block_type_name))
+                   | NONE_msg inline_msg => NONE_msg inline_msg)
+                | NONE_msg args_msg => NONE_msg ("could not parse nested control block: "++args_msg))
+              | NONE => NONE_msg ("could not find instantiation of nested control block: "++block_type_name))
+            | _ => NONE_msg ("could not find control block: "++block_type_name))
+
+               | _ =>
+                NONE_msg ("could not find entry of control block name "++app_name++" in value-type map (has it been instantiated in the block?)"))
+
+        | _ =>
+         NONE_msg ("could not find entry of table name "++app_name++" in apply map"))
+       | NONE => NONE_msg ("could not parse name of direct application"))
+     else NONE_msg ("unknown JSON object field of direct application: "++f2))
+   else NONE_msg ("unknown JSON object field of direct application: "++f1)
+  | _ => get_error_msg "unknown JSON format of direct application: " (Object stmt_details)
 End
 
 Definition exp_to_lval_def:
@@ -1919,6 +2002,14 @@ Definition petr4_parse_stmts_def:
         SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list'++taboo_list, vtymap_upds, p4_seq_append_stmt call_res stmts_res)
        | NONE_msg stmts_msg => NONE_msg stmts_msg)
      | NONE_msg call_msg => NONE_msg call_msg)
+   else if stmt_name = "direct_application" then
+    (case petr4_parse_direct_application (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, extfun_list) stmt_details of
+     | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list', call_res) =>
+      (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
+       | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list, vtymap_upds, stmts_res) =>
+        SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list'++taboo_list, vtymap_upds, p4_seq_append_stmt call_res stmts_res)
+       | NONE_msg stmts_msg => NONE_msg stmts_msg)
+     | NONE_msg app_msg => NONE_msg app_msg)
    else if stmt_name = "assignment" then
     (case petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) stmt_details of
      | SOME_msg ass_res =>
