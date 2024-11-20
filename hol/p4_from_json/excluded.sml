@@ -74,9 +74,9 @@ val exclude_descs =
    ["decl-soundness",
     "enum-bmv2"]),
 (*
-    To-bool cast (manually spotted)
+    More expressive STF specifications
 *)
-  ("supporting to-bool cast in HOL4P4",
+  ("more expressive STF specifications",
    ["issue1814-1-bmv2"]),
 (*
     To-struct cast (manually spotted)
@@ -101,13 +101,10 @@ val exclude_descs =
     "key-issue-1020_ebpf",
     "switch_ebpf"]),
 (*
-    Set expressions in select expression
-    FAIL: Could not parse .*\/(.*?)\. .*?: \["range".*
+    If-expressions
 *)
-  ("adding set expressions in select expressions to HOL4P4",
-   ["issue995-bmv2",
-    "issue1000-bmv2",
-    "issue-2123-2-bmv2",
+  ("adding if-expressions to HOL4P4",
+   ["issue-2123-2-bmv2",
     "issue-2123-3-bmv2"]),
 (*
     Exit statement
