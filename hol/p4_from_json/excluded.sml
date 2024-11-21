@@ -89,7 +89,7 @@ val exclude_descs =
   ("supporting top-level extern instantiations in import tool",
    ["issue1097-2-bmv2"]),
 (*
-    Counter extern of V1Model, direct table application (manually spotted)
+    Counter extern of V1Model (manually spotted)
 *)
   ("adding counter extern to V1Model model",
    ["issue1566-bmv2"]),
