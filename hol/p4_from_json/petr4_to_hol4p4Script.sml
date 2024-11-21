@@ -1880,7 +1880,7 @@ Definition infer_rhs_type_def:
 End
 
 Definition petr4_parse_assignment_def:
- petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) stmt_details =
+ petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope, apply_map, extfun_list) stmt_details =
   case stmt_details of
   | [(f0, tags); (* No check for this, since it's only thrown away *)
      (f1, lhs); (* Left-hand side: expression, should be lval *)
@@ -1893,8 +1893,28 @@ Definition petr4_parse_assignment_def:
         | SOME lval => 
          (case infer_rhs_type vtymap lval of
           | SOME p_tau =>
-           (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (rhs, SOME p_tau) of
-            | SOME_msg rhs_res => SOME_msg (stmt_ass lval rhs_res)
+           (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (rhs, SOME p_tau) of
+            | SOME_msg (Exp rhs_res) => SOME_msg (stmt_ass lval rhs_res)
+            | SOME_msg (InlineApp [tbl_name] expr_res) =>
+             let vtymap' = AUPDATE vtymap (varn_name tbl_name,
+                                           p_tau_xtl struct_ty_struct [("hit", p_tau_bool);
+                                                                       ("miss", p_tau_bool);
+                                                                       ("action_run", p_tau_bit 32)]) in
+              (case ALOOKUP apply_map tbl_name of
+               | SOME keys =>
+                let stmt =
+                 stmt_block [(varn_name tbl_name,
+                             (tau_xtl struct_ty_struct [("hit", tau_bool);
+                                                        ("miss", tau_bool);
+                                                        ("action_run", tau_bit 32)], NONE))]
+                            (stmt_seq
+                             (stmt_app tbl_name keys)
+                             (stmt_seq
+                              (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (^apply_result_placeholder_varn)))
+                              (stmt_ass lval expr_res))) in
+                SOME_msg stmt
+               | NONE => NONE_msg ("table not found: "++tbl_name))
+            | SOME_msg _ => get_error_msg "unknown RHS of assignment: " rhs
             | NONE_msg rhs_msg => NONE_msg ("could not parse RHS of assignment: "++rhs_msg))
           | NONE => get_error_msg "no type inference information found for lval: " lhs)
         | NONE => get_error_msg "could not parse into lval: " lhs)
@@ -2064,7 +2084,7 @@ Definition petr4_parse_stmts_def:
        | NONE_msg stmts_msg => NONE_msg stmts_msg)
      | NONE_msg app_msg => NONE_msg app_msg)
    else if stmt_name = "assignment" then
-    (case petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) stmt_details of
+    (case petr4_parse_assignment (tyenv, enummap, vtymap, ftymap, gscope, apply_map, extfun_list) stmt_details of
      | SOME_msg ass_res =>
       (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
        | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, vtymap_upds, stmts_res) =>
@@ -2080,8 +2100,8 @@ Definition petr4_parse_stmts_def:
      if f1 = "cond" then
       (if f2 = "tru" then
        (if f3 = "fls" then
-        (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (cond, NONE) of
-         | SOME_msg cond_res =>
+        (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (cond, NONE) of
+         | SOME_msg (Exp cond_res) =>
           (* TODO: Will this work, since the cases are always a singleton list of a block statement? *)
           (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) [true_case] of
            | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, vtymap_upds, true_case_res) =>
@@ -2100,6 +2120,46 @@ Definition petr4_parse_stmts_def:
              | NONE_msg false_case_msg =>
               NONE_msg ("could not parse else-case of conditional statement: "++false_case_msg))
            | NONE_msg true_case_msg => NONE_msg ("could not parse then-case of conditional statement: "++true_case_msg))
+
+         (* Inlining of apply expression *)
+         | SOME_msg (InlineApp [tbl_name] expr_res) =>
+          let vtymap' = AUPDATE vtymap (varn_name tbl_name,
+                                        p_tau_xtl struct_ty_struct [("hit", p_tau_bool);
+                                                                    ("miss", p_tau_bool);
+                                                                    ("action_run", p_tau_bit 32)]) in
+          (* TODO: Stupid code repetition for apply in-lining *)
+          (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) [true_case] of
+           | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, vtymap_upds, true_case_res) =>
+            (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) [false_case] of
+             | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', vtymap_upds', false_case_res) =>
+              (case ALOOKUP apply_map tbl_name of
+               | SOME keys =>
+                (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
+                 | SOME_msg (b_func_map_upds'', tbl_map_upds'', decl_list_upds'', tbl_entries_upds'', taboo_list'', vtymap_upds'', stmts_res) =>
+                  let stmt =
+                   stmt_block [(varn_name tbl_name,
+                               (tau_xtl struct_ty_struct [("hit", tau_bool);
+                                                          ("miss", tau_bool);
+                                                          ("action_run", tau_bit 32)], NONE))]
+                              (stmt_seq
+                               (stmt_app tbl_name keys)
+                               (stmt_seq
+                                (stmt_ass (lval_varname (varn_name tbl_name)) (e_var (^apply_result_placeholder_varn)))
+                                (stmt_cond expr_res true_case_res false_case_res))) in               
+                  SOME_msg (b_func_map_upds++b_func_map_upds'++b_func_map_upds'',
+                            tbl_map_upds++tbl_map_upds'++tbl_map_upds'',
+                            decl_list_upds++decl_list_upds'++decl_list_upds'',
+                            tbl_entries_upds++tbl_entries_upds'++tbl_entries_upds'',
+                            taboo_list++taboo_list'++taboo_list'',
+                            vtymap_upds'',
+                            p4_seq_append_stmt stmt stmts_res)
+                 | NONE_msg stmts_msg => NONE_msg stmts_msg)
+               | NONE => NONE_msg ("table not found: "++tbl_name))
+             | NONE_msg false_case_msg =>
+              NONE_msg ("could not parse else-case of conditional statement: "++false_case_msg))
+           | NONE_msg true_case_msg => NONE_msg ("could not parse then-case of conditional statement: "++true_case_msg))
+
+         | SOME_msg _ => get_error_msg "unsupported condition type: " cond
          | NONE_msg cond_msg => NONE_msg ("could not parse condition of conditional statement: "++cond_msg))
         else NONE_msg ("unknown JSON object field of conditional: "++f3))
        else NONE_msg ("unknown JSON object field of conditional: "++f2))

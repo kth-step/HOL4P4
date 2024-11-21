@@ -77,7 +77,8 @@ val exclude_descs =
     More expressive STF specifications
 *)
   ("more expressive STF specifications",
-   ["issue1814-1-bmv2"]),
+   ["issue1814-1-bmv2",
+    "switch_ebpf"]),
 (*
     To-struct cast (manually spotted)
 *)
@@ -94,12 +95,13 @@ val exclude_descs =
   ("adding counter extern to V1Model model",
    ["issue1566-bmv2"]),
 (*
-    Return struct of table application
+    More desugaring of table application expresions
 *)
+(*
   ("adding support for desugaring more table application expressions to import tool",
    ["hit_ebpf",
-    "key-issue-1020_ebpf",
-    "switch_ebpf"]),
+    "key-issue-1020_ebpf"]),
+*)
 (*
     If-expressions
 *)
