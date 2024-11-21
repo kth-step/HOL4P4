@@ -95,14 +95,6 @@ val exclude_descs =
   ("adding counter extern to V1Model model",
    ["issue1566-bmv2"]),
 (*
-    More desugaring of table application expresions
-*)
-(*
-  ("adding support for desugaring more table application expressions to import tool",
-   ["hit_ebpf",
-    "key-issue-1020_ebpf"]),
-*)
-(*
     If-expressions
 *)
   ("adding if-expressions to HOL4P4",
