@@ -1213,6 +1213,12 @@ Definition petr4_parse_expression_gen_def:
      | SOME_msg (SetExp set_exp) => get_error_msg "set expressions as arguments disallowed by import tool: " exp
      | NONE_msg exp_msg => NONE_msg ("could not parse arguments: "++exp_msg)
    else NONE_msg ("unsupported argument type: "++argtype)
+  | (Array [String argtype; Object [("tags", tags)], p_tau_opt) =>
+   if argtype = "Missing" then
+   (* TODO: Use type maps and change return type of petr4_parse_args
+    * to create in-lined variable whose value is ARBed
+    * (automatic when initialising block)? *)
+   else NONE_msg ("unsupported argument type: "++argtype)
   | _ => get_error_msg "unknown JSON format of argument: " (FST h)) /\
  (petr4_parse_expressions (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) [] =
   SOME_msg []) /\
