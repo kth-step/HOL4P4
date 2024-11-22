@@ -578,6 +578,9 @@ Cases_on `is_v e` >| [
   fs [clause_name_def],
 
   irule ((valOf o find_clause_e_red) "e_cast_bitv") >>
+  fs [clause_name_def],
+
+  irule ((valOf o find_clause_e_red) "e_cast_to_bool") >>
   fs [clause_name_def]
  ],
 

@@ -64,15 +64,19 @@ Definition e_exec_unop_def:
 End
 
 Definition cast_exec_def:
- (cast_exec cast (v_bit bitv) = SOME (v_bit $ bitv_cast cast bitv))
+ (cast_exec (cast_unsigned n) (v_bit bitv) = SOME (v_bit $ bitv_cast n bitv))
  /\
- (cast_exec cast (v_bool b) = SOME (v_bit $ bool_cast cast b))
+ (cast_exec (cast_unsigned n) (v_bool b) = SOME (v_bit $ bool_cast n b))
  /\
- (cast_exec cast v = NONE)
+ (cast_exec (cast_bool) (v_bit bitv) = SOME (v_bool $ to_bool_cast bitv))
+ /\
+ (cast_exec _ _ = NONE)
 End
 
 Definition e_exec_cast_def:
- (e_exec_cast (cast_unsigned n) (e_v v) = cast_exec n v)
+ (e_exec_cast (cast_unsigned n) (e_v v) = cast_exec (cast_unsigned n) v)
+  /\
+ (e_exec_cast (cast_bool) (e_v v) = cast_exec (cast_bool) v)
   /\
  (e_exec_cast _ _ = NONE)
 End

@@ -22,7 +22,7 @@ fi
 arch=$(./petr4_get_arch.sh "${JSON_PATH%.json}.p4")
 
 if [ "$arch" = "none" ]; then
-    echo "No architecture found in the associated .p4 file. Check that your P4 program uses a proper architecture, or adapt petr4_get_arch.sh to recognize the right architecture."
+    echo "No architecture found in ${JSON_PATH%.json}.p4. Check that your P4 program uses a proper architecture, or adapt petr4_get_arch.sh to recognize the right architecture."
     exit 1
 fi
 
