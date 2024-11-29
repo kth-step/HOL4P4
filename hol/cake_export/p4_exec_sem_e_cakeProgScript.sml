@@ -112,23 +112,6 @@ Definition lookup_vexp2'_def:
     | _ => NONE
 End
 
-(* TODO: Check if you can use the regular lookup_lval *)
-Definition lookup_lval'_def:
- lookup_lval' (ss:scope list) lval =
-  case lval of
-   | (lval_varname x) => lookup_v ss x
-   | (lval_field lval f) =>
-    (case lookup_lval' ss lval of
-     | SOME v => acc_f v f
-     | NONE => NONE)
-   | (lval_slice lval e1 e2) =>
-    (case lookup_lval' ss lval of
-     | SOME (v_bit (v, bl)) => (slice_lval (v_bit (v, bl)) e1 e2)
-     | _ => NONE)
-   | (lval_paren lval) => lookup_lval' ss lval
-   | lval_null => NONE
-End
-
 (* TODO: This function initialises everything to zeroes instead of using ARBs,
  * which are not compatible with CakeML. Use this as a placeholder before you have
  * deep-embedded uninitialised values. *)
@@ -152,6 +135,47 @@ Termination
  ) \\
  METIS_TAC [v1_size_mem]
 End
+
+Definition slice'_def:
+ slice' (v, n) (vec1, len1) (vec2, len2) =
+  let hi = v2n vec1 in
+  let lo = v2n vec2 in
+  if lo <= hi /\ hi < n /\ LENGTH v = n
+  then
+   SOME $ bitv_bitslice (v, n) (v2n vec1) (v2n vec2)
+  else NONE
+End
+
+Definition slice_lval'_def:
+ slice_lval' v e1 e2 =
+  case v of
+  | (v_bit (v, bl)) =>
+   (case e1 of
+    | (e_v (v_bit (v1, bl1))) =>
+     (case e2 of
+      | (e_v (v_bit (v2, bl2))) =>
+       (case slice' (v, bl) (v1, bl1) (v2, bl2) of
+        | SOME bitv => SOME $ v_bit bitv
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+End
+
+Definition lookup_lval'_def:
+ (lookup_lval' (ss:scope list) (lval_varname x) = lookup_v ss x) /\
+ (lookup_lval' ss (lval_field lval f) =
+  case lookup_lval' ss lval of
+  | SOME v => acc_f v f
+  | NONE => NONE) /\
+ (lookup_lval' ss (lval_slice lval e1 e2) =
+  case lookup_lval' ss lval of
+   | SOME (v_bit (v, bl)) => slice_lval' (v_bit (v, bl)) e1 e2
+   | _ => NONE) /\
+ (lookup_lval' ss lval_null = NONE ) /\
+ (lookup_lval' ss (lval_paren lval) = lookup_lval' ss lval) 
+End
+
 
 Definition one_arg_val_for_newscope'_def:
  one_arg_val_for_newscope' d e ss =
@@ -556,6 +580,15 @@ Definition e_exec_select'_def:
  (e_exec_select' _ _ _ = NONE)
 End
 
+Definition e_exec_slice'_def:
+ (e_exec_slice' (e_v (v_bit bitv1)) (e_v (v_bit bitv2)) (e_v (v_bit bitv3)) =
+  case slice' bitv1 bitv2 bitv3 of
+  | SOME bitv => SOME $ v_bit bitv
+  | NONE => NONE)
+  /\
+ (e_exec_slice' _ _ _ = NONE)
+End
+
 
 Definition e_exec'_def:
  (********************)
@@ -707,8 +740,8 @@ Definition e_exec'_def:
   then
    (if is_v_bit e1
     then 
-     (case e_exec_slice e1 e2 e3 of
-      | SOME bitv => SOME (e_v $ v_bit bitv, [])
+     (case e_exec_slice' e1 e2 e3 of
+      | SOME v => SOME (e_v v, [])
       | NONE => NONE)
     else
      (case e_exec' ctx g_scope_list scope_list e1 of
@@ -834,32 +867,60 @@ val _ = translate lookup_map_def;
 val _ = translate lookup_v_def;
 val _ = translate acc_f_def;
 
-val _ = translate SEG''_def;
-val _ = translate SEG'_def;
-val _ = translate slice_def;
-val _ = translate slice_lval_def;
-val _ = translate lookup_lval'_def;
-Theorem lookup_lval'_side:
-!ss lval. lookup_lval'_side ss lval
+val _ = translate rich_listTheory.SEG;
+Theorem seg_side_thm:
+!len start l. seg_side len start l <=> (len <> 0 ==> (start + len <= LENGTH l))
 Proof
-measureInduct_on ‘lval_size lval’ \\
-Cases_on ‘lval’ \\ (
- simp[Once $ theorem "lookup_lval'_side_def"]
-) >- (
- qpat_x_assum ‘_’ (fn thm => ASSUME_TAC $ Q.SPEC ‘l’ thm) \\
- gs[lval_size_def]
-) >- (
+strip_tac \\
+completeInduct_on ‘len’ \\
+completeInduct_on ‘start’ \\
+rpt strip_tac \\
+ONCE_REWRITE_TAC[theorem "seg_side_def"] \\
+gs[] \\
+eq_tac >- (
  rpt strip_tac >- (
-  qpat_x_assum ‘_’ (fn thm => ASSUME_TAC $ Q.SPEC ‘l’ thm) \\
-  gs[lval_size_def]
+  res_tac \\
+  gs[]
  ) \\
- simp[Once $ definition "slice_lval_side_def"]
+ gs[] \\
+ qpat_x_assum ‘!m. m < SUC x4 ==>
+               !l'. seg_side (SUC x3) m l' <=> m + SUC x3 <= LENGTH l'’
+              (fn thm => ASSUME_TAC $ Q.SPEC ‘x4’ thm) \\
+ gs[arithmeticTheory.SUC_ONE_ADD]
+) \\
+rpt strip_tac \\ (
+ gs[]
 ) >- (
- qpat_x_assum ‘_’ (fn thm => ASSUME_TAC $ Q.SPEC ‘l’ thm) \\
- gs[lval_size_def]
-)
+ Cases_on ‘len’ \\ Cases_on ‘start’ \\ (
+  gs[]
+ ) >- (
+  Cases_on ‘l’ \\ (
+   gs[]
+  )
+ ) \\
+ Cases_on ‘l’ \\ (
+  gs[]
+ )
+) \\
+qpat_x_assum ‘!m. m < SUC x10 ==>
+              !l'. seg_side (SUC x13) m l' <=> m + SUC x13 <= LENGTH l'’
+             (fn thm => ASSUME_TAC $ Q.SPEC ‘x10’ thm) \\
+gvs[] \\
+gs[arithmeticTheory.SUC_ONE_ADD]
 QED
-val _ = update_precondition lookup_lval'_side;
+val _ = update_precondition seg_side_thm;
+val _ = translate bitv_bitslice_def;
+val _ = translate slice'_def;
+Theorem slice'_side:
+!v1 v2 v3. slice'_side v1 v2 v3
+Proof
+simp[Once $ definition "slice'_side_def"] \\
+simp[Once $ definition "bitv_bitslice_side_def"]
+QED
+val _ = update_precondition slice'_side;
+val _ = translate slice_lval'_def;
+val _ = translate lookup_lval'_def;
+
 val _ = translate is_d_in_def;
 val _ = translate bitstringTheory.extend_def;
 val _ = translate init_out_v_cake_def;
@@ -961,18 +1022,12 @@ val _ = translate e_exec_concat_def;
 val _ = translate is_v_bit_def;
 
 (* Slicing *)
-val _ = translate e_exec_slice_def;
+val _ = translate e_exec_slice'_def;
 
 
 (* The whole expression-level semantics: *)
 val _ = translate e_exec'_def;
 
-(*
-(* TODO: What should this expose? *)
-val signatures =
- module_signatures ["bitv_lsr_bv", "lookup_lval'", "n2v", "v2n", "e_exec'"];
-val _ = ml_prog_update (close_module (SOME signatures));
-*)
 val _ = ml_prog_update (close_module NONE);
 
 (*

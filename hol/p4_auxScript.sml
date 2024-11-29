@@ -2649,13 +2649,4 @@ Proof
 metis_tac[]
 QED
 
-Theorem SEG'_EQ_SEG:
-!bitv bitv' bitv'' bitv'''.
-v2n bitv' <= v2n bitv ==>
-v2n bitv < bitv''' ==>
-SEG' (v2n bitv + 1 − v2n bitv') (bitv''' − (v2n bitv + 1)) bitv'' = SOME $ SEG (v2n bitv + 1 − v2n bitv') (bitv''' − (v2n bitv + 1)) bitv''
-Proof
-cheat
-QED
-
 val _ = export_theory ();
