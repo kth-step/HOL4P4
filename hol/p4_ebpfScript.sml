@@ -191,6 +191,7 @@ Definition ebpf_reduce_nonout_def:
  (ebpf_reduce_nonout (_, _, v_map) = NONE)
 End
 
+(*
 (* TODO: Remove these and keep "v_map" as just a regular scope? *)
 Definition v_map_to_scope_def:
  (v_map_to_scope [] = []) /\
@@ -198,6 +199,7 @@ Definition v_map_to_scope_def:
   ((varn_name k, (v, NONE:lval option))::v_map_to_scope t)
  )
 End
+*)
 
 Definition scope_to_vmap_def:
  (scope_to_vmap [] = SOME []) /\

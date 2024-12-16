@@ -2649,4 +2649,107 @@ Proof
 metis_tac[]
 QED
 
+(***************************************)
+(* For exportable executable semantics *)
+
+
+Definition slice'_def:
+ slice' (v, n) (vec1, len1) (vec2, len2) =
+  let hi = v2n vec1 in
+  let lo = v2n vec2 in
+  if lo <= hi /\ hi < n /\ LENGTH v = n
+  then
+   SOME $ bitv_bitslice (v, n) (v2n vec1) (v2n vec2)
+  else NONE
+End
+
+Definition slice_lval'_def:
+ slice_lval' v e1 e2 =
+  case v of
+  | (v_bit (v, bl)) =>
+   (case e1 of
+    | (e_v (v_bit (v1, bl1))) =>
+     (case e2 of
+      | (e_v (v_bit (v2, bl2))) =>
+       (case slice' (v, bl) (v1, bl1) (v2, bl2) of
+        | SOME bitv => SOME $ v_bit bitv
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+End
+
+Definition lookup_lval'_def:
+ (lookup_lval' (ss:scope list) (lval_varname x) = lookup_v ss x) /\
+ (lookup_lval' ss (lval_field lval f) =
+  case lookup_lval' ss lval of
+  | SOME v => acc_f v f
+  | NONE => NONE) /\
+ (lookup_lval' ss (lval_slice lval e1 e2) =
+  case lookup_lval' ss lval of
+   | SOME (v_bit (v, bl)) => slice_lval' (v_bit (v, bl)) e1 e2
+   | _ => NONE) /\
+ (lookup_lval' ss lval_null = NONE ) /\
+ (lookup_lval' ss (lval_paren lval) = lookup_lval' ss lval) 
+End
+
+
+(* Puts the bits in bl1 between index hi and lo of bl2. *)
+Definition replace_bits_def:
+ replace_bits (bl1, (n1:num)) (bl2,n2) hi lo =
+  if lo <= hi /\ hi < n2 /\ LENGTH bl2 = n2
+  then
+   SOME $ (SEG (n2-(hi+1)) 0 bl2) ++ bl1 ++ (SEG lo (n2-lo) bl2)
+  else NONE
+End
+
+Definition assign_to_slice'_def:
+ assign_to_slice' vb vb' ev1 ev2 =
+  (case ev1 of
+   | (e_v (v_bit (bl1, n1))) =>
+    (case ev2 of
+     | (e_v (v_bit (bl2, n2))) =>
+      (case replace_bits vb vb' (v2n bl1) (v2n bl2) of
+       | SOME bitv =>
+        SOME $ v_bit (bitv, SND vb')
+       | NONE => NONE)
+     | _ => NONE)
+   | _ => NONE)
+End
+
+Definition assign'_def:
+ (assign' ss v (lval_varname x) =
+  case find_topmost_map ss x of
+  | SOME (i, sc) =>
+   (case lookup_out ss x of
+    | SOME str_opt =>
+      SOME (LUPDATE (AUPDATE sc (x, (v, str_opt))) i ss)
+    | NONE => NONE)
+  | _ => NONE) /\
+ (assign' ss v (lval_field lval f) =
+  case lookup_lval' ss lval of
+  | SOME (v_struct f_v_l) =>
+   (case INDEX_OF f (MAP FST f_v_l) of
+    | SOME i => assign' ss (v_struct (LUPDATE (f, v) i f_v_l)) lval
+    | NONE => NONE)
+  | SOME (v_header validity f_v_l) =>
+   (case INDEX_OF f (MAP FST f_v_l) of
+    | SOME i => assign' ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
+    | NONE => NONE)
+   | _ => NONE) /\    
+ (assign' ss v (lval_slice lval ev1 ev2) =
+  case v of
+  | v_bit vb =>
+   (case lookup_lval' ss lval of
+    | SOME (v_bit vb') =>
+     (case assign_to_slice' vb vb' ev1 ev2 of
+      | SOME v_res => assign' ss v_res lval
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE) /\
+ (assign' ss v lval_null = SOME ss) /\
+ (assign' ss v (lval_paren lval) = assign' ss v lval)
+End
+
+
 val _ = export_theory ();

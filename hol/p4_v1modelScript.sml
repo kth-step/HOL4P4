@@ -115,9 +115,9 @@ End
 (* NOTE: 511 is the default drop port *)
 Definition v1model_mark_to_drop_def:
  v1model_mark_to_drop (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case assign scope_list (v_bit (fixwidth 9 (n2v 511), 9)) (lval_field (lval_varname (varn_name "standard_metadata")) "egress_spec") of
+  case assign' scope_list (v_bit (fixwidth 9 (n2v 511), 9)) (lval_field (lval_varname (varn_name "standard_metadata")) "egress_spec") of
    | SOME scope_list' =>
-    (case assign scope_list' (v_bit (fixwidth 16 (n2v 0), 16)) (lval_field (lval_varname (varn_name "standard_metadata")) "mcast_grp") of
+    (case assign' scope_list' (v_bit (fixwidth 16 (n2v 0), 16)) (lval_field (lval_varname (varn_name "standard_metadata")) "mcast_grp") of
      | SOME scope_list'' =>
       SOME (v1model_ascope, scope_list'', status_returnv v_bot)
      | NONE => NONE)
@@ -199,24 +199,24 @@ End
 
 Definition v1model_verify_checksum_def:
  (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
+  (case lookup_lval' scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
     then
-     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
+     (case lookup_lval' scope_list (lval_varname (varn_name "algo")) of
       | SOME $ v_bit (bl, n) =>
        if v2n bl = 6
        then
         (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
          | SOME checksum_incr =>
-          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+          (case lookup_lval' scope_list (lval_varname (varn_name "checksum")) of
            | SOME $ v_bit (bl', n') =>
             if n' = 16
             then
              (if (v_bit (bl', n')) = (v_bit $ w16 $ compute_checksum16 checksum_incr)
               then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
               else
-               (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+               (case assign' [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
                 | SOME [v_map_scope] =>
                  (case scope_to_vmap v_map_scope of
                   | SOME v_map' =>
@@ -244,22 +244,22 @@ End
 
 Definition v1model_update_checksum_def:
  (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
+  (case lookup_lval' scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
     then
-     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
+     (case lookup_lval' scope_list (lval_varname (varn_name "algo")) of
       | SOME $ v_bit (bl, n) =>
        if v2n bl = 6
        then
         (case get_checksum_incr' scope_list (lval_varname (varn_name "data")) of
          | SOME checksum_incr =>
-          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+          (case lookup_lval' scope_list (lval_varname (varn_name "checksum")) of
            | SOME $ v_bit (bl', n') =>
             if n' = 16
             then
              (* TODO: This can be made total, since we just looked up the checksum *)
-             (case assign scope_list (v1model_update_checksum_inner checksum_incr) (lval_varname (varn_name "checksum")) of
+             (case assign' scope_list (v1model_update_checksum_inner checksum_incr) (lval_varname (varn_name "checksum")) of
               | SOME scope_list' =>
                SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)             | NONE => NONE)
             else NONE
@@ -290,12 +290,12 @@ End
 
 Definition register_construct_def:
  (register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "size")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "size")) of
   | SOME (v_bit (bl, n)) =>
-   (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "targ1")) of
     | SOME (v_bit (bl', n')) =>
      let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (v1model_register_construct_inner bl n'))) in
-     (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+     (case assign' scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
       | SOME scope_list' =>
        SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
       | NONE => NONE)
@@ -307,15 +307,15 @@ End
 (* OLD:
 Definition register_read_def:
  (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
-   (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "this")) of
     | SOME (v_ext_ref i) =>
      (case ALOOKUP ext_obj_map i of
       | SOME (INR (v1model_v_ext_register array)) =>
        (case oEL (v2n bl) array of
         | SOME (bl', n') =>
-         (case assign scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
+         (case assign' scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
           | SOME scope_list' =>
            SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
           | NONE => NONE)
@@ -339,17 +339,17 @@ End
 (* Note that register_read always has a result, according to v1model.p4. *)
 Definition register_read_def:
  (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
-   (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "this")) of
     | SOME (v_ext_ref i) =>
      (case ALOOKUP ext_obj_map i of
       | SOME (INR (v1model_v_ext_register array)) =>
        (* TODO: HACK, looking up the result variable to get the result width. *)
-       (case lookup_lval scope_list (lval_varname (varn_name "result")) of
+       (case lookup_lval' scope_list (lval_varname (varn_name "result")) of
         | SOME (v_bit (bl'', n'')) =>      
          let (bl', n') = v1model_register_read_inner n'' bl array in
-           (case assign scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
+           (case assign' scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
             | SOME scope_list' =>
              SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
             | NONE => NONE)
@@ -368,11 +368,11 @@ End
         
 Definition register_write_def:
  (register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
-   (case lookup_lval scope_list (lval_varname (varn_name "value")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "value")) of
     | SOME (v_bit (bl', n')) =>
-     (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+     (case lookup_lval' scope_list (lval_varname (varn_name "this")) of
       | SOME (v_ext_ref i) =>
        (case ALOOKUP ext_obj_map i of
         | SOME (INR (v1model_v_ext_register array)) =>
@@ -394,7 +394,7 @@ End
 Definition ipsec_crypt_construct_def:
  (ipsec_crypt_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
    let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_ipsec_crypt)) in
-   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+   (case assign' scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>
      SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
     | NONE => NONE)
@@ -420,17 +420,17 @@ End
 
 Definition ipsec_crypt_decrypt_aes_ctr_def:
  (ipsec_crypt_decrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
-   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
+     (case lookup_lval' scope_list (lval_varname (varn_name "standard_metadata")) of
       | SOME standard_metadata =>
-       (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+       (case assign' scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
         | SOME scope_list' =>
-         (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+         (case assign' scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
           | SOME scope_list'' =>
-           (case assign scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
+           (case assign' scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
             | SOME scope_list''' =>
              SOME ((counter, ext_obj_map, v_map, ctrl), scope_list''', status_returnv v_bot)
             | _ => NONE)
@@ -444,13 +444,13 @@ End
 
 Definition ipsec_crypt_encrypt_aes_ctr_def:
  (ipsec_crypt_encrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
-   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+     (case assign' scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
       | SOME scope_list' =>
-       (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+       (case assign' scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
         | SOME scope_list'' =>
          SOME ((counter, ext_obj_map, v_map, ctrl), scope_list'', status_returnv v_bot)
         | _ => NONE)
@@ -462,13 +462,13 @@ End
 
 Definition ipsec_crypt_encrypt_null_def:
  (ipsec_crypt_encrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
-   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+     (case assign' scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
       | SOME scope_list' =>
-       (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+       (case assign' scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
         | SOME scope_list'' =>
          SOME ((counter, ext_obj_map, v_map, ctrl), scope_list'', status_returnv v_bot)
         | _ => NONE)
@@ -480,17 +480,17 @@ End
 
 Definition ipsec_crypt_decrypt_null_def:
  (ipsec_crypt_decrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
-   (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
+   (case lookup_lval' scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
+     (case lookup_lval' scope_list (lval_varname (varn_name "standard_metadata")) of
       | SOME standard_metadata =>
-       (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+       (case assign' scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
         | SOME scope_list' =>
-         (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+         (case assign' scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
           | SOME scope_list'' =>
-           (case assign scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
+           (case assign' scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
             | SOME scope_list''' =>
              SOME ((counter, ext_obj_map, v_map, ctrl), scope_list''', status_returnv v_bot)
             | _ => NONE)
@@ -607,6 +607,7 @@ Definition v1model_reduce_nonout_def:
  (v1model_reduce_nonout (_, _, v_map) = NONE)
 End
 
+(*
 (* TODO: Generalise and move to core? Duplicated in all three architectures... *)
 (* TODO: Remove these and keep "v_map" as just a regular scope? *)
 Definition v_map_to_scope_def:
@@ -615,6 +616,7 @@ Definition v_map_to_scope_def:
   ((varn_name k, (v, NONE:lval option))::v_map_to_scope t)
  )
 End
+*)
 
 (* TODO: Generalise and move to core? Duplicated in all three architectures... *)
 Definition scope_to_vmap_def:
@@ -677,7 +679,7 @@ Definition v1model_postparser_def:
           let v_map' = AUPDATE v_map ("hdr", v) in
            (case ALOOKUP v_map "parseError" of
             | SOME v' =>
-             (case assign [v_map_to_scope v_map'] v' (lval_field (lval_varname (varn_name "standard_metadata")) "parser_error") of
+             (case assign' [v_map_to_scope v_map'] v' (lval_field (lval_varname (varn_name "standard_metadata")) "parser_error") of
               | SOME [v_map_scope] =>
                (case scope_to_vmap v_map_scope of
                 | SOME v_map'' =>
