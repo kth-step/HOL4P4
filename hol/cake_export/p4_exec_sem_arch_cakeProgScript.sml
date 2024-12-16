@@ -127,6 +127,17 @@ Definition arch_exec'_def:
 (arch_exec' _ _ = NONE)
 End
 
+Definition arch_multi_exec'_def:
+ (arch_multi_exec' actx (aenv, g_scope_list, arch_frame_list, status) 0 =
+  SOME (aenv, g_scope_list, arch_frame_list, status))
+  /\
+ (arch_multi_exec' actx (aenv, g_scope_list, arch_frame_list, status) (SUC fuel) =
+  case arch_exec' actx (aenv, g_scope_list, arch_frame_list, status) of
+  | SOME (aenv', g_scope_list', arch_frame_list', status') =>
+   arch_multi_exec' actx (aenv', g_scope_list', arch_frame_list', status') fuel
+  | NONE => NONE)
+End
+
 
 val _ = translation_extends "p4_exec_sem_frames_cakeProg";
 
@@ -143,6 +154,8 @@ val _ = translate state_fin_exec_def;
 val _ = translate set_fin_status_def;
 
 val _ = translate arch_exec'_def;
+
+val _ = translate arch_multi_exec'_def;
 
 val _ = ml_prog_update (close_module NONE);
 

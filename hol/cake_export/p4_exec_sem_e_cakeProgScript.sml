@@ -136,46 +136,6 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
-Definition slice'_def:
- slice' (v, n) (vec1, len1) (vec2, len2) =
-  let hi = v2n vec1 in
-  let lo = v2n vec2 in
-  if lo <= hi /\ hi < n /\ LENGTH v = n
-  then
-   SOME $ bitv_bitslice (v, n) (v2n vec1) (v2n vec2)
-  else NONE
-End
-
-Definition slice_lval'_def:
- slice_lval' v e1 e2 =
-  case v of
-  | (v_bit (v, bl)) =>
-   (case e1 of
-    | (e_v (v_bit (v1, bl1))) =>
-     (case e2 of
-      | (e_v (v_bit (v2, bl2))) =>
-       (case slice' (v, bl) (v1, bl1) (v2, bl2) of
-        | SOME bitv => SOME $ v_bit bitv
-        | NONE => NONE)
-      | _ => NONE)
-    | _ => NONE)
-  | _ => NONE
-End
-
-Definition lookup_lval'_def:
- (lookup_lval' (ss:scope list) (lval_varname x) = lookup_v ss x) /\
- (lookup_lval' ss (lval_field lval f) =
-  case lookup_lval' ss lval of
-  | SOME v => acc_f v f
-  | NONE => NONE) /\
- (lookup_lval' ss (lval_slice lval e1 e2) =
-  case lookup_lval' ss lval of
-   | SOME (v_bit (v, bl)) => slice_lval' (v_bit (v, bl)) e1 e2
-   | _ => NONE) /\
- (lookup_lval' ss lval_null = NONE ) /\
- (lookup_lval' ss (lval_paren lval) = lookup_lval' ss lval) 
-End
-
 
 Definition one_arg_val_for_newscope'_def:
  one_arg_val_for_newscope' d e ss =
@@ -1029,26 +989,5 @@ val _ = translate e_exec_slice'_def;
 val _ = translate e_exec'_def;
 
 val _ = ml_prog_update (close_module NONE);
-
-(*
-(* To print the resulting CakeML program *)
-fun get_current_prog () =
-  let
-    val state = get_ml_prog_state ()
-    val state_thm =
-     state |> ml_progLib.remove_snocs
-           |> ml_progLib.clean_state
-           |> get_thm
-  in
-    state_thm |> concl |> strip_comb |> #2 |> el 2
-  end
-;
-
-val _ = astPP.enable_astPP();
-
-val _ = print_term (get_current_prog ());
-
-val _ = astPP.disable_astPP();
-*)
 
 val _ = export_theory ();
