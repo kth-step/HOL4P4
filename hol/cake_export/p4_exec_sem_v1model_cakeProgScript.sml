@@ -200,6 +200,7 @@ Definition v1model_packet_in_extract'_def:
   (varn # p4$v # lval option) list list # status) option) = v1model_packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
+(* TODO: Move to p4_exec_sem_arch_cakeProg, since it's not architecture-specific *)
 (* TODO: Note that this does not distinguish failing from finishing *)
 Definition arch_multi_exec'_def:
  (arch_multi_exec' actx ((aenv, g_scope_list, arch_frame_list, status):'a astate) 0 =

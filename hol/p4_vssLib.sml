@@ -26,7 +26,11 @@ val vss_init_global_scope =
     (varn_name "CPU_IN_PORT", (^CPU_IN_PORT_tm, NONE) );
     (varn_name "DROP_PORT", (^DROP_PORT_tm, NONE) );
     (varn_name "CPU_OUT_PORT", (^CPU_OUT_PORT_tm, NONE) );
-    (varn_name "RECIRCULATE_OUT_PORT", (^RECIRCULATE_OUT_PORT_tm, NONE) )
+    (varn_name "RECIRCULATE_OUT_PORT", (^RECIRCULATE_OUT_PORT_tm, NONE) );
+    (varn_name "gen_apply_result",
+     v_struct
+       [("hit",v_bool F); ("miss",v_bool F);
+	("action_run",v_bit (REPLICATE 32 F,32))],NONE)
    ]:scope``;
 
 (*******************************************)
@@ -82,12 +86,15 @@ val vss_func_map = core_func_map;
 (***********************)
 (* Architectural state *)
 
-val vss_init_counter = term_of_int 3;
+val vss_init_counter = term_of_int 0;
 
+val vss_init_ext_obj_map = ``[]:(num, vss_sum_v_ext) alist``;
+(*
 val vss_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
 			      (1, INL (core_v_ext_packet []));
 			      (2, INL (core_v_ext_packet []))]:(num, vss_sum_v_ext) alist``;
-(*
+*)
+
 val ipv4_header_uninit =
  mk_v_header_list F 
                   [(``"version"``, mk_v_biti_arb 4),
@@ -102,19 +109,24 @@ val ipv4_header_uninit =
                    (``"hdrChecksum"``, mk_v_biti_arb 16),
                    (``"srcAddr"``, mk_v_biti_arb 32),
                    (``"dstAddr"``, mk_v_biti_arb 32)];
+
 val ethernet_header_uninit =
  mk_v_header_list F
                   [(``"dstAddr"``, mk_v_biti_arb 48),
                    (``"srcAddr"``, mk_v_biti_arb 48),
                    (``"etherType"``, mk_v_biti_arb 16)];
+
 val vss_parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
-*)
+
+val vss_init_v_map = ``^core_init_v_map:(string, v) alist``;
+(*
 val vss_init_v_map = ``^core_init_v_map ++
                        [("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
 			("outCtrl", v_struct [("outputPort", ^(mk_v_biti_arb 4))]);
-			("b_in", v_ext_ref 0);
-			("b_out", v_ext_ref 1);
+			("b", v_ext_ref 0);
+			("b_temp", v_ext_ref 1);
 			("data_crc", v_ext_ref 2)]:(string, v) alist``;
+*)
 
 end

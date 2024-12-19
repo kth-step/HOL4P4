@@ -201,15 +201,6 @@ Definition v_map_to_scope_def:
 End
 *)
 
-Definition scope_to_vmap_def:
- (scope_to_vmap [] = SOME []) /\
- (scope_to_vmap ((vn, (v:v, lval_opt:lval option))::t) =
-  case vn of
-   | (varn_name k) => oCONS ((k, v), scope_to_vmap t)
-   | _ => NONE
- )
-End
-
 (* TODO: Since the same thing should be initialised
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)

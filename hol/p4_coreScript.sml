@@ -171,16 +171,6 @@ Definition set_bit_def:
   | NONE => NONE)
 End
 
-Definition oTAKE_DROP_def:
- (oTAKE_DROP 0 l = SOME ([], l)) /\
- (oTAKE_DROP (SUC n) [] = NONE) /\
- (oTAKE_DROP (SUC n) (h::t) =
-  case oTAKE_DROP n t of
-  | SOME (l1, l2) =>
-   SOME (h::l1, l2)
-  | NONE => NONE)
-End
-
 Definition set_fields_def:
  (set_fields []     acc _ = SOME acc) /\
  (set_fields (h::t) acc packet_in =
@@ -401,20 +391,20 @@ End
 (************)
 
 Definition header_entries2v_def:
- (header_entries2v [] = SOME []) /\
- (header_entries2v (h::t) =
-  case header_entry2v h of
+ (header_entries2v (INL []) = SOME []) /\
+ (header_entries2v (INL (h::t)) =
+  case header_entries2v (INR h) of
   | SOME bl =>
-  (case header_entries2v t of
+  (case header_entries2v (INL t) of
    | SOME bl2 => SOME (bl++bl2)
    | NONE => NONE)
   | NONE => NONE
  ) /\
- (header_entry2v (x:x, v) =
+ (header_entries2v (INR (x:x, v)) =
   case v of
   | (v_bit (bl, n)) => SOME bl
-  | (v_struct x_v_l) => header_entries2v x_v_l
-  | (v_header validity x_v_l) => header_entries2v x_v_l
+  | (v_struct x_v_l) => header_entries2v (INL x_v_l)
+  | (v_header validity x_v_l) => header_entries2v (INL x_v_l)
   | _ => NONE
  )
 Termination
@@ -442,11 +432,11 @@ Definition get_checksum_incr_def:
     | SOME (v_bit (bl, n)) =>
      if n MOD 16 = 0 then SOME (v2w16s' bl) else NONE
     | SOME (v_header vbit f_list) =>
-     (case header_entries2v f_list of
+     (case header_entries2v (INL f_list) of
       | SOME bl => v2w16s bl
       | NONE => NONE)
     | SOME (v_struct f_list) =>
-     (case header_entries2v f_list of
+     (case header_entries2v (INL f_list) of
       | SOME bl => v2w16s bl
       | NONE => NONE)
     | _ => NONE)
@@ -460,12 +450,12 @@ Definition get_checksum_incr'_def:
     | SOME (v_bit (bl, n)) =>
      if n MOD 16 = 0 then SOME bl else NONE
     | SOME (v_header vbit f_list) =>
-     (case header_entries2v f_list of
+     (case header_entries2v (INL f_list) of
       | SOME bl =>
        if (LENGTH bl) MOD 16 = 0 then SOME bl else NONE
       | NONE => NONE)
     | SOME (v_struct f_list) =>
-     (case header_entries2v f_list of
+     (case header_entries2v (INL f_list) of
       | SOME bl =>
        if (LENGTH bl) MOD 16 = 0 then SOME bl else NONE
       | NONE => NONE)
@@ -503,11 +493,11 @@ Definition get_bitlist_def:
   case lookup_lval' scope_list ext_data_name of
    | SOME (v_bit (bl, n)) => SOME bl
    | SOME (v_header vbit f_list) =>
-    (case header_entries2v f_list of
+    (case header_entries2v (INL f_list) of
      | SOME bl => SOME bl
      | NONE => NONE)
    | SOME (v_struct f_list) =>
-    (case header_entries2v f_list of
+    (case header_entries2v (INL f_list) of
      | SOME bl => SOME bl
      | NONE => NONE)
    | _ => NONE

@@ -1,11 +1,11 @@
 open HolKernel boolLib Parse bossLib;
 
+val _ = new_theory "p4_vss_example";
+
 open p4Theory p4_vssTheory;
 open pairSyntax listSyntax p4Syntax;
 
 open p4_vssLib;
-
-val _ = new_theory "p4_vss_example";
 
 (* This file contains the VSS example program. Specifically, it saves a theorem
  * that contains the architectural context of the program. *)
@@ -84,7 +84,7 @@ val vss_parser_pbl =
  ``(pbl_type_parser, [("b", d_none); ("p", d_out)], [("parser", (^vss_parser_inits, []))], (^vss_parser_decl_list), (^vss_parser_pmap), []):pblock``;
 
 val vss_parser_ab =
- ``arch_block_pbl "parser" [e_var (varn_name "b_in"); e_var (varn_name "parsedHeaders")]``;
+ ``arch_block_pbl "parser" [e_var (varn_name "b"); e_var (varn_name "parsedHeaders")]``;
 
 
 (************)
@@ -197,7 +197,7 @@ val vss_deparser_body =
 
 val vss_deparser_pbl = ``(pbl_type_control, [("p", d_inout); ("b", d_none)], [("deparser", (^vss_deparser_body, []))], (^vss_deparser_decl_list), [], (^vss_deparser_tblmap)):pblock``;
 
-val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeaders"); e_var (varn_name "b_out")]``;
+val vss_deparser_ab = ``arch_block_pbl "deparser" [e_var (varn_name "outputHeaders"); e_var (varn_name "b")]``;
 
 
 (**********************)
@@ -222,7 +222,7 @@ val vss_actx =
  ``(^(list_mk_pair [``(^vss_ab_list):ab_list``,
                     ``(^vss_pblock_map):pblock_map``,
                     ``(^vss_ffblock_map):vss_ascope ffblock_map``,
-                    ``(^vss_input_f):vss_ascope input_f``,
+                    ``(^vss_input_f ^vss_parsed_packet_struct_uninit):vss_ascope input_f``,
                     ``(^vss_output_f):vss_ascope output_f``,
                     ``(^vss_copyin_pbl):vss_ascope copyin_pbl``,
                     ``(^vss_copyout_pbl):vss_ascope copyout_pbl``,
