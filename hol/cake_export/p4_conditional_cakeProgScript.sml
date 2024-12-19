@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_exec_sem_wrapper_cakeProg";
+val _ = new_theory "p4_conditional_cakeProg";
 
 open p4Syntax;
 open bitstringSyntax numSyntax;
@@ -18,7 +18,7 @@ open p4_exec_sem_v1model_cakeProgTheory;
 open fromSexpTheory;
 
 intLib.deprecate_int();
-val _ = (max_print_depth := 100);
+val _ = (max_print_depth := 1000);
 
 val _ = translation_extends "p4_exec_sem_v1model_cakeProg";
 
@@ -282,6 +282,6 @@ val prog =
     ^(get_ml_prog_state() |> get_prog)”
   |> EVAL |> concl |> rhs;
 
-val _ = astToSexprLib.write_ast_to_file "test3.sexp" prog;
+val _ = astToSexprLib.write_ast_to_file "conditional_test.sexp" prog;
     
 val _ = export_theory ();

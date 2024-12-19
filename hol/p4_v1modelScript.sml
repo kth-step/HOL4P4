@@ -618,16 +618,6 @@ Definition v_map_to_scope_def:
 End
 *)
 
-(* TODO: Generalise and move to core? Duplicated in all three architectures... *)
-Definition scope_to_vmap_def:
- (scope_to_vmap [] = SOME []) /\
- (scope_to_vmap ((vn, (v:v, lval_opt:lval option))::t) =
-  case vn of
-   | (varn_name k) => oCONS ((k, v), scope_to_vmap t)
-   | _ => NONE
- )
-End
-
 (* TODO: Since the same thing should be initialised
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)
@@ -708,7 +698,6 @@ Definition v1model_is_drop_port_def:
 End
 
 (* TODO: Outsource obtaining the output port to an external function? *)
-(* NOTE: "b" renamed to "b_out" *)
 (* A little clumsy with the double v2n, but that makes things easier *)
 Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =

@@ -35,6 +35,37 @@ Definition oLASTN_def:
   | NONE => NONE)
 End
 
+Definition oTAKE_DROP_def:
+ (oTAKE_DROP 0 l = SOME ([], l)) /\
+ (oTAKE_DROP (SUC n) [] = NONE) /\
+ (oTAKE_DROP (SUC n) (h::t) =
+  case oTAKE_DROP n t of
+  | SOME (l1, l2) =>
+   SOME (h::l1, l2)
+  | NONE => NONE)
+End
+
+Theorem oTAKE_DROP_SOME:
+!n l take rest.
+oTAKE_DROP n l = SOME (take,rest) ==>
+oTAKE n l = SOME take /\ oDROP n l = SOME rest
+Proof
+Induct_on ‘l’ >- (
+ rpt strip_tac >> (
+  Cases_on ‘n’ >> (
+   gs[oTAKE_def, oDROP_def, oTAKE_DROP_def]
+  )
+ )
+) >>
+rpt strip_tac >> (
+ Cases_on ‘n’ >> (
+  gs[oTAKE_def, oDROP_def, oTAKE_DROP_def, AllCaseEqs()]
+ )
+) >>
+res_tac >>
+gvs[]
+QED
+
 Theorem oTAKE_imp_TAKE:
 !i l l'.
 oTAKE i l = SOME l' ==>
@@ -114,6 +145,32 @@ subgoal ‘oDROP (LENGTH l1) (l1 ++ l2) = SOME (DROP (LENGTH l1) (l1 ++ l2))’ 
  fs[oDROP_DROP]
 ) >>
 fs[rich_listTheory.DROP_LENGTH_APPEND]
+QED
+
+Theorem oDROP_LENGTH:
+!n l l' take rest.
+oDROP n l = SOME l' ==>
+LENGTH l >= n /\
+LENGTH l' = LENGTH l - n
+Proof
+Induct_on ‘l’ >- (
+ rpt strip_tac >> (
+  Cases_on ‘n’ >> (
+   gs[oDROP_def]
+  )
+ )
+) >>
+rpt strip_tac >- (
+ Cases_on ‘n’ >> (
+  gs[oDROP_def]
+ ) >>
+ res_tac >>
+ FULL_SIMP_TAC arith_ss []
+) >>
+Cases_on ‘n’ >> (
+ gs[oDROP_def]
+) >>
+gvs[]
 QED
 
 Theorem oTAKE_APPEND:

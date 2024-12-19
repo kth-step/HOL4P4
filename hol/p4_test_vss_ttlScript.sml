@@ -42,48 +42,22 @@ val input_ok = mk_eth_frame_ok input_ipv4_ok;
 val init_inlist_ok = mk_list ([mk_pair (input_ok, input_port_ok)], ``:in_out``);
 val init_outlist_ok = mk_list ([], ``:in_out``);
 
-val ipv4_header_uninit =
- mk_v_header_list F 
-                  [(``"version"``, mk_v_biti_arb 4),
-                   (``"ihl"``, mk_v_biti_arb 4),
-                   (``"diffserv"``, mk_v_biti_arb 8),
-                   (``"totalLen"``, mk_v_biti_arb 16),
-                   (``"identification"``, mk_v_biti_arb 16),
-                   (``"flags"``, mk_v_biti_arb 3),
-                   (``"fragOffset"``, mk_v_biti_arb 13),
-                   (``"ttl"``, mk_v_biti_arb 8),
-                   (``"protocol"``, mk_v_biti_arb 8),
-                   (``"hdrChecksum"``, mk_v_biti_arb 16),
-                   (``"srcAddr"``, mk_v_biti_arb 32),
-                   (``"dstAddr"``, mk_v_biti_arb 32)];
+val init_counter = ``0:num``;
 
-val ethernet_header_uninit =
- mk_v_header_list F
-                  [(``"dstAddr"``, mk_v_biti_arb 48),
-                   (``"srcAddr"``, mk_v_biti_arb 48),
-                   (``"etherType"``, mk_v_biti_arb 16)];
-
-val parsed_packet_struct_uninit =
- mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
-
-
-val init_counter = ``3:num``;
-
-val init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
-                          (1, INL (core_v_ext_packet []));
-                          (2, INL (core_v_ext_packet []))]:(num, (core_v_ext + vss_v_ext)) alist``;
+val init_ext_obj_map = ``[]:(num, (core_v_ext + vss_v_ext)) alist``;
 
 (* All variables used in the architectural scope need to be declared *)
-(* NOTE: the output packet is here called "data_crc". VSS spec has both input and output called "b" *)
+(*
 val init_v_map = ``[("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
                     ("outCtrl", v_struct [("outputPort", ^(mk_v_biti_arb 4))]);
-                    ("b_in", v_ext_ref 0);
-                    ("b_out", v_ext_ref 1);
-                    ("data_crc", v_ext_ref 2);
-                    ("parsedHeaders", (^parsed_packet_struct_uninit));
-                    ("headers", (^parsed_packet_struct_uninit));
-                    ("outputHeaders", (^parsed_packet_struct_uninit));
+                    ("b", v_ext_ref 0);
+                    ("b_temp", v_ext_ref 1);
+                    ("parsedHeaders", (^vss_parsed_packet_struct_uninit));
+                    ("headers", (^vss_parsed_packet_struct_uninit));
+                    ("outputHeaders", (^vss_parsed_packet_struct_uninit));
                     ("parseError", ^(mk_v_bitii (0,32)))]:(string, v) alist``;
+*)
+val init_v_map = ``[("parseError", ^(mk_v_bitii (0,32)))]:(string, v) alist``;
 
 (* Regular ethernet output ports are numbered 0-7 *)
 val init_ctrl = ``[("ipv4_match",
@@ -123,52 +97,52 @@ val init_astate =
 (***************************************)
 
 val ctx = ``p4_vss_actx``;
-val stop_consts_rewr = [``compute_checksum16``];
-Definition vss_updated_checksum16_def:
- vss_updated_checksum16 (w16_list:bool list) = 
-  word_1comp (sub_ones_complement (0xFEFFw, v2w w16_list)):word16
+val stop_consts_rewr = [``compute_checksum16'``];
+Definition vss_updated_checksum16'_def:
+ vss_updated_checksum16' (w16_list:bool list) = 
+  MAP $~ (sub_ones_complement' ([T; T; T; T; T; T; T; F; T; T; T; T; T; T; T; T], w16_list))
 End
-val stop_consts_never = [``vss_updated_checksum16``];
+val stop_consts_never = [``vss_updated_checksum16'``];
 
 val ass1 =
- ``compute_checksum16
-    [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
+ ``compute_checksum16'
+    [[F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
 	  dscp4; dscp5; ecn0; ecn1];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
-     v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
+     [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
+     [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
 	  id11; id12; id13; id14; id15];
-     v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
+     [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
 	  fo8; fo9; fo10; fo11; fo12];
-     v2w [F; F; F; F; F; F; F; T; pr0; pr1; pr2; pr3; pr4; pr5;
+     [F; F; F; F; F; F; F; T; pr0; pr1; pr2; pr3; pr4; pr5;
 	  pr6; pr7];
-     v2w [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12;
+     [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12;
 	  hc13; hc14; hc15];
-     v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
+     [src0; src1; src2; src3; src4; src5; src6; src7; src8;
 	  src9; src10; src11; src12; src13; src14; src15];
-     v2w [src16; src17; src18; src19; src20; src21; src22; src23;
+     [src16; src17; src18; src19; src20; src21; src22; src23;
 	  src24; src25; src26; src27; src28; src29; src30; src31];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = (0w:word16)``;
+     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]``;
 
 (* New result due to updated TTL value: same as if 0x0100 and the previous checksum was no longer added to the sum *)
 val ass2 =
- ``compute_checksum16
-    [v2w [F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
+ ``compute_checksum16'
+    [[F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
 	  dscp4; dscp5; ecn0; ecn1];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
-     v2w [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
+     [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
+     [id0; id1; id2; id3; id4; id5; id6; id7; id8; id9; id10;
 	  id11; id12; id13; id14; id15];
-     v2w [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
+     [fl0; fl1; fl2; fo0; fo1; fo2; fo3; fo4; fo5; fo6; fo7;
 	  fo8; fo9; fo10; fo11; fo12];
-     v2w [F; F; F; F; F; F; F; F; pr0; pr1; pr2; pr3; pr4; pr5;
+     [F; F; F; F; F; F; F; F; pr0; pr1; pr2; pr3; pr4; pr5;
 	  pr6; pr7];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-     v2w [src0; src1; src2; src3; src4; src5; src6; src7; src8;
+     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     [src0; src1; src2; src3; src4; src5; src6; src7; src8;
 	  src9; src10; src11; src12; src13; src14; src15];
-     v2w [src16; src17; src18; src19; src20; src21; src22; src23;
+     [src16; src17; src18; src19; src20; src21; src22; src23;
 	  src24; src25; src26; src27; src28; src29; src30; src31];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-     v2w [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = vss_updated_checksum16 [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
+     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
+     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = vss_updated_checksum16' [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
 val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 
 (*************************************************)
@@ -178,7 +152,7 @@ val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 (* 180 steps for TTL=1 packet to get forwarded to CPU *)
 
 (* Theorem on line below proves data non-interference using proof approach 1 *)
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 180;
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 180 (* 180 *);
 
 
 (************************************************************************************************************)
@@ -207,7 +181,7 @@ val ctx' = ``p4_vss_actx'``;
 
 (* EVAL-uate until packet is output (happens to be step 180) *)
 (* Theorem on line below proves data non-interference using proof approach 2 *)
-GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 181``;
+GEN_ALL $ EVAL ``arch_multi_exec ^ctx' ^init_astate 181``;
 
 
 (**************************************************)

@@ -33,6 +33,9 @@ val vss_func_map : term
 
 val vss_init_counter : term
 val vss_init_ext_obj_map : term
+
+val vss_parsed_packet_struct_uninit : term
+
 val vss_init_v_map : term
 
 end
