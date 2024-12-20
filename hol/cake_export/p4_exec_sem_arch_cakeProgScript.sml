@@ -18,7 +18,7 @@ val _ = (max_print_depth := 100);
 
 Definition declare_list_in_scope'_def:
  declare_list_in_scope' (t_scope:t_scope, scope:scope) =
-  FOLDR (\(x, (t, lvalop)) f. AUPDATE f (x, (init_v_from_tau_cake t, NONE))) scope t_scope
+  FOLDR (\(x, (t, lvalop)) f. p4$AUPDATE f (x, (init_v_from_tau_cake t, NONE))) scope t_scope
 End
 
 Definition arch_exec'_def:

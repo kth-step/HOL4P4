@@ -120,7 +120,7 @@ End
 
 Definition Checksum16_construct'_def:
  (Checksum16_construct' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
-  let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum ([]:(bool list) list))) in
+  let ext_obj_map' = p4$AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum ([]:(bool list) list))) in
   (case assign' scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
     SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
@@ -132,7 +132,7 @@ Definition Checksum16_clear'_def:
  (Checksum16_clear' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval' scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:(bool list) list))), v_map, ctrl), scope_list, status_returnv v_bot)
+   SOME ((counter, p4$AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:(bool list) list))), v_map, ctrl), scope_list, status_returnv v_bot)
   | _ => NONE
  )
 End
@@ -145,7 +145,7 @@ Definition Checksum16_update'_def:
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
      (case get_checksum_incr'' scope_list (lval_varname (varn_name "data")) of
       | SOME checksum_incr =>
-       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, status_returnv v_bot)
+       SOME ((counter, p4$AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE

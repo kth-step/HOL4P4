@@ -398,8 +398,8 @@ val input = “([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; 
           F; F],1:num)”;
 val bl_input_tm = fst $ dest_pair input
 
-
-EVAL “arch_multi_exec ^vss_actx (p4_append_input_list [^input] ^vss_astate) 140”
+(* Entire state after a number of steps *)
+EVAL “arch_multi_exec ^vss_actx (p4_append_input_list [^input] ^vss_astate) 120”
 
 EVAL “vss_exec ^input”
 
