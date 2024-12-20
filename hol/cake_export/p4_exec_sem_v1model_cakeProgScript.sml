@@ -213,11 +213,6 @@ Definition arch_multi_exec'_def:
   | NONE => SOME (aenv, g_scope_list, arch_frame_list, status))
 End
 
-Definition p4_get_output_list_def:
- p4_get_output_list (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate) =
-  io_list'
-End
-
 
 val _ = translation_extends "p4_exec_sem_arch_cakeProg";
 

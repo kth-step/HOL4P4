@@ -14,10 +14,10 @@ open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory ml
      astPP comparisonTheory;
 
 open p4_exec_sem_vss_cakeProgTheory;
-
+(*
 open fromSexpTheory;
-
-intLib.deprecate_int();
+*)
+val _ = intLib.deprecate_int();
 val _ = (max_print_depth := 100);
 
 val _ = translation_extends "p4_exec_sem_vss_cakeProg";
@@ -336,7 +336,7 @@ val vss_astate = “((0,
 
 val n_max = “180:num”;
 
-
+(*
 (*************************)
 (* Generic wrapper parts *)
 
@@ -488,5 +488,9 @@ val prog =
   |> EVAL |> concl |> rhs;
 
 val _ = astToSexprLib.write_ast_to_file "vss_example.sexp" prog;
-    
+*)
+
+p4_cake_wrapperLib.translate_p4 "vss_example" vss_actx vss_astate n_max;
+
+  
 val _ = export_theory ();

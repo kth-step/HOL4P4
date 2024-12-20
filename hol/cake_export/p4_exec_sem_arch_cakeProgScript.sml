@@ -138,6 +138,10 @@ Definition arch_multi_exec'_def:
   | NONE => NONE)
 End
 
+Definition p4_get_output_list_def:
+ p4_get_output_list (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate) =
+  io_list'
+End
 
 val _ = translation_extends "p4_exec_sem_frames_cakeProg";
 
@@ -156,6 +160,9 @@ val _ = translate set_fin_status_def;
 val _ = translate arch_exec'_def;
 
 val _ = translate arch_multi_exec'_def;
+
+val _ = translate p4_append_input_list_def;
+val _ = translate p4_get_output_list_def;
 
 val _ = ml_prog_update (close_module NONE);
 

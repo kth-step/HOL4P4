@@ -14,9 +14,9 @@ open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory ml
      astPP comparisonTheory;
 
 open p4_exec_sem_v1model_cakeProgTheory;
-
+(*
 open fromSexpTheory;
-
+*)
 intLib.deprecate_int();
 val _ = (max_print_depth := 1000);
 
@@ -146,7 +146,7 @@ val symb_exec1_astate = “((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v
 (* 44 seems to work also with arch_multi_exec, 45 doesn't work *)
 val n_max = “45:num”;
 
-
+(*
 (*************************)
 (* Generic wrapper parts *)
 
@@ -283,5 +283,8 @@ val prog =
   |> EVAL |> concl |> rhs;
 
 val _ = astToSexprLib.write_ast_to_file "conditional_test.sexp" prog;
+*)
+
+p4_cake_wrapperLib.translate_p4 "conditional_example" symb_exec1_actx symb_exec1_astate n_max;
     
 val _ = export_theory ();
