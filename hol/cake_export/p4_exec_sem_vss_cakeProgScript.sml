@@ -201,11 +201,6 @@ Definition arch_multi_exec'_def:
   | NONE => SOME (aenv, g_scope_list, arch_frame_list, status))
 End
 
-Definition p4_get_output_list_def:
- p4_get_output_list (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate) =
-  io_list'
-End
-
 fun mk_v_bitii' (num, width) =
  let
   val width_tm = numSyntax.term_of_int width
