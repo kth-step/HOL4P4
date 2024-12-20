@@ -161,7 +161,7 @@ Definition update_arg_for_newscope'_def:
   case f_opt of
   | SOME f =>
    (case one_arg_val_for_newscope' d e ss of
-    | SOME (v, lval_opt) => SOME (AUPDATE f (varn_name x, (v, lval_opt)))
+    | SOME (v, lval_opt) => SOME (p4$AUPDATE f (varn_name x, (v, lval_opt)))
     | NONE => NONE)
   | NONE => NONE
 End

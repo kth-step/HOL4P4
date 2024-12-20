@@ -30,14 +30,14 @@ Definition v1model_postparser'_def:
        | SOME (v_ext_ref i') =>
         (case ALOOKUP v_map "parsedHdr" of
          | SOME v =>
-          let v_map' = AUPDATE v_map ("hdr", v) in
+          let v_map' = p4$AUPDATE v_map ("hdr", v) in
            (case ALOOKUP v_map "parseError" of
             | SOME v' =>
              (case assign' [v_map_to_scope v_map'] v' (lval_field (lval_varname (varn_name "standard_metadata")) "parser_error") of
               | SOME [v_map_scope] =>
                (case scope_to_vmap v_map_scope of
                 | SOME v_map'' =>
-                 let v_map''' = AUPDATE v_map'' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
+                 let v_map''' = p4$AUPDATE v_map'' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
                  let (counter', ext_obj_map', v_map'''', ctrl') = (v1model_ascope_update (counter, ext_obj_map, v_map''', ctrl) i' (INL (core_v_ext_packet bl))) in
    SOME (v1model_ascope_update (counter', ext_obj_map', v_map'''', ctrl') i (INL (core_v_ext_packet [])))
                 | NONE => NONE)
@@ -91,7 +91,7 @@ Definition v1model_input_f'_def:
    (* TODO: Currently, no garbage collection in v_map is done *)
    let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref counter);
                                     ("b_temp", v_ext_ref (counter+1));
-                                    ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed') ("ingress_port", (v_bit (fixwidth 9 $ n2v p, 9) ) )));
+                                    ("standard_metadata", v_struct (p4$AUPDATE (^v1model_standard_metadata_zeroed') ("ingress_port", (v_bit (fixwidth 9 $ n2v p, 9) ) )));
                                     ("parsedHdr", tau1_uninit_v);
                                     ("hdr", tau1_uninit_v);
                                     ("meta", tau2_uninit_v)] in
