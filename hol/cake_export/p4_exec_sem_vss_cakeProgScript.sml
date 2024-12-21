@@ -153,26 +153,24 @@ Definition Checksum16_update'_def:
 End
 
 (* TODO: Upstream this and the below two? *)
-Definition compute_checksum16'_def:
- (compute_checksum16' ([]:(bool list) list) = (fixwidth 16 $ n2v 0)) /\
- (compute_checksum16' ((h::t):(bool list) list) =
-  add_ones_complement' (h, compute_checksum16' (t:(bool list) list))
+Definition compute_checksum16'_inner_def:
+ (compute_checksum16'_inner ([]:(bool list) list) = (fixwidth 16 $ n2v 0)) /\
+ (compute_checksum16'_inner ((h::t):(bool list) list) =
+  add_ones_complement' (h, compute_checksum16'_inner (t:(bool list) list))
  )
 End
-(* TODO: Better name *)
-Definition ALOOKUP'_inner_def:
- ALOOKUP'_inner ipv4_checksum =
-    if all_lists_length_16 ipv4_checksum
-    then
-     SOME $ MAP $~ $ compute_checksum16' ipv4_checksum
-    else NONE
+Definition compute_checksum16'_def:
+ compute_checksum16' ipv4_checksum =
+  if all_lists_length_16 ipv4_checksum
+  then
+   SOME $ MAP $~ $ compute_checksum16'_inner ipv4_checksum
+  else NONE
 End
-(* TODO: Better name *)
-Definition ALOOKUP'_def:
- ALOOKUP' alist el =
+Definition ALOOKUP_compute_checksum16'_def:
+ ALOOKUP_compute_checksum16' alist el =
   case ALOOKUP alist el of
    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-    ALOOKUP'_inner ipv4_checksum
+    compute_checksum16' ipv4_checksum
    | _ => NONE
 End
 
@@ -180,25 +178,12 @@ Definition Checksum16_get'_def:
  (Checksum16_get' ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval' scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   (case ALOOKUP' ext_obj_map i of
+   (case ALOOKUP_compute_checksum16' ext_obj_map i of
     | SOME ipv4_checksum' =>
      SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (ipv4_checksum', 16)))
     | _ => NONE)
   | _ => NONE
  )
-End
-
-(* TODO: Move to p4_exec_sem_arch_cakeProg, since it's not architecture-specific *)
-(* TODO: Note that this does not distinguish failing from finishing *)
-Definition arch_multi_exec'_def:
- (arch_multi_exec' actx ((aenv, g_scope_list, arch_frame_list, status):'a astate) 0 =
-  SOME (aenv, g_scope_list, arch_frame_list, status))
-  /\
- (arch_multi_exec' actx (aenv, g_scope_list, arch_frame_list, status) (SUC fuel) =
-  case arch_exec' actx (aenv, g_scope_list, arch_frame_list, status) of
-  | SOME (aenv', g_scope_list', arch_frame_list', status') =>
-   arch_multi_exec' actx (aenv', g_scope_list', arch_frame_list', status') fuel
-  | NONE => SOME (aenv, g_scope_list, arch_frame_list, status))
 End
 
 fun mk_v_bitii' (num, width) =
@@ -270,12 +255,6 @@ val _ = translate FOLDL_MATCH_def;
 val _ = translate ctrl_check_ttl_def;
 val _ = translate vss_apply_table_f_def;
 
-val _ = translate header_is_valid_def;
-
-val _ = translate header_set_valid_def;
-
-val _ = translate header_set_invalid_def;
-
 val _ = translate vss_ascope_update_v_map_def;
 val _ = translate verify_gen_def;
 val _ = translate vss_verify;
@@ -293,49 +272,44 @@ val _ = translate Checksum16_update'_def;
 
 val _ = translate add_with_carry'_def;
 val _ = translate add_ones_complement'_def;
-val _ = translate compute_checksum16'_def;
+val _ = translate compute_checksum16'_inner_def;
 val _ = translate all_lists_length_16_def;
-val _ = translate ALOOKUP'_inner_def;
-(* TODO: Clean up proof *)
-Theorem alookup'_inner_side:
-!v1. alookup'_inner_side v1
+val _ = translate compute_checksum16'_def;
+Theorem compute_checksum16'_side:
+!v1. compute_checksum16'_side v1
 Proof
-simp[Once $ definition "alookup'_inner_side_def"] \\
+simp[Once $ definition "compute_checksum16'_side_def"] \\
 Induct >- (
- simp[Once $ theorem "compute_checksum16'_side_def", all_lists_length_16_def]
+ simp[Once $ theorem "compute_checksum16'_inner_side_def", all_lists_length_16_def]
 ) \\
 rpt strip_tac \\
-gs[all_lists_length_16_def] \\
-gs[Once $ theorem "compute_checksum16'_side_def"] \\
+gs[all_lists_length_16_def, Once $ theorem "compute_checksum16'_inner_side_def"] \\
 Cases_on ‘v1’ >- (
- simp[theorem "compute_checksum16'_side_def"] \\
- gs[compute_checksum16'_def, Once $ definition "add_ones_complement'_side_def",
+ gs[theorem "compute_checksum16'_inner_side_def",
+    compute_checksum16'_inner_def, Once $ definition "add_ones_complement'_side_def",
     Once $ definition "add_with_carry'_side_def"] \\
- rpt strip_tac >- (
-  gs[]
- ) >- (
-  gs[bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def, listTheory.PAD_LEFT]
- ) >- (
-  gs[]
- ) \\
- gs[bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def, listTheory.PAD_LEFT]
+ rpt strip_tac \\ (
+  gs[bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def,
+     listTheory.PAD_LEFT]
+ ) 
 ) \\
 qpat_x_assum ‘!x2 x1. _’ (fn thm => ASSUME_TAC $ Q.SPECL [‘h'’, ‘t’] thm) \\
-simp[Once $ theorem "compute_checksum16'_side_def", all_lists_length_16_def] \\
-simp[Once $ definition "add_ones_complement'_side_def", Once $ definition "add_with_carry'_side_def"] \\
+simp[Once $ theorem "compute_checksum16'_inner_side_def",
+     Once $ definition "add_ones_complement'_side_def",
+     Once $ definition "add_with_carry'_side_def"] \\
 rpt strip_tac >- (
  gs[]
 ) >- (
- gs[compute_checksum16'_def, add_ones_complement'_def, add_with_carry'_def, AllCaseEqs(), bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def, listTheory.PAD_LEFT]
+ gs[compute_checksum16'_inner_def, add_ones_complement'_def, add_with_carry'_def, AllCaseEqs(), bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def, listTheory.PAD_LEFT]
 ) >- (
  gs[]
 ) >- (
  gs[bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def, listTheory.PAD_LEFT]
 ) \\
-simp[Once $ theorem "compute_checksum16'_side_def", all_lists_length_16_def]
+simp[Once $ theorem "compute_checksum16'_inner_side_def"]
 QED
-val _ = update_precondition alookup'_inner_side;
-val _ = translate ALOOKUP'_def;
+val _ = update_precondition compute_checksum16'_side;
+val _ = translate ALOOKUP_compute_checksum16'_def;
 val _ = translate Checksum16_get'_def;
 
 val _ = translate vss_ascope_update_def;

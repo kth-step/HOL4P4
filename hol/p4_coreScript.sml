@@ -223,7 +223,8 @@ Definition set_v_def:
   | SOME (res, t') => SOME res
   | NONE => NONE) /\
  (set_v (v_struct x_v_l)  packet_in = (set_struct x_v_l packet_in)) /\
- (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in))
+ (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in)) /\
+ (set_v _ packet_in = NONE)
 End
 
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)

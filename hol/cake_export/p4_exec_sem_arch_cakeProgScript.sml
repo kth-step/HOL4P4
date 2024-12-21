@@ -3,8 +3,7 @@ open HolKernel boolLib Parse bossLib;
 val _ = new_theory "p4_exec_sem_arch_cakeProg";
 
 open p4Syntax;
-open p4Theory;
-open p4_auxTheory;
+open p4Theory p4_auxTheory p4_coreTheory;
 open p4_exec_semTheory;
 
 (* CakeML: *)
@@ -127,15 +126,16 @@ Definition arch_exec'_def:
 (arch_exec' _ _ = NONE)
 End
 
+(* TODO: Note that this does not distinguish failing from finishing *)
 Definition arch_multi_exec'_def:
- (arch_multi_exec' actx (aenv, g_scope_list, arch_frame_list, status) 0 =
+ (arch_multi_exec' actx ((aenv, g_scope_list, arch_frame_list, status):'a astate) 0 =
   SOME (aenv, g_scope_list, arch_frame_list, status))
   /\
  (arch_multi_exec' actx (aenv, g_scope_list, arch_frame_list, status) (SUC fuel) =
   case arch_exec' actx (aenv, g_scope_list, arch_frame_list, status) of
   | SOME (aenv', g_scope_list', arch_frame_list', status') =>
    arch_multi_exec' actx (aenv', g_scope_list', arch_frame_list', status') fuel
-  | NONE => NONE)
+  | NONE => SOME (aenv, g_scope_list, arch_frame_list, status))
 End
 
 Definition p4_get_output_list_def:
@@ -160,6 +160,12 @@ val _ = translate set_fin_status_def;
 val _ = translate arch_exec'_def;
 
 val _ = translate arch_multi_exec'_def;
+
+val _ = translate header_is_valid_def;
+
+val _ = translate header_set_valid_def;
+
+val _ = translate header_set_invalid_def;
 
 val _ = translate p4_append_input_list_def;
 val _ = translate p4_get_output_list_def;
