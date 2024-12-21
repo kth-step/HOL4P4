@@ -10,6 +10,7 @@ To download this release, run in this directory e.g.:
 wget https://github.com/CakeML/cakeml/releases/download/v2702/cake-x64-64.tar.gz
 tar -xvf cake-x64-64.tar.gz -C test/ --strip-components=1
 rm cake-x64-64.tar.gz
+cd test && make cake && cd ..
 ```
 
 Two example programs are featured: a tiny program from the symbolic executor in `p4_conditional_cakeProgScript.sml` and the VSS example in `p4_vss_example_cakeProgScript.sml`. To compile your own programs to binary, use the HOL4P4 import tool to obtain the static environment `actx` and initial state `astate`, then supply a suitably large amount of maximum steps to `n_max`. Your programs may feature additional externs which have not been translated yet - in that case, you will have to add the translations in the corresponding `p4_exec_sem_ARCH_cakeProgScript.sml`, where "`ARCH`" is replaced by your architecture.

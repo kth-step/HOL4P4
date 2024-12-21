@@ -1,7 +1,7 @@
 # includes
 # ----------------------------------
 
-CAKEMLDIR = ../../../../../installed-git-repos/cakeml
+CAKEMLDIR = ../../cakeml
 
 DEPENDENCIES   = .. \
  $(CAKEMLDIR)/misc \

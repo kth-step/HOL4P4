@@ -20,6 +20,7 @@ val _ = (max_print_depth := 100);
 
 (* V1Model architecture functions *)
 
+(* Uses assign' *)
 Definition v1model_postparser'_def:
  v1model_postparser' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   (case ALOOKUP v_map "b" of
@@ -78,6 +79,7 @@ val v1model_standard_metadata_zeroed' =
     (“"priority"”, mk_v_bitii' (0, 3))],
    “:(string # p4$v)”);
 
+(* Avoids some word stuff *)
 Definition v1model_input_f'_def:
  (v1model_input_f' (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   case io_list of
@@ -98,7 +100,7 @@ Definition v1model_input_f'_def:
     SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope))
 End
 
-
+(* init_out_v_cake is used for unknown values *)
 Definition v1model_reduce_nonout'_def:
  (v1model_reduce_nonout' ([], elist, v_map) =
   SOME []
@@ -119,6 +121,7 @@ Definition v1model_reduce_nonout'_def:
  (v1model_reduce_nonout' (_, _, v_map) = NONE)
 End
 
+(* Uses the above and copyin' *)
 Definition v1model_copyin_pbl'_def:
  v1model_copyin_pbl' (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   case v1model_reduce_nonout' (dlist, elist, v_map) of
@@ -130,12 +133,14 @@ Definition v1model_copyin_pbl'_def:
   | NONE => NONE
 End
 
+(* Uses update_return_frame' *)
 Definition copyout_pbl_gen'_def:
  copyout_pbl_gen' xlist dlist g_scope_list v_map =
   let v_map_scope = v_map_to_scope v_map in
    update_return_frame' xlist dlist [v_map_scope] g_scope_list
 End
 
+(* Uses the above *)
 Definition v1model_copyout_pbl'_def:
  v1model_copyout_pbl' (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope, dlist, xlist, (status:status)) =
   case copyout_pbl_gen' xlist dlist g_scope_list v_map of
@@ -185,7 +190,7 @@ Definition v1model_packet_in_extract_gen_def:
   | _ => NONE
  )
 End
-
+(* TODO: See above *)
 Definition v1model_packet_in_extract'_def:
  v1model_packet_in_extract':((num #
   (num # (core_v_ext + v1model_v_ext)) list #
@@ -200,25 +205,13 @@ Definition v1model_packet_in_extract'_def:
   (varn # p4$v # lval option) list list # status) option) = v1model_packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
-(* TODO: Move to p4_exec_sem_arch_cakeProg, since it's not architecture-specific *)
-(* TODO: Note that this does not distinguish failing from finishing *)
-Definition arch_multi_exec'_def:
- (arch_multi_exec' actx ((aenv, g_scope_list, arch_frame_list, status):'a astate) 0 =
-  SOME (aenv, g_scope_list, arch_frame_list, status))
-  /\
- (arch_multi_exec' actx (aenv, g_scope_list, arch_frame_list, status) (SUC fuel) =
-  case arch_exec' actx (aenv, g_scope_list, arch_frame_list, status) of
-  | SOME (aenv', g_scope_list', arch_frame_list', status') =>
-   arch_multi_exec' actx (aenv', g_scope_list', arch_frame_list', status') fuel
-  | NONE => SOME (aenv, g_scope_list, arch_frame_list, status))
-End
-
-
 val _ = translation_extends "p4_exec_sem_arch_cakeProg";
 
 val _ = ml_prog_update (open_module "p4_exec_sem_v1model_cake");
 
 val _ = translate arch_multi_exec'_def;
+
+(* Architectural functions: *)
 
 val _ = translate v_map_to_scope_def;
 val _ = translate oCONS_def;
@@ -244,17 +237,15 @@ val _ = translate listTheory.LIST_TO_SET_DEF;
 val _ = translate boolTheory.IN_DEF;
 val _ = translate v1model_apply_table_f_def;
 
-val _ = translate header_is_valid_def;
-
-val _ = translate header_set_valid_def;
-
-val _ = translate header_set_invalid_def;
+(* Extern implementations: *)
 
 val _ = translate v1model_mark_to_drop_def;
 
 val _ = translate v1model_ascope_update_v_map_def;
 val _ = translate verify_gen_def;
 val _ = translate v1model_verify_def;
+
+(* TODO: verify_checksum, update_checksum *)
 
 val _ = translate lookup_lval_header_def;
 val _ = translate lookup_ascope_gen_def;
@@ -270,9 +261,30 @@ val _ = translate v1model_packet_in_extract_gen_def;
 val _ = translate v1model_ascope_lookup_def;
 val _ = translate v1model_packet_in_extract'_def;
 
+val _ = translate set_struct_def;
+val _ = translate set_v_def;
+val _ = translate packet_in_lookahead_gen_def;
+val _ = translate v1model_packet_in_lookahead_def;
+
+val _ = translate lookup_lval_bit32_def;
+val _ = translate packet_in_advance_gen_def;
+val _ = translate v1model_packet_in_advance_def;
+
 val _ = translate flatten_v_l_def;
 val _ = translate packet_out_emit_gen_def;
 val _ = translate v1model_packet_out_emit_def;
+
+(* TODO: The below is defined in terms of functions that uses ARB... *)
+(*
+val _ = translate v1model_register_construct_inner_def;
+val _ = translate register_construct_def;
+
+val _ = translate v1model_register_read_inner_def;
+val _ = translate register_read_def;
+*)
+
+val _ = translate v1model_register_write_inner_def;
+val _ = translate register_write_def;
 
 val _ = ml_prog_update (close_module NONE);
 
