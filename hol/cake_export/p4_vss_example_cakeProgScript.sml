@@ -14,9 +14,7 @@ open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory ml
      astPP comparisonTheory;
 
 open p4_exec_sem_vss_cakeProgTheory;
-(*
-open fromSexpTheory;
-*)
+
 val _ = intLib.deprecate_int();
 val _ = (max_print_depth := 100);
 
@@ -298,16 +296,16 @@ val vss_actx =
      [("",NONE,[("verify",[("condition",d_in); ("err",d_in)],vss_verify)]);
       ("packet_in",NONE,
        [("extract",[("this",d_in); ("headerLvalue",d_out)],
-         vss_packet_in_extract')(* ;
+         vss_packet_in_extract)(* ;
         ("lookahead",[("this",d_in); ("dummy_T",d_in)],
          vss_packet_in_lookahead);
         ("advance",[("this",d_in); ("bits",d_in)],vss_packet_in_advance) *)]);
       ("packet_out",NONE,
        [("emit",[("this",d_in); ("data",d_in)],vss_packet_out_emit)]);
-      ("Checksum16",SOME ([("this",d_out)],Checksum16_construct'),
-       [("clear",[("this",d_in)],Checksum16_clear');
-        ("update",[("this",d_in); ("data",d_in)],Checksum16_update');
-        ("get",[("this",d_in)],Checksum16_get')])],
+      ("Checksum16",SOME ([("this",d_out)],Checksum16_construct),
+       [("clear",[("this",d_in)],Checksum16_clear);
+        ("update",[("this",d_in); ("data",d_in)],Checksum16_update);
+        ("get",[("this",d_in)],Checksum16_get)])],
      [("NoAction",stmt_ret (e_v v_bot),[])]):vss_ascope actx”
 
 (* TODO: Apart from the table and extern configurations, this seems close to a generic P4 initial state *)
@@ -337,35 +335,6 @@ val vss_astate = “((0,
 val n_max = “180:num”;
 
 (*
-(*************************)
-(* Generic wrapper parts *)
-
-Definition vss_exec_def:
- vss_exec input =
-  case
-   arch_multi_exec' ^vss_actx
-    (p4_append_input_list [input] ^vss_astate) ^n_max of
-  | SOME res => SOME $ p4_get_output_list res
-  | NONE => NONE
-End
-
-val _ = translate p4_append_input_list_def;
-val _ = translate p4_get_output_list_def;
-val _ = translate vss_exec_def;
-
-(*
-
-exception ParseError of string;
-
-fun parse_bool_list l =
-   case l of
-     [] => []
-   | h::t =>
-    if h = #"0"
-    then (F::(parse_bool_list t))
-    else if h = #"1"
-    then (T::(parse_bool_list t))
-    else raise ParseError ("Error: packet (first command-line argument) should be specified using only 0s and 1s to signify bits.\n");
 
 fun deparse_bool_list l =
    case l of
@@ -405,89 +374,6 @@ EVAL “vss_exec ^input”
 
 val bl_input = String.implode $ deparse_bool_list $ fst $ listSyntax.dest_list bl_input_tm
 
-Definition vss_exec_old_def:
- vss_exec_old input =
-  case
-   arch_multi_exec ^vss_actx
-    (p4_append_input_list [input] ^vss_astate) ^n_max of
-  | SOME res => SOME $ p4_get_output_list res
-  | NONE => NONE
-End
-
-EVAL “vss_exec_old ^input”
-
-*)
-
-
-(* TODO: Change this to Quote cakeml: syntax? *)
-val _ = append_prog o process_topdecs $ 
- ‘exception ParseError string;’
-;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun parse_bool_list l =
-   case l of
-     [] => []
-   | h::t =>
-    if h = #"0"
-    then (False::(parse_bool_list t))
-    else if h = #"1"
-    then (True::(parse_bool_list t))
-    else raise ParseError ("Error: packet (first command-line argument) should be specified using only 0s and 1s to signify bits.\n")
- ;
-’;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun deparse_bool_list l =
-   case l of
-     [] => []
-   | h::t =>
-    if h
-    then (#"T"::(deparse_bool_list t))
-    else (#"F"::(deparse_bool_list t))
- ;’;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun print_output_packets l =
-   case l of
-     [] => ()
-   | (out_bl, out_port)::t =>
-    let
-     val out_packet_string = String.implode (deparse_bool_list out_bl)
-    in
-     print(out_packet_string ^ " at port "); print_int out_port; print "\n"; print_output_packets t
-    end
- ;’;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun main () =
-   let
-     val packet_arg::rest = (CommandLine.arguments())
-     val port_arg = List.hd rest
-
-     val bl = parse_bool_list (String.explode packet_arg)
-     val in_port = Option.valOf (Int.fromString port_arg)
-     val in_packet_string = String.implode (deparse_bool_list bl)
-   in
-    (case vss_exec (bl, in_port) of
-       None => raise ParseError ("Error: execution result is None.\n")
-     | Some output_packets =>
-       (print ("Input packet was: " ^ in_packet_string ^ " at port "); print_int in_port; print "\n";
-       print "Output packet(s) are: "; print_output_packets output_packets))
-   end
-   handle ParseError parse_err_msg => TextIO.print_err parse_err_msg
-   handle _ =>
-     TextIO.print_err ("Usage: " ^ CommandLine.name() ^ " <n>\n");’;
-
-(* TODO: Can this be replaced with something more short-handish? *)
-val prog =
- “SNOC
-   (Dlet unknown_loc (Pcon NONE [])
-    (App Opapp [Var (Short "main"); Con NONE []]))
-    ^(get_ml_prog_state() |> get_prog)”
-  |> EVAL |> concl |> rhs;
-
-val _ = astToSexprLib.write_ast_to_file "vss_example.sexp" prog;
 *)
 
 p4_cake_wrapperLib.translate_p4 "vss_example" vss_actx vss_astate n_max;

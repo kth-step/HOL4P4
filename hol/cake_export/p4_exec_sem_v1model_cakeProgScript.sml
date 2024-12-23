@@ -151,65 +151,9 @@ Definition v1model_copyout_pbl'_def:
   | _ => NONE
 End
 
-(* TODO: This is the same as the regular version, but with types specialised for V1Model.
- *       The regular version gives side conditions, for some reason... *)
-Definition v1model_packet_in_extract_gen_def:
- (v1model_packet_in_extract_gen ascope_lookup (ascope_update:num #
-    (num # (core_v_ext + v1model_v_ext)) list #
-    (string # p4$v) list #
-    (string # (((e list -> bool) # num) # string # e list) list) list ->
-    num ->
-    core_v_ext + v1model_v_ext ->
-    num #
-    (num # (core_v_ext + v1model_v_ext)) list #
-    (string # p4$v) list #
-    (string # (((e list -> bool) # num) # string # e list) list) list) ascope_update_v_map (ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval' scope_list (lval_varname (varn_name "this")) of
-  | SOME (v_ext_ref i) =>
-   (case lookup_lval_header scope_list (lval_varname (varn_name "headerLvalue")) of
-    | SOME (valid_bit, x_v_l) =>
-     (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, v1model_v_ext) sum) =>
-       (case size_in_bits (v_header valid_bit x_v_l) of
-        | SOME size' =>
-         if arithmetic$<= size' (LENGTH packet_in_bl)
-         then
-          (case set_header x_v_l packet_in_bl of
-           | SOME header =>
-            (case assign' scope_list header (lval_varname (varn_name "headerLvalue")) of
-             | SOME scope_list' =>
-              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size' packet_in_bl))):(core_v_ext, v1model_v_ext) sum), scope_list', status_returnv v_bot)
-             | NONE => NONE)
-           | NONE => NONE)
-         else
-          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, v1model_v_ext) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
-        | NONE => NONE)
-       | _ => NONE)
-    | NONE => NONE)
-  | _ => NONE
- )
-End
-(* TODO: See above *)
-Definition v1model_packet_in_extract'_def:
- v1model_packet_in_extract':((num #
-  (num # (core_v_ext + v1model_v_ext)) list #
-  (string # p4$v) list #
-  (string # (((e list -> bool) # num) # string # e list) list) list) #
- (varn # p4$v # lval option) list list #
- (varn # p4$v # lval option) list list ->
- ((num #
-   (num # (core_v_ext + v1model_v_ext)) list #
-   (string # p4$v) list #
-   (string # (((e list -> bool) # num) # string # e list) list) list) #
-  (varn # p4$v # lval option) list list # status) option) = v1model_packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
-End
-
 val _ = translation_extends "p4_exec_sem_arch_cakeProg";
 
 val _ = ml_prog_update (open_module "p4_exec_sem_v1model_cake");
-
-val _ = translate arch_multi_exec'_def;
 
 (* Architectural functions: *)
 
@@ -257,9 +201,8 @@ val _ = translate set_fields_def;
 val _ = translate set_header_def;
 val _ = translate update_ascope_gen_def;
 val _ = translate packet_in_extract_gen_def;
-val _ = translate v1model_packet_in_extract_gen_def;
 val _ = translate v1model_ascope_lookup_def;
-val _ = translate v1model_packet_in_extract'_def;
+val _ = translate v1model_packet_in_extract_def;
 
 val _ = translate set_struct_def;
 val _ = translate set_v_def;

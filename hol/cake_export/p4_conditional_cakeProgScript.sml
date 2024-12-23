@@ -110,7 +110,7 @@ val symb_exec1_actx = ``([arch_block_inp;
       ("algo",d_none)],v1model_update_checksum) *) ]);
   ("packet_in",NONE,
    [("extract",[("this",d_in); ("headerLvalue",d_out)],
-     v1model_packet_in_extract')]);
+     v1model_packet_in_extract)]);
   ("packet_out",NONE,
    [("emit",[("this",d_in); ("data",d_in)],v1model_packet_out_emit)]) (* ;
   ("register",
@@ -147,35 +147,6 @@ val symb_exec1_astate = “((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v
 val n_max = “45:num”;
 
 (*
-(*************************)
-(* Generic wrapper parts *)
-
-Definition symb_exec1_exec_def:
- symb_exec1_exec input =
-  case
-   arch_multi_exec' ^symb_exec1_actx
-    (p4_append_input_list [input] ^symb_exec1_astate) ^n_max of
-  | SOME res => SOME $ p4_get_output_list res
-  | NONE => NONE
-End
-
-val _ = translate p4_append_input_list_def;
-val _ = translate p4_get_output_list_def;
-val _ = translate symb_exec1_exec_def;
-
-(*
-
-exception ParseError of string;
-
-fun parse_bool_list l =
-   case l of
-     [] => []
-   | h::t =>
-    if h = #"0"
-    then (F::(parse_bool_list t))
-    else if h = #"1"
-    then (T::(parse_bool_list t))
-    else raise ParseError ("Error: packet (first command-line argument) should be specified using only 0s and 1s to signify bits.\n");
 
 fun deparse_bool_list l =
    case l of
@@ -200,89 +171,6 @@ EVAL “symb_exec1_exec ^input”
 
 val bl_input = String.implode $ deparse_bool_list $ fst $ listSyntax.dest_list bl_input_tm
 
-Definition symb_exec1_exec_old_def:
- symb_exec1_exec_old input =
-  case
-   arch_multi_exec ^symb_exec1_actx
-    (p4_append_input_list [input] ^symb_exec1_astate) ^n_max of
-  | SOME res => SOME $ p4_get_output_list res
-  | NONE => NONE
-End
-
-EVAL “symb_exec1_exec_old ^input”
-
-*)
-
-
-(* TODO: Change this to Quote cakeml: syntax? *)
-val _ = append_prog o process_topdecs $ 
- ‘exception ParseError string;’
-;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun parse_bool_list l =
-   case l of
-     [] => []
-   | h::t =>
-    if h = #"0"
-    then (False::(parse_bool_list t))
-    else if h = #"1"
-    then (True::(parse_bool_list t))
-    else raise ParseError ("Error: packet (first command-line argument) should be specified using only 0s and 1s to signify bits.\n")
- ;
-’;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun deparse_bool_list l =
-   case l of
-     [] => []
-   | h::t =>
-    if h
-    then (#"T"::(deparse_bool_list t))
-    else (#"F"::(deparse_bool_list t))
- ;’;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun print_output_packets l =
-   case l of
-     [] => ()
-   | (out_bl, out_port)::t =>
-    let
-     val out_packet_string = String.implode (deparse_bool_list out_bl)
-    in
-     print(out_packet_string ^ " at port "); print_int out_port; print "\n"; print_output_packets t
-    end
- ;’;
-
-val _ = append_prog o process_topdecs $ 
- ‘fun main () =
-   let
-     val packet_arg::rest = (CommandLine.arguments())
-     val port_arg = List.hd rest
-
-     val bl = parse_bool_list (String.explode packet_arg)
-     val in_port = Option.valOf (Int.fromString port_arg)
-     val in_packet_string = String.implode (deparse_bool_list bl)
-   in
-    (case symb_exec1_exec (bl, in_port) of
-       None => raise ParseError ("Error: execution result is None.\n")
-     | Some output_packets =>
-       (print ("Input packet was: " ^ in_packet_string ^ " at port "); print_int in_port; print "\n";
-       print "Output packet(s) are: "; print_output_packets output_packets))
-   end
-   handle ParseError parse_err_msg => TextIO.print_err parse_err_msg
-   handle _ =>
-     TextIO.print_err ("Usage: " ^ CommandLine.name() ^ " <n>\n");’;
-
-(* TODO: Can this be replaced with something more short-handish? *)
-val prog =
- “SNOC
-   (Dlet unknown_loc (Pcon NONE [])
-    (App Opapp [Var (Short "main"); Con NONE []]))
-    ^(get_ml_prog_state() |> get_prog)”
-  |> EVAL |> concl |> rhs;
-
-val _ = astToSexprLib.write_ast_to_file "conditional_test.sexp" prog;
 *)
 
 p4_cake_wrapperLib.translate_p4 "conditional_example" symb_exec1_actx symb_exec1_astate n_max;
