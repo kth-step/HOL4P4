@@ -71,7 +71,7 @@ End
 Definition Checksum16_construct_def:
  (Checksum16_construct ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum ([]:(bool list) list))) in
-  (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+  (case assign' scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
     SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
    | NONE => NONE)
@@ -84,7 +84,7 @@ End
 
 Definition Checksum16_clear_def:
  (Checksum16_clear ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:(bool list) list))), v_map, ctrl), scope_list, status_returnv v_bot)
   | _ => NONE
@@ -138,7 +138,7 @@ End
 (* Note that this assumes the order of fields in the header is correct *)
 Definition Checksum16_update_def:
  (Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
@@ -154,56 +154,6 @@ End
 
 (*******)
 (* get *)
-
-(* TODO: carry_in hard-coded as false *)
-(* TODO: This is the bitvector version of the function on words *)
-(* TODO: Would be nice if this function could be made total *)
-(*
-Definition add_with_carry'_def:
- add_with_carry' (x,y) =
-  case (x,y) of
-  | ([],[]) => NONE
-  | ([],_) => NONE
-  | (_,[]) => NONE
-  | _ =>
-   let
-    unsigned_sum = v2n x + v2n y;
-    result = fixwidth 16 $ n2v unsigned_sum;
-    carry_out = (v2n result <> unsigned_sum) and
-    overflow =
-      ((HD x <=> HD y) /\ (HD x <=/=> HD result))
-   in
-    SOME (result,carry_out,overflow)
-End
-
-(* TODO: This is the bitvector version of the function on words *)
-Definition add_ones_complement'_def:
- add_ones_complement' (x, y) =
-  case add_with_carry' (x, y) of
-  | SOME (result,carry_out,overflow) =>
-   if carry_out
-   then SOME $ fixwidth 16 $ n2v (v2n result + 1)
-   else SOME result
-  | NONE => NONE
-End
-
-Definition sub_ones_complement'_def:
- sub_ones_complement' (x, y) =
-  case add_with_carry' (x, MAP $~ y) of
-  | SOME (result,carry_out,overflow) =>
-   if carry_out
-   then SOME $ fixwidth 16 $ n2v (v2n result + 1)
-   else SOME $ MAP $~ result
-  | NONE => NONE
-End
-
-Definition compute_checksum16'_def:
- compute_checksum16' (w16_list:(bool list) list) = 
-  case (FOLDR (\a b_opt. case b_opt of SOME b => (add_ones_complement' (a,b)) | NONE => NONE) (SOME (fixwidth 16 $ n2v 0)) w16_list) of
-  | SOME res => SOME $ MAP $~ res
-  | NONE => NONE
-End
-*)
 
 (* TODO: carry_in hard-coded as false *)
 (* TODO: This is the bitvector version of the function on words *)
@@ -240,9 +190,11 @@ Definition sub_ones_complement'_def:
    else MAP $~ result
 End
 
-Definition compute_checksum16'_def:
- compute_checksum16' (w16_list:(bool list) list) = 
-  MAP $~  (FOLDR (CURRY add_ones_complement') (fixwidth 16 $ n2v 0) w16_list)
+Definition compute_checksum16_inner_def:
+ (compute_checksum16_inner ([]:(bool list) list) = (fixwidth 16 $ n2v 0)) /\
+ (compute_checksum16_inner ((h::t):(bool list) list) =
+  add_ones_complement' (h, compute_checksum16_inner (t:(bool list) list))
+ )
 End
 
 Definition all_lists_length_16_def:
@@ -253,16 +205,29 @@ Definition all_lists_length_16_def:
    else F)
 End
 
+Definition compute_checksum16_def:
+ compute_checksum16 ipv4_checksum =
+  if all_lists_length_16 ipv4_checksum
+  then
+   SOME $ MAP $~ $ compute_checksum16_inner ipv4_checksum
+  else NONE
+End
+
+Definition ALOOKUP_compute_checksum16_def:
+ ALOOKUP_compute_checksum16 alist el =
+  case ALOOKUP alist el of
+   | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
+    compute_checksum16 ipv4_checksum
+   | _ => NONE
+End
+
 Definition Checksum16_get_def:
  (Checksum16_get ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
-  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  case lookup_lval' scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   (case ALOOKUP ext_obj_map i of
-    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     if all_lists_length_16 ipv4_checksum
-     then
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (compute_checksum16' ipv4_checksum, 16)))
-     else NONE
+   (case ALOOKUP_compute_checksum16 ext_obj_map i of
+    | SOME ipv4_checksum' =>
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (ipv4_checksum', 16)))
     | _ => NONE)
   | _ => NONE
  )

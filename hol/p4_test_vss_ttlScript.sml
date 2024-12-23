@@ -97,7 +97,7 @@ val init_astate =
 (***************************************)
 
 val ctx = ``p4_vss_actx``;
-val stop_consts_rewr = [``compute_checksum16'``];
+val stop_consts_rewr = [``compute_checksum16``];
 Definition vss_updated_checksum16'_def:
  vss_updated_checksum16' (w16_list:bool list) = 
   MAP $~ (sub_ones_complement' ([T; T; T; T; T; T; T; F; T; T; T; T; T; T; T; T], w16_list))
@@ -105,7 +105,7 @@ End
 val stop_consts_never = [``vss_updated_checksum16'``];
 
 val ass1 =
- ``compute_checksum16'
+ ``compute_checksum16
     [[F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
 	  dscp4; dscp5; ecn0; ecn1];
      [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
@@ -122,11 +122,11 @@ val ass1 =
      [src16; src17; src18; src19; src20; src21; src22; src23;
 	  src24; src25; src26; src27; src28; src29; src30; src31];
      [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]``;
+     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = SOME [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]``;
 
 (* New result due to updated TTL value: same as if 0x0100 and the previous checksum was no longer added to the sum *)
 val ass2 =
- ``compute_checksum16'
+ ``compute_checksum16
     [[F; T; F; F; F; T; F; T; dscp0; dscp1; dscp2; dscp3;
 	  dscp4; dscp5; ecn0; ecn1];
      [F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F];
@@ -142,7 +142,7 @@ val ass2 =
      [src16; src17; src18; src19; src20; src21; src22; src23;
 	  src24; src25; src26; src27; src28; src29; src30; src31];
      [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F];
-     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = vss_updated_checksum16' [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
+     [F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F]] = SOME $ vss_updated_checksum16' [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``;
 val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 
 (*************************************************)
