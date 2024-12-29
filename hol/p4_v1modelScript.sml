@@ -34,7 +34,7 @@ Datatype:
  (* From IPSec example *)
  | v1model_v_ext_ipsec_crypt
 End
-val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
+val _ = type_abbrev("v1model_sum_v_ext", “:(core_v_ext, v1model_v_ext) sum”);
 
 (* The control plane representation:
 
@@ -45,10 +45,10 @@ val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
      (* the action of a table entry: string is action name, e_list is arguments *)
      string # e_list) alist) alist``)
 *)
-val _ = type_abbrev("v1model_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+val _ = type_abbrev("v1model_ctrl", “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”);
 
 (* The architectural state type of the V1Model architecture model *)
-val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl)``);
+val _ = type_abbrev("v1model_ascope", “:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl)”);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -122,6 +122,28 @@ Definition v1model_mark_to_drop_def:
       SOME (v1model_ascope, scope_list'', status_returnv v_bot)
      | NONE => NONE)
    | NONE => NONE
+End
+
+(* TODO: Need new functionality to exit pipeline immediately... Currently, this will just return NONE instead *)
+Definition v1model_assert_def:
+ v1model_assert (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval' scope_list (lval_varname (varn_name "check")) of
+   | SOME $ v_bool b =>
+    (if b
+     then SOME (v1model_ascope, scope_list, status_returnv v_bot)
+     else NONE)
+   | _ => NONE
+End
+
+(* Assumptions also cause the program to fail when not holding apparently... *)
+Definition v1model_assume_def:
+ v1model_assume (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval' scope_list (lval_varname (varn_name "check")) of
+   | SOME $ v_bool b =>
+    (if b
+     then SOME (v1model_ascope, scope_list, status_returnv v_bot)
+     else NONE)
+   | _ => NONE
 End
 
 (**********************)
@@ -234,7 +256,7 @@ Definition v1model_verify_checksum_def:
  )
 End
 
-(*************************)
+(*******************)
 (* update_checksum *)
 
 Definition v1model_update_checksum_inner_def:

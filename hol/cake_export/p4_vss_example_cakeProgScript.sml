@@ -16,7 +16,7 @@ open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory ml
 open p4_exec_sem_vss_cakeProgTheory;
 
 val _ = intLib.deprecate_int();
-val _ = (max_print_depth := 100);
+val _ = (max_print_depth := 1000);
 
 val _ = translation_extends "p4_exec_sem_vss_cakeProg";
 
@@ -332,7 +332,7 @@ val vss_astate = “((0,
             ("action_run",v_bit (REPLICATE 32 F,32))],NONE)]],
       arch_frame_list_empty,status_running):vss_ascope astate”;
 
-val n_max = “180:num”;
+val n_max = “205:num”;
 
 (*
 
@@ -345,32 +345,44 @@ fun deparse_bool_list l =
     else (#"0"::(deparse_bool_list t))
  ;
 
-(* From VSS TTL example, with symbolic bits made concrete with arbitrary values *)
-val input = “([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; T; F; F; F; F; F; F; F; F; F;
-          F; F; F; T; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F; F; F; F; F; F; T; F; T; F; F;
-          F; F; F; F; F; F; F; T; F; T; F; F; F;
-          F; F; F; F; F; F; F; T; F; T; F; F; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; F;
-          F; F; F; F; F; F; F; T; F; T; F; F; F;
-          F; F; F; F; F; F; F; T; F; T; F;
-          F; F; F; F; F; F; F; T; F; T;
-          F; F; F; F; F; F; F; T; F;
-          F; F; F; F; F; F; F; T; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-          F; F],1:num)”;
+(* Code from VSS example, generating input *)
+val input_port_ok = ``1:num``;
+val input_data_ok = listSyntax.mk_list ([], bool);
+val input_ttl_ok = 1;
+val input_ipv4_ok = p4_testLib.mk_ipv4_packet_ok input_data_ok input_ttl_ok;
+val input_ok = p4_testLib.mk_eth_frame_ok input_ipv4_ok;
+
+(* From VSS TTL example, with symbolic bits made concrete with zeroed values *)
+val input = “([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F; F; T; F; F; F; T; F; T;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; F; F; F; F; F; F; F;
+     T; F; T; T; T; F; F; T; T; T; T; F; T; F; T; T; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+     F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],1:num)”;
 val bl_input_tm = fst $ dest_pair input
 
 (* Entire state after a number of steps *)
-EVAL “arch_multi_exec ^vss_actx (p4_append_input_list [^input] ^vss_astate) 120”
 
-EVAL “vss_exec ^input”
+EVAL “arch_multi_exec ^vss_actx (p4_append_input_list [^input] ^vss_astate) 181”
+
+  val cake_top_exec_def =
+   Define
+    ‘cake_top_exec input =
+      case
+       arch_multi_exec' ^vss_actx
+	(p4_append_input_list [input] ^vss_astate) ^n_max of
+      | SOME res => SOME $ p4_get_output_list res
+      | NONE => NONE’;
+
+EVAL “cake_top_exec ^input”
+EVAL “arch_multi_exec' ^vss_actx (p4_append_input_list [^input] ^vss_astate) ^n_max”
 
 val bl_input = String.implode $ deparse_bool_list $ fst $ listSyntax.dest_list bl_input_tm
 
