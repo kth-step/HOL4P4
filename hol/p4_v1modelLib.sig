@@ -42,9 +42,4 @@ val is_v1model_register_write_inner : term -> bool
 val mk_v1model_register_write_inner : term * term * term -> term
 val v1model_register_write_inner_tm : term
 
-val dest_v1model_update_checksum_inner : term -> term
-val is_v1model_update_checksum_inner : term -> bool
-val mk_v1model_update_checksum_inner : term -> term
-val v1model_update_checksum_inner_tm : term
-
 end

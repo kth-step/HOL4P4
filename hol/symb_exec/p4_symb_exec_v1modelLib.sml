@@ -114,19 +114,19 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
 fun approx_v1model_update_checksum p4_symb_arg_prefix fv_index scope_list =
  let
   (* TODO: HOL4P4_CONV? *)
-  val data_bitlist = dest_some $ rhs $ concl $ EVAL “get_checksum_incr' ^scope_list (lval_varname (varn_name "data"))”
+  val data_bitlist = dest_some $ rhs $ concl $ EVAL “get_checksum_incr'' ^scope_list (lval_varname (varn_name "data"))”
 
-  val tm1 = mk_v1model_update_checksum_inner data_bitlist
+  val tm1 = mk_compute_checksum16_inner data_bitlist
 
   val approx_vars = fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, 16)
 
-  val rhs_tm = mk_v_bit $ mk_pair (approx_vars, term_of_int 16)
+  val rhs_tm = mk_some approx_vars
   val goal_tm = mk_disj_list [boolSyntax.list_mk_exists (fst $ dest_list approx_vars, mk_eq (tm1, rhs_tm))]
 
   val approx_thm =
    (* “^goal_tm” *)
    prove(goal_tm,
-    SIMP_TAC std_ss [disj_list_def, v1model_update_checksum_inner_def, p4Theory.v_11, p4Theory.w16_def, w2v_exists]
+    SIMP_TAC std_ss [disj_list_def, compute_checksum16_inner_def, p4Theory.v_11, p4Theory.w16_def, w2v_exists]
    );
  in
   SOME (approx_thm, [fv_index+16])

@@ -552,6 +552,16 @@ Cases_on `is_v e` >| [
 ]
 QED
 
+Theorem oHD_SOME:
+!l h.
+oHD l = SOME h ==>
+HD l = h
+Proof
+Induct >> (
+ fs[listTheory.oHD_thm]
+)
+QED
+
 Theorem e_cast_exec_sound_red:
 !type e c.
 e_exec_sound type e ==>
@@ -580,8 +590,13 @@ Cases_on `is_v e` >| [
   irule ((valOf o find_clause_e_red) "e_cast_bitv") >>
   fs [clause_name_def],
 
+  Cases_on `x` >> (
+   fs[to_bool_cast_exec_def, AllCaseEqs()]
+  ) >>
   irule ((valOf o find_clause_e_red) "e_cast_to_bool") >>
-  fs [clause_name_def]
+  Cases_on `p` >> Cases_on `q` >> (
+   fs [clause_name_def, to_bool_cast_def, oHD_SOME]
+  )
  ],
 
  Cases_on `e_exec ctx g_scope_list scopes_stack e` >> (

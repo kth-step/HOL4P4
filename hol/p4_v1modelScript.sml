@@ -22,11 +22,9 @@ val _ = new_theory "p4_v1model";
 
 val CONTROL_PLANE_API = 0;
 
-(* TODO: v1model uses a checksum in the verify_checksum and update_checksum externs *)
 Datatype:
  v1model_v_ext =
-   v1model_v_ext_ipv4_checksum (word16 list)
- | v1model_v_ext_counter
+   v1model_v_ext_counter
  | v1model_v_ext_direct_counter
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
@@ -229,22 +227,25 @@ Definition v1model_verify_checksum_def:
       | SOME $ v_bit (bl, n) =>
        if v2n bl = 6
        then
-        (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
+        (case get_checksum_incr'' scope_list (lval_varname (varn_name "data")) of
          | SOME checksum_incr =>
           (case lookup_lval' scope_list (lval_varname (varn_name "checksum")) of
            | SOME $ v_bit (bl', n') =>
             if n' = 16
             then
-             (if (v_bit (bl', n')) = (v_bit $ w16 $ compute_checksum16 checksum_incr)
-              then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
-              else
-               (case assign' [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
-                | SOME [v_map_scope] =>
-                 (case scope_to_vmap v_map_scope of
-                  | SOME v_map' =>
-                   SOME ((counter, ext_obj_map, v_map', ctrl), scope_list, status_returnv v_bot)
-                  | NONE => NONE)
-                | _ => NONE))
+             (case compute_checksum16 checksum_incr of
+              | SOME bl'' =>
+               (if (v_bit (bl', n')) = (v_bit (bl'', 16))
+                then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
+                else
+                 (case assign' [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+                  | SOME [v_map_scope] =>
+                   (case scope_to_vmap v_map_scope of
+                    | SOME v_map' =>
+                     SOME ((counter, ext_obj_map, v_map', ctrl), scope_list, status_returnv v_bot)
+                    | NONE => NONE)
+                  | _ => NONE))
+              | _ => NONE)
             else NONE
            | _ => NONE)
          | NONE => NONE)
@@ -259,11 +260,6 @@ End
 (*******************)
 (* update_checksum *)
 
-Definition v1model_update_checksum_inner_def:
- v1model_update_checksum_inner bitlist =
-  v_bit $ w16 $ compute_checksum16 $ v2w16s' bitlist
-End
-
 Definition v1model_update_checksum_def:
  (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval' scope_list (lval_varname (varn_name "condition")) of
@@ -274,16 +270,18 @@ Definition v1model_update_checksum_def:
       | SOME $ v_bit (bl, n) =>
        if v2n bl = 6
        then
-        (case get_checksum_incr' scope_list (lval_varname (varn_name "data")) of
+        (case get_checksum_incr'' scope_list (lval_varname (varn_name "data")) of
          | SOME checksum_incr =>
           (case lookup_lval' scope_list (lval_varname (varn_name "checksum")) of
            | SOME $ v_bit (bl', n') =>
             if n' = 16
             then
-             (* TODO: This can be made total, since we just looked up the checksum *)
-             (case assign' scope_list (v1model_update_checksum_inner checksum_incr) (lval_varname (varn_name "checksum")) of
-              | SOME scope_list' =>
-               SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)             | NONE => NONE)
+             (case compute_checksum16 checksum_incr of
+              | SOME res =>
+               (case assign' scope_list (v_bit (res, 16)) (lval_varname (varn_name "checksum")) of
+                | SOME scope_list' =>
+                 SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)             | NONE => NONE)
+              | NONE => NONE)
             else NONE
            | _ => NONE)
          | NONE => NONE)

@@ -189,14 +189,15 @@ val _ = translate v1model_ascope_update_v_map_def;
 val _ = translate verify_gen_def;
 val _ = translate v1model_verify_def;
 
-(* TODO: verify_checksum, update_checksum *)
+val _ = translate v1model_verify_checksum_def;
+
+val _ = translate v1model_update_checksum_def;
 
 val _ = translate lookup_lval_header_def;
 val _ = translate lookup_ascope_gen_def;
 val _ = translate size_in_bits_def;
 val _ = translate set_bool_def;
 val _ = translate set_bit_def;
-val _ = translate oTAKE_DROP_def;
 val _ = translate set_fields_def;
 val _ = translate set_header_def;
 val _ = translate update_ascope_gen_def;

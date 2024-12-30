@@ -95,46 +95,6 @@ End
 (**********)
 (* update *)
 
-Definition v2w16s'''_def:
- (v2w16s''' [] = SOME []) /\
- (v2w16s''' v =
-  case oTAKE_DROP 16 v of
-  | SOME (taken, left) =>
-   (case v2w16s''' left of
-    | SOME l =>
-     SOME (taken::l)
-    | NONE => NONE)
-  | _ => NONE
- )
-Termination
-WF_REL_TAC `measure LENGTH` >>
-rpt strip_tac >>
-imp_res_tac oTAKE_DROP_SOME >>
-imp_res_tac oDROP_LENGTH >>
-gs[]
-End
-   
-Definition v2w16s''_def:
- (v2w16s'' v = if (LENGTH v) MOD 16 = 0 then (v2w16s''' v) else NONE)
-End
-
-Definition get_checksum_incr''_def:
- (get_checksum_incr'' scope_list ext_data_name =
-   (case lookup_lval' scope_list ext_data_name of
-    | SOME (v_bit (bl, n)) =>
-     if n MOD 16 = 0 then (v2w16s''' bl) else NONE
-    | SOME (v_header vbit f_list) =>
-     (case header_entries2v (INL f_list) of
-      | SOME bl => v2w16s'' bl
-      | NONE => NONE)
-    | SOME (v_struct f_list) =>
-     (case header_entries2v (INL f_list) of
-      | SOME bl => v2w16s'' bl
-      | NONE => NONE)
-    | _ => NONE)
- )
-End
-
 (* Note that this assumes the order of fields in the header is correct *)
 Definition Checksum16_update_def:
  (Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
@@ -154,64 +114,6 @@ End
 
 (*******)
 (* get *)
-
-(* TODO: carry_in hard-coded as false *)
-(* TODO: This is the bitvector version of the function on words *)
-Definition add_with_carry'_def:
- add_with_carry' (x,y) =
-  let
-   unsigned_sum = v2n x + v2n y;
-   result = fixwidth 16 $ n2v unsigned_sum;
-   carry_out = (v2n result <> unsigned_sum) and
-   overflow =
-     ((HD x <=> HD y) /\ (HD x <=/=> HD result))
-  in
-   (result,carry_out,overflow)
-End
-
-(* TODO: This is the bitvector version of the function on words *)
-Definition add_ones_complement'_def:
- add_ones_complement' (x, y) =
-  let
-   (result,carry_out,overflow) = add_with_carry' (x, y)
-  in
-   if carry_out
-   then fixwidth 16 $ n2v (v2n result + 1)
-   else result
-End
-
-Definition sub_ones_complement'_def:
- sub_ones_complement' (x, y) =
-  let
-   (result,carry_out,overflow) = add_with_carry' (x, MAP $~ y)
-  in
-   if carry_out
-   then fixwidth 16 $ n2v (v2n result + 1)
-   else MAP $~ result
-End
-
-Definition compute_checksum16_inner_def:
- (compute_checksum16_inner ([]:(bool list) list) = (fixwidth 16 $ n2v 0)) /\
- (compute_checksum16_inner ((h::t):(bool list) list) =
-  add_ones_complement' (h, compute_checksum16_inner (t:(bool list) list))
- )
-End
-
-Definition all_lists_length_16_def:
- (all_lists_length_16 ([]:(bool list) list) = T) /\
- (all_lists_length_16 (h::t) = 
-   if LENGTH h = 16
-   then all_lists_length_16 t
-   else F)
-End
-
-Definition compute_checksum16_def:
- compute_checksum16 ipv4_checksum =
-  if all_lists_length_16 ipv4_checksum
-  then
-   SOME $ MAP $~ $ compute_checksum16_inner ipv4_checksum
-  else NONE
-End
 
 Definition ALOOKUP_compute_checksum16_def:
  ALOOKUP_compute_checksum16 alist el =

@@ -170,6 +170,57 @@ val _ = translate header_set_invalid_def;
 val _ = translate p4_append_input_list_def;
 val _ = translate p4_get_output_list_def;
 
+(* Common extern functions: *)
+
+val _ = translate oTAKE_DROP_def;
+val _ = translate v2w16s'''_def;
+val _ = translate header_entries2v_def;
+val _ = translate v2w16s''_def;
+val _ = translate get_checksum_incr''_def;
+
+val _ = translate add_with_carry'_def;
+val _ = translate add_ones_complement'_def;
+val _ = translate compute_checksum16_inner_def;
+val _ = translate all_lists_length_16_def;
+val _ = translate compute_checksum16_def;
+Theorem compute_checksum16_side:
+!v1. compute_checksum16_side v1
+Proof
+simp[Once $ definition "compute_checksum16_side_def"] \\
+Induct >- (
+ simp[Once $ theorem "compute_checksum16_inner_side_def", all_lists_length_16_def]
+) \\
+rpt strip_tac \\
+gs[all_lists_length_16_def, Once $ theorem "compute_checksum16_inner_side_def"] \\
+Cases_on ‘v1’ >- (
+ gs[theorem "compute_checksum16_inner_side_def",
+    compute_checksum16_inner_def, Once $ definition "add_ones_complement'_side_def",
+    Once $ definition "add_with_carry'_side_def"] \\
+ rpt strip_tac \\ (
+  gs[bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def,
+     listTheory.PAD_LEFT]
+ ) 
+) \\
+qpat_x_assum ‘!x2 x1. _’ (fn thm => ASSUME_TAC $ Q.SPECL [‘h'’, ‘t’] thm) \\
+simp[Once $ theorem "compute_checksum16_inner_side_def",
+     Once $ definition "add_ones_complement'_side_def",
+     Once $ definition "add_with_carry'_side_def"] \\
+rpt strip_tac >- (
+ gs[]
+) >- (
+ gs[compute_checksum16_inner_def, add_ones_complement'_def, add_with_carry'_def,
+    AllCaseEqs(), bitstringTheory.fixwidth_def, AllCaseEqs(),
+    bitstringTheory.zero_extend_def, listTheory.PAD_LEFT]
+) >- (
+ gs[]
+) >- (
+ gs[bitstringTheory.fixwidth_def, AllCaseEqs(), bitstringTheory.zero_extend_def,
+    listTheory.PAD_LEFT]
+) \\
+simp[Once $ theorem "compute_checksum16_inner_side_def"]
+QED
+val _ = update_precondition compute_checksum16_side;
+
 val _ = ml_prog_update (close_module NONE);
 
 val _ = export_theory ();

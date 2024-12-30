@@ -45,6 +45,14 @@ Definition is_var_def:
  (is_var _ = F)
 End
 
+Definition to_bool_cast_exec_def:
+ to_bool_cast_exec bitv =
+  case oHD $ REVERSE $ FST bitv of
+  | SOME bit => SOME $ v_bool bit
+  | NONE => NONE
+End
+
+
 Definition unop_exec_def:
  (unop_exec unop_neg (v_bool b) = SOME (v_bool ~b))
  /\
@@ -68,7 +76,7 @@ Definition cast_exec_def:
  /\
  (cast_exec (cast_unsigned n) (v_bool b) = SOME (v_bit $ bool_cast n b))
  /\
- (cast_exec (cast_bool) (v_bit bitv) = SOME (v_bool $ to_bool_cast bitv))
+ (cast_exec cast_bool (v_bit bitv) = to_bool_cast_exec bitv)
  /\
  (cast_exec _ _ = NONE)
 End

@@ -176,6 +176,7 @@ Definition copyin'_def:
   all_arg_update_for_newscope' xlist dlist elist (ss_curr++gsl)
 End
 
+
 (**************)
 (* ARITHMETIC *)
 
@@ -229,7 +230,6 @@ End
 Definition bitv_neq_def:
  bitv_neq a b = ~bitv_eq a b
 End
-
 
 Definition unop_exec'_def:
  (unop_exec' unop_neg (v_bool b) = SOME (v_bool ~b))
@@ -897,6 +897,8 @@ val _ = translate listTheory.DROP_def;
 val _ = translate bitstringTheory.fixwidth_def;
 val _ = translate bool_cast_def;
 val _ = translate bitv_cast_def;
+val _ = translate oHD_def;
+val _ = translate to_bool_cast_exec_def;
 val _ = translate cast_exec_def;
 val _ = translate e_exec_cast_def;
 
