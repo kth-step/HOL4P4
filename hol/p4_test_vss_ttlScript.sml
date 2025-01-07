@@ -167,7 +167,7 @@ Definition Checksum16_get':
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (w16 0w)))
+     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (fixwidth 16 $ n2v 0, 16)))
     | _ => NONE)
   | _ => NONE
  )

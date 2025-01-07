@@ -25,7 +25,9 @@ val CONTROL_PLANE_API = 0;
 Datatype:
  v1model_v_ext =
    v1model_v_ext_counter
- | v1model_v_ext_direct_counter
+ (* For direct counters, the elements of the tuple count number of packets and bytes, respectively.
+  * The list index represents the table entry index *)
+ | v1model_v_ext_direct_counter ((num # num) list)
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
  | v1model_v_ext_register ((bool list # num) list)
@@ -142,6 +144,23 @@ Definition v1model_assume_def:
      then SOME (v1model_ascope, scope_list, status_returnv v_bot)
      else NONE)
    | _ => NONE
+End
+
+(****************************)
+(* Direct counter methods   *)
+(****************************)
+
+(* This should not overwrite previously gathered statistics: this must always be initialised statically, before reductions. *)
+Definition v1model_direct_counter_construct_def:
+ v1model_direct_counter_construct (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope_list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
+End
+
+(* TODO: This is currently a noop - note the resulting data is not accessible from the data plane anyway. Counting should
+ * use the apply_table_f instead. *)
+Definition v1model_direct_counter_count_def:
+ v1model_direct_counter_count (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope_list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
 End
 
 (**********************)

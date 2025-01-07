@@ -59,7 +59,7 @@ fun append_prog_p4_wrapper () =
        let
 	val out_packet_string = String.implode (deparse_bool_list out_bl)
        in
-	print(out_packet_string ^ " at port "); print_int out_port; print "\n"; print_output_packets t
+	print "Output packet(s) are: "; print(out_packet_string ^ " at port "); print_int out_port; print "\n"; print_output_packets t
        end
     ;’;
 
@@ -77,7 +77,7 @@ fun append_prog_p4_wrapper () =
 	  None => raise ParseError ("Error: execution result is None.\n")
 	| Some output_packets =>
 	  (print ("Input packet was: " ^ in_packet_string ^ " at port "); print_int in_port; print "\n";
-	  print "Output packet(s) are: "; print_output_packets output_packets))
+	  print_output_packets output_packets))
       end
       handle ParseError parse_err_msg => TextIO.print_err parse_err_msg
       handle _ =>
