@@ -80,7 +80,7 @@ val v1model_ext_map =
     ++ [("", (NONE, (^v1model_objectless_map)));
         ("packet_in", (NONE, (^v1model_packet_in_map)));
         ("packet_out", (NONE, (^v1model_packet_out_map)));
-        ("direct_counter", (SOME ([("this", d_out)], v1model_direct_counter_construct), (^v1model_direct_counter_map)));
+        ("direct_counter", (SOME ([("this", d_out); ("type", d_none)], v1model_direct_counter_construct), (^v1model_direct_counter_map)));
         ("register", SOME ([("this", d_out); ("size", d_none); ("targ1", d_in)], register_construct), (^v1model_register_map));
         ("ipsec_crypt", SOME ([("this", d_out)], ipsec_crypt_construct), (^v1model_ipsec_crypt_map))])``;
 
