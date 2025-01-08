@@ -488,17 +488,6 @@ The transition statement $\mathbf{transition} \; \vn $, whose semantics is captu
 \end{figure}
 
 
-
-\subsubsection*{Verify}
-The $\mathbf{verify} \, \expr \, \expr'$ statement is used to check the whether the boolean expression $\expr$ holds; if it does, then nothing happens, as stated in the \textsc{stmt\_verify\_3} rule. Otherwise, it assigns the error in $\expr'$ to $"parseError"$ and reduces the statement to a $\mathbf{transition}$ statement to the state \reject{}.
- 
-\begin{figure}[ht!]
-    \ottusedrule{\ottdrulestmtXXverifyXXThree{}} \\
-    \ottusedrule{\ottdrulestmtXXverifyXXFour{}} 
-\end{figure}
-
-
-
 \subsection{Frame-Level Semantics}
 The statement semantics in the previous section operate on a single frame containing a list of statements, however when a function being called, a new frame will be pushed to the frame list of the state. The frame-level semantics will always try to execute the top frame, however \textsc{frames\_comp1} will be used when the status is not set to $\returnst{v}$ and \textsc{frames\_comp2} when it is.
 
@@ -690,8 +679,6 @@ This appendix describes semantics for reducing nested expressions. A selection o
 \ottusedrule{\ottdrulestmtXXretXXe{}}
 \ottusedrule{\ottdrulestmtXXassXXe{}}
 \ottusedrule{\ottdrulestmtXXcondXXe{}}
-\ottusedrule{\ottdrulestmtXXverifyXXeOne{}}
-\ottusedrule{\ottdrulestmtXXverifyXXeTwo{}}
 \end{ottdefnblock}
 \caption{Statement Reduction-of-Argument Semantics (selection)}
 \label{fig:semstmt2}
