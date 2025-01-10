@@ -18,6 +18,7 @@ open alistTheory;
 Type x = ``:string`` (* string *)
 Type b = ``:bool`` (* boolean *)
 Type bl = ``:bool list`` (* bit-string *)
+Type q = ``:word64`` (* 64-bit word *)
 Type i = ``:num`` (* natural number *)
 Type m = ``:num`` (* indices *)
 
@@ -36,7 +37,7 @@ funn =
 `;
 val _ = Hol_datatype ` 
 varn = 
-   varn_name of x (* variable name *)
+   varn_name of q (* variable name *)
  | varn_star of funn (* function return placeholder *)
 `;
 val _ = Hol_datatype ` 
@@ -223,17 +224,17 @@ stmt =  (* statement *)
 
 
 
-Type b_func_map = ``:((string, (stmt # (string # d) list)) alist)``
+Type b_func_map = ``:((string, (stmt # (q # d) list)) alist)``
 
-Type func_map = ``:((string, (stmt # (string # d) list)) alist)``
+Type func_map = ``:((string, (stmt # (q # d) list)) alist)``
 
-Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``
+Type ext_fun_map = ``:((string, ((q # d) list # 'a ext_fun)) alist)``
 
 
 
 Type pars_map = ``:((string, stmt) alist)``
 
-Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``
+Type ext_map = ``:((string, ((((q # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``
 
 Type tbl_map = ``:((string, ((mk list) # (x # e_list))) alist)``
 val _ = Hol_datatype ` 
@@ -250,7 +251,7 @@ ffblock =  (* fixed-function block *)
    ffblock_ff of 'a ff
 `;
 
-Type pblock = ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map)``
+Type pblock = ``:(pbl_type # ((q # d) list) # b_func_map # t_scope # pars_map # tbl_map)``
 
 
 
@@ -273,9 +274,9 @@ arch_block =  (* architectural block *)
 
 Type apply_table_f = ``:((x # e_list # mk_list # (x # e_list) # 'a) -> (x # e_list) option)``
 
-Type copyout_pbl = ``:((g_scope list # 'a # d list # x list # status) -> 'a option)``
+Type copyout_pbl = ``:((g_scope list # 'a # d list # q list # status) -> 'a option)``
 
-Type copyin_pbl = ``:((x list # d list # e list # 'a) -> scope option)``
+Type copyin_pbl = ``:((q list # d list # e list # 'a) -> scope option)``
 
 Type output_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
 
@@ -1699,7 +1700,6 @@ assign_to_slice vb vb' ev1 ev2 =
  * in the topmost scope where a is defined,
  * written as ε[a -> v], colloquially known as assignment.
  * Note that this function is used in the assignment and return rules *)
- (*TODO: fix assignment to include the slicing*)
 val assign_def = Define `
   (assign ss v (lval_varname x) =
     case find_topmost_map ss x of
@@ -1781,7 +1781,7 @@ val initialise_def = Define `
 (* NOTE: NoError serialised to 0 *)
 val initialise_parse_error_def = Define `
   (initialise_parse_error (scope:scope) =
-    AUPDATE scope (varn_name "parseError", (v_bit (fixwidth 32 (n2v 0),32), NONE))
+    AUPDATE scope (varn_name 0w, (v_bit (fixwidth 32 (n2v 0),32), NONE))
   )
 `;
 
@@ -2163,23 +2163,23 @@ Inductive e_sem:
  ==> 
 ( ( e_red ctx g_scope_list scope_list (e_var varn) (e_v v)  ([]:frame list)  )))
 
-[e_call_newframe:] (! (e_x_d_list:(e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (stmt:stmt) (scope':scope) .
+[e_call_newframe:] (! (e_q_d_list:(e#q#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (stmt:stmt) (scope':scope) .
 (clause_name "e_call_newframe") /\
-(( (SOME ( stmt ,  ((MAP (\(e_,x_,d_) . (x_,d_)) e_x_d_list)) ) = lookup_funn_sig_body  funn   func_map   b_func_map   ext_map ) ) /\
-( (check_args_red   ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )     ( ((MAP (\(e_,x_,d_) . e_) e_x_d_list)) )  ) ) /\
-( (SOME  scope'  = copyin  ((MAP (\(e_,x_,d_) . x_) e_x_d_list))    ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )     ( ((MAP (\(e_,x_,d_) . e_) e_x_d_list)) )    g_scope_list   scope_list ) ))
+(( (SOME ( stmt ,  ((MAP (\(e_,q_,d_) . (q_,d_)) e_q_d_list)) ) = lookup_funn_sig_body  funn   func_map   b_func_map   ext_map ) ) /\
+( (check_args_red   ( ((MAP (\(e_,q_,d_) . d_) e_q_d_list)) )     ( ((MAP (\(e_,q_,d_) . e_) e_q_d_list)) )  ) ) /\
+( (SOME  scope'  = copyin  ((MAP (\(e_,q_,d_) . q_) e_q_d_list))    ( ((MAP (\(e_,q_,d_) . d_) e_q_d_list)) )     ( ((MAP (\(e_,q_,d_) . e_) e_q_d_list)) )    g_scope_list   scope_list ) ))
  ==> 
-( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list (e_call funn ((MAP (\(e_,x_,d_) . e_) e_x_d_list))) (e_var (varn_star funn))  ([   ( funn  ,   ( ([(stmt)]) )   ,   ( ([(scope')]) )  )   ])  )))
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list (e_call funn ((MAP (\(e_,q_,d_) . e_) e_q_d_list))) (e_var (varn_star funn))  ([   ( funn  ,   ( ([(stmt)]) )   ,   ( ([(scope')]) )  )   ])  )))
 
-[e_call_args:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (frame_list:frame_list) (i:i) (e:e) (e':e) .
+[e_call_args:] (! (e_e'_q_d_list:(e#e#q#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (frame_list:frame_list) (i:i) (e:e) (e':e) .
 (clause_name "e_call_args") /\
-(( (SOME  ((MAP (\(e_,e'_,x_,d_) . (x_,d_)) e_e'_x_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
-( (unred_arg_index   ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )     ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )   = SOME  i ) ) /\
-( ( e  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  ) ) /\
+(( (SOME  ((MAP (\(e_,e'_,q_,d_) . (q_,d_)) e_e'_q_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
+( (unred_arg_index   ( ((MAP (\(e_,e'_,q_,d_) . d_) e_e'_q_d_list)) )     ( ((MAP (\(e_,e'_,q_,d_) . e_) e_e'_q_d_list)) )   = SOME  i ) ) /\
+( ( e  = EL  i    ( ((MAP (\(e_,e'_,q_,d_) . e_) e_e'_q_d_list)) )  ) ) /\
 ( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list e e' frame_list )) /\
-( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
+( (  ( ((MAP (\(e_,e'_,q_,d_) . e'_) e_e'_q_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,q_,d_) . e_) e_e'_q_d_list)) )  )  ) ))
  ==> 
-( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list))) frame_list )))
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,q_,d_) . e_) e_e'_q_d_list))) (e_call funn ((MAP (\(e_,e'_,q_,d_) . e'_) e_e'_q_d_list))) frame_list )))
 
 [e_eStruct:] (! (f_e_e'_list:(x#e#e) list) (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (frame_list:frame_list) (i:i) (e:e) (e':e) .
 (clause_name "e_eStruct") /\
@@ -2624,17 +2624,17 @@ Inductive frames_sem:
  ==> 
 ( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   (  ([   ( funn  ,  stmt_stack  ,  scope_list )   ])   ++  frame_list'' )  ,  status )   ( ascope' ,  g_scope_list''' ,   ( frame_list'  ++  frame_list'' )  ,  status' )  )))
 
-[frames_comp2:] (! (x_d_list:(x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (funn':funn) (stmt_stack':stmt_stack) (scope_list':scope_list) (frame_list:frame_list) (ascope':'a) (g_scope_list''''''':g_scope_list) (scope_list''':scope_list) (g_scope_list':g_scope_list) (b_func_map':b_func_map) (tbl_map':tbl_map) (g_scope_list'':g_scope_list) (stmt_stack'':stmt_stack) (scope_list'':scope_list) (v:v) (stmt''':stmt) (g_scope_list''':g_scope_list) (g_scope_list'''':g_scope_list) (g_scope_list''''':g_scope_list) (g_scope_list'''''':g_scope_list) .
+[frames_comp2:] (! (q_d_list:(q#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt_stack:stmt_stack) (scope_list:scope_list) (funn':funn) (stmt_stack':stmt_stack) (scope_list':scope_list) (frame_list:frame_list) (ascope':'a) (g_scope_list''''''':g_scope_list) (scope_list''':scope_list) (g_scope_list':g_scope_list) (b_func_map':b_func_map) (tbl_map':tbl_map) (g_scope_list'':g_scope_list) (stmt_stack'':stmt_stack) (scope_list'':scope_list) (v:v) (stmt''':stmt) (g_scope_list''':g_scope_list) (g_scope_list'''':g_scope_list) (g_scope_list''''':g_scope_list) (g_scope_list'''''':g_scope_list) .
 (clause_name "frames_comp2") /\
 (( (SOME g_scope_list'  = scopes_to_pass  funn   func_map   b_func_map   g_scope_list ) ) /\
 ( SOME  b_func_map'  = map_to_pass  funn   b_func_map ) /\
 ( SOME  tbl_map'  = tbl_to_pass  funn   b_func_map   tbl_map ) /\
 ( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map'  ,  pars_map ,  tbl_map' )   ( ascope ,  g_scope_list' ,   ([   ( funn  ,  stmt_stack  ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list'' ,   ([   ( funn  ,  stmt_stack''  ,  scope_list'' )   ])  ,  (status_returnv v) )  )) /\
-( (SOME ( stmt''' ,  (x_d_list) ) = lookup_funn_sig_body  funn   func_map   b_func_map   ext_map ) ) /\
+( (SOME ( stmt''' ,  (q_d_list) ) = lookup_funn_sig_body  funn   func_map   b_func_map   ext_map ) ) /\
 ( (SOME   (  g_scope_list'''  )   = assign   (  (  g_scope_list''  )  )    v   (lval_varname (varn_star funn)) ) ) /\
 ( (SOME g_scope_list''''  = scopes_to_retrieve  funn   func_map   b_func_map   g_scope_list   g_scope_list''' ) ) /\
 ( (SOME g_scope_list'''''  = scopes_to_pass  funn'   func_map   b_func_map   g_scope_list'''' ) ) /\
-( ( SOME (  g_scope_list''''''  ,  scope_list'''  ) = copyout  ((MAP (\(x_,d_) . x_) x_d_list))    ( ((MAP (\(x_,d_) . d_) x_d_list)) )    g_scope_list'''''   scope_list'   scope_list''  ) ) /\
+( ( SOME (  g_scope_list''''''  ,  scope_list'''  ) = copyout  ((MAP (\(q_,d_) . q_) q_d_list))    ( ((MAP (\(q_,d_) . d_) q_d_list)) )    g_scope_list'''''   scope_list'   scope_list''  ) ) /\
 ( (SOME g_scope_list'''''''  = scopes_to_retrieve  funn'   func_map   b_func_map   g_scope_list''''   g_scope_list'''''' ) ))
  ==> 
 ( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   (  ([   ( funn  ,  stmt_stack  ,  scope_list )   ])   ++   (  (  ([   ( funn'  ,  stmt_stack'  ,  scope_list' )   ])   ++  frame_list )  )  )  ,  status_running )   ( ascope' ,  g_scope_list''''''' ,   (  ([   ( funn'  ,  stmt_stack'  ,  scope_list''' )   ])   ++  frame_list )  ,  status_running )  )))
@@ -2652,12 +2652,12 @@ Inductive arch_sem:
  ==> 
 ( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  (   i   +   1   )  ,  in_out_list'' ,  in_out_list' ,  ascope' )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
 
-[arch_pbl_init:] (! (e_x_d_list:(e#x#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (g_scope_list''':g_scope_list) (f:x) (stmt:stmt) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (scope':scope) (scope'':scope) (g_scope_list':g_scope_list) (g_scope_list'':g_scope_list) .
+[arch_pbl_init:] (! (e_q_d_list:(e#q#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (g_scope_list''':g_scope_list) (f:x) (stmt:stmt) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (scope':scope) (scope'':scope) (g_scope_list':g_scope_list) (g_scope_list'':g_scope_list) .
 (clause_name "arch_pbl_init") /\
-(( (  (arch_block_pbl f ((MAP (\(e_,x_,d_) . e_) e_x_d_list)))  = EL  i   ab_list  ) ) /\
-( (ALOOKUP  pblock_map   f  = SOME (  pbl_type  ,  ((MAP (\(e_,x_,d_) . (x_,d_)) e_x_d_list))  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
+(( (  (arch_block_pbl f ((MAP (\(e_,q_,d_) . e_) e_q_d_list)))  = EL  i   ab_list  ) ) /\
+( (ALOOKUP  pblock_map   f  = SOME (  pbl_type  ,  ((MAP (\(e_,q_,d_) . (q_,d_)) e_q_d_list))  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
 ( (SOME  stmt  = lookup_block_body  f   b_func_map ) ) /\
-( (SOME  scope'  =  copyin_pbl  ( ((MAP (\(e_,x_,d_) . x_) e_x_d_list)) ,   ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )  ,   ( ((MAP (\(e_,x_,d_) . e_) e_x_d_list)) )  ,  ascope )) ) /\
+( (SOME  scope'  =  copyin_pbl  ( ((MAP (\(e_,q_,d_) . q_) e_q_d_list)) ,   ( ((MAP (\(e_,q_,d_) . d_) e_q_d_list)) )  ,   ( ((MAP (\(e_,q_,d_) . e_) e_q_d_list)) )  ,  ascope )) ) /\
 ( scope''  = declare_list_in_scope ( t_scope ,  scope' ) ) /\
 ( (  (  g_scope_list'  )   =   (   (LASTN   1    g_scope_list )   )  ) ) /\
 ( (  (  g_scope_list''  )   =   (  ( ([(scope'')]) )   ++   (  g_scope_list'  )  )  ) ) /\
@@ -2680,31 +2680,31 @@ Inductive arch_sem:
  ==> 
 ( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  0  ,  in_out_list ,  in_out_list'' ,  ascope' )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
 
-[arch_parser_trans:] (! (x_d_list:(x#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (x':x) (g_scope_list':g_scope_list) (stmt':stmt) (x:x) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
+[arch_parser_trans:] (! (q_d_list:(q#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (x':x) (g_scope_list':g_scope_list) (stmt':stmt) (x:x) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
 (clause_name "arch_parser_trans") /\
 (( (  (arch_block_pbl x (e_list))  = EL  i   ab_list  ) ) /\
-( (ALOOKUP  pblock_map   x  = SOME (  pbl_type_parser  ,  (x_d_list)  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
+( (ALOOKUP  pblock_map   x  = SOME (  pbl_type_parser  ,  (q_d_list)  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
 ( (( x'  <> "accept") /\ ( x'  <> "reject")) ) /\
 ( (ALOOKUP  pars_map   x'  = SOME ( stmt' )) ))
  ==> 
 ( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  (status_trans x') )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list' ,  (arch_frame_list_regular  ([   ( (funn_name x')  ,   ( ([(stmt')]) )   ,   ( ([( [] )]) )  )   ]) ) ,  status_running )  )))
 
-[arch_pbl_exec:] (! (x_d_list:(x#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (ascope':'a) (g_scope_list':g_scope_list) (frame_list':frame_list) (status':status) (x:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
+[arch_pbl_exec:] (! (q_d_list:(q#d) list) (e_list:e list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (ascope':'a) (g_scope_list':g_scope_list) (frame_list':frame_list) (status':status) (x:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) .
 (clause_name "arch_pbl_exec") /\
 (( (  (arch_block_pbl x (e_list))  = EL  i   ab_list  ) ) /\
-( (ALOOKUP  pblock_map   x  = SOME (  pbl_type  ,  (x_d_list)  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
+( (ALOOKUP  pblock_map   x  = SOME (  pbl_type  ,  (q_d_list)  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
 ( ( frames_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,  frame_list ,  status_running )   ( ascope' ,  g_scope_list' ,  frame_list' ,  status' )  )))
  ==> 
 ( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  status_running )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope' )  ,  g_scope_list' ,  (arch_frame_list_regular frame_list') ,  status' )  )))
 
-[arch_pbl_ret:] (! (e_x_d_list:(e#x#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (status:status) (ascope':'a) (f:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (stmt:stmt) (status':status) .
+[arch_pbl_ret:] (! (e_q_d_list:(e#q#d) list) (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (frame_list:frame_list) (status:status) (ascope':'a) (f:x) (pbl_type:pbl_type) (b_func_map:b_func_map) (t_scope:t_scope) (pars_map:pars_map) (tbl_map:tbl_map) (stmt:stmt) (status':status) .
 (clause_name "arch_pbl_ret") /\
-(( (  (arch_block_pbl f ((MAP (\(e_,x_,d_) . e_) e_x_d_list)))  = EL  i   ab_list  ) ) /\
-( (ALOOKUP  pblock_map   f  = SOME (  pbl_type  ,  ((MAP (\(e_,x_,d_) . (x_,d_)) e_x_d_list))  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
+(( (  (arch_block_pbl f ((MAP (\(e_,q_,d_) . e_) e_q_d_list)))  = EL  i   ab_list  ) ) /\
+( (ALOOKUP  pblock_map   f  = SOME (  pbl_type  ,  ((MAP (\(e_,q_,d_) . (q_,d_)) e_q_d_list))  ,  b_func_map  ,  t_scope  ,  pars_map  ,  tbl_map  )) ) /\
 ( (SOME  stmt  = lookup_block_body  f   b_func_map ) ) /\
 ( (state_fin  status   frame_list ) ) /\
 ( ( status'  = set_fin_status  pbl_type   status ) ) /\
-( (SOME  ascope'  =  copyout_pbl  (  (  g_scope_list  )  ,  ascope ,   ( ((MAP (\(e_,x_,d_) . d_) e_x_d_list)) )  ,  ((MAP (\(e_,x_,d_) . x_) e_x_d_list)) ,  status' )) ))
+( (SOME  ascope'  =  copyout_pbl  (  (  g_scope_list  )  ,  ascope ,   ( ((MAP (\(e_,q_,d_) . d_) e_q_d_list)) )  ,  ((MAP (\(e_,q_,d_) . q_) e_q_d_list)) ,  status' )) ))
  ==> 
 ( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  (arch_frame_list_regular frame_list) ,  status )   (  (  (   i   +   1   )  ,  in_out_list ,  in_out_list' ,  ascope' )  ,   (LASTN   1    g_scope_list )  ,  arch_frame_list_empty ,  status_running )  )))
 End
@@ -2739,19 +2739,19 @@ Type t_scopes_tup = ``:(t_scope_list_g # t_scope_list)``
 
 Type t_scopes_frames = ``:(t_scope_list list)``
 
+
+Type delta_x = ``:(string, ( Ftau option # (string , Ftau ) alist )) alist``
+
+Type delta_t = ``:(string, taul) alist``
+
+Type delta_b = ``:(string, Ftau) alist``
+
+Type delta_g = ``:(string, Ftau) alist``
 val _ = Hol_datatype ` 
 order_elem =  (* the individual elements of the order in the state are fun name or tables names *)
    order_elem_f of funn
  | order_elem_t of x
 `;
-
-Type delta_t = ``:(string, taul) alist``
-
-Type delta_x = ``:(string, ( Ftau option # (string , Ftau ) alist )) alist``
-
-Type delta_b = ``:(string, Ftau) alist``
-
-Type delta_g = ``:(string, Ftau) alist``
 
 Type delta = ``:( delta_g # delta_b # delta_x # delta_t )``
 
@@ -2768,7 +2768,7 @@ Type Prs_n = ``:(string list)``
 (*************************************************)
 (****** Typing Rules Related definitions *********)
 (*************************************************)
-
+(*
 (* returns the width of the bitstring *)
 val bs_width_def = Define `
   bs_width (bl, (n:num)) = n
@@ -2782,7 +2782,7 @@ star_not_in_ts (s:t_scope) =
 
 val Err_not_in_ts_def = Define `
 Err_not_in_ts (s:t_scope) =
-   (ALOOKUP s (varn_name "parseError") = NONE)
+   (ALOOKUP s (varn_name 0w) = NONE)
 `;
 
 
@@ -4092,7 +4092,7 @@ Inductive WT_state:
  ==> 
 ( ( WT_state  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . (funn_,stmt_stack_,scope_list_)) funn_stmt_stack_scope_list_t_scope_list_list)) )  ,  status )  Prs_n order t_scope_list_g  ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . t_scope_list_) funn_stmt_stack_scope_list_t_scope_list_list)) )   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )  )))
 End
-
+*)
 val _ = export_theory ();
 
 

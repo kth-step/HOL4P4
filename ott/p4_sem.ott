@@ -400,13 +400,13 @@ formula :: formula_ ::=
   {{ hol ([[x]] = "start") }}
   {{ tex [[x]] = ``\mathit{start}" }}
   %Dummy to keep syntax highlighting from freaking out: "
-| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope ) :: M :: copyin_pbl
+| scope' = copyin_pbl ( ( q1 , .. , qn ) , d_list , e_list , ascope ) :: M :: copyin_pbl
   {{ com copy in to programmable blocks }}
-  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]])) }}
-| scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scope_list ) :: M :: copyin
+  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[q1 .. qn]], [[d_list]], [[e_list]], [[ascope]])) }}
+| scope' = copyin ( ( q1 , .. , qn ) , d_list , e_list , g_scope_list , scope_list ) :: M :: copyin
   {{ com build new scope and copyin }}
-  {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
-  {{ hol (SOME [[scope']] = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scope_list]]) }}
+  {{ tex [[scope']] = \mathrm{copyin} ([q_1 , \; .. \; , q_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
+  {{ hol (SOME [[scope']] = copyin [[q1 .. qn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scope_list]]) }}
 | v = arb_from_tau tau :: M :: make_arb
   {{ com create new varaible in declaration }}
   {{ hol ([[v]] = arb_from_tau [[tau]]) }}
@@ -419,9 +419,9 @@ formula :: formula_ ::=
   {{ com separate scopes into globals and locals after assignment }}
   {{ hol ( ( SOME [[g_scope_list]] ,  SOME [[scope_list']] ) = separate [[scope_list]] ) }}
   {{ tex ( [[g_scope_list]] , [[scope_list']] ) = \mathrm{separate}([[scope_list]])  }}  
-| ascope' = copyout_pbl ( scope_list , ascope , d_list , ( x1 , .. , xn ) , status ) :: M :: copyout_pbl
+| ascope' = copyout_pbl ( scope_list , ascope , d_list , ( q1 , .. , qn ) , status ) :: M :: copyout_pbl
   {{ com copy out from programmable blocks }}
-  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [[x1 .. xn]], [[status]])) }}
+  {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [[q1 .. qn]], [[status]])) }}
 | ascope' = copyout_pbl ( scope_list , ascope , d_list , [ x ] , status ) :: M :: copyout_pbl_sing
   {{ com copy out singleton from programmable blocks }}
   {{ hol (SOME [[ascope']] = [[copyout_pbl]] ([[scope_list]], [[ascope]], [[d_list]], [ [[x]] ], [[status]])) }}
@@ -435,9 +435,9 @@ formula :: formula_ ::=
   {{ hol ([[stmt_stack]] <> []) }}  
 
 %Architecture-level semantics-related formulae
-| pbl_type [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map  = pblock_map ( f ) :: M :: lookup_pb
+| pbl_type [ ( q1 , d1 ) , .. , ( qn , dn ) ] b_func_map t_scope pars_map tbl_map  = pblock_map ( f ) :: M :: lookup_pb
   {{ com programmable block lookup }}
-  {{ hol (ALOOKUP [[pblock_map]] [[f]] = SOME ( [[pbl_type]] , [[x1 d1 .. xn dn]] , [[b_func_map]] , [[t_scope]] , [[pars_map]] , [[tbl_map]] )) }}
+  {{ hol (ALOOKUP [[pblock_map]] [[f]] = SOME ( [[pbl_type]] , [[q1 d1 .. qn dn]] , [[b_func_map]] , [[t_scope]] , [[pars_map]] , [[tbl_map]] )) }}
 | ffblock = ffblock_map ( f ) :: M :: lookup_ffb
   {{ com fixed-function block lookup }}
   {{ hol (ALOOKUP [[ffblock_map]] [[f]] = SOME [[ffblock]]) }}
@@ -514,31 +514,31 @@ formula :: formula_ ::=
   {{ hol [[scope]] = declare_list_in_fresh_scope ([[t_scope]]) }}
   {{ tex [[scope]] = \mathrm{replicate} ([[t_scope]]) }}
 
-| ( g_scope_list' , scope_list'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scope_list , scope_list' ) :: M :: copyout
+| ( g_scope_list' , scope_list'' ) = copyout ( ( q1 , .. , qn ) , d_list , g_scope_list , scope_list , scope_list' ) :: M :: copyout
    %scope_list is the callee stack, whereas scope_list' is the caller stack
    %TODO: Double-check this LaTeX hack...
-  {{ tex ( [[g_scope_list']] , [[scope_list'']]) =  \mathrm{copyout} \, ( [x1, \, .. , \, xn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}'' , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) }}
-  {{ hol ( SOME ( [[g_scope_list']] , [[scope_list'']] ) = copyout [[x1 .. xn]] [[d_list]] [[g_scope_list]] [[scope_list]] [[scope_list']] ) }}
+  {{ tex ( [[g_scope_list']] , [[scope_list'']]) =  \mathrm{copyout} \, ( [q1, \, .. , \, qn] , [d1, \, .. , \, dn] , \overrightarrow{\gamma_G}'' , \overrightarrow{\gamma}' , \overrightarrow{\gamma} ) }}
+  {{ hol ( SOME ( [[g_scope_list']] , [[scope_list'']] ) = copyout [[q1 .. qn]] [[d_list]] [[g_scope_list]] [[scope_list]] [[scope_list']] ) }}
 
 | is_not_fully_red e :: M :: not_fully_red
   {{ com expression is not fully reduced }}
   {{ tex ~ { \mathrm{fully\_reduced} } \, [[e]] }}
   {{ hol (~(fully_reduced [[e]])) }}
-| ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig_body
+| ( stmt , [ ( q1 , d1 ) , .. , ( qn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig_body
   {{ com look up the body and signature of an abstract function name }}
   %TODO: LaTeX hack here...
-  {{ tex ([[stmt]], ((x_1, d_1), \ldots, (x_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
-  {{ hol (SOME ([[stmt]], [[x1 d1 .. xn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+  {{ tex ([[stmt]], ((q_1, d_1), \ldots, (q_n, d_n))) = \mathrm{lookup\_funn\_sig\_body} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
+  {{ hol (SOME ([[stmt]], [[q1 d1 .. qn dn]]) = lookup_funn_sig_body [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
 | stmt = lookup_block_body ( f , b_func_map ) :: M :: block_body
   {{ com look up the body of a block (for now, held in the local function map) }}
   %TODO: LaTeX hack here...
   {{ tex [[stmt]] = \mathrm{lookup\_block\_body} ([[f]], [[b_func_map]]) }}
   {{ hol (SOME [[stmt]] = lookup_block_body [[f]] [[b_func_map]]) }}
-| [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig
+| [ ( q1 , d1 ) , .. , ( qn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map ) :: M :: fun_sig
   {{ com look up the signature of an abstract function name }}
   %TODO: LaTeX hack here...
-  {{ tex ((x_1, d_1), \ldots, (x_n, d_n)) = \mathrm{lookup\_funn\_sig} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
-  {{ hol (SOME [[x1 d1 .. xn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
+  {{ tex ((q_1, d_1), \ldots, (q_n, d_n)) = \mathrm{lookup\_funn\_sig} ([[funn]], [[func_map]], [[b_func_map]], [[ext_map]]) }}
+  {{ hol (SOME [[q1 d1 .. qn dn]] = lookup_funn_sig [[funn]] [[func_map]] [[b_func_map]] [[ext_map]]) }}
 | parser_not_finished frame_list :: M :: parser_not_finished
   {{ com parser state is not finished }}
   {{ hol (parser_not_finished [[frame_list]]) }}
@@ -2128,7 +2128,6 @@ assign_to_slice vb vb' ev1 ev2 =
  * in the topmost scope where a is defined,
  * written as ε[a -> v], colloquially known as assignment.
  * Note that this function is used in the assignment and return rules *)
- (*TODO: fix assignment to include the slicing*)
 val assign_def = Define `
   (assign ss v (lval_varname x) =
     case find_topmost_map ss x of
@@ -2210,7 +2209,7 @@ val initialise_def = Define `
 (* NOTE: NoError serialised to 0 *)
 val initialise_parse_error_def = Define `
   (initialise_parse_error (scope:scope) =
-    AUPDATE scope (varn_name "parseError", (v_bit (fixwidth 32 (n2v 0),32), NONE))
+    AUPDATE scope (varn_name 0w, (v_bit (fixwidth 32 (n2v 0),32), NONE))
   )
 `;
 
@@ -2601,14 +2600,14 @@ ctx g_scope_list scope_list ( var varn ) ~> ( v ,  empty )
 %Function/method call
 
 %Function call construction of new frame
-( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
+( stmt , [ ( q1 , d1 ) , .. , ( qn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
-scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scope_list )
+scope' = copyin ( ( q1 , .. , qn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scope_list )
 ----------------------------------- :: call_newframe
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( var ( star , funn ) , [ ( funn , [ stmt ] , [ scope' ] ) ] )
 
 %Function call reduction of arguments
-[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
+[ ( q1 , d1 ) , .. , ( qn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) g_scope_list scope_list ( e ) ~> ( e' , frame_list )
@@ -3113,11 +3112,11 @@ by
   b_func_map' = map_to_pass funn b_func_map
   tbl_map' = tbl_to_pass funn b_func_map tbl_map
   ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
-  ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
+  ( stmt''' , [ ( q1 , d1 ) , .. , ( qn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
   g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
   g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' ) 
   g_scope_list''''' = scopes_to_pass ( funn' , func_map , b_func_map , g_scope_list'''' )
-  ( g_scope_list'''''' , scope_list''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list''''' , scope_list' , scope_list'' )
+  ( g_scope_list'''''' , scope_list''' ) = copyout ( ( q1 , .. , qn ) , [ d1 , .. , dn ] , g_scope_list''''' , scope_list' , scope_list'' )
   g_scope_list''''''' = scopes_to_retrieve ( funn' , func_map , b_func_map , g_scope_list'''' , g_scope_list'''''' )
   ----------------------------------- :: comp2
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f->  ( ascope' , g_scope_list''''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
@@ -3144,9 +3143,9 @@ by
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list'' , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( f )
+  pbl_type [ ( q1 , d1 ) , .. , ( qn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( f )
   stmt = lookup_block_body ( f , b_func_map )
-  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
+  scope' = copyin_pbl ( ( q1 , .. , qn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
   scope'' = declare_list_in_scope ( t_scope , scope' )
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
@@ -3171,14 +3170,14 @@ by
 
 %TODO: This could be solved directly at statement level... This is essentially the old pars_state rule
   pbl x ( e1 , .. , em ) = ab_list [ i ]
-  parser [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( x )
+  parser [ ( q1 , d1 ) , .. , ( qn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( x )
   not_final_state ( x' )
   stmt' = pars_map ( x' )
   ----------------------------------- :: parser_trans
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , Running )
 
   pbl x ( e1 , .. , em ) = ab_list [ i ]
-  pbl_type [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( x )
+  pbl_type [ ( q1 , d1 ) , .. , ( qn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( x )
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , frame_list , Running ) -f-> ( ascope' , g_scope_list' , frame_list' , status' )
   ----------------------------------- :: pbl_exec
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope' ) , g_scope_list' , frame_list' , status' )
@@ -3188,13 +3187,13 @@ by
 %TODO: 13.3 of spec says: "An architecture must specify the behavior when the accept and reject states are reached. [...]", so copyout function must take status also
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
-  pbl_type [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( f )
+  pbl_type [ ( q1 , d1 ) , .. , ( qn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( f )
   stmt = lookup_block_body ( f , b_func_map )
   state_fin ( status , frame_list )
   status' = set_fin_status ( pbl_type , status )
   %Q: Why no scopes from frame_list after global scopes?
   %A: All copy-out variables exist in block-global scope... TODO: Test this...
-  ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , status' )
+  ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( q1 , .. , qn ) , status' )
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: pbl_ret
   ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , lastn 1 g_scope_list , arch_frame_list_empty , Running )

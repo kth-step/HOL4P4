@@ -1195,7 +1195,7 @@ QED
 
 
 
-
+(*
 Theorem binop_bs_width: 
 ! bitv bitv' bitv'' op . 
 bs_width bitv' = bs_width bitv /\
@@ -2398,7 +2398,7 @@ Cases_on ‘bl’ >>
 Cases_on ‘cl’ >>
 gvs[] 
 QED
-
+*)
 
 Definition v_to_tau_def:
   (v_to_tau (v_bool boolv) = SOME tau_bool) /\
@@ -2759,54 +2759,5 @@ Definition replace_bits_def:
    SOME $ (SEG (n2-(hi+1)) 0 bl2) ++ bl1 ++ (SEG lo (n2-lo) bl2)
   else NONE
 End
-
-Definition assign_to_slice'_def:
- assign_to_slice' vb vb' ev1 ev2 =
-  (case ev1 of
-   | (e_v (v_bit (bl1, n1))) =>
-    (case ev2 of
-     | (e_v (v_bit (bl2, n2))) =>
-      (case replace_bits vb vb' (v2n bl1) (v2n bl2) of
-       | SOME bitv =>
-        SOME $ v_bit (bitv, SND vb')
-       | NONE => NONE)
-     | _ => NONE)
-   | _ => NONE)
-End
-
-Definition assign'_def:
- (assign' ss v (lval_varname x) =
-  case find_topmost_map ss x of
-  | SOME (i, sc) =>
-   (case lookup_out ss x of
-    | SOME str_opt =>
-      SOME (LUPDATE (AUPDATE sc (x, (v, str_opt))) i ss)
-    | NONE => NONE)
-  | _ => NONE) /\
- (assign' ss v (lval_field lval f) =
-  case lookup_lval' ss lval of
-  | SOME (v_struct f_v_l) =>
-   (case INDEX_OF f (MAP FST f_v_l) of
-    | SOME i => assign' ss (v_struct (LUPDATE (f, v) i f_v_l)) lval
-    | NONE => NONE)
-  | SOME (v_header validity f_v_l) =>
-   (case INDEX_OF f (MAP FST f_v_l) of
-    | SOME i => assign' ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
-    | NONE => NONE)
-   | _ => NONE) /\    
- (assign' ss v (lval_slice lval ev1 ev2) =
-  case v of
-  | v_bit vb =>
-   (case lookup_lval' ss lval of
-    | SOME (v_bit vb') =>
-     (case assign_to_slice' vb vb' ev1 ev2 of
-      | SOME v_res => assign' ss v_res lval
-      | _ => NONE)
-    | _ => NONE)
-  | _ => NONE) /\
- (assign' ss v lval_null = SOME ss) /\
- (assign' ss v (lval_paren lval) = assign' ss v lval)
-End
-
 
 val _ = export_theory ();

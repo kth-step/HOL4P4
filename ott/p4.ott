@@ -29,6 +29,12 @@ metavar bl ::=
       {{ tex [[bl]] }}
       {{ com bit-string }}
 
+metavar q ::=
+      {{ lex numeral }}
+      {{ hol word64 }}
+      {{ tex [[q]] }}
+      {{ com 64-bit word }}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Auxiliary metavariables %
@@ -145,7 +151,7 @@ funn :: funn_ ::=
 
 %An abstract variable name
 varn :: varn_ ::=
-| x :: :: name
+| q :: :: name
   {{ com variable name }}
 | ( star , funn ) :: :: star 
   {{ com function return placeholder }}
@@ -700,18 +706,18 @@ grammar
 
 func_map {{ tex F_g }} :: func_map_ ::=
 {{ com function map for global functions and actions }}
-{{ hol ((string, (stmt # (string # d) list)) alist) }}
+{{ hol ((string, (stmt # (q # d) list)) alist) }}
 
 b_func_map {{ tex F_b }} :: b_func_map_ ::=
 {{ com function map for block-local actions }}
-{{ hol ((string, (stmt # (string # d) list)) alist) }}
+{{ hol ((string, (stmt # (q # d) list)) alist) }}
 
 %This maps extern function names of an individual object obj to their implementations
-% method signature sig is = ((string # d) list # ext_fun) 
+% method signature sig is = ((q # d) list # ext_fun) 
 
 ext_fun_map {{ tex X_{ \mathrm{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
-{{ hol ((string, ((string # d) list # ext_fun)) alist) }}
+{{ hol ((string, ((q # d) list # ext_fun)) alist) }}
 
 %Fence between ext_fun_map and ext_map
 embed
@@ -723,7 +729,7 @@ grammar
 %This maps extern object names to tuples of optional constructors and the function map of the object in question
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol ((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist) }}
+{{ hol ((string, ((((q # d) list # ext_fun) option) # ext_fun_map)) alist) }}
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
@@ -759,8 +765,8 @@ grammar
 
 pblock {{ tex { \mathit{pblock} } }} :: pblock_ ::=
 {{ com programmable block }}
-{{ hol (pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map) }}
-%| pbl_type ((string # d) list) b_func_map t_scope pars_map tbl_map :: :: regular
+{{ hol (pbl_type # ((q # d) list) # b_func_map # t_scope # pars_map # tbl_map) }}
+%| pbl_type ((q # d) list) b_func_map t_scope pars_map tbl_map :: :: regular
 
 ffblock {{ tex { \mathit{ffblock} } }} :: ffblock_ ::=
 {{ com fixed-function block }}
@@ -821,12 +827,12 @@ output_f {{ tex { \mathit{out}_A } }} :: output_f_ ::=
 %This function is used to copy things from the architecture when a programmable block begins
 copyin_pbl {{ tex { \mathit{in}_p } }} :: copyin_pbl_ ::=
 {{ com copy-in to programmable blocks function }}
-{{ hol ((x list # d list # e list # ascope_ty) -> scope option) }}
+{{ hol ((q list # d list # e list # ascope_ty) -> scope option) }}
 
 %This function is used to copy out things to the architecture after a programmable block is finished
 copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
-{{ hol ((g_scope list # ascope_ty # d list # x list # status) -> ascope_ty option) }}
+{{ hol ((g_scope list # ascope_ty # d list # q list # status) -> ascope_ty option) }}
 
 %This function takes a table name, arguments, match kinds and the architectural scope and returns an action with arguments
 apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
