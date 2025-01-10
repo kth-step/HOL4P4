@@ -299,7 +299,8 @@ Definition v1model_update_checksum_def:
               | SOME res =>
                (case assign' scope_list (v_bit (res, 16)) (lval_varname (varn_name "checksum")) of
                 | SOME scope_list' =>
-                 SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)             | NONE => NONE)
+                 SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
+                | NONE => NONE)
               | NONE => NONE)
             else NONE
            | _ => NONE)
@@ -603,6 +604,11 @@ val v1model_hdr_uninit =
 val v1model_header_uninit =
  mk_v_struct_list [(``"h"``, v1model_hdr_uninit)];
 *)
+
+(* TODO: Define this in the library and use below *)
+val v_map_varnames =
+ [“"b"”, “"b_temp"”, “"standard_metadata"”, “"parsedHdr"”, “"hdr"”, “"meta"”]
+;
 
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
 Definition v1model_input_f_def:

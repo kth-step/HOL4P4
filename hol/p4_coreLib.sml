@@ -25,7 +25,7 @@ val core_header_map =
 val core_ext_map =
  ``[("header", (NONE, (^core_header_map)))]:'a ext_map``;
 
-val core_init_v_map = ``[("parseError", v_bit (fixwidth 32 (n2v 0), 32) )]:(string, v) alist``;
+val core_init_v_map = ``[("parseError", v_bit (fixwidth 32 (n2v 0), 32))]:(string, v) alist``;
 
 val (compute_checksum16_inner_tm, mk_compute_checksum16_inner, dest_compute_checksum16_inner, is_compute_checksum16_inner) =
   syntax_fns1 "p4_core" "compute_checksum16_inner";
