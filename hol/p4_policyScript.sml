@@ -8,7 +8,6 @@ open p4Theory;
 open p4_auxTheory;
 open p4_coreTheory;
 
-
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
@@ -20,218 +19,311 @@ open rich_listTheory;
 open arithmeticTheory;
 open alistTheory;
 open numeralTheory;
+open alistTheory;
+open set_relationTheory;
+open pred_setTheory;
+open pred_setLib;
 
-
-
-
+     
 val _ = new_theory "p4_policy";
 
+   
+
+Type edges = ``:('a, ('a # 'a) ) alist``;
+Type labels = ``:('a , 'b ) alist``;
+
+val _ = Hol_datatype ` 
+bdd = bdd_ir of ('a # 'a edges # ('a,'b) labels)
+`;                                                                 
 
 
-val _ = Hol_datatype `
-h =  (* expression *)
-   h_v of x  (* value *)
- | h_acc of h => h (* access *)
+
+(* possible types *)
+val _ = Hol_datatype ` 
+ty =  (* type *)
+ | ty_bit of num (* bit-string *)
+ | ty_struct of (string#ty) list (* struct *)
 `;
+        
+Type descriptor = ``:(string#ty) list``;
+
+Type field = ``:string``;
+
+
+     
+val _ = Hol_datatype ` 
+h =
+| h_f of field
+| h_acc of (field list)
+| h_slice of (field list) => num => num`;
 
 
 
-
-
-(* create a mapping instead of this, from the start! *)
-Definition map_of_h_names_def:
-  map_of_h_names (tau_xtl st_ty []) st_op = [] ∧
-  map_of_h_names (tau_xtl st_ty ((x,t)::xtl)) st_op =
-  case st_op of
-  | NONE =>
-      (case t of
-       | (tau_bit n) => (h_v x)::(map_of_h_names (tau_xtl st_ty xtl) NONE)
-       | (tau_xtl st_ty xtl') => (map_of_h_names (tau_xtl st_ty xtl') (SOME (h_v x)))++(map_of_h_names (tau_xtl st_ty xtl) NONE)
-      )
-  | SOME x'  =>
-      (case t of
-       | (tau_bit n) => (h_acc (x') (h_v x))::(map_of_h_names (tau_xtl st_ty xtl) (SOME x'))
-       | (tau_xtl st_ty xtl') => (map_of_h_names (tau_xtl st_ty xtl') (SOME (h_acc x' (h_v x))))++(map_of_h_names (tau_xtl st_ty xtl) (SOME x'))
-      )
-End
-
-
-
-
-
-
-EVAL “map_of_h_names  (tau_xtl st_ty [("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
-                                ("internal", tau_xtl st_ty [("a'",tau_bit 1);("b'",tau_bit 1);("c'",tau_bit 1)]);
-                                ("blah", tau_xtl st_ty [("a''",tau_bit 1);("b''",tau_bit 1);("c''",tau_bit 1)])]) NONE ”;
-
-
-EVAL “map_of_h_names  (tau_xtl st_ty [("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
-                                ("internal", tau_xtl st_ty [("a'",tau_bit 1);("b'",tau_bit 1);
-                                                            ("blah", tau_xtl st_ty [("a''",tau_bit 1);("b''",tau_bit 1);("c''",tau_bit 1)])])
-                                ]) NONE ”;
-
-
-EVAL “map_of_h_names  (tau_xtl st_ty [("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
-                                ("internal", tau_xtl st_ty [("a'",tau_bit 1);("b'",tau_bit 1);
-                                                            ("blah", tau_xtl st_ty [("a''",tau_bit 1);("b''",tau_bit 1);("c''",tau_bit 1)])]);
-                                ("a",tau_bit 1)
-                                ]) NONE ”;
-
-
-
-
-
-
-Definition size_xtl_def:
- (size_xtl (tau_bit n) =  n) /\
- (size_xtl (tau_xtl st_ty []) =  0) /\
- (size_xtl (tau_xtl st_ty (h::t)) = size_xtl (SND h) + size_xtl (tau_xtl st_ty  t))
-End
-
-
-
-
-EVAL “size_xtl  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
-                                 ("internal", tau_xtl st_ty [("g",tau_bit 1)])]))”;
-
-
-
-EVAL “size_xtl  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
-                                 ("internal", tau_xtl st_ty [("g",tau_bit 1)]);
-                                 ("internal2", tau_xtl st_ty [("g",tau_bit 7)])]))”;
-
-
-
-
-
-
-
-Definition map_of_h_index_def:
-  map_of_h_index (tau_xtl st_ty []) acc = [] ∧
-  map_of_h_index (tau_xtl st_ty ((x,t)::xtl)) acc =
-  case (t) of
-  | (tau_bit n) => (acc, (acc + n - 1 ))::(map_of_h_index (tau_xtl st_ty (xtl)) (acc+n))
-  | (tau_xtl st_ty xtl') => (map_of_h_index (tau_xtl st_ty (xtl')) (acc))++(map_of_h_index (tau_xtl st_ty (xtl)) (acc + size_xtl (tau_xtl st_ty xtl')))
-End
-
-
-
-
-
-
-
-
-EVAL “map_of_h_index  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
-                                 ("internal", tau_xtl st_ty [("g",tau_bit 1)])])) 0”;
-
-
-
-EVAL “map_of_h_index  (tau_xtl st_ty ([("a",tau_bit 1);("b",tau_bit 1);("c",tau_bit 1);
-                                 ("internal", tau_xtl st_ty [("g",tau_bit 1)]);
-                                 ("internal2", tau_xtl st_ty [("g",tau_bit 7)])])) 0”;
-
-
-
-
-
-(*
-Definition mk_h_map_def:
-  mk_map_acc_idx hdr =
-        ZIP(map_of_h_names hdr,map_of_h_index hdr)
-End
-*)
-
-
-
-val _ = Hol_datatype `
-e =  (* expression *)
-e_larger of h  =>  num_exp
-| e_less   of h =>  num_exp
-| e_eq   of h => num_exp
+val _ = Hol_datatype ` 
+aop = 
+ | aop_le (* less or equal *)
+ | aop_ge (* greater or equal *)
+ | aop_lt (* less *)
+ | aop_gt (* greater *)
+ | aop_neq (* not equal *)
+ | aop_eq (* equal *)
+ | aop_and (* bitwise and *)
+ | aop_xor (* bitwise xor *)
+ | aop_or (* bitwise or *)
 `;
-
-
-val _ = Hol_datatype `
-c =  (* expression *)
-c_and of c => c
-| c_or   of c => c
-| c_neg   of c
-| c_e   of e
-`;
+   
+(*binop as we have in P4 semantics*)
+val _ = Hol_datatype ` 
+exp =
+exp_aop of h => aop => num  `; (*arithmetic expressions*)
 
 
 
-Definition pos_acc_e_def:
-  pos_acc_e (e_larger e1 e2) = [e1] ∧
-  pos_acc_e (e_less e1 e2) = [e1] ∧
-  pos_acc_e (e_eq e1 e2) = [e1]
+(*type of conditions is generic so the proofs are applied to both semantics of rules and also the BDD translation*)        
+val _ = Hol_datatype ` 
+c =
+c_b of bool 
+|c_e of 'a  (* for the BDD this is a string, for the rules semantics it is exp ?*)     
+|c_and of c => c
+|c_or of c => c
+|c_neg of c
+`;  
+
+Type rule = ``:('a c # string)``;
+
+
+                                                                   
+
+
+Definition nodes_set_def:
+  nodes_set (edges:'a edges) =        
+  set (MAP FST edges) ∪ set (MAP (SND o SND) edges) ∪ set (MAP (FST o SND) edges)
 End
 
 
-Definition pos_acc_c_def:
-  pos_acc_c (c_e e) = pos_acc_e (e) ∧
-  pos_acc_c (c_neg c) = pos_acc_c (c) ∧
-  pos_acc_c (c_and c1 c2) = pos_acc_c (c1)++ pos_acc_c (c2) ∧
-  pos_acc_c (c_or c1 c2) = pos_acc_c (c1)++ pos_acc_c (c2)
-End
 
-
-(* we need to make pos_acc_c distinct*)
 Definition mk_distinct_def:
   mk_distinct [] = [] ∧
-  mk_distinct (x::l) =
-  case MEM x l of
-  | T => (mk_distinct l)
-  | F => x::(mk_distinct l)
+  mk_distinct (h::l) = if (MEM h l) then
+                         mk_distinct l
+                       else
+                         h::(mk_distinct l)       
 End
 
-(*
-val h_a = “h_v "a" ”;
-val h_b = “h_v "b" ”;
-val h_c = “h_v "c" ”;
-val h_internal_f = “h_acc (h_v "internal") (h_v "f") ”;
-val h_internal_g = “h_acc (h_v "internal") (h_v "g") ”;
-val e_larger1 = “e_larger ^h_a 3”;
-val e_less1   = “e_less ^h_b 3”;
-val e_less2   = “e_less ^h_internal_f 3”;
-val e_eq1     = “e_eq ^h_internal_g 7 ”;
-val c1     = “c_or (c_e ^e_less1) (c_e ^e_less2)”;
+
+Theorem mk_distinct_nub_eq:
+  ∀ l . mk_distinct l = nub l
+Proof
+  Induct_on ‘l’ >>
+  gvs[mk_distinct_def,nub_def]
+QED
+        
 
 
+Theorem mk_distinct_mem:
+  ∀ l r. MEM r l = MEM r (mk_distinct l)
+Proof
+  fs[mk_distinct_nub_eq]
+QED
 
-
-EVAL “ pos_acc_c  (c_or ^c1 ^c1)  ”;
-EVAL “ mk_distinct (pos_acc_c  (c_or ^c1 ^c1) ) ”;
-*)
-
-
-
-(*
-Definition mk_distinct_h_def:
-  mk_distinct_h [] = [] ∧
-  mk_distinct x::l =
-  case x of
-  | (h_v _) => mk_distinct l
-  | (h_acc a b) =>
-
-
+        
+        
+Definition nodes_list_def:
+  nodes_list (edges:'a edges) =        
+  let 
+    parents = MAP FST edges;
+    children_right = MAP (SND o SND) edges ;
+    children_left  = MAP (FST o SND) edges
+  in
+    mk_distinct(parents ++ children_right ++ children_left)
 End
+
+
+Triviality UNION_APPEND_tri:
+∀ l1 l2 l3. set l1 ∪ set l2 ∪ set l3 = set (l1 ++ l2 ++ l3 )
+Proof
+  gvs[Once UNION_APPEND]
+QED
+        
+
+Theorem nodes_set_list_length_eq:
+  ∀ edges . CARD (nodes_set edges) = LENGTH (nodes_list edges)
+Proof
+  gvs[nodes_list_def, nodes_set_def, mk_distinct_nub_eq] >>
+  strip_tac >>
+  assume_tac UNION_APPEND_tri  >>             
+  first_x_assum $ qspecl_then [‘MAP FST edges : 'a list’,
+                               ‘MAP (SND ∘ SND) edges  : 'a list’,
+                               ‘MAP (FST ∘ SND) edges : 'a list’] assume_tac >>
+  METIS_TAC[CARD_LIST_TO_SET_EQN]
+QED
+
+        
+
+Theorem nodes_set_list_mem_eq:
+∀ edges node. node ∈ nodes_set edges ⇔ MEM node (nodes_list edges) 
+Proof
+  fs[nodes_set_def,nodes_list_def, mk_distinct_def, MEM]>>
+  gvs[mk_distinct_nub_eq]
+QED
+
+
+Theorem nodes_set_eq1:
+ ∀ edges.  nodes_set edges = set (nodes_list edges)     
+Proof
+  fs[nodes_set_def, nodes_list_def, LIST_TO_SET_DEF] >>
+  strip_tac >>
+  assume_tac UNION_APPEND_tri  >>             
+  first_x_assum $ qspecl_then [‘MAP FST edges : 'a list’,
+                               ‘MAP (SND ∘ SND) edges  : 'a list’,
+                               ‘MAP (FST ∘ SND) edges : 'a list’] assume_tac >>
+  gvs[mk_distinct_nub_eq] 
+QED
+
+(*
+The set of leaves are basically all nodes - (domain edges)
 *)
+Definition get_leaves_set_def:
+  get_leaves_set (edges:'a edges)  = 
+     (nodes_set edges) DIFF set (MAP FST edges)    
+End
+
+EVAL “ {(1:num);3} DIFF {(1:num);(2:num)}”;        
+
+
+Definition get_list_diff_def:
+  get_list_diff [] l2 = [] ∧
+  get_list_diff (h::l1) l2 =
+  if MEM h l2 then
+    get_list_diff l1 l2
+  else
+    h::(get_list_diff l1 l2)    
+End
+
+        
+Definition get_leaves_list_def:
+  get_leaves_list (edges:'a edges)  = 
+  let
+    all_nodes = nodes_list edges;
+    parents = MAP FST edges
+  in
+    get_list_diff all_nodes parents   
+End
+
+
+Triviality get_leaves_list_mem_imp:
+  ∀ l1 l2 l a.  l = get_list_diff l1 l2 ⇒
+ (MEM a l ⇔ MEM a l1 ∧ ¬MEM a l2)
+Proof
+  Induct >> rpt strip_tac >>
+  fs[get_list_diff_def, MEM] >>      
+  gvs[AllCaseEqs()] >>
+  Cases_on ‘a=h’ >> gvs[]    
+QED
+
+
+Triviality get_list_diff_filter_eq:        
+ ∀ l1 l2 .  get_list_diff l1 l2 = FILTER (λx. ¬MEM x l2) l1
+Proof
+  Induct >>
+  rpt strip_tac  >>
+  gvs[get_list_diff_def] >>
+  gvs[AllCaseEqs()]
+QED
+
+
+        
+        
+Theorem get_leaves_set_list_mem_eq:
+ ∀ edges node.  node ∈ (get_leaves_set edges) ⇔ MEM node (get_leaves_list edges)
+Proof
+  
+  simp_tac bool_ss [get_leaves_set_def]>>
+  gvs[list_to_set_diff]>>
+  gvs[get_leaves_list_def] >>
+  gvs[nodes_set_list_mem_eq] >>
+  gvs[get_leaves_list_mem_imp]
+QED
 
 
 
+Definition get_label_set_def:
+  get_label_set (labels: ('a,'b) labels) (nodes_set: 'a set) =
+  IMAGE (λx. (ALOOKUP labels x)) nodes_set    
+End
 
 
 
+Definition get_label_list_def:
+  get_label_list (labels: ('a,'b) labels) (nodes_list: 'a list) =
+  MAP (λx. (ALOOKUP labels x)) nodes_list   
+End
 
 
 
+Triviality get_label_set_list_eq1:
+ ∀ labels edges . get_label_set labels (nodes_set edges) = set (get_label_list labels (nodes_list edges))
+Proof
+  gvs[get_label_set_def, get_label_list_def]>>
+  gvs[LIST_TO_SET_MAP] >>
+  rpt strip_tac >>
+  gvs[nodes_set_eq1]
+QED
 
 
 
+(*****************************************)
+
+
+     
+Definition mk_substitute_rule_def:
+  (mk_substitute_rule (c_b b') (x:'a) b = c_b b') ∧
+  (mk_substitute_rule (c_e (x':'a)) x b = if (x=x') then c_b b else c_e x') ∧
+  (mk_substitute_rule (c_and c c' ) x b =
+      (c_and (mk_substitute_rule c x b) (mk_substitute_rule c' x b ))) ∧
+  (mk_substitute_rule (c_or c c') x b =
+      (c_or (mk_substitute_rule c x b) (mk_substitute_rule c' x b ))) ∧
+  (mk_substitute_rule (c_neg c) x b=
+      (c_neg (mk_substitute_rule c x b)))
+End
+
+
+EVAL “mk_substitute_rule (c_and (c_e "x") (c_e "y")) "x" T”;        
+EVAL “mk_substitute_rule (c_and (c_or (c_e "x") (c_e "y")) (c_e "y")) "y" T”;        
+
+                     
+Definition mk_substitute_policy_list_def:
+  mk_substitute_policy_list (rules_list: 'a rule list) x b =
+       MAP (λ (c,a) . (mk_substitute_rule x b, a)) rules_list
+End
+
+        
+
+       
+Definition mk_substitute_policy_set_def:
+   mk_substitute_policy_set (rules_set: 'a rule set ) x b =
+       IMAGE (λ (c,a) . (mk_substitute_rule x b, a)) rules_set
+End
+
+
+Triviality mk_substitute_policy_set_eq:
+ ∀ (rule_list: 'a rule list) x b .  mk_substitute_policy_set (set rule_list) x b = set (mk_substitute_policy_list rule_list x b)
+Proof
+  gvs[mk_substitute_policy_set_def, mk_substitute_policy_list_def]>>
+  gvs[LIST_TO_SET_MAP] 
+QED
 
 
 
+(*************************************)
+Definition edges_acyclic_def:
+  edges_acyclic (edges:('a#'a#'a) set) =
+  let nr = IMAGE (λ(n,n',n''). (n,n'')) edges;
+      nl = IMAGE (λ(n,n',n''). (n,n')) edges
+  in
+     acyclic(nr ∪ nl)
+End
+(************************************)
 
 
 val _ = export_theory ();
