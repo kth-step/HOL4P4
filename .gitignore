@@ -27,6 +27,12 @@ hol/p4_from_json/validation_tests/*.sig
 hol/p4_from_json/validation_tests/*-heap
 hol/p4_from_json/p4include
 
+## CakeML-related
+
+*.S
+*.sexp
+*.cake
+
 
 ## Emacs
 *~

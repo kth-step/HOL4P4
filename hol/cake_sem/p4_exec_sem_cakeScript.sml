@@ -4,11 +4,15 @@ val _ = new_theory "p4_exec_sem_cake";
 
 open p4Theory p4_auxTheory;
 
-(******************************************)
-(* New types, and downstream consequences *)
+(****************************************)
+(* CakeML-adjusted executable semantics *)
 
-(* TODO: Make funns words64s later *)
-(* TODO: Fix things so that variable names with strings are no longer needed *)
+(* TODO: Make funn_name, funn_ext et.c. hold words64s : consequences for func_map and ext_map *)
+(* TODO: Field names *)
+(* TODO: Arch block names *)
+(* TODO: Parser states *)
+(* TODO: Table names *)
+
 Datatype:
  varn' = 
     varn'_name word64 (* CakeML-friendly variable name *)
@@ -51,7 +55,7 @@ Type g_scope_list' = ``:(scope' list)``
 
 Type scope_list' = ``:(scope' list)``
 
-Type ext_fun = ``:(('a # g_scope_list' # scope_list') -> (('a # scope_list' # status) option))``
+Type ext_fun' = ``:(('a # g_scope_list' # scope_list') -> (('a # scope_list' # status) option))``
 
 Type t_scope' = ``:((varn', (tau # lval' option)) alist)``
 
@@ -72,11 +76,11 @@ Type b_func_map' = ``:((string, (stmt' # (word64 # d) list)) alist)``
 
 Type func_map' = ``:((string, (stmt' # (word64 # d) list)) alist)``
 
-Type ext_fun_map' = ``:((string, ((word64 # d) list # 'a ext_fun)) alist)``
+Type ext_fun_map' = ``:((string, ((word64 # d) list # 'a ext_fun')) alist)``
 
 Type pars_map' = ``:((string, stmt') alist)``
 
-Type ext_map' = ``:((string, ((((word64 # d) list # 'a ext_fun) option) # 'a ext_fun_map')) alist)``
+Type ext_map' = ``:((string, ((((word64 # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)``
 
 Type tbl_map' = ``:((string, ((mk list) # (x # e_list'))) alist)``
 
@@ -98,11 +102,11 @@ Type apply_table_f' = ``:((x # e_list' # mk_list # (x # e_list') # 'a) -> (x # e
 Type copyout_pbl' = ``:((g_scope' list # 'a # d list # word64 list # status) -> 'a option)``
 
 Type copyin_pbl' = ``:((word64 list # d list # e' list # 'a) -> scope' option)``
-
+(*
 Type output_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
 
 Type input_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
-
+*)
 Type ab_list' = ``:(arch_block' list)``
 
 (* New to executable semantics *)
@@ -1396,7 +1400,7 @@ End
 
 Definition is_consts_exec'_def:
  (is_consts_exec' [] = T) /\
- (is_consts_exec' (h::t) = ((is_const' h) /\ (is_consts_exec' t)))
+ (is_consts_exec' (h::t) = (is_const' h /\ is_consts_exec' t))
 End
 
 Definition stmt_exec'_def:
