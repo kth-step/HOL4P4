@@ -65,7 +65,7 @@ Definition verify_gen'_def:
   | SOME (v_bool F) =>
    (case lookup_lval' scope_list (lval'_varname (varn'_name 1w)) of
     | SOME (v_bit bitv) =>
-     SOME (ascope_update_v_map ascope 0w (v_bit bitv), scope_list, status_trans "reject")
+     SOME (ascope_update_v_map ascope (0w:word64) (v_bit bitv), scope_list, status_trans "reject")
     | _ => NONE)
   | _ => NONE
  )
@@ -100,7 +100,7 @@ Definition packet_in_extract_gen'_def:
            | NONE => NONE)
          else
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) 0w (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
+          SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) (0w:word64) (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -126,7 +126,7 @@ Definition packet_in_lookahead_gen'_def:
            | NONE => NONE)
          else
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (ascope_update_v_map ascope 0w (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
+          SOME (ascope_update_v_map ascope (0w:word64) (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -155,7 +155,7 @@ Definition packet_in_advance_gen'_def:
         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
        else
         (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-        SOME (ascope_update_v_map ascope 0w (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
+        SOME (ascope_update_v_map ascope (0w:word64) (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
        | _ => NONE)
     | NONE => NONE)
   | _ => NONE

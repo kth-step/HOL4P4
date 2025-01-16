@@ -144,16 +144,21 @@ val is_consts'_def = Define `
   is_consts' el = ~(EXISTS (\e. ~(is_const' e)) el)
 `;
 
-val slice_lval'_def = Define `
-  (slice_lval' (v_bit (v, bl)) e1 e2 =
-     (case e1 of
-     | (e'_v (v_bit (v1, bl1))) =>
-       (case e2 of
-       | (e'_v (v_bit (v2, bl2))) => SOME (v_bit (slice (v, bl) (v1, bl1) (v2, bl2)) )
-       | _ => NONE )
-     | _ => NONE
-     ))
-`;
+Definition slice_lval'_def:
+ slice_lval' v e1 e2 =
+  case v of
+  | (v_bit (v, bl)) =>
+   (case e1 of
+    | (e'_v (v_bit (v1, bl1))) =>
+     (case e2 of
+      | (e'_v (v_bit (v2, bl2))) =>
+       (case slice' (v, bl) (v1, bl1) (v2, bl2) of
+        | SOME bitv => SOME $ v_bit bitv
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+End
 
 Definition is_var'_def:
  (is_var' (e'_var x) = T) /\
@@ -534,13 +539,6 @@ val lookup_funn_sig'_def = Define `
     | SOME (_, x_d_l) => SOME x_d_l
     | NONE => NONE
   )
-`;
-
-val lookup_block_body'_def = Define `
- lookup_block_body' f b_func_map =
-  case ALOOKUP b_func_map f of
-  | SOME res => SOME $ FST res
-  | NONE => NONE
 `;
 
 Definition update_return_frame'_def:
@@ -1195,6 +1193,58 @@ Definition e_state_size'_def:
  (e_state_size' ((ctx:'a e_ctx), (g_scope_list:g_scope_list'), (scope_list:scope_list'), (e:e')) = e'_size e)
 End
 
+val e'_size_def = DB.fetch "-" "e'_size_def";
+(*
+Theorem unred_arg_index'_in_range:
+ !d_l e_l i. unred_arg_index' d_l e_l = SOME i ==> i < LENGTH e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [unred_arg_index'_def, find_unred_arg'_def] >>
+ Cases_on `INDEX_FIND 0 (\(d,e). ~is_arg_red' d e) (ZIP (d_l,e_l))` >> (
+  fs []
+ ) >>
+ Cases_on `x` >>
+ IMP_RES_TAC index_find_length >>
+ fs []
+QED
+*)
+
+Theorem e'3_size_append:
+ !e_l1 e_l2. e'3_size (e_l1 ++ e_l2) = (e'3_size e_l1 + e'3_size e_l2)
+Proof
+ Induct_on `e_l1` >> (
+  fs [e'_size_def]
+ )
+QED
+
+Theorem e'3_size_mem:
+ !e e_l. MEM e e_l ==> e'_size e < e'3_size e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, e'3_size_append, e'_size_def]
+QED
+
+Theorem e'_e'2_size_less:
+ !x e. e'_size e < e'2_size (x,e)
+Proof
+ fs [e'_size_def]
+QED
+
+Theorem e'1_size_append:
+ !x_e_l1 x_e_l2. e'1_size (x_e_l1 ++ x_e_l2) = (e'1_size x_e_l1 + e'1_size x_e_l2)
+Proof
+ Induct_on `x_e_l1` >> (
+  fs [e'_size_def]
+ )
+QED
+
+Theorem e'1_size_mem:
+ !x_e x_e_l. MEM x_e x_e_l ==> e'2_size x_e < e'1_size x_e_l
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, e'1_size_append, e'_size_def]
+QED
+
 Definition e_exec'_def:
  (********************)
  (* Variable look-up *)
@@ -1356,35 +1406,32 @@ Definition e_exec'_def:
   /\
  (e_exec' _ _ _ _ = NONE)
 Termination
-cheat
-(*
 WF_REL_TAC `measure e_state_size'` \\
 fs [e_state_size'_def, e'_size_def, MAP_SND_EQ, listTheory.oEL_EQ_EL] \\
-REPEAT STRIP_TAC >| [
-  IMP_RES_TAC unred_arg_index_in_range \\
-  IMP_RES_TAC rich_listTheory.EL_MEM \\
-  IMP_RES_TAC e3_size_mem \\
+rpt strip_tac >| [
+  (* imp_res_tac unred_arg_index'_in_range \\ *)
+  imp_res_tac rich_listTheory.EL_MEM \\
+  imp_res_tac e'3_size_mem \\
   fs [],
 
-  IMP_RES_TAC unred_mem_index_in_range \\
-  IMP_RES_TAC rich_listTheory.EL_MEM \\
-  `e'_size (EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+  (* imp_res_tac unred_mem_index'_in_range \\ *)
+  imp_res_tac rich_listTheory.EL_MEM \\
+  `e'_size (EL i (MAP SND x_e_l)) < e'1_size x_e_l` suffices_by (
    fs []
   ) \\
-  `e2_size (EL i (MAP FST x_e_l), EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
+  `e'2_size (EL i (MAP FST x_e_l), EL i (MAP SND x_e_l)) < e'1_size x_e_l` suffices_by (
    rpt strip_tac \\
    irule arithmeticTheory.LESS_TRANS \\
-   qexists_tac `e2_size (EL i (MAP FST x_e_l),EL i (MAP SND x_e_l))` \\
-   fs [e_e2_size_less]
+   qexists_tac `e'2_size (EL i (MAP FST x_e_l),EL i (MAP SND x_e_l))` \\
+   fs [e'_e'2_size_less]
   ) \\
   subgoal `MEM (EL i x_e_l) x_e_l` >- (
    irule rich_listTheory.EL_MEM \\
    fs [listTheory.LENGTH_MAP]
   ) \\
-  imp_res_tac e1_size_mem \\
+  imp_res_tac e'1_size_mem \\
   metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
 ]
-*)
 End
 
 (******************************************)
@@ -1695,7 +1742,7 @@ Definition arch_exec'_def:
      | SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) =>
       if state_fin_exec status frame_list
       then
-       (case lookup_block_body' x b_func_map of
+       (case lookup_block_body x b_func_map of
         | SOME stmt =>
          (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
          (if LENGTH e_l = LENGTH x_d_list
