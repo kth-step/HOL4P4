@@ -189,6 +189,10 @@ val _ = translate v1model_ascope_update_v_map_def;
 val _ = translate verify_gen_def;
 val _ = translate v1model_verify_def;
 
+val _ = translate v1model_assert_def;
+
+val _ = translate v1model_assume_def;
+
 val _ = translate v1model_verify_checksum_def;
 
 val _ = translate v1model_update_checksum_def;
@@ -226,6 +230,9 @@ val _ = translate register_construct_def;
 val _ = translate v1model_register_read_inner_def;
 val _ = translate register_read_def;
 *)
+
+val _ = translate v1model_direct_counter_construct_def;
+val _ = translate v1model_direct_counter_count_def;
 
 val _ = translate v1model_register_write_inner_def;
 val _ = translate register_write_def;
