@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_exec_sem_cake_export";
+val _ = new_theory "p4_exec_sem_cakeProg";
 
 open p4Theory p4_auxTheory p4_coreTheory p4_v1modelTheory;
 open p4_exec_sem_cakeTheory p4_arch_cakeTheory;
@@ -14,7 +14,7 @@ val _ = (max_print_depth := 100);
 
 val _ = translation_extends "basisProg";
 
-val _ = ml_prog_update (open_module "p4_exec_sem_cake");
+val _ = ml_prog_update (open_module "p4_exec_sem_cakeProg");
 
 (** Expression semantics **)
 
@@ -347,26 +347,6 @@ val _ = translate header_set_valid'_def;
 
 val _ = translate header_set_invalid'_def;
 
-(* TODO: Below two functions are used for wrapper *)
-Definition p4_append_input_list'_def:
- (p4_append_input_list' [] (astate:'a astate') = astate) /\
- (p4_append_input_list' (h::t) astate =
-   case astate of
-   | (aenv, gscope, afl, status) =>
-    p4_append_input_list' t
-     (case aenv of
-      | (ab_index, inputl, outputl, ascope) => 
-       ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
-End
-
-Definition p4_get_output_list_def:
- p4_get_output_list (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate') =
-  io_list'
-End
-
-val _ = translate p4_append_input_list'_def;
-val _ = translate p4_get_output_list_def;
-
 (* Common extern functions: *)
 
 val _ = translate oTAKE_DROP_def;
@@ -454,6 +434,10 @@ val _ = translate v1model_ascope_update_v_map'_def;
 val _ = translate verify_gen'_def;
 val _ = translate v1model_verify'_def;
 
+val _ = translate v1model_assert'_def;
+
+val _ = translate v1model_assume'_def;
+
 val _ = translate v1model_verify_checksum'_def;
 
 val _ = translate v1model_update_checksum'_def;
@@ -483,6 +467,9 @@ val _ = translate flatten_v_l_def;
 val _ = translate packet_out_emit_gen'_def;
 val _ = translate v1model_packet_out_emit'_def;
 
+val _ = translate v1model_direct_counter_construct'_def;
+val _ = translate v1model_direct_counter_count'_def;
+
 (* TODO: The below is defined in terms of functions that uses ARB... *)
 (*
 val _ = translate v1model_register_construct_inner_def;
@@ -494,6 +481,30 @@ val _ = translate register_read'_def;
 
 val _ = translate v1model_register_write_inner_def;
 val _ = translate register_write'_def;
+
+(** For wrapper, rewrites, et.c. **)
+
+(* TODO: Below functions are used for wrapper *)
+Definition p4_append_input_list'_def:
+ (p4_append_input_list' [] (astate:'a astate') = astate) /\
+ (p4_append_input_list' (h::t) astate =
+   case astate of
+   | (aenv, gscope, afl, status) =>
+    p4_append_input_list' t
+     (case aenv of
+      | (ab_index, inputl, outputl, ascope) => 
+       ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
+End
+
+Definition p4_get_output_list_def:
+ p4_get_output_list (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate') =
+  io_list'
+End
+
+val _ = translate p4_append_input_list'_def;
+val _ = translate p4_get_output_list_def;
+
+val _ = translate word_def;
 
 val _ = ml_prog_update (close_module NONE);
 

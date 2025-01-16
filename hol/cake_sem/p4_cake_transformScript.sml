@@ -455,18 +455,38 @@ Definition transform_ext_map_def:
       ("setInvalid",[(3w,d_inout)],header_set_invalid')]);
     ("",NONE,
      [("mark_to_drop",[(10w,d_inout)],v1model_mark_to_drop');
-      ("verify",[(2w,d_in); (1w,d_in)],v1model_verify')]);
+      ("verify",[(2w,d_in); (1w,d_in)],v1model_verify');
+
+    ("verify_checksum",
+     [(2w,d_in); (7w,d_in); (15w,d_in); (16w,d_none)],
+     v1model_verify_checksum');
+    ("update_checksum",
+     [(2w,d_in); (7w,d_in); (15w,d_inout);
+      (16w,d_none)],v1model_update_checksum');
+    ("assert",[(14w,d_in)],v1model_assert');
+    ("assume",[(14w,d_in)],v1model_assume')]);
+      
     ("packet_in",NONE,
      [("extract",[(3w,d_in); (4w,d_out)],
-       v1model_packet_in_extract')]);
+       v1model_packet_in_extract');
+
+      ("lookahead",[(3w,d_in); (5w,d_in)],v1model_packet_in_lookahead');
+    ("advance",[(3w,d_in); (6w,d_in)],v1model_packet_in_advance')
+
+]);
     ("packet_out",NONE,
      [("emit",[(3w,d_in); (7w,d_in)],v1model_packet_out_emit')]);
+
+  ("direct_counter",
+   SOME ([(3w,d_out); (21w,d_none)],v1model_direct_counter_construct'),
+   [("count",[(3w,d_out)],v1model_direct_counter_count')])
+(*
     ("register",
      SOME
        ([(3w,d_out); (17w,d_none); (5w,d_in)],register_construct'),
      [("read",[(3w,d_in); (18w,d_out); (19w,d_in)],register_read');
-      ("write",[(3w,d_in); (19w,d_in); (20w,d_in)],register_write')])
-]):v1model_ascope' ext_map' option
+      ("write",[(3w,d_in); (19w,d_in); (20w,d_in)],register_write')
+*) ]):v1model_ascope' ext_map' option
 End
 
 (* TODO: Hard-coded for now, but that's probably alright for this function. *)
@@ -479,7 +499,7 @@ End
 
 Definition transform_v_map_def:
  transform_v_map dict v_map =
-  oFOLDR (\(x, v). case ALOOKUP dict x of SOME word => SOME (word, v) | NONE => NONE) v_map
+  oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, v) | NONE => NONE) v_map
 End
 
 
@@ -513,6 +533,14 @@ Definition transform_input_f_def:
   \ascope''. SOME (io_list, ascope'')
 End
 *)
+
+Definition transform_ctrl_empty_def:
+ transform_ctrl_empty (ctrl:v1model_ctrl) =
+  (oFOLDR (\(x, v). SOME (x, []:(((e_list' -> bool) # num), string # e_list') alist)) ctrl)
+(*
+  (oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist) | NONE => NONE) ctrl)
+*)
+End
 
 (* Given an alist of translations from strings to word64, transforms an actx to an actx'. *)
 (* TODO: Change the architectural representation so you can translate input_f and apply_table_f properly also *)

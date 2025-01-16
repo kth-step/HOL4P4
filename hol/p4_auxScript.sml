@@ -2709,6 +2709,10 @@ QED
 (***************************************)
 (* For exportable executable semantics *)
 
+(* For concise display of bitstrings: *)
+Definition word_def:
+ word value width = (fixwidth width $ n2v value, width)
+End
 
 Definition slice'_def:
  slice' (v, n) (vec1, len1) (vec2, len2) =

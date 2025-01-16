@@ -123,7 +123,8 @@ val v1model_implementations =
 (* Architectural functions mentioning variables by hard-coded names *)
 val v1model_archfuns = [v1model_postparser_def]
 
-val v1model_varnames = get_varn_name_strings (v1model_implementations@v1model_archfuns)
+(* "type" added manually - it's an argument to direct counter constructor, but not used *)
+val v1model_varnames = (get_varn_name_strings (v1model_implementations@v1model_archfuns))@[“"type"”]
 
 val v1model_init_vmapnames = varnames_of_vmap p4_v1modelLib.v1model_init_v_map
 
@@ -157,7 +158,7 @@ val v1model_dict =
    ("b_temp",9w); ("standard_metadata",10w); ("parsedHdr",11w);
    ("hdr",12w); ("meta",13w); ("check",14w); ("checksum",15w);
    ("algo",16w); ("size",17w); ("result",18w); ("index",19w);
-   ("value",20w)]”;
+   ("value",20w); ("type",21w)]”;
 
 (* Uses a dict of static, architecture-coded variable names. add_varnames_actx will pick
  * up the rest. Returns a tuple of a new dict and the actx'. *)
@@ -176,6 +177,18 @@ fun transform_actx dict actx =
     (dict', list_mk_pair [ab_list', pblock_map', “[("postparser",ffblock_ff v1model_postparser')]”, input_f', “v1model_output_f'”, “v1model_copyin_pbl'”, “v1model_copyout_pbl'”, “v1model_apply_table_f'”, ext_map', func_map'])
    end
   else raise Fail "transform_actx failed to translate actx"
+ end
+;
+
+(* TODO: This is temporary solution *)
+fun transform_ctrl_empty ctrl =
+ let
+  val ctrl'_opt = rhs $ concl $ EVAL “transform_ctrl_empty ^ctrl”
+ in
+  if is_some ctrl'_opt
+  then
+   dest_some $ ctrl'_opt
+  else raise Fail "transform_ctrl_empty failed to translate control plane configuration (one or more table names could not be found in the dictionary)"
  end
 ;
 
