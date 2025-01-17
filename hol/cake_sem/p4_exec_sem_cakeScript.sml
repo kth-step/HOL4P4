@@ -1924,4 +1924,21 @@ Definition arch_multi_exec'_def:
   | NONE => SOME (aenv, g_scope_list, arch_frame_list, status))
 End
 
+(* TODO: Below functions are used for wrapper *)
+Definition p4_append_input_list'_def:
+ (p4_append_input_list' [] (astate:'a astate') = astate) /\
+ (p4_append_input_list' (h::t) astate =
+   case astate of
+   | (aenv, gscope, afl, status) =>
+    p4_append_input_list' t
+     (case aenv of
+      | (ab_index, inputl, outputl, ascope) => 
+       ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
+End
+
+Definition p4_get_output_list_def:
+ p4_get_output_list (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate') =
+  io_list'
+End
+
 val _ = export_theory ();

@@ -6,8 +6,8 @@ open p4Syntax;
 open bitstringSyntax numSyntax;
 open p4Theory;
 open p4_auxTheory;
-open p4_exec_semTheory;
 open p4_coreTheory p4_vssTheory;
+open p4_exec_sem_cakeTheory;
 
 (* CakeML: *)
 open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory mlmapTheory basisFunctionsLib

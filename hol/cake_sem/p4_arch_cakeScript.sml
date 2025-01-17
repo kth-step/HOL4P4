@@ -586,7 +586,7 @@ End
 *)
 (* Uses the above *)
 Definition v1model_copyout_pbl'_def:
- v1model_copyout_pbl' (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope', dlist, xlist, (status:status)) =
+ v1model_copyout_pbl' (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope', dlist, xlist, (status:status')) =
   case copyout_pbl_gen' xlist dlist g_scope_list v_map of
   | SOME [v_map_scope] =>
    (case scope_to_vmap' v_map_scope of

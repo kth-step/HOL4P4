@@ -170,25 +170,22 @@ fun transform_actx dict actx =
   val (_, _, _, input_f, _, _, _, apply_table_f, _, _) = dest_actx actx
   val (param1, param2) = dest_pair $ snd $ dest_comb input_f
   (* TODO: Smart error handling *)
-  val dict'' = rhs $ concl $ EVAL “add_varnames_v ^dict' ^param1”
-  val dict''' = rhs $ concl $ EVAL “add_varnames_v ^dict'' ^param2”
+  val dict'' = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “add_varnames_v ^dict' ^param1”
+  val dict''' = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “add_varnames_v ^dict'' ^param2”
 
   val param1' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param1”
   val param2' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param2”
 
   val input_f' = mk_comb (“v1model_input_f'”, mk_pair (param1', param2'))
-  val actx'_opt = rhs $ concl $ EVAL “transform_actx ^dict''' ^actx”
-(*
-val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx
-EVAL “transform_func_map ^dict''' ^func_map”
-*)
+  val actx'_opt = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_actx ^dict''' ^actx”
+
  in
   if is_some actx'_opt
   then
    let
     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
    in
-    (dict', list_mk_pair [ab_list', pblock_map', “[("postparser",ffblock_ff v1model_postparser')]”, input_f', “v1model_output_f'”, “v1model_copyin_pbl'”, “v1model_copyout_pbl'”, “v1model_apply_table_f'”, ext_map', func_map'])
+    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[("postparser",ffblock_ff v1model_postparser')]:v1model_ascope' ffblock_map”, “(^input_f'):v1model_ascope' input_f”, “v1model_output_f':v1model_ascope' output_f”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
    end
   else raise Fail "transform_actx failed to translate actx"
  end

@@ -8,9 +8,17 @@ open p4Theory p4_auxTheory p4_exec_sem_cakeTheory;
 open p4_coreTheory;
 open p4_v1modelTheory;
 
-open p4_exec_sem_cakeTheory;
-open p4_arch_cakeTheory;
+(* CakeML: *)
+open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory mlmapTheory basisFunctionsLib
+     astPP comparisonTheory;
+
+intLib.deprecate_int();
+val _ = (max_print_depth := 1000);
+
+open p4_exec_sem_cakeProgTheory;
 open p4_cake_transformLib;
+
+val _ = translation_extends "p4_exec_sem_cakeProg";
 
 (* This file contains a test export of a program (simple conditional example) that has
  * been rewritten to a CakeML-friendly representation, where variable names have been
@@ -140,6 +148,10 @@ val ctrl' = “[]:v1model_ctrl'”
 val (dict', actx', astate') =
  transform_program v1model_dict actx astate ctrl'
 
+val n_max = “1000:num”;
+
 (** CakeML export **)
+
+p4_cake_wrapperLib.translate_p4 "conditional" actx' astate' n_max;
 
 val _ = export_theory ();

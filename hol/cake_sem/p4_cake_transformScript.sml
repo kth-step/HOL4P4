@@ -308,6 +308,48 @@ Definition oFOLDL_def:
   \res. oFOLDL f (res::e) t)
 End
 
+Definition transform_string_list_def:
+ (transform_string_list dict []     acc = SOME acc) /\
+ (transform_string_list dict (h::t) acc =
+  let res_opt = ALOOKUP dict h in
+  case res_opt of
+    SOME w =>
+   transform_string_list dict t (w::acc)
+  | NONE => NONE)
+End
+
+Definition transform_v_def:
+ (transform_v dict v =
+  case v of
+    v_bool boolv => SOME $ v'_bool boolv
+  | v_bit bitv => SOME $ v'_bit bitv
+  | v_str x => SOME $ v'_str x
+  | v_struct x_v_list =>
+   (* Note: Recursing like this is infinitely faster than unzipping x_v_list and
+    * transforming each list separately *)
+   (case x_v_list of
+    | ((x,v')::t) =>
+     ALOOKUP dict x >>=
+     \w. transform_v dict v' >>=
+     \v''.
+      (case transform_v dict (v_struct t) of
+       | SOME $ v'_struct t' => SOME $ v'_struct ((w, v'')::t')
+       | _ => NONE)
+    | [] => SOME $ v'_struct [])
+  | v_header boolv x_v_list =>
+   (case x_v_list of
+    | ((x,v')::t) =>
+     ALOOKUP dict x >>=
+     \w. transform_v dict v' >>=
+     \v''.
+      (case transform_v dict (v_header boolv t) of
+       | SOME $ v'_header boolv' t' => SOME $ v'_header boolv' ((w, v'')::t')
+       | _ => NONE)
+    | [] => SOME $ v'_header boolv [])
+  | v_ext_ref i => SOME $ v'_ext_ref i
+  | v_bot => SOME $ v'_bot)
+End
+(*
 Definition transform_v_def:
  (transform_v dict v =
   case v of
@@ -316,24 +358,29 @@ Definition transform_v_def:
   | v_str x => SOME $ v'_str x
   | v_struct x_v_list =>
    let (x_list, v_list) = UNZIP x_v_list in
-   oFOLDR (ALOOKUP dict) x_list >>=
-   \x_list'. transform_v_list dict v_list >>=
-   \v_list'. SOME $ v'_struct (ZIP (x_list', v_list'))
+   (case transform_string_list dict x_list [] of
+    SOME x_list' =>
+    (case transform_v_list dict v_list [] of
+       SOME v_list' => SOME $ v'_struct (ZIP (x_list', v_list'))
+     | NONE => NONE)
+    | NONE => NONE)
   | v_header boolv x_v_list =>
    let (x_list, v_list) = UNZIP x_v_list in
-   oFOLDR (ALOOKUP dict) x_list >>=
-   \x_list'. transform_v_list dict v_list >>=
+   transform_string_list dict x_list [] >>=
+   \x_list'. transform_v_list dict v_list [] >>=
    \v_list'. SOME $ v'_header boolv (ZIP (x_list', v_list'))
   | v_ext_ref i => SOME $ v'_ext_ref i
   | v_bot => SOME $ v'_bot) /\
- (transform_v_list dict [] = SOME []) /\
- (transform_v_list dict (h::t) =
-  transform_v dict h >>=
-  \v'. transform_v_list dict t >>=
-  \vl'. SOME $ v'::vl')
+ (transform_v_list dict [] acc = SOME acc) /\
+ (transform_v_list dict (h::t) acc =
+  case transform_v dict h of
+    SOME v' =>
+    transform_v_list dict t (v'::acc)
+   | NONE => NONE)
 Termination
 cheat
 End
+*)
 
 Definition transform_s_def:
  transform_s dict s =
@@ -365,8 +412,15 @@ Definition transform_e_def:
    transform_varn dict varn >>=
    \varn'. SOME $ e'_var varn'
   | e_list el =>
-   transform_e_list dict el >>=
-   \el'. SOME $ e'_list el'
+   (case el of
+      (h::t) =>
+     transform_e dict h >>=
+     \e'. transform_e dict (e_list t) >>=
+     \e''.
+      (case e'' of
+         e'_list t' => SOME $ e'_list (e'::t')
+       | _ => NONE)
+    | [] => SOME $ e'_list [])
   | e_acc e x =>
    transform_e dict e >>=
    \e'. ALOOKUP dict x >>= 
@@ -391,23 +445,56 @@ Definition transform_e_def:
    \e2'. transform_e dict e3 >>=
    \e3'. SOME $ e'_slice e1' e2' e3'
   | e_call funn el =>
-   transform_e_list dict el >>=
-   \el'. SOME $ e'_call funn el'
+   (case el of
+      (h::t) =>
+     transform_e dict h >>=
+     \e'. transform_e dict (e_list t) >>=
+     \e''.
+      (case e'' of
+         e'_list t' => SOME $ e'_call funn (e'::t')
+       | _ => NONE)
+    | [] => SOME $ e'_call funn [])
   | e_select e s_list_x_list x =>
    let (s_list_list, x_list) = UNZIP s_list_x_list in
    transform_e dict e >>=
    \e'. (oFOLDR (oFOLDR (transform_s dict))) s_list_list >>=
    \s_list_list'. SOME $ e'_select e' (ZIP (s_list_list', x_list)) x
   | e_struct x_e_list =>
-   let (x_list, e_list) = UNZIP x_e_list in
-   oFOLDR (ALOOKUP dict) x_list >>=
-   \x_list'. transform_e_list dict e_list >>=
-   \el'. SOME $ e'_struct $ ZIP (x_list', el')
+   (case x_e_list of
+      ((x,e)::t) =>
+     ALOOKUP dict x >>=
+     \x'. transform_e dict e >>=
+     \e'. transform_e dict (e_struct t) >>=
+     \e''.
+      (case e'' of
+         e'_struct t' => SOME $ e'_struct ((x', e')::t')
+       | _ => NONE)
+    | [] => SOME $ e'_struct [])
   | e_header validity x_e_list =>
-   let (x_list, e_list) = UNZIP x_e_list in
-   oFOLDR (ALOOKUP dict) x_list >>=
-   \x_list'. transform_e_list dict e_list >>=
-   \el'. SOME $ e'_header validity $ ZIP (x_list', el')) /\
+   (case x_e_list of
+      ((x,e)::t) =>
+     ALOOKUP dict x >>=
+     \x'. transform_e dict e >>=
+     \e'. transform_e dict (e_header validity t) >>=
+     \e''.
+      (case e'' of
+         e'_header validity' t' => SOME $ e'_header validity' ((x', e')::t')
+       | _ => NONE)
+    | [] => SOME $ e'_header validity []))
+End
+
+(* TODO: Is this the best way of handling lists of e in other dataytypes than e? *)
+Definition transform_e_list_def:
+ transform_e_list dict el =
+  transform_e dict (e_list el) >>=
+  \el'.
+   case el' of
+      e'_list el'' =>
+     SOME el''
+    | _ => NONE
+End
+
+(*
  (transform_e_list dict [] = SOME []) /\
  (transform_e_list dict (h::t) =
   transform_e dict h >>=
@@ -423,6 +510,7 @@ subgoal ‘e_list' = MAP SND x_e_list'’ >- (
 imp_res_tac e1_e3_size >>
 decide_tac
 End
+*)
 
 Definition transform_arch_block_def:
  transform_arch_block dict arch_block =
@@ -470,18 +558,17 @@ Definition transform_tau_def:
    | tau_bit num_exp => SOME $ tau'_bit num_exp
    | tau_bot => SOME $ tau'_bot
    | tau_xtl struct_ty x_tau_list =>
-    let (x_list, tau_list) = UNZIP x_tau_list in
-    oFOLDR (ALOOKUP dict) x_list >>=
-    \x_list'. transform_tau_list dict tau_list >>=
-    \tau_l'. SOME $ tau'_xtl struct_ty $ ZIP (x_list', tau_l')
-   | tau_ext => SOME $ tau'_ext) /\
- (transform_tau_list dict [] = SOME []) /\
- (transform_tau_list dict (h::t) =
-  transform_tau dict h >>=
-  \tau'. transform_tau_list dict t >>=
-  \tau_l'. SOME $ tau'::tau_l')
-Termination
-cheat
+    (case x_tau_list of
+      ((x,tau')::t) =>
+     ALOOKUP dict x >>=
+     \x'. transform_tau dict tau' >>=
+     \tau''.
+      (case transform_tau dict (tau_xtl struct_ty t) of
+         SOME $ tau'_xtl struct_ty' t' =>
+         SOME $ tau'_xtl struct_ty' ((x', tau'')::t')
+       | _ => NONE)
+    | [] => SOME $ tau'_xtl struct_ty [])
+   | tau_ext => SOME $ tau'_ext)
 End
 
 Definition transform_t_scope_def:
@@ -684,7 +771,7 @@ End
 
 Definition transform_ctrl_empty_def:
  transform_ctrl_empty (ctrl:v1model_ctrl) =
-  (oFOLDR (\(x, v). SOME (x, []:(((e_list' -> bool) # num), string # e_list') alist)) ctrl)
+  ((oFOLDR (\(x, v). SOME (x, []:(((e_list' -> bool) # num), string # e_list') alist)) ctrl):v1model_ctrl' option)
 (*
   (oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist) | NONE => NONE) ctrl)
 *)
@@ -750,7 +837,7 @@ Definition transform_astate_def:
   \aenv'. transform_scope_list dict g_scope_list >>=
   (* TODO: arch_frame_list transformation hard-coded, for now *)
   \g_scope_list'. transform_status dict status >>=
-  \status'. SOME (aenv':v1model_ascope' aenv, g_scope_list':g_scope_list', arch_frame_list'_empty, status')
+  \status'. SOME ((aenv':v1model_ascope' aenv, g_scope_list':g_scope_list', arch_frame_list'_empty, status'):v1model_ascope' astate')
 End
 
 val _ = export_theory ();
