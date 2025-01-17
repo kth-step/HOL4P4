@@ -90,7 +90,7 @@ val _ = translate listTheory.FOLDL;
 val _ = translate find_topmost_map'_def;
 val _ = translate lookup_map'_def;
 val _ = translate lookup_v'_def;
-val _ = translate acc_f_def;
+val _ = translate acc_f'_def;
 
 val _ = translate rich_listTheory.SEG;
 Theorem seg_side_thm:
@@ -333,7 +333,7 @@ val _ = translate var_star_updates_of_func_map'_def;
 val _ = translate var_star_updates_of_ext_map'_def;
 val _ = translate initialise_var_stars'_def;
 val _ = translate state_fin_exec_def;
-val _ = translate set_fin_status_def;
+val _ = translate set_fin_status'_def;
 
 val _ = translate arch_exec'_def;
 
@@ -351,7 +351,7 @@ val _ = translate header_set_invalid'_def;
 
 val _ = translate oTAKE_DROP_def;
 val _ = translate v2w16s'''_def;
-val _ = translate header_entries2v_def;
+val _ = translate header_entries2v'_def;
 val _ = translate v2w16s''_def;
 val _ = translate p4_arch_cakeTheory.get_checksum_incr''_def;
 
@@ -411,7 +411,7 @@ val _ = translate v1model_postparser'_def;
 val _ = translate v1model_input_f'_def;
 
 val _ = translate v1model_is_drop_port_def;
-val _ = translate v1model_lookup_obj_def;
+val _ = translate v1model_lookup_obj'_def;
 val _ = translate v1model_output_f'_def;
 
 val _ = translate v1model_reduce_nonout'_def;
@@ -444,18 +444,18 @@ val _ = translate v1model_update_checksum'_def;
 
 val _ = translate lookup_lval_header'_def;
 val _ = translate lookup_ascope_gen_def;
-val _ = translate size_in_bits_def;
-val _ = translate set_bool_def;
-val _ = translate set_bit_def;
-val _ = translate set_fields_def;
-val _ = translate set_header_def;
+val _ = translate size_in_bits'_def;
+val _ = translate set_bool'_def;
+val _ = translate set_bit'_def;
+val _ = translate set_fields'_def;
+val _ = translate set_header'_def;
 val _ = translate update_ascope_gen_def;
 val _ = translate packet_in_extract_gen'_def;
 val _ = translate v1model_ascope_lookup'_def;
 val _ = translate v1model_packet_in_extract'_def;
 
-val _ = translate set_struct_def;
-val _ = translate set_v_def;
+val _ = translate set_struct'_def;
+val _ = translate set_v'_def;
 val _ = translate packet_in_lookahead_gen'_def;
 val _ = translate v1model_packet_in_lookahead'_def;
 
@@ -463,7 +463,7 @@ val _ = translate lookup_lval_bit32'_def;
 val _ = translate packet_in_advance_gen'_def;
 val _ = translate v1model_packet_in_advance'_def;
 
-val _ = translate flatten_v_l_def;
+val _ = translate flatten_v_l'_def;
 val _ = translate packet_out_emit_gen'_def;
 val _ = translate v1model_packet_out_emit'_def;
 

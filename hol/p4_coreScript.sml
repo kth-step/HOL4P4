@@ -401,7 +401,7 @@ Definition header_entries2v_def:
    | NONE => NONE)
   | NONE => NONE
  ) /\
- (header_entries2v (INR (x:x, v)) =
+ (header_entries2v (INR (x, v)) =
   case v of
   | (v_bit (bl, n)) => SOME bl
   | (v_struct x_v_l) => header_entries2v (INL x_v_l)

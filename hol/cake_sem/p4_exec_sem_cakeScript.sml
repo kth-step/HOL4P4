@@ -8,7 +8,6 @@ open p4Theory p4_auxTheory;
 (* CakeML-adjusted executable semantics *)
 
 (* TODO: Make funn_name, funn_ext et.c. hold words64s : consequences for func_map and ext_map *)
-(* TODO: Field names *)
 (* TODO: Arch block names *)
 (* TODO: Parser states *)
 (* TODO: Table names *)
@@ -20,44 +19,83 @@ Datatype:
 End
 
 Datatype:
+v' =  
+   v'_bool boolv
+ | v'_bit bitv
+ | v'_str x
+ | v'_struct ((word64#v') list)
+ | v'_header boolv ((word64#v') list)
+ | v'_ext_ref i
+ | v'_bot
+End
+
+val _ = Hol_datatype ` 
+status' =
+   status'_running
+ | status'_returnv of v'
+ | status'_trans of x
+`;
+
+Type v_list' = ``:(v' list)``
+
+val _ = Hol_datatype ` 
+s' =  (* set *)
+   s'_sing of v' (* singleton *)
+ | s'_range of bitv => bitv (* interval *)
+ | s'_mask of bitv => bitv (* bit mask *)
+ | s'_univ (* universal *)
+`;
+
+Type s_list' = ``:(s' list)``
+
+Datatype:
 e' =
- | e'_v v
+ | e'_v v'
  | e'_var varn'
  | e'_list (e' list)
- | e'_acc e' x
+ | e'_acc e' word64
  | e'_unop unop e'
  | e'_cast cast e'
  | e'_binop e' binop e'
  | e'_concat e' e'
  | e'_slice e' e' e'
  | e'_call funn (e' list)
- | e'_select e' ((s_list#x) list) x
- | e'_struct ((x#e') list)
- | e'_header boolv ((x#e') list)
+ | e'_select e' ((s_list'#x) list) x
+ | e'_struct ((word64#e') list)
+ | e'_header boolv ((word64#e') list)
 End
 
 val _ = Hol_datatype ` 
 lval' = 
    lval'_varname of varn' (* variable name *)
  | lval'_null (* null variable *)
- | lval'_field of lval' => x (* field access *)
+ | lval'_field of lval' => word64 (* field access *)
  | lval'_slice of lval' => e' => e' (* slice array *)
  | lval'_paren of lval'
 `;
 
 Type e_list' = ``:(e' list)``
 
-Type scope' = ``:((varn', (v # lval' option)) alist)``
+Type scope' = ``:((varn', (v' # lval' option)) alist)``
 
 Type g_scope' = ``:scope'``
+
+val _ = Hol_datatype ` 
+tau' =  (* type *)
+   tau'_bool (* boolean *)
+ | tau'_bit of num_exp (* bit-string *)
+ | tau'_bot (* no value *)
+ | tau'_xtl of struct_ty => (word64#tau') list (* struct *)
+ | tau'_ext (* extern *)
+`;
 
 Type g_scope_list' = ``:(scope' list)``
 
 Type scope_list' = ``:(scope' list)``
 
-Type ext_fun' = ``:(('a # g_scope_list' # scope_list') -> (('a # scope_list' # status) option))``
+Type ext_fun' = ``:(('a # g_scope_list' # scope_list') -> (('a # scope_list' # status') option))``
 
-Type t_scope' = ``:((varn', (tau # lval' option)) alist)``
+Type t_scope' = ``:((varn', (tau' # lval' option)) alist)``
 
 val _ = Hol_datatype ` 
 stmt' =  (* statement *)
@@ -99,7 +137,7 @@ arch_block' =  (* architectural block *)
 
 Type apply_table_f' = ``:((x # e_list' # mk_list # (x # e_list') # 'a) -> (x # e_list') option)``
 
-Type copyout_pbl' = ``:((g_scope' list # 'a # d list # word64 list # status) -> 'a option)``
+Type copyout_pbl' = ``:((g_scope' list # 'a # d list # word64 list # status') -> 'a option)``
 
 Type copyin_pbl' = ``:((word64 list # d list # e' list # 'a) -> scope' option)``
 (*
@@ -122,7 +160,7 @@ Type frame' = ``:(funn # stmt_stack' # scope_list')``
 
 Type frame_list' = ``:(frame' list)``
 
-Type state' = ``:('a # g_scope_list' # frame_list' # status)``
+Type state' = ``:('a # g_scope_list' # frame_list' # status')``
 
 val _ = Hol_datatype ` 
 arch_frame_list' =  (* architecture-level frame list *)
@@ -130,7 +168,7 @@ arch_frame_list' =  (* architecture-level frame list *)
  | arch_frame_list'_regular of frame_list' (* regular frame list *)
 `;
 
-Type astate' = ``:('a aenv # g_scope_list' # arch_frame_list' # status)``
+Type astate' = ``:('a aenv # g_scope_list' # arch_frame_list' # status')``
 
 (**********************************)
 (* Semantics function definitions *)
@@ -144,16 +182,28 @@ val is_consts'_def = Define `
   is_consts' el = ~(EXISTS (\e. ~(is_const' e)) el)
 `;
 
+val acc_f'_def = Define `
+  (acc_f' (v'_struct s) f =
+    case FIND (\(f', v). f' = f) s of
+    | SOME (f'', v) => SOME v
+    | _ => NONE) /\
+  (acc_f' (v'_header _ s) f =
+    case FIND (\(f', v). f' = f) s of
+    | SOME (f'', v) => SOME v
+    | _ => NONE) /\
+  (acc_f' _ f = NONE)
+`;
+
 Definition slice_lval'_def:
  slice_lval' v e1 e2 =
   case v of
-  | (v_bit (v, bl)) =>
+  | (v'_bit (v, bl)) =>
    (case e1 of
-    | (e'_v (v_bit (v1, bl1))) =>
+    | (e'_v (v'_bit (v1, bl1))) =>
      (case e2 of
-      | (e'_v (v_bit (v2, bl2))) =>
+      | (e'_v (v'_bit (v2, bl2))) =>
        (case slice' (v, bl) (v1, bl1) (v2, bl2) of
-        | SOME bitv => SOME $ v_bit bitv
+        | SOME bitv => SOME $ v'_bit bitv
         | NONE => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -261,25 +311,42 @@ Definition lookup_vexp2'_def:
     | _ => NONE
 End
 
+val v'_size_def = DB.fetch "-" "v'_size_def";
+
+Theorem v'1_size_append:
+ !v_l1 v_l2. v'1_size (v_l1 ++ v_l2) = (v'1_size v_l1 + v'1_size v_l2)
+Proof
+ Induct_on `v_l1` >> (
+  fs [v'_size_def]
+ )
+QED
+
+Theorem v'1_size_mem:
+ !x v t. MEM (x,v) t ==> v'_size v < v'1_size t
+Proof
+ REPEAT STRIP_TAC >>
+ fs [listTheory.MEM_SPLIT, v'1_size_append, v'_size_def]
+QED
+
 (* TODO: This function initialises everything to zeroes instead of using ARBs,
  * which are not compatible with CakeML. Use this as a placeholder before you have
  * deep-embedded uninitialised values. *)
 Definition init_out_v_cake_def:
-  (init_out_v_cake (v_bool boolv) = v_bool F) /\
-  (init_out_v_cake (v_bit (bl, n)) = v_bit (extend F n [], n)) /\
-  (init_out_v_cake (v_str x) = v_str "") /\
-  (init_out_v_cake (v_struct ((x,v)::t)) = v_struct (((x, init_out_v_cake v))::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
-  (init_out_v_cake (v_struct []) = v_struct []) /\
-  (init_out_v_cake (v_header boolv ((x,v)::t)) =
-    v_header F (( (x, init_out_v_cake v) )::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
-  (init_out_v_cake (v_header boolv []) = v_header F []) /\
-  (init_out_v_cake (v_ext_ref i) = v_ext_ref i) /\
-  (init_out_v_cake v_bot = v_bot)
+  (init_out_v_cake (v'_bool boolv) = v'_bool F) /\
+  (init_out_v_cake (v'_bit (bl, n)) = v'_bit (extend F n [], n)) /\
+  (init_out_v_cake (v'_str x) = v'_str "") /\
+  (init_out_v_cake (v'_struct ((x,v)::t)) = v'_struct (((x, init_out_v_cake v))::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
+  (init_out_v_cake (v'_struct []) = v'_struct []) /\
+  (init_out_v_cake (v'_header boolv ((x,v)::t)) =
+    v'_header F (( (x, init_out_v_cake v) )::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
+  (init_out_v_cake (v'_header boolv []) = v'_header F []) /\
+  (init_out_v_cake (v'_ext_ref i) = v'_ext_ref i) /\
+  (init_out_v_cake v'_bot = v'_bot)
 Termination
- WF_REL_TAC `measure v_size` \\
- fs [v_size_def] \\
+ WF_REL_TAC `measure v'_size` \\
+ fs [v'_size_def] \\
  REPEAT STRIP_TAC \\
- `v_size v' < v1_size t` suffices_by (
+ `v'_size v' < v'1_size t` suffices_by (
   fs []
  ) \\
  METIS_TAC [v1_size_mem]
@@ -289,11 +356,11 @@ val lookup_lval'_def = Define `
   (lookup_lval' (ss:scope' list) (lval'_varname x) = lookup_v' ss x) /\
   (lookup_lval' ss (lval'_field lval f) =
      case lookup_lval' ss lval of
-     | SOME v => acc_f v f
+     | SOME v => acc_f' v f
      | NONE => NONE) /\
  (lookup_lval' ss (lval'_slice lval e1 e2) =
     case lookup_lval' ss lval of
-     | SOME (v_bit (v, bl)) => (slice_lval' (v_bit (v, bl)) e1 e2)
+     | SOME (v'_bit (v, bl)) => (slice_lval' (v'_bit (v, bl)) e1 e2)
      | _ => NONE
      ) /\
  (lookup_lval' ss (lval'_null) = NONE ) /\
@@ -400,12 +467,12 @@ End
 Definition assign_to_slice'_def:
  assign_to_slice' vb vb' ev1 ev2 =
   (case ev1 of
-   | (e'_v (v_bit (bl1, n1))) =>
+   | (e'_v (v'_bit (bl1, n1))) =>
     (case ev2 of
-     | (e'_v (v_bit (bl2, n2))) =>
+     | (e'_v (v'_bit (bl2, n2))) =>
       (case replace_bits vb vb' (v2n bl1) (v2n bl2) of
        | SOME bitv =>
-        SOME $ v_bit (bitv, SND vb')
+        SOME $ v'_bit (bitv, SND vb')
        | NONE => NONE)
      | _ => NONE)
    | _ => NONE)
@@ -423,20 +490,20 @@ Definition assign'_def:
   | _ => NONE) /\
  (assign' ss v (lval'_field lval f) =
   case lookup_lval' ss lval of
-  | SOME (v_struct f_v_l) =>
+  | SOME (v'_struct f_v_l) =>
    (case INDEX_OF f (MAP FST f_v_l) of
-    | SOME i => assign' ss (v_struct (LUPDATE (f, v) i f_v_l)) lval
+    | SOME i => assign' ss (v'_struct (LUPDATE (f, v) i f_v_l)) lval
     | NONE => NONE)
-  | SOME (v_header validity f_v_l) =>
+  | SOME (v'_header validity f_v_l) =>
    (case INDEX_OF f (MAP FST f_v_l) of
-    | SOME i => assign' ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
+    | SOME i => assign' ss (v'_header validity (LUPDATE (f, v) i f_v_l)) lval
     | NONE => NONE)
    | _ => NONE) /\    
  (assign' ss v (lval'_slice lval ev1 ev2) =
   case v of
-  | v_bit vb =>
+  | v'_bit vb =>
    (case lookup_lval' ss lval of
-    | SOME (v_bit vb') =>
+    | SOME (v'_bit vb') =>
      (case assign_to_slice' vb vb' ev1 ev2 of
       | SOME v_res => assign' ss v_res lval
       | _ => NONE)
@@ -455,7 +522,7 @@ val initialise'_def = Define `
 val var_star_updates_of_func_map'_def = Define `
   (var_star_updates_of_func_map' (func_map:func_map') =
    let varnames = (MAP FST func_map) in
-   MAP ( \x. (varn'_star (funn_name x), (v_bot, (NONE:lval' option)))) varnames
+   MAP ( \x. (varn'_star (funn_name x), (v'_bot, (NONE:lval' option)))) varnames
   )
 `;
 
@@ -464,9 +531,9 @@ val var_star_updates_of_ext_map'_def = Define `
  (var_star_updates_of_ext_map' (((ext_obj_name, ext_obj_funs)::t):'a ext_map') =
   case ext_obj_funs of
   | (SOME _, ext_fun_map) =>
-   ((varn'_star (funn_inst ext_obj_name), (v_bot, (NONE:lval' option)))::(MAP ( \x. (varn'_star (funn_ext ext_obj_name x), (v_bot, (NONE:lval' option)))) (MAP FST ext_fun_map)))++(var_star_updates_of_ext_map' t)
+   ((varn'_star (funn_inst ext_obj_name), (v'_bot, (NONE:lval' option)))::(MAP ( \x. (varn'_star (funn_ext ext_obj_name x), (v'_bot, (NONE:lval' option)))) (MAP FST ext_fun_map)))++(var_star_updates_of_ext_map' t)
   | (NONE, ext_fun_map) =>
-   MAP ( \x. (varn'_star (funn_ext ext_obj_name x), (v_bot, (NONE:lval' option)))) (MAP FST ext_fun_map)++(var_star_updates_of_ext_map' t)
+   MAP ( \x. (varn'_star (funn_ext ext_obj_name x), (v'_bot, (NONE:lval' option)))) (MAP FST ext_fun_map)++(var_star_updates_of_ext_map' t)
  )
 `;
 
@@ -483,18 +550,18 @@ val initialise_var_stars'_def = Define `
  * which are not compatible with CakeML. Use this as a placeholder before you have
  * deep-embedded uninitialised values. *)
 Definition init_v_from_tau_cake_def:
- (init_v_from_tau_cake tau_bool = v_bool F) /\
- (init_v_from_tau_cake (tau_bit w) = v_bit (GENLIST (\x. F) w, w)) /\
- (init_v_from_tau_cake tau_bot = v_bot) /\
- (init_v_from_tau_cake tau_ext = v_ext_ref 0) /\
- (init_v_from_tau_cake (tau_xtl struct_ty_struct []) = v_struct []) /\
- (init_v_from_tau_cake (tau_xtl struct_ty_struct ((x0,t0)::xtl)) =
-  v_struct ((x0, init_v_from_tau_cake t0)::(MAP (\(x,t). (x, init_v_from_tau_cake t)) xtl))) /\
- (init_v_from_tau_cake (tau_xtl struct_ty_header [] ) = v_header F [] ) /\
- (init_v_from_tau_cake (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
-   v_header F ((x0, init_v_from_tau_cake t0)::(MAP (\(x,t). (x, init_v_from_tau_cake t)) xtl)))
+ (init_v_from_tau_cake tau'_bool = v'_bool F) /\
+ (init_v_from_tau_cake (tau'_bit w) = v'_bit (GENLIST (\x. F) w, w)) /\
+ (init_v_from_tau_cake tau'_bot = v'_bot) /\
+ (init_v_from_tau_cake tau'_ext = v'_ext_ref 0) /\
+ (init_v_from_tau_cake (tau'_xtl struct_ty_struct []) = v'_struct []) /\
+ (init_v_from_tau_cake (tau'_xtl struct_ty_struct ((x0,t0)::xtl)) =
+  v'_struct ((x0, init_v_from_tau_cake t0)::(MAP (\(x,t). (x, init_v_from_tau_cake t)) xtl))) /\
+ (init_v_from_tau_cake (tau'_xtl struct_ty_header [] ) = v'_header F [] ) /\
+ (init_v_from_tau_cake (tau'_xtl struct_ty_header ((x0,t0)::xtl)) =
+   v'_header F ((x0, init_v_from_tau_cake t0)::(MAP (\(x,t). (x, init_v_from_tau_cake t)) xtl)))
 Termination
-WF_REL_TAC `measure tau_size`
+WF_REL_TAC `measure tau'_size`
 End
 
 Definition declare_list_in_scope'_def:
@@ -578,20 +645,30 @@ End
 val fully_reduced'_def = Define `
   fully_reduced' e =
     case e of
-    | (e'_v (v_str _)) => T
+    | (e'_v (v'_str _)) => T
     | _ => F
 `;
 
 val state_fin'_def = Define `
  state_fin' status frame_list =
-  ((status = status_trans "accept") \/
-   (status = status_trans "reject") \/
-   (?v. status = status_returnv v) \/
+  ((status = status'_trans "accept") \/
+   (status = status'_trans "reject") \/
+   (?v. status = status'_returnv v) \/
    (?funn scope_list. frame_list = [(funn, [stmt'_empty], scope_list)] /\
-    ((?state_name. status = status_trans state_name) ==>
-     ((status = status_trans "accept") \/
-      (status = status_trans "reject"))))
+    ((?state_name. status = status'_trans state_name) ==>
+     ((status = status'_trans "accept") \/
+      (status = status'_trans "reject"))))
   )
+`;
+
+val set_fin_status'_def = Define `
+  set_fin_status' pbl_type status =
+    case pbl_type of
+    | pbl_type_parser =>
+     (case status of
+      | status'_running => (status'_trans "reject")
+      | _ => status)
+    | pbl_type_control => status
 `;
 
 val not_top_return'_def = Define `
@@ -705,30 +782,30 @@ Definition get_v'_def:
 End
 
 Definition is_v_bool'_def:
- (is_v_bool' (e'_v (v_bool b)) = T) /\
+ (is_v_bool' (e'_v (v'_bool b)) = T) /\
  (is_v_bool' _ = F)
 End
 
 Definition is_v_bit'_def:
- (is_v_bit' (e'_v (v_bit bitv)) = T) /\
+ (is_v_bit' (e'_v (v'_bit bitv)) = T) /\
  (is_v_bit' _ = F)
 End
 
 (* NOTE: Error messages serialised using 32 bits *)
 Definition is_v_err'_def:
- (is_v_err' (e'_v (v_bit (bl, 32))) = T) /\
+ (is_v_err' (e'_v (v'_bit (bl, 32))) = T) /\
  (is_v_err' _ = F)
 End
 
 Definition is_v_str'_def:
- (is_v_str' (e'_v (v_str x)) = T) /\
+ (is_v_str' (e'_v (v'_str x)) = T) /\
  (is_v_str' _ = F)
 End
 
 Definition to_bool_cast_exec_def:
  to_bool_cast_exec bitv =
   case oHD $ REVERSE $ FST bitv of
-  | SOME bit => SOME $ v_bool bit
+  | SOME bit => SOME $ v'_bool bit
   | NONE => NONE
 End
 
@@ -747,13 +824,13 @@ Definition bitv_unplus_def:
 End
 
 Definition unop_exec'_def:
- (unop_exec' unop_neg (v_bool b) = SOME (v_bool ~b))
+ (unop_exec' unop_neg (v'_bool b) = SOME (v'_bool ~b))
  /\
- (unop_exec' unop_compl (v_bit (bl,n)) = SOME (v_bit (bitv_1comp bl, n)))
+ (unop_exec' unop_compl (v'_bit (bl,n)) = SOME (v'_bit (bitv_1comp bl, n)))
  /\
- (unop_exec' unop_neg_signed (v_bit (bl,n)) = SOME (v_bit (bitv_2comp bl, n)))
+ (unop_exec' unop_neg_signed (v'_bit (bl,n)) = SOME (v'_bit (bitv_2comp bl, n)))
  /\
- (unop_exec' unop_un_plus (v_bit bitv) = SOME (v_bit bitv))
+ (unop_exec' unop_un_plus (v'_bit bitv) = SOME (v'_bit bitv))
  /\
  (unop_exec' unop v = NONE)
 End
@@ -765,11 +842,11 @@ Definition e_exec_unop'_def:
 End
 
 Definition cast_exec_def:
- (cast_exec (cast_unsigned n) (v_bit bitv) = SOME (v_bit $ bitv_cast n bitv))
+ (cast_exec (cast_unsigned n) (v'_bit bitv) = SOME (v'_bit $ bitv_cast n bitv))
  /\
- (cast_exec (cast_unsigned n) (v_bool b) = SOME (v_bit $ bool_cast n b))
+ (cast_exec (cast_unsigned n) (v'_bool b) = SOME (v'_bit $ bool_cast n b))
  /\
- (cast_exec cast_bool (v_bit bitv) = to_bool_cast_exec bitv)
+ (cast_exec cast_bool (v'_bit bitv) = to_bool_cast_exec bitv)
  /\
  (cast_exec _ _ = NONE)
 End
@@ -936,89 +1013,89 @@ Definition bitv_binop'_def:
 End
 
 Definition binop_exec'_def:
- (binop_exec' binop_mul (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_mul (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binop' binop_mul bitv1 bitv2 of
-  | SOME bitv3 => SOME (v_bit bitv3)
+  | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
- (binop_exec' binop_div (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_div (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binop' binop_div bitv1 bitv2 of
-  | SOME bitv3 => SOME (v_bit bitv3)
+  | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
- (binop_exec' binop_mod (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_mod (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binop' binop_mod bitv1 bitv2 of
-  | SOME bitv3 => SOME (v_bit bitv3)
+  | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
- (binop_exec' binop_add (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_add (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binop' binop_add bitv1 bitv2 of
-  | SOME bitv3 => SOME (v_bit bitv3)
+  | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
- (binop_exec' binop_sat_add (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_sat_add (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binop' binop_sat_add bitv1 bitv2 of
-  | SOME bitv3 => SOME (v_bit bitv3)
+  | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
- (binop_exec' binop_sub (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_sub (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binop' binop_sub bitv1 bitv2 of
-  | SOME bitv3 => SOME (v_bit bitv3)
+  | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
- (binop_exec' binop_sat_sub (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_sat_sub (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binop' binop_sat_sub bitv1 bitv2 of
-  | SOME bitv3 => SOME (v_bit bitv3)
+  | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
- (binop_exec' binop_shl (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
+ (binop_exec' binop_shl (v'_bit bitv1) (v'_bit bitv2) =
+  SOME (v'_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
  /\
- (binop_exec' binop_shr (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
+ (binop_exec' binop_shr (v'_bit bitv1) (v'_bit bitv2) =
+  SOME (v'_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
  /\
- (binop_exec' binop_le (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_le (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binpred' binop_le bitv1 bitv2 of
-  | SOME b => SOME (v_bool b)
+  | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
- (binop_exec' binop_ge (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_ge (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binpred' binop_ge bitv1 bitv2 of
-  | SOME b => SOME (v_bool b)
+  | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
- (binop_exec' binop_lt (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_lt (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binpred' binop_lt bitv1 bitv2 of
-  | SOME b => SOME (v_bool b)
+  | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
- (binop_exec' binop_gt (v_bit bitv1) (v_bit bitv2) =
+ (binop_exec' binop_gt (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binpred' binop_gt bitv1 bitv2 of
-  | SOME b => SOME (v_bool b)
+  | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
  (* TODO: This would generalize easily in theory, but
   * gives rise to enormously many autogenerated cases *)
- (binop_exec' binop_neq (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bool (bitv1 <> bitv2)))
+ (binop_exec' binop_neq (v'_bit bitv1) (v'_bit bitv2) =
+  SOME (v'_bool (bitv1 <> bitv2)))
  /\
- (binop_exec' binop_neq (v_bool b1) (v_bool b2) =
-  SOME (v_bool (b1 <> b2)))
+ (binop_exec' binop_neq (v'_bool b1) (v'_bool b2) =
+  SOME (v'_bool (b1 <> b2)))
  /\
- (binop_exec' binop_eq (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bool (bitv1 = bitv2)))
+ (binop_exec' binop_eq (v'_bit bitv1) (v'_bit bitv2) =
+  SOME (v'_bool (bitv1 = bitv2)))
  /\
- (binop_exec' binop_eq (v_bool b1) (v_bool b2) =
-  SOME (v_bool (b1 = b2)))
+ (binop_exec' binop_eq (v'_bool b1) (v'_bool b2) =
+  SOME (v'_bool (b1 = b2)))
  /\
- (binop_exec' binop_and (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop band' bitv1 bitv2)))
+ (binop_exec' binop_and (v'_bit bitv1) (v'_bit bitv2) =
+  SOME (v'_bit (bitv_bl_binop band' bitv1 bitv2)))
  /\
- (binop_exec' binop_xor (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop bxor bitv1 bitv2)))
+ (binop_exec' binop_xor (v'_bit bitv1) (v'_bit bitv2) =
+  SOME (v'_bit (bitv_bl_binop bxor bitv1 bitv2)))
  /\
- (binop_exec' binop_or (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop bor' bitv1 bitv2)))
+ (binop_exec' binop_or (v'_bit bitv1) (v'_bit bitv2) =
+  SOME (v'_bit (bitv_bl_binop bor' bitv1 bitv2)))
  /\
  (binop_exec' binop v1 v2 = NONE)
 End
@@ -1030,25 +1107,25 @@ Definition e_exec_binop'_def:
 End
 
 Definition e_exec_short_circuit'_def:
- (e_exec_short_circuit' (v_bool T) binop_bin_and e = SOME e)
+ (e_exec_short_circuit' (v'_bool T) binop_bin_and e = SOME e)
   /\
- (e_exec_short_circuit' (v_bool F) binop_bin_and e = SOME (e'_v (v_bool F)))
+ (e_exec_short_circuit' (v'_bool F) binop_bin_and e = SOME (e'_v (v'_bool F)))
   /\
- (e_exec_short_circuit' (v_bool T) binop_bin_or e = SOME (e'_v (v_bool T)))
+ (e_exec_short_circuit' (v'_bool T) binop_bin_or e = SOME (e'_v (v'_bool T)))
   /\
- (e_exec_short_circuit' (v_bool F) binop_bin_or e = SOME e)
+ (e_exec_short_circuit' (v'_bool F) binop_bin_or e = SOME e)
   /\
  (e_exec_short_circuit' _ _ _ = NONE)
 End
 
 (* Field access *)
 Definition e_exec_acc'_def:
- (e_exec_acc' (e'_acc (e'_v (v_struct f_v_list)) f) =
+ (e_exec_acc' (e'_acc (e'_v (v'_struct f_v_list)) f) =
   case ALOOKUP f_v_list f of
   | SOME v => SOME (e'_v v)
   | NONE => NONE)
   /\
- (e_exec_acc' (e'_acc (e'_v (v_header boolv f_v_list)) f) =
+ (e_exec_acc' (e'_acc (e'_v (v'_header boolv f_v_list)) f) =
   case ALOOKUP f_v_list f of
   | SOME v => SOME (e'_v v)
   | NONE => NONE)
@@ -1059,7 +1136,7 @@ End
 Definition p4_match_mask'_def:
  p4_match_mask' val mask k =
   (case k of
-   | v_bit (v', n') =>
+   | v'_bit (v', n') =>
     (case bitv_binop' binop_and (v', n') mask of
      | SOME res =>
       (case bitv_binop' binop_and val mask of
@@ -1075,7 +1152,7 @@ End
 Definition p4_match_range'_def:
  p4_match_range' lo hi k =
   case k of
-   | v_bit (v', n') =>
+   | v'_bit (v', n') =>
     (case bitv_binpred' binop_ge (v', n') lo of
      | SOME T =>
       (case bitv_binpred' binop_le (v', n') hi of
@@ -1088,10 +1165,10 @@ End
 Definition match'_def:
  match' v s =
   case s of
-  | s_sing v' => (v = v')
-  | s_range bitv bitv' => p4_match_range' bitv bitv' v
-  | s_mask bitv bitv' => p4_match_mask' bitv bitv' v
-  | s_univ => T
+  | s'_sing v' => (v = v')
+  | s'_range bitv bitv' => p4_match_range' bitv bitv' v
+  | s'_mask bitv bitv' => p4_match_mask' bitv bitv' v
+  | s'_univ => T
 End
 
 Definition match_all'_def:
@@ -1103,7 +1180,7 @@ Definition match_all'_def:
 End
 
 Definition match_all_first'_def:
- (match_all_first' i v_list ([]:(s list # x) list) = NONE) /\
+ (match_all_first' i v_list ([]:(s' list # x) list) = NONE) /\
  (match_all_first' i v_list (h::t) =
   if (match_all' (ZIP(v_list, FST h)))
   then SOME (SND h)
@@ -1116,7 +1193,7 @@ End
 Definition e_exec_select'_def:
  (e_exec_select' (e'_v v) s_l_x_l x =
   case v of
-  | v_struct x_v_l =>
+  | v'_struct x_v_l =>
    (case match_all_first (SND $ UNZIP x_v_l) s_l_x_l of
     | SOME x' => SOME x'
     | NONE => SOME x)
@@ -1125,16 +1202,16 @@ Definition e_exec_select'_def:
 End
 
 Definition e_exec_concat'_def:
- (e_exec_concat' (e'_v (v_bit bitv1)) (e'_v (v_bit bitv2)) =
-  SOME (v_bit (bitv_concat bitv1 bitv2)))
+ (e_exec_concat' (e'_v (v'_bit bitv1)) (e'_v (v'_bit bitv2)) =
+  SOME (v'_bit (bitv_concat bitv1 bitv2)))
   /\
  (e_exec_concat' _ _ = NONE)
 End
 
 Definition e_exec_slice'_def:
- (e_exec_slice' (e'_v (v_bit bitv1)) (e'_v (v_bit bitv2)) (e'_v (v_bit bitv3)) =
+ (e_exec_slice' (e'_v (v'_bit bitv1)) (e'_v (v'_bit bitv2)) (e'_v (v'_bit bitv3)) =
   case slice' bitv1 bitv2 bitv3 of
-  | SOME bitv => SOME $ v_bit bitv
+  | SOME bitv => SOME $ v'_bit bitv
   | NONE => NONE)
   /\
  (e_exec_slice' _ _ _ = NONE)
@@ -1171,16 +1248,16 @@ Definition stmt_exec_init'_def:
 End
 
 Definition stmt_exec_trans'_def:
- (stmt_exec_trans' (e'_v (v_str x)) = SOME (status_trans x))
+ (stmt_exec_trans' (e'_v (v'_str x)) = SOME (status'_trans x))
   /\
  (stmt_exec_trans' _ = NONE)
 End
 
 Definition stmt_exec_cond'_def:
- (stmt_exec_cond' (e'_v (v_bool T)) =
+ (stmt_exec_cond' (e'_v (v'_bool T)) =
   SOME T)
   /\
- (stmt_exec_cond' (e'_v (v_bool F)) =
+ (stmt_exec_cond' (e'_v (v'_bool F)) =
   SOME F)
   /\
  (stmt_exec_cond' _ = NONE)
@@ -1280,7 +1357,7 @@ Definition e_exec'_def:
     | NONE => NONE)
   | NONE =>
    (case vl_of_el' (MAP_SND x_e_l) of
-    | SOME v_l => SOME (e'_v (v_struct (ZIP (MAP_FST x_e_l, v_l))), [])
+    | SOME v_l => SOME (e'_v (v'_struct (ZIP (MAP_FST x_e_l, v_l))), [])
     | NONE => NONE))
   /\
  (************************)
@@ -1362,7 +1439,7 @@ Definition e_exec'_def:
   if is_v' e
   then
    (case e_exec_select' e s_l_x_l x of
-    | SOME x' => SOME (e'_v (v_str x'), [])
+    | SOME x' => SOME (e'_v (v'_str x'), [])
     | NONE => NONE)
   else
    (case e_exec' ctx g_scope_list scope_list e of
@@ -1437,10 +1514,6 @@ End
 (******************************************)
 (* Statement-related function definitions *)
 
-
-(* Same as regular state, but doesn't clash with state in semanticPrimitivesTheory *)
-Type state' = “:('a # g_scope_list' # frame_list' # status)”
-
 Definition get_e_ctx_def:
  get_e_ctx ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map):'a ctx') = (ext_map, func_map, b_func_map)
 End
@@ -1453,9 +1526,9 @@ End
 Definition stmt_exec'_def:
  (******************************************)
  (* Catch-all clauses for special statuses *)
- (stmt_exec' (ctx:'a ctx') ((ascope:'a, g_scope_list:g_scope_list', frame_list:frame_list', status_returnv v):'a state') = NONE)
+ (stmt_exec' (ctx:'a ctx') ((ascope:'a, g_scope_list:g_scope_list', frame_list:frame_list', status'_returnv v):'a state') = NONE)
   /\
- (stmt_exec' _ (_, _, _, status_trans x) = NONE)
+ (stmt_exec' _ (_, _, _, status'_trans x) = NONE)
   /\
  (* Empty frame list *)
  (stmt_exec' _ (_, _, [], _) = NONE)
@@ -1465,25 +1538,25 @@ Definition stmt_exec'_def:
   /\
  (**************)
  (* Assignment *)
- (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_ass lval e], scope_list)], status_running) =
+ (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_ass lval e], scope_list)], status'_running) =
   if is_v' e
   then
    (case stmt_exec_ass' lval e (scope_list++g_scope_list) of
     | SOME scope_list'' =>
      (case separate scope_list'' of
       | (SOME g_scope_list', SOME scope_list') =>
-       SOME (ascope, g_scope_list', [(funn, [stmt'_empty], scope_list')], status_running)
+       SOME (ascope, g_scope_list', [(funn, [stmt'_empty], scope_list')], status'_running)
       | _ => NONE)
     | NONE => NONE)
   else
    (case e_exec' (get_e_ctx ctx) g_scope_list scope_list e of
     | SOME (e', frame_list) =>
-     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_ass lval e'], scope_list)], status_running)
+     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_ass lval e'], scope_list)], status'_running)
     | _ => NONE))
   /\
  (**************)
  (* Transition *)
- (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_trans e], scope_list)], status_running) =
+ (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_trans e], scope_list)], status'_running) =
   if is_v' e
   then
    if is_v_str' e
@@ -1495,35 +1568,35 @@ Definition stmt_exec'_def:
   else
    (case e_exec' (get_e_ctx ctx) g_scope_list scope_list e of
     | SOME (e', frame_list) =>
-     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_trans e'], scope_list)], status_running)
+     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_trans e'], scope_list)], status'_running)
     | NONE => NONE))
   /\
  (***************)
  (* Conditional *)
- (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_cond e stmt1 stmt2], scope_list)], status_running) =
+ (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_cond e stmt1 stmt2], scope_list)], status'_running) =
   (* TODO: Make this more efficient by using a single get_v_bool e *)
   if is_v_bool' e
   then
    (case stmt_exec_cond' e of
-    | SOME T => SOME (ascope, g_scope_list, [(funn, [stmt1], scope_list)], status_running)
-    | SOME F => SOME (ascope, g_scope_list, [(funn, [stmt2], scope_list)], status_running)
+    | SOME T => SOME (ascope, g_scope_list, [(funn, [stmt1], scope_list)], status'_running)
+    | SOME F => SOME (ascope, g_scope_list, [(funn, [stmt2], scope_list)], status'_running)
     | NONE => NONE)
   else
    (case e_exec' (get_e_ctx ctx) g_scope_list scope_list e of
     | SOME (e', frame_list) =>
-     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_cond e' stmt1 stmt2], scope_list)], status_running)
+     SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_cond e' stmt1 stmt2], scope_list)], status'_running)
     | NONE => NONE))
   /\
  (*********************)
  (* Table application *)
- (stmt_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt'_app t_name e_l], scope_list)], status_running) =
+ (stmt_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt'_app t_name e_l], scope_list)], status'_running) =
   (case index_not_const' e_l of
    | SOME i =>
     (case oEL i e_l of
      | SOME elem =>
       (case e_exec' (ext_map, func_map, b_func_map) g_scope_list scope_list elem of
        | SOME (e', frame_list) =>
-        SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_app t_name (LUPDATE e' i e_l)], scope_list)], status_running)
+        SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_app t_name (LUPDATE e' i e_l)], scope_list)], status'_running)
        | NONE => NONE)
      | NONE => NONE)
    | NONE =>
@@ -1535,7 +1608,7 @@ Definition stmt_exec'_def:
          | SOME (f, f_args) =>
           (if is_consts_exec' f_args
            then
-            SOME (ascope, g_scope_list, [(funn, [stmt'_ass lval'_null (e'_call (funn_name f) f_args)], scope_list)], status_running)
+            SOME (ascope, g_scope_list, [(funn, [stmt'_ass lval'_null (e'_call (funn_name f) f_args)], scope_list)], status'_running)
            else NONE)
          | NONE => NONE)
        else NONE)
@@ -1543,18 +1616,18 @@ Definition stmt_exec'_def:
   /\
  (**********)
  (* Return *)
- (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_ret e], scope_list)], status_running) =
+ (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_ret e], scope_list)], status'_running) =
   (case get_v' e of
-   | SOME v => SOME (ascope, g_scope_list, [(funn, [stmt'_empty], scope_list)], status_returnv v)
+   | SOME v => SOME (ascope, g_scope_list, [(funn, [stmt'_empty], scope_list)], status'_returnv v)
    | NONE => 
     (case e_exec' (get_e_ctx ctx) g_scope_list scope_list e of
      | SOME (e', frame_list) =>
-      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_ret e'], scope_list)], status_running)
+      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt'_ret e'], scope_list)], status'_running)
      | NONE => NONE)))
   /\
  (**********)
  (* Extern *)
- (stmt_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt'_ext], scope_list)], status_running) =
+ (stmt_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt'_ext], scope_list)], status'_running) =
   (case lookup_ext_fun' funn ext_map of
    | SOME ext_fun =>
     (case ext_fun (ascope, g_scope_list, scope_list) of
@@ -1565,27 +1638,27 @@ Definition stmt_exec'_def:
   /\
  (*********)
  (* Block *)
- (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_block decl_list stmt], scope_list)], status_running) =
-   SOME (ascope, g_scope_list, [(funn, [stmt]++[stmt'_empty], ((declare_list_in_fresh_scope' decl_list)::scope_list))], status_running))
+ (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_block decl_list stmt], scope_list)], status'_running) =
+   SOME (ascope, g_scope_list, [(funn, [stmt]++[stmt'_empty], ((declare_list_in_fresh_scope' decl_list)::scope_list))], status'_running))
   /\
  (************)
  (* Sequence *)
- (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_seq stmt1 stmt2], scope_list)], status_running) =
+ (stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt'_seq stmt1 stmt2], scope_list)], status'_running) =
   if is_empty' stmt1
-  then SOME (ascope, g_scope_list, [(funn, [stmt2], scope_list)], status_running)
+  then SOME (ascope, g_scope_list, [(funn, [stmt2], scope_list)], status'_running)
   else
    (* Note: this only allows for 0 or 1 frame being added, or (exclusively) 1 stmt element *)
-   (case stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt1], scope_list)], status_running) of
+   (case stmt_exec' ctx (ascope, g_scope_list, [(funn, [stmt1], scope_list)], status'_running) of
     | SOME (ascope', g_scope_list', [(funn, [stmt1'], scope_list')], status') =>
      (case status' of 
-      | status_running =>
-       SOME (ascope', g_scope_list', [(funn, [stmt'_seq stmt1' stmt2], scope_list')], status_running)
+      | status'_running =>
+       SOME (ascope', g_scope_list', [(funn, [stmt'_seq stmt1' stmt2], scope_list')], status'_running)
       | _ =>
        SOME (ascope', g_scope_list', [(funn, [stmt1'], scope_list')], status'))
-    | SOME (ascope', g_scope_list', [(funn, stmt1''::[stmt1'], scope_list')], status_running) =>
-     SOME (ascope', g_scope_list', [(funn, [stmt1'']++[stmt'_seq stmt1' stmt2], scope_list')], status_running)
-    | SOME (ascope', g_scope_list', (frame::[(funn, [stmt1'], scope_list')]), status_running) =>
-     SOME (ascope', g_scope_list', (frame::[(funn, [stmt'_seq stmt1' stmt2], scope_list')]), status_running)
+    | SOME (ascope', g_scope_list', [(funn, stmt1''::[stmt1'], scope_list')], status'_running) =>
+     SOME (ascope', g_scope_list', [(funn, [stmt1'']++[stmt'_seq stmt1' stmt2], scope_list')], status'_running)
+    | SOME (ascope', g_scope_list', (frame::[(funn, [stmt1'], scope_list')]), status'_running) =>
+     SOME (ascope', g_scope_list', (frame::[(funn, [stmt'_seq stmt1' stmt2], scope_list')]), status'_running)
     | _ => NONE))
   /\
  (*********************)
@@ -1630,26 +1703,26 @@ End
 Definition frames_exec'_def:
  (******************************************)
  (* Catch-all clauses for special statuses *)
- (frames_exec' (ctx:'a ctx') ((ascope:'a, g_scope_list:g_scope_list', frame_list:frame_list', status_returnv v):'a state') = NONE)
+ (frames_exec' (ctx:'a ctx') ((ascope:'a, g_scope_list:g_scope_list', frame_list:frame_list', status'_returnv v):'a state') = NONE)
   /\
- (frames_exec' _ (_, _, _, status_trans x) = NONE)
+ (frames_exec' _ (_, _, _, status'_trans x) = NONE)
   /\
  (* Empty frame list *)
  (frames_exec' _ (_, _, [], _) = NONE)
   /\
  (*********)
  (* Comp2 + Comp1 case of multiple frames *)
- (frames_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, ((funn, stmt_stack, scope_list)::((funn', stmt_stack', scope_list')::frame_list'')), status_running) =
+ (frames_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, ((funn, stmt_stack, scope_list)::((funn', stmt_stack', scope_list')::frame_list'')), status'_running) =
   (case scopes_to_pass' funn func_map b_func_map g_scope_list of
    | SOME g_scope_list' =>
     (case map_to_pass' funn b_func_map of
      | SOME b_func_map' =>
       (case tbl_to_pass' funn b_func_map tbl_map of
        | SOME tbl_map' =>
-        (case stmt_exec' (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status_running) of
+        (case stmt_exec' (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status'_running) of
          | SOME (ascope', g_scope_list'', frame_list', status') =>
           (case status' of
-           | status_returnv v =>
+           | status'_returnv v =>
             (* Comp2 *)
             (case frame_list' of
              | [(funn, stmt_stack'', scope_list'')] =>
@@ -1665,7 +1738,7 @@ Definition frames_exec'_def:
                        | SOME (g_scope_list'''''', scope_list''') =>
                         (case scopes_to_retrieve' funn' func_map b_func_map g_scope_list'''' g_scope_list'''''' of
                          | SOME g_scope_list''''''' =>
-                          SOME (ascope', g_scope_list''''''', ((funn', stmt_stack', scope_list''')::frame_list''), status_running)
+                          SOME (ascope', g_scope_list''''''', ((funn', stmt_stack', scope_list''')::frame_list''), status'_running)
                          | _ => NONE)
                        | _ => NONE)
                      | _ => NONE)
@@ -1686,14 +1759,14 @@ Definition frames_exec'_def:
   /\
  (*********)
  (* Comp1, remaining cases *)
- (frames_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status_running) =
+ (frames_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status'_running) =
   (case scopes_to_pass' funn func_map b_func_map g_scope_list of
    | SOME g_scope_list' =>
     (case map_to_pass' funn b_func_map of
      | SOME b_func_map' =>
       (case tbl_to_pass' funn b_func_map tbl_map of
        | SOME tbl_map' =>
-        (case stmt_exec' (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status_running) of
+        (case stmt_exec' (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status'_running) of
          | SOME (ascope', g_scope_list'', frame_list', status') =>
           (case scopes_to_retrieve' funn func_map b_func_map g_scope_list g_scope_list'' of
            | SOME g_scope_list''' =>
@@ -1716,15 +1789,15 @@ Definition state_fin_exec_def:
   case frame_list of
   | [(funn, [stmt'_empty], scope_list)] =>
    (case status of
-    | status_trans x =>
+    | status'_trans x =>
      if x = "accept" \/ x = "reject"
      then T
      else F
     | _ => T)
   | _ =>
    (case status of
-    | status_returnv v => T
-    | status_trans x =>
+    | status'_returnv v => T
+    | status'_trans x =>
      if x = "accept" \/ x = "reject"
      then T
      else F
@@ -1735,7 +1808,7 @@ End
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
 Definition arch_exec'_def:
  (arch_exec' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx')
-            (((i, in_out_list, in_out_list', scope):'a aenv), g_scope_list:g_scope_list', arch_frame_list'_regular frame_list, status:status) =
+            (((i, in_out_list, in_out_list', scope):'a aenv), g_scope_list:g_scope_list', arch_frame_list'_regular frame_list, status:status') =
   (case oEL i ab_list of
    | SOME (arch_block'_pbl x e_l) =>
     (case ALOOKUP pblock_map x of
@@ -1749,28 +1822,28 @@ Definition arch_exec'_def:
           then
            (* pbl_ret *)
            (* TODO: OK to only copy out from block-global scope here? *)
-           (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, set_fin_status pbl_type status) of
+           (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, set_fin_status' pbl_type status) of
             | SOME scope' =>
              (case oLASTN 1 g_scope_list of
               | SOME g_scope_sing =>
                SOME ((i+1, in_out_list, in_out_list', scope'), g_scope_sing,
-                     arch_frame_list'_empty, status_running)
+                     arch_frame_list'_empty, status'_running)
               | NONE => NONE)
             | _ => NONE)
           else NONE)
         | NONE => NONE)
       else
        (case status of
-        | status_trans x' =>
+        | status'_trans x' =>
          (* parser_trans *)
          (case pbl_type of
           | pbl_type_parser =>
            (case ALOOKUP pars_map x' of
             | SOME stmt' =>
-             SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list'_regular [(funn_name x', [stmt'], [ [] ])]), status_running)
+             SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list'_regular [(funn_name x', [stmt'], [ [] ])]), status'_running)
             | _ => NONE)
           | _ => NONE)
-        | status_running =>
+        | status'_running =>
          (* pbl_exec *)
          (case frames_exec' (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (scope, g_scope_list, frame_list, status) of
           | SOME (scope', g_scope_list', frame_list', status') =>
@@ -1783,14 +1856,14 @@ Definition arch_exec'_def:
  /\
  (arch_exec' (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
             ((i, in_out_list, in_out_list', scope), g_scope_list,
-             arch_frame_list'_empty, status_running) =
+             arch_frame_list'_empty, status'_running) =
   (case oEL i ab_list of
    (* in *)
    | SOME arch_block'_inp =>
     (case input_f (in_out_list, scope) of
      | SOME (in_out_list'', scope') => 
       SOME ((i+1, in_out_list'', in_out_list', scope'), g_scope_list, arch_frame_list'_empty,
-             status_running)
+             status'_running)
      | NONE => NONE)
    | SOME (arch_block'_pbl x e_l) =>
     (case ALOOKUP pblock_map x of
@@ -1809,7 +1882,7 @@ Definition arch_exec'_def:
                (case initialise_var_stars' func_map b_func_map ext_map g_scope_list' of
                 | SOME g_scope_list'' =>
                  SOME ((i, in_out_list, in_out_list', scope), g_scope_list'',
-                       arch_frame_list'_regular [(funn_name x, [stmt], [ [] ])], status_running)
+                       arch_frame_list'_regular [(funn_name x, [stmt], [ [] ])], status'_running)
                 | NONE => NONE)
              | _ => NONE)
            | _ => NONE)
@@ -1822,7 +1895,7 @@ Definition arch_exec'_def:
      | SOME (ffblock_ff ff) =>
       (case ff scope of
        | SOME scope' =>
-        SOME ((i+1, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list'_empty, status_running)
+        SOME ((i+1, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list'_empty, status'_running)
        | NONE => NONE)
      | NONE => NONE)
    (* out *)
@@ -1830,7 +1903,7 @@ Definition arch_exec'_def:
     (case output_f (in_out_list', scope) of
      | SOME (in_out_list'', scope') =>
       SOME ((0, in_out_list, in_out_list'', scope'), g_scope_list, arch_frame_list'_empty,
-            status_running)
+            status'_running)
      | NONE => NONE)
    | NONE => NONE
   )

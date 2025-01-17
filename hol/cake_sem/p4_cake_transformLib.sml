@@ -133,8 +133,11 @@ val v_map_varnames =
  [“"b"”, “"b_temp"”, “"standard_metadata"”, “"parsedHdr"”, “"hdr"”, “"meta"”]
 ;
 
+(* The field names from standard_metadata *)
+val v_map_fieldnames = map (fst o pairSyntax.dest_pair) $ fst $ listSyntax.dest_list v1model_standard_metadata_zeroed'
+
 val v1model_dict =
- add_to_dict (v1model_init_vmapnames@v_map_varnames@v1model_varnames) core_impl_dict;
+ add_to_dict (v1model_init_vmapnames@v_map_varnames@v1model_varnames@v_map_fieldnames) core_impl_dict;
 
 val v1model_items = Redblackmap.listItems v1model_dict
 
@@ -142,23 +145,22 @@ val n_of_w:term * term -> int = wordsSyntax.uint_of_word o snd
 
 val v1model_items_sorted = mlibUseful.sort (fn (a,b) => Int.compare (n_of_w a, n_of_w b)) v1model_items
 
-[(“"parseError"”, “0w:word64”), (“"err"”, “1w:word64”), (“"condition"”, “2w:word64”),
- (“"this"”, “3w:word64”), (“"headerLvalue"”, “4w:word64”), (“"targ1"”, “5w:word64”),
- (“"bits"”, “6w:word64”), (“"data"”, “7w:word64”), (“"b"”, “8w:word64”), (“"b_temp"”, “9w:word64”),
- (“"standard_metadata"”, “10w:word64”), (“"parsedHdr"”, “11w:word64”), (“"hdr"”, “12w:word64”),
- (“"meta"”, “13w:word64”), (“"check"”, “14w:word64”), (“"checksum"”, “15w:word64”),
- (“"algo"”, “16w:word64”), (“"size"”, “17w:word64”), (“"result"”, “18w:word64”),
- (“"index"”, “19w:word64”), (“"value"”, “20w:word64”)]
+val v1model_dict = listSyntax.mk_list (map mk_pair v1model_items_sorted, mk_prod (“:string”, “:word64”))
 
 *)
 
 val v1model_dict =
- “[("parseError",0w:word64); ("err",1w); ("condition",2w); ("this",3w);
-   ("headerLvalue",4w); ("targ1",5w); ("bits",6w); ("data",7w); ("b",8w);
-   ("b_temp",9w); ("standard_metadata",10w); ("parsedHdr",11w);
-   ("hdr",12w); ("meta",13w); ("check",14w); ("checksum",15w);
-   ("algo",16w); ("size",17w); ("result",18w); ("index",19w);
-   ("value",20w); ("type",21w)]”;
+   “[("parseError",0w); ("err",1w); ("condition",2w); ("this",3w);
+     ("headerLvalue",4w); ("targ1",5w); ("bits",6w); ("data",7w); ("b",8w);
+     ("b_temp",9w); ("standard_metadata",10w); ("parsedHdr",11w);
+     ("hdr",12w); ("meta",13w); ("check",14w); ("checksum",15w);
+     ("algo",16w); ("size",17w); ("result",18w); ("index",19w);
+     ("value",20w); ("type",21w); ("ingress_port",22w); ("egress_spec",23w);
+     ("egress_port",24w); ("instance_type",25w); ("packet_length",26w);
+     ("enq_timestamp",27w); ("enq_qdepth",28w); ("deq_timedelta",29w);
+     ("deq_qdepth",30w); ("ingress_global_timestamp",31w);
+     ("egress_global_timestamp",32w); ("mcast_grp",33w); ("egress_rid",34w);
+     ("checksum_error",35w); ("parser_error",36w); ("priority",37w)]:(string, word64) alist”;
 
 (* Uses a dict of static, architecture-coded variable names. add_varnames_actx will pick
  * up the rest. Returns a tuple of a new dict and the actx'. *)
@@ -166,8 +168,20 @@ fun transform_actx dict actx =
  let
   val dict' = rhs $ concl $ EVAL “add_varnames_actx ^dict ^actx”
   val (_, _, _, input_f, _, _, _, apply_table_f, _, _) = dest_actx actx
-  val input_f' = mk_comb (“v1model_input_f'”, (snd $ dest_comb input_f))
-  val actx'_opt = rhs $ concl $ EVAL “transform_actx ^dict' ^actx”
+  val (param1, param2) = dest_pair $ snd $ dest_comb input_f
+  (* TODO: Smart error handling *)
+  val dict'' = rhs $ concl $ EVAL “add_varnames_v ^dict' ^param1”
+  val dict''' = rhs $ concl $ EVAL “add_varnames_v ^dict'' ^param2”
+
+  val param1' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param1”
+  val param2' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param2”
+
+  val input_f' = mk_comb (“v1model_input_f'”, mk_pair (param1', param2'))
+  val actx'_opt = rhs $ concl $ EVAL “transform_actx ^dict''' ^actx”
+(*
+val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx
+EVAL “transform_func_map ^dict''' ^func_map”
+*)
  in
   if is_some actx'_opt
   then
@@ -194,7 +208,8 @@ fun transform_ctrl_empty ctrl =
 
 (* TODO: Updated ctrl as argument, for now... *)
 (*
-val ctrl' = “[]:v1model_ctrl'”
+val dict = v1model_dict;
+val ctrl' = “[]:v1model_ctrl'”;
 *)
 fun transform_program dict actx astate ctrl' =
  let
