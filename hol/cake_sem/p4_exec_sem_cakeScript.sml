@@ -10,7 +10,6 @@ open p4Theory p4_auxTheory;
 (* TODO: Make funn_name, funn_ext et.c. hold words64s : consequences for func_map and ext_map *)
 (* TODO: Arch block names *)
 (* TODO: Parser states *)
-(* TODO: Table names *)
 
 Datatype:
  varn' = 
@@ -106,7 +105,7 @@ stmt' =  (* statement *)
  | stmt'_ret of e' (* return *)
  | stmt'_seq of stmt' => stmt' (* sequence *)
  | stmt'_trans of e' (* transition *)
- | stmt'_app of x => e' list (* apply *)
+ | stmt'_app of word64 => e' list (* apply *)
  | stmt'_ext (* extern *)
 `;
 
@@ -120,7 +119,7 @@ Type pars_map' = ``:((string, stmt') alist)``
 
 Type ext_map' = ``:((string, ((((word64 # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)``
 
-Type tbl_map' = ``:((string, ((mk list) # (x # e_list'))) alist)``
+Type tbl_map' = ``:((word64, ((mk list) # (x # e_list'))) alist)``
 
 Type pblock' = ``:(pbl_type # ((word64 # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')``
 
@@ -135,7 +134,7 @@ arch_block' =  (* architectural block *)
  | arch_block'_out
 `;
 
-Type apply_table_f' = ``:((x # e_list' # mk_list # (x # e_list') # 'a) -> (x # e_list') option)``
+Type apply_table_f' = ``:((word64 # e_list' # mk_list # (x # e_list') # 'a) -> (x # e_list') option)``
 
 Type copyout_pbl' = ``:((g_scope' list # 'a # d list # word64 list # status') -> 'a option)``
 

@@ -401,7 +401,7 @@ End
 
 val CONTROL_PLANE_API = 0;
 
-Type v1model_ctrl' = “:(string, (((e_list' -> bool) # num), string # e_list') alist) alist”;
+Type v1model_ctrl' = “:(word64, (((e_list' -> bool) # num), string # e_list') alist) alist”;
 
 Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext) alist) # ((word64, v') alist) # v1model_ctrl')”;
 
@@ -706,7 +706,7 @@ Definition v1model_verify_checksum'_def:
             then
              (case compute_checksum16 checksum_incr of
               | SOME bl'' =>
-               (if (v'_bit (bl', n')) = (v'_bit (bl'', 16))
+               (if bl' = bl''
                 then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status'_returnv v'_bot)
                 else
                  (case assign' [v_map_to_scope' v_map] (v'_bit ([T], 1)) (lval'_field (lval'_varname (varn'_name 10w)) 35w) of

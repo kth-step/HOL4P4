@@ -226,7 +226,7 @@ Definition add_varnames_stmt_def:
   | stmt_trans e =>
    add_varnames_e dict e
   | stmt_app x el =>
-   add_varnames_e_list dict el
+   add_varnames_e_list (add_string x dict) el
   | stmt_ext => dict
 End
 
@@ -242,7 +242,7 @@ End
 
 Definition add_varnames_tbl_def:
  add_varnames_tbl (x1, (mkl, (x2, el))) dict =
-  add_varnames_e_list dict el
+  add_varnames_e_list (add_string x1 dict) el
 End
 
 Definition add_varnames_tbl_map_def:
@@ -617,8 +617,9 @@ Definition transform_stmt_def:
    transform_e dict e >>=
    \e'. SOME $ stmt'_trans e'
   | stmt_app x el =>
-   transform_e_list dict el >>=
-   \el'. SOME $ stmt'_app x el'
+   ALOOKUP dict x >>=
+   \w. transform_e_list dict el >>=
+   \el'. SOME $ stmt'_app w el'
   | stmt_ext => SOME stmt'_ext
 End
 
@@ -646,8 +647,9 @@ End
 
 Definition transform_tbl_def:
  transform_tbl dict (x1, (mkl, (x2, el))) =
-  transform_e_list dict el >>=
-  \el'. SOME (x1, (mkl, (x2, el')))
+  ALOOKUP dict x1 >>=
+  \w. transform_e_list dict el >>=
+  \el'. SOME (w, (mkl, (x2, el')))
 End
 
 Definition transform_tbl_map_def:
@@ -770,8 +772,8 @@ End
 *)
 
 Definition transform_ctrl_empty_def:
- transform_ctrl_empty (ctrl:v1model_ctrl) =
-  ((oFOLDR (\(x, v). SOME (x, []:(((e_list' -> bool) # num), string # e_list') alist)) ctrl):v1model_ctrl' option)
+ transform_ctrl_empty dict (ctrl:v1model_ctrl) =
+  ((oFOLDR (\(x, v). ALOOKUP dict x >>= \w. SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist)) ctrl):v1model_ctrl' option)
 (*
   (oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist) | NONE => NONE) ctrl)
 *)
