@@ -546,7 +546,7 @@ End
 (*                     MODEL-SPECIFIC                     *)
 (**********************************************************)
 
-(* TODO: The reset values of standard metadata *)
+(* The reset values of standard metadata *)
 val v1model_standard_metadata_zeroed =
  listSyntax.mk_list
   (map pairSyntax.mk_pair
@@ -567,6 +567,10 @@ val v1model_standard_metadata_zeroed =
     (``"parser_error"``, mk_v_bitii (0, 32)),
     (``"priority"``, mk_v_bitii (0, 3))],
    “:(string # v)”);
+
+Definition v1model_standard_metadata_zeroed_def:
+ v1model_standard_metadata_zeroed = ^v1model_standard_metadata_zeroed
+End
 
 (*
 val v1model_standard_metadata_uninit =

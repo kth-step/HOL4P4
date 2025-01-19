@@ -20,6 +20,8 @@ val v1model_init_counter = rhs $ concl $ EVAL “LENGTH ^v1model_init_ext_obj_ma
 
 val v1model_init_v_map = ``^core_init_v_map:(string, v) alist``;
 
+val v1model_standard_metadata_zeroed_tm = rhs $ concl $ v1model_standard_metadata_zeroed_def
+
 (*******************************************)
 (* Architectural context (generic externs) *)
 

@@ -9,6 +9,8 @@ val v1model_init_ext_obj_map : term
 val v1model_init_counter : term
 val v1model_init_v_map : term
 
+val v1model_standard_metadata_zeroed_tm : term
+
 val v1model_packet_in_map : term
 val v1model_packet_out_map : term
 

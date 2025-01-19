@@ -11,9 +11,9 @@ open p4_v1modelTheory;
 open p4_arch_cakeTheory;
 open p4_cake_transformTheory;
 
-open optionSyntax pairSyntax;
+open listSyntax optionSyntax pairSyntax;
 
-(* TODO: Clean up the below *)
+(* TODO: Clean up the below, put in a separate library that's compiled before p4_v1modelTheory *)
 
 (* Generating string-to-word64 dictionary:
 
@@ -42,6 +42,17 @@ fun get_varn_name_strings impls =
   val varn_names = foldl (fn (tm, l) => l@(find_terms (fn t => is_varn_name t) tm)) [] impl_tms
  in
   map dest_varn_name $ filter_equal_terms varn_names
+ end
+;
+
+fun get_ext_map_strings ext_map =
+ let
+  val ext_map_list = fst $ dest_list ext_map
+  val (ext_obj_names, ext_objs) = unzip $ map dest_pair ext_map_list
+  val ext_obj_func_maps = map (fst o dest_list) $ map (snd o dest_pair) ext_objs
+  val ext_func_names = flatten $ map (map (fst o dest_pair)) $ ext_obj_func_maps
+ in
+  ext_obj_names@ext_func_names
  end
 ;
 
@@ -134,10 +145,15 @@ val v_map_varnames =
 ;
 
 (* The field names from standard_metadata *)
-val v_map_fieldnames = map (fst o pairSyntax.dest_pair) $ fst $ listSyntax.dest_list v1model_standard_metadata_zeroed'
+val v_map_fieldnames = map (fst o pairSyntax.dest_pair) $ fst $ listSyntax.dest_list p4_v1modelLib.v1model_standard_metadata_zeroed_tm
+
+val v1model_parser_state_names = [“""”, “"accept"”, “"reject"”]
+
+(* TODO: Add all object and method names from ext_map *)
+val v1model_ext_map_strings = get_ext_map_strings $ rhs $ concl $ EVAL p4_v1modelLib.v1model_ext_map
 
 val v1model_dict =
- add_to_dict (v1model_init_vmapnames@v_map_varnames@v1model_varnames@v_map_fieldnames) core_impl_dict;
+ add_to_dict (v1model_init_vmapnames@v_map_varnames@v1model_varnames@v_map_fieldnames@v1model_parser_state_names@v1model_ext_map_strings) core_impl_dict;
 
 val v1model_items = Redblackmap.listItems v1model_dict
 
@@ -149,6 +165,7 @@ val v1model_dict = listSyntax.mk_list (map mk_pair v1model_items_sorted, mk_prod
 
 *)
 
+(* TODO: The latter part of this belonging to the ext map may be generated... *)
 val v1model_dict =
    “[("parseError",0w); ("err",1w); ("condition",2w); ("this",3w);
      ("headerLvalue",4w); ("targ1",5w); ("bits",6w); ("data",7w); ("b",8w);
@@ -160,7 +177,16 @@ val v1model_dict =
      ("enq_timestamp",27w); ("enq_qdepth",28w); ("deq_timedelta",29w);
      ("deq_qdepth",30w); ("ingress_global_timestamp",31w);
      ("egress_global_timestamp",32w); ("mcast_grp",33w); ("egress_rid",34w);
-     ("checksum_error",35w); ("parser_error",36w); ("priority",37w)]:(string, word64) alist”;
+     ("checksum_error",35w); ("parser_error",36w); ("priority",37w);
+     ("",38w); ("accept",39w); ("reject",40w); ("header",41w);
+     ("packet_in",42w); ("packet_out",43w); ("direct_counter",44w);
+     ("register",45w); ("ipsec_crypt",46w); ("isValid",47w);
+     ("setValid",48w); ("setInvalid",49w); ("mark_to_drop",50w);
+     ("verify",51w); ("verify_checksum",52w); ("update_checksum",53w);
+     ("assert",54w); ("assume",55w); ("extract",56w); ("lookahead",57w);
+     ("advance",58w); ("emit",59w); ("count",60w); ("read",61w);
+     ("write",62w); ("decrypt_aes_ctr",63w); ("encrypt_aes_ctr",64w);
+     ("encrypt_null",65w); ("decrypt_null",66w)]:(string, word64) alist”;
 
 (* Uses a dict of static, architecture-coded variable names. add_varnames_actx will pick
  * up the rest. Returns a tuple of a new dict and the actx'. *)
@@ -184,17 +210,18 @@ fun transform_actx dict actx =
   then
    let
     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
+    val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
    in
-    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[("postparser",ffblock_ff v1model_postparser')]:v1model_ascope' ffblock_map”, “(^input_f'):v1model_ascope' input_f”, “v1model_output_f':v1model_ascope' output_f”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
+    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f”, “v1model_output_f':v1model_ascope' output_f”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
    end
   else raise Fail "transform_actx failed to translate actx"
  end
 ;
 
 (* TODO: This is temporary solution *)
-fun transform_ctrl_empty ctrl =
+fun transform_ctrl_empty dict ctrl =
  let
-  val ctrl'_opt = rhs $ concl $ EVAL “transform_ctrl_empty ^ctrl”
+  val ctrl'_opt = rhs $ concl $ EVAL “transform_ctrl_empty ^dict ^ctrl”
  in
   if is_some ctrl'_opt
   then
@@ -208,9 +235,11 @@ fun transform_ctrl_empty ctrl =
 val dict = v1model_dict;
 val ctrl' = “[]:v1model_ctrl'”;
 *)
-fun transform_program dict actx astate ctrl' =
+fun transform_program dict actx astate =
  let
   val (dict', actx') = transform_actx dict actx
+  val ctrl = #4 $ p4_testLib.dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate;
+  val ctrl' = transform_ctrl_empty dict' ctrl
   val astate'_opt = rhs $ concl $ EVAL “transform_astate ^dict' ^astate ^ctrl'”
  in
   if is_some astate'_opt

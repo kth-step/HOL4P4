@@ -142,11 +142,8 @@ val astate = “((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[
 
 (** Transformation **)
 
-(* TODO: Temporary hack... *)
-val ctrl' = “[]:v1model_ctrl'”
-
 val (dict', actx', astate') =
- transform_program v1model_dict actx astate ctrl'
+ transform_program v1model_dict actx astate
 
 val n_max = “1000:num”;
 

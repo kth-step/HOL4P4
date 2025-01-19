@@ -43,12 +43,24 @@ Definition add_string_def:
   else dict
 End
 
+Definition add_varnames_funn_def:
+ add_varnames_funn (dict: (string, word64) alist) funn =
+  case funn of
+    funn_name name =>
+   add_string name dict
+  | funn_inst ext_name =>
+   add_string ext_name dict
+  | funn_ext ext_name extfun_name =>
+   add_string ext_name $
+   add_string extfun_name dict
+End
+
 Definition add_varnames_varn_def:
  add_varnames_varn (dict: (string, word64) alist) varn =
   case varn of
     varn_name name =>
    add_string name dict
-  | varn_star funn => dict
+  | varn_star funn => add_varnames_funn dict funn
 End
 
 Definition add_varnames_v_def:
@@ -102,7 +114,7 @@ Definition add_varnames_e_def:
   | e_list el =>
    add_varnames_e_list dict el
   | e_acc e x =>
-   add_varnames_e dict e
+   add_string x $ add_varnames_e dict e
   | e_unop unop e =>
    add_varnames_e dict e
   | e_cast cast e =>
@@ -114,9 +126,10 @@ Definition add_varnames_e_def:
   | e_slice e1 e2 e3 =>
    add_varnames_e (add_varnames_e (add_varnames_e dict e3) e2) e1
   | e_call funn el =>
-   add_varnames_e_list dict el
+   add_varnames_e_list (add_varnames_funn dict funn) el
   | e_select e s_list_x_list x =>
-   add_varnames_e (FOLDR add_varnames_s_list dict (MAP FST s_list_x_list)) e
+   let (s_list_list, x_list) = UNZIP s_list_x_list in
+   add_varnames_e (FOLDR add_varnames_s_list (FOLDR add_string dict x_list) s_list_list) e
   | e_struct x_e_list =>
    let (x_list, e_list) = UNZIP x_e_list in
    add_varnames_e_list (FOLDR add_string dict x_list) e_list
@@ -142,8 +155,8 @@ Definition add_varnames_arch_block_def:
   case arch_block of
     arch_block_inp => dict
   | arch_block_pbl x el =>
-   add_varnames_e_list dict el
-  | arch_block_ffbl x => dict
+   add_string x $ add_varnames_e_list dict el
+  | arch_block_ffbl x => add_string x dict
   | arch_block_out => dict
 End
 
@@ -226,13 +239,13 @@ Definition add_varnames_stmt_def:
   | stmt_trans e =>
    add_varnames_e dict e
   | stmt_app x el =>
-   add_varnames_e_list (add_string x dict) el
+   add_string x $ add_varnames_e_list dict el
   | stmt_ext => dict
 End
 
 Definition add_varnames_func_def:
  add_varnames_func (x, (body, args)) dict =
-  add_varnames_stmt body $ add_varnames_args args dict
+  add_string x $ add_varnames_stmt body $ add_varnames_args args dict
 End
 
 Definition add_varnames_func_map_def:
@@ -242,7 +255,9 @@ End
 
 Definition add_varnames_tbl_def:
  add_varnames_tbl (x1, (mkl, (x2, el))) dict =
-  add_varnames_e_list (add_string x1 dict) el
+  add_string x1 $
+  add_string x2 $
+  add_varnames_e_list dict el
 End
 
 Definition add_varnames_tbl_map_def:
@@ -252,7 +267,7 @@ End
 
 Definition add_varnames_pars_state_def:
  add_varnames_pars_state (x, body) dict =
-  add_varnames_stmt body dict
+  add_string x $ add_varnames_stmt body dict
 End
 
 Definition add_varnames_pars_map_def:
@@ -262,6 +277,7 @@ End
 
 Definition add_varnames_pblock_def:
  add_varnames_pblock (x, (pbl_type, x_d_l, b_func_map, t_scope, pars_map, tbl_map):pblock) dict =
+  add_string x $
   add_varnames_args x_d_l $
   add_varnames_func_map b_func_map $
   add_varnames_t_scope_list t_scope $
@@ -274,22 +290,50 @@ Definition add_varnames_pblock_map_def:
   FOLDR add_varnames_pblock dict pblock_map
 End
 
+Definition add_varnames_ffblock_def:
+ add_varnames_ffblock (x, ffblock) dict =
+  add_string x dict
+End
+
+Definition add_varnames_ffblock_map_def:
+ add_varnames_ffblock_map (ffblock_map:'a ffblock_map) dict =
+  FOLDR add_varnames_ffblock dict ffblock_map
+End
+
 Definition add_varnames_actx_def:
  add_varnames_actx dict ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):v1model_ascope actx) =
   add_varnames_ab_list ab_list $
   add_varnames_pblock_map pblock_map $
+  add_varnames_ffblock_map ffblock_map $
   (* Note: Variable names from ext map should already be included in dict *)
   add_varnames_func_map func_map dict
 End
 
+
 (** Transforming an actx to an actx' **)
+
+Definition transform_funn_def:
+ transform_funn dict funn =
+  case funn of
+    funn_name name =>
+   ALOOKUP dict name >>= \word. SOME $ funn'_name word
+  | funn_inst ext_obj_name =>
+   ALOOKUP dict ext_obj_name >>= \word. 
+   SOME $ funn'_inst word
+  | funn_ext ext_obj_name func_name =>
+   ALOOKUP dict ext_obj_name >>= \word.
+   ALOOKUP dict func_name >>= \word'. 
+   SOME $ funn'_ext word word'
+End
 
 Definition transform_varn_def:
  transform_varn dict varn =
   case varn of
     varn_name name =>
    ALOOKUP dict name >>= \word. SOME $ varn'_name word
-  | varn_star funn => SOME $ varn'_star funn
+  | varn_star funn =>
+   transform_funn dict funn >>=
+   \funn'. SOME $ varn'_star funn'
 End
 
 (* TODO: Make better *)
@@ -323,7 +367,9 @@ Definition transform_v_def:
   case v of
     v_bool boolv => SOME $ v'_bool boolv
   | v_bit bitv => SOME $ v'_bit bitv
-  | v_str x => SOME $ v'_str x
+  | v_str x =>
+   ALOOKUP dict x >>= \word.
+   SOME $ v'_str word
   | v_struct x_v_list =>
    (* Note: Recursing like this is infinitely faster than unzipping x_v_list and
     * transforming each list separately *)
@@ -445,20 +491,23 @@ Definition transform_e_def:
    \e2'. transform_e dict e3 >>=
    \e3'. SOME $ e'_slice e1' e2' e3'
   | e_call funn el =>
+    transform_funn dict funn >>= \funn'.
    (case el of
       (h::t) =>
      transform_e dict h >>=
      \e'. transform_e dict (e_list t) >>=
      \e''.
       (case e'' of
-         e'_list t' => SOME $ e'_call funn (e'::t')
+         e'_list t' => SOME $ e'_call funn' (e'::t')
        | _ => NONE)
-    | [] => SOME $ e'_call funn [])
+    | [] => SOME $ e'_call funn' [])
   | e_select e s_list_x_list x =>
    let (s_list_list, x_list) = UNZIP s_list_x_list in
    transform_e dict e >>=
    \e'. (oFOLDR (oFOLDR (transform_s dict))) s_list_list >>=
-   \s_list_list'. SOME $ e'_select e' (ZIP (s_list_list', x_list)) x
+   \s_list_list'. (oFOLDR (ALOOKUP dict)) x_list >>=
+   \x_list'. ALOOKUP dict x >>=
+   \x'. SOME $ e'_select e' (ZIP (s_list_list', x_list')) x'
   | e_struct x_e_list =>
    (case x_e_list of
       ((x,e)::t) =>
@@ -517,10 +566,12 @@ Definition transform_arch_block_def:
   case arch_block of
     arch_block_inp => SOME arch_block'_inp
   | arch_block_pbl x el =>
-   transform_e_list dict el >>=
-   \el'. SOME $ arch_block'_pbl x el'
+   ALOOKUP dict x >>=
+   \x'. transform_e_list dict el >>=
+   \el'. SOME $ arch_block'_pbl x' el'
   | arch_block_ffbl x =>
-   SOME $ arch_block'_ffbl x
+   ALOOKUP dict x >>=
+   \x'. SOME $ arch_block'_ffbl x'
   | arch_block_out =>
    SOME arch_block'_out
 End
@@ -635,9 +686,10 @@ End
 
 Definition transform_func_def:
  transform_func dict (x, (body, args)) =
-  transform_stmt dict body >>=
+  ALOOKUP dict x >>=
+  \x'. transform_stmt dict body >>=
   \body'. transform_args dict args >>=
-  \args. SOME (x, (body', args))
+  \args. SOME (x', (body', args))
 End
 
 Definition transform_func_map_def:
@@ -648,8 +700,9 @@ End
 Definition transform_tbl_def:
  transform_tbl dict (x1, (mkl, (x2, el))) =
   ALOOKUP dict x1 >>=
-  \w. transform_e_list dict el >>=
-  \el'. SOME (w, (mkl, (x2, el')))
+  \w. ALOOKUP dict x1 >>=
+  \w'. transform_e_list dict el >>=
+  \el'. SOME (w, (mkl, (w', el')))
 End
 
 Definition transform_tbl_map_def:
@@ -659,8 +712,9 @@ End
 
 Definition transform_pars_state_def:
  transform_pars_state dict (x, body) =
-  transform_stmt dict body >>=
-  \body'. SOME (x, body')
+  ALOOKUP dict x >>=
+  \w. transform_stmt dict body >>=
+  \body'. SOME (w, body')
 End
 
 Definition transform_pars_map_def:
@@ -670,12 +724,13 @@ End
 
 Definition transform_pblock_def:
  transform_pblock dict (x, (pbl_type, x_d_l, b_func_map, t_scope, pars_map, tbl_map):pblock) =
-  transform_args dict x_d_l >>=
+  ALOOKUP dict x >>=
+  \w. transform_args dict x_d_l >>=
   \args'. transform_func_map dict b_func_map >>=
   \b_func_map'. transform_t_scope_list dict t_scope >>=
   \t_scope'. transform_pars_map dict pars_map >>=
   \pars_map'. transform_tbl_map dict tbl_map >>=
-  \tbl_map'. SOME (x, (pbl_type, args', b_func_map', t_scope', pars_map', tbl_map'))
+  \tbl_map'. SOME (w, (pbl_type, args', b_func_map', t_scope', pars_map', tbl_map'))
 End
 
 Definition transform_pblock_map_def:
@@ -683,46 +738,58 @@ Definition transform_pblock_map_def:
   (oFOLDR (transform_pblock dict) pblock_map):pblock_map' option)
 End
 
-(* TODO: Hard-coded, for now... *)
+Definition transform_ffblock_def:
+ transform_ffblock dict (x, ffblock) =
+  ALOOKUP dict x >>=
+  \w. SOME (w, ffblock)
+End
+
+Definition transform_ffblock_map_def:
+ (transform_ffblock_map dict (ffblock_map:'a ffblock_map) =
+  (oFOLDR (transform_ffblock dict) ffblock_map):'a ffblock_map' option)
+End
+
+(* TODO: Hard-coded, for now: extern arguments are mentioned in their implementations.
+ * The extern function and object names could be dynamically handled, though. *)
 Definition transform_ext_map_def:
  transform_ext_map dict (ext_map:v1model_ascope ext_map) =
-   SOME ([("header",NONE,
-     [("isValid",[(3w:word64,d_in)],header_is_valid');
-      ("setValid",[(3w,d_inout)],header_set_valid');
-      ("setInvalid",[(3w,d_inout)],header_set_invalid')]);
-    ("",NONE,
-     [("mark_to_drop",[(10w,d_inout)],v1model_mark_to_drop');
-      ("verify",[(2w,d_in); (1w,d_in)],v1model_verify');
+   SOME ([(41w,NONE,
+     [(47w,[(3w:word64,d_in)],header_is_valid');
+      (48w,[(3w,d_inout)],header_set_valid');
+      (49w,[(3w,d_inout)],header_set_invalid')]);
+    (38w,NONE,
+     [(50w,[(10w,d_inout)],v1model_mark_to_drop');
+      (51w,[(2w,d_in); (1w,d_in)],v1model_verify');
 
-    ("verify_checksum",
+    (52w,
      [(2w,d_in); (7w,d_in); (15w,d_in); (16w,d_none)],
      v1model_verify_checksum');
-    ("update_checksum",
+    (53w,
      [(2w,d_in); (7w,d_in); (15w,d_inout);
       (16w,d_none)],v1model_update_checksum');
-    ("assert",[(14w,d_in)],v1model_assert');
-    ("assume",[(14w,d_in)],v1model_assume')]);
+    (54w,[(14w,d_in)],v1model_assert');
+    (55w,[(14w,d_in)],v1model_assume')]);
       
-    ("packet_in",NONE,
-     [("extract",[(3w,d_in); (4w,d_out)],
+    (42w,NONE,
+     [(56w,[(3w,d_in); (4w,d_out)],
        v1model_packet_in_extract');
 
-      ("lookahead",[(3w,d_in); (5w,d_in)],v1model_packet_in_lookahead');
-    ("advance",[(3w,d_in); (6w,d_in)],v1model_packet_in_advance')
+      (57w,[(3w,d_in); (5w,d_in)],v1model_packet_in_lookahead');
+    (58w,[(3w,d_in); (6w,d_in)],v1model_packet_in_advance')
 
 ]);
-    ("packet_out",NONE,
-     [("emit",[(3w,d_in); (7w,d_in)],v1model_packet_out_emit')]);
+    (43w,NONE,
+     [(59w,[(3w,d_in); (7w,d_in)],v1model_packet_out_emit')]);
 
-  ("direct_counter",
+  (44w,
    SOME ([(3w,d_out); (21w,d_none)],v1model_direct_counter_construct'),
-   [("count",[(3w,d_out)],v1model_direct_counter_count')])
+   [(60w,[(3w,d_out)],v1model_direct_counter_count')])
 (*
-    ("register",
+    (45w,
      SOME
        ([(3w,d_out); (17w,d_none); (5w,d_in)],register_construct'),
-     [("read",[(3w,d_in); (18w,d_out); (19w,d_in)],register_read');
-      ("write",[(3w,d_in); (19w,d_in); (20w,d_in)],register_write')
+     [(61w,[(3w,d_in); (18w,d_out); (19w,d_in)],register_read');
+      (62w,[(3w,d_in); (19w,d_in); (20w,d_in)],register_write')
 *) ]):v1model_ascope' ext_map' option
 End
 
@@ -773,7 +840,7 @@ End
 
 Definition transform_ctrl_empty_def:
  transform_ctrl_empty dict (ctrl:v1model_ctrl) =
-  ((oFOLDR (\(x, v). ALOOKUP dict x >>= \w. SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist)) ctrl):v1model_ctrl' option)
+  ((oFOLDR (\(x, v). ALOOKUP dict x >>= \w. SOME (w, []:(((e_list' -> bool) # num), word64 # e_list') alist)) ctrl):v1model_ctrl' option)
 (*
   (oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist) | NONE => NONE) ctrl)
 *)
@@ -785,7 +852,8 @@ Definition transform_actx_def:
  transform_actx dict ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):v1model_ascope actx) =
   transform_ab_list dict ab_list >>=
   \ab_list'. transform_pblock_map dict pblock_map >>=
-  \pblock_map'. transform_ext_map dict ext_map >>=
+  \pblock_map'. transform_ffblock_map dict ffblock_map >>=
+  \ffblock_map'. transform_ext_map dict ext_map >>=
   \ext_map'. transform_func_map dict func_map >>=
   \func_map'. SOME (ab_list':ab_list', pblock_map':pblock_map', ext_map':v1model_ascope' ext_map', func_map':func_map')
 End
@@ -830,7 +898,9 @@ Definition transform_status_def:
   | status_returnv v =>
    transform_v dict v >>=
    \v'. SOME $ status'_returnv v'
-  | status_trans x => SOME $ status'_trans x
+  | status_trans x =>
+   ALOOKUP dict x >>=
+   \w. SOME $ status'_trans w
 End
 
 Definition transform_astate_def:
