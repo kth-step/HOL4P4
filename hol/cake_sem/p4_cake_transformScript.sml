@@ -64,30 +64,21 @@ Definition add_varnames_varn_def:
 End
 
 Definition add_varnames_v_def:
- (add_varnames_v dict v =
+ add_varnames_v dict v =
   case v of
     v_bool boolv => dict
   | v_bit bitv => dict
   | v_str x => dict
-  | v_struct x_v_list => add_varnames_x_v_list dict x_v_list
-  | v_header boolv x_v_list => add_varnames_x_v_list dict x_v_list
+  | v_struct x_v_list =>
+   (case x_v_list of
+    | ((x,v')::t) => add_varnames_v (add_string x $ add_varnames_v dict v') (v_struct t)
+    | [] => dict)
+  | v_header boolv x_v_list =>
+   (case x_v_list of
+    | ((x,v')::t) => add_varnames_v (add_string x $ add_varnames_v dict v') (v_header boolv t)
+    | [] => dict)
   | v_ext_ref i => dict
-  | v_bot => dict) /\
- (add_varnames_x_v_list dict [] = dict) /\
- (add_varnames_x_v_list dict ((x,v)::t) =
-  add_varnames_x_v_list (add_varnames_v (add_string x dict) v) t)
-Termination
-cheat
-(*
-WF_REL_TAC ‘measure $ (\a. case (a:(((string # word64) list) # e) + (((string # word64) list) # e list)) of INR d_el => e3_size $ SND d_el | INL d_e => e_size $ SND d_e)’ >>
-rpt strip_tac >>
-gs[e_size_def] >>
-subgoal ‘e_list' = MAP SND x_e_list'’ >- (
- gs[listTheory.UNZIP_MAP]
-) >>
-imp_res_tac e1_e3_size >>
-decide_tac
-*)
+  | v_bot => dict
 End
 
 Definition add_varnames_s_def:
@@ -106,13 +97,16 @@ Definition add_varnames_s_list_def:
 End
 
 Definition add_varnames_e_def:
- (add_varnames_e dict e =
+ add_varnames_e dict e =
   case e of
     e_v v => add_varnames_v dict v
   | e_var varn =>
    add_varnames_varn dict varn
   | e_list el =>
-   add_varnames_e_list dict el
+   (case el of
+    | (h::t) =>
+     add_varnames_e (add_varnames_e dict h) (e_list t)
+    | [] => dict)
   | e_acc e x =>
    add_string x $ add_varnames_e dict e
   | e_unop unop e =>
@@ -126,28 +120,25 @@ Definition add_varnames_e_def:
   | e_slice e1 e2 e3 =>
    add_varnames_e (add_varnames_e (add_varnames_e dict e3) e2) e1
   | e_call funn el =>
-   add_varnames_e_list (add_varnames_funn dict funn) el
+   (case el of
+    | (h::t) =>
+     add_varnames_e (add_varnames_e dict h) (e_call funn t)
+    | [] => add_varnames_funn dict funn)
   | e_select e s_list_x_list x =>
-   let (s_list_list, x_list) = UNZIP s_list_x_list in
-   add_varnames_e (FOLDR add_varnames_s_list (FOLDR add_string dict x_list) s_list_list) e
+   (case s_list_x_list of
+    | ((s_list, x')::t) =>
+     add_varnames_e (add_string x' $ add_varnames_s_list s_list dict) (e_select e t x)
+    | [] => add_string x $ add_varnames_e dict e)
   | e_struct x_e_list =>
-   let (x_list, e_list) = UNZIP x_e_list in
-   add_varnames_e_list (FOLDR add_string dict x_list) e_list
+   (case x_e_list of
+    | ((x,e)::t) =>
+     add_varnames_e (add_string x $ add_varnames_e dict e) (e_struct t)
+    | [] => dict)
   | e_header validity x_e_list =>
-   let (x_list, e_list) = UNZIP x_e_list in
-   add_varnames_e_list (FOLDR add_string dict x_list) e_list) /\
- (add_varnames_e_list dict [] = dict) /\
- (add_varnames_e_list dict (h::t) =
-  add_varnames_e_list (add_varnames_e dict h) t)
-Termination
-WF_REL_TAC ‘measure $ (\a. case (a:(((string # word64) list) # e) + (((string # word64) list) # e list)) of INR d_el => e3_size $ SND d_el | INL d_e => e_size $ SND d_e)’ >>
-rpt strip_tac >>
-gs[e_size_def] >>
-subgoal ‘e_list' = MAP SND x_e_list'’ >- (
- gs[listTheory.UNZIP_MAP]
-) >>
-imp_res_tac e1_e3_size >>
-decide_tac
+   (case x_e_list of
+    | ((x,e)::t) =>
+     add_varnames_e (add_string x $ add_varnames_e dict e) (e_header validity t)
+    | [] => dict)
 End
 
 Definition add_varnames_arch_block_def:
@@ -155,7 +146,7 @@ Definition add_varnames_arch_block_def:
   case arch_block of
     arch_block_inp => dict
   | arch_block_pbl x el =>
-   add_string x $ add_varnames_e_list dict el
+   add_string x $ add_varnames_e dict (e_list el)
   | arch_block_ffbl x => add_string x dict
   | arch_block_out => dict
 End
@@ -192,19 +183,17 @@ Definition add_varnames_lval_def:
 End
 
 Definition add_varnames_tau_def:
- (add_varnames_tau dict tau =
+ add_varnames_tau dict tau =
   case tau of
     tau_bool => dict
   | tau_bit num_exp => dict
   | tau_bot => dict
   | tau_xtl struct_ty x_tau_list =>
-   add_varnames_x_tau_list dict x_tau_list
-  | tau_ext => dict) /\
- (add_varnames_x_tau_list dict [] = dict) /\
- (add_varnames_x_tau_list dict ((x,tau)::t) =
-  add_varnames_x_tau_list (add_varnames_tau (add_string x dict) tau) t)
-Termination
-cheat
+   (case x_tau_list of
+    | ((x,tau')::t) => 
+     add_varnames_tau (add_varnames_tau (add_string x dict) tau') (tau_xtl struct_ty t)
+    | [] => dict)
+  | tau_ext => dict
 End
 
 Definition add_varnames_t_scope_def:
@@ -239,7 +228,7 @@ Definition add_varnames_stmt_def:
   | stmt_trans e =>
    add_varnames_e dict e
   | stmt_app x el =>
-   add_string x $ add_varnames_e_list dict el
+   add_string x $ add_varnames_e dict (e_list el)
   | stmt_ext => dict
 End
 
@@ -257,7 +246,7 @@ Definition add_varnames_tbl_def:
  add_varnames_tbl (x1, (mkl, (x2, el))) dict =
   add_string x1 $
   add_string x2 $
-  add_varnames_e_list dict el
+  add_varnames_e dict (e_list el)
 End
 
 Definition add_varnames_tbl_map_def:
