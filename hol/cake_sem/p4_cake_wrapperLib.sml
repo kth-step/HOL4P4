@@ -10,8 +10,7 @@ open p4_coreTheory p4_vssTheory;
 open p4_exec_sem_cakeTheory;
 
 (* CakeML: *)
-open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory mlmapTheory basisFunctionsLib
-     astPP comparisonTheory;
+open preamble ml_translatorLib ml_progLib basisFunctionsLib;
 open fromSexpTheory;
 
 val _ = intLib.deprecate_int();

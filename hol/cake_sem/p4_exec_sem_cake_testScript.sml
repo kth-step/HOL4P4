@@ -9,8 +9,7 @@ open p4_coreTheory;
 open p4_v1modelTheory;
 
 (* CakeML: *)
-open preamble ml_translatorLib ml_translatorTheory ml_progLib basisProgTheory mlmapTheory basisFunctionsLib
-     astPP comparisonTheory;
+open preamble ml_translatorLib ml_progLib;
 
 intLib.deprecate_int();
 val _ = (max_print_depth := 1000);

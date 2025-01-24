@@ -7,10 +7,6 @@ open p4Theory p4_auxTheory;
 (****************************************)
 (* CakeML-adjusted executable semantics *)
 
-(* TODO: Make funn_name, funn_ext et.c. hold words64s : consequences for func_map and ext_map *)
-(* TODO: Arch block names *)
-(* TODO: Parser states *)
-
 Datatype:
  funn' = 
     funn'_name word64
