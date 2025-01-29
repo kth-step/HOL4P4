@@ -510,7 +510,7 @@ fun update_table astate table_name new_entry =
   (* Simply put the new entry in the front *)
   val table_config' = rhs $ concl $ EVAL “CONS ^new_entry ^table_config”
   (* Update the table *)
-  val ctrl' = dest_some $ rhs $ concl $ EVAL “AUPDATE ^ctrl (^table_name, ^table_config')”
+  val ctrl' = dest_some $ rhs $ concl $ EVAL “AFUPDKEY ^table_name  (\v. ^table_config') ^ctrl”
 
   val ascope' = list_mk_pair [counter, ext_obj_map, v_map, ctrl']
   val aenv' = mk_aenv (i, in_out_list, in_out_list', ascope')
