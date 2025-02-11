@@ -37,7 +37,7 @@ End
 
 Definition get_checksum_incr''_def:
  (get_checksum_incr'' (scope_list:scope_list') ext_data_name =
-   (case lookup_lval' scope_list ext_data_name of
+   (case lookup_lval'' scope_list ext_data_name of
     | SOME (v'_bit (bl, n)) =>
      if n MOD 16 = 0 then (v2w16s''' bl) else NONE
     | SOME (v'_header vbit f_list) =>
@@ -80,11 +80,11 @@ End
 (* TEMP *)
 Definition verify_gen'_def:
  (verify_gen' ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 2w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 2w)) of
   | SOME (v'_bool T) =>
    SOME (ascope, scope_list, status'_returnv v'_bot)
   | SOME (v'_bool F) =>
-   (case lookup_lval' scope_list (lval'_varname (varn'_name 1w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name 1w)) of
     | SOME (v'_bit bitv) =>
      SOME (ascope_update_v_map ascope (0w:word64) (v'_bit bitv), scope_list, status'_trans 40w)
     | _ => NONE)
@@ -94,7 +94,7 @@ End
 
 Definition lookup_lval_header'_def:
  (lookup_lval_header' ss header_lval =
-  case p4_exec_sem_cake$lookup_lval' ss header_lval of
+  case lookup_lval'' ss header_lval of
    | SOME (v'_header valid_bit x_v_l) => SOME (valid_bit, x_v_l)
    | _ => NONE
  )
@@ -215,7 +215,7 @@ End
 
 Definition packet_in_extract_gen'_def:
  (packet_in_extract_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case p4_exec_sem_cake$lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_ext_ref i) =>
    (case lookup_lval_header' scope_list (lval'_varname (varn'_name 4w)) of
     | SOME (valid_bit, x_v_l) =>
@@ -244,9 +244,9 @@ End
 
 Definition packet_in_lookahead_gen'_def:
  (packet_in_lookahead_gen' ascope_lookup ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_ext_ref i) =>
-   (case lookup_lval' scope_list (lval'_varname (varn'_name 5w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name 5w)) of
     | SOME dummy_v =>
      (case lookup_ascope_gen ascope_lookup ascope i of
       | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
@@ -270,7 +270,7 @@ End
 
 Definition lookup_lval_bit32'_def:
  (lookup_lval_bit32' ss bit32_lval =
-  case p4_exec_sem_cake$lookup_lval' ss bit32_lval of
+  case lookup_lval'' ss bit32_lval of
    | SOME (v'_bit (bitv, 32)) => SOME (v2n bitv)
    | _ => NONE
  )
@@ -278,7 +278,7 @@ End
 
 Definition packet_in_advance_gen'_def:
  (packet_in_advance_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_ext_ref i) =>
    (case lookup_lval_bit32' scope_list (lval'_varname (varn'_name 6w)) of
     | SOME n_bits =>
@@ -336,11 +336,11 @@ End
 
 Definition packet_out_emit_gen'_def:
  (packet_out_emit_gen' (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_ext_ref i) =>
    (case lookup_ascope_gen ascope_lookup ascope i of
     | SOME (INL (core_v_ext_packet packet_out_bl)) =>
-     (case lookup_lval' scope_list (lval'_varname (varn'_name 7w)) of
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name 7w)) of
       | SOME (v'_header F x_v_l) => SOME (ascope, scope_list, status'_returnv v'_bot)
       | SOME (v'_header T x_v_l) =>
        (case flatten_v_l' (MAP SND x_v_l) of
@@ -364,7 +364,7 @@ End
 
 Definition header_is_valid'_def:
  (header_is_valid' (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_header valid_bit x_v_l) =>
    SOME (ascope, scope_list, status'_returnv (v'_bool valid_bit))
   | _ => NONE
@@ -373,7 +373,7 @@ End
 
 Definition header_set_valid'_def:
  (header_set_valid' (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_header valid_bit x_v_l) =>
    (case assign' scope_list (v'_header T x_v_l) (lval'_varname (varn'_name 3w)) of
     | SOME scope_list' =>
@@ -385,7 +385,7 @@ End
 
 Definition header_set_invalid'_def:
  (header_set_invalid' (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_header valid_bit x_v_l) =>
    (case assign' scope_list (v'_header F x_v_l) (lval'_varname (varn'_name 3w)) of
     | SOME scope_list' =>             
@@ -624,22 +624,140 @@ val v1model_apply_table_f'_def =
 
 (** Implementations **)
 
+(*
+Definition v1model_packet_in_extract'_def:
+ v1model_packet_in_extract' (ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
+  | SOME (v'_ext_ref i) =>
+   (case lookup_lval_header' scope_list (lval'_varname (varn'_name 4w)) of
+    | SOME (valid_bit, x_v_l) =>
+     (case v1model_ascope_lookup' ascope i of
+      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, v1model_v_ext) sum) =>
+       (case size_in_bits' (v'_header valid_bit x_v_l) of
+        | SOME size =>
+         if size <= LENGTH packet_in_bl
+         then
+          (case set_header' x_v_l packet_in_bl of
+           | SOME header =>
+            (case assign' scope_list header (lval'_varname (varn'_name 4w)) of
+             | SOME scope_list' =>
+              SOME (v1model_ascope_update' ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, v1model_v_ext) sum), scope_list', status'_returnv v'_bot)
+             | NONE => NONE)
+           | NONE => NONE)
+         else
+          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+          SOME (v1model_ascope_update_v_map' (v1model_ascope_update' ascope i ((INL (core_v_ext_packet [])):(core_v_ext, v1model_v_ext) sum)) (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+        | NONE => NONE)
+       | _ => NONE)
+    | NONE => NONE)
+  | _ => NONE
+End
+*)
 Definition v1model_packet_in_extract'_def:
  v1model_packet_in_extract' = packet_in_extract_gen' v1model_ascope_lookup' v1model_ascope_update' v1model_ascope_update_v_map'
 End
 
+(*
+Definition v1model_packet_in_lookahead'_def:
+ (v1model_packet_in_lookahead' (ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
+  | SOME (v'_ext_ref i) =>
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name 5w)) of
+    | SOME dummy_v =>
+     (case v1model_ascope_lookup' ascope i of
+      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, v1model_v_ext) sum) =>
+       (case size_in_bits' dummy_v of
+        | SOME size =>
+         if size <= LENGTH packet_in_bl
+         then
+          (case set_v' dummy_v packet_in_bl of
+           | SOME v =>
+            SOME (ascope, scope_list, status'_returnv v)
+           | NONE => NONE)
+         else
+          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+          SOME (v1model_ascope_update_v_map' ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+        | NONE => NONE)
+       | _ => NONE)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+*)
 Definition v1model_packet_in_lookahead'_def:
  v1model_packet_in_lookahead' = packet_in_lookahead_gen' v1model_ascope_lookup' v1model_ascope_update_v_map'
 End
 
+(*
+Definition v1model_packet_in_advance'_def:
+ (v1model_packet_in_advance' (ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
+  | SOME (v'_ext_ref i) =>
+   (case lookup_lval_bit32' scope_list (lval'_varname (varn'_name 6w)) of
+    | SOME n_bits =>
+     (case v1model_ascope_lookup' ascope i of
+      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, v1model_v_ext) sum) =>
+       if n_bits <= LENGTH packet_in_bl
+       then
+        SOME (v1model_ascope_update' ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, v1model_v_ext) sum), scope_list, status'_returnv v'_bot)
+       else
+        (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+        SOME (v1model_ascope_update_v_map' ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+       | _ => NONE)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+*)
 Definition v1model_packet_in_advance'_def:
  v1model_packet_in_advance' = packet_in_advance_gen' v1model_ascope_lookup' v1model_ascope_update' v1model_ascope_update_v_map'
 End
 
+(*
+Definition v1model_packet_out_emit'_def:
+ (v1model_packet_out_emit' (ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
+  | SOME (v'_ext_ref i) =>
+   (case v1model_ascope_lookup' ascope i of
+    | SOME (INL (core_v_ext_packet packet_out_bl)) =>
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name 7w)) of
+      | SOME (v'_header F x_v_l) => SOME (ascope, scope_list, status'_returnv v'_bot)
+      | SOME (v'_header T x_v_l) =>
+       (case flatten_v_l' (MAP SND x_v_l) of
+        | SOME bl =>
+         SOME (v1model_ascope_update' ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, v1model_v_ext) sum), scope_list, status'_returnv v'_bot)
+        | NONE => NONE)
+      | SOME (v'_struct x_v_l) =>
+       (case flatten_v_l' (MAP SND x_v_l) of
+        | SOME bl =>
+         SOME (v1model_ascope_update' ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, v1model_v_ext) sum), scope_list, status'_returnv v'_bot)
+        | NONE => NONE)
+      | SOME _ => NONE
+      | NONE => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+*)
 Definition v1model_packet_out_emit'_def:
  v1model_packet_out_emit' = packet_out_emit_gen' v1model_ascope_lookup' v1model_ascope_update'
 End
 
+(*
+Definition v1model_verify'_def:
+ (v1model_verify' (ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 2w)) of
+  | SOME (v'_bool T) =>
+   SOME (ascope, scope_list, status'_returnv v'_bot)
+  | SOME (v'_bool F) =>
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name 1w)) of
+    | SOME (v'_bit bitv) =>
+     SOME (v1model_ascope_update_v_map' ascope (0w:word64) (v'_bit bitv), scope_list, status'_trans 40w)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+*)
 Definition v1model_verify'_def:
  (v1model_verify' (ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
   verify_gen' v1model_ascope_update_v_map' (ascope, g_scope_list, scope_list))
@@ -658,7 +776,7 @@ End
 
 Definition v1model_assert'_def:
  v1model_assert' (v1model_ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 14w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 14w)) of
    | SOME $ v'_bool b =>
     (if b
      then SOME (v1model_ascope, scope_list, status'_returnv v'_bot)
@@ -668,7 +786,7 @@ End
 
 Definition v1model_assume'_def:
  v1model_assume' (v1model_ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 14w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 14w)) of
    | SOME $ v'_bool b =>
     (if b
      then SOME (v1model_ascope, scope_list, status'_returnv v'_bot)
@@ -690,17 +808,17 @@ End
 
 Definition v1model_verify_checksum'_def:
  (v1model_verify_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  (case lookup_lval' scope_list (lval'_varname (varn'_name 2w)) of
+  (case lookup_lval'' scope_list (lval'_varname (varn'_name 2w)) of
    | SOME $ v'_bool b =>
     if b
     then
-     (case lookup_lval' scope_list (lval'_varname (varn'_name 16w)) of
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name 16w)) of
       | SOME $ v'_bit (bl, n) =>
        if v2n bl = 6
        then
         (case get_checksum_incr'' scope_list (lval'_varname (varn'_name 7w)) of
          | SOME checksum_incr =>
-          (case lookup_lval' scope_list (lval'_varname (varn'_name 15w)) of
+          (case lookup_lval'' scope_list (lval'_varname (varn'_name 15w)) of
            | SOME $ v'_bit (bl', n') =>
             if n' = 16
             then
@@ -730,17 +848,17 @@ End
 
 Definition v1model_update_checksum'_def:
  (v1model_update_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  (case lookup_lval' scope_list (lval'_varname (varn'_name 2w)) of
+  (case lookup_lval'' scope_list (lval'_varname (varn'_name 2w)) of
    | SOME $ v'_bool b =>
     if b
     then
-     (case lookup_lval' scope_list (lval'_varname (varn'_name 16w)) of
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name 16w)) of
       | SOME $ v'_bit (bl, n) =>
        if v2n bl = 6
        then
         (case get_checksum_incr'' scope_list (lval'_varname (varn'_name 7w)) of
          | SOME checksum_incr =>
-          (case lookup_lval' scope_list (lval'_varname (varn'_name 15w)) of
+          (case lookup_lval'' scope_list (lval'_varname (varn'_name 15w)) of
            | SOME $ v'_bit (bl', n') =>
             if n' = 16
             then
@@ -764,9 +882,9 @@ End
 
 Definition register_construct'_def:
  (register_construct' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 17w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 17w)) of
   | SOME (v'_bit (bl, n)) =>
-   (case lookup_lval' scope_list (lval'_varname (varn'_name 5w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name 5w)) of
     | SOME (v'_bit (bl', n')) =>
      let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (v1model_register_construct_inner bl n'))) in
      (case assign' scope_list (v'_ext_ref counter) (lval'_varname (varn'_name 3w)) of
@@ -780,14 +898,14 @@ End
 
 Definition register_read'_def:
  (register_read' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 19w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 19w)) of
   | SOME (v'_bit (bl, n)) =>
-   (case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
     | SOME (v'_ext_ref i) =>
      (case ALOOKUP ext_obj_map i of
       | SOME (INR (v1model_v_ext_register array)) =>
        (* TODO: HACK, looking up the result variable to get the result width. *)
-       (case lookup_lval' scope_list (lval'_varname (varn'_name 18w)) of
+       (case lookup_lval'' scope_list (lval'_varname (varn'_name 18w)) of
         | SOME (v'_bit (bl'', n'')) =>      
          let (bl', n') = v1model_register_read_inner n'' bl array in
            (case assign' scope_list (v'_bit (bl', n')) (lval'_varname (varn'_name 18w)) of
@@ -803,11 +921,11 @@ End
 
 Definition register_write'_def:
  (register_write' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval' scope_list (lval'_varname (varn'_name 19w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name 19w)) of
   | SOME (v'_bit (bl, n)) =>
-   (case lookup_lval' scope_list (lval'_varname (varn'_name 20w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name 20w)) of
     | SOME (v'_bit (bl', n')) =>
-     (case lookup_lval' scope_list (lval'_varname (varn'_name 3w)) of
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
       | SOME (v'_ext_ref i) =>
        (case ALOOKUP ext_obj_map i of
         | SOME (INR (v1model_v_ext_register array)) =>

@@ -357,19 +357,20 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
-val lookup_lval'_def = Define `
-  (lookup_lval' (ss:scope' list) (lval'_varname x) = lookup_v' ss x) /\
-  (lookup_lval' ss (lval'_field lval f) =
-     case lookup_lval' ss lval of
+(* Note: this uses two ' since lookup_lval' already exists x*)
+val lookup_lval''_def = Define `
+  (lookup_lval'' (ss:scope' list) (lval'_varname x) = lookup_v' ss x) /\
+  (lookup_lval'' ss (lval'_field lval f) =
+     case lookup_lval'' ss lval of
      | SOME v => acc_f' v f
      | NONE => NONE) /\
- (lookup_lval' ss (lval'_slice lval e1 e2) =
-    case lookup_lval' ss lval of
+ (lookup_lval'' ss (lval'_slice lval e1 e2) =
+    case lookup_lval'' ss lval of
      | SOME (v'_bit (v, bl)) => (slice_lval' (v'_bit (v, bl)) e1 e2)
      | _ => NONE
      ) /\
- (lookup_lval' ss (lval'_null) = NONE ) /\
- (lookup_lval' ss (lval'_paren lval) = lookup_lval' ss lval) 
+ (lookup_lval'' ss (lval'_null) = NONE ) /\
+ (lookup_lval'' ss (lval'_paren lval) = lookup_lval'' ss lval) 
 `;
 
 val get_lval_of_e'_def = Define `
@@ -436,7 +437,7 @@ Definition one_arg_val_for_newscope'_def:
   then
    (case get_lval_of_e' e of
     | SOME lval =>
-     (case lookup_lval' ss lval of
+     (case lookup_lval'' ss lval of
       | SOME v =>
        if is_d_in d
        then SOME (v, SOME lval)
@@ -494,7 +495,7 @@ Definition assign'_def:
     | NONE => NONE)
   | _ => NONE) /\
  (assign' ss v (lval'_field lval f) =
-  case lookup_lval' ss lval of
+  case lookup_lval'' ss lval of
   | SOME (v'_struct f_v_l) =>
    (case INDEX_OF f (MAP FST f_v_l) of
     | SOME i => assign' ss (v'_struct (LUPDATE (f, v) i f_v_l)) lval
@@ -507,7 +508,7 @@ Definition assign'_def:
  (assign' ss v (lval'_slice lval ev1 ev2) =
   case v of
   | v'_bit vb =>
-   (case lookup_lval' ss lval of
+   (case lookup_lval'' ss lval of
     | SOME (v'_bit vb') =>
      (case assign_to_slice' vb vb' ev1 ev2 of
       | SOME v_res => assign' ss v_res lval

@@ -15,7 +15,7 @@ intLib.deprecate_int();
 val _ = (max_print_depth := 1000);
 
 open p4_exec_sem_cakeProgTheory;
-open p4_cake_transformLib;
+open p4_cake_transformLib p4_cake_auxLib;
 
 val _ = translation_extends "p4_exec_sem_cakeProg";
 
@@ -138,16 +138,44 @@ val astate = “((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[
           ("action_run",v_bit (REPLICATE 32 F,32))],NONE)]],
     arch_frame_list_empty,status_running):v1model_ascope astate”;
 
+(* Test input and output:
+
+(* TODO: Where did the old input ("010010101001001011111111100100101") come from? *)
+val input = parse_bool_list "000000000001000100010001000000000000000010110000"
+   
+val input = “([F; F; F; F; F; F; F; F; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
+               F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0:num)”;
+val bl_input_tm = fst $ dest_pair input
+
+val bl_input = deparse_bool_list bl_input_tm
+
+*)
+
 
 (** Transformation **)
 
 val (dict', actx', astate') =
  transform_program v1model_dict actx astate
 
+(*
+
+val res = dest_some $ rhs $ concl $ EVAL “arch_multi_exec' ^actx' (p4_append_input_list' [^input] ^astate') 8”
+        
+*)
+
+val dict'' = invert_dict dict'
+
 val n_max = “1000:num”;
 
 (** CakeML export **)
 
-p4_cake_wrapperLib.translate_p4 "conditional" actx' astate' n_max;
+val dict = dict'';
+val actx = actx';
+val astate = astate';
+val debug_mode = true;
+val progname = "conditional";
+val debug_mode = false;
+
+p4_cake_wrapperLib.translate_p4 progname dict actx astate n_max debug_mode;
 
 val _ = export_theory ();

@@ -146,4 +146,40 @@ val tau_in_sum = rhs $ concl $ EVAL “FOLDL (\a b. (a:num) + (b:num) ) 0 $ MAP 
  end
 ;
 
+fun invert_dict dict =
+ rhs $ concl $ EVAL “invert_dict ^dict”
+;
+
+local
+fun deparse_bool_list' l =
+   case l of
+     [] => []
+   | h::t =>
+    if Teq h
+    then (#"1"::(deparse_bool_list' t))
+    else (#"0"::(deparse_bool_list' t))
+ ;
+in
+fun deparse_bool_list l =
+ implode $ deparse_bool_list' $ fst $ listSyntax.dest_list l
+end
+
+exception ParseError of string;
+
+local
+fun parse_bool_list' l =
+      case l of
+	[] => []
+      | h::t =>
+       if h = #"0"
+       then (F::(parse_bool_list' t))
+       else if h = #"1"
+       then (T::(parse_bool_list' t))
+       else raise ParseError ("Error: packet should be specified using only 0s and 1s to signify bits.\n")
+    ;
+in
+fun parse_bool_list l =
+ listSyntax.mk_list (parse_bool_list' $ String.explode l, bool);
+end
+
 end

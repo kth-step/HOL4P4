@@ -143,7 +143,7 @@ simp[Once $ definition "bitv_bitslice_side_def"]
 QED
 val _ = update_precondition slice'_side;
 val _ = translate slice_lval'_def;
-val _ = translate lookup_lval'_def;
+val _ = translate lookup_lval''_def;
 
 val _ = translate is_d_in_def;
 val _ = translate bitstringTheory.extend_def;

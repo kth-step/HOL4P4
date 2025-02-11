@@ -99,5 +99,11 @@ Definition filter_tau_in_def:
  filter_tau_in (tau_in_xtl struct_ty x_tau_in_l) include_list =
   tau_in_xtl struct_ty (FILTER (\el. MEM (FST el) include_list) x_tau_in_l)
 End
-    
+
+Definition invert_dict_def:
+ (invert_dict [] = []) /\
+ (invert_dict ((k,v)::t) =
+  ((v,k)::(invert_dict t)))
+End
+
 val _ = export_theory();
