@@ -50,26 +50,26 @@ fun append_prog_p4_wrapper debug_mode () =
 	[] => []
       | h::t =>
        if h
-       then (#"T"::(deparse_bool_list t))
-       else (#"F"::(deparse_bool_list t))
-    ;’;
-
-   val _ = append_prog o process_topdecs $ 
-    ‘fun print_output_packets l =
-      case l of
-	[] => ()
-      | (out_bl, out_port)::t =>
-       let
-	val out_packet_string = String.implode (deparse_bool_list out_bl)
-       in
-	print "Output packet(s) are: "; print(out_packet_string); print(" at port "); print_int out_port; print "\n"; print_output_packets t
-       end
+       then (#"1"::(deparse_bool_list t))
+       else (#"0"::(deparse_bool_list t))
     ;’;
 
    val _ =
     if debug_mode
     then
      let
+
+      val _ = append_prog o process_topdecs $ 
+       ‘fun print_output_packets_debug l =
+	 case l of
+	   [] => ()
+	 | (out_bl, out_port)::t =>
+	  let
+	   val out_packet_string = String.implode (deparse_bool_list out_bl)
+	  in
+	   print "Output packet(s) are: "; print(out_packet_string); print(" at port "); print_int out_port; print "\n"; print_output_packets t
+	  end
+       ;’;
 
       val _ = append_prog o process_topdecs $
        ‘fun get_scope_list ((aenv, (g_scope_list', (arch_frame_list', status'))):v1model_ascope' astate') =
@@ -154,25 +154,43 @@ fun append_prog_p4_wrapper debug_mode () =
      in
       ()
      end
-    else append_prog o process_topdecs $
-     ‘fun main () =
-       let
-	 val packet_arg::rest = (CommandLine.arguments())
-	 val port_arg = List.hd rest
+    else
+     let
 
-	 val bl = parse_bool_list (String.explode packet_arg)
-	 val in_port = Option.valOf (Int.fromString port_arg)
-	 val in_packet_string = String.implode (deparse_bool_list bl)
-       in
-	(case cake_top_exec (bl, in_port) of
-	   None => raise ParseError ("Error: execution result is None.\n")
-	 | Some output_packets =>
-	   (print ("Input packet was: " ^ in_packet_string ^ " at port "); print_int in_port; print "\n";
-	   print_output_packets output_packets))
-       end
-       handle ParseError parse_err_msg => TextIO.print_err parse_err_msg
-       handle _ =>
-	 TextIO.print_err ("Usage: " ^ CommandLine.name() ^ " <n>\n");’;
+      val _ = append_prog o process_topdecs $ 
+       ‘fun print_output_packets l =
+	 case l of
+	   [] => ()
+	 | (out_bl, out_port)::t =>
+	  let
+	   val out_packet_string = String.implode (deparse_bool_list out_bl)
+	  in
+	   print(out_packet_string); print(" "); print_int out_port; print "\n"; print_output_packets t
+	  end
+       ;’;
+
+      val _ = append_prog o process_topdecs $
+       ‘fun main () =
+	 let
+	   val packet_arg::rest = (CommandLine.arguments())
+	   val port_arg = List.hd rest
+
+	   val bl = parse_bool_list (String.explode packet_arg)
+	   val in_port = Option.valOf (Int.fromString port_arg)
+	   val in_packet_string = String.implode (deparse_bool_list bl)
+	 in
+	  (case cake_top_exec (bl, in_port) of
+	     None => raise ParseError ("Error: execution result is None.\n")
+	   | Some output_packets =>
+	    print_output_packets output_packets)
+	 end
+	 handle ParseError parse_err_msg => TextIO.print_err parse_err_msg
+	 handle _ =>
+	   TextIO.print_err ("Usage: " ^ CommandLine.name() ^ " <n>\n");’;
+
+     in
+      ()
+     end
 
  in
   (* TODO: Can this be replaced with something more short-handish? *)
