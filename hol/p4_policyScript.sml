@@ -699,15 +699,6 @@ End
 
 
                
-(* correct sem definition *)
-
-Definition correct_sem_def:
-  correct_sem (BDD:BDD)  =
-  ∀ n mv b r edges labels.
-      BDD = (r,edges,labels) ∧
-      BDD_pred_sem BDD mv n b ⇒
-       b = apply_Sem_rule (get_prop labels n) mv         
-End 
 
 
 Definition FV_def:
@@ -910,7 +901,7 @@ val move_forall_fst_tac : tactic =
 
 
 
-(*
+
 Inductive BDD_ind:
 (* defn pred_red *)
   
@@ -941,23 +932,23 @@ Inductive BDD_ind:
       BDD_ind (root,edges,labels) n a
   )           
 End
-*)
 
 
 
-(*
+
+
 Definition correct_sem_def:
   correct_sem (BDD:BDD)  =
-  ∀ n mv b r edges labels.
-      BDD = (r,edges,labels) ∧
+  ∀ n mv b r edges labels lbl.
+    BDD = (r,edges,labels) ∧
+    ALOOKUP labels n = SOME lbl ∧
       BDD_pred_sem BDD mv n b  ⇒
        b = apply_Sem_rule (get_prop labels n) mv         
 End  
-*)
 
 
 
-          
+        
 Theorem BDD_pred_sem_determ:
   ∀ n BDD mv b b'.        
   BDD_pred_sem BDD mv n b ∧
@@ -1153,11 +1144,11 @@ QED
 
 
 
-(*
+
 
  (**********)     
 
-              
+(*              
                                  
 Theorem new_layer_correct:
   ∀ BDD BDD'' vars_consumed h c c' mv.
@@ -1236,7 +1227,7 @@ Proof
 *)
 QED
         
-
+*)
 
         
 
@@ -1742,7 +1733,7 @@ QED
 
 
                      
-      
+   (*   
 
         
 Theorem WFness_translation:
@@ -1979,7 +1970,7 @@ Proof
   ]
 QED
 
-
+*)
 
 
 (*****************************)
@@ -1997,8 +1988,8 @@ End
 
 
         
-Definition merge_def:
-  merge ((r,edges,labels):BDD) n n' =
+Definition merge_edges_def:
+  merge_edges (edges:edges) n n' =
    MAP (\(a,b,c). ( a, if (b=n' ∧ c=n') then (n,n)
                  else if (b=n') then (n,c)
                  else if (c=n') then (b,n)
@@ -2006,18 +1997,20 @@ Definition merge_def:
 End
 
 
-EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
 
-
-
-
+Definition merge_def:
+  merge ((r,edges,labels):BDD) n n' =
+  let edges' = merge_edges (edges:edges) n n' in
+    let edges'' = ADELKEY n' edges' in
+      let labels' = ADELKEY n' labels in
+          (r,edges'',labels')
+End
 
 
         
-∀ edges n'' n' n r labels.
-n'' ≠ n' ∧       
-MEM n'' (nodes_list edges) ⇒
-MEM n'' (nodes_list (point_parents (r,edges,labels) n n'))       
+(*
+EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
+*)
 
 
 
@@ -2025,6 +2018,8 @@ MEM n'' (nodes_list (point_parents (r,edges,labels) n n'))
 
 
 
+
+(*
 
 
                 
@@ -2176,7 +2171,7 @@ simp[Once Sem_BDDpred_fun_def] >|[
 
 
 
-
+*)
 
 
 
@@ -2193,23 +2188,55 @@ simp[Once Sem_BDDpred_fun_def] >|[
         
 Theorem merge_correct:        
   ∀ r edges labels vars_consumed n n'.
-        correct_sem (r,edges,labels) ∧
-        BDD_ordered (r,edges,labels) vars_consumed ∧           
-        mergable (r,edges,labels) n n'
-        ==>
-        correct_sem (r, point_parents (r,edges,labels) n n', labels)
+    BDD_WF (r,edges,labels) ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    correct_sem (r,edges,labels) ∧
+    BDD_ordered (r,edges,labels) vars_consumed ∧           
+    mergable (r,edges,labels) n n'
+    ==>
+    correct_sem (merge (r,edges,labels) n n')
 Proof
 
   rpt strip_tac >>   
-  simp[correct_sem_def] >>
+  simp[Once correct_sem_def] >>
   rpt strip_tac >>
   gvs[correct_sem_def] >>
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘mv’])) >>
-  
-  ‘Sem_BDDpred (r,edges,labels) mv n'' = Sem_BDDpred (r,point_parents (r,edges,labels) n n',labels) mv n''’ by cheat >> gvs[]
+
+
+  gvs[merge_def] >>
+
+                       
+  simp[Once get_prop_def] >>
+
+  Cases_on‘lbl’ >> gvs[] >|[
+    (* termin *)
+    Cases_on ‘p’ >> gvs[] >>
+    gvs[apply_Sem_rule_def] >>
+    rgs[Once BDD_pred_sem_cases, from_pred_to_bool_def]>>
+    rgs[Sem_rule_def]
+    ,
+    (* non termin *)
+    Cases_on ‘p’ >> gvs[] >>
+    gvs[apply_Sem_rule_def] >>
+    ‘n''≠ n'’ by cheat >>
+    gvs[ALOOKUP_ADELKEY] >>
+    
+    
+    ‘BDD_pred_sem
+     (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b =
+     BDD_pred_sem
+     (r,edges, labels) mv n'' b’ by cheat >>
+    rgs[] >>
+    
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘mv’,‘b’,‘(non_termn (q,r'))’])) >>
+    gvs[] >>
+    gvs[get_prop_def] >>
+    gvs[apply_Sem_rule_def] 
+       
+  ]
 QED
         
-   *)     
+   
         
 
 
