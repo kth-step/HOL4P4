@@ -939,9 +939,9 @@ End
 
 Definition correct_sem_def:
   correct_sem (BDD:BDD)  =
-  ∀ n mv b r edges labels lbl.
+  ∀ n mv b r edges labels .
     BDD = (r,edges,labels) ∧
-    ALOOKUP labels n = SOME lbl ∧
+   (* ALOOKUP labels n = SOME lbl ∧ *)
       BDD_pred_sem BDD mv n b  ⇒
        b = apply_Sem_rule (get_prop labels n) mv         
 End  
@@ -2019,158 +2019,81 @@ EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
 
 
 
-(*
 
 
-                
+
+(*                
 (*Lemma 3*)
+(* just prove well formedness of mergable first, so I can get rid of teh proofs that I have about things being esistannt *)
+Theorem Lemma3:
+∀ labels vars_consumed n'' r edges n' n mv b.
+  BDD_ordered (r,edges,labels) vars_consumed ∧
+  BDD_WF (r,edges,labels) ∧
+  mergable (r,edges,labels) n n'       
+  ⇒
+  BDD_pred_sem (r,edges,labels) mv n'' b =
+  BDD_pred_sem (r,ADELKEY n' (merge_edges edges n n'), ADELKEY n' labels) mv n'' b 
+Proof
 
-∀ labels vars_consumed n'' r edges n' n mv.
-BDD_ordered (r,edges,labels) vars_consumed ∧
-mergable (r,edges,labels) n n' ⇒
-Sem_BDDpred (r,edges,labels) mv n'' = Sem_BDDpred (r,merge (r,edges,labels) n n',labels) mv n''
-
-
- NTAC 3 strip_tac >>
+  NTAC 3 strip_tac >>
   measureInduct_on `get_string_in_label labels  vars_consumed n''` >>
-                                                                   
-rpt strip_tac >>
-simp[Sem_BDDpred_def]>>
-simp[Once Sem_BDDpred_fun_def] >|[
-    Cases_on ‘¬MEM n'' (nodes_list edges)’ >> gvs[] >|[
-      ‘~ MEM n'' (nodes_list (point_parents (r,edges,labels) n n'))’ by cheat >>
-      simp[Once Sem_BDDpred_fun_def]
+  
+  rpt strip_tac >>
+      
+  simp[Once BDD_pred_sem_cases]>> gvs[] >>
+  Cases_on ‘ALOOKUP edges n''’ >> gvs[] >|[
+    (* leafs *)
+    ‘ALOOKUP (merge_edges edges n n') n'' = NONE’ by cheat >>
+             
+    ‘∃ p . ALOOKUP labels n'' = SOME (termn False) ∨
+     ALOOKUP labels n'' = SOME (termn True) ∨
+     ALOOKUP labels n'' = SOME (non_termn (NONE,p))’ by gvs[BDD_WF_def, is_lookup_leaf_def] >|[
+
+      simp[Once BDD_pred_sem_cases] >>
+      ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = NONE’ by cheat >>
+      gvs[] >>
+      ‘ALOOKUP (ADELKEY n' labels) n'' = SOME (termn False)’ by cheat >>
+      simp[Once from_pred_to_bool_def] >>
+
       ,
-      Cases_on ‘ALOOKUP edges n''’ >> gvs[] >|[
-          Cases_on ‘ALOOKUP labels n''’ >> gvs[] >|[
-            cheat
-            ,
-            cheat
-           (* Cases_on ‘x’ >> gvs[] >|[
-                (* if termin*)
-                ‘p = True ∨ p = False’ by cheat >> gvs[] >>
-                simp[Once EQ_SYM_EQ, Once Sem_BDDpred_fun_def] >>
-                Cases_on ‘ALOOKUP (point_parents (r,edges,labels) n n') n''’ >> gvs[] >>
-                ‘n'' ≠ n'’ by cheat >> (* again incorrect theorem *)
-                cheat
-                Cases_on ‘x’ >> gvs[] >>
-                cheat
-                ,
-                Cases_on ‘p’ >> gvs[] >>
 
-                simp[Once EQ_SYM_EQ, Once Sem_BDDpred_fun_def] >>
-                ‘MEM n'' (nodes_list (point_parents (r,edges,labels) n n'))’ by cheat >> gvs[] >>
-                ‘ALOOKUP (point_parents (r,edges,labels) n n') n'' = NONE’ by cheat >> gvs[]
-                Cases
-              ]                                      
-                                    
-          ]*)
-        ]
-          ,
+      simp[Once BDD_pred_sem_cases] >>
+      ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = NONE’ by cheat >>
+      gvs[] >>
+      ‘ALOOKUP (ADELKEY n' labels) n'' = SOME (termn True)’ by cheat >>
+      gvs[Once from_pred_to_bool_def] >>
+      ,
+      cheat
 
-          PairCases_on ‘x’ >> gvs[] >>
-          Cases_on ‘ALOOKUP labels n''’ >> gvs[] >|[
-              cheat
-              ,
-              Cases_on ‘x’ >> gvs[] >| [
-                  cheat
-                  ,
-                  Cases_on ‘p’ >> gvs[] >> Cases_on ‘q’ >> gvs[] >|[
-                      cheat
-                      ,
-                      Cases_on ‘ALOOKUP mv x’ >> gvs[] >| [
-                          cheat
-                          ,
-                          Cases_on ‘x'’ >> gvs[] >| [
-                              simp[Once EQ_SYM_EQ, Once Sem_BDDpred_fun_def] >>
-                              Cases_on ‘¬MEM n'' (nodes_list (point_parents (r,edges,labels) n n'))’ >> gvs[]  >|[
-                                (* if we do not find it, then it must have been merged, thus, n'' = n' *)
-                                   ‘n'' = n'’ by cheat >>
-                                   gvs[] >>
-                                      (* this is an incorrect theorem as the merged node actually disappears..
-                                      thus in the onld one it had semantics, and in the new one it does not*)
-                                   cheat >> (*problem *)
-                                   ,
-                                   Cases_on ‘ALOOKUP (point_parents (r,edges,labels) n n') n''’ >> gvs[]  >| [
-                                       gvs[ALOOKUP_MEM]
-                                   cheat    
-                                   ,
-                                   Cases_on ‘x'’ >> gvs[] >>
-                                   (* we check if these are parents or not of merged, they are parents if their
-                                      indexes changed in teh graph*)
-                                   Cases_on ‘ALOOKUP (point_parents (r,edges,labels) n n') n'' =
-                                             ALOOKUP edges n''’ >> gvs[] >| [
-                                       (* not a changed parent *)
-                                       
-                                       subgoal ‘get_string_in_label labels vars_consumed r'' <
-                                                get_string_in_label labels vars_consumed n''’ >-(
-                                       rgs[Once BDD_ordered_def] >>
-                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘q’,‘r''’,‘x’,‘x'’,‘’])) >>
-                                       gvs[get_string_in_label_def] >>
-                                       Cases_on ‘ALOOKUP labels r''’ >> gvs[]
-
-                                                
-                                       )
-
-                                          
-                                       ‘get_string_in_label labels vars_consumed r'' <
-                                        get_string_in_label labels vars_consumed n''’ by cheat >>
-
-                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘r''’])) >>
-                                       gvs[] >>
-                                        
-                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘r’,
-                                                                                   ‘edges’,
-                                                                                   ‘n'’, ‘n’, ‘mv’])) >>
-                                        
-                                       gvs[] >>
-                                       rgs[Sem_BDDpred_def] >>
-                                       cheat
-                                       ,
-                                       (* this means that teh parent has changed and
-                                       rerouted to new choldren*)
-
-
-                                       Cases_on ‘q=x0’ >> gvs[] >|[
-                                            ‘x1=n'’ by cheat >> gvs[] >>                    
-                                            ‘r''=n’ by cheat >> gvs[] >>
-                                            gvs[mergable_def]
-
-                                        
-                                     ]
-                                           
-
-                                     ]
-                                   
-                              ]
-                            ]
-
-                        ]
-
-                    ] 
-                  
-                ]
-
-            ]                                         
-          
-                                                   
-        ]
-                                              
-
-                                              
-                                              
-                                              
     ]
+    ,
+    (*internal nodes*)
+    Cases_on ‘x’ >> gvs[] >>
+    ‘∃pred x'. ALOOKUP labels n'' = SOME (non_termn (SOME x',pred))’ by cheat >>
+    gvs[] >>
+    ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = SOME (q,r')’ by cheat >>
+    ‘ALOOKUP (ADELKEY n' labels) n'' = SOME (non_termn (SOME x',pred))’ by cheat >>
 
+    simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] >>
 
+    Cases_on ‘ALOOKUP mv x'’ >> gvs[] >> Cases_on ‘x’ >> gvs[] >|[
+             
+        subgoal ‘get_string_in_label labels vars_consumed q <
+                 get_string_in_label labels vars_consumed n''’ >-(
+        rgs[Once BDD_ordered_def] >>
+        first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘q’,‘r'’,‘x’,‘x'’,‘x''’])) >>
+        gvs[get_string_in_label_def] >>
+        Cases_on ‘ALOOKUP labels r''’ >> gvs[]
+                                            
+                                            
+        )
+        ,
+        
 
-
-
-
+      ]
   ]
 
-
-
+QED
 *)
 
 
@@ -2179,60 +2102,42 @@ simp[Once Sem_BDDpred_fun_def] >|[
 
 
 
-
-                                                                   
-
-
-
-
+                                                              
         
 Theorem merge_correct:        
   ∀ r edges labels vars_consumed n n'.
+    correct_sem (r,edges,labels) ∧
     BDD_WF (r,edges,labels) ∧
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
-    correct_sem (r,edges,labels) ∧
     BDD_ordered (r,edges,labels) vars_consumed ∧           
     mergable (r,edges,labels) n n'
     ==>
     correct_sem (merge (r,edges,labels) n n')
 Proof
-
   rpt strip_tac >>   
   simp[Once correct_sem_def] >>
   rpt strip_tac >>
-  gvs[correct_sem_def] >>
-
-
+  
   gvs[merge_def] >>
-
-                       
-  simp[Once get_prop_def] >>
-
-  Cases_on‘lbl’ >> gvs[] >|[
-    (* termin *)
+  
+  imp_res_tac Lemma3 >>
+  gvs[correct_sem_def] >>
+  res_tac >>
+  
+  gvs[get_prop_def]>> 
+  gvs[Once BDD_pred_sem_cases]>>
+  
+  gvs[ALOOKUP_ADELKEY] >>
+  Cases_on ‘n' = n''’ >> gvs[] >>
+  Cases_on ‘ALOOKUP labels n'’ >> gvs[] >>
+  Cases_on ‘x’ >> gvs[] >|[
     Cases_on ‘p’ >> gvs[] >>
     gvs[apply_Sem_rule_def] >>
-    rgs[Once BDD_pred_sem_cases, from_pred_to_bool_def]>>
-    rgs[Sem_rule_def]
+    gvs[Sem_rule_def] >>
+    (*false, show that it is NONE in semantics*)
+    cheat
     ,
-    (* non termin *)
-    Cases_on ‘p’ >> gvs[] >>
-    gvs[apply_Sem_rule_def] >>
-    ‘n''≠ n'’ by cheat >>
-    gvs[ALOOKUP_ADELKEY] >>
-    
-    
-    ‘BDD_pred_sem
-     (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b =
-     BDD_pred_sem
-     (r,edges, labels) mv n'' b’ by cheat >>
-    rgs[] >>
-    
-    first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘mv’,‘b’,‘(non_termn (q,r'))’])) >>
-    gvs[] >>
-    gvs[get_prop_def] >>
-    gvs[apply_Sem_rule_def] 
-       
+    cheat
   ]
 QED
         
