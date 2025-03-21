@@ -28,7 +28,7 @@ open pred_setLib;
 val _ = new_theory "p4_policy";
 
    
-(*)
+(*
 Type edges = ``:('a, ('a # 'a) ) alist``;
 Type labels = ``:('a , 'b ) alist``;
 
@@ -901,7 +901,7 @@ val move_forall_fst_tac : tactic =
 
 
 
-
+(*
 Inductive BDD_ind:
 (* defn pred_red *)
   
@@ -932,7 +932,7 @@ Inductive BDD_ind:
       BDD_ind (root,edges,labels) n a
   )           
 End
-
+*)
 
 
 
@@ -1146,7 +1146,7 @@ QED
 
 
 
- (**********)     
+     
 
 (*              
                                  
@@ -1230,11 +1230,6 @@ QED
 *)
 
         
-
-
-
-
-
 
         
 Theorem lookup_labels_in_updt:
@@ -1973,9 +1968,11 @@ QED
 *)
 
 
-(*****************************)
-(*********   MERGE    ********)
-(*****************************)
+(*******************************************************)
+(*                                                     *)
+(*                      M E R G E                      *)
+(*                                                     *)
+(*******************************************************)
 
 
 Definition mergable_def:        
@@ -2329,45 +2326,93 @@ gvs[]
 ]
 QED
 
-     
-  (*      
 
-∀ edges n n' x1 x2 x1' x2'.        
-  n ≠ n' ∧
-  ALL_DISTINCT edges ∧
-  n ≠ x1' ∧ n ≠ x2' ∧
-  ALOOKUP edges n = ALOOKUP edges n' ∧
-  ALOOKUP (merge_edges edges n n') n = SOME (x1,x2) ∧
-  ALOOKUP edges n = SOME (x1',x2') ⇒
-  (x1,x2) = (x1',x2')
+Triviality merge_replaces_stays_same_singular:
+n' ≠ x1'  ∧ n' ≠ x2' ∧      
+ALOOKUP (h::edges) n = SOME (x1',x2') ∧
+ALOOKUP (merge_edges [h] n n') n = SOME (x1,x2) ⇒
+(x1=x1' ∧ x2=x2')
+Proof
+  rpt strip_tac >>
+  rgs[Once merge_edges_def] >>
+  PairCases_on ‘h’ >>
+  fs[AllCaseEqs()]
+QED
 
         
+(*
+Theorem merge_replaces_stays_same:            
+∀ edges n' n x1 x2 x1' x2'.
+n' ≠ x1' ∧ n' ≠ x2' ∧
+ALOOKUP (merge_edges edges n n') n = SOME (x1,x2) ∧
+ALOOKUP edges n = SOME (x1',x2') ⇒
+(x1=x1' ∧ x2=x2')
+Proof
+         
 Induct >-
-gvs[merge_edges_def] >>
+ gvs[merge_edges_def] >>
 rpt strip_tac >>
+(
 gvs[Once merge_edges_list_cons] >>
 fs[ALOOKUP_APPEND] >>
-fs[AllCaseEqs()]>|[
-
-         PairCases_on ‘h’ >>
-         PairCases_on ‘x’ >>
-         PairCases_on ‘x'’ >>
-         imp_res_tac merge_triviality1 >>
-         
-         rgs[merge_edges_def] >>
-         res_tac >>
-         gvs[]
-            cheat
-         ,
-         qpat_x_assum ‘ALOOKUP (h::edges) n'' = SOME (nr,nl)’
-                      (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once ALOOKUP_def] thm)) >>
+Cases_on ‘ALOOKUP (merge_edges [h] n n') n’ >> gvs[] >|[
+    PairCases_on ‘h’ >>
+    imp_res_tac merge_triviality1 >>
+    rgs[Once ALOOKUP_def] >>
+    metis_tac[]
+    ,
+    metis_tac[merge_replaces_stays_same_singular]
   ]
 )
+                                                       
+QED
+*)
+
+
+(* very low proof, check why*)       
+Theorem merge_replaces_stays_same:            
+∀ edges n' n x1 x2 x1' x2'.
+n' ≠ x1' ∧ n' ≠ x2' ∧
+ALOOKUP (merge_edges edges n n') n = SOME (x1,x2) ∧
+ALOOKUP edges n = SOME (x1',x2') ⇒
+(x1=x1' ∧ x2=x2')
+Proof
+         
+Induct >-
+ gvs[merge_edges_def] >>
+rpt strip_tac >>
+
+(
+qpat_x_assum ‘ALOOKUP (merge_edges (h::edges) n n') n = SOME (x1,x2)’
+             (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once merge_edges_list_cons] thm)) >>
+
+qpat_x_assum ‘ALOOKUP (merge_edges [h] n n' ⧺ merge_edges edges n n') n = SOME (x1,x2)’
+             (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once ALOOKUP_APPEND] thm)) >>
+fs[AllCaseEqs()] >|[
+    PairCases_on ‘h’ >>
+    imp_res_tac merge_triviality1 >>
+    rgs[Once ALOOKUP_def] >>
+    metis_tac[]
+    ,
+    metis_tac[merge_replaces_stays_same_singular]
+  ]
+)
+                                                       
+QED
+       
 
 
 
 
-        
+
+
+
+
+
+
+
+
+
 
         
 
@@ -2388,19 +2433,18 @@ ALOOKUP labels n'' = SOME (non_termn (SOME x,pred))
   BDD_pred_sem
   (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b)
 Proof
-
- ntac 2 strip_tac >>
- measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
- rpt strip_tac >>
- 
- 
- simp[Once BDD_pred_sem_cases]>> gvs[] >>
- 
- simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] >>
- gvs[ALOOKUP_ADELKEY] >>
- 
- gvs[from_pred_to_bool_def] >>
- Cases_on ‘ALOOKUP (merge_edges edges n n') n''’ >> gvs[]  >|[
+  ntac 2 strip_tac >>
+  measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
+  rpt strip_tac >>
+  
+  
+  simp[Once BDD_pred_sem_cases]>> gvs[] >>
+  
+  simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] >>
+  gvs[ALOOKUP_ADELKEY] >>
+  
+  gvs[from_pred_to_bool_def] >>
+  Cases_on ‘ALOOKUP (merge_edges edges n n') n''’ >> gvs[]  >|[
     
     assume_tac merge_lookup_none >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘edges’,‘n’,‘n'’,‘n''’])) >>
@@ -2409,20 +2453,20 @@ Proof
     
     PairCases_on ‘x'’ >> gvs[] >>
     Cases_on ‘ALOOKUP mv x’ >> gvs[] >> Cases_on ‘x'’ >> gvs[] >|[
-
+        
         (* true case *)
         (* is it a merged nodes i.e. (nr≠x'0) or not (nr=x'0) ... we started with non merged nodes *)   
         Cases_on ‘nr=x'0’ >> gvs[] >|[
-                 
+          
           Cases_on ‘ALOOKUP edges nr’ >> gvs[] >|[
-                   
+            
             assume_tac  mergable_correct_leaf >> 
             last_x_assum (strip_assume_tac o (Q.SPECL [‘labels’,‘nr’,‘r’, ‘edges’, ‘n'’,
                                                        ‘n’, ‘mv’, ‘b’])) >>
- 
+            
             ‘n'≠nr’ by metis_tac[merge_edges_res] >>
             gvs[]
-
+               
             ,
             
             Cases_on ‘x'’ >> gvs[] >>
@@ -2434,16 +2478,11 @@ Proof
              res_tac >>
              srw_tac [SatisfySimps.SATISFY_ss][]
              ) >>
-                
-                
+            
+            
+            
             gvs[] >>
             
-            
-            (*simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] >>
-              gvs[ALOOKUP_ADELKEY] >>
-              
-              gvs[from_pred_to_bool_def] >>
-             *)
             
             subgoal ‘THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed)’ >-(
               rgs[Once BDD_ordered_def] >>
@@ -2467,88 +2506,102 @@ Proof
           
             first_x_assum (strip_assume_tac o (Q.SPECL [‘r’, ‘edges’, ‘labels’, ‘n’, ‘n'’, ‘nr’, ‘r'’, ‘q’,  ‘pred'’, ‘mv’, ‘b’])) >>
             gvs[] >>
-
+            
             ‘n'≠nr’ by metis_tac[merge_edges_res] >>
             gvs[]
-            ]
+          ]
           ,
-                
+          
           (* nr ≠ x'0 *)
           (* we are working with a parent of a node that it's children gotten merged *)   
           gvs[mergable_def] >>
-
+          
           (* we know that the parent's children are not random,
-          before merge should be n' and after merge should be n *)
+             before merge should be n' and after merge should be n *)
           ‘x'0 = n ∧ nr = n' ’ by (imp_res_tac merge_parent_change >> metis_tac[]) >>
           rgs[] >>
-
-       cheat
-             
-             
+          
+          simp[Once BDD_pred_sem_cases] >>  gvs[ALOOKUP_ADELKEY] >>
+          Cases_on ‘ALOOKUP (merge_edges edges n n') n’ >> gvs[] >|[
+              ‘ALOOKUP edges n' = NONE’ by (metis_tac [merge_lookup_none]) >>
+              simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] 
+              ,
+              PairCases_on ‘x'’ >> gvs[] >>
+              ‘∃x'. ALOOKUP edges n = SOME x'’ by  (imp_res_tac merge_lookup_exists >> gvs[]) >>
+              PairCases_on ‘x'’ >> gvs[] >>    
+              Cases_on ‘ALOOKUP labels n'’ >> gvs[] >>
+              Cases_on ‘x'’ >> gvs[] >|[
+                  ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
+                  ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
+                  gvs[]
+                  ,
+                  Cases_on ‘p’ >> gvs[] >>
+                  Cases_on ‘q’ >> gvs[] >|[
+                      ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
+                      ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
+                      gvs[]
+                      ,
+                      Cases_on ‘ALOOKUP mv x'’ >> gvs[] >|[
+                          cheat
+                          ,
+                          Cases_on ‘x''’ >> gvs[] >|[
+                              (* true *)
+                              ‘n' ≠ n'' ∧ nl ≠ n''’ by (imp_res_tac lookup_edges_not_parent >> gvs[]) >>
+                              
+                              qpat_x_assum ‘SOME ($var$(x'0'),x'1'') = ALOOKUP edges n'’ (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once EQ_SYM_EQ] thm)) >>
+                              ‘n' ≠ $var$(x'0') ∧ n' ≠ x'1''’ by (imp_res_tac lookup_edges_not_parent >> gvs[]) >>
+                              
+                              (* we need to show that x'0 = $var$(x'0') *)    
+                              ‘ALOOKUP edges n = SOME ($var$(x'0'),x'1'')’ by gvs[] >>    
+                              ‘n ≠ $var$(x'0') ∧ n ≠ x'1''’ by (imp_res_tac lookup_edges_not_parent >> gvs[]) >>   
+                              ‘x'0 = $var$(x'0')’ by imp_res_tac merge_replaces_stays_same >>
+                              rgs[] >>
+                              simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] >>
+                              
+                              
+                              subgoal ‘THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed)’ >-
+                               (
+                               rgs[Once BDD_ordered_def] >>
+                               first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘n'’,‘nl’,‘x’,‘x'’,‘x''’, ‘pred’, ‘r'’, ‘pred'’])) >>
+                               gvs[] >>
+                               
+                               gvs[consumed_dom_bdd_def] >>
+                               imp_res_tac MEM_INDEX_OF >>
+                               res_tac>>
+                               gvs[]
+                               ) >>
+                               
+                              gvs[] >>
+                              first_x_assum (strip_assume_tac o (Q.SPECL [‘INDEX_OF (x':string) (vars_consumed: string list)’])) >>
+                              gvs[] >>
+                              first_x_assum (strip_assume_tac o (Q.SPECL [‘x'’, ‘vars_consumed’])) >>
+                              gvs[] >>
+                              first_x_assum (strip_assume_tac o (Q.SPECL [‘r’, ‘edges’, ‘labels’, ‘n’, ‘n'’, ‘n’, ‘x'1''’, ‘x'0’,  ‘r'’, ‘mv’, ‘b’])) >>
+                              rgs[] >>
+                              
+                              gvs[Once BDD_pred_sem_cases] >>
+                              simp[Once BDD_pred_sem_cases] >> gvs[ALOOKUP_ADELKEY]
+                              ,
+                              cheat
+                              
+                              
+                            ]
+                        ]
+                    ] 
+                ]
             ]
+                                                                   
+                                                                   
+        ]
         ,
         cheat
         
-        ]
       ]
+  ]
 QED
-
-                                        
 
 
  
-simp[Once BDD_pred_sem_cases] >>  gvs[ALOOKUP_ADELKEY] >>
-Cases_on ‘ALOOKUP (merge_edges edges n n') n’ >> gvs[] >|[
-   ‘ALOOKUP edges n' = NONE’ by cheat >> (*imp_res_tac merge_lookup_none >> metis_tac []*)
-   simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] >>
-   ,
-   PairCases_on ‘x'’ >> gvs[] >>
-   ‘∃x'. ALOOKUP edges n = SOME x'’ by  (imp_res_tac merge_lookup_exists >> gvs[]) >>
-   PairCases_on ‘x'’ >> gvs[] >>    
-   Cases_on ‘ALOOKUP labels n'’ >> gvs[] >>
-   Cases_on ‘x'’ >> gvs[] >|[
-       cheat
-       ,
-       Cases_on ‘p’ >> gvs[] >>
-       Cases_on ‘q’ >> gvs[] >|[
-           cheat
-           ,
-           Cases_on ‘ALOOKUP mv x'’ >> gvs[] >|[
-               cheat
-               ,
-               Cases_on ‘x''’ >> gvs[] >|[
-                   ‘n' ≠ n'' ∧ nl ≠ n''’ by (imp_res_tac lookup_edges_not_parent >> gvs[])   
-
-
-
-                 ]
-
-
-
-             ]
-
-
-         ] 
-       
-                                    
-       simp[Once EQ_SYM_EQ, Once BDD_pred_sem_cases] >>
-       rpt strip_tac >>
-       gvs[BDD_WF_def] >>
-       gvs[is_lookup_leaf_def] >>
-       res_tac >>
-       srw_tac [SatisfySimps.SATISFY_ss][]
-
-            
-
-
-
-
-
-     ]
-
-
-  ]
-
 
 
           
@@ -2578,11 +2631,6 @@ Proof
     last_x_assum (strip_assume_tac o (Q.SPECL [‘labels’,‘n''’,‘r’, ‘edges’, ‘n'’, ‘n’, ‘mv’, ‘b’])) >>
     gvs[]
     ,
-        
-    (*internal nodes*)
-               
-
-
     subgoal ‘∃pred x'. ALOOKUP labels n'' = SOME (non_termn (SOME x',pred))’ >-
      (
      gvs[BDD_WF_def] >>
@@ -2591,8 +2639,8 @@ Proof
      srw_tac [SatisfySimps.SATISFY_ss][]
      ) >>
      
-    (* change here to the new thm *)
-     imp_res_tac cheat HERE add internals
+    PairCases_on ‘x’ >>
+    metis_tac[mergable_correct_internal]
   ]
 
 QED
@@ -2629,7 +2677,9 @@ Proof
     imp_res_tac BDD_pred_sem_determ
     ,
     
-    imp_res_tac Lemma3 >>
+    assume_tac Lemma3 >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘labels’, ‘vars_consumed’, ‘n''’, ‘r’, ‘edges’, ‘n'’, ‘n’, ‘mv’, ‘b’])) >>
+    gvs[] >>           
     gvs[correct_sem_def] >>
     res_tac >>
     
@@ -2639,17 +2689,13 @@ Proof
     gvs[ALOOKUP_ADELKEY]
   ]
 QED
-*)     
+ 
    
-(***************************)
-(**     eliminatbel       **)
-(**************************)
-
-
-
-
-
-
+(*******************************************************)
+(*                                                     *)
+(*                  E L I M I N A T E                  *)
+(*                                                     *)
+(*******************************************************)
 
 Definition eleminatble_def:        
 eleminatble ((r,edges,labels):BDD)  n n' = 
@@ -2657,11 +2703,9 @@ eleminatble ((r,edges,labels):BDD)  n n' =
 End
 
 
-(***********)
-(*         *)
-(* Definition of eliminate is the same as  merge *)
-(*         *)
-(***********)
+(*******************************************************)
+(*    Definition of eliminate is the same as  merge    *)
+(*******************************************************)
 
 (*         
 Definition eliminate_edges_def:
