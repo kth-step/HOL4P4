@@ -209,7 +209,7 @@ BDD_ordered ((r,edges,labels):BDD) xl =
   (order_hold labels xl  n n'  ∧order_hold  labels xl  n n'')
 End
 
-
+(*
         
 Definition BDD_ordered_def:
 BDD_ordered ((r,edges,labels):BDD) xl =
@@ -233,7 +233,7 @@ BDD_ordered ((r,edges,labels):BDD) xl =
   )
 End
         
-
+*)
         
     
 
