@@ -183,13 +183,17 @@ End
 
 
 
-
+Definition is_lbl_leaf_def:
+  is_lbl_leaf (non_termn(SOME x,p)) = F ∧
+  is_lbl_leaf (non_termn(NONE,p)) = T ∧
+  is_lbl_leaf (termn p) = T  
+End
 
 
         
 Definition order_hold_def:
   order_hold labels xl n n' =
-  ∀ i i' x x' p p'.
+  ∀ i i' x x' p p' lbl.
   (ALOOKUP labels n  =  SOME (non_termn(SOME x,  p )) ∧
    ALOOKUP labels n' =  SOME (non_termn(SOME x', p')) ∧
    INDEX_OF x  xl = SOME i ∧
@@ -198,7 +202,9 @@ Definition order_hold_def:
    i' < i)
   ∧
   (ALOOKUP labels n  =  SOME (non_termn(SOME x,  p )) ∧
-   ALOOKUP labels n' =  SOME (non_termn(NONE,   p')))
+   ALOOKUP labels n' =  SOME lbl ==>
+   is_lbl_leaf(lbl)
+  )
 End
            
 
@@ -206,11 +212,11 @@ Definition BDD_ordered_def:
 BDD_ordered ((r,edges,labels):BDD) xl =
 ∀ n n' n''.
   ALOOKUP edges n = SOME (n',n'') ⇒
-  (order_hold labels xl  n n'  ∧order_hold  labels xl  n n'')
+  (order_hold labels xl  n n'  ∧ order_hold  labels xl  n n'')
 End
 
-(*
-        
+
+(*    (* old definition*)    
 Definition BDD_ordered_def:
 BDD_ordered ((r,edges,labels):BDD) xl =
 ∀ n n' n'' x x' x'' p p' p'' i i' i''.
@@ -977,10 +983,8 @@ Proof
        (
        
        rgs[Once BDD_ordered_def]>>
-       first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n1’, ‘n2’,‘x'’, ‘x''’,‘x'''’,
-                                                   ‘pred’, ‘pred'’,‘pred'''’,‘i'’,‘i’,‘i''’])) >>
-       
-       rgs[]
+       first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n1’, ‘n2’]))>>
+       gvs[order_hold_def]
        ) >>
       
       first_x_assum (strip_assume_tac o (Q.SPECL [‘INDEX_OF (x'':string) (vars_consumed: string list)’])) >>
@@ -1020,13 +1024,9 @@ Proof
         
         subgoal ‘THE (INDEX_OF x'' vars_consumed) < THE (INDEX_OF x' vars_consumed)’ >-
          (
-         
          rgs[Once BDD_ordered_def]>>
-         first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n1’, ‘n2’,‘x'’, ‘x'''’,‘x''’,
-                                                     ‘pred’, ‘pred'''’,‘pred'’,
-                                                     ‘i'’,‘i''’,‘i’])) >>
-         
-         rgs[]
+         first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n1’, ‘n2’])) >>
+         gvs[order_hold_def]
          ) >>
         
         first_x_assum (strip_assume_tac o (Q.SPECL [‘INDEX_OF (x'':string) (vars_consumed: string list)’])) >>
@@ -2892,30 +2892,30 @@ gvs[is_lookup_defined_def, is_lookup_internal_def] >>
 
 gvs[BDD_ordered_def] >>
 first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘n’, ‘nl’])) >>
-gvs[] >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘x’, ‘x’, ‘x’])) >>
-gvs[] >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘p’, ‘p’, ‘p’])) >>
-gvs[] >>
+gvs[order_hold_def] >>
 
 gvs[consumed_dom_bdd_def] >>
 imp_res_tac MEM_INDEX_OF >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’, ‘i’])) >>
+
+first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
+gvs[] >>
+
+first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
 gvs[]
 ,
        
 gvs[BDD_ordered_def] >>
 first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘nr’, ‘n’])) >>
-gvs[] >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘x’, ‘x’, ‘x’])) >>
-gvs[] >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘p’, ‘p’, ‘p’])) >>
-gvs[] >>
+gvs[order_hold_def] >>
 
 gvs[consumed_dom_bdd_def] >>
 imp_res_tac MEM_INDEX_OF >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’, ‘i’])) >>
-gvs[] 
+
+first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
+gvs[] >>
+
+first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
+gvs[]
 ]
 QED
 
@@ -3022,8 +3022,7 @@ ALOOKUP edges n'' = SOME (nr,nl) ∧
 ALOOKUP labels n'' = SOME (non_termn (SOME x,pred))
 ⇒
 (BDD_pred_sem (r,edges,labels) mv n'' b ⇔
-  BDD_pred_sem
-  (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b)
+  BDD_pred_sem (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b)
 Proof
   ntac 2 strip_tac >>
   measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
@@ -3071,21 +3070,19 @@ Proof
              srw_tac [SatisfySimps.SATISFY_ss][]
              ) >>
             
-            
-            
             gvs[] >>
             
             
             subgoal ‘THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed)’ >-(
               rgs[Once BDD_ordered_def] >>
-              first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘nr’,‘nl’,‘x’,‘x'’,‘x''’, ‘pred’, ‘pred'’, ‘pred'’])) >>
-              gvs[] >>
-              
+              first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘nr’,‘nl’])) >>
+              gvs[order_hold_def] >>
+                                  
               gvs[consumed_dom_bdd_def] >>
-              imp_res_tac MEM_INDEX_OF >>
-              res_tac>>
-              gvs[]
-                         
+              imp_res_tac MEM_INDEX_OF >>   
+                                  
+              last_x_assum (strip_assume_tac o (Q.SPECL [‘i'’, ‘i’ , ‘x’,‘x'’, ‘pred’, ‘pred'’])) >>
+              gvs[]  
               ) >>
 
             gvs[] >>
@@ -3154,13 +3151,16 @@ Proof
                               subgoal ‘THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed)’ >-
                                (
                                rgs[Once BDD_ordered_def] >>
-                               first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘n'’,‘nl’,‘x’,‘x'’,‘x''’, ‘pred’, ‘r'’, ‘pred'’])) >>
-                               gvs[] >>
+                               first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’,‘n'’,‘nl’])) >>
+                               gvs[order_hold_def] >>
                                
                                gvs[consumed_dom_bdd_def] >>
-                               imp_res_tac MEM_INDEX_OF >>
-                               res_tac>>
-                               gvs[]
+                               imp_res_tac MEM_INDEX_OF >>   
+                               
+                               last_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i'’ , ‘x’,‘x'’, ‘pred’, ‘pred'’])) >>
+                               gvs[] >>  
+                               last_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i'’ , ‘x’,‘x'’, ‘pred’, ‘pred'’])) >>
+                               gvs[] 
                                ) >>
                                
                               gvs[] >>
