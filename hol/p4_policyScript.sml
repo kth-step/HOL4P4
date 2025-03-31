@@ -27,17 +27,6 @@ open pred_setLib;
      
 val _ = new_theory "p4_policy";
 
-   
-(*
-Type edges = ``:('a, ('a # 'a) ) alist``;
-Type labels = ``:('a , 'b ) alist``;
-
-val _ = Hol_datatype ` 
-bdd = bdd_ir of ('a # 'a edges # ('a,'b) labels)
-`;                                                                 
-*)
-
-
 
  (* Predicate datatype *)
 val _ = Hol_datatype `
@@ -53,14 +42,10 @@ val _ = Hol_datatype `
                                         
 (* BDD types *)
 val _ = type_abbrev("edges", ``:(num , (num # num)) alist``);
-
-
-                        
     
 val _ = Hol_datatype `
   label = termn of pred
         | non_termn of ( string option #  pred)`;
-
                
 val _ = type_abbrev("labelings", ``:(num , label) alist``);
 val _ = type_abbrev("BDD", ``:num # edges # labelings``);
@@ -69,29 +54,20 @@ val _ = type_abbrev("BDD", ``:num # edges # labelings``);
 
 
 
-
+(* get leaves definition *)
 val get_leaves_list_def = Define `
   get_leaves_list (edges : edges) =
     nub (FILTER (\x. ~(MEM x (MAP FST edges))) 
            (FLAT (MAP (\(k, (v1, v2)). [v1; v2]) edges)))
 `;
 
-
-        
-
-val no_children_check_def = Define `
-   no_children_check edges leaves = 
-   EVERY (\n. ~ MEM n (MAP FST edges)) leaves
-`;
-
-
    
 val getLeaves_def = Define `
    getLeaves [] r = SOME [r] ∧
    getLeaves edges r =
-   ( case no_children_check edges (get_leaves_list edges)  of
-   | T => SOME (get_leaves_list edges)
-   | F => NONE
+   ( case (get_leaves_list edges) of
+   | [] => NONE
+   | l => SOME l
    )
 `;
 
@@ -126,46 +102,38 @@ val is_lookup_ntl_def = Define `
         
 
 
+       
+
+Definition dom_range_edges_def:
+  dom_range_edges edges = 
+   nub (FLAT (MAP (λ(k,v1,v2). [k; v1; v2]) edges))
+End
 
 
+Definition dom_labels_def:
+  dom_labels labels = 
+  MAP FST labels
+End
 
         
+(* i decided to make it domain of edges instead of labels cause all the proofs has split on edges and should prove labels*)        
 Definition BDD_WF_def:
   BDD_WF ((r,edges,labels):BDD) =
   (ALL_DISTINCT (MAP FST edges)  ∧ ALL_DISTINCT (MAP FST labels) ∧
-    (∀ n . is_lookup_defined edges n ⇔ is_lookup_internal labels n ) ∧
-    (∀ n . ALOOKUP edges n = NONE  ⇔   (is_lookup_ntl labels n
-                                        ∨ ALOOKUP labels n= SOME (termn True)
-                                        ∨ ALOOKUP labels n= SOME (termn False))
+   (∀ n . MEM n (dom_range_edges edges) ⇒
+          (is_lookup_defined edges n ⇔ is_lookup_internal labels n )) ∧
+    (∀ n . MEM n (dom_range_edges edges) ⇒  
+       (ALOOKUP edges n = NONE 
+                ⇔   (is_lookup_ntl labels n
+                     ∨ ALOOKUP labels n= SOME (termn True)
+                     ∨ ALOOKUP labels n= SOME (termn False)))
     ) ∧
-   (edges = [] ⇒ ∃ p . labels = [(r,p)])   
+    (edges = [] ⇒ ∃ p . labels = [(r,p)])   
   )
 End
 
 
 
-
-Type ord = ``:(string -> string -> bool )``
-        
-(*
-Definition WF_o_def:
-(WF_o order) =    (( !(x:ord).   (order x x) ) /\
-  		 ( !x y.   order x y  ==> ~order y x ) /\
-                 ( !x y z. order x y /\ order y z  ==> order x z ))
-End
-
-        
-Definition ordered_el_def:
-ordered_el (order:ord) el1 el2  =
-   order el1 el2
-End
-
-        
-Definition ordered_list_def:
-ordered_list (order:ord) l  =
-    ! i . i < LENGTH l - 2  ==> order (EL i l) (EL (SUC i) l)
-End
-*)
 
 
 Definition get_string_in_label_def:
@@ -216,34 +184,7 @@ BDD_ordered ((r,edges,labels):BDD) xl =
 End
 
 
-(*    (* old definition*)    
-Definition BDD_ordered_def:
-BDD_ordered ((r,edges,labels):BDD) xl =
-∀ n n' n'' x x' x'' p p' p'' i i' i''.
-  ALOOKUP edges n = SOME (n',n'') ⇒
-  ((ALOOKUP labels n   =  SOME (non_termn(SOME x,   p   )) ∧
-    ALOOKUP labels n'  =  SOME (non_termn(SOME x',  p'  )) ∧
-    INDEX_OF x xl  = SOME i ∧
-    INDEX_OF x' xl = SOME i' 
-    ⇒ 
-    i' < i 
-   )
-   ∧
-   (ALOOKUP labels n   =  SOME (non_termn(SOME x,   p   )) ∧
-    ALOOKUP labels n'' =  SOME (non_termn(SOME x'', p'' )) ∧
-    INDEX_OF  x   xl = SOME i ∧
-    INDEX_OF  x'' xl = SOME i''
-    ⇒ 
-    i'' < i
-   )
-  )
-End
-        
-*)
-        
-    
-
-                                        
+                                       
 (* Predicate semantics *)
 val Sem_rule_def = Define `
   (Sem_rule (Var x) m_v = (ALOOKUP m_v x) ) /\
@@ -583,15 +524,14 @@ val toBDD_pred_def = Define `
 
 Definition size_of_tree_def:
   size_of_tree (edges:edges) (n:num) =
-               
-( case ALOOKUP edges n of
-  | SOME (l,r) => 1 + size_of_tree (DELETE_ELEMENT (n,l,r) edges) l + size_of_tree (DELETE_ELEMENT (n,l,r) edges) r
-  | NONE =>  (1:num)
-)
+  ( case ALOOKUP edges n of
+    | SOME (l,r) => 1 + size_of_tree (DELETE_ELEMENT (n,l,r) edges) l + size_of_tree (DELETE_ELEMENT (n,l,r) edges) r
+    | NONE =>  (1:num)
+  )
 Termination
-WF_REL_TAC `measure (\(edges,n). LENGTH edges)` >>
-rpt STRIP_TAC >>
-gvs[LENGTH_DELETE_ELEMENT_LE, ALOOKUP_MEM]
+  WF_REL_TAC `measure (\(edges,n). LENGTH edges)` >>
+  rpt STRIP_TAC >>
+  gvs[LENGTH_DELETE_ELEMENT_LE, ALOOKUP_MEM]
 End
 
                                                        
@@ -608,30 +548,7 @@ End
 
 
 
-        
-(*
-Definition Sem_BDDpred_fun_def:
-  Sem_BDDpred_fun ((root,edges,labels):BDD) (m_v:(string#bool)list) n=
-    case ALOOKUP edges n of
-      | NONE =>
-          (case ALOOKUP labels n of
-             | SOME (termn True)  => SOME T
-             | SOME (termn False) => SOME F
-             | SOME (termn _) => NONE
-             | SOME (non_termn (_,p)) => Sem_rule p m_v
-             | NONE => NONE )
-      | SOME (l,r) =>
-          case ALOOKUP labels n of
-             | SOME (non_termn (SOME x,p)) =>
-                   ( case ALOOKUP m_v x of
-                        | SOME T => Sem_BDDpred_fun (root,edges,labels) m_v r
-                        | SOME F => Sem_BDDpred_fun (root,edges,labels) m_v l
-                        | NONE => NONE )
-             | _ => NONE
-End
-*)
-
-        
+             
 
 Inductive BDD_pred_sem:
 (* defn pred_red *)
@@ -639,7 +556,7 @@ Inductive BDD_pred_sem:
 [pred_red_leaf:]
   ( ∀ (root:num) (edges:edges) (labels:labelings) (mv:(string#bool)list) (n:num) (p:label).
       ALOOKUP edges n = NONE ∧
-      ALOOKUP labels n  = SOME p 
+      ALOOKUP labels n  = SOME p  
       ⇒      
       BDD_pred_sem (r,edges,labels) mv n (from_pred_to_bool p mv) 
   )
@@ -699,18 +616,18 @@ End
 
 
 Theorem simp_pred_imp_mem:          
-∀ p x .
-simp_pred p = Var x ⇒
-MEM x (FV p)
+  ∀ p x .
+    simp_pred p = Var x ⇒
+    MEM x (FV p)
 Proof
-    Induct >>
-rw[simp_pred_def, FV_def] >> gvs[AllCaseEqs()]
+  Induct >>
+  rw[simp_pred_def, FV_def] >> gvs[AllCaseEqs()]
 QED
 
 
 Theorem mem_imp_sem_rule:        
   ∀p mv. (∀x. MEM x (FV p) ⇒ (∃b. ALOOKUP mv x = SOME b)) ⇒
-     Sem_rule p mv ≠ NONE ∧ ∃ b' . Sem_rule p mv = SOME b'
+         Sem_rule p mv ≠ NONE ∧ ∃ b' . Sem_rule p mv = SOME b'
 Proof
   Induct >>
   rw[simp_pred_def, FV_def] >> gvs[AllCaseEqs()] >>
@@ -736,7 +653,7 @@ QED
 
 Theorem simplification_correct:
   ∀p mv. (∀x. MEM x (FV p) ⇒ (∃b. ALOOKUP mv x = SOME b)) ⇒
-     Sem_rule p mv = Sem_rule (simp_pred p) mv
+         Sem_rule p mv = Sem_rule (simp_pred p) mv
 Proof
   Induct_on `p` >-
    (rw[simp_pred_def, Sem_rule_def]) >-
@@ -757,7 +674,6 @@ Proof
   first_x_assum (strip_assume_tac o (Q.SPECL [‘s’])) >>
   imp_res_tac simp_pred_imp_mem >>
   gvs[]
-        
 QED
 
         
@@ -769,17 +685,17 @@ QED
 
     
 Theorem non_term_leaf_updt_concat:    
-∀ x l1 l2.
-non_term_leaf_updt (l1++l2) x = non_term_leaf_updt l1 x ++ non_term_leaf_updt l2 x
+  ∀ x l1 l2.
+  non_term_leaf_updt (l1++l2) x = non_term_leaf_updt l1 x ++ non_term_leaf_updt l2 x
 Proof    
-fs[non_term_leaf_updt_def]
+  fs[non_term_leaf_updt_def]
 QED
 
 
 Theorem non_term_leaf_updt_cons:        
-∀ l h x . non_term_leaf_updt (h::l) x = non_term_leaf_updt [h] x ++ non_term_leaf_updt l x
+  ∀ l h x . non_term_leaf_updt (h::l) x = non_term_leaf_updt [h] x ++ non_term_leaf_updt l x
 Proof
-fs[non_term_leaf_updt_def]
+  fs[non_term_leaf_updt_def]
 QED
 
 
@@ -787,20 +703,20 @@ QED
         
         
 Theorem non_term_leaf_updt_rec:
-∀ l x x'.                                                                                
-non_term_leaf_updt ( non_term_leaf_updt l x ) x' =  non_term_leaf_updt l x 
+  ∀ l x x'.                                                                                
+    non_term_leaf_updt ( non_term_leaf_updt l x ) x' =  non_term_leaf_updt l x 
 Proof
   Induct >>
   rpt strip_tac >-
    gvs[non_term_leaf_updt_def] >>
-
-   Cases_on ‘h’ >>
-   Cases_on ‘r’ >>
-   gvs[non_term_leaf_updt_def] >>
-
-   Cases_on ‘p’ >>
-   Cases_on ‘q'’ >>
-   gvs[non_term_leaf_updt_def]
+  
+  Cases_on ‘h’ >>
+  Cases_on ‘r’ >>
+  gvs[non_term_leaf_updt_def] >>
+  
+  Cases_on ‘p’ >>
+  Cases_on ‘q'’ >>
+  gvs[non_term_leaf_updt_def]
 QED
    
 
@@ -810,24 +726,24 @@ QED
 Theorem mk_BDDPred_output:
   ∀ vars vars_consumed r r' edges edges' labels labels'  c.
     vars ≠ [] ∧ 
-mk_BDDPred (r, edges, labels) vars_consumed vars c = SOME (r', edges', labels') ⇒
- r = r' ∧ ∃ edges'' labels''. edges' = edges ++ edges'' ∧ labels' = (non_term_leaf_updt labels (HD vars)) ++ labels''
-Proof                                                                                                                                                         
-Induct_on ‘vars’ >- fs[mk_BDDPred_def] >>
-
-Cases_on ‘vars = []’ >> gvs[] >>
-rpt strip_tac >>
-gvs[mk_BDDPred_def, body_of_mk_def] >> 
-rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-
-‘∃ leaves_sub . leaves_pred_sub x'' h = leaves_sub’ by gvs[] >>
-‘∃ simp_leaves . simp_pred_list leaves_sub = simp_leaves’ by gvs[] >>
-‘∃ simp_leaves' . determine_termn_list simp_leaves = simp_leaves'’ by gvs[] >>
-    
-rgs[] >>
-(res_tac) >>
-
-gvs[non_term_leaf_updt_rec, non_term_leaf_updt_concat]
+    mk_BDDPred (r, edges, labels) vars_consumed vars c = SOME (r', edges', labels') ⇒
+    r = r' ∧ ∃ edges'' labels''. edges' = edges ++ edges'' ∧ labels' = (non_term_leaf_updt labels (HD vars)) ++ labels''
+Proof                 
+  Induct_on ‘vars’ >- fs[mk_BDDPred_def] >>
+  
+  Cases_on ‘vars = []’ >> gvs[] >>
+  rpt strip_tac >>
+  gvs[mk_BDDPred_def, body_of_mk_def] >> 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  
+  ‘∃ leaves_sub . leaves_pred_sub x'' h = leaves_sub’ by gvs[] >>
+  ‘∃ simp_leaves . simp_pred_list leaves_sub = simp_leaves’ by gvs[] >>
+  ‘∃ simp_leaves' . determine_termn_list simp_leaves = simp_leaves'’ by gvs[] >>
+  
+  rgs[] >>
+  (res_tac) >>
+  
+  gvs[non_term_leaf_updt_rec, non_term_leaf_updt_concat]
 QED                           
 
 
@@ -837,25 +753,11 @@ QED
              
 
 Theorem SNOC_rw:
-∀ l x .
-SNOC x l = l ++[x]
+  ∀ l x .
+    SNOC x l = l ++[x]
 Proof
-gvs[SNOC]
+  gvs[SNOC]
 QED
-
-
-        
-Definition get_string_in_label_def:
-  get_string_in_label (labels:labelings)  vars_consumed n =
-  case ALOOKUP (labels:labelings) n of
-  | NONE =>  0
-  | SOME lbl => (
-    case lbl of
-    | termn p =>  0
-    | non_termn (NONE,p) =>  0
-    | non_termn (SOME x,p) =>  THE (INDEX_OF x vars_consumed) 
-    ) 
-End
 
 
 
@@ -895,9 +797,9 @@ End
         
 Theorem BDD_pred_sem_determ:
   ∀ n BDD mv b b'.        
-  BDD_pred_sem BDD mv n b ∧
-  BDD_pred_sem BDD mv n b' ⇒
-  (b=b')
+    BDD_pred_sem BDD mv n b ∧
+    BDD_pred_sem BDD mv n b' ⇒
+    (b=b')
 Proof
  Induct_on ‘BDD_pred_sem’ >>        
  rpt strip_tac >>
@@ -922,33 +824,55 @@ End
 
 
 Theorem MEM_INDEX_OF:           
-∀ l x .
-MEM x l ⇒
-∃ i . INDEX_OF x l = SOME i
+  ∀ l x .
+    MEM x l ⇒
+    ∃ i . INDEX_OF x l = SOME i
 Proof                                
-Induct >>                                
-rpt strip_tac >>
-gvs[INDEX_OF_def,  INDEX_FIND_def] >>
-Cases_on ‘x=h’ >> gvs[] >>
-res_tac >>
-PairCases_on ‘z’ >>
-imp_res_tac P_implies_next >>
-gvs[]
+  Induct >>                                
+  rpt strip_tac >>
+  gvs[INDEX_OF_def,  INDEX_FIND_def] >>
+  Cases_on ‘x=h’ >> gvs[] >>
+  res_tac >>
+  PairCases_on ‘z’ >>
+  imp_res_tac P_implies_next >>
+  gvs[]
 QED
+
+
+
+Theorem lookup_edges_in_domain:
+  ∀ edges n n1 n2.        
+    ALOOKUP edges n = SOME (n1,n2) ⇒
+    (MEM n (dom_range_edges edges) ∧
+     MEM n1 (dom_range_edges edges) ∧
+     MEM n2 (dom_range_edges edges))
+Proof
+  Induct >>
+  gvs[dom_range_edges_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[AllCaseEqs()] >>
+  res_tac >>
+  gvs[]
+QED
+
+
+
+ 
           
 
 Theorem BDD_pred_sem_exsists_inter:
-∀ vars_consumed x' labels root edges mv n n1 n2 pred b.            
-  BDD_ordered (root,edges,labels) vars_consumed ∧
-  mv_dom_bdd mv (root,edges,labels)  ∧
-  consumed_dom_bdd vars_consumed (root,edges,labels) ∧
-  BDD_WF (root,edges,labels) ∧
-  ALOOKUP edges n = SOME (n1,n2) ∧
-  ALOOKUP labels n = SOME (non_termn (SOME x',pred)) ∧
-  ALOOKUP mv x' = SOME b 
-⇒
-∃b'. ALOOKUP mv x' = SOME T ∧ BDD_pred_sem (root,edges,labels) mv n1 b' ∨
-    ALOOKUP mv x' = SOME F ∧ BDD_pred_sem (root,edges,labels) mv n2 b'
+  ∀ vars_consumed x' labels root edges mv n n1 n2 pred b.            
+    BDD_ordered (root,edges,labels) vars_consumed ∧
+    mv_dom_bdd mv (root,edges,labels)  ∧
+    consumed_dom_bdd vars_consumed (root,edges,labels) ∧
+    BDD_WF (root,edges,labels) ∧
+    ALOOKUP edges n = SOME (n1,n2) ∧
+    ALOOKUP labels n = SOME (non_termn (SOME x',pred)) ∧
+    ALOOKUP mv x' = SOME b 
+    ⇒
+    ∃b'. ALOOKUP mv x' = SOME T ∧ BDD_pred_sem (root,edges,labels) mv n1 b' ∨
+         ALOOKUP mv x' = SOME F ∧ BDD_pred_sem (root,edges,labels) mv n2 b'
 Proof
   ntac 2 strip_tac >>
   measureInduct_on `THE(INDEX_OF x' vars_consumed)` >>
@@ -958,6 +882,7 @@ Proof
     simp[Once BDD_pred_sem_cases] >>
     rgs[] >>
     Cases_on ‘ALOOKUP edges n1’ >> gvs[] >|[
+      ‘MEM n1 (dom_range_edges edges)’ by  imp_res_tac lookup_edges_in_domain >>
       gvs[BDD_WF_def, is_lookup_ntl_def]
       ,
       
@@ -966,6 +891,7 @@ Proof
       subgoal ‘∃pred x'.ALOOKUP labels n1 = SOME (non_termn (SOME x',pred))’ >-
        (
        rgs[Once BDD_WF_def, Once is_lookup_internal_def, Once is_lookup_defined_def] >>
+       ‘MEM n1 (dom_range_edges edges)’ by  imp_res_tac lookup_edges_in_domain >>
        first_x_assum (strip_assume_tac o (Q.SPECL [‘n1’])) >>
        gvs[]
        ) >>
@@ -998,6 +924,7 @@ Proof
     simp[Once BDD_pred_sem_cases] >>
     rgs[] >>
     Cases_on ‘ALOOKUP edges n2’ >> gvs[] >|[
+        ‘MEM n2 (dom_range_edges edges)’ by  imp_res_tac lookup_edges_in_domain >>
         gvs[BDD_WF_def, is_lookup_ntl_def]
         ,
         
@@ -1006,6 +933,7 @@ Proof
         subgoal ‘∃pred x'.ALOOKUP labels n2 = SOME (non_termn (SOME x',pred))’ >-
          (
          rgs[Once BDD_WF_def, Once is_lookup_internal_def, Once is_lookup_defined_def] >>
+         ‘MEM n2 (dom_range_edges edges)’ by  imp_res_tac lookup_edges_in_domain >>
          first_x_assum (strip_assume_tac o (Q.SPECL [‘n2’])) >>
          gvs[]
          ) >>
@@ -1041,14 +969,22 @@ QED
 
 
 
-        
+
+Definition node_in_BDD_def:
+  node_in_BDD n ((r,edges,labels):BDD) =
+     MEM n (dom_range_edges edges)
+End
+           
+                        
+  
 Theorem BDD_pred_sem_exsists:
   ∀ BDD mv n vars_consumed.
     BDD_ordered BDD vars_consumed ∧
     mv_dom_bdd mv BDD  ∧
     consumed_dom_bdd vars_consumed BDD ∧
+    node_in_BDD n BDD ∧   (*todo: check this out*)
     BDD_WF BDD ⇒
-  ∃ b . BDD_pred_sem BDD mv n b
+    ∃ b . BDD_pred_sem BDD mv n b
 Proof
  rgs[Once BDD_pred_sem_cases] >>
  rpt strip_tac >>
@@ -1059,11 +995,14 @@ Proof
  rgs[] >>
 
  Cases_on ‘ALOOKUP edges n’ >> gvs[] >| [
+
+    gvs[node_in_BDD_def] >>
     gvs[BDD_WF_def, is_lookup_ntl_def]
     ,
     PairCases_on ‘x’ >> gvs[] >>
     subgoal ‘∃pred x'.ALOOKUP labels n = SOME (non_termn (SOME x',pred))’ >-
      (
+     ‘MEM n (dom_range_edges edges)’ by  imp_res_tac lookup_edges_in_domain >>
      gvs[BDD_WF_def, is_lookup_internal_def, is_lookup_defined_def] >>
      last_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
      gvs[]
@@ -1171,20 +1110,20 @@ QED
 
         
 Theorem lookup_labels_in_updt:
-∀ labels n x p h.
-ALOOKUP labels n = SOME (non_termn (SOME x,p)) ⇒
-ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME x,p))
+  ∀ labels n x p h.
+    ALOOKUP labels n = SOME (non_termn (SOME x,p)) ⇒
+    ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME x,p))
 Proof
-Induct >>
-rpt strip_tac >>
-simp[non_term_leaf_updt_def] >>
-PairCases_on ‘h’ >> gvs[ALOOKUP_def] >>
-gvs[AllCaseEqs()] >>
-Cases_on ‘h1’ >> gvs[] >>
-last_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘x’, ‘p’, ‘h'’])) >>
-gvs[non_term_leaf_updt_def] >>
-Cases_on ‘p'’ >> gvs[] >>
-Cases_on ‘q’ >> gvs[]
+  Induct >>
+  rpt strip_tac >>
+  simp[non_term_leaf_updt_def] >>
+  PairCases_on ‘h’ >> gvs[ALOOKUP_def] >>
+  gvs[AllCaseEqs()] >>
+  Cases_on ‘h1’ >> gvs[] >>
+  last_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘x’, ‘p’, ‘h'’])) >>
+  gvs[non_term_leaf_updt_def] >>
+  Cases_on ‘p'’ >> gvs[] >>
+  Cases_on ‘q’ >> gvs[]
 QED
     
 
@@ -1192,196 +1131,191 @@ QED
 
         
 Theorem lookup_labels_in_updt_none:
-∀ labels n x p h.
-ALOOKUP labels n = SOME (non_termn (NONE,p)) ⇒
-ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME h,p))
+  ∀ labels n x p h.
+    ALOOKUP labels n = SOME (non_termn (NONE,p)) ⇒
+    ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME h,p))
 Proof
-Induct >>
-rpt strip_tac >>
-gvs[ALOOKUP_def] >>
-
-gvs[Once non_term_leaf_updt_cons] >>
-rgs[ALOOKUP_APPEND]>>
-gvs[AllCaseEqs()] >>
-
-PairCases_on ‘h’ >> 
-gvs[AllCaseEqs()] >>
-simp[non_term_leaf_updt_def] >>
-
-
-Cases_on ‘h1’ >> gvs[] >>
-Cases_on ‘p'’ >> gvs[] >>
-Cases_on ‘q’ >> gvs[]
+  Induct >>
+  rpt strip_tac >>
+  gvs[ALOOKUP_def] >>
+  
+  gvs[Once non_term_leaf_updt_cons] >>
+  rgs[ALOOKUP_APPEND]>>
+  gvs[AllCaseEqs()] >>
+  
+  PairCases_on ‘h’ >> 
+  gvs[AllCaseEqs()] >>
+  simp[non_term_leaf_updt_def] >>
+  
+  
+  Cases_on ‘h1’ >> gvs[] >>
+  Cases_on ‘p'’ >> gvs[] >>
+  Cases_on ‘q’ >> gvs[]
 QED
     
 
 
 Theorem lookup_labels_in_updt_term:
-∀ labels n p h.
-ALOOKUP labels n = SOME (termn p) ⇒
-ALOOKUP (non_term_leaf_updt labels h) n = SOME (termn p)
+  ∀ labels n p h.
+    ALOOKUP labels n = SOME (termn p) ⇒
+    ALOOKUP (non_term_leaf_updt labels h) n = SOME (termn p)
 Proof
-Induct >>
-rpt strip_tac >>
-gvs[ALOOKUP_def] >>
-
-gvs[Once non_term_leaf_updt_cons] >>
-rgs[ALOOKUP_APPEND]>>
-gvs[AllCaseEqs()] >>
-
-PairCases_on ‘h’ >> 
-gvs[AllCaseEqs()] >>
-simp[non_term_leaf_updt_def] >>
-
-
-Cases_on ‘h1’ >> gvs[] >>
-Cases_on ‘p'’ >> gvs[] >>
-Cases_on ‘q’ >> gvs[]
+  Induct >>
+  rpt strip_tac >>
+  gvs[ALOOKUP_def] >>
+  
+  gvs[Once non_term_leaf_updt_cons] >>
+  rgs[ALOOKUP_APPEND]>>
+  gvs[AllCaseEqs()] >>
+  
+  PairCases_on ‘h’ >> 
+  gvs[AllCaseEqs()] >>
+  simp[non_term_leaf_updt_def] >>
+  
+  
+  Cases_on ‘h1’ >> gvs[] >>
+  Cases_on ‘p'’ >> gvs[] >>
+  Cases_on ‘q’ >> gvs[]
 QED
 
         
 Theorem WF_imp_non_leaf_lbl:
-∀ r edges labels n n' n'' h.      
-BDD_WF (r,edges,labels) ∧
-ALOOKUP edges n = SOME (n',n'') ⇒
-∃ x p . ALOOKUP labels n = SOME (non_termn (SOME x,p))
+  ∀ r edges labels n n' n'' h.      
+    BDD_WF (r,edges,labels) ∧
+    ALOOKUP edges n = SOME (n',n'') ⇒
+    ∃ x p . ALOOKUP labels n = SOME (non_termn (SOME x,p))
 Proof
-gvs[BDD_WF_def] >>
-rpt strip_tac >>
-last_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >> gvs[is_lookup_defined_def, is_lookup_internal_def] 
+  gvs[BDD_WF_def] >>
+  rpt strip_tac >>
+  ‘MEM n (dom_range_edges edges)’ by  imp_res_tac lookup_edges_in_domain >>
+  last_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
+  gvs[is_lookup_defined_def, is_lookup_internal_def] 
 QED
 
 
 Theorem wf_lookup_if_edges_label:    
-∀ r edges labels n n' n'' h.      
-BDD_WF (r,edges,labels) ∧
-ALOOKUP edges n = SOME (n',n'') ⇒
-∃ x p . ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME x,p))
+  ∀ r edges labels n n' n'' h.      
+    BDD_WF (r,edges,labels) ∧
+    ALOOKUP edges n = SOME (n',n'') ⇒
+    ∃ x p . ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME x,p))
 Proof
-rpt strip_tac >>                                                                  
-imp_res_tac WF_imp_non_leaf_lbl >>
-imp_res_tac lookup_labels_in_updt >>                      
-gvs[]
+  rpt strip_tac >>                                                                  
+  imp_res_tac WF_imp_non_leaf_lbl >>
+  imp_res_tac lookup_labels_in_updt >>                      
+  gvs[]
 QED
-
-
-
-
-
-
-
 
 
 
 Theorem lookup_new_edges_simp_exists:
-∀ simp_leaves' new_edges nn n c.
-  ALOOKUP new_edges n = SOME nn ∧
-  mk_new_edges simp_leaves' c = new_edges ⇒
-∃ sll . ALOOKUP simp_leaves' n = SOME sll
+  ∀ simp_leaves' new_edges nn n c.
+    ALOOKUP new_edges n = SOME nn ∧
+    mk_new_edges simp_leaves' c = new_edges ⇒
+    ∃ sll . ALOOKUP simp_leaves' n = SOME sll
 Proof
-Induct >> 
-rgs[mk_new_edges_def]>>         
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-rgs[mk_new_edges_def] >>
-rgs[AllCaseEqs()] >>
-res_tac >> gvs[]
+  Induct >> 
+  rgs[mk_new_edges_def]>>         
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  rgs[mk_new_edges_def] >>
+  rgs[AllCaseEqs()] >>
+  res_tac >> gvs[]
 QED
 
 
 Theorem lookup_simp_leaves_determine_exists:
-∀ simp_leaves simp_leaves' n sll.        
-ALOOKUP simp_leaves' n = SOME sll ∧        
-determine_termn_list simp_leaves = simp_leaves' ⇒
-∃ sll' . ALOOKUP simp_leaves n = SOME sll'
+  ∀ simp_leaves simp_leaves' n sll.        
+    ALOOKUP simp_leaves' n = SOME sll ∧        
+    determine_termn_list simp_leaves = simp_leaves' ⇒
+    ∃ sll' . ALOOKUP simp_leaves n = SOME sll'
 Proof
-Induct >> 
-rgs[determine_termn_list_def]>>         
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-rgs[determine_termn_def] >>
-rgs[AllCaseEqs()] >>
-res_tac >> gvs[]
+  Induct >> 
+  rgs[determine_termn_list_def]>>         
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  rgs[determine_termn_def] >>
+  rgs[AllCaseEqs()] >>
+  res_tac >> gvs[]
 QED
 
 
 
 Theorem  lookup_simp_pred_leaves_sub_exists:      
-∀ leaves_sub simp_leaves n sll.
-ALOOKUP simp_leaves n = SOME sll ∧        
-simp_pred_list leaves_sub = simp_leaves ⇒
-∃ sll' . ALOOKUP leaves_sub n = SOME sll'
+  ∀ leaves_sub simp_leaves n sll.
+    ALOOKUP simp_leaves n = SOME sll ∧        
+    simp_pred_list leaves_sub = simp_leaves ⇒
+    ∃ sll' . ALOOKUP leaves_sub n = SOME sll'
 Proof
-Induct >> 
-rgs[simp_pred_list_def]>>         
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-rgs[AllCaseEqs()]
+  Induct >> 
+  rgs[simp_pred_list_def]>>         
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  rgs[AllCaseEqs()]
 QED
 
 
 Theorem lookup_leaves_sub_pred_exists:
-∀ ntl  leaves_sub sll n h.       
-ALOOKUP leaves_sub n = SOME sll ∧
-leaves_pred_sub ntl h = leaves_sub ⇒
-∃ p . ALOOKUP ntl n = SOME p
+  ∀ ntl  leaves_sub sll n h.       
+    ALOOKUP leaves_sub n = SOME sll ∧
+    leaves_pred_sub ntl h = leaves_sub ⇒
+    ∃ p . ALOOKUP ntl n = SOME p
 Proof
-Induct >> 
-rgs[leaves_pred_sub_def]>>         
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-rgs[AllCaseEqs()] >>
-res_tac >> gvs[]
+  Induct >> 
+  rgs[leaves_pred_sub_def]>>         
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  rgs[AllCaseEqs()] >>
+  res_tac >> gvs[]
 QED                
 
 
 
 Theorem extract_nontermn_not_inner_node:                   
-∀ leaves ntl n .                            
-extract_nontermn leaves = SOME ntl ⇒
-∃ x p' . ALOOKUP leaves n ≠ SOME (non_termn (SOME x,p'))
+  ∀ leaves ntl n .                            
+    extract_nontermn leaves = SOME ntl ⇒
+    ∃ x p' . ALOOKUP leaves n ≠ SOME (non_termn (SOME x,p'))
 Proof
-Induct >-
-rgs[extract_nontermn_def]>>         
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-gvs[]>>
-Cases_on ‘h0=n’ >> gvs[] >> rgs[extract_nontermn_def] >>                   
-Cases_on ‘h1’ >> rgs[AllCaseEqs()]
+  Induct >-
+   rgs[extract_nontermn_def]>>         
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[]>>
+  Cases_on ‘h0=n’ >> gvs[] >> rgs[extract_nontermn_def] >>                   
+  Cases_on ‘h1’ >> rgs[AllCaseEqs()]
 QED
 
 
 
 
 Theorem lookup_ntl_updt_none:
-∀ labels h n .
-ALOOKUP (non_term_leaf_updt labels h) n = NONE ⇒
-ALOOKUP labels n = NONE
+  ∀ labels h n .
+    ALOOKUP (non_term_leaf_updt labels h) n = NONE ⇒
+    ALOOKUP labels n = NONE
 Proof
-Induct >- gvs[non_term_leaf_updt_def] >>                        
-rpt strip_tac >>
-gvs[Once non_term_leaf_updt_cons] >>
-gvs[] >>
-
-PairCases_on ‘h’>>
-rgs[AllCaseEqs()] >>
-                        
-gvs[ALOOKUP_APPEND] >>
-rgs[AllCaseEqs()] >>
-
-res_tac >> 
-gvs[non_term_leaf_updt_def] >>          
-Cases_on ‘h1’ >> gvs[] >>
-Cases_on ‘p’ >> gvs[] >>
-Cases_on ‘q’ >> gvs[]
+  Induct >- gvs[non_term_leaf_updt_def] >>                        
+  rpt strip_tac >>
+  gvs[Once non_term_leaf_updt_cons] >>
+  gvs[] >>
+  
+  PairCases_on ‘h’>>
+  rgs[AllCaseEqs()] >>
+  
+  gvs[ALOOKUP_APPEND] >>
+  rgs[AllCaseEqs()] >>
+  
+  res_tac >> 
+  gvs[non_term_leaf_updt_def] >>          
+  Cases_on ‘h1’ >> gvs[] >>
+  Cases_on ‘p’ >> gvs[] >>
+  Cases_on ‘q’ >> gvs[]
 QED
 
 
         
 Theorem mk_body_map1:
-∀ leaves labels leaves_labels .        
-getLabels labels leaves = SOME leaves_labels ⇒
-(leaves = MAP FST  leaves_labels)
+  ∀ leaves labels leaves_labels .        
+    getLabels labels leaves = SOME leaves_labels ⇒
+    (leaves = MAP FST  leaves_labels)
 Proof
   Induct >>
   rpt strip_tac >>
@@ -1457,16 +1391,21 @@ QED
 
 
 
-
-
+val imp_res_tac_body = 
+(imp_res_tac mk_body_map1 >>
+imp_res_tac mk_body_map2 >>
+imp_res_tac mk_body_map3 >>
+imp_res_tac mk_body_map4 >>
+imp_res_tac mk_body_map5 >>
+imp_res_tac mk_body_map6)
         
         
         
 Theorem extract_nonterm_mem_neg:        
-∀ leaves_labels ntl h.
-¬MEM h (MAP FST leaves_labels) ∧
-extract_nontermn leaves_labels = SOME ntl ⇒
-¬MEM h (MAP FST ntl)
+  ∀ leaves_labels ntl h.
+    ¬MEM h (MAP FST leaves_labels) ∧
+    extract_nontermn leaves_labels = SOME ntl ⇒
+    ¬MEM h (MAP FST ntl)
 Proof
   Induct >>
   rpt strip_tac >>
@@ -1482,11 +1421,11 @@ Triviality mk_new_label_idx_mem:
     n>0 ⇒
     ¬MEM c (MAP FST (mk_new_labels simp_leaves (c + n))) 
 Proof
-Induct >>
-gvs[mk_new_labels_def] >>
-rpt gen_tac >>
-PairCases_on ‘h’ >>
-simp[mk_new_labels_def]
+  Induct >>
+  gvs[mk_new_labels_def] >>
+  rpt gen_tac >>
+  PairCases_on ‘h’ >>
+  simp[mk_new_labels_def]
 QED
 
 
@@ -1496,30 +1435,30 @@ QED
   
 
 Theorem all_distinct_leaves:
-∀ edges r leaves .        
-ALL_DISTINCT (MAP FST edges) ∧
-getLeaves edges r = SOME leaves ⇒
-ALL_DISTINCT leaves
+  ∀ edges r leaves .        
+    ALL_DISTINCT (MAP FST edges) ∧
+    getLeaves edges r = SOME leaves ⇒
+    ALL_DISTINCT leaves
 Proof
-Induct >>
-gvs[getLeaves_def] >>
-rpt strip_tac >>
-gvs[AllCaseEqs()] >>
-PairCases_on ‘h’ >>
-gvs[get_leaves_list_def]
+  Induct >>
+  gvs[getLeaves_def] >>
+  rpt strip_tac >>
+  gvs[AllCaseEqs()] >>
+  PairCases_on ‘h’ >>
+  gvs[get_leaves_list_def]
 QED
 
 
 
 Theorem all_distinct_leaves_labels:
-∀ leaves labels leaves_labels .        
-ALL_DISTINCT leaves ∧
-getLabels labels leaves = SOME leaves_labels ⇒
-ALL_DISTINCT (MAP FST leaves_labels)
+  ∀ leaves labels leaves_labels .        
+    ALL_DISTINCT leaves ∧
+    getLabels labels leaves = SOME leaves_labels ⇒
+    ALL_DISTINCT (MAP FST leaves_labels)
 Proof
-rpt strip_tac >>
-imp_res_tac mk_body_map1 >>
-gvs[]
+  rpt strip_tac >>
+  imp_res_tac mk_body_map1 >>
+  gvs[]
 QED
 
         
@@ -1561,7 +1500,7 @@ Theorem all_distinct_simp:
   ∀ simp_leaves leaves_sub h.
     ALL_DISTINCT (MAP FST leaves_sub) ∧
     simp_pred_list leaves_sub = simp_leaves ⇒
-         ALL_DISTINCT (MAP FST simp_leaves)               
+    ALL_DISTINCT (MAP FST simp_leaves)               
 Proof
   rpt strip_tac >>
   imp_res_tac mk_body_map3 >>
@@ -1574,7 +1513,7 @@ Theorem all_distinct_determine:
   ∀ simp_leaves simp_leaves' h.
     ALL_DISTINCT (MAP FST simp_leaves) ∧
     determine_termn_list simp_leaves = simp_leaves' ⇒
-         ALL_DISTINCT (MAP FST simp_leaves')               
+    ALL_DISTINCT (MAP FST simp_leaves')               
 Proof
   rpt strip_tac >>
   imp_res_tac mk_body_map4 >>
@@ -1599,22 +1538,15 @@ QED
 
         
 Theorem all_distinct_non_term_leaf_updt:        
-∀ labels updated_labels h.
-  ALL_DISTINCT (MAP FST labels) ∧
-  non_term_leaf_updt labels h = updated_labels ⇒
-  ALL_DISTINCT (MAP FST updated_labels)
+  ∀ labels updated_labels h.
+    ALL_DISTINCT (MAP FST labels) ∧
+    non_term_leaf_updt labels h = updated_labels ⇒
+    ALL_DISTINCT (MAP FST updated_labels)
 Proof
   rpt strip_tac >>
   imp_res_tac mk_body_map6 >>
   gvs[]
 QED
-
-
-
-
-
-
-
 
 
        
@@ -1663,29 +1595,20 @@ QED
 
 
 
-(*        
-Triviality getLeaves_list_eq:      
-∀ l h r .
-getLeaves (h::l) r = SOME (get_leaves_list (h::l))
-Proof                                        
-gvs[getLeaves_def, get_leaves_list_def]
-QED
-*)
-
-
 
         
 Theorem leaves_are_not_parents:         
-∀ edges leaves n r.     
-  MEM n (MAP FST edges) ∧
-  getLeaves edges r = SOME leaves ⇒
-  ~ MEM n leaves
+  ∀ edges leaves n r.     
+    MEM n (MAP FST edges) ∧
+    getLeaves edges r = SOME leaves ⇒
+    ~ MEM n leaves
 Proof
   Cases_on ‘edges’ >>
-  rpt strip_tac >-
-   gvs[getLeaves_def] >>
-  imp_res_tac get_leaves_list_domain >>
-  rgs[Once getLeaves_def]          
+  rpt strip_tac >>
+  gvs[getLeaves_def] >>
+  gvs[AllCaseEqs()] >>
+  assume_tac get_leaves_list_domain >>
+  PairCases_on ‘h’ >> gvs[]         
 QED
 
 
@@ -1702,31 +1625,31 @@ End
        
 
 Theorem length_new_labels:
-∀ simp_leaves' new_labels c.       
-  mk_new_labels simp_leaves' c = new_labels ⇒
-  LENGTH new_labels = (LENGTH simp_leaves' + LENGTH simp_leaves')
+  ∀ simp_leaves' new_labels c.       
+    mk_new_labels simp_leaves' c = new_labels ⇒
+    LENGTH new_labels = (LENGTH simp_leaves' + LENGTH simp_leaves')
 Proof
-Induct >>
-gvs[mk_new_labels_def] >>
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-gvs[mk_new_labels_def]
+  Induct >>
+  gvs[mk_new_labels_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[mk_new_labels_def]
 QED
                 
 
 Theorem counter_range_in_new_labels:
-∀ simp_leaves' new_labels c n .       
-MEM n (MAP FST new_labels) ∧                        
-mk_new_labels simp_leaves' c = new_labels ⇒
-(n >= c ∧ n < (c + LENGTH new_labels)) 
+  ∀ simp_leaves' new_labels c n .       
+    MEM n (MAP FST new_labels) ∧                        
+    mk_new_labels simp_leaves' c = new_labels ⇒
+    (n >= c ∧ n < (c + LENGTH new_labels)) 
 Proof
-Induct >>
-gvs[mk_new_labels_def] >>
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-gvs[mk_new_labels_def] >>
-res_tac >>
-decide_tac
+  Induct >>
+  gvs[mk_new_labels_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[mk_new_labels_def] >>
+  res_tac >>
+  decide_tac
 QED
 
 
@@ -1737,16 +1660,16 @@ EVAL “mk_new_labels [(a,b,c,d);(a,b,c,d);(a,b,c,d)] 2”
         
 
 Theorem counter_range_in_new_exists:
-∀ simp_leaves' new_labels c n .       
-MEM n (MAP FST new_labels) ∧                        
-mk_new_labels simp_leaves' c = new_labels ⇒
-(∃ i . n = c + i ∧ i < LENGTH new_labels) 
+  ∀ simp_leaves' new_labels c n .       
+    MEM n (MAP FST new_labels) ∧                        
+    mk_new_labels simp_leaves' c = new_labels ⇒
+    (∃ i . n = c + i ∧ i < LENGTH new_labels) 
 Proof
-Induct >>
-gvs[mk_new_labels_def] >>
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-gvs[mk_new_labels_def] >| [
+  Induct >>
+  gvs[mk_new_labels_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[mk_new_labels_def] >| [
     qexists_tac ‘0’ >> gvs[]
     ,
     res_tac >>
@@ -1757,8 +1680,7 @@ QED
         
 
 Triviality get_labels_empty_labels:        
-∀ leaves l. getLabels [] leaves = SOME l ⇒
-            (l = [])
+  ∀ leaves l. getLabels [] leaves = SOME l ⇒  (l = [])
 Proof
   Induct >>
   rpt strip_tac >>
@@ -1768,10 +1690,10 @@ QED
         
         
 Theorem WFness_range_c_inter:
- ∀ BDD BDD'' c c' h.
-range_c c BDD ∧
-body_of_mk BDD h c = SOME (BDD'',c') ⇒
-range_c c' BDD''
+  ∀ BDD BDD'' c c' h.
+    range_c c BDD ∧
+    body_of_mk BDD h c = SOME (BDD'',c') ⇒
+    range_c c' BDD''
 Proof
   rpt strip_tac >>
   PairCases_on ‘BDD’ >>
@@ -1843,11 +1765,7 @@ Proof
     strip_tac >> strip_tac >>
     imp_res_tac leaves_are_not_parents>>
     
-    imp_res_tac mk_body_map1 >>
-    imp_res_tac mk_body_map2 >>
-    imp_res_tac mk_body_map3 >>
-    imp_res_tac mk_body_map4 >>
-    imp_res_tac mk_body_map5 >>
+    imp_res_tac_body >>
     rgs[] >>
     
     imp_res_tac extract_nonterm_mem_neg >>   
@@ -1857,10 +1775,7 @@ Proof
     
     ‘ALL_DISTINCT (MAP FST labels)’ by rgs[Once BDD_WF_def] >>
     ‘ALL_DISTINCT (MAP FST (non_term_leaf_updt labels h))’ by (imp_res_tac all_distinct_non_term_leaf_updt >> gvs[]) >>
-    
-    
-    
-    
+
     (* same as before *)
     subgoal ‘ALL_DISTINCT (MAP FST new_labels)’ >- (
       ‘ALL_DISTINCT (MAP FST edges)’ by rgs[Once BDD_WF_def] >>
@@ -1883,17 +1798,9 @@ Proof
     ‘∃ updated_labels . non_term_leaf_updt labels h = updated_labels’ by gvs[] >>          
     imp_res_tac leaves_are_not_parents >>
     (*if in labels changed, then in labels, then from efness in *)
-    
-    
-    
-    imp_res_tac mk_body_map1 >>
-    imp_res_tac mk_body_map2 >>
-    imp_res_tac mk_body_map3 >>
-    imp_res_tac mk_body_map4 >>
-    imp_res_tac mk_body_map5 >>
-    imp_res_tac mk_body_map6 >>
-    
-    
+
+    imp_res_tac_body >>
+
     ‘MEM e (MAP FST labels)’ by gvs[] >>
     rgs[range_c_def] >>
     imp_res_tac EVERY_MEM >>
@@ -1909,10 +1816,10 @@ QED
 
 
 Triviality alookup_map_local_thm:
-∀ l l' n x.
-  ALOOKUP l n = SOME x ∧
-  MAP FST l = MAP FST l' ⇒
-  ∃ x'.  ALOOKUP l' n = SOME x'  
+  ∀ l l' n x.
+    ALOOKUP l n = SOME x ∧
+    MAP FST l = MAP FST l' ⇒
+    ∃ x'.  ALOOKUP l' n = SOME x'  
 Proof
   Induct >>
   gvs[] >>
@@ -1926,46 +1833,46 @@ QED
 
         
 Theorem alookup_nonterm_exsists:                          
-∀ leaves_labels ntl n p.
-ALOOKUP ntl n = SOME p ∧        
-extract_nontermn leaves_labels = SOME ntl ⇒
-∃ lbl. ALOOKUP leaves_labels n = SOME lbl 
+  ∀ leaves_labels ntl n p.
+    ALOOKUP ntl n = SOME p ∧        
+    extract_nontermn leaves_labels = SOME ntl ⇒
+    ∃ lbl. ALOOKUP leaves_labels n = SOME lbl 
 Proof
-Induct >>                                        
-gvs[extract_nontermn_def] >>
-rpt strip_tac >>
-PairCases_on ‘h’ >>
-gvs[] >>
-rpt (BasicProvers.full_case_tac >> gvs[]) >>
-gvs[extract_nontermn_def] >>
-rpt (BasicProvers.full_case_tac >> gvs[])
+  Induct >>                                        
+  gvs[extract_nontermn_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[] >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  gvs[extract_nontermn_def] >>
+  rpt (BasicProvers.full_case_tac >> gvs[])
 QED
 
 
 Theorem lbl_pred_rel_extract_nontermn:
-∀ leaves_labels ntl n p lbl.
- ALL_DISTINCT (MAP FST leaves_labels) ∧
-extract_nontermn leaves_labels = SOME ntl ∧
-ALOOKUP leaves_labels n = SOME lbl ∧
-ALOOKUP ntl n = SOME p ⇒
-(lbl = non_termn (NONE,p))
+  ∀ leaves_labels ntl n p lbl.
+    ALL_DISTINCT (MAP FST leaves_labels) ∧
+    extract_nontermn leaves_labels = SOME ntl ∧
+    ALOOKUP leaves_labels n = SOME lbl ∧
+    ALOOKUP ntl n = SOME p ⇒
+    (lbl = non_termn (NONE,p))
 Proof
-Induct >>                                        
-gvs[extract_nontermn_def] >>
-rpt strip_tac >>
-
-PairCases_on ‘h’ >>
-gvs[] >>
-rpt (BasicProvers.full_case_tac >> gvs[]) >>
-gvs[extract_nontermn_def] >>
-rpt (BasicProvers.full_case_tac >> gvs[]) >>
-res_tac >>
-imp_res_tac alookup_nonterm_exsists >>
-res_tac >>
-gvs[] >>
-imp_res_tac ALOOKUP_MEM >>
-imp_res_tac mem_fst_snd >>
-gvs[]
+  Induct >>                                        
+  gvs[extract_nontermn_def] >>
+  rpt strip_tac >>
+  
+  PairCases_on ‘h’ >>
+  gvs[] >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  gvs[extract_nontermn_def] >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  res_tac >>
+  imp_res_tac alookup_nonterm_exsists >>
+  res_tac >>
+  gvs[] >>
+  imp_res_tac ALOOKUP_MEM >>
+  imp_res_tac mem_fst_snd >>
+  gvs[]
 QED            
 
 
@@ -1974,23 +1881,23 @@ QED
 
 
 Theorem lookup_labels_of_leaves_same:
-∀ leaves labels  leaves_labels n lbl.
-getLabels labels leaves = SOME leaves_labels ∧
-ALOOKUP leaves_labels n = SOME lbl ⇒
-ALOOKUP labels n = SOME lbl
+  ∀ leaves labels  leaves_labels n lbl.
+    getLabels labels leaves = SOME leaves_labels ∧
+    ALOOKUP leaves_labels n = SOME lbl ⇒
+    ALOOKUP labels n = SOME lbl
 Proof
-Induct >>
-rpt strip_tac >>
-gvs[getLabels_def] >>
-rpt (BasicProvers.full_case_tac >> gvs[])
+  Induct >>
+  rpt strip_tac >>
+  gvs[getLabels_def] >>
+  rpt (BasicProvers.full_case_tac >> gvs[])
 QED
 
 
 
 
 Triviality determine_termn_list_cons:
-∀ h simp_leaves.        
-determine_termn_list (h::simp_leaves) = (determine_termn_list [h]++(determine_termn_list simp_leaves))     
+  ∀ h simp_leaves.        
+    determine_termn_list (h::simp_leaves) = (determine_termn_list [h]++(determine_termn_list simp_leaves))     
 Proof
   gvs[determine_termn_list_def]
 QED
@@ -1998,7 +1905,7 @@ QED
 
 
 Theorem determine_term_never_internal:        
-∀p p' x. determine_termn p ≠ non_termn (SOME x,p')
+  ∀p p' x. determine_termn p ≠ non_termn (SOME x,p')
 Proof
   rpt strip_tac >>
   gvs[determine_termn_def] >>
@@ -2009,61 +1916,60 @@ QED
 
 
 Theorem determine_term_list_never_internal1:
-∀ simp_leaves simp_leaves' n.             
-determine_termn_list simp_leaves = simp_leaves'  ⇒
-(~ ∃ lbl lbl' x x' x'' p p' .
-     ALOOKUP simp_leaves' n = SOME (x , lbl, lbl') ∧
-     lbl = (non_termn (SOME x',p)) ∧
-     lbl' = (non_termn (SOME x'',p')))
+  ∀ simp_leaves simp_leaves' n.             
+    determine_termn_list simp_leaves = simp_leaves'  ⇒
+    (~ ∃ lbl lbl' x x' x'' p p' .
+         ALOOKUP simp_leaves' n = SOME (x , lbl, lbl') ∧
+         lbl = (non_termn (SOME x',p)) ∧
+         lbl' = (non_termn (SOME x'',p')))
 Proof
-Induct >>
-rpt strip_tac >>
- gvs[determine_termn_list_def] >>
-imp_res_tac mk_body_map4 >>
-PairCases_on ‘h’ >> gvs[] >>
-gvs[AllCaseEqs()] >>
-imp_res_tac determine_term_never_internal
+  Induct >>
+  rpt strip_tac >>
+  gvs[determine_termn_list_def] >>
+  imp_res_tac mk_body_map4 >>
+  PairCases_on ‘h’ >> gvs[] >>
+  gvs[AllCaseEqs()] >>
+  imp_res_tac determine_term_never_internal
 QED
 
 
 
 
 Theorem determine_term_list_never_internal_r:
-∀ simp_leaves simp_leaves' n x lbl lbl'.             
-  determine_termn_list simp_leaves = simp_leaves'  ⇒
-  ALOOKUP simp_leaves' n = SOME (x , lbl, lbl') ⇒
-(~ ∃  x' x'' p p' .
-     lbl = (non_termn (SOME x',p)))
+  ∀ simp_leaves simp_leaves' n x lbl lbl'.             
+    determine_termn_list simp_leaves = simp_leaves'  ⇒
+    ALOOKUP simp_leaves' n = SOME (x , lbl, lbl') ⇒
+    (~ ∃  x' x'' p p' . lbl = (non_termn (SOME x',p)))
 Proof
-Induct >>
-rpt strip_tac >>
- gvs[determine_termn_list_def] >>
-imp_res_tac mk_body_map4 >>
-PairCases_on ‘h’ >> gvs[] >>
-gvs[AllCaseEqs()] >>
-imp_res_tac determine_term_never_internal >>
-res_tac >>
-metis_tac []
+  Induct >>
+  rpt strip_tac >>
+  gvs[determine_termn_list_def] >>
+  imp_res_tac mk_body_map4 >>
+  PairCases_on ‘h’ >> gvs[] >>
+  gvs[AllCaseEqs()] >>
+  imp_res_tac determine_term_never_internal >>
+  res_tac >>
+  metis_tac []
 QED
 
 
 
 Theorem determine_term_list_never_internal_l:
-∀ simp_leaves simp_leaves' n x lbl lbl'.             
-  determine_termn_list simp_leaves = simp_leaves'  ⇒
-  ALOOKUP simp_leaves' n = SOME (x , lbl, lbl') ⇒
-(~ ∃  x' x'' p p' .
-     lbl' = (non_termn (SOME x'',p')))
+  ∀ simp_leaves simp_leaves' n x lbl lbl'.             
+    determine_termn_list simp_leaves = simp_leaves'  ⇒
+    ALOOKUP simp_leaves' n = SOME (x , lbl, lbl') ⇒
+    (~ ∃  x' x'' p p' .
+         lbl' = (non_termn (SOME x'',p')))
 Proof
-Induct >>
-rpt strip_tac >>
- gvs[determine_termn_list_def] >>
-imp_res_tac mk_body_map4 >>
-PairCases_on ‘h’ >> gvs[] >>
-gvs[AllCaseEqs()] >>
-imp_res_tac determine_term_never_internal >>
-res_tac >>
-metis_tac []
+  Induct >>
+  rpt strip_tac >>
+  gvs[determine_termn_list_def] >>
+  imp_res_tac mk_body_map4 >>
+  PairCases_on ‘h’ >> gvs[] >>
+  gvs[AllCaseEqs()] >>
+  imp_res_tac determine_term_never_internal >>
+  res_tac >>
+  metis_tac []
 QED
 
 
@@ -2071,9 +1977,9 @@ QED
 
         
 Triviality mk_new_labels_cons_imp:
-∀ simp_leaves' h h1 h2 t c.
-mk_new_labels (h::simp_leaves') c = h1::h2::t ⇒
-mk_new_labels (simp_leaves') (c+2) = t
+  ∀ simp_leaves' h h1 h2 t c.
+    mk_new_labels (h::simp_leaves') c = h1::h2::t ⇒
+    mk_new_labels (simp_leaves') (c+2) = t
 Proof
   rpt strip_tac >> 
   PairCases_on ‘h’ >> gvs[] >>
@@ -2094,17 +2000,16 @@ Theorem mk_new_labels_range_exsists:
     mk_new_labels simp_leaves' c = new_labels ∧
     ALOOKUP new_labels n = SOME (lbl) ⇒
     (∃ n' x lbl' . (ALOOKUP simp_leaves' n' = SOME (x,lbl,lbl') ∨
-                   ALOOKUP simp_leaves' n' = SOME (x,lbl',lbl) ∨
-                   ALOOKUP simp_leaves' n' = SOME (x,lbl,lbl))
-                   )
+                    ALOOKUP simp_leaves' n' = SOME (x,lbl',lbl) ∨
+                    ALOOKUP simp_leaves' n' = SOME (x,lbl,lbl))
+    )
 Proof
-   
   Induct >-
-  rgs[mk_new_labels_def] >>
+   rgs[mk_new_labels_def] >>
   Induct_on ‘new_labels’ >-
    rgs[mk_new_labels_def] >>
   rpt strip_tac >>
-
+  
   PairCases_on ‘h’ >> gvs[] >>
   PairCases_on ‘h'’ >> gvs[] >>
   
@@ -2138,15 +2043,12 @@ QED
 
 
 
-
-
-
 Theorem new_labels_are_not_internal:      
-∀ simp_leaves' (simp_leaves: (num # string # pred # pred)list) new_labels c n.
-  ALL_DISTINCT (MAP FST simp_leaves') ∧  
-determine_termn_list simp_leaves = simp_leaves' ∧
-mk_new_labels simp_leaves' c = new_labels ⇒
-~ ∃ x p . ALOOKUP new_labels n = SOME (non_termn (SOME x,p))
+  ∀ simp_leaves' (simp_leaves: (num # string # pred # pred)list) new_labels c n.
+    ALL_DISTINCT (MAP FST simp_leaves') ∧  
+    determine_termn_list simp_leaves = simp_leaves' ∧
+    mk_new_labels simp_leaves' c = new_labels ⇒
+    ~ ∃ x p . ALOOKUP new_labels n = SOME (non_termn (SOME x,p))
 Proof
  rpt strip_tac >>
 
@@ -2171,15 +2073,53 @@ Proof
   ]               
 QED
 
+
+
+(*
+        
+∀ simp_leaves simp_leaves' n.
+  determine_termn_list simp_leaves = simp_leaves' ∧
+  ALOOKUP simp_leaves n = SOME (x,lbl,lbl') 
+  ⇒
+(  ∃p p'.
+     (lbl  = non_termn (NONE, p ) ∨ lbl = (termn True) ∨ lbl = (termn False) ) ∧
+     (lbl' = non_termn (NONE, p') ∨ lbl' = (termn True) ∨ lbl' = (termn False) ) )
+
+
+
+                            
+        
+        
+∀simp_leaves' simp_leaves new_labels c n lbl.
+       ALL_DISTINCT (MAP FST simp_leaves') ∧
+       determine_termn_list simp_leaves = simp_leaves' ∧
+       mk_new_labels simp_leaves' c = new_labels ∧
+       ALOOKUP new_labels n = SOME lbl ⇒
+       (∃p. lbl = (non_termn (NONE,p)) ∨ lbl = (termn True) ∨ lbl = (termn False))
+
+
+ rpt strip_tac >>
+ assume_tac (INST_TYPE [“:'c” |-> “:label”  ] mk_new_labels_range_exsists)  >>
+ first_x_assum (strip_assume_tac o (Q.SPECL [‘simp_leaves'’, ‘new_labels’, ‘(non_termn (SOME x,p))’, ‘n’, ‘c’])) >>
+rgs[] >>
+
+Cases_on ‘lbl’ >> rgs[] >|[
+    gvs[]
+,    
+    
+  ]          
+
+*)
         
 
 
 
+(*        
 Theorem lookup_non_term_leaf_updt_internal:        
-∀ labels h n x p.
-ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME x,p)) ⇒
-(( ALOOKUP labels n = SOME (non_termn (NONE,p)) ∧ (x=h)) ∨
-  ALOOKUP labels n = SOME (non_termn (SOME x,p) ))
+  ∀ labels h n x p.
+    ALOOKUP (non_term_leaf_updt labels h) n = SOME (non_termn (SOME x,p)) ⇒
+    (LOOKUP labels n = SOME (non_termn (NONE,p)) ∧ x = h ∨
+    ALOOKUP labels n = SOME (non_termn (SOME x,p)))
 Proof
   Induct >>
   rpt strip_tac >>
@@ -2192,108 +2132,306 @@ QED
 
 
 
+Theorem get_leaves_list_in_nodes:
+  ∀ edges n.
+    MEM n (get_leaves_list (edges)) ⇒
+    MEM n (dom_range_edges (edges))
+Proof
+  Induct >>
+  gvs[getLeaves_def] >>
+  rpt strip_tac >>
+  rgs[dom_range_edges_def, get_leaves_list_def] >>
+  rgs[MEM_FILTER] >>
+  PairCases_on ‘h’ >>
+  gvs[]
+QED
+
+
+Theorem get_leaves_in_nodes:      
+  ∀ edges leaves n r.
+    ¬MEM n (dom_range_edges edges) ∧
+    edges ≠ [] ∧
+    getLeaves edges r = SOME leaves
+    ⇒        
+    ¬ MEM n leaves
+Proof
+  Induct_on ‘edges’ >>
+  rpt strip_tac >>      
+  gvs[getLeaves_def] >>
+  gvs[AllCaseEqs()] >>
+  imp_res_tac get_leaves_list_in_nodes
+QED
+
+
+Theorem not_in_leaves_not_in_res:
+  ∀ leaves_labels leaves labels n.        
+    ¬ MEM n leaves ∧                        
+    getLabels labels leaves = SOME leaves_labels ⇒
+    ALOOKUP leaves_labels n = NONE
+Proof
+  Induct_on ‘leaves’ >>
+  rpt strip_tac >>
+  gvs[ALOOKUP_NONE] >>
+  gvs[getLabels_def] >>
+  gvs[AllCaseEqs()] >>
+  res_tac
+QED     
 
 
 
 
 
-Definition get_all_nodes_from_edges_def:
-  get_all_nodes_from_edges edges = 
-   (FLAT (MAP (λ(k,v1,v2). [k; v1; v2]) edges))
-End
-
-
-Definition get_all_nodes_from_labels_def:
-  get_all_nodes_from_labels labels = 
-  MAP FST labels
-End
-
-          
-
-(*
-HERE
-BDD_WF (r,edges,labels) ∧
-ALOOKUP edges n = NONE ∧
-ALOOKUP labels n = SOME (non_termn (NONE,p)) ∧
-getLeaves edges r = SOME leaves  ⇒
-MEM n leaves
-
-rpt strip_tac >>
-
-
-
-
-
-
-
-
-
-
-
-
-          
-
-
-
-
-
-          
-BDD_WF (r,edges,labels) ∧
-ALOOKUP edges n = NONE ∧
-ALOOKUP labels n = SOME (non_termn (NONE,p)) ∧
-getLeaves edges r = SOME leaves ∧
-getLabels labels leaves = SOME leaves_labels ⇒
-ALOOKUP leaves_labels n = SOME (non_termn (NONE,p))
-
-rpt strip_tac >>
-Cases_on ‘edges = []’ >|[
-    gvs[BDD_WF_def] >>
-    gvs[getLeaves_def, getLabels_def]
-    ,
-    Cases_on ‘leaves = []’ >> gvs[getLabels_def] >>
-    gvs[getLeaves_def] >>
-    Cases_on ‘edges’ >> gvs[getLeaves_def] >> gvs[get_leaves_list_def] >>
-    PairCases_on ‘h’ >> gvs[] >>
-    gvs[AllCaseEqs()]>>
-    gvs[BDD_WF_def] >|[
-        first_x_assum (strip_assume_tac o (Q.SPECL [‘h0’])) >>
-        gvs[is_lookup_ntl_def]
-        last_x_assum (strip_assume_tac o (Q.SPECL [‘h0’])) >>
-        gvs[is_lookup_defined_def, is_lookup_internal_def]
-
-
+Theorem leaf_parents_lookup:        
+∀ edges  n.
+  ALL_DISTINCT (MAP FST edges) ∧
+MEM n (dom_range_edges edges) ∧
+ALOOKUP edges n = NONE ⇒
+∃ n' n''. (ALOOKUP edges n' = SOME (n'', n) ∨
+           ALOOKUP edges n' = SOME (n, n'') ∨
+           ALOOKUP edges n' = SOME (n, n)
+          )
+Proof
+  Induct >-
+  gvs[getLeaves_def, dom_range_edges_def] >>
+  rpt strip_tac >>
+  gvs[getLeaves_def, dom_range_edges_def] >>
+  gvs[AllCaseEqs()] >|[
+    PairCases_on ‘h’ >>
+    gvs[] >| [
+      qexistsl_tac [‘h0’,‘h2’] >>
+      gvs[]
+      ,
+      qexistsl_tac [‘h0’,‘h1’] >>
+      gvs[]
       ]
+    ,
 
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
+    gvs[] >>
+
+    PairCases_on ‘h’ >>
+    gvs[] >>
+
+    gvs[AllCaseEqs()] >>
+        qexistsl_tac [‘n'’,‘n''’] >>
+        gvs[] >>
+        rpt strip_tac >>
+        imp_res_tac ALOOKUP_MEM >>
+        imp_res_tac mem_fst_snd >>
+        gvs[ALOOKUP_MEM]
+]
+QED                    
+                
+
+
+Theorem get_leaves_list_thm_helper1:
+  ∀ edges h0 h1 h2.
+    h0 ≠ h1 ∧
+    ALOOKUP edges h1 = NONE ⇒
+    MEM h1 (get_leaves_list ((h0,h1,h2)::edges))
+Proof
+  gvs[get_leaves_list_def] >>
+  rpt strip_tac >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  rgs[MEM_FILTER] >>
+  rgs[ALOOKUP_NONE]
+QED  
+
+Theorem get_leaves_list_thm_helper2:
+∀ edges h0 h1 h2.
+  h0 ≠ h2 ∧
+ALOOKUP edges h2 = NONE ⇒
+MEM h2 (get_leaves_list ((h0,h1,h2)::edges))
+Proof
+  gvs[get_leaves_list_def] >>
+  rpt strip_tac >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  rgs[MEM_FILTER] >>
+  rgs[ALOOKUP_NONE]
+QED 
+
+Triviality MEM_FLAT_tri1:
+∀ edges n.    
+  ¬MEM n (MAP FST edges) ∧
+  MEM n (FLAT (MAP (λ(k,v1,v2). [k; v1; v2]) edges)) ⇒
+  MEM n (FLAT (MAP (λ(k,v1,v2). [v1; v2]) edges))
+Proof
+  Induct >>
+  gvs[] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >> gvs[]
+QED
+
+
+    
+
+Triviality leafs_in_get_leaves_list_triv:
+  ∀ edges n h0 h1 h2.
+    h0 ≠ n ∧
+    ALOOKUP edges n = NONE ∧
+    MEM n (FLAT (MAP (λ(k,v1,v2). [k; v1; v2]) edges)) ⇒
+    MEM n (get_leaves_list ((h0,h1,h2)::edges))
+Proof
+  rpt strip_tac >>
+  gvs[get_leaves_list_def] >>
+  rpt strip_tac >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  rgs[MEM_FILTER] >>
+  rgs[ALOOKUP_NONE] >>
+  gvs[MEM_FLAT_tri1]
+QED      
+
+Theorem leaves_in_get_leaves:    
+  ∀  edges n r leaves  .
+    ALL_DISTINCT (MAP FST edges) ∧
+    ALOOKUP edges n = NONE ∧
+    MEM n (dom_range_edges edges) ∧
+    getLeaves edges r = SOME leaves ⇒
+    MEM n leaves  
+Proof                  
+
+Induct >-
+ gvs[dom_range_edges_def] >>
+rpt strip_tac >>
+PairCases_on ‘h’ >> gvs[] >>
+gvs[AllCaseEqs()] >>
+gvs[getLeaves_def] >>
+gvs[AllCaseEqs()] >>
+
+gvs[dom_range_edges_def] >|[
+    gvs[get_leaves_list_thm_helper1]
+    ,
+    gvs[get_leaves_list_thm_helper2]
+    ,
+    gvs[leafs_in_get_leaves_list_triv]
   ]
-
-gvs[BDD_WF_def]
-
-cheat
+QED
 
 
+Theorem leaves_in_ntl_lemma:
+  ∀ leaves labels leaves_labels ntl p n.
+    MEM n leaves ∧
+    ALOOKUP labels n = SOME (non_termn (NONE,p)) ∧
+    getLabels labels leaves = SOME leaves_labels  ∧
+    extract_nontermn leaves_labels = SOME ntl ⇒
+    ALOOKUP ntl n = SOME p
+Proof
+  Induct_on ‘leaves_labels’ >>                        
+  rpt strip_tac >>
+  imp_res_tac mk_body_map1 >>
+  gvs[extract_nontermn_def] >>
+  PairCases_on ‘h’ >> gvs[]  >>                  
+  gvs[getLabels_def] >>
+  gvs[AllCaseEqs()] >>
+  gvs[extract_nontermn_def] >>
+  gvs[AllCaseEqs()] >>
+  res_tac >>
+  gvs[] >>
+  rpt strip_tac >>
+  gvs[]     
+QED
+
+
+
+
+Theorem dom_range_edges_in_sec:
+  ∀ edges new_edges n.
+    MEM n (dom_range_edges (edges ⧺ new_edges)) ∧
+    ¬MEM n (dom_range_edges edges) ⇒
+    MEM n (dom_range_edges new_edges)
+Proof
+  rpt strip_tac >>
+  gvs[dom_range_edges_def]
+QED
+       
 
 
 
 
 
 
+Theorem mem_new_edges_labels_thm1:
+  ∀ simp_leaves' n n' n'' c.       
+    ¬MEM n (MAP FST (mk_new_edges simp_leaves' c)) ∧
+    (MEM (n',n,n'') (mk_new_edges simp_leaves' c) ∨
+     MEM (n',n'',n) (mk_new_edges simp_leaves' c) ∨
+     MEM (n',n,n) (mk_new_edges simp_leaves' c)
+    ) ⇒
+    MEM n (MAP FST (mk_new_labels simp_leaves' c))
+Proof
+  Induct >>
+  gvs[mk_new_edges_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >> 
+  gvs[mk_new_edges_def, mk_new_labels_def] >>
+  Cases_on ‘n=c’ >> gvs[] >>
+  Cases_on ‘n=c+1’ >> gvs[] >>
+  res_tac
+QED
 
 
 
-                                          
-                        
 
+Theorem distinct_mem_lookup_local:        
+  ∀ l n .
+    ALL_DISTINCT l ∧
+    MEM n (MAP FST l) ⇒
+    ∃ elem. ALOOKUP l n= SOME elem
+Proof
+  Induct >>
+  gvs[] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >> gvs[] >>
+  rgs[AllCaseEqs()]  >>
+  res_tac >>
+  gvs[] >>
+  Cases_on ‘h0 = n’ >> gvs[]
+QED
+        
+    
+Theorem lookup_new_edges_labels_thm1:
+  ∀ simp_leaves' new_edges new_labels n n' n'' c.
+    ALL_DISTINCT (mk_new_labels simp_leaves' c) ∧
+    ALOOKUP new_edges n = NONE ∧
+    mk_new_edges simp_leaves' c = new_edges ∧
+    mk_new_labels simp_leaves' c = new_labels ∧
+    ( ALOOKUP new_edges n' = SOME (n'',n) ∨
+      ALOOKUP new_edges n' = SOME (n,n'') ∨
+      ALOOKUP new_edges n' = SOME (n,n)) ⇒
+    ∃ lbl . ALOOKUP new_labels n = SOME lbl
+Proof
+  gvs[mk_new_edges_def] >>
+  rpt strip_tac >>
+  imp_res_tac ALOOKUP_MEM >>
+  gvs[ALOOKUP_NONE] >>
+  
+  ‘MEM n (MAP FST (mk_new_labels simp_leaves' c))’ by imp_res_tac mem_new_edges_labels_thm1 >>
+  imp_res_tac distinct_mem_lookup_local >>
+  gvs[]
+QED                                     
+
+
+
+
+                                        
+(* if adding n in BDD is ok, we should also add it here*)
 Theorem WFness_lookup_edges:
-∀ r edges labels r'' edges'' labels'' h c c' n.
-BDD_WF (r,edges,labels) ∧
-body_of_mk (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ∧
-ALL_DISTINCT (MAP FST edges'') ∧
-ALL_DISTINCT (MAP FST labels'')
-⇒
-(is_lookup_defined edges'' n ⇔ is_lookup_internal labels'' n)
+  ∀ r edges labels r'' edges'' labels'' h c c' n vars_consumed.
+    range_c c (r,edges,labels) ∧
+    BDD_ordered (r,edges,labels) vars_consumed ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    BDD_WF (r,edges,labels) ∧
+    body_of_mk (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ∧
+    ALL_DISTINCT (MAP FST edges'') ∧
+    ALL_DISTINCT (MAP FST labels'') ∧
+    MEM n (dom_range_edges edges'') ∧
+    edges ≠ []
+    ⇒
+    (is_lookup_defined edges'' n ⇔ is_lookup_internal labels'' n)
 Proof
   rpt strip_tac >>
   rgs[is_lookup_defined_def, is_lookup_internal_def] >>                      
+  imp_res_tac WFness_range_c_inter >>
   
   EQ_TAC >>
   rpt strip_tac >|[
@@ -2303,93 +2441,111 @@ Proof
     gvs[AllCaseEqs()]>>
     body_of_mk_pred_tac >>
     rgs[ALOOKUP_APPEND] >>
-    rgs[AllCaseEqs()] >| [
+    rgs[AllCaseEqs()]  >>
+    PairCases_on ‘y’ >> rgs[] >| [
       (*if in the newly created layer edges *)
-      PairCases_on ‘y’ >> rgs[] >>
-      Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >>
-      rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >> rgs[] >|[
-        (* this is false *)
-        rgs[BDD_WF_def] >>
-        rgs[is_lookup_ntl_def] >>
-        imp_res_tac lookup_ntl_updt_none >>  
-        gvs[]
-        ,
-        rgs[BDD_WF_def] >-
-         (rgs[is_lookup_ntl_def]>>
-          imp_res_tac lookup_labels_in_updt_none >>
-          first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
-          rgs[]                 
-         ) >>
-        (* case terminal, we do not pick it up really, so it shouldn't satisfy the result,
-           we should show this subgoal by proving that in new_edges when looking up for n, then teh result should be none.
-         *)
-        (* we should show that n it is in leaves_labels , but not in ntl *)
-        (
-        rgs[is_lookup_internal_def, is_lookup_defined_def] >>
-        ‘ALOOKUP edges n = NONE’ by res_tac >>
         
-        imp_res_tac lookup_labels_in_updt_term >>
-        first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
-        rgs[] >>
         
-        (* since n in new edges, then indeed it was in ntl*)
-        subgoal ‘ ∃ p . ALOOKUP ntl n = SOME p’ >-
-         (
-         imp_res_tac mk_body_map1 >>
-         imp_res_tac mk_body_map2 >>
-         imp_res_tac mk_body_map3 >>
-         imp_res_tac mk_body_map4 >>
-         imp_res_tac mk_body_map5 >>
-         rgs[] >>
-         
-         assume_tac (INST_TYPE [“:'a” |-> “:num” , “:'b” |-> “:(num#num)” , “:'c” |-> “:pred” ] alookup_map_local_thm)  >>
-         first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘ntl’,‘n’,‘(y0,y1)’])) >>
-         gvs[]
-         ) >>
+      Cases_on ‘MEM n (dom_range_edges edges)’ >> rgs[] >|[
         
-        ‘∃ lbl . ALOOKUP leaves_labels n = SOME lbl’ by (imp_res_tac alookup_nonterm_exsists >> gvs[]) >>
-        imp_res_tac mk_body_map2 >>
-        ‘ALL_DISTINCT (MAP FST leaves_labels)’ by cheat >>
-        ‘lbl = non_termn (NONE,p)’ by imp_res_tac lbl_pred_rel_extract_nontermn >>
-        rgs[] >>
-        
-        imp_res_tac mk_body_map1 >>
-        rgs[] >>
-        ‘ALOOKUP labels n = SOME (non_termn (NONE,p))’ by imp_res_tac lookup_labels_of_leaves_same >>
-        gvs[]
-        ) 
-      ]
-            
-      ,
-      (*if in the old edges *)
-      PairCases_on ‘y’ >> rgs[] >>
-      Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >>
-      rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >> rgs[] >|[
-          (* This is imposisble *)
-          rgs[BDD_WF_def] >>
-          rgs[is_lookup_defined_def, is_lookup_internal_def] >>
-          ‘∃ x p . ALOOKUP labels n = SOME (non_termn (SOME x,p))’ by (res_tac >> gvs[]) >>
-          imp_res_tac lookup_ntl_updt_none >>  
-          gvs[]
-          ,
-          imp_res_tac wf_lookup_if_edges_label >>
-          imp_res_tac WF_imp_non_leaf_lbl >>
-          rgs[] >>
-          first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
-          rgs[]
+        Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >>
+        rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >> rgs[] >|[
+          imp_res_tac lookup_ntl_updt_none >>   
+          gvs[BDD_WF_def] >>
+          rgs[is_lookup_ntl_def]
              
-        ]                                                
-    ]
-                         
+          ,
+          rgs[BDD_WF_def] >-
+           (
+           rgs[is_lookup_ntl_def]>>
+           imp_res_tac lookup_labels_in_updt_none >>
+           first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
+           rgs[]                 
+           ) >>
+          (* case terminal, we do not pick it up really, so it shouldn't satisfy the result,
+             we should          show this subgoal by proving that in new_edges when looking up for n, then teh result should be none.
+           *)
+          (* we should show that n it is in leaves_labels , but not in ntl *)
+          (
+          rgs[is_lookup_internal_def, is_lookup_defined_def] >>
+          ‘ALOOKUP edges n = NONE’ by res_tac >>
+          
+          imp_res_tac lookup_labels_in_updt_term >>
+          first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
+          rgs[] >>
+          
+          (* since n in new edges, then indeed it was in ntl*)
+          subgoal ‘ ∃ p . ALOOKUP ntl n = SOME p’ >-
+           (
+           imp_res_tac_body >>
+           rgs[] >>
+           
+           assume_tac (INST_TYPE [“:'a” |-> “:num” , “:'b” |-> “:(num#num)” , “:'c” |-> “:pred” ] alookup_map_local_thm)  >>
+           first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘ntl’,‘n’,‘(y0,y1)’])) >>
+           gvs[]
+           ) >>
+          
+          ‘∃ lbl . ALOOKUP leaves_labels n = SOME lbl’ by (imp_res_tac alookup_nonterm_exsists >> gvs[]) >>
+          imp_res_tac mk_body_map2 >>
+          ‘ALL_DISTINCT (MAP FST leaves_labels)’ by cheat >>
+          ‘lbl = non_termn (NONE,p)’ by imp_res_tac lbl_pred_rel_extract_nontermn >>
+          rgs[] >>
+          
+          imp_res_tac mk_body_map1 >>
+          rgs[] >>
+          ‘ALOOKUP labels n = SOME (non_termn (NONE,p))’ by imp_res_tac lookup_labels_of_leaves_same >>
+          gvs[]
+          )
+        ]
+          ,
+          (* n not a mem of edges *)
+          imp_res_tac get_leaves_in_nodes >>
+          ‘ALOOKUP leaves_labels n = NONE’ by imp_res_tac not_in_leaves_not_in_res >>
+          subgoal ‘ALOOKUP new_edges n = NONE’ >-
+           (
+           imp_res_tac_body >>
+           rgs[ALOOKUP_NONE] >>
+           imp_res_tac extract_nonterm_mem_neg >>
+           gvs[]
+           ) >>
+          gvs[] 
+        ] 
+   
+                                                           
+      ,
+      (*if in the old edges *) 
+      Cases_on ‘MEM n (dom_range_edges edges)’ >> rgs[] >|[
+          
+          Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >>
+          rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >> rgs[] >|[
+            (* This is imposisble *)
+            rgs[BDD_WF_def] >>
+            rgs[is_lookup_defined_def, is_lookup_internal_def] >>
+            ‘∃ x p . ALOOKUP labels n = SOME (non_termn (SOME x,p))’ by (res_tac >> gvs[]) >>
+            imp_res_tac lookup_ntl_updt_none >>  
+            gvs[] 
+            ,
+            imp_res_tac wf_lookup_if_edges_label >>
+            imp_res_tac WF_imp_non_leaf_lbl >>
+            rgs[] >>
+            first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
+            rgs[]
+               
+          ]
+          ,
+          imp_res_tac lookup_edges_in_domain      
+        ]
+    ]                    
     ,
-    (* second part of implication *)
+        
+    (***** second part of implication *****)
     
     gvs[body_of_mk_def] >>
     gvs[AllCaseEqs()]>>
     body_of_mk_pred_tac >>
     rgs[ALOOKUP_APPEND] >>
     rgs[AllCaseEqs()] >| [
-        (* n here is in teh newly created labels and edges, basically from c *)     
+        (* n here is in the newly created labels and edges, basically from c *)     
         imp_res_tac new_labels_are_not_internal >>
         ‘ALL_DISTINCT (MAP FST simp_leaves')’ by cheat >>            
         gvs[]
@@ -2397,68 +2553,261 @@ Proof
 
         Cases_on ‘ALOOKUP edges n’ >> rgs[] >>
         imp_res_tac lookup_non_term_leaf_updt_internal >|[
-            rgs[] >>
+            Cases_on ‘MEM n (dom_range_edges edges)’ >|[
+              ‘ALL_DISTINCT (MAP FST edges)’ by cheat >>
+              ‘MEM n leaves’ by imp_res_tac leaves_in_get_leaves >>
+              ‘ALOOKUP ntl n = SOME p’ by imp_res_tac leaves_in_ntl_lemma >>
+      
+              imp_res_tac_body >>
+              rgs[MEM_MAP] >>
+                           
+              PairCases_on ‘y’ >>
+              rgs[] >>
+              imp_res_tac alookup_map_local_thm >>
+              gvs[]
+              ,
+              rgs[] >>
+              imp_res_tac get_leaves_in_nodes >>
+              ‘ALOOKUP leaves_labels n = NONE’ by imp_res_tac not_in_leaves_not_in_res >>
+              subgoal ‘ALOOKUP new_edges n = NONE’ >-
+               (
+               imp_res_tac_body >>
+               rgs[ALOOKUP_NONE] >>
+               imp_res_tac extract_nonterm_mem_neg >>
+               gvs[]
+               ) >>
+              
+              imp_res_tac dom_range_edges_in_sec >>
+              
+              Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
 
-            rgs[BDD_WF_def] >>
-            rgs[is_lookup_ntl_def]
-                  
-                  
-            subgoal  ‘∃ lbl. ALOOKUP simp_leaves' n = lbl’ >-
-             (
-                      imp_res_tac mk_body_map1 >>
-         imp_res_tac mk_body_map2 >>
-         imp_res_tac mk_body_map3 >>
-         imp_res_tac mk_body_map4 >>
-         imp_res_tac mk_body_map5 >>
-         rgs[] >>
-             )
+                               
+              (* tweaky way to solve this goal : first we know that n is indeed a cild,
+              since it is a child, then indeed its node identifier larner than c,
+              and this means in labels og this (n = c) which breaks the distinct, *)
+
+              assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
+              ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+              first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
+              rgs[] >>
+                    
+              (
+              ‘ALL_DISTINCT (mk_new_labels simp_leaves' c)’ by cheat >>
+              ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[] ) >>
+              
+              ‘MEM (n,lbl) new_labels’ by (imp_res_tac ALOOKUP_MEM) >>
+              ‘MEM (n,non_termn (SOME h,p)) (non_term_leaf_updt labels h)’ by (imp_res_tac ALOOKUP_MEM) >>
+              imp_res_tac mem_fst_snd >>
+              rgs[] >>
+              
+              rgs[ALL_DISTINCT_APPEND]
+                )
+                                                  
+              ] 
             
-
-
                     
             ,
-            rgs[BDD_WF_def] >>
-            gvs[is_lookup_ntl_def]
+            Cases_on ‘MEM n (dom_range_edges edges)’ >|[
+                rgs[BDD_WF_def] >>
+                gvs[is_lookup_ntl_def]
+                ,
+
+                rgs[] >>
+                imp_res_tac get_leaves_in_nodes >>
+                ‘ALOOKUP leaves_labels n = NONE’ by imp_res_tac not_in_leaves_not_in_res >>
+                subgoal ‘ALOOKUP new_edges n = NONE’ >-
+                 (
+                 imp_res_tac_body >>
+                 rgs[ALOOKUP_NONE] >>
+                 imp_res_tac extract_nonterm_mem_neg >>
+                 gvs[]
+                 ) >>
+                
+                imp_res_tac dom_range_edges_in_sec >>
+                
+                Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
+                
+                
+                (* tweaky way to solve this goal : first we know that n is indeed a cild,
+                   since it is a child, then indeed its node identifier larner than c,
+                   and this means in labels og this (n = c) which breaks the distinct, *)
+
+                assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
+                ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+                first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
+                rgs[] >>
+                
+                (
+                ‘ALL_DISTINCT (mk_new_labels simp_leaves' c)’ by cheat >>
+                ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[]) >>
+             (*   
+                ‘MEM (n,non_termn (SOME x,p)) new_labels’ by (imp_res_tac ALOOKUP_MEM) >>
+                ‘MEM (n,non_termn (SOME x,p)) (non_term_leaf_updt labels h)’ by (imp_res_tac ALOOKUP_MEM) >>
+               *)
+                imp_res_tac ALOOKUP_MEM >>
+                imp_res_tac mem_fst_snd >>
+                rgs[] >>
+                
+                rgs[ALL_DISTINCT_APPEND]
+                   
+                )
+              ]                                           
           ]
-       
-              
-
       ]
-
-]
-QED                
-
+  ]
+QED       
 
 
-*)
 
 
-Theorem wf_edges_root_mkbody:
-∀ r edges labels r'' edges'' labels'' c c' h.       
-BDD_WF (r,edges,labels) ∧
-body_of_mk (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ∧
-edges'' = [] ⇒
-∃p. labels'' = [(r'',p)]
+
+
+
+
+
+
+
+
+Theorem WFness_lookup_ntl:
+  ∀ r edges labels r'' edges'' labels'' h c c' n vars_consumed.
+    BDD_ordered (r,edges,labels) vars_consumed ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    BDD_WF (r,edges,labels) ∧
+    body_of_mk (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ∧
+    ALL_DISTINCT (MAP FST edges'') ∧
+    ALL_DISTINCT (MAP FST labels'') ∧
+    MEM n (dom_range_edges edges'') ∧
+    edges ≠ []
+    ⇒
+    (ALOOKUP edges'' n = NONE ⇔
+       is_lookup_ntl labels'' n ∨
+       ALOOKUP labels'' n = SOME (termn True) ∨
+       ALOOKUP labels'' n = SOME (termn False))
 Proof
-rpt strip_tac >>        
-gvs[body_of_mk_def] >>
-rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-gvs[BDD_WF_def] >>
-gvs[getLeaves_def, getLabels_def] >>
-Cases_on ‘p’ >>
-gvs[non_term_leaf_updt_def] >>
-gvs[is_lookup_ntl_def,is_lookup_defined_def,is_lookup_internal_def] >>
-gvs[extract_nontermn_def, extract_termn_def] >>
-Cases_on ‘p'’ >> 
-gvs[leaves_pred_sub_def,simp_pred_list_def] >>
-gvs[determine_termn_list_def,mk_new_labels_def, mk_new_edges_def] 
+  rpt strip_tac >>
+  rgs[is_lookup_ntl_def] >>                      
+  
+  EQ_TAC >|[
+         
+    rpt strip_tac >>
+    gvs[body_of_mk_def] >>
+    gvs[AllCaseEqs()]>>
+    body_of_mk_pred_tac >>
+    rgs[ALOOKUP_APPEND] >>
+    rgs[AllCaseEqs()]  >>
+    Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’  >> rgs[] >|[
+             
+      Cases_on ‘MEM n (dom_range_edges edges)’ >|[
+        rgs[BDD_WF_def] >>
+        last_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
+        rgs[is_lookup_ntl_def] >> 
+        imp_res_tac lookup_ntl_updt_none >>
+        gvs[]
+        ,
+        Cases_on ‘ALOOKUP new_labels n’ >> rgs[] >| [
+            rgs[] >>
+            imp_res_tac get_leaves_in_nodes >>
+            ‘ALOOKUP leaves_labels n = NONE’ by imp_res_tac not_in_leaves_not_in_res >>
+            subgoal ‘ALOOKUP new_edges n = NONE’ >-
+             (
+             imp_res_tac_body >>
+             rgs[ALOOKUP_NONE] >>
+             imp_res_tac extract_nonterm_mem_neg >>
+             gvs[]
+             ) >>
+            
+            imp_res_tac dom_range_edges_in_sec >>
+            
+            Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
+            
+            
+            (* tweaky way to solve this goal : first we know that n is indeed a cild,
+               since it is a child, then indeed its node identifier larner than c,
+               and this means in labels og this (n = c) which breaks the distinct, *)
+            
+            assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
+            ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+            first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
+            rgs[] >>
+            
+            (
+            ‘ALL_DISTINCT (mk_new_labels simp_leaves' c)’ by cheat >>
+            ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[]) >>
+            imp_res_tac ALOOKUP_MEM >>
+            imp_res_tac mem_fst_snd >>
+            rgs[] >>
+            rgs[ALL_DISTINCT_APPEND]
+            )
+            ,
+                
+            Cases_on ‘x’ >> rgs[]
+            
+         imp_res_tac_body >>
+   imp_res_tac new_labels_are_not_internal >>
+        
+        imp_res_tac get_leaves_in_nodes >>
+
+          ]
+      ]
+      
+      ,
+      cheat
+
+    ]
+    
+  ,
+  rpt strip_tac
+      cheat
+]
+
 QED
 
 
 
 
-                                                          
-      
+
+
+
+
+                   
+
+        
+
+Theorem wf_edges_root_mkbody_imp_wf:
+  ∀ r edges labels r'' edges'' labels'' c c' h.
+    BDD_WF (r,[],labels) ∧
+    ALL_DISTINCT (MAP FST edges'') ∧
+    ALL_DISTINCT (MAP FST labels'') ∧
+    body_of_mk (r,[],labels) h c = SOME ((r'',edges'',labels''),c') ⇒
+    BDD_WF (r'',edges'',labels'')
+Proof
+  rpt strip_tac >>      
+  simp[BDD_WF_def] >> CONJ_TAC >>  
+  rpt strip_tac >>
+  (
+  rpt strip_tac >>        
+  gvs[body_of_mk_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  gvs[BDD_WF_def] >>
+  gvs[getLeaves_def, getLabels_def] >>
+  Cases_on ‘p’ >>
+  gvs[non_term_leaf_updt_def] >>
+   gvs[is_lookup_ntl_def,is_lookup_defined_def,is_lookup_internal_def] >>
+  gvs[extract_nontermn_def, extract_termn_def] >>
+  Cases_on ‘p'’ >> 
+  gvs[leaves_pred_sub_def,simp_pred_list_def] >>
+  gvs[determine_termn_list_def,mk_new_labels_def, mk_new_edges_def] >>
+  Cases_on ‘q’ >> 
+  gvs[determine_termn_list_def,mk_new_labels_def, mk_new_edges_def] >>
+  gvs[dom_range_edges_def] >>
+  gvs[determine_termn_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  imp_res_tac wf_edges_root_mkbody >>
+  gvs[]
+  )
+QED
+
+        
         
 Theorem WFness_translation_inter:
   ∀ BDD BDD'' c c' h.
@@ -2468,24 +2817,28 @@ Theorem WFness_translation_inter:
     BDD_WF BDD''
 Proof
   rpt strip_tac >>
-
+  
   PairCases_on ‘BDD’ >>
   rename1 ‘(r,edges,labels)’ >>
   
   PairCases_on ‘BDD''’ >>
   rename1 ‘(r'',edges'',labels'')’ >>
-
+  
   imp_res_tac WFness_distinct_edges_labels >>
-              
-(*  imp_res_tac WFness_range_c_inter >>
-*)  
-  simp[BDD_WF_def] >> CONJ_TAC >> rpt strip_tac >|[
-    cheat
+  
+  Cases_on ‘edges = []’ >|[
+    metis_tac[wf_edges_root_mkbody_imp_wf]
     ,
-    cheat
-    ,
-    metis_tac[wf_edges_root_mkbody]
-    
+    simp[BDD_WF_def] >> CONJ_TAC >> rpt strip_tac >|[
+        cheat
+        ,
+        cheat
+        ,
+        gvs[] >>
+        rpt strip_tac >>        
+        gvs[body_of_mk_def] >>
+        rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
+      ] 
   ]
 
 QED
@@ -2517,20 +2870,19 @@ Proof
     gvs[mk_BDDPred_def]
     ,
     rpt strip_tac >>
-
+    
     PairCases_on ‘BDD’ >>
     rename1 ‘(r,edges,labels)’ >>
-
+    
     PairCases_on ‘BDD'’ >>
     rename1 ‘(r',edges',labels')’ >>
-
+    
     gvs[mk_BDDPred_def] >>
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>           
     PairCases_on ‘q’ >>
     ‘BDD_WF (q0,q1,q2)’ by cheat >> (* this should be for intermidate, lemma above*)
     res_tac
-]
-           
+]    
 QED
 
 
@@ -2550,7 +2902,7 @@ Proof
     gvs[mk_BDDPred_def]
     ,
     rpt strip_tac >>
-
+    
     gvs[mk_BDDPred_def] >>
     gvs[AllCaseEqs()] >>
     ‘correct_sem BDD''’ by cheat >>
@@ -2604,39 +2956,39 @@ EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
 
 
 Theorem merge_lookup_none:
-∀ edges n n' n''.
-  n' ≠ n'' ⇒
-  ((ALOOKUP edges n'' = NONE) ⇔ (ALOOKUP (merge_edges edges n n') n'' = NONE))
+  ∀ edges n n' n''.
+    n' ≠ n'' ⇒
+    ((ALOOKUP edges n'' = NONE) ⇔ (ALOOKUP (merge_edges edges n n') n'' = NONE))
 Proof
-Induct >-
-gvs[merge_edges_def] >>
-rpt strip_tac >>
-rw[merge_edges_def] >>
-
-PairCases_on ‘h’ >>
-gvs[] >>
-rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-res_tac >>
-gvs[merge_edges_def]
+  Induct >-
+   gvs[merge_edges_def] >>
+  rpt strip_tac >>
+  rw[merge_edges_def] >>
+  
+  PairCases_on ‘h’ >>
+  gvs[] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  res_tac >>
+  gvs[merge_edges_def]
 QED
 
 
 Theorem merge_lookup_exists:
-∀ edges n n' n'' x.        
-n' ≠ n'' ∧
-ALOOKUP (merge_edges edges n n') n'' = SOME x ⇒
-∃ x' . ALOOKUP edges n'' = SOME x'
+  ∀ edges n n' n'' x.        
+    n' ≠ n'' ∧
+    ALOOKUP (merge_edges edges n n') n'' = SOME x ⇒
+    ∃ x' . ALOOKUP edges n'' = SOME x'
 Proof
-Induct >-
-gvs[merge_edges_def] >>
-rpt strip_tac >>
-rgs[Once merge_edges_def] >>
-PairCases_on ‘h’ >> gvs[] >>
-PairCases_on ‘x’ >>
-fs[AllCaseEqs()] >>
-gvs[merge_edges_def] >>
-res_tac >>                                
-gvs[]
+  Induct >-
+   gvs[merge_edges_def] >>
+  rpt strip_tac >>
+  rgs[Once merge_edges_def] >>
+  PairCases_on ‘h’ >> gvs[] >>
+  PairCases_on ‘x’ >>
+  fs[AllCaseEqs()] >>
+  gvs[merge_edges_def] >>
+  res_tac >>                                
+  gvs[]
 QED
 
 
@@ -2650,17 +3002,17 @@ QED
 
         
 Theorem mergable_correct_leaf:
- ∀labels n'' r edges n' n mv b.
-  BDD_WF (r,edges,labels) ∧
-  n' ≠ n'' ∧
-  ALOOKUP edges n'' = NONE ⇒
-  BDD_pred_sem (r,edges,labels) mv n'' b =
-  BDD_pred_sem (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b
+  ∀labels n'' r edges n' n mv b.
+    BDD_WF (r,edges,labels) ∧
+    n' ≠ n'' ∧
+    ALOOKUP edges n'' = NONE ⇒
+    BDD_pred_sem (r,edges,labels) mv n'' b =
+    BDD_pred_sem (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b
 Proof
   rpt strip_tac >>
   simp[Once BDD_pred_sem_cases]>> gvs[] >>
   rpt strip_tac >>
-
+  
   subgoal ‘ALOOKUP (merge_edges edges n n') n'' = NONE’ >-
    (
    imp_res_tac merge_lookup_none >>
@@ -2683,34 +3035,34 @@ QED
 
 
 Triviality merge_edges_same:
-∀ edges n n.        
-merge_edges edges n n = edges
+  ∀ edges n n.        
+    merge_edges edges n n = edges
 Proof
-Induct >>
-rpt strip_tac>>
-gvs[merge_edges_def]>>
-PairCases_on ‘h’ >> rgs[]>>
-rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
+  Induct >>
+  rpt strip_tac>>
+  gvs[merge_edges_def]>>
+  PairCases_on ‘h’ >> rgs[]>>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
 
 
 Triviality merge_edges_list_cons:        
-∀ edges h n n'.
-merge_edges (h::edges) n n' = (merge_edges [h] n n')++(merge_edges (edges) n n')
+  ∀ edges h n n'.
+    merge_edges (h::edges) n n' = (merge_edges [h] n n')++(merge_edges (edges) n n')
 Proof
-rpt strip_tac>>
-gvs[Once merge_edges_def] >>
-PairCases_on ‘h’ >> gvs[merge_edges_def]
+  rpt strip_tac>>
+  gvs[Once merge_edges_def] >>
+  PairCases_on ‘h’ >> gvs[merge_edges_def]
 QED
 
 
 
 Triviality merge_edges_res_sing:
-∀ n n' n'' nr nl h.
-n ≠ n' ∧
-n'' ≠ n' ⇒
-ALOOKUP (merge_edges [h] n n') n'' = SOME (nr,nl) ⇒
-(nr ≠ n' ∧ nl ≠ n')
+  ∀ n n' n'' nr nl h.
+    n ≠ n' ∧
+    n'' ≠ n' ⇒
+    ALOOKUP (merge_edges [h] n n') n'' = SOME (nr,nl) ⇒
+    (nr ≠ n' ∧ nl ≠ n')
 Proof
   rpt strip_tac >>
   PairCases_on ‘h’ >> gvs[] >>
@@ -2721,11 +3073,11 @@ QED
 
 
 Theorem merge_edges_glue:        
-∀ edges n n' n'' nr nl.
-  n ≠ n' ∧
-  n'' ≠ n' ∧
-ALOOKUP (merge_edges edges n n') n'' = SOME (nr,nl) ⇒
-(nr ≠ n' ∧ nl ≠ n')
+  ∀ edges n n' n'' nr nl.
+    n ≠ n' ∧
+    n'' ≠ n' ∧
+    ALOOKUP (merge_edges edges n n') n'' = SOME (nr,nl) ⇒
+    (nr ≠ n' ∧ nl ≠ n')
 Proof   
   Induct >>
   rpt strip_tac>-
@@ -2746,11 +3098,11 @@ QED
            
 
 Theorem merge_edges_res:        
-∀ edges n n' n'' nr nl r labels.
-  mergable  (r,edges,labels) n n' ∧
-  n'' ≠ n' ∧
-  ALOOKUP (merge_edges edges n n') n'' = SOME (nr,nl) ⇒
-  (nr ≠ n' ∧ nl ≠ n')
+  ∀ edges n n' n'' nr nl r labels.
+    mergable  (r,edges,labels) n n' ∧
+    n'' ≠ n' ∧
+    ALOOKUP (merge_edges edges n n') n'' = SOME (nr,nl) ⇒
+    (nr ≠ n' ∧ nl ≠ n')
 Proof   
   rpt strip_tac >>
   gvs[mergable_def] >>
@@ -2760,37 +3112,37 @@ QED
 
            
 Triviality alookup_defined_append1:
-∀ l l' n a b.
-ALOOKUP (l ++ l') n = SOME (a,b) ⇒
-ALOOKUP l n = NONE ⇒
-∃ a' b' . ALOOKUP l' n = SOME (a',b') ∧ a' = a ∧  b' = b 
+  ∀ l l' n a b.
+    ALOOKUP (l ++ l') n = SOME (a,b) ⇒
+    ALOOKUP l n = NONE ⇒
+    ∃ a' b' . ALOOKUP l' n = SOME (a',b') ∧ a' = a ∧  b' = b 
 Proof
-gvs[ALOOKUP_APPEND] >>
-rpt strip_tac >>
-fs[AllCaseEqs()]
+  gvs[ALOOKUP_APPEND] >>
+  rpt strip_tac >>
+  fs[AllCaseEqs()]
 QED
 
 
 Triviality alookup_defined_append2:
-∀ l l' n a b a' b'.
-ALOOKUP (l ++ l') n = SOME (a,b) ∧
-ALOOKUP l n = SOME (a',b') ⇒
- a' = a ∧  b' = b 
+  ∀ l l' n a b a' b'.
+    ALOOKUP (l ++ l') n = SOME (a,b) ∧
+    ALOOKUP l n = SOME (a',b') ⇒
+    a' = a ∧  b' = b 
 Proof
-gvs[ALOOKUP_APPEND] >>
-rpt strip_tac >>
-fs[AllCaseEqs()]
+  gvs[ALOOKUP_APPEND] >>
+  rpt strip_tac >>
+  fs[AllCaseEqs()]
 QED
 
 
-        
+
 Triviality merge_triviality1:
-(ALOOKUP (merge_edges [(h0,h1,h2)] n n') n'' = NONE ⇒
- h0 ≠ n'') ∧
-(ALOOKUP (merge_edges [(h0,h1,h2)] n n') n'' = SOME x ⇒
-h0 = n'')
+  (ALOOKUP (merge_edges [(h0,h1,h2)] n n') n'' = NONE ⇒
+   h0 ≠ n'') ∧
+  (ALOOKUP (merge_edges [(h0,h1,h2)] n n') n'' = SOME x ⇒
+   h0 = n'')
 Proof
-gvs[merge_edges_def]
+  gvs[merge_edges_def]
 QED
 
         
@@ -2800,36 +3152,36 @@ Triviality alookup_triviality1:
   (nr = h1 ∧ nl = h2)
 Proof
   rpt strip_tac >>
-fs[AllCaseEqs()]
+  fs[AllCaseEqs()]
 QED
      
 
 Triviality lookup_merge_uni_bs:
-ALOOKUP (merge_edges [(h0,h1,h2)] n n') n'' = SOME (x0,x1) 
-⇒
-((x0 = nr' ∧  nr = h1 ∧  nr ≠ nr' ⇒ (nr = n' ∧ nr' = n))
-∧
-(x1 = nl' ∧  nl = h2 ∧  nl ≠ nl' ⇒ (nl = n' ∧ nl' = n)
-))
+  ALOOKUP (merge_edges [(h0,h1,h2)] n n') n'' = SOME (x0,x1) 
+  ⇒
+  ((x0 = nr' ∧  nr = h1 ∧  nr ≠ nr' ⇒ (nr = n' ∧ nr' = n))
+   ∧
+   (x1 = nl' ∧  nl = h2 ∧  nl ≠ nl' ⇒ (nl = n' ∧ nl' = n)
+   ))
 Proof
-fs[Once merge_edges_def] >>
-rpt strip_tac >>
-fs[AllCaseEqs()]
+  fs[Once merge_edges_def] >>
+  rpt strip_tac >>
+  fs[AllCaseEqs()]
 QED
 
 
 
 Theorem merge_parent_change:         
-∀ edges n n' n'' nr nl nr' nl'.
-(nr ≠ nr' ∧
-ALOOKUP edges n'' = SOME (nr,nl) ∧
-ALOOKUP (merge_edges edges n n') n'' = SOME (nr',nl') ⇒
- (nr = n' ∧  nr' = n))
-∧
-(nl ≠ nl' ∧
-ALOOKUP edges n'' = SOME (nr,nl) ∧
-ALOOKUP (merge_edges edges n n') n'' = SOME (nr',nl') ⇒
- (nl = n' ∧  nl' = n))
+  ∀ edges n n' n'' nr nl nr' nl'.
+    (nr ≠ nr' ∧
+     ALOOKUP edges n'' = SOME (nr,nl) ∧
+     ALOOKUP (merge_edges edges n n') n'' = SOME (nr',nl') ⇒
+     (nr = n' ∧  nr' = n))
+    ∧
+    (nl ≠ nl' ∧
+     ALOOKUP edges n'' = SOME (nr,nl) ∧
+     ALOOKUP (merge_edges edges n n') n'' = SOME (nr',nl') ⇒
+     (nl = n' ∧  nl' = n))
 Proof        
   Induct >>                                                
   rpt strip_tac >-
@@ -2877,54 +3229,54 @@ QED
 
 
 Theorem  lookup_edges_not_parent:       
-∀ r edges labels vars_consumed n nl nr.
-BDD_ordered (r,edges,labels) vars_consumed ∧
-BDD_WF (r,edges,labels) ∧
-consumed_dom_bdd vars_consumed (r,edges,labels) ∧
-ALOOKUP edges n = SOME (nr,nl) ⇒
-(nr ≠ n ∧ nl ≠ n) 
+  ∀ r edges labels vars_consumed n nl nr.
+    BDD_ordered (r,edges,labels) vars_consumed ∧
+    BDD_WF (r,edges,labels) ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    ALOOKUP edges n = SOME (nr,nl) ⇒
+    (nr ≠ n ∧ nl ≠ n) 
 Proof
-   rpt strip_tac >>
-‘∃ x p. ALOOKUP labels n = SOME (non_termn (SOME x,p))’ by
-(gvs[BDD_WF_def] >>
-gvs[is_lookup_defined_def, is_lookup_internal_def] >>
- res_tac >> gvs[]) >|[
-
-gvs[BDD_ordered_def] >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘n’, ‘nl’])) >>
-gvs[order_hold_def] >>
-
-gvs[consumed_dom_bdd_def] >>
-imp_res_tac MEM_INDEX_OF >>
-
-first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
-gvs[] >>
-
-first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
-gvs[]
-,
-       
-gvs[BDD_ordered_def] >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘nr’, ‘n’])) >>
-gvs[order_hold_def] >>
-
-gvs[consumed_dom_bdd_def] >>
-imp_res_tac MEM_INDEX_OF >>
-
-first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
-gvs[] >>
-
-first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
-gvs[]
-]
+  rpt strip_tac >>
+  ‘∃ x p. ALOOKUP labels n = SOME (non_termn (SOME x,p))’ by
+    (gvs[BDD_WF_def] >>
+     gvs[is_lookup_defined_def, is_lookup_internal_def] >>
+     res_tac >> gvs[]) >|[
+    
+    gvs[BDD_ordered_def] >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘n’, ‘nl’])) >>
+    gvs[order_hold_def] >>
+    
+    gvs[consumed_dom_bdd_def] >>
+    imp_res_tac MEM_INDEX_OF >>
+    
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
+    gvs[] >>
+    
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
+    gvs[]
+    ,
+    
+    gvs[BDD_ordered_def] >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘nr’, ‘n’])) >>
+    gvs[order_hold_def] >>
+    
+    gvs[consumed_dom_bdd_def] >>
+    imp_res_tac MEM_INDEX_OF >>
+    
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
+    gvs[] >>
+    
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘i’, ‘i’])) >>
+    gvs[]
+  ]
 QED
 
 
 Triviality merge_replaces_stays_same_singular:
-n' ≠ x1'  ∧ n' ≠ x2' ∧      
-ALOOKUP (h::edges) n = SOME (x1',x2') ∧
-ALOOKUP (merge_edges [h] n n') n = SOME (x1,x2) ⇒
-(x1=x1' ∧ x2=x2')
+  n' ≠ x1'  ∧ n' ≠ x2' ∧      
+  ALOOKUP (h::edges) n = SOME (x1',x2') ∧
+  ALOOKUP (merge_edges [h] n n') n = SOME (x1,x2) ⇒
+  (x1=x1' ∧ x2=x2')
 Proof
   rpt strip_tac >>
   rgs[Once merge_edges_def] >>
@@ -2964,13 +3316,12 @@ QED
 
 (* very low proof, check why*)       
 Theorem merge_replaces_stays_same:            
-∀ edges n' n x1 x2 x1' x2'.
-n' ≠ x1' ∧ n' ≠ x2' ∧
-ALOOKUP (merge_edges edges n n') n = SOME (x1,x2) ∧
-ALOOKUP edges n = SOME (x1',x2') ⇒
-(x1=x1' ∧ x2=x2')
+  ∀ edges n' n x1 x2 x1' x2'.
+    n' ≠ x1' ∧ n' ≠ x2' ∧
+    ALOOKUP (merge_edges edges n n') n = SOME (x1,x2) ∧
+    ALOOKUP edges n = SOME (x1',x2') ⇒
+    (x1=x1' ∧ x2=x2')
 Proof
-         
   Induct >-
    gvs[merge_edges_def] >>
   rpt strip_tac >>
@@ -2993,36 +3344,21 @@ Proof
 QED
        
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-
-        
+    
 
                                                 
 Theorem mergable_correct_internal:
-∀ x vars_consumed  r edges labels n n' n'' nl nr pred mv b.
-consumed_dom_bdd vars_consumed (r,edges,labels) ∧ 
-BDD_ordered (r,edges,labels) vars_consumed ∧
-BDD_WF (r,edges,labels) ∧
-mergable (r,edges,labels) n n' ∧
-n'' ≠ n' ∧
-ALOOKUP edges n'' = SOME (nr,nl) ∧
-ALOOKUP labels n'' = SOME (non_termn (SOME x,pred))
-⇒
-(BDD_pred_sem (r,edges,labels) mv n'' b ⇔
-  BDD_pred_sem (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b)
+  ∀ x vars_consumed  r edges labels n n' n'' nl nr pred mv b.
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧ 
+    BDD_ordered (r,edges,labels) vars_consumed ∧
+    BDD_WF (r,edges,labels) ∧
+    mergable (r,edges,labels) n n' ∧
+    n'' ≠ n' ∧
+    ALOOKUP edges n'' = SOME (nr,nl) ∧
+    ALOOKUP labels n'' = SOME (non_termn (SOME x,pred))
+    ⇒
+    (BDD_pred_sem (r,edges,labels) mv n'' b ⇔
+       BDD_pred_sem (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b)
 Proof
   ntac 2 strip_tac >>
   measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
@@ -3293,7 +3629,7 @@ Definition eleminatble_def:
 eleminatble ((r,edges,labels):BDD)  n n' = 
 (n≠n' ∧ ALOOKUP edges n' = SOME (n,n) )
 End
-
+*)
 
 (*******************************************************)
 (*    Definition of eliminate is the same as  merge    *)
