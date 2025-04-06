@@ -240,29 +240,7 @@ QED
 
 
 
-                                                                  
-Theorem mk_BDDPred_output:
-  ∀ vars vars_consumed r r' edges edges' labels labels'  c.
-    vars ≠ [] ∧ 
-    mk_BDDPred (r, edges, labels) vars_consumed vars c = SOME (r', edges', labels') ⇒
-    r = r' ∧ ∃ edges'' labels''. edges' = edges ++ edges'' ∧ labels' = (non_term_leaf_updt labels (HD vars)) ++ labels''
-Proof                 
-  Induct_on ‘vars’ >- fs[mk_BDDPred_def] >>
-  
-  Cases_on ‘vars = []’ >> gvs[] >>
-  rpt strip_tac >>
-  gvs[mk_BDDPred_def, body_of_mk_def] >> 
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  
-  ‘∃ leaves_sub . leaves_pred_sub x'' h = leaves_sub’ by gvs[] >>
-  ‘∃ simp_leaves . simp_pred_list leaves_sub = simp_leaves’ by gvs[] >>
-  ‘∃ simp_leaves' . determine_termn_list simp_leaves = simp_leaves'’ by gvs[] >>
-  
-  rgs[] >>
-  (res_tac) >>
-  
-  gvs[non_term_leaf_updt_rec, non_term_leaf_updt_concat]
-QED                           
+                            
 
 
 

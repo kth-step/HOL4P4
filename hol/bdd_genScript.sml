@@ -349,18 +349,19 @@ End
         
 Definition order_hold_def:
   order_hold labels xl n n' =
-  ∀ i i' x x' p p' lbl.
+  ∀ i i' x x' p p' (* lbl *).
   (ALOOKUP labels n  =  SOME (non_termn(SOME x,  p )) ∧
    ALOOKUP labels n' =  SOME (non_termn(SOME x', p')) ∧
    INDEX_OF x  xl = SOME i ∧
    INDEX_OF x' xl = SOME i' 
    ⇒ 
    i' < i)
-  ∧
+ (* ∧
   (ALOOKUP labels n  =  SOME (non_termn(SOME x,  p )) ∧
    ALOOKUP labels n' =  SOME lbl ==>
    is_lbl_leaf(lbl)
   )
+  *)
 End
            
 
