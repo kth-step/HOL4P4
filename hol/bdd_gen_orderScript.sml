@@ -466,7 +466,7 @@ Proof
         rgs[] >>
 
 
-        imp_res_tac index_of_shifted_backwards
+        imp_res_tac index_of_shifted_backwards >>
         ‘INDEX_OF x vars_consumed = SOME (i − 1)’ by (imp_res_tac index_of_shifted_backwards >> gvs[]) >>
         ‘INDEX_OF x' vars_consumed = SOME (i' − 1)’ by (imp_res_tac index_of_shifted_backwards >> gvs[]>> metis_tac[]) >>
         rgs[]
