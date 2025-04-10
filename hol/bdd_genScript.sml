@@ -422,7 +422,7 @@ End
 Definition consumed_dom_bdd_def:
   consumed_dom_bdd vars_consumed ((root,edges,labels):('a,'b)BDD) = 
   ∀ n pred x.
-    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇔
+    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇒
     MEM x vars_consumed
 End        
 
