@@ -176,7 +176,7 @@ QED
 
 Theorem falsified_assump_triv1:
   ∀ simp_leaves' new_labels new_edges c n n' n''.          
-    c > n' ∧    
+    (c > n' ∨ c > n'') ∧    
     mk_new_labels simp_leaves' c = new_labels ∧
     mk_new_edges simp_leaves' c = new_edges ∧
     ALOOKUP new_edges n = SOME (n',n'')
@@ -243,7 +243,7 @@ Theorem internal_old_edges_are_the_same_as_updated:
     range_c c (r,edges,labels) ∧
     mk_new_edges simp_leaves' c = new_edges ∧
     mk_new_labels simp_leaves' c = new_labels ∧                           
-    ALOOKUP labels n' = SOME x ∧        
+    (ALOOKUP labels n' = SOME x ∨ ALOOKUP labels n'' = SOME x) ∧        
     ALOOKUP (edges ⧺ new_edges) n = SOME (n',n'') ⇒
     ALOOKUP edges n = SOME (n',n'')
 Proof
@@ -252,7 +252,9 @@ Proof
   rgs[AllCaseEqs()] >>
   rgs[] >>
   
-  ‘MEM n' (MAP FST labels)’ by (imp_res_tac ALOOKUP_MEM >> imp_res_tac mem_fst_snd >> gvs[]) >>       
+  ORELSE (‘MEM n' (MAP FST labels)’ by (imp_res_tac ALOOKUP_MEM >> imp_res_tac mem_fst_snd >> gvs[]) ,
+          ‘MEM n'' (MAP FST labels)’ by (imp_res_tac ALOOKUP_MEM >> imp_res_tac mem_fst_snd >> gvs[])) >>       
+
   rgs[range_c_def] >>                                           
   rgs[EVERY_MEM] >>
   res_tac >>
@@ -269,7 +271,7 @@ Theorem old_layer_stays_ordered_lemma:
   ALL_DISTINCT (h::vars_consumed) ∧
   consumed_dom_bdd vars_consumed (r,edges,labels) ∧
   BDD_ordered (r,edges,labels) vars_consumed ∧
-  ALOOKUP edges n = SOME (n',n'') ∧
+  (ALOOKUP edges n = SOME (n',n'') ∨ ALOOKUP edges n = SOME (n'',n'))  ∧
   ALOOKUP labels n = SOME (non_termn (SOME x,p)) ∧
   ALOOKUP labels n' = SOME (non_termn (SOME x',p')) ∧
   INDEX_OF x (h::vars_consumed) = SOME i ∧
@@ -278,9 +280,13 @@ Theorem old_layer_stays_ordered_lemma:
 Proof
   rpt strip_tac >>
   
-  rgs[BDD_ordered_def] >>
+  rgs[BDD_ordered_def] >|[
   first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘n'’, ‘n''’])) >>
-  rgs[] >>
+  rgs[]
+  ,
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘n''’, ‘n'’])) >>
+  rgs[] 
+  ] >>
   
   gvs[order_hold_def] >>
   
@@ -311,7 +317,7 @@ QED
 
 
         
-Theorem order_translation_inter_children:
+Theorem order_translation_inter_children_l:
   ∀ r edges labels r'' edges'' labels'' h c c' n n' n'' vars_consumed rec.
     range_c c (r,edges,labels) ∧
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
@@ -486,6 +492,185 @@ QED
 
 
 
+(* TODO: merge these two using lists tactics*)
+        
+Theorem order_translation_inter_children_r:
+  ∀ r edges labels r'' edges'' labels'' h c c' n n' n'' vars_consumed rec.
+    range_c c (r,edges,labels) ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    ALL_DISTINCT (h::vars_consumed) ∧
+    BDD_WF (r,edges,labels) ∧             
+    BDD_ordered (r,edges,labels) vars_consumed ∧
+    edges ≠ [] ∧
+    body_of_mk rec (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ∧
+    ALOOKUP edges'' n = SOME (n',n'') ⇒
+    (*order_hold labels'' (h::vars_consumed) n n' ∧ *)
+     order_hold labels'' (h::vars_consumed) n n'' 
+Proof
+                        
+  rpt gen_tac >>
+  strip_tac >>
+  
+  assume_tac WFness_translation_inter >> 
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘(r,edges,labels)’, ‘(r'',edges'',labels'')’, ‘rec’, ‘c’, ‘c'’,‘h’])) >>
+  rgs[] >>
+  
+  gvs[body_of_mk_def] >>
+  gvs[AllCaseEqs()]>>
+  body_of_mk_pred_tac >>
+  
+  (* First: we know that the parent, n, is
+     indeed defined and its children are in the edges, and
+     indeed the parent has a label of (x,p)*)
+  
+  ‘MEM n (dom_range_edges (edges ⧺ new_edges))’ by imp_res_tac lookup_edges_in_domain >>
+  
+  ‘lookup_is_some (edges ⧺ new_edges) n’ by rgs[lookup_is_some_def] >>
+  
+  subgoal ‘∃x p. ALOOKUP (non_term_leaf_updt labels h ⧺ new_labels) n = SOME (non_termn (SOME x,p))’ >-
+   (
+   rgs[BDD_WF_def] >>
+   rgs[lookup_is_some_def] >>
+   rgs[is_lookup_internal_def] 
+   ) >>
+  
+  (* Second: the child could be a leaf, and could be something else.
+     if the child is a leaf, we know that it should not exsist in the
+     vars order simply because they have no x with the property in the labels. *)
+  
+  ‘MEM n'' (dom_range_edges (edges ⧺ new_edges))’ by imp_res_tac lookup_edges_in_domain >>
+  
+  Cases_on ‘ALOOKUP (edges ⧺ new_edges) n''’ >|[
+    (* if the child is a leaf, we need to show it by contradition *)
+    (*according to WFness, this kind of leaf has a label of ntl *)
+    
+    rgs[BDD_WF_def, is_lookup_ntl_def] >>
+    simp[order_hold_def] >> rpt strip_tac 
+    ,
+    (* if not a leaf, then indeed it has a children, those children
+       can be either in old edges or new edges, eitherway can be
+       proved by the order property in teh assumptions *)
+    
+    PairCases_on ‘x'’ >>
+    ‘lookup_is_some (edges ⧺ new_edges) n''’ by rgs[lookup_is_some_def] >>
+    
+    subgoal ‘∃x p. ALOOKUP (non_term_leaf_updt labels h ⧺ new_labels) n'' = SOME (non_termn (SOME x,p))’ >- (imp_res_tac WF_imp_non_leaf_lbl_abs >> gvs[]) >>
+    
+    simp[order_hold_def] >> rpt strip_tac >>
+    rgs[lookup_is_some_def] >>
+    
+    qpat_x_assum ‘ALOOKUP (edges ⧺ new_edges) n'' = SOME (x'0,x'1)’ (fn thm => assume_tac (SIMP_RULE (srw_ss()) [ALOOKUP_APPEND] thm)) >>
+    rgs[AllCaseEqs()] >|[
+        
+        
+        (* if n' in new edges and n is in old*)
+        (* if n is in new edges, we know that its variable in the label was h *)
+        (* we start by showing that n' is in labels, and has a label termin p'',
+           then since it is that, we show that it got updated by non_term_leaf_updt to h,
+           then since it is in labels, then it can't be in new labels as they are distinct,
+         *)
+
+        subgoal ‘ ∃ p . ALOOKUP ntl n'' = SOME p’ >-
+         (
+         imp_res_tac_body >>
+         rgs[] >>
+         
+         assume_tac (INST_TYPE [“:'a” |-> “:num” , “:'b” |-> “:(num#num)” ,
+                                “:'c” |-> “:('a)” ] alookup_map_local_thm)  >>
+         first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘ntl’,‘n''’,‘(x'0,x'1)’])) >>
+         gvs[]
+         ) >>
+
+        subgoal ‘MEM n'' (dom_range_edges (edges))’ >-
+         (
+         irule mem_leaves_in_dom_edges >>
+         imp_res_tac_body >>
+         
+         ‘∃ lbl . ALOOKUP leaves_labels n'' = SOME lbl’ by (imp_res_tac alookup_nonterm_exsists >> gvs[]) >>
+         ‘MEM (n'',lbl) leaves_labels’ by imp_res_tac ALOOKUP_MEM >>
+         ‘MEM n'' (MAP FST leaves_labels)’ by (imp_res_tac mem_fst_snd >> gvs[]) >>
+         ‘MEM n'' leaves’ by gvs[] >>
+         srw_tac [SatisfySimps.SATISFY_ss][]
+         )>>
+
+        (* now we use WFness to show that n' was indeed an ntl in labels *)
+           
+        subgoal ‘∃ p_old . ALOOKUP labels n'' = SOME (non_termn (NONE,p_old))’ >-
+         (
+         irule now_internal_lbl_was_leaf_in_labels >>
+         srw_tac [SatisfySimps.SATISFY_ss][]
+         ) >>
+        
+        
+        subgoal ‘ALOOKUP (non_term_leaf_updt labels h) n'' = SOME (non_termn (SOME h,p_old))’ >-
+         (
+         imp_res_tac lookup_labels_in_updt_none >>
+         first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) 
+         ) >>
+        
+        
+        (* if n is in new edges, we know that its variable in the label was h *)
+        ‘ALOOKUP (non_term_leaf_updt labels h ⧺ new_labels) n'' = SOME (non_termn (SOME h,p_old))’ by rgs[ALOOKUP_APPEND] >>
+        rgs[] >>
+
+              
+        (* this makes i' = 0 *)
+        ‘i' = 0’ by (imp_res_tac index_of_head) >>
+        rgs[] >>
+        
+        (* we need to show that the parent n is in edges, then show that it was already internal leaf, then
+           thus its label is the updated one stays as it is
+           and not in new edges for us to show
+           that x ≠ h
+         *)
+        
+        ‘ALOOKUP edges n = SOME (n',n'')’ by imp_res_tac internal_old_edges_are_the_same_as_updated >>       
+        ‘MEM n (dom_range_edges edges)’ by imp_res_tac lookup_edges_in_domain >>
+        ‘is_lookup_internal labels n’ by ( imp_res_tac WF_imp_non_leaf_lbl >> gvs[is_lookup_internal_def]) >>
+        rgs[is_lookup_internal_def] >>
+
+        ‘x'' = x’ by imp_res_tac lookup_labels_in_updt_append >>
+  
+        rgs[consumed_dom_bdd_def] >>
+        res_tac >>
+        
+        ‘x ≠ h’ by metis_tac[] >>
+        rgs[] >>
+        
+        ‘i>0’ by imp_res_tac index_of_not_shifted >>
+        rgs[]
+           
+        ,
+        
+
+        (* if n' in edges , we need to show that n was also in edges *)
+        (* first we work with n' *)
+           
+        ‘MEM n'' (dom_range_edges edges)’ by imp_res_tac lookup_edges_in_domain >>
+        ‘is_lookup_internal labels n''’ by ( imp_res_tac WF_imp_non_leaf_lbl >> gvs[is_lookup_internal_def]) >>
+        rgs[is_lookup_internal_def] >>
+        
+        
+        (* second  we work with n *)
+        ‘ALOOKUP edges n = SOME (n',n'')’ by imp_res_tac internal_old_edges_are_the_same_as_updated >>       
+        ‘MEM n (dom_range_edges edges)’ by imp_res_tac lookup_edges_in_domain >>
+        ‘is_lookup_internal labels n’ by ( imp_res_tac WF_imp_non_leaf_lbl >> gvs[is_lookup_internal_def]) >>
+        rgs[is_lookup_internal_def] >>
+        
+        ‘x'³' = x ∧ x'' = x' ∧ p'³' = p ∧ p'' = p' ’ by (imp_res_tac lookup_labels_in_updt_append >> gvs[]) >>
+        
+        metis_tac[old_layer_stays_ordered_lemma, ALL_DISTINCT]
+      ]              
+  ]
+QED
+
+
+
+
+
+        
+
+
 Theorem orderd_edges_empty_mkbody_imp_orderd:
   ∀ r edges labels r'' edges'' labels'' rec c c' h vars_consumed.
     range_c c (r,[],labels) ∧
@@ -537,8 +722,9 @@ Theorem order_translation_inter:
   ∀ vars rec vars_consumed (BDD:('a,'b)BDD) BDD'' c c' h.
     range_c c BDD ∧
     BDD_WF BDD ∧
-    BDD_WF BDD'' ∧
     BDD_ordered BDD vars_consumed ∧
+    consumed_dom_bdd vars_consumed BDD ∧
+    ALL_DISTINCT (h::vars_consumed) ∧
     body_of_mk rec BDD h c = SOME (BDD'',c') ⇒
     BDD_ordered BDD'' (h::vars_consumed) 
 Proof
@@ -555,13 +741,58 @@ Proof
     srw_tac [SatisfySimps.SATISFY_ss][]
     ,
     simp[BDD_ordered_def] >>  rpt strip_tac >|[
-      cheat
-      ,
-      cheat
-    ]
+        imp_res_tac order_translation_inter_children_l
+        ,
+        imp_res_tac order_translation_inter_children_r             
+      ]
   ]
 QED
 
+
+
+
+
+
+
+
+Theorem consumed_dom_bdd_inter:
+  ∀ r edges labels r'' edges'' labels'' c c' h vars_consumed rec.
+ALL_DISTINCT (h::vars_consumed) ∧
+range_c c (r,edges,labels)  ∧
+BDD_WF (r,edges,labels) ∧
+BDD_WF (r'',edges'',labels'') ∧
+consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+body_of_mk rec (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ⇒                 
+consumed_dom_bdd (h::vars_consumed) (r'',edges'',labels'')
+Proof
+  
+rpt strip_tac >>
+gvs[body_of_mk_def] >>
+gvs[AllCaseEqs()]>>
+body_of_mk_pred_tac >>
+
+simp [consumed_dom_bdd_def] >>
+rpt strip_tac >>
+
+rgs[is_lookup_internal_def] >>
+rgs[ALOOKUP_APPEND] >>
+rgs[AllCaseEqs()] >|[
+    ‘ALL_DISTINCT (MAP FST simp_leaves')’ by cheat >>
+    imp_res_tac new_labels_are_not_internal
+    ,
+    imp_res_tac lookup_non_term_leaf_updt_internal >>
+    rgs[consumed_dom_bdd_def] >>
+    res_tac >> gvs[]
+  ]
+QED
+
+
+
+
+
+
+
+                               
 
 
         
@@ -570,8 +801,11 @@ Theorem order_translation:
     range_c c BDD ∧
     BDD_ordered BDD vars_consumed ∧
     BDD_WF BDD ∧
+    consumed_dom_bdd vars_consumed BDD ∧
+    ALL_DISTINCT ((REVERSE vars)++vars_consumed) ∧
     (SOME BDD' = mk_BDDPred rec BDD vars_consumed vars c) ⇒
-    BDD_ordered BDD' ((REVERSE vars)++vars_consumed)
+    BDD_ordered BDD' ((REVERSE vars)++vars_consumed) (* ∧
+    consumed_dom_bdd vars_consumed BDD' *)
 Proof
   Induct >| [
     rpt strip_tac >>
@@ -594,10 +828,18 @@ Proof
     ‘BDD_WF (q0,q1,q2)’ by imp_res_tac WFness_translation_inter >>
     ‘range_c r'' (q0,q1,q2)’ by imp_res_tac WFness_range_c_inter >>
     
-    
-    
-    ‘BDD_ordered (q0,q1,q2) (h::vars_consumed)’ by imp_res_tac order_translation_inter >> 
-    res_tac >>
+        
+    ‘ALL_DISTINCT (h::vars_consumed)’ by cheat >>
+    ‘BDD_ordered (q0,q1,q2) (h::vars_consumed)’ by imp_res_tac order_translation_inter >>
+    ‘consumed_dom_bdd (h::vars_consumed) (q0,q1,q2)’ by imp_res_tac consumed_dom_bdd_inter >>
+                      
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘rec’, ‘(h::vars_consumed)’, ‘(q0,q1,q2)’, ‘(r',edges',labels')’, ‘r''’])) >>
+
+    ‘ALL_DISTINCT (REVERSE vars ⧺ h::vars_consumed)’ by cheat >>
+    rgs[] >>
+
+                  
+            
     ‘REVERSE vars ++ h::vars_consumed = REVERSE vars ++ [h] ++ vars_consumed’ by gvs[Once CONS_APPEND] >>
     metis_tac []
   ]    
