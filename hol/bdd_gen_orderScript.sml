@@ -55,6 +55,19 @@ val imp_res_tac_body =
 
 
 
+
+val imp_res_tac_distinct = 
+(imp_res_tac all_distinct_leaves >>
+ imp_res_tac all_distinct_leaves_labels >>
+ imp_res_tac all_distinct_ntl >>
+ imp_res_tac all_distinct_sub >>
+ imp_res_tac all_distinct_simp >>
+ imp_res_tac all_distinct_determine >>
+ imp_res_tac all_distinct_mk_edges >>
+ imp_res_tac all_distinct_non_term_leaf_updt >>
+ imp_res_tac all_distinct_mk_labels
+);
+
                                                                 
 Theorem body_of_mk_output:
   ∀  r r'' edges edges'' labels labels''  c c' h rec .
@@ -757,27 +770,28 @@ QED
 
 Theorem consumed_dom_bdd_inter:
   ∀ r edges labels r'' edges'' labels'' c c' h vars_consumed rec.
-ALL_DISTINCT (h::vars_consumed) ∧
-range_c c (r,edges,labels)  ∧
-BDD_WF (r,edges,labels) ∧
-BDD_WF (r'',edges'',labels'') ∧
-consumed_dom_bdd vars_consumed (r,edges,labels) ∧
-body_of_mk rec (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ⇒                 
-consumed_dom_bdd (h::vars_consumed) (r'',edges'',labels'')
+    ALL_DISTINCT (h::vars_consumed) ∧
+    range_c c (r,edges,labels)  ∧
+    BDD_WF (r,edges,labels) ∧
+    BDD_WF (r'',edges'',labels'') ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    body_of_mk rec (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ⇒                 
+    consumed_dom_bdd (h::vars_consumed) (r'',edges'',labels'')
 Proof
   
-rpt strip_tac >>
-gvs[body_of_mk_def] >>
-gvs[AllCaseEqs()]>>
-body_of_mk_pred_tac >>
-
-simp [consumed_dom_bdd_def] >>
-rpt strip_tac >>
-
-rgs[is_lookup_internal_def] >>
-rgs[ALOOKUP_APPEND] >>
-rgs[AllCaseEqs()] >|[
-    ‘ALL_DISTINCT (MAP FST simp_leaves')’ by cheat >>
+  rpt strip_tac >>
+  gvs[body_of_mk_def] >>
+  gvs[AllCaseEqs()]>>
+  body_of_mk_pred_tac >>
+  
+  simp [consumed_dom_bdd_def] >>
+  rpt strip_tac >>
+  
+  rgs[is_lookup_internal_def] >>
+  rgs[ALOOKUP_APPEND] >>
+  rgs[AllCaseEqs()] >|[
+   ‘ALL_DISTINCT (MAP FST simp_leaves')’ by ( rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
+    
     imp_res_tac new_labels_are_not_internal
     ,
     imp_res_tac lookup_non_term_leaf_updt_internal >>
@@ -829,19 +843,17 @@ Proof
     ‘range_c r'' (q0,q1,q2)’ by imp_res_tac WFness_range_c_inter >>
     
         
-    ‘ALL_DISTINCT (h::vars_consumed)’ by cheat >>
+    ‘ALL_DISTINCT (h::vars_consumed)’ by gvs[ALL_DISTINCT_APPEND] >>
     ‘BDD_ordered (q0,q1,q2) (h::vars_consumed)’ by imp_res_tac order_translation_inter >>
     ‘consumed_dom_bdd (h::vars_consumed) (q0,q1,q2)’ by imp_res_tac consumed_dom_bdd_inter >>
                       
     first_x_assum (strip_assume_tac o (Q.SPECL [‘rec’, ‘(h::vars_consumed)’, ‘(q0,q1,q2)’, ‘(r',edges',labels')’, ‘r''’])) >>
-
-    ‘ALL_DISTINCT (REVERSE vars ⧺ h::vars_consumed)’ by cheat >>
     rgs[] >>
+          
+    ‘REVERSE vars ⧺ h::vars_consumed = REVERSE vars ++ [h] ++ vars_consumed’ by gvs[Once CONS_APPEND] >>
 
-                  
-            
-    ‘REVERSE vars ++ h::vars_consumed = REVERSE vars ++ [h] ++ vars_consumed’ by gvs[Once CONS_APPEND] >>
-    metis_tac []
+    ‘ALL_DISTINCT (REVERSE vars ⧺ h::vars_consumed)’ by metis_tac[] >>
+    gvs[] 
   ]    
 QED
 
