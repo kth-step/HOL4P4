@@ -50,7 +50,19 @@ val imp_res_tac_body =
  imp_res_tac mk_body_map6);
 
 
+val imp_res_tac_distinct = 
+(imp_res_tac all_distinct_leaves >>
+ imp_res_tac all_distinct_leaves_labels >>
+ imp_res_tac all_distinct_ntl >>
+ imp_res_tac all_distinct_sub >>
+ imp_res_tac all_distinct_simp >>
+ imp_res_tac all_distinct_determine >>
+ imp_res_tac all_distinct_mk_edges >>
+ imp_res_tac all_distinct_non_term_leaf_updt >>
+ imp_res_tac all_distinct_mk_labels
+);
 
+        
 Theorem WFness_range_c_inter:
   ∀ BDD BDD'' c c' h rec.
     range_c c BDD ∧
@@ -238,7 +250,7 @@ Proof
           
           ‘∃ lbl . ALOOKUP leaves_labels n = SOME lbl’ by (imp_res_tac alookup_nonterm_exsists >> gvs[]) >>
           imp_res_tac mk_body_map2 >>
-          ‘ALL_DISTINCT (MAP FST leaves_labels)’ by cheat >>
+          ‘ALL_DISTINCT (MAP FST leaves_labels)’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
           ‘lbl = non_termn (NONE,p')’ by imp_res_tac lbl_pred_rel_extract_nontermn >>
           rgs[] >>
           
@@ -298,7 +310,7 @@ Proof
     rgs[AllCaseEqs()] >| [
         (* n here is in the newly created labels and edges, basically from c *)     
         imp_res_tac new_labels_are_not_internal >>
-        ‘ALL_DISTINCT (MAP FST simp_leaves')’ by cheat >>            
+        ‘ALL_DISTINCT (MAP FST simp_leaves')’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>         
         gvs[]
         ,
 
@@ -306,7 +318,7 @@ Proof
         imp_res_tac lookup_non_term_leaf_updt_internal >|[
                     
             Cases_on ‘MEM n (dom_range_edges edges)’ >|[
-              ‘ALL_DISTINCT (MAP FST edges)’ by cheat >>
+              ‘ALL_DISTINCT (MAP FST edges)’ by (gvs[ALL_DISTINCT_APPEND]) >>
               ‘MEM n leaves’ by imp_res_tac leaves_in_get_leaves >>
               ‘ALOOKUP ntl n = SOME p’ by imp_res_tac leaves_in_ntl_lemma >>
       
@@ -339,12 +351,12 @@ Proof
               and this means in labels og this (n = c) which breaks the distinct, *)
 
               assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
-              ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+              ‘ALL_DISTINCT (MAP FST new_edges)’ by (gvs[ALL_DISTINCT_APPEND]) >>
               first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
               rgs[] >>
                     
               (
-              ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by cheat >>
+              ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
               ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[] ) >>
               
               ‘MEM (n,lbl) new_labels’ by (imp_res_tac ALOOKUP_MEM) >>
@@ -385,12 +397,12 @@ Proof
                    and this means in labels og this (n = c) which breaks the distinct, *)
 
                 assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
-                ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+                ‘ALL_DISTINCT (MAP FST new_edges)’ by (gvs[ALL_DISTINCT_APPEND]) >>
                 first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
                 rgs[] >>
                 
                 (
-                ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by cheat >>
+                ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
                 ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[]) >>
              (*   
                 ‘MEM (n,non_termn (SOME x,p)) new_labels’ by (imp_res_tac ALOOKUP_MEM) >>
@@ -471,12 +483,12 @@ Proof
                and this means in labels og this (n = c) which breaks the distinct, *)
             
             assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
-            ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST new_edges)’ by (gvs[ALL_DISTINCT_APPEND]) >>
             first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
             rgs[] >>
             
             (
-            ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
             ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[]) >>
             imp_res_tac ALOOKUP_MEM >>
             imp_res_tac mem_fst_snd >>
@@ -496,7 +508,7 @@ Proof
                  
 
             assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
-            ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST new_edges)’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
             first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
             rgs[]                         
           ]
@@ -514,7 +526,7 @@ Proof
       imp_res_tac lookup_non_term_leaf_updt_internal >|[
           Cases_on ‘MEM n (dom_range_edges edges)’ >|[
 
-            ‘ALL_DISTINCT (MAP FST edges)’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST edges)’ by (gvs[ALL_DISTINCT_APPEND]) >>
             ‘MEM n leaves’ by (imp_res_tac leaves_in_get_leaves >> metis_tac[]) >>
             ‘ALOOKUP ntl n = SOME p1’ by imp_res_tac leaves_in_ntl_lemma >>
             
@@ -544,12 +556,12 @@ Proof
             Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
             
             assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
-            ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST new_edges)’ by (gvs[ALL_DISTINCT_APPEND]) >>
             first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
             rgs[] >>
             
             (
-            ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
             ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[] ) >>
             
             ‘MEM (n,lbl) new_labels’ by (imp_res_tac ALOOKUP_MEM) >>
@@ -566,35 +578,35 @@ Proof
               rgs[BDD_WF_def] >>
               gvs[is_lookup_ntl_def]
               ,
-                     rgs[] >>
-                imp_res_tac get_leaves_in_nodes >>
-                ‘ALOOKUP leaves_labels n = NONE’ by imp_res_tac not_in_leaves_not_in_res >>
-                subgoal ‘ALOOKUP new_edges n = NONE’ >-
-                 (
-                 imp_res_tac_body >>
-                 rgs[ALOOKUP_NONE] >>
-                 imp_res_tac extract_nonterm_mem_neg >>
-                 gvs[]
-                 ) >>
-                
-                imp_res_tac dom_range_edges_in_sec >>
-                
-                Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
-                assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
-                ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
-                first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
-                rgs[] >>
-                
-                (
-                ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by cheat >>
-                ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[]) >>
-                imp_res_tac ALOOKUP_MEM >>
-                imp_res_tac mem_fst_snd >>
-                rgs[] >>
-                
-                rgs[ALL_DISTINCT_APPEND]
-                   
-                )
+              rgs[] >>
+              imp_res_tac get_leaves_in_nodes >>
+              ‘ALOOKUP leaves_labels n = NONE’ by imp_res_tac not_in_leaves_not_in_res >>
+              subgoal ‘ALOOKUP new_edges n = NONE’ >-
+               (
+               imp_res_tac_body >>
+               rgs[ALOOKUP_NONE] >>
+               imp_res_tac extract_nonterm_mem_neg >>
+               gvs[]
+               ) >>
+              
+              imp_res_tac dom_range_edges_in_sec >>
+              
+              Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
+              assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
+              ‘ALL_DISTINCT (MAP FST new_edges)’ by (gvs[ALL_DISTINCT_APPEND]) >>
+              first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
+              rgs[] >>
+              
+              (
+              ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
+              ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[]) >>
+              imp_res_tac ALOOKUP_MEM >>
+              imp_res_tac mem_fst_snd >>
+              rgs[] >>
+              
+              rgs[ALL_DISTINCT_APPEND]
+                 
+              )
             ]
         ]
     ]
@@ -645,7 +657,7 @@ Proof
         Cases_on ‘x’ >> rgs[] >>
         Cases_on ‘p’ >> rgs[] >| [
             (*termn*)
-            ‘ALL_DISTINCT (MAP FST (non_term_leaf_updt labels h))’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST (non_term_leaf_updt labels h))’ by (gvs[ALL_DISTINCT_APPEND]) >>
             imp_res_tac non_term_leaf_updt_imp_term >>
             Cases_on ‘MEM n (dom_range_edges edges)’ >> rgs[] >|[
               rgs[BDD_WF_def] >>
@@ -660,7 +672,7 @@ Proof
               
               Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
               
-              ‘ALL_DISTINCT (MAP FST leaves_labels)’ by cheat >>
+              ‘ALL_DISTINCT (MAP FST leaves_labels)’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
               imp_res_tac mk_body_map1 >>
                           
               ‘ALOOKUP leaves_labels n = SOME (termn (q,r'))’ by imp_res_tac leaves_labels_same_in_labels_some >>
@@ -686,12 +698,12 @@ Proof
               Cases_on ‘ALOOKUP new_edges n’ >> rgs[] >>
               
               assume_tac (INST_TYPE [“:'a” |-> “:num”] leaf_parents_lookup)  >>
-              ‘ALL_DISTINCT (MAP FST new_edges)’ by cheat >>
+              ‘ALL_DISTINCT (MAP FST new_edges)’ by gvs[ALL_DISTINCT_APPEND] >>
               first_x_assum (strip_assume_tac o (Q.SPECL [‘new_edges’,‘n’])) >>
               rgs[] >>
               
               (
-              ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by cheat >>
+              ‘ALL_DISTINCT (MAP FST (mk_new_labels simp_leaves' c))’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
               ‘∃ lbl. ALOOKUP new_labels n = SOME lbl ’ by (imp_res_tac lookup_new_edges_labels_thm1 >> gvs[]) >>
               imp_res_tac ALOOKUP_MEM >>
               imp_res_tac mem_fst_snd >>
@@ -704,7 +716,7 @@ Proof
             ,
             (*non termn*)
             strip_tac >>
-            ‘ALL_DISTINCT (MAP FST (non_term_leaf_updt labels h))’ by cheat >>
+            ‘ALL_DISTINCT (MAP FST (non_term_leaf_updt labels h))’ by gvs[ALL_DISTINCT_APPEND] >>
             imp_res_tac non_term_leaf_updt_imp_not_ntl >>
             Cases_on ‘q’ >> gvs[]
           ]                  
