@@ -375,7 +375,36 @@ End
 
 
 
+(******************************************************)
+(*    other definitions must hold out of our control  *)
+(******************************************************)
+
      
+Definition consumed_dom_bdd_def:
+  consumed_dom_bdd vars_consumed ((root,edges,labels):('a,'b)BDD) = 
+  ∀ n pred x.
+    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇒
+    MEM x vars_consumed
+End        
+
+
+Definition mv_dom_bdd_def:
+  mv_dom_bdd mv ((root,edges,labels):('a,'b)BDD) = 
+  ∀ n pred x.
+    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇒
+    lookup_is_some mv x
+End
+
+
+
+    
+Definition range_c_def:
+  range_c c ((r,edges,labels):('a,'b)BDD) =
+   (EVERY (\n. c > n) (MAP FST labels))
+End
+
+
+
 
 (************************************************)
 (* generalised definitions for BDD correctness  *)
@@ -401,11 +430,12 @@ Definition get_prop_def:
 End
 
 
-
+(*TODO: Double check with Roberto mv_dom_bdd*)
 Definition correct_sem_def:
   correct_sem rec (BDD:('a,'b)BDD)  =
   ∀ n mv b r edges labels .
     BDD = (r,edges,labels) ∧
+    mv_dom_bdd mv BDD  ∧
     BDD_sem rec BDD mv n b ⇒
     b = op_sem rec (get_prop labels n) mv         
 End  
@@ -414,33 +444,7 @@ End
 
 
 
-(******************************************************)
-(*    other definitions must hold out of our control  *)
-(******************************************************)
 
-     
-Definition consumed_dom_bdd_def:
-  consumed_dom_bdd vars_consumed ((root,edges,labels):('a,'b)BDD) = 
-  ∀ n pred x.
-    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇒
-    MEM x vars_consumed
-End        
-
-
-Definition mv_dom_bdd_def:
-  mv_dom_bdd mv ((root,edges,labels):('a,'b)BDD) = 
-  ∀ n pred x.
-    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇔
-    lookup_is_some mv x
-End
-
-
-
-    
-Definition range_c_def:
-  range_c c ((r,edges,labels):('a,'b)BDD) =
-   (EVERY (\n. c > n) (MAP FST labels))
-End
 
 
      
@@ -508,7 +512,40 @@ End
 
 
 
-        
 
+(******************************************************)
+(*                    MERGE Def                       *)
+(******************************************************)
+
+
+Definition mergable_def:        
+mergable ((r,edges,labels):('a,'b) BDD)  n n' = 
+(n≠n' ∧ ALOOKUP edges n = ALOOKUP edges n' ∧
+ ALOOKUP labels n = ALOOKUP labels n' ∧ ALOOKUP labels n'  ≠ NONE )
+End
+
+
+        
+Definition merge_edges_def:
+  merge_edges (edges:edges) n n' =
+   MAP (\(a,b,c). ( a, if (b=n' ∧ c=n') then (n,n)
+                 else if (b=n') then (n,c)
+                 else if (c=n') then (b,n)
+                     else (b,c))) edges 
+End
+
+
+
+Definition merge_def:
+  merge ((r,edges,labels):('a,'b) BDD) n n' =
+  let edges' = merge_edges (edges:edges) n n' in
+    let edges'' = ADELKEY n' edges' in
+      let labels' = ADELKEY n' labels in
+          (r,edges'',labels')
+End
+        
+(*
+EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
+*)
                                              
 val _ = export_theory ();
