@@ -45,27 +45,27 @@ val _ = Hol_datatype `
 (*   here 'a would be pred and 'b would be bool   *)
 (**************************************************)
 
-Definition Sem_rule_def:
-  (Sem_rule (Var x) mv = (ALOOKUP mv x) ) /\
-  (Sem_rule True _ = SOME T) /\
-  (Sem_rule False _ = SOME F) /\
-  (Sem_rule (And p q) mv = 
-   case (Sem_rule p mv, Sem_rule q mv)  of
+Definition sem_pred_def:
+  (sem_pred (Var x) mv = (ALOOKUP mv x) ) /\
+  (sem_pred True _ = SOME T) /\
+  (sem_pred False _ = SOME F) /\
+  (sem_pred (And p q) mv = 
+   case (sem_pred p mv, sem_pred q mv)  of
    | (SOME b, SOME b') => SOME (b ∧ b')
    | (_,_) => NONE
   ) /\
-  (Sem_rule (Or p q) mv = 
-   case (Sem_rule p mv, Sem_rule q mv)  of
+  (sem_pred (Or p q) mv = 
+   case (sem_pred p mv, sem_pred q mv)  of
    | (SOME b,SOME b') => SOME (b ∨ b')
    | (_,_) => NONE
   ) /\
-  (Sem_rule (Not p) mv = 
-   case (Sem_rule p mv)  of
+  (sem_pred (Not p) mv = 
+   case (sem_pred p mv)  of
    | SOME b => SOME (~b)
    | _ => NONE
   ) /\
-  (Sem_rule (Implies p q) mv = 
-   case (Sem_rule p mv, Sem_rule q mv)  of
+  (sem_pred (Implies p q) mv = 
+   case (sem_pred p mv, sem_pred q mv)  of
    | (SOME b,SOME b') => SOME (b ⇒ b')
    | (_,_) => NONE
   ) 
@@ -134,7 +134,6 @@ End
    
 
 
-(* move to other file the specialized *)
 Definition pred_final_def:
  pred_final p = 
  case p of
@@ -147,7 +146,7 @@ End
 Definition pred_structure_def:
   pred_structure =
   <|
-    sem := Sem_rule;
+    sem := sem_pred;
     sub := mk_substitute_pred;
     simp := simp_pred;
     final := pred_final;
@@ -180,13 +179,13 @@ Proof
 QED
 
 
-Theorem mem_imp_sem_rule:        
+Theorem mem_imp_sem_pred:        
   ∀p mv. (∀x. MEM x (FV p) ⇒ (∃b. ALOOKUP mv x = SOME b)) ⇒
-         Sem_rule p mv ≠ NONE ∧ ∃ b' . Sem_rule p mv = SOME b'
+         sem_pred p mv ≠ NONE ∧ ∃ b' . sem_pred p mv = SOME b'
 Proof
   Induct >>
   rw[simp_pred_def, FV_def] >> gvs[AllCaseEqs()] >>
-  gvs[Sem_rule_def, simp_pred_def] >>
+  gvs[sem_pred_def, simp_pred_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
 QED
 
@@ -195,23 +194,23 @@ QED
 
 Theorem simplification_correct:
   ∀p mv. (∀x. MEM x (FV p) ⇒ (∃b. ALOOKUP mv x = SOME b)) ⇒
-         Sem_rule p mv = Sem_rule (simp_pred p) mv
+         sem_pred p mv = sem_pred (simp_pred p) mv
 Proof
   Induct_on `p` >-
-   (rw[simp_pred_def, Sem_rule_def]) >-
-   (rw[simp_pred_def, Sem_rule_def]) >-
-   (rw[simp_pred_def, Sem_rule_def]) >>
+   (rw[simp_pred_def, sem_pred_def]) >-
+   (rw[simp_pred_def, sem_pred_def]) >-
+   (rw[simp_pred_def, sem_pred_def]) >>
 
   rpt strip_tac >>
-  imp_res_tac mem_imp_sem_rule >>
+  imp_res_tac mem_imp_sem_pred >>
 
   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘mv’])) >>
   gvs[FV_def] >>
-  gvs[Sem_rule_def] >>   
+  gvs[sem_pred_def] >>   
 
-  rw[Sem_rule_def, simp_pred_def] >>   
+  rw[sem_pred_def, simp_pred_def] >>   
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs[Sem_rule_def, simp_pred_def] >>
+  gvs[sem_pred_def, simp_pred_def] >>
   
   first_x_assum (strip_assume_tac o (Q.SPECL [‘s’])) >>
   imp_res_tac simp_pred_imp_mem >>
