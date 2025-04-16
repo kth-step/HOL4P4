@@ -212,22 +212,75 @@ fun transform_actx dict actx =
     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
     val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
    in
-    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f”, “v1model_output_f':v1model_ascope' output_f”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
+    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
    end
   else raise Fail "transform_actx failed to translate actx"
  end
 ;
 
-(* TODO: This is temporary solution *)
-fun transform_ctrl_empty dict ctrl =
+fun transform_match_fun dict match_fun =
  let
-  val ctrl'_opt = rhs $ concl $ EVAL “transform_ctrl_empty ^dict ^ctrl”
+  val (f, prio) = dest_pair match_fun
+  val (t1, t2) = dest_abs f
+  val t_name = fst $ dest_var t1
+  val t1' = mk_var (t_name, “:e' list”)
+  val (match_all, t3) = dest_comb t2
+  val (zip, t4) = dest_comb t3
+  val (map_tm, s_list) = dest_pair t4
+  val map_tm' = “MAP v'_of_e' ^t1'”;
+  val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
  in
-  if is_some ctrl'_opt
-  then
-   dest_some $ ctrl'_opt
-  else raise Fail "transform_ctrl_empty failed to translate control plane configuration (one or more table names could not be found in the dictionary)"
+  if is_some s'_list_opt
+  then mk_pair (mk_abs (t1', mk_comb (“match_all'”, mk_zip (map_tm', dest_some s'_list_opt))), prio)
+  else raise Fail "transform_match_fun failed to translate set expression list"
  end
+;
+
+fun transform_entries dict [] = []
+  | transform_entries dict (h::t) =
+ let
+  val (match_fun, action) = dest_pair h
+  val (name, args) = dest_pair action
+  val name'_opt = rhs $ concl $ EVAL “ALOOKUP ^dict ^name”
+ in
+  if is_some name'_opt
+  then
+   let
+    val name' = dest_some name'_opt
+    val argsl'_opt = rhs $ concl $ EVAL “transform_e ^dict (e_list ^args)”
+   in
+    if is_some argsl'_opt
+    then
+     let
+      (* TODO: hack, make syntax function *)
+      val args' = snd $ dest_comb $ dest_some argsl'_opt
+      val res = transform_entries dict t
+     in
+      ((mk_pair (transform_match_fun dict match_fun, mk_pair (name', args')) )::res)
+     end
+    else raise Fail "transform_entries failed to translate action arguments"
+   end
+  else raise Fail "transform_entries failed to translate action name (one or more action names could not be found in the dictionary)"
+ end
+;
+
+fun transform_tbl dict tbl =
+ let
+  val (name, entries) = dest_pair tbl
+  val name'_opt = rhs $ concl $ EVAL “ALOOKUP ^dict ^name”
+ in
+  if is_some name'_opt
+  then
+   let
+    val entries' = transform_entries dict (fst $ dest_list entries)
+   in
+    mk_pair (dest_some name'_opt, mk_list (entries', “:((e' list -> bool) # num) # word64 # e' list”))
+   end
+  else raise Fail "transform_tbl failed to translate table name (one or more table names could not be found in the dictionary)"
+ end
+;
+fun transform_ctrl dict ctrl =
+ mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:word64 # (((e' list -> bool) # num) # word64 # e' list) list”)
 ;
 
 (* TODO: Updated ctrl as argument, for now... *)
@@ -239,7 +292,9 @@ fun transform_program dict actx astate =
  let
   val (dict', actx') = transform_actx dict actx
   val ctrl = #4 $ p4_testLib.dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate;
-  val ctrl' = transform_ctrl_empty dict' ctrl
+  (* TODO: Note that ctrl has to be translated in SML due to the matching function, which cannot be
+   * be syntactically treated in HOL4 *)
+  val ctrl' = transform_ctrl dict' ctrl
   val astate'_opt = rhs $ concl $ EVAL “transform_astate ^dict' ^astate ^ctrl'”
  in
   if is_some astate'_opt

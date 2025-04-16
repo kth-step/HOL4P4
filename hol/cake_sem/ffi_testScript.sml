@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_exec_sem_cake_test2";
+val _ = new_theory "ffi_test";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;

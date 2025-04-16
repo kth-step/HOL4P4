@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_exec_sem_cake_test3";
+val _ = new_theory "cake_baseline";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
@@ -21,6 +21,6 @@ val _ = translation_extends "p4_exec_sem_cakeProg";
 
 (* Creates baseline FFI program (same as test2, but in CakeML) *)
 
-p4_baseline_ffiLib.get_baseline_program "baseline";
+p4_baseline_ffiLib.get_baseline_program (Theory.current_theory());
 
 val _ = export_theory ();

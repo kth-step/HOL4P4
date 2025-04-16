@@ -182,4 +182,72 @@ fun parse_bool_list l =
  listSyntax.mk_list (parse_bool_list' $ String.explode l, bool);
 end
 
+fun hex_to_bool_list hex_string =
+ let
+  val hex_string_no_spaces = String.implode (List.filter (fn c => c <> #" ") (String.explode hex_string));
+  val len = term_of_int $ (size hex_string_no_spaces) * 4;
+  val hex_string_no_spaces_tm = stringLib.fromMLstring hex_string_no_spaces
+  val num_tm = optionSyntax.dest_some $ rhs $ concl $ EVAL “fromHexString ^hex_string_no_spaces_tm”
+  val bin_string_tm = rhs $ concl $ EVAL “num_to_bin_string ^num_tm”
+  val n_leading_zeroes = rhs $ concl $ EVAL “^len - (LENGTH ^bin_string_tm)”
+  val bin_string_padded_tm = rhs $ concl $ EVAL “(IMPLODE $ REPLICATE ^n_leading_zeroes #"0") ++ ^bin_string_tm”
+  val bool_list_tm = parse_bool_list $ stringLib.fromHOLstring bin_string_padded_tm;
+ in
+  bool_list_tm
+ end
+;
+
+fun bool_list_to_hex bool_list =
+ let
+  val bin_str = deparse_bool_list bool_list;
+
+  fun bin_to_hex bin_str =
+    let
+      fun nybble_to_hex nybble =
+        case nybble of
+            "0000" => "0"
+          | "0001" => "1"
+          | "0010" => "2"
+          | "0011" => "3"
+          | "0100" => "4"
+          | "0101" => "5"
+          | "0110" => "6"
+          | "0111" => "7"
+          | "1000" => "8"
+          | "1001" => "9"
+          | "1010" => "A"
+          | "1011" => "B"
+          | "1100" => "C"
+          | "1101" => "D"
+          | "1110" => "E"
+          | "1111" => "F"
+          | _ => raise Fail ("Invalid nybble: " ^ nybble)
+
+      fun process_nybbles (str, acc, i:int, hex_count:int) =
+        if i >= String.size str then
+          acc
+        else
+          let
+            val nybble = String.substring(str, i, 4)
+            val hex_digit = nybble_to_hex nybble
+            (* Add a space after every second hex digit, except for the last one *)
+            val acc' = acc ^ hex_digit ^ 
+                        (if (hex_count + 1) mod 2 = 0 andalso i + 4 < String.size str 
+                         then " " else "")
+          in
+            process_nybbles (str, acc', i + 4, hex_count + 1)
+          end
+    in
+      if String.size bin_str mod 8 <> 0 then
+        raise Fail "Binary string length must be divisible by 8"
+      else
+        process_nybbles (bin_str, "", 0, 0)
+    end
+  ;
+
+ in
+  bin_to_hex bin_str
+ end
+;
+
 end

@@ -825,8 +825,10 @@ fun splitAt (lst, n) =
 				 check_interfaces ports_rest revents_rest (poll_idx + 1)
 			     | Some packet =>
 				 let
+
 				   (* Convert packet to boolean list *)
 				   val packet_bl = packet_to_bool_list packet;
+
 
 				   (* val _ = print ("Received packet on port " ^ Int.toString port ^ ": " ^ (array_to_hex_string packet) ^ "\n"); *)
 (*
@@ -859,6 +861,7 @@ fun splitAt (lst, n) =
 (*
 						 val _ = print ("About to send packet to interface " ^ Int.toString out_if_idx ^ " (socket: " ^ Int.toString out_sock ^ ")\n");
 *)
+
 						 (* Convert the bits back to a packet buffer *)
 						 val out_buffer = bool_list_to_packet out_packet_bits;
 
@@ -884,7 +887,107 @@ fun splitAt (lst, n) =
 		   process_packets ()
 		 end
 	   end;
+
+	 (* Main packet processing loop using poll *)
+	 fun process_packets_no_conv () =
+	   let
+	     (* Create a poll structure with all the sockets *)
+	     val poll_fds = List.map (fn (port, idx, sock) => (sock, 1)) (!port_map);
+
+	     val poll_result = raw_socket_poll poll_fds (~1); (* -1 means wait indefinitely *)
+	   in
+	     case poll_result of
+	       None => 
+		 let
+		   val _ = print "Poll error or timeout\n";
+		 in
+		   process_packets_no_conv ()
+		 end
+	     | Some (ready_count, revents_list) =>
+		 let
+		   (* Function to check each interface for activity *)
+		   fun check_interfaces port_map_list revents_list poll_idx =
+		     case (port_map_list, revents_list) of
+		       ([], _) => ()
+		     | (_, []) => ()
+		     | ((port, if_idx, sock)::ports_rest, revents::revents_rest) =>
+			 if (revents mod 2) <> 0 then
+			   let
+(*
+			     val _ = print ("Activity detected on port " ^ Int.toString port ^ " (socket: " ^ Int.toString sock ^ ")\n");
+*)
+			     (* Try to receive a packet on this socket *)
+			     val packet_opt = raw_socket_recv sock buffer_size;
+			   in
+			     case packet_opt of
+			       None => 
+				 check_interfaces ports_rest revents_rest (poll_idx + 1)
+			     | Some packet =>
+				 let
+
+				   (* Convert packet to boolean list *)
+				   val packet_bl = packet;
+
+
+				   (* val _ = print ("Received packet on port " ^ Int.toString port ^ ": " ^ (array_to_hex_string packet) ^ "\n"); *)
+(*
+				   val _ = print ("Packet converted to " ^ Int.toString (List.length packet_bl) ^ " bits\n");
+*)
+                                   
+
+				   (* Execute P4 program *)
+				   val result = cake_top_exec (packet_bl, port);
+				 in
+				   case result of
+				     None => 
+				       (* Error in packet processing *)
+				       print ("Error processing packet from port " ^ Int.toString port ^ "\n")
+				     | Some out_packets =>
+				       (* Process each output packet *)
+				       List.app (fn (out_packet_bits, out_port) =>
+					 let
+					   (* val _ = print ("Forwarding packet to port " ^ Int.toString out_port ^ "\n"); *)
+
+					   (* Find the socket for the output port *)
+					   val (out_if_idx_opt, out_sock_opt) = find_if_index_and_sock out_port (!port_map);
+(*
+					   val _ = print ("Finished search for socket for the output port\n")
+*)
+					 in
+					   case (out_if_idx_opt, out_sock_opt) of
+					     (Some out_if_idx, Some out_sock) =>
+					       let
+(*
+						 val _ = print ("About to send packet to interface " ^ Int.toString out_if_idx ^ " (socket: " ^ Int.toString out_sock ^ ")\n");
+*)
+
+						 (* Convert the bits back to a packet buffer *)
+						 val out_buffer = out_packet_bits;
+
+						 (* Send the packet *)
+						 val send_result = raw_socket_sendto out_sock out_if_idx out_buffer;
+						 val _ = 
+						   case send_result of
+						     None => print ("Failed to send packet to port " ^ Int.toString out_port ^ "\n")
+						   | Some bytes => () (* print ("Sent " ^ Int.toString bytes ^ " bytes to port " ^ Int.toString out_port ^ "\n") *)
+					       in
+						 ()
+					       end
+					   | _ => print ("Unknown output port: " ^ Int.toString out_port ^ "\n")
+					 end) out_packets;
+				   (* Rest of packet processing... *)
+				   check_interfaces ports_rest revents_rest (poll_idx + 1)
+				 end
+			   end
+			 else
+			   check_interfaces ports_rest revents_rest (poll_idx + 1);
+		 in
+		   check_interfaces (!port_map) revents_list 0;
+		   process_packets_no_conv ()
+		 end
+	   end;
      in
+       (* TODO: Hard-code with or without packet conversion here *)
        process_packets ()
      end
      handle InputError parse_err_msg => TextIO.print_err parse_err_msg
@@ -909,7 +1012,7 @@ fun get_baseline_program progname =
     let
      val cake_top_exec_def =
       Define
-       ‘cake_top_exec ((bits, port):(bool list # num)) = if port = 1 then SOME [(bits, 2:num)] else SOME [(bits, 1)]’;
+       ‘cake_top_exec (bits, port) = if port = (1:num) then SOME [(bits, 2:num)] else SOME [(bits, 1)]’;
 
      (* TODO: This is the bottleneck... *)
      val _ = translate cake_top_exec_def;

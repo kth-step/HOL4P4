@@ -19,11 +19,7 @@ open stringTheory;
 val _ = intLib.deprecate_int();
 
 (* Note that this function only adds inlined CakeML code - it translates no HOL4
- * definitions.
- * The function provides a REPL-like binary that reads an incoming packet in a
- * format of ones and zeroes (e.g. "1010010001010101") and an ingress port in the format
- * of a number (e.g. "42") from a socket. This is then used as input to the top-level execution function
- * cake_top_exec. *)
+ * definitions. *)
 (* TODO: Add common debug functions to a new ProgScript file *)
 fun append_prog_p4_wrapper debug_mode () =
  let
@@ -155,7 +151,7 @@ fun append_prog_p4_wrapper debug_mode () =
     fun buffer_to_string buffer = array_to_string buffer;’
    ;
 
-val _ = append_prog o process_topdecs $
+   val _ = append_prog o process_topdecs $
     ‘(* Set socket buffer size (receive or send) *)
     fun set_socket_buffer_size sock_fd buffer_size is_send =
       let
@@ -454,6 +450,7 @@ val _ = append_prog o process_topdecs $
     end;’
 ;
 
+(* OLD
    (* Helper functions for packet processing *)
    val _ = append_prog o process_topdecs $
     ‘(* Convert a raw packet buffer to a list of booleans *)
@@ -484,8 +481,34 @@ val _ = append_prog o process_topdecs $
 	process_packet 0 []
       end;’
    ;
+*)
 
+   (* foldr for Word8Arrays: *)
+   val _ = append_prog o process_topdecs $
+    ‘fun w8a_foldr_aux f init arr n =
+      if n = 0
+       then init
+      else w8a_foldr_aux f (f (Word8Array.sub arr (n - 1)) init) arr (n - 1)
 
+     fun w8a_foldr f init (arr:byte_array) =
+      w8a_foldr_aux f init arr (Word8Array.length arr)’;
+
+   val _ = append_prog o process_topdecs $
+    ‘fun array_to_list (arr:byte_array) = w8a_foldr (fn h => (fn res => (h::res))) ([]: (Word8.word list)) arr’;
+   (* fromList for Word8Arrays *)
+   val _ = append_prog o process_topdecs $
+    ‘fun from_w8list (l:Word8.word list) =
+     let fun f arr l i =
+	case l of
+	   [] => arr
+	 | (h::t) => (Word8Array.update arr i h; f arr t (i + 1))
+     in
+       case l of
+	 [] => Word8Array.array 0 (Word8.fromInt 0)
+       | h::t => f (Word8Array.array (List.length l) h) t 1
+     end’;
+
+(*
    val _ = append_prog o process_topdecs $
     ‘(* Convert a list of booleans to a packet buffer *)
     fun bool_list_to_packet bool_list =
@@ -524,6 +547,7 @@ val _ = append_prog o process_topdecs $
 	packet
       end;’
    ;
+*)
 
    (* Parse port@interface argument *)
    val _ = append_prog o process_topdecs $ 
@@ -581,7 +605,7 @@ val _ = append_prog o process_topdecs $
        (* Find all -i arguments and extract port@interface pairs *)
        fun find_interfaces args idx acc =
 	 if idx >= List.length args then acc
-	 else 
+	 else
 	   let
 	     val arg = List.nth args idx;
 	   in
@@ -703,17 +727,20 @@ val _ = append_prog o process_topdecs $
 				 check_interfaces ports_rest revents_rest (poll_idx + 1)
 			     | Some packet =>
 				 let
+(*
 				   (* Convert packet to boolean list *)
 				   val packet_bl = packet_to_bool_list packet;
-
-				   (* val _ = print ("Received packet on port " ^ Int.toString port ^ ": " ^ (array_to_hex_string packet) ^ "\n"); *)
+*)
+(*
+				   val _ = print ("Received packet on port " ^ Int.toString port ^ ": " ^ (array_to_hex_string packet) ^ "\n");
+*)
 (*
 				   val _ = print ("Packet converted to " ^ Int.toString (List.length packet_bl) ^ " bits\n");
 *)
                                    
 
 				   (* Execute P4 program *)
-				   val result = cake_top_exec (packet_bl, port);
+				   val result = cake_top_exec (array_to_list packet, port);
 				 in
 				   case result of
 				     None => 
@@ -721,7 +748,7 @@ val _ = append_prog o process_topdecs $
 				       print ("Error processing packet from port " ^ Int.toString port ^ "\n")
 				     | Some out_packets =>
 				       (* Process each output packet *)
-				       List.app (fn (out_packet_bits, out_port) =>
+				       List.app (fn (out_buffer, out_port) =>
 					 let
 					   (* val _ = print ("Forwarding packet to port " ^ Int.toString out_port ^ "\n"); *)
 
@@ -735,13 +762,11 @@ val _ = append_prog o process_topdecs $
 					     (Some out_if_idx, Some out_sock) =>
 					       let
 (*
-						 val _ = print ("About to send packet to interface " ^ Int.toString out_if_idx ^ " (socket: " ^ Int.toString out_sock ^ ")\n");
+				                 val _ = print ("Sending packet on port " ^ Int.toString out_port ^ ": " ^ (array_to_hex_string (from_w8list out_buffer)) ^ "\n");
 *)
-						 (* Convert the bits back to a packet buffer *)
-						 val out_buffer = bool_list_to_packet out_packet_bits;
 
 						 (* Send the packet *)
-						 val send_result = raw_socket_sendto out_sock out_if_idx out_buffer;
+						 val send_result = raw_socket_sendto out_sock out_if_idx (from_w8list out_buffer);
 						 val _ = 
 						   case send_result of
 						     None => print ("Failed to send packet to port " ^ Int.toString out_port ^ "\n")
@@ -814,7 +839,7 @@ fun translate_p4 progname dict actx astate n_max debug_mode =
      val _ = translate p4_append_input_list'_debug_def;
 
      val p4_get_output_list_debug_def =
-      Define ‘p4_get_output_list_debug (astate:v1model_ascope' astate') : ((bool list # num) list) = p4_get_output_list astate’;
+      Define ‘p4_get_output_list_debug (astate:v1model_ascope' astate') : ((word8 list # num) list) = p4_get_output_list astate’;
      val _ = translate p4_get_output_list_debug_def;
 
      val get_frame_list_def =
@@ -856,7 +881,7 @@ fun translate_p4 progname dict actx astate n_max debug_mode =
      (* TODO: This is duplicated for both debug and non-debug *)
      val cake_top_exec_def =
       Define
-       ‘cake_top_exec (input:(bool list # num)) =
+       ‘cake_top_exec (input:(word8 list # num)) =
 	 (case
 	  arch_multi_exec' ^actx
 	   (p4_append_input_list' [input] ^astate) ^n_max of

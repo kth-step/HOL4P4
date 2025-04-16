@@ -689,7 +689,7 @@ End
 Definition transform_tbl_def:
  transform_tbl dict (x1, (mkl, (x2, el))) =
   ALOOKUP dict x1 >>=
-  \w. ALOOKUP dict x1 >>=
+  \w. ALOOKUP dict x2 >>=
   \w'. transform_e_list dict el >>=
   \el'. SOME (w, (mkl, (w', el')))
 End
@@ -795,11 +795,26 @@ Definition transform_v_map_def:
   oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => transform_v dict v >>= \v'. SOME (w, v') | NONE => NONE) v_map
 End
 
+Definition transform_core_v_ext_def:
+ transform_core_v_ext core_ext_obj =
+  case core_ext_obj of
+  | core_v_ext_packet bl =>
+   (case bool_list_to_byte_list bl of
+     SOME byte_list =>
+      SOME $ core_v_ext'_packet byte_list
+    | NONE => NONE)
+End
 
-Definition transform_ascope_def:
- transform_ascope dict ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) ctrl' =
-  transform_v_map dict v_map >>=
-  \v_map'. SOME (counter, ext_obj_map, v_map', ctrl')
+Definition transform_ext_obj_map_def:
+ transform_ext_obj_map ext_obj_map =
+  oFOLDR (\(n, ext_obj).
+          case ext_obj of
+            INL core_ext_obj =>
+           (case transform_core_v_ext core_ext_obj of
+             SOME core_ext_obj' => SOME $ (n, INL core_ext_obj')
+            | NONE => NONE)
+          | INR arch_ext_obj => SOME $ (n, INR arch_ext_obj))
+         ext_obj_map
 End
 
 (*
@@ -829,10 +844,20 @@ End
 
 Definition transform_ctrl_empty_def:
  transform_ctrl_empty dict (ctrl:v1model_ctrl) =
-  ((oFOLDR (\(x, v). ALOOKUP dict x >>= \w. SOME (w, []:(((e_list' -> bool) # num), word64 # e_list') alist)) ctrl):v1model_ctrl' option)
+  ((oFOLDR (\(x, tbl). ALOOKUP dict x >>= \w. SOME (w, []:(((e_list' -> bool) # num), word64 # e_list') alist)) ctrl):v1model_ctrl' option)
 (*
   (oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist) | NONE => NONE) ctrl)
 *)
+End
+
+Definition transform_ascope_def:
+ transform_ascope dict ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) ctrl' =
+  transform_ext_obj_map ext_obj_map >>=
+  \ext_obj_map'. transform_v_map dict v_map >>=
+  \v_map'.
+  (* transform_ctrl dict ctrl >>=
+  \ctrl'. *)
+  SOME (counter, ext_obj_map', v_map', ctrl')
 End
 
 (* Given an alist of translations from strings to word64, transforms an actx to an actx'. *)
@@ -850,11 +875,17 @@ End
 “transform_actx ^actx ^dict”
 *)
 
+Definition transform_io_list_def:
+ transform_io_list io_list =
+  oFOLDR (\(bl, p). case bool_list_to_byte_list bl of SOME w => SOME (w, p) | NONE => NONE) io_list
+End
 
 Definition transform_aenv_def:
  transform_aenv dict (i, io_list, io_list', ascope) ctrl' =
   transform_ascope dict ascope ctrl' >>=
-  \ascope'. SOME ((i, io_list, io_list', ascope'):v1model_ascope' aenv)
+  \ascope'. transform_io_list io_list >>=
+  \io_list''. transform_io_list io_list' >>=
+  \io_list'''. SOME ((i, io_list'', io_list''', ascope'):v1model_ascope' aenv')
 End
 
 Definition transform_scope_entry_def:
@@ -898,7 +929,7 @@ Definition transform_astate_def:
   \aenv'. transform_scope_list dict g_scope_list >>=
   (* TODO: arch_frame_list transformation hard-coded, for now *)
   \g_scope_list'. transform_status dict status >>=
-  \status'. SOME ((aenv':v1model_ascope' aenv, g_scope_list':g_scope_list', arch_frame_list'_empty, status'):v1model_ascope' astate')
+  \status'. SOME ((aenv':v1model_ascope' aenv', g_scope_list':g_scope_list', arch_frame_list'_empty, status'):v1model_ascope' astate')
 End
 
 val _ = export_theory ();

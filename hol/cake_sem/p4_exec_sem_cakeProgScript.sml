@@ -231,6 +231,7 @@ val _ = translate match'_def;
 val _ = translate match_all'_def;
 val _ = translate match_all_first'_def;
 val _ = translate match_all_first_def;
+val _ = translate v'_of_e'_def;
 val _ = translate e_exec_select'_def;
 
 (* Binops *)
@@ -449,6 +450,9 @@ val _ = translate set_bit'_def;
 val _ = translate set_fields'_def;
 val _ = translate set_header'_def;
 val _ = translate update_ascope_gen_def;
+
+val _ = translate (EVAL “w2v (w:word8)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);
+val _ = translate byte_list_to_bool_list_take_def;
 val _ = translate packet_in_extract_gen'_def;
 val _ = translate v1model_ascope_lookup'_def;
 val _ = translate v1model_packet_in_extract'_def;
@@ -463,6 +467,8 @@ val _ = translate packet_in_advance_gen'_def;
 val _ = translate v1model_packet_in_advance'_def;
 
 val _ = translate flatten_v_l'_def;
+val _ = translate v2w8_def;
+val _ = translate bool_list_to_byte_list_def;
 val _ = translate packet_out_emit_gen'_def;
 val _ = translate v1model_packet_out_emit'_def;
 

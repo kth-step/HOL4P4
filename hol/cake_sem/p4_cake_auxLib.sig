@@ -15,4 +15,8 @@ val deparse_bool_list : term -> string
 
 val parse_bool_list : string -> term
 
+val hex_to_bool_list : string -> term
+
+val bool_list_to_hex : term -> string
+
 end

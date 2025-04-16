@@ -140,14 +140,14 @@ End
 Definition lookup_ascope_gen_def:
  (lookup_ascope_gen ascope_lookup (ascope:'a) (ext_ref:num) =
   case ascope_lookup ascope ext_ref of
-  | SOME v_ext => SOME (v_ext:(core_v_ext, 'b) sum)
+  | SOME v_ext => SOME (v_ext:('c, 'b) sum)
   | _ => NONE
  )
 End
 
 (* TODO: Is this really needed as a separate function? *)
 Definition update_ascope_gen_def:
- (update_ascope_gen ascope_update (ascope:'a) (ext_ref:num) (v_ext:(core_v_ext, 'b) sum) =
+ (update_ascope_gen ascope_update (ascope:'a) (ext_ref:num) (v_ext:('c, 'b) sum) =
   (ascope_update ascope ext_ref v_ext):'a
  )
 End

@@ -124,6 +124,10 @@ Type ext_map' = ``:((word64, ((((word64 # d) list # 'a ext_fun') option) # 'a ex
 
 Type tbl_map' = ``:((word64, ((mk list) # (word64 # e_list'))) alist)``
 
+Type in_out' = ``:(word8 list # num)``
+
+Type in_out_list' = ``:(in_out' list)``
+
 Type pblock' = ``:(pbl_type # ((word64 # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')``
 
 Type pblock_map' = ``:((word64, pblock') alist)``
@@ -144,11 +148,11 @@ Type apply_table_f' = ``:((word64 # e_list' # mk_list # (word64 # e_list') # 'a)
 Type copyout_pbl' = ``:((g_scope' list # 'a # d list # word64 list # status') -> 'a option)``
 
 Type copyin_pbl' = ``:((word64 list # d list # e' list # 'a) -> scope' option)``
-(*
-Type output_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
 
-Type input_f = ``:((in_out_list # 'a) -> (in_out_list # 'a) option)``
-*)
+Type output_f' = ``:((in_out_list' # 'a) -> (in_out_list' # 'a) option)``
+
+Type input_f' = ``:((in_out_list' # 'a) -> (in_out_list' # 'a) option)``
+
 Type ab_list' = ``:(arch_block' list)``
 
 (* New to executable semantics *)
@@ -156,7 +160,7 @@ Type e_ctx = “:('a ext_map' # func_map' # b_func_map')”;
 
 Type ctx' = ``:('a apply_table_f' # 'a ext_map' # func_map' # b_func_map' # pars_map' # tbl_map')``
 
-Type actx' = ``:(ab_list' # pblock_map' # 'a ffblock_map' # 'a input_f # 'a output_f # 'a copyin_pbl' # 'a copyout_pbl' # 'a apply_table_f' # 'a ext_map' # func_map')``
+Type actx' = ``:(ab_list' # pblock_map' # 'a ffblock_map' # 'a input_f' # 'a output_f' # 'a copyin_pbl' # 'a copyout_pbl' # 'a apply_table_f' # 'a ext_map' # func_map')``
 
 Type stmt_stack' = ``:(stmt' list)``
 
@@ -166,13 +170,15 @@ Type frame_list' = ``:(frame' list)``
 
 Type state' = ``:('a # g_scope_list' # frame_list' # status')``
 
+Type aenv' = ``:(num # in_out_list' # in_out_list' # 'a)``
+
 val _ = Hol_datatype ` 
 arch_frame_list' =  (* architecture-level frame list *)
    arch_frame_list'_empty (* empty architecture-level frame list *)
  | arch_frame_list'_regular of frame_list' (* regular frame list *)
 `;
 
-Type astate' = ``:('a aenv # g_scope_list' # arch_frame_list' # status')``
+Type astate' = ``:('a aenv' # g_scope_list' # arch_frame_list' # status')``
 
 (**********************************)
 (* Semantics function definitions *)
@@ -1186,6 +1192,13 @@ Definition match_all'_def:
    else F)
 End
 
+(* TODO: This is a bit of a hack to fix the CakeML export, but it shouldn't have any effect on the end
+ * result of execution: the semantics guarantee that all expressions will be values when this is used *)
+Definition v'_of_e'_def:
+ (v'_of_e' (e'_v v') = v') /\
+ (v'_of_e' _ = v'_bot)
+End
+
 Definition match_all_first'_def:
  (match_all_first' i v_list ([]:(s' list # word64) list) = NONE) /\
  (match_all_first' i v_list (h::t) =
@@ -1816,7 +1829,7 @@ End
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
 Definition arch_exec'_def:
  (arch_exec' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx')
-            (((i, in_out_list, in_out_list', scope):'a aenv), g_scope_list:g_scope_list', arch_frame_list'_regular frame_list, status:status') =
+            (((i, in_out_list, in_out_list', scope):'a aenv'), g_scope_list:g_scope_list', arch_frame_list'_regular frame_list, status:status') =
   (case oEL i ab_list of
    | SOME (arch_block'_pbl x e_l) =>
     (case ALOOKUP pblock_map x of

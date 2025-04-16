@@ -14,6 +14,13 @@ open p4_v1modelTheory;
 (*********************)
 (* Core architecture *)
 
+Datatype:
+ core_v_ext' =
+  core_v_ext'_packet (word8 list)
+End
+
+val _ = type_abbrev("v1model_sum_v_ext'", “:(core_v_ext', v1model_v_ext) sum”);
+
 Definition header_entries2v'_def:
  (header_entries2v' (INL []) = SOME []) /\
  (header_entries2v' (INL (h::t)) =
@@ -213,6 +220,16 @@ Definition set_v'_def:
  (set_v' _ packet_in = NONE)
 End
 
+Definition byte_list_to_bool_list_take_def:
+(byte_list_to_bool_list_take l 0 = SOME []) /\ 
+(byte_list_to_bool_list_take ((h:word8)::t) (SUC n) =
+ case byte_list_to_bool_list_take t n of
+   SOME res =>
+  SOME ((w2v:word8 -> bool list) h::res)
+  | NONE => NONE) /\
+(byte_list_to_bool_list_take [] n = NONE)
+End
+
 Definition packet_in_extract_gen'_def:
  (packet_in_extract_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
   case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
@@ -220,21 +237,28 @@ Definition packet_in_extract_gen'_def:
    (case lookup_lval_header' scope_list (lval'_varname (varn'_name 4w)) of
     | SOME (valid_bit, x_v_l) =>
      (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+      | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
        (case size_in_bits' (v'_header valid_bit x_v_l) of
         | SOME size =>
-         if size <= LENGTH packet_in_bl
+         (* TODO: Handle non-mod 8 case properly *)
+         if size MOD 8 = 0
          then
-          (case set_header' x_v_l packet_in_bl of
-           | SOME header =>
-            (case assign' scope_list header (lval'_varname (varn'_name 4w)) of
-             | SOME scope_list' =>
-              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', status'_returnv v'_bot)
-             | NONE => NONE)
-           | NONE => NONE)
-         else
-          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+           if size <= (LENGTH packet_in_bl) * 8
+           then
+            case byte_list_to_bool_list_take packet_in_bl (size DIV 8) of
+             SOME bool_list_list =>
+             (case set_header' x_v_l (FLAT bool_list_list) of
+              | SOME header =>
+               (case assign' scope_list header (lval'_varname (varn'_name 4w)) of
+                | SOME scope_list' =>
+                 SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP (size DIV 8) packet_in_bl))):(core_v_ext', 'b) sum), scope_list', status'_returnv v'_bot)
+                | NONE => NONE)
+              | NONE => NONE)
+            | NONE => NONE
+           else
+            (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+            SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet [])):(core_v_ext', 'b) sum)) (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+         else NONE
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -249,18 +273,25 @@ Definition packet_in_lookahead_gen'_def:
    (case lookup_lval'' scope_list (lval'_varname (varn'_name 5w)) of
     | SOME dummy_v =>
      (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+      | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
        (case size_in_bits' dummy_v of
         | SOME size =>
-         if size <= LENGTH packet_in_bl
+         (* TODO: Handle non-mod 8 case properly *)
+         if size MOD 8 = 0
          then
-          (case set_v' dummy_v packet_in_bl of
-           | SOME v =>
-            SOME (ascope, scope_list, status'_returnv v)
-           | NONE => NONE)
-         else
-          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (ascope_update_v_map ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+          if size <= (LENGTH packet_in_bl) * 8
+          then
+           case byte_list_to_bool_list_take packet_in_bl (size DIV 8) of
+            SOME bool_list_list =>
+             (case set_v' dummy_v (FLAT bool_list_list) of
+              | SOME v =>
+               SOME (ascope, scope_list, status'_returnv v)
+              | NONE => NONE)
+            | NONE => NONE
+          else
+           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+           SOME (ascope_update_v_map ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+         else NONE
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -283,13 +314,17 @@ Definition packet_in_advance_gen'_def:
    (case lookup_lval_bit32' scope_list (lval'_varname (varn'_name 6w)) of
     | SOME n_bits =>
      (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
-       if n_bits <= LENGTH packet_in_bl
+      | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
+       (* TODO: Handle non-mod 8 case properly *)
+       if n_bits MOD 8 = 0
        then
-        SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, 'b) sum), scope_list, status'_returnv v'_bot)
-       else
-        (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-        SOME (ascope_update_v_map ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+        if n_bits <= (LENGTH packet_in_bl) * 8
+        then
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP (n_bits DIV 8) packet_in_bl))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+        else
+         (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+         SOME (ascope_update_v_map ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+       else NONE
        | _ => NONE)
     | NONE => NONE)
   | _ => NONE
@@ -334,23 +369,65 @@ Definition flatten_v_l'_def:
  )
 End
 
+Definition v2w8_def:
+(v2w8 [b0;b1;b2;b3;b4;b5;b6;b7] = SOME (
+ let acc0 = if b7 then 1w else 0w in
+ let acc1 = if b6 then acc0 + (word_lsl 1w 1) else acc0 in
+ let acc2 = if b5 then acc1 + (word_lsl 1w 2) else acc1 in
+ let acc3 = if b4 then acc2 + (word_lsl 1w 3) else acc2 in
+ let acc4 = if b3 then acc3 + (word_lsl 1w 4) else acc3 in
+ let acc5 = if b2 then acc4 + (word_lsl 1w 5) else acc4 in
+ let acc6 = if b1 then acc5 + (word_lsl 1w 6) else acc5 in
+ let acc7 = if b0 then acc6 + (word_lsl 1w 7) else acc6 in
+acc7:word8
+)) /\
+(v2w8 _ = NONE)
+End
+
+Definition bool_list_to_byte_list_def:
+ (bool_list_to_byte_list [] = SOME []) /\
+ (bool_list_to_byte_list l =
+  case oTAKE_DROP 8 l of
+   | SOME (take,rest) =>
+    (case v2w8 take of
+     | SOME w =>
+      (case bool_list_to_byte_list rest of
+       | SOME res =>
+        SOME (w::res)
+       | NONE => NONE)
+     | NONE => NONE)
+   | NONE => NONE)
+Termination
+WF_REL_TAC ‘measure LENGTH’ >>
+rpt strip_tac >>
+imp_res_tac oTAKE_DROP_SOME >>
+imp_res_tac oDROP_LENGTH >>
+gvs[]
+End
+
 Definition packet_out_emit_gen'_def:
- (packet_out_emit_gen' (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+ (packet_out_emit_gen' (ascope_lookup:'a -> num -> (core_v_ext' + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list', scope_list) =
   case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
   | SOME (v'_ext_ref i) =>
    (case lookup_ascope_gen ascope_lookup ascope i of
-    | SOME (INL (core_v_ext_packet packet_out_bl)) =>
+    | SOME (INL (core_v_ext'_packet packet_out_bl)) =>
      (case lookup_lval'' scope_list (lval'_varname (varn'_name 7w)) of
       | SOME (v'_header F x_v_l) => SOME (ascope, scope_list, status'_returnv v'_bot)
       | SOME (v'_header T x_v_l) =>
        (case flatten_v_l' (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status'_returnv v'_bot)
+         (case bool_list_to_byte_list bl of
+          | SOME byte_list =>
+           SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++ byte_list))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+          | NONE => NONE)
         | NONE => NONE)
       | SOME (v'_struct x_v_l) =>
        (case flatten_v_l' (MAP SND x_v_l) of
         | SOME bl =>
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status'_returnv v'_bot)
+         (case bool_list_to_byte_list bl of
+          | SOME byte_list =>
+           SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++byte_list))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+          | NONE => NONE)
         | NONE => NONE)
       | SOME _ => NONE
       | NONE => NONE)
@@ -403,7 +480,7 @@ val CONTROL_PLANE_API = 0;
 
 Type v1model_ctrl' = “:(word64, (((e_list' -> bool) # num), word64 # e_list') alist) alist”;
 
-Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext) alist) # ((word64, v') alist) # v1model_ctrl')”;
+Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext') alist) # ((word64, v') alist) # v1model_ctrl')”;
 
 Definition v1model_ascope_lookup'_def:
  v1model_ascope_lookup' (ascope:v1model_ascope') ext_ref = 
@@ -439,7 +516,7 @@ Definition v1model_postparser'_def:
   (case ALOOKUP v_map 8w of
    | SOME (v'_ext_ref i) =>
     (case ALOOKUP ext_obj_map i of
-     | SOME (INL (core_v_ext_packet bl)) =>
+     | SOME (INL (core_v_ext'_packet bl)) =>
       (case ALOOKUP v_map 9w of
        | SOME (v'_ext_ref i') =>
         (case ALOOKUP v_map 11w of
@@ -452,8 +529,8 @@ Definition v1model_postparser'_def:
                (case scope_to_vmap' v_map_scope of
                 | SOME v_map'' =>
                  let v_map''' = p4$AUPDATE v_map'' (7w, v'_bit (fixwidth 32 (n2v 0), 32)) in
-                 let (counter', ext_obj_map', v_map'''', ctrl') = (v1model_ascope_update' (counter, ext_obj_map, v_map''', ctrl) i' (INL (core_v_ext_packet bl))) in
-   SOME (v1model_ascope_update' (counter', ext_obj_map', v_map'''', ctrl') i (INL (core_v_ext_packet [])))
+                 let (counter', ext_obj_map', v_map'''', ctrl') = (v1model_ascope_update' (counter, ext_obj_map, v_map''', ctrl) i' (INL (core_v_ext'_packet bl))) in
+   SOME (v1model_ascope_update' (counter', ext_obj_map', v_map'''', ctrl') i (INL (core_v_ext'_packet [])))
                 | NONE => NONE)
               | _ => NONE)
             | NONE => NONE)
@@ -499,14 +576,14 @@ val v1model_standard_metadata_zeroed' =
 Redblackmap.find (v1model_dict, “"meta"”)
 *)
 Definition v1model_input_f'_def:
- (v1model_input_f' (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
+ (v1model_input_f' (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list', (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
   case io_list of
   | [] => NONE
-  | ((bl,p)::t) =>
+  | ((byte_list,p)::t) =>
    (* TODO: Currently, no garbage collection in ext_obj_map is done *)
    (* let counter' = ^v1model_init_counter in *)
-   let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext_packet bl));
-                                                (counter+1, INL (core_v_ext_packet []))] in
+   let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext'_packet byte_list));
+                                                (counter+1, INL (core_v_ext'_packet []))] in
    let counter' = counter + 2 in
    (* TODO: Currently, no garbage collection in v_map is done *)
    let v_map' = AUPDATE_LIST v_map [(8w, v'_ext_ref counter);
@@ -547,16 +624,16 @@ Definition v1model_lookup_obj'_def:
 End
 
 Definition v1model_output_f'_def:
- v1model_output_f' (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
+ v1model_output_f' (in_out_list:in_out_list', (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
   (case v1model_lookup_obj' ext_obj_map v_map 8w of
-   | SOME (INL (core_v_ext_packet bl)) =>
+   | SOME (INL (core_v_ext'_packet byte_list)) =>
     (case v1model_lookup_obj' ext_obj_map v_map 9w of
-     | SOME (INL (core_v_ext_packet bl')) =>
+     | SOME (INL (core_v_ext'_packet byte_list')) =>
       (case ALOOKUP v_map 10w of
        | SOME (v'_struct struct) =>
         (case ALOOKUP struct 23w of
          | SOME (v'_bit (port_bl, n)) =>
-          SOME (in_out_list++(if v1model_is_drop_port port_bl then [] else [(bl++bl', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl))
+          SOME (in_out_list++(if v1model_is_drop_port port_bl then [] else [(byte_list++byte_list', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl))
          | _ => NONE)
        | _ => NONE)
      | _ => NONE)
