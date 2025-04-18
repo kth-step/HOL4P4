@@ -32,7 +32,8 @@ val _ = new_theory "bdd_gen";
 Hol_datatype `decision_structure = <| sem : 'a -> ((string,bool) alist) -> 'b option ;
                                       sub : 'a -> string -> bool -> 'a ;
                                       simp : 'a -> 'a ;
-                                      final : 'a -> 'b option
+                                      final : 'a -> 'b option;
+                                      fv : 'a -> string list
                                     |>`;
                                                               
 (* BDD types *)
@@ -356,12 +357,6 @@ Definition order_hold_def:
    INDEX_OF x' xl = SOME i' 
    ⇒ 
    i' < i)
- (* ∧
-  (ALOOKUP labels n  =  SOME (non_termn(SOME x,  p )) ∧
-   ALOOKUP labels n' =  SOME lbl ==>
-   is_lbl_leaf(lbl)
-  )
-  *)
 End
            
 
@@ -382,16 +377,16 @@ End
      
 Definition consumed_dom_bdd_def:
   consumed_dom_bdd vars_consumed ((root,edges,labels):('a,'b)BDD) = 
-  ∀ n pred x.
-    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇒
+  ∀ n p x.
+    (ALOOKUP labels n = SOME (non_termn (SOME x,p))) ⇒
     MEM x vars_consumed
 End        
 
 
 Definition mv_dom_bdd_def:
   mv_dom_bdd mv ((root,edges,labels):('a,'b)BDD) = 
-  ∀ n pred x.
-    (ALOOKUP labels n = SOME (non_termn (SOME x,pred))) ⇒
+  ∀ n p x.
+    (ALOOKUP labels n = SOME (non_termn (SOME x,p))) ⇒
     lookup_is_some mv x
 End
 
@@ -430,27 +425,58 @@ Definition get_prop_def:
 End
 
 
-(*TODO: Double check with Roberto mv_dom_bdd*)
+Definition fv_in_p_def:
+  fv_in_p rec p (mv:(string#bool) list) =
+        (∀x. MEM x (rec.fv p) ⇒ (∃b. ALOOKUP mv x = SOME b))
+End
+
+
+Definition fv_in_labels_def:
+  fv_in_labels rec labels mv =
+  ∀ n opx p. (ALOOKUP labels n = SOME (non_termn (opx,p)) ⇒
+         fv_in_p rec p mv )  
+End
+
+
+        
+
+        
 Definition correct_sem_def:
   correct_sem rec (BDD:('a,'b)BDD)  =
-  ∀ n mv b r edges labels .
+  ∀ n mv b r edges labels.
     BDD = (r,edges,labels) ∧
     mv_dom_bdd mv BDD  ∧
+    fv_in_labels rec labels mv ∧
     BDD_sem rec BDD mv n b ⇒
     b = op_sem rec (get_prop labels n) mv         
 End  
 
+(*
+Definition correct_sem_def:
+  correct_sem rec (BDD:('a,'b)BDD)  =
+  ∀ r edges labels.
+    BDD = (r,edges,labels) ==>
+  ! n .
+  ! mv .
+    MEM n (all_edges edges)
+    mv_dom_bdd mv BDD  ∧
+    fv_in_p rec (get_prop labels n) mv ==>
+  !b .
+    BDD_sem rec BDD mv n b ⇒
+    b = op_sem rec (get_prop labels n) mv         
+End  
+*)
 
 
 
-
-
-
+Definition prop1_def:
+  prop1 (rec:('a,'b)decision_structure) =
+  ∀ mv h b p.
+    ALOOKUP mv h = SOME b ∧ fv_in_p rec p mv ⇒
+    (rec.sem (rec.simp (rec.sub p h b)) mv = rec.sem p mv)
+End
 
      
-(******************************************************)
-(*                    CORRECNTESS                     *)
-(******************************************************)
 
 (* general rec type , also Ps here are generic also rec is generic -------------  START HERE*)
 (*
