@@ -726,7 +726,11 @@ Proof
     gvs[get_prop_def]>> 
     gvs[Once BDD_sem_cases]>>
     
-    gvs[ALOOKUP_ADELKEY]
+    gvs[ALOOKUP_ADELKEY] >>
+    rgs[op_sem_def] >>
+    gvs[AllCaseEqs()]>>
+    cheat
+
   ]
 QED
  
