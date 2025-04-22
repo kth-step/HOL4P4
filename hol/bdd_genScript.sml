@@ -70,7 +70,7 @@ End
 Inductive BDD_sem:
   
 [bdd_red_leaf:]
-  ( ∀ (rec: ('a,'b) decision_structure) (root:num) (edges:edges) (labels: ('a,'b) labelings) (mv:(string#bool)list) (n:num) (p:('a,'b)label).
+  ( ∀ (rec: ('a,'b) decision_structure) (r:num) (edges:edges) (labels: ('a,'b) labelings) (mv:(string#bool)list) (n:num) (p:('a,'b)label).
       ALOOKUP edges n = NONE ∧
       ALOOKUP labels n  = SOME p  
       ⇒      
@@ -477,6 +477,27 @@ Definition prop1_def:
 End
 
      
+
+(* final terminal leaf *)
+Definition prop2_def:
+  prop2 rec =
+  ∀ mv h b p q.
+    fv_in_p rec p mv ⇒
+    rec.final (rec.simp (rec.sub p h b)) = SOME q ⇒
+    (SOME q = rec.sem p mv)
+End
+
+
+(*
+Stronger property than prop2
+Definition prop3_def:
+  prop3 rec =
+  ∀ mv h b p q.
+    rec.final (rec.simp (rec.sub p h b)) = SOME q ⇒
+    (SOME q = rec.sem p mv) /\ rec.fv p = []
+End
+*)
+
 
 (* general rec type , also Ps here are generic also rec is generic -------------  START HERE*)
 (*
