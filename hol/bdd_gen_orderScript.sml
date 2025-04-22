@@ -791,7 +791,6 @@ Proof
   rgs[ALOOKUP_APPEND] >>
   rgs[AllCaseEqs()] >|[
    ‘ALL_DISTINCT (MAP FST simp_leaves')’ by ( rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
-    
     imp_res_tac new_labels_are_not_internal
     ,
     imp_res_tac lookup_non_term_leaf_updt_internal >>
