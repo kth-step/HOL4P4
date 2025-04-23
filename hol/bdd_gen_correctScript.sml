@@ -87,21 +87,44 @@ val body_of_mk_pred_tac =
 
 
 
-
-
-
-        
-
-
- 
 Definition node_in_BDD_def:
   node_in_BDD n ((r,edges,labels):('a,'b)BDD) =
      MEM n (dom_range_edges edges)
 End
 
-  
 
 
+(* Labels index of parent and child are ordered in the consumed list *)
+Theorem ordered_for_two_labels:
+  ∀ r edges labels n n' n'' vars_consumed x x' x'' n'' p p' p''.
+    ALOOKUP edges n = SOME (n',n'') ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧        
+    BDD_ordered (r,edges,labels) vars_consumed ∧
+    ALOOKUP labels n = SOME (non_termn (SOME x,p)) ⇒
+    ((ALOOKUP labels n' = SOME (non_termn (SOME x',p')) ⇒
+      THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed))
+     ∧
+     (ALOOKUP labels n'' = SOME (non_termn (SOME x'',p'')) ⇒
+      THE (INDEX_OF x'' vars_consumed) < THE (INDEX_OF x vars_consumed)))
+Proof
+  rpt strip_tac >>
+  rgs[Once BDD_ordered_def]>>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n'’, ‘n''’])) >| [
+    ‘MEM x' vars_consumed ∧ MEM x vars_consumed’ by (rgs[Once consumed_dom_bdd_def] >> res_tac >> fs[]) >>
+    ‘∃i. INDEX_OF x vars_consumed = SOME i’ by (imp_res_tac MEM_INDEX_OF >> gvs[] )>>
+    ‘∃i'. INDEX_OF x' vars_consumed = SOME i'’ by (imp_res_tac MEM_INDEX_OF >> gvs[]) >>
+    gvs[order_hold_def] 
+    ,
+    ‘MEM x'' vars_consumed ∧ MEM x vars_consumed’ by (rgs[Once consumed_dom_bdd_def] >> res_tac >> fs[]) >>
+    ‘∃i. INDEX_OF x vars_consumed = SOME i’ by (imp_res_tac MEM_INDEX_OF >> gvs[] )>>
+    ‘∃i''. INDEX_OF x'' vars_consumed = SOME i''’ by (imp_res_tac MEM_INDEX_OF >> gvs[]) >>
+    gvs[order_hold_def] 
+  ]                                                                 
+QED
+
+
+
+(* The semantics are deterministic *)
 Theorem BDD_sem_determ:
   ∀ n BDD mv b b' rec.        
     BDD_sem rec BDD mv n b ∧
@@ -114,22 +137,7 @@ Proof
 QED
 
 
-Theorem BDD_sem_determ_not:
-  ∀ n r edges labels mv b rec n' n'' x p.
-    ALOOKUP edges n = SOME (n',n'') ∧
-    ALOOKUP labels n = SOME (non_termn (SOME x,p)) ∧
-    ALOOKUP mv x = SOME T ∧
-    BDD_sem rec (r,edges,labels) mv n b ⇒
-    ~ ∃ b' . b' ≠ b ∧BDD_sem rec (r,edges,labels) mv n b'
-Proof
- rpt strip_tac >>
- gvs[Once BDD_sem_cases] >>
- rgs[Once BDD_sem_cases] >>
- imp_res_tac BDD_sem_determ
-QED
-
-
-        
+    
 Theorem BDD_sem_not_eq:
   ∀ n r edges labels mv b rec n' n'' x p b'.
     ALOOKUP edges n = SOME (n',n'') ∧
@@ -139,7 +147,6 @@ Theorem BDD_sem_not_eq:
     ~ BDD_sem rec (r,edges,labels) mv n b' ⇒
     b' ≠ b
 Proof
-
  Induct_on ‘BDD_sem’ >>        
  rpt strip_tac >>
  rgs[Once BDD_sem_cases] >>
@@ -150,10 +157,8 @@ Proof
 QED
 
 
-  
-  
-        
 
+(* in the intermidiate layer, there exsists a final answer *)
 Theorem BDD_sem_exsists_inter:
   ∀ vars_consumed x' r edges labels mv n n' n'' p b rec.            
     BDD_ordered (r,edges,labels) vars_consumed ∧
@@ -237,19 +242,18 @@ Proof
   ]          
 QED
 
-         
 
-        
+
+(* exsists indeed an answer to the semantics *)       
 Theorem BDD_sem_exsists:
   ∀ BDD mv n vars_consumed rec.
     BDD_ordered BDD vars_consumed ∧
     mv_dom_bdd mv BDD  ∧
     consumed_dom_bdd vars_consumed BDD ∧
-    node_in_BDD n BDD ∧   (*TODO: check this out*)
+    node_in_BDD n BDD ∧  
     BDD_WF BDD ⇒
     ∃ b . BDD_sem rec BDD mv n b
 Proof
-
   rgs[Once BDD_sem_cases] >>
   rpt strip_tac >>
   
@@ -284,9 +288,6 @@ QED
 
 
 
-
-
-
 Theorem inner_edges_are_same_exists:
   ∀ r edges labels r' edges' labels' h c c' n n' n'' rec.
     BDD_WF (r',edges',labels') ∧
@@ -305,6 +306,7 @@ QED
 
 
 
+
 Theorem inner_edges_are_same:
   ∀ r edges labels r' edges' labels' h c c' n n' n'' n1 n2 rec.
     BDD_WF (r',edges',labels') ∧
@@ -319,10 +321,7 @@ Proof
 QED
 
 
-
-
-        
-
+                                                  
 Theorem inner_labels_are_same_exists:
   ∀ r edges labels r' edges' labels' h c c' n x p rec.
     BDD_WF (r',edges',labels') ∧
@@ -356,29 +355,120 @@ QED
         
   
 
-
 Theorem inner_labels_are_same:
-∀ r edges labels r' edges' labels' h c c' n x x' p p' rec.
-BDD_WF (r',edges',labels') ∧
-body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ∧
-ALOOKUP labels n = SOME (non_termn (SOME x,p)) ∧
-ALOOKUP labels' n = SOME (non_termn (SOME x',p'))⇒
-(x=x' ∧ p=p')
+  ∀ r edges labels r' edges' labels' h c c' n x x' p p' rec.
+    BDD_WF (r',edges',labels') ∧
+    body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ∧
+    ALOOKUP labels n = SOME (non_termn (SOME x,p)) ∧
+    ALOOKUP labels' n = SOME (non_termn (SOME x',p'))⇒
+    (x=x' ∧ p=p')
 Proof
-rpt strip_tac >>
-imp_res_tac inner_labels_are_same_exists >>
-gvs[]
+  rpt strip_tac >>
+  imp_res_tac inner_labels_are_same_exists >>
+  gvs[]
 QED
 
 
-Theorem dom_range_edges_in_append:
-∀ edges new_edges n.
-MEM n (dom_range_edges new_edges) ⇒
-MEM n (dom_range_edges (edges++new_edges))
+
+Theorem ntls_labels_and_prop_comp:
+  ∀ r edges labels r' edges' labels' h c c' n x p p' rec.
+    BDD_WF (r',edges',labels') ∧
+    body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ∧
+    ALOOKUP labels n = SOME (non_termn (NONE,p)) ∧
+    ALOOKUP labels' n = SOME (non_termn (SOME x,p'))⇒
+    (x=h ∧ p=p')
 Proof
-  Induct >>
-  gvs[dom_range_edges_def]
+  rpt strip_tac >>
+  gvs[body_of_mk_def] >>
+  gvs[AllCaseEqs()]>>
+  body_of_mk_pred_tac >>
+  (                 
+  Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >> rgs[] >|[ 
+      imp_res_tac lookup_ntl_updt_none >>
+      rgs[]
+      ,
+      imp_res_tac lookup_labels_in_updt_none >>
+      first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
+      rgs[ALOOKUP_APPEND] >>
+    rgs[]
+    ]
+  )
 QED
+
+
+
+
+Theorem fv_in_labels_preserved:
+  ∀ r edges labels r' edges' labels' h c c' mv rec.
+    fv_in_labels rec labels' mv ∧
+    BDD_WF (r',edges',labels') ∧
+    body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ⇒
+    fv_in_labels rec labels mv
+Proof                       
+  rpt strip_tac >>
+  rgs[fv_in_labels_def] >>
+  rpt strip_tac >>
+  
+  gvs[body_of_mk_def] >>
+  gvs[AllCaseEqs()]>>
+  body_of_mk_pred_tac >>
+  
+  Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >-
+   (imp_res_tac lookup_ntl_updt_none >> gvs[]) >>
+  
+  Cases_on ‘opx’ >>
+  
+  imp_res_tac lookup_labels_in_updt >>
+  imp_res_tac lookup_labels_in_updt_none >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >|[
+    
+    subgoal ‘ALOOKUP (non_term_leaf_updt labels h ⧺ new_labels) n = SOME (non_termn (SOME h,p))’ >-
+     (
+     rgs[BDD_WF_def] >>
+     rgs[ALOOKUP_APPEND, ALL_DISTINCT_APPEND] 
+     ) >> res_tac
+          
+    ,
+    subgoal ‘ALOOKUP (non_term_leaf_updt labels h ⧺ new_labels) n = SOME (non_termn (SOME x',p))’ >-
+     (
+     rgs[BDD_WF_def] >>
+     rgs[ALOOKUP_APPEND, ALL_DISTINCT_APPEND] 
+     ) >> res_tac
+  ]
+QED                                                           
+
+
+
+
+
+Theorem mv_dom_bdd_preserved:
+  ∀ r edges labels r' edges' labels' h c c' mv rec.
+    mv_dom_bdd mv (r',edges',labels') ∧
+    BDD_WF (r',edges',labels') ∧
+    body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ⇒
+    mv_dom_bdd mv (r,edges,labels)
+Proof                 
+                 
+  rpt strip_tac >>
+  rgs[mv_dom_bdd_def] >>
+  rpt strip_tac >>
+  
+  gvs[body_of_mk_def] >>
+  gvs[AllCaseEqs()]>>
+  body_of_mk_pred_tac >>
+           
+  Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >-
+   (imp_res_tac lookup_ntl_updt_none >> gvs[]) >>
+    
+  imp_res_tac lookup_labels_in_updt >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
+    
+    subgoal ‘ALOOKUP (non_term_leaf_updt labels h ⧺ new_labels) n = SOME (non_termn (SOME x,p))’ >-
+     (
+     rgs[BDD_WF_def] >>
+     rgs[ALOOKUP_APPEND, ALL_DISTINCT_APPEND] 
+     ) >> res_tac
+QED                   
 
 
 
@@ -546,9 +636,6 @@ QED
 
     
 
-
-
-
 Theorem leaves_pred_sub_alookup_some:
   ∀ ntl leaves_sub rec p h n.          
     ALOOKUP ntl n = SOME p ∧
@@ -565,7 +652,6 @@ QED
                                        
 
 
-
 Theorem simp_pred_list_alookup_some:
   ∀ leaves_sub simp_leaves rec n h pt pf.
     ALOOKUP leaves_sub n = SOME (h,pt,pf) ∧
@@ -579,6 +665,7 @@ Proof
   PairCases_on ‘h’ >> 
   rgs[AllCaseEqs()] 
 QED
+
 
 
 Theorem determine_termn_list_alookup_some:
@@ -612,12 +699,8 @@ Proof
   gvs[]
 QED
 
-    
 
 
-        
-
-                                           
 
 Theorem mk_new_labels_contains_prop:
   ∀ simp_leaves' new_edges new_labels ptsimp_det pfsimp_det n n' n'' h c.
@@ -652,9 +735,7 @@ Proof
 QED
 
 
-
-
-        
+      
 Theorem body_return_in_decision_str_conv:
   ∀ simp_leaves' leaves_sub ntl simp_leaves new_edges new_labels n n' n'' p p' p'' h c rec.
     c > n ∧
@@ -726,28 +807,54 @@ QED
 
 
 
+Theorem alookup_agrees_on_new_labels_after_update:
+  ∀ r edges labels new_edges new_labels x n p.
+    BDD_WF (r,edges ⧺ new_edges,non_term_leaf_updt labels x ⧺ new_labels) ∧
+    ALOOKUP (non_term_leaf_updt labels x ⧺ new_labels) n = SOME p ∧
+    MEM n (MAP FST new_labels) ⇒
+    ALOOKUP new_labels n = SOME p
+Proof
+  rpt strip_tac >>
+  ‘ALL_DISTINCT (MAP FST new_labels)’ by (rgs[BDD_WF_def, ALL_DISTINCT_APPEND]) >>
+  ‘∃ elem. ALOOKUP new_labels n = SOME elem’ by (imp_res_tac distinct_mem_lookup_local >> gvs[]) >>
+  ‘¬MEM n (MAP FST (non_term_leaf_updt labels x))’ by (rgs[BDD_WF_def] >> imp_res_tac all_distinct_mem_not) >>
+  rgs[ALOOKUP_APPEND] >>
+  Cases_on ‘ALOOKUP (non_term_leaf_updt labels x) n’ >> imp_res_tac ALOOKUP_MEM >> 
+  imp_res_tac mem_fst_snd >>
+  rgs[]
+QED
 
 
-                                              
+
+
+Theorem now_internal_lbl_was_leaf_in_labels_verbose:
+  ∀ r edges labels new_edges new_labels x h n p.
+    BDD_WF (r,edges,labels) ∧
+    ALOOKUP (non_term_leaf_updt labels h ⧺ new_labels) n = SOME (non_termn (SOME x,p)) ∧
+    MEM n (dom_range_edges edges) ∧ ALOOKUP edges n = NONE ⇒
+    (ALOOKUP labels n = SOME (non_termn (NONE,p))) ∧ h=x
+Proof
+  rpt strip_tac >>
+  ‘∃ p_old. ALOOKUP labels n = SOME (non_termn (NONE,p_old))’ by
+    (imp_res_tac now_internal_lbl_was_leaf_in_labels >> gvs[]) >>
+  
+  imp_res_tac lookup_labels_in_updt_none >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>     
+  
+  rgs[BDD_WF_def] >> rgs[ALL_DISTINCT_APPEND,ALOOKUP_APPEND]
+QED
 
 
 
-
-                                              
 
 Theorem body_correctness_new_layer:       
   ∀ r edges labels r' edges' labels' mv n n' n'' x p c c' b vars_consumed h rec.
-    prop1 rec ∧ prop2 rec ∧ range_c c (r,edges,labels) ∧
+    prop1 rec ∧ prop2 rec ∧ 
           
     BDD_WF (r,edges,labels) ∧
-    BDD_WF (r',edges',labels') ∧
-    mv_dom_bdd mv (r',edges',labels') ∧
     fv_in_labels rec labels mv ∧
-    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
     range_c c (r,edges,labels) ∧
-
-                     
-    correct_sem rec (r,edges,labels) ∧
+     
     body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ∧
     BDD_sem rec (r',edges',labels') mv n b ∧
     ALOOKUP edges' n = SOME (n',n'') ∧
@@ -755,14 +862,16 @@ Theorem body_correctness_new_layer:
     ALOOKUP edges n = NONE ⇒
     b = op_sem rec (SOME p) mv
 Proof
-
-rpt strip_tac >>
-‘ALOOKUP edges' n' = NONE’ by imp_res_tac mk_body_new_edges_none >>
-‘ALOOKUP edges' n'' = NONE’ by imp_res_tac mk_body_new_edges_none >>
-rgs[Once BDD_sem_cases] >>
-rgs[Once BDD_sem_cases] >| [
+  rpt strip_tac >>
+  imp_res_tac WFness_range_c_inter >>
+  ‘BDD_WF (r',edges',labels')’ by imp_res_tac WFness_translation_inter >>
+          
+  ‘ALOOKUP edges' n' = NONE’ by imp_res_tac mk_body_new_edges_none >>
+  ‘ALOOKUP edges' n'' = NONE’ by imp_res_tac mk_body_new_edges_none >>
+  rgs[Once BDD_sem_cases] >>
+  rgs[Once BDD_sem_cases] >| [
     (*case n' *)
-
+    
     Cases_on ‘MEM n (dom_range_edges edges)’ >|[
       (* if n is in range of edges, and became in domain of edges' ,
          then indeed it is a leaf, thus it has been through the body,
@@ -773,43 +882,44 @@ rgs[Once BDD_sem_cases] >| [
       body_of_mk_pred_tac >>
 
       (*n is in leaves, then indeed in leaves labels *)
+          
       ‘ALL_DISTINCT (MAP FST edges) ’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
+                    
       ‘MEM n leaves’ by imp_res_tac leaves_in_get_leaves >>
-      ‘ALOOKUP labels n = SOME (non_termn (NONE,p))’ by  cheat >> (*imp_res_tac lookup_labels_of_leaves_same >>*)
-      ‘x=h’ by  cheat >> (*lookup_non_term_leaf_updt_internal*)
+           
+      ‘(ALOOKUP labels n = SOME (non_termn (NONE,p))) ∧ h=x’ by (imp_res_tac now_internal_lbl_was_leaf_in_labels_verbose >> gvs[]) >>
       rgs[] >>
 
       ‘ALOOKUP ntl n = SOME p’ by imp_res_tac leaves_in_ntl_lemma >>
-      ‘ALL_DISTINCT (MAP FST labels)’ by cheat >>
+      ‘ALL_DISTINCT (MAP FST labels)’ by (rgs[BDD_WF_def] >> imp_res_tac_distinct) >>
       ‘ALOOKUP leaves_labels n = SOME (non_termn (NONE,p))’ by imp_res_tac leaves_labels_same_in_labels_some >>
-      ‘ALOOKUP new_edges n = SOME (n',n'')’ by cheat >>
+      ‘ALOOKUP new_edges n = SOME (n',n'')’ by gvs[ALOOKUP_APPEND] >>
 
       (* we also know that the new label for the new leafs are in new_labels*)
-      ‘ALOOKUP new_labels n' = SOME p'’ by cheat >>
 
-
-      rgs[range_c_def] >>
-
-      assume_tac statements_structs_correctness_new_layer >>
-      first_x_assum (strip_assume_tac o (Q.SPECL [‘simp_leaves'’, ‘leaves_sub’, ‘ntl’, ‘simp_leaves’, ‘new_edges’, ‘new_labels’,
-                                                 ‘n’, ‘n'’, ‘n''’, ‘p’, ‘p'’, ‘p''’, ‘h’, ‘c’, ‘mv’, ‘rec’])) >> 
-      
+      ‘MEM n' (MAP FST new_labels)’ by imp_res_tac in_range_of_new_edges_in_dom_new_labels >>
+      ‘ALOOKUP new_labels n' = SOME p'’ by imp_res_tac alookup_agrees_on_new_labels_after_update >>
 
       subgoal ‘fv_in_p rec p mv’ >-
-       (rgs[fv_in_labels_def] >>
-        metis_tac[]) >>
-        
+       (rgs[fv_in_labels_def] >>  metis_tac[]) >>
+      
       subgoal ‘c > n’ >- (
-       rgs[EVERY_MEM] >>
-       imp_res_tac ALOOKUP_MEM >>
-       imp_res_tac mem_fst_snd >>
-       rgs[]
+      rgs[range_c_def, EVERY_MEM] >>
+      imp_res_tac ALOOKUP_MEM >>
+      imp_res_tac mem_fst_snd >>
+      rgs[]
       ) >>
-        
+      
+      
+      assume_tac statements_structs_correctness_new_layer >>
+      first_x_assum (strip_assume_tac o (Q.SPECL [‘simp_leaves'’, ‘leaves_sub’, ‘ntl’, ‘simp_leaves’, ‘new_edges’,
+                                                  ‘new_labels’, ‘n’, ‘n'’, ‘n''’, ‘p’, ‘p'’, ‘p''’,
+                                                  ‘h’, ‘c’, ‘mv’, ‘rec’])) >> 
       rgs[]
                
       ,
-      (* if n is not in edges, it means either the edges are empty so we work with root, otherwise by contradiction*)
+      (* if n is not in edges, it means either the edges are empty so we work with root,
+         otherwise by contradiction*)
       Cases_on ‘edges = []’  >|[
           (* then we should prove the root*)
           imp_res_tac edges_empty_correct    
@@ -836,15 +946,11 @@ rgs[Once BDD_sem_cases] >| [
     cheat
   ]
 
-
 QED
 
 
-                                
 
-
-
-Theorem bdd_sem_imp:
+Theorem bdd_sem_imp_up:
   ∀ r edges labels n n' n'' x pred b' rec mv.
     ALOOKUP edges n = SOME (n',n'') ∧
     ALOOKUP labels n  = SOME (non_termn (SOME x ,pred)) ∧
@@ -857,34 +963,79 @@ Proof
 QED
 
 
-(*
-Prop
-(∃p' x'' b. p = rec.simp (rec.sub p' x'' b))
+Theorem mk_now_internal_lbl_was_leaf_in_labels:
+  ∀ r edges labels r' edges' labels' n x p h c c' rec.
+    MEM n (dom_range_edges edges) ∧
+    BDD_WF (r,edges,labels) ∧
+    ALOOKUP edges n = NONE ∧
+    ALOOKUP labels' n = SOME (non_termn (SOME x,p)) ∧
+    body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ⇒
+    ∃ p' . ALOOKUP labels n = SOME (non_termn (NONE,p'))
+Proof                                               
+  rpt strip_tac >>
+  gvs[body_of_mk_def] >>
+  gvs[AllCaseEqs()]>>
+  body_of_mk_pred_tac >>
+  imp_res_tac now_internal_lbl_was_leaf_in_labels >>
+  gvs[]
+QED
 
-Theorem WF_imp_non_leaf_lbl_abs_sub_lemma:
-  ∀r edges labels n rec.
-    lookup_is_some edges n ∧
-    BDD_WF (r,edges,labels) ⇒
-    ∃x p x' b. ALOOKUP labels n = SOME (non_termn (SOME x, (rec.simp(rec.sub p x' b))))
+
+
+Theorem mk_terminal_leafs_in_old_new_labels:        
+  ∀ r edges labels r' edges' labels' n x p h c c' rec.
+    MEM n (dom_range_edges edges) ∧
+    BDD_WF (r,edges,labels) ∧
+    BDD_WF (r',edges',labels') ∧
+    ALOOKUP edges n = NONE ∧
+    ALOOKUP edges' n = NONE ∧      
+    body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ⇒
+    ∃ action p_action . ALOOKUP labels' n = SOME (termn(action,p_action)) ∧
+                        ALOOKUP labels n = SOME (termn(action,p_action))
 Proof
   rpt strip_tac >>
-  fs[lookup_is_some_def] >>
-  PairCases_on ‘y’ >>
-  imp_res_tac WF_imp_non_leaf_lbl >>
-  gvs[] >>
-  cheat
-QED  
-*)                                                              
+  gvs[body_of_mk_def] >>
+  gvs[AllCaseEqs()]>>
+  body_of_mk_pred_tac >>
+  rgs[BDD_WF_def] >|[
+                  
+    rgs[is_lookup_ntl_def] >>
+    rgs[ALL_DISTINCT_APPEND] >>
+    imp_res_tac_body >>
+    
+    ‘MEM n leaves’ by metis_tac[leaves_in_get_leaves] >>
+    ‘ALOOKUP ntl n = SOME p’ by metis_tac[leaves_in_ntl_lemma] >> rgs[] >>
+    subgoal ‘∃ new_p . ALOOKUP new_edges n = SOME new_p’ >-
+     ( metis_tac[alookup_map_local_thm]) >>
+    
+    rgs[ALOOKUP_APPEND] >>
+    gvs[AllCaseEqs()]
+    ,
+        
+    imp_res_tac lookup_labels_in_updt_term >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
+    ‘MEM n (dom_range_edges (edges ⧺ new_edges))’ by gvs[dom_range_edges_in_append] >>
+    imp_res_tac ALOOKUP_MEM >>
+    imp_res_tac mem_fst_snd >>
+    rgs[] >>
+    rgs[ALOOKUP_APPEND] >>
+    gvs[AllCaseEqs()]
+]
+QED
+        
 
 
-                                
+
 (*** this is lemma 2 (modified) ***)
 Theorem correct_sem_translation_inner_nodes:
-  ∀ vars_consumed x r edges labels r' edges' labels' mv n n' n'' h c c' p b rec.                     
+  ∀ vars_consumed x r edges labels r' edges' labels' mv n n' n'' h c c' p b rec.
+    prop1 rec ∧ prop2 rec ∧
+    fv_in_labels rec labels mv∧ 
+          
     BDD_ordered ((r,edges,labels):('a,'b) BDD) (vars_consumed) ∧
     BDD_WF (r,edges,labels) ∧
-    BDD_WF (r',edges',labels') ∧ (* induce it initially *)
-             
+    range_c c (r,edges,labels) ∧
+           
     mv_dom_bdd mv (r',edges',labels') ∧
     consumed_dom_bdd (vars_consumed) (r,edges,labels) ∧
     fv_in_labels rec labels' mv ∧
@@ -897,152 +1048,206 @@ Theorem correct_sem_translation_inner_nodes:
     ALOOKUP labels' n = SOME (non_termn (SOME x,p)) ⇒
     b = op_sem rec (SOME p) mv
 Proof
-
   ntac 2 strip_tac >>
   measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
   rpt strip_tac >>
   
+  imp_res_tac WFness_range_c_inter >>
+  ‘BDD_WF (r',edges',labels')’ by imp_res_tac WFness_translation_inter >>
+  
   ‘MEM n (dom_range_edges edges')’ by imp_res_tac lookup_edges_in_domain >>
   Cases_on ‘ALOOKUP edges n’ >> rgs[] >|[
-    (* this needs the body *)
-    cheat
     
+    (* Case where n was a leaf in old edges and became a parent in new edges this needs the body *)
+    imp_res_tac body_correctness_new_layer 
+                
     ,
-    (* directly from IH *)
+    
+    (* Case where n was a parent in old edges, directly from IH and other things *)
     PairCases_on ‘x'’ >>
     rename1 ‘ALOOKUP edges n = SOME (n1',n2')’ >>
     ‘(n'=n1') ∧ (n''=n2')’ by (imp_res_tac inner_edges_are_same >> srw_tac[][]) >>
-            
+    
     ‘lookup_is_some edges n’ by gvs[lookup_is_some_def] >>
     ‘∃x p. ALOOKUP labels n = SOME (non_termn (SOME x,p))’ by (imp_res_tac WF_imp_non_leaf_lbl_abs >> metis_tac[]) >>
     ‘(x=x') ∧ (p=p')’ by (imp_res_tac inner_labels_are_same >> srw_tac[][]) >>
-
-              
+    
+    
     ‘MEM n1' (dom_range_edges edges)’ by imp_res_tac lookup_edges_in_domain >>
     ‘MEM n2' (dom_range_edges edges)’ by imp_res_tac lookup_edges_in_domain >>
-
+    
     gvs[op_sem_def] >>
     rgs[Once BDD_sem_cases] >|[
-        (*True*)
+        
+        (* according to semantics, this edge depends on the left and right child*)
+        (*Case taking True; left child*)
+        
         Cases_on ‘ALOOKUP edges n'’ >> rgs[] >|[
-          (* from body *)
-          cheat
+          (* the child n' is a leaf at the time in old edges, this represents
+             internal nodes n' that are tl or ntl *)
+          
+          Cases_on ‘ALOOKUP edges' n'’ >> rgs[] >|[
+            
+            (* inner terminal leaf *)
+            
+            rgs[Once BDD_sem_cases] >>
+
+            subgoal ‘∃ action p_action . ALOOKUP labels' n' = SOME (termn(action,p_action)) ∧
+                                         ALOOKUP labels n' = SOME (termn(action,p_action))’ >-
+             ( metis_tac[mk_terminal_leafs_in_old_new_labels] ) >>
+
+             
+            ‘p' = (termn(action,p_action))’ by metis_tac[BDD_WF_def, lookup_same_triviality] >>
+
+                    
+            rgs[] >>
+            rgs[from_formula_to_action_def] >>
+            
+            
+            ‘fv_in_labels rec labels mv’ by imp_res_tac fv_in_labels_preserved >>
+            ‘mv_dom_bdd mv (r,edges,labels)’ by imp_res_tac mv_dom_bdd_preserved >>
+            ‘node_in_BDD n (r,edges,labels)’ by rgs[node_in_BDD_def, lookup_edges_in_domain] >>
+            ‘node_in_BDD n' (r,edges,labels)’ by rgs[node_in_BDD_def, lookup_edges_in_domain] >>
+            
+            ‘MEM n' (dom_range_edges edges')’ by imp_res_tac lookup_edges_in_domain >>
+            gvs[] >>
+            
+            
+            subgoal ‘∃b. BDD_sem rec (r,edges,labels) mv n b’ >-
+             ( irule BDD_sem_exsists >> srw_tac [SatisfySimps.SATISFY_ss][]) >>
+            
+            subgoal ‘∃b. BDD_sem rec (r,edges,labels) mv n' b’ >- 
+             ( irule BDD_sem_exsists >> srw_tac [SatisfySimps.SATISFY_ss][]) >>
+            
+            subgoal ‘ b = op_sem rec (get_prop labels n) mv’ >-
+             ( gvs[correct_sem_def]) >>
+            
+            subgoal ‘ b' = op_sem rec (get_prop labels n') mv’ >-
+             ( gvs[correct_sem_def]) >>
+            
+            rgs[get_prop_def, op_sem_def] >>
+            
+            qpat_x_assum ‘BDD_sem rec (r,edges,labels) mv n (rec.sem p mv)’
+                         (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once BDD_sem_cases] thm)) >>
+            
+            rgs[] >>
+            imp_res_tac BDD_sem_determ >>
+            cheat (* what to do here ? *)
+            
+            
+            
+            ,
+            (* new layer yet again? *)
+            PairCases_on ‘x'’ >>
+            rename1 ‘ALOOKUP edges' n' = SOME (n1',n2')’ >>
+            
+            
+            ‘lookup_is_some edges' n'’ by gvs[lookup_is_some_def] >>
+            ‘∃x p. ALOOKUP labels' n' = SOME (non_termn (SOME x,p))’ by
+              (imp_res_tac WF_imp_non_leaf_lbl_abs >> metis_tac[]) >>
+
+            ‘MEM n1' (dom_range_edges edges')’ by imp_res_tac lookup_edges_in_domain >>
+            ‘MEM n2' (dom_range_edges edges')’ by imp_res_tac lookup_edges_in_domain >>
+            
+            assume_tac body_correctness_new_layer >>
+            first_x_assum (strip_assume_tac o (Q.SPECL [‘r’, ‘edges’, ‘labels’, ‘r'’, ‘edges'’, ‘labels'’, ‘mv’,
+                                                        ‘n'’, ‘n1'’, ‘n2'’, ‘x'’, ‘p'’, ‘c’, ‘c'’, ‘b’,
+                                                        ‘vars_consumed’, ‘h’, ‘rec’])) >>
+            rgs[op_sem_def] >> gvs[] >>
+            
+            ‘MEM n' (dom_range_edges edges')’ by imp_res_tac lookup_edges_in_domain >>
+            gvs[] >>
+            
+            subgoal ‘∃ p'' . ALOOKUP labels n' = SOME (non_termn (NONE,p''))’ >-
+             ( metis_tac [mk_now_internal_lbl_was_leaf_in_labels]) >>
+            ‘x' = h ∧ p'' = p'’ by
+              ( metis_tac[ntls_labels_and_prop_comp] ) >>
+            
+
+              
+            ‘fv_in_labels rec labels mv’ by imp_res_tac fv_in_labels_preserved >>
+            ‘mv_dom_bdd mv (r,edges,labels)’ by imp_res_tac mv_dom_bdd_preserved >>
+            ‘node_in_BDD n (r,edges,labels)’ by rgs[node_in_BDD_def, lookup_edges_in_domain] >>
+            ‘node_in_BDD n' (r,edges,labels)’ by rgs[node_in_BDD_def, lookup_edges_in_domain] >>
+
+            subgoal ‘∃b. BDD_sem rec (r,edges,labels) mv n b’ >-
+             ( irule BDD_sem_exsists >> srw_tac [SatisfySimps.SATISFY_ss][]) >>
+            
+            subgoal ‘∃b. BDD_sem rec (r,edges,labels) mv n' b’ >- 
+             ( irule BDD_sem_exsists >> srw_tac [SatisfySimps.SATISFY_ss][]) >>
+            
+            subgoal ‘ b = op_sem rec (get_prop labels n) mv’ >-
+             ( gvs[correct_sem_def]) >>
+            
+            subgoal ‘ b' = op_sem rec (get_prop labels n') mv’ >-
+             ( gvs[correct_sem_def]) >>
+            
+
+            rgs[get_prop_def, op_sem_def] >>
+            
+            
+            qpat_x_assum ‘BDD_sem rec (r,edges,labels) mv n (rec.sem p mv)’
+                         (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once BDD_sem_cases] thm)) >>
+            
+            rgs[] >>
+            imp_res_tac BDD_sem_determ
+          ]
+                                                        
           ,
+                
           PairCases_on ‘x'’ >>
           rename1 ‘ALOOKUP edges n' = SOME (n1',n2')’ >>
                   
           ‘lookup_is_some edges n'’ by gvs[lookup_is_some_def] >>
-          ‘∃x p. ALOOKUP labels n' = SOME (non_termn (SOME x,p))’ by (imp_res_tac WF_imp_non_leaf_lbl_abs >> metis_tac[]) >>
-        
+          ‘∃x p. ALOOKUP labels n' = SOME (non_termn (SOME x,p))’ by
+            (imp_res_tac WF_imp_non_leaf_lbl_abs >> metis_tac[]) >>
 
           subgoal ‘THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed)’ >-
-           (
-           
-           ‘MEM x' vars_consumed ∧ MEM x vars_consumed’ by (rgs[Once consumed_dom_bdd_def] >> res_tac >> fs[]) >>
-           ‘∃i. INDEX_OF x vars_consumed = SOME i’ by (imp_res_tac MEM_INDEX_OF >> gvs[] )>>
-           ‘∃i'. INDEX_OF x' vars_consumed = SOME i'’ by (imp_res_tac MEM_INDEX_OF >> gvs[]) >>
-           
-           rgs[Once BDD_ordered_def]>>
-           first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n'’, ‘n''’]))>>
-           gvs[order_hold_def]
-           ) >>
+           (imp_res_tac ordered_for_two_labels) >>
 
-
-            (*
-        subgoal  ‘∃x p x' b.
-         ALOOKUP labels n' =
-         SOME (non_termn (SOME x,rec.simp (rec.sub p x' b)))’ by (imp_res_tac WF_imp_non_leaf_lbl_abs_sub_lemma >> cheat) >>
-          *)
-
-
-           
-                
           first_x_assum (strip_assume_tac o (Q.SPECL [‘INDEX_OF (x':string) (vars_consumed: string list)’])) >>
-          gvs[] >>
-                
-          first_x_assum (strip_assume_tac o (Q.SPECL [‘x'’, ‘vars_consumed’])) >>
-          gvs[] >>
-
-          first_x_assum (strip_assume_tac o (Q.SPECL [‘r’, ‘edges’, ‘labels’, ‘r'’, ‘edges'’, ‘labels'’])) >>
-          gvs[] >>
-
-          first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’, ‘n'’,‘n1'’, ‘n2'’, ‘h’, ‘c’, ‘c'’])) >>
-          gvs[] >>
-
-          first_x_assum (strip_assume_tac o (Q.SPECL [‘p'’, ‘b’, ‘rec’])) >>
-          gvs[] >>
-
-                
-          ‘ALOOKUP edges' n' = SOME (n1',n2')’ by (imp_res_tac inner_edges_are_same_exists >> gvs[]) >>
-          ‘ALOOKUP labels' n' = SOME (non_termn (SOME x',p'))’ by (imp_res_tac inner_labels_are_same_exists >> gvs[]) >>
+          rgs[PULL_FORALL] >>
+          first_x_assum (strip_assume_tac o (Q.SPECL [‘x'’, ‘vars_consumed’, ‘r’, ‘edges’, ‘labels’,
+                                                      ‘r'’, ‘edges'’, ‘labels'’, ‘mv’, ‘n'’,‘n1'’, ‘n2'’,
+                                                      ‘h’, ‘c’, ‘c'’, ‘p'’, ‘b’, ‘rec’])) >> gvs[] >>
+          
+          ‘ALOOKUP edges' n' = SOME (n1',n2')’ by
+            (imp_res_tac inner_edges_are_same_exists >> gvs[]) >>
+          ‘ALOOKUP labels' n' = SOME (non_termn (SOME x',p'))’ by
+            (imp_res_tac inner_labels_are_same_exists >> gvs[]) >>
           ‘MEM n' (dom_range_edges edges')’ by imp_res_tac lookup_edges_in_domain >>
           gvs[] >>
-
-          (****************)
-
-
-          gvs[correct_sem_def] >>
-
-                
-
-                
+          
+          ‘fv_in_labels rec labels mv’ by imp_res_tac fv_in_labels_preserved >>
+          ‘mv_dom_bdd mv (r,edges,labels)’ by imp_res_tac mv_dom_bdd_preserved >>
+          ‘node_in_BDD n (r,edges,labels)’ by rgs[node_in_BDD_def, lookup_edges_in_domain] >>
+          ‘node_in_BDD n' (r,edges,labels)’ by rgs[node_in_BDD_def, lookup_edges_in_domain] >>
+          
           subgoal ‘∃b. BDD_sem rec (r,edges,labels) mv n b’ >-
-           (
-           assume_tac BDD_sem_exsists >>
-           first_x_assum (strip_assume_tac o (Q.SPECL [‘(r,edges,labels)’, ‘mv’, ‘n’, ‘vars_consumed’, ‘rec’])) >>
-           gvs[] >>
-           ‘mv_dom_bdd mv (r,edges,labels) ∧ node_in_BDD n (r,edges,labels)’ by cheat >>
-           gvs[] >>
-           srw_tac [SatisfySimps.SATISFY_ss][]
-           ) >>
+           ( irule BDD_sem_exsists >> srw_tac [SatisfySimps.SATISFY_ss][]) >>
 
-
+          subgoal ‘∃b. BDD_sem rec (r,edges,labels) mv n' b’ >- 
+           ( irule BDD_sem_exsists >> srw_tac [SatisfySimps.SATISFY_ss][]) >>
           
-          subgoal ‘∃b. BDD_sem rec (r,edges,labels) mv n' b’ >-
-           (
-           assume_tac BDD_sem_exsists >>
-           first_x_assum (strip_assume_tac o (Q.SPECL [‘(r,edges,labels)’, ‘mv’, ‘n'’, ‘vars_consumed’, ‘rec’])) >>
-           gvs[] >>
-           ‘mv_dom_bdd mv (r,edges,labels) ∧ node_in_BDD n' (r,edges,labels)’ by cheat >>
-           gvs[] >>
-           srw_tac [SatisfySimps.SATISFY_ss][]
-
-           ) >>
-
-
-
-
-           subgoal ‘ b = op_sem rec (get_prop labels n) mv’ >- (
-            first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘mv’, ‘b’])) >>
-            ‘mv_dom_bdd mv (r,edges,labels) ∧ fv_in_labels rec labels mv’ by cheat >>
-            gvs[]
-            ) >>
+          subgoal ‘ b = op_sem rec (get_prop labels n) mv’ >-
+           ( gvs[correct_sem_def]) >>
           
+          subgoal ‘ b' = op_sem rec (get_prop labels n') mv’ >-
+           ( gvs[correct_sem_def]) >>
           
-          subgoal ‘ b' = op_sem rec (get_prop labels n') mv’ >- (
-            first_x_assum (strip_assume_tac o (Q.SPECL [‘n'’, ‘mv’, ‘b'’])) >>
-            ‘mv_dom_bdd mv (r,edges,labels) ∧ fv_in_labels rec labels mv’ by cheat >>
-            gvs[]
-            ) >>
-
-
-          rgs[get_prop_def] >>
-          rgs[op_sem_def] >>
-
-             qpat_x_assum ‘BDD_sem rec (r,edges,labels) mv n (rec.sem p mv)’
-             (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once BDD_sem_cases] thm)) >>
+          rgs[get_prop_def, op_sem_def] >>
+          
+          qpat_x_assum ‘BDD_sem rec (r,edges,labels) mv n (rec.sem p mv)’
+                       (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once BDD_sem_cases] thm)) >>
           
           rgs[] >>
           imp_res_tac BDD_sem_determ 
-          
         ]
         ,
         (* False *)
         cheat
-
-      ]
-
-
+        
+      ]                          
   ]
 QED
 
@@ -1050,36 +1255,12 @@ QED
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-               
-
-
-
-        
+  
 
 Theorem correct_sem_translation_inter:
   ∀ (BDD:('a,'b) BDD) BDD'' rec c c' vars h vars_consumed.
-    prop1 rec ∧
-
+    prop1 rec ∧ prop2 rec ∧
+    
     range_c c BDD ∧
     ALL_DISTINCT (h::vars_consumed) ∧
     BDD_ordered BDD (vars_consumed) ∧      
@@ -1129,31 +1310,23 @@ Proof
 
     rgs[is_lookup_internal_def] >>
     rgs[get_prop_def] >>
-
+    ‘fv_in_labels rec labels mv’ by imp_res_tac fv_in_labels_preserved >>
+                      
     assume_tac correct_sem_translation_inner_nodes >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘vars_consumed’, ‘x’, ‘r’, ‘edges’, ‘labels’, ‘r'’,
                                                 ‘edges'’, ‘labels'’, ‘mv’, ‘n’, ‘n'’, ‘n''’, ‘h’, ‘c’,
-                                                ‘c'’])) >>
+                                                ‘c'’, ‘p’, ‘b’, ‘rec’])) >>
     gvs[]
   ]
 
 QED
 
 
-
-
-
-       
-
-        
-
-
-        
-                 
+               
 
 Theorem correct_sem_translation:
   ∀ vars vars_consumed BDD BDD' rec c.
-    prop1 rec ∧
+    prop1 rec ∧ prop2 rec ∧
     BDD_ordered BDD vars_consumed ∧
     BDD_WF BDD ∧
     range_c c BDD ∧
