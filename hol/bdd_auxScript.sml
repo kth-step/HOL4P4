@@ -295,6 +295,32 @@ QED
 
 
 
+Theorem all_distinct_mem_not:
+  ∀ l l' n.
+  MEM n l' ∧
+ ALL_DISTINCT (l++l') ⇒       
+  ~ MEM n l
+Proof
+rpt strip_tac >>
+rgs[ALL_DISTINCT_APPEND]
+QED
+
+
+
+Theorem lookup_same_triviality:        
+∀ l n n' p p'.
+ALL_DISTINCT (MAP FST l) ∧
+ALOOKUP l n' = SOME p ∧
+ALOOKUP l n' = SOME p' ⇒
+p = p'
+Proof
+Induct >> gvs[] >>
+rpt strip_tac >>
+PairCases_on ‘h’ >> rgs[]
+QED
+
+
+
 Theorem not_in_leaves_not_in_ntl:
   ∀ leaves_labels ntl n.        
     ¬MEM n (MAP FST leaves_labels) ∧       
@@ -818,6 +844,20 @@ Proof
   gvs[getLeaves_def] >>
   gvs[AllCaseEqs()] >>
   imp_res_tac get_leaves_list_in_nodes
+QED
+
+
+
+Theorem dom_range_edges_in_append:
+∀ edges new_edges n.
+(MEM n (dom_range_edges new_edges) ⇒
+ MEM n (dom_range_edges (edges++new_edges)))
+∧
+(MEM n (dom_range_edges edges) ⇒
+ MEM n (dom_range_edges (edges++new_edges)))
+Proof
+  Induct >>
+  gvs[dom_range_edges_def]
 QED
 
 
