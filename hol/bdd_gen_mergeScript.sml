@@ -24,10 +24,13 @@ open bdd_auxTheory;
 open bdd_genTheory;     
 open bdd_gen_wfTheory;     
 open bdd_gen_orderTheory;
+open bdd_gen_correctTheory;
      
 val _ = new_theory "bdd_gen_merge";
 
 
+
+    
 Definition mergable_def:        
 mergable ((r,edges,labels):('a,'b)BDD)  n n' = 
 (n≠n' ∧ ALOOKUP edges n = ALOOKUP edges n' ∧
@@ -56,9 +59,6 @@ End
 
 
 
-
-
-
 Theorem merge_lookup_none:
   ∀ edges n n' n''.
     n' ≠ n'' ⇒
@@ -77,6 +77,8 @@ Proof
 QED
 
 
+
+        
 Theorem merge_lookup_exists:
   ∀ edges n n' n'' x.        
     n' ≠ n'' ∧
@@ -96,14 +98,7 @@ Proof
 QED
 
 
-
-
-
-
-
-
         
-
         
 Theorem mergable_correct_leaf:
   ∀labels n'' r edges n' n mv b rec.
@@ -411,7 +406,7 @@ QED
 *)
 
 
-(* very low proof, check why*)       
+(* very slow proof, check why*)       
 Theorem merge_replaces_stays_same:            
   ∀ edges n' n x1 x2 x1' x2'.
     n' ≠ x1' ∧ n' ≠ x2' ∧
@@ -446,7 +441,8 @@ QED
                                                 
 Theorem mergable_correct_internal:
   ∀ x vars_consumed  r edges labels n n' n'' nl nr pred mv b rec.
-    consumed_dom_bdd vars_consumed (r,edges,labels) ∧ 
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    mv_dom_bdd mv (r,edges,labels) ∧
     BDD_ordered (r,edges,labels) vars_consumed ∧
     BDD_WF (r,edges,labels) ∧
     mergable (r,edges,labels) n n' ∧
@@ -544,6 +540,7 @@ Proof
           
           simp[Once BDD_sem_cases] >>  gvs[ALOOKUP_ADELKEY] >>
           Cases_on ‘ALOOKUP (merge_edges edges n n') n’ >> gvs[] >|[
+                   
               ‘ALOOKUP edges n' = NONE’ by (metis_tac [merge_lookup_none]) >>
               simp[Once EQ_SYM_EQ, Once BDD_sem_cases] 
               ,
@@ -552,20 +549,28 @@ Proof
               PairCases_on ‘x'’ >> gvs[] >>    
               Cases_on ‘ALOOKUP labels n'’ >> gvs[] >>
               Cases_on ‘x'’ >> gvs[] >|[
+                       
                   ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
                   ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
                   gvs[]
                   ,
+                        
                   Cases_on ‘p’ >> gvs[] >>
                   Cases_on ‘q’ >> gvs[] >|[
+                           
                       ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
                       ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
-                      gvs[]
+                      gvs[]        
                       ,
+                        
                       Cases_on ‘ALOOKUP mv x'’ >> gvs[] >|[
-                          cheat
+                          
+                          gvs[mv_dom_bdd_def, lookup_is_some_def] >>
+                          res_tac >> gvs[]         
                           ,
+                                
                           Cases_on ‘x''’ >> gvs[] >|[
+                              
                               (* true *)
                               ‘n' ≠ n'' ∧ nl ≠ n''’ by (imp_res_tac lookup_edges_not_parent >> gvs[]) >>
                               
@@ -606,6 +611,7 @@ Proof
                               gvs[Once BDD_sem_cases] >>
                               simp[Once BDD_sem_cases] >> gvs[ALOOKUP_ADELKEY]
                               ,
+
                               cheat
                               
                               
@@ -628,9 +634,6 @@ QED
  
 
 
-          
-
-
 
 
 
@@ -639,6 +642,7 @@ QED
 Theorem Lemma3:
   ∀ labels vars_consumed n'' r edges n' n mv b rec.
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    mv_dom_bdd mv (r,edges,labels) ∧
     BDD_ordered (r,edges,labels) vars_consumed ∧
     BDD_WF (r,edges,labels) ∧
     mergable (r,edges,labels) n n' ∧
@@ -671,21 +675,63 @@ QED
 
 
 
-
-Theorem BDD_sem_determ:
-  ∀ n BDD mv b b' rec.        
-    BDD_sem rec BDD mv n b ∧
-    BDD_sem rec BDD mv n b' ⇒
-    (b=b')
+Theorem mv_dom_bdd_merge_preserved:
+  ∀ r edges labels keys n n' mv.   
+    mergable (r,edges,labels) n n' ∧
+    mv_dom_bdd mv (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) ⇒
+    mv_dom_bdd mv (r,edges,labels)
 Proof
- Induct_on ‘BDD_sem’ >>        
- rpt strip_tac >>
- rgs[Once BDD_sem_cases]
+  rpt strip_tac >>
+  gvs[mv_dom_bdd_def] >>
+  rpt strip_tac >>
+  Cases_on ‘n'' = n'’ >|[
+    rgs[mergable_def] >>
+    gvs[ALOOKUP_ADELKEY] >>
+    res_tac >> gvs[]
+    ,
+    gvs[ALOOKUP_ADELKEY] >>
+    res_tac >> gvs[]            
+  ]
 QED
 
 
 
-                                                              
+Theorem fv_in_labels_preserved:        
+  ∀ r edges labels keys n n' mv rec. 
+    mergable (r,edges,labels) n n' ∧        
+    fv_in_labels rec (ADELKEY n' labels) mv  ⇒         
+    fv_in_labels rec labels mv
+Proof
+  rpt strip_tac >>
+  gvs[fv_in_labels_def] >>
+  rpt strip_tac >>
+  Cases_on ‘n'' = n'’ >|[
+    rgs[mergable_def] >>
+    gvs[ALOOKUP_ADELKEY] >>
+    res_tac >> gvs[]
+    ,
+    gvs[ALOOKUP_ADELKEY] >>
+    res_tac >> gvs[]            
+  ]
+QED
+
+
+
+        
+
+Theorem get_prop_delkey_none:        
+  ∀ labels n'.
+    get_prop (ADELKEY n' labels) n' = NONE
+Proof
+  Induct >>
+  gvs[get_prop_def] >>
+  rpt strip_tac >>
+  gvs[ALOOKUP_ADELKEY] 
+QED                        
+
+
+
+                           
         
 Theorem merge_correct:        
   ∀ r edges labels vars_consumed n n' rec .
@@ -705,21 +751,23 @@ Proof
   Cases_on ‘n' = n''’ >> gvs[] >|[
 
     
-    ‘get_prop (ADELKEY n' labels) n' = NONE’ by cheat >> 
+    ‘get_prop (ADELKEY n' labels) n' = NONE’ by gvs[get_prop_delkey_none] >> 
     gvs[op_sem_def, get_prop_def] >>
-      gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()]>>
 
-    ‘BDD_sem rec
-     (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n' (NONE)’ by cheat >>
-    imp_res_tac BDD_sem_determ
+    gvs[Once BDD_sem_cases]
     ,
     
     assume_tac Lemma3 >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘labels’, ‘vars_consumed’, ‘n''’, ‘r’, ‘edges’, ‘n'’, ‘n’, ‘mv’, ‘b’, ‘rec’])) >>
     gvs[] >>
 
+    
+    ‘mv_dom_bdd mv (r,edges,labels)’ by metis_tac[mv_dom_bdd_merge_preserved] >>
+    res_tac >>
 
-    ‘mv_dom_bdd mv (r,edges,labels)’ by cheat >>
+    ‘fv_in_labels rec labels mv’ by metis_tac [fv_in_labels_preserved] >>
+                
     gvs[correct_sem_def] >>
     res_tac >>
     
@@ -728,19 +776,12 @@ Proof
     
     gvs[ALOOKUP_ADELKEY] >>
     rgs[op_sem_def] >>
-    gvs[AllCaseEqs()]>>
-    cheat
-
+    gvs[AllCaseEqs()]
   ]
 QED
  
 
 
-
-
-    
-
-        
 
 
 
