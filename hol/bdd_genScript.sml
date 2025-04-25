@@ -476,28 +476,23 @@ Definition prop1_def:
     (rec.sem (rec.simp (rec.sub p h b)) mv = rec.sem p mv)
 End
 
-     
-
-(* final terminal leaf *)
+(* version that works *)
 Definition prop2_def:
   prop2 rec =
   ∀ mv h b p q.
+    ALOOKUP mv h = SOME b ∧
     fv_in_p rec p mv ⇒
     rec.final (rec.simp (rec.sub p h b)) = SOME q ⇒
-    (SOME q = rec.sem p mv)
+    (SOME q = rec.sem p mv )
 End
 
 
-(*
-Stronger property than prop2
 Definition prop3_def:
   prop3 rec =
   ∀ mv h b p q.
     rec.final (rec.simp (rec.sub p h b)) = SOME q ⇒
-    (SOME q = rec.sem p mv) /\ rec.fv p = []
+    rec.sem (rec.simp (rec.sub p h b)) mv = SOME q
 End
-*)
-
 
 (* general rec type , also Ps here are generic also rec is generic -------------  START HERE*)
 (*
