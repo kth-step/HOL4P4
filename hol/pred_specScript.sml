@@ -168,7 +168,13 @@ Definition pred_structure_def:
   |>
 End            
 
+               
+(*
+     EVAL “mk_BDDPred pred_structure (0,[],[(0, non_termn (NONE, (Or (Var "a") (Not (Var "a")))))]) [] ["a"] 1”;
+     EVAL “mk_BDDPred pred_structure (0,[],[(0, non_termn (NONE, True))]) [] ["a"] 1”;
+*)
 
+        
 Theorem simp_pred_imp_mem:          
   ∀ p x .
     simp_pred p = Var x ⇒
@@ -218,11 +224,6 @@ Proof
   imp_res_tac simp_pred_imp_mem >>
   gvs[]
 QED
-
-
-
-
-
 
 
 
@@ -317,10 +318,8 @@ Proof
   gvs[sem_pred_def]
 QED
 
+       
 
-        
-
-(* proof of property 1 for predicates *)
 Theorem prop1_pred:
   prop1 pred_structure
 Proof
@@ -356,10 +355,43 @@ QED
 
 
 
+                
+Theorem final_pred_imp_sem:           
+  ∀ p q mv.
+    final_pred p = SOME q ⇒
+    sem_pred p mv = SOME q
+Proof
+Induct >>
+rpt strip_tac >>
+rgs[final_pred_def] >>
+rgs[sem_pred_def]
+QED
+        
+
+       
+Theorem prop2_pred:
+  prop2 pred_structure
+Proof 
+  gvs[prop2_def] >>
+  gvs[fv_in_p_def, pred_structure_def] >>
+  Induct_on ‘p’ >>
+  rpt strip_tac >>
+
+  imp_res_tac final_pred_imp_sem >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
+  assume_tac prop1_pred >>
+  rgs[prop1_def, fv_in_p_def, pred_structure_def]
+QED
+
           
-
-
-     
+         
+Theorem prop3_pred:
+  prop3 pred_structure
+Proof
+gvs[prop3_def, pred_structure_def, fv_in_p_def] >>
+rpt strip_tac >>
+gvs[final_pred_imp_sem]
+QED
         
 
 val _ = export_theory ();
