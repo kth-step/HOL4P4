@@ -182,9 +182,10 @@ fun parse_bool_list l =
  listSyntax.mk_list (parse_bool_list' $ String.explode l, bool);
 end
 
+(* Converts a SML hex string into a HOL4 list of Booleans *)
 fun hex_to_bool_list hex_string =
  let
-  val hex_string_no_spaces = String.implode (List.filter (fn c => c <> #" ") (String.explode hex_string));
+  val hex_string_no_spaces = String.implode (List.filter (fn c => c <> #" " andalso c <> #".") (String.explode hex_string));
   val len = term_of_int $ (size hex_string_no_spaces) * 4;
   val hex_string_no_spaces_tm = stringLib.fromMLstring hex_string_no_spaces
   val num_tm = optionSyntax.dest_some $ rhs $ concl $ EVAL “fromHexString ^hex_string_no_spaces_tm”
@@ -247,6 +248,76 @@ fun bool_list_to_hex bool_list =
 
  in
   bin_to_hex bin_str
+ end
+;
+
+(* TODO: Make syntax file *)
+val (match_all_e_alt_tm, mk_match_all_e_alt, dest_match_all_e_alt, is_match_all_e_alt) =
+  syntax_fns2 "p4_aux" "match_all_e_alt";
+
+fun get_keys [] = []
+  | get_keys (h::t) =
+ let
+  val match_fun = fst $ dest_pair h
+  val (f, prio) = dest_pair match_fun
+  val s_list = fst $ dest_list $ snd $ dest_comb f
+ in
+  if length s_list = 1
+  then
+   let
+    val s = el 1 s_list
+   in
+    if is_s_sing s
+    then
+     let
+      val (bool_list_tm, width_tm) = dest_pair $ dest_v_bit $ dest_s_sing s
+      val value = int_of_term $ rhs $ concl $ EVAL “v2n ^bool_list_tm”
+      val width = int_of_term width_tm
+     in
+      ((value, width), int_of_term prio)::(get_keys t)
+     end
+    else raise Fail "get_keys only supports s_sing"
+   end
+  else raise Fail "get_keys only supports single matching keys (got multiple entries)"
+ end
+;
+
+(* Populate a table with singleton keys, outside of existing entries.
+ * Used for creating dummy entries for benchmarking table matching *)
+(* TODO: How to best handle priority? Best make new entries the prioritized ones... *)
+fun populate_table tbl rand_gen n_additional_entries =
+ let
+  val (name, entries) = dest_pair tbl
+  val entries_list = fst $ dest_list entries
+  val (keys, prios) = unzip $ get_keys entries_list
+  (* TODO: Hack. Warn if widths disagree. *)
+  val width = el 1 $ map snd keys
+
+  val max_prio = fst $ mlibUseful.max (fn (a,b) => Int.compare (a, b)) prios
+
+  (* TODO: Re-do randomization for doubles? *)
+  fun add_entries existing_keys width rand_gen 0 = []
+    | add_entries existing_keys width rand_gen n_additional_entries =
+   let
+    val new_entry = Random.range (0, (funpow width (fn a => a*2) 1)) rand_gen;
+    val new_entry' = mk_s_sing $ rhs $ concl $ EVAL $ mk_v_bitii (new_entry, width)
+   in
+    if not $ exists (fn a => a = new_entry) existing_keys
+    then new_entry'::(add_entries existing_keys width rand_gen (n_additional_entries-1))
+    else (add_entries existing_keys width rand_gen (n_additional_entries-1))
+   end
+  ;
+
+  (* TODO: Take action as an argument *)
+  val action =
+   “("NoAction",
+      [e_v (v_bool T); e_v (v_bool T)])”
+  val new_entries = add_entries (map fst keys) width rand_gen n_additional_entries
+  val new_entries' = map (fn a => mk_pair (mk_comb (match_all_e_alt_tm, mk_list ([a], “:s”)), term_of_int (max_prio+1))) new_entries
+  val new_entries_tm = mk_list (map (fn a => mk_pair (a, action)) new_entries', “:((e list -> bool) # num) # string # e list”)
+  
+ in
+  mk_pair (name, rhs $ concl $ EVAL “^new_entries_tm ++ (SND ^tbl)”)
  end
 ;
 

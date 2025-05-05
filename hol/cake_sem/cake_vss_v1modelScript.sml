@@ -19,26 +19,16 @@ open p4_cake_transformLib p4_cake_auxLib;
 
 val _ = translation_extends "p4_exec_sem_cakeProg";
 
-(* TODO: Make function to parse external table files *)
-(* Hard-coded tables:
-
-open p4_cake_auxLib;
-
-Use parse_bool_list
-
-*)
+(* TODO: This uses tables with the new shorthands... *)
 
 val ipv4_match_tbl =
  “("ipv4_match",
-   [(((λk.
-     match_all
-       (ZIP
-          (MAP (λe. THE (v_of_e e)) k,
+   [((match_all_e_alt
            [s_mask (* 00001010.00000000.00000000.00000010 *)
               ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                 F; F; F; F; F; F; T; F],32)
               ([T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T;
-                T; T; T; T; T; T; T; T],32)]))),4),
+                T; T; T; T; T; T; T; T],32)],4),
      "Set_nhop",
      [e_v (v_bool T); e_v (v_bool T);
       (* 00001010.00000000.00000000.00000010 *)
@@ -46,15 +36,12 @@ val ipv4_match_tbl =
                    F; F; F; F; F; F; T; F],32));
       (* port *)
       e_v (v_bit ([F; F; F; F; F; F; F; T; F],9))]);
-    (((λk.
-     match_all
-       (ZIP
-          (MAP (λe. THE (v_of_e e)) k,
+    ((match_all_e_alt
            [s_mask (* 00001010.00000000.00000000.00000001 *)
               ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                 F; F; F; F; F; F; F; T],32)
               ([T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T;
-                T; T; T; T; T; T; T; T],32)]))),4),
+                T; T; T; T; T; T; T; T],32)],4),
      "Set_nhop",
      [e_v (v_bool T); e_v (v_bool T);
       (* 00001010.00000000.00000000.00000001 *)
@@ -66,25 +53,19 @@ val ipv4_match_tbl =
 
 val dmac_tbl =
   “("dmac",
-    [(((λk.
-      match_all
-        (ZIP
-           (MAP (λe. THE (v_of_e e)) k,
+    [((match_all_e_alt
              (* 00001010.00000000.00000000.00000010 *)
             [s_sing $ v_bit ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                              F; F; F; F; F; F; T; F],32)]))),4),
+                              F; F; F; F; F; F; T; F],32)],4),
       "Set_dmac",
       (* 00000010:00010001:00100010:00110011:01000100:00000010 *)
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F; T; F; F; F; T; F;
                     F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F; F; F; T; F],48))]);
-     (((λk.
-      match_all
-        (ZIP
-           (MAP (λe. THE (v_of_e e)) k,
+     ((match_all_e_alt
              (* 00001010.00000000.00000000.00000001 *)
             [s_sing $ v_bit ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                              F; F; F; F; F; F; F; T],32)]))),4),
+                              F; F; F; F; F; F; F; T],32)],4),
       "Set_dmac",
       (* 00000010:00010001:00100010:00110011:01000100:00000001 *)
       [e_v (v_bool T); e_v (v_bool T);
@@ -94,21 +75,15 @@ val dmac_tbl =
 
 val smac_tbl =
   “("smac",
-    [(((λk.
-      match_all
-        (ZIP
-           (MAP (λe. THE (v_of_e e)) k,
-            [s_sing $ v_bit ([F; F; F; F; F; F; F; T; F],9)]))),4),
+    [((match_all_e_alt
+            [s_sing $ v_bit ([F; F; F; F; F; F; F; T; F],9)],4),
       "Set_smac",
       (* 00000010:00010001:00100010:00110011:01000100:00000100 *)
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F; T; F; F; F; T; F;
                                F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F; F; T; F; F],48))]);
-     (((λk.
-      match_all
-        (ZIP
-           (MAP (λe. THE (v_of_e e)) k,
-            [s_sing $ v_bit ([F; F; F; F; F; F; F; F; T],9)]))),4),
+     ((match_all_e_alt
+            [s_sing $ v_bit ([F; F; F; F; F; F; F; F; T],9)],4),
       "Set_smac",
       (* 00000010:00010001:00100010:00110011:01000100:00000011 *)
       [e_v (v_bool T); e_v (v_bool T);
@@ -116,6 +91,11 @@ val smac_tbl =
      F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F; F; F; T; T],48))])
     ]):(string # (((e_list -> bool) # num), string # e_list) alist)”;
 
+val rand_gen = Random.newgen ();
+
+val n_additional_entries = 1000;
+
+val smac_tbl' = populate_table smac_tbl rand_gen n_additional_entries;
 
 val vss_v1model_actx = ``([arch_block_inp;
   arch_block_pbl "TopParser"
@@ -514,7 +494,7 @@ val vss_v1model_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
 val vss_v1model_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [^smac_tbl; ^dmac_tbl; ("check_ttl",[]); ^ipv4_match_tbl]),
+  [^smac_tbl'; ^dmac_tbl; ("check_ttl",[]); ^ipv4_match_tbl]),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool F);
@@ -533,7 +513,7 @@ val res = dest_some $ rhs $ concl $ EVAL “arch_multi_exec ^vss_v1model_actx (p
 val (dict', actx', astate') =
  transform_program v1model_dict vss_v1model_actx vss_v1model_astate;
 
-val dict'' = invert_dict dict'
+val dict'' = invert_dict dict';
 
 val progname = Theory.current_theory();
 val dict = dict'';

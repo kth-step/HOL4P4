@@ -1199,6 +1199,10 @@ Definition v'_of_e'_def:
  (v'_of_e' _ = v'_bot)
 End
 
+Definition match_all_e_alt'_def:
+ match_all_e_alt' s_l e_l = match_all' (ZIP(MAP v'_of_e' e_l, s_l))
+End
+
 Definition match_all_first'_def:
  (match_all_first' i v_list ([]:(s' list # word64) list) = NONE) /\
  (match_all_first' i v_list (h::t) =
@@ -1626,10 +1630,8 @@ Definition stmt_exec'_def:
        then
         (case apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) of
          | SOME (f, f_args) =>
-          (if is_consts_exec' f_args
-           then
-            SOME (ascope, g_scope_list, [(funn, [stmt'_ass lval'_null (e'_call (funn'_name f) f_args)], scope_list)], status'_running)
-           else NONE)
+          (* TODO: This has been relaxed to allow non-constant function arguments *)
+          SOME (ascope, g_scope_list, [(funn, [stmt'_ass lval'_null (e'_call (funn'_name f) f_args)], scope_list)], status'_running)
          | NONE => NONE)
        else NONE)
      | NONE => NONE)))

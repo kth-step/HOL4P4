@@ -772,7 +772,13 @@ Definition transform_ext_map_def:
 
   (44w,
    SOME ([(3w,d_out); (21w,d_none)],v1model_direct_counter_construct'),
-   [(60w,[(3w,d_out)],v1model_direct_counter_count')])
+   [(60w,[(3w,d_out)],v1model_direct_counter_count')]);
+  (67w,
+   SOME ([(3w,d_out); (21w,d_none); (5w, d_in)],v1model_direct_meter_construct'),
+   []);
+  (68w,
+   SOME ([(3w,d_out); (69w,d_none); (17w, d_none); (70w, d_none)],v1model_action_selector_construct'),
+   [])
 (*
     (45w,
      SOME

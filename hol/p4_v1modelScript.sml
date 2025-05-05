@@ -150,7 +150,7 @@ End
 (* Direct counter methods   *)
 (****************************)
 
-(* This should not overwrite previously gathered statistics: this must always be initialised statically, before reductions. *)
+(* TODO: This should not overwrite previously gathered statistics: this must always be initialised statically, before reductions. *)
 Definition v1model_direct_counter_construct_def:
  v1model_direct_counter_construct (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope_list) =
   SOME (v1model_ascope, scope_list, status_returnv v_bot)
@@ -160,6 +160,26 @@ End
  * use the apply_table_f instead. *)
 Definition v1model_direct_counter_count_def:
  v1model_direct_counter_count (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope_list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
+End
+
+(**************************)
+(* Direct meter methods   *)
+(**************************)
+
+(* TODO: Just a dummy implementation *)
+Definition v1model_direct_meter_construct_def:
+ v1model_direct_meter_construct (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope_list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
+End
+
+(*****************************)
+(* Action selector methods   *)
+(*****************************)
+
+(* TODO: Just a dummy implementation: This concerns table matches in the control plane *)
+Definition v1model_action_selector_construct_def:
+ v1model_action_selector_construct (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope_list) =
   SOME (v1model_ascope, scope_list, status_returnv v_bot)
 End
 

@@ -426,6 +426,9 @@ val _ = translate listTheory.LIST_TO_SET_DEF;
 val _ = translate boolTheory.IN_DEF;
 val _ = translate v1model_apply_table_f'_def;
 
+(* Used in tables: *)
+val _ = translate match_all_e_alt'_def;
+
 (* Extern implementations: *)
 
 val _ = translate v1model_mark_to_drop'_def;
@@ -474,6 +477,10 @@ val _ = translate v1model_packet_out_emit'_def;
 
 val _ = translate v1model_direct_counter_construct'_def;
 val _ = translate v1model_direct_counter_count'_def;
+
+val _ = translate v1model_direct_meter_construct'_def;
+
+val _ = translate v1model_action_selector_construct'_def;
 
 (* TODO: The below is defined in terms of functions that uses ARB... *)
 (*

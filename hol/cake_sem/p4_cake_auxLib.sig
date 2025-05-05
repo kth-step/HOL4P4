@@ -19,4 +19,6 @@ val hex_to_bool_list : string -> term
 
 val bool_list_to_hex : term -> string
 
+val populate_table : term -> Random.generator -> int -> term
+
 end

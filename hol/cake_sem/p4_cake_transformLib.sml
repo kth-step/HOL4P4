@@ -8,6 +8,7 @@ open p4Theory p4_auxTheory p4_exec_sem_cakeTheory;
 open p4_coreTheory;
 open p4_v1modelTheory;
 
+open p4_cake_auxLib;
 open p4_arch_cakeTheory;
 open p4_cake_transformTheory;
 
@@ -186,7 +187,8 @@ val v1model_dict =
      ("assert",54w); ("assume",55w); ("extract",56w); ("lookahead",57w);
      ("advance",58w); ("emit",59w); ("count",60w); ("read",61w);
      ("write",62w); ("decrypt_aes_ctr",63w); ("encrypt_aes_ctr",64w);
-     ("encrypt_null",65w); ("decrypt_null",66w)]:(string, word64) alist”;
+     ("encrypt_null",65w); ("decrypt_null",66w); ("direct_meter",67w);
+     ("action_selector",68w); ("algorithm",69w); ("outputWidth",70w)]:(string, word64) alist”;
 
 (* Uses a dict of static, architecture-coded variable names. add_varnames_actx will pick
  * up the rest. Returns a tuple of a new dict and the actx'. *)
@@ -218,21 +220,63 @@ fun transform_actx dict actx =
  end
 ;
 
+(*
+val match_fun = “(match_all_e_alt'
+             (* 00001010.00000000.00000000.00000010 *)
+            [s'_sing $ v'_bit ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                              F; F; F; F; F; F; T; F],32)],4:num)”
+
+is_match_all_e_alt' match_fun
+*)
+
+(* TODO: Make syntax file *)
+val (match_all_e_alt'_tm, mk_match_all_e_alt', dest_match_all_e_alt', is_match_all_e_alt') =
+  syntax_fns2 "p4_exec_sem_cake" "match_all_e_alt'";
+
 fun transform_match_fun dict match_fun =
  let
   val (f, prio) = dest_pair match_fun
-  val (t1, t2) = dest_abs f
-  val t_name = fst $ dest_var t1
-  val t1' = mk_var (t_name, “:e' list”)
-  val (match_all, t3) = dest_comb t2
-  val (zip, t4) = dest_comb t3
-  val (map_tm, s_list) = dest_pair t4
-  val map_tm' = “MAP v'_of_e' ^t1'”;
+ in
+  if is_abs f
+  then
+   (* Transforms tables that use the old matching convention *)
+   let
+    val (t1, t2) = dest_abs f
+    val t_name = fst $ dest_var t1
+    val t1' = mk_var (t_name, “:e' list”)
+    val (match_all, t3) = dest_comb t2
+    val (zip, t4) = dest_comb t3
+    val (map_tm, s_list) = dest_pair t4
+    val map_tm' = “MAP v'_of_e' ^t1'”;
+    val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
+   in
+    if is_some s'_list_opt
+    then mk_pair (mk_abs (t1', mk_comb (“match_all'”, mk_zip (map_tm', dest_some s'_list_opt))), prio)
+    else raise Fail "transform_match_fun failed to translate set expression list"
+   end
+  else
+   (* Transforms tables that use the match_all_e_alt definition as matching function *)
+   let
+    val s_list = snd $ dest_comb f
+    val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
+   in
+    if is_some s'_list_opt
+    then mk_pair (mk_comb (match_all_e_alt'_tm, dest_some s'_list_opt), prio)
+    else raise Fail "transform_match_fun failed to translate set expression list"
+   end
+ end
+;
+
+
+fun transform_match_fun' dict match_fun =
+ let
+  val (f, prio) = dest_pair match_fun
+  val s_list = snd $ dest_comb f
   val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
  in
   if is_some s'_list_opt
-  then mk_pair (mk_abs (t1', mk_comb (“match_all'”, mk_zip (map_tm', dest_some s'_list_opt))), prio)
-  else raise Fail "transform_match_fun failed to translate set expression list"
+  then mk_pair (mk_comb (match_all_e_alt'_tm, dest_some s'_list_opt), prio)
+  else raise Fail "transform_match_fun' failed to translate set expression list"
  end
 ;
 
@@ -256,7 +300,7 @@ fun transform_entries dict [] = []
       val args' = snd $ dest_comb $ dest_some argsl'_opt
       val res = transform_entries dict t
      in
-      ((mk_pair (transform_match_fun dict match_fun, mk_pair (name', args')) )::res)
+      ((mk_pair (transform_match_fun' dict match_fun, mk_pair (name', args')) )::res)
      end
     else raise Fail "transform_entries failed to translate action arguments"
    end

@@ -2812,5 +2812,9 @@ Definition assign'_def:
  (assign' ss v (lval_paren lval) = assign' ss v lval)
 End
 
+(* TODO: Change the order of parameters to that of this function in the Ott file *)
+Definition match_all_e_alt_def:
+ match_all_e_alt s_l e_l = match_all (ZIP(vl_of_el e_l, s_l))
+End
 
 val _ = export_theory ();

@@ -883,6 +883,16 @@ Definition v1model_direct_counter_count'_def:
   SOME (v1model_ascope, scope_list, status'_returnv v'_bot)
 End
 
+Definition v1model_direct_meter_construct'_def:
+ v1model_direct_meter_construct' (v1model_ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list:scope_list') =
+  SOME (v1model_ascope, scope_list, status'_returnv v'_bot)
+End
+
+Definition v1model_action_selector_construct'_def:
+ v1model_action_selector_construct' (v1model_ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list:scope_list') =
+  SOME (v1model_ascope, scope_list, status'_returnv v'_bot)
+End
+
 Definition v1model_verify_checksum'_def:
  (v1model_verify_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
   (case lookup_lval'' scope_list (lval'_varname (varn'_name 2w)) of
