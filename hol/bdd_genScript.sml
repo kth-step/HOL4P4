@@ -361,10 +361,10 @@ End
            
 
 Definition BDD_ordered_def:
-BDD_ordered ((r,edges,labels):('a,'b)BDD) xl =
-∀ n n' n''.
-  ALOOKUP edges n = SOME (n',n'') ⇒
-  (order_hold labels xl n n' ∧ order_hold labels xl  n n'')
+  BDD_ordered ((r,edges,labels):('a,'b)BDD) xl =
+  ∀ n n' n''.
+    ALOOKUP edges n = SOME (n',n'') ⇒
+    (order_hold labels xl n n' ∧ order_hold labels xl  n n'')
 End
 
 
@@ -382,15 +382,21 @@ Definition consumed_dom_bdd_def:
     MEM x vars_consumed
 End        
 
-
+(*
 Definition mv_dom_bdd_def:
   mv_dom_bdd mv ((root,edges,labels):('a,'b)BDD) = 
   ∀ n p x.
     (ALOOKUP labels n = SOME (non_termn (SOME x,p))) ⇒
     lookup_is_some mv x
 End
+*)
 
-
+Definition mv_dom_vars_def:
+  mv_dom_vars mv vars = 
+  ∀ x.
+    MEM x vars ⇒
+    lookup_is_some mv x
+End
 
     
 Definition range_c_def:
@@ -431,22 +437,30 @@ Definition fv_in_p_def:
 End
 
 
-Definition fv_in_labels_def:
-  fv_in_labels rec labels mv =
-  ∀ n opx p. (ALOOKUP labels n = SOME (non_termn (opx,p)) ⇒
-         fv_in_p rec p mv )  
+Definition fv_in_vars_def:
+  fv_in_vars rec p vars =
+        (∀x. MEM x (rec.fv p) ⇒ MEM x vars)
 End
 
 
-        
+Definition fv_in_labels_def:
+  fv_in_labels rec labels vars =
+  ∀ n opx p. (ALOOKUP labels n = SOME (non_termn (opx,p)) ⇒
+         fv_in_vars rec p vars )  
+End
 
-        
+
+Definition fv_in_BDD_def:
+  fv_in_BDD rec (r,edges,labels) vars =
+  fv_in_labels rec labels vars 
+End
+
+
 Definition correct_sem_def:
-  correct_sem rec (BDD:('a,'b)BDD)  =
+  correct_sem rec (BDD:('a,'b)BDD) vars =
   ∀ n mv b r edges labels.
     BDD = (r,edges,labels) ∧
-    mv_dom_bdd mv BDD  ∧
-    fv_in_labels rec labels mv ∧
+    mv_dom_vars mv vars  ∧
     BDD_sem rec BDD mv n b ⇒
     b = op_sem rec (get_prop labels n) mv         
 End  
@@ -460,7 +474,7 @@ Definition correct_sem_def:
   ! mv .
     MEM n (all_edges edges)
     mv_dom_bdd mv BDD  ∧
-    fv_in_p rec (get_prop labels n) mv ==>
+    fv_in_vars rec (get_prop labels n) mv ==>
   !b .
     BDD_sem rec BDD mv n b ⇒
     b = op_sem rec (get_prop labels n) mv         
@@ -468,6 +482,11 @@ End
 *)
 
 
+
+(******************************************************)
+(*                  rec  properties                   *)
+(******************************************************)
+        
 
 Definition prop1_def:
   prop1 (rec:('a,'b)decision_structure) =
@@ -494,65 +513,14 @@ Definition prop3_def:
     rec.sem (rec.simp (rec.sub p h b)) mv = SOME q
 End
 
-(* general rec type , also Ps here are generic also rec is generic -------------  START HERE*)
-(*
-∀ (BDD:('a,'b)BDD) BDD' vars_consumed vars c mv rec P1 P2 P3.
-P1 ∧ P2 ∧ P3 ∧
-correct_sem rec BDD ⇒
-SOME BDD' = mk_BDDPred rec BDD vars_consumed vars c ⇒
-correct_sem rec BDD'
-*)
 
-
-
-
-(*
-
-Definition wf_decision_strucrture_def:
-  wf_decision_strucrture decision_structures =
-  ∀ p mv x b. 
-    ALOOKUP mv x = SOME b ⇒        
-    decision_structures.sem p mv = decision_structures.sem (decision_structures.sub p x b) mv
+Definition prop4_def:
+  prop4 rec =    
+  ∀ varslist prop_parent p b h.
+  rec.simp (rec.sub prop_parent h b) = p ∧
+  fv_in_vars rec prop_parent varslist ⇒
+  fv_in_vars rec p varslist
 End
-
-
-
-Theorem thm1:
-wf_decision_strucrture pred_structure
-Proof
-  gvs[wf_decision_strucrture_def, pred_structure_def] >>
-  cheat
-QED
-
-
-Theorem thm2:
-P2 pred_structure
-Proof
-cheat
-QED
-
-
-Theorem thm3:
-P3 pred_structure
-Proof
-cheat
-QED
-
-
-
-
- (* for specific type separatly , prove these properties ONLY those  *)    
-∀ rec. P1 ∧
-P2 ∧
-P3 ∧
-  
-End
-
-        
-*)
-
-
-
 
 
 (******************************************************)
@@ -589,5 +557,15 @@ End
 (*
 EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
 *)
+
+
+Definition eleminatble_def:        
+eleminatble ((r,edges,labels):('a,'b)BDD)  n n' = 
+(n≠n' ∧
+ ALOOKUP edges n' = SOME (n,n) ∧
+ ALOOKUP labels n  ≠ NONE )
+End
+
+          
                                              
 val _ = export_theory ();
