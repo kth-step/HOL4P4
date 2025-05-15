@@ -392,6 +392,86 @@ gvs[prop3_def, pred_structure_def, fv_in_p_def] >>
 rpt strip_tac >>
 gvs[final_pred_imp_sem]
 QED
+
+
+
+
+Theorem pred_fv_vars_mem_decomposition:        
+  ∀ p p' mv varslist.
+    ((∀x. MEM x (fv_pred (And p p')) ⇒ MEM x varslist) ∨
+     (∀x. MEM x (fv_pred (Or p p')) ⇒ MEM x varslist) ∨
+     (∀x. MEM x (fv_pred (Implies p p')) ⇒ MEM x varslist))⇒
+    ((∀x. MEM x (fv_pred p) ⇒ MEM x varslist) ∧
+     (∀x. MEM x (fv_pred p') ⇒ MEM x varslist)) 
+Proof
+  rpt strip_tac >>
+  gvs[fv_pred_def]
+QED
+
+
+
+
+Theorem pred_not_fv_vars_mem_decomposition:        
+  ∀ p p' mv varslist.
+    (∀x. MEM x (fv_pred (Not p)) ⇒ MEM x varslist )⇒
+    (∀x. MEM x (fv_pred p) ⇒ MEM x varslist) 
+Proof
+  rpt strip_tac >>
+  gvs[fv_pred_def]
+QED
+            
+
+
+
+Theorem fv_subst_simp_distributes_over_connectives:             
+  ∀ x p p' b h.
+    (MEM x (fv_pred (simp_pred (mk_substitute_pred (And p p') h b))) ⇒
+     MEM x (fv_pred (simp_pred (mk_substitute_pred p h b))) ∨
+     MEM x (fv_pred (simp_pred (mk_substitute_pred p' h b))))
+    ∧
+    (MEM x (fv_pred (simp_pred (mk_substitute_pred (Or p p') h b))) ⇒
+     MEM x (fv_pred (simp_pred (mk_substitute_pred p h b))) ∨
+     MEM x (fv_pred (simp_pred (mk_substitute_pred p' h b))))
+    ∧
+    (MEM x (fv_pred (simp_pred (mk_substitute_pred (Implies p p') h b))) ⇒
+     MEM x (fv_pred (simp_pred (mk_substitute_pred p h b))) ∨
+     MEM x (fv_pred (simp_pred (mk_substitute_pred p' h b))))
+    ∧
+    (MEM x (fv_pred (simp_pred (mk_substitute_pred (Not p) h b))) ⇒
+     MEM x (fv_pred (simp_pred (mk_substitute_pred p h b))))
+Proof
+  rpt strip_tac >>
+  gvs[mk_substitute_pred_def] >>
+  gvs[simp_pred_def, fv_pred_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  gvs[fv_pred_def]
+QED
+
+
+ 
+            
+
+Theorem prop4_pred:
+  prop4 pred_structure
+Proof
+  rgs[prop4_def, pred_structure_def, fv_in_vars_def] >>
+  Induct_on ‘prop_parent’ >>
+  rpt strip_tac >-
+   (gvs[mk_substitute_pred_def] >>
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+    gvs[simp_pred_def, fv_pred_def]) >-
+   gvs[mk_substitute_pred_def,simp_pred_def, fv_pred_def] >-
+   gvs[mk_substitute_pred_def,simp_pred_def, fv_pred_def] >>
+  
+  imp_res_tac pred_fv_vars_mem_decomposition >>
+  imp_res_tac pred_not_fv_vars_mem_decomposition >>
+  res_tac >>
+  imp_res_tac fv_subst_simp_distributes_over_connectives >>
+  res_tac
+QED
+
+
+
         
 
 val _ = export_theory ();
