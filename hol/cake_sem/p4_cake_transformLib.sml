@@ -133,7 +133,7 @@ val v1model_implementations =
   register_read_def, register_write_def]
 
 (* Architectural functions mentioning variables by hard-coded names *)
-val v1model_archfuns = [v1model_postparser_def]
+val v1model_archfuns = [v1model_postparser_def, v1model_preingress_def]
 
 (* "type" added manually - it's an argument to direct counter constructor, but not used *)
 val v1model_varnames = (get_varn_name_strings (v1model_implementations@v1model_archfuns))@[“"type"”]
@@ -142,7 +142,7 @@ val v1model_init_vmapnames = varnames_of_vmap p4_v1modelLib.v1model_init_v_map
 
 (* TODO: just copy-pasted from V1Model Script file, put in V1Model Lib *)
 val v_map_varnames =
- [“"b"”, “"b_temp"”, “"standard_metadata"”, “"parsedHdr"”, “"hdr"”, “"meta"”]
+ [“"b"”, “"b_temp"”, “"standard_metadata"”, “"parsedHdr"”, “"hdr"”, “"meta"”, “"checksum_error"”]
 ;
 
 (* The field names from standard_metadata *)
@@ -213,8 +213,9 @@ fun transform_actx dict actx =
    let
     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
     val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
+    val preingress_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "preingress"”
    in
-    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
+    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser'); (^preingress_w,ffblock_ff v1model_preingress')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
    end
   else raise Fail "transform_actx failed to translate actx"
  end

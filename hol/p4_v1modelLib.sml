@@ -61,7 +61,7 @@ val v1model_copyout_pbl = ``v1model_copyout_pbl``;
 val v1model_apply_table_f = ``v1model_apply_table_f``;
 
 (* Fixed-function block map *)
-val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser)]``;
+val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser); ("preingress", ffblock_ff v1model_preingress)]``;
 
 val v1model_direct_counter_map =
  ``[("count", ([("this", d_out)], v1model_direct_counter_count))]``;

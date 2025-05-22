@@ -4,7 +4,7 @@ val _ = new_theory "p4_arch_cake";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_exec_sem_cakeTheory;
+open p4Theory p4_auxTheory p4_cake_auxTheory p4_exec_sem_cakeTheory;
 open p4_coreTheory;
 open p4_v1modelTheory;
 
@@ -369,42 +369,6 @@ Definition flatten_v_l'_def:
  )
 End
 
-Definition v2w8_def:
-(v2w8 [b0;b1;b2;b3;b4;b5;b6;b7] = SOME (
- let acc0 = if b7 then 1w else 0w in
- let acc1 = if b6 then acc0 + (word_lsl 1w 1) else acc0 in
- let acc2 = if b5 then acc1 + (word_lsl 1w 2) else acc1 in
- let acc3 = if b4 then acc2 + (word_lsl 1w 3) else acc2 in
- let acc4 = if b3 then acc3 + (word_lsl 1w 4) else acc3 in
- let acc5 = if b2 then acc4 + (word_lsl 1w 5) else acc4 in
- let acc6 = if b1 then acc5 + (word_lsl 1w 6) else acc5 in
- let acc7 = if b0 then acc6 + (word_lsl 1w 7) else acc6 in
-acc7:word8
-)) /\
-(v2w8 _ = NONE)
-End
-
-Definition bool_list_to_byte_list_def:
- (bool_list_to_byte_list [] = SOME []) /\
- (bool_list_to_byte_list l =
-  case oTAKE_DROP 8 l of
-   | SOME (take,rest) =>
-    (case v2w8 take of
-     | SOME w =>
-      (case bool_list_to_byte_list rest of
-       | SOME res =>
-        SOME (w::res)
-       | NONE => NONE)
-     | NONE => NONE)
-   | NONE => NONE)
-Termination
-WF_REL_TAC ‘measure LENGTH’ >>
-rpt strip_tac >>
-imp_res_tac oTAKE_DROP_SOME >>
-imp_res_tac oDROP_LENGTH >>
-gvs[]
-End
-
 Definition packet_out_emit_gen'_def:
  (packet_out_emit_gen' (ascope_lookup:'a -> num -> (core_v_ext' + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list', scope_list) =
   case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
@@ -540,6 +504,20 @@ Definition v1model_postparser'_def:
    | _ => NONE)
 End
 
+Definition v1model_preingress'_def:
+ v1model_preingress' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
+  case ALOOKUP v_map 35w of
+   | SOME v =>
+    (case assign' [v_map_to_scope' v_map] v (lval'_field (lval'_varname (varn'_name 10w)) 35w) of
+     | SOME [v_map_scope] =>
+      (case scope_to_vmap' v_map_scope of
+       | SOME v_map' =>
+        SOME (counter, ext_obj_map, v_map', ctrl)
+       | NONE => NONE)
+     | _ => NONE)
+   | NONE => NONE
+End
+
 val (v'_bit_tm, mk_v'_bit, dest_v'_bit, is_v'_bit) =
   syntax_fns1 "p4_exec_sem_cake" "v'_bit";
 
@@ -580,18 +558,18 @@ Definition v1model_input_f'_def:
   case io_list of
   | [] => NONE
   | ((byte_list,p)::t) =>
-   (* TODO: Currently, no garbage collection in ext_obj_map is done *)
-   (* let counter' = ^v1model_init_counter in *)
-   let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext'_packet byte_list));
-                                                (counter+1, INL (core_v_ext'_packet []))] in
-   let counter' = counter + 2 in
-   (* TODO: Currently, no garbage collection in v_map is done *)
-   let v_map' = AUPDATE_LIST v_map [(8w, v'_ext_ref counter);
-                                    (9w, v'_ext_ref (counter+1));
+   (* TODO: Implement persistence between packets when you fully model persistent extern objects *)
+   let ext_obj_map' = AUPDATE_LIST [] [(0, INL (core_v_ext'_packet byte_list));
+                                       (1, INL (core_v_ext'_packet []))] in
+   let counter' = 2 in
+   (* TODO: Currently, no garbage collection in v_map is needed *)
+   let v_map' = AUPDATE_LIST v_map [(8w, v'_ext_ref 0);
+                                    (9w, v'_ext_ref 1);
                                     (10w, v'_struct (p4$AUPDATE (^v1model_standard_metadata_zeroed') (22w, (v'_bit (fixwidth 9 $ n2v p, 9) ) )));
                                     (11w, tau1_uninit_v);
                                     (12w, tau1_uninit_v);
-                                    (13w, tau2_uninit_v)] in
+                                    (13w, tau2_uninit_v);
+                                    (35w, v'_bit ([F], 1))] in
     SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope'))
 End
 
@@ -914,7 +892,7 @@ Definition v1model_verify_checksum'_def:
                (if bl' = bl''
                 then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status'_returnv v'_bot)
                 else
-                 (case assign' [v_map_to_scope' v_map] (v'_bit ([T], 1)) (lval'_field (lval'_varname (varn'_name 10w)) 35w) of
+                 (case assign' [v_map_to_scope' v_map] (v'_bit ([T], 1)) (lval'_varname (varn'_name 35w)) of
                   | SOME [v_map_scope] =>
                    (case scope_to_vmap' v_map_scope of
                     | SOME v_map' =>

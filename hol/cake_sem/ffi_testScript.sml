@@ -29,6 +29,7 @@ val actx = ``([arch_block_inp;
      e_var (varn_name "meta"); e_var (varn_name "standard_metadata")];
   arch_block_ffbl "postparser";
   arch_block_pbl "vrfy" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
+  arch_block_ffbl "preingress";
   arch_block_pbl "ingress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
@@ -74,7 +75,7 @@ val actx = ``([arch_block_inp;
           (stmt_ass
              (lval_field (lval_varname (varn_name "standard_meta"))
                 "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9))))),
-     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser)],
+     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser); ("preingress",ffblock_ff v1model_preingress)],
  v1model_input_f
    (v_struct
       [("h",

@@ -277,7 +277,7 @@ Definition v1model_verify_checksum_def:
                (if (v_bit (bl', n')) = (v_bit (bl'', 16))
                 then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
                 else
-                 (case assign' [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+                 (case assign' [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_varname (varn_name "checksum_error")) of
                   | SOME [v_map_scope] =>
                    (case scope_to_vmap v_map_scope of
                     | SOME v_map' =>
@@ -631,7 +631,7 @@ val v1model_header_uninit =
 
 (* TODO: Define this in the library and use below *)
 val v_map_varnames =
- [“"b"”, “"b_temp"”, “"standard_metadata"”, “"parsedHdr"”, “"hdr"”, “"meta"”]
+ [“"b"”, “"b_temp"”, “"standard_metadata"”, “"parsedHdr"”, “"hdr"”, “"meta"”, “"checksum_error"”]
 ;
 
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
@@ -651,7 +651,8 @@ Definition v1model_input_f_def:
                                     ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed) ("ingress_port", v_bit (w9 (n2w p)))));
                                     ("parsedHdr", tau1_uninit_v);
                                     ("hdr", tau1_uninit_v);
-                                    ("meta", tau2_uninit_v)] in
+                                    ("meta", tau2_uninit_v);
+                                    ("checksum_error", v_bit ([F], 1))] in
     SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope))
 End
 
@@ -752,6 +753,20 @@ Definition v1model_postparser_def:
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
+End
+
+Definition v1model_preingress_def:
+ v1model_preingress ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+  case ALOOKUP v_map "checksum_error" of
+   | SOME v =>
+    (case assign' [v_map_to_scope v_map] v (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+     | SOME [v_map_scope] =>
+      (case scope_to_vmap v_map_scope of
+       | SOME v_map' =>
+        SOME (counter, ext_obj_map, v_map', ctrl)
+       | NONE => NONE)
+     | _ => NONE)
+   | NONE => NONE
 End
 
 (* Note that this split-up of functions is so that the symbolic execution

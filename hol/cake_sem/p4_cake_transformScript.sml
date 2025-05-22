@@ -4,7 +4,7 @@ val _ = new_theory "p4_cake_transform";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_exec_sem_cakeTheory;
+open p4Theory p4_auxTheory p4_cake_auxTheory p4_exec_sem_cakeTheory;
 open p4_coreTheory;
 open p4_v1modelTheory;
 

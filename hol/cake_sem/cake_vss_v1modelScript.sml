@@ -93,7 +93,7 @@ val smac_tbl =
 
 val rand_gen = Random.newgen ();
 
-val n_additional_entries = 1000;
+val n_additional_entries = 100;
 
 val smac_tbl' = populate_table smac_tbl rand_gen n_additional_entries;
 
@@ -104,6 +104,7 @@ val vss_v1model_actx = ``([arch_block_inp;
   arch_block_ffbl "postparser";
   arch_block_pbl "TopVerifyChecksum"
     [e_var (varn_name "hdr"); e_var (varn_name "meta")];
+  arch_block_ffbl "preingress";
   arch_block_pbl "TopIngress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
@@ -175,9 +176,31 @@ val vss_v1model_actx = ``([arch_block_inp;
      stmt_seq stmt_empty
        (stmt_ass lval_null
           (e_call (funn_ext "" "verify_checksum")
-             [e_v (v_bool T); e_acc (e_var (varn_name "headers")) "ip";
-              e_v
-                (v_bit ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+             [e_v (v_bool T);
+              e_struct
+                [("1",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip") "version");
+                 ("2",e_acc (e_acc (e_var (varn_name "headers")) "ip") "ihl");
+                 ("3",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip") "diffserv");
+                 ("4",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip") "totalLen");
+                 ("5",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip")
+                    "identification");
+                 ("6",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip") "flags");
+                 ("7",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip")
+                    "fragOffset");
+                 ("8",e_acc (e_acc (e_var (varn_name "headers")) "ip") "ttl");
+                 ("9",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip") "protocol");
+                 ("10",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip") "srcAddr");
+                 ("11",
+                  e_acc (e_acc (e_var (varn_name "headers")) "ip") "dstAddr")];
+              e_acc (e_acc (e_var (varn_name "headers")) "ip") "hdrChecksum";
               e_v
                 (v_bit
                    ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
@@ -358,7 +381,30 @@ val vss_v1model_actx = ``([arch_block_inp;
           (stmt_block []
              (stmt_ass lval_null
                 (e_call (funn_ext "" "update_checksum")
-                   [e_v (v_bool T); e_acc (e_var (varn_name "p")) "ip";
+                   [e_v (v_bool T);
+                    e_struct
+                      [("1",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip") "version");
+                       ("2",e_acc (e_acc (e_var (varn_name "p")) "ip") "ihl");
+                       ("3",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip") "diffserv");
+                       ("4",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip") "totalLen");
+                       ("5",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip")
+                          "identification");
+                       ("6",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip") "flags");
+                       ("7",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip")
+                          "fragOffset");
+                       ("8",e_acc (e_acc (e_var (varn_name "p")) "ip") "ttl");
+                       ("9",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip") "protocol");
+                       ("10",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip") "srcAddr");
+                       ("11",
+                        e_acc (e_acc (e_var (varn_name "p")) "ip") "dstAddr")];
                     e_acc (e_acc (e_var (varn_name "p")) "ip") "hdrChecksum";
                     e_v
                       (v_bit
@@ -376,7 +422,9 @@ val vss_v1model_actx = ``([arch_block_inp;
           (stmt_ass lval_null
              (e_call (funn_ext "packet_out" "emit")
                 [e_var (varn_name "b"); e_acc (e_var (varn_name "p")) "ip"]))),
-     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser)],
+     [])],[],[],[])],
+ [("postparser",ffblock_ff v1model_postparser);
+  ("preingress",ffblock_ff v1model_preingress)],
  v1model_input_f
    (v_struct
       [("ethernet",
@@ -460,6 +508,14 @@ val vss_v1model_actx = ``([arch_block_inp;
   ("direct_counter",
    SOME ([("this",d_out); ("type",d_none)],v1model_direct_counter_construct),
    [("count",[("this",d_out)],v1model_direct_counter_count)]);
+  ("direct_meter",
+   SOME
+     ([("this",d_out); ("type",d_none); ("targ1",d_in)],
+      v1model_direct_meter_construct),[]);
+  ("action_selector",
+   SOME
+     ([("this",d_out); ("algorithm",d_none); ("size",d_none);
+       ("outputWidth",d_none)],v1model_action_selector_construct),[]);
   ("register",
    SOME
      ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct),
@@ -503,15 +559,67 @@ val vss_v1model_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v
 
 (* Use hex_to_bool_list to debug from simulator print-out.
 
-EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 199”
+val packet_in = hex_to_bool_list "01 00 5E 00 00 16 02 11 22 33 44 01 08 00 46 C0 00 28 00 00 40 00 01 02 F9 F8 0A 00 00 01 E0 00 00 16 94 04 00 00 22 00 F9 02 00 00 00 01 04 00 00 00 E0 00 00 FB"
+val input = mk_pair (packet_in, “1:num”)
 
-val res = dest_some $ rhs $ concl $ EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 199”
+EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 267”
+
+EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 167”
+val astate2 = dest_some $ rhs $ concl $ EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 176”
+EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^astate2) 175”
+
+val res = dest_some $ rhs $ concl $ EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 267”
+
+bool_list_to_hex “[F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F; T; F; F; F;
+            T; F; F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F;
+            F; F; T; F; F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F;
+            T; F; F; F; T; F; F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F;
+            F; F; F; F; F; T; F; F; F; F; F; F; T; F; F; F; F; F; F; F; F; F;
+            F; F; F; T; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F;
+            F; F; F; F; F; F; T; T; F; F; T; F; T; F; F; T; F; T; T; T; F; T;
+            F; T; T; T; T; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+            F; F; T; T; T; T; T; T; F; F; F; T; F; F; F; T; T; T; F; T; F; F;
+            F; F; F; T; F; T; T; F; F; T; F; F; F; F; T; F; T; F; F; F; F; F;
+            F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; F;
+            F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+            F; F; F; F; F; F; T; F; F; F; F; F; F; T; F; F; T; T; F; T; F; F;
+            T; F; F; F; F; F; F; T; F; F; F; F; F; F; F; T; F; F; F; F; F; F;
+            F; F; F; F; F; F; F; T; T; T; T; F; T; F; F; T; T; T; T; F; T; T;
+            F; T; F; T; F; F; F; T; T; F; T; F; T; T; F; T; T; F; T; T; F; F;
+            F; T; T; F; T; T; F; T; F; T; T; F; T; T; T; F; F; T; T; F; T; T;
+            T; T; F; T; T; T; F; F; F; F; T; T; T; T; T; T; T; F; T; T; F; F;
+            T; F; T; F; F; F; F; F; T; T; F; T; T; T; T; T; F; F; F; F; F; F;
+            F; F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+            F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; F; F; F; F; T; T;
+            T; T; F; F; F; F; F; T; F; T; T; T; F; T; T; T; T; T; T; T; T; F;
+            F; T; T; F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+            F; F; F; F; F; F]”
+
+EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 50”
+            
+EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 51”
 
 *)
 
-
 val (dict', actx', astate') =
  transform_program v1model_dict vss_v1model_actx vss_v1model_astate;
+
+(*
+
+val astate'2_opt = rhs $ concl $ EVAL “arch_multi_exec' ^actx' (THE $ p4_append_input_bool_list' [^input] ^astate') 267”
+
+val astate'2 = dest_some astate'2_opt
+
+val astate'2_opt = rhs $ concl $ EVAL “arch_multi_exec' ^actx' (THE $ p4_append_input_bool_list' [^input] ^astate'2) 267”
+
+val res =
+ bool_list_to_hex $ rhs $ concl $ EVAL “FLAT $ MAP w2v ([2w; 17w; 34w; 51w; 68w; 2w; 2w; 17w; 34w; 51w; 68w; 4w; 8w; 0w;
+           69w; 0w; 0w; 50w; 151w; 95w; 0w; 0w; 63w; 17w; 208w; 89w; 10w; 0w;
+           0w; 1w; 10w; 0w; 0w; 2w; 4w; 210w; 4w; 4w; 0w; 30w; 158w; 212w;
+           107w; 108w; 109w; 110w; 111w; 112w; 254w; 202w; 13w; 240w; 1w; 0w;
+           0w; 0w; 2w; 15w; 5w; 223w; 230w; 16w; 0w; 0w]:word8 list)”;
+
+*)
 
 val dict'' = invert_dict dict';
 

@@ -629,6 +629,7 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
                   (el 1 ab_list), (* Parser *)
                   ``arch_block_ffbl "postparser"``,
                   (el 2 ab_list), (* VerifyChecksum *)
+                  ``arch_block_ffbl "preingress"``,
                   (el 3 ab_list), (* Ingress *)
                   (el 4 ab_list), (* Egress *)
                   (el 5 ab_list), (* ComputeChecksum *)

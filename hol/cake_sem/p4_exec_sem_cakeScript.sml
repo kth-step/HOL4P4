@@ -829,7 +829,8 @@ Definition bitv_1comp_def:
 End
 
 Definition bitv_2comp_def:
- bitv_2comp (v:bool list) = n2v ((LENGTH v) - v2n v)
+ bitv_2comp (v:bool list) l =
+  fixwidth l $ n2v ((2 ** l) - v2n v)
 End
 
 Definition bitv_unplus_def:
@@ -841,7 +842,7 @@ Definition unop_exec'_def:
  /\
  (unop_exec' unop_compl (v'_bit (bl,n)) = SOME (v'_bit (bitv_1comp bl, n)))
  /\
- (unop_exec' unop_neg_signed (v'_bit (bl,n)) = SOME (v'_bit (bitv_2comp bl, n)))
+ (unop_exec' unop_neg_signed (v'_bit (bl,n)) = SOME (v'_bit (bitv_2comp bl n, n)))
  /\
  (unop_exec' unop_un_plus (v'_bit bitv) = SOME (v'_bit bitv))
  /\
@@ -952,7 +953,7 @@ Definition bitv_add_def:
 End
 
 Definition bitv_sub_def:
- bitv_sub a b (l:num) = bitv_add a (bitv_2comp b) l
+ bitv_sub a b (l:num) = bitv_add a (bitv_2comp b l) l
 End
 
 Definition band'_def:
@@ -1945,6 +1946,55 @@ Definition arch_multi_exec'_def:
   | SOME (aenv', g_scope_list', arch_frame_list', status') =>
    arch_multi_exec' actx (aenv', g_scope_list', arch_frame_list', status') fuel
   | NONE => SOME (aenv, g_scope_list, arch_frame_list, status))
+End
+
+Definition v2w8_def:
+(v2w8 [b0;b1;b2;b3;b4;b5;b6;b7] = SOME (
+ let acc0 = if b7 then 1w else 0w in
+ let acc1 = if b6 then acc0 + (word_lsl 1w 1) else acc0 in
+ let acc2 = if b5 then acc1 + (word_lsl 1w 2) else acc1 in
+ let acc3 = if b4 then acc2 + (word_lsl 1w 3) else acc2 in
+ let acc4 = if b3 then acc3 + (word_lsl 1w 4) else acc3 in
+ let acc5 = if b2 then acc4 + (word_lsl 1w 5) else acc4 in
+ let acc6 = if b1 then acc5 + (word_lsl 1w 6) else acc5 in
+ let acc7 = if b0 then acc6 + (word_lsl 1w 7) else acc6 in
+acc7:word8
+)) /\
+(v2w8 _ = NONE)
+End
+
+Definition bool_list_to_byte_list_def:
+ (bool_list_to_byte_list [] = SOME []) /\
+ (bool_list_to_byte_list l =
+  case oTAKE_DROP 8 l of
+   | SOME (take,rest) =>
+    (case v2w8 take of
+     | SOME w =>
+      (case bool_list_to_byte_list rest of
+       | SOME res =>
+        SOME (w::res)
+       | NONE => NONE)
+     | NONE => NONE)
+   | NONE => NONE)
+Termination
+WF_REL_TAC ‘measure LENGTH’ >>
+rpt strip_tac >>
+imp_res_tac oTAKE_DROP_SOME >>
+imp_res_tac oDROP_LENGTH >>
+gvs[]
+End
+
+(* Note this takes a bool list list and will append word8 lists to the input lists *)
+Definition p4_append_input_bool_list'_def:
+ (p4_append_input_bool_list' [] astate = SOME astate) /\
+ (p4_append_input_bool_list' ((h1,h2)::t) astate =
+  case bool_list_to_byte_list h1 of
+   | SOME io =>
+   (case p4_append_input_bool_list' t astate of
+    | SOME ((ab_index', inputl', outputl', ascope'), gscope', afl', status') =>
+     SOME ((ab_index', (io,h2)::inputl', outputl', ascope'), gscope', afl', status')
+    | NONE => NONE)
+   | NONE => NONE)
 End
 
 (* TODO: Below functions are used for wrapper *)

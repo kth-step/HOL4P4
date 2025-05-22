@@ -3,7 +3,7 @@ open HolKernel boolLib Parse bossLib;
 val _ = new_theory "p4_exec_sem_cakeProg";
 
 open p4Theory p4_auxTheory p4_coreTheory p4_v1modelTheory;
-open p4_exec_sem_cakeTheory p4_arch_cakeTheory;
+open p4_cake_auxTheory p4_exec_sem_cakeTheory p4_arch_cakeTheory;
 
 (* CakeML: *)
 open preamble ml_translatorLib ml_progLib basisProgTheory;
@@ -407,6 +407,7 @@ val _ = translate oCONS_def;
 val _ = translate scope_to_vmap'_def;
 val _ = translate v1model_ascope_update'_def;
 val _ = translate v1model_postparser'_def;
+val _ = translate v1model_preingress'_def;
 
 val _ = translate v1model_input_f'_def;
 
