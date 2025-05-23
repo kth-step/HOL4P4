@@ -658,7 +658,7 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
  end
 ;
 
-fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
+fun output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
  let
   val extra_terms =
    if output_extra_maps
@@ -667,9 +667,10 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
          ("pblock_action_names_map", pblock_action_names_map_tm, SOME "((string, ((string, string) alist)) alist)")]
    else []
 
-  val gscope_init_vars = “[(varn_name "gen_apply_result", (v_struct [("hit", v_bool ARB);
-                            ("miss", v_bool ARB);
-                            ("action_run", v_bit (REPLICATE 32 ARB, 32))], NONE:lval option))]”
+  val init_bit = if no_arbs then “F:bool” else “ARB:bool”
+  val gscope_init_vars = “[(varn_name "gen_apply_result", (v_struct [("hit", v_bool ^init_bit);
+                            ("miss", v_bool ^init_bit);
+                            ("action_run", v_bit (REPLICATE 32 ^init_bit, 32))], NONE:lval option))]”
   (* TODO: Eliminate code duplication here... *)
   val actx_astate_opt =
    if (is_arch_vss $ dest_some arch_opt_tm) then
@@ -756,7 +757,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
    else if (is_arch_v1model $ dest_some arch_opt_tm) then
     let
      val fmap' = eval_rhs ``AUPDATE_LIST ^v1model_func_map ^fmap``
-     val tparams = eval_rhs “(\ (tau1, tau2). (arb_from_tau tau1, arb_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
+     val tparams = eval_rhs “(\ (tau1, tau2). (tparam_from_tau tau1, tparam_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
      val v1model_input_f = “v1model_input_f ^tparams”
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
@@ -856,6 +857,13 @@ fun main() =
       then true
       else false
      else false;
+    val no_arbs =
+     if length args = 6
+     then 
+      if (el 6 args) = "hol4p4exe"
+      then true
+      else false
+     else false;
 
     (* TODO: Done in one split instead? *)
     val valname_no_prefix =
@@ -910,7 +918,7 @@ val ab_list_tm = (el 13 res_list)
 val ttymap_tm = (el 14 res_list)
 val pblock_action_names_map_tm = (el 15 res_list)
 *)
-         val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
+         val _ = output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in

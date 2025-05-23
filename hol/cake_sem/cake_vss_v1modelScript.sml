@@ -93,9 +93,9 @@ val smac_tbl =
 
 val rand_gen = Random.newgen ();
 
-val n_additional_entries = 100;
+val n_additional_entries = 1000;
 
-val smac_tbl' = populate_table smac_tbl rand_gen n_additional_entries;
+val dmac_tbl' = populate_table dmac_tbl rand_gen n_additional_entries;
 
 val vss_v1model_actx = ``([arch_block_inp;
   arch_block_pbl "TopParser"
@@ -550,7 +550,7 @@ val vss_v1model_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
 
 val vss_v1model_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [^smac_tbl'; ^dmac_tbl; ("check_ttl",[]); ^ipv4_match_tbl]),
+  [^smac_tbl; ^dmac_tbl'; ("check_ttl",[]); ^ipv4_match_tbl]),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool F);

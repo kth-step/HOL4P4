@@ -1,23 +1,13 @@
 # includes
 # ----------------------------------
+DEPENDENCIES   = .. ../.. ../../p4_from_json
 
-CAKEMLDIR = ../../cakeml
-
-DEPENDENCIES   = .. \
- $(CAKEMLDIR)/misc \
- $(CAKEMLDIR)/semantics \
- $(CAKEMLDIR)/semantics/proofs \
- $(CAKEMLDIR)/basis/pure \
- $(CAKEMLDIR)/basis \
- $(CAKEMLDIR)/translator \
- $(CAKEMLDIR)/characteristic \
- $(CAKEMLDIR)/compiler/parsing \
- $(CAKEMLDIR)/unverified/sexpr-bootstrap
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../p4-heap
-NEWHOLHEAP     = cake_sem-heap
+#TODO: Fix heap?
+HOLHEAP        = ../../p4-heap
+#NEWHOLHEAP     = validation-heap
 
 HEAPINC_EXTRA  = wordsLib
 

@@ -3999,6 +3999,28 @@ ASSUME_TAC (Q.SPECL [`(\y. h <> y)`, `t`] rich_listTheory.LENGTH_FILTER_LEQ) >>
 fs[prim_recTheory.LESS_THM]
 End
 
+(* TODO: Instead, type-parameterize the original arb_from_tau *)
+Definition tparam_from_tau_def:
+  (tparam_from_tau tau_bool   = (v_bool F))  /\
+  (tparam_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.F) w ) , w)))  /\
+  (tparam_from_tau tau_bot    = v_bot)   /\
+  (tparam_from_tau tau_ext   = (v_ext_ref 0)) /\
+  (tparam_from_tau (tau_xtl struct_ty_struct [] ) =  v_struct [] ) /\ 
+  (tparam_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =  
+   v_struct ((x0,tparam_from_tau t0)::(MAP (λ(x,t). (x,tparam_from_tau t)) xtl))) /\
+  (tparam_from_tau (tau_xtl struct_ty_header [] ) =  v_header F [] ) /\            
+  (tparam_from_tau (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
+    v_header F ((x0,tparam_from_tau t0)::(MAP (λ(x,t). (x,tparam_from_tau t)) xtl))) 
+Termination
+ (WF_REL_TAC `measure tau_size` >>
+ REPEAT STRIP_TAC >>
+ FULL_SIMP_TAC std_ss [] >>
+ fs [tau_size_def] >>  
+ `tau_size t < tau1_size xtl` suffices_by (
+  fs [] ) >>  
+ IMP_RES_TAC tau1_size_mem)
+End
+
 (* TODO: Put in files with other arch-specific stuff? *)
 (* Get initial mappings for ctrl from the programmable blocks map *)
 Definition ebpf_init_ctrl_def:
