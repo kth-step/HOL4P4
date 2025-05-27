@@ -29,14 +29,20 @@ fun arch_to_term arch_opt =
  | NONE => mk_none ``:arch_t``
 ;
 
-fun ascope_of_arch arch_opt_tm =
- if is_arch_vss $ dest_some arch_opt_tm
- then "``:vss_ascope``"
- else if is_arch_ebpf $ dest_some arch_opt_tm
- then "``:ebpf_ascope``"
- else if is_arch_v1model $ dest_some arch_opt_tm
- then "``:v1model_ascope``"
- else "``:'a``"
+fun ascope_of_arch arch_opt_tm hol4p4exe =
+ let
+  val str1 = 
+  if is_arch_vss $ dest_some arch_opt_tm
+  then "“:vss_ascope"
+  else if is_arch_ebpf $ dest_some arch_opt_tm
+  then "“:ebpf_ascope"
+  else if is_arch_v1model $ dest_some arch_opt_tm
+  then "“:v1model_ascope"
+  else "“:'a``"
+  val str2 = "'”"
+ in
+  str1^str2
+ end
 ;
 
 fun astr_of_arch arch_opt_tm =
@@ -103,9 +109,10 @@ fun output_hol4_val outstream (name, tm, ty_opt) =
  end
 ;
 
-fun output_hol4p4_incipit valname outstream =
+fun output_hol4p4_incipit valname for_hol4p4exe outstream =
  let
-  val _ = TextIO.output (outstream, "open HolKernel Parse bossLib boolSyntax;\nopen p4_testLib p4_arch_auxTheory;\n\n");
+  val _ = TextIO.output (outstream, "open HolKernel Parse bossLib boolSyntax;\nopen p4_testLib p4_arch_auxTheory;\n");
+  val _ = if for_hol4p4exe then TextIO.output (outstream, "open p4_cake_transformLib p4_cake_validationLib;\n\n") else ();
   val _ = TextIO.output (outstream, "val _ = new_theory \""^(valname^"\";\n\n"));
  in
   ()
@@ -400,7 +407,10 @@ fun output_astate_add outstream valname arch_opt table_name keys priority action
                   (astr_of_arch arch_opt)^"_add_ctrl ^",
                   valname, "_astate", " \"",
                   table_name, "\" ",
+(*
                   "((\\e_l. e_l = ", term_to_string keys, "), ", priority, ":num) \"",
+*)
+                  "((match_all_e_alt ", term_to_string keys, "), ", priority, ":num) \"",
                   action_name, "\" ",
                   args, "``;\n\n"]
   val _ = TextIO.output (outstream, outstring);
@@ -450,24 +460,51 @@ fun terms_to_string [] = ""
  (str^(" "^(terms_to_string t)))
  end
 
+(* TODO: Move *)
+val (v2w8l'_tm, mk_v2w8l', dest_v2w8l', is_v2w8l') =
+  syntax_fns1 "p4_aux" "v2w8l'";
+
 (* Row breaks for legibility *)
 (* TODO: Naming convention of bits could be i/o + n + _ + b + _ m, where i/o is input or output, n is its number in the order, an m is the bit position *)
-fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term list) list, output_list) =
+(*
+val arch_opt = arch_opt_tm
+*)
+fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(int * term list) list, output_list) =
  let
   val (in_vars, in_data', i) = process_arbs_list (map snd input_list) 0
   val (out_vars, out_data', i') = process_arbs_list (map snd output_list) i
   val in_packets = mk_list ((map mk_pair (zip in_data' (map (term_of_int o fst) input_list))), “:(bool list # num)”);
-  val out_packets = mk_list ((map mk_pair (zip out_data' (map (term_of_int o fst) output_list))), “:(bool list # num)”);
+  val (out_data'', out_packets_ty) =
+   if hol4p4exe
+   then (map mk_v2w8l' out_data', “:(word8 list # num)”)
+   else (out_data', “:(bool list # num)”)
+  val out_packets = mk_list ((map mk_pair (zip out_data'' (map (term_of_int o fst) output_list))), out_packets_ty);
 
+  val astate = (valname^"_astate")
   (* Output astate with updated input separately *)
   val astate_input_update =
-   String.concat ["val ", valname, "_astate = rhs $ concl $ EVAL “(p4_append_input_list ",
+   String.concat ["val ", astate, " = rhs $ concl $ EVAL “(p4_append_input_list ",
                   (term_to_string in_packets), " ^",
-                  valname, "_astate)”;\n\n"];
+                  astate, ")”;\n\n"];
   val _ = TextIO.output (outstream, astate_input_update);
 
-  (* Output theorem *)
   val actx = (valname^"_actx")
+
+  val astate' = (astate^"'")
+  val actx' = (actx^"'")
+  val _ =
+   if hol4p4exe
+   then
+    let
+     val translate_str =
+      String.concat ["val (dict', ", actx', ", ", astate', ") =\n transform_program v1model_dict ",
+		     actx, " ", astate, ";\n\n"];
+    in
+     TextIO.output (outstream, translate_str)
+    end
+   else ()
+
+  (* Output theorem *)
   val _ = TextIO.output (outstream, "Theorem "^(valname^("_test"^(":\n"))));
   val _ =
    if null in_vars
@@ -484,14 +521,18 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
   val theorem =
    String.concat ["?n ab_index' ascope' g_scope_list' arch_frame_list' status' ",
                   terms_to_string out_vars, ".\n",
-                  "arch_multi_exec ^", actx, " ^",
-                  valname, "_astate",
+                  if hol4p4exe then "arch_multi_exec''" else "arch_multi_exec",
+                  " ^", if hol4p4exe then actx' else actx,
+                  " ^", if hol4p4exe then astate' else astate,
                   (* ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)")))), *)
                   " n =\n", " SOME ((ab_index', [], ", (term_to_string out_packets),
                   ", ascope'), g_scope_list', arch_frame_list', status')\n",
-                  "Proof\n", "p4_eval_test_tac ", (ascope_of_arch arch_opt),
-                  " ", valname, "_actx ", valname, "_astate\n",
-                  "QED\n\n"];
+                  "Proof\n",
+                  "p4_eval_test_tac", if hol4p4exe then "'" else "", " ",
+                  (ascope_of_arch arch_opt hol4p4exe), " ",
+                  if hol4p4exe then actx' else actx, " ",
+                  if hol4p4exe then astate' else astate,
+                  "\nQED\n\n"];
   val _ = TextIO.output (outstream, theorem);
  in
   ()
@@ -537,7 +578,7 @@ fun to_hol_list_string l =
 
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
 local
- fun parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream =
+ fun parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm (input_list, output_list) instream =
   case TextIO.inputLine instream of
     SOME s =>
      (case parse_stf_line (pblock_map, ttymap) (drop_last s) of
@@ -548,7 +589,7 @@ local
 	   let
 	    val _ = output_actx_setdefault outstream valname block_name table_name action_name (term_to_string args_term)
 	   in
-	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
+	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm (input_list, output_list) instream
 	   end
          | NONE => raise Fail ("Could not parse action arguments in setdefault stf command"))
      | add (block_name, table_name, keys, priority, action_name, args) =>
@@ -559,34 +600,45 @@ local
 	   let
 	    val _ = output_astate_add outstream valname arch_opt_tm table_name keys_tm priority action_name (term_to_string args_term)
 	   in
-	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
+	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm (input_list, output_list) instream
 	   end
          | NONE => raise Fail ("Could not parse action arguments in add stf command"))
        | NONE => raise Fail ("Could not parse keys in add stf command"))
      | io (stf_iotype, port, data) =>
       if stf_iotype = packet
       then
-       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list@[(port, data)], output_list) instream
+       parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm (input_list@[(port, data)], output_list) instream
       else
-       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list@[(port, data)]) instream
-     | none => parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream)
+       parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm (input_list, output_list@[(port, data)]) instream
+     | none => parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm (input_list, output_list) instream)
    | NONE =>
     let
-     val _ = output_test_list_theorem outstream valname arch_opt_tm (input_list, output_list)
+(*
+     val _ = output_test_list_theorem hol4p4exe outstream valname arch_opt_tm (input_list, output_list)
+*)
     in
-     ()
+     (input_list, output_list)
     end
 in
- fun parse_stf outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap) arch_opt_tm =
+(*
+val ttymap = ttymap_tm
+val hol4p4exe = for_hol4p4exe
+*)
+ fun parse_stf hol4p4exe outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap) arch_opt_tm =
   case stfname_opt of
    SOME stfname =>
     let
+(*
+val SOME stfname = stfname_opt
+*)
      val instream = TextIO.openIn stfname;
      (* TODO: Write _packetn and _rejectm terms almost as before, but now indexed separately. 
               Write only a single new astate and following theorem at the end, which
               has all input packets in the input queue in order and all outputs in the
               output queue in order. *)
-     val _ = parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm ([],[]) instream;
+     val (input_list, output_list) = parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm ([],[]) instream;
+
+     val _ = output_test_list_theorem hol4p4exe outstream valname arch_opt_tm (input_list, output_list)
      val _ = TextIO.closeIn instream;
     in
      ()
@@ -658,7 +710,7 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
  end
 ;
 
-fun output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
+fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
  let
   val extra_terms =
    if output_extra_maps
@@ -756,7 +808,7 @@ fun output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (
     end
    else if (is_arch_v1model $ dest_some arch_opt_tm) then
     let
-     val fmap' = eval_rhs ``AUPDATE_LIST ^v1model_func_map ^fmap``
+     val fmap' = eval_rhs “AUPDATE_LIST ^v1model_func_map ^fmap”
      val tparams = eval_rhs “(\ (tau1, tau2). (tparam_from_tau tau1, tparam_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
      val v1model_input_f = “v1model_input_f ^tparams”
      val actx =
@@ -765,7 +817,7 @@ fun output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (
 		     v1model_input_f, v1model_output_f,
 		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
 		     v1model_ext_map, fmap']
-     val init_ctrl_opt = eval_rhs ``v1model_init_ctrl ^pblock_map ^tbl_updates_tm``;
+     val init_ctrl_opt = eval_rhs “v1model_init_ctrl ^pblock_map ^tbl_updates_tm”;
 (*
      val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
      val _ = print ("tbl_updates :"^((term_to_string tbl_updates_tm)^"\n"))
@@ -784,11 +836,11 @@ fun output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)
        val aenv = list_mk_pair [term_of_int 0,
-				mk_list ([], ``:in_out``),
-				mk_list ([], ``:in_out``), ascope]
+				mk_list ([], “:in_out”),
+				mk_list ([], “:in_out”), ascope]
        (* aenv, global scope, arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
+				  mk_list ([“^(gscope_init_vars):scope”], scope_ty),
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in
@@ -805,7 +857,7 @@ fun output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (
             map (output_hol4_val outstream) (map (fn (a, b, c) => (valname^("_"^a), b, c))
                               (extra_terms@[("actx", actx, actx_of_arch arch_opt_tm), ("astate", astate, astate_of_arch arch_opt_tm)]))
           | NONE => [()];
-  val _ = parse_stf outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap_tm) arch_opt_tm
+  val _ = parse_stf for_hol4p4exe outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap_tm) arch_opt_tm
  in
   ()
  end
@@ -826,6 +878,8 @@ fun format_for_hol4 (str: string) : string =
  val args = ["1", "2", "test.json", "testlog", "v1model", "concrete_stf"];
 
  val args = ["1", "2", "../../../p4-ipsec/p4/p4/basic.json", "testlog", "v1model", "symbolic"];
+
+ val args = ["1", "2", "exe_validation/arith-bmv2.json", "testlog", "v1model", "hol4p4exe_stf"];
 
 *)
 
@@ -857,13 +911,15 @@ fun main() =
       then true
       else false
      else false;
-    val no_arbs =
+    val (for_hol4p4exe, stfname_opt) =
      if length args = 6
      then 
       if (el 6 args) = "hol4p4exe"
-      then true
-      else false
-     else false;
+      then (true, NONE)
+      else if (el 6 args) = "hol4p4exe_stf"
+      then (true, SOME ((implode $ rev valname_no_suffix)^".stf"))
+      else (false, stfname_opt)
+     else (false, stfname_opt);
 
     (* TODO: Done in one split instead? *)
     val valname_no_prefix =
@@ -882,18 +938,16 @@ fun main() =
     then
      let
       val instream = TextIO.openIn filename;
-      (* TODO: Rename *)
-      val vss_input_tm = stringLib.fromMLstring $ TextIO.inputAll $ instream;
+      val input_tm = stringLib.fromMLstring $ TextIO.inputAll $ instream;
       val _ = TextIO.closeIn instream;
       (* Lexing + parsing to HOL4 JSON *)
-      (* TODO: Rename *)
-      val vss_parse_thm =
-(*        EVAL ``parse (OUTL (lex (p4_preprocess_str (^vss_input_tm)) ([]:token list))) [] T``; *)
-       EVAL ``parse (OUTL (lex (^vss_input_tm) ([]:token list))) [] T``;
+      val parse_thm =
+(*        EVAL ``parse (OUTL (lex (p4_preprocess_str (^input_tm)) ([]:token list))) [] T``; *)
+       EVAL “parse (OUTL (lex (^input_tm) ([]:token list))) [] T”;
       (* TODO: Check if result is INR (OK) or INL (print error) *)
       (* Parsing to HOL4P4 JSON *)
-      val vss_parse_clean = EVAL ``p4_from_json ^(rhs $ concl vss_parse_thm) ^(arch_opt_tm)``;
-      val final_res_tup = rhs $ concl vss_parse_clean;
+      val parse_clean = EVAL “p4_from_json ^(rhs $ concl parse_thm) ^(arch_opt_tm)”;
+      val final_res_tup = rhs $ concl parse_clean;
      in
       if is_SOME_msg final_res_tup
       then
@@ -905,20 +959,20 @@ fun main() =
 	val res_list = pairLib.spine_pair $ dest_SOME_msg final_res_tup;
        in
         let
-         (* TODO: Take this as an argument instead *)
          val outstream = TextIO.openOut (prefix^(valname^"Script.sml"));
-         val _ = output_hol4p4_incipit valname outstream;
+         val _ = output_hol4p4_incipit valname for_hol4p4exe outstream;
 (* Debug:
+val no_arbs = for_hol4p4exe
 val (ftymap, blftymap) = (el 4 res_list, el 5 res_list)
 val fmap = (el 6 res_list)
 val pblock_map = (el 10 res_list)
-val tbl_entries = (el 11 res_list)
+val tbl_updates_tm = (el 11 res_list)
 val arch_opt_tm = (el 12 res_list)
 val ab_list_tm = (el 13 res_list)
 val ttymap_tm = (el 14 res_list)
 val pblock_action_names_map_tm = (el 15 res_list)
 *)
-         val _ = output_hol4p4_vals outstream output_extra_maps no_arbs valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
+         val _ = output_hol4p4_vals outstream for_hol4p4exe output_extra_maps for_hol4p4exe valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in

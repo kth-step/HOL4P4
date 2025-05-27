@@ -19,8 +19,6 @@ open p4_cake_transformLib p4_cake_auxLib;
 
 val _ = translation_extends "p4_exec_sem_cakeProg";
 
-(* TODO: This uses tables with the new shorthands... *)
-
 val ipv4_match_tbl =
  “("ipv4_match",
    [((match_all_e_alt

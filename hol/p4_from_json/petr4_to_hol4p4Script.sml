@@ -3027,7 +3027,7 @@ Definition petr4_parse_entries_def:
         (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list t of
          | SOME_msg res_msg =>
           let prio' = (case petr4_parse_priority annot of | SOME annot_prio => annot_prio | NONE => (get_max_prio (MAP SND matches_res) 0)) in
-           SOME_msg (((( \ k. match_all_e k (MAP FST matches_res)), prio'), (action_name, args))::res_msg)
+           SOME_msg ((((match_all_e_alt (MAP FST matches_res)), prio'), (action_name, args))::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg exp_msg => NONE_msg ("could not parse table entry action: "++exp_msg))
      | NONE_msg matches_msg => NONE_msg ("could not parse table entry key matches: "++matches_msg))
@@ -3947,7 +3947,7 @@ Definition p4_infer_key_def:
    | tau_bit n =>
     (case p4_infer_key t of
      | SOME res =>
-      SOME ((e_v (v_bit ((fixwidth n (n2v v), n))))::res)
+      SOME ((s_sing (v_bit ((fixwidth n (n2v v), n))))::res)
      | NONE => NONE)
    | _ => NONE)
 End

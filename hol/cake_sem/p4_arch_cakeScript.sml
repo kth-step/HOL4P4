@@ -492,7 +492,7 @@ Definition v1model_postparser'_def:
               | SOME [v_map_scope] =>
                (case scope_to_vmap' v_map_scope of
                 | SOME v_map'' =>
-                 let v_map''' = p4$AUPDATE v_map'' (7w, v'_bit (fixwidth 32 (n2v 0), 32)) in
+                 let v_map''' = p4$AUPDATE v_map'' (0w, v'_bit (fixwidth 32 (n2v 0), 32)) in
                  let (counter', ext_obj_map', v_map'''', ctrl') = (v1model_ascope_update' (counter, ext_obj_map, v_map''', ctrl) i' (INL (core_v_ext'_packet bl))) in
    SOME (v1model_ascope_update' (counter', ext_obj_map', v_map'''', ctrl') i (INL (core_v_ext'_packet [])))
                 | NONE => NONE)

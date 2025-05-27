@@ -57,7 +57,7 @@ fun get_existentials eval_thm =
  in
   [steps, ab_index', ascope', g_scope_list', arch_frame_list', status']
  end
- 
+
 in
 fun p4_eval_test_tac' aenv_ty actx astate =
  let
