@@ -10,6 +10,7 @@ open p4_v1modelTheory;
 
 open p4_cake_auxLib;
 open p4_arch_cakeTheory;
+open p4_arch_v1model_cakeTheory;
 open p4_cake_transformTheory;
 
 open listSyntax optionSyntax pairSyntax;
@@ -167,6 +168,7 @@ val v1model_dict = listSyntax.mk_list (map mk_pair v1model_items_sorted, mk_prod
 *)
 
 (* TODO: The latter part of this belonging to the ext map may be generated... *)
+(* TODO: This is in fact now a dictionary used for all architectures *)
 val v1model_dict =
    “[("parseError",0w); ("err",1w); ("condition",2w); ("this",3w);
      ("headerLvalue",4w); ("targ1",5w); ("bits",6w); ("data",7w); ("b",8w);
@@ -188,35 +190,66 @@ val v1model_dict =
      ("advance",58w); ("emit",59w); ("count",60w); ("read",61w);
      ("write",62w); ("decrypt_aes_ctr",63w); ("encrypt_aes_ctr",64w);
      ("encrypt_null",65w); ("decrypt_null",66w); ("direct_meter",67w);
-     ("action_selector",68w); ("algorithm",69w); ("outputWidth",70w)]:(string, word64) alist”;
+     ("action_selector",68w); ("algorithm",69w); ("outputWidth",70w);
+     (* eBPF *)
+     ("packet_copy", 71w); ("inCtrl", 72w); ("packet", 73w); ("inputPort", 74w);
+     ("max_index", 75w); ("CounterArray", 76w); ("sparse", 77w);
+     ("increment", 78w); ("add", 79w); ("headers", 80w)]:(string, word64) alist”;
 
 (* Uses a dict of static, architecture-coded variable names. add_varnames_actx will pick
  * up the rest. Returns a tuple of a new dict and the actx'. *)
-fun transform_actx dict actx =
+(* TODO: arch as datatype *)
+fun transform_actx arch dict actx =
  let
   val dict' = rhs $ concl $ EVAL “add_varnames_actx ^dict ^actx”
   val (_, _, _, input_f, _, _, _, apply_table_f, _, _) = dest_actx actx
-  val (param1, param2) = dest_pair $ snd $ dest_comb input_f
-  (* TODO: Smart error handling *)
-  val dict'' = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “add_varnames_v ^dict' ^param1”
-  val dict''' = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “add_varnames_v ^dict'' ^param2”
 
-  val param1' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param1”
-  val param2' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param2”
+  val (input_f', dict''') =
+   if arch = "v1model"
+   then
+    let
+     val (param1, param2) = dest_pair $ snd $ dest_comb input_f
+     (* TODO: Smart error handling *)
+     val dict'' = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “add_varnames_v ^dict' ^param1”
+     val dict''' = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “add_varnames_v ^dict'' ^param2”
 
-  val input_f' = mk_comb (“v1model_input_f'”, mk_pair (param1', param2'))
-  val actx'_opt = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_actx ^dict''' ^actx”
+     val param1' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param1”
+     val param2' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict''' ^param2”
+    in
+     (mk_comb (“v1model_input_f'”, mk_pair (param1', param2')),
+      dict''')
+    end
+   else
+    let
+     val param = snd $ dest_comb input_f
+     val dict'' = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “add_varnames_v ^dict' ^param”
+     val param' = dest_some $ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_v ^dict'' ^param”
+    in
+     (mk_comb (“ebpf_input_f'”, param'), dict'')
+    end
+  val actx'_opt =
+   if arch = "v1model"
+   then rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_actx ^dict''' ^actx”
+   else rhs $ concl $ computeLib.RESTR_EVAL_CONV [“word”] “transform_ebpf_actx ^dict''' ^actx”
 
  in
   if is_some actx'_opt
   then
-   let
-    val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
-    val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
-    val preingress_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "preingress"”
-   in
-    (dict', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser'); (^preingress_w,ffblock_ff v1model_preingress')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
-   end
+   if arch = "v1model"
+   then
+    let
+     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
+     val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
+     val preingress_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "preingress"”
+    in
+     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser'); (^preingress_w,ffblock_ff v1model_preingress')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
+    end
+   else
+    let
+     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
+    in
+     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[]:ebpf_ascope' ffblock_map'”, “(^input_f'):ebpf_ascope' input_f'”, “ebpf_output_f':ebpf_ascope' output_f'”, “ebpf_copyin_pbl':ebpf_ascope' copyin_pbl'”, “ebpf_copyout_pbl':ebpf_ascope' copyout_pbl'”, “ebpf_apply_table_f':ebpf_ascope' apply_table_f'”, “^ext_map':ebpf_ascope' ext_map'”, “^func_map':func_map'”])
+    end
   else raise Fail "transform_actx failed to translate actx"
  end
 ;
@@ -333,14 +366,17 @@ fun transform_ctrl dict ctrl =
 val dict = v1model_dict;
 val ctrl' = “[]:v1model_ctrl'”;
 *)
-fun transform_program dict actx astate =
+fun transform_program dict arch actx astate =
  let
-  val (dict', actx') = transform_actx dict actx
+  val (dict', actx') = transform_actx arch dict actx
   val ctrl = #4 $ p4_testLib.dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate;
   (* TODO: Note that ctrl has to be translated in SML due to the matching function, which cannot be
    * be syntactically treated in HOL4 *)
   val ctrl' = transform_ctrl dict' ctrl
-  val astate'_opt = rhs $ concl $ EVAL “transform_astate ^dict' ^astate ^ctrl'”
+  val astate'_opt =
+   if arch = "v1model"
+   then rhs $ concl $ EVAL “transform_astate ^dict' ^astate ^ctrl'”
+   else rhs $ concl $ EVAL “transform_ebpf_astate ^dict' ^astate ^ctrl'”
  in
   if is_some astate'_opt
   then

@@ -16,8 +16,9 @@ val _ = (max_print_depth := 1000);
 
 open p4_exec_sem_cakeProgTheory;
 open p4_cake_transformLib p4_cake_auxLib;
+open p4_v1model_cakeProgTheory;
 
-val _ = translation_extends "p4_exec_sem_cakeProg";
+val _ = translation_extends "p4_v1model_cakeProg";
 
 val ipv4_match_tbl =
  “("ipv4_match",
@@ -600,7 +601,7 @@ EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1
 *)
 
 val (dict', actx', astate') =
- transform_program v1model_dict vss_v1model_actx vss_v1model_astate;
+ transform_program v1model_dict "v1model" vss_v1model_actx vss_v1model_astate;
 
 (*
 

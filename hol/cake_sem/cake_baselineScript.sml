@@ -16,8 +16,9 @@ val _ = (max_print_depth := 1000);
 
 open p4_exec_sem_cakeProgTheory;
 open p4_cake_transformLib p4_cake_auxLib;
+open p4_v1model_cakeProgTheory;
 
-val _ = translation_extends "p4_exec_sem_cakeProg";
+val _ = translation_extends "p4_v1model_cakeProg";
 
 (* Creates baseline FFI program (same as test2, but in CakeML) *)
 

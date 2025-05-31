@@ -152,25 +152,22 @@ End
 (* NOTE: "b" renamed to "b_in" *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition ebpf_input_f_def:
- (ebpf_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
+ (ebpf_input_f tau_uninit_v (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
   case io_list of
   | [] => NONE
   | ((bl,p)::t) =>
-   (case ALOOKUP v_map "packet" of
-    | SOME (v_ext_ref i) =>
-     let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet bl)) in
-     (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
-      * function for ebpf_ascope. *)
-     (* TODO: Slightly vestigial from the VSS model:
-      * needed to remember port when packet is accepted. Change to a more elegant solution later *)
-     let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",v_bit (w4 (n2w p)))]) in
-     let v_map'' = AUPDATE v_map' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
-     (case ALOOKUP v_map'' "packet_copy" of
-      | SOME (v_ext_ref i') =>
-       let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet bl)) in
-       SOME (t, (counter, ext_obj_map'', v_map'', ctrl):ebpf_ascope)
-      | _ => NONE)
-    | _ => NONE))
+   let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext_packet bl));
+                                                (counter+1, INL (core_v_ext_packet bl))] in
+   (* TODO: Slightly vestigial from the VSS model:
+    * needed to remember port when packet is accepted. Change to a more elegant solution later *)
+   let v_map' = AUPDATE_LIST v_map [("packet", v_ext_ref counter);
+                                    ("packet_copy", v_ext_ref (counter+1));
+                                    ("headers", tau_uninit_v);
+                                    ("accept", v_bit ([F], 1));
+                                    ("inCtrl", v_struct [("inputPort",v_bit (w4 (n2w p)))]);
+                                    ("parseError", v_bit (fixwidth 32 (n2v 0), 32))] in
+    SOME (t, (counter, ext_obj_map', v_map', ctrl):ebpf_ascope)
+    | _ => NONE)
 End
 
 Definition ebpf_reduce_nonout_def:
@@ -261,7 +258,7 @@ Definition ebpf_output_f_def:
       | _ => NONE)
     | _ => NONE)
   | SOME (v_bool F) => SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
-  | NONE => NONE
+  | _ => NONE
 End
 
 Definition ebpf_apply_table_f_def:

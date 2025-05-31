@@ -9,6 +9,8 @@ open p4_coreTheory;
 open p4_v1modelTheory;
 
 open p4_arch_cakeTheory;
+open p4_arch_v1model_cakeTheory;
+open p4_arch_ebpf_cakeTheory;
 
 (* This file contains facilities to transform HOL4P4 programs from their regular representation to
  * a CakeML-friendly representation *)
@@ -290,7 +292,7 @@ Definition add_varnames_ffblock_map_def:
 End
 
 Definition add_varnames_actx_def:
- add_varnames_actx dict ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):v1model_ascope actx) =
+ add_varnames_actx dict ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) =
   add_varnames_ab_list ab_list $
   add_varnames_pblock_map pblock_map $
   add_varnames_ffblock_map ffblock_map $
@@ -857,7 +859,7 @@ Definition transform_ctrl_empty_def:
 End
 
 Definition transform_ascope_def:
- transform_ascope dict ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) ctrl' =
+ transform_ascope dict (counter, ext_obj_map, v_map, ctrl) ctrl' =
   transform_ext_obj_map ext_obj_map >>=
   \ext_obj_map'. transform_v_map dict v_map >>=
   \v_map'.
@@ -891,7 +893,7 @@ Definition transform_aenv_def:
   transform_ascope dict ascope ctrl' >>=
   \ascope'. transform_io_list io_list >>=
   \io_list''. transform_io_list io_list' >>=
-  \io_list'''. SOME ((i, io_list'', io_list''', ascope'):v1model_ascope' aenv')
+  \io_list'''. SOME (i, io_list'', io_list''', ascope')
 End
 
 Definition transform_scope_entry_def:
@@ -936,6 +938,65 @@ Definition transform_astate_def:
   (* TODO: arch_frame_list transformation hard-coded, for now *)
   \g_scope_list'. transform_status dict status >>=
   \status'. SOME ((aenv':v1model_ascope' aenv', g_scope_list':g_scope_list', arch_frame_list'_empty, status'):v1model_ascope' astate')
+End
+
+(********)
+(* eBPF *)
+(********)
+
+Definition transform_ebpf_ext_map_def:
+ transform_ebpf_ext_map dict (ext_map:ebpf_ascope ext_map) =
+   SOME ([(41w,NONE,
+     [(47w,[(3w:word64,d_in)],header_is_valid');
+      (48w,[(3w,d_inout)],header_set_valid');
+      (49w,[(3w,d_inout)],header_set_invalid')]);
+    (38w,NONE,
+     [(51w,[(2w,d_in); (1w,d_in)],ebpf_verify')]);      
+    (42w,NONE,
+     [(56w,[(3w,d_in); (4w,d_out)],
+       ebpf_packet_in_extract');
+      (57w,[(3w,d_in); (5w,d_in)],ebpf_packet_in_lookahead');
+      (58w,[(3w,d_in); (6w,d_in)],ebpf_packet_in_advance')
+     ]);
+    (43w,NONE,
+     [(59w,[(3w,d_in); (7w,d_in)],ebpf_packet_out_emit')]);
+    (76w,
+     SOME
+       ([(3w,d_out); (75w,d_none); (77w,d_none)],
+        CounterArray_construct'),
+     [(78w,[(3w,d_in); (19w,d_in)],CounterArray_increment');
+      (79w,[(3w,d_in); (19w,d_in); (20w,d_in)],
+       CounterArray_add')])
+ ]):ebpf_ascope' ext_map' option
+End
+
+Definition transform_ebpf_actx_def:
+ transform_ebpf_actx dict ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):ebpf_ascope actx) =
+  transform_ab_list dict ab_list >>=
+  \ab_list'. transform_pblock_map dict pblock_map >>=
+  \pblock_map'. transform_ffblock_map dict ffblock_map >>=
+  \ffblock_map'. transform_ebpf_ext_map dict ext_map >>=
+  \ext_map'. transform_func_map dict func_map >>=
+  \func_map'. SOME (ab_list':ab_list', pblock_map':pblock_map', ext_map':ebpf_ascope' ext_map', func_map':func_map')
+End
+
+(*
+
+val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate
+
+val (i, io_list, io_list', ascope) = dest_aenv aenv
+val (counter, ext_obj_map, v_map, ctrl) = dest_ascope ascope
+
+EVAL “transform_aenv ^dict ^aenv ^ctrl'”
+EVAL “(EL 4 ^v_map)”
+*)
+Definition transform_ebpf_astate_def:
+ transform_ebpf_astate dict ((aenv, g_scope_list, arch_frame_list, status):ebpf_ascope astate) ctrl' =
+  transform_aenv dict aenv ctrl' >>=
+  \aenv'. transform_scope_list dict g_scope_list >>=
+  (* TODO: arch_frame_list transformation hard-coded, for now *)
+  \g_scope_list'. transform_status dict status >>=
+  \status'. SOME ((aenv':ebpf_ascope' aenv', g_scope_list':g_scope_list', arch_frame_list'_empty, status'):ebpf_ascope' astate')
 End
 
 val _ = export_theory ();

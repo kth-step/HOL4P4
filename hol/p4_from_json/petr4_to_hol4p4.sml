@@ -38,8 +38,8 @@ fun ascope_of_arch arch_opt_tm hol4p4exe =
   then "“:ebpf_ascope"
   else if is_arch_v1model $ dest_some arch_opt_tm
   then "“:v1model_ascope"
-  else "“:'a``"
-  val str2 = "'”"
+  else "“:'a"
+  val str2 = if hol4p4exe then "'”" else "”"
  in
   str1^str2
  end
@@ -496,8 +496,10 @@ fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(i
    if hol4p4exe
    then
     let
+     val arch_str = astr_of_arch arch_opt
      val translate_str =
       String.concat ["val (dict', ", actx', ", ", astate', ") =\n transform_program v1model_dict ",
+                     "\"", arch_str, "\" ",
 		     actx, " ", astate, ";\n\n"];
     in
      TextIO.output (outstream, translate_str)
@@ -768,14 +770,16 @@ fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname
     end
    else if (is_arch_ebpf $ dest_some arch_opt_tm) then
     let
-     val fmap' = eval_rhs ``AUPDATE_LIST ^ebpf_func_map ^fmap``
+     val fmap' = eval_rhs “AUPDATE_LIST ^ebpf_func_map ^fmap”
+     val tparam = eval_rhs “(\ tau. (tparam_from_tau tau)) ^(dest_ebpf_pkg_ebpfFilter $ dest_some $ dest_arch_ebpf $ dest_some arch_opt_tm)”
+     val ebpf_input_f = “ebpf_input_f ^tparam”
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
        list_mk_pair [ebpf_add_ffblocks_to_ab_list ab_list_tm, pblock_map, ebpf_ffblock_map,
 		     ebpf_input_f, ebpf_output_f,
 		     ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
 		     ebpf_ext_map, fmap']
-     val init_ctrl_opt = eval_rhs ``ebpf_init_ctrl ^pblock_map ^tbl_updates_tm``;
+     val init_ctrl_opt = eval_rhs “ebpf_init_ctrl ^pblock_map ^tbl_updates_tm”;
 (*
      val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
      val _ = print ("tbl_updates :"^((term_to_string tbl_updates_tm)^"\n"))
@@ -794,11 +798,11 @@ fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)
        val aenv = list_mk_pair [term_of_int 0,
-				mk_list ([], ``:in_out``),
-				mk_list ([], ``:in_out``), ascope]
+				mk_list ([], “:in_out”),
+				mk_list ([], “:in_out”), ascope]
        (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
+				  mk_list ([“^(gscope_init_vars):scope”], scope_ty),
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in

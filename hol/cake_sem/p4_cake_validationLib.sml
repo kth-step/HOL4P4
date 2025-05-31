@@ -1,6 +1,6 @@
 structure p4_cake_validationLib :> p4_cake_validationLib = struct
 
-open HolKernel boolLib Parse bossLib numSyntax;
+open HolKernel boolLib Parse bossLib numSyntax listSyntax;
 
 open p4_auxTheory;
 open p4Syntax p4_testLib;
@@ -58,6 +58,27 @@ fun get_existentials eval_thm =
   [steps, ab_index', ascope', g_scope_list', arch_frame_list', status']
  end
 
+ fun exists_bits_tac' tm =
+  let
+   val (test_l, test_r) = dest_eq tm;
+   val bits_r = fst $ dest_list $ rhs $ concl $ EVAL “FLAT $ MAP w2v ^test_r”;
+   val bits_l = fst $ dest_list $ snd $ dest_comb test_l;
+   val witnesses = map snd $ filter (fn (a,b) => not $ term_eq a b) $ zip bits_l bits_r;
+  in
+   EVERY $ map EXISTS_TAC witnesses
+  end
+
+val exists_bits_tac =
+  goal_term
+   (fn tm =>
+    let
+     val (existentials, pred) = strip_exists tm
+    in
+     if null existentials
+     then FULL_SIMP_TAC (bool_ss++bitstringLib.v2w_n2w_ss) [v2w8l'_def]
+     else EVERY $ map exists_bits_tac' (strip_conj pred) >> FULL_SIMP_TAC (bool_ss++bitstringLib.v2w_n2w_ss) [v2w8l'_def]
+    end)
+
 in
 fun p4_eval_test_tac' aenv_ty actx astate =
  let
@@ -71,7 +92,7 @@ fun p4_eval_test_tac' aenv_ty actx astate =
   (foldr (fn (a, b) => a >> b) ALL_TAC
    (map exists_tac [n, ab_index', ascope', g_scope_list', arch_frame_list', status']))
   >> fs [step_thm, p4_replace_input_def]
-  >> FULL_SIMP_TAC (bool_ss++bitstringLib.v2w_n2w_ss) [v2w8l'_def]
+  >> exists_bits_tac
  end
 end;
 

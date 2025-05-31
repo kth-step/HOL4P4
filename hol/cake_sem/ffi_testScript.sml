@@ -16,8 +16,9 @@ val _ = (max_print_depth := 1000);
 
 open p4_exec_sem_cakeProgTheory;
 open p4_cake_transformLib p4_cake_auxLib;
+open p4_v1model_cakeProgTheory;
 
-val _ = translation_extends "p4_exec_sem_cakeProg";
+val _ = translation_extends "p4_v1model_cakeProg";
 
 (* This file contains a test export of a program (switches port between 1 and 2) that has
  * been rewritten to a CakeML-friendly representation, where variable names have been
@@ -181,7 +182,7 @@ val bl_input = deparse_bool_list bl_input_tm
 (** Transformation **)
 
 val (dict', actx', astate') =
- transform_program v1model_dict actx astate
+ transform_program v1model_dict "v1model" actx astate
 
 (*
 
