@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_exec_sem_cake";
+val _ = new_theory "p4_cake_exec_sem";
 
 open p4Theory p4_auxTheory;
 

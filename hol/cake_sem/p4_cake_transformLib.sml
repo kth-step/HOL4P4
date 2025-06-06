@@ -4,13 +4,13 @@ open HolKernel boolLib Parse bossLib;
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_exec_sem_cakeTheory;
+open p4Theory p4_auxTheory p4_cake_exec_semTheory;
 open p4_coreTheory;
 open p4_v1modelTheory;
 
 open p4_cake_auxLib;
-open p4_arch_cakeTheory;
-open p4_arch_v1model_cakeTheory;
+open p4_cake_archTheory;
+open p4_cake_arch_v1modelTheory;
 open p4_cake_transformTheory;
 
 open listSyntax optionSyntax pairSyntax;
@@ -269,7 +269,7 @@ val (match_all_e_alt'_tm, mk_match_all_e_alt', dest_match_all_e_alt', is_match_a
   syntax_fns2 "p4_exec_sem_cake" "match_all_e_alt'";
 *)
 val (match_all_e_alt''_tm, mk_match_all_e_alt'', dest_match_all_e_alt'', is_match_all_e_alt'') =
-  syntax_fns2 "p4_exec_sem_cake" "match_all_e_alt''";
+  syntax_fns2 "p4_cake_exec_sem" "match_all_e_alt''";
 
 fun transform_match_fun dict match_fun =
  let
@@ -347,7 +347,7 @@ fun transform_entries dict [] = []
 ;
 
 val (tbl_regular_tm, mk_tbl_regular, dest_tbl_regular, is_tbl_regular) =
-  syntax_fns1 "p4_arch_cake" "tbl_regular";
+  syntax_fns1 "p4_cake_arch" "tbl_regular";
 
 (*
 val tbl = el 1 (fst $ dest_list ctrl);

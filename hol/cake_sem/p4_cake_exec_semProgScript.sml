@@ -1,9 +1,9 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_exec_sem_cakeProg";
+val _ = new_theory "p4_cake_exec_semProg";
 
 open p4Theory p4_auxTheory p4_coreTheory p4_v1modelTheory;
-open p4_cake_auxTheory p4_exec_sem_cakeTheory p4_arch_cakeTheory;
+open p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
 
 (* CakeML: *)
 open preamble ml_translatorLib ml_progLib basisProgTheory;
@@ -383,7 +383,7 @@ val _ = translate oTAKE_DROP_def;
 val _ = translate v2w16s'''_def;
 val _ = translate header_entries2v'_def;
 val _ = translate v2w16s''_def;
-val _ = translate p4_arch_cakeTheory.get_checksum_incr''_def;
+val _ = translate p4_cake_archTheory.get_checksum_incr''_def;
 
 val _ = translate add_with_carry'_def;
 val _ = translate add_ones_complement'_def;

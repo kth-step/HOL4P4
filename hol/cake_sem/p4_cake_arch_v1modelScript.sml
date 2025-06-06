@@ -1,10 +1,10 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_arch_v1model_cake";
+val _ = new_theory "p4_cake_arch_v1model";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_cake_auxTheory p4_exec_sem_cakeTheory p4_arch_cakeTheory;
+open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
 open p4_coreTheory;
 open p4_v1modelTheory;
 
@@ -92,7 +92,7 @@ Definition v1model_preingress'_def:
 End
 
 val (v'_bit_tm, mk_v'_bit, dest_v'_bit, is_v'_bit) =
-  syntax_fns1 "p4_exec_sem_cake" "v'_bit";
+  syntax_fns1 "p4_cake_exec_sem" "v'_bit";
 
 fun mk_v_bitii' (num, width) =
  let

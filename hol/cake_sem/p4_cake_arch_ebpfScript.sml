@@ -1,10 +1,10 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_arch_ebpf_cake";
+val _ = new_theory "p4_cake_arch_ebpf";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_cake_auxTheory p4_exec_sem_cakeTheory p4_arch_cakeTheory;
+open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
 open p4_coreTheory;
 open p4_ebpfTheory;
 

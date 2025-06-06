@@ -2,7 +2,7 @@ open HolKernel Parse bossLib boolLib;
 
 val _ = new_theory "p4_cake_validation";
 
-open p4_exec_sem_cakeTheory;
+open p4_cake_exec_semTheory;
 
 (* TODO: Move this entire file to cake_exec_sem theory? *)
 

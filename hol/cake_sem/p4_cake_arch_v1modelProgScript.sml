@@ -1,11 +1,11 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "p4_v1model_cakeProg";
+val _ = new_theory "p4_cake_arch_v1modelProg";
 
 open p4Theory p4_auxTheory p4_coreTheory p4_v1modelTheory;
-open p4_cake_auxTheory p4_arch_cakeTheory p4_arch_v1model_cakeTheory;
-open p4_exec_sem_cakeTheory;
-open p4_exec_sem_cakeProgTheory;
+open p4_cake_auxTheory p4_cake_archTheory p4_cake_arch_v1modelTheory;
+open p4_cake_exec_semTheory;
+open p4_cake_exec_semProgTheory;
 
 (* CakeML: *)
 open preamble ml_translatorLib ml_progLib basisProgTheory;
@@ -13,9 +13,9 @@ open preamble ml_translatorLib ml_progLib basisProgTheory;
 intLib.deprecate_int();
 val _ = (max_print_depth := 100);
 
-val _ = translation_extends "p4_exec_sem_cakeProg";
+val _ = translation_extends "p4_cake_exec_semProg";
 
-val _ = ml_prog_update (open_module "p4_v1model_cakeProg");
+val _ = ml_prog_update (open_module "p4_cake_arch_v1modelProg");
 
 (** V1Model arch implementation **)
 

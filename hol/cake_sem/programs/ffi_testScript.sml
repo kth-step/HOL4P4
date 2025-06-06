@@ -4,7 +4,7 @@ val _ = new_theory "ffi_test";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_exec_sem_cakeTheory;
+open p4Theory p4_auxTheory p4_cake_exec_semTheory;
 open p4_coreTheory;
 open p4_v1modelTheory;
 
@@ -14,11 +14,11 @@ open preamble ml_translatorLib ml_progLib;
 intLib.deprecate_int();
 val _ = (max_print_depth := 1000);
 
-open p4_exec_sem_cakeProgTheory;
+open p4_cake_exec_semProgTheory;
 open p4_cake_transformLib p4_cake_auxLib;
-open p4_v1model_cakeProgTheory;
+open p4_cake_arch_v1modelProgTheory;
 
-val _ = translation_extends "p4_v1model_cakeProg";
+val _ = translation_extends "p4_cake_arch_v1modelProg";
 
 (* This file contains a test export of a program (switches port between 1 and 2) that has
  * been rewritten to a CakeML-friendly representation, where variable names have been
