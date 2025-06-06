@@ -92,7 +92,7 @@ val smac_tbl =
 
 val rand_gen = Random.newgen ();
 
-val n_additional_entries = 1000;
+val n_additional_entries = 10;
 
 val dmac_tbl' = populate_table dmac_tbl rand_gen n_additional_entries;
 
@@ -599,7 +599,10 @@ EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1
 EVAL “arch_multi_exec ^vss_v1model_actx (p4_append_input_list [^input] ^vss_v1model_astate) 51”
 
 *)
-
+(*
+val actx = vss_v1model_actx
+val astate = vss_v1model_astate
+*)
 val (dict', actx', astate') =
  transform_program v1model_dict "v1model" vss_v1model_actx vss_v1model_astate;
 

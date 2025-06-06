@@ -31,6 +31,7 @@ val _ = translate ebpf_ascope_update_v_map'_def;
 
 val _ = translate lookup_lval_header'_def;
 val _ = translate (EVAL “w2v (w:word8)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);
+val _ = translate w8_to_v_def;
 val _ = translate byte_list_to_bool_list_take_def;
 val _ = translate lookup_ascope_gen_def;
 val _ = translate size_in_bits'_def;

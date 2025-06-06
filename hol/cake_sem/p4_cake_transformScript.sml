@@ -423,12 +423,18 @@ Definition transform_s_def:
  transform_s dict s =
   case s of
    s_sing v =>
-  transform_v dict v >>=
-  \v'. SOME $ s'_sing v'
- | s_range bitv1 bitv2 =>
-  SOME $ s'_range bitv1 bitv2
- | s_mask bitv1 bitv2 =>
-  SOME $ s'_mask bitv1 bitv2
+  (case v of
+   | v_bit (bl, n) => SOME $ s'_sing $ v2w bl
+   | v_bool b => SOME $ s'_sing $ v2w [b]
+   | _ => NONE)
+ | s_range (bl1, n1) (bl2, n2) =>
+  if n1 <= 64 /\ n2 <= 64
+  then SOME $ s'_range (v2w bl1) (v2w bl2)
+  else NONE
+ | s_mask (bl1, n1) (bl2, n2) =>
+  if n1 <= 64 /\ n2 <= 64
+  then SOME $ s'_mask (v2w bl1) (v2w bl2)
+  else NONE
  | s_univ => SOME $ s'_univ
 End
 
@@ -852,7 +858,7 @@ End
 
 Definition transform_ctrl_empty_def:
  transform_ctrl_empty dict (ctrl:v1model_ctrl) =
-  ((oFOLDR (\(x, tbl). ALOOKUP dict x >>= \w. SOME (w, []:(((e_list' -> bool) # num), word64 # e_list') alist)) ctrl):v1model_ctrl' option)
+  ((oFOLDR (\(x, tbl). ALOOKUP dict x >>= \w. SOME (w, (tbl_regular []):tbl)) ctrl):v1model_ctrl' option)
 (*
   (oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist) | NONE => NONE) ctrl)
 *)

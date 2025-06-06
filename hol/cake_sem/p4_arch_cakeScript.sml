@@ -19,6 +19,14 @@ Datatype:
   core_v_ext'_packet (word8 list)
 End
 
+Datatype:
+tbl =
+  (* Any regular table *)
+  tbl_regular ((s' list # num, (word64 # e_list')) alist)
+  (* A table with a custom implementation *)
+| tbl_impl ((word64 list -> (word64 # e_list')))
+End
+
 Definition header_entries2v'_def:
  (header_entries2v' (INL []) = SOME []) /\
  (header_entries2v' (INL (h::t)) =
@@ -218,12 +226,23 @@ Definition set_v'_def:
  (set_v' _ packet_in = NONE)
 End
 
+Definition w8_to_v_def:
+w8_to_v (w:word8) =
+ [128w && w ≠ 0w; 64w && w ≠ 0w; 32w && w ≠ 0w; 16w && w ≠ 0w;
+  8w && w ≠ 0w; 4w && w ≠ 0w; 2w && w ≠ 0w; 1w && w ≠ 0w]
+End
+Theorem w8_to_v_equiv_def:
+!w. w8_to_v w = w2v w
+Proof
+fs[w8_to_v_def, bitstringTheory.w2v_def, wordsTheory.word_bit_test, wordsTheory.word_bit_def, wordsTheory.word_bit]
+QED
+
 Definition byte_list_to_bool_list_take_def:
 (byte_list_to_bool_list_take l 0 = SOME []) /\ 
 (byte_list_to_bool_list_take ((h:word8)::t) (SUC n) =
  case byte_list_to_bool_list_take t n of
    SOME res =>
-  SOME ((w2v:word8 -> bool list) h::res)
+  SOME (w8_to_v h::res)
   | NONE => NONE) /\
 (byte_list_to_bool_list_take [] n = NONE)
 End

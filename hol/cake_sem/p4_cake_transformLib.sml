@@ -242,13 +242,13 @@ fun transform_actx arch dict actx =
      val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
      val preingress_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "preingress"”
     in
-     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser'); (^preingress_w,ffblock_ff v1model_preingress')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
+     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser'); (^preingress_w,ffblock_ff v1model_preingress')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f'':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
     end
    else
     let
      val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
     in
-     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[]:ebpf_ascope' ffblock_map'”, “(^input_f'):ebpf_ascope' input_f'”, “ebpf_output_f':ebpf_ascope' output_f'”, “ebpf_copyin_pbl':ebpf_ascope' copyin_pbl'”, “ebpf_copyout_pbl':ebpf_ascope' copyout_pbl'”, “ebpf_apply_table_f':ebpf_ascope' apply_table_f'”, “^ext_map':ebpf_ascope' ext_map'”, “^func_map':func_map'”])
+     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[]:ebpf_ascope' ffblock_map'”, “(^input_f'):ebpf_ascope' input_f'”, “ebpf_output_f':ebpf_ascope' output_f'”, “ebpf_copyin_pbl':ebpf_ascope' copyin_pbl'”, “ebpf_copyout_pbl':ebpf_ascope' copyout_pbl'”, “ebpf_apply_table_f'':ebpf_ascope' apply_table_f'”, “^ext_map':ebpf_ascope' ext_map'”, “^func_map':func_map'”])
     end
   else raise Fail "transform_actx failed to translate actx"
  end
@@ -264,8 +264,12 @@ is_match_all_e_alt' match_fun
 *)
 
 (* TODO: Make syntax file *)
+(*
 val (match_all_e_alt'_tm, mk_match_all_e_alt', dest_match_all_e_alt', is_match_all_e_alt') =
   syntax_fns2 "p4_exec_sem_cake" "match_all_e_alt'";
+*)
+val (match_all_e_alt''_tm, mk_match_all_e_alt'', dest_match_all_e_alt'', is_match_all_e_alt'') =
+  syntax_fns2 "p4_exec_sem_cake" "match_all_e_alt''";
 
 fun transform_match_fun dict match_fun =
  let
@@ -295,7 +299,7 @@ fun transform_match_fun dict match_fun =
     val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
    in
     if is_some s'_list_opt
-    then mk_pair (mk_comb (match_all_e_alt'_tm, dest_some s'_list_opt), prio)
+    then mk_pair (mk_comb (match_all_e_alt''_tm, dest_some s'_list_opt), prio)
     else raise Fail "transform_match_fun failed to translate set expression list"
    end
  end
@@ -309,7 +313,7 @@ fun transform_match_fun' dict match_fun =
   val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
  in
   if is_some s'_list_opt
-  then mk_pair (mk_comb (match_all_e_alt'_tm, dest_some s'_list_opt), prio)
+  then mk_pair (dest_some s'_list_opt, prio)
   else raise Fail "transform_match_fun' failed to translate set expression list"
  end
 ;
@@ -342,6 +346,13 @@ fun transform_entries dict [] = []
  end
 ;
 
+val (tbl_regular_tm, mk_tbl_regular, dest_tbl_regular, is_tbl_regular) =
+  syntax_fns1 "p4_arch_cake" "tbl_regular";
+
+(*
+val tbl = el 1 (fst $ dest_list ctrl);
+val dict = dict'
+*)
 fun transform_tbl dict tbl =
  let
   val (name, entries) = dest_pair tbl
@@ -352,13 +363,13 @@ fun transform_tbl dict tbl =
    let
     val entries' = transform_entries dict (fst $ dest_list entries)
    in
-    mk_pair (dest_some name'_opt, mk_list (entries', “:((e' list -> bool) # num) # word64 # e' list”))
+    mk_pair (dest_some name'_opt, mk_tbl_regular $ mk_list (entries', “:(s' list # num) # word64 # e' list”))
    end
   else raise Fail "transform_tbl failed to translate table name (one or more table names could not be found in the dictionary)"
  end
 ;
 fun transform_ctrl dict ctrl =
- mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:word64 # (((e' list -> bool) # num) # word64 # e' list) list”)
+ mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:(word64 # tbl)”)
 ;
 
 (* TODO: Updated ctrl as argument, for now... *)
@@ -370,7 +381,7 @@ fun transform_program dict arch actx astate =
  let
   val (dict', actx') = transform_actx arch dict actx
   val ctrl = #4 $ p4_testLib.dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate;
-  (* TODO: Note that ctrl has to be translated in SML due to the matching function, which cannot be
+  (* TODO: Note that ctrl has to be translated in SML due to the matching function, which cannot
    * be syntactically treated in HOL4 *)
   val ctrl' = transform_ctrl dict' ctrl
   val astate'_opt =

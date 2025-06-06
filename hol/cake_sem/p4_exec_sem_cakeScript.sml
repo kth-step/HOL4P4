@@ -42,9 +42,9 @@ Type v_list' = ``:(v' list)``
 
 val _ = Hol_datatype ` 
 s' =  (* set *)
-   s'_sing of v' (* singleton *)
- | s'_range of bitv => bitv (* interval *)
- | s'_mask of bitv => bitv (* bit mask *)
+   s'_sing of word64 (* singleton *)
+ | s'_range of word64 => word64 (* interval *)
+ | s'_mask of word64 => word64 (* bit mask *)
  | s'_univ (* universal *)
 `;
 
@@ -143,7 +143,7 @@ arch_block' =  (* architectural block *)
  | arch_block'_out
 `;
 
-Type apply_table_f' = ``:((word64 # e_list' # mk_list # (word64 # e_list') # 'a) -> (word64 # e_list') option)``
+Type apply_table_f' = ``:((word64 # e' list # mk_list # (word64 # e_list') # 'a) -> (word64 # e_list') option)``
 
 Type copyout_pbl' = ``:((g_scope' list # 'a # d list # word64 list # status') -> 'a option)``
 
@@ -1146,7 +1146,7 @@ Definition e_exec_acc'_def:
   /\
  (e_exec_acc' _ = NONE)
 End
-
+(*
 Definition p4_match_mask'_def:
  p4_match_mask' val mask k =
   (case k of
@@ -1213,6 +1213,84 @@ Definition match_all_first'_def:
 End
 Definition match_all_first_def:
  match_all_first v_list s_l_x_l = match_all_first' 0 v_list s_l_x_l
+End
+*)
+
+Definition e_list_to_word64_list_def:
+ (e_list_to_word64_list [] = SOME ([]:word64 list)) /\
+ (e_list_to_word64_list (h::t) =
+   case h of
+   | e'_v $ v'_bit (bl, n) =>
+    (case e_list_to_word64_list t of
+     | SOME res => SOME (v2w bl::res)
+     | NONE => NONE)
+   | e'_v $ v'_bool b =>
+    (case e_list_to_word64_list t of
+     | SOME res => SOME (v2w [b]::res)
+     | NONE => NONE)
+   | _ => NONE)
+End
+
+Definition v_list_to_word64_list_def:
+ (v_list_to_word64_list [] = SOME ([]:word64 list)) /\
+ (v_list_to_word64_list (h::t) =
+   case h of
+   | v'_bit (bl, n) =>
+    (case v_list_to_word64_list t of
+     | SOME res => SOME (v2w bl::res)
+     | NONE => NONE)
+   | v'_bool b =>
+    (case v_list_to_word64_list t of
+     | SOME res => SOME (v2w [b]::res)
+     | NONE => NONE)
+   | _ => NONE)
+End
+
+Definition p4_match_mask''_def:
+ p4_match_mask'' val mask (w:word64) =
+  word_eq (word_and w mask) (word_and val mask)
+End
+
+Definition p4_match_range''_def:
+ p4_match_range'' lo hi (w:word64) =
+  if word_ge w lo
+  then word_le w hi
+  else F
+End
+
+Definition match''_def:
+ match'' w s =
+  case s of
+  | s'_sing w' => (w = w')
+  | s'_range w' w'' => p4_match_range'' w' w'' w
+  | s'_mask w' w'' => p4_match_mask'' w' w'' w
+  | s'_univ => T
+End
+
+Definition match_all''_def:
+ (match_all'' [] = T) /\
+ (match_all'' ((w, s)::t) =
+   if match'' w s
+   then match_all'' t
+   else F)
+End
+
+Definition match_all_e_alt''_def:
+ match_all_e_alt'' s_l w_l = match_all'' (ZIP(w_l, s_l))
+End
+
+Definition match_all_first''_def:
+ (match_all_first'' i w_list ([]:(s' list # word64) list) = NONE) /\
+ (match_all_first'' i w_list (h::t) =
+  if (match_all'' (ZIP(w_list, FST h)))
+  then SOME (SND h)
+  else match_all_first'' (SUC i) w_list t)
+End
+Definition match_all_first_def:
+ match_all_first v_list s_l_x_l =
+  case v_list_to_word64_list v_list of
+  | SOME w_list => match_all_first'' 0 w_list s_l_x_l
+  | NONE => NONE
 End
 
 Definition e_exec_select'_def:

@@ -40,14 +40,13 @@ val _ = translate v1model_copyin_pbl'_def;
 val _ = translate copyout_pbl_gen'_def;
 val _ = translate v1model_copyout_pbl'_def;
 
-val _ = translate FOLDL_MATCH_alt_def;
-val _ = translate FOLDL_MATCH_def;
+val _ = translate match_all_e_alt''_def;
+val _ = translate FOLDL_MATCH_alt'_def;
+val _ = translate FOLDL_MATCH'_def;
 val _ = translate listTheory.LIST_TO_SET_DEF;
 val _ = translate boolTheory.IN_DEF;
-val _ = translate v1model_apply_table_f'_def;
-
-(* Used in tables: *)
-val _ = translate match_all_e_alt'_def;
+val _ = translate e_list_to_word64_list_def;
+val _ = translate v1model_apply_table_f''_def;
 
 (* Extern implementations: *)
 
@@ -74,7 +73,7 @@ val _ = translate set_fields'_def;
 val _ = translate set_header'_def;
 val _ = translate update_ascope_gen_def;
 
-val _ = translate (EVAL “w2v (w:word8)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);
+val _ = translate w8_to_v_def;
 val _ = translate byte_list_to_bool_list_take_def;
 val _ = translate packet_in_extract_gen'_def;
 val _ = translate v1model_ascope_lookup'_def;
