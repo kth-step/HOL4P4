@@ -1,14 +1,8 @@
-structure p4_baseline_ffiLib :> p4_baseline_ffiLib = struct
+structure cake_baseline_ffiLib :> cake_baseline_ffiLib = struct
 
 open HolKernel boolLib Parse bossLib;
 
-open p4Syntax;
 open bitstringSyntax numSyntax;
-open p4Theory;
-open p4_auxTheory;
-open p4_coreTheory p4_vssTheory;
-open p4_exec_sem_cakeTheory;
-open p4_arch_cakeTheory;
 
 (* CakeML: *)
 open preamble ml_translatorLib ml_progLib basisFunctionsLib;
@@ -722,7 +716,7 @@ fun splitAt (lst, n) =
        val interfaces = find_interfaces args 0 [];
 
        (* Print startup message *)
-       val _ = print "P4 Network Switch starting...\n";
+       val _ = print "Software switch starting...\n";
        val _ = print ("Buffer size: " ^ Int.toString buffer_size ^ " bytes\n");
        val _ = print ("Number of interfaces: " ^ Int.toString (List.length interfaces) ^ "\n");
 

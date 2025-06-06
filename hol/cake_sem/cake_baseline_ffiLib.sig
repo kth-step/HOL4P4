@@ -1,4 +1,4 @@
-signature p4_baseline_ffiLib =
+signature cake_baseline_ffiLib =
 sig
   include Abbrev
 
