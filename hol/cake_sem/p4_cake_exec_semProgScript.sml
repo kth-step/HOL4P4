@@ -196,9 +196,34 @@ val _ = translate bitTheory.DIV_2EXP_def;
 val _ = translate bitTheory.BITS_def;
 val _ = translate bitTheory.BIT_def;
 val _ = translate (word_msb_thm |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
+Theorem word_msb_side:
+ !w. word_msb_side w
+Proof
+simp[Once $ definition "word_msb_side_def", definition "bit_side_def", definition "bits_side_def"]
+QED
+val _ = update_precondition word_msb_side;
+
 val _ = translate (word_mul_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
+
 val _ = translate (word_2comp_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) [] |> SIMP_RULE std_ss [GSYM wordsTheory.WORD_NEG_MUL]);
+Theorem word_2comp_side:
+ !w. word_2comp_side w
+Proof
+simp[Once $ definition "word_2comp_side_def"] \\
+wordsLib.Induct_word \\ (
+ gs[]
+)
+QED
+val _ = update_precondition word_2comp_side;
+
 val _ = translate (nzcv_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
+Theorem nzcv_side:
+ !w w'. nzcv_side w w'
+Proof
+simp[definition "nzcv_side_def", definition "bit_side_def", definition "bits_side_def"] 
+QED
+val _ = update_precondition nzcv_side;
+
 val _ = translate (word_ge_def |> INST_TYPE [alpha|->“:64”]);
 val _ = translate (word_le_def |> INST_TYPE [alpha|->“:64”]);
 val _ = translate p4_match_range''_def;
@@ -208,7 +233,6 @@ val _ = translate bitv_div_def;
 val _ = translate bitv_mod_def;
 val _ = translate bitv_add_def;
 val _ = translate bitv_sub_def;
-
 val _ = translate band'_def;
 val _ = translate bitv_and_def;
 val _ = translate bor'_def;
@@ -269,7 +293,6 @@ val _ = translate is_short_circuitable_def;
 val _ = translate e_exec_short_circuit'_def;
 val _ = translate bitv_bl_binop_def;
 val _ = translate bitstringTheory.shiftl_def;
-val _ = translate bitstringTheory.shiftr_def;
 val _ = translate binop_exec'_def;
 val _ = translate e_exec_binop'_def;
     
@@ -290,18 +313,22 @@ val _ = translate e_exec'_def;
 val _ = translate lookup_out'_def;
 val _ = translate listTheory.INDEX_OF_def;
 val _ = translate replace_bits_def;
+(*
 Theorem replace_bits_side:
 !bitv1 bitv2 hi lo. replace_bits_side bitv1 bitv2 hi lo
 Proof
 simp[Once $ definition "replace_bits_side_def"]
 QED
 val _ = update_precondition replace_bits_side;
+*)
 val _ = translate assign_to_slice'_def;
 val _ = translate assign'_def;
 val _ = translate stmt_exec_ass'_def;
 val _ = translate oDROP_def;
 val _ = translate oTAKE_def;
+(* TODO: This now has precondition... Use option type? 
 val _ = translate separate_def;
+*)
 val _ = translate get_e_ctx_def;
 
 (* Conditional *)
@@ -328,8 +355,20 @@ val _ = translate is_consts_exec'_def;
 
 (* Extern *)
 val _ = translate lookup_ext_fun'_def;
-
+val _ = translate separate'_def;
 val _ = translate stmt_exec'_def;
+(*
+Theorem stmt_exec'_side:
+!ctx state. stmt_exec'_side ctx state
+Proof
+(*
+simp[Once $ theorem "stmt_exec'_side_def"] \\
+rpt strip_tac \\
+*)
+cheat
+QED
+val _ = update_precondition stmt_exec'_side;
+*)
 
 (** Frame semantics **)
 
@@ -341,16 +380,6 @@ val _ = translate scopes_to_retrieve'_def;
 val _ = translate is_d_none_in_def;
 val _ = translate update_return_frame'_def;
 val _ = translate copyout'_def;
-Theorem copyout'_side:
-!xlist dlist gsl ss ss_curr. copyout'_side xlist dlist gsl ss ss_curr
-Proof
-simp[Once $ definition "copyout'_side_def"] \\
-rpt strip_tac >- (
- gs[oTAKE_TAKE]
-) \\
-gs[oDROP_DROP]
-QED
-val _ = update_precondition copyout'_side;
 val _ = translate frames_exec'_def;
 
 (** Arch semantics **)
