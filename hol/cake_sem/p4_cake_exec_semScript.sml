@@ -647,9 +647,10 @@ Definition copyout'_def:
   then
    (case update_return_frame' xlist dlist (ss++gsl) [LAST ss_curr] of
     | SOME updated_return_ss =>
-     (case (LENGTH updated_return_ss) of
-      | 0 => NONE
-      | i => SOME (THE (oDROP (i-2) updated_return_ss), THE(oTAKE (i-2) updated_return_ss)))
+     let i = LENGTH updated_return_ss in
+     if i >= 2
+     then SOME (DROP (i-2) updated_return_ss, TAKE (i-2) updated_return_ss)
+     else NONE
     | NONE => NONE)
   else NONE
 End
@@ -830,7 +831,11 @@ End
 
 Definition bitv_2comp_def:
  bitv_2comp (v:bool list) l =
-  fixwidth l $ n2v ((2 ** l) - v2n v)
+  let a = 2 ** l in
+  let b = v2n v in
+  if b ≤ a
+  then SOME $ fixwidth l $ n2v (a - b)
+  else NONE
 End
 
 Definition bitv_unplus_def:
@@ -842,7 +847,10 @@ Definition unop_exec'_def:
  /\
  (unop_exec' unop_compl (v'_bit (bl,n)) = SOME (v'_bit (bitv_1comp bl, n)))
  /\
- (unop_exec' unop_neg_signed (v'_bit (bl,n)) = SOME (v'_bit (bitv_2comp bl n, n)))
+ (unop_exec' unop_neg_signed (v'_bit (bl,n)) =
+  case bitv_2comp bl n of
+  | SOME res => SOME (v'_bit (res, n))
+  | NONE => NONE)
  /\
  (unop_exec' unop_un_plus (v'_bit bitv) = SOME (v'_bit bitv))
  /\
@@ -912,7 +920,10 @@ End
 
 Definition bitv_saturate_sub_def:
  bitv_saturate_sub a b l =
-  SOME $ (fixwidth l $ n2v (v2n a - v2n b), l)
+  (* TODO: Need this so that the CakeML translator can work *)
+  let av = v2n a in
+  let bv = v2n b in
+  SOME $ (fixwidth l $ n2v (if bv ≤ av then (av - bv) else 0), l)
 End
 
 Definition bitv_lsl_bv_def:
@@ -952,8 +963,18 @@ Definition bitv_add_def:
  bitv_add a b (l:num) = SOME $ (fixwidth l $ n2v (v2n a + v2n b), l)
 End
 
+(* OLD
 Definition bitv_sub_def:
  bitv_sub a b (l:num) = bitv_add a (bitv_2comp b l) l
+End
+*)
+(* Note that this guard can never yield the NONE case in practice,
+ * it's just needed for translation *)
+Definition bitv_sub_def:
+ bitv_sub a b (l:num) =
+  case bitv_2comp b l of
+  | SOME res => bitv_add a res l
+  | NONE => NONE
 End
 
 Definition band'_def:
@@ -1065,8 +1086,12 @@ Definition binop_exec'_def:
  (binop_exec' binop_shl (v'_bit bitv1) (v'_bit bitv2) =
   SOME (v'_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
  /\
- (binop_exec' binop_shr (v'_bit bitv1) (v'_bit bitv2) =
-  SOME (v'_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
+ (binop_exec' binop_shr (v'_bit (bl, n)) (v'_bit (bl',n')) =
+  let l = LENGTH bl in
+  let m = v2n bl' in
+  if m ≤ l
+  then SOME $ v'_bit $ (fixwidth n $ TAKE (l - m) bl, n)
+  else SOME $ v'_bit $ (fixwidth n [], n))
  /\
  (binop_exec' binop_le (v'_bit bitv1) (v'_bit bitv2) =
   case bitv_binpred' binop_le bitv1 bitv2 of
@@ -1626,6 +1651,15 @@ Definition is_consts_exec'_def:
  (is_consts_exec' (h::t) = (is_const' h /\ is_consts_exec' t))
 End
 
+Definition separate'_def:
+ separate' scope_list =
+  let i = LENGTH scope_list in
+  if i >= 2
+  then
+   SOME (DROP (i − 2) scope_list, TAKE (i − 2) scope_list)
+  else NONE
+End
+
 Definition stmt_exec'_def:
  (******************************************)
  (* Catch-all clauses for special statuses *)
@@ -1646,8 +1680,8 @@ Definition stmt_exec'_def:
   then
    (case stmt_exec_ass' lval e (scope_list++g_scope_list) of
     | SOME scope_list'' =>
-     (case separate scope_list'' of
-      | (SOME g_scope_list', SOME scope_list') =>
+     (case separate' scope_list'' of
+      | SOME (g_scope_list', scope_list') =>
        SOME (ascope, g_scope_list', [(funn, [stmt'_empty], scope_list')], status'_running)
       | _ => NONE)
     | NONE => NONE)

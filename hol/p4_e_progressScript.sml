@@ -629,7 +629,7 @@ IMP_RES_TAC bit_range >>
 fs[] >>
 
 fs[bitv_binop_def] >>
-RW.ONCE_RW_TAC [bitv_binop_inner_def] >>
+ONCE_REWRITE_TAC[bitv_binop_inner_def] >>
 fs[] >>
 srw_tac [numSimps.SUC_FILTER_ss][] 
 );
@@ -663,7 +663,7 @@ RES_TAC >>
 gvs[NOT_CLAUSES] >>
 
 fs[bitv_binop_def] >>
-RW.ONCE_RW_TAC [bitv_binop_inner_def] >>
+ONCE_REWRITE_TAC[bitv_binop_inner_def] >>
 fs[] >>
 srw_tac [numSimps.SUC_FILTER_ss][] 
 );
@@ -698,7 +698,7 @@ RES_TAC >>
 gvs[NOT_CLAUSES] >>
 
 fs[] >>
-RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+ONCE_REWRITE_TAC[bitv_binpred_inner_def] >>
 fs[] >>
 srw_tac [numSimps.SUC_FILTER_ss][]
 );
