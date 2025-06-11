@@ -195,12 +195,12 @@ val _ = translate bitTheory.MOD_2EXP_def;
 val _ = translate bitTheory.DIV_2EXP_def;
 val _ = translate bitTheory.BITS_def;
 val _ = translate bitTheory.BIT_def;
-val _ = translate (word_msb_thm |> INST_TYPE [alpha|->``:64``] |> SIMP_RULE (srw_ss()) []);
-val _ = translate (word_mul_def |> INST_TYPE [alpha|->``:64``] |> SIMP_RULE (srw_ss()) []);
-val _ = translate (word_2comp_def |> INST_TYPE [alpha|->``:64``] |> SIMP_RULE (srw_ss()) [] |> SIMP_RULE std_ss [GSYM wordsTheory.WORD_NEG_MUL]);
-val _ = translate (nzcv_def |> INST_TYPE [alpha|->``:64``] |> SIMP_RULE (srw_ss()) []);
-val _ = translate (word_ge_def |> INST_TYPE [alpha|->``:64``]);
-val _ = translate (word_le_def |> INST_TYPE [alpha|->``:64``]);
+val _ = translate (word_msb_thm |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
+val _ = translate (word_mul_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
+val _ = translate (word_2comp_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) [] |> SIMP_RULE std_ss [GSYM wordsTheory.WORD_NEG_MUL]);
+val _ = translate (nzcv_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
+val _ = translate (word_ge_def |> INST_TYPE [alpha|->“:64”]);
+val _ = translate (word_le_def |> INST_TYPE [alpha|->“:64”]);
 val _ = translate p4_match_range''_def;
 
 val _ = translate bitv_mul_def;
@@ -247,7 +247,7 @@ val _ = translate get_bitv_binop'_def;
 val _ = translate bitv_binop'_def;
 
 val _ = translate (EVAL “w2v (w:word64)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);
-val _ = translate (word_eq_def |> INST_TYPE [alpha|->``:64``] |> INST_TYPE [beta|->``:64``]);
+val _ = translate (word_eq_def |> INST_TYPE [alpha|->“:64”] |> INST_TYPE [beta|->“:64”]);
 val _ = translate p4_match_mask''_def;
 val _ = translate match''_def;
 val _ = translate match_all''_def;

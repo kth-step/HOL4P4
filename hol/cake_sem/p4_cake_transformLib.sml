@@ -9,9 +9,7 @@ open p4_coreTheory;
 open p4_v1modelTheory;
 
 open p4_cake_auxLib;
-open p4_cake_archTheory;
-open p4_cake_arch_v1modelTheory;
-open p4_cake_transformTheory;
+open p4_cake_archTheory p4_cake_arch_v1modelTheory p4_cake_transformTheory;
 
 open listSyntax optionSyntax pairSyntax;
 
@@ -194,7 +192,7 @@ val v1model_dict =
      (* eBPF *)
      ("packet_copy", 71w); ("inCtrl", 72w); ("packet", 73w); ("inputPort", 74w);
      ("max_index", 75w); ("CounterArray", 76w); ("sparse", 77w);
-     ("increment", 78w); ("add", 79w); ("headers", 80w)]:(string, word64) alist”;
+     ("increment", 78w); ("add", 79w); ("headers", 80w)]:(string, native_word) alist”;
 
 (* Uses a dict of static, architecture-coded variable names. add_varnames_actx will pick
  * up the rest. Returns a tuple of a new dict and the actx'. *)
@@ -362,13 +360,13 @@ fun transform_tbl dict tbl =
    let
     val entries' = transform_entries dict (fst $ dest_list entries)
    in
-    mk_pair (dest_some name'_opt, mk_tbl_regular $ mk_list (entries', “:(s' list # num) # word64 # e' list”))
+    mk_pair (dest_some name'_opt, mk_tbl_regular $ mk_list (entries', “:(s' list # num) # native_word # e' list”))
    end
   else raise Fail "transform_tbl failed to translate table name (one or more table names could not be found in the dictionary)"
  end
 ;
 fun transform_ctrl dict ctrl =
- mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:(word64 # tbl)”)
+ mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:(native_word # tbl)”)
 ;
 
 (* TODO: Updated ctrl as argument, for now... *)

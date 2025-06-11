@@ -24,7 +24,7 @@ val _ = translation_extends "p4_cake_arch_v1modelProg";
  * been rewritten to a CakeML-friendly representation, where variable names have been
  * replaced with words. *)
 
-val actx = ``([arch_block_inp;
+val actx = “([arch_block_inp;
   arch_block_pbl "p"
     [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
      e_var (varn_name "meta"); e_var (varn_name "standard_metadata")];
@@ -131,7 +131,7 @@ val actx = ``([arch_block_inp;
                      ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                        F; F; F; F; F; F; F; F; F; F; F; F; F; F],32)))]))
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
-   [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
+   [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx”;
 
 val astate = “((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[]),
     [[(varn_name "gen_apply_result",

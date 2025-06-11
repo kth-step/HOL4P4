@@ -41,7 +41,7 @@ Datatype:
  | status'_trans native_word
 End
 
-Type v_list' = ``:(v' list)``
+Type v_list' = “:(v' list)”
 
 Datatype:   
  s' =  (* set *)
@@ -51,7 +51,7 @@ Datatype:
  | s'_univ (* universal *)
 End
 
-Type s_list' = ``:(s' list)``
+Type s_list' = “:(s' list)”
 
 Datatype:
 e' =
@@ -82,11 +82,11 @@ Datatype:
  | lval'_paren lval'
 End
 
-Type e_list' = ``:(e' list)``
+Type e_list' = “:(e' list)”
 
-Type scope' = ``:((varn', (v' # lval' option)) alist)``
+Type scope' = “:((varn', (v' # lval' option)) alist)”
 
-Type g_scope' = ``:scope'``
+Type g_scope' = “:scope'”
 
 Datatype:   
  tau' =  (* type *)
@@ -97,13 +97,13 @@ Datatype:
  | tau'_ext (* extern *)
 End
 
-Type g_scope_list' = ``:(scope' list)``
+Type g_scope_list' = “:(scope' list)”
 
-Type scope_list' = ``:(scope' list)``
+Type scope_list' = “:(scope' list)”
 
-Type ext_fun' = ``:(('a # g_scope_list' # scope_list') -> (('a # scope_list' # status') option))``
+Type ext_fun' = “:(('a # g_scope_list' # scope_list') -> (('a # scope_list' # status') option))”
 
-Type t_scope' = ``:((varn', (tau' # lval' option)) alist)``
+Type t_scope' = “:((varn', (tau' # lval' option)) alist)”
 
 Datatype:   
  stmt' =  (* statement *)
@@ -118,29 +118,29 @@ Datatype:
  | stmt'_ext (* extern *)
 End
 
-Type b_func_map' = ``:((native_word, (stmt' # (native_word # d) list)) alist)``
+Type b_func_map' = “:((native_word, (stmt' # (native_word # d) list)) alist)”
 
-Type func_map' = ``:((native_word, (stmt' # (native_word # d) list)) alist)``
+Type func_map' = “:((native_word, (stmt' # (native_word # d) list)) alist)”
 
-Type ext_fun_map' = ``:((native_word, ((native_word # d) list # 'a ext_fun')) alist)``
+Type ext_fun_map' = “:((native_word, ((native_word # d) list # 'a ext_fun')) alist)”
 
-Type pars_map' = ``:((native_word, stmt') alist)``
+Type pars_map' = “:((native_word, stmt') alist)”
 
-Type ext_map' = ``:((native_word, ((((native_word # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)``
+Type ext_map' = “:((native_word, ((((native_word # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)”
 
-Type tbl_map' = ``:((native_word, ((mk list) # (native_word # e_list'))) alist)``
+Type tbl_map' = “:((native_word, ((mk list) # (native_word # e_list'))) alist)”
 
-Type in_out' = ``:(word8 list # num)``
+Type in_out' = “:(word8 list # num)”
 
-Type in_out_list' = ``:(in_out' list)``
+Type in_out_list' = “:(in_out' list)”
 
-Type pblock' = ``:(pbl_type # ((native_word # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')``
+Type pblock' = “:(pbl_type # ((native_word # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')”
 
-Type pblock_map' = ``:((native_word, pblock') alist)``
+Type pblock_map' = “:((native_word, pblock') alist)”
 
-Type ffblock_map' = ``:((native_word, 'a ffblock) alist)``
+Type ffblock_map' = “:((native_word, 'a ffblock) alist)”
 
-Type pblock_list' = ``:(pblock' list)``
+Type pblock_list' = “:(pblock' list)”
 
 Datatype:   
  arch_block' =  (* architectural block *)
@@ -150,34 +150,34 @@ Datatype:
  | arch_block'_out
 End
 
-Type apply_table_f' = ``:((native_word # e' list # mk_list # (native_word # e_list') # 'a) -> (native_word # e_list') option)``
+Type apply_table_f' = “:((native_word # e' list # mk_list # (native_word # e_list') # 'a) -> (native_word # e_list') option)”
 
-Type copyout_pbl' = ``:((g_scope' list # 'a # d list # native_word list # status') -> 'a option)``
+Type copyout_pbl' = “:((g_scope' list # 'a # d list # native_word list # status') -> 'a option)”
 
-Type copyin_pbl' = ``:((native_word list # d list # e' list # 'a) -> scope' option)``
+Type copyin_pbl' = “:((native_word list # d list # e' list # 'a) -> scope' option)”
 
-Type output_f' = ``:((in_out_list' # 'a) -> (in_out_list' # 'a) option)``
+Type output_f' = “:((in_out_list' # 'a) -> (in_out_list' # 'a) option)”
 
-Type input_f' = ``:((in_out_list' # 'a) -> (in_out_list' # 'a) option)``
+Type input_f' = “:((in_out_list' # 'a) -> (in_out_list' # 'a) option)”
 
-Type ab_list' = ``:(arch_block' list)``
+Type ab_list' = “:(arch_block' list)”
 
 (* New to executable semantics *)
 Type e_ctx = “:('a ext_map' # func_map' # b_func_map')”;
 
-Type ctx' = ``:('a apply_table_f' # 'a ext_map' # func_map' # b_func_map' # pars_map' # tbl_map')``
+Type ctx' = “:('a apply_table_f' # 'a ext_map' # func_map' # b_func_map' # pars_map' # tbl_map')”
 
-Type actx' = ``:(ab_list' # pblock_map' # 'a ffblock_map' # 'a input_f' # 'a output_f' # 'a copyin_pbl' # 'a copyout_pbl' # 'a apply_table_f' # 'a ext_map' # func_map')``
+Type actx' = “:(ab_list' # pblock_map' # 'a ffblock_map' # 'a input_f' # 'a output_f' # 'a copyin_pbl' # 'a copyout_pbl' # 'a apply_table_f' # 'a ext_map' # func_map')”
 
-Type stmt_stack' = ``:(stmt' list)``
+Type stmt_stack' = “:(stmt' list)”
 
-Type frame' = ``:(funn' # stmt_stack' # scope_list')``
+Type frame' = “:(funn' # stmt_stack' # scope_list')”
 
-Type frame_list' = ``:(frame' list)``
+Type frame_list' = “:(frame' list)”
 
-Type state' = ``:('a # g_scope_list' # frame_list' # status')``
+Type state' = “:('a # g_scope_list' # frame_list' # status')”
 
-Type aenv' = ``:(num # in_out_list' # in_out_list' # 'a)``
+Type aenv' = “:(num # in_out_list' # in_out_list' # 'a)”
 
 Datatype:   
  arch_frame_list' =  (* architecture-level frame list *)
@@ -185,7 +185,7 @@ Datatype:
  | arch_frame_list'_regular frame_list' (* regular frame list *)
 End
 
-Type astate' = ``:('a aenv' # g_scope_list' # arch_frame_list' # status')``
+Type astate' = “:('a aenv' # g_scope_list' # arch_frame_list' # status')”
 
 (**********************************)
 (* Semantics function definitions *)
@@ -1287,7 +1287,7 @@ Definition match_all_e_alt''_def:
 End
 
 Definition match_all_first''_def:
- (match_all_first'' i w_list ([]:(s' list # word64) list) = NONE) /\
+ (match_all_first'' i w_list ([]:(s' list # native_word) list) = NONE) /\
  (match_all_first'' i w_list (h::t) =
   if (match_all'' (ZIP(w_list, FST h)))
   then SOME (SND h)

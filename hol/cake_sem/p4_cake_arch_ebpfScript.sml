@@ -12,10 +12,10 @@ open p4_coreTheory p4_ebpfTheory;
 
 val _ = type_abbrev("ebpf_sum_v_ext'", “:(core_v_ext', ebpf_v_ext) sum”);
 
-val _ = type_abbrev("ebpf_ctrl'", ``:(native_word, (((e_list' -> bool) # num), native_word # e_list') alist) alist``);
+val _ = type_abbrev("ebpf_ctrl'", “:(native_word, (((e_list' -> bool) # num), native_word # e_list') alist) alist”);
 
 (* The architectural state type of the eBPF architecture model *)
-val _ = type_abbrev("ebpf_ascope'", ``:(num # ((num, ebpf_sum_v_ext') alist) # ((native_word, v') alist) # ebpf_ctrl')``);
+val _ = type_abbrev("ebpf_ascope'", “:(num # ((num, ebpf_sum_v_ext') alist) # ((native_word, v') alist) # ebpf_ctrl')”);
 
 Definition ebpf_ascope_lookup'_def:
  ebpf_ascope_lookup' (ascope:ebpf_ascope') ext_ref = 

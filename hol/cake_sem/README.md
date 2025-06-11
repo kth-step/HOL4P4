@@ -1,6 +1,8 @@
-NOTE: This directory uses HOL4 commit 814042201, and is not guaranteed to function properly with the Trindemossen-1 release.
+NOTE: This directory uses HOL4 commit `48a676c`, and is not guaranteed to function properly with the Trindemossen-1 release.
 
-The CakeML release used in this directory is v2747.
+The CakeML release used in this directory is `v2807`.
+
+PLease set native word size for your compilation target in `p4_cake_auxLib.sml`.
 
 p4_exec_sem_cakeScript.sml contains a more CakeML-friendly reformulation of the regular executable semantics (found in p4_exec_semScript.sml).
 

@@ -8,6 +8,7 @@ open p4Theory;
 open p4_cake_auxTheory;
 open p4Syntax;
 
+(* Note: This sets the word size that strings are serialized to in the CakeML-compilable semantics *)
 val native_word = “:word64”;
 
 (* Some extra tricks for CakeML export *)
