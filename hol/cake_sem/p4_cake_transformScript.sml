@@ -5,6 +5,7 @@ val _ = new_theory "p4_cake_transform";
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
 open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory;
+open p4_cake_auxLib;
 open p4_coreTheory;
 open p4_v1modelTheory;
 
@@ -39,14 +40,14 @@ QED
 (** Adding strings from an actx **)
 
 Definition add_string_def:
- add_string string (dict: (string, word64) alist) =
+ add_string string (dict: (string, native_word) alist) =
   if IS_NONE $ ALOOKUP dict string
   then p4$AUPDATE dict (string, n2w $ LENGTH dict)
   else dict
 End
 
 Definition add_varnames_funn_def:
- add_varnames_funn (dict: (string, word64) alist) funn =
+ add_varnames_funn (dict: (string, native_word) alist) funn =
   case funn of
     funn_name name =>
    add_string name dict
@@ -58,7 +59,7 @@ Definition add_varnames_funn_def:
 End
 
 Definition add_varnames_varn_def:
- add_varnames_varn (dict: (string, word64) alist) varn =
+ add_varnames_varn (dict: (string, native_word) alist) varn =
   case varn of
     varn_name name =>
    add_string name dict
@@ -424,18 +425,17 @@ Definition transform_s_def:
   case s of
    s_sing v =>
   (case v of
-   | v_bit (bl, n) => SOME $ s'_sing $ v2w bl
-   | v_bool b => SOME $ s'_sing $ v2w [b]
+   | v_bit (bl, n) => SOME (s'_sing $ v2w bl, n)
    | _ => NONE)
  | s_range (bl1, n1) (bl2, n2) =>
   if n1 <= 64 /\ n2 <= 64
-  then SOME $ s'_range (v2w bl1) (v2w bl2)
+  then SOME (s'_range (v2w bl1) (v2w bl2), n1)
   else NONE
  | s_mask (bl1, n1) (bl2, n2) =>
   if n1 <= 64 /\ n2 <= 64
-  then SOME $ s'_mask (v2w bl1) (v2w bl2)
+  then SOME (s'_mask (v2w bl1) (v2w bl2), n1)
   else NONE
- | s_univ => SOME $ s'_univ
+ | s_univ => SOME (s'_univ, 0)
 End
 
 (*
@@ -502,9 +502,10 @@ Definition transform_e_def:
    let (s_list_list, x_list) = UNZIP s_list_x_list in
    transform_e dict e >>=
    \e'. (oFOLDR (oFOLDR (transform_s dict))) s_list_list >>=
-   \s_list_list'. (oFOLDR (ALOOKUP dict)) x_list >>=
+   \s_n_list_list'. (oFOLDR (ALOOKUP dict)) x_list >>=
    \x_list'. ALOOKUP dict x >>=
-   \x'. SOME $ e'_select e' (ZIP (s_list_list', x_list')) x'
+   \x'. let (s_list_list', n_list_list) = UNZIP $ MAP UNZIP s_n_list_list' in
+    SOME $ e'_select e' (ZIP (s_list_list', x_list')) x' n_list_list
   | e_struct x_e_list =>
    (case x_e_list of
       ((x,e)::t) =>
@@ -547,7 +548,7 @@ End
   \e'. transform_e_list dict t >>=
   \el'. SOME $ e'::el')
 Termination
-WF_REL_TAC ‘measure $ (\a. case (a:(((string # word64) list) # e) + (((string # word64) list) # e list)) of INR d_el => e3_size $ SND d_el | INL d_e => e_size $ SND d_e)’ >>
+WF_REL_TAC ‘measure $ (\a. case (a:(((string # native_word) list) # e) + (((string # native_word) list) # e list)) of INR d_el => e3_size $ SND d_el | INL d_e => e_size $ SND d_e)’ >>
 rpt strip_tac >>
 gs[e_size_def] >>
 subgoal ‘e_list' = MAP SND x_e_list'’ >- (
@@ -751,7 +752,7 @@ End
 Definition transform_ext_map_def:
  transform_ext_map dict (ext_map:v1model_ascope ext_map) =
    SOME ([(41w,NONE,
-     [(47w,[(3w:word64,d_in)],header_is_valid');
+     [(47w,[(3w:native_word,d_in)],header_is_valid');
       (48w,[(3w,d_inout)],header_set_valid');
       (49w,[(3w,d_inout)],header_set_invalid')]);
     (38w,NONE,
@@ -874,7 +875,7 @@ Definition transform_ascope_def:
   SOME (counter, ext_obj_map', v_map', ctrl')
 End
 
-(* Given an alist of translations from strings to word64, transforms an actx to an actx'. *)
+(* Given an alist of translations from strings to native_word, transforms an actx to an actx'. *)
 (* TODO: Change the architectural representation so you can translate input_f and apply_table_f properly also *)
 Definition transform_actx_def:
  transform_actx dict ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):v1model_ascope actx) =
@@ -953,7 +954,7 @@ End
 Definition transform_ebpf_ext_map_def:
  transform_ebpf_ext_map dict (ext_map:ebpf_ascope ext_map) =
    SOME ([(41w,NONE,
-     [(47w,[(3w:word64,d_in)],header_is_valid');
+     [(47w,[(3w:native_word,d_in)],header_is_valid');
       (48w,[(3w,d_inout)],header_set_valid');
       (49w,[(3w,d_inout)],header_set_invalid')]);
     (38w,NONE,

@@ -8,10 +8,9 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_st
 Definition frame_list_exec_sound:
  (frame_list_exec_sound (type:'a itself) frame_list =
   !(ctx:'a ctx) ascope g_scope_list status state'.
-  frames_exec ctx (ascope, g_scope_list, frame_list, status) = SOME state' ==>
+  frames_exec uninit_arb ctx (ascope, g_scope_list, frame_list, status) = SOME state' ==>
   frames_red ctx (ascope, g_scope_list, frame_list, status) state')
 End
-
 
 Theorem frame_list_exec_sound_red:
 !type frame_list. frame_list_exec_sound type frame_list
@@ -38,7 +37,7 @@ Cases_on `frame_list` >| [
  Cases_on `tbl_to_pass h0 b_func_map tbl_map` >> (
   fs []
  ) >>
- Cases_on `stmt_exec (apply_table_f,ext_map,func_map,x',pars_map,x'')
+ Cases_on `stmt_exec uninit_arb (apply_table_f,ext_map,func_map,x',pars_map,x'')
             (ascope,x,[(h0,h1,h2)],status_running)` >- (
   fs []
  ) >>
@@ -71,7 +70,7 @@ Cases_on `frame_list` >| [
   fs []
  ) >>
  rename1 `(ascope,g_scope_list',[(h0,h1,h2)],status_running)` >>
- Cases_on `stmt_exec (apply_table_f,ext_map,func_map,x',pars_map,x'')
+ Cases_on `stmt_exec uninit_arb (apply_table_f,ext_map,func_map,x',pars_map,x'')
              (ascope,g_scope_list',[(h0,h1,h2)],status_running)` >> (
   fs []
  ) >>

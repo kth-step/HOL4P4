@@ -2,6 +2,8 @@ signature p4_cake_auxLib =
 sig
   include Abbrev
 
+val native_word : hol_type
+
 val BOOL_LIST_ss : simpLib.ssfrag
 
 val BOOL_LIST_ss' : simpLib.ssfrag

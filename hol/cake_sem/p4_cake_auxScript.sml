@@ -2,7 +2,7 @@ open HolKernel boolLib Parse bossLib;
 
 open p4_auxTheory;
 
-val _ = new_theory "p4_cake_aux";
+val _ = new_theory "p4_cake_aux";   
 
 (* TODO: Write all the below parts in SML instead? *)
 

@@ -11,7 +11,8 @@ open p4_cake_exec_semTheory;
 open p4_cake_archTheory;
 
 (* CakeML: *)
-open preamble ml_translatorLib ml_progLib basisFunctionsLib;
+open preamble ml_translatorLib ml_progLib basisFunctionsLib
+     eval_cake_compile_x64Lib;
 open fromSexpTheory;
 
 open stringTheory;
@@ -810,8 +811,12 @@ val _ = append_prog o process_topdecs $
  * an actx and astate (HOL4 terms which can be obtained from the HOL4P4 import tool)
  * a maximum number of reduction steps (e.g. 140) and then constructs a CakeML sexp that
  * can be compiled to a command-line program that concretely executes the P4 program in
- * actx from the initial state astate, then prints the resulting outgoing packets. *)
-fun translate_p4 progname dict actx astate n_max debug_mode =
+ * actx from the initial state astate, then prints the resulting outgoing packets.
+ *
+ * With the inlogic flag set to false, you get a CakeML .sexp file that you can compile
+ * in a separate step. With the inlogic flag set to true, you get a .S that you can link
+ * with a binary containing the foreign function implementations *)
+fun translate_p4 progname dict actx astate n_max debug_mode inlogic =
  let
   val _ =
    if debug_mode
@@ -831,8 +836,6 @@ fun translate_p4 progname dict actx astate n_max debug_mode =
      val _ = translate astate_debug_def;
 
      val _ = translate n_max_debug_def;
-
-
 
      val p4_append_input_list'_debug_def =
       Define ‘p4_append_input_list'_debug input astate : v1model_ascope' astate' = p4_append_input_list' input astate’;
@@ -913,7 +916,17 @@ fun translate_p4 progname dict actx astate n_max debug_mode =
 
   val prog = append_prog_p4_wrapper debug_mode ();
  in
-  astToSexprLib.write_ast_to_file (progname^".sexp") prog
+  if inlogic
+  then
+   let
+     val progname_tm = stringSyntax.fromMLstring progname
+     val prog_def =
+      Define ‘^progname_tm = ^prog’;
+    val _ = eval_cake_compile_x64 "" prog_def (progname^".S")
+   in
+    ()
+   end
+  else astToSexprLib.write_ast_to_file (progname^".sexp") prog
  end
 ;
 

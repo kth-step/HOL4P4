@@ -5,18 +5,17 @@ val _ = new_theory "p4_cake_arch_ebpf";
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
 open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
-open p4_coreTheory;
-open p4_ebpfTheory;
+open p4_coreTheory p4_ebpfTheory;
 
 (* Note that the below have been manually translated using the dictionary mapping strings to words64
  * created using p4_transform_cakeLib *)
 
 val _ = type_abbrev("ebpf_sum_v_ext'", “:(core_v_ext', ebpf_v_ext) sum”);
 
-val _ = type_abbrev("ebpf_ctrl'", ``:(word64, (((e_list' -> bool) # num), word64 # e_list') alist) alist``);
+val _ = type_abbrev("ebpf_ctrl'", ``:(native_word, (((e_list' -> bool) # num), native_word # e_list') alist) alist``);
 
 (* The architectural state type of the eBPF architecture model *)
-val _ = type_abbrev("ebpf_ascope'", ``:(num # ((num, ebpf_sum_v_ext') alist) # ((word64, v') alist) # ebpf_ctrl')``);
+val _ = type_abbrev("ebpf_ascope'", ``:(num # ((num, ebpf_sum_v_ext') alist) # ((native_word, v') alist) # ebpf_ctrl')``);
 
 Definition ebpf_ascope_lookup'_def:
  ebpf_ascope_lookup' (ascope:ebpf_ascope') ext_ref = 

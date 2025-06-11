@@ -5,8 +5,7 @@ val _ = new_theory "p4_cake_arch";
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
 open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory;
-open p4_coreTheory;
-open p4_v1modelTheory;
+open p4_coreTheory p4_v1modelTheory;
 
 (* Note that the below have been manually translated using the dictionary mapping strings to words64
  * created using p4_transform_cakeLib *)
@@ -22,9 +21,9 @@ End
 Datatype:
 tbl =
   (* Any regular table *)
-  tbl_regular ((s' list # num, (word64 # e_list')) alist)
+  tbl_regular ((s' list # num, (native_word # e_list')) alist)
   (* A table with a custom implementation *)
-| tbl_impl ((word64 list -> (word64 # e_list')))
+| tbl_impl ((word64 list -> (native_word # e_list')))
 End
 
 Definition header_entries2v'_def:
@@ -37,7 +36,7 @@ Definition header_entries2v'_def:
    | NONE => NONE)
   | NONE => NONE
  ) /\
- (header_entries2v' (INR (x:word64, v)) =
+ (header_entries2v' (INR (x, v)) =
   case v of
   | (v'_bit (bl, n)) => SOME bl
   | (v'_struct x_v_l) => header_entries2v' (INL x_v_l)
@@ -69,8 +68,8 @@ End
 
 Definition v_map_to_scope'_def:
  (v_map_to_scope' [] = []) /\
- (v_map_to_scope' (((k, v)::t):(word64, v') alist) =
-  ((varn'_name k, (v, NONE:lval' option))::v_map_to_scope' t)
+ (v_map_to_scope' (((k, v)::t)) =
+  ((varn'_name k, (v:v', NONE:lval' option))::v_map_to_scope' t)
  )
 End
 
@@ -99,7 +98,7 @@ Definition verify_gen'_def:
   | SOME (v'_bool F) =>
    (case lookup_lval'' scope_list (lval'_varname (varn'_name 1w)) of
     | SOME (v'_bit bitv) =>
-     SOME (ascope_update_v_map ascope (0w:word64) (v'_bit bitv), scope_list, status'_trans 40w)
+     SOME (ascope_update_v_map ascope (0w:native_word) (v'_bit bitv), scope_list, status'_trans 40w)
     | _ => NONE)
   | _ => NONE
  )
@@ -174,7 +173,7 @@ Definition set_fields'_def:
  (set_fields' []     acc _ = SOME acc) /\
  (set_fields' (h::t) acc packet_in =
   case h of
-  | (x:word64, (v'_bool b)) =>
+  | (x:native_word, (v'_bool b)) =>
    (case set_bool' packet_in of
     | SOME (res, t') => set_fields' t (acc++[(x, res)]) t'
     | NONE => NONE)
@@ -274,7 +273,7 @@ Definition packet_in_extract_gen'_def:
             | NONE => NONE
            else
             (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-            SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet [])):(core_v_ext', 'b) sum)) (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+            SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet [])):(core_v_ext', 'b) sum)) (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
          else NONE
         | NONE => NONE)
        | _ => NONE)
@@ -307,7 +306,7 @@ Definition packet_in_lookahead_gen'_def:
             | NONE => NONE
           else
            (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-           SOME (ascope_update_v_map ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+           SOME (ascope_update_v_map ascope (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
          else NONE
         | NONE => NONE)
        | _ => NONE)
@@ -340,7 +339,7 @@ Definition packet_in_advance_gen'_def:
          SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP (n_bits DIV 8) packet_in_bl))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
         else
          (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-         SOME (ascope_update_v_map ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+         SOME (ascope_update_v_map ascope (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
        else NONE
        | _ => NONE)
     | NONE => NONE)

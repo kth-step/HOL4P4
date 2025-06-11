@@ -8,6 +8,8 @@ open p4Theory;
 open p4_cake_auxTheory;
 open p4Syntax;
 
+val native_word = “:word64”;
+
 (* Some extra tricks for CakeML export *)
 
 fun to_fixwidth_n2v_CONV tm =

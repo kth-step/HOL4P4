@@ -9,10 +9,9 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_fr
 Definition arch_exec_sound:
  (arch_exec_sound arch_frame_list (type:('a itself)) =
   !(actx:'a actx) aenv g_scope_list status astate'.
-  arch_exec actx (aenv, g_scope_list, arch_frame_list, status) = SOME astate' ==>
+  arch_exec uninit_arb actx (aenv, g_scope_list, arch_frame_list, status) = SOME astate' ==>
   arch_red actx (aenv, g_scope_list, arch_frame_list, status) astate')
 End
-
 
 Theorem arch_exec_sound_red:
 !arch_frame_list type. arch_exec_sound arch_frame_list type
@@ -159,7 +158,7 @@ Cases_on `arch_frame_list` >> (
   ) >>
   PairCases_on `x` >>
   fs [state_fin_exec_equiv, state_fin_def] >>
-  Cases_on `frames_exec (apply_table_f,ext_map,func_map,x2,x4,x5)
+  Cases_on `frames_exec uninit_arb (apply_table_f,ext_map,func_map,x2,x4,x5)
              (ascope,g_scope_list,l,status_running)` >> (
    fs []
   ) >>

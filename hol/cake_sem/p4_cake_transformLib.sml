@@ -289,7 +289,7 @@ fun transform_match_fun dict match_fun =
     val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
    in
     if is_some s'_list_opt
-    then mk_pair (mk_abs (t1', mk_comb (“match_all'”, mk_zip (map_tm', dest_some s'_list_opt))), prio)
+    then mk_pair (mk_abs (t1', mk_comb (“match_all'”, mk_zip (map_tm', rhs $ concl $ EVAL “MAP FST ^(dest_some s'_list_opt)”))), prio)
     else raise Fail "transform_match_fun failed to translate set expression list"
    end
   else
@@ -299,12 +299,11 @@ fun transform_match_fun dict match_fun =
     val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
    in
     if is_some s'_list_opt
-    then mk_pair (mk_comb (match_all_e_alt''_tm, dest_some s'_list_opt), prio)
+    then mk_pair (mk_comb (match_all_e_alt''_tm, rhs $ concl $ EVAL “MAP FST ^(dest_some s'_list_opt)”), prio)
     else raise Fail "transform_match_fun failed to translate set expression list"
    end
  end
 ;
-
 
 fun transform_match_fun' dict match_fun =
  let
@@ -313,7 +312,7 @@ fun transform_match_fun' dict match_fun =
   val s'_list_opt = rhs $ concl $ EVAL “oFOLDR (transform_s ^dict) ^s_list”
  in
   if is_some s'_list_opt
-  then mk_pair (dest_some s'_list_opt, prio)
+  then mk_pair (rhs $ concl $ EVAL “MAP FST ^(dest_some s'_list_opt)”, prio)
   else raise Fail "transform_match_fun' failed to translate set expression list"
  end
 ;

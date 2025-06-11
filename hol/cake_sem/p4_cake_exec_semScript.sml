@@ -3,20 +3,23 @@ open HolKernel boolLib Parse bossLib;
 val _ = new_theory "p4_cake_exec_sem";
 
 open p4Theory p4_auxTheory;
+open p4_cake_auxLib;
 
 (****************************************)
 (* CakeML-adjusted executable semantics *)
 
+Type native_word = native_word;
+
 Datatype:
  funn' = 
-    funn'_name word64
-  | funn'_inst word64
-  | funn'_ext word64 word64
+    funn'_name native_word
+  | funn'_inst native_word
+  | funn'_ext native_word native_word
 End
 
 Datatype:
  varn' = 
-    varn'_name word64 (* CakeML-friendly variable name *)
+    varn'_name native_word (* CakeML-friendly variable name *)
   | varn'_star funn' (* function return placeholder *)
 End
 
@@ -24,9 +27,9 @@ Datatype:
 v' =  
    v'_bool boolv
  | v'_bit bitv
- | v'_str word64
- | v'_struct ((word64#v') list)
- | v'_header boolv ((word64#v') list)
+ | v'_str native_word
+ | v'_struct ((native_word#v') list)
+ | v'_header boolv ((native_word#v') list)
  | v'_ext_ref i
  | v'_bot
 End
@@ -35,7 +38,7 @@ val _ = Hol_datatype `
 status' =
    status'_running
  | status'_returnv of v'
- | status'_trans of word64
+ | status'_trans of native_word
 `;
 
 Type v_list' = ``:(v' list)``
@@ -55,23 +58,26 @@ e' =
  | e'_v v'
  | e'_var varn'
  | e'_list (e' list)
- | e'_acc e' word64
+ | e'_acc e' native_word
  | e'_unop unop e'
  | e'_cast cast e'
  | e'_binop e' binop e'
  | e'_concat e' e'
  | e'_slice e' e' e'
  | e'_call funn' (e' list)
- | e'_select e' ((s_list'#word64) list) word64
- | e'_struct ((word64#e') list)
- | e'_header boolv ((word64#e') list)
+ (* The num list list holds the widths of the bitstrings in the sets.
+  * This is needed for translating back to regular format *)
+ (* TODO: Make this word64? *)
+ | e'_select e' ((s_list'#native_word) list) native_word (num list list)
+ | e'_struct ((native_word#e') list)
+ | e'_header boolv ((native_word#e') list)
 End
 
 val _ = Hol_datatype ` 
 lval' = 
    lval'_varname of varn' (* variable name *)
  | lval'_null (* null variable *)
- | lval'_field of lval' => word64 (* field access *)
+ | lval'_field of lval' => native_word (* field access *)
  | lval'_slice of lval' => e' => e' (* slice array *)
  | lval'_paren of lval'
 `;
@@ -87,7 +93,7 @@ tau' =  (* type *)
    tau'_bool (* boolean *)
  | tau'_bit of num_exp (* bit-string *)
  | tau'_bot (* no value *)
- | tau'_xtl of struct_ty => (word64#tau') list (* struct *)
+ | tau'_xtl of struct_ty => (native_word#tau') list (* struct *)
  | tau'_ext (* extern *)
 `;
 
@@ -108,46 +114,46 @@ stmt' =  (* statement *)
  | stmt'_ret of e' (* return *)
  | stmt'_seq of stmt' => stmt' (* sequence *)
  | stmt'_trans of e' (* transition *)
- | stmt'_app of word64 => e' list (* apply *)
+ | stmt'_app of native_word => e' list (* apply *)
  | stmt'_ext (* extern *)
 `;
 
-Type b_func_map' = ``:((word64, (stmt' # (word64 # d) list)) alist)``
+Type b_func_map' = ``:((native_word, (stmt' # (native_word # d) list)) alist)``
 
-Type func_map' = ``:((word64, (stmt' # (word64 # d) list)) alist)``
+Type func_map' = ``:((native_word, (stmt' # (native_word # d) list)) alist)``
 
-Type ext_fun_map' = ``:((word64, ((word64 # d) list # 'a ext_fun')) alist)``
+Type ext_fun_map' = ``:((native_word, ((native_word # d) list # 'a ext_fun')) alist)``
 
-Type pars_map' = ``:((word64, stmt') alist)``
+Type pars_map' = ``:((native_word, stmt') alist)``
 
-Type ext_map' = ``:((word64, ((((word64 # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)``
+Type ext_map' = ``:((native_word, ((((native_word # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)``
 
-Type tbl_map' = ``:((word64, ((mk list) # (word64 # e_list'))) alist)``
+Type tbl_map' = ``:((native_word, ((mk list) # (native_word # e_list'))) alist)``
 
 Type in_out' = ``:(word8 list # num)``
 
 Type in_out_list' = ``:(in_out' list)``
 
-Type pblock' = ``:(pbl_type # ((word64 # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')``
+Type pblock' = ``:(pbl_type # ((native_word # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')``
 
-Type pblock_map' = ``:((word64, pblock') alist)``
+Type pblock_map' = ``:((native_word, pblock') alist)``
 
-Type ffblock_map' = ``:((word64, 'a ffblock) alist)``
+Type ffblock_map' = ``:((native_word, 'a ffblock) alist)``
 
 Type pblock_list' = ``:(pblock' list)``
 val _ = Hol_datatype ` 
 arch_block' =  (* architectural block *)
    arch_block'_inp
- | arch_block'_pbl of word64 => e' list
- | arch_block'_ffbl of word64
+ | arch_block'_pbl of native_word => e' list
+ | arch_block'_ffbl of native_word
  | arch_block'_out
 `;
 
-Type apply_table_f' = ``:((word64 # e' list # mk_list # (word64 # e_list') # 'a) -> (word64 # e_list') option)``
+Type apply_table_f' = ``:((native_word # e' list # mk_list # (native_word # e_list') # 'a) -> (native_word # e_list') option)``
 
-Type copyout_pbl' = ``:((g_scope' list # 'a # d list # word64 list # status') -> 'a option)``
+Type copyout_pbl' = ``:((g_scope' list # 'a # d list # native_word list # status') -> 'a option)``
 
-Type copyin_pbl' = ``:((word64 list # d list # e' list # 'a) -> scope' option)``
+Type copyin_pbl' = ``:((native_word list # d list # e' list # 'a) -> scope' option)``
 
 Type output_f' = ``:((in_out_list' # 'a) -> (in_out_list' # 'a) option)``
 
@@ -1205,7 +1211,7 @@ Definition match_all_e_alt'_def:
 End
 
 Definition match_all_first'_def:
- (match_all_first' i v_list ([]:(s' list # word64) list) = NONE) /\
+ (match_all_first' i v_list ([]:(s' list # native_word) list) = NONE) /\
  (match_all_first' i v_list (h::t) =
   if (match_all' (ZIP(v_list, FST h)))
   then SOME (SND h)
@@ -1538,7 +1544,7 @@ Definition e_exec'_def:
   /\
  (**********)
  (* Select *)
- (e_exec' ctx g_scope_list scope_list (e'_select e s_l_x_l x) =
+ (e_exec' ctx g_scope_list scope_list (e'_select e s_l_x_l x n_ll) =
   if is_v' e
   then
    (case e_exec_select' e s_l_x_l x of
@@ -1546,7 +1552,7 @@ Definition e_exec'_def:
     | NONE => NONE)
   else
    (case e_exec' ctx g_scope_list scope_list e of
-    | SOME (e', frame_list) => SOME (e'_select e' s_l_x_l x, frame_list)
+    | SOME (e', frame_list) => SOME (e'_select e' s_l_x_l x n_ll, frame_list)
     | NONE => NONE))
   /\
  (*****************)

@@ -10,6 +10,7 @@ DEPENDENCIES   = .. \
  $(CAKEMLDIR)/basis/pure \
  $(CAKEMLDIR)/basis \
  $(CAKEMLDIR)/translator \
+ $(CAKEMLDIR)/cv_translator \
  $(CAKEMLDIR)/characteristic \
  $(CAKEMLDIR)/compiler/parsing \
  $(CAKEMLDIR)/unverified/sexpr-bootstrap

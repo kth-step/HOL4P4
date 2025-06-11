@@ -631,7 +631,8 @@ val actx = actx';
 val astate = astate';
 val n_max = “1000:num”;
 val debug_mode = false;
+val inlogic = false;
 
-p4_cake_wrapper_ffiLib.translate_p4 progname dict actx astate n_max debug_mode;
+p4_cake_wrapper_ffiLib.translate_p4 progname dict actx astate n_max debug_mode inlogic;
 
 val _ = export_theory ();

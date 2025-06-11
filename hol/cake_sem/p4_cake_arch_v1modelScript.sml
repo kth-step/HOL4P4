@@ -5,8 +5,7 @@ val _ = new_theory "p4_cake_arch_v1model";
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
 open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
-open p4_coreTheory;
-open p4_v1modelTheory;
+open p4_coreTheory p4_v1modelTheory;
 
 (* Note that the below have been manually translated using the dictionary mapping strings to words64
  * created using p4_transform_cakeLib *)
@@ -15,9 +14,9 @@ val CONTROL_PLANE_API = 0;
 
 val _ = type_abbrev("v1model_sum_v_ext'", “:(core_v_ext', v1model_v_ext) sum”);
 
-Type v1model_ctrl' = “:(word64, tbl) alist”;
+Type v1model_ctrl' = “:(native_word, tbl) alist”;
 
-Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext') alist) # ((word64, v') alist) # v1model_ctrl')”;
+Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext') alist) # ((native_word, v') alist) # v1model_ctrl')”;
 
 Definition v1model_ascope_lookup'_def:
  v1model_ascope_lookup' (ascope:v1model_ascope') ext_ref = 
@@ -105,23 +104,23 @@ fun mk_v_bitii' (num, width) =
 val v1model_standard_metadata_zeroed' =
  listSyntax.mk_list
   (map pairSyntax.mk_pair
-   [(“22w:word64”, mk_v_bitii' (0, 9)),
-    (“23w:word64”, mk_v_bitii' (0, 9)),
-    (“24w:word64”, mk_v_bitii' (0, 9)),
-    (“25w:word64”, mk_v_bitii' (0, 32)),
-    (“26w:word64”, mk_v_bitii' (0, 32)),
-    (“27w:word64”, mk_v_bitii' (0, 32)),
-    (“28w:word64”, mk_v_bitii' (0, 19)),
-    (“29w:word64”, mk_v_bitii' (0, 32)),
-    (“30w:word64”, mk_v_bitii' (0, 19)),
-    (“31w:word64”, mk_v_bitii' (0, 48)),
-    (“32w:word64”, mk_v_bitii' (0, 48)),
-    (“33w:word64”, mk_v_bitii' (0, 16)),
-    (“34w:word64”, mk_v_bitii' (0, 16)),
-    (“35w:word64”, mk_v_bitii' (0, 1)),
-    (“36w:word64”, mk_v_bitii' (0, 32)),
-    (“37w:word64”, mk_v_bitii' (0, 3))],
-   “:(word64 # v')”);
+   [(“22w:native_word”, mk_v_bitii' (0, 9)),
+    (“23w:native_word”, mk_v_bitii' (0, 9)),
+    (“24w:native_word”, mk_v_bitii' (0, 9)),
+    (“25w:native_word”, mk_v_bitii' (0, 32)),
+    (“26w:native_word”, mk_v_bitii' (0, 32)),
+    (“27w:native_word”, mk_v_bitii' (0, 32)),
+    (“28w:native_word”, mk_v_bitii' (0, 19)),
+    (“29w:native_word”, mk_v_bitii' (0, 32)),
+    (“30w:native_word”, mk_v_bitii' (0, 19)),
+    (“31w:native_word”, mk_v_bitii' (0, 48)),
+    (“32w:native_word”, mk_v_bitii' (0, 48)),
+    (“33w:native_word”, mk_v_bitii' (0, 16)),
+    (“34w:native_word”, mk_v_bitii' (0, 16)),
+    (“35w:native_word”, mk_v_bitii' (0, 1)),
+    (“36w:native_word”, mk_v_bitii' (0, 32)),
+    (“37w:native_word”, mk_v_bitii' (0, 3))],
+   “:(native_word # v')”);
    
 (*
 Redblackmap.find (v1model_dict, “"meta"”)
@@ -244,7 +243,7 @@ End
 
 Definition FOLDL_MATCH'_def:
  (FOLDL_MATCH' w_l res [] = res) /\
- (FOLDL_MATCH' (w_l:word64 list) (res_act:word64 # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
+ (FOLDL_MATCH' (w_l:word64 list) (res_act:native_word # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
   if match_all_e_alt'' s_l w_l
   then
    (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
@@ -350,7 +349,7 @@ Definition v1model_packet_in_extract'_def:
            | NONE => NONE)
          else
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (v1model_ascope_update_v_map' (v1model_ascope_update' ascope i ((INL (core_v_ext_packet [])):(core_v_ext, v1model_v_ext) sum)) (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+          SOME (v1model_ascope_update_v_map' (v1model_ascope_update' ascope i ((INL (core_v_ext_packet [])):(core_v_ext, v1model_v_ext) sum)) (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -380,7 +379,7 @@ Definition v1model_packet_in_lookahead'_def:
            | NONE => NONE)
          else
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (v1model_ascope_update_v_map' ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+          SOME (v1model_ascope_update_v_map' ascope (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -406,7 +405,7 @@ Definition v1model_packet_in_advance'_def:
         SOME (v1model_ascope_update' ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, v1model_v_ext) sum), scope_list, status'_returnv v'_bot)
        else
         (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-        SOME (v1model_ascope_update_v_map' ascope (0w:word64) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+        SOME (v1model_ascope_update_v_map' ascope (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
        | _ => NONE)
     | NONE => NONE)
   | _ => NONE
@@ -456,7 +455,7 @@ Definition v1model_verify'_def:
   | SOME (v'_bool F) =>
    (case lookup_lval'' scope_list (lval'_varname (varn'_name 1w)) of
     | SOME (v'_bit bitv) =>
-     SOME (v1model_ascope_update_v_map' ascope (0w:word64) (v'_bit bitv), scope_list, status'_trans 40w)
+     SOME (v1model_ascope_update_v_map' ascope (0w:native_word) (v'_bit bitv), scope_list, status'_trans 40w)
     | _ => NONE)
   | _ => NONE
  )

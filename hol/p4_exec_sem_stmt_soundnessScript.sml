@@ -10,14 +10,14 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_e_
 Definition stmt_exec_sound:
  (stmt_exec_sound (type:('a itself)) stmt =
   !(ctx:'a ctx) ascope g_scope_list funn stmt_stack scope_list status state'.
-  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_exec uninit_arb ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) = SOME state' ==>
   stmt_red ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) state')
 End
 
 Definition stmt_stack_exec_sound:
  (stmt_stack_exec_sound (type:('a itself)) stmt_stack =
   !(ctx:'a ctx) ascope g_scope_list funn scope_list status state'.
-  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_exec uninit_arb ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) = SOME state' ==>
   stmt_red ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) state')
 End
 
