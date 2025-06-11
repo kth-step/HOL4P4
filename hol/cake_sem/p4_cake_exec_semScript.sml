@@ -24,7 +24,7 @@ Datatype:
 End
 
 Datatype:
-v' =  
+ v' =  
    v'_bool boolv
  | v'_bit bitv
  | v'_str native_word
@@ -34,22 +34,22 @@ v' =
  | v'_bot
 End
 
-val _ = Hol_datatype ` 
-status' =
+Datatype:
+ status' =
    status'_running
- | status'_returnv of v'
- | status'_trans of native_word
-`;
+ | status'_returnv v'
+ | status'_trans native_word
+End
 
 Type v_list' = ``:(v' list)``
 
-val _ = Hol_datatype ` 
-s' =  (* set *)
-   s'_sing of word64 (* singleton *)
- | s'_range of word64 => word64 (* interval *)
- | s'_mask of word64 => word64 (* bit mask *)
+Datatype:   
+ s' =  (* set *)
+   s'_sing word64 (* singleton *)
+ | s'_range word64 word64 (* interval *)
+ | s'_mask word64 word64 (* bit mask *)
  | s'_univ (* universal *)
-`;
+End
 
 Type s_list' = ``:(s' list)``
 
@@ -73,14 +73,14 @@ e' =
  | e'_header boolv ((native_word#e') list)
 End
 
-val _ = Hol_datatype ` 
-lval' = 
-   lval'_varname of varn' (* variable name *)
+Datatype:   
+ lval' = 
+   lval'_varname varn' (* variable name *)
  | lval'_null (* null variable *)
- | lval'_field of lval' => native_word (* field access *)
- | lval'_slice of lval' => e' => e' (* slice array *)
- | lval'_paren of lval'
-`;
+ | lval'_field lval' native_word (* field access *)
+ | lval'_slice lval' e' e' (* slice array *)
+ | lval'_paren lval'
+End
 
 Type e_list' = ``:(e' list)``
 
@@ -88,14 +88,14 @@ Type scope' = ``:((varn', (v' # lval' option)) alist)``
 
 Type g_scope' = ``:scope'``
 
-val _ = Hol_datatype ` 
-tau' =  (* type *)
+Datatype:   
+ tau' =  (* type *)
    tau'_bool (* boolean *)
- | tau'_bit of num_exp (* bit-string *)
+ | tau'_bit num_exp (* bit-string *)
  | tau'_bot (* no value *)
- | tau'_xtl of struct_ty => (native_word#tau') list (* struct *)
+ | tau'_xtl struct_ty ((native_word#tau') list) (* struct *)
  | tau'_ext (* extern *)
-`;
+End
 
 Type g_scope_list' = ``:(scope' list)``
 
@@ -105,18 +105,18 @@ Type ext_fun' = ``:(('a # g_scope_list' # scope_list') -> (('a # scope_list' # s
 
 Type t_scope' = ``:((varn', (tau' # lval' option)) alist)``
 
-val _ = Hol_datatype ` 
-stmt' =  (* statement *)
+Datatype:   
+ stmt' =  (* statement *)
    stmt'_empty (* empty statement *)
- | stmt'_ass of lval' => e' (* assignment *)
- | stmt'_cond of e' => stmt' => stmt' (* conditional *)
- | stmt'_block of t_scope' => stmt' (* block *)
- | stmt'_ret of e' (* return *)
- | stmt'_seq of stmt' => stmt' (* sequence *)
- | stmt'_trans of e' (* transition *)
- | stmt'_app of native_word => e' list (* apply *)
+ | stmt'_ass lval' e' (* assignment *)
+ | stmt'_cond e' stmt' stmt' (* conditional *)
+ | stmt'_block t_scope' stmt' (* block *)
+ | stmt'_ret e' (* return *)
+ | stmt'_seq stmt' stmt' (* sequence *)
+ | stmt'_trans e' (* transition *)
+ | stmt'_app native_word (e' list) (* apply *)
  | stmt'_ext (* extern *)
-`;
+End
 
 Type b_func_map' = ``:((native_word, (stmt' # (native_word # d) list)) alist)``
 
@@ -141,13 +141,14 @@ Type pblock_map' = ``:((native_word, pblock') alist)``
 Type ffblock_map' = ``:((native_word, 'a ffblock) alist)``
 
 Type pblock_list' = ``:(pblock' list)``
-val _ = Hol_datatype ` 
-arch_block' =  (* architectural block *)
+
+Datatype:   
+ arch_block' =  (* architectural block *)
    arch_block'_inp
- | arch_block'_pbl of native_word => e' list
- | arch_block'_ffbl of native_word
+ | arch_block'_pbl native_word (e' list)
+ | arch_block'_ffbl native_word
  | arch_block'_out
-`;
+End
 
 Type apply_table_f' = ``:((native_word # e' list # mk_list # (native_word # e_list') # 'a) -> (native_word # e_list') option)``
 
@@ -178,27 +179,27 @@ Type state' = ``:('a # g_scope_list' # frame_list' # status')``
 
 Type aenv' = ``:(num # in_out_list' # in_out_list' # 'a)``
 
-val _ = Hol_datatype ` 
-arch_frame_list' =  (* architecture-level frame list *)
+Datatype:   
+ arch_frame_list' =  (* architecture-level frame list *)
    arch_frame_list'_empty (* empty architecture-level frame list *)
- | arch_frame_list'_regular of frame_list' (* regular frame list *)
-`;
+ | arch_frame_list'_regular frame_list' (* regular frame list *)
+End
 
 Type astate' = ``:('a aenv' # g_scope_list' # arch_frame_list' # status')``
 
 (**********************************)
 (* Semantics function definitions *)
 
-val is_const'_def = Define `
+Definition is_const'_def:
   (is_const' (e'_v _) = T) /\
   (is_const' _ = F)
-`;
+End
 
-val is_consts'_def = Define `
+Definition is_consts'_def:
   is_consts' el = ~(EXISTS (\e. ~(is_const' e)) el)
-`;
+End
 
-val acc_f'_def = Define `
+Definition acc_f'_def:
   (acc_f' (v'_struct s) f =
     case FIND (\(f', v). f' = f) s of
     | SOME (f'', v) => SOME v
@@ -208,7 +209,7 @@ val acc_f'_def = Define `
     | SOME (f'', v) => SOME v
     | _ => NONE) /\
   (acc_f' _ f = NONE)
-`;
+End
 
 Definition slice_lval'_def:
  slice_lval' v e1 e2 =
@@ -231,15 +232,15 @@ Definition is_var'_def:
  (is_var' _ = F)
 End
 
-val varname_of_e'_def = Define `
+Definition varname_of_e'_def:
   (varname_of_e' (e'_var varn) = SOME varn) /\
   (varname_of_e' _ = NONE)
-`;
+End
 
-val v_of_e'_def = Define `
+Definition v_of_e'_def:
   (v_of_e' (e'_v v) = SOME v) /\
   (v_of_e' _ = NONE)
-`;
+End
 
 Definition vl_of_el'_def:
  (vl_of_el' [] = SOME []) /\
@@ -278,12 +279,12 @@ Induct \\ (
 )
 QED
 
-val index_not_const'_def = Define `
+Definition index_not_const'_def:
   index_not_const' elist =
     case INDEX_FIND 0 (\e. ~(is_const' e)) elist of
     |SOME (i, e) => SOME i
     |_ => NONE
-`;
+End
 
 (* TODO: Changed from CakeML-exportable exec sem *)
 Definition find_topmost_map'_def:
@@ -306,19 +307,19 @@ Definition lookup_map'_def:
     | _ => NONE
 End
 
-val lookup_v'_def = Define `
+Definition lookup_v'_def:
   lookup_v' (ss:scope' list) x =
     case lookup_map' ss x of
     | SOME (v, str_opt) => SOME v
     | _ => NONE
-`;
+End
 
-val lookup_out'_def = Define `
+Definition lookup_out'_def:
   lookup_out' (ss:scope' list) x =
     case lookup_map' ss x of
     | SOME (v, str_opt) => SOME str_opt
     | _ => NONE
-`;
+End
 
 Definition lookup_vexp2'_def:
   lookup_vexp2' (ss:scope' list) (g_scope_list:scope' list) x =
@@ -370,7 +371,7 @@ Termination
 End
 
 (* Note: this uses two ' since lookup_lval' already exists x*)
-val lookup_lval''_def = Define `
+Definition lookup_lval''_def:
   (lookup_lval'' (ss:scope' list) (lval'_varname x) = lookup_v' ss x) /\
   (lookup_lval'' ss (lval'_field lval f) =
      case lookup_lval'' ss lval of
@@ -382,10 +383,10 @@ val lookup_lval''_def = Define `
      | _ => NONE
      ) /\
  (lookup_lval'' ss (lval'_null) = NONE ) /\
- (lookup_lval'' ss (lval'_paren lval) = lookup_lval'' ss lval) 
-`;
+ (lookup_lval'' ss (lval'_paren lval) = lookup_lval'' ss lval)
+End
 
-val get_lval_of_e'_def = Define `
+Definition get_lval_of_e'_def:
   (get_lval_of_e' (e'_var x) = SOME (lval'_varname x)) /\
   (get_lval_of_e' (e'_acc e x) =
    case get_lval_of_e' e of
@@ -396,52 +397,52 @@ val get_lval_of_e'_def = Define `
    | SOME lval => SOME (lval'_slice lval ev1 ev2)
    | NONE => NONE) /\
   (get_lval_of_e' _ = NONE)
-`;
+End
 
-val is_e_lval'_def = Define `
+Definition is_e_lval'_def:
   (is_e_lval' e =
     case get_lval_of_e' e of
     | SOME lval => T
     | NONE => F)
-`;
+End
 
-val unred_mem'_def = Define `
+Definition unred_mem'_def:
   unred_mem' elist = 
     INDEX_FIND 0 (\e. ~(is_const' e)) elist
-`;
+End
 
-val unred_mem_index'_def = Define `
+Definition unred_mem_index'_def:
   unred_mem_index' elist = 
     case unred_mem' elist of
     | SOME (i, e) => SOME i
     | _ => NONE
-`;
+End
 
-val is_arg_red'_def = Define `
+Definition is_arg_red'_def:
   is_arg_red' d e =
    ((~(is_d_out d) ==> is_const' e) /\ (is_d_out d ==> is_e_lval' e))
-`;
+End
 
-val find_unred_arg'_def = Define `
+Definition find_unred_arg'_def:
   find_unred_arg' dlist elist = 
     (INDEX_FIND 0 (\(d, e). ~(is_arg_red' d e)) (ZIP (dlist, elist)))
-`;
+End
 
-val unred_arg_index'_def = Define `
+Definition unred_arg_index'_def:
   unred_arg_index' dlist elist  = 
     case find_unred_arg' dlist elist of
     | SOME (i, de) => SOME i
     | _ => NONE
-`;
+End
 
-val check_arg_red'_def = Define `
+Definition check_arg_red'_def:
   check_arg_red' dlist e i =
     is_arg_red' (EL i dlist) e
-`;
+End
 
-val check_args_red'_def = Define `
+Definition check_args_red'_def:
   check_args_red' dlist elist = EVERY (\(d, e). is_arg_red' d e) (ZIP(dlist, elist))
-`;
+End
 
 Definition one_arg_val_for_newscope'_def:
  one_arg_val_for_newscope' d e ss =
@@ -531,21 +532,21 @@ Definition assign'_def:
  (assign' ss v (lval'_paren lval) = assign' ss v lval)
 End
 
-val initialise'_def = Define `
+Definition initialise'_def:
   (initialise' (ss:scope_list') varn v =
     LUPDATE (AUPDATE (LAST ss) (varn, (v, NONE))) (LENGTH ss - 1) ss
   )
-`;
+End
 
-val var_star_updates_of_func_map'_def = Define `
+Definition var_star_updates_of_func_map'_def:
   (var_star_updates_of_func_map' (func_map:func_map') =
    let varnames = (MAP FST func_map) in
    MAP ( \x. (varn'_star (funn'_name x), (v'_bot, (NONE:lval' option)))) varnames
   )
-`;
+End
 
-val var_star_updates_of_ext_map'_def = Define `
- (var_star_updates_of_ext_map' ([]:'a ext_map') = []) /\
+Definition var_star_updates_of_ext_map'_def:
+  (var_star_updates_of_ext_map' ([]:'a ext_map') = []) /\
  (var_star_updates_of_ext_map' (((ext_obj_name, ext_obj_funs)::t):'a ext_map') =
   case ext_obj_funs of
   | (SOME _, ext_fun_map) =>
@@ -553,16 +554,16 @@ val var_star_updates_of_ext_map'_def = Define `
   | (NONE, ext_fun_map) =>
    MAP ( \x. (varn'_star (funn'_ext ext_obj_name x), (v'_bot, (NONE:lval' option)))) (MAP FST ext_fun_map)++(var_star_updates_of_ext_map' t)
  )
-`;
+End
 
-val initialise_var_stars'_def = Define `
+Definition initialise_var_stars'_def:
   (initialise_var_stars' func_map b_func_map ext_map g_scope_list =
    case g_scope_list of
    | [bg_scope; gg_scope] =>
     SOME ([AUPDATE_LIST bg_scope (var_star_updates_of_func_map' b_func_map); AUPDATE_LIST gg_scope ((var_star_updates_of_func_map' func_map)++(var_star_updates_of_ext_map' ext_map))])
    | _ => NONE
   )
-`;
+End
 
 (* TODO: This function initialises everything to zeroes instead of using ARBs,
  * which are not compatible with CakeML. Use this as a placeholder before you have
@@ -592,7 +593,7 @@ Definition declare_list_in_fresh_scope'_def:
   MAP (\(x, (t, lvalop)). (x, (init_v_from_tau_cake t, NONE))) t_scope
 End
 
-val lookup_funn_sig_body'_def = Define `
+Definition lookup_funn_sig_body'_def:
   (lookup_funn_sig_body' (funn:funn') (func_map:func_map') (b_func_map:b_func_map') (ext_map:'a ext_map') =
     case funn of
     | (funn'_name x) =>
@@ -616,15 +617,15 @@ val lookup_funn_sig_body'_def = Define `
 	      | _ => NONE)
       | _ => NONE)
   )
-`;
+End
 
-val lookup_funn_sig'_def = Define `
+Definition lookup_funn_sig'_def:
   (lookup_funn_sig' funn func_map b_func_map ext_map =
     case lookup_funn_sig_body' funn func_map b_func_map ext_map of
     | SOME (_, x_d_l) => SOME x_d_l
     | NONE => NONE
   )
-`;
+End
 
 Definition update_return_frame'_def:
  update_return_frame' xlist dlist ss ss_curr = 
@@ -660,16 +661,16 @@ Definition copyout'_def:
   else NONE
 End
 
-val fully_reduced'_def = Define `
+Definition fully_reduced'_def:
   fully_reduced' e =
     case e of
     | (e'_v (v'_str _)) => T
     | _ => F
-`;
+End
 
 (* TEMP: accept and reject *)
-val state_fin'_def = Define `
- state_fin' status frame_list =
+Definition state_fin'_def:
+  state_fin' status frame_list =
   ((status = status'_trans 39w) \/
    (status = status'_trans 40w) \/
    (?v. status = status'_returnv v) \/
@@ -678,9 +679,9 @@ val state_fin'_def = Define `
      ((status = status'_trans 39w) \/
       (status = status'_trans 40w))))
   )
-`;
+End
 
-val set_fin_status'_def = Define `
+Definition set_fin_status'_def:
   set_fin_status' pbl_type status =
     case pbl_type of
     | pbl_type_parser =>
@@ -688,9 +689,9 @@ val set_fin_status'_def = Define `
       | status'_running => (status'_trans 40w)
       | _ => status)
     | pbl_type_control => status
-`;
+End
 
-val not_top_return'_def = Define `
+Definition not_top_return'_def:
   not_top_return' frame_list =
     case frame_list of
     | [(funn, stmt, scope_list)] =>
@@ -699,19 +700,19 @@ val not_top_return'_def = Define `
       | stmt'_seq (stmt'_ret e) _ => T
       | _ => F)
     | _ => F
-`;
+End
 
-val decl_init_star'_def = Define `
+Definition decl_init_star'_def:
   decl_init_star' scope_list v (varn'_star funn) =
     AUPDATE (HD scope_list) ((varn'_star funn), (v , NONE))
-`;
+End
 
-val init_in_highest_scope'_def = Define `
+Definition init_in_highest_scope'_def:
   init_in_highest_scope' scope_list v (varn'_star funn) =
     LUPDATE (decl_init_star' scope_list v (varn'_star funn)) 0 scope_list
-`;
+End
 
-val lookup_ext_fun'_def = Define `
+Definition lookup_ext_fun'_def:
   (lookup_ext_fun' (funn'_ext f f') (ext_map:'a ext_map') =
    case ALOOKUP ext_map f of
    | SOME (_, ext_fun_map) =>
@@ -724,7 +725,7 @@ val lookup_ext_fun'_def = Define `
    | SOME (SOME (_, ext_fun), _) => SOME ext_fun
    | _ => NONE) /\
   (lookup_ext_fun' (funn'_name f) ext_map = NONE)
-`;
+End
 
 Definition scopes_to_pass'_def:
  scopes_to_pass' (funn:funn') (func_map_g:func_map') (b_func_map:b_func_map') (g_scope_list:g_scope_list') =
@@ -764,8 +765,8 @@ Definition scopes_to_retrieve'_def:
 End
 
 
-val map_to_pass'_def = Define `
- map_to_pass' (funn:funn') (b_func_map:b_func_map') =
+Definition map_to_pass'_def:
+  map_to_pass' (funn:funn') (b_func_map:b_func_map') =
   case funn of
    | (funn'_name x) =>
     (case ALOOKUP b_func_map x of
@@ -773,10 +774,10 @@ val map_to_pass'_def = Define `
      | NONE => SOME []
     )
    | _ => SOME []
-`;
+End
 
-val tbl_to_pass'_def = Define `
- tbl_to_pass' (funn:funn') (b_func_map:b_func_map') (tbl_map:tbl_map') = 
+Definition tbl_to_pass'_def:
+  tbl_to_pass' (funn:funn') (b_func_map:b_func_map') (tbl_map:tbl_map') = 
   case funn of
    | (funn'_name x) =>
     (case ALOOKUP b_func_map x of
@@ -784,7 +785,7 @@ val tbl_to_pass'_def = Define `
      | NONE => SOME []
     )
    | _ => SOME []
-`;
+End
 
 
 (**********************************************************************)
