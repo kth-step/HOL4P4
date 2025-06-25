@@ -527,14 +527,39 @@ End
 (*                    MERGE Def                       *)
 (******************************************************)
 
-
+(*        
 Definition mergable_def:        
 mergable ((r,edges,labels):('a,'b) BDD)  n n' = 
 (n≠n' ∧ ALOOKUP edges n = ALOOKUP edges n' ∧
- ALOOKUP labels n = ALOOKUP labels n' ∧ ALOOKUP labels n'  ≠ NONE )
+ ALOOKUP labels n = ALOOKUP labels n'∧ ALOOKUP labels n'  ≠ NONE )
 End
+*)
 
 
+Definition eq_vars_in_labels_def:
+  eq_vars_in_labels labels n n' =
+    case (ALOOKUP labels n', ALOOKUP labels n) of
+    | (SOME (termn a), SOME (termn a')) => (a = a')
+    | (SOME (non_termn (SOME x,_)), SOME (non_termn (SOME x',_))) => (x = x')
+    | (SOME (non_termn (NONE, p)), SOME (non_termn (NONE,p'))) => (p=p')
+    | _ => F
+End 
+           
+    
+Definition mergable_def:        
+  mergable ((r,edges,labels):('a,'b) BDD)  n n' = 
+  (n≠n' ∧ ALOOKUP edges n = ALOOKUP edges n' ∧
+   eq_vars_in_labels labels n n' ∧ ALOOKUP labels n'  ≠ NONE )
+End
+      
+       
+(*
+EVAL “mergable (0,[(0,1,2)],
+        [(0,non_termn (SOME "a",Or (Var "a") (Not (Var "a"))));
+         (1,termn (T,True)); (2,termn (F,False));
+         (3,non_termn (SOME "a",Or (Var "c") (Not (Var "a"))))]) 0 3”
+*)
+        
         
 Definition merge_edges_def:
   merge_edges (edges:edges) n n' =

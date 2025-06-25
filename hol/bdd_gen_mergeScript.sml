@@ -382,7 +382,7 @@ QED
 
     
 
-(* fails *)                                                
+                                               
 Theorem mergable_correct_internal:
   ∀ x vars_consumed  vars r edges labels n n' n'' nl nr pred mv b rec.
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
@@ -465,7 +465,22 @@ Proof
           Cases_on ‘ALOOKUP (merge_edges edges n n') n’ >> gvs[] >|[
                    
               ‘ALOOKUP edges n' = NONE’ by (metis_tac [merge_lookup_none]) >>
-              simp[Once EQ_SYM_EQ, Once BDD_sem_cases] 
+              simp[Once EQ_SYM_EQ, Once BDD_sem_cases] >>
+
+
+              (*************************)
+              rgs[eq_vars_in_labels_def] >>
+              rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+              gvs[from_formula_to_action_def] >>
+
+              (* now contradiction *)
+              ‘MEM n' (dom_range_edges edges)’ by imp_res_tac lookup_edges_in_domain >>
+              rgs[BDD_WF_def, is_lookup_ntl_def] >>
+              first_x_assum (strip_assume_tac o (Q.SPECL [‘n'’])) >>
+              gvs[]
+                 
+        
+                                                                                        
               ,
                 
               PairCases_on ‘x'’ >> gvs[] >>
@@ -476,7 +491,9 @@ Proof
                        
                   ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
                   ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
-                  gvs[]
+                  gvs[] >>
+                  rgs[eq_vars_in_labels_def]
+                        
                   ,
                         
                   Cases_on ‘p’ >> gvs[] >>
@@ -484,7 +501,9 @@ Proof
                            
                       ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
                       ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
-                      gvs[]        
+                      gvs[] >>
+                      rgs[eq_vars_in_labels_def]
+
                       ,
 
                       (* ($var$(x'0'),x'1'') = (nl_old,nr_old)
@@ -514,16 +533,28 @@ Proof
                               subgoal ‘THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed)’ >-
                                (imp_res_tac ordered_for_two_labels) >>
                                
-                             
+                              (***********)
+                              rgs[Once eq_vars_in_labels_def] >>
+                              rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+                              (**********)
+                                                        
                               first_x_assum (strip_assume_tac o (Q.SPECL [‘INDEX_OF (x':string) (vars_consumed: string list)’])) >>
                               gvs[PULL_FORALL] >>
                               first_x_assum (strip_assume_tac o (Q.SPECL [‘x'’, ‘vars_consumed’, ‘vars’, ‘r’, ‘edges’, ‘labels’, ‘n’,
-                                                                          ‘n'’, ‘n’, ‘nr_old’, ‘n1’,  ‘r'’, ‘mv’, ‘b’])) >>
+                                                                          ‘n'’, ‘n’, ‘nr_old’, ‘n1’,  ‘r''’, ‘mv’, ‘b’, ‘rec’])) >>
                               rgs[] >>
                               
                               gvs[Once BDD_sem_cases] >>
                               simp[Once BDD_sem_cases] >>
+                              gvs[ALOOKUP_ADELKEY] >>
+
+                              (***********)
+                              rgs[Once eq_vars_in_labels_def] >>
+                              rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+                              gvs[Once BDD_sem_cases] >>
+                              simp[Once BDD_sem_cases] >>
                               gvs[ALOOKUP_ADELKEY]
+                              (**********)
                             )
                     ] 
                 ]
@@ -572,8 +603,21 @@ Proof
           simp[Once BDD_sem_cases] >>  gvs[ALOOKUP_ADELKEY] >>
           Cases_on ‘ALOOKUP (merge_edges edges n n') n’ >> gvs[] >|[
                    
-              ‘ALOOKUP edges n' = NONE’ by (metis_tac [merge_lookup_none]) >>
-              simp[Once EQ_SYM_EQ, Once BDD_sem_cases] 
+                ‘ALOOKUP edges n' = NONE’ by (metis_tac [merge_lookup_none]) >>
+              simp[Once EQ_SYM_EQ, Once BDD_sem_cases] >>
+
+
+              (*************************)
+              rgs[eq_vars_in_labels_def] >>
+              rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+              gvs[from_formula_to_action_def] >>
+
+              (* now contradiction *)
+              ‘MEM n' (dom_range_edges edges)’ by imp_res_tac lookup_edges_in_domain >>
+              rgs[BDD_WF_def, is_lookup_ntl_def] >>
+              first_x_assum (strip_assume_tac o (Q.SPECL [‘n'’])) >>
+                gvs[]
+                        
               ,
                 
               PairCases_on ‘x'’ >> gvs[] >>
@@ -584,7 +628,8 @@ Proof
                        
                   ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
                   ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
-                  gvs[]
+                  gvs[] >>
+                  rgs[eq_vars_in_labels_def]
                   ,
                         
                   Cases_on ‘p’ >> gvs[] >>
@@ -592,7 +637,8 @@ Proof
                            
                       ‘∃pair. ALOOKUP edges n = SOME pair’ by metis_tac [merge_lookup_exists] >>
                       ‘∃ x'' p''. ALOOKUP labels n = SOME (non_termn (SOME x'',p'')) ’ by metis_tac[WF_imp_non_leaf_lbl] >>
-                      gvs[]        
+                      gvs[] >>
+                      rgs[eq_vars_in_labels_def]       
                       ,
 
                       rename1 ‘SOME (nl_old,nr_old) = ALOOKUP edges n'’ >>
@@ -619,17 +665,30 @@ Proof
                               
                               subgoal ‘THE (INDEX_OF x' vars_consumed) < THE (INDEX_OF x vars_consumed)’ >-
                                (imp_res_tac ordered_for_two_labels) >>
-                               
+
+                              (***********)
+                              rgs[Once eq_vars_in_labels_def] >>
+                              rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+                              (**********)
                              
                               first_x_assum (strip_assume_tac o (Q.SPECL [‘INDEX_OF (x':string) (vars_consumed: string list)’])) >>
                               gvs[PULL_FORALL] >>
                               first_x_assum (strip_assume_tac o (Q.SPECL [‘x'’, ‘vars_consumed’, ‘vars’, ‘r’, ‘edges’, ‘labels’, ‘n’,
-                                                                          ‘n'’, ‘n’, ‘nr_old’, ‘n1’,  ‘r'’, ‘mv’, ‘b’])) >>
+                                                                          ‘n'’, ‘n’, ‘nr_old’, ‘n1’,  ‘r''’, ‘mv’, ‘b’])) >>
                               rgs[] >>
                               
                               gvs[Once BDD_sem_cases] >>
                               simp[Once BDD_sem_cases] >>
+                              gvs[ALOOKUP_ADELKEY] >>
+                              
+                              (***********)
+                              rgs[Once eq_vars_in_labels_def] >>
+                              rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+                              gvs[Once BDD_sem_cases] >>
+                              simp[Once BDD_sem_cases] >>
                               gvs[ALOOKUP_ADELKEY]
+                                 (**********)
+                                        
                             )
                     ] 
                 ]
@@ -686,7 +745,7 @@ QED
 
 
         
-
+(*
 Theorem fv_in_labels_preserved:        
   ∀ r edges labels keys n n' varslist rec. 
     mergable (r,edges,labels) n n' ∧        
@@ -699,13 +758,26 @@ Proof
   Cases_on ‘n'' = n'’ >|[
     rgs[mergable_def] >>
     gvs[ALOOKUP_ADELKEY] >>
-    res_tac >> gvs[]
+    res_tac >> gvs[eq_vars_in_labels_def]
+
+
+         rgs[eq_vars_in_labels_def] >>
+              rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+              gvs[from_formula_to_action_def] >>
+
+              (* now contradiction *)
+              first_x_assum (strip_assume_tac o (Q.SPECL [‘n'’])) >>
+              gvs[]
+
+gvs[fv_in_vars_def]
+                        
+                        
     ,
     gvs[ALOOKUP_ADELKEY] >>
     res_tac >> gvs[]            
   ]
 QED
-
+*)
 
 
         
