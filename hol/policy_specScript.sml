@@ -384,7 +384,7 @@ QED
 
         
         
-Triviality every_seg_property_1:                    
+Theorem every_seg_property_1:                    
   ∀ i l h p.
     i < LENGTH l ∧
     EVERY p (SEG (i + 1) 0 (h::l)) ⇒
@@ -398,7 +398,7 @@ QED
 
 
         
-Triviality every_seg_property_2:                    
+Theorem every_seg_property_2:                    
   ∀ i l h p.
     i < LENGTH l ∧
     EVERY p (SEG (i + 1) 0 (h::l)) ⇒
