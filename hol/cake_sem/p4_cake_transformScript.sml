@@ -380,8 +380,8 @@ Definition transform_v_def:
      ALOOKUP dict x >>=
      \w. transform_v dict v' >>=
      \v''.
-      (case transform_v dict (v_header boolv t) of
-       | SOME $ v'_header boolv' t' => SOME $ v'_header boolv' ((w, v'')::t')
+      (case transform_v dict (v_struct t) of
+       | SOME $ v'_struct t' => SOME $ v'_header boolv ((w, v'')::t')
        | _ => NONE)
     | [] => SOME $ v'_header boolv [])
   | v_ext_ref i => SOME $ v'_ext_ref i

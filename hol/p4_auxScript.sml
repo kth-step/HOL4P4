@@ -7,7 +7,7 @@ open pairTheory optionTheory arithmeticTheory;
 open p4Theory;
 
 (* OPTION_BIND as infix *)
-Definition app_opt_def:
+Definition app_opt_def[simp]:
  $>>= x_opt f =
   OPTION_BIND x_opt f
 End
