@@ -1,8 +1,8 @@
 open HolKernel boolLib Parse bossLib;
 
-open p4_auxTheory;
+val _ = new_theory "p4_cake_aux";
 
-val _ = new_theory "p4_cake_aux";   
+open p4_auxTheory;
 
 (* TODO: Write all the below parts in SML instead? *)
 
@@ -19,6 +19,20 @@ Definition tau_of_type_def:
      t_tau tau => SOME tau
    | t_string_names_a _ => NONE
 End
+
+Theorem tau1_size_mem2:
+ !xtl x t. MEM (x,t) xtl ==> tau_size t < list_size (pair_size (list_size char_size) tau_size) xtl + 1
+Proof
+ Induct >> (
+  fs [listTheory.MEM_SPLIT, p4Theory.tau1_size_append, p4Theory.tau_size_def]
+ ) >>
+ rpt strip_tac >- (
+  gvs[]
+ ) >>
+ qpat_x_assum ‘!x t. _’ (fn thm => ASSUME_TAC $ Q.SPECL [‘x’, ‘t’] thm) >>
+ Q.SUBGOAL_THEN ‘?l1' l2'. l1 ++ [(x,t)] ++ l2 = l1' ++ [(x,t)] ++ l2'’
+  (fn thm => gs[thm]) >> metis_tac[]
+QED
 
 (* Only used for utility, so arbs are not a problem *)
 Definition tau_to_tau_in_def:
@@ -39,8 +53,7 @@ subgoal ‘?b. MEM (b,a) x_tau_l’ >- (
  qexists_tac ‘n’ >>
  gvs[p4_auxTheory.EL_pair_list]
 ) >>
-imp_res_tac p4Theory.tau1_size_mem >>
-fs[]
+imp_res_tac tau1_size_mem2
 End
 
 Definition tau_in_to_list_def:

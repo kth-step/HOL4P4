@@ -2017,7 +2017,7 @@ gvs[type_scopes_list_def, similarl_def] >>
 REPEAT STRIP_TAC >>
 IMP_RES_TAC star_not_in_sl_normalization >>       
 SIMP_TAC list_ss [INDEX_FIND_def] >>
-CASE_TAC >| [
+conj_tac >| [
  IMP_RES_TAC type_scopes_list_normalize >>
  gvs[type_scopes_list_def, similarl_def] >>
  IMP_RES_TAC star_not_in_ts_similar >> gvs[]
@@ -2709,19 +2709,19 @@ STRIP_TAC >| [
                (STRIP_ASSUME_TAC o  SIMP_RULE (srw_ss()) [Once lval_typ_cases] ) >>
  gvs[] >>
       
- gvs[assign_def] >>
- Cases_on ‘v’ >> gvs[] >>               
- Cases_on ‘lookup_lval (scopest ⧺ gscope) l’ >> gvs[] >>
- Cases_on ‘x’ >> gvs[] >>               
- Cases_on ‘assign_to_slice p p' (e_v (v_bit bitv)) (e_v (v_bit bitv'))’ >> gvs[] >>
-         
+ gs[assign_def] >>
+ Cases_on ‘v’ >> gs[] >>
+ Cases_on ‘lookup_lval (scopest ⧺ gscope) l’ >> gs[] >>
+ Cases_on ‘x’ >> gs[] >>
+ Cases_on ‘assign_to_slice p p' (e_v (v_bit bitv)) (e_v (v_bit bitv'))’ >> gs[] >>
+
  ASSUME_TAC lookup_SLICE_is_wt >>
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`l`, ‘tslg’,‘T_e’, ‘tsl’,‘gscope’, ‘scopest’, ‘(w)’, ‘p'’])) >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘l’, ‘tslg’,‘T_e’, ‘tsl’,‘gscope’, ‘scopest’, ‘(w)’, ‘p'’])) >>
  gvs[] >>
 
     
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
- [`scopest`, ‘tsl’,‘gscope’, ‘tslg’, ‘T_e’, ‘scopest'’, ‘gscope'’, ‘ (tau_bit w)’, ‘assigned_sl’, ‘x’])) >>
+ [‘scopest’, ‘tsl’,‘gscope’, ‘tslg’, ‘T_e’, ‘scopest'’, ‘gscope'’, ‘ (tau_bit w)’, ‘assigned_sl’, ‘x’])) >>
  gvs[] >>
 
  IMP_RES_TAC bit_slice_typed  >> gvs[]

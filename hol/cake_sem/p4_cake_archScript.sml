@@ -43,8 +43,6 @@ Definition header_entries2v'_def:
   | (v'_header validity x_v_l) => header_entries2v' (INL x_v_l)
   | _ => NONE
  )
-Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL x_v_l) => v'1_size x_v_l | (INR (x,v)) => v'_size v)`
 End
 
 Definition get_checksum_incr''_def:
@@ -193,8 +191,6 @@ Definition set_fields'_def:
       | NONE => NONE)
     | NONE => NONE)
   | _ => NONE)
-Termination
-WF_REL_TAC `measure ( \ (t, acc, packet_in). v'1_size t)`
 End
 
 Definition set_header'_def:
