@@ -46,16 +46,6 @@ Induct_on `x` >> (
 )
 QED
 
-(* TODO: Move *)
-Theorem oEL_cons_PRE:
-!e x h l.
-(x > 0) /\ (SOME e = oEL x (h::l)) ==>
-(SOME e = oEL (PRE x) l)
-Proof
-rpt strip_tac >>
-fs [oEL_def, PRE_SUB1]
-QED
-
 Theorem l_sound_equiv:
 !type l. l_sound type l <=> l_sound_exec type l
 Proof

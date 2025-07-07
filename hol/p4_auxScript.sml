@@ -192,6 +192,15 @@ Proof
 fs[listTheory.oEL_EQ_EL]
 QED
 
+Theorem oEL_cons_PRE:
+!e x h l.
+(x > 0) /\ (SOME e = oEL x (h::l)) ==>
+(SOME e = oEL (PRE x) l)
+Proof
+rpt strip_tac >>
+fs [oEL_def, PRE_SUB1]
+QED
+
 (* e_size: size of an e
  * e1_size: size of a (string # e) list
  * e2_size: size of a string # e

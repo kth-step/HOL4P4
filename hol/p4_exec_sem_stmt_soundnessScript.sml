@@ -390,25 +390,25 @@ Theorem stmt_block_exec_sound_red:
 stmt_exec_sound type s ==>
 stmt_exec_sound type (stmt_block decl_list s)
 Proof
-fs [stmt_exec_sound] >>
+gs[stmt_exec_sound] >>
 rpt strip_tac >>
-Cases_on `status` >> (
- fs [stmt_exec_def]
+Cases_on ‘status’ >> (
+ gs[stmt_exec_def]
 ) >>
 pairLib.PairCases_on `ctx` >>
 rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
 pairLib.PairCases_on `state'` >>
 rename1 `(state'0,g_scope_list',state'2,state'3)` >>
 rename1 `(ascope',g_scope_list',frame_list',status')` >>
-fs [exec_stmt_block_SOME_REWRS] >>
-Cases_on `stmt_stack` >| [
+gvs[exec_stmt_block_SOME_REWRS] >>
+Cases_on ‘stmt_stack’ >| [
  ALL_TAC,
 
  irule (specl_stmt_block_exec ``stmt_block decl_list s`` ``[]:frame_list`` ``s::[stmt_empty]``) >>
- fs [clause_name_def]
+ gs[clause_name_def]
 ] >> (
  irule ((valOf o find_clause_stmt_red) "stmt_block_enter") >>
- fs [clause_name_def]
+ gs[clause_name_def, declare_list_in_fresh_scope_exec_arb_equiv]
 )
 QED
 

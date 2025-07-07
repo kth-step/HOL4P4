@@ -302,6 +302,13 @@ Definition uninit_string_def:
   | uninit_zero => ""
 End
 
+Definition uninit_num_def:
+ uninit_num uninit =
+  case uninit of
+    uninit_arb => ARB
+  | uninit_zero => 0:num
+End
+
 Definition init_out_v_gen_def:
   (init_out_v_gen uninit (v_bool boolv) = v_bool (uninit_bit uninit)) /\
   (init_out_v_gen uninit (v_bit (bl, n)) = v_bit (extend (uninit_bit uninit) n [], n)) /\
@@ -582,6 +589,71 @@ Cases_on `h` >> (
 fs [v_of_e_def]
 QED
 
+(* arb_from_tau, generalised for different (un)initialisation schemes *)
+Definition arb_from_tau_gen_def:
+ (arb_from_tau_gen uninit tau_bool        = v_bool $ uninit_bit uninit) /\
+ (arb_from_tau_gen uninit (tau_bit width) = v_bit (REPLICATE width (uninit_bit uninit), width)) /\
+ (arb_from_tau_gen uninit tau_bot         = v_bot) /\
+ (arb_from_tau_gen uninit tau_ext         = v_ext_ref $ uninit_num uninit) /\
+ (arb_from_tau_gen uninit (tau_xtl struct_ty_struct xtl) =  
+  v_struct (MAP (λ(x,t). (x, arb_from_tau_gen uninit t)) xtl)) /\
+ (arb_from_tau_gen uninit (tau_xtl struct_ty_header xtl) =
+  v_header (uninit_bit uninit) (MAP (λ(x,t). (x, arb_from_tau_gen uninit t)) xtl))
+End
+
+Definition declare_list_in_fresh_scope_exec_def:
+ declare_list_in_fresh_scope_exec uninit (t_scope:t_scope) =
+  MAP (\(x, (t, lvalop)). (x, (arb_from_tau_gen uninit t, NONE))) t_scope
+End
+
+Theorem arb_from_tau_gen_arb_equiv:
+!tau.
+arb_from_tau_gen uninit_arb tau = arb_from_tau tau
+Proof
+‘(!tau. (\tau. arb_from_tau_gen uninit_arb tau = arb_from_tau tau) tau) /\
+ (!l:(string # tau) list. (\xtl. EVERY (\tau. arb_from_tau_gen uninit_arb tau = arb_from_tau tau) $ MAP SND xtl) l) /\
+ !p:(string # tau). (\xt. arb_from_tau_gen uninit_arb $ SND xt = arb_from_tau $ SND xt) p’ suffices_by gs[] >>
+irule tau_induction >> (
+ gs[arb_from_tau_gen_def, arb_from_tau_def, uninit_bit_def, uninit_string_def, uninit_num_def]
+) >>
+rpt strip_tac >- (
+ Cases_on ‘s’ >> (
+  gs[arb_from_tau_gen_def, arb_from_tau_def]
+ ) >> (
+  (* TODO: Because of the arb_from_tau definition... *)
+  Cases_on ‘l’ >> (
+   gs[arb_from_tau_def, uninit_bit_def]
+  ) >>
+  PairCases_on ‘h’ >>
+  gs[arb_from_tau_def, listTheory.EVERY_MAP, uninit_bit_def] >>
+  irule listTheory.MAP_CONG >>
+  simp[] >>
+  rpt strip_tac >>
+  Cases_on ‘x’ >>
+  simp[] >>
+  fs[listTheory.EVERY_MEM] >>
+  qpat_x_assum ‘!x. _’ (fn thm => irule $ SIMP_RULE std_ss [] $ Q.SPECL [‘(q,r)’] thm) >>
+  metis_tac[]
+ )
+) >>
+gs[rich_listTheory.REPLICATE_GENLIST] >>
+irule listTheory.GENLIST_CONG >>
+simp[combinTheory.K_THM]
+QED
+
+Theorem declare_list_in_fresh_scope_exec_arb_equiv:
+!decl_list.
+declare_list_in_fresh_scope_exec uninit_arb decl_list =
+ declare_list_in_fresh_scope decl_list
+Proof
+Induct >> (
+ gs[declare_list_in_fresh_scope_exec_def, declare_list_in_fresh_scope_def]
+) >>
+rpt strip_tac >>
+PairCases_on ‘h’ >>
+gs[arb_from_tau_gen_arb_equiv]
+QED
+
 Definition stmt_exec_def:
  (******************************************)
  (* Catch-all clauses for special statuses *)
@@ -695,7 +767,7 @@ Definition stmt_exec_def:
  (*********)
  (* Block *)
  (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt_block decl_list stmt], scope_list)], status_running) =
-   SOME (ascope, g_scope_list, [(funn, [stmt]++[stmt_empty], ((declare_list_in_fresh_scope decl_list)::scope_list))], status_running))
+   SOME (ascope, g_scope_list, [(funn, [stmt]++[stmt_empty], ((declare_list_in_fresh_scope_exec uninit decl_list)::scope_list))], status_running))
   /\
  (************)
  (* Sequence *)
@@ -1503,7 +1575,7 @@ stmt_exec uninit ctx (ascope, g_scope_list, [(funn, (stmt_block decl_list stmt):
         SOME (ascope', g_scope_list', frame_list', status') <=>
  scope_list <> [] /\
  g_scope_list' = g_scope_list /\
- frame_list' = [(funn, stmt::(stmt_empty::stmt_stack), ((declare_list_in_fresh_scope decl_list)::(scope_list)))] /\
+ frame_list' = [(funn, stmt::(stmt_empty::stmt_stack), ((declare_list_in_fresh_scope_exec uninit decl_list)::(scope_list)))] /\
  ascope' = ascope /\
  status' = status_running
 Proof
