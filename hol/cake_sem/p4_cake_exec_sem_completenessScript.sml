@@ -2512,10 +2512,269 @@ Definition frames_exec'_complete_def:
   frames_exec' (ctx':v1model_ascope' ctx') (ascope'1, g_scope_list'1:g_scope_list', frame_list'1, status'1) = SOME state'2
 End
 
+Theorem scopes_to_pass_transform:
+!funn funn' dict func_map func_map' b_func_map b_func_map' g_scope_list1 g_scope_list'1 g_scope_list2 .
+scopes_to_pass funn func_map b_func_map g_scope_list1 = SOME g_scope_list2 ==>
+transform_funn dict funn = SOME funn' ==>
+transform_func_map dict func_map = SOME func_map' ==>
+transform_func_map dict b_func_map = SOME b_func_map' ==>
+transform_scope_list dict g_scope_list1 = SOME g_scope_list'1 ==>
+?g_scope_list'2.
+transform_scope_list dict g_scope_list2 = SOME g_scope_list'2 /\
+scopes_to_pass' funn' func_map' b_func_map' g_scope_list'1 = SOME g_scope_list'2
+Proof
+(* TODO: This "theorem" is problematic, since scopes_to_pass is formulated in such a way it
+ * tells us nothing about the size of g_scope_list. This can be solved by switching the version
+ * in the executable semantics to a version of the current scopes_to_pass', naming it scopes_to_pass_exec.
+ * (Double-check this is OK for the soundness proof)
+ * Cannot have a separate transform_g_scope_list that ensures this, since those lists must have 1 or 2 entries. *)
+cheat
+QED
+
+(* TODO: Note the slightly different form at the end: at this point, we have the transformation for the final scope list *)
+Theorem scopes_to_retrieve_transform:
+!funn funn' dict func_map func_map' b_func_map b_func_map' g_scope_list1 g_scope_list'1 g_scope_list2 g_scope_list'2 g_scope_list3 g_scope_list'3.
+scopes_to_retrieve funn func_map b_func_map g_scope_list1 g_scope_list2 = SOME g_scope_list3 ==>
+transform_funn dict funn = SOME funn' ==>
+transform_func_map dict func_map = SOME func_map' ==>
+transform_func_map dict b_func_map = SOME b_func_map' ==>
+transform_scope_list dict g_scope_list1 = SOME g_scope_list'1 ==>
+transform_scope_list dict g_scope_list2 = SOME g_scope_list'2 ==>
+transform_scope_list dict g_scope_list3 = SOME g_scope_list'3 ==>
+scopes_to_retrieve' funn' func_map' b_func_map' g_scope_list'1 g_scope_list'2 = SOME g_scope_list'3
+Proof
+(* TODO: Same issue as above *)
+cheat
+QED
+
+Theorem map_to_pass_transform:
+!funn funn' dict b_func_map1 b_func_map2 b_func_map'1.
+dict_bij dict ==>
+map_to_pass funn b_func_map1 = SOME b_func_map2 ==>
+transform_funn dict funn = SOME funn' ==>
+transform_func_map dict b_func_map1 = SOME b_func_map'1 ==>
+?b_func_map'2.
+transform_func_map dict b_func_map2 = SOME b_func_map'2 /\
+map_to_pass' funn' b_func_map'1 = SOME b_func_map'2
+Proof
+rpt strip_tac >>
+Cases_on ‘funn’ >> (
+ gvs[map_to_pass_def, transform_funn_def, oFOLDR_def, map_to_pass'_def, AllCaseEqs()]
+) >- (
+  qexists_tac ‘[]’ >>
+  simp[transform_func_map_def, oFOLDR_def] >>
+  metis_tac[transform_func_map_ALOOKUP_NONE]
+) >- (
+ PairCases_on ‘v’ >>
+ metis_tac[transform_func_map_ALOOKUP_SOME]
+) >> (
+ simp[transform_func_map_def, oFOLDR_def]
+)
+QED
+
+Theorem tbl_to_pass_transform:
+!funn funn' dict b_func_map b_func_map' tbl_map1 tbl_map'1 tbl_map2.
+dict_bij dict ==>
+tbl_to_pass funn b_func_map tbl_map1 = SOME tbl_map2 ==>
+transform_funn dict funn = SOME funn' ==>
+transform_func_map dict b_func_map = SOME b_func_map' ==>
+transform_tbl_map dict tbl_map1 = SOME tbl_map'1 ==>
+?tbl_map'2.
+transform_tbl_map dict tbl_map2 = SOME tbl_map'2 /\
+tbl_to_pass' funn' b_func_map' tbl_map'1 = SOME tbl_map'2
+Proof
+rpt strip_tac >>
+Cases_on ‘funn’ >> (
+ gvs[tbl_to_pass_def, transform_funn_def, oFOLDR_def, tbl_to_pass'_def, AllCaseEqs()]
+) >- (
+  qexists_tac ‘[]’ >>
+  simp[transform_tbl_map_def, oFOLDR_def] >>
+  metis_tac[transform_func_map_ALOOKUP_NONE]
+) >- (
+ PairCases_on ‘v’ >>
+ metis_tac[transform_func_map_ALOOKUP_SOME]
+) >> (
+ simp[transform_tbl_map_def, oFOLDR_def]
+)
+QED
+
 Theorem frames_exec'_completeness:
-!ctrl' frame_list'1.
+!frame_list'1 ctrl'.
 frames_exec'_complete frame_list'1 ctrl'
 Proof
+(* TODO: Induction not needed? *)
+Induct >> (
+ simp[frames_exec'_complete_def] >>
+ rpt strip_tac >>
+ Cases_on ‘status1’ >> (
+  gvs[transform_status_def, transform_frame_list_def, oFOLDR_def] >>
+  Cases_on ‘frame_list1’ >> (
+   gvs[transform_frame_def, oFOLDR_def, p4_exec_semTheory.frames_exec_def]
+  )
+ )
+) >>
+PairCases_on ‘h'’ >>
+PairCases_on ‘ctx’ >>
+gvs[transform_frame_def, oFOLDR_def] >>
+qexists_tac ‘ctrl’ >>
+rpt strip_tac >>
+Cases_on ‘t’ >- (
+ (* Case: bottom frame *)
+ gvs[transform_frame_def, oFOLDR_def, p4_exec_semTheory.frames_exec_def, AllCaseEqs()] >>
+ gvs[transform_ctx_def] >>
+ gvs[frames_exec'_def, AllCaseEqs()] >>
+ Cases_on ‘h'1’ >- (
+  gvs[oFOLDR_def] >>
+  Cases_on ‘h'2’ >> (
+   gvs[transform_scope_list_def, oFOLDR_def, p4_exec_semTheory.stmt_exec_def]
+  )
+ ) >>
+ 
+ imp_res_tac scopes_to_pass_transform >> gvs[] >>
+ imp_res_tac map_to_pass_transform >> gvs[] >>
+ imp_res_tac tbl_to_pass_transform >> gvs[] >>
+ 
+ gvs[oFOLDR_def] >>
+ qpat_x_assum ‘!ctrl'. _’ (fn thm => ALL_TAC) >>
+ (* Use stmt completeness *)
+ imp_res_tac $ REWRITE_RULE [stmt_exec'_complete_def] stmt_exec'_completeness >>
+ qpat_x_assum ‘!ctx' ctx. _’
+  (fn thm => assume_tac $ Q.SPECL [‘(v1model_apply_table_f'',ext_map',func_map',b_func_map'2,pars_map',tbl_map'2)’,
+                                   ‘(ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')’] thm) >>
+ gvs[transform_ctx_def] >>
+ ‘!stmt_stack1 stmt_stack'1.
+          transform_stmt_list dict stmt_stack1 = SOME stmt_stack'1 ==>
+          !scope_list1 scope_list'1.
+            transform_scope_list dict scope_list1 = SOME scope_list'1 ==>
+            !status1 status'1.
+              transform_status dict status1 = SOME status'1 ==>
+              ?ctrl'. !state2 state'2.
+                stmt_exec uninit_zero
+                  (ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')
+                  (ascope1,g_scope_list',[(h'0,h::stmt_stack1,scope_list1)],
+                   status1) =
+                SOME state2 ==>
+                transform_state dict state2 ctrl' = SOME state'2 ==>
+                stmt_exec'
+                  (v1model_apply_table_f'',ext_map',func_map',b_func_map'2,
+                   pars_map',tbl_map'2)
+                  (ascope'1,g_scope_list'2,
+                   [(funn',res::stmt_stack'1,scope_list'1)],status'1) =
+                SOME state'2’ by res_tac >>
+ qpat_x_assum ‘!ctrl ascope1 ascope'1.
+               transform_ascope dict ascope1 ctrl = SOME ascope'1 ==> _’ (fn thm => ALL_TAC) >>
+ gs[GSYM transform_stmt_list_def] >>
+ ‘!status1 status'1.
+          transform_status dict status1 = SOME status'1 ==>
+          ?ctrl'. !state2 state'2.
+            stmt_exec uninit_zero (ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')
+              (ascope1,g_scope_list',[(h'0,h::t,h'2)],status1) =
+            SOME state2 ==>
+            transform_state dict state2 ctrl' = SOME state'2 ==>
+            stmt_exec'
+              (v1model_apply_table_f'',ext_map',func_map',b_func_map'2,
+               pars_map',tbl_map'2)
+              (ascope'1,g_scope_list'2,[(funn',res::res_list,scope_list')],
+               status'1) =
+            SOME state'2’ by res_tac >>
+ qpat_x_assum ‘!stmt_stack1 stmt_stack'1.
+               transform_stmt_list dict stmt_stack1 = SOME stmt_stack'1 ==> _’ (fn thm => ALL_TAC) >>
+ qpat_x_assum ‘!status1 status'1. _’ (fn thm => assume_tac $ Q.SPECL [‘status_running’, ‘status'_running’] thm) >>
+ gvs[transform_status_def, transform_state_def] >>
+ (* Different cases for different final statuses, but can be treated the same *)
+ Cases_on ‘status'’ >> (
+  gvs[transform_state_def, transform_status_def] >>
+  (* TODO: Fix ctrl *)
+  ‘transform_ascope dict ascope' ctrl' = SOME ascope''’ by cheat >> gvs[] >>
+  (* TODO: From where can this be obtained? *)
+  ‘?g_scope_list'''. transform_scope_list dict g_scope_list'' = SOME g_scope_list'''’ by cheat >> gvs[] >>
+ imp_res_tac scopes_to_retrieve_transform >>
+ gs[]
+ )
+) >>
+(* Case: more frames below *)
+PairCases_on ‘h’ >>
+gvs[transform_frame_def, oFOLDR_def, p4_exec_semTheory.frames_exec_def, AllCaseEqs()] >> (
+ gvs[transform_state_def, transform_status_def]
+) >- (
+ (* stmt_exec result status running *)
+ (* Virtually identical to the above, except res_list' *)
+ gvs[transform_ctx_def] >>
+ gvs[frames_exec'_def, AllCaseEqs()] >>
+ imp_res_tac scopes_to_pass_transform >> gvs[] >>
+ imp_res_tac map_to_pass_transform >> gvs[] >>
+ imp_res_tac tbl_to_pass_transform >> gvs[] >>
+ (* Expose the top statement in the statement stack x*)
+ Cases_on ‘h'1’ >- (
+  gvs[oFOLDR_def] >>
+  Cases_on ‘h'2’ >> (
+   gvs[transform_scope_list_def, oFOLDR_def, p4_exec_semTheory.stmt_exec_def]
+  )
+ ) >>
+ gvs[oFOLDR_def] >>
+ (* Use stmt completeness to get proof goal *)
+ imp_res_tac $ REWRITE_RULE [stmt_exec'_complete_def] stmt_exec'_completeness >>
+ qpat_x_assum ‘!ctx' ctx. _’
+  (fn thm => assume_tac $ Q.SPECL [‘(v1model_apply_table_f'',ext_map',func_map',b_func_map'2,pars_map',tbl_map'2)’,
+                                   ‘(ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')’] thm) >>
+ gvs[transform_ctx_def] >>
+ ‘!stmt_stack1 stmt_stack'1.
+  transform_stmt_list dict stmt_stack1 = SOME stmt_stack'1 ==>
+  !scope_list1 scope_list'1.
+    transform_scope_list dict scope_list1 = SOME scope_list'1 ==>
+    !status1 status'1.
+      transform_status dict status1 = SOME status'1 ==>
+      ?ctrl'. !state2 state'2.
+        stmt_exec uninit_zero
+          (ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')
+          (ascope1,g_scope_list',[(h'0,h::stmt_stack1,scope_list1)],
+           status1) =
+        SOME state2 ==>
+        transform_state dict state2 ctrl' = SOME state'2 ==>
+        stmt_exec'
+          (v1model_apply_table_f'',ext_map',func_map',b_func_map'2,
+           pars_map',tbl_map'2)
+          (ascope'1,g_scope_list'2,
+           [(funn',res::stmt_stack'1,scope_list'1)],status'1) =
+        SOME state'2’ by res_tac >>
+ qpat_x_assum ‘!ctrl ascope1 ascope'1.
+               transform_ascope dict ascope1 ctrl = SOME ascope'1 ==> _’ (fn thm => ALL_TAC) >>
+ gs[GSYM transform_stmt_list_def] >>
+ ‘!status1 status'1.
+  transform_status dict status1 = SOME status'1 ==>
+  ?ctrl'. !state2 state'2.
+    stmt_exec uninit_zero (ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')
+      (ascope1,g_scope_list',[(h'0,h::t,h'2)],status1) =
+    SOME state2 ==>
+    transform_state dict state2 ctrl' = SOME state'2 ==>
+    stmt_exec'
+      (v1model_apply_table_f'',ext_map',func_map',b_func_map'2,
+       pars_map',tbl_map'2)
+      (ascope'1,g_scope_list'2,[(funn',res::res_list',scope_list')],
+       status'1) =
+    SOME state'2’ by res_tac >>
+ qpat_x_assum ‘!stmt_stack1 stmt_stack'1.
+               transform_stmt_list dict stmt_stack1 = SOME stmt_stack'1 ==> _’ (fn thm => ALL_TAC) >>
+ qpat_x_assum ‘!status1 status'1. _’ (fn thm => assume_tac $ Q.SPECL [‘status_running’, ‘status'_running’] thm) >>
+ gvs[transform_status_def, transform_state_def] >>
+ (* TODO: Fix ctrl *)
+ ‘transform_ascope dict ascope' ctrl' = SOME ascope''’ by cheat >> gvs[] >>
+ (* TODO: From where can this be obtained? *)
+ ‘?g_scope_list'''. transform_scope_list dict g_scope_list'' = SOME g_scope_list'''’ by cheat >> gvs[] >>
+ (* TODO: Since frame_list' ++ (h0,h1,h2)::t' can be transformed, frame_list' can also be transformed
+  * into something by itself. The second conjunct formalises the result of all frame transformations *)
+ ‘?frame_list'3'. transform_frame_list dict frame_list' = SOME frame_list'3' /\
+  frame_list'' = frame_list'3' ++ [(funn'',stmt_stack'',scope_list'')] ++ res_list’ by cheat >> gvs[] >> 
+ (* TODO: Second scopes_to_retrieve left: This looks OK *)
+ imp_res_tac scopes_to_retrieve_transform >>
+ gs[]
+) >- (
+ (* Return *)
+ (* Same as above, but ending after obtaining the tansformed ascope is different... *)
+ cheat
+) >>
+(* Transition *)
+(* Can be handled the exact same as the Running case *)
 cheat
 QED
 
@@ -2523,8 +2782,16 @@ QED
 (* TOP-LEVEL *)
 (*************)
 
+Definition transform_arch_frame_list_def:
+ (transform_arch_frame_list dict (arch_frame_list_regular frame_list) =
+  transform_frame_list dict frame_list >>=
+  \frame_list'. SOME $ arch_frame_list'_regular frame_list') /\
+ (transform_arch_frame_list dict arch_frame_list_empty =
+  SOME arch_frame_list'_empty)
+End
+
 Theorem arch_exec'_completeness:
-!dict ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map ab_list' pblock_map' ffblock_map' input_f' output_f' copyin_pbl' copyout_pbl' apply_table_f' ext_map' func_map' ctrl s1 s2 s'1 s'2.
+!dict ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map ab_list' pblock_map' ffblock_map' input_f' output_f' copyin_pbl' copyout_pbl' apply_table_f' ext_map' func_map' ctrl aenv1 aenv'1 g_scope_list1 g_scope_list'1 arch_frame_list1 arch_frame_list'1 status1 status'1 s2 s'2.
 dict_bij dict ==>
 transform_actx dict (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
                      copyout_pbl,apply_table_f,ext_map,func_map) = SOME (ab_list',pblock_map',ext_map',func_map') ==>
@@ -2536,14 +2803,99 @@ copyin_pbl'
 copyout_pbl'
 apply_table_f'
 *)
-transform_astate dict s1 ctrl = SOME s'1 ==>
+  transform_aenv dict aenv1 ctrl = SOME aenv'1 ==>
+  transform_scope_list dict g_scope_list1 = SOME g_scope_list'1 ==>
+  transform_arch_frame_list dict arch_frame_list1 = SOME arch_frame_list'1 ==>
+  transform_status dict status1 = SOME status'1 ==>
+  
 arch_exec uninit_zero (ab_list,pblock_map,ffblock_map,input_f,output_f,
-                 copyin_pbl,copyout_pbl,apply_table_f,ext_map,func_map) s1 = SOME s2 ==>
+                 copyin_pbl,copyout_pbl,apply_table_f,ext_map,func_map) (aenv1, g_scope_list1, arch_frame_list1, status1) = SOME s2 ==>
 transform_astate dict s2 ctrl = SOME s'2 ==>
 arch_exec' (ab_list',pblock_map',ffblock_map',input_f',output_f',
-                  copyin_pbl',copyout_pbl',apply_table_f',ext_map',func_map') s'1 = SOME s'2
+                  copyin_pbl',copyout_pbl',apply_table_f',ext_map',func_map') (aenv'1, g_scope_list'1, arch_frame_list'1, status'1) = SOME s'2
 Proof
 rpt strip_tac >>
+PairCases_on ‘aenv1’ >>
+PairCases_on ‘aenv'1’ >>
+Cases_on ‘status1’ >> (
+ gvs[transform_status_def] >>
+ Cases_on ‘arch_frame_list1’ >> (
+  gvs[arch_exec'_def, p4_exec_semTheory.arch_exec_def, AllCaseEqs()]
+ )
+) >- (
+ (* Input *)
+ gvs[transform_arch_frame_list_def] >>
+ gvs[arch_exec'_def, AllCaseEqs()] >>
+ qexists_tac ‘arch_block'_inp’ >>
+ CONJ_TAC >- (
+  gvs[transform_astate_def, transform_aenv_def, transform_actx_def] >>
+  ‘EL aenv'10 ab_list = arch_block_inp ==>
+   transform_ab_list dict ab_list = SOME ab_list' ==>
+   oEL aenv'10 ab_list' = SOME arch_block'_inp’ by cheat >>
+  metis_tac[]
+ ) >>
+ gs[] >>
+ PairCases_on ‘s'2’ >>
+ qexists_tac ‘(s'21,(s'23,s'24,s'25,s'26))’ >>
+ CONJ_TAC >- (
+  PairCases_on ‘scope'’ >>
+  gvs[transform_astate_def, transform_aenv_def, transform_actx_def, transform_ascope_def] >>
+  (* TODO: Some stuff still missing here for stating input lemma... *)
+  (* TODO: Input functions have to be specialised in the theorem *)
+  cheat
+ ) >>
+ qexistsl_tac [‘s'21’, ‘(s'23,s'24,s'25,s'26)’] >>
+ gvs[transform_astate_def, transform_status_def, transform_aenv_def]
+) >- (
+ (* Entry into pblock *)
+ gvs[transform_arch_frame_list_def] >>
+ gvs[arch_exec'_def, AllCaseEqs()] >>
+ cheat
+) >- (
+ (* Fixed-function block *)
+ gvs[transform_arch_frame_list_def] >>
+ gvs[arch_exec'_def, AllCaseEqs()] >>
+ (* TODO: Translation between fixed-function block? This has to be specialised in the
+  * theorem *)
+ cheat
+) >- (
+ (* Output *)
+ gvs[transform_arch_frame_list_def] >>
+ gvs[arch_exec'_def, AllCaseEqs()] >>
+ qexists_tac ‘arch_block'_out’ >>
+ CONJ_TAC >- (
+  gvs[transform_astate_def, transform_aenv_def, transform_actx_def] >>
+  ‘EL aenv'10 ab_list = arch_block_out ==>
+   transform_ab_list dict ab_list = SOME ab_list' ==>
+   oEL aenv'10 ab_list' = SOME arch_block'_out’ by cheat >>
+  metis_tac[]
+ ) >>
+ gs[] >>
+ PairCases_on ‘s'2’ >>
+ qexists_tac ‘(s'22,(s'23,s'24,s'25,s'26))’ >>
+ CONJ_TAC >- (
+  PairCases_on ‘scope'’ >>
+  gvs[transform_astate_def, transform_aenv_def, transform_actx_def, transform_ascope_def] >>
+  (* TODO: Some stuff still missing here for stating output lemma... *)
+  (* TODO: Output functions have to be specialised in the theorem *)
+  cheat
+ ) >>
+ qexistsl_tac [‘s'22’, ‘(s'23,s'24,s'25,s'26)’] >>
+ gvs[transform_astate_def, transform_status_def, transform_aenv_def]
+) >- (
+ (* Exit from pblock *)
+ cheat
+) >- (
+ (* Regular execution *)
+ cheat
+) >- (
+ (* Exit from pblock via return *)
+ cheat
+) >- (
+ (* Finish block via transition to accept *)
+ cheat
+) >>
+(* Transition *)
 cheat
 QED
 

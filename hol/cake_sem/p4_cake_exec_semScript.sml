@@ -8,6 +8,7 @@ open p4_cake_auxLib;
 (****************************************)
 (* CakeML-adjusted executable semantics *)
 
+(* See p4_cake_auxLib *)
 Type native_word = native_word;
 
 Datatype:
