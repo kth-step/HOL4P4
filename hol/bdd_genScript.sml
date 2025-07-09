@@ -539,7 +539,7 @@ End
 Definition eq_vars_in_labels_def:
   eq_vars_in_labels labels n n' =
     case (ALOOKUP labels n', ALOOKUP labels n) of
-    | (SOME (termn a), SOME (termn a')) => (a = a')
+    | (SOME (termn (a,_)), SOME (termn (a',_))) => (a = a')
     | (SOME (non_termn (SOME x,_)), SOME (non_termn (SOME x',_))) => (x = x')
     | (SOME (non_termn (NONE, p)), SOME (non_termn (NONE,p'))) => (p=p')
     | _ => F
