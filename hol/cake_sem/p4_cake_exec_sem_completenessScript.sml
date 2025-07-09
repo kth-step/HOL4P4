@@ -151,7 +151,7 @@ Definition e_exec'_complete_def:
 End
 
 Definition w_e_exec'_complete_def:
- (w_e_exec'_complete (w:word64, e) = e_exec'_complete e)
+ (w_e_exec'_complete (w:identifier, e) = e_exec'_complete e)
 End
 
 Definition l_complete_def:
@@ -167,7 +167,7 @@ Definition l_complete_exec_def:
 End
 
 Definition w_e_l_exec'_complete_def:
- (w_e_l_exec'_complete (w_e_l:(word64 # e') list) = l_complete (MAP SND w_e_l))
+ (w_e_l_exec'_complete (w_e_l:(identifier # e') list) = l_complete (MAP SND w_e_l))
 End
 
 Theorem l_complete_cons:
@@ -1883,13 +1883,20 @@ rpt strip_tac >- (
  gs[l_complete_equiv, l_complete_exec_def]
 ) >- (
  (* Field access *)
- metis_tac[e_exec'_completeness_acc]
+ (* TODO: This and the two below cases are sometimes differently ordered... Why? *)
+ metis_tac[e_exec'_completeness_acc, e_exec'_completeness_cast, w_e_exec'_complete_def]
 ) >- (
  (* Special: w_e_exec'_complete *)
+(*
  gs[w_e_exec'_complete_def]
+*)
+ metis_tac[e_exec'_completeness_acc, e_exec'_completeness_cast, w_e_exec'_complete_def]
 ) >- (
  (* Cast *)
+ metis_tac[e_exec'_completeness_acc, e_exec'_completeness_cast, w_e_exec'_complete_def]
+(*
  metis_tac[e_exec'_completeness_cast]
+*)
 ) >- (
  (* Select *)
  metis_tac[e_exec'_completeness_select]
@@ -2514,7 +2521,7 @@ End
 
 Theorem scopes_to_pass_transform:
 !funn funn' dict func_map func_map' b_func_map b_func_map' g_scope_list1 g_scope_list'1 g_scope_list2 .
-scopes_to_pass funn func_map b_func_map g_scope_list1 = SOME g_scope_list2 ==>
+scopes_to_pass_exec funn func_map b_func_map g_scope_list1 = SOME g_scope_list2 ==>
 transform_funn dict funn = SOME funn' ==>
 transform_func_map dict func_map = SOME func_map' ==>
 transform_func_map dict b_func_map = SOME b_func_map' ==>
@@ -2534,7 +2541,7 @@ QED
 (* TODO: Note the slightly different form at the end: at this point, we have the transformation for the final scope list *)
 Theorem scopes_to_retrieve_transform:
 !funn funn' dict func_map func_map' b_func_map b_func_map' g_scope_list1 g_scope_list'1 g_scope_list2 g_scope_list'2 g_scope_list3 g_scope_list'3.
-scopes_to_retrieve funn func_map b_func_map g_scope_list1 g_scope_list2 = SOME g_scope_list3 ==>
+scopes_to_retrieve_exec funn func_map b_func_map g_scope_list1 g_scope_list2 = SOME g_scope_list3 ==>
 transform_funn dict funn = SOME funn' ==>
 transform_func_map dict func_map = SOME func_map' ==>
 transform_func_map dict b_func_map = SOME b_func_map' ==>
@@ -2642,25 +2649,31 @@ Cases_on ‘t’ >- (
   (fn thm => assume_tac $ Q.SPECL [‘(v1model_apply_table_f'',ext_map',func_map',b_func_map'2,pars_map',tbl_map'2)’,
                                    ‘(ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')’] thm) >>
  gvs[transform_ctx_def] >>
+(*
+ (* TODO: Why? *)
+ ‘?g_scope_list''. transform_scope_list dict g_scope_list' = SOME g_scope_list''’ by cheat >>
+ imp_res_tac scopes_to_pass_transform >> gvs[] >>
+ qexists_tac ‘g_scope_list'⁴'’ >>
+*)
  ‘!stmt_stack1 stmt_stack'1.
-          transform_stmt_list dict stmt_stack1 = SOME stmt_stack'1 ==>
-          !scope_list1 scope_list'1.
-            transform_scope_list dict scope_list1 = SOME scope_list'1 ==>
-            !status1 status'1.
-              transform_status dict status1 = SOME status'1 ==>
-              ?ctrl'. !state2 state'2.
-                stmt_exec uninit_zero
-                  (ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')
-                  (ascope1,g_scope_list',[(h'0,h::stmt_stack1,scope_list1)],
-                   status1) =
-                SOME state2 ==>
-                transform_state dict state2 ctrl' = SOME state'2 ==>
-                stmt_exec'
-                  (v1model_apply_table_f'',ext_map',func_map',b_func_map'2,
-                   pars_map',tbl_map'2)
-                  (ascope'1,g_scope_list'2,
-                   [(funn',res::stmt_stack'1,scope_list'1)],status'1) =
-                SOME state'2’ by res_tac >>
+    transform_stmt_list dict stmt_stack1 = SOME stmt_stack'1 ==>
+    !scope_list1 scope_list'1.
+      transform_scope_list dict scope_list1 = SOME scope_list'1 ==>
+      !status1 status'1.
+        transform_status dict status1 = SOME status'1 ==>
+        ?ctrl'. !state2 state'2.
+          stmt_exec uninit_zero
+            (ctx0,ctx1,ctx2,b_func_map',ctx4,tbl_map')
+            (ascope1,g_scope_list',[(h'0,h::stmt_stack1,scope_list1)],
+             status1) =
+          SOME state2 ==>
+          transform_state dict state2 ctrl' = SOME state'2 ==>
+          stmt_exec'
+            (v1model_apply_table_f'',ext_map',func_map',b_func_map'2,
+             pars_map',tbl_map'2)
+            (ascope'1,g_scope_list'2,
+             [(funn',res::stmt_stack'1,scope_list'1)],status'1) =
+          SOME state'2’ by res_tac >>
  qpat_x_assum ‘!ctrl ascope1 ascope'1.
                transform_ascope dict ascope1 ctrl = SOME ascope'1 ==> _’ (fn thm => ALL_TAC) >>
  gs[GSYM transform_stmt_list_def] >>

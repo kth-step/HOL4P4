@@ -182,7 +182,7 @@ val bl_input = deparse_bool_list bl_input_tm
 (** Transformation **)
 
 val (dict', actx', astate') =
- transform_program v1model_dict "v1model" actx astate
+ transform_program cake_dict_tm "v1model" actx astate
 
 (*
 

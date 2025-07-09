@@ -604,7 +604,7 @@ val actx = vss_v1model_actx
 val astate = vss_v1model_astate
 *)
 val (dict', actx', astate') =
- transform_program v1model_dict "v1model" vss_v1model_actx vss_v1model_astate;
+ transform_program cake_dict_tm "v1model" vss_v1model_actx vss_v1model_astate;
 
 (*
 

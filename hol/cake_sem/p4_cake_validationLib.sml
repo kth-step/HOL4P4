@@ -84,8 +84,10 @@ fun p4_eval_test_tac' aenv_ty actx astate =
  let
   (* eval_steps repeatedly evaluates until NONE is reached *)
   val step_thm = eval_step_cake aenv_ty actx astate
-  val [n, ab_index', ascope', g_scope_list', arch_frame_list', status'] =
-   get_existentials step_thm
+  val (n, ab_index', ascope', g_scope_list', arch_frame_list', status') =
+   case get_existentials step_thm of
+      [a, b, c, d, e, f] => (a, b, c, d, e, f)
+    | _ => raise Fail "expected six astate components"
  in
   (* Perform consecutive exists_tac on all existentially quantified variables in the
    * theorem *)

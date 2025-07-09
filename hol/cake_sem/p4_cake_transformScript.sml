@@ -39,15 +39,25 @@ QED
 
 (** Adding strings from an actx **)
 
+(* TODO: How should this be handled? *)
+val new_dict_entry =
+ if identifier = “:string”
+ then “string:string”
+ else if identifier = “:word64”
+ then “n2w $ LENGTH dict”
+ else if identifier = “:word32”
+ then “n2w $ LENGTH dict”
+ else raise (mk_HOL_ERR "p4_cake_transformScript" "new_dict_entry" ("identifier type not supported:"^(type_to_string identifier)));
+
 Definition add_string_def:
- add_string string (dict: (string, native_word) alist) =
+ add_string string (dict: (string, identifier) alist) =
   if IS_NONE $ ALOOKUP dict string
-  then p4$AUPDATE dict (string, n2w $ LENGTH dict)
+  then p4$AUPDATE dict (string, ^new_dict_entry)
   else dict
 End
 
 Definition add_varnames_funn_def:
- add_varnames_funn (dict: (string, native_word) alist) funn =
+ add_varnames_funn (dict: (string, identifier) alist) funn =
   case funn of
     funn_name name =>
    add_string name dict
@@ -59,7 +69,7 @@ Definition add_varnames_funn_def:
 End
 
 Definition add_varnames_varn_def:
- add_varnames_varn (dict: (string, native_word) alist) varn =
+ add_varnames_varn (dict: (string, identifier) alist) varn =
   case varn of
     varn_name name =>
    add_string name dict
@@ -160,9 +170,9 @@ Definition add_varnames_ab_list_def:
 End
 
 Definition add_varnames_arg_def:
- add_varnames_arg (x,d) dict =
-  if IS_NONE $ ALOOKUP dict x
-  then p4$AUPDATE dict (x, n2w $ LENGTH dict)
+ add_varnames_arg (string, d) dict =
+  if IS_NONE $ ALOOKUP dict string
+  then p4$AUPDATE dict (string, ^new_dict_entry)
   else dict
 End
 
@@ -387,38 +397,6 @@ Definition transform_v_def:
   | v_ext_ref i => SOME $ v'_ext_ref i
   | v_bot => SOME $ v'_bot)
 End
-(*
-Definition transform_v_def:
- (transform_v dict v =
-  case v of
-    v_bool boolv => SOME $ v'_bool boolv
-  | v_bit bitv => SOME $ v'_bit bitv
-  | v_str x => SOME $ v'_str x
-  | v_struct x_v_list =>
-   let (x_list, v_list) = UNZIP x_v_list in
-   (case transform_string_list dict x_list [] of
-    SOME x_list' =>
-    (case transform_v_list dict v_list [] of
-       SOME v_list' => SOME $ v'_struct (ZIP (x_list', v_list'))
-     | NONE => NONE)
-    | NONE => NONE)
-  | v_header boolv x_v_list =>
-   let (x_list, v_list) = UNZIP x_v_list in
-   transform_string_list dict x_list [] >>=
-   \x_list'. transform_v_list dict v_list [] >>=
-   \v_list'. SOME $ v'_header boolv (ZIP (x_list', v_list'))
-  | v_ext_ref i => SOME $ v'_ext_ref i
-  | v_bot => SOME $ v'_bot) /\
- (transform_v_list dict [] acc = SOME acc) /\
- (transform_v_list dict (h::t) acc =
-  case transform_v dict h of
-    SOME v' =>
-    transform_v_list dict t (v'::acc)
-   | NONE => NONE)
-Termination
-cheat
-End
-*)
 
 Definition transform_s_def:
  transform_s dict s =
@@ -437,13 +415,6 @@ Definition transform_s_def:
   else NONE
  | s_univ => SOME (s'_univ, 0)
 End
-
-(*
-Definition transform_s_list_list_def:
- transform_s_list_list dict s_list_list =
-  oFOLDR (oFOLDR (transform_s dict)) s_list_list
-End
-*)
 
 Definition transform_e_def:
  (transform_e dict e =
@@ -540,24 +511,6 @@ Definition transform_e_list_def:
      SOME el''
     | _ => NONE
 End
-
-(*
- (transform_e_list dict [] = SOME []) /\
- (transform_e_list dict (h::t) =
-  transform_e dict h >>=
-  \e'. transform_e_list dict t >>=
-  \el'. SOME $ e'::el')
-Termination
-WF_REL_TAC ‘measure $ (\a. case (a:(((string # native_word) list) # e) + (((string # native_word) list) # e list)) of INR d_el => e3_size $ SND d_el | INL d_e => e_size $ SND d_e)’ >>
-rpt strip_tac >>
-gs[e_size_def] >>
-subgoal ‘e_list' = MAP SND x_e_list'’ >- (
- gs[listTheory.UNZIP_MAP]
-) >>
-imp_res_tac e1_e3_size >>
-decide_tac
-End
-*)
 
 Definition transform_arch_block_def:
  transform_arch_block dict arch_block =
@@ -747,63 +700,53 @@ Definition transform_ffblock_map_def:
   (oFOLDR (transform_ffblock dict) ffblock_map):'a ffblock_map' option)
 End
 
-(* TODO: Hard-coded, for now: extern arguments are mentioned in their implementations.
- * The extern function and object names could be dynamically handled, though. *)
 Definition transform_ext_map_def:
  transform_ext_map dict (ext_map:v1model_ascope ext_map) =
-   SOME ([(41w,NONE,
-     [(47w,[(3w:native_word,d_in)],header_is_valid');
-      (48w,[(3w,d_inout)],header_set_valid');
-      (49w,[(3w,d_inout)],header_set_invalid')]);
-    (38w,NONE,
-     [(50w,[(10w,d_inout)],v1model_mark_to_drop');
-      (51w,[(2w,d_in); (1w,d_in)],v1model_verify');
+   SOME ([(^(get_id "header"),NONE,
+     [(^(get_id "isValid"),[(^(get_id "this"):identifier,d_in)],header_is_valid');
+      (^(get_id "setValid"),[(^(get_id "this"),d_inout)],header_set_valid');
+      (^(get_id "setInvalid"),[(^(get_id "this"),d_inout)],header_set_invalid')]);
+    (^(get_id ""),NONE,
+     [(^(get_id "mark_to_drop"),[(^(get_id "standard_metadata"),d_inout)],v1model_mark_to_drop');
+      (^(get_id "verify"),[(^(get_id "condition"),d_in); (^(get_id "err"),d_in)],v1model_verify');
 
-    (52w,
-     [(2w,d_in); (7w,d_in); (15w,d_in); (16w,d_none)],
+    (^(get_id "verify_checksum"),
+     [(^(get_id "condition"),d_in); (^(get_id "data"),d_in); (^(get_id "checksum"),d_in); (^(get_id "algo"),d_none)],
      v1model_verify_checksum');
-    (53w,
-     [(2w,d_in); (7w,d_in); (15w,d_inout);
-      (16w,d_none)],v1model_update_checksum');
-    (54w,[(14w,d_in)],v1model_assert');
-    (55w,[(14w,d_in)],v1model_assume')]);
+    (^(get_id "update_checksum"),
+     [(^(get_id "condition"),d_in); (^(get_id "data"),d_in); (^(get_id "checksum"),d_inout);
+      (^(get_id "algo"),d_none)],v1model_update_checksum');
+    (^(get_id "assert"),[(^(get_id "check"),d_in)],v1model_assert');
+    (^(get_id "assume"),[(^(get_id "check"),d_in)],v1model_assume')]);
       
-    (42w,NONE,
-     [(56w,[(3w,d_in); (4w,d_out)],
+    (^(get_id "packet_in"),NONE,
+     [(^(get_id "extract"),[(^(get_id "this"),d_in); (^(get_id "headerLvalue"),d_out)],
        v1model_packet_in_extract');
 
-      (57w,[(3w,d_in); (5w,d_in)],v1model_packet_in_lookahead');
-    (58w,[(3w,d_in); (6w,d_in)],v1model_packet_in_advance')
+    (^(get_id "lookahead"),[(^(get_id "this"),d_in); (^(get_id "targ1"),d_in)],v1model_packet_in_lookahead');
+    (^(get_id "advance"),[(^(get_id "this"),d_in); (^(get_id "bits"),d_in)],v1model_packet_in_advance')
 
 ]);
-    (43w,NONE,
-     [(59w,[(3w,d_in); (7w,d_in)],v1model_packet_out_emit')]);
+    (^(get_id "packet_out"),NONE,
+     [(^(get_id "emit"),[(^(get_id "this"),d_in); (^(get_id "data"),d_in)],v1model_packet_out_emit')]);
 
-  (44w,
-   SOME ([(3w,d_out); (21w,d_none)],v1model_direct_counter_construct'),
-   [(60w,[(3w,d_out)],v1model_direct_counter_count')]);
-  (67w,
-   SOME ([(3w,d_out); (21w,d_none); (5w, d_in)],v1model_direct_meter_construct'),
+  (^(get_id "direct_counter"),
+   SOME ([(^(get_id "this"),d_out); (^(get_id "type"),d_none)],v1model_direct_counter_construct'),
+   [(^(get_id "count"),[(^(get_id "this"),d_out)],v1model_direct_counter_count')]);
+  (^(get_id "direct_meter"),
+   SOME ([(^(get_id "this"),d_out); (^(get_id "type"),d_none); (^(get_id "targ1"), d_in)],v1model_direct_meter_construct'),
    []);
-  (68w,
-   SOME ([(3w,d_out); (69w,d_none); (17w, d_none); (70w, d_none)],v1model_action_selector_construct'),
+  (^(get_id "action_selector"),
+   SOME ([(^(get_id "this"),d_out); (^(get_id "algorithm"),d_none); (^(get_id "size"), d_none); (^(get_id "outputWidth"), d_none)],v1model_action_selector_construct'),
    [])
 (*
-    (45w,
+    (^(get_id "register"),
      SOME
-       ([(3w,d_out); (17w,d_none); (5w,d_in)],register_construct'),
-     [(61w,[(3w,d_in); (18w,d_out); (19w,d_in)],register_read');
-      (62w,[(3w,d_in); (19w,d_in); (20w,d_in)],register_write')
+       ([(^(get_id "this"),d_out); (^(get_id "size"),d_none); (^(get_id "targ1"),d_in)],register_construct'),
+     [(^(get_id "read"),[(^(get_id "this"),d_in); (^(get_id "result"),d_out); (^(get_id "index"),d_in)],register_read');
+      (^(get_id "write"),[(^(get_id "this"),d_in); (^(get_id "index"),d_in); (^(get_id "value"),d_in)],register_write')
 *) ]):v1model_ascope' ext_map' option
 End
-
-(* TODO: Hard-coded for now, but that's probably alright for this function. *)
-(*
-Definition transform_ffblock_map_def:
- transform_ffblock_map dict ffblock_map =
-  SOME [("postparser",ffblock_ff v1model_postparser')]
-End
-*)
 
 Definition transform_v_map_def:
  transform_v_map dict v_map =
@@ -833,13 +776,6 @@ Definition transform_ext_obj_map_def:
 End
 
 (*
-
-Definition transform_ctrl_entry_def:
- transform_ctrl_entry dict (tbl_name, ((matching_function, prio), default_action, default_args)) =
-  let matching_function' = matching_function o in
-  transform_e_list dict default_args >>=
-  \default_args'. SOME (tbl_name, ((matching_function', prio), default_action, default_args'))
-End
 
 Definition transform_ctrl_def:
  transform_ctrl dict ctrl =
@@ -875,7 +811,7 @@ Definition transform_ascope_def:
   SOME (counter, ext_obj_map', v_map', ctrl')
 End
 
-(* Given an alist of translations from strings to native_word, transforms an actx to an actx'. *)
+(* Given an alist of translations from strings to identifier, transforms an actx to an actx'. *)
 (* TODO: Change the architectural representation so you can translate input_f and apply_table_f properly also *)
 Definition transform_actx_def:
  transform_actx dict ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):v1model_ascope actx) =
@@ -953,26 +889,26 @@ End
 
 Definition transform_ebpf_ext_map_def:
  transform_ebpf_ext_map dict (ext_map:ebpf_ascope ext_map) =
-   SOME ([(41w,NONE,
-     [(47w,[(3w:native_word,d_in)],header_is_valid');
-      (48w,[(3w,d_inout)],header_set_valid');
-      (49w,[(3w,d_inout)],header_set_invalid')]);
-    (38w,NONE,
-     [(51w,[(2w,d_in); (1w,d_in)],ebpf_verify')]);      
-    (42w,NONE,
-     [(56w,[(3w,d_in); (4w,d_out)],
+   SOME ([(^(get_id "header"),NONE,
+     [(^(get_id "isValid"),[(^(get_id "this"):identifier,d_in)],header_is_valid');
+      (^(get_id "setValid"),[(^(get_id "this"),d_inout)],header_set_valid');
+      (^(get_id "setInvalid"),[(^(get_id "this"),d_inout)],header_set_invalid')]);
+    (^(get_id ""),NONE,
+     [(^(get_id "verify"),[(^(get_id "condition"),d_in); (^(get_id "err"),d_in)],ebpf_verify')]);      
+    (^(get_id "packet_in"),NONE,
+     [(^(get_id "extract"),[(^(get_id "this"),d_in); (^(get_id "headerLvalue"),d_out)],
        ebpf_packet_in_extract');
-      (57w,[(3w,d_in); (5w,d_in)],ebpf_packet_in_lookahead');
-      (58w,[(3w,d_in); (6w,d_in)],ebpf_packet_in_advance')
+      (^(get_id "lookahead"),[(^(get_id "this"),d_in); (^(get_id "targ1"),d_in)],ebpf_packet_in_lookahead');
+      (^(get_id "advance"),[(^(get_id "this"),d_in); (^(get_id "bits"),d_in)],ebpf_packet_in_advance')
      ]);
-    (43w,NONE,
-     [(59w,[(3w,d_in); (7w,d_in)],ebpf_packet_out_emit')]);
-    (76w,
+    (^(get_id "packet_out"),NONE,
+     [(^(get_id "emit"),[(^(get_id "this"),d_in); (^(get_id "data"),d_in)],ebpf_packet_out_emit')]);
+    (^(get_id "CounterArray"),
      SOME
-       ([(3w,d_out); (75w,d_none); (77w,d_none)],
+       ([(^(get_id "this"),d_out); (^(get_id "max_index"),d_none); (^(get_id "sparse"),d_none)],
         CounterArray_construct'),
-     [(78w,[(3w,d_in); (19w,d_in)],CounterArray_increment');
-      (79w,[(3w,d_in); (19w,d_in); (20w,d_in)],
+     [(^(get_id "increment"),[(^(get_id "this"),d_in); (^(get_id "index"),d_in)],CounterArray_increment');
+      (^(get_id "add"),[(^(get_id "this"),d_in); (^(get_id "index"),d_in); (^(get_id "value"),d_in)],
        CounterArray_add')])
  ]):ebpf_ascope' ext_map' option
 End

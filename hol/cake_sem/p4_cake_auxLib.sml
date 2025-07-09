@@ -8,8 +8,124 @@ open p4Theory;
 open p4_cake_auxTheory;
 open p4Syntax;
 
-(* Note: This sets the word size that strings are serialized to in the CakeML-compilable semantics *)
-val native_word = “:word64”;
+(* Note: This typically sets the word size that strings are serialized to in the CakeML-compilable
+ * semantics to either 32 or 64. Could also be just strings. *)
+(* val identifier = “:string”; *)
+val identifier = “:word64”;
+(* val identifier = “:word32”; *)
+
+(* TODO: Can parts of this belonging to the ext map be generated? *)
+val cake_dict = Redblackmap.fromList String.compare 
+  [("parseError", (“"parseError"”, “0w:word64”, “0w:word32”)),
+   ("err", (“"err"”, “1w:word64”, “1w:word32”)),
+   ("condition", (“"condition"”, “2w:word64”, “2w:word32”)),
+   ("this", (“"this"”, “3w:word64”, “3w:word32”)),
+   ("headerLvalue", (“"headerLvalue"”, “4w:word64”, “4w:word32”)),
+   ("targ1", (“"targ1"”, “5w:word64”, “5w:word32”)),
+   ("bits", (“"bits"”, “6w:word64”, “6w:word32”)),
+   ("data", (“"data"”, “7w:word64”, “7w:word32”)),
+   ("b", (“"b"”, “8w:word64”, “8w:word32”)),
+   ("b_temp", (“"b_temp"”, “9w:word64”, “9w:word32”)),
+   ("standard_metadata", (“"standard_metadata"”, “10w:word64”, “10w:word32”)),
+   ("parsedHdr", (“"parsedHdr"”, “11w:word64”, “11w:word32”)),
+   ("hdr", (“"hdr"”, “12w:word64”, “12w:word32”)),
+   ("meta", (“"meta"”, “13w:word64”, “13w:word32”)),
+   ("check", (“"check"”, “14w:word64”, “14w:word32”)),
+   ("checksum", (“"checksum"”, “15w:word64”, “15w:word32”)),
+   ("algo", (“"algo"”, “16w:word64”, “16w:word32”)),
+   ("size", (“"size"”, “17w:word64”, “17w:word32”)),
+   ("result", (“"result"”, “18w:word64”, “18w:word32”)),
+   ("index", (“"index"”, “19w:word64”, “19w:word32”)),
+   ("value", (“"value"”, “20w:word64”, “20w:word32”)),
+   ("type", (“"type"”, “21w:word64”, “21w:word32”)),
+   ("ingress_port", (“"ingress_port"”, “22w:word64”, “22w:word32”)),
+   ("egress_spec", (“"egress_spec"”, “23w:word64”, “23w:word32”)),
+   ("egress_port", (“"egress_port"”, “24w:word64”, “24w:word32”)),
+   ("instance_type", (“"instance_type"”, “25w:word64”, “25w:word32”)),
+   ("packet_length", (“"packet_length"”, “26w:word64”, “26w:word32”)),
+   ("enq_timestamp", (“"enq_timestamp"”, “27w:word64”, “27w:word32”)),
+   ("enq_qdepth", (“"enq_qdepth"”, “28w:word64”, “28w:word32”)),
+   ("deq_timedelta", (“"deq_timedelta"”, “29w:word64”, “29w:word32”)),
+   ("deq_qdepth", (“"deq_qdepth"”, “30w:word64”, “30w:word32”)),
+   ("ingress_global_timestamp", (“"ingress_global_timestamp"”, “31w:word64”, “31w:word32”)),
+   ("egress_global_timestamp", (“"egress_global_timestamp"”, “32w:word64”, “32w:word32”)),
+   ("mcast_grp", (“"mcast_grp"”, “33w:word64”, “33w:word32”)),
+   ("egress_rid", (“"egress_rid"”, “34w:word64”, “34w:word32”)),
+   ("checksum_error", (“"checksum_error"”, “35w:word64”, “35w:word32”)),
+   ("parser_error", (“"parser_error"”, “36w:word64”, “36w:word32”)),
+   ("priority", (“"priority"”, “37w:word64”, “37w:word32”)),
+   ("", (“""”, “38w:word64”, “38w:word32”)),
+   ("accept", (“"accept"”, “39w:word64”, “39w:word32”)),
+   ("reject", (“"reject"”, “40w:word64”, “40w:word32”)),
+   ("header", (“"header"”, “41w:word64”, “41w:word32”)),
+   ("packet_in", (“"packet_in"”, “42w:word64”, “42w:word32”)),
+   ("packet_out", (“"packet_out"”, “43w:word64”, “43w:word32”)),
+   ("direct_counter", (“"direct_counter"”, “44w:word64”, “44w:word32”)),
+   ("register", (“"register"”, “45w:word64”, “45w:word32”)),
+   ("ipsec_crypt", (“"ipsec_crypt"”, “46w:word64”, “46w:word32”)),
+   ("isValid", (“"isValid"”, “47w:word64”, “47w:word32”)),
+   ("setValid", (“"setValid"”, “48w:word64”, “48w:word32”)),
+   ("setInvalid", (“"setInvalid"”, “49w:word64”, “49w:word32”)),
+   ("mark_to_drop", (“"mark_to_drop"”, “50w:word64”, “50w:word32”)),
+   ("verify", (“"verify"”, “51w:word64”, “51w:word32”)),
+   ("verify_checksum", (“"verify_checksum"”, “52w:word64”, “52w:word32”)),
+   ("update_checksum", (“"update_checksum"”, “53w:word64”, “53w:word32”)),
+   ("assert", (“"assert"”, “54w:word64”, “54w:word32”)),
+   ("assume", (“"assume"”, “55w:word64”, “55w:word32”)),
+   ("extract", (“"extract"”, “56w:word64”, “56w:word32”)),
+   ("lookahead", (“"lookahead"”, “57w:word64”, “57w:word32”)),
+   ("advance", (“"advance"”, “58w:word64”, “58w:word32”)),
+   ("emit", (“"emit"”, “59w:word64”, “59w:word32”)),
+   ("count", (“"count"”, “60w:word64”, “60w:word32”)),
+   ("read", (“"read"”, “61w:word64”, “61w:word32”)),
+   ("write", (“"write"”, “62w:word64”, “62w:word32”)),
+   ("decrypt_aes_ctr", (“"decrypt_aes_ctr"”, “63w:word64”, “63w:word32”)),
+   ("encrypt_aes_ctr", (“"encrypt_aes_ctr"”, “64w:word64”, “64w:word32”)),
+   ("encrypt_null", (“"encrypt_null"”, “65w:word64”, “65w:word32”)),
+   ("decrypt_null", (“"decrypt_null"”, “66w:word64”, “66w:word32”)),
+   ("direct_meter", (“"direct_meter"”, “67w:word64”, “67w:word32”)),
+   ("action_selector", (“"action_selector"”, “68w:word64”, “68w:word32”)),
+   ("algorithm", (“"algorithm"”, “69w:word64”, “69w:word32”)),
+   ("outputWidth", (“"outputWidth"”, “70w:word64”, “70w:word32”)),
+   ("packet_copy", (“"packet_copy"”, “71w:word64”, “71w:word32”)),
+   ("inCtrl", (“"inCtrl"”, “72w:word64”, “72w:word32”)),
+   ("packet", (“"packet"”, “73w:word64”, “73w:word32”)),
+   ("inputPort", (“"inputPort"”, “74w:word64”, “74w:word32”)),
+   ("max_index", (“"max_index"”, “75w:word64”, “75w:word32”)),
+   ("CounterArray", (“"CounterArray"”, “76w:word64”, “76w:word32”)),
+   ("sparse", (“"sparse"”, “77w:word64”, “77w:word32”)),
+   ("increment", (“"increment"”, “78w:word64”, “78w:word32”)),
+   ("add", (“"add"”, “79w:word64”, “79w:word32”)),
+   ("headers", (“"headers"”, “80w:word64”, “80w:word32”))];
+
+val get_element =
+ if identifier = “:string”
+ then (fn (a:term,b:term,c:term) => a)
+ else if identifier = “:word64”
+ then (fn (a,b,c) => b)
+ else if identifier = “:word32”
+ then (fn (a,b,c) => c)
+ else raise (mk_HOL_ERR "p4_cake_auxLib" "get_dict" ("identifier type not supported:"^(type_to_string identifier)))
+;
+
+val cake_dict_tm = mk_list(map (fn (a,b) => mk_pair (stringSyntax.fromMLstring a, get_element b)) $ Redblackmap.listItems cake_dict, “:(string # ^identifier)”);
+
+fun get_id name =
+ let
+  val entry = Redblackmap.peek (cake_dict, name)
+ in
+  if isSome entry
+  then 
+   if identifier = “:string”
+   then #1 $ valOf entry
+   else if identifier = “:word64”
+   then #2 $ valOf entry
+   else if identifier = “:word32”
+   then #3 $ valOf entry
+   else raise (mk_HOL_ERR "p4_cake_auxLib" "get_id" ("identifier type not supported:"^(type_to_string identifier)))
+  else raise (mk_HOL_ERR "p4_cake_auxLib" "get_id" ("key not found in cake_dict: "^name))
+ end
+;
 
 (* Some extra tricks for CakeML export *)
 

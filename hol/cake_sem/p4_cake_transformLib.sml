@@ -15,7 +15,7 @@ open listSyntax optionSyntax pairSyntax;
 
 (* TODO: Clean up the below, put in a separate library that's compiled before p4_v1modelTheory *)
 
-(* Generating string-to-word64 dictionary:
+(* OLD: Generating string-to-word64 dictionary:
 
 (* Gather extern function implementations, which may contain hard-coded variable names *)
 val core_implementations =
@@ -162,37 +162,8 @@ val n_of_w:term * term -> int = wordsSyntax.uint_of_word o snd
 val v1model_items_sorted = mlibUseful.sort (fn (a,b) => Int.compare (n_of_w a, n_of_w b)) v1model_items
 
 val v1model_dict = listSyntax.mk_list (map mk_pair v1model_items_sorted, mk_prod (“:string”, “:word64”))
-
 *)
 
-(* TODO: The latter part of this belonging to the ext map may be generated... *)
-(* TODO: This is in fact now a dictionary used for all architectures *)
-val v1model_dict =
-   “[("parseError",0w); ("err",1w); ("condition",2w); ("this",3w);
-     ("headerLvalue",4w); ("targ1",5w); ("bits",6w); ("data",7w); ("b",8w);
-     ("b_temp",9w); ("standard_metadata",10w); ("parsedHdr",11w);
-     ("hdr",12w); ("meta",13w); ("check",14w); ("checksum",15w);
-     ("algo",16w); ("size",17w); ("result",18w); ("index",19w);
-     ("value",20w); ("type",21w); ("ingress_port",22w); ("egress_spec",23w);
-     ("egress_port",24w); ("instance_type",25w); ("packet_length",26w);
-     ("enq_timestamp",27w); ("enq_qdepth",28w); ("deq_timedelta",29w);
-     ("deq_qdepth",30w); ("ingress_global_timestamp",31w);
-     ("egress_global_timestamp",32w); ("mcast_grp",33w); ("egress_rid",34w);
-     ("checksum_error",35w); ("parser_error",36w); ("priority",37w);
-     ("",38w); ("accept",39w); ("reject",40w); ("header",41w);
-     ("packet_in",42w); ("packet_out",43w); ("direct_counter",44w);
-     ("register",45w); ("ipsec_crypt",46w); ("isValid",47w);
-     ("setValid",48w); ("setInvalid",49w); ("mark_to_drop",50w);
-     ("verify",51w); ("verify_checksum",52w); ("update_checksum",53w);
-     ("assert",54w); ("assume",55w); ("extract",56w); ("lookahead",57w);
-     ("advance",58w); ("emit",59w); ("count",60w); ("read",61w);
-     ("write",62w); ("decrypt_aes_ctr",63w); ("encrypt_aes_ctr",64w);
-     ("encrypt_null",65w); ("decrypt_null",66w); ("direct_meter",67w);
-     ("action_selector",68w); ("algorithm",69w); ("outputWidth",70w);
-     (* eBPF *)
-     ("packet_copy", 71w); ("inCtrl", 72w); ("packet", 73w); ("inputPort", 74w);
-     ("max_index", 75w); ("CounterArray", 76w); ("sparse", 77w);
-     ("increment", 78w); ("add", 79w); ("headers", 80w)]:(string, native_word) alist”;
 
 (* Uses a dict of static, architecture-coded variable names. add_varnames_actx will pick
  * up the rest. Returns a tuple of a new dict and the actx'. *)
@@ -236,7 +207,10 @@ fun transform_actx arch dict actx =
    if arch = "v1model"
    then
     let
-     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
+     val (ab_list', pblock_map', ext_map', func_map') =
+      case strip_pair $ dest_some actx'_opt of
+         [a, b, c, d] => (a, b, c, d)
+       | _ => raise Fail "Expected 4 components of transformed actx'"
      val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
      val preingress_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "preingress"”
     in
@@ -244,7 +218,10 @@ fun transform_actx arch dict actx =
     end
    else
     let
-     val [ab_list', pblock_map', ext_map', func_map'] = strip_pair $ dest_some actx'_opt
+     val (ab_list', pblock_map', ext_map', func_map') =
+      case strip_pair $ dest_some actx'_opt of
+         [a, b, c, d] => (a, b, c, d)
+       | _ => raise Fail "Expected 4 components of transformed actx'"
     in
      (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[]:ebpf_ascope' ffblock_map'”, “(^input_f'):ebpf_ascope' input_f'”, “ebpf_output_f':ebpf_ascope' output_f'”, “ebpf_copyin_pbl':ebpf_ascope' copyin_pbl'”, “ebpf_copyout_pbl':ebpf_ascope' copyout_pbl'”, “ebpf_apply_table_f'':ebpf_ascope' apply_table_f'”, “^ext_map':ebpf_ascope' ext_map'”, “^func_map':func_map'”])
     end
@@ -360,13 +337,13 @@ fun transform_tbl dict tbl =
    let
     val entries' = transform_entries dict (fst $ dest_list entries)
    in
-    mk_pair (dest_some name'_opt, mk_tbl_regular $ mk_list (entries', “:(s' list # num) # native_word # e' list”))
+    mk_pair (dest_some name'_opt, mk_tbl_regular $ mk_list (entries', “:(s' list # num) # ^identifier # e' list”))
    end
   else raise Fail "transform_tbl failed to translate table name (one or more table names could not be found in the dictionary)"
  end
 ;
 fun transform_ctrl dict ctrl =
- mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:(native_word # tbl)”)
+ mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:(^identifier # tbl)”)
 ;
 
 (* TODO: Updated ctrl as argument, for now... *)

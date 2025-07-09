@@ -8,7 +8,7 @@ cd ${INSTALL_DIR}
 if [ ! -e "HOL/bin/Holmake" ]; then
 	git clone https://github.com/HOL-Theorem-Prover/HOL.git
 	cd HOL
-	git checkout trindemossen-1
+	git checkout 718b3aa
 	# Add compilation flags to avoid ISO C++17 incompatibility errors
 	# Note: Only done for amd64, doing this patch on aarch64 results in worse errors
 	if [[ $(dpkg --print-architecture) == "amd64" ]]

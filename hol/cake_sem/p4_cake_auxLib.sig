@@ -2,7 +2,11 @@ signature p4_cake_auxLib =
 sig
   include Abbrev
 
-val native_word : hol_type
+val identifier : hol_type
+
+val get_id : string -> term
+
+val cake_dict_tm : term
 
 val BOOL_LIST_ss : simpLib.ssfrag
 

@@ -4,7 +4,7 @@ val _ = new_theory "p4_cake_arch_v1model";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
+open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_auxLib p4_cake_exec_semTheory p4_cake_archTheory;
 open p4_coreTheory p4_v1modelTheory;
 
 (* Note that the below have been manually translated using the dictionary mapping strings to words64
@@ -14,9 +14,9 @@ val CONTROL_PLANE_API = 0;
 
 val _ = type_abbrev("v1model_sum_v_ext'", “:(core_v_ext', v1model_v_ext) sum”);
 
-Type v1model_ctrl' = “:(native_word, tbl) alist”;
+Type v1model_ctrl' = “:(identifier, tbl) alist”;
 
-Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext') alist) # ((native_word, v') alist) # v1model_ctrl')”;
+Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext') alist) # ((identifier, v') alist) # v1model_ctrl')”;
 
 Definition v1model_ascope_lookup'_def:
  v1model_ascope_lookup' (ascope:v1model_ascope') ext_ref = 
@@ -49,22 +49,22 @@ End
 
 Definition v1model_postparser'_def:
  v1model_postparser' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
-  (case ALOOKUP v_map 8w of
+  (case ALOOKUP v_map ^(get_id "b") of
    | SOME (v'_ext_ref i) =>
     (case ALOOKUP ext_obj_map i of
      | SOME (INL (core_v_ext'_packet bl)) =>
-      (case ALOOKUP v_map 9w of
+      (case ALOOKUP v_map ^(get_id "b_temp") of
        | SOME (v'_ext_ref i') =>
-        (case ALOOKUP v_map 11w of
+        (case ALOOKUP v_map ^(get_id "parsedHdr") of
          | SOME v =>
-          let v_map' = p4$AUPDATE v_map (12w, v) in
-           (case ALOOKUP v_map 0w of
+          let v_map' = p4$AUPDATE v_map (^(get_id "hdr"), v) in
+           (case ALOOKUP v_map ^(get_id "parseError") of
             | SOME v' =>
-             (case assign' [v_map_to_scope' v_map'] v' (lval'_field (lval'_varname (varn'_name 10w)) 36w) of
+             (case assign' [v_map_to_scope' v_map'] v' (lval'_field (lval'_varname (varn'_name ^(get_id "standard_metadata"))) ^(get_id "parser_error")) of
               | SOME [v_map_scope] =>
                (case scope_to_vmap' v_map_scope of
                 | SOME v_map'' =>
-                 let v_map''' = p4$AUPDATE v_map'' (0w, v'_bit (fixwidth 32 (n2v 0), 32)) in
+                 let v_map''' = p4$AUPDATE v_map'' (^(get_id "parseError"), v'_bit (fixwidth 32 (n2v 0), 32)) in
                  let (counter', ext_obj_map', v_map'''', ctrl') = (v1model_ascope_update' (counter, ext_obj_map, v_map''', ctrl) i' (INL (core_v_ext'_packet bl))) in
    SOME (v1model_ascope_update' (counter', ext_obj_map', v_map'''', ctrl') i (INL (core_v_ext'_packet [])))
                 | NONE => NONE)
@@ -78,9 +78,9 @@ End
 
 Definition v1model_preingress'_def:
  v1model_preingress' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
-  case ALOOKUP v_map 35w of
+  case ALOOKUP v_map ^(get_id "checksum_error") of
    | SOME v =>
-    (case assign' [v_map_to_scope' v_map] v (lval'_field (lval'_varname (varn'_name 10w)) 35w) of
+    (case assign' [v_map_to_scope' v_map] v (lval'_field (lval'_varname (varn'_name ^(get_id "standard_metadata"))) ^(get_id "checksum_error")) of
      | SOME [v_map_scope] =>
       (case scope_to_vmap' v_map_scope of
        | SOME v_map' =>
@@ -102,29 +102,68 @@ fun mk_v_bitii' (num, width) =
 ;
 
 val v1model_standard_metadata_zeroed' =
- listSyntax.mk_list
-  (map pairSyntax.mk_pair
-   [(“22w:native_word”, mk_v_bitii' (0, 9)),
-    (“23w:native_word”, mk_v_bitii' (0, 9)),
-    (“24w:native_word”, mk_v_bitii' (0, 9)),
-    (“25w:native_word”, mk_v_bitii' (0, 32)),
-    (“26w:native_word”, mk_v_bitii' (0, 32)),
-    (“27w:native_word”, mk_v_bitii' (0, 32)),
-    (“28w:native_word”, mk_v_bitii' (0, 19)),
-    (“29w:native_word”, mk_v_bitii' (0, 32)),
-    (“30w:native_word”, mk_v_bitii' (0, 19)),
-    (“31w:native_word”, mk_v_bitii' (0, 48)),
-    (“32w:native_word”, mk_v_bitii' (0, 48)),
-    (“33w:native_word”, mk_v_bitii' (0, 16)),
-    (“34w:native_word”, mk_v_bitii' (0, 16)),
-    (“35w:native_word”, mk_v_bitii' (0, 1)),
-    (“36w:native_word”, mk_v_bitii' (0, 32)),
-    (“37w:native_word”, mk_v_bitii' (0, 3))],
-   “:(native_word # v')”);
-   
-(*
-Redblackmap.find (v1model_dict, “"meta"”)
-*)
+ let
+  val id_list =
+   if identifier = “:string”
+   then
+    [``"ingress_port"``,
+     ``"egress_spec"``,
+     ``"egress_port"``,
+     ``"instance_type"``,
+     ``"packet_length"``,
+     ``"enq_timestamp"``,
+     ``"enq_qdepth"``,
+     ``"deq_timedelta"``,
+     ``"deq_qdepth"``,
+     ``"ingress_global_timestamp"``,
+     ``"egress_global_timestamp"``,
+     ``"mcast_grp"``,
+     ``"egress_rid"``,
+     ``"checksum_error"``,
+     ``"parser_error"``,
+     ``"priority"``]
+   else if identifier = “:word64” orelse identifier = “:word32”
+   then
+    [“22w:identifier”,
+     “23w:identifier”,
+     “24w:identifier”,
+     “25w:identifier”,
+     “26w:identifier”,
+     “27w:identifier”,
+     “28w:identifier”,
+     “29w:identifier”,
+     “30w:identifier”,
+     “31w:identifier”,
+     “32w:identifier”,
+     “33w:identifier”,
+     “34w:identifier”,
+     “35w:identifier”,
+     “36w:identifier”,
+     “37w:identifier”]
+    else raise (mk_HOL_ERR "p4_cake_arch_v1modelScript" "v1model_standard_metadata_zeroed'" ("identifier type not supported:"^(type_to_string identifier)))
+
+   val v_list =
+    [mk_v_bitii' (0, 9),
+     mk_v_bitii' (0, 9),
+     mk_v_bitii' (0, 9),
+     mk_v_bitii' (0, 32),
+     mk_v_bitii' (0, 32),
+     mk_v_bitii' (0, 32),
+     mk_v_bitii' (0, 19),
+     mk_v_bitii' (0, 32),
+     mk_v_bitii' (0, 19),
+     mk_v_bitii' (0, 48),
+     mk_v_bitii' (0, 48),
+     mk_v_bitii' (0, 16),
+     mk_v_bitii' (0, 16),
+     mk_v_bitii' (0, 1),
+     mk_v_bitii' (0, 32),
+     mk_v_bitii' (0, 3)]
+ in
+  listSyntax.mk_list (map pairSyntax.mk_pair $ zip id_list v_list, “:(identifier # v')”)
+ end
+;
+
 Definition v1model_input_f'_def:
  (v1model_input_f' (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list', (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
   case io_list of
@@ -135,13 +174,13 @@ Definition v1model_input_f'_def:
                                        (1, INL (core_v_ext'_packet []))] in
    let counter' = 2 in
    (* TODO: Currently, no garbage collection in v_map is needed *)
-   let v_map' = AUPDATE_LIST v_map [(8w, v'_ext_ref 0);
-                                    (9w, v'_ext_ref 1);
-                                    (10w, v'_struct (p4$AUPDATE (^v1model_standard_metadata_zeroed') (22w, (v'_bit (fixwidth 9 $ n2v p, 9) ) )));
-                                    (11w, tau1_uninit_v);
-                                    (12w, tau1_uninit_v);
-                                    (13w, tau2_uninit_v);
-                                    (35w, v'_bit ([F], 1))] in
+   let v_map' = AUPDATE_LIST v_map [(^(get_id "b"), v'_ext_ref 0);
+                                    (^(get_id "b_temp"), v'_ext_ref 1);
+                                    (^(get_id "standard_metadata"), v'_struct (p4$AUPDATE (^v1model_standard_metadata_zeroed') (^(get_id "ingress_port"), (v'_bit (fixwidth 9 $ n2v p, 9) ) )));
+                                    (^(get_id "parsedHdr"), tau1_uninit_v);
+                                    (^(get_id "hdr"), tau1_uninit_v);
+                                    (^(get_id "meta"), tau2_uninit_v);
+                                    (^(get_id "checksum_error"), v'_bit ([F], 1))] in
     SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope'))
 End
 
@@ -175,13 +214,13 @@ End
 
 Definition v1model_output_f'_def:
  v1model_output_f' (in_out_list:in_out_list', (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
-  (case v1model_lookup_obj' ext_obj_map v_map 8w of
+  (case v1model_lookup_obj' ext_obj_map v_map ^(get_id "b") of
    | SOME (INL (core_v_ext'_packet byte_list)) =>
-    (case v1model_lookup_obj' ext_obj_map v_map 9w of
+    (case v1model_lookup_obj' ext_obj_map v_map ^(get_id "b_temp") of
      | SOME (INL (core_v_ext'_packet byte_list')) =>
-      (case ALOOKUP v_map 10w of
+      (case ALOOKUP v_map ^(get_id "standard_metadata") of
        | SOME (v'_struct struct) =>
-        (case ALOOKUP struct 23w of
+        (case ALOOKUP struct ^(get_id "egress_spec") of
          | SOME (v'_bit (port_bl, n)) =>
           SOME (in_out_list++(if v1model_is_drop_port port_bl then [] else [(byte_list++byte_list', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl))
          | _ => NONE)
@@ -189,8 +228,6 @@ Definition v1model_output_f'_def:
      | _ => NONE)
    | _ => NONE)
 End  
-
-
 
 (* Uses the above and copyin' *)
 Definition v1model_copyin_pbl'_def:
@@ -203,6 +240,7 @@ Definition v1model_copyin_pbl'_def:
     | NONE => NONE)
   | NONE => NONE
 End
+
 (*
 (* Uses update_return_frame' *)
 Definition copyout_pbl_gen'_def:
@@ -211,6 +249,7 @@ Definition copyout_pbl_gen'_def:
    update_return_frame' xlist dlist [v_map_scope] g_scope_list
 End
 *)
+
 (* Uses the above *)
 Definition v1model_copyout_pbl'_def:
  v1model_copyout_pbl' (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope', dlist, xlist, (status:status')) =
@@ -221,7 +260,6 @@ Definition v1model_copyout_pbl'_def:
     | NONE => NONE)
   | _ => NONE
 End
-
 
 Definition FOLDL_MATCH_alt'_def:
  (FOLDL_MATCH_alt' w_l res acc [] = res) /\
@@ -243,7 +281,7 @@ End
 
 Definition FOLDL_MATCH'_def:
  (FOLDL_MATCH' w_l res [] = res) /\
- (FOLDL_MATCH' (w_l:word64 list) (res_act:native_word # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
+ (FOLDL_MATCH' (w_l:word64 list) (res_act:identifier # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
   if match_all_e_alt'' s_l w_l
   then
    (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
@@ -349,7 +387,7 @@ Definition v1model_packet_in_extract'_def:
            | NONE => NONE)
          else
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (v1model_ascope_update_v_map' (v1model_ascope_update' ascope i ((INL (core_v_ext_packet [])):(core_v_ext, v1model_v_ext) sum)) (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+          SOME (v1model_ascope_update_v_map' (v1model_ascope_update' ascope i ((INL (core_v_ext_packet [])):(core_v_ext, v1model_v_ext) sum)) (0w:identifier) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -379,7 +417,7 @@ Definition v1model_packet_in_lookahead'_def:
            | NONE => NONE)
          else
           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (v1model_ascope_update_v_map' ascope (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+          SOME (v1model_ascope_update_v_map' ascope (0w:identifier) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -405,7 +443,7 @@ Definition v1model_packet_in_advance'_def:
         SOME (v1model_ascope_update' ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, v1model_v_ext) sum), scope_list, status'_returnv v'_bot)
        else
         (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-        SOME (v1model_ascope_update_v_map' ascope (0w:native_word) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
+        SOME (v1model_ascope_update_v_map' ascope (0w:identifier) (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans 40w)
        | _ => NONE)
     | NONE => NONE)
   | _ => NONE
@@ -455,7 +493,7 @@ Definition v1model_verify'_def:
   | SOME (v'_bool F) =>
    (case lookup_lval'' scope_list (lval'_varname (varn'_name 1w)) of
     | SOME (v'_bit bitv) =>
-     SOME (v1model_ascope_update_v_map' ascope (0w:native_word) (v'_bit bitv), scope_list, status'_trans 40w)
+     SOME (v1model_ascope_update_v_map' ascope (0w:identifier) (v'_bit bitv), scope_list, status'_trans 40w)
     | _ => NONE)
   | _ => NONE
  )
@@ -468,9 +506,9 @@ End
 
 Definition v1model_mark_to_drop'_def:
  v1model_mark_to_drop' (v1model_ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case assign' scope_list (v'_bit (fixwidth 9 (n2v 511), 9)) (lval'_field (lval'_varname (varn'_name 10w)) 23w) of
+  case assign' scope_list (v'_bit (fixwidth 9 (n2v 511), 9)) (lval'_field (lval'_varname (varn'_name ^(get_id "standard_metadata"))) ^(get_id "egress_spec")) of
    | SOME scope_list' =>
-    (case assign' scope_list' (v'_bit (fixwidth 16 (n2v 0), 16)) (lval'_field (lval'_varname (varn'_name 10w)) 33w) of
+    (case assign' scope_list' (v'_bit (fixwidth 16 (n2v 0), 16)) (lval'_field (lval'_varname (varn'_name ^(get_id "standard_metadata"))) ^(get_id "mcast_grp")) of
      | SOME scope_list'' =>
       SOME (v1model_ascope, scope_list'', status'_returnv v'_bot)
      | NONE => NONE)
@@ -479,7 +517,7 @@ End
 
 Definition v1model_assert'_def:
  v1model_assert' (v1model_ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name 14w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "check"))) of
    | SOME $ v'_bool b =>
     (if b
      then SOME (v1model_ascope, scope_list, status'_returnv v'_bot)
@@ -489,7 +527,7 @@ End
 
 Definition v1model_assume'_def:
  v1model_assume' (v1model_ascope:v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name 14w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "check"))) of
    | SOME $ v'_bool b =>
     (if b
      then SOME (v1model_ascope, scope_list, status'_returnv v'_bot)
@@ -521,17 +559,17 @@ End
 
 Definition v1model_verify_checksum'_def:
  (v1model_verify_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  (case lookup_lval'' scope_list (lval'_varname (varn'_name 2w)) of
+  (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "condition"))) of
    | SOME $ v'_bool b =>
     if b
     then
-     (case lookup_lval'' scope_list (lval'_varname (varn'_name 16w)) of
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "algo"))) of
       | SOME $ v'_bit (bl, n) =>
        if v2n bl = 6
        then
-        (case get_checksum_incr'' scope_list (lval'_varname (varn'_name 7w)) of
+        (case get_checksum_incr'' scope_list (lval'_varname (varn'_name ^(get_id "data"))) of
          | SOME checksum_incr =>
-          (case lookup_lval'' scope_list (lval'_varname (varn'_name 15w)) of
+          (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "checksum"))) of
            | SOME $ v'_bit (bl', n') =>
             if n' = 16
             then
@@ -540,7 +578,7 @@ Definition v1model_verify_checksum'_def:
                (if bl' = bl''
                 then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status'_returnv v'_bot)
                 else
-                 (case assign' [v_map_to_scope' v_map] (v'_bit ([T], 1)) (lval'_varname (varn'_name 35w)) of
+                 (case assign' [v_map_to_scope' v_map] (v'_bit ([T], 1)) (lval'_varname (varn'_name ^(get_id "checksum_error"))) of
                   | SOME [v_map_scope] =>
                    (case scope_to_vmap' v_map_scope of
                     | SOME v_map' =>
@@ -561,23 +599,23 @@ End
 
 Definition v1model_update_checksum'_def:
  (v1model_update_checksum' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  (case lookup_lval'' scope_list (lval'_varname (varn'_name 2w)) of
+  (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "condition"))) of
    | SOME $ v'_bool b =>
     if b
     then
-     (case lookup_lval'' scope_list (lval'_varname (varn'_name 16w)) of
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "algo"))) of
       | SOME $ v'_bit (bl, n) =>
        if v2n bl = 6
        then
-        (case get_checksum_incr'' scope_list (lval'_varname (varn'_name 7w)) of
+        (case get_checksum_incr'' scope_list (lval'_varname (varn'_name ^(get_id "data"))) of
          | SOME checksum_incr =>
-          (case lookup_lval'' scope_list (lval'_varname (varn'_name 15w)) of
+          (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "checksum"))) of
            | SOME $ v'_bit (bl', n') =>
             if n' = 16
             then
              (case compute_checksum16 checksum_incr of
               | SOME res =>
-               (case assign' scope_list (v'_bit (res, 16)) (lval'_varname (varn'_name 15w)) of
+               (case assign' scope_list (v'_bit (res, 16)) (lval'_varname (varn'_name ^(get_id "checksum"))) of
                 | SOME scope_list' =>
                  SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status'_returnv v'_bot)
                 | NONE => NONE)
@@ -595,12 +633,12 @@ End
 
 Definition register_construct'_def:
  (register_construct' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name 17w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "size"))) of
   | SOME (v'_bit (bl, n)) =>
-   (case lookup_lval'' scope_list (lval'_varname (varn'_name 5w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "targ1"))) of
     | SOME (v'_bit (bl', n')) =>
      let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (v1model_register_construct_inner bl n'))) in
-     (case assign' scope_list (v'_ext_ref counter) (lval'_varname (varn'_name 3w)) of
+     (case assign' scope_list (v'_ext_ref counter) (lval'_varname (varn'_name ^(get_id "this"))) of
       | SOME scope_list' =>
        SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status'_returnv v'_bot)
       | NONE => NONE)
@@ -611,17 +649,17 @@ End
 
 Definition register_read'_def:
  (register_read' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name 19w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "index"))) of
   | SOME (v'_bit (bl, n)) =>
-   (case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
     | SOME (v'_ext_ref i) =>
      (case ALOOKUP ext_obj_map i of
       | SOME (INR (v1model_v_ext_register array)) =>
        (* TODO: HACK, looking up the result variable to get the result width. *)
-       (case lookup_lval'' scope_list (lval'_varname (varn'_name 18w)) of
+       (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "result"))) of
         | SOME (v'_bit (bl'', n'')) =>      
          let (bl', n') = v1model_register_read_inner n'' bl array in
-           (case assign' scope_list (v'_bit (bl', n')) (lval'_varname (varn'_name 18w)) of
+           (case assign' scope_list (v'_bit (bl', n')) (lval'_varname (varn'_name ^(get_id "result"))) of
             | SOME scope_list' =>
              SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status'_returnv v'_bot)
             | NONE => NONE)
@@ -634,11 +672,11 @@ End
 
 Definition register_write'_def:
  (register_write' ((counter, ext_obj_map, v_map, ctrl):v1model_ascope', g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name 19w)) of
+  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "index"))) of
   | SOME (v'_bit (bl, n)) =>
-   (case lookup_lval'' scope_list (lval'_varname (varn'_name 20w)) of
+   (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "value"))) of
     | SOME (v'_bit (bl', n')) =>
-     (case lookup_lval'' scope_list (lval'_varname (varn'_name 3w)) of
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
       | SOME (v'_ext_ref i) =>
        (case ALOOKUP ext_obj_map i of
         | SOME (INR (v1model_v_ext_register array)) =>

@@ -4,7 +4,7 @@ val _ = new_theory "p4_cake_arch_ebpf";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
-open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
+open p4Theory p4_auxTheory p4_cake_auxTheory p4_cake_auxLib p4_cake_exec_semTheory p4_cake_archTheory;
 open p4_coreTheory p4_ebpfTheory;
 
 (* Note that the below have been manually translated using the dictionary mapping strings to words64
@@ -12,10 +12,10 @@ open p4_coreTheory p4_ebpfTheory;
 
 val _ = type_abbrev("ebpf_sum_v_ext'", “:(core_v_ext', ebpf_v_ext) sum”);
 
-val _ = type_abbrev("ebpf_ctrl'", “:(native_word, (((e_list' -> bool) # num), native_word # e_list') alist) alist”);
+val _ = type_abbrev("ebpf_ctrl'", “:(identifier, (((e_list' -> bool) # num), identifier # e_list') alist) alist”);
 
 (* The architectural state type of the eBPF architecture model *)
-val _ = type_abbrev("ebpf_ascope'", “:(num # ((num, ebpf_sum_v_ext') alist) # ((native_word, v') alist) # ebpf_ctrl')”);
+val _ = type_abbrev("ebpf_ascope'", “:(num # ((num, ebpf_sum_v_ext') alist) # ((identifier, v') alist) # ebpf_ctrl')”);
 
 Definition ebpf_ascope_lookup'_def:
  ebpf_ascope_lookup' (ascope:ebpf_ascope') ext_ref = 
@@ -160,12 +160,12 @@ Definition ebpf_input_f'_def:
                                        (1, INL (core_v_ext'_packet bl))] in
    let counter' = 2 in
    (* TODO: Garbage collection? *)
-   let v_map' = AUPDATE_LIST v_map [(73w, v'_ext_ref 0);
-                                    (71w, v'_ext_ref 1);
-                                    (80w, tau_uninit_v);
-                                    (39w, v'_bit ([F], 1));
-                                    (72w, v'_struct [(74w,v'_bit ((fixwidth 4 $ n2v p, 4)))]);
-                                    (0w, v'_bit (fixwidth 32 (n2v 0), 32));
+   let v_map' = AUPDATE_LIST v_map [(^(get_id "packet"), v'_ext_ref 0);
+                                    (^(get_id "packet_copy"), v'_ext_ref 1);
+                                    (^(get_id "headers"), tau_uninit_v);
+                                    (^(get_id "accept"), v'_bit ([F], 1));
+                                    (^(get_id "inCtrl"), v'_struct [(^(get_id "inputPort"),v'_bit ((fixwidth 4 $ n2v p, 4)))]);
+                                    (^(get_id "parseError"), v'_bit (fixwidth 32 (n2v 0), 32));
 ] in
      SOME (t, (counter', ext_obj_map', v_map', ctrl):ebpf_ascope')
     | _ => NONE)
@@ -255,11 +255,11 @@ End
 (* This will also look up the value of "pass" and only output a packet if it is true *)
 Definition ebpf_output_f'_def:
  ebpf_output_f' (in_out_list:in_out_list', (counter, ext_obj_map, v_map, ctrl):ebpf_ascope') =
-  case ALOOKUP v_map 39w of
+  case ALOOKUP v_map ^(get_id "accept") of
   | SOME (v'_bool T) =>
-   (case ebpf_lookup_obj' ext_obj_map v_map 71w of
+   (case ebpf_lookup_obj' ext_obj_map v_map ^(get_id "packet_copy") of
     | SOME (INL (core_v_ext'_packet bl)) =>
-     (case ALOOKUP v_map 72w of
+     (case ALOOKUP v_map ^(get_id "inCtrl") of
       | SOME (v'_struct fields) =>
        (case ebpf_inputPort_to_num' fields of
         | SOME port =>

@@ -9,18 +9,18 @@ open p4_cake_auxLib;
 (* CakeML-adjusted executable semantics *)
 
 (* See p4_cake_auxLib *)
-Type native_word = native_word;
+Type identifier = identifier;
 
 Datatype:
  funn' = 
-    funn'_name native_word
-  | funn'_inst native_word
-  | funn'_ext native_word native_word
+    funn'_name identifier
+  | funn'_inst identifier
+  | funn'_ext identifier identifier
 End
 
 Datatype:
  varn' = 
-    varn'_name native_word (* CakeML-friendly variable name *)
+    varn'_name identifier (* CakeML-friendly variable name *)
   | varn'_star funn' (* function return placeholder *)
 End
 
@@ -28,9 +28,9 @@ Datatype:
  v' =  
    v'_bool boolv
  | v'_bit bitv
- | v'_str native_word
- | v'_struct ((native_word#v') list)
- | v'_header boolv ((native_word#v') list)
+ | v'_str identifier
+ | v'_struct ((identifier#v') list)
+ | v'_header boolv ((identifier#v') list)
  | v'_ext_ref i
  | v'_bot
 End
@@ -39,7 +39,7 @@ Datatype:
  status' =
    status'_running
  | status'_returnv v'
- | status'_trans native_word
+ | status'_trans identifier
 End
 
 Type v_list' = “:(v' list)”
@@ -59,7 +59,7 @@ e' =
  | e'_v v'
  | e'_var varn'
  | e'_list (e' list)
- | e'_acc e' native_word
+ | e'_acc e' identifier
  | e'_unop unop e'
  | e'_cast cast e'
  | e'_binop e' binop e'
@@ -68,17 +68,16 @@ e' =
  | e'_call funn' (e' list)
  (* The num list list holds the widths of the bitstrings in the sets.
   * This is needed for translating back to regular format *)
- (* TODO: Make this word64? *)
- | e'_select e' ((s_list'#native_word) list) native_word (num list list)
- | e'_struct ((native_word#e') list)
- | e'_header boolv ((native_word#e') list)
+ | e'_select e' ((s_list'#identifier) list) identifier (num list list)
+ | e'_struct ((identifier#e') list)
+ | e'_header boolv ((identifier#e') list)
 End
 
 Datatype:   
  lval' = 
    lval'_varname varn' (* variable name *)
  | lval'_null (* null variable *)
- | lval'_field lval' native_word (* field access *)
+ | lval'_field lval' identifier (* field access *)
  | lval'_slice lval' e' e' (* slice array *)
  | lval'_paren lval'
 End
@@ -94,7 +93,7 @@ Datatype:
    tau'_bool (* boolean *)
  | tau'_bit num_exp (* bit-string *)
  | tau'_bot (* no value *)
- | tau'_xtl struct_ty ((native_word#tau') list) (* struct *)
+ | tau'_xtl struct_ty ((identifier#tau') list) (* struct *)
  | tau'_ext (* extern *)
 End
 
@@ -115,47 +114,47 @@ Datatype:
  | stmt'_ret e' (* return *)
  | stmt'_seq stmt' stmt' (* sequence *)
  | stmt'_trans e' (* transition *)
- | stmt'_app native_word (e' list) (* apply *)
+ | stmt'_app identifier (e' list) (* apply *)
  | stmt'_ext (* extern *)
 End
 
-Type b_func_map' = “:((native_word, (stmt' # (native_word # d) list)) alist)”
+Type b_func_map' = “:((identifier, (stmt' # (identifier # d) list)) alist)”
 
-Type func_map' = “:((native_word, (stmt' # (native_word # d) list)) alist)”
+Type func_map' = “:((identifier, (stmt' # (identifier # d) list)) alist)”
 
-Type ext_fun_map' = “:((native_word, ((native_word # d) list # 'a ext_fun')) alist)”
+Type ext_fun_map' = “:((identifier, ((identifier # d) list # 'a ext_fun')) alist)”
 
-Type pars_map' = “:((native_word, stmt') alist)”
+Type pars_map' = “:((identifier, stmt') alist)”
 
-Type ext_map' = “:((native_word, ((((native_word # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)”
+Type ext_map' = “:((identifier, ((((identifier # d) list # 'a ext_fun') option) # 'a ext_fun_map')) alist)”
 
-Type tbl_map' = “:((native_word, ((mk list) # (native_word # e_list'))) alist)”
+Type tbl_map' = “:((identifier, ((mk list) # (identifier # e_list'))) alist)”
 
 Type in_out' = “:(word8 list # num)”
 
 Type in_out_list' = “:(in_out' list)”
 
-Type pblock' = “:(pbl_type # ((native_word # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')”
+Type pblock' = “:(pbl_type # ((identifier # d) list) # b_func_map' # t_scope' # pars_map' # tbl_map')”
 
-Type pblock_map' = “:((native_word, pblock') alist)”
+Type pblock_map' = “:((identifier, pblock') alist)”
 
-Type ffblock_map' = “:((native_word, 'a ffblock) alist)”
+Type ffblock_map' = “:((identifier, 'a ffblock) alist)”
 
 Type pblock_list' = “:(pblock' list)”
 
 Datatype:   
  arch_block' =  (* architectural block *)
    arch_block'_inp
- | arch_block'_pbl native_word (e' list)
- | arch_block'_ffbl native_word
+ | arch_block'_pbl identifier (e' list)
+ | arch_block'_ffbl identifier
  | arch_block'_out
 End
 
-Type apply_table_f' = “:((native_word # e' list # mk_list # (native_word # e_list') # 'a) -> (native_word # e_list') option)”
+Type apply_table_f' = “:((identifier # e' list # mk_list # (identifier # e_list') # 'a) -> (identifier # e_list') option)”
 
-Type copyout_pbl' = “:((g_scope' list # 'a # d list # native_word list # status') -> 'a option)”
+Type copyout_pbl' = “:((g_scope' list # 'a # d list # identifier list # status') -> 'a option)”
 
-Type copyin_pbl' = “:((native_word list # d list # e' list # 'a) -> scope' option)”
+Type copyin_pbl' = “:((identifier list # d list # e' list # 'a) -> scope' option)”
 
 Type output_f' = “:((in_out_list' # 'a) -> (in_out_list' # 'a) option)”
 
@@ -346,21 +345,18 @@ Proof
  fs [listTheory.MEM_SPLIT, v'1_size_append, v'_size_def]
 QED
 
-(* TODO: This function initialises everything to zeroes instead of using ARBs,
- * which are not compatible with CakeML. Use this as a placeholder before you have
- * deep-embedded uninitialised values. *)
+(* TODO: Can this be generalised and merged with the regular exec sem definition? *)
 Definition init_out_v_cake_def:
-  (init_out_v_cake (v'_bool boolv) = v'_bool F) /\
-  (init_out_v_cake (v'_bit (bl, n)) = v'_bit (extend F n [], n)) /\
-  (* TEMP: "" translated as 38w *)
-  (init_out_v_cake (v'_str x) = v'_str 38w) /\
-  (init_out_v_cake (v'_struct ((x,v)::t)) = v'_struct (((x, init_out_v_cake v))::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
-  (init_out_v_cake (v'_struct []) = v'_struct []) /\
-  (init_out_v_cake (v'_header boolv ((x,v)::t)) =
-    v'_header F (( (x, init_out_v_cake v) )::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
-  (init_out_v_cake (v'_header boolv []) = v'_header F []) /\
-  (init_out_v_cake (v'_ext_ref i) = v'_ext_ref i) /\
-  (init_out_v_cake v'_bot = v'_bot)
+ (init_out_v_cake (v'_bool boolv) = v'_bool F) /\
+ (init_out_v_cake (v'_bit (bl, n)) = v'_bit (extend F n [], n)) /\
+ (init_out_v_cake (v'_str x) = v'_str ^(get_id "")) /\
+ (init_out_v_cake (v'_struct ((x,v)::t)) = v'_struct (((x, init_out_v_cake v))::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
+ (init_out_v_cake (v'_struct []) = v'_struct []) /\
+ (init_out_v_cake (v'_header boolv ((x,v)::t)) =
+   v'_header F (( (x, init_out_v_cake v) )::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
+ (init_out_v_cake (v'_header boolv []) = v'_header F []) /\
+ (init_out_v_cake (v'_ext_ref i) = v'_ext_ref i) /\
+ (init_out_v_cake v'_bot = v'_bot)
 Termination
  WF_REL_TAC `measure v'_size` \\
  fs [v'_size_def] \\
@@ -371,7 +367,7 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
-(* Note: this uses two ' since lookup_lval' already exists x*)
+(* Note: this uses two ' since lookup_lval' already exists *)
 Definition lookup_lval''_def:
   (lookup_lval'' (ss:scope' list) (lval'_varname x) = lookup_v' ss x) /\
   (lookup_lval'' ss (lval'_field lval f) =
@@ -534,16 +530,16 @@ Definition assign'_def:
 End
 
 Definition initialise'_def:
-  (initialise' (ss:scope_list') varn v =
-    LUPDATE (AUPDATE (LAST ss) (varn, (v, NONE))) (LENGTH ss - 1) ss
-  )
+ (initialise' (ss:scope_list') varn v =
+   LUPDATE (AUPDATE (LAST ss) (varn, (v, NONE))) (LENGTH ss - 1) ss
+ )
 End
 
 Definition var_star_updates_of_func_map'_def:
-  (var_star_updates_of_func_map' (func_map:func_map') =
-   let varnames = (MAP FST func_map) in
-   MAP ( \x. (varn'_star (funn'_name x), (v'_bot, (NONE:lval' option)))) varnames
-  )
+ (var_star_updates_of_func_map' (func_map:func_map') =
+  let varnames = (MAP FST func_map) in
+  MAP ( \x. (varn'_star (funn'_name x), (v'_bot, (NONE:lval' option)))) varnames
+ )
 End
 
 Definition var_star_updates_of_ext_map'_def:
@@ -566,9 +562,7 @@ Definition initialise_var_stars'_def:
   )
 End
 
-(* TODO: This function initialises everything to zeroes instead of using ARBs,
- * which are not compatible with CakeML. Use this as a placeholder before you have
- * deep-embedded uninitialised values. *)
+(* TODO: Can this be generalised and merged with the regular exec sem definition? *)
 Definition init_v_from_tau_cake_def:
  (init_v_from_tau_cake tau'_bool = v'_bool F) /\
  (init_v_from_tau_cake (tau'_bit w) = v'_bit (GENLIST (\x. F) w, w)) /\
@@ -670,16 +664,15 @@ Definition fully_reduced'_def:
     | _ => F
 End
 
-(* TEMP: accept and reject *)
 Definition state_fin'_def:
   state_fin' status frame_list =
-  ((status = status'_trans 39w) \/
-   (status = status'_trans 40w) \/
+  ((status = status'_trans ^(get_id "accept")) \/
+   (status = status'_trans ^(get_id "reject")) \/
    (?v. status = status'_returnv v) \/
    (?funn scope_list. frame_list = [(funn, [stmt'_empty], scope_list)] /\
     ((?state_name. status = status'_trans state_name) ==>
-     ((status = status'_trans 39w) \/
-      (status = status'_trans 40w))))
+     ((status = status'_trans ^(get_id "accept")) \/
+      (status = status'_trans ^(get_id "reject")))))
   )
 End
 
@@ -688,7 +681,7 @@ Definition set_fin_status'_def:
     case pbl_type of
     | pbl_type_parser =>
      (case status of
-      | status'_running => (status'_trans 40w)
+      | status'_running => (status'_trans ^(get_id "reject"))
       | _ => status)
     | pbl_type_control => status
 End
@@ -1238,7 +1231,7 @@ Definition match_all_e_alt'_def:
 End
 
 Definition match_all_first'_def:
- (match_all_first' i v_list ([]:(s' list # native_word) list) = NONE) /\
+ (match_all_first' i v_list ([]:(s' list # identifier) list) = NONE) /\
  (match_all_first' i v_list (h::t) =
   if (match_all' (ZIP(v_list, FST h)))
   then SOME (SND h)
@@ -1313,7 +1306,7 @@ Definition match_all_e_alt''_def:
 End
 
 Definition match_all_first''_def:
- (match_all_first'' i w_list ([]:(s' list # native_word) list) = NONE) /\
+ (match_all_first'' i w_list ([]:(s' list # identifier) list) = NONE) /\
  (match_all_first'' i w_list (h::t) =
   if (match_all'' (ZIP(w_list, FST h)))
   then SOME (SND h)
@@ -1927,14 +1920,13 @@ End
 (*  Architectural-level semantics  *)
 (***********************************)
 
-(* TEMP: accept and reject *)
 Definition state_fin_exec_def:
  state_fin_exec status (frame_list:frame_list') =
   case frame_list of
   | [(funn, [stmt'_empty], scope_list)] =>
    (case status of
     | status'_trans x =>
-     if x = 39w \/ x = 40w
+     if x = ^(get_id "accept") \/ x = ^(get_id "reject")
      then T
      else F
     | _ => T)
@@ -1942,13 +1934,13 @@ Definition state_fin_exec_def:
    (case status of
     | status'_returnv v => T
     | status'_trans x =>
-     if x = 39w \/ x = 40w
+     if x = ^(get_id "accept") \/ x = ^(get_id "reject")
      then T
      else F
     | _ => F)
 End
 
-(* TODO: Outsource the stuff that causes too many case splits to other functions
+(* TODO: Outsource the stuff that causes too many case splits to other functions?
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
 Definition arch_exec'_def:
  (arch_exec' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx')
