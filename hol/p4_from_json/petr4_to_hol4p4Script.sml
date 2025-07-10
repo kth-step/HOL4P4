@@ -391,23 +391,18 @@ Triviality json_parse_obj_size:
  json_parse_obj str_list json = SOME json_list ==>
  json3_size json_list < json_size json
 Proof
-cheat
-(*
 Induct_on ‘json_list’ >- (
  rpt strip_tac >>
- fs[json_parse_obj_def, json_dest_obj_def, app_opt_def] >>
+ gs[json_parse_obj_def, json_dest_obj_def] >>
  Cases_on ‘json’ >> (fs[json_size_def])
 ) >>
 rpt strip_tac >>
-fs[json_parse_obj_def] >>
+gs[json_parse_obj_def] >>
+Cases_on ‘str_list’ >> (Cases_on ‘x’ >> (gs[json_parse_obj'_def, json_size_def])) >>
+PairCases_on ‘h''’ >>
+gvs[json_parse_obj'_def, json_size_def] >>
 Cases_on ‘json’ >> (gvs[json_dest_obj_def]) >>
-Cases_on ‘str_list’ >> (fs[json_parse_obj'_def, json_size_def]) >>
-(Cases_on ‘l’ >> (fs[json_parse_obj'_def, json_size_def])) >>
-
-Cases_on ‘h''’ >> (fs[json_parse_obj'_def, json_size_def, app_opt_def]) >>
-Cases_on ‘json_parse_obj' t t'’ >> (fs[json_parse_obj'_def, json_size_def]) >>
-gvs[] >>
-subgoal ‘(case (Object t') of
+subgoal ‘?x. (case (Object t') of
                 Object obj => SOME obj
               | Array v8 => NONE
               | String v9 => NONE
@@ -415,14 +410,19 @@ subgoal ‘(case (Object t') of
               | Bool v13 => NONE
               | Null => NONE) =
              SOME t'’ >- (
- fs[]
-) >>
-subgoal ‘json3_size json_list < json_size (Object t')’ >- (
- metis_tac[]
+ gs[]
 ) >>
 res_tac >>
-fs[GSYM json_size_def]
-*)
+gs[]
+QED
+
+Theorem list_size_json3:
+!json_list.
+list_size json_size json_list = json3_size json_list
+Proof
+Induct >> (
+ gs[list_size_def, json_size_def]
+)
 QED
 
 (* Parses compile-time known constants, e.g. in bitstring widths *)
@@ -1234,28 +1234,39 @@ WF_REL_TAC ‘measure ( \ t. case t of
                            | (INL (maps, json, p_tau_opt)) => json_size json
                            | (INR $ INL (maps, json_list)) => json_p_tau_opt_list_size json_list
                            | (INR $ INR (maps, json_list)) => json_p_tau_opt_list_size json_list)’ >>
-fs[json_p_tau_opt_list_size_def] >>
-rpt strip_tac >> (fs[json_size_def]) >- (
- subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
- fs[]
+gs[json_p_tau_opt_list_size_def] >>
+rpt strip_tac >> (gs[json_size_def]) >- (
+ gs[UNZIP_MAP]
 ) >- (
- subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
- fs[]
+ gs[UNZIP_MAP]
 ) >- (
- subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
- fs[]
+ gs[UNZIP_MAP]
 ) >- (
- cheat
+ gs[list_size_json3]
 ) >- (
- cheat
-) >- (
-cheat
-(*
- subgoal ‘LENGTH args = LENGTH p_1'5'’ >- (imp_res_tac find_fty_match_args_LENGTH >> fs[]) >>
- fs[listTheory.UNZIP_ZIP]
-*)
-)
+ gs[list_size_json3]
+) >>
+‘LENGTH args = LENGTH p_1'5'’ by (imp_res_tac find_fty_match_args_LENGTH >> gs[]) >>
+gs[UNZIP_MAP, listTheory.MAP_ZIP, list_size_json3]
 End
+
+(*
+Theorem find_fty_match_args_LENGTH:
+!numargs ftymap funn tyargs.
+find_fty_match_args ftymap funn numargs = SOME tyargs ==>
+numargs = LENGTH $ FST tyargs
+Proof
+Induct >> (
+ rpt strip_tac >>
+ PairCases_on ‘tyargs’ >>
+ gs[find_fty_match_args_def, AllCaseEqs()] >>
+ PairCases_on ‘fty’ >>
+ gvs[FIND_def] >>
+ PairCases_on ‘z’ >>
+ gvs[p4_auxTheory.INDEX_FIND_EQ_SOME_0]
+)
+QED
+*)
 
 (* TODO: Baking this into the above messes up the termination proof... *)
 Definition petr4_parse_expression_def:
