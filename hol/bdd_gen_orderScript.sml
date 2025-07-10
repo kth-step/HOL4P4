@@ -804,7 +804,7 @@ QED
 
 
 
-
+                               
                                
 
 
@@ -817,8 +817,10 @@ Theorem order_translation:
     consumed_dom_bdd vars_consumed BDD ∧
     ALL_DISTINCT ((REVERSE vars)++vars_consumed) ∧
     (SOME BDD' = mk_BDDPred rec BDD vars_consumed vars c) ⇒
-    BDD_ordered BDD' ((REVERSE vars)++vars_consumed) (* ∧
-    consumed_dom_bdd vars_consumed BDD' *)
+    (BDD_ordered BDD' ((REVERSE vars)++vars_consumed)  ∧
+     consumed_dom_bdd ((REVERSE vars)++vars_consumed) BDD' ∧
+     BDD_WF BDD'
+     )
 Proof
   Induct >| [
     rpt strip_tac >>
@@ -853,6 +855,7 @@ Proof
 
     ‘ALL_DISTINCT (REVERSE vars ⧺ h::vars_consumed)’ by metis_tac[] >>
     gvs[] 
+          
   ]    
 QED
 
