@@ -26,7 +26,7 @@ fun arch_to_term arch_opt =
    SOME vss => mk_some arch_vss_NONE_tm
  | SOME ebpf => mk_some arch_ebpf_NONE_tm
  | SOME v1model => mk_some arch_v1model_NONE_tm
- | NONE => mk_none ``:arch_t``
+ | NONE => mk_none “:arch_t”
 ;
 
 fun ascope_of_arch arch_opt_tm hol4p4exe =
@@ -91,19 +91,19 @@ val _ = Feedback.set_trace "Unicode" (if unicode then 1 else 0);
 *)
 
 (* TODO: Currently duplicated here form the Ott export. Put type abbreviations in p4Syntax? *)
-val _ = type_abbrev("bl", ``:bool list``);
-val _ = type_abbrev("in_out", ``:(bl # num)``);
+val _ = type_abbrev("bl", “:bool list”);
+val _ = type_abbrev("in_out", “:(bl # num)”);
 
 (* Output a HOL4 value to script format *)
 (* TODO: Fix format details *)
 fun output_hol4_val outstream (name, tm, ty_opt) =
  let
-  val _ = TextIO.output (outstream, "val "^name^" = ``");
+  val _ = TextIO.output (outstream, "val "^name^" = “");
   val _ = TextIO.output (outstream, term_to_string tm);
   val _ = case ty_opt of
             SOME ty_str => TextIO.output (outstream, ":"^ty_str)
           | NONE => ()
-  val _ = TextIO.output (outstream, "``;\n\n");
+  val _ = TextIO.output (outstream, "”;\n\n");
  in
   ()
  end
@@ -266,7 +266,7 @@ fun parse_stf_setdefault_line (pblock_map, ttymap) tokens =
    * the pblock as optional prefix - this is a naughty hack that may fail *)
   val (prefix, action) = split_string (String.concat (tl tokens)) #"."
   val action' =
-   if Teq $ eval_rhs ``IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)``
+   if Teq $ eval_rhs “IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)”
    then action
    else if prefix <> "" then (prefix^("."^action)) else action
   val (action_name, args) = split_string_incl action' #"("
@@ -332,7 +332,7 @@ fun parse_stf_add_line (pblock_map, ttymap) tokens =
    * the pblock as optional prefix - this is a naughty hack that may fail *)
   val (prefix, action) = split_string action_token #"."
   val action' =
-   if Teq $ eval_rhs ``IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)``
+   if Teq $ eval_rhs “IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)”
    then action
    else if prefix <> "" then (prefix^("."^action)) else action
   val (action_name, args) = split_string_incl action' #"("
@@ -388,12 +388,12 @@ fun switch iot =
 fun output_actx_setdefault outstream valname block_name table_name action_name args =
  let
   val outstring =
-   String.concat ["val ", valname, "_actx = optionSyntax.dest_some $ rhs $ concl $ EVAL ``p4_replace_tbl_default ^",
+   String.concat ["val ", valname, "_actx = optionSyntax.dest_some $ rhs $ concl $ EVAL “p4_replace_tbl_default ^",
                   valname, "_actx", " \"",
                   block_name, "\" \"",
                   table_name, "\" \"",
                   action_name, "\" ",
-                  args, "``;\n\n"]
+                  args, "”;\n\n"]
   val _ = TextIO.output (outstream, outstring);
  in
   ()
@@ -403,7 +403,7 @@ fun output_actx_setdefault outstream valname block_name table_name action_name a
 fun output_astate_add outstream valname arch_opt table_name keys priority action_name args =
  let
   val outstring =
-   String.concat ["val ", valname, "_astate = optionSyntax.dest_some $ rhs $ concl $ EVAL ``",
+   String.concat ["val ", valname, "_astate = optionSyntax.dest_some $ rhs $ concl $ EVAL “",
                   (astr_of_arch arch_opt)^"_add_ctrl ^",
                   valname, "_astate", " \"",
                   table_name, "\" ",
@@ -412,7 +412,7 @@ fun output_astate_add outstream valname arch_opt table_name keys priority action
 *)
                   "((match_all_e_alt ", term_to_string keys, "), ", priority, ":num) \"",
                   action_name, "\" ",
-                  args, "``;\n\n"]
+                  args, "”;\n\n"]
   val _ = TextIO.output (outstream, outstring);
  in
   ()
@@ -421,7 +421,7 @@ fun output_astate_add outstream valname arch_opt table_name keys priority action
 
 fun output_test_astate outstream valname n =
  let
-  val outstring = String.concat ["val ", valname, "_test", Int.toString n, "_astate = rhs $ concl $ EVAL ``p4_replace_input ^", valname, "_packet", Int.toString n, " ^", valname, "_astate``;\n\n"]
+  val outstring = String.concat ["val ", valname, "_test", Int.toString n, "_astate = rhs $ concl $ EVAL “p4_replace_input ^", valname, "_packet", Int.toString n, " ^", valname, "_astate”;\n\n"]
   val _ = TextIO.output (outstream, outstring);
  in
   ()
@@ -498,7 +498,7 @@ fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(i
     let
      val arch_str = astr_of_arch arch_opt
      val translate_str =
-      String.concat ["val (dict', ", actx', ", ", astate', ") =\n transform_program v1model_dict ",
+      String.concat ["val (dict', ", actx', ", ", astate', ") =\n transform_program cake_dict_tm ",
                      "\"", arch_str, "\" ",
 		     actx, " ", astate, ";\n\n"];
     in
@@ -545,7 +545,7 @@ fun infer_keys ttymap table_name keys =
  let
   (* TODO: This relies on tables in different block declarations not having identical names... *)
   (* Note that ttymap doesn't need prefixes, since types don't change due to nesting.*)
-  val inferred_keys = eval_rhs ``p4_infer_keys (^ttymap) ^(stringSyntax.fromMLstring $ snd $ split_string_rev table_name #".") ^(listSyntax.mk_list(map term_of_int keys, num))``
+  val inferred_keys = eval_rhs “p4_infer_keys (^ttymap) ^(stringSyntax.fromMLstring $ snd $ split_string_rev table_name #".") ^(listSyntax.mk_list(map term_of_int keys, num))”
 (*
   val _ = print (("Inferring keys of table "^table_name)^"\n")
   val _ = print (("ttymap: "^(term_to_string ttymap))^"\n")
@@ -561,7 +561,7 @@ fun infer_keys ttymap table_name keys =
 fun infer_args (ftymap, blftymap) is_default block_name action_name args =
  let
   val inferred_args =
-   eval_rhs ``case p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map term_of_int args, num)) of | SOME args => SOME ([e_v (v_bool T); e_v (v_bool ^(if is_default then F else T))]++args) | NONE => NONE``
+   eval_rhs “case p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map term_of_int args, num)) of | SOME args => SOME ([e_v (v_bool T); e_v (v_bool ^(if is_default then F else T))]++args) | NONE => NONE”
  in
   if (is_some inferred_args)
   then SOME (dest_some inferred_args)
@@ -652,13 +652,13 @@ end
 fun vss_add_ffblocks_to_ab_list ab_list_tm =
  let
   val (ab_list, ab_list_ty) = dest_list ab_list_tm
-  val ab_list' = [``arch_block_inp``,
+  val ab_list' = [“arch_block_inp”,
                   (el 1 ab_list),
-                  ``arch_block_ffbl "parser_runtime"``,
+                  “arch_block_ffbl "parser_runtime"”,
                   (el 2 ab_list),
-                  ``arch_block_ffbl "pre_deparser"``,
+                  “arch_block_ffbl "pre_deparser"”,
                   (el 3 ab_list),
-                  ``arch_block_out``]
+                  “arch_block_out”]
  in
   (mk_list (ab_list', ab_list_ty))
  end
@@ -667,10 +667,10 @@ fun vss_add_ffblocks_to_ab_list ab_list_tm =
 fun ebpf_add_ffblocks_to_ab_list ab_list_tm =
  let
   val (ab_list, ab_list_ty) = dest_list ab_list_tm
-  val ab_list' = [``arch_block_inp``,
+  val ab_list' = [“arch_block_inp”,
                   (el 1 ab_list),
                   (el 2 ab_list),
-                  ``arch_block_out``]
+                  “arch_block_out”]
  in
   (mk_list (ab_list', ab_list_ty))
  end
@@ -679,16 +679,16 @@ fun ebpf_add_ffblocks_to_ab_list ab_list_tm =
 fun v1model_add_ffblocks_to_ab_list ab_list_tm =
  let
   val (ab_list, ab_list_ty) = dest_list ab_list_tm
-  val ab_list' = [``arch_block_inp``,
+  val ab_list' = [“arch_block_inp”,
                   (el 1 ab_list), (* Parser *)
-                  ``arch_block_ffbl "postparser"``,
+                  “arch_block_ffbl "postparser"”,
                   (el 2 ab_list), (* VerifyChecksum *)
-                  ``arch_block_ffbl "preingress"``,
+                  “arch_block_ffbl "preingress"”,
                   (el 3 ab_list), (* Ingress *)
                   (el 4 ab_list), (* Egress *)
                   (el 5 ab_list), (* ComputeChecksum *)
                   (el 6 ab_list), (* Deparser *)
-                  ``arch_block_out``]
+                  “arch_block_out”]
  in
   (mk_list (ab_list', ab_list_ty))
  end
@@ -729,7 +729,7 @@ fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname
   val actx_astate_opt =
    if (is_arch_vss $ dest_some arch_opt_tm) then
     let
-     val fmap' = eval_rhs ``AUPDATE_LIST ^vss_func_map ^fmap``
+     val fmap' = eval_rhs “AUPDATE_LIST ^vss_func_map ^fmap”
      (* TODO: Make appropriate additions to ab_list_tm here *)
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
@@ -737,7 +737,7 @@ fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname
 		     vss_input_f, vss_output_f,
 		     vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
 		     vss_ext_map, fmap']
-     val init_ctrl_opt = eval_rhs ``vss_init_ctrl ^pblock_map ^tbl_updates_tm``
+     val init_ctrl_opt = eval_rhs “vss_init_ctrl ^pblock_map ^tbl_updates_tm”
 (*
      val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
      val _ = print ("tbl_updates :"^((term_to_string tbl_updates_tm)^"\n"))
@@ -756,11 +756,11 @@ fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)
        val aenv = list_mk_pair [term_of_int 0,
-				mk_list ([], ``:in_out``),
-				mk_list ([], ``:in_out``), ascope]
+				mk_list ([], “:in_out”),
+				mk_list ([], “:in_out”), ascope]
        (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
+				  mk_list ([“^(gscope_init_vars):scope”], scope_ty),
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in

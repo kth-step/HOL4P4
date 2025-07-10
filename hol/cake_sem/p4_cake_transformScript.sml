@@ -39,14 +39,12 @@ QED
 
 (** Adding strings from an actx **)
 
-(* TODO: How should this be handled? *)
+(* TODO: How should this be handled? Needs the type operator from theory... *)
 val new_dict_entry =
  if identifier = “:string”
  then “string:string”
- else if identifier = “:word64”
- then “n2w $ LENGTH dict”
- else if identifier = “:word32”
- then “n2w $ LENGTH dict”
+ else if wordsSyntax.is_word_type identifier
+ then “(n2w $ LENGTH (dict:(string # identifier) list)):identifier”
  else raise (mk_HOL_ERR "p4_cake_transformScript" "new_dict_entry" ("identifier type not supported:"^(type_to_string identifier)));
 
 Definition add_string_def:

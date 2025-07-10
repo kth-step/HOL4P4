@@ -122,7 +122,7 @@ val v1model_standard_metadata_zeroed' =
      ``"checksum_error"``,
      ``"parser_error"``,
      ``"priority"``]
-   else if identifier = “:word64” orelse identifier = “:word32”
+   else if wordsSyntax.is_word_type identifier
    then
     [“22w:identifier”,
      “23w:identifier”,
