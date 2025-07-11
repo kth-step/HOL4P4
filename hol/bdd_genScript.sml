@@ -588,9 +588,8 @@ Definition eleminatble_def:
 eleminatble ((r,edges,labels):('a,'b)BDD)  n n' = 
 (n≠n' ∧
  ALOOKUP edges n' = SOME (n,n) ∧
- ALOOKUP labels n  ≠ NONE )
-End
-
-          
+ ALOOKUP labels n  ≠ NONE ∧
+ ALOOKUP labels n' ≠ NONE)
+End 
                                              
 val _ = export_theory ();
