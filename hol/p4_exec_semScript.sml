@@ -60,9 +60,7 @@ Definition bitv_2comp_def:
  bitv_2comp (v:bool list) l =
   let a = 2 ** l in
   let b = v2n v in
-  if b ≤ a
-  then SOME $ fixwidth l $ n2v (a - b)
-  else NONE
+  fixwidth l $ n2v (a - b)
 End
 
 (* TODO: This now has a sanity check for unop_neg_signed, so that completeness of CakeML-exportable
@@ -74,10 +72,7 @@ Definition unop_exec_def:
  /\
  (unop_exec unop_neg_signed (v_bit (bl,n)) =
   if n > 0 /\ n <= 128 /\ LENGTH bl = n
-  then
-   (case bitv_2comp bl n of
-    | SOME res => SOME (v_bit (res, n))
-    | NONE => NONE)
+  then SOME (v_bit (bitv_2comp bl n, n))
   else NONE)
  /\
  (unop_exec unop_un_plus (v_bit bitv) = SOME (v_bit bitv))
@@ -139,8 +134,8 @@ Definition bitv_saturate_add_def:
   let res = (v2n a) + (v2n b) in
   let limit = (v2n (REPLICATE l T) + 1) in
   if limit <= res
-  then SOME $ (fixwidth l $ n2v (limit - 1), l)
-  else SOME $ (fixwidth l $ n2v res, l)
+  then (fixwidth l $ n2v (limit - 1), l)
+  else (fixwidth l $ n2v res, l)
 End
 
 Definition bitv_saturate_sub_def:
@@ -148,71 +143,66 @@ Definition bitv_saturate_sub_def:
   (* TODO: Need this so that the CakeML translator can work *)
   let av = v2n a in
   let bv = v2n b in
-  SOME $ (fixwidth l $ n2v (if bv ≤ av then (av - bv) else 0), l)
+  (fixwidth l $ n2v (if bv ≤ av then (av - bv) else 0), l)
 End
 
 Definition bitv_lsl_bv_def:
  bitv_lsl_bv a b l =
-  SOME $ (fixwidth l (a++(REPLICATE (v2n b) F)), l)
+  (fixwidth l (a++(REPLICATE (v2n b) F)), l)
 End
 
 (* We could use l instead of LENGTH a, but that gives a precondition *)
 Definition bitv_lsr_bv_def:
  bitv_lsr_bv a b l =
-  SOME $ (TAKE (LENGTH a) ((REPLICATE (v2n b) F)++a), l)
+  (TAKE (LENGTH a) ((REPLICATE (v2n b) F)++a), l)
 End
 
 Definition bitv_mul_def:
- bitv_mul a b l = SOME $ (fixwidth l $ n2v (v2n a * v2n b), l)
+ bitv_mul a b l = (fixwidth l $ n2v (v2n a * v2n b), l)
 End
 
 Definition bitv_div_def:
  bitv_div a b l =
   let divisor = v2n b in
   if divisor <> 0
-  then
-   SOME $ (fixwidth l $ n2v (v2n a DIV divisor), l)
-  else NONE
+  then (fixwidth l $ n2v (v2n a DIV divisor), l)
+  else (fixwidth l $ n2v 0, l)
 End
 
 Definition bitv_mod_def:
  bitv_mod a b l =
   let modulus = v2n b in
   if modulus <> 0
-  then
-   SOME $ (fixwidth l $ n2v (v2n a MOD modulus), l)
-  else NONE
+  then (fixwidth l $ n2v (v2n a MOD modulus), l)
+  else (fixwidth l $ n2v 0, l)
 End
 
 Definition bitv_add_def:
- bitv_add a b (l:num) = SOME $ (fixwidth l $ n2v (v2n a + v2n b), l)
+ bitv_add a b (l:num) = (fixwidth l $ n2v (v2n a + v2n b), l)
 End
 
 (* Note that this guard can never yield the NONE case in practice,
  * it's just needed for translation *)
 Definition bitv_sub_def:
- bitv_sub a b (l:num) =
-  case bitv_2comp b l of
-  | SOME res => bitv_add a res l
-  | NONE => NONE
+ bitv_sub a b (l:num) = bitv_add a (bitv_2comp b l) l
 End
 
 Definition band'_def:
  band' a b = MAP (\(x,y). x /\ y) (ZIP(a, b))
 End
 Definition bitv_and_def:
- bitv_and a b (l:num) = SOME $ (band' a b, l)
+ bitv_and a b (l:num) = (band' a b, l)
 End
 
 Definition bor'_def:
  bor' (a:bool list) b = MAP (\(x,y). (x \/ y)) (ZIP(a, b))
 End
 Definition bitv_or_def:
- bitv_or a b (l:num) = SOME $ (bor' a b, l)
+ bitv_or a b (l:num) = (bor' a b, l)
 End
 
 Definition bitv_xor_def:
- bitv_xor a b (l:num) = SOME $ (bxor a b, l)
+ bitv_xor a b (l:num) = (bxor a b, l)
 End
 
 (* TODO: Split the binop type into binops and binpreds, more efficient... *)
@@ -262,7 +252,7 @@ Definition bitv_binop'_def:
   if n = n'
   then
    (case get_bitv_binop' binop of
-    | SOME bo => bo v v' n
+    | SOME bo => SOME $ bo v v' n
     | NONE => NONE)
   else NONE
 End
