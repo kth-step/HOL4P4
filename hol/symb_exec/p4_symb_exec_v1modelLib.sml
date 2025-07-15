@@ -6,7 +6,7 @@ open bitstringSyntax listSyntax numSyntax optionSyntax pairSyntax;
 
 open symb_execTheory p4_symb_execTheory p4_v1modelTheory;
 
-open p4_v1modelLib p4Syntax p4_testLib;
+open p4_coreLib p4_v1modelLib p4Syntax p4_testLib;
 
 open auxLib symb_execSyntax p4_convLib;
 
@@ -126,7 +126,7 @@ fun approx_v1model_update_checksum p4_symb_arg_prefix fv_index scope_list =
   val approx_thm =
    (* “^goal_tm” *)
    prove(goal_tm,
-    SIMP_TAC std_ss [disj_list_def, compute_checksum16_inner_def, p4Theory.v_11, p4Theory.w16_def, w2v_exists]
+    SIMP_TAC std_ss [disj_list_def, p4_coreTheory.compute_checksum16_inner_def, p4Theory.v_11, p4Theory.w16_def, w2v_exists]
    );
  in
   SOME (approx_thm, [fv_index+16])

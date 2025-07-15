@@ -2013,7 +2013,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
     val time_start2 = Time.now();
 
     (* Simplify the word operations that contain no free variables *)
-    val bigstep_thm' = SIMP_RULE (empty_ss++p4_wordops_ss) [] bigstep_thm
+    val bigstep_thm' = SIMP_RULE (empty_ss++p4_bitvops_ss) [] bigstep_thm
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Simplifying word ops on constants: ",

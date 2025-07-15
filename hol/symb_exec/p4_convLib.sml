@@ -20,14 +20,13 @@ open evalwrapLib;
 
 (* RESTR_HOL4P4_CONV constants: *)
 val p4_stop_eval_consts_unary =
- [(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
-(*
-  “word_2comp:'a word -> 'a word”
-*)
+ [(*(* “word_1comp”, (* Should be OK? ¬v2w [x; F; T] = v2w [¬x; T; F] *) *)
   word_2comp_tm
+*)
+  “bitv_2comp”
  ];
-val p4_stop_eval_consts_binary =
- [
+val p4_stop_eval_consts_binops =
+ [(*
 (*
 “word_mul:'a word -> 'a word -> 'a word”,
   “word_div:'a word -> 'a word -> 'a word”,
@@ -59,12 +58,31 @@ val p4_stop_eval_consts_binary =
   word_hs_tm,
   word_lo_tm,
   word_hi_tm
+*)
+  “bitv_mul”,
+  “bitv_div”,
+  “bitv_mod”,
+  “bitv_add”,
+  “bitv_saturate_add”,
+  “bitv_sub”,
+  “bitv_saturate_sub”,
+  “bitv_lsl_bv”,
+  “bitv_lsr_bv”
 ];
+
+val p4_stop_eval_consts_binpreds =
+ [
+  “bitv_ls”,
+  “bitv_hs”,
+  “bitv_lo”,
+  “bitv_hi”
+];
+
 
 (* TODO: Merge with the below? *)
 val table_stop_consts = [match_all_tm];
 
-val p4_stop_eval_consts = p4_stop_eval_consts_unary@p4_stop_eval_consts_binary;
+val p4_stop_eval_consts = p4_stop_eval_consts_unary@p4_stop_eval_consts_binops@p4_stop_eval_consts_binpreds;
 
 
 fun same_const_disj_list [] tm = K false tm
@@ -298,39 +316,48 @@ fun p4_get_norewr_eval_ctxt_gen (stop_consts, thms_to_add, mk_exec) astate =
 
 (* TODO: This should simplify the scopes after shortcutting *)
 local
-fun word_conv word =
- if null $ free_vars word
- then HOL4P4_CONV word
+fun bitv_conv bitv =
+ if null $ free_vars bitv
+ then HOL4P4_CONV bitv
  else raise UNCHANGED
 ;
 
-val word_convs_unary =
+val bitv_convs_unary =
  map
- (fn wordop =>
-  {conv = K (K word_conv),
-   key= SOME ([], mk_comb (wordop, mk_var ("w", wordsSyntax.mk_word_type Type.alpha))),
+ (fn bitvop =>
+  {conv = K (K bitv_conv),
+   key= SOME ([], mk_comb (mk_comb (bitvop, mk_var ("bl", listSyntax.mk_list_type bool)), mk_var ("n", numSyntax.num))),
    (* TODO: Better names *)
-   name = term_to_string wordop,
-   trace = 2}) p4_stop_eval_consts_unary
+   name = term_to_string bitvop,
+   trace = 2}:convdata) p4_stop_eval_consts_unary
 ;
-val word_convs_binary =
+val bitv_convs_binops =
  map
- (fn wordop =>
-  {conv = K (K word_conv),
-   key= SOME ([], mk_comb (mk_comb (wordop, mk_var ("w", wordsSyntax.mk_word_type Type.alpha)), mk_var ("w'", wordsSyntax.mk_word_type Type.alpha))),
+ (fn bitvop =>
+  {conv = K (K bitv_conv),
+   key= SOME ([], mk_comb (mk_comb (mk_comb (bitvop, mk_var ("bl", listSyntax.mk_list_type bool)), mk_var ("bl'", listSyntax.mk_list_type bool)), mk_var ("n", numSyntax.num))),
    (* TODO: Better names *)
-   name = term_to_string wordop,
-   trace = 2}) p4_stop_eval_consts_binary
+   name = term_to_string bitvop,
+   trace = 2}:convdata) p4_stop_eval_consts_binops
+;
+val bitv_convs_binpreds =
+ map
+ (fn bitvop =>
+  {conv = K (K bitv_conv),
+   key= SOME ([], mk_comb (mk_comb (bitvop, mk_var ("bl", listSyntax.mk_list_type bool)), mk_var ("bl'", listSyntax.mk_list_type bool))),
+   (* TODO: Better names *)
+   name = term_to_string bitvop,
+   trace = 2}:convdata) p4_stop_eval_consts_binpreds
 ;
 
 in
-val p4_wordops_ss =
+val p4_bitvops_ss =
   SSFRAG {ac = [],
           congs = [],
-          convs = word_convs_unary@word_convs_binary,
+          convs = bitv_convs_unary@bitv_convs_binops@bitv_convs_binpreds,
           dprocs = [],
           filter = NONE,
-          name = SOME "p4_wordops_ss",
+          name = SOME "p4_bitvops_ss",
           rewrs = []};
 end;
 (*

@@ -12,6 +12,6 @@ val p4_eval_ctxt_gen :
    term list * term list * ('a -> term) -> thm -> 'a -> thm
 val p4_get_norewr_eval_ctxt_gen :
    term list * thm list * ('a -> term) -> 'a -> thm
-val p4_wordops_ss : simpLib.ssfrag
+val p4_bitvops_ss : simpLib.ssfrag
 
 end

@@ -153,7 +153,7 @@ End
 
 (* We could use l instead of LENGTH a, but that gives a precondition *)
 Definition bitv_lsr_bv_def:
- bitv_lsr_bv a b l =
+ bitv_lsr_bv a b (l:num) =
   (TAKE (LENGTH a) ((REPLICATE (v2n b) F)++a), l)
 End
 
