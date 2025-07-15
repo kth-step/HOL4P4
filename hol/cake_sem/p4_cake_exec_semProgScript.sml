@@ -173,6 +173,72 @@ val _ = translate unop_exec'_def;
 val _ = translate e_exec_unop'_def;
 
 (* Select *)
+Theorem word_msb_thm:
+ !w. word_msb (w:'a word) = BIT (dimindex (:'a) - 1) (w2n w)
+Proof
+ Cases \\ FULL_SIMP_TAC std_ss [word_msb_n2w,w2n_n2w]
+QED
+
+val match_width = “:64”;
+
+val _ = translate bitTheory.MOD_2EXP_def;
+val _ = translate bitTheory.DIV_2EXP_def;
+val _ = translate bitTheory.BITS_def;
+val _ = translate bitTheory.BIT_def;
+val _ = translate (word_msb_thm |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
+Theorem word_msb_side:
+ !w. word_msb_side w
+Proof
+simp[Once $ definition "word_msb_side_def", definition "bit_side_def", definition "bits_side_def"]
+QED
+val _ = update_precondition word_msb_side;
+
+val _ = translate (word_mul_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
+
+val _ = translate (word_2comp_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) [] |> SIMP_RULE std_ss [GSYM wordsTheory.WORD_NEG_MUL]);
+Theorem word_2comp_side:
+ !w. word_2comp_side w
+Proof
+simp[Once $ definition "word_2comp_side_def"] \\
+wordsLib.Induct_word \\ (
+ gs[]
+)
+QED
+val _ = update_precondition word_2comp_side;
+
+val _ = translate (nzcv_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
+Theorem nzcv_side:
+ !w w'. nzcv_side w w'
+Proof
+simp[definition "nzcv_side_def", definition "bit_side_def", definition "bits_side_def"] 
+QED
+val _ = update_precondition nzcv_side;
+(* TODO: Not needed?
+val _ = translate (word_ge_def |> INST_TYPE [alpha|->match_width]);
+val _ = translate (word_le_def |> INST_TYPE [alpha|->match_width]);
+*)
+val _ = translate (word_ls_def |> INST_TYPE [alpha|->match_width]);
+val _ = translate (word_lo_def |> INST_TYPE [alpha|->match_width]);
+val _ = translate p4_match_range''_def;
+val _ = translate p4_match_mask''_def;
+val _ = translate match''_def;
+val _ = translate match_all''_def;
+val _ = translate match_all_first''_def;
+
+Theorem v2w_64_thm:
+ !v. v2w v = (n2w (v2n v)):word64
+Proof
+ FULL_SIMP_TAC std_ss [bitstringTheory.n2w_v2n]
+QED
+    
+val _ = translate v2w_64_thm;
+val _ = translate TAKE_def;
+val _ = translate v_list_to_word64s_list_def;
+val _ = translate match_all_first_def;
+val _ = translate e_exec_select'_def;
+
+(* Binops *)
+
 val _ = translate bitv_ls_def;
 val _ = translate bitv_hs_def;
 val _ = translate bitv_lo_def;
@@ -184,49 +250,10 @@ val _ = translate bitv_neq_def;
 val _ = translate get_bitv_binpred'_def;
 val _ = translate bitv_binpred'_def;
 
-Theorem word_msb_thm:
- !w. word_msb (w:'a word) = BIT (dimindex (:'a) - 1) (w2n w)
-Proof
- Cases \\ FULL_SIMP_TAC std_ss [word_msb_n2w,w2n_n2w]
-QED
-
-
-val _ = translate bitTheory.MOD_2EXP_def;
-val _ = translate bitTheory.DIV_2EXP_def;
-val _ = translate bitTheory.BITS_def;
-val _ = translate bitTheory.BIT_def;
-val _ = translate (word_msb_thm |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
-Theorem word_msb_side:
- !w. word_msb_side w
-Proof
-simp[Once $ definition "word_msb_side_def", definition "bit_side_def", definition "bits_side_def"]
-QED
-val _ = update_precondition word_msb_side;
-
-val _ = translate (word_mul_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
-
-val _ = translate (word_2comp_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) [] |> SIMP_RULE std_ss [GSYM wordsTheory.WORD_NEG_MUL]);
-Theorem word_2comp_side:
- !w. word_2comp_side w
-Proof
-simp[Once $ definition "word_2comp_side_def"] \\
-wordsLib.Induct_word \\ (
- gs[]
-)
-QED
-val _ = update_precondition word_2comp_side;
-
-val _ = translate (nzcv_def |> INST_TYPE [alpha|->“:64”] |> SIMP_RULE (srw_ss()) []);
-Theorem nzcv_side:
- !w w'. nzcv_side w w'
-Proof
-simp[definition "nzcv_side_def", definition "bit_side_def", definition "bits_side_def"] 
-QED
-val _ = update_precondition nzcv_side;
-
-val _ = translate (word_ge_def |> INST_TYPE [alpha|->“:64”]);
-val _ = translate (word_le_def |> INST_TYPE [alpha|->“:64”]);
-val _ = translate p4_match_range''_def;
+val _ = translate is_short_circuitable_def;
+val _ = translate e_exec_short_circuit'_def;
+val _ = translate bitv_bl_binop_def;
+val _ = translate bitstringTheory.shiftl_def;
 
 val _ = translate bitv_mul_def;
 val _ = translate bitv_div_def;
@@ -245,8 +272,11 @@ val _ = translate rich_listTheory.REPLICATE;
 val _ = translate bitv_saturate_add_def;
 val _ = translate bitv_saturate_sub_def;
 val _ = translate bitv_lsl_bv_def;
+(*
 val _ = translate rich_listTheory.TAKE;
+*)
 val _ = translate bitv_lsr_bv_def;
+(*
 Theorem take_1_side_thm:
 !n l. take_1_side n l <=> n <= LENGTH l
 Proof
@@ -259,43 +289,26 @@ Cases_on ‘l’ \\ (
 )
 QED
 val _ = update_precondition take_1_side_thm;
+*)
+(*
 Theorem bitv_lsr_bv_side:
 !v1 v2 l. bitv_lsr_bv_side v1 v2 l
 Proof
 simp[Once $ definition "bitv_lsr_bv_side_def", take_1_side_thm]
 QED
 val _ = update_precondition bitv_lsr_bv_side;
+*)
 val _ = translate p4Theory.binop2num_thm;
 val _ = translate p4Theory.binop_CASE;
 val _ = translate get_bitv_binop'_def;
 val _ = translate bitv_binop'_def;
 
 val _ = translate (EVAL “w2v (w:word64)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);
-val _ = translate (word_eq_def |> INST_TYPE [alpha|->“:64”] |> INST_TYPE [beta|->“:64”]);
-val _ = translate p4_match_mask''_def;
-val _ = translate match''_def;
-val _ = translate match_all''_def;
-val _ = translate match_all_first''_def;
+val _ = translate (word_eq_def |> INST_TYPE [alpha|->match_width] |> INST_TYPE [beta|->match_width]);
 
-Theorem v2w_64_thm:
- !v. v2w v = (n2w (v2n v)):word64
-Proof
- FULL_SIMP_TAC std_ss [bitstringTheory.n2w_v2n]
-QED
-    
-val _ = translate v2w_64_thm;
-val _ = translate v_list_to_word64_list_def;
-val _ = translate match_all_first_def;
-val _ = translate e_exec_select'_def;
-
-(* Binops *)
-val _ = translate is_short_circuitable_def;
-val _ = translate e_exec_short_circuit'_def;
-val _ = translate bitv_bl_binop_def;
-val _ = translate bitstringTheory.shiftl_def;
 val _ = translate binop_exec'_def;
 val _ = translate e_exec_binop'_def;
-    
+
 (* Concatenation *)
 val _ = translate bitv_concat_def;
 val _ = translate e_exec_concat'_def;

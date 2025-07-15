@@ -45,7 +45,7 @@ val _ = translate FOLDL_MATCH_alt'_def;
 val _ = translate FOLDL_MATCH'_def;
 val _ = translate listTheory.LIST_TO_SET_DEF;
 val _ = translate boolTheory.IN_DEF;
-val _ = translate e_list_to_word64_list_def;
+val _ = translate e_list_to_word64s_list_def;
 val _ = translate v1model_apply_table_f''_def;
 
 (* Extern implementations: *)

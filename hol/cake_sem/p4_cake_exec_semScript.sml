@@ -44,11 +44,12 @@ End
 
 Type v_list' = “:(v' list)”
 
+(* Note this limits matching to 128 bits, same as in the regular executable semantics *)
 Datatype:   
  s' =  (* set *)
-   s'_sing word64 (* singleton *)
- | s'_range word64 word64 (* interval *)
- | s'_mask word64 word64 (* bit mask *)
+   s'_sing (word64 # word64) (* singleton *)
+ | s'_range (word64 # word64) (word64 # word64) (* interval *)
+ | s'_mask (word64 # word64) (word64 # word64) (* bit mask *)
  | s'_univ (* universal *)
 End
 
@@ -358,13 +359,13 @@ Definition init_out_v_cake_def:
  (init_out_v_cake (v'_ext_ref i) = v'_ext_ref i) /\
  (init_out_v_cake v'_bot = v'_bot)
 Termination
- WF_REL_TAC `measure v'_size` \\
- fs [v'_size_def] \\
- REPEAT STRIP_TAC \\
- `v'_size v' < v'1_size t` suffices_by (
-  fs []
+ WF_REL_TAC ‘measure v'_size’ \\
+ gs[v'_size_def] \\
+ rpt strip_tac \\
+ ‘v'_size v' < v'1_size t’ suffices_by (
+  gs[]
  ) \\
- METIS_TAC [v1_size_mem]
+ metis_tac[v1_size_mem]
 End
 
 (* Note: this uses two ' since lookup_lval' already exists *)
@@ -1242,48 +1243,101 @@ Definition match_all_first_def:
 End
 *)
 
-Definition e_list_to_word64_list_def:
- (e_list_to_word64_list [] = SOME ([]:word64 list)) /\
- (e_list_to_word64_list (h::t) =
+(* Note: Use in arch implementation *)
+Definition e_list_to_word64s_list_def:
+ (e_list_to_word64s_list [] = SOME ([]:(word64 # word64) list)) /\
+ (e_list_to_word64s_list (h::t) =
    case h of
    | e'_v $ v'_bit (bl, n) =>
-    (case e_list_to_word64_list t of
-     | SOME res => SOME (v2w bl::res)
+    (case e_list_to_word64s_list t of
+     | SOME res =>
+      if n > 64
+      then SOME ((v2w $ TAKE (n-64) bl, v2w $ DROP (n-64) bl)::res)
+      else SOME ((0w, v2w bl)::res)
      | NONE => NONE)
    | e'_v $ v'_bool b =>
-    (case e_list_to_word64_list t of
-     | SOME res => SOME (v2w [b]::res)
+    (case e_list_to_word64s_list t of
+     | SOME res => SOME ((0w, v2w [b])::res)
      | NONE => NONE)
    | _ => NONE)
 End
 
-Definition v_list_to_word64_list_def:
- (v_list_to_word64_list [] = SOME ([]:word64 list)) /\
- (v_list_to_word64_list (h::t) =
+Definition v_list_to_word64s_list_def:
+ (v_list_to_word64s_list [] = SOME ([]:(word64 # word64) list)) /\
+ (v_list_to_word64s_list (h::t) =
    case h of
    | v'_bit (bl, n) =>
-    (case v_list_to_word64_list t of
-     | SOME res => SOME (v2w bl::res)
+    (case v_list_to_word64s_list t of
+     | SOME res =>
+      if n > 64
+      then SOME ((v2w $ TAKE (n-64) bl, v2w $ DROP (n-64) bl)::res)
+      else SOME ((0w, v2w bl)::res)
      | NONE => NONE)
    | v'_bool b =>
-    (case v_list_to_word64_list t of
-     | SOME res => SOME (v2w [b]::res)
+    (case v_list_to_word64s_list t of
+     | SOME res => SOME ((0w, v2w [b])::res)
      | NONE => NONE)
    | _ => NONE)
 End
 
 Definition p4_match_mask''_def:
- p4_match_mask'' val mask (w:word64) =
-  word_eq (word_and w mask) (word_and val mask)
-End
-
-Definition p4_match_range''_def:
- p4_match_range'' lo hi (w:word64) =
-  if word_ge w lo
-  then word_le w hi
+ p4_match_mask'' (val1, val2) (mask1, mask2) (w1:word64, w2:word64) =
+  if (word_and w2 mask2) = (word_and val2 mask2)
+  then (word_and w1 mask1) = (word_and val1 mask1)
   else F
 End
 
+(* Only used for sanity check *)
+Definition p4_match_mask''_128_def:
+ p4_match_mask''_128 (val1:word64, val2:word64) (mask1:word64, mask2:word64) (w1:word64, w2:word64) =
+  ((word_and ((w1@@w2):word128) ((mask1@@mask2):word128)) = (word_and ((val1@@val2):word128) ((mask1@@mask2):word128)))
+End
+
+(* Sanity check of the above *)
+Theorem p4_match_mask''_128_equiv:
+!w1 w2 lo1 lo2 hi1 hi2.
+p4_match_mask''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) <=>
+ p4_match_mask'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64)
+Proof
+gvs[p4_match_mask''_128_def, p4_match_mask''_def] >>
+blastLib.FULL_BBLAST_TAC
+QED
+
+Definition p4_match_range''_def:
+ p4_match_range'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) =
+  if w1 <+ lo1 then F
+  else if hi1 <+ w1 then F
+  else if w1 = lo1 then
+    if w1 = hi1 then
+      lo2 <=+ w2 /\ w2 <=+ hi2
+    else
+      lo2 <=+ w2
+  else if w1 = hi1 then
+    w2 <=+ hi2
+  else T
+End
+
+(* Only used for sanity check *)
+Definition p4_match_range''_128_def:
+ p4_match_range''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) =
+  let w128 = (w1 @@ w2):word128 in
+  let lo128 = (lo1 @@ lo2):word128 in  
+  let hi128 = (hi1 @@ hi2):word128 in
+  lo128 <=+ w128 /\ w128 <=+ hi128
+End
+
+(* Sanity check of the above *)
+Theorem p4_match_range''_128_equiv:
+!w1 w2 lo1 lo2 hi1 hi2.
+p4_match_range''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) <=>
+ p4_match_range'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64)
+Proof
+gvs[p4_match_range''_128_def, p4_match_range''_def] >>
+blastLib.FULL_BBLAST_TAC
+QED
+
+(* TODO: Decide how to implement matching...
+ * Are 2 64-bit operations OK? *)
 Definition match''_def:
  match'' w s =
   case s of
@@ -1314,7 +1368,7 @@ Definition match_all_first''_def:
 End
 Definition match_all_first_def:
  match_all_first v_list s_l_x_l =
-  case v_list_to_word64_list v_list of
+  case v_list_to_word64s_list v_list of
   | SOME w_list => match_all_first'' 0 w_list s_l_x_l
   | NONE => NONE
 End

@@ -281,7 +281,7 @@ End
 
 Definition FOLDL_MATCH'_def:
  (FOLDL_MATCH' w_l res [] = res) /\
- (FOLDL_MATCH' (w_l:word64 list) (res_act:identifier # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
+ (FOLDL_MATCH' (w_l:(word64 # word64) list) (res_act:identifier # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
   if match_all_e_alt'' s_l w_l
   then
    (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
@@ -303,7 +303,7 @@ val v1model_apply_table_f''_def =
      *       Ideally, one could make a general, not hard-coded, solution for this *)
     case ALOOKUP ctrl x of
      | SOME table =>       
-      (case e_list_to_word64_list e_l of
+      (case e_list_to_word64s_list e_l of
        | SOME w_l =>
         (case table of
            tbl_impl f => SOME $ f $ w_l
@@ -324,7 +324,7 @@ val v1model_apply_table_f''_def =
      *       Ideally, one could make a general, not hard-coded, solution for this *)
     case ALOOKUP ctrl x of
      | SOME table =>
-      (case e_list_to_word64_list e_l of
+      (case e_list_to_word64s_list e_l of
        | SOME w_l =>
         (case table of
            tbl_impl f => SOME $ f $ w_l

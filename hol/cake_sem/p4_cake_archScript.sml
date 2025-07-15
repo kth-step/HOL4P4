@@ -23,7 +23,7 @@ tbl =
    (* Any regular table *)
    tbl_regular ((s' list # num, (identifier # e_list')) alist)
    (* A table with a custom implementation *)
- | tbl_impl ((word64 list -> (identifier # e_list')))
+ | tbl_impl (((word64 # word64) list -> (identifier # e_list')))
 End
 
 Definition header_entries2v'_def:

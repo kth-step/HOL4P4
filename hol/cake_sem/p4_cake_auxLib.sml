@@ -13,7 +13,7 @@ open p4Syntax;
  * Also works off the bat for 16 bits, but not 128.
  * Could also be just strings. *)
 (* val identifier = “:string”; *)
-(* val identifier = “:word64”; *)
+val identifier = “:word64”;
 (* val identifier = “:word32”; *)
 (* val identifier = “:word16”; *)
 

@@ -52,13 +52,17 @@ Definition to_bool_cast_exec_def:
   | NONE => NONE
 End
 
-
+(* TODO: This now has a sanity check for unop_neg_signed, so that completeness of CakeML-exportable
+ * sem can be proved. *)
 Definition unop_exec_def:
  (unop_exec unop_neg (v_bool b) = SOME (v_bool ~b))
  /\
  (unop_exec unop_compl (v_bit bitv) = SOME (v_bit (bitv_bl_unop bnot bitv)))
  /\
- (unop_exec unop_neg_signed (v_bit bitv) = SOME (v_bit (bitv_unop unop_neg_signed bitv)))
+ (unop_exec unop_neg_signed (v_bit (bl,n)) =
+  if n > 0 /\ n <= 128 /\ LENGTH bl = n
+  then SOME (v_bit (bitv_unop unop_neg_signed (bl,n)))
+  else NONE)
  /\
  (unop_exec unop_un_plus (v_bit bitv) = SOME (v_bit bitv))
  /\
@@ -211,13 +215,29 @@ Definition e_exec_acc_def:
  (e_exec_acc _ = NONE)
 End
 
+(* Note: according to the P4 definition, select can only be
+ * performed on types represented by bools and bits in HOL4P4.
+ * This explicit check allows to prove completeness of the CakeML-adjusted
+ * semantics, which has some optimizations. *)
+Definition pre_match_check_def:
+ (pre_match_check [] = T) /\
+ (pre_match_check ((x,v)::t) =
+  case v of
+  | v_bool _ => pre_match_check t
+  | v_bit _ => pre_match_check t
+  | _ => F)
+End
+
 Definition e_exec_select_def:
  (e_exec_select (e_v v) s_l_x_l x =
   case v of
   | v_struct x_v_l =>
-   (case (FIND (\ (s_list, x'). match_all (ZIP(SND $ UNZIP x_v_l,s_list))) s_l_x_l) of
-    | SOME (s_list, x') => SOME x'
-    | NONE => SOME x)
+   if pre_match_check x_v_l
+   then
+    (case (FIND (\ (s_list, x'). match_all (ZIP(SND $ UNZIP x_v_l,s_list))) s_l_x_l) of
+     | SOME (s_list, x') => SOME x'
+     | NONE => SOME x)
+   else NONE
   | _ => SOME x) /\
  (e_exec_select _ _ _ = NONE)
 End

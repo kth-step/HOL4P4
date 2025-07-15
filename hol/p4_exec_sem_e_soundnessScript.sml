@@ -506,38 +506,40 @@ Theorem e_unop_exec_sound_red:
 e_exec_sound type e ==>
 e_exec_sound type (e_unop u e)
 Proof
-fs [e_exec_sound] >>
+fs[e_exec_sound] >>
 rpt strip_tac >>
 Cases_on `is_v e` >| [
  Cases_on `e_exec_unop u e` >> (
-  fs [e_exec_def] >>
-  rw []
+  gs[e_exec_def] >>
+  rw[]
  ) >>
  Cases_on `e` >> (
-  fs [is_v_def]
+  gs[is_v_def]
  ) >>
  (* Different concrete cases *)
  Cases_on `u` >> (
   Cases_on `v` >> (
-   fs [e_exec_unop_def, unop_exec_def]
+   gs [e_exec_unop_def, unop_exec_def]
   ) >>
-  rw []
+  rw[]
  ) >| [
   irule ((valOf o find_clause_e_red) "e_neg_bool"),
 
   irule ((valOf o find_clause_e_red) "e_compl"),
 
+  PairCases_on ‘p’ >>
+  gvs[e_exec_unop_def, unop_exec_def] >>
   irule ((valOf o find_clause_e_red) "e_neg_signed"),
 
   irule ((valOf o find_clause_e_red) "e_un_plus")
  ] >>
- fs [clause_name_def],
+ gs[clause_name_def],
 
  Cases_on `e_exec uninit_arb ctx g_scope_list scopes_stack e` >> (
-  fs [e_exec_def]
+  gs[e_exec_def]
  ) >>
  Cases_on `x` >>
- fs [] >>
+ gs[] >>
  METIS_TAC [(valOf o find_clause_e_red) "e_unop_arg", clause_name_def]
 ]
 QED

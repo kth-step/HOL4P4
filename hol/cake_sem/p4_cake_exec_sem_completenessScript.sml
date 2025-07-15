@@ -276,15 +276,38 @@ Theorem lookup_transform_v_struct:
  ALOOKUP dict x = SOME w ==>
  ALOOKUP t' w = SOME v'
 Proof
+Induct_on ‘t’ >- (
+ gs[transform_v_def]
+) >>
 rpt strip_tac >>
-(* When transforming a struct, the names of fields are translated according to dict.
- * If an entry exists in the original table, the dictionary-translated entry must exist
- * in the translated struct - in fact, at the same location. The value is then the translated version
-  * of the original entry. *)
-cheat
+qpat_x_assum ‘transform_v dict (v_struct (h::t)) = SOME (v'_struct t')’
+ (fn thm => assume_tac $ ONCE_REWRITE_RULE [transform_v_def] thm >> 
+  gvs[AllCaseEqs()]) >>
+res_tac >>
+gs[] >>
+strip_tac >>
+gvs[] >>
+metis_tac[dict_bij_injectivity]
 QED
-        
-Theorem INDEX_FIND_index:
+
+Theorem INDEX_FIND_index_less:
+!l e P j n.
+INDEX_FIND n P l = SOME (j,e) ==>
+n <= j
+Proof
+Induct_on ‘l’ >> (
+ gs[listTheory.INDEX_FIND_def]
+) >>
+rpt strip_tac >>
+gs[] >>
+Cases_on ‘P h’ >> (
+ gvs[]
+) >>
+qpat_x_assum ‘!e P j n. _’ (ASSUME_TAC o Q.SPECL [‘e’, ‘P’, ‘j’, ‘SUC n’]) >>
+gs[]
+QED
+
+Theorem INDEX_FIND_index_add:
  !a l P b.
  INDEX_FIND 0 P l = SOME (a,b) ==>
  INDEX_FIND 1 P l = SOME (a+1,b)
@@ -328,7 +351,7 @@ rpt strip_tac >>
 gvs[] >>
 Cases_on ‘z’ >>
 qexists_tac ‘(q' + 1, r)’ >>
-gvs[INDEX_FIND_index]
+gvs[INDEX_FIND_index_add]
 QED
 
 (* Completeness of acc, non-recursive case *)
@@ -601,8 +624,252 @@ Cases_on ‘e’ >> (gs[p4_exec_semTheory.is_v_bit_def]) >- (
 gvs[listTheory.UNZIP_MAP, is_v_bit'_def]
 QED
 
+Theorem transform_scope_cons:
+!dict h t scope'.
+dict_bij dict ==>
+transform_scope dict (h::t) = SOME scope' ==>
+?h' t'.
+ transform_scope_entry dict h = SOME h' /\
+ transform_scope dict t = SOME t' /\
+ scope' = h'::t'
+Proof
+rpt strip_tac >>
+gs[transform_scope_def, oFOLDR_def]
+QED
+
+Theorem transform_scope_list_cons:
+!dict h t scope_list'.
+dict_bij dict ==>
+transform_scope_list dict (h::t) = SOME scope_list' ==>
+?h' t'.
+ transform_scope dict h = SOME h' /\
+ transform_scope_list dict t = SOME t' /\
+ scope_list' = h'::t'
+Proof
+rpt strip_tac >>
+gs[transform_scope_list_def, oFOLDR_def]
+QED
+
+Theorem lookup_map_block_cons:
+!h t varn v str_opt.
+lookup_map [h::t] varn = SOME (v,str_opt) ==>
+FST h = varn \/
+(FST h ≠ varn /\ lookup_map [t] varn = SOME (v,str_opt))
+Proof
+rpt strip_tac >>
+Cases_on ‘FST h = varn’ >> (
+ gs[]
+) >>
+PairCases_on ‘h’ >>
+gs[lookup_map_def, topmost_map_def, find_topmost_map_def, listTheory.INDEX_FIND_def, AllCaseEqs()]
+QED
+
+(* TODO: Merge with INDEX_FIND_EL *)
+Theorem INDEX_FIND_EL_gen:
+!l e P j n.
+INDEX_FIND n P l = SOME (j,e) ==>
+EL (j-n) l = e
+Proof
+Induct >>
+rpt strip_tac >>
+imp_res_tac index_find_first >> gvs[] >>
+gvs[listTheory.INDEX_FIND_def] >>
+Cases_on ‘P h’ >> gvs[] >>
+assume_tac P_hold_on_next >>
+first_x_assum (STRIP_ASSUME_TAC o (Q.SPECL [‘n’, ‘l’, ‘P’, ‘(j,e)’])) >>
+gvs[arithmeticTheory.ADD1] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘e’, ‘P’, ‘j-1’, ‘n’])) >>
+gvs[rich_listTheory.EL_CONS, arithmeticTheory.PRE_SUB1] >>
+assume_tac $ Q.SPECL [‘j - n’] rich_listTheory.EL_CONS >>
+‘0 < j - n’ by (imp_res_tac INDEX_FIND_index_less >> decide_tac) >>
+gs[arithmeticTheory.PRE_SUB1]
+QED
+
+Theorem lookup_map_cons:
+!h t varn v str_opt.
+lookup_map (h::t) varn = SOME (v,str_opt) ==>
+lookup_map [h] varn = SOME (v,str_opt) \/
+(lookup_map [h] varn = NONE /\ lookup_map t varn = SOME (v,str_opt))
+Proof
+rpt strip_tac >>
+Cases_on ‘?x. ALOOKUP h varn = SOME x’ >> (
+ gs[lookup_map_def, topmost_map_def, find_topmost_map_def, listTheory.INDEX_FIND_def]
+) >>
+gvs[optionTheory.IS_SOME_EXISTS, AllCaseEqs()] >>
+qexists_tac ‘sc’ >>
+gs[] >>
+qexists_tac ‘(i-1,sc)’ >>
+gs[INDEX_FIND_EQ_SOME_0] >>
+imp_res_tac index_find_first >> gvs[] >>
+imp_res_tac index_find_length >>
+‘EL (i - 1) t = sc’ by metis_tac[INDEX_FIND_EL_gen] >>
+gvs[] >>
+rpt strip_tac >>
+qpat_x_assum ‘!j'. _’ (fn thm => assume_tac $ Q.SPECL [‘j' + 1’] thm) >>
+gs[]
+QED
+
+Theorem lookup_map'_block_equiv:
+!varn1 v1 str_opt1 t varn2 v2.
+(?str_opt2. lookup_map' [(varn1, v1, str_opt1)::t] varn2 = SOME (v2,str_opt2)) <=>
+varn1 = varn2 /\ v1 = v2 \/
+varn1 ≠ varn2 /\ ?str_opt2. lookup_map' [t] varn2 = SOME (v2,str_opt2)
+Proof
+rpt strip_tac >>
+gs[lookup_map'_def, find_topmost_map'_def, AllCaseEqs()] >>
+Cases_on ‘varn1 = varn2’ >> (
+ gs[]
+)
+QED
+
+Theorem lookup_map'_block_NONE:
+!varn1 varn2 v lval_opt t.
+varn1 <> varn2 ==>
+(lookup_map' [(varn1, v, lval_opt)::t] varn2 = NONE <=>
+ lookup_map' [t] varn2 = NONE)
+Proof
+rpt strip_tac >>
+gs[lookup_map'_def, find_topmost_map'_def, AllCaseEqs()]
+QED
+
+Theorem transform_varn_neq:
+!varn1 varn2 varn'1 varn'2 dict.
+dict_bij dict ==>
+transform_varn dict varn1 = SOME varn'1 ==>
+transform_varn dict varn2 = SOME varn'2 ==>
+varn1 ≠ varn2 ==>
+varn'1 ≠ varn'2
+Proof
+rpt strip_tac >>
+Cases_on ‘varn1’ >> Cases_on ‘varn2’ >> (
+ gvs[transform_varn_def]
+) >- (
+ metis_tac[dict_bij_injectivity]
+) >>
+gvs[transform_funn_def, AllCaseEqs()] >> (
+ metis_tac[dict_bij_injectivity]
+)
+QED
+
+Theorem transform_scope_lookup_map_SOME:
+!scope scope' varn varn' v v' str_opt dict.
+dict_bij dict ==>
+transform_scope dict scope = SOME scope' ==>
+transform_varn dict varn = SOME varn' ==>
+lookup_map [scope] varn = SOME (v,str_opt) ==>
+transform_v dict v = SOME v' ==> 
+?str_opt'. lookup_map' [scope'] varn' = SOME (v',str_opt')
+Proof
+Induct >- (
+ gs[lookup_map_def, topmost_map_def, find_topmost_map_def, listTheory.INDEX_FIND_def]
+) >>
+rpt strip_tac >>
+imp_res_tac transform_scope_cons >>
+gvs[] >>
+PairCases_on ‘h’ >>
+imp_res_tac lookup_map_block_cons >> (
+ gvs[]
+) >- (
+ (* Case: Head is entry we're looking for *)
+ gvs[lookup_map_def, topmost_map_def, find_topmost_map_def, listTheory.INDEX_FIND_def, AllCaseEqs()] >>
+ PairCases_on ‘h'’ >>
+ gs[transform_scope_entry_def, AllCaseEqs()] >> (
+  gs[lookup_map'_def, find_topmost_map'_def]
+ )
+) >>
+PairCases_on ‘h'’ >>
+gvs[transform_scope_entry_def, AllCaseEqs()] >> (
+ ‘h'0 ≠ varn'’ by metis_tac[transform_varn_neq] >>
+ simp[lookup_map'_block_equiv] >>
+ metis_tac[]
+)
+QED
+
+Theorem transform_scope_lookup_map_NONE:
+!scope scope' dict varn varn'.
+dict_bij dict ==>
+transform_scope dict scope = SOME scope' ==>
+transform_varn dict varn = SOME varn' ==>
+lookup_map [scope] varn = NONE ==>
+lookup_map' [scope'] varn' = NONE
+Proof
+(* TODO: Might require transform_scope_entry lemma *)
+Induct >- (
+ gs[transform_scope_def, oFOLDR_def] >>
+ gs[lookup_map'_def, find_topmost_map'_def]
+) >>
+rpt strip_tac >>
+imp_res_tac transform_scope_cons >>
+gvs[] >>      
+PairCases_on ‘h’ >>
+imp_res_tac lookup_map_block_cons >> (
+ gvs[]
+) >>
+PairCases_on ‘h'’ >>
+gvs[lookup_map_def, topmost_map_def, find_topmost_map_def, listTheory.INDEX_FIND_def, AllCaseEqs()] >>
+gvs[transform_scope_entry_def, AllCaseEqs()] >> (
+ ‘h'0 ≠ varn'’ by metis_tac[transform_varn_neq] >>
+ ‘lookup_map' [t'] varn' = NONE’ suffices_by metis_tac[lookup_map'_block_NONE] >>
+ metis_tac[]
+)
+QED
+
+Theorem transform_scope_list_lookup_map:
+!dict scope_list g_scope_list' scope_list' varn varn' v v' str_opt.
+dict_bij dict ==>
+transform_scope_list dict scope_list = SOME scope_list' ==>
+transform_varn dict varn = SOME varn' ==>
+lookup_map scope_list varn = SOME (v,str_opt) ==>
+transform_v dict v = SOME v' ==> 
+?v_str_opt'. lookup_map' scope_list' varn' = SOME v_str_opt' /\
+     ?str_opt'. v_str_opt' = (v',str_opt')
+Proof
+Induct_on ‘scope_list’ >- (
+ gs[transform_scope_list_def, oFOLDR_def, lookup_map_def, topmost_map_def, find_topmost_map_def, listTheory.INDEX_FIND_def, AllCaseEqs()]
+) >>
+rpt strip_tac >>
+imp_res_tac transform_scope_list_cons >>
+imp_res_tac lookup_map_cons >> (
+ gvs[]
+) >- (
+ imp_res_tac transform_scope_lookup_map_SOME >>
+ qexists_tac ‘(v',str_opt')’ >>
+ gs[lookup_map'_def, find_topmost_map'_def, AllCaseEqs()]
+) >>
+res_tac >>
+gvs[] >>
+imp_res_tac transform_scope_lookup_map_NONE >>
+gs[] >>
+(* Use ind.hyp. *)
+res_tac >>
+gvs[] >>
+gs[lookup_map'_def, find_topmost_map'_def, AllCaseEqs()]
+QED
+
+Theorem transform_scope_list_split:
+!dict g_scope_list scope_list g_scope_list' scope_list'.
+dict_bij dict ==>
+transform_scope_list dict g_scope_list = SOME g_scope_list' ==>
+transform_scope_list dict scope_list = SOME scope_list' ==>
+transform_scope_list dict (scope_list ++ g_scope_list) = SOME (scope_list' ++ g_scope_list')
+Proof
+Induct_on ‘scope_list’ >> Induct_on ‘g_scope_list’ >> (
+ gs[transform_scope_list_def, oFOLDR_def]
+) >>
+rpt strip_tac >>
+gvs[] >>
+‘dict_bij dict /\
+ oFOLDR (transform_scope dict) (h::g_scope_list) = SOME ([res] ++ res_list) /\
+ oFOLDR (transform_scope dict) scope_list = SOME res_list'’ suffices_by (
+ strip_tac >>
+ res_tac >>
+ simp[]
+) >>
+gs[oFOLDR_def]
+QED
+
 (* Reverse implication *)
-Theorem transform_scope_list_lookup:
+Theorem transform_scope_list_lookup_vexp2:
 !dict g_scope_list scope_list g_scope_list' scope_list' varn varn' v v'.
 dict_bij dict ==>
 transform_scope_list dict g_scope_list = SOME g_scope_list' ==>
@@ -615,9 +882,9 @@ Proof
 (* Looking up a variable in scopes will return the translated value of the
  * result of looking up the translated variable name. *)
 rpt strip_tac >>
-gvs[lookup_vexp2_def, lookup_vexp2'_def, lookup_map_def, lookup_map'_def, topmost_map_def, AllCaseEqs()] >>
-(* TODO: Formulate separate theorem here, that states the correspondence between the scopes and index returned *)
-cheat
+gvs[lookup_vexp2_def, lookup_vexp2'_def, AllCaseEqs()] >>
+‘transform_scope_list dict (scope_list ++ g_scope_list) = SOME (scope_list' ++ g_scope_list')’ by metis_tac[transform_scope_list_split] >>
+metis_tac[transform_scope_list_lookup_map]
 QED
 
 Theorem unred_mem_index_same:
@@ -639,7 +906,7 @@ qpat_x_assum ‘transform_e dict e1 = SOME (e'_var v)’ (fn thm => ASSUME_TAC $
 gvs[e_exec'_def, p4_exec_semTheory.e_exec_def, AllCaseEqs()] >>
 (* 3. Rewrite transformation of final state *)
 gvs[transform_e_def, transform_frame_list_def, oFOLDR_def] >>
-metis_tac[transform_scope_list_lookup]
+metis_tac[transform_scope_list_lookup_vexp2]
 QED
 
 Theorem e_exec'_completeness_acc:
@@ -667,6 +934,107 @@ qpat_x_assum ‘transform_e dict (e_acc e_v_struct' x) = SOME e'2’ (fn thm => 
 metis_tac[]
 QED
 
+(* TODO: Move *)
+Theorem w2v_n2w:
+!n.
+n <= dimword (:'a) ==>
+w2v ((n2w n):'a word) = fixwidth (dimindex (:'a)) $ n2v n
+Proof
+rw[] >>
+Cases_on ‘n = dimword (:'a)’ >- (
+ gs[GSYM bitstringTheory.w2v_v2w]
+) >>
+gs[] >>
+‘n < dimword (:'a)’ by gs[] >>
+gs[GSYM bitstringTheory.w2v_v2w]
+QED
+
+fun brute_unop_arithmetic_tac (width:int) =
+ let
+  val list_tm = “q:bool list”
+  val dim = fcpLib.index_type $ Arbnum.fromInt width
+  val dimword_tm = mk_eq (wordsSyntax.mk_dimword dim, numSyntax.mk_exp (numSyntax.term_of_int 2, numSyntax.term_of_int width))
+  val sub_tm = numSyntax.mk_minus (wordsSyntax.mk_dimword dim, numSyntax.mk_mod (bitstringSyntax.mk_v2n list_tm, wordsSyntax.mk_dimword dim))
+ in
+  tmCases_on (mk_eq(mk_var("r", numSyntax.num), numSyntax.term_of_int width)) ["eq", "neq"] >- (
+   rpt (qpat_x_assum ‘r ≠ _’ (fn thm => ALL_TAC)) >>
+   rpt strip_tac >- (
+    assume_tac $ SPEC list_tm bitstringTheory.v2n_lt >>
+    gs[]
+   ) >>
+   ASM_REWRITE_TAC[bitv_unop_def, get_word_unop_def] >>
+   blastLib.BBLAST_TAC >>
+   gs[bitstringTheory.ops_to_n2w] >>
+   assume_tac $ INST_TYPE [alpha |-> dim] $ SPEC sub_tm wordsTheory.n2w_mod >>
+   (* TODO: Better way to do this??? *)
+   SUBGOAL_THEN dimword_tm STRIP_ASSUME_TAC >- (gs[]) >>
+   FULL_SIMP_TAC std_ss [] >>
+   gs[] >>
+   assume_tac $ SPEC sub_tm $ SIMP_RULE (srw_ss()) [] $ INST_TYPE [alpha |-> dim] w2v_n2w >>
+   gs[] >>
+   assume_tac $ SPEC list_tm bitstringTheory.v2n_lt >>
+   gvs[]
+  )
+ end
+;
+
+fun rpt_interval_tac desc min max tac =
+ let
+  val widths = upto min max
+  val tacs = map (fn width => tac width) widths
+  val _ = print ("Proving arithmetic equivalence: "^desc^"...\n")
+ in
+  foldr (op THEN) ALL_TAC tacs
+ end
+;
+
+Theorem greater_suc:
+!(n:num) m.
+n > m /\ n ≠ (m + 1) ==> n > (m + 1)
+Proof
+decide_tac
+QED
+
+Theorem less_eq_greater:
+!(n:num) m.
+n <= m /\ n > m ==> F
+Proof
+decide_tac
+QED
+
+(* TODO: Very similar to arithmeticTheory.NOT_ZERO *)
+Theorem not_zero_greater:
+!(n:num).
+n <> 0 ==> n > 0
+Proof
+decide_tac
+QED
+
+(* TODO: Unify with brute_arithmetic_finish_tac *)
+fun brute_unop_arithmetic_finish_tac min max =
+ let
+  val widths = upto min max
+  val tacs = map (fn width => imp_res_tac $ REWRITE_RULE [SIMP_CONV arith_ss [] (numSyntax.mk_plus(numSyntax.term_of_int width, “1:num”))] $ SPECL [“n:num”, numSyntax.term_of_int width] greater_suc) widths
+ in
+  (foldr (op THEN) ALL_TAC tacs) >>
+  imp_res_tac less_eq_greater
+ end
+;
+
+(* The general version of the lemma for signed negation *)
+Theorem unop_neg_signed_lemma:
+!q r.
+r > 0 ==>
+r <= 128 ==>
+LENGTH q = r ==> 
+v2n q <= 2 ** r /\
+(fixwidth r (n2v (2 ** r - v2n q)),r) = bitv_unop unop_neg_signed (q,r)
+Proof
+rpt gen_tac >> rpt disch_tac >>
+rpt_interval_tac "signed negation" 1 128 brute_unop_arithmetic_tac >>
+brute_unop_arithmetic_finish_tac 0 128
+QED
+
 Theorem e_exec'_completeness_unop:
 !e u.
 e_exec'_complete e ==>
@@ -682,7 +1050,7 @@ gvs[e_exec'_def, p4_exec_semTheory.e_exec_def, AllCaseEqs()] >> (
 ) >- (
  (* Case 2a: e' is value *)
  ‘is_v' e’ by metis_tac[transform_e_is_v] >> gs[] >>
-(* TODO: Make separate lemma from the below... *)
+ (* TODO: Make separate lemma from the below... *)
  qpat_x_assum ‘!e1. _’ (fn thm => ALL_TAC) >>
  gvs[Once transform_e_def] >>
  (* Obtain the e_v subtypes *)
@@ -694,6 +1062,7 @@ gvs[e_exec'_def, p4_exec_semTheory.e_exec_def, AllCaseEqs()] >> (
  ) >> 
  Cases_on ‘u’ >> (
   gs[e_exec_unop'_def, p4_exec_semTheory.e_exec_unop_def]
+ (* TODO: Clear up the case handling below... *)
  ) >> (
   Cases_on ‘v''’ >> Cases_on ‘v'''’ >>
   gs[Once transform_e_def] >>
@@ -701,15 +1070,10 @@ gvs[e_exec'_def, p4_exec_semTheory.e_exec_def, AllCaseEqs()] >> (
   gvs[unop_exec'_def, p4_exec_semTheory.e_exec_unop_def, p4_exec_semTheory.unop_exec_def] >>
   gvs[AllCaseEqs()] >>
   Cases_on ‘p’ >> (
-   gs[unop_exec'_def, bitv_1comp_def, bitv_bl_unop_def, bitstringTheory.bnot_def] >>
-   gs[bitv_2comp_def, AllCaseEqs()] >>
-   (* TODO: Issues for "bitv_unop unop_neg_signed" since this is only defined for up to
-    * a certain bitwidth... :(
-    *
-    * Solutions: Either make the CakeML-exportable semantics return NONE for widths over
-    * 128 at an earlier stage, or have a fallback solution in the regular semantics for
-    * widths over 128 *)
-   cheat
+   gs[unop_exec'_def, bitv_1comp_def, bitv_bl_unop_def, bitstringTheory.bnot_def, p4_exec_semTheory.unop_exec_def] >>
+   gs[bitv_2comp_def, AllCaseEqs()] >> (
+    metis_tac[unop_neg_signed_lemma]
+   )
   )
  )
 ) >>
@@ -763,37 +1127,506 @@ qpat_x_assum ‘transform_e dict (e_cast c e') = SOME e'2’ (fn thm => ASSUME_T
 metis_tac[]
 QED
 
-(* If you transform a struct used for matching in select,
- * and if you transform the s_list_x_list used for matching,
- * then a NONE result in matching is preserved. *)
-Theorem transform_select_NONE:
-transform_e dict (e_v (v_struct x_v_l)) =
- SOME (e'_v (v'_struct w_v'_l)) ==>
-FIND (\(s_list,x'). match_all (ZIP (SND (UNZIP x_v_l),s_list)))
- s_list_x_list = NONE ==>
-oFOLDR (oFOLDR (transform_s dict)) (MAP FST s_list_x_list) =
- SOME s_n_list_list' ==>
-oFOLDR (ALOOKUP dict) (MAP SND s_list_x_list) = SOME x_list' ==>
-match_all_first (SND (UNZIP w_v'_l))
- (ZIP (MAP FST (MAP UNZIP s_n_list_list'),x_list')) = NONE
+(* TODO: Why the index? *)
+Theorem match_all_first''_index_any:
+!s'_w_list n m w_list.
+match_all_first'' n w_list s'_w_list = NONE ==>
+match_all_first'' m w_list s'_w_list = NONE
+Proof
+Induct >> (
+ gs[match_all_first''_def]
+) >>
+rpt strip_tac >>
+metis_tac[]
+QED
+(* TODO: Why the index? *)
+Theorem match_all_first''_index_SOME:
+!l n m w_list w.
+match_all_first'' n w_list l = SOME w ==>
+match_all_first'' m w_list l = SOME w
+Proof
+Induct >> (
+ gs[match_all_first''_def]
+) >>
+rpt strip_tac >>
+metis_tac[]
+QED
+
+Theorem transform_match_all'':
+!x_v_l w_v'_l w_list s_list s'_n_list dict.
+transform_e dict (e_v (v_struct x_v_l)) = SOME (e'_v (v'_struct w_v'_l)) ==>
+v_list_to_word64s_list (SND (UNZIP w_v'_l)) = SOME w_list ==>
+oFOLDR (transform_s dict) s_list = SOME s'_n_list ==>
+~match_all (ZIP (SND (UNZIP x_v_l), s_list)) ==>
+~match_all'' (ZIP (w_list, FST (UNZIP s'_n_list)))
 Proof
 cheat
 QED
 
+(* If you transform a struct used for matching in select,
+ * and if you transform the s_list_x_list used for matching,
+ * then a NONE result in matching is preserved. *)
+Theorem transform_select_NONE:
+!s_list_x_list x_v_l w_v'_l s_n_list_list' x_list' dict.
+transform_e dict (e_v (v_struct x_v_l)) =
+ SOME (e'_v (v'_struct w_v'_l)) ==>
+FIND (\(s_list,x'). match_all (ZIP (SND (UNZIP x_v_l),s_list))) s_list_x_list = NONE ==>
+oFOLDR (oFOLDR (transform_s dict)) (MAP FST s_list_x_list) = SOME s_n_list_list' ==>
+oFOLDR (ALOOKUP dict) (MAP SND s_list_x_list) = SOME x_list' ==>
+match_all_first (SND (UNZIP w_v'_l)) (ZIP (MAP FST (MAP UNZIP s_n_list_list'),x_list')) = NONE
+Proof
+Induct >> (
+ rpt strip_tac >>
+ gvs[match_all_first_def, oFOLDR_def, listTheory.FIND_def, AllCaseEqs()] >>
+ Cases_on ‘v_list_to_word64s_list (SND (UNZIP w_v'_l))’ >> (
+  gs[]
+ ) >>
+ gs[match_all_first''_def]
+) >>
+PairCases_on ‘h’ >> gs[] >>
+gvs[match_all_first_def, oFOLDR_def, listTheory.FIND_def, AllCaseEqs()] >>
+Cases_on ‘v_list_to_word64s_list (SND (UNZIP w_v'_l))’ >> (
+ gs[]
+) >>
+‘~match_all'' (ZIP (x,FST (UNZIP res))) /\
+        match_all_first'' 0 x (ZIP (MAP FST (MAP UNZIP res_list),res_list')) =
+        NONE’ suffices_by (
+ metis_tac[match_all_first''_index_any]
+) >>
+CONJ_TAC >- (
+ gvs[listTheory.INDEX_FIND_def] >>
+ metis_tac[transform_match_all'']
+) >>
+‘v_list_to_word64s_list (SND (UNZIP (w_v'_l:(identifier#v') list))) = NONE \/
+          ?w_list.
+            v_list_to_word64s_list (SND (UNZIP w_v'_l)) = SOME w_list /\
+            match_all_first'' 0 w_list
+              (ZIP (MAP FST (MAP UNZIP res_list),res_list')) =
+            NONE’ suffices_by (
+ gvs[]
+) >>
+qpat_x_assum ‘!x_v_l'. _’ irule >>
+qexistsl_tac [‘dict’, ‘x_v_l’] >>
+gvs[INDEX_FIND_NONE_EXISTS]
+QED
+
+Theorem match_all_first_head_SOME:
+!v'_l h t w'.
+match_all_first v'_l (h::t) = SOME w' <=>
+match_all_first v'_l [h] = SOME w' \/
+match_all_first v'_l [h] = NONE /\ match_all_first v'_l t = SOME w'
+Proof
+rpt strip_tac >>
+Cases_on ‘match_all_first v'_l [h]’ >> gs[] >- (
+ EQ_TAC >- (
+  rpt strip_tac >>
+  gs[match_all_first_def, match_all_first''_def, AllCaseEqs()] >>
+  metis_tac[match_all_first''_index_SOME]
+ ) >>
+ rpt strip_tac >>
+ gs[match_all_first_def, match_all_first''_def, AllCaseEqs()] >>
+ metis_tac[match_all_first''_index_SOME]
+) >>
+EQ_TAC >- (
+ rpt strip_tac >>
+ gs[match_all_first_def, match_all_first''_def, AllCaseEqs()]
+) >>
+rpt strip_tac >>
+gs[match_all_first_def, match_all_first''_def, AllCaseEqs()]
+QED
+
+Theorem match_all_first_s_list_head_SOME:
+!h1 t1 h2 t2 w.
+match_all_first (h1::t1) [(h2::t2, w)] = SOME w <=>
+(?w'. v_list_to_word64s_list [h1] = SOME [w'] /\
+ match_all'' [(w', h2)]) /\
+match_all_first t1 [(t2, w)] = SOME w
+Proof
+rpt strip_tac >>
+EQ_TAC >> (
+ rpt strip_tac >> (
+  gvs[match_all_first_def, match_all_first''_def, v_list_to_word64s_list_def, AllCaseEqs()] >> (
+   gs[match_all''_def]
+  )
+ )
+)
+QED
+
+Theorem pre_match_check_transform:
+!x_v_l w_v'_l dict.
+pre_match_check x_v_l ==>
+transform_v dict (v_struct x_v_l) = SOME (v'_struct w_v'_l) ==>
+?w_list. v_list_to_word64s_list (MAP SND w_v'_l) = SOME w_list
+Proof
+Induct >- (
+ gs[transform_v_def, v_list_to_word64s_list_def]
+) >>
+rpt strip_tac >>
+qpat_x_assum ‘transform_v dict (v_struct (h::x_v_l)) = SOME (v'_struct w_v'_l)’ (fn thm => assume_tac $ ONCE_REWRITE_RULE [transform_v_def] thm >> gvs[AllCaseEqs()]) >>
+gvs[p4_exec_semTheory.pre_match_check_def] >>
+Cases_on ‘v''’ >> (
+ gs[]
+) >- (
+ qpat_x_assum ‘transform_v dict _ = SOME v'3'’ (fn thm => assume_tac $ ONCE_REWRITE_RULE [transform_v_def] thm >> gvs[AllCaseEqs()]) >>
+ gs[v_list_to_word64s_list_def, AllCaseEqs()] >>
+ metis_tac[]
+) >>
+qpat_x_assum ‘transform_v dict (v_bit p) = SOME v'3'’ (fn thm => assume_tac $ ONCE_REWRITE_RULE [transform_v_def] thm >> gvs[AllCaseEqs()]) >>
+gs[v_list_to_word64s_list_def, AllCaseEqs()] >>
+PairCases_on ‘p’ >> gs[] >>
+Cases_on ‘p1 > 64’ >> gs[] >> (
+ metis_tac[]
+)
+QED
+
+fun mk_explicit_bitstring name width =
+ let
+  val vars = p4_testLib.fixedwidth_freevars(name, width)
+ in
+  list_mk_exists (fst $ listSyntax.dest_list vars, mk_eq (mk_var(name, “:bool list”), vars))
+ end
+;
+
+fun Cases_on_bit ((g as (asl,w)):goal) = 
+ let
+  val bl_var = fst $ dest_eq $ snd $ strip_exists $ w
+ in
+  (* TODO: What do the strings signify? *)
+  (tmCases_on bl_var ["empty", "cons"] g)
+ end
+;
+
+(* TODO: Assumes three bitvectors... *)
+(* TODO: Assume renaming has already been done... *)
+fun brute_arithmetic_tac' incipit_tac (width:int) (bitvs:string list) =
+  tmCases_on (mk_eq(mk_var("n", numSyntax.num), numSyntax.term_of_int width)) ["eq", "neq"] >- (
+   incipit_tac >>
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_range''_def, p4_match_mask''_def] >>
+   rpt strip_tac >> (
+    SUBGOAL_THEN (mk_explicit_bitstring "bl" width) STRIP_ASSUME_TAC >- (
+     rpt (Cases_on_bit >> gs[])
+    ) >> gvs[] >>
+(*
+    rename1 ‘LENGTH bl' = 65’ >>
+*)
+    SUBGOAL_THEN (mk_explicit_bitstring "bl'" width) STRIP_ASSUME_TAC >- (
+     rpt (Cases_on_bit >> gs[])
+    ) >> gvs[] >>
+(*
+    rename1 ‘LENGTH bl'' = 65’ >>
+*)
+    SUBGOAL_THEN (mk_explicit_bitstring "bl''" width) STRIP_ASSUME_TAC >- (
+     rpt (Cases_on_bit >> gs[])
+    ) >> gvs[] >>
+(* TODO
+    goalStack.print_tac ("Blasting width "^(Int.toString width)^"...\n") >>
+
+*)
+    let val _ = print ("Blasting width "^(Int.toString width)^"...\n") in ALL_TAC end >>
+    blastLib.FULL_BBLAST_TAC
+   )
+  )
+;
+fun brute_arithmetic_tac min max incipit_tac bitvs =
+ let
+  val widths = upto min max
+  val tacs = map (fn width => brute_arithmetic_tac' incipit_tac width bitvs) widths
+ in
+  foldr (op THEN) ALL_TAC tacs
+ end
+;
+fun brute_arithmetic_cht_tac min max =
+ let
+  val widths = upto min max
+  fun cht_tac width =
+   tmCases_on (mk_eq(mk_var("n", numSyntax.num), numSyntax.term_of_int width)) ["eq", "neq"] >- (
+    cheat
+   )
+  val tacs = map (fn width => cht_tac width) widths
+ in
+  foldr (op THEN) ALL_TAC tacs
+ end
+;
+(*
+val width = 65
+
+val max = 128
+val min = 65
+val bitvs = ["bl", "bl1", "bl2"]
+brute_arithmetic_tac 65 128 ["bl", "bl1", "bl2"]
+*)
+
+fun brute_arithmetic_finish_tac min max =
+ let
+  val widths = upto min max
+  val tacs = map (fn width => imp_res_tac $ REWRITE_RULE [SIMP_CONV arith_ss [] (numSyntax.mk_plus(numSyntax.term_of_int width, “1:num”))] $ SPECL [“n:num”, numSyntax.term_of_int width] greater_suc) widths
+ in
+  (foldr (op THEN) ALL_TAC tacs) >>
+  imp_res_tac less_eq_greater
+ end
+;
+
+Theorem transform_match'':
+!v s s' n v' ww dict.
+match v s ==>
+transform_s dict s = SOME (s', n) ==>
+transform_v dict v = SOME v' ==>
+v_list_to_word64s_list [v'] = SOME [ww] ==>
+match'' ww s'
+Proof
+rpt strip_tac >>
+Cases_on ‘s’ >> (
+ gvs[transform_s_def, AllCaseEqs()]
+) >- (
+ Cases_on ‘v'’ >> (
+  gvs[Once transform_v_def, v_list_to_word64s_list_def, match_def, match''_def, AllCaseEqs()]
+ )
+) >- (
+ Cases_on ‘v'’ >> (
+  gvs[Once transform_v_def, v_list_to_word64s_list_def, match_def, match''_def, AllCaseEqs()]
+ )
+) >- (
+ (* RANGE *)
+ Cases_on ‘v'’ >> (
+  gvs[Once transform_v_def, v_list_to_word64s_list_def, match_def, match''_def, AllCaseEqs()]
+ ) >> (
+  gs[p4_match_range_def] >>
+  Cases_on ‘bitv_binpred binop_ge (bl,n') (bl1,n)’ >> gvs[] >>
+  Cases_on ‘bitv_binpred binop_le (bl,n') (bl2,n2)’ >> gvs[] >>
+  gvs[bitv_binpred_def] >>
+  rename1 ‘bitv_binpred_inner binop_ge bl bl' n’ >>
+  rename1 ‘bitv_binpred_inner binop_le bl bl'' n’
+ ) >- (
+  (* TODO: Perform an induction proof here instead? *)
+  brute_arithmetic_cht_tac 65 128 >>
+(* Non-cheat version:
+ brute_arithmetic_tac 65 128 (
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_range''_def] >>
+   rpt strip_tac) []
+*)
+  (* Finally, all options are exhausted, the goal can be solved by simple arithmetic reasoning *)
+(* Optional cleanup
+  qpat_x_assum ‘bitv_binpred_inner _ _ _ _ = _’ (fn thm => ALL_TAC) >>
+  qpat_x_assum ‘bitv_binpred_inner _ _ _ _ = _’ (fn thm => ALL_TAC) >>
+  CCONTR_TAC >>
+  qpat_x_assum ‘¬p4_match_range'' _ _ _’ (fn thm => ALL_TAC) >>
+  rpt strip_tac >>
+*)
+  brute_arithmetic_finish_tac 64 127
+(* Examples using brute_arithmetic_tac' for the first two cases
+  (* Case: n between 64 and 128 *)
+   brute_arithmetic_tac' (‘LENGTH bl = 65’ by cheat >>
+   ‘LENGTH bl' = 65’ by cheat >>
+   ‘LENGTH bl'' = 65’ by cheat >>
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_range''_def] >>
+   rpt strip_tac) 65 [] >>
+   brute_arithmetic_tac' (‘LENGTH bl = 66’ by cheat >>
+   ‘LENGTH bl' = 66’ by cheat >>
+   ‘LENGTH bl'' = 66’ by cheat >>
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_range''_def] >>
+   rpt strip_tac) 66 [] >>
+*)
+(* OLD
+  Cases_on ‘n = 65’ >- (
+   ‘LENGTH bl = 65’ by cheat >>
+   ‘LENGTH bl1 = 65’ by cheat >>
+   ‘LENGTH bl2 = 65’ by cheat >>
+   rename1 ‘bitv_binpred_inner binop_ge bl bl' n’ >>
+   rename1 ‘bitv_binpred_inner binop_le bl bl'' n’ >>
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_range''_def] >>
+   rpt strip_tac >> (
+    brute_arithmetic_tac' 65 [] >>
+ (* TODO: Could maybe be handled by BBLAST_TAC if the bitvectors have explicit lengths....
+   Cases_on ‘t’ >> gs[] >>
+   Cases_on ‘t'’ >> gs[] >>
+   Cases_on ‘t''’ >> gs[] >>
+   qpat_x_assum ‘SUC (LENGTH []) = 65’ (fn thm => ALL_TAC) >>
+   blastLib.FULL_BBLAST_TAC
+   Make tactic that proves the explicit representation of the bitvector, based on length
+   (and where to get this? Make check in exec sem - check LENGTH in pre_match_check).
+   Then make gratuitous case splits, and prove for every single one.
+ *)
+   cheat
+  ) >>
+  cheat
+ ) >>
+*)
+ ) >>
+ (* Case: n lower than 64 *)
+ brute_arithmetic_cht_tac 0 64 >>
+(* Non-cheat version:
+ brute_arithmetic_tac 0 64 (
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_range''_def] >>
+   rpt strip_tac) []
+*)
+ FULL_SIMP_TAC bool_ss [arithmeticTheory.NOT_GREATER] >>
+ imp_res_tac not_zero_greater >>
+ brute_arithmetic_finish_tac 0 63
+) >- (
+ (* MASK *)
+ (* Same as above, same issues with bitstring length also *)
+ Cases_on ‘v'’ >> (
+  gvs[Once transform_v_def, v_list_to_word64s_list_def, match_def, match''_def, AllCaseEqs()]
+ ) >> (
+  gs[p4_match_mask_def] >>
+  Cases_on ‘bitv_binop binop_and (bl,n') (bl2',n2')’ >> gvs[] >>
+  Cases_on ‘bitv_binop binop_and (bl1',n) (bl2',n2')’ >> gvs[] >>
+  Cases_on ‘bitv_binpred binop_eq x x'’ >> gvs[] >>
+  gvs[bitv_binpred_def] >>
+  rename1 ‘bitv_binop binop_and (bl,n') (bl'',n2')’ >>
+  rename1 ‘bitv_binop binop_and (bl',n) (bl'',n2')’ >>
+  (* TODO: From LENGTH guards, which should be added *)
+  ‘n = n2' /\ n = n'’ by cheat >> gvs[]
+ ) >- (
+  brute_arithmetic_cht_tac 65 128 >>
+(* Non-cheat version:
+ brute_arithmetic_tac 65 128 (
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_mask''_def] >>
+   rpt strip_tac) []
+*)
+  brute_arithmetic_finish_tac 64 127
+ ) >>
+ (* Case: n lower than 64 *)
+ brute_arithmetic_cht_tac 0 64 >>
+(* Non-cheat version:
+ brute_arithmetic_tac 0 64 (
+   gvs[bitv_binpred_inner_def, get_word_binpred_def, p4_match_range''_def] >>
+   rpt strip_tac) []
+*)
+ FULL_SIMP_TAC bool_ss [arithmeticTheory.NOT_GREATER] >>
+ imp_res_tac not_zero_greater >>
+ brute_arithmetic_finish_tac 0 63
+) >>
+Cases_on ‘v'’ >> (
+ gvs[Once transform_v_def, v_list_to_word64s_list_def, match_def, match''_def, AllCaseEqs()]
+)
+QED
+
+Theorem transform_match_all:
+!s_list res res' x_v_l w_v'_l dict.
+pre_match_check x_v_l ==>
+oFOLDR (transform_s dict) s_list = SOME res ==>
+match_all (ZIP (SND (UNZIP x_v_l),s_list)) ==>
+transform_v dict (v_struct x_v_l) = SOME (v'_struct w_v'_l) ==>
+match_all_first (SND (UNZIP w_v'_l)) [(FST (UNZIP res),res')] = SOME res'
+Proof
+Induct >- (
+ rpt strip_tac >>
+ gs[listTheory.UNZIP_MAP, listTheory.ZIP_def] >>
+ gvs[match_all_def, oFOLDR_def] >>
+ gvs[match_all_first_def, match_all_first''_def, match_all''_def, v_list_to_word64s_list_def, listTheory.ZIP_def, AllCaseEqs()] >>
+ metis_tac[pre_match_check_transform]
+) >>
+rpt strip_tac >>
+gs[listTheory.UNZIP_MAP, listTheory.ZIP_def] >>
+gvs[oFOLDR_def] >>
+Cases_on ‘x_v_l’ >> (
+ gs[]
+) >- (
+ qpat_x_assum ‘transform_v dict (v_struct []) = SOME (v'_struct w_v'_l)’ (fn thm => assume_tac $ ONCE_REWRITE_RULE [transform_v_def] thm >> gvs[AllCaseEqs()]) >>
+ gs[match_all_first_def, v_list_to_word64s_list_def, match_all_first''_def, listTheory.ZIP_def, match_all''_def]
+) >>
+qpat_x_assum ‘transform_v dict (v_struct (h'::t)) = SOME (v'_struct w_v'_l)’ (fn thm => assume_tac $ ONCE_REWRITE_RULE [transform_v_def] thm >> gvs[AllCaseEqs()]) >>
+simp[match_all_first_s_list_head_SOME] >>
+gs[match_all_def] >>
+‘?w'. v_list_to_word64s_list [v'3'] = SOME [w']’ by (
+ gvs[p4_exec_semTheory.pre_match_check_def] >>
+ Cases_on ‘v''’ >> (
+  gs[]
+ ) >> (
+  qpat_x_assum ‘transform_v dict _ = SOME v'3'’ (fn thm => assume_tac $ ONCE_REWRITE_RULE [transform_v_def] thm >> gvs[v_list_to_word64s_list_def, AllCaseEqs()])
+ ) >>
+ Cases_on ‘p’ >> (
+  gs[]
+ ) >>
+ metis_tac[]
+) >>
+gs[match_all''_def] >>
+PairCases_on ‘res''’ >> gs[] >>
+‘match'' w' res''0’ by metis_tac[transform_match''] >>
+gs[] >>
+(* Use induction hypothesis *)
+qpat_x_assum ‘!res. _’ irule >>
+qexistsl_tac [‘dict’, ‘t’] >>
+gvs[p4_exec_semTheory.pre_match_check_def] >>
+Cases_on ‘v''’ >> (
+ gs[]
+)
+QED
+
+Theorem FIND_lemma:
+!P h t e.
+FIND P (h::t) = SOME e <=>
+P h /\ e = h \/
+~P h /\ FIND P t = SOME e
+Proof
+rpt strip_tac >>
+Cases_on ‘P h’ >> (
+ gs[listTheory.FIND_def, listTheory.INDEX_FIND_def, boolTheory.EQ_SYM_EQ]
+) >>
+EQ_TAC >> (
+ rpt strip_tac >>
+ PairCases_on ‘z’ >>
+ gvs[]
+) >- (
+ qexists_tac ‘(z0+1, e)’ >> gs[] >>
+ metis_tac[INDEX_FIND_index_add]
+) >>
+qexists_tac ‘(z0-1, e)’ >> gs[] >>
+qpat_x_assum ‘SOME (z0,e) = INDEX_FIND 1 P t’ (fn thm => assume_tac $ GSYM thm) >>
+FULL_SIMP_TAC bool_ss [Once arithmeticTheory.ONE, P_hold_on_next] >>
+gs[]
+QED
+
+(* TODO: See transform_match_all'' *)
+Theorem transform_match_all_NONE:
+!x_v_l w_v'_l h0 res res' dict.
+transform_v dict (v_struct x_v_l) = SOME (v'_struct w_v'_l) ==>
+oFOLDR (transform_s dict) h0 = SOME res ==>
+~match_all (ZIP (SND (UNZIP x_v_l),h0)) ==>
+match_all_first (SND (UNZIP w_v'_l)) [(FST (UNZIP res),res')] = NONE
+Proof
+(* What to induct on? Make other lemma? *)
+cheat
+QED
+
 Theorem transform_select_SOME:
-transform_v dict (v_struct x_v_l) =
- SOME (v'_struct w_v'_l) ==>
+!s_list_x_list x_v_l w_v'_l dict s_n_list_list' x'' word' s_list x_list'.
+pre_match_check x_v_l ==>
+transform_v dict (v_struct x_v_l) = SOME (v'_struct w_v'_l) ==>
 FIND (\(s_list,x'). match_all (ZIP (SND (UNZIP x_v_l),s_list)))
  s_list_x_list = SOME (s_list,x'') ==>
+ALOOKUP dict x'' = SOME word' ==>
 oFOLDR (oFOLDR (transform_s dict)) (MAP FST s_list_x_list) =
  SOME s_n_list_list' ==>
 oFOLDR (ALOOKUP dict) (MAP SND s_list_x_list) = SOME x_list' ==>
 match_all_first (SND (UNZIP w_v'_l))
  (ZIP (MAP FST (MAP UNZIP s_n_list_list'),x_list')) = SOME word'
 Proof
-cheat
+Induct >- (
+ rpt strip_tac >>
+ gvs[oFOLDR_def, listTheory.FIND_def, listTheory.INDEX_FIND_def, AllCaseEqs()]
+) >> (
+ rpt strip_tac >>
+ gvs[oFOLDR_def, FIND_lemma]
+) >> (
+ simp[Once match_all_first_head_SOME]
+) >- (
+ (* Case: Head is match. Simplify goal, use transformation *)
+ DISJ1_TAC >>
+ metis_tac[transform_match_all]
+) >>
+DISJ2_TAC >>
+PairCases_on ‘h’ >> gs[] >>
+CONJ_TAC >- (
+ (* From ~match_all (ZIP (SND (UNZIP x_v_l),h0)) and transformation *)
+ metis_tac[transform_match_all_NONE]
+) >>
+metis_tac[]
 QED
 
+(* TODO: Note that the executable semantics gives NONE for masks, ranges, and matching values of
+ * widths over 128, as well as non-bool and bitstring values *)
 Theorem e_exec'_completeness_select:
 !e l0 c l.
 e_exec'_complete e ==>
@@ -1675,6 +2508,123 @@ qexistsl_tac [‘dict’, ‘e'’, ‘e'3'’, ‘e'4'’, ‘t’, ‘t''’, 
 gs[]
 QED
 
+Theorem bitv_binop_inner:
+!q q' r bitv3.
+bitv_binop_inner binop_mul q q' r = SOME bitv3 ==>
+r <= 128 /\ r > 0
+Proof
+rpt strip_tac >>
+(* Note the below is very delicate due to the number of subgoals and assumptions *)
+FULL_SIMP_TAC std_ss [bitv_binop_inner_def] >>
+FULL_SIMP_TAC bool_ss [AllCaseEqs()] >> (
+ SIMP_TAC std_ss []
+) >>
+FULL_SIMP_TAC bool_ss [optionTheory.NOT_NONE_SOME]
+QED
+
+(* Similar to bitTheory.LESS_MULT_MONO2 *)
+Theorem less_eq_mult_mono:
+!(a:num) b x y. a <= x /\ b <= y ==> a * b <= x * y
+Proof
+cheat
+QED
+
+Theorem binop_mul_equiv:
+!q q' r bitv3.
+bitv_binop_inner binop_mul q q' r = SOME bitv3 ==>
+bitv_mul q q' r = SOME bitv3
+Proof
+rpt strip_tac >>
+(* Nice: get restrictions on bitstring length from bitv_binop_inner *)
+imp_res_tac bitv_binop_inner >>
+Cases_on ‘r = 1’ >- (
+ gvs[bitv_binop_inner_def, bitv_mul_def, get_word_binop_def] >>
+ (* TODO: Need connection to bitstring length *)
+ ‘LENGTH q = 1’ by cheat >>
+ ‘LENGTH q' = 1’ by cheat >>
+ (* 1. Rewrite v2w to n2w $ v2n *)
+ gs[bitstringTheory.ops_to_n2w] >>
+ (* 2. Use n2w distributivity over operation *)
+ gs[wordsTheory.word_mul_n2w] >>
+ (* 3. Finally, use the fact that w2v $ n2w can be written as terms of fixwidth of n2v,
+  * if the original number does not overflow the word (is this STRICTLY needed?) *)
+ assume_tac $ SPEC “(v2n q * v2n q')” $ SIMP_RULE (srw_ss()) [] $ INST_TYPE [alpha |-> “:1”] w2v_n2w >>
+ (* Prove the antecedent by limits of the two operands from bitstring length, and monotonicity
+  * of operation *)
+ ‘v2n q * v2n q' <= 2’ by (
+  ‘v2n q <= 1’ by (assume_tac $ SPEC “q:bool list” bitstringTheory.v2n_lt >> gs[]) >>
+  ‘v2n q' <= 1’ by (assume_tac $ SPEC “q':bool list” bitstringTheory.v2n_lt >> gs[]) >>
+  assume_tac $ SPECL [“v2n q”, “v2n q'”, “1:num”, “1:num”] less_eq_mult_mono >>
+  gs[]
+ ) >>
+ gs[]
+) >>
+(* TODO: generalise the above, integrate with rpt_interval_tac *)
+cheat
+QED
+
+(* TODO: DIV should be decreasing in this fashion (note divide by zero case) *)
+Theorem less_eq_div_mono:
+!(a:num) b x y. a <= x /\ b <= y ==> a DIV b <= x
+Proof
+cheat
+QED
+(* TODO: ??? *)
+Theorem word_div_n2w:
+!n m. n2w m // n2w n = n2w (m DIV n)
+Proof
+ gs[wordsTheory.word_div_def] >>
+ rpt strip_tac >>
+ AP_THM_TAC >>
+ AP_TERM_TAC >>
+ (* TODO: This doesn't hold... *)
+cheat
+QED
+
+Theorem binop_div_equiv:
+!q q' r bitv3.
+bitv_binop_inner binop_div q q' r = SOME bitv3 ==>
+bitv_div q q' r = SOME bitv3
+Proof
+rpt strip_tac >>
+(* Nice: get restrictions on bitstring length from bitv_binop_inner *)
+imp_res_tac bitv_binop_inner >>
+Cases_on ‘r = 1’ >- (
+ gvs[bitv_binop_inner_def, bitv_div_def, get_word_binop_def] >>
+ (* TODO: Need connection to bitstring length *)
+ ‘LENGTH q = 1’ by cheat >>
+ ‘LENGTH q' = 1’ by cheat >>
+ (* 1. Rewrite v2w to n2w $ v2n *)
+ gs[bitstringTheory.ops_to_n2w] >>
+ (* 2. Desperately try to get w2v $ n2w *)
+ gs[wordsTheory.word_div_def] >>
+ (* 3. Finally, use the fact that w2v $ n2w can be written as terms of fixwidth of n2v,
+  * if the original number does not overflow the word (is this STRICTLY needed?) *)
+ assume_tac $ SPEC “(v2n q DIV v2n q')” $ SIMP_RULE (srw_ss()) [] $ INST_TYPE [alpha |-> “:1”] w2v_n2w >>
+ (* Prove the antecedent by limits of the two operands from bitstring length, and monotonicity
+  * of operation *)
+ ‘v2n q DIV v2n q' <= 2’ by (
+  ‘v2n q <= 1’ by (assume_tac $ SPEC “q:bool list” bitstringTheory.v2n_lt >> gs[]) >>
+  ‘v2n q' <= 1’ by (assume_tac $ SPEC “q':bool list” bitstringTheory.v2n_lt >> gs[]) >>
+  assume_tac $ SPECL [“v2n q”, “v2n q'”, “1:num”, “1:num”] less_eq_div_mono >>
+  gs[]
+ ) >>
+ gs[] >>
+ qpat_x_assum ‘w2v (n2w (v2n q DIV v2n q')) = fixwidth 1 (n2v (v2n q DIV v2n q'))’
+  (fn thm => REWRITE_TAC [GSYM thm]) >>
+ CONJ_TAC >- (
+  (* TODO: Add divide by zero guard in regular exec sem? *)
+  cheat
+ ) >>
+ AP_TERM_TAC >>
+ AP_TERM_TAC >>
+ (* OK, since we may always throw on a MOD if the max numbers are lower *)
+ cheat
+) >>
+(* TODO: generalise the above, integrate with rpt_interval_tac *)
+cheat
+QED
+
 Theorem e_exec'_completeness_binop:
 !e b e0.
 e_exec'_complete e ==>
@@ -1732,15 +2682,19 @@ qpat_x_assum ‘e_exec uninit_zero
   Cases_on ‘p’ >> Cases_on ‘p'’ >> (
    gs[bitv_binop_def, bitv_binop'_def, get_bitv_binop'_def, AllCaseEqs()]
   )
+ ) >> (
+  (* TODO: Bitwidth problems here - need correspondence between actual bitstring length and given *)
+  gvs[]
+ ) >- (
+ metis_tac[binop_mul_equiv]
  ) >>
- (* TODO: Bitwidth problem *)
  cheat
 ) >- (
  (* Recursive: 2nd arg red *)
  qpat_x_assum ‘transform_e dict (e_binop (e_v v) b e2'') = SOME (e'_binop e1' b e2'³')’ (fn thm => ASSUME_TAC $ ONCE_REWRITE_RULE [transform_e_def] thm >> gvs[AllCaseEqs()]) >>
  metis_tac[]
 ) >> (
- (* Recursive cases *)
+ (* Recursive cases: all the rest of them *)
  qpat_x_assum ‘transform_e dict (e_binop e1'' b e2') = SOME (e'_binop _ b _)’ (fn thm => ASSUME_TAC $ ONCE_REWRITE_RULE [transform_e_def] thm >> gvs[AllCaseEqs()]) >>
  metis_tac[]
 )
