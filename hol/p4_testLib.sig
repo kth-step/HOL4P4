@@ -50,7 +50,4 @@ val eval_step : hol_type -> term -> term -> thm
 
 val replace_ext_impl : term -> string -> string -> term -> term
 
-val get_trace_thread_n : string -> term -> term -> int -> int -> thm
-val get_trace_thread_next_n : string -> term -> thm -> int -> int -> thm
-
 end
