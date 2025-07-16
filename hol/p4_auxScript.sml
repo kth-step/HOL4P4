@@ -2523,6 +2523,10 @@ Definition p4_append_input_list_def:
        ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
 End
 
+Definition p4_get_output_list_def:
+ p4_get_output_list (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate) =
+  io_list'
+End
 
 (* TODO: Hack to eliminate lots of syntax fiddling in p4_testLib *)
 Definition ext_map_replace_impl_def:

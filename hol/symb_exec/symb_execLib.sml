@@ -524,7 +524,13 @@ val h = el 32 step_thms
 val h = el 52 step_thms
 val h = el 67 step_thms
 
+val h = el 2 l''
+val h = el 1 l''
+
 val rewr_thms = postcond_rewr_thms
+val restr_tms = stop_consts_rewr
+val simpset = postcond_simpset
+
 *)
 fun prove_postconds_debug' rewr_thms restr_tms _ postcond []     _ = []
   | prove_postconds_debug' rewr_thms restr_tms simpset postcond (h::t) n =

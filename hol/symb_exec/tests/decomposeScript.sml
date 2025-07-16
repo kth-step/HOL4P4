@@ -188,7 +188,7 @@ val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "parsedHdr")) "h") s = SOME T /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T):v1model_ascope astate -> bool”;
 *)
-val postcond_rewr_thms1 = [p4_v1model_parser_wellformed_def, p4_v1model_lookup_avar_def, p4_v1model_lookup_avar_validity_def, lookup_lval_def, p4_v1modelTheory.v_map_to_scope_def]
+val postcond_rewr_thms1 = [p4_v1model_parser_wellformed_def, p4_v1model_lookup_avar_def, p4_v1model_lookup_avar_validity_def, lookup_lval_def, p4_coreTheory.v_map_to_scope_def]
 (* DEBUG
 
 val p4_is_finished_alt_opt = p4_is_finished_alt_opt1

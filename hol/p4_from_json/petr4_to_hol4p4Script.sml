@@ -3055,7 +3055,7 @@ Definition petr4_parse_entries_def:
         (case petr4_parse_entries (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) key_type_mk_list t of
          | SOME_msg res_msg =>
           let prio' = (case petr4_parse_priority annot of | SOME annot_prio => annot_prio | NONE => (get_max_prio (MAP SND matches_res) 0)) in
-           SOME_msg ((((match_all_e_alt (MAP FST matches_res)), prio'), (action_name, args))::res_msg)
+           SOME_msg (((MAP FST matches_res, prio'), (action_name, args))::res_msg)
          | NONE_msg err_msg => NONE_msg err_msg)
        | NONE_msg exp_msg => NONE_msg ("could not parse table entry action: "++exp_msg))
      | NONE_msg matches_msg => NONE_msg ("could not parse table entry key matches: "++matches_msg))
@@ -4055,7 +4055,7 @@ Definition ebpf_init_ctrl_def:
  ebpf_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):ebpf_ctrl
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) (tbl_regular []))) pblock_map)):ebpf_ctrl
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
@@ -4068,7 +4068,7 @@ Definition vss_init_ctrl_def:
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
                       | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) =>
-                       ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):vss_ctrl
+                       ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) (tbl_regular []))) pblock_map)):vss_ctrl
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
@@ -4080,7 +4080,7 @@ Definition v1model_init_ctrl_def:
  v1model_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) (tbl_regular []))) pblock_map)):v1model_ctrl
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map

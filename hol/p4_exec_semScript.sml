@@ -6,6 +6,9 @@ open p4Syntax;
 open ottTheory;
 open p4Theory p4_auxTheory;
 
+(* New to executable semantics *)
+Type e_ctx = “:('a ext_map # func_map # b_func_map)”;
+
 (*********************************)
 (* Expression-related shorthands *)
 
@@ -57,23 +60,28 @@ Definition bitv_1comp_def:
 End
 
 Definition bitv_2comp_def:
- bitv_2comp (v:bool list) l =
+ bitv_2comp (v:bool list) =
+  let l = LENGTH v in
   let a = 2 ** l in
   let b = v2n v in
   fixwidth l $ n2v (a - b)
 End
 
-(* TODO: This now has a sanity check for unop_neg_signed, so that completeness of CakeML-exportable
- * sem can be proved. *)
 Definition unop_exec_def:
  (unop_exec unop_neg (v_bool b) = SOME (v_bool ~b))
  /\
  (unop_exec unop_compl (v_bit (bl,n)) = SOME (v_bit (bitv_1comp bl, n)))
  /\
- (unop_exec unop_neg_signed (v_bit (bl,n)) =
+ (unop_exec unop_neg_signed (v_bit (bl,n)) = SOME (v_bit (bitv_2comp bl, n)))
+  (* TODO: Sanity check removed. *)
+(*
   if n > 0 /\ n <= 128 /\ LENGTH bl = n
   then SOME (v_bit (bitv_2comp bl n, n))
   else NONE)
+*)
+(* Maybe just this is better:
+ SOME (v_bit (bitv_2comp bl $ LENGTH bl, n))
+*)
  /\
  (unop_exec unop_un_plus (v_bit bitv) = SOME (v_bit bitv))
  /\
@@ -134,8 +142,8 @@ Definition bitv_saturate_add_def:
   let res = (v2n a) + (v2n b) in
   let limit = (v2n (REPLICATE l T) + 1) in
   if limit <= res
-  then (fixwidth l $ n2v (limit - 1), l)
-  else (fixwidth l $ n2v res, l)
+  then fixwidth l $ n2v (limit - 1)
+  else fixwidth l $ n2v res
 End
 
 Definition bitv_saturate_sub_def:
@@ -143,66 +151,66 @@ Definition bitv_saturate_sub_def:
   (* TODO: Need this so that the CakeML translator can work *)
   let av = v2n a in
   let bv = v2n b in
-  (fixwidth l $ n2v (if bv ≤ av then (av - bv) else 0), l)
+  fixwidth l $ n2v (if bv ≤ av then (av - bv) else 0)
 End
 
 Definition bitv_lsl_bv_def:
  bitv_lsl_bv a b l =
-  (fixwidth l (a++(REPLICATE (v2n b) F)), l)
+  fixwidth l (a++(REPLICATE (v2n b) F))
 End
 
 (* We could use l instead of LENGTH a, but that gives a precondition *)
 Definition bitv_lsr_bv_def:
  bitv_lsr_bv a b (l:num) =
-  (TAKE (LENGTH a) ((REPLICATE (v2n b) F)++a), l)
+  TAKE (LENGTH a) ((REPLICATE (v2n b) F)++a)
 End
 
 Definition bitv_mul_def:
- bitv_mul a b l = (fixwidth l $ n2v (v2n a * v2n b), l)
+ bitv_mul a b l = fixwidth l $ n2v (v2n a * v2n b)
 End
 
 Definition bitv_div_def:
  bitv_div a b l =
   let divisor = v2n b in
   if divisor <> 0
-  then (fixwidth l $ n2v (v2n a DIV divisor), l)
-  else (fixwidth l $ n2v 0, l)
+  then fixwidth l $ n2v (v2n a DIV divisor)
+  else fixwidth l $ n2v 0
 End
 
 Definition bitv_mod_def:
  bitv_mod a b l =
   let modulus = v2n b in
   if modulus <> 0
-  then (fixwidth l $ n2v (v2n a MOD modulus), l)
-  else (fixwidth l $ n2v 0, l)
+  then fixwidth l $ n2v (v2n a MOD modulus)
+  else fixwidth l $ n2v 0
 End
 
 Definition bitv_add_def:
- bitv_add a b (l:num) = (fixwidth l $ n2v (v2n a + v2n b), l)
+ bitv_add a b (l:num) = fixwidth l $ n2v (v2n a + v2n b)
 End
 
 (* Note that this guard can never yield the NONE case in practice,
  * it's just needed for translation *)
 Definition bitv_sub_def:
- bitv_sub a b (l:num) = bitv_add a (bitv_2comp b l) l
+ bitv_sub a b (l:num) = bitv_add a (bitv_2comp b) l
 End
 
 Definition band'_def:
  band' a b = MAP (\(x,y). x /\ y) (ZIP(a, b))
 End
 Definition bitv_and_def:
- bitv_and a b (l:num) = (band' a b, l)
+ bitv_and a b (l:num) = band' a b
 End
 
 Definition bor'_def:
  bor' (a:bool list) b = MAP (\(x,y). (x \/ y)) (ZIP(a, b))
 End
 Definition bitv_or_def:
- bitv_or a b (l:num) = (bor' a b, l)
+ bitv_or a b (l:num) = bor' a b
 End
 
 Definition bitv_xor_def:
- bitv_xor a b (l:num) = (bxor a b, l)
+ bitv_xor a b (l:num) = bxor a b
 End
 
 (* TODO: Split the binop type into binops and binpreds, more efficient... *)
@@ -252,7 +260,7 @@ Definition bitv_binop'_def:
   if n = n'
   then
    (case get_bitv_binop' binop of
-    | SOME bo => SOME $ bo v v' n
+    | SOME bo => SOME $ (bo v v' n, n)
     | NONE => NONE)
   else NONE
 End
@@ -297,8 +305,12 @@ Definition binop_exec_def:
  (binop_exec binop_shl (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bit (bitv_bl_binop shiftl bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
  /\
- (binop_exec binop_shr (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop shiftr bitv1 ((\(bl, n). (v2n bl, n)) bitv2))))
+ (binop_exec binop_shr (v_bit (bl, n)) (v_bit (bl',n')) =
+  let l = LENGTH bl in
+  let m = v2n bl' in
+  if m ≤ l
+  then SOME $ v_bit $ (fixwidth n $ TAKE (l - m) bl, n)
+  else SOME $ v_bit $ (fixwidth n [], n))
  /\
  (binop_exec binop_le (v_bit bitv1) (v_bit bitv2) =
   case bitv_binpred' binop_le bitv1 bitv2 of
@@ -335,13 +347,13 @@ Definition binop_exec_def:
   SOME (v_bool (b1 = b2)))
  /\
  (binop_exec binop_and (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop band bitv1 bitv2)))
+  SOME (v_bit (bitv_bl_binop band' bitv1 bitv2)))
  /\
  (binop_exec binop_xor (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bit (bitv_bl_binop bxor bitv1 bitv2)))
  /\
  (binop_exec binop_or (v_bit bitv1) (v_bit bitv2) =
-  SOME (v_bit (bitv_bl_binop bor bitv1 bitv2)))
+  SOME (v_bit (bitv_bl_binop bor' bitv1 bitv2)))
  /\
  (binop_exec binop v1 v2 = NONE)
 End
@@ -392,13 +404,59 @@ Definition pre_match_check_def:
   | _ => F)
 End
 
+Definition p4_match_mask_exec_def:
+ p4_match_mask_exec val mask k =
+  (case k of
+   | v_bit (v', n') =>
+    (case bitv_binop' binop_and (v', n') mask of
+     | SOME res =>
+      (case bitv_binop' binop_and val mask of
+       | SOME res' => 
+        (case bitv_binpred' binop_eq res res' of
+         | SOME bool => bool
+         | NONE => F)
+       | NONE => F)
+     | NONE => F)
+   | _ => F)
+End
+
+Definition p4_match_range_exec_def:
+ p4_match_range_exec lo hi k =
+  case k of
+   | v_bit (v', n') =>
+    (case bitv_binpred' binop_ge (v', n') lo of
+     | SOME T =>
+      (case bitv_binpred' binop_le (v', n') hi of
+       | SOME T => T
+       | _ => F)
+     | _ => F)
+   | _ => F
+End
+
+Definition match_exec_def:
+ match_exec w s =
+  case s of
+  | s_sing w' => (w = w')
+  | s_range w' w'' => p4_match_range_exec w' w'' w
+  | s_mask w' w'' => p4_match_mask_exec w' w'' w
+  | s_univ => T
+End
+
+Definition match_all_exec_def:
+ (match_all_exec [] = T) /\
+ (match_all_exec ((w, s)::t) =
+   if match_exec w s
+   then match_all_exec t
+   else F)
+End
+
 Definition e_exec_select_def:
  (e_exec_select (e_v v) s_l_x_l x =
   case v of
   | v_struct x_v_l =>
    if pre_match_check x_v_l
    then
-    (case (FIND (\ (s_list, x'). match_all (ZIP(SND $ UNZIP x_v_l,s_list))) s_l_x_l) of
+    (case (FIND (\ (s_list, x'). match_all_exec (ZIP(SND $ UNZIP x_v_l,s_list))) s_l_x_l) of
      | SOME (s_list, x') => SOME x'
      | NONE => SOME x)
    else NONE
@@ -415,9 +473,53 @@ End
 
 Definition e_exec_slice_def:
  (e_exec_slice (e_v (v_bit bitv1)) (e_v (v_bit bitv2)) (e_v (v_bit bitv3)) =
-  SOME (v_bit (slice bitv1 bitv2 bitv3)))
+  case slice' bitv1 bitv2 bitv3 of
+  | SOME bitv => SOME $ v_bit bitv
+  | NONE => NONE)
   /\
  (e_exec_slice _ _ _ = NONE)
+End
+(* TODO: Not needed?
+Definition slice_lval_exec_def:
+ slice_lval_exec v e1 e2 =
+  case v of
+  | (v_bit (v, bl)) =>
+   (case e1 of
+    | (e_v (v_bit (v1, bl1))) =>
+     (case e2 of
+      | (e_v (v_bit (v2, bl2))) =>
+       (case slice' (v, bl) (v1, bl1) (v2, bl2) of
+        | SOME bitv => SOME $ v_bit bitv
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+End
+
+Definition lookup_lval_exec_def:
+  (lookup_lval_exec (ss:scope list) (lval_varname x) = lookup_v ss x) /\
+  (lookup_lval_exec ss (lval_field lval f) =
+     case lookup_lval_exec ss lval of
+     | SOME v => acc_f v f
+     | NONE => NONE) /\
+ (lookup_lval_exec ss (lval_slice lval e1 e2) =
+    case lookup_lval_exec ss lval of
+     | SOME (v_bit (v, bl)) => (slice_lval_exec (v_bit (v, bl)) e1 e2)
+     | _ => NONE
+     ) /\
+ (lookup_lval_exec ss (lval_null) = NONE ) /\
+ (lookup_lval_exec ss (lval_paren lval) = lookup_lval_exec ss lval)
+End
+*)
+Definition vl_of_el_exec_def:
+ (vl_of_el_exec [] = SOME []) /\
+ (vl_of_el_exec (h::t) =
+   case get_v h of
+    | SOME v =>
+     (case vl_of_el_exec t of
+      | SOME v_l => SOME (v::v_l)
+      | NONE => NONE)
+    | NONE => NONE)
 End
 
 (********************************)
@@ -438,10 +540,58 @@ Definition get_ret_v_def:
  (get_ret_v (stmt_seq (stmt_ret (e_v v)) stmt) = SOME v) /\
  (get_ret_v _ = NONE)
 End
+(*
+Definition assign_to_slice_exec_def:
+ assign_to_slice_exec vb vb' ev1 ev2 =
+  (case ev1 of
+   | (e_v (v_bit (bl1, n1))) =>
+    (case ev2 of
+     | (e_v (v_bit (bl2, n2))) =>
+      (case replace_bits vb vb' (v2n bl1) (v2n bl2) of
+       | SOME bitv =>
+        SOME $ v_bit (bitv, SND vb')
+       | NONE => NONE)
+     | _ => NONE)
+   | _ => NONE)
+End
 
+Definition assign_exec_def:
+ (assign_exec ss v (lval_varname x) =
+  case find_topmost_map ss x of
+  | SOME (i, sc) =>
+   (case lookup_out ss x of
+    | SOME str_opt =>
+      SOME (LUPDATE (AUPDATE sc (x, (v, str_opt))) i ss)
+    | NONE => NONE)
+  | _ => NONE) /\
+ (assign_exec ss v (lval_field lval f) =
+  case lookup_lval' ss lval of
+  | SOME (v_struct f_v_l) =>
+   (case INDEX_OF f (MAP FST f_v_l) of
+    | SOME i => assign_exec ss (v_struct (LUPDATE (f, v) i f_v_l)) lval
+    | NONE => NONE)
+  | SOME (v_header validity f_v_l) =>
+   (case INDEX_OF f (MAP FST f_v_l) of
+    | SOME i => assign_exec ss (v_header validity (LUPDATE (f, v) i f_v_l)) lval
+    | NONE => NONE)
+   | _ => NONE) /\    
+ (assign_exec ss v (lval_slice lval ev1 ev2) =
+  case v of
+  | v_bit vb =>
+   (case lookup_lval' ss lval of
+    | SOME (v_bit vb') =>
+     (case assign_to_slice_exec vb vb' ev1 ev2 of
+      | SOME v_res => assign_exec ss v_res lval
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE) /\
+ (assign_exec ss v lval_null = SOME ss) /\
+ (assign_exec ss v (lval_paren lval) = assign_exec ss v lval)
+End
+*)
 Definition stmt_exec_ass_def:
  (stmt_exec_ass lval (e_v v) ss =
-  assign ss v lval)
+  assign' ss v lval)
   /\
  (stmt_exec_ass _ _ _ = NONE)
 End
@@ -493,6 +643,28 @@ Definition uninit_num_def:
   | uninit_zero => 0:num
 End
 
+(* TODO: Taken from cake_sem *)
+Definition init_out_v_cake_def:
+ (init_out_v_cake (v_bool boolv) = v_bool F) /\
+ (init_out_v_cake (v_bit (bl, n)) = v_bit (extend F n [], n)) /\
+ (init_out_v_cake (v_str x) = v_str "") /\
+ (init_out_v_cake (v_struct ((x,v)::t)) = v_struct (((x, init_out_v_cake v))::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
+ (init_out_v_cake (v_struct []) = v_struct []) /\
+ (init_out_v_cake (v_header boolv ((x,v)::t)) =
+   v_header F (( (x, init_out_v_cake v) )::(MAP (\(x',v'). (x', init_out_v_cake v')) t))) /\
+ (init_out_v_cake (v_header boolv []) = v_header F []) /\
+ (init_out_v_cake (v_ext_ref i) = v_ext_ref i) /\
+ (init_out_v_cake v_bot = v_bot)
+Termination
+ WF_REL_TAC ‘measure v_size’ \\
+ gs[v_size_def] \\
+ rpt strip_tac \\
+ ‘v_size v' < v1_size t’ suffices_by (
+  gs[]
+ ) \\
+ metis_tac[v1_size_mem]
+End
+
 Definition init_out_v_gen_def:
   (init_out_v_gen uninit (v_bool boolv) = v_bool (uninit_bit uninit)) /\
   (init_out_v_gen uninit (v_bit (bl, n)) = v_bit (extend (uninit_bit uninit) n [], n)) /\
@@ -508,17 +680,18 @@ Termination
  WF_REL_TAC `measure (\ (a,b). v_size b)`
 End
 
+(* TODO: uninit *)
 Definition one_arg_val_for_newscope_exec_def:
- one_arg_val_for_newscope_exec uninit d e ss =
+ one_arg_val_for_newscope_exec d e ss =
   if is_d_out d
   then
    (case get_lval_of_e e of
     | SOME lval =>
-     (case lookup_lval ss lval of
+     (case lookup_lval' ss lval of
       | SOME v =>
        if is_d_in d
        then SOME (v, SOME lval)
-       else SOME (init_out_v_gen uninit v, SOME lval)
+       else SOME (init_out_v_cake v, SOME lval)
       | NONE => NONE)
     | NONE => NONE)
   else
@@ -527,28 +700,34 @@ Definition one_arg_val_for_newscope_exec_def:
     | NONE => NONE)
 End
 
+(* TODO: uninit *)
 Definition update_arg_for_newscope_exec_def:
- update_arg_for_newscope_exec uninit ss f_opt (d, x, e) =
+ update_arg_for_newscope_exec ss f_opt (d, x, e) =
   case f_opt of
   | SOME f =>
-   (case one_arg_val_for_newscope_exec uninit d e ss of
+   (case one_arg_val_for_newscope_exec d e ss of
     | SOME (v, lval_opt) => SOME (p4$AUPDATE f (varn_name x, (v, lval_opt)))
     | NONE => NONE)
   | NONE => NONE
 End
 
+(* TODO: uninit *)
 Definition all_arg_update_for_newscope_exec_def:
- all_arg_update_for_newscope_exec uninit xlist dlist elist ss = 
-  FOLDL (update_arg_for_newscope_exec uninit ss) (SOME []) (ZIP (dlist, ZIP(xlist, elist)))
+ all_arg_update_for_newscope_exec xlist dlist elist ss = 
+  FOLDL (update_arg_for_newscope_exec ss) (SOME []) (ZIP (dlist, ZIP(xlist, elist)))
 End
 
+(* TODO: uninit *)
 Definition copyin_exec_def:
- copyin_exec uninit xlist dlist elist gsl ss_curr = 
-  all_arg_update_for_newscope_exec uninit xlist dlist elist (ss_curr++gsl)
+ copyin_exec xlist dlist elist gsl ss_curr = 
+  all_arg_update_for_newscope_exec xlist dlist elist (ss_curr++gsl)
 End
 
 Definition e_state_size_def:
- (e_state_size (uninit, (ctx:'a ctx), (g_scope_list:g_scope_list), (scope_list:scope_list), (e:e)) = e_size e)
+(*
+ (e_state_size (uninit, (e_ctx:'a e_ctx), (g_scope_list:g_scope_list), (scope_list:scope_list), (e:e)) = e_size e)
+*)
+ (e_state_size ((e_ctx:'a e_ctx), (g_scope_list:g_scope_list), (scope_list:scope_list), (e:e)) = e_size e)
 End
 
 (* TODO: Write explicit NONE-reducing clauses for operands of wrong types?
@@ -558,49 +737,60 @@ End
 Definition e_exec_def:
  (********************)
  (* Variable look-up *)
- (e_exec uninit (ctx:'a ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e_var x) =
+ (e_exec (e_ctx:'a e_ctx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e_var x) =
   case lookup_vexp2 scope_list g_scope_list x of
   | SOME v => SOME (e_v v, [])
   | NONE => NONE)
   /\
  (******************************)
  (* Struct/header field access *)
- (e_exec uninit ctx g_scope_list scope_list (e_acc e_v_struct x) =
+ (e_exec e_ctx g_scope_list scope_list (e_acc e_v_struct x) =
   if is_v e_v_struct
   then
    (case e_exec_acc (e_acc e_v_struct x) of
     | SOME v => SOME (v, [])
     | NONE => NONE)
    else
-    (case e_exec uninit ctx g_scope_list scope_list e_v_struct of
+    (case e_exec e_ctx g_scope_list scope_list e_v_struct of
      | SOME (e_v_struct', frame_list) =>
       SOME (e_acc e_v_struct' x, frame_list)
      | NONE => NONE))
   /\
  (*********************************)
  (* Struct/header field reduction *)
- (e_exec uninit ctx g_scope_list scope_list (e_struct x_e_l) =
+ (e_exec e_ctx g_scope_list scope_list (e_struct x_e_l) =
   case unred_mem_index (MAP SND x_e_l) of
   | SOME i =>
-   (case e_exec uninit ctx g_scope_list scope_list (EL i (MAP SND x_e_l)) of
-    | SOME (e', frame_list) => SOME (e_struct (ZIP (MAP FST x_e_l, (LUPDATE e' i (MAP SND x_e_l)))), frame_list)
+   (* TODO: Uses oEL, but precondition for EL should be provable *)
+   (case oEL i (MAP SND x_e_l) of
+    | SOME x_e =>
+     (case e_exec e_ctx g_scope_list scope_list x_e of
+      | SOME (e', frame_list) => SOME (e_struct (ZIP (MAP FST x_e_l, (LUPDATE e' i (MAP SND x_e_l)))), frame_list)
+      | NONE => NONE)
     | NONE => NONE)
-  | NONE => SOME (e_v (v_struct (ZIP (MAP FST x_e_l, vl_of_el (MAP SND x_e_l)))), []))
+  | NONE =>
+   (case vl_of_el_exec (MAP SND x_e_l) of
+    | SOME v_l => SOME (e_v (v_struct (ZIP (MAP FST x_e_l, v_l))), [])
+    | NONE => NONE))
   /\
  (************************)
  (* Function/extern call *)
- (e_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scope_list (e_call funn e_l) =
+ (e_exec (ext_map, func_map, b_func_map) g_scope_list scope_list (e_call funn e_l) =
   (case lookup_funn_sig_body funn func_map b_func_map ext_map of
     | SOME (stmt, x_d_l) =>
      if LENGTH x_d_l = LENGTH e_l
      then
       (case unred_arg_index (MAP SND x_d_l) e_l of
        | SOME i =>
-        (case e_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scope_list (EL i e_l) of
-         | SOME (e', frame_list) => SOME (e_call funn (LUPDATE e' i e_l), frame_list)
+        (* TODO: Uses oEL, but precondition for EL should be provable *)
+        (case oEL i e_l of
+         | SOME elem =>
+          (case e_exec (ext_map, func_map, b_func_map) g_scope_list scope_list elem of
+           | SOME (e', frame_list) => SOME (e_call funn (LUPDATE e' i e_l), frame_list)
+           | NONE => NONE)
          | NONE => NONE)
        | NONE =>
-        (case copyin_exec uninit (MAP FST x_d_l) (MAP SND x_d_l) e_l g_scope_list scope_list of
+        (case copyin_exec (MAP FST x_d_l) (MAP SND x_d_l) e_l g_scope_list scope_list of
          | SOME scope => 
           SOME (e_var (varn_star funn), [(funn, [stmt], [scope])])
          | NONE => NONE))
@@ -609,33 +799,33 @@ Definition e_exec_def:
   /\
  (********)
  (* Cast *)
- (e_exec uninit ctx g_scope_list scope_list (e_cast cast e) =
+ (e_exec e_ctx g_scope_list scope_list (e_cast cast e) =
   if is_v e
   then
    (case e_exec_cast cast e of
     | SOME v => SOME (e_v v, [])
     | NONE => NONE)
   else
-   (case e_exec uninit ctx g_scope_list scope_list e of
+   (case e_exec e_ctx g_scope_list scope_list e of
     | SOME (e', frame_list) => SOME (e_cast cast e', frame_list)
     | NONE => NONE))
   /\
  (********************)
  (* Unary arithmetic *)
- (e_exec uninit ctx g_scope_list scope_list (e_unop unop e) =
+ (e_exec e_ctx g_scope_list scope_list (e_unop unop e) =
   if is_v e
   then 
    (case e_exec_unop unop e of
     | SOME v => SOME (e_v v, [])
     | NONE => NONE)
   else
-   (case e_exec uninit ctx g_scope_list scope_list e of
+   (case e_exec e_ctx g_scope_list scope_list e of
     | SOME (e', frame_list) => SOME (e_unop unop e', frame_list)
     | NONE => NONE))
   /\
  (*********************)
  (* Binary arithmetic *)
- (e_exec uninit ctx g_scope_list scope_list (e_binop e1 binop e2) =
+ (e_exec e_ctx g_scope_list scope_list (e_binop e1 binop e2) =
   (case e1 of
    | (e_v v) =>
     if is_short_circuitable binop
@@ -649,30 +839,30 @@ Definition e_exec_def:
       | SOME v' => SOME (e_v v', [])
       | NONE => NONE)
     else
-     (case e_exec uninit ctx g_scope_list scope_list e2 of
+     (case e_exec e_ctx g_scope_list scope_list e2 of
       | SOME (e2', frame_list) => SOME (e_binop e1 binop e2', frame_list)
       | NONE => NONE)
    | _ =>
-    (case e_exec uninit ctx g_scope_list scope_list e1 of
+    (case e_exec e_ctx g_scope_list scope_list e1 of
      | SOME (e1', frame_list) => SOME (e_binop e1' binop e2, frame_list)
      | NONE => NONE)))
   /\
  (**********)
  (* Select *)
- (e_exec uninit ctx g_scope_list scope_list (e_select e s_l_x_l x) =
+ (e_exec e_ctx g_scope_list scope_list (e_select e s_l_x_l x) =
   if is_v e
   then
    (case e_exec_select e s_l_x_l x of
     | SOME x' => SOME (e_v (v_str x'), [])
     | NONE => NONE)
   else
-   (case e_exec uninit ctx g_scope_list scope_list e of
+   (case e_exec e_ctx g_scope_list scope_list e of
     | SOME (e', frame_list) => SOME (e_select e' s_l_x_l x, frame_list)
     | NONE => NONE))
   /\
  (*****************)
  (* Concatenation *)
- (e_exec uninit ctx g_scope_list scope_list (e_concat e1 e2) =
+ (e_exec e_ctx g_scope_list scope_list (e_concat e1 e2) =
   if is_v_bit e1
   then 
    (if is_v_bit e2
@@ -681,17 +871,17 @@ Definition e_exec_def:
       | SOME v => SOME (e_v v, [])
       | NONE => NONE)
     else
-     (case e_exec uninit ctx g_scope_list scope_list e2 of
+     (case e_exec e_ctx g_scope_list scope_list e2 of
       | SOME (e2', frame_list) => SOME (e_concat e1 e2', frame_list)
       | NONE => NONE))
   else
-   (case e_exec uninit ctx g_scope_list scope_list e1 of
+   (case e_exec e_ctx g_scope_list scope_list e1 of
     | SOME (e1', frame_list) => SOME (e_concat e1' e2, frame_list)
     | NONE => NONE))
   /\
  (***********)
  (* Slicing *)
- (e_exec uninit ctx g_scope_list scope_list (e_slice e1 e2 e3) =
+ (e_exec e_ctx g_scope_list scope_list (e_slice e1 e2 e3) =
   if (is_v_bit e2 /\ is_v_bit e3)
   then
    (if is_v_bit e1
@@ -700,22 +890,24 @@ Definition e_exec_def:
       | SOME v => SOME (e_v v, [])
       | NONE => NONE)
     else
-     (case e_exec uninit ctx g_scope_list scope_list e1 of
+     (case e_exec e_ctx g_scope_list scope_list e1 of
       | SOME (e1', frame_list) => SOME (e_slice e1' e2 e3, frame_list)
       | NONE => NONE))
    else NONE)
   /\
- (e_exec _ _ _ _ _ = NONE)
+ (e_exec _ _ _ _ = NONE)
 Termination
 WF_REL_TAC `measure e_state_size` >>
 fs [e_state_size_def, e_size_def] >>
 REPEAT STRIP_TAC >| [
   IMP_RES_TAC unred_arg_index_in_range >>
+  gs[listTheory.oEL_EQ_EL] >>
   IMP_RES_TAC rich_listTheory.EL_MEM >>
   IMP_RES_TAC e3_size_mem >>
-  fs [],
+  gs[],
 
   IMP_RES_TAC unred_mem_index_in_range >>
+  gs[listTheory.oEL_EQ_EL] >>
   IMP_RES_TAC rich_listTheory.EL_MEM >>
   `e_size (EL i (MAP SND x_e_l)) < e1_size x_e_l` suffices_by (
    fs []
@@ -734,6 +926,7 @@ REPEAT STRIP_TAC >| [
   metis_tac [EL_pair_list, listTheory.LENGTH_MAP]
 ]
 End
+
 (*
 val e_exec_ind = tryfind (uncurry DB.fetch) [("scratch", "e_exec_ind"),
                                              ("p4_exec_sem", "e_exec_ind")];
@@ -773,6 +966,15 @@ Cases_on `h` >> (
 fs [v_of_e_def]
 QED
 
+Definition separate_exec_def:
+ separate_exec scope_list =
+  let i = LENGTH scope_list in
+  if i >= 2
+  then
+   SOME (DROP (i − 2) scope_list, TAKE (i − 2) scope_list)
+  else NONE
+End
+
 (* arb_from_tau, generalised for different (un)initialisation schemes *)
 Definition arb_from_tau_gen_def:
  (arb_from_tau_gen uninit tau_bool        = v_bool $ uninit_bit uninit) /\
@@ -788,6 +990,27 @@ End
 Definition declare_list_in_fresh_scope_exec_def:
  declare_list_in_fresh_scope_exec uninit (t_scope:t_scope) =
   MAP (\(x, (t, lvalop)). (x, (arb_from_tau_gen uninit t, NONE))) t_scope
+End
+
+(* TODO: From cake_sem *)
+Definition init_v_from_tau_cake_def:
+ (init_v_from_tau_cake tau_bool = v_bool F) /\
+ (init_v_from_tau_cake (tau_bit w) = v_bit (GENLIST (\x. F) w, w)) /\
+ (init_v_from_tau_cake tau_bot = v_bot) /\
+ (init_v_from_tau_cake tau_ext = v_ext_ref 0) /\
+ (init_v_from_tau_cake (tau_xtl struct_ty_struct []) = v_struct []) /\
+ (init_v_from_tau_cake (tau_xtl struct_ty_struct ((x0,t0)::xtl)) =
+  v_struct ((x0, init_v_from_tau_cake t0)::(MAP (\(x,t). (x, init_v_from_tau_cake t)) xtl))) /\
+ (init_v_from_tau_cake (tau_xtl struct_ty_header [] ) = v_header F [] ) /\
+ (init_v_from_tau_cake (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
+   v_header F ((x0, init_v_from_tau_cake t0)::(MAP (\(x,t). (x, init_v_from_tau_cake t)) xtl)))
+Termination
+WF_REL_TAC `measure tau_size`
+End
+(* TODO: Hard-coded to zeroes *)
+Definition declare_list_in_fresh_scope_exec'_def:
+ declare_list_in_fresh_scope_exec' (t_scope:t_scope) =
+  MAP (\(x, (t, lvalop)). (x, (init_v_from_tau_cake t, NONE))) t_scope
 End
 
 Theorem arb_from_tau_gen_arb_equiv:
@@ -838,57 +1061,96 @@ PairCases_on ‘h’ >>
 gs[arb_from_tau_gen_arb_equiv]
 QED
 
+Definition get_e_ctx_def:
+ get_e_ctx ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map):'a ctx) = (ext_map, func_map, b_func_map)
+End
+
+(* TODO: Check for funn agreement? *)
+Definition stmt_exec_seq_finish_def:
+ (stmt_exec_seq_finish (ascope':'a, g_scope_list':g_scope_list, frame_list':frame list, status':status) (funn:funn) stmt2 =
+  case frame_list' of
+  | [(funn, [stmt1'], scope_list')] =>
+   (case status' of 
+    | status_running =>
+     SOME (ascope', g_scope_list', [(funn, [stmt_seq stmt1' stmt2], scope_list')], status_running)
+    | _ =>
+     SOME (ascope', g_scope_list', [(funn, [stmt1'], scope_list')], status'))     
+  | [(funn, stmt1''::[stmt1'], scope_list')] =>
+   SOME (ascope', g_scope_list', [(funn, [stmt1'']++[stmt_seq stmt1' stmt2], scope_list')], status_running)
+  | (frame::[(funn, [stmt1'], scope_list')]) =>
+   SOME (ascope', g_scope_list', (frame::[(funn, [stmt_seq stmt1' stmt2], scope_list')]), status_running)
+  | _ => NONE
+ )
+End
+
+Definition stmt_exec_stack_finish_def:
+ (stmt_exec_stack_finish (ascope':'a, g_scope_list':g_scope_list, frame_list':frame list, status':status) (funn:funn) stmt_stack (scope_list:scope list) =
+  case frame_list' of
+   (* Regular case *)
+   | [(funn, [stmt'], scope_list')] =>
+    SOME (ascope', g_scope_list', [(funn, stmt'::stmt_stack, scope_list')], status')
+   (* Block entry *)
+   | [(funn, stmt''::[stmt'], scope_list')] =>
+    SOME (ascope', g_scope_list', [(funn, stmt''::(stmt'::stmt_stack), scope_list')], status')
+   (* Function call *)
+   | ((funn', [stmt'], scope_list')::[(funn, [stmt''], scope_list)]) =>
+    SOME (ascope', g_scope_list', ((funn', [stmt'], scope_list')::[(funn, stmt''::stmt_stack, scope_list)]), status')
+   (* TODO: What can happen here? *)
+   | _ => NONE
+ )
+End
+
 Definition stmt_exec_def:
  (******************************************)
  (* Catch-all clauses for special statuses *)
- (stmt_exec uninit (ctx:'a ctx) ((ascope:'a, g_scope_list:g_scope_list, frame_list:frame_list, status_returnv v):'a state) = NONE)
+ (stmt_exec (ctx:'a ctx) ((ascope:'a, g_scope_list:g_scope_list, frame_list:frame_list, (status_returnv v):status)) = NONE)
   /\
- (stmt_exec uninit _ (_, _, _, status_trans x) = NONE)
+ (stmt_exec _ (_, _, _, status_trans x) = NONE)
   /\
  (* Empty frame list *)
- (stmt_exec uninit _ (_, _, [], _) = NONE)
+ (stmt_exec _ (_, _, [], _) = NONE)
   /\
  (* Empty scope stack *)
- (stmt_exec uninit _ (_, _, [(funn, stmt_stack, [])], _) = NONE)
+ (stmt_exec _ (_, _, [(funn, stmt_stack, [])], _) = NONE)
   /\
  (**************)
  (* Assignment *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt_ass lval e], scope_list)], status_running) =
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_ass lval e], scope_list)], status_running) =
   if is_v e
   then
+   (* TODO: Put separate_exec in stmt_exec_ass? *)
    (case stmt_exec_ass lval e (scope_list++g_scope_list) of
     | SOME scope_list'' =>
-     (case separate scope_list'' of
-      | (SOME g_scope_list', SOME scope_list') =>
+     (case separate_exec scope_list'' of
+      | SOME (g_scope_list', scope_list') =>
        SOME (ascope, g_scope_list', [(funn, [stmt_empty], scope_list')], status_running)
       | _ => NONE)
     | NONE => NONE)
   else
-   (case e_exec uninit ctx g_scope_list scope_list e of
+   (case e_exec (get_e_ctx ctx) g_scope_list scope_list e of
     | SOME (e', frame_list) =>
      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_ass lval e'], scope_list)], status_running)
     | _ => NONE))
   /\
  (**************)
  (* Transition *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt_trans e], scope_list)], status_running) =
+ (* +5s *)
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_trans e], scope_list)], status_running) =
   if is_v e
   then
-   if is_v_str e
-   then
-    (case stmt_exec_trans e of
-     | SOME status' => SOME (ascope, g_scope_list, [(funn, [stmt_empty], scope_list)], status')
-     | NONE => NONE)
-    else NONE
+   (case stmt_exec_trans e of
+    | SOME status' => SOME (ascope, g_scope_list, [(funn, [stmt_empty], scope_list)], status')
+    | NONE => NONE)
   else
-   (case e_exec uninit ctx g_scope_list scope_list e of
+   (case e_exec (get_e_ctx ctx) g_scope_list scope_list e of
     | SOME (e', frame_list) =>
      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_trans e'], scope_list)], status_running)
     | NONE => NONE))
   /\
  (***************)
  (* Conditional *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt_cond e stmt1 stmt2], scope_list)], status_running) =
+ (* +5s *)
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_cond e stmt1 stmt2], scope_list)], status_running) =
   (* TODO: Make this more efficient by using a single get_v_bool e *)
   if is_v_bool e
   then
@@ -897,19 +1159,24 @@ Definition stmt_exec_def:
     | SOME F => SOME (ascope, g_scope_list, [(funn, [stmt2], scope_list)], status_running)
     | NONE => NONE)
   else
-   (case e_exec uninit ctx g_scope_list scope_list e of
+   (case e_exec (get_e_ctx ctx) g_scope_list scope_list e of
     | SOME (e', frame_list) =>
      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_cond e' stmt1 stmt2], scope_list)], status_running)
     | NONE => NONE))
   /\
  (*********************)
  (* Table application *)
- (stmt_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt_app t_name e_l], scope_list)], status_running) =
+ (* +9s *)
+ (stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt_app t_name e_l], scope_list)], status_running) =
+  (* TODO: Merge index_not_const and oEL? *)
   (case index_not_const e_l of
    | SOME i =>
-    (case e_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scope_list (EL i e_l) of
-     | SOME (e', frame_list) =>
-      SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_app t_name (LUPDATE e' i e_l)], scope_list)], status_running)
+    (case oEL i e_l of
+     | SOME elem =>
+      (case e_exec (ext_map, func_map, b_func_map) g_scope_list scope_list elem of
+       | SOME (e', frame_list) =>
+        SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_app t_name (LUPDATE e' i e_l)], scope_list)], status_running)
+       | NONE => NONE)
      | NONE => NONE)
    | NONE =>
     (case ALOOKUP tbl_map t_name of
@@ -928,18 +1195,21 @@ Definition stmt_exec_def:
   /\
  (**********)
  (* Return *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt_ret e], scope_list)], status_running) =
+ (* +5s *)
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_ret e], scope_list)], status_running) =
   (case get_v e of
    | SOME v => SOME (ascope, g_scope_list, [(funn, [stmt_empty], scope_list)], status_returnv v)
    | NONE => 
-    (case e_exec uninit ctx g_scope_list scope_list e of
+    (case e_exec (get_e_ctx ctx) g_scope_list scope_list e of
      | SOME (e', frame_list) =>
       SOME (ascope, g_scope_list, frame_list++[(funn, [stmt_ret e'], scope_list)], status_running)
      | NONE => NONE)))
   /\
  (**********)
  (* Extern *)
- (stmt_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt_ext], scope_list)], status_running) =
+ (* +5s *)
+ (stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, [stmt_ext], scope_list)], status_running) =
+  (* TODO: Put ext fun execution inside lookup_ext_fun (and rename?) *)
   (case lookup_ext_fun funn ext_map of
    | SOME ext_fun =>
     (case ext_fun (ascope, g_scope_list, scope_list) of
@@ -950,17 +1220,21 @@ Definition stmt_exec_def:
   /\
  (*********)
  (* Block *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt_block decl_list stmt], scope_list)], status_running) =
-   SOME (ascope, g_scope_list, [(funn, [stmt]++[stmt_empty], ((declare_list_in_fresh_scope_exec uninit decl_list)::scope_list))], status_running))
+ (* -5s??? *)
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_block decl_list stmt], scope_list)], status_running) =
+   SOME (ascope, g_scope_list, [(funn, [stmt]++[stmt_empty], ((declare_list_in_fresh_scope_exec' decl_list)::scope_list))], status_running))
   /\
  (************)
  (* Sequence *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt_seq stmt1 stmt2], scope_list)], status_running) =
+ (* +13s/+9s *)
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_seq stmt1 stmt2], scope_list)], status_running) =
   if is_empty stmt1
   then SOME (ascope, g_scope_list, [(funn, [stmt2], scope_list)], status_running)
   else
    (* Note: this only allows for 0 or 1 frame being added, or (exclusively) 1 stmt element *)
-   (case stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt1], scope_list)], status_running) of
+   (case stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt1], scope_list)], status_running) of
+    | SOME state' => stmt_exec_seq_finish state' funn stmt2
+(* TODO: Replaced by definition - is there any improvement in extraction time?
     | SOME (ascope', g_scope_list', [(funn, [stmt1'], scope_list')], status') =>
      (case status' of 
       | status_running =>
@@ -971,26 +1245,30 @@ Definition stmt_exec_def:
      SOME (ascope', g_scope_list', [(funn, [stmt1'']++[stmt_seq stmt1' stmt2], scope_list')], status_running)
     | SOME (ascope', g_scope_list', (frame::[(funn, [stmt1'], scope_list')]), status_running) =>
      SOME (ascope', g_scope_list', (frame::[(funn, [stmt_seq stmt1' stmt2], scope_list')]), status_running)
-    | _ => NONE))
+*)
+    | _ => NONE)
+ )
   /\
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt_empty], scope_list)], status_running) = NONE)
+ /\
  (*********************)
  (* Stmt stack clause *)
  (*********************)
  (* TODO: Should the case statement be handled by better matching in the clause? *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, stmt_empty::stmt_stack, scope_list)], status) =
-  case stmt_stack of
-  | [] => NONE
-  | _ =>
-   (case scope_list of
+ (stmt_exec ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) =
+  if is_empty stmt
+  then
+   (case stmt_stack of
     | [] => NONE
-    | (h_scope::scope_list') => SOME (ascope, g_scope_list, [(funn, stmt_stack, TL (h_scope::scope_list'))], status)))
-  /\
- (* TODO: This clause gets expanded into multiple clauses to account for all different
-  *       statements. An alternative solution, which may be even more convoluted,
-  *       could be to make mutually recursive functions *)
- (stmt_exec uninit ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) =
-   (case stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt], scope_list)], status) of
-   | SOME (ascope', g_scope_list', frame_list', status') =>
+    | _ =>
+     (case scope_list of
+      | [] => NONE
+      | (h_scope::scope_list') => SOME (ascope, g_scope_list, [(funn, stmt_stack, scope_list')], status)))
+  else
+   (case stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt], scope_list)], status) of
+   | SOME state' =>
+    stmt_exec_stack_finish state' funn stmt_stack scope_list
+(* TODO: Replaced by definition - is there any improvement in extraction time?
     (case frame_list' of
      (* Regular case *)
      | [(funn, [stmt'], scope_list')] =>
@@ -1003,11 +1281,20 @@ Definition stmt_exec_def:
       SOME (ascope', g_scope_list', ((funn', [stmt'], scope_list')::[(funn, stmt''::stmt_stack, scope_list)]), status')
      (* TODO: What can happen here? *)
      | _ => NONE)
-   | NONE => NONE))
+*)
+   | NONE => NONE)
+ )
   /\
- (stmt_exec _ _ _ = NONE)
+ (stmt_exec _ _ = NONE)
+Termination
+ WF_REL_TAC ‘measure (\ (ctx, ascope, g_scope_list, frame, status).
+  (case frame of
+   | [(funn,stmt_stack,scopes)] => FOLDR (\stmt n. stmt_size stmt + n + 1) 0 stmt_stack
+   | _ => 0))’ >>
+  gs[is_empty_def]
 End
 
+(*
 Theorem exec_stmt_SOME_init_running:
 !uninit ctx ascope ascope' g_scope_list g_scope_list' funn stmt frame_list' scope_list status status'.
 stmt_exec uninit ctx (ascope, g_scope_list, [(funn, [stmt], scope_list)], status) =
@@ -1030,374 +1317,48 @@ e_exec uninit ctx g_scope_list scope_list e = SOME (e',frame_list') ==>
 (frame_list' = [] \/
  ?funn stmt scope. frame_list' = [(funn, [stmt], [scope])])
 Proof
-`!uninit ctx g_scope_list scope_list e.
+‘!uninit ctx g_scope_list scope_list e.
  (\uninit' ctx' g_scope_list' scope_list' e'.
   !e'' frame_list''.
   e_exec uninit' ctx' g_scope_list' scope_list' e' = SOME (e'', frame_list'') ==>
   (frame_list'' = [] \/
    ?funn'' stmt'' scope''. frame_list'' = [(funn'', [stmt''], [scope''])])
- ) uninit ctx g_scope_list scope_list e` suffices_by (
+ ) uninit ctx g_scope_list scope_list e’ suffices_by (
  metis_tac []
 ) >>
 irule e_exec_ind >>
 fs [e_exec_def] >>
 rpt strip_tac >| [
- Cases_on `lookup_funn_sig_body funn func_map b_func_map ext_map` >> (
-  fs []
- ) >>
- PairCases_on `x` >>
- fs [] >>
- Cases_on `unred_arg_index (MAP SND x1) e_l` >> (
-  fs []
- ) >| [
-  Cases_on `copyin_exec uninit (MAP FST x1) (MAP SND x1) e_l g_scope_list scope_list` >> (
-   fs []
-  ) >>
-  metis_tac [],
-
-  Cases_on `e_exec uninit (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list
-              scope_list (EL x e_l)` >> (
-   fs []
-  ) >>
-  PairCases_on `x'` >>
-  fs []
- ],
+ gvs[AllCaseEqs()],
 
  (* Unop *)
- Cases_on `is_v e` >> (
-  fs []
- ) >| [
-  Cases_on `e_exec_cast cast e` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs []
- ],
+ gvs[AllCaseEqs()],
 
  (* TODO: Weird blob goal... *)
  Cases_on `e1` >> (
   fs [e_exec_def]
- ) >| [
-  Cases_on `is_short_circuitable binop` >> (
-   fs []
-  ) >| [
-   Cases_on `e_exec_short_circuit v binop e2` >> (
-    fs []
-   ),
-
-   Cases_on `is_v e2` >> (
-    fs []
-   ) >| [
-    Cases_on `e_exec_binop (e_v v) binop e2` >> (
-     fs []
-    ),
-
-    Cases_on `e_exec uninit ctx g_scope_list scope_list e2` >> (
-     fs []
-    ) >>
-    PairCases_on `x` >>
-    fs []
-   ]
-  ],
-
-  Cases_on `lookup_vexp2 scope_list g_scope_list v` >> (
-   fs []
-  ),
-
-  Cases_on `is_v e` >> (
-   fs []
-  ) >- (
-   Cases_on `e_exec_acc (e_acc e s)` >> (
-    fs []
-   )
-  ) >>
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [],
-
-  Cases_on `is_v e` >> (
-   fs []
-  ) >| [
-   Cases_on `e_exec_unop u e` >> (
-    fs []
-   ),
-
-   Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs []
-  ],
-
-  (* Cast *)
-  Cases_on `is_v e` >> (
-   fs []
-  ) >| [
-   Cases_on `e_exec_cast c e` >> (
-    fs []
-   ),
-
-   Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs []
-  ],
-
-  (* TODO: Interesting... *)
-  Cases_on `case e of
-             e_v v =>
-               if is_short_circuitable b then
-                 case e_exec_short_circuit v b e0 of
-                   NONE => NONE
-                 | SOME e' => SOME (e',[])
-               else if is_v e0 then
-                 case e_exec_binop e b e0 of
-                   NONE => NONE
-                 | SOME v' => SOME (e_v v',[])
-               else
-                 (case e_exec uninit ctx g_scope_list scope_list e0 of
-                    NONE => NONE
-                  | SOME (e2',frame_list) =>
-                    SOME (e_binop e b e2',frame_list))
-           | e_var v25 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_list v26 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_acc v27 v28 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_unop v29 v30 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_cast v29 v30 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_binop v31 v32 v33 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_concat v34 v35 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_slice v36 v37 v38 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_call v39 v40 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_select v41 v42 v43 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_struct v44 =>
-             (case e_exec uninit ctx g_scope_list scope_list e of
-                NONE => NONE
-              | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list))
-           | e_header v45 v46 =>
-             case e_exec uninit ctx g_scope_list scope_list e of
-               NONE => NONE
-             | SOME (e1',frame_list) => SOME (e_binop e1' b e0,frame_list)` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [],
-
-  (* Concatenation *)
-  Cases_on `is_v_bit e` >> Cases_on `is_v_bit e0` >> (
-   fs []
-  ) >| [
-   Cases_on `e_exec_concat e e0` >> (
-    fs []
-   ),
-
-   Cases_on `e_exec uninit ctx g_scope_list scope_list e0` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs [],
-
-   Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs [],
-
-   Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs []
-  ],
-
-  (* Slicing *)
-  Cases_on `is_v_bit e0` >> Cases_on `is_v_bit e1'` >> (
-   fs []
-  ) >>
-  Cases_on `is_v_bit e` >> (
-   fs []
-  ) >| [
-   Cases_on `e_exec_slice e e0 e1'` >> (
-    fs []
-   ),
-
-   Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs []
-  ],
-
-  (* Function call *)
-  Cases_on `e_exec uninit ctx g_scope_list scope_list (e_call f l)` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [],
-
-  (* Select *)
-  Cases_on `is_v e` >> (
-   fs []
-  ) >| [
-   Cases_on `e_exec_select e l s` >> (
-    fs []
-   ),
-
-   Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-    fs []
-   ) >>
-   PairCases_on `x` >>
-   fs []
-  ],
-
-  (* Struct *)
-  Cases_on `unred_mem_index (MAP SND l)` >> (
-   fs []
-  ) >>
-  Cases_on `e_exec uninit ctx g_scope_list scope_list (EL x (MAP SND l))` >> (
-   fs []
-  ) >>
-  PairCases_on `x'` >>
-  fs []
- ],
+ ) >> (gvs[AllCaseEqs()]),
 
  (* Slicing *)
- Cases_on `is_v_bit e1` >> (
-  fs []
- ) >| [
-  Cases_on `e_exec_slice e1 e2 e3` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e1` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs []
- ],
+ gvs[AllCaseEqs()],
 
  (* Concatenation *)
- Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
-  fs []
- ) >| [
-  Cases_on `e_exec_concat e1 e2` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e2` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [],
-
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e1` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs [],
-
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e1` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs []
- ],
+ gvs[AllCaseEqs()],
 
  (* Access *)
- Cases_on `is_v e_v_struct` >> (
-  fs []
- ) >| [
-  Cases_on `e_exec_acc (e_acc e_v_struct x)` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e_v_struct` >> (
-   fs []
-  ) >>
-  PairCases_on `x'` >>
-  fs []
- ],
+  gvs[AllCaseEqs()],
 
  (* Select *)
- Cases_on `is_v e` >> (
-  fs []
- ) >| [
-  Cases_on `e_exec_select e s_l_x_l x` >> (
-   fs []
-  ),
+ gvs[AllCaseEqs()],
 
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-   fs []
-  ) >>
-  PairCases_on `x'` >>
-  fs []
- ],
-
- (* Struct? *)
- Cases_on `unred_mem_index (MAP SND x_e_l)` >> (
-  fs []
- ) >>
- Cases_on `e_exec uninit ctx g_scope_list scope_list (EL x (MAP SND x_e_l))` >> (
-  fs []
- ) >>
- PairCases_on `x'` >>
- fs [],
+ (* Struct *)
+ gvs[AllCaseEqs()],
 
  (* Unop *)
- Cases_on `is_v e` >> (
-  fs []
- ) >| [
-  Cases_on `e_exec_unop unop e` >> (
-   fs []
-  ),
-
-  Cases_on `e_exec uninit ctx g_scope_list scope_list e` >> (
-   fs []
-  ) >>
-  PairCases_on `x` >>
-  fs []
- ],
+ gvs[AllCaseEqs()],
 
  (* Variable lookup *)
- Cases_on `lookup_vexp2 scope_list g_scope_list x` >> (
-  fs []
- )
+ gvs[AllCaseEqs()]
 ]
 QED
 
@@ -1408,7 +1369,7 @@ stmt_exec uninit ctx (ascope, g_scope_list, [(funn, (stmt_ass lval e)::stmt_stac
  (is_v e ==>
   ?scope_list'' scope_list'.
    (stmt_exec_ass lval e (scope_list++g_scope_list) = SOME scope_list'') /\
-   (separate scope_list'' = (SOME g_scope_list', SOME scope_list')) /\
+   (separate_exec scope_list'' = SOME (g_scope_list', scope_list')) /\
    (frame_list' = [(funn, (stmt_empty)::stmt_stack, scope_list')])) /\
  (~is_v e ==>
   ?e' frame_list''.
@@ -1421,17 +1382,19 @@ stmt_exec uninit ctx (ascope, g_scope_list, [(funn, (stmt_ass lval e)::stmt_stac
 Proof
 rpt strip_tac >>
 Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
- fs [stmt_exec_def]
+ gs[stmt_exec_def]
 ) >>
 Cases_on `is_v e` >> (
- fs []
+ gvs[AllCaseEqs()]
 ) >| [
  Cases_on `stmt_exec_ass lval e ((h::t) ++ g_scope_list)` >> (
   fs []
  ) >>
- Cases_on `separate x` >>  Cases_on `q` >>  Cases_on `r` >> (
-  fs []
+ Cases_on `separate_exec x` >> (
+  gs[]
  ) >>
+ PairCases_on ‘x'’ >>
+ gvs[AllCaseEqs()] >>
  metis_tac [],
 
  Cases_on `e_exec uninit ctx g_scope_list (h::t) e` >> (
@@ -1444,10 +1407,12 @@ Cases_on `is_v e` >> (
  Cases_on `stmt_exec_ass lval e ((h::t) ++ g_scope_list)` >> (
   fs []
  ) >>
- Cases_on `separate x` >>  Cases_on `q` >>  Cases_on `r` >> (
-  fs []
+ Cases_on `separate_exec x` >> (
+  gs[]
  ) >>
- metis_tac [],
+ PairCases_on ‘x'’ >>
+ gvs[AllCaseEqs()] >>
+ metis_tac[],
 
  Cases_on `e_exec uninit ctx g_scope_list (h::t) e` >> (
   fs []
@@ -1603,7 +1568,8 @@ stmt_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_ma
                        LENGTH mk_l = LENGTH e_l /\
                        frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scope_list)]) /\
  (!i. index_not_const e_l = SOME i ==>
-  ?e' frame_list''. e_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scope_list (EL i e_l) = SOME (e', frame_list'') /\
+  ?elem. oEL i e_l = SOME elem /\
+  ?e' frame_list''. e_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scope_list elem = SOME (e', frame_list'') /\
                     frame_list' = frame_list'' ++ [(funn, (stmt_app t_name (LUPDATE e' i e_l))::stmt_stack, scope_list)]) /\
  g_scope_list' = g_scope_list /\
  scope_list <> [] /\
@@ -1627,10 +1593,12 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  ) >>
  metis_tac [],
 
- Cases_on `e_exec uninit (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
+ gvs[AllCaseEqs()] >>
+ Cases_on ‘oEL x e_l’ >> (gs[]) >>
+ Cases_on `e_exec uninit (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) x'` >> (
   fs []
  ) >>
- PairCases_on `x'` >>
+ PairCases_on `x''` >>
  fs [] >>
  metis_tac [],
 
@@ -1652,10 +1620,12 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  ) >>
  metis_tac [],
 
- Cases_on `e_exec uninit (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
+ gvs[AllCaseEqs()] >>
+ Cases_on ‘oEL x e_l’ >> (gs[]) >>
+ Cases_on `e_exec uninit (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) x'` >> (
   fs []
  ) >>
- PairCases_on `x'` >>
+ PairCases_on `x''` >>
  fs [] >>
  IMP_RES_TAC e_exec_new_frame >> (
   fs []
@@ -2542,7 +2512,7 @@ Definition stmt_multi_exec_def:
   | SOME state' => stmt_multi_exec ctx state' fuel
   | NONE => NONE)
 End
-
+*)
 (**************************)
 (*  Frame list semantics  *)
 (**************************)
@@ -2582,33 +2552,68 @@ Definition scopes_to_retrieve_exec_def:
    | _ => NONE
 End
 
+Definition update_return_frame_exec_def:
+ update_return_frame_exec xlist dlist ss ss_curr = 
+  FOLDL
+   (\ss_temp_opt (x,d).
+    if (is_d_none_in d)
+    then ss_temp_opt
+    else
+     case ss_temp_opt of
+     | SOME ss_temp =>
+      (case lookup_map ss_curr (varn_name x) of
+       | SOME (v, stret_opt) =>
+        (case stret_opt of
+         | SOME stret => assign' ss_temp v stret
+         | NONE => NONE)
+       | _ => NONE)
+     | NONE => NONE
+   )
+   (SOME ss)
+   (ZIP(xlist, dlist))
+End
+
+Definition copyout_exec_def:
+ copyout_exec xlist dlist gsl ss ss_curr =
+  if ss_curr <> []
+  then
+   (case update_return_frame_exec xlist dlist (ss++gsl) [LAST ss_curr] of
+    | SOME updated_return_ss =>
+     let i = LENGTH updated_return_ss in
+     if i >= 2
+     then SOME (DROP (i-2) updated_return_ss, TAKE (i-2) updated_return_ss)
+     else NONE
+    | NONE => NONE)
+  else NONE
+End
+
 Definition frames_exec_def:
  (******************************************)
  (* Catch-all clauses for special statuses *)
- (frames_exec uninit (ctx:'a ctx) ((ascope:'a, g_scope_list:g_scope_list, frame_list:frame_list, status_returnv v):'a state) = NONE)
+ (frames_exec (ctx:'a ctx) ((ascope:'a, g_scope_list:g_scope_list, frame_list:frame_list, status_returnv v):'a p4$state) = NONE)
   /\
- (frames_exec uninit _ (_, _, _, status_trans x) = NONE)
+ (frames_exec _ (_, _, _, status_trans x) = NONE)
   /\
  (* Empty frame list *)
- (frames_exec uninit _ (_, _, [], _) = NONE)
+ (frames_exec _ (_, _, [], _) = NONE)
   /\
  (*********)
  (* Comp2 + Comp1 case of multiple frames *)
- (frames_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, ((funn, stmt_stack, scope_list)::((funn', stmt_stack', scope_list')::frame_list'')), status_running) =
+ (frames_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, ((funn, stmt_stack, scope_list)::((funn', stmt_stack', scope_list')::frame_list'')), status_running) =
   (case scopes_to_pass_exec funn func_map b_func_map g_scope_list of
    | SOME g_scope_list' =>
     (case map_to_pass funn b_func_map of
      | SOME b_func_map' =>
       (case tbl_to_pass funn b_func_map tbl_map of
        | SOME tbl_map' =>
-        (case stmt_exec uninit (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status_running) of
+        (case stmt_exec (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status_running) of
          | SOME (ascope', g_scope_list'', frame_list', status') =>
           (case status' of
            | status_returnv v =>
             (* Comp2 *)
             (case frame_list' of
              | [(funn, stmt_stack'', scope_list'')] =>
-              (case assign g_scope_list'' v (lval_varname (varn_star funn)) of
+              (case assign' g_scope_list'' v (lval_varname (varn_star funn)) of
                | SOME g_scope_list''' =>
                 (case scopes_to_retrieve_exec funn func_map b_func_map g_scope_list g_scope_list''' of
                  | SOME g_scope_list'''' =>
@@ -2616,7 +2621,7 @@ Definition frames_exec_def:
                    | SOME (stmt'', x_d_l) =>
                     (case scopes_to_pass_exec funn' func_map b_func_map g_scope_list'''' of
                      | SOME g_scope_list''''' =>
-                      (case copyout (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list''''' scope_list' scope_list'' of
+                      (case copyout_exec (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list''''' scope_list' scope_list'' of
                        | SOME (g_scope_list'''''', scope_list''') =>
                         (case scopes_to_retrieve_exec funn' func_map b_func_map g_scope_list'''' g_scope_list'''''' of
                          | SOME g_scope_list''''''' =>
@@ -2641,14 +2646,14 @@ Definition frames_exec_def:
   /\
  (*********)
  (* Comp1, remaining cases *)
- (frames_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status_running) =
+ (frames_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status_running) =
   (case scopes_to_pass_exec funn func_map b_func_map g_scope_list of
    | SOME g_scope_list' =>
     (case map_to_pass funn b_func_map of
      | SOME b_func_map' =>
       (case tbl_to_pass funn b_func_map tbl_map of
        | SOME tbl_map' =>
-        (case stmt_exec uninit (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status_running) of
+        (case stmt_exec (apply_table_f, ext_map, func_map, b_func_map', pars_map, tbl_map') (ascope, g_scope_list', [(funn, stmt_stack, scope_list)], status_running) of
          | SOME (ascope', g_scope_list'', frame_list', status') =>
           (case scopes_to_retrieve_exec funn func_map b_func_map g_scope_list g_scope_list'' of
            | SOME g_scope_list''' =>
@@ -2659,7 +2664,7 @@ Definition frames_exec_def:
      | _ => NONE)
    | _ => NONE))
  /\
- (frames_exec _ _ _ = NONE)
+ (frames_exec _ _ = NONE)
 End
 
 (***********************************)
@@ -2733,13 +2738,19 @@ Cases_on `status` >> (
 )
 QED
 
+(* TODO: Hard-coded to zeroes *)
+Definition declare_list_in_scope_exec'_def:
+ declare_list_in_scope_exec' (t_scope:t_scope, scope:scope) =
+  FOLDR (\(x, (t, lvalop)) f. p4$AUPDATE f (x, (init_v_from_tau_cake t, NONE))) scope t_scope
+End
+
 (* TODO: Outsource the stuff that causes too many case splits to other functions
  *       i.e. exec_arch_e, exec_arch_update_return_frame, exec_arch_assign, ... *)
 Definition arch_exec_def:
- (arch_exec uninit ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx)
+ (arch_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx)
             (((i, in_out_list, in_out_list', scope):'a aenv), g_scope_list:g_scope_list, arch_frame_list_regular frame_list, status:status) =
-  (case EL i ab_list of
-   | (arch_block_pbl x el) =>
+  (case oEL i ab_list of
+   | SOME (arch_block_pbl x e_l) =>
     (case ALOOKUP pblock_map x of
      | SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) =>
       if state_fin_exec status frame_list
@@ -2747,14 +2758,17 @@ Definition arch_exec_def:
        (case lookup_block_body x b_func_map of
         | SOME stmt =>
          (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
-         (if LENGTH el = LENGTH x_d_list
+         (if LENGTH e_l = LENGTH x_d_list
           then
            (* pbl_ret *)
            (* TODO: OK to only copy out from block-global scope here? *)
            (case copyout_pbl (g_scope_list, scope, MAP SND x_d_list, MAP FST x_d_list, set_fin_status pbl_type status) of
             | SOME scope' =>
-             SOME ((i+1, in_out_list, in_out_list', scope'), LASTN 1 g_scope_list,
-                   arch_frame_list_empty, status_running)
+             (case oLASTN 1 g_scope_list of
+              | SOME g_scope_sing =>
+               SOME ((i+1, in_out_list, in_out_list', scope'), g_scope_sing,
+                     arch_frame_list_empty, status_running)
+              | NONE => NONE)
             | _ => NONE)
           else NONE)
         | NONE => NONE)
@@ -2771,7 +2785,7 @@ Definition arch_exec_def:
           | _ => NONE)
         | status_running =>
          (* pbl_exec *)
-         (case frames_exec uninit (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (scope, g_scope_list, frame_list, status) of
+         (case frames_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (scope, g_scope_list, frame_list, status) of
           | SOME (scope', g_scope_list', frame_list', status') =>
            SOME ((i, in_out_list, in_out_list', scope'), g_scope_list', (arch_frame_list_regular frame_list'), status')
           | _ => NONE)
@@ -2780,31 +2794,31 @@ Definition arch_exec_def:
    | _ => NONE)
  )
  /\
- (arch_exec uninit (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
+ (arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
             ((i, in_out_list, in_out_list', scope), g_scope_list,
              arch_frame_list_empty, status_running) =
-  (case EL i ab_list of
+  (case oEL i ab_list of
    (* in *)
-   | arch_block_inp =>
+   | SOME arch_block_inp =>
     (case input_f (in_out_list, scope) of
      | SOME (in_out_list'', scope') => 
       SOME ((i+1, in_out_list'', in_out_list', scope'), g_scope_list, arch_frame_list_empty,
              status_running)
      | NONE => NONE)
-   | (arch_block_pbl x el) =>
+   | SOME (arch_block_pbl x e_l) =>
     (case ALOOKUP pblock_map x of
      (* pbl_init *)
      | SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) =>
       (case lookup_block_body x b_func_map of
        | SOME stmt =>
         (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
-        (if LENGTH el = LENGTH x_d_list
+        (if LENGTH e_l = LENGTH x_d_list
          then
-          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), el, scope) of
+          (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), e_l, scope) of
            | SOME scope' =>
             (case oLASTN 1 g_scope_list of
              | SOME [g_scope] =>
-              let g_scope_list' = ([declare_list_in_scope (decl_list, scope')]++[g_scope]) in
+              let g_scope_list' = ([declare_list_in_scope_exec' (decl_list, scope')]++[g_scope]) in
                (case initialise_var_stars func_map b_func_map ext_map g_scope_list' of
                 | SOME g_scope_list'' =>
                  SOME ((i, in_out_list, in_out_list', scope), g_scope_list'',
@@ -2816,7 +2830,7 @@ Definition arch_exec_def:
        | NONE => NONE)
      | _ => NONE)
    (* ffbl *)
-   | (arch_block_ffbl x) =>
+   | SOME (arch_block_ffbl x) =>
     (case ALOOKUP ffblock_map x of
      | SOME (ffblock_ff ff) =>
       (case ff scope of
@@ -2825,16 +2839,16 @@ Definition arch_exec_def:
        | NONE => NONE)
      | NONE => NONE)
    (* out *)
-   | arch_block_out =>
+   | SOME arch_block_out =>
     (case output_f (in_out_list', scope) of
      | SOME (in_out_list'', scope') =>
       SOME ((0, in_out_list, in_out_list'', scope'), g_scope_list, arch_frame_list_empty,
             status_running)
      | NONE => NONE)
-  )
+   | _ => NONE)
  )
 /\
-(arch_exec _ _ _ = NONE)
+(arch_exec _ _ = NONE)
 End
 
 (* Fuel-powered multi-step architectural-level executable semantics *)
@@ -2843,12 +2857,13 @@ Definition arch_multi_exec_def:
   SOME (aenv, g_scope_list, arch_frame_list, status))
   /\
  (arch_multi_exec actx (aenv, g_scope_list, arch_frame_list, status) (SUC fuel) =
-  case arch_exec uninit_arb actx (aenv, g_scope_list, arch_frame_list, status) of
+  case arch_exec actx (aenv, g_scope_list, arch_frame_list, status) of
   | SOME (aenv', g_scope_list', arch_frame_list', status') =>
    arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') fuel
   | NONE => NONE)
 End
 
+(*
 Theorem arch_multi_exec_1:
 !actx s s'.
  arch_multi_exec actx s 1 = SOME s' <=> arch_exec uninit_arb actx s = SOME s'
@@ -2862,6 +2877,7 @@ Cases_on ‘arch_exec uninit_arb actx ((s0,s1,s2,s3),s4,s5,s6)’ >> (
 PairCases_on ‘x’ >>
 fs[]
 QED
+*)
 
 Theorem arch_multi_exec_add:
 !actx aenv g_scope_list arch_frame_list status m n.
@@ -2876,7 +2892,8 @@ Induct_on `n` >- (
 ) >>
 rpt strip_tac >>
 fs [arch_multi_exec_def, arithmeticTheory.ADD_CLAUSES] >>
-Cases_on `arch_exec uninit_arb actx (aenv,g_scope_list,arch_frame_list,status)` >> (
+(* TODO: uninit *)
+Cases_on `arch_exec actx (aenv,g_scope_list,arch_frame_list,status)` >> (
  fs []
 ) >>
 PairCases_on `x` >>
@@ -3001,6 +3018,7 @@ Proof
 metis_tac[arch_multi_exec_comp_n_tl_assl_conj]
 QED
 
+(*
 Theorem arch_multi_exec_arch_frame_list_regular:
 !ab_list pblock_map ffblock_map input_f output_f copyin_pbl
  copyout_pbl apply_table_f ext_map func_map aenv g_scope_list g_scope_list' arch_frame_list frame_list' n i io_list io_list' ascope.
@@ -3131,5 +3149,6 @@ Cases_on ‘ALOOKUP x4' s'’ >> (
 ) >>
 gvs[]
 QED
+*)
 
 val _ = export_theory ();

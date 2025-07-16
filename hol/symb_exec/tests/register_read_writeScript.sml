@@ -1,10 +1,11 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
+val _ = new_theory "register_read_write";
+
 open p4Theory;
 
 open p4_symb_execLib;
 
-val _ = new_theory "register_read_write";
 
 (* Test 8:
  * There is a large register array. This is read from, then written to, at an index

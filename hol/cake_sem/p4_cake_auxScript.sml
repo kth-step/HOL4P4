@@ -121,4 +121,9 @@ Definition invert_dict_def:
   ((v,k)::(invert_dict t)))
 End
 
+Definition p4_get_output_list'_def:
+ p4_get_output_list' (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate') =
+  io_list'
+End
+
 val _ = export_theory();

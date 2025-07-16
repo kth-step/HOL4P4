@@ -157,6 +157,10 @@ val postcond_simpset = pure_ss
 
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl
+
+val ctx_data = (def_term ctx)
+TODO: Works when you add bitstringTheory.v2n_def and bitv_lo_def to theorems rewriting postcond.
+They must be missing from somewhere (HOL4P4_CONV?) due to the changes...
 *)
 
 (* For debugging, branch happens here:

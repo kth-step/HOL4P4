@@ -92,8 +92,13 @@ fun same_const_disj_list [] tm = K false tm
 
 (* Customized CBV_CONV for HOL4P4 evaluation *)
 local
+(* OLD
  val list_of_thys = ["p4", "p4_aux", "p4_exec_sem",
 		     "p4_core", "p4_v1model", "p4_ebpf", "p4_vss", "p4_bigstep"]
+Using p4_exec_sem here creates unbounded loop 
+"and" amd p4exex_se,
+*)
+ val list_of_thys = ["p4_aux", "p4_core", "p4_v1model", "p4_ebpf", "p4_vss", "p4_bigstep"]
 
  fun filtered_thm_names name =
   (not $ String.isSuffix "_aux" name) andalso
@@ -271,13 +276,41 @@ val theories_with_convs = map (snd o fst) convs_in_hol4p4_compset
 in
  fun get_HOL4P4_CONV thms_to_add =
   let
-   val _ = computeLib.add_thms thms_to_add hol4p4_compset
+(* TEST *)
+   val _ = add_thy_list list_of_thys the_compset
+
+   val _ = computeLib.add_thms thms_to_add the_compset
   in
-   computeLib.CBV_CONV hol4p4_compset
+   computeLib.CBV_CONV the_compset
   end
+(*
+EVAL
+*)
 end
 
 val HOL4P4_CONV = get_HOL4P4_CONV [];
+(* TODO: when using hol4p4_compset
+
+val fname = “"p"”
+val func_map =
+   “[("NoAction",
+      stmt_seq
+        (stmt_cond (e_var (varn_name "from_table"))
+           (stmt_ass (lval_varname (varn_name "gen_apply_result"))
+              (e_struct
+                 [("hit",e_var (varn_name "hit"));
+                  ("miss",e_unop unop_neg (e_var (varn_name "hit")));
+                  ("action_run",
+                   e_v
+                     (v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32)))]))
+           stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
+      [("from_table",d_in); ("hit",d_in)])]”
+
+HOL4P4_CONV $ auxLib.mk_alookup (func_map, fname)
+EVAL $ auxLib.mk_alookup (func_map, fname)
+*)
 
 val HOL4P4_TAC = CONV_TAC HOL4P4_CONV;
 
@@ -306,6 +339,24 @@ fun norewr_eval_ctxt_gen stop_consts ctxt tm =
   |> PROVE_HYP ctxt
   |> DISCH_CONJUNCTS_ALL
 ;
+*)
+(* DEBUG
+
+astate
+val stop_consts = [];
+val thms_to_add = [];
+val mk_exec = (fn astate => mk_arch_multi_exec (ctx, astate, 1));
+
+val tm = mk_exec astate
+
+(* Loops: *)
+p4_get_norewr_eval_ctxt_gen (stop_consts, thms_to_add, mk_exec) astate
+
+(* Doesn't loop: *)
+EVAL $ mk_exec astate
+
+val test_eval = Lib.with_flag (stoppers, SOME (same_const_disj_list [])) EVAL
+test_eval tm
 *)
 fun get_norewr_eval_ctxt_gen stop_consts thms_to_add tm =
   get_RESTR_HOL4P4_CONV thms_to_add stop_consts tm

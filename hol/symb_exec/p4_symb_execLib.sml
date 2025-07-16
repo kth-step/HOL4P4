@@ -1526,6 +1526,25 @@ fun get_next_stmt stmt =
 
 (* TODO: This leaves open the possibility of nested stmt_seq, but the import tool should
  * not enable that - throw exception if this is found to be the case? *)
+(* DEBUG
+val funn = “funn_name "p"”
+val stmt = “stmt_seq stmt_empty (stmt_trans (e_v (v_str "start")))”
+val func_map =
+   “[("NoAction",
+      stmt_seq
+        (stmt_cond (e_var (varn_name "from_table"))
+           (stmt_ass (lval_varname (varn_name "gen_apply_result"))
+              (e_struct
+                 [("hit",e_var (varn_name "hit"));
+                  ("miss",e_unop unop_neg (e_var (varn_name "hit")));
+                  ("action_run",
+                   e_v
+                     (v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32)))]))
+           stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
+      [("from_table",d_in); ("hit",d_in)])]”
+*)
 fun p4_is_shortcuttable (funn, stmt) func_map =
  if p4_funn_name_not_in_func_map funn func_map
  then
@@ -1903,6 +1922,9 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
   val shortcut =
    case stmt_funn_opt of
      SOME (funn, stmt) =>
+(*
+val SOME (funn, stmt) = stmt_funn_opt
+*)
     (* TODO: Temporary hack to restrict application of big-step semantics
      * to control block + block-local functions *)
     if
@@ -2928,6 +2950,9 @@ datatype defn_data =
  * postcond_simpset: additional simpset used when proving the postcondition *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
+(* DEBUG
+val p4_symb_exec_fun = (p4_symb_exec 1)
+*)
 fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset =
  let
 

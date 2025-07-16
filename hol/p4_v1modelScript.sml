@@ -1,8 +1,8 @@
 open HolKernel boolLib Parse bossLib ottLib;
 
-open p4Theory p4Syntax p4_auxTheory p4_coreTheory p4_coreLib;
-
 val _ = new_theory "p4_v1model";
+
+open p4Theory p4Syntax p4_auxTheory p4_coreTheory p4_coreLib;
 
 (* Useful documentation and reference links:
    https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
@@ -45,7 +45,7 @@ val _ = type_abbrev("v1model_sum_v_ext", “:(core_v_ext, v1model_v_ext) sum”)
      (* the action of a table entry: string is action name, e_list is arguments *)
      string # e_list) alist) alist``)
 *)
-val _ = type_abbrev("v1model_ctrl", “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”);
+val _ = type_abbrev("v1model_ctrl", “:(string, tbl) alist”);
 
 (* The architectural state type of the V1Model architecture model *)
 val _ = type_abbrev("v1model_ascope", “:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl)”);
@@ -274,7 +274,7 @@ Definition v1model_verify_checksum_def:
             then
              (case compute_checksum16 checksum_incr of
               | SOME bl'' =>
-               (if (v_bit (bl', n')) = (v_bit (bl'', 16))
+               (if bl' = bl''
                 then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
                 else
                  (case assign' [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_varname (varn_name "checksum_error")) of
@@ -566,30 +566,39 @@ End
 (*                     MODEL-SPECIFIC                     *)
 (**********************************************************)
 
+fun mk_v_bitii' (num, width) =
+ let
+  val width_tm = numSyntax.term_of_int width
+ in
+  mk_v_bit $ pairSyntax.mk_pair (bitstringSyntax.mk_fixwidth (width_tm, bitstringSyntax.mk_n2v $ numSyntax.term_of_int num), width_tm)
+ end
+;
+
 (* The reset values of standard metadata *)
 val v1model_standard_metadata_zeroed =
+ rhs $ concl $ EVAL $
  listSyntax.mk_list
   (map pairSyntax.mk_pair
-   [(``"ingress_port"``, mk_v_bitii (0, 9)),
-    (``"egress_spec"``, mk_v_bitii (0, 9)),
-    (``"egress_port"``, mk_v_bitii (0, 9)),
-    (``"instance_type"``, mk_v_bitii (0, 32)),
-    (``"packet_length"``, mk_v_bitii (0, 32)),
-    (``"enq_timestamp"``, mk_v_bitii (0, 32)),
-    (``"enq_qdepth"``, mk_v_bitii (0, 19)),
-    (``"deq_timedelta"``, mk_v_bitii (0, 32)),
-    (``"deq_qdepth"``, mk_v_bitii (0, 19)),
-    (``"ingress_global_timestamp"``, mk_v_bitii (0, 48)),
-    (``"egress_global_timestamp"``, mk_v_bitii (0, 48)),
-    (``"mcast_grp"``, mk_v_bitii (0, 16)),
-    (``"egress_rid"``, mk_v_bitii (0, 16)),
-    (``"checksum_error"``, mk_v_bitii (0, 1)),
-    (``"parser_error"``, mk_v_bitii (0, 32)),
-    (``"priority"``, mk_v_bitii (0, 3))],
-   “:(string # v)”);
+   [(``"ingress_port"``, mk_v_bitii' (0, 9)),
+    (``"egress_spec"``, mk_v_bitii' (0, 9)),
+    (``"egress_port"``, mk_v_bitii' (0, 9)),
+    (``"instance_type"``, mk_v_bitii' (0, 32)),
+    (``"packet_length"``, mk_v_bitii' (0, 32)),
+    (``"enq_timestamp"``, mk_v_bitii' (0, 32)),
+    (``"enq_qdepth"``, mk_v_bitii' (0, 19)),
+    (``"deq_timedelta"``, mk_v_bitii' (0, 32)),
+    (``"deq_qdepth"``, mk_v_bitii' (0, 19)),
+    (``"ingress_global_timestamp"``, mk_v_bitii' (0, 48)),
+    (``"egress_global_timestamp"``, mk_v_bitii' (0, 48)),
+    (``"mcast_grp"``, mk_v_bitii' (0, 16)),
+    (``"egress_rid"``, mk_v_bitii' (0, 16)),
+    (``"checksum_error"``, mk_v_bitii' (0, 1)),
+    (``"parser_error"``, mk_v_bitii' (0, 32)),
+    (``"priority"``, mk_v_bitii' (0, 3))],
+   “:(string # p4$v)”);
 
 Definition v1model_standard_metadata_zeroed_def:
- v1model_standard_metadata_zeroed = ^v1model_standard_metadata_zeroed
+ v1model_standard_metadata_zeroed = ^(v1model_standard_metadata_zeroed)
 End
 
 (*
@@ -635,6 +644,27 @@ val v_map_varnames =
 ;
 
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
+
+Definition v1model_input_f_def:
+ (v1model_input_f (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+  case io_list of
+  | [] => NONE
+  | ((bl,p)::t) =>
+   (* TODO: Implement proper persistence between packets *)
+   let ext_obj_map' = AUPDATE_LIST [] [(0, INL (core_v_ext_packet bl));
+                                       (1, INL (core_v_ext_packet []))] in
+   let counter' = 2 in
+   (* TODO: Currently, no garbage collection in v_map is needed *)
+   let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref 0);
+                                    ("b_temp", v_ext_ref 1);
+                                    ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed) ("ingress_port", v_bit (fixwidth 9 $ n2v p, 9) )));
+                                    ("parsedHdr", tau1_uninit_v);
+                                    ("hdr", tau1_uninit_v);
+                                    ("meta", tau2_uninit_v);
+                                    ("checksum_error", v_bit ([F], 1))] in
+    SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope))
+End
+(* OLD
 Definition v1model_input_f_def:
  (v1model_input_f (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   case io_list of
@@ -655,7 +685,9 @@ Definition v1model_input_f_def:
                                     ("checksum_error", v_bit ([F], 1))] in
     SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope))
 End
+*)
 
+(* TODO: Uses init_out_v_cake. Fix this hack *)
 (* TODO: Generalise and move to core? Duplicated in all three architectures... *)
 Definition v1model_reduce_nonout_def:
  (v1model_reduce_nonout ([], elist, v_map) =
@@ -671,32 +703,22 @@ Definition v1model_reduce_nonout_def:
       | SOME v =>
        if is_d_in d
        then oCONS (e_v v, v1model_reduce_nonout (dlist, elist, v_map))
-       else oCONS (e_v (init_out_v v), v1model_reduce_nonout (dlist, elist, v_map))       
+       else oCONS (e_v (init_out_v_cake v), v1model_reduce_nonout (dlist, elist, v_map))       
       | _ => NONE)
     | _ => NONE)) /\
  (v1model_reduce_nonout (_, _, v_map) = NONE)
 End
 
-(*
-(* TODO: Generalise and move to core? Duplicated in all three architectures... *)
-(* TODO: Remove these and keep "v_map" as just a regular scope? *)
-Definition v_map_to_scope_def:
- (v_map_to_scope [] = []) /\
- (v_map_to_scope (((k, v)::t):(string, v) alist) =
-  ((varn_name k, (v, NONE:lval option))::v_map_to_scope t)
- )
-End
-*)
-
 (* TODO: Since the same thing should be initialised
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
+(* TODO: Hacked to use copyin_exec, fix this uninit hack *)
 Definition v1model_copyin_pbl_def:
  v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   case v1model_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
+   (case copyin_exec xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
     | SOME scope =>
      SOME scope
     | NONE => NONE)
@@ -804,6 +826,7 @@ End
  * with other keys being exact if one LPM key is present.
  * Note that table priority is runtime-dependent, with only partial P4 language
  * support. *)
+(* OLD
 val v1model_apply_table_f_def =
  if CONTROL_PLANE_API = 0
  then xDefine "v1model_apply_table_f"
@@ -829,6 +852,47 @@ val v1model_apply_table_f_def =
      | SOME table =>
       (* Largest priority wins *)
       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+     | NONE => NONE’;
+*)
+
+(* TODO: Double-check this function *)
+val v1model_apply_table_f''_def =
+ if CONTROL_PLANE_API = 0
+ then xDefine "v1model_apply_table_f''"
+  ‘v1model_apply_table_f'' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+    (* TODO: Note that this function could do other stuff here depending on table name.
+     *       Ideally, one could make a general, not hard-coded, solution for this *)
+    case ALOOKUP ctrl x of
+     | SOME table =>       
+      (case vl_of_el_exec e_l of
+       | SOME v_l =>
+        (case table of
+           tbl_impl f => SOME $ f $ v_l
+         | tbl_regular tbl =>
+           if (MEM mk_lpm mk_list)
+           then
+            (* Largest priority wins (like for P4Runtime API - should be equivalent to TDI
+             * for tables that contain at most one LPM key, with others exact) *)
+            SOME (FST $ FOLDL_MATCH v_l ((x', e_l'), NONE) tbl)
+           else
+            (* Smallest priority wins (like for TDI) *)
+            SOME (FST $ FOLDL_MATCH_alt v_l ((x', e_l'), NONE) (1:num) tbl))
+       | NONE => NONE)
+     | NONE => NONE’
+ else xDefine "v1model_apply_table_f''"
+  ‘v1model_apply_table_f'' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+    (* TODO: Note that this function could do other stuff here depending on table name.
+     *       Ideally, one could make a general, not hard-coded, solution for this *)
+    case ALOOKUP ctrl x of
+     | SOME table =>
+      (case vl_of_el_exec e_l of
+       | SOME v_l =>
+        (case table of
+           tbl_impl f => SOME $ f $ v_l
+         | tbl_regular tbl =>
+          (* Largest priority wins *)
+          SOME (FST $ FOLDL_MATCH v_l ((x', e_l'), NONE) tbl))
+       | NONE => NONE)
      | NONE => NONE’;
 
 val _ = export_theory ();

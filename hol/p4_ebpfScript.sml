@@ -1,12 +1,10 @@
 open HolKernel boolLib Parse bossLib ottLib;
 
-open p4Theory p4_auxTheory p4_coreTheory;
-
 val _ = new_theory "p4_ebpf";
 
-(* TODO: Put all the stuff that's shared between this and VSS in coreTheory *)
+open p4Theory p4_auxTheory p4_coreTheory;
 
-(* TODO: Make actual representations of these extern objects *)
+(* TODO: Make actual representations of array table and hash table *)
 Datatype:
  ebpf_v_ext =
    ebpf_v_ext_counterArray (word32 list)
@@ -16,7 +14,7 @@ End
 
 val _ = type_abbrev("ebpf_sum_v_ext", ``:(core_v_ext, ebpf_v_ext) sum``);
 
-val _ = type_abbrev("ebpf_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+val _ = type_abbrev("ebpf_ctrl", ``:(string, tbl) alist``);
 
 (* The architectural state type of the eBPF architecture model *)
 val _ = type_abbrev("ebpf_ascope", ``:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl)``);
@@ -260,15 +258,21 @@ Definition ebpf_output_f_def:
   | SOME (v_bool F) => SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
   | _ => NONE
 End
-
+(* TODO: Retrofitted *)
 Definition ebpf_apply_table_f_def:
  ebpf_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   case ALOOKUP ctrl x of
    | SOME table =>
-    (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+    (case vl_of_el_exec e_l of
+     | SOME v_l =>
+      (case table of
+         tbl_impl f => SOME $ f $ v_l
+       | tbl_regular tbl =>
+        (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+        SOME (FST $ FOLDL_MATCH v_l ((x', e_l'), NONE) tbl))
+     | NONE => NONE)
    | NONE => NONE
 End
 

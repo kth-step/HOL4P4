@@ -10,7 +10,7 @@ Datatype:
 End
 val _ = type_abbrev("vss_sum_v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 
-val _ = type_abbrev("vss_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+val _ = type_abbrev("vss_ctrl", ``:(string, tbl) alist``);
 
 (* The architectural state type of the VSS architecture model *)
 val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
@@ -296,8 +296,14 @@ Definition vss_apply_table_f_def:
   else
    (case ALOOKUP ctrl x of
     | SOME table =>
-     (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+     (case vl_of_el_exec e_l of
+      | SOME v_l =>
+       (case table of
+          tbl_regular tbl =>
+         (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+         SOME (FST (FOLDL_MATCH v_l ((x',e_l'), NONE) tbl))
+        | tbl_impl f => SOME (f v_l))
+      | NONE => NONE)
     | NONE => NONE)
 End
 
