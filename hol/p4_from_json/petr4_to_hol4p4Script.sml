@@ -1629,13 +1629,17 @@ Definition p4_prefix_tbls_in_tbl_map_def:
 End
 
 Definition p4_prefix_tbls_funs_in_tbl_entries_def:
- p4_prefix_tbls_funs_in_tbl_entries b_func_map prefix (tbl_entries:((string, (((e_list -> bool) # num), string # e_list) alist) alist)) =
+ p4_prefix_tbls_funs_in_tbl_entries b_func_map prefix (tbl_entries:((string, tbl) alist)) =
   MAP (\ (name, upds).
        (prefix++("."++name),
-        MAP (\ ((key, prio), (action_name, args)).
-             ((key, prio), ((p4_prefix_fname b_func_map prefix action_name, args)))
-            ) upds)
-      ) tbl_entries
+        (case upds of
+         | tbl_regular l =>
+         tbl_regular $
+          MAP (\ ((key, prio), (action_name, args)).
+               ((key, prio), ((p4_prefix_fname b_func_map prefix action_name, args)))
+              ) l
+          | tbl_impl f => upds))
+       ) tbl_entries
 End
 
 (* Prefixes tables only *)
@@ -2068,7 +2072,7 @@ End
  * The next last element (vtymap_upds) is only used for passing along type inference information to
  * the transition at the end of parser states *)
 Definition petr4_parse_stmts_def:
- (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, (tbl_entries_map:(string # ((string, (((e_list -> bool) # num), string # e_list) alist) alist)) list), action_list, extfun_list) [] = SOME_msg ([], [], [], [], [], [], stmt_empty)) /\
+ (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, (tbl_entries_map:(string # ((string, tbl) alist)) list), action_list, extfun_list) [] = SOME_msg ([], [], [], [], [], [], stmt_empty)) /\
   (petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) (h::t) =
   case h of
   | Array [String stmt_name; Object stmt_details] =>
@@ -3204,8 +3208,8 @@ Definition petr4_process_properties_def:
               | SOME_msg arch_props_res =>
                (case key_mk_tau_list of
                 | [] =>
-                 SOME_msg ([], action_names, default_action, entries)
-                | _ => SOME_msg (key_mk_tau_list, action_names, default_action, entries))
+                 SOME_msg ([], action_names, default_action, tbl_regular entries)
+                | _ => SOME_msg (key_mk_tau_list, action_names, default_action, tbl_regular entries))
               | NONE_msg arch_props_msg => NONE_msg arch_props_msg)
             | NONE_msg entries_props_msg => NONE_msg entries_props_msg)
           | NONE => NONE_msg "could not get types of key expressions")
@@ -3988,13 +3992,33 @@ Definition p4_infer_keys_def:
    | NONE => NONE))
 End
 
+Definition get_tbl_updates_def:
+ (get_tbl_updates [] = SOME []) /\
+ (get_tbl_updates (h::t) =
+  case h of
+    tbl_regular l =>
+   (case get_tbl_updates t of
+      SOME res => SOME (l++res)
+    | NONE => NONE)
+  | tbl_impl f => NONE)
+End
+(*
+EVAL “get_tbl_updates [tbl_regular [((a,1:num),b,c)]; tbl_regular [((a,2:num),b,c)]]”
+*)
+
 Definition init_ctrl_entry_gen_def:
  init_ctrl_entry_gen tbl_map (tbl_name, updates) =
   case ALOOKUP tbl_map tbl_name of
   | SOME tbl =>
    (* TODO: Note that this doesn't remove old table entries *)
    (* TODO: Double-check order of updates: This is critical. Last update must be first *)
-   SOME (AUPDATE tbl_map (tbl_name, updates++tbl))
+   (case tbl of
+      tbl_regular l =>
+     (case get_tbl_updates updates of
+      | SOME l' =>
+       SOME (AUPDATE tbl_map (tbl_name, tbl_regular $ l'++l))
+      | NONE => NONE)
+    | tbl_impl f => NONE)
   | NONE => NONE
 End
 

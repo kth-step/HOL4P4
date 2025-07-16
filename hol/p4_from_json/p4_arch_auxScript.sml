@@ -1,8 +1,8 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open p4Theory;
-
 val _ = new_theory "p4_arch_aux";
+
+open p4Theory;
 
 (* This file contains all architecture-specific definitions that are used for importing to HOL4P4.
  * None of these should be found in imported Script files or used by the semantics *)
@@ -11,10 +11,14 @@ val _ = new_theory "p4_arch_aux";
 (* Adding entries to tables *)
 
 Definition add_ctrl_gen_def:
- add_ctrl_gen (((i, in_out_list, in_out_list', (counter:num, ext_obj_map:(num, (core_v_ext, 'a) sum) alist, v_map:(string, v) alist, ctrl:(string, (((e_list -> bool) # num), string # e_list) alist) alist)), g_scope_list, scope_list, status)) table_name keys action_name args =
+ add_ctrl_gen (((i, in_out_list, in_out_list', (counter:num, ext_obj_map:(num, (core_v_ext, 'a) sum) alist, v_map:(string, v) alist, ctrl:(string, tbl) alist)), g_scope_list, scope_list, status)) table_name keys action_name args =
   case ALOOKUP ctrl table_name of
   (* TODO: Note that this does not have any capability of removing old keys, only supersede them *)
-  | SOME table => SOME ((i, in_out_list, in_out_list', (counter, ext_obj_map, v_map, AUPDATE ctrl (table_name, ((keys, (action_name, args))::table)))), g_scope_list, scope_list, status)
+  | SOME table =>
+   (case table of
+    tbl_regular tbl =>
+     SOME ((i, in_out_list, in_out_list', (counter, ext_obj_map, v_map, AUPDATE ctrl (table_name, tbl_regular ((keys, (action_name, args))::tbl) ))), g_scope_list, scope_list, status)
+   | tbl_impl f => NONE)
   | NONE => NONE
 End
 
@@ -35,7 +39,7 @@ End
 
 (* Replaces the default action of a table. Used when parsing STF specifications *)
 Definition p4_replace_tbl_default_def:
- p4_replace_tbl_default (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) block_name table_name action_name args =
+ p4_replace_tbl_default ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx) block_name table_name action_name args =
   case ALOOKUP pblock_map block_name of
   | SOME (pbl_type_control, params, b_func_map, decl_list, ([]:pars_map), tbl_map) =>
    (case ALOOKUP tbl_map table_name of
