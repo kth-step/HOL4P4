@@ -329,7 +329,8 @@ Definition BDD_WF_def:
                 ⇔   (is_lookup_ntl labels n
                      ∨ ∃ p b .ALOOKUP labels n= SOME (termn (b,p))))
     ) ∧
-    (edges = [] ⇒ ∃ p . labels = [(r,p)])   
+    (edges = [] ⇒ ∃ p . labels = [(r,p)]) ∧
+    (edges ≠ [] ⇒ ∀ n . (MEM n (dom_range_edges edges) ⇔ MEM n (MAP FST labels) ) )
   )
 End
 
