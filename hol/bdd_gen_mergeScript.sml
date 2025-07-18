@@ -362,7 +362,7 @@ QED
 
 
 
-(* very slow proof, check why*)       
+(* very slow proof, check why, replace with MEM proofs*)       
 Theorem merge_replaces_stays_same:            
   ∀ edges n' n x1 x2 x1' x2'.
     n' ≠ x1' ∧ n' ≠ x2' ∧
@@ -912,11 +912,6 @@ Proof
   gvs[] >>
   rpt(BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
-    
-                        
-
-
-
 
         
 
@@ -1126,7 +1121,51 @@ QED
 
 
 
+        
+        
+Theorem merge_adelkey_dom_range_subset_alt:
+∀ edges n n' n''.
+  n'' ≠ n' ∧ n ≠ n' ∧  n'' ≠ n ∧
+  ALL_DISTINCT (MAP FST edges) ∧
+  n'' ∈ dom_range_edges_alt (ADELKEY n' (merge_edges edges n n')) ⇒
+  n'' ∈ dom_range_edges_alt edges
+Proof
+  rw[dom_range_edges_alt_def] >>
+  fs[ADELKEY_def, MEM_FILTER, merge_edges_def, MEM_MAP] >>
+  Cases_on `y` >> Cases_on `r` >> fs[] >>
+  rename1 `MEM (a,b,c) edges` >>
+  
+  qexists_tac `a` >> qexists_tac `b` >> qexists_tac `c` >> fs[] >>
+  
+  (* Case analysis on merge transformation *)
+  Cases_on `b = n' ∧ c = n'` >> fs[] >>
+  Cases_on `b = n'` >> fs[] >>  
+  Cases_on `c = n'` >> fs[] >> gvs[]                                 
+QED
 
+
+
+Definition dom_range_edges2_def:
+  dom_range_edges2 edges =
+    nub (MAP (λ(k,v1,v2). k) edges ++ MAP (λ(k,v1,v2). v1) edges ++ MAP (λ(k,v1,v2). v2) edges)
+End
+
+
+Theorem dom_range_edges1_2_eq:
+  ∀ edges a.
+    MEM a (dom_range_edges2 edges) = MEM a (dom_range_edges edges)
+Proof
+  
+  Induct >> rpt strip_tac >>
+  gvs[dom_range_edges_def, dom_range_edges2_def] >>
+  PairCases_on ‘h’ >>
+  Cases_on ‘a = h0’ >> gvs[] >>
+  Cases_on ‘a = h1’ >> gvs[] >>
+  Cases_on ‘a = h2’ >> gvs[] 
+QED
+
+
+        
 Definition flat_edges_def:
   (flat_edges [] = []) /\
   (flat_edges ((k,v1,v2)::es) = 
@@ -1392,9 +1431,9 @@ QED
 
 
 Triviality list_mem_trip_not:
-∀ l n h1 h2.
-¬MEM n (MAP FST l) ⇒    
-¬MEM (n,h1,h2) l
+  ∀ l n h1 h2.
+    ¬MEM n (MAP FST l) ⇒    
+    ¬MEM (n,h1,h2) l
 Proof
   Induct >>
   rw[] >>
@@ -1466,7 +1505,6 @@ Theorem dom_range_edges3_imp_adel_key_mem:
     MEM (n,a,b) edges ∧
     MEM (n',a,b) edges ∧
     MEM n (dom_range_edges3 edges) ∧
-    ADELKEY n' (merge_edges edges n n') ≠ [] ∧
     MEM n'' (dom_range_edges3 (merge_edges edges n n')) ⇒
     MEM n'' (dom_range_edges3 (ADELKEY n' (merge_edges edges n n')))
 Proof
@@ -1642,48 +1680,55 @@ Proof
 QED                                          
                                              
 
-
-        
-        
-Theorem merge_adelkey_dom_range_subset_alt:
-∀ edges n n' n''.
-  n'' ≠ n' ∧ n ≠ n' ∧  n'' ≠ n ∧
-  ALL_DISTINCT (MAP FST edges) ∧
-  n'' ∈ dom_range_edges_alt (ADELKEY n' (merge_edges edges n n')) ⇒
-  n'' ∈ dom_range_edges_alt edges
-Proof
-  rw[dom_range_edges_alt_def] >>
-  fs[ADELKEY_def, MEM_FILTER, merge_edges_def, MEM_MAP] >>
-  Cases_on `y` >> Cases_on `r` >> fs[] >>
-  rename1 `MEM (a,b,c) edges` >>
-  
-  qexists_tac `a` >> qexists_tac `b` >> qexists_tac `c` >> fs[] >>
-  
-  (* Case analysis on merge transformation *)
-  Cases_on `b = n' ∧ c = n'` >> fs[] >>
-  Cases_on `b = n'` >> fs[] >>  
-  Cases_on `c = n'` >> fs[] >> gvs[]                                 
-QED
-
-        
-
 Triviality mem_imp_adelkey_mem:
   ∀ l  n'' n'.
     n'' ≠ n' ∧
     MEM n'' (MAP FST l) ⇒
     MEM n'' (MAP FST (ADELKEY n' l))
 Proof
-  Induct >>
-  simp_tac std_ss [ADELKEY_def, MAP, MEM] >>
-  Cases_on ‘h’ >> gvs[] >>
-  rw[] >>
-
-    Cases_on ‘q = n'’ >>
-  gvs [ADELKEY_def, MAP, MEM, FST] 
+  Induct >> rw[] >> fs[ADELKEY_def] >>
+  Cases_on ‘h’ >> fs[ADELKEY_def] >>
+  rw[] >> fs[] >>
+  metis_tac[]
 QED
 
 
+        
+Triviality adelkey_mem_imp_mem:
+  ∀ l  n'' n'.
+    n'' ≠ n' ∧
+    MEM n'' (MAP FST (ADELKEY n' l)) ⇒
+    MEM n'' (MAP FST l)
+Proof
+  
+  Induct >> 
+  fs[ADELKEY_def] >>
+  Cases_on ‘h’ >> 
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[ADELKEY_def]) >> rw[] >| [
+    fs[MEM_MAP] >>
+    ‘∃x. n'' = FST x ∧ MEM x l ∧ FST x ≠ n'’ by metis_tac[MEM_FILTER] >>
+    
+    Cases_on ‘FST y = q’ >> gvs[] >>
+    qexists_tac ‘x’ >> gvs[]
+    ,
+    Cases_on ‘n'' = q’ >> fs[] >>
+    metis_tac[] 
+  ]     
+QED
 
+
+        
+
+Triviality not_mem_imp_adelkey_mem:
+  ∀ l  n'' n'.
+    n'' ≠ n' ∧
+    ¬MEM n'' (MAP FST l) ⇒
+    ¬MEM n'' (MAP FST (ADELKEY n' l))
+Proof
+  Induct_on `l` >> rw[] >- gvs[ADELKEY_def, MAP, MEM] >>
+  Cases_on `h` >> fs[ADELKEY_def] >>
+  rw[] >> fs[]
+QED
 
 
 Triviality merge_edges_delete_some:
@@ -1714,6 +1759,36 @@ Proof
 QED
 
 
+
+Triviality all_distinct_dom_range_edges:
+  ∀ l . ALL_DISTINCT (dom_range_edges l)
+Proof
+  rw[dom_range_edges_def]
+QED
+        
+Triviality all_distinct_dom_range3_edges:
+  ∀ l . ALL_DISTINCT (dom_range_edges3 l)
+Proof
+  rw[dom_range_edges3_def]
+QED
+
+
+Triviality all_distinct_mem_cases:
+  ∀ l h a. ALL_DISTINCT (h::l) ⇒
+       ((MEM a l ∧ a ≠ h) ∨ ( ¬ MEM a l ∧ a = h) ∨  ¬ MEM a (h::l) ) 
+Proof
+  Induct >>
+  gvs[MEM] >>
+  rpt strip_tac >>
+  gvs[] >>
+  res_tac >> gvs[] >>
+  Cases_on ‘a=h’ >> gvs[]          
+QED
+
+
+
+        
+
 Theorem mem_edges_imp_mem_merge_h:
 ∀ h n n' n''.
   n ≠ n' ∧ n'' ≠ n'  ∧
@@ -1727,6 +1802,23 @@ Proof
   rpt (BasicProvers.FULL_CASE_TAC >> rgs[])
 QED
 
+        
+Theorem not_mem_edges_imp_mem_merge_h1:
+∀ h n n' n''.
+  n ≠ n' ∧ n'' ≠ n'  ∧
+  MEM n (dom_range_edges [h]) ∧
+  ¬ MEM n'' (dom_range_edges [h]) ⇒
+  ¬ MEM n'' (dom_range_edges (merge_edges [h] n n'))
+Proof
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[dom_range_edges_def] >>
+  gvs[merge_edges_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[])
+QED
+
+
+        
         
 Theorem mem_edges_imp_mem_merge_imp1:     
   ∀ r edges labels n n' n''.
@@ -1747,7 +1839,87 @@ Proof
   rw[] >>
   rgs[mem_edges_imp_mem_merge_h]
 QED                    
+        
+                                                        
+    
 
+Theorem MEM_MAP_triple:
+  ∀f l x. MEM x (MAP f l) ⇔ ∃y. MEM y l ∧ x = f y
+Proof
+  gvs[MEM_MAP] >>
+  metis_tac[]
+QED
+
+Theorem MEM_FLAT_triple:
+  ∀ll x. MEM x (FLAT ll) ⇔ ∃l. MEM l ll ∧ MEM x l
+Proof
+  rw[MEM_FLAT]
+QED
+
+(* Key lemma: what does it mean for an element to be in dom_range_edges *)
+Theorem MEM_dom_range_edges:
+  ∀edges x. MEM x (dom_range_edges edges) ⇔ 
+           ∃a b c. MEM (a,b,c) edges ∧ (x = a ∨ x = b ∨ x = c)
+Proof
+  rw[dom_range_edges_def] >>
+  rw[MEM_FLAT_triple, MEM_MAP_triple] >>
+  eq_tac 
+  >- (strip_tac >>
+      Cases_on ‘y’ >> Cases_on ‘r’ >> fs[] >>
+      qexists_tac ‘q’ >> qexists_tac ‘q'’ >> qexists_tac ‘r'’ >>
+      rw[] >> fs[MEM])
+  >- (strip_tac >>
+      qexists_tac ‘(λ(k,v1,v2). [k; v1; v2]) (a,b,c)’ >> gvs[] >>
+      qexists_tac ‘(a,b,c)’ >>
+      rw[] >> fs[MEM])
+QED
+
+
+
+Theorem not_mem_edges_imp_mem_merge_imp1: 
+  ∀ r edges labels n n' n''.
+    n ≠ n' ∧ n'' ≠ n' ∧
+    MEM n (dom_range_edges edges) ∧
+    ¬MEM n'' (dom_range_edges edges) ⇒
+    ¬MEM n'' (dom_range_edges (merge_edges edges n n'))
+Proof
+  rw[] >>
+  CCONTR_TAC >>
+  fs[] >>
+
+  ‘∃a b c. MEM (a,b,c) (merge_edges edges n n') ∧ 
+           (n'' = a ∨ n'' = b ∨ n'' = c)’ by metis_tac[MEM_dom_range_edges] >>
+
+  fs[merge_edges_def, MEM_MAP] >>
+  Cases_on ‘y’ >> Cases_on ‘r’ >> fs[] >>
+  rename1 ‘MEM (a0,b0,c0) edges ’>>
+  rw[] >|[
+    (* case a *)
+     metis_tac[MEM_dom_range_edges]
+    ,
+    (* case b *)
+    Cases_on ‘b0 = n' ∧ c0 = n'’ >|[
+        gvs[]
+        ,
+        Cases_on ‘b0 = n' ∧ c0 = n'’ >> gvs[] >>
+        Cases_on ‘b0 = n'’ >> gvs[] >>
+        Cases_on ‘c0 = n'’ >> gvs[] >>
+        metis_tac[MEM_dom_range_edges]
+      ]
+    ,
+    (* case c *)
+        Cases_on ‘b0 = n' ∧ c0 = n'’ >|[
+        gvs[]
+        ,
+        Cases_on ‘b0 = n' ∧ c0 = n'’ >> gvs[] >>
+        Cases_on ‘b0 = n'’ >> gvs[] >>
+        Cases_on ‘c0 = n'’ >> gvs[] >>
+        metis_tac[MEM_dom_range_edges]
+      ]
+  ]
+QED
+
+                    
 
 
 Triviality ADELKEY_cons_h:
@@ -1808,27 +1980,104 @@ Proof
 QED
 
 
-        
-Definition dom_range_edges2_def:
-  dom_range_edges2 edges =
-    nub (MAP (λ(k,v1,v2). k) edges ++ MAP (λ(k,v1,v2). v1) edges ++ MAP (λ(k,v1,v2). v2) edges)
-End
 
-
-Theorem dom_range_edges1_2_eq:
-  ∀ edges a.
-    MEM a (dom_range_edges2 edges) = MEM a (dom_range_edges edges)
+      
+Theorem dom_range_edges_not_mem_imp_del:        
+  ∀ l n' n''.
+    ¬ MEM n'' (dom_range_edges l) ⇒
+    ¬ MEM n'' (dom_range_edges (ADELKEY n' l))
 Proof
-  
-  Induct >> rpt strip_tac >>
-  gvs[dom_range_edges_def, dom_range_edges2_def] >>
-  PairCases_on ‘h’ >>
-  Cases_on ‘a = h0’ >> gvs[] >>
-  Cases_on ‘a = h1’ >> gvs[] >>
-  Cases_on ‘a = h2’ >> gvs[] 
+  Induct >>
+  gvs[dom_range_edges_def, ADELKEY_def] >>
+  rpt strip_tac >>
+  Cases_on ‘FST h ≠ n'’ >> gvs[]
+QED
+
+ 
+
+Theorem look_some_in_delkey_imp_og:
+  ∀ labels n n'.
+    n ≠ n' ⇒
+    (lookup_is_some (ADELKEY n labels) n' ⇔
+       lookup_is_some labels n')
+Proof
+  Induct >>
+  rpt strip_tac >>
+  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
 QED
 
 
+Theorem alookup_delkey_imp_og:
+  ∀ l n n' x.
+    n ≠ n' ⇒
+    (ALOOKUP (ADELKEY n l) n' = SOME x ) ⇒
+    (ALOOKUP l n' = SOME x)
+Proof
+  Induct >>
+  rpt strip_tac >>
+  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
+QED
+
+
+Theorem delkey_alookup_imp_og:
+  ∀ l n n' x.
+    n ≠ n' ⇒
+    (ALOOKUP l n' = SOME x) ⇒
+             (ALOOKUP (ADELKEY n l) n' = SOME x )
+Proof
+Induct >>
+rpt strip_tac >>
+gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
+QED
+        
+
+
+
+Theorem merge_edges_elim_same_helper_l:
+  ∀ h n n' n1 n2 n1' n2'.
+    n1 ≠ n ∧    
+    ALOOKUP (merge_edges [h] n n') n = SOME (n1,n2) ∧
+    ALOOKUP [h] n = SOME (n1',n2') ⇒
+    (n1' = n1)
+Proof
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  rpt strip_tac >>
+  gvs[merge_edges_def] >>
+  rgs[AllCaseEqs()] >>
+  gvs[]
+QED
+
+
+
+
+Theorem merge_edges_elim_same_l:        
+  ∀ edges l n n' n1 n2 n1' n2'.        
+    n1 ≠ n ∧
+    ALOOKUP (merge_edges edges n n') n = SOME (n1,n2) ∧
+    ALOOKUP edges n = SOME (n1',n2') ⇒
+    n1'=n1 
+Proof
+  Induct >-
+   gvs[] >>
+  rpt strip_tac >>
+  
+  rfs[Once merge_edges_list_cons] >>
+  
+  PairCases_on ‘h’ >>
+  rfs[Once ALOOKUP_APPEND] >>
+  
+  rgs[] >>
+  rgs[AllCaseEqs()] >>
+                    
+  rw[Once merge_edges_def] >>
+  rgs[Once merge_edges_def] >>
+  rgs[] >>
+  rgs[AllCaseEqs()] >>
+  
+  res_tac >>
+  metis_tac[merge_Theorem1]
+QED
 
 
 (****************************************************)
@@ -1874,17 +2123,12 @@ Proof
   simp[Once ADELKEY_normalize_append] >>
   gvs[mem_dom_normalize_or] >|[
     
-    PairCases_on ‘h’ >>
-    gvs[dom_range_edges_def, ADELKEY_def, merge_edges_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[])     
+    simp_easy_cases_tac    
     ,
     Cases_on ‘edges’ >> gvs[] >>
     gvs[merge_edges_def]
   ]
 QED
-
-
-
 
 
 Theorem merge_edges_none_v1_both:
@@ -1904,16 +2148,57 @@ QED
 
 
 
+Theorem dom_range_edges3_imp_adel_key_mem_none:
+  ∀ edges n n' n''.
+    n'' ≠ n' ∧
+    ALOOKUP edges n' = NONE ∧
+    MEM n (dom_range_edges3 edges) ∧
+    MEM n'' (dom_range_edges3 (merge_edges edges n n'))
+    ⇒
+    MEM n'' (dom_range_edges3 (ADELKEY n' (merge_edges edges n n')))
+Proof
+  rw[] >>
+  gvs[dom_range_edges3_def] >>
+  gvs[MEM_MAP, ADELKEY_def, MEM_FILTER] >>
+  rpt(BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  irule list_not_merged_flat_membership1 >> gvs[] >>
+  gvs[ALOOKUP_NONE] >>
+  metis_tac [map_fst_merge_edges]
+QED
+
+
+Theorem dom_range_edges_imp_adel_key_mem_none:
+  ∀ edges n n' n''.
+    n'' ≠ n' ∧
+    ALOOKUP edges n' = NONE ∧
+    MEM n (dom_range_edges edges) ∧
+    MEM n'' (dom_range_edges (merge_edges edges n n'))
+    ⇒
+    MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))
+Proof
+  fs[GSYM dom_range_edges1_3_eq] >>
+  metis_tac[dom_range_edges3_imp_adel_key_mem_none]
+QED       
+    
 
 
 
+Theorem dom_range_edges_imp_adel_key_mem:
+  ∀edges root labels vars n n' n'' a b.
+    n'' ≠ n' ∧ n ≠ n' ∧ BDD_ordered (root,edges,labels) vars ∧
+    ALL_DISTINCT (MAP FST edges) ∧
+    ALL_DISTINCT (MAP FST (merge_edges edges n n')) ∧
+    MEM (n,a,b) edges ∧ MEM (n',a,b) edges ∧
+    MEM n (dom_range_edges edges) ∧
+    MEM n'' (dom_range_edges (merge_edges edges n n')) ⇒
+    MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))
+Proof
+  fs[GSYM dom_range_edges1_3_eq] >>
+  metis_tac[dom_range_edges3_imp_adel_key_mem]
+QED
 
 
-
-
-        
-
-
+    
 Theorem merge_edges_preserve_nodes:
   ∀ edges n n' n'' root labels vars.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -1921,43 +2206,56 @@ Theorem merge_edges_preserve_nodes:
     ALL_DISTINCT (MAP FST edges) ∧
     ALOOKUP edges n = ALOOKUP edges n' ∧
     MEM n (dom_range_edges edges) ∧
-    ADELKEY n' (merge_edges edges n n') ≠ [] ∧
     MEM n'' (dom_range_edges (merge_edges edges n n')) ⇒
     MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))
 Proof
 
-cheat        
-  
+  rpt strip_tac >>
+  Cases_on ‘ALOOKUP edges n’ >|[
+    
+    irule dom_range_edges_imp_adel_key_mem_none >>
+    gvs[]
+    ,
+    
+    ‘ALL_DISTINCT (MAP FST (merge_edges edges n n'))’ by gvs[GSYM all_distinct_fst_merge_edges] >>           
+    PairCases_on ‘x’ >> 
+    ‘MEM (n,x0,x1) edges’ by gvs[ALOOKUP_MEM] >>
+    ‘MEM (n',x0,x1) edges’ by gvs[ALOOKUP_MEM] >>
+    metis_tac[dom_range_edges_imp_adel_key_mem] 
+  ]
 QED
 
-        
-        
 
 
-             
-(*
-    
-        
-∀ r edges labels n n'.
-  ALL_DISTINCT (MAP FST edges) ∧
-               (*BDD_ordered BDD vars ∧ *)
-mergable (r,edges,labels) n n' ∧
-(edges ≠ [] ⇒ ∀n. MEM n (dom_range_edges edges) ⇔ MEM n (MAP FST labels)) ⇒
-(ADELKEY n' (merge_edges edges n n') ≠ [] ⇒
-         ∀n''. MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n'))) ⇔
-                 MEM n'' (MAP FST (ADELKEY n' labels)))
+  
+      
+Theorem dom_range_edges_not_mem_imp_del:        
+  ∀ l n' n''.
+    ¬ MEM n'' (dom_range_edges l) ⇒
+    ¬ MEM n'' (dom_range_edges (ADELKEY n' l))
+Proof
+  Induct >>
+  gvs[dom_range_edges_def, ADELKEY_def] >>
+  rpt strip_tac >>
+  Cases_on ‘FST h ≠ n'’ >> gvs[]
+QED
 
-rpt strip_tac >>
-Cases_on ‘edges = []’ >> gvs[] >-
- gvs[merge_edges_def, ADELKEY_def] >>
  
-gvs[mergable_def] >>
-Cases_on ‘n'' = n'’ >> gvs[] >|[
+
+Theorem mergable_wf_labels_edges_same:          
+∀ r edges labels n n' vars_consumed.
+  ALL_DISTINCT (MAP FST edges) ∧
+  BDD_ordered (r,edges,labels) vars_consumed ∧
+  mergable (r,edges,labels) n n' ∧
+  ( ∀n. MEM n (dom_range_edges edges) ⇔ MEM n (MAP FST labels)) ⇒
+  (∀n''. MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n'))) ⇔
+           MEM n'' (MAP FST (ADELKEY n' labels)))
+Proof
+  rw[mergable_def] >>
+  Cases_on ‘n'' = n'’ >> gvs[] >|[
     gvs[merge_no_effect_on_unrelated_node_mem] >>
     gvs[ADELKEY_def, MEM_MAP, MEM_FILTER]
     ,
-    
-
     gvs[eq_vars_in_labels_def] >>
     rpt(BasicProvers.FULL_CASE_TAC >> gvs[]) >>
     imp_res_tac ALOOKUP_MEM >>
@@ -1965,41 +2263,255 @@ Cases_on ‘n'' = n'’ >> gvs[] >|[
     gvs[] >>
     ‘MEM n (dom_range_edges edges)’ by gvs[] >>
     ‘MEM n' (dom_range_edges edges)’ by gvs[] >>
-    ‘MEM n'' (dom_range_edges edges) ⇔ MEM n'' (MAP FST labels)’ by gvs[] >|[
- 
+    ‘MEM n'' (dom_range_edges edges) ⇔ MEM n'' (MAP FST labels)’ by gvs[] >>
 
-         
+    (* for all three subgoals *)
+    (
     Cases_on ‘MEM n'' (dom_range_edges edges)’  >|[
         ‘MEM n'' (dom_range_edges edges)’ by gvs[] >>
         ‘MEM n'' (dom_range_edges (merge_edges edges n n'))’  by metis_tac[mem_edges_imp_mem_merge_imp1] >>
-
-              (* we know that merge_edges does not touch the domain, just the range ...
-                 deleting a key n' will be from the domain...
-                 but we know that they key that we deleted indeed has a copy in n
-               *)
-
-             
-        ‘MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))’ by cheat >>
+        
+        (* we know that merge_edges does not touch the domain, just the range ...
+           deleting a key n' will be from the domain...
+           but we know that they key that we deleted indeed has a copy in n in edges
+         *)
+        
+        subgoal ‘MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))’ >-
+         (
+         irule merge_edges_preserve_nodes >>
+         srw_tac [SatisfySimps.SATISFY_ss][]
+         )>>
+         
         ‘MEM n'' (MAP FST (ADELKEY n' labels))’ by metis_tac[mem_imp_adelkey_mem] >>
         gvs[]
         ,
-        ‘~ MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))’ by cheat >> gvs[] >>
-        ‘¬MEM n'' (MAP FST (ADELKEY n' labels))’ by cheat 
+        
+        ‘¬MEM n'' (dom_range_edges (merge_edges edges n n'))’
+          by imp_res_tac not_mem_edges_imp_mem_merge_imp1 >>
+        gvs[] >>
+        
+        ‘~ MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))’ by
+          gvs[dom_range_edges_not_mem_imp_del] >>
+        gvs[] >>
+        
+        ‘¬MEM n'' (MAP FST (ADELKEY n' labels))’ by metis_tac[not_mem_imp_adelkey_mem] 
       ]
-         
+    ) ] 
+QED
+
+
+        
+        
+Theorem mergable_wf_internals_some:
+  ∀ r edges labels n n'.
+    mergable (r,edges,labels) n n' ∧
+    (∀n''.  MEM n'' (MAP FST labels) ⇒
+            (lookup_is_some edges n'' ⇔ is_lookup_internal labels n'')) ⇒
+    (∀n''.  MEM n'' (MAP FST (ADELKEY n' labels)) ⇒
+                
+            (lookup_is_some (ADELKEY n' (merge_edges edges n n')) n'' ⇔
+               is_lookup_internal (ADELKEY n' labels) n''))
+Proof
+
+rpt strip_tac >>
+Cases_on ‘n'' = n'’ >> gvs[] >| [
+    gvs[ADELKEY_def, MEM_MAP, MEM_FILTER]
+    ,
+    ‘MEM n'' (MAP FST labels)’ by metis_tac[adelkey_mem_imp_mem] >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’])) >>
     
-       
+    gvs[look_some_in_delkey_imp_og] >>
+    gvs[lookup_is_some_def] >>
 
-  ] 
+    Cases_on ‘(∃y. ALOOKUP (merge_edges edges n n') n'' = SOME y)’ >> gvs[] >|[
+             
+        ‘∃x'. ALOOKUP edges n'' = SOME x'’ by metis_tac[merge_lookup_exists] >>
+        gvs[is_lookup_internal_def] >>
+        metis_tac[delkey_alookup_imp_og]
+        ,
+        
+        Cases_on ‘ALOOKUP (merge_edges edges n n') n''’ >> gvs[] >>
+        ‘ALOOKUP edges n'' = NONE’ by metis_tac[merge_lookup_none] >>
 
-
-                                                                              
-*)
+        gvs[is_lookup_internal_def] >>
+        rpt strip_tac >>
+            
+        Cases_on ‘ALOOKUP (ADELKEY n' labels) n''’ >> gvs[] >>
+        Cases_on ‘ALOOKUP labels n''’ >> gvs[] >>
+                 
+        gvs[map_fst_merge_edges, ALOOKUP_NONE] >>
+        
+        imp_res_tac alookup_delkey_imp_og >>
+        ‘ALOOKUP labels n'' = SOME (non_termn (SOME x,p))’ by metis_tac[alookup_delkey_imp_og] >>
+        gvs[]
+          ]                                  
+      ]
+QED
         
 
+
+
+        
+Theorem adelkey_merge_none_imp_edges_none:
+  ∀ edges n n' n''.
+    n'' ≠ n' ∧
+    ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = NONE ⇒
+    ALOOKUP edges n'' = NONE
+Proof
+  rw[] >>
+  fs[ALOOKUP_ADELKEY] >>
+  gvs[] >>
+  metis_tac[merge_lookup_none] 
+QED
+
+
+                        
+
+    
+Theorem mergable_wf_leafs_some:
+  ∀ r edges labels n n'.
+    mergable (r,edges,labels) n n' ∧
+    (∀n''.
+       MEM n'' (MAP FST labels) ⇒
+       (ALOOKUP edges n'' = NONE ⇔
+          is_lookup_ntl labels n'' ∨ ∃p b. ALOOKUP labels n'' = SOME (termn (b,p)))) ⇒
+          
+    (∀n''.
+       MEM n'' (MAP FST (ADELKEY n' labels)) ⇒
+       (ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = NONE ⇔
+          is_lookup_ntl (ADELKEY n' labels) n'' ∨
+          ∃p b. ALOOKUP (ADELKEY n' labels) n'' = SOME (termn (b,p))))
+Proof
+
+  rpt strip_tac >>
+  Cases_on ‘n'' = n'’ >> gvs[] >| [
+    gvs[ADELKEY_def, MEM_MAP, MEM_FILTER]
+    ,
+    ‘MEM n'' (MAP FST labels)’ by metis_tac[adelkey_mem_imp_mem] >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’])) >>
+    
+    gvs[look_some_in_delkey_imp_og] >>
+
+    Cases_on ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = NONE’ >> gvs[] >|[
+        
+        ‘ALOOKUP edges n'' = NONE’ by metis_tac[adelkey_merge_none_imp_edges_none] >>
+        gvs[] >|[
+          fs[ALOOKUP_ADELKEY] >>
+          gvs[is_lookup_ntl_def] >>
+          metis_tac[delkey_alookup_imp_og]
+          ,
+          Cases_on ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n''’ >> gvs[] >>
+          fs[ALOOKUP_ADELKEY] >>
+          gvs[is_lookup_ntl_def] >>
+          ‘∃x'. ALOOKUP edges n'' = SOME x'’ by metis_tac[merge_lookup_exists] >>
+          Cases_on ‘ALOOKUP edges n''’ >> gvs[] >>
+          fs[ALOOKUP_ADELKEY]   
+        ]
+        ,
+        Cases_on ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n''’ >> gvs[] >>
+        fs[ALOOKUP_ADELKEY] >>
+        gvs[is_lookup_ntl_def] >>
+        ‘∃x'. ALOOKUP edges n'' = SOME x'’ by metis_tac[merge_lookup_exists] >>
+        Cases_on ‘ALOOKUP edges n''’ >> gvs[] >>
+        fs[ALOOKUP_ADELKEY]
+        
+      ]
+  ]
+QED
+
+
+
+
+
+
+
+Theorem merge_edges_adelkey_empty_imp_cases:
+  ∀edges n n'.
+    ADELKEY n' (merge_edges edges n n') = [] ⇒
+    EVERY (λe. FST e = n' ∨ FST (SND e) = n' ∨ SND (SND e) = n') edges
+Proof
+  Induct >> rw[] >>
+  
+  rename1 ‘h::t’ >>
+  fs[merge_edges_def, ADELKEY_def, MAP] >>
+  Cases_on ‘h’ >> Cases_on ‘r’ >> fs[] >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  
+  rw[] >> res_tac >> gvs[]
+QED
+
+
+        
+
+Theorem wf_non_empty_after_merge:
+  ∀r edges labels n n'.
+    ALL_DISTINCT (MAP FST edges) ∧
+    edges ≠ [] ∧
+    mergable (r,edges,labels) n n' ⇒
+    ADELKEY n' (merge_edges edges n n') ≠ []
+Proof
+  rpt gen_tac >> strip_tac >>
+  fs [mergable_def] >>
+  
+  (* case analysis on ALOOKUP results *)
+  Cases_on ‘ALOOKUP edges n’ >> Cases_on ‘ALOOKUP edges n'’ >> fs[] >| [
+
+    (* case both nodes have no edges *)
+    fs[merge_edges_def, ADELKEY_def] >>
+    Induct_on ‘edges’ >> rw[] >>
+    PairCases_on ‘h’ >>  fs[]
+    ,
+    
+    (* Case 4: Both have edges *)
+    subgoal ‘∃e1 e2. MEM e1 edges ∧ MEM e2 edges ∧
+                     FST e1 = n ∧ FST e2 = n'’ >- (
+      imp_res_tac ALOOKUP_MEM >>
+      PairCases_on ‘x’ >> gvs[] >>
+      qexistsl_tac [‘(n,x0,x1)’, ‘(n',x0,x1)’] >> fs[]
+      ) >>
+    
+      
+    Cases_on ‘e1 = e2’ >| [
+        (* same edge would mean n = n' - contradiction *)
+        metis_tac[]
+        ,
+        
+        (* different edges - show e1 remains *)
+        ‘FST e1 ≠ n'’ by fs[] >>
+        subgoal ‘MEM (let (a,(b,c)) = e1 in
+                        (a, if b = n' ∧ c = n' then (n,n)
+                            else if b = n' then (n,c)
+                            else if c = n' then (b,n)
+                            else (b,c))) (merge_edges edges n n')’ >- (
+          gvs[merge_edges_def] >>
+          gvs[MEM_MAP] >>
+          qexists_tac ‘e1’ >> fs[] >> rw[]
+          ) >>
+          
+        PairCases_on ‘e1’ >> rename1 ‘(src, (a,b))’ >>
+        ‘src ≠ n'’ by fs[] >>
+        fs[] >>
+        fs[ADELKEY_def, FILTER_NEQ_NIL] >>
+        qexists_tac ‘(src,
+                      if a = n' ∧ b = n' then (n,n)
+                      else if a = n' then (n,b)
+                      else if b = n' then (a,n)
+                      else (a,b))’ >> fs[]
+                                        
+      ]
+  ]
+QED
+
+  
+
+
+
+                                
+
+        
 Theorem merge_wf_preservation:        
-  ∀ BDD n n' vars vars_consumed.
-    BDD_ordered BDD vars ∧
+  ∀ BDD n n' vars_consumed.
+    BDD_ordered BDD vars_consumed ∧
     BDD_WF BDD ∧
     consumed_dom_bdd vars_consumed BDD ∧
     mergable BDD n n'
@@ -2016,21 +2528,26 @@ Proof
    gvs[BDD_WF_def]) >>
 
           
-  simp[BDD_WF_def, merge_def] >>
+  gvs[BDD_WF_def, merge_def] >>
                   
   (* show that edges are distinct *)
-  ‘ALL_DISTINCT (MAP FST edges)’ by fs[BDD_WF_def] >>
-  imp_res_tac edges_distinct_in_del_key >> gvs[] >>
+  ‘∀n'' n n'.
+     ALL_DISTINCT (MAP FST (ADELKEY n'' (merge_edges edges n n')))’
+    by (imp_res_tac edges_distinct_in_del_key >> gvs[]) >>
 
   (* show that labels are distinct *)
-  ‘ALL_DISTINCT (MAP FST labels)’ by fs[BDD_WF_def] >>
-  imp_res_tac ALL_DISTINCT_MAP_ADELKEY >> gvs[] >>
+  ‘∀n. ALL_DISTINCT (MAP FST (ADELKEY n labels))’
+    by imp_res_tac ALL_DISTINCT_MAP_ADELKEY >> gvs[] >>
 
+  ‘∀n''.  MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n'))) ⇔
+          MEM n'' (MAP FST (ADELKEY n' labels))’ by imp_res_tac mergable_wf_labels_edges_same >> gvs[] >>
 
+  imp_res_tac mergable_wf_internals_some >> gvs[] >>
+
+  imp_res_tac mergable_wf_leafs_some >> gvs[] >> rw[] >>
   
-
-  cheat
-              
+  imp_res_tac wf_non_empty_after_merge
+     
 QED
 
 
@@ -2150,45 +2667,7 @@ QED
 
 
 
-
         
-
-Theorem look_some_in_delkey_imp_og:
-  ∀ labels n n'.
-    n ≠ n' ⇒
-    (lookup_is_some (ADELKEY n labels) n' ⇔
-       lookup_is_some labels n')
-Proof
-  Induct >>
-  rpt strip_tac >>
-  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
-QED
-
-
-Theorem alookup_delkey_imp_og:
-  ∀ l n n' x.
-    n ≠ n' ⇒
-    (ALOOKUP (ADELKEY n l) n' = SOME x ) ⇒
-    (ALOOKUP l n' = SOME x)
-Proof
-  Induct >>
-  rpt strip_tac >>
-  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
-QED
-
-
-Theorem delkey_alookup_imp_og:
-  ∀ l n n' x.
-    n ≠ n' ⇒
-    (ALOOKUP l n' = SOME x) ⇒
-             (ALOOKUP (ADELKEY n l) n' = SOME x )
-Proof
-Induct >>
-rpt strip_tac >>
-gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
-QED
-        
-
 Theorem op_sem_adel_key:
   ∀ labels n' n'' mv rec.
     n' ≠ n'' ⇒        
@@ -2236,53 +2715,6 @@ Proof
 QED
      
 
-
-
-Theorem merge_edges_elim_same_helper_l:
-  ∀ h n n' n1 n2 n1' n2'.
-    n1 ≠ n ∧    
-    ALOOKUP (merge_edges [h] n n') n = SOME (n1,n2) ∧
-    ALOOKUP [h] n = SOME (n1',n2') ⇒
-    (n1' = n1)
-Proof
-  rpt strip_tac >>
-  PairCases_on ‘h’ >>
-  rpt strip_tac >>
-  gvs[merge_edges_def] >>
-  rgs[AllCaseEqs()] >>
-  gvs[]
-QED
-
-
-
-
-Theorem merge_edges_elim_same_l:        
-  ∀ edges l n n' n1 n2 n1' n2'.        
-    n1 ≠ n ∧
-    ALOOKUP (merge_edges edges n n') n = SOME (n1,n2) ∧
-    ALOOKUP edges n = SOME (n1',n2') ⇒
-    n1'=n1 
-Proof
-  Induct >-
-   gvs[] >>
-  rpt strip_tac >>
-  
-  rfs[Once merge_edges_list_cons] >>
-  
-  PairCases_on ‘h’ >>
-  rfs[Once ALOOKUP_APPEND] >>
-  
-  rgs[] >>
-  rgs[AllCaseEqs()] >>
-                    
-  rw[Once merge_edges_def] >>
-  rgs[Once merge_edges_def] >>
-  rgs[] >>
-  rgs[AllCaseEqs()] >>
-  
-  res_tac >>
-  metis_tac[merge_Theorem1]
-QED
 
 
 
@@ -3154,7 +3586,9 @@ NO NEED to set up root in WFness for teh proof producing patr, just add in elimi
 
 make execurable versions of the correccness, WFness and order and other things.
 
+move the auxiliary functions to BDD aux
 
+     check slow theorems for merge and make them fast using the new work
 
      
 *)
@@ -3196,11 +3630,11 @@ Proof
     assume_tac merge_correct >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘[]’, ‘vars’, ‘n’, ‘h’, ‘rec’])) >>
     gvs[] >>
-    res_tac >>
+    (*res_tac >>*)
+    ‘BDD_WF (merge BDD n h)’ by imp_res_tac merge_wf_preservation >>
     ‘fv_in_BDD rec (merge BDD n h) vars’ by cheat >>
     ‘BDD_ordered (merge BDD n h) vars’ by cheat >>
     ‘consumed_dom_bdd vars (merge BDD n h)’ by cheat >>
-    ‘BDD_WF (merge BDD n h)’ by cheat >>
     res_tac >>
     gvs[] >>
     cheat
@@ -3323,3 +3757,4 @@ QED
 
 
 val _ = export_theory ();
+
