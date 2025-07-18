@@ -1,14 +1,14 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
+(* TODO: Split into file used by symbolic execution and file used by contract derivation *)
+val _ = new_theory "p4_symb_exec";
+
 open p4Theory listTheory;
 
 open symb_execTheory;
 
 (* TODO: Hack, sort out *)
 open p4_v1modelTheory;
-
-(* TODO: Split into file used by symbolic execution and file used by contract derivation *)
-val _ = new_theory "p4_symb_exec";
 
 Definition packet_has_port_def:
  packet_has_port (((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status):'a astate) port_ok =
@@ -249,7 +249,7 @@ Definition v1model_ctrl_is_well_formed_def:
       (* TODO: Keep the requirement that LENGTH e_l = LENGTH mk_l here? *)
       LENGTH e_l = LENGTH mk_l ==>
       !counter ext_obj_map v_map. ?f f_args.
-      v1model_apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
+      v1model_apply_table_f'' (tbl, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
        (* f is in the list of actions for the table *)
        MEM f actions /\
        (* first argument is the Boolean T, signifying that the function call resulted from table application *)
@@ -315,7 +315,7 @@ Definition v1model_tbl_is_well_formed_def:
       LENGTH e_l = LENGTH mk_l ==>
       !ctrl. ALOOKUP ctrl tbl_name = SOME tbl_entries ==>
       !counter ext_obj_map v_map. ?f f_args.
-      v1model_apply_table_f (tbl_name, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
+      v1model_apply_table_f'' (tbl_name, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
        (* f is in the list of actions for the table *)
        MEM f actions /\
        (* first argument is the Boolean T, signifying that the function call resulted from table application *)

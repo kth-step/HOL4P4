@@ -1,20 +1,15 @@
 structure p4_exec_wrapper_ffiLib :> p4_exec_wrapper_ffiLib = struct
 
+(* Core HOL4 *)
 open HolKernel boolLib Parse bossLib;
 
-open p4Syntax;
-open bitstringSyntax numSyntax;
-open p4Theory;
-open p4_auxTheory;
-open p4_exec_semTheory;
-open p4_coreTheory p4_vssTheory;
+(* HOL4P4 *)
+open p4Theory p4_auxTheory p4_exec_semTheory;
 
 (* CakeML: *)
 open preamble ml_translatorLib ml_progLib basisFunctionsLib
      eval_cake_compile_x64Lib;
 open fromSexpTheory;
-
-open stringTheory;
 
 val _ = intLib.deprecate_int();
 
@@ -78,7 +73,7 @@ fun append_prog_p4_wrapper debug_mode () =
    ;
 
    val _ = append_prog o process_topdecs $
-    ‘ (* Utility function for converting from array to string *)
+    ‘(* Utility function for converting from array to string *)
     fun array_to_string arr =
       let
 	val len = Word8Array.length arr;
@@ -87,9 +82,10 @@ fun append_prog_p4_wrapper debug_mode () =
 	  else loop (i-1) (String.str(Char.chr(Word8.toInt(Word8Array.sub arr i))) ^ acc)
       in
 	loop (len - 1) ""
-      end;
-
-    fun array_to_hex_string arr =
+      end;’;
+(*
+   val _ = append_prog o process_topdecs $
+    ‘fun array_to_hex_string arr =
       let
 	val len = Word8Array.length arr;
 
@@ -129,6 +125,7 @@ fun append_prog_p4_wrapper debug_mode () =
 	array_to_string buffer
       end;’
    ;
+*)
 
    val _ = append_prog o process_topdecs $
    ‘(* String to Word8Array utility function *)
@@ -480,7 +477,7 @@ val _ = append_prog o process_topdecs $
 	process_packet 0 []
       end;’
    ;
-
+(*
    (* foldr for Word8Arrays: *)
    val _ = append_prog o process_topdecs $
     ‘fun w8a_foldr_aux f init arr n =
@@ -493,7 +490,9 @@ val _ = append_prog o process_topdecs $
 
    val _ = append_prog o process_topdecs $
     ‘fun array_to_list (arr:byte_array) = w8a_foldr (fn h => (fn res => (h::res))) ([]: (Word8.word list)) arr’;
+*)
    (* fromList for Word8Arrays *)
+(*
    val _ = append_prog o process_topdecs $
     ‘fun from_w8list (l:Word8.word list) =
      let fun f arr l i =
@@ -505,7 +504,7 @@ val _ = append_prog o process_topdecs $
 	 [] => Word8Array.array 0 (Word8.fromInt 0)
        | h::t => f (Word8Array.array (List.length l) h) t 1
      end’;
-
+*)
    val _ = append_prog o process_topdecs $
     ‘(* Convert a list of booleans to a packet buffer *)
     fun bool_list_to_packet bool_list =
@@ -739,7 +738,7 @@ val _ = append_prog o process_topdecs $
 (*
 				   val result = cake_top_exec (array_to_list packet, port);
 *)
-				   val result = cake_top_exec (packet, port);
+				   val result = cake_top_exec (packet_bl, port);
 				 in
 				   case result of
 				     None => 
@@ -820,7 +819,7 @@ val _ = append_prog o process_topdecs $
  * With the inlogic flag set to false, you get a CakeML .sexp file that you can compile
  * in a separate step. With the inlogic flag set to true, you get a .S that you can link
  * with a binary containing the foreign function implementations *)
-fun translate_p4 progname dict actx astate n_max debug_mode inlogic =
+fun translate_p4 progname actx astate n_max debug_mode inlogic =
  let
   val _ =
     let

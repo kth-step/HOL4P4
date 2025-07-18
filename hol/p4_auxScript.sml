@@ -519,6 +519,69 @@ REPEAT STRIP_TAC >| [
 ]
 QED
 
+Theorem INDEX_FIND_index_less:
+!l e P j n.
+INDEX_FIND n P l = SOME (j,e) ==>
+n <= j
+Proof
+Induct_on ‘l’ >> (
+ gs[listTheory.INDEX_FIND_def]
+) >>
+rpt strip_tac >>
+gs[] >>
+Cases_on ‘P h’ >> (
+ gvs[]
+) >>
+qpat_x_assum ‘!e P j n. _’ (ASSUME_TAC o Q.SPECL [‘e’, ‘P’, ‘j’, ‘SUC n’]) >>
+gs[]
+QED
+
+Theorem INDEX_FIND_index_add:
+ !a l P b.
+ INDEX_FIND 0 P l = SOME (a,b) ==>
+ INDEX_FIND 1 P l = SOME (a+1,b)
+Proof
+rpt strip_tac >>
+simp[Once listTheory.INDEX_FIND_add]
+QED
+
+Theorem alookup_find:
+!l k v.
+(FIND (λ(k',v'). k' = k) l = SOME (k,v)) <=>
+ALOOKUP l k = SOME v
+Proof
+Induct >- (
+ gs[listTheory.FIND_def, listTheory.INDEX_FIND_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘h’ >>
+gs[listTheory.FIND_def, listTheory.INDEX_FIND_def, AllCaseEqs()] >>
+Cases_on ‘q = k’ >> (
+ gs[]
+) >- (
+ (* Why metis needed here? *)
+ metis_tac[]
+) >>
+qpat_x_assum ‘!k v. _’ (fn thm => ASSUME_TAC $ Q.SPECL [‘k’, ‘v’] thm) >>
+eq_tac >- (
+ rpt strip_tac >>
+ ‘?i. INDEX_FIND 0 (λ(k',v'). k' = k) l = SOME (i, (k,v))’ suffices_by (strip_tac >> gs[]) >>
+ Cases_on ‘z’ >>
+ qexists_tac ‘q' - 1’ >>
+ gvs[] >>
+ qpat_x_assum ‘(?z. INDEX_FIND 0 (λ(k',v'). k' = k) l = SOME z ∧ (k,v) = SND z) ⇔
+        ALOOKUP l k = SOME v’ (fn thm => ALL_TAC) >>
+ gs[Once listTheory.INDEX_FIND_add] >>
+ Cases_on ‘z’ >>
+ gs[]
+) >>
+rpt strip_tac >>
+gvs[] >>
+Cases_on ‘z’ >>
+qexists_tac ‘(q' + 1, r)’ >>
+gvs[INDEX_FIND_index_add]
+QED
+
 Theorem unred_arg_index_NONE:
 !dl el.
 (unred_arg_index dl el = NONE) ==>
@@ -2810,6 +2873,57 @@ Definition assign'_def:
  (assign' ss v lval_null = SOME ss) /\
  (assign' ss v (lval_paren lval) = assign' ss v lval)
 End
+
+Theorem assign'_LENGTH:
+!scope_list v lval scope_list'.
+assign' scope_list v lval = SOME scope_list' ==>
+LENGTH scope_list' = LENGTH scope_list
+Proof
+Induct_on ‘lval’ >> (
+ fs[assign'_def]
+) >| [
+ rpt strip_tac >>
+ Cases_on ‘find_topmost_map scope_list v’ >> (
+  fs[]
+ ) >>
+ PairCases_on ‘x’ >>
+ fs[] >>
+ Cases_on ‘lookup_out scope_list v’ >> (
+  fs[]
+ ) >>
+ metis_tac[listTheory.LENGTH_LUPDATE],
+
+ rpt strip_tac >>
+ Cases_on ‘lookup_lval' scope_list lval’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘x’ >> (
+  fs[]
+ ) >> (
+  Cases_on ‘INDEX_OF s (MAP FST l)’ >> (
+   fs[]
+  ) >>
+  res_tac
+ ),
+
+ rpt strip_tac >>
+ Cases_on ‘v’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘lookup_lval' scope_list lval’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘x’ >> (
+  fs[]
+ ) >>
+ Cases_on ‘assign_to_slice' p p' e0 e’ >> (
+  fs[]
+ ) >>
+ res_tac,
+
+ metis_tac[]
+]
+QED
 
 (* TODO: Change the order of parameters to that of this function in the Ott file *)
 Definition match_all_e_alt_def:
