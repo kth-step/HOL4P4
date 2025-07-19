@@ -585,12 +585,26 @@ EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
 *)
 
 
-Definition eleminatble_def:        
-eleminatble ((r,edges,labels):('a,'b)BDD)  n n' = 
+(* the parent ≠ n here is important 
+   case we do not have ultimate root in the graph.
+   assume two roots can be eliminated, this wf condition of 
+    the nodes in edges being found after elminate fails
+*)    
+
+Definition has_parent_def:
+  has_parent edges n n' =
+  EXISTS (λ(parent, (left, right)). (left = n' ∨ right = n') 
+                                    ∧ parent ≠ n' ∧ parent ≠ n) edges
+End
+
+
+Definition eliminable_def:        
+eliminable ((r,edges,labels):('a,'b)BDD)  n n' = 
 (n≠n' ∧
  ALOOKUP edges n' = SOME (n,n) ∧
  ALOOKUP labels n  ≠ NONE ∧
- ALOOKUP labels n' ≠ NONE)
+ ALOOKUP labels n' ≠ NONE ∧
+ has_parent edges n n' )
 End 
                                              
 val _ = export_theory ();
