@@ -14,7 +14,7 @@ val CONTROL_PLANE_API = 0;
 
 val _ = type_abbrev("v1model_sum_v_ext'", “:(core_v_ext', v1model_v_ext) sum”);
 
-Type v1model_ctrl' = “:(identifier, tbl) alist”;
+Type v1model_ctrl' = “:(identifier, tbl') alist”;
 
 Type v1model_ascope' = “:(num # ((num, v1model_sum_v_ext') alist) # ((identifier, v') alist) # v1model_ctrl')”;
 
@@ -261,42 +261,50 @@ Definition v1model_copyout_pbl'_def:
   | _ => NONE
 End
 
-Definition FOLDL_MATCH_alt'_def:
- (FOLDL_MATCH_alt' w_l res acc [] = res) /\
- (FOLDL_MATCH_alt' w_l (res_act, res_prio_opt:num option) acc (((s_l,prio),v)::t) =
-  if match_all_e_alt'' s_l w_l
-  then
-   (* TODO: Smallest priority wins (like for TDI) is hard-coded,
-    *       other than priority zero. *)
-   case res_prio_opt of
-   | SOME res_prio =>
-    let prio' = if (prio = 0) then acc else prio in
-    if (prio' < res_prio)
-    then
-     FOLDL_MATCH_alt' w_l (v, SOME prio') (acc+1) t
-    else FOLDL_MATCH_alt' w_l (res_act, res_prio_opt) (acc+1) t
-   | NONE => FOLDL_MATCH_alt' w_l (v, SOME prio) (acc+1) t
-  else FOLDL_MATCH_alt' w_l (res_act, res_prio_opt) (acc+1) t)
-End
-
-Definition FOLDL_MATCH'_def:
- (FOLDL_MATCH' w_l res [] = res) /\
- (FOLDL_MATCH' (w_l:(word64 # word64) list) (res_act:identifier # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
-  if match_all_e_alt'' s_l w_l
-  then
-   (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
-   case res_prio_opt of
-   | SOME res_prio =>
-    if prio > res_prio
-    then
-     FOLDL_MATCH' w_l (v, SOME prio) t
-    else FOLDL_MATCH' w_l (res_act, res_prio_opt) t
-   | NONE => FOLDL_MATCH' w_l (v, SOME prio) t
-  else FOLDL_MATCH' w_l (res_act, res_prio_opt) t)
-End
+val v1model_apply_table_f'_def =
+ if matching_optimization
+ then Define ‘v1model_apply_table_f' = T’
+ else if CONTROL_PLANE_API = 0
+ then xDefine "v1model_apply_table_f'"
+  ‘v1model_apply_table_f' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
+    (* TODO: Note that this function could do other stuff here depending on table name.
+     *       Ideally, one could make a general, not hard-coded, solution for this *)
+    case ALOOKUP ctrl x of
+     | SOME table =>
+      (case vl_of_el' e_l of
+       | SOME v_l =>
+        (case table of
+           tbl'_impl f => SOME $ f $ v_l
+         | tbl'_regular tbl =>
+           if (MEM mk_lpm mk_list)
+           then
+            (* Largest priority wins (like for P4Runtime API - should be equivalent to TDI
+             * for tables that contain at most one LPM key, with others exact) *)
+            SOME (FST $ FOLDL_MATCH' v_l ((x', e_l'), NONE) tbl)
+           else
+            (* Smallest priority wins (like for TDI) *)
+            SOME (FST $ FOLDL_MATCH_alt' v_l ((x', e_l'), NONE) (1:num) tbl))
+       | NONE => NONE)
+     | NONE => NONE’
+ else xDefine "v1model_apply_table_f'"
+  ‘v1model_apply_table_f' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
+    (* TODO: Note that this function could do other stuff here depending on table name.
+     *       Ideally, one could make a general, not hard-coded, solution for this *)
+    case ALOOKUP ctrl x of
+     | SOME table =>
+      (case vl_of_el' e_l of
+       | SOME v_l =>
+        (case table of
+           tbl'_impl f => SOME $ f $ v_l
+         | tbl'_regular tbl =>
+          (* Largest priority wins *)
+          SOME (FST $ FOLDL_MATCH' v_l ((x', e_l'), NONE) tbl))
+       | NONE => NONE)
+     | NONE => NONE’;
 
 val v1model_apply_table_f''_def =
- if CONTROL_PLANE_API = 0
+ if matching_optimization
+ then if CONTROL_PLANE_API = 0
  then xDefine "v1model_apply_table_f''"
   ‘v1model_apply_table_f'' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope') =
     (* TODO: Note that this function could do other stuff here depending on table name.
@@ -306,16 +314,16 @@ val v1model_apply_table_f''_def =
       (case e_list_to_word64s_list e_l of
        | SOME w_l =>
         (case table of
-           tbl_impl f => SOME $ f $ w_l
-         | tbl_regular tbl =>
+           tbl'_impl f => SOME $ f $ w_l
+         | tbl'_regular tbl =>
            if (MEM mk_lpm mk_list)
            then
             (* Largest priority wins (like for P4Runtime API - should be equivalent to TDI
              * for tables that contain at most one LPM key, with others exact) *)
-            SOME (FST $ FOLDL_MATCH' w_l ((x', e_l'), NONE) tbl)
+            SOME (FST $ FOLDL_MATCH'' w_l ((x', e_l'), NONE) tbl)
            else
             (* Smallest priority wins (like for TDI) *)
-            SOME (FST $ FOLDL_MATCH_alt' w_l ((x', e_l'), NONE) (1:num) tbl))
+            SOME (FST $ FOLDL_MATCH_alt'' w_l ((x', e_l'), NONE) (1:num) tbl))
        | NONE => NONE)
      | NONE => NONE’
  else xDefine "v1model_apply_table_f''"
@@ -327,12 +335,13 @@ val v1model_apply_table_f''_def =
       (case e_list_to_word64s_list e_l of
        | SOME w_l =>
         (case table of
-           tbl_impl f => SOME $ f $ w_l
-         | tbl_regular tbl =>
+           tbl'_impl f => SOME $ f $ w_l
+         | tbl'_regular tbl =>
           (* Largest priority wins *)
-          SOME (FST $ FOLDL_MATCH' w_l ((x', e_l'), NONE) table))
+          SOME (FST $ FOLDL_MATCH'' w_l ((x', e_l'), NONE) table))
        | NONE => NONE)
-     | NONE => NONE’;
+     | NONE => NONE’
+ else Define ‘v1model_apply_table_f'' = T’;
 
 (* OLD:
 val v1model_apply_table_f'_def =

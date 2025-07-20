@@ -4,6 +4,7 @@ val _ = new_theory "p4_cake_arch_ebpfProg";
 
 open p4Theory p4_auxTheory p4_coreTheory p4_ebpfTheory;
 open p4_cake_auxTheory p4_cake_archTheory p4_cake_arch_ebpfTheory;
+open p4_cake_auxLib;
 open p4_cake_exec_semTheory;
 open p4_cake_exec_semProgTheory;
 
@@ -81,8 +82,30 @@ val _ = translate ebpf_lookup_obj'_def;
 val _ = translate ebpf_inputPort_to_num'_def;
 val _ = translate ebpf_output_f'_def;
 
-val _ = translate FOLDL_MATCH_def;
-val _ = translate ebpf_apply_table_f'_def;
+val _ = translate listTheory.LIST_TO_SET_DEF;
+val _ = translate boolTheory.IN_DEF;
+
+val _ =
+ if matching_optimization
+ then
+  let
+   val _ = translate match_all_e_alt''_def;
+   val _ = translate FOLDL_MATCH''_def;
+   val _ = translate e_list_to_word64s_list_def;
+   val _ = translate ebpf_apply_table_f''_def;
+  in
+   ()
+  end
+ else
+  let
+   val _ = translate match_all'_def;
+   val _ = translate FOLDL_MATCH_alt'_def;
+   val _ = translate FOLDL_MATCH'_def;
+   val _ = translate ebpf_apply_table_f'_def;
+  in
+   ()
+  end
+;
 
 val _ = ml_prog_update (close_module NONE);
 

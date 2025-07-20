@@ -17,6 +17,9 @@ val identifier = “:word64”;
 (* val identifier = “:word32”; *)
 (* val identifier = “:word16”; *)
 
+(* This controls whether optimized matching in tables and select will be used *)
+val matching_optimization = false;
+
 (* This should hold all the named strings in core P4, and currently the additional ones for
  * new architectures *)
 (* TODO: Move to top level? *)
@@ -314,16 +317,12 @@ fun bool_list_to_hex bool_list =
  end
 ;
 
-(* TODO: Make syntax file *)
-val (match_all_e_alt_tm, mk_match_all_e_alt, dest_match_all_e_alt, is_match_all_e_alt) =
-  syntax_fns2 "p4_aux" "match_all_e_alt";
-
 fun get_keys [] = []
   | get_keys (h::t) =
  let
-  val match_fun = fst $ dest_pair h
-  val (f, prio) = dest_pair match_fun
-  val s_list = fst $ dest_list $ snd $ dest_comb f
+  val matching = fst $ dest_pair h
+  val (s_list_tm, prio) = dest_pair matching
+  val s_list = fst $ dest_list $ s_list_tm
  in
   if length s_list = 1
   then
@@ -351,7 +350,8 @@ fun get_keys [] = []
 fun populate_table tbl rand_gen n_additional_entries =
  let
   val (name, entries) = dest_pair tbl
-  val entries_list = fst $ dest_list entries
+  val entries_list_tm = p4_coreLib.dest_tbl_regular entries
+  val entries_list = fst $ dest_list $ entries_list_tm
   val (keys, prios) = unzip $ get_keys entries_list
   (* TODO: Hack. Warn if widths disagree. *)
   val width = el 1 $ map snd keys
@@ -376,11 +376,13 @@ fun populate_table tbl rand_gen n_additional_entries =
    “("NoAction",
       [e_v (v_bool T); e_v (v_bool T)])”
   val new_entries = add_entries (map fst keys) width rand_gen n_additional_entries
-  val new_entries' = map (fn a => mk_pair (mk_comb (match_all_e_alt_tm, mk_list ([a], “:s”)), term_of_int (max_prio+1))) new_entries
-  val new_entries_tm = mk_list (map (fn a => mk_pair (a, action)) new_entries', “:((e list -> bool) # num) # string # e list”)
+  val new_entries' = map (fn a => mk_pair (mk_list ([a], “:s”), term_of_int (max_prio+1))) new_entries
+  val new_entries_tm = mk_list (map (fn a => mk_pair (a, action)) new_entries', “:(s list # num) # string # e list”)
+
+  val entries_list_tm' = rhs $ concl $ EVAL “^new_entries_tm ++ ^entries_list_tm”
   
  in
-  mk_pair (name, rhs $ concl $ EVAL “^new_entries_tm ++ (SND ^tbl)”)
+  mk_pair (name, p4_coreLib.mk_tbl_regular entries_list_tm')
  end
 ;
 

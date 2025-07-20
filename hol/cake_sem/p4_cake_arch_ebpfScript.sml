@@ -12,7 +12,7 @@ open p4_coreTheory p4_ebpfTheory;
 
 val _ = type_abbrev("ebpf_sum_v_ext'", “:(core_v_ext', ebpf_v_ext) sum”);
 
-val _ = type_abbrev("ebpf_ctrl'", “:(identifier, (((e_list' -> bool) # num), identifier # e_list') alist) alist”);
+val _ = type_abbrev("ebpf_ctrl'", “:(identifier, tbl') alist”);
 
 (* The architectural state type of the eBPF architecture model *)
 val _ = type_abbrev("ebpf_ascope'", “:(num # ((num, ebpf_sum_v_ext') alist) # ((identifier, v') alist) # ebpf_ctrl')”);
@@ -271,15 +271,45 @@ Definition ebpf_output_f'_def:
   | _ => NONE
 End
 
-Definition ebpf_apply_table_f'_def:
- ebpf_apply_table_f' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):ebpf_ascope') =
+val ebpf_apply_table_f'_def =
+ if matching_optimization
+ then Define ‘ebpf_apply_table_f' = T’
+ else
+  Define
+ ‘ebpf_apply_table_f' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):ebpf_ascope') =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   case ALOOKUP ctrl x of
    | SOME table =>
-    (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-   | NONE => NONE
-End
+    (case vl_of_el' e_l of
+     | SOME v_l =>
+      (case table of
+         tbl'_impl f => SOME $ f $ v_l
+       | tbl'_regular tbl =>
+        (* Largest priority wins *)
+        SOME (FST $ FOLDL_MATCH' v_l ((x', e_l'), NONE) tbl))
+     | NONE => NONE)
+   | NONE => NONE’
+;
+
+val ebpf_apply_table_f''_def =
+ if matching_optimization
+ then Define
+ ‘ebpf_apply_table_f'' (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):ebpf_ascope') =
+  (* TODO: Note that this function could do other stuff here depending on table name.
+   *       Ideally, one could make a general, not hard-coded, solution for this *)
+  case ALOOKUP ctrl x of
+   | SOME table =>
+    (case e_list_to_word64s_list e_l of
+     | SOME w_l =>
+      (case table of
+         tbl'_impl f => SOME $ f $ w_l
+       | tbl'_regular tbl =>
+        (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+        SOME (FST $ FOLDL_MATCH'' w_l ((x', e_l'), NONE) tbl))
+     | NONE => NONE)
+   | NONE => NONE’
+ else Define ‘ebpf_apply_table_f'' = T’
+;
 
 val _ = export_theory ();

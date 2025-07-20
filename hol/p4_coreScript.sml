@@ -731,21 +731,21 @@ Definition FOLDL_MATCH_def:
   else FOLDL_MATCH e_l (res_act, res_prio_opt) t)
 End
 *)
-(* TODO: Updated for new tables *)
+
 Definition FOLDL_MATCH_def:
- (FOLDL_MATCH w_l res [] = res) /\
- (FOLDL_MATCH (w_l:v list) (res_act:string # e list, res_prio_opt:num option) (((s_l,prio),v)::t) =
-  if match_all_exec (ZIP(w_l, s_l))
+ (FOLDL_MATCH v_l res [] = res) /\
+ (FOLDL_MATCH (v_l:v list) (res_act:string # e list, res_prio_opt:num option) (((s_l,prio),v)::t) =
+  if match_all_exec (ZIP(v_l, s_l))
   then
    (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
    case res_prio_opt of
    | SOME res_prio =>
     if prio > res_prio
     then
-     FOLDL_MATCH w_l (v, SOME prio) t
-    else FOLDL_MATCH w_l (res_act, res_prio_opt) t
-   | NONE => FOLDL_MATCH w_l (v, SOME prio) t
-  else FOLDL_MATCH w_l (res_act, res_prio_opt) t)
+     FOLDL_MATCH v_l (v, SOME prio) t
+    else FOLDL_MATCH v_l (res_act, res_prio_opt) t
+   | NONE => FOLDL_MATCH v_l (v, SOME prio) t
+  else FOLDL_MATCH v_l (res_act, res_prio_opt) t)
 End
 
 (*
@@ -784,11 +784,11 @@ Definition FOLDL_MATCH_alt_def:
   else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t)
 End
 *)
-(* TODO: Updated for new tables *)
+
 Definition FOLDL_MATCH_alt_def:
- (FOLDL_MATCH_alt w_l res acc [] = res) /\
- (FOLDL_MATCH_alt w_l (res_act, res_prio_opt:num option) acc (((s_l,prio),v)::t) =
-  if match_all_exec (ZIP(w_l, s_l))
+ (FOLDL_MATCH_alt v_l res acc [] = res) /\
+ (FOLDL_MATCH_alt v_l (res_act, res_prio_opt:num option) acc (((s_l,prio),v)::t) =
+  if match_all_exec (ZIP(v_l, s_l))
   then
    (* TODO: Smallest priority wins (like for TDI) is hard-coded,
     *       other than priority zero. *)
@@ -797,10 +797,10 @@ Definition FOLDL_MATCH_alt_def:
     let prio' = if (prio = 0) then acc else prio in
     if (prio' < res_prio)
     then
-     FOLDL_MATCH_alt w_l (v, SOME prio') (acc+1) t
-    else FOLDL_MATCH_alt w_l (res_act, res_prio_opt) (acc+1) t
-   | NONE => FOLDL_MATCH_alt w_l (v, SOME prio) (acc+1) t
-  else FOLDL_MATCH_alt w_l (res_act, res_prio_opt) (acc+1) t)
+     FOLDL_MATCH_alt v_l (v, SOME prio') (acc+1) t
+    else FOLDL_MATCH_alt v_l (res_act, res_prio_opt) (acc+1) t
+   | NONE => FOLDL_MATCH_alt v_l (v, SOME prio) (acc+1) t
+  else FOLDL_MATCH_alt v_l (res_act, res_prio_opt) (acc+1) t)
 End
 
 val _ = export_theory ();

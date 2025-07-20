@@ -823,14 +823,10 @@ fun translate_p4 progname actx astate n_max debug_mode inlogic =
  let
   val _ =
     let
+     (* TODO: Fix option type? *)
      val cake_top_exec_def =
       Define
-       ‘cake_top_exec input =
-	 case
-	  arch_multi_exec ^actx
-	   (p4_append_input_list [input] ^astate) ^n_max of
-	 | SOME res => SOME $ p4_get_output_list res
-	 | NONE => NONE’;
+       ‘cake_top_exec input = SOME $ p4_get_output_list (arch_multi_exec_total ^actx (p4_append_input_list [input] ^astate) ^n_max)’;
 
      (* TODO: This is the bottleneck... *)
      val _ = translate cake_top_exec_def;

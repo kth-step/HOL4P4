@@ -18,13 +18,29 @@ Datatype:
   core_v_ext'_packet (word8 list)
 End
 
+(* OLD
 Datatype:
-tbl =
+tbl' =
    (* Any regular table *)
-   tbl_regular ((s' list # num, (identifier # e_list')) alist)
+   tbl'_regular ((s' list # num, (identifier # e_list')) alist)
    (* A table with a custom implementation *)
- | tbl_impl (((word64 # word64) list -> (identifier # e_list')))
+ | tbl'_impl (((word64 # word64) list -> (identifier # e_list')))
 End
+*)
+val _ = Datatype
+ (if matching_optimization
+  then
+   ‘tbl' =
+      (* Any regular table *)
+      tbl'_regular ((s' list # num, (identifier # e_list')) alist)
+      (* A table with a custom implementation *)
+    | tbl'_impl (((word64 # word64) list -> (identifier # e_list')))’
+  else
+   ‘tbl' =
+      (* Any regular table *)
+      tbl'_regular ((s' list # num, (identifier # e_list')) alist)
+      (* A table with a custom implementation *)
+    | tbl'_impl ((v' list -> (identifier # e_list')))’);
 
 Definition header_entries2v'_def:
  (header_entries2v' (INL []) = SOME []) /\
@@ -444,5 +460,81 @@ Definition header_set_invalid'_def:
   | _ => NONE
  )
 End
+
+(* Without matching optimization *)
+(* TODO: Dummy definitions required for translation file... *)
+val (FOLDL_MATCH'_def, FOLDL_MATCH_alt'_def) = 
+ if matching_optimization
+ then (Define ‘FOLDL_MATCH' = T’, Define ‘FOLDL_MATCH_alt' = T’)
+ else
+  (Define
+   ‘(FOLDL_MATCH' v_l res [] = res) /\
+    (FOLDL_MATCH' (v_l:v' list) (res_act:identifier # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
+     if match_all' (ZIP(v_l, s_l))
+     then
+      (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
+      case res_prio_opt of
+      | SOME res_prio =>
+       if prio > res_prio
+       then
+        FOLDL_MATCH' v_l (v, SOME prio) t
+       else FOLDL_MATCH' v_l (res_act, res_prio_opt) t
+      | NONE => FOLDL_MATCH' v_l (v, SOME prio) t
+     else FOLDL_MATCH' v_l (res_act, res_prio_opt) t)’,
+   Define
+    ‘(FOLDL_MATCH_alt' v_l res acc [] = res) /\
+     (FOLDL_MATCH_alt' v_l (res_act, res_prio_opt:num option) acc (((s_l,prio),v)::t) =
+      if match_all' (ZIP(v_l, s_l))
+      then
+       (* TODO: Smallest priority wins (like for TDI) is hard-coded,
+        *       other than priority zero. *)
+       case res_prio_opt of
+       | SOME res_prio =>
+        let prio' = if (prio = 0) then acc else prio in
+        if (prio' < res_prio)
+        then
+         FOLDL_MATCH_alt' v_l (v, SOME prio') (acc+1) t
+        else FOLDL_MATCH_alt' v_l (res_act, res_prio_opt) (acc+1) t
+       | NONE => FOLDL_MATCH_alt' v_l (v, SOME prio) (acc+1) t
+      else FOLDL_MATCH_alt' v_l (res_act, res_prio_opt) (acc+1) t)’
+  )
+;
+
+(* With matching optimization *)
+val (FOLDL_MATCH''_def, FOLDL_MATCH_alt''_def) = 
+ if matching_optimization
+ then
+  (Define
+   ‘(FOLDL_MATCH'' w_l res [] = res) /\
+    (FOLDL_MATCH'' (w_l:(word64 # word64) list) (res_act:identifier # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
+     if match_all_e_alt'' s_l w_l
+     then
+      (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
+      case res_prio_opt of
+      | SOME res_prio =>
+       if prio > res_prio
+       then
+        FOLDL_MATCH'' w_l (v, SOME prio) t
+       else FOLDL_MATCH'' w_l (res_act, res_prio_opt) t
+      | NONE => FOLDL_MATCH'' w_l (v, SOME prio) t
+     else FOLDL_MATCH'' w_l (res_act, res_prio_opt) t)’,
+   Define
+   ‘(FOLDL_MATCH_alt'' w_l res acc [] = res) /\
+    (FOLDL_MATCH_alt'' w_l (res_act, res_prio_opt:num option) acc (((s_l,prio),v)::t) =
+     if match_all_e_alt'' s_l w_l
+     then
+      (* TODO: Smallest priority wins (like for TDI) is hard-coded,
+       *       other than priority zero. *)
+      case res_prio_opt of
+      | SOME res_prio =>
+       let prio' = if (prio = 0) then acc else prio in
+       if (prio' < res_prio)
+       then
+        FOLDL_MATCH_alt'' w_l (v, SOME prio') (acc+1) t
+       else FOLDL_MATCH_alt'' w_l (res_act, res_prio_opt) (acc+1) t
+      | NONE => FOLDL_MATCH_alt'' w_l (v, SOME prio) (acc+1) t
+     else FOLDL_MATCH_alt'' w_l (res_act, res_prio_opt) (acc+1) t)’)
+ else (Define ‘FOLDL_MATCH'' = T’, Define ‘FOLDL_MATCH_alt'' = T’)
+;
 
 val _ = export_theory ();

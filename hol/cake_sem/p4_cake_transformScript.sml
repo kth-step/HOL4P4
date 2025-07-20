@@ -336,7 +336,7 @@ Definition transform_varn_def:
    \funn'. SOME $ varn'_star funn'
 End
 
-(* TODO: Make better *)
+(* TODO: oMAP??? Make better *)
 Definition oFOLDR_def:
  (oFOLDR f []     = SOME []) /\
  (oFOLDR f (h::t) =
@@ -807,9 +807,21 @@ Definition transform_input_f_def:
 End
 *)
 
+Definition transform_tbl_regular_def:
+ (transform_tbl_regular dict [] = SOME []) /\
+ (transform_tbl_regular dict (((s_l, n:num), str, e_l)::t) =
+  oFOLDR (\s. transform_s dict s >>= \s'_n. SOME (FST s'_n)) s_l >>=
+  \s'_l. ALOOKUP dict str >>=
+  \id. transform_e_list dict e_l >>=
+  \e'_l. transform_tbl_regular dict t >>=
+  \t'. SOME (((s'_l, n), id, e'_l)::t')
+)
+End
+
+(* TODO: Do this better now *)
 Definition transform_ctrl_empty_def:
  transform_ctrl_empty dict (ctrl:v1model_ctrl) =
-  ((oFOLDR (\(x, tbl). ALOOKUP dict x >>= \w. SOME (w, (tbl_regular []):tbl)) ctrl):v1model_ctrl' option)
+  ((oFOLDR (\(x, tbl). ALOOKUP dict x >>= \w. SOME (w, (tbl'_regular []):tbl')) ctrl):v1model_ctrl' option)
 (*
   (oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => SOME (w, []:(((e_list' -> bool) # num), string # e_list') alist) | NONE => NONE) ctrl)
 *)

@@ -473,7 +473,7 @@ val _ = update_precondition compute_checksum16_side;
 (** For wrapper, rewrites, et.c. **)
 
 val _ = translate p4_append_input_list'_def;
-val _ = translate p4_get_output_list_def;
+val _ = translate p4_get_output_list'_def;
 
 val _ = translate word_def;
 

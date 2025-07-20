@@ -905,7 +905,7 @@ fun translate_p4 progname dict actx astate n_max debug_mode inlogic =
 	 case
 	  arch_multi_exec' ^actx
 	   (p4_append_input_list' [input] ^astate) ^n_max of
-	 | SOME res => SOME $ p4_get_output_list res
+	 | SOME res => SOME $ p4_get_output_list' res
 	 | NONE => NONE’;
 
      (* TODO: This is the bottleneck... *)

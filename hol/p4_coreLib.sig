@@ -15,4 +15,9 @@ val is_compute_checksum16_inner : term -> bool
 val mk_compute_checksum16_inner : term -> term
 val compute_checksum16_inner_tm : term
 
+val dest_tbl_regular : term -> term
+val is_tbl_regular : term -> bool
+val mk_tbl_regular : term -> term
+val tbl_regular_tm : term
+
 end

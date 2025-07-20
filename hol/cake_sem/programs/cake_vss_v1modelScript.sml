@@ -22,7 +22,8 @@ val _ = translation_extends "p4_cake_arch_v1modelProg";
 
 val ipv4_match_tbl =
  “("ipv4_match",
-   [((match_all_e_alt
+   tbl_regular
+   [((
            [s_mask (* 00001010.00000000.00000000.00000010 *)
               ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                 F; F; F; F; F; F; T; F],32)
@@ -35,7 +36,7 @@ val ipv4_match_tbl =
                    F; F; F; F; F; F; T; F],32));
       (* port *)
       e_v (v_bit ([F; F; F; F; F; F; F; T; F],9))]);
-    ((match_all_e_alt
+    ((
            [s_mask (* 00001010.00000000.00000000.00000001 *)
               ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                 F; F; F; F; F; F; F; T],32)
@@ -48,11 +49,12 @@ val ipv4_match_tbl =
                    F; F; F; F; F; F; F; T],32));
       (* port *)
       e_v (v_bit ([F; F; F; F; F; F; F; F; T],9))]);
-   ]):(string # (((e_list -> bool) # num), string # e_list) alist)”;
+   ]):(string # tbl)”;
 
 val dmac_tbl =
   “("dmac",
-    [((match_all_e_alt
+   tbl_regular
+    [((
              (* 00001010.00000000.00000000.00000010 *)
             [s_sing $ v_bit ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                               F; F; F; F; F; F; T; F],32)],4),
@@ -61,7 +63,7 @@ val dmac_tbl =
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F; T; F; F; F; T; F;
                     F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F; F; F; T; F],48))]);
-     ((match_all_e_alt
+     ((
              (* 00001010.00000000.00000000.00000001 *)
             [s_sing $ v_bit ([F; F; F; F; T; F; T; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                               F; F; F; F; F; F; F; T],32)],4),
@@ -70,25 +72,26 @@ val dmac_tbl =
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F; T; F; F; F; T; F;
                     F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F; F; F; F; T],48))])
-    ]):(string # (((e_list -> bool) # num), string # e_list) alist)”;
+    ]):(string # tbl)”;
 
 val smac_tbl =
   “("smac",
-    [((match_all_e_alt
+   tbl_regular
+    [((
             [s_sing $ v_bit ([F; F; F; F; F; F; F; T; F],9)],4),
       "Set_smac",
       (* 00000010:00010001:00100010:00110011:01000100:00000100 *)
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F; T; F; F; F; T; F;
                                F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F; F; T; F; F],48))]);
-     ((match_all_e_alt
+     ((
             [s_sing $ v_bit ([F; F; F; F; F; F; F; F; T],9)],4),
       "Set_smac",
       (* 00000010:00010001:00100010:00110011:01000100:00000011 *)
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; F; F; F; T; F; F; F; F; T; F; F; F; T; F; F; T; F; F; F; T; F;
      F; F; T; T; F; F; T; T; F; T; F; F; F; T; F; F; F; F; F; F; F; F; T; T],48))])
-    ]):(string # (((e_list -> bool) # num), string # e_list) alist)”;
+    ]):(string # tbl)”;
 
 val rand_gen = Random.newgen ();
 
@@ -481,7 +484,7 @@ val vss_v1model_actx = “([arch_block_inp;
                 F; F; F; F; F; F; F; F; F; F; F; F;
                 F; F; F; F; F; F; F; F],32))])],v_struct []),
  v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f'',
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -549,7 +552,7 @@ val vss_v1model_actx = “([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx”;
 
 val vss_v1model_astate = “((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [^smac_tbl; ^dmac_tbl'; ("check_ttl",[]); ^ipv4_match_tbl]),
+  [^smac_tbl; ^dmac_tbl'; ("check_ttl", tbl_regular []); ^ipv4_match_tbl]),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool F);

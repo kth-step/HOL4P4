@@ -382,6 +382,7 @@ val _ = translate set_fin_status_def;
 val _ = translate arch_exec_def;
 
 val _ = translate arch_multi_exec_def;
+val _ = translate arch_multi_exec_total_def;
 
 (******************************)
 (** Core arch implementation **)

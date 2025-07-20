@@ -44,7 +44,7 @@ End
 
 Type v_list' = “:(v' list)”
 
-(* Note this limits matching to 128 bits, same as in the regular executable semantics *)
+(*
 Datatype:   
  s' =  (* set *)
    s'_sing (word64 # word64) (* singleton *)
@@ -52,6 +52,23 @@ Datatype:
  | s'_mask (word64 # word64) (word64 # word64) (* bit mask *)
  | s'_univ (* universal *)
 End
+*)
+(* Note the optimized version limits matching to 128 bits, same as in the regular executable semantics *)
+val _ = Datatype
+ (if matching_optimization
+  then
+   ‘s' =  (* set *)
+      s'_sing (word64 # word64) (* singleton *)
+    | s'_range (word64 # word64) (word64 # word64) (* interval *)
+    | s'_mask (word64 # word64) (word64 # word64) (* bit mask *)
+    | s'_univ (* universal *)’
+  else
+   ‘s' =  (* set *)
+      s'_sing v' (* singleton *)
+    | s'_range bitv bitv (* interval *)
+    | s'_mask bitv bitv (* bit mask *)
+    | s'_univ (* universal *)’);
+
 
 Type s_list' = “:(s' list)”
 
@@ -1173,53 +1190,68 @@ Definition e_exec_acc'_def:
   /\
  (e_exec_acc' _ = NONE)
 End
+
+(* Matching functions without word64 optimization *)
+(* TODO: A bit of a hack: if optimization is enabled, then old definitions will
+ * just get dummy values, since they won't be used anywhere anyway.
+ * Defining them if you're using optimizations is an issue due to the s' type. *)
+val (p4_match_mask'_def, p4_match_range'_def, match'_def, match_all'_def, pre_match_check'_def) =
+if matching_optimization
+then
+ (Define ‘p4_match_mask' = T’,
+  Define ‘p4_match_range' = T’,
+  Define ‘match' = T’,
+  Define ‘match_all' = T’,
+  Define ‘pre_match_check' = T’)
+else
+ (Define
+  ‘p4_match_mask' val mask k =
+   (case k of
+    | v'_bit (v', n') =>
+     (case bitv_binop' binop_and (v', n') mask of
+      | SOME res =>
+       (case bitv_binop' binop_and val mask of
+        | SOME res' => 
+         (case bitv_binpred' binop_eq res res' of
+          | SOME bool => bool
+          | NONE => F)
+        | NONE => F)
+      | NONE => F)
+    | _ => F)’,
+  Define
+  ‘p4_match_range' lo hi k =
+   case k of
+    | v'_bit (v', n') =>
+     (case bitv_binpred' binop_ge (v', n') lo of
+      | SOME T =>
+       (case bitv_binpred' binop_le (v', n') hi of
+        | SOME T => T
+        | _ => F)
+      | _ => F)
+    | _ => F’,
+  Define
+  ‘match' v s =
+   case s of
+   | s'_sing v' => (v = v')
+   | s'_range bitv bitv' => p4_match_range' bitv bitv' v
+   | s'_mask bitv bitv' => p4_match_mask' bitv bitv' v
+   | s'_univ => T’,
+  Define
+  ‘(match_all' [] = T) /\
+   (match_all' ((h, h')::t) =
+     if match' h h'
+     then match_all' t
+     else F)’,
+   Define
+   ‘(pre_match_check' [] = T) /\
+    (pre_match_check' ((x,v)::t) =
+     case v of
+     | v'_bool _ => pre_match_check' t
+     | v'_bit _ => pre_match_check' t
+     | _ => F)’)
+;
+
 (*
-Definition p4_match_mask'_def:
- p4_match_mask' val mask k =
-  (case k of
-   | v'_bit (v', n') =>
-    (case bitv_binop' binop_and (v', n') mask of
-     | SOME res =>
-      (case bitv_binop' binop_and val mask of
-       | SOME res' => 
-        (case bitv_binpred' binop_eq res res' of
-         | SOME bool => bool
-         | NONE => F)
-       | NONE => F)
-     | NONE => F)
-   | _ => F)
-End
-
-Definition p4_match_range'_def:
- p4_match_range' lo hi k =
-  case k of
-   | v'_bit (v', n') =>
-    (case bitv_binpred' binop_ge (v', n') lo of
-     | SOME T =>
-      (case bitv_binpred' binop_le (v', n') hi of
-       | SOME T => T
-       | _ => F)
-     | _ => F)
-   | _ => F
-End
-
-Definition match'_def:
- match' v s =
-  case s of
-  | s'_sing v' => (v = v')
-  | s'_range bitv bitv' => p4_match_range' bitv bitv' v
-  | s'_mask bitv bitv' => p4_match_mask' bitv bitv' v
-  | s'_univ => T
-End
-
-Definition match_all'_def:
- (match_all' [] = T) /\
- (match_all' ((h, h')::t) =
-   if match' h h'
-   then match_all' t
-   else F)
-End
-
 (* TODO: This is a bit of a hack to fix the CakeML export, but it shouldn't have any effect on the end
  * result of execution: the semantics guarantee that all expressions will be values when this is used *)
 Definition v'_of_e'_def:
@@ -1243,27 +1275,36 @@ Definition match_all_first_def:
 End
 *)
 
-(* Note: Use in arch implementation *)
-Definition e_list_to_word64s_list_def:
- (e_list_to_word64s_list [] = SOME ([]:(word64 # word64) list)) /\
- (e_list_to_word64s_list (h::t) =
-   case h of
-   | e'_v $ v'_bit (bl, n) =>
-    (case e_list_to_word64s_list t of
-     | SOME res =>
-      if n > 64
-      then SOME ((v2w $ TAKE (n-64) bl, v2w $ DROP (n-64) bl)::res)
-      else SOME ((0w, v2w bl)::res)
-     | NONE => NONE)
-   | e'_v $ v'_bool b =>
-    (case e_list_to_word64s_list t of
-     | SOME res => SOME ((0w, v2w [b])::res)
-     | NONE => NONE)
-   | _ => NONE)
-End
-
-Definition v_list_to_word64s_list_def:
- (v_list_to_word64s_list [] = SOME ([]:(word64 # word64) list)) /\
+val (e_list_to_word64s_list_def,
+     v_list_to_word64s_list_def,
+     p4_match_mask''_def,
+     p4_match_range''_def,
+     match''_def,
+     match_all''_def,
+     match_all_e_alt''_def,
+     match_all_first''_def,
+     match_all_first_def
+     ) =
+if matching_optimization
+then
+ (Define
+  ‘(e_list_to_word64s_list [] = SOME ([]:(word64 # word64) list)) /\
+   (e_list_to_word64s_list (h::t) =
+     case h of
+     | e'_v $ v'_bit (bl, n) =>
+      (case e_list_to_word64s_list t of
+       | SOME res =>
+        if n > 64
+        then SOME ((v2w $ TAKE (n-64) bl, v2w $ DROP (n-64) bl)::res)
+        else SOME ((0w, v2w bl)::res)
+       | NONE => NONE)
+     | e'_v $ v'_bool b =>
+      (case e_list_to_word64s_list t of
+       | SOME res => SOME ((0w, v2w [b])::res)
+       | NONE => NONE)
+     | _ => NONE)’,
+Define
+‘(v_list_to_word64s_list [] = SOME ([]:(word64 # word64) list)) /\
  (v_list_to_word64s_list (h::t) =
    case h of
    | v'_bit (bl, n) =>
@@ -1277,34 +1318,14 @@ Definition v_list_to_word64s_list_def:
     (case v_list_to_word64s_list t of
      | SOME res => SOME ((0w, v2w [b])::res)
      | NONE => NONE)
-   | _ => NONE)
-End
-
-Definition p4_match_mask''_def:
- p4_match_mask'' (val1, val2) (mask1, mask2) (w1:word64, w2:word64) =
+   | _ => NONE)’,
+Define
+‘p4_match_mask'' (val1, val2) (mask1, mask2) (w1:word64, w2:word64) =
   if (word_and w2 mask2) = (word_and val2 mask2)
   then (word_and w1 mask1) = (word_and val1 mask1)
-  else F
-End
-
-(* Only used for sanity check *)
-Definition p4_match_mask''_128_def:
- p4_match_mask''_128 (val1:word64, val2:word64) (mask1:word64, mask2:word64) (w1:word64, w2:word64) =
-  ((word_and ((w1@@w2):word128) ((mask1@@mask2):word128)) = (word_and ((val1@@val2):word128) ((mask1@@mask2):word128)))
-End
-
-(* Sanity check of the above *)
-Theorem p4_match_mask''_128_equiv:
-!w1 w2 lo1 lo2 hi1 hi2.
-p4_match_mask''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) <=>
- p4_match_mask'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64)
-Proof
-gvs[p4_match_mask''_128_def, p4_match_mask''_def] >>
-blastLib.FULL_BBLAST_TAC
-QED
-
-Definition p4_match_range''_def:
- p4_match_range'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) =
+  else F’,
+Define
+‘p4_match_range'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) =
   if w1 <+ lo1 then F
   else if hi1 <+ w1 then F
   else if w1 = lo1 then
@@ -1314,75 +1335,105 @@ Definition p4_match_range''_def:
       lo2 <=+ w2
   else if w1 = hi1 then
     w2 <=+ hi2
-  else T
-End
-
-(* Only used for sanity check *)
-Definition p4_match_range''_128_def:
- p4_match_range''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) =
-  let w128 = (w1 @@ w2):word128 in
-  let lo128 = (lo1 @@ lo2):word128 in  
-  let hi128 = (hi1 @@ hi2):word128 in
-  lo128 <=+ w128 /\ w128 <=+ hi128
-End
-
-(* Sanity check of the above *)
-Theorem p4_match_range''_128_equiv:
-!w1 w2 lo1 lo2 hi1 hi2.
-p4_match_range''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) <=>
- p4_match_range'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64)
-Proof
-gvs[p4_match_range''_128_def, p4_match_range''_def] >>
-blastLib.FULL_BBLAST_TAC
-QED
-
-(* TODO: Decide how to implement matching...
- * Are 2 64-bit operations OK? *)
-Definition match''_def:
- match'' w s =
+  else T’,
+Define
+‘match'' w s =
   case s of
   | s'_sing w' => (w = w')
   | s'_range w' w'' => p4_match_range'' w' w'' w
   | s'_mask w' w'' => p4_match_mask'' w' w'' w
-  | s'_univ => T
-End
-
-Definition match_all''_def:
- (match_all'' [] = T) /\
+  | s'_univ => T’,
+Define
+‘(match_all'' [] = T) /\
  (match_all'' ((w, s)::t) =
    if match'' w s
    then match_all'' t
-   else F)
-End
-
-Definition match_all_e_alt''_def:
- match_all_e_alt'' s_l w_l = match_all'' (ZIP(w_l, s_l))
-End
-
-Definition match_all_first''_def:
- (match_all_first'' i w_list ([]:(s' list # identifier) list) = NONE) /\
+   else F)’,
+Define
+‘match_all_e_alt'' s_l w_l = match_all'' (ZIP(w_l, s_l))’,
+Define
+‘(match_all_first'' i w_list ([]:(s' list # identifier) list) = NONE) /\
  (match_all_first'' i w_list (h::t) =
   if (match_all'' (ZIP(w_list, FST h)))
   then SOME (SND h)
-  else match_all_first'' (SUC i) w_list t)
-End
-Definition match_all_first_def:
- match_all_first v_list s_l_x_l =
+  else match_all_first'' (SUC i) w_list t)’,
+Define
+‘match_all_first v_list s_l_x_l =
   case v_list_to_word64s_list v_list of
   | SOME w_list => match_all_first'' 0 w_list s_l_x_l
-  | NONE => NONE
-End
+  | NONE => NONE’
+)
+else
+ (Define ‘e_list_to_word64s_list = T’,
+  Define ‘v_list_to_word64s_list = T’,
+  Define ‘p4_match_mask'' = T’,
+  Define ‘p4_match_range'' = T’,
+  Define ‘match'' = T’,
+  Define ‘match_all'' = T’,
+  Define ‘match_all_e_alt'' = T’,
+  Define ‘match_all_first'' = T’,
+  Define ‘match_all_first = T’
+  )
+;
 
-Definition e_exec_select'_def:
- (e_exec_select' (e'_v v) s_l_x_l x =
-  case v of
-  | v'_struct x_v_l =>
-   (case match_all_first (SND $ UNZIP x_v_l) s_l_x_l of
-    | SOME x' => SOME x'
-    | NONE => SOME x)
-  | _ => SOME x) /\
- (e_exec_select' _ _ _ = NONE)
-End
+(* Sanity check for optimized version *)
+val _ =
+ if matching_optimization
+ then
+  let
+   val p4_match_mask''_128_def = Define
+    ‘p4_match_mask''_128 (val1:word64, val2:word64) (mask1:word64, mask2:word64) (w1:word64, w2:word64) =
+  ((word_and ((w1@@w2):word128) ((mask1@@mask2):word128)) = (word_and ((val1@@val2):word128) ((mask1@@mask2):word128)))’
+   val p4_match_range''_128_def = Define
+    ‘p4_match_range''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) =
+      let w128 = (w1 @@ w2):word128 in
+      let lo128 = (lo1 @@ lo2):word128 in  
+      let hi128 = (hi1 @@ hi2):word128 in
+      lo128 <=+ w128 /\ w128 <=+ hi128’
+   val sanity1 =
+    Q.prove (‘!w1 w2 lo1 lo2 hi1 hi2.
+              p4_match_mask''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) <=>
+              p4_match_mask'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64)’,
+      gvs[p4_match_mask''_128_def, p4_match_mask''_def] >>
+     blastLib.FULL_BBLAST_TAC
+    )
+   val sanity2 =
+    Q.prove (‘!w1 w2 lo1 lo2 hi1 hi2.
+ p4_match_range''_128 (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64) <=>
+  p4_match_range'' (lo1, lo2) (hi1, hi2) (w1:word64, w2:word64)’,
+ gvs[p4_match_range''_128_def, p4_match_range''_def] >>
+ blastLib.FULL_BBLAST_TAC
+ )
+  in
+   ()
+  end
+ else ()
+;
+
+val e_exec_select'_def = Define
+ (if matching_optimization
+ then
+  ‘(e_exec_select' (e'_v v) s_l_x_l x =
+   case v of
+   | v'_struct x_v_l =>
+    (case match_all_first (SND $ UNZIP x_v_l) s_l_x_l of
+     | SOME x' => SOME x'
+     | NONE => SOME x)
+   | _ => SOME x) /\
+  (e_exec_select' _ _ _ = NONE)’
+ else
+  ‘(e_exec_select' (e'_v v) s_l_x_l x =
+    case v of
+    | v'_struct x_v_l =>
+     if pre_match_check' x_v_l
+     then
+      (case (FIND (\ (s_list, x'). match_all' (ZIP(SND $ UNZIP x_v_l, s_list))) s_l_x_l) of
+       | SOME (s_list, x') => SOME x'
+       | NONE => SOME x)
+     else NONE
+    | _ => SOME x) /\
+   (e_exec_select' _ _ _ = NONE)’)
+;
 
 Definition e_exec_concat'_def:
  (e_exec_concat' (e'_v (v'_bit bitv1)) (e'_v (v'_bit bitv2)) =
@@ -2173,6 +2224,11 @@ Definition p4_append_input_list'_def:
      (case aenv of
       | (ab_index, inputl, outputl, ascope) => 
        ((ab_index, inputl++[h], outputl, ascope), gscope, afl, status)))
+End
+
+Definition p4_get_output_list'_def:
+ p4_get_output_list' (((i, io_list, io_list', ascope), g_scope_list, arch_frame_list, status):'a astate') =
+  io_list'
 End
 
 val _ = export_theory ();

@@ -30,4 +30,7 @@ val core_init_v_map = ``[("parseError", v_bit (fixwidth 32 (n2v 0), 32))]:(strin
 val (compute_checksum16_inner_tm, mk_compute_checksum16_inner, dest_compute_checksum16_inner, is_compute_checksum16_inner) =
   syntax_fns1 "p4_core" "compute_checksum16_inner";
 
+val (tbl_regular_tm, mk_tbl_regular, dest_tbl_regular, is_tbl_regular) =
+  syntax_fns1 "p4_core" "tbl_regular";
+
 end

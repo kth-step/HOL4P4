@@ -1185,10 +1185,8 @@ Definition stmt_exec_def:
        then
         (case apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) of
          | SOME (f, f_args) =>
-          (if is_consts_exec f_args
-           then
-            SOME (ascope, g_scope_list, [(funn, [stmt_ass lval_null (e_call (funn_name f) f_args)], scope_list)], status_running)
-           else NONE)
+          (* TODO: This has been relaxed to allow non-constant function arguments *)
+          SOME (ascope, g_scope_list, [(funn, [stmt_ass lval_null (e_call (funn_name f) f_args)], scope_list)], status_running)
          | NONE => NONE)
        else NONE)
      | NONE => NONE)))
@@ -2861,6 +2859,19 @@ Definition arch_multi_exec_def:
   | SOME (aenv', g_scope_list', arch_frame_list', status') =>
    arch_multi_exec actx (aenv', g_scope_list', arch_frame_list', status') fuel
   | NONE => NONE)
+End
+
+(* This slight alteration always returns the last astate *)
+(* TODO: Add number of steps taken? *)
+Definition arch_multi_exec_total_def:
+ (arch_multi_exec_total actx (astate:'a astate) 0 =
+   astate)
+  /\
+ (arch_multi_exec_total actx astate (SUC fuel) =
+  case arch_exec actx astate of
+  | SOME astate' =>
+   arch_multi_exec_total actx astate' fuel
+  | NONE => astate)
 End
 
 (*

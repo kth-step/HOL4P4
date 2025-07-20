@@ -320,8 +320,8 @@ fun transform_entries dict [] = []
  end
 ;
 
-val (tbl_regular_tm, mk_tbl_regular, dest_tbl_regular, is_tbl_regular) =
-  syntax_fns1 "p4_cake_arch" "tbl_regular";
+val (tbl'_regular_tm, mk_tbl'_regular, dest_tbl'_regular, is_tbl'_regular) =
+  syntax_fns1 "p4_cake_arch" "tbl'_regular";
 
 (*
 val tbl = el 1 (fst $ dest_list ctrl);
@@ -334,16 +334,48 @@ fun transform_tbl dict tbl =
  in
   if is_some name'_opt
   then
-   let
-    val entries' = transform_entries dict (fst $ dest_list entries)
-   in
-    mk_pair (dest_some name'_opt, mk_tbl_regular $ mk_list (entries', “:(s' list # num) # ^identifier # e' list”))
-   end
+   if p4_coreLib.is_tbl_regular entries
+   then
+    let
+     val entries'_opt = rhs $ concl $ EVAL “transform_tbl_regular ^dict ^(p4_coreLib.dest_tbl_regular entries)”
+    in
+     if is_some entries'_opt
+     then
+      mk_pair (dest_some name'_opt, mk_tbl'_regular $ dest_some entries'_opt)
+     else
+      raise Fail "transform_tbl_regular failed"
+    end
+   else
+    raise Fail "transform_tbl not yet supporting transformation of tbl_impl"
+(* TODO:
+    let
+     val f = dest_tbl_impl entries
+(* Implement:
+
+ f:((v list -> (string # e_list)))
+
+to
+
+ f':(((word64 # word64) list -> (identifier # e_list')))
+
+Make new term:
+
+(\ (str, e_l). (THE $ ALOOKUP ^dict str, THE $ transform_e_list ^dict e_l)) $ f $ (\v_l. THE $ v_list_to_word64s_list v_l)
+
+However, this is a really dirty hack. Instead of using THE, it
+would be ideal if you could change the function in tbl_impl to
+return an option type: this would solve the issue.
+
+ *)
+    in
+     mk_pair (dest_some name'_opt, mk_tbl'_impl f')
+    end
+*)
   else raise Fail "transform_tbl failed to translate table name (one or more table names could not be found in the dictionary)"
  end
 ;
 fun transform_ctrl dict ctrl =
- mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:(^identifier # tbl)”)
+ mk_list (map (transform_tbl dict) (fst $ dest_list ctrl), “:(^identifier # tbl')”)
 ;
 
 (* TODO: Updated ctrl as argument, for now... *)

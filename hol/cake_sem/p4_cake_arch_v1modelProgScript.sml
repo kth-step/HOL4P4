@@ -4,6 +4,7 @@ val _ = new_theory "p4_cake_arch_v1modelProg";
 
 open p4Theory p4_auxTheory p4_coreTheory p4_v1modelTheory;
 open p4_cake_auxTheory p4_cake_archTheory p4_cake_arch_v1modelTheory;
+open p4_cake_auxLib;
 open p4_cake_exec_semTheory;
 open p4_cake_exec_semProgTheory;
 
@@ -40,13 +41,35 @@ val _ = translate v1model_copyin_pbl'_def;
 val _ = translate copyout_pbl_gen'_def;
 val _ = translate v1model_copyout_pbl'_def;
 
-val _ = translate match_all_e_alt''_def;
-val _ = translate FOLDL_MATCH_alt'_def;
-val _ = translate FOLDL_MATCH'_def;
+(* Table matching *)
 val _ = translate listTheory.LIST_TO_SET_DEF;
 val _ = translate boolTheory.IN_DEF;
-val _ = translate e_list_to_word64s_list_def;
-val _ = translate v1model_apply_table_f''_def;
+
+val match_all'_def = TRUTH;
+val _ =
+ if matching_optimization
+ then
+  let
+   val _ = translate match_all_e_alt''_def;
+   val _ = translate FOLDL_MATCH_alt''_def;
+   val _ = translate FOLDL_MATCH''_def;
+   val _ = translate e_list_to_word64s_list_def;
+   val _ = translate v1model_apply_table_f''_def;
+  in
+   ()
+  end
+ else
+  let
+   val _ = translate match_all'_def;
+   val _ = translate FOLDL_MATCH_alt'_def;
+   val _ = translate FOLDL_MATCH'_def;
+   val _ = translate v1model_apply_table_f'_def;
+  in
+   ()
+  end
+;
+
+
 
 (* Extern implementations: *)
 
@@ -112,13 +135,6 @@ val _ = translate register_read'_def;
 
 val _ = translate v1model_register_write_inner_def;
 val _ = translate register_write'_def;
-
-(** For wrapper, rewrites, et.c. **)
-
-val _ = translate p4_append_input_list'_def;
-val _ = translate p4_get_output_list_def;
-
-val _ = translate word_def;
 
 val _ = ml_prog_update (close_module NONE);
 
