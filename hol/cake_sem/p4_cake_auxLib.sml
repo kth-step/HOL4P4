@@ -20,6 +20,9 @@ val identifier = “:word64”;
 (* This controls whether optimized matching in tables and select will be used *)
 val matching_optimization = true;
 
+(* This controls whether optimized I/O (byte instead of bit lists) will be used *)
+val io_optimization = false;
+
 (* This should hold all the named strings in core P4, and currently the additional ones for
  * new architectures *)
 (* TODO: Move to top level? *)

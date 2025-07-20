@@ -6,6 +6,8 @@ val identifier : hol_type
 
 val matching_optimization : bool
 
+val io_optimization : bool
+
 val get_id : string -> term
 
 val cake_dict_tm : term

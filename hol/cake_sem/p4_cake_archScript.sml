@@ -15,7 +15,7 @@ open p4_coreTheory p4_v1modelTheory;
 
 Datatype:
  core_v_ext' =
-  core_v_ext'_packet (word8 list)
+  core_v_ext'_packet io_type
 End
 
 (* OLD
@@ -255,74 +255,129 @@ Definition byte_list_to_bool_list_take_def:
 (byte_list_to_bool_list_take [] n = NONE)
 End
 
-Definition packet_in_extract_gen'_def:
- (packet_in_extract_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
-  | SOME (v'_ext_ref i) =>
-   (case lookup_lval_header' scope_list (lval'_varname (varn'_name ^(get_id "headerLvalue"))) of
-    | SOME (valid_bit, x_v_l) =>
-     (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
-       (case size_in_bits' (v'_header valid_bit x_v_l) of
-        | SOME size =>
-         (* TODO: Handle non-mod 8 case properly *)
-         if size MOD 8 = 0
-         then
-           if size <= (LENGTH packet_in_bl) * 8
+val packet_in_extract_gen'_def =
+ if io_optimization
+ then Define
+  ‘(packet_in_extract_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_lval_header' scope_list (lval'_varname (varn'_name ^(get_id "headerLvalue"))) of
+      | SOME (valid_bit, x_v_l) =>
+       (case lookup_ascope_gen ascope_lookup ascope i of
+        | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
+         (case size_in_bits' (v'_header valid_bit x_v_l) of
+          | SOME size =>
+           (* TODO: Handle non-mod 8 case properly *)
+           if size MOD 8 = 0
            then
-            case byte_list_to_bool_list_take packet_in_bl (size DIV 8) of
-             SOME bool_list_list =>
-             (case set_header' x_v_l (FLAT bool_list_list) of
+             if size <= (LENGTH packet_in_bl) * 8
+             then
+              case byte_list_to_bool_list_take packet_in_bl (size DIV 8) of
+               SOME bool_list_list =>
+               (case set_header' x_v_l (FLAT bool_list_list) of
+                | SOME header =>
+                 (case assign' scope_list header (lval'_varname (varn'_name ^(get_id "headerLvalue"))) of
+                  | SOME scope_list' =>
+                   SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP (size DIV 8) packet_in_bl))):(core_v_ext', 'b) sum), scope_list', status'_returnv v'_bot)
+                  | NONE => NONE)
+                | NONE => NONE)
+              | NONE => NONE
+             else
+              (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+              SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet [])):(core_v_ext', 'b) sum)) ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
+           else NONE
+          | NONE => NONE)
+         | _ => NONE)
+      | NONE => NONE)
+    | _ => NONE
+   )’
+ else Define
+  ‘(packet_in_extract_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_lval_header' scope_list (lval'_varname (varn'_name ^(get_id "headerLvalue"))) of
+      | SOME (valid_bit, x_v_l) =>
+       (case lookup_ascope_gen ascope_lookup ascope i of
+        | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
+         (case size_in_bits' (v'_header valid_bit x_v_l) of
+          | SOME size =>
+           if size <= LENGTH packet_in_bl
+           then
+             (case set_header' x_v_l packet_in_bl of
               | SOME header =>
                (case assign' scope_list header (lval'_varname (varn'_name ^(get_id "headerLvalue"))) of
                 | SOME scope_list' =>
-                 SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP (size DIV 8) packet_in_bl))):(core_v_ext', 'b) sum), scope_list', status'_returnv v'_bot)
+                 SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP size packet_in_bl))):(core_v_ext', 'b) sum), scope_list', status'_returnv v'_bot)
                 | NONE => NONE)
               | NONE => NONE)
-            | NONE => NONE
            else
             (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
             SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet [])):(core_v_ext', 'b) sum)) ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
-         else NONE
-        | NONE => NONE)
-       | _ => NONE)
-    | NONE => NONE)
-  | _ => NONE
- )
-End
+          | NONE => NONE)
+         | _ => NONE)
+      | NONE => NONE)
+    | _ => NONE
+   )’
+;
 
-Definition packet_in_lookahead_gen'_def:
- (packet_in_lookahead_gen' ascope_lookup ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
-  | SOME (v'_ext_ref i) =>
-   (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "targ1"))) of
-    | SOME dummy_v =>
-     (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
-       (case size_in_bits' dummy_v of
-        | SOME size =>
-         (* TODO: Handle non-mod 8 case properly *)
-         if size MOD 8 = 0
-         then
-          if size <= (LENGTH packet_in_bl) * 8
-          then
-           case byte_list_to_bool_list_take packet_in_bl (size DIV 8) of
-            SOME bool_list_list =>
-             (case set_v' dummy_v (FLAT bool_list_list) of
-              | SOME v =>
-               SOME (ascope, scope_list, status'_returnv v)
-              | NONE => NONE)
-            | NONE => NONE
-          else
-           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-           SOME (ascope_update_v_map ascope ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
-         else NONE
-        | NONE => NONE)
-       | _ => NONE)
-    | NONE => NONE)
-  | _ => NONE
- )
-End
+val packet_in_lookahead_gen'_def =
+ if io_optimization
+ then Define
+  ‘(packet_in_lookahead_gen' ascope_lookup ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "targ1"))) of
+      | SOME dummy_v =>
+       (case lookup_ascope_gen ascope_lookup ascope i of
+        | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
+         (case size_in_bits' dummy_v of
+          | SOME size =>
+           (* TODO: Handle non-mod 8 case properly *)
+           if size MOD 8 = 0
+           then
+            if size <= (LENGTH packet_in_bl) * 8
+            then
+             case byte_list_to_bool_list_take packet_in_bl (size DIV 8) of
+              SOME bool_list_list =>
+               (case set_v' dummy_v (FLAT bool_list_list) of
+                | SOME v =>
+                 SOME (ascope, scope_list, status'_returnv v)
+                | NONE => NONE)
+              | NONE => NONE
+            else
+             (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+             SOME (ascope_update_v_map ascope ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
+           else NONE
+          | NONE => NONE)
+         | _ => NONE)
+      | NONE => NONE)
+    | _ => NONE
+   )’
+ else Define
+  ‘(packet_in_lookahead_gen' ascope_lookup ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "targ1"))) of
+      | SOME dummy_v =>
+       (case lookup_ascope_gen ascope_lookup ascope i of
+        | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
+         (case size_in_bits' dummy_v of
+          | SOME size =>
+           if size <= LENGTH packet_in_bl
+           then
+            (case set_v' dummy_v packet_in_bl of
+             | SOME v =>
+              SOME (ascope, scope_list, status'_returnv v)
+             | NONE => NONE)
+           else
+            (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+            SOME (ascope_update_v_map ascope ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
+          | NONE => NONE)
+         | _ => NONE)
+      | NONE => NONE)
+    | _ => NONE
+   )’
+;
 
 Definition lookup_lval_bit32'_def:
  (lookup_lval_bit32' ss bit32_lval =
@@ -332,29 +387,49 @@ Definition lookup_lval_bit32'_def:
  )
 End
 
-Definition packet_in_advance_gen'_def:
- (packet_in_advance_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
-  | SOME (v'_ext_ref i) =>
-   (case lookup_lval_bit32' scope_list (lval'_varname (varn'_name ^(get_id "bits"))) of
-    | SOME n_bits =>
-     (case lookup_ascope_gen ascope_lookup ascope i of
-      | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
-       (* TODO: Handle non-mod 8 case properly *)
-       if n_bits MOD 8 = 0
-       then
-        if n_bits <= (LENGTH packet_in_bl) * 8
-        then
-         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP (n_bits DIV 8) packet_in_bl))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
-        else
-         (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-         SOME (ascope_update_v_map ascope ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
-       else NONE
-       | _ => NONE)
-    | NONE => NONE)
-  | _ => NONE
- )
-End
+val packet_in_advance_gen'_def =
+ if io_optimization
+ then Define
+  ‘(packet_in_advance_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_lval_bit32' scope_list (lval'_varname (varn'_name ^(get_id "bits"))) of
+      | SOME n_bits =>
+       (case lookup_ascope_gen ascope_lookup ascope i of
+        | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
+         (* TODO: Handle non-mod 8 case properly *)
+         if n_bits MOD 8 = 0
+         then
+          if n_bits <= (LENGTH packet_in_bl) * 8
+          then
+           SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP (n_bits DIV 8) packet_in_bl))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+          else
+           (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+           SOME (ascope_update_v_map ascope ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
+         else NONE
+         | _ => NONE)
+      | NONE => NONE)
+    | _ => NONE
+   )’
+ else Define
+  ‘(packet_in_advance_gen' ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_lval_bit32' scope_list (lval'_varname (varn'_name ^(get_id "bits"))) of
+      | SOME n_bits =>
+       (case lookup_ascope_gen ascope_lookup ascope i of
+        | SOME ((INL (core_v_ext'_packet packet_in_bl)):(core_v_ext', 'b) sum) =>
+         if n_bits <= LENGTH packet_in_bl
+         then
+          SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (DROP n_bits packet_in_bl))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+         else
+          (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+          SOME (ascope_update_v_map ascope ^(get_id "parseError") (v'_bit (fixwidth 32 (n2v 1), 32)), scope_list, status'_trans ^(get_id "reject"))
+         | _ => NONE)
+      | NONE => NONE)
+    | _ => NONE
+   )’
+;
 
 Definition flatten_v_l'_def:
  (flatten_v_l' [] = SOME []) /\
@@ -394,37 +469,61 @@ Definition flatten_v_l'_def:
  )
 End
 
-Definition packet_out_emit_gen'_def:
- (packet_out_emit_gen' (ascope_lookup:'a -> num -> (core_v_ext' + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list', scope_list) =
-  case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
-  | SOME (v'_ext_ref i) =>
-   (case lookup_ascope_gen ascope_lookup ascope i of
-    | SOME (INL (core_v_ext'_packet packet_out_bl)) =>
-     (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "data"))) of
-      | SOME (v'_header F x_v_l) => SOME (ascope, scope_list, status'_returnv v'_bot)
-      | SOME (v'_header T x_v_l) =>
-       (case flatten_v_l' (MAP SND x_v_l) of
-        | SOME bl =>
-         (case bool_list_to_byte_list bl of
-          | SOME byte_list =>
-           SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++ byte_list))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+val packet_out_emit_gen'_def =
+ if io_optimization
+ then Define
+  ‘(packet_out_emit_gen' (ascope_lookup:'a -> num -> (core_v_ext' + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_ascope_gen ascope_lookup ascope i of
+      | SOME (INL (core_v_ext'_packet packet_out_bl)) =>
+       (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "data"))) of
+        | SOME (v'_header F x_v_l) => SOME (ascope, scope_list, status'_returnv v'_bot)
+        | SOME (v'_header T x_v_l) =>
+         (case flatten_v_l' (MAP SND x_v_l) of
+          | SOME bl =>
+           (case bool_list_to_byte_list bl of
+            | SOME byte_list =>
+             SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++ byte_list))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+            | NONE => NONE)
           | NONE => NONE)
-        | NONE => NONE)
-      | SOME (v'_struct x_v_l) =>
-       (case flatten_v_l' (MAP SND x_v_l) of
-        | SOME bl =>
-         (case bool_list_to_byte_list bl of
-          | SOME byte_list =>
-           SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++byte_list))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+        | SOME (v'_struct x_v_l) =>
+         (case flatten_v_l' (MAP SND x_v_l) of
+          | SOME bl =>
+           (case bool_list_to_byte_list bl of
+            | SOME byte_list =>
+             SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++byte_list))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+            | NONE => NONE)
           | NONE => NONE)
+        | SOME _ => NONE
         | NONE => NONE)
-      | SOME _ => NONE
-      | NONE => NONE)
-    | _ => NONE)
-  | _ => NONE
- )
-End
-
+      | _ => NONE)
+    | _ => NONE
+   )’
+ else Define
+  ‘(packet_out_emit_gen' (ascope_lookup:'a -> num -> (core_v_ext' + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list', scope_list) =
+    case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "this"))) of
+    | SOME (v'_ext_ref i) =>
+     (case lookup_ascope_gen ascope_lookup ascope i of
+      | SOME (INL (core_v_ext'_packet packet_out_bl)) =>
+       (case lookup_lval'' scope_list (lval'_varname (varn'_name ^(get_id "data"))) of
+        | SOME (v'_header F x_v_l) => SOME (ascope, scope_list, status'_returnv v'_bot)
+        | SOME (v'_header T x_v_l) =>
+         (case flatten_v_l' (MAP SND x_v_l) of
+          | SOME bl =>
+           SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++ bl))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+          | NONE => NONE)
+        | SOME (v'_struct x_v_l) =>
+         (case flatten_v_l' (MAP SND x_v_l) of
+          | SOME bl =>
+            SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext'_packet (packet_out_bl++bl))):(core_v_ext', 'b) sum), scope_list, status'_returnv v'_bot)
+          | NONE => NONE)
+        | SOME _ => NONE
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE
+   )’
+;
 
 (** Implementations **)
 

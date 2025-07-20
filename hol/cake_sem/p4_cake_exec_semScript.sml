@@ -10,6 +10,7 @@ open p4_cake_auxLib;
 
 (* See p4_cake_auxLib *)
 Type identifier = identifier;
+Type io_type = if io_optimization then “:word8 list” else “:bool list”;
 
 Datatype:
  funn' = 
@@ -148,7 +149,7 @@ Type ext_map' = “:((identifier, ((((identifier # d) list # 'a ext_fun') option
 
 Type tbl_map' = “:((identifier, ((mk list) # (identifier # e_list'))) alist)”
 
-Type in_out' = “:(word8 list # num)”
+Type in_out' = “:(io_type # num)”
 
 Type in_out_list' = “:(in_out' list)”
 
@@ -2202,17 +2203,21 @@ gvs[]
 End
 
 (* Note this takes a bool list list and will append word8 lists to the input lists *)
-Definition p4_append_input_bool_list'_def:
- (p4_append_input_bool_list' [] astate = SOME astate) /\
- (p4_append_input_bool_list' ((h1,h2)::t) astate =
-  case bool_list_to_byte_list h1 of
-   | SOME io =>
-   (case p4_append_input_bool_list' t astate of
-    | SOME ((ab_index', inputl', outputl', ascope'), gscope', afl', status') =>
-     SOME ((ab_index', (io,h2)::inputl', outputl', ascope'), gscope', afl', status')
-    | NONE => NONE)
-   | NONE => NONE)
-End
+val p4_append_input_bool_list'_def =
+ if io_optimization
+ then Define
+  ‘(p4_append_input_bool_list' [] (astate:'a astate') = SOME astate) /\
+   (p4_append_input_bool_list' ((h1,h2)::t) astate =
+    case bool_list_to_byte_list h1 of
+     | SOME io =>
+     (case p4_append_input_bool_list' t astate of
+      | SOME ((ab_index', inputl', outputl', ascope'), gscope', afl', status') =>
+       SOME ((ab_index', (io,h2)::inputl', outputl', ascope'), gscope', afl', status')
+      | NONE => NONE)
+     | NONE => NONE)’
+ else Define ‘p4_append_input_bool_list' = T’
+;
+
 
 (* TODO: Below functions are used for wrapper *)
 Definition p4_append_input_list'_def:

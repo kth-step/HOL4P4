@@ -784,15 +784,22 @@ Definition transform_v_map_def:
   oFOLDR (\(x, v). case ALOOKUP dict x of SOME w => transform_v dict v >>= \v'. SOME (w, v') | NONE => NONE) v_map
 End
 
-Definition transform_core_v_ext_def:
- transform_core_v_ext core_ext_obj =
+val transform_core_v_ext_def =
+ if io_optimization
+ then Define
+ ‘transform_core_v_ext core_ext_obj =
   case core_ext_obj of
   | core_v_ext_packet bl =>
    (case bool_list_to_byte_list bl of
      SOME byte_list =>
       SOME $ core_v_ext'_packet byte_list
-    | NONE => NONE)
-End
+    | NONE => NONE)’
+ else Define
+ ‘transform_core_v_ext core_ext_obj =
+  case core_ext_obj of
+  | core_v_ext_packet bl =>
+   SOME $ core_v_ext'_packet bl’
+;
 
 Definition transform_ext_obj_map_def:
  transform_ext_obj_map ext_obj_map =
@@ -869,10 +876,14 @@ End
 “transform_actx ^actx ^dict”
 *)
 
-Definition transform_io_list_def:
- transform_io_list io_list =
-  oFOLDR (\(bl, p). case bool_list_to_byte_list bl of SOME w => SOME (w, p) | NONE => NONE) io_list
-End
+val transform_io_list_def =
+ if io_optimization
+ then Define
+ ‘transform_io_list io_list =
+   oFOLDR (\(bl, p). case bool_list_to_byte_list bl of SOME w => SOME (w, p) | NONE => NONE) io_list’
+ else Define
+ ‘transform_io_list io_list = SOME io_list’
+;
 
 Definition transform_aenv_def:
  transform_aenv dict (i, io_list, io_list', ascope) ctrl' =

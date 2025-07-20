@@ -7,6 +7,7 @@ open bitstringSyntax numSyntax;
 open p4Theory;
 open p4_auxTheory;
 open p4_coreTheory p4_vssTheory;
+open p4_cake_auxLib;
 open p4_cake_exec_semTheory;
 open p4_cake_archTheory;
 
@@ -451,39 +452,6 @@ val _ = append_prog o process_topdecs $
     end;’
 ;
 
-(* OLD
-   (* Helper functions for packet processing *)
-   val _ = append_prog o process_topdecs $
-    ‘(* Convert a raw packet buffer to a list of booleans *)
-    fun packet_to_bool_list packet =
-      let
-	val len = Word8Array.length packet;
-	fun process_byte byte acc =
-	  let
-            (* Note: this assumes big-endian order *)
-            (* TODO: Unroll this? *)
-	    fun process_bit i acc =
-	      if i < 0 then acc
-	      else
-		let
-		  val bit_mask = Word8.<< (Word8.fromInt 1) i;
-		  val bit = Word8.andb byte bit_mask <> Word8.fromInt 0
-		in
-		  process_bit (i-1) (bit::acc)
-		end
-	  in
-	    process_bit 7 acc
-	  end
-	  
-	fun process_packet i acc =
-	  if i >= len then List.rev acc
-	  else process_packet (i+1) (process_byte (Word8Array.sub packet i) acc)
-      in
-	process_packet 0 []
-      end;’
-   ;
-*)
-
    (* foldr for Word8Arrays: *)
    val _ = append_prog o process_topdecs $
     ‘fun w8a_foldr_aux f init arr n =
@@ -495,19 +463,91 @@ val _ = append_prog o process_topdecs $
       w8a_foldr_aux f init arr (Word8Array.length arr)’;
 
    val _ = append_prog o process_topdecs $
-    ‘fun array_to_list (arr:byte_array) = w8a_foldr (fn h => (fn res => (h::res))) ([]: (Word8.word list)) arr’;
+    (if io_optimization
+    then
+     ‘fun preprocess_packet (arr:byte_array) = w8a_foldr (fn h => (fn res => (h::res))) ([]: (Word8.word list)) arr’
+    else
+     ‘(* Convert a raw packet buffer to a list of booleans *)
+      fun preprocess_packet packet =
+	let
+	  val len = Word8Array.length packet;
+	  fun process_byte byte acc =
+	    let
+	      (* Note: this assumes big-endian order *)
+	      (* TODO: Unroll this? *)
+	      fun process_bit i acc =
+		if i < 0 then acc
+		else
+		  let
+		    val bit_mask = Word8.<< (Word8.fromInt 1) i;
+		    val bit = Word8.andb byte bit_mask <> Word8.fromInt 0
+		  in
+		    process_bit (i-1) (bit::acc)
+		  end
+	    in
+	      process_bit 7 acc
+	    end
+
+	  fun process_packet i acc =
+	    if i >= len then List.rev acc
+	    else process_packet (i+1) (process_byte (Word8Array.sub packet i) acc)
+	in
+	  process_packet 0 []
+	end;’)
+   ;
+
    (* fromList for Word8Arrays *)
    val _ = append_prog o process_topdecs $
-    ‘fun from_w8list (l:Word8.word list) =
-     let fun f arr l i =
-	case l of
-	   [] => arr
-	 | (h::t) => (Word8Array.update arr i h; f arr t (i + 1))
-     in
-       case l of
-	 [] => Word8Array.array 0 (Word8.fromInt 0)
-       | h::t => f (Word8Array.array (List.length l) h) t 1
-     end’;
+    (if io_optimization
+     then
+      ‘fun postprocess_packet (l:Word8.word list) =
+       let fun f arr l i =
+	  case l of
+	     [] => arr
+	   | (h::t) => (Word8Array.update arr i h; f arr t (i + 1))
+       in
+	 case l of
+	   [] => Word8Array.array 0 (Word8.fromInt 0)
+	 | h::t => f (Word8Array.array (List.length l) h) t 1
+       end’
+     else
+      ‘(* Convert a list of booleans to a packet buffer *)
+       fun postprocess_packet bool_list =
+	 let
+	   (* Calculate number of bytes needed (round up to nearest byte) *)
+	   val num_bits = List.length bool_list;
+	   val num_bytes = (num_bits + 7) div 8;
+
+	   (* Create buffer for the packet *)
+	   val packet = Word8Array.array num_bytes (Word8.fromInt 0);
+
+	   (* Set each bit in the buffer *)
+	   (* TODO: Unroll this? *)
+	   fun set_bit byte_idx bit_idx value =
+	     let
+	       val byte = Word8Array.sub packet byte_idx;
+	       val mask = Word8.<< (Word8.fromInt 1) bit_idx;
+	       val new_byte = if value then Word8.orb byte mask else byte
+	     in
+	       Word8Array.update packet byte_idx new_byte
+	     end
+
+	   fun process_bits bits idx =
+	     case bits of
+	       [] => ()
+	     | b::bs =>
+		 let
+		   val byte_idx = idx div 8;
+		   val bit_idx = 7 - (idx mod 8);  (* MSB first *)
+		 in
+		   set_bit byte_idx bit_idx b;
+		   process_bits bs (idx + 1)
+		 end
+	 in
+	   process_bits bool_list 0;
+	   packet
+	 end;’)
+   ;
 
 (*
    val _ = append_prog o process_topdecs $
@@ -729,10 +769,6 @@ val _ = append_prog o process_topdecs $
 			     | Some packet =>
 				 let
 (*
-				   (* Convert packet to boolean list *)
-				   val packet_bl = packet_to_bool_list packet;
-*)
-(*
 				   val _ = print ("Received packet on port " ^ Int.toString port ^ ": " ^ (array_to_hex_string packet) ^ "\n");
 *)
 (*
@@ -741,7 +777,7 @@ val _ = append_prog o process_topdecs $
                                    
 
 				   (* Execute P4 program *)
-				   val result = cake_top_exec (array_to_list packet, port);
+				   val result = cake_top_exec (preprocess_packet packet, port);
 				 in
 				   case result of
 				     None => 
@@ -763,11 +799,11 @@ val _ = append_prog o process_topdecs $
 					     (Some out_if_idx, Some out_sock) =>
 					       let
 (*
-				                 val _ = print ("Sending packet on port " ^ Int.toString out_port ^ ": " ^ (array_to_hex_string (from_w8list out_buffer)) ^ "\n");
+				                 val _ = print ("Sending packet on port " ^ Int.toString out_port ^ ": " ^ (array_to_hex_string (postprocess_packet out_buffer)) ^ "\n");
 *)
 
 						 (* Send the packet *)
-						 val send_result = raw_socket_sendto out_sock out_if_idx (from_w8list out_buffer);
+						 val send_result = raw_socket_sendto out_sock out_if_idx (postprocess_packet out_buffer);
 						 val _ = 
 						   case send_result of
 						     None => print ("Failed to send packet to port " ^ Int.toString out_port ^ "\n")
