@@ -45,7 +45,6 @@ val _ = translate v1model_copyout_pbl'_def;
 val _ = translate listTheory.LIST_TO_SET_DEF;
 val _ = translate boolTheory.IN_DEF;
 
-val match_all'_def = TRUTH;
 val _ =
  if matching_optimization
  then
@@ -68,8 +67,6 @@ val _ =
    ()
   end
 ;
-
-
 
 (* Extern implementations: *)
 

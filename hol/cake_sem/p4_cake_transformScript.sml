@@ -397,38 +397,55 @@ Definition transform_v_def:
 End
 
 (* Note this only permits matching with up to 128 bits *)
-Definition transform_s_def:
- transform_s dict s =
-  case s of
-   s_sing v =>
-  (case v of
-   | v_bit (bl, n) =>
-    if n <= 128
-    then if n <= 64
-    then SOME (s'_sing $ (0w, v2w bl), n)
-    else SOME (s'_sing $ (v2w $ TAKE (n-64) bl, v2w $ DROP (n-64) bl), n)
+(* TODO: Why the tupled width? *)
+val transform_s_def = Define
+ (if matching_optimization
+  then
+   ‘transform_s dict s =
+    case s of
+     s_sing v =>
+    (case v of
+     | v_bit (bl, n) =>
+      if n <= 128
+      then if n <= 64
+      then SOME (s'_sing $ (0w, v2w bl), n)
+      else SOME (s'_sing $ (v2w $ TAKE (n-64) bl, v2w $ DROP (n-64) bl), n)
+      else NONE
+     | _ => NONE)
+   | s_range (bl1, n1) (bl2, n2) =>
+    if n1 <= 128 /\ n2 <= 128
+    then
+     let w'1 = if n1 <= 64 then 0w else v2w $ TAKE (n1-64) bl1 in
+     let w'2 = if n1 <= 64 then v2w bl1 else v2w $ DROP (n1-64) bl1 in
+     let w''1 = if n2 <= 64 then 0w else v2w $ TAKE (n2-64) bl2 in
+     let w''2 = if n2 <= 64 then v2w bl2 else v2w $ DROP (n2-64) bl2 in
+      SOME (s'_range (w'1, w'2) (w''1, w''2), n1)
     else NONE
-   | _ => NONE)
- | s_range (bl1, n1) (bl2, n2) =>
-  if n1 <= 128 /\ n2 <= 128
-  then
-   let w'1 = if n1 <= 64 then 0w else v2w $ TAKE (n1-64) bl1 in
-   let w'2 = if n1 <= 64 then v2w bl1 else v2w $ DROP (n1-64) bl1 in
-   let w''1 = if n2 <= 64 then 0w else v2w $ TAKE (n2-64) bl2 in
-   let w''2 = if n2 <= 64 then v2w bl2 else v2w $ DROP (n2-64) bl2 in
-    SOME (s'_range (w'1, w'2) (w''1, w''2), n1)
-  else NONE
- | s_mask (bl1, n1) (bl2, n2) =>
-  if n1 <= 128 /\ n2 <= 128
-  then
-   let w'1 = if n1 <= 64 then 0w else v2w $ TAKE (n1-64) bl1 in
-   let w'2 = if n1 <= 64 then v2w bl1 else v2w $ DROP (n1-64) bl1 in
-   let w''1 = if n2 <= 64 then 0w else v2w $ TAKE (n2-64) bl2 in
-   let w''2 = if n2 <= 64 then v2w bl2 else v2w $ DROP (n2-64) bl2 in
-    SOME (s'_mask (w'1, w'2) (w''1, w''2), n1)
-  else NONE
- | s_univ => SOME (s'_univ, 0)
-End
+   | s_mask (bl1, n1) (bl2, n2) =>
+    if n1 <= 128 /\ n2 <= 128
+    then
+     let w'1 = if n1 <= 64 then 0w else v2w $ TAKE (n1-64) bl1 in
+     let w'2 = if n1 <= 64 then v2w bl1 else v2w $ DROP (n1-64) bl1 in
+     let w''1 = if n2 <= 64 then 0w else v2w $ TAKE (n2-64) bl2 in
+     let w''2 = if n2 <= 64 then v2w bl2 else v2w $ DROP (n2-64) bl2 in
+      SOME (s'_mask (w'1, w'2) (w''1, w''2), n1)
+    else NONE
+   | s_univ => SOME (s'_univ, 0)’
+  else
+   ‘transform_s dict s =
+    case s of
+     s_sing v =>
+    (case v of
+     | v_bit (bl, n) =>
+      transform_v dict v >>=
+      \v'. SOME $ (s'_sing v', n)
+     | _ => NONE)
+   | s_range (bl1, n1) (bl2, n2) =>
+    SOME $ (s'_range (bl1, n1) (bl2, n2), n1)
+   | s_mask (bl1, n1) (bl2, n2) =>
+    SOME $ (s'_mask (bl1, n1) (bl2, n2), n1)
+   | s_univ => SOME $ (s'_univ, 0)’)
+;
 
 Definition transform_e_def:
  (transform_e dict e =

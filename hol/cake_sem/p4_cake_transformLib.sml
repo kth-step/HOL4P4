@@ -214,7 +214,20 @@ fun transform_actx arch dict actx =
      val postparser_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "postparser"”
      val preingress_w = dest_some $ rhs $ concl $ EVAL “ALOOKUP ^dict''' "preingress"”
     in
-     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[(^postparser_w,ffblock_ff v1model_postparser'); (^preingress_w,ffblock_ff v1model_preingress')]:v1model_ascope' ffblock_map'”, “(^input_f'):v1model_ascope' input_f'”, “v1model_output_f':v1model_ascope' output_f'”, “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”, “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”, “v1model_apply_table_f'':v1model_ascope' apply_table_f'”, “^ext_map':v1model_ascope' ext_map'”, “^func_map':func_map'”])
+     (dict''',
+      list_mk_pair [
+       “^ab_list':ab_list'”,
+       “^pblock_map':pblock_map'”,
+       “[(^postparser_w,ffblock_ff v1model_postparser'); (^preingress_w,ffblock_ff v1model_preingress')]:v1model_ascope' ffblock_map'”,
+       “(^input_f'):v1model_ascope' input_f'”,
+       “v1model_output_f':v1model_ascope' output_f'”,
+       “v1model_copyin_pbl':v1model_ascope' copyin_pbl'”,
+       “v1model_copyout_pbl':v1model_ascope' copyout_pbl'”,
+       if matching_optimization
+       then “v1model_apply_table_f'':v1model_ascope' apply_table_f'”
+       else “v1model_apply_table_f':v1model_ascope' apply_table_f'”,
+       “^ext_map':v1model_ascope' ext_map'”,
+       “^func_map':func_map'”])
     end
    else
     let
@@ -223,7 +236,20 @@ fun transform_actx arch dict actx =
          [a, b, c, d] => (a, b, c, d)
        | _ => raise Fail "Expected 4 components of transformed actx'"
     in
-     (dict''', list_mk_pair [“^ab_list':ab_list'”, “^pblock_map':pblock_map'”, “[]:ebpf_ascope' ffblock_map'”, “(^input_f'):ebpf_ascope' input_f'”, “ebpf_output_f':ebpf_ascope' output_f'”, “ebpf_copyin_pbl':ebpf_ascope' copyin_pbl'”, “ebpf_copyout_pbl':ebpf_ascope' copyout_pbl'”, “ebpf_apply_table_f'':ebpf_ascope' apply_table_f'”, “^ext_map':ebpf_ascope' ext_map'”, “^func_map':func_map'”])
+     (dict''',
+      list_mk_pair [
+       “^ab_list':ab_list'”,
+       “^pblock_map':pblock_map'”,
+       “[]:ebpf_ascope' ffblock_map'”,
+       “(^input_f'):ebpf_ascope' input_f'”,
+       “ebpf_output_f':ebpf_ascope' output_f'”,
+       “ebpf_copyin_pbl':ebpf_ascope' copyin_pbl'”,
+       “ebpf_copyout_pbl':ebpf_ascope' copyout_pbl'”,
+       if matching_optimization
+       then “ebpf_apply_table_f'':ebpf_ascope' apply_table_f'”
+       else “ebpf_apply_table_f':ebpf_ascope' apply_table_f'”,
+       “^ext_map':ebpf_ascope' ext_map'”,
+       “^func_map':func_map'”])
     end
   else raise Fail "transform_actx failed to translate actx"
  end
@@ -243,6 +269,7 @@ is_match_all_e_alt' match_fun
 val (match_all_e_alt'_tm, mk_match_all_e_alt', dest_match_all_e_alt', is_match_all_e_alt') =
   syntax_fns2 "p4_exec_sem_cake" "match_all_e_alt'";
 *)
+(*
 val (match_all_e_alt''_tm, mk_match_all_e_alt'', dest_match_all_e_alt'', is_match_all_e_alt'') =
   syntax_fns2 "p4_cake_exec_sem" "match_all_e_alt''";
 
@@ -319,7 +346,7 @@ fun transform_entries dict [] = []
   else raise Fail "transform_entries failed to translate action name (one or more action names could not be found in the dictionary)"
  end
 ;
-
+*)
 val (tbl'_regular_tm, mk_tbl'_regular, dest_tbl'_regular, is_tbl'_regular) =
   syntax_fns1 "p4_cake_arch" "tbl'_regular";
 

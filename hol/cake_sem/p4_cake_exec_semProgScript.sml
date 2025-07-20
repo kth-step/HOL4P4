@@ -4,6 +4,7 @@ val _ = new_theory "p4_cake_exec_semProg";
 
 open p4Theory p4_auxTheory p4_coreTheory p4_v1modelTheory;
 open p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
+open p4_cake_auxLib;
 
 (* CakeML: *)
 open preamble ml_translatorLib ml_progLib basisProgTheory;
@@ -172,7 +173,80 @@ val _ = translate bitv_2comp_def;
 val _ = translate unop_exec'_def;
 val _ = translate e_exec_unop'_def;
 
+(* Binops *)
+
+val _ = translate bitv_ls_def;
+val _ = translate bitv_hs_def;
+val _ = translate bitv_lo_def;
+val _ = translate bitv_hi_def;
+val _ = translate rich_listTheory.AND_EL_DEF;
+val _ = translate bit_eq_def;
+val _ = translate bitv_eq_def;
+val _ = translate bitv_neq_def;
+val _ = translate get_bitv_binpred'_def;
+val _ = translate bitv_binpred'_def;
+
+val _ = translate is_short_circuitable_def;
+val _ = translate e_exec_short_circuit'_def;
+val _ = translate bitv_bl_binop_def;
+val _ = translate bitstringTheory.shiftl_def;
+
+val _ = translate bitv_mul_def;
+val _ = translate bitv_div_def;
+val _ = translate bitv_mod_def;
+val _ = translate bitv_add_def;
+val _ = translate bitv_sub_def;
+val _ = translate band'_def;
+val _ = translate bitv_and_def;
+val _ = translate bor'_def;
+val _ = translate bitv_or_def;
+val _ = translate bitstringTheory.bitwise_def;
+val _ = translate bitstringTheory.bxor_def;
+val _ = translate bitv_xor_def;
+
+val _ = translate rich_listTheory.REPLICATE;
+val _ = translate bitv_saturate_add_def;
+val _ = translate bitv_saturate_sub_def;
+val _ = translate TAKE_def;
+val _ = translate bitv_lsl_bv_def;
+val _ = translate bitv_lsr_bv_def;
+(*
+Theorem take_1_side_thm:
+!n l. take_1_side n l <=> n <= LENGTH l
+Proof
+Induct \\ (
+ simp[Once $ theorem "take_1_side_def"]
+) \\
+rpt strip_tac \\
+Cases_on ‘l’ \\ (
+ gs[]
+)
+QED
+val _ = update_precondition take_1_side_thm;
+*)
+(*
+Theorem bitv_lsr_bv_side:
+!v1 v2 l. bitv_lsr_bv_side v1 v2 l
+Proof
+simp[Once $ definition "bitv_lsr_bv_side_def", take_1_side_thm]
+QED
+val _ = update_precondition bitv_lsr_bv_side;
+*)
+val _ = translate p4Theory.binop2num_thm;
+val _ = translate p4Theory.binop_CASE;
+val _ = translate get_bitv_binop'_def;
+val _ = translate bitv_binop'_def;
+
+(* TODO: Not needed? At least not for binops?
+val _ = translate (EVAL “w2v (w:word64)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);
+val _ = translate (word_eq_def |> INST_TYPE [alpha|->match_width] |> INST_TYPE [beta|->match_width]);
+*)
+
+val _ = translate binop_exec'_def;
+val _ = translate e_exec_binop'_def;
+
 (* Select *)
+(* TODO: Translations exclusive for the optimized version
 Theorem word_msb_thm:
  !w. word_msb (w:'a word) = BIT (dimindex (:'a) - 1) (w2n w)
 Proof
@@ -213,10 +287,6 @@ Proof
 simp[definition "nzcv_side_def", definition "bit_side_def", definition "bits_side_def"] 
 QED
 val _ = update_precondition nzcv_side;
-(* TODO: Not needed?
-val _ = translate (word_ge_def |> INST_TYPE [alpha|->match_width]);
-val _ = translate (word_le_def |> INST_TYPE [alpha|->match_width]);
-*)
 val _ = translate (word_ls_def |> INST_TYPE [alpha|->match_width]);
 val _ = translate (word_lo_def |> INST_TYPE [alpha|->match_width]);
 val _ = translate p4_match_range''_def;
@@ -232,82 +302,31 @@ Proof
 QED
     
 val _ = translate v2w_64_thm;
-val _ = translate TAKE_def;
 val _ = translate v_list_to_word64s_list_def;
 val _ = translate match_all_first_def;
+*)
+
+(* TODO: Translations exclusive for the unoptimized version:
+
+
+*)
+val _ =
+ if matching_optimization
+ then ()
+ else
+  let
+   val _ = translate p4_match_mask'_def;
+   val _ = translate p4_match_range'_def;
+   val _ = translate match'_def;
+   val _ = translate match_all'_def;
+
+   val _ = translate pre_match_check'_def;
+  in
+   ()
+  end
+;
+
 val _ = translate e_exec_select'_def;
-
-(* Binops *)
-
-val _ = translate bitv_ls_def;
-val _ = translate bitv_hs_def;
-val _ = translate bitv_lo_def;
-val _ = translate bitv_hi_def;
-val _ = translate rich_listTheory.AND_EL_DEF;
-val _ = translate bit_eq_def;
-val _ = translate bitv_eq_def;
-val _ = translate bitv_neq_def;
-val _ = translate get_bitv_binpred'_def;
-val _ = translate bitv_binpred'_def;
-
-val _ = translate is_short_circuitable_def;
-val _ = translate e_exec_short_circuit'_def;
-val _ = translate bitv_bl_binop_def;
-val _ = translate bitstringTheory.shiftl_def;
-
-val _ = translate bitv_mul_def;
-val _ = translate bitv_div_def;
-val _ = translate bitv_mod_def;
-val _ = translate bitv_add_def;
-val _ = translate bitv_sub_def;
-val _ = translate band'_def;
-val _ = translate bitv_and_def;
-val _ = translate bor'_def;
-val _ = translate bitv_or_def;
-val _ = translate bitstringTheory.bitwise_def;
-val _ = translate bitstringTheory.bxor_def;
-val _ = translate bitv_xor_def;
-
-val _ = translate rich_listTheory.REPLICATE;
-val _ = translate bitv_saturate_add_def;
-val _ = translate bitv_saturate_sub_def;
-val _ = translate bitv_lsl_bv_def;
-(*
-val _ = translate rich_listTheory.TAKE;
-*)
-val _ = translate bitv_lsr_bv_def;
-(*
-Theorem take_1_side_thm:
-!n l. take_1_side n l <=> n <= LENGTH l
-Proof
-Induct \\ (
- simp[Once $ theorem "take_1_side_def"]
-) \\
-rpt strip_tac \\
-Cases_on ‘l’ \\ (
- gs[]
-)
-QED
-val _ = update_precondition take_1_side_thm;
-*)
-(*
-Theorem bitv_lsr_bv_side:
-!v1 v2 l. bitv_lsr_bv_side v1 v2 l
-Proof
-simp[Once $ definition "bitv_lsr_bv_side_def", take_1_side_thm]
-QED
-val _ = update_precondition bitv_lsr_bv_side;
-*)
-val _ = translate p4Theory.binop2num_thm;
-val _ = translate p4Theory.binop_CASE;
-val _ = translate get_bitv_binop'_def;
-val _ = translate bitv_binop'_def;
-
-val _ = translate (EVAL “w2v (w:word64)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);
-val _ = translate (word_eq_def |> INST_TYPE [alpha|->match_width] |> INST_TYPE [beta|->match_width]);
-
-val _ = translate binop_exec'_def;
-val _ = translate e_exec_binop'_def;
 
 (* Concatenation *)
 val _ = translate bitv_concat_def;
