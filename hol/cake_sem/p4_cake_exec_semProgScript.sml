@@ -210,28 +210,7 @@ val _ = translate bitv_saturate_sub_def;
 val _ = translate TAKE_def;
 val _ = translate bitv_lsl_bv_def;
 val _ = translate bitv_lsr_bv_def;
-(*
-Theorem take_1_side_thm:
-!n l. take_1_side n l <=> n <= LENGTH l
-Proof
-Induct \\ (
- simp[Once $ theorem "take_1_side_def"]
-) \\
-rpt strip_tac \\
-Cases_on ‘l’ \\ (
- gs[]
-)
-QED
-val _ = update_precondition take_1_side_thm;
-*)
-(*
-Theorem bitv_lsr_bv_side:
-!v1 v2 l. bitv_lsr_bv_side v1 v2 l
-Proof
-simp[Once $ definition "bitv_lsr_bv_side_def", take_1_side_thm]
-QED
-val _ = update_precondition bitv_lsr_bv_side;
-*)
+
 val _ = translate p4Theory.binop2num_thm;
 val _ = translate p4Theory.binop_CASE;
 val _ = translate get_bitv_binop'_def;
@@ -246,73 +225,60 @@ val _ = translate binop_exec'_def;
 val _ = translate e_exec_binop'_def;
 
 (* Select *)
-(* TODO: Translations exclusive for the optimized version
-Theorem word_msb_thm:
- !w. word_msb (w:'a word) = BIT (dimindex (:'a) - 1) (w2n w)
-Proof
- Cases \\ FULL_SIMP_TAC std_ss [word_msb_n2w,w2n_n2w]
-QED
-
-val match_width = “:64”;
-
-val _ = translate bitTheory.MOD_2EXP_def;
-val _ = translate bitTheory.DIV_2EXP_def;
-val _ = translate bitTheory.BITS_def;
-val _ = translate bitTheory.BIT_def;
-val _ = translate (word_msb_thm |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
-Theorem word_msb_side:
- !w. word_msb_side w
-Proof
-simp[Once $ definition "word_msb_side_def", definition "bit_side_def", definition "bits_side_def"]
-QED
-val _ = update_precondition word_msb_side;
-
-val _ = translate (word_mul_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
-
-val _ = translate (word_2comp_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) [] |> SIMP_RULE std_ss [GSYM wordsTheory.WORD_NEG_MUL]);
-Theorem word_2comp_side:
- !w. word_2comp_side w
-Proof
-simp[Once $ definition "word_2comp_side_def"] \\
-wordsLib.Induct_word \\ (
- gs[]
-)
-QED
-val _ = update_precondition word_2comp_side;
-
-val _ = translate (nzcv_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
-Theorem nzcv_side:
- !w w'. nzcv_side w w'
-Proof
-simp[definition "nzcv_side_def", definition "bit_side_def", definition "bits_side_def"] 
-QED
-val _ = update_precondition nzcv_side;
-val _ = translate (word_ls_def |> INST_TYPE [alpha|->match_width]);
-val _ = translate (word_lo_def |> INST_TYPE [alpha|->match_width]);
-val _ = translate p4_match_range''_def;
-val _ = translate p4_match_mask''_def;
-val _ = translate match''_def;
-val _ = translate match_all''_def;
-val _ = translate match_all_first''_def;
-
-Theorem v2w_64_thm:
- !v. v2w v = (n2w (v2n v)):word64
-Proof
- FULL_SIMP_TAC std_ss [bitstringTheory.n2w_v2n]
-QED
-    
-val _ = translate v2w_64_thm;
-val _ = translate v_list_to_word64s_list_def;
-val _ = translate match_all_first_def;
-*)
-
-(* TODO: Translations exclusive for the unoptimized version:
-
-
-*)
 val _ =
  if matching_optimization
- then ()
+ then
+  let
+   val match_width = “:64”;
+
+   val word_msb_thm = Q.prove(
+    ‘!w. word_msb (w:'a word) = BIT (dimindex (:'a) - 1) (w2n w)’,
+    Cases \\ FULL_SIMP_TAC std_ss [word_msb_n2w,w2n_n2w])
+
+   val _ = translate bitTheory.MOD_2EXP_def;
+   val _ = translate bitTheory.DIV_2EXP_def;
+   val _ = translate bitTheory.BITS_def;
+   val _ = translate bitTheory.BIT_def;
+   val _ = translate (word_msb_thm |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
+   val word_msb_side = Q.prove(
+    ‘!w. word_msb_side w’,
+    simp[Once $ definition "word_msb_side_def", definition "bit_side_def", definition "bits_side_def"])
+   val _ = update_precondition word_msb_side;
+
+   val _ = translate (word_mul_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
+
+   val _ = translate (word_2comp_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) [] |> SIMP_RULE std_ss [GSYM wordsTheory.WORD_NEG_MUL]);
+   val word_2comp_side = Q.prove(
+    ‘!w. word_2comp_side w’,
+    simp[Once $ definition "word_2comp_side_def"] \\
+    wordsLib.Induct_word \\ (
+     gs[]
+    ))
+   val _ = update_precondition word_2comp_side;
+
+   val _ = translate (nzcv_def |> INST_TYPE [alpha|->match_width] |> SIMP_RULE (srw_ss()) []);
+   val nzcv_side = Q.prove(
+    ‘!w w'. nzcv_side w w'’,
+    simp[definition "nzcv_side_def", definition "bit_side_def", definition "bits_side_def"])
+   val _ = update_precondition nzcv_side;
+   val _ = translate (word_ls_def |> INST_TYPE [alpha|->match_width]);
+   val _ = translate (word_lo_def |> INST_TYPE [alpha|->match_width]);
+   val _ = translate p4_match_range''_def;
+   val _ = translate p4_match_mask''_def;
+   val _ = translate match''_def;
+   val _ = translate match_all''_def;
+   val _ = translate match_all_first''_def;
+
+   val v2w_64_thm = Q.prove(
+    ‘!v. v2w v = (n2w (v2n v)):word64’,
+    FULL_SIMP_TAC std_ss [bitstringTheory.n2w_v2n])
+
+   val _ = translate v2w_64_thm;
+   val _ = translate v_list_to_word64s_list_def;
+   val _ = translate match_all_first_def;
+  in
+   ()
+  end
  else
   let
    val _ = translate p4_match_mask'_def;
@@ -339,28 +305,18 @@ val _ = translate e_exec_slice'_def;
 (* The whole expression-level semantics: *)
 val _ = translate e_exec'_def;
 
+
 (** Statement semantics **)
 
 (* Assignment *)
 val _ = translate lookup_out'_def;
 val _ = translate listTheory.INDEX_OF_def;
 val _ = translate replace_bits_def;
-(*
-Theorem replace_bits_side:
-!bitv1 bitv2 hi lo. replace_bits_side bitv1 bitv2 hi lo
-Proof
-simp[Once $ definition "replace_bits_side_def"]
-QED
-val _ = update_precondition replace_bits_side;
-*)
 val _ = translate assign_to_slice'_def;
 val _ = translate assign'_def;
 val _ = translate stmt_exec_ass'_def;
 val _ = translate oDROP_def;
 val _ = translate oTAKE_def;
-(* TODO: This now has precondition... Use option type? 
-val _ = translate separate_def;
-*)
 val _ = translate get_e_ctx_def;
 
 (* Conditional *)
@@ -389,18 +345,7 @@ val _ = translate is_consts_exec'_def;
 val _ = translate lookup_ext_fun'_def;
 val _ = translate separate'_def;
 val _ = translate stmt_exec'_def;
-(*
-Theorem stmt_exec'_side:
-!ctx state. stmt_exec'_side ctx state
-Proof
-(*
-simp[Once $ theorem "stmt_exec'_side_def"] \\
-rpt strip_tac \\
-*)
-cheat
-QED
-val _ = update_precondition stmt_exec'_side;
-*)
+
 
 (** Frame semantics **)
 
@@ -413,6 +358,7 @@ val _ = translate is_d_none_in_def;
 val _ = translate update_return_frame'_def;
 val _ = translate copyout'_def;
 val _ = translate frames_exec'_def;
+
 
 (** Arch semantics **)
 

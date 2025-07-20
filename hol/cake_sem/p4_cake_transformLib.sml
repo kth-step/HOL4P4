@@ -414,8 +414,6 @@ fun transform_program dict arch actx astate =
  let
   val (dict', actx') = transform_actx arch dict actx
   val ctrl = #4 $ p4_testLib.dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate;
-  (* TODO: Note that ctrl has to be translated in SML due to the matching function, which cannot
-   * be syntactically treated in HOL4 *)
   val ctrl' = transform_ctrl dict' ctrl
   val astate'_opt =
    if arch = "v1model"
