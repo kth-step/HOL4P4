@@ -656,20 +656,16 @@ Proof
       fs[merge_edges_def]
       ,
         
-      ‘(if a = n' ∧ b = n' then (h0,h0)
-        else if a = n' then (h0,b)
-        else if b = n' then (a,h0)
-        else (a,b)) =
-       (h1,h2)’ by gvs[merge_edges_def] >>
+      fs[Once merge_edges_list_normalize] >>
+      qpat_x_assum ‘merge_edges [(n,a,b)] n n' = [(h0,h1,h2)]’
+                   (fn thm => assume_tac (SIMP_RULE (srw_ss()) [merge_edges_def] thm)) >>
       
-      Cases_on ‘a = n' ∧ b = n'’ >> gvs[] >>
-      Cases_on ‘a = n'’ >> gvs[] >>
-      Cases_on ‘b = n'’ >> gvs[] >>
+      Cases_on ‘a = n' ∧ b = n'’ >> fs[] >>
+      Cases_on ‘a = n'’ >> fs[] >>
+      Cases_on ‘b = n'’ >> fs[] >>
                
-      ‘n = h0’ by gvs[merge_edges_def] >>
-      rgs[Once merge_edges_list_normalize] >>
       rgs[flat_edges_def]  >>
-      irule list_not_merged_flat_membership2 >> rgs[] >>
+      irule list_not_merged_flat_membership2 >> fs[] >>
 
       FIRST [
           subgoal ‘MEM (a,h0,h0) t ’ >- ( metis_tac[merge_edges_membership] ) >>
@@ -687,23 +683,20 @@ Proof
       PairCases_on ‘h’ >>
       fs[Once merge_edges_list_normalize] >>
 
-      ‘(if h1' = n' ∧ h2' = n' then (n,n)
-        else if h1' = n' then (n,h2')
-        else if h2' = n' then (h1',n)
-        else (h1',h2')) =
-       (h1,h2)’ by fs[Once merge_edges_def] >>
+      qpat_x_assum ‘merge_edges [(h0',h1',h2')] n n' = [(h0,h1,h2)]’
+                   (fn thm => assume_tac (SIMP_RULE (srw_ss()) [merge_edges_def] thm)) >>
       
       Cases_on ‘h1' = n' ∧ h2' = n'’ >> 
       Cases_on ‘h1' = n'’ >> 
       Cases_on ‘h2' = n'’ >> fs[]  >|[
               
-          rgs[flat_edges_def] >-
+          fs[flat_edges_def] >-
            metis_tac[mem_triple_map_fst] >>
           
           subgoal ‘MEM (n',h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
           rgs[] >> 
           irule list_not_merged_flat_membership2 >>
-          srw_tac [SatisfySimps.SATISFY_ss][]
+          metis_tac[]
           ,
 
           fs[flat_edges_def] >>
@@ -712,12 +705,10 @@ Proof
           
           FIRST  [
               subgoal ‘MEM (h1',h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-              fs[] >> 
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
               ,
               subgoal ‘MEM (n',h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-              fs[] >> 
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
             ] 
             
           ,
@@ -728,26 +719,26 @@ Proof
 
           FIRST [
               subgoal ‘MEM (n',h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>  
-              fs[] >> 
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
               ,
               subgoal ‘MEM (n',h2,h2) t ’ >- ( metis_tac[merge_edges_membership] ) >>  
-              fs[] >> 
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
             ]
           ,
-          rgs[flat_edges_def] >>
+          fs[flat_edges_def] >>
           imp_res_tac mem_triple_map_fst >> fs[] >|[
               
               subgoal ‘MEM (n',h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>  
-              rgs[] >> 
-              irule list_not_merged_flat_membership2 >> rgs[] >>
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              irule list_not_merged_flat_membership2 >> 
+              metis_tac[]
+              ,
+              subgoal ‘MEM (n',h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>  
+              irule list_not_merged_flat_membership2 >> 
+              metis_tac[]
               ,
               subgoal ‘MEM (n',h2,h2) t ’ >- ( metis_tac[merge_edges_membership] ) >>  
-              rgs[] >> 
-              irule list_not_merged_flat_membership2 >> rgs[] >>
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              irule list_not_merged_flat_membership2 >> 
+              metis_tac[]
               ,
               subgoal ‘MEM (n',n,n) t ’ >- ( metis_tac[merge_edges_membership] ) >>
               ‘∃ b'' c'' . MEM (n,b'',c'') t’ by metis_tac[head_mem_not_changed_in_merge] >>
@@ -1025,14 +1016,8 @@ Proof
       fs[merge_edges_def]
       ,
       PairCases_on ‘h’ >>
-      fs[Once merge_edges_list_normalize] >>
-      
-      ‘h0' = h0’ by fs[Once merge_edges_def] >>
-      ‘(if h1' = a ∧ h2' = a then (b,b)
-         else if h1' = a then (b,h2')
-         else if h2' = a then (h1',b)
-         else (h1',h2')) =
-        (h1,h2)’ by fs[Once merge_edges_def] >>
+      rgs[Once merge_edges_list_normalize] >>
+      rgs[Once merge_edges_def] >>
       
       Cases_on ‘h1' = a ∧ h2' = a’ >> fs[] >> 
       Cases_on ‘h1' = a’ >> fs[] >>
