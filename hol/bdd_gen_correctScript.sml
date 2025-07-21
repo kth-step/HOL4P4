@@ -1767,7 +1767,7 @@ Proof
   rgs[ALOOKUP_APPEND] >>
   rgs[AllCaseEqs()] >|[
     (* case when in new labels, we wanna show that the parent had all fv defined and
-       then the children are also teh same out of teh body *)
+       then the children are also the same out of the body *)
     
     Cases_on ‘opx’ >|[
       
@@ -1837,7 +1837,7 @@ QED
 
 
 
-(* in teh previous theorems varslist = ((REVERSE vars)++vars_consumed) *)         
+(* in the previous theorems varslist = ((REVERSE vars)++vars_consumed) *)         
 Theorem correct_sem_translation:
   ∀ vars vars_consumed BDD BDD' rec c.
     prop1 rec ∧ prop2 rec ∧ prop3 rec ∧ prop4 rec ∧
@@ -1898,6 +1898,12 @@ Proof
   ]
 QED
     
+
+
+(*TODO: (* now add those in Valid_BDD rec (BDD:('a,'b)BDD) vars *) 
+ induce everything in conclusion, that's it, the _opt version will be in optimizationScript 
+*)
+
 
 
 
