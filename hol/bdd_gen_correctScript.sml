@@ -6,16 +6,12 @@ open bitstringTheory;
 open wordsTheory;
 open optionTheory;
 open sumTheory;
-open stringTheory;
 open ottTheory;
 open pairTheory;
 open rich_listTheory;
-open arithmeticTheory;
 open alistTheory;
 open numeralTheory;
-open alistTheory;
 open set_relationTheory;
-open pred_setTheory;
 open pred_setLib;
 
 open p4_auxTheory;
@@ -1596,7 +1592,8 @@ QED
 
 
  
-
+(* this is a concrete theorem, with the correct vars, vars_consumed distrubution, 
+   later in this file I am more general and instansiate it with just vars *)
 Theorem correct_sem_translation_inter:
   ∀ (BDD:('a,'b) BDD) BDD'' rec c c' vars h vars_consumed.
     prop1 rec ∧ prop2 rec ∧ prop3 rec ∧
@@ -1900,11 +1897,111 @@ QED
     
 
 
-(*TODO: (* now add those in Valid_BDD rec (BDD:('a,'b)BDD) vars *) 
- induce everything in conclusion, that's it, the _opt version will be in optimizationScript 
-*)
+
+(* in the previous theorems varslist = ((REVERSE vars)++vars_consumed) *)         
+Theorem correct_sem_valid_translation_verbose:
+  ∀ vars vars_consumed BDD BDD' rec c.
+    prop1 rec ∧ prop2 rec ∧ prop3 rec ∧ prop4 rec ∧
+    BDD_ordered BDD vars_consumed ∧
+    BDD_WF BDD ∧
+    range_c c BDD ∧
+    consumed_dom_bdd vars_consumed BDD ∧
+    ALL_DISTINCT ((REVERSE vars)++vars_consumed) ∧
+    fv_in_BDD rec BDD ((REVERSE vars)++vars_consumed) ∧
+    correct_sem rec BDD ((REVERSE vars)++vars_consumed) ∧
+    SOME BDD' = mk_BDDPred rec BDD vars_consumed vars c ⇒
+    (
+    BDD_WF BDD'  ∧
+    BDD_ordered BDD' ((REVERSE vars)++vars_consumed)  ∧
+    fv_in_BDD rec BDD' ((REVERSE vars)++vars_consumed)  ∧
+    consumed_dom_bdd ((REVERSE vars)++vars_consumed)  BDD' ∧
+    correct_sem rec BDD' ((REVERSE vars)++vars_consumed) )
+Proof
+  Induct >| [
+    rpt strip_tac >>
+    gvs[mk_BDDPred_def]
+    ,
+    rpt strip_tac >>
+    
+    gvs[mk_BDDPred_def] >>
+    gvs[AllCaseEqs()] >>
+
+    rpt strip_tac >>
+    
+    PairCases_on ‘BDD’ >>
+    rename1 ‘(r,edges,labels)’ >>
+    
+    PairCases_on ‘BDD'’ >>
+    rename1 ‘(r',edges',labels')’ >>
+
+    PairCases_on ‘BDD''’ >>
+    rename1‘((r'',edges'',labels''),c')’ >>
+
+                 
+    ‘range_c c' (r'',edges'',labels'')’ by imp_res_tac WFness_range_c_inter >>
+
+    ‘BDD_WF (r'',edges'',labels'')’ by imp_res_tac WFness_translation_inter >> gvs[]>>
+
+    ‘ALL_DISTINCT (h::vars_consumed)’ by gvs[ALL_DISTINCT_APPEND] >>        
+    ‘BDD_ordered (r'',edges'',labels'') (h::vars_consumed)’ by imp_res_tac order_translation_inter >>
+      
+    ‘consumed_dom_bdd (h::vars_consumed) (r'',edges'',labels'')’ by imp_res_tac consumed_dom_bdd_inter >>
+
+
+    assume_tac correct_sem_translation_inter >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘(r,edges,labels)’, ‘(r'',edges'',labels'')’, ‘rec’, ‘c’, ‘c'’, ‘REVERSE vars’, ‘h’, ‘vars_consumed’])) >>
+    gvs[]>>
+                
+    (*  ‘REVERSE vars ⧺ h::vars_consumed = REVERSE vars ++ [h] ++ vars_consumed’ by gvs[Once CONS_APPEND] >>
+        ‘ALL_DISTINCT (REVERSE vars ⧺ h::vars_consumed)’ by metis_tac[] >>
+     *)
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘[h] ⧺ vars_consumed’, ‘(r'',edges'',labels'')’, ‘(r',edges',labels')’, ‘rec’, ‘c'’])) >>
+    gvs[] >>
+          
+    ‘fv_in_BDD rec (r'',edges'',labels'') (REVERSE vars ⧺ [h] ⧺ vars_consumed)’ by metis_tac[fv_in_BDD_body_preserved] >>
+    
+    metis_tac[]
+  ]
+QED
+
+        
 
 
 
+
+
+        
+(* in the previous theorems varslist = ((REVERSE vars)++vars_consumed) *)         
+Theorem correct_sem_valid_translation:
+  ∀ vars vars_consumed BDD BDD' rec c.
+    prop1 rec ∧ prop2 rec ∧ prop3 rec ∧ prop4 rec ∧
+
+    range_c c BDD ∧
+    ALL_DISTINCT ((REVERSE vars)++vars_consumed) ∧
+          
+    valid_BDD rec BDD vars vars_consumed ∧
+    correct_sem rec BDD ((REVERSE vars)++vars_consumed) ∧
+                
+    SOME BDD' = mk_BDDPred rec BDD vars_consumed vars c ⇒
+    (
+    valid_BDD rec BDD' [] ((REVERSE vars)++vars_consumed) ∧
+    correct_sem rec BDD' ((REVERSE vars)++vars_consumed) )
+Proof
+
+  rw[valid_BDD_def] >>
+  metis_tac[correct_sem_valid_translation_verbose]
+QED
+
+
+
+
+
+
+
+        
 
 val _ = export_theory ();
+
+
+
+

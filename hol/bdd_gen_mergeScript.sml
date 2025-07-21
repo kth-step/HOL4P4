@@ -2595,6 +2595,31 @@ Proof
   res_tac
 QED
 
+
+
+
+Theorem merge_range_preservation:
+  ∀ BDD c n n'.
+    range_c c BDD ⇒
+    range_c c (merge BDD n n')
+Proof
+  
+  rpt strip_tac >>
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+  
+  fs[merge_def, range_c_def] >>
+  rw [EVERY_MEM, MEM_MAP, ADELKEY_def, MEM_FILTER] >>     
+  gvs[EVERY_MEM] >>
+  Cases_on ‘y’ >>
+  imp_res_tac mem_fst_snd >>
+  gvs[]      
+QED
+
+
+
+              
+        
         
 (* valid for merge and eliminate *)
 Theorem merge_consumed_dom_final_preservation:
@@ -2617,11 +2642,8 @@ QED
 
 
 
-(* Helper lemma: merge_BDD preserves correctness
-   TODO: add a def for the guarantee...
-   TODO: move this to mergeScript
- *)
-Theorem merge_BDD_preserves_correctness:
+(* nerging a node n with a a list of nodes nl then enduce a valid BDD *)
+Theorem merge_BDD_preserves_valid_and_correctness_verbose:
   ∀BDD n nl vars rec.
     
     BDD_WF BDD ∧
@@ -2667,7 +2689,68 @@ Proof
 QED
 
 
-(* now add those in Valid_BDD rec (BDD:('a,'b)BDD) vars *)
+
+
+Theorem fv_in_BDD_reverse_triv:
+  ∀ BDD vars vars_consumed rec.
+    fv_in_BDD rec BDD (REVERSE vars ⧺ vars_consumed) ⇒
+    fv_in_BDD rec BDD (vars ⧺ vars_consumed)
+Proof
+  rpt strip_tac >>
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+  
+  fs[fv_in_labels_def, fv_in_BDD_def, merge_def, fv_in_vars_def] >>
+  rpt strip_tac >>
+  res_tac >>
+  fs[fv_in_vars_def]
+QED
+
+
+        
+Theorem merge_BDD_preserves_valid_and_correctness:
+  ∀BDD n nl vars vars_consumed rec.
+    valid_BDD rec BDD vars vars_consumed ∧
+    correct_sem rec BDD (vars ⧺ vars_consumed)  ⇒       
+    (
+    valid_BDD rec (merge_BDD BDD n nl) vars vars_consumed∧
+    correct_sem rec (merge_BDD BDD n nl) (vars ⧺ vars_consumed)
+    )
+Proof
+  Induct_on ‘nl’ >-
+   fs [merge_BDD_def] >>
+  
+  rpt gen_tac >> strip_tac >>
+  fs [merge_BDD_def] >>
+  
+  Cases_on ‘mergable BDD n h’ >> gvs[] >>
+           
+  gvs[valid_BDD_def] >>
+  
+  assume_tac merge_correct >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘vars’, ‘vars_consumed’,‘n’, ‘h’, ‘rec’])) >>
+  gvs[] >>
+  
+  ‘fv_in_BDD rec BDD (vars ⧺ vars_consumed)’ by imp_res_tac fv_in_BDD_reverse_triv >>
+     
+  (*res_tac >>*)
+  ‘BDD_WF (merge BDD n h)’ by imp_res_tac merge_wf_preservation >>
+  ‘BDD_ordered (merge BDD n h) vars_consumed’ by imp_res_tac merge_order_preservation >>
+  
+  ‘consumed_dom_bdd vars_consumed (merge BDD n h)’ by (imp_res_tac merge_consumed_dom_final_preservation >>
+                                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
+  
+  
+  ‘fv_in_BDD rec (merge BDD n h) (REVERSE vars ⧺ vars_consumed)’ by (imp_res_tac merge_fv_final_preservation >>
+                                                                     first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
+  
+  res_tac >>
+  gvs[]
+QED
+
+
+        
+
 
 val _ = export_theory ();
 
