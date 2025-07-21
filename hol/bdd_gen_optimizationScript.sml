@@ -40,30 +40,6 @@ val _ = new_theory "bdd_gen_optimization";
 (*******************************************************)
 
 
-(*
-
-TODO before start with user input:
-prove these about the merge:
-fv_in_BDD rec (merge BDD n h) vars ⇒
-        BDD_ordered (merge BDD n h) vars ⇒
-        consumed_dom_bdd vars (merge BDD n h) ⇒
-        BDD_WF (merge BDD n h)
-
-
-finish the same proof for eliminate
-        
-To do, edit the rot that it can contain terminal or ntl, not internal node in wfness
-NO NEED to set up root in WFness for teh proof producing patr, just add in eliminate 0
-
-make execurable versions of the correccness, WFness and order and other things.
-
-move the auxiliary functions to BDD aux
-
-     check slow theorems for merge and make them fast using the new work
-
-     
-*)
-
 
 (* basic optimization application on the BDD tree *)
 (* merge part *)
@@ -522,6 +498,7 @@ End
 
 (* Helper lemma: merge_BDD preserves correctness
    TODO: add a def for the guarantee...
+   TODO: move this to mergeScript
  *)
 Theorem merge_BDD_preserves_correctness:
   ∀BDD n nl vars rec.
@@ -571,7 +548,7 @@ QED
         
 
 
-(* todo add the rest of the properties, wfness...etc in one definition*)        
+     
 (* Helper lemma: operate_opt1 preserves correctness *)
 Theorem operate_opt1_preserves_correctness:
   ∀BDD nl all_nodes vars rec.
@@ -643,29 +620,7 @@ QED
 
 (* some elimination work*)
 
-(* TODO: move to elimination, and make this elim_correct *)
-Theorem eliminate_correct_not_verbose:        
-  ∀ BDD vars vars_consumed n n' rec .
-    correct_sem rec BDD (vars++vars_consumed) ∧
-    BDD_WF BDD ∧
-    consumed_dom_bdd vars_consumed BDD ∧
-    BDD_ordered BDD vars_consumed ∧
-    fv_in_BDD rec BDD (vars++vars_consumed)  ∧
-    eliminable BDD n n'
-    ==>
-    correct_sem rec (merge BDD n n')  (vars++vars_consumed)
-Proof
-  rpt strip_tac >>
-  rw[] >>
-  
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(root, edges, labels)’ >>
- metis_tac[eliminate_correct]
-QED
-
-
-
-                
+              
 Theorem eliminate_BDD_preserves_correctness:
   ∀BDD n nl vars rec.
     
@@ -693,7 +648,7 @@ Proof
   
   Cases_on ‘eliminable BDD h n’ >> gvs[] >|[
     gvs[] >>
-    assume_tac eliminate_correct_not_verbose >>
+    assume_tac eliminate_correct >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘[]’, ‘vars’, ‘h’, ‘n’, ‘rec’])) >>
     gvs[] >>
     (*res_tac >>*)
