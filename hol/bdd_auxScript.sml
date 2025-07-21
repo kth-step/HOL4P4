@@ -1398,7 +1398,139 @@ QED
 
 
 
+Theorem alookup_defined_append1:
+  ∀ l l' n a b.
+    ALOOKUP (l ++ l') n = SOME (a,b) ⇒
+    ALOOKUP l n = NONE ⇒
+    ∃ a' b' . ALOOKUP l' n = SOME (a',b') ∧ a' = a ∧  b' = b 
+Proof
+  gvs[ALOOKUP_APPEND] >>
+  rpt strip_tac >>
+  fs[AllCaseEqs()]
+QED
+
+
+Theorem alookup_defined_append2:
+  ∀ l l' n a b a' b'.
+    ALOOKUP (l ++ l') n = SOME (a,b) ∧
+    ALOOKUP l n = SOME (a',b') ⇒
+    a' = a ∧  b' = b 
+Proof
+  gvs[ALOOKUP_APPEND] >>
+  rpt strip_tac >>
+  fs[AllCaseEqs()]
+QED
+
+
+Theorem ADELKEY_APPEND_triv:
+  ∀ l1 l2 n.
+    ADELKEY n (l1++l2) = (ADELKEY n l1) ++ (ADELKEY n l2)
+Proof
+  Induct >>
+  gvs[ADELKEY_def] >>
+  rpt strip_tac >>
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) 
+QED
+
+
+
+Theorem lookup_merge_uni_bs:
+  ALOOKUP (merge_edges [(h0,h1,h2)] n n') n'' = SOME (x0,x1) 
+  ⇒
+  ((x0 = nr' ∧  nr = h1 ∧  nr ≠ nr' ⇒ (nr = n' ∧ nr' = n))
+   ∧
+   (x1 = nl' ∧  nl = h2 ∧  nl ≠ nl' ⇒ (nl = n' ∧ nl' = n)
+   ))
+Proof
+  fs[Once merge_edges_def] >>
+  rpt strip_tac >>
+  fs[AllCaseEqs()]
+QED
+
+
+
+Theorem MEM_ALOOKUP_DISTINCT:                
+  ∀ l  a  b.
+    ALL_DISTINCT (MAP FST l) ⇒
+    (MEM (a,b) l ⇔ (ALOOKUP l a = SOME b))
+Proof
+  Induct >> gvs[] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >> gvs[] >>
+  Cases_on ‘a = h0’ >> gvs[] >>
+  Cases_on ‘b = h1’ >> gvs[] >>
+  Cases_on ‘ALOOKUP l a’ >> gvs[] >>
+  imp_res_tac ALOOKUP_NONE >>
+  gvs[]
+QED
+
+
+Theorem list_mem_trio_not:
+  ∀ l n h1 h2.
+    ¬MEM n (MAP FST l) ⇒    
+    ¬MEM (n,h1,h2) l
+Proof
+  Induct >>
+  rw[] >>
+  PairCases_on ‘h’ >>
+  res_tac >>
+  gvs[]
+QED
+
+
+Theorem mem_imp_adelkey_mem:
+  ∀ l  n'' n'.
+    n'' ≠ n' ∧
+    MEM n'' (MAP FST l) ⇒
+    MEM n'' (MAP FST (ADELKEY n' l))
+Proof
+  Induct >> rw[] >> fs[ADELKEY_def] >>
+  Cases_on ‘h’ >> fs[ADELKEY_def] >>
+  rw[] >> fs[] >>
+  metis_tac[]
+QED
+
 
         
+Theorem adelkey_mem_imp_mem:
+  ∀ l  n'' n'.
+    n'' ≠ n' ∧
+    MEM n'' (MAP FST (ADELKEY n' l)) ⇒
+    MEM n'' (MAP FST l)
+Proof
+  
+  Induct >> 
+  fs[ADELKEY_def] >>
+  Cases_on ‘h’ >> 
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[ADELKEY_def]) >> rw[] >| [
+    fs[MEM_MAP] >>
+    ‘∃x. n'' = FST x ∧ MEM x l ∧ FST x ≠ n'’ by metis_tac[MEM_FILTER] >>
+    
+    Cases_on ‘FST y = q’ >> gvs[] >>
+    qexists_tac ‘x’ >> gvs[]
+    ,
+    Cases_on ‘n'' = q’ >> fs[] >>
+    metis_tac[] 
+  ]     
+QED
+
+
+
+
+
+
+        
+
+Theorem not_mem_imp_adelkey_mem:
+  ∀ l  n'' n'.
+    n'' ≠ n' ∧
+    ¬MEM n'' (MAP FST l) ⇒
+    ¬MEM n'' (MAP FST (ADELKEY n' l))
+Proof
+  Induct_on `l` >> rw[] >- gvs[ADELKEY_def, MAP, MEM] >>
+  Cases_on `h` >> fs[ADELKEY_def] >>
+  rw[] >> fs[]
+QED
+
         
 val _ = export_theory ();
