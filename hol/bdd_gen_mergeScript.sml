@@ -26,6 +26,8 @@ open bdd_gen_wfTheory;
 open bdd_gen_orderTheory;
 open bdd_gen_correctTheory;
 
+
+     
 val _ = new_theory "bdd_gen_merge";
 
 
@@ -1537,8 +1539,7 @@ Proof
 QED
 
                                                                          
-
-                                
+                        
                                                 
 Theorem dom_range_edges3_imp_adel_key_mem:
   ∀ edges root labels vars n n' n''  a b.
@@ -1573,106 +1574,52 @@ Proof
     Cases_on ‘n'' = h0 ∨ n'' = h1 ∨ n'' = h2’ >> gvs[] >>
     
     Cases_on ‘edges’ >> gvs[] >|[
-      
-      ‘(if a = n' ∧ b = n' then (h0,h0)
-        else if a = n' then (h0,b)
-        else if b = n' then (a,h0)
-        else (a,b)) =
-       (h1,h2)’ by gvs[merge_edges_def] >>
-      
-      
-      Cases_on ‘a = n' ∧ b = n'’ >> gvs[] >>
-      Cases_on ‘a = n'’ >> gvs[] >>
-      Cases_on ‘b = n'’ >> gvs[] >>
-      
-      Cases_on ‘n'' = h0 ∨ n'' = a ∨ n'' = b’ >> gvs[] >>
-      
-      ‘n = h0’ by gvs[merge_edges_def] >>
-      gvs[] >>
-      
+
+      rgs[Once merge_edges_list_normalize] >>
+      rgs[Once merge_edges_def] >>  
+
       subgoal ‘MEM (n',a,b) t ’ >- ( rgs[Once merge_edges_list_normalize] >>
                                      metis_tac[merge_edges_membership] ) >>
       
       irule list_not_merged_flat_membership2 >> gvs[] >>
       srw_tac [SatisfySimps.SATISFY_ss][]
-              
+   
       ,
       
-      ‘(if a = n' ∧ b = n' then (h0,h0)
-        else if a = n' then (h0,b)
-        else if b = n' then (a,h0)
-        else (a,b)) =
-       (h1,h2)’ by gvs[merge_edges_def] >>
-      
-      Cases_on ‘a = n' ∧ b = n'’ >> gvs[] >>
-      Cases_on ‘a = n'’ >> gvs[] >>
-      Cases_on ‘b = n'’ >> gvs[] >>
-      
-      ‘n' = h0’ by gvs[merge_edges_def] >>
-      
-      subgoal ‘MEM (n',a,b) t ’ >- ( rgs[Once merge_edges_list_normalize] >>
-                                     metis_tac[merge_edges_membership] ) >>
-      
-      irule list_not_merged_flat_membership2 >> gvs[] >>
-      srw_tac [SatisfySimps.SATISFY_ss][]
+      rgs[Once merge_edges_list_normalize] >>
+      rgs[Once merge_edges_def] 
+
       ,
       
       PairCases_on ‘h’ >>
-      
-      ‘(if h1' = n' ∧ h2' = n' then (n,n)
-        else if h1' = n' then (n,h2')
-        else if h2' = n' then (h1',n)
-        else (h1',h2')) =
-       (h1,h2)’ by rgs[Once merge_edges_def] >>
-      
-      Cases_on ‘h1' = n' ∧ h2' = n'’ >> rgs[] >>
-      Cases_on ‘h1' = n'’ >> rgs[] >>
-      Cases_on ‘h2' = n'’ >> rgs[] >> gvs[] >|[
+      rgs[Once merge_edges_list_normalize] >>
+      rgs[Once merge_edges_def] >> 
+               
+      Cases_on ‘h1' = n' ∧ h2' = n'’ >> fs[] >>
+      Cases_on ‘h1' = n'’ >> fs[] >>
+      Cases_on ‘h2' = n'’ >> fs[]  >|[
           
-          ‘h0'=h0’ by gvs[merge_edges_def] >>
-          rgs[Once merge_edges_list_normalize] >>
           subgoal ‘MEM (h1,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
           subgoal ‘MEM (h1',a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          rgs[flat_edges_def] >>
           metis_tac[list_merged_flat_membership1]
           ,
-          ‘h0'=h0’ by gvs[merge_edges_def] >>
-          rgs[Once merge_edges_list_normalize] >>
           subgoal ‘MEM (h1,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
           subgoal ‘MEM (h1',a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          rgs[flat_edges_def] >>
           metis_tac[list_merged_flat_membership1]
           ,
-          ‘h0'=h0’ by gvs[merge_edges_def] >>
-          rgs[Once merge_edges_list_normalize] >>
           subgoal ‘MEM (h2,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
           subgoal ‘MEM (h2',a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          rgs[flat_edges_def] >>
           metis_tac[list_merged_flat_membership1]
           ,
-          ‘h0'=h0’ by gvs[merge_edges_def] >>                        
-          rgs[Once merge_edges_list_normalize] >>
           subgoal ‘MEM (n,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
           subgoal ‘MEM (n',a,b) t ’ >- (  metis_tac[merge_edges_membership] ) >>
-
-          rgs[flat_edges_def] >|[
-
-          irule list_merged_flat_membership1 >> gvs[] >>
-          qexistsl_tac [‘a’,‘b’, ‘h1’] >>
-          gvs[]
-          ,
-          irule list_merged_flat_membership1 >> gvs[] >>
-          qexistsl_tac [‘a’,‘b’, ‘h2’] >>
-          gvs[]
-          ,
           Cases_on ‘n=n''’ >> gvs[] >|[
               irule list_not_merged_flat_membership2 >> gvs[] >>
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
               ,
               irule list_merged_flat_membership1 >> gvs[] >>
               qexistsl_tac [‘a’,‘b’, ‘n’] >>
-              gvs[] 
-            ]                  
+              metis_tac[]
             ]
         ]
     ] 
@@ -1708,13 +1655,12 @@ Proof
             qexistsl_tac [‘n’,‘t'’, ‘h0’] >> gvs[] 
             ,
             irule list_not_merged_flat_membership1 >>
-            gvs[]
+            metis_tac[]
           ]
         ,
         rgs[Once merge_edges_list_normalize] >>
 
         irule list_not_merged_flat_membership1 >>
-        rgs[] >>
               
         rgs[flat_edges_def] >>
         (subgoal ‘MEM (n,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
