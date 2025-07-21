@@ -1474,7 +1474,7 @@ QED
         
 
               
-Theorem eliminate_BDD_preserves_correctness:
+Theorem eliminate_BDD_preserves_valid_and_correctness_verbose:
   ∀BDD n nl vars rec.
     
     BDD_WF BDD ∧
@@ -1523,8 +1523,55 @@ QED
 
 
 
-(* TODO: now add those in Valid_BDD rec (BDD:('a,'b)BDD) vars *)
+
+Theorem eliminate_BDD_preserves_valid_and_correctness:
+  ∀BDD n nl vars vars_consumed rec.
+    valid_BDD rec BDD vars vars_consumed ∧
+    correct_sem rec BDD (vars ⧺ vars_consumed)  ⇒       
+    (
+    valid_BDD rec (eliminate_BDD BDD n nl) vars vars_consumed ∧
+    correct_sem rec (eliminate_BDD BDD n nl) (vars ⧺ vars_consumed)
+    )
+        
+Proof
+
+  Induct_on ‘nl’ >-
+   (* Base case: empty list *)
+   fs [eliminate_BDD_def] >>
+  
+  (* Inductive case *)
+  rpt gen_tac >> strip_tac >>
+  fs [eliminate_BDD_def] >>
+  
+  Cases_on ‘eliminable BDD h n’ >> gvs[] >>
+    
+  gvs[valid_BDD_def] >>
+  
+  assume_tac eliminate_correct >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘vars’, ‘vars_consumed’,‘h’, ‘n’, ‘rec’])) >>
+  gvs[] >>
+  
+  ‘fv_in_BDD rec BDD (vars ⧺ vars_consumed)’ by imp_res_tac fv_in_BDD_reverse_triv >>
+  gvs[] >>
+        
+  (*res_tac >>*)
+  ‘BDD_WF (merge BDD h n)’ by imp_res_tac eliminate_wf_preservation >>
+  ‘BDD_ordered (merge BDD h n) vars_consumed’ by imp_res_tac eliminate_order_preservation >>
+  
+  ‘consumed_dom_bdd vars_consumed (merge BDD h n)’ by (imp_res_tac merge_consumed_dom_final_preservation >>
+                                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]))) >>
+
+  imp_res_tac merge_fv_final_preservation  >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]) ) >>
+  gvs[]>>
+
+                                                                     
+  
+  res_tac >>
+  gvs[]
+QED
 
 
+        
 val _ = export_theory ();
 

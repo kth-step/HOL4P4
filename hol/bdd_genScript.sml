@@ -6,16 +6,12 @@ open bitstringTheory;
 open wordsTheory;
 open optionTheory;
 open sumTheory;
-open stringTheory;
 open ottTheory;
 open pairTheory;
 open rich_listTheory;
-open arithmeticTheory;
 open alistTheory;
 open numeralTheory;
-open alistTheory;
 open set_relationTheory;
-open pred_setTheory;
 open pred_setLib;
 
 open p4_auxTheory;
@@ -484,12 +480,12 @@ Definition correct_sem_def:
 End  
 *)
 
-Definition Valid_BDD_def:
-  Valid_BDD rec (BDD:('a,'b)BDD) vars =
+Definition valid_BDD_def:
+  valid_BDD rec (BDD:('a,'b)BDD) vars vars_consumed =
     (BDD_WF BDD  ∧
-    BDD_ordered BDD vars ∧
-    fv_in_BDD rec BDD vars ∧
-    consumed_dom_bdd vars BDD)
+    BDD_ordered BDD vars_consumed ∧
+    fv_in_BDD rec BDD ((REVERSE vars)++vars_consumed) ∧
+    consumed_dom_bdd vars_consumed BDD)
 End  
 
 (******************************************************)
