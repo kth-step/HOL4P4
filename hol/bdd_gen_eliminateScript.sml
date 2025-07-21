@@ -502,7 +502,7 @@ QED
                            
                 
  (* merge = eliminate defs*)       
-Theorem eliminate_correct:        
+Theorem eliminate_correct_bdd_exracted:        
   ∀ r edges labels vars vars_consumed n n' rec .
     correct_sem rec (r,edges,labels) (vars++vars_consumed) ∧
     BDD_WF (r,edges,labels) ∧
@@ -542,6 +542,24 @@ QED
 
 
 
+Theorem eliminate_correct:        
+  ∀ BDD vars vars_consumed n n' rec .
+    correct_sem rec BDD (vars++vars_consumed) ∧
+    BDD_WF BDD ∧
+    consumed_dom_bdd vars_consumed BDD ∧
+    BDD_ordered BDD vars_consumed ∧
+    fv_in_BDD rec BDD (vars++vars_consumed)  ∧
+    eliminable BDD n n'
+    ==>
+    correct_sem rec (merge BDD n n')  (vars++vars_consumed)
+Proof
+  rpt strip_tac >>
+  rw[] >>
+  
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(root, edges, labels)’ >>
+ metis_tac[eliminate_correct_bdd_exracted]
+QED
 
 (*
 
@@ -1467,6 +1485,8 @@ Proof
 QED
 
 
+
+        
 
 
 val _ = export_theory ();
