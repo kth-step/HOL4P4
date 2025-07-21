@@ -128,7 +128,10 @@ Definition BDD_label_length_def:
 End
 
 
-        
+
+
+
+(* termination proof *)
 Theorem merge_trio_extract_triv:
   ∀ r edges labels n n'.
   merge (r,edges,labels) n n' = (r, ADELKEY n' (merge_edges edges n n'), ADELKEY n' labels)
@@ -465,32 +468,45 @@ Definition bdd_one_round_def:
 End
 
 
-Definition bdd_full_optimize_def:
-  bdd_full_optimize (BDD:('a,'b) BDD) =
-  case bdd_one_round BDD = BDD of
-  | T => BDD
-  | F => bdd_full_optimize  (bdd_one_round BDD)   
-Termination
-        
-  WF_REL_TAC `measure BDD_label_length` >>
+
+Theorem bdd_one_round_reduce:
+  ∀ BDD.
+  bdd_one_round BDD ≠ BDD ⇒
+  BDD_label_length (bdd_one_round BDD) < BDD_label_length BDD
+Proof
   rpt strip_tac >>
-  rename1 ‘ bdd_one_round (r,edges,labels) = (r,edges,labels)’ >>
-  
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
   gvs[bdd_one_round_def] >>
   Cases_on ‘bdd_optminzation2 (r,edges,labels) = (r,edges,labels)’ >> gvs[] >|[
     assume_tac bdd_optminzation1_decreases >>
     gvs[]
     ,
+    
     Cases_on ‘bdd_optminzation1 (bdd_optminzation2 (r,edges,labels)) =
               bdd_optminzation2 (r,edges,labels)’  >> gvs[] >|[
         assume_tac bdd_optminzation2_decreases >>
         res_tac 
         ,
-        
         assume_tac bdd_optminzationone_shot_decreases_verbose >>
         res_tac
       ]
-  ]
+  ]                  
+QED
+        
+
+Definition bdd_full_optimize_def:
+  bdd_full_optimize (BDD:('a,'b) BDD) =
+  case bdd_one_round BDD = BDD of
+  | T => BDD
+  | F => bdd_full_optimize  (bdd_one_round BDD)                                      
+Termination
+        
+  WF_REL_TAC `measure BDD_label_length` >>
+  rpt strip_tac >>
+      
+  rename1 ‘ bdd_one_round (r,edges,labels) = (r,edges,labels)’ >>
+  metis_tac[bdd_one_round_reduce]
 End
 
 
@@ -506,7 +522,7 @@ End
 
 (* Helper lemma: merge_BDD preserves correctness
    TODO: add a def for the guarantee...
-    *)
+ *)
 Theorem merge_BDD_preserves_correctness:
   ∀BDD n nl vars rec.
     
@@ -552,8 +568,10 @@ Proof
   ]
 QED
 
+        
 
-(* todo add the rest of the properties, wfness...etc*)        
+
+(* todo add the rest of the properties, wfness...etc in one definition*)        
 (* Helper lemma: operate_opt1 preserves correctness *)
 Theorem operate_opt1_preserves_correctness:
   ∀BDD nl all_nodes vars rec.
@@ -562,15 +580,21 @@ Theorem operate_opt1_preserves_correctness:
     fv_in_BDD rec BDD vars ∧
     consumed_dom_bdd vars BDD ∧
     correct_sem rec BDD vars  ⇒
-    correct_sem rec (operate_opt1 BDD nl all_nodes) vars
+    (BDD_WF (operate_opt1 BDD nl all_nodes) ∧
+     BDD_ordered (operate_opt1 BDD nl all_nodes) vars ∧
+     fv_in_BDD rec (operate_opt1 BDD nl all_nodes) vars ∧
+     consumed_dom_bdd vars (operate_opt1 BDD nl all_nodes) ∧
+     correct_sem rec (operate_opt1 BDD nl all_nodes) vars
+     )
 Proof
 
-  Induct_on ‘nl’ >> rpt strip_tac  >- (
+  Induct_on ‘nl’ >> rpt gen_tac >- (
     (* Base case: empty list *)
     fs [operate_opt1_def]
   ) >>
   
   (* Inductive case *)
+  rpt gen_tac >> strip_tac >>
   fs [operate_opt1_def] >>
   
   (* Apply inductive hypothesis *)
@@ -580,8 +604,7 @@ Proof
   (* Use merge_BDD_preserves_correctness *)
   gvs[] >>
   imp_res_tac merge_BDD_preserves_correctness >>
-  metis_tac[]
-       
+  metis_tac[]  
 QED
 
 
@@ -589,8 +612,18 @@ QED
         
 (* Now the main theorem follows easily *)
 Theorem bdd_optminzation1_preserves_correctness:
-  ∀BDD vars rec. correct_sem rec BDD vars ⇒
-                 correct_sem rec (bdd_optminzation1 BDD) vars
+  ∀BDD vars rec.   
+    BDD_WF BDD ∧
+    BDD_ordered BDD vars ∧
+    fv_in_BDD rec BDD vars ∧
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars ⇒
+    ( BDD_WF (bdd_optminzation1 BDD) ∧
+      BDD_ordered (bdd_optminzation1 BDD) vars ∧
+      fv_in_BDD rec (bdd_optminzation1 BDD) vars ∧
+      consumed_dom_bdd vars (bdd_optminzation1 BDD) ∧
+      correct_sem rec (bdd_optminzation1 BDD) vars
+    )
 Proof
   rpt strip_tac >>
   fs [bdd_optminzation1_def] >>
@@ -601,61 +634,228 @@ Proof
 
   rw[]>>
   (* Apply operate_opt1_preserves_correctness *)
-  irule operate_opt1_preserves_correctness >>
-  fs [] >> cheat
-  (* cheat*)
+  imp_res_tac operate_opt1_preserves_correctness >>
+  metis_tac[] 
 QED
 
 
 
- (* same things here *)       
-Theorem bdd_optminzation2_preserves_correctness:
-  ∀BDD vars rec. correct_sem rec BDD vars ⇒
-                correct_sem rec (bdd_optminzation2 BDD) vars
+
+(* some elimination work*)
+
+(* TODO: move to elimination, and make this elim_correct *)
+Theorem eliminate_correct_not_verbose:        
+  ∀ BDD vars vars_consumed n n' rec .
+    correct_sem rec BDD (vars++vars_consumed) ∧
+    BDD_WF BDD ∧
+    consumed_dom_bdd vars_consumed BDD ∧
+    BDD_ordered BDD vars_consumed ∧
+    fv_in_BDD rec BDD (vars++vars_consumed)  ∧
+    eliminable BDD n n'
+    ==>
+    correct_sem rec (merge BDD n n')  (vars++vars_consumed)
 Proof
-  (* Similar to above - optminzation2 preserves semantics *)
-  cheat
+  rpt strip_tac >>
+  rw[] >>
+  
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(root, edges, labels)’ >>
+ metis_tac[eliminate_correct]
 QED
 
 
 
+                
+Theorem eliminate_BDD_preserves_correctness:
+  ∀BDD n nl vars rec.
+    
+    BDD_WF BDD ∧
+    BDD_ordered BDD vars ∧
+    fv_in_BDD rec BDD vars ∧
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars  ⇒
+                
+    (
+    BDD_WF (eliminate_BDD BDD n nl) ∧
+    BDD_ordered (eliminate_BDD BDD n nl) vars ∧
+    fv_in_BDD rec (eliminate_BDD BDD n nl) vars ∧
+    consumed_dom_bdd vars (eliminate_BDD BDD n nl) ∧
+    correct_sem rec (eliminate_BDD BDD n nl) vars
+    )
+Proof
+  Induct_on ‘nl’ >-
+   (* Base case: empty list *)
+   fs [eliminate_BDD_def] >>
+  
+  (* Inductive case *)
+  rpt gen_tac >> strip_tac >>
+  fs [eliminate_BDD_def] >>
+  
+  Cases_on ‘eliminable BDD h n’ >> gvs[] >|[
+    gvs[] >>
+    assume_tac eliminate_correct_not_verbose >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘[]’, ‘vars’, ‘h’, ‘n’, ‘rec’])) >>
+    gvs[] >>
+    (*res_tac >>*)
+    ‘BDD_WF (merge BDD h n)’ by imp_res_tac eliminate_wf_preservation >>
+    ‘BDD_ordered (merge BDD h n) vars’ by imp_res_tac eliminate_order_preservation >>
+    ‘fv_in_BDD rec (merge BDD h n) vars’ by (imp_res_tac merge_fv_final_preservation >>
+                                             first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]))) >>
+    imp_res_tac merge_consumed_dom_final_preservation >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]) ) >>
+    gvs[]>>
+
+        
+    res_tac >>
+    gvs[]
+    , 
+    metis_tac[]
+  ]
+QED
+
+        
+
+
+Theorem operate_opt2_preserves_correctness:
+  ∀BDD nl all_nodes vars rec.
+    BDD_WF BDD ∧
+    BDD_ordered BDD vars ∧
+    fv_in_BDD rec BDD vars ∧
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars  ⇒
+    (BDD_WF (operate_opt2 BDD nl all_nodes) ∧
+     BDD_ordered (operate_opt2 BDD nl all_nodes) vars ∧
+     fv_in_BDD rec (operate_opt2 BDD nl all_nodes) vars ∧
+     consumed_dom_bdd vars (operate_opt2 BDD nl all_nodes) ∧
+     correct_sem rec (operate_opt2 BDD nl all_nodes) vars
+     )
+Proof
+
+  Induct_on ‘nl’ >> rpt gen_tac >- (
+    (* Base case: empty list *)
+    fs [operate_opt2_def]
+  ) >>
+  
+  (* Inductive case *)
+  rpt gen_tac >> strip_tac >>
+  fs [operate_opt2_def] >>
+  
+  (* Apply inductive hypothesis *)
+  first_x_assum irule >>
+
+                
+  (* Use merge_BDD_preserves_correctness *)
+  gvs[] >>
+  imp_res_tac eliminate_BDD_preserves_correctness >>
+  metis_tac[]  
+QED
+
+
+
+        
+(* Now the main theorem follows easily *)
+Theorem bdd_optminzation2_preserves_correctness:
+  ∀BDD vars rec.   
+    BDD_WF BDD ∧
+    BDD_ordered BDD vars ∧
+    fv_in_BDD rec BDD vars ∧
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars ⇒
+    ( BDD_WF (bdd_optminzation2 BDD) ∧
+      BDD_ordered (bdd_optminzation2 BDD) vars ∧
+      fv_in_BDD rec (bdd_optminzation2 BDD) vars ∧
+      consumed_dom_bdd vars (bdd_optminzation2 BDD) ∧
+      correct_sem rec (bdd_optminzation2 BDD) vars
+    )
+Proof
+  rpt strip_tac >>
+  fs [bdd_optminzation2_def] >>
+  
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(root, edges, labels)’ >>
+
+
+  rw[]>>
+  (* Apply operate_opt1_preserves_correctness *)
+  imp_res_tac operate_opt2_preserves_correctness >>
+  metis_tac[] 
+QED
+
+
+
+
+ (**** GLUE OPT TOGETHER *****)       
+ 
 (* Combining the two optimizations *)
 Theorem bdd_one_round_preserves_correctness:
-  ∀BDD vars rec. correct_sem rec BDD vars ⇒
-                correct_sem rec (bdd_one_round BDD) vars
+  ∀BDD vars rec.
+    BDD_WF BDD ∧
+    BDD_ordered BDD vars ∧
+    fv_in_BDD rec BDD vars ∧
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars ⇒
+    (
+    BDD_WF (bdd_one_round BDD) ∧
+    BDD_ordered (bdd_one_round BDD) vars ∧
+    fv_in_BDD rec (bdd_one_round BDD) vars ∧
+    consumed_dom_bdd vars (bdd_one_round BDD) ∧
+    correct_sem rec (bdd_one_round BDD) vars
+    )            
 Proof
   rw[bdd_one_round_def] >>
   imp_res_tac bdd_optminzation2_preserves_correctness >>
   imp_res_tac bdd_optminzation1_preserves_correctness
 QED
+
+
+
+
         
 
         
 (* Main theorem using strong induction on the termination measure *)
 Theorem bdd_full_optimize_preserves_correctness:
-  ∀BDD vars rec. correct_sem rec BDD vars ⇒
-                 correct_sem rec (bdd_full_optimize BDD) vars
+  ∀BDD vars rec.
+    BDD_WF BDD ∧
+    BDD_ordered BDD vars ∧
+    fv_in_BDD rec BDD vars ∧
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars ⇒
+    (
+    BDD_WF (bdd_full_optimize BDD) ∧
+    BDD_ordered (bdd_full_optimize BDD) vars ∧
+    fv_in_BDD rec (bdd_full_optimize BDD) vars ∧
+    consumed_dom_bdd vars (bdd_full_optimize BDD) ∧
+    correct_sem rec (bdd_full_optimize BDD) vars
+    )
 Proof
   (* Use strong induction on the measure that ensures termination *)
   completeInduct_on ‘BDD_label_length BDD’ >>
-  rw[] >>
+  rpt gen_tac >> strip_tac >>
+  rpt gen_tac >> strip_tac >>
+      
   (* Unfold the definition *)
   once_rewrite_tac[bdd_full_optimize_def] >>
-  rw[] >>
   Cases_on ‘bdd_one_round BDD = BDD’ >> fs[] >>
            
   (* Recursive case: optimization makes progress *)
-  ‘correct_sem rec (bdd_one_round BDD) vars’ by (
-    imp_res_tac bdd_one_round_preserves_correctness
-  ) >>
+  imp_res_tac bdd_one_round_preserves_correctness >>
+
   (* Apply induction hypothesis *)
   subgoal ‘BDD_label_length (bdd_one_round BDD) < BDD_label_length BDD’ >- (
-    (* This follows from your termination proof *)
-    cheat
+    metis_tac[bdd_one_round_reduce]
   ) >>
+    
   (* Apply induction hypothesis *)
   first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD_label_length (bdd_one_round BDD)’])) >>
-  rw[]
+  gvs[] >>
+        
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘(bdd_one_round BDD)’])) >>
+  gvs[] >>
+
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘vars’, ‘rec’])) >>
+  gvs[] 
+       
 QED
 
 
