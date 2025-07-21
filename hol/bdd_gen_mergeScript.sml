@@ -2532,7 +2532,7 @@ QED
 Theorem merge_edges_adelkey_empty_imp_cases:
   ∀edges n n'.
     ADELKEY n' (merge_edges edges n n') = [] ⇒
-    EVERY (λe. FST e = n' ∨ FST (SND e) = n' ∨ SND (SND e) = n') edges
+    EVERY (λe. FST e = n') edges
 Proof
   Induct >> rw[] >>
   
@@ -2612,12 +2612,14 @@ QED
 
                                 
 
-        
+(*********************************)
+(*        MERGE  WFness          *)
+(*********************************)        
 Theorem merge_wf_preservation:        
-  ∀ BDD n n' vars_consumed.
-    BDD_ordered BDD vars_consumed ∧
+  ∀ BDD n n' vars.
+    BDD_ordered BDD vars ∧
     BDD_WF BDD ∧
-    consumed_dom_bdd vars_consumed BDD ∧
+    consumed_dom_bdd vars BDD ∧
     mergable BDD n n'
     ==>
     BDD_WF (merge BDD n n') 
@@ -2655,17 +2657,151 @@ Proof
 QED
 
 
+                    
+
+           
+Theorem order_hold_for_merge: 
+  ∀ r edges labels n n' n'' nl vars.
+    BDD_WF (r,edges,labels) ∧
+    mergable (r,edges,labels) n n' ⇒
+    (
+    (order_hold labels vars n'' n' ⇒ order_hold (ADELKEY n' labels) vars n'' n)
+    ∧
+    ( order_hold labels vars n'' nl ⇒ order_hold (ADELKEY n' labels) vars n'' nl)
+    ) 
+Proof
+  rw[order_hold_def] >>
+  rpt strip_tac >>
+  gvs[mergable_def,ALOOKUP_ADELKEY,BDD_WF_def] >>
+  gvs[eq_vars_in_labels_def] >>
+  rpt (BasicProvers.full_case_tac >> gvs[])
+QED
 
 
 
 
 
+(*********************************)
+(*       MERGE  Order            *)
+(*********************************)       
+Theorem merge_order_preservation:
+  ∀ BDD n n' vars.
+    BDD_ordered BDD vars ∧
+    BDD_WF BDD ∧
+    mergable BDD n n'
+    ⇒
+    BDD_ordered (merge BDD n n') vars 
+Proof
+  rpt strip_tac >>
+                                                
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+  
+  Cases_on ‘edges=[]’ >-
+   (simp[BDD_ordered_def, merge_def, merge_edges_def] >>
+    rpt strip_tac >> gvs[ADELKEY_def]) >>
+  
+  gvs[BDD_ordered_def, merge_def] >>
+  rpt gen_tac >> strip_tac >>
+  rename1 ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = SOME (nl,nr)’ >>
+  
+  Cases_on ‘n''=n'’ >> gvs[]  >|[
+
+    simp[order_hold_def] >>
+    rw[] >>
+    gvs[ALOOKUP_ADELKEY]
+    ,
+    gvs[ALOOKUP_ADELKEY] >>
+    ‘∃x'. ALOOKUP edges n'' = SOME x'’ by metis_tac[merge_lookup_exists] >>
+    PairCases_on ‘x'’ >>
+    rename1 ‘(nl',nr')’ >>
+    
+    (* according to the definition of nerge_edges, a parent of n' will have n' replaced by n,
+       if not it stays the same ... *)
+    rpt strip_tac >|[
+        (* the left part*)
+        
+        Cases_on ‘nl=nl'’ >> gvs[]  >|[
+          (* unaffected by the merge*)
+          first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘nl’, ‘nr'’])) >>
+          gvs[] >>
+          metis_tac[order_hold_for_merge]
+          ,
+          (* afftected by the merge, i.e. a parent of n' left node *)
+          ‘nl'=n' ∧ nl=n’ by metis_tac[merge_parent_change] >>
+          first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘n'’, ‘nr'’])) >>
+          gvs[] >>
+          metis_tac [order_hold_for_merge]
+        ]
+        ,
+        (* the right part*)
+        Cases_on ‘nr=nr'’ >> gvs[]  >|[
+            first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘nl'’, ‘nr’])) >>
+            gvs[] >>
+            metis_tac[order_hold_for_merge]
+            ,
+            ‘nr'=n' ∧ nr=n’ by metis_tac[merge_parent_change] >>
+            first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘nl'’, ‘n'’])) >>
+            gvs[] >>
+            metis_tac [order_hold_for_merge]
+          ]
+      ]
+                    
+  ]
+QED
+                                
 
 
 
 
+(*********************************)
+(*       MERGE  Misc             *)
+(*********************************) 
+
+(* valid for merge and eliminate *)
+Theorem merge_fv_final_preservation:                                
+  ∀ BDD n n' vars rec.
+    fv_in_BDD rec BDD vars  ⇒
+    fv_in_BDD rec (merge BDD n n') vars
+Proof
+
+  rpt strip_tac >>
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+  
+  fs[fv_in_BDD_def, merge_def, fv_in_labels_def] >>
+  rpt strip_tac >>
+  
+  Cases_on ‘n''=n’ >> gvs[ALOOKUP_ADELKEY] >>
+  res_tac
+QED
 
         
+(* valid for merge and eliminate *)
+Theorem merge_consumed_dom_final_preservation:
+  ∀ BDD n n' vars.
+    consumed_dom_bdd vars BDD ⇒
+    consumed_dom_bdd vars (merge BDD n n')
+Proof
+
+ rpt strip_tac >>
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+  
+  fs[consumed_dom_bdd_def, merge_def] >>
+  rpt strip_tac >>
+  
+  Cases_on ‘n''=n’ >> gvs[ALOOKUP_ADELKEY] >>
+  res_tac
+QED
+
+
+
+
+
+                      
+
+                                                                
 
    
 (*******************************************************)
@@ -3456,21 +3592,7 @@ Proof
   metis_tac[]  
 QED
 
-(*        
-Theorem unique_first_elements:
-  ∀l a n.
-    ALL_DISTINCT (MAP FST l) ∧
-    MEM (a,n,n) l ⇒
-    ∀k v1 v2. MEM (k,v1,v2) l ∧ k = a ⇒ (v1 = n ∧ v2 = n)
-Proof
- rpt gen_tac >> strip_tac >>
- imp_res_tac ALOOKUP_ALL_DISTINCT_MEM >>
-             gvs[]
-QED
-*)
-        
-
-
+  
 
 Theorem flat_edges_normalization:
   ∀ l n a b c .        
@@ -3531,14 +3653,94 @@ QED
 
 
 
-         
+
+Theorem MEM_LOOKUP_trio:
+  ∀ l a b c n n'.        
+    ALL_DISTINCT (MAP FST l) ∧
+    MEM (a,b,c) l ⇒
+    ALOOKUP l a = SOME (b,c)     
+Proof                     
+  Induct >> gvs[] >>
+  rpt strip_tac >>
+  Cases_on ‘h’ >> fs[] >>
+  Cases_on ‘q=a’ >> fs[] >>
+  imp_res_tac mem_triple_map_fst
+QED
+
+
+
+Theorem eliminate_snd_edges_membership:
+  ∀ l l' n n' a b h.
+    b = n' ∧
+    ALL_DISTINCT (MAP FST l) ∧
+    MEM (n,a,b) l ∧
+    merge_edges l h n' = l' ⇒
+    ∃ a' . MEM (n,a',h) l'
+Proof
+  Induct_on ‘l’ >>
+  rpt strip_tac >-
+   gvs[merge_edges_def, MEM_MAP]  >>
+  PairCases_on ‘h’ >>
+  fs[] >|[
+    
+    gvs[merge_edges_def, MEM_MAP]  >>
+    Cases_on ‘b=a’ >> gvs[] >|[
+      qexists_tac ‘h'’ >> gvs[]
+      ,
+      qexists_tac ‘a’ >> gvs[]
+    ]
+    ,
+    rgs[Once merge_edges_list_cons] >>
+    res_tac >>
+    gvs[] >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘h'’])) >>
+    qexists_tac ‘a'’ >> gvs[]
+  ]
+QED
+
+
+
+
+Theorem eliminate_fst_edges_membership:
+  ∀ l l' n n' a b h.
+    a = n' ∧
+    ALL_DISTINCT (MAP FST l) ∧
+    MEM (n,a,b) l ∧
+    merge_edges l h n' = l' ⇒
+    ∃ b' . MEM (n,h,b') l'
+Proof
+  Induct_on ‘l’ >>
+  rpt strip_tac >-
+   gvs[merge_edges_def, MEM_MAP]  >>
+  PairCases_on ‘h’ >>
+  fs[] >|[
+    
+    gvs[merge_edges_def, MEM_MAP]  >>
+    Cases_on ‘b=a’ >> gvs[] >|[
+      qexists_tac ‘h'’ >> gvs[]
+      ,
+      qexists_tac ‘b’ >> gvs[]
+    ]
+    ,
+    rgs[Once merge_edges_list_cons] >>
+    res_tac >>
+    gvs[] >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘h'’])) >>
+    qexists_tac ‘b'’ >> gvs[]
+  ]
+QED
+
+
+
+
+
+
+
+
 
 
         
-                
-(* TODO: change the proof, too late now, if it has a parent, then indeed it is not the same,
-  thus in teh ranfe, so when we delete it, its leafs are connected to something, thus wfness hold!
-*)
+    
 Theorem eliminate_dom_range_edges3_imp_adel_key_mem_none:
   ∀ edges n n' n''.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -3553,234 +3755,173 @@ Proof
   rw[] >>
   gvs[dom_range_edges3_def] >>
   gvs[MEM_MAP, ADELKEY_def, MEM_FILTER] >>
-  ‘ ALL_DISTINCT (MAP FST (merge_edges edges n n')) ’ by metis_tac [all_distinct_fst_merge_edges] >>
+  ‘ALL_DISTINCT (MAP FST (merge_edges edges n n')) ’ by metis_tac [all_distinct_fst_merge_edges] >>
 
-
-               
   gvs[ALOOKUP_NONE] >>
   imp_res_tac ALOOKUP_MEM >>
   imp_res_tac mem_triple_map_fst >>
   imp_res_tac mem_input_then_in_flattened >>
-
+  
   Cases_on ‘(merge_edges edges n n') = []’ >-
    gvs[flat_edges_def] >>
   Cases_on ‘(merge_edges edges n n')’ >-
    gvs[flat_edges_def] >>
   PairCases_on ‘h’ >>
-
+  
   gvs[MEM_MAP, ADELKEY_def, MEM_FILTER] >>
   rpt(BasicProvers.FULL_CASE_TAC >> gvs[ALOOKUP_MEM, ALOOKUP_NONE]) >|[
-
+    
     PairCases_on ‘y’ >>
     rename1 ‘MEM (a,b,c) edges’ >>
-                                 
+    subgoal ‘n=b ∧ n=c’ >- (imp_res_tac MEM_LOOKUP_trio >> gvs[]) >>
+    
     gvs[flat_edges_def] >>
     Cases_on ‘n'' = h0 ∨ n'' = h1 ∨ n'' = h2’ >> gvs[] >>
     
     Cases_on ‘edges’ >> gvs[] >|[
       fs[merge_edges_def]
       ,
-       PairCases_on ‘h’ >>
+      PairCases_on ‘h’ >>
       fs[Once merge_edges_list_normalize] >>
-
-       ‘h0' = h0’ by fs[Once merge_edges_def] >>
-       ‘(if h1' = a ∧ h2' = a then (n,n)
-         else if h1' = a then (n,h2')
-         else if h2' = a then (h1',n)
+      
+      ‘h0' = h0’ by fs[Once merge_edges_def] >>
+      ‘(if h1' = a ∧ h2' = a then (b,b)
+         else if h1' = a then (b,h2')
+         else if h2' = a then (h1',b)
          else (h1',h2')) =
         (h1,h2)’ by fs[Once merge_edges_def] >>
-       
-       Cases_on ‘h1' = a ∧ h2' = a’ >> 
-       Cases_on ‘h1' = a’ >> 
-       Cases_on ‘h2' = a’ >> fs[] >|[
+      
+      Cases_on ‘h1' = a ∧ h2' = a’ >> fs[] >> 
+      Cases_on ‘h1' = a’ >> fs[] >>
+      Cases_on ‘h2' = a’ >> fs[]  >|[
           
           fs[flat_edges_def] >>
-          imp_res_tac mem_triple_map_fst >|[
-            irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h0 ∧ c = h0’ by cheat >>
-            rgs[] >>
-            subgoal ‘MEM (a,h0,h0) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][]
+          imp_res_tac mem_triple_map_fst >>
+          irule list_not_merged_flat_membership2 >> fs[] >|[
+            ‘MEM (a,h0,h0) t ’ by ( metis_tac[merge_edges_membership] ) >>
+            metis_tac[]
             ,
-            irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h1 ∧ c = h1’ by cheat >>
-            rgs[] >>
-            Cases_on ‘h1 = a’ >> rgs[] >>
-            subgoal ‘MEM (a,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][]
-          ]
-                                           
+            Cases_on ‘h1 = a’ >> fs[] >>
+            ‘MEM (a,h1,h1) t ’ by ( metis_tac[merge_edges_membership] ) >>
+            metis_tac[]
+          ]                                            
           ,
-
           
           fs[flat_edges_def] >>
-          imp_res_tac mem_triple_map_fst >|[
-              irule list_not_merged_flat_membership2 >>
-              rgs[] >>
-              ‘b = h0 ∧ c = h0’ by cheat >>
-              rgs[] >>
+          imp_res_tac mem_triple_map_fst >>
+          irule list_not_merged_flat_membership2  >|[
               subgoal ‘MEM (a,h0,h0) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
               ,
-              irule list_not_merged_flat_membership2 >>
-              rgs[] >>
-              ‘b = h2 ∧ c = h2’ by cheat >>
-              rgs[] >>
-              Cases_on ‘h2 = a’ >> rgs[] >>
               subgoal ‘MEM (a,h2,h2) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-              srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
               ,
-              irule list_not_merged_flat_membership2 >>
-              rgs[] >>
-              ‘b = h1 ∧ c = h1’ by cheat >>
-              rgs[] >>
-              Cases_on ‘h1 = a’ >> rgs[] >>
               subgoal ‘MEM (a,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][]
+              metis_tac[]
+            ]
+          ,
+          
+          fs[flat_edges_def] >>
+          imp_res_tac mem_triple_map_fst >>
+          irule list_not_merged_flat_membership2  >|[
+              subgoal ‘MEM (a,h0,h0) t ’ >- ( metis_tac[merge_edges_membership] ) >>
+              metis_tac[]
+              ,
+              subgoal ‘MEM (a,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
+              metis_tac[] 
+              ,
+              subgoal ‘MEM (a,h2,h2) t ’ >- ( metis_tac[merge_edges_membership] ) >>
+              metis_tac[]
             ]
           ,
 
-             fs[flat_edges_def] >>
-          imp_res_tac mem_triple_map_fst >|[
-            irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h0 ∧ c = h0’ by cheat >>
-            rgs[] >>
-            subgoal ‘MEM (a,h0,h0) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][]
-            ,
-            irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h1 ∧ c = h1’ by cheat >>
-            rgs[] >>
-            Cases_on ‘h1 = a’ >> rgs[] >>
-            subgoal ‘MEM (a,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][] 
-            ,
-            irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h2 ∧ c = h2’ by cheat >>
-            rgs[] >>
-            Cases_on ‘h2 = a’ >> rgs[] >>
-            subgoal ‘MEM (a,h2,h2) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][]
-            ]
-          ,
           fs[flat_edges_def] >>
           imp_res_tac mem_triple_map_fst >|[
               irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h0 ∧ c = h0’ by cheat >>
-            rgs[] >>
-            subgoal ‘MEM (a,h0,h0) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][]
-            ,
-            irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h1 ∧ c = h1’ by cheat >>
-            rgs[] >>
-            Cases_on ‘h1 = a’ >> rgs[] >>
-            subgoal ‘MEM (a,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][] 
-            ,
-            irule list_not_merged_flat_membership2 >>
-            rgs[] >>
-            ‘b = h2 ∧ c = h2’ by cheat >>
-            rgs[] >>
-            Cases_on ‘h2 = a’ >> rgs[] >>
-            subgoal ‘MEM (a,h2,h2) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            srw_tac [SatisfySimps.SATISFY_ss][]
-            ,
-
-
-
-            fs[] >>
-            ‘b =n ∧ c = n’ by cheat >>
-            fs[] >>
-            Cases_on ‘h2 = a’ >> fs[] >>
-            subgoal ‘MEM (a,n,n) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-            fs[] >>
+              subgoal ‘MEM (a,h0,h0) t ’ >- ( metis_tac[merge_edges_membership] ) >>
+              metis_tac[]
+              ,
+              irule list_not_merged_flat_membership2 >>
+              subgoal ‘MEM (a,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
+              metis_tac[]
+              ,
+              irule list_not_merged_flat_membership2 >>
+              subgoal ‘MEM (a,h2,h2) t ’ >- ( metis_tac[merge_edges_membership] ) >>
+              metis_tac[]
+              ,
+              
+              Cases_on ‘h2 = a’ >> fs[] >> 
+              subgoal ‘MEM (a,b,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
             
-            ‘~ MEM n (MAP FST t')’ by fs[MEM_MAP] >>
-            subgoal ‘has_parent t' n a’ >- ( fs[has_parent_def] )  >>
-
-            subgoal ‘∃parent left right.
-                       MEM (parent,left,right) t' ∧ (left = a ∨ right = a) ∧
-                       parent ≠ a ∧ parent ≠ n’ >- metis_tac[has_parent_imp_exsists] >>
-
-            (* two cases solution is the same *)
-            rgs[] >|[
-                
-                subgoal ‘MEM (parent,n,right') t ’ >- ( cheat (*head_mem_not_changed_in_merge*)) >>
-                metis_tac[list_eliminated_flat_membership3]
-                ,
-                
-                subgoal ‘MEM (parent,left',n) t ’ >- ( cheat ) >>
-                metis_tac[list_eliminated_flat_membership3]
-              ]
+              ‘~ MEM b (MAP FST t')’ by fs[MEM_MAP] >>
+              subgoal ‘has_parent t' b a’ >- ( fs[has_parent_def] )  >>
+              
+              subgoal ‘∃parent left right.
+                         MEM (parent,left,right) t' ∧ (left = a ∨ right = a) ∧
+                         parent ≠ a ∧ parent ≠ b’ >- metis_tac[has_parent_imp_exsists] >>
+              
+              (* two cases solution is the same *)
+              fs[] >|[
+                  
+                  subgoal ‘∃ right'. MEM (parent,b,right') t ’ >- (metis_tac[eliminate_fst_edges_membership]) >>
+                  metis_tac[list_eliminated_flat_membership3]
+                  ,
+                  
+                  subgoal ‘∃ left'. MEM (parent,left',b) t ’ >- (metis_tac[eliminate_snd_edges_membership]) >>
+                  metis_tac[list_eliminated_flat_membership3]
+                ]
+            ]
         ]
-
-    ]
-
-    
     ]
     ,
-        (* second part *)
-      PairCases_on ‘y’ >>
-      rename1 ‘FST (m,q,q')’ >> gvs[] >>
-      
-      (* the node to be eliminated is h1*)
-      ‘n=q ∧ n=q'’ by cheat >>
-      rgs[] >>
-      
-      assume_tac merge_normalize_for_mergable_nodes_concrete >>
-      first_x_assum (strip_assume_tac o (Q.SPECL [‘edges’, ‘t’, ‘m’, ‘h1’, ‘h2’, ‘q’, ‘q'’, ‘n’])) >>
-      gvs[] >>
-      
-      
-      ‘¬ MEM (m,n,n) t’ by gvs[] >> (* from ∀y. h0 = FST y ⇒ ¬MEM y t*)
-      ‘¬MEM m (MAP FST t)’ by gvs[MEM_MAP] >>
-      
-      Cases_on ‘edges = []’ >> gvs[] >>
-      Cases_on ‘edges’ >> gvs[] >|[
+    (* second part *)
+    PairCases_on ‘y’ >>
+    rename1 ‘FST (m,q,q')’ >> gvs[] >>
+    
+    (* the node to be eliminated is h1*)
+    ‘n=q ∧ n=q'’ by (imp_res_tac MEM_LOOKUP_trio >> gvs[]) >>
+    rgs[] >>
+    
+    assume_tac merge_normalize_for_mergable_nodes_concrete >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘edges’, ‘t’, ‘m’, ‘h1’, ‘h2’, ‘q’, ‘q'’, ‘n’])) >>
+    gvs[] >>
+
+    ‘¬ MEM (m,n,n) t’ by gvs[] >> (* from ∀y. h0 = FST y ⇒ ¬MEM y t*)
+    ‘¬MEM m (MAP FST t)’ by fs[MEM_MAP] >>
+    
+    Cases_on ‘edges = []’ >> gvs[] >>
+    Cases_on ‘edges’ >> gvs[] >|[
+        
+        rgs[Once merge_edges_list_normalize] >>
+        rgs[flat_edges_def] >|[
           
-          rgs[Once merge_edges_list_normalize] >>
-          rgs[flat_edges_def] >|[
+          subgoal ‘has_parent t' h1 m’ >- ( fs[has_parent_def] )  >>
+ 
+          subgoal ‘∃parent left right.
+                     MEM (parent,left,right) t' ∧ (left = m ∨ right = m) ∧
+                     parent ≠ m ∧ parent ≠ h1’ >- metis_tac[has_parent_imp_exsists] >|[
             
-            subgoal ‘has_parent t' h1 m’ >- ( fs[has_parent_def] )  >>
-            
-            
-            subgoal ‘∃parent left right.
-                       MEM (parent,left,right) t' ∧ (left = m ∨ right = m) ∧
-                       parent ≠ m ∧ parent ≠ h1’ >- metis_tac[has_parent_imp_exsists] >|[
-              
-              subgoal ‘MEM (parent,h1,right') t ’ >- ( cheat ) >>   (*merge_edges_membership*)
-              (* after def, it will have h1 *)
-              rgs[] >>
-              imp_res_tac flat_edges_mem_triv2         
-              ,
-              subgoal ‘MEM (parent,left',h1) t ’ >- ( cheat ) >>
-              (* after def, it will have h1 *)
-              rgs[] >>
-              imp_res_tac flat_edges_mem_triv2
-            ]
+            subgoal ‘∃ right'. MEM (parent,h1,right') t ’ >- (metis_tac[eliminate_fst_edges_membership]) >>
+            fs[] >>
+            imp_res_tac flat_edges_mem_triv2         
             ,
-            
-            irule list_not_merged_flat_membership1 >> fs[]
-          ]      
+            subgoal ‘∃ left'. MEM (parent,left',h1) t ’ >- (metis_tac[eliminate_snd_edges_membership]) >>
+            fs[] >>
+            imp_res_tac flat_edges_mem_triv2
+          ]
           ,
-          
-          
-          rgs[Once merge_edges_list_normalize] >>
-          rgs[flat_edges_def] >|[
-              subgoal ‘MEM (m,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-              imp_res_tac mem_triple_map_fst
-              ,
-              irule list_not_merged_flat_membership1 >> fs[]
-            ]
-        ]
+          irule list_not_merged_flat_membership1 >> fs[]
+        ]      
+        ,
+                
+        rgs[Once merge_edges_list_normalize] >>
+        rgs[flat_edges_def] >|[
+            subgoal ‘MEM (m,h1,h1) t ’ >- ( metis_tac[merge_edges_membership] ) >>
+            imp_res_tac mem_triple_map_fst
+            ,
+            irule list_not_merged_flat_membership1 >> fs[]
+          ]
+      ]
   ]                           
 QED
 
@@ -3801,9 +3942,6 @@ Proof
   fs[GSYM dom_range_edges1_3_eq] >>
   metis_tac[eliminate_dom_range_edges3_imp_adel_key_mem_none]
 QED  
-
-
-        
 
         
    
@@ -3865,7 +4003,6 @@ Proof
         
         subgoal ‘MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))’ >-
          (
-         ‘has_parent edges n n'’ by cheat >> (*will be here after recompiling the new genScript*)
          irule eliminate_edges_preserve_nodes >>
          srw_tac [SatisfySimps.SATISFY_ss][]
          )>>
@@ -3903,15 +4040,32 @@ Theorem wf_non_empty_after_eliminable:
     eliminable (r,edges,labels) n n' ⇒
     ADELKEY n' (merge_edges edges n n') ≠ []
 Proof
-  cheat (* here *)
+        
+  rw[eliminable_def] >>
+  ‘∃parent left right.
+     MEM (parent,left,right) edges ∧ (left = n' ∨ right = n') ∧
+     parent ≠ n' ∧ parent ≠ n’ by metis_tac[has_parent_imp_exsists] >>
+  gvs[] >>
+  
+  CCONTR_TAC >>
+  gvs[] >>
+  imp_res_tac merge_edges_adelkey_empty_imp_cases >>
+  
+  gvs[EVERY_MEM] >|[
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘(parent,left,right)’])) >>
+    gvs[]
+  ,
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘(parent,left,n')’])) >>
+    gvs[]
+  ]
 QED
 
 
 
-
-
-
-
+        
+(*********************************)
+(*   ELIMINATE  WFness           *)
+(*********************************)
  
 Theorem eliminate_wf_preservation:        
   ∀ BDD n n' vars_consumed.
@@ -3950,12 +4104,149 @@ Proof
 
   imp_res_tac mergable_wf_leafs_some >> gvs[] >> rw[] >>
  
-  (*imp_res_tac wf_non_empty_after_eliminate*) cheat
+  imp_res_tac wf_non_empty_after_eliminable
   
 QED
 
 
 
+
+          
+Theorem order_hold_for_eliminate1: 
+  ∀ r edges labels n n' n'' nl vars_consumed.
+    BDD_WF (r,edges,labels) ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    eliminable (r,edges,labels) n n' ⇒
+    (
+    ( order_hold labels vars_consumed n'' nl ⇒ order_hold (ADELKEY n' labels) vars_consumed n'' nl)
+    ) 
+Proof
+  rw[order_hold_def] >>
+  rpt strip_tac >> 
+  gvs[eliminable_def,ALOOKUP_ADELKEY,BDD_WF_def] >>
+  gvs[eq_vars_in_labels_def] >>
+  rpt (BasicProvers.full_case_tac >> gvs[])
+QED
+
+
+
+Theorem order_hold_for_eliminate2: 
+  ∀ r edges labels n n' n'' nl vars_consumed.
+    BDD_WF (r,edges,labels) ∧
+    consumed_dom_bdd vars_consumed (r,edges,labels) ∧
+    eliminable (r,edges,labels) n n' ⇒
+    (
+    ( order_hold labels vars_consumed n'' n' ∧
+      order_hold labels vars_consumed n' n
+      ⇒ order_hold (ADELKEY n' labels) vars_consumed n'' n)
+    ) 
+Proof
+  rw[order_hold_def] >>
+  rpt strip_tac >> 
+  
+  gvs[ALOOKUP_ADELKEY, eliminable_def] >>
+
+  ‘MEM n' (dom_range_edges edges)’ by gvs[lookup_edges_in_domain] >>
+  subgoal ‘is_lookup_internal labels n'’ >-
+   (gvs[BDD_WF_def] >>
+    gvs[lookup_is_some_def] >>
+    res_tac
+   ) >>
+
+  gvs[is_lookup_internal_def, consumed_dom_bdd_def] >>
+  res_tac >>
+  imp_res_tac MEM_INDEX_OF >> fs[] >>
+  first_assum (strip_assume_tac o (Q.SPECL [‘i''’])) >>
+  res_tac >>                
+  gvs[]
+QED
+
+        
+
+(*********************************)
+(*       ELIMINATE  Order        *)
+(*********************************)      
+Theorem eliminate_order_preservation:
+  ∀ BDD n n' vars_consumed.
+    BDD_ordered BDD vars_consumed ∧
+    BDD_WF BDD ∧
+    consumed_dom_bdd vars_consumed BDD ∧
+    eliminable BDD n n'
+    ⇒
+    BDD_ordered (merge BDD n n') vars_consumed 
+Proof
+  rpt strip_tac >>
+  (* we know that it is WF *)
+  (*‘BDD_WF (merge BDD n n')’ by imp_res_tac merge_wf_preservation >>*)
+                                                
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+  
+  Cases_on ‘edges=[]’ >-
+   (simp[BDD_ordered_def, merge_def, merge_edges_def] >>
+    rpt strip_tac >> gvs[ADELKEY_def]) >>
+  
+  gvs[BDD_ordered_def, merge_def] >>
+  rpt gen_tac >> strip_tac >>
+  rename1 ‘ALOOKUP (ADELKEY n' (merge_edges edges n n')) n'' = SOME (nl,nr)’ >>
+  
+  Cases_on ‘n''=n'’ >> gvs[]  >|[
+
+    simp[order_hold_def] >>
+    rw[] >>
+    gvs[ALOOKUP_ADELKEY]
+    ,
+    gvs[ALOOKUP_ADELKEY] >>
+    ‘∃x'. ALOOKUP edges n'' = SOME x'’ by metis_tac[merge_lookup_exists] >>
+    PairCases_on ‘x'’ >>
+    rename1 ‘(nl',nr')’ >>
+    
+    (* according to the definition of nerge_edges, a parent of n' will have n' replaced by n,
+       if not it stays the same ... *)
+    rpt strip_tac >|[
+        (* the left part*)
+
+        Cases_on ‘nl=nl'’ >> gvs[]  >|[
+          (* unaffected by the merge*)
+          first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘nl’, ‘nr'’])) >>
+          gvs[] >>
+          metis_tac[order_hold_for_eliminate1]
+          ,
+          (* afftected by the merge, i.e. a parent of eliminated n', at left node *)
+          ‘nl'=n' ∧ nl=n’ by metis_tac[merge_parent_change] >>
+          ‘ALOOKUP edges n' = SOME (n,n)’ by gvs[eliminable_def] >>
+          first_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘n'’, ‘nr'’])) >>
+          first_assum (strip_assume_tac o (Q.SPECL [‘n'’, ‘n’, ‘n’])) >>
+          res_tac >>
+          metis_tac [order_hold_for_eliminate2]
+        ]
+        ,
+        (* the right part*)
+        Cases_on ‘nr=nr'’ >> gvs[]  >|[
+            (* unaffected by the merge*)
+            first_x_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘nl'’, ‘nr’])) >>
+            gvs[] >>
+            metis_tac[order_hold_for_eliminate1]
+            ,
+            (* afftected by the merge, i.e. a parent of eliminated n', at left node *)
+            ‘nr'=n' ∧ nr=n’ by metis_tac[merge_parent_change] >>
+            ‘ALOOKUP edges n' = SOME (n,n)’ by gvs[eliminable_def] >>
+            first_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘nl’, ‘n'’])) >>
+            first_assum (strip_assume_tac o (Q.SPECL [‘n'’, ‘n’, ‘n’])) >>
+            res_tac >>
+            metis_tac [order_hold_for_eliminate2]
+          ]
+      ]
+                    
+  ]
+QED
+
+
+
+
+
+
+        
 
 
         
@@ -4445,19 +4736,20 @@ move the auxiliary functions to BDD aux
     *)
 Theorem merge_BDD_preserves_correctness:
   ∀BDD n nl vars rec.
-
+    
     BDD_WF BDD ∧
-    consumed_dom_bdd vars BDD ∧
     BDD_ordered BDD vars ∧
     fv_in_BDD rec BDD vars ∧
-  
-    correct_sem rec BDD vars ⇒
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars  ⇒
                 
-    (correct_sem rec (merge_BDD BDD n nl) vars ∧
-     fv_in_BDD rec (merge_BDD BDD n nl) vars ∧
-     BDD_ordered (merge_BDD BDD n nl) vars ∧
-     consumed_dom_bdd vars (merge_BDD BDD n nl) ∧
-     BDD_WF (merge_BDD BDD n nl))
+    (
+    BDD_WF (merge_BDD BDD n nl) ∧
+    BDD_ordered (merge_BDD BDD n nl) vars ∧
+    fv_in_BDD rec (merge_BDD BDD n nl) vars ∧
+    consumed_dom_bdd vars (merge_BDD BDD n nl) ∧
+    correct_sem rec (merge_BDD BDD n nl) vars
+    )
 Proof
   Induct_on ‘nl’ >-
    (* Base case: empty list *)
@@ -4475,32 +4767,28 @@ Proof
     gvs[] >>
     (*res_tac >>*)
     ‘BDD_WF (merge BDD n h)’ by imp_res_tac merge_wf_preservation >>
-    ‘fv_in_BDD rec (merge BDD n h) vars’ by cheat >>
-    ‘BDD_ordered (merge BDD n h) vars’ by cheat >>
-    ‘consumed_dom_bdd vars (merge BDD n h)’ by cheat >>
+    ‘BDD_ordered (merge BDD n h) vars’ by imp_res_tac merge_order_preservation >>
+    ‘fv_in_BDD rec (merge BDD n h) vars’ by (imp_res_tac merge_fv_final_preservation >>
+                                             first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
+    ‘consumed_dom_bdd vars (merge BDD n h)’ by (imp_res_tac merge_consumed_dom_final_preservation >>
+                                             first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
     res_tac >>
-    gvs[] >>
-    cheat
-    (*use old thm here*)
+    gvs[]
     , 
-    gvs[] >>
-    res_tac >>
-    cheat
+    metis_tac[]
   ]
-        
 QED
 
 
-        
+(* todo add the rest of the properties, wfness...etc*)        
 (* Helper lemma: operate_opt1 preserves correctness *)
 Theorem operate_opt1_preserves_correctness:
   ∀BDD nl all_nodes vars rec.
     BDD_WF BDD ∧
-    consumed_dom_bdd vars BDD ∧
     BDD_ordered BDD vars ∧
     fv_in_BDD rec BDD vars ∧
-       
-    correct_sem rec BDD vars ⇒
+    consumed_dom_bdd vars BDD ∧
+    correct_sem rec BDD vars  ⇒
     correct_sem rec (operate_opt1 BDD nl all_nodes) vars
 Proof
 
@@ -4517,9 +4805,10 @@ Proof
 
                 
   (* Use merge_BDD_preserves_correctness *)
-  gvs[] >> cheat
-  (*irule merge_BDD_preserves_correctness >>
-  fs [] *)
+  gvs[] >>
+  imp_res_tac merge_BDD_preserves_correctness >>
+  metis_tac[]
+       
 QED
 
 
