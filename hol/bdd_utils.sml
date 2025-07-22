@@ -2,6 +2,8 @@ open HolKernel boolLib bossLib Parse;
 open listTheory pairTheory optionTheory;
 open pairSyntax numSyntax listSyntax stringSyntax optionSyntax;
 
+structure BDDUtils = struct
+
 
 fun pairBDDs (bdd1: term, bdd2: term) =
 let
@@ -384,7 +386,7 @@ fun create_final_result table_a table_b table_actions =
     Parse.Term [QUOTE full_str]
   end;
 
-
+end;
 
 (*
 (* Individual table generation *)
