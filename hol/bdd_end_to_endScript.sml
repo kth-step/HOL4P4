@@ -160,6 +160,8 @@ Proof
   gvs[fv_in_BDD_def, fv_in_labels_def] >>
   gvs[Once fv_vars_reverse]
 QED
+
+        
         
 Theorem table_mk_bdd_correct_thm:
   ∀ var_table vars BDD mv.
@@ -512,8 +514,330 @@ Proof
 QED
 
 
+
+(**************************************)
+(*           mk_BDDPred_OPT           *)
+(**************************************)
+
+
+Theorem table_mk_bdd_correct_valid_opt_thm:
+  ∀ var_table vars BDD mv.
+    ALL_DISTINCT vars ∧
+    fv_in_vars table_structure var_table vars ∧
+    SOME BDD = mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, var_table))]) [] vars 1 ⇒
+    (correct_sem table_structure BDD (REVERSE vars) ∧
+     valid_BDD table_structure BDD [] (REVERSE vars))
+Proof
+  
+  rpt strip_tac >>
+  assume_tac (INST_TYPE [“:'a” |-> “: (('a table) list # num)”, “:'b” |-> “: 'a action_expr”]
+                        correct_sem_valid_translation_opt)  >>
+                        
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘vars’, ‘[]’,
+                                              ‘(0,[],[(0,non_termn (NONE,(var_table)))])’,
+                                              ‘BDD’, ‘table_structure’, ‘1’])) >> 
+
+  gvs[prop1_var_tables, prop2_var_tables, prop3_var_tables, prop4_var_tables] >>           
+  gvs[correct_sem_table_structure_root] >>
+  gvs[valid_BDD_def] >>
+  gvs[BDD_ordered_def, range_c_def] >>
+  gvs[consumed_dom_bdd_def] >>
+  gvs[BDD_WF_init] >>
+  gvs[fv_in_BDD_def, fv_in_labels_def] >>
+  gvs[Once fv_vars_reverse]
+QED   
+
+
+
+Theorem policy_mk_bdd_correct_valid_opt_thm:
+  ∀ var_policy vars BDD mv.
+    ALL_DISTINCT vars ∧
+    fv_in_vars policy_structure var_policy vars ∧
+    SOME BDD = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 ⇒
+    (correct_sem policy_structure BDD (REVERSE vars) ∧
+     valid_BDD policy_structure BDD [] (REVERSE vars))
+Proof
+  
+  rpt strip_tac >>
+  assume_tac (INST_TYPE [“:'a” |-> “: (pred # 'a) list”, “:'b” |-> “: 'a”]
+                        correct_sem_valid_translation_opt)  >>
+                        
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘vars’, ‘[]’,
+                                              ‘(0,[],[(0,non_termn (NONE,(var_policy)))])’,
+                                              ‘BDD’, ‘policy_structure’, ‘1’])) >> 
+
+  gvs[prop1_policy,prop2_policy,prop3_policy,prop4_policy] >>
+  gvs[correct_sem_policy_structure_root] >>
+  gvs[valid_BDD_def] >>
+  gvs[BDD_ordered_def, range_c_def] >>
+  gvs[consumed_dom_bdd_def] >>
+  gvs[BDD_WF_init] >>
+  gvs[fv_in_BDD_def, fv_in_labels_def] >>
+  gvs[Once fv_vars_reverse]
+QED   
+
+
+(*
+Definition blah_def:
+  blah 0 = T ∧
+  blah (x:num) = (∀y.(y:num)>=0)       
+End
+
+EVAL “blah 0”;
+EVAL “blah (1:num)”;
+
+Definition blah_def:
+  blah (x:bool) =
+        if x then T else (∀(y:num).y>=0)       
+End
+        
+SIMP_CONV (bool_ss) [blah_def] (“blah T”) 
+SIMP_CONV (bool_ss) [blah_def] (“blah F”) 
+     
+Theorem blah_thm1:
+  ∀ x. blah x
+Proof
+  gvs[blah_def]
+        
+QED
+*)
+
+
+
+
+
+Triviality prop_means_in_labels:        
+  ∀ BDD n a.
+    prop_in_BDD n BDD = SOME a ⇒
+    node_in_labels n BDD
+Proof
+  rpt strip_tac >>
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+
+  gvs[prop_in_BDD_def, node_in_labels_def, get_prop_def] >>
+  fs[AllCaseEqs()] >>
+  imp_res_tac ALOOKUP_MEM >>
+  imp_res_tac mem_fst_snd >>
+  gvs[] 
+QED
+
+
+                 
+
+        
+Theorem correct_var_policy_var_tables_opt_thm1:
+  ∀ var_policy var_table I vars BDD BDD' .
+    
+    isIsomorph I BDD BDD' ∧
+    ALOOKUP I 0 = SOME 0 ∧
+    node_in_BDD 0 BDD ∧
+    node_in_BDD 0 BDD' ∧
+
+    prop_in_BDD 0 BDD = SOME var_policy ∧
+    prop_in_BDD 0 BDD' = SOME var_table ∧
+                
+       
+    SOME BDD = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 ∧
+    SOME BDD'= mk_BDDPred_opt table_structure  (0,[],[(0, non_termn (NONE, var_table ))]) [] vars 1 ∧
+  
+    (fv_in_vars table_structure var_table vars ∧
+     fv_in_vars policy_structure var_policy vars ∧
+     ALL_DISTINCT vars ∧
+     vars ≠ [] )
+
+    ⇒
+    (∀ mv .   mv_dom_vars mv vars ⇒
+              sem_policy var_policy mv = sem_tables var_table mv)
+Proof  
+  rpt strip_tac >>
+
+  (* 1. we know that given this layout of initial BDD, then
+     for sure the final BDDs are correct w.r.t. any node *)
+  imp_res_tac table_mk_bdd_correct_valid_opt_thm >>
+  imp_res_tac policy_mk_bdd_correct_valid_opt_thm >>
+
+              
+  subgoal ‘∃ b. BDD_sem policy_structure BDD mv 0 b ∧
+           ∃ b'. BDD_sem table_structure BDD' mv 0 b'’ >-
+   (
+   ‘node_in_labels 0 BDD’ by gvs[prop_means_in_labels] >>
+   ‘node_in_labels 0 BDD'’ by gvs[prop_means_in_labels] >>
+   gvs[valid_BDD_def] >>
+   ‘mv_dom_vars mv ([] ⧺ REVERSE vars)’ by gvs[mv_dom_vars_def] >>
+   imp_res_tac BDD_sem_exsists_label_init >> 
+   gvs[]
+   ) >>         
+
+
+  PairCases_on ‘BDD’  >> rename1 ‘BDD_sem policy_structure (r, edges, labels ) mv 0 b’ >>
+  PairCases_on ‘BDD'’ >> rename1 ‘BDD_sem table_structure  (r',edges',labels') mv 0 b'’ >>
+
+  (* 2. now we can show that for the root node's contents (policy and table),
+        it's BDD semantics is teh same as we gave in the BDD semantics *)             
+  subgoal ‘(b  = op_sem policy_structure (get_prop labels  0) mv) ∧
+           (b' = op_sem table_structure  (get_prop labels' 0) mv )’ >-
+   (
+   ‘mv_dom_vars mv (REVERSE vars)’ by gvs[mv_dom_vars_def] >>
+   gvs[correct_sem_def] >>
+   res_tac >>
+   gvs[]
+   ) >>
+  
+ 
+  subgoal ‘BDD_sem policy_structure (r,edges,labels) mv 0 b ⇔
+           BDD_sem table_structure (r',edges',labels') mv 0 b’ >- (
+  ‘mv_dom_vars mv (REVERSE vars)’ by gvs[mv_dom_vars_def] >>
+  irule isomorphism_preserves_semantics >>
+  gvs[valid_BDD_def] >>
+  srw_tac [SatisfySimps.SATISFY_ss][] 
+  ) >>
+  
+  
+  subgoal ‘get_prop labels 0 = SOME var_policy ∧
+           get_prop labels' 0 = SOME var_table’ >- (
+  gvs[node_in_labels_def, prop_in_BDD_def, get_prop_def] >> res_tac >> gvs[]
+  ) >>
+  
+  
+  gvs[] >>    
+  ‘op_sem policy_structure (SOME var_policy) mv =
+   op_sem table_structure (SOME var_table) mv’ by imp_res_tac BDD_sem_determ >>
+  gvs[] >>
+  
+  imp_res_tac final_sem_eq_triv >>
+  gvs[op_sem_def, policy_structure_def, table_structure_def]
+
+QED
+
+
+
+
+Definition fv_in_vars_exec_def:
+  fv_in_vars_exec rec p vars=
+  EVERY (λx. MEM x vars) (rec.fv p)
+End
+
+
+
+
+Theorem fv_in_vars_abs_exec_eq:
+  ∀ rec p vars.
+    fv_in_vars_exec rec p vars = fv_in_vars rec p vars
+Proof
+  rw[fv_in_vars_exec_def, fv_in_vars_def] >>
+  gvs[EVERY_MEM]
+QED
+
+
+Definition correct_var_policy_var_tables_exec_def:
+  correct_var_policy_var_tables_exec var_policy var_table vars I =
+  let BDD1_opt = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 in
+    let BDD2_opt = mk_BDDPred_opt table_structure  (0,[],[(0, non_termn (NONE, var_table ))]) [] vars 1 in
+      if  ~ IS_SOME(BDD1_opt) \/  ~ IS_SOME (BDD2_opt) then
+	T
+      else let BDD1 = THE BDD1_opt in let BDD2 = THE BDD2_opt in
+          if  (isIsomorph_exec (I: (num #num) list) BDD1 BDD2 ∧
+              ALOOKUP I 0 = SOME 0 ∧
+              node_in_BDD 0 BDD1 ∧
+              node_in_BDD 0 BDD2 ∧
+              prop_in_BDD 0 BDD1 = SOME var_policy ∧
+              prop_in_BDD 0 BDD2 = SOME var_table ∧
+              fv_in_vars_exec table_structure var_table vars ∧
+              fv_in_vars_exec policy_structure var_policy vars ∧
+              ALL_DISTINCT vars ∧
+              vars ≠ []) then
+
+            (! mv.  mv_dom_vars mv vars ⇒
+                   sem_policy var_policy mv = sem_tables var_table mv)
+          else 
+            T
+End
+
+
+
+Theorem isIsomorph_exe_abs_imp:
+  ∀ BDD1 BDD2 I.
+    isIsomorph_exec I (BDD1:('a,'b) BDD) (BDD2:('c,'b) BDD) ⇒ isIsomorph I BDD1 BDD2
+Proof
+                             
+  rpt strip_tac >>
+  PairCases_on ‘BDD1’ >>
+  PairCases_on ‘BDD2’ >>
+  rename1 ‘isIsomorph_exec I' (r1,edges1,labels1) (r2,edges2,labels2)’ >>
+  
+  gvs[isIsomorph_exec_def, isIsomorph_def] >>
+    
+  rpt strip_tac >>
+  
+  (
+  Cases_on ‘their_i_map I' (dom_range_edges edges1)’ >-
+   gvs[apply_iso_check_for_nodes_def, their_i_map_def, dom_range_edges_def, node_in_BDD_def] >>
+   
+  PairCases_on ‘h’ >>
+  rename1 ‘their_i_map I' (dom_range_edges edges1) = (n1',n1_map')::t’ >>
+  gvs[apply_iso_check_for_nodes_def, apply_iso_check_def] >>
+                                     
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  gvs[node_in_BDD_def] >>
+  gvs[their_i_map_def] >>
+  
+  Cases_on ‘dom_range_edges edges1’ >> gvs[] >>
+  Cases_on ‘h=n1’ >> gvs[] >>
+  
+  gvs[EVERY_MAP] >>
+  gvs[EVERY_MEM] >>
+  res_tac >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  
+  rpt strip_tac >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  res_tac)
+QED
+
+        
+
+Theorem correct_var_policy_var_tables_exec_thm1:
+ ∀ var_policy var_table  vars I.
+ correct_var_policy_var_tables_exec var_policy var_table  vars I
+Proof
+  rgs[correct_var_policy_var_tables_exec_def] >>
+  rpt strip_tac >>
+      
+  Cases_on ‘mk_BDDPred_opt policy_structure
+            (0,[],[(0,non_termn (NONE,var_policy))]) [] vars 1’ >> gvs[] >>
+
+  Cases_on ‘mk_BDDPred_opt table_structure
+          (0,[],[(0,non_termn (NONE,var_table))]) [] vars 1 ’ >> gvs[] >>
+
+
+  gvs[fv_in_vars_abs_exec_eq] >>
+
+(*  assume_tac (INST_TYPE [“:'a ”|-> “:(pred # 'a action_expr) list”,
+                         “:'c ”|-> “:(atom_var list # num # 'a action_expr) list list # num”,
+                         “:'b ”|-> “: 'a  action_expr”] isIsomorph_exe_abs_eq)  >>
+
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘x’, ‘x'’, ‘I'’])) >>
+ rgs[EQ_IMPLIES]                  
+  *)           
+
+  imp_res_tac isIsomorph_exe_abs_imp >>
+       
+  assume_tac correct_var_policy_var_tables_opt_thm1 >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘var_policy’,‘var_table’, ‘I'’, ‘vars’,‘x’, ‘x'’])) >>             
+  gvs[]
+QED
+        
+
+
+
+
+
+
+
     
 
  
 
 val _ = export_theory ();
+
