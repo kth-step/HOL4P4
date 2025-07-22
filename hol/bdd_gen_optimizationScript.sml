@@ -365,29 +365,8 @@ Proof
 
  gvs[]
 QED
-       
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          
-        
+      
+    
 
         
 Theorem correct_sem_valid_translation_opt:
