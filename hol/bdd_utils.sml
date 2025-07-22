@@ -5,56 +5,71 @@ open pairSyntax numSyntax listSyntax stringSyntax optionSyntax;
 structure BDDUtils = struct
 
 
-fun pairBDDs (bdd1: term, bdd2: term) =
-let
-    open pairSyntax numSyntax listSyntax;
+  fun pairBDDs (bdd1: term, bdd2: term) =
+      let
+        open pairSyntax numSyntax listSyntax;
     
-    (* Helper: Convert HOL num to Arbnum.num *)
-    fun num_to_arbnum num_term = 
-        if is_numeral num_term then
-            dest_numeral num_term
-        else raise Fail "Not a numeral";
+
+
+        (* Helper: Convert HOL num to Arbnum.num *)
+        fun num_to_arbnum num_term = 
+            if is_numeral num_term then
+              dest_numeral num_term
+            else raise Fail "Not a numeral";
     
-    (* Helper: Convert edge list *)
-    fun convert_edges edges_term =
-        let
-            val (list_items, _) = dest_list edges_term
-            fun convert_item item_term =
-                let
+        (* Helper: Convert edge list *)
+        fun convert_edges edges_term =
+            let
+              val (list_items, _) = dest_list edges_term
+              fun convert_item item_term =
+                  let
                     val (node, children) = dest_pair item_term
                     val (left, right) = dest_pair children
-                in
+                  in
                     (num_to_arbnum node, (num_to_arbnum left, num_to_arbnum right))
-                end
-        in
-            map convert_item list_items
-        end;
+                  end
+            in
+              map convert_item list_items
+            end;
+
+
+
     
-    (* Destructure BDD terms as nested pairs *)
-    val (root1_t, rest1) = dest_pair bdd1
-    val (edges1_t, labels1_t) = dest_pair rest1
-    val (root2_t, rest2) = dest_pair bdd2
-    val (edges2_t, labels2_t) = dest_pair rest2
+        (* Destructure BDD terms as nested pairs *)
+        val (root1_t, rest1) = dest_pair bdd1
+        val (edges1_t, labels1_t) = dest_pair rest1
+        val (root2_t, rest2) = dest_pair bdd2
+        val (edges2_t, labels2_t) = dest_pair rest2
     
-    val root1 = num_to_arbnum root1_t
-    val root2 = num_to_arbnum root2_t
-    val edges1 = convert_edges edges1_t
-    val edges2 = convert_edges edges2_t
+        val root1 = num_to_arbnum root1_t
+        val root2 = num_to_arbnum root2_t
+        val edges1 = convert_edges edges1_t
+        val edges2 = convert_edges edges2_t
     
-    (* Lookup children in edge list *)
-    fun lookupChildren node edges =
-        case List.find (fn (n, _) => Arbnum.compare(n, node) = EQUAL) edges of
-            SOME (_, (l, r)) => (SOME l, SOME r)
-          | NONE => (NONE, NONE)
+
+
+        (* Lookup children in edge list *)
+        fun lookupChildren node edges =
+            case List.find (fn (n, _) => Arbnum.compare(n, node) = EQUAL) edges of
+              SOME (_, (l, r)) => (SOME l, SOME r)
+            | NONE => (NONE, NONE)
+
+
+
+
+
     
-    val queue = ref [(root1, root2)]
-    val visited = ref []
+        val queue = ref [(root1, root2)]
+        val visited = ref []
     
-    fun processQueue () =
-        case !queue of
-            [] => rev (!visited)
-          | (n1, n2)::rest =>
-            let
+
+
+
+        fun processQueue () =
+            case !queue of
+              [] => rev (!visited)
+            | (n1, n2)::rest =>
+              let
                 fun isVisited pair = List.exists (fn p => p = pair) (!visited)
                 val _ = queue := rest
                 val newPair = (n1, n2)
@@ -62,329 +77,353 @@ let
                 val (l1, r1) = lookupChildren n1 edges1
                 val (l2, r2) = lookupChildren n2 edges2
                 val newLeft = 
-                    case (l1, l2) of
-                        (SOME left1, SOME left2) => [(left1, left2)]
-                      | _ => []
+                  case (l1, l2) of
+                    (SOME left1, SOME left2) => [(left1, left2)]
+                  | _ => []
                 val newRight = 
-                    case (r1, r2) of
-                        (SOME right1, SOME right2) => [(right1, right2)]
-                      | _ => []
+                  case (r1, r2) of
+                    (SOME right1, SOME right2) => [(right1, right2)]
+                  | _ => []
                 val newPairs = newLeft @ newRight
                 val notVisited = List.filter (fn pair => not (isVisited pair)) newPairs
-            in
+              in
                 queue := !queue @ notVisited;
                 processQueue ()
+              end
+
+        (* Convert result to HOL term *)
+        fun to_hol_pair (a, b) = 
+            mk_pair(mk_numeral a, mk_numeral b)
+        val arbnum_pairs = processQueue ()
+      in
+        mk_list(map to_hol_pair arbnum_pairs, 
+          mk_prod(num, num))
+      end
+
+
+
+
+
+  (* Helper function to generate all possible combinations of True/False for variables *)
+  fun generate_combinations vars =
+      let
+        fun make_var_term v = ``Var ^(fromMLstring v)``
+        fun make_not_var_term v = ``Not (Var ^(fromMLstring v))``
+    
+        fun combinations [] = [[]]
+          | combinations (v::vs) = 
+            let 
+              val rest = combinations vs
+              val var_term = make_var_term v
+              val not_var_term = make_not_var_term v
+            in 
+              (map (fn combo => var_term::combo) rest) @ 
+              (map (fn combo => not_var_term::combo) rest)
+            end
+      in 
+        combinations vars
+      end;
+
+
+
+
+  (* Helper function to get all variables in a group *)
+  fun get_all_vars_in_group groupings group_name =
+      case List.find (fn (name, _) => name = group_name) groupings of
+        SOME (_, vars) => vars
+      | NONE => [];
+
+
+
+  (* Generate action table for terminal nodes *)
+  fun generate_action_table bdd_term =
+      let
+        val (start_state_term, rest) = dest_pair bdd_term
+        val (edges_term, labelings_term) = dest_pair rest
+    
+        val labelings_list = fst (dest_list labelings_term)
+        val labelings = map (fn label_term => 
+              let val (id_term, label) = dest_pair label_term
+              in (int_of_term id_term, label)
+              end) labelings_list
+    
+        val terminal_entries = List.mapPartial (fn (node_id, label) =>
+              let
+                val (constructor, args) = dest_comb label
+              in
+                if same_const constructor ``termn`` then
+                  let val (action_term, _) = dest_pair args
+                  in
+                    SOME ``([True], ^(term_of_int node_id), ^action_term)``
+                  end
+                else NONE
+              end handle HOL_ERR _ => NONE
+          ) labelings
+      in
+        terminal_entries
+      end;
+
+
+
+
+  (* Enhanced find_paths_for_group that handles input states *)
+  fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states =
+      let
+        (* Extract components from the BDD term *)
+        val (start_state_term, rest) = dest_pair bdd_term
+        val (edges_term, labelings_term) = dest_pair rest
+    
+
+
+        (* Extract edges and labelings *)
+        val edges_list = fst (dest_list edges_term)
+        val edges = map (fn edge_term => 
+              let 
+                val (parent, rest) = dest_pair edge_term
+                val (left_child, right_child) = dest_pair rest
+              in 
+                (int_of_term parent, int_of_term left_child, int_of_term right_child)
+              end) edges_list
+
+
+    
+        val labelings_list = fst (dest_list labelings_term)
+        val labelings = map (fn label_term => 
+              let val (id_term, label) = dest_pair label_term
+              in (int_of_term id_term, label)
+              end) labelings_list
+    
+
+
+        (* Extract groupings *)
+        val groupings_list = fst (dest_list groupings_term)
+        val groupings = map (fn group_term =>
+              let 
+                val (name_term, vars_term) = dest_pair group_term
+                val name = fromHOLstring name_term
+                val vars_list = fst (dest_list vars_term)
+                val vars = map fromHOLstring vars_list
+              in
+                (name, vars)
+              end) groupings_list
+
+              
+    
+        val group_vars = get_all_vars_in_group groupings group_name
+        val _ = print ("Group vars for " ^ group_name ^ ": [" ^ String.concatWith ", " group_vars ^ "]\n")
+        val _ = print ("Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n")
+    
+
+
+        (* Helper functions *)
+        fun get_children node_id =
+            case List.find (fn (parent, _, _) => parent = node_id) edges of
+              SOME (_, left, right) => (SOME left, SOME right)
+            | NONE => (NONE, NONE)
+    
+
+
+        fun get_node_variable node_id =
+            case List.find (fn (id, _) => id = node_id) labelings of
+              SOME (_, label) => 
+                (let
+                    val (constructor, args) = dest_comb label
+                  in
+                    if same_const constructor ``non_termn`` then
+                      let val (opt_term, _) = dest_pair args
+                      in
+                        case dest_some opt_term of
+                          var_name_term => SOME (fromHOLstring var_name_term)
+                      end
+                    else NONE
+                  end handle HOL_ERR _ => NONE)
+            | NONE => NONE
+
+
+    
+        fun node_in_group node_id =
+            case get_node_variable node_id of
+              SOME var_name => List.exists (fn v => v = var_name) group_vars
+            | NONE => false
+
+
+    
+        (* Traverse from a given starting node *)
+        fun traverse_group current_node path =
+            if node_in_group current_node then
+              let
+                val (left_child, right_child) = get_children current_node
+                val var_name = get_node_variable current_node
+              in
+                case (var_name, left_child, right_child) of
+                  (SOME v, SOME l, SOME r) =>
+                    (traverse_group l (path @ [(v, true)])) @
+                    (traverse_group r (path @ [(v, false)]))
+                | _ => [(path, current_node)]
+              end
+            else
+              [(path, current_node)]
+
+
+    
+        (* Generate paths from all input states *)
+        val all_paths = List.concat (map (fn input_state => 
+                let 
+                  val paths = traverse_group input_state []
+                  val _ = print ("From input state " ^ Int.toString input_state ^ 
+                      ": " ^ Int.toString (length paths) ^ " paths\n")
+                in
+                  map (fn (path, exit_state) => (input_state, path, exit_state)) paths
+                end) input_states)
+
+
+    
+        (* Convert to table entries *)
+        fun path_to_entry (input_state, path, exit_state) =
+            let
+              val atom_vars = map (fn (var, value) =>
+                    if value then ``Var ^(fromMLstring var)``
+                    else ``Not (Var ^(fromMLstring var))``
+                ) path
+        
+              val simplified_atoms = 
+                if null path then [``True``]
+                else atom_vars
+            in
+              ``(^(mk_list (simplified_atoms, ``:atom_var``)), 
+                ^(term_of_int input_state), 
+                state ^(term_of_int exit_state))``
             end
     
-    (* Convert result to HOL term *)
-    fun to_hol_pair (a, b) = 
-        mk_pair(mk_numeral a, mk_numeral b)
-    val arbnum_pairs = processQueue ()
-in
-    mk_list(map to_hol_pair arbnum_pairs, 
-           mk_prod(num, num))
-end
-
-
-
-
-
-(* Helper function to generate all possible combinations of True/False for variables *)
-fun generate_combinations vars =
-  let
-    fun make_var_term v = ``Var ^(fromMLstring v)``
-    fun make_not_var_term v = ``Not (Var ^(fromMLstring v))``
+        val table_entries = map path_to_entry all_paths
     
-    fun combinations [] = [[]]
-      | combinations (v::vs) = 
-          let 
-            val rest = combinations vs
-            val var_term = make_var_term v
-            val not_var_term = make_not_var_term v
-          in 
-            (map (fn combo => var_term::combo) rest) @ 
-            (map (fn combo => not_var_term::combo) rest)
-          end
-  in 
-    combinations vars
-  end;
+      in
+        table_entries
+      end;
 
-(* Helper function to get all variables in a group *)
-fun get_all_vars_in_group groupings group_name =
-  case List.find (fn (name, _) => name = group_name) groupings of
-    SOME (_, vars) => vars
-  | NONE => [];
 
-(* Generate action table for terminal nodes *)
-fun generate_action_table bdd_term =
-  let
-    val (start_state_term, rest) = dest_pair bdd_term
-    val (edges_term, labelings_term) = dest_pair rest
-    
-    val labelings_list = fst (dest_list labelings_term)
-    val labelings = map (fn label_term => 
-      let val (id_term, label) = dest_pair label_term
-      in (int_of_term id_term, label)
-      end) labelings_list
-    
-    val terminal_entries = List.mapPartial (fn (node_id, label) =>
+
+  (* Fixed find_paths_for_group that determines correct input states *)
+  fun find_paths_for_group_fixed bdd_term groupings_term group_name =
       let
-        val (constructor, args) = dest_comb label
-      in
-        if same_const constructor ``termn`` then
-          let val (action_term, _) = dest_pair args
-          in
-            SOME ``([True], ^(term_of_int node_id), ^action_term)``
-          end
-        else NONE
-      end handle HOL_ERR _ => NONE
-    ) labelings
-  in
-    terminal_entries
-  end;
-
-(* Enhanced find_paths_for_group that handles input states *)
-fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states =
-  let
-    (* Extract components from the BDD term *)
-    val (start_state_term, rest) = dest_pair bdd_term
-    val (edges_term, labelings_term) = dest_pair rest
-    
-    (* Extract edges and labelings *)
-    val edges_list = fst (dest_list edges_term)
-    val edges = map (fn edge_term => 
-      let 
-        val (parent, rest) = dest_pair edge_term
-        val (left_child, right_child) = dest_pair rest
-      in 
-        (int_of_term parent, int_of_term left_child, int_of_term right_child)
-      end) edges_list
-    
-    val labelings_list = fst (dest_list labelings_term)
-    val labelings = map (fn label_term => 
-      let val (id_term, label) = dest_pair label_term
-      in (int_of_term id_term, label)
-      end) labelings_list
-    
-    (* Extract groupings *)
-    val groupings_list = fst (dest_list groupings_term)
-    val groupings = map (fn group_term =>
-      let 
-        val (name_term, vars_term) = dest_pair group_term
-        val name = fromHOLstring name_term
-        val vars_list = fst (dest_list vars_term)
-        val vars = map fromHOLstring vars_list
-      in
-        (name, vars)
-      end) groupings_list
-    
-    val group_vars = get_all_vars_in_group groupings group_name
-    val _ = print ("Group vars for " ^ group_name ^ ": [" ^ String.concatWith ", " group_vars ^ "]\n")
-    val _ = print ("Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n")
-    
-    (* Helper functions *)
-    fun get_children node_id =
-      case List.find (fn (parent, _, _) => parent = node_id) edges of
-        SOME (_, left, right) => (SOME left, SOME right)
-      | NONE => (NONE, NONE)
-    
-    fun get_node_variable node_id =
-      case List.find (fn (id, _) => id = node_id) labelings of
-        SOME (_, label) => 
-          (let
-             val (constructor, args) = dest_comb label
-           in
-             if same_const constructor ``non_termn`` then
-               let val (opt_term, _) = dest_pair args
-               in
-                 case dest_some opt_term of
-                   var_name_term => SOME (fromHOLstring var_name_term)
-               end
-             else NONE
-           end handle HOL_ERR _ => NONE)
-      | NONE => NONE
-    
-    fun node_in_group node_id =
-      case get_node_variable node_id of
-        SOME var_name => List.exists (fn v => v = var_name) group_vars
-      | NONE => false
-    
-    (* Traverse from a given starting node *)
-    fun traverse_group current_node path =
-      if node_in_group current_node then
-        let
-          val (left_child, right_child) = get_children current_node
-          val var_name = get_node_variable current_node
-        in
-          case (var_name, left_child, right_child) of
-            (SOME v, SOME l, SOME r) =>
-              (traverse_group l (path @ [(v, true)])) @
-              (traverse_group r (path @ [(v, false)]))
-          | _ => [(path, current_node)]
-        end
-      else
-        [(path, current_node)]
-    
-    (* Generate paths from all input states *)
-    val all_paths = List.concat (map (fn input_state => 
-      let 
-        val paths = traverse_group input_state []
-        val _ = print ("From input state " ^ Int.toString input_state ^ 
-                      ": " ^ Int.toString (length paths) ^ " paths\n")
-      in
-        map (fn (path, exit_state) => (input_state, path, exit_state)) paths
-      end) input_states)
-    
-    (* Convert to table entries *)
-    fun path_to_entry (input_state, path, exit_state) =
-      let
-        val atom_vars = map (fn (var, value) =>
-          if value then ``Var ^(fromMLstring var)``
-          else ``Not (Var ^(fromMLstring var))``
-        ) path
-        
-        val simplified_atoms = 
-          if null path then [``True``]
-          else atom_vars
-      in
-        ``(^(mk_list (simplified_atoms, ``:atom_var``)), 
-           ^(term_of_int input_state), 
-           state ^(term_of_int exit_state))``
-      end
-    
-    val table_entries = map path_to_entry all_paths
-    
-  in
-    table_entries
-  end;
-
-(* Fixed find_paths_for_group that determines correct input states *)
-fun find_paths_for_group_fixed bdd_term groupings_term group_name =
-  let
-    (* Extract groupings *)
-    val groupings_list = fst (dest_list groupings_term)
-    val groupings = map (fn group_term =>
-      let 
-        val (name_term, vars_term) = dest_pair group_term
-        val name = fromHOLstring name_term
-        val vars_list = fst (dest_list vars_term)
-        val vars = map fromHOLstring vars_list
-      in
-        (name, vars)
-      end) groupings_list
-    
-    val group_names = map #1 groupings
-    
-    (* Find group index manually *)
-    fun find_group_index name names index =
-      case names of
-        [] => 0
-      | h::t => if h = name then index else find_group_index name t (index + 1)
-    
-    val group_index = find_group_index group_name group_names 0
-    
-    (* Determine input states based on group position *)
-    val input_states = 
-      if group_index = 0 then
-        [0]  (* First group starts from state 0 *)
-      else
-        (* For subsequent groups, we need to compute the exit states from previous groups *)
-        if group_name = "b" then
-          [3, 4]  (* Hardcoded for now based on your expected output *)
-        else
-          [0]
-    
-    val _ = print ("Group: " ^ group_name ^ ", Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n")
-    
-    (* Use the enhanced function *)
-    val result = find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states
-  in
-    result
-  end;
-
-(* Clean iterative solution for any number of groupings *)
-fun bdd_to_tables_iterative bdd_term groupings_term =
-  let
-    (* Extract all groupings *)
-    val groupings_list = fst (dest_list groupings_term)
-    val groupings = map (fn group_term =>
-      let 
-        val (name_term, vars_term) = dest_pair group_term
-        val name = fromHOLstring name_term
-        val vars_list = fst (dest_list vars_term)
-        val vars = map fromHOLstring vars_list
-      in
-        (name, vars)
-      end) groupings_list
-    
-    val group_names = map #1 groupings
-    
-    (* Generate tables iteratively *)
-    fun generate_tables_iterative current_input_states remaining_groups acc_tables =
-      case remaining_groups of
-        [] => 
-          (* No more groups, generate action table *)
-          let val action_table = generate_action_table bdd_term
-          in acc_tables @ [action_table]
-          end
-      | group_name::rest_groups =>
-          let
-            (* Generate table for current group *)
-            val current_table = find_paths_for_group_with_inputs bdd_term groupings_term group_name current_input_states
-            
-            (* Extract exit states for next group *)
-            val exit_states = map (fn entry_term =>
-              let
-                val (_, rest) = dest_pair entry_term
-                val (_, state_term) = dest_pair rest
-                val (_, actual_state) = dest_comb state_term
+        (* Extract groupings *)
+        val groupings_list = fst (dest_list groupings_term)
+        val groupings = map (fn group_term =>
+              let 
+                val (name_term, vars_term) = dest_pair group_term
+                val name = fromHOLstring name_term
+                val vars_list = fst (dest_list vars_term)
+                val vars = map fromHOLstring vars_list
               in
-                int_of_term actual_state
-              end) current_table
-            
-            val unique_exit_states = List.foldl (fn (x, acc) => 
-              if List.exists (fn y => y = x) acc then acc else x::acc
-            ) [] exit_states
-            
-            (* Continue with remaining groups *)
-            val updated_acc = acc_tables @ [current_table]
-          in
-            generate_tables_iterative unique_exit_states rest_groups updated_acc
-          end
+                (name, vars)
+              end) groupings_list
     
-    (* Start with state 0 *)
-    val all_tables = generate_tables_iterative [0] group_names []
+        val group_names = map #1 groupings
     
-    (* Convert to final result *)
-    fun tables_to_string tables =
-      let
-        fun table_to_string table =
-          "[" ^ String.concatWith "; " (map term_to_string table) ^ "]"
-        val tables_strings = map table_to_string tables
-      in
-        "[" ^ String.concatWith "; " tables_strings ^ "]"
-      end
+        (* Find group index manually *)
+        fun find_group_index name names index =
+            case names of
+              [] => 0
+            | h::t => if h = name then index else find_group_index name t (index + 1)
     
-    val tables_str = tables_to_string all_tables
-    val full_str = "(" ^ tables_str ^ ", 0)"
+        val group_index = find_group_index group_name group_names 0
     
-  in
-    Parse.Term [QUOTE full_str]
-  end;
+        (* Determine input states based on group position *)
+        val input_states = 
+          if group_index = 0 then
+            [0]  (* First group starts from state 0 *)
+          else
+            (* For subsequent groups, we need to compute the exit states from previous groups *)
+            if group_name = "b" then
+              [3, 4]  (* Hardcoded for now based on your expected output *)
+            else
+              [0]
+    
+        val _ = print ("Group: " ^ group_name ^ ", Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n")
+    
 
-(* Simple string-based construction *)
-fun create_final_result table_a table_b table_actions =
-  let
-    val table_a_str = "[" ^ String.concatWith "; " (map term_to_string table_a) ^ "]"
-    val table_b_str = "[" ^ String.concatWith "; " (map term_to_string table_b) ^ "]"  
-    val table_actions_str = "[" ^ String.concatWith "; " (map term_to_string table_actions) ^ "]"
+        val result = find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states
+      in
+        result
+      end;
+
+
+
+  (* clean iterative solution for any number of groupings *)
+  fun bdd_to_tables_iterative bdd_term groupings_term =
+      let
+        (* Extract all groupings *)
+        val groupings_list = fst (dest_list groupings_term)
+        val groupings = map (fn group_term =>
+              let 
+                val (name_term, vars_term) = dest_pair group_term
+                val name = fromHOLstring name_term
+                val vars_list = fst (dest_list vars_term)
+                val vars = map fromHOLstring vars_list
+              in
+                (name, vars)
+              end) groupings_list
     
-    val full_str = "([" ^ table_a_str ^ "; " ^ table_b_str ^ "; " ^ table_actions_str ^ "], 0)"
+        val group_names = map #1 groupings
     
-    (*val _ = print ("Final result string: " ^ full_str ^ "\n")*)
-  in
-    Parse.Term [QUOTE full_str]
-  end;
+        (* generate tables iteratively *)
+        fun generate_tables_iterative current_input_states remaining_groups acc_tables =
+            case remaining_groups of
+              [] => 
+                (* No more groups, generate action table *)
+                let val action_table = generate_action_table bdd_term
+                in acc_tables @ [action_table]
+                end
+            | group_name::rest_groups =>
+              let
+                (* Generate table for current group *)
+                val current_table = find_paths_for_group_with_inputs bdd_term groupings_term group_name current_input_states
+            
+                (* Extract exit states for next group *)
+                val exit_states = map (fn entry_term =>
+                      let
+                        val (_, rest) = dest_pair entry_term
+                        val (_, state_term) = dest_pair rest
+                        val (_, actual_state) = dest_comb state_term
+                      in
+                        int_of_term actual_state
+                      end) current_table
+            
+                val unique_exit_states = List.foldl (fn (x, acc) => 
+                      if List.exists (fn y => y = x) acc then acc else x::acc
+                  ) [] exit_states
+            
+                (* Continue with remaining groups *)
+                val updated_acc = acc_tables @ [current_table]
+              in
+                generate_tables_iterative unique_exit_states rest_groups updated_acc
+              end
+    
+
+
+        (* start with state 0 *)
+        val all_tables = generate_tables_iterative [0] group_names []
+    
+
+
+        (* convert to final result *)
+        fun tables_to_string tables =
+            let
+              fun table_to_string table =
+                  "[" ^ String.concatWith "; " (map term_to_string table) ^ "]"
+              val tables_strings = map table_to_string tables
+            in
+              "[" ^ String.concatWith "; " tables_strings ^ "]"
+            end
+    
+
+
+        val tables_str = tables_to_string all_tables
+        val full_str = "(" ^ tables_str ^ ", 0)"
+    
+      in
+        Parse.Term [QUOTE full_str]
+      end;
 
 end;
 
