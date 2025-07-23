@@ -53,7 +53,7 @@ val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) p
 (* 
       x ∧ y : fwd(1)
           z : fwd(2)
-          T : drop()
+          T : drop() 
 *)
 
 
@@ -175,8 +175,6 @@ val is_tbl_policy2_iso = EVAL “isIsomorph_exec ^get_i_policy2 ^eval_table2_ful
 (* get a theorem out*)
 val policy2_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy2 ^test_action_table2_auto ["x";"y";"z";"w"] ^get_i_policy2 ”;     
 val policy2_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] policy2_thm_init;     
-
-
 
 
 

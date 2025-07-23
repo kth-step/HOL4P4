@@ -11,13 +11,11 @@ structure BDDUtils = struct
     
 
 
-        (* Helper: Convert HOL num to Arbnum.num *)
         fun num_to_arbnum num_term = 
             if is_numeral num_term then
               dest_numeral num_term
             else raise Fail "Not a numeral";
     
-        (* Helper: Convert edge list *)
         fun convert_edges edges_term =
             let
               val (list_items, _) = dest_list edges_term
@@ -35,7 +33,6 @@ structure BDDUtils = struct
 
 
     
-        (* Destructure BDD terms as nested pairs *)
         val (root1_t, rest1) = dest_pair bdd1
         val (edges1_t, labels1_t) = dest_pair rest1
         val (root2_t, rest2) = dest_pair bdd2
@@ -48,7 +45,6 @@ structure BDDUtils = struct
     
 
 
-        (* Lookup children in edge list *)
         fun lookupChildren node edges =
             case List.find (fn (n, _) => Arbnum.compare(n, node) = EQUAL) edges of
               SOME (_, (l, r)) => (SOME l, SOME r)
@@ -105,11 +101,11 @@ structure BDDUtils = struct
 
 
   
-(* 1. Numeric conversion helpers *)
+(* 1. numeric conversion helpers *)
 fun term_of_num n = mk_numeral (Arbnum.fromInt n);
 fun num_of_term t = Arbnum.toInt (dest_numeral t);
 
-(* 2. Typed term constructors *)
+(* 2. typed term constructors *)
 fun mk_action_expr (cmd, args) =
     ``action (^(fromMLstring cmd), ^(mk_list (map term_of_num args, ``:num``))) 
      : (string # num list) action_expr``;
@@ -291,7 +287,7 @@ fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_st
       table_entries
     end;
 
-(* Fixed find_paths_for_group that determines correct input states *)
+
 fun find_paths_for_group_fixed bdd_term groupings_term group_name =
     let
       (* Extract groupings *)
@@ -308,7 +304,6 @@ fun find_paths_for_group_fixed bdd_term groupings_term group_name =
 
       val group_names = map #1 groupings
 
-      (* Find group index manually *)
       fun find_group_index name names index =
           case names of
             [] => 0
@@ -336,13 +331,13 @@ fun find_paths_for_group_fixed bdd_term groupings_term group_name =
 
 fun bdd_to_tables_iterative bdd_term groupings_term =
     let
-        (* 1. Extract groupings structure *)
+
         val groupings = map (fn t => 
             let val (n,v) = dest_pair t
             in (fromHOLstring n, map fromHOLstring (fst (dest_list v)))
             end) (fst (dest_list groupings_term));
 
-        (* 2. Fixed generate action table - don't destructure the action term *)
+        (* 2. Fixed generate action table-------don't destructure the action term *)
         fun generate_action_table bdd =
             let
                 val (_, bdd_rest) = dest_pair bdd
