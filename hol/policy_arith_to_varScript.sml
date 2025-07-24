@@ -43,19 +43,18 @@ arith_lv =
 
 
 val _ = Hol_datatype `
-  arith_atom = 
-     True               (* T *)
-   | False              (* F *)
-   | arith_gt of arith_lv => num  (* lval > v *)
-   | arith_lt of arith_lv => num  (* lval < v *)
-   | arith_eq of arith_lv => num  (* lval = v *)
+  arithm_atom = 
+     a_True               (* T *)
+   | a_False              (* F *)
+   | arithm_gt of arith_lv => num  (* lval > v *)
+   | arithm_lt of arith_lv => num  (* lval < v *)
+   | arithm_eq of arith_lv => num  (* lval = v *)
 `;
-
 
 
 val _ = Hol_datatype `
   arith_pred = 
-     arith_a of arith_atom          
+     arith_a of arithm_atom          
    | arith_not of arith_pred          
    | arith_and of arith_pred => arith_pred 
    | arith_or of arith_pred => arith_pred  
@@ -79,10 +78,10 @@ Type pd = “: (string # pd_val) list”;
 
 
 
-Definition resolve_def:
-  (resolve pd (lv_x var) = ALOOKUP pd var ) ∧
-  (resolve pd (lv_acc lval var) = 
-    case resolve pd lval of
+Definition resolve_lval_def:
+  (resolve_lval pd (lv_x var) = ALOOKUP pd var ) ∧
+  (resolve_lval pd (lv_acc lval var) = 
+    case resolve_lval pd lval of
     | SOME (val_record fields) => ALOOKUP fields var
     | _ => NONE)
 End
@@ -100,28 +99,28 @@ val example_pd = “[ ("h", val_record [
 
 
 val h_ip_ttl = “lv_acc (lv_acc (lv_x "h") "ip") "ttl"”;
-val result1 = EVAL “resolve ^example_pd ^h_ip_ttl”;  
+val result1 = EVAL “resolve_lval ^example_pd ^h_ip_ttl”;  
 
 val h_eth_src = “lv_acc (lv_acc (lv_x "h") "eth") "src"”;
-val result2 = EVAL “resolve ^example_pd ^h_eth_src”;  
+val result2 = EVAL “resolve_lval ^example_pd ^h_eth_src”;  
 *)
 
 
 
         
-Definition eval_arith_atom_def:
-  (eval_arith_atom pd True = SOME T) ∧
-  (eval_arith_atom pd False = SOME F) ∧
-  (eval_arith_atom pd (arith_gt lval n) = 
-    case resolve pd lval of
+Definition eval_arithm_atom_def:
+  (eval_arithm_atom pd a_True = SOME T) ∧
+  (eval_arithm_atom pd a_False = SOME F) ∧
+  (eval_arithm_atom pd (arithm_gt lval n) = 
+    case resolve_lval pd lval of
     | SOME (val_num m) => SOME (m > n)
     | _ => NONE) ∧
-  (eval_arith_atom pd (arith_lt lval n) = 
-    case resolve pd lval of
+  (eval_arithm_atom pd (arithm_lt lval n) = 
+    case resolve_lval pd lval of
       SOME (val_num m) => SOME (m < n)
     | _ => NONE) ∧
-  (eval_arith_atom pd (arith_eq lval n) = 
-    case resolve pd lval of
+  (eval_arithm_atom pd (arithm_eq lval n) = 
+    case resolve_lval pd lval of
       SOME (val_num m) => SOME (m = n)
     | _ => NONE)
 End
@@ -138,8 +137,8 @@ val example_pd = “[ ("h", val_record [
   ])
 ]”;
 
-val p_ttl_gt_60 = “(arith_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
-EVAL “eval_arith_atom ^example_pd ^p_ttl_gt_60”
+val p_ttl_gt_60 = “(arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
+EVAL “eval_arithm_atom ^example_pd ^p_ttl_gt_60”
     
 *)        
         
@@ -147,7 +146,7 @@ EVAL “eval_arith_atom ^example_pd ^p_ttl_gt_60”
 
 Definition eval_pred_w_str_def:
   (eval_pred_w_str pd (arith_a atom) = 
-    eval_arith_atom pd atom) ∧
+    eval_arithm_atom pd atom) ∧
   (eval_pred_w_str pd (arith_not p) = 
     case eval_pred_w_str pd p of
     | SOME b => SOME (~b)
@@ -185,8 +184,8 @@ val test_pd = “[
 (* Test predicates *)
 val h_ip_ttl = “(lv_acc (lv_acc (lv_x "h") "ip") "ttl") ”;
 
-val p_ttl_gt_60 = “arith_a (arith_gt ^h_ip_ttl 60)”;
-val p_ttl_lt_60 = “arith_a (arith_lt ^h_ip_ttl 65)”;
+val p_ttl_gt_60 = “arith_a (arithm_gt ^h_ip_ttl 60)”;
+val p_ttl_lt_60 = “arith_a (arithm_lt ^h_ip_ttl 65)”;
 
 EVAL “eval_pred_w_str ^test_pd (arith_not ^p_ttl_gt_60)”;
 EVAL “eval_pred_w_str ^test_pd (arith_and ^p_ttl_lt_60 ^p_ttl_gt_60)”;
@@ -224,9 +223,9 @@ val test_pd = “[
   ])
 ]”;
 
-val p1 = “arith_a (arith_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
-val p2 = “arith_a (arith_lt (lv_acc (lv_x "h") "flag") 0)”;
-val p3 = “arith_a (arith_eq (lv_acc (lv_x "h") "invalid") 1)”;
+val p1 = “arith_a (arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
+val p2 = “arith_a (arithm_lt (lv_acc (lv_x "h") "flag") 0)”;
+val p3 = “arith_a (arithm_eq (lv_acc (lv_x "h") "invalid") 1)”;
 
 
 val policy1 = ``[ (^p1, "fwd"); (^p2, "drop") ]``;
@@ -260,7 +259,7 @@ End;
 
                 
 Definition lookup_atom_def:
-  lookup_atom (me) (atom:arith_atom) =
+  lookup_atom (me) (atom:arithm_atom) =
     case ALOOKUP (inverse_list me) atom of
       SOME var => SOME var
     | NONE => NONE
@@ -273,8 +272,8 @@ Definition pred_a2v_def:
     case lookup_atom me atom of
       SOME v => SOME (Var v)
     | NONE => 
-        if atom = True then SOME True
-        else if atom = False then SOME False
+        if atom = a_True then SOME True
+        else if atom = a_False then SOME False
         else NONE) ∧
   (pred_a2v me (arith_not p) = 
     case pred_a2v me p of
@@ -315,19 +314,19 @@ End
 
 (*
 val test_me = ``[
-  ("x_gt_5", arith_gt (lv_x "x") 5);
-  ("y_lt_2", arith_lt (lv_x "y") 2)
+  ("x_gt_5", arithm_gt (lv_x "x") 5);
+  ("y_lt_2", arithm_lt (lv_x "y") 2)
 ]``;
 
 (* Sample policies *)
 val empty_policy = ``[] : (arith_pred # string) list``;
 val all_convertable_policy = ``[
-  (arith_a (arith_gt (lv_x "x") 5), "allow");
-  (arith_a (arith_lt (lv_x "y") 2), "deny")
+  (arith_a (arithm_gt (lv_x "x") 5), "allow");
+  (arith_a (arithm_lt (lv_x "y") 2), "deny")
 ]``;
 val partially_convertable_policy = ``[
-  (arith_a (arith_gt (lv_x "x") 5), "allow");
-  (arith_a (arith_eq (lv_x "z") 1), "log")  (* Unmapped *)
+  (arith_a (arithm_gt (lv_x "x") 5), "allow");
+  (arith_a (arithm_eq (lv_x "z") 1), "log")  (* Unmapped *)
 ]``;
 
 EVAL ``convert ^empty_policy ^test_me``;
@@ -338,15 +337,15 @@ EVAL ``convert ^partially_convertable_policy ^test_me``;
 (*NONE*)
 
 val complex_policy = ``[
-  (arith_not (arith_a (arith_gt (lv_x "x") 5)), "reject");
-  (arith_and (arith_a True) (arith_a (arith_lt (lv_x "y") 2)), "special")
+  (arith_not (arith_a (arithm_gt (lv_x "x") 5)), "reject");
+  (arith_and (arith_a a_True) (arith_a (arithm_lt (lv_x "y") 2)), "special")
 ]``;
 EVAL ``convert ^complex_policy ^test_me``;
 
 (*
    SOME [
      (Not (Var "x_gt_5"), "reject");
-     (And True (Var "y_lt_2"), "special")
+     (And a_True (Var "y_lt_2"), "special")
    ]
 *)
 
@@ -357,7 +356,7 @@ EVAL ``convert ^complex_policy ^test_me``;
 
 
 
-Theorem inverse_list_lookup:
+Theorem inverse_list_lookup_thm:
   ∀m_e var atom.
     (ALL_DISTINCT (MAP FST m_e) ∧
     ALL_DISTINCT (MAP SND  m_e)) ⇒
@@ -393,13 +392,13 @@ QED
 
 
 
-Theorem pred_conversion_preserves_semantics:
+Theorem pred_conversion_preserves_semantics_thm:
   ∀ arith_pred pred m_e packet_input m_v.
     ALL_DISTINCT (MAP FST m_e) ∧
     ALL_DISTINCT (MAP SND  m_e) ∧
     (∀var atom. 
        ALOOKUP m_e var = SOME atom ⇒ 
-       ALOOKUP m_v var = eval_arith_atom packet_input atom) ∧
+       ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
     pred_a2v m_e arith_pred = SOME pred
     ⇒
     eval_pred_w_str packet_input arith_pred = sem_pred pred m_v
@@ -408,14 +407,14 @@ Proof
   Induct_on ‘arith_pred’ >> rw[pred_a2v_def, eval_pred_w_str_def] >>
             
    rpt (BasicProvers.FULL_CASE_TAC >>
-        gvs[eval_arith_atom_def, sem_pred_def]>>
+        gvs[eval_arithm_atom_def, sem_pred_def]>>
         gvs[lookup_atom_def, inverse_list_def]) >>
 
-   imp_res_tac inverse_list_lookup >>
+   imp_res_tac inverse_list_lookup_thm >>
    gvs[inverse_list_def] >>
    res_tac >>
    rw[] >>
-   gvs[eval_arith_atom_def]
+   gvs[eval_arithm_atom_def]
    (*
    Cases_on `pred_a2v m_e arith_pred` >> gvs[] >>
    Cases_on `pred_a2v m_e arith_pred'` >> gvs[] >>
@@ -431,13 +430,14 @@ QED
 
         
 
-Theorem sem_conversion_correct:
-  ∀ packet_input m_e m_v arith_policy var_policy.
+Theorem policy_airth_to_var_sem_conversion_correct:
+∀ arith_policy var_policy.
+  ∀ m_e packet_input m_v.
     (ALL_DISTINCT (MAP FST m_e) ∧
      ALL_DISTINCT (MAP SND m_e)) ∧
     (∀var atom. 
        ALOOKUP m_e var = SOME atom ⇒ 
-       ALOOKUP m_v var = eval_arith_atom packet_input atom) ∧
+       ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
     (convert arith_policy m_e = SOME var_policy)
     ⇒
     sem_arith_policy arith_policy packet_input = 
@@ -468,12 +468,11 @@ Proof
   
   (* This requires a lemma about pred_a2v and eval_pred_w_str equivalence *)
   Cases_on ‘pred_a2v m_e pred’ >> gvs[] >>
-  metis_tac[pred_conversion_preserves_semantics]
+  metis_tac[pred_conversion_preserves_semantics_thm]
 QED
 
- 
 
-  
+
 val _ = export_theory ();
 
     
