@@ -22,6 +22,10 @@ open tables_specTheory;
 open bdd_isomorphTheory;
 open bdd_end_to_endTheory;
 
+     
+
+open policy_arith_to_varTheory;
+
 
 
 val _ = load "bdd_utils";   
@@ -40,7 +44,10 @@ val _ = type_abbrev("struc_tbl_type", “:((( atom_var list # num # (string# num
 val _ = type_abbrev("action_rule_type", “:((string# num list) action_expr) rule”);
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 
-
+(*
+val _ = type_abbrev("arith_rule_typ", “:((string# num list) action_expr) arith_rule”);
+val _ = type_abbrev("arith_policy_typ", “:((string# num list) action_expr) arith_policy”);
+*)
 
 
     
@@ -55,8 +62,7 @@ val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) p
           z : fwd(2)
           T : drop() 
 *)
-
-
+        
         
 (* policy 1: var POLICY representation *)
    
@@ -227,5 +233,80 @@ val is_tbl_policy2_iso = EVAL “isIsomorph_exec ^get_i_policy2 ^eval_policy2_fu
 
 
 
+
+(***************************************************)
+
+(*
+val AND = ``λ(p1,a1) (p2,a2). (arith_and p1 p2, a2)``;
+val OR  = ``λ(p1,a1) (p2,a2). (arith_or p1 p2, a1)``; 
+val NOT = ``λ(p,a). (arith_not p, a)``;
+*)
+
+
+val test_packet = “[
+  ("pkt", val_record [
+    ("ip", val_record [
+      ("ttl", val_num 64);
+      ("proto", val_num 6);
+      ("version", val_num 4)
+    ]);
+    ("src_zone", val_num 1);
+    ("threat_score", val_num 30);
+    ("auth_status", val_num 1)
+  ])
+  ]”;
+
+  
+val is_tcp =      “arith_a (arithm_eq (lv_acc (lv_acc (lv_x "h") "ip") "proto") 6)”;
+val is_high_ttl = “arith_a (arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
+val is_internal = “arith_a (arithm_eq (lv_acc (lv_x "h") "src_zone") 1)”;
+val is_malicious = “arith_a (arithm_gt (lv_acc (lv_x "h") "threat_score") 80)”;
+
+
+val policy3_me1 = “[
+  ("is_tcp", (arithm_eq (lv_acc (lv_acc (lv_x "h") "ip") "proto") 6));
+  ("is_high_ttl", (arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60));
+  ("is_internal",  (arithm_eq (lv_acc (lv_x "h") "src_zone") 1));
+  ("is_malicious",  (arithm_gt (lv_acc (lv_x "h") "threat_score") 80))
+]”;
+
+val arith_policy3_rule1 = “(arith_and ^is_tcp ^is_high_ttl , action ("fwd",[(1:num)])):((string# num list) action_expr) arith_rule”;
+val arith_policy3_rule2 = “(arith_or (arith_not ^is_tcp) (^is_high_ttl), action ("fwd",[2])) :((string# num list) action_expr) arith_rule”;
+val arith_policy3_rule3 = “(arith_a a_True, action ("drop",[])):((string# num list) action_expr) arith_rule”;
+                    
+
+val arith_policy3 =   “[ ^arith_policy3_rule1 ;
+                        ^arith_policy3_rule2 ;
+                        ^arith_policy3_rule3]:((string# num list) action_expr) arith_policy”;
+
+
+val arith_policy3_eval = EVAL “convert ^arith_policy3 ^policy3_me1”;
+
+val var_policy3 = optionSyntax.dest_some (rhs (concl arith_policy3_eval));
+
+
+(* first establish distinction *)
+val policy3_me1_fst_distinct = EVAL ``ALL_DISTINCT (MAP FST ^policy3_me1)``;
+val policy3_me1_snd_distinct = EVAL ``ALL_DISTINCT (MAP SND ^policy3_me1)``;
+
+(*second, combine them  *)
+val all_distinct_conj = CONJ policy3_me1_fst_distinct policy3_me1_snd_distinct;
+
+val alookup_cond_thm = EVAL “∀var atom. ALOOKUP ^policy3_me1 var = SOME atom ⇒ ALOOKUP m_v var = eval_arithm_atom packet_input atom”;
+
+                
+val arith_policy3_var_policy3_thm = REWRITE_RULE[all_distinct_conj, arith_policy3_eval]
+(ISPECL[arith_policy3, var_policy3, policy3_me1] policy_airth_to_var_sem_conversion_correct);        
+
+
+
+                       
 val _ = export_theory ();
+
+
+
+
+
+
+
 
