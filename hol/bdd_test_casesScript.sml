@@ -244,7 +244,7 @@ val NOT = ``λ(p,a). (arith_not p, a)``;
 
 
 val test_packet = “[
-  ("pkt", val_record [
+  ("h", val_record [
     ("ip", val_record [
       ("ttl", val_num 64);
       ("proto", val_num 6);
@@ -302,11 +302,4 @@ val arith_policy3_var_policy3_thm = REWRITE_RULE[all_distinct_conj, arith_policy
 
                        
 val _ = export_theory ();
-
-
-
-
-
-
-
 
