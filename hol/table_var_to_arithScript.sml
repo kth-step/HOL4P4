@@ -186,27 +186,45 @@ Definition get_lval_of_guard_in_me_def:
 End
 
 
+Definition all_vars_defined_abstract_def:
+  (all_vars_defined_abstract m_e [] = T) ∧
+  (all_vars_defined_abstract m_e (True::rest) = all_vars_defined_abstract m_e rest) ∧
+  (all_vars_defined_abstract m_e (False::rest) = all_vars_defined_abstract m_e rest) ∧
+  (all_vars_defined_abstract m_e ((Var x)::rest) = 
+   (case ALOOKUP m_e x of
+     | SOME _ => all_vars_defined_abstract m_e rest
+     | NONE => F)) ∧
+  (all_vars_defined_abstract m_e ((Not g)::rest) = 
+   (all_vars_defined_abstract m_e [g] ∧ all_vars_defined_abstract m_e rest))
+End
 
+        
+(* Add this new function to analyze the entire table first *)
 Definition analyze_table_type_def:
   (analyze_table_type m_e pd_type [] = SOME (T, key_const 1, 1)) ∧
   (analyze_table_type m_e pd_type ((var_guards, s, res)::lines) =
    let all_guards = FLAT (MAP FST (((var_guards, s, res)::lines))) in
-   let lvals = FILTER IS_SOME (MAP (get_lval_of_guard_in_me m_e) all_guards) in
-   case lvals of
+   (* First check if all variables are defined in m_e *)
+   if ¬(all_vars_defined_abstract m_e all_guards) then NONE
+   else
+     let lvals = FILTER IS_SOME (MAP (get_lval_of_guard_in_me m_e) all_guards) in
+     case lvals of
      | [] => SOME (T, key_const 1, 1)  (* All guards are boolean across entire table *)
+     | (NONE)::rest => NONE 
      | (SOME lv)::rest => 
          if EVERY (λx. x = SOME lv) rest 
          then (case resolve_pd_max pd_type lv of
                | SOME max => SOME (T, key_val lv, max)  (* All non-boolean guards use same LVal *)
                | NONE => NONE)
          else NONE)              (* Different LVals detected *)
+  
 End
 
  
 
 Definition convert_line_with_key_def:
-  (convert_line_with_key m_e key_type max ([], s, res) = 
-   [(key_type, Single 1 1, s, res)]) ∧ (* Default case for empty guards *)
+  (convert_line_with_key m_e key_type max ([], s, res) =
+                         [(key_type, Single 1 1, s, res)]) ∧ (* Default case for empty guards *)
   (convert_line_with_key m_e key_type max (var_guards, s, res) =
    let initial_arith_row = [(key_type, Single 0 max, s, res)] in
      process_guards_rec m_e max var_guards initial_arith_row)
@@ -216,13 +234,14 @@ End
 
 
 Definition convert_single_table_def:
-  (convert_single_table [] m_e pd_type = SOME []) ∧
+  (convert_single_table [] m_e pd_type = NONE) ∧
   (convert_single_table table m_e pd_type =
-    case analyze_table_type m_e pd_type table of
-      | NONE => NONE  (* Inconsistent table *)
-      | SOME (T, key_type, max) =>
-          let process_line = λline. convert_line_with_key m_e key_type max line in
-          SOME (FLAT (MAP process_line table)))
+   case analyze_table_type m_e pd_type table of
+   | SOME (T, key_type, max) =>
+       (let process_line = λline. convert_line_with_key m_e key_type max line in
+         SOME (FLAT (MAP process_line table)))
+   | _ => NONE  (* Inconsistent table *)
+  )
 End
 
 
@@ -232,16 +251,16 @@ Definition convert_tables_def:
   (convert_tables [] _ _ = SOME []) ∧
   (convert_tables (tbl::tbls) m_e pd_type =
     case convert_single_table tbl m_e pd_type of
-      | NONE => NONE  (* Fail immediately if any table fails *)
-      | SOME converted_tbl =>
-          case convert_tables tbls m_e pd_type of
-            | NONE => NONE
-            | SOME converted_tbls => SOME (converted_tbl :: converted_tbls))
+    | NONE => NONE  (* Fail immediately if any table fails *)
+    | SOME converted_tbl =>
+        case convert_tables tbls m_e pd_type of
+        | NONE => NONE
+        | SOME converted_tbls => SOME (converted_tbl :: converted_tbls))
 End
 
 
 
-
+(*
 val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
         (state (3 :num) :(string # num list) action_expr));
        ([(Var "x" :atom_var); Not (Var "y" :atom_var)],(0 :num),
@@ -250,7 +269,7 @@ val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
         (state (4 :num) :(string # num list) action_expr))];
       [([(Var "z" :atom_var)],(4 :num),
         (state (7 :num) :(string # num list) action_expr));
-       ([Not (Var "w" :atom_var)],(4 :num),
+       ([Not (Var "z" :atom_var)],(4 :num),
         (state (8 :num) :(string # num list) action_expr));
        ([True],(3 :num),(state (3 :num) :(string # num list) action_expr))];
       [([True],(3 :num),action ("fwd",[(1 :num)]));
@@ -284,19 +303,18 @@ EVAL ``convert_tables ^policy1_var ^test_m_e ^test_pd_nested``;
 *)
     
                   
-(*
+
 (* SEMANTICS *)
 Definition is_intvl_match_row_def:
   is_intvl_match_row  (s_in:num) (packet_input:pd) (row:('a intvl_row)) =
     case row of
-      (SOME lval, SOME (a,b), s, res) =>
+      ( key_val lval, Single a b, s, res) =>
         (case resolve_lval packet_input lval of
-           SOME (val_num v) =>  (a ≤ v ∧ v ≤ b ∧ (s_in = s))
-         | SOME _ => F  (* Non-numeric value *)
-         | NONE => F )   (* Lval not found *)
-    | (NONE, SOME (a,b), s, res) =>  (s_in = s)
-    | (NONE, NONE, s, res) =>  F
-    | (SOME lval, NONE, s, res) =>  F
+         | SOME (val_num v) =>  (a ≤ v ∧ v ≤ b ∧ (s_in = s))
+         | SOME _ => F  (* non-numeric value *)
+         | NONE => F )   (* lval not found *)
+    | (key_val lval, Empty, s, res) =>  F                  
+    | (key_const a, _ , s, _) =>  (s_in = s)
 End
 
         
@@ -350,6 +368,7 @@ End
 
 
         
+
 (*
 val test_packet = “[("src_ip", val_num 192); ("dst_port", val_num 80)]”;
 val test_packet2 = “[("src_ip", val_num 10); ("dst_port", val_num 22)]”;
@@ -357,26 +376,34 @@ val initial_state = “(0:num)”;
 
 (* Test tables *)
 val test_table1 = ``[
-  (SOME (lv_x "dst_port"), SOME (75, 85), 0, state 1);
-  (NONE, SOME (0, 100), 0, state 2)
-] : (arith_lv option # (num # num) option # num # string action_expr) list``;
+  (key_val (lv_x "dst_port"), Single 75 85, 0, state 1);
+  (key_const 1, Single 0 100, 0, state 2)
+] : (airth_key # interval # num # string action_expr) list``;
 
   
 val test_table2 = ``[
-  (SOME (lv_x "src_ip"), SOME (190, 200), 1, action "allow_internal");
-  (NONE, NONE, 2, action "default_deny")
-] : (arith_lv option # (num # num) option # num # string action_expr) list``;
+  (key_val (lv_x "src_ip"), Single 190 200, (1:num), action "allow_internal");
+  (key_const 1, Empty, 2, action "default_deny")
+] : (airth_key # interval # num # string action_expr) list``;
 
 (* Test table list with state transitions *)
-val test_tables = “[^test_table1; ^test_table2]: (arith_lv option # (num # num) option # num # string action_expr) list list”;
+val test_tables = “[^test_table1; ^test_table2]: ((airth_key # interval # num # string action_expr)) list list”;
 
 (* Test cases *)
 val test1 = EVAL ``sem_intvl_tables (^test_tables, ^initial_state) ^test_packet``;
-  *)               
+               
+*)
 
 
 
 
+
+
+
+
+
+
+        
 
 (**********)
 (* proof *)
@@ -384,7 +411,7 @@ val test1 = EVAL ``sem_intvl_tables (^test_tables, ^initial_state) ^test_packet`
 
 
 
-
+ (*
 
 Theorem convert_tables_never_empty:
   ∀ h' t m_e packet_type.
@@ -397,7 +424,8 @@ QED
 
 
 
-        
+
+                      
 
 Definition norm_match_tbl_def:
   (norm_match_tbl [] m_v st_in = NONE) ∧
@@ -484,7 +512,71 @@ Proof
 QED
 
 
-        
+Theorem process_guards_rec_singleton:
+  ∀m_e max guards acc.
+    ∃ row. acc = [row] ⇒ 
+    ∃ row'. process_guards_rec m_e max guards acc = [row']
+Proof
+  Induct_on `guards` >> rpt gen_tac >> strip_tac >-
+  (* Base case: no guards *)
+  (fs[process_guards_rec_def] >> metis_tac[]) >>
+  (* Inductive case *)
+  fs[process_guards_rec_def] >>
+  `∃!row. FLAT (MAP (λrow. process_guard m_e max h [row]) acc) = [row']` by (
+    (* Prove process_guard maintains singleton *)
+    match_mp_tac process_guard_singleton >>
+    fs[] >>
+    metis_tac[]
+  ) >>
+  metis_tac[]
+QED
+
+
+
+       
+
+Theorem convert_line_with_key_singleton:
+  ∀m_e key_type max line.
+    ∃ row. convert_line_with_key m_e key_type max line = [row]
+Proof
+  rpt gen_tac >>
+  PairCases_on `line` >> rename1 `(guards, s, res)` >>
+  Cases_on `guards` >> 
+  (* Case 1: Empty guards *)
+  (fs[convert_line_with_key_def] >> qexists_tac `(key_type, Single 1 1, s, res)` >> fs[]) >>
+  (* Case 2: Non-empty guards *)
+  fs[convert_line_with_key_def] >>
+  qexists_tac `(key_type, Single 0 max, s, res)` >>
+  (* Now prove process_guards_rec maintains singleton *)
+  match_mp_tac process_guards_rec_singleton >>
+  fs[process_guards_rec_def]
+QED
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -492,52 +584,95 @@ Theorem semantic_single_table_equivalence_normalized:
   ∀var_table m_e packet_input m_v interval_table packet_type st_in.
     ALL_DISTINCT (MAP FST m_e) ∧
     (∀var atom. ALOOKUP m_e var = SOME atom ⇒
-               ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+                ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
     convert_single_table var_table m_e packet_type = SOME interval_table ⇒
     norm_match_tbl var_table m_v st_in =
     norm_match_intvl_tbl interval_table packet_input st_in
 Proof
   Induct_on ‘var_table’ >>
-  rpt gen_tac >> strip_tac  >|[
-    fs[convert_single_table_def, norm_match_tbl_def, norm_match_intvl_tbl_def]
-    ,                            
-    PairCases_on ‘h’ >>
-    fs[convert_single_table_def] >>
-    Cases_on ‘convert_line m_e packet_type (h0,h1,h2)’ >> fs[] >>
-    rename1 ‘convert_line _ _ _ = SOME lines’ >>
-    Cases_on ‘convert_single_table var_table m_e packet_type’ >> fs[] >>
-    rename1 ‘convert_single_table _ _ _ = SOME interval_tail’ >>
-    simp[norm_match_tbl_def] >>
-    
-    (* Key step: prove head equivalence *)
-    ‘(∃line. MEM line lines ∧ 
-             is_intvl_match_row st_in packet_input line) ⇔ 
-              is_match_row st_in h1 h0 m_v ’ by (
-      cheat
-      ) >>
+  rpt gen_tac >> strip_tac  >-
+   fs[convert_single_table_def, norm_match_tbl_def, norm_match_intvl_tbl_def] >>
+  
+  PairCases_on ‘h’ >>
+  gvs[convert_single_table_def] >>
 
-    Cases_on ‘is_match_row st_in h1 h0 m_v’ >> fs[] >|[
-        (* head*)
-        gvs[] >>
-        fs[norm_match_intvl_tbl_append] >>
-        rpt (BasicProvers.FULL_CASE_TAC >> fs[])  >>
-        cheat      
-        ,
-        (* rest by IH*)
-        res_tac >>
-        first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’])) >>
-        fs[norm_match_intvl_tbl_def] >>
-        fs[norm_match_intvl_tbl_append] >>
-        rpt (BasicProvers.FULL_CASE_TAC >> fs[])  >>         
-        (*needs a lemma*)
-        cheat
+  rpt (BasicProvers.FULL_CASE_TAC >> fs[])  >>
 
-      ]
-  ]
         
 QED
 
+
+ rw[MAP_FLAT]
+
+(***********************)
+
         
+
+
+Induct_on `var_table` >> rpt gen_tac >> strip_tac >-
+  (* Base case - empty table *)
+  ( fs[convert_single_table_def, norm_match_tbl_def, norm_match_intvl_tbl_def] ) >>
+  
+  (* Inductive case *)
+  PairCases_on `h` >>
+  gvs[convert_single_table_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> fs[])  >>
+  rename1 `_ = SOME (_, key_type, max)` >>
+  
+(* Unfold the conversion process *)
+ gvs[MAP_FLAT]
+   
+  `interval_table = FLAT (MAP (convert_line_with_key m_e key_type max) ((h0,h1,h2)::var_table))` by gvs[] >>
+  simp[] >>
+  
+  (* Split into first line and rest *)
+  `FLAT (MAP (convert_line_with_key m_e key_type max) ((h0,h1,h2)::var_table)) =
+   convert_line_with_key m_e key_type max (h0,h1,h2) ++ 
+   FLAT (MAP (convert_line_with_key m_e key_type max) var_table)` by fs[] >>
+  simp[] >>
+  
+  (* Apply the append theorem for normalized matching *)
+  fs[norm_match_intvl_tbl_append] >>
+  
+  (* Case analysis on whether first line matches *)
+  Cases_on `is_match_row st_in h1 h0 m_v` >> fs[] >-
+  (* Case 1: First line matches *)
+  (
+    `∃row. MEM row (convert_line_with_key m_e key_type max (h0,h1,h2)) ∧
+     is_intvl_match_row st_in packet_input row` by (
+      (* Prove conversion preserves matching *)
+      match_mp_tac convert_line_preserves_match >>
+      metis_tac[]
+    ) >>
+    fs[norm_match_intvl_tbl_def] >>
+    (* Find the first matching row *)
+    ...
+  ) >>
+  (* Case 2: First line doesn't match *)
+  (
+    `∀row. MEM row (convert_line_with_key m_e key_type max (h0,h1,h2)) ⇒
+     ¬is_intvl_match_row st_in packet_input row` by (
+      (* Prove conversion preserves non-matching *)
+      match_mp_tac convert_line_preserves_non_match >>
+      metis_tac[]
+    ) >>
+    fs[norm_match_intvl_tbl_def] >>
+    (* Apply induction hypothesis *)
+    first_x_assum match_mp_tac >>
+    (* Show the rest of the table converts properly *)
+    qexists_tac `FLAT (MAP (convert_line_with_key m_e key_type max) var_table)` >>
+    conj_tac >- metis_tac[] >>
+    (* Need to show conversion of tail is valid *)
+    ...
+  )
+QED
+
+
+
+
+        
+
+
 
 
 
@@ -557,55 +692,56 @@ metis_tac[semantic_single_table_equivalence_normalized]
 QED
    
      
+
+
+
+
         
-               
 Theorem interval_tables_conversion_correctness:
   ∀var_tables m_e packet_input m_v interval_tables packet_type st_in.
     ALL_DISTINCT (MAP FST m_e) ∧
-    
     (∀var atom. 
        ALOOKUP m_e var = SOME atom ⇒ 
        ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
-    
     (convert_tables var_tables m_e packet_type = SOME interval_tables) ⇒
-    
-    (* Semantic equivalence *)
     sem_tables (var_tables, st_in) m_v = 
     sem_intvl_tables (interval_tables, st_in) packet_input
 Proof
-  Induct >> rpt strip_tac >|[
-    (* empty table input*)
-    fs[convert_tables_def, sem_tables_def, sem_intvl_tables_def] >>
-    gvs[sem_tables_def, match_tbll_def, sem_intvl_tables_def, match_intvl_tbll_def] 
-    ,
-    fs[convert_tables_def] >>     
-    Cases_on ‘convert_single_table h m_e packet_type’ >> fs[] >>
-    Cases_on ‘convert_tables var_tables m_e packet_type’ >> fs[] >>
-
-    last_x_assum (drule_all_then strip_assume_tac) >>
-    gvs[] >>
-
+  Induct >> rpt strip_tac >-
+   
+   (fs[convert_tables_def, sem_tables_def, sem_intvl_tables_def] >>
+    gvs[sem_tables_def, match_tbll_def, sem_intvl_tables_def, match_intvl_tbll_def]) >> 
+  
+  fs[convert_tables_def] >>     
+  Cases_on ‘convert_single_table h m_e packet_type’ >> fs[] >>
+  Cases_on ‘convert_tables var_tables m_e packet_type’ >> fs[] >>
+  
+  last_x_assum (drule_all_then strip_assume_tac) >>
+  gvs[] >>
+  
     
-   ‘match_tbl h m_v st_in = match_intvl_tbl x packet_input st_in’ by (
-   cheat
-      ) >>
-
-    Cases_on ‘var_tables’ >>
-    Cases_on ‘x'’ >>
-    gvs[] >|[
-
-        (* both are last tables*)
-        fs[match_tbll_def, match_intvl_tbll_def] >> cheat
-        ,
-        fs[convert_tables_def] >> cheat
-        ,
-        gvs[convert_tables_never_empty] >> cheat
-        ,
-        fs[match_tbll_def, match_intvl_tbll_def] >> cheat
-      ]   
-  ]         
+  ‘match_tbl h m_v st_in = match_intvl_tbl x packet_input st_in’ by (
+    metis_tac[interval_single_table_converstion_correctness] ) >>
+  
+  
+  simp[sem_tables_def, sem_intvl_tables_def] >>
+  
+  Cases_on ‘var_tables’ >>
+  Cases_on ‘x'’ >>
+  gvs[] >|[
+    (* both are last tables*)
+    fs[match_tbll_def, match_intvl_tbll_def] 
+    ,
+    fs[convert_tables_def]
+    ,
+    gvs[convert_tables_never_empty]
+    ,
+    fs[match_tbll_def, match_intvl_tbll_def] >>
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+    fs[sem_tables_def, sem_intvl_tables_def] 
+  ]   
+] 
 QED
-
 
 
    
@@ -616,18 +752,13 @@ QED
 
 
 
+*)
 
 
 
 
 
-
-
-     *)
-
-
-
-        
+   
                                                                 
 
 val _ = export_theory ();
