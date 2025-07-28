@@ -38,20 +38,25 @@ val _ = new_theory "table_var_to_arith";
 
 
 val _ = Hol_datatype ` 
-  interval = Empty | Single of num => num | Union of interval => interval
+  interval = Empty | Single of num => num
 `;
 
+val _ = Hol_datatype ` 
+  airth_key = key_val of arith_lv | key_const of num
+`;
 
-Type intvl_row = “:arith_lv option # (num # num) option # num # 'a action_expr”;
+        
+Type intvl_row = “:airth_key # interval # num # 'a action_expr”;
 (* None = Empty, Some (a,b) = Single [a,b] *)
 (* arith_lv from policy_arith_to_var*)
 
 Type intvl_table = “:('a intvl_row) list”;
 Type intvl_table_list = “:('a intvl_table ) list”;
 
-   
+(*   
 val _ = Hol_datatype `
    arith_atom_result =  SingleAtom of arithm_atom | UnionAtoms of arithm_atom => arithm_atom`;
+*)
 
 val _ = Hol_datatype `
   pd_type = 
@@ -67,8 +72,7 @@ Definition get_lval_def:
   get_lval (a_True) = NONE ∧
   get_lval (a_False) = NONE ∧
   get_lval (arithm_gt lv _) = SOME lv ∧
-  get_lval (arithm_lt lv _) = SOME lv ∧
-  get_lval (arithm_eq lv _) = SOME lv
+  get_lval (arithm_lt lv _) = SOME lv
 End
 
         
@@ -101,25 +105,21 @@ End
    i.e. each cell in the line of var table will be converted
    directly to an aritmetic atom via this def. *)       
 Definition atom_to_arith_def:
-  (atom_to_arith m_e True = SOME (SingleAtom a_True)) ∧   
-  (atom_to_arith m_e False = SOME (SingleAtom a_False)) ∧
+  (atom_to_arith m_e True = SOME a_True) ∧   
+  (atom_to_arith m_e False = SOME a_False) ∧
                  
   (atom_to_arith m_e (Var x) =                                    
     case ALOOKUP m_e x of
-      | SOME a => SOME (SingleAtom a)
+      | SOME a => SOME a
       | NONE => NONE) ∧
       
   (atom_to_arith m_e (Not a) = 
     case atom_to_arith m_e a  of
-      | SOME (SingleAtom a_True) => SOME (SingleAtom a_False)
-      | SOME (SingleAtom a_False) => SOME (SingleAtom a_True)
+      | SOME (a_True) => SOME a_False
+      | SOME (a_False) => SOME a_True
                                                       
-      | SOME (SingleAtom (arithm_gt lv n)) => SOME (SingleAtom (arithm_lt lv (n+1)))
-      | SOME (SingleAtom (arithm_lt lv n)) => SOME (SingleAtom (arithm_gt lv (n-1)))
-                                                               
-      | SOME (SingleAtom (arithm_eq lv n)) => SOME (UnionAtoms (arithm_lt lv n) (arithm_gt lv n))
-                                
-      | SOME (UnionAtoms _ _) => NONE (* should not happen *)
+      | SOME (arithm_gt lv n) => SOME (arithm_lt lv (n+1))
+      | SOME (arithm_lt lv n) => SOME (arithm_gt lv (n-1))                                                                              
       | NONE => NONE)
 End
         
@@ -132,22 +132,20 @@ Definition arith_to_interval_def:
   (arith_to_interval (arithm_lt _ n) max = 
      if n ≤ 0 then Empty 
      else if n > max then Single 0 max
-     else Single 0 (n-1)) ∧
-  (arith_to_interval (arithm_eq _ n) max = 
-     if n < 0 ∨ n > max then Empty else Single n n)
+     else Single 0 (n-1)) 
 End
         
 
 Definition intersect_single_def:
-  intersect_single (SOME (a1,b1)) (Single a2 b2) =
+  intersect_single (Single (a1:num) b1) (Single a2 b2) =
   (let a = MAX a1 a2 in
      let b = MIN b1 b2 in
        if a ≤ b then
-         SOME (a,b)
+         Single a b
        else
-         NONE
+         Empty
   ) ∧
-  (intersect_single _ _ = NONE)
+  (intersect_single _ _ = Empty)
 End
 
 
@@ -158,39 +156,16 @@ End
 
 
 
-(*
- * process_guard m_e max g rows
- * 
- * filters all the table's rows through guard condition g using interval arithmetic:
- * - m_e: variable environment (name to arithmetic atom)
- * - max: maximum value for intervals
- * - g: guard condition (atom_var) to apply
- * - rows: input rows (lval_opt, interval, state, action)
- * 
- * returns: List of rows where intervals are narrowed to values satisfying g.
- *          Empty list if guard conversion fails.
- *          Rows with NONE interval when no values satisfy g.
- *          May split rows for UnionAtoms (OR conditions).
- *)
+
 Definition process_guard_def:
   (process_guard m_e max g [] = []) ∧
-  (process_guard m_e max g (((lval_opt: arith_lv option), curr_int, (s:num), (res: 'a action_expr))::rows) =
+  (process_guard m_e max g (((key: airth_key), curr_int, (s:num), (res: 'a action_expr))::rows) =
    (case (atom_to_arith m_e g, curr_int) of
-         
       | (NONE, _) => []
-      | (SOME _, NONE) => [(lval_opt, NONE, s, res)] (* False interval *)
-      | (SOME (SingleAtom a), SOME curr) =>
-          (let inter_op = intersect_single (SOME curr) (arith_to_interval a max) in
-            [(lval_opt, inter_op, s, res)]
-          )
-      | (SOME (UnionAtoms a1 a2), SOME curr) =>
-          (case (intersect_single (SOME curr) (arith_to_interval a1 max),
-                 intersect_single (SOME curr) (arith_to_interval a2 max)) of
-             | (NONE, NONE) => [(lval_opt, NONE, s, res)] (* False line *)
-             | (SOME i1, NONE) => [(lval_opt, SOME i1, s, res)]
-             | (NONE, SOME i2) => [(lval_opt, SOME i2, s, res)]
-             | (SOME i1, SOME i2) => [(lval_opt, SOME i1, s, res);
-                                      (lval_opt, SOME i2, s, res)]
+      | (SOME _, Empty) => [(key, Empty, s, res)] (* False interval *)
+      | (SOME a , curr_int ) =>
+          (let inter_op = intersect_single curr_int (arith_to_interval a max) in
+            [(key, inter_op, s, res)]
           )
     ) ++ process_guard m_e max g rows)
 End
@@ -229,50 +204,65 @@ Definition is_bool_or_unique_var_def:
           else NONE              (* Different LVals detected *)
 End
 
-       
-Definition convert_line_def:
-  (convert_line m_e pd_type ([], s, res) = SOME [(NONE, SOME (0,255), s, res)]) ∧  (* Default max *)
-  (convert_line m_e pd_type (var_guards, s, res) =
-   case is_bool_or_unique_var m_e var_guards of
-   | NONE => NONE
-   | SOME (T, NONE) => (* all booleans, possibly last table *)
-       (let initial_arith_row = [(NONE, SOME (0,255), s, res)] in
-          SOME (process_guards_rec m_e 255 var_guards initial_arith_row))
-   | SOME (T, (SOME lv)) =>      (* here lv is unique *)
-       case resolve_pd_max pd_type lv of
-       | SOME max => 
-           (let initial_arith_row = [(SOME lv, SOME (0,max), s, res)] in
-              SOME (process_guards_rec m_e max var_guards initial_arith_row))
-       | _ => NONE  (* this case needed in case it is unique but not defined *)
-  )
+
+
+
+
+Definition analyze_table_type_def:
+  (analyze_table_type m_e pd_type [] = SOME (T, key_const 1, 1)) ∧
+  (analyze_table_type m_e pd_type ((var_guards, s, res)::lines) =
+   let all_guards = FLAT (MAP FST (((var_guards, s, res)::lines))) in
+   let lvals = FILTER IS_SOME (MAP (get_lval_of_guard_in_me m_e) all_guards) in
+   case lvals of
+     | [] => SOME (T, key_const 1, 1)  (* All guards are boolean across entire table *)
+     | (SOME lv)::rest => 
+         if EVERY (λx. x = SOME lv) rest 
+         then (case resolve_pd_max pd_type lv of
+               | SOME max => SOME (T, key_val lv, max)  (* All non-boolean guards use same LVal *)
+               | NONE => NONE)
+         else NONE)              (* Different LVals detected *)
 End
 
-                        
-Definition convert_single_table_def:
-  (convert_single_table [] m_e pd_type = SOME []) ∧
-  (convert_single_table (line::tbl) m_e pd_type =
-    case convert_line m_e pd_type line of
-      | NONE => NONE  (* Propagate failure *)
-      | SOME res_line =>
-          (case convert_single_table tbl m_e pd_type of
-            | NONE => NONE
-            | SOME rest => SOME (res_line ++ rest)))
+ 
+
+Definition convert_line_with_key_def:
+  (convert_line_with_key m_e key_type max ([], s, res) = 
+   [(key_type, Single 1 1, s, res)]) ∧ (* Default case for empty guards *)
+  (convert_line_with_key m_e key_type max (var_guards, s, res) =
+   let initial_arith_row = [(key_type, Single 0 max, s, res)] in
+     process_guards_rec m_e max var_guards initial_arith_row)
 End
+
+
+
+
+Definition convert_single_table_fixed_def:
+  (convert_single_table_fixed [] m_e pd_type = SOME []) ∧
+  (convert_single_table_fixed table m_e pd_type =
+    case analyze_table_type m_e pd_type table of
+      | NONE => NONE  (* Inconsistent table *)
+      | SOME (T, key_type, max) =>
+          let process_line = λline. convert_line_with_key m_e key_type max line in
+          SOME (FLAT (MAP process_line table)))
+End
+
+
 
 
 Definition convert_tables_def:
-  (convert_tables [] _ _ = SOME []) ∧
-  (convert_tables (tbl::tbls) m_e pd_type =
-    case convert_single_table tbl m_e pd_type of
+  (convert_tables_fixed [] _ _ = SOME []) ∧
+  (convert_tables_fixed (tbl::tbls) m_e pd_type =
+    case convert_single_table_fixed tbl m_e pd_type of
       | NONE => NONE  (* Fail immediately if any table fails *)
       | SOME converted_tbl =>
-          case convert_tables tbls m_e pd_type of
+          case convert_tables_fixed tbls m_e pd_type of
             | NONE => NONE
             | SOME converted_tbls => SOME (converted_tbl :: converted_tbls))
 End
 
-(*
 
+
+(*
 val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
         (state (3 :num) :(string # num list) action_expr));
        ([(Var "x" :atom_var); Not (Var "y" :atom_var)],(0 :num),
@@ -288,7 +278,21 @@ val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
        ([True],(7 :num),action ("fwd",[(2 :num)]));
        ([True],(8 :num),action ("drop",([] :num list)))]])”;
 
-
+val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
+        (state (3 :num) :(string # num list) action_expr));
+       ([(Var "x" :atom_var); Not (Var "y" :atom_var)],(0 :num),
+        (state (4 :num) :(string # num list) action_expr));
+        ([True],(0 :num),(state (3 :num) :(string # num list) action_expr));
+       ([Not (Var "x" :atom_var)],(0 :num),
+        (state (4 :num) :(string # num list) action_expr))];
+      [([(Var "z" :atom_var)],(4 :num),
+        (state (7 :num) :(string # num list) action_expr));
+       ([Not (Var "z" :atom_var)],(4 :num),
+        (state (8 :num) :(string # num list) action_expr));
+       ([True],(3 :num),(state (3 :num) :(string # num list) action_expr))];
+      [([True],(3 :num),action ("fwd",[(1 :num)]));
+       ([True],(7 :num),action ("fwd",[(2 :num)]));
+       ([True],(8 :num),action ("drop",([] :num list)))]])”;
 
 val test_pd_nested = ``[
   ("h", type_record [
@@ -305,18 +309,18 @@ val test_lval2 = ``lv_acc (lv_x "h") "flags"``;
 
 val test_atom1 = ``arithm_gt ^test_lval1 0``;
 val test_atom2 = ``arithm_lt ^test_lval1 10``;
-val test_atom3 = ``arithm_eq ^test_lval2 3``;
+val test_atom3 = ``arithm_lt ^test_lval2 3``;
 
   
 val test_m_e = ``[("x", ^test_atom1); ("y", ^test_atom2); ("z", ^test_atom3) ]``;
 
-EVAL ``convert_tables ^policy1_var ^test_m_e ^test_pd_nested``;
+EVAL ``convert_tables_fixed ^policy1_var ^test_m_e ^test_pd_nested``;
 
 
 *)
     
                   
-
+(*
 (* SEMANTICS *)
 Definition is_intvl_match_row_def:
   is_intvl_match_row  (s_in:num) (packet_input:pd) (row:('a intvl_row)) =
@@ -655,7 +659,7 @@ QED
 
 
 
-     
+     *)
 
 
 
