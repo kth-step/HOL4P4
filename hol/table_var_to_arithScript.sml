@@ -410,14 +410,6 @@ val test1 = EVAL ``sem_intvl_tables (^test_tables, ^initial_state) ^test_packet`
 
 
 
-
-                   
-
-
-
-        
-
-
 (**********)
 (* proof *)
 (**********)
@@ -437,58 +429,169 @@ QED
 
 
 
+        
+
+Definition norm_match_tbl_def:
+  (norm_match_tbl [] m_v st_in = NONE) ∧
+  (norm_match_tbl ((guards,st,res)::t) m_v st_in =
+    if is_match_row st_in st guards m_v then
+      SOME res
+    else
+      norm_match_tbl t m_v st_in)
+End
+
+
+Definition norm_match_intvl_tbl_def:
+  (norm_match_intvl_tbl [] packet_input st_in = NONE) ∧
+  (norm_match_intvl_tbl ((lval_opt,interval,st,res)::t) packet_input st_in =
+    if is_intvl_match_row st_in packet_input (lval_opt,interval,st,res) then
+      SOME res
+    else
+      norm_match_intvl_tbl t packet_input st_in)
+End
 
 
 
 
+Theorem norm_match_tbl_equiv:
+  ∀tbl m_v st_in.
+    norm_match_tbl tbl m_v st_in = match_tbl tbl m_v st_in
+Proof
+  Induct >> rw[] >-
+  (
+  fs[norm_match_tbl_def, match_tbl_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def]
+  ) >>
+  PairCases_on ‘h’ >>
+  fs[norm_match_tbl_def, match_tbl_def, check_all_rows_match_def] >>
+  Cases_on `is_match_row st_in h1 h0 m_v` >> fs[] >>
+  gvs[min_idx_till_def, INDEX_FIND_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>  
 
-(*
+  imp_res_tac INDEX_FIND_NONE_EXISTS >>
+  imp_res_tac exists_index_some >>
+  gvs[EXISTS_MAP] >>
+  gvs[MAP_MAP_o] >>          
+  imp_res_tac P_implies_next >>
+  gvs[]     
+QED
 
+
+
+
+Theorem norm_match_intvl_tbl_equiv:
+  ∀tbl packet_input st_in.
+    norm_match_intvl_tbl tbl packet_input st_in = 
+    match_intvl_tbl tbl packet_input st_in
+Proof
+   Induct >> rw[] >-
+  (
+  fs[norm_match_intvl_tbl_def, match_intvl_tbl_def, check_all_intvl_rows_match_def, min_idx_till_def, INDEX_FIND_def]
+  ) >>
+  PairCases_on ‘h’ >>
+  fs[norm_match_intvl_tbl_def, match_intvl_tbl_def, check_all_intvl_rows_match_def] >>
+  Cases_on ‘is_intvl_match_row st_in packet_input (h0,h1,h2,h3)’ >> fs[] >>
+  gvs[min_idx_till_def, INDEX_FIND_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>  
+
+  imp_res_tac INDEX_FIND_NONE_EXISTS >>
+  imp_res_tac exists_index_some >>
+  gvs[EXISTS_MAP] >>
+  gvs[MAP_MAP_o] >>                 
+  imp_res_tac P_implies_next >>
+  gvs[]     
+QED
+
+
+
+Theorem norm_match_intvl_tbl_append:
+  ∀t1 t2 packet_input st_in.
+    norm_match_intvl_tbl (t1 ++ t2) packet_input st_in =
+    case norm_match_intvl_tbl t1 packet_input st_in of
+      | NONE => norm_match_intvl_tbl t2 packet_input st_in
+      | SOME res => SOME res
+Proof
+  Induct_on ‘t1’ >> rw[norm_match_intvl_tbl_def] >>
+  PairCases_on ‘h’ >>  gvs[norm_match_intvl_tbl_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[])          
+QED
+
+
+        
+
+
+
+Theorem semantic_single_table_equivalence_normalized:
   ∀var_table m_e packet_input m_v interval_table packet_type st_in.
-ALL_DISTINCT (MAP FST m_e) ∧
-(∀var atom.  ALOOKUP m_e var = SOME atom ⇒
-             ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
-convert_single_table var_table m_e packet_type = SOME interval_table ⇒
-match_tbl var_table m_v st_in = match_intvl_tbl interval_table packet_input st_in
+    ALL_DISTINCT (MAP FST m_e) ∧
+    (∀var atom. ALOOKUP m_e var = SOME atom ⇒
+               ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+    convert_single_table var_table m_e packet_type = SOME interval_table ⇒
+    norm_match_tbl var_table m_v st_in =
+    norm_match_intvl_tbl interval_table packet_input st_in
+Proof
+  Induct_on ‘var_table’ >>
+  rpt gen_tac >> strip_tac  >|[
+    fs[convert_single_table_def, norm_match_tbl_def, norm_match_intvl_tbl_def]
+    ,                            
+    PairCases_on ‘h’ >>
+    fs[convert_single_table_def] >>
+    Cases_on ‘convert_line m_e packet_type (h0,h1,h2)’ >> fs[] >>
+    rename1 ‘convert_line _ _ _ = SOME lines’ >>
+    Cases_on ‘convert_single_table var_table m_e packet_type’ >> fs[] >>
+    rename1 ‘convert_single_table _ _ _ = SOME interval_tail’ >>
+    simp[norm_match_tbl_def] >>
+    
+    (* Key step: prove head equivalence *)
+    ‘(∃line. MEM line lines ∧ 
+             is_intvl_match_row st_in packet_input line) ⇔ 
+              is_match_row st_in h1 h0 m_v ’ by (
+      cheat
+      ) >>
 
-  
-  (* Process each line in the table *)
-  Induct_on `var_table` >> rw[] >>
-  rpt gen_tac >> strip_tac >>
-  fs[convert_single_table_def] >- (
-    (* Base case - empty table *)
-    fs[match_tbl_def, match_intvl_tbl_def, check_all_rows_match_def, 
-       check_all_intvl_rows_match_def]
-  ) >>
-  (* Inductive case *)
-  PairCases_on `h` >> fs[] >>
-  Cases_on `convert_line m_e packet_type (h0,h1,h2)` >> fs[] >>
-  rename1 `convert_line _ _ _ = SOME lines` >>
-  `∀line. MEM line lines ⇒ 
-         (is_match_row st_in h1 h0 m_v ⇔ 
-          is_intvl_match_row st_in packet_input line)` by (
-    (* Apply process_guard_semantics lemma *)
-    (* Need to show conditions hold for each guard in h0 *)
-  ) >>
-  (* Now relate the full table matching *)
-  fs[match_tbl_def, match_intvl_tbl_def] >>
-  (* Show check_all_rows_match and check_all_intvl_rows_match correspond *)
-  (* Prove min_idx_till returns equivalent results *)
+    Cases_on ‘is_match_row st_in h1 h0 m_v’ >> fs[] >|[
+        (* head*)
+        gvs[] >>
+        fs[norm_match_intvl_tbl_append] >>
+        rpt (BasicProvers.FULL_CASE_TAC >> fs[])  >>
+        cheat      
+        ,
+        (* rest by IH*)
+        res_tac >>
+        first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’])) >>
+        fs[norm_match_intvl_tbl_def] >>
+        fs[norm_match_intvl_tbl_append] >>
+        rpt (BasicProvers.FULL_CASE_TAC >> fs[])  >>         
+        (*needs a lemma*)
+        cheat
 
-*)
+      ]
+  ]
+        
+QED
+
+        
 
 
 
+Theorem interval_single_table_converstion_correctness:
+  ∀var_table m_e packet_input m_v interval_table packet_type st_in.
+    ALL_DISTINCT (MAP FST m_e) ∧
+    (∀var atom.  ALOOKUP m_e var = SOME atom ⇒
+                 ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+    convert_single_table var_table m_e packet_type = SOME interval_table ⇒
+    match_tbl var_table m_v st_in = match_intvl_tbl interval_table packet_input st_in
+Proof
 
-
-
-
-
-
-                
+  rpt strip_tac >>
+gvs[GSYM norm_match_intvl_tbl_equiv] >>
+gvs[GSYM norm_match_tbl_equiv] >>
+metis_tac[semantic_single_table_equivalence_normalized]
+QED
+   
+     
         
                
-Theorem conversion_correctness:
+Theorem interval_tables_conversion_correctness:
   ∀var_tables m_e packet_input m_v interval_tables packet_type st_in.
     ALL_DISTINCT (MAP FST m_e) ∧
     
@@ -524,14 +627,15 @@ Proof
     gvs[] >|[
 
         (* both are last tables*)
-        fs[match_tbll_def, match_intvl_tbll_def]
+        fs[match_tbll_def, match_intvl_tbll_def] >> cheat
         ,
-        fs[convert_tables_def]
+        fs[convert_tables_def] >> cheat
         ,
-        gvs[convert_tables_never_empty]
+        gvs[convert_tables_never_empty] >> cheat
         ,
-        fs[match_tbll_def, match_intvl_tbll_def]
-      ]            
+        fs[match_tbll_def, match_intvl_tbll_def] >> cheat
+      ]   
+  ]         
 QED
 
 
