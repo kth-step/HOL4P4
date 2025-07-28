@@ -48,7 +48,7 @@ val _ = Hol_datatype `
    | a_False              (* F *)
    | arithm_gt of arith_lv => num  (* lval > v *)
    | arithm_lt of arith_lv => num  (* lval < v *)
-   | arithm_eq of arith_lv => num  (* lval = v *)
+   (*| arithm_eq of arith_lv => num  (* lval = v *)*) (* this will be added to input policy *)
 `;
 
 
@@ -118,10 +118,6 @@ Definition eval_arithm_atom_def:
   (eval_arithm_atom pd (arithm_lt lval n) = 
     case resolve_lval pd lval of
       SOME (val_num m) => SOME (m < n)
-    | _ => NONE) ∧
-  (eval_arithm_atom pd (arithm_eq lval n) = 
-    case resolve_lval pd lval of
-      SOME (val_num m) => SOME (m = n)
     | _ => NONE)
 End
 

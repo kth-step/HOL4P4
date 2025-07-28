@@ -242,7 +242,7 @@ val OR  = ``λ(p1,a1) (p2,a2). (arith_or p1 p2, a1)``;
 val NOT = ``λ(p,a). (arith_not p, a)``;
 *)
 
-
+(*
 val test_packet = “[
   ("h", val_record [
     ("ip", val_record [
@@ -298,7 +298,7 @@ val alookup_cond_thm = EVAL “∀var atom. ALOOKUP ^policy3_me1 var = SOME atom
 val arith_policy3_var_policy3_thm = REWRITE_RULE[all_distinct_conj, arith_policy3_eval]
 (ISPECL[arith_policy3, var_policy3, policy3_me1] policy_airth_to_var_sem_conversion_correct);        
 
-
+*)
 
                        
 val _ = export_theory ();
