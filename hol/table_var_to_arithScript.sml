@@ -149,28 +149,26 @@ End
 
 
 
-
 Definition process_guard_def:
-  (process_guard m_e max g [] = []) ∧
-  (process_guard m_e max g (((key: airth_key), curr_int, (s:num), (res: 'a action_expr))::rows) =
-   (case (atom_to_arith m_e g, curr_int) of
-      | (NONE, _) => []
-      | (SOME _, Empty) => [(key, Empty, s, res)] (* False interval *)
-      | (SOME a , curr_int ) =>
-          (let inter_op = intersect_single curr_int (arith_to_interval a max) in
-            [(key, inter_op, s, res)]
-          )
-    ) ++ process_guard m_e max g rows)
+  (process_guard m_e max g (key, curr_int, s, res) =
+    case atom_to_arith m_e g of
+      | NONE => (key, Empty, s, res) (* Invalid guard becomes empty *)
+      | SOME a_True => (key, Single 0 max, s, res) (* True uses full range *)
+      | SOME a_False => (key, Empty, s, res) (* False is empty *)
+      | SOME a => 
+          (key, intersect_single curr_int (arith_to_interval a max), s, res))
 End
 
 
-(* processing guards recursively *)
+
+        
 Definition process_guards_rec_def:
-  (process_guards_rec m_e max  [] acc = acc) ∧
-  (process_guards_rec m_e max (g::gs) acc =
-    let new_acc = FLAT (MAP (λrow. process_guard m_e max g [row]) acc) in
-      process_guards_rec m_e max gs new_acc)
+  (process_guards_rec m_e max [] row = row) ∧
+  (process_guards_rec m_e max (g::gs) row =
+    process_guards_rec m_e max gs (process_guard m_e max g row))
 End
+
+        
 
 
 Definition get_lval_of_guard_in_me_def:
@@ -222,28 +220,30 @@ End
 
  
 
+
+        
 Definition convert_line_with_key_def:
   (convert_line_with_key m_e key_type max ([], s, res) =
-                         [(key_type, Single 1 1, s, res)]) ∧ (* Default case for empty guards *)
+    (* Empty guards - use full range of the key's type *)
+    (key_type, Single 0 max, s, res)) ∧
   (convert_line_with_key m_e key_type max (var_guards, s, res) =
-   let initial_arith_row = [(key_type, Single 0 max, s, res)] in
-     process_guards_rec m_e max var_guards initial_arith_row)
+    process_guards_rec m_e max var_guards (key_type, Single 0 max, s, res))
 End
-
 
 
 
 Definition convert_single_table_def:
-  (convert_single_table [] m_e pd_type = NONE) ∧
-  (convert_single_table table m_e pd_type =
-   case analyze_table_type m_e pd_type table of
-   | SOME (T, key_type, max) =>
-       (let process_line = λline. convert_line_with_key m_e key_type max line in
-         SOME (FLAT (MAP process_line table)))
-   | _ => NONE  (* Inconsistent table *)
+  (convert_single_table [] m_e pd_type = SOME []) ∧
+  (convert_single_table lines m_e pd_type =
+    case analyze_table_type m_e pd_type lines of
+      | SOME (T, key_type, max) =>
+          (* Convert all lines with the same key_type and max *)
+          SOME (MAP (λline. convert_line_with_key m_e key_type max line) lines)
+      | _ => NONE  (* Inconsistent table *)
   )
 End
 
+        
 
 
 
@@ -265,6 +265,9 @@ val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
         (state (3 :num) :(string # num list) action_expr));
        ([(Var "x" :atom_var); Not (Var "y" :atom_var)],(0 :num),
         (state (4 :num) :(string # num list) action_expr));
+       ([False],(3 :num),action ("fwd",[(1 :num)]));
+       ([True],(3 :num),action ("fwd",[(1 :num)]));
+                  ([True],(3 :num),action ("fwd",[(1 :num)]));
        ([Not (Var "x" :atom_var)],(0 :num),
         (state (4 :num) :(string # num list) action_expr))];
       [([(Var "z" :atom_var)],(4 :num),
@@ -298,9 +301,9 @@ val test_atom3 = ``arithm_lt ^test_lval2 3``;
 val test_m_e = ``[("x", ^test_atom1); ("y", ^test_atom2); ("z", ^test_atom3) ]``;
 
 EVAL ``convert_tables ^policy1_var ^test_m_e ^test_pd_nested``;
-
-
 *)
+
+
     
                   
 
