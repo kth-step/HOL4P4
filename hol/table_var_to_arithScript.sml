@@ -35,8 +35,6 @@ open policy_arith_to_varTheory;
 val _ = new_theory "table_var_to_arith";
 
 
-
-
 val _ = Hol_datatype ` 
   interval = Empty | Single of num => num
 `;
@@ -47,16 +45,11 @@ val _ = Hol_datatype `
 
         
 Type intvl_row = “:airth_key # interval # num # 'a action_expr”;
-(* None = Empty, Some (a,b) = Single [a,b] *)
-(* arith_lv from policy_arith_to_var*)
 
 Type intvl_table = “:('a intvl_row) list”;
 Type intvl_table_list = “:('a intvl_table ) list”;
 
-(*   
-val _ = Hol_datatype `
-   arith_atom_result =  SingleAtom of arithm_atom | UnionAtoms of arithm_atom => arithm_atom`;
-*)
+
 
 val _ = Hol_datatype `
   pd_type = 
@@ -193,20 +186,6 @@ Definition get_lval_of_guard_in_me_def:
 End
 
 
-Definition is_bool_or_unique_var_def:
-  is_bool_or_unique_var m_e var_guards = 
-    let lvals = FILTER IS_SOME (MAP (get_lval_of_guard_in_me m_e) var_guards) in
-    case lvals of
-      | [] => SOME (T, NONE)  (* All guards are boolean *)
-      | (SOME lv)::rest => 
-          if EVERY (λx. x = SOME lv) rest 
-          then SOME (T, SOME lv)  (* All non-boolean guards use same LVal *)
-          else NONE              (* Different LVals detected *)
-End
-
-
-
-
 
 Definition analyze_table_type_def:
   (analyze_table_type m_e pd_type [] = SOME (T, key_const 1, 1)) ∧
@@ -236,9 +215,9 @@ End
 
 
 
-Definition convert_single_table_fixed_def:
-  (convert_single_table_fixed [] m_e pd_type = SOME []) ∧
-  (convert_single_table_fixed table m_e pd_type =
+Definition convert_single_table_def:
+  (convert_single_table [] m_e pd_type = SOME []) ∧
+  (convert_single_table table m_e pd_type =
     case analyze_table_type m_e pd_type table of
       | NONE => NONE  (* Inconsistent table *)
       | SOME (T, key_type, max) =>
@@ -250,19 +229,19 @@ End
 
 
 Definition convert_tables_def:
-  (convert_tables_fixed [] _ _ = SOME []) ∧
-  (convert_tables_fixed (tbl::tbls) m_e pd_type =
-    case convert_single_table_fixed tbl m_e pd_type of
+  (convert_tables [] _ _ = SOME []) ∧
+  (convert_tables (tbl::tbls) m_e pd_type =
+    case convert_single_table tbl m_e pd_type of
       | NONE => NONE  (* Fail immediately if any table fails *)
       | SOME converted_tbl =>
-          case convert_tables_fixed tbls m_e pd_type of
+          case convert_tables tbls m_e pd_type of
             | NONE => NONE
             | SOME converted_tbls => SOME (converted_tbl :: converted_tbls))
 End
 
 
 
-(*
+
 val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
         (state (3 :num) :(string # num list) action_expr));
        ([(Var "x" :atom_var); Not (Var "y" :atom_var)],(0 :num),
@@ -271,28 +250,13 @@ val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
         (state (4 :num) :(string # num list) action_expr))];
       [([(Var "z" :atom_var)],(4 :num),
         (state (7 :num) :(string # num list) action_expr));
-       ([Not (Var "z" :atom_var)],(4 :num),
+       ([Not (Var "w" :atom_var)],(4 :num),
         (state (8 :num) :(string # num list) action_expr));
        ([True],(3 :num),(state (3 :num) :(string # num list) action_expr))];
       [([True],(3 :num),action ("fwd",[(1 :num)]));
        ([True],(7 :num),action ("fwd",[(2 :num)]));
        ([True],(8 :num),action ("drop",([] :num list)))]])”;
 
-val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
-        (state (3 :num) :(string # num list) action_expr));
-       ([(Var "x" :atom_var); Not (Var "y" :atom_var)],(0 :num),
-        (state (4 :num) :(string # num list) action_expr));
-        ([True],(0 :num),(state (3 :num) :(string # num list) action_expr));
-       ([Not (Var "x" :atom_var)],(0 :num),
-        (state (4 :num) :(string # num list) action_expr))];
-      [([(Var "z" :atom_var)],(4 :num),
-        (state (7 :num) :(string # num list) action_expr));
-       ([Not (Var "z" :atom_var)],(4 :num),
-        (state (8 :num) :(string # num list) action_expr));
-       ([True],(3 :num),(state (3 :num) :(string # num list) action_expr))];
-      [([True],(3 :num),action ("fwd",[(1 :num)]));
-       ([True],(7 :num),action ("fwd",[(2 :num)]));
-       ([True],(8 :num),action ("drop",([] :num list)))]])”;
 
 val test_pd_nested = ``[
   ("h", type_record [
@@ -314,7 +278,7 @@ val test_atom3 = ``arithm_lt ^test_lval2 3``;
   
 val test_m_e = ``[("x", ^test_atom1); ("y", ^test_atom2); ("z", ^test_atom3) ]``;
 
-EVAL ``convert_tables_fixed ^policy1_var ^test_m_e ^test_pd_nested``;
+EVAL ``convert_tables ^policy1_var ^test_m_e ^test_pd_nested``;
 
 
 *)
