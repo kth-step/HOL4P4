@@ -62,6 +62,9 @@ val _ = Hol_datatype `
 Type pd_type_struct = “: (string # pd_type) list”; 
 
 
+
+
+
 (*============================*)
 (*    Auxiliary definitions   *)
 (*============================*)
@@ -699,7 +702,11 @@ Proof
 QED
 
 
-val lemma_lambda_con = ETA_CONV ``\x. all_vars_defined_abstract m_e x``;
+
+
+      
+
+
 
 
 Theorem interval_single_table_converstion_correctness:
@@ -711,13 +718,7 @@ Theorem interval_single_table_converstion_correctness:
     convert_single_table var_table m_e packet_type = SOME interval_table ⇒
     match_tbl var_table m_v st_in = match_intvl_tbl interval_table packet_input st_in
 Proof
-  rpt gen_tac >> strip_tac >>
-  imp_res_tac mapped_lists_equivalent >> simp[] >>
-  
-  gvs[convert_single_table_def, match_tbl_def, match_intvl_tbl_def,
-      check_all_rows_match_def, check_all_intvl_rows_match_def] >>
-      
-  gvs[ELIM_UNCURRY]               
+  cheat             
 QED
 
 
@@ -748,7 +749,8 @@ Proof
   ‘valid_table h’ by gvs[valid_tables_def] >>
         
   subgoal ‘match_tbl h m_v st_in = match_intvl_tbl x packet_input st_in’ >-
-            ( cheat) >>
+   ( cheat) >>
+   
     (*metis_tac[interval_single_table_converstion_correctness] ) >>
      *)
   
@@ -768,7 +770,6 @@ Proof
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
     fs[sem_tables_def, sem_intvl_tables_def] 
   ]   
-] 
 QED
 
 
