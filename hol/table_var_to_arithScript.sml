@@ -44,15 +44,13 @@ val _ = Hol_datatype `
 `;
 
 val _ = Hol_datatype ` 
-  airth_key = key_val of arith_lv | key_const of num
+  airth_key = key_val of arith_lv | key_const of bitv
 `;
 
         
 Type intvl_row = “:airth_key # interval # num # 'a action_expr”;
-
 Type intvl_table = “:('a intvl_row) list”;
 Type intvl_table_list = “:('a intvl_table ) list”;
-
 
 
 val _ = Hol_datatype `
@@ -98,10 +96,10 @@ Definition max_from_type_def:
 End
 
 
-Definition resolve_pd_max_def:
-  resolve_pd_max pd_type lval =
+Definition resolve_pd_min_max_def:
+  resolve_pd_min_max pd_type lval =
     case resolve_lval_type pd_type lval of
-      | SOME (type_length n) => SOME (max_from_type n)
+      | SOME (type_length n) => SOME ((n2v 0, n), ( n2v (max_from_type n), n)  )
       | _ => NONE
 End
 
@@ -295,88 +293,15 @@ End
 
 
 
+
+
+(*==================================*)
+(*     line coversion definitions   *)
+(*==================================*)
+
+        
 (*MAP (\x. process_guard_to_arith m_e min max g curr_int) guards_list*)        
 (* think about splitting the procedure *)
-Definition process_guards_rec_def:
-  (process_guards_rec m_e min max [] init_int = init_int) ∧
-  (process_guards_rec m_e min max (g::gs) init_int =
-    process_guards_rec m_e min max gs (process_guard_to_arith m_e min max g init_int))
-End
-
-
-
-Definition get_lval_of_guard_in_me_def:
-  get_lval_of_guard_in_me m_e var_g = 
-    case var_g of
-      | Var x => (case ALOOKUP m_e x of
-                  | SOME a => get_lval a
-                  | NONE => NONE)
-      | Not (Var x) => (case ALOOKUP m_e x of
-                        | SOME a => get_lval a
-                        | NONE => NONE)
-      | _ => NONE
-End
-
-
-Definition all_vars_defined_abstract_def:
-  (all_vars_defined_abstract m_e [] = T) ∧
-  (all_vars_defined_abstract m_e (True::rest) = all_vars_defined_abstract m_e rest) ∧
-  (all_vars_defined_abstract m_e (False::rest) = all_vars_defined_abstract m_e rest) ∧
-  (all_vars_defined_abstract m_e ((Var x)::rest) = 
-   (case ALOOKUP m_e x of
-     | SOME _ => all_vars_defined_abstract m_e rest
-     | NONE => F)) ∧
-  (all_vars_defined_abstract m_e ((Not g)::rest) = 
-   (all_vars_defined_abstract m_e [g] ∧ all_vars_defined_abstract m_e rest))
-End
-
-
-
-Definition get_guard_lvals_def:
-  get_guard_lvals m_e guards = 
-    FILTER IS_SOME (MAP (get_lval_of_guard_in_me m_e) guards)
-End
-
-(* Helper function to check if all lvals are the same *)
-Definition all_lvals_same_def:
-  (all_lvals_same [] = T) ∧
-  (all_lvals_same [x] = T) ∧
-  (all_lvals_same (SOME x :: rest) = 
-     EVERY (λlval_opt. lval_opt = SOME x) rest) ∧
-  (all_lvals_same (NONE :: rest) = F)
-End
-
-(* Helper function to get the common lval if all are the same *)
-Definition get_common_lval_def:
-  (get_common_lval [] = NONE) ∧
-  (get_common_lval (SOME x :: rest) = 
-     if all_lvals_same (SOME x :: rest) then SOME x else NONE) ∧
-  (get_common_lval (NONE :: rest) = NONE)
-End
-
-(*
-        
-(* Add this new function to analyze the entire table first *)
-Definition analyze_table_type_def:
-  (analyze_table_type m_e pd_type [] = SOME (T, key_const 1, 1)) ∧
-  (analyze_table_type m_e pd_type lines =
-     let all_guards = FLAT (MAP FST lines) in
-     if ¬(all_vars_defined_abstract m_e all_guards) then 
-       NONE
-     else
-       let lvals = get_guard_lvals m_e all_guards in
-       case lvals of
-       | [] => SOME (T, key_const 1, 1)  (* All guards are boolean across entire table *)
-       | l => case get_common_lval lvals of
-              | NONE => NONE
-              | SOME lv => case resolve_pd_max pd_type lv of
-                           | SOME max => SOME (T, key_val lv, max) (* All non-boolean guards use same LVal *)
-                           | NONE => NONE)  (* Different LVals detected *)           
-End
-
-
-
-
 Definition process_guards_rec_def:
   (process_guards_rec m_e min max [] init_int = init_int) ∧
   (process_guards_rec m_e min max (g::gs) init_int =
@@ -398,9 +323,116 @@ Definition convert_lines_map_with_key_def:
 End
 
 
-        
-Definition convert_single_table_def:
-  (convert_single_table [] m_e pd_type = SOME []) ∧
+
+
+
+(*==================================*)
+(*  WFness conditions for var tbl   *)
+(*==================================*)
+
+
+
+
+Definition all_vars_defined_abstract_def:
+  (all_vars_defined_abstract m_e [] = T) ∧
+  (all_vars_defined_abstract m_e (True::rest) = all_vars_defined_abstract m_e rest) ∧
+  (all_vars_defined_abstract m_e (False::rest) = all_vars_defined_abstract m_e rest) ∧
+  (all_vars_defined_abstract m_e ((Var x)::rest) = 
+   (case ALOOKUP m_e x of
+     | SOME _ => all_vars_defined_abstract m_e rest
+     | NONE => F)) ∧
+  (all_vars_defined_abstract m_e ((Not g)::rest) = 
+   (all_vars_defined_abstract m_e [g] ∧ all_vars_defined_abstract m_e rest))
+End
+
+
+
+
+
+
+Definition get_lval_of_guard_in_me_def:
+  get_lval_of_guard_in_me m_e var_g = 
+    case var_g of
+      | Var x => (case ALOOKUP m_e x of
+                  | SOME a => get_lval a
+                  | NONE => NONE)
+      | Not (Var x) => (case ALOOKUP m_e x of
+                        | SOME a => get_lval a
+                        | NONE => NONE)
+      | _ => NONE
+End
+
+
+Definition get_guard_lvals_def:
+  get_guard_lvals m_e guards = 
+    FILTER (λ x . IS_SOME x ) (MAP (get_lval_of_guard_in_me m_e) guards)
+End
+
+
+Definition ALL_SAME_def:
+  (ALL_SAME [] = T) ∧
+  (ALL_SAME [x] = T) ∧
+  (ALL_SAME (x::y::rest) = ((x = y) ∧ ALL_SAME (y::rest)))
+End
+
+
+Definition one_unique_lval_in_guards_def:
+  one_unique_lval_in_guards m_e all_guards =
+    let lvals = get_guard_lvals m_e all_guards in
+    case lvals of
+      | [] => NONE   (* No lvals found *)
+      | h::t => if ALL_SAME (h::t) 
+                then h  (* Returns SOME lv if all same *)
+                else NONE
+End      
+
+       
+Definition valid_line_def:
+  valid_line (guards, s, res) = (guards ≠ [])
+End
+
+
+Definition valid_table_def:
+  valid_table table = 
+    ((table ≠ []) ∧ EVERY valid_line table)
+End
+
+
+Definition valid_tables_def:
+  valid_tables tables = EVERY valid_table tables
+End
+
+  
+
+(* Add this new function to analyze the entire table first *)
+Definition analyze_table_type_def:
+  (analyze_table_type m_e pd_type [] = NONE) ∧
+  (analyze_table_type m_e pd_type table =
+     let all_guards = FLAT (MAP FST table) in
+       case all_vars_defined_abstract m_e all_guards  of
+       | T => ( case EVERY (λx. x = (False:atom_var)) all_guards of
+                | T => NONE
+                | F =>  (case EVERY (λx. x = True ∨ x = False ) all_guards of
+                         | T => SOME (T, key_const (n2v 1, 1), (n2v 0,1), (n2v 1,1))
+                         | F => ( case one_unique_lval_in_guards m_e all_guards of
+                                  (* All non-boolean guards use same lval *)
+                                  | SOME lv => (
+                                    case resolve_pd_min_max pd_type lv of
+                                    | SOME (min,max) => SOME (T, key_val lv, min, max)
+                                    | NONE => NONE
+                                    )
+                                  | NONE => NONE
+                                )
+                        )
+              )
+       | F => NONE 
+  )
+End
+
+
+     
+Definition convert_single_table_def: 
+  (convert_single_table [] m_e pd_type = NONE) ∧
   (convert_single_table lines m_e pd_type =                
    case analyze_table_type m_e pd_type lines of
    | SOME (T, key_type, min, max) =>       (* Convert all lines with the same key_type and max *)
@@ -416,20 +448,7 @@ End
 
 
 
-Definition valid_line_def:
-  valid_line (guards, s, res) = (guards ≠ [])
-End
 
-
-Definition valid_table_def:
-  valid_table table = 
-    ((table ≠ []) ∧ EVERY valid_line table)
-End
-
-
-Definition valid_tables_def:
-  valid_tables tables = EVERY valid_table tables
-End
 
         
 Definition convert_tables_def:
@@ -450,13 +469,10 @@ End
 
 
 (*
-val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
+val policy1_var = “[[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
         (state (3 :num) :(string # num list) action_expr));
        ([(Var "x" :atom_var); Not (Var "y" :atom_var)],(0 :num),
         (state (4 :num) :(string # num list) action_expr));
-       ([False],(3 :num),action ("fwd",[(1 :num)]));
-       ([True; False],(3 :num),action ("fwd",[(1 :num)]));
-                  ([True],(3 :num),action ("fwd",[(1 :num)]));
        ([Not (Var "x" :atom_var)],(0 :num),
         (state (4 :num) :(string # num list) action_expr))];
       [([(Var "z" :atom_var)],(4 :num),
@@ -466,34 +482,40 @@ val policy1_var = “([[([(Var "x" :atom_var); (Var "y" :atom_var)],(0 :num),
        ([True],(3 :num),(state (3 :num) :(string # num list) action_expr))];
       [([True],(3 :num),action ("fwd",[(1 :num)]));
        ([True],(7 :num),action ("fwd",[(2 :num)]));
-       ([True],(8 :num),action ("drop",([] :num list)))]])”;
+       ([True],(8 :num),action ("drop",([] :num list)))]]”;
 
 
 val test_pd_nested = ``[
   ("h", type_record [
     ("len", type_length 5); 
     ("flags", type_length 5); 
-    ("ttl", type_length 5) 
+    ("ttl", type_length 5)
   ])
-  ]``;
+]``;
 
 
-  
 val test_lval1 = ``lv_acc (lv_x "h") "ttl"``;
 val test_lval2 = ``lv_acc (lv_x "h") "flags"``;
+val test_lval3 = ``lv_x "z"``;
 
-val test_atom1 = ``arithm_gt ^test_lval1 0``;
-val test_atom2 = ``arithm_lt ^test_lval1 10``;
-val test_atom3 = ``arithm_lt ^test_lval2 3``;
 
-  
-val test_m_e = ``[("x", ^test_atom1); ("y", ^test_atom2); ("z", ^test_atom3) ]``;
+val test_atom1 = ``arithm_gt ^test_lval1 (n2v 0,5)``;  (* h.ttl > 0 *)
+val test_atom2 = ``arithm_lt ^test_lval1 (n2v 10,5)``; (* h.ttl < 10 *)
+val test_atom3 = ``arithm_lt ^test_lval2 (n2v 3,5)``;  (* h.flags < 3 *)
 
-EVAL ``convert_tables ^policy1_var ^test_m_e ^test_pd_nested``;
+    
+val test_m_e = ``[
+  ("x", ^test_atom1); 
+  ("y", ^test_atom2); 
+  ("z", ^test_atom3)
+]``;
+
+EVAL ``convert_tables (^policy1_var) ^test_m_e ^test_pd_nested``;
+        
 *)
 
 
-    
+    (*
                   
 
 (* SEMANTICS *)
@@ -555,7 +577,7 @@ Definition sem_intvl_tables_def:
   match_intvl_tbll intvl_tbll packet_input st_in
 End
 
-
+(* IMPORTANT well formdness every var in m_e is indeed defined in pd*)
 
 
 
@@ -615,6 +637,39 @@ QED
 
                       
 
+
+     
+
+Theorem append_defined_implies_first_defined:
+  ∀m_e l l'. all_vars_defined_abstract m_e (l ++ l') ⇒
+              (all_vars_defined_abstract m_e l' ∧  all_vars_defined_abstract m_e l)
+Proof
+  Induct_on `l` >> simp[all_vars_defined_abstract_def] >>
+  Cases >> simp[all_vars_defined_abstract_def] >>
+  rpt strip_tac >> res_tac >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+  res_tac
+QED
+
+
+
+        
+Theorem  all_vars_defined_abstract_on_individual:       
+  ∀ m_e  l.    
+    (all_vars_defined_abstract m_e) (FLAT l) ⇒
+    (EVERY (\x. all_vars_defined_abstract m_e x) l)
+Proof
+  Induct_on `l` >> simp[all_vars_defined_abstract_def] >>
+  Cases >> simp[all_vars_defined_abstract_def] >>
+  rpt strip_tac >> res_tac >>
+  `h'::(t ++ FLAT l) = [h'] ++ t ++ FLAT l` by simp[] >> 
+  `(h':: t) = [h'] ++ t ` by simp[] >> 
+  metis_tac[append_defined_implies_first_defined]
+QED
+
+
+
+                      
 Definition norm_match_tbl_def:
   (norm_match_tbl [] m_v st_in = NONE) ∧
   (norm_match_tbl (h::t) m_v st_in =
@@ -838,7 +893,7 @@ QED
 
 
 
-
+val lemma = ETA_CONV ``\x. all_vars_defined_abstract m_e x``;
 
 
         
