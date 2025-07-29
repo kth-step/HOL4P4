@@ -34,9 +34,13 @@ open policy_arith_to_varTheory;
 
 val _ = new_theory "table_var_to_arith";
 
+(*============================*)
+(*    Types of arith tables   *)
+(*============================*)
 
+        
 val _ = Hol_datatype ` 
-  interval = Empty | Single of num => num
+  interval = Empty | Single of bitv => bitv
 `;
 
 val _ = Hol_datatype ` 
@@ -60,7 +64,14 @@ val _ = Hol_datatype `
 Type pd_type_struct = “: (string # pd_type) list”; 
 
 
-                                                                
+
+
+
+(*============================*)
+(*    Auxiliary definitions   *)
+(*============================*)
+
+     
 Definition get_lval_def:
   get_lval (a_True) = NONE ∧
   get_lval (a_False) = NONE ∧
@@ -72,14 +83,15 @@ End
 (* given a truct type and lval, this retrives the field type
  or bs width *)
 Definition resolve_lval_type_def:
-  (resolve_lval_type (pd_type:pd_type_struct) (lv_x var) = ALOOKUP pd_type var ) ∧
-  (resolve_lval_type pd_type (lv_acc lval var) = 
-    case resolve_lval_type  pd_type lval of
-    | SOME (type_record fields) => ALOOKUP fields var
-    | _ => NONE)
+    resolve_lval_type pd_type lval = case lval of
+    | lv_x var => ALOOKUP pd_type var
+    | lv_acc lval var => 
+        case resolve_lval_type pd_type lval of
+          | SOME (type_record fields) => ALOOKUP fields var
+          | _ => NONE
 End
 
-
+        
 Definition max_from_type_def:
   max_from_type type =
   (2:num) ** type - (1:num)
@@ -93,53 +105,177 @@ Definition resolve_pd_max_def:
       | _ => NONE
 End
 
+
+
+Definition add_one_to_bv_def:
+  add_one_to_bv bv=
+  let (b,v) = bv in
+    bitv_binop binop_add (b,v) (n2v 1, v)
+End
+    
+
+
+Definition sub_one_of_bv_def:
+  sub_one_of_bv bv=
+  let (b,v) = bv in
+    bitv_binop binop_sub (b,v) (n2v 1, v)
+End
+    
+
+
+Definition bv_gt_than_def:
+  bv_gt_than bv bv' =
+  bitv_binpred binop_gt bv bv'
+End
+
+
+Definition bv_lt_than_def:
+  bv_lt_than bv bv' =
+  bitv_binpred binop_lt bv bv'
+End
+
+
+Definition bv_eq_to_def:
+  bv_eq_to bv bv' =
+  bitv_binpred binop_eq bv bv'
+End
         
+
+
+
+
+        
+        
+(*
+EVAL “bitv_binpred binop_gt (n2v 2, (2:num)) (n2v 1, (2:num))”
+*)
+    
+
+
+(*==================================*)
+(*    Atoms coversion definitions   *)
+(*==================================*)
+
+    
 (* Convert atom_var to arithm_atom using m_e
    i.e. each cell in the line of var table will be converted
-   directly to an aritmetic atom via this def. *)       
+   directly to an aritmetic atom via this def. *)
+
+
+   
 Definition atom_to_arith_def:
-  (atom_to_arith m_e True = SOME a_True) ∧   
-  (atom_to_arith m_e False = SOME a_False) ∧
-                 
-  (atom_to_arith m_e (Var x) =                                    
-    case ALOOKUP m_e x of
-      | SOME a => SOME a
-      | NONE => NONE) ∧
-      
-  (atom_to_arith m_e (Not a) = 
-    case atom_to_arith m_e a  of
-      | SOME (a_True) => SOME a_False
-      | SOME (a_False) => SOME a_True
-                                                      
-      | SOME (arithm_gt lv n) => SOME (arithm_lt lv (n+1))
-      | SOME (arithm_lt lv n) => SOME (arithm_gt lv (n-1))                                                                              
-      | NONE => NONE)
+  atom_to_arith m_e g =
+  (case g of
+  | True => SOME a_True
+  | False => SOME a_False
+  | Var x => ALOOKUP m_e x
+  | Not a => 
+      (case atom_to_arith m_e a of
+      | SOME a_True => SOME a_False
+      | SOME a_False => SOME a_True
+      | SOME (arithm_gt lv bv) =>
+          ( case (add_one_to_bv bv) of
+            | NONE => NONE
+            | SOME bv' => SOME (arithm_gt lv bv')
+          )
+      | SOME (arithm_lt lv bv) =>
+          ( case (sub_one_of_bv bv) of
+            | NONE => NONE
+            | SOME bv' => SOME (arithm_lt lv bv')
+          )
+      | NONE => NONE))
 End
         
+  
+
 
 Definition arith_to_interval_def:
-  (arith_to_interval a_True max = Single 0 max) ∧
-  (arith_to_interval a_False max = Empty) ∧
-  (arith_to_interval (arithm_gt _ n) max = 
-     if n ≥ max then Empty else Single (n+1) max) ∧
-  (arith_to_interval (arithm_lt _ n) max = 
-     if n ≤ 0 then Empty 
-     else if n > max then Single 0 max
-     else Single 0 (n-1)) 
+  arith_to_interval a min max =
+    case a of
+    | a_True => Single min max
+    | a_False =>  Empty
+    | arithm_gt _ n => 
+        (case (bv_gt_than n max, bv_eq_to n max, add_one_to_bv n) of
+        | (SOME T, _, _) => Empty
+        | (SOME F, SOME T, _) => Empty
+        | (SOME F, SOME F, SOME bv') => Single bv' max
+        | _ => Empty)
+    | arithm_lt _ n =>
+        (case (bv_lt_than n min, bv_eq_to n min, sub_one_of_bv n) of
+         | (SOME T, _, _) => Empty          (* n < min *)
+         | (SOME F, SOME T, _) => Empty     (* n = min *)
+         | (SOME F, SOME F, SOME bv') =>    (* n > min *)
+             (case bv_gt_than n max of
+              | SOME T => Single min max    (* n > max *)
+              | SOME F => Single min bv'    (* min < n ≤ max *)
+              | NONE => Empty
+              | _ => Empty)
+         | _ => Empty)
 End
-        
 
+
+
+(*
+val test_1_bs = “(n2v 1, (4:num))”;
+val test_min  = “(n2v 0, (4:num))”;
+val test_max  = “(n2v 4, (4:num))”;
+        
+EVAL “arith_to_interval (arithm_gt l ^test_1_bs) ^test_min ^test_max ”;  (*[2,4]*)
+EVAL “arith_to_interval (arithm_gt l (n2v 4, (4:num))) ^test_min ^test_max”; (*empty interval*)
+EVAL “arith_to_interval (arithm_gt l (n2v 5, (4:num))) ^test_min ^test_max”; (*empty interval*)
+EVAL “arith_to_interval (arithm_gt l (n2v 0, (4:num))) ^test_min ^test_max”; (*[1,4]*)
+
+val test_2_bs = ``(n2v 2, (4:num))``;
+val test_max2  = ``(n2v 15, (4:num))``;
+
+EVAL “arith_to_interval (arithm_lt l ^test_2_bs) ^test_min ^test_max2”;  (* [0,1] since x < 2 *)
+EVAL “arith_to_interval (arithm_lt l ^test_min) ^test_min ^test_max2”;   (* Empty since x < 0 *)
+EVAL “arith_to_interval (arithm_lt l ^test_max2) ^test_min ^test_max2”;  (* [0,14] since x < 15 *)
+EVAL ``arith_to_interval (arithm_lt l (n2v 16, (4:num))) ^test_min ^test_max2``; (* Empty, invalid input *)
+EVAL ``arith_to_interval (arithm_lt l (n2v 15, (4:num))) ^test_min ^test_max2``; (* [0,14] since x < 15 *)
+EVAL ``arith_to_interval (arithm_lt l ^test_4_bs) ^test_min ^test_max2``;  (* [0,0] since x < 1 *)         
+*)
+
+
+        
 Definition intersect_single_def:
-  intersect_single (Single (a1:num) b1) (Single a2 b2) =
-  (let a = MAX a1 a2 in
-     let b = MIN b1 b2 in
-       if a ≤ b then
-         Single a b
-       else
-         Empty
-  ) ∧
-  (intersect_single _ _ = Empty)
+  (intersect_single (Single (v1,w1) (v2,w2)) (Single (v3,w3) (v4,w4)) =
+    if (w1 = w2) ∧ (w2 = w3) ∧ (w3 = w4) then
+      case (bv_gt_than (v1,w1) (v3,w3), bv_gt_than (v2,w2) (v4,w4)) of
+        | (SOME a1_gt_a2, SOME b1_gt_b2) =>
+            let lower = if a1_gt_a2 then (v1,w1) else (v3,w3) in
+            let upper = if b1_gt_b2 then (v4,w4) else (v2,w2) in
+            case bv_gt_than lower upper of
+              | SOME T => Empty
+              | SOME F => Single lower upper
+              | NONE => Empty
+        | _ => Empty
+    else Empty) ∧
+  (intersect_single Empty _ = Empty) ∧
+  (intersect_single _ Empty = Empty)
 End
+
+(*        
+(* Test bitvectors - 4-bit width *)
+val test_lo =  “(n2v 2, (4:num))”;  (* 2 in 4 bits *)
+val test_mid = “(n2v 5, (4:num))”; (* 5 in 4 bits *)
+val test_hi =  “(n2v 7, (4:num))”;  (* 7 in 4 bits *)
+val test_min = “(n2v 0, (4:num))”; (* 0 in 4 bits *)
+val test_max = “(n2v 15, (4:num))”; (* 15 in 4 bits *)
+
+EVAL “intersect_single (Single ^test_lo ^test_hi) (Single ^test_mid ^test_max)”;(* Single (n2v 5,4) (n2v 7,4) *)
+EVAL “intersect_single (Single ^test_min ^test_lo) (Single ^test_hi ^test_max)”;(* Empty, non-overlapping intervals *)
+EVAL “intersect_single (Single ^test_mid ^test_hi) (Single ^test_mid ^test_hi)”;(* Single (n2v 5,4) (n2v 7,4) *)
+EVAL “intersect_single (Single ^test_min ^test_max) (Single ^test_lo ^test_hi)”;(* Single (n2v 2,4) (n2v 7,4), one interval contained within another *)
+EVAL “intersect_single (Single ^test_min ^test_max) (Single ^test_max ^test_max)”;(* Single (n2v 15,4) (n2v 15,4) *)
+EVAL “intersect_single (Single ^test_min ^test_min) (Single ^test_min ^test_max)”;(* Single (n2v 0,4) (n2v 0,4) *)
+EVAL “intersect_single Empty (Single ^test_lo ^test_hi)”;(* Empty *)
+EVAL “intersect_single (Single ^test_mid ^test_hi) Empty”;(* Empty *)
+EVAL “intersect_single (Single (n2v 2,4) (n2v 7,4)) (Single (n2v 5,8) (n2v 9,8))”;(* Empty (due to width mismatch) *)
+EVAL “intersect_single (Single ^test_min ^test_mid) (Single ^test_mid ^test_hi)”;(* Single (n2v 5,4) (n2v 5,4) *)
+EVAL “intersect_single (Single ^test_mid ^test_mid) (Single ^test_mid ^test_mid)”;(* Single (n2v 5,4) (n2v 5,4) *)
+*)
+        
 
 
 Definition is_True_or_False_def:
@@ -147,28 +283,26 @@ Definition is_True_or_False_def:
   ((g = True) ∨ (g = False))
 End
 
-
-
-Definition process_guard_def:
-  (process_guard m_e max g (key, curr_int, s, res) =
-    case atom_to_arith m_e g of
-      | NONE => (key, Empty, s, res) (* Invalid guard becomes empty *)
-      | SOME a_True => (key, Single 0 max, s, res) (* True uses full range *)
-      | SOME a_False => (key, Empty, s, res) (* False is empty *)
-      | SOME a => 
-          (key, intersect_single curr_int (arith_to_interval a max), s, res))
+    
+Definition process_guard_to_arith_def:
+  process_guard_to_arith m_e min max g curr_int =
+   case atom_to_arith m_e g of
+   | NONE => Empty                    (* Invalid guard becomes empty *)
+   | SOME a_True => Single min max    (* True uses full range *)
+   | SOME a_False => Empty            (* False is empty *)
+   | SOME a => intersect_single curr_int (arith_to_interval a min max)
 End
 
 
 
-        
+(*MAP (\x. process_guard_to_arith m_e min max g curr_int) guards_list*)        
+(* think about splitting the procedure *)
 Definition process_guards_rec_def:
-  (process_guards_rec m_e max [] row = row) ∧
-  (process_guards_rec m_e max (g::gs) row =
-    process_guards_rec m_e max gs (process_guard m_e max g row))
+  (process_guards_rec m_e min max [] init_int = init_int) ∧
+  (process_guards_rec m_e min max (g::gs) init_int =
+    process_guards_rec m_e min max gs (process_guard_to_arith m_e min max g init_int))
 End
 
-        
 
 
 Definition get_lval_of_guard_in_me_def:
@@ -196,55 +330,85 @@ Definition all_vars_defined_abstract_def:
    (all_vars_defined_abstract m_e [g] ∧ all_vars_defined_abstract m_e rest))
 End
 
+
+
+Definition get_guard_lvals_def:
+  get_guard_lvals m_e guards = 
+    FILTER IS_SOME (MAP (get_lval_of_guard_in_me m_e) guards)
+End
+
+(* Helper function to check if all lvals are the same *)
+Definition all_lvals_same_def:
+  (all_lvals_same [] = T) ∧
+  (all_lvals_same [x] = T) ∧
+  (all_lvals_same (SOME x :: rest) = 
+     EVERY (λlval_opt. lval_opt = SOME x) rest) ∧
+  (all_lvals_same (NONE :: rest) = F)
+End
+
+(* Helper function to get the common lval if all are the same *)
+Definition get_common_lval_def:
+  (get_common_lval [] = NONE) ∧
+  (get_common_lval (SOME x :: rest) = 
+     if all_lvals_same (SOME x :: rest) then SOME x else NONE) ∧
+  (get_common_lval (NONE :: rest) = NONE)
+End
+
+(*
         
 (* Add this new function to analyze the entire table first *)
 Definition analyze_table_type_def:
   (analyze_table_type m_e pd_type [] = SOME (T, key_const 1, 1)) ∧
-                      
-  (analyze_table_type m_e pd_type ((var_guards, s, res)::lines) =
-   
-   let all_guards = FLAT (MAP FST (((var_guards, s, res)::lines))) in
-     
-     (* First check if all variables are defined in m_e *)
-     if ¬(all_vars_defined_abstract m_e all_guards)
-     then
+  (analyze_table_type m_e pd_type lines =
+     let all_guards = FLAT (MAP FST lines) in
+     if ¬(all_vars_defined_abstract m_e all_guards) then 
        NONE
      else
-       let lvals = FILTER IS_SOME (MAP (get_lval_of_guard_in_me m_e) all_guards) in
-         case lvals of
-         | [] => SOME (T, key_const 1, 1)  (* All guards are boolean across entire table *)
-         | (NONE)::rest => NONE 
-         | (SOME lv)::rest => 
-             if EVERY (λx. x = SOME lv) rest 
-             then (case resolve_pd_max pd_type lv of
-                   | SOME max => SOME (T, key_val lv, max)  (* All non-boolean guards use same LVal *)
-                   | NONE => NONE)
-             else NONE)              (* Different LVals detected *)
-  
+       let lvals = get_guard_lvals m_e all_guards in
+       case lvals of
+       | [] => SOME (T, key_const 1, 1)  (* All guards are boolean across entire table *)
+       | l => case get_common_lval lvals of
+              | NONE => NONE
+              | SOME lv => case resolve_pd_max pd_type lv of
+                           | SOME max => SOME (T, key_val lv, max) (* All non-boolean guards use same LVal *)
+                           | NONE => NONE)  (* Different LVals detected *)           
 End
 
- 
+
+
+
+Definition process_guards_rec_def:
+  (process_guards_rec m_e min max [] init_int = init_int) ∧
+  (process_guards_rec m_e min max (g::gs) init_int =
+    process_guards_rec m_e min max gs (process_guard_to_arith m_e min max g init_int))
+End
+
+
+       
+Definition convert_line_with_key_def:
+  (convert_line_with_key key_type m_e min max ([], s, res)  = NONE ) ∧
+  (convert_line_with_key key_type m_e min max (var_guards, s, res)  =
+     SOME (key_type, process_guards_rec m_e min max var_guards (Single min max) , s, res))
+End
+
+
+Definition convert_lines_map_with_key_def:
+  convert_lines_map_with_key key_type m_e min max lines  =
+   MAP (\line. convert_line_with_key key_type m_e min max line) lines
+End
 
 
         
-Definition convert_line_with_key_def:
-  (convert_line_with_key m_e key_type max ([], s, res) =
-    (* Empty guards - use full range of the key's type *)
-    (key_type, Single 0 max, s, res)) ∧
-  (convert_line_with_key m_e key_type max (var_guards, s, res) =
-    process_guards_rec m_e max var_guards (key_type, Single 0 max, s, res))
-End
-
-
-
 Definition convert_single_table_def:
   (convert_single_table [] m_e pd_type = SOME []) ∧
-  (convert_single_table lines m_e pd_type =
-    case analyze_table_type m_e pd_type lines of
-      | SOME (T, key_type, max) =>
-          (* Convert all lines with the same key_type and max *)
-          SOME (MAP (λline. convert_line_with_key m_e key_type max line) lines)
-      | _ => NONE  (* Inconsistent table *)
+  (convert_single_table lines m_e pd_type =                
+   case analyze_table_type m_e pd_type lines of
+   | SOME (T, key_type, min, max) =>       (* Convert all lines with the same key_type and max *)
+       (case (EVERY IS_SOME (convert_lines_map_with_key key_type m_e min max lines)) of
+        | T => SOME (MAP THE (convert_lines_map_with_key key_type m_e min max lines))
+        | F => NONE
+       )
+   | _ => NONE  (* Inconsistent table *)
   )
 End
 
@@ -252,15 +416,35 @@ End
 
 
 
+Definition valid_line_def:
+  valid_line (guards, s, res) = (guards ≠ [])
+End
+
+
+Definition valid_table_def:
+  valid_table table = 
+    ((table ≠ []) ∧ EVERY valid_line table)
+End
+
+
+Definition valid_tables_def:
+  valid_tables tables = EVERY valid_table tables
+End
+
+        
 Definition convert_tables_def:
   (convert_tables [] _ _ = SOME []) ∧
   (convert_tables (tbl::tbls) m_e pd_type =
-    case convert_single_table tbl m_e pd_type of
-    | NONE => NONE  (* Fail immediately if any table fails *)
-    | SOME converted_tbl =>
-        case convert_tables tbls m_e pd_type of
-        | NONE => NONE
-        | SOME converted_tbls => SOME (converted_tbl :: converted_tbls))
+    if ¬(valid_tables (tbl::tbls)) then NONE
+      else
+        (case convert_single_table tbl m_e pd_type of
+        | NONE => NONE  (* Fail immediately if any table fails *)
+        | SOME converted_tbl =>
+            (case convert_tables tbls m_e pd_type of
+            | NONE => NONE
+            | SOME converted_tbls => SOME (converted_tbl :: converted_tbls))
+        )
+      )
 End
 
 
@@ -540,12 +724,12 @@ QED
 
 
 
+(*
 
-
-
+(*
 
         
-(*
+
 Theorem semantic_single_table_equivalence_normalized:
   ∀var_table m_e packet_input m_v interval_table packet_type st_in.
     ALL_DISTINCT (MAP FST m_e) ∧
@@ -598,37 +782,86 @@ QED
 *)
 
 
-(*
+Theorem arith_to_interval_correct:
+  ∀a b max packet_input.
+    eval_arithm_atom packet_input a = SOME b ⇒
+    (b ⇔ 
+     case arith_to_interval a max of
+       Empty => F
+     | Single lo hi => 
+         case a of
+           a_True => T
+         | a_False => F
+         | arithm_gt lv n => lo = n+1 ∧ hi = max
+         | arithm_lt lv n => lo = 0 ∧ hi = n-1)
+Proof
+  Cases_on `a` >> rw[arith_to_interval_def, eval_arithm_atom_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  gvs[]
+
+  cheat
+QED
 
 
 
-ALL_DISTINCT (MAP FST m_e) ∧
-(∀var atom.
-          ALOOKUP m_e var = SOME atom ⇒
-          ALOOKUP m_v var = eval_arithm_atom packet_input atom) ⇒
-convert_line_with_key m_e key max (guards,s,res) = (arith_key,interval,st,res') ⇒
-((is_match_row st_in s guards m_v ⇔
-   is_intvl_match_row st_in packet_input (arith_key,interval,st,res')) ∧ s = st'  ∧ res = res')
+        
+
+Theorem process_guard_correctness:
+  ∀m_e max g key curr_int s res m_v packet_input.
+    ALL_DISTINCT (MAP FST m_e) ∧
+    (∀var atom. ALOOKUP m_e var = SOME atom ⇒
+                ALOOKUP m_v var = eval_arithm_atom packet_input atom) ⇒
+    (let (key', intvl', s', res') = process_guard m_e max g (key, curr_int, s, res) in
+    (case atom_to_arith m_e g of
+       NONE => F
+     | SOME a => 
+         (eval_arithm_atom packet_input a = SOME (is_match_guards [g] m_v)) ∧
+         (is_intvl_match_row st_in s' (key', intvl', s', res') ⇔
+          is_intvl_match_row st_in s (key, curr_int, s, res) ∧
+          eval_arithm_atom packet_input a = SOME T)))
+Proof
+  rw[] >> Cases_on `atom_to_arith m_e g` >> fs[]
+  >- fs[process_guard_def] >>
+  Cases_on `x` >> fs[eval_arithm_atom_def, process_guard_def]
+  >- (* a_True case *) simp[is_intvl_match_row_def] >>
+  >- (* a_False case *) simp[is_intvl_match_row_def] >>
+  (* Arithmetic cases *)
+  fs[arith_to_interval_correct, intersect_single_correct] >>
+  Cases_on `key` >> fs[is_intvl_match_row_def] >>
+  Cases_on `resolve_lval packet_input l` >> fs[] >>
+  Cases_on `x` >> fs[] >> rw[] >> fs[] >>
+  TRY (Cases_on `n' > n` >> fs[]) >>
+  TRY (Cases_on `n' < n` >> fs[]) >>
+  decide_tac
+QED
 
 
+
+
+
+
+
+        
+∀ guards s res arith_key interval st res' m_v m_e key max packet_input st_in.
+  ALL_DISTINCT (MAP FST m_e) ∧
+  valid_line (guards,s,res) ∧
+  (∀var atom.
+     ALOOKUP m_e var = SOME atom ⇒
+     ALOOKUP m_v var = eval_arithm_atom packet_input atom) ⇒
+  convert_line_with_key m_e key max (guards,s,res) = (arith_key,interval,st,res') ⇒
+  ((is_match_row st_in s guards m_v ⇔ is_intvl_match_row st_in packet_input (arith_key,interval,st,res')) ∧ res = res')
+  
+Induct >>
 rpt gen_tac >> strip_tac >>
-Cases_on ‘guards’ >> gvs[convert_line_with_key_def] >|[
-    rpt strip_tac >>
-    gvs[is_match_row_def, is_intvl_match_row_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> fs[])  >>
-    
+gvs[convert_line_with_key_def, valid_line_def] >> 
+strip_tac  >>
+  fs[process_guards_rec_def] >>
 
-
-
-
-  ]
-
-    
-
-
-
-
-
+  Cases_on `process_guard m_e max h (row0,row1,row2,row3)` >> fs[] >>
+  PairCases_on `r` >> fs[] >>
+  imp_res_tac process_guard_correctness >> fs[] >>
+  first_x_assum match_mp_tac >> fs[] >>
+  metis_tac[]
 
 
 
@@ -643,13 +876,22 @@ Cases_on ‘guards’ >> gvs[convert_line_with_key_def] >|[
 Theorem mapped_lists_equivalent:
   ∀var_table interval_table m_v packet_input st_in m_e packet_type.
     ALL_DISTINCT (MAP FST m_e) ∧
+    valid_table var_table ∧
     (∀var atom. ALOOKUP m_e var = SOME atom ⇒
                 ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
     convert_single_table var_table m_e packet_type = SOME interval_table ⇒
     MAP (λ(gs,s,r). (is_match_row st_in s gs m_v, r)) var_table =
     MAP (λ(lv,i,s,r). (is_intvl_match_row st_in packet_input (lv,i,s,r), r)) interval_table
 Proof
-Induct_on `var_table` >>
+
+
+
+
+
+
+
+        
+Case_on `var_table` >>
   rpt gen_tac >> strip_tac >-
   (* Base case *) (
     fs[convert_single_table_def] >>
@@ -672,6 +914,8 @@ Cases_on ‘interval_table’ >-
 ‘(is_match_row st_in s guards m_v,res) =
  (λ(lv,i,s,r). (is_intvl_match_row st_in packet_input (lv,i,s,r),r)) h’ by (
 
+    gvs[valid_table_def] >>
+               
     PairCases_on ‘h’ >>
     gvs[] >>
     gvs[convert_single_table_def] >>
@@ -717,6 +961,7 @@ QED
 Theorem interval_single_table_converstion_correctness:
   ∀var_table m_e packet_input m_v interval_table packet_type st_in.
     ALL_DISTINCT (MAP FST m_e) ∧
+    valid_table var_table  ∧
     (∀var atom.  ALOOKUP m_e var = SOME atom ⇒
                  ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
     convert_single_table var_table m_e packet_type = SOME interval_table ⇒
@@ -755,7 +1000,9 @@ Proof
   last_x_assum (drule_all_then strip_assume_tac) >>
   gvs[] >>
   
-    
+
+  ‘valid_table h’ by gvs[valid_tables_def] >>
+        
   subgoal ‘match_tbl h m_v st_in = match_intvl_tbl x packet_input st_in’ >-
             ( cheat) >>
     metis_tac[interval_single_table_converstion_correctness] ) >>
@@ -781,9 +1028,29 @@ Proof
 QED
 
 
-   
+
+
+
+
+
+
+
+
+
 
 *)
+
+
+
+
+
+*)
+
+
+        
+   
+
+
                                                                 
 
 val _ = export_theory ();
