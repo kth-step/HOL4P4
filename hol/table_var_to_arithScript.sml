@@ -48,8 +48,8 @@ val _ = Hol_datatype `
 `;
 
         
-Type intvl_row = “:airth_key # interval # num # 'a action_expr”;
-Type intvl_table = “:('a intvl_row) list”;
+Type intvl_row = “:(interval # num # 'a action_expr)”;
+Type intvl_table = “:(airth_key # 'a intvl_row list)”;
 Type intvl_table_list = “:('a intvl_table ) list”;
 
 
@@ -311,15 +311,15 @@ End
 
        
 Definition convert_line_with_key_def:
-  (convert_line_with_key key_type m_e min max ([], s, res)  = NONE ) ∧
-  (convert_line_with_key key_type m_e min max (var_guards, s, res)  =
-     SOME (key_type, process_guards_rec m_e min max var_guards (Single min max) , s, res))
+  (convert_line_with_key m_e min max ([], s, res)  = NONE ) ∧
+  (convert_line_with_key m_e min max (var_guards, s, res)  =
+     SOME (process_guards_rec m_e min max var_guards (Single min max) , s, res))
 End
 
 
 Definition convert_lines_map_with_key_def:
-  convert_lines_map_with_key key_type m_e min max lines  =
-   MAP (\line. convert_line_with_key key_type m_e min max line) lines
+  convert_lines_map_with_key m_e min max lines  =
+   MAP (\line. convert_line_with_key m_e min max line) lines
 End
 
 
@@ -430,25 +430,22 @@ Definition analyze_table_type_def:
 End
 
 
-     
+(*==================================*)
+(*         Tables conversion        *)
+(*==================================*)
+
 Definition convert_single_table_def: 
   (convert_single_table [] m_e pd_type = NONE) ∧
   (convert_single_table lines m_e pd_type =                
    case analyze_table_type m_e pd_type lines of
    | SOME (T, key_type, min, max) =>       (* Convert all lines with the same key_type and max *)
-       (case (EVERY IS_SOME (convert_lines_map_with_key key_type m_e min max lines)) of
-        | T => SOME (MAP THE (convert_lines_map_with_key key_type m_e min max lines))
+       (case (EVERY IS_SOME (convert_lines_map_with_key m_e min max lines)) of
+        | T => SOME (key_type, MAP THE (convert_lines_map_with_key  m_e min max lines))
         | F => NONE
        )
    | _ => NONE  (* Inconsistent table *)
   )
 End
-
-        
-
-
-
-
 
         
 Definition convert_tables_def:
@@ -515,44 +512,86 @@ EVAL ``convert_tables (^policy1_var) ^test_m_e ^test_pd_nested``;
 *)
 
 
-    (*
+
                   
 
-(* SEMANTICS *)
+(*==================================*)
+(*    interval table semantics      *)
+(*==================================*)
+
+
+
+
 Definition is_intvl_match_row_def:
-  is_intvl_match_row  (s_in:num) (packet_input:pd) (row:('a intvl_row)) =
-    case row of
-      ( key_val lval, Single a b, s, res) =>
-        (case resolve_lval packet_input lval of
-         | SOME (val_num v) =>  (a ≤ v ∧ v ≤ b ∧ (s_in = s))
-         | SOME _ => F  (* non-numeric value *)
-         | NONE => F )   (* lval not found *)
-    | (key_val lval, Empty, s, res) =>  F                  
-    | (key_const a, _ , s, _) =>  (s_in = s)
+  is_intvl_match_row key (s_in:num) (packet_input:pd) (row:('a intvl_row)) =
+  case (key, row) of
+  | (key_val lval, (Single a b, s, res)) =>
+      (let (a_v,a_w) = a in
+        let (b_v,b_w) = b in
+          (case resolve_lval packet_input lval of
+           | SOME (val_bs (v,v_w)) => 
+               (if (a_w = b_w) ∧ (b_w = v_w) then
+                  (case (bv_lt_than (v,v_w) (a_v,a_w), bv_lt_than (b_v,b_w) (v,v_w)) of
+                   | (SOME F, SOME F) => (s_in = s)  (* a ≤ v ≤ b *)
+                   | (_, _) => F)
+                else F
+               )
+           | SOME _ => F  (* non-numeric value *)
+           | NONE => F))   (* lval not found *)
+  | (key_val lval, (Empty, s, res)) => F                  
+  | (key_const (c,c_w), (_, s, _)) => (s_in = s)
 End
 
+(*
+(* Test bitvectors - all 4-bit width for consistency *)
+val test_v0 = “(n2v 0, (4:num))”;    (* 0 *)
+val test_v2 = “(n2v 2, (4:num))”;    (* 2 *)
+val test_v4 = “(n2v 4, (4:num))”;    (* 4 *)
+val test_v6 = “(n2v 6, (4:num))”;    (* 6 *)
+val test_v15 = “(n2v 15, (4:num))”;  (* 15 *)
+
+val test_packet = ``[("x", val_bs ^test_v4)]``;
+
+val test_row_match = “(Single ^test_v2 ^test_v6, (1:num), action ("fwd", [(1:num)]))”;
+val test_row_nomatch = “(Single ^test_v6 ^test_v15, (1:num), action ("fwd", [(1:num)]))”;
+val test_row_empty = “(Empty, (1:num), action ("fwd", [(1:num)]))”;
+val test_row_edge = “(Single ^test_v4 ^test_v4, (1:num), action ("fwd", [(1:num)]))”;
+
+val test_key_val = “key_val (lv_x "x")”;
+val test_key_const = “key_const ^test_v0”;
+
+EVAL “is_intvl_match_row ^test_key_val 1 ^test_packet ^test_row_match”; (*T*)
+EVAL “is_intvl_match_row ^test_key_val 1 ^test_packet ^test_row_nomatch”; (*F*)
+EVAL “is_intvl_match_row ^test_key_val 1 ^test_packet ^test_row_empty”; (*F*)
+EVAL “is_intvl_match_row ^test_key_val 1 ^test_packet ^test_row_edge”; (*T*)
+EVAL “is_intvl_match_row ^test_key_const 1 ^test_packet ^test_row_match”; (*T*)
+
+val test_v4_8bit = “(n2v 4, (8:num))”;
+val test_row_width_mismatch = “(Single ^test_v2 ^test_v4_8bit, (1:num), action ("fwd", [(1:num)]))”;
+EVAL “is_intvl_match_row ^test_key_val 1 ^test_packet ^test_row_width_mismatch”; (*F (width mismatch between 4 and 8) *)
+
+val test_packet_missing = ``[("y", val_bs ^test_v4)]``;
+EVAL “is_intvl_match_row ^test_key_val 1 ^test_packet_missing ^test_row_match”;
+*)
         
 
 (* Process all rows in an interval table *)
 Definition check_all_intvl_rows_match_def:
-  check_all_intvl_rows_match st_in intvl_tbl packet_input =
-  MAP (λ(lval_opt, intervall, st_num, res). 
-         (is_intvl_match_row st_in (packet_input:pd) (lval_opt , intervall, st_num, res)),
-          (res:'a action_expr)) intvl_tbl
+  check_all_intvl_rows_match key st_in rows packet_input =
+  MAP (λ(interval,s,res). is_intvl_match_row key (st_in:num) (packet_input:pd) (interval,s,res), res) rows
 End
 
 
 
 (* Find first matching line in a converted table *)
 Definition match_intvl_tbl_def:
-  match_intvl_tbl (intvl_tbl: (('a intvl_row) list)) packet_input st_in =
-  let lines_res = check_all_intvl_rows_match st_in intvl_tbl packet_input in
-  case min_idx_till lines_res T of
-    | SOME (idx, line) => SOME (SND line)
-    | NONE => NONE
+  match_intvl_tbl (intvl_tbl: 'a intvl_table) packet_input st_in =
+  let (key, rows) = intvl_tbl in
+    let lines_res = check_all_intvl_rows_match key st_in rows packet_input in
+      case min_idx_till lines_res T of
+      | SOME (idx, line) => SOME (SND line)
+      | NONE => NONE
 End
-
-
 
 
 (* Process list of interval tables with state propagation *)
@@ -567,7 +606,6 @@ Definition match_intvl_tbll_def:
       | SOME (state n) => match_intvl_tbll intvl_tbls packet_input n
       | _ => NONE)
 End
-
 
 
 
@@ -623,7 +661,7 @@ val test1 = EVAL ``sem_intvl_tables (^test_tables, ^initial_state) ^test_packet`
 (* proof  *)
 (**********)
 
-
+(*
 
 
 
@@ -1096,11 +1134,7 @@ QED
 *)
 
 
-
-
-
 *)
-
 
         
    
