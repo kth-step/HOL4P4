@@ -46,8 +46,8 @@ val _ = Hol_datatype `
   arithm_atom = 
      a_True               (* T *)
    | a_False              (* F *)
-   | arithm_gt of arith_lv => num  (* lval > v *)
-   | arithm_lt of arith_lv => num  (* lval < v *)
+   | arithm_gt of arith_lv => bitv  (* lval > v *)
+   | arithm_lt of arith_lv => bitv  (* lval < v *)
    (*| arithm_eq of arith_lv => num  (* lval = v *)*) (* this will be added to input policy *)
 `;
 
@@ -70,7 +70,7 @@ Type arith_policy = “: ('a arith_rule) list”
 
 val _ = Hol_datatype `
   pd_val = 
-     val_num of num   
+     val_bs of bitv   
    | val_record of (string # pd_val) list  (* [f1:val1; ...; fn:valn] *)
 `;
 
@@ -87,15 +87,41 @@ Definition resolve_lval_def:
 End
 
 
+
+
+(* note that here the bv and the other bv must be of same length *)
+Definition eval_arithm_atom_def:
+  (eval_arithm_atom pd a_True = SOME T) ∧
+  (eval_arithm_atom pd a_False = SOME F) ∧
+  (eval_arithm_atom pd (arithm_gt lval bv) = 
+    case resolve_lval pd lval of
+    | SOME (val_bs bv') => bitv_binpred binop_lt bv' bv
+    | _ => NONE) ∧
+  (eval_arithm_atom pd (arithm_lt lval bv) = 
+    case resolve_lval pd lval of
+      SOME (val_bs bv') => bitv_binpred binop_gt bv' bv
+    | _ => NONE)
+End
+
+
+
+        
 (*
+
+val ttl_bv = “(n2v 64, LENGTH (n2v 10))”;
+val version_bs = “(n2v 4, LENGTH (n2v 4))”;
+val ether_bs = “(n2v 4, LENGTH (n2v 0x8080))”;
+        
 val example_pd = “[ ("h", val_record [
   ("ip", val_record [
-   ("ttl", val_num 64);
-    ("version", val_num 4)
+   ("ttl", val_bs ^ttl_bv );
+    ("version", val_bs ^version_bs)
      ]);
-   ("ether", val_num 0x8080)
+   ("ether", val_bs ^ether_bs)
   ])
 ]”;
+
+val sixty_bs = “(n2v 60, LENGTH (n2v 10))”; 
 
 
 val h_ip_ttl = “lv_acc (lv_acc (lv_x "h") "ip") "ttl"”;
@@ -103,39 +129,15 @@ val result1 = EVAL “resolve_lval ^example_pd ^h_ip_ttl”;
 
 val h_eth_src = “lv_acc (lv_acc (lv_x "h") "eth") "src"”;
 val result2 = EVAL “resolve_lval ^example_pd ^h_eth_src”;  
-*)
 
-
-
-        
-Definition eval_arithm_atom_def:
-  (eval_arithm_atom pd a_True = SOME T) ∧
-  (eval_arithm_atom pd a_False = SOME F) ∧
-  (eval_arithm_atom pd (arithm_gt lval n) = 
-    case resolve_lval pd lval of
-    | SOME (val_num m) => SOME (m > n)
-    | _ => NONE) ∧
-  (eval_arithm_atom pd (arithm_lt lval n) = 
-    case resolve_lval pd lval of
-      SOME (val_num m) => SOME (m < n)
-    | _ => NONE)
-End
-
-
-
-(*
-val example_pd = “[ ("h", val_record [
-  ("ip", val_record [
-   ("ttl", val_num 64);
-    ("version", val_num 4)
-     ]);
-   ("ether", val_num 0x8080)
-  ])
-]”;
-
-val p_ttl_gt_60 = “(arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
-EVAL “eval_arithm_atom ^example_pd ^p_ttl_gt_60”
     
+val p_ttl_gt_60 = “(arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^sixty_bs)”;
+EVAL “eval_arithm_atom ^example_pd ^p_ttl_gt_60”;
+(* T *)
+
+val p_ttl_lt_60 = “(arithm_lt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^sixty_bs)”;
+EVAL “eval_arithm_atom ^example_pd ^p_ttl_lt_60”;
+(* F *)    
 *)        
         
 
@@ -167,24 +169,15 @@ End
 
 
 (*
-val test_pd = “[
-  ("h", val_record [
-    ("ip", val_record [
-      ("ttl", val_num 64);
-      ("version", val_num 4)
-    ]);
-    ("flag", val_num 1)
-  ])
-]”;
 
 (* Test predicates *)
-val h_ip_ttl = “(lv_acc (lv_acc (lv_x "h") "ip") "ttl") ”;
+EVAL “eval_pred_w_str ^example_pd (arith_a ^p_ttl_gt_60)”;
+EVAL “eval_pred_w_str ^example_pd (arith_a ^p_ttl_lt_60)”;
 
-val p_ttl_gt_60 = “arith_a (arithm_gt ^h_ip_ttl 60)”;
-val p_ttl_lt_60 = “arith_a (arithm_lt ^h_ip_ttl 65)”;
+EVAL “eval_pred_w_str ^example_pd (arith_not (arith_a ^p_ttl_gt_60))”;
+EVAL “eval_pred_w_str ^example_pd (arith_and (arith_a ^p_ttl_gt_60) (arith_a ^p_ttl_lt_60))”;
+EVAL “eval_pred_w_str ^example_pd (arith_or (arith_a ^p_ttl_gt_60) (arith_a ^p_ttl_lt_60))”;
 
-EVAL “eval_pred_w_str ^test_pd (arith_not ^p_ttl_gt_60)”;
-EVAL “eval_pred_w_str ^test_pd (arith_and ^p_ttl_lt_60 ^p_ttl_gt_60)”;
 *)
 
 
@@ -208,18 +201,8 @@ End
 
 
 (*
-
-val test_pd = “[
-  ("h", val_record [
-    ("ip", val_record [
-      ("ttl", val_num 64);
-      ("version", val_num 4)
-    ]);
-    ("flag", val_num 1)
-  ])
-]”;
-
-val p1 = “arith_a (arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
+    (* eidhit those, old types here *)
+val p1 = “arith_a ^p_ttl_gt_60)”;
 val p2 = “arith_a (arithm_lt (lv_acc (lv_x "h") "flag") 0)”;
 val p3 = “arith_a (arithm_eq (lv_acc (lv_x "h") "invalid") 1)”;
 
