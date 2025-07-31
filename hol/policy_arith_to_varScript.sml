@@ -95,11 +95,11 @@ Definition eval_arithm_atom_def:
   (eval_arithm_atom pd a_False = SOME F) ∧
   (eval_arithm_atom pd (arithm_gt lval bv) = 
     case resolve_lval pd lval of
-    | SOME (val_bs bv') => bitv_binpred binop_lt bv' bv
+    | SOME (val_bs bv') => bitv_binpred binop_gt bv' bv
     | _ => NONE) ∧
   (eval_arithm_atom pd (arithm_lt lval bv) = 
     case resolve_lval pd lval of
-      SOME (val_bs bv') => bitv_binpred binop_gt bv' bv
+      SOME (val_bs bv') => bitv_binpred binop_lt bv' bv
     | _ => NONE)
 End
 
@@ -108,36 +108,32 @@ End
         
 (*
 
-val ttl_bv = “(n2v 64, LENGTH (n2v 10))”;
-val version_bs = “(n2v 4, LENGTH (n2v 4))”;
+val test_bs = “(n2v 1, (4:num))”; 
+val version_bs = “(n2v 1, (4:num))”;
 val ether_bs = “(n2v 4, LENGTH (n2v 0x8080))”;
-        
+
+
+val ttl_bv = “(n2v 4, (4:num))”;
+
+
+    
 val example_pd = “[ ("h", val_record [
   ("ip", val_record [
-   ("ttl", val_bs ^ttl_bv );
+   ("ttl", val_bs (n2v 7, (4:num)) );
     ("version", val_bs ^version_bs)
      ]);
    ("ether", val_bs ^ether_bs)
   ])
 ]”;
 
-val sixty_bs = “(n2v 60, LENGTH (n2v 10))”; 
+
+val p_ttl_gt_60 = “(arithm_lt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") (n2v 3, (4:num)))”;
+EVAL “eval_arithm_atom ^example_pd ^p_ttl_gt_60”; 
 
 
-val h_ip_ttl = “lv_acc (lv_acc (lv_x "h") "ip") "ttl"”;
-val result1 = EVAL “resolve_lval ^example_pd ^h_ip_ttl”;  
-
-val h_eth_src = “lv_acc (lv_acc (lv_x "h") "eth") "src"”;
-val result2 = EVAL “resolve_lval ^example_pd ^h_eth_src”;  
-
-    
-val p_ttl_gt_60 = “(arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^sixty_bs)”;
-EVAL “eval_arithm_atom ^example_pd ^p_ttl_gt_60”;
-(* T *)
-
-val p_ttl_lt_60 = “(arithm_lt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^sixty_bs)”;
-EVAL “eval_arithm_atom ^example_pd ^p_ttl_lt_60”;
-(* F *)    
+        
+val p_ttl_gt_60 = “(arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") (n2v 3, (4:num)))”;
+EVAL “eval_arithm_atom ^example_pd ^p_ttl_gt_60”;  
 *)        
         
 
