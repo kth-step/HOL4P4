@@ -103,23 +103,42 @@ Definition resolve_pd_min_max_def:
       | _ => NONE
 End
 
-
-
+(*
 Definition add_one_to_bv_def:
   add_one_to_bv bv=
   let (b,v) = bv in
     bitv_binop binop_add (b,v) (n2v 1, v)
 End
-    
+*)
 
+        
+Definition add_one_to_bv_def:
+  add_one_to_bv bv=
+  let (b,v) = bv in
+    if b = n2v (max_from_type v) then
+      NONE
+    else
+      bitv_binop binop_add (b,v) (n2v 1, v)
+End
+    
+(*
+EVAL “add_one_to_bv ([T;T;T;T], (4:num))”;
+*)  
 
 Definition sub_one_of_bv_def:
   sub_one_of_bv bv=
   let (b,v) = bv in
-    bitv_binop binop_sub (b,v) (n2v 1, v)
+    if (bitv_binpred binop_eq bv (n2v 0 , v) = SOME F) then
+      bitv_binop binop_sub (b,v) (n2v 1, v)
+    else
+      NONE
 End
     
-
+(*
+EVAL “sub_one_of_bv ([T;T;T;T], (4:num))”;
+EVAL “bitv_binop binop_sub ([T;T;T;T], (4:num)) (n2v 1, 4)”;
+EVAL “bitv_binpred binop_eq ([T;T;T;T], (4:num)) (n2v 0 , 4)”;
+*) 
 
 Definition bv_gt_than_def:
   bv_gt_than bv bv' =
@@ -139,10 +158,6 @@ Definition bv_eq_to_def:
 End
         
 
-
-
-
-        
         
 (*
 EVAL “bitv_binpred binop_gt (n2v 2, (2:num)) (n2v 1, (2:num))”
@@ -174,12 +189,12 @@ Definition atom_to_arith_def:
       | SOME (arithm_gt lv bv) =>
           ( case (add_one_to_bv bv) of
             | NONE => NONE
-            | SOME bv' => SOME (arithm_gt lv bv')
+            | SOME bv' => SOME (arithm_lt lv bv')
           )
       | SOME (arithm_lt lv bv) =>
           ( case (sub_one_of_bv bv) of
             | NONE => NONE
-            | SOME bv' => SOME (arithm_lt lv bv')
+            | SOME bv' => SOME (arithm_gt lv bv')
           )
       | NONE => NONE))
 End
@@ -194,14 +209,10 @@ Definition arith_to_interval_def:
     | a_False =>  Empty
     | arithm_gt _ n => 
         (case (bv_gt_than n max, bv_eq_to n max, add_one_to_bv n) of
-        | (SOME T, _, _) => Empty
-        | (SOME F, SOME T, _) => Empty
         | (SOME F, SOME F, SOME bv') => Single bv' max
         | _ => Empty)
     | arithm_lt _ n =>
         (case (bv_lt_than n min, bv_eq_to n min, sub_one_of_bv n) of
-         | (SOME T, _, _) => Empty          (* n < min *)
-         | (SOME F, SOME T, _) => Empty     (* n = min *)
          | (SOME F, SOME F, SOME bv') =>    (* n > min *)
              (case bv_gt_than n max of
               | SOME T => Single min max    (* n > max *)
@@ -231,24 +242,26 @@ EVAL “arith_to_interval (arithm_lt l ^test_min) ^test_min ^test_max2”;   (* 
 EVAL “arith_to_interval (arithm_lt l ^test_max2) ^test_min ^test_max2”;  (* [0,14] since x < 15 *)
 EVAL ``arith_to_interval (arithm_lt l (n2v 16, (4:num))) ^test_min ^test_max2``; (* Empty, invalid input *)
 EVAL ``arith_to_interval (arithm_lt l (n2v 15, (4:num))) ^test_min ^test_max2``; (* [0,14] since x < 15 *)
-EVAL ``arith_to_interval (arithm_lt l ^test_4_bs) ^test_min ^test_max2``;  (* [0,0] since x < 1 *)         
+EVAL ``arith_to_interval (arithm_lt l (n2v 1, (4:num))) ^test_min ^test_max2``;  (* [0,0] since x < 1 *)         
 *)
 
 
         
 Definition intersect_single_def:
   (intersect_single (Single (v1,w1) (v2,w2)) (Single (v3,w3) (v4,w4)) =
-    if (w1 = w2) ∧ (w2 = w3) ∧ (w3 = w4) then
-      case (bv_gt_than (v1,w1) (v3,w3), bv_gt_than (v2,w2) (v4,w4)) of
-        | (SOME a1_gt_a2, SOME b1_gt_b2) =>
-            let lower = if a1_gt_a2 then (v1,w1) else (v3,w3) in
-            let upper = if b1_gt_b2 then (v4,w4) else (v2,w2) in
-            case bv_gt_than lower upper of
-              | SOME T => Empty
-              | SOME F => Single lower upper
-              | NONE => Empty
-        | _ => Empty
-    else Empty) ∧
+   if (w1 = w2) ∧ (w2 = w3) ∧ (w3 = w4) then
+     case (bv_gt_than (v1,w1) (v3,w3), bv_gt_than (v2,w2) (v4,w4)) of
+     | (SOME a1_gt_a2, SOME b1_gt_b2) =>
+         let lower = if a1_gt_a2 then (v1,w1) else (v3,w3) in
+           let upper = if b1_gt_b2 then (v4,w4) else (v2,w2) in
+             (case bv_gt_than lower upper of
+             | SOME T => Empty
+             | SOME F => Single lower upper
+             | NONE => Empty
+             | _ => Empty
+             )
+             | _ => Empty
+   else Empty) ∧
   (intersect_single Empty _ = Empty) ∧
   (intersect_single _ Empty = Empty)
 End
@@ -406,13 +419,13 @@ End
 
 (* Add this new function to analyze the entire table first *)
 Definition analyze_table_type_def:
-  (analyze_table_type m_e pd_type [] = NONE) ∧
-  (analyze_table_type m_e pd_type table =
+  analyze_table_type m_e pd_type table =
+   if table = [] then NONE else 
      let all_guards = FLAT (MAP FST table) in
        case all_vars_defined_abstract m_e all_guards  of
        | T => ( case EVERY (λx. x = (False:atom_var)) all_guards of
                 | T => NONE
-                | F =>  (case EVERY (λx. x = True ∨ x = False ) all_guards of
+                | F =>  (case EVERY (λx. x = True) all_guards of
                          | T => SOME (T, key_const (n2v 1, 1), (n2v 0,1), (n2v 1,1))
                          | F => ( case one_unique_lval_in_guards m_e all_guards of
                                   (* All non-boolean guards use same lval *)
@@ -426,7 +439,6 @@ Definition analyze_table_type_def:
                         )
               )
        | F => NONE 
-  )
 End
 
 
@@ -704,11 +716,782 @@ QED
 
 
 
+
+Theorem check_intvl_rows_elementwise_correct:
+  ∀l key st_in packet_input x x'.
+    x < LENGTH l ∧
+    EL x l = SOME x' ⇒
+    (EL x (check_all_intvl_rows_match key st_in (MAP THE l) packet_input) =
+     HD (check_all_intvl_rows_match key st_in [x'] packet_input))
+Proof
+  rpt gen_tac >> strip_tac >>
+  (* Expand both sides *)
+  simp[check_all_intvl_rows_match_def] >>
+  gvs[EL_MAP]                              
+QED
+
+
+Triviality unique_lval_gt_same_triv1:
+  ∀ var guards lval lval' m_e p.
+    one_unique_lval_in_guards m_e (Var var::guards) = SOME lval ∧
+    ALOOKUP m_e var = SOME (arithm_gt lval' p) ⇒
+    lval = lval'
+Proof
+  rw[one_unique_lval_in_guards_def] >>
+  gvs[get_guard_lvals_def] >>
+  gvs[get_lval_of_guard_in_me_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  gvs[get_lval_def]
+QED
+
+
+
+
+Triviality unique_lval_lt_same_triv1:
+  ∀ var guards lval lval' m_e p.
+    one_unique_lval_in_guards m_e (Var var::guards) = SOME lval ∧
+    ALOOKUP m_e var = SOME (arithm_lt lval' p) ⇒
+    lval = lval'
+Proof
+  rw[one_unique_lval_in_guards_def] >>
+  gvs[get_guard_lvals_def] >>
+  gvs[get_lval_of_guard_in_me_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+  gvs[get_lval_def]
+QED
+
+
+
+
+        
+
+
+
+        
+Theorem bs_op_means_same_length:
+  ∀ op lval_bs v_bs x.        
+    SOME x = bitv_binpred op lval_bs v_bs ⇒
+    (SND lval_bs = SND v_bs)
+Proof
+  rpt strip_tac >>
+  PairCases_on ‘lval_bs’ >>
+  PairCases_on ‘v_bs’ >>
+  gvs[bitv_binpred_def]
+QED
+
+        
+Triviality types_wfness_trivial:
+  ∀ lval lval_bs min max packet_type packet_input.
+  resolve_pd_min_max packet_type lval = SOME (min,max) ∧
+resolve_lval packet_input lval = SOME (val_bs lval_bs) ⇒
+  ((SND min = SND lval_bs) ∧ (SND max = SND lval_bs)  ∧
+   (SND min ≠ 0) ∧ (SND max ≤ 128) (* <---- this part i need to infer from here or wfness cond*)
+  )
+Proof
+cheat (* add wfness condition that guarantees this in the beggining *)
+QED
+
+     
+
+
+Theorem last_edge_of_binpred_bs:
+  ∀ binpred v v' n.
+    n ≠ 0 ∧
+    bitv_binpred_inner binpred v v' n = NONE ⇒
+    n > 128
+Proof
+
+RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+rpt strip_tac >>
+ntac 128 (BasicProvers.FULL_CASE_TAC >-
+fs[]) >>
+intLib.COOPER_TAC
+QED
+
+
+
+
+Theorem last_edge_of_binop_bs:
+  ∀ binpred v v' n.
+    n ≠ 0 ∧
+    bitv_binop_inner binpred v v' n = NONE ⇒
+    n > 128
+Proof
+
+RW.ONCE_RW_TAC [bitv_binop_inner_def] >>
+rpt strip_tac >>
+ntac 128 (BasicProvers.FULL_CASE_TAC >-
+fs[]) >>
+intLib.COOPER_TAC
+QED
+
+
+
+      
+Theorem no_bs_is_larger_than_the_largest:
+  ∀ n n'.
+    n' ≠ 0 ∧ n' ≤ 128 ⇒
+    bitv_binpred_inner binop_gt n (n2v (max_from_type n')) (n':num) = SOME F
+Proof
+  rw[max_from_type_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  rpt strip_tac >>
+  
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (EVAL_TAC >>
+      intLib.COOPER_TAC)) >>
+  intLib.COOPER_TAC
+QED
+
+
+
+Theorem no_bs_is_less_that_the_least:
+  ∀ n n'.
+    n' ≠ 0 ∧ n' ≤ 128 ⇒
+    bitv_binpred_inner binop_lt n (n2v 0) n' = SOME F
+Proof
+  
+  rw[max_from_type_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  rpt strip_tac >>
+  
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (EVAL_TAC >>
+      intLib.COOPER_TAC)) >>
+  intLib.COOPER_TAC
+QED
+
+
+(*
+bit_eq (v2w p0 ' 0,F) ⇒ p0 = [F]
+
+strip_tac >>
+gvs[v2w_def, testbit_def, bit_eq_def, field_def, fixwidth_def]
+   Cases_on ‘p0’ >>
+gvs[zero_extend_def, shiftr_def, PAD_LEFT, fcpTheory.FCP, fcpTheory.fcp_index]
+gvs[bit_eq_def]
+       
+
+
+∀ p0 lval_bs1 .
+lval_bs1 ≠ 0  ∧
+lval_bs1 ≤ 128 ∧
+bitv_binpred_inner binop_eq p0 (n2v 0) lval_bs1 = SOME T ⇒
+p0=(n2v 0)
+
+
+        
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  rpt strip_tac >>
+
+
+BasicProvers.FULL_CASE_TAC  >>
+EVAL_TAC >>
+
+gvs[get_word_binpred_def, word_eq_def, bit_eq_def] >>
+gvs[AND_EL_DEF, EVERY_DEF, max_from_type_def, w2v_def] >>
+
+
+
+
+
+
+
+         
+  
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (EVAL_TAC >>
+      intLib.COOPER_TAC)) >>
+  intLib.COOPER_TAC
+
+
+
+     
+
+      
+Cases_on ‘v2w p0 ' 0’ >> gvs[bit_eq_def]
+
+
+
+  
+
+
+Theorem blah_cheated:
+  ∀ 
+lval_bs1 ≠ 0 ∧
+lval_bs1 ≤ 128 ∧
+p0 ≠ p1 ⇒
+bitv_binpred_inner binop_eq p0 (n2v (max_from_type lval_bs1)) lval_bs1 = SOME F
+Proof
+  cheat
+        
+ (*          DO LATER
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  rpt strip_tac >>
+  
+    BasicProvers.FULL_CASE_TAC >-
+     (EVAL_TAC >>
+      gvs[] >>
+
+
+            
+      gvs[get_word_binpred_def, word_eq_def, bit_eq_def] >>
+      gvs[AND_EL_DEF, EVERY_DEF, max_from_type_def, w2v_def] >>
+
+
+
+                      
+      Cases_on ‘p0’ >>
+      gvs[bit_eq_def, v2w_def, testbit_def, field_def] >>
+      gvs[shiftr_def, fixwidth_def, zero_extend_def]
+
+
+      EVAL_TAC
+      decide_tac
+      blastLib.BBLAST_TAC
+      intLib.COOPER_TAC  *)
+QED
+        
+        
+
+
+Theorem false_guard_exists:
+  ∀m_e m_v packet_input packet_type h min max guards lval.
+    all_vars_defined_abstract m_e (h::guards) ∧
+    one_unique_lval_in_guards m_e (h::guards) = SOME lval ∧
+    resolve_pd_min_max packet_type lval = SOME (min,max) ∧
+                       
+    (∀var atom. ALOOKUP m_e var = SOME atom ⇒
+               ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+
+    process_guard_to_arith m_e min max h (Single min max) = Empty
+    ⇒
+    sem_atom h m_v ≠ SOME T
+Proof
+  rpt gen_tac >> strip_tac >>
+  Cases_on `h` >> fs[sem_atom_def, process_guard_to_arith_def] >|[
+    
+    (* True case - can't make empty interval *)
+    fs[atom_to_arith_def, arith_to_interval_def]
+      
+    ,
+    (* Var case - main contradiction *) 
+    rename1 `Var var` >>
+    
+    subgoal `?atom. ALOOKUP m_e var = SOME atom` >-
+     (fs[all_vars_defined_abstract_def] >>
+      rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) ) >>
+      
+    
+    gvs[] >>
+    `ALOOKUP m_v var = eval_arithm_atom packet_input atom` by metis_tac[] >>
+    
+    Cases_on ‘ALOOKUP m_v var’ >> gvs[] >>
+    gvs[atom_to_arith_def] >>
+    
+    (* show that a and a' are the same *)
+    imp_res_tac unique_lval_gt_same_triv1 >>
+    imp_res_tac unique_lval_lt_same_triv1 >>
+    gvs[] >>
+    
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[eval_arithm_atom_def]) >|[
+        
+        (* min and max analysis to show they are actually min and max*)
+        
+        rename1 ‘resolve_lval packet_input lval = SOME (val_bs lval_bs)’ >>
+        (* now p is the constant that we are comparing with... *)
+        
+        Cases_on ‘x’ >> gvs[] >>
+        
+        (* we know since the operation is not none, lval_bs and p has the same length*)
+        imp_res_tac bs_op_means_same_length >>
+        imp_res_tac types_wfness_trivial >>
+        
+        gvs[resolve_pd_min_max_def] >>
+        rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+        
+        Cases_on ‘arith_to_interval (arithm_gt lval p) (n2v 0,SND lval_bs)
+                  (n2v (max_from_type (SND lval_bs)),SND lval_bs) = Empty’ >>
+        gvs[intersect_single_def] >|[
+          
+          (* intersection in empty *)
+          PairCases_on ‘p’ >> gvs[] >>
+          PairCases_on ‘lval_bs’ >> gvs[] >>
+          
+          gvs[arith_to_interval_def] >>
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+          gvs[intersect_single_def] >>
+          gvs[add_one_to_bv_def, bv_eq_to_def, bv_gt_than_def] >>
+          rgs[bitv_binop_def, bitv_binpred_def] >>
+          
+          (*solve most the cases cases *)
+          gvs[] >>
+          imp_res_tac last_edge_of_binpred_bs >>
+          imp_res_tac last_edge_of_binop_bs >>
+          gvs[] >>
+          
+          
+          Cases_on ‘bitv_binop_inner binop_add p0 (n2v 1) lval_bs1’ >> gvs[] >>
+          
+          imp_res_tac no_bs_is_larger_than_the_largest >> gvs[] >>
+          cheat  (* use blah cheated*)
+          
+          ,
+          
+          (* intersection is not empty *)
+          PairCases_on ‘p’ >> gvs[] >>
+          PairCases_on ‘lval_bs’ >> gvs[] >>
+          
+          gvs[arith_to_interval_def] >>
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+          gvs[intersect_single_def] >>
+          gvs[add_one_to_bv_def, bv_eq_to_def, bv_gt_than_def] >>
+          rgs[bitv_binop_def, bitv_binpred_def] >>
+
+                              
+
+          PairCases_on ‘x’ >> gvs[] >>
+          ‘lval_bs1=x1’ by cheat >> (* there is a theorem in teh old project *)
+          fs[Once intersect_single_def] >>
+          
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+          
+          gvs[intersect_single_def] >>
+          gvs[add_one_to_bv_def, bv_eq_to_def, bv_gt_than_def] >>
+          rgs[bitv_binop_def, bitv_binpred_def] >>
+          
+          (*solve most the cases cases *)
+          gvs[] >>
+          imp_res_tac last_edge_of_binpred_bs >>
+          imp_res_tac last_edge_of_binop_bs >>
+          gvs[] >>
+          
+          
+          Cases_on ‘bitv_binop_inner binop_add p0 (n2v 1) lval_bs1’ >> gvs[] >>
+          
+          imp_res_tac no_bs_is_larger_than_the_largest >> gvs[]
+        ]
+        ,
+
+        
+        (* lt case *)
+
+        
+
+           
+                
+
+       ] 
+(* not case *)
+        cheat                                                            
+]
+QED
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  rename1 ‘resolve_lval packet_input lval = SOME (val_bs lval_bs)’ >>
+        (* now p is teh constant that we are comparing with... *)
+        
+        Cases_on ‘x’ >> gvs[] >>
+        
+        (* we know since the operation is not none, lval_bs and p has the same length*)
+        imp_res_tac bs_op_means_same_length >>
+        imp_res_tac types_wfness_trivial >>
+        
+        gvs[resolve_pd_min_max_def] >>
+        rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+        
+        Cases_on ‘(arith_to_interval (arithm_lt lval p) (n2v 0,SND lval_bs)
+             (n2v (max_from_type (SND lval_bs)),SND lval_bs)) = Empty’ >>
+        gvs[intersect_single_def] >|[
+          
+          (* intersection in empty *)
+          PairCases_on ‘p’ >> gvs[] >>
+          PairCases_on ‘lval_bs’ >> gvs[] >>
+          
+          gvs[arith_to_interval_def] >>
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+          gvs[intersect_single_def] >>
+          gvs[add_one_to_bv_def, bv_eq_to_def, bv_gt_than_def, bv_lt_than_def, bv_lt_than_def, sub_one_of_bv_def] >>
+          rgs[bitv_binop_def, bitv_binpred_def] >>
+          
+          (*solve most the cases cases *)
+          gvs[] >>
+          imp_res_tac last_edge_of_binpred_bs >>
+          imp_res_tac last_edge_of_binop_bs >>
+          gvs[] >>
+          imp_res_tac no_bs_is_larger_than_the_largest >> gvs[] >>
+          imp_res_tac no_bs_is_less_that_the_least >> gvs[] >>
+          cheat >>
+          EVAL “bitv_binop_inner binop_sub (n2v 0) (n2v 1) (3:num)”
+               EVAL “bitv_binpred_inner binop_eq p0 (n2v 0) lval_bs1” = SOME T
+
+          EVAL “w2v ([F;T], (2:num))”
+              gvs[w2v_def]
+
+                                                                                
+------------------------------------------------
+          
+          ,
+          
+          (* intersection is not empty *)
+          PairCases_on ‘p’ >> gvs[] >>
+          PairCases_on ‘lval_bs’ >> gvs[] >>
+          
+          gvs[arith_to_interval_def] >>
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+          gvs[intersect_single_def] >>
+          gvs[add_one_to_bv_def, bv_eq_to_def, bv_gt_than_def] >>
+          rgs[bitv_binop_def, bitv_binpred_def] >>
+
+                              
+
+          PairCases_on ‘x’ >> gvs[] >>
+          ‘lval_bs1=x1’ by cheat >> (* there is a theorem in teh old project *)
+          fs[Once intersect_single_def] >>
+          
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+          
+        gvs[arith_to_interval_def] >>
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+          gvs[intersect_single_def] >>
+          gvs[add_one_to_bv_def, bv_eq_to_def, bv_gt_than_def, bv_lt_than_def, bv_lt_than_def, sub_one_of_bv_def] >>
+          rgs[bitv_binop_def, bitv_binpred_def] >>
+          
+          (*solve most the cases cases *)
+          gvs[] >>
+          imp_res_tac last_edge_of_binpred_bs >>
+          imp_res_tac last_edge_of_binop_bs >>
+          gvs[] >>
+          imp_res_tac no_bs_is_larger_than_the_largest >> gvs[] >>
+          imp_res_tac no_bs_is_less_that_the_least >> gvs[] >>
+          
+          
+          cheat
+        ]
+
+
+
+cheat
+
+
+        
+
+                                                                                
+     
+   
+
+                                                        
+
+
+Theorem empty_interval_implies_false_guard:
+  ∀guards m_e min max m_v lval packet_input packet_type.
+    (∀var atom. ALOOKUP m_e var = SOME atom ⇒
+                ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+    all_vars_defined_abstract m_e guards ∧
+    one_unique_lval_in_guards m_e guards = SOME lval ∧
+    resolve_pd_min_max packet_type lval = SOME (min,max) ∧
+    process_guards_rec m_e min max guards (Single min max) = Empty
+    ⇒
+    ¬is_atoml_true guards m_v
+Proof
+  Induct_on `guards` >> rw[]>-
+   fs[process_guards_rec_def] >>
+  
+
+  fs[process_guards_rec_def] >>
+ Cases_on `process_guard_to_arith m_e min max h (Single min max)` >> fs[] >|[
+    (* prove for head *)
+
+       
+    simp[is_atoml_true_def, EVERY_MEM] >>
+    rpt strip_tac >>
+
+        
+    (* needs a lemma *) cheat
+    ,
+    
+    first_x_assum drule >> rw[] >>
+    Cases_on ‘one_unique_lval_in_guards m_e guards’ >> gvs[] >|[
+        (* if nothing is unique it means it had been all True or false*)
+        (* if all true then process_guards_rec ca never return empty *)
+        (* if false exsists, then the goal ¬is_atoml_true holds by contradition*)
+        cheat
+        ,
+      (*here analysis on head and tail
+        where head cannot be true from 5, and the tail from IH, needs so much work*) 
+        
+      ]
+    )
+QED
+
+
+
+        
+
+        
+
+
+
+(*************************************)        
+
+Theorem row_matching_in_table_context:
+  ∀m_e m_v packet_input packet_type tbl x h t st res st_in key min max.
+    ALL_DISTINCT (MAP FST m_e) ∧
+    valid_table tbl ∧
+    (∀var atom. ALOOKUP m_e var = SOME atom ⇒
+               ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+    analyze_table_type m_e packet_type tbl = SOME (T,key,min,max) ∧ 
+    EL x tbl = (guards,st,res) ∧
+    guards ≠ [] ∧
+    x < LENGTH tbl
+    ⇒
+    ∃processed.
+      convert_line_with_key m_e min max (guards,st,res) = SOME (processed,st,res) ∧
+      (is_match_row st_in st (guards) m_v ⇔
+       is_intvl_match_row key st_in packet_input (processed,st,res))
+Proof
+
+
+        
+  rpt gen_tac >> strip_tac >>
+  (* 1. Get the processed interval for this row *)
+`?processed. 
+     convert_line_with_key m_e min max (guards,st,res) = SOME (processed,st,res) ∧
+     processed = process_guards_rec m_e min max (guards) (Single min max)`
+    by (
+    Cases_on ‘guards’ >> gvs[] >>
+    simp[convert_line_with_key_def]) >>
+
+
+
+     
+  (* 2. Now apply the per-row equivalence *)
+  subgoal `is_match_row st_in st guards m_v ⇔
+   is_intvl_match_row key st_in packet_input (processed,st,res)`  >- (
+    Cases_on `key` >|[
+    (* Reuse our previous per-row proof strategies here *)
+      (* Case 1: key_val *)
+      rgs[analyze_table_type_def] >>
+      rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>  
+      gvs[] >>
+
+      (* we check if the row contains at least one lval or not *)
+      Cases_on ‘one_unique_lval_in_guards m_e guards’ >> gvs[] >|[
+        (* if not, trivial, all true and false *)
+        cheat
+        ,
+        
+        (* else this lval will be the same for the whole table *)
+        ‘a=x'’ by cheat >>
+        gvs[] >>
+
+        simp[process_guards_rec_def] >>
+        
+        Cases_on ‘process_guards_rec m_e min max guards (Single min max)’ >> gvs[] >|[
+            (*when interval is empty*, means that there is some sort of contradiction in the flow *)
+            simp[is_match_row_def, is_intvl_match_row_def] >>
+            rgs[analyze_table_type_def] >>
+            rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>  
+            gvs[] >>
+            strip_tac >>
+            
+            cheat
+            
+            
+            ,
+            (* when interval is not empty *)
+            
+            
+            
+          ]                                                            
+      ]
+      ,
+      (* Case 2: key_const *)
+
+      rgs[analyze_table_type_def] >>
+      rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>  
+      gvs[] >>
+
+      simp[is_match_row_def, is_intvl_match_row_def] >>
+    cheat   (* trivial *)
+    ]
+  ) >>
+  
+  (* Result *)
+  metis_tac[]
+QED
+
+
+                
+
+
+
+
+
+
+
+        
+        
+(*******************************************************)
+
+
+        
+
+  ∀m_e m_v packet_input packet_type  st_in tbl x interval st res key min max.
+ALL_DISTINCT (MAP FST m_e) ∧
+valid_table tbl ∧
+(∀var atom.
+   ALOOKUP m_e var = SOME atom ⇒
+   ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+analyze_table_type m_e packet_type tbl = SOME (T,key,min,max) ∧ 
+LENGTH (convert_lines_map_with_key m_e min max tbl) =
+LENGTH (check_all_rows_match st_in tbl m_v) ∧
+EL x (convert_lines_map_with_key m_e min max tbl) =
+SOME (interval,st,res) ∧
+x < LENGTH (check_all_rows_match st_in tbl m_v)
+         ⇒
+         EL x (check_all_rows_match st_in tbl m_v) =
+         (is_intvl_match_row key st_in packet_input (interval,st,res),res)
+         
+
+
+
+rpt gen_tac >> strip_tac >>
+  (* 1. Get the original row *)
+  `?orig_row. EL x tbl = orig_row` by metis_tac[] >>
+  
+  (* 2. Relate conversion to original row *)
+  subgoal `convert_line_with_key m_e min max orig_row = SOME (interval,st,res)`
+  >- (fs[convert_lines_map_with_key_def, EL_MAP] >>
+      gvs[EL_MAP]) >>
+  
+  (* 4. Case analysis on the original row *)
+Cases_on `EL x tbl` >>   Cases_on `r` >>
+rename1 `EL x tbl = (guards, st_row, res_row)` >>
+
+gvs[] >>
+
+gvs[convert_lines_map_with_key_def] >>
+gvs[convert_line_with_key_def] >>
+
+
+Cases_on ‘guards’ >>
+gvs[convert_line_with_key_def] >>
+
+gvs[process_guards_rec_def] >>
+
+qabbrev_tac `processed = process_guards_rec m_e min max (h::t) (Single min max)` >>
+gvs[EL_MAP] >>
+
+
+gvs[check_all_rows_match_def] >>
+gvs[EL_MAP] >>
+
+
+imp_res_tac row_matching_in_table_context >>  (* we use the lemma here *)
+gvs[]
+
+
+
+
       
 
 
 
 
+
+
+(*************************************)
+        
+        
+
+
+        
+
+
+∀ tbl m_e packet_input m_v packet_type st_in key min max.
+ALL_DISTINCT (MAP FST m_e) ∧
+valid_table tbl ∧
+(∀var atom.
+          ALOOKUP m_e var = SOME atom ⇒
+          ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
+EVERY IS_SOME (convert_lines_map_with_key m_e min max (tbl)) ∧
+analyze_table_type m_e packet_type tbl = SOME (T,key,min,max) ⇒
+((check_all_rows_match st_in tbl m_v) =
+(check_all_intvl_rows_match key st_in (MAP THE (convert_lines_map_with_key m_e min max tbl)) packet_input))
+
+rw[LIST_EQ_REWRITE] >|[
+
+         (*LENGTH_MAP*)
+    ‘LENGTH (check_all_rows_match st_in tbl m_v) = LENGTH (tbl)’ by cheat >>
+    ‘LENGTH (convert_lines_map_with_key m_e min max tbl) = LENGTH tbl’ by cheat >>
+    ‘LENGTH (check_all_intvl_rows_match key st_in  (MAP THE (convert_lines_map_with_key m_e min max tbl))
+                                        packet_input) = LENGTH tbl’ by cheat >>
+    gvs[]
+    ,
+
+
+    ‘LENGTH (convert_lines_map_with_key m_e min max tbl) =
+     LENGTH (check_all_rows_match st_in tbl m_v)’ by cheat >>
+    gvs[EVERY_EL] >>
+    
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘x’])) >>
+    res_tac >>
+
+    Cases_on ‘EL x (convert_lines_map_with_key m_e min max tbl)’ >> rw[IS_SOME_DEF] >> gvs[] >>
+
+    imp_res_tac check_intvl_rows_elementwise_correct >>
+    ‘x < LENGTH (convert_lines_map_with_key m_e min max tbl)’ by gvs[] >>
+    res_tac >>
+                                                                                          
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’, ‘packet_input’, ‘key’])) >>
+    res_tac >>
+                                        
+    gvs[] >>
+
+    gvs[check_all_intvl_rows_match_def] >>
+    PairCases_on ‘x'’ >>
+    gvs[] >>
+
+    rename1 ‘EL x (convert_lines_map_with_key m_e min max tbl) = SOME (interval,st,res)’
+    
+
+    cheat   
+   
+  ]
+
+
+
+
+
+
+
+(**************************************)
+
+
+
+
+
+                        
+
+
+      
 Theorem interval_single_table_converstion_correctness:
   ∀var_table m_e packet_input m_v interval_table packet_type st_in.
     ALL_DISTINCT (MAP FST m_e) ∧
@@ -718,7 +1501,22 @@ Theorem interval_single_table_converstion_correctness:
     convert_single_table var_table m_e packet_type = SOME interval_table ⇒
     match_tbl var_table m_v st_in = match_intvl_tbl interval_table packet_input st_in
 Proof
-  cheat             
+  
+  Cases_on ‘var_table’ >>
+  rpt strip_tac >-
+   gvs[valid_table_def] >>
+      
+  gvs[convert_single_table_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>  
+
+  rename1 ‘analyze_table_type m_e packet_type (row::tbl) = SOME (T,key,min,max)’ >>
+  gvs[match_tbl_def, match_intvl_tbl_def]
+
+  ‘(check_all_rows_match st_in (row::tbl) m_v) = (check_all_intvl_rows_match key st_in
+               (MAP THE (convert_lines_map_with_key m_e min max (row::tbl)))
+               packet_input)’ by cheat >>   
+
+  gvs[]
 QED
 
 
@@ -749,10 +1547,7 @@ Proof
   ‘valid_table h’ by gvs[valid_tables_def] >>
         
   subgoal ‘match_tbl h m_v st_in = match_intvl_tbl x packet_input st_in’ >-
-   ( cheat) >>
-   
-    (*metis_tac[interval_single_table_converstion_correctness] ) >>
-     *)
+   ( metis_tac[interval_single_table_converstion_correctness] ) >>
   
   simp[sem_tables_def, sem_intvl_tables_def] >>
   
@@ -775,7 +1570,7 @@ QED
 
 
 
-
+*)
 
 
 
@@ -787,6 +1582,7 @@ QED
                                                                 
 
 val _ = export_theory ();
+
 
 
 
