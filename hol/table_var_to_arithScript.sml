@@ -111,6 +111,38 @@ Definition add_one_to_bv_def:
 End
 *)
 
+Definition bv_gt_than_def:
+  bv_gt_than bv bv' =
+  bitv_binpred binop_gt bv bv'
+End
+
+
+Definition bv_lt_than_def:
+  bv_lt_than bv bv' =
+  bitv_binpred binop_lt bv bv'
+End
+
+
+(* defined this way cause it is very hard to reason about  binop_eq in HOL4P4 *)
+Definition bv_eq_to_def:
+  bv_eq_to bv bv' =
+  case (bitv_binpred binop_lt bv bv', bitv_binpred binop_gt bv bv') of
+  | (SOME F, SOME F) => SOME T
+  | (SOME _, SOME _) => SOME F
+  | (_,_) => NONE
+End
+        
+
+        
+(*
+EVAL “bitv_binpred binop_eq ([F;F], (2:num)) (n2v 0, (1:num))”
+EVAL “bv_eq_to ([F;F], (2:num)) (n2v 0, (1:num))”
+
+
+EVAL “bitv_binpred_inner binop_eq (n2v 1) (n2v 0) (1:num)”
+EVAL “bv_eq_to ([F;F], (3:num)) ([F;F;T], (3:num))”
+*)
+
         
 Definition add_one_to_bv_def:
   add_one_to_bv bv=
@@ -128,8 +160,8 @@ EVAL “add_one_to_bv ([T;T;T;T], (4:num))”;
 Definition sub_one_of_bv_def:
   sub_one_of_bv bv=
   let (b,v) = bv in
-    if (bitv_binpred binop_eq bv (n2v 0 , v) = SOME F) then
-      bitv_binop binop_sub (b,v) (n2v 1, v)
+    if (bv_eq_to bv (n2v 0 , v) = SOME F) then
+      bitv_binop binop_sub (b,v) (n2v 1, v) 
     else
       NONE
 End
@@ -137,31 +169,12 @@ End
 (*
 EVAL “sub_one_of_bv ([T;T;T;T], (4:num))”;
 EVAL “bitv_binop binop_sub ([T;T;T;T], (4:num)) (n2v 1, 4)”;
-EVAL “bitv_binpred binop_eq ([T;T;T;T], (4:num)) (n2v 0 , 4)”;
+
+EVAL “sub_one_of_bv ([T;F], (4:num))”;
+EVAL “sub_one_of_bv ([F;F;F], (4:num))”;
 *) 
 
-Definition bv_gt_than_def:
-  bv_gt_than bv bv' =
-  bitv_binpred binop_gt bv bv'
-End
 
-
-Definition bv_lt_than_def:
-  bv_lt_than bv bv' =
-  bitv_binpred binop_lt bv bv'
-End
-
-
-Definition bv_eq_to_def:
-  bv_eq_to bv bv' =
-  bitv_binpred binop_eq bv bv'
-End
-        
-
-        
-(*
-EVAL “bitv_binpred binop_gt (n2v 2, (2:num)) (n2v 1, (2:num))”
-*)
     
 
 
@@ -761,12 +774,6 @@ Proof
 QED
 
 
-
-
-        
-
-
-
         
 Theorem bs_op_means_same_length:
   ∀ op lval_bs v_bs x.        
@@ -857,108 +864,151 @@ Proof
   rpt strip_tac >>
   
   rpt(
-    BasicProvers.FULL_CASE_TAC >-
+    BasicProvers.FULL_CASE_TAC >- 
      (EVAL_TAC >>
       intLib.COOPER_TAC)) >>
   intLib.COOPER_TAC
 QED
+
 
 
 (*
-bit_eq (v2w p0 ' 0,F) ⇒ p0 = [F]
-
-strip_tac >>
-gvs[v2w_def, testbit_def, bit_eq_def, field_def, fixwidth_def]
-   Cases_on ‘p0’ >>
-gvs[zero_extend_def, shiftr_def, PAD_LEFT, fcpTheory.FCP, fcpTheory.fcp_index]
-gvs[bit_eq_def]
        
+   
+open bitTheory;
+   
+∀ bl a.
+  0 < a ∧ a ≤ 128 ∧
+  w2n (v2w bl) = (2 ** a - 1) ⇒
+  bl  = n2v (2 ** a - 1) 
+
+rpt strip_tac >>
+‘v2n (n2v (2 ** a - 1)) = (2 ** a - 1)’ by gvs[v2n_n2v]
+‘v2w (w2v w) = w’ by gvs[v2w_w2v]
+
+                        rw[GSYM n2w_v2n]
 
 
-∀ p0 lval_bs1 .
-lval_bs1 ≠ 0  ∧
-lval_bs1 ≤ 128 ∧
-bitv_binpred_inner binop_eq p0 (n2v 0) lval_bs1 = SOME T ⇒
-p0=(n2v 0)
+‘v2w bl = n2w (v2n bl) ’ by fs[n2w_v2n] >>                                
+‘w2n (n2w  (v2n bl)) = 2 ** a − 1’ by metis_tac[n2w_v2n]
+                                
+
+v2n_n2v
+
+
+     gvs[v2w_n2v, v2w_w2v, w2n_v2w, w2v_v2w, w2w_v2w]          
+gvs[w2n_v2w, MOD_2EXP_DIMINDEX]
+
+
+
+‘n2v(w2n (v2w bl)) = n2v(2 ** a − 1)’ by gvs[]
+
+
+
+
+
+
 
 
         
+
+p0 ≠ [] ∧        
+lval_bs1 > 0 ∧
+lval_bs1 ≤ 128 ∧
+p0 ≠ n2v (max_from_type lval_bs1)⇒
+bitv_binpred_inner binop_gt p0 (n2v (max_from_type lval_bs1)) lval_bs1 =  SOME F ⇒
+bitv_binpred_inner binop_lt p0 (n2v (max_from_type lval_bs1)) lval_bs1 =  SOME T
+
+
+                                                                                
+
   RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
-  rpt strip_tac >>
+rpt strip_tac >>
+BasicProvers.FULL_CASE_TAC >-
+
+gvs[get_word_binpred_def] >>
+gvs[WORD_LO, WORD_HI] >>
+
+fs [NOT_LESS, NOT_GREATER, LESS_OR_EQ] >>
+fs[max_from_type_def]
+             
+(*
+   `340282366920938463463374607431768211455 = 2 ** 128 - 1` by EVAL_TAC >>
+`340282366920938463463374607431768211456 = 2 ** 128` by EVAL_TAC >>
+*)
 
 
-BasicProvers.FULL_CASE_TAC  >>
+
+        
+gvs[w2n_v2w, bitTheory.MOD_2EXP_def] >>
+
+gvs[n2v_def, boolify_def]
+
+Cases_on ‘p0 =
+        [T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T;
+         T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T;
+         T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T;
+         T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T;
+         T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T; T;
+         T; T; T; T; T; T; T; T; T; T; T; T; T]’ >> gvs[]
+
+
+
+
+
+
+
+
+
+
+
+
+             
+   
+decide_tac
+        
+             
+metis_tac[]
+        
 EVAL_TAC >>
-
-gvs[get_word_binpred_def, word_eq_def, bit_eq_def] >>
-gvs[AND_EL_DEF, EVERY_DEF, max_from_type_def, w2v_def] >>
-
-
+intLib.COOPER_TAC >>
+blastLib.FULL_BBLAST_TAC >>
+blastLib.BBLAST_TAC
 
 
+fs[LESS_MOD]
 
 
+                
 
-         
-  
-  rpt(
-    BasicProvers.FULL_CASE_TAC >-
-     (EVAL_TAC >>
-      intLib.COOPER_TAC)) >>
-  intLib.COOPER_TAC
-
-
-
-     
-
-      
-Cases_on ‘v2w p0 ' 0’ >> gvs[bit_eq_def]
-
-
-
-  
-
-
-Theorem blah_cheated:
-  ∀ 
-lval_bs1 ≠ 0 ∧
-lval_bs1 ≤ 128 ∧
-p0 ≠ p1 ⇒
-bitv_binpred_inner binop_eq p0 (n2v (max_from_type lval_bs1)) lval_bs1 = SOME F
-Proof
-  cheat
-        
- (*          DO LATER
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
-  rpt strip_tac >>
-  
-    BasicProvers.FULL_CASE_TAC >-
-     (EVAL_TAC >>
-      gvs[] >>
-
-
-            
-      gvs[get_word_binpred_def, word_eq_def, bit_eq_def] >>
-      gvs[AND_EL_DEF, EVERY_DEF, max_from_type_def, w2v_def] >>
-
-
-
-                      
-      Cases_on ‘p0’ >>
-      gvs[bit_eq_def, v2w_def, testbit_def, field_def] >>
-      gvs[shiftr_def, fixwidth_def, zero_extend_def]
-
-
-      EVAL_TAC
-      decide_tac
-      blastLib.BBLAST_TAC
-      intLib.COOPER_TAC  *)
-QED
         
         
+‘
+340282366920938463463374607431768211455 MOD 340282366920938463463374607431768211456 =
+        340282366920938463463374607431768211455’ by EVAL_TAC
 
 
-Theorem false_guard_exists:
+
+
+‘340282366920938463463374607431768211455 = v2n p0’ by EVAL_TAC
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+Theorem empty_intersection_guard:
   ∀m_e m_v packet_input packet_type h min max guards lval.
     all_vars_defined_abstract m_e (h::guards) ∧
     one_unique_lval_in_guards m_e (h::guards) = SOME lval ∧
@@ -972,22 +1022,22 @@ Theorem false_guard_exists:
     sem_atom h m_v ≠ SOME T
 Proof
   rpt gen_tac >> strip_tac >>
-  Cases_on `h` >> fs[sem_atom_def, process_guard_to_arith_def] >|[
+  Cases_on ‘h’ >> fs[sem_atom_def, process_guard_to_arith_def] >|[
     
     (* True case - can't make empty interval *)
     fs[atom_to_arith_def, arith_to_interval_def]
       
     ,
     (* Var case - main contradiction *) 
-    rename1 `Var var` >>
+    rename1 ‘Var var’ >>
     
-    subgoal `?atom. ALOOKUP m_e var = SOME atom` >-
+    subgoal ‘?atom. ALOOKUP m_e var = SOME atom’ >-
      (fs[all_vars_defined_abstract_def] >>
       rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) ) >>
       
     
     gvs[] >>
-    `ALOOKUP m_v var = eval_arithm_atom packet_input atom` by metis_tac[] >>
+    ‘ALOOKUP m_v var = eval_arithm_atom packet_input atom’ by metis_tac[] >>
     
     Cases_on ‘ALOOKUP m_v var’ >> gvs[] >>
     gvs[atom_to_arith_def] >>
@@ -1037,7 +1087,23 @@ Proof
           Cases_on ‘bitv_binop_inner binop_add p0 (n2v 1) lval_bs1’ >> gvs[] >>
           
           imp_res_tac no_bs_is_larger_than_the_largest >> gvs[] >>
-          cheat  (* use blah cheated*)
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+
+
+          (****)
+          PairCases_on ‘x’ >> gvs[] >>
+          ‘lval_bs1=x1’ by cheat >> (* there is a theorem I did in old project *)
+          gvs[] >>
+
+          Cases_on ‘bitv_binpred_inner binop_gt p0 (n2v (max_from_type lval_bs1))
+               lval_bs1’ >>
+
+          imp_res_tac no_bs_is_larger_than_the_largest >>
+          imp_res_tac last_edge_of_binop_bs >> gvs[]
+                      
+
+                      
+          cheat  
           
           ,
           
@@ -1092,16 +1158,7 @@ QED
 
 
 
-
-
-
-
-
-
-
-
-
-
+EVAL “bitv_binop_inner binop_add (n2v 3) (n2v 1) (2:num)”
 
 
   rename1 ‘resolve_lval packet_input lval = SOME (val_bs lval_bs)’ >>
@@ -1137,6 +1194,12 @@ QED
           gvs[] >>
           imp_res_tac no_bs_is_larger_than_the_largest >> gvs[] >>
           imp_res_tac no_bs_is_less_that_the_least >> gvs[] >>
+          rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >> 
+
+
+
+
+                      
           cheat >>
           EVAL “bitv_binop_inner binop_sub (n2v 0) (n2v 1) (3:num)”
                EVAL “bitv_binpred_inner binop_eq p0 (n2v 0) lval_bs1” = SOME T
@@ -1189,11 +1252,19 @@ QED
 
 cheat
 
-
+*)
         
 
-                                                                                
-     
+
+(******************************************************************)
+
+(*
+        
+
+
+
+
+        
    
 
                                                         
@@ -1223,7 +1294,7 @@ Proof
     rpt strip_tac >>
 
         
-    (* needs a lemma *) cheat
+    (* needs  empty_intersection_guard to be proven *) cheat
     ,
     
     first_x_assum drule >> rw[] >>
@@ -1570,14 +1641,14 @@ QED
 
 
 
-*)
+
 
 
 
 
         
    
-
+*)
 
                                                                 
 
