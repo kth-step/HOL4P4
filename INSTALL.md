@@ -34,11 +34,11 @@ First, navigate to the directory where you want to put the source code of Poly/M
 
 		sudo apt-get install build-essential git
 
-2. Install Poly/ML 5.9.1
+2. Install Poly/ML 5.9.2
 
 		git clone https://github.com/polyml/polyml.git
 		cd polyml
-		git checkout v5.9.1
+		git checkout v5.9.2
 		./configure --prefix=/usr
 		make
 		sudo make install
