@@ -1282,7 +1282,9 @@ val (e_list_to_word64s_list_def,
      p4_match_range''_def,
      match''_def,
      match_all''_def,
+(*
      match_all_e_alt''_def,
+*)
      match_all_first''_def,
      match_all_first_def
      ) =
@@ -1350,8 +1352,10 @@ Define
    if match'' w s
    then match_all'' t
    else F)’,
+(*
 Define
 ‘match_all_e_alt'' s_l w_l = match_all'' (ZIP(w_l, s_l))’,
+*)
 Define
 ‘(match_all_first'' i w_list ([]:(s' list # identifier) list) = NONE) /\
  (match_all_first'' i w_list (h::t) =
@@ -1371,7 +1375,9 @@ else
   Define ‘p4_match_range'' = T’,
   Define ‘match'' = T’,
   Define ‘match_all'' = T’,
+(*
   Define ‘match_all_e_alt'' = T’,
+*)
   Define ‘match_all_first'' = T’,
   Define ‘match_all_first = T’
   )

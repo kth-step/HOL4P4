@@ -49,7 +49,9 @@ val _ =
  if matching_optimization
  then
   let
+(*
    val _ = translate match_all_e_alt''_def;
+*)
    val _ = translate FOLDL_MATCH_alt''_def;
    val _ = translate FOLDL_MATCH''_def;
    val _ = translate e_list_to_word64s_list_def;

@@ -21,7 +21,7 @@ val identifier = “:word64”;
 val matching_optimization = true;
 
 (* This controls whether optimized I/O (byte instead of bit lists) will be used *)
-val io_optimization = false;
+val io_optimization = true;
 
 (* This should hold all the named strings in core P4, and currently the additional ones for
  * new architectures *)

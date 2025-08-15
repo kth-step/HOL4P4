@@ -18,6 +18,113 @@ open p4_cake_exec_semProgTheory;
 open p4_cake_transformLib p4_cake_auxLib;
 open p4_cake_arch_v1modelProgTheory;
 
+(*
+open realLib;
+
+realLib.prefer_real;
+
+map (fn (a,b) => (a, (Real.fromInt b) / 3.0))
+
+       [
+        (1, 5696),
+        (2, 4736),
+        (3, 4928),
+        (4, 5056),
+        (5, 4288),
+        (6, 4608),
+        (7, 4480)
+        ]
+
+*)
+
+(*********************)
+
+fun get_keys [] = []
+  | get_keys (h::t) =
+ let
+  val matching = fst $ dest_pair h
+  val (s_list_tm, prio) = dest_pair matching
+  val s_list = fst $ dest_list $ s_list_tm
+ in
+  if length s_list = 1
+  then
+   let
+    val s = el 1 s_list
+   in
+    if is_s_sing s
+    then
+     let
+      val (bool_list_tm, width_tm) = dest_pair $ dest_v_bit $ dest_s_sing s
+      val value = int_of_term $ rhs $ concl $ EVAL “v2n ^bool_list_tm”
+      val width = int_of_term width_tm
+     in
+      ((value, width), int_of_term prio)::(get_keys t)
+     end
+    else raise Fail "get_keys only supports s_sing"
+   end
+  else raise Fail "get_keys only supports single matching keys (got multiple entries)"
+ end
+;
+
+(* Populate a table with singleton keys, outside of existing entries.
+ * Used for creating dummy entries for benchmarking table matching *)
+(* TODO: How to best handle priority? Best make new entries the prioritized ones... *)
+fun populate_table' tbl rand_gen n_additional_entries =
+ let
+  val (name, entries) = dest_pair tbl
+  val entries_list_tm = p4_coreLib.dest_tbl_regular entries
+  val entries_list = fst $ dest_list $ entries_list_tm
+  val (keys, prios) = unzip $ get_keys entries_list
+  (* TODO: Hack. Warn if widths disagree. *)
+  val width = el 1 $ map snd keys
+
+  val max_prio = fst $ mlibUseful.max (fn (a,b) => Int.compare (a, b)) prios
+
+  fun get_rand_range width rand_gen existing_keys =
+   let
+    val range_value1 = Random.range (0, (funpow width (fn a => a*2) 1)) rand_gen;
+    val range_value2 = Random.range (0, (funpow width (fn a => a*2) 1)) rand_gen;
+    val (lo, hi) =
+     if range_value1 < range_value2
+     then (range_value1, range_value2)
+     else (range_value2, range_value1)
+    val lo' = rhs $ concl $ EVAL $ “(fixwidth ^(numSyntax.term_of_int width) $ n2v ^(numSyntax.term_of_int lo), ^(numSyntax.term_of_int width))”
+    val hi' = rhs $ concl $ EVAL $ “(fixwidth ^(numSyntax.term_of_int width) $ n2v ^(numSyntax.term_of_int hi), ^(numSyntax.term_of_int width))”
+   in
+    if not $ exists (fn a => a >= lo) existing_keys
+    then
+     mk_s_range (lo', hi')
+    else get_rand_range width rand_gen existing_keys
+   end
+  ;
+
+  (* TODO: Chance for doubles now very low *)
+  fun add_entries existing_keys width rand_gen 0 = []
+    | add_entries existing_keys width rand_gen n_additional_entries =
+   let
+    val new_entry = get_rand_range width rand_gen existing_keys
+   in
+    new_entry::(add_entries existing_keys width rand_gen (n_additional_entries-1))
+   end
+  ;
+
+  (* TODO: Take action as an argument *)
+  val action =
+   “("NoAction",
+      [e_v (v_bool T); e_v (v_bool T)])”
+  val new_entries = add_entries (map fst keys) width rand_gen n_additional_entries
+  val new_entries' = map (fn a => mk_pair (mk_list ([a], “:s”), term_of_int (max_prio+1))) new_entries
+  val new_entries_tm = mk_list (map (fn a => mk_pair (a, action)) new_entries', “:(s list # num) # string # e list”)
+
+  val entries_list_tm' = rhs $ concl $ EVAL “^new_entries_tm ++ ^entries_list_tm”
+  
+ in
+  mk_pair (name, p4_coreLib.mk_tbl_regular entries_list_tm')
+ end
+;
+
+(*********************)
+
 val _ = translation_extends "p4_cake_arch_v1modelProg";
 
 val ipv4_match_tbl =
@@ -95,9 +202,9 @@ val smac_tbl =
 
 val rand_gen = Random.newgen ();
 
-val n_additional_entries = 10;
+val n_additional_entries = 1000;
 
-val dmac_tbl' = populate_table dmac_tbl rand_gen n_additional_entries;
+val dmac_tbl' = populate_table' dmac_tbl rand_gen n_additional_entries;
 
 val vss_v1model_actx = “([arch_block_inp;
   arch_block_pbl "TopParser"

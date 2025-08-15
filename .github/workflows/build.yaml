@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        polyml: ['5.7.1', '5.9.1']
+        polyml: ['5.7.1', '5.9.2']
         hol4: ['718b3aa']
 
     env:

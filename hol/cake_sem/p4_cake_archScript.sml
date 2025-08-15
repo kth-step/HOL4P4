@@ -606,7 +606,7 @@ val (FOLDL_MATCH''_def, FOLDL_MATCH_alt''_def) =
   (Define
    ‘(FOLDL_MATCH'' w_l res [] = res) /\
     (FOLDL_MATCH'' (w_l:(word64 # word64) list) (res_act:identifier # e' list, res_prio_opt:num option) (((s_l,prio),v)::t) =
-     if match_all_e_alt'' s_l w_l
+     if match_all'' (ZIP(w_l, s_l))
      then
       (* TODO: Largest priority wins (like for P4Runtime API) is hard-coded *)
       case res_prio_opt of
@@ -620,7 +620,7 @@ val (FOLDL_MATCH''_def, FOLDL_MATCH_alt''_def) =
    Define
    ‘(FOLDL_MATCH_alt'' w_l res acc [] = res) /\
     (FOLDL_MATCH_alt'' w_l (res_act, res_prio_opt:num option) acc (((s_l,prio),v)::t) =
-     if match_all_e_alt'' s_l w_l
+     if match_all'' (ZIP(w_l, s_l))
      then
       (* TODO: Smallest priority wins (like for TDI) is hard-coded,
        *       other than priority zero. *)
