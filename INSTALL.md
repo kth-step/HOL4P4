@@ -44,11 +44,11 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		sudo make install
 		cd ..
 
-3. Install HOL4 Trindemossen-1
+3. Install HOL4 Trindemossen-2
 
 		git clone https://github.com/HOL-Theorem-Prover/HOL.git
 		cd HOL
-		git checkout trindemossen-1
+		git checkout trindemossen-2
 		poly < tools/smart-configure.sml
 		bin/build
 		cd ..

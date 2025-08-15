@@ -183,8 +183,6 @@ Definition set_fields_def:
       | NONE => NONE)
     | NONE => NONE)
   | _ => NONE)
-Termination
-WF_REL_TAC `measure ( \ (t, acc, packet_in). v1_size t)`
 End
 
 Definition set_header_def:
@@ -389,8 +387,6 @@ Definition header_entries2v_def:
   | (v_header validity x_v_l) => header_entries2v x_v_l
   | _ => NONE
  )
-Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL x_v_l) => v1_size x_v_l | (INR (x,v)) => v_size v)`
 End
 
 
