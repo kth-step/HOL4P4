@@ -74,8 +74,7 @@ fun same_const_disj_list [] tm = K false tm
 
 (* Customized CBV_CONV for HOL4P4 evaluation *)
 local
- val list_of_thys = ["p4", "p4_aux", "p4_exec_sem",
-		     "p4_core", "p4_v1model", "p4_ebpf", "p4_vss", "p4_bigstep"]
+ val list_of_thys = ["p4_aux", "p4_core", "p4_v1model", "p4_ebpf", "p4_vss", "p4_bigstep"]
 
  fun filtered_thm_names name =
   (not $ String.isSuffix "_aux" name) andalso
@@ -253,6 +252,8 @@ val theories_with_convs = map (snd o fst) convs_in_hol4p4_compset
 in
  fun get_HOL4P4_CONV thms_to_add =
   let
+   val _ = add_thy_list list_of_thys the_compset
+
    val _ = computeLib.add_thms thms_to_add hol4p4_compset
   in
    computeLib.CBV_CONV hol4p4_compset
