@@ -7,7 +7,7 @@ open pairTheory optionTheory arithmeticTheory;
 open p4Theory;
 
 (* OPTION_BIND as infix *)
-Definition app_opt_def:
+Definition app_opt_def[simp]:
  $>>= x_opt f =
   OPTION_BIND x_opt f
 End
@@ -1335,7 +1335,6 @@ Theorem  EL_relation_to_INDEX_lesseq:
             i <= LENGTH l ==>
             m = n 
 Proof
-
 Induct >>
 REPEAT STRIP_TAC >>
 fs[INDEX_FIND_def] >>
@@ -1464,32 +1463,23 @@ Theorem index_find_concat1:
 ! l1 l2 n P.
 INDEX_FIND 0 P l1 = NONE  /\
 INDEX_FIND 0 P (l2 ⧺ l1) = SOME n ==>
-INDEX_FIND 0 P (l2) = SOME n 
+INDEX_FIND 0 P (l2) = SOME n
 Proof
 Induct_on `l1` >>
 Induct_on `l2` >>
-fs[INDEX_FIND_def] >>
-REPEAT STRIP_TAC >>
-CASE_TAC >| [
- rfs[]
- ,
- Cases_on `P h'` >| [
-  gvs[]
-  ,
-  gvs[] >>
-
-  ASSUME_TAC P_hold_on_next>> 
-  FIRST_X_ASSUM
-  (STRIP_ASSUME_TAC o (Q.SPECL [`0`,`(l2 ⧺ h'::l1)`,`P`,`n`])) >>
-  gvs[GSYM ADD1] >> 
-  RES_TAC >>
-  gvs[] >>
-
-  IMP_RES_TAC P_implies_next >>
-  Cases_on `n` >>
-  fs[]
-  ]
- ]
+gs[INDEX_FIND_def, AllCaseEqs()] >>
+REPEAT STRIP_TAC >> (
+ gs[]
+) >>
+ASSUME_TAC P_hold_on_next >> 
+FIRST_X_ASSUM
+ (STRIP_ASSUME_TAC o (Q.SPECL [`0`,`(l2 ⧺ h'::l1)`,`P`,`n`])) >>
+gvs[GSYM ADD1] >> 
+RES_TAC >>
+gvs[] >>
+IMP_RES_TAC P_implies_next >>
+Cases_on `n` >>
+fs[]
 QED
 
 
@@ -1835,17 +1825,16 @@ QED
 Theorem index_find_not_mem:
  ! l P e n. (INDEX_FIND n P l = NONE) /\ P e ==> ~ MEM e l 
 Proof
-
 Induct >>
 fs[INDEX_FIND_def] >>
 REPEAT GEN_TAC >>
-CASE_TAC >>
+gs[AllCaseEqs()] >>
 STRIP_TAC >>
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-[`P`, `e` , `SUC n`])) >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`P`, `e` , `SUC n`])) >>
 IMP_RES_TAC P_NONE_hold2 >>
-Cases_on `e=h` >>
-fs[]
+Cases_on `e=h` >> (
+ fs[]
+)
 QED
 
 
@@ -2573,8 +2562,6 @@ Definition deparameterise_tau_def:
   deparameterise_tau p_tau >>=
   \tau. deparameterise_x_taus t >>=
   \tau_l. SOME ((name, tau)::tau_l))
-Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL p_tau) => p_tau_size p_tau | (INR p_tau_list) => p_tau1_size p_tau_list)`
 End
 
 Definition deparameterise_taus_def:
@@ -2594,8 +2581,6 @@ Definition parameterise_tau_def:
   | tau_ext => p_tau_ext "") /\
 (parameterise_x_taus [] = []) /\
 (parameterise_x_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_x_taus t)))
-Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL tau) => tau_size tau | (INR tau_list) => tau1_size tau_list)`
 End
 
 Definition parameterise_taus_def:

@@ -15,8 +15,8 @@ jobs:
 
     strategy:
       matrix:
-        polyml: ['5.7.1', '5.9.1']
-        hol4: ['trindemossen-1']
+        polyml: ['5.7.1', '5.9.2']
+        hol4: ['trindemossen-2']
 
     env:
       CACHE_DIR: /home/runner/cache

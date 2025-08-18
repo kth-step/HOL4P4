@@ -393,20 +393,16 @@ Triviality json_parse_obj_size:
 Proof
 Induct_on ‘json_list’ >- (
  rpt strip_tac >>
- fs[json_parse_obj_def, json_dest_obj_def, app_opt_def] >>
+ gs[json_parse_obj_def, json_dest_obj_def] >>
  Cases_on ‘json’ >> (fs[json_size_def])
 ) >>
 rpt strip_tac >>
-fs[json_parse_obj_def, app_opt_def] >>
-Cases_on ‘json’ >> (fs[json_dest_obj_def]) >>
-rw[] >>
-Cases_on ‘str_list’ >> (fs[json_parse_obj'_def, json_size_def]) >>
-(Cases_on ‘l’ >> (fs[json_parse_obj'_def, json_size_def])) >>
-
-Cases_on ‘h''’ >> (fs[json_parse_obj'_def, json_size_def, app_opt_def]) >>
-Cases_on ‘json_parse_obj' t t'’ >> (fs[json_parse_obj'_def, json_size_def]) >>
-rw[] >>
-subgoal ‘(case (Object t') of
+gs[json_parse_obj_def] >>
+Cases_on ‘str_list’ >> (Cases_on ‘x’ >> (gs[json_parse_obj'_def, json_size_def])) >>
+PairCases_on ‘h''’ >>
+gvs[json_parse_obj'_def, json_size_def] >>
+Cases_on ‘json’ >> (gvs[json_dest_obj_def]) >>
+subgoal ‘?x. (case (Object t') of
                 Object obj => SOME obj
               | Array v8 => NONE
               | String v9 => NONE
@@ -414,12 +410,19 @@ subgoal ‘(case (Object t') of
               | Bool v13 => NONE
               | Null => NONE) =
              SOME t'’ >- (
- fs[]
+ gs[]
 ) >>
-subgoal ‘json3_size json_list < json_size (Object t')’ >- (
- metis_tac[]
-) >>
-fs[json_size_def]
+res_tac >>
+gs[]
+QED
+
+Theorem list_size_json3:
+!json_list.
+list_size json_size json_list = json3_size json_list
+Proof
+Induct >> (
+ gs[list_size_def, json_size_def]
+)
 QED
 
 (* Parses compile-time known constants, e.g. in bitstring widths *)
@@ -1227,24 +1230,24 @@ Definition petr4_parse_expression_gen_def:
   | SOME_msg (SetExp e) => get_error_msg "set expression in unsupported location: " h1
   | NONE_msg exp_msg => NONE_msg ("could not parse expression: "++exp_msg))
 Termination
-WF_REL_TAC `measure ( \ t. case t of
+WF_REL_TAC ‘measure ( \ t. case t of
                            | (INL (maps, json, p_tau_opt)) => json_size json
                            | (INR $ INL (maps, json_list)) => json_p_tau_opt_list_size json_list
-                           | (INR $ INR (maps, json_list)) => json_p_tau_opt_list_size json_list)` >>
-fs[json_p_tau_opt_list_size_def] >>
-rpt strip_tac >> (fs[json_size_def]) >- (
- subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
- fs []
+                           | (INR $ INR (maps, json_list)) => json_p_tau_opt_list_size json_list)’ >>
+gs[json_p_tau_opt_list_size_def] >>
+rpt strip_tac >> (gs[json_size_def]) >- (
+ gs[UNZIP_MAP]
 ) >- (
- subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
- fs []
+ gs[UNZIP_MAP]
 ) >- (
- subgoal ‘?l1 l2. UNZIP t = (l1, l2)’ >- (fs[UNZIP_MAP]) >>
- fs []
+ gs[UNZIP_MAP]
 ) >- (
- subgoal ‘LENGTH args = LENGTH p_1'5'’ >- (imp_res_tac find_fty_match_args_LENGTH >> fs[]) >>
- fs[listTheory.UNZIP_ZIP]
-)
+ gs[list_size_json3]
+) >- (
+ gs[list_size_json3]
+) >>
+‘LENGTH args = LENGTH p_1'5'’ by (imp_res_tac find_fty_match_args_LENGTH >> gs[]) >>
+gs[UNZIP_MAP, listTheory.MAP_ZIP, list_size_json3]
 End
 
 (* TODO: Baking this into the above messes up the termination proof... *)
@@ -2282,25 +2285,48 @@ Definition petr4_parse_stmts_def:
     | NONE_msg msg' => NONE_msg msg')
   | NONE_msg msg => NONE_msg msg)
 Termination
-WF_REL_TAC `measure ( \ t. case t of | (INL (maps, json_list)) => json3_size json_list | (INR (maps, json_list_list)) => SUM (MAP (\ el . json3_size el + 1) json_list_list))` >>
+WF_REL_TAC ‘measure ( \ t. case t of | (INL (maps, json_list)) => json3_size json_list | (INR (maps, json_list_list)) => SUM (MAP (\ el . json3_size el + 1) json_list_list))’ >>
 rpt strip_tac >> (fs[json_size_def]) >- (
- fs[json_parse_obj_def, json_dest_obj_def, app_opt_def] >>
+ fs[json_parse_obj_def, json_dest_obj_def] >>
  Cases_on ‘p_2'’ >> (fs[]) >>
  rw[] >>
- Cases_on ‘l’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
- Cases_on ‘h’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
- Cases_on ‘t'’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
- Cases_on ‘h’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
+ Cases_on ‘l’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘t'’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
  Cases_on ‘q' = "annotations"’ >> (fs[]) >>
- Cases_on ‘t''’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
- Cases_on ‘h’ >> (fs[json_parse_obj'_def, app_opt_def]) >>
+ Cases_on ‘t''’ >> (fs[json_parse_obj'_def]) >>
+ Cases_on ‘h’ >> (fs[json_parse_obj'_def]) >>
  Cases_on ‘q'' = "statements"’ >> (fs[]) >>
- Cases_on ‘json_parse_obj' [] t'’ >> (fs[json_size_def, app_opt_def])
+ Cases_on ‘json_parse_obj' [] t'’ >> (fs[json_size_def]) >>
+
+ gvs[char_size_def] >>
+ ‘json3_size t +
+   (json_size annotations +
+    (json_size p_2 +
+     (json_size r +
+      (list_size json_size stmts +
+       (list_size (pair_size (list_size char_size) json_size) t' + 57))))) =
+   json3_size stmts + 1 +
+   json3_size t +
+   (json_size annotations +
+    (json_size p_2 +
+     (json_size r +
+      (list_size (pair_size (list_size char_size) json_size) t' + 56))))’ suffices_by (
+  gs[]
+ ) >>
+ gvs[] >>
+ ‘list_size json_size stmts = json3_size stmts’ by (
+  Induct_on ‘stmts’ >> (
+   fs[json_size_def, list_size_def]
+  )
+ ) >>
+ gs[]
 ) >- (
  (* Switch case *)
  IMP_RES_TAC petr4_parse_switch_cases_size >>
  res_tac >>
- fs[json_size_def, app_opt_def]
+ fs[json_size_def]
 )
 End
 
