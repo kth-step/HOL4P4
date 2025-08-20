@@ -46,8 +46,8 @@ val _ = Hol_datatype `
   arithm_atom = 
      a_True               (* T *)
    | a_False              (* F *)
-   | arithm_gt of arith_lv => bitv  (* lval > v *)
-   | arithm_lt of arith_lv => bitv  (* lval < v *)
+   | arithm_ge of arith_lv => bitv  (* lval ≤ v *)
+   | arithm_le of arith_lv => bitv  (* lval ≥ v *)
    (*| arithm_eq of arith_lv => num  (* lval = v *)*) (* this will be added to input policy *)
 `;
 
@@ -93,13 +93,13 @@ End
 Definition eval_arithm_atom_def:
   (eval_arithm_atom pd a_True = SOME T) ∧
   (eval_arithm_atom pd a_False = SOME F) ∧
-  (eval_arithm_atom pd (arithm_gt lval bv) = 
+  (eval_arithm_atom pd (arithm_ge lval bv) = 
     case resolve_lval pd lval of
-    | SOME (val_bs bv') => bitv_binpred binop_gt bv' bv
+    | SOME (val_bs bv') => bitv_binpred binop_ge bv' bv
     | _ => NONE) ∧
-  (eval_arithm_atom pd (arithm_lt lval bv) = 
+  (eval_arithm_atom pd (arithm_le lval bv) = 
     case resolve_lval pd lval of
-      SOME (val_bs bv') => bitv_binpred binop_lt bv' bv
+      SOME (val_bs bv') => bitv_binpred binop_le bv' bv
     | _ => NONE)
 End
 
@@ -271,15 +271,15 @@ End
 
 
 
-Definition all_convertable_def:
-  all_convertable m_e policy =
+Definition all_convertable_to_var_def:
+  all_convertable_to_var m_e policy =
   EVERY (λ(pred,_). pred_a2v m_e pred ≠ NONE) policy
 End
         
 
-Definition convert_def:
-  convert policy m_e =
-    if all_convertable m_e policy then
+Definition convert_arith_to_var_policy_def:
+  convert_arith_to_var_policy policy m_e =
+    if all_convertable_to_var m_e policy then
       SOME (MAP (λ(pred,act). (THE (pred_a2v m_e pred), act)) policy)
     else
       NONE
@@ -295,7 +295,7 @@ val test_me = ``[
 
 (* Sample policies *)
 val empty_policy = ``[] : (arith_pred # string) list``;
-val all_convertable_policy = ``[
+val all_convertable_to_var_policy = ``[
   (arith_a (arithm_gt (lv_x "x") 5), "allow");
   (arith_a (arithm_lt (lv_x "y") 2), "deny")
 ]``;
@@ -304,18 +304,18 @@ val partially_convertable_policy = ``[
   (arith_a (arithm_eq (lv_x "z") 1), "log")  (* Unmapped *)
 ]``;
 
-EVAL ``convert ^empty_policy ^test_me``;
+EVAL ``convert_arith_to_var_policy ^empty_policy ^test_me``;
 (*SOME []*)
-EVAL ``convert ^all_convertable_policy ^test_me``;
+EVAL ``convert_arith_to_var_policy ^all_convertable_to_var_policy ^test_me``;
 (*[(Var "x_gt_5", "allow"); (Var "y_lt_2", "deny")]*)
-EVAL ``convert ^partially_convertable_policy ^test_me``;
+EVAL ``convert_arith_to_var_policy ^partially_convertable_policy ^test_me``;
 (*NONE*)
 
 val complex_policy = ``[
   (arith_not (arith_a (arithm_gt (lv_x "x") 5)), "reject");
   (arith_and (arith_a a_True) (arith_a (arithm_lt (lv_x "y") 2)), "special")
 ]``;
-EVAL ``convert ^complex_policy ^test_me``;
+EVAL ``convert_arith_to_var_policy ^complex_policy ^test_me``;
 
 (*
    SOME [
@@ -413,7 +413,7 @@ Theorem policy_airth_to_var_sem_conversion_correct:
     (∀var atom. 
        ALOOKUP m_e var = SOME atom ⇒ 
        ALOOKUP m_v var = eval_arithm_atom packet_input atom) ∧
-    (convert arith_policy m_e = SOME var_policy)
+    (convert_arith_to_var_policy arith_policy m_e = SOME var_policy)
     ⇒
     sem_arith_policy arith_policy packet_input = 
     sem_policy var_policy m_v
@@ -423,7 +423,7 @@ Proof
   ‘check_arith_pred_sem arith_policy packet_input = check_sem_pred var_policy m_v’ 
     suffices_by rw[] >>
   
-  fs[convert_def] >>
+  fs[convert_arith_to_var_policy_def] >>
   rw[check_arith_pred_sem_def, check_sem_pred_def] >>
   
   rw[MAP_MAP_o] >>
@@ -433,9 +433,9 @@ Proof
   Cases_on ‘x’ >> rw[] >>
   rename1 ‘(pred, act)’ >>
   
-  (* Since all_convertable holds, pred_a2v m_e pred ≠ NONE *)
+  (* Since all_convertable_to_var holds, pred_a2v m_e pred ≠ NONE *)
   ‘pred_a2v m_e pred ≠ NONE’ by (
-    fs[all_convertable_def, EVERY_MEM] >>
+    fs[all_convertable_to_var_def, EVERY_MEM] >>
     rgs[ELIM_UNCURRY] >>
     res_tac >>
     fs[FST]

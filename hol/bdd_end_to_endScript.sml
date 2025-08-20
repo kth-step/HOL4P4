@@ -171,7 +171,7 @@ Theorem table_mk_bdd_correct_thm:
     correct_sem table_structure BDD (REVERSE vars)
 Proof
   rpt strip_tac >>
-  assume_tac (INST_TYPE [“:'a” |-> “: (('a table) list # num)”, “:'b” |-> “: 'a action_expr”] correct_sem_translation)  >>
+  assume_tac (INST_TYPE [“:'a” |-> “: (('a var_table) list # num)”, “:'b” |-> “: 'a action_expr”] correct_sem_translation)  >>
   first_x_assum (strip_assume_tac o (Q.SPECL [‘vars’, ‘[]’,
                                               ‘(0,[],[(0,non_termn (NONE,(var_table)))])’,
                                               ‘BDD’, ‘table_structure’, ‘1’])) >>
@@ -530,7 +530,7 @@ Theorem table_mk_bdd_correct_valid_opt_thm:
 Proof
   
   rpt strip_tac >>
-  assume_tac (INST_TYPE [“:'a” |-> “: (('a table) list # num)”, “:'b” |-> “: 'a action_expr”]
+  assume_tac (INST_TYPE [“:'a” |-> “: (('a var_table) list # num)”, “:'b” |-> “: 'a action_expr”]
                         correct_sem_valid_translation_opt)  >>
                         
   first_x_assum (strip_assume_tac o (Q.SPECL [‘vars’, ‘[]’,

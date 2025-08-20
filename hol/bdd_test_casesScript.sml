@@ -32,11 +32,12 @@ val _ = load "bdd_utils";
 
 val _ = new_theory "bdd_test_cases";
 
-
+(* TODO: update the sml definition that takes a var bdd and generates var table, now the var_table has new syntax. Var x | True | False | Not atom --> 
+Var x | Not x | Not True | Not False | True | False
 
 
 (* a few types abbreviations *)
-val _ = type_abbrev("BDD_tbl_type", “:(( (string# num list) table_list, (string# num list) action_expr) BDD)”);
+val _ = type_abbrev("BDD_tbl_type", “:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)”);
 
 val _ = type_abbrev("struc_tbl_type", “:((( atom_var list # num # (string# num list) action_expr) list list # num,
                                           (string# num list) action_expr) decision_structure)”);
@@ -113,8 +114,8 @@ val var_tbl3_line2 = ``([True] , 7, action ("fwd",[2])): (string# num list) line
 val var_tbl3_line3 = ``([True] , 8, action ("drop",[])): (string# num list) line``;
 val var_tbl3 = ``[^var_tbl3_line1; ^var_tbl3_line2; ^var_tbl3_line3] : (string# num list) table``;
 
-val var_tbls1 = ``[^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) table_list) ``;
-val var_tbls1_start = ``([^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) table_list),(0:num)) ``;
+val var_tbls1 = ``[^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) var_table_list) ``;
+val var_tbls1_start = ``([^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) var_table_list),(0:num)) ``;
 
      
 val eval_table1_full_opt = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^var_tbls1_start))]) [] ["x";"y";"z"] 1”;
@@ -219,8 +220,8 @@ val var_tbl3_line6 = ``([True] , 10, action ("drop",[])): (string# num list) lin
 val var_tbl3 = ``[^var_tbl3_line1; ^var_tbl3_line2; ^var_tbl3_line3;
                  ^var_tbl3_line4; ^var_tbl3_line5; ^var_tbl3_line6] : (string# num list) table``;
 
-val var_tbls2 = ``[^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) table_list) ``;
-val var_tbls2_start = ``([^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) table_list),(0:num)) ``;
+val var_tbls2 = ``[^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) var_table_list) ``;
+val var_tbls2_start = ``([^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) var_table_list),(0:num)) ``;
 
 
 val eval_table2_full_opt = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^var_tbls2_start))]) [] ["x";"y";"z";"w"] 1”;
@@ -280,7 +281,7 @@ val arith_policy3 =   “[ ^arith_policy3_rule1 ;
                         ^arith_policy3_rule3]:((string# num list) action_expr) arith_policy”;
 
 
-val arith_policy3_eval = EVAL “convert ^arith_policy3 ^policy3_me1”;
+val arith_policy3_eval = EVAL convert_arith_to_var_policy ^arith_policy3 ^policy3_me1”;
 
 val var_policy3 = optionSyntax.dest_some (rhs (concl arith_policy3_eval));
 
@@ -300,6 +301,6 @@ val arith_policy3_var_policy3_thm = REWRITE_RULE[all_distinct_conj, arith_policy
 
 *)
 
-                       
+*)                       
 val _ = export_theory ();
 

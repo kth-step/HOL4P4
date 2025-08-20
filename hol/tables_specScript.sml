@@ -32,20 +32,24 @@ open policy_specTheory;
 
 val _ = new_theory "tables_spec";
 
+    
 
 (* atomic variable based predicates predicates*)
 val _ = Hol_datatype `
      atom_var = True
-               | False 
-               | Var of string
-               | Not of atom_var`;
+                | False
+                | NotTrue
+                | NotFalse
+                | Var of string
+                | Not of string
+               `;
 
 val _ = Hol_datatype `action_expr = action of 'a | state of num`;
 
 
-Type line = “:(atom_var list # num # 'a action_expr)”;
-Type table = “: ('a line) list”
-Type table_list = “: ('a table) list”
+Type var_line = “:(atom_var list # num # 'a action_expr)”;
+Type var_table = “: ('a var_line) list”
+Type var_table_list = “: ('a var_table) list”
    
 
 
@@ -56,24 +60,29 @@ Type table_list = “: ('a table) list”
 
 
 
-Definition sem_atom_def:
-  (sem_atom ((Var x): atom_var) mv = (ALOOKUP mv x) ) /\
-  (sem_atom True _ = SOME T) /\
-  (sem_atom False _ = SOME F) /\
-  (sem_atom (Not p) mv = 
-   case (sem_atom p mv)  of
+Definition sem_var_atom_def:
+  (sem_var_atom ((Var x): atom_var) mv = (ALOOKUP mv x)) /\
+  (sem_var_atom True _ = SOME T) /\
+  (sem_var_atom False _ = SOME F) /\
+  (sem_var_atom NotTrue _ = SOME F) /\
+  (sem_var_atom NotFalse _ = SOME T) /\
+  (sem_var_atom (Not x) mv = 
+   case (ALOOKUP mv x) of
    | SOME b => SOME (~b)
    | _ => NONE
-  ) 
+  )
 End
 
 
 Definition mk_substitute_atom_def:
-  (mk_substitute_atom ((True):atom_var) x b = True) ∧
-  (mk_substitute_atom (False) x b = False) ∧
+  (mk_substitute_atom (True:atom_var) x b = True) ∧
+  (mk_substitute_atom False x b = False) ∧
+  (mk_substitute_atom NotTrue x b = NotTrue) ∧
+  (mk_substitute_atom NotFalse x b = NotFalse) ∧
   (mk_substitute_atom (Var x') x b = 
    if (x=x') then (if b then True else False) else (Var x')) ∧
-  (mk_substitute_atom (Not c) x b= (Not (mk_substitute_atom c x b))) 
+  (mk_substitute_atom (Not x') x b = 
+   if (x=x') then (if b then NotTrue else NotFalse) else (Not x'))
 End
 
    
@@ -81,12 +90,9 @@ Definition simp_atom_def:
   (simp_atom ((Var x):atom_var) = Var x) /\
   (simp_atom True = True) /\
   (simp_atom False = False) /\
-  (simp_atom (Not p) =
-   let p' = simp_atom p in
-     case p' of
-     | True => False
-     | False => True
-     | _ => Not p')
+  (simp_atom NotTrue = False) /\
+  (simp_atom NotFalse = True) /\
+  (simp_atom (Not x) = Not x)
 End
 
 
@@ -95,15 +101,19 @@ Definition final_atom_def:
   case p of
   | True => SOME T
   | False => SOME F
+  | NotTrue => SOME F
+  | NotFalse => SOME T
   | _ => NONE
 End
 
 
 Definition fv_atom_def:
-  fv_atom ((Var x):atom_var) = [x] ∧
-  fv_atom True = [] ∧
-  fv_atom False = [] ∧
-  fv_atom (Not p) = fv_atom p
+  (fv_atom ((Var x):atom_var) = [x]) ∧
+  (fv_atom True = []) ∧
+  (fv_atom False = []) ∧
+  (fv_atom NotTrue = []) ∧
+  (fv_atom NotFalse = []) ∧
+  (fv_atom (Not x) = [x])
 End
 
                         
@@ -119,7 +129,7 @@ End
 (* Check if all predicates in list evaluate to true *)
 Definition is_atoml_true_def:
   is_atoml_true atoml mv = 
-  EVERY (\minipred. sem_atom minipred mv = SOME T) atoml
+  EVERY (\minipred. sem_var_atom minipred mv = SOME T) atoml
 End
 
         
@@ -139,7 +149,7 @@ End
 
 (* Find first matching line in a single table *)
 Definition match_tbl_def:
-  match_tbl (tbl: 'a table) mv st_in =
+  match_tbl (tbl: 'a var_table) mv st_in =
   let lines_res = (check_all_rows_match st_in tbl mv) in
     case min_idx_till lines_res T of
     | SOME (idx, line) => SOME (SND line)
@@ -152,7 +162,7 @@ End
         
 (* Process table list with state propagation *) 
 Definition match_tbll_def:
-  match_tbll ([]: 'a table_list) mv st_in = NONE ∧
+  match_tbll ([]: 'a var_table_list) mv st_in = NONE ∧
   match_tbll [tbl] mv st_in =
   ( case match_tbl tbl mv st_in of
     | SOME (action a) => SOME (action a)
@@ -168,7 +178,7 @@ End
  
 (* Top-level table semantics, return the starting state as well*)       
 Definition sem_tables_def:
-  sem_tables ((tbll: 'a table_list),st_in) mv =
+  sem_tables ((tbll: 'a var_table_list),st_in) mv =
    match_tbll tbll mv st_in
 End
 
@@ -199,19 +209,19 @@ Definition mk_substitute_row_def:
 End
    
 Definition mk_substitute_tbl_def:
-  mk_substitute_tbl (tbl: 'a table) x b =
-  ((MAP (\(atoml,st_num,res). (mk_substitute_row atoml x b, st_num, res)) tbl) :'a table)
+  mk_substitute_tbl (tbl: 'a var_table) x b =
+  ((MAP (\(atoml,st_num,res). (mk_substitute_row atoml x b, st_num, res)) tbl) :'a var_table)
 End
 
    
 Definition mk_substitute_tbll_def:
-  mk_substitute_tbll (tbll: 'a table_list) x b =
-  MAP (\(tbl). mk_substitute_tbl (tbl: 'a table) x b) tbll 
+  mk_substitute_tbll (tbll: 'a var_table_list) x b =
+  MAP (\(tbl). mk_substitute_tbl (tbl: 'a var_table) x b) tbll 
 End
 
 
 Definition mk_substitute_tables_def:
-  mk_substitute_tables ((tbll: 'a table_list), st_in) x b =
+  mk_substitute_tables ((tbll: 'a var_table_list), st_in) x b =
    (mk_substitute_tbll tbll x b, st_in:num)
 End
         
@@ -227,19 +237,19 @@ End
 
 
 Definition simp_tbl_def:
-  simp_tbl (tbl: 'a table) =
+  simp_tbl (tbl: 'a var_table) =
   MAP (\(atoml,st_num,res). simp_row atoml,st_num,res) tbl
 End
 
 
 Definition simp_tbll_def:
-  simp_tbll (tbll: 'a table_list) =
+  simp_tbll (tbll: 'a var_table_list) =
   MAP (\tbl. simp_tbl tbl) tbll
 End
 
 
 Definition simp_tables_def:
-  simp_tables ((tbll: 'a table_list), st_in) =
+  simp_tables ((tbll: 'a var_table_list), st_in) =
    (simp_tbll tbll, st_in:num)
 End
 
@@ -278,20 +288,20 @@ End
 
 
 Definition is_hit_tbl_check_def:
-  is_hit_tbl_check (tbl: 'a table) st_in =
+  is_hit_tbl_check (tbl: 'a var_table) st_in =
   MAP (\(atoml, st_num, res). is_hit st_in st_num atoml, st_num, res) tbl
 End
 
 
 
 Definition pre_lines_are_fail_def:
-  pre_lines_are_fail (tbl: 'a table) idx st_in =
+  pre_lines_are_fail (tbl: 'a var_table) idx st_in =
   EVERY (\(atoml, st_num, res).  if st_num = st_in then all_false atoml else T) (SEG idx 0 tbl)
 End
 
         
 Definition final_tbl_def:
-  final_tbl (tbl: 'a table) st_in =
+  final_tbl (tbl: 'a var_table) st_in =
   let lines_res = is_hit_tbl_check tbl st_in in
     case min_idx_till lines_res T of
     | SOME (idx, b, st_num, res) =>
@@ -312,7 +322,7 @@ EVAL “final_tbl [([Var "a"], 0 , action "s1");([True], 0 , action "s2")] 0” 
         
         
 Definition final_tbll_def:
-  final_tbll ([]: 'a table_list) st_in = NONE ∧
+  final_tbll ([]: 'a var_table_list) st_in = NONE ∧
   final_tbll [tbl] st_in =
   ( case final_tbl tbl st_in of
     | SOME (action a) => SOME (action a)
@@ -357,7 +367,7 @@ End
 
 
 Definition fv_tbl_def:
-  fv_tbl (tbl: 'a table) =
+  fv_tbl (tbl: 'a var_table) =
   (let fv_in_tbl = MAP(\(atom,st_num,res). fv_row atom) tbl in
       nub (FLAT fv_in_tbl))
 End
@@ -366,7 +376,7 @@ End
 
     
 Definition fv_tbll_def:
-  fv_tbll (tbll: 'a table_list) =
+  fv_tbll (tbll: 'a var_table_list) =
   let fv_in_tbll = MAP (\tbl. fv_tbl tbl) tbll in
     nub(FLAT fv_in_tbll)
 End
@@ -460,7 +470,7 @@ Proof
   gvs[fv_row_def]
 QED
 
-
+(*
 Theorem fv_mem_atom_not_thm:        
   ∀ atom mv.
     (∀x. MEM x (fv_row [Not atom]) ⇒ ∃b. ALOOKUP mv x = SOME b) ⇒
@@ -468,7 +478,7 @@ Theorem fv_mem_atom_not_thm:
 Proof     
   gvs[fv_row_def, fv_atom_def]
 QED
-
+*)
 
           
 Theorem mk_substitute_tbl_normalize1:
@@ -504,67 +514,36 @@ Theorem sub_then_simp_answer_indeed_in_fv:
     (simp_atom (mk_substitute_atom atom h' b) = Var s) ⇒
     MEM s (fv_atom atom)
 Proof
-  Induct >>
+  Cases >>
   rpt strip_tac >>
   gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] 
 QED
 
-
-Triviality simp_fv_not_triv1:
-  ∀ atom h' b x a.
-    simp_atom (mk_substitute_atom atom h' b) = Not a ∧
-    MEM x (fv_atom a) ⇒
-    MEM x (fv_atom (simp_atom (mk_substitute_atom atom h' b)))
-Proof
-  gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] 
-QED
-        
 
 Triviality mem_fv_sub_simp_tbl_triv1:
   ∀ atom h' b x.        
     MEM x (fv_atom (simp_atom (mk_substitute_atom atom h' b))) ⇒
     MEM x (fv_atom atom)
 Proof
-  Induct >>
+  Cases >>
   rpt strip_tac >>
   gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] >>
-  imp_res_tac sub_then_simp_answer_indeed_in_fv >>
-  imp_res_tac simp_fv_not_triv1 >>
-  res_tac 
+  gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] 
 QED
              
-
-Theorem sub_then_simp_not_answer_indeed_in_fv:
-  ∀ atom atom' h' b mv.                      
-    (∀x. MEM x (fv_atom atom) ⇒ ∃b. ALOOKUP mv x = SOME b) ∧
-    simp_atom (mk_substitute_atom atom h' b) = Not atom'
-    ⇒
-    (∀x. MEM x (fv_atom atom') ⇒ ∃b. ALOOKUP mv x = SOME b)
-Proof
-  Induct >>
-  rpt strip_tac >>
-  gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs[fv_atom_def, mk_substitute_atom_def, simp_atom_def] >>
-  assume_tac sub_then_simp_answer_indeed_in_fv >>
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘atom’, ‘h'’, ‘b’, ‘s’])) >>
-  gvs[] >>
-  imp_res_tac mem_fv_sub_simp_tbl_triv1 >> res_tac >> gvs[]
-QED
       
 
 Theorem mem_imp_sem_tbl:
   ∀ atom mv.
     (∀x. MEM x (fv_atom atom) ⇒ ∃b. ALOOKUP mv x = SOME b) ⇒
-    sem_atom atom mv ≠ NONE ∧ ∃ b' . sem_atom atom mv = SOME b'
+    sem_var_atom atom mv ≠ NONE ∧ ∃ b' . sem_var_atom atom mv = SOME b'
 Proof
-  Induct >>
+  Cases >>
   rw[fv_atom_def] >> gvs[AllCaseEqs()] >>
-  gvs[sem_atom_def, simp_atom_def] >>
+  gvs[sem_var_atom_def, simp_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
 QED
 
@@ -580,33 +559,31 @@ QED
 
 
 
-Theorem lookup_implies_sem_atoms_same:
+Theorem lookup_implies_sem_var_atoms_same:
   ∀ atom h' b bool mv.
     ALOOKUP mv h' = SOME b  ⇒
-    (sem_atom atom mv = SOME bool ⇔ sem_atom (simp_atom (mk_substitute_atom atom h' b)) mv = SOME bool)
+    (sem_var_atom atom mv = SOME bool ⇔ sem_var_atom (simp_atom (mk_substitute_atom atom h' b)) mv = SOME bool)
 Proof
-  Induct >>
+  Cases >>
   rpt strip_tac >>
-  rpt (gvs[mk_substitute_atom_def, simp_atom_def, sem_atom_def] >>
+  rpt (gvs[mk_substitute_atom_def, simp_atom_def, sem_var_atom_def] >>
        BasicProvers.FULL_CASE_TAC >>
        res_tac >>               
-       gvs[]) >>
-  gvs[mk_substitute_atom_def, simp_atom_def, sem_atom_def] >>
-  metis_tac[]
+       gvs[])
 QED
 
 
 
-Theorem sem_atom_failure_from_simp_atom_false:        
+Theorem sem_var_atom_failure_from_simp_atom_false:        
   ∀ atoml h' b mv.
     atoml ≠ [] ∧
     ALOOKUP mv h' = SOME b ∧
     MEM False (MAP (λatom. simp_atom atom) (MAP (λatom. mk_substitute_atom atom h' b) atoml)) ⇒
-    ~ EVERY (λminipred. sem_atom minipred mv = SOME T) atoml
+    ~ EVERY (λminipred. sem_var_atom minipred mv = SOME T) atoml
 Proof
   Induct >>
   rpt strip_tac >> gvs[] >>
-  imp_res_tac lookup_implies_sem_atoms_same >> gvs[sem_atom_def] >>
+  imp_res_tac lookup_implies_sem_var_atoms_same >> gvs[sem_var_atom_def] >>
   res_tac >>
   Cases_on ‘atoml = []’ >> gvs[] >>
   imp_res_tac NOT_EVERY
@@ -618,38 +595,34 @@ Theorem subst_simp_sound_for_atom:
   ∀atom h' b mv.
     ALOOKUP mv h' = SOME b ⇒
     (simp_atom (mk_substitute_atom atom h' b) = True ⇒
-     sem_atom atom mv = SOME T) ∧
+     sem_var_atom atom mv = SOME T) ∧
     (simp_atom (mk_substitute_atom atom h' b) = False ⇒
-     sem_atom atom mv = SOME F)
+     sem_var_atom atom mv = SOME F)
 Proof                                   
-  Induct >-
-   gvs[simp_atom_def, mk_substitute_atom_def, sem_atom_def] >-
-   gvs[simp_atom_def, mk_substitute_atom_def, sem_atom_def] >>
-  gvs[simp_atom_def, mk_substitute_atom_def, sem_atom_def] >>
+  Cases >>
+  gvs[simp_atom_def, mk_substitute_atom_def, sem_var_atom_def] >>
   rpt strip_tac >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_atom_def, mk_substitute_atom_def, sem_atom_def]) >>
-  res_tac >>
-  gvs[sem_atom_def]    
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_atom_def, mk_substitute_atom_def, sem_var_atom_def])
 QED
 
 
        
 
-Theorem lookup_implies_sem_atoml_same2:
+Theorem lookup_implies_sem_var_atoml_same2:
   ∀ atoml h' b mv.
     ALOOKUP mv h' = SOME b ∧
     atoml ≠ [] ∧
-    EVERY ((λminipred. sem_atom minipred mv = SOME T)) (simp_row (mk_substitute_row atoml h' b)) ⇒
-    EVERY (λminipred. sem_atom minipred mv = SOME T) atoml
+    EVERY ((λminipred. sem_var_atom minipred mv = SOME T)) (simp_row (mk_substitute_row atoml h' b)) ⇒
+    EVERY (λminipred. sem_var_atom minipred mv = SOME T) atoml
 Proof
   Induct >>
   rpt strip_tac >> 
   gvs[mk_substitute_row_def, simp_row_def] >>
 
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs[sem_atom_def] >>
+  gvs[sem_var_atom_def] >>
                              
-  imp_res_tac lookup_implies_sem_atoms_same >> gvs[] >> res_tac >>
+  imp_res_tac lookup_implies_sem_var_atoms_same >> gvs[] >> res_tac >>
   gvs[] >>
   Cases_on ‘atoml = []’ >> gvs[]
 QED
@@ -688,9 +661,9 @@ Proof
   
   Cases_on ‘atoml = []’ >> gvs[] >|[
     simp[mk_substitute_row_def, simp_row_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[sem_atom_def]) >>
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[sem_var_atom_def]) >>
     imp_res_tac subst_simp_sound_for_atom >> gvs[] >>
-    imp_res_tac lookup_implies_sem_atoms_same >> gvs[]
+    imp_res_tac lookup_implies_sem_var_atoms_same >> gvs[]
     ,
     res_tac >>
     rgs[] >>
@@ -701,7 +674,7 @@ Proof
     
     Cases_on ‘minipred = simp_atom(mk_substitute_atom h h' b)’ >> gvs[] >>
     res_tac >|[
-        imp_res_tac lookup_implies_sem_atoms_same >> gvs[]
+        imp_res_tac lookup_implies_sem_var_atoms_same >> gvs[]
         ,
         imp_res_tac simp_sub_mem_normalization >>
         res_tac
@@ -732,7 +705,7 @@ Proof
   rpt strip_tac >>
   gvs[is_atoml_true_def] >>
   (
-  imp_res_tac lookup_implies_sem_atoml_same2 >> 
+  imp_res_tac lookup_implies_sem_var_atoml_same2 >> 
   gvs[mk_substitute_row_def, simp_row_def] 
   )
 QED
@@ -993,7 +966,7 @@ Proof
   res_tac >>
           
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs[sem_atom_def] >>
+  gvs[sem_var_atom_def] >>
 
           
   Cases_on ‘atoml=[]’ >> gvs[] >>
@@ -1096,7 +1069,7 @@ Theorem every_simp_false_imp_sem_false:
     atoml ≠ [] ∧
     ALOOKUP mv h' = SOME b ∧
     EVERY (λatom. atom = False) (simp_row (mk_substitute_row atoml h' b)) ⇒
-    ~ EVERY (λminipred. sem_atom minipred mv = SOME T) atoml
+    ~ EVERY (λminipred. sem_var_atom minipred mv = SOME T) atoml
 Proof
   Induct >-
    gvs[mk_substitute_row_def, simp_row_def] >>
@@ -1114,7 +1087,7 @@ Proof
         imp_res_tac subst_simp_sound_for_atom >> gvs[]
         ,
         gvs[EVERY_MAP] >>
-        imp_res_tac sem_atom_failure_from_simp_atom_false
+        imp_res_tac sem_var_atom_failure_from_simp_atom_false
       ]
   ]
 QED
@@ -1442,7 +1415,7 @@ Proof
   gvs[is_atoml_true_def,all_true_def] >>
   res_tac >>
   Cases_on ‘atoml=[]’ >>
-  gvs[sem_atom_def]
+  gvs[sem_var_atom_def]
 QED
 
 
@@ -1460,7 +1433,7 @@ Proof
   gvs[mk_substitute_row_def, simp_row_def] >>
   res_tac >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs[mk_substitute_row_def, simp_row_def, sem_atom_def]
+  gvs[mk_substitute_row_def, simp_row_def, sem_var_atom_def]
 QED
 
 
@@ -1614,11 +1587,7 @@ Proof
   gvs[fv_atom_def, simp_atom_def, mk_substitute_atom_def] >>
   rpt strip_tac >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs[fv_atom_def, simp_atom_def, mk_substitute_atom_def] >>
-  imp_res_tac sub_then_simp_answer_indeed_in_fv >>
-  res_tac >>
-  imp_res_tac simp_fv_not_triv1 >>
-  res_tac 
+  gvs[fv_atom_def, simp_atom_def, mk_substitute_atom_def] 
 QED
       
 
