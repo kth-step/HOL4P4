@@ -366,8 +366,8 @@ EVAL “match_interval_table (1:num)
 Definition wf_packet_def:
   wf_packet packet_type packet_input =
   ∀ lval n.  resolve_lval_type packet_type lval = SOME (type_length n) ⇒
-             ∃ bs. (resolve_lval packet_input lval = SOME (val_bs bs) ∧
-                    wf_bit bs ∧ SND bs = n ∧ n > 0 ∧ n < 129)
+             n > 0 ∧ n < 129 ∧ ∃ bs. (resolve_lval packet_input lval = SOME (val_bs bs) ∧
+                    wf_bit bs ∧ SND bs = n)
 End
 
 
@@ -920,68 +920,29 @@ Definition intersect_interval_def:
           let upper = if b1_gt_b2 then bv4 else bv2 in
             (case bv_gt_than lower upper of
              | SOME F => SOME (Single lower upper)
-             | _ => NONE           
+             | SOME T => SOME Empty
+             | _ => NONE
             )
        )
    | _ => NONE) ∧
 
-  intersect_interval (SOME Empty) _ = NONE ∧                     
-  intersect_interval _ (SOME Empty) = NONE ∧
+  intersect_interval (SOME Empty) _ = SOME Empty ∧                     
+  intersect_interval _ (SOME Empty) = SOME Empty ∧
   intersect_interval _ _ = NONE          
 End
 
-(*
-EVAL 
-  “intersect_interval (SOME (Single (n2v 0, 5) (n2v 0, 5))) 
-   (SOME (Single (n2v 0, 5) (n2v 0, 5)))”; (*[0,0]*)
+     
 
-EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 2, 5))) 
-                        (SOME (Single (n2v 1, 5) (n2v 3, 5)))”; (*[1,2]*)
-
-EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 1, 5))) 
-                        (SOME (Single (n2v 2, 5) (n2v 3, 5)))”; (*NONE*)                                               
-        
-EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 4, 5))) 
-                        (SOME (Single (n2v 1, 5) (n2v 3, 5)))”; (*[1,3]*)
-
-EVAL “intersect_interval (SOME Empty) (SOME (Single (n2v 0, 5) (n2v 1, 5)))”;
-        
-EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 2, 5))) 
-                        (SOME (Single (n2v 2, 5) (n2v 4, 5)))”; (*[2,2]*)
-*)
 
 Definition intersect_list_def:
   (intersect_list [] interval_acc = interval_acc) ∧
   (intersect_list (interval_g::interval_gl) interval_acc =
    case intersect_interval (SOME interval_g) interval_acc of
    | NONE => NONE
+   | SOME Empty => NONE
    | SOME intvl => intersect_list interval_gl (SOME intvl) 
   )
 End
-        
-(*
-EVAL “intersect_list [] (SOME (Single (n2v 0, 5) (n2v 1, 5)))”; (*[0,1]*)
-
-EVAL “intersect_list [Single (n2v 0, 5) (n2v 1, 5)] (SOME (Single (n2v 0, 5) (n2v 0, 5)))”;(*0,0*)
-
-EVAL “intersect_list [Single (n2v 1, 5) (n2v 3, 5); Single (n2v 2, 5) (n2v 4, 5)] 
-                    (SOME (Single (n2v 0, 5) (n2v 5, 5)))”; (*[2,3]*)
-
-
-EVAL “intersect_list [Single (n2v 1, 5) (n2v 4, 5); Single (n2v 2, 5) (n2v 3, 5)] 
-                    NONE”;
-
-EVAL “intersect_list [Single (n2v 0, 5) (n2v 1, 5); Single (n2v 3, 5) (n2v 4, 5)] 
-                    (SOME (Single (n2v 2, 5) (n2v 2, 5)))”; (*NONE*)
-
-EVAL “intersect_list [Single (n2v 2, 5) (n2v 8, 5); Single (n2v 4, 5) (n2v 6, 5)] 
-                    (SOME (Single (n2v 0, 5) (n2v 10, 5)))”; (*[4,6]*)
-
-
-EVAL “intersect_interval (SOME (Single (n2v 3, 5) (n2v 1, 5))) 
-                        (SOME (Single (n2v 0, 5) (n2v 2, 5)))”; (*NONE*)
-*)
-
 
 
 
@@ -1009,6 +970,51 @@ End
 
 
 (*
+
+EVAL “intersect_list [] (SOME (Single (n2v 0, 5) (n2v 1, 5)))”; (*[0,1]*)
+
+EVAL “intersect_list [Single (n2v 0, 5) (n2v 1, 5)] (SOME (Single (n2v 0, 5) (n2v 0, 5)))”;(*0,0*)
+
+EVAL “intersect_list [Single (n2v 1, 5) (n2v 3, 5); Single (n2v 2, 5) (n2v 4, 5)] 
+                    (SOME (Single (n2v 0, 5) (n2v 5, 5)))”; (*[2,3]*)
+
+
+EVAL “intersect_list [Single (n2v 1, 5) (n2v 4, 5); Single (n2v 2, 5) (n2v 3, 5)] 
+                    NONE”;
+
+EVAL “intersect_list [Single (n2v 0, 5) (n2v 1, 5); Single (n2v 3, 5) (n2v 4, 5)] 
+                    (SOME (Single (n2v 2, 5) (n2v 2, 5)))”; (*NONE*)
+
+EVAL “intersect_list [Single (n2v 2, 5) (n2v 8, 5); Single (n2v 4, 5) (n2v 6, 5)] 
+                    (SOME (Single (n2v 0, 5) (n2v 10, 5)))”; (*[4,6]*)
+
+
+EVAL “intersect_interval (SOME (Single (n2v 3, 5) (n2v 1, 5))) 
+                        (SOME (Single (n2v 0, 5) (n2v 2, 5)))”; (*NONE*)
+        
+EVAL 
+  “intersect_interval (SOME (Single (n2v 0, 5) (n2v 0, 5))) 
+   (SOME (Single (n2v 0, 5) (n2v 0, 5)))”; (*[0,0]*)
+
+EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 2, 5))) 
+                        (SOME (Single (n2v 1, 5) (n2v 3, 5)))”; (*[1,2]*)
+
+EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 1, 5))) 
+                        (SOME (Single (n2v 2, 5) (n2v 3, 5)))”; (*NONE*)                                               
+        
+EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 4, 5))) 
+                        (SOME (Single (n2v 1, 5) (n2v 3, 5)))”; (*[1,3]*)
+
+EVAL “intersect_interval (SOME Empty) (SOME (Single (n2v 0, 5) (n2v 1, 5)))”;
+        
+EVAL “intersect_interval (SOME (Single (n2v 0, 5) (n2v 2, 5))) 
+                        (SOME (Single (n2v 2, 5) (n2v 4, 5)))”; (*[2,2]*)
+*)
+
+        
+
+(*
+        
 val example_pd =  
  “([("h", type_length 8)])”;
 
@@ -1074,7 +1080,44 @@ End
 
 
 
+
 (*
+
+
+
+
+wf_packet packet_type packet_input ∧
+resolve_lval_type packet_type a = SOME (type_length n) ⇒
+check_sinterval_table_sem st_in
+          (key_val a,convert_interval_to_sinterval_rows n tbl_intvl)
+          packet_input =
+        check_interval_table_sem st_in (key_val a,tbl_intvl) packet_input
+
+
+  rw[check_interval_table_sem_def, check_arith_table_sem_def] >>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       
+
+
+
+
+        
 
 wf_packet packet_type packet_input ∧
 convert_interval_to_sinterval_table interval_table packet_type =
@@ -1093,7 +1136,35 @@ rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
 
 (*key val*)
                                 
-gvs[check_sinterval_table_sem_def, check_interval_table_sem_def] >>
+    gvs[check_sinterval_table_sem_def, check_interval_table_sem_def] >>
+    Cases_on ‘extract_bv_from_key (key_val a) packet_input’ >> gvs[] >>
+             
+     simp[LIST_EQ_REWRITE] >>
+    ‘LENGTH (convert_interval_to_sinterval_rows n tbl_intvl) =
+        LENGTH tbl_intvl’ by cheat >>
+    gvs[] >>
+
+
+    rpt strip_tac >>
+    gvs[EL_MAP] >>
+
+    Cases_on ‘EL x' (convert_interval_to_sinterval_rows n tbl_intvl)’ >> Cases_on ‘r’ >>
+    Cases_on ‘EL x' tbl_intvl’ >> Cases_on ‘r’ >>
+    
+    rename1 ‘EL x' (convert_interval_to_sinterval_rows n tbl_intvl) = (sinterval,s_in_sintvl,res_sintvl)’ >>
+    rename1 ‘EL x' tbl_intvl = (interval_list,s_in_intvl,res_intvl)’ >>
+    gvs[] >>
+
+    gvs[convert_interval_to_sinterval_rows_def] >>
+    
+
+
+                
+
+             
+
+
+                                       
 ,
 (* key const *)
 
@@ -1126,9 +1197,9 @@ check_interval_table_sem st_in interval_table packet_input’ by cheat
 gvs[]
 
 
-*)
-        
 
+        
+*)
 
 
 
