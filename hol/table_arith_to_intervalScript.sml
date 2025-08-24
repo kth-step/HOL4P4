@@ -1473,69 +1473,201 @@ Proof
  Induct >> rw[] >>
   Cases_on ‘operate_intersect h (SOME Empty)’ >> gvs[] >>
 
-   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-gvs[starting_from_none_intersection_results_none] >>
+ rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+ gvs[starting_from_none_intersection_results_none] >>
 
-(
-   Cases_on ‘h’ >> rgs[Once intersect_interval_def] >>
-   rgs[Once operate_intersect_def, intersect_interval_def]      
-)
+ (
+ Cases_on ‘h’ >> rgs[Once intersect_interval_def] >>
+ rgs[Once operate_intersect_def, intersect_interval_def]      
+ )
 
 QED
          
 
 
 
+Theorem two_wf_interval_intersection_results_wf_interval:
+  ∀ interval1 interval2 interval3.
+    wf_interval interval1 ∧
+    wf_interval interval2 ∧
+    operate_intersect interval1 (SOME interval2) = SOME interval3 ⇒
+    wf_interval interval3
+Proof
+  Cases_on ‘interval1’ >>
+  Cases_on ‘interval2’ >>
+  rw[wf_interval_def, operate_intersect_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[intersect_interval_def]) >>
+  
+  gvs[wf_interval_def, wf_bit_def]
+QED
+
+
+
+
+Theorem transitive_binpred2:
+  ∀ len a b c.
+    len > 0 ∧
+    len < 129 ∧
+    
+    bitv_binpred binop_ge (a,len) (b,len) = SOME T ∧
+    bitv_binpred binop_le (c,len) (b,len) = SOME T  ⇒
+    bitv_binpred binop_le (c,len) (a,len) = SOME T
+Proof
+  rw[bitv_binpred_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  rpt strip_tac >>
+  
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (fs[get_word_binpred_def] >>
+      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
+      blastLib.FULL_BBLAST_TAC 
+     )
+    ) >> intLib.COOPER_TAC  
+QED
+
+
+
+
+Theorem transitive_binpred3:
+  ∀ len a b c.
+    len > 0 ∧
+    len < 129 ∧                                                        
+    bitv_binpred binop_ge (a,len) (b,len) = SOME T ∧
+    bitv_binpred binop_ge (c,len) (a,len) = SOME T ⇒
+    bitv_binpred binop_ge (c,len) (b,len) = SOME T
+Proof
+  rw[bitv_binpred_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  rpt strip_tac >>
+  
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (fs[get_word_binpred_def] >>
+      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
+      blastLib.FULL_BBLAST_TAC 
+     )
+    ) >> intLib.COOPER_TAC 
+QED
+
+
+Theorem transitive_binpred4:
+  ∀ len a b c.
+    len > 0 ∧
+    len < 129 ∧
+    bitv_binpred binop_ge (a,len) (b,len) = SOME F ∧
+    bitv_binpred binop_ge (c,len) (a,len) = SOME F ⇒
+    bitv_binpred binop_ge (c,len) (b,len) = SOME F
+Proof
+  rw[bitv_binpred_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  rpt strip_tac >>
+  
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (fs[get_word_binpred_def] >>
+      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
+      blastLib.FULL_BBLAST_TAC 
+     )
+    ) >> intLib.COOPER_TAC 
+QED
+
+
+Theorem transitive_binpred5:
+  ∀ len a b c.
+    len > 0 ∧
+    len < 129 ∧
+    bitv_binpred binop_ge (a,len) (b,len) = SOME F ∧
+    bitv_binpred binop_le (c,len) (a,len) = SOME T ⇒
+    bitv_binpred binop_le (c,len) (b,len) = SOME T
+Proof
+
+  rw[bitv_binpred_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  rpt strip_tac >>
+  
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (fs[get_word_binpred_def] >>
+      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
+      blastLib.FULL_BBLAST_TAC 
+     )
+    ) >> intLib.COOPER_TAC 
+
+QED
+
+        
+
+
+
+
+Theorem intersection_preserves_evaluation_thm:
+  ∀ interval1 interval2 interval3 bs len packet_input.
+    len >0 ∧ len <129 ∧
+    operate_intersect interval1 (SOME interval2) = SOME interval3 ⇒
+    (
+    eval_interval_atom (bs,len) packet_input interval1 = SOME T ∧
+    eval_interval_atom (bs,len) packet_input interval2 = SOME T
+    ⇔
+      eval_interval_atom (bs,len) packet_input interval3 = SOME T )
+Proof
+
+
+  Cases_on ‘interval1’ >>
+  Cases_on ‘interval2’ >>
+  rw[operate_intersect_def] >>
+ rpt (BasicProvers.FULL_CASE_TAC >> gvs[intersect_interval_def]) >>
+  (* all cases *)
+  (
+  PairCases_on ‘p’ >>
+  PairCases_on ‘p'’ >>
+  PairCases_on ‘p0’ >>
+  PairCases_on ‘p0'’ >>
+  
+  
+  gvs[eval_interval_atom_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[intersect_interval_def]) >>
+
+  
+  
+  gvs[bv_le_than_def, bv_ge_than_def, bv_gt_than_def] >>
+  
+  
+  
+  imp_res_tac bitv_binpred_same_length >> gvs[] >>
+  imp_res_tac last_edge_of_binpred_neg >> gvs[] >>                 
+  imp_res_tac transitive_binpred1 >> gvs[] >>
+  imp_res_tac transitive_binpred2 >> gvs[] >>
+  imp_res_tac transitive_binpred3 >> gvs[] >>
+  imp_res_tac transitive_binpred4 >> gvs[] >>
+  imp_res_tac transitive_binpred5 >> gvs[]
+  )
+QED
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-(*
-
-
-
-
-
-
-
-
-
-
-
-
-
-∀ interval_list len a b c d bs bs0 packet_input.
-len > 0 ∧
-len < 129 ∧
- wf_bit (bs0,len) ∧
-wf_interval (Single (c,len) (d,len)) ∧
-EVERY (λinterval. wf_interval interval) interval_list ∧
-FOLDL (λacc interval_g. operate_intersect interval_g acc)
-          (SOME (Single (c,len) (d,len))) interval_list = SOME (Single a b)
-(*operate_intersect (Single (c,len) (d,len)) (SOME (mk_full_interval len)) = SOME (Single (c,len) (d,len))*) ⇒
-(eval_interval_atom (bs0,len) packet_input (Single a b) = SOME T ⇔
-  is_interval_guards_true (Single (c,len) (d,len)::interval_list) (bs0,len) packet_input)
-
-
-
-
+Theorem intersection_eval_row_interval_sinterval_correct:
+  ∀ interval_list len a b c d bs bs0 packet_input.
+    len > 0 ∧
+    len < 129 ∧
+    wf_bit (bs0,len) ∧
+    wf_interval (Single (c,len) (d,len)) ∧
+    EVERY (λinterval. wf_interval interval) interval_list ∧
+    FOLDL (λacc interval_g. operate_intersect interval_g acc)
+          (SOME (Single (c,len) (d,len))) interval_list = SOME (Single a b) ⇒
+    (eval_interval_atom (bs0,len) packet_input (Single a b) = SOME T ⇔
+       is_interval_guards_true (Single (c,len) (d,len)::interval_list) (bs0,len) packet_input)
+Proof
   gvs[intersect_list_def] >>
   Induct >> gvs[] >>
   rw[FOLDL] >>
-rpt strip_tac >|[
-    cheat
+  rpt strip_tac >|[
+    
+    gvs[is_interval_guards_true_def]  
     ,
+        
     Cases_on ‘operate_intersect h (SOME (Single (c,len) (d,len)))’ >|[
         assume_tac starting_from_none_intersection_results_none >>
         gvs[]
@@ -1546,35 +1678,32 @@ rpt strip_tac >|[
             first_x_assum (strip_assume_tac o (Q.SPECL [‘interval_list’])) >>
             gvs[]
             ,
-            first_x_assum (strip_assume_tac o (Q.SPECL [‘len’, ‘a’, ‘b’, ‘c’, ‘d’, ‘bs0’, ‘packet_input’])) >>
-            gvs[]
+                     
+            PairCases_on ‘p’ >>
+            PairCases_on ‘p0’ >>
+            imp_res_tac operate_intersect_two_intervals_len >> gvs[] >>
 
+            first_x_assum (strip_assume_tac o (Q.SPECL [‘len’, ‘a’, ‘b’, ‘p0'’, ‘p00’, ‘bs0’, ‘packet_input’])) >>
+            gvs[] >>
 
+                        
+            ‘wf_interval (Single (p0',len) (p00,len))’ by metis_tac[two_wf_interval_intersection_results_wf_interval] >>
+            gvs[] >>
 
+            simp[is_interval_guards_true_def] >>
+            metis_tac[intersection_preserves_evaluation_thm]
           ]
+      ]
   ]
+QED
 
 
 
 
 
+                                                 
 
-
-
-
-
-
-
-
-
-
-
-
-
-        
-                                                        
-
-Theorem blah:
+Theorem intersection_eval_row_interval_sinterval_correct_full:
   ∀ interval_list len bs lval packet_type packet_input a b.
     wf_packet packet_type packet_input ∧
     resolve_lval_type packet_type lval = SOME (type_length len) ∧
@@ -1624,13 +1753,7 @@ Proof
         
         rename1 ‘operate_intersect (Single (c,len) (d,len)) (SOME (mk_full_interval len)) =
                  SOME (Single (c,bs1) (d,len))’ >>
-        
-        
-              
-         
-
-        cheat
-
+        metis_tac [intersection_eval_row_interval_sinterval_correct]
       ]
   ]
 
@@ -1639,15 +1762,11 @@ QED
 
 
 
+                   
 
 
 
-
-                             
-
-
-
-
+(*
 (**********************)        
 
 wf_packet packet_type packet_input ∧
@@ -1719,12 +1838,45 @@ rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
       rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
       gvs [is_sinterval_match_row_def, is_interval_match_row_def] >>
-      metis_tac[blah] >> cheat 
+      metis_tac[intersection_eval_row_interval_sinterval_correct_full] 
     ]                                  
     ,
     (* key const *)
-    cheat
-    (*might be complex?*)
+    gvs[check_sinterval_table_sem_def, check_interval_table_sem_def] >>
+    Cases_on ‘extract_bv_from_key (key_const (q,r)) packet_input’ >> gvs[] >>
+
+    gvs[extract_bv_from_key_def] >>
+    simp[LIST_EQ_REWRITE] >>
+
+    ‘LENGTH (convert_interval_to_sinterval_rows r tbl_intvl) =
+     LENGTH tbl_intvl’ by cheat >>
+    gvs[] >>
+
+    rpt strip_tac >>
+    gvs[EL_MAP] >>
+
+    Cases_on ‘EL x (convert_interval_to_sinterval_rows r tbl_intvl)’ >> Cases_on ‘r'’ >>
+    Cases_on ‘EL x tbl_intvl’ >> Cases_on ‘r'’ >>
+    
+    rename1 ‘EL x (convert_interval_to_sinterval_rows r tbl_intvl) = (sinterval,s_in_sintvl,res_sintvl)’ >>
+    rename1 ‘EL x tbl_intvl = (interval_list,s_in_intvl,res_intvl)’ >>
+    gvs[] >>
+
+
+    gvs[convert_interval_to_sinterval_rows_def] >>
+    Cases_on ‘tbl_intvl = []’ >> gvs[] >>
+    gvs[EL_MAP] >>
+
+    Cases_on ‘interval_list = []’ >> gvs[] >-
+     gvs[check_sinterval_rows_sem_def, is_interval_match_row_def] >>
+
+    gvs[check_sinterval_rows_sem_def] >>
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+
+          
+
+             
 
   ]
 
@@ -1753,9 +1905,10 @@ rw[match_sinterval_table_def, match_interval_table_def] >>
 check_interval_table_sem st_in interval_table packet_input’ by cheat >>
 gvs[]
 
+*)
 
-     *)                                                     
 
+        
 val _ = export_theory ();
 
 
