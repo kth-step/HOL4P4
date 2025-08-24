@@ -525,6 +525,152 @@ QED
 
 
 
+fun w_is_less_than_max_fixwidth_thm len =
+let
+  val size_term = numSyntax.term_of_int len
+  val word_ty = wordsSyntax.mk_int_word_type len
+                            
+    val a = mk_var("a", word_ty)
+  
+  val goal = 
+    ``∀ a . ^a ≤₊ v2w (fixwidth ^size_term (n2v (max_from_type ^size_term ))) ``;
+  
+  val thm = prove(goal,
+                 gvs[max_from_type_def] >>
+                 EVAL_TAC >>
+                 blastLib.FULL_BBLAST_TAC )
+in
+  thm
+end;
+
+val w_is_less_than_max_fixwidth_thms = List.tabulate(128, fn i => w_is_less_than_max_fixwidth_thm (i+1));
+val w_is_less_than_max_fixwidth_all1 = LIST_CONJ w_is_less_than_max_fixwidth_thms;
+val w_is_less_than_max_fixwidth_all1_thm = save_thm("w_is_less_than_max_fixwidth_all1_sizes", w_is_less_than_max_fixwidth_all1);
+
+
+
+
+
+        
+Theorem every_bs_is_less_than_max_fixwidth:
+  ∀ bl len.
+    len > 0 ∧ len < 129 ⇒
+    bitv_binpred binop_le (bl,len) (fixwidth len (n2v (max_from_type len)),len) = SOME T
+Proof
+  rw[] >>
+  RW.ONCE_RW_TAC [bitv_binpred_def] >>
+  gvs[] >>
+  rpt strip_tac >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  
+  rewrite_tac[get_word_binpred_def] >>
+                                    
+  rpt(
+    BasicProvers.FULL_CASE_TAC >-
+     (
+     fs[] >>
+     gvs[w_is_less_than_max_fixwidth_all1_thm]
+     ) 
+    ) >>
+  
+  intLib.COOPER_TAC
+QED
+
+        
+        
+
+
+
+
+
+
+fun gen_fixwidth_max_thm len = let
+  val len_term = numSyntax.term_of_int len
+  val goal = ``fixwidth ^len_term (n2v (max_from_type ^len_term)) = n2v (max_from_type ^len_term)``;                                  
+  val thm = prove(goal, EVAL_TAC)
+
+in
+    thm
+end;
+
+val all_fixwidth_max_thms = List.tabulate(128, fn i => gen_fixwidth_max_thm (i+1));            
+val big_thm_max = LIST_CONJ all_fixwidth_max_thms;
+val fixwidth_max_all_thm = save_thm("fixwidth_max_all", big_thm_max);
+
+
+
+
+
+
+Theorem last_edge_of_binpred_neg:
+  ∀ binpred v v' n.
+    n ≠ 0 ∧
+    bitv_binpred binpred (v,n) (v',n) = NONE ⇒
+    n > 128
+Proof
+  metis_tac[bitv_binpred_def, last_edge_of_binpred_bs]
+QED
+
+
+
+
+Theorem last_edge_of_binop_neg:
+  ∀ binop v v' n.
+    n ≠ 0 ∧
+    bitv_binop binop (v,n) (v',n) = NONE ⇒
+    n > 128
+Proof
+  metis_tac[bitv_binop_def, last_edge_of_binop_bs]
+QED
+
+
+
+
+Theorem every_bs_is_not_larger_than_max_fixwidth:
+  ∀ bl len.
+    len > 0 ∧ len < 129 ⇒
+    bitv_binpred binop_gt (bl,len) (fixwidth len (n2v (max_from_type len)),len) = SOME F
+Proof
+  rw[max_from_type_def, bitv_binpred_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  rpt strip_tac >>
+
+  rpt 
+  ( BasicProvers.FULL_CASE_TAC >-
+     (fs[get_word_binpred_def] >>
+     EVAL_TAC >>
+      intLib.COOPER_TAC
+     )
+  ) >> intLib.COOPER_TAC 
+QED
+
+
+
+Theorem transitive_binpred1:
+  ∀ len a b c.
+    len < 129 ∧  len > 0 ∧       
+    bitv_binpred binop_le (a,len) (b,len) = SOME T ∧
+    bitv_binpred binop_ge (a,len) (c,len) = SOME T ⇒
+    bitv_binpred binop_gt (c,len) (b,len) = SOME F
+Proof
+
+  rw[bitv_binpred_def] >>
+  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  rpt strip_tac >>
+
+rpt(
+  BasicProvers.FULL_CASE_TAC >-
+   (fs[get_word_binpred_def] >>
+    gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
+    blastLib.FULL_BBLAST_TAC 
+   )
+  ) >> intLib.COOPER_TAC   
+QED    
+
+
+   
+
+
 val _ = export_theory ();
 
     
