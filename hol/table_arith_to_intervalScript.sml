@@ -896,7 +896,11 @@ Definition convert_interval_to_sinterval_table_def:
               | SOME (type_length bit_len) => SOME (key, convert_interval_to_sinterval_rows bit_len interval_rows)
               | _ => NONE 
             )
-        | key_const (bl,n) => SOME (key, convert_interval_to_sinterval_rows n interval_rows)
+        | key_const (bl,n) =>
+            if (n > 0 ∧ n < 129 ∧ LENGTH bl = n) then
+              SOME (key, convert_interval_to_sinterval_rows n interval_rows)
+            else
+              NONE
 End
 
 
@@ -967,6 +971,25 @@ val example_interval_table2 =
 EVAL “convert_interval_to_sinterval_table ^example_interval_table2 ^example_pd2”
 
 
+
+
+val =   (make_interval 1 1 1)”
+
+
+val example_interval_table1 =
+ “(key_const ((fixwidth 1 (n2v 1), (1:num))),
+        [([^(make_interval 1 1 1);
+           ^(make_interval 1 1 1);
+           ^(make_interval 1 1 1)], 1, action "result1");
+         ([^(make_interval 0 1 1)], 1, action "result2"); 
+         ([Empty], 1, action "result3");
+         ([^(make_interval 0 1 1)], 1, action "result4")]): string intvl_table”;
+
+EVAL “convert_interval_to_sinterval_table ^example_interval_table1 ^example_pd”
+
+
+
+     
 
 
 
@@ -1074,19 +1097,14 @@ QED
 
 Theorem intersect_none_not_atom_true_full:                      
   ∀ packet_type packet_input interval lval len bs. 
-    wf_packet packet_type packet_input ∧
-    resolve_lval_type packet_type lval = SOME (type_length len) ∧
-    resolve_lval packet_input lval = SOME (val_bs bs) ∧
-
+    SND bs > 0 ∧ SND bs < 129 ∧ len = SND bs ∧
     operate_intersect interval (SOME (mk_full_interval len)) = NONE  ⇒
     eval_interval_atom bs packet_input interval ≠ SOME T     
 Proof                    
   Cases_on ‘interval’ >>
   rpt strip_tac >-
    gvs[eval_interval_atom_def] >>
-  
-  gvs[wf_packet_def] >>
-  res_tac >>
+
   gvs[] >>
   metis_tac[intersect_none_not_atom_true]
 QED
@@ -1386,11 +1404,9 @@ QED
 
 
 Theorem intersection_of_intervals_lists_none_empty_not_match:
-  ∀ interval_list len bs lval packet_type packet_input st_in s_in_intvl.
-    wf_packet packet_type packet_input ∧
-    resolve_lval_type packet_type lval = SOME (type_length len) ∧
-    resolve_lval packet_input lval = SOME (val_bs bs) ∧
-    
+  ∀interval_list bs len (packet_input:(string # pd_val) list ) (st_in:num) s_in_intvl.
+    SND bs > 0 ∧ SND bs < 129 ∧ len = SND bs ∧
+     
     EVERY (λinterval. wf_interval interval) interval_list ∧
     interval_list ≠ [] ∧
     
@@ -1399,17 +1415,17 @@ Theorem intersection_of_intervals_lists_none_empty_not_match:
     ¬is_interval_match_row st_in s_in_intvl interval_list bs packet_input
 Proof
                                
-gvs[intersect_list_def] >>
-Induct >> gvs[] >>
-rw[FOLDL] >>
-rpt strip_tac >>
-    (* case NONE and empty, same proof *)
-(
-    Cases_on ‘operate_intersect h (SOME (mk_full_interval len))’ >> gvs[] >|[
+  gvs[intersect_list_def] >>
+  Induct >> gvs[] >>
+  rw[FOLDL] >>
+  rpt strip_tac >>
+  (* case NONE and empty, same proof *)
+  (
+  Cases_on ‘operate_intersect h (SOME (mk_full_interval (SND bs)))’ >> gvs[] >|[
       gvs[is_interval_match_row_def] >>
       gvs[is_interval_guards_true_def] >>
       rw[] >>
-      imp_res_tac intersect_none_not_atom_true_full 
+      metis_tac[intersect_none_not_atom_true_full] 
       ,
       Cases_on ‘x’ >> gvs[] >|[
           (* case empty*)
@@ -1418,15 +1434,7 @@ rpt strip_tac >>
           rw[] >>
           imp_res_tac intersect_empty_not_atom_true_full
           ,
-
-          subgoal ‘ SND bs > 0 ∧
-                    SND bs < 129 ∧
-                    wf_bit bs ∧
-                    len = SND bs’ >-
-           (
-           metis_tac[wfness_type_of_lval_thm]
-           ) >>
-
+          
           ‘SND p = SND bs ∧
            SND p0 = SND bs ∧
            h = (Single p p0)’ by metis_tac[operate_intersect_w_max_results_len] >>
@@ -1442,9 +1450,9 @@ rpt strip_tac >>
                    SOME (Single (a,bs1) (b,len))’ >>
                    
           gvs[is_interval_match_row_def, is_interval_guards_true_def] >>
-          imp_res_tac foldl_single_none_empty_then_not_match >>
-          first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’, ‘st_in’])) >>
-      
+          assume_tac foldl_single_none_empty_then_not_match >>
+          first_x_assum (strip_assume_tac o (Q.SPECL [‘interval_list’, ‘a’, ‘b’, ‘len’, ‘st_in’, ‘st_in’,
+                                                      ‘bs0’, ‘packet_input’])) >>      
           gvs[is_interval_match_row_def, is_interval_guards_true_def]
          
       ]
@@ -1652,7 +1660,6 @@ Theorem intersection_eval_row_interval_sinterval_correct:
   ∀ interval_list len a b c d bs bs0 packet_input.
     len > 0 ∧
     len < 129 ∧
-    wf_bit (bs0,len) ∧
     wf_interval (Single (c,len) (d,len)) ∧
     EVERY (λinterval. wf_interval interval) interval_list ∧
     FOLDL (λacc interval_g. operate_intersect interval_g acc)
@@ -1701,14 +1708,12 @@ QED
 
 
 
-                                                 
+                                     
 
 Theorem intersection_eval_row_interval_sinterval_correct_full:
-  ∀ interval_list len bs lval packet_type packet_input a b.
-    wf_packet packet_type packet_input ∧
-    resolve_lval_type packet_type lval = SOME (type_length len) ∧
-    resolve_lval packet_input lval = SOME (val_bs bs) ∧
-    
+  ∀ interval_list bs len (packet_input:(string # pd_val) list ) a b.
+    SND bs > 0 ∧ SND bs < 129 ∧ len = SND bs ∧
+        
     EVERY (λinterval. wf_interval interval) interval_list ∧
     interval_list ≠ [] ∧
     
@@ -1722,7 +1727,7 @@ Proof
   rw[FOLDL] >>
   rpt strip_tac >>
   
-  Cases_on ‘operate_intersect h (SOME (mk_full_interval len))’ >> gvs[] >|[
+  Cases_on ‘operate_intersect h (SOME (mk_full_interval (SND bs)))’ >> gvs[] >|[
     (* starting from none, results none *)
     assume_tac starting_from_none_intersection_results_none >>
     gvs[]
@@ -1735,15 +1740,9 @@ Proof
         gvs[]
         ,
         
-        ‘ SND bs > 0 ∧
-          SND bs < 129 ∧
-          wf_bit bs ∧
-          len = SND bs’ by metis_tac[wfness_type_of_lval_thm] >>
-
         ‘SND p = SND bs ∧
          SND p0 = SND bs ∧
          h = (Single p p0)’ by metis_tac[operate_intersect_w_max_results_len] >>
-        
         gvs[] >>
 
 
@@ -1756,156 +1755,174 @@ Proof
         metis_tac [intersection_eval_row_interval_sinterval_correct]
       ]
   ]
-
 QED
 
 
 
 
-                   
 
 
 
-(*
-(**********************)        
 
-wf_packet packet_type packet_input ∧
-convert_interval_to_sinterval_table interval_table packet_type =
-        SOME sinterval_table ⇒
-check_sinterval_table_sem st_in sinterval_table packet_input =
-        check_interval_table_sem st_in interval_table packet_input
+                                                                                             
 
+Theorem  check_sinterval_table_sem_table_correct:
+  ∀ packet_input packet_type interval_table sinterval_table st_in.
+    wf_packet packet_type packet_input ∧
+    convert_interval_to_sinterval_table interval_table packet_type =
+    SOME sinterval_table ⇒
+    check_sinterval_table_sem st_in sinterval_table packet_input =
+    check_interval_table_sem st_in interval_table packet_input
+Proof
 
-rpt strip_tac >>
-PairCases_on ‘sinterval_table’ >>
-PairCases_on ‘interval_table’ >>                                
-rename1 ‘convert_interval_to_sinterval_table (key_intvl,tbl_intvl) packet_type = SOME (skey_intvl,stbl_intvl)’ >>
-
-gvs[convert_interval_to_sinterval_table_def] >>
-rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
-
-(*key val*)
-                                
+  rpt strip_tac >>
+  PairCases_on ‘sinterval_table’ >>
+  PairCases_on ‘interval_table’ >>                                
+  rename1 ‘convert_interval_to_sinterval_table (key_intvl,tbl_intvl) packet_type = SOME (skey_intvl,stbl_intvl)’ >>
+  
+  gvs[convert_interval_to_sinterval_table_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
+    
+    (*key val*)
+    
     gvs[check_sinterval_table_sem_def, check_interval_table_sem_def] >>
     Cases_on ‘extract_bv_from_key (key_val a) packet_input’ >> gvs[] >>
-             
-     simp[LIST_EQ_REWRITE] >>
+    
+    simp[LIST_EQ_REWRITE] >>
     ‘LENGTH (convert_interval_to_sinterval_rows n tbl_intvl) =
-        LENGTH tbl_intvl’ by cheat >>
+     LENGTH tbl_intvl’ by rw[convert_interval_to_sinterval_rows_def] >>
     gvs[] >>
-
-
+    
+    
     rpt strip_tac >>
     gvs[EL_MAP] >>
-
+    
     Cases_on ‘EL x' (convert_interval_to_sinterval_rows n tbl_intvl)’ >> Cases_on ‘r’ >>
     Cases_on ‘EL x' tbl_intvl’ >> Cases_on ‘r’ >>
     
     rename1 ‘EL x' (convert_interval_to_sinterval_rows n tbl_intvl) = (sinterval,s_in_sintvl,res_sintvl)’ >>
     rename1 ‘EL x' tbl_intvl = (interval_list,s_in_intvl,res_intvl)’ >>
     gvs[] >>
-
+    
     gvs[convert_interval_to_sinterval_rows_def] >>
     Cases_on ‘tbl_intvl = []’ >> gvs[] >>
     gvs[EL_MAP] >>
-
+    
     Cases_on ‘interval_list = []’ >> gvs[] >-
      gvs[check_sinterval_rows_sem_def, is_interval_match_row_def] >>
-
+    
     gvs[check_sinterval_rows_sem_def] >>
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+    
+    gvs[wf_interval_table_def] >>
+    imp_res_tac every_flat_then_every_mem >>
+    
+    gvs[extract_bv_from_key_def] >>
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
       (* intersect list is NONE, then not a match row*)
-      gvs[wf_interval_table_def] >>
-      imp_res_tac every_flat_then_every_mem >>
       
-      gvs[extract_bv_from_key_def] >>
-      rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+      imp_res_tac wfness_type_of_lval_thm >> gvs[] >>
       metis_tac[intersection_of_intervals_lists_none_empty_not_match]
       ,
       (*intersect list is Empty, then contrd or false, then not all atoms were true*)
-      gvs[wf_interval_table_def] >>
-      imp_res_tac every_flat_then_every_mem >>
       
-      gvs[extract_bv_from_key_def] >>
-      rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+      imp_res_tac wfness_type_of_lval_thm >> gvs[] >>
       metis_tac[intersection_of_intervals_lists_none_empty_not_match]
       ,
       (*intersect list is something, then semantics must match*)
-      gvs[wf_interval_table_def] >>
-      imp_res_tac every_flat_then_every_mem >>
       
-      gvs[extract_bv_from_key_def] >>
-      rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-
       gvs [is_sinterval_match_row_def, is_interval_match_row_def] >>
+      
+      imp_res_tac wfness_type_of_lval_thm >> gvs[] >>
       metis_tac[intersection_eval_row_interval_sinterval_correct_full] 
     ]                                  
     ,
+
+        
     (* key const *)
     gvs[check_sinterval_table_sem_def, check_interval_table_sem_def] >>
-    Cases_on ‘extract_bv_from_key (key_const (q,r)) packet_input’ >> gvs[] >>
+    Cases_on ‘extract_bv_from_key (key_const (q,LENGTH q)) packet_input’ >> gvs[] >>
 
     gvs[extract_bv_from_key_def] >>
     simp[LIST_EQ_REWRITE] >>
-
-    ‘LENGTH (convert_interval_to_sinterval_rows r tbl_intvl) =
-     LENGTH tbl_intvl’ by cheat >>
+    
+    ‘LENGTH (convert_interval_to_sinterval_rows (LENGTH q) tbl_intvl) =
+     LENGTH tbl_intvl’ by rw[convert_interval_to_sinterval_rows_def] >>
     gvs[] >>
-
+    
     rpt strip_tac >>
     gvs[EL_MAP] >>
-
-    Cases_on ‘EL x (convert_interval_to_sinterval_rows r tbl_intvl)’ >> Cases_on ‘r'’ >>
-    Cases_on ‘EL x tbl_intvl’ >> Cases_on ‘r'’ >>
     
-    rename1 ‘EL x (convert_interval_to_sinterval_rows r tbl_intvl) = (sinterval,s_in_sintvl,res_sintvl)’ >>
+    Cases_on ‘EL x (convert_interval_to_sinterval_rows (LENGTH q) tbl_intvl)’ >> Cases_on ‘r’ >>
+    Cases_on ‘EL x tbl_intvl’ >> Cases_on ‘r’ >>
+    
+    rename1 ‘EL x (convert_interval_to_sinterval_rows (LENGTH q) tbl_intvl) = (sinterval,s_in_sintvl,res_sintvl)’ >>
     rename1 ‘EL x tbl_intvl = (interval_list,s_in_intvl,res_intvl)’ >>
     gvs[] >>
-
-
+    
+    
     gvs[convert_interval_to_sinterval_rows_def] >>
     Cases_on ‘tbl_intvl = []’ >> gvs[] >>
     gvs[EL_MAP] >>
-
+    
     Cases_on ‘interval_list = []’ >> gvs[] >-
      gvs[check_sinterval_rows_sem_def, is_interval_match_row_def] >>
-
+    
     gvs[check_sinterval_rows_sem_def] >>
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
-
-          
-
-             
-
-  ]
-
-
-
-
-
-
-
-(**********************)
-                                       
-
-
-
+    gvs[wf_interval_table_def] >>
+    imp_res_tac every_flat_then_every_mem >>
+    
+    gvs[extract_bv_from_key_def] >>
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+    
+    gvs [is_sinterval_match_row_def, is_interval_match_row_def] >|[
         
+        strip_tac >>
+        assume_tac intersection_of_intervals_lists_none_empty_not_match >>
+        first_x_assum (strip_assume_tac o (Q.SPECL [‘interval_list’, ‘((q:bool list), LENGTH q)’, ‘LENGTH (q:bool list)’,
+                                                    ‘packet_input’, ‘(st_in:num)’, ‘(s_in_intvl:num)’])) >>
+        gvs[is_interval_match_row_def]
+           
+        ,
+        strip_tac >>
+        assume_tac intersection_of_intervals_lists_none_empty_not_match >>
+        first_x_assum (strip_assume_tac o (Q.SPECL [‘interval_list’, ‘((q:bool list), LENGTH q)’, ‘LENGTH (q:bool list)’,
+                                                    ‘packet_input’, ‘(st_in:num)’, ‘(s_in_intvl:num)’])) >>
+        gvs[is_interval_match_row_def]
+        ,
+        
+        gvs [is_sinterval_match_row_def, is_interval_match_row_def] >>
+        assume_tac intersection_eval_row_interval_sinterval_correct_full >>
+        
+        first_x_assum (strip_assume_tac o (Q.SPECL [‘interval_list’, ‘((q:bool list), LENGTH q)’, ‘LENGTH (q:bool list)’,
+                                                    ‘packet_input’, ‘p’, ‘p0’])) >>
+        
+        gvs[]
+      ]      
+  ]
+QED
 
- ∀ interval_table sinterval_table packet_input packet_type st_in.
+
+
+
+
+
+Theorem match_sinterval_table_correct:
+  ∀ interval_table sinterval_table packet_input packet_type st_in.
     wf_packet packet_type packet_input ∧
     (convert_interval_to_sinterval_table interval_table packet_type  = SOME sinterval_table) ⇒
     ( match_sinterval_table st_in sinterval_table packet_input =
-    match_interval_table st_in interval_table packet_input)
-        
+      match_interval_table st_in interval_table packet_input)
+Proof
 
 rw[match_sinterval_table_def, match_interval_table_def] >>
 ‘check_sinterval_table_sem st_in sinterval_table packet_input =
-check_interval_table_sem st_in interval_table packet_input’ by cheat >>
+check_interval_table_sem st_in interval_table packet_input’ by metis_tac[check_sinterval_table_sem_table_correct] >>
 gvs[]
+QED
 
-*)
 
 
         
