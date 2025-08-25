@@ -291,7 +291,7 @@ End
 
 
 Definition match_arith_table_def:
-  match_arith_table st_in (arith_table:'a arith_table) pd =
+  match_arith_table (arith_table:'a arith_table) pd st_in =
     let res = check_arith_table_sem st_in arith_table pd in
       case min_idx_till res T of
         SOME (idx, line) => SOME (SND line)
@@ -320,7 +320,7 @@ val test_arith_table =
 
 val arith_table = optionSyntax.dest_some (rhs (concl test_arith_table));
 
-EVAL ``match_arith_table (1:num) ^arith_table ^test_pd``
+EVAL ``match_arith_table  ^arith_table  ^test_pd (1:num)``
                                     
 *)
 
@@ -664,7 +664,7 @@ Theorem table_var_arith_correct:
        ALOOKUP me var = SOME atom ⇒ 
        ALOOKUP mv var = eval_arithm_atom packet_input atom) ∧
     (convert_var_to_arith_table var_table me = SOME arith_table) ⇒
-    match_tbl var_table mv st_in = match_arith_table st_in arith_table packet_input
+    match_tbl var_table mv st_in = match_arith_table arith_table packet_input st_in
 Proof
   rw[match_tbl_def, match_arith_table_def] >>
   ‘check_all_rows_match st_in var_table mv =
