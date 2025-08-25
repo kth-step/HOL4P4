@@ -145,8 +145,6 @@ val _ = Hol_datatype `
       
 
 
-
-
 Definition arth_indic_in_lval_def:
   arth_indic_in_lval isTrue = F ∧
   arth_indic_in_lval isFalse = F ∧
@@ -327,7 +325,7 @@ End
 
 
 Definition match_interval_table_def:
-  match_interval_table st_in (interval_table:'a intvl_table) pd =
+  match_interval_table (interval_table:'a intvl_table) pd st_in=
   case check_interval_table_sem st_in interval_table pd of
     | SOME res =>
       (case min_idx_till res T of
@@ -359,9 +357,9 @@ val example_interval_table=
          ([Single ([F; F; F; F; F; F; F; F],8) ([T; T; T; T; T; T; T; T],8)],
           1,action "drop")]): string intvl_table”;
         
-EVAL “match_interval_table (1:num)
+EVAL “match_interval_table 
       ^example_interval_table
-      ^example_pd ”;
+      ^example_pd (1:num) ”;
 
 *)
 
@@ -758,8 +756,8 @@ Theorem full_table_arith_interval_correct:
   ∀ arith_table interval_table packet_input packet_type st_in.
     wf_packet packet_type packet_input ∧
     (convert_arith_to_interval_table arith_table packet_type = SOME interval_table) ⇒
-    (match_interval_table st_in interval_table packet_input =
-    match_arith_table st_in arith_table packet_input)
+    (match_interval_table interval_table packet_input st_in =
+    match_arith_table arith_table packet_input st_in)
 Proof
   rw[match_interval_table_def, match_arith_table_def] >>
 
@@ -1032,7 +1030,7 @@ End
 
 
 Definition match_sinterval_table_def:
-  match_sinterval_table st_in (sinterval_table:'a sintvl_table) pd =
+  match_sinterval_table (sinterval_table:'a sintvl_table) pd st_in=
   case check_sinterval_table_sem st_in sinterval_table pd of
     | SOME res =>
       (case min_idx_till res T of
@@ -1045,7 +1043,10 @@ End
 
 
 
-(******************************)
+
+(*==================================================*)
+(*    Proof correctness interval to sinterval       *)
+(*==================================================*)
 
 
 Theorem wfness_type_of_lval_thm:
@@ -1760,10 +1761,6 @@ QED
 
 
 
-
-
-
-
                                                                                              
 
 Theorem  check_sinterval_table_sem_table_correct:
@@ -1913,15 +1910,194 @@ Theorem match_sinterval_table_correct:
   ∀ interval_table sinterval_table packet_input packet_type st_in.
     wf_packet packet_type packet_input ∧
     (convert_interval_to_sinterval_table interval_table packet_type  = SOME sinterval_table) ⇒
-    ( match_sinterval_table st_in sinterval_table packet_input =
-      match_interval_table st_in interval_table packet_input)
+    ( match_sinterval_table sinterval_table packet_input st_in=
+      match_interval_table interval_table packet_input st_in)
 Proof
-
-rw[match_sinterval_table_def, match_interval_table_def] >>
-‘check_sinterval_table_sem st_in sinterval_table packet_input =
-check_interval_table_sem st_in interval_table packet_input’ by metis_tac[check_sinterval_table_sem_table_correct] >>
-gvs[]
+  rw[match_sinterval_table_def, match_interval_table_def] >>
+  ‘check_sinterval_table_sem st_in sinterval_table packet_input =
+   check_interval_table_sem st_in interval_table packet_input’ by metis_tac[check_sinterval_table_sem_table_correct] >>
+  gvs[]
 QED
+
+
+
+
+
+(*======================================================*)
+(*    now we merge the last three steps in one stage    *)
+(*    from variables to arith table                     *)
+(*    then from arith to many intervals table           *)
+(*    then from intervals to single sinterval table     *)
+(*======================================================*)
+
+
+
+Definition convert_var_to_sinterval_table_def:
+  convert_var_to_sinterval_table var_table me pd_type=
+  (case convert_var_to_arith_table var_table me of
+   | SOME arith_table =>
+       ( case convert_arith_to_interval_table arith_table pd_type of
+         | SOME interval_table =>  convert_interval_to_sinterval_table interval_table pd_type 
+         | NONE => NONE
+       )
+   | NONE => NONE)
+End
+
+
+
+
+
+(*
+
+
+val test_pd = ``[("ttl", type_length 5);
+                 ("src", type_length 5)]``;
+                 
+val test_me = ``[("x1", arithm_ge (lv_x "ttl") (fixwidth 5 (n2v 0), 5));
+                ("x2",  arithm_le (lv_x "ttl") (fixwidth 5 (n2v 10), 5))]``;
+
+
+val test_var_table = ``[
+  ([True; Var "x1"; Var "x2"], 1n, action "fwd1");
+  ([Var "x1"; Not "x2"], 1n, action "fwd2");
+  ([Var "x2"; Not "x2"], 1n, action "fwd3");
+  ([True], 1n, action "drop")
+]``;
+
+                        
+val test_final_table = 
+  EVAL ``convert_var_to_sinterval_table ^test_var_table ^test_me ^test_pd``;
+
+
+
+val test_var_table2 = ``[
+  ([True; True], 1n, action "fwd1");
+  ([False], 1n, action "fwd2");
+  ([Var "x2"; Not "x2"], 1n, action "fwd3");
+  ([True], 1n, action "drop")
+]``;
+
+                   
+val test_final_table2 = 
+  EVAL ``convert_var_to_sinterval_table ^test_var_table2 ^test_me ^test_pd``;
+
+
+
+
+
+  
+val test_var_table3 = ``[
+  ([True; True], 1n, action "fwd1");
+  ([False], 1n, action "fwd2");
+  ([True], 1n, action "fwd3");
+  ([True], 1n, action "drop")
+]``;
+
+                   
+val test_final_table3 = 
+  EVAL ``convert_var_to_sinterval_table ^test_var_table2 ^test_me ^test_pd``;
+
+*)
+     
+
+
+        
+Definition convert_var_to_sinterval_tables_def:
+  convert_var_to_sinterval_tables [] me pd_type= NONE ∧
+  convert_var_to_sinterval_tables var_tables me pd_type=
+  let converted_list = MAP (λvar_table. convert_var_to_sinterval_table var_table me pd_type) var_tables in
+    if EVERY IS_SOME converted_list then
+      SOME (MAP THE converted_list)
+    else
+      NONE
+End
+
+
+
+(* semantics of last stage's full tables chain of the three steps var-arith-intervals-sinterval*)
+
+
+(* Process table list with state propagation *) 
+Definition match_sinterval_tbll_def:
+  match_sinterval_tbll [] packet_input st_in = NONE ∧
+  match_sinterval_tbll [sinterval_table] packet_input st_in =
+  ( case match_sinterval_table sinterval_table packet_input st_in of
+    | SOME (action a) => SOME (action a)
+    | _ => NONE       
+  )∧
+  match_sinterval_tbll (sinterval_table::tbls) packet_input st_in =
+  ( case match_sinterval_table sinterval_table packet_input st_in of
+    | SOME (state n) => match_sinterval_tbll tbls packet_input n
+    | _ => NONE
+  )
+End
+
+ 
+(* Top-level table semantics, return the starting state as well*)       
+Definition sem_sinterval_tables_def:
+  sem_sinterval_tables (sinterval_tbll,st_in) packet_input =
+   match_sinterval_tbll sinterval_tbll packet_input st_in
+End
+
+
+
+
+(* final tables translation *)
+
+Theorem correct_tables_from_var_to_sinterval_thm:
+  ∀var_tables sinterval_tables st_in .
+    ∀ mv me packet_type packet_input.
+      
+      (∀var. lookup_is_some mv var ⇔ lookup_is_some me var) ∧
+      (∀var atom. 
+         ALOOKUP me var = SOME atom ⇒ 
+         ALOOKUP mv var = eval_arithm_atom packet_input atom) ∧
+      wf_packet packet_type packet_input ∧
+      convert_var_to_sinterval_tables var_tables me packet_type = SOME sinterval_tables ⇒
+                                      
+      ( sem_tables ((var_tables: 'a var_table_list),st_in) mv =
+        sem_sinterval_tables ((sinterval_tables: 'a sintvl_table_list),st_in) packet_input )
+Proof
+  Induct_on ‘var_tables’ >>      
+  rw[sem_tables_def, sem_sinterval_tables_def] >-
+   gvs[convert_var_to_sinterval_tables_def] >>
+  
+  rgs[convert_var_to_sinterval_tables_def] >>
+  Cases_on ‘convert_var_to_sinterval_table h me packet_type’ >> gvs[] >>
+  rgs[Once convert_var_to_sinterval_table_def] >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  
+  simp[match_tbll_def, match_sinterval_tbll_def] >>
+  
+  imp_res_tac table_var_arith_correct >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’])) >>
+  
+  imp_res_tac full_table_arith_interval_correct >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’])) >>
+  
+  imp_res_tac match_sinterval_table_correct >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’])) >>
+  
+  Cases_on ‘var_tables’   >| [ 
+    simp[match_tbll_def, match_sinterval_tbll_def]
+    ,
+    
+    simp[match_tbll_def, match_sinterval_tbll_def] >>
+    rpt (BasicProvers.full_case_tac >> gvs[]) >>
+    
+    gvs[Once convert_var_to_sinterval_tables_def] >>
+    res_tac >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
+    metis_tac[sem_tables_def, sem_sinterval_tables_def] 
+  ]
+QED
+
+
+
+
+        
+
+
 
 
 
