@@ -141,7 +141,7 @@ fun get_all_vars_in_group groupings group_name =
     | NONE => [];
 
 (* Generate action table for terminal nodes *)
-fun generate_action_table bdd_term =
+(*fun generate_action_table bdd_term =
     let
       val (start_state_term, rest) = dest_pair bdd_term
       val (edges_term, labelings_term) = dest_pair rest
@@ -172,6 +172,8 @@ fun generate_action_table bdd_term =
     in
       terminal_entries
     end;
+*)
+
 
 (* Enhanced find_paths_for_group that handles input states *)
 fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states =
@@ -270,7 +272,7 @@ fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_st
           let
             val atom_vars = map (fn (var, value) =>
                   if value then ``Var ^(fromMLstring var)``
-                  else ``Not (Var ^(fromMLstring var))``
+                  else ``Not (^(fromMLstring var))``
               ) path
     
             val simplified_atoms = 
