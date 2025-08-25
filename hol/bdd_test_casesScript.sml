@@ -20,22 +20,22 @@ open pred_specTheory;
 open policy_specTheory;   
 open tables_specTheory;
 open bdd_isomorphTheory;
-open bdd_end_to_endTheory;
-
-     
+open bdd_end_to_endTheory;     
 
 open policy_arith_to_varTheory;
 
+open table_arith_to_intervalTheory;
+
+
+     
 
 
 val _ = load "bdd_utils";   
 
 val _ = new_theory "bdd_test_cases";
 
-(* TODO: update the sml definition that takes a var bdd and generates var table, now the var_table has new syntax. Var x | True | False | Not atom --> 
-Var x | Not x | Not True | Not False | True | False
 
-
+    
 (* a few types abbreviations *)
 val _ = type_abbrev("BDD_tbl_type", “:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)”);
 
@@ -79,7 +79,7 @@ val eval_policy1_full_opt_rhs = optionSyntax.dest_some (rhs (concl eval_policy1_
 
 (* automatically generate a table*)
 val test_groupings1 = rhs(concl(EVAL “[("a",["x";"y"]);("b",["z"])]”));
-val test_action_table1_auto =BDDUtils.bdd_to_tables_iterative eval_policy1_full_opt_rhs test_groupings1;
+val test_action_table1_auto = BDDUtils.bdd_to_tables_iterative eval_policy1_full_opt_rhs test_groupings1;
 
 (* now create a BDD for the table*)    
 val eval_table1_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^test_action_table1_auto))]) [] ["x";"y";"z"] 1”;
@@ -93,6 +93,19 @@ val is_tbl_policy1_iso = EVAL “isIsomorph_exec ^get_i_policy1 ^eval_table1_ful
 val policy1_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy1 ^test_action_table1_auto ["x";"y";"z"] ^get_i_policy1 ”;     
 val policy1_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] policy1_thm_init;    
 
+
+(* from var tables to final single interval table*)
+
+
+
+   
+
+
+
+
+
+
+    
 
 (*    
 (* policy 1: var TABLE representation *)
@@ -301,6 +314,12 @@ val arith_policy3_var_policy3_thm = REWRITE_RULE[all_distinct_conj, arith_policy
 
 *)
 
-*)                       
+                      
 val _ = export_theory ();
+
+
+
+
+
+
 
