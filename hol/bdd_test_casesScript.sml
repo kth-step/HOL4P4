@@ -15,6 +15,13 @@ open alistTheory;
 open numeralTheory;
 open alistTheory;
 
+
+open p4Lib;
+open blastLib bitstringLib;
+open p4Theory;
+open p4_auxTheory;
+open p4_coreTheory;
+     
 open bdd_genTheory;     
 open pred_specTheory;     
 open policy_specTheory;   
@@ -51,6 +58,10 @@ val _ = type_abbrev("arith_policy_typ", “:((string# num list) action_expr) ari
 *)
 
 
+
+
+
+        
     
 (****************************************************************)
 (****************************************************************)
@@ -64,6 +75,55 @@ val _ = type_abbrev("arith_policy_typ", “:((string# num list) action_expr) ari
           T : drop() 
 *)
         
+
+(* policy 1: arith POLICY representation *)
+
+val is_high_ttl = “(arithm_le (lv_acc (lv_x "h") "ttl") ^(BDDUtils.make_bv 100 8) )”;
+val is_low_ttl = “(arithm_ge (lv_acc (lv_x "h") "ttl") ^(BDDUtils.make_bv 1 8) )”;
+val is_flag_ok = “(arithm_le (lv_acc (lv_x "h") "flag") ^(BDDUtils.make_bv 3 4) )”;
+
+        
+val policy1_me1 =   “[("x", ^is_high_ttl);
+                   ("y", ^is_low_ttl );
+                   ("z", ^is_flag_ok)]”;
+
+
+val arith_policy1_rule1 = “(arith_and (arith_a ^is_high_ttl) ( arith_a ^is_low_ttl) ,
+                            action ("fwd",[(1:num)])):((string# num list) action_expr) arith_rule”;
+                            
+val arith_policy1_rule2 = “(arith_a (^is_flag_ok) , action ("fwd",[2]))
+                           :((string# num list) action_expr) arith_rule”;
+                           
+val arith_policy1_rule3 = “(arith_a a_True, action ("drop",[])):((string# num list) action_expr) arith_rule”;
+                    
+
+val arith_policy1 =   “[ ^arith_policy1_rule1 ;
+                        ^arith_policy1_rule2 ;
+                        ^arith_policy1_rule3]:((string# num list) action_expr) arith_policy”;
+
+val arith_policy1_eval = EVAL “convert_arith_to_var_policy ^arith_policy1 ^policy1_me1”;
+
+
+val var_policy1 = optionSyntax.dest_some (rhs (concl arith_policy1_eval));
+
+(* first establish distinction *)
+val policy1_me1_fst_distinct = EVAL ``ALL_DISTINCT (MAP FST ^policy1_me1)``;
+val policy1_me1_snd_distinct = EVAL ``ALL_DISTINCT (MAP SND ^policy1_me1)``;
+
+
+val all_distinct_conj = CONJ policy1_me1_fst_distinct policy1_me1_snd_distinct;
+
+
+
+val alookup_cond_thm = EVAL “∀var atom. ALOOKUP ^policy1_me1 var = SOME atom ⇒
+                                        ALOOKUP m_v var = eval_arithm_atom packet_input atom”;
+
+
+val arith_policy1_var_policy1_thm = REWRITE_RULE[all_distinct_conj, arith_policy1_eval]
+(ISPECL[arith_policy1, var_policy1, policy1_me1] policy_airth_to_var_sem_conversion_correct);  
+
+
+
         
 (* policy 1: var POLICY representation *)
    
@@ -97,53 +157,19 @@ val policy1_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] po
 (* from var tables to final single interval table*)
 
 
-
+val only_var_table1 = fst (dest_pair test_action_table1_auto);
    
+val test_pd_type1 = “[("h" , type_record [("ttl", type_length 8);
+                                          ("flag", type_length 4)])]”;
+                   
+
+EVAL “convert_var_to_sinterval_tables ^only_var_table1 ^policy1_me1  ^test_pd_type1”;   
+
+             
+val convert_var_to_sinterval_tables1_thm =
+REWRITE_RULE [] (ISPECL[only_var_table1] correct_tables_from_var_to_sinterval_thm);        
 
 
-
-
-
-
-    
-
-(*    
-(* policy 1: var TABLE representation *)
-
-(* manual table generation by user*)
-(*
-val var_tbl1_line1 = ``([(Var "x"); (Var "y")]     , 0, state 3): (string# num list) line``;
-val var_tbl1_line2 = ``([(Var "x"); Not (Var "y")] , 0, state 4): (string# num list) line``;
-val var_tbl1_line3 = ``([Not (Var "x")]            , 0, state 4): (string# num list) line``;
-val var_tbl1 = ``[^var_tbl1_line1; ^var_tbl1_line2; ^var_tbl1_line3] : (string# num list) table``;
-    
-val var_tbl2_line1 = ``([(Var "z")]     , 4, state 7): (string# num list) line``;
-val var_tbl2_line2 = ``([Not (Var "z")] , 4, state 8): (string# num list) line``;
-val var_tbl2_line3 = ``([True]          , 3, state 3): (string# num list) line``;
-val var_tbl2 = ``[^var_tbl2_line1; ^var_tbl2_line2; ^var_tbl2_line3] : (string# num list) table``;
-
-val var_tbl3_line1 = ``([True] , 3, action ("fwd",[1])): (string# num list) line``;
-val var_tbl3_line2 = ``([True] , 7, action ("fwd",[2])): (string# num list) line``;
-val var_tbl3_line3 = ``([True] , 8, action ("drop",[])): (string# num list) line``;
-val var_tbl3 = ``[^var_tbl3_line1; ^var_tbl3_line2; ^var_tbl3_line3] : (string# num list) table``;
-
-val var_tbls1 = ``[^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) var_table_list) ``;
-val var_tbls1_start = ``([^var_tbl1; ^var_tbl2; ^var_tbl3] : ((string# num list) var_table_list),(0:num)) ``;
-
-     
-val eval_table1_full_opt = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^var_tbls1_start))]) [] ["x";"y";"z"] 1”;
-val eval_table1_full_opt_rhs = optionSyntax.dest_some (rhs (concl eval_table1_full_opt));
-
-
-(* this restricts EVAL to not to take the sefs of sem_tables ... since we wan't them in the theorem*)
-val policy1_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy1 ^var_tbls1_start ["x";"y";"z"] ^get_i_policy1 ”;
-
-(* at this point, we want to show that correct_var_policy_var_tables_exec is always true, thus the theorem hold*)                       
-val policy1_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] policy1_thm_init;
-*)
-
-    
-*)
 
 
 
@@ -271,10 +297,10 @@ val test_packet = “[
   ]”;
 
   
-val is_tcp =      “arith_a (arithm_eq (lv_acc (lv_acc (lv_x "h") "ip") "proto") 6)”;
-val is_high_ttl = “arith_a (arithm_gt (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
-val is_internal = “arith_a (arithm_eq (lv_acc (lv_x "h") "src_zone") 1)”;
-val is_malicious = “arith_a (arithm_gt (lv_acc (lv_x "h") "threat_score") 80)”;
+val is_tcp =      “arith_a (arithm_le (lv_acc (lv_acc (lv_x "h") "ip") "proto") 6)”;
+val is_high_ttl = “arith_a (arithm_ge (lv_acc (lv_acc (lv_x "h") "ip") "ttl") 60)”;
+val is_internal = “arith_a (arithm_le (lv_acc (lv_x "h") "src_zone") 1)”;
+val is_malicious = “arith_a (arithm_ge (lv_acc (lv_x "h") "threat_score") 80)”;
 
 
 val policy3_me1 = “[

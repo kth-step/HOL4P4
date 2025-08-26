@@ -4,6 +4,23 @@ open pairSyntax numSyntax listSyntax stringSyntax optionSyntax;
 
 structure BDDUtils = struct
 
+  fun make_bv n len = let
+    val n_term = numSyntax.mk_numeral (Arbnum.fromInt n)
+    val len_term = numSyntax.mk_numeral (Arbnum.fromInt len)
+  in
+    ``(fixwidth ^(len_term) (n2v ^(n_term)), ^(len_term))``
+  end
+
+
+
+  fun make_interval a b len = let
+      val a_term = make_bv a len
+      val b_term = make_bv b len
+    in
+      ``Single ^a_term ^b_term``
+  end
+
+
 
   fun pairBDDs (bdd1: term, bdd2: term) =
       let
