@@ -70,12 +70,6 @@ val _ = type_abbrev("arith_policy_typ", “:((string# num list) action_expr) ari
 (****************************************************************)
 (****************************************************************)
    
-(* 
-      x ∧ y : fwd(1)
-          z : fwd(2)
-          T : drop() 
-*)
-        
 
 (* policy 1: arith POLICY representation *)
 
@@ -111,149 +105,109 @@ val arith_policy1 =   “[^arith_policy1_rule1 ;
                         ^arith_policy1_rule3]:((string# num list) action_expr) arith_policy”;
 
 
-                        
+
+
+
+(********************************)
+
+        
+(*convert arith policy to var policy*)        
 val arith_policy1_eval = EVAL “convert_arith_to_var_policy ^arith_policy1 ^policy1_me1”;
-
-
 val var_policy1 = optionSyntax.dest_some (rhs (concl arith_policy1_eval));
 
-(* first establish distinction *)
-val policy1_me1_fst_distinct = EVAL ``ALL_DISTINCT (MAP FST ^policy1_me1)``;
-val policy1_me1_snd_distinct = EVAL ``ALL_DISTINCT (MAP SND ^policy1_me1)``;
-
+    
+(* first establish distinction of domain and range of me*)
+val policy1_me1_fst_distinct = EVAL “ALL_DISTINCT (MAP FST ^policy1_me1)”;
+val policy1_me1_snd_distinct = EVAL “ALL_DISTINCT (MAP SND ^policy1_me1)”;
 
 val all_distinct_conj = CONJ policy1_me1_fst_distinct policy1_me1_snd_distinct;
 
-
-
-val alookup_cond_thm = EVAL “∀var atom. ALOOKUP ^policy1_me1 var = SOME atom ⇒
-                                        ALOOKUP m_v var = eval_arithm_atom packet_input atom”;
-
-
+    
+(* Theorem of correctness for conversion from arith policy to var policy *)
 val arith_policy1_var_policy1_thm = REWRITE_RULE[all_distinct_conj, arith_policy1_eval]
 (ISPECL[arith_policy1, var_policy1, policy1_me1] policy_airth_to_var_sem_conversion_correct);  
 
-
-
-        
-(* policy 1: var POLICY representation *)
-(*   
-val var_policy1_rule1 = ``(And (Var "x") (Var "y"), action ("fwd",[1])): action_rule_type``;
-val var_policy1_rule2 = ``(Var "z", action ("fwd",[2])): action_rule_type``;
-val var_policy1_rule3 = ``(True, action ("drop",[])): action_rule_type``;
-
-
-val var_policy1 = ``[^var_policy1_rule1; ^var_policy1_rule2; ^var_policy1_rule3 ] : action_policy_type``;
-*)
-
-val eval_policy1_full_opt = EVAL ``mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy1))]) [] ["x";"y";"z"] 1``;
+                       
+(* create BDD of var policy  *)
+val eval_policy1_full_opt = EVAL “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy1))]) [] ^policy1_order 1”;
 val eval_policy1_full_opt_rhs = optionSyntax.dest_some (rhs (concl eval_policy1_full_opt));
 
 
-(* automatically generate a table*)
+(* automatically generate a var table from the var policy's BDD via sml*)
 val test_groupings1 = rhs(concl(EVAL policy1_full_order));
 val test_action_table1_auto = BDDUtils.bdd_to_tables_iterative eval_policy1_full_opt_rhs test_groupings1;
 
+    
 (* now create a BDD for the table*)    
-val eval_table1_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^test_action_table1_auto))]) [] ["x";"y";"z"] 1”;
+val eval_table1_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^test_action_table1_auto))]) [] ^policy1_order 1”;
 val eval_table1_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table1_full_opt_auto));
 
-(* get I, and check if isisIsomorph *)
+    
+(* get I (pairs isomorphic in the graph), and check if isisIsomorph *)
 val get_i_policy1 = BDDUtils.pairBDDs (eval_table1_full_opt_auto_rhs , eval_table1_full_opt_auto_rhs);
 val is_tbl_policy1_iso = EVAL “isIsomorph_exec ^get_i_policy1 ^eval_table1_full_opt_auto_rhs ^eval_table1_full_opt_auto_rhs”;
 
-(* get a theorem out*)
-val policy1_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy1 ^test_action_table1_auto ["x";"y";"z"] ^get_i_policy1 ”;     
+    
+(* Theorem of correctness for conversion from var policy to var table *)
+val policy1_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy1 ^test_action_table1_auto ^policy1_order ^get_i_policy1 ”;     
 val policy1_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] policy1_thm_init;    
 
 
-(* from var tables to final single interval table*)
-
-
+(* covert var table to interval table *)
 val only_var_table1 = fst (dest_pair test_action_table1_auto);
-   
-                   
-
 val convert_to_interval1 = EVAL “convert_var_to_sinterval_tables ^only_var_table1 ^policy1_me1  ^test_pd_type1”;   
-
-
 val only_interval_table1 = optionSyntax.dest_some(rhs (concl convert_to_interval1));
 
+    
+(* Theorem of correctness for conversion from var table to inteval table *)
+val final_table1_thm =
+REWRITE_RULE [convert_to_interval1] (ISPECL[only_var_table1, only_interval_table1, “0:num”, policy1_me1, test_pd_type1 ] correct_tables_from_var_to_sinterval_thm);        
 
 
-     
-val convert_var_to_sinterval_tables1_thm =
-REWRITE_RULE [] (ISPECL[only_var_table1, only_interval_table1, “0:num”, policy1_me1, test_pd_type1 ] correct_tables_from_var_to_sinterval_thm);        
-
-
-
-val final_table1_thm = SIMP_RULE bool_ss [convert_to_interval1] convert_var_to_sinterval_tables1_thm;    
-
-
-
-
-(* condition1 *)     
-                             
+             
+(* to glue the theorems we need to take care of the conditions/ assumptions *)
+             
+(* condition1 *)                             
 val every_lval_in_me_in_type_thm = EVAL “every_lval_in_me_in_type ^test_pd_type1 ^policy1_me1”;
-val all_distinct_fst_me_thm = EVAL “ALL_DISTINCT (MAP FST ^policy1_me1)”;
+val cond1_thm = REWRITE_RULE [every_lval_in_me_in_type_thm, policy1_me1_fst_distinct] (ISPECL[policy1_me1, test_pd_type1 ] lval_in_me_distinct_imp_cond1);
 
-val cond1_thm = REWRITE_RULE [every_lval_in_me_in_type_thm, all_distinct_fst_me_thm] (ISPECL[policy1_me1, test_pd_type1 ] lval_in_me_distinct_imp_cond1);   
-
-
-
-
-
-(* condition2 *)     
-              
+    
+(* condition2 *)         
 val in_order_then_in_me_thm = EVAL “in_order_then_in_me ^policy1_order ^policy1_me1”;
 val ops_in_me_length_format_thm = EVAL “ops_in_me_length_format ^test_pd_type1 ^policy1_me1”;
 
-val cond2_thm = REWRITE_RULE [every_lval_in_me_in_type_thm, all_distinct_fst_me_thm,
+val cond2_thm = REWRITE_RULE [every_lval_in_me_in_type_thm, policy1_me1_fst_distinct,
                              in_order_then_in_me_thm, ops_in_me_length_format_thm]
                              (ISPECL[policy1_me1, test_pd_type1, policy1_order ]
                                     wf_format_imp_cond2);   
-
-
-                                        
+                                      
 (* condition3 *)     
-
-
-   
-
-val cond3_thm = REWRITE_RULE [every_lval_in_me_in_type_thm, all_distinct_fst_me_thm,
+val cond3_thm = REWRITE_RULE [every_lval_in_me_in_type_thm, policy1_me1_fst_distinct,
                              in_order_then_in_me_thm, ops_in_me_length_format_thm]
                              (ISPECL[policy1_me1, test_pd_type1]
                                     wf_format_imp_cond3);   
 
-
-
-
-
-    
+                                    
 val final_thm = prove(
-“! packet_input .
- wf_packet ^test_pd_type1 packet_input ⇒ 
- sem_arith_policy ^arith_policy1 packet_input = 
- sem_sinterval_tables (^only_interval_table1,0) packet_input”
-,
+  “! packet_input .
+     wf_packet ^test_pd_type1 packet_input ⇒ 
+     sem_arith_policy ^arith_policy1 packet_input = 
+     sem_sinterval_tables (^only_interval_table1,0) packet_input”
+  ,
+  
+  rpt strip_tac >>
+      
+  assume_tac arith_policy1_var_policy1_thm >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘packet_input’,‘(create_mv ^policy1_me1 packet_input)’])) >>
+  
+  assume_tac policy1_thm >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘(create_mv ^policy1_me1 packet_input)’])) >>
 
-rpt strip_tac >>
-assume_tac arith_policy1_var_policy1_thm >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘packet_input’,‘(create_mv ^policy1_me1 packet_input)’])) >>
-
-gvs[cond1_thm] >>
-
-assume_tac policy1_thm >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘(create_mv ^policy1_me1 packet_input)’])) >>
-
-imp_res_tac cond2_thm >>
-gvs[] >>
-          
-assume_tac final_table1_thm >>
-first_x_assum (strip_assume_tac o (Q.SPECL [‘packet_input’,‘(create_mv ^policy1_me1 packet_input)’])) >>
-gvs[cond1_thm] >>
-
-gvs[cond3_thm]
+  
+  assume_tac final_table1_thm >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘packet_input’,‘(create_mv ^policy1_me1 packet_input)’])) >>
+      
+  fs[cond1_thm, cond2_thm, cond3_thm]
 );
 
 
@@ -263,11 +217,13 @@ gvs[cond3_thm]
 
 
 
-
-
-
-
-
+(*
+TODO:
+1. sota review: why is this work more complete than anything we have found
+2. complexity: stage2 complexity. [stage1 and 3 are linear wrt. size of input probably?]
+3. Can we handle practical tables, and deploy them?
+4. performance and scalability (WCET) + synthetic examples that reflects the complexity of the three stages of the pipeline
+*)
 
 
 
