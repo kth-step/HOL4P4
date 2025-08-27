@@ -2045,8 +2045,8 @@ End
 (* final tables translation *)
 
 Theorem correct_tables_from_var_to_sinterval_thm:
-  ∀var_tables sinterval_tables st_in .
-    ∀ mv me packet_type packet_input.
+  ∀var_tables sinterval_tables st_in me packet_type.
+    ∀ packet_input mv.
       
       (∀var. lookup_is_some mv var ⇔ lookup_is_some me var) ∧
       (∀var atom. 
