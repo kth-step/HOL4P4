@@ -228,9 +228,9 @@ fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_st
             end) groupings_list
             
       val group_vars = get_all_vars_in_group groupings group_name
-      val _ = print ("Group vars for " ^ group_name ^ ": [" ^ String.concatWith ", " group_vars ^ "]\n")
+      (*val _ = print ("Group vars for " ^ group_name ^ ": [" ^ String.concatWith ", " group_vars ^ "]\n")
       val _ = print ("Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n")
-
+*)
       (* Helper functions *)
       fun get_children node_id =
           case List.find (fn (parent, _, _) => parent = node_id) edges of
@@ -278,8 +278,8 @@ fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_st
       val all_paths = List.concat (map (fn input_state => 
               let 
                 val paths = traverse_group input_state []
-                val _ = print ("From input state " ^ Int.toString input_state ^ 
-                    ": " ^ Int.toString (length paths) ^ " paths\n")
+               (*) val _ = print ("From input state " ^ Int.toString input_state ^ 
+                    ": " ^ Int.toString (length paths) ^ " paths\n") *)
               in
                 map (fn (path, exit_state) => (input_state, path, exit_state)) paths
               end) input_states)
@@ -306,7 +306,7 @@ fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_st
       table_entries
     end;
 
-
+(*
 fun find_paths_for_group_fixed bdd_term groupings_term group_name =
     let
       (* Extract groupings *)
@@ -337,16 +337,18 @@ fun find_paths_for_group_fixed bdd_term groupings_term group_name =
         else
           (* For subsequent groups, we need to compute the exit states from previous groups *)
           if group_name = "b" then
-            [3, 4]  (* Hardcoded for now based on your expected output *)
+            [3, 4]  (* Hardcoded for now based on expected output *)
           else
             [0]
 
-      val _ = print ("Group: " ^ group_name ^ ", Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n")
+    (*  val _ = print ("Group: " ^ group_name ^ ", Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n") *)
 
       val result = find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states
     in
       result
     end;
+*)
+
 
 fun bdd_to_tables_iterative bdd_term groupings_term =
     let
