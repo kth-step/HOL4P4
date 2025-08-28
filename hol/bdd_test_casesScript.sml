@@ -42,8 +42,6 @@ val _ = load "bdd_utils";
 
 val _ = new_theory "bdd_test_cases";
 
-
-    
 (* a few types abbreviations *)
 val _ = type_abbrev("BDD_tbl_type", “:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)”);
 
@@ -53,10 +51,7 @@ val _ = type_abbrev("struc_tbl_type", “:((( atom_var list # num # (string# num
 val _ = type_abbrev("action_rule_type", “:((string# num list) action_expr) rule”);
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 
-(*
-val _ = type_abbrev("arith_rule_typ", “:((string# num list) action_expr) arith_rule”);
-val _ = type_abbrev("arith_policy_typ", “:((string# num list) action_expr) arith_policy”);
-*)
+
 
 
 
@@ -73,6 +68,9 @@ val _ = type_abbrev("arith_policy_typ", “:((string# num list) action_expr) ari
 
 (* policy 1: arith POLICY representation *)
 
+
+
+(*   
 val test_pd_type1 = “[("h" , type_record [("ttl", type_length 8);
                                           ("flag", type_length 4)])]”;
 
@@ -103,9 +101,57 @@ val arith_policy1_rule3 = “(arith_a a_True, action ("drop",[])):((string# num 
 val arith_policy1 =   “[^arith_policy1_rule1 ;
                         ^arith_policy1_rule2 ;
                         ^arith_policy1_rule3]:((string# num list) action_expr) arith_policy”;
+*)
 
 
+ 
+val test_pd_type1 = “[("ip", type_record [("priority", type_length 3);
+                                         ("size", type_length 16);
+                                         ("age", type_length 8);
+                                         ("type", type_length 4)])]”;
 
+val is_high_priority = “(arithm_le (lv_acc (lv_x "ip") "priority") ^(BDDUtils.make_bv 2 3))”;
+val is_medium_priority = “(arithm_ge (lv_acc (lv_x "ip") "priority") ^(BDDUtils.make_bv 4 3))”;
+val is_small_packet = “(arithm_le (lv_acc (lv_x "ip") "size") ^(BDDUtils.make_bv 500 16))”;
+val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^(BDDUtils.make_bv 200 8))”;
+val is_control_type = “(arithm_le (lv_acc (lv_x "ip") "type") ^(BDDUtils.make_bv 3 4))”;
+val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^(BDDUtils.make_bv 8 4))”;
+
+val policy1_me1 =   “[("x", ^is_high_priority);
+                      ("y", ^is_medium_priority);
+                      ("z", ^is_small_packet);
+                      ("w", ^is_young_packet);
+                      ("q", ^is_control_type);
+                      ("r", ^is_data_type)]”;
+
+val policy1_full_order = “[("a",["x";"y"]);
+                          ("b",["z"]);
+                          ("c",["w"]);
+                          ("d",["q";"r"])]”;
+
+val policy1_order = “["x";"y";"z";"w";"q";"r"]”;
+
+(* Rule 1: High priority small control packets - expedited forwarding *)
+val arith_policy1_rule1 = “(arith_and (arith_a ^is_high_priority) 
+                            (arith_and (arith_a ^is_small_packet) (arith_a ^is_control_type)),
+                            action ("fwd_priority",[1; 255])):((string# num list) action_expr) arith_rule”;
+
+(* Rule 2: High priority data packets *)
+val arith_policy1_rule2 = “(arith_and (arith_a ^is_high_priority) (arith_a ^is_data_type),
+                            action ("fwd",[1])):((string# num list) action_expr) arith_rule”;
+
+(* Rule 3: Medium priority young packets *)
+val arith_policy1_rule3 = “(arith_and (arith_a ^is_medium_priority) (arith_a ^is_young_packet),
+                            action ("fwd",[2])):((string# num list) action_expr) arith_rule”;
+
+(* Rule 7: Default forward rule *)
+val arith_policy1_rule7 = “(arith_a a_True,
+                            action ("fwd",[5])):((string# num list) action_expr) arith_rule”;
+
+val arith_policy1 =   “[^arith_policy1_rule1;
+                        ^arith_policy1_rule2;
+                        ^arith_policy1_rule3;
+                        ^arith_policy1_rule7]:((string# num list) action_expr) arith_policy”;
 
 
 (********************************)
@@ -144,8 +190,9 @@ val eval_table1_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_tabl
 
     
 (* get I (pairs isomorphic in the graph), and check if isisIsomorph *)
-val get_i_policy1 = BDDUtils.pairBDDs (eval_table1_full_opt_auto_rhs , eval_table1_full_opt_auto_rhs);
-val is_tbl_policy1_iso = EVAL “isIsomorph_exec ^get_i_policy1 ^eval_table1_full_opt_auto_rhs ^eval_table1_full_opt_auto_rhs”;
+val get_i_policy1 = BDDUtils.pairBDDs (eval_policy1_full_opt_rhs, eval_table1_full_opt_auto_rhs);
+val is_tbl_policy1_iso = EVAL “isIsomorph_exec ^get_i_policy1 ^eval_policy1_full_opt_rhs
+                                                              ^eval_table1_full_opt_auto_rhs”;
 
     
 (* Theorem of correctness for conversion from var policy to var table *)
@@ -209,9 +256,6 @@ val final_thm = prove(
       
   fs[cond1_thm, cond2_thm, cond3_thm]
 );
-
-
-
 
 
 
@@ -401,5 +445,4 @@ val _ = export_theory ();
 
 
 
-
-
+             
