@@ -45,9 +45,8 @@ Proof
   
   PairCases_on ‘h’ >>
   gvs[] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   res_tac >>
-  gvs[merge_edges_def]
+  metis_tac[merge_edges_def]
 QED
 
 
@@ -1539,12 +1538,11 @@ Proof
 QED
 
                                                                          
-                        
-                                                
+                                            
 Theorem dom_range_edges3_imp_adel_key_mem:
   ∀ edges root labels vars n n' n''  a b.
     n'' ≠ n' ∧ n ≠ n' ∧
-    BDD_ordered (root,edges,labels) vars ∧
+    (n ≠ a ∧ n' ≠ a ∧ n ≠ b ∧ n' ≠ b) ∧
     ALL_DISTINCT (MAP FST edges) ∧
     MEM (n,a,b) edges ∧
     MEM (n',a,b) edges ∧
@@ -1555,8 +1553,7 @@ Proof
             
   rpt strip_tac >>
   
-  ‘(n ≠ a ∧ n' ≠ a ∧ n ≠ b ∧ n' ≠ b)’ by cheat >>
-  ‘ ALL_DISTINCT (MAP FST (merge_edges edges n n')) ’ by metis_tac [all_distinct_fst_merge_edges] >>
+  ‘ALL_DISTINCT (MAP FST (merge_edges edges n n')) ’ by metis_tac [all_distinct_fst_merge_edges] >>
 
   gvs[dom_range_edges3_def] >>
   
@@ -2124,7 +2121,9 @@ QED
 
 Theorem dom_range_edges_imp_adel_key_mem:
   ∀edges root labels vars n n' n'' a b.
-    n'' ≠ n' ∧ n ≠ n' ∧ BDD_ordered (root,edges,labels) vars ∧
+    n'' ≠ n' ∧ n ≠ n' ∧
+    (n ≠ a ∧ n' ≠ a ∧ n ≠ b ∧ n' ≠ b) ∧
+    BDD_ordered (root,edges,labels) vars ∧
     ALL_DISTINCT (MAP FST edges) ∧
     MEM (n,a,b) edges ∧ MEM (n',a,b) edges ∧
     MEM n (dom_range_edges edges) ∧
@@ -2140,25 +2139,28 @@ QED
 Theorem merge_edges_preserve_nodes:
   ∀ edges n n' n'' root labels vars.
     n'' ≠ n' ∧ n ≠ n' ∧
+    BDD_WF (root,edges,labels) ∧
+    consumed_dom_bdd vars (root,edges,labels) ∧
     BDD_ordered (root,edges,labels) vars ∧
-    ALL_DISTINCT (MAP FST edges) ∧
     ALOOKUP edges n = ALOOKUP edges n' ∧
     MEM n (dom_range_edges edges) ∧
     MEM n'' (dom_range_edges (merge_edges edges n n')) ⇒
     MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n')))
 Proof
-
   rpt strip_tac >>
   Cases_on ‘ALOOKUP edges n’ >|[
-    
+    ‘ALL_DISTINCT (MAP FST edges) ’ by gvs[BDD_WF_def] >>
     irule dom_range_edges_imp_adel_key_mem_none >>
     gvs[]
     ,
-    
+
+    ‘ALL_DISTINCT (MAP FST edges) ’ by gvs[BDD_WF_def] >>
     ‘ALL_DISTINCT (MAP FST (merge_edges edges n n'))’ by gvs[GSYM all_distinct_fst_merge_edges] >>           
     PairCases_on ‘x’ >> 
     ‘MEM (n,x0,x1) edges’ by gvs[ALOOKUP_MEM] >>
     ‘MEM (n',x0,x1) edges’ by gvs[ALOOKUP_MEM] >>
+    ‘n ≠ x0 ∧ n ≠ x1’ by metis_tac[lookup_edges_not_parent] >>
+    ‘n' ≠ x0 ∧ n' ≠ x1’ by metis_tac[lookup_edges_not_parent] >>
     metis_tac[dom_range_edges_imp_adel_key_mem] 
   ]
 QED
@@ -2169,14 +2171,16 @@ QED
 
 Theorem mergable_wf_labels_edges_same:          
 ∀ r edges labels n n' vars_consumed.
-  ALL_DISTINCT (MAP FST edges) ∧
+  BDD_WF (r,edges,labels) ∧
   BDD_ordered (r,edges,labels) vars_consumed ∧
+  consumed_dom_bdd vars_consumed (r,edges,labels) ∧
   mergable (r,edges,labels) n n' ∧
   ( ∀n. MEM n (dom_range_edges edges) ⇔ MEM n (MAP FST labels)) ⇒
   (∀n''. MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n'))) ⇔
            MEM n'' (MAP FST (ADELKEY n' labels)))
 Proof
   rw[mergable_def] >>
+  ‘ALL_DISTINCT (MAP FST edges)’ by gvs[BDD_WF_def] >>
   Cases_on ‘n'' = n'’ >> gvs[] >|[
     gvs[merge_no_effect_on_unrelated_node_mem] >>
     gvs[ADELKEY_def, MEM_MAP, MEM_FILTER]
@@ -2221,7 +2225,8 @@ Proof
         
         ‘¬MEM n'' (MAP FST (ADELKEY n' labels))’ by metis_tac[not_mem_imp_adelkey_mem] 
       ]
-    ) ] 
+    )
+  ] 
 QED
 
 
@@ -2465,7 +2470,7 @@ Proof
     by imp_res_tac ALL_DISTINCT_MAP_ADELKEY >> gvs[] >>
 
   ‘∀n''.  MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n'))) ⇔
-          MEM n'' (MAP FST (ADELKEY n' labels))’ by imp_res_tac mergable_wf_labels_edges_same >> gvs[] >>
+          MEM n'' (MAP FST (ADELKEY n' labels))’ by (imp_res_tac mergable_wf_labels_edges_same >> gvs[BDD_WF_def]) >>
 
   imp_res_tac mergable_wf_internals_some >> gvs[] >>
 
