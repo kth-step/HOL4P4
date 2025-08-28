@@ -503,12 +503,9 @@ Proof
   gvs[mk_new_labels_def] >>
   rpt strip_tac >>
   PairCases_on ‘h’ >>
-  gvs[mk_new_labels_def] >| [
-    qexists_tac ‘0’ >> gvs[]
-    ,
-    res_tac >>
-    qexists_tac ‘2+i’ >> gvs[]
-  ]
+  gvs[mk_new_labels_def] >>
+  res_tac >>
+  qexists_tac ‘2+i’ >> gvs[]
 QED
 
 
@@ -1514,12 +1511,7 @@ Proof
   ]     
 QED
 
-
-
-
-
-
-        
+    
 
 Theorem not_mem_imp_adelkey_mem:
   ∀ l  n'' n'.

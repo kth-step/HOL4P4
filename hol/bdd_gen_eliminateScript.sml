@@ -633,7 +633,6 @@ Theorem eliminate_dom_range_edges3_imp_adel_key_mem:
     MEM n'' (dom_range_edges3 (ADELKEY n' (merge_edges edges n n')))
 Proof
   rpt strip_tac >> 
-  ‘(n ≠ a ∧ n ≠ b ∧ n'' ≠ a ∧ n'' ≠ b)’ by cheat >>
   ‘ ALL_DISTINCT (MAP FST (merge_edges edges n n')) ’ by metis_tac [all_distinct_fst_merge_edges] >>
 
       
@@ -802,7 +801,8 @@ QED
          
 Theorem eliminate_dom_range_edges_imp_adel_key_mem:
   ∀edges root labels vars n n' n'' a b.
-    n'' ≠ n' ∧ n ≠ n' ∧ BDD_ordered (root,edges,labels) vars ∧
+    n'' ≠ n' ∧ n ≠ n' ∧
+    BDD_ordered (root,edges,labels) vars ∧
     ALL_DISTINCT (MAP FST edges) ∧
     MEM (n',n,n) edges ∧ MEM (n,a,b) edges ∧
     MEM n (dom_range_edges edges) ∧

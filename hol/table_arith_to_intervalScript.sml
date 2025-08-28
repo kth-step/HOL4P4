@@ -1148,8 +1148,8 @@ Theorem if_bs_ge_not_gt_max_then_eq:
     bitv_binpred binop_ge (a,len) (fixwidth len (n2v (max_from_type len)),len) = SOME T ⇒
     a = fixwidth len (n2v (max_from_type len))
 Proof
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -1175,8 +1175,8 @@ Theorem if_bs_le_ge_max_then_eq:
     bitv_binpred binop_le (a,len) (n2v (max_from_type len),len) = SOME T ⇒
     a = fixwidth len (n2v (max_from_type len))
 Proof
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -1523,7 +1523,7 @@ Theorem transitive_binpred2:
     bitv_binpred binop_le (c,len) (a,len) = SOME T
 Proof
   rw[bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -1547,7 +1547,7 @@ Theorem transitive_binpred3:
     bitv_binpred binop_ge (c,len) (b,len) = SOME T
 Proof
   rw[bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -1569,7 +1569,7 @@ Theorem transitive_binpred4:
     bitv_binpred binop_ge (c,len) (b,len) = SOME F
 Proof
   rw[bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -1592,7 +1592,7 @@ Theorem transitive_binpred5:
 Proof
 
   rw[bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
   rpt strip_tac >>
   
   rpt(

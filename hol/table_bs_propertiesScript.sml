@@ -27,6 +27,8 @@ open pred_setLib;
 
 val _ = new_theory "table_bs_properties";
 
+
+    
 Definition max_from_type_def:
   max_from_type type =
   (2:num) ** type - (1:num)
@@ -42,8 +44,7 @@ Proof
   PairCases_on ‘bv1’ >>
   PairCases_on ‘bv2’ >>
   
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
-  gvs[]
+  gvs[bitv_binpred_def]
 QED
 
 
@@ -56,10 +57,9 @@ Proof
   PairCases_on ‘bv1’ >>
   PairCases_on ‘bv2’ >>
   
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
-  gvs[] >>
+  gvs[bitv_binpred_def] >>
 
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   rpt strip_tac >>
       
   rpt(
@@ -82,10 +82,10 @@ Proof
   PairCases_on ‘bv2’ >>
   PairCases_on ‘bv3’ >>
   
-  RW.ONCE_RW_TAC [bitv_binop_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binop_def] >>
   gvs[] >>
 
-  RW.ONCE_RW_TAC [bitv_binop_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binop_inner_def] >>
   rpt strip_tac >>
       
   rpt (
@@ -101,11 +101,11 @@ Theorem all_bs_larger_than_zero:
     len > 0 ∧ len < 129 ⇒
     bitv_binpred binop_ge (bl,len) (fixwidth len (n2v 0),len) = SOME T
 Proof                                   
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
   rpt strip_tac >>
   gvs[] >>
   
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
 
   rpt (
     BasicProvers.FULL_CASE_TAC >-                         
@@ -180,11 +180,11 @@ Theorem all_bs_larger_than_zero2:
     fixwidth len bl' = fixwidth len (n2v 0) ⇒
     bitv_binpred binop_ge (bl,len) (bl',len) = SOME T
 Proof                                           
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
   rpt strip_tac >>
   gvs[] >>
   
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   
   rpt
   (
@@ -294,7 +294,7 @@ Proof
   gvs[] >>
   
   gvs[bitv_binpred_def, bitv_binop_def] >>                                                      
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, bitv_binop_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, bitv_binop_inner_def] >>
   rpt strip_tac >>
   
 rpt (    
@@ -339,7 +339,7 @@ Theorem last_edge_of_binpred_bs:
     n > 128
 Proof
 
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   rpt strip_tac >>
   ntac 128 (BasicProvers.FULL_CASE_TAC >-
              fs[]) >>
@@ -356,7 +356,7 @@ Theorem last_edge_of_binop_bs:
     n > 128
 Proof
 
-  RW.ONCE_RW_TAC [bitv_binop_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binop_inner_def] >>
   rpt strip_tac >>
   ntac 128 (BasicProvers.FULL_CASE_TAC >-
              fs[]) >>
@@ -372,7 +372,7 @@ Theorem no_bs_is_larger_than_the_largest:
     bitv_binpred_inner binop_gt n (n2v (max_from_type n')) (n':num) = SOME F
 Proof
   rw[max_from_type_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -391,7 +391,7 @@ Theorem no_bs_is_less_that_the_least:
 Proof
   
   rw[max_from_type_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -410,10 +410,10 @@ Theorem max_ge_max_thm:
 Proof
 
   rw[max_from_type_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
   gvs[] >>
   rpt strip_tac >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   
   rewrite_tac[get_word_binpred_def] >>
   
@@ -437,10 +437,10 @@ Theorem every_bs_is_less_than_max:
     bitv_binpred binop_le (bl,len) (n2v (max_from_type len),len) = SOME T
 Proof
   rw[max_from_type_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
   gvs[] >>
   rpt strip_tac >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   
   rewrite_tac[get_word_binpred_def] >>
   
@@ -500,7 +500,7 @@ Proof
   gvs[] >>
   
   gvs[bitv_binpred_def, bitv_binop_def] >>                                                      
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, bitv_binop_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, bitv_binop_inner_def] >>
   rpt strip_tac >>
   
   rpt(
@@ -558,10 +558,10 @@ Theorem every_bs_is_less_than_max_fixwidth:
     bitv_binpred binop_le (bl,len) (fixwidth len (n2v (max_from_type len)),len) = SOME T
 Proof
   rw[] >>
-  RW.ONCE_RW_TAC [bitv_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
   gvs[] >>
   rpt strip_tac >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
   
   rewrite_tac[get_word_binpred_def] >>
                                     
@@ -632,7 +632,7 @@ Theorem every_bs_is_not_larger_than_max_fixwidth:
     bitv_binpred binop_gt (bl,len) (fixwidth len (n2v (max_from_type len)),len) = SOME F
 Proof
   rw[max_from_type_def, bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
   rpt strip_tac >>
 
   rpt 
@@ -655,7 +655,7 @@ Theorem transitive_binpred1:
 Proof
 
   rw[bitv_binpred_def] >>
-  RW.ONCE_RW_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
+  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
   rpt strip_tac >>
 
 rpt(
