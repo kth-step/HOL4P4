@@ -11,6 +11,9 @@ hol: hol/p4Script.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
 hol/p4_from_json: hol
 	Holmake -r -I hol/p4_from_json
 
+policy_to_table: hol
+	Holmake -r -I hol -I hol/policy_to_table
+	
 validate: hol/p4_from_json
 	cd hol/p4_from_json && ./validate.sh
 
