@@ -33,6 +33,7 @@ clean:
 	rm -f docs/semantics/p4_defs.tex hol/p4Script.sml
 	cd hol && Holmake clean -r && cd p4_from_json && Holmake clean && cd validation_tests && Holmake clean
 	cd hol/policy_to_table && Holmake clean 
+	cd hol/policy_to_table/policy_test_cases && Holmake clean 
 
 clean_policy:
 	cd hol/policy_to_table && Holmake clean
