@@ -6,7 +6,7 @@ DEPENDENCIES   = ..
 # configuration
 # ----------------------------------
 HOLHEAP        = ../p4-heap
-NEWHOLHEAP     = table_to_policy-heap
+NEWHOLHEAP     = policy_to_table-heap
 
 HEAPINC_EXTRA  = wordsLib
 
