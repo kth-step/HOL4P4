@@ -1,1 +1,0 @@
-auto_test_pipelineScript.uo: /home/anoud/HOL/sigobj/HolKernel.uo /home/anoud/HOL/sigobj/Parse.uo /home/anoud/HOL/sigobj/boolLib.uo /home/anoud/HOL/sigobj/bossLib.uo /home/anoud/HOL/sigobj/liteLib.uo /home/anoud/Desktop/HOL4P4/hol/policy_to_table/policy_arith_to_varTheory.uo /home/anoud/HOL/sigobj/simpLib.uo 
