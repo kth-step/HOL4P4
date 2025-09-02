@@ -1,4 +1,4 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
 open arithmeticTheory stringTheory containerTheory pred_setTheory
      listTheory finite_mapTheory;
 
@@ -38,7 +38,7 @@ open table_bs_propertiesTheory;
      
 
 
-val _ = load "bdd_utils";   
+open bdd_utilsLib;
 
 val _ = new_theory "bdd_fwd_pipeline_example";
 
@@ -69,12 +69,12 @@ val test_pd_type = “[("ip", type_record [("priority", type_length 3);
                                          ("age", type_length 8);
                                          ("type", type_length 4)])]”;
 
-val is_high_priority = “(arithm_le (lv_acc (lv_x "ip") "priority") ^(BDDUtils.make_bv 2 3))”;
-val is_medium_priority = “(arithm_ge (lv_acc (lv_x "ip") "priority") ^(BDDUtils.make_bv 4 3))”;
-val is_small_packet = “(arithm_le (lv_acc (lv_x "ip") "size") ^(BDDUtils.make_bv 500 16))”;
-val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^(BDDUtils.make_bv 200 8))”;
-val is_control_type = “(arithm_le (lv_acc (lv_x "ip") "type") ^(BDDUtils.make_bv 3 4))”;
-val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^(BDDUtils.make_bv 8 4))”;
+val is_high_priority = “(arithm_le (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 2 3))”;
+val is_medium_priority = “(arithm_ge (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 4 3))”;
+val is_small_packet = “(arithm_le (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 500 16))”;
+val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^( bdd_utilsLib.make_bv 200 8))”;
+val is_control_type = “(arithm_le (lv_acc (lv_x "ip") "type") ^( bdd_utilsLib.make_bv 3 4))”;
+val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^( bdd_utilsLib.make_bv 8 4))”;
 
 val policy_me =   “[("x", ^is_high_priority);
                       ("y", ^is_medium_priority);
@@ -149,7 +149,7 @@ val eval_policy_full_opt_rhs = optionSyntax.dest_some (rhs (concl eval_policy_fu
 
 (* automatically generate a var table from the var policy's BDD via sml*)
 val test_groupings = rhs(concl(EVAL policy_full_order));
-val gen_var_table_auto = BDDUtils.bdd_to_tables_iterative eval_policy_full_opt_rhs test_groupings;
+val gen_var_table_auto =  bdd_utilsLib.bdd_to_tables_iterative eval_policy_full_opt_rhs test_groupings;
 
     
 (* now create a BDD for the table*)    
@@ -158,7 +158,7 @@ val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table
 
     
 (* get I (pairs isomorphic in the graph), and check if isisIsomorph *)
-val get_i_policy = BDDUtils.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
+val get_i_policy =  bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
 (*val is_tbl_policy1_iso = EVAL “isIsomorph_exec ^get_i_policy ^eval_policy_full_opt_rhs
                                                               ^eval_table_full_opt_auto_rhs”;
  *)
@@ -238,13 +238,7 @@ val final_thm = prove(
 
 
 
-(*
-TODO:
-1. sota review: why is this work more complete than anything we have found
-2. complexity: stage2 complexity. [stage1 and 3 are linear wrt. size of input probably?]
-3. Can we handle practical tables, and deploy them?
-4. performance and scalability (WCET) + synthetic examples that reflects the complexity of the three stages of the pipeline
-*)
+
 
 
 

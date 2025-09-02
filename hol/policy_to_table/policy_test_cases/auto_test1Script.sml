@@ -2,27 +2,25 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open policy_arith_to_varTheory;
 
-val _ = load "bdd_utils";   
-val _ = load "fwd_proof";   
+open bdd_utilsLib;
+open fwd_proofLib;   
 
 
-val _ = new_theory "auto_test_pipeline";
-
+val _ = new_theory "auto_test1";
 
 val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
-
  
 val test_pd_type = “[("ip", type_record [("priority", type_length 3);
                                          ("size", type_length 16);
                                          ("age", type_length 8);
                                          ("type", type_length 4)])]”;
 
-val is_high_priority = “(arithm_le (lv_acc (lv_x "ip") "priority") ^(BDDUtils.make_bv 2 3))”;
-val is_medium_priority = “(arithm_ge (lv_acc (lv_x "ip") "priority") ^(BDDUtils.make_bv 4 3))”;
-val is_small_packet = “(arithm_le (lv_acc (lv_x "ip") "size") ^(BDDUtils.make_bv 500 16))”;
-val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^(BDDUtils.make_bv 200 8))”;
-val is_control_type = “(arithm_le (lv_acc (lv_x "ip") "type") ^(BDDUtils.make_bv 3 4))”;
-val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^(BDDUtils.make_bv 8 4))”;
+val is_high_priority = “(arithm_le (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 2 3))”;
+val is_medium_priority = “(arithm_ge (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 4 3))”;
+val is_small_packet = “(arithm_le (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 500 16))”;
+val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^(bdd_utilsLib.make_bv 200 8))”;
+val is_control_type = “(arithm_le (lv_acc (lv_x "ip") "type") ^(bdd_utilsLib.make_bv 3 4))”;
+val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^(bdd_utilsLib.make_bv 8 4))”;
 
 val policy_me =   “[("x", ^is_high_priority);
                     ("y", ^is_medium_priority);
@@ -63,7 +61,10 @@ val arith_policy =   “[^arith_policy_rule1;
 
 
 val final_thm_res =
-mk_fwd_proof.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
+
+
+
 
                       
 val _ = export_theory ();

@@ -1,8 +1,9 @@
+structure bdd_utilsLib :> bdd_utilsLib = struct
+
 open HolKernel boolLib bossLib Parse;
 open listTheory pairTheory optionTheory;
 open pairSyntax numSyntax listSyntax stringSyntax optionSyntax;
 
-structure BDDUtils = struct
 
   fun make_bv n len = let
     val n_term = numSyntax.mk_numeral (Arbnum.fromInt n)
@@ -442,7 +443,7 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
 
 
 
-end;
+end
 
 (*
 (* Individual table generation *)
