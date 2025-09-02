@@ -1,4 +1,7 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+structure fwd_proofLib :> fwd_proofLib = struct
+
+
+open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
 open arithmeticTheory stringTheory containerTheory pred_setTheory
      listTheory finite_mapTheory;
 
@@ -36,9 +39,7 @@ open table_arith_to_intervalTheory;
 open bdd_auxTheory;
 open table_bs_propertiesTheory;
      
-
-
-val _ = load "bdd_utils";   
+open bdd_utilsLib;   
 
 
 
@@ -53,9 +54,6 @@ val _ = type_abbrev("action_rule_type", “:((string# num list) action_expr) rul
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 *)
         
-        
-  
-structure mk_fwd_proof = struct
 
 
     fun convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
@@ -94,7 +92,7 @@ structure mk_fwd_proof = struct
 
         (* automatically generate a var table from the var policy's BDD via sml*)
         val test_groupings = rhs(concl(EVAL policy_full_order));
-        val gen_var_table_auto = BDDUtils.bdd_to_tables_iterative eval_policy_full_opt_rhs test_groupings;
+        val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative eval_policy_full_opt_rhs test_groupings;
 
             
         (* now create a BDD for the table*)    
@@ -103,7 +101,7 @@ structure mk_fwd_proof = struct
 
             
         (* get I (pairs isomorphic in the graph), and check if isisIsomorph *)
-        val get_i_policy = BDDUtils.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
+        val get_i_policy = bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
         (*val is_tbl_policy1_iso = EVAL “isIsomorph_exec ^get_i_policy ^eval_policy_full_opt_rhs
                                                                       ^eval_table_full_opt_auto_rhs”;
         *)

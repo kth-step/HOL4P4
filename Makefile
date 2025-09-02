@@ -12,8 +12,10 @@ hol/p4_from_json: hol
 	Holmake -r -I hol/p4_from_json
 
 policy_to_table: hol
-	cd hol/policy_to_table && Holmake bdd_utils.uo && Holmake fwd_proof.uo
 	Holmake -r -I hol -I hol/policy_to_table
+
+policy_test_cases: policy_to_table
+	cd hol/policy_to_table/policy_test_cases && Holmake
 
 validate: hol/p4_from_json
 	cd hol/p4_from_json && ./validate.sh
@@ -34,5 +36,6 @@ clean:
 
 clean_policy:
 	cd hol/policy_to_table && Holmake clean
+	cd hol/policy_to_table/policy_test_cases && Holmake clean
 
 .PHONY: default clean hol
