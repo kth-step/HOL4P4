@@ -120,9 +120,12 @@ open bdd_utilsLib;
         val start_real_stage2_tbl = Timer.startRealTimer ();
 
         (* now create a BDD for the table*)    
-        val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
+        (*val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
         val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
+*)
 
+        val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure_new (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
+        val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
             
         val _ = time_stage ("Stage 2 from table to table BDD", start_cpu_stage2_tbl, start_real_stage2_tbl);
         val start_cpu_stage2_tbdd = Timer.startCPUTimer ();
@@ -134,11 +137,46 @@ open bdd_utilsLib;
                                                                       ^eval_table_full_opt_auto_rhs”;
         *)
 
+
             
         (* Theorem of correctness for conversion from var policy to var table *)
-
+(*
         val policy_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy ”;     
         val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] policy_thm_init;    
+*)
+       
+(*
+        val policy_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec2 ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy ”;     
+        val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec2_thm1] policy_thm_init;
+*)
+
+
+        val isIsomorph_exec_thm = EVAL “isIsomorph_exec ^get_i_policy ^eval_policy_full_opt_rhs
+                                                              ^eval_table_full_opt_auto_rhs”;
+        val assumption1 = EVAL “ALOOKUP ^get_i_policy 0 = SOME 0”;    
+        val assumption2 = EVAL “node_in_BDD 0 ^eval_policy_full_opt_rhs”;
+        val assumption3 = EVAL “node_in_BDD 0 ^eval_table_full_opt_auto_rhs”;
+        val assumption4 = EVAL “prop_in_BDD 0 ^eval_policy_full_opt_rhs = SOME ^var_policy”;
+        val assumption5 = EVAL “prop_in_BDD 0 ^eval_table_full_opt_auto_rhs = SOME ^gen_var_table_auto”;
+        val assumption6 = EVAL “fv_in_vars_exec table_structure_new ^gen_var_table_auto ^policy_order”;
+        val assumption7 = EVAL “fv_in_vars_exec policy_structure ^var_policy ^policy_order”;
+        val assumption8 = EVAL “ALL_DISTINCT ^var_policy”;
+        val assumption9 = EVAL “^var_policy ≠ []”;
+
+
+        val var_policy_var_table_thm = prove (“ ∀mv.
+                                        mv_dom_vars mv ^policy_order  ⇒
+                                        sem_policy ^var_policy  mv = sem_tables ^gen_var_table_auto mv ”,
+        assume_tac (INST_TYPE [“:'a” |-> “:(string#num list)”] correct_var_policy_var_tables_exec2_thm1)  >>
+        first_x_assum (strip_assume_tac o (SPECL [var_policy, gen_var_table_auto, policy_order, get_i_policy])) >>
+
+        gvs[correct_var_policy_var_tables_exec2_def, eval_policy_full_opt, eval_table_full_opt_auto] >>
+        gvs[assumption1, assumption2, assumption3, assumption4, assumption5, assumption6,
+            assumption7, assumption8, assumption9, isIsomorph_exec_thm]
+        );
+
+
+
 
         val _ = time_stage ("Stage 2 proof", start_cpu_stage2_tbdd, start_real_stage2_tbdd);
 

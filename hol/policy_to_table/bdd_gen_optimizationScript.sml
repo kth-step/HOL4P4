@@ -240,18 +240,23 @@ Theorem merge_BDD_preserves_range:
   ∀ BDD c n nl.
     range_c c BDD ⇒
     (range_c c (merge_BDD BDD n nl) ∧
-     range_c c (eliminate_BDD BDD n nl) )
+     range_c c (eliminate_BDD BDD nl) )
 Proof
   Induct_on ‘nl’ >-
    fs [merge_BDD_def, eliminate_BDD_def] >>
   
-  rpt gen_tac >> strip_tac >>
+  rpt strip_tac >>
+      
   fs [merge_BDD_def, eliminate_BDD_def] >>
-  
-  Cases_on ‘mergable BDD n h’ >> gvs[] >>
-  imp_res_tac merge_range_preservation >>
-  metis_tac[]
-
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >|[
+      
+    Cases_on ‘mergable BDD n h’ >> gvs[] >>
+    imp_res_tac merge_range_preservation >>
+    metis_tac[]
+    ,
+    imp_res_tac merge_range_preservation >>
+    metis_tac[]
+  ]
 QED
         
 

@@ -28,6 +28,7 @@ open bdd_gen_optimizationTheory;
 open pred_specTheory;     
 open policy_specTheory;
 open tables_specTheory;
+open tables_spec_newTheory;
 
 
 open policy_arith_to_varTheory;
@@ -770,7 +771,29 @@ Definition correct_var_policy_var_tables_exec_def:
             T
 End
 
+Definition correct_var_policy_var_tables_exec2_def:
+  correct_var_policy_var_tables_exec2 var_policy var_table vars I =
+  let BDD1_opt = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 in
+    let BDD2_opt = mk_BDDPred_opt table_structure_new  (0,[],[(0, non_termn (NONE, var_table ))]) [] vars 1 in
+      if  ~ IS_SOME(BDD1_opt) \/  ~ IS_SOME (BDD2_opt) then
+	    T
+      else let BDD1 = THE BDD1_opt in let BDD2 = THE BDD2_opt in
+          if  (isIsomorph_exec (I: (num #num) list) BDD1 BDD2 ∧
+              ALOOKUP I 0 = SOME 0 ∧
+              node_in_BDD 0 BDD1 ∧
+              node_in_BDD 0 BDD2 ∧
+              prop_in_BDD 0 BDD1 = SOME var_policy ∧
+              prop_in_BDD 0 BDD2 = SOME var_table ∧
+              fv_in_vars_exec table_structure_new var_table vars ∧
+              fv_in_vars_exec policy_structure var_policy vars ∧
+              ALL_DISTINCT vars ∧
+              vars ≠ []) then
 
+            (! mv.  mv_dom_vars mv vars ⇒
+                   sem_policy var_policy mv = sem_tables var_table mv)
+          else 
+            T
+End
 
 Theorem isIsomorph_exe_abs_imp:
   ∀ BDD1 BDD2 I.
@@ -845,8 +868,12 @@ Proof
 QED
         
 
-
-
+Theorem correct_var_policy_var_tables_exec2_thm1:
+ ∀ var_policy var_table  vars I.
+ correct_var_policy_var_tables_exec2 var_policy var_table  vars I
+Proof
+cheat
+QED
 
 (******************************************
    
