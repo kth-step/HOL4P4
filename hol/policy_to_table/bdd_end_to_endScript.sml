@@ -773,8 +773,8 @@ End
 
 Definition correct_var_policy_var_tables_exec2_def:
   correct_var_policy_var_tables_exec2 var_policy var_table vars I =
-  let BDD1_opt = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 in
-    let BDD2_opt = mk_BDDPred_opt table_structure_new  (0,[],[(0, non_termn (NONE, var_table ))]) [] vars 1 in
+  let BDD1_opt = mk_BDDPred_opt_new policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 in
+    let BDD2_opt = mk_BDDPred_opt_new table_structure_new  (0,[],[(0, non_termn (NONE, var_table ))]) [] vars 1 in
       if  ~ IS_SOME(BDD1_opt) \/  ~ IS_SOME (BDD2_opt) then
 	    T
       else let BDD1 = THE BDD1_opt in let BDD2 = THE BDD2_opt in

@@ -602,6 +602,7 @@ Definition has_parent_def:
 End
 
 
+(* TODO: remove lookup *)
 Definition eliminable_def:
   eliminable ((r,edges,labels):('a,'b)BDD) n = 
     case ALOOKUP edges n of
@@ -658,7 +659,15 @@ End
 
 
 
+(*
+Definition edges_project_def:
+  edges_project ((r,edges,labels):('a,'b)BDD) nl = 
+    everything in nl is in the domain od edges'
+End
+*)
 
+
+(* here we use the projection *)
         
 (* eliminate part *) 
 Definition eliminate_BDD_def:
@@ -1099,6 +1108,7 @@ End
 
 (******************* new better optimized definitions ***************************)
 
+val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
 
 
 Definition update_internals_def:
@@ -1160,7 +1170,6 @@ End
 
 
 
-(* can be improved more *)
 
 (* can be improved more *)
 Definition optimize_node_def:

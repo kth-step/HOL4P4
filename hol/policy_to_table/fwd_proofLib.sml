@@ -103,7 +103,7 @@ open bdd_utilsLib;
 
 
         (* create BDD of var policy  *)
-        val eval_policy_full_opt = EVAL “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1”;
+        val eval_policy_full_opt = EVAL “mk_BDDPred_opt_new policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1”;
         val eval_policy_full_opt_rhs = optionSyntax.dest_some (rhs (concl eval_policy_full_opt));
 
         val _ = time_stage ("Stage 2 from var policy to BDD", start_cpu_stage2, start_real_stage2);
@@ -124,7 +124,7 @@ open bdd_utilsLib;
         val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
 *)
 
-        val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure_new (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
+        val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt_new table_structure_new (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
         val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
             
         val _ = time_stage ("Stage 2 from table to table BDD", start_cpu_stage2_tbl, start_real_stage2_tbl);
