@@ -141,11 +141,12 @@ QED
 Theorem eliminatable_is_internal_indeed:        
   ∀ r edges labels n n'.
     BDD_WF (r,edges,labels) ∧        
-    eliminable (r,edges,labels) n n' ⇒
+    eliminable (r,edges,labels) n' = SOME n ⇒
     ∃ x p . ALOOKUP labels n'= SOME (non_termn(SOME x,p)) 
 Proof
   rpt strip_tac >>
   rgs[eliminable_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
   ‘MEM n' (dom_range_edges edges)’ by metis_tac[lookup_edges_in_domain] >> 
   rgs[BDD_WF_def, lookup_is_some_def, is_lookup_internal_def] >>
   res_tac >> gvs[] 
@@ -181,7 +182,7 @@ Theorem eliminable_correct_internal:
     mv_dom_vars mv (vars ⧺ vars_consumed) ∧
     BDD_ordered (r,edges,labels) vars_consumed ∧
     BDD_WF (r,edges,labels) ∧
-    eliminable (r,edges,labels) n n' ∧
+    eliminable (r,edges,labels) n' = SOME n ∧
     n'' ≠ n' ∧
     ALOOKUP edges n'' = SOME (nr,nl) ∧
     ALOOKUP labels n'' = SOME (non_termn (SOME x,pred))
@@ -249,7 +250,8 @@ Proof
           
           (*nr≠x'0, thus this is the parent of the node that disappeared, parent to n' *)
           gvs[eliminable_def] >>
-          
+          rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+              
           ‘x'0 = n ∧ nr = n' ’ by (imp_res_tac merge_parent_change >> metis_tac[]) >>
           rgs[] >>
           
@@ -371,6 +373,7 @@ Proof
           
           (*nl≠x'1, thus this is the parent of the node that disappeared, parent to n' *)
           gvs[eliminable_def] >>
+          rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
           
           ‘x'1 = n ∧ nl = n' ’ by (imp_res_tac merge_parent_change >> metis_tac[]) >>
           rgs[] >>
@@ -469,7 +472,7 @@ Theorem eliminable_correct_eq:
     mv_dom_vars mv (vars ⧺ vars_consumed) ∧
     BDD_ordered (r,edges,labels) vars_consumed ∧
     BDD_WF (r,edges,labels) ∧
-    eliminable (r,edges,labels) n n' ∧ n'' ≠ n' ⇒
+    eliminable (r,edges,labels) n' = SOME n ∧ n'' ≠ n' ⇒
     (BDD_sem rec (r,edges,labels) mv n'' b ⇔
        BDD_sem rec (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels)  mv n'' b)
 Proof
@@ -509,7 +512,7 @@ Theorem eliminate_correct_bdd_exracted:
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
     BDD_ordered (r,edges,labels) vars_consumed ∧
     fv_in_BDD rec (r,edges,labels) (vars++vars_consumed)  ∧
-    eliminable (r,edges,labels) n n'
+    eliminable (r,edges,labels) n' = SOME n
     ==>
     correct_sem rec (merge (r,edges,labels) n n')  (vars++vars_consumed)
 Proof
@@ -549,7 +552,7 @@ Theorem eliminate_correct:
     consumed_dom_bdd vars_consumed BDD ∧
     BDD_ordered BDD vars_consumed ∧
     fv_in_BDD rec BDD (vars++vars_consumed)  ∧
-    eliminable BDD n n'
+    eliminable BDD n' = SOME n
     ==>
     correct_sem rec (merge BDD n n')  (vars++vars_consumed)
 Proof
@@ -1208,12 +1211,13 @@ Theorem eliminate_wf_labels_edges_same:
   ∀ r edges labels n n' vars_consumed.
     ALL_DISTINCT (MAP FST edges) ∧
     BDD_ordered (r,edges,labels) vars_consumed ∧
-    eliminable (r,edges,labels) n n' ∧
+    eliminable (r,edges,labels) n' = SOME n ∧
     ( ∀n. MEM n (dom_range_edges edges) ⇔ MEM n (MAP FST labels)) ⇒
     (∀n''. MEM n'' (dom_range_edges (ADELKEY n' (merge_edges edges n n'))) ⇔
              MEM n'' (MAP FST (ADELKEY n' labels)))
 Proof
   rw[eliminable_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
   Cases_on ‘n'' = n'’ >> gvs[] >|[
            
     gvs[merge_no_effect_on_unrelated_node_mem] >>
@@ -1265,11 +1269,14 @@ Theorem wf_non_empty_after_eliminable:
   ∀r edges labels n n'.
     ALL_DISTINCT (MAP FST edges) ∧
     edges ≠ [] ∧
-    eliminable (r,edges,labels) n n' ⇒
+    eliminable (r,edges,labels) n' = SOME n ⇒
     ADELKEY n' (merge_edges edges n n') ≠ []
 Proof
         
   rw[eliminable_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+
+      
   ‘∃parent left right.
      MEM (parent,left,right) edges ∧ (left = n' ∨ right = n') ∧
      parent ≠ n' ∧ parent ≠ n’ by metis_tac[has_parent_imp_exsists] >>
@@ -1300,7 +1307,7 @@ Theorem eliminate_wf_preservation:
     BDD_ordered BDD vars_consumed ∧
     BDD_WF BDD ∧
     consumed_dom_bdd vars_consumed BDD ∧
-    eliminable BDD n n'
+    eliminable BDD n' = SOME n
     ==>
     BDD_WF (merge BDD n n') 
 Proof
@@ -1311,6 +1318,7 @@ Proof
   (* when there are no edges is simply wrong to do any optimizations *)
   Cases_on ‘edges = []’ >-
    (gvs[eliminable_def, eq_vars_in_labels_def] >>
+    rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
    gvs[BDD_WF_def]) >>
 
           
@@ -1344,7 +1352,7 @@ Theorem order_hold_for_eliminate1:
   ∀ r edges labels n n' n'' nl vars_consumed.
     BDD_WF (r,edges,labels) ∧
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
-    eliminable (r,edges,labels) n n' ⇒
+    eliminable (r,edges,labels) n' = SOME n ⇒
     (
     ( order_hold labels vars_consumed n'' nl ⇒ order_hold (ADELKEY n' labels) vars_consumed n'' nl)
     ) 
@@ -1362,7 +1370,7 @@ Theorem order_hold_for_eliminate2:
   ∀ r edges labels n n' n'' nl vars_consumed.
     BDD_WF (r,edges,labels) ∧
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
-    eliminable (r,edges,labels) n n' ⇒
+    eliminable (r,edges,labels) n' = SOME n ⇒
     (
     ( order_hold labels vars_consumed n'' n' ∧
       order_hold labels vars_consumed n' n
@@ -1373,7 +1381,8 @@ Proof
   rpt strip_tac >> 
   
   gvs[ALOOKUP_ADELKEY, eliminable_def] >>
-
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
+      
   ‘MEM n' (dom_range_edges edges)’ by gvs[lookup_edges_in_domain] >>
   subgoal ‘is_lookup_internal labels n'’ >-
    (gvs[BDD_WF_def] >>
@@ -1399,7 +1408,7 @@ Theorem eliminate_order_preservation:
     BDD_ordered BDD vars_consumed ∧
     BDD_WF BDD ∧
     consumed_dom_bdd vars_consumed BDD ∧
-    eliminable BDD n n'
+    eliminable BDD n' = SOME n
     ⇒
     BDD_ordered (merge BDD n n') vars_consumed 
 Proof
@@ -1442,7 +1451,8 @@ Proof
           ,
           (* afftected by the merge, i.e. a parent of eliminated n', at left node *)
           ‘nl'=n' ∧ nl=n’ by metis_tac[merge_parent_change] >>
-          ‘ALOOKUP edges n' = SOME (n,n)’ by gvs[eliminable_def] >>
+          ‘ALOOKUP edges n' = SOME (n,n)’ by (gvs[eliminable_def] >>
+                                              rpt (BasicProvers.FULL_CASE_TAC >> rgs[])) >>
           first_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘n'’, ‘nr'’])) >>
           first_assum (strip_assume_tac o (Q.SPECL [‘n'’, ‘n’, ‘n’])) >>
           res_tac >>
@@ -1458,7 +1468,8 @@ Proof
             ,
             (* afftected by the merge, i.e. a parent of eliminated n', at left node *)
             ‘nr'=n' ∧ nr=n’ by metis_tac[merge_parent_change] >>
-            ‘ALOOKUP edges n' = SOME (n,n)’ by gvs[eliminable_def] >>
+            ‘ALOOKUP edges n' = SOME (n,n)’ by (gvs[eliminable_def] >>
+                                              rpt (BasicProvers.FULL_CASE_TAC >> rgs[])) >>
             first_assum (strip_assume_tac o (Q.SPECL [‘n''’, ‘nl’, ‘n'’])) >>
             first_assum (strip_assume_tac o (Q.SPECL [‘n'’, ‘n’, ‘n’])) >>
             res_tac >>
@@ -1484,11 +1495,11 @@ Theorem eliminate_BDD_preserves_valid_and_correctness_verbose:
     correct_sem rec BDD vars  ⇒
                 
     (
-    BDD_WF (eliminate_BDD BDD n nl) ∧
-    BDD_ordered (eliminate_BDD BDD n nl) vars ∧
-    fv_in_BDD rec (eliminate_BDD BDD n nl) vars ∧
-    consumed_dom_bdd vars (eliminate_BDD BDD n nl) ∧
-    correct_sem rec (eliminate_BDD BDD n nl) vars
+    BDD_WF (eliminate_BDD BDD nl) ∧
+    BDD_ordered (eliminate_BDD BDD nl) vars ∧
+    fv_in_BDD rec (eliminate_BDD BDD nl) vars ∧
+    consumed_dom_bdd vars (eliminate_BDD BDD nl) ∧
+    correct_sem rec (eliminate_BDD BDD nl) vars
     )
 Proof
   Induct_on ‘nl’ >-
@@ -1499,25 +1510,25 @@ Proof
   rpt gen_tac >> strip_tac >>
   fs [eliminate_BDD_def] >>
   
-  Cases_on ‘eliminable BDD h n’ >> gvs[] >|[
+  Cases_on ‘eliminable BDD h’ >> gvs[] >|[
+    metis_tac[]
+    ,
     gvs[] >>
     assume_tac eliminate_correct >>
-    first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘[]’, ‘vars’, ‘h’, ‘n’, ‘rec’])) >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘[]’, ‘vars’, ‘x’, ‘h’, ‘rec’])) >>
     gvs[] >>
     (*res_tac >>*)
-    ‘BDD_WF (merge BDD h n)’ by imp_res_tac eliminate_wf_preservation >>
-    ‘BDD_ordered (merge BDD h n) vars’ by imp_res_tac eliminate_order_preservation >>
-    ‘fv_in_BDD rec (merge BDD h n) vars’ by (imp_res_tac merge_fv_final_preservation >>
-                                             first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]))) >>
+    ‘BDD_WF (merge BDD x h)’ by imp_res_tac eliminate_wf_preservation >>
+    ‘BDD_ordered (merge BDD x h) vars’ by imp_res_tac eliminate_order_preservation >>
+    ‘fv_in_BDD rec (merge BDD x h) vars’ by (imp_res_tac merge_fv_final_preservation >>
+                                             first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘x’]))) >>
     imp_res_tac merge_consumed_dom_final_preservation >>
-    first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]) ) >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘x’]) ) >>
     gvs[]>>
 
         
     res_tac >>
     gvs[]
-    , 
-    metis_tac[]
   ]
 QED
 
@@ -1525,12 +1536,12 @@ QED
 
 
 Theorem eliminate_BDD_preserves_valid_and_correctness:
-  ∀BDD n nl vars vars_consumed rec.
+  ∀BDD nl vars vars_consumed rec.
     valid_BDD rec BDD vars vars_consumed ∧
     correct_sem rec BDD (vars ⧺ vars_consumed)  ⇒       
     (
-    valid_BDD rec (eliminate_BDD BDD n nl) vars vars_consumed ∧
-    correct_sem rec (eliminate_BDD BDD n nl) (vars ⧺ vars_consumed)
+    valid_BDD rec (eliminate_BDD BDD nl) vars vars_consumed ∧
+    correct_sem rec (eliminate_BDD BDD nl) (vars ⧺ vars_consumed)
     )
         
 Proof
@@ -1543,26 +1554,26 @@ Proof
   rpt gen_tac >> strip_tac >>
   fs [eliminate_BDD_def] >>
   
-  Cases_on ‘eliminable BDD h n’ >> gvs[] >>
+  Cases_on ‘eliminable BDD h’ >> gvs[] >>
     
   gvs[valid_BDD_def] >>
   
   assume_tac eliminate_correct >>
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘vars’, ‘vars_consumed’,‘h’, ‘n’, ‘rec’])) >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘vars’, ‘vars_consumed’,‘x’, ‘h’, ‘rec’])) >>
   gvs[] >>
   
   ‘fv_in_BDD rec BDD (vars ⧺ vars_consumed)’ by imp_res_tac fv_in_BDD_reverse_triv >>
   gvs[] >>
         
   (*res_tac >>*)
-  ‘BDD_WF (merge BDD h n)’ by imp_res_tac eliminate_wf_preservation >>
-  ‘BDD_ordered (merge BDD h n) vars_consumed’ by imp_res_tac eliminate_order_preservation >>
+  ‘BDD_WF (merge BDD x h)’ by imp_res_tac eliminate_wf_preservation >>
+  ‘BDD_ordered (merge BDD x h) vars_consumed’ by imp_res_tac eliminate_order_preservation >>
   
-  ‘consumed_dom_bdd vars_consumed (merge BDD h n)’ by (imp_res_tac merge_consumed_dom_final_preservation >>
-                                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]))) >>
+  ‘consumed_dom_bdd vars_consumed (merge BDD x h)’ by (imp_res_tac merge_consumed_dom_final_preservation >>
+                                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘x’]))) >>
 
   imp_res_tac merge_fv_final_preservation  >>
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘n’, ‘h’]) ) >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘x’]) ) >>
   gvs[]>>
 
                                                                      

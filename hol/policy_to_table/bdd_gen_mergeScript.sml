@@ -31,7 +31,6 @@ open bdd_gen_correctTheory;
 val _ = new_theory "bdd_gen_merge";
 
 
-(*eliminable add that node 0 is not eliminatable *)
 
 Theorem merge_lookup_none:
   ∀ edges n n' n''.
@@ -178,13 +177,14 @@ QED
 
 Theorem merge_edges_res:        
   ∀ edges n n' n'' nr nl r labels.
-    (mergable (r,edges,labels) n n' ∨ eliminable (r,edges,labels) n n') ∧
+    (mergable (r,edges,labels) n n' ∨ eliminable (r,edges,labels) n' = SOME n) ∧
     n'' ≠ n' ∧
     ALOOKUP (merge_edges edges n n') n'' = SOME (nr,nl) ⇒
     (nr ≠ n' ∧ nl ≠ n')
 Proof   
   rpt strip_tac >>
   gvs[mergable_def, eliminable_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
   metis_tac[merge_edges_glue]
 QED        
 

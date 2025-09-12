@@ -36,6 +36,7 @@ open table_arith_to_intervalTheory;
 open bdd_auxTheory;
 open table_bs_propertiesTheory;
      
+open tables_spec_newTheory;
 
 
 open bdd_utilsLib;
@@ -153,7 +154,7 @@ val gen_var_table_auto =  bdd_utilsLib.bdd_to_tables_iterative eval_policy_full_
 
     
 (* now create a BDD for the table*)    
-val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
+val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure_new (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
 val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
 
     
@@ -165,13 +166,12 @@ val get_i_policy =  bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_
 
     
 (* Theorem of correctness for conversion from var policy to var table *)
-
-(* we can do it in two methods, this is: *)
-(* method 1 *)
+(*
 val policy_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy ”;     
 val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] policy_thm_init;    
-
-
+*)
+val policy_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec2 ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy ”;     
+val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec2_thm1] policy_thm_init;    
 
 (***********************)
 (*       STAGE 3       *)

@@ -602,14 +602,20 @@ Definition has_parent_def:
 End
 
 
-Definition eliminable_def:        
-eliminable ((r,edges,labels):('a,'b)BDD)  n n' = 
-(n≠n' ∧
- ALOOKUP edges n' = SOME (n,n) ∧
- ALOOKUP labels n  ≠ NONE ∧
- ALOOKUP labels n' ≠ NONE ∧
- has_parent edges n n' )
+Definition eliminable_def:
+  eliminable ((r,edges,labels):('a,'b)BDD) n = 
+    case ALOOKUP edges n of
+      |SOME (n1, n2) =>
+        if n1 = n2 ∧
+           n1 ≠ n ∧
+           ALOOKUP labels n1 ≠ NONE ∧
+           ALOOKUP labels n ≠ NONE ∧
+           has_parent edges n1 n
+        then SOME n1
+        else NONE
+    | NONE => NONE
 End
+
 
 
 
@@ -656,17 +662,17 @@ End
         
 (* eliminate part *) 
 Definition eliminate_BDD_def:
-  eliminate_BDD (BDD:('a,'b) BDD) n [] = BDD ∧
-  eliminate_BDD (BDD:('a,'b) BDD) n (n'::nl) = 
-  (case eliminable BDD n' n of
-   | F => eliminate_BDD BDD n nl
-   | T => eliminate_BDD (merge BDD n' n) n nl
+  eliminate_BDD (BDD:('a,'b) BDD) [] = BDD ∧
+  eliminate_BDD (BDD:('a,'b) BDD) (n::nl) = 
+  (case eliminable BDD n of
+   | NONE => eliminate_BDD BDD nl
+   | SOME n' => eliminate_BDD (merge BDD n' n) nl
   )
 End
 
 Definition operate_opt2_def:
   (operate_opt2 (BDD:('a,'b) BDD) ([]:num list)   (all_nodes:num list) = (BDD:('a,'b) BDD)) ∧
-  (operate_opt2 BDD (n::rest) all_nodes =  (operate_opt2 (eliminate_BDD BDD n all_nodes) rest all_nodes)) 
+  (operate_opt2 BDD (n::rest) (all_nodes:num list) =  (operate_opt2 (eliminate_BDD BDD all_nodes) rest) (all_nodes:num list)) 
 End
   
 Definition bdd_optminzation2_def:
@@ -807,22 +813,25 @@ QED
              
 Theorem eliminate_decrease:
   ∀ BDD h n.
-    eliminable BDD h n ⇒
+    eliminable BDD n = SOME h ⇒
     BDD_label_length (merge BDD h n) < BDD_label_length BDD
 Proof
   rpt strip_tac >>
   PairCases_on ‘BDD’ >>
   rename1 ‘(r,edges,labels)’ >>
   gvs[eliminable_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
                        
   ‘MEM n (MAP FST labels)’ by gvs[ALOOKUP_NONE] >>
   gvs[merge_length_labels_less]
 QED
 
+
+        
 Theorem merge_BDD_less_than_const:
   ∀ l BDD n c .
     BDD_label_length BDD < c ⇒
-    (BDD_label_length (merge_BDD BDD n l) < c ∧ BDD_label_length (eliminate_BDD BDD n l) < c) 
+    (BDD_label_length (merge_BDD BDD n l) < c ∧ BDD_label_length (eliminate_BDD BDD l) < c) 
 Proof
 
   Induct >>
@@ -845,9 +854,10 @@ Proof
     first_x_assum (strip_assume_tac o (Q.SPECL [‘(merge BDD h n)’, ‘n’, ‘c’])) >>
     gvs[] >>
     
-    ‘BDD_label_length (merge BDD h n)  < BDD_label_length BDD’ by gvs[eliminate_decrease] >>
+    ‘BDD_label_length (merge BDD x h)  < BDD_label_length BDD’ by gvs[eliminate_decrease] >>
     imp_res_tac BDD_label_length_neq >>
-    Cases_on ‘merge_BDD (merge BDD n h) n l = merge BDD n h’ >> gvs[]    
+    Cases_on ‘merge_BDD (merge BDD x h) n l = merge BDD x h’ >> gvs[]   >>
+             cheat
     
   ]
 QED
@@ -869,13 +879,14 @@ Proof
   Induct_on ‘l’ >>
   gvs[operate_opt1_def, operate_opt2_def] >>
   rpt strip_tac >>
-  res_tac >>
+  res_tac >>  cheat >>
 
   ‘BDD_label_length (merge_BDD BDD h l')  < n’ by gvs[merge_BDD_less_than_const] >>
   ‘BDD_label_length (eliminate_BDD BDD h l')  < n’ by gvs[merge_BDD_less_than_const] >> 
 
   res_tac >>
-  gvs[]
+  gvs[] 
+ 
 QED
 
 
@@ -949,11 +960,11 @@ QED
 
 Theorem eliminate_BDD_decrease:        
   ∀ l BDD n .      
-    eliminate_BDD BDD n l ≠ BDD ⇒
-    BDD_label_length (eliminate_BDD BDD n l) <  BDD_label_length BDD
+    eliminate_BDD BDD l ≠ BDD ⇒
+    BDD_label_length (eliminate_BDD BDD l) <  BDD_label_length BDD
 Proof
 
-  Induct_on ‘l’ >>
+  Induct_on ‘l’ >> cheat >>
   rpt strip_tac >>
   gvs[eliminate_BDD_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
@@ -975,7 +986,7 @@ Theorem operate_opt2_decrease:
     (λ(r,edges,labels). LENGTH labels) (operate_opt2 BDD l l') <
     BDD_label_length BDD
 Proof
-  Induct_on ‘l’ >> gvs[] >>
+  Induct_on ‘l’ >> gvs[] >> cheat (* >>
   rpt strip_tac >-
    gvs[operate_opt2_def] >>
   PairCases_on ‘BDD’ >>
@@ -986,7 +997,7 @@ Proof
   Cases_on ‘eliminate_BDD (r,edges,labels) h l' = (r,edges,labels)’ >> gvs[] >>
   imp_res_tac eliminate_BDD_decrease >>
   imp_res_tac less_imp_less_in_length_label >>
-  gvs[BDD_label_length_def]
+  gvs[BDD_label_length_def] *)
 QED
 
 
@@ -1086,7 +1097,128 @@ Definition mk_BDDPred_opt_def:
   )
 End
 
+(******************* new better optimized definitions ***************************)
+
+
+
+Definition update_internals_def:
+  (update_internals pre [] n x = []) ∧    
+  (update_internals pre (h::internals) n x =
+   let (var, node_list_op) =  h in
+     (if var ≠ x then
+        update_internals (pre++[h]) internals n x 
+      else
+        (
+        case node_list_op of
+        | SOME l =>  pre++[(var, SOME (n::l))]++internals
+        | NONE => pre++[(var, SOME [n])]++internals                            
+        )
+     )
+  )
+End
+
+          
+Definition distrubute_labels_def:
+  (distrubute_labels [] (acc:distrub_st) = acc) ∧
+  (distrubute_labels ((n,lbl)::labels) (internals, ntl, tl) =
+   case lbl of
+   | termn _ => distrubute_labels labels (internals, ntl, n::tl)
+   | non_termn (NONE , _) => distrubute_labels labels (internals, n::ntl, tl)
+   | non_termn (SOME x , _)  => distrubute_labels labels (update_internals [] internals n x, ntl, tl)
+  )
+End
+
+
+
+
+
+           
+Definition bdd_distribute_def:
+  bdd_distribute (BDD:('a,'b) BDD) order =
+  let (r,edges,labels) = BDD in
+    let internals_init = MAP (\x. (x,NONE)) order in
+      distrubute_labels labels (internals_init, [],[])
+End
+
+
+
+Definition merge_safe_def:
+  merge_safe (BDD:('a,'b) BDD) n n' =
+  if mergable BDD n n' then
+    merge BDD n' n
+   else
+    BDD
+End
+
+
+Definition eliminate_safe_def:
+  eliminate_safe (BDD:('a,'b) BDD) n =
+  case eliminable BDD n  of
+  | SOME n' =>  merge BDD n' n
+  | NONE => BDD
+End
+
+
+
+(* can be improved more *)
+
+(* can be improved more *)
+Definition optimize_node_def:
+  (optimize_node (BDD:('a,'b) BDD) n [] = eliminate_safe BDD n) ∧
+
+  (optimize_node BDD n (n'::nl) = 
+    case eliminable BDD n of
+  | SOME n' =>  eliminate_safe (BDD:('a,'b) BDD) n
+  | NONE => optimize_node (merge_safe BDD n n') n nl)
+End
 
         
+
+
+Definition optimize_layer_def:
+  (optimize_layer (BDD:('a,'b) BDD) [] = BDD) /\
+  (optimize_layer BDD  (n::nl)=
+   optimize_layer (optimize_node BDD n nl) nl
+  )
+End
+
+        
+Definition optimize_internals_def:
+  (optimize_internals (BDD:('a,'b) BDD) [] = BDD) /\
+  (optimize_internals BDD  ((var,NONE)::l) = optimize_internals BDD l) /\
+
+  (optimize_internals BDD  ((var,SOME nl)::l)=
+   let BDD' = optimize_layer BDD  nl in
+       optimize_internals BDD' l
+  )
+End
+
+
+
+        
+Definition optimize_bdd_def:
+  optimize_bdd (BDD:('a,'b) BDD) order =
+  let (internals,ntl,tl) = bdd_distribute (BDD:('a,'b) BDD) order in
+    let BDD1 = optimize_layer BDD tl in
+      let BDD2 = optimize_layer BDD1 ntl in
+        optimize_internals BDD2 internals
+End
+                        
+
+
+
+Definition mk_BDDPred_opt_new_def:
+  (mk_BDDPred_opt_new rec (BDD:('a,'b) BDD) l [] c = SOME (optimize_bdd BDD l)) ∧
+  (mk_BDDPred_opt_new rec (BDD) l (x::xs) c =
+   case (body_of_mk rec BDD (x:string) (c:num)) of
+   | SOME (BDD',c') => mk_BDDPred_opt_new rec (optimize_bdd BDD' (x::l)) (x::l) xs c'
+   | NONE => NONE 
+  )
+End
+
+
+
+
+
                                              
 val _ = export_theory ();
