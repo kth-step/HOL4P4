@@ -1111,6 +1111,22 @@ End
 val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
 
 
+
+
+Definition eliminable_new_def:
+  eliminable_new ((r,edges,labels):('a,'b)BDD) n = 
+    case ALOOKUP edges n of
+      |SOME (n1, n2) =>
+        if n1 = n2 ∧
+           n1 ≠ n ∧
+           has_parent edges n1 n
+        then SOME n1
+        else NONE
+    | NONE => NONE
+End
+
+
+
 Definition update_internals_def:
   (update_internals pre [] n x = []) ∧    
   (update_internals pre (h::internals) n x =
@@ -1155,30 +1171,38 @@ End
 Definition merge_safe_def:
   merge_safe (BDD:('a,'b) BDD) n n' =
   if mergable BDD n n' then
-    merge BDD n' n
+    (T, merge BDD n n')
    else
-    BDD
+    (F, BDD)
 End
 
 
 Definition eliminate_safe_def:
   eliminate_safe (BDD:('a,'b) BDD) n =
-  case eliminable BDD n  of
-  | SOME n' =>  merge BDD n' n
-  | NONE => BDD
+  case eliminable_new BDD n  of
+  | SOME n' =>  (T, merge BDD n' n)
+  | NONE => (F,BDD)
 End
 
 
 
 
-(* can be improved more *)
-Definition optimize_node_def:
-  (optimize_node (BDD:('a,'b) BDD) n [] = eliminate_safe BDD n) ∧
 
+Definition optimize_node_def:
+  (optimize_node (BDD:('a,'b) BDD) n [] = SND (eliminate_safe BDD n)) ∧
+  
   (optimize_node BDD n (n'::nl) = 
-    case eliminable BDD n of
-  | SOME n' =>  eliminate_safe (BDD:('a,'b) BDD) n
-  | NONE => optimize_node (merge_safe BDD n n') n nl)
+   case eliminable_new BDD n of
+   | SOME n' =>  SND (eliminate_safe BDD n)
+   | NONE => (
+     case mergable BDD n' n of
+     | T => ( case merge_safe BDD n' n of
+              | (T, BDD') => BDD'
+              | (F, BDD') => optimize_node BDD n nl
+            )
+            
+     | F => optimize_node BDD n nl)
+  )
 End
 
         
