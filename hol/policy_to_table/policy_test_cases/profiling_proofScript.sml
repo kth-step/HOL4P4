@@ -47,8 +47,12 @@ val _ = new_theory "profiling_proof";
 
 val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
 
-Definition eliminable_def:
-  eliminable ((r,edges,labels):('a,'b)BDD) n = 
+
+
+(*
+
+Definition eliminable_new_def:
+  eliminable_new ((r,edges,labels):('a,'b)BDD) n = 
     case ALOOKUP edges n of
       |SOME (n1, n2) =>
         if n1 = n2 ∧
@@ -59,8 +63,28 @@ Definition eliminable_def:
     | NONE => NONE
 End
 
-    
-val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
+
+
+Definition eliminable_projection_def:
+  eliminable_projection edges_proj n = 
+    case ALOOKUP edges_proj n of
+      |SOME (n1, n2) =>
+        if n1 = n2 ∧
+           n1 ≠ n ∧
+           n ≠ 0n ∧
+           has_parent edges_proj n1 n 
+        then SOME n1
+        else NONE
+    | NONE => NONE
+End
+
+
+Definition mergable_projection_def:        
+  mergable_projection edges_proj labels_proj n n' = 
+  (n≠n' ∧ ALOOKUP edges_proj n = ALOOKUP edges_proj n' ∧
+   eq_vars_in_labels labels_proj n n' ∧ ALOOKUP labels_proj n'  ≠ NONE )
+End
+
 
 
 Definition update_internals_def:
@@ -107,50 +131,72 @@ End
 Definition merge_safe_def:
   merge_safe (BDD:('a,'b) BDD) n n' =
   if mergable BDD n n' then
-    merge BDD n' n
+    (T, merge BDD n n')
    else
-    BDD
+    (F, BDD)
 End
 
 
 Definition eliminate_safe_def:
   eliminate_safe (BDD:('a,'b) BDD) n =
-  case eliminable BDD n  of
-  | SOME n' =>  merge BDD n' n
-  | NONE => BDD
+  case eliminable_new BDD n  of
+  | SOME n' =>  (T, merge BDD n' n)
+  | NONE => (F,BDD)
 End
 
 
 
 
-(* can be improved more *)
-Definition optimize_node_def:
-  (optimize_node (BDD:('a,'b) BDD) n [] = eliminate_safe BDD n) ∧
 
-  (optimize_node BDD n (n'::nl) = 
-    case eliminable BDD n of
-  | SOME n' =>  eliminate_safe (BDD:('a,'b) BDD) n
-  | NONE => optimize_node (merge_safe BDD n n') n nl)
+Definition optimize_node_def:
+  (optimize_node edges_proj labels_proj (BDD:('a,'b) BDD) n [] = SND (eliminate_safe BDD n)) ∧
+  
+  (optimize_node edges_proj labels_proj BDD n (n'::nl) = 
+   case eliminable_projection edges_proj n of
+   | SOME n' =>  SND (eliminate_safe BDD n)
+   | NONE => (
+     case mergable_projection edges_proj labels_proj n' n of
+     | T => ( case merge_safe BDD n' n of
+              | (T, BDD') => BDD'
+              | (F, BDD') => optimize_node edges_proj labels_proj BDD n nl
+            )
+            
+     | F => optimize_node edges_proj labels_proj BDD n nl)
+  )
 End
 
         
 
 
 Definition optimize_layer_def:
-  (optimize_layer (BDD:('a,'b) BDD) [] = BDD) /\
-  (optimize_layer BDD  (n::nl)=
-   optimize_layer (optimize_node BDD n nl) nl
+  (optimize_layer edges_proj labels_proj (BDD:('a,'b) BDD) [] = BDD) /\
+  (optimize_layer edges_proj labels_proj BDD  (n::nl)=
+   optimize_layer edges_proj labels_proj (optimize_node edges_proj labels_proj BDD n nl) nl
   )
 End
 
-        
+
+Definition project_edges_to_def:
+  project_edges_to ((r, edges,labels):('a,'b) BDD) nl = 
+    MAP (\n. (n,THE(ALOOKUP edges n))) nl
+End
+
+Definition project_labels_to_def:
+  project_labels_to ((r, edges,labels):('a,'b) BDD) nl = 
+    MAP (\n. (n,THE(ALOOKUP labels n))) nl
+End
+
+
+
 Definition optimize_internals_def:
   (optimize_internals (BDD:('a,'b) BDD) [] = BDD) /\
   (optimize_internals BDD  ((var,NONE)::l) = optimize_internals BDD l) /\
 
   (optimize_internals BDD  ((var,SOME nl)::l)=
-   let BDD' = optimize_layer BDD  nl in
-       optimize_internals BDD' l
+    let edges_proj = project_edges_to BDD nl in
+     let labels_proj = project_labels_to BDD nl in
+      let BDD' = optimize_layer edges_proj labels_proj BDD  nl in
+         optimize_internals BDD' l
   )
 End
 
@@ -160,9 +206,11 @@ End
 Definition optimize_bdd_def:
   optimize_bdd (BDD:('a,'b) BDD) order =
   let (internals,ntl,tl) = bdd_distribute (BDD:('a,'b) BDD) order in
-    let BDD1 = optimize_layer BDD tl in
-      let BDD2 = optimize_layer BDD1 ntl in
-        optimize_internals BDD2 internals
+    let labels_proj_tl = project_labels_to BDD tl in (* for terminals *)
+      let labels_proj_ntl = project_labels_to BDD ntl in (* for terminals *)
+        let BDD1 = optimize_layer [] labels_proj_tl BDD tl in
+          let BDD2 = optimize_layer [] labels_proj_ntl BDD1 ntl in
+            optimize_internals BDD2 internals
 End
                         
 
@@ -176,6 +224,9 @@ Definition mk_BDDPred_opt_new_def:
    | NONE => NONE 
   )
 End
+
+
+    
 
 
 
@@ -210,12 +261,6 @@ val eval_table_full_opt_auto_new = EVAL “mk_BDDPred_opt_new table_structure_ne
 
 
 
-
-
-
-    
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
 val test_pd_type = “[("ip", type_record [("priority", type_length 3);
                                          ("size", type_length 16);
                                          ("age", type_length 8);
@@ -224,11 +269,8 @@ val test_pd_type = “[("ip", type_record [("priority", type_length 3);
 val is_high_priority = “(arithm_le (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 2 3))”;
 val is_medium_priority = “(arithm_ge (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 4 3))”;
 
-val is_size_packet1 = “(arithm_ge (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 30000 16))”;
-val is_size_packet2 = “(arithm_ge (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 27000 16))”;
-val is_size_packet3 = “(arithm_ge (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 25000 16))”;
-val is_size_packet4 = “(arithm_ge (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 23000 16))”;
-
+val is_small_packet1 = “(arithm_le (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 500 16))”;
+val is_small_packet2 = “(arithm_le (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 400 16))”;
 
 val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^(bdd_utilsLib.make_bv 200 8))”;
 
@@ -237,41 +279,37 @@ val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^(bdd_utilsLib.make
 
 
 
-val policy_me =   “[("x1", ^is_high_priority);
-                    ("x2", ^is_medium_priority);
+val policy_me =   “[("x", ^is_high_priority);
+                    ("y", ^is_medium_priority);
+                    ("z1", ^is_small_packet1);
+                    ("z2", ^is_small_packet2);
+                    ("w", ^is_young_packet);
+                    ("q", ^is_control_type);
+                    ("r", ^is_data_type)]”;
 
-                    ("z1", ^is_size_packet1);
-                    ("z2", ^is_size_packet2);
-                    ("z3", ^is_size_packet3);
-                    ("z4", ^is_size_packet4);
+val policy_full_order = “[("a",["x";"y"]);
+                          ("b",["z1";"z2"]);
+                          ("c",["w"]);
+                          ("d",["q";"r"])]”;
 
-                    ("q1", ^is_control_type);
-                    ("q2", ^is_data_type)]”;
+val policy_order = “["x";"y";"z1";"z2";"w";"q";"r"]”;
 
-val policy_full_order = “[("a",["x1";"x2"]);
-                          ("b",["z1";"z2";"z3";"z4"]);
-                          ("d",["q1";"q2"])]”;
-
-val policy_order = “["x1";"x2";"z1";"z2";"z3";"z4";"q1";"q2"]”;
-
+(* Rule 1: High priority small control packets - expedited forwarding *)
 val arith_policy_rule1 = “(arith_and (arith_a ^is_high_priority) 
-                                     (arith_and (arith_a ^is_size_packet1) (arith_a ^is_control_type)),
+                                     (arith_and (arith_a ^is_small_packet1) (arith_a ^is_control_type)),
                            action ("fwd_priority",[1; 255])):single_rule”;
 
-val arith_policy_rule2 = “(arith_and (arith_a ^is_high_priority) (arith_a ^is_size_packet2),
+(* Rule 2: High priority data packets *)
+val arith_policy_rule2 = “(arith_and (arith_a ^is_high_priority) (arith_a ^is_data_type),
                            action ("fwd",[1])):single_rule”;
 
-val arith_policy_rule3 = “(arith_and (arith_a ^is_high_priority) (arith_a ^is_size_packet3),
+(* Rule 3: Medium priority young packets *)
+val arith_policy_rule3 = “(arith_and (arith_a ^is_medium_priority) (arith_a ^is_young_packet),
                            action ("fwd",[2])):single_rule”;
 
-val arith_policy_rule4 = “(arith_and (arith_a ^is_high_priority) (arith_a ^is_size_packet4),
+(* Rule 3: Medium priority young packets *)
+val arith_policy_rule4 = “((arith_a ^is_small_packet2),
                            action ("fwd",[3])):single_rule”;
-
-val arith_policy_rule5 = “(arith_and (arith_a ^is_medium_priority) 
-                                     (arith_and (arith_a ^is_size_packet1) (arith_a ^is_data_type)),
-                           action ("fwd_priority",[1; 4])):single_rule”;
-
-
 
 
 (* Default forward rule *)
@@ -282,8 +320,9 @@ val arith_policy =   “[^arith_policy_rule1;
                        ^arith_policy_rule2;
                        ^arith_policy_rule3;
                        ^arith_policy_rule4;
-                       ^arith_policy_rule5;
                        ^arith_policy_rule_default]:single_rule list”;
+
+
 
 (**************************************************)
 
@@ -293,7 +332,7 @@ val arith_policy =   “[^arith_policy_rule1;
 
 
 
-
+*)
 
 
 
