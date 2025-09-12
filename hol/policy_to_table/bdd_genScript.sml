@@ -1113,6 +1113,9 @@ val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num
 
 
 
+
+
+
 Definition eliminable_new_def:
   eliminable_new ((r,edges,labels):('a,'b)BDD) n = 
     case ALOOKUP edges n of
@@ -1123,6 +1126,28 @@ Definition eliminable_new_def:
         then SOME n1
         else NONE
     | NONE => NONE
+End
+
+
+
+Definition eliminable_projection_def:
+  eliminable_projection edges_proj n = 
+    case ALOOKUP edges_proj n of
+      |SOME (n1, n2) =>
+        if n1 = n2 ∧
+           n1 ≠ n ∧
+           n ≠ 0n ∧
+           has_parent edges_proj n1 n 
+        then SOME n1
+        else NONE
+    | NONE => NONE
+End
+
+
+Definition mergable_projection_def:        
+  mergable_projection edges_proj labels_proj n n' = 
+  (n≠n' ∧ ALOOKUP edges_proj n = ALOOKUP edges_proj n' ∧
+   eq_vars_in_labels labels_proj n n' ∧ ALOOKUP labels_proj n'  ≠ NONE )
 End
 
 
@@ -1189,19 +1214,19 @@ End
 
 
 Definition optimize_node_def:
-  (optimize_node (BDD:('a,'b) BDD) n [] = SND (eliminate_safe BDD n)) ∧
+  (optimize_node edges_proj labels_proj (BDD:('a,'b) BDD) n [] = SND (eliminate_safe BDD n)) ∧
   
-  (optimize_node BDD n (n'::nl) = 
-   case eliminable_new BDD n of
+  (optimize_node edges_proj labels_proj BDD n (n'::nl) = 
+   case eliminable_projection edges_proj n of
    | SOME n' =>  SND (eliminate_safe BDD n)
    | NONE => (
-     case mergable BDD n' n of
+     case mergable_projection edges_proj labels_proj n' n of
      | T => ( case merge_safe BDD n' n of
               | (T, BDD') => BDD'
-              | (F, BDD') => optimize_node BDD n nl
+              | (F, BDD') => optimize_node edges_proj labels_proj BDD n nl
             )
             
-     | F => optimize_node BDD n nl)
+     | F => optimize_node edges_proj labels_proj BDD n nl)
   )
 End
 
@@ -1209,20 +1234,34 @@ End
 
 
 Definition optimize_layer_def:
-  (optimize_layer (BDD:('a,'b) BDD) [] = BDD) /\
-  (optimize_layer BDD  (n::nl)=
-   optimize_layer (optimize_node BDD n nl) nl
+  (optimize_layer edges_proj labels_proj (BDD:('a,'b) BDD) [] = BDD) /\
+  (optimize_layer edges_proj labels_proj BDD  (n::nl)=
+   optimize_layer edges_proj labels_proj (optimize_node edges_proj labels_proj BDD n nl) nl
   )
 End
 
-        
+
+Definition project_edges_to_def:
+  project_edges_to ((r, edges,labels):('a,'b) BDD) nl = 
+    MAP (\n. (n,THE(ALOOKUP edges n))) nl
+End
+
+Definition project_labels_to_def:
+  project_labels_to ((r, edges,labels):('a,'b) BDD) nl = 
+    MAP (\n. (n,THE(ALOOKUP labels n))) nl
+End
+
+
+
 Definition optimize_internals_def:
   (optimize_internals (BDD:('a,'b) BDD) [] = BDD) /\
   (optimize_internals BDD  ((var,NONE)::l) = optimize_internals BDD l) /\
 
   (optimize_internals BDD  ((var,SOME nl)::l)=
-   let BDD' = optimize_layer BDD  nl in
-       optimize_internals BDD' l
+    let edges_proj = project_edges_to BDD nl in
+     let labels_proj = project_labels_to BDD nl in
+      let BDD' = optimize_layer edges_proj labels_proj BDD  nl in
+         optimize_internals BDD' l
   )
 End
 
@@ -1232,9 +1271,11 @@ End
 Definition optimize_bdd_def:
   optimize_bdd (BDD:('a,'b) BDD) order =
   let (internals,ntl,tl) = bdd_distribute (BDD:('a,'b) BDD) order in
-    let BDD1 = optimize_layer BDD tl in
-      let BDD2 = optimize_layer BDD1 ntl in
-        optimize_internals BDD2 internals
+    let labels_proj_tl = project_labels_to BDD tl in (* for terminals *)
+      let labels_proj_ntl = project_labels_to BDD ntl in (* for terminals *)
+        let BDD1 = optimize_layer [] labels_proj_tl BDD tl in
+          let BDD2 = optimize_layer [] labels_proj_ntl BDD1 ntl in
+            optimize_internals BDD2 internals
 End
                         
 
@@ -1248,6 +1289,7 @@ Definition mk_BDDPred_opt_new_def:
    | NONE => NONE 
   )
 End
+
 
 
 
