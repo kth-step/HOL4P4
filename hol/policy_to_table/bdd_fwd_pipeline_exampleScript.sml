@@ -44,15 +44,17 @@ open bdd_utilsLib;
 val _ = new_theory "bdd_fwd_pipeline_example";
 
 (* a few types abbreviations *)
-val _ = type_abbrev("BDD_tbl_type", “:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)”);
+
+(*val _ = type_abbrev("BDD_tbl_type", “:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)”);
 
 val _ = type_abbrev("struc_tbl_type", “:((( atom_var list # num # (string# num list) action_expr) list list # num,
                                           (string# num list) action_expr) decision_structure)”);
 
 val _ = type_abbrev("action_rule_type", “:((string# num list) action_expr) rule”);
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
-
+*)
         
+val _ = type_abbrev("single_rule", “: single_rule ”);
     
 (****************************************************************)
 (****************************************************************)
@@ -94,24 +96,24 @@ val policy_order = “["x";"y";"z";"w";"q";"r"]”;
 (* Rule 1: High priority small control packets - expedited forwarding *)
 val arith_policy_rule1 = “(arith_and (arith_a ^is_high_priority) 
                             (arith_and (arith_a ^is_small_packet) (arith_a ^is_control_type)),
-                            action ("fwd_priority",[1; 255])):((string# num list) action_expr) arith_rule”;
+                            action ("fwd_priority",[1; 255])): single_rule ”;
 
 (* Rule 2: High priority data packets *)
 val arith_policy_rule2 = “(arith_and (arith_a ^is_high_priority) (arith_a ^is_data_type),
-                            action ("fwd",[1])):((string# num list) action_expr) arith_rule”;
+                            action ("fwd",[1])): single_rule ”;
 
 (* Rule 3: Medium priority young packets *)
 val arith_policy_rule3 = “(arith_and (arith_a ^is_medium_priority) (arith_a ^is_young_packet),
-                            action ("fwd",[2])):((string# num list) action_expr) arith_rule”;
+                            action ("fwd",[2])): single_rule ”;
 
 (* Rule 7: Default forward rule *)
 val arith_policy_rule7 = “(arith_a a_True,
-                            action ("fwd",[5])):((string# num list) action_expr) arith_rule”;
+                            action ("fwd",[5])): single_rule ”;
 
 val arith_policy =   “[^arith_policy_rule1;
                         ^arith_policy_rule2;
                         ^arith_policy_rule3;
-                        ^arith_policy_rule7]:((string# num list) action_expr) arith_policy”;
+                        ^arith_policy_rule7]: single_rule list”;
 
 
 (********************************)
@@ -144,7 +146,7 @@ val arith_policy_var_policy_thm = REWRITE_RULE[all_distinct_conj, arith_policy_e
 (***********************)
                        
 (* create BDD of var policy  *)
-val eval_policy_full_opt = EVAL “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1”;
+val eval_policy_full_opt = EVAL “mk_BDDPred_opt_new policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1”;
 val eval_policy_full_opt_rhs = optionSyntax.dest_some (rhs (concl eval_policy_full_opt));
 
 
@@ -154,7 +156,7 @@ val gen_var_table_auto =  bdd_utilsLib.bdd_to_tables_iterative eval_policy_full_
 
     
 (* now create a BDD for the table*)    
-val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure_new (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
+val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt_new table_structure_new (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
 val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
 
     
