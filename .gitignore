@@ -1,12 +1,5 @@
-.HOLMK
-.hollogs
-.holobjs
-*.uo
-*.ui
-*.dat
-*Theory.sig
-*Theory.sml
 *-heap
+.hol/
 
 ## LaTeX stuff
 *.aux
