@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "ffi_test";
+val _ = new_theory "port_swap";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
@@ -222,7 +222,7 @@ val dict'' = invert_dict dict'
 
 (** CakeML export **)
 
-val progname = "ffi_test";
+val progname = "port_swap";
 val dict = dict'';
 val actx = actx';
 val astate = astate';

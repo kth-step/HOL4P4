@@ -1,6 +1,6 @@
 open HolKernel boolLib Parse bossLib;
 
-val _ = new_theory "cake_vss_v1model";
+val _ = new_theory "vss_v1model";
 
 open p4Syntax;
 open bitstringSyntax numSyntax pairSyntax;
