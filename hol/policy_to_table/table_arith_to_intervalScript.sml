@@ -27,7 +27,7 @@ open pred_setLib;
 open bdd_genTheory;     
 open pred_specTheory;     
 open policy_specTheory;     
-open tables_specTheory;
+open tables_spec_oldTheory;
 
 open table_bs_propertiesTheory;
      

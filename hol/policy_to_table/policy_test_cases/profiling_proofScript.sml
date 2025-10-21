@@ -36,8 +36,6 @@ open table_arith_to_intervalTheory;
 open bdd_auxTheory;
 open table_bs_propertiesTheory;
      
-open tables_spec_newTheory;
-
 open bdd_utilsLib;
 open fwd_proofLib;
 
