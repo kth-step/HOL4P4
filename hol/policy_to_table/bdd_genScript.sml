@@ -532,14 +532,6 @@ End
 (*                    MERGE Def                       *)
 (******************************************************)
 
-(*        
-Definition mergable_def:        
-mergable ((r,edges,labels):('a,'b) BDD)  n n' = 
-(n≠n' ∧ ALOOKUP edges n = ALOOKUP edges n' ∧
- ALOOKUP labels n = ALOOKUP labels n'∧ ALOOKUP labels n'  ≠ NONE )
-End
-*)
-
 
 Definition eq_vars_in_labels_def:
   eq_vars_in_labels labels n n' =
@@ -575,7 +567,6 @@ Definition merge_edges_def:
 End
 
 
-
 Definition merge_def:
   merge ((r,edges,labels):('a,'b) BDD) n n' =
   let edges' = merge_edges (edges:edges) n n' in
@@ -601,16 +592,12 @@ Definition has_parent_def:
                                     ∧ parent ≠ n' ∧ parent ≠ n) edges
 End
 
-
-(* TODO: remove lookup *)
 Definition eliminable_def:
   eliminable ((r,edges,labels):('a,'b)BDD) n = 
     case ALOOKUP edges n of
       |SOME (n1, n2) =>
         if n1 = n2 ∧
            n1 ≠ n ∧
-           ALOOKUP labels n1 ≠ NONE ∧
-           ALOOKUP labels n ≠ NONE ∧
            has_parent edges n1 n
         then SOME n1
         else NONE
@@ -619,515 +606,8 @@ End
 
 
 
-
-
-
-
-
-
-(*******************************************************)
-(*         Optimzations and their termination          *)
-(*                       proofs                        *)
-(*******************************************************)
-
-
-
-(* basic optimization application on the BDD tree *)
-(* merge part *)
-Definition merge_BDD_def:
-  merge_BDD (BDD:('a,'b) BDD) n [] = BDD ∧
-  merge_BDD (BDD:('a,'b) BDD) n (n'::nl) = 
-  (case mergable BDD n n' of
-   | F => merge_BDD BDD n nl
-   | T => merge_BDD (merge BDD n n') n nl
-  )
-End
-
-
-Definition operate_opt1_def:
-  (operate_opt1 (BDD:('a,'b) BDD)  ([]:num list)  (all_nodes:num list) = (BDD:('a,'b) BDD)) ∧
-  (operate_opt1 BDD (n::rest) all_nodes = (operate_opt1 (merge_BDD BDD n all_nodes) rest all_nodes) )   
-End
-        
-
-Definition bdd_optminzation1_def:
-  bdd_optminzation1 (BDD:('a,'b) BDD) =
-  let (r,edges,labels) = BDD in
-    let all_nodes = MAP FST labels in
-        operate_opt1 BDD all_nodes all_nodes
-End
-
-
-
-(*
-Definition edges_project_def:
-  edges_project ((r,edges,labels):('a,'b)BDD) nl = 
-    everything in nl is in the domain od edges'
-End
-*)
-
-
-(* here we use the projection *)
-        
-(* eliminate part *) 
-Definition eliminate_BDD_def:
-  eliminate_BDD (BDD:('a,'b) BDD) [] = BDD ∧
-  eliminate_BDD (BDD:('a,'b) BDD) (n::nl) = 
-  (case eliminable BDD n of
-   | NONE => eliminate_BDD BDD nl
-   | SOME n' => eliminate_BDD (merge BDD n' n) nl
-  )
-End
-
-Definition operate_opt2_def:
-  (operate_opt2 (BDD:('a,'b) BDD) ([]:num list)   (all_nodes:num list) = (BDD:('a,'b) BDD)) ∧
-  (operate_opt2 BDD (n::rest) (all_nodes:num list) =  (operate_opt2 (eliminate_BDD BDD all_nodes) rest) (all_nodes:num list)) 
-End
-  
-Definition bdd_optminzation2_def:
-  bdd_optminzation2 (BDD:('a,'b) BDD) =
-  let (r,edges,labels) = BDD in
-    let all_nodes = MAP FST labels in
-        operate_opt2 BDD all_nodes all_nodes
-End
-
-
-
-
-(* proof of optimization 1 merge  termination *)
-(* First, we need a measure function that decreases with each optimization step *)
-Definition BDD_label_length_def:
-  BDD_label_length (BDD:('a,'b) BDD) =
-  let (r,edges,labels) = BDD in
-  LENGTH labels
-End
-
-
-
-
-
-(* termination proof *)
-Theorem merge_trio_extract_triv:
-  ∀ r edges labels n n'.
-  merge (r,edges,labels) n n' = (r, ADELKEY n' (merge_edges edges n n'), ADELKEY n' labels)
-Proof
-  gvs[merge_def]
-QED
-        
-
-        
-Theorem merge_length_labels_less:
-  ∀ r edges labels n n'.
-    MEM n' (MAP FST labels) ⇒
-        BDD_label_length (merge (r,edges,labels) n n') < BDD_label_length (r,edges,labels)
-Proof
-  gvs[BDD_label_length_def, merge_def] >>
-  Induct_on ‘labels’ >>
-  rpt strip_tac >>
-  gvs[] >|[
-    PairCases_on ‘h’ >> gvs[ADELKEY_def, SUC_ADD_ONE] >>
-    ‘LENGTH (FILTER (λp. FST p ≠ h0) labels) ≤ LENGTH labels’ by gvs[LENGTH_FILTER_LEQ] >>
-    decide_tac
-    ,
-    res_tac >>
-    gvs[ADELKEY_def, SUC_ADD_ONE] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-    gvs[ADELKEY_def, SUC_ADD_ONE] >>
-    ‘LENGTH (FILTER (λp. FST p ≠ FST h) labels) ≤ LENGTH labels’ by gvs[LENGTH_FILTER_LEQ] >>
-    decide_tac
-  ]       
-QED
-
-
-
-
-        
-        
-
-Theorem BDD_label_length_neq:
-  ∀ BDD BDD'.
-    BDD_label_length BDD <  BDD_label_length BDD' ⇒  BDD ≠ BDD'
-Proof
-  rpt strip_tac >>
-  PairCases_on ‘BDD’ >>
-  PairCases_on ‘BDD'’ >>
-  gvs[BDD_label_length_def] 
-QED
-      
-
-
-Theorem merge_decrease:
-  ∀ BDD n n'.
-    mergable BDD n n' ⇒
-    BDD_label_length (merge BDD n n') < BDD_label_length BDD
-Proof
-  rpt strip_tac >>
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  gvs[mergable_def] >>
-  ‘MEM n' (MAP FST labels)’ by gvs[ALOOKUP_NONE] >>
-  gvs[merge_length_labels_less]
-QED
-
-  
-Theorem merge_BDD_decrease:
-  ∀ l BDD n .      
-    merge_BDD BDD n l ≠ BDD ⇒
-    BDD_label_length (merge_BDD BDD n l) <  BDD_label_length BDD
-Proof
-  Induct_on ‘l’ >>
-  rpt strip_tac >>
-  gvs[merge_BDD_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
-  Cases_on ‘(merge BDD n h) = BDD’ >> gvs[] >>
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘(merge BDD n h)’, ‘n’])) >>
-  gvs[] >>
-    
-  ‘BDD_label_length (merge BDD n h)  < BDD_label_length BDD’ by gvs[merge_decrease] >>
-  imp_res_tac BDD_label_length_neq >>
-  Cases_on ‘merge_BDD (merge BDD n h) n l = merge BDD n h’ >> gvs[]                                     
-QED
-
-
-
-Theorem ADELKEY_LENGTH_BOUND:
-  ∀ l c n. LENGTH l < c ⇒
-           LENGTH (ADELKEY n l) < c
-Proof
-  Induct >>
-  rw[ADELKEY_def] >>
-  PairCases_on ‘h’ >> gvs[ADELKEY_def, SUC_ADD_ONE] >>
-  res_tac >>                    
-  ‘LENGTH (FILTER (λp. FST p ≠ n) l) ≤ LENGTH l’ by gvs[LENGTH_FILTER_LEQ] >>
-  decide_tac
-QED
-
-
-
-                   
-Theorem merge_less_than_const:
-  ∀ BDD n n' c.
-    BDD_label_length BDD < c ∧
-    mergable BDD n n' ⇒
-    BDD_label_length (merge BDD n n') < c
-Proof        
-  rpt strip_tac >>
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  gvs[mergable_def] >>
-  gvs[merge_trio_extract_triv, BDD_label_length_def] >>
-  gvs[ADELKEY_LENGTH_BOUND]             
-QED
-
-             
-Theorem eliminate_decrease:
-  ∀ BDD h n.
-    eliminable BDD n = SOME h ⇒
-    BDD_label_length (merge BDD h n) < BDD_label_length BDD
-Proof
-  rpt strip_tac >>
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  gvs[eliminable_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-                       
-  ‘MEM n (MAP FST labels)’ by gvs[ALOOKUP_NONE] >>
-  gvs[merge_length_labels_less]
-QED
-
-
-        
-Theorem merge_BDD_less_than_const:
-  ∀ l BDD n c .
-    BDD_label_length BDD < c ⇒
-    (BDD_label_length (merge_BDD BDD n l) < c ∧ BDD_label_length (eliminate_BDD BDD l) < c) 
-Proof
-
-  Induct >>
-  rpt strip_tac >>
-  gvs[merge_BDD_def, eliminate_BDD_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
-  res_tac >|[
-      
-    Cases_on ‘(merge BDD n h) = BDD’ >> gvs[] >>
-    first_x_assum (strip_assume_tac o (Q.SPECL [‘(merge BDD n h)’, ‘n’, ‘c’])) >>
-    gvs[] >>
-    
-    ‘BDD_label_length (merge BDD n h)  < BDD_label_length BDD’ by gvs[merge_decrease] >>
-    imp_res_tac BDD_label_length_neq >>
-    Cases_on ‘merge_BDD (merge BDD n h) n l = merge BDD n h’ >> gvs[]       
-    ,
-
-           
-    Cases_on ‘(merge BDD h n) = BDD’ >> gvs[] >>
-    first_x_assum (strip_assume_tac o (Q.SPECL [‘(merge BDD h n)’, ‘n’, ‘c’])) >>
-    gvs[] >>
-    
-    ‘BDD_label_length (merge BDD x h)  < BDD_label_length BDD’ by gvs[eliminate_decrease] >>
-    imp_res_tac BDD_label_length_neq >>
-    Cases_on ‘merge_BDD (merge BDD x h) n l = merge BDD x h’ >> gvs[]   >>
-             cheat
-    
-  ]
-QED
-
-
-        
-
-
-        
-        
-        
-Theorem less_imp_less_in_length_label:
-  ∀ BDD (n:num) l l'.
-    (BDD_label_length BDD < n ⇒
-     BDD_label_length  (operate_opt1 BDD  l l') <  n ∧
-     BDD_label_length  (operate_opt2 BDD  l l') <  n)
-    
-Proof
-  Induct_on ‘l’ >>
-  gvs[operate_opt1_def, operate_opt2_def] >>
-  rpt strip_tac >>
-  res_tac >>  cheat >>
-
-  ‘BDD_label_length (merge_BDD BDD h l')  < n’ by gvs[merge_BDD_less_than_const] >>
-  ‘BDD_label_length (eliminate_BDD BDD h l')  < n’ by gvs[merge_BDD_less_than_const] >> 
-
-  res_tac >>
-  gvs[] 
- 
-QED
-
-
-
-Theorem less_imp_less_in_length_bdd_optminzation:
-  ∀ BDD (n:num).
-    (BDD_label_length BDD < n ⇒
-     BDD_label_length  (bdd_optminzation1 BDD) <  n ∧
-     BDD_label_length  (bdd_optminzation2 BDD) <  n)
-    
-Proof
-  gvs[bdd_optminzation1_def, bdd_optminzation2_def] >>
-  rpt strip_tac >>
-  imp_res_tac less_imp_less_in_length_label >>
-  PairCases_on ‘BDD’ >> gvs[]   
-QED
-
-
-    
-Theorem operate_opt1_decrease:  
-  ∀ BDD l l'.
-    operate_opt1 BDD l l' ≠ BDD
-    ⇒
-    (λ(r,edges,labels). LENGTH labels) (operate_opt1 BDD l l') < BDD_label_length BDD
-Proof
-  Induct_on ‘l’ >> gvs[] >>
-  rpt strip_tac >-
-   gvs[operate_opt1_def] >>
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  rw[] >>
-  gvs[operate_opt1_def] >>
-  res_tac >>
-  Cases_on ‘merge_BDD (r,edges,labels) h l' = (r,edges,labels)’ >> gvs[] >>
-  imp_res_tac merge_BDD_decrease >>
-  imp_res_tac less_imp_less_in_length_label >>
-  gvs[BDD_label_length_def]
-QED  
-      
-
-
-
-      
-Theorem bdd_optminzation1_decreases:
-  ∀BDD. bdd_optminzation1 BDD ≠ BDD ⇒
-        BDD_label_length (bdd_optminzation1 BDD) < BDD_label_length BDD
-Proof
-
-  rw[bdd_optminzation1_def] >>                       
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  rw[] >>
-  gvs[] >>
-       
-  imp_res_tac operate_opt1_decrease >> 
-  rw[operate_opt1_def] >>
-  gvs[BDD_label_length_def]
-QED
-
-        
-Theorem bdd_optminzation1_decreases_verbose:
-  ∀r edges labels . bdd_optminzation1 (r,edges,labels) ≠ (r,edges,labels) ⇒
-        BDD_label_length (bdd_optminzation1 (r,edges,labels)) < BDD_label_length (r,edges,labels)
-Proof
-  metis_tac[bdd_optminzation1_decreases]
-QED
-
-        
-
-
-
-Theorem eliminate_BDD_decrease:        
-  ∀ l BDD n .      
-    eliminate_BDD BDD l ≠ BDD ⇒
-    BDD_label_length (eliminate_BDD BDD l) <  BDD_label_length BDD
-Proof
-
-  Induct_on ‘l’ >> cheat >>
-  rpt strip_tac >>
-  gvs[eliminate_BDD_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
-  Cases_on ‘(merge BDD h n) = BDD’ >> gvs[] >>
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘(merge BDD h n)’, ‘n’])) >>
-  gvs[] >>
-
-  
-  ‘BDD_label_length (merge BDD h n) < BDD_label_length BDD’ by gvs[eliminate_decrease] >>
-  imp_res_tac BDD_label_length_neq >>
-  Cases_on ‘eliminate_BDD (merge BDD h n) n l = merge BDD h n’ >> gvs[] 
-QED
-   
-
-
-Theorem operate_opt2_decrease:
-  ∀BDD l l'.
-    operate_opt2 BDD l l' ≠ BDD ⇒
-    (λ(r,edges,labels). LENGTH labels) (operate_opt2 BDD l l') <
-    BDD_label_length BDD
-Proof
-  Induct_on ‘l’ >> gvs[] >> cheat (* >>
-  rpt strip_tac >-
-   gvs[operate_opt2_def] >>
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  rw[] >>
-  gvs[operate_opt2_def] >>
-  res_tac >>
-  Cases_on ‘eliminate_BDD (r,edges,labels) h l' = (r,edges,labels)’ >> gvs[] >>
-  imp_res_tac eliminate_BDD_decrease >>
-  imp_res_tac less_imp_less_in_length_label >>
-  gvs[BDD_label_length_def] *)
-QED
-
-
-     
-Theorem bdd_optminzation2_decreases:
-  ∀BDD. bdd_optminzation2 BDD ≠ BDD ⇒
-        BDD_label_length (bdd_optminzation2 BDD) < BDD_label_length BDD
-Proof
-  rw[bdd_optminzation2_def] >>                       
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  rw[] >>
-  gvs[] >>
-  imp_res_tac operate_opt2_decrease >> 
-  rw[operate_opt2_def] >>
-  gvs[BDD_label_length_def]
-QED        
-
-
-           
-Theorem bdd_optminzationone_shot_decreases_verbose:
-  ∀ r edges labels .
-    bdd_optminzation2 (r,edges,labels) ≠ (r,edges,labels) ∧
-    bdd_optminzation1 (bdd_optminzation2 (r,edges,labels)) ≠  (r,edges,labels) ⇒
-    BDD_label_length (bdd_optminzation1 (bdd_optminzation2 (r,edges,labels))) < BDD_label_length (r,edges,labels)
-Proof
-
-  rpt strip_tac >>
-  assume_tac bdd_optminzation2_decreases >>
-  res_tac >>
-  imp_res_tac less_imp_less_in_length_bdd_optminzation
-QED
-
-
-
-        
-Definition bdd_one_round_def:
-  bdd_one_round BDD = bdd_optminzation1 (bdd_optminzation2 BDD)
-End
-
-
-
-Theorem bdd_one_round_reduce:
-  ∀ BDD.
-  bdd_one_round BDD ≠ BDD ⇒
-  BDD_label_length (bdd_one_round BDD) < BDD_label_length BDD
-Proof
-  rpt strip_tac >>
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-  gvs[bdd_one_round_def] >>
-  Cases_on ‘bdd_optminzation2 (r,edges,labels) = (r,edges,labels)’ >> gvs[] >|[
-    assume_tac bdd_optminzation1_decreases >>
-    gvs[]
-    ,
-    
-    Cases_on ‘bdd_optminzation1 (bdd_optminzation2 (r,edges,labels)) =
-              bdd_optminzation2 (r,edges,labels)’  >> gvs[] >|[
-        assume_tac bdd_optminzation2_decreases >>
-        res_tac 
-        ,
-        assume_tac bdd_optminzationone_shot_decreases_verbose >>
-        res_tac
-      ]
-  ]                  
-QED
-        
-
-Definition bdd_full_optimize_def:
-  bdd_full_optimize (BDD:('a,'b) BDD) =
-  case bdd_one_round BDD = BDD of
-  | T => BDD
-  | F => bdd_full_optimize  (bdd_one_round BDD)                                      
-Termination
-        
-  WF_REL_TAC `measure BDD_label_length` >>
-  rpt strip_tac >>
-      
-  rename1 ‘ bdd_one_round (r,edges,labels) = (r,edges,labels)’ >>
-  metis_tac[bdd_one_round_reduce]
-End
-
-
-
-
-
-
-(* definition of mk_BDDPred_opt, where each layer being created the tree will be fully optimized,
-not one shot  *)
-        
-Definition mk_BDDPred_opt_def:
-  (mk_BDDPred_opt rec (BDD:('a,'b) BDD) l [] c = SOME BDD) ∧
-  (mk_BDDPred_opt rec (BDD) l (x::xs) c =
-   case (body_of_mk rec BDD (x:string) (c:num)) of
-   | SOME (BDD',c') => mk_BDDPred_opt rec (bdd_full_optimize BDD') (x::l) xs c'
-   | NONE => NONE 
-  )
-End
-
-(******************* new better optimized definitions ***************************)
 
 val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
-
-
-
-
-
-
-
-Definition eliminable_new_def:
-  eliminable_new ((r,edges,labels):('a,'b)BDD) n = 
-    case ALOOKUP edges n of
-      |SOME (n1, n2) =>
-        if n1 = n2 ∧
-           n1 ≠ n ∧
-           has_parent edges n1 n
-        then SOME n1
-        else NONE
-    | NONE => NONE
-End
-
 
 
 Definition eliminable_projection_def:
@@ -1168,7 +648,8 @@ Definition update_internals_def:
   )
 End
 
-          
+
+
 Definition distrubute_labels_def:
   (distrubute_labels [] (acc:distrub_st) = acc) ∧
   (distrubute_labels ((n,lbl)::labels) (internals, ntl, tl) =
@@ -1178,10 +659,6 @@ Definition distrubute_labels_def:
    | non_termn (SOME x , _)  => distrubute_labels labels (update_internals [] internals n x, ntl, tl)
   )
 End
-
-
-
-
 
            
 Definition bdd_distribute_def:
@@ -1202,15 +679,13 @@ Definition merge_safe_def:
 End
 
 
+
 Definition eliminate_safe_def:
   eliminate_safe (BDD:('a,'b) BDD) n =
-  case eliminable_new BDD n  of
+  case eliminable BDD n  of
   | SOME n' =>  (T, merge BDD n' n)
   | NONE => (F,BDD)
 End
-
-
-
 
 
 Definition optimize_node_def:
@@ -1229,8 +704,6 @@ Definition optimize_node_def:
      | F => optimize_node edges_proj labels_proj BDD n nl)
   )
 End
-
-        
 
 
 Definition optimize_layer_def:
@@ -1265,14 +738,12 @@ Definition optimize_internals_def:
   )
 End
 
-
-
         
 Definition optimize_bdd_def:
   optimize_bdd (BDD:('a,'b) BDD) order =
   let (internals,ntl,tl) = bdd_distribute (BDD:('a,'b) BDD) order in
-    let labels_proj_tl = project_labels_to BDD tl in (* for terminals *)
-      let labels_proj_ntl = project_labels_to BDD ntl in (* for terminals *)
+    let labels_proj_tl = project_labels_to BDD tl in (* projection for terminals *)
+      let labels_proj_ntl = project_labels_to BDD ntl in (* projection for non-terminals *)
         let BDD1 = optimize_layer [] labels_proj_tl BDD tl in
           let BDD2 = optimize_layer [] labels_proj_ntl BDD1 ntl in
             optimize_internals BDD2 internals
@@ -1281,11 +752,11 @@ End
 
 
 
-Definition mk_BDDPred_opt_new_def:
-  (mk_BDDPred_opt_new rec (BDD:('a,'b) BDD) l [] c = SOME (optimize_bdd BDD l)) ∧
-  (mk_BDDPred_opt_new rec (BDD) l (x::xs) c =
+Definition mk_BDDPred_opt_def:
+  (mk_BDDPred_opt rec (BDD:('a,'b) BDD) l [] c = SOME (optimize_bdd BDD l)) ∧
+  (mk_BDDPred_opt rec (BDD) l (x::xs) c =
    case (body_of_mk rec BDD (x:string) (c:num)) of
-   | SOME (BDD',c') => mk_BDDPred_opt_new rec (optimize_bdd BDD' (x::l)) (x::l) xs c'
+   | SOME (BDD',c') => mk_BDDPred_opt rec (optimize_bdd BDD' (x::l)) (x::l) xs c'
    | NONE => NONE 
   )
 End

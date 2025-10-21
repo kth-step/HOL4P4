@@ -2646,7 +2646,7 @@ QED
 
 
 
-
+(*
 (* nerging a node n with a a list of nodes nl then enduce a valid BDD *)
 Theorem merge_BDD_preserves_valid_and_correctness_verbose:
   ∀BDD n nl vars rec.
@@ -2692,7 +2692,7 @@ Proof
     metis_tac[]
   ]
 QED
-
+*)
 
 
 
@@ -2712,7 +2712,7 @@ Proof
 QED
 
 
-        
+(*        
 Theorem merge_BDD_preserves_valid_and_correctness:
   ∀BDD n nl vars vars_consumed rec.
     valid_BDD rec BDD vars vars_consumed ∧
@@ -2752,7 +2752,7 @@ Proof
   res_tac >>
   gvs[]
 QED
-
+*)
 
         
 

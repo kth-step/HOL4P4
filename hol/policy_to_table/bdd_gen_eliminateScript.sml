@@ -1484,7 +1484,7 @@ QED
 
         
 
-              
+(*              
 Theorem eliminate_BDD_preserves_valid_and_correctness_verbose:
   ∀BDD n nl vars rec.
     
@@ -1531,10 +1531,10 @@ Proof
     gvs[]
   ]
 QED
+*)
 
 
-
-
+(*)
 Theorem eliminate_BDD_preserves_valid_and_correctness:
   ∀BDD nl vars vars_consumed rec.
     valid_BDD rec BDD vars vars_consumed ∧
@@ -1581,7 +1581,7 @@ Proof
   res_tac >>
   gvs[]
 QED
-
+*)
 
         
 val _ = export_theory ();

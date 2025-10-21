@@ -28,7 +28,6 @@ open bdd_gen_optimizationTheory;
 open pred_specTheory;     
 open policy_specTheory;
 open tables_specTheory;
-open tables_spec_newTheory;
 
 
 open policy_arith_to_varTheory;
@@ -150,7 +149,7 @@ Definition non_termn_type_def:
 End
 
         
-(* this theorem is for BDD without optimizations!*)      
+(* this theorem is for BDD without optimizations! we do not use it anymore *)      
 Theorem policy_mk_bdd_correct_thm:
   ∀ var_policy vars BDD mv.
     ALL_DISTINCT vars ∧
@@ -536,7 +535,6 @@ QED
 (*           mk_BDDPred_OPT           *)
 (**************************************)
 
-
 Theorem table_mk_bdd_correct_valid_opt_thm:
   ∀ var_table vars BDD mv.
     ALL_DISTINCT vars ∧
@@ -771,6 +769,7 @@ Definition correct_var_policy_var_tables_exec_def:
             T
 End
 
+        (*
 Definition correct_var_policy_var_tables_exec2_def:
   correct_var_policy_var_tables_exec2 var_policy var_table vars I =
   let BDD1_opt = mk_BDDPred_opt_new policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 in
@@ -794,7 +793,10 @@ Definition correct_var_policy_var_tables_exec2_def:
           else 
             T
 End
+        *)
 
+
+        
 Theorem isIsomorph_exe_abs_imp:
   ∀ BDD1 BDD2 I.
     isIsomorph_exec I (BDD1:('a,'b) BDD) (BDD2:('c,'b) BDD) ⇒ isIsomorph I BDD1 BDD2
@@ -868,12 +870,14 @@ Proof
 QED
         
 
+        (*
 Theorem correct_var_policy_var_tables_exec2_thm1:
  ∀ var_policy var_table  vars I.
  correct_var_policy_var_tables_exec2 var_policy var_table  vars I
 Proof
 cheat
 QED
+        *)
 
 (******************************************
    
