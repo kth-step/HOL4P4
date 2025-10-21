@@ -54,7 +54,7 @@ val _ = type_abbrev("action_rule_type", “:((string# num list) action_expr) rul
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 *)
         
-val _ = type_abbrev("single_rule", “: single_rule ”);
+val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
     
 (****************************************************************)
 (****************************************************************)
@@ -67,6 +67,9 @@ val _ = type_abbrev("single_rule", “: single_rule ”);
 
 
  
+
+val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+ 
 val test_pd_type = “[("ip", type_record [("priority", type_length 3);
                                          ("size", type_length 16);
                                          ("age", type_length 8);
@@ -74,46 +77,59 @@ val test_pd_type = “[("ip", type_record [("priority", type_length 3);
 
 val is_high_priority = “(arithm_le (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 2 3))”;
 val is_medium_priority = “(arithm_ge (lv_acc (lv_x "ip") "priority") ^(bdd_utilsLib.make_bv 4 3))”;
-val is_small_packet = “(arithm_le (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 500 16))”;
-val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^( bdd_utilsLib.make_bv 200 8))”;
-val is_control_type = “(arithm_le (lv_acc (lv_x "ip") "type") ^( bdd_utilsLib.make_bv 3 4))”;
-val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^( bdd_utilsLib.make_bv 8 4))”;
+
+val is_small_packet1 = “(arithm_le (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 500 16))”;
+val is_small_packet2 = “(arithm_le (lv_acc (lv_x "ip") "size") ^(bdd_utilsLib.make_bv 400 16))”;
+
+val is_young_packet = “(arithm_ge (lv_acc (lv_x "ip") "age") ^(bdd_utilsLib.make_bv 200 8))”;
+
+val is_control_type = “(arithm_le (lv_acc (lv_x "ip") "type") ^(bdd_utilsLib.make_bv 3 4))”;
+val is_data_type = “(arithm_ge (lv_acc (lv_x "ip") "type") ^(bdd_utilsLib.make_bv 8 4))”;
+
+
 
 val policy_me =   “[("x", ^is_high_priority);
-                      ("y", ^is_medium_priority);
-                      ("z", ^is_small_packet);
-                      ("w", ^is_young_packet);
-                      ("q", ^is_control_type);
-                      ("r", ^is_data_type)]”;
+                    ("y", ^is_medium_priority);
+                    ("z1", ^is_small_packet1);
+                    ("z2", ^is_small_packet2);
+                    ("w", ^is_young_packet);
+                    ("q", ^is_control_type);
+                    ("r", ^is_data_type)]”;
 
 val policy_full_order = “[("a",["x";"y"]);
-                          ("b",["z"]);
+                          ("b",["z1";"z2"]);
                           ("c",["w"]);
                           ("d",["q";"r"])]”;
 
-val policy_order = “["x";"y";"z";"w";"q";"r"]”;
+val policy_order = “["x";"y";"z1";"z2";"w";"q";"r"]”;
 
 (* Rule 1: High priority small control packets - expedited forwarding *)
 val arith_policy_rule1 = “(arith_and (arith_a ^is_high_priority) 
-                            (arith_and (arith_a ^is_small_packet) (arith_a ^is_control_type)),
-                            action ("fwd_priority",[1; 255])): single_rule ”;
+                                     (arith_and (arith_a ^is_small_packet1) (arith_a ^is_control_type)),
+                           action ("fwd_priority",[1; 255])):single_rule”;
 
 (* Rule 2: High priority data packets *)
 val arith_policy_rule2 = “(arith_and (arith_a ^is_high_priority) (arith_a ^is_data_type),
-                            action ("fwd",[1])): single_rule ”;
+                           action ("fwd",[1])):single_rule”;
 
 (* Rule 3: Medium priority young packets *)
 val arith_policy_rule3 = “(arith_and (arith_a ^is_medium_priority) (arith_a ^is_young_packet),
-                            action ("fwd",[2])): single_rule ”;
+                           action ("fwd",[2])):single_rule”;
 
-(* Rule 7: Default forward rule *)
-val arith_policy_rule7 = “(arith_a a_True,
-                            action ("fwd",[5])): single_rule ”;
+(* Rule 3: Medium priority young packets *)
+val arith_policy_rule4 = “(arith_imp (arith_a ^is_medium_priority) (arith_a ^is_small_packet1),
+                           action ("fwd",[3])):single_rule”;
+
+
+(* Default forward rule *)
+val arith_policy_rule_default = “(arith_a a_True,
+                           action ("fwd",[5])):single_rule”;
 
 val arith_policy =   “[^arith_policy_rule1;
-                        ^arith_policy_rule2;
-                        ^arith_policy_rule3;
-                        ^arith_policy_rule7]: single_rule list”;
+                       ^arith_policy_rule2;
+                       ^arith_policy_rule3;
+                       ^arith_policy_rule4;
+                       ^arith_policy_rule_default]:single_rule list”;
 
 
 (********************************)
@@ -166,15 +182,51 @@ val get_i_policy =  bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_
                                                               ^eval_table_full_opt_auto_rhs”;
  *)
 
-    
-(* Theorem of correctness for conversion from var policy to var table *)
 (*
-val policy_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy ”;     
-val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] policy_thm_init;    
-*)
 val policy_thm_init = computeLib.RESTR_EVAL_CONV [“sem_tables”,“sem_policy”, “mv_dom_vars”] “correct_var_policy_var_tables_exec2 ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy ”;     
 val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec2_thm1] policy_thm_init;    
+*)
 
+
+
+
+
+
+val isIsomorph_exec_thm = EVAL “isIsomorph_exec ^get_i_policy ^eval_policy_full_opt_rhs
+                                                              ^eval_table_full_opt_auto_rhs”;
+val assumption1 = EVAL “ALOOKUP ^get_i_policy 0 = SOME 0”;    
+val assumption2 = EVAL “node_in_BDD 0 ^eval_policy_full_opt_rhs”;
+val assumption3 = EVAL “node_in_BDD 0 ^eval_table_full_opt_auto_rhs”;
+val assumption4 = EVAL “prop_in_BDD 0 ^eval_policy_full_opt_rhs = SOME ^var_policy”;
+val assumption5 = EVAL “prop_in_BDD 0 ^eval_table_full_opt_auto_rhs = SOME ^gen_var_table_auto”;
+val assumption6 = EVAL “fv_in_vars_exec table_structure_new ^gen_var_table_auto ^policy_order”;
+val assumption7 = EVAL “fv_in_vars_exec policy_structure ^var_policy ^policy_order”;
+val assumption8 = EVAL “ALL_DISTINCT ^var_policy”;
+val assumption9 = EVAL “^var_policy ≠ []”;
+
+val all_distinct_conj = CONJ assumption1 assumption1;
+
+
+
+
+val var_policy_var_table_thm = prove (“ ∀mv.
+                                          mv_dom_vars mv ^policy_order  ⇒
+                                          sem_policy ^var_policy  mv = sem_tables ^gen_var_table_auto mv ”,
+assume_tac (INST_TYPE [“:'a” |-> “:(string#num list)”] correct_var_policy_var_tables_exec2_thm1)  >>
+first_x_assum (strip_assume_tac o (SPECL [var_policy, gen_var_table_auto, policy_order, get_i_policy])) >>
+
+fs[correct_var_policy_var_tables_exec2_def, eval_policy_full_opt, eval_table_full_opt_auto] >>
+fs[assumption1, assumption2, assumption3, assumption4, assumption5, assumption6,
+    assumption7, assumption8, assumption9, isIsomorph_exec_thm]
+);
+
+
+
+
+
+
+
+        
 (***********************)
 (*       STAGE 3       *)
 (***********************)   

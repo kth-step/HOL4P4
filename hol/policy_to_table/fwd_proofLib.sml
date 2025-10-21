@@ -170,8 +170,8 @@ open bdd_utilsLib;
         assume_tac (INST_TYPE [“:'a” |-> “:(string#num list)”] correct_var_policy_var_tables_exec2_thm1)  >>
         first_x_assum (strip_assume_tac o (SPECL [var_policy, gen_var_table_auto, policy_order, get_i_policy])) >>
 
-        gvs[correct_var_policy_var_tables_exec2_def, eval_policy_full_opt, eval_table_full_opt_auto] >>
-        gvs[assumption1, assumption2, assumption3, assumption4, assumption5, assumption6,
+        fs[correct_var_policy_var_tables_exec2_def, eval_policy_full_opt, eval_table_full_opt_auto] >>
+        fs[assumption1, assumption2, assumption3, assumption4, assumption5, assumption6,
             assumption7, assumption8, assumption9, isIsomorph_exec_thm]
         );
 
