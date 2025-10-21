@@ -61,16 +61,16 @@ open bdd_utilsLib;
 
     let
             
-    val start_cpu_total = Timer.startCPUTimer ();
-    val start_real_total = Timer.startRealTimer ();
-
+    (* val start_cpu_total = Timer.startCPUTimer ();
+       val start_real_total = Timer.startRealTimer (); 
+    *)
 
         (***********************)
         (*       STAGE 1       *)
         (***********************)
 
-        val start_cpu_stage1 = Timer.startCPUTimer ();
-        val start_real_stage1 = Timer.startRealTimer ();
+       (* val start_cpu_stage1 = Timer.startCPUTimer ();
+        val start_real_stage1 = Timer.startRealTimer (); *)
 
 
         (*convert arith policy to var policy*)        
@@ -90,7 +90,7 @@ open bdd_utilsLib;
         (ISPECL[arith_policy, var_policy, policy_me] policy_airth_to_var_sem_conversion_correct);  
 
 
-        val _ = time_stage ("Stage 1", start_cpu_stage1, start_real_stage1)
+        (*val _ = time_stage ("Stage 1", start_cpu_stage1, start_real_stage1) *)
 
 
         (***********************)
@@ -98,26 +98,26 @@ open bdd_utilsLib;
         (***********************)
                               
 
-        val start_cpu_stage2 = Timer.startCPUTimer ();
-        val start_real_stage2 = Timer.startRealTimer ();
+        (*val start_cpu_stage2 = Timer.startCPUTimer ();
+        val start_real_stage2 = Timer.startRealTimer (); *)
 
 
         (* create BDD of var policy  *)
         val eval_policy_full_opt = EVAL “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1”;
         val eval_policy_full_opt_rhs = optionSyntax.dest_some (rhs (concl eval_policy_full_opt));
 
-        val _ = time_stage ("Stage 2 from var policy to BDD", start_cpu_stage2, start_real_stage2);
+       (* val _ = time_stage ("Stage 2 from var policy to BDD", start_cpu_stage2, start_real_stage2);
         val start_cpu_stage2_vbdd = Timer.startCPUTimer ();
-        val start_real_stage2_vbdd = Timer.startRealTimer ();
+        val start_real_stage2_vbdd = Timer.startRealTimer (); *)
 
         (* automatically generate a var table from the var policy's BDD via sml*)
         val test_groupings = rhs(concl(EVAL policy_full_order));
         val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative eval_policy_full_opt_rhs test_groupings;
 
             
-        val _ = time_stage ("Stage 2 from var BDD to table", start_cpu_stage2_vbdd, start_real_stage2_vbdd);
+        (*val _ = time_stage ("Stage 2 from var BDD to table", start_cpu_stage2_vbdd, start_real_stage2_vbdd);
         val start_cpu_stage2_tbl = Timer.startCPUTimer ();
-        val start_real_stage2_tbl = Timer.startRealTimer ();
+        val start_real_stage2_tbl = Timer.startRealTimer ();*)
 
         (* now create a BDD for the table*)    
         (*val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
@@ -127,9 +127,9 @@ open bdd_utilsLib;
         val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1”;
         val eval_table_full_opt_auto_rhs = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
             
-        val _ = time_stage ("Stage 2 from table to table BDD", start_cpu_stage2_tbl, start_real_stage2_tbl);
+        (*val _ = time_stage ("Stage 2 from table to table BDD", start_cpu_stage2_tbl, start_real_stage2_tbl);
         val start_cpu_stage2_tbdd = Timer.startCPUTimer ();
-        val start_real_stage2_tbdd = Timer.startRealTimer ();
+        val start_real_stage2_tbdd = Timer.startRealTimer ();*)
 
         (* get I (pairs isomorphic in the graph), and check if isisIsomorph *)
         val get_i_policy = bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
@@ -178,9 +178,9 @@ open bdd_utilsLib;
 
 
 
-        val _ = time_stage ("Stage 2 proof", start_cpu_stage2_tbdd, start_real_stage2_tbdd);
+       (*) val _ = time_stage ("Stage 2 proof", start_cpu_stage2_tbdd, start_real_stage2_tbdd);
 
-        val _ = time_stage ("Stage 2 total", start_cpu_stage2, start_real_stage2);
+        val _ = time_stage ("Stage 2 total", start_cpu_stage2, start_real_stage2);*)
 
 
 
@@ -188,8 +188,8 @@ open bdd_utilsLib;
         (*       STAGE 3       *)
         (***********************)   
 
-        val start_cpu_stage3 = Timer.startCPUTimer ();
-        val start_real_stage3 = Timer.startRealTimer ();
+       (*) val start_cpu_stage3 = Timer.startCPUTimer ();
+        val start_real_stage3 = Timer.startRealTimer (); *)
 
 
         (* covert var table to interval table *)
@@ -202,7 +202,7 @@ open bdd_utilsLib;
         val var_table_sinterval_tbl_thm =
         REWRITE_RULE [convert_to_interval] (ISPECL[only_var_table, only_interval_table1, “0:num”, policy_me, test_pd_type ] correct_tables_from_var_to_sinterval_thm);        
 
-        val _ = time_stage ("Stage 3", start_cpu_stage3, start_real_stage3);
+        (*val _ = time_stage ("Stage 3", start_cpu_stage3, start_real_stage3);*)
 
 
 
@@ -210,8 +210,11 @@ open bdd_utilsLib;
         (***********************)
         (*       FINAL PROOF   *)
         (***********************)
-        val start_cpu_final = Timer.startCPUTimer ();
+        
+        (*val start_cpu_final = Timer.startCPUTimer ();
         val start_real_final = Timer.startRealTimer ();
+        *)
+
 
         (* to glue the theorems we need to take care of the conditions/ assumptions *)
                     
@@ -259,10 +262,10 @@ open bdd_utilsLib;
         );
 
 
-        val _ = time_stage ("Final glue proof", start_cpu_final, start_real_final);
+        (*val _ = time_stage ("Final glue proof", start_cpu_final, start_real_final);
 
         val _ = time_stage ("Total time of everything", start_cpu_total, start_real_total);
-
+         *)
 
 
     in

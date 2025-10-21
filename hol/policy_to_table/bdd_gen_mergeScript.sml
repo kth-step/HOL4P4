@@ -2646,56 +2646,6 @@ QED
 
 
 
-(*
-(* nerging a node n with a a list of nodes nl then enduce a valid BDD *)
-Theorem merge_BDD_preserves_valid_and_correctness_verbose:
-  ∀BDD n nl vars rec.
-    
-    BDD_WF BDD ∧
-    BDD_ordered BDD vars ∧
-    fv_in_BDD rec BDD vars ∧
-    consumed_dom_bdd vars BDD ∧
-    correct_sem rec BDD vars  ⇒
-                
-    (
-    BDD_WF (merge_BDD BDD n nl) ∧
-    BDD_ordered (merge_BDD BDD n nl) vars ∧
-    fv_in_BDD rec (merge_BDD BDD n nl) vars ∧
-    consumed_dom_bdd vars (merge_BDD BDD n nl) ∧
-    correct_sem rec (merge_BDD BDD n nl) vars
-    )
-Proof
-  Induct_on ‘nl’ >-
-   (* Base case: empty list *)
-   fs [merge_BDD_def] >>
-  
-  (* Inductive case *)
-  rpt gen_tac >> strip_tac >>
-  fs [merge_BDD_def] >>
-  
-  (* Case analysis on mergable BDD n h *)
-  Cases_on ‘mergable BDD n h’ >> gvs[] >|[
-    gvs[] >>
-    assume_tac merge_correct >>
-    first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘[]’, ‘vars’, ‘n’, ‘h’, ‘rec’])) >>
-    gvs[] >>
-    (*res_tac >>*)
-    ‘BDD_WF (merge BDD n h)’ by imp_res_tac merge_wf_preservation >>
-    ‘BDD_ordered (merge BDD n h) vars’ by imp_res_tac merge_order_preservation >>
-    ‘fv_in_BDD rec (merge BDD n h) vars’ by (imp_res_tac merge_fv_final_preservation >>
-                                             first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
-    ‘consumed_dom_bdd vars (merge BDD n h)’ by (imp_res_tac merge_consumed_dom_final_preservation >>
-                                             first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
-    res_tac >>
-    gvs[]
-    , 
-    metis_tac[]
-  ]
-QED
-*)
-
-
-
 Theorem fv_in_BDD_reverse_triv:
   ∀ BDD vars vars_consumed rec.
     fv_in_BDD rec BDD (REVERSE vars ⧺ vars_consumed) ⇒
@@ -2710,51 +2660,7 @@ Proof
   res_tac >>
   fs[fv_in_vars_def]
 QED
-
-
-(*        
-Theorem merge_BDD_preserves_valid_and_correctness:
-  ∀BDD n nl vars vars_consumed rec.
-    valid_BDD rec BDD vars vars_consumed ∧
-    correct_sem rec BDD (vars ⧺ vars_consumed)  ⇒       
-    (
-    valid_BDD rec (merge_BDD BDD n nl) vars vars_consumed∧
-    correct_sem rec (merge_BDD BDD n nl) (vars ⧺ vars_consumed)
-    )
-Proof
-  Induct_on ‘nl’ >-
-   fs [merge_BDD_def] >>
-  
-  rpt gen_tac >> strip_tac >>
-  fs [merge_BDD_def] >>
-  
-  Cases_on ‘mergable BDD n h’ >> gvs[] >>
-           
-  gvs[valid_BDD_def] >>
-  
-  assume_tac merge_correct >>
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘BDD’, ‘vars’, ‘vars_consumed’,‘n’, ‘h’, ‘rec’])) >>
-  gvs[] >>
-  
-  ‘fv_in_BDD rec BDD (vars ⧺ vars_consumed)’ by imp_res_tac fv_in_BDD_reverse_triv >>
-     
-  (*res_tac >>*)
-  ‘BDD_WF (merge BDD n h)’ by imp_res_tac merge_wf_preservation >>
-  ‘BDD_ordered (merge BDD n h) vars_consumed’ by imp_res_tac merge_order_preservation >>
-  
-  ‘consumed_dom_bdd vars_consumed (merge BDD n h)’ by (imp_res_tac merge_consumed_dom_final_preservation >>
-                                                       first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
-  
-  
-  ‘fv_in_BDD rec (merge BDD n h) (REVERSE vars ⧺ vars_consumed)’ by (imp_res_tac merge_fv_final_preservation >>
-                                                                     first_x_assum (strip_assume_tac o (Q.SPECL [‘h’, ‘n’]))) >>
-  
-  res_tac >>
-  gvs[]
-QED
-*)
-
-        
+    
 
 
 val _ = export_theory ();
