@@ -18,7 +18,7 @@ val identifier = “:word64”;
 (* val identifier = “:word16”; *)
 
 (* This controls whether optimized matching in tables and select will be used *)
-val matching_optimization = true;
+val matching_optimization = false;
 
 (* This controls whether optimized I/O (byte instead of bit lists) will be used *)
 val io_optimization = true;

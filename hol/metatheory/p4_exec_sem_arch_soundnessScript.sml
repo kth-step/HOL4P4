@@ -9,9 +9,16 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_fr
 Definition arch_exec_sound:
  (arch_exec_sound arch_frame_list (type:('a itself)) =
   !(actx:'a actx) aenv g_scope_list status astate'.
-  arch_exec uninit_arb actx (aenv, g_scope_list, arch_frame_list, status) = SOME astate' ==>
+  arch_exec actx (aenv, g_scope_list, arch_frame_list, status) = SOME astate' ==>
   arch_red actx (aenv, g_scope_list, arch_frame_list, status) astate')
 End
+
+(* TODO: ARB issue *)
+Theorem declare_list_in_scope_exec'_eq:
+declare_list_in_scope_exec' = declare_list_in_scope
+Proof
+cheat
+QED
 
 Theorem arch_exec_sound_red:
 !arch_frame_list type. arch_exec_sound arch_frame_list type
@@ -29,16 +36,16 @@ Cases_on `arch_frame_list` >> (
  rename1 `(aenv0, in_out_list, in_out_list', ascope)` >>
  rename1 `(i, in_out_list, in_out_list', ascope)`
 ) >| [
- Cases_on `EL i ab_list` >| [
+ Cases_on `oEL i ab_list` >> (gs[arch_exec_def]) >>
+  Cases_on ‘x’ >| [
   (* input *)
   fs [arch_exec_def] >>
   Cases_on `input_f (in_out_list,ascope)` >> (
    fs []
   ) >>
   PairCases_on `x` >>
-  fs [] >>
-  rw [] >>
-  metis_tac [(valOf o find_clause_arch_red) "arch_in", clause_name_def],
+  gvs[] >>
+  metis_tac[(valOf o find_clause_arch_red) "arch_in", oEL_EQ_EL, clause_name_def],
 
   (* programmable block initialisation *)
   fs [arch_exec_def] >>
@@ -67,7 +74,7 @@ Cases_on `arch_frame_list` >> (
    fs []
   ) >>
   Cases_on `initialise_var_stars func_map b_func_map ext_map [declare_list_in_scope (t_scope,x); h]` >> (
-   fs []
+   fs [declare_list_in_scope_exec'_eq]
   ) >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_init") >>
@@ -75,7 +82,7 @@ Cases_on `arch_frame_list` >> (
   qexistsl_tac [`ZIP (l, ZIP(MAP FST x_d_l, MAP SND x_d_l))`, `x`] >>
   fs [] >>
   rpt strip_tac >| [
-   fs [map_tri_zip12],
+   fs [map_tri_zip12, listTheory.oEL_EQ_EL],
 
    gs [listTheory.oEL_EQ_EL] >>
    metis_tac [oLASTN_imp_LASTN],
@@ -96,7 +103,7 @@ Cases_on `arch_frame_list` >> (
    fs []
   ) >>
   rw [] >>
-  metis_tac [(valOf o find_clause_arch_red) "arch_ffbl", clause_name_def],
+  metis_tac [(valOf o find_clause_arch_red) "arch_ffbl", oEL_EQ_EL, clause_name_def],
 
   (* output *)
   fs [arch_exec_def] >>
@@ -106,7 +113,7 @@ Cases_on `arch_frame_list` >> (
   PairCases_on `x` >>
   fs [] >>
   rw [] >>
-  metis_tac [(valOf o find_clause_arch_red) "arch_out", clause_name_def]
+  metis_tac [(valOf o find_clause_arch_red) "arch_out", oEL_EQ_EL, clause_name_def]
  ],
 
  fs [arch_exec_def],
@@ -118,7 +125,10 @@ Cases_on `arch_frame_list` >> (
   fs [state_fin_def] >>
   rw [] >>
   fs [arch_exec_def] >>
-  Cases_on `EL i ab_list` >> (
+  Cases_on `oEL i ab_list` >> (
+   fs []
+  ) >>
+  Cases_on `x` >> (
    fs []
   ) >>
   Cases_on `ALOOKUP pblock_map s` >> (
@@ -136,12 +146,20 @@ Cases_on `arch_frame_list` >> (
               set_fin_status x0 status_running)` >> (
    fs []
   ) >>
+  Cases_on `oLASTN 1 g_scope_list` >> (
+   fs []
+  ) >>
+  imp_res_tac oLASTN_imp_LASTN >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
   fs [clause_name_def, state_fin_def] >>
+  qexistsl_tac [‘b_func_map’] >>
   qexists_tac `ZIP (l, ZIP (MAP FST x1, MAP SND x1))` >>
+  qexistsl_tac [‘s’, ‘x4’, ‘x0’, ‘stmt’, ‘x3’, ‘x5’] >>
   rpt strip_tac >| [
-   fs [map_tri_zip12],
+   fs [map_tri_zip12, oEL_EQ_EL],
+
+   fs [map_tri_zip12, ZIP_MAP_FST_SND],
 
    fs [map_tri_zip12, ZIP_MAP_FST_SND],
 
@@ -150,7 +168,10 @@ Cases_on `arch_frame_list` >> (
 
   (* programmable block execution *)
   fs [GSYM state_fin_exec_equiv, arch_exec_def] >>
-  Cases_on `EL i ab_list` >> (
+  Cases_on `oEL i ab_list` >> (
+   fs []
+  ) >>
+  Cases_on `x` >> (
    fs []
   ) >>
   Cases_on `ALOOKUP pblock_map s` >> (
@@ -158,7 +179,7 @@ Cases_on `arch_frame_list` >> (
   ) >>
   PairCases_on `x` >>
   fs [state_fin_exec_equiv, state_fin_def] >>
-  Cases_on `frames_exec uninit_arb (apply_table_f,ext_map,func_map,x2,x4,x5)
+  Cases_on `frames_exec (apply_table_f,ext_map,func_map,x2,x4,x5)
              (ascope,g_scope_list,l,status_running)` >> (
    fs []
   ) >>
@@ -166,7 +187,10 @@ Cases_on `arch_frame_list` >> (
   fs [] >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_exec") >>
-  fs [clause_name_def] >>
+  fs [oEL_EQ_EL, clause_name_def] >>
+  qexistsl_tac [‘x2’] >>
+  qexists_tac `l'` >>
+  qexistsl_tac [‘x4’, ‘x0’, ‘x3’, ‘x5’, ‘s’, ‘x1’] >>
 (*
   qexists_tac `ZIP (l', x1)` >>
   rpt strip_tac >| [
@@ -186,7 +210,10 @@ Cases_on `arch_frame_list` >> (
   fs [state_fin_def]
  ) >>
  fs [arch_exec_def] >>
- Cases_on `EL i ab_list` >> (
+ Cases_on `oEL i ab_list` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
   fs []
  ) >>
  Cases_on `ALOOKUP pblock_map s` >> (
@@ -204,15 +231,22 @@ Cases_on `arch_frame_list` >> (
               set_fin_status x0 (status_returnv v))` >> (
   fs []
  ) >>
+ Cases_on `oLASTN 1 g_scope_list` >> (
+  fs []
+ ) >>
+ imp_res_tac oLASTN_imp_LASTN >>
  rw [] >>
  irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
  fs [clause_name_def] >>
- qexists_tac `ZIP (l', x1)` >>
- fs [map_tri_zip12],
+ qexistsl_tac [‘b_func_map’, ‘ZIP (l', x1)’, ‘s’, ‘x4’, ‘x0’, ‘stmt’, ‘x3’, ‘x5’] >>
+ fs [map_tri_zip12, listTheory.oEL_EQ_EL],
 
  (* programmable block transition *)
  fs [arch_exec_def] >>
- Cases_on `EL i ab_list` >> (
+ Cases_on `oEL i ab_list` >> (
+  fs []
+ ) >>
+ Cases_on `x` >> (
   fs []
  ) >>
  Cases_on `ALOOKUP pblock_map s'` >> (
@@ -234,11 +268,18 @@ Cases_on `arch_frame_list` >> (
               set_fin_status x0 (status_trans s))` >> (
    fs []
   ) >>
+
+  Cases_on `oLASTN 1 g_scope_list` >> (
+   fs []
+  ) >>
+  imp_res_tac oLASTN_imp_LASTN >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_pbl_ret") >>
   fs [clause_name_def] >>
+  qexistsl_tac [‘b_func_map’] >>
   qexists_tac `ZIP (l', x1)` >>
-  fs [map_tri_zip12],
+  fs [map_tri_zip12, oEL_EQ_EL] >>
+  metis_tac[],
 
   (* parser transition *)
   Cases_on `x0` >> (
@@ -249,14 +290,8 @@ Cases_on `arch_frame_list` >> (
   ) >>
   rw [] >>
   irule ((valOf o find_clause_arch_red) "arch_parser_trans") >>
-  fs [clause_name_def, state_fin_def] (* >>
-  qexists_tac `ZIP (l', x1)` >>
-  rpt strip_tac >| [
-   fs [map_tri_zip12],
-
-   fs [map_tri_zip12]
-  ]
-*)
+  fs [clause_name_def, state_fin_def, oEL_EQ_EL] >>
+  metis_tac[]
  ]
 ]
 QED

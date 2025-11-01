@@ -260,7 +260,7 @@ Definition v1model_copyout_pbl'_def:
     | NONE => NONE)
   | _ => NONE
 End
-
+(* TODO: Why both v1model_apply_table_f' and v1model_apply_table_f''? *)
 val v1model_apply_table_f'_def =
  if matching_optimization
  then Define ‘v1model_apply_table_f' = T’

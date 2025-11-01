@@ -2,7 +2,7 @@ open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_cake_exec_semProg";
 
-open p4Theory p4_auxTheory p4_coreTheory p4_v1modelTheory;
+open p4Theory p4_exec_semTheory p4_auxTheory p4_coreTheory p4_v1modelTheory;
 open p4_cake_auxTheory p4_cake_exec_semTheory p4_cake_archTheory;
 open p4_cake_auxLib;
 
@@ -170,6 +170,12 @@ val _ = translate e_exec_cast'_def;
 (* Unops *)
 val _ = translate bitv_1comp_def;
 val _ = translate bitv_2comp_def;
+Theorem bitv_2comp_side:
+!v. bitv_2comp_side v
+Proof
+gs[definition "bitv_2comp_side_def", arithmeticTheory.LT_IMP_LE, bitstringTheory.v2n_lt]
+QED
+val _ = update_precondition bitv_2comp_side;
 val _ = translate unop_exec'_def;
 val _ = translate e_exec_unop'_def;
 

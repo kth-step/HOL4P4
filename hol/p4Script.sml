@@ -356,11 +356,6 @@ val bitv_bl_binop_def = Define `
   bitv_bl_binop binop (bl, n) (bl', n') = (fixwidth n (binop bl bl'), n)
 `;
 
-val get_word_unop_def = Define `
-  (get_word_unop unop_compl = word_1comp) /\
-  (get_word_unop unop_neg_signed = word_2comp) /\
-  (get_word_unop unop_un_plus = (\w. w))
-`;
 Definition w2_def:
   w2 w = ((w2v:2 word -> bool list) w,2)
 End
@@ -869,289 +864,27 @@ Definition w128_def:
   w128 w = ((w2v:128 word -> bool list) w,128)
 End
 
-val bitv_unop_def = Define `
-    (bitv_unop unop (v, 1) = (w2v ((get_word_unop unop) ((v2w v): 1 word)), 1) )
-/\  (bitv_unop unop (v, 2) = (w2v ((get_word_unop unop) ((v2w v): 2 word)), 2) )
-/\  (bitv_unop unop (v, 3) = (w2v ((get_word_unop unop) ((v2w v): 3 word)), 3) )
-/\  (bitv_unop unop (v, 4) = (w2v ((get_word_unop unop) ((v2w v): 4 word)), 4) )
-/\  (bitv_unop unop (v, 5) = (w2v ((get_word_unop unop) ((v2w v): 5 word)), 5) )
-/\  (bitv_unop unop (v, 6) = (w2v ((get_word_unop unop) ((v2w v): 6 word)), 6) )
-/\  (bitv_unop unop (v, 7) = (w2v ((get_word_unop unop) ((v2w v): 7 word)), 7) )
-/\  (bitv_unop unop (v, 8) = (w2v ((get_word_unop unop) ((v2w v): 8 word)), 8) )
-/\  (bitv_unop unop (v, 9) = (w2v ((get_word_unop unop) ((v2w v): 9 word)), 9) )
-/\  (bitv_unop unop (v, 10) = (w2v ((get_word_unop unop) ((v2w v): 10 word)), 10) )
-/\  (bitv_unop unop (v, 11) = (w2v ((get_word_unop unop) ((v2w v): 11 word)), 11) )
-/\  (bitv_unop unop (v, 12) = (w2v ((get_word_unop unop) ((v2w v): 12 word)), 12) )
-/\  (bitv_unop unop (v, 13) = (w2v ((get_word_unop unop) ((v2w v): 13 word)), 13) )
-/\  (bitv_unop unop (v, 14) = (w2v ((get_word_unop unop) ((v2w v): 14 word)), 14) )
-/\  (bitv_unop unop (v, 15) = (w2v ((get_word_unop unop) ((v2w v): 15 word)), 15) )
-/\  (bitv_unop unop (v, 16) = (w2v ((get_word_unop unop) ((v2w v): 16 word)), 16) )
-/\  (bitv_unop unop (v, 17) = (w2v ((get_word_unop unop) ((v2w v): 17 word)), 17) )
-/\  (bitv_unop unop (v, 18) = (w2v ((get_word_unop unop) ((v2w v): 18 word)), 18) )
-/\  (bitv_unop unop (v, 19) = (w2v ((get_word_unop unop) ((v2w v): 19 word)), 19) )
-/\  (bitv_unop unop (v, 20) = (w2v ((get_word_unop unop) ((v2w v): 20 word)), 20) )
-/\  (bitv_unop unop (v, 21) = (w2v ((get_word_unop unop) ((v2w v): 21 word)), 21) )
-/\  (bitv_unop unop (v, 22) = (w2v ((get_word_unop unop) ((v2w v): 22 word)), 22) )
-/\  (bitv_unop unop (v, 23) = (w2v ((get_word_unop unop) ((v2w v): 23 word)), 23) )
-/\  (bitv_unop unop (v, 24) = (w2v ((get_word_unop unop) ((v2w v): 24 word)), 24) )
-/\  (bitv_unop unop (v, 25) = (w2v ((get_word_unop unop) ((v2w v): 25 word)), 25) )
-/\  (bitv_unop unop (v, 26) = (w2v ((get_word_unop unop) ((v2w v): 26 word)), 26) )
-/\  (bitv_unop unop (v, 27) = (w2v ((get_word_unop unop) ((v2w v): 27 word)), 27) )
-/\  (bitv_unop unop (v, 28) = (w2v ((get_word_unop unop) ((v2w v): 28 word)), 28) )
-/\  (bitv_unop unop (v, 29) = (w2v ((get_word_unop unop) ((v2w v): 29 word)), 29) )
-/\  (bitv_unop unop (v, 30) = (w2v ((get_word_unop unop) ((v2w v): 30 word)), 30) )
-/\  (bitv_unop unop (v, 31) = (w2v ((get_word_unop unop) ((v2w v): 31 word)), 31) )
-/\  (bitv_unop unop (v, 32) = (w2v ((get_word_unop unop) ((v2w v): 32 word)), 32) )
-/\  (bitv_unop unop (v, 33) = (w2v ((get_word_unop unop) ((v2w v): 33 word)), 33) )
-/\  (bitv_unop unop (v, 34) = (w2v ((get_word_unop unop) ((v2w v): 34 word)), 34) )
-/\  (bitv_unop unop (v, 35) = (w2v ((get_word_unop unop) ((v2w v): 35 word)), 35) )
-/\  (bitv_unop unop (v, 36) = (w2v ((get_word_unop unop) ((v2w v): 36 word)), 36) )
-/\  (bitv_unop unop (v, 37) = (w2v ((get_word_unop unop) ((v2w v): 37 word)), 37) )
-/\  (bitv_unop unop (v, 38) = (w2v ((get_word_unop unop) ((v2w v): 38 word)), 38) )
-/\  (bitv_unop unop (v, 39) = (w2v ((get_word_unop unop) ((v2w v): 39 word)), 39) )
-/\  (bitv_unop unop (v, 40) = (w2v ((get_word_unop unop) ((v2w v): 40 word)), 40) )
-/\  (bitv_unop unop (v, 41) = (w2v ((get_word_unop unop) ((v2w v): 41 word)), 41) )
-/\  (bitv_unop unop (v, 42) = (w2v ((get_word_unop unop) ((v2w v): 42 word)), 42) )
-/\  (bitv_unop unop (v, 43) = (w2v ((get_word_unop unop) ((v2w v): 43 word)), 43) )
-/\  (bitv_unop unop (v, 44) = (w2v ((get_word_unop unop) ((v2w v): 44 word)), 44) )
-/\  (bitv_unop unop (v, 45) = (w2v ((get_word_unop unop) ((v2w v): 45 word)), 45) )
-/\  (bitv_unop unop (v, 46) = (w2v ((get_word_unop unop) ((v2w v): 46 word)), 46) )
-/\  (bitv_unop unop (v, 47) = (w2v ((get_word_unop unop) ((v2w v): 47 word)), 47) )
-/\  (bitv_unop unop (v, 48) = (w2v ((get_word_unop unop) ((v2w v): 48 word)), 48) )
-/\  (bitv_unop unop (v, 49) = (w2v ((get_word_unop unop) ((v2w v): 49 word)), 49) )
-/\  (bitv_unop unop (v, 50) = (w2v ((get_word_unop unop) ((v2w v): 50 word)), 50) )
-/\  (bitv_unop unop (v, 51) = (w2v ((get_word_unop unop) ((v2w v): 51 word)), 51) )
-/\  (bitv_unop unop (v, 52) = (w2v ((get_word_unop unop) ((v2w v): 52 word)), 52) )
-/\  (bitv_unop unop (v, 53) = (w2v ((get_word_unop unop) ((v2w v): 53 word)), 53) )
-/\  (bitv_unop unop (v, 54) = (w2v ((get_word_unop unop) ((v2w v): 54 word)), 54) )
-/\  (bitv_unop unop (v, 55) = (w2v ((get_word_unop unop) ((v2w v): 55 word)), 55) )
-/\  (bitv_unop unop (v, 56) = (w2v ((get_word_unop unop) ((v2w v): 56 word)), 56) )
-/\  (bitv_unop unop (v, 57) = (w2v ((get_word_unop unop) ((v2w v): 57 word)), 57) )
-/\  (bitv_unop unop (v, 58) = (w2v ((get_word_unop unop) ((v2w v): 58 word)), 58) )
-/\  (bitv_unop unop (v, 59) = (w2v ((get_word_unop unop) ((v2w v): 59 word)), 59) )
-/\  (bitv_unop unop (v, 60) = (w2v ((get_word_unop unop) ((v2w v): 60 word)), 60) )
-/\  (bitv_unop unop (v, 61) = (w2v ((get_word_unop unop) ((v2w v): 61 word)), 61) )
-/\  (bitv_unop unop (v, 62) = (w2v ((get_word_unop unop) ((v2w v): 62 word)), 62) )
-/\  (bitv_unop unop (v, 63) = (w2v ((get_word_unop unop) ((v2w v): 63 word)), 63) )
-/\  (bitv_unop unop (v, 64) = (w2v ((get_word_unop unop) ((v2w v): 64 word)), 64) )
-/\  (bitv_unop unop (v, 65) = (w2v ((get_word_unop unop) ((v2w v): 65 word)), 65) )
-/\  (bitv_unop unop (v, 66) = (w2v ((get_word_unop unop) ((v2w v): 66 word)), 66) )
-/\  (bitv_unop unop (v, 67) = (w2v ((get_word_unop unop) ((v2w v): 67 word)), 67) )
-/\  (bitv_unop unop (v, 68) = (w2v ((get_word_unop unop) ((v2w v): 68 word)), 68) )
-/\  (bitv_unop unop (v, 69) = (w2v ((get_word_unop unop) ((v2w v): 69 word)), 69) )
-/\  (bitv_unop unop (v, 70) = (w2v ((get_word_unop unop) ((v2w v): 70 word)), 70) )
-/\  (bitv_unop unop (v, 71) = (w2v ((get_word_unop unop) ((v2w v): 71 word)), 71) )
-/\  (bitv_unop unop (v, 72) = (w2v ((get_word_unop unop) ((v2w v): 72 word)), 72) )
-/\  (bitv_unop unop (v, 73) = (w2v ((get_word_unop unop) ((v2w v): 73 word)), 73) )
-/\  (bitv_unop unop (v, 74) = (w2v ((get_word_unop unop) ((v2w v): 74 word)), 74) )
-/\  (bitv_unop unop (v, 75) = (w2v ((get_word_unop unop) ((v2w v): 75 word)), 75) )
-/\  (bitv_unop unop (v, 76) = (w2v ((get_word_unop unop) ((v2w v): 76 word)), 76) )
-/\  (bitv_unop unop (v, 77) = (w2v ((get_word_unop unop) ((v2w v): 77 word)), 77) )
-/\  (bitv_unop unop (v, 78) = (w2v ((get_word_unop unop) ((v2w v): 78 word)), 78) )
-/\  (bitv_unop unop (v, 79) = (w2v ((get_word_unop unop) ((v2w v): 79 word)), 79) )
-/\  (bitv_unop unop (v, 80) = (w2v ((get_word_unop unop) ((v2w v): 80 word)), 80) )
-/\  (bitv_unop unop (v, 81) = (w2v ((get_word_unop unop) ((v2w v): 81 word)), 81) )
-/\  (bitv_unop unop (v, 82) = (w2v ((get_word_unop unop) ((v2w v): 82 word)), 82) )
-/\  (bitv_unop unop (v, 83) = (w2v ((get_word_unop unop) ((v2w v): 83 word)), 83) )
-/\  (bitv_unop unop (v, 84) = (w2v ((get_word_unop unop) ((v2w v): 84 word)), 84) )
-/\  (bitv_unop unop (v, 85) = (w2v ((get_word_unop unop) ((v2w v): 85 word)), 85) )
-/\  (bitv_unop unop (v, 86) = (w2v ((get_word_unop unop) ((v2w v): 86 word)), 86) )
-/\  (bitv_unop unop (v, 87) = (w2v ((get_word_unop unop) ((v2w v): 87 word)), 87) )
-/\  (bitv_unop unop (v, 88) = (w2v ((get_word_unop unop) ((v2w v): 88 word)), 88) )
-/\  (bitv_unop unop (v, 89) = (w2v ((get_word_unop unop) ((v2w v): 89 word)), 89) )
-/\  (bitv_unop unop (v, 90) = (w2v ((get_word_unop unop) ((v2w v): 90 word)), 90) )
-/\  (bitv_unop unop (v, 91) = (w2v ((get_word_unop unop) ((v2w v): 91 word)), 91) )
-/\  (bitv_unop unop (v, 92) = (w2v ((get_word_unop unop) ((v2w v): 92 word)), 92) )
-/\  (bitv_unop unop (v, 93) = (w2v ((get_word_unop unop) ((v2w v): 93 word)), 93) )
-/\  (bitv_unop unop (v, 94) = (w2v ((get_word_unop unop) ((v2w v): 94 word)), 94) )
-/\  (bitv_unop unop (v, 95) = (w2v ((get_word_unop unop) ((v2w v): 95 word)), 95) )
-/\  (bitv_unop unop (v, 96) = (w2v ((get_word_unop unop) ((v2w v): 96 word)), 96) )
-/\  (bitv_unop unop (v, 97) = (w2v ((get_word_unop unop) ((v2w v): 97 word)), 97) )
-/\  (bitv_unop unop (v, 98) = (w2v ((get_word_unop unop) ((v2w v): 98 word)), 98) )
-/\  (bitv_unop unop (v, 99) = (w2v ((get_word_unop unop) ((v2w v): 99 word)), 99) )
-/\  (bitv_unop unop (v, 100) = (w2v ((get_word_unop unop) ((v2w v): 100 word)), 100) )
-/\  (bitv_unop unop (v, 101) = (w2v ((get_word_unop unop) ((v2w v): 101 word)), 101) )
-/\  (bitv_unop unop (v, 102) = (w2v ((get_word_unop unop) ((v2w v): 102 word)), 102) )
-/\  (bitv_unop unop (v, 103) = (w2v ((get_word_unop unop) ((v2w v): 103 word)), 103) )
-/\  (bitv_unop unop (v, 104) = (w2v ((get_word_unop unop) ((v2w v): 104 word)), 104) )
-/\  (bitv_unop unop (v, 105) = (w2v ((get_word_unop unop) ((v2w v): 105 word)), 105) )
-/\  (bitv_unop unop (v, 106) = (w2v ((get_word_unop unop) ((v2w v): 106 word)), 106) )
-/\  (bitv_unop unop (v, 107) = (w2v ((get_word_unop unop) ((v2w v): 107 word)), 107) )
-/\  (bitv_unop unop (v, 108) = (w2v ((get_word_unop unop) ((v2w v): 108 word)), 108) )
-/\  (bitv_unop unop (v, 109) = (w2v ((get_word_unop unop) ((v2w v): 109 word)), 109) )
-/\  (bitv_unop unop (v, 110) = (w2v ((get_word_unop unop) ((v2w v): 110 word)), 110) )
-/\  (bitv_unop unop (v, 111) = (w2v ((get_word_unop unop) ((v2w v): 111 word)), 111) )
-/\  (bitv_unop unop (v, 112) = (w2v ((get_word_unop unop) ((v2w v): 112 word)), 112) )
-/\  (bitv_unop unop (v, 113) = (w2v ((get_word_unop unop) ((v2w v): 113 word)), 113) )
-/\  (bitv_unop unop (v, 114) = (w2v ((get_word_unop unop) ((v2w v): 114 word)), 114) )
-/\  (bitv_unop unop (v, 115) = (w2v ((get_word_unop unop) ((v2w v): 115 word)), 115) )
-/\  (bitv_unop unop (v, 116) = (w2v ((get_word_unop unop) ((v2w v): 116 word)), 116) )
-/\  (bitv_unop unop (v, 117) = (w2v ((get_word_unop unop) ((v2w v): 117 word)), 117) )
-/\  (bitv_unop unop (v, 118) = (w2v ((get_word_unop unop) ((v2w v): 118 word)), 118) )
-/\  (bitv_unop unop (v, 119) = (w2v ((get_word_unop unop) ((v2w v): 119 word)), 119) )
-/\  (bitv_unop unop (v, 120) = (w2v ((get_word_unop unop) ((v2w v): 120 word)), 120) )
-/\  (bitv_unop unop (v, 121) = (w2v ((get_word_unop unop) ((v2w v): 121 word)), 121) )
-/\  (bitv_unop unop (v, 122) = (w2v ((get_word_unop unop) ((v2w v): 122 word)), 122) )
-/\  (bitv_unop unop (v, 123) = (w2v ((get_word_unop unop) ((v2w v): 123 word)), 123) )
-/\  (bitv_unop unop (v, 124) = (w2v ((get_word_unop unop) ((v2w v): 124 word)), 124) )
-/\  (bitv_unop unop (v, 125) = (w2v ((get_word_unop unop) ((v2w v): 125 word)), 125) )
-/\  (bitv_unop unop (v, 126) = (w2v ((get_word_unop unop) ((v2w v): 126 word)), 126) )
-/\  (bitv_unop unop (v, 127) = (w2v ((get_word_unop unop) ((v2w v): 127 word)), 127) )
-/\  (bitv_unop unop (v, 128) = (w2v ((get_word_unop unop) ((v2w v): 128 word)), 128) )
-`;
+Definition bitv_1comp_def:
+ bitv_1comp (v:bool list) = MAP $~ v
+End
 
-val get_word_binop_def = Define `
-    (get_word_binop binop_mul = word_mul)
-/\  (get_word_binop binop_div = word_div)
-/\  (get_word_binop binop_mod = word_mod)
-/\  (get_word_binop binop_add = word_add)
-/\  (get_word_binop binop_sat_add = saturate_add)
-/\  (get_word_binop binop_sub = word_sub)
-/\  (get_word_binop binop_sat_sub = saturate_sub)
-/\  (get_word_binop binop_shl = word_lsl_bv)
-/\  (get_word_binop binop_shr = word_lsr_bv)
-/\  (get_word_binop binop_and = word_and)
-/\  (get_word_binop binop_xor = word_xor)
-/\  (get_word_binop binop_or = word_or)
-`;
+Definition bitv_2comp_def:
+ bitv_2comp (v:bool list) =
+  let l = LENGTH v in
+  let a = 2 ** l in
+  let b = v2n v in
+  fixwidth l $ n2v (a - b)
+End
 
-val bitv_binop_inner_def = Define `
-    (bitv_binop_inner binop v v' 1 = SOME (w2v ((get_word_binop binop) ((v2w v): 1 word) ((v2w v'): 1 word)), 1) )
-/\  (bitv_binop_inner binop v v' 2 = SOME (w2v ((get_word_binop binop) ((v2w v): 2 word) ((v2w v'): 2 word)), 2) )
-/\  (bitv_binop_inner binop v v' 3 = SOME (w2v ((get_word_binop binop) ((v2w v): 3 word) ((v2w v'): 3 word)), 3) )
-/\  (bitv_binop_inner binop v v' 4 = SOME (w2v ((get_word_binop binop) ((v2w v): 4 word) ((v2w v'): 4 word)), 4) )
-/\  (bitv_binop_inner binop v v' 5 = SOME (w2v ((get_word_binop binop) ((v2w v): 5 word) ((v2w v'): 5 word)), 5) )
-/\  (bitv_binop_inner binop v v' 6 = SOME (w2v ((get_word_binop binop) ((v2w v): 6 word) ((v2w v'): 6 word)), 6) )
-/\  (bitv_binop_inner binop v v' 7 = SOME (w2v ((get_word_binop binop) ((v2w v): 7 word) ((v2w v'): 7 word)), 7) )
-/\  (bitv_binop_inner binop v v' 8 = SOME (w2v ((get_word_binop binop) ((v2w v): 8 word) ((v2w v'): 8 word)), 8) )
-/\  (bitv_binop_inner binop v v' 9 = SOME (w2v ((get_word_binop binop) ((v2w v): 9 word) ((v2w v'): 9 word)), 9) )
-/\  (bitv_binop_inner binop v v' 10 = SOME (w2v ((get_word_binop binop) ((v2w v): 10 word) ((v2w v'): 10 word)), 10) )
-/\  (bitv_binop_inner binop v v' 11 = SOME (w2v ((get_word_binop binop) ((v2w v): 11 word) ((v2w v'): 11 word)), 11) )
-/\  (bitv_binop_inner binop v v' 12 = SOME (w2v ((get_word_binop binop) ((v2w v): 12 word) ((v2w v'): 12 word)), 12) )
-/\  (bitv_binop_inner binop v v' 13 = SOME (w2v ((get_word_binop binop) ((v2w v): 13 word) ((v2w v'): 13 word)), 13) )
-/\  (bitv_binop_inner binop v v' 14 = SOME (w2v ((get_word_binop binop) ((v2w v): 14 word) ((v2w v'): 14 word)), 14) )
-/\  (bitv_binop_inner binop v v' 15 = SOME (w2v ((get_word_binop binop) ((v2w v): 15 word) ((v2w v'): 15 word)), 15) )
-/\  (bitv_binop_inner binop v v' 16 = SOME (w2v ((get_word_binop binop) ((v2w v): 16 word) ((v2w v'): 16 word)), 16) )
-/\  (bitv_binop_inner binop v v' 17 = SOME (w2v ((get_word_binop binop) ((v2w v): 17 word) ((v2w v'): 17 word)), 17) )
-/\  (bitv_binop_inner binop v v' 18 = SOME (w2v ((get_word_binop binop) ((v2w v): 18 word) ((v2w v'): 18 word)), 18) )
-/\  (bitv_binop_inner binop v v' 19 = SOME (w2v ((get_word_binop binop) ((v2w v): 19 word) ((v2w v'): 19 word)), 19) )
-/\  (bitv_binop_inner binop v v' 20 = SOME (w2v ((get_word_binop binop) ((v2w v): 20 word) ((v2w v'): 20 word)), 20) )
-/\  (bitv_binop_inner binop v v' 21 = SOME (w2v ((get_word_binop binop) ((v2w v): 21 word) ((v2w v'): 21 word)), 21) )
-/\  (bitv_binop_inner binop v v' 22 = SOME (w2v ((get_word_binop binop) ((v2w v): 22 word) ((v2w v'): 22 word)), 22) )
-/\  (bitv_binop_inner binop v v' 23 = SOME (w2v ((get_word_binop binop) ((v2w v): 23 word) ((v2w v'): 23 word)), 23) )
-/\  (bitv_binop_inner binop v v' 24 = SOME (w2v ((get_word_binop binop) ((v2w v): 24 word) ((v2w v'): 24 word)), 24) )
-/\  (bitv_binop_inner binop v v' 25 = SOME (w2v ((get_word_binop binop) ((v2w v): 25 word) ((v2w v'): 25 word)), 25) )
-/\  (bitv_binop_inner binop v v' 26 = SOME (w2v ((get_word_binop binop) ((v2w v): 26 word) ((v2w v'): 26 word)), 26) )
-/\  (bitv_binop_inner binop v v' 27 = SOME (w2v ((get_word_binop binop) ((v2w v): 27 word) ((v2w v'): 27 word)), 27) )
-/\  (bitv_binop_inner binop v v' 28 = SOME (w2v ((get_word_binop binop) ((v2w v): 28 word) ((v2w v'): 28 word)), 28) )
-/\  (bitv_binop_inner binop v v' 29 = SOME (w2v ((get_word_binop binop) ((v2w v): 29 word) ((v2w v'): 29 word)), 29) )
-/\  (bitv_binop_inner binop v v' 30 = SOME (w2v ((get_word_binop binop) ((v2w v): 30 word) ((v2w v'): 30 word)), 30) )
-/\  (bitv_binop_inner binop v v' 31 = SOME (w2v ((get_word_binop binop) ((v2w v): 31 word) ((v2w v'): 31 word)), 31) )
-/\  (bitv_binop_inner binop v v' 32 = SOME (w2v ((get_word_binop binop) ((v2w v): 32 word) ((v2w v'): 32 word)), 32) )
-/\  (bitv_binop_inner binop v v' 33 = SOME (w2v ((get_word_binop binop) ((v2w v): 33 word) ((v2w v'): 33 word)), 33) )
-/\  (bitv_binop_inner binop v v' 34 = SOME (w2v ((get_word_binop binop) ((v2w v): 34 word) ((v2w v'): 34 word)), 34) )
-/\  (bitv_binop_inner binop v v' 35 = SOME (w2v ((get_word_binop binop) ((v2w v): 35 word) ((v2w v'): 35 word)), 35) )
-/\  (bitv_binop_inner binop v v' 36 = SOME (w2v ((get_word_binop binop) ((v2w v): 36 word) ((v2w v'): 36 word)), 36) )
-/\  (bitv_binop_inner binop v v' 37 = SOME (w2v ((get_word_binop binop) ((v2w v): 37 word) ((v2w v'): 37 word)), 37) )
-/\  (bitv_binop_inner binop v v' 38 = SOME (w2v ((get_word_binop binop) ((v2w v): 38 word) ((v2w v'): 38 word)), 38) )
-/\  (bitv_binop_inner binop v v' 39 = SOME (w2v ((get_word_binop binop) ((v2w v): 39 word) ((v2w v'): 39 word)), 39) )
-/\  (bitv_binop_inner binop v v' 40 = SOME (w2v ((get_word_binop binop) ((v2w v): 40 word) ((v2w v'): 40 word)), 40) )
-/\  (bitv_binop_inner binop v v' 41 = SOME (w2v ((get_word_binop binop) ((v2w v): 41 word) ((v2w v'): 41 word)), 41) )
-/\  (bitv_binop_inner binop v v' 42 = SOME (w2v ((get_word_binop binop) ((v2w v): 42 word) ((v2w v'): 42 word)), 42) )
-/\  (bitv_binop_inner binop v v' 43 = SOME (w2v ((get_word_binop binop) ((v2w v): 43 word) ((v2w v'): 43 word)), 43) )
-/\  (bitv_binop_inner binop v v' 44 = SOME (w2v ((get_word_binop binop) ((v2w v): 44 word) ((v2w v'): 44 word)), 44) )
-/\  (bitv_binop_inner binop v v' 45 = SOME (w2v ((get_word_binop binop) ((v2w v): 45 word) ((v2w v'): 45 word)), 45) )
-/\  (bitv_binop_inner binop v v' 46 = SOME (w2v ((get_word_binop binop) ((v2w v): 46 word) ((v2w v'): 46 word)), 46) )
-/\  (bitv_binop_inner binop v v' 47 = SOME (w2v ((get_word_binop binop) ((v2w v): 47 word) ((v2w v'): 47 word)), 47) )
-/\  (bitv_binop_inner binop v v' 48 = SOME (w2v ((get_word_binop binop) ((v2w v): 48 word) ((v2w v'): 48 word)), 48) )
-/\  (bitv_binop_inner binop v v' 49 = SOME (w2v ((get_word_binop binop) ((v2w v): 49 word) ((v2w v'): 49 word)), 49) )
-/\  (bitv_binop_inner binop v v' 50 = SOME (w2v ((get_word_binop binop) ((v2w v): 50 word) ((v2w v'): 50 word)), 50) )
-/\  (bitv_binop_inner binop v v' 51 = SOME (w2v ((get_word_binop binop) ((v2w v): 51 word) ((v2w v'): 51 word)), 51) )
-/\  (bitv_binop_inner binop v v' 52 = SOME (w2v ((get_word_binop binop) ((v2w v): 52 word) ((v2w v'): 52 word)), 52) )
-/\  (bitv_binop_inner binop v v' 53 = SOME (w2v ((get_word_binop binop) ((v2w v): 53 word) ((v2w v'): 53 word)), 53) )
-/\  (bitv_binop_inner binop v v' 54 = SOME (w2v ((get_word_binop binop) ((v2w v): 54 word) ((v2w v'): 54 word)), 54) )
-/\  (bitv_binop_inner binop v v' 55 = SOME (w2v ((get_word_binop binop) ((v2w v): 55 word) ((v2w v'): 55 word)), 55) )
-/\  (bitv_binop_inner binop v v' 56 = SOME (w2v ((get_word_binop binop) ((v2w v): 56 word) ((v2w v'): 56 word)), 56) )
-/\  (bitv_binop_inner binop v v' 57 = SOME (w2v ((get_word_binop binop) ((v2w v): 57 word) ((v2w v'): 57 word)), 57) )
-/\  (bitv_binop_inner binop v v' 58 = SOME (w2v ((get_word_binop binop) ((v2w v): 58 word) ((v2w v'): 58 word)), 58) )
-/\  (bitv_binop_inner binop v v' 59 = SOME (w2v ((get_word_binop binop) ((v2w v): 59 word) ((v2w v'): 59 word)), 59) )
-/\  (bitv_binop_inner binop v v' 60 = SOME (w2v ((get_word_binop binop) ((v2w v): 60 word) ((v2w v'): 60 word)), 60) )
-/\  (bitv_binop_inner binop v v' 61 = SOME (w2v ((get_word_binop binop) ((v2w v): 61 word) ((v2w v'): 61 word)), 61) )
-/\  (bitv_binop_inner binop v v' 62 = SOME (w2v ((get_word_binop binop) ((v2w v): 62 word) ((v2w v'): 62 word)), 62) )
-/\  (bitv_binop_inner binop v v' 63 = SOME (w2v ((get_word_binop binop) ((v2w v): 63 word) ((v2w v'): 63 word)), 63) )
-/\  (bitv_binop_inner binop v v' 64 = SOME (w2v ((get_word_binop binop) ((v2w v): 64 word) ((v2w v'): 64 word)), 64) )
-/\  (bitv_binop_inner binop v v' 65 = SOME (w2v ((get_word_binop binop) ((v2w v): 65 word) ((v2w v'): 65 word)), 65) )
-/\  (bitv_binop_inner binop v v' 66 = SOME (w2v ((get_word_binop binop) ((v2w v): 66 word) ((v2w v'): 66 word)), 66) )
-/\  (bitv_binop_inner binop v v' 67 = SOME (w2v ((get_word_binop binop) ((v2w v): 67 word) ((v2w v'): 67 word)), 67) )
-/\  (bitv_binop_inner binop v v' 68 = SOME (w2v ((get_word_binop binop) ((v2w v): 68 word) ((v2w v'): 68 word)), 68) )
-/\  (bitv_binop_inner binop v v' 69 = SOME (w2v ((get_word_binop binop) ((v2w v): 69 word) ((v2w v'): 69 word)), 69) )
-/\  (bitv_binop_inner binop v v' 70 = SOME (w2v ((get_word_binop binop) ((v2w v): 70 word) ((v2w v'): 70 word)), 70) )
-/\  (bitv_binop_inner binop v v' 71 = SOME (w2v ((get_word_binop binop) ((v2w v): 71 word) ((v2w v'): 71 word)), 71) )
-/\  (bitv_binop_inner binop v v' 72 = SOME (w2v ((get_word_binop binop) ((v2w v): 72 word) ((v2w v'): 72 word)), 72) )
-/\  (bitv_binop_inner binop v v' 73 = SOME (w2v ((get_word_binop binop) ((v2w v): 73 word) ((v2w v'): 73 word)), 73) )
-/\  (bitv_binop_inner binop v v' 74 = SOME (w2v ((get_word_binop binop) ((v2w v): 74 word) ((v2w v'): 74 word)), 74) )
-/\  (bitv_binop_inner binop v v' 75 = SOME (w2v ((get_word_binop binop) ((v2w v): 75 word) ((v2w v'): 75 word)), 75) )
-/\  (bitv_binop_inner binop v v' 76 = SOME (w2v ((get_word_binop binop) ((v2w v): 76 word) ((v2w v'): 76 word)), 76) )
-/\  (bitv_binop_inner binop v v' 77 = SOME (w2v ((get_word_binop binop) ((v2w v): 77 word) ((v2w v'): 77 word)), 77) )
-/\  (bitv_binop_inner binop v v' 78 = SOME (w2v ((get_word_binop binop) ((v2w v): 78 word) ((v2w v'): 78 word)), 78) )
-/\  (bitv_binop_inner binop v v' 79 = SOME (w2v ((get_word_binop binop) ((v2w v): 79 word) ((v2w v'): 79 word)), 79) )
-/\  (bitv_binop_inner binop v v' 80 = SOME (w2v ((get_word_binop binop) ((v2w v): 80 word) ((v2w v'): 80 word)), 80) )
-/\  (bitv_binop_inner binop v v' 81 = SOME (w2v ((get_word_binop binop) ((v2w v): 81 word) ((v2w v'): 81 word)), 81) )
-/\  (bitv_binop_inner binop v v' 82 = SOME (w2v ((get_word_binop binop) ((v2w v): 82 word) ((v2w v'): 82 word)), 82) )
-/\  (bitv_binop_inner binop v v' 83 = SOME (w2v ((get_word_binop binop) ((v2w v): 83 word) ((v2w v'): 83 word)), 83) )
-/\  (bitv_binop_inner binop v v' 84 = SOME (w2v ((get_word_binop binop) ((v2w v): 84 word) ((v2w v'): 84 word)), 84) )
-/\  (bitv_binop_inner binop v v' 85 = SOME (w2v ((get_word_binop binop) ((v2w v): 85 word) ((v2w v'): 85 word)), 85) )
-/\  (bitv_binop_inner binop v v' 86 = SOME (w2v ((get_word_binop binop) ((v2w v): 86 word) ((v2w v'): 86 word)), 86) )
-/\  (bitv_binop_inner binop v v' 87 = SOME (w2v ((get_word_binop binop) ((v2w v): 87 word) ((v2w v'): 87 word)), 87) )
-/\  (bitv_binop_inner binop v v' 88 = SOME (w2v ((get_word_binop binop) ((v2w v): 88 word) ((v2w v'): 88 word)), 88) )
-/\  (bitv_binop_inner binop v v' 89 = SOME (w2v ((get_word_binop binop) ((v2w v): 89 word) ((v2w v'): 89 word)), 89) )
-/\  (bitv_binop_inner binop v v' 90 = SOME (w2v ((get_word_binop binop) ((v2w v): 90 word) ((v2w v'): 90 word)), 90) )
-/\  (bitv_binop_inner binop v v' 91 = SOME (w2v ((get_word_binop binop) ((v2w v): 91 word) ((v2w v'): 91 word)), 91) )
-/\  (bitv_binop_inner binop v v' 92 = SOME (w2v ((get_word_binop binop) ((v2w v): 92 word) ((v2w v'): 92 word)), 92) )
-/\  (bitv_binop_inner binop v v' 93 = SOME (w2v ((get_word_binop binop) ((v2w v): 93 word) ((v2w v'): 93 word)), 93) )
-/\  (bitv_binop_inner binop v v' 94 = SOME (w2v ((get_word_binop binop) ((v2w v): 94 word) ((v2w v'): 94 word)), 94) )
-/\  (bitv_binop_inner binop v v' 95 = SOME (w2v ((get_word_binop binop) ((v2w v): 95 word) ((v2w v'): 95 word)), 95) )
-/\  (bitv_binop_inner binop v v' 96 = SOME (w2v ((get_word_binop binop) ((v2w v): 96 word) ((v2w v'): 96 word)), 96) )
-/\  (bitv_binop_inner binop v v' 97 = SOME (w2v ((get_word_binop binop) ((v2w v): 97 word) ((v2w v'): 97 word)), 97) )
-/\  (bitv_binop_inner binop v v' 98 = SOME (w2v ((get_word_binop binop) ((v2w v): 98 word) ((v2w v'): 98 word)), 98) )
-/\  (bitv_binop_inner binop v v' 99 = SOME (w2v ((get_word_binop binop) ((v2w v): 99 word) ((v2w v'): 99 word)), 99) )
-/\  (bitv_binop_inner binop v v' 100 = SOME (w2v ((get_word_binop binop) ((v2w v): 100 word) ((v2w v'): 100 word)), 100) )
-/\  (bitv_binop_inner binop v v' 101 = SOME (w2v ((get_word_binop binop) ((v2w v): 101 word) ((v2w v'): 101 word)), 101) )
-/\  (bitv_binop_inner binop v v' 102 = SOME (w2v ((get_word_binop binop) ((v2w v): 102 word) ((v2w v'): 102 word)), 102) )
-/\  (bitv_binop_inner binop v v' 103 = SOME (w2v ((get_word_binop binop) ((v2w v): 103 word) ((v2w v'): 103 word)), 103) )
-/\  (bitv_binop_inner binop v v' 104 = SOME (w2v ((get_word_binop binop) ((v2w v): 104 word) ((v2w v'): 104 word)), 104) )
-/\  (bitv_binop_inner binop v v' 105 = SOME (w2v ((get_word_binop binop) ((v2w v): 105 word) ((v2w v'): 105 word)), 105) )
-/\  (bitv_binop_inner binop v v' 106 = SOME (w2v ((get_word_binop binop) ((v2w v): 106 word) ((v2w v'): 106 word)), 106) )
-/\  (bitv_binop_inner binop v v' 107 = SOME (w2v ((get_word_binop binop) ((v2w v): 107 word) ((v2w v'): 107 word)), 107) )
-/\  (bitv_binop_inner binop v v' 108 = SOME (w2v ((get_word_binop binop) ((v2w v): 108 word) ((v2w v'): 108 word)), 108) )
-/\  (bitv_binop_inner binop v v' 109 = SOME (w2v ((get_word_binop binop) ((v2w v): 109 word) ((v2w v'): 109 word)), 109) )
-/\  (bitv_binop_inner binop v v' 110 = SOME (w2v ((get_word_binop binop) ((v2w v): 110 word) ((v2w v'): 110 word)), 110) )
-/\  (bitv_binop_inner binop v v' 111 = SOME (w2v ((get_word_binop binop) ((v2w v): 111 word) ((v2w v'): 111 word)), 111) )
-/\  (bitv_binop_inner binop v v' 112 = SOME (w2v ((get_word_binop binop) ((v2w v): 112 word) ((v2w v'): 112 word)), 112) )
-/\  (bitv_binop_inner binop v v' 113 = SOME (w2v ((get_word_binop binop) ((v2w v): 113 word) ((v2w v'): 113 word)), 113) )
-/\  (bitv_binop_inner binop v v' 114 = SOME (w2v ((get_word_binop binop) ((v2w v): 114 word) ((v2w v'): 114 word)), 114) )
-/\  (bitv_binop_inner binop v v' 115 = SOME (w2v ((get_word_binop binop) ((v2w v): 115 word) ((v2w v'): 115 word)), 115) )
-/\  (bitv_binop_inner binop v v' 116 = SOME (w2v ((get_word_binop binop) ((v2w v): 116 word) ((v2w v'): 116 word)), 116) )
-/\  (bitv_binop_inner binop v v' 117 = SOME (w2v ((get_word_binop binop) ((v2w v): 117 word) ((v2w v'): 117 word)), 117) )
-/\  (bitv_binop_inner binop v v' 118 = SOME (w2v ((get_word_binop binop) ((v2w v): 118 word) ((v2w v'): 118 word)), 118) )
-/\  (bitv_binop_inner binop v v' 119 = SOME (w2v ((get_word_binop binop) ((v2w v): 119 word) ((v2w v'): 119 word)), 119) )
-/\  (bitv_binop_inner binop v v' 120 = SOME (w2v ((get_word_binop binop) ((v2w v): 120 word) ((v2w v'): 120 word)), 120) )
-/\  (bitv_binop_inner binop v v' 121 = SOME (w2v ((get_word_binop binop) ((v2w v): 121 word) ((v2w v'): 121 word)), 121) )
-/\  (bitv_binop_inner binop v v' 122 = SOME (w2v ((get_word_binop binop) ((v2w v): 122 word) ((v2w v'): 122 word)), 122) )
-/\  (bitv_binop_inner binop v v' 123 = SOME (w2v ((get_word_binop binop) ((v2w v): 123 word) ((v2w v'): 123 word)), 123) )
-/\  (bitv_binop_inner binop v v' 124 = SOME (w2v ((get_word_binop binop) ((v2w v): 124 word) ((v2w v'): 124 word)), 124) )
-/\  (bitv_binop_inner binop v v' 125 = SOME (w2v ((get_word_binop binop) ((v2w v): 125 word) ((v2w v'): 125 word)), 125) )
-/\  (bitv_binop_inner binop v v' 126 = SOME (w2v ((get_word_binop binop) ((v2w v): 126 word) ((v2w v'): 126 word)), 126) )
-/\  (bitv_binop_inner binop v v' 127 = SOME (w2v ((get_word_binop binop) ((v2w v): 127 word) ((v2w v'): 127 word)), 127) )
-/\  (bitv_binop_inner binop v v' 128 = SOME (w2v ((get_word_binop binop) ((v2w v): 128 word) ((v2w v'): 128 word)), 128) )
-/\  (bitv_binop_inner binop v v' _ = NONE )
-`;
-val bitv_binop_def = Define `
-  bitv_binop binop (v, n) (v', n') =
-    if n = n'
-    then bitv_binop_inner binop v v' n
-    else NONE
-`;
+(* Note this is not used for unop_neg *)
+Definition bitv_unop_def:
+ (bitv_unop unop_compl (bl,n) = (bitv_1comp bl, n))
+ /\
+ (bitv_unop unop_neg_signed (bl,n) = (bitv_2comp bl, n))
+ /\
+ (bitv_unop unop_un_plus bitv = bitv)
+End
+
 
 Definition bit_eq_def:
  (bit_eq (T, T) = T) /\
@@ -1160,157 +893,157 @@ Definition bit_eq_def:
  (bit_eq (F, F) = T)
 End
 
-Definition word_eq_def:
- (word_eq w1 w2 =
-  AND_EL (MAP bit_eq (ZIP(w2v w1, w2v w2))))
+(** binops **)
+Definition bitv_ls_def:
+ bitv_ls a b = (v2n a <= v2n b)
 End
 
-val get_word_binpred_def = Define `
-    (get_word_binpred binop_le = word_ls)
-/\  (get_word_binpred binop_ge = word_hs)
-/\  (get_word_binpred binop_lt = word_lo)
-/\  (get_word_binpred binop_gt = word_hi)
-/\  (get_word_binpred binop_neq = (\w1 w2. ~(word_eq w1 w2)))
-/\  (get_word_binpred binop_eq = (\w1 w2. word_eq w1 w2))
-`;
+Definition bitv_hs_def:
+ bitv_hs a b = (v2n a >= v2n b)
+End
 
-val bitv_binpred_inner_def = Define `
-    (bitv_binpred_inner binpred v v' 1 = SOME (((get_word_binpred binpred) ((v2w v): 1 word) ((v2w v'): 1 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 2 = SOME (((get_word_binpred binpred) ((v2w v): 2 word) ((v2w v'): 2 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 3 = SOME (((get_word_binpred binpred) ((v2w v): 3 word) ((v2w v'): 3 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 4 = SOME (((get_word_binpred binpred) ((v2w v): 4 word) ((v2w v'): 4 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 5 = SOME (((get_word_binpred binpred) ((v2w v): 5 word) ((v2w v'): 5 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 6 = SOME (((get_word_binpred binpred) ((v2w v): 6 word) ((v2w v'): 6 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 7 = SOME (((get_word_binpred binpred) ((v2w v): 7 word) ((v2w v'): 7 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 8 = SOME (((get_word_binpred binpred) ((v2w v): 8 word) ((v2w v'): 8 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 9 = SOME (((get_word_binpred binpred) ((v2w v): 9 word) ((v2w v'): 9 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 10 = SOME (((get_word_binpred binpred) ((v2w v): 10 word) ((v2w v'): 10 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 11 = SOME (((get_word_binpred binpred) ((v2w v): 11 word) ((v2w v'): 11 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 12 = SOME (((get_word_binpred binpred) ((v2w v): 12 word) ((v2w v'): 12 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 13 = SOME (((get_word_binpred binpred) ((v2w v): 13 word) ((v2w v'): 13 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 14 = SOME (((get_word_binpred binpred) ((v2w v): 14 word) ((v2w v'): 14 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 15 = SOME (((get_word_binpred binpred) ((v2w v): 15 word) ((v2w v'): 15 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 16 = SOME (((get_word_binpred binpred) ((v2w v): 16 word) ((v2w v'): 16 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 17 = SOME (((get_word_binpred binpred) ((v2w v): 17 word) ((v2w v'): 17 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 18 = SOME (((get_word_binpred binpred) ((v2w v): 18 word) ((v2w v'): 18 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 19 = SOME (((get_word_binpred binpred) ((v2w v): 19 word) ((v2w v'): 19 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 20 = SOME (((get_word_binpred binpred) ((v2w v): 20 word) ((v2w v'): 20 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 21 = SOME (((get_word_binpred binpred) ((v2w v): 21 word) ((v2w v'): 21 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 22 = SOME (((get_word_binpred binpred) ((v2w v): 22 word) ((v2w v'): 22 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 23 = SOME (((get_word_binpred binpred) ((v2w v): 23 word) ((v2w v'): 23 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 24 = SOME (((get_word_binpred binpred) ((v2w v): 24 word) ((v2w v'): 24 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 25 = SOME (((get_word_binpred binpred) ((v2w v): 25 word) ((v2w v'): 25 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 26 = SOME (((get_word_binpred binpred) ((v2w v): 26 word) ((v2w v'): 26 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 27 = SOME (((get_word_binpred binpred) ((v2w v): 27 word) ((v2w v'): 27 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 28 = SOME (((get_word_binpred binpred) ((v2w v): 28 word) ((v2w v'): 28 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 29 = SOME (((get_word_binpred binpred) ((v2w v): 29 word) ((v2w v'): 29 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 30 = SOME (((get_word_binpred binpred) ((v2w v): 30 word) ((v2w v'): 30 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 31 = SOME (((get_word_binpred binpred) ((v2w v): 31 word) ((v2w v'): 31 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 32 = SOME (((get_word_binpred binpred) ((v2w v): 32 word) ((v2w v'): 32 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 33 = SOME (((get_word_binpred binpred) ((v2w v): 33 word) ((v2w v'): 33 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 34 = SOME (((get_word_binpred binpred) ((v2w v): 34 word) ((v2w v'): 34 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 35 = SOME (((get_word_binpred binpred) ((v2w v): 35 word) ((v2w v'): 35 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 36 = SOME (((get_word_binpred binpred) ((v2w v): 36 word) ((v2w v'): 36 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 37 = SOME (((get_word_binpred binpred) ((v2w v): 37 word) ((v2w v'): 37 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 38 = SOME (((get_word_binpred binpred) ((v2w v): 38 word) ((v2w v'): 38 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 39 = SOME (((get_word_binpred binpred) ((v2w v): 39 word) ((v2w v'): 39 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 40 = SOME (((get_word_binpred binpred) ((v2w v): 40 word) ((v2w v'): 40 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 41 = SOME (((get_word_binpred binpred) ((v2w v): 41 word) ((v2w v'): 41 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 42 = SOME (((get_word_binpred binpred) ((v2w v): 42 word) ((v2w v'): 42 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 43 = SOME (((get_word_binpred binpred) ((v2w v): 43 word) ((v2w v'): 43 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 44 = SOME (((get_word_binpred binpred) ((v2w v): 44 word) ((v2w v'): 44 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 45 = SOME (((get_word_binpred binpred) ((v2w v): 45 word) ((v2w v'): 45 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 46 = SOME (((get_word_binpred binpred) ((v2w v): 46 word) ((v2w v'): 46 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 47 = SOME (((get_word_binpred binpred) ((v2w v): 47 word) ((v2w v'): 47 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 48 = SOME (((get_word_binpred binpred) ((v2w v): 48 word) ((v2w v'): 48 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 49 = SOME (((get_word_binpred binpred) ((v2w v): 49 word) ((v2w v'): 49 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 50 = SOME (((get_word_binpred binpred) ((v2w v): 50 word) ((v2w v'): 50 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 51 = SOME (((get_word_binpred binpred) ((v2w v): 51 word) ((v2w v'): 51 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 52 = SOME (((get_word_binpred binpred) ((v2w v): 52 word) ((v2w v'): 52 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 53 = SOME (((get_word_binpred binpred) ((v2w v): 53 word) ((v2w v'): 53 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 54 = SOME (((get_word_binpred binpred) ((v2w v): 54 word) ((v2w v'): 54 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 55 = SOME (((get_word_binpred binpred) ((v2w v): 55 word) ((v2w v'): 55 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 56 = SOME (((get_word_binpred binpred) ((v2w v): 56 word) ((v2w v'): 56 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 57 = SOME (((get_word_binpred binpred) ((v2w v): 57 word) ((v2w v'): 57 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 58 = SOME (((get_word_binpred binpred) ((v2w v): 58 word) ((v2w v'): 58 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 59 = SOME (((get_word_binpred binpred) ((v2w v): 59 word) ((v2w v'): 59 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 60 = SOME (((get_word_binpred binpred) ((v2w v): 60 word) ((v2w v'): 60 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 61 = SOME (((get_word_binpred binpred) ((v2w v): 61 word) ((v2w v'): 61 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 62 = SOME (((get_word_binpred binpred) ((v2w v): 62 word) ((v2w v'): 62 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 63 = SOME (((get_word_binpred binpred) ((v2w v): 63 word) ((v2w v'): 63 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 64 = SOME (((get_word_binpred binpred) ((v2w v): 64 word) ((v2w v'): 64 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 65 = SOME (((get_word_binpred binpred) ((v2w v): 65 word) ((v2w v'): 65 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 66 = SOME (((get_word_binpred binpred) ((v2w v): 66 word) ((v2w v'): 66 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 67 = SOME (((get_word_binpred binpred) ((v2w v): 67 word) ((v2w v'): 67 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 68 = SOME (((get_word_binpred binpred) ((v2w v): 68 word) ((v2w v'): 68 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 69 = SOME (((get_word_binpred binpred) ((v2w v): 69 word) ((v2w v'): 69 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 70 = SOME (((get_word_binpred binpred) ((v2w v): 70 word) ((v2w v'): 70 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 71 = SOME (((get_word_binpred binpred) ((v2w v): 71 word) ((v2w v'): 71 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 72 = SOME (((get_word_binpred binpred) ((v2w v): 72 word) ((v2w v'): 72 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 73 = SOME (((get_word_binpred binpred) ((v2w v): 73 word) ((v2w v'): 73 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 74 = SOME (((get_word_binpred binpred) ((v2w v): 74 word) ((v2w v'): 74 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 75 = SOME (((get_word_binpred binpred) ((v2w v): 75 word) ((v2w v'): 75 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 76 = SOME (((get_word_binpred binpred) ((v2w v): 76 word) ((v2w v'): 76 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 77 = SOME (((get_word_binpred binpred) ((v2w v): 77 word) ((v2w v'): 77 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 78 = SOME (((get_word_binpred binpred) ((v2w v): 78 word) ((v2w v'): 78 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 79 = SOME (((get_word_binpred binpred) ((v2w v): 79 word) ((v2w v'): 79 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 80 = SOME (((get_word_binpred binpred) ((v2w v): 80 word) ((v2w v'): 80 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 81 = SOME (((get_word_binpred binpred) ((v2w v): 81 word) ((v2w v'): 81 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 82 = SOME (((get_word_binpred binpred) ((v2w v): 82 word) ((v2w v'): 82 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 83 = SOME (((get_word_binpred binpred) ((v2w v): 83 word) ((v2w v'): 83 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 84 = SOME (((get_word_binpred binpred) ((v2w v): 84 word) ((v2w v'): 84 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 85 = SOME (((get_word_binpred binpred) ((v2w v): 85 word) ((v2w v'): 85 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 86 = SOME (((get_word_binpred binpred) ((v2w v): 86 word) ((v2w v'): 86 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 87 = SOME (((get_word_binpred binpred) ((v2w v): 87 word) ((v2w v'): 87 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 88 = SOME (((get_word_binpred binpred) ((v2w v): 88 word) ((v2w v'): 88 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 89 = SOME (((get_word_binpred binpred) ((v2w v): 89 word) ((v2w v'): 89 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 90 = SOME (((get_word_binpred binpred) ((v2w v): 90 word) ((v2w v'): 90 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 91 = SOME (((get_word_binpred binpred) ((v2w v): 91 word) ((v2w v'): 91 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 92 = SOME (((get_word_binpred binpred) ((v2w v): 92 word) ((v2w v'): 92 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 93 = SOME (((get_word_binpred binpred) ((v2w v): 93 word) ((v2w v'): 93 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 94 = SOME (((get_word_binpred binpred) ((v2w v): 94 word) ((v2w v'): 94 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 95 = SOME (((get_word_binpred binpred) ((v2w v): 95 word) ((v2w v'): 95 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 96 = SOME (((get_word_binpred binpred) ((v2w v): 96 word) ((v2w v'): 96 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 97 = SOME (((get_word_binpred binpred) ((v2w v): 97 word) ((v2w v'): 97 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 98 = SOME (((get_word_binpred binpred) ((v2w v): 98 word) ((v2w v'): 98 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 99 = SOME (((get_word_binpred binpred) ((v2w v): 99 word) ((v2w v'): 99 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 100 = SOME (((get_word_binpred binpred) ((v2w v): 100 word) ((v2w v'): 100 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 101 = SOME (((get_word_binpred binpred) ((v2w v): 101 word) ((v2w v'): 101 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 102 = SOME (((get_word_binpred binpred) ((v2w v): 102 word) ((v2w v'): 102 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 103 = SOME (((get_word_binpred binpred) ((v2w v): 103 word) ((v2w v'): 103 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 104 = SOME (((get_word_binpred binpred) ((v2w v): 104 word) ((v2w v'): 104 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 105 = SOME (((get_word_binpred binpred) ((v2w v): 105 word) ((v2w v'): 105 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 106 = SOME (((get_word_binpred binpred) ((v2w v): 106 word) ((v2w v'): 106 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 107 = SOME (((get_word_binpred binpred) ((v2w v): 107 word) ((v2w v'): 107 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 108 = SOME (((get_word_binpred binpred) ((v2w v): 108 word) ((v2w v'): 108 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 109 = SOME (((get_word_binpred binpred) ((v2w v): 109 word) ((v2w v'): 109 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 110 = SOME (((get_word_binpred binpred) ((v2w v): 110 word) ((v2w v'): 110 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 111 = SOME (((get_word_binpred binpred) ((v2w v): 111 word) ((v2w v'): 111 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 112 = SOME (((get_word_binpred binpred) ((v2w v): 112 word) ((v2w v'): 112 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 113 = SOME (((get_word_binpred binpred) ((v2w v): 113 word) ((v2w v'): 113 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 114 = SOME (((get_word_binpred binpred) ((v2w v): 114 word) ((v2w v'): 114 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 115 = SOME (((get_word_binpred binpred) ((v2w v): 115 word) ((v2w v'): 115 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 116 = SOME (((get_word_binpred binpred) ((v2w v): 116 word) ((v2w v'): 116 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 117 = SOME (((get_word_binpred binpred) ((v2w v): 117 word) ((v2w v'): 117 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 118 = SOME (((get_word_binpred binpred) ((v2w v): 118 word) ((v2w v'): 118 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 119 = SOME (((get_word_binpred binpred) ((v2w v): 119 word) ((v2w v'): 119 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 120 = SOME (((get_word_binpred binpred) ((v2w v): 120 word) ((v2w v'): 120 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 121 = SOME (((get_word_binpred binpred) ((v2w v): 121 word) ((v2w v'): 121 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 122 = SOME (((get_word_binpred binpred) ((v2w v): 122 word) ((v2w v'): 122 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 123 = SOME (((get_word_binpred binpred) ((v2w v): 123 word) ((v2w v'): 123 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 124 = SOME (((get_word_binpred binpred) ((v2w v): 124 word) ((v2w v'): 124 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 125 = SOME (((get_word_binpred binpred) ((v2w v): 125 word) ((v2w v'): 125 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 126 = SOME (((get_word_binpred binpred) ((v2w v): 126 word) ((v2w v'): 126 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 127 = SOME (((get_word_binpred binpred) ((v2w v): 127 word) ((v2w v'): 127 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' 128 = SOME (((get_word_binpred binpred) ((v2w v): 128 word) ((v2w v'): 128 word)):boolv) )
-/\  (bitv_binpred_inner binpred v v' _ = NONE )
-`;
-val bitv_binpred_def = Define `
+Definition bitv_lo_def:
+ bitv_lo a b = (v2n a < v2n b)
+End
+
+Definition bitv_hi_def:
+ bitv_hi a b = (v2n a > v2n b)
+End
+
+Definition bitv_eq_def:
+ bitv_eq a b = AND_EL (MAP bit_eq (ZIP (a, b)))
+End
+
+Definition bitv_neq_def:
+ bitv_neq a b = ~bitv_eq a b
+End
+ 
+Definition bitv_saturate_add_def:
+ bitv_saturate_add a b l =
+  let res = (v2n a) + (v2n b) in
+  let limit = (v2n (REPLICATE l T) + 1) in
+  if limit <= res
+  then fixwidth l $ n2v (limit - 1)
+  else fixwidth l $ n2v res
+End
+
+Definition bitv_saturate_sub_def:
+ bitv_saturate_sub a b l =
+  (* TODO: Need this so that the CakeML translator can work *)
+  let av = v2n a in
+  let bv = v2n b in
+  fixwidth l $ n2v (if bv ≤ av then (av - bv) else 0)
+End
+
+Definition bitv_lsl_bv_def:
+ bitv_lsl_bv a b l =
+  fixwidth l (a++(REPLICATE (v2n b) F))
+End
+
+(* We could use l instead of LENGTH a, but that gives a precondition *)
+Definition bitv_lsr_bv_def:
+ bitv_lsr_bv a b (l:num) =
+  TAKE (LENGTH a) ((REPLICATE (v2n b) F)++a)
+End
+
+Definition bitv_mul_def:
+ bitv_mul a b l = fixwidth l $ n2v (v2n a * v2n b)
+End
+
+Definition bitv_div_def:
+ bitv_div a b l =
+  let divisor = v2n b in
+  if divisor <> 0
+  then fixwidth l $ n2v (v2n a DIV divisor)
+  else fixwidth l $ n2v 0
+End
+
+Definition bitv_mod_def:
+ bitv_mod a b l =
+  let modulus = v2n b in
+  if modulus <> 0
+  then fixwidth l $ n2v (v2n a MOD modulus)
+  else fixwidth l a
+End
+
+Definition bitv_add_def:
+ bitv_add a b (l:num) = fixwidth l $ n2v (v2n a + v2n b)
+End
+
+Definition bitv_sub_def:
+ bitv_sub a b (l:num) = bitv_add a (bitv_2comp b) l
+End
+
+Definition band'_def:
+ band' a b = MAP (\(x,y). x /\ y) (ZIP(a, b))
+End
+Definition bitv_and_def:
+ bitv_and a b (l:num) = band' a b
+End
+
+Definition bor'_def:
+ bor' (a:bool list) b = MAP (\(x,y). (x \/ y)) (ZIP(a, b))
+End
+Definition bitv_or_def:
+ bitv_or a b (l:num) = bor' a b
+End
+
+Definition bitv_xor_def:
+ bitv_xor a b (l:num) = bxor a b
+End
+
+(* TODO: Split the binop type into binops and binpreds, more efficient... *)
+Definition get_bitv_binpred_def:
+ get_bitv_binpred binop =
+  case binop of
+  | binop_le => SOME bitv_ls
+  | binop_ge => SOME bitv_hs
+  | binop_lt => SOME bitv_lo
+  | binop_gt => SOME bitv_hi
+  | binop_neq => SOME bitv_neq
+  | binop_eq => SOME bitv_eq
+  | _ => NONE
+End
+
+Definition bitv_binpred_def:
   bitv_binpred binpred (v, n) (v', n') =
     if n = n'
-    then bitv_binpred_inner binpred v v' n
+    then
+     (case get_bitv_binpred binpred of
+      | SOME bp =>
+       SOME $ bp v v'
+      | NONE => NONE)
     else NONE
-`;
+End
+
+Definition get_bitv_binop_def:
+ get_bitv_binop binop =
+  case binop of
+  | binop_mul => SOME bitv_mul
+  | binop_div => SOME bitv_div
+  | binop_mod => SOME bitv_mod
+  | binop_add => SOME bitv_add
+  | binop_sat_add => SOME bitv_saturate_add
+  | binop_sub => SOME bitv_sub
+  | binop_sat_sub => SOME bitv_saturate_sub
+  | binop_shl => SOME bitv_lsl_bv
+  | binop_shr => SOME bitv_lsr_bv
+  | binop_and => SOME bitv_and
+  | binop_xor => SOME bitv_xor
+  | binop_or => SOME bitv_or
+  | _ => NONE
+End
+
+Definition bitv_binop_def:
+ bitv_binop binop (v, n) (v', n') =
+  if n = n'
+  then
+   (case get_bitv_binop binop of
+    | SOME bo => SOME $ (bo v v' n, n)
+    | NONE => NONE)
+  else NONE
+End
+
 val bitv_concat_def = Define `
   bitv_concat (v, (n:num)) (v', n') = (v ++ v', n + n')
 `;
@@ -2554,13 +2287,13 @@ Inductive stmt_sem:
  ==> 
 ( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_trans (e_v (v_str x))))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list )   ])  ,  (status_trans x) )  )))
 
-[stmt_apply_table_v:] (! (e'_list:e list) (e_mk_list:(e#mk) list) (v_list:v list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (f:x) (f':x) .
+[stmt_apply_table_v:] (! (e'_list:e list) (e_mk_list:(e#mk) list) (e''_list:e list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (f:x) (f':x) .
 (clause_name "stmt_apply_table_v") /\
 (( (is_consts   ( ((MAP (\(e_,mk_) . e_) e_mk_list)) )  ) ) /\
 ( ( ALOOKUP  tbl_map   tbl  = SOME (   ( ((MAP (\(e_,mk_) . mk_) e_mk_list)) )   , (  f'  ,   ( (e'_list) )   ) ) ) ) /\
-( ( apply_table_f  (  tbl  ,   (  ( ((MAP (\(e_,mk_) . e_) e_mk_list)) )  )   ,   (  ( ((MAP (\(e_,mk_) . mk_) e_mk_list)) )  )   , (  f'  ,   ( (e'_list) )   ),  ascope ) = SOME (  f  ,   (  ( ((MAP (\v_ . (e_v v_)) v_list)) )  )   ) ) ))
+( ( apply_table_f  (  tbl  ,   (  ( ((MAP (\(e_,mk_) . e_) e_mk_list)) )  )   ,   (  ( ((MAP (\(e_,mk_) . mk_) e_mk_list)) )  )   , (  f'  ,   ( (e'_list) )   ),  ascope ) = SOME (  f  ,   (  ( (e''_list) )  )   ) ) ))
  ==> 
-( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,mk_) . e_) e_mk_list))))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval_null  ( (e_call (funn_name f) ((MAP (\v_ . (e_v v_)) v_list))) ) ))]) )   ,  scope_list )   ])  ,  status_running )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,mk_) . e_) e_mk_list))))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval_null  ( (e_call (funn_name f) (e''_list)) ) ))]) )   ,  scope_list )   ])  ,  status_running )  )))
 
 [stmt_ret_v:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (v:v) (scope_list:scope_list) .
 (clause_name "stmt_ret_v")

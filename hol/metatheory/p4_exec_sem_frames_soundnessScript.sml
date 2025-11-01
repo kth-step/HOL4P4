@@ -8,7 +8,7 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_st
 Definition frame_list_exec_sound:
  (frame_list_exec_sound (type:'a itself) frame_list =
   !(ctx:'a ctx) ascope g_scope_list status state'.
-  frames_exec uninit_arb ctx (ascope, g_scope_list, frame_list, status) = SOME state' ==>
+  frames_exec ctx (ascope, g_scope_list, frame_list, status) = SOME state' ==>
   frames_red ctx (ascope, g_scope_list, frame_list, status) state')
 End
 
@@ -28,6 +28,37 @@ scopes_to_retrieve funn func_map b_func_map g_scope_list1 g_scope_list2 = SOME g
 Proof
 rpt strip_tac >>
 gs[scopes_to_retrieve_def, scopes_to_retrieve_exec_def, AllCaseEqs()]
+QED
+
+Theorem copyout_exec_imp:
+!xlist dlist gsl ss ss_curr ss_ret.
+copyout_exec xlist dlist gsl ss ss_curr = SOME ss_ret ==>
+copyout xlist dlist gsl ss ss_curr = SOME ss_ret
+Proof
+rpt strip_tac >>
+gs[copyout_exec_def, update_return_frame_exec_def, copyout_def, update_return_frame_def, AllCaseEqs()] >>
+qexists_tac ‘updated_return_ss’ >>
+gs[] >>
+CONJ_TAC >- (
+ irule p4_exec_sem_e_soundnessTheory.FOLDL_IMP >>
+ qexists_tac ‘(λss_temp_opt (x,d).
+               if is_d_none_in d then ss_temp_opt
+               else
+                 case ss_temp_opt of
+                   NONE => NONE
+                 | SOME ss_temp =>
+                   case lookup_map [LAST ss_curr] (varn_name x) of
+                     NONE => NONE
+                   | SOME (v5,NONE) => NONE
+                   | SOME (v5,SOME stret) => assign' ss_temp v5 stret)’ >>
+ gs[] >>
+ rpt strip_tac >>
+ PairCases_on ‘d’ >>
+ gs[assign'_imp, AllCaseEqs()]
+) >>
+gvs[] >>
+qexists_tac ‘(LENGTH updated_return_ss) - 1’ >>
+gs[p4_auxTheory.SUC_ADD_ONE, p4_auxTheory.oDROP_DROP, p4_auxTheory.oTAKE_TAKE]
 QED
 
 Theorem frame_list_exec_sound_red:
@@ -77,7 +108,7 @@ Cases_on `frame_list` >| [
   gs[clause_name_def] >>
   qexistsl_tac [‘g_scope_list'’, ‘g_scope_list''’, ‘g_scope_list'3'’, ‘g_scope_list'4'’, ‘g_scope_list'5'’, ‘g_scope_list'6'’, ‘scope_list'’, ‘stmt_stack'’, ‘v’] >>
   gvs[lambda_FST, lambda_SND] >>
-  gvs[scopes_to_pass_exec_imp, scopes_to_retrieve_exec_imp],
+  gvs[scopes_to_pass_exec_imp, scopes_to_retrieve_exec_imp, assign'_imp, copyout_exec_imp],
 
   (* comp1 *)
   assume_tac stmt_stack_exec_sound_red >>

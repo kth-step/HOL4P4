@@ -1243,6 +1243,7 @@ QED
 (** bitv theories section **)
 (* The bitv_binop_innershould return the same width as the input bitstrings *)
 
+(*
 Theorem bitv_binop_inner_lemma:
 ! q q' q'' r r' binop . bitv_binop_inner binop q q' r = SOME (q'',r') ==>
 (r = r') 
@@ -1252,6 +1253,7 @@ SIMP_TAC (srw_ss()) [Once bitv_binop_inner_def] >>
 NTAC 128 (IF_CASES_TAC >>
 FULL_SIMP_TAC std_ss [])
 QED
+*)
 
 Theorem bitv_binop_width_lemma:
 ! bitv bitv' bitv'' binop . bitv_binop binop bitv bitv' = SOME bitv'' ==>
@@ -1261,8 +1263,7 @@ REPEAT STRIP_TAC >>
 Cases_on `bitv` >>
 Cases_on `bitv'` >>
 Cases_on `bitv''` >>
-rfs[bitv_binop_def] >>
-IMP_RES_TAC bitv_binop_inner_lemma
+rfs[bitv_binop_def, get_bitv_binop_def, AllCaseEqs()]
 QED
 
 
@@ -1279,9 +1280,8 @@ REPEAT STRIP_TAC >>
 PairCases_on `bitv` >>
 PairCases_on `bitv'` >>
 PairCases_on `bitv''` >>
-rfs[bs_width_def, bitv_binop_inner_def, bitv_bl_binop_def] >>
-rfs[bitv_binop_def] >>
-IMP_RES_TAC bitv_binop_inner_lemma
+rfs[bs_width_def, bitv_bl_binop_def] >>
+rfs[bitv_binop_def, get_bitv_binop_def, AllCaseEqs()]
 QED
 
 
@@ -1295,9 +1295,8 @@ Proof
 Cases_on `bitv` >>
 Cases_on `bitv'` >>
 rw[] >> gvs[] >>
-rfs[bs_width_def, bitv_binop_inner_def, bitv_bl_binop_def] >>
-gvs[bitv_binop_def] >>
-IMP_RES_TAC bitv_binop_inner_lemma
+rfs[bs_width_def, bitv_bl_binop_def] >>
+gvs[bitv_binop_def, get_bitv_binop_def, AllCaseEqs()]
 QED
 
 
@@ -1335,7 +1334,7 @@ r = bs_width (bitv_unop unop_neg_signed (q,r))
 Proof
 rpt strip_tac >>
 IMP_RES_TAC  bit_range >> fs[] >>
-gvs[bitv_unop_def, get_word_unop_def, bs_width_def]
+gvs[bitv_unop_def, bs_width_def]
 QED
 
 
@@ -1358,9 +1357,8 @@ PairCases_on `bitv` >>
 PairCases_on `bitv'` >>
 PairCases_on `bitv''` >>
 rw[] >>
-rfs[bs_width_def, bitv_binop_inner_def, bitv_bl_binop_def] >>
-rfs[bitv_binop_def] >>
-IMP_RES_TAC bitv_binop_inner_lemma 
+rfs[bs_width_def, bitv_bl_binop_def] >>
+rfs[bitv_binop_def, get_bitv_binop_def, AllCaseEqs()]
 QED
 
 
@@ -2950,5 +2948,41 @@ Definition v2w8l'_def:
  (v2w8l' (a::(b::(c::(d::(e::(f::(g::(h::t)))))))) =
    (((v2w [a;b;c;d;e;f;g;h]):word8)::(v2w8l' t)))
 End
+
+Theorem boolify_LENGTH:
+!l.
+LENGTH (boolify [] l) = LENGTH l
+Proof
+Induct >>
+gs[bitstringTheory.boolify_reverse_map]
+QED
+
+Theorem n2v_LENGTH:
+!n w.
+w > 0 ==>
+n < 2 ** w ==>
+LENGTH (n2v n) <= w
+Proof
+gs[bitstringTheory.n2v_def, boolify_LENGTH, numposrepTheory.LENGTH_n2l, GSYM bitTheory.LOG2_def] >>                           
+rpt strip_tac >>
+Cases_on ‘n = 0’ >- (
+ gs[]
+) >>
+gs[GSYM arithmeticTheory.LESS_EQ, bitTheory.LT_TWOEXP]
+QED
+
+Theorem w2v_n2w:
+!n.
+n <= dimword (:'a) ==>
+w2v ((n2w n):'a word) = fixwidth (dimindex (:'a)) $ n2v n
+Proof
+rw[] >>
+Cases_on ‘n = dimword (:'a)’ >- (
+ gs[GSYM bitstringTheory.w2v_v2w]
+) >>
+gs[] >>
+‘n < dimword (:'a)’ by gs[] >>
+gs[GSYM bitstringTheory.w2v_v2w]
+QED
 
 val _ = export_theory ();

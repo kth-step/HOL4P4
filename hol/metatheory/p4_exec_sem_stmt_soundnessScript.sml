@@ -10,14 +10,14 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_e_
 Definition stmt_exec_sound:
  (stmt_exec_sound (type:('a itself)) stmt =
   !(ctx:'a ctx) ascope g_scope_list funn stmt_stack scope_list status state'.
-  stmt_exec uninit_arb ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) = SOME state' ==>
   stmt_red ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) state')
 End
 
 Definition stmt_stack_exec_sound:
  (stmt_stack_exec_sound (type:('a itself)) stmt_stack =
   !(ctx:'a ctx) ascope g_scope_list funn scope_list status state'.
-  stmt_exec uninit_arb ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) = SOME state' ==>
   stmt_red ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) state')
 End
 
@@ -71,7 +71,8 @@ Cases_on `stmt_stack` >> (
   fs []
  )
 ) >| [
- metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_e", clause_name_def],
+ gvs[] >>
+ metis_tac [((valOf o find_clause_stmt_red) "stmt_ret_e"), get_e_ctx_def, clause_name_def],
 
  Cases_on `e` >> (
   fs [get_v_def]
@@ -80,7 +81,7 @@ Cases_on `stmt_stack` >> (
 
  irule (specl_stmt_block_exec ``stmt_ret e`` ``frame_list'':frame_list`` ``[stmt_ret e']``) >>
  fs [clause_name_def] >>
- metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_e", clause_name_def],
+ metis_tac [(valOf o find_clause_stmt_red) "stmt_ret_e", get_e_ctx_def, clause_name_def],
 
  Cases_on `e` >> (
   fs [get_v_def]
@@ -127,13 +128,21 @@ Cases_on `is_v e` >> (
  ],
 
  Cases_on `stmt_stack` >| [
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans_e", clause_name_def],
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans_e", get_e_ctx_def, clause_name_def],
 
   irule (specl_stmt_block_exec ``stmt_trans e`` ``frame_list'':frame_list`` ``[stmt_trans e']``) >>
   fs [clause_name_def] >>
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans_e", clause_name_def]
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_trans_e", get_e_ctx_def, clause_name_def]
  ]
 ]
+QED
+
+Theorem is_const_exec_eq:
+!e_l. is_consts e_l = is_consts_exec e_l
+Proof
+Induct >> (
+ gs[is_consts_def, is_consts_exec_def]
+)
 QED
 
 Theorem stmt_app_exec_sound_red:
@@ -164,14 +173,16 @@ Cases_on `index_not_const e_l` >> (
   irule (specl_stmt_block_exec ``stmt_app tbl e_l`` ``[]:frame_list`` ``[stmt_ass lval_null (e_call (funn_name f) f_args)]``) >>
   fs [clause_name_def]
  ] >> (
+(*
   subgoal `?v_l. f_args = MAP e_v v_l` >- (
    qexists_tac `vl_of_el f_args` >>
+   gs[is_const_exec_eq] >>
    IMP_RES_TAC vl_of_el_MAP_e_v
   ) >>
+*)
   Q.SUBGOAL_THEN `(MAP ( \ (e_,mk_). e_) (ZIP (e_l:e list, mk_l:mk list)) = e_l) /\
-                  (MAP ( \ (e_,mk_). mk_) (ZIP (e_l:e list, mk_l:mk list)) = mk_l) /\
-                  (MAP ( \ v_. e_v v_) v_l = f_args)`
-   (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPECL [``default_f_args:e list``, ``ZIP (e_l:e list, mk_l: mk list)``, ``v_l:v list``]
+                  (MAP ( \ (e_,mk_). mk_) (ZIP (e_l:e list, mk_l:mk list)) = mk_l)`
+   (fn thm => (irule (SIMP_RULE std_ss [thm] (ISPECL [``default_f_args:e list``, ``ZIP (e_l:e list, mk_l: mk list)``]
                                                    ((valOf o find_clause_stmt_red) "stmt_apply_table_v"))))) >- (
    fs [lambda_FST, lambda_SND, MAP_ZIP, UNZIP_ZIP] >>
    metis_tac []
@@ -192,10 +203,55 @@ Cases_on `index_not_const e_l` >> (
                                                    ((valOf o find_clause_stmt_red) "stmt_apply_table_e"))))) >- (
    fs [lambda_FST, lambda_SND, MAP_ZIP]
   ) >>
-  fs [clause_name_def] >>
-  metis_tac [e_exec_sound]
+  fs[clause_name_def] >>
+  gs[e_exec_sound] >>
+  qpat_x_assum ‘!e. _’ (fn thm => irule thm) >>
+  gs[get_e_ctx_def] >>
+  metis_tac [oEL_EQ_EL]
  )
 ]
+QED
+
+Theorem replace_bits_imp:
+!vb vb' n1 n2 bl.
+replace_bits vb vb' n1 n2 = SOME bl ==>
+relpace_bits vb vb' n1 n2 = bl
+Proof
+Cases_on ‘vb’ >> Cases_on ‘vb'’ >> (
+ gs[replace_bits_def, relpace_bits_def]
+)
+QED
+
+Theorem assign_to_slice'_imp:
+!vb vb' e0 e v.
+assign_to_slice' vb vb' e0 e = SOME v ==>
+assign_to_slice vb vb' e0 e = SOME v
+Proof
+gs[assign_to_slice'_def, assign_to_slice_def] >>
+rpt strip_tac >>
+gvs[replace_bits_imp, AllCaseEqs()]
+QED
+
+Theorem assign'_imp:
+!lval ss v ss'.
+assign' ss v lval = SOME ss' ==>
+assign ss v lval = SOME ss'
+Proof
+Induct >> (
+ gs[assign'_def, assign_def, AllCaseEqs()]
+) >>
+rpt strip_tac >>
+metis_tac[lookup_lval'_imp, assign_to_slice'_imp]
+QED
+
+Theorem separate_exec_imp:
+!scope_list g_scope_list scope_list'.
+separate_exec scope_list = SOME (g_scope_list,scope_list') ==>
+separate scope_list = (SOME g_scope_list,SOME scope_list')
+Proof
+gs[separate_exec_def, separate_def] >>
+rpt strip_tac >>
+gs[oDROP_DROP, oTAKE_TAKE]
 QED
 
 Theorem stmt_ass_exec_sound_red:
@@ -229,7 +285,8 @@ Cases_on `is_v e` >> (
   fs [clause_name_def]
  ] >> (
   irule ((valOf o find_clause_stmt_red) "stmt_ass_v") >>
-  fs [clause_name_def]
+  fs [clause_name_def] >>
+  metis_tac[assign'_imp, separate_exec_imp]
  ),
 
  Cases_on `stmt_stack` >| [
@@ -238,7 +295,7 @@ Cases_on `is_v e` >> (
   irule (specl_stmt_block_exec ``stmt_ass lval e`` ``frame_list'':frame_list`` ``[stmt_ass lval e']``) >>
   fs [clause_name_def]
  ] >> (
- metis_tac [((valOf o find_clause_stmt_red) "stmt_ass_e"), clause_name_def]
+ metis_tac [((valOf o find_clause_stmt_red) "stmt_ass_e"), get_e_ctx_def, clause_name_def]
  )
 ]
 QED
@@ -380,9 +437,19 @@ Cases_on `is_v_bool e` >> (
   irule (specl_stmt_block_exec ``stmt_cond e s1 s2`` ``frame_list'':frame_list`` ``[stmt_cond e' s1 s2]``) >>
   fs [clause_name_def]
  ] >> (
-  metis_tac [(valOf o find_clause_stmt_red) "stmt_cond_e", clause_name_def]
+  metis_tac [(valOf o find_clause_stmt_red) "stmt_cond_e", get_e_ctx_def, clause_name_def]
  )
 ]
+QED
+
+(* TODO: ARB *)
+Theorem declare_list_in_fresh_scope_exec'_imp:
+!t_scope scope.
+declare_list_in_fresh_scope_exec' t_scope = scope ==>
+declare_list_in_fresh_scope t_scope = scope
+Proof
+gs[declare_list_in_fresh_scope_exec'_def, declare_list_in_fresh_scope_def] >>
+cheat
 QED
 
 Theorem stmt_block_exec_sound_red:
@@ -408,7 +475,7 @@ Cases_on ‘stmt_stack’ >| [
  gs[clause_name_def]
 ] >> (
  irule ((valOf o find_clause_stmt_red) "stmt_block_enter") >>
- gs[clause_name_def, declare_list_in_fresh_scope_exec_arb_equiv]
+ gs[clause_name_def, declare_list_in_fresh_scope_exec_arb_equiv, declare_list_in_fresh_scope_exec'_imp]
 )
 QED
 

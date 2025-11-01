@@ -844,33 +844,13 @@ Definition to_bool_cast_exec_def:
 End
 
 
-(** unops and predicates for bitvectors **)
-Definition bitv_1comp_def:
- bitv_1comp (v:bool list) = MAP $~ v
-End
-
-Definition bitv_2comp_def:
- bitv_2comp (v:bool list) l =
-  let a = 2 ** l in
-  let b = v2n v in
-  if b ≤ a
-  then SOME $ fixwidth l $ n2v (a - b)
-  else NONE
-End
-
-Definition bitv_unplus_def:
- bitv_unplus (v:bool list) = v
-End
-
 Definition unop_exec'_def:
  (unop_exec' unop_neg (v'_bool b) = SOME (v'_bool ~b))
  /\
  (unop_exec' unop_compl (v'_bit (bl,n)) = SOME (v'_bit (bitv_1comp bl, n)))
  /\
  (unop_exec' unop_neg_signed (v'_bit (bl,n)) =
-  case bitv_2comp bl n of
-  | SOME res => SOME (v'_bit (res, n))
-  | NONE => NONE)
+  SOME (v'_bit (bitv_2comp bl, n)))
  /\
  (unop_exec' unop_un_plus (v'_bit bitv) = SOME (v'_bit bitv))
  /\
@@ -899,172 +879,6 @@ Definition e_exec_cast'_def:
  (e_exec_cast' (cast_bool) (e'_v v) = cast_exec (cast_bool) v)
   /\
  (e_exec_cast' _ _ = NONE)
-End
-
-(** binops **)
-(* Translation: dimword (:a) to (v2n (REPLICATE (LENGTH a) T) + 1)
- * UINT_MAXw to above minus 1 *)
-
-Definition bitv_ls_def:
- bitv_ls a b = (v2n a <= v2n b)
-End
-
-Definition bitv_hs_def:
- bitv_hs a b = (v2n a >= v2n b)
-End
-
-Definition bitv_lo_def:
- bitv_lo a b = (v2n a < v2n b)
-End
-
-Definition bitv_hi_def:
- bitv_hi a b = (v2n a > v2n b)
-End
-
-Definition bitv_eq_def:
- bitv_eq a b = AND_EL (MAP bit_eq (ZIP (a, b)))
-End
-
-Definition bitv_neq_def:
- bitv_neq a b = ~bitv_eq a b
-End
- 
-Definition bitv_saturate_add_def:
- bitv_saturate_add a b l =
-  let res = (v2n a) + (v2n b) in
-  let limit = (v2n (REPLICATE l T) + 1) in
-  if limit <= res
-  then SOME $ (fixwidth l $ n2v (limit - 1), l)
-  else SOME $ (fixwidth l $ n2v res, l)
-End
-
-Definition bitv_saturate_sub_def:
- bitv_saturate_sub a b l =
-  (* TODO: Need this so that the CakeML translator can work *)
-  let av = v2n a in
-  let bv = v2n b in
-  SOME $ (fixwidth l $ n2v (if bv ≤ av then (av - bv) else 0), l)
-End
-
-Definition bitv_lsl_bv_def:
- bitv_lsl_bv a b l =
-  SOME $ (fixwidth l (a++(REPLICATE (v2n b) F)), l)
-End
-
-(* We could use l instead of LENGTH a, but that gives a precondition *)
-Definition bitv_lsr_bv_def:
- bitv_lsr_bv a b l =
-  SOME $ (TAKE (LENGTH a) ((REPLICATE (v2n b) F)++a), l)
-End
-
-Definition bitv_mul_def:
- bitv_mul a b l = SOME $ (fixwidth l $ n2v (v2n a * v2n b), l)
-End
-
-Definition bitv_div_def:
- bitv_div a b l =
-  let divisor = v2n b in
-  if divisor <> 0
-  then
-   SOME $ (fixwidth l $ n2v (v2n a DIV divisor), l)
-  else NONE
-End
-
-Definition bitv_mod_def:
- bitv_mod a b l =
-  let modulus = v2n b in
-  if modulus <> 0
-  then
-   SOME $ (fixwidth l $ n2v (v2n a MOD modulus), l)
-  else NONE
-End
-
-Definition bitv_add_def:
- bitv_add a b (l:num) = SOME $ (fixwidth l $ n2v (v2n a + v2n b), l)
-End
-
-(* OLD
-Definition bitv_sub_def:
- bitv_sub a b (l:num) = bitv_add a (bitv_2comp b l) l
-End
-*)
-(* Note that this guard can never yield the NONE case in practice,
- * it's just needed for translation *)
-Definition bitv_sub_def:
- bitv_sub a b (l:num) =
-  case bitv_2comp b l of
-  | SOME res => bitv_add a res l
-  | NONE => NONE
-End
-
-Definition band'_def:
- band' a b = MAP (\(x,y). x /\ y) (ZIP(a, b))
-End
-Definition bitv_and_def:
- bitv_and a b (l:num) = SOME $ (band' a b, l)
-End
-
-Definition bor'_def:
- bor' (a:bool list) b = MAP (\(x,y). (x \/ y)) (ZIP(a, b))
-End
-Definition bitv_or_def:
- bitv_or a b (l:num) = SOME $ (bor' a b, l)
-End
-
-Definition bitv_xor_def:
- bitv_xor a b (l:num) = SOME $ (bxor a b, l)
-End
-
-(* TODO: Split the binop type into binops and binpreds, more efficient... *)
-Definition get_bitv_binpred'_def:
- get_bitv_binpred' binop =
-  case binop of
-  | binop_le => SOME bitv_ls
-  | binop_ge => SOME bitv_hs
-  | binop_lt => SOME bitv_lo
-  | binop_gt => SOME bitv_hi
-  | binop_neq => SOME bitv_neq
-  | binop_eq => SOME bitv_eq
-  | _ => NONE
-End
-
-Definition bitv_binpred'_def:
-  bitv_binpred' binpred (v, n) (v', n') =
-    if n = n'
-    then
-     (case get_bitv_binpred' binpred of
-      | SOME bp =>
-       SOME $ bp v v'
-      | NONE => NONE)
-    else NONE
-End
-
-Definition get_bitv_binop'_def:
- get_bitv_binop' binop =
-  case binop of
-  | binop_mul => SOME bitv_mul
-  | binop_div => SOME bitv_div
-  | binop_mod => SOME bitv_mod
-  | binop_add => SOME bitv_add
-  | binop_sat_add => SOME bitv_saturate_add
-  | binop_sub => SOME bitv_sub
-  | binop_sat_sub => SOME bitv_saturate_sub
-  | binop_shl => SOME bitv_lsl_bv
-  | binop_shr => SOME bitv_lsr_bv
-  | binop_and => SOME bitv_and
-  | binop_xor => SOME bitv_xor
-  | binop_or => SOME bitv_or
-  | _ => NONE
-End
-
-Definition bitv_binop'_def:
-  bitv_binop' binop (v, n) (v', n') =
-    if n = n'
-    then
-     (case get_bitv_binop' binop of
-      | SOME bo => bo v v' n
-      | NONE => NONE)
-    else NONE
 End
 
 Definition binop_exec'_def:
