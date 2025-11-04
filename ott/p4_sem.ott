@@ -33,7 +33,7 @@ frame {{ tex \Phi }} :: frame_ ::=
 | ( funn , stmt_stack , scope_list ) :: M :: tup
  {{ hol ([[funn]] , [[stmt_stack]] , [[scope_list]]) }}
  {{ tex ( {[[stmt_stack]])}_{[[scope_list]]}^{[[funn]]} }}
-
+ 
 embed
 {{ hol
 
@@ -69,6 +69,9 @@ state {{ tex s }} :: state_ ::=
 {{ com execution state }}
 | ( ascope , g_scope_list , frame_list , status ) :: M :: tup
 {{ hol ([[ascope]], [[g_scope_list]], [[frame_list]], [[status]]) }}
+%TODO: Allow set_oracle index here or in ascope definition?
+| ( set_oracle_index i_opt ascope , g_scope_list , frame_list , status ) :: M :: set_oracle_index
+{{ hol (set_oracle_index [[i_opt]] [[ascope]], [[g_scope_list]], [[frame_list]], [[status]]) }}
 
 aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
 {{ com architectural environment }}
@@ -79,6 +82,10 @@ aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
 | ( num_exp , in_out_list , in_out_list' , ascope ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[ascope]]) }}
+%TODO: Allow set_oracle index here or in ascope definition?
+| ( num_exp , in_out_list , in_out_list' , set_oracle_index i_opt ascope ) :: M :: set_oracle_index
+  {{ com tuple }}
+  {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[set_oracle_index]] [[i_opt]] [[ascope]]) }}
 
 %Fence so that ott does not re-order aenv and astate
 embed
@@ -86,6 +93,15 @@ embed
 
 }}
 grammar
+
+e_red_res :: e_red_res_ ::=
+{{ hol (frame_list # (num option)) }}
+| empty :: M :: empty
+  {{ hol ([], (NONE:num option)) }}
+| ( frame_list , i ) :: M :: some
+  {{ hol ([[frame_list]] , SOME [[i]]) }}
+| ( frame_list , i_opt ) :: M :: option
+  {{ hol ([[frame_list]] , [[i_opt]]) }}
 
 arch_frame_list :: arch_frame_list_ ::=
 {{ com architecture-level frame list }}
@@ -400,17 +416,13 @@ formula :: formula_ ::=
   {{ hol ([[x]] = "start") }}
   {{ tex [[x]] = ``\mathit{start}" }}
   %Dummy to keep syntax highlighting from freaking out: "
-| scope' = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope ) :: M :: copyin_pbl
+| ( scope' , i_opt ) = copyin_pbl ( ( x1 , .. , xn ) , d_list , e_list , ascope , random_oracle ) :: M :: copyin_pbl
   {{ com copy in to programmable blocks }}
-  {{ hol (SOME [[scope']] = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]])) }}
-| scope' = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scope_list ) :: M :: copyin
+  {{ hol (SOME ([[scope']], [[i_opt]]) = [[copyin_pbl]] ([[x1 .. xn]], [[d_list]], [[e_list]], [[ascope]], [[random_oracle]])) }}
+| ( scope' , i_opt ) = copyin ( ( x1 , .. , xn ) , d_list , e_list , g_scope_list , scope_list , i , random_oracle ) :: M :: copyin
   {{ com build new scope and copyin }}
-  {{ tex [[scope']] = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}) }}
-  {{ hol (SOME [[scope']] = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scope_list]]) }}
-| v = arb_from_tau tau :: M :: make_arb
-  {{ com create new varaible in declaration }}
-  {{ hol ([[v]] = arb_from_tau [[tau]]) }}
-  {{ tex [[v]] = \mathrm{arb\_from\_t} \, [[tau]] }}
+  {{ tex ( [[scope']] , [[i_opt]]) = \mathrm{copyin} ([x_1 , \; .. \; , x_n] , [e_1 , \; .. \; , e_n] , [d_1 , \; .. \; , d_n] , [[g_scope_list]] , \overrightarrow{\gamma}, [[i]], [[random_oracle]]) }}
+  {{ hol (SOME ([[scope']], [[i_opt]]) = copyin [[x1 .. xn]] [[d_list]] [[e_list]] [[g_scope_list]] [[scope_list]] [[i]] [[random_oracle]]) }}
 | scope_list' = assign ( scope_list , v , lval ) :: M :: assign
   {{ com assign v to lval in the frame }}
   {{ hol (SOME [[scope_list']] = assign [[scope_list]] [[v]] [[lval]]) }}
@@ -432,7 +444,12 @@ formula :: formula_ ::=
 | not_empty stmt_stack :: M :: not_empty_stmt_stack
   {{ com check so that statement stack is not the empty statement stack }}
   {{ tex \mathrm{not\_empty} \; [[stmt_stack]] }}
-  {{ hol ([[stmt_stack]] <> []) }}  
+  {{ hol ([[stmt_stack]] <> []) }}
+%TODO: Instead, obtain the ectx mainly by pattern matching?
+| ectx = get_ectx ctx ascope :: M :: get_ectx
+  {{ com obtain the ectx from the ctx }}
+  {{ tex [[ectx]] = \mathrm{get\_ectx} [[ctx]] [[ascope]] }}
+  {{ hol ([[ectx]] = get_ectx [[ctx]] [[ascope]]) }}  
 
 %Architecture-level semantics-related formulae
 | pbl_type [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map  = pblock_map ( f ) :: M :: lookup_pb
@@ -505,14 +522,14 @@ formula :: formula_ ::=
 | tbl_map' = tbl_to_pass funn b_func_map tbl_map :: :: tbl_to_pass
   {{ hol SOME [[tbl_map']] = tbl_to_pass [[funn]] [[b_func_map]] [[tbl_map]]}}
   {{ tex [[tbl_map']] = \mathrm{tbl\_to\_pass} ([[funn]], [[b_func_map]] , [[tbl_map]]) }} 
-| scope' = declare_list_in_scope ( t_scope , scope ) :: M :: decl_in_scope  
+| ( scope' , i_opt' ) = declare_list_in_scope ( t_scope , scope , i_opt , get_oracle_index ascope , random_oracle ) :: M :: decl_in_scope  
   {{ com update a scope with a list of declarations }}
-  {{ hol [[scope']] = declare_list_in_scope ([[t_scope]], [[scope]]) }}
-  {{ tex [[scope']] = \mathrm{replicate} ([[t_scope]], [[scope]]) }}
-| scope = declare_list_in_fresh_scope ( t_scope ) :: M :: decl_in_fresh_scope  
+  {{ hol ([[scope']], [[i_opt']]) = declare_list_in_scope ([[t_scope]], [[scope]], [[i_opt]] , [[get_oracle_index]] [[ascope]] , [[random_oracle]]) }}
+  {{ tex ([[scope']], [[i_opt']]) = \mathrm{replicate} ([[t_scope]], [[scope]], [[i_opt]] , [[get_oracle_index]] [[ascope]] , [[random_oracle]]) }}
+| ( scope , i_opt ) = declare_list_in_fresh_scope ( t_scope , get_oracle_index ascope , random_oracle ) :: M :: decl_in_fresh_scope  
   {{ com create a scope from the list of declarations }}
-  {{ hol [[scope]] = declare_list_in_fresh_scope ([[t_scope]]) }}
-  {{ tex [[scope]] = \mathrm{replicate} ([[t_scope]]) }}
+  {{ hol ([[scope]], [[i_opt]]) = declare_list_in_fresh_scope ([[t_scope]], [[get_oracle_index]] [[ascope]] , [[random_oracle]]) }}
+  {{ tex ([[scope]], [[i_opt]]) = \mathrm{replicate} ([[t_scope]], [[get_oracle_index]] [[ascope]] , [[random_oracle]]) }}
 
 | ( g_scope_list' , scope_list'' ) = copyout ( ( x1 , .. , xn ) , d_list , g_scope_list , scope_list , scope_list' ) :: M :: copyout
    %scope_list is the callee stack, whereas scope_list' is the caller stack
@@ -1981,27 +1998,42 @@ Proof
  fs [listTheory.MEM_SPLIT, v1_size_append, v_size_def]
 QED
 
-val init_out_v_def = TotalDefn.tDefine "init_out_v" `
-  (init_out_v (v_bool boolv) = v_bool ARB) /\
-  (init_out_v (v_bit (bl, n)) = v_bit (extend ARB n [], n)) /\
-  (init_out_v (v_str x) = v_str ARB) /\
-  (init_out_v (v_struct ((x,v)::t)) = v_struct (((x, init_out_v v))::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
-  (init_out_v (v_struct []) = v_struct []) /\
-  (init_out_v (v_header boolv ((x,v)::t)) =
-    v_header F (( (x, init_out_v v) )::(MAP (\(x',v'). (x', init_out_v v')) t))) /\
-  (init_out_v (v_header boolv []) = v_header F []) /\
-  (init_out_v (v_ext_ref i) = v_ext_ref i) /\
-  (init_out_v v_bot = v_bot)
-`
-(WF_REL_TAC `measure v_size` >>
- fs [v_size_def] >>
- REPEAT STRIP_TAC >>
- `v_size v' < v1_size t` suffices_by (
-  fs []
- ) >>
- METIS_TAC [v1_size_mem]
-);
+Definition get_oracle_calls_def:
+ (get_oracle_calls 0 i f = []) /\
+ (get_oracle_calls (SUC n) i f =
+  (f i)::(get_oracle_calls n (i+1) f)
+ )
+End
 
+(* TODO: Fix the silly recursive calls for struct and header now that termination proof isn't an issue *)
+Definition init_out_v_def:
+(init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
+  (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
+  (* Note you can't have string variables in P4 (but you can pass string literals to externs) *)
+  (init_out_v random_oracle i (v_str x) = (v_str "", i)) /\
+  (init_out_v random_oracle i (v_struct ((x,v)::t)) =
+   let
+    (v', i') = init_out_v random_oracle i v
+   in
+   let
+    (l, i'''') = (FOLDL (\(x_v_l, i'') (x'', v''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
+   in
+    (v_struct (((x, v'))::l), i'''')
+  ) /\
+  (init_out_v random_oracle i (v_struct []) = (v_struct [], i)) /\
+  (init_out_v random_oracle i (v_header boolv ((x,v)::t)) =
+   let
+    (v', i') = init_out_v random_oracle i v
+   in
+   let
+    (l, i'''') = (FOLDL (\(x_v_l, i'') (x'', v''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
+   in
+    (v_header F (((x, v'))::l), i'''')
+  ) /\
+  (init_out_v random_oracle i (v_header boolv []) = (v_header F [], i)) /\
+  (init_out_v random_oracle i (v_ext_ref i') = (v_ext_ref i', i)) /\
+  (init_out_v random_oracle i v_bot = (v_bot, i))
+End
 
 
 val tau_size_def = DB.fetch "p4" "tau_size_def";
@@ -2021,26 +2053,36 @@ Proof
  fs [listTheory.MEM_SPLIT, tau1_size_append, tau_size_def]
 QED
 
-(* generate an undetermined value for a given type *)
-val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
-  (arb_from_tau tau_bool   = (v_bool ARB))  /\
-  (arb_from_tau (tau_bit w)  = (v_bit ( (GENLIST (\x.ARB) w ) , w)))  /\
-  (arb_from_tau tau_bot    = v_bot)   /\
-  (arb_from_tau tau_ext   = (v_ext_ref ARB)) /\
-  (arb_from_tau (tau_xtl struct_ty_struct [] ) =  v_struct [] ) /\ 
-  (arb_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =  
-   v_struct ((x0,arb_from_tau t0)::(MAP (λ(x,t). (x,arb_from_tau t)) xtl))) /\
-  (arb_from_tau (tau_xtl struct_ty_header [] ) =  v_header ARB [] ) /\            
-  (arb_from_tau (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
-    v_header ARB ((x0,arb_from_tau t0)::(MAP (λ(x,t). (x,arb_from_tau t)) xtl))) 
-  `
- (WF_REL_TAC `measure tau_size` >>
- REPEAT STRIP_TAC >>
- FULL_SIMP_TAC std_ss [] >>
- fs [tau_size_def] >>  
- `tau_size t < tau1_size xtl` suffices_by (
-  fs [] ) >>  
- IMP_RES_TAC tau1_size_mem);
+(* Initialise values for a given type *)
+(* TODO: Fix the silly recursive calls for struct and header now that termination proof isn't an issue *)
+Definition init_from_tau_def:
+  (init_from_tau random_oracle i tau_bool     = (v_bool $ random_oracle i, i+1)) /\
+  (init_from_tau random_oracle i (tau_bit w)  = (v_bit (get_oracle_calls w i random_oracle, w), i+w)) /\
+  (init_from_tau random_oracle i tau_bot      = (v_bot, i)) /\
+  (* NOTE: Extern objects can't be declared in blocks.
+   *       They can be block-local, but will then always be instantiated, so this value doesn't matter *)
+  (init_from_tau random_oracle i tau_ext      = (v_ext_ref 0, i)) /\
+  (init_from_tau random_oracle i (tau_xtl struct_ty_struct [] )             =  (v_struct [], i)) /\ 
+  (init_from_tau random_oracle i (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =
+   let
+    (v', i') = init_from_tau random_oracle i t0
+   in
+   let
+    (l, i'''') = (FOLDL ( \ (x_v_l, i'') (x'', v''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
+   in
+    (v_struct (((x0, v'))::l), i'''')
+  ) /\
+  (init_from_tau random_oracle i (tau_xtl struct_ty_header [] )            =  (v_header F [], i)) /\            
+  (init_from_tau random_oracle i (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
+   let
+    (v', i') = init_from_tau random_oracle i t0
+   in
+   let
+    (l, i'''') = (FOLDL ( \ (x_v_l, i'') (x'', v''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
+   in
+    (v_struct (((x0, v'))::l), i'''')
+  )
+End
 
 
 
@@ -2048,7 +2090,7 @@ val arb_from_tau_def = TotalDefn.tDefine "arb_from_tau" `
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
- one_arg_val_for_newscope d e ss =
+ one_arg_val_for_newscope d e ss i random_oracle =
   if is_d_out d
   then
    (case get_lval_of_e e of
@@ -2056,13 +2098,13 @@ val one_arg_val_for_newscope_def = Define `
      (case lookup_lval ss lval of
       | SOME v =>
        if is_d_in d
-       then SOME (v, SOME lval)
-       else SOME (init_out_v v, SOME lval)
+       then SOME ((v, i), SOME lval)
+       else SOME (init_out_v random_oracle i v, SOME lval)
       | NONE => NONE)
     | NONE => NONE)
   else
    (case v_of_e e of
-    | SOME v => SOME (v, NONE)
+    | SOME v => SOME ((v, i), NONE)
     | NONE => NONE)
 `;
 
@@ -2078,11 +2120,11 @@ Definition AUPDATE_LIST_def:
 End
 
 val update_arg_for_newscope_def = Define `
-  update_arg_for_newscope ss f_opt (d, x, e) =
-    case f_opt of
-    | SOME f =>
-      (case one_arg_val_for_newscope d e ss of
-       | SOME (v, lval_opt) => SOME (AUPDATE f (varn_name x, (v, lval_opt)))
+  update_arg_for_newscope ss random_oracle f_i_opt (d, x, e) =
+    case f_i_opt of
+    | SOME (f,i) =>
+      (case one_arg_val_for_newscope d e ss i random_oracle of
+       | SOME ((v, i'), lval_opt) => SOME (AUPDATE f (varn_name x, (v, lval_opt)), i')
        | NONE => NONE)
     | NONE => NONE
 `;
@@ -2090,15 +2132,18 @@ val update_arg_for_newscope_def = Define `
 (* Fills a fresh scope with the values of the arguments of a called function.
  * Note: used in e_call_newframe *)
 val all_arg_update_for_newscope_def = Define `
-  all_arg_update_for_newscope xlist dlist elist ss = 
-    FOLDL (update_arg_for_newscope ss) (SOME []) (ZIP (dlist, ZIP(xlist, elist)))
+  all_arg_update_for_newscope xlist dlist elist ss i random_oracle = 
+    FOLDL (update_arg_for_newscope ss random_oracle) (SOME ([], i)) (ZIP (dlist, ZIP(xlist, elist)))
 `;
 
 
 (* full copyin definition *)
 val copyin_def = Define `
-  copyin xlist dlist elist gsl ss_curr = 
-    all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl)
+  copyin xlist dlist elist gsl ss_curr i random_oracle =
+   case all_arg_update_for_newscope xlist dlist elist (ss_curr++gsl) i random_oracle of
+   | SOME (scope', i') =>
+    SOME (scope', if i = i' then NONE else SOME i')
+   | NONE => NONE
 `;
 
 (* in bl' slice from v2 to v1 and in that section add bl in those positions
@@ -2109,7 +2154,9 @@ val relpace_bits_def = Define `
   (SEG ((v'-v1)-1) 0 bl') ++ bl ++ (SEG v2 (v'-v2) bl')
 `;
 
-
+Definition get_ectx_def:
+ get_ectx ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle):'a ctx) (ascope:'a) = (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle)
+End
      
 (* assign to slice returns that value being replaces in a slicing assignment.
    i.e. assign the value bit vb to vb' where vb should replace only the positions from ev2 to ev1 in vb' *)
@@ -2182,23 +2229,6 @@ val oDROP_def = Define `
   (oDROP (SUC n) (h::t) = oDROP n t)
 `;
 
-(* Declares a new variable and initialises it to ARB, returns the new scope stack *)
-(* TODO: Behaviour when variable already exists? *)
-(* Note that this will declare variables in the block-global scope when scope stack is empty *)
-(* TODO: REMOVE IT *)
-(*
-val declare_def = Define `
-  (declare g_scope_list (ss:scope_list) x t =
-    case ss of
-    | [] => (LUPDATE (AUPDATE (EL 1 g_scope_list) (varn_name x, (arb_from_tau t, NONE))) 1 g_scope_list, [])
-    | _ =>
-     let i = LENGTH ss - 1 in
-     let scope = EL i ss in
-     (g_scope_list, LUPDATE (AUPDATE scope (varn_name x, (arb_from_tau t, NONE))) i ss)
-  )
-`;
-*)
-
 (* Initialises a new variable in the topmost scope. *)
 val initialise_def = Define `
   (initialise (ss:scope_list) varn v =
@@ -2247,15 +2277,18 @@ val initialise_var_stars_def = Define `
 (* Takes a list of declaration tuples (x, t) and a scope, and returns a scope
  * where the declarations have been made *)
 val declare_list_in_scope_def = Define `
-  declare_list_in_scope (t_scope:t_scope, scope:scope) =
-    FOLDR (\(x,(t,lvalop) ) f. AUPDATE f (x , (arb_from_tau t, NONE))) (scope:scope) t_scope
+ declare_list_in_scope (t_scope:t_scope, scope:scope, i_opt, i, random_oracle) =
+  let 
+   (scope', i''') = FOLDR (\(x, (t,lvalop)) (f, i'). let (v', i'') = init_from_tau random_oracle i' t in (AUPDATE f (x , (v', NONE)), i'')) (scope:scope, case i_opt of NONE => i | SOME i_upd => i_upd) t_scope
+  in
+   (scope', if i = i''' then NONE else SOME i''')
 `;
 
 (* Same as the above, but with the empty scope
    NOTE: the lvalop here is always none when entering a new block *)
 val declare_list_in_fresh_scope_def = Define `
-  declare_list_in_fresh_scope (t_scope:t_scope) =
-    (MAP (\(x,(t,lvalop)). (x , (arb_from_tau t, NONE))) t_scope)
+ declare_list_in_fresh_scope (t_scope:t_scope, i, random_oracle) =
+  declare_list_in_scope (t_scope:t_scope, [], NONE, i, random_oracle)
 `;
 
 (* Looks up the function signature and body for an abstract function name. *)
@@ -2585,9 +2618,9 @@ grammar
 defns
 e_sem :: '' ::=
 defn
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list ) :: :: e_red :: e_
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res ) :: :: e_red :: e_
 {{ com expression semantics }}
-{{ tex [[ctx]] \, [[g_scope_list]] \, [[scope_list]] \vdash ( [[e]] ) \rightsquigarrow  ( [[e']] , [[frame_list]] ) }}
+{{ tex [[ectx]] \, [[g_scope_list]] \, [[scope_list]] \vdash ( [[e]] ) \rightsquigarrow  ( [[e']] , [[e_red_res]] ) }}
 by
 
 %%%%%%%%%%%%%%%%%
@@ -2595,7 +2628,7 @@ by
 
 v = lookup_vexp2 ( scope_list , g_scope_list , varn )
 ----------------------------------- :: lookup
-ctx g_scope_list scope_list ( var varn ) ~> ( v ,  empty )
+ectx g_scope_list scope_list ( var varn ) ~> ( v , empty )
 
 %%%%%%%%%%%%%%
 %Function/method call
@@ -2603,18 +2636,18 @@ ctx g_scope_list scope_list ( var varn ) ~> ( v ,  empty )
 %Function call construction of new frame
 ( stmt , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
 check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
-scope' = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scope_list )
+( scope' , i_opt ) = copyin ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , g_scope_list , scope_list , i , random_oracle )
 ----------------------------------- :: call_newframe
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( var ( star , funn ) , [ ( funn , [ stmt ] , [ scope' ] ) ] )
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i , random_oracle ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( var ( star , funn ) , ( [ ( funn , [ stmt ] , [ scope' ] ) ] , i_opt ) )
 
 %Function call reduction of arguments
 [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
 e = [ e1 , .. , en ] [ i ]
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i , random_oracle ) g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
 ----------------------------------- :: call_args
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , frame_list )
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i , random_oracle ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , e_red_res )
 
 
 %%%%%% structs operations
@@ -2622,112 +2655,111 @@ e = [ e1 , .. , en ] [ i ]
 %eStruct as expression reduction: reduce one step per expression in the list 
 unred_mem_index [ e1 , ... , en ] = i
 e = [ e1 , ... , en ] [ i ]
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 [ e'1 , ... , e'n ] =' update ( e' , i , [ e1 , ... , en ] )
 ----------------------------------- :: eStruct
-ctx g_scope_list scope_list ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStruct { f1 = e'1 ; ... ; fn = e'n } , frame_list )
+ectx g_scope_list scope_list ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( eStruct { f1 = e'1 ; ... ; fn = e'n } , e_red_res )
 
 %eStruct coversion to value struct
 is_consts ( e1 , ... , en )
 ( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
 ----------------------------------- :: eStruct_to_v
-ctx g_scope_list scope_list ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn } , empty )
+ectx g_scope_list scope_list ( eStruct { f1 = e1 ; ... ; fn = en } ) ~> ( struct { f1 = v1 ; ... ; fn = vn } , empty )
 
 %access a value struct field 
 v = struct { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: s_acc
-ctx g_scope_list scope_list ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v , empty )
+ectx g_scope_list scope_list ( struct { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v , empty )
 
 
 %expression reduction for access fields
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 ----------------------------------- :: acc_arg1
-ctx g_scope_list scope_list ( e . f ) ~> ( e' . f , frame_list )
+ectx g_scope_list scope_list ( e . f ) ~> ( e' . f , e_red_res )
 
 %%%%%% headers operations
 %eHeader as expression reduction: reduce one step per expression in the list 
 unred_mem_index [ e1 , ... , en ] = i
 e = [ e1 , ... , en ] [ i ]
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 [ e'1 , ... , e'n ] =' update ( e' , i , [ e1 , ... , en ] )
 ----------------------------------- :: eHeader
-ctx g_scope_list scope_list ( eHeader boolv { f1 = e1 ; ... ; fn = en } ) ~> ( eHeader boolv { f1 = e'1 ; ... ; fn = e'n } ,  frame_list )
+ectx g_scope_list scope_list ( eHeader boolv { f1 = e1 ; ... ; fn = en } ) ~> ( eHeader boolv { f1 = e'1 ; ... ; fn = e'n } ,  e_red_res )
 
 %eHeader coversion to value struct
 is_consts ( e1 , ... , en )
 ( v1 , ... , vn ) = vl_of_el ( e1 , ... , en )
 ----------------------------------- :: eHeader_to_v
-ctx g_scope_list scope_list ( eHeader boolv { f1 = e1 ; ... ; fn = en } ) ~> ( header boolv { f1 = v1 ; ... ; fn = vn }  ,  empty )
+ectx g_scope_list scope_list ( eHeader boolv { f1 = e1 ; ... ; fn = en } ) ~> ( header boolv { f1 = v1 ; ... ; fn = vn }  ,  empty )
 
 
 %Header field access
 v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: h_acc
-ctx g_scope_list scope_list ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
+ectx g_scope_list scope_list ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
 
 %Case select lookup
 x' = { s_list1 : x1 ; ... ; s_listn : xn } x v
 ----------------------------------- :: sel_acc
-ctx g_scope_list scope_list ( select v { s_list1 : x1 ; ... ; s_listn : xn } x ) ~> ( x' ,  empty )
+ectx g_scope_list scope_list ( select v { s_list1 : x1 ; ... ; s_listn : xn } x ) ~> ( x' ,  empty )
 
 %concatenation of two bitstrings 
 
-ctx g_scope_list scope_list ( e ) ~> ( e'' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e'' , e_red_res )
 ----------------------------------- :: concat_arg1
-ctx g_scope_list scope_list ( concat e e' ) ~> ( concat e'' e' , frame_list )
+ectx g_scope_list scope_list ( concat e e' ) ~> ( concat e'' e' , e_red_res )
 
 
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 ----------------------------------- :: concat_arg2
-ctx g_scope_list scope_list ( concat bitv e ) ~> ( concat bitv e' , frame_list )
+ectx g_scope_list scope_list ( concat bitv e ) ~> ( concat bitv e' , e_red_res )
 
 
 bitv'' = concat bitv bitv'
 ----------------------------------- :: concat_v
-ctx g_scope_list scope_list ( concat bitv bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( concat bitv bitv' ) ~> ( bitv'' , empty )
 
 
 %bit slicing operation
 
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 ----------------------------------- :: slice_arg1
-ctx g_scope_list scope_list ( e [ bitv : bitv' ] ) ~> ( e' [ bitv : bitv' ] , frame_list )
+ectx g_scope_list scope_list ( e [ bitv : bitv' ] ) ~> ( e' [ bitv : bitv' ] , e_red_res )
 
 %compile time known values from p4 spec. 
 bitv''' = bitv [ bitv' : bitv'' ]
 ----------------------------------- :: slice_v
-ctx g_scope_list scope_list ( bitv [ bitv' : bitv'' ] ) ~> ( bitv''' , empty )
+ectx g_scope_list scope_list ( bitv [ bitv' : bitv'' ] ) ~> ( bitv''' , empty )
 
 
 %Select
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 ----------------------------------- :: sel_arg
-ctx g_scope_list scope_list ( select e { s_list1 : x1 ; ... ; s_listn : xn } x ) ~> ( select e' { s_list1 : x1 ; ... ; s_listn : xn } x , frame_list )
+ectx g_scope_list scope_list ( select e { s_list1 : x1 ; ... ; s_listn : xn } x ) ~> ( select e' { s_list1 : x1 ; ... ; s_listn : xn } x , e_red_res )
 
 
 %Unary operations
 
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 ----------------------------------- :: unop_arg
-ctx g_scope_list scope_list ( unop e ) ~> ( unop e' , frame_list )
+ectx g_scope_list scope_list ( unop e ) ~> ( unop e' , e_red_res )
 
 %Casts
 
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 ----------------------------------- :: cast_arg
-ctx g_scope_list scope_list ( cast e ) ~> ( cast e' , frame_list )
+ectx g_scope_list scope_list ( cast e ) ~> ( cast e' , e_red_res )
 
 %Binary operations
 
-ctx g_scope_list scope_list ( e ) ~> ( e'' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e'' , e_red_res )
 ----------------------------------- :: binop_arg1
-ctx g_scope_list scope_list ( e binop e' ) ~> ( e'' binop e' , frame_list )
+ectx g_scope_list scope_list ( e binop e' ) ~> ( e'' binop e' , e_red_res )
 
-%TODO: Enforce short-circuit evaluation for AND, OR on Booleans?
 ~is_short_circuit ( binop )
-ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 ----------------------------------- :: binop_arg2
-ctx g_scope_list scope_list ( v binop e ) ~> ( v binop e' , frame_list )
+ectx g_scope_list scope_list ( v binop e ) ~> ( v binop e' , e_red_res )
 
 
 %%%%%%%%%%%%%%%%%%%
@@ -2739,21 +2771,21 @@ ctx g_scope_list scope_list ( v binop e ) ~> ( v binop e' , frame_list )
 
 ! b = b'
 ----------------------------------- :: neg_bool
-ctx g_scope_list scope_list ( ! b ) ~> ( b' , empty )
+ectx g_scope_list scope_list ( ! b ) ~> ( b' , empty )
 
 %%%%%%%%%%%%%%%%%%%
 %Bitwise complement
 
 ~ bitv = bitv'
 ----------------------------------- :: compl
-ctx g_scope_list scope_list ( ~ bitv ) ~> ( bitv' , empty )
+ectx g_scope_list scope_list ( ~ bitv ) ~> ( bitv' , empty )
 
 %%%%%%%%%%%%%%%%
 %Signed negation
 
 - bitv = bitv'
 ----------------------------------- :: neg_signed
-ctx g_scope_list scope_list ( - bitv ) ~> ( bitv' , empty )
+ectx g_scope_list scope_list ( - bitv ) ~> ( bitv' , empty )
 
 
 %%%%%%%%%%%
@@ -2761,7 +2793,7 @@ ctx g_scope_list scope_list ( - bitv ) ~> ( bitv' , empty )
 
 + bitv = bitv'
 ----------------------------------- :: un_plus
-ctx g_scope_list scope_list ( + bitv ) ~> ( bitv' , empty )
+ectx g_scope_list scope_list ( + bitv ) ~> ( bitv' , empty )
 
 %%%%%%%
 %Casts%
@@ -2769,21 +2801,21 @@ ctx g_scope_list scope_list ( + bitv ) ~> ( bitv' , empty )
 
 ( unsigned n ) bitv = bitv'
 ----------------------------------- :: cast_bitv
-ctx g_scope_list scope_list ( ( unsigned n ) bitv ) ~> ( bitv' , empty )
+ectx g_scope_list scope_list ( ( unsigned n ) bitv ) ~> ( bitv' , empty )
 
 % TODO: fix this cast to take only 1 unsigned not n
 
 ( unsigned n ) b = bitv
 ----------------------------------- :: cast_bool
-ctx g_scope_list scope_list ( ( unsigned n ) b ) ~> ( bitv , empty )
+ectx g_scope_list scope_list ( ( unsigned n ) b ) ~> ( bitv , empty )
 
 ( bool ) bitv = b
 ----------------------------------- :: cast_to_bool
-ctx g_scope_list scope_list ( ( bool ) bitv ) ~> ( b , empty )
+ectx g_scope_list scope_list ( ( bool ) bitv ) ~> ( b , empty )
 
 ( bool ) b = b'
 ----------------------------------- :: cast_id_bool
-ctx g_scope_list scope_list ( ( bool ) b ) ~> ( b' , empty )
+ectx g_scope_list scope_list ( ( bool ) b ) ~> ( b' , empty )
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -2795,7 +2827,7 @@ ctx g_scope_list scope_list ( ( bool ) b ) ~> ( b' , empty )
 
 bitv * bitv' = bitv''
 ----------------------------------- :: mul
-ctx g_scope_list scope_list ( bitv * bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv * bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%%%%
@@ -2803,35 +2835,35 @@ ctx g_scope_list scope_list ( bitv * bitv' ) ~> ( bitv'' , empty )
 
 bitv / bitv' = bitv''
 ----------------------------------- :: div
-ctx g_scope_list scope_list ( bitv / bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv / bitv' ) ~> ( bitv'' , empty )
 %%%%%%%%%%%%%%%
 %Modulo
 
 bitv mod bitv' = bitv''
 ----------------------------------- :: mod
-ctx g_scope_list scope_list ( bitv mod bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv mod bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%
 %Addition
 
 bitv + bitv' = bitv''
 ----------------------------------- :: add
-ctx g_scope_list scope_list ( bitv + bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv + bitv' ) ~> ( bitv'' , empty )
 
 bitv sat_add bitv' = bitv''
 ----------------------------------- :: sat_add
-ctx g_scope_list scope_list ( bitv sat_add bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv sat_add bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%
 %Subtraction
 
 bitv - bitv' = bitv''
 ----------------------------------- :: sub
-ctx g_scope_list scope_list ( bitv - bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv - bitv' ) ~> ( bitv'' , empty )
 
 bitv sat_sub bitv' = bitv''
 ----------------------------------- :: sat_sub
-ctx g_scope_list scope_list ( bitv sat_sub bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv sat_sub bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%
@@ -2839,52 +2871,52 @@ ctx g_scope_list scope_list ( bitv sat_sub bitv' ) ~> ( bitv'' , empty )
 
 bitv SHL bitv' = bitv''
 ----------------------------------- :: shl
-ctx g_scope_list scope_list ( bitv SHL bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv SHL bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%
 %Right shift
 
 bitv SHR bitv' = bitv''
 ----------------------------------- :: shr
-ctx g_scope_list scope_list ( bitv SHR bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv SHR bitv' ) ~> ( bitv'' , empty )
 
 %%%%%%%%%%%%%%%%%%%
 %Less than or equal
 
 bitv LE bitv' = b
 ----------------------------------- :: le
-ctx g_scope_list scope_list ( bitv LE bitv' ) ~> ( b , empty )
+ectx g_scope_list scope_list ( bitv LE bitv' ) ~> ( b , empty )
 
 %%%%%%%%%%%%%%%%%%%%%%
 %Greater than or equal
 
 bitv GE bitv' = b
 ----------------------------------- :: ge
-ctx g_scope_list scope_list ( bitv GE bitv' ) ~> ( b , empty )
+ectx g_scope_list scope_list ( bitv GE bitv' ) ~> ( b , empty )
 
 %%%%%%%%%%
 %Less than
 
 bitv < bitv' = b
 ----------------------------------- :: lt
-ctx g_scope_list scope_list ( bitv < bitv' ) ~> ( b , empty )
+ectx g_scope_list scope_list ( bitv < bitv' ) ~> ( b , empty )
 %%%%%%%%%%%%%
 %Greater than
 
 bitv > bitv' = b
 ----------------------------------- :: gt
-ctx g_scope_list scope_list ( bitv > bitv' ) ~> ( b , empty )
+ectx g_scope_list scope_list ( bitv > bitv' ) ~> ( b , empty )
 
 %%%%%%%%%%%%%
 %Not equal
 
 bitv NE bitv' = b
 ----------------------------------- :: neq
-ctx g_scope_list scope_list ( bitv NE bitv' ) ~> ( b , empty )
+ectx g_scope_list scope_list ( bitv NE bitv' ) ~> ( b , empty )
 
 b NE b' = b''
 ----------------------------------- :: neq_bool
-ctx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
+ectx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
 
 
 %%%%%%%%%%%%%
@@ -2892,11 +2924,11 @@ ctx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
 
 bitv EQ bitv' = b
 ----------------------------------- :: eq
-ctx g_scope_list scope_list ( bitv EQ bitv' ) ~> ( b , empty )
+ectx g_scope_list scope_list ( bitv EQ bitv' ) ~> ( b , empty )
 
 b EQ b' = b''
 ----------------------------------- :: eq_bool
-ctx g_scope_list scope_list ( b EQ b' ) ~> ( b'' , empty )
+ectx g_scope_list scope_list ( b EQ b' ) ~> ( b'' , empty )
 
 
 %%%%%%%%%%%%%
@@ -2904,7 +2936,7 @@ ctx g_scope_list scope_list ( b EQ b' ) ~> ( b'' , empty )
 
 bitv & bitv' = bitv''
 ----------------------------------- :: and
-ctx g_scope_list scope_list ( bitv & bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv & bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%%
@@ -2912,7 +2944,7 @@ ctx g_scope_list scope_list ( bitv & bitv' ) ~> ( bitv'' , empty )
 
 bitv ^ bitv' = bitv''
 ----------------------------------- :: xor
-ctx g_scope_list scope_list ( bitv ^ bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv ^ bitv' ) ~> ( bitv'' , empty )
 
 
 
@@ -2921,7 +2953,7 @@ ctx g_scope_list scope_list ( bitv ^ bitv' ) ~> ( bitv'' , empty )
 
 bitv | bitv' = bitv''
 ----------------------------------- :: or
-ctx g_scope_list scope_list ( bitv | bitv' ) ~> ( bitv'' , empty )
+ectx g_scope_list scope_list ( bitv | bitv' ) ~> ( bitv'' , empty )
 
 
 %%%%%%%%%%%%%
@@ -2929,20 +2961,20 @@ ctx g_scope_list scope_list ( bitv | bitv' ) ~> ( bitv'' , empty )
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_and1
-ctx g_scope_list scope_list ( false AND e ) ~> ( false , empty )
+ectx g_scope_list scope_list ( false AND e ) ~> ( false , empty )
 
 ----------------------------------- :: bin_and2
-ctx g_scope_list scope_list ( true AND e ) ~> ( e , empty )
+ectx g_scope_list scope_list ( true AND e ) ~> ( e , empty )
 
 %%%%%%%%%%%%%
 %Binary or
 %Note: This uses short-circuit evaluation
 
 ----------------------------------- :: bin_or1
-ctx g_scope_list scope_list ( true OR e ) ~> ( true , empty )
+ectx g_scope_list scope_list ( true OR e ) ~> ( true , empty )
 
 ----------------------------------- :: bin_or2
-ctx g_scope_list scope_list ( false OR e ) ~> ( e , empty )
+ectx g_scope_list scope_list ( false OR e ) ~> ( e , empty )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics ( single frame )%
@@ -2951,7 +2983,6 @@ ctx g_scope_list scope_list ( false OR e ) ~> ( e , empty )
 %TODO: Should this now be called statement stack semantics and use the prefix "stmt_stack"?
 
 %TODO: Exit
-%TODO: Switch
 
 defns
   stmt_sem :: '' ::=
@@ -2999,16 +3030,16 @@ by
 %Block
 
 
-  ( scope ) = declare_list_in_fresh_scope ( t_scope )
+  ( scope , i_opt ) = declare_list_in_fresh_scope ( t_scope , get_oracle_index ascope , random_oracle )
   scope_list' =  [ scope ] ++ scope_list
   ----------------------------------- :: block_enter
-  ctx ( ascope , g_scope_list , [ ( funn , [ begin t_scope stmt end ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scope_list' ) ] , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , [ begin t_scope stmt end ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , [ ( funn , stmt :: [ empty_stmt ] , scope_list' ) ] , Running )
 
   not_empty stmt
   not_empty stmt_stack
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ stmt ] , scope_list ) ] , status ) -> ( ascope' , g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' , scope_list' ) ] , status' )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , [ stmt ] , scope_list ) ] , status ) -> ( ascope' , g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' , scope_list' ) ] , status' )
   ----------------------------------- :: block_exec
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt :: stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' ++ stmt_stack , scope_list' ) ] , status' )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , stmt :: stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list' , frame_list' ++ [ ( funn , stmt_stack' ++ stmt_stack , scope_list' ) ] , status' )
 
   not_empty stmt_stack
   scope_list' = tl scope_list
@@ -3029,7 +3060,7 @@ by
   tbl_map ( tbl ) = ( [ mk1 , .. , mkn ] , ( f' , [ e'1 , .. , e'o ] ) )
   apply_table_f ( tbl , ( e1 , .. , en ) , ( [ mk1 , .. , mkn ] ) , ( f' , [ e'1 , .. , e'o ] ) , ascope ) = ( f , ( v1 , .. , vm ) )
   ----------------------------------- :: apply_table_v
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign null ( call f ( v1 , .. , vm ) ) ] , scope_list ) ] , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ assign null ( call f ( v1 , .. , vm ) ) ] , scope_list ) ] , Running )
 
 
 %%%%%%%%%%%%%%
@@ -3043,7 +3074,7 @@ by
   ext_fun = lookup_ext_fun ( funn , ext_map )
   ( ascope' , scope_list' , status ) = ext_fun ( ascope , g_scope_list , scope_list )
   ----------------------------------- :: ext
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list' ) ] , status )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , [ ext ] , scope_list ) ] , Running ) -> ( ascope' , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list' ) ] , status )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3052,36 +3083,42 @@ by
 
 %Reduction step of return expression
 
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+%TODO: Write "get_ectx ctx ascope" in place of ectx directly instead? This would require adding this to the ectx definition
+  ectx = get_ectx ctx ascope
+  ectx g_scope_list scope_list ( e ) ~> ( e' , ( frame_list , i_opt ) )
   ----------------------------------- :: ret_e
-  ctx ( ascope , g_scope_list , [ ( funn , [ return e ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ return e' ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ return e ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , frame_list ++ [ ( funn , [ return e' ] , scope_list ) ] , Running )
 
 
 %Reduction step of assign expression
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+  ectx = get_ectx ctx ascope
+  ectx g_scope_list scope_list ( e ) ~> ( e' , ( frame_list , i_opt ) )
   ----------------------------------- :: ass_e
-  ctx ( ascope , g_scope_list , [ ( funn , [ assign lval e ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ assign lval e' ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ assign lval e ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , frame_list ++ [ ( funn , [ assign lval e' ] , scope_list ) ] , Running )
 
 
 %Reduction step of condition
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+  ectx = get_ectx ctx ascope
+  ectx g_scope_list scope_list ( e ) ~> ( e' , ( frame_list , i_opt ) )
   ----------------------------------- :: cond_e
-  ctx ( ascope , g_scope_list , [ ( funn , [ if e then stmt1 else stmt2 ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ if e' then stmt1 else stmt2 ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ if e then stmt1 else stmt2 ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , frame_list ++ [ ( funn , [ if e' then stmt1 else stmt2 ] , scope_list ) ] , Running )
 
 
 %Reduction step of transition
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+  ectx = get_ectx ctx ascope
+  ectx g_scope_list scope_list ( e ) ~> ( e' , ( frame_list , i_opt ) )
   ------------------------------------------------- :: trans_e
-  ctx ( ascope , g_scope_list , [ ( funn , [ transition e ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ transition e' ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ transition e ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , frame_list ++ [ ( funn , [ transition e' ] , scope_list ) ] , Running )
 
 
 %Reduction step of match-action expression
   index_not_const [ e1 , .. , en ] = i
   e = [ e1 , .. , en ] [ i ]
-  ctx g_scope_list scope_list ( e ) ~> ( e' , frame_list )
+  ectx = get_ectx ctx ascope
+  ectx g_scope_list scope_list ( e ) ~> ( e' , ( frame_list , i_opt ) )
   [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
   ----------------------------------- :: apply_table_e
-  ctx ( ascope , g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , frame_list ++ [ ( funn , [ apply tbl ( e'1 , .. , e'n ) ] , scope_list ) ] , Running )
+  ctx ( ascope , g_scope_list , [ ( funn , [ apply tbl ( e1 , .. , en ) ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , frame_list ++ [ ( funn , [ apply tbl ( e'1 , .. , e'n ) ] , scope_list ) ] , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3100,11 +3137,11 @@ by
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
   b_func_map' = map_to_pass funn b_func_map
   tbl_map' = tbl_to_pass funn b_func_map tbl_map
-  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , status ) -> ( ascope' , g_scope_list'' , frame_list' , status' )
   notret( status' , frame_list'' )
   g_scope_list''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list'' )
   ----------------------------------- :: comp1
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ frame_list'' , status ) -f-> ( ascope' , g_scope_list''' , frame_list' ++ frame_list'' , status' )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ frame_list'' , status ) -f-> ( ascope' , g_scope_list''' , frame_list' ++ frame_list'' , status' )
 
 %Note that global scope does not matter for the below statement reduction step (write global scope empty?), so no "scopes_to_pass" needed
 
@@ -3112,7 +3149,7 @@ by
   g_scope_list' = scopes_to_pass ( funn , func_map , b_func_map , g_scope_list )
   b_func_map' = map_to_pass funn b_func_map
   tbl_map' = tbl_to_pass funn b_func_map tbl_map
-  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
+  ( apply_table_f , ext_map , func_map , b_func_map' , pars_map , tbl_map' , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list' , [ ( funn , stmt_stack , scope_list ) ] , Running ) -> ( ascope' , g_scope_list'' , [ ( funn , stmt_stack'' , scope_list'' ) ] , Ret v )
   ( stmt''' , [ ( x1 , d1 ) , .. , ( xn , dn ) ] ) = lookup_funn_sig_body ( funn , func_map , b_func_map , ext_map )
   g_scope_list''' = assign ( ( g_scope_list'' ) , v , ( star , funn ) )
   g_scope_list'''' = scopes_to_retrieve ( funn , func_map , b_func_map , g_scope_list , g_scope_list''' ) 
@@ -3120,7 +3157,7 @@ by
   ( g_scope_list'''''' , scope_list''' ) = copyout ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , g_scope_list''''' , scope_list' , scope_list'' )
   g_scope_list''''''' = scopes_to_retrieve ( funn' , func_map , b_func_map , g_scope_list'''' , g_scope_list'''''' )
   ----------------------------------- :: comp2
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f->  ( ascope' , g_scope_list''''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , stmt_stack , scope_list ) ] ++ ( [ ( funn' , stmt_stack' , scope_list' ) ] ++ frame_list ) , Running ) -f->  ( ascope' , g_scope_list''''''' , [ ( funn' , stmt_stack' , scope_list''' ) ] ++ frame_list , Running )
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3141,32 +3178,32 @@ by
   inp = ab_list [ i ]
   ( in_out_list'' , ascope' ) = input_f ( in_out_list , ascope )
   ----------------------------------- :: in
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list'' , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list'' , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
   pbl f ( e1 , .. , en ) = ab_list [ i ]
   pbl_type [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( f )
   stmt = lookup_block_body ( f , b_func_map )
-  scope' = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope )
-  scope'' = declare_list_in_scope ( t_scope , scope' )
+  ( scope' , i_opt ) = copyin_pbl ( ( x1 , .. , xn ) , [ d1 , .. , dn ] , [ e1 , .. , en ] , ascope , random_oracle )
+  ( scope'' , i_opt' ) = declare_list_in_scope ( t_scope , scope' , i_opt , get_oracle_index ascope , random_oracle )
   g_scope_list' = lastn 1 g_scope_list
   g_scope_list'' = [ scope'' ] ++ g_scope_list'
 %Note that the below means that the var_star of globally-defined functions is redefined every time pbl_init is applied 
   g_scope_list''' = initialise_var_stars func_map b_func_map ext_map g_scope_list''
   ----------------------------------- :: pbl_init
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list''' , [ ( f , [ stmt ] , [ empty ] ) ] , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i , in_out_list , in_out_list' , set_oracle_index i_opt' ascope ) , g_scope_list''' , [ ( f , [ stmt ] , [ empty ] ) ] , Running )
 
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
   ascope' = ff ( ascope )
   ----------------------------------- :: ffbl
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
   out = ab_list [ i ]
   ( in_out_list'' , ascope' ) = output_f ( in_out_list' , ascope )
   ----------------------------------- :: out
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( 0 , in_out_list , in_out_list'' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( 0 , in_out_list , in_out_list'' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
 
 %TODO: This could be solved directly at statement level... This is essentially the old pars_state rule
@@ -3175,13 +3212,13 @@ by
   not_final_state ( x' )
   stmt' = pars_map ( x' )
   ----------------------------------- :: parser_trans
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Trans x' ) -'> ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list' , [ ( x' , [ stmt' ] , [ empty ] ) ] , Running )
 
   pbl x ( e1 , .. , em ) = ab_list [ i ]
   pbl_type [ ( x1 , d1 ) , .. , ( xn , dn ) ] b_func_map t_scope pars_map tbl_map = pblock_map ( x )
-  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , frame_list , Running ) -f-> ( ascope' , g_scope_list' , frame_list' , status' )
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , frame_list , Running ) -f-> ( ascope' , g_scope_list' , frame_list' , status' )
   ----------------------------------- :: pbl_exec
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope' ) , g_scope_list' , frame_list' , status' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , Running ) -'> ( ( i , in_out_list , in_out_list' , ascope' ) , g_scope_list' , frame_list' , status' )
 
 %... until execution using the regular statement semantics has finished
 
@@ -3197,7 +3234,7 @@ by
   ascope' = copyout_pbl ( g_scope_list , ascope , [ d1 , .. , dn ] , ( x1 , .. , xn ) , status' )
   %TODO: Relax requirement that statement be empty in initial state?
   ----------------------------------- :: pbl_ret
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , lastn 1 g_scope_list , arch_frame_list_empty , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , frame_list , status ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , lastn 1 g_scope_list , arch_frame_list_empty , Running )
 
 %TODO: What should happen when all input has been processed?
 %      	    Separate judgment form?
@@ -3220,11 +3257,11 @@ defn
 by
 
 
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list , status ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list , status ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
   ----------------------------------- :: conc1
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) )
 
 
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( ( i' , in_out_list , in_out_list' , ascope ) , g_scope_list' , arch_frame_list' , status' ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i' , in_out_list , in_out_list' , ascope ) , g_scope_list' , arch_frame_list' , status' ) -'> ( ( i'' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list'' , arch_frame_list'' , status'' )
   ----------------------------------- :: conc2
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) ) )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( (  in_out_list , in_out_list' , ascope ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i' , g_scope_list' , arch_frame_list' , status' ) ) ) --'> ( (  in_out_list'' , in_out_list''' , ascope' ) , ( ( i , g_scope_list , arch_frame_list , status ) , ( i'' , g_scope_list'' , arch_frame_list'' , status'' ) ) )

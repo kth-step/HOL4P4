@@ -1,8 +1,9 @@
-open HolKernel boolLib Parse bossLib ottLib;
-
-open p4Theory p4_auxTheory p4_coreTheory;
+open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_ebpf";
+
+open ottLib;
+open p4Theory p4_auxTheory p4_coreTheory;
 
 (* TODO: Put all the stuff that's shared between this and VSS in coreTheory *)
 
@@ -19,7 +20,7 @@ val _ = type_abbrev("ebpf_sum_v_ext", ``:(core_v_ext, ebpf_v_ext) sum``);
 val _ = type_abbrev("ebpf_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
 
 (* The architectural state type of the eBPF architecture model *)
-val _ = type_abbrev("ebpf_ascope", ``:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl)``);
+val _ = type_abbrev("ebpf_ascope", ``:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl # num)``);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -32,13 +33,13 @@ Definition ebpf_ascope_lookup_def:
 End
 
 Definition ebpf_ascope_update_def:
- ebpf_ascope_update ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
+ ebpf_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) ext_ref v_ext =
+   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
 End
 
 Definition ebpf_ascope_update_v_map_def:
- ebpf_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
+ ebpf_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) str v =
+   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
 End
 
 Definition ebpf_packet_in_extract:
@@ -77,14 +78,14 @@ End
 
 (* Note that the "sparse" flag of the constructor is irrelevant for our representation, so this isn't used here. *)
 Definition CounterArray_construct:
- (CounterArray_construct ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+ (CounterArray_construct ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "max_index")) of
   | SOME (v_bit (bl,n)) =>
    let bitstring_list = REPLICATE (v2n bl) ((n2w 0):word32) in
    let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (ebpf_v_ext_counterArray bitstring_list)) in
    (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>
-     SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
+     SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
     | NONE => NONE)
   | _ => NONE
  )
@@ -101,7 +102,7 @@ Definition update_index_def:
 End
 
 Definition CounterArray_increment:
- (CounterArray_increment ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+ (CounterArray_increment ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
@@ -109,7 +110,7 @@ Definition CounterArray_increment:
      (case lookup_lval scope_list (lval_varname (varn_name "index")) of
       | SOME (v_bit (bl,n)) =>
        let bitstring_list' = update_index ($word_add (1w:word32)) (v2n bl) bitstring_list in
-        SOME ((counter, AUPDATE ext_obj_map (i, INR (ebpf_v_ext_counterArray bitstring_list')), v_map, ctrl), scope_list, status_returnv v_bot)
+        SOME ((counter, AUPDATE ext_obj_map (i, INR (ebpf_v_ext_counterArray bitstring_list')), v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
       | _ => NONE)
     | _ => NONE)
   | _ => NONE
@@ -120,7 +121,7 @@ End
 (* add *)
 
 Definition CounterArray_add:
- (CounterArray_add ((counter, ext_obj_map, v_map, ctrl):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
+ (CounterArray_add ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
@@ -130,7 +131,7 @@ Definition CounterArray_add:
        (case lookup_lval scope_list (lval_varname (varn_name "value")) of
         | SOME (v_bit (bl',n')) =>
          let bitstring_list' = update_index ($word_add ((v2w bl'):word32)) (v2n bl) bitstring_list in
-          SOME ((counter, AUPDATE ext_obj_map (i, INR (ebpf_v_ext_counterArray bitstring_list')), v_map, ctrl), scope_list, status_returnv v_bot)
+          SOME ((counter, AUPDATE ext_obj_map (i, INR (ebpf_v_ext_counterArray bitstring_list')), v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -152,7 +153,7 @@ End
 (* NOTE: "b" renamed to "b_in" *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition ebpf_input_f_def:
- (ebpf_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
+ (ebpf_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   case io_list of
   | [] => NONE
   | ((bl,p)::t) =>
@@ -168,7 +169,7 @@ Definition ebpf_input_f_def:
      (case ALOOKUP v_map'' "packet_copy" of
       | SOME (v_ext_ref i') =>
        let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet bl)) in
-       SOME (t, (counter, ext_obj_map'', v_map'', ctrl):ebpf_ascope)
+       SOME (t, (counter, ext_obj_map'', v_map'', ctrl, oracle_index):ebpf_ascope)
       | _ => NONE)
     | _ => NONE))
 End
@@ -183,29 +184,11 @@ Definition ebpf_reduce_nonout_def:
     | (e_var (varn_name x)) =>
      (case ALOOKUP v_map x of
       | SOME v =>
-       if is_d_in d
-       then oCONS (e_v v, ebpf_reduce_nonout (dlist, elist, v_map))
-       else oCONS (e_v (init_out_v v), ebpf_reduce_nonout (dlist, elist, v_map))       
+       (* NOTE: Only externs can be passed as directionless arguments here *)
+       oCONS (e_v v, ebpf_reduce_nonout (dlist, elist, v_map))
       | _ => NONE)
     | _ => NONE)) /\
  (ebpf_reduce_nonout (_, _, v_map) = NONE)
-End
-
-(* TODO: Remove these and keep "v_map" as just a regular scope? *)
-Definition v_map_to_scope_def:
- (v_map_to_scope [] = []) /\
- (v_map_to_scope (((k, v)::t):(string, v) alist) =
-  ((varn_name k, (v, NONE:lval option))::v_map_to_scope t)
- )
-End
-
-Definition scope_to_vmap_def:
- (scope_to_vmap [] = SOME []) /\
- (scope_to_vmap ((vn, (v:v, lval_opt:lval option))::t) =
-  case vn of
-   | (varn_name k) => oCONS ((k, v), scope_to_vmap t)
-   | _ => NONE
- )
 End
 
 (* TODO: Since the same thing should be initialised
@@ -213,21 +196,21 @@ End
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition ebpf_copyin_pbl_def:
- ebpf_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
+ ebpf_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope, random_oracle) =
   case ebpf_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ]
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
   | NONE => NONE
 End
 
 (* TODO: Does anything need to be looked up for this function? *)
 (* Note that this re-uses the copyout function intended for P4 functions *)
 Definition ebpf_copyout_pbl_def:
- ebpf_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope, dlist, xlist, (status:status)) =
+ ebpf_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope, dlist, xlist, (status:status)) =
   case copyout_pbl_gen xlist dlist g_scope_list v_map of
   | SOME [v_map_scope] =>
    (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):ebpf_ascope)
+    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):ebpf_ascope)
     | NONE => NONE)
   | _ => NONE
 End
@@ -254,7 +237,7 @@ End
 (* TODO: Outsource obtaining the output port to an external function? *)
 (* This will also look up the value of "pass" and only output a packet if it is true *)
 Definition ebpf_output_f_def:
- ebpf_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
+ ebpf_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   case ALOOKUP v_map "accept" of
   | SOME (v_bool T) =>
    (case ebpf_lookup_obj ext_obj_map v_map "packet_copy" of
@@ -263,16 +246,16 @@ Definition ebpf_output_f_def:
       | SOME (v_struct fields) =>
        (case ebpf_inputPort_to_num fields of
         | SOME port =>
-         SOME (in_out_list++[(bl, port)], (counter, ext_obj_map, v_map, ctrl))
+         SOME (in_out_list++[(bl, port)], (counter, ext_obj_map, v_map, ctrl, oracle_index))
         | NONE => NONE)
       | _ => NONE)
     | _ => NONE)
-  | SOME (v_bool F) => SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
-  | NONE => NONE
+  | SOME (v_bool F) => SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index))
+  | _ => NONE
 End
 
 Definition ebpf_apply_table_f_def:
- ebpf_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
+ ebpf_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   case ALOOKUP ctrl x of
@@ -280,6 +263,19 @@ Definition ebpf_apply_table_f_def:
     (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
     SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
    | NONE => NONE
+End
+
+(* TODO: Generalise the below as needed *)
+
+(* TODO: Really necessary? *)
+Definition ebpf_get_oracle_index_def:
+ ebpf_get_oracle_index (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope =
+  oracle_index
+End
+
+Definition ebpf_set_oracle_index_def:
+ ebpf_set_oracle_index i_opt (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope =
+  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):ebpf_ascope
 End
 
 val _ = export_theory ();

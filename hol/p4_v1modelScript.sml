@@ -1,8 +1,9 @@
-open HolKernel boolLib Parse bossLib ottLib;
-
-open p4Theory p4Syntax p4_auxTheory p4_coreTheory p4_coreLib;
+open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_v1model";
+
+open ottLib;
+open p4Theory p4Syntax p4_auxTheory p4_coreTheory p4_coreLib;
 
 (* Useful documentation and reference links:
    https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
@@ -48,11 +49,13 @@ val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
 val _ = type_abbrev("v1model_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
 
 (* The architectural state type of the V1Model architecture model *)
-val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl)``);
+val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl # num)``);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
 (**********************************************************)
+
+(* TODO: Remove unused arguments from these? *)
 
 Definition v1model_ascope_lookup_def:
  v1model_ascope_lookup (ascope:v1model_ascope) ext_ref = 
@@ -61,13 +64,13 @@ Definition v1model_ascope_lookup_def:
 End
 
 Definition v1model_ascope_update_def:
- v1model_ascope_update ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
+ v1model_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) ext_ref v_ext =
+   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
 End
 
 Definition v1model_ascope_update_v_map_def:
- v1model_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
+ v1model_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) str v =
+   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
 End
 
 Definition v1model_packet_in_extract_def:
@@ -96,7 +99,7 @@ End
 (**********************************************)
 
 Definition v1model_ascope_read_ext_obj_def:
- v1model_ascope_read_ext_obj ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) vname =
+ v1model_ascope_read_ext_obj ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) vname =
   case ALOOKUP v_map vname of
   | SOME (v_ext_ref n) =>
    ALOOKUP ext_obj_map n
@@ -198,7 +201,7 @@ End
 (* verify_checksum *)
 
 Definition v1model_verify_checksum_def:
- (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
@@ -210,31 +213,28 @@ Definition v1model_verify_checksum_def:
         (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
          | SOME checksum_incr =>
           (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
-           | SOME $ v_bit (bl', n') =>
-            if n' = 16
-            then
-             (if (v_bit (bl', n')) = (v_bit $ w16 $ compute_checksum16 checksum_incr)
-              then SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
-              else
-               (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
-                | SOME [v_map_scope] =>
-                 (case scope_to_vmap v_map_scope of
-                  | SOME v_map' =>
-                   SOME ((counter, ext_obj_map, v_map', ctrl), scope_list, status_returnv v_bot)
-                  | NONE => NONE)
-                | _ => NONE))
-            else NONE
+           | SOME $ v_bit (bl', 16) =>
+            (if (v_bit (bl', 16)) = (v_bit $ w16 $ compute_checksum16 checksum_incr)
+             then SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+             else
+              (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+               | SOME [v_map_scope] =>
+                (case scope_to_vmap v_map_scope of
+                 | SOME v_map' =>
+                  SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index), scope_list, status_returnv v_bot)
+                 | NONE => NONE)
+               | _ => NONE))
            | _ => NONE)
          | NONE => NONE)
        (* TODO: Others not implemented yet *)
        else NONE
       | _ => NONE)
-    else SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
+    else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
    | _ => NONE)
  )
 End
 
-(*************************)
+(*******************)
 (* update_checksum *)
 
 Definition v1model_update_checksum_inner_def:
@@ -243,7 +243,7 @@ Definition v1model_update_checksum_inner_def:
 End
 
 Definition v1model_update_checksum_def:
- (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
@@ -261,14 +261,15 @@ Definition v1model_update_checksum_def:
              (* TODO: This can be made total, since we just looked up the checksum *)
              (case assign scope_list (v1model_update_checksum_inner checksum_incr) (lval_varname (varn_name "checksum")) of
               | SOME scope_list' =>
-               SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)             | NONE => NONE)
+               SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+              | NONE => NONE)
             else NONE
            | _ => NONE)
          | NONE => NONE)
        (* TODO: Others not implemented yet *)
        else NONE
       | _ => NONE)
-    else SOME ((counter, ext_obj_map, v_map, ctrl), scope_list, status_returnv v_bot)
+    else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
    | _ => NONE)
  )
 End
@@ -276,7 +277,7 @@ End
 (**************)
 (* Register   *)
 (**************)
-
+(*
 Definition replicate_arb_def:
  replicate_arb length width =
   REPLICATE length ((REPLICATE width (ARB:bool)), width)
@@ -287,17 +288,17 @@ Definition v1model_register_construct_inner_def:
   replicate_arb (v2n length_bl) width
  )
 End
-
+*)
 Definition register_construct_def:
- (register_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (register_construct random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
     | SOME (v_bit (bl', n')) =>
-     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (v1model_register_construct_inner bl n'))) in
+     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (get_oracle_calls (v2n bl) oracle_index random_oracle))) in
      (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
       | SOME scope_list' =>
-       SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
+       SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE
@@ -329,16 +330,16 @@ End
 
 (* Simply replaces the oEL of a v2n index *)
 Definition v1model_register_read_inner_def:
- (v1model_register_read_inner n'' array_index_v array =
+ (v1model_register_read_inner n'' array_index_v array oracle_index random_oracle =
   case oEL (v2n array_index_v) array of
   | SOME res => res
-  | NONE => (REPLICATE n'' (ARB:bool), n'')
+  | NONE => (get_oracle_calls n'' oracle_index random_oracle, n'')
  )
 End
 
 (* Note that register_read always has a result, according to v1model.p4. *)
 Definition register_read_def:
- (register_read ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (register_read random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -347,11 +348,11 @@ Definition register_read_def:
       | SOME (INR (v1model_v_ext_register array)) =>
        (* TODO: HACK, looking up the result variable to get the result width. *)
        (case lookup_lval scope_list (lval_varname (varn_name "result")) of
-        | SOME (v_bit (bl'', n'')) =>      
-         let (bl', n') = v1model_register_read_inner n'' bl array in
+        | SOME (v_bit (bl'', n'')) =>
+         let (bl', n') = v1model_register_read_inner n'' bl array oracle_index random_oracle in
            (case assign scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
             | SOME scope_list' =>
-             SOME ((counter, ext_obj_map, v_map, ctrl), scope_list', status_returnv v_bot)
+             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
             | NONE => NONE)
         | _ => NONE)
       | _ => NONE)
@@ -359,15 +360,15 @@ Definition register_read_def:
   | _ => NONE
  )
 End
-        
+
 Definition v1model_register_write_inner_def:
  (v1model_register_write_inner update array_index_v (array:(bool list # num) list) =
   LUPDATE update (v2n array_index_v) array
  )
 End
-        
+
 Definition register_write_def:
- (register_write ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (register_write ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "value")) of
@@ -378,7 +379,7 @@ Definition register_write_def:
         | SOME (INR (v1model_v_ext_register array)) =>
          let array' = v1model_register_write_inner (bl', n') bl array in
          let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_register array')) in
-          SOME ((counter, ext_obj_map', v_map, ctrl), scope_list, status_returnv v_bot)
+          SOME ((counter, ext_obj_map', v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -392,11 +393,11 @@ End
 
 (* TODO: Initialises nothing, for now... *)
 Definition ipsec_crypt_construct_def:
- (ipsec_crypt_construct ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (ipsec_crypt_construct ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
    let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_ipsec_crypt)) in
    (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>
-     SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
+     SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
     | NONE => NONE)
  )
 End
@@ -419,20 +420,23 @@ Termination
 End
 
 Definition ipsec_crypt_decrypt_aes_ctr_def:
- (ipsec_crypt_decrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (ipsec_crypt_decrypt_aes_ctr random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
    (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
      (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
       | SOME standard_metadata =>
-       (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+       let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
+       (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
         | SOME scope_list' =>
-         (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+         let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
+         (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
           | SOME scope_list'' =>
-           (case assign scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
+         let (v3, oracle_index''') = init_out_v random_oracle oracle_index standard_metadata in
+           (case assign scope_list'' (set_validity T v3) (lval_varname (varn_name "standard_metadata")) of
             | SOME scope_list''' =>
-             SOME ((counter, ext_obj_map, v_map, ctrl), scope_list''', status_returnv v_bot)
+             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index'''), scope_list''', status_returnv v_bot)
             | _ => NONE)
           | _ => NONE)
         | _ => NONE)
@@ -443,16 +447,18 @@ Definition ipsec_crypt_decrypt_aes_ctr_def:
 End
 
 Definition ipsec_crypt_encrypt_aes_ctr_def:
- (ipsec_crypt_encrypt_aes_ctr ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (ipsec_crypt_encrypt_aes_ctr random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
    (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+     let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
+     (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
       | SOME scope_list' =>
-       (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+       let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
+       (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
         | SOME scope_list'' =>
-         SOME ((counter, ext_obj_map, v_map, ctrl), scope_list'', status_returnv v_bot)
+         SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list'', status_returnv v_bot)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -461,16 +467,18 @@ Definition ipsec_crypt_encrypt_aes_ctr_def:
 End
 
 Definition ipsec_crypt_encrypt_null_def:
- (ipsec_crypt_encrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (ipsec_crypt_encrypt_null random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
    (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+     let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
+     (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
       | SOME scope_list' =>
-       (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+       let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
+       (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
         | SOME scope_list'' =>
-         SOME ((counter, ext_obj_map, v_map, ctrl), scope_list'', status_returnv v_bot)
+         SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index''), scope_list'', status_returnv v_bot)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -479,20 +487,23 @@ Definition ipsec_crypt_encrypt_null_def:
 End
 
 Definition ipsec_crypt_decrypt_null_def:
- (ipsec_crypt_decrypt_null ((counter, ext_obj_map, v_map, ctrl):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+ (ipsec_crypt_decrypt_null random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
    (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
      (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
       | SOME standard_metadata =>
-       (case assign scope_list (set_validity T $ init_out_v ipv4_header) (lval_varname (varn_name "ipv4")) of
+       let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
+       (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
         | SOME scope_list' =>
-         (case assign scope_list' (set_validity T $ init_out_v esp_header) (lval_varname (varn_name "esp")) of
+         let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
+         (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
           | SOME scope_list'' =>
-           (case assign scope_list'' (set_validity T $ init_out_v standard_metadata) (lval_varname (varn_name "standard_metadata")) of
+           let (v3, oracle_index''') = init_out_v random_oracle oracle_index standard_metadata in
+           (case assign scope_list'' (set_validity T v3) (lval_varname (varn_name "standard_metadata")) of
             | SOME scope_list''' =>
-             SOME ((counter, ext_obj_map, v_map, ctrl), scope_list''', status_returnv v_bot)
+             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index'''), scope_list''', status_returnv v_bot)
             | _ => NONE)
           | _ => NONE)
         | _ => NONE)
@@ -599,31 +610,11 @@ Definition v1model_reduce_nonout_def:
     | (e_var (varn_name x)) =>
      (case ALOOKUP v_map x of
       | SOME v =>
-       if is_d_in d
-       then oCONS (e_v v, v1model_reduce_nonout (dlist, elist, v_map))
-       else oCONS (e_v (init_out_v v), v1model_reduce_nonout (dlist, elist, v_map))       
+       (* NOTE: Only externs can be passed as directionless arguments here *)
+       oCONS (e_v v, v1model_reduce_nonout (dlist, elist, v_map))
       | _ => NONE)
     | _ => NONE)) /\
  (v1model_reduce_nonout (_, _, v_map) = NONE)
-End
-
-(* TODO: Generalise and move to core? Duplicated in all three architectures... *)
-(* TODO: Remove these and keep "v_map" as just a regular scope? *)
-Definition v_map_to_scope_def:
- (v_map_to_scope [] = []) /\
- (v_map_to_scope (((k, v)::t):(string, v) alist) =
-  ((varn_name k, (v, NONE:lval option))::v_map_to_scope t)
- )
-End
-
-(* TODO: Generalise and move to core? Duplicated in all three architectures... *)
-Definition scope_to_vmap_def:
- (scope_to_vmap [] = SOME []) /\
- (scope_to_vmap ((vn, (v:v, lval_opt:lval option))::t) =
-  case vn of
-   | (varn_name k) => oCONS ((k, v), scope_to_vmap t)
-   | _ => NONE
- )
 End
 
 (* TODO: Since the same thing should be initialised
@@ -631,23 +622,20 @@ End
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition v1model_copyin_pbl_def:
- v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+ v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, random_oracle) =
   case v1model_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (case copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
-    | SOME scope =>
-     SOME scope
-    | NONE => NONE)
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
   | NONE => NONE
 End
 
 (* Note that this re-uses the copyout function intended for P4 functions *)
 Definition v1model_copyout_pbl_def:
- v1model_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope, dlist, xlist, (status:status)) =
+ v1model_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, dlist, xlist, (status:status)) =
   case copyout_pbl_gen xlist dlist g_scope_list v_map of
   | SOME [v_map_scope] =>
    (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):v1model_ascope)
+    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):v1model_ascope)
     | NONE => NONE)
   | _ => NONE
 End
@@ -665,7 +653,7 @@ End
  * then resets the shared packet "b" (TODO: Fix that hack) and saves its content in "b_temp" *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition v1model_postparser_def:
- v1model_postparser ((counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+ v1model_postparser ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
   (case ALOOKUP v_map "b" of
    | SOME (v_ext_ref i) =>
     (case ALOOKUP ext_obj_map i of
@@ -682,8 +670,8 @@ Definition v1model_postparser_def:
                (case scope_to_vmap v_map_scope of
                 | SOME v_map'' =>
                  let v_map''' = AUPDATE v_map'' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
-                 let (counter', ext_obj_map', v_map'''', ctrl') = (v1model_ascope_update (counter, ext_obj_map, v_map''', ctrl) i' (INL (core_v_ext_packet bl))) in
-   SOME (v1model_ascope_update (counter', ext_obj_map', v_map'''', ctrl') i (INL (core_v_ext_packet [])))
+                 let (counter', ext_obj_map', v_map'''', ctrl', oracle_index') = (v1model_ascope_update (counter, ext_obj_map, v_map''', ctrl, oracle_index) i' (INL (core_v_ext_packet bl))) in
+   SOME (v1model_ascope_update (counter', ext_obj_map', v_map'''', ctrl', oracle_index') i (INL (core_v_ext_packet [])))
                 | NONE => NONE)
               | _ => NONE)
             | NONE => NONE)
@@ -709,7 +697,7 @@ End
 (* NOTE: "b" renamed to "b_out" *)
 (* A little clumsy with the double v2n, but that makes things easier *)
 Definition v1model_output_f_def:
- v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+ v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
   (case v1model_lookup_obj ext_obj_map v_map "b" of
    | SOME (INL (core_v_ext_packet bl)) =>
     (case v1model_lookup_obj ext_obj_map v_map "b_temp" of
@@ -718,12 +706,12 @@ Definition v1model_output_f_def:
        | SOME (v_struct struct) =>
         (case ALOOKUP struct "egress_spec" of
          | SOME (v_bit (port_bl, n)) =>
-          SOME (in_out_list++(if v1model_is_drop_port port_bl then [] else [(bl++bl', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl))
+          SOME (in_out_list++(if v1model_is_drop_port port_bl then [] else [(bl++bl', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl, oracle_index))
          | _ => NONE)
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
-End  
+End
 
 (* This assumes that tables contains at most one LPM key,
  * with other keys being exact if one LPM key is present.
@@ -732,7 +720,7 @@ End
 val v1model_apply_table_f_def =
  if CONTROL_PLANE_API = 0
  then xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
     (* TODO: Note that this function could do other stuff here depending on table name.
      *       Ideally, one could make a general, not hard-coded, solution for this *)
     case ALOOKUP ctrl x of
@@ -747,7 +735,7 @@ val v1model_apply_table_f_def =
        SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
      | NONE => NONE’
  else xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
     (* TODO: Note that this function could do other stuff here depending on table name.
      *       Ideally, one could make a general, not hard-coded, solution for this *)
     case ALOOKUP ctrl x of
@@ -755,5 +743,18 @@ val v1model_apply_table_f_def =
       (* Largest priority wins *)
       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
      | NONE => NONE’;
+
+(* TODO: Generalise the below as needed *)
+
+(* TODO: Really necessary? *)
+Definition v1model_get_oracle_index_def:
+ v1model_get_oracle_index (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope =
+  oracle_index
+End
+
+Definition v1model_set_oracle_index_def:
+ v1model_set_oracle_index i_opt (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope =
+  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):v1model_ascope
+End
 
 val _ = export_theory ();

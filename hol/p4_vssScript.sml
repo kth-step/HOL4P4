@@ -1,8 +1,9 @@
-open HolKernel boolLib Parse bossLib ottLib;
-
-open p4Theory p4_auxTheory p4_coreTheory;
+open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_vss";
+
+open ottLib;
+open p4Theory p4_auxTheory p4_coreTheory;
 
 Datatype:
  vss_v_ext =
@@ -13,7 +14,7 @@ val _ = type_abbrev("vss_sum_v_ext", ``:(core_v_ext, vss_v_ext) sum``);
 val _ = type_abbrev("vss_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
 
 (* The architectural state type of the VSS architecture model *)
-val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl)``);
+val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl # num)``);
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -26,13 +27,13 @@ Definition vss_ascope_lookup_def:
 End
 
 Definition vss_ascope_update_def:
- vss_ascope_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl)
+ vss_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) ext_ref v_ext =
+   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
 End
 
 Definition vss_ascope_update_v_map_def:
- vss_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl):vss_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl)
+ vss_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) str v =
+   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
 End
 
 Definition vss_packet_in_extract:
@@ -69,11 +70,11 @@ End
 (* construct *)
 
 Definition Checksum16_construct:
- (Checksum16_construct ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_construct ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (vss_v_ext_ipv4_checksum ([]:word16 list))) in
   (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
    | SOME scope_list' =>
-    SOME ((counter + 1, ext_obj_map', v_map, ctrl), scope_list', status_returnv v_bot)
+    SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
    | NONE => NONE)
  )
 End
@@ -83,10 +84,10 @@ End
 (* clear *)
 
 Definition Checksum16_clear:
- (Checksum16_clear ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_clear ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
-   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:word16 list))), v_map, ctrl), scope_list, status_returnv v_bot)
+   SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum ([]:word16 list))), v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
   | _ => NONE
  )
 End
@@ -97,14 +98,14 @@ End
 
 (* Note that this assumes the order of fields in the header is correct *)
 Definition Checksum16_update:
- (Checksum16_update ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
      (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
       | SOME checksum_incr =>
-       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl), scope_list, status_returnv v_bot)
+       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ checksum_incr))), v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE
@@ -116,12 +117,12 @@ End
 (* get *)
 
 Definition Checksum16_get:
- (Checksum16_get ((counter, ext_obj_map, v_map, ctrl):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+ (Checksum16_get ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case ALOOKUP ext_obj_map i of
     | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
-     SOME ((counter, ext_obj_map, v_map, ctrl):vss_ascope, scope_list, status_returnv (v_bit (w16 (compute_checksum16 ipv4_checksum))))
+     SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, scope_list, status_returnv (v_bit (w16 (compute_checksum16 ipv4_checksum))))
     | _ => NONE)
   | _ => NONE
  )
@@ -150,7 +151,7 @@ End
 (* NOTE: "b" renamed to "b_in" *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition vss_input_f_def:
-  (vss_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+  (vss_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
    case io_list of
    | [] => NONE
    | ((bl,p)::t) =>
@@ -170,7 +171,7 @@ Definition vss_input_f_def:
               * function for vss_ascope. *)
              let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort", v_bit (w4 (n2w p)))]) in
              let v_map'' = AUPDATE v_map' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
-              SOME (t, (counter, ext_obj_map'', v_map'', ctrl):vss_ascope)
+              SOME (t, (counter, ext_obj_map'', v_map'', ctrl, oracle_index):vss_ascope)
            | _ => NONE)
          | _ => NONE)
        | NONE => NONE)
@@ -178,6 +179,8 @@ Definition vss_input_f_def:
    | _ => NONE)
 End
 
+(* The point of this function is to look up in-directed variables in v_map before passing the result
+ * to copyin *)
 Definition vss_reduce_nonout_def:
  (vss_reduce_nonout ([], elist, v_map) =
   SOME []
@@ -190,9 +193,8 @@ Definition vss_reduce_nonout_def:
     | (e_var (varn_name x)) =>
      (case ALOOKUP v_map x of
       | SOME v =>
-       if is_d_in d
-       then oCONS (e_v v, vss_reduce_nonout (dlist, elist, v_map))
-       else oCONS (e_v (init_out_v v), vss_reduce_nonout (dlist, elist, v_map))       
+       (* NOTE: Only externs can be passed as directionless arguments here *)
+       oCONS (e_v v, vss_reduce_nonout (dlist, elist, v_map))
       | _ => NONE)
     | _ => NONE)) /\
  (vss_reduce_nonout (_, _, v_map) = NONE)
@@ -203,39 +205,39 @@ End
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition vss_copyin_pbl_def:
- vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+ vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, random_oracle) =
   case vss_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ]
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
   | NONE => NONE
 End
 
 (* TODO: Does anything need to be looked up for this function? *)
 Definition vss_copyout_pbl_def:
- vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope, dlist, xlist, (status:status)) =
+ vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, dlist, xlist, (status:status)) =
   case copyout_pbl_gen xlist dlist g_scope_list v_map of
   | SOME [v_map_scope] =>
    (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl):vss_ascope)
+    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):vss_ascope)
     | NONE => NONE)
   | _ => NONE
 End
 
 Definition vss_parser_runtime_def:
- vss_parser_runtime ((counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+ vss_parser_runtime ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (case ALOOKUP v_map "parsedHeaders" of
    | SOME (v_struct hdrs) =>
     let v_map' = AUPDATE v_map ("headers", v_struct hdrs) in
-     SOME (counter, ext_obj_map, v_map', ctrl)
+     SOME (counter, ext_obj_map, v_map', ctrl, oracle_index)
    | _ => NONE)
 End
 
 Definition vss_pre_deparser_def:
- vss_pre_deparser ((counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+ vss_pre_deparser ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (case ALOOKUP v_map "headers" of
    | SOME (v_struct hdrs) =>
     let v_map' = AUPDATE v_map ("outputHeaders", v_struct hdrs) in
-     SOME (counter, ext_obj_map, v_map', ctrl)
+     SOME (counter, ext_obj_map, v_map', ctrl, oracle_index)
    | _ => NONE)
 End
 
@@ -252,7 +254,7 @@ End
 (* TODO: Outsource obtaining the output port to an external function? *)
 (* NOTE: "b" renamed to "b_out" *)
 Definition vss_output_f_def:
- vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+ vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (case vss_lookup_obj ext_obj_map v_map "b_out" of
    | SOME (INL (core_v_ext_packet headers)) =>
     (case vss_lookup_obj ext_obj_map v_map "data_crc" of
@@ -264,9 +266,9 @@ Definition vss_output_f_def:
         in
          if port_out = 15
          then
-          SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl))
+          SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index))
          else
-          SOME (in_out_list++[(headers++data_crc, port_out)], (counter, ext_obj_map, v_map, ctrl))
+          SOME (in_out_list++[(headers++data_crc, port_out)], (counter, ext_obj_map, v_map, ctrl, oracle_index))
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
@@ -290,7 +292,7 @@ Definition ctrl_check_ttl:
 End
 
 Definition vss_apply_table_f_def:
- vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl):vss_ascope) =
+ vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   if x = "check_ttl"
@@ -302,6 +304,19 @@ Definition vss_apply_table_f_def:
      (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
     | NONE => NONE)
+End
+
+(* TODO: Generalise the below as needed *)
+
+(* TODO: Really necessary? *)
+Definition vss_get_oracle_index_def:
+ vss_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+  oracle_index
+End
+
+Definition vss_set_oracle_index_def:
+ vss_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):vss_ascope
 End
 
 val _ = export_theory ();

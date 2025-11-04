@@ -24,6 +24,9 @@ val vss_output_f : term
 
 val vss_apply_table_f : term
 
+val vss_get_oracle_index : term
+val vss_set_oracle_index : term
+
 val vss_copyin_pbl : term
 val vss_copyout_pbl : term
 

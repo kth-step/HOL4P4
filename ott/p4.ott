@@ -420,6 +420,13 @@ lval :: lval_ ::=
 | ( lval ) :: X :: paren
   {{ hol ([[lval]]) }}
 
+i_opt :: i_opt_ ::=
+{{ hol (num option) }}
+| none :: M :: none
+  {{ hol (NONE:num option) }}
+| i :: M :: some
+  {{ hol (SOME [[i]]) }}  
+
 
 embed
 {{ hol
@@ -796,6 +803,12 @@ in_out_list {{ tex \overline{ \mathit{io} } }} :: in_out_list_ ::=
 {{ com list of input and output }}
 {{ hol (in_out list) }}
 
+%This function takes an index and returns a Boolean
+%Effectively, each call with a new index yields a new random bit
+random_oracle {{ tex { \mathit{set\_oracle\_index} } }} :: random_oracle_ ::=
+{{ com random oracle }}
+{{ hol (num -> bool) }}
+
 %Fence between in_out_list and input_f
 embed
 {{ hol
@@ -821,7 +834,7 @@ output_f {{ tex { \mathit{out}_A } }} :: output_f_ ::=
 %This function is used to copy things from the architecture when a programmable block begins
 copyin_pbl {{ tex { \mathit{in}_p } }} :: copyin_pbl_ ::=
 {{ com copy-in to programmable blocks function }}
-{{ hol ((x list # d list # e list # ascope_ty) -> scope option) }}
+{{ hol ((x list # d list # e list # ascope_ty # random_oracle) -> (scope # num option) option) }}
 
 %This function is used to copy out things to the architecture after a programmable block is finished
 copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
@@ -833,6 +846,16 @@ apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
 {{ com apply table function }}
 {{ hol ((x # e_list # mk_list # (x # e_list) # ascope_ty) -> (x # e_list) option) }}
 
+%This function takes an ascope and returns an oracle index
+get_oracle_index {{ tex { \mathit{get\_oracle\_index} } }} :: get_oracle_index_ ::=
+{{ com oracle index getter }}
+{{ hol (ascope_ty -> num) }}
+
+%This function takes an ascope and sets the oracle index
+set_oracle_index {{ tex { \mathit{set\_oracle\_index} } }} :: set_oracle_index_ ::=
+{{ com oracle index setter }}
+{{ hol (num option -> ascope_ty -> ascope_ty) }}
+
 %Fence between ab_list and actx
 embed
 {{ hol
@@ -843,15 +866,23 @@ grammar
 %The architectural context stores everything that's needed for, but stays invariant over, architecture-level reductions
 actx {{ tex { \mathit{ctx}_A } }} :: actx_ ::=
 {{ com architectural context }}
-{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map) }}
-| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) :: M :: tup
+{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map # get_oracle_index # set_oracle_index # random_oracle) }}
+| ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[apply_table_f]], [[ext_map]], [[func_map]]) }}
+  {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[apply_table_f]], [[ext_map]], [[func_map]], [[get_oracle_index]] , [[set_oracle_index]] , [[random_oracle]]) }}
 
 %The context stores everything that's needed for, but stays invariant over, statement reductions
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map) }}
-| ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) :: M :: tup
+{{ hol (apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map # get_oracle_index # set_oracle_index # random_oracle) }}
+| ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) :: M :: tup
   {{ com tuple }}
-  {{ hol ([[apply_table_f]], [[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]]) }}
+  {{ hol ([[apply_table_f]], [[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]], [[get_oracle_index]] , [[set_oracle_index]] , [[random_oracle]]) }}
+
+%The expression context may become smaller than ctx, but is for now kept the same with an additional oracle index
+ectx {{ tex \mathit{ectx} }} :: ectx_ ::=
+{{ com expression context }}
+{{ hol (apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map # i # random_oracle) }}
+| ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i , random_oracle ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[apply_table_f]], [[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]], [[i]], [[random_oracle]]) }}

@@ -1,11 +1,11 @@
 open HolKernel boolLib Parse bossLib;
 
+val _ = new_theory "p4_vss_example";
+
 open p4Theory p4_vssTheory;
 open pairSyntax listSyntax p4Syntax;
 
 open p4_vssLib;
-
-val _ = new_theory "p4_vss_example";
 
 (* This file contains the VSS example program. Specifically, it saves a theorem
  * that contains the architectural context of the program. *)
@@ -218,6 +218,7 @@ val vss_pblock_map = ``[("parser", (^vss_parser_pbl));
                         ("deparser", (^vss_deparser_pbl))]``;
 
 (* TODO: Make syntax functions *)
+(*
 val vss_actx =
  ``(^(list_mk_pair [``(^vss_ab_list):ab_list``,
                     ``(^vss_pblock_map):pblock_map``,
@@ -228,10 +229,35 @@ val vss_actx =
                     ``(^vss_copyout_pbl):vss_ascope copyout_pbl``,
                     ``(^vss_apply_table_f):vss_ascope apply_table_f``,
                     ``(^vss_ext_map):vss_ascope ext_map``,
-                    ``(^vss_func_map):func_map``])):vss_ascope actx``;
+                    ``(^vss_func_map):func_map``,
+                    ``(^vss_get_oracle_index):vss_ascope get_oracle_index``,
+                    ``(^vss_set_oracle_index):vss_ascope set_oracle_index``,
+                    ``(\n. F):random_oracle``])):vss_ascope actx``;
 
+(* The default vss actx *)
 Definition p4_vss_actx_def:
   p4_vss_actx = ^vss_actx
+End
+*)
+
+val vss_actx =
+ ``(^(list_mk_pair [``(^vss_ab_list):ab_list``,
+                    ``(^vss_pblock_map):pblock_map``,
+                    ``(^vss_ffblock_map):vss_ascope ffblock_map``,
+                    ``(^vss_input_f):vss_ascope input_f``,
+                    ``(^vss_output_f):vss_ascope output_f``,
+                    ``(^vss_copyin_pbl):vss_ascope copyin_pbl``,
+                    ``(^vss_copyout_pbl):vss_ascope copyout_pbl``,
+                    ``(^vss_apply_table_f):vss_ascope apply_table_f``,
+                    ``(^vss_ext_map):vss_ascope ext_map``,
+                    ``(^vss_func_map):func_map``,
+                    ``(^vss_get_oracle_index):vss_ascope get_oracle_index``,
+                    ``(^vss_set_oracle_index):vss_ascope set_oracle_index``,
+                    ``r:random_oracle``])):vss_ascope actx``;
+
+(* The default vss actx *)
+Definition p4_vss_actx_def:
+  p4_vss_actx r = ^vss_actx
 End
 
 val _ = export_theory ();

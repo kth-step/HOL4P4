@@ -61,6 +61,12 @@ val vss_copyout_pbl = ``vss_copyout_pbl``;
 (* Programmable block output function term *)
 val vss_apply_table_f = ``vss_apply_table_f``;
 
+(* Oracle index getter *)
+val vss_get_oracle_index = ``vss_get_oracle_index``;
+
+(* Oracle index setter *)
+val vss_set_oracle_index = ``vss_set_oracle_index``;
+
 (* Fixed-function block map *)
 val vss_ffblock_map = ``[("parser_runtime", ffblock_ff vss_parser_runtime);
                          ("pre_deparser", ffblock_ff vss_pre_deparser)]:vss_ascope ffblock_map``;
