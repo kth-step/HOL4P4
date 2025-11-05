@@ -362,9 +362,7 @@ End
 
 Definition mk_BDDPred_opt_new_def:
   (mk_BDDPred_opt_new rec (BDD_sep:('b, 'a) BDD_sep) l [] c =
-                      
-   let (r,edges,labels_id,labels_content) = BDD_sep in
-     SOME (optimize_bdd_new (r,edges,labels_id) l)
+                           SOME (BDD_sep)
   ) ∧
      
   (mk_BDDPred_opt_new rec (BDD_sep) l (x::xs) c =
@@ -381,40 +379,5 @@ Definition mk_BDDPred_opt_new_def:
 End
 
 
-
-
-(*
-
-
-Definition optimize_bdd_new_def:
-  optimize_bdd_new ((r,edges,labels_id, labels_content):('b, 'a) BDD_sep) order =
-  let (internals,ntl,tl) = bdd_distribute_new labels_id order in
-    let labels_id_proj_tl = project_labels_to_new labels_id tl in (* projection for terminals *)
-      let labels_id_proj_ntl = project_labels_to_new labels_id ntl in (* projection for non-terminals *)
-        let BDD_mini1 = optimize_layer_new [] labels_id_proj_tl (r,edges,labels_id) tl in
-          let BDD_mini2 = optimize_layer_new [] labels_id_proj_ntl BDD_mini1 ntl in
-            let (r',edges',labels_id') = optimize_internals_new BDD_mini2 internals in 
-            (r',edges',labels_id', labels_content)
-End
-
-
-Definition mk_BDDPred_opt_new_def:
-  (mk_BDDPred_opt_new rec (BDD_sep:('b, 'a) BDD_sep) l [] c =
-     SOME (optimize_bdd_new BDD_sep l)
-  ) ∧
-     
-  (mk_BDDPred_opt_new rec (BDD_sep) l (x::xs) c =
-                      
-   case (body_of_mk_new rec BDD_sep (x:string) (c:num)) of
-   | SOME (BDD_sep' ,c') =>
-          
-       ( 
-           mk_BDDPred_opt_new rec (optimize_bdd_new BDD_sep (x::l)) (x::l) xs c'
-       )
-       
-   | NONE => NONE 
-  )
-End
-*)
                                              
 val _ = export_theory ();
