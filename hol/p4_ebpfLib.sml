@@ -69,33 +69,12 @@ val ebpf_init_counter = term_of_int 2;
 val ebpf_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
                                (1, INL (core_v_ext_packet []))]:(num, ebpf_sum_v_ext) alist``;
 
-(*
-val ipv4_header_uninit =
- mk_v_header_list F 
-                  [(``"version"``, mk_v_biti_arb 4),
-                   (``"ihl"``, mk_v_biti_arb 4),
-                   (``"diffserv"``, mk_v_biti_arb 8),
-                   (``"totalLen"``, mk_v_biti_arb 16),
-                   (``"identification"``, mk_v_biti_arb 16),
-                   (``"flags"``, mk_v_biti_arb 3),
-                   (``"fragOffset"``, mk_v_biti_arb 13),
-                   (``"ttl"``, mk_v_biti_arb 8),
-                   (``"protocol"``, mk_v_biti_arb 8),
-                   (``"hdrChecksum"``, mk_v_biti_arb 16),
-                   (``"srcAddr"``, mk_v_biti_arb 32),
-                   (``"dstAddr"``, mk_v_biti_arb 32)];
-val ethernet_header_uninit =
- mk_v_header_list F
-                  [(``"dstAddr"``, mk_v_biti_arb 48),
-                   (``"srcAddr"``, mk_v_biti_arb 48),
-                   (``"etherType"``, mk_v_biti_arb 16)];
-val ebpf_parsed_packet_struct_uninit =
- mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ipv4"``, ipv4_header_uninit)];
-*)
-
 val ebpf_init_v_map = ``^core_init_v_map ++
                         [("packet", v_ext_ref 0);
 			 ("packet_copy", v_ext_ref 1);
-			 ("accept", v_bool ARB)]:(string, v) alist``;
+                         (* accept is an out-directed parameter of the final block, only
+                          * read after it is finished.
+                          * This can be concretized initially without ambiguity. *)
+			 ("accept", v_bool F)]:(string, v) alist``;
 
 end

@@ -2424,6 +2424,19 @@ Cases_on ‘v’ >> (
 )
 QED
 
+Definition zero_val_from_tau_def:
+ (zero_val_from_tau tau_bool     = v_bool F) /\
+ (zero_val_from_tau (tau_bit w)  = v_bit ( (GENLIST (\x. F) w ) , w)) /\
+ (zero_val_from_tau tau_bot      = v_bot) /\
+ (zero_val_from_tau tau_ext      = v_ext_ref 0) /\
+ (zero_val_from_tau (tau_xtl struct_ty_struct []) =  v_struct []) /\
+ (zero_val_from_tau (tau_xtl struct_ty_struct ((x0,t0)::xtl)) =
+  v_struct ((x0, zero_val_from_tau t0)::(MAP (λ(x,t). (x, zero_val_from_tau t)) xtl))) /\
+ (zero_val_from_tau (tau_xtl struct_ty_header []) =  v_header F []) /\
+ (zero_val_from_tau (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
+   v_header F ((x0,zero_val_from_tau t0)::(MAP (λ(x,t). (x, zero_val_from_tau t)) xtl)))
+End
+
 Theorem bits_LENGTH:
 !bits n.
 LENGTH bits = n ==>

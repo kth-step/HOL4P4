@@ -283,22 +283,32 @@ Definition replicate_arb_def:
   REPLICATE length ((REPLICATE width (ARB:bool)), width)
 End
 
+
+*)
+Definition get_oracle_calls_array_def:
+ (get_oracle_calls_array width oracle_index random_oracle 0 = []) /\
+ (get_oracle_calls_array width oracle_index random_oracle (SUC amount) =
+  (get_oracle_calls width oracle_index random_oracle, width)::(get_oracle_calls_array width oracle_index random_oracle amount))
+End
+
 Definition v1model_register_construct_inner_def:
- (v1model_register_construct_inner length_bl width =
-  replicate_arb (v2n length_bl) width
+ (v1model_register_construct_inner size width oracle_index random_oracle =
+  get_oracle_calls_array width oracle_index random_oracle size
  )
 End
-*)
+        
 Definition register_construct_def:
  (register_construct random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
   | SOME (v_bit (bl, n)) =>
    (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
     | SOME (v_bit (bl', n')) =>
-     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (get_oracle_calls (v2n bl) oracle_index random_oracle))) in
+     let size = v2n bl in
+     let width = v2n bl' in
+     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (v1model_register_construct_inner size width oracle_index random_oracle))) in
      (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
       | SOME scope_list' =>
-       SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+       SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index + (size*width)), scope_list', status_returnv v_bot)
       | NONE => NONE)
     | _ => NONE)
   | _ => NONE
@@ -746,14 +756,13 @@ val v1model_apply_table_f_def =
 
 (* TODO: Generalise the below as needed *)
 
-(* TODO: Really necessary? *)
 Definition v1model_get_oracle_index_def:
- v1model_get_oracle_index (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope =
+ v1model_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
   oracle_index
 End
 
 Definition v1model_set_oracle_index_def:
- v1model_set_oracle_index i_opt (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope =
+ v1model_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
   (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):v1model_ascope
 End
 

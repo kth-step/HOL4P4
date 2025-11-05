@@ -52,8 +52,8 @@ val det_stmt_def = Define `
 (********* SAME FRAME and EXP DEF *************)
 
 val same_frame_exp_def = Define `
- same_frame_exp (frame:frame_list) frame' (e:e) e'  =
-((frame = frame') /\ (e = e'))
+ same_frame_exp (frame:frame_list, i_opt) (frame', i_opt') (e:e) e'  =
+((frame = frame') /\ (e = e') /\ (i_opt = i_opt'))
 `;
 
 
@@ -62,12 +62,12 @@ val same_frame_exp_def = Define `
 wich shows that each exression reduction is determ.*)
 
 val det_exp_def = Define `
- det_exp e (ty:'a itself) = ! (c: 'a ctx) scope scopest e' e'' frame frame'.
-(e_red (c: 'a ctx) scope scopest e e' frame )
+ det_exp e (ty:'a itself) = ! (c: 'a ectx) scope scopest e' e'' frame i_opt frame' i_opt'.
+(e_red (c: 'a ectx) scope scopest e e' (frame, i_opt) )
 /\
-(e_red (c: 'a ctx)  scope scopest e e'' frame' ) 
+(e_red (c: 'a ectx)  scope scopest e e'' (frame', i_opt') ) 
 ==>
-(same_frame_exp frame frame' e' e'')
+(same_frame_exp (frame, i_opt) (frame', i_opt') e' e'')
 `;
 
 
@@ -327,7 +327,7 @@ RW_TAC (srw_ss()) [] >| [
 IMP_RES_TAC lemma_MAP3>>
 REV_FULL_SIMP_TAC (list_ss) [rich_listTheory.MAP_FST_funs, same_frame_exp_def, option_case_def] >>
 REV_FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [option_case_def] >>
-` SOME scope' =  SOME scope''
+` SOME (scope',i_opt') =  SOME (scope'',i_opt)
 ` by METIS_TAC [SOME_EL,SOME_11] >>
 REV_FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [option_case_def]
 ,
@@ -385,7 +385,7 @@ SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ` by METIS_TAC [SOME_EL,SO
 (**first show that the d is the same in both lists, thus the i = i'*)
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 IMP_RES_TAC lemma_MAP2 >>
-`i = i'` by METIS_TAC [ option_case_def]>> rw[] >> rfs[] >>
+`i = i''` by METIS_TAC [ option_case_def]>> rw[] >> rfs[] >>
 
 (*Now try to show that the EL i l is deterministic*)
 REV_FULL_SIMP_TAC (srw_ss()) [det_exp_list_def] >>
@@ -542,11 +542,8 @@ NTAC 2 STRIP_TAC >|[
 (*first case*)
 REPEAT STRIP_TAC >>
 rw [] >>
-PAT_ASSUM `` ∀c scope scopest e' e'' frame frame'.
-          e_red c scope scopest e e' frame ∧
-          e_red c scope scopest e e'' frame' ⇒
-          same_frame_exp frame frame' e' e''``
-( STRIP_ASSUME_TAC o (Q.SPECL [`c`, `scope`, `scopest`, `e'`, `e''`, `frame`, `frame'`])) >>
+PAT_ASSUM `` ∀c scope. _``
+( STRIP_ASSUME_TAC o (Q.SPECL [`c`, `scope`, `scopest`, `e'`, `e''`, `frame`, ‘i_opt’, `frame'`, ‘i_opt'’])) >>
 FULL_SIMP_TAC list_ss [same_frame_exp_def]
 ,
 
@@ -554,18 +551,14 @@ FULL_SIMP_TAC list_ss [same_frame_exp_def]
 REPEAT STRIP_TAC >>
 rw [] >>
 
-PAT_ASSUM `` ∀e. MEM e (SND (UNZIP l2)) ⇒
-            ∀c scope scopest e' e'' frame frame'.
-              e_red c scope scopest e e' frame ∧
-              e_red c scope scopest e e'' frame' ⇒
-              same_frame_exp frame frame' e' e''``
+PAT_ASSUM `` ∀e. MEM e (SND (UNZIP l2)) ⇒ _``
 ( STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
-PAT_ASSUM `` ∀c scope scopest e' e'' frame frame'.
-          e_red c scope scopest e e' frame ∧
-          e_red c scope scopest e e'' frame' ⇒
-          same_frame_exp frame frame' e' e''``
-( STRIP_ASSUME_TAC o (Q.SPECL [`c`, `scope`, `scopest`, `e'`, `e''`, `frame`, `frame'`])) >>
+PAT_ASSUM `` ∀c scope scopest e' e'' frame i_opt frame' i_opt'.
+          e_red c scope scopest e e' (frame,i_opt) ∧
+          e_red c scope scopest e e'' (frame',i_opt') ⇒
+          same_frame_exp (frame,i_opt) (frame',i_opt') e' e''``
+( STRIP_ASSUME_TAC o (Q.SPECL [`c`, `scope`, `scopest`, `e'`, `e''`, `frame`, ‘i_opt’, `frame'`, ‘i_opt'’])) >>
 FULL_SIMP_TAC list_ss [same_frame_exp_def]
 
 ]
@@ -604,7 +597,6 @@ Theorem P4_stmt_det:
  !stmt ty. det_stmt stmt ty
 Proof 
 
-
 Induct >|[
 
 (*****************************)
@@ -626,7 +618,10 @@ REV_FULL_SIMP_TAC (srw_ss()) [] >>
 (*first + second + third subgoal*)
 RW_TAC (srw_ss()) [assign_def, same_state_def]>>
 IMP_RES_TAC lemma_v_red_forall >>
-TRY (`SOME scopes_list' = SOME scopes_list''` by METIS_TAC [CLOSED_PAIR_EQ] >>
+TRY (`SOME scope_list' = SOME scope_list''''` by METIS_TAC [CLOSED_PAIR_EQ] >>
+fs []) >>
+rw[] >>
+TRY (`(SOME g_scope_list'³',SOME scope_list'³') = (SOME g_scope_list'',SOME scope_list'')` by METIS_TAC [CLOSED_PAIR_EQ] >>
 fs []) >>
 rw[] >> rfs[] >>
 
@@ -670,8 +665,9 @@ NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
 OPEN_STMT_RED_TAC ``stmt_block l stm`` >>
 REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_def]
- 
+FULL_SIMP_TAC (srw_ss()) [Once same_state_def] >>
+‘(scope,i_opt) = (scope',i_opt')’ by metis_tac[] >>
+gvs[]
 ,
 
 (*****************************)
@@ -708,24 +704,6 @@ FULL_SIMP_TAC (srw_ss()) [Once same_state_def, Once same_frame_exp_def ] >>
 OPEN_STMT_RED_TAC ``stmt_empty`` >>
 REV_FULL_SIMP_TAC (srw_ss()) []
 ,
-
-(*****************************)
-(*   stmt_verify             *)
-(*****************************)
-(*(NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
-REPEAT STRIP_TAC >>
-OPEN_STMT_RED_TAC ``(stmt_verify e e')`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
-FULL_SIMP_TAC (srw_ss()) [Once same_state_def]) >>
-IMP_RES_TAC lemma_v_red_forall>>
-FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall] >>
-RES_TAC>>
-FULL_SIMP_TAC (srw_ss()) [Once same_frame_exp_def]>>
-ASSUME_TAC P4_exp_det >>
-fs [det_exp_def]  >>
-RES_TAC >>
-fs [same_frame_exp_def]
-,*)
 
 (*****************************)
 (*   stmt_trans              *)
@@ -767,8 +745,6 @@ ASSUME_TAC P4_exp_det >>
 fs [det_exp_def]  >>
 RES_TAC >>
 fs [same_frame_exp_def]
-
-
 ,
 
 (*****************************)
@@ -778,13 +754,13 @@ fs [same_frame_exp_def]
 (NTAC 2 (SIMP_TAC (srw_ss()) [det_stmt_def] >>
 REPEAT STRIP_TAC >>
 OPEN_STMT_RED_TAC ``(stmt_ext)`` >>
-REV_FULL_SIMP_TAC (srw_ss()) []) >> 
+REV_FULL_SIMP_TAC (srw_ss()) []) >>
 FULL_SIMP_TAC (srw_ss()) [Once same_state_def] ) >>
 rw[] >>
 Cases_on `lookup_ext_fun f ext_map` >>
 rw[] >>
 Cases_on `ext_fun (ascope,g_scope_list,sl)`>>
-rw[] 
+rw[]
 ]
 QED
 
@@ -934,11 +910,6 @@ rw[] >>
 rfs[lemma_v_red_forall]
 );
 
-
-
-(*
-We can never reach the status error... shall we remove it?
-*)
 
 
 val not_trans_status  =

@@ -852,7 +852,7 @@ Definition get_typeinf_dummy_args_def:
           case args_opt of
           | SOME args =>
            petr4_parse_type tyenv tyarg >>=
-           \type. SOME (args++[(e_v $ arb_from_tau type)])
+           \type. SOME (args++[(e_v $ zero_val_from_tau type)])
           | NONE => NONE) (SOME []) tyargs of
    | SOME dummy_args => SOME_msg dummy_args
    | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
@@ -1479,6 +1479,7 @@ Definition p4_prefix_tbl_def:
 End
 
 (* Here, prefixing of copyin-copyout parts happen *)
+(* TODO: Why does this use zero_val_from_tau? This should use the random oracle instead... *)
 Definition petr4_inline_block_def:
  (petr4_inline_block gscope prefix body t_scope copyin copyout [] = SOME_msg (t_scope, p4_seq_append_stmt copyin (stmt_seq body copyout))) /\
  (petr4_inline_block gscope prefix body t_scope copyin copyout (((param_name, param_dir), arg, param_type)::t) = 
@@ -1490,7 +1491,7 @@ Definition petr4_inline_block_def:
      let copyin' =
       if (param_dir <> d_out)
       then (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn gscope prefix (varn_name param_name))) arg))
-      else (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn gscope prefix (varn_name param_name))) (e_v $ arb_from_tau param_type)))
+      else (p4_seq_append_stmt copyin (stmt_ass (lval_varname (p4_prefix_vars_in_varn gscope prefix (varn_name param_name))) (e_v $ zero_val_from_tau param_type)))
      in
      let copyout' =
       if is_d_out param_dir
@@ -1690,8 +1691,8 @@ Definition petr4_parse_method_call_def:
           let add_args =
            case funn of
             | funn_name fname =>
-             (* For action, insert extra arguments with from_table F and hit bit as ARB *)
-             if MEM fname action_list then [e_v $ v_bool F; e_v $ v_bool ARB] else []
+             (* For action, insert extra arguments with from_table F and hit bit as F (placeholder value) *)
+             if MEM fname action_list then [e_v $ v_bool F; e_v $ v_bool F] else []
             | _ => [] in
           let len_args = LENGTH args in
           (* Omit looking up types for methods with no args: quick fix for case of method with single optional arg.
@@ -3493,9 +3494,12 @@ Definition check_taboos_def:
   let decl_list' = (MAP FST decl_list) in
   let ctrl_params' = (MAP (varn_name o FST) ctrl_params) in
   let gscope' = (MAP FST gscope) in
-  if (EVERY (\ el. ~(MEM el decl_list')) taboo_list)
+  (* We also check for the apply result placeholder variable name among
+   * declarations and among parameters *)
+  let taboo_list' = ((^apply_result_placeholder_varn)::taboo_list) in
+  if (EVERY (\ el. ~(MEM el decl_list')) taboo_list')
   then
-   (if (EVERY (\ el. ~(MEM el ctrl_params')) taboo_list)
+   (if (EVERY (\ el. ~(MEM el ctrl_params')) taboo_list')
     then
      (if (EVERY (\ el. ~(MEM el gscope')) taboo_list)
       then f

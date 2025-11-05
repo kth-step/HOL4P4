@@ -824,24 +824,24 @@ Cases_on `is_v e` >> (
 ]
 QED
 
-(*
 Theorem exec_stmt_trans_SOME_REWRS:
-!ctx ascope ascope' g_scope_list g_scope_list' funn e stmt_stack frame_list' scope_list status'.
-stmt_exec ctx (ascope, g_scope_list, [(funn, (stmt_trans e)::stmt_stack, scope_list)], status_running) =
+!apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope ascope' g_scope_list g_scope_list' funn e stmt_stack frame_list' scope_list status'.
+stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, (stmt_trans e)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (is_v e ==>
   is_v_str e /\
   ?status''.
    stmt_exec_trans e = SOME status'' /\
-   frame_list' = [(funn,stmt_empty::stmt_stack,scope_list)] /\ status' = status'') /\
+   frame_list' = [(funn,stmt_empty::stmt_stack,scope_list)] /\ status' = status'' /\
+   ascope' = ascope) /\
  (~is_v e ==>
-  ?e' frame_list''.
-   e_exec ctx g_scope_list scope_list e = SOME (e', frame_list'') /\
+  ?e' frame_list'' i_opt.
+   e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e = SOME (e', (frame_list'', i_opt)) /\
    frame_list' = frame_list'' ++ [(funn,(stmt_trans e')::stmt_stack,scope_list)] /\
-   status' = status_running) /\
+   status' = status_running /\
+   ascope' = set_oracle_index i_opt ascope) /\
  g_scope_list' = g_scope_list /\
- scope_list <> [] /\
- ascope' = ascope
+ scope_list <> []
 Proof
 rpt strip_tac >>
 Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v e` >> (
@@ -849,20 +849,21 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v e` >> (
 ) >| [
  (* TODO: Not needed? *)
  Cases_on `is_v_str e` >> (
-  fs []
+  fs[]
  ) >>
  Cases_on `stmt_exec_trans e` >> (
-  fs []
+  fs[]
  ) >>
- metis_tac [],
+ metis_tac[],
 
- Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
-  fs []
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+              get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
+  fs[]
  ) >>
  PairCases_on `x` >> (
-  fs []
+  fs[]
  ) >>
- metis_tac [],
+ metis_tac[],
 
  Cases_on `is_v_str e` >> (
   fs []
@@ -872,7 +873,8 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v e` >> (
  ) >>
  metis_tac [],
 
- Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+                get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
   fs []
  ) >>
  PairCases_on `x` >>
@@ -888,21 +890,22 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v e` >> (
 QED
 
 Theorem exec_stmt_cond_SOME_REWRS:
-!ctx ascope ascope' g_scope_list g_scope_list' funn e stmt1 stmt2 stmt_stack frame_list' scope_list status'.
-stmt_exec ctx (ascope, g_scope_list, [(funn, (stmt_cond e stmt1 stmt2)::stmt_stack, scope_list)], status_running) =
+!apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope ascope' g_scope_list g_scope_list' funn e stmt1 stmt2 stmt_stack frame_list' scope_list status'.
+stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, (stmt_cond e stmt1 stmt2)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (is_v_bool e ==>
   ?b.
    stmt_exec_cond e = SOME b /\
    (b = T ==> frame_list' = [(funn, stmt1::stmt_stack, scope_list)]) /\
-   (b = F ==> frame_list' = [(funn, stmt2::stmt_stack, scope_list)])) /\
+   (b = F ==> frame_list' = [(funn, stmt2::stmt_stack, scope_list)]) /\
+   ascope' = ascope) /\
  (~is_v_bool e ==>
-  ?e' frame_list''.
-   e_exec ctx g_scope_list scope_list e = SOME (e', frame_list'') /\
-   frame_list' = frame_list'' ++ [(funn, (stmt_cond e' stmt1 stmt2)::stmt_stack, scope_list)]) /\
+  ?e' frame_list'' i_opt.
+   e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e = SOME (e', frame_list'', i_opt) /\
+   frame_list' = frame_list'' ++ [(funn, (stmt_cond e' stmt1 stmt2)::stmt_stack, scope_list)] /\
+   ascope' = set_oracle_index i_opt ascope) /\
  g_scope_list' = g_scope_list /\
  scope_list <> [] /\
- ascope' = ascope /\
  status' = status_running
 Proof
 rpt strip_tac >>
@@ -920,10 +923,11 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v_bool e` >> (
   metis_tac []
  ],
 
- Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+              get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
   fs []
  ) >>
- Cases_on `x` >> (
+ PairCases_on `x` >> (
   fs []
  ) >>
  metis_tac [],
@@ -939,7 +943,8 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v_bool e` >> (
   metis_tac []
  ],
 
- Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+              get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
   fs []
  ) >>
  PairCases_on `x` >>
@@ -955,20 +960,21 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `is_v_bool e` >> (
 QED
 
 Theorem exec_stmt_app_SOME_REWRS:
-!apply_table_f ext_map func_map b_func_map pars_map tbl_map ascope ascope' g_scope_list g_scope_list' funn t_name e_l stmt_stack frame_list' scope_list status'.
-stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, (stmt_app t_name e_l)::stmt_stack, scope_list)], status_running) =
+!apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope ascope' g_scope_list g_scope_list' funn t_name e_l stmt_stack frame_list' scope_list status'.
+stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, (stmt_app t_name e_l)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (index_not_const e_l = NONE  ==> ?mk_l f f_args default_f default_f_args. ALOOKUP tbl_map t_name = SOME (mk_l, (default_f, default_f_args)) /\
                        apply_table_f (t_name, e_l, mk_l, (default_f, default_f_args), ascope) = SOME (f, f_args) /\
                        is_consts_exec f_args /\
                        LENGTH mk_l = LENGTH e_l /\
-                       frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scope_list)]) /\
+                       frame_list' = [(funn, (stmt_ass lval_null (e_call (funn_name f) f_args))::stmt_stack, scope_list)] /\
+                       ascope' = ascope) /\
  (!i. index_not_const e_l = SOME i ==>
-  ?e' frame_list''. e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) g_scope_list scope_list (EL i e_l) = SOME (e', frame_list'') /\
-                    frame_list' = frame_list'' ++ [(funn, (stmt_app t_name (LUPDATE e' i e_l))::stmt_stack, scope_list)]) /\
+  ?e' frame_list'' i_opt. e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list (EL i e_l) = SOME (e', frame_list'', i_opt) /\
+                    frame_list' = frame_list'' ++ [(funn, (stmt_app t_name (LUPDATE e' i e_l))::stmt_stack, scope_list)] /\
+                    ascope' = set_oracle_index i_opt ascope) /\
  g_scope_list' = g_scope_list /\
  scope_list <> [] /\
- ascope' = ascope /\
  status' = status_running
 Proof
 rpt strip_tac >>
@@ -988,7 +994,7 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  ) >>
  metis_tac [],
 
- Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map, get_oracle_index ascope, random_oracle) g_scope_list (h::t) (EL x e_l)` >> (
   fs []
  ) >>
  PairCases_on `x'` >>
@@ -1013,7 +1019,7 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
  ) >>
  metis_tac [],
 
- Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map) g_scope_list (h::t) (EL x e_l)` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map, get_oracle_index ascope, random_oracle) g_scope_list (h::t) (EL x e_l)` >> (
   fs []
  ) >>
  PairCases_on `x'` >>
@@ -1029,26 +1035,28 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `index_not_const e_l`
 QED
 
 Theorem exec_stmt_ret_SOME_REWRS:
-!ctx ascope ascope' g_scope_list g_scope_list' funn e stmt_stack frame_list' scope_list status'.
-stmt_exec ctx (ascope, g_scope_list, [(funn, (stmt_ret e)::stmt_stack, scope_list)], status_running) =
+!apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope ascope' g_scope_list g_scope_list' funn e stmt_stack frame_list' scope_list status'.
+stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, (stmt_ret e)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (!v. get_v e = SOME v ==>
   frame_list' = [(funn,stmt_empty::stmt_stack,scope_list)] /\
-  status' = status_returnv v) /\
+  status' = status_returnv v /\
+  ascope' = ascope) /\
  (get_v e = NONE ==>
-  ?e' frame_list''.
-  e_exec ctx g_scope_list scope_list e = SOME (e', frame_list'') /\
+  ?e' frame_list'' i_opt.
+  e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e = SOME (e', frame_list'', i_opt) /\
   frame_list' = frame_list'' ++ [(funn,(stmt_ret e')::stmt_stack,scope_list)] /\
-  status' = status_running) /\
+  status' = status_running /\
+   ascope' = set_oracle_index i_opt ascope) /\
  g_scope_list' = g_scope_list /\
- scope_list <> [] /\
- ascope' = ascope
+ scope_list <> []
 Proof
 rpt strip_tac >>
 Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `get_v e` >> (
  fs [stmt_exec_def]
 ) >| [
- Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+              get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
   fs []
  ) >>
  PairCases_on `x` >>
@@ -1057,7 +1065,8 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `get_v e` >> (
 
  metis_tac [],
 
- Cases_on `e_exec ctx g_scope_list (h::t) e` >> (
+ Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+              get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
   fs []
  ) >>
  PairCases_on `x` >>
@@ -1075,8 +1084,8 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> Cases_on `get_v e` >> (
 QED
 
 Theorem exec_stmt_ext_SOME_REWRS:
-!apply_table_f ext_map func_map b_func_map pars_map tbl_map ascope ascope' g_scope_list g_scope_list' funn stmt_stack frame_list' scope_list status'.
-stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (ascope, g_scope_list, [(funn, stmt_ext::stmt_stack, scope_list)], status_running) =
+!apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope ascope' g_scope_list g_scope_list' funn stmt_stack frame_list' scope_list status'.
+stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, stmt_ext::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
  (?ext_fun.
    lookup_ext_fun funn ext_map = SOME ext_fun /\
@@ -1115,21 +1124,26 @@ Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
 QED
 
 Theorem exec_stmt_block_SOME_REWRS:
-!ctx ascope ascope' g_scope_list g_scope_list' funn decl_list stmt stmt_stack frame_list' scope_list status'.
-stmt_exec ctx (ascope, g_scope_list, [(funn, (stmt_block decl_list stmt)::stmt_stack, scope_list)], status_running) =
+!apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope ascope' g_scope_list g_scope_list' funn decl_list stmt stmt_stack frame_list' scope_list status'.
+stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, (stmt_block decl_list stmt)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
  scope_list <> [] /\
  g_scope_list' = g_scope_list /\
- frame_list' = [(funn, stmt::(stmt_empty::stmt_stack), ((declare_list_in_fresh_scope decl_list)::(scope_list)))] /\
- ascope' = ascope /\
+ ?scope i_opt.
+ declare_list_in_fresh_scope (decl_list, get_oracle_index ascope, random_oracle) = (scope, i_opt) /\
+ frame_list' = [(funn, stmt::(stmt_empty::stmt_stack), (scope::(scope_list)))] /\
+ ascope' = (set_oracle_index i_opt ascope) /\
  status' = status_running
 Proof
 rpt strip_tac >>
 Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
- fs [stmt_exec_def]
-) >> (
- metis_tac []
-)
+ gvs[stmt_exec_def]
+) >>
+Cases_on ‘declare_list_in_fresh_scope
+        (decl_list,get_oracle_index ascope,random_oracle)’ >> (
+ gs[]
+) >>
+metis_tac []
 QED
 
 Theorem stmt_exec_block:
@@ -1146,7 +1160,8 @@ stmt_exec ctx
           (ascope',g_scope_list',frame'++[(funn',stmt_stack'',scope_list')],status')
 Proof
 rpt strip_tac >>
-Cases_on `stmt` >> (
+Cases_on `stmt` >> PairCases_on ‘ctx’ >> (
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs []
 ) >| [
  (* Assign *)
@@ -1156,7 +1171,7 @@ Cases_on `stmt` >> (
  ),
 
  (* Conditional *)
- fs [exec_stmt_cond_SOME_REWRS] >>
+ fs[exec_stmt_cond_SOME_REWRS] >>
  Cases_on `is_v_bool e` >> (
   fs []
  ) >>
@@ -1181,7 +1196,8 @@ Cases_on `stmt` >> (
  Cases_on `is_empty s` >> (
   fs []
  ) >>
- Cases_on `stmt_exec ctx
+ Cases_on `stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+                get_oracle_index,set_oracle_index,random_oracle)
                (ascope,g_scope_list,[(funn,[s],h_scope::scope_list)],status_running)` >> (
   fs []
  ) >>
@@ -1263,14 +1279,12 @@ Cases_on `stmt` >> (
  ),
 
  (* Apply *)
- PairCases_on `ctx` >>
  fs [exec_stmt_app_SOME_REWRS] >>
  Cases_on `index_not_const l` >> (
   fs []
  ),
 
  (* Extern *)
- PairCases_on `ctx` >>
  fs [exec_stmt_ext_SOME_REWRS]
 ]
 QED
@@ -1320,9 +1334,32 @@ Proof
  metis_tac []
 ) >>
 rpt strip_tac >>
+(*
+PairCases_on ‘ctx’ >>
+rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
+*)
 irule stmt_exec_ind >>
 rpt strip_tac >| [
+ (* Return *)
+ fs [exec_stmt_ret_SOME_REWRS] >>
+ rpt strip_tac >> (
+  Cases_on `get_v e` >> (
+   fs []
+  )
+ ) >>
+ metis_tac [e_exec_new_frame],
+
+ (* Trans *)
+ fs [exec_stmt_trans_SOME_REWRS] >>
+ metis_tac [e_exec_new_frame],
+
+ (* Cond *)
+ fs [exec_stmt_cond_SOME_REWRS] >>
+ metis_tac [e_exec_new_frame],
+ 
  (* Apply *)
+ gs[] >>
+ rpt strip_tac >>
  fs [exec_stmt_app_SOME_REWRS] >>
  rpt strip_tac >> (
   Cases_on `index_not_const e_l` >> (
@@ -1330,6 +1367,12 @@ rpt strip_tac >| [
   )
  ) >>
  metis_tac [e_exec_new_frame],
+
+ (* Block entry *)
+ fs [exec_stmt_block_SOME_REWRS] >>
+ rpt strip_tac >> (
+  gs[]
+ ),
 
  (* Extern *)
  rename1 `[(funn,[stmt_ext],scope::scope_list)]` >>
@@ -1344,36 +1387,32 @@ rpt strip_tac >| [
   fs []
  ),
 
- (* Return *)
- fs [exec_stmt_ret_SOME_REWRS] >>
- rpt strip_tac >> (
-  Cases_on `get_v e` >> (
-   fs []
-  )
- ) >>
+ (* Assign *)
+ fs [exec_stmt_ass_SOME_REWRS] >>
  metis_tac [e_exec_new_frame],
 
- (* Trans *)
- fs [exec_stmt_trans_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
 
  (* Return (stack case) *)
+ PairCases_on ‘ctx’ >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_ret_SOME_REWRS] >>
  metis_tac [],
 
  (* Trans (stack case) *)
+ PairCases_on ‘ctx’ >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_trans_SOME_REWRS] >>
  metis_tac [],
 
- (* Cond *)
- fs [exec_stmt_cond_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
-
  (* Cond (stack case) *)
+ PairCases_on ‘ctx’ >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_cond_SOME_REWRS] >>
  metis_tac [],
 
  (* Apply (stack case) *)
+ PairCases_on ‘ctx’ >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  rename1 `stmt_app t_name e_l` >>
  fs [] >>
  rpt strip_tac >> (
@@ -1381,14 +1420,24 @@ rpt strip_tac >| [
    fs []
   ) >>
   IMP_RES_TAC stmt_exec_block >>
-  fs [exec_stmt_app_SOME_REWRS]
+  fs [exec_stmt_app_SOME_REWRS] >>
+  metis_tac []
  ),
 
+(*
+ (* Return (stack case) *)
+ fs [exec_stmt_ret_SOME_REWRS] >>
+ metis_tac [],
+*)
+
+ (* Block *)
+ PairCases_on ‘ctx’ >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
+ Cases_on ‘declare_list_in_fresh_scope
+                  (v112,get_oracle_index ascope,random_oracle)’ >>
  fs [stmt_exec_def],
 
- (* Block entry *)
- fs [exec_stmt_block_SOME_REWRS],
-
+ (* [] *)
  fs [stmt_exec_def],
 
  (* Block exit *)
@@ -1397,13 +1446,12 @@ rpt strip_tac >| [
   fs []
  ),
 
+ (* ? *)
  fs [stmt_exec_def],
 
- (* Assign *)
- fs [exec_stmt_ass_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
-
  (* Assign (stack case) *)
+ PairCases_on ‘ctx’ >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_ass_SOME_REWRS] >>
  metis_tac [],
 
@@ -1415,6 +1463,12 @@ rpt strip_tac >| [
  ) >>
  IMP_RES_TAC stmt_exec_block >>
  fs [exec_stmt_ext_SOME_REWRS],
+
+(*
+ (* Assign (stack case) *)
+ fs [exec_stmt_ass_SOME_REWRS] >>
+ metis_tac [],
+*)
 
  (* Seq *)
  fs [stmt_exec_def] >>
@@ -1727,12 +1781,14 @@ val exec_stmt_REWRS =
 (* Reduction of a single statement is invariant over the addition of a lower statement stack. *)
 (* Converse to stmt_exec_block *)
 Theorem stmt_exec_lemma:
-!ctx ascope g_scope1 g_scope2 g_scope1' g_scope2' funn stmt stmt' stmts scope_list scope_list'.
-stmt_exec (ctx:'a ctx)
+!apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope g_scope1 g_scope2 g_scope1' g_scope2' funn stmt stmt' stmts scope_list scope_list'.
+stmt_exec ((apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+          get_oracle_index,set_oracle_index,random_oracle):'a ctx)
           (ascope,[g_scope1; g_scope2],[(funn,[stmt],scope_list)],
            status_running) =
  SOME (ascope,[g_scope1'; g_scope2'],[(funn,[stmt'],scope_list')],status_running) ==>
-stmt_exec (ctx:'a ctx)
+stmt_exec ((apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+          get_oracle_index,set_oracle_index,random_oracle):'a ctx)
                (ascope,[g_scope1; g_scope2],[(funn,stmt::stmts,scope_list)],
                 status_running) =
  SOME (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::stmts,scope_list')],status_running)
@@ -1756,11 +1812,9 @@ Induct_on ‘stmt’ >- (
  fs[exec_stmt_trans_SOME_REWRS]
 ) >- (
  rpt strip_tac >>
- PairCases_on ‘ctx’ >>
  fs[exec_stmt_app_SOME_REWRS]
 ) >- (
  rpt strip_tac >>
- PairCases_on ‘ctx’ >>
  fs[exec_stmt_ext_SOME_REWRS]
 )
 QED
@@ -1770,9 +1824,6 @@ Theorem stmt_exec_status_returnv_inv:
 !ctx ascope ascope' g_scope_list g_scope_list' funn stmt_stack scope_list frame_list' v.
 stmt_exec ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status_returnv v) ==>
-(* TODO: No longer holds when extern can change status to Return... *)
-(* ascope' = ascope /\
- g_scope_list' = g_scope_list /\ *)
  ?stmt_stack' scope_list'. frame_list' = [(funn, stmt_stack', scope_list')]
 Proof
 `!ctx ascope g_scope_list funn stmt_stack scope_list.
@@ -1788,13 +1839,6 @@ Proof
 rpt strip_tac >>
 irule stmt_exec_ind >>
 rpt strip_tac >| [
- fs [exec_stmt_app_SOME_REWRS],
-
- fs [exec_stmt_ext_SOME_REWRS] >>
- rpt strip_tac >>
- qexistsl_tac [`[stmt_empty]`, `scope_list''`] >>
- fs [],
-
  fs [exec_stmt_ret_SOME_REWRS] >>
  rpt strip_tac >>
  Cases_on `get_v e` >> (
@@ -1803,6 +1847,21 @@ rpt strip_tac >| [
 
  fs [exec_stmt_trans_SOME_REWRS],
 
+ fs [exec_stmt_cond_SOME_REWRS],
+ 
+ fs [exec_stmt_app_SOME_REWRS],
+
+ fs [exec_stmt_block_SOME_REWRS],
+
+ fs [exec_stmt_ext_SOME_REWRS] >>
+ rpt strip_tac >>
+ qexistsl_tac [`[stmt_empty]`, `scope_list''`] >>
+ fs [],
+
+ fs [exec_stmt_ass_SOME_REWRS],
+
+ pairLib.PairCases_on `ctx` >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_ret_SOME_REWRS] >>
  rpt strip_tac >>
  rename1 `get_v e` >>
@@ -1810,45 +1869,43 @@ rpt strip_tac >| [
   fs []
  ),
 
+ pairLib.PairCases_on `ctx` >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_trans_SOME_REWRS],
 
- fs [exec_stmt_cond_SOME_REWRS],
-
+ pairLib.PairCases_on `ctx` >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_cond_SOME_REWRS],
 
  pairLib.PairCases_on `ctx` >>
- rename1 `(ctx0, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
- rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_app_SOME_REWRS],
 
- fs [stmt_exec_def],
-
+ pairLib.PairCases_on `ctx` >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_block_SOME_REWRS],
 
- fs [stmt_exec_def] >>
- Cases_on `stmt_stack` >> (
-  fs []
- ),
-
- fs [stmt_exec_def] >>
- Cases_on `stmt_stack` >> (
-  fs []
- ),
-
  fs [stmt_exec_def],
 
- fs [exec_stmt_ass_SOME_REWRS],
+ fs [stmt_exec_def] >>
+ Cases_on `stmt_stack` >> (
+  fs []
+ ),
 
+ fs [stmt_exec_def] >>
+ Cases_on `stmt_stack` >> (
+  fs []
+ ),
+
+ pairLib.PairCases_on `ctx` >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_ass_SOME_REWRS],
 
  pairLib.PairCases_on `ctx` >>
- rename1 `(ctx0, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
- rename1 `(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map)` >>
+ rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_ext_SOME_REWRS] >>
  rpt strip_tac >>
- rename1 `stmt_empty::v218::v219` >>
- qexistsl_tac [`stmt_empty::v218::v219`, `scope_list''`] >>
- fs [],
+ metis_tac[],
 
  (* TODO: Written to avoid time-consuming simplification *)
  FULL_SIMP_TAC bool_ss [] >>
@@ -1880,7 +1937,7 @@ rpt strip_tac >| [
   rw [] >>
   gs []
  ),
-
+ 
  fs [stmt_exec_def],
 
  fs [stmt_exec_def],
@@ -1903,7 +1960,7 @@ Definition stmt_multi_exec_def:
   | SOME state' => stmt_multi_exec ctx state' fuel
   | NONE => NONE)
 End
-*)
+
 (**************************)
 (*  Frame list semantics  *)
 (**************************)

@@ -93,32 +93,12 @@ val vss_init_counter = term_of_int 3;
 val vss_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
 			      (1, INL (core_v_ext_packet []));
 			      (2, INL (core_v_ext_packet []))]:(num, vss_sum_v_ext) alist``;
-(*
-val ipv4_header_uninit =
- mk_v_header_list F 
-                  [(``"version"``, mk_v_biti_arb 4),
-                   (``"ihl"``, mk_v_biti_arb 4),
-                   (``"diffserv"``, mk_v_biti_arb 8),
-                   (``"totalLen"``, mk_v_biti_arb 16),
-                   (``"identification"``, mk_v_biti_arb 16),
-                   (``"flags"``, mk_v_biti_arb 3),
-                   (``"fragOffset"``, mk_v_biti_arb 13),
-                   (``"ttl"``, mk_v_biti_arb 8),
-                   (``"protocol"``, mk_v_biti_arb 8),
-                   (``"hdrChecksum"``, mk_v_biti_arb 16),
-                   (``"srcAddr"``, mk_v_biti_arb 32),
-                   (``"dstAddr"``, mk_v_biti_arb 32)];
-val ethernet_header_uninit =
- mk_v_header_list F
-                  [(``"dstAddr"``, mk_v_biti_arb 48),
-                   (``"srcAddr"``, mk_v_biti_arb 48),
-                   (``"etherType"``, mk_v_biti_arb 16)];
-val vss_parsed_packet_struct_uninit =
- mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
-*)
+
 val vss_init_v_map = ``^core_init_v_map ++
-                       [("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
-			("outCtrl", v_struct [("outputPort", ^(mk_v_biti_arb 4))]);
+		       (* Both input port and output port can be concretized initially
+                        * without ambiguity. *)
+                       [("inCtrl", v_struct [("inputPort", ^(mk_v_bitii (0,4)))]);
+			("outCtrl", v_struct [("outputPort", ^(mk_v_bitii (0,4)))]);
 			("b_in", v_ext_ref 0);
 			("b_out", v_ext_ref 1);
 			("data_crc", v_ext_ref 2)]:(string, v) alist``;

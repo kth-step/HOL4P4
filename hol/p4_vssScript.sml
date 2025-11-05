@@ -308,7 +308,6 @@ End
 
 (* TODO: Generalise the below as needed *)
 
-(* TODO: Really necessary? *)
 Definition vss_get_oracle_index_def:
  vss_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   oracle_index

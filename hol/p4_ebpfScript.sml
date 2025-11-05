@@ -235,7 +235,7 @@ Definition ebpf_inputPort_to_num_def:
 End
 
 (* TODO: Outsource obtaining the output port to an external function? *)
-(* This will also look up the value of "pass" and only output a packet if it is true *)
+(* This will also look up the value of "accept" and only output a packet if it is true *)
 Definition ebpf_output_f_def:
  ebpf_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   case ALOOKUP v_map "accept" of
@@ -267,14 +267,13 @@ End
 
 (* TODO: Generalise the below as needed *)
 
-(* TODO: Really necessary? *)
 Definition ebpf_get_oracle_index_def:
- ebpf_get_oracle_index (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope =
+ ebpf_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   oracle_index
 End
 
 Definition ebpf_set_oracle_index_def:
- ebpf_set_oracle_index i_opt (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope =
+ ebpf_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):ebpf_ascope
 End
 

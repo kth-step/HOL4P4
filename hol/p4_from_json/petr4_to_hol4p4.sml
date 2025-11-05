@@ -124,6 +124,7 @@ datatype stf_iotype = packet | expect;
 
 (* hex_to_bin "DEFEC8" *)
 (* hex_to_bin "C*DE" *)
+(* NOTE: This is later treated by process_arbs_list *)
 fun hex_to_bin s = 
  let
   fun hex_digit_to_bin c = 
@@ -641,7 +642,7 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
 
 fun vss_add_param_vars_to_v_map init_v_map tau =
  let
-  val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau”
+  val uninit_H_val_tm = eval_rhs “zero_val_from_tau ^tau”
  in
   eval_rhs “AUPDATE_LIST ^init_v_map [("parsedHeaders", ^uninit_H_val_tm);
                                       ("headers", ^uninit_H_val_tm);
@@ -651,13 +652,13 @@ fun vss_add_param_vars_to_v_map init_v_map tau =
 
 fun ebpf_add_param_vars_to_v_map init_v_map tau =
  let
-  val uninit_H_val_tm = eval_rhs “arb_from_tau ^tau”
+  val uninit_H_val_tm = eval_rhs “zero_val_from_tau ^tau”
  in
   eval_rhs “AUPDATE_LIST ^init_v_map [("headers", ^uninit_H_val_tm)]”
  end
 ;
 
-fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
+fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm oracle_index =
  let
   val extra_terms =
    if output_extra_maps
@@ -666,9 +667,16 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
          ("pblock_action_names_map", pblock_action_names_map_tm, SOME "((string, ((string, string) alist)) alist)")]
    else []
 
-  val gscope_init_vars = “[(varn_name "gen_apply_result", (v_struct [("hit", v_bool ARB);
-                            ("miss", v_bool ARB);
-                            ("action_run", v_bit (REPLICATE 32 ARB, 32))], NONE:lval option))]”
+  (* NOTE: gen_apply_result is a hard-coded "ghost variable" that can't be used in an
+   * imported program. This is not accessed before assignment, and so can be concretized
+   * without ambiguity *)
+  val gscope_init_vars = “[(varn_name "gen_apply_result", (v_struct [("hit", v_bool F);
+                            ("miss", v_bool T);
+                            ("action_run", v_bit (REPLICATE 32 F, 32))], NONE:lval option))]”
+
+  (* TODO: Note this is a free variable *)
+  val random_oracle_tm = “random_oracle”
+
   (* TODO: Eliminate code duplication here... *)
   val actx_astate_opt =
    if (is_arch_vss $ dest_some arch_opt_tm) then
@@ -680,7 +688,9 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
        list_mk_pair [vss_add_ffblocks_to_ab_list ab_list_tm, pblock_map, vss_ffblock_map,
 		     vss_input_f, vss_output_f,
 		     vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
-		     vss_ext_map, fmap']
+		     vss_ext_map, fmap',
+                     “vss_get_oracle_index”, “vss_set_oracle_index”,
+                     random_oracle_tm]
      val init_ctrl_opt = eval_rhs ``vss_init_ctrl ^pblock_map ^tbl_updates_tm``
 (*
      val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
@@ -696,7 +706,8 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
        val ascope = list_mk_pair [term_of_int 3,
 				  vss_init_ext_obj_map,
 				  vss_init_v_map',
-				  init_ctrl]
+				  init_ctrl,
+                                  oracle_index]
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)
        val aenv = list_mk_pair [term_of_int 0,
@@ -720,7 +731,9 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
        list_mk_pair [ebpf_add_ffblocks_to_ab_list ab_list_tm, pblock_map, ebpf_ffblock_map,
 		     ebpf_input_f, ebpf_output_f,
 		     ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
-		     ebpf_ext_map, fmap']
+		     ebpf_ext_map, fmap',
+                     “ebpf_get_oracle_index”, “ebpf_set_oracle_index”,
+                     random_oracle_tm]
      val init_ctrl_opt = eval_rhs ``ebpf_init_ctrl ^pblock_map ^tbl_updates_tm``;
 (*
      val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
@@ -736,7 +749,8 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
        val ascope = list_mk_pair [ebpf_init_counter,
 				  ebpf_init_ext_obj_map,
 				  ebpf_init_v_map',
-				  init_ctrl]
+				  init_ctrl,
+                                  oracle_index]
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)
        val aenv = list_mk_pair [term_of_int 0,
@@ -755,14 +769,16 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
    else if (is_arch_v1model $ dest_some arch_opt_tm) then
     let
      val fmap' = eval_rhs ``AUPDATE_LIST ^v1model_func_map ^fmap``
-     val tparams = eval_rhs “(\ (tau1, tau2). (arb_from_tau tau1, arb_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
+     val tparams = eval_rhs “(\ (tau1, tau2). (zero_val_from_tau tau1, zero_val_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
      val v1model_input_f = “v1model_input_f ^tparams”
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
        list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map, v1model_ffblock_map,
 		     v1model_input_f, v1model_output_f,
 		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
-		     v1model_ext_map, fmap']
+		     v1model_ext_map, fmap',
+                     “v1model_get_oracle_index”, “v1model_set_oracle_index”,
+                     random_oracle_tm]
      val init_ctrl_opt = eval_rhs ``v1model_init_ctrl ^pblock_map ^tbl_updates_tm``;
 (*
      val _ = print ("pblock_map :"^((term_to_string pblock_map)^"\n"))
@@ -778,7 +794,8 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
        val ascope = list_mk_pair [v1model_init_counter,
 				  v1model_init_ext_obj_map,
 				  v1model_init_v_map,
-				  init_ctrl]
+				  init_ctrl,
+                                  oracle_index]
        (* ab index, input list, output list, ascope *)
        (* Note: Input is added later elsewhere *)
        val aenv = list_mk_pair [term_of_int 0,
@@ -908,8 +925,9 @@ val arch_opt_tm = (el 12 res_list)
 val ab_list_tm = (el 13 res_list)
 val ttymap_tm = (el 14 res_list)
 val pblock_action_names_map_tm = (el 15 res_list)
+val oracle_index_tm = (el 16 res_list)
 *)
-         val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
+         val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list) “0:num”;
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in

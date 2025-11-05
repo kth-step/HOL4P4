@@ -295,9 +295,9 @@ Type ab_list = ``:(arch_block list)``
 
 Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``
 
-Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``
-
 Type ectx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # i # random_oracle)``
+
+Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``
 
 Type stmt_stack = ``:(stmt list)``
 
@@ -1582,7 +1582,7 @@ Definition init_out_v_def:
     (v', i') = init_out_v random_oracle i v
    in
    let
-    (l, i'''') = (FOLDL (\(x_v_l, i'') (x'', v''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
+    (l, i'''') = (FOLDR (\(x'', v'') (x_v_l, i''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
    in
     (v_struct (((x, v'))::l), i'''')
   ) /\
@@ -1592,7 +1592,7 @@ Definition init_out_v_def:
     (v', i') = init_out_v random_oracle i v
    in
    let
-    (l, i'''') = (FOLDL (\(x_v_l, i'') (x'', v''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
+    (l, i'''') = (FOLDR (\(x'', v'') (x_v_l, i''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
    in
     (v_header F (((x, v'))::l), i'''')
   ) /\
@@ -1634,7 +1634,7 @@ Definition init_from_tau_def:
     (v', i') = init_from_tau random_oracle i t0
    in
    let
-    (l, i'''') = (FOLDL ( \ (x_v_l, i'') (x'', v''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
+    (l, i'''') = (FOLDR ( \ (x'', v'') (x_v_l, i''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
    in
     (v_struct (((x0, v'))::l), i'''')
   ) /\
@@ -1644,7 +1644,7 @@ Definition init_from_tau_def:
     (v', i') = init_from_tau random_oracle i t0
    in
    let
-    (l, i'''') = (FOLDL ( \ (x_v_l, i'') (x'', v''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
+    (l, i'''') = (FOLDR ( \ (x'', v'') (x_v_l, i''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
    in
     (v_struct (((x0, v'))::l), i'''')
   )
@@ -2199,15 +2199,15 @@ Inductive e_sem:
  ==> 
 ( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,x_,d_) . e_) e_x_d_list))) (e_var (varn_star funn))  (  ([   ( funn  ,   ( ([(stmt)]) )   ,   ( ([(scope')]) )  )   ])   ,  i_opt )  )))
 
-[e_call_args:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i:i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (e_red_res:e_red_res) (e:e) (e':e) .
+[e_call_args:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (e_red_res:e_red_res) (i:i) (e:e) (e':e) .
 (clause_name "e_call_args") /\
 (( (SOME  ((MAP (\(e_,e'_,x_,d_) . (x_,d_)) e_e'_x_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
 ( (unred_arg_index   ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )     ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )   = SOME  i ) ) /\
 ( ( e  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  ) ) /\
-( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i ,  random_oracle )  g_scope_list scope_list e e' e_red_res )) /\
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list e e' e_red_res )) /\
 ( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
  ==> 
-( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list))) e_red_res )))
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list))) e_red_res )))
 
 [e_eStruct:] (! (f_e_e'_list:(x#e#e) list) (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e_red_res:e_red_res) (i:i) (e:e) (e':e) .
 (clause_name "e_eStruct") /\
@@ -2602,43 +2602,43 @@ Inductive stmt_sem:
  ==> 
 ( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_ext)]) )   ,  scope_list )   ])  ,  status_running )   ( ascope' ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list' )   ])  ,  status )  )))
 
-[stmt_ret_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (set_oracle_index:'a set_oracle_index) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
+[stmt_ret_e:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
 (clause_name "stmt_ret_e") /\
-(( ( ectx  = get_ectx  ctx   ascope ) ) /\
+(( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
 ( ( e_red ectx g_scope_list scope_list e e'  ( frame_list  ,  i_opt )  )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ret e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ret e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ret e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ret e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_ass_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (e:e) (scope_list:scope_list) (set_oracle_index:'a set_oracle_index) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
+[stmt_ass_e:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (e:e) (scope_list:scope_list) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
 (clause_name "stmt_ass_e") /\
-(( ( ectx  = get_ectx  ctx   ascope ) ) /\
+(( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
 ( ( e_red ectx g_scope_list scope_list e e'  ( frame_list  ,  i_opt )  )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ass lval e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ass lval e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_cond_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (set_oracle_index:'a set_oracle_index) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
+[stmt_cond_e:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
 (clause_name "stmt_cond_e") /\
-(( ( ectx  = get_ectx  ctx   ascope ) ) /\
+(( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
 ( ( e_red ectx g_scope_list scope_list e e'  ( frame_list  ,  i_opt )  )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond e stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_cond e' stmt1 stmt2))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_cond e stmt1 stmt2))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_cond e' stmt1 stmt2))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_trans_e:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (set_oracle_index:'a set_oracle_index) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
+[stmt_trans_e:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (e:e) (scope_list:scope_list) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
 (clause_name "stmt_trans_e") /\
-(( ( ectx  = get_ectx  ctx   ascope ) ) /\
+(( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
 ( ( e_red ectx g_scope_list scope_list e e'  ( frame_list  ,  i_opt )  )))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_trans e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_trans e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_trans e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_trans e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
-[stmt_apply_table_e:] (! (e_e'_list:(e#e) list) (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (set_oracle_index:'a set_oracle_index) (i_opt:i_opt) (frame_list:frame_list) (i:i) (e:e) (ectx:'a ectx) (e':e) .
+[stmt_apply_table_e:] (! (e_e'_list:(e#e) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (tbl:x) (scope_list:scope_list) (i_opt:i_opt) (frame_list:frame_list) (i:i) (e:e) (ectx:'a ectx) (e':e) .
 (clause_name "stmt_apply_table_e") /\
 (( (index_not_const   ( ((MAP (\(e_,e'_) . e_) e_e'_list)) )   = SOME  i ) ) /\
 ( ( e  = EL  i    ( ((MAP (\(e_,e'_) . e_) e_e'_list)) )  ) ) /\
-( ( ectx  = get_ectx  ctx   ascope ) ) /\
+( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
 ( ( e_red ectx g_scope_list scope_list e e'  ( frame_list  ,  i_opt )  )) /\
 ( (  ( ((MAP (\(e_,e'_) . e'_) e_e'_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_) . e_) e_e'_list)) )  )  ) ))
  ==> 
-( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e_) e_e'_list))))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e'_) e_e'_list))))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e_) e_e'_list))))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_app tbl ((MAP (\(e_,e'_) . e'_) e_e'_list))))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 End
 (** definitions *)
 
@@ -3969,6 +3969,37 @@ Inductive WTX:
 ( extern_MoE_typed  ext_map   t_scope_list_g   delta_g   delta_b   delta_x ))
  ==> 
 ( ( WTX ext_map order t_scope_list_g delta_g delta_b delta_x )))
+End
+(** definitions *)
+
+(* defns WT_ec *)
+Inductive WT_ec:
+(* defn WT_ec *)
+
+[WT_ec_c:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i:i) (random_oracle:random_oracle) (order:order) (t_scope_list_g:t_scope_list_g) (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (delta_t:delta_t) (Prs_n:Prs_n) .
+(clause_name "WT_ec_c") /\
+(( ( WF_o  order  ) ) /\
+( ( 2 = LENGTH  t_scope_list_g  ) ) /\
+( (LENGTH  delta_b  = LENGTH  b_func_map  ) ) /\
+( (LENGTH  delta_t  = LENGTH  tbl_map  ) ) /\
+( ( dom_map_ei  func_map   b_func_map  ) ) /\
+( ( dom_tmap_ei  delta_g   delta_b  ) ) /\
+( ( typying_domains_ei  delta_g   delta_b   delta_x  ) ) /\
+( ( dom_g_eq  delta_g   func_map  ) ) /\
+( ( dom_b_eq  delta_b   b_func_map  ) ) /\
+( ( dom_x_eq  delta_x   ext_map  ) ) /\
+( ( dom_t_eq  delta_t   tbl_map  ) ) /\
+( ( Fg_star_defined  func_map   t_scope_list_g  ) ) /\
+( ( Fb_star_defined  b_func_map    t_scope_list_g  ) ) /\
+( ( X_star_defined  ext_map    t_scope_list_g  ) ) /\
+( (X_star_not_defined  t_scope_list_g ) ) /\
+( ( WTFg func_map order t_scope_list_g delta_g delta_b delta_x Prs_n )) /\
+( ( WTFb b_func_map order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n )) /\
+( ( WTX ext_map order t_scope_list_g delta_g delta_b delta_x )) /\
+( ( table_map_typed  tbl_map   apply_table_f   delta_g   delta_b   order  ) ) /\
+( ( f_in_apply_tbl  tbl_map   apply_table_f  ) ))
+ ==> 
+( ( WT_ec  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i ,  random_oracle )  order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n )))
 End
 (** definitions *)
 
