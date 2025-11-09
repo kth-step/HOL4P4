@@ -388,7 +388,7 @@ Definition bigstep_arch_exec_def:
     | (stmt::t') =>
      let func_maps_opt = (case ctx_b_func_map_opt of
                           | NONE => NONE
-                          | SOME (((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map):'a actx), b_func_map) => SOME (func_map, b_func_map, ext_map)) in
+                          | SOME (((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle):'a actx), b_func_map) => SOME (func_map, b_func_map, ext_map)) in
        (case bigstep_exec func_maps_opt ([g_scope1; g_scope2], scope_list) stmt of
         | SOME (stmt', g_scope_list', scope_list', n) =>
          SOME (g_scope_list', arch_frame_list_regular ((funn, (stmt'::t'), scope_list')::t), n)
@@ -1178,18 +1178,18 @@ gs[listTheory.INDEX_FIND_add]
 QED
 
 Theorem bigstep_e_exec_sound:
-!t scope_list g_scope_list' t' e e_l apply_table_f (ext_map:'a ext_map) func_map b_func_map pars_map tbl_map.
+!t scope_list g_scope_list' t' e e_l apply_table_f (ext_map:'a ext_map) func_map b_func_map pars_map tbl_map oracle_index random_oracle.
 bigstep_e_exec (scope_list ++ g_scope_list') t 0 = SOME (t', 1) ==>
 (t = (INL e) ==>
-(?e'. (t' = (INL e')) /\
- e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-        g_scope_list' scope_list e = SOME (e', []))) /\
+(?e' oracle_index'. (t' = (INL e')) /\
+ e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,oracle_index,random_oracle)
+        g_scope_list' scope_list e = SOME (e', ([], oracle_index')))) /\
 (t = INR e_l ==>
 ((e_l = []) \/
  ?i. unred_mem_index e_l = SOME i /\
- (?e'.
- e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-        g_scope_list' scope_list (EL i e_l) = SOME (e', []) /\
+ (?e' oracle_index'.
+ e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,oracle_index,random_oracle)
+        g_scope_list' scope_list (EL i e_l) = SOME (e', ([], oracle_index')) /\
  t' = INR (LUPDATE e' i e_l))))
 Proof
 measureInduct_on ‘( \ t. case t of
@@ -1249,7 +1249,8 @@ Induct_on ‘t’ >- (
    ) >- (
     Cases_on ‘x’ >> (
      fs[is_v_def, bigstep_e_exec_def, AllCaseEqs()]
-    )
+    ) >>
+    gvs[AllCaseEqs()]
    ) >>
    imp_res_tac bigstep_e_exec_unchanged >>
    gs[]
@@ -1261,10 +1262,12 @@ Induct_on ‘t’ >- (
   fs[] >>
   Cases_on ‘is_v x’ >> (
    gs[]
+  ) >- (
+   Cases_on ‘x’ >> (
+    gs[is_v_def, bigstep_e_exec_def]
+   )
   ) >>
-  Cases_on ‘x’ >> (
-   gs[is_v_def, bigstep_e_exec_def]
-  ),
+  gvs[AllCaseEqs()],
 
   (* cast *)
   gvs[bigstep_e_exec_cast_REWR] >> (
@@ -1287,10 +1290,12 @@ Induct_on ‘t’ >- (
   fs[] >>
   Cases_on ‘is_v x’ >> (
    gs[]
+  ) >- (
+   Cases_on ‘x’ >> (
+    gs[is_v_def, bigstep_e_exec_def]
+   )
   ) >>
-  Cases_on ‘x’ >> (
-   gs[is_v_def, bigstep_e_exec_def]
-  ),
+  gvs[AllCaseEqs()],
 
   (* binop *)
   gvs[bigstep_e_exec_binop_REWR] >> (
@@ -1314,22 +1319,21 @@ Induct_on ‘t’ >- (
    ) >- (
     Cases_on ‘x’ >> (
      gvs[is_v_def]
+    ) >>
+    Cases_on ‘is_v x'’ >> (
+     gs[]
     ) >- (
-     Cases_on ‘is_v x'’ >> (
-      gs[]
-     ) >- (
-      Cases_on ‘x'’ >> (
-       gvs[is_v_def]
-      ) >>
-      gs[bigstep_e_exec_def]
+     Cases_on ‘x'’ >> (
+      gvs[is_v_def]
      ) >>
-     gs[bigstep_e_exec_def] >>
-     gvs[] >>
-     PAT_X_ASSUM “!y. _” (fn thm => assume_tac (Q.SPECL [‘(INL x')’] thm)) >>
-     gs[e_size_def] >>
-     res_tac >>
-     fs[]
-    )
+     gs[bigstep_e_exec_def]
+    ) >>
+    gs[bigstep_e_exec_def] >>
+    gvs[AllCaseEqs()] >>
+    PAT_X_ASSUM “!y. _” (fn thm => assume_tac (Q.SPECL [‘(INL x')’] thm)) >>
+    gs[e_size_def] >>
+    res_tac >>
+    fs[]
    ) >>
    imp_res_tac bigstep_e_exec_incr >>
    subgoal ‘n' = 1’ >- (
@@ -1350,7 +1354,7 @@ Induct_on ‘t’ >- (
     res_tac >>
     fs[] >>
     imp_res_tac bigstep_e_exec_unchanged >>
-    gs[]
+    gvs[AllCaseEqs()]
    )
   ) >- (
    gs[] >>
@@ -1359,7 +1363,7 @@ Induct_on ‘t’ >- (
    res_tac >>
    fs[] >>
    Cases_on ‘x’ >> (
-    gs[bigstep_e_exec_def]
+    gvs[bigstep_e_exec_def, AllCaseEqs()]
    )
   ),
 
@@ -1399,7 +1403,7 @@ Induct_on ‘t’ >- (
     res_tac >>
     fs[] >>
     imp_res_tac bigstep_e_exec_unchanged >>
-    gs[]
+    gvs[AllCaseEqs()]
    ) >>
    imp_res_tac bigstep_e_exec_incr >>
    subgoal ‘n' = 1’ >- (
@@ -1417,7 +1421,7 @@ Induct_on ‘t’ >- (
    res_tac >>
    fs[] >>
    imp_res_tac bigstep_e_exec_unchanged >>
-   gs[]
+   gvs[AllCaseEqs()]
   ) >- (
    gs[] >>
    PAT_X_ASSUM “!y. _” (fn thm => assume_tac (Q.SPECL [‘(INL x)’] thm)) >>
@@ -1428,7 +1432,7 @@ Induct_on ‘t’ >- (
     gs[]
    ) >>
    Cases_on ‘x’ >> (
-    gvs[is_v_bit_def]
+    gvs[is_v_bit_def, AllCaseEqs()]
    ) >>
    gs[bigstep_e_exec_def]
   ),
@@ -1456,7 +1460,7 @@ Induct_on ‘t’ >- (
    gs[]
   ) >>
   Cases_on ‘x’ >> (
-   gs[is_v_bit_def, bigstep_e_exec_def]
+   gs[is_v_bit_def, bigstep_e_exec_def, AllCaseEqs()]
   ),
 
   (* call *) 
@@ -1476,7 +1480,8 @@ Induct_on ‘t’ >- (
   PAT_X_ASSUM “!y. _” (fn thm => assume_tac (Q.SPECL [‘(INL x)’] thm)) >>
   gs[e_size_def] >>
   res_tac >>
-  fs[],
+  fs[] >>
+  gvs[AllCaseEqs()],
 
   (* struct *)
   rw[] >>
@@ -1498,7 +1503,7 @@ Induct_on ‘t’ >- (
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
   gs[e_size_def, e3_e1_size, e3_size_list] >>
   res_tac >>
-  PAT_X_ASSUM “!tbl_map pars_map func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘tbl_map’, ‘pars_map’, ‘func_map’, ‘ext_map’, ‘b_func_map’, ‘apply_table_f’] thm)) >>
+  PAT_X_ASSUM “!tbl_map random_oracle pars_map oracle_index func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘tbl_map’, ‘random_oracle’, ‘pars_map’, ‘oracle_index’, ‘func_map’, ‘ext_map’, ‘b_func_map’, ‘apply_table_f’] thm)) >>
   Cases_on ‘l’ >- (
    gs[bigstep_e_exec_def, e_exec_def]
   ) >>
@@ -1528,7 +1533,7 @@ Induct_on ‘y’ >> (
   ) >>
   fs[] >>
   res_tac >>
-  PAT_X_ASSUM “!tbl_map pars_map func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘tbl_map’, ‘pars_map’, ‘func_map’, ‘ext_map’, ‘b_func_map’, ‘apply_table_f’] thm)) >>
+  PAT_X_ASSUM “!tbl_map random_oracle pars_map oracle_index func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘tbl_map’, ‘random_oracle’, ‘pars_map’, ‘oracle_index’, ‘func_map’, ‘ext_map’, ‘b_func_map’, ‘apply_table_f’] thm)) >>
   fs[] >>
   gvs[] >- (
    gs[bigstep_e_exec_def]
@@ -1592,74 +1597,90 @@ QED
 (* TODO: rename "fuel" to "nsteps" or something else, since it has to do with a
  * compelled number of reductions *)
 
+(* New type for mutli-step expression exec sem *)
+Type emctx = “:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # random_oracle)”;
+
+Definition add_oracle_index_def:
+ add_oracle_index ((apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,random_oracle):'a emctx) i =
+  ((apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,i,random_oracle):'a ectx)
+End
+
 (* This will just yield NONE for new frames *)
+(* Ugh, this looks ugly with random oracle index... *)
 Definition e_multi_exec_def:
- (e_multi_exec _ _ _ e 0 = SOME e)
+ (e_multi_exec ((apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,random_oracle):'a emctx) _ _ (e,i) 0 = SOME (e, i))
  /\
- (e_multi_exec (ctx:'a ctx) g_scope_list scope_list e (SUC fuel) =
-  case e_exec ctx g_scope_list scope_list e of
-  | SOME (e', []) => e_multi_exec ctx g_scope_list scope_list e' fuel
+ (e_multi_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,random_oracle) g_scope_list scope_list (e,i) (SUC fuel) =
+  case e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,i,random_oracle) g_scope_list scope_list e of
+  | SOME (e', ([], SOME i')) => e_multi_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,random_oracle) g_scope_list scope_list (e',i') fuel
+  | SOME (e', ([], NONE)) => e_multi_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,random_oracle) g_scope_list scope_list (e',i) fuel
   | _ => NONE)
 End
 
 Definition e_multi_exec'_def:
- (e_multi_exec' _ _ _ e 0 = SOME e)
+ (e_multi_exec' _ _ _ (e,i) 0 = SOME (e,i))
  /\
- (e_multi_exec' (ctx:'a ctx) g_scope_list scope_list e (SUC fuel) =
-  case e_multi_exec' ctx g_scope_list scope_list e fuel of
-  | SOME e' =>
-   (case e_exec ctx g_scope_list scope_list e' of
-    | SOME (e'', []) => SOME e''
+ (e_multi_exec' (emctx:'a emctx) g_scope_list scope_list (e,i) (SUC fuel) =
+  case e_multi_exec' emctx g_scope_list scope_list (e,i) fuel of
+  | SOME (e',i') =>
+   (case e_exec (add_oracle_index emctx i') g_scope_list scope_list e' of
+    | SOME (e'', ([], NONE)) => SOME (e'',i')
+    | SOME (e'', ([], SOME i'')) => SOME (e'',i'')
     | _ => NONE)
   | _ => NONE)
 End
 
 (* Version for use with e_multi_exec'_list *)
 Definition e_multi_exec'_count_def:
- (e_multi_exec'_count _ _ _ e 0 = SOME (e, 0:num))
+ (e_multi_exec'_count _ _ _ (e,i) 0 = SOME ((e,i), 0:num))
  /\
- (e_multi_exec'_count (ctx:'a ctx) g_scope_list scope_list e (SUC fuel) =
-  case e_multi_exec'_count ctx g_scope_list scope_list e fuel of
-  | SOME (e', n) =>
-   (case e_exec ctx g_scope_list scope_list e' of
-    | SOME (e'', []) => SOME (e'', n+1)
+ (e_multi_exec'_count (emctx:'a emctx) g_scope_list scope_list (e,i) (SUC fuel) =
+  case e_multi_exec'_count emctx g_scope_list scope_list (e,i) fuel of
+  | SOME ((e',i'), n) =>
+   (case e_exec (add_oracle_index emctx i') g_scope_list scope_list e' of
+    | SOME (e'', ([], NONE)) => SOME ((e'',i'), n+1)
+    | SOME (e'', ([], SOME i'')) => SOME ((e'',i''), n+1)
     | _ => NONE)
   | _ => NONE)
 End
 
 Definition e_multi_exec'_list_def:
- (e_multi_exec'_list _ _ _ e_l (0:num) = SOME e_l)
+ (e_multi_exec'_list _ _ _ (e_l, i) (0:num) = SOME (e_l,i))
  /\
- (e_multi_exec'_list _ _ _ [] _ = SOME [])
+ (e_multi_exec'_list _ _ _ ([],i) _ = SOME ([],i))
  /\
- (e_multi_exec'_list (ctx:'a ctx) g_scope_list scope_list (h::t) (SUC fuel) =
+ (e_multi_exec'_list (emctx:'a emctx) g_scope_list scope_list ((h::t),i) (SUC fuel) =
   if is_v h
   then
-   (case e_multi_exec'_list ctx g_scope_list scope_list t (SUC fuel) of
-    | SOME t' => SOME (h::t')
+   (case e_multi_exec'_list emctx g_scope_list scope_list (t,i) (SUC fuel) of
+    | SOME (t',i') => SOME ((h::t'), i')
     | NONE => NONE)
   else
-   (case e_multi_exec'_count ctx g_scope_list scope_list h (SUC fuel) of
-    | SOME (h', fuel_spent) =>
-     (case e_multi_exec'_list ctx g_scope_list scope_list t ((SUC fuel)-fuel_spent) of
-      | SOME t' => SOME (h'::t')
+   (case e_multi_exec'_count emctx g_scope_list scope_list (h,i) (SUC fuel) of
+    | SOME ((h', i'), fuel_spent) =>
+     (case e_multi_exec'_list emctx g_scope_list scope_list (t,i') ((SUC fuel)-fuel_spent) of
+      | SOME (t',i'') => SOME ((h'::t'), i'')
       | NONE => NONE)
     | _ => NONE))
+Termination
+cheat
 End
 (* For the purposes of bigstep_stmt_app_exec_sound_n, it would be useful if
  * e_multi_exec'_list would find the first instance of a non-v expression in the expression
  * list and start reducing it stepwise using e_exec *)
 Definition e_multi_exec'_list'_def:
- (e_multi_exec'_list' _ _ _ e_l 0 = SOME e_l)
+ (e_multi_exec'_list' _ _ _ (e_l,i) 0 = SOME (e_l,i))
  /\
- (e_multi_exec'_list' (ctx:'a ctx) g_scope_list scope_list e_l (SUC fuel) =
-  case e_multi_exec'_list' ctx g_scope_list scope_list e_l fuel of
-  | SOME e_l' =>
+ (e_multi_exec'_list' (emctx:'a emctx) g_scope_list scope_list (e_l,i) (SUC fuel) =
+  case e_multi_exec'_list' emctx g_scope_list scope_list (e_l,i) fuel of
+  | SOME (e_l',i') =>
    (case unred_mem_index e_l' of
-    | SOME i =>
-     (case e_exec ctx g_scope_list scope_list (EL i e_l') of
-      | SOME (e', []) =>
-       SOME (LUPDATE e' i e_l')
+    | SOME j =>
+     (case e_exec (add_oracle_index emctx i') g_scope_list scope_list (EL j e_l') of
+      | SOME (e', ([],NONE)) =>
+       SOME ((LUPDATE e' j e_l'), i')
+      | SOME (e', ([],SOME i'')) =>
+       SOME ((LUPDATE e' j e_l'), i'')
       | _ => NONE)
     | NONE => NONE)
   | NONE => NONE)
@@ -1667,8 +1688,8 @@ End
 
 (* TODO: Move *)
 Theorem e_exec_not_v:
-!ctx g_scope_list scope_list e e'.
-e_exec ctx g_scope_list scope_list e = SOME (e',[]) ==>
+!ctx g_scope_list scope_list e i e'.
+e_exec ctx g_scope_list scope_list e = SOME (e',([],i)) ==>
 ~is_v e
 Proof
 rpt strip_tac >>
@@ -1682,21 +1703,22 @@ Cases_on ‘e'’ >> (
 QED
 
 Theorem bigstep_e_acc_exec_sound_n_not_v:
-!ctx g_scope_list' scope_list e e' n f.
+!emctx g_scope_list' scope_list e i e' i' n f.
 ~is_v e' ==>
-e_multi_exec' (ctx:'a ctx) g_scope_list' scope_list e n = SOME e' ==>
-e_multi_exec' ctx g_scope_list' scope_list (e_acc e f) n = SOME (e_acc e' f)
+e_multi_exec' (emctx:'a emctx) g_scope_list' scope_list (e,i) n = SOME (e',i') ==>
+e_multi_exec' emctx g_scope_list' scope_list ((e_acc e f),i) n = SOME ((e_acc e' f),i')
 Proof
 Induct_on ‘n’ >- (
  gs[e_multi_exec'_def]
 ) >>
 rpt strip_tac >>
-gs[e_multi_exec'_def, AllCaseEqs()] >>
-subgoal ‘~is_v e''’ >- (
- metis_tac[e_exec_not_v]
-) >>
-res_tac >>
-fs[e_exec_def]
+gvs[e_multi_exec'_def, AllCaseEqs()] >> (
+ subgoal ‘~is_v e''’ >- (
+  metis_tac[e_exec_not_v]
+ ) >>
+ res_tac >>
+ fs[e_exec_def]
+)
 QED
 
 Theorem bigstep_e_acc_exec_sound_n_v:
