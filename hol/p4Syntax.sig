@@ -298,7 +298,7 @@ val mk_arch_frame_list_regular : term -> term
 
 val dest_actx :
    term ->
-     term * term * term * term * term * term * term * term * term * term
+     term * term * term * term * term * term * term * term * term * term * term * term * term
 val dest_astate : term -> term * term * term * term
 val mk_astate : term * term * term * term -> term
 val dest_aenv : term -> term * term * term * term

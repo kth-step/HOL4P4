@@ -170,21 +170,21 @@ val symb_exec6_actx = ``([arch_block_inp;
    [("emit",[("this",d_in); ("data",d_in)],v1model_packet_out_emit)]);
   ("register",
    SOME
-     ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct),
-   [("read",[("this",d_in); ("result",d_out); ("index",d_in)],register_read);
+     ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct random_oracle),
+   [("read",[("this",d_in); ("result",d_out); ("index",d_in)],register_read random_oracle);
     ("write",[("this",d_in); ("index",d_in); ("value",d_in)],register_write)]);
   ("ipsec_crypt",SOME ([("this",d_out)],ipsec_crypt_construct),
    [("decrypt_aes_ctr",
      [("ipv4",d_inout); ("esp",d_inout); ("standard_metadata",d_inout);
-      ("key",d_in); ("key_hmac",d_in)],ipsec_crypt_decrypt_aes_ctr);
+      ("key",d_in); ("key_hmac",d_in)],ipsec_crypt_decrypt_aes_ctr random_oracle);
     ("encrypt_aes_ctr",
      [("ipv4",d_inout); ("esp",d_inout); ("key",d_in); ("key_hmac",d_in)],
-     ipsec_crypt_encrypt_aes_ctr);
+     ipsec_crypt_encrypt_aes_ctr random_oracle);
     ("encrypt_null",[("ipv4",d_inout); ("esp",d_inout)],
-     ipsec_crypt_encrypt_null);
+     ipsec_crypt_encrypt_null random_oracle);
     ("decrypt_null",
      [("ipv4",d_inout); ("esp",d_inout); ("standard_metadata",d_inout)],
-     ipsec_crypt_decrypt_null)])],
+     ipsec_crypt_decrypt_null random_oracle)])],
  [("NoAction",
    stmt_seq
      (stmt_cond (e_var (varn_name "from_table"))
@@ -198,7 +198,8 @@ val symb_exec6_actx = ``([arch_block_inp;
                      ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                        F; F; F; F; F; F; F; F; F; F; F; F; F; F],32)))]))
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
-   [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
+   [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
+ v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
 val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
@@ -227,7 +228,7 @@ val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
                   [s_sing (v_bit ([F; F; F; F; F; F; T; T],8))]))),0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
-       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])]),
+       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])],0),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool ARB); ("miss",v_bool ARB);
@@ -252,6 +253,9 @@ val symb_exec6_wf_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec
 val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec6_actx
+val ctx_name = "ctx"
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_comb (mk_var (ctx_name, mk_fun_ty “:random_oracle” (type_of ctx)), “random_oracle:random_oracle”), ctx))
+val ctx_data = def_thm ctx_def
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec6_ftymap, symb_exec6_blftymap, symb_exec6_pblock_action_names_map)
 val const_actions_tables = ["t1"]
 val path_cond_defs = [symb_exec_ctx_def, symb_exec_pblock_map_def]
@@ -310,7 +314,7 @@ val time_start = Time.now();
 (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

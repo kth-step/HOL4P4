@@ -8,6 +8,15 @@ open p4Syntax p4_coreLib;
 
 open p4Theory p4_coreTheory p4_v1modelTheory;
 
+fun dest_quinop c e tm =
+   case with_exn strip_comb tm e of
+      (t, [t1, t2, t3, t4, t5]) =>
+         if same_const t c then (t1, t2, t3, t4, t5) else raise e
+    | _ => raise e;
+fun list_of_quintuple (a, b, c, d, e) = [a, b, c, d, e];
+fun mk_quinop tm = HolKernel.list_mk_icomb tm o list_of_quintuple;
+val syntax_fns5 = HolKernel.syntax_fns {n = 5, dest = dest_quinop, make = mk_quinop};
+
 val v1model_arch_ty = ``:v1model_ascope``;
 
 (* Architectural constants *)
@@ -88,9 +97,10 @@ fun dest_v1model_ascope v1model_ascope =
  let
   val (ext_counter, v1model_ascope') = dest_pair v1model_ascope
   val (ext_obj_map, v1model_ascope'') = dest_pair v1model_ascope'
-  val (v_map, ctrl) = dest_pair v1model_ascope''
+  val (v_map, v1model_ascope''') = dest_pair v1model_ascope''
+  val (ctrl, oracle_index) = dest_pair v1model_ascope'''
  in
-  (ext_counter, ext_obj_map, v_map, ctrl)
+  (ext_counter, ext_obj_map, v_map, ctrl, oracle_index)
  end
 ;
 
@@ -98,7 +108,7 @@ val (v1model_register_construct_inner_tm,  mk_v1model_register_construct_inner, 
   syntax_fns4 "p4_v1model" "v1model_register_construct_inner";
 
 val (v1model_register_read_inner_tm,  mk_v1model_register_read_inner, dest_v1model_register_read_inner, is_v1model_register_read_inner) =
-  syntax_fns3 "p4_v1model" "v1model_register_read_inner";
+  syntax_fns5 "p4_v1model" "v1model_register_read_inner";
 
 val (v1model_register_write_inner_tm,  mk_v1model_register_write_inner, dest_v1model_register_write_inner, is_v1model_register_write_inner) =
   syntax_fns3 "p4_v1model" "v1model_register_write_inner";

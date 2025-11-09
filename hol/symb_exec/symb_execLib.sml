@@ -507,6 +507,15 @@ fun prove_postcond rewr_thms restr_tms simpset postcond step_thm =
   val postcond_thm = EQT_ELIM $ (computeLib.EVAL_CONV THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
 
   val postcond_thm = EQT_ELIM $ (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+
+SIMP_CONV bool_ss rewr_thms $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+val test_thm = (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+
+val rhs_fin = snd $ dest_eq $ concl test_thm
+
+(SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, rhs_fin)
+
+val hypo_thm = (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ hypo
 *)
   val postcond_thm = EQT_ELIM $ (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
  in
@@ -516,7 +525,7 @@ fun prove_postcond rewr_thms restr_tms simpset postcond step_thm =
 
 (* DEBUG
 val step_thms = map #3 path_cond_step_list;
-val step_thm = el 5 step_thms
+val step_thm = el 1 step_thms
 
 (* basic: Index 24, 32, 52, 67 are interesting *)
 val h = el 24 step_thms
@@ -525,6 +534,15 @@ val h = el 52 step_thms
 val h = el 67 step_thms
 
 val rewr_thms = postcond_rewr_thms
+val restr_tms = stop_consts_rewr
+val simpset = postcond_simpset
+
+val rewr_thms = postcond_rewr_thms@[match_all_def, match_def]
+
+SIMP_CONV (srw_ss()) [match_all_def, match_def] “match_all
+       [(v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8),
+         s_sing (v_bit ([F; F; F; F; F; F; F; T],8)))]”
+
 *)
 fun prove_postconds_debug' rewr_thms restr_tms _ postcond []     _ = []
   | prove_postconds_debug' rewr_thms restr_tms simpset postcond (h::t) n =

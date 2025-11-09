@@ -376,9 +376,10 @@ fun dest_ascope ascope =
  let
   val (counter, ascope') = dest_pair ascope
   val (ext_obj_map, ascope'') = dest_pair ascope'
-  val (v_map, ctrl) = dest_pair ascope''
+  val (v_map, ascope''') = dest_pair ascope''
+  val (ctrl, oracle_index) = dest_pair ascope'''
  in
-  (counter, ext_obj_map, v_map, ctrl)
+  (counter, ext_obj_map, v_map, ctrl, oracle_index)
  end
 ;
 
@@ -394,9 +395,12 @@ fun dest_actx actx =
   val (copyin_pbl, actx'''''') = dest_pair actx'''''
   val (copyout_pbl, actx''''''') = dest_pair actx''''''
   val (apply_table_f, actx'''''''') = dest_pair actx'''''''
-  val (ext_map, func_map) = dest_pair actx''''''''
+  val (ext_map, actx''''''''') = dest_pair actx''''''''
+  val (func_map, actx'''''''''') = dest_pair actx'''''''''
+  val (get_oracle_index, actx''''''''''') = dest_pair actx''''''''''
+  val (set_oracle_index, random_oracle) = dest_pair actx'''''''''''
  in
-  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
+  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle)
  end
 ;
 
@@ -435,7 +439,7 @@ fun debug_arch_from_step arch actx astate nsteps =
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
 (* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
 (*  val (i, in_out_list, in_out_list', scope) = dest_aenv aenv *)
-(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle) = dest_actx actx *)
  in
   (dest_actx actx, (dest_aenv aenv, g_scope_list, arch_frame_list, status))
  end
@@ -448,7 +452,7 @@ fun debug_arch_from_step_alt arch actx astate nsteps =
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
 (* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
 (*  val (i, in_out_list, in_out_list', scope) = dest_aenv aenv *)
-(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle) = dest_actx actx *)
  in
   (actx, list_mk_pair [aenv, g_scope_list, arch_frame_list, status])
  end
@@ -461,12 +465,12 @@ fun debug_frames_from_step arch actx astate nsteps =
   val astate' = eval_and_print_result arch actx astate nsteps
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
   val (i, in_out_list, in_out_list', scope) = dest_aenv aenv
-  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx
+  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle) = dest_actx actx
   val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
   val (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
   val frame_list = dest_arch_frame_list_regular arch_frame_list
  in
-  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
+  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle), (scope, g_scope_list, frame_list, status))
  end
 ;
 

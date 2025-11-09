@@ -14,6 +14,9 @@ open auxLib symb_execSyntax p4_convLib;
 val (wellformed_register_array_tm, mk_wellformed_register_array, dest_wellformed_register_array, is_wellformed_register_array) =
   syntax_fns2 "p4_symb_exec" "wellformed_register_array";
 
+(* TODO: Move up *)
+val random_oracle_tm = “random_oracle:random_oracle”
+
 (***********************************************)
 (* Approximation functions for v1model externs *)
 
@@ -29,13 +32,13 @@ fun lookup_var varname scope_list =
  end
 ;
 
-fun approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list =
+fun approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list ascope =
  let
   (* Array size *)
   val array_size = fst $ dest_pair $ dest_v_bit $ lookup_var "size" scope_list
   val targ1_width = snd $ dest_pair $ dest_v_bit $ lookup_var "targ1" scope_list
-
-  val tm1 = mk_v1model_register_construct_inner (array_size, targ1_width)
+  val oracle_index = #5 $ dest_v1model_ascope ascope
+  val tm1 = mk_v1model_register_construct_inner (array_size, targ1_width, oracle_index, random_oracle_tm)
 
   (* TODO: HOL4P4_CONV? *)
   val array_size_num = rhs $ concl $ EVAL (mk_v2n array_size)
@@ -46,8 +49,9 @@ fun approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list =
 
   val approx_thm =
    (* “^goal_tm” *)
+   (* TODO: Fix this *)
    prove(goal_tm,
-    SIMP_TAC std_ss [disj_list_def, v1model_register_construct_inner_def, wellformed_register_array_replicate_arb]
+    SIMP_TAC std_ss [disj_list_def, v1model_register_construct_inner_def (*, wellformed_register_array_replicate_arb *)]
    );
  in
   SOME (approx_thm, [fv_index+1])
@@ -61,11 +65,11 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
   val ext_ref = dest_v_ext_ref $ lookup_var "this" scope_list
   val entry_width = snd $ dest_pair $ dest_v_bit $ lookup_var "result" scope_list
 
-  val ext_obj_map = #2 $ p4_v1modelLib.dest_v1model_ascope ascope
+  val (_, ext_obj_map, _, _, oracle_index) = dest_v1model_ascope ascope
   val array = snd $ dest_comb $ fst $ sumSyntax.dest_inr $ dest_some $ rhs $ concl $ HOL4P4_CONV (mk_alookup (ext_obj_map, ext_ref))
 
   (* 2. Prove approximation theorem *)
-  val tm1 = mk_v1model_register_read_inner (entry_width, array_index, array)
+  val tm1 = mk_v1model_register_read_inner (entry_width, array_index, array, oracle_index, random_oracle_tm)
   (* TODO: Hack, make function that returns list *)
   val approx_vars = fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, int_of_term entry_width)
   val rhs_tm = mk_pair (approx_vars, entry_width)

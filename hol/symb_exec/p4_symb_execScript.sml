@@ -29,14 +29,14 @@ End
 *)
 
 Definition get_packet_def:
- get_packet ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+ get_packet ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope)), g_scope_list, arch_frame_list, status) =
   case io_list' of
   | [(packet, port)] => SOME packet
   | _ => NONE
 End
 
 Definition packet_dropped_def:
- packet_dropped ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl):v1model_ascope)), g_scope_list, arch_frame_list, status) =
+ packet_dropped ((i, io_list, io_list', ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope)), g_scope_list, arch_frame_list, status) =
   case io_list' of
   | [] =>
    (case ALOOKUP v_map "standard_metadata" of
@@ -248,8 +248,8 @@ Definition v1model_ctrl_is_well_formed_def:
       !e_l.
       (* TODO: Keep the requirement that LENGTH e_l = LENGTH mk_l here? *)
       LENGTH e_l = LENGTH mk_l ==>
-      !counter ext_obj_map v_map. ?f f_args.
-      v1model_apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
+      !counter ext_obj_map v_map oracle_index. ?f f_args.
+      v1model_apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) = SOME (f, f_args) /\
        (* f is in the list of actions for the table *)
        MEM f actions /\
        (* first argument is the Boolean T, signifying that the function call resulted from table application *)
@@ -314,8 +314,8 @@ Definition v1model_tbl_is_well_formed_def:
       (* TODO: Keep the requirement that LENGTH e_l = LENGTH mk_l here? *)
       LENGTH e_l = LENGTH mk_l ==>
       !ctrl. ALOOKUP ctrl tbl_name = SOME tbl_entries ==>
-      !counter ext_obj_map v_map. ?f f_args.
-      v1model_apply_table_f (tbl_name, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl):v1model_ascope) = SOME (f, f_args) /\
+      !counter ext_obj_map v_map oracle_index. ?f f_args.
+      v1model_apply_table_f (tbl_name, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) = SOME (f, f_args) /\
        (* f is in the list of actions for the table *)
        MEM f actions /\
        (* first argument is the Boolean T, signifying that the function call resulted from table application *)
@@ -384,13 +384,14 @@ fs[listTheory.oEL_EQ_EL] >>
 qpat_x_assum ‘(bl,n) = EL i array’ (fn thm => fs [GSYM thm])
 QED
 
+(*
 Theorem wellformed_register_array_replicate_arb:
 !m n.
 wellformed_register_array n (replicate_arb m n)
 Proof
 gs[wellformed_register_array_EVERY, replicate_arb_def]
 QED
-
+*)
 
 (*
 (* Use this to easily identify abbreviations: a tuple is is used
@@ -423,7 +424,7 @@ Proof
 gs[symb_exec_abbrevs_def]
 QED
 *)
-        
+
 Definition symb_exec_abbrevs_def:
  (symb_exec_abbrevs P = P:bool)
 End
