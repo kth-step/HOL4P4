@@ -84,7 +84,16 @@ Proof
 gs[definition "bitv_2comp_side_def", arithmeticTheory.LT_IMP_LE, bitstringTheory.v2n_lt]
 QED
 val _ = update_precondition bitv_2comp_side;
+val _ = translate bitv_unop_def;
 val _ = translate unop_exec_def;
+Theorem unop_exec_side:
+!unop v. unop_exec_side unop v
+Proof
+gs[definition "unop_exec_side_def"] >>
+rpt strip_tac >>
+gs[definition "bitv_unop_side_def"]
+QED
+val _ = update_precondition unop_exec_side;
 val _ = translate e_exec_unop_def;
 
 (* Cast *)
@@ -117,8 +126,8 @@ val _ = translate bitv_saturate_sub_def;
 val _ = translate bitv_lsl_bv_def;
 val _ = translate TAKE_def;
 val _ = translate bitv_lsr_bv_def;
-val _ = translate get_bitv_binop'_def;
-val _ = translate bitv_binop'_def;
+val _ = translate get_bitv_binop_def;
+val _ = translate bitv_binop_def;
 
 val _ = translate bitv_bl_binop_def;
 val _ = translate bitstringTheory.shiftl_def;
@@ -131,8 +140,8 @@ val _ = translate rich_listTheory.AND_EL_DEF;
 val _ = translate bit_eq_def;
 val _ = translate bitv_eq_def;
 val _ = translate bitv_neq_def;
-val _ = translate get_bitv_binpred'_def;
-val _ = translate bitv_binpred'_def;
+val _ = translate get_bitv_binpred_def;
+val _ = translate bitv_binpred_def;
 
 val _ = translate binop_exec_def;
 val _ = translate e_exec_binop_def;
@@ -367,7 +376,7 @@ val _ = translate lookup_block_body_def;
 val _ = translate oLASTN_def;
 
 (* TODO: Fix this hack *)
-val _ = translate init_v_from_tau_cake_def;
+(* val _ = translate init_v_from_tau_cake_def; *)
 val _ = translate declare_list_in_scope_exec'_def;
 
 val _ = translate AUPDATE_LIST_def;

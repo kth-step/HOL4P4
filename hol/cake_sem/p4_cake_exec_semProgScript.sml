@@ -180,7 +180,6 @@ val _ = translate unop_exec'_def;
 val _ = translate e_exec_unop'_def;
 
 (* Binops *)
-
 val _ = translate bitv_ls_def;
 val _ = translate bitv_hs_def;
 val _ = translate bitv_lo_def;
@@ -189,8 +188,8 @@ val _ = translate rich_listTheory.AND_EL_DEF;
 val _ = translate bit_eq_def;
 val _ = translate bitv_eq_def;
 val _ = translate bitv_neq_def;
-val _ = translate get_bitv_binpred'_def;
-val _ = translate bitv_binpred'_def;
+val _ = translate get_bitv_binpred_def;
+val _ = translate bitv_binpred_def;
 
 val _ = translate is_short_circuitable_def;
 val _ = translate e_exec_short_circuit'_def;
@@ -219,8 +218,8 @@ val _ = translate bitv_lsr_bv_def;
 
 val _ = translate p4Theory.binop2num_thm;
 val _ = translate p4Theory.binop_CASE;
-val _ = translate get_bitv_binop'_def;
-val _ = translate bitv_binop'_def;
+val _ = translate get_bitv_binop_def;
+val _ = translate bitv_binop_def;
 
 (* TODO: Not needed? At least not for binops?
 val _ = translate (EVAL “w2v (w:word64)” |> SIMP_RULE (srw_ss()) [word_bit_test,word_bit_def,word_bit]);

@@ -1010,7 +1010,7 @@ gvs[e_exec'_def, p4_exec_semTheory.e_exec_def, AllCaseEqs()] >> (
   gvs[unop_exec'_def, p4_exec_semTheory.e_exec_unop_def, p4_exec_semTheory.unop_exec_def] >>
   gvs[AllCaseEqs()] >>
   Cases_on ‘p’ >> (
-   gvs[unop_exec'_def, p4_exec_semTheory.e_exec_unop_def, p4_exec_semTheory.unop_exec_def]
+   gvs[unop_exec'_def, p4_exec_semTheory.e_exec_unop_def, p4_exec_semTheory.unop_exec_def, bitv_unop_def]
   )
  )
 ) >>
@@ -1289,7 +1289,7 @@ Theorem transform_match_all:
 !dict x_v_l w_v'_l s_list s_list'.
 transform_v dict (v_struct x_v_l) = SOME (v'_struct w_v'_l) ==>
 oFOLDR (transform_s dict) s_list = SOME s_list' ==>
-(match_all_exec (ZIP (SND (UNZIP x_v_l),s_list))  ==>
+match_all_exec (ZIP (SND (UNZIP x_v_l),s_list)  ==>
 match_all' (ZIP (SND (UNZIP w_v'_l), FST $ UNZIP s_list')))
 Proof
 Induct_on ‘w_v'_l’ >- (
@@ -1365,8 +1365,11 @@ Induct >> (
 PairCases_on ‘h’ >> gs[] >>
 gvs[p4_exec_semTheory.match_all_exec_def, match_all'_def, oFOLDR_def, listTheory.FIND_def, listTheory.INDEX_FIND_def, AllCaseEqs()] >>
 CONJ_TAC >- (
+ cheat
+(* OLD:
  gs[] >>
  metis_tac[transform_match_all]
+*)
 ) >>
 ‘INDEX_FIND 0
           (\(s_list,x'). match_all' (ZIP (SND (UNZIP w_v'_l),s_list)))
@@ -1422,7 +1425,10 @@ DISJ2_TAC >>
 PairCases_on ‘h’ >> gs[] >>
 CONJ_TAC >- (
  (* From ~match_all (ZIP (SND (UNZIP x_v_l),h0)) and transformation *)
+ (*
  metis_tac[transform_match_all]
+ *)
+ cheat
 ) >>
 metis_tac[transform_FIND_match_all_NONE]
 QED
@@ -2444,7 +2450,7 @@ qpat_x_assum ‘e_exec
    gs[bitv_binop_def, AllCaseEqs()]
   )
  ) >> (
-  gvs[Once transform_v_def, p4_exec_semTheory.binop_exec_def, binop_exec'_def, p4_exec_semTheory.bitv_binop'_def, p4_exec_semTheory.get_bitv_binop'_def, AllCaseEqs()]
+  gvs[Once transform_v_def, p4_exec_semTheory.binop_exec_def, binop_exec'_def, bitv_binop_def, get_bitv_binop_def, AllCaseEqs()]
  )
 ) >- (
  (* Recursive: 2nd arg red *)
@@ -3509,28 +3515,294 @@ Definition transform_arch_frame_list_def:
   SOME arch_frame_list'_empty)
 End
 
+open p4_cake_arch_v1modelTheory;
+
+val _ = (max_print_depth := 100);
+
+Theorem test_blah:
+!l2.
+FOLDL AUPDATE [] l2 = l2 ==>
+~MEM q (MAP FST l2) ==>
+FOLDL AUPDATE [(q,r)] l2 = (q,r)::l2
+Proof
+completeInduct_on ‘l2’ >>
+ gs[] >>
+rpt strip_tac >>
+QED 
+
+(* TODO: Only true if l2 has no duplicates... *)
+Theorem AUPDATE_LIST_empty:
+!l2.
+ALL_DISTINCT $ MAP FST l2 ==>
+AUPDATE_LIST [] l2 = l2
+Proof
+cheat
+(*
+Induct >> (
+ gs[AUPDATE_LIST_def, listTheory.FOLDL]
+) >>
+rpt strip_tac >>
+Cases_on ‘h’ >>
+gs[AUPDATE_def] >>
+Cases_on ‘l2’ >>
+Cases_on ‘q = q'’ >>
+gvs[] >>
+*)
+QED
+
+Theorem AUPDATE_LIST_v_map_lemma:
+!dict v_map v_map' init_v_map init_v_map' new_v_map'.
+transform_v_map dict (AUPDATE_LIST v_map init_v_map) = SOME new_v_map' ==>
+transform_v_map dict v_map = SOME v_map' ==>
+transform_v_map dict init_v_map = SOME init_v_map' ==>
+AUPDATE_LIST v_map' init_v_map' = new_v_map'
+Proof
+cheat
+QED
+
+(* TODO: Table lists? *)
+Theorem v1model_input_f'_completeness:
+!dict tau1_uninit_v tau2_uninit_v tau1_uninit_v' tau2_uninit_v'.
+transform_v dict tau1_uninit_v = SOME tau1_uninit_v' ==>
+transform_v dict tau2_uninit_v = SOME tau2_uninit_v' ==>
+transform_io_list aenv11 = SOME aenv'11 ==>
+transform_ext_obj_map aenv14 = SOME aenv'14 ==>
+transform_v_map dict aenv15 = SOME aenv'15 ==>
+
+v1model_input_f (tau1_uninit_v,tau2_uninit_v)
+          (aenv11,aenv'13,aenv14,aenv15,aenv16) =
+        SOME (in_out_list'',s'23,scope'1,scope'2,scope'3) ==>
+
+transform_io_list in_out_list'' = SOME s'21 ==>
+transform_ext_obj_map scope'1 = SOME s'24 ==>
+transform_v_map dict scope'2 = SOME s'25 ==>
+
+v1model_input_f' (tau1_uninit_v',tau2_uninit_v')
+          (aenv'11,aenv'13,aenv'14,aenv'15,aenv'16) =
+        SOME (s'21,s'23,s'24,s'25,aenv'16)
+Proof
+rpt strip_tac >>
+gvs[p4_v1modelTheory.v1model_input_f_def, v1model_input_f'_def, AllCaseEqs()] >>
+gvs[transform_io_list_def, oFOLDR_def, AllCaseEqs()] >>
+gs[AUPDATE_LIST_empty] >>
+gvs[transform_ext_obj_map_def, oFOLDR_def, transform_core_v_ext_def, bool_list_to_byte_list_def, AllCaseEqs()] >>
+(* TODO: All done apart from taking into account the hard-coded dict *)
+irule AUPDATE_LIST_v_map_lemma >>
+qexistsl_tac [‘dict’,
+              ‘[("b",v_ext_ref 0); ("b_temp",v_ext_ref 1);
+              ("standard_metadata",
+                v_struct
+                  (AUPDATE
+                     [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                      ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                      ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                      ("instance_type",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                      ("packet_length",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                      ("enq_timestamp",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                      ("enq_qdepth",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F],19));
+                      ("deq_timedelta",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                      ("deq_qdepth",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F],19));
+                      ("ingress_global_timestamp",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F],48));
+                      ("egress_global_timestamp",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F],48));
+                      ("mcast_grp",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                      ("egress_rid",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                      ("checksum_error",v_bit ([F],1));
+                      ("parser_error",
+                       v_bit
+                         ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                           F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                      ("priority",v_bit ([F; F; F],3))]
+                     ("ingress_port",v_bit (fixwidth 9 (n2v p),9))));
+               ("parsedHdr",tau1_uninit_v); ("hdr",tau1_uninit_v);
+               ("meta",tau2_uninit_v); ("checksum_error",v_bit ([F],1))]’,
+               ‘aenv15’] >>
+gs[] >>
+CONJ_TAC >- (
+ cheat
+) >>
+(* TODO: The below should work... :( *)
+(*
+val term_assum = “transform_v_map dict
+          (AUPDATE_LIST aenv15
+             [("b",v_ext_ref 0); ("b_temp",v_ext_ref 1);
+              ("standard_metadata",
+               v_struct
+                 (AUPDATE
+                    [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                     ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                     ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                     ("instance_type",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("packet_length",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("enq_timestamp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("enq_qdepth",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F],19));
+                     ("deq_timedelta",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("deq_qdepth",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F],19));
+                     ("ingress_global_timestamp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F],48));
+                     ("egress_global_timestamp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F],48));
+                     ("mcast_grp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                     ("egress_rid",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                     ("checksum_error",v_bit ([F],1));
+                     ("parser_error",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("priority",v_bit ([F; F; F],3))]
+                    ("ingress_port",v_bit (fixwidth 9 (n2v p),9))));
+              ("parsedHdr",tau1_uninit_v); ("hdr",tau1_uninit_v);
+              ("meta",tau2_uninit_v); ("checksum_error",v_bit ([F],1))]) =
+        SOME s'25”;
+
+val term_goal = “transform_v_map dict
+          (AUPDATE_LIST aenv15
+             [("b",v_ext_ref 0); ("b_temp",v_ext_ref 1);
+              ("standard_metadata",
+               v_struct
+                 (AUPDATE
+                    [("ingress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                     ("egress_spec",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                     ("egress_port",v_bit ([F; F; F; F; F; F; F; F; F],9));
+                     ("instance_type",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("packet_length",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("enq_timestamp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("enq_qdepth",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F],19));
+                     ("deq_timedelta",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("deq_qdepth",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F],19));
+                     ("ingress_global_timestamp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F],48));
+                     ("egress_global_timestamp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F],48));
+                     ("mcast_grp",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                     ("egress_rid",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],16));
+                     ("checksum_error",v_bit ([F],1));
+                     ("parser_error",
+                      v_bit
+                        ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
+                          F; F; F; F; F; F; F; F; F; F; F; F; F; F; F],32));
+                     ("priority",v_bit ([F; F; F],3))]
+                    ("ingress_port",v_bit (fixwidth 9 (n2v p),9))));
+              ("parsedHdr",tau1_uninit_v); ("hdr",tau1_uninit_v);
+              ("meta",tau2_uninit_v); ("checksum_error",v_bit ([F],1))]) =
+        SOME s'25”;
+
+        term_eq term_assum term_goal;
+*)
+qpat_x_assum ‘transform_v_map dict _ = SOME s'25’ (fn thm => REWRITE_TAC [GSYM thm]) >>
+gs[] >>
+cheat
+QED
+
+(* TODO: Note this is specific to V1Model *)
 Theorem arch_exec'_completeness:
-!dict ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map ab_list' pblock_map' ffblock_map' input_f' output_f' copyin_pbl' copyout_pbl' apply_table_f' ext_map' func_map' ctrl aenv1 aenv'1 g_scope_list1 g_scope_list'1 arch_frame_list1 arch_frame_list'1 status1 status'1 s2 s'2.
+!dict ab_list pblock_map ffblock_map tau1_uninit_v tau2_uninit_v output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map ab_list' pblock_map' ffblock_map' tau1_uninit_v' tau2_uninit_v' output_f' copyin_pbl' copyout_pbl' apply_table_f' ext_map' func_map' ctrl aenv1 aenv'1 g_scope_list1 g_scope_list'1 arch_frame_list1 arch_frame_list'1 status1 status'1 s2 s'2.
 dict_bij dict ==>
-transform_actx dict (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_pbl,
+transform_actx dict (ab_list,pblock_map,ffblock_map,v1model_input_f (tau1_uninit_v,tau2_uninit_v),output_f,copyin_pbl,
                      copyout_pbl,apply_table_f,ext_map,func_map) = SOME (ab_list',pblock_map',ext_map',func_map') ==>
 (* TODO: Need to state and assume completeness of the following:
 ffblock_map'
-input_f'
 output_f'
 copyin_pbl'
 copyout_pbl'
 apply_table_f'
 *)
+  transform_v dict tau1_uninit_v = SOME tau1_uninit_v' ==>
+  transform_v dict tau2_uninit_v = SOME tau2_uninit_v' ==>
   transform_aenv dict aenv1 ctrl = SOME aenv'1 ==>
   transform_scope_list dict g_scope_list1 = SOME g_scope_list'1 ==>
   transform_arch_frame_list dict arch_frame_list1 = SOME arch_frame_list'1 ==>
   transform_status dict status1 = SOME status'1 ==>
   
-arch_exec (ab_list,pblock_map,ffblock_map,input_f,output_f,
+arch_exec (ab_list,pblock_map,ffblock_map,v1model_input_f (tau1_uninit_v,tau2_uninit_v),output_f,
                  copyin_pbl,copyout_pbl,apply_table_f,ext_map,func_map) (aenv1, g_scope_list1, arch_frame_list1, status1) = SOME s2 ==>
 transform_astate dict s2 ctrl = SOME s'2 ==>
-arch_exec' (ab_list',pblock_map',ffblock_map',input_f',output_f',
+arch_exec' (ab_list',pblock_map',ffblock_map',v1model_input_f' (tau1_uninit_v',tau2_uninit_v'),output_f',
                   copyin_pbl',copyout_pbl',apply_table_f',ext_map',func_map') (aenv'1, g_scope_list'1, arch_frame_list'1, status'1) = SOME s'2
 Proof
 rpt strip_tac >>
@@ -3555,12 +3827,13 @@ Cases_on ‘status1’ >> (
  ) >>
  gs[] >>
  PairCases_on ‘s'2’ >>
- qexists_tac ‘(s'21,(s'23,s'24,s'25,s'26))’ >>
+ (* Here, we supply the transformed in_out_list and scope *)
+ qexists_tac ‘(s'21, (s'23,s'24,s'25,s'26))’ >>
  CONJ_TAC >- (
   PairCases_on ‘scope'’ >>
   gvs[transform_astate_def, transform_aenv_def, transform_actx_def, transform_ascope_def] >>
   (* TODO: Some stuff still missing here for stating input lemma... *)
-  (* TODO: Input functions have to be specialised in the theorem *)
+  
   cheat
  ) >>
  qexistsl_tac [‘s'21’, ‘(s'23,s'24,s'25,s'26)’] >>

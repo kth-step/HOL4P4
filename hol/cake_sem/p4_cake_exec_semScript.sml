@@ -883,37 +883,37 @@ End
 
 Definition binop_exec'_def:
  (binop_exec' binop_mul (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binop' binop_mul bitv1 bitv2 of
+  case bitv_binop binop_mul bitv1 bitv2 of
   | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
  (binop_exec' binop_div (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binop' binop_div bitv1 bitv2 of
+  case bitv_binop binop_div bitv1 bitv2 of
   | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
  (binop_exec' binop_mod (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binop' binop_mod bitv1 bitv2 of
+  case bitv_binop binop_mod bitv1 bitv2 of
   | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
  (binop_exec' binop_add (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binop' binop_add bitv1 bitv2 of
+  case bitv_binop binop_add bitv1 bitv2 of
   | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
  (binop_exec' binop_sat_add (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binop' binop_sat_add bitv1 bitv2 of
+  case bitv_binop binop_sat_add bitv1 bitv2 of
   | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
  (binop_exec' binop_sub (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binop' binop_sub bitv1 bitv2 of
+  case bitv_binop binop_sub bitv1 bitv2 of
   | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
  (binop_exec' binop_sat_sub (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binop' binop_sat_sub bitv1 bitv2 of
+  case bitv_binop binop_sat_sub bitv1 bitv2 of
   | SOME bitv3 => SOME (v'_bit bitv3)
   | NONE => NONE)
  /\
@@ -928,22 +928,22 @@ Definition binop_exec'_def:
   else SOME $ v'_bit $ (fixwidth n [], n))
  /\
  (binop_exec' binop_le (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binpred' binop_le bitv1 bitv2 of
+  case bitv_binpred binop_le bitv1 bitv2 of
   | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
  (binop_exec' binop_ge (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binpred' binop_ge bitv1 bitv2 of
+  case bitv_binpred binop_ge bitv1 bitv2 of
   | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
  (binop_exec' binop_lt (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binpred' binop_lt bitv1 bitv2 of
+  case bitv_binpred binop_lt bitv1 bitv2 of
   | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
  (binop_exec' binop_gt (v'_bit bitv1) (v'_bit bitv2) =
-  case bitv_binpred' binop_gt bitv1 bitv2 of
+  case bitv_binpred binop_gt bitv1 bitv2 of
   | SOME b => SOME (v'_bool b)
   | NONE => NONE)
  /\
@@ -1023,11 +1023,11 @@ else
   ‘p4_match_mask' val mask k =
    (case k of
     | v'_bit (v', n') =>
-     (case bitv_binop' binop_and (v', n') mask of
+     (case bitv_binop binop_and (v', n') mask of
       | SOME res =>
-       (case bitv_binop' binop_and val mask of
+       (case bitv_binop binop_and val mask of
         | SOME res' => 
-         (case bitv_binpred' binop_eq res res' of
+         (case bitv_binpred binop_eq res res' of
           | SOME bool => bool
           | NONE => F)
         | NONE => F)
@@ -1037,9 +1037,9 @@ else
   ‘p4_match_range' lo hi k =
    case k of
     | v'_bit (v', n') =>
-     (case bitv_binpred' binop_ge (v', n') lo of
+     (case bitv_binpred binop_ge (v', n') lo of
       | SOME T =>
-       (case bitv_binpred' binop_le (v', n') hi of
+       (case bitv_binpred binop_le (v', n') hi of
         | SOME T => T
         | _ => F)
       | _ => F)
