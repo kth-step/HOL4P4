@@ -662,10 +662,8 @@ rpt strip_tac >>
 RES_TAC >>
 gvs[NOT_CLAUSES] >>
 
-fs[bitv_binop_def] >>
-ONCE_REWRITE_TAC[bitv_binop_inner_def] >>
-fs[] >>
-srw_tac [numSimps.SUC_FILTER_ss][] 
+fs[bitv_binop_def, get_bitv_binop_def] >>
+srw_tac[numSimps.SUC_FILTER_ss][]
 );
 
 
@@ -686,21 +684,7 @@ Cases_on `bitv` >>
 Cases_on `bitv'` >>
 
 rpt strip_tac >>
-gvs[bitv_binpred_def, bs_width_def] >>
-
-
-rpt strip_tac >>
-gvs[bs_width_def] >>
-
-drule bit_range >>
-rpt strip_tac >>
-RES_TAC >>
-gvs[NOT_CLAUSES] >>
-
-fs[] >>
-ONCE_REWRITE_TAC[bitv_binpred_inner_def] >>
-fs[] >>
-srw_tac [numSimps.SUC_FILTER_ss][]
+gvs[bitv_binpred_def, bs_width_def, get_bitv_binpred_def]
 );
 
 

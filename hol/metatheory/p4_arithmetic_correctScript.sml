@@ -1334,7 +1334,7 @@ rpt strip_tac >>
 gs[bitv_binop_old_def] >>
 imp_res_tac bitv_binop_inner >>
 (* Takes 1263.138s *)
-brute_arithmetic_tac brute_saturated_subtraction_tac 1 2 >>
+brute_arithmetic_tac brute_saturated_subtraction_tac 1 128 >>
 gs[]
 QED
 
@@ -1586,8 +1586,8 @@ QED
 
 (* e_bin_and1 *)
 Theorem binop_bin_and1_correct:
-!e_ctx g_scope_list scope_list e.
-e_exec e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool F) binop_bin_and e) = SOME (e_v (v_bool F), [])
+!uninit e_ctx g_scope_list scope_list e.
+e_exec uninit e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool F) binop_bin_and e) = SOME (e_v (v_bool F), [])
 Proof
 rpt strip_tac >>
 gs[e_exec_def, is_short_circuitable_def, e_exec_short_circuit_def]
@@ -1595,8 +1595,8 @@ QED
 
 (* e_bin_and2 *)
 Theorem binop_bin_and2_correct:
-!e_ctx g_scope_list scope_list e.
-e_exec e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool T) binop_bin_and e) = SOME (e, [])
+!uninit e_ctx g_scope_list scope_list e.
+e_exec uninit e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool T) binop_bin_and e) = SOME (e, [])
 Proof
 rpt strip_tac >>
 gs[e_exec_def, is_short_circuitable_def, e_exec_short_circuit_def]
@@ -1604,8 +1604,8 @@ QED
 
 (* e_bin_or1 *)
 Theorem binop_bin_or1_correct:
-!e_ctx g_scope_list scope_list e.
-e_exec e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool T) binop_bin_or e) = SOME (e_v (v_bool T), [])
+!uninit e_ctx g_scope_list scope_list e.
+e_exec uninit e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool T) binop_bin_or e) = SOME (e_v (v_bool T), [])
 Proof
 rpt strip_tac >>
 gs[e_exec_def, is_short_circuitable_def, e_exec_short_circuit_def]
@@ -1613,8 +1613,8 @@ QED
 
 (* e_bin_or2 *)
 Theorem binop_bin_or2_correct:
-!e_ctx g_scope_list scope_list e.
-e_exec e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool F) binop_bin_or e) = SOME (e, [])
+!uninit e_ctx g_scope_list scope_list e.
+e_exec uninit e_ctx g_scope_list scope_list (e_binop (e_v $ v_bool F) binop_bin_or e) = SOME (e, [])
 Proof
 rpt strip_tac >>
 gs[e_exec_def, is_short_circuitable_def, e_exec_short_circuit_def]

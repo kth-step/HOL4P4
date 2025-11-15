@@ -3237,11 +3237,11 @@ STRIP_TAC >|  [
                        
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
       [`s`, `MAP (λ(e_,mk_). mk_) (e_mk_list : (e # mk) list)`, ‘f''’,‘f'’,‘e'_list’,
-       ‘MAP (λ(e_,mk_). e_) (e_mk_list : (e # mk) list)’,‘MAP (λv_. e_v v_) v_list’,‘ascope’])) >>    
+       ‘MAP (λ(e_,mk_). e_) (e_mk_list : (e # mk) list)’,‘e''_list’,‘ascope’])) >>    
      gvs[] >>
   
      Q.EXISTS_TAC ‘tau_bot’ >>
-     Q.EXISTS_TAC ‘ZIP (MAP (λv_. e_v v_) v_list ,
+     Q.EXISTS_TAC ‘ZIP (e''_list ,
                    ZIP (MAP (λ(t,x,d). t) txdl' , ZIP ( MAP (λ(t,x,d). x) txdl' , ZIP ( MAP (λ(t,x,d). d) txdl' , MAP (\(td) . F ) txdl'))))’ >>                             
      gvs[] >>
      gvs[map_quad_zip112, LENGTH_MAP] >>    

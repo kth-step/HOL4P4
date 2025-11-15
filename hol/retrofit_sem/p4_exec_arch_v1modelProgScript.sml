@@ -33,10 +33,19 @@ val _ = translate v1model_input_f_def;
 
 val _ = translate v1model_is_drop_port_def;
 val _ = translate v1model_lookup_obj_def;
+
 val _ = translate v1model_output_f_def;
 
+val _ = translate init_out_v_cake_def;
 val _ = translate v1model_reduce_nonout_def;
 val _ = translate v1model_copyin_pbl_def;
+Theorem v1model_copyin_pbl_side_thm:
+!xlist dlist elist counter ext_obj_map v_map ctrl.
+v1model_copyin_pbl_side (xlist,dlist,elist,counter,ext_obj_map,v_map,ctrl)
+Proof
+simp[Once $ definition "v1model_copyin_pbl_side_def", copyin_exec_side_thm]
+QED
+val _ = update_precondition v1model_copyin_pbl_side_thm;
 
 val _ = translate copyout_pbl_gen_def;
 val _ = translate v1model_copyout_pbl_def;

@@ -16,6 +16,8 @@ val get_actx : thm -> term
 val simple_arith_ss : simpLib.simpset
 val the_final_state_imp : thm -> term
 
+val ascope_ty_from_arch : string -> hol_type
+
 val eval_and_print_result : string -> term -> term -> int -> term
 val eval_and_print_aenv : string -> term -> term -> int -> term
 val eval_and_print_rest : string -> term -> term -> int -> term

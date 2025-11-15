@@ -5631,10 +5631,9 @@ REPEAT STRIP_TAC >| [
      PairCases_on `bitv'` >>
      TRY(PairCases_on `bitv''`) >>
      rw[] >>
-     rfs[bs_width_def, bitv_binop_inner_def, bitv_bl_binop_def] >>
+     rfs[bs_width_def, bitv_bl_binop_def] >>
      rfs[bitv_binop_def] >>
-     IMP_RES_TAC bitv_binop_inner_lemma 
-    
+     gvs[AllCaseEqs()]    
      ,
 
 

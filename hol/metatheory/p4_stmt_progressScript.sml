@@ -682,7 +682,7 @@ REPEAT STRIP_TAC >| [
                              ‘default_action_args’,‘MAP (λ(e_,tau_,b_). e_) (e_tau_b_list : (e # tau # bool) list)’,‘vl’,‘ascope’])) >>  gvs[] >>
    
    Q.EXISTS_TAC ‘ZIP (MAP (λ(e_,tau_,b_). e_) e_tau_b_list , mk)’ >>
-   Q.EXISTS_TAC ‘vl_of_el vl’ >>
+   Q.EXISTS_TAC ‘vl’ >>
    Q.EXISTS_TAC ‘f'’ >>
    
    ‘LENGTH mk = LENGTH (MAP (λ(e_,tau_,b_). e_) e_tau_b_list)’ by simp[LENGTH_MAP] >>   
