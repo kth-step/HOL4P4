@@ -220,12 +220,6 @@ val _ = translate unred_arg_index_def;
 
 val _ = translate is_d_in_def;
 val _ = translate bitstringTheory.extend_def;
-(* TODO: Fix the uninit hack
-val _ = translate uninit_bit_def;
-val _ = translate uninit_string_def;
-val _ = translate init_out_v_gen_def;
-*)
-val _ = translate init_out_v_cake_def;
 
 val _ = translate slice_lval'_def;
 val _ = translate acc_f_def;
@@ -233,14 +227,168 @@ val _ = translate lookup_v_def;
 val _ = translate lookup_lval'_def;
 
 val _ = translate v_of_e_def;
+val _ = translate uninit_bit_def;
+val _ = translate uninit_string_def;
+val _ = translate init_out_v_gen_def;
+
+Theorem FOLDL_and_elem_F:
+!l f.
+~FOLDL (λa b. f b ∧ a) F l
+Proof
+Induct >>
+gs[]
+QED
+
+Theorem FOLDL_and_elem_nonempty:
+!f b e h t.
+FOLDL (λa b. f b ∧ a) e (h::t) ==> e
+Proof
+Induct_on ‘t’ >> (
+ gs[]
+) >>
+rpt strip_tac >>
+qpat_x_assum ‘!f e h. _’ irule >>
+Cases_on ‘f h’ >> gs[] >- (
+ metis_tac[]
+) >>
+gs[FOLDL_and_elem_F]
+QED
+
+Theorem FOLDL_and_member:
+!f b e m l.
+FOLDL (λa b. f b ∧ a) e l ==>
+MEM m l ==>
+f m
+Proof
+Induct_on ‘l’ >> (
+ gs[]
+) >>
+rpt strip_tac >>
+gvs[] >- (
+ Cases_on ‘f h’ >> gs[FOLDL_and_elem_F]
+) >>
+metis_tac[]
+QED
+
+Theorem init_out_v_gen_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!v.
+init_out_v_gen_side uninit v
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+‘(!v. (\v. init_out_v_gen_side uninit_zero v) v) /\
+ (!l. (\l:((string # p4$v) list). FOLDL (\b v. init_out_v_gen_side uninit_zero (SND v) /\ b) T l) l) /\
+ (!(p:(string # p4$v)). (\v. init_out_v_gen_side uninit_zero (SND v)) p)’ suffices_by (
+ gs[]
+) >>
+irule v_induction >>
+rpt strip_tac >- (
+ simp[Once $ theorem "init_out_v_gen_side_def"]
+) >- (
+ simp[Once $ theorem "init_out_v_gen_side_def"]
+) >- (
+ simp[Once $ theorem "init_out_v_gen_side_def", Once $ definition "uninit_bit_side_def"]
+) >- (
+ simp[Once $ theorem "init_out_v_gen_side_def", Once $ definition "uninit_string_side_def"]
+) >- (
+ simp[Once $ theorem "init_out_v_gen_side_def"] >>
+ rpt strip_tac >- (
+  gvs[] >>
+  Cases_on ‘init_out_v_gen_side uninit_zero x6’ >> (gs[]) >>
+  Cases_on ‘x8’ >- (gs[]) >>
+  metis_tac[FOLDL_and_elem_nonempty]
+ ) >>
+ gvs[] >>
+ (* If x3 is a member, it must hold, or else the other premise would be false *)
+ ‘(λv. init_out_v_gen_side uninit_zero (SND v)) (x4,x3)’ suffices_by gs[] >>
+ irule FOLDL_and_member >>
+ metis_tac[]
+) >- (
+ simp[Once $ theorem "init_out_v_gen_side_def"] >>
+ rpt strip_tac >- (
+  gvs[] >>
+  Cases_on ‘init_out_v_gen_side uninit_zero x13’ >> (gs[]) >>
+  Cases_on ‘x15’ >- (gs[]) >>
+  metis_tac[FOLDL_and_elem_nonempty]
+ ) >>
+ gvs[] >>
+ (* If x3 is a member, it must hold, or else the other premise would be false *)
+ ‘(λv. init_out_v_gen_side uninit_zero (SND v)) (x11,x10)’ suffices_by gs[] >>
+ irule FOLDL_and_member >>
+ metis_tac[]
+) >- (
+ simp[Once $ theorem "init_out_v_gen_side_def"]
+) >- (
+ simp[Once $ theorem "init_out_v_gen_side_def"] >>
+ rpt strip_tac >>
+ simp[Once $ definition "uninit_bit_side_def"]
+) >- (
+ FULL_SIMP_TAC bool_ss [listTheory.FOLDL]
+) >>
+FULL_SIMP_TAC bool_ss [SND]
+QED
+val _ = update_precondition init_out_v_gen_side_thm;
 val _ = translate one_arg_val_for_newscope_exec_def;
+Theorem one_arg_val_for_newscope_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!d e scope_list.
+one_arg_val_for_newscope_exec_side uninit d e scope_list
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+ simp[Once $ definition "one_arg_val_for_newscope_exec_side_def"] >>
+rpt strip_tac >>
+gs[init_out_v_gen_side_thm]
+QED
 
 val _ = translate AFUPDKEY_def;
 val _ = translate AUPDATE_def;
 val _ = translate update_arg_for_newscope_exec_def;
+Theorem update_arg_for_newscope_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!scope_list scope_opt d_x_e.
+update_arg_for_newscope_exec_side uninit scope_list scope_opt d_x_e
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+simp[Once $ definition "update_arg_for_newscope_exec_side_def", one_arg_val_for_newscope_exec_side_thm]
+QED
+val _ = update_precondition one_arg_val_for_newscope_exec_side_thm;
+
 val _ = translate listTheory.FOLDL;
 val _ = translate all_arg_update_for_newscope_exec_def;
+Theorem all_arg_update_for_newscope_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!xlist dlist elist ss.
+all_arg_update_for_newscope_exec_side uninit xlist dlist elist ss
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+simp[Once $ definition "all_arg_update_for_newscope_exec_side_def", update_arg_for_newscope_exec_side_thm]
+QED
+val _ = update_precondition all_arg_update_for_newscope_exec_side_thm;
+
 val _ = translate copyin_exec_def;
+Theorem copyin_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!xlist dlist elist scope_list scope_list'.
+copyin_exec_side uninit xlist dlist elist scope_list scope_list'
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+simp[Once $ definition "copyin_exec_side_def", all_arg_update_for_newscope_exec_side_thm]
+QED
 
 val _ = translate oEL_def;
 
@@ -263,16 +411,124 @@ val _ = translate vl_of_el_exec_def;
 
 (* The whole expression-level semantics: *)
 val _ = translate e_exec_def;
-(*
-(* TODO: This should be inherited from uninit_zero on the
- * level above *)
-Theorem e_exec_side:
-!a b c d e. e_exec_side a b c d e
+
+Theorem LLOOKUP_MEM:
+!l n e.
+LLOOKUP l n = SOME e ==>
+MEM e l
 Proof
-cheat
+Induct >> gs[LLOOKUP_def] >>
+rpt strip_tac >>
+cases_on ‘n = 0’ >> gs[] >>
+metis_tac[]
 QED
-val _ = update_precondition e_exec_side;
-*)
+
+Theorem LLOOKUP_MAP_SND:
+!l n e.
+LLOOKUP (MAP SND l) n = SOME e ==>
+?x. LLOOKUP l n = SOME (x,e)
+Proof
+Induct >> gs[LLOOKUP_def] >>
+rpt strip_tac >>
+cases_on ‘n = 0’ >> gvs[] >>
+qexists_tac ‘FST h’ >>
+gs[]
+QED
+
+Theorem e_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!e_ctx g_scope_list scope_list e.
+e_exec_side uninit e_ctx g_scope_list scope_list e
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+strip_tac >> strip_tac >> strip_tac >>          
+‘(!e. (\e. e_exec_side uninit_zero e_ctx g_scope_list scope_list e) e) /\
+ (!l. (\l:((string # p4$e) list). FOLDL (\b x_e. e_exec_side uninit_zero e_ctx g_scope_list scope_list (SND x_e) /\ b) T l) l) /\
+ (!(p:(string # p4$e)). (\x_e. e_exec_side uninit_zero e_ctx g_scope_list scope_list (SND x_e)) p) /\
+ (!e_l. (\e_l. FOLDL (\b e. e_exec_side uninit_zero e_ctx g_scope_list scope_list e /\ b) T e_l) e_l)’ suffices_by (
+ gs[]
+) >>
+irule e_induction >>
+rpt strip_tac >- (
+ simp[Once $ theorem "e_exec_side_def"]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ FULL_SIMP_TAC bool_ss [listTheory.FOLDL]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ gs[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >- (
+  gvs[copyin_exec_side_thm]
+ ) >>
+ gvs[] >>
+ irule FOLDL_and_member >>
+ ‘MEM x26 l’ by (
+  metis_tac[LLOOKUP_MEM]
+ ) >>
+ metis_tac[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gvs[] >>
+ ‘?x. LLOOKUP l x36 = SOME (x,x35)’ by metis_tac[LLOOKUP_MAP_SND] >>
+ ‘MEM (x,x35) l’ by (
+  metis_tac[LLOOKUP_MEM]
+ ) >>
+ ‘(λx_e. e_exec_side uninit_zero e_ctx g_scope_list scope_list (SND x_e)) (x,x35)’ suffices_by gs[] >>
+ irule FOLDL_and_member >>
+ metis_tac[]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gvs[]
+) >- (
+ FULL_SIMP_TAC bool_ss [listTheory.FOLDL]
+) >- (
+ simp[Once $ theorem "e_exec_side_def"] >>
+ rpt strip_tac >>
+ gs[]
+) >>
+simp[Once $ theorem "e_exec_side_def"] >>
+rpt strip_tac >>
+gs[]
+QED
 
 (*************************)
 (** Statement semantics **)
@@ -296,20 +552,69 @@ val _ = translate stmt_exec_cond_def;
 (* Block *)
 (* TODO: Fix this hack *)
 val _ = translate init_v_from_tau_cake_def;
-val _ = translate declare_list_in_fresh_scope_exec'_def;
 (*
+val _ = translate declare_list_in_fresh_scope_exec'_def;
+*)
 val _ = translate uninit_num_def;
 val _ = translate arb_from_tau_gen_def;
-val _ = translate declare_list_in_fresh_scope_exec_def;
-(* TODO: This should be inherited from uninit_zero on the
- * level above *)
-Theorem declare_list_in_fresh_scope_exec_side:
-!a b. declare_list_in_fresh_scope_exec_side a b
+Theorem arb_from_tau_gen_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!tau.
+arb_from_tau_gen_side uninit tau
 Proof
-cheat
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+‘(!tau. (\tau. arb_from_tau_gen_side uninit_zero tau) tau) /\
+ (!l. (\l:((string # p4$tau) list). FOLDL (\b x_tau. arb_from_tau_gen_side uninit_zero (SND x_tau) /\ b) T l) l) /\
+ (!(x_tau:(string # p4$tau)). (\x_tau. arb_from_tau_gen_side uninit_zero (SND x_tau)) x_tau)’ suffices_by (
+ gs[]
+) >>
+irule tau_induction >>
+rpt strip_tac >- (
+ simp[Once $ theorem "arb_from_tau_gen_side_def", Once $ definition "uninit_bit_side_def"]
+) >- (
+ simp[Once $ theorem "arb_from_tau_gen_side_def"]
+) >- (
+ simp[Once $ theorem "arb_from_tau_gen_side_def", Once $ definition "uninit_num_side_def"]
+) >- (
+ simp[Once $ theorem "arb_from_tau_gen_side_def"]
+) >- (
+ simp[Once $ theorem "arb_from_tau_gen_side_def"] >>
+ rpt strip_tac >- (
+  gvs[] >>
+  ‘(λx_tau. arb_from_tau_gen_side uninit_zero (SND x_tau)) (x2,x1)’ suffices_by gs[] >>
+  irule FOLDL_and_member >>
+  metis_tac[]
+ ) >- (
+  simp[Once $ definition "uninit_bit_side_def"]
+ ) >>
+ gvs[] >>
+ ‘(λx_tau. arb_from_tau_gen_side uninit_zero (SND x_tau)) (x5,x4)’ suffices_by gs[] >>
+ irule FOLDL_and_member >>
+ metis_tac[]
+) >- (
+ simp[Once $ theorem "arb_from_tau_gen_side_def"] >>
+ simp[Once $ definition "uninit_bit_side_def"]
+) >- (
+ FULL_SIMP_TAC bool_ss [listTheory.FOLDL]
+) >>
+FULL_SIMP_TAC bool_ss [SND]
 QED
-val _ = update_precondition declare_list_in_fresh_scope_exec_side;
-*)
+val _ = translate declare_list_in_fresh_scope_exec_def;
+Theorem declare_list_in_fresh_scope_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!scope.
+declare_list_in_fresh_scope_exec_side uninit scope
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+simp[Once $ definition "declare_list_in_fresh_scope_exec_side_def", arb_from_tau_gen_side_thm]
+QED
+val _ = update_precondition declare_list_in_fresh_scope_exec_side_thm;
 
 (* Return *)
 
@@ -352,6 +657,85 @@ then around a minute before finishing.
 Total time: 16m52s
 *)
 val _ = translate stmt_exec_def;
+Theorem stmt_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!ctx frame_list ascope g_scope_list status.
+stmt_exec_side uninit ctx (ascope, g_scope_list, frame_list, status)
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+strip_tac >>
+Induct >- (
+ simp[Once $ theorem "stmt_exec_side_def"]
+) >>
+Induct >> Induct_on ‘p_2’ >> Induct_on ‘p_1’ >> (
+(* Three duplicate cases *)
+ Induct_on ‘p_1'’ >- (
+  simp[Once $ theorem "stmt_exec_side_def"]
+ ) >>
+ Induct >> (rpt strip_tac >> (gvs[])) >- (
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[Once $ theorem "stmt_exec_side_def"]
+ ) >- (
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm] >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm]
+ ) >- (
+  (* Cond *)
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm] >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm]
+ ) >- (
+  (* Block *)
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[declare_list_in_fresh_scope_exec_side_thm]
+ ) >- (
+  (* Return *)
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm] >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm]
+ ) >- (
+  (* Sequence *)
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  rpt strip_tac >> (gvs[]) >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  rpt strip_tac >> (gvs[]) >>
+  TRY $ qpat_x_assum ‘∀s p_2' ascope g_scope_list status'.
+           stmt_exec_side uninit_zero (x89,x87,x85,x83,x81,x80)
+             (ascope,g_scope_list,[(_,h::x34::x33,p_2')],status')’ (fn thm => assume_tac $ SIMP_RULE std_ss [Once $ theorem "stmt_exec_side_def"] thm) >>
+  TRY $ qpat_x_assum ‘∀s s0 p_2' ascope g_scope_list status'.
+           stmt_exec_side uninit_zero (x89,x87,x85,x83,x81,x80)
+             (ascope,g_scope_list,[(_,h::x34::x33,p_2')],status')’ (fn thm => assume_tac $ SIMP_RULE std_ss [Once $ theorem "stmt_exec_side_def"] thm) >>
+  gs[] >>
+  TRY $ qpat_x_assum ‘∀s p_2' ascope g_scope_list status' x65 x64 x63 x62 x61 x60 x59 x58
+             x57 x56 x55 x54 x53. _’ (fn thm => assume_tac $ Q.SPECL [‘s’, ‘x32::x31’, ‘ascope’, ‘g_scope_list’, ‘status_running’] thm) >>
+  (* funn_ext case *)
+  TRY $ qpat_x_assum ‘∀s s0 p_2' ascope g_scope_list status' x65 x64 x63 x62 x61 x60 x59 x58
+             x57 x56 x55 x54 x53. _’ (fn thm => assume_tac $ Q.SPECL [‘s’, ‘x32::x31’, ‘ascope’, ‘g_scope_list’, ‘status_running’] thm) >>
+  cases_on ‘h’ >> (gs[])
+ ) >- (
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm] >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm]
+ ) >- (
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm] >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[e_exec_side_thm]
+ ) >- (
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[Once $ theorem "stmt_exec_side_def"] >>
+  simp[Once $ theorem "stmt_exec_side_def"]
+ )
+)
+QED
 
 
 (*********************)
@@ -366,18 +750,43 @@ val _ = translate is_d_none_in_def;
 val _ = translate update_return_frame_exec_def;
 val _ = translate copyout_exec_def;
 
-(* 29s - uninit precondition (cheated on level below) *)
+(* 29s *)
 val _ = translate frames_exec_def;
-
+Theorem frames_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!ctx frame_list ascope g_scope_list status.
+frames_exec_side uninit ctx (ascope, g_scope_list, frame_list, status)
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+strip_tac >>
+Induct >- (
+ simp[Once $ definition "frames_exec_side_def"]
+) >>
+Induct >> Induct_on ‘p_2’ >>
+simp[Once $ definition "frames_exec_side_def"] >>
+simp[stmt_exec_side_thm]
+QED
 
 (********************)
 (** Arch semantics **)
 val _ = translate lookup_block_body_def;
 val _ = translate oLASTN_def;
 
-(* TODO: Fix this hack *)
-(* val _ = translate init_v_from_tau_cake_def; *)
-val _ = translate declare_list_in_scope_exec'_def;
+val _ = translate declare_list_in_scope_exec_def;
+Theorem declare_list_in_scope_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!t_scope scope.
+declare_list_in_scope_exec_side uninit (t_scope,scope)
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+simp[Once $ definition "declare_list_in_scope_exec_side_def", arb_from_tau_gen_side_thm]
+QED
 
 val _ = translate AUPDATE_LIST_def;
 val _ = translate var_star_updates_of_func_map_def;
@@ -387,11 +796,85 @@ val _ = translate initialise_var_stars_def;
 val _ = translate state_fin_exec_def;
 val _ = translate set_fin_status_def;
 
-(* 90s - uninit precondition (cheated on level below) *)
+(* 90s *)
 val _ = translate arch_exec_def;
+Theorem arch_exec_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!ctx arch_frame_list ascope g_scope_list status.
+arch_exec_side uninit ctx (ascope, g_scope_list, arch_frame_list, status)
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+strip_tac >>
+Induct >- (
+ simp[Once $ definition "arch_exec_side_def"] >>
+ simp[frames_exec_side_thm, declare_list_in_scope_exec_side_thm]
+) >>
+Induct >> (
+ simp[Once $ definition "arch_exec_side_def"] >>
+ simp[frames_exec_side_thm, declare_list_in_scope_exec_side_thm]
+) >>
+simp[Once $ definition "arch_exec_side_def"] >>
+simp[frames_exec_side_thm, declare_list_in_scope_exec_side_thm]
+QED
 
 val _ = translate arch_multi_exec_def;
 val _ = translate arch_multi_exec_total_def;
+Theorem arch_multi_exec_total_side_thm:
+!uninit.
+uninit <> uninit_arb ==>
+!actx arch_frame_list ascope g_scope_list status n.
+arch_multi_exec_total_side uninit actx (ascope, g_scope_list, arch_frame_list, status) n
+Proof
+strip_tac >>
+strip_tac >>
+Cases_on ‘uninit’ >> (gs[]) >>
+strip_tac >>
+Induct_on ‘n’ >> (
+ simp[Once $ theorem "arch_multi_exec_total_side_def"]
+) >>
+rpt strip_tac >- (
+ gs[arch_exec_side_thm]
+) >>
+simp[Once $ theorem "arch_multi_exec_total_side_def"] >>
+rpt strip_tac >- (
+ PairCases_on ‘x1’ >>
+ gs[arch_exec_side_thm]
+) >>
+gs[Once $ theorem "arch_multi_exec_total_side_def"] >>
+PairCases_on ‘x1’ >>
+‘arch_exec_side uninit_zero actx
+          ((x10,x11,x12,x13),x14,x15,x16)’ suffices_by (
+ rpt strip_tac >>
+ res_tac
+) >>
+gs[arch_exec_side_thm]
+QED
+
+(* Note this is the only newly defined function, and the only one used by *)
+Definition arch_multi_exec_total_zero_def:
+ arch_multi_exec_total_zero actx astate n = arch_multi_exec_total uninit_zero actx astate n
+End
+val _ = translate arch_multi_exec_total_zero_def;
+Theorem arch_multi_exec_total_zero_side_thm:
+!actx arch_frame_list ascope g_scope_list status n.
+arch_multi_exec_total_zero_side actx (ascope, g_scope_list, arch_frame_list, status) n
+Proof
+strip_tac >>
+Induct >- (
+ simp[Once $ definition "arch_multi_exec_total_zero_side_def"] >>
+ simp[arch_multi_exec_total_side_thm]
+) >>
+Induct >> (
+ simp[Once $ definition "arch_multi_exec_total_zero_side_def"] >>
+ simp[arch_multi_exec_total_side_thm]
+) >>
+simp[Once $ definition "arch_multi_exec_total_zero_side_def"] >>
+simp[arch_multi_exec_total_side_thm]
+QED
+val _ = update_precondition arch_multi_exec_total_zero_side_thm;
 
 (******************************)
 (** Core arch implementation **)

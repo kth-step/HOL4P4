@@ -126,7 +126,7 @@ QED
 
 Theorem arch_exec_trace_1:
 !actx s s'.
- arch_multi_exec actx s 1 = SOME s' ==>
+ arch_multi_exec uninit_arb actx s 1 = SOME s' ==>
  trace_path ( \s s'. arch_red actx s s') 1 s s'
 Proof
 rpt strip_tac >>
@@ -138,7 +138,7 @@ QED
 
 Theorem arch_exec_trace_n:
 !actx n s s'.
- arch_multi_exec actx s n = SOME s' ==>
+ arch_multi_exec uninit_arb actx s n = SOME s' ==>
  trace_path ( \s s'. arch_red actx s s') n s s'
 Proof
 Induct_on ‘n’ >| [
@@ -147,13 +147,13 @@ Induct_on ‘n’ >| [
  fs[arch_multi_exec_def, trace_path_def],
 
  rpt strip_tac >>
- subgoal ‘?s''. arch_multi_exec actx s n = SOME s'' /\
-                arch_multi_exec actx s'' 1 = SOME s'’ >- (
+ subgoal ‘?s''. arch_multi_exec uninit_arb actx s n = SOME s'' /\
+                arch_multi_exec uninit_arb actx s'' 1 = SOME s'’ >- (
   fs [arithmeticTheory.SUC_ONE_ADD] >>
   PairCases_on ‘s’ >>
   FULL_SIMP_TAC empty_ss [Once ADD_SYM] >>
   fs[arch_multi_exec_add] >>
-  Cases_on ‘arch_multi_exec actx ((s0,s1,s2,s3),s4,s5,s6) n’ >> (
+  Cases_on ‘arch_multi_exec uninit_arb actx ((s0,s1,s2,s3),s4,s5,s6) n’ >> (
    fs[]
   ) >>
   PairCases_on ‘x’ >>

@@ -184,7 +184,7 @@ val ctx' = ``p4_vss_actx'``;
 
 (* EVAL-uate until packet is output (happens to be step 180) *)
 (* Theorem on line below proves data non-interference using proof approach 2 *)
-GEN_ALL $ EVAL ``arch_multi_exec ^ctx' ^init_astate 181``;
+GEN_ALL $ EVAL ``arch_multi_exec uninit_zero ^ctx' ^init_astate 181``;
 
 
 (**************************************************)

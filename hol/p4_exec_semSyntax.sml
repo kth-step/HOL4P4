@@ -7,8 +7,8 @@ open numSyntax;
 open p4_exec_semTheory;
 
 val (arch_multi_exec_tm, _, dest_arch_multi_exec, is_arch_multi_exec) =
-  syntax_fns3 "p4_exec_sem" "arch_multi_exec";
+  syntax_fns4 "p4_exec_sem" "arch_multi_exec";
 val mk_arch_multi_exec =
- (fn (ctx, state, fuel) => (#2 (syntax_fns3 "p4_exec_sem" "arch_multi_exec")) (ctx, state, term_of_int fuel));
+ (fn (ctx, state, fuel) => (#2 (syntax_fns4 "p4_exec_sem" "arch_multi_exec")) (“uninit_zero”, ctx, state, term_of_int fuel));
 
 end

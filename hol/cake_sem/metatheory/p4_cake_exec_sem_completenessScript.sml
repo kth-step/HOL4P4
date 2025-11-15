@@ -3526,7 +3526,7 @@ FOLDL AUPDATE [] l2 = l2 ==>
 FOLDL AUPDATE [(q,r)] l2 = (q,r)::l2
 Proof
 completeInduct_on ‘l2’ >>
- gs[] >>
+gs[] >>
 rpt strip_tac >>
 QED 
 

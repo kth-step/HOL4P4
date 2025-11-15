@@ -8,7 +8,7 @@ open ottTheory listTheory rich_listTheory arithmeticTheory p4_auxTheory p4Theory
 Definition e_exec_sound:
  (e_exec_sound (type:('a itself)) e =
   !(ctx:'a ctx) g_scope_list scopes_stack e' frame_list.
-  e_exec (get_e_ctx ctx) g_scope_list scopes_stack e = SOME (e', frame_list) ==>
+  e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e = SOME (e', frame_list) ==>
   e_red ctx g_scope_list scopes_stack e e' frame_list)
 End
 
@@ -128,7 +128,7 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
  irule ((valOf o find_clause_e_red) "e_concat_v") >>
  fs [clause_name_def],
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e2` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e2` >> (
   fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
@@ -142,7 +142,7 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
  ) >>
  metis_tac[((valOf o find_clause_e_red) "e_concat_arg2"), clause_name_def],
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
   fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
@@ -157,7 +157,7 @@ Cases_on `is_v_bit e1` >> Cases_on `is_v_bit e2` >> (
  metis_tac[((valOf o find_clause_e_red) "e_concat_arg1"), clause_name_def],
 
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
   fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
@@ -196,7 +196,7 @@ Cases_on `is_v_bit e1` >> (
  Cases_on ‘p’ >> Cases_on ‘p'’ >> Cases_on ‘p''’ >>
  fs[slice_def, slice'_def, AllCaseEqs()],
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
   fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
@@ -250,7 +250,7 @@ Cases_on `is_v e` >> (
   fs []
  ),
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e` >- (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e` >- (
   fs []
  ) >>
  Cases_on `x'` >>
@@ -493,7 +493,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
    fs [clause_name_def]
   ]
  ) >>
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e2` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e2` >> (
   fs [e_exec_def]
  ) >>
  Cases_on `x` >> (
@@ -502,7 +502,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  METIS_TAC [((valOf o find_clause_e_red) "e_binop_arg2"), clause_name_def],
 
  (* First operand is not fully reduced *)
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
   fs [e_exec_def]
  ) >> (
   Cases_on `e1` >> (
@@ -515,7 +515,7 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
  ),
 
  (* No operand is fully reduced *)
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e1` >> (
   fs [e_exec_def]
  ) >> (
   Cases_on `e1` >> (
@@ -611,7 +611,7 @@ Cases_on `is_v e` >| [
  ] >>
  gs[clause_name_def],
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e` >> (
   gs[e_exec_def]
  ) >>
  Cases_on `x` >>
@@ -667,7 +667,7 @@ Cases_on `is_v e` >| [
   )
  ],
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack e` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack e` >> (
   fs [e_exec_def]
  ) >>
  Cases_on `x` >>
@@ -750,23 +750,62 @@ Induct >> (
 )
 QED
 
-(* TODO: ARB *)
-Theorem init_out_v_cake_eq_init_out_v:
-init_out_v_cake = init_out_v
+Theorem init_out_v_gen_arb_eq_init_out_v:
+!v.
+init_out_v_gen uninit_arb v = init_out_v v
 Proof
-cheat
+‘(!v. (\v. init_out_v_gen uninit_arb v = init_out_v v) v) /\
+ (!l. (\l:((string # p4$v) list). (MAP (\(x,v). (x, init_out_v_gen uninit_arb v)) l) = (MAP (\(x,v). (x, init_out_v v)) l)) l) /\
+ (!(p:(string # p4$v)). (\x_v. init_out_v_gen uninit_arb (SND x_v) = init_out_v (SND x_v)) p)’ suffices_by (
+ gs[]
+) >>
+irule v_induction >>
+rpt strip_tac >- (
+ gs[init_out_v_gen_def, init_out_v_def]
+) >- (
+ gs[]
+) >- (
+ gs[init_out_v_gen_def, uninit_bit_def, init_out_v_def]
+) >- (
+ gs[init_out_v_gen_def, uninit_string_def, init_out_v_def]
+) >- (
+ (* struct case *)
+ gs[] >>
+ Cases_on ‘l’ >- (
+  gs[init_out_v_gen_def, init_out_v_def]
+ ) >>
+ Cases_on ‘h’ >>
+ gs[init_out_v_gen_def, init_out_v_def]
+) >- (
+ (* header case *)
+ gs[] >>
+ Cases_on ‘l’ >- (
+  gs[init_out_v_gen_def, init_out_v_def]
+ ) >>
+ Cases_on ‘h’ >>
+ gs[init_out_v_gen_def, init_out_v_def]
+) >- (
+ gs[init_out_v_gen_def, init_out_v_def]
+) >- (
+ Cases_on ‘p’ >>
+ gs[init_out_v_gen_def, uninit_bit_def, init_out_v_def]
+) >- (
+ Cases_on ‘p’ >>
+ gs[]
+) >>
+gs[pairTheory.SND]
 QED
 
 Theorem update_arg_for_newscope_imp:
 !scopes l1 l2 scopes'.
-update_arg_for_newscope_exec scopes l1 l2 = SOME scopes' ==>
+update_arg_for_newscope_exec uninit_arb scopes l1 l2 = SOME scopes' ==>
 update_arg_for_newscope scopes l1 l2 = SOME scopes'
 Proof
 Cases_on ‘l2’ >>
 Cases_on ‘r’ >>
 gs[update_arg_for_newscope_exec_def, update_arg_for_newscope_def, one_arg_val_for_newscope_exec_def,
-   one_arg_val_for_newscope_def (* , init_out_v_gen_equiv *), lookup_lval'_imp,
-   init_out_v_cake_eq_init_out_v, AllCaseEqs()] >>
+   one_arg_val_for_newscope_def, init_out_v_gen_arb_eq_init_out_v, lookup_lval'_imp,
+   AllCaseEqs()] >>
 rpt strip_tac >>
 gvs[] >>
 metis_tac[lookup_lval'_imp]
@@ -809,22 +848,22 @@ ASM_REWRITE_TAC[]
 QED
 
 Theorem update_arg_for_newscope_exec_NONE:
-!d_x_e scopes_stack g_scope_list. update_arg_for_newscope_exec (scopes_stack ++ g_scope_list) NONE d_x_e = NONE
+!uninit d_x_e scopes_stack g_scope_list. update_arg_for_newscope_exec uninit (scopes_stack ++ g_scope_list) NONE d_x_e = NONE
 Proof
-strip_tac >>
+rpt strip_tac >>
 PairCases_on ‘d_x_e’ >>
 gs[update_arg_for_newscope_exec_def]
 QED
 
 Theorem copyin_exec_equiv:
 !s_l d_l l g_scope_list scopes_stack scopes_stack'.
-copyin_exec s_l d_l l g_scope_list scopes_stack = SOME scopes_stack' ==>
+copyin_exec uninit_arb s_l d_l l g_scope_list scopes_stack = SOME scopes_stack' ==>
 copyin s_l d_l l g_scope_list scopes_stack = SOME scopes_stack'
 Proof
 gs[copyin_exec_def, copyin_def, all_arg_update_for_newscope_exec_def, all_arg_update_for_newscope_def] >>
 rw[] >>
 irule FOLDL_IMP >>
-qexistsl_tac [‘update_arg_for_newscope_exec (scopes_stack ++ g_scope_list)’] >>
+qexistsl_tac [‘update_arg_for_newscope_exec uninit_arb (scopes_stack ++ g_scope_list)’] >>
 gs[update_arg_for_newscope_exec_NONE] >>
 metis_tac[update_arg_for_newscope_imp]
 QED
@@ -849,7 +888,7 @@ Cases_on `unred_arg_index (MAP SND r) l` >> (
  fs []
 ) >| [
  (* e_call_newframe *)
- Cases_on `copyin_exec (MAP FST r) (MAP SND r) l g_scope_list scopes_stack` >> (
+ Cases_on `copyin_exec uninit_arb (MAP FST r) (MAP SND r) l g_scope_list scopes_stack` >> (
   fs []
  ) >>
  IMP_RES_TAC map_tri_zip12 >>
@@ -860,7 +899,7 @@ Cases_on `unred_arg_index (MAP SND r) l` >> (
  (* e_call_args *)
  gs[AllCaseEqs()] >>
 (*
- Cases_on `e_exec (ext_map,func_map,b_func_map) g_scope_list scopes_stack (EL x l)` >> (
+ Cases_on `e_exec uninit_arb (ext_map,func_map,b_func_map) g_scope_list scopes_stack (EL x l)` >> (
   fs []
  ) >>
  Cases_on `x'` >>
@@ -971,7 +1010,7 @@ Cases_on `unred_mem_index (MAP SND x_e_l)` >> (
   fs [UNZIP_ZIP, unred_mem_index_NONE]
  ),
 
- Cases_on `e_exec (get_e_ctx ctx) g_scope_list scopes_stack (EL x (MAP SND x_e_l))` >> (
+ Cases_on `e_exec uninit_arb (get_e_ctx ctx) g_scope_list scopes_stack (EL x (MAP SND x_e_l))` >> (
   fs []
  ) >>
  gvs[AllCaseEqs()] >> (

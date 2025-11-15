@@ -10,14 +10,14 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_e_
 Definition stmt_exec_sound:
  (stmt_exec_sound (type:('a itself)) stmt =
   !(ctx:'a ctx) ascope g_scope_list funn stmt_stack scope_list status state'.
-  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_exec uninit_arb ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) = SOME state' ==>
   stmt_red ctx (ascope, g_scope_list, [(funn, stmt::stmt_stack, scope_list)], status) state')
 End
 
 Definition stmt_stack_exec_sound:
  (stmt_stack_exec_sound (type:('a itself)) stmt_stack =
   !(ctx:'a ctx) ascope g_scope_list funn scope_list status state'.
-  stmt_exec ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) = SOME state' ==>
+  stmt_exec uninit_arb ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) = SOME state' ==>
   stmt_red ctx (ascope, g_scope_list, [(funn, stmt_stack, scope_list)], status) state')
 End
 
@@ -442,14 +442,12 @@ Cases_on `is_v_bool e` >> (
 ]
 QED
 
-(* TODO: ARB *)
-Theorem declare_list_in_fresh_scope_exec'_imp:
+Theorem declare_list_in_fresh_scope_exec_imp:
 !t_scope scope.
-declare_list_in_fresh_scope_exec' t_scope = scope ==>
+declare_list_in_fresh_scope_exec uninit_arb t_scope = scope ==>
 declare_list_in_fresh_scope t_scope = scope
 Proof
-gs[declare_list_in_fresh_scope_exec'_def, declare_list_in_fresh_scope_def] >>
-cheat
+gs[declare_list_in_fresh_scope_exec_def, declare_list_in_fresh_scope_def, arb_from_tau_gen_arb_equiv]
 QED
 
 Theorem stmt_block_exec_sound_red:
@@ -475,7 +473,7 @@ Cases_on ‘stmt_stack’ >| [
  gs[clause_name_def]
 ] >> (
  irule ((valOf o find_clause_stmt_red) "stmt_block_enter") >>
- gs[clause_name_def, declare_list_in_fresh_scope_exec_arb_equiv, declare_list_in_fresh_scope_exec'_imp]
+ gs[clause_name_def, declare_list_in_fresh_scope_exec_arb_equiv, declare_list_in_fresh_scope_exec_imp]
 )
 QED
 

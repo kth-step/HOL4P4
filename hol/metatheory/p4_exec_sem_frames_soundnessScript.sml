@@ -8,7 +8,7 @@ open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_st
 Definition frame_list_exec_sound:
  (frame_list_exec_sound (type:'a itself) frame_list =
   !(ctx:'a ctx) ascope g_scope_list status state'.
-  frames_exec ctx (ascope, g_scope_list, frame_list, status) = SOME state' ==>
+  frames_exec uninit_arb ctx (ascope, g_scope_list, frame_list, status) = SOME state' ==>
   frames_red ctx (ascope, g_scope_list, frame_list, status) state')
 End
 

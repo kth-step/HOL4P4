@@ -718,7 +718,7 @@ Definition v1model_copyin_pbl_def:
  v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
   case v1model_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   (case copyin_exec xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
+   (case copyin_exec uninit_zero xlist dlist elist' [v_map_to_scope v_map] [ [] ] of
     | SOME scope =>
      SOME scope
     | NONE => NONE)
