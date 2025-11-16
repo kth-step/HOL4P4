@@ -215,11 +215,7 @@ Theorem evaluate_prog_thm =
 
 
 val env = get_ml_prog_state() |> ml_progLib.get_env
-val st = get_ml_prog_state () |> ml_progLib.get_state
-*)
-
-
-(*)                                                
+val st = get_ml_prog_state () |> ml_progLib.get_state                                               
 ml_progLib.get_Decls_thm (get_ml_prog_state())
 *)
 
@@ -235,50 +231,6 @@ val _ = astToSexprLib.write_ast_to_file "test_new.sexp" prog_tm;
 
 
 
-(*
-val _ = astToSexprLib.write_ast_to_file "test_new.sexp"
-(“SNOC
-    (Dlet unknown_loc (Pcon NONE [])
-     (App Opapp [Var (Short "main"); Con NONE []]))
-     ^(get_ml_prog_state() |> get_prog)”
-   |> EVAL |> concl |> rhs) ;
-
-
-
-
-
-   val res = append_prog o process_topdecs $ `
-fun main () =
-let
-  val args = CommandLine.arguments()
-  val zero_flags = ["-0","--zero"]
-  val help_flags = ["-h","--help"]
-  val help = List.exists (fn f => List.member f help_flags) args
-  val zero = List.exists (fn f => List.member f zero_flags) args
-  val args_filter = List.filter
-    (fn f => not(List.member f (zero_flags @ help_flags))) args
-  val split_char = Char.chr (if zero then 0 else 10)
-  val content = case args_filter of
-     [] => TextIO.inputAll TextIO.stdIn
-    | args => String.concat (List.map (TextIO.inputAll o TextIO.openIn) args)
-  val content_lines = String.tokens (fn c => c = split_char) content
-in
-  if help then
-    TextIO.print help_string
-  else
-    TextIO.print
-      (String.concatWith
-        (String.str split_char)
-        (List.map (String.implode o qrev o String.explode) content_lines))
-end;
-`;
-    
-   
-*)
-
-
-
-
     
 (****************************************************)
 
@@ -287,15 +239,13 @@ end;
 val current_prog =
 Decls_thm |> concl |> strip_comb |> #2 |> el 3
 
-
-          
-
 val _ = astPP.enable_astPP ();
 print_term (current_prog);
 val _ = astPP.disable_astPP();
 *)
 
 
+(*
 (* to get the binary *)
 open eval_cake_compile_x64Lib;
 (*val state = get_ml_prog_state();
@@ -304,9 +254,10 @@ val bdd_prog_def = Define ‘out_prog = ^prog_tm’ ;
 
 Theorem blah_compiled =
   eval_cake_compile_x64 "" bdd_prog_def "bew_bdd.S";
+*)
 
 
-(*)
+(*
 val Decls_thm =
   get_ml_prog_state ()
   |> ml_progLib.clean_state
@@ -371,8 +322,6 @@ val prog =
 
 
 val _ = astToSexprLib.write_ast_to_file "revProg.sexp" prog;
-
-
 
  *)
 
