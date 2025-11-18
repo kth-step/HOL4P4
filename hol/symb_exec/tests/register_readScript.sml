@@ -265,7 +265,7 @@ val symb_exec7_astate_symb =
        ("action_run",v_bit (REPLICATE 32 F,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate``;
 
- val fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_ftymap_entries ^symb_exec7_ftymap”
+val fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_ftymap_entries ^symb_exec7_ftymap”
 val b_fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_b_ftymap_entries ^symb_exec7_blftymap”
 
 val symb_exec7_ctx_tm = “(^fty_map', ^b_fty_map', ^symb_exec7_pblock_action_names_map)”
@@ -296,6 +296,12 @@ val postcond = “(\s. T):v1model_ascope astate -> bool”;
 val fuel = 1;
 val postcond_rewr_thms = []
 val postcond_simpset = pure_ss
+
+(*
+#3 $ el 1 $ snd $ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt 20;
+
+#3 $ el 1 $ snd $ p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt 21;
+*)
 
 val time_start = Time.now();
 (*

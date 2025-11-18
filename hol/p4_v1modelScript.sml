@@ -292,9 +292,8 @@ Definition get_oracle_calls_array_def:
 End
 
 Definition v1model_register_construct_inner_def:
- (v1model_register_construct_inner size width oracle_index random_oracle =
+ v1model_register_construct_inner size width oracle_index random_oracle =
   get_oracle_calls_array width oracle_index random_oracle size
- )
 End
         
 Definition register_construct_def:
@@ -304,7 +303,7 @@ Definition register_construct_def:
    (case lookup_lval scope_list (lval_varname (varn_name "targ1")) of
     | SOME (v_bit (bl', n')) =>
      let size = v2n bl in
-     let width = v2n bl' in
+     let width = n' in
      let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_register (v1model_register_construct_inner size width oracle_index random_oracle))) in
      (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
       | SOME scope_list' =>

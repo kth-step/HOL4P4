@@ -729,26 +729,6 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
 (*
 val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”);
 
-basic:
-val apply (tbl_name, e) = apply
-    (“"spd"”,
-     “[e_v
-         (v_bit
-            ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135; ip136;
-              ip137; ip138; ip139; ip140; ip141; ip142; ip143; ip144; ip145;
-              ip146; ip147; ip148; ip149; ip150; ip151; ip152; ip153; ip154;
-              ip155; ip156; ip157; ip158; ip159],32));
-       e_v (v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8))]”);
-
-ARBs:
-val apply (tbl_name, e) = apply
-    (“"forward"”,
-     “[e_v
-       (v_bit
-	  ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-	    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-	    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]”);
-
 *)
     if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso
        (* Perform a symbolic branch if the apply expression (list) contains
@@ -805,7 +785,7 @@ basic:
 *)
         val i = #1 $ dest_aenv $ #1 $ dest_astate astate
         (* TODO: Unify with the syntactic function obtaining the state above? *)
-        val (ab_list, pblock_map, _, _, _, _, _, _, _, _, _, _, _) = dest_actx $ rhs $ concl ctx_def
+        val (ab_list, pblock_map, _, _, _, _, _, _, _, _, _, _, _) = dest_actx $ rhs $ snd $ strip_forall $ concl ctx_def
         val (curr_block, _) = dest_arch_block_pbl $ rhs $ concl $ HOL4P4_CONV $ mk_el (i, ab_list)
 
         (* TODO: All of the information extracted from the ctx below could be
@@ -3027,7 +3007,7 @@ fun p4_debug_symb_exec arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names
      (ctx_tm, hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx_tm), ctx_tm)))
     end
    | def_thm ctx_def =>
-    (rhs $ concl ctx_def, ctx_def)
+    (snd $ strip_forall $ rhs $ concl ctx_def, ctx_def)
 
   val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list

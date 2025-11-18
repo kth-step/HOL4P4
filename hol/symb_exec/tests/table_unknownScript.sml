@@ -135,17 +135,17 @@ val symb_exec6_actx = ``([arch_block_inp;
  v1model_input_f
    (v_struct
       [("h",
-        v_header ARB
+        v_header F
           [("row",
             v_struct
-              [("e",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+              [("e",v_bit ([F; F; F; F; F; F; F; F],8));
                ("t",
                 v_bit
-                  ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                    ARB; ARB; ARB; ARB; ARB],16));
-               ("l",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
-               ("r",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
-               ("v",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8))])])],
+                  ([F; F; F; F; F; F; F; F; F; F; F;
+                    F; F; F; F; F],16));
+               ("l",v_bit ([F; F; F; F; F; F; F; F],8));
+               ("r",v_bit ([F; F; F; F; F; F; F; F],8));
+               ("v",v_bit ([F; F; F; F; F; F; F; F],8))])])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
  v1model_apply_table_f,
  [("header",NONE,
@@ -231,8 +231,8 @@ val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
        e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])],0),
  [[(varn_name "gen_apply_result",
     v_struct
-      [("hit",v_bool ARB); ("miss",v_bool ARB);
-       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
+      [("hit",v_bool F); ("miss",v_bool T);
+       ("action_run",v_bit (REPLICATE 32 F,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate``;
 
 (* Additional parts of the context relevant only to symbolic execution *)

@@ -38,10 +38,11 @@ fun approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list asc
   val array_size = fst $ dest_pair $ dest_v_bit $ lookup_var "size" scope_list
   val targ1_width = snd $ dest_pair $ dest_v_bit $ lookup_var "targ1" scope_list
   val oracle_index = #5 $ dest_v1model_ascope ascope
-  val tm1 = mk_v1model_register_construct_inner (array_size, targ1_width, oracle_index, random_oracle_tm)
 
   (* TODO: HOL4P4_CONV? *)
   val array_size_num = rhs $ concl $ EVAL (mk_v2n array_size)
+
+  val tm1 = mk_v1model_register_construct_inner (array_size_num, targ1_width, oracle_index, random_oracle_tm)
 
   (* TODO: Hacky... *)
   val rhs_tm = hd $ fst $ dest_list $ fixedwidth_freevars_fromindex_ty (p4_symb_arg_prefix, fv_index, 1, mk_list_type $ mk_prod (mk_list_type bool, num))
@@ -49,9 +50,13 @@ fun approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list asc
 
   val approx_thm =
    (* “^goal_tm” *)
-   (* TODO: Fix this *)
    prove(goal_tm,
-    SIMP_TAC std_ss [disj_list_def, v1model_register_construct_inner_def (*, wellformed_register_array_replicate_arb *)]
+(*
+    SIMP_TAC std_ss [disj_list_def, v1model_register_construct_inner_def, get_oracle_calls_array_def] >>
+*)
+   (* TODO: Why doesn't just the above work? Make more efficient solution... *)
+    SIMP_TAC bool_ss [disj_list_def] >>
+    EVAL_TAC
    );
  in
   SOME (approx_thm, [fv_index+1])
@@ -83,8 +88,23 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
    rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
   );
 
+  val oracle_index_int = int_of_term oracle_index
+  val w = (int_of_term entry_width)-1
+
+  (* TODO: Move? *)
+  fun provide_oracle_witnesses oracle_index_int 0 =
+     exists_tac (mk_comb (random_oracle_tm, term_of_int oracle_index_int))
+    | provide_oracle_witnesses oracle_index_int w =
+     let
+      val curr_index = oracle_index_int + w
+     in
+      provide_oracle_witnesses oracle_index_int (w-1) >>
+      exists_tac (mk_comb (random_oracle_tm, term_of_int curr_index))
+     end
+  ;
+
   val approx_thm =
-   (* “^goal_tm” *)
+   (* “^(mk_imp (mk_wellformed_register_array (entry_width, array), goal_tm))” *)
    prove(mk_imp (mk_wellformed_register_array (entry_width, array), goal_tm),
     (* As soon as possible, hide the array, which may be big *)
     markerLib.ABBREV_TAC (mk_eq (mk_var("array", mk_list_type (mk_prod (mk_list_type bool, num))) ,array)) >>
@@ -94,7 +114,10 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
     CASE_TAC >- (
      (* TODO: HOL4P4_TAC or other solution? *)
      EVAL_TAC >>
+(*
      ntac (int_of_term entry_width) (exists_tac (mk_arb bool)) >>
+*)
+     provide_oracle_witnesses oracle_index_int w >>
      REWRITE_TAC []
     ) >>
     Cases_on ‘x’ >>
