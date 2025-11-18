@@ -3358,7 +3358,7 @@ arch_multi_exec uninit (ab_list,pblock_map,ffblock_map,input_f,output_f,copyin_p
           ((i,io_list,io_list',ascope),g_scope_list',
            arch_frame_list_regular frame_list',status_running) ==>
 ?x el pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
- EL i ab_list = arch_block_pbl x el /\
+ oEL i ab_list = SOME $ arch_block_pbl x el /\
  ALOOKUP pblock_map x =
           SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map)
 Proof
@@ -3409,10 +3409,7 @@ Cases_on ‘x5’ >- (
  ) >>
  gs[AllCaseEqs()]
 ) >>
-gvs[arch_exec_def, AllCaseEqs()] >- (
- metis_tac[listTheory.oEL_EQ_EL]
-) >>
-metis_tac[listTheory.oEL_EQ_EL]
+gvs[arch_exec_def, AllCaseEqs()]
 QED
 
 val _ = export_theory ();

@@ -54,23 +54,23 @@ End
 
 (* Note this can be simplified, since HOL4 functions are deterministic *)
 Definition p4_contract_def:
- p4_contract P ctx s Q =
-  (P ==> ?n. arch_multi_exec ctx s n <> NONE /\ !s'. arch_multi_exec ctx s n = SOME s' ==> Q s')
+ p4_contract P uninit ctx s Q =
+  (P ==> ?n. arch_multi_exec uninit ctx s n <> NONE /\ !s'. arch_multi_exec uninit ctx s n = SOME s' ==> Q s')
 End
 
 (* TODO: This can be written using FOLDL *)
 Definition p4_contract_list_def:
- (p4_contract_list P [] ctx s Q = T) /\
- (p4_contract_list P (h::[]) ctx s Q = p4_contract (P /\ h) ctx s Q) /\
- (p4_contract_list P (h::t) ctx s Q = (p4_contract (P /\ h) ctx s Q /\ p4_contract_list P t ctx s Q))
+ (p4_contract_list P [] uninit ctx s Q = T) /\
+ (p4_contract_list P (h::[]) uninit ctx s Q = p4_contract (P /\ h) uninit ctx s Q) /\
+ (p4_contract_list P (h::t) uninit ctx s Q = (p4_contract (P /\ h) uninit ctx s Q /\ p4_contract_list P t uninit ctx s Q))
 End
 
 Theorem p4_contract_list_REWR:
- !R P P_list P_list' ctx s Q b.
- ((p4_contract_list R P_list ctx s Q /\ p4_contract (R /\ P) ctx s Q) <=>
-   p4_contract_list R (P_list++[P]) ctx s Q)
+ !R P P_list P_list' uninit ctx s Q b.
+ ((p4_contract_list R P_list uninit ctx s Q /\ p4_contract (R /\ P) uninit ctx s Q) <=>
+   p4_contract_list R (P_list++[P]) uninit ctx s Q)
  /\
- ((p4_contract (R /\ P) ctx s Q /\ b) <=> (p4_contract_list R [P] ctx s Q /\ b))
+ ((p4_contract (R /\ P) uninit ctx s Q /\ b) <=> (p4_contract_list R [P] uninit ctx s Q /\ b))
 Proof
 fs[p4_contract_list_def] >>
 Induct_on ‘P_list’ >> (
@@ -83,9 +83,9 @@ Cases_on ‘P_list’ >> (
 QED
 
 Theorem p4_contract_list_trivial_REWR:
- !R P ctx s Q.
- p4_contract (R /\ P) ctx s Q <=>
-   p4_contract_list R [P] ctx s Q
+ !R P uninit ctx s Q.
+ p4_contract (R /\ P) uninit ctx s Q <=>
+   p4_contract_list R [P] uninit ctx s Q
 Proof
 fs[p4_contract_list_def]
 QED
@@ -93,9 +93,9 @@ QED
 (* Sometimes the conjunction has been flipped. Then this is useful.
  * (CONJ_COMM is looping and so a hassle to use in proof procedures, among other reasons) *)
 Theorem p4_contract_list_GSYM_REWR:
- !R P P_list ctx s Q b.
- ((p4_contract_list R P_list ctx s Q /\ (p4_contract (P /\ R) ctx s Q)) <=> (p4_contract_list R (P_list++[P]) ctx s Q)) /\
- ((p4_contract (P /\ R) ctx s Q /\ b) <=> (p4_contract_list R [P] ctx s Q /\ b))
+ !R P P_list uninit ctx s Q b.
+ ((p4_contract_list R P_list uninit ctx s Q /\ (p4_contract (P /\ R) uninit ctx s Q)) <=> (p4_contract_list R (P_list++[P]) uninit ctx s Q)) /\
+ ((p4_contract (P /\ R) uninit ctx s Q /\ b) <=> (p4_contract_list R [P] uninit ctx s Q /\ b))
 Proof
 fs[p4_contract_list_def] >>
 Induct_on ‘P_list’ >> (
@@ -108,8 +108,8 @@ Cases_on ‘P_list’ >> (
 QED
 
 Theorem p4_contract_list_REWR2:
- !R P_list P_list' ctx s Q.
- ((p4_contract_list R P_list ctx s Q /\ p4_contract_list R P_list' ctx s Q) <=> (p4_contract_list R (P_list++P_list') ctx s Q))
+ !R P_list P_list' uninit ctx s Q.
+ ((p4_contract_list R P_list uninit ctx s Q /\ p4_contract_list R P_list' uninit ctx s Q) <=> (p4_contract_list R (P_list++P_list') uninit ctx s Q))
 Proof
 fs[p4_contract_list_def] >>
 Induct_on ‘P_list’ >> (
@@ -131,16 +131,16 @@ eq_tac >> (
 QED
 
 Theorem p4_contract_imp_REWR:
- !P ctx s Q.
- ((p4_contract P ctx s Q) <=> (p4_contract (T /\ P) ctx s Q))
+ !P uninit ctx s Q.
+ ((p4_contract P uninit ctx s Q) <=> (p4_contract (T /\ P) uninit ctx s Q))
 Proof
 fs[p4_contract_def]
 QED
 
 Theorem p4_symb_exec_to_contract:
-!P ctx s n s' Q.
-(P ==> arch_multi_exec ctx s n = SOME s' /\ Q s') ==>
-p4_contract P ctx s Q
+!P uninit ctx s n s' Q.
+(P ==> arch_multi_exec uninit ctx s n = SOME s' /\ Q s') ==>
+p4_contract P uninit ctx s Q
 Proof
 fs[p4_contract_def] >>
 rpt strip_tac >>
@@ -153,10 +153,10 @@ QED
 (* For branching and unification *)
 
 Theorem p4_symb_exec_unify:
-!P1 P2 ctx s Q.
-p4_contract (P1 /\ P2) ctx s Q ==>
-p4_contract (~P1 /\ P2) ctx s Q ==>
-p4_contract P2 ctx s Q
+!P1 P2 uninit ctx s Q.
+p4_contract (P1 /\ P2) uninit ctx s Q ==>
+p4_contract (~P1 /\ P2) uninit ctx s Q ==>
+p4_contract P2 uninit ctx s Q
 Proof
 fs[p4_contract_def] >>
 metis_tac []
@@ -183,10 +183,10 @@ rpt strip_tac >> (
 QED
 *)
 Theorem p4_symb_exec_unify_n_gen:
-!P_list R ctx s Q.
+!P_list R uninit ctx s Q.
 symb_branch_cases R P_list ==>
-p4_contract_list R P_list ctx s Q ==>
-p4_contract R ctx s Q
+p4_contract_list R P_list uninit ctx s Q ==>
+p4_contract R uninit ctx s Q
 Proof
 Induct_on ‘P_list’ >> (
  fs [symb_branch_cases_def, disj_list_def, p4_contract_list_def, p4_contract_def]
@@ -200,29 +200,29 @@ rpt strip_tac >> (
 QED
 
 Theorem p4_contract_pre_str:
-!P P' ctx s Q.
+!P P' uninit ctx s Q.
 (P' ==> P) ==>
-(p4_contract P ctx s Q ==>
-p4_contract P' ctx s Q)
+(p4_contract P uninit ctx s Q ==>
+p4_contract P' uninit ctx s Q)
 Proof
 fs[p4_contract_def]
 QED
 
 Definition p4_contract'_def:
- p4_contract' P ctx Q <=>
+ p4_contract' P uninit ctx Q <=>
   !s.
    P s ==>
-   ?n. arch_multi_exec ctx s n <> NONE /\
-       !s'. arch_multi_exec ctx s n = SOME s' ==> Q s'
+   ?n. arch_multi_exec uninit ctx s n <> NONE /\
+       !s'. arch_multi_exec uninit ctx s n = SOME s' ==> Q s'
 End
 
 (* Sanity check on the above formulation *)
 Theorem p4_contract'_alt_shape:
-!P ctx Q.
-p4_contract' P ctx Q <=>
+!P uninit ctx Q.
+p4_contract' P uninit ctx Q <=>
 (!s.
  P s ==>
- ?n s'. arch_multi_exec ctx s n = SOME s' /\ Q s')
+ ?n s'. arch_multi_exec uninit ctx s n = SOME s' /\ Q s')
 Proof
 gs[p4_contract'_def] >>
 rpt strip_tac >>
@@ -230,7 +230,7 @@ eq_tac >> (
  rpt strip_tac >>
  res_tac >>
  qexists_tac ‘n’ >>
- Cases_on ‘arch_multi_exec ctx s n’ >> (
+ Cases_on ‘arch_multi_exec uninit ctx s n’ >> (
   gs[]
  )
 )
@@ -423,7 +423,7 @@ Proof
 gs[symb_exec_abbrevs_def]
 QED
 *)
-        
+
 Definition symb_exec_abbrevs_def:
  (symb_exec_abbrevs P = P:bool)
 End

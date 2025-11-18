@@ -147,7 +147,7 @@ val symb_exec6_actx = ``([arch_block_inp;
                ("r",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
                ("v",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8))])])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f'',
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -202,32 +202,24 @@ val symb_exec6_actx = ``([arch_block_inp;
 
 val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("t2",t2_ctrl);
-   ("t1",
-    [(((λk.
-            match_all
-              (ZIP
-                 (MAP (λe. THE (v_of_e e)) k,
-                  [s_sing (v_bit ([F; F; F; F; F; F; F; T],8))]))),0),
-      "set_out_port",
-      [e_v (v_bool T); e_v (v_bool T);
-       e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))]);
-     (((λk.
-            match_all
-              (ZIP
-                 (MAP (λe. THE (v_of_e e)) k,
-                  [s_sing (v_bit ([F; F; F; F; F; F; T; F],8))]))),0),
+  [("t2", tbl_regular t2_ctrl);
+   ("t1", tbl_regular 
+    [(([s_sing (v_bit ([F; F; F; F; F; F; F; T],8))],0),
+     "set_out_port",
+     [e_v (v_bool T); e_v (v_bool T);
+      e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))]);
+      
+     (([s_sing (v_bit ([F; F; F; F; F; F; T; F],8))],0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; T; F; T; T; T; T],9))]);
-     (((λk.
-            match_all
-              (ZIP
-                 (MAP (λe. THE (v_of_e e)) k,
-                  [s_sing (v_bit ([F; F; F; F; F; F; T; T],8))]))),0),
+       
+     (([s_sing (v_bit ([F; F; F; F; F; F; T; T],8))],0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
-       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])]),
+       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])]
+   )
+ ]),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool ARB); ("miss",v_bool ARB);
@@ -245,13 +237,14 @@ val symb_exec6_pblock_map = #2 $ p4Syntax.dest_actx symb_exec6_actx;
 val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of symb_exec6_pblock_map), symb_exec6_pblock_map))
 val symb_exec6_ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope $ #4 $ p4Syntax.dest_aenv $ #1 $ p4Syntax.dest_astate symb_exec6_astate_symb;
 val symb_exec6_wf_tm = “v1model_ctrl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) (^symb_exec6_ctrl)”
-val symb_exec6_wf_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("t2",t2_ctrl)”
+val symb_exec6_wf_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("t2", tbl_regular t2_ctrl)”
 
 
 (* Parameter assignment for debugging: *)
 val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec6_actx
+val ctx_data = def_term ctx
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec6_ftymap, symb_exec6_blftymap, symb_exec6_pblock_action_names_map)
 val const_actions_tables = ["t1"]
 val path_cond_defs = [symb_exec_ctx_def, symb_exec_pblock_map_def]
@@ -310,7 +303,7 @@ val time_start = Time.now();
 (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

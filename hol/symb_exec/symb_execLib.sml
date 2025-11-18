@@ -516,7 +516,7 @@ fun prove_postcond rewr_thms restr_tms simpset postcond step_thm =
 
 (* DEBUG
 val step_thms = map #3 path_cond_step_list;
-val step_thm = el 5 step_thms
+val step_thm = el 1 step_thms
 
 (* basic: Index 24, 32, 52, 67 are interesting *)
 val h = el 24 step_thms

@@ -190,7 +190,7 @@ val symb_exec8_actx = ``([arch_block_inp;
                ("r",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
                ("v",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8))])])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f'',
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -251,29 +251,17 @@ val symb_exec8_astate_symb =
  F; F; F; F; F; F; F; F;
  F; F; F; F; F; F; F; F;
  T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("t2",t2_ctrl);
-   ("t1",
-    [(((λk.
-            match_all
-              (ZIP
-                 (MAP (λe. THE (v_of_e e)) k,
-                  [s_sing (v_bit ([F; F; F; F; F; F; F; T],8))]))),0),
+  [("t2", tbl_regular t2_ctrl);
+   ("t1", tbl_regular
+    [(([s_sing (v_bit ([F; F; F; F; F; F; F; T],8))],0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))]);
-     (((λk.
-            match_all
-              (ZIP
-                 (MAP (λe. THE (v_of_e e)) k,
-                  [s_sing (v_bit ([F; F; F; F; F; F; T; F],8))]))),0),
+     (([s_sing (v_bit ([F; F; F; F; F; F; T; F],8))],0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; T; F; T; T; T; T],9))]);
-     (((λk.
-            match_all
-              (ZIP
-                 (MAP (λe. THE (v_of_e e)) k,
-                  [s_sing (v_bit ([F; F; F; F; F; F; T; T],8))]))),0),
+     (([s_sing (v_bit ([F; F; F; F; F; F; T; T],8))],0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])]),
@@ -295,7 +283,7 @@ val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk
 
 
 (* Parameter assignment for debugging: *)
-val debug_flag = true;
+val debug_flag = false;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec8_actx
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec8_ftymap, symb_exec8_blftymap, symb_exec8_pblock_action_names_map)

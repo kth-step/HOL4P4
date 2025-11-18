@@ -116,7 +116,7 @@ val symb_exec4_actx = ``([arch_block_inp;
                ("r",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
                ("v",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8))])])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f'',
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -159,12 +159,8 @@ val symb_exec4_actx = ``([arch_block_inp;
 
 val symb_exec4_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
    F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("t",
-    [(((λk.
-            match_all
-              (ZIP
-                 (MAP (λe. THE (v_of_e e)) k,
-                  [s_sing (v_bit ([F; F; F; F; F; F; F; T],8))]))),0),
+  [("t", tbl_regular
+    [(([s_sing (v_bit ([F; F; F; F; F; F; F; T],8))],0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
        e_v (v_bit ([F; F; F; T; F; T; F; T; F],9))])])]),
@@ -176,15 +172,21 @@ val symb_exec4_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2
 
 
 (* Parameter assignment for debugging: *)
+val debug_flag = true;
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec4_actx
+val ctx_data = def_term ctx;
+val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map)
+val const_actions_tables = ["t"]
 val path_cond_defs = []
 val init_astate = symb_exec4_astate_symb
-val stop_consts_rewr = []
+val stop_consts_rewr = [“match_all”]
 val stop_consts_never = []
+val thms_to_add = []
 val path_cond = ASSUME T
 val n_max = 50;
 val postcond = “(\s. packet_has_port s 42 \/ packet_has_port s 101):v1model_ascope astate -> bool”;
+val p4_is_finished_alt_opt = NONE;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
 val postcond_simpset = pure_ss
 
@@ -216,6 +218,6 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc false arch_ty (def_term ctx) (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = export_theory ();

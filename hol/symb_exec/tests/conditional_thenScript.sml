@@ -86,7 +86,7 @@ val symb_exec2_actx = ``([arch_block_inp;
                ("r",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
                ("v",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8))])])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f'',
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -137,9 +137,10 @@ val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e
 
 
 (* Parameter assignment for debugging: *)
-val debug_flag = false
+val debug_flag = true
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val ctx = symb_exec2_actx
+val ctx_data = def_term ctx
 val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec2_ftymap, symb_exec2_blftymap, symb_exec2_pblock_action_names_map)
 val const_actions_tables = []
 val path_cond_defs = []
@@ -147,7 +148,7 @@ val init_astate = symb_exec2_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME “v2w [e1; e2; e3; e4; e5; e6; e7; e8] <+ (v2w [T; F; F; F; F; F; F; F]):word8”
+val path_cond = ASSUME “bitv_lo [e1; e2; e3; e4; e5; e6; e7; e8] [T; F; F; F; F; F; F; F]”
 val p4_is_finished_alt_opt = NONE
 val fuel = 2
 val n_max = 50;
@@ -172,10 +173,12 @@ val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "ctx" (mk_eq(mk_var("ctx", type_o
 val (fty_map, b_fty_map) = (symb_exec2_ftymap, symb_exec2_blftymap)
 
 val (path_tree, [(id, path_cond_res, step_thm)]) = p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map) const_actions_tables init_astate stop_consts_rewr stop_consts_never path_cond NONE 17;
+
+val (path_tree, [(id, path_cond_res, step_thm)]) = p4_symb_exec 1 debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt 1;
 *)
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty (def_term ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = export_theory ();

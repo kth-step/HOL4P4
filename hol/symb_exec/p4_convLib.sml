@@ -15,7 +15,7 @@ open auxLib symb_execLib p4_bigstepSyntax;
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open wordsSyntax computeLib;
-open p4Syntax;
+open p4Syntax p4_exec_semSyntax;
 open evalwrapLib;
 
 (* RESTR_HOL4P4_CONV constants: *)
@@ -80,7 +80,7 @@ val p4_stop_eval_consts_binpreds =
 
 
 (* TODO: Merge with the below? *)
-val table_stop_consts = [match_all_tm];
+val table_stop_consts = [match_all_tm, match_all_exec_tm];
 
 val p4_stop_eval_consts = p4_stop_eval_consts_unary@p4_stop_eval_consts_binops@p4_stop_eval_consts_binpreds;
 
@@ -377,7 +377,7 @@ val bitv_convs_unary =
  map
  (fn bitvop =>
   {conv = K (K bitv_conv),
-   key= SOME ([], mk_comb (mk_comb (bitvop, mk_var ("bl", listSyntax.mk_list_type bool)), mk_var ("n", numSyntax.num))),
+   key= SOME ([], mk_comb (bitvop, mk_var ("bl", listSyntax.mk_list_type bool))),
    (* TODO: Better names *)
    name = term_to_string bitvop,
    trace = 2}:convdata) p4_stop_eval_consts_unary
@@ -386,7 +386,7 @@ val bitv_convs_binops =
  map
  (fn bitvop =>
   {conv = K (K bitv_conv),
-   key= SOME ([], mk_comb (mk_comb (mk_comb (bitvop, mk_var ("bl", listSyntax.mk_list_type bool)), mk_var ("bl'", listSyntax.mk_list_type bool)), mk_var ("n", numSyntax.num))),
+   key= SOME ([], mk_comb (mk_comb (bitvop, mk_var ("bl", listSyntax.mk_list_type bool)), mk_var ("bl'", listSyntax.mk_list_type bool))),
    (* TODO: Better names *)
    name = term_to_string bitvop,
    trace = 2}:convdata) p4_stop_eval_consts_binops

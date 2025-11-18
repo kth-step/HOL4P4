@@ -225,7 +225,7 @@ fun the_final_state_hyp_imp_n step_thm =
  let
   val (hyp, step_tm) = dest_imp $ concl step_thm
   val (exec, final_state) = dest_eq step_tm
-  val steps = #3 $ dest_arch_multi_exec exec
+  val steps = #4 $ dest_arch_multi_exec exec
  in
   (hyp, optionSyntax.dest_some final_state, steps)
  end
@@ -235,7 +235,7 @@ fun get_actx step_thm =
  let
   val step_thm_tm = concl step_thm
  in
-  #1 $ dest_arch_multi_exec $ fst $ dest_eq $ 
+  #2 $ dest_arch_multi_exec $ fst $ dest_eq $ 
    (if is_imp step_thm_tm
     then snd $ dest_imp $ step_thm_tm
     else step_thm_tm)
