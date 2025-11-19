@@ -40,8 +40,8 @@ val _ = translate init_out_v_cake_def;
 val _ = translate v1model_reduce_nonout_def;
 val _ = translate v1model_copyin_pbl_def;
 Theorem v1model_copyin_pbl_side_thm:
-!xlist dlist elist counter ext_obj_map v_map ctrl.
-v1model_copyin_pbl_side (xlist,dlist,elist,counter,ext_obj_map,v_map,ctrl)
+!v.
+v1model_copyin_pbl_side v
 Proof
 simp[Once $ definition "v1model_copyin_pbl_side_def", copyin_exec_side_thm]
 QED
