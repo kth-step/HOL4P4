@@ -69,3 +69,9 @@ To set up the development environment, follow the instructions in [INSTALL.md](I
 A. Alshnakat, D. Lundberg, R. Guanciale, M. Dam and K. Palmskog, "HOL4P4: Semantics for a Verified Data Plane", in P4 Workshop in Europe (EuroP4 '22), 2022.
 
 A. Alshnakat, D. Lundberg, R. Guanciale, and M. Dam "HOL4P4: Mechanized Small-Step Semantics for P4", to appear in (OOPSLA '24).
+
+## License
+
+This project is distributed under the terms of the Apache License (Version 2.0), and the BSD 3-Clause License; users may pick which license to apply.
+
+See [`COPYRIGHT`](COPYRIGHT), [`LICENSE-APACHE`](LICENSE-APACHE) and [`LICENSE-BSD`](LICENSE-BSD) for details.
