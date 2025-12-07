@@ -125,9 +125,9 @@ apply_table_f ext_map func_map b_func_map pars_map tbl_map.
         
 
 val fr_len_exp_def = Define `
-fr_len_exp (e) (ty:'a itself) =
-     ∀ e' gscope (scopest:scope list) framel  (c:'a ctx).
-       e_red c gscope scopest e e' framel ⇒
+fr_len_exp e (ty:'a itself) =
+     ∀e' gscope (scopest:scope list) framel i_opt (c:'a ectx).
+       e_red c gscope scopest e e' (framel, i_opt) ⇒
        ((LENGTH framel = 1 ∧ ∃f_called stmt_called copied_in_scope. framel = [(f_called,[stmt_called],copied_in_scope)]) ∨
         (LENGTH framel = 0))
 `;

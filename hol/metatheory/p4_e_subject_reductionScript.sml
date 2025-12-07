@@ -1380,10 +1380,10 @@ QED
 
 
 Theorem tfunn_imp_sig_body_lookup:
-! apply_table_f ext_map func_map b_func_map pars_map tbl_map
+! apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle
   order t_scope_list_g delta_g delta_b delta_x txdl tau f delta_t Prs_n.
-WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-       order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n/\
+WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_index,set_oracle_index,random_oracle)
+       order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n /\
 SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x  ==>
 ?stmt xdl.
     SOME (stmt,xdl) =
@@ -1520,9 +1520,9 @@ QED
 
 
 Theorem tfunn_imp_sig_lookup:
-! apply_table_f ext_map func_map b_func_map pars_map tbl_map
+! apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle
   order t_scope_list_g delta_g delta_b delta_x txdl tau f delta_t Prs_n .
-    WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+    WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_index,set_oracle_index,random_oracle)
           order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n /\
     SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ==>
             ? xdl.
