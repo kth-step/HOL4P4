@@ -20,7 +20,7 @@ open bdd_genTheory;
 val _ = new_theory "bdd_gen_new";
 
 
-
+(*
     
 (* new BDD types *)
 
@@ -83,6 +83,10 @@ End
 
 
 
+Definition COUNT_LIST_local_def:
+  (COUNT_LIST_local 0n = []) ∧
+  (COUNT_LIST_local n = COUNT_LIST_local (n-1) ++ [n-1])
+End
 
 
 
@@ -92,7 +96,7 @@ Definition mk_new_labels_content_new_def:
       all_contents = MAP (λ(n,x',((id,content),(id',content'))). content) l ++
                      MAP (λ(n,x',((id,content),(id',content'))). content') l;
       unique_contents = nub all_contents;
-      indices = COUNT_LIST (LENGTH unique_contents)
+      indices = COUNT_LIST_local (LENGTH unique_contents)
     in
       ZIP (indices, unique_contents)
 End
@@ -208,11 +212,6 @@ Definition merge_new_def:
 End
   
 
-Definition has_parent_def:
-  has_parent edges n n' =
-  EXISTS (λ(parent, (left, right)). (left = n' ∨ right = n') 
-                                    ∧ parent ≠ n' ∧ parent ≠ n) edges
-End
 
 Definition eliminable_new_def:
   eliminable_new ((r,edges,labels_id):'b BDD_mini) n = 
@@ -230,24 +229,6 @@ End
 
 
 val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
-
-
-Definition update_internals_def:
-  (update_internals pre [] n x = []) ∧    
-  (update_internals pre (h::internals) n x =
-   let (var, node_list_op) =  h in
-     (if var ≠ x then
-        update_internals (pre++[h]) internals n x 
-      else
-        (
-        case node_list_op of
-        | SOME l =>  pre++[(var, SOME (n::l))]++internals
-        | NONE => pre++[(var, SOME [n])]++internals                            
-        )
-     )
-  )
-End
-
 
 
 Definition distrubute_labels_new_def:
@@ -378,6 +359,6 @@ Definition mk_BDDPred_opt_new_def:
   )
 End
 
-
+*)
                                              
 val _ = export_theory ();
