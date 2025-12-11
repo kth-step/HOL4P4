@@ -3649,6 +3649,42 @@ Definition petr4_get_arch_block_pbls_def:
    | NONE => NONE)
 End
 
+(*
+{"tags":["missing_info",""]
+ "annotations":[]
+ "type":["specialized",
+         {"tags":["missing_info",""],
+          "base":["name",{"tags":["missing_info",""],
+                  "name":["BareName",{"tags":["missing_info",""],
+          "name":{"tags":["missing_info",""],"string":"register"}}]}],
+          "args":[["bit",{"tags":["missing_info",""],
+                          "expr":["int",
+                                  {"tags":["missing_info",""],
+                                   "x":{"tags":["missing_info",""],
+                                   "value":"16","width_signed":null}}]}]]}],
+ "args":[["Expression",{"tags":["missing_info",""],"value":["int",{"tags":["missing_info",""],"x":{"tags":["missing_info",""],"value":"1","width_signed":null}}]}]],
+ "name":{"tags":["missing_info",""],"string":"r"},
+ "init":null}
+
+use petr4_parse_ptype on list under "args". Expect p_tau_bit n.
+
+*)
+
+Definition petr4_parse_register_def:
+ petr4_parse_register (tyenv, bltymap, ptymap) type name =
+  case petr4_parse_name name of
+  | SOME name_string =>
+   (case json_dest_arr type of
+    | SOME [type_str; spec_obj] =>
+     (case json_parse_obj ["tags"; "base"; "name"; "args"] spec_obj of
+      | SOME [tags; base; spec_name; args] =>
+       petr4_parse_ptype T tyenv args
+      | NONE => NONE)
+    | NONE => NONE
+   )
+  | NONE => NONE
+End
+
 (* TODO: This should also parse top-level instantiation of externs *)
 Definition petr4_parse_top_level_inst_def:
  petr4_parse_top_level_inst (tyenv, bltymap, ptymap) inst =
@@ -3669,7 +3705,15 @@ Definition petr4_parse_top_level_inst_def:
           | NONE => get_error_msg "Could not parse top-level instantiation arguments: " (Array args))
         | NONE => get_error_msg "Unknown package type: " type)
       | SOME (p_tau_ext ext_name) =>
-       (get_error_msg "Top-level extern instantiations currently unsupported by HOL4P4: " inst)
+(*
+type -> args -> (parse blob as constant, gives width)
+name -> string, (object name)
+*)
+       (* TODO: Check arch also *)
+       if ext_name = "register"
+       then petr4_parse_register (tyenv, bltymap, ptymap) type name
+       else
+        (get_error_msg "Top-level extern instantiations currently unsupported by HOL4P4: " inst)
       | _ => get_error_msg "Unknown type of top-level instantiation: " inst)
     | NONE => get_error_msg "Could not parse type name (may be top-level extern instantiation): " type)
   | _ => get_error_msg "Unknown JSON format of instantiation: " inst
