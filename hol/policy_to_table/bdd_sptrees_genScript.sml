@@ -2,6 +2,7 @@ open HolKernel Parse boolLib bossLib;
 open optionTheory pairTheory bdd_genTheory policy_specTheory pred_specTheory;
 open sptreeTheory;
 
+val _ = new_theory "bdd_sptrees_gen";
 
 val _ = type_abbrev("sp_edges", ``:(num#num) spt``);
                                                                      
@@ -314,130 +315,6 @@ Definition policy_structure2_def:
     fv := fv_policy;
   |>
 End
-
-
-        
-val arith_policy_eval = EVAL “convert_arith_to_var_policy ^arith_policy ^policy_me”;
-val var_policy = optionSyntax.dest_some (rhs (concl arith_policy_eval));
-
-
-val eval_policy_full_opt = EVAL “sp_mk_BDDPred_opt policy_structure (0n,LN,insert 0 (non_termn (NONE, ^var_policy)) LN) [] ^policy_order 1”;
-
-
-
-(*
-val pred = “Or (And (Var "x1") (Var "x2")) (And (Var "x3") (Var "x4"))”;
- EVAL “sp_mk_BDDPred_opt pred_structure (0n,LN,insert 0 (non_termn (NONE, ^pred)) LN) [] ["x1";"x3";"x2";"x4"] 1”;
-*)
-
-        
-val policy_order =   “[
-    ("is_srcPort_le_57222");
-    ("is_srcPort_ge_57222");
-    ("is_dstPort_le_53");
-    ("is_dstPort_ge_53");
-    ("is_srcNAT_le_54587");
-    ("is_srcNAT_ge_54587");
-    ("is_dstNAT_le_53");
-    ("is_dstNAT_ge_53");
-    ("is_srcPort_le_56258");
-    ("is_srcPort_ge_56258");
-    ("is_dstPort_le_3389");
-    ("is_dstPort_ge_3389");
-    ("is_srcNAT_le_56258");
-    ("is_srcNAT_ge_56258");
-    ("is_dstNAT_le_3389");
-    ("is_dstNAT_ge_3389");
-    ("is_srcPort_le_6881");
-    ("is_srcPort_ge_6881");
-    ("is_dstPort_le_50321");
-    ("is_dstPort_ge_50321");
-    ("is_srcNAT_le_43265");
-    ("is_srcNAT_ge_43265");
-    ("is_dstNAT_le_50321");
-    ("is_dstNAT_ge_50321");
-    ("is_srcPort_le_50553");
-    ("is_srcPort_ge_50553");
-    ("is_srcNAT_le_50553");
-    ("is_srcNAT_ge_50553");
-    ("is_srcPort_le_50002");
-    ("is_srcPort_ge_50002");
-    ("is_dstPort_le_443");
-    ("is_dstPort_ge_443");
-    ("is_srcNAT_le_45848");
-    ("is_srcNAT_ge_45848");
-    ("is_dstNAT_le_443");
-    ("is_dstNAT_ge_443");
-    ("is_srcPort_le_51465");
-    ("is_srcPort_ge_51465");
-    ("is_srcNAT_le_39975");
-    ("is_srcNAT_ge_39975");
-]”;
-
-
-
-
-
-
-
-
-
-
-
-
-
-(*
-
-val var_pred = “ Or (And (Var "x") (Not (Var "y"))) (And (Not (Var "b")) (Var "e")) ”
-EVAL “sp_mk_BDDPred_opt pred_structure (0n,LN,insert 0 (non_termn (NONE, ^var_pred)) LN) [] ["b";"e";"x"; "y"] 1”;
-EVAL “sp_mk_BDDPred_opt pred_structure (0n,LN,insert 0 (non_termn (NONE, ^var_pred)) LN) [] ["x";"y";"b"; "e"] 1”;
-
-
-
-val var_pred = “ Or (And (Var "x") (Not (Var "y"))) (And (Not (Var "a")) (Var "b")) ”
-val var_pred2 = “ Or (And (Var "c") (Not (Var "d"))) (And (Not (Var "e")) (Var "f")) ”
-val var_pred3 = “ Or ^var_pred ^var_pred2 ”
-
-
-     
-EVAL “sp_mk_BDDPred_opt pred_structure (0n,LN,insert 0 (non_termn (NONE, ^var_pred)) LN) [] ["a";"b";"c"; "d"; "f"; "g"; "x"; "y"] 1”;
-
-EVAL “sp_mk_BDDPred_opt pred_structure (0n,LN,insert 0 (non_termn (NONE, ^var_pred)) LN) [] ["a";"b";"c"; "d"; "x"; "y"; "f"; "e"] 1”;
-
-val _ = type_abbrev("action_rule_type", “:((string# num list) action_expr) rule”);
-val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
-
-val rule1 = “(^var_pred3 , action ("allow",[1]: num list)):action_rule_type”;
-val rule2 = “((Var "k") , action ("allow",[2]: num list)):action_rule_type”;
-val rule3 = “((Var "o") , action ("allow",[3]: num list)):action_rule_type”;
-
-val arith_policy_rule_default = “(True, action ("drop", []: num list)):action_rule_type”;
-
-
-val arith_policy = “[
-    ^rule1;
-    ^rule2;
-    ^arith_policy_rule_default
-]: action_policy_type”;
-     
-    
-o -> k -> a -> b -> c -> d -> x -> y -> f -> e
-
-  
-EVAL “sp_mk_BDDPred_opt policy_structure (0n,LN,insert 0 (non_termn (NONE, ^arith_policy)) LN) []
-     ["o"; "k";"a";"b";"c"; "d"; "x"; "y"; "f"; "e"]
-      1”;    
-
-
-
-EVAL “sp_mk_BDDPred_opt policy_structure (0n,LN,insert 0 (non_termn (NONE, ^arith_policy)) LN) []
-     ["x"; "y";"a";"b";"c"; "d"; "e"; "f"; "k"; "o"]
-      1”;    
-
-
-
-      
-*)
 
 
 
