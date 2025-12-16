@@ -5,11 +5,11 @@ open preamble basis ml_translatorLib ;
 open miscTheory ml_translatorTheory ListProgTheory ;
 open fromSexpTheory;
 
-(*
+
      
 val _ = new_theory "bdd_trans_Prog";
-*)
 
+(*
         
 val _ = translation_extends "basisProg"
 val _ = intLib.deprecate_int();
@@ -805,3 +805,8 @@ val prog =
                                 
 
 val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
+*)
+
+
+
+val _ = export_theory ();
