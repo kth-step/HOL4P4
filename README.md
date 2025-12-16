@@ -8,8 +8,8 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
   * [Expression](ott/p4_sem.ott#L2494-L2847) 
   * [Statement](ott/p4_sem.ott#L2858-L2986) 
   * [P4 state](ott/p4_sem.ott#L2994-L3026) 
-  * [Architecture-Level](ott/p4_sem.ott#L3033-L3102) 
-  * [Concurrent Architecture-Level](ott/p4_sem.ott#L3116-L3132) 
+  * [Architecture-level](ott/p4_sem.ott#L3033-L3102) 
+  * [Concurrent architecture-level](ott/p4_sem.ott#L3116-L3132) 
 
 * [Proof of determinism for the semantics](hol/p4_deterScript.sml)
 
@@ -66,9 +66,9 @@ To set up the development environment, follow the instructions in [INSTALL.md](I
 
 ## Papers
 
-A. Alshnakat, D. Lundberg, R. Guanciale, M. Dam and K. Palmskog, "HOL4P4: Semantics for a Verified Data Plane", in P4 Workshop in Europe (EuroP4 '22), 2022.
+A. Alshnakat, D. Lundberg, R. Guanciale, M. Dam and K. Palmskog, "HOL4P4: Semantics for a Verified Data Plane" (EuroP4 '22).
 
-A. Alshnakat, D. Lundberg, R. Guanciale, and M. Dam "HOL4P4: Mechanized Small-Step Semantics for P4", to appear in (OOPSLA '24).
+A. Alshnakat, D. Lundberg, R. Guanciale, and M. Dam "HOL4P4: Mechanized Small-Step Semantics for P4" (OOPSLA '24).
 
 ## License
 

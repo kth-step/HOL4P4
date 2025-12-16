@@ -96,7 +96,7 @@ First, navigate to the directory where you want to put the source code of Poly/M
 	Finally, do
 	
 		cd ..
-		make hol
+		Holmake
 		
 	This will build the HOL4 theories and associated libraries.
 	
@@ -106,7 +106,7 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev
 		opam pin add ott dev -k version
 		
-	This will allow you to re-export the HOL4 definitions in `hol/p4Script.sml` as well as the documentation in `docs/semantics/p4_defs.tex` from the Ott files in the `ott` directory.
+	This will allow you to re-export the HOL4 definitions in `hol/p4Script.sml` as well as the documentation in `docs/semantics/p4_defs.tex` from the Ott files in the `ott` directory using `make hol`.
 
 You may need to repeat `eval $(opam env)` depending on your choice in step 4 in order to use `ott` in the terminal.
 
