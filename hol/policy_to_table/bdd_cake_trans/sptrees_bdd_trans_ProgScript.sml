@@ -9,7 +9,9 @@ open fromSexpTheory;
      
 val _ = new_theory "sptrees_bdd_trans_Prog";
 
-
+(*)
+ val _ = ml_prog_update (open_module "cake_sptrees_bdd_trans_Prog");
+*)   
         
 val _ = translation_extends "basisProg"
 val _ = intLib.deprecate_int();
@@ -301,6 +303,7 @@ val res = append_prog o process_topdecs $
   );’; 
 
 
+  
 val res = append_prog o process_topdecs $   
 ‘fun print_list_pairs xs =
   let
@@ -386,11 +389,125 @@ val r = translate spts_to_alist_def;
 val r = translate toSortedAList_def;
 
     
+
+val res = append_prog o process_topdecs $ 
+‘
+fun print_atom p =
+  case p of
+      True_2 => TextIO.print "True"
+    | False_2 => TextIO.print "False"
+    | Var_1 cs => (TextIO.print "Var \""; print_string cs; TextIO.print "\"")
+    | Not_1 cs => (TextIO.print "Not \""; print_string cs; TextIO.print "\"")
+    | Notfalse => TextIO.print "NotFalse"
+    | Nottrue => TextIO.print "NotTrue"
+’; 
+
+
+    
+val res = append_prog o process_topdecs $    
+‘fun print_al_n_s (atom_l, n_state) =
+ let
+        
+  fun loop xs =
+  case xs of
+    [] => ()
+  | [atom] => print_atom atom
+  | atom::rest => (print_atom atom ; TextIO.print "; " ; loop rest)
+ in
+  ( TextIO.print "([";
+    loop atom_l;
+    TextIO.print "],";
+    TextIO.print (Int.toString (fst n_state));
+    TextIO.print ",";
+    print_action (snd n_state);
+    TextIO.print ")"
+  )
+  end’; 
+
+
+
+
+val res = append_prog o process_topdecs $   
+‘fun print_list_tbl xs =
+ let
+
+    fun loop_inner tbl =
+      case tbl of
+          [] => ()
+        | [al_n_s] => print_al_n_s al_n_s 
+        | al_n_s::rest => (print_al_n_s al_n_s ; TextIO.print "; " ;  loop_inner rest)
+        
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => (TextIO.print "[" ; loop_inner x ; TextIO.print "]")
+        | x::rest => ( TextIO.print "[" ; loop_inner x ; TextIO.print "]; " ; loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+end;’;
+
+
+
+val res = append_prog o process_topdecs $ 
+‘fun print_table_label lab =
+  case lab of
+    Non_termn (optname, lst_n) =>
+      (TextIO.print "non_termn (";
+       (case optname of
+          None => TextIO.print "NONE"
+          | Some cs => (TextIO.print "SOME \""; print_string cs; TextIO.print "\"")
+       );
+       TextIO.print ", ";
+       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
+       TextIO.print ", ";
+       TextIO.print (Int.toString (snd lst_n)); (*input state*)
+       TextIO.print ")")
+  | Termn (fin, lst_n) =>
+      (TextIO.print "termn (";
+       print_action (fin);
+       TextIO.print ",";    
+       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
+       TextIO.print ", ";
+       TextIO.print (Int.toString (snd lst_n)); (*input state*)
+       TextIO.print ")");
+’;
+
+
+
+val res = append_prog o process_topdecs $ 
+‘fun print_list_tables_lbl xs =
+  let
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => (TextIO.print "(";
+                  TextIO.print (Int.toString (fst x));
+                  TextIO.print ", ";
+                  print_table_label (snd x);
+                  TextIO.print ")")
+        | x::rest =>
+            (TextIO.print "(";
+             TextIO.print (Int.toString (fst x));
+             TextIO.print ", ";
+             print_table_label (snd x);
+             TextIO.print "); \n ";
+             loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+          end;
+’;
+
+
+
 (***************************************)
 
 (* EXAMPLE OF USAGE *)
 
-
+(*
    
 Definition policy_order_test_def:
  policy_order_test = (["x";"y";"z"]:string list)
@@ -554,122 +671,6 @@ End
 
 val r = translate table_main_hol4_def;
 
-
-
-
-
-val res = append_prog o process_topdecs $ 
-‘
-fun print_atom p =
-  case p of
-      True_2 => TextIO.print "True"
-    | False_2 => TextIO.print "False"
-    | Var_1 cs => (TextIO.print "Var \""; print_string cs; TextIO.print "\"")
-    | Not_1 cs => (TextIO.print "Not \""; print_string cs; TextIO.print "\"")
-    | Notfalse => TextIO.print "NotFalse"
-    | Nottrue => TextIO.print "NotTrue"
-’; 
-
-
-    
-val res = append_prog o process_topdecs $    
-‘fun print_al_n_s (atom_l, n_state) =
- let
-        
-  fun loop xs =
-  case xs of
-    [] => ()
-  | [atom] => print_atom atom
-  | atom::rest => (print_atom atom ; TextIO.print "; " ; loop rest)
- in
-  ( TextIO.print "([";
-    loop atom_l;
-    TextIO.print "],";
-    TextIO.print (Int.toString (fst n_state));
-    TextIO.print ",";
-    print_action (snd n_state);
-    TextIO.print ")"
-  )
-  end’; 
-
-
-
-
-val res = append_prog o process_topdecs $   
-‘fun print_list_tbl xs =
- let
-
-    fun loop_inner tbl =
-      case tbl of
-          [] => ()
-        | [al_n_s] => print_al_n_s al_n_s 
-        | al_n_s::rest => (print_al_n_s al_n_s ; TextIO.print "; " ;  loop_inner rest)
-        
-    fun loop xs =
-      case xs of
-          [] => ()
-        | [x] => (TextIO.print "[" ; loop_inner x ; TextIO.print "]")
-        | x::rest => ( TextIO.print "[" ; loop_inner x ; TextIO.print "]; " ; loop rest)
-  in
-    TextIO.print "[";
-    loop xs;
-    TextIO.print "]"
-end;’;
-
-
-
-val res = append_prog o process_topdecs $ 
-‘fun print_table_label lab =
-  case lab of
-    Non_termn (optname, lst_n) =>
-      (TextIO.print "non_termn (";
-       (case optname of
-          None => TextIO.print "NONE"
-          | Some cs => (TextIO.print "SOME \""; print_string cs; TextIO.print "\"")
-       );
-       TextIO.print ", ";
-       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
-       TextIO.print ", ";
-       TextIO.print (Int.toString (snd lst_n)); (*input state*)
-       TextIO.print ")")
-  | Termn (fin, lst_n) =>
-      (TextIO.print "termn (";
-       print_action (fin);
-       TextIO.print ",";    
-       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
-       TextIO.print ", ";
-       TextIO.print (Int.toString (snd lst_n)); (*input state*)
-       TextIO.print ")");
-’;
-
-
-
-val res = append_prog o process_topdecs $ 
-‘fun print_list_tables_lbl xs =
-  let
-    fun loop xs =
-      case xs of
-          [] => ()
-        | [x] => (TextIO.print "(";
-                  TextIO.print (Int.toString (fst x));
-                  TextIO.print ", ";
-                  print_table_label (snd x);
-                  TextIO.print ")")
-        | x::rest =>
-            (TextIO.print "(";
-             TextIO.print (Int.toString (fst x));
-             TextIO.print ", ";
-             print_table_label (snd x);
-             TextIO.print "); \n ";
-             loop rest)
-  in
-    TextIO.print "[";
-    loop xs;
-    TextIO.print "]"
-          end;
-’;
-
-
     
 val res = append_prog o process_topdecs $ 
                       ‘fun main () =
@@ -748,5 +749,11 @@ val content_term =
         parsed
 end;
 
+*)
+
+
+(*)
+val _ = ml_prog_update (close_module NONE);
+*)
 
 val _ = export_theory ();
