@@ -1,5 +1,5 @@
 open HolKernel Parse boolLib bossLib;
-open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory policy_specTheory pred_specTheory;     
+open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;     
 open preamble basis ml_translatorLib ;
 
 open miscTheory ml_translatorTheory ListProgTheory ;
@@ -123,11 +123,65 @@ val r = translate sp_mk_BDD_policy_def;
              
 
 
+(***********************************)
+(* tables translation  *)
+
+val r = translate sem_var_atom_def;
+val r = translate is_atoml_true_def;
+val r = translate is_match_row_def;
+val r = translate check_all_rows_match_def;
+val r = translate match_tbl_def;
+val r = translate match_tbll_def;
+val r = translate sem_tables_def;
+
+val r = translate mk_substitute_atom_def;
+val r = translate mk_substitute_row_def;
+val r = translate mk_substitute_tbl_def;
+val r = translate mk_substitute_tbll_def;
+val r = translate mk_substitute_tables_def;
+
+val r = translate simp_atom_def;
+val r = translate is_not_true_var_atom_def;
+val r = translate (simp_row_def |> REWRITE_RULE [MEMBER_INTRO]);
+val r = translate simp_table_def;
+val r = translate simp_tables_def;
+val r = translate simp_tables_wrapper_def;
+
+val r = translate final_row_def;
+val r = translate final_tbl_def;
+val r = translate final_tbll_def;
+val r = translate final_tables_def;
+
+val r = translate fv_atom_def;
+val r = translate fv_row_def;
+val r = translate fv_tbl_def;
+val r = translate fv_tbll_def;  
+val r = translate fv_tables_def;
+    
+val r = translate table_structure_def;
+
+    
+val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
+
+
+    
+Definition sp_mk_BDD_table_def:
+  sp_mk_BDD_table (var_table: action_table_type) policy_order =
+  sp_mk_BDDPred_opt table_structure (0n,LN,insert 0 (non_termn (NONE, var_table)) LN) [] policy_order 1n
+End
+
+
+val r = translate sp_mk_BDD_table_def;
+
+    
+(*****************************************************)
+(***********  common printing      *******************)
 (*****************************************************)
 
-                               
-(* print edges *)     
-        
+(****************)
+(* print edges  *)     
+(****************)
+
 val res = append_prog o process_topdecs $ 
 ‘fun print_tuple_list xs =
   let
@@ -160,52 +214,13 @@ val res = append_prog o process_topdecs $
           end’;
 
           
-(*
-
-Definition test_list_edges_def:
-  test_list_edges = SOME ([(1,2,3);(4,5,6)]:edges)
-End
-
-val r = translate test_list_edges_def;        
-  
-val res = append_prog o process_topdecs $ 
-‘fun main () =
-                       let
-                       val args = CommandLine.arguments()
-                       in
-                          (case test_list_edges of
-                            None => TextIO.print "No BDD can be created \n"
-                           | Some l =>  print_tuple_list l;
-                                        TextIO.print "\n"
-                           )
-                         end ;’
-; 
-
-
-val prog =
-  ``SNOC
-    (Dlet unknown_loc (Pcon NONE [])
-      (App Opapp [Var (Short "main"); Con NONE []]))
-    ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs
-
-                                
-
-val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
-*)
-
-
-
-
-(* print labels *)
-        
 val res = append_prog o process_topdecs $ 
 ‘fun print_string cs =
   let fun loop xs =
         case xs of
             [] => ()
           | c::rest => (TextIO.print (String.str c); loop rest)
-  in loop cs end;’; 
+  in loop cs end;’;
 
 
 
@@ -225,8 +240,8 @@ in
       
       end;’; 
 
-  
- 
+
+
 val res = append_prog o process_topdecs $ 
 ‘
 fun print_pred p =
@@ -261,11 +276,20 @@ case a of
        print_numl nl ;
        TextIO.print ")")
 | (State i) =>
-      (TextIO.print "state(";
+      (TextIO.print "state  ";
        TextIO.print (Int.toString i);
-       TextIO.print ")");
+       TextIO.print " ");
 ’; 
 
+      
+(*********************************************************)
+(***********  policy specific printing *******************)
+(*********************************************************)
+
+(****************)
+(* print labels *)
+(****************)
+  
 
 val res = append_prog o process_topdecs $    
 ‘fun print_pair (p, act) =
@@ -285,7 +309,7 @@ val res = append_prog o process_topdecs $
           [] => ()
         | [x] => print_pair x
         | x::rest =>
-            ( print_pair x; TextIO.print ", "; loop rest)
+            ( print_pair x; TextIO.print "; "; loop rest)
   in
     TextIO.print "[";
     loop xs;
@@ -352,52 +376,6 @@ val res = append_prog o process_topdecs $
 
 
 
-(*
-
-
-Definition test_list_labels_def:
-  test_list_labels = SOME ([(23,
-      termn
-        (action ("allow",[1]),
-         [(True,action ("allow",[1]));
-          (False,action ("allow",[2]));
-          (True,action ("drop",[]))]))] :
-                           (((string#num list) action_expr) policy, (string#num list) action_expr) labelings)
-End
-
-
-
-val r = translate test_list_labels_def;
-
-
-        
-val res = append_prog o process_topdecs $ 
-‘fun main () =
-                       let
-                       val args = CommandLine.arguments()
-                       in
-                          (case test_list_labels  of
-                            None => TextIO.print "No BDD can be created \n"
-                           | Some l => print_list_label l
-                           )
-                         end ;’
-; 
-
-
-val prog =
-  ``SNOC
-    (Dlet unknown_loc (Pcon NONE [])
-      (App Opapp [Var (Short "main"); Con NONE []]))
-    ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs
-
-                                
-
-val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
-*)
-
-
-
 val r = translate spts_to_alist_add_pause_def;
 val r = translate spt_left_def;
 val r = translate spt_right_def;
@@ -412,10 +390,10 @@ val r = translate toSortedAList_def;
 
 (* EXAMPLE OF USAGE *)
 
-(*
+
    
 Definition policy_order_test_def:
- policy_order_test = ["x";"y";"z"]
+ policy_order_test = (["x";"y";"z"]:string list)
 End
 
 val r = translate policy_order_test_def;
@@ -431,8 +409,8 @@ End
 val r = translate policy_content_test_def;
 
                        
-Definition main_hol4_def:
-  main_hol4 =
+Definition policy_main_hol4_def:
+  policy_main_hol4 =
   case sp_mk_BDD_policy policy_content_test  policy_order_test of
   | NONE => NONE
   | SOME (r,sp_edges,sp_labels) => SOME (r,
@@ -444,7 +422,7 @@ End
 
 
 
-val r = translate main_hol4_def;
+val r = translate policy_main_hol4_def;
 
     
 val res = append_prog o process_topdecs $ 
@@ -452,16 +430,22 @@ val res = append_prog o process_topdecs $
                        let
                         val args = CommandLine.arguments()
                        in
-                         (case main_hol4 of
+                         (case policy_main_hol4 of
                             None => (TextIO.print "No BDD can be created \n")
                           | Some bdd =>
                               (
                               TextIO.print "(" ;
                               TextIO.print (Int.toString (fst bdd));
-                              (TextIO.print ", \n");
+                              (TextIO.print "n , \n");
+
+                              TextIO.print "(" ;
                               print_tuple_list (fst (snd (bdd))) ;
-                              (TextIO.print ", \n");
+                              TextIO.print "):edges , \n";
+
+                              TextIO.print "(" ;
                               print_list_label (snd (snd (bdd))) ;
+                              TextIO.print "): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings";              
+                              
                               TextIO.print ")" 
                               )
                                
@@ -479,12 +463,290 @@ val prog =
 
                                 
 
-val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
+val _ = astToSexprLib.write_ast_to_file "test_bdd_policy.sexp" prog;
+
+(*
+
+cp test_bdd_policy.sexp ../bdd_cake_test
+
+
+
+   
+CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S
+
+cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm                    
+
+time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt
+
+   
+*)
+  
+
+
+
+
+
+
+ 
+val ins = TextIO.openIn "../bdd_cake_test/bdd_policy_cakeml_export.txt";
+val content_str = TextIO.inputAll ins;
+val _ = TextIO.closeIn ins;
+
+(*open Term;*)   
+
+val content_term =
+    let
+        (* Clean the string by removing newlines and backslash escapes *)
+        fun clean s =
+            let
+                val chars = String.explode s
+                fun process [] = []
+                  | process (#"\\" :: #"n" :: rest) = process rest  (* remove \n *)
+                  | process (c :: rest) = c :: process rest
+            in
+                String.implode (process chars)
+            end
+        
+        val cleaned = clean content_str
+        val parsed = Parse.Term [QUOTE cleaned]
+    in
+        parsed
+end;
+
+
+
+
+
+
+val policy_full_order = “[
+  ("A",["x";"y"]);
+  ("B" ,["z"])
+]”;
+
+        
+val test_groupings = rhs(concl(EVAL policy_full_order));
+val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative content_term test_groupings;
 
 
     
+
+(*
+val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ["x";"y";"z"] 1”;
 *)
 
+
+Definition table_content_test_def:
+  table_content_test = (^gen_var_table_auto : action_table_type)
+End
+
+val r = translate table_content_test_def;
+
+                       
+Definition table_main_hol4_def:
+  table_main_hol4 =
+  case sp_mk_BDD_table table_content_test policy_order_test of
+  | NONE => NONE
+  | SOME (r,sp_edges,sp_labels) => SOME (r,
+                                         ((toSortedAList sp_edges):edges),
+                                         ((toSortedAList sp_labels): (action_table_type, (string#num list) action_expr) labelings) )
+End
+
+
+val r = translate table_main_hol4_def;
+
+
+
+
+
+val res = append_prog o process_topdecs $ 
+‘
+fun print_atom p =
+  case p of
+      True_2 => TextIO.print "True"
+    | False_2 => TextIO.print "False"
+    | Var_1 cs => (TextIO.print "Var \""; print_string cs; TextIO.print "\"")
+    | Not_1 cs => (TextIO.print "Not \""; print_string cs; TextIO.print "\"")
+    | Notfalse => TextIO.print "NotFalse"
+    | Nottrue => TextIO.print "NotTrue"
+’; 
+
+
+    
+val res = append_prog o process_topdecs $    
+‘fun print_al_n_s (atom_l, n_state) =
+ let
+        
+  fun loop xs =
+  case xs of
+    [] => ()
+  | [atom] => print_atom atom
+  | atom::rest => (print_atom atom ; TextIO.print "; " ; loop rest)
+ in
+  ( TextIO.print "([";
+    loop atom_l;
+    TextIO.print "],";
+    TextIO.print (Int.toString (fst n_state));
+    TextIO.print ",";
+    print_action (snd n_state);
+    TextIO.print ")"
+  )
+  end’; 
+
+
+
+
+val res = append_prog o process_topdecs $   
+‘fun print_list_tbl xs =
+ let
+
+    fun loop_inner tbl =
+      case tbl of
+          [] => ()
+        | [al_n_s] => print_al_n_s al_n_s 
+        | al_n_s::rest => (print_al_n_s al_n_s ; TextIO.print "; " ;  loop_inner rest)
+        
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => (TextIO.print "[" ; loop_inner x ; TextIO.print "]")
+        | x::rest => ( TextIO.print "[" ; loop_inner x ; TextIO.print "]; " ; loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+end;’;
+
+
+
+val res = append_prog o process_topdecs $ 
+‘fun print_table_label lab =
+  case lab of
+    Non_termn (optname, lst_n) =>
+      (TextIO.print "non_termn (";
+       (case optname of
+          None => TextIO.print "NONE"
+          | Some cs => (TextIO.print "SOME \""; print_string cs; TextIO.print "\"")
+       );
+       TextIO.print ", ";
+       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
+       TextIO.print ", ";
+       TextIO.print (Int.toString (snd lst_n)); (*input state*)
+       TextIO.print ")")
+  | Termn (fin, lst_n) =>
+      (TextIO.print "termn (";
+       print_action (fin);
+       TextIO.print ",";    
+       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
+       TextIO.print ", ";
+       TextIO.print (Int.toString (snd lst_n)); (*input state*)
+       TextIO.print ")");
+’;
+
+
+
+val res = append_prog o process_topdecs $ 
+‘fun print_list_tables_lbl xs =
+  let
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => (TextIO.print "(";
+                  TextIO.print (Int.toString (fst x));
+                  TextIO.print ", ";
+                  print_table_label (snd x);
+                  TextIO.print ")")
+        | x::rest =>
+            (TextIO.print "(";
+             TextIO.print (Int.toString (fst x));
+             TextIO.print ", ";
+             print_table_label (snd x);
+             TextIO.print "); \n ";
+             loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+          end;
+’;
+
+
+    
+val res = append_prog o process_topdecs $ 
+                      ‘fun main () =
+                       let
+                        val args = CommandLine.arguments()
+                       in
+                         (case table_main_hol4 of
+                            None => (TextIO.print "No BDD can be created \n")
+                          | Some bdd =>
+                              (
+                              TextIO.print "(" ;
+                              TextIO.print (Int.toString (fst bdd));
+                              (TextIO.print "n , \n");
+
+                              TextIO.print "(" ;
+                              print_tuple_list (fst (snd (bdd))) ;
+                              TextIO.print "):edges , \n";
+
+                              TextIO.print "(" ;
+                              print_list_tables_lbl (snd (snd (bdd))) ;
+                              TextIO.print "): (action_table_type, (string#num list) action_expr) labelings)"
+                              )
+                               
+                         )
+                         end ;
+’; 
+
+
+val prog =
+  ``SNOC
+    (Dlet unknown_loc (Pcon NONE [])
+      (App Opapp [Var (Short "main"); Con NONE []]))
+    ^(get_ml_prog_state() |> get_prog)
+  `` |> EVAL |> concl |> rhs
+
+                                
+
+val _ = astToSexprLib.write_ast_to_file "test_bdd_table.sexp" prog;
+
+
+
+
+
+
+(*
+reset_translation   
+val _ = astPP.enable_astPP ();
+val _ = (max_print_depth := 200);
+*)
+
+
+ 
+val ins = TextIO.openIn "../bdd_cake_test/outtt.txt";
+val content_str = TextIO.inputAll ins;
+val _ = TextIO.closeIn ins;
+
+
+
+
+val content_term =
+    let
+        (* Clean the string by removing newlines and backslash escapes *)
+        fun clean s =
+            let
+                val chars = String.explode s
+                fun process [] = []
+                  | process (#"\\" :: #"n" :: rest) = process rest  (* remove \n *)
+                  | process (c :: rest) = c :: process rest
+            in
+                String.implode (process chars)
+            end
+        
+        val cleaned = clean content_str
+        val parsed = Parse.Term [QUOTE cleaned]
+    in
+        parsed
+end;
 
 
 val _ = export_theory ();
