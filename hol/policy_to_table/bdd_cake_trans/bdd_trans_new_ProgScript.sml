@@ -7,11 +7,11 @@ open fromSexpTheory;
 
 
 
-(*     
+     
 val _ = new_theory "bdd_trans_new_Prog";
-*)
 
-        
+
+(*        
 val _ = translation_extends "basisProg"
 
 val _ = intLib.deprecate_int();
@@ -608,10 +608,11 @@ val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
 
 
 
+*)
 
 
+val _ = export_theory ();
 
-stringSyntax.fromMLstring
 
 
 
