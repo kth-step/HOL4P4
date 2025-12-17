@@ -14,21 +14,21 @@ open fromSexpTheory;
 val _ = translation_extends "sptrees_bdd_trans_Prog";
 
 
-
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 
+
+fun sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order) =
+
+let
+
 Definition policy_order_test_def:
- policy_order_test = (["x";"y";"z"]:string list)
+ policy_order_test = (^policy_order:string list)
 End
 
 val r = translate policy_order_test_def;
 
 Definition policy_content_test_def:
-  policy_content_test = [
-    (Var "x", action ("allow",[1]));
-    (And (Var "y") (Var "z"), action ("allow",[2]));
-    (True, action ("drop",[]))
-  ]:action_policy_type
+  policy_content_test = (^var_policy:action_policy_type)
 End
 
 val r = translate policy_content_test_def;
@@ -84,18 +84,32 @@ val prog =
     (Dlet unknown_loc (Pcon NONE [])
       (App Opapp [Var (Short "main"); Con NONE []]))
     ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs
+  `` |> EVAL |> concl |> rhs;
 
 
 
 val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" prog;
 
 
-val status = OS.Process.system  "cd ../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S && cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm && cd ../bdd_cake_test/ && time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt"
+val status_compile_sexp = OS.Process.system  "cd ../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S"
 
-val _ = if OS.Process.isSuccess status
+val _ = if OS.Process.isSuccess status_compile_sexp
         then print "Ja, policy cakeML compilation completed\n"
         else (print "Nej, policy cakeML compilation failed\n";
+              OS.Process.exit OS.Process.failure)
+
+val status_cc = OS.Process.system  "cd ../bdd_cake_test/ && cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm"
+
+val _ = if OS.Process.isSuccess status_cc 
+        then print "Ja, policy cc compilation completed\n"
+        else (print "Nej, policy cc compilation failed\n";
+              OS.Process.exit OS.Process.failure)
+
+val status_exec = OS.Process.system  "cd ../bdd_cake_test/ && time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt";
+
+val _ = if OS.Process.isSuccess status_exec 
+        then print "Ja, policy cc compilation completed\n"
+        else (print "Nej, policy cc compilation failed\n";
               OS.Process.exit OS.Process.failure)
 
 
@@ -121,12 +135,12 @@ time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt
 
 
 val ins = TextIO.openIn "../bdd_cake_test/bdd_policy_cakeml_export.txt";
-val content_str = TextIO.inputAll ins;
+val policy_content_str = TextIO.inputAll ins;
 val _ = TextIO.closeIn ins;
 
 (*open Term;*)
 
-val content_term =
+val policy_bdd_content_term =
     let
         (* Clean the string by removing newlines and backslash escapes *)
         fun clean s =
@@ -139,7 +153,7 @@ val content_term =
                 String.implode (process chars)
             end
 
-        val cleaned = clean content_str
+        val cleaned = clean policy_content_str
         val parsed = Parse.Term [QUOTE cleaned]
     in
         parsed
@@ -149,22 +163,9 @@ end;
 
 
 
-
-val policy_full_order = “[
-  ("A",["x";"y"]);
-  ("B" ,["z"])
-]”;
-
-
 val test_groupings = rhs(concl(EVAL policy_full_order));
-val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative content_term test_groupings;
+val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative policy_bdd_content_term test_groupings;
 
-
-
-
-(*
-val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ["x";"y";"z"] 1”;
-*)
 
 
 Definition table_content_test_def:
@@ -219,7 +220,7 @@ val prog =
     (Dlet unknown_loc (Pcon NONE [])
       (App Opapp [Var (Short "main"); Con NONE []]))
     ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs
+  `` |> EVAL |> concl |> rhs;
 
 
 
@@ -243,14 +244,14 @@ val _ = (max_print_depth := 200);
 
 
 
-val ins = TextIO.openIn "../bdd_cake_test/bdd_cake_cakeml_export.txt";
-val content_str = TextIO.inputAll ins;
+val ins = TextIO.openIn "../bdd_cake_test/bdd_table_cakeml_export.txt";
+val tbl_content_str = TextIO.inputAll ins;
 val _ = TextIO.closeIn ins;
 
 
 
 
-val content_term =
+val table_bdd_content_term =
     let
         (* Clean the string by removing newlines and backslash escapes *)
         fun clean s =
@@ -263,12 +264,21 @@ val content_term =
                 String.implode (process chars)
             end
 
-        val cleaned = clean content_str
+        val cleaned = clean tbl_content_str
         val parsed = Parse.Term [QUOTE cleaned]
     in
         parsed
 end;
 
+
+
+
+
+
+
+in 
+(policy_bdd_content_term, gen_var_table_auto, table_bdd_content_term)
+end;
 
 
 
