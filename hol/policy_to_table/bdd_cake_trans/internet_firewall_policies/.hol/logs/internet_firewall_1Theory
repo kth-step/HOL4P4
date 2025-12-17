@@ -1,0 +1,43 @@
+<<HOL message: Created theory "internet_firewall_1">>
+Saved definition ____ "policy_order_test_def"
+Translating policy_order_test
+Adding nsLookup representation thms for 646 consts [sptrees_bdd_trans_Prog_env_119, sptrees_bdd_trans_Prog_env_118, ..., CommandLineProg_env_2]
+Adding nsLookup representation thms for [init_env]
+Saved theorem _______ "policy_order_test_refs_def"
+Saved theorem _______ "nsLookup_internet_firewall_1_env_pfun_eqs"
+Saved theorem _______ "policy_order_test_v_thm"
+Saved definition ____ "policy_content_test_def"
+Translating policy_content_test
+Adding nsLookup representation thms for [internet_firewall_1_env]
+Saved theorem _______ "policy_content_test_refs_def"
+Saved theorem _______ "nsLookup_internet_firewall_1_env_0_pfun_eqs"
+Saved theorem _______ "policy_content_test_v_thm"
+Saved definition ____ "policy_main_hol4_def"
+Translating policy_main_hol4
+Adding nsLookup representation thms for [internet_firewall_1_env_0]
+Saved theorem _______ "nsLookup_internet_firewall_1_env_1_pfun_eqs"
+Saved CHEAT _________ "policy_main_hol4_v_thm"
+Saved theorem _______ "nsLookup_internet_firewall_1_env_2_pfun_eqs"
+Ja, policy cakeML compilation completed
+Ja, policy cc compilation completed
+0.00user 0.00system 0:00.00elapsed 66%CPU (0avgtext+0avgdata 1920maxresident)k
+0inputs+8outputs (0major+139minor)pagefaults 0swaps
+Ja, policy cc compilation completed
+Saved definition ____ "table_content_test_def"
+Translating table_content_test
+Adding nsLookup representation thms for [internet_firewall_1_env_2, internet_firewall_1_env_1]
+Saved theorem _______ "table_content_test_refs_def"
+Saved theorem _______ "nsLookup_internet_firewall_1_env_3_pfun_eqs"
+Saved theorem _______ "table_content_test_v_thm"
+Saved definition ____ "table_main_hol4_def"
+Translating table_main_hol4
+Adding nsLookup representation thms for [internet_firewall_1_env_3]
+Saved theorem _______ "nsLookup_internet_firewall_1_env_4_pfun_eqs"
+Saved theorem _______ "table_main_hol4_v_thm"
+Saved theorem _______ "nsLookup_internet_firewall_1_env_5_pfun_eqs"
+0.00user 0.00system 0:00.00elapsed 100%CPU (0avgtext+0avgdata 2080maxresident)k
+0inputs+16outputs (0major+214minor)pagefaults 0swaps
+Ja, table cakeML compilation completed
+Adding nsLookup representation thms for [internet_firewall_1_env_5, internet_firewall_1_env_4]
+Exporting theory "internet_firewall_1" ... done.
+Theory "internet_firewall_1" took 21.0s to build

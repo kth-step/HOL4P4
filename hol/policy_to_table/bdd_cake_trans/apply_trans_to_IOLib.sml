@@ -88,24 +88,24 @@ val prog =
 
 
 
-val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" prog;
+val _ = astToSexprLib.write_ast_to_file "../../bdd_cake_test/test_bdd_policy.sexp" prog;
 
 
-val status_compile_sexp = OS.Process.system  "cd ../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S"
+val status_compile_sexp = OS.Process.system  "cd ../../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S"
 
 val _ = if OS.Process.isSuccess status_compile_sexp
         then print "Ja, policy cakeML compilation completed\n"
         else (print "Nej, policy cakeML compilation failed\n";
               OS.Process.exit OS.Process.failure)
 
-val status_cc = OS.Process.system  "cd ../bdd_cake_test/ && cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm"
+val status_cc = OS.Process.system  "cd ../../bdd_cake_test/ && cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm"
 
 val _ = if OS.Process.isSuccess status_cc 
         then print "Ja, policy cc compilation completed\n"
         else (print "Nej, policy cc compilation failed\n";
               OS.Process.exit OS.Process.failure)
 
-val status_exec = OS.Process.system  "cd ../bdd_cake_test/ && time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt";
+val status_exec = OS.Process.system  "cd ../../bdd_cake_test/ && time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt";
 
 val _ = if OS.Process.isSuccess status_exec 
         then print "Ja, policy cc compilation completed\n"
@@ -116,7 +116,7 @@ val _ = if OS.Process.isSuccess status_exec
 
 (*
 
-cp test_bdd_policy.sexp ../bdd_cake_test
+cp test_bdd_policy.sexp ../../bdd_cake_test
 
 CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S
 
@@ -134,7 +134,7 @@ time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt
 
 
 
-val ins = TextIO.openIn "../bdd_cake_test/bdd_policy_cakeml_export.txt";
+val ins = TextIO.openIn "../../bdd_cake_test/bdd_policy_cakeml_export.txt";
 val policy_content_str = TextIO.inputAll ins;
 val _ = TextIO.closeIn ins;
 
@@ -224,10 +224,10 @@ val prog =
 
 
 
-val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_table.sexp" prog;
+val _ = astToSexprLib.write_ast_to_file "../../bdd_cake_test/test_bdd_table.sexp" prog;
 
 
-val status = OS.Process.system  "cd ../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_table.sexp > test_bdd_table.cake.S && cc test_bdd_table.cake.S basis_ffi.c -lm -o test_bdd_table.cake -lm && cd ../bdd_cake_test/ && time ./test_bdd_table.cake > bdd_table_cakeml_export.txt"
+val status = OS.Process.system  "cd ../../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_table.sexp > test_bdd_table.cake.S && cc test_bdd_table.cake.S basis_ffi.c -lm -o test_bdd_table.cake -lm && time ./test_bdd_table.cake > bdd_table_cakeml_export.txt"
 
 val _ = if OS.Process.isSuccess status
         then print "Ja, table cakeML compilation completed\n"
@@ -244,7 +244,7 @@ val _ = (max_print_depth := 200);
 
 
 
-val ins = TextIO.openIn "../bdd_cake_test/bdd_table_cakeml_export.txt";
+val ins = TextIO.openIn "../../bdd_cake_test/bdd_table_cakeml_export.txt";
 val tbl_content_str = TextIO.inputAll ins;
 val _ = TextIO.closeIn ins;
 
