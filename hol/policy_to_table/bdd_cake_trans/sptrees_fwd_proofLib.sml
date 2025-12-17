@@ -67,6 +67,10 @@ open apply_trans_to_IOLib;
             (*       STAGE 1       *)
             (***********************)
 
+           val start_cpu_stage1 = Timer.startCPUTimer ();
+           val start_real_stage1 = Timer.startRealTimer (); 
+
+
             (*convert arith policy to var policy*)
             val arith_policy_eval = EVAL “convert_arith_to_var_policy ^arith_policy ^policy_me”;
             val var_policy = optionSyntax.dest_some (rhs (concl arith_policy_eval));
@@ -83,6 +87,8 @@ open apply_trans_to_IOLib;
             val arith_policy_var_policy_thm = REWRITE_RULE[all_distinct_conj, arith_policy_eval]
             (ISPECL[arith_policy, var_policy, policy_me] policy_airth_to_var_sem_conversion_correct);
 
+            val _ = time_stage ("Stage 1", start_cpu_stage1, start_real_stage1) 
+
 
             (***********************)
             (*       STAGE 2       *)
@@ -93,9 +99,10 @@ open apply_trans_to_IOLib;
             val (final_policy_bdd, tbl, final_table_bdd) =
             apply_trans_to_IOLib.sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order);
 
+            val _ = time_stage ("Stage 2 from var policy to BDD", start_cpu_stage2, start_real_stage2);
 
 
-            val get_i_policy = bdd_utilsLib.pairBDDs (final_policy_bdd, final_table_bdd);
+
 
 
 
@@ -104,7 +111,7 @@ open apply_trans_to_IOLib;
             val eval_table_full_opt_auto = mk_thm ( [], “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^tbl))]) [] ^policy_order 1 = SOME ^final_table_bdd ”);
 
 
-
+(*
             val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^tbl ^policy_order ^get_i_policy”;
             val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract;
             val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] var_eq_thm_extract_red;
@@ -183,9 +190,9 @@ open apply_trans_to_IOLib;
             fs[cond1_thm, cond2_thm, cond3_thm]
             );
 
-
+*)
     in
-    final_thm
+    eval_table_full_opt_auto (*final_thm*)
     end;
 
 end;
