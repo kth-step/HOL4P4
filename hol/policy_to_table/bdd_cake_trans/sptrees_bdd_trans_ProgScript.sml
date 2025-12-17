@@ -1,18 +1,18 @@
 open HolKernel Parse boolLib bossLib;
-open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;     
+open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
 open preamble basis ml_translatorLib ;
 
 open miscTheory ml_translatorTheory ListProgTheory ;
 open fromSexpTheory;
 
 
-     
+
 val _ = new_theory "sptrees_bdd_trans_Prog";
 
 (*)
  val _ = ml_prog_update (open_module "cake_sptrees_bdd_trans_Prog");
-*)   
-        
+*)
+
 val _ = translation_extends "basisProg"
 val _ = intLib.deprecate_int();
 
@@ -70,7 +70,7 @@ val r = translate sp_body_of_mk_def;
 
 (* translation of sp_mk_BDDPred_opt *)
 
-val r = translate INDEX_FIND_def;  
+val r = translate INDEX_FIND_def;
 val r = translate min_idx_till_def;
 val r = translate sem_pred_def;
 val r = translate check_sem_pred_def;
@@ -89,7 +89,7 @@ val r = translate pre_are_fail_def;
 val r = translate final_policy_def;
 
 
-    
+
 Theorem final_policy_cake_trans:
   final_policy_side v4
 Proof
@@ -104,15 +104,15 @@ QED
 val _ = final_policy_cake_trans |> update_precondition;
 
 
-        
+
 val r = translate fv_pred_def;
 val r = translate fv_policy_def;
-    
+
 val r = ml_translatorLib.register_type ``:((pred # 'a) list, 'b) decision_structure``;
 val r = translate policy_structure_def;
 
 
-   
+
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 
 Definition sp_mk_BDD_policy_def:
@@ -122,7 +122,7 @@ End
 
 val r = translate sp_mk_BDDPred_opt_def;
 val r = translate sp_mk_BDD_policy_def;
-             
+
 
 
 (***********************************)
@@ -157,16 +157,16 @@ val r = translate final_tables_def;
 val r = translate fv_atom_def;
 val r = translate fv_row_def;
 val r = translate fv_tbl_def;
-val r = translate fv_tbll_def;  
+val r = translate fv_tbll_def;
 val r = translate fv_tables_def;
-    
+
 val r = translate table_structure_def;
 
-    
+
 val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
 
 
-    
+
 Definition sp_mk_BDD_table_def:
   sp_mk_BDD_table (var_table: action_table_type) policy_order =
   sp_mk_BDDPred_opt table_structure (0n,LN,insert 0 (non_termn (NONE, var_table)) LN) [] policy_order 1n
@@ -175,16 +175,16 @@ End
 
 val r = translate sp_mk_BDD_table_def;
 
-    
+
 (*****************************************************)
 (***********  common printing      *******************)
 (*****************************************************)
 
 (****************)
-(* print edges  *)     
+(* print edges  *)
 (****************)
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘fun print_tuple_list xs =
   let
     fun print_elem e =
@@ -215,8 +215,8 @@ val res = append_prog o process_topdecs $
     TextIO.print "]"
           end’;
 
-          
-val res = append_prog o process_topdecs $ 
+
+val res = append_prog o process_topdecs $
 ‘fun print_string cs =
   let fun loop xs =
         case xs of
@@ -226,7 +226,7 @@ val res = append_prog o process_topdecs $
 
 
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘
 fun print_numl nl =
 let fun loop l =
@@ -235,16 +235,16 @@ let fun loop l =
     | [n] => (TextIO.print (Int.toString n))
     | n::rest => (TextIO.print (Int.toString n); TextIO.print "; "; loop rest)
 in
-  
+
   (TextIO.print "[";
   loop nl;
   TextIO.print "]")
-      
-      end;’; 
+
+      end;’;
 
 
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘
 fun print_pred p =
   case p of
@@ -264,13 +264,13 @@ fun print_pred p =
                   print_pred a;
                   TextIO.print ") (";
                   print_pred b; TextIO.print ")");
-’; 
+’;
 
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘
-fun print_action a = 
-case a of 
+fun print_action a =
+case a of
 (Action (cs,nl)) =>
       (TextIO.print "action (\"";
        print_string cs;
@@ -281,9 +281,9 @@ case a of
       (TextIO.print "state  ";
        TextIO.print (Int.toString i);
        TextIO.print " ");
-’; 
+’;
 
-      
+
 (*********************************************************)
 (***********  policy specific printing *******************)
 (*********************************************************)
@@ -291,20 +291,20 @@ case a of
 (****************)
 (* print labels *)
 (****************)
-  
 
-val res = append_prog o process_topdecs $    
+
+val res = append_prog o process_topdecs $
 ‘fun print_pair (p, act) =
   ( TextIO.print "(";
     print_pred p;
     TextIO.print ", ";
     print_action act;
     TextIO.print ")"
-  );’; 
+  );’;
 
 
-  
-val res = append_prog o process_topdecs $   
+
+val res = append_prog o process_topdecs $
 ‘fun print_list_pairs xs =
   let
     fun loop xs =
@@ -321,7 +321,7 @@ val res = append_prog o process_topdecs $
 
 
 
-val res = append_prog o process_topdecs $   
+val res = append_prog o process_topdecs $
 ‘fun print_pair_termin (act, p) =
  ( TextIO.print "(";
    print_action act;
@@ -333,7 +333,7 @@ val res = append_prog o process_topdecs $
 
 
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘fun print_label lab =
   case lab of
     Non_termn (optname, lst) =>
@@ -353,7 +353,7 @@ val res = append_prog o process_topdecs $
 
 
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘fun print_list_label xs =
   let
     fun loop xs =
@@ -388,9 +388,9 @@ val r = translate spts_to_alist_aux_def;
 val r = translate spts_to_alist_def;
 val r = translate toSortedAList_def;
 
-    
 
-val res = append_prog o process_topdecs $ 
+
+val res = append_prog o process_topdecs $
 ‘
 fun print_atom p =
   case p of
@@ -400,14 +400,14 @@ fun print_atom p =
     | Not_1 cs => (TextIO.print "Not \""; print_string cs; TextIO.print "\"")
     | Notfalse => TextIO.print "NotFalse"
     | Nottrue => TextIO.print "NotTrue"
-’; 
+’;
 
 
-    
-val res = append_prog o process_topdecs $    
+
+val res = append_prog o process_topdecs $
 ‘fun print_al_n_s (atom_l, n_state) =
  let
-        
+
   fun loop xs =
   case xs of
     [] => ()
@@ -422,21 +422,21 @@ val res = append_prog o process_topdecs $
     print_action (snd n_state);
     TextIO.print ")"
   )
-  end’; 
+  end’;
 
 
 
 
-val res = append_prog o process_topdecs $   
+val res = append_prog o process_topdecs $
 ‘fun print_list_tbl xs =
  let
 
     fun loop_inner tbl =
       case tbl of
           [] => ()
-        | [al_n_s] => print_al_n_s al_n_s 
+        | [al_n_s] => print_al_n_s al_n_s
         | al_n_s::rest => (print_al_n_s al_n_s ; TextIO.print "; " ;  loop_inner rest)
-        
+
     fun loop xs =
       case xs of
           [] => ()
@@ -450,7 +450,7 @@ end;’;
 
 
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘fun print_table_label lab =
   case lab of
     Non_termn (optname, lst_n) =>
@@ -467,7 +467,7 @@ val res = append_prog o process_topdecs $
   | Termn (fin, lst_n) =>
       (TextIO.print "termn (";
        print_action (fin);
-       TextIO.print ",";    
+       TextIO.print ",";
        print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
        TextIO.print ", ";
        TextIO.print (Int.toString (snd lst_n)); (*input state*)
@@ -476,7 +476,7 @@ val res = append_prog o process_topdecs $
 
 
 
-val res = append_prog o process_topdecs $ 
+val res = append_prog o process_topdecs $
 ‘fun print_list_tables_lbl xs =
   let
     fun loop xs =
@@ -508,7 +508,7 @@ val res = append_prog o process_topdecs $
 (* EXAMPLE OF USAGE *)
 
 (*
-   
+
 Definition policy_order_test_def:
  policy_order_test = (["x";"y";"z"]:string list)
 End
@@ -525,7 +525,7 @@ End
 
 val r = translate policy_content_test_def;
 
-                       
+
 Definition policy_main_hol4_def:
   policy_main_hol4 =
   case sp_mk_BDD_policy policy_content_test  policy_order_test of
@@ -541,8 +541,8 @@ End
 
 val r = translate policy_main_hol4_def;
 
-    
-val res = append_prog o process_topdecs $ 
+
+val res = append_prog o process_topdecs $
                       ‘fun main () =
                        let
                         val args = CommandLine.arguments()
@@ -561,14 +561,14 @@ val res = append_prog o process_topdecs $
 
                               TextIO.print "(" ;
                               print_list_label (snd (snd (bdd))) ;
-                              TextIO.print "): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings";              
-                              
-                              TextIO.print ")" 
+                              TextIO.print "): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings";
+
+                              TextIO.print ")"
                               )
-                               
+
                          )
                          end ;’
-                     ; 
+                     ;
 
 
 val prog =
@@ -578,9 +578,9 @@ val prog =
     ^(get_ml_prog_state() |> get_prog)
   `` |> EVAL |> concl |> rhs
 
-                                
 
-val _ = astToSexprLib.write_ast_to_file "test_bdd_policy.sexp" prog;
+
+val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" prog;
 
 (*
 
@@ -588,28 +588,28 @@ cp test_bdd_policy.sexp ../bdd_cake_test
 
 
 
-   
+
 CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S
 
-cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm                    
+cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm
 
 time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt
 
-   
+
 *)
-  
 
 
 
 
 
 
- 
+
+
 val ins = TextIO.openIn "../bdd_cake_test/bdd_policy_cakeml_export.txt";
 val content_str = TextIO.inputAll ins;
 val _ = TextIO.closeIn ins;
 
-(*open Term;*)   
+(*open Term;*)
 
 val content_term =
     let
@@ -623,7 +623,7 @@ val content_term =
             in
                 String.implode (process chars)
             end
-        
+
         val cleaned = clean content_str
         val parsed = Parse.Term [QUOTE cleaned]
     in
@@ -640,12 +640,12 @@ val policy_full_order = “[
   ("B" ,["z"])
 ]”;
 
-        
+
 val test_groupings = rhs(concl(EVAL policy_full_order));
 val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative content_term test_groupings;
 
 
-    
+
 
 (*
 val eval_table_full_opt_auto = EVAL “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ["x";"y";"z"] 1”;
@@ -658,7 +658,7 @@ End
 
 val r = translate table_content_test_def;
 
-                       
+
 Definition table_main_hol4_def:
   table_main_hol4 =
   case sp_mk_BDD_table table_content_test policy_order_test of
@@ -671,8 +671,8 @@ End
 
 val r = translate table_main_hol4_def;
 
-    
-val res = append_prog o process_topdecs $ 
+
+val res = append_prog o process_topdecs $
                       ‘fun main () =
                        let
                         val args = CommandLine.arguments()
@@ -693,10 +693,10 @@ val res = append_prog o process_topdecs $
                               print_list_tables_lbl (snd (snd (bdd))) ;
                               TextIO.print "): (action_table_type, (string#num list) action_expr) labelings)"
                               )
-                               
+
                          )
                          end ;
-’; 
+’;
 
 
 val prog =
@@ -706,7 +706,7 @@ val prog =
     ^(get_ml_prog_state() |> get_prog)
   `` |> EVAL |> concl |> rhs
 
-                                
+
 
 val _ = astToSexprLib.write_ast_to_file "test_bdd_table.sexp" prog;
 
@@ -716,13 +716,13 @@ val _ = astToSexprLib.write_ast_to_file "test_bdd_table.sexp" prog;
 
 
 (*
-reset_translation   
+reset_translation
 val _ = astPP.enable_astPP ();
 val _ = (max_print_depth := 200);
 *)
 
 
- 
+
 val ins = TextIO.openIn "../bdd_cake_test/outtt.txt";
 val content_str = TextIO.inputAll ins;
 val _ = TextIO.closeIn ins;
@@ -742,7 +742,7 @@ val content_term =
             in
                 String.implode (process chars)
             end
-        
+
         val cleaned = clean content_str
         val parsed = Parse.Term [QUOTE cleaned]
     in
@@ -757,3 +757,104 @@ val _ = ml_prog_update (close_module NONE);
 *)
 
 val _ = export_theory ();
+
+
+
+
+
+(*
+
+
+open HolKernel Parse boolLib bossLib;
+open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
+
+open sptrees_bdd_trans_ProgTheory;
+open preamble basis ml_translatorLib ;
+
+open miscTheory ml_translatorTheory ListProgTheory ;
+open fromSexpTheory;
+
+
+
+
+val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
+
+val _ = translation_extends "sptrees_bdd_trans_Prog";
+
+
+Definition policy_order_test_def:
+ policy_order_test = (["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"]:string list)
+End
+
+val r = translate policy_order_test_def;
+
+Definition policy_content_test_def:
+  policy_content_test = [(And (Var "is_srcPort_le_57222")
+        (And (Var "is_srcPort_ge_57222")
+           (And (Var "is_dstPort_le_53")
+              (And (Var "is_dstPort_ge_53")
+                 (And (Var "is_srcNAT_le_54587")
+                    (And (Var "is_srcNAT_ge_54587")
+                       (And (Var "is_dstNAT_le_53") (Var "is_dstNAT_ge_53"))))))),
+      action ("allow",([]:num list))); (True,action ("drop",[]))]:action_policy_type
+End
+
+val r = translate policy_content_test_def;
+
+
+Definition policy_main_hol4_def:
+  policy_main_hol4 =
+  case sp_mk_BDD_policy policy_content_test  policy_order_test of
+  | NONE => NONE
+  | SOME (r,sp_edges,sp_labels) => SOME (r,
+                                         ((toSortedAList sp_edges):edges),
+                                         ((toSortedAList sp_labels): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings) )
+End
+
+
+
+
+
+val r = translate policy_main_hol4_def;
+
+
+val res = append_prog o process_topdecs $
+                      ‘fun main () =
+                       let
+                        val args = CommandLine.arguments()
+                       in
+                         (case policy_main_hol4 of
+                            None => (TextIO.print "No BDD can be created \n")
+                          | Some bdd =>
+                              (
+                              TextIO.print "(" ;
+                              TextIO.print (Int.toString (fst bdd));
+                              (TextIO.print "n , \n");
+
+                              TextIO.print "(" ;
+                              print_tuple_list (fst (snd (bdd))) ;
+                              TextIO.print "):edges , \n";
+
+                              TextIO.print "(" ;
+                              print_list_label (snd (snd (bdd))) ;
+                              TextIO.print "): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings";
+
+                              TextIO.print ")"
+                              )
+
+                         )
+                         end ;’
+                     ;
+
+
+val prog =
+  ``SNOC
+    (Dlet unknown_loc (Pcon NONE [])
+      (App Opapp [Var (Short "main"); Con NONE []]))
+    ^(get_ml_prog_state() |> get_prog)
+  `` |> EVAL |> concl |> rhs
+
+
+
+val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" prog;
+*)
