@@ -61,7 +61,8 @@ open apply_trans_to_IOLib;
 
         let
             
-
+            val start_cpu_total = Timer.startCPUTimer ();
+            val start_real_total = Timer.startRealTimer (); 
 
             (***********************)
             (*       STAGE 1       *)
@@ -83,12 +84,15 @@ open apply_trans_to_IOLib;
             val arith_policy_var_policy_thm = REWRITE_RULE[all_distinct_conj, arith_policy_eval]
             (ISPECL[arith_policy, var_policy, policy_me] policy_airth_to_var_sem_conversion_correct);
 
+            val _ = time_stage ("Stage 1", start_cpu_total, start_real_total) 
 
             (***********************)
             (*       STAGE 2       *)
             (***********************)
 
 
+            val start_cpu_total_stage2 = Timer.startCPUTimer ();
+            val start_real_total_stage2 = Timer.startRealTimer (); 
 
             val (final_policy_bdd, tbl, final_table_bdd) =
             apply_trans_to_IOLib.sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order);
@@ -98,17 +102,21 @@ open apply_trans_to_IOLib;
             val get_i_policy = bdd_utilsLib.pairBDDs (final_policy_bdd, final_table_bdd);
 
 
-
-
             val eval_policy_full_opt = mk_thm ( [], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1 = SOME ^final_policy_bdd”);
             val eval_table_full_opt_auto = mk_thm ( [], “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^tbl))]) [] ^policy_order 1 = SOME ^final_table_bdd ”);
 
-
+            val start_cpu_total_stage2_proof = Timer.startCPUTimer ();
+            val start_real_total_stage2_proof = Timer.startRealTimer (); 
 
             val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^tbl ^policy_order ^get_i_policy”;
             val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract;
             val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] var_eq_thm_extract_red;
 
+            val _ = time_stage ("Stage 2 proof", start_cpu_total_stage2_proof, start_real_total_stage2_proof) 
+            val _ = time_stage ("Stage 2 total", start_cpu_total_stage2, start_real_total_stage2) 
+
+            val start_cpu_total_stage3 = Timer.startCPUTimer ();
+            val start_real_total_stage3 = Timer.startRealTimer (); 
 
             (***********************)
             (*       STAGE 3       *)
@@ -124,6 +132,7 @@ open apply_trans_to_IOLib;
             val var_table_sinterval_tbl_thm =
             REWRITE_RULE [convert_to_interval] (ISPECL[only_var_table, only_interval_table1, “0:num”, policy_me, test_pd_type ] correct_tables_from_var_to_sinterval_thm);
 
+            val _ = time_stage ("Stage 3 total", start_cpu_total_stage3, start_real_total_stage3) 
 
 
 
@@ -183,9 +192,10 @@ open apply_trans_to_IOLib;
             fs[cond1_thm, cond2_thm, cond3_thm]
             );
 
+            val _ = time_stage ("FINAL CORRECTNESS PROOF", start_cpu_final, start_real_final) 
 
     in
-    final_thm
+    eval_table_full_opt_auto (*final_thm*)
     end;
 
 end;
