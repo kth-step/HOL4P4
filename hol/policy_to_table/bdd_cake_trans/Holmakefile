@@ -51,7 +51,14 @@ EXTRA_CLEANS   = $(if $(NEWHOLHEAP),$(NEWHOLHEAP) $(NEWHOLHEAP).o,) \
                  $(wildcard *.sexp) \
                  $(wildcard *.S) \
                  $(wildcard *.o) \
-                 $(wildcard *~) 
+                 $(wildcard *~) \
+                 .hol/ \
+                 *.uo \
+                 *.ui \
+                 *Theory.sml \
+                 *Theory.sig \
+                 *Script.ui \
+                 *Script.uo
 
 OPTIONS        = QUIT_ON_FAILURE
 

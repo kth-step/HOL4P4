@@ -6,7 +6,7 @@ open bdd_utilsLib;
 open sptrees_fwd_proofLib;
 
 
-val _ = new_theory "internet_firewall_3";
+val _ = new_theory "internet_firewall_4";
 
 val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
  
@@ -92,6 +92,25 @@ val arith_policy_rule3 = “((arith_and (arith_a ^is_srcPort_le_6881)
                                    (arith_a ^is_dstNAT_ge_50321)))))))) ,
                            action ("allow",[1])):single_rule”;
 
+(* rule 4 *)
+
+val is_srcPort_le_50553 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50553 16))”;
+val is_srcPort_ge_50553 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50553 16))”;
+
+val is_srcNAT_le_50553 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 50553 16))”;
+val is_srcNAT_ge_50553 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 50553 16))”;
+
+
+val arith_policy_rule4 = “((arith_and (arith_a ^is_srcPort_le_50553)
+                          (arith_and (arith_a ^is_srcPort_ge_50553)
+                          (arith_and (arith_a ^is_dstPort_le_3389)
+                          (arith_and (arith_a ^is_dstPort_ge_3389)
+                          (arith_and (arith_a ^is_srcNAT_le_50553)
+                          (arith_and (arith_a ^is_srcNAT_ge_50553)
+                          (arith_and (arith_a ^is_dstNAT_le_3389)
+                                   (arith_a ^is_dstNAT_ge_3389)))))))) ,
+                           action ("allow",[1])):single_rule”;
+
 (* Default policy rule *)
 val arith_policy_rule_default = “(arith_a a_True, action ("drop", [])):single_rule”;
 
@@ -100,6 +119,7 @@ val arith_policy = “[
     ^arith_policy_rule1;
     ^arith_policy_rule2;
     ^arith_policy_rule3;
+    ^arith_policy_rule4;
     ^arith_policy_rule_default
 ]:single_rule list”;
 
@@ -131,38 +151,40 @@ val policy_me =   “[
     ("is_srcNAT_ge_43265", ^is_srcNAT_ge_43265);
     ("is_dstNAT_le_50321", ^is_dstNAT_le_50321);
     ("is_dstNAT_ge_50321", ^is_dstNAT_ge_50321);
+    ("is_srcPort_le_50553", ^is_srcPort_le_50553);
+    ("is_srcPort_ge_50553", ^is_srcPort_ge_50553);
+    ("is_srcNAT_le_50553", ^is_srcNAT_le_50553);
+    ("is_srcNAT_ge_50553", ^is_srcNAT_ge_50553);
 ]”;
+
 
 (*
 (* Grouped policy ordering *)
 val policy_full_order = “[
-  ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881"]);
+  ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881";"is_srcPort_le_50553";"is_srcPort_ge_50553"]);
   ("dstPortGrp",["is_dstPort_le_53";"is_dstPort_ge_53";"is_dstPort_le_3389";"is_dstPort_ge_3389";"is_dstPort_le_50321";"is_dstPort_ge_50321"]);
-  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
+  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265";"is_srcNAT_le_50553";"is_srcNAT_ge_50553"]);
   ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389";"is_dstNAT_le_50321";"is_dstNAT_ge_50321"])
 ]”;
 
-
 (* Flat policy order (grouped) *)
 
-val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"]”;
+val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_srcPort_le_50553"; "is_srcPort_ge_50553"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"]”;
 *)
 
-(* hand crafted possible better order *)
-
 val policy_full_order = “[
-  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
-  ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389";"is_dstNAT_le_50321";"is_dstNAT_ge_50321"]);
   ("dstPortGrp",["is_dstPort_le_53";"is_dstPort_ge_53";"is_dstPort_le_3389";"is_dstPort_ge_3389";"is_dstPort_le_50321";"is_dstPort_ge_50321"]);
-  ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881"])
+  ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389";"is_dstNAT_le_50321";"is_dstNAT_ge_50321"]);
+  ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881";"is_srcPort_le_50553";"is_srcPort_ge_50553"]);
+  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265";"is_srcNAT_le_50553";"is_srcNAT_ge_50553"]);
 ]”;
 
 val policy_order = “[
-"is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265";
-"is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321";
-"is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321";
-"is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881";]”;
-
+  "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321";
+   "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321";
+   "is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_srcPort_le_50553"; "is_srcPort_ge_50553"; 
+   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"; 
+ ]”;
 
 
 (*
@@ -178,22 +200,26 @@ val policy_order = ``[
   "is_srcPort_le_6881"; "is_srcPort_ge_6881";
   "is_dstPort_le_50321"; "is_dstPort_ge_50321";
   "is_srcNAT_le_43265"; "is_srcNAT_ge_43265";
-  "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"
+  "is_dstNAT_le_50321"; "is_dstNAT_ge_50321";
+  "is_srcPort_le_50553"; "is_srcPort_ge_50553";
+  "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"
 ]``;
 
 val policy_full_order = ``[
-  ("xy",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
-  ("rz" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
-  ("47",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
-  ("ps" ,["is_dstNAT_le_53";"is_dstNAT_ge_53"]);
-  ("fgh",["is_srcPort_le_56258";"is_srcPort_ge_56258"]);
-  ("t7" ,["is_dstPort_le_3389";"is_dstPort_ge_3389"]);
-  ("jdt",["is_srcNAT_le_56258";"is_srcNAT_ge_56258"]);
-  ("15" ,["is_dstNAT_le_3389";"is_dstNAT_ge_3389"]);
-  ("g2b",["is_srcPort_le_6881";"is_srcPort_ge_6881"]);
-  ("qpkb" ,["is_dstPort_le_50321";"is_dstPort_ge_50321"]);
-  ("hdur",["is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
-  ("wg" ,["is_dstNAT_le_50321";"is_dstNAT_ge_50321"])
+  ("e5",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
+  ("jwg" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
+  ("7w5",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
+  ("i4w" ,["is_dstNAT_le_53";"is_dstNAT_ge_53"]);
+  ("2z6f",["is_srcPort_le_56258";"is_srcPort_ge_56258"]);
+  ("79y" ,["is_dstPort_le_3389";"is_dstPort_ge_3389"]);
+  ("7wu",["is_srcNAT_le_56258";"is_srcNAT_ge_56258"]);
+  ("d1" ,["is_dstNAT_le_3389";"is_dstNAT_ge_3389"]);
+  ("vl94",["is_srcPort_le_6881";"is_srcPort_ge_6881"]);
+  ("gs" ,["is_dstPort_le_50321";"is_dstPort_ge_50321"]);
+  ("4a",["is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
+  ("lb" ,["is_dstNAT_le_50321";"is_dstNAT_ge_50321"]);
+  ("7eii",["is_srcPort_le_50553";"is_srcPort_ge_50553"]);
+  ("g5" ,["is_srcNAT_le_50553";"is_srcNAT_ge_50553"])
 ]``;
 *)
 
@@ -202,5 +228,5 @@ val policy_full_order = ``[
 
 val final_thm_res =
 sptrees_fwd_proofLib.sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order)
-                      
+                   
 val _ = export_theory ();

@@ -7,7 +7,7 @@ open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheo
 open sptrees_bdd_trans_ProgTheory;
 open preamble basis ml_translatorLib ;
 
-open miscTheory ml_translatorTheory ListProgTheory ;
+open miscTheory ;
 open fromSexpTheory;
 
 
@@ -17,9 +17,30 @@ val _ = translation_extends "sptrees_bdd_trans_Prog";
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 
 
+
+fun time_stage (stage_name, timer_cpu, timer_real) = 
+        let
+            val cpu_time = Timer.checkCPUTimer timer_cpu
+            val real_time = Timer.checkRealTimer timer_real
+            val _ = HOL_MESG (stage_name ^ " completed in: " ^ 
+                          Time.toString (#usr cpu_time) ^ " user, " ^ 
+                          Time.toString (#sys cpu_time) ^ " system, " ^ 
+                          Time.toString real_time ^ " real\n")
+        in
+            (cpu_time, real_time)
+end
+
+
+
+
+
 fun sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order) =
 
 let
+
+val start_cpu_stage2_io = Timer.startCPUTimer ();
+val start_real_stage2_io = Timer.startRealTimer (); 
+
 
 Definition policy_order_test_def:
  policy_order_test = (^policy_order:string list)
@@ -90,6 +111,9 @@ val prog =
 
 val _ = astToSexprLib.write_ast_to_file "../../bdd_cake_test/test_bdd_policy.sexp" prog;
 
+val _ = time_stage ("Stage 2 from var policy to sexp - cakeML trans ", start_cpu_stage2_io, start_real_stage2_io);
+val start_cpu_stage2_io2 = Timer.startCPUTimer ();
+val start_real_stage2_io2 = Timer.startRealTimer (); 
 
 val status_compile_sexp = OS.Process.system  "cd ../../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S"
 
@@ -112,7 +136,9 @@ val _ = if OS.Process.isSuccess status_exec
         else (print "Nej, policy cc compilation failed\n";
               OS.Process.exit OS.Process.failure)
 
-
+val _ = time_stage ("Stage 2 cakeML compiliation var policy to bdd ", start_cpu_stage2_io2, start_real_stage2_io2);
+val start_cpu_stage2_io3 = Timer.startCPUTimer ();
+val start_real_stage2_io3 = Timer.startRealTimer (); 
 
 (*
 
@@ -137,6 +163,8 @@ time ./test_bdd_policy.cake > bdd_policy_cakeml_export.txt
 val ins = TextIO.openIn "../../bdd_cake_test/bdd_policy_cakeml_export.txt";
 val policy_content_str = TextIO.inputAll ins;
 val _ = TextIO.closeIn ins;
+
+val _ = time_stage ("Stage 2 from Policy to var BDD total ", start_cpu_stage2_io, start_real_stage2_io);
 
 (*open Term;*)
 
@@ -226,6 +254,11 @@ val prog =
 
 val _ = astToSexprLib.write_ast_to_file "../../bdd_cake_test/test_bdd_table.sexp" prog;
 
+val _ = time_stage ("Stage 2 prepp out table and recompile cakeml translation ", start_cpu_stage2_io3, start_real_stage2_io3);
+val start_cpu_stage2_io4 = Timer.startCPUTimer ();
+val start_real_stage2_io4 = Timer.startRealTimer (); 
+
+
 
 val status = OS.Process.system  "cd ../../bdd_cake_test/ && CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_table.sexp > test_bdd_table.cake.S && cc test_bdd_table.cake.S basis_ffi.c -lm -o test_bdd_table.cake -lm && time ./test_bdd_table.cake > bdd_table_cakeml_export.txt"
 
@@ -272,9 +305,9 @@ end;
 
 
 
+val _ = time_stage ("Stage 2 cakeML compiliation var table to BDD ", start_cpu_stage2_io4, start_real_stage2_io4);
 
-
-
+val _ = time_stage ("Stage 2 from TABLE to var BDD total ", start_cpu_stage2_io3, start_real_stage2_io3);
 
 in 
 (policy_bdd_content_term, gen_var_table_auto, table_bdd_content_term)
