@@ -432,7 +432,6 @@ gvs[Once stmt_typ_cases]
 Theorem PROG_stmt:
   ∀ ty stmt. prog_stmt stmt ty
 Proof
-        
 STRIP_TAC >>
 Induct >>
 REPEAT STRIP_TAC >>          
@@ -445,9 +444,9 @@ REPEAT STRIP_TAC >| [
 
  SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
  Cases_on `is_const e` >| [
-      
+
    gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
-      
+
    gvs[Once frame_typ_cases] >>                        
    gvs[Once stmtl_typ_cases] >>
    gvs[type_ith_stmt_def] >>
@@ -480,11 +479,17 @@ REPEAT STRIP_TAC >| [
                             FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`]))) >>
                             FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>           
    gvs[prog_exp_def] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
-                                                  ‘t_tau tau'’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                                  ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
-   gvs[is_const_val_exsist] >>
-   srw_tac [SatisfySimps.SATISFY_ss][]          
+   PairCases_on ‘c’ >> gvs[] >>
+   rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+             get_oracle_index,set_oracle_index,random_oracle)’ >>
+   gvs[is_const_val_exsist, get_ectx_def] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   ‘∃e' framel.
+     e_red (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+            get_oracle_index ascope,random_oracle) gscope scopest e e' framel’ by metis_tac[] >>
+   PairCases_on ‘framel’ >>
+   metis_tac[]
  ]         
  ,
 
@@ -507,22 +512,29 @@ REPEAT STRIP_TAC >| [
    
    ‘∀e. prog_exp e ty’ by ( ASSUME_TAC PROG_e >>
                             FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`]))) >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>           
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>
    gvs[prog_exp_def] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
-                                               ‘t_tau tau_bool’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
-   gvs[is_const_val_exsist] >>
-   srw_tac [SatisfySimps.SATISFY_ss][]          
-           
+   PairCases_on ‘c’ >> gvs[] >>
+   rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+             get_oracle_index,set_oracle_index,random_oracle)’ >>
+   gvs[is_const_val_exsist, get_ectx_def] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   ‘∃e' framel.
+     e_red (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+            get_oracle_index ascope,random_oracle) gscope scopest e e' framel’ by metis_tac[] >>
+   PairCases_on ‘framel’ >>
+   metis_tac[]
  ]     
  ,
  
  (*****************************)
  (*   stmt_block              *)
  (*****************************)         
- SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[clause_name_def]
-                                                
+ SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[clause_name_def] >>
+ PairCases_on ‘c’ >> gs[] >>
+ Cases_on ‘declare_list_in_fresh_scope (l,c6 ascope,c8)’ >>
+ gs[]
  ,
 
  (*****************************)
@@ -542,11 +554,17 @@ REPEAT STRIP_TAC >| [
                             FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`]))) >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>           
    gvs[prog_exp_def] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
-                                               ‘t_tau tau'’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
-   gvs[is_const_val_exsist] >>
-   srw_tac [SatisfySimps.SATISFY_ss][]                     
+   PairCases_on ‘c’ >> gvs[] >>
+   rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+             get_oracle_index,set_oracle_index,random_oracle)’ >>
+   gvs[is_const_val_exsist, get_ectx_def] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   ‘∃e' framel.
+     e_red (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+            get_oracle_index ascope,random_oracle) gscope scopest e e' framel’ by metis_tac[] >>
+   PairCases_on ‘framel’ >>
+   metis_tac[]
     ]     
  ,
 
@@ -559,7 +577,7 @@ REPEAT STRIP_TAC >| [
             (* seq2 *) 
    gvs[Once stmt_sem_cases, clause_name_def] >>
    frame_typ_into_stmt_typ_tac >>           
-   gvs[Once stmt_sem_cases, clause_name_def]
+   gvs[Once stmt_sem_cases]
    ,
         
    srw_tac [boolSimps.DNF_ss][] >>
@@ -606,12 +624,12 @@ REPEAT STRIP_TAC >| [
      ,
 
      (* seq3 *)
-     DISJ2_TAC  >>  
+     DISJ2_TAC >>
      gvs[Once stmt_sem_cases] >>
      IMP_RES_TAC stmtl_len_from_in_frame_theorem >> gvs[] >>
      SIMP_TAC list_ss  [Once stmt_sem_cases] >> gvs[] >>
      srw_tac [boolSimps.DNF_ss][] >>
-     srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]        
+     srw_tac [SatisfySimps.SATISFY_ss][clause_name_def]
    ]                                        
  ]                                           
  ,
@@ -637,11 +655,18 @@ REPEAT STRIP_TAC >| [
                             FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`]))) >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`])) >>           
    gvs[prog_exp_def] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
-                                               ‘t_string_names_a x_list’, ‘b’, ‘c’, ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
-                                               ‘delta_x’, ‘f’, ‘Prs_n’])) >>                  
-   gvs[is_const_val_exsist] >>
-   srw_tac [SatisfySimps.SATISFY_ss][]
+
+   PairCases_on ‘c’ >> gvs[] >>
+   rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+             get_oracle_index,set_oracle_index,random_oracle)’ >>
+   gvs[is_const_val_exsist, get_ectx_def] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   ‘∃e' framel.
+     e_red (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+            get_oracle_index ascope,random_oracle) gscope scopest e e' framel’ by metis_tac[] >>
+   PairCases_on ‘framel’ >>
+   metis_tac[]
  ]
  ,
 
@@ -658,7 +683,8 @@ REPEAT STRIP_TAC >| [
    gvs[clause_name_def] >>
    
    PairCases_on ‘c’ >> gvs[] >>
-   rename1 ‘(apply_table_f,c1,c2,c3,c4,tbl_map)’ >>
+   rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+             get_oracle_index,set_oracle_index,random_oracle)’ >>
    
    subgoal ‘∃ y . ALOOKUP tbl_map s = SOME y’  >- ( 
      ‘dom_t_eq delta_t tbl_map’  by gvs[Once WT_c_cases] >>
@@ -707,22 +733,29 @@ REPEAT STRIP_TAC >| [
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`])) >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`(EL x (MAP (λ(e_,tau_,b_). e_) (e_tau_b_list:(e # tau # bool) list)))`])) >>
    fs[prog_exp_def] >>           
-   
+   PairCases_on ‘c’ >> gvs[get_ectx_def] >>
+   rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+             get_oracle_index,set_oracle_index,random_oracle)’ >>
    
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
                                                ‘t_tau (EL x (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list : (e # tau # bool) list)))’,
-                                               ‘EL x (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list))’, ‘c’,
+                                               ‘EL x (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list))’, ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+             get_oracle_index (ascope:'a),random_oracle)’,
                                                ‘order’,‘delta_g’, ‘delta_b’, ‘delta_t’,
                                                ‘delta_x’, ‘f’, ‘Prs_n’])) >>        
    IMP_RES_TAC index_not_const_EL >> gvs[] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   gvs[get_ectx_def] >>
    
-   
-   Q.EXISTS_TAC ‘framel’ >>
+   Q.EXISTS_TAC ‘FST framel’ >>
    Q.EXISTS_TAC ‘ZIP (MAP (λ(e_,tau_,b_). e_) e_tau_b_list  , LUPDATE e' x (MAP (λ(e_,tau_,b_). e_) e_tau_b_list) )’ >>
+   gvs[] >>
+   qexists_tac ‘SND framel’ >>
    Q.EXISTS_TAC ‘x’ >>
    Q.EXISTS_TAC ‘e'’ >>
    
-   srw_tac [][map_rw_doub, LENGTH_MAP, vl_of_el_ev]  
+   srw_tac [][map_rw_doub, LENGTH_MAP, vl_of_el_ev]
    ]
  ,
 
@@ -734,7 +767,8 @@ REPEAT STRIP_TAC >| [
  srw_tac [boolSimps.DNF_ss][clause_name_def] >>
  
  PairCases_on ‘c’ >> gvs[] >>
- rename1 ‘(c0,ext_map,c2,c3,c4,c5)’ >>
+ rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+           get_oracle_index,set_oracle_index,random_oracle)’ >>
  frame_typ_into_stmt_typ_tac >>           
  gvs[clause_name_def] >>
  

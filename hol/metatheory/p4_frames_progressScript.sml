@@ -230,10 +230,10 @@ that is an extension of the current one (because it is scopes to pass ) *)
         
 val WT_state_imp_frame_typ_single = prove ( 
   “ ∀  ascope gscope f stmtl locale status Prs_n order tslg tsll delta_g delta_b
-       delta_x delta_t apply_table_f ext_map func_map b_func_map pars_map
+       delta_x delta_t apply_table_f ext_map func_map b_func_map pars_map get_oracle_index set_oracle_index random_oracle
        tbl_map.
     
-    WT_state  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map )
+    WT_state  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle )
               (ascope,gscope,[(f,stmtl,locale)],status) Prs_n  order tslg
               tsll (delta_g,delta_b,delta_x,delta_t) ⇒
 
@@ -249,7 +249,7 @@ val WT_state_imp_frame_typ_single = prove (
                                                   tbl_to_pass f b_func_map tbl_map = SOME passed_tbl_map ∧
                                                   t_tbl_to_pass f delta_b delta_t = SOME passed_delta_t ∧            
                                                              
-WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t Prs_n   ∧
+WT_c ( apply_table_f , ext_map , func_map , passed_b_func_map , pars_map , passed_tbl_map , get_oracle_index , set_oracle_index , random_oracle ) order passed_tslg delta_g passed_delta_b delta_x passed_delta_t Prs_n   ∧
 type_scopes_list  passed_gscope passed_tslg   ∧
 (frame_typ  ( passed_tslg ,  (HD tsll) ) (order, f, (delta_g, passed_delta_b, delta_x, passed_delta_t)) Prs_n  passed_gscope locale stmtl ) ”,
 
@@ -300,10 +300,10 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘tau_x_d_list’, ‘tau’])) >> 
 
         
 val WT_state_imp_t_funn_lookup_HD = prove ( “
-∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map ascope gscope stmtl locale t status Prs_n order tslg
+∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope gscope stmtl locale t status Prs_n order tslg
         delta_g delta_b delta_x delta_t tsll.
         
-   WT_state (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+   WT_state (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_index,set_oracle_index,random_oracle)
           (ascope,gscope,(f,stmtl,locale)::t,status)
           Prs_n order tslg tsll (delta_g,delta_b,delta_x,delta_t) ⇒
    ∃  txdl t .
@@ -1003,7 +1003,7 @@ gvs[prog_state_def] >> REPEAT STRIP_TAC >>
 Cases_on ‘framel’ >> gvs[] >>
 
 PairCases_on ‘c’ >>
-rename1 ‘( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map )’ >>         
+rename1 ‘( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle )’ >>
 PairCases_on ‘h’ >>
 rename1 ‘(f,stmtl,locale)::t’ >>
 
@@ -1017,7 +1017,7 @@ ASSUME_TAC PROG_stmtl >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘stmtl’])) >>
 gvs[prog_stmtl_def] >>
 
-FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘passed_gscope’,‘locale’, ‘HD tsll’, ‘passed_tslg’, ‘(apply_table_f,ext_map,func_map,passed_b_func_map,pars_map,passed_tbl_map)’, ‘order’,‘delta_g’, ‘passed_delta_b’, ‘passed_delta_t’, ‘delta_x’, ‘f’,‘Prs_n’])) >> gvs[] >>
+FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`,‘passed_gscope’,‘locale’, ‘HD tsll’, ‘passed_tslg’, ‘(apply_table_f,ext_map,func_map,passed_b_func_map,pars_map,passed_tbl_map,get_oracle_index,set_oracle_index,random_oracle)’, ‘order’,‘delta_g’, ‘passed_delta_b’, ‘passed_delta_t’, ‘delta_x’, ‘f’,‘Prs_n’])) >> gvs[] >>
 
 
 (* now the difference between comp1 and comp2 is the status after the transition being return or not*)
@@ -1089,7 +1089,7 @@ Cases_on ‘notret status'’ >| [
     gvs[frame_typ_cases] >>  
     IMP_RES_TAC WT_state_imp_t_funn_lookup_HD >>
     
-    ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+    ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_index,set_oracle_index,random_oracle)
      order tslg delta_g delta_b delta_x delta_t Prs_n’ by gvs[WT_state_cases] >>           
     drule  tfunn_imp_sig_body_lookup >> REPEAT STRIP_TAC >>
     METIS_TAC []   
@@ -1115,7 +1115,7 @@ Cases_on ‘notret status'’ >| [
   ASSUME_TAC Fg_star_lemma1 >>
   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
                                     [‘passed_tslg’,‘f’, ‘func_map’, ‘delta_g’, ‘passed_delta_b’, ‘delta_x’, ‘order’, ‘passed_b_func_map’,
-                                     ‘passed_gscope’,‘ext_map’,‘stmt’,‘xdl’,‘apply_table_f’,‘pars_map’,‘passed_tbl_map’,‘passed_delta_t’, ‘Prs_n’])) >> gvs[] >>
+                                     ‘passed_gscope’,‘ext_map’,‘stmt’,‘xdl’,‘apply_table_f’,‘pars_map’,‘passed_tbl_map’,‘get_oracle_index’,‘set_oracle_index’,‘random_oracle’,‘passed_delta_t’, ‘Prs_n’])) >> gvs[] >>
                                      
   IMP_RES_TAC passed_b_same_lookup_sig_body >> 
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘func_map’, ‘ext_map’])) >> gvs[] >>
@@ -1128,7 +1128,7 @@ Cases_on ‘notret status'’ >| [
   IMP_RES_TAC return_imp_same_g >> lfs[] >>
     gvs[] >>
               
-  ‘∃ v'. lookup_lval gscope' (lval_varname (varn_star f)) = SOME v'’ by (IMP_RES_TAC lval_of_star_in_gscope >> srw_tac [SatisfySimps.SATISFY_ss][])>>
+  ‘∃ v'. lookup_lval gscope' (lval_varname (varn_star f)) = SOME v'’ by (IMP_RES_TAC lval_of_star_in_gscope >> metis_tac[])>>
      
   IMP_RES_TAC lval_assign_exists >>          
   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘v’])) >> gvs[] >>
@@ -1149,7 +1149,7 @@ Cases_on ‘notret status'’ >| [
     ASSUME_TAC status_ret_in_stmtl_typed_verbose >>
     LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘stmtl’,‘stmtl'’, ‘ascope’, ‘ascope'’, ‘gscope'’, ‘gscope'’, ‘locale’, ‘scopest'’,
                                              ‘[]’, ‘HD tsll’, ‘passed_tslg’, ‘order’, ‘delta_g’, ‘passed_delta_b’, ‘passed_delta_t’, ‘delta_x’,
-                                             ‘f’,  ‘Prs_n’, ‘(apply_table_f,ext_map,func_map,passed_b_func_map,pars_map, passed_tbl_map)’,
+                                             ‘f’,  ‘Prs_n’, ‘(apply_table_f,ext_map,func_map,passed_b_func_map,pars_map, passed_tbl_map, get_oracle_index, set_oracle_index, random_oracle)’,
                                              ‘tau’, ‘tau_x_d_list’, ‘v’])) >> gvs[] >>
    gvs[Once frame_typ_cases, clause_name_def, type_frame_tsl_def] 
   ) >>
@@ -1226,7 +1226,7 @@ Cases_on ‘notret status'’ >| [
     `stmtl'`,‘ascope’,‘ascope'’, ‘gscope'’,‘gscope'’, ‘locale’,‘scopest'’,
     ‘[]’,‘status_running’,‘status_returnv v’, ‘HD tsll’,‘passed_tslg’,
     ‘order’, ‘delta_g’, ‘passed_delta_b’, ‘passed_delta_t’, ‘delta_x’, ‘f’,
-    ‘Prs_n’, ‘0’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘passed_b_func_map’, ‘pars_map’, ‘passed_tbl_map’])) >> gvs[] >>
+    ‘Prs_n’, ‘0’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘passed_b_func_map’, ‘pars_map’, ‘passed_tbl_map’, ‘get_oracle_index’, ‘set_oracle_index’, ‘random_oracle’])) >> gvs[] >>
   gvs[clause_name_def, type_frame_tsl_def] >>
   gvs[Once stmtl_typ_cases] >> Cases_on ‘stmtl'’ >> gvs[]             
   ) >>

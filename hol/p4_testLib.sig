@@ -12,6 +12,7 @@ val mk_eth_frame_ok : term -> term
 val mk_symb_packet_prefix : string -> int -> term
 val mk_symb_packet : int -> term
 
+val ascope_ty_from_arch : string -> hol_type
 val get_actx : thm -> term
 val simple_arith_ss : simpLib.simpset
 val the_final_state_imp : thm -> term

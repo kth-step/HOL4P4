@@ -395,12 +395,14 @@ fun ASSUME_SR_EXP_FOR e =  ASSUME_TAC SR_e >>
                            PAT_ASSUM ``∀e. sr_exp e ty`` ( STRIP_ASSUME_TAC o (Q.SPECL [e])) >>
                            fs[sr_exp_def]
 
-                          
+(*
+(‘e''’,‘(t_tau tau')’,‘b’)
+*)        
 fun INST_SR_EXP_FOR (e', tau, b) = FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e', ‘gscope’, ‘scopest’,
-                          ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘t_scope_list’, ‘t_scope_list_g’,
+                          ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘i_opt’, ‘t_scope_list’, ‘t_scope_list_g’,
                           tau,b, ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,
                           ‘stmt_called’,‘copied_in_scope’, ‘Prs_n’ ,‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’,
-                          ‘pars_map’, ‘tbl_map’])) >>
+                          ‘pars_map’, ‘tbl_map'’, ‘get_oracle_index ascope’, ‘random_oracle’])) >>
                           gvs[]
                                                                
 
@@ -427,22 +429,24 @@ REPEAT STRIP_TAC >| [
  ,
  (** assignment case **)   
  (* we know that the length of the frame framel is either 0 or one from :*)
- IMP_RES_TAC fr_len_from_a_frame_theorem >|[      
+ IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    (* if 1, then we also know that e made a reduction*)
    OPEN_ANY_STMT_RED_TAC >>
-   gvs[] >>
+   gvs[get_ectx_def] >>
         
    (* we also know that e is well typed from frame typ *)  
-   EXP_IS_WT_IN_FRAME_TAC “[stmt_ass l e]” >>     
+   EXP_IS_WT_IN_FRAME_TAC “[stmt_ass l e]” >>
             
    (* from sr we know that this frame is well typed, we need to know the
       typing scope for the body *)    
    ASSUME_SR_EXP_FOR ‘e’ >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
    INST_SR_EXP_FOR (‘e''’,‘(t_tau tau')’,‘b’) >>
    gvs[type_frame_tsl_def] >>
                    
    qexistsl_tac [‘t_scope_list_fr’] >>
-   drule  frame_typ_imp_res_frame_single >> gvs[]                 
+   drule  frame_typ_imp_res_frame_single >> gvs[]
    ,
    fs[res_frame_typ_def]
    ]
@@ -457,7 +461,9 @@ REPEAT STRIP_TAC >| [
             
    ASSUME_SR_EXP_FOR ‘e’ >>
    INST_SR_EXP_FOR (‘e''’,‘(t_tau tau_bool)’,‘b’) >>
-   gvs[type_frame_tsl_def] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   gvs[type_frame_tsl_def, get_ectx_def] >>
                      
    qexistsl_tac [‘t_scope_list_fr’] >>
    drule frame_typ_imp_res_frame_single >> gvs[]                 
@@ -478,7 +484,9 @@ REPEAT STRIP_TAC >| [
    
    ASSUME_SR_EXP_FOR ‘e’ >>
    INST_SR_EXP_FOR (‘e''’,‘(t_tau tau')’,‘b’) >>
-   gvs[type_frame_tsl_def] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>   
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   gvs[type_frame_tsl_def, get_ectx_def] >>
                            
    qexistsl_tac [‘t_scope_list_fr’] >>
    drule frame_typ_imp_res_frame_single >> gvs[]                 
@@ -491,14 +499,6 @@ REPEAT STRIP_TAC >| [
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    OPEN_ANY_STMT_RED_TAC >>
    gvs[] >>
-
-   (* use IH *)
-   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘stmt_stack' ⧺ [stmt1']’, ‘ascope’, ‘ascope'’, ‘gscope’, ‘gscope'’,
-                                   ‘scopest’, ‘scopest'’,‘[(f_called,[stmt_called],copied_in_scope)]’,‘status_running’,
-                                   ‘status_running’,‘t_scope_list’,‘t_scope_list_g’, ‘order’,‘delta_g’,‘delta_b’,
-                                   ‘delta_t’,‘delta_x’,‘f’,‘Prs_n’])) >> gvs[] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
-
                  
    (* we know that [stmt] is well typed from frame_typ*)
    subgoal ‘frame_typ (t_scope_list_g,t_scope_list)
@@ -517,9 +517,10 @@ REPEAT STRIP_TAC >| [
        REPEAT STRIP_TAC >>             
        ‘i=0’ by fs[] >>       
        fs[Once EL]  ) >>
-          
+
+   qpat_x_assum ‘!stmtl'. _’ (fn thm => irule thm) >>
    gvs[] >>
-   srw_tac [SatisfySimps.SATISFY_ss][]          
+   metis_tac[]        
    ,
    fs[res_frame_typ_def]                
    ]
@@ -528,21 +529,23 @@ REPEAT STRIP_TAC >| [
  (** statement trans **)
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    OPEN_ANY_STMT_RED_TAC >> gvs[] >>
-   EXP_IS_WT_IN_FRAME_TAC “[stmt_trans e]” >>     
+   EXP_IS_WT_IN_FRAME_TAC “[stmt_trans e]” >>
    ASSUME_SR_EXP_FOR ‘e’ >>
    INST_SR_EXP_FOR (‘e''’,‘t_string_names_a x_list’,‘b’) >>
-   gvs[type_frame_tsl_def] >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   gvs[type_frame_tsl_def, get_ectx_def] >>
    qexistsl_tac [‘t_scope_list_fr’] >>
-   drule frame_typ_imp_res_frame_single >> gvs[]  
+   drule frame_typ_imp_res_frame_single >> gvs[]
    ,
-   fs[res_frame_typ_def]             
+   fs[res_frame_typ_def]
   ]
  ,
  (* statement apply s l *)
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    OPEN_ANY_STMT_RED_TAC >>
    gvs[] >>
-   EXP_IS_WT_IN_FRAME_TAC “[stmt_app s l]” >>     
+   EXP_IS_WT_IN_FRAME_TAC “[stmt_app s l]” >>
 
    (* we know that i is indeed less than the list *)
    subgoal ‘i < LENGTH e_tau_b_list’ >- (
@@ -555,14 +558,16 @@ REPEAT STRIP_TAC >| [
    ASSUME_SR_EXP_FOR ‘(EL i (MAP (λ(e_,e'_). e_) (e_e'_list : (e # e) list)))’ >>
    INST_SR_EXP_FOR (‘e'’,‘(t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
                    ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’) >>
-   gvs[type_frame_tsl_def] >>    
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   gvs[type_frame_tsl_def, get_ectx_def] >> 
    qexistsl_tac [‘t_scope_list_fr’] >>
-   drule frame_typ_imp_res_frame_single >> gvs[]  
+   drule frame_typ_imp_res_frame_single >> gvs[]
    ,
    fs[res_frame_typ_def]
    ]
  ,
-(* statement extern would never create a frame *)
+ (* statement extern would never create a frame *)
  OPEN_ANY_STMT_RED_TAC >>
  gvs[] >>
  fs[res_frame_typ_def]   
@@ -780,11 +785,11 @@ gvs[mk_varn_def]
 
         
 val typ_scope_list_ext_out_scope_lemma = prove (
-  “ ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map
+  “ ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map set_oracle_index get_oracle_index random_oracle
     order tslg delta_g delta_b delta_x ascope ascope'
           gscope scopest  scopest' v ext_fun tsl tau txdl delta_t Prs_n.
           
-WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_index,set_oracle_index,random_oracle)
      order tslg delta_g delta_b delta_x delta_t Prs_n ∧
 SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ∧
 args_t_same (MAP FST txdl) tsl ∧    
@@ -2917,10 +2922,13 @@ RES_TAC
                 
 
 
-fun INST_SR2_EXP_FOR (e', tau, b, frl) = PairCases_on ‘c’ >> rename1 ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’ >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e', ‘gscope’, ‘scopest’, frl, ‘tsl’, ‘tslg’, tau, b,
+fun INST_SR2_EXP_FOR (e', tau, b, frl) =
+(*
+PairCases_on ‘c’ >> rename1 ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’ >>
+*)
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e', ‘gscope’, ‘scopest’, frl, ‘i_opt’, ‘tsl’, ‘tslg’, tau, b,
                                       ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] 
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘get_oracle_index ascope’, ‘random_oracle’])) >> gvs[]
 
 
 val stmt_to_stmt_single = prove (“
@@ -2988,9 +2996,19 @@ STRIP_TAC >|  [
    (* SR_e case*)
 
    SIMP_TAC list_ss [Once stmt_typ_cases] >>
-   gvs[Once stmt_typ_cases, clause_name_def] >>
+   gvs[Once stmt_typ_cases, clause_name_def, get_ectx_def] >>
    rfs[type_frame_tsl_def] >>
    ASSUME_SR_EXP_FOR ‘e’  >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+(*
+
+fun INST_SR2_EXP_FOR (e', tau, b, frl) = 
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e', ‘gscope’, ‘scopest’, frl, ‘i_opt’, ‘tsl’, ‘tslg’, tau, b,
+                                      ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘get_oracle_index ascope’, ‘random_oracle’])) >> gvs[]
+
+*)
    INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau'’, ‘b’, ‘framel’)  >>
    srw_tac [SatisfySimps.SATISFY_ss][]
  ]    
@@ -3001,7 +3019,7 @@ STRIP_TAC >|  [
 (*   stmt_cond               *)
 (*****************************)
 
-(* remove the induction hypothesis *)
+(* remove the induction hypotheses *)
  schneiderUtils.POP_NO_TAC 9 >>
  schneiderUtils.POP_NO_TAC 8 >>
 
@@ -3022,10 +3040,12 @@ STRIP_TAC >|  [
    ,
    SIMP_TAC list_ss [Once stmt_typ_cases] >>
    gvs[Once stmt_typ_cases, clause_name_def] >>
-   rfs[type_frame_tsl_def] >>
+   rfs[type_frame_tsl_def, get_ectx_def] >>
    ASSUME_SR_EXP_FOR ‘e’  >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
    INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau_bool’, ‘b’, ‘framel’)  >>
-   srw_tac [SatisfySimps.SATISFY_ss][]                                 
+   srw_tac [SatisfySimps.SATISFY_ss][]
    ] 
  ,
         
@@ -3050,14 +3070,16 @@ STRIP_TAC >|  [
    fs[clause_name_def] >> 
 
    OPEN_STMT_RED_TAC “stmt_ret e” >>
-   gvs[] >>
+   gvs[get_ectx_def] >>
 
    (* when a single block return e , then use the SR_e *)
 
    SIMP_TAC list_ss [Once stmt_typ_cases] >>
    gvs[clause_name_def] >>
    ASSUME_SR_EXP_FOR ‘e’  >>
-   INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau'’, ‘b’, ‘[(f_called,[stmt_called],copied_in_scope)]’)  >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau'’, ‘b’, ‘[(f_called,[stmt_called],copied_in_scope)]’) >>
    gvs[type_frame_tsl_def] >>              
    srw_tac [SatisfySimps.SATISFY_ss][]
    ,
@@ -3069,7 +3091,7 @@ STRIP_TAC >|  [
    fs[clause_name_def] >>
 
    OPEN_STMT_RED_TAC “stmt_ret e” >>
-   gvs[] >>
+   gvs[get_ectx_def] >>
      
    SIMP_TAC list_ss [Once stmt_typ_cases] >>
    gvs[clause_name_def] >>
@@ -3077,6 +3099,8 @@ STRIP_TAC >|  [
 
    (* for just a reduction from e to e'' *)
    ASSUME_SR_EXP_FOR ‘e’  >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
    INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau'’, ‘b’, ‘[]’)  >>
 
    gvs[type_frame_tsl_def] >>              
@@ -3126,13 +3150,15 @@ STRIP_TAC >|  [
    fs[clause_name_def] >>
 
    OPEN_STMT_RED_TAC “stmt_trans e” >>
-   gvs[] >>
+   gvs[get_ectx_def] >>
    
    SIMP_TAC list_ss [Once stmt_typ_cases] >>
    gvs[clause_name_def] >>
    fs[type_frame_tsl_def] >> 
 
    ASSUME_SR_EXP_FOR ‘e’ >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
    INST_SR2_EXP_FOR (‘e''’, ‘t_string_names_a x_list’, ‘b’, ‘[(f_called,[stmt_called],copied_in_scope)]’)  >>                
    gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]                    
@@ -3142,7 +3168,7 @@ STRIP_TAC >|  [
    fs[clause_name_def] >>
 
    OPEN_STMT_RED_TAC “stmt_trans e” >>
-   gvs[] >>
+   gvs[get_ectx_def] >>
 
       
    SIMP_TAC list_ss [Once stmt_typ_cases] >>
@@ -3150,6 +3176,8 @@ STRIP_TAC >|  [
    fs[type_frame_tsl_def] >>
 
    ASSUME_SR_EXP_FOR ‘e’ >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
    INST_SR2_EXP_FOR (‘e''’, ‘t_string_names_a x_list’, ‘b’, ‘[]’)  >>  
    gvs[] >>             
    srw_tac [SatisfySimps.SATISFY_ss][]
@@ -3160,13 +3188,12 @@ STRIP_TAC >|  [
  (*   stmt_app                *)
  (*****************************)  
 
-
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    OPEN_STMT_TYP_TAC “stmt_app s l” >>
    fs[clause_name_def] >>
 
    OPEN_STMT_RED_TAC “stmt_app s l” >>
-   gvs[] >>
+   gvs[get_ectx_def] >>
 
    (*when all the args are not fully reduced, there might be a chance to create a framel *)
 
@@ -3174,17 +3201,16 @@ STRIP_TAC >|  [
    gvs[clause_name_def] >>
    fs[type_frame_tsl_def] >>
    IMP_RES_TAC index_not_const_in_range >>
-
-
-   PairCases_on ‘c’ >> rename1 ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’ >>
-                
+    
    (* now we need to know what e has been updated, in order to ensure that it is well typed. *)
-   ASSUME_SR_EXP_FOR ‘(EL i (MAP (λ(e_,e'_). e_) (e_e'_list : (e # e) list)))’ >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘tsl’,
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>  
+   ASSUME_SR_EXP_FOR ‘(EL i (MAP (λ(e_,e'_). e_) (e_e'_list : (e # e) list)))’ >> 
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'`, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘i_opt’, ‘tsl’,
     ‘tslg’, ‘ (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
     ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,
     ‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’ ,‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
+   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’ ,‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘get_oracle_index ascope’, ‘random_oracle’])) >> gvs[] >>
    gvs[] >>
 
 
@@ -3221,7 +3247,7 @@ STRIP_TAC >|  [
    fs[clause_name_def] >>
 
    OPEN_STMT_RED_TAC “stmt_app s l” >>
-   gvs[] >| [
+   gvs[get_ectx_def] >| [
 
      SIMP_TAC list_ss [Once stmt_typ_cases] >>
      gvs[clause_name_def] >>
@@ -3285,7 +3311,6 @@ STRIP_TAC >|  [
      gvs[clause_name_def] >>
      fs[type_frame_tsl_def] >>
 
-     PairCases_on ‘c’ >> rename1 ‘WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’ >>
      subgoal ‘ e_typ (tslg,tsl) (order,f,delta_g,delta_b,delta_x,delta_t)
                (EL i (MAP (λ(e_,e'_). e_) e_e'_list))
                (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) e_tau_b_list)))
@@ -3309,11 +3334,13 @@ STRIP_TAC >|  [
      LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`(EL i (MAP (λ(e_,tau_,b_). e_) (e_tau_b_list:(e # tau # bool) list)))`])) >>
      fs[sr_exp_def] >>           
      
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'`, ‘gscope’, ‘scopest’, ‘[]’, ‘tsl’, ‘tslg’,
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e'`, ‘gscope’, ‘scopest’, ‘[]’, ‘i_opt’, ‘tsl’, ‘tslg’,
                   ‘ (t_tau (EL i (MAP (λ(e_,tau_,b_). tau_) (e_tau_b_list: (e # tau # bool) list))))’,
                   ‘(EL i (MAP (λ(e_,tau_,b_). b_) (e_tau_b_list : (e # tau # bool) list)))’,
                   ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘get_oracle_index ascope’, ‘random_oracle’])) >> gvs[] >>
+     imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+     qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
 
      gvs[] >>
      gvs[] >>             
@@ -3337,16 +3364,22 @@ STRIP_TAC >|  [
  (*****************************)
  (*   stmt_ext                *)
  (*****************************)
-       
+ PairCases_on ‘c’ >>
+ rename1 ‘WT_c
+          (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+           get_oracle_index,set_oracle_index,random_oracle) order tslg
+          delta_g delta_b delta_x delta_t Prs_n’ >>
  fs[Once stmt_sem_cases] >>
  SIMP_TAC list_ss [Once stmt_typ_cases] >>
  gvs[clause_name_def, type_frame_tsl_def] >>
  fs[Once stmt_typ_cases] >>
  ASSUME_TAC typ_scope_list_ext_out_scope_lemma >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
-         [`f`, `apply_table_f`, ‘ext_map’,‘func_map’,‘b_func_map’,‘pars_map’,‘tbl_map’,‘order’,‘tslg’,‘delta_g’,‘delta_b’,‘delta_x’,
+         [`f`, `apply_table_f`, ‘ext_map’,‘func_map’,‘b_func_map’,‘pars_map’,‘tbl_map’,‘set_oracle_index’,‘get_oracle_index’, ‘random_oracle’, ‘order’,‘tslg’,‘delta_g’,‘delta_b’,‘delta_x’,
                ‘ascope’,‘ascope'’,‘gscope’,‘scopest’,‘scopest'’,‘status'’,‘ext_fun’,‘tsl’,‘tau’,‘txdl’, ‘delta_t’, ‘Prs_n’])) >>
- gvs[]        
+ imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+ qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+ gvs[]
 ]                                                                          
 );                                  
 
@@ -3355,7 +3388,7 @@ STRIP_TAC >|  [
 
 
 
-                            
+       
 Theorem stmtl_len_from_in_frame_theorem:
 ∀ stmt stmtl ascope ascope' gscope gscope' scopest scopest' f c status status' framel.
   (stmt_red c ( ascope ,  gscope  , [ (f, [stmt], scopest )]           , status)
@@ -3401,7 +3434,7 @@ REPEAT STRIP_TAC >| [
 
 
 
-
+(*
 val arb_from_tau_typed_def = Define `
  arb_from_tau_typed (t) (ty:'a itself) =
  v_typ (arb_from_tau t) (t_tau t) F
@@ -3554,24 +3587,29 @@ Induct >~ [‘∀s. arb_from_tau_typed (tau_xtl s l) ty’] >- (
  gvs[Once v_typ_cases, clause_name_def]
 )
 QED
-
+*)
 
                                                  
 
 Theorem declare_similar:
-  ∀l.   lvalop_not_none l ⇒
-        similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) (declare_list_in_fresh_scope l) l
+  ∀l i random_oracle.   lvalop_not_none l ⇒
+        similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) (FST $ declare_list_in_fresh_scope (l, i, random_oracle)) l
 Proof              
-Induct >>
-gvs[declare_list_in_fresh_scope_def, similar_def] >>
-REPEAT STRIP_TAC >>
+Induct >> (
+ REPEAT STRIP_TAC >>
+ gvs[declare_list_in_fresh_scope_def, declare_list_in_scope_def, similar_def]
+) >>
 PairCases_on ‘h’ >> gvs[] >>
-   
+(*   
 ASSUME_TAC arb_from_tau_is_typed >>
+*)
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty` ])) >>
+(*
 LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`h1` ])) >>
-fs[arb_from_tau_typed_def] >>
-gvs[lvalop_not_none_def]
+*)
+gvs[lvalop_not_none_def] >>
+(* TODO: Looks like this needs an update... *)
+cheat
 QED
 
 
@@ -3579,8 +3617,8 @@ QED
         
         
 Theorem declare_typed:
-  ∀ l . lvalop_not_none l ⇒
-        type_scopes_list [declare_list_in_fresh_scope l] [l]
+  ∀ l i random_oracle. lvalop_not_none l ⇒
+        type_scopes_list [FST $ declare_list_in_fresh_scope (l, i, random_oracle)] [l]
 Proof
 gvs[type_scopes_list_def] >>
 gvs[similarl_def] >>
@@ -3589,9 +3627,9 @@ QED
 
 
 val v_decl_lookup_lemma = prove (“
-∀ l varn .
+∀ l i random_oracle varn .
 ALOOKUP l varn = NONE ⇒
-ALOOKUP (MAP (λ(x,t,lvalop). (x,arb_from_tau t,NONE)) l) varn = NONE ”,
+ALOOKUP (MAP (λ(x,t,lvalop). (x,init_from_tau random_oracle i t,NONE)) l) varn = NONE ”,
 Induct >> gvs[] >>
 REPEAT STRIP_TAC >>
 PairCases_on ‘h’ >> gvs[] >>
@@ -3600,14 +3638,16 @@ Cases_on ‘h0 = varn ’ >> gvs[]
 
 
 Theorem star_not_in_decl_ts:                       
-∀ l . 
+∀ l i random_oracle. 
 star_not_in_ts l ⇒
-star_not_in_sl [declare_list_in_fresh_scope l]
+star_not_in_sl [FST $ declare_list_in_fresh_scope (l, i, random_oracle)]
 Proof
-gvs[star_not_in_ts_def, star_not_in_sl_def, star_not_in_s_def, declare_list_in_fresh_scope_def] >>
+gvs[star_not_in_ts_def, star_not_in_sl_def, star_not_in_s_def, declare_list_in_fresh_scope_def, declare_list_in_scope_def] >>
 REPEAT STRIP_TAC >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘f’])) >>
-gvs[v_decl_lookup_lemma]
+gvs[v_decl_lookup_lemma] >>
+(* ??? *)
+cheat
 QED
 
 
@@ -3773,21 +3813,22 @@ gvs[] >| [
    fs[type_frame_tsl_def] >>
    rw[] >| [
      IMP_RES_TAC sig_tsc_consist_LAST1 >>
-     METIS_TAC []            
+     METIS_TAC []
      ,   
-     Cases_on ‘t_scope_list’ >> gvs[]                         
+     Cases_on ‘t_scope_list’ >> gvs[]
      ,
      SIMP_TAC list_ss [Once star_not_in_sl_normalization] >>     
-     gvs[star_Err_not_in_ts_def, star_not_in_decl_ts] 
+     gvs[star_Err_not_in_ts_def] >>
+     metis_tac[FST, star_not_in_decl_ts]
      ,
      SIMP_TAC list_ss [Once type_scopes_list_normalize] >>
-     gvs[declare_typed]
+     metis_tac[FST, declare_typed]
      ,
      SIMP_TAC list_ss [Once star_not_in_sl_normalization] >>
-     gvs[star_Err_not_in_ts_def, star_not_in_decl_ts]
+     metis_tac[FST, star_Err_not_in_ts_def, star_not_in_decl_ts]
      ,
      ‘i=0 ∨ i=1’ by fs[] >>
-     gvs[] >> SIMP_TAC list_ss [Once stmt_typ_cases] >> gvs[clause_name_def]       
+     gvs[] >> SIMP_TAC list_ss [Once stmt_typ_cases] >> gvs[clause_name_def]
                                                            
      ]            
    ,  
@@ -3903,7 +3944,7 @@ gvs[] >| [
    gvs[] 
    ,  
    STMT_STMT_SR_TAC ‘stmt_app s l’
- ]                                
+ ]
 ,
 
 (*****************************)
@@ -3927,9 +3968,9 @@ gvs[] >| [
 
 val sr_stmtl_def = Define `
  sr_stmtl (stmtl) (ty:'a itself) =
-∀ stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n  n apply_table_f ext_map func_map b_func_map pars_map tbl_map.
+∀ stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n  n apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle.
       
-       (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧                               
+       (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ) ∧                               
        (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n ) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧
             
@@ -4199,9 +4240,9 @@ srw_tac [boolSimps.DNF_ss][] >| [
 
 (* here we know that also the frame we create and trying to type, the is empty*)
 val SR_stmtl_newframe = prove (“
-∀ stmtl stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n apply_table_f ext_map func_map b_func_map pars_map tbl_map.
+∀ stmtl stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle.
        
-       (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ) ∧        
+       (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ) ∧        
        (WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n) ∧
        (T_e = (order, f, (delta_g, delta_b, delta_x, delta_t))) ∧   
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest (stmtl) ) ∧
@@ -4221,27 +4262,15 @@ Cases_on ‘stmtl’ >| [
  REPEAT GEN_TAC >>
  STRIP_TAC >>
  Cases_on ‘t’ >> gvs[] >| [
-          
+ 
    ASSUME_TAC SR_stmt_newframe >> 
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-                ‘h’,  `stmtl'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’,
-                ‘t_scope_list’, ‘t_scope_list_g’, ‘(order,f,delta_g,delta_b,delta_x,delta_t)’,
-                ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,‘order’, ‘delta_g’,
-                ‘delta_b’, ‘delta_t’, ‘delta_x’,‘f’, ‘Prs_n’])) >> gvs[] >>                
-   srw_tac [SatisfySimps.SATISFY_ss][]
+   metis_tac[]
    ,
    gvs[Once stmt_sem_cases] >| [
 
-     ASSUME_TAC SR_stmt_newframe >>      
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-            ‘h’, `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’,
-            ‘t_scope_list’,‘t_scope_list_g’, ‘(order,f,delta_g,delta_b,delta_x,delta_t)’,
-            ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)’,
-            ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >> gvs[] >>
-
-                                          
+     ASSUME_TAC SR_stmt_newframe >>
      IMP_RES_TAC frame_typ_head_of_stmtl >> gvs[] >>
-     srw_tac [SatisfySimps.SATISFY_ss][] 
+     metis_tac[]
      ,
      gvs[Once res_frame_typ_def]
      ]
@@ -4272,9 +4301,9 @@ Cases_on ‘stmtl’ >| [
  gvs[sr_stmtl_def] >>
  REPEAT GEN_TAC >>
  STRIP_TAC >>
- CONJ_TAC  >| [
+ CONJ_TAC >| [
    (* first show that the resulted frames are WT*)
-   srw_tac [SatisfySimps.SATISFY_ss][SR_stmtl_newframe]              
+   srw_tac [SatisfySimps.SATISFY_ss][SR_stmtl_newframe]
    ,
 
    CONJ_TAC >| [
@@ -4287,13 +4316,7 @@ Cases_on ‘stmtl’ >| [
      ASSUME_TAC SR_single_block >> 
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘h’])) >>
      fs[sr_stmt_def] >> gvs[] >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-                      `stmtl'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’,
-                      ‘t_scope_list’,‘t_scope_list_g’,‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
-
-     gvs[] >>
-     srw_tac [SatisfySimps.SATISFY_ss][]
+     metis_tac[]
      ,
      
      gvs[Once stmt_sem_cases] >>
@@ -4302,12 +4325,13 @@ Cases_on ‘stmtl’ >| [
      
      ASSUME_TAC SR_single_block >> 
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘h’])) >>
+     (* TODO: Clean up below, fix tbl_map in sr_stmt_def *)
      fs[sr_stmt_def] >> gvs[] >>
      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
                    `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’,
                    ‘t_scope_list’,‘t_scope_list_g’,‘order’,
                    ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >>
-     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
+     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘(tbl_map,get_oracle_index,set_oracle_index,random_oracle)’])) >> gvs[] >>
 
      gvs[] >>
      
@@ -4340,13 +4364,6 @@ Cases_on ‘stmtl’ >| [
    ASSUME_TAC SR_single_block >> 
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`,‘h’])) >>
    fs[sr_stmt_def] >> gvs[] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
-             `stmt_stack'`,‘ascope’,‘ascope'’, ‘gscope’,‘gscope'’, ‘scopest’,‘scopest'’,‘framel’,‘status’,‘status'’,
-             ‘t_scope_list’,‘t_scope_list_g’,‘order’,
-             ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >> gvs[] >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’])) >> gvs[] >>
-
-
    IMP_RES_TAC frame_typ_head_of_stmtl >> gvs[] >>
    IMP_RES_TAC stmtl_len_from_in_frame_theorem >> gvs[] >>   
    fs[]
