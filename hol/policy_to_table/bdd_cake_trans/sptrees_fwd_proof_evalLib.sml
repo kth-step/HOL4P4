@@ -1,4 +1,4 @@
-structure sptrees_fwd_proofLib :> sptrees_fwd_proofLib = struct
+structure sptrees_fwd_proof_evalLib :> sptrees_fwd_proof_evalLib = struct
 
 
 open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
@@ -57,7 +57,7 @@ open apply_trans_to_IOLib;
 
 
 
-    fun sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
+    fun eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
 
         let
             
@@ -91,29 +91,108 @@ open apply_trans_to_IOLib;
             (***********************)
 
 
-            val start_cpu_total_stage2 = Timer.startCPUTimer ();
-            val start_real_total_stage2 = Timer.startRealTimer (); 
+        val start_cpu_stage2 = Timer.startCPUTimer ();
+        val start_real_stage2 = Timer.startRealTimer (); 
 
-            val (final_policy_bdd, tbl, final_table_bdd) =
-            apply_trans_to_IOLib.sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order);
+(*
+val policy_main_hol4_def = Define`
+  policy_main_hol4 =
+    case sp_mk_BDD_policy ^var_policy ^policy_order of
+      NONE => NONE
+    | SOME (r, sp_edges, sp_labels) => 
+        SOME (r,
+            ((toSortedAList sp_edges):edges),
+           ((toSortedAList sp_labels): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings))
+`;
+
+
+            val eval_policy_full_opt = EVAL “policy_main_hol4”; *)
+
+            val eval_policy_full_opt = EVAL “
+              sp_mk_BDDPred_opt policy_structure (0n,LN,insert 0 (non_termn (NONE, ^var_policy)) LN) [] ^policy_order 1n”;
+
+            
+            val eval_policy_full_opt_rhs1 = optionSyntax.dest_some (rhs (concl eval_policy_full_opt));
+
+
+val conv_policy_from_sp_to_bdd = 
+  EVAL ``let (r, sp_edges, sp_labels) = ^eval_policy_full_opt_rhs1
+         in SOME (r,
+                  (toSortedAList sp_edges),
+                  (toSortedAList sp_labels))``;
+
+
+              val eval_policy_full_opt_rhs =  optionSyntax.dest_some (rhs (concl conv_policy_from_sp_to_bdd));
+
+
+        val _ = time_stage ("Stage 2 from var policy to BDD", start_cpu_stage2, start_real_stage2);
 
 
 
-            val get_i_policy = bdd_utilsLib.pairBDDs (final_policy_bdd, final_table_bdd);
+            val test_groupings = rhs(concl(EVAL policy_full_order));
+            val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative eval_policy_full_opt_rhs test_groupings;
+
+        val start_cpu_stage2_tbl = Timer.startCPUTimer ();
+        val start_real_stage2_tbl = Timer.startRealTimer ();
 
 
-            val eval_policy_full_opt = mk_thm ( [], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1 = SOME ^final_policy_bdd”);
-            val eval_table_full_opt_auto = mk_thm ( [], “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^tbl))]) [] ^policy_order 1 = SOME ^final_table_bdd ”);
 
-            val start_cpu_total_stage2_proof = Timer.startCPUTimer ();
-            val start_real_total_stage2_proof = Timer.startRealTimer (); 
+(*
+        val table_main_hol4_def = Define`
+            table_main_hol4 =
+            case sp_mk_BDD_table ^gen_var_table_auto ^policy_order of
+            | NONE => NONE
+            | SOME (r,sp_edges,sp_labels) => SOME (r,
+                                                    ((toSortedAList sp_edges):edges),
+                                                    ((toSortedAList sp_labels): (action_table_type, (string#num list) action_expr) labelings) )
+        `;
 
-            val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^tbl ^policy_order ^get_i_policy”;
+
+
+            val eval_table_full_opt_auto = EVAL “table_main_hol4”; *)
+
+
+
+   val eval_table_full_opt_auto = EVAL “
+              sp_mk_BDDPred_opt table_structure (0n,LN,insert 0 (non_termn (NONE, ^gen_var_table_auto)) LN) [] ^policy_order 1n”;
+
+            
+            val eval_table_full_opt_auto1 = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
+
+
+val conv_table_from_sp_to_bdd = 
+  EVAL ``let (r, sp_edges, sp_labels) = ^eval_table_full_opt_auto1
+         in SOME (r,
+                  (toSortedAList sp_edges),
+                  (toSortedAList sp_labels))``;
+
+
+
+              val eval_table_full_opt_auto_rhs =  optionSyntax.dest_some (rhs (concl conv_table_from_sp_to_bdd));
+
+
+        val _ = time_stage ("Stage 2 from table to table BDD", start_cpu_stage2_tbl, start_real_stage2_tbl);
+        val start_cpu_stage2_tbdd = Timer.startCPUTimer ();
+        val start_real_stage2_tbdd = Timer.startRealTimer ();
+
+            val get_i_policy = bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
+
+
+
+            val eval_policy_full_opt = mk_thm ( [], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1 = SOME ^eval_policy_full_opt_rhs”);
+            val eval_table_full_opt_auto = mk_thm ( [], “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1 = SOME ^eval_table_full_opt_auto_rhs ”);
+
+
+
+            val get_i_policy = bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
+
+            val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy”;
             val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract;
             val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] var_eq_thm_extract_red;
 
-            val _ = time_stage ("Stage 2 proof", start_cpu_total_stage2_proof, start_real_total_stage2_proof) 
-            val _ = time_stage ("Stage 2 total", start_cpu_total_stage2, start_real_total_stage2) 
+        val _ = time_stage ("Stage 2 proof", start_cpu_stage2_tbdd, start_real_stage2_tbdd);
+
+        val _ = time_stage ("Stage 2 total", start_cpu_stage2, start_real_stage2);
 
             val start_cpu_total_stage3 = Timer.startCPUTimer ();
             val start_real_total_stage3 = Timer.startRealTimer (); 
@@ -123,7 +202,7 @@ open apply_trans_to_IOLib;
             (***********************)
 
             (* covert var table to interval table *)
-            val only_var_table = fst (dest_pair tbl);
+            val only_var_table = fst (dest_pair gen_var_table_auto);
             val convert_to_interval = EVAL “convert_var_to_sinterval_tables ^only_var_table ^policy_me  ^test_pd_type”;
             val only_interval_table1 = optionSyntax.dest_some(rhs (concl convert_to_interval));
 
