@@ -5,6 +5,9 @@ open policy_arith_to_varTheory;
 open bdd_utilsLib;
 open apply_trans_to_IOLib;
 open sptrees_fwd_proofLib;
+open bdd_end_to_endTheory;
+
+open sptrees_fwd_proof_evalLib;
 
 val _ = new_theory "internet_firewall_1";
 
@@ -81,8 +84,11 @@ val policy_full_order = “[
 val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"]”;
 
 
+(*
+val final_thm_res =
+sptrees_fwd_proofLib.sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order)
+*)
 
-val final_thm_res = sptrees_fwd_proofLib.sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order)
-
+val final_thm_res = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 
 val _ = export_theory ();
