@@ -190,6 +190,7 @@ val policy_me =   “[
     ("is_dstNAT_ge_443", ^is_dstNAT_ge_443);
 ]”;
 
+(*
 (* Grouped policy ordering *)
 val policy_full_order = “[
   ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881";"is_srcPort_le_50553";"is_srcPort_ge_50553";"is_srcPort_le_50002";"is_srcPort_ge_50002"]);
@@ -200,7 +201,7 @@ val policy_full_order = “[
 
 (* Flat policy order (grouped) *)
 val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_srcPort_le_50553"; "is_srcPort_ge_50553"; "is_srcPort_le_50002"; "is_srcPort_ge_50002"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321"; "is_dstPort_le_443"; "is_dstPort_ge_443"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"; "is_srcNAT_le_45848"; "is_srcNAT_ge_45848"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"; "is_dstNAT_le_443"; "is_dstNAT_ge_443"]”;
-
+*)
 
 (*
 val policy_order_best = “[  
@@ -210,6 +211,48 @@ val policy_order_best = “[
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"; "is_srcNAT_le_45848"; "is_srcNAT_ge_45848"; 
 ]”;
 *)
+
+val policy_order = ``[
+  "is_srcPort_le_57222"; "is_srcPort_ge_57222";
+  "is_dstPort_le_53"; "is_dstPort_ge_53";
+  "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
+  "is_dstNAT_le_53"; "is_dstNAT_ge_53";
+  "is_srcPort_le_56258"; "is_srcPort_ge_56258";
+  "is_dstPort_le_3389"; "is_dstPort_ge_3389";
+  "is_srcNAT_le_56258"; "is_srcNAT_ge_56258";
+  "is_dstNAT_le_3389"; "is_dstNAT_ge_3389";
+  "is_srcPort_le_6881"; "is_srcPort_ge_6881";
+  "is_dstPort_le_50321"; "is_dstPort_ge_50321";
+  "is_srcNAT_le_43265"; "is_srcNAT_ge_43265";
+  "is_dstNAT_le_50321"; "is_dstNAT_ge_50321";
+  "is_srcPort_le_50553"; "is_srcPort_ge_50553";
+  "is_srcNAT_le_50553"; "is_srcNAT_ge_50553";
+  "is_srcPort_le_50002"; "is_srcPort_ge_50002";
+  "is_dstPort_le_443"; "is_dstPort_ge_443";
+  "is_srcNAT_le_45848"; "is_srcNAT_ge_45848";
+  "is_dstNAT_le_443"; "is_dstNAT_ge_443"
+]``;
+
+val policy_full_order = ``[
+  ("jxe",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
+  ("2xhp" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
+  ("va",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
+  ("4oe" ,["is_dstNAT_le_53";"is_dstNAT_ge_53"]);
+  ("ypsy",["is_srcPort_le_56258";"is_srcPort_ge_56258"]);
+  ("qp" ,["is_dstPort_le_3389";"is_dstPort_ge_3389"]);
+  ("sa99",["is_srcNAT_le_56258";"is_srcNAT_ge_56258"]);
+  ("w6" ,["is_dstNAT_le_3389";"is_dstNAT_ge_3389"]);
+  ("crf",["is_srcPort_le_6881";"is_srcPort_ge_6881"]);
+  ("bc" ,["is_dstPort_le_50321";"is_dstPort_ge_50321"]);
+  ("el",["is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
+  ("k71" ,["is_dstNAT_le_50321";"is_dstNAT_ge_50321"]);
+  ("nof",["is_srcPort_le_50553";"is_srcPort_ge_50553"]);
+  ("vx" ,["is_srcNAT_le_50553";"is_srcNAT_ge_50553"]);
+  ("dnt",["is_srcPort_le_50002";"is_srcPort_ge_50002"]);
+  ("x7m" ,["is_dstPort_le_443";"is_dstPort_ge_443"]);
+  ("xxt",["is_srcNAT_le_45848";"is_srcNAT_ge_45848"]);
+  ("dk" ,["is_dstNAT_le_443";"is_dstNAT_ge_443"])
+]``;
 (***********************************************)
 
 val final_thm_res =
