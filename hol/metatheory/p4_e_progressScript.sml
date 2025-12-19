@@ -2172,7 +2172,7 @@ srw_tac [boolSimps.DNF_ss][] >>
 Cases_on `is_consts (MAP (λ(f_,e_,tau_,b_). (e_)) f_e_tau_b_list)` >| [
  (* starting from the left disjuction
    if all members are constsants then we know that
-   vl_of_el actually exsists *)
+   vl_of_el actually exists *)
    
  DISJ2_TAC >>
 
@@ -2263,7 +2263,7 @@ srw_tac [boolSimps.DNF_ss][] >>
 Cases_on `is_consts (MAP (λ(f_,e_,tau_,b_). (e_)) f_e_tau_b_list)` >| [
  (* starting from the left disjuction
    if all members are constsants then we know that
-   vl_of_el actually exsists *)
+   vl_of_el actually exists *)
    
  DISJ2_TAC >>
 

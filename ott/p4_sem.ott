@@ -2005,36 +2005,28 @@ Definition get_oracle_calls_def:
  )
 End
 
-(* TODO: Fix the silly recursive calls for struct and header now that termination proof isn't an issue *)
 Definition init_out_v_def:
-(init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
-  (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
-  (* Note you can't have string variables in P4 (but you can pass string literals to externs) *)
-  (init_out_v random_oracle i (v_str x) = (v_str "", i)) /\
-  (init_out_v random_oracle i (v_struct ((x,v)::t)) =
-   let
-    (v', i') = init_out_v random_oracle i v
-   in
-   let
-    (l, i'''') = (FOLDR (\(x'', v'') (x_v_l, i''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
-   in
-    (v_struct (((x, v'))::l), i'''')
-  ) /\
-  (init_out_v random_oracle i (v_struct []) = (v_struct [], i)) /\
-  (init_out_v random_oracle i (v_header boolv ((x,v)::t)) =
-   let
-    (v', i') = init_out_v random_oracle i v
-   in
-   let
-    (l, i'''') = (FOLDR (\(x'', v'') (x_v_l, i''). let (v''', i''') = init_out_v random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') t)
-   in
-    (v_header F (((x, v'))::l), i'''')
-  ) /\
-  (init_out_v random_oracle i (v_header boolv []) = (v_header F [], i)) /\
-  (init_out_v random_oracle i (v_ext_ref i') = (v_ext_ref i', i)) /\
-  (init_out_v random_oracle i v_bot = (v_bot, i))
+ (init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
+ (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
+ (* Note you can't have string variables in P4 (but you can pass string literals to externs) *)
+ (init_out_v random_oracle i (v_str x) = (v_str "", i)) /\
+ (init_out_v random_oracle i (v_struct x_v_l) =
+  let
+   (x_v_l'', i''') = FOLDL ( \ (x_v_l', i') (x, v). let (v', i'') = init_out_v random_oracle i' v in ((x, v')::x_v_l', i'')) ([], i) x_v_l
+  in
+   (v_struct $ REVERSE x_v_l'', i''')
+ ) /\
+ (init_out_v random_oracle i (v_header boolv x_v_l) =
+  let
+   (x_v_l'', i''') = FOLDL ( \ (x_v_l', i') (x, v). let (v', i'') = init_out_v random_oracle i' v in ((x, v')::x_v_l', i'')) ([], i) x_v_l
+  in
+   (v_header F (REVERSE x_v_l''), i''')
+ ) /\
+ (init_out_v random_oracle i (v_ext_ref i') = (v_ext_ref i', i)) /\
+ (init_out_v random_oracle i v_bot = (v_bot, i))
+Termination
+WF_REL_TAC ‘measure ( \ (a,b,c). v_size c)’
 End
-
 
 val tau_size_def = DB.fetch "p4" "tau_size_def";
 
@@ -2053,37 +2045,44 @@ Proof
  fs [listTheory.MEM_SPLIT, tau1_size_append, tau_size_def]
 QED
 
-(* Initialise values for a given type *)
-(* TODO: Fix the silly recursive calls for struct and header now that termination proof isn't an issue *)
-Definition init_from_tau_def:
-  (init_from_tau random_oracle i tau_bool     = (v_bool $ random_oracle i, i+1)) /\
-  (init_from_tau random_oracle i (tau_bit w)  = (v_bit (get_oracle_calls w i random_oracle, w), i+w)) /\
-  (init_from_tau random_oracle i tau_bot      = (v_bot, i)) /\
-  (* NOTE: Extern objects can't be declared in blocks.
-   *       They can be block-local, but will then always be instantiated, so this value doesn't matter *)
-  (init_from_tau random_oracle i tau_ext      = (v_ext_ref 0, i)) /\
-  (init_from_tau random_oracle i (tau_xtl struct_ty_struct [] )             =  (v_struct [], i)) /\ 
-  (init_from_tau random_oracle i (tau_xtl struct_ty_struct ((x0,t0)::xtl) ) =
-   let
-    (v', i') = init_from_tau random_oracle i t0
-   in
-   let
-    (l, i'''') = (FOLDR ( \ (x'', v'') (x_v_l, i''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
-   in
-    (v_struct (((x0, v'))::l), i'''')
-  ) /\
-  (init_from_tau random_oracle i (tau_xtl struct_ty_header [] )            =  (v_header F [], i)) /\            
-  (init_from_tau random_oracle i (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
-   let
-    (v', i') = init_from_tau random_oracle i t0
-   in
-   let
-    (l, i'''') = (FOLDR ( \ (x'', v'') (x_v_l, i''). let (v''', i''') = init_from_tau random_oracle i'' v'' in ((x'', v''')::x_v_l, i''')) ([], i') xtl)
-   in
-    (v_struct (((x0, v'))::l), i'''')
-  )
-End
+Theorem tau1_size_eq:
+!tau_l. tau1_size tau_l = list_size (pair_size (list_size char_size) tau_size) tau_l
+Proof
+Induct >- (
+ gs[tau_size_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘h’ >>
+gs[tau_size_def]
+QED
 
+(* Initialise values for a given type *)
+Definition init_from_tau_def:
+ (init_from_tau random_oracle i tau_bool     = (v_bool $ random_oracle i, i+1)) /\
+ (init_from_tau random_oracle i (tau_bit w)  = (v_bit (get_oracle_calls w i random_oracle, w), i+w)) /\
+ (init_from_tau random_oracle i tau_bot      = (v_bot, i)) /\
+ (* NOTE: Extern objects can't be declared in blocks.
+  *       They can be block-local, but will then always be instantiated, so this value doesn't matter *)
+ (init_from_tau random_oracle i tau_ext      = (v_ext_ref 0, i)) /\
+ (init_from_tau random_oracle i (tau_xtl struct_ty_struct xtl) =
+  let
+   (x_v_l', i''') = FOLDL ( \ (x_v_l, i') (x, tau). let (v, i'') = init_from_tau random_oracle i' tau in ((x, v)::x_v_l, i'')) ([], i) xtl
+  in
+   (v_struct $ REVERSE x_v_l', i''')
+ ) /\
+ (init_from_tau random_oracle i (tau_xtl struct_ty_header xtl) =
+  let
+   (x_v_l', i''') = FOLDL ( \ (x_v_l, i') (x, tau). let (v, i'') = init_from_tau random_oracle i' tau in ((x, v)::x_v_l, i'')) ([], i) xtl
+  in
+   (v_header F (REVERSE x_v_l'), i''')
+ )
+Termination
+WF_REL_TAC ‘measure ( \ (a,b,c). tau_size c)’ >>
+rpt strip_tac >> (
+ imp_res_tac tau1_size_mem >>
+ gs[tau1_size_eq]
+)
+End
 
 
 
@@ -2279,7 +2278,7 @@ val initialise_var_stars_def = Define `
 val declare_list_in_scope_def = Define `
  declare_list_in_scope (t_scope:t_scope, scope:scope, i_opt, i, random_oracle) =
   let 
-   (scope', i''') = FOLDR (\(x, (t,lvalop)) (f, i'). let (v', i'') = init_from_tau random_oracle i' t in (AUPDATE f (x , (v', NONE)), i'')) (scope:scope, case i_opt of NONE => i | SOME i_upd => i_upd) t_scope
+   (scope', i''') = FOLDR (\(x, (t,lvalop)) (f, i'). let (v', i'') = init_from_tau random_oracle i' t in ((x , (v', NONE))::f, i'')) (scope:scope, case i_opt of NONE => i | SOME i_upd => i_upd) t_scope
   in
    (scope', if i = i''' then NONE else SOME i''')
 `;

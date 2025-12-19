@@ -83,7 +83,7 @@ QED
 
     
 (******   Subject Reduction for expression    ******)
-(*t_scopes_consistent is with respect to the expression's global, not the passed, because at that point we are comparing with respect to the passed scope that is already exsists in the expression *)
+(*t_scopes_consistent is with respect to the expression's global, not the passed, because at that point we are comparing with respect to the passed scope that is already exists in the expression *)
 
 val sr_exp_def = Define `
  sr_exp (e) (ty:'a itself) =
@@ -4108,7 +4108,7 @@ QED
 
 
 
-Theorem lookup_lval_exsists:
+Theorem lookup_lval_exists:
 ! ss v x s .
 lookup_lval (ss) (lval_field x s) = SOME v ==>
 ? v' . lookup_lval (ss) x = SOME v' 
@@ -4267,7 +4267,7 @@ gvs[] >| [
   `t_sl` , `b`, `d`])) >>
  gvs[] >>
 
- IMP_RES_TAC lookup_lval_exsists  >>
+ IMP_RES_TAC lookup_lval_exists  >>
  gvs[] >>
 
  (*

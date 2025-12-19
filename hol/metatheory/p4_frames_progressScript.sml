@@ -683,7 +683,7 @@ Cases_on ‘is_d_none_in h1’ >> gvs[] >| [
     IMP_RES_TAC v_types_ev >>
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘pre_passed_tslg’, ‘pre_tsl’, ‘T_e’])) >>
 
-    (* since the lval is typed, and also the value is typed, then there exsists a scope such that  assign lval = v *)              
+    (* since the lval is typed, and also the value is typed, then there exists a scope such that  assign lval = v *)              
     ASSUME_TAC assignment_scope_exists >>  
     FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘pre_local’,‘pre_gscope_passed’,‘pre_tsl’,‘pre_passed_tslg’,‘t’,‘F’,‘lval’,‘v’,‘T_e’])) >>
     gvs[] >>                
@@ -1135,7 +1135,7 @@ Cases_on ‘notret status'’ >| [
   CONV_TAC $ SWAP_EXISTS_CONV >>
   Q.EXISTS_TAC ‘scopest'’ >> gvs[] >>
 
- (* now we show that scopes to retrieve exsists & it's length is 2 *)
+ (* now we show that scopes to retrieve exists & it's length is 2 *)
  subgoal ‘LENGTH gscope' = 2 ’ >- ( IMP_RES_TAC type_scopes_list_LENGTH >> gvs[WT_c_cases] ) >>
     
   IMP_RES_TAC assign_star_length_2 >>
