@@ -31,7 +31,7 @@ open fwd_proofLib;
 
 
 val _ = new_theory "profiling";
-
+(* 
 (*
 
         fun take_first_three tuple_term =
@@ -242,7 +242,7 @@ val new_procedure_table_full_opt = mk_BDDPred_opt_new_thm rec_flag_table “(0n,
    
 
 
-
+ *)
 
 
 
@@ -252,7 +252,7 @@ val new_procedure_table_full_opt = mk_BDDPred_opt_new_thm rec_flag_table “(0n,
 
 val _ = export_theory ();
 
-
+(*
 (*
                                
 (* Theorem for body_of_mk_new with first variable *)
@@ -971,4 +971,5 @@ val policy_full_order = “[
 val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_srcPort_le_50553"; "is_srcPort_ge_50553"; "is_srcPort_le_50002"; "is_srcPort_ge_50002"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321"; "is_dstPort_le_443"; "is_dstPort_ge_443"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"; "is_srcNAT_le_45848"; "is_srcNAT_ge_45848"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"; "is_dstNAT_le_443"; "is_dstNAT_ge_443"]”;
 
 
+*)
 *)
