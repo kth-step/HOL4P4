@@ -3,13 +3,15 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 open policy_arith_to_varTheory;
 
 open bdd_utilsLib;
-open fwd_proofLib;   
-
 
 val _ = new_theory "internet_firewall_1";
 
+
+
 val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
+
+
+
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16);
                                         ("srcNAT", type_length 16);
@@ -40,7 +42,7 @@ val arith_policy_rule1 = “((arith_and (arith_a ^is_srcPort_le_57222)
                           (arith_and (arith_a ^is_srcNAT_ge_54587)
                           (arith_and (arith_a ^is_dstNAT_le_53)
                                    (arith_a ^is_dstNAT_ge_53)))))))) ,
-                           action ("allow",[])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* Default policy rule *)
 val arith_policy_rule_default = “(arith_a a_True, action ("drop", [])):single_rule”;
@@ -65,6 +67,11 @@ val policy_me =   “[
     ("is_dstNAT_ge_53", ^is_dstNAT_ge_53);
 ]”;
 
+
+(******************************)
+(*   Best output table order  *)
+(******************************)
+
 (* Grouped policy ordering *)
 val policy_full_order = “[
   ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
@@ -76,10 +83,25 @@ val policy_full_order = “[
 (* Flat policy order (grouped) *)
 val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"]”;
 
-(***********************************************)
 
-val final_thm_res =
+
+
+
+(********************)
+(*  Testing scripts *)
+(********************)
+
+(* old BDD alists + EVAL *)
+
+
+val final_thm_res1 =
 fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 
-                      
+
+(* new BDD sptrees + EVAL *)
+
+val final_thm_res2 = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
+
+
+
 val _ = export_theory ();
