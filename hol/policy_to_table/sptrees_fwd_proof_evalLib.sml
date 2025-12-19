@@ -40,7 +40,6 @@ open bdd_auxTheory;
 open table_bs_propertiesTheory;
      
 open bdd_utilsLib;   
-open apply_trans_to_IOLib;
  
 
     fun time_stage (stage_name, timer_cpu, timer_real) = 
@@ -68,6 +67,11 @@ open apply_trans_to_IOLib;
             (*       STAGE 1       *)
             (***********************)
 
+
+        val start_cpu_total1 = Timer.startCPUTimer ();
+        val start_real_total1 = Timer.startRealTimer (); 
+
+
             (*convert arith policy to var policy*)
             val arith_policy_eval = EVAL “convert_arith_to_var_policy ^arith_policy ^policy_me”;
             val var_policy = optionSyntax.dest_some (rhs (concl arith_policy_eval));
@@ -84,7 +88,7 @@ open apply_trans_to_IOLib;
             val arith_policy_var_policy_thm = REWRITE_RULE[all_distinct_conj, arith_policy_eval]
             (ISPECL[arith_policy, var_policy, policy_me] policy_airth_to_var_sem_conversion_correct);
 
-            val _ = time_stage ("Stage 1", start_cpu_total, start_real_total) 
+            val _ = time_stage ("Stage 1", start_cpu_total1, start_real_total1) 
 
             (***********************)
             (*       STAGE 2       *)
@@ -273,8 +277,9 @@ val conv_table_from_sp_to_bdd =
 
             val _ = time_stage ("FINAL CORRECTNESS PROOF", start_cpu_final, start_real_final) 
 
+
     in
-    final_thm
+    arith_policy_var_policy_thm
     end;
 
 end;
