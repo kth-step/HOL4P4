@@ -1,9 +1,6 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
-
 open policy_arith_to_varTheory;
-
-open bdd_utilsLib;
-  
+open bdd_utilsLib; 
 
 
 val _ = new_theory "internet_firewall_11";
@@ -364,6 +361,10 @@ val policy_me =   “[
     ("is_dstNAT_ge_80", ^is_dstNAT_ge_80);
 ]”;
 
+(******************************)
+(*   Best output table order  *)
+(******************************)
+
 
 (* 
 (* Grouped policy ordering *)
@@ -379,6 +380,13 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (************************************************)
  *)
 
+
+
+
+(****************************)
+(* worst output table order *)
+(*    but better for BDD    *)
+(****************************)
 
 val policy_order = ``[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
@@ -458,18 +466,24 @@ val policy_full_order = ``[
   ("77nf" ,["is_dstNAT_le_80";"is_dstNAT_ge_80"])
 ]``;
 
+(********************************)
+
+
+(********************)
+(*  Testing scripts *)
+(********************)
+
+(* old BDD alists + EVAL *)
+
 (*
 val final_thm_res =
-sptrees_fwd_proofLib.sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order)
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 *)
 
-(* 
-val final_thm_res = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); *)
-
-
-val final_thm_res =
-fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
-                 
+(* new BDD sptrees + EVAL *)
+(*
+val final_thm_res = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
+*)
 
                       
 val _ = export_theory ();
