@@ -172,17 +172,10 @@ val policy_full_order = ``[
 (*  Testing scripts *)
 (********************)
 
-(* old BDD alists + EVAL *)
-
-
-val final_thm_res =
-fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
-
-
-(* new BDD sptrees + EVAL *)
-(* 
-val final_thm_res = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
- *)
+(* Cakeml sptrees *)
+(*
+val final_thm_res = sptrees_fwd_proofLib.sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
+*)
 
 
 val _ = export_theory ();
