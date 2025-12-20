@@ -1,9 +1,6 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
-
 open policy_arith_to_varTheory;
-
 open bdd_utilsLib;
- 
 
 
 val _ = new_theory "internet_firewall_9";
@@ -306,6 +303,9 @@ val policy_me =   “[
     ("is_dstNAT_ge_58774", ^is_dstNAT_ge_58774);
 ]”;
 
+(******************************)
+(*   Best output table order  *)
+(******************************)
 
 (* 
 (* Grouped policy ordering *)
@@ -320,6 +320,14 @@ val policy_full_order = “[
 val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_srcPort_le_50553"; "is_srcPort_ge_50553"; "is_srcPort_le_50002"; "is_srcPort_ge_50002"; "is_srcPort_le_51465"; "is_srcPort_ge_51465"; "is_srcPort_le_60513"; "is_srcPort_ge_60513"; "is_srcPort_le_50049"; "is_srcPort_ge_50049"; "is_srcPort_le_52244"; "is_srcPort_ge_52244"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321"; "is_dstPort_le_443"; "is_dstPort_ge_443"; "is_dstPort_le_47094"; "is_dstPort_ge_47094"; "is_dstPort_le_58774"; "is_dstPort_ge_58774"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"; "is_srcNAT_le_45848"; "is_srcNAT_ge_45848"; "is_srcNAT_le_39975"; "is_srcNAT_ge_39975"; "is_srcNAT_le_45469"; "is_srcNAT_ge_45469"; "is_srcNAT_le_21285"; "is_srcNAT_ge_21285"; "is_srcNAT_le_2211"; "is_srcNAT_ge_2211"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"; "is_dstNAT_le_443"; "is_dstNAT_ge_443"; "is_dstNAT_le_47094"; "is_dstNAT_ge_47094"; "is_dstNAT_le_58774"; "is_dstNAT_ge_58774"]”;
 (***********************************************)
  *)
+
+
+
+
+(****************************)
+(* worst output table order *)
+(*    but better for BDD    *)
+(****************************)
 
 val policy_order = ``[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
@@ -387,18 +395,23 @@ val policy_full_order = ``[
   ("hyh" ,["is_dstNAT_le_58774";"is_dstNAT_ge_58774"])
 ]``;
 
+(********************************)
+
+
+(********************)
+(*  Testing scripts *)
+(********************)
+
+(* old BDD alists + EVAL *)
+
 (*
 val final_thm_res =
-sptrees_fwd_proofLib.sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order)
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 *)
 
-(* 
-val final_thm_res = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); *)
-
-
-val final_thm_res =
-fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
-                 
-
-                      
+(* new BDD sptrees + EVAL *)
+(*
+val final_thm_res = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
+*)
+                     
 val _ = export_theory ();

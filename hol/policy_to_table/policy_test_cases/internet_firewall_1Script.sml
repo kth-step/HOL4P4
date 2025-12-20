@@ -1,7 +1,5 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
-
 open policy_arith_to_varTheory;
-
 open bdd_utilsLib;
 
 val _ = new_theory "internet_firewall_1";
@@ -94,14 +92,13 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_dstPort
 (* old BDD alists + EVAL *)
 
 
-val final_thm_res1 =
+val final_thm_res =
 fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 
 
 (* new BDD sptrees + EVAL *)
-
-val final_thm_res2 = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
-
-
+(* 
+val final_thm_res = sptrees_fwd_proof_evalLib.eval_sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
+ *)
 
 val _ = export_theory ();
