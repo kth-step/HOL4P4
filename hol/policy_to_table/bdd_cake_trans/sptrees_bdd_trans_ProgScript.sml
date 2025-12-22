@@ -1,13 +1,17 @@
 open HolKernel Parse boolLib bossLib;
+(*
 open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
 open preamble basis ml_translatorLib ;
 
 open miscTheory ml_translatorTheory ListProgTheory ;
 open fromSexpTheory;
-
+*)
 
 
 val _ = new_theory "sptrees_bdd_trans_Prog";
+
+(*
+
 
 (*)
  val _ = ml_prog_update (open_module "cake_sptrees_bdd_trans_Prog");
@@ -754,6 +758,10 @@ end;
 
 (*)
 val _ = ml_prog_update (close_module NONE);
+*)
+
+
+
 *)
 
 val _ = export_theory ();

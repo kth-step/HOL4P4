@@ -1,4 +1,4 @@
-structure sptrees_fwd_proofLib :> sptrees_fwd_proofLib = struct
+structure fwd_proof_cakeLib :> fwd_proof_cakeLib = struct
 
 
 open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
@@ -57,7 +57,7 @@ open apply_trans_to_IOLib;
 
 
 
-    fun sptrees_convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
+    fun convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
 
         let
             
@@ -94,7 +94,7 @@ open apply_trans_to_IOLib;
             val start_real_total_stage2 = Timer.startRealTimer (); 
 
             val (final_policy_bdd, tbl, final_table_bdd) =
-            apply_trans_to_IOLib.sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order);
+            apply_trans_to_IOLib.gen_bdds_policy_and_table_cake (var_policy, policy_order, policy_full_order);
 
             val _ = time_stage ("Stage 2 TOTAL BEFORE PROOF", start_cpu_total, start_real_total) 
 
