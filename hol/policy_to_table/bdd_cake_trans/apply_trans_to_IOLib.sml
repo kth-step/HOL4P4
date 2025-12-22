@@ -4,22 +4,18 @@ structure apply_trans_to_IOLib :> apply_trans_to_IOLib = struct
 open HolKernel Parse boolLib bossLib;
 open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
 
-open sptrees_bdd_trans_ProgTheory;
-(* open bdd_trans_ProgTheory; *)
+open bdd_trans_ProgTheory;
 open preamble basis ml_translatorLib ;
 
 open miscTheory ;
 open fromSexpTheory;
 
 
-val _ = translation_extends "sptrees_bdd_trans_Prog";
-(* val _ = translation_extends "bdd_trans_Prog";  *)
+val _ = translation_extends "bdd_trans_Prog";
 
 
 
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
-
-
 
 fun time_stage (stage_name, timer_cpu, timer_real) = 
         let
@@ -34,10 +30,7 @@ fun time_stage (stage_name, timer_cpu, timer_real) =
 end
 
 
-
-
-
-fun sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order) =
+fun gen_bdds_policy_and_table_cake (var_policy, policy_order, policy_full_order) =
 
 let
 
@@ -61,21 +54,10 @@ End
 val r = translate policy_content_test_def;
 
 
-
 Definition policy_main_hol4_def:
-  policy_main_hol4 =
-  case sp_mk_BDD_policy policy_content_test  policy_order_test of
-  | NONE => NONE
-  | SOME (r,sp_edges,sp_labels) => SOME (r,
-                                         ((toSortedAList sp_edges):edges),
-                                         ((toSortedAList sp_labels): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings) )
-End 
-
-
-(* Definition policy_main_hol4_def:
   policy_main_hol4   =
   mk_BDDPred_opt (policy_structure) (0,[],[(0, non_termn (NONE, policy_content_test))]) [] (policy_order_test) 1n
-End *)
+End
 
 val r = translate policy_main_hol4_def;
 
@@ -226,19 +208,8 @@ val r = translate table_content_test_def;
 
 Definition table_main_hol4_def:
   table_main_hol4 =
-  case sp_mk_BDD_table table_content_test policy_order_test of
-  | NONE => NONE
-  | SOME (r,sp_edges,sp_labels) => SOME (r,
-                                         ((toSortedAList sp_edges):edges),
-                                         ((toSortedAList sp_labels): (action_table_type, (string#num list) action_expr) labelings) )
-End
-
-
-(* 
-Definition table_main_hol4_def:
-  table_main_hol4 =
   mk_BDDPred_opt (table_structure) (0,[],[(0, non_termn (NONE, table_content_test))]) [] (policy_order_test) 1n
-End *)
+End
 
 
 val r = translate table_main_hol4_def;
