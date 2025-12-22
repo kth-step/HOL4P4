@@ -1,15 +1,16 @@
 open HolKernel Parse boolLib bossLib;
-(*open optionTheory pairTheory bdd_genTheory policy_specTheory pred_specTheory;     
+open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
+
 open preamble basis ml_translatorLib ;
 
 open miscTheory ml_translatorTheory ListProgTheory ;
 open fromSexpTheory;
-*)
+
 
      
 val _ = new_theory "bdd_trans_Prog";
 
-(*
+
         
 val _ = translation_extends "basisProg"
 val _ = intLib.deprecate_int();
@@ -112,21 +113,381 @@ val r = translate policy_structure_def;
     
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 
+(*
 Definition mk_BDD_policy_def:
   mk_BDD_policy (var_policy: action_policy_type ) policy_order =
   mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] policy_order 1n
 End
 
 val r = translate mk_BDD_policy_def;
-                           
-                                    
+ *)                          
+
+(***********************************)
+(* tables translation  *)
+
+val r = translate sem_var_atom_def;
+val r = translate is_atoml_true_def;
+val r = translate is_match_row_def;
+val r = translate check_all_rows_match_def;
+val r = translate match_tbl_def;
+val r = translate match_tbll_def;
+val r = translate sem_tables_def;
+
+val r = translate mk_substitute_atom_def;
+val r = translate mk_substitute_row_def;
+val r = translate mk_substitute_tbl_def;
+val r = translate mk_substitute_tbll_def;
+val r = translate mk_substitute_tables_def;
+
+val r = translate simp_atom_def;
+val r = translate is_not_true_var_atom_def;
+val r = translate (simp_row_def |> REWRITE_RULE [MEMBER_INTRO]);
+val r = translate simp_table_def;
+val r = translate simp_tables_def;
+val r = translate simp_tables_wrapper_def;
+
+val r = translate final_row_def;
+val r = translate final_tbl_def;
+val r = translate final_tbll_def;
+val r = translate final_tables_def;
+
+val r = translate fv_atom_def;
+val r = translate fv_row_def;
+val r = translate fv_tbl_def;
+val r = translate fv_tbll_def;
+val r = translate fv_tables_def;
+
+val r = translate table_structure_def;
+
+
+val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
+
+
+
 
 val _ = r |> hyp |> null orelse
         failwith ("Unproved pre-conditions");
 
 
+(*****************************************************)
+(***********  common printing      *******************)
+(*****************************************************)
 
-        
+(****************)
+(* print edges  *)
+(****************)
+
+val res = append_prog o process_topdecs $
+‘fun print_tuple_list xs =
+  let
+    fun print_elem e =
+    let
+        val (a, bc) = e ;
+        val (b, c) = bc
+      in
+        TextIO.print "(";
+        TextIO.print (Int.toString a);
+        TextIO.print ",";
+        TextIO.print (Int.toString b);
+        TextIO.print ",";
+        TextIO.print (Int.toString c);
+        TextIO.print ")"
+      end
+
+    fun loop xs =
+      case xs of
+          [] => TextIO.print " Here is the end "
+        | [x] => print_elem x
+        | x::rest =>
+            (print_elem x;
+             TextIO.print "; ";
+             loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+          end’;
+
+
+val res = append_prog o process_topdecs $
+‘fun print_string cs =
+  let fun loop xs =
+        case xs of
+            [] => ()
+          | c::rest => (TextIO.print (String.str c); loop rest)
+  in loop cs end;’;
+
+
+
+val res = append_prog o process_topdecs $
+‘
+fun print_numl nl =
+let fun loop l =
+    case l of
+      [] => ()
+    | [n] => (TextIO.print (Int.toString n))
+    | n::rest => (TextIO.print (Int.toString n); TextIO.print "; "; loop rest)
+in
+
+  (TextIO.print "[";
+  loop nl;
+  TextIO.print "]")
+
+      end;’;
+
+
+
+val res = append_prog o process_topdecs $
+‘
+fun print_pred p =
+  case p of
+      True_1 => TextIO.print "True"
+    | False_1 => TextIO.print "False"
+    | Var cs => (TextIO.print "Var \""; print_string cs; TextIO.print "\"")
+    | Not q => (TextIO.print "Not ("; print_pred q; TextIO.print ")")
+    | And a b => (TextIO.print "And (";
+                  print_pred a;
+                  TextIO.print ") (";
+                  print_pred b; TextIO.print ")")
+    | Or a b => (TextIO.print "Or (";
+                  print_pred a;
+                  TextIO.print ") (";
+                  print_pred b; TextIO.print ")")
+    | Implies a b => (TextIO.print "Implies (";
+                  print_pred a;
+                  TextIO.print ") (";
+                  print_pred b; TextIO.print ")");
+’;
+
+
+val res = append_prog o process_topdecs $
+‘
+fun print_action a =
+case a of
+(Action (cs,nl)) =>
+      (TextIO.print "action (\"";
+       print_string cs;
+       TextIO.print "\",";
+       print_numl nl ;
+       TextIO.print ")")
+| (State i) =>
+      (TextIO.print "state  ";
+       TextIO.print (Int.toString i);
+       TextIO.print " ");
+’;
+
+
+(*********************************************************)
+(***********  policy specific printing *******************)
+(*********************************************************)
+
+(****************)
+(* print labels *)
+(****************)
+
+
+val res = append_prog o process_topdecs $
+‘fun print_pair (p, act) =
+  ( TextIO.print "(";
+    print_pred p;
+    TextIO.print ", ";
+    print_action act;
+    TextIO.print ")"
+  );’;
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_list_pairs xs =
+  let
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => print_pair x
+        | x::rest =>
+            ( print_pair x; TextIO.print "; "; loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+  end;’;
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_pair_termin (act, p) =
+ ( TextIO.print "(";
+   print_action act;
+    TextIO.print ", ";
+    print_list_pairs p;
+    TextIO.print ")"
+  );
+’;
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_label lab =
+  case lab of
+    Non_termn (optname, lst) =>
+      (TextIO.print "non_termn (";
+       (case optname of
+          None => TextIO.print "NONE"
+          | Some cs => (TextIO.print "SOME \""; print_string cs; TextIO.print "\"")
+       );
+       TextIO.print ", ";
+       print_list_pairs lst;
+       TextIO.print ")")
+  | Termn fin =>
+      (TextIO.print "termn (";
+       print_pair_termin fin;
+       TextIO.print ")");
+’;
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_list_label xs =
+  let
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => (TextIO.print "(";
+                  TextIO.print (Int.toString (fst x));
+                  TextIO.print ", ";
+                  print_label (snd x);
+                  TextIO.print ")")
+        | x::rest =>
+            (TextIO.print "(";
+             TextIO.print (Int.toString (fst x));
+             TextIO.print ", ";
+             print_label (snd x);
+             TextIO.print "); \n ";
+             loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+  end;’;
+
+
+
+
+val res = append_prog o process_topdecs $
+‘
+fun print_atom p =
+  case p of
+      True_2 => TextIO.print "True"
+    | False_2 => TextIO.print "False"
+    | Var_1 cs => (TextIO.print "Var \""; print_string cs; TextIO.print "\"")
+    | Not_1 cs => (TextIO.print "Not \""; print_string cs; TextIO.print "\"")
+    | Notfalse => TextIO.print "NotFalse"
+    | Nottrue => TextIO.print "NotTrue"
+’;
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_al_n_s (atom_l, n_state) =
+ let
+
+  fun loop xs =
+  case xs of
+    [] => ()
+  | [atom] => print_atom atom
+  | atom::rest => (print_atom atom ; TextIO.print "; " ; loop rest)
+ in
+  ( TextIO.print "([";
+    loop atom_l;
+    TextIO.print "],";
+    TextIO.print (Int.toString (fst n_state));
+    TextIO.print ",";
+    print_action (snd n_state);
+    TextIO.print ")"
+  )
+  end’;
+
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_list_tbl xs =
+ let
+
+    fun loop_inner tbl =
+      case tbl of
+          [] => ()
+        | [al_n_s] => print_al_n_s al_n_s
+        | al_n_s::rest => (print_al_n_s al_n_s ; TextIO.print "; " ;  loop_inner rest)
+
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => (TextIO.print "[" ; loop_inner x ; TextIO.print "]")
+        | x::rest => ( TextIO.print "[" ; loop_inner x ; TextIO.print "]; " ; loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+end;’;
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_table_label lab =
+  case lab of
+    Non_termn (optname, lst_n) =>
+      (TextIO.print "non_termn (";
+       (case optname of
+          None => TextIO.print "NONE"
+          | Some cs => (TextIO.print "SOME \""; print_string cs; TextIO.print "\"")
+       );
+       TextIO.print ", ";
+       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
+       TextIO.print ", ";
+       TextIO.print (Int.toString (snd lst_n)); (*input state*)
+       TextIO.print ")")
+  | Termn (fin, lst_n) =>
+      (TextIO.print "termn (";
+       print_action (fin);
+       TextIO.print ",";
+       print_list_tbl (fst lst_n); (*print tablesl [[];[];[]] *)
+       TextIO.print ", ";
+       TextIO.print (Int.toString (snd lst_n)); (*input state*)
+       TextIO.print ")");
+’;
+
+
+
+val res = append_prog o process_topdecs $
+‘fun print_list_tables_lbl xs =
+  let
+    fun loop xs =
+      case xs of
+          [] => ()
+        | [x] => (TextIO.print "(";
+                  TextIO.print (Int.toString (fst x));
+                  TextIO.print ", ";
+                  print_table_label (snd x);
+                  TextIO.print ")")
+        | x::rest =>
+            (TextIO.print "(";
+             TextIO.print (Int.toString (fst x));
+             TextIO.print ", ";
+             print_table_label (snd x);
+             TextIO.print "); \n ";
+             loop rest)
+  in
+    TextIO.print "[";
+    loop xs;
+    TextIO.print "]"
+          end;
+’;
+
+val _ = export_theory ();
+
+
+(*)        
 (************* arguments passing: hardcorded arguments this *****************)
 
 (*
@@ -199,12 +560,6 @@ val _ = append_prog (process_topdecs `
 
         
 val _ = (max_print_depth := 100)
-
-
-val _ = export_theory();
-
-
-
 
 
 Definition bdd_is_def:
@@ -354,411 +709,6 @@ print_term (current_prog);
 val _ = astPP.disable_astPP();
 
 
-
-(******************************************************************
-
-*******************************************************************
-*******************************************************************
-*******************************************************************
-*******************************************************************
-*******************************************************************
-
-
-*******************************************************************)
-
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open policy_arith_to_varTheory;
-
-open bdd_utilsLib;
-open fwd_proofLib;   
-
-(*
-
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
-val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
-                                        ("dstPort", type_length 16);
-                                        ("srcNAT", type_length 16);
-                                        ("dstNAT", type_length 16)])]”;
-
-(************************************************)
-(************************************************)
-(* rule 1 *)
-
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
-val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
-                                        ("dstPort", type_length 16);
-                                        ("srcNAT", type_length 16);
-                                        ("dstNAT", type_length 16)])]”;
-
-(************************************************)
-(* rule 1 *)(* rule 1 *)
-
-val is_srcPort_le_57222 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 57222 16))”;
-val is_srcPort_ge_57222 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 57222 16))”;
-
-val is_dstPort_le_53 = “(arithm_le (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 53 16))”;
-val is_dstPort_ge_53 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 53 16))”;
-
-val is_srcNAT_le_54587 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 54587 16))”;
-val is_srcNAT_ge_54587 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 54587 16))”;
-
-val is_dstNAT_le_53 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 53 16))”;
-val is_dstNAT_ge_53 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 53 16))”;
-
-
-val arith_policy_rule1 = “((arith_and (arith_a ^is_srcPort_le_57222)
-                          (arith_and (arith_a ^is_srcPort_ge_57222)
-                          (arith_and (arith_a ^is_dstPort_le_53)
-                          (arith_and (arith_a ^is_dstPort_ge_53)
-                          (arith_and (arith_a ^is_srcNAT_le_54587)
-                          (arith_and (arith_a ^is_srcNAT_ge_54587)
-                          (arith_and (arith_a ^is_dstNAT_le_53)
-                                   (arith_a ^is_dstNAT_ge_53)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 2 *)
-
-val is_srcPort_le_56258 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 56258 16))”;
-val is_srcPort_ge_56258 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 56258 16))”;
-
-val is_dstPort_le_3389 = “(arithm_le (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 3389 16))”;
-val is_dstPort_ge_3389 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 3389 16))”;
-
-val is_srcNAT_le_56258 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 56258 16))”;
-val is_srcNAT_ge_56258 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 56258 16))”;
-
-val is_dstNAT_le_3389 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 3389 16))”;
-val is_dstNAT_ge_3389 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 3389 16))”;
-
-
-val arith_policy_rule2 = “((arith_and (arith_a ^is_srcPort_le_56258)
-                          (arith_and (arith_a ^is_srcPort_ge_56258)
-                          (arith_and (arith_a ^is_dstPort_le_3389)
-                          (arith_and (arith_a ^is_dstPort_ge_3389)
-                          (arith_and (arith_a ^is_srcNAT_le_56258)
-                          (arith_and (arith_a ^is_srcNAT_ge_56258)
-                          (arith_and (arith_a ^is_dstNAT_le_3389)
-                                   (arith_a ^is_dstNAT_ge_3389)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 3 *)
-
-val is_srcPort_le_6881 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 6881 16))”;
-val is_srcPort_ge_6881 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 6881 16))”;
-
-val is_dstPort_le_50321 = “(arithm_le (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 50321 16))”;
-val is_dstPort_ge_50321 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 50321 16))”;
-
-val is_srcNAT_le_43265 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 43265 16))”;
-val is_srcNAT_ge_43265 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 43265 16))”;
-
-val is_dstNAT_le_50321 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 50321 16))”;
-val is_dstNAT_ge_50321 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 50321 16))”;
-
-
-val arith_policy_rule3 = “((arith_and (arith_a ^is_srcPort_le_6881)
-                          (arith_and (arith_a ^is_srcPort_ge_6881)
-                          (arith_and (arith_a ^is_dstPort_le_50321)
-                          (arith_and (arith_a ^is_dstPort_ge_50321)
-                          (arith_and (arith_a ^is_srcNAT_le_43265)
-                          (arith_and (arith_a ^is_srcNAT_ge_43265)
-                          (arith_and (arith_a ^is_dstNAT_le_50321)
-                                   (arith_a ^is_dstNAT_ge_50321)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 4 *)
-
-val is_srcPort_le_50553 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50553 16))”;
-val is_srcPort_ge_50553 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50553 16))”;
-
-val is_srcNAT_le_50553 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 50553 16))”;
-val is_srcNAT_ge_50553 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 50553 16))”;
-
-
-val arith_policy_rule4 = “((arith_and (arith_a ^is_srcPort_le_50553)
-                          (arith_and (arith_a ^is_srcPort_ge_50553)
-                          (arith_and (arith_a ^is_dstPort_le_3389)
-                          (arith_and (arith_a ^is_dstPort_ge_3389)
-                          (arith_and (arith_a ^is_srcNAT_le_50553)
-                          (arith_and (arith_a ^is_srcNAT_ge_50553)
-                          (arith_and (arith_a ^is_dstNAT_le_3389)
-                                   (arith_a ^is_dstNAT_ge_3389)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 5 *)
-
-val is_srcPort_le_50002 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50002 16))”;
-val is_srcPort_ge_50002 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50002 16))”;
-
-val is_dstPort_le_443 = “(arithm_le (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 443 16))”;
-val is_dstPort_ge_443 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 443 16))”;
-
-val is_srcNAT_le_45848 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 45848 16))”;
-val is_srcNAT_ge_45848 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 45848 16))”;
-
-val is_dstNAT_le_443 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 443 16))”;
-val is_dstNAT_ge_443 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 443 16))”;
-
-
-val arith_policy_rule5 = “((arith_and (arith_a ^is_srcPort_le_50002)
-                          (arith_and (arith_a ^is_srcPort_ge_50002)
-                          (arith_and (arith_a ^is_dstPort_le_443)
-                          (arith_and (arith_a ^is_dstPort_ge_443)
-                          (arith_and (arith_a ^is_srcNAT_le_45848)
-                          (arith_and (arith_a ^is_srcNAT_ge_45848)
-                          (arith_and (arith_a ^is_dstNAT_le_443)
-                                   (arith_a ^is_dstNAT_ge_443)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 6 *)
-
-val is_srcPort_le_51465 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 51465 16))”;
-val is_srcPort_ge_51465 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 51465 16))”;
-
-val is_srcNAT_le_39975 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 39975 16))”;
-val is_srcNAT_ge_39975 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 39975 16))”;
-
-
-val arith_policy_rule6 = “((arith_and (arith_a ^is_srcPort_le_51465)
-                          (arith_and (arith_a ^is_srcPort_ge_51465)
-                          (arith_and (arith_a ^is_dstPort_le_443)
-                          (arith_and (arith_a ^is_dstPort_ge_443)
-                          (arith_and (arith_a ^is_srcNAT_le_39975)
-                          (arith_and (arith_a ^is_srcNAT_ge_39975)
-                          (arith_and (arith_a ^is_dstNAT_le_443)
-                                   (arith_a ^is_dstNAT_ge_443)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 7 *)
-
-val is_srcPort_le_60513 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 60513 16))”;
-val is_srcPort_ge_60513 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 60513 16))”;
-
-val is_dstPort_le_47094 = “(arithm_le (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 47094 16))”;
-val is_dstPort_ge_47094 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 47094 16))”;
-
-val is_srcNAT_le_45469 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 45469 16))”;
-val is_srcNAT_ge_45469 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 45469 16))”;
-
-val is_dstNAT_le_47094 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 47094 16))”;
-val is_dstNAT_ge_47094 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 47094 16))”;
-
-
-val arith_policy_rule7 = “((arith_and (arith_a ^is_srcPort_le_60513)
-                          (arith_and (arith_a ^is_srcPort_ge_60513)
-                          (arith_and (arith_a ^is_dstPort_le_47094)
-                          (arith_and (arith_a ^is_dstPort_ge_47094)
-                          (arith_and (arith_a ^is_srcNAT_le_45469)
-                          (arith_and (arith_a ^is_srcNAT_ge_45469)
-                          (arith_and (arith_a ^is_dstNAT_le_47094)
-                                   (arith_a ^is_dstNAT_ge_47094)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 8 *)
-
-val is_srcPort_le_50049 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50049 16))”;
-val is_srcPort_ge_50049 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50049 16))”;
-
-val is_srcNAT_le_21285 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 21285 16))”;
-val is_srcNAT_ge_21285 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 21285 16))”;
-
-
-val arith_policy_rule8 = “((arith_and (arith_a ^is_srcPort_le_50049)
-                          (arith_and (arith_a ^is_srcPort_ge_50049)
-                          (arith_and (arith_a ^is_dstPort_le_443)
-                          (arith_and (arith_a ^is_dstPort_ge_443)
-                          (arith_and (arith_a ^is_srcNAT_le_21285)
-                          (arith_and (arith_a ^is_srcNAT_ge_21285)
-                          (arith_and (arith_a ^is_dstNAT_le_443)
-                                   (arith_a ^is_dstNAT_ge_443)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 9 *)
-
-val is_srcPort_le_52244 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 52244 16))”;
-val is_srcPort_ge_52244 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 52244 16))”;
-
-val is_dstPort_le_58774 = “(arithm_le (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 58774 16))”;
-val is_dstPort_ge_58774 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 58774 16))”;
-
-val is_srcNAT_le_2211 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 2211 16))”;
-val is_srcNAT_ge_2211 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 2211 16))”;
-
-val is_dstNAT_le_58774 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 58774 16))”;
-val is_dstNAT_ge_58774 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 58774 16))”;
-
-
-val arith_policy_rule9 = “((arith_and (arith_a ^is_srcPort_le_52244)
-                          (arith_and (arith_a ^is_srcPort_ge_52244)
-                          (arith_and (arith_a ^is_dstPort_le_58774)
-                          (arith_and (arith_a ^is_dstPort_ge_58774)
-                          (arith_and (arith_a ^is_srcNAT_le_2211)
-                          (arith_and (arith_a ^is_srcNAT_ge_2211)
-                          (arith_and (arith_a ^is_dstNAT_le_58774)
-                                   (arith_a ^is_dstNAT_ge_58774)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 10 *)
-
-val is_srcPort_le_50627 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50627 16))”;
-val is_srcPort_ge_50627 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 50627 16))”;
-
-val is_srcNAT_le_16215 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 16215 16))”;
-val is_srcNAT_ge_16215 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 16215 16))”;
-
-
-val arith_policy_rule10 = “((arith_and (arith_a ^is_srcPort_le_50627)
-                          (arith_and (arith_a ^is_srcPort_ge_50627)
-                          (arith_and (arith_a ^is_dstPort_le_443)
-                          (arith_and (arith_a ^is_dstPort_ge_443)
-                          (arith_and (arith_a ^is_srcNAT_le_16215)
-                          (arith_and (arith_a ^is_srcNAT_ge_16215)
-                          (arith_and (arith_a ^is_dstNAT_le_443)
-                                   (arith_a ^is_dstNAT_ge_443)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* rule 11 *)
-
-val is_srcPort_le_43676 = “(arithm_le (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 43676 16))”;
-val is_srcPort_ge_43676 = “(arithm_ge (lv_acc (lv_x "h") "srcPort") ^(bdd_utilsLib.make_bv 43676 16))”;
-
-val is_dstPort_le_80 = “(arithm_le (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 80 16))”;
-val is_dstPort_ge_80 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLib.make_bv 80 16))”;
-
-val is_srcNAT_le_45378 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 45378 16))”;
-val is_srcNAT_ge_45378 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 45378 16))”;
-
-val is_dstNAT_le_80 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 80 16))”;
-val is_dstNAT_ge_80 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 80 16))”;
-
-
-val arith_policy_rule11 = “((arith_and (arith_a ^is_srcPort_le_43676)
-                          (arith_and (arith_a ^is_srcPort_ge_43676)
-                          (arith_and (arith_a ^is_dstPort_le_80)
-                          (arith_and (arith_a ^is_dstPort_ge_80)
-                          (arith_and (arith_a ^is_srcNAT_le_45378)
-                          (arith_and (arith_a ^is_srcNAT_ge_45378)
-                          (arith_and (arith_a ^is_dstNAT_le_80)
-                                   (arith_a ^is_dstNAT_ge_80)))))))) ,
-                           action ("allow",[])):single_rule”;
-
-(* Default policy rule *)
-val arith_policy_rule_default = “(arith_a a_True, action ("drop", [])):single_rule”;
-
-(* Combined arith policy list *)
-val arith_policy = “[
-    ^arith_policy_rule1;
-    ^arith_policy_rule2;
-    ^arith_policy_rule3;
-    ^arith_policy_rule4;
-    ^arith_policy_rule5;
-    ^arith_policy_rule6;
-    ^arith_policy_rule7;
-    ^arith_policy_rule8;
-    ^arith_policy_rule9;
-    ^arith_policy_rule10;
-    ^arith_policy_rule11;
-    ^arith_policy_rule_default
-]:single_rule list”;
-
-
-
-(* Combined policy mapping *)
-val policy_me =   “[
-    ("is_srcPort_le_57222", ^is_srcPort_le_57222);
-    ("is_srcPort_ge_57222", ^is_srcPort_ge_57222);
-    ("is_dstPort_le_53", ^is_dstPort_le_53);
-    ("is_dstPort_ge_53", ^is_dstPort_ge_53);
-    ("is_srcNAT_le_54587", ^is_srcNAT_le_54587);
-    ("is_srcNAT_ge_54587", ^is_srcNAT_ge_54587);
-    ("is_dstNAT_le_53", ^is_dstNAT_le_53);
-    ("is_dstNAT_ge_53", ^is_dstNAT_ge_53);
-    ("is_srcPort_le_56258", ^is_srcPort_le_56258);
-    ("is_srcPort_ge_56258", ^is_srcPort_ge_56258);
-    ("is_dstPort_le_3389", ^is_dstPort_le_3389);
-    ("is_dstPort_ge_3389", ^is_dstPort_ge_3389);
-    ("is_srcNAT_le_56258", ^is_srcNAT_le_56258);
-    ("is_srcNAT_ge_56258", ^is_srcNAT_ge_56258);
-    ("is_dstNAT_le_3389", ^is_dstNAT_le_3389);
-    ("is_dstNAT_ge_3389", ^is_dstNAT_ge_3389);
-    ("is_srcPort_le_6881", ^is_srcPort_le_6881);
-    ("is_srcPort_ge_6881", ^is_srcPort_ge_6881);
-    ("is_dstPort_le_50321", ^is_dstPort_le_50321);
-    ("is_dstPort_ge_50321", ^is_dstPort_ge_50321);
-    ("is_srcNAT_le_43265", ^is_srcNAT_le_43265);
-    ("is_srcNAT_ge_43265", ^is_srcNAT_ge_43265);
-    ("is_dstNAT_le_50321", ^is_dstNAT_le_50321);
-    ("is_dstNAT_ge_50321", ^is_dstNAT_ge_50321);
-    ("is_srcPort_le_50553", ^is_srcPort_le_50553);
-    ("is_srcPort_ge_50553", ^is_srcPort_ge_50553);
-    ("is_srcNAT_le_50553", ^is_srcNAT_le_50553);
-    ("is_srcNAT_ge_50553", ^is_srcNAT_ge_50553);
-    ("is_srcPort_le_50002", ^is_srcPort_le_50002);
-    ("is_srcPort_ge_50002", ^is_srcPort_ge_50002);
-    ("is_dstPort_le_443", ^is_dstPort_le_443);
-    ("is_dstPort_ge_443", ^is_dstPort_ge_443);
-    ("is_srcNAT_le_45848", ^is_srcNAT_le_45848);
-    ("is_srcNAT_ge_45848", ^is_srcNAT_ge_45848);
-    ("is_dstNAT_le_443", ^is_dstNAT_le_443);
-    ("is_dstNAT_ge_443", ^is_dstNAT_ge_443);
-    ("is_srcPort_le_51465", ^is_srcPort_le_51465);
-    ("is_srcPort_ge_51465", ^is_srcPort_ge_51465);
-    ("is_srcNAT_le_39975", ^is_srcNAT_le_39975);
-    ("is_srcNAT_ge_39975", ^is_srcNAT_ge_39975);
-    ("is_srcPort_le_60513", ^is_srcPort_le_60513);
-    ("is_srcPort_ge_60513", ^is_srcPort_ge_60513);
-    ("is_dstPort_le_47094", ^is_dstPort_le_47094);
-    ("is_dstPort_ge_47094", ^is_dstPort_ge_47094);
-    ("is_srcNAT_le_45469", ^is_srcNAT_le_45469);
-    ("is_srcNAT_ge_45469", ^is_srcNAT_ge_45469);
-    ("is_dstNAT_le_47094", ^is_dstNAT_le_47094);
-    ("is_dstNAT_ge_47094", ^is_dstNAT_ge_47094);
-    ("is_srcPort_le_50049", ^is_srcPort_le_50049);
-    ("is_srcPort_ge_50049", ^is_srcPort_ge_50049);
-    ("is_srcNAT_le_21285", ^is_srcNAT_le_21285);
-    ("is_srcNAT_ge_21285", ^is_srcNAT_ge_21285);
-    ("is_srcPort_le_52244", ^is_srcPort_le_52244);
-    ("is_srcPort_ge_52244", ^is_srcPort_ge_52244);
-    ("is_dstPort_le_58774", ^is_dstPort_le_58774);
-    ("is_dstPort_ge_58774", ^is_dstPort_ge_58774);
-    ("is_srcNAT_le_2211", ^is_srcNAT_le_2211);
-    ("is_srcNAT_ge_2211", ^is_srcNAT_ge_2211);
-    ("is_dstNAT_le_58774", ^is_dstNAT_le_58774);
-    ("is_dstNAT_ge_58774", ^is_dstNAT_ge_58774);
-    ("is_srcPort_le_50627", ^is_srcPort_le_50627);
-    ("is_srcPort_ge_50627", ^is_srcPort_ge_50627);
-    ("is_srcNAT_le_16215", ^is_srcNAT_le_16215);
-    ("is_srcNAT_ge_16215", ^is_srcNAT_ge_16215);
-    ("is_srcPort_le_43676", ^is_srcPort_le_43676);
-    ("is_srcPort_ge_43676", ^is_srcPort_ge_43676);
-    ("is_dstPort_le_80", ^is_dstPort_le_80);
-    ("is_dstPort_ge_80", ^is_dstPort_ge_80);
-    ("is_srcNAT_le_45378", ^is_srcNAT_le_45378);
-    ("is_srcNAT_ge_45378", ^is_srcNAT_ge_45378);
-    ("is_dstNAT_le_80", ^is_dstNAT_le_80);
-    ("is_dstNAT_ge_80", ^is_dstNAT_ge_80);
-]”;
-
-(* Grouped policy ordering *)
-val policy_full_order = “[
-  ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881";"is_srcPort_le_50553";"is_srcPort_ge_50553";"is_srcPort_le_50002";"is_srcPort_ge_50002";"is_srcPort_le_51465";"is_srcPort_ge_51465";"is_srcPort_le_60513";"is_srcPort_ge_60513";"is_srcPort_le_50049";"is_srcPort_ge_50049";"is_srcPort_le_52244";"is_srcPort_ge_52244";"is_srcPort_le_50627";"is_srcPort_ge_50627";"is_srcPort_le_43676";"is_srcPort_ge_43676"]);
-  ("dstPortGrp",["is_dstPort_le_53";"is_dstPort_ge_53";"is_dstPort_le_3389";"is_dstPort_ge_3389";"is_dstPort_le_50321";"is_dstPort_ge_50321";"is_dstPort_le_443";"is_dstPort_ge_443";"is_dstPort_le_47094";"is_dstPort_ge_47094";"is_dstPort_le_58774";"is_dstPort_ge_58774";"is_dstPort_le_80";"is_dstPort_ge_80"]);
-  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265";"is_srcNAT_le_50553";"is_srcNAT_ge_50553";"is_srcNAT_le_45848";"is_srcNAT_ge_45848";"is_srcNAT_le_39975";"is_srcNAT_ge_39975";"is_srcNAT_le_45469";"is_srcNAT_ge_45469";"is_srcNAT_le_21285";"is_srcNAT_ge_21285";"is_srcNAT_le_2211";"is_srcNAT_ge_2211";"is_srcNAT_le_16215";"is_srcNAT_ge_16215";"is_srcNAT_le_45378";"is_srcNAT_ge_45378"]);
-  ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389";"is_dstNAT_le_50321";"is_dstNAT_ge_50321";"is_dstNAT_le_443";"is_dstNAT_ge_443";"is_dstNAT_le_47094";"is_dstNAT_ge_47094";"is_dstNAT_le_58774";"is_dstNAT_ge_58774";"is_dstNAT_le_80";"is_dstNAT_ge_80"])
-]”;
-
-(* Flat policy order (grouped) *)
-val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_srcPort_le_50553"; "is_srcPort_ge_50553"; "is_srcPort_le_50002"; "is_srcPort_ge_50002"; "is_srcPort_le_51465"; "is_srcPort_ge_51465"; "is_srcPort_le_60513"; "is_srcPort_ge_60513"; "is_srcPort_le_50049"; "is_srcPort_ge_50049"; "is_srcPort_le_52244"; "is_srcPort_ge_52244"; "is_srcPort_le_50627"; "is_srcPort_ge_50627"; "is_srcPort_le_43676"; "is_srcPort_ge_43676"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321"; "is_dstPort_le_443"; "is_dstPort_ge_443"; "is_dstPort_le_47094"; "is_dstPort_ge_47094"; "is_dstPort_le_58774"; "is_dstPort_ge_58774"; "is_dstPort_le_80"; "is_dstPort_ge_80"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_srcNAT_le_50553"; "is_srcNAT_ge_50553"; "is_srcNAT_le_45848"; "is_srcNAT_ge_45848"; "is_srcNAT_le_39975"; "is_srcNAT_ge_39975"; "is_srcNAT_le_45469"; "is_srcNAT_ge_45469"; "is_srcNAT_le_21285"; "is_srcNAT_ge_21285"; "is_srcNAT_le_2211"; "is_srcNAT_ge_2211"; "is_srcNAT_le_16215"; "is_srcNAT_ge_16215"; "is_srcNAT_le_45378"; "is_srcNAT_ge_45378"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"; "is_dstNAT_le_443"; "is_dstNAT_ge_443"; "is_dstNAT_le_47094"; "is_dstNAT_ge_47094"; "is_dstNAT_le_58774"; "is_dstNAT_ge_58774"; "is_dstNAT_le_80"; "is_dstNAT_ge_80"]”;
-(***********************************************)
-
-(***********************************************)
-*)
-
-
-
                        
 val arith_policy_eval = EVAL “convert_arith_to_var_policy ^arith_policy ^policy_me”;
 val var_policy = optionSyntax.dest_some (rhs (concl arith_policy_eval));
@@ -809,4 +759,4 @@ val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
 
 
 
-val _ = export_theory ();
+

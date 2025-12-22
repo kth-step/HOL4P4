@@ -1,5 +1,5 @@
 #!/bin/bash
-for file in *Script.sml; do
-    base=$(basename "$file" Script.sml)
-    Holmake "${base}Theory.uo"
+
+for i in {1..6}; do
+    Holmake "internet_firewall_${i}Theory.uo"
 done

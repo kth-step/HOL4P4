@@ -90,23 +90,22 @@ open apply_trans_to_IOLib;
             (*       STAGE 2       *)
             (***********************)
 
-
             val start_cpu_total_stage2 = Timer.startCPUTimer ();
             val start_real_total_stage2 = Timer.startRealTimer (); 
 
             val (final_policy_bdd, tbl, final_table_bdd) =
             apply_trans_to_IOLib.sptrees_gen_bdds_policy_and_table (var_policy, policy_order, policy_full_order);
 
+            val _ = time_stage ("Stage 2 TOTAL BEFORE PROOF", start_cpu_total, start_real_total) 
 
 
             val get_i_policy = bdd_utilsLib.pairBDDs (final_policy_bdd, final_table_bdd);
 
+            val start_cpu_total_stage2_proof = Timer.startCPUTimer ();
+            val start_real_total_stage2_proof = Timer.startRealTimer (); 
 
             val eval_policy_full_opt = mk_thm ( [], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1 = SOME ^final_policy_bdd”);
             val eval_table_full_opt_auto = mk_thm ( [], “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^tbl))]) [] ^policy_order 1 = SOME ^final_table_bdd ”);
-
-            val start_cpu_total_stage2_proof = Timer.startCPUTimer ();
-            val start_real_total_stage2_proof = Timer.startRealTimer (); 
 
             val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^tbl ^policy_order ^get_i_policy”;
             val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract;
@@ -115,12 +114,13 @@ open apply_trans_to_IOLib;
             val _ = time_stage ("Stage 2 proof", start_cpu_total_stage2_proof, start_real_total_stage2_proof) 
             val _ = time_stage ("Stage 2 total", start_cpu_total_stage2, start_real_total_stage2) 
 
-            val start_cpu_total_stage3 = Timer.startCPUTimer ();
-            val start_real_total_stage3 = Timer.startRealTimer (); 
 
             (***********************)
             (*       STAGE 3       *)
             (***********************)
+
+            val start_cpu_total_stage3 = Timer.startCPUTimer ();
+            val start_real_total_stage3 = Timer.startRealTimer (); 
 
             (* covert var table to interval table *)
             val only_var_table = fst (dest_pair tbl);
@@ -135,17 +135,12 @@ open apply_trans_to_IOLib;
             val _ = time_stage ("Stage 3 total", start_cpu_total_stage3, start_real_total_stage3) 
 
 
-
-
-
             (***********************)
             (*       FINAL PROOF   *)
             (***********************)
 
             val start_cpu_final = Timer.startCPUTimer ();
             val start_real_final = Timer.startRealTimer ();
-
-
 
             (* to glue the theorems we need to take care of the conditions/ assumptions *)
 
