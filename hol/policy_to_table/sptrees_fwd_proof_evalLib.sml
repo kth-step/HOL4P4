@@ -68,8 +68,8 @@ open bdd_utilsLib;
             (***********************)
 
 
-        val start_cpu_total1 = Timer.startCPUTimer ();
-        val start_real_total1 = Timer.startRealTimer (); 
+            val start_cpu_total1 = Timer.startCPUTimer ();
+            val start_real_total1 = Timer.startRealTimer (); 
 
 
             (*convert arith policy to var policy*)
@@ -95,22 +95,22 @@ open bdd_utilsLib;
             (***********************)
 
 
-        val start_cpu_stage2 = Timer.startCPUTimer ();
-        val start_real_stage2 = Timer.startRealTimer (); 
+            val start_cpu_stage2 = Timer.startCPUTimer ();
+            val start_real_stage2 = Timer.startRealTimer (); 
 
-(*
-val policy_main_hol4_def = Define`
-  policy_main_hol4 =
-    case sp_mk_BDD_policy ^var_policy ^policy_order of
-      NONE => NONE
-    | SOME (r, sp_edges, sp_labels) => 
-        SOME (r,
-            ((toSortedAList sp_edges):edges),
-           ((toSortedAList sp_labels): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings))
-`;
+            (*
+            val policy_main_hol4_def = Define`
+            policy_main_hol4 =
+                case sp_mk_BDD_policy ^var_policy ^policy_order of
+                NONE => NONE
+                | SOME (r, sp_edges, sp_labels) => 
+                    SOME (r,
+                        ((toSortedAList sp_edges):edges),
+                    ((toSortedAList sp_labels): (((string#num list) action_expr) policy, (string#num list) action_expr) labelings))
+            `;
 
 
-            val eval_policy_full_opt = EVAL “policy_main_hol4”; *)
+                        val eval_policy_full_opt = EVAL “policy_main_hol4”; *)
 
             val eval_policy_full_opt = EVAL “
               sp_mk_BDDPred_opt policy_structure (0n,LN,insert 0 (non_termn (NONE, ^var_policy)) LN) [] ^policy_order 1n”;
@@ -119,29 +119,29 @@ val policy_main_hol4_def = Define`
             val eval_policy_full_opt_rhs1 = optionSyntax.dest_some (rhs (concl eval_policy_full_opt));
 
 
-val conv_policy_from_sp_to_bdd = 
-  EVAL ``let (r, sp_edges, sp_labels) = ^eval_policy_full_opt_rhs1
-         in SOME (r,
-                  (toSortedAList sp_edges),
-                  (toSortedAList sp_labels))``;
+            val conv_policy_from_sp_to_bdd = 
+            EVAL ``let (r, sp_edges, sp_labels) = ^eval_policy_full_opt_rhs1
+                    in SOME (r,
+                            (toSortedAList sp_edges),
+                            (toSortedAList sp_labels))``;
 
 
-              val eval_policy_full_opt_rhs =  optionSyntax.dest_some (rhs (concl conv_policy_from_sp_to_bdd));
+            val eval_policy_full_opt_rhs =  optionSyntax.dest_some (rhs (concl conv_policy_from_sp_to_bdd));
 
 
-        val _ = time_stage ("Stage 2 from var policy to BDD", start_cpu_stage2, start_real_stage2);
+            val _ = time_stage ("Stage 2 from var policy to BDD", start_cpu_stage2, start_real_stage2);
 
 
 
             val test_groupings = rhs(concl(EVAL policy_full_order));
             val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative eval_policy_full_opt_rhs test_groupings;
 
-        val start_cpu_stage2_tbl = Timer.startCPUTimer ();
-        val start_real_stage2_tbl = Timer.startRealTimer ();
+            val start_cpu_stage2_tbl = Timer.startCPUTimer ();
+            val start_real_stage2_tbl = Timer.startRealTimer ();
 
 
 
-(*
+        (*
         val table_main_hol4_def = Define`
             table_main_hol4 =
             case sp_mk_BDD_table ^gen_var_table_auto ^policy_order of
@@ -157,27 +157,32 @@ val conv_policy_from_sp_to_bdd =
 
 
 
-   val eval_table_full_opt_auto = EVAL “
-              sp_mk_BDDPred_opt table_structure (0n,LN,insert 0 (non_termn (NONE, ^gen_var_table_auto)) LN) [] ^policy_order 1n”;
+            val eval_table_full_opt_auto = EVAL “
+                        sp_mk_BDDPred_opt table_structure (0n,LN,insert 0 (non_termn (NONE, ^gen_var_table_auto)) LN) [] ^policy_order 1n”;
 
             
             val eval_table_full_opt_auto1 = optionSyntax.dest_some (rhs (concl eval_table_full_opt_auto));
 
+            val _ = time_stage ("Stage 2 from table to table BDD", start_cpu_stage2_tbl, start_real_stage2_tbl);
 
-val conv_table_from_sp_to_bdd = 
-  EVAL ``let (r, sp_edges, sp_labels) = ^eval_table_full_opt_auto1
-         in SOME (r,
-                  (toSortedAList sp_edges),
-                  (toSortedAList sp_labels))``;
+            val start_cpu_stage2_sorted_tbdd = Timer.startCPUTimer ();
+            val start_real_stage2_sorted_tbdd = Timer.startRealTimer ();
+
+            val conv_table_from_sp_to_bdd = 
+            EVAL ``let (r, sp_edges, sp_labels) = ^eval_table_full_opt_auto1
+                    in SOME (r,
+                            (toSortedAList sp_edges),
+                            (toSortedAList sp_labels))``;
 
 
 
-              val eval_table_full_opt_auto_rhs =  optionSyntax.dest_some (rhs (concl conv_table_from_sp_to_bdd));
+            val eval_table_full_opt_auto_rhs =  optionSyntax.dest_some (rhs (concl conv_table_from_sp_to_bdd));
 
 
-        val _ = time_stage ("Stage 2 from table to table BDD", start_cpu_stage2_tbl, start_real_stage2_tbl);
-        val start_cpu_stage2_tbdd = Timer.startCPUTimer ();
-        val start_real_stage2_tbdd = Timer.startRealTimer ();
+            val _ = time_stage ("Stage 2 a list", start_cpu_stage2_sorted_tbdd, start_real_stage2_sorted_tbdd);
+
+            val start_cpu_stage2_tbdd = Timer.startCPUTimer ();
+            val start_real_stage2_tbdd = Timer.startRealTimer ();
 
             val get_i_policy = bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
 
@@ -194,9 +199,9 @@ val conv_table_from_sp_to_bdd =
             val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract;
             val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] var_eq_thm_extract_red;
 
-        val _ = time_stage ("Stage 2 proof", start_cpu_stage2_tbdd, start_real_stage2_tbdd);
+            val _ = time_stage ("Stage 2 proof", start_cpu_stage2_tbdd, start_real_stage2_tbdd);
 
-        val _ = time_stage ("Stage 2 total", start_cpu_stage2, start_real_stage2);
+            val _ = time_stage ("Stage 2 total", start_cpu_stage2, start_real_stage2);
 
             val start_cpu_total_stage3 = Timer.startCPUTimer ();
             val start_real_total_stage3 = Timer.startRealTimer (); 
@@ -279,7 +284,7 @@ val conv_table_from_sp_to_bdd =
 
 
     in
-    arith_policy_var_policy_thm
+    final_thm
     end;
 
 end;
