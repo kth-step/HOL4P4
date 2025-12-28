@@ -18,6 +18,7 @@ open alistTheory;
 open numeralTheory;
 open alistTheory;
 
+open optionSimps boolSimps;
 
 open p4Lib;
 open blastLib bitstringLib;
@@ -130,11 +131,11 @@ open bdd_utilsLib;
 
         (* get I (pairs isomorphic in the graph), and check if isisIsomorph *)
         val get_i_policy = bdd_utilsLib.pairBDDs (eval_policy_full_opt_rhs, eval_table_full_opt_auto_rhs);
+
+
         (*val is_tbl_policy1_iso = EVAL “isIsomorph_exec ^get_i_policy ^eval_policy_full_opt_rhs
                                                                       ^eval_table_full_opt_auto_rhs”;
         *)
-
-
             
         (* Theorem of correctness for conversion from var policy to var table *)
 (*)
@@ -153,7 +154,7 @@ open bdd_utilsLib;
         val assumption5 = EVAL “prop_in_BDD 0 ^eval_table_full_opt_auto_rhs = SOME ^gen_var_table_auto”;
         val assumption6 = EVAL “fv_in_vars_exec table_structure ^gen_var_table_auto ^policy_order”;
         val assumption7 = EVAL “fv_in_vars_exec policy_structure ^var_policy ^policy_order”;
-        val assumption8 = EVAL “ALL_DISTINCT ^var_policy”;
+        val assumption8 = EVAL “ALL_DISTINCT ^policy_order;
         val assumption9 = EVAL “^var_policy ≠ []”;
 
 
@@ -174,6 +175,57 @@ open bdd_utilsLib;
         val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract; 
         val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] var_eq_thm_extract_red;  
 
+(*
+
+        val cpu_stage2_proof_step1 = Timer.startCPUTimer ();
+        val real_stage2_proof_step1 = Timer.startRealTimer ();
+
+        val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy”;
+
+        val _ = time_stage ("Stage 2 proof: step 1 : ", cpu_stage2_proof_step1, real_stage2_proof_step1);
+        val cpu_stage2_proof_step2 = Timer.startCPUTimer ();
+        val real_stage2_proof_step2 = Timer.startRealTimer ();
+
+        
+        val isIsomorph_exec_thm = EVAL “isIsomorph_exec ^get_i_policy ^eval_policy_full_opt_rhs
+                                                              ^eval_table_full_opt_auto_rhs”;
+
+        val _ = time_stage ("Stage 2 proof: step 2 :", cpu_stage2_proof_step2, real_stage2_proof_step2);
+        val cpu_stage2_proof_step3 = Timer.startCPUTimer ();
+        val real_stage2_proof_step3 = Timer.startRealTimer ();
+
+
+
+        val assumption1 = EVAL “ALOOKUP ^get_i_policy 0 = SOME 0”;    
+        val assumption2 = EVAL “node_in_BDD 0 ^eval_policy_full_opt_rhs”;
+        val assumption3 = EVAL “node_in_BDD 0 ^eval_table_full_opt_auto_rhs”;
+        val assumption4 = EVAL “prop_in_BDD 0 ^eval_policy_full_opt_rhs = SOME ^var_policy”;
+        val assumption5 = EVAL “prop_in_BDD 0 ^eval_table_full_opt_auto_rhs = SOME ^gen_var_table_auto”;
+        val assumption6 = EVAL “fv_in_vars_exec policy_structure ^var_policy ^policy_order”;
+        val assumption7 = EVAL “fv_in_vars_exec table_structure ^gen_var_table_auto ^policy_order”;
+        val assumption8 = EVAL “ALL_DISTINCT ^policy_order”;
+        val assumption9 = EVAL “^policy_order ≠ []”;
+
+        val _ = time_stage ("Stage 2 proof: step 3 :", cpu_stage2_proof_step3, real_stage2_proof_step3);
+        val cpu_stage2_proof_step4 = Timer.startCPUTimer ();
+        val real_stage2_proof_step4 = Timer.startRealTimer ();
+
+        val simp_thms_stage2 =  LIST_CONJ [isIsomorph_exec_thm, assumption1, assumption2, assumption3, assumption4, assumption5, assumption6, assumption7, assumption8, assumption9]
+
+val a = REWRITE_RULE [boolTheory.LET_THM] var_eq_thm_extract |> BETA_RULE;
+
+        val _ = time_stage ("Stage 2 proof: step 4 :", cpu_stage2_proof_step4, real_stage2_proof_step4);
+        val cpu_stage2_proof_step5 = Timer.startCPUTimer ();
+        val real_stage2_proof_step5 = Timer.startRealTimer ();
+
+
+val b = REWRITE_RULE [simp_thms_stage2, IS_SOME_DEF, IS_SOME_DEF, THE_DEF] a;
+
+val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] b;
+
+
+        val _ = time_stage ("Stage 2 proof: step 5 :", cpu_stage2_proof_step5, real_stage2_proof_step5);
+*)
 
 
         val _ = time_stage ("Stage 2 proof", start_cpu_stage2_tbdd, start_real_stage2_tbdd);
