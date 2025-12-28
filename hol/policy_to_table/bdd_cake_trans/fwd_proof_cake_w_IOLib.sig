@@ -1,4 +1,4 @@
-signature fwd_proof_cakeLib =
+signature fwd_proof_w_IOcakeLib =
 sig
   include Abbrev
 
