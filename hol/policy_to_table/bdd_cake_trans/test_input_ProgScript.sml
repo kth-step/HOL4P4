@@ -23,11 +23,15 @@ val res = append_prog o process_topdecs $
                       ‘
 (* Helper function to check if character is whitespace *)
 fun is_whitespace c = c = #" " orelse c = #"\n" orelse c = #"\t" orelse c = #"\r";
+
+
 (* Skip whitespace and return remaining string *)
 fun skip_ws s =
   case s of
     [] => []
   | c::rest => if is_whitespace c then skip_ws rest else c::rest;
+
+
 (* Helper to check if character is a digit *)
 fun is_digit c = (c = #"0") orelse (c = #"1") orelse (c = #"2") orelse (c = #"3")
                   orelse (c = #"4") orelse (c = #"5") orelse (c = #"6")
@@ -318,7 +322,7 @@ fun parse_from_file filename =
 
 val res = append_prog o process_topdecs $
 ‘
-fun print_bdd bdd =(
+fun print_bdd_policy bdd =(
                               TextIO.print "(" ;
                               TextIO.print (Int.toString (fst bdd));
                               (TextIO.print "n , \n");
@@ -378,7 +382,6 @@ fun parse_string_list_from_file filename = let
 in
   result
 end;
-
 
 ’;
 
@@ -443,7 +446,7 @@ val parsed_order = parse_string_list_from_file filename2
           (case bdd_prod of
                             None => (TextIO.print "No BDD can be created \n")
                           | Some bdd =>
-                              (print_bdd bdd; TextIO.print "\n")
+                              (print_bdd_policy bdd; TextIO.print "\n")
 
                          )
         end
@@ -467,13 +470,617 @@ val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" 
 
 (**)
 
-
-
-
-
-
-
+(**)
+(**)
+(**)
+(**)
+(**)
+(**)
+(**)
+(*
+val _ = astPP.enable_astPP ();
+val _ = (max_print_depth := 700);
 
 
 
 val _ = export_theory ();
+*)
+(**)
+(**)
+(**)
+(**)
+
+
+
+
+
+
+
+
+
+open HolKernel Parse boolLib bossLib;
+open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
+
+open preamble basis ml_translatorLib ;
+
+open miscTheory ml_translatorTheory ListProgTheory ;
+open fromSexpTheory;
+open bdd_trans_ProgTheory;
+
+
+(*
+val _ = new_theory "test_input_Prog";
+*)
+
+
+val _ = translation_extends "bdd_trans_Prog"
+val _ = intLib.deprecate_int();
+
+
+
+
+
+val res = append_prog o process_topdecs $
+‘
+(* Helper function to check if character is whitespace *)
+fun is_whitespace c = c = #" " orelse c = #"\n" orelse c = #"\t" orelse c = #"\r";
+
+(* Skip whitespace and return remaining string *)
+fun skip_ws s =
+  case s of
+    [] => []
+  | c::rest => if is_whitespace c then skip_ws rest else c::rest;
+
+(* Helper to check if character is a digit *)
+fun is_digit c = (c = #"0") orelse (c = #"1") orelse (c = #"2") orelse (c = #"3")
+                  orelse (c = #"4") orelse (c = #"5") orelse (c = #"6")
+                  orelse (c = #"7") orelse (c = #"8") orelse (c = #"9");
+
+(* Convert character digit to int *)
+fun char_to_digit c =
+  if c = #"0" then 0
+  else if c = #"1" then 1
+  else if c = #"2" then 2
+  else if c = #"3" then 3
+  else if c = #"4" then 4
+  else if c = #"5" then 5
+  else if c = #"6" then 6
+  else if c = #"7" then 7
+  else if c = #"8" then 8
+  else if c = #"9" then 9
+  else 0;
+
+(* Parse a variable name (quoted) - returns char list and remaining *)
+fun parse_var_name s =
+  case s of
+    #"\"" :: rest =>
+      let fun read_until_quote acc s =
+        case s of
+          [] => (List.rev acc, [])
+        | #"\"" :: rest => (List.rev acc, rest)
+        | c :: rest => read_until_quote (c :: acc) rest
+      in read_until_quote [] rest
+      end
+  | _ => ([], s);
+
+(* Parse an integer - returns int and remaining *)
+fun parse_int s =
+  let fun read_digits acc s =
+    case s of
+      [] => (acc, [])
+    | c::rest => if is_digit c
+                  then read_digits (acc * 10 + char_to_digit c) rest
+                  else (acc, c::rest)
+  in
+    case s of
+      #"-"::rest =>
+        let val (num, rest) = read_digits 0 rest
+        in (~num, rest)
+        end
+    | _ => read_digits 0 s
+  end;
+
+(* Parse a list of integers: [1;2;3] *)
+fun parse_int_list s =
+  let val s = skip_ws s in
+  case s of
+    #"[" :: rest =>
+      let val s = skip_ws rest
+          fun parse_list acc s =
+            let val s = skip_ws s in
+            case s of
+              #"]" :: rest => (List.rev acc, skip_ws rest)
+            | _ =>
+                let val (n, s) = parse_int s
+                    val s = skip_ws s
+                in case s of
+                  #";" :: rest => parse_list (n :: acc) (skip_ws rest)
+                | #"]" :: rest => (List.rev (n :: acc), skip_ws rest)
+                | _ => (List.rev (n :: acc), s)
+                end
+            end
+      in parse_list [] s
+      end
+  | _ => ([], s)
+  end;
+
+(* Helper to convert int list to string *)
+fun int_list_to_string nums =
+  case nums of
+    [] => ""
+  | n::rest =>
+      case rest of
+        [] => Int.toString n
+      | _ => Int.toString n ^ ";" ^ int_list_to_string rest;
+
+(* Skip closing parentheses *)
+fun skip_close_parens s =
+  let val s = skip_ws s in
+  case s of
+    #")" :: rest => skip_close_parens (skip_ws rest)
+  | _ => s
+  end;
+
+(* Parse an atom variable *)
+fun parse_atom s =
+  let val s = skip_ws s in
+  case s of
+    #"T" :: #"r" :: #"u" :: #"e" :: rest =>
+      (True_2, rest)
+  | #"F" :: #"a" :: #"l" :: #"s" :: #"e" :: rest =>
+      (False_2, rest)
+  | #"N" :: #"o" :: #"t" :: #"t" :: #"r" :: #"u" :: #"e" :: rest =>
+      (Nottrue, rest)
+  | #"N" :: #"o" :: #"t" :: #"f" :: #"a" :: #"l" :: #"s" :: #"e" :: rest =>
+      (Notfalse, rest)
+  | #"V" :: #"a" :: #"r" :: rest =>
+      let val rest = skip_ws rest
+      in case rest of
+        #"\"" :: _ =>
+          let val (name, rest) = parse_var_name rest
+          in (Var_1 name, skip_ws rest)
+          end
+      | _ => (True_2, rest)
+      end
+  | #"N" :: #"o" :: #"t" :: rest =>
+      let val rest = skip_ws rest
+      in case rest of
+        #"\"" :: _ =>
+          let val (name, rest) = parse_var_name rest
+          in (Not_1 name, skip_ws rest)
+          end
+      | _ => (Nottrue, rest)
+      end
+  | #"\"" :: rest =>
+      let val (name, rest) = parse_var_name (#"\"" :: rest)
+      in (Var_1 name, skip_ws rest)
+      end
+  | _ => (True_2, s)
+  end;
+
+(* Parse a list of atoms: [Var "x"; Var "y"] *)
+fun parse_atom_list s =
+  let val s = skip_ws s in
+  case s of
+    #"[" :: rest =>
+      let val s = skip_ws rest
+          fun parse_list acc s =
+            let val s = skip_ws s in
+            case s of
+              #"]" :: rest => (List.rev acc, skip_ws rest)
+            | _ =>
+                let val (atom, s) = parse_atom s
+                    val s = skip_ws s
+                in case s of
+                  #";" :: rest => parse_list (atom :: acc) (skip_ws rest)
+                | #"]" :: rest => (List.rev (atom :: acc), skip_ws rest)
+                | _ => (List.rev (atom :: acc), s)
+                end
+            end
+      in parse_list [] s
+      end
+  | _ => ([], s)
+  end;
+
+(* Parse action or state result *)
+fun parse_result s =
+  let val s = skip_ws s in
+  case s of
+    #"s" :: #"t" :: #"a" :: #"t" :: #"e" :: rest =>
+      let val rest = skip_ws rest
+      in case rest of
+        #"(" :: rest =>
+          let val rest = skip_ws rest
+              val (n, rest) = parse_int rest
+              val rest = skip_ws rest
+          in case rest of
+            #")" :: rest => (State n, skip_ws rest)
+          | _ => (State n, rest)
+          end
+        | _ =>
+          let val (n, rest) = parse_int rest
+          in (State n, skip_ws rest)
+          end
+      end
+  | #"a" :: #"c" :: #"t" :: #"i" :: #"o" :: #"n" :: rest =>
+      let val rest = skip_ws rest
+      in case rest of
+        #"(" :: rest =>
+          let val rest = skip_ws rest
+          in case rest of
+            #"\"" :: _ =>
+              let val (name, rest) = parse_var_name rest
+                  val rest = skip_ws rest
+              in case rest of
+                #"," :: rest =>
+                  let val rest = skip_ws rest
+                      val (nums, rest) = parse_int_list rest
+                      val rest = skip_ws rest
+                  in case rest of
+                    #")" :: rest =>
+                      let val rest = skip_ws rest
+                          val rest = skip_close_parens rest
+                      in (Action (name, nums), rest)
+                      end
+                  | _ => (Action (name, []), rest)
+                  end
+              | _ => (Action (name, []), rest)
+              end
+            | _ => (State 0, rest)
+            end
+        | _ => (State 0, rest)
+      end
+  | _ => (State 0, s)
+  end;
+
+(* Parse a row entry: ([Var "x"; Var "y"], 0, state 3) *)
+fun parse_row_entry s =
+  let val s = skip_ws s in
+  case s of
+    #"(" :: rest =>
+      let val rest = skip_ws rest
+          val (atoms, rest) = parse_atom_list rest
+          val rest = skip_ws rest
+      in case rest of
+        #"," :: rest =>
+          let val rest = skip_ws rest
+              val (state_in, rest) = parse_int rest
+              val rest = skip_ws rest
+          in case rest of
+            #"," :: rest =>
+              let val rest = skip_ws rest
+                  val (result, rest) = parse_result rest
+                  val rest = skip_ws rest
+              in case rest of
+                #")" :: rest => ((atoms, (state_in, result)), skip_ws rest)
+              | _ => ((atoms, (state_in, result)), rest)
+              end
+            | _ => ((atoms, (state_in, State 0)), rest)
+          end
+        | _ => ((atoms, (0, State 0)), rest)
+      end
+  | _ => (([], (0, State 0)), s)
+  end;
+
+(* Parse a table: [([Var "x"; ...], 0, state 3); ...] *)
+fun parse_table s =
+  let val s = skip_ws s in
+  case s of
+    #"[" :: rest =>
+      let val s = skip_ws rest
+          fun parse_list acc s =
+            let val s = skip_ws s in
+            case s of
+              #"]" :: rest => (List.rev acc, skip_ws rest)
+            | _ =>
+                let val (entry, s) = parse_row_entry s
+                    val s = skip_ws s
+                in case s of
+                  #";" :: rest => parse_list (entry :: acc) (skip_ws rest)
+                | #"]" :: rest => (List.rev (entry :: acc), skip_ws rest)
+                | _ => (List.rev (entry :: acc), s)
+                end
+            end
+      in parse_list [] s
+      end
+  | _ => ([], s)
+  end;
+
+(* Parse the tables list: [[...]; [...]; ...] *)
+fun parse_tables_list s =
+  let val s = skip_ws s in
+  case s of
+    #"[" :: rest =>
+      let val s = skip_ws rest
+          fun parse_list acc s =
+            let val s = skip_ws s in
+            case s of
+              #"]" :: rest => (List.rev acc, skip_ws rest)
+            | _ =>
+                let val (tbl, s) = parse_table s
+                    val s = skip_ws s
+                in case s of
+                  #";" :: rest => parse_list (tbl :: acc) (skip_ws rest)
+                | #"]" :: rest => (List.rev (tbl :: acc), skip_ws rest)
+                | _ => (List.rev (tbl :: acc), s)
+                end
+            end
+      in parse_list [] s
+      end
+  | _ => ([], s)
+  end;
+
+(* Parse the entire structure: ([[...]; [...]], initial_state) *)
+fun parse_tables_structure s =
+  let val s = skip_ws s in
+  case s of
+    #"(" :: rest =>
+      let val rest = skip_ws rest
+          val (tbls, rest) = parse_tables_list rest
+          val rest = skip_ws rest
+      in case rest of
+        #"," :: rest =>
+          let val rest = skip_ws rest
+              val (init_state, rest) = parse_int rest
+              val rest = skip_ws rest
+          in case rest of
+            #")" :: rest => ((tbls, init_state), skip_ws rest)
+          | _ => ((tbls, init_state), rest)
+          end
+        | _ => ((tbls, 0), rest)
+      end
+  | _ => (([], 0), s)
+  end;
+
+(* Pretty-print an atom *)
+fun atom_to_string a =
+  case a of
+    True_2 => "True"
+  | False_2 => "False"
+  | Nottrue => "Nottrue"
+  | Notfalse => "Notfalse"
+  | Var_1 name => "Var(\"" ^ String.implode name ^ "\")"
+  | Not_1 name => "Not(\"" ^ String.implode name ^ "\")";
+
+(* Pretty-print a result *)
+fun result_to_string r =
+  case r of
+    State n => "state(" ^ Int.toString n ^ ")"
+  | Action (name, nums) => "action(\"" ^ String.implode name ^ "\", [" ^ int_list_to_string nums ^ "])";
+
+(* Pretty-print a row entry *)
+fun row_entry_to_string entry =
+  case entry of
+    (atoms, (state_in, result)) =>
+      "([" ^ String.concatWith "; " (List.map atom_to_string atoms) ^ "], " ^
+      Int.toString state_in ^ ", " ^ result_to_string result ^ ")";
+
+(* Pretty-print a table *)
+fun table_to_string tbl =
+  "[" ^ String.concatWith "; " (List.map row_entry_to_string tbl) ^ "]";
+
+(* Pretty-print tables list *)
+fun tables_list_to_string tbls =
+  "[" ^ String.concatWith "; " (List.map table_to_string tbls) ^ "]";
+
+(* Pretty-print entire structure *)
+fun tables_structure_to_string s =
+  case s of
+    (tbls, init_state) =>
+      "(" ^ tables_list_to_string tbls ^ ", " ^ Int.toString init_state ^ ")";
+
+(* Parse from file *)
+fun parse_from_file filename =
+  let
+    val instream = TextIO.openIn filename
+    val content = TextIO.inputAll instream
+    val _ = TextIO.closeIn instream
+    val chars = String.explode content
+    val (result, _) = parse_tables_structure chars
+  in
+    result
+  end;
+
+’;
+
+
+
+
+
+
+val res = append_prog o process_topdecs $
+‘
+fun print_bdd_table bdd =(
+                             (
+                              TextIO.print "(" ;
+                              TextIO.print (Int.toString (fst bdd));
+                              (TextIO.print "n , \n");
+
+                              TextIO.print "(" ;
+                              print_tuple_list (fst (snd (bdd))) ;
+                              TextIO.print "):edges , \n";
+
+                              TextIO.print "(" ;
+                              print_list_tables_lbl (snd (snd (bdd))) ;
+                              TextIO.print "): (action_table_type, (string#num list) action_expr) labelings)"
+                              )
+  );
+’;
+
+
+
+val res = append_prog o process_topdecs $
+‘
+fun parse_string_list s = let
+  val s = skip_ws s
+in
+  case s of
+    #"[" :: rest => let
+      val rest = skip_ws rest
+      fun parse_items acc s = let
+        val s = skip_ws s
+      in
+        case s of
+          #"]" :: rest => (List.rev acc, skip_ws rest)
+        | #"\"" :: rest => let
+            val (str_chars, rest) = parse_var_name s  (* FIXED: don't add extra quote! *)
+            val s = skip_ws rest
+          in
+            case s of
+              #";" :: rest => parse_items (str_chars :: acc) (skip_ws rest)
+            | #"]" :: rest => (List.rev (str_chars :: acc), skip_ws rest)
+            | _ => (List.rev (str_chars :: acc), s)
+          end
+        | _ => (List.rev acc, s)
+      end
+      val (result, rest) = parse_items [] rest
+    in
+      (result, rest)
+    end
+  | _ => ([], s)
+end;
+
+(* Parse from file - returns char list list *)
+fun parse_string_list_from_file filename = let
+  val instream = TextIO.openIn filename
+  val content = TextIO.inputAll instream
+  val _ = TextIO.closeIn instream
+  val chars = String.explode content
+  val (result, _) = parse_string_list chars
+in
+  result
+end;
+
+’;
+
+
+
+
+
+
+
+(*
+
+Definition policy_order_test_def:
+ policy_order_test = (["x";"y";"z"]:string list)
+End
+
+val r = translate policy_order_test_def;
+
+
+
+Definition table_content_test_def:
+  table_content_test = (([[([Var "is_srcPort_le_57222"; Var "is_srcPort_ge_57222"],0,state 3);
+       ([Var "is_srcPort_le_57222"; Not "is_srcPort_ge_57222"],0,state 28);
+       ([Not "is_srcPort_le_57222"],0,state 28)];
+      [([Var "is_dstPort_le_53"; Var "is_dstPort_ge_53"],3,state 11);
+       ([Var "is_dstPort_le_53"; Not "is_dstPort_ge_53"],3,state 28);
+       ([Not "is_dstPort_le_53"],3,state 28); ([True],28,state 28)]],0) : action_table_type)
+End
+
+val r = translate table_content_test_def;
+*)
+
+
+
+
+Definition table_main_hol4_def:
+  table_main_hol4 table_content_test  policy_order_test =
+  mk_BDDPred_opt (table_structure) (0,[],[(0, non_termn (NONE, table_content_test))]) [] (policy_order_test) 1n
+End
+
+
+val r = translate table_main_hol4_def;
+
+
+(*
+(* Main function *)
+val res = append_prog o process_topdecs $
+‘
+fun main () =
+  let
+    val args = CommandLine.arguments ()
+  in
+    case args of
+      [] => (print "Error: Please provide a filename\n")
+    | filename1::filename2::rest =>
+        let
+          val parsed_table = parse_from_file filename1
+          val parsed_order = parse_string_list_from_file filename2
+
+          val bdd_prod = table_main_hol4 parsed_table parsed_order
+          (*val _ = print "Parsed table list:\n"*)
+          (*val _ = print (policy_list_to_string parsed)*)
+          val _ = print "\n"
+        in
+          (
+                              (TextIO.print "parsed \n")
+
+                         )
+        end
+  end;
+’;
+*)
+
+
+(* Main function *)
+val res = append_prog o process_topdecs $
+‘
+fun main () =
+  let
+    val args = CommandLine.arguments ()
+  in
+    case args of
+      [] => (print "Error: Please provide a filename\n")
+    | filename1::filename2::rest =>
+        let
+    val parsed_table = parse_from_file filename1
+     val parsed_order = parse_string_list_from_file filename2
+
+          val bdd_prod = table_main_hol4 parsed_table parsed_order
+          (*val _ = print "Parsed policy list:\n"*)
+          (*val _ = print (policy_list_to_string parsed)*)
+          val _ = print "\n"
+        in
+          (case bdd_prod of
+                            None => (TextIO.print "No BDD can be created \n")
+                          | Some bdd =>  (print_bdd_table bdd; TextIO.print "\n")
+
+                         )
+        end
+  end;
+’;
+
+
+
+
+
+
+
+
+
+
+val prog =
+  ``SNOC
+    (Dlet unknown_loc (Pcon NONE [])
+      (App Opapp [Var (Short "main"); Con NONE []]))
+    ^(get_ml_prog_state() |> get_prog)
+  `` |> EVAL |> concl |> rhs;
+
+
+
+(* write the translation to an sexp file *)
+val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_table.sexp" prog;
+
+
+
+
+val b = EVAL “(0n ,
+([(0,1,83); (1,3,83); (3,7,87); (7,85,87)]):edges ,
+([(0, non_termn (SOME "is_srcPort_le_57222", [[([Var "is_srcPort_le_57222"; Var "is_srcPort_ge_57222"],0,state  3 ); ([Var "is_srcPort_le_57222"; Not "is_srcPort_ge_57222"],0,state  28 ); ([Not "is_srcPort_le_57222"],0,state  28 )]; [([Var "is_dstPort_le_53"; Var "is_dstPort_ge_53"],3,state  11 ); ([Var "is_dstPort_le_53"; Not "is_dstPort_ge_53"],3,state  28 ); ([Not "is_dstPort_le_53"],3,state  28 ); ([True],28,state  28 )]], 0));
+ (1, non_termn (SOME "is_srcPort_ge_57222", [[([Var "is_srcPort_ge_57222"],0,state  3 ); ([Not "is_srcPort_ge_57222"],0,state  28 )]; [([Var "is_dstPort_le_53"; Var "is_dstPort_ge_53"],3,state  11 ); ([Var "is_dstPort_le_53"; Not "is_dstPort_ge_53"],3,state  28 ); ([Not "is_dstPort_le_53"],3,state  28 ); ([True],28,state  28 )]], 0));
+ (3, non_termn (SOME "is_dstPort_le_53", [[([True],0,state  3 )]; [([Var "is_dstPort_le_53"; Var "is_dstPort_ge_53"],3,state  11 ); ([Var "is_dstPort_le_53"; Not "is_dstPort_ge_53"],3,state  28 ); ([Not "is_dstPort_le_53"],3,state  28 )]], 0));
+ (7, non_termn (SOME "is_dstPort_ge_53", [[([True],0,state  3 )]; [([Var "is_dstPort_ge_53"],3,state  11 ); ([Not "is_dstPort_ge_53"],3,state  28 )]], 0));
+ (83, non_termn (NONE, [[([True],0,state  28 )]; [([True],28,state  28 )]], 0));
+ (85, non_termn (NONE, [[([True],0,state  3 )]; [([True],3,state  11 )]], 0));
+ (87, non_termn (NONE, [[([True],0,state  3 )]; [([True],3,state  28 )]], 0))]): (action_table_type, (string#num list) action_expr) labelings)”
