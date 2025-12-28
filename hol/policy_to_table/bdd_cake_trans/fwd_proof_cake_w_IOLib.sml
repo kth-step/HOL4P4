@@ -1,4 +1,4 @@
-structure fwd_proof_cakeLib :> fwd_proof_cakeLib = struct
+structure fwd_proof_w_IOcakeLib :> fwd_proof_w_IOcakeLib = struct
 
 
 open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
@@ -57,7 +57,10 @@ open apply_trans_to_IOLib;
 
 
 
-    fun convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
+    fun convert_arith_policy_to_interval_tables_cake_w_IO (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
+
+       (* this compiles the input with cakeML It takes a very longer time, so I created a parser in CakeML, This should be in fwd_proof_cakeLib file*)
+
 
         let
             
