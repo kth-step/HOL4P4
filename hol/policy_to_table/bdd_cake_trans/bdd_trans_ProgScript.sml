@@ -7,24 +7,24 @@ open miscTheory ml_translatorTheory ListProgTheory ;
 open fromSexpTheory;
 
 
-     
+
 val _ = new_theory "bdd_trans_Prog";
 
 
-        
+
 val _ = translation_extends "basisProg"
 val _ = intLib.deprecate_int();
 
 (*val _ = astPP.enable_astPP ();*)
 
-   
+
 val r = translate update_internals_def;
 val r = translate distrubute_labels_def;
-val r = translate bdd_distribute_def; 
-val r = translate project_labels_to_def; 
+val r = translate bdd_distribute_def;
+val r = translate project_labels_to_def;
 
 val r = translate has_parent_def;
-val r = translate eliminable_def; 
+val r = translate eliminable_def;
 
 val r = translate ADELKEY_def;
 val r = translate merge_edges_def;
@@ -37,14 +37,14 @@ val r = translate mergable_projection_def;
 
 val r = translate mergable_def;
 val r = translate merge_safe_def;
-    
+
 val r = translate optimize_node_def;
 val r = translate optimize_layer_def;
 
 val r = translate project_edges_to_def;
 val r = translate optimize_internals_def;
 
-val r = translate optimize_bdd_def; 
+val r = translate optimize_bdd_def;
 
 Theorem optimize_bdd_side_cake_trans:
   optimize_bdd_side v10 v11
@@ -53,7 +53,7 @@ Proof
 QED
 
 val _ = optimize_bdd_side_cake_trans |> update_precondition;
- 
+
 
 (* translation of body_of_mk part*)
 val r = translate (nub_def |> REWRITE_RULE [MEMBER_INTRO]);
@@ -76,7 +76,7 @@ val r = translate mk_BDDPred_opt_def;
 
 (* translation of policy structure and related functions*)
 
-val r = translate INDEX_FIND_def;  
+val r = translate INDEX_FIND_def;
 val r = translate min_idx_till_def;
 val r = translate sem_pred_def;
 val r = translate check_sem_pred_def;
@@ -110,7 +110,7 @@ val _ = final_policy_cake_trans |> update_precondition;
 val r = ml_translatorLib.register_type ``:((pred # 'a) list, 'b) decision_structure``;
 val r = translate policy_structure_def;
 
-    
+
 val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
 
 (*
@@ -120,7 +120,7 @@ Definition mk_BDD_policy_def:
 End
 
 val r = translate mk_BDD_policy_def;
- *)                          
+ *)
 
 (***********************************)
 (* tables translation  *)
@@ -484,278 +484,8 @@ val res = append_prog o process_topdecs $
           end;
 ’;
 
+
 val _ = export_theory ();
-
-
-(*)        
-(************* arguments passing: hardcorded arguments this *****************)
-
-(*
-Definition policy_order_test_def:
- policy_order_test = ["x"; "y"]
-End
-
-val r = translate policy_order_test_def;
-
-Definition policy_content_test_def:
-  policy_content_test =
-  [
-    (Var "x" , action ("fwd", [1n]));
-    (Var "y" , action ("fwd", [2n]))
-  ]:action_policy_type
-End
-
-val r = translate policy_content_test_def;
-
-                       
-Definition main_hol4_def:
-  main_hol4 =
-    mk_BDD_policy policy_content_test  policy_order_test
-End
-        
-val r = translate main_hol4_def;
-          
-val res = append_prog o process_topdecs $ 
-                      ‘fun main () =
-                       let
-                        val args = CommandLine.arguments()
-                        in
-                      (case main_hol4 of
-                       None => TextIO.print "No BDD can be created \n"
-                       | Some bdd => TextIO.print "SOME \n")
-                      end ;’
-                     ; 
-
-
-
-val prog =
-  ``SNOC
-    (Dlet unknown_loc (Pcon NONE [])
-      (App Opapp [Var (Short "main"); Con NONE []]))
-    ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs
-
-                                
-
-val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
-
-*)
-
-
-
-
-
-
-(*
-val _ = append_prog (process_topdecs `
-  fun make_it_str bdd =
-    let
-      val (root, edges, labelings) = bdd
-    in
-      "Root: " ^ Int.toString root ^ "\n"
-    end
-`);
-*)
-
-
-        
-val _ = (max_print_depth := 100)
-
-
-Definition bdd_is_def:
-  bdd_is =
-  SOME (8,[(0,4,2);(3,4,5)]:edges,
-        [(0n,
-          non_termn
-            (SOME "x",
-             [(Var "x",action ("fwd",[1n])); (Var "y",action ("fwd",[2n]))]));
-         (1,
-          termn
-            (action ("fwd",[1]),
-             [(True,action ("fwd",[1])); (Var "y",action ("fwd",[2]))]));
-         (2,
-          non_termn
-            (SOME "y",
-             [(False,action ("fwd",[1])); (Var "y",action ("fwd",[2]))]));
-         (3,
-          termn
-            (action ("fwd",[2]),
-             [(False,action ("fwd",[1])); (True,action ("fwd",[2]))]));
-         (4,
-          non_termn
-            (NONE,[(False,action ("fwd",[1])); (False,action ("fwd",[2]))]))])
-End
-    
-val r = translate bdd_is_def;
-        
-    
-(*
-   
-
-val _ = append_prog (process_topdecs `
-  fun make_it_str bdd =
-    let
-      val (root, edges, labelings) = bdd
-    in
-      case root of
-        SX_NUM (a) => "Root: " ^ Int.toString a ^ "\n"
-      | _ => "ERRRRRRRRRRRRR"
-    end
-    `);
-*)
-
-
-val _ = append_prog (process_topdecs `
-  fun edge_to_string edge_pair =
-    case edge_pair of
-      (from, (to1, to2)) =>
-        "(" ^ Int.toString from ^ ",(" ^ Int.toString to1 ^ "," ^ Int.toString to2 ^ "))"
-`);
-
-(*
-        
-val _ = append_prog (process_topdecs `
-              
-  fun edges_to_string edges =
-    case edges of
-      [] => "[]"
-    | ((from, (to1,  to2)), rest) => "reached edges 2"
-    | ((from, (to1,  to2)), []) => "reached edges 3"
-    | _ => "reached edges 4"
-`);
-*)
-
-
-val _ = append_prog (process_topdecs `
-
-  fun edges_to_string edges =
-  case edges of       
-   ((start_node, (to1,  to2)), ()) =>
-     "reached edges 1" ^ (Int.toString start_node)
-          
-  | ((start_node, (to1, to2)), rest) =>
-     (Int.toString start_node) 
-
-  | ((),rest) => "[]"  (* Empty tuple for end *)
-  | _ => "cannot find a match"
-
-`);
-        
-
- val _ = append_prog (process_topdecs `         
-  fun make_it_str bdd =
-    let
-      val (root, (edges, labelings)) = bdd
-    in
-      case root of
-        SX_NUM a => 
-          "Root: " ^ Int.toString a ^ "\n" ^ edges_to_string edges  ^ "\n"
-
-      | _ => "ERRRRRRRRRRRRR\n"
-    end
-`);
-
-    
-     
-val res = append_prog (process_topdecs `
-  fun main () =
-    let
-      val args = CommandLine.arguments()
-    in
-      case bdd_is of
-        None => TextIO.print "NONE\n"
-      | Some bdd => TextIO.print (make_it_str bdd_is)
-    end
-`);
-
-
-        
- 
-        
-val prog =
-  ``SNOC
-    (Dlet unknown_loc (Pcon NONE [])
-      (App Opapp [Var (Short "main"); Con NONE []]))
-    ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs
-
-                 
-
-val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
-
-
-
-
-
-    
-
-
-val Decls_thm =
-  get_ml_prog_state ()
-  |> ml_progLib.clean_state
-  |> ml_progLib.remove_snocs
-  |> ml_progLib.get_thm
-  |> REWRITE_RULE [ml_progTheory.ML_code_def,ml_progTheory.ML_code_env_def];
-
-
-val current_prog =
-Decls_thm |> concl |> strip_comb |> #2 |> el 3
-
-  
-val _ = astPP.enable_astPP ();
-
-print_term (current_prog);
-
-val _ = astPP.disable_astPP();
-
-
-                       
-val arith_policy_eval = EVAL “convert_arith_to_var_policy ^arith_policy ^policy_me”;
-val var_policy = optionSyntax.dest_some (rhs (concl arith_policy_eval));
-
-
-Definition policy_order_test_def:
- policy_order_test = ^policy_order
-End
-
-val r = translate policy_order_test_def;
-
-Definition policy_content_test_def:
-  policy_content_test = ^var_policy:action_policy_type
-End
-
-val r = translate policy_content_test_def;
-
-                       
-Definition main_hol4_def:
-  main_hol4 =
-    mk_BDD_policy policy_content_test  policy_order_test
-End
-
-        
-val r = translate main_hol4_def;
- 
-val res = append_prog o process_topdecs $ 
-                      ‘fun main () =
-                       let
-                        val args = CommandLine.arguments()
-                        in
-                      (case main_hol4 of
-                       None => TextIO.print "No BDD can be created \n"
-                       | Some bdd => TextIO.print "SOME \n")
-                      end ;’
-                     ; 
-val prog =
-  ``SNOC
-    (Dlet unknown_loc (Pcon NONE [])
-      (App Opapp [Var (Short "main"); Con NONE []]))
-    ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs
-
-                                
-
-val _ = astToSexprLib.write_ast_to_file "test_bdd.sexp" prog;
-*)
 
 
 
