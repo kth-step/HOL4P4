@@ -2,7 +2,7 @@ structure apply_trans_to_IOLib :> apply_trans_to_IOLib = struct
 
 
 open HolKernel Parse boolLib bossLib;
-open optionTheory bdd_sptrees_genTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
+open optionTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
 
 open bdd_trans_ProgTheory;
 open preamble basis ml_translatorLib ;

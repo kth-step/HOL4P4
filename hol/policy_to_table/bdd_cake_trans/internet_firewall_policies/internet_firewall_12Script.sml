@@ -498,9 +498,9 @@ val policy_full_order = ``[
 (*  Testing scripts *)
 (********************)
 
-(* Cakeml sptrees *)
+(* Test CakeML + compiling the input with the ML script *)
 
-val final_thm_res = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
+val final_thm_res = fwd_proof_w_IOcakeLib.convert_arith_policy_to_interval_tables_cake_w_IO (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 
                       
 val _ = export_theory ();
