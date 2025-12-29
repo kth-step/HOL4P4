@@ -200,7 +200,12 @@ fun parse_tables_list s =
                 let val (tbl, s) = parse_table s
                     val s = skip_ws s
                 in case s of
-                  #";" :: rest => parse_list (tbl :: acc) (skip_ws rest)
+                  #";" :: rest => 
+                    let val rest = skip_ws rest in
+                    case rest of
+                      #"]" :: rest => (List.rev (tbl :: acc), skip_ws rest)
+                    | _ => parse_list (tbl :: acc) rest
+                    end
                 | #"]" :: rest => (List.rev (tbl :: acc), skip_ws rest)
                 | _ => (List.rev (tbl :: acc), s)
                 end
