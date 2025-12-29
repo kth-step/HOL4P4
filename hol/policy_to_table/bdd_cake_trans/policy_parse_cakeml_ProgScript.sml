@@ -168,7 +168,12 @@ fun parse_policy_list s =
                 let val (entry, s) = parse_policy_entry s
                     val s = skip_ws s
                 in case s of
-                  #";" :: rest => parse_entries (entry :: acc) (skip_ws rest)
+                  #";" :: rest => 
+                    let val rest = skip_ws rest in
+                    case rest of
+                      #"]" :: rest => (List.rev (entry :: acc), skip_ws rest)
+                    | _ => parse_entries (entry :: acc) rest
+                    end
                 | #"]" :: rest => (List.rev (entry :: acc), skip_ws rest)
                 | _ => (List.rev (entry :: acc), s)
                 end
