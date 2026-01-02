@@ -122,6 +122,11 @@ open bdd_utilsLib;
             val _ = write_term_to_file ("../bdd_cake_test/" ^ file_name ^ "_policy_out_test.txt", var_policy);
             val _ = write_term_to_file ("../bdd_cake_test/" ^ file_name ^ "_order_out_test.txt", policy_order);
 
+            val _ = time_stage ("Stage 2 prepp policy ", start_cpu_total_stage2, start_real_total_stage2)
+
+            val start_cpu_total_stage2a = Timer.startCPUTimer ();
+            val start_real_total_stage2a = Timer.startRealTimer ();
+
 
             val status_exec_policy = OS.Process.system 
             ("cd ../bdd_cake_test/ && time ./test_bdd_policy.cake " ^ 
@@ -134,6 +139,10 @@ open bdd_utilsLib;
                     then print "Ja, policy BDD compilation completed\n"
                     else (print "Nej, policy NDD compilation failed\n";
                         OS.Process.exit OS.Process.failure)
+
+            val _ = time_stage ("Stage 2 from var policy to BDD ", start_cpu_total_stage2a, start_real_total_stage2a)
+            val start_cpu_total_stage2b = Timer.startCPUTimer ();
+            val start_real_total_stage2b = Timer.startRealTimer ();
 
 
 
@@ -182,6 +191,10 @@ open bdd_utilsLib;
 
            val _ = write_term_to_file ("../bdd_cake_test/" ^ file_name ^ "_table_out_test.txt", gen_var_table_auto)
 
+            val _ = time_stage ("Stage 2 prepp tables ", start_cpu_total_stage2b, start_real_total_stage2b)
+            val start_cpu_total_stage2c = Timer.startCPUTimer ();
+            val start_real_total_stage2c = Timer.startRealTimer ();
+
             val status_exec_table = OS.Process.system 
                             ("cd ../bdd_cake_test/ && time ./test_bdd_table.cake " ^ 
                             file_name ^ "_table_out_test.txt " ^ 
@@ -193,6 +206,9 @@ open bdd_utilsLib;
                     then print "Ja, table BDD compilation completed\n"
                     else (print "Nej, table NDD compilation failed\n";
                         OS.Process.exit OS.Process.failure)
+
+
+            val _ = time_stage ("Stage 2 from table to BDD ", start_cpu_total_stage2c, start_real_total_stage2c)
 
 
             val filename_policy_export = "../bdd_cake_test/" ^ file_name ^ "_bdd_table_cakeml_export.txt"
