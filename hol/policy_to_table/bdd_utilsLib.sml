@@ -307,49 +307,6 @@ fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_st
       table_entries
     end;
 
-(*
-fun find_paths_for_group_fixed bdd_term groupings_term group_name =
-    let
-      (* Extract groupings *)
-      val groupings_list = fst (dest_list groupings_term)
-      val groupings = map (fn group_term =>
-            let 
-              val (name_term, vars_term) = dest_pair group_term
-              val name = fromHOLstring name_term
-              val vars_list = fst (dest_list vars_term)
-              val vars = map fromHOLstring vars_list
-            in
-              (name, vars)
-            end) groupings_list
-
-      val group_names = map #1 groupings
-
-      fun find_group_index name names index =
-          case names of
-            [] => 0
-          | h::t => if h = name then index else find_group_index name t (index + 1)
-
-      val group_index = find_group_index group_name group_names 0
-
-      (* Determine input states based on group position *)
-      val input_states = 
-        if group_index = 0 then
-          [0]  (* First group starts from state 0 *)
-        else
-          (* For subsequent groups, we need to compute the exit states from previous groups *)
-          if group_name = "b" then
-            [3, 4]  (* Hardcoded for now based on expected output *)
-          else
-            [0]
-
-    (*  val _ = print ("Group: " ^ group_name ^ ", Input states: [" ^ String.concatWith ", " (map Int.toString input_states) ^ "]\n") *)
-
-      val result = find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states
-    in
-      result
-    end;
-*)
-
 
 fun bdd_to_tables_iterative bdd_term groupings_term =
     let
@@ -441,6 +398,348 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
 
 
 
+(* MTBDD to Rules - simple outout *)
+fun mtbdd_to_rules1 bdd_term =
+let
+  open pairSyntax listSyntax stringSyntax numSyntax;
+
+  fun num_of_term t = Arbnum.toInt (dest_numeral t);
+
+  val (root_term, rest) = dest_pair bdd_term
+  val (edges_term, labels_term) = dest_pair rest
+
+  val edges_list = fst (dest_list edges_term)
+  val edges = map (fn edge =>
+        let
+          val (parent, children) = dest_pair edge
+          val (left, right) = dest_pair children
+        in
+          (num_of_term parent, num_of_term left, num_of_term right)
+        end) edges_list
+
+  val labels_list = fst (dest_list labels_term)
+  val labels = map (fn label =>
+        let val (id, data) = dest_pair label
+        in (num_of_term id, data) end) labels_list
+
+  fun get_var_name node_data =
+      let
+        val (_, args) = strip_comb node_data
+        val arg = hd args
+        val (some_part, _) = dest_pair arg
+        val (_, some_args) = strip_comb some_part
+        val str_term = hd some_args
+      in
+        stringSyntax.fromHOLstring str_term
+      end
+
+  fun get_action node_data =
+      let
+        val (_, args) = strip_comb node_data
+        val arg = hd args
+      in
+        fst (dest_pair arg)
+      end
+
+  fun node_type node_data =
+      let val (const, _) = strip_comb node_data
+      in #Name (dest_thy_const const) end
+
+  (* DFS: TRUE branch first, then FALSE branch *)
+  fun collect_paths start =
+      let
+        fun dfs node path visited =
+            if List.exists (fn n => n = node) visited then []
+            else
+              let
+                val node_data =
+                  case List.find (fn (id, _) => id = node) labels of
+                      SOME (_, data) => data
+                    | NONE => raise Fail ("Node " ^ Int.toString node ^ " not found")
+
+                val ntype = node_type node_data
+                val new_visited = node :: visited
+              in
+                if ntype = "termn" then
+                  [(path, node_data)]  (* Don't reverse - keep root-to-leaf order *)
+                else if ntype = "non_termn" then
+                  let
+                    val var_name = get_var_name node_data
+                    val (left, right) =
+                      case List.find (fn (p, _, _) => p = node) edges of
+                          SOME (_, l, r) => (l, r)
+                        | NONE => raise Fail ("Children not found: " ^ Int.toString node)
+
+                    (* TRUE first, then FALSE - this gives natural ordering *)
+                    val true_paths = dfs left ((var_name, true)::path) new_visited
+                    val false_paths = dfs right ((var_name, false)::path) new_visited
+                  in
+                    true_paths @ false_paths
+                  end
+                else
+                  raise Fail ("Unknown node type: " ^ ntype)
+              end
+      in
+        dfs start [] []
+      end
+
+  (* Build predicate - path is already root-to-leaf *)
+  fun build_predicate path =
+      let
+        fun mk_var v = ``(Var ^(stringSyntax.fromMLstring v)) : pred``
+
+        (* Build in reverse to get proper And nesting *)
+        fun build_rev [] = ``(True : pred)``
+          | build_rev ((v, true)::rest) =
+              let val rest_pred = build_rev rest
+              in if aconv rest_pred ``(True : pred)`` then mk_var v
+                 else ``(And ^(mk_var v) ^rest_pred) : pred`` end
+          | build_rev ((v, false)::rest) =
+              let val rest_pred = build_rev rest
+              in if aconv rest_pred ``(True : pred)`` then ``(Not ^(mk_var v)) : pred``
+                 else ``(And (Not ^(mk_var v)) ^rest_pred) : pred`` end
+      in
+        build_rev (rev path)  (* Reverse to build from root to leaf *)
+      end
+
+  val root = num_of_term root_term
+  val paths = collect_paths root
+
+  (* Create rules in the order they were found (TRUE branches first) *)
+  val rules = map (fn (path, term_data) =>
+        (build_predicate path, get_action term_data)) paths
+
+  (* Filter out (True, drop) if we have specific drop rules *)
+  fun is_true_drop (pred, act) =
+      let
+        val (const, args) = strip_comb act
+      in
+        aconv pred ``(True : pred)`` andalso
+        #Name (dest_thy_const const) = "action" andalso
+        (case args of
+             [pair, _] =>
+               let val (cmd, _) = dest_pair pair
+               in stringSyntax.fromHOLstring cmd = "drop" end
+           | _ => false)
+      end
+
+  val has_explicit_drop = List.exists (fn (_, act) =>
+          let
+            val (const, args) = strip_comb act
+          in
+            if #Name (dest_thy_const const) = "action" then
+              case args of
+                  [pair, _] =>
+                    let val (cmd, _) = dest_pair pair
+                    in stringSyntax.fromHOLstring cmd = "drop" end
+                | _ => false
+            else false
+          end) rules
+
+  val final_rules =
+      if has_explicit_drop then
+        (* Remove True->drop if we have specific drops *)
+        List.filter (fn rule => not (is_true_drop rule)) rules
+      else rules  (* Keep it if it's the only drop rule *)
+
+  val rule_terms = map (fn (pred, act) => mk_pair (pred, act)) final_rules
+in
+  mk_list (rule_terms, type_of (hd rule_terms))
+end
+
+
+
+(* MTBDD to Rules with or combinations grouped by action *)
+fun mtbdd_to_rules2 bdd_term =
+let
+  open pairSyntax listSyntax stringSyntax numSyntax;
+
+  fun num_of_term t = Arbnum.toInt (dest_numeral t);
+  fun fromMLstring s = stringSyntax.fromMLstring s;
+  fun fromHOLstring t = stringSyntax.fromHOLstring t;
+
+  val (root_term, rest) = dest_pair bdd_term
+  val (edges_term, labels_term) = dest_pair rest
+
+  val edges_list = fst (dest_list edges_term)
+  val edges = map (fn edge =>
+        let
+          val (parent, children) = dest_pair edge
+          val (left, right) = dest_pair children
+        in
+          (num_of_term parent, num_of_term left, num_of_term right)
+        end) edges_list
+
+  val labels_list = fst (dest_list labels_term)
+  val labels = map (fn label =>
+        let val (id, data) = dest_pair label
+        in (num_of_term id, data) end) labels_list
+
+  fun get_var_name node_data =
+      let
+        val (_, args) = strip_comb node_data
+        val arg = hd args
+        val (some_part, _) = dest_pair arg
+        val (_, some_args) = strip_comb some_part
+        val str_term = hd some_args
+      in
+        fromHOLstring str_term
+      end
+
+  fun get_action node_data =
+      let
+        val (_, args) = strip_comb node_data
+        val arg = hd args
+      in
+        fst (dest_pair arg)
+      end
+
+  fun node_type node_data =
+      let val (const, _) = strip_comb node_data
+      in #Name (dest_thy_const const) end
+
+  fun find_children node_id =
+      case List.find (fn (p, _, _) => p = node_id) edges of
+          SOME (_, left, right) => (left, right)
+        | NONE => raise Fail ("find_children: node " ^ Int.toString node_id ^ " not found")
+
+  fun find_node_data node_id =
+      case List.find (fn (id, _) => id = node_id) labels of
+          SOME (_, data) => data
+        | NONE => raise Fail ("find_node_data: node " ^ Int.toString node_id ^ " not found")
+
+  (* Collect paths *)
+  fun collect_paths start =
+      let
+        fun dfs node path visited =
+            if List.exists (fn n => n = node) visited then []
+            else
+              let
+                val node_data = find_node_data node
+                val ntype = node_type node_data
+                val new_visited = node :: visited
+              in
+                if ntype = "termn" then
+                  [(rev path, node_data)]
+                else if ntype = "non_termn" then
+                  let
+                    val var_name = get_var_name node_data
+                    val (left, right) = find_children node
+
+                    val left_paths = dfs left ((var_name, true)::path) new_visited
+                    val right_paths = dfs right ((var_name, false)::path) new_visited
+                  in
+                    left_paths @ right_paths
+                  end
+                else
+                  raise Fail ("dfs: unknown node type")
+              end
+      in
+        dfs start [] []
+      end
+
+  (* Build minterm *)
+  fun build_minterm path =
+      let
+        fun mk_var_term v = ``(Var ^(fromMLstring v)) : pred``
+
+        fun build_conj [] = ``(True : pred)``
+          | build_conj [(v, true)] = mk_var_term v
+          | build_conj [(v, false)] = ``(Not ^(mk_var_term v)) : pred``
+          | build_conj ((v, true)::rest) =
+              ``(And ^(mk_var_term v) ^(build_conj rest)) : pred``
+          | build_conj ((v, false)::rest) =
+              ``(And (Not ^(mk_var_term v)) ^(build_conj rest)) : pred``
+      in
+        build_conj path
+      end
+
+  val root = num_of_term root_term
+  val paths = collect_paths root
+
+  (* Group by action *)
+  val action_map = ref ([] : (term * term list) list)
+
+  fun add_to_map (path, node_data) =
+      let
+        val minterm = build_minterm path
+        val action = get_action node_data
+
+        fun find_and_update [] =
+            (action_map := (action, [minterm]) :: (!action_map); ())
+          | find_and_update ((a, preds)::rest) =
+              if aconv a action then
+                (action_map := (a, minterm::preds) :: rest; ())
+              else
+                (find_and_update rest; ())
+      in
+        find_and_update (!action_map)
+      end
+
+  val _ = List.app add_to_map paths
+
+  (* Combine with OR - remove complex simplification *)
+  fun combine_group (action, preds) =
+      let
+        (* Remove duplicates *)
+        val unique =
+            let
+              fun distinct [] acc = acc
+                | distinct (x::xs) acc =
+                    if List.exists (fn y => aconv x y) acc
+                    then distinct xs acc
+                    else distinct xs (x::acc)
+            in
+              distinct preds []
+            end
+
+        val combined =
+            case unique of
+                [] => ``(True : pred)``
+              | [p] => p
+              | p1::p2::rest =>
+                  let
+                    val init = ``(Or ^p1 ^p2) : pred``
+                    fun fold acc [] = acc
+                      | fold acc (x::xs) = fold ``(Or ^acc ^x) : pred`` xs
+                  in
+                    fold init rest
+                  end
+      in
+        (combined, action)
+      end
+
+  val rules = map combine_group (!action_map)
+
+  (* Separate and add default drop *)
+  val (allow, drop) =
+      List.partition (fn (_, action) =>
+          let
+            val (const, args) = strip_comb action
+          in
+            if #Name (dest_thy_const const) = "action" then
+              case args of
+                  [pair, _] =>
+                    let val (cmd, _) = dest_pair pair
+                    in fromHOLstring cmd <> "drop" end
+                | _ => false
+            else false
+          end) rules
+
+  val final_rules =
+      if null drop then
+        allow @ [(``(True : pred)``, ``action ("drop",[])``)]
+      else
+        allow @ drop
+
+  (* Build result *)
+  fun build_list [] = ``[] : action_policy_type``
+    | build_list ((pred, act)::rest) =
+        ``(^(pred), ^(act)) :: ^(build_list rest)``
+
+in
+  build_list final_rules
+end
 
 
 end
