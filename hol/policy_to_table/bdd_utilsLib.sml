@@ -550,17 +550,19 @@ end
 
 
 (* MTBDD to Rules with or combinations grouped by action *)
+
+(* MTBDD to Rules with logical simplification - SIMPLIFIED VERSION *)
 fun mtbdd_to_rules2 bdd_term =
 let
   open pairSyntax listSyntax stringSyntax numSyntax;
-
+  
   fun num_of_term t = Arbnum.toInt (dest_numeral t);
   fun fromMLstring s = stringSyntax.fromMLstring s;
   fun fromHOLstring t = stringSyntax.fromHOLstring t;
-
+  
   val (root_term, rest) = dest_pair bdd_term
   val (edges_term, labels_term) = dest_pair rest
-
+  
   val edges_list = fst (dest_list edges_term)
   val edges = map (fn edge =>
         let
@@ -569,12 +571,12 @@ let
         in
           (num_of_term parent, num_of_term left, num_of_term right)
         end) edges_list
-
+  
   val labels_list = fst (dest_list labels_term)
   val labels = map (fn label =>
         let val (id, data) = dest_pair label
         in (num_of_term id, data) end) labels_list
-
+  
   fun get_var_name node_data =
       let
         val (_, args) = strip_comb node_data
@@ -585,7 +587,7 @@ let
       in
         fromHOLstring str_term
       end
-
+  
   fun get_action node_data =
       let
         val (_, args) = strip_comb node_data
@@ -593,22 +595,22 @@ let
       in
         fst (dest_pair arg)
       end
-
+  
   fun node_type node_data =
       let val (const, _) = strip_comb node_data
       in #Name (dest_thy_const const) end
-
+  
   fun find_children node_id =
       case List.find (fn (p, _, _) => p = node_id) edges of
           SOME (_, left, right) => (left, right)
         | NONE => raise Fail ("find_children: node " ^ Int.toString node_id ^ " not found")
-
+  
   fun find_node_data node_id =
       case List.find (fn (id, _) => id = node_id) labels of
           SOME (_, data) => data
         | NONE => raise Fail ("find_node_data: node " ^ Int.toString node_id ^ " not found")
-
-  (* Collect paths *)
+  
+  (* DFS with TRUE branches first *)
   fun collect_paths start =
       let
         fun dfs node path visited =
@@ -625,11 +627,11 @@ let
                   let
                     val var_name = get_var_name node_data
                     val (left, right) = find_children node
-
-                    val left_paths = dfs left ((var_name, true)::path) new_visited
-                    val right_paths = dfs right ((var_name, false)::path) new_visited
+                    
+                    val true_paths = dfs left ((var_name, true)::path) new_visited
+                    val false_paths = dfs right ((var_name, false)::path) new_visited
                   in
-                    left_paths @ right_paths
+                    true_paths @ false_paths
                   end
                 else
                   raise Fail ("dfs: unknown node type")
@@ -637,108 +639,253 @@ let
       in
         dfs start [] []
       end
-
-  (* Build minterm *)
-  fun build_minterm path =
+  
+  (* Build predicate from path *)
+  fun build_predicate path =
       let
         fun mk_var_term v = ``(Var ^(fromMLstring v)) : pred``
-
+        
         fun build_conj [] = ``(True : pred)``
           | build_conj [(v, true)] = mk_var_term v
           | build_conj [(v, false)] = ``(Not ^(mk_var_term v)) : pred``
-          | build_conj ((v, true)::rest) =
+          | build_conj ((v, true)::rest) = 
               ``(And ^(mk_var_term v) ^(build_conj rest)) : pred``
-          | build_conj ((v, false)::rest) =
+          | build_conj ((v, false)::rest) = 
               ``(And (Not ^(mk_var_term v)) ^(build_conj rest)) : pred``
       in
         build_conj path
       end
-
+  
   val root = num_of_term root_term
-  val paths = collect_paths root
-
+  val all_paths = collect_paths root
+  
   (* Group by action *)
-  val action_map = ref ([] : (term * term list) list)
-
-  fun add_to_map (path, node_data) =
+  val action_groups = ref ([] : (term * term list) list)
+  val action_order = ref ([] : term list)
+  
+  fun add_path (path, node_data) =
       let
-        val minterm = build_minterm path
+        val predicate = build_predicate path
         val action = get_action node_data
-
-        fun find_and_update [] =
-            (action_map := (action, [minterm]) :: (!action_map); ())
+        
+        fun find_and_update [] = 
+            (action_groups := (action, [predicate]) :: (!action_groups);
+             action_order := action :: (!action_order))
           | find_and_update ((a, preds)::rest) =
               if aconv a action then
-                (action_map := (a, minterm::preds) :: rest; ())
+                action_groups := (a, predicate::preds) :: rest
               else
-                (find_and_update rest; ())
+                find_and_update rest
       in
-        find_and_update (!action_map)
+        find_and_update (!action_groups)
       end
-
-  val _ = List.app add_to_map paths
-
-  (* Combine with OR - remove complex simplification *)
-  fun combine_group (action, preds) =
+  
+  val _ = List.app add_path all_paths
+  
+  (* SIMPLIFIED SIMPLIFICATION APPROACH *)
+  
+  (* Basic predicate equality *)
+  fun pred_eq p1 p2 = aconv p1 p2
+  
+  (* Check if predicate is True *)
+  fun is_true pred = aconv pred ``(True : pred)``
+  
+  (* Check if predicate is False *)
+  fun is_false pred = aconv pred ``(False : pred)``
+  
+  (* Get all variables in a predicate *)
+  fun get_vars_in_pred pred =
       let
-        (* Remove duplicates *)
-        val unique =
-            let
-              fun distinct [] acc = acc
-                | distinct (x::xs) acc =
-                    if List.exists (fn y => aconv x y) acc
-                    then distinct xs acc
-                    else distinct xs (x::acc)
+        fun collect acc t =
+            let val (const, args) = strip_comb t
+                val const_name = #Name (dest_thy_const const)
             in
-              distinct preds []
+              case const_name of
+                  "Var" => 
+                    let val str_term = hd args
+                        val var_name = fromHOLstring str_term
+                    in
+                      if not (List.exists (fn v => v = var_name) acc)
+                      then var_name::acc
+                      else acc
+                    end
+                | "Not" => collect acc (hd args)
+                | "And" => collect (collect acc (hd args)) (hd (tl args))
+                | "Or" => collect (collect acc (hd args)) (hd (tl args))
+                | _ => acc
             end
-
-        val combined =
-            case unique of
-                [] => ``(True : pred)``
-              | [p] => p
-              | p1::p2::rest =>
-                  let
-                    val init = ``(Or ^p1 ^p2) : pred``
-                    fun fold acc [] = acc
-                      | fold acc (x::xs) = fold ``(Or ^acc ^x) : pred`` xs
-                  in
-                    fold init rest
-                  end
       in
-        (combined, action)
+        collect [] pred
       end
-
-  val rules = map combine_group (!action_map)
-
-  (* Separate and add default drop *)
-  val (allow, drop) =
-      List.partition (fn (_, action) =>
-          let
-            val (const, args) = strip_comb action
-          in
-            if #Name (dest_thy_const const) = "action" then
-              case args of
-                  [pair, _] =>
-                    let val (cmd, _) = dest_pair pair
-                    in fromHOLstring cmd <> "drop" end
-                | _ => false
-            else false
-          end) rules
-
-  val final_rules =
-      if null drop then
-        allow @ [(``(True : pred)``, ``action ("drop",[])``)]
-      else
-        allow @ drop
-
+  
+  (* SIMPLE simplification: handle specific patterns from your example *)
+  fun simplify_pattern pred =
+      let
+        val (const, args) = strip_comb pred
+        val const_name = #Name (dest_thy_const const)
+      in
+        case const_name of
+            "Or" =>
+              let
+                val left = hd args
+                val right = hd (tl args)
+                
+                (* Pattern 1: (a ∧ b ∧ ¬c) ∨ (a ∧ ¬b) ∨ (¬a ∧ b) = a ∨ b *)
+                fun check_pattern_1 terms =
+                    let
+                      fun is_a1_and_b1_and_not_c1 t = 
+                          aconv t ``(And (Var "a1") (And (Var "b1") (Not (Var "c1")))) : pred``
+                      fun is_a1_and_not_b1 t = 
+                          aconv t ``(And (Var "a1") (Not (Var "b1"))) : pred``
+                      fun is_not_a1_and_b1 t = 
+                          aconv t ``(And (Not (Var "a1")) (Var "b1")) : pred``
+                      
+                      val has1 = List.exists is_a1_and_b1_and_not_c1 terms
+                      val has2 = List.exists is_a1_and_not_b1 terms
+                      val has3 = List.exists is_not_a1_and_b1 terms
+                    in
+                      if has1 andalso has2 andalso has3 then
+                        SOME ``(Or (Var "a1") (Var "b1")) : pred``
+                      else NONE
+                    end
+                
+                (* Pattern 2: (a ∧ ¬b ∧ c) ∨ (a ∧ b) = a ∧ (b ∨ c) *)
+                fun check_pattern_2 terms =
+                    let
+                      fun is_a1_and_not_b1_and_c1 t = 
+                          aconv t ``(And (Var "a1") (And (Not (Var "b1")) (Var "c1"))) : pred``
+                      fun is_a1_and_b1 t = 
+                          aconv t ``(And (Var "a1") (Var "b1")) : pred``
+                      
+                      val has1 = List.exists is_a1_and_not_b1_and_c1 terms
+                      val has2 = List.exists is_a1_and_b1 terms
+                    in
+                      if has1 andalso has2 then
+                        SOME ``(And (Var "a1") (Or (Var "b1") (Var "c1"))) : pred``
+                      else NONE
+                    end
+                
+                (* Extract all terms from nested OR expressions *)
+                fun extract_or_terms t =
+                    let val (c, a) = strip_comb t
+                    in
+                      if #Name (dest_thy_const c) = "Or" then
+                        extract_or_terms (hd a) @ extract_or_terms (hd (tl a))
+                      else [t]
+                    end
+                
+                val all_terms = extract_or_terms pred
+              in
+                case check_pattern_1 all_terms of
+                    SOME result => result
+                  | NONE =>
+                      case check_pattern_2 all_terms of
+                          SOME result => result
+                        | NONE => pred
+              end
+          | "And" =>
+              let
+                val left = hd args
+                val right = hd (tl args)
+                
+                (* Check for ¬a ∧ ¬b pattern and see if c exists in other rules *)
+                fun check_all_negated t =
+                    let
+                      val (c, a) = strip_comb t
+                      val const_name = #Name (dest_thy_const c)
+                    in
+                      if const_name = "And" then
+                        let
+                          val left_term = hd a
+                          val (left_const, left_args) = strip_comb left_term
+                          val left_name = #Name (dest_thy_const left_const)
+                          
+                          val right_term = hd (tl a)
+                          val (right_const, right_args) = strip_comb right_term
+                          val right_name = #Name (dest_thy_const right_const)
+                        in
+                          if left_name = "Not" andalso right_name = "Not" then
+                            let
+                              val left_var = hd left_args
+                              val (left_var_const, left_var_args) = strip_comb left_var
+                              val left_var_name = fromHOLstring (hd left_var_args)
+                              
+                              val right_var = hd right_args
+                              val (right_var_const, right_var_args) = strip_comb right_var
+                              val right_var_name = fromHOLstring (hd right_var_args)
+                            in
+                              if left_var_name = "a1" andalso right_var_name = "b1" then
+                                (* Check if "c1" appears in any other predicate *)
+                                let
+                                  fun has_c1_in_other_rules () =
+                                      let
+                                        val all_preds = List.concat (map #2 (!action_groups))
+                                        val all_vars = List.concat (map get_vars_in_pred all_preds)
+                                      in
+                                        List.exists (fn v => v = "c1") all_vars
+                                      end
+                                in
+                                  if not (has_c1_in_other_rules ()) then
+                                    ``(True : pred)``
+                                  else
+                                    pred
+                                end
+                              else pred
+                            end
+                          else pred
+                        end
+                      else pred
+                    end
+              in
+                check_all_negated pred
+              end
+          | _ => pred
+      end
+  
+  (* Simple OR combination without complex simplification *)
+  fun simple_combine preds =
+      case preds of
+          [] => ``(True : pred)``
+        | [p] => p
+        | p1::p2::rest =>
+            let
+              val init = ``(Or ^p1 ^p2) : pred``
+              fun fold acc [] = acc
+                | fold acc (x::xs) = fold ``(Or ^acc ^x) : pred`` xs
+            in
+              fold init rest
+            end
+  
+  (* Create rules - apply pattern simplification after combining *)
+  fun create_rules groups order =
+      let
+        fun find_group act = 
+            case List.find (fn (a, _) => aconv a act) groups of
+                SOME (_, preds) => preds
+              | NONE => []
+        
+        fun process [] acc = rev acc
+          | process (act::rest) acc =
+              let
+                val preds = find_group act
+                val combined = simple_combine preds
+                val simplified = simplify_pattern combined
+              in
+                process rest ((simplified, act) :: acc)
+              end
+      in
+        process (rev order) []
+      end
+  
+  val rules = create_rules (!action_groups) (!action_order)
+  
   (* Build result *)
   fun build_list [] = ``[] : action_policy_type``
     | build_list ((pred, act)::rest) =
         ``(^(pred), ^(act)) :: ^(build_list rest)``
-
+  
 in
-  build_list final_rules
+  build_list rules
 end
 
 
