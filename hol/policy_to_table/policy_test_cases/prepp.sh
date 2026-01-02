@@ -15,3 +15,9 @@ echo "Building test_bdd_table executable..."
 cd ../bdd_cake_test/ && cc test_bdd_table.cake.S basis_ffi.c -lm -o test_bdd_table.cake -lm
 
 echo "Done!"
+
+cd ../policy_test_cases
+
+for i in {1..12}; do
+    Holmake "internet_firewall_${i}Theory.uo"
+done
