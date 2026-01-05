@@ -398,7 +398,7 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
 
 
 
-(* MTBDD to Rules - simple outout *)
+(* MTBDD to Rules:simple outout *)
 fun mtbdd_to_rules1 bdd_term =
 let
   open pairSyntax listSyntax stringSyntax numSyntax;
@@ -461,7 +461,7 @@ let
                 val new_visited = node :: visited
               in
                 if ntype = "termn" then
-                  [(path, node_data)]  (* Don't reverse - keep root-to-leaf order *)
+                  [(path, node_data)]  (* Don't reverse:keep root-to-leaf order *)
                 else if ntype = "non_termn" then
                   let
                     val var_name = get_var_name node_data
@@ -470,7 +470,7 @@ let
                           SOME (_, l, r) => (l, r)
                         | NONE => raise Fail ("Children not found: " ^ Int.toString node)
 
-                    (* TRUE first, then FALSE - this gives natural ordering *)
+                    (* TRUE first, then FALSE:this gives natural ordering *)
                     val true_paths = dfs left ((var_name, true)::path) new_visited
                     val false_paths = dfs right ((var_name, false)::path) new_visited
                   in
@@ -483,7 +483,7 @@ let
         dfs start [] []
       end
 
-  (* Build predicate - path is already root-to-leaf *)
+  (* Build predicate:path is already root-to-leaf *)
   fun build_predicate path =
       let
         fun mk_var v = ``(Var ^(stringSyntax.fromMLstring v)) : pred``
@@ -548,7 +548,6 @@ in
 end
 
 
-
 (* MTBDD to Rules with or combinations grouped by action *)
 fun mtbdd_to_rules2 bdd_term =
 let
@@ -608,7 +607,7 @@ let
           SOME (_, data) => data
         | NONE => raise Fail ("find_node_data: node " ^ Int.toString node_id ^ " not found")
 
-  (* Collect paths *)
+  (* Collect paths:keep them in DFS order *)
   fun collect_paths start =
       let
         fun dfs node path visited =
@@ -655,9 +654,10 @@ let
       end
 
   val root = num_of_term root_term
-  val paths = collect_paths root
+  val paths = collect_paths root  (* In DFS order: leftmost first, rightmost last *)
 
-  (* Group by action *)
+  (* Group by action:but we need to preserve the order of actions as they first appear *)
+  val action_order_list = ref ([] : term list)  (* Order of first appearance *)
   val action_map = ref ([] : (term * term list) list)
 
   fun add_to_map (path, node_data) =
@@ -666,7 +666,8 @@ let
         val action = get_action node_data
 
         fun find_and_update [] =
-            (action_map := (action, [minterm]) :: (!action_map); ())
+            (action_map := (action, [minterm]) :: (!action_map);
+             action_order_list := action :: (!action_order_list); ())
           | find_and_update ((a, preds)::rest) =
               if aconv a action then
                 (action_map := (a, minterm::preds) :: rest; ())
@@ -678,7 +679,7 @@ let
 
   val _ = List.app add_to_map paths
 
-  (* Combine with OR - remove complex simplification *)
+  (* Combine with OR *)
   fun combine_group (action, preds) =
       let
         (* Remove duplicates *)
@@ -709,36 +710,27 @@ let
         (combined, action)
       end
 
-  val rules = map combine_group (!action_map)
+  (* Create rules in the order actions first appear in the path traversal *)
+  val rules =
+      let
+        fun process_order [] acc = rev acc
+          | process_order (act::rest) acc =
+              case List.find (fn (a, _) => aconv a act) (!action_map) of
+                  SOME (_, preds) =>
+                    process_order rest (combine_group (act, preds) :: acc)
+                | NONE => process_order rest acc
+      in
+        process_order (rev (!action_order_list)) []  (* Reverse because we added in reverse order *)
+      end
 
-  (* Separate and add default drop *)
-  val (allow, drop) =
-      List.partition (fn (_, action) =>
-          let
-            val (const, args) = strip_comb action
-          in
-            if #Name (dest_thy_const const) = "action" then
-              case args of
-                  [pair, _] =>
-                    let val (cmd, _) = dest_pair pair
-                    in fromHOLstring cmd <> "drop" end
-                | _ => false
-            else false
-          end) rules
-
-  val final_rules =
-      if null drop then
-        allow @ [(``(True : pred)``, ``action ("drop",[])``)]
-      else
-        allow @ drop
-
+  (* Now rules are in the order actions first appear in DFS traversal *)
   (* Build result *)
   fun build_list [] = ``[] : action_policy_type``
     | build_list ((pred, act)::rest) =
         ``(^(pred), ^(act)) :: ^(build_list rest)``
 
 in
-  build_list final_rules
+  build_list rules
 end
 
 
