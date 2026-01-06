@@ -399,7 +399,7 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
 
 
 (* MTBDD to Rules:simple outout *)
-fun mtbdd_to_rules1 bdd_term =
+fun mtbdd_to_rules_all_paths bdd_term =
 let
   open pairSyntax listSyntax stringSyntax numSyntax;
 
@@ -549,7 +549,7 @@ end
 
 
 (* MTBDD to Rules with or combinations grouped by action *)
-fun mtbdd_to_rules2 bdd_term =
+fun mtbdd_to_rules_grouped_by_action_simple bdd_term =
 let
   open pairSyntax listSyntax stringSyntax numSyntax;
 
@@ -732,6 +732,336 @@ let
 in
   build_list rules
 end
+
+
+(* best policy output from BDD *)
+fun mtbdd_to_rules bdd_term =
+let
+  open pairSyntax listSyntax stringSyntax numSyntax;
+
+  fun num_of_term t = Arbnum.toInt (dest_numeral t);
+
+  val (root_term, rest) = dest_pair bdd_term
+  val (edges_term, labels_term) = dest_pair rest
+
+  val edges_list = fst (dest_list edges_term)
+  val edges = map (fn edge =>
+        let
+          val (parent, children) = dest_pair edge
+          val (left, right) = dest_pair children
+        in
+          (num_of_term parent, num_of_term left, num_of_term right)
+        end) edges_list
+
+  val labels_list = fst (dest_list labels_term)
+  val labels = map (fn label =>
+        let val (id, data) = dest_pair label
+        in (num_of_term id, data) end) labels_list
+
+  fun get_var_name node_data =
+      let
+        val (const, args) = strip_comb node_data
+        val const_name = #Name (dest_thy_const const)
+      in
+        if const_name = "non_termn" then
+          let
+            val arg = hd args
+            val (some_part, _) = dest_pair arg
+            val (_, some_args) = strip_comb some_part
+            val str_term = hd some_args
+          in
+            stringSyntax.fromHOLstring str_term
+          end
+        else
+          raise Fail ("Not a non-terminal node: " ^ const_name)
+      end
+
+  fun get_action node_data =
+      let
+        val (const, args) = strip_comb node_data
+        val const_name = #Name (dest_thy_const const)
+      in
+        if const_name = "termn" then
+          let
+            val first_arg = hd args
+            val (actual_action, _) = dest_pair first_arg
+                handle _ => (first_arg, ``()``)
+          in
+            actual_action
+          end
+        else
+          raise Fail ("Not a terminal node: " ^ const_name)
+      end
+
+  fun node_type node_data =
+      let 
+        val (const, _) = strip_comb node_data
+        val const_name = #Name (dest_thy_const const)
+      in
+        const_name
+      end
+
+  fun is_terminal node_data = node_type node_data = "termn"
+
+  val root_id = num_of_term root_term
+
+  (* Find all terminals in left-to-right order, remove duplicates *)
+  fun dfs_collect node_id =
+      let
+        val node_data = case List.find (fn (id, _) => id = node_id) labels of
+                            SOME (_, data) => data
+                          | NONE => raise Fail ("Node not found: " ^ Int.toString node_id)
+      in
+        if is_terminal node_data then
+          [node_id]
+        else
+          let
+            val (left_child, right_child) = 
+                  case List.find (fn (src, l, r) => src = node_id) edges of
+                      SOME (_, l, r) => (l, r)
+                    | NONE => raise Fail ("No edges from node " ^ Int.toString node_id)
+          in
+            dfs_collect left_child @ dfs_collect right_child
+          end
+      end
+
+  val terminal_ids = dfs_collect root_id
+  val unique_terminals = 
+      let
+        val seen = ref []
+        fun keep_unique [] = []
+          | keep_unique (x::xs) = 
+              if List.exists (fn y => y = x) (!seen) then keep_unique xs
+              else (seen := x :: !seen; x :: keep_unique xs)
+      in
+        keep_unique terminal_ids
+      end
+
+  (* Get left child of a node *)
+  fun get_left_child node_id =
+      case List.find (fn (src, l, r) => src = node_id) edges of
+          SOME (_, left, _) => left
+        | NONE => raise Fail ("No edges from node " ^ Int.toString node_id)
+
+  (* Get all parents of a node *)
+  fun get_parents node_id =
+      List.map (fn (src, _, _) => src)
+          (List.filter (fn (_, left, right) => left = node_id orelse right = node_id) edges)
+
+  (* Check if a node can be a rule starting point *)
+  fun can_be_rule_start node_id =
+      if node_id = root_id then
+        true  (* Root can always start a rule *)
+      else
+        let
+          (* Condition 1: All parents reach this node via RIGHT branch *)
+          val incoming_edges = List.filter (fn (_, left, right) => 
+              left = node_id orelse right = node_id) edges
+          
+          val all_via_right = List.all (fn (_, left, right) => right = node_id) incoming_edges
+          
+          (* Condition 2: Node's left child has only this node as parent (via left branch) *)
+          val left_child = get_left_child node_id
+          val left_child_parents = get_parents left_child
+          
+          (* Check if left child has exactly one parent AND it's this node via left branch *)
+          val left_child_has_single_parent = 
+              length left_child_parents = 1 andalso
+              hd left_child_parents = node_id andalso
+              List.exists (fn (src, left, _) => src = node_id andalso left = left_child) edges
+        in
+          all_via_right andalso left_child_has_single_parent
+        end
+
+  (* Find starting nodes for rules - nodes that can start rules *)
+  fun find_rule_starting_nodes target_terminal =
+      let
+        (* Find all nodes that point to target_terminal via LEFT branch *)
+        val left_parents = List.map (fn (src, left, _) => src)
+                               (List.filter (fn (_, left, _) => left = target_terminal) edges)
+        
+        (* For each left parent, find the closest ancestor that can start a rule *)
+        fun find_starting_node_for_parent parent_id =
+            let
+              fun trace_back node_id =
+                  if can_be_rule_start node_id then
+                    node_id  (* Found a valid starting point *)
+                  else if node_id = root_id then
+                    root_id  (* Reached root, use it as starting point *)
+                  else
+                    (* Find parent and continue *)
+                    let
+                      val parents = get_parents node_id
+                    in
+                      case parents of
+                          [parent] => trace_back parent
+                        | _ => raise Fail ("Multiple or no parents for node " ^ Int.toString node_id)
+                    end
+            in
+              trace_back parent_id
+            end
+        
+        (* Also check if terminal is directly at root *)
+        val root_start = 
+            if target_terminal = root_id then
+              [root_id]
+            else if List.exists (fn (src, left, _) => src = root_id andalso left = target_terminal) edges then
+              [root_id]
+            else []
+      in
+        (* Remove duplicates from starting nodes *)
+        let
+          val all_starts = root_start @ (map find_starting_node_for_parent left_parents)
+          fun remove_dups [] = []
+            | remove_dups (x::xs) = 
+                if List.exists (fn y => y = x) xs then remove_dups xs
+                else x::remove_dups xs
+        in
+          remove_dups all_starts
+        end
+      end
+
+  (* Find all paths from a starting node to target terminal *)
+  fun find_paths_from_start start_id target_id =
+      let
+        fun dfs current_id current_path =
+            if current_id = target_id then
+              [List.rev current_path]  (* Found target *)
+            else
+              let
+                val node_data = case List.find (fn (id, _) => id = current_id) labels of
+                                    SOME (_, data) => data
+                                  | NONE => raise Fail ("Node not found")
+              in
+                if is_terminal node_data then
+                  []  (* Different terminal *)
+                else
+                  let
+                    val (left_child, right_child) = 
+                          case List.find (fn (src, l, r) => src = current_id) edges of
+                              SOME (_, l, r) => (l, r)
+                            | NONE => raise Fail ("No edges from node")
+                    
+                    val var_name = get_var_name node_data
+                    
+                    (* Try left branch *)
+                    val left_paths = dfs left_child ((current_id, var_name, true)::current_path)
+                    
+                    (* Try right branch *)
+                    val right_paths = dfs right_child ((current_id, var_name, false)::current_path)
+                  in
+                    left_paths @ right_paths
+                  end
+              end
+      in
+        dfs start_id []
+      end
+
+  (* Build rule for a terminal (except last one) *)
+  fun build_rule_for_terminal term_id =
+      let
+        val term_data = case List.find (fn (id, _) => id = term_id) labels of
+                            SOME (_, data) => data
+                          | NONE => raise Fail ("Terminal not found")
+        val action = get_action term_data
+        
+        (* Find starting nodes for rules *)
+        val starting_nodes = find_rule_starting_nodes term_id
+        
+        (* For each starting node, find paths to terminal *)
+        val all_paths = 
+            List.concat (map (fn start_id => find_paths_from_start start_id term_id) starting_nodes)
+        
+        (* Convert a path to predicate: AND of variables where we took LEFT branch *)
+        fun path_to_predicate path =
+            let
+              val positive_vars = List.map (fn (_, var_name, _) => var_name)
+                                   (List.filter (fn (_, _, decision) => decision) path)
+              
+              fun build_and [] = ``(True : pred)``
+                | build_and [var] = ``(Var ^(stringSyntax.fromMLstring var)) : pred``
+                | build_and (var::vars) =
+                    let
+                      val first_pred = ``(Var ^(stringSyntax.fromMLstring var)) : pred``
+                      val rest_pred = build_and vars
+                    in
+                      if aconv rest_pred ``(True : pred)`` then
+                        first_pred
+                      else
+                        ``(And ^first_pred ^rest_pred) : pred``
+                    end
+            in
+              build_and positive_vars
+            end
+        
+        (* Convert all paths to predicates *)
+        val predicates = map path_to_predicate all_paths
+        
+        (* Remove duplicate predicates *)
+        val unique_predicates =
+            let
+              fun remove_dups [] = []
+                | remove_dups (p::ps) =
+                    if List.exists (fn q => aconv p q) ps then remove_dups ps
+                    else p::remove_dups ps
+            in
+              remove_dups predicates
+            end
+        
+        (* Combine unique predicates with OR *)
+        val final_predicate =
+            case unique_predicates of
+                [] => ``(True : pred)``
+              | [p] => p
+              | p::ps => List.foldl (fn (pred, acc) => ``(Or ^acc ^pred) : pred``) p ps
+      in
+        (final_predicate, action)
+      end
+
+  (* Build all rules - last terminal gets True *)
+  fun build_rules [] = []
+    | build_rules terminals =
+      let
+        val num_terms = length terminals
+        fun build idx remaining =
+            case remaining of
+                [] => []
+              | [term_id] =>  (* Last terminal gets True *)
+                  let
+                    val term_data = case List.find (fn (id, _) => id = term_id) labels of
+                                        SOME (_, data) => data
+                                      | NONE => raise Fail ("Terminal not found")
+                    val action = get_action term_data
+                  in
+                    [(``(True : pred)``, action)]
+                  end
+              | term_id::rest =>
+                  let
+                    val rule = build_rule_for_terminal term_id
+                  in
+                    rule :: build (idx+1) rest
+                  end
+      in
+        build 0 terminals
+      end
+
+  val rules = build_rules unique_terminals
+
+  val rule_terms = 
+      if null rules then
+        listSyntax.mk_list ([], ``:pred # action``)
+      else
+        let
+          val rule_pairs = map (fn (pred, act) => mk_pair (pred, act)) rules
+          val pair_type = type_of (hd rule_pairs)
+        in
+          listSyntax.mk_list (rule_pairs, pair_type)
+        end
+  
+in
+  rule_terms
+end
+
 
 
 end
