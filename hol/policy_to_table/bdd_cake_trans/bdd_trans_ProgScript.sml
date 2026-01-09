@@ -9,8 +9,6 @@ open miscTheory ml_translatorTheory ListProgTheory ;
 
 val _ = new_theory "bdd_trans_Prog";
 
-
-
 val _ = translation_extends "basisProg"
 val _ = intLib.deprecate_int();
 
@@ -20,7 +18,9 @@ val _ = intLib.deprecate_int();
 val r = translate update_internals_def;
 val r = translate distrubute_labels_def;
 val r = translate bdd_distribute_def;
+val r = translate FOLDL;
 val r = translate project_labels_to_def;
+
 
 val r = translate has_parent_def;
 val r = translate eliminable_def;
@@ -41,17 +41,10 @@ val r = translate optimize_node_def;
 val r = translate optimize_layer_def;
 
 val r = translate project_edges_to_def;
+
+
 val r = translate optimize_internals_def;
-
 val r = translate optimize_bdd_def;
-
-Theorem optimize_bdd_side_cake_trans:
-  optimize_bdd_side v10 v11
-Proof
-   cheat
-QED
-
-val _ = optimize_bdd_side_cake_trans |> update_precondition;
 
 
 (* translation of body_of_mk part*)
@@ -81,11 +74,13 @@ val r = translate sem_pred_def;
 val r = translate check_sem_pred_def;
 val r = translate sem_policy_def;
 
+
 val r = translate mk_substitute_pred_def;
 val r = translate mk_substitute_policy_def;
 
 val r = translate simp_pred_def;
 val r = translate simp_policy_def;
+
 
 val r = translate listTheory.EVERY_DEF;
 val r = translate rich_listTheory.SEG;
@@ -95,16 +90,40 @@ val r = translate final_policy_def;
 val r = translate fv_pred_def;
 val r = translate fv_policy_def;
 
-Theorem final_policy_cake_trans:
-  final_policy_side v4
+
+
+Theorem min_idx_till_pre_side_cond:
+  ∀ policy v1 v2.
+    min_idx_till policy True = SOME (v2,v1) ⇒
+    pre_are_fail_side policy v2
 Proof
-  rw [fetch "-" "final_policy_side_def"] >>
+  Induct >>
+
   rw [fetch "-" "pre_are_fail_side_def"] >>
   rw [Once (fetch "-" "seg_side_def")] >>
-  fs[min_idx_till_def] >> cheat
+  fs[min_idx_till_def, INDEX_FIND_def] >|[
+    Cases_on ‘v2’ >> gvs[]
+    ,
+    Cases_on ‘h’ >> gvs[] >>
+    Cases_on ‘q = True’ >> gvs[] >>
+    assume_tac (INST_TYPE [“:'a” |-> “:(pred # 'a)”] p4_auxTheory.P_hold_on_next) >>
+    first_x_assum (strip_assume_tac o (Q.SPECL [‘(0:num)’, ‘policy’, ‘(λ(p,a). p = True)’, ‘(SUC x13,v1)’])) >>
+    gvs[] >>
+    gvs [fetch "-" "pre_are_fail_side_def"]
+  ]
 QED
 
+
+Theorem final_policy_cake_trans:
+   ∀ policy. final_policy_side policy
+Proof
+  rw [fetch "-" "final_policy_side_def"] >>
+  metis_tac[min_idx_till_pre_side_cond]
+QED
+
+
 val _ = final_policy_cake_trans |> update_precondition;
+
 
 val r = ml_translatorLib.register_type ``:((pred # 'a) list, 'b) decision_structure``;
 val r = translate policy_structure_def;
@@ -485,7 +504,3 @@ val res = append_prog o process_topdecs $
 
 
 val _ = export_theory ();
-
-
-
-

@@ -22,18 +22,18 @@ val _ = new_theory "bdd_gen";
 
 
 
-    
+
 (******************************************************)
-(*   generalized types for a structure and BDD graph  *)    
+(*   generalized types for a structure and BDD graph  *)
 (******************************************************)
-    
+
 Hol_datatype `decision_structure = <| sem : 'a -> ((string,bool) alist) -> 'b option ;
                                       sub : 'a -> string -> bool -> 'a ;
                                       simp : 'a -> 'a ;
                                       final : 'a -> 'b option;
                                       fv : 'a -> string list
                                     |>`;
-                                                              
+
 (* BDD types *)
 val _ = type_abbrev("edges", ``:(num , (num # num)) alist``);
 
@@ -42,8 +42,8 @@ val _ = Hol_datatype `
                      label = termn of ('b # 'a )
                             | non_termn of (string option #  'a)`;
 
-        
-                                                                       
+
+
 Type labelings = ``:(num , ('a,'b) label) alist``;
 val _ = type_abbrev("BDD", ``:num # edges # ('a,'b) labelings``);
 
@@ -51,9 +51,9 @@ val _ = type_abbrev("BDD", ``:num # edges # ('a,'b) labelings``);
 
 
 
-    
+
 (******************************************************)
-(* generalized definition (relation) of BDD semantics *)    
+(* generalized definition (relation) of BDD semantics *)
 (******************************************************)
 
 Definition from_formula_to_action_def:
@@ -62,47 +62,47 @@ Definition from_formula_to_action_def:
   |  (termn (action,_))  => SOME action
   |  (non_termn (_,p)) => rec.sem p mv
 End
-   
 
-   
+
+
 Inductive BDD_sem:
-  
+
 [bdd_red_leaf:]
   ( ∀ (rec: ('a,'b) decision_structure) (r:num) (edges:edges) (labels: ('a,'b) labelings) (mv:(string#bool)list) (n:num) (p:('a,'b)label).
       ALOOKUP edges n = NONE ∧
-      ALOOKUP labels n  = SOME p  
-      ⇒      
-      BDD_sem rec (r,edges,labels) mv n (from_formula_to_action rec p mv) 
+      ALOOKUP labels n  = SOME p
+      ⇒
+      BDD_sem rec (r,edges,labels) mv n (from_formula_to_action rec p mv)
   )
-  
-  
+
+
 [bdd_red_T:]
   ( ∀ (rec: ('a,'b) decision_structure) (root:num) (edges:edges) (labels: ('a,'b) labelings) (mv:(string#bool)list) (n:num) (l:num) (r:num)  (pred:'a) (x:string) (b': 'b option).
       ALOOKUP edges n = SOME (l,r) ∧
       ALOOKUP labels n  = SOME (non_termn (SOME x ,pred)) ∧
       ALOOKUP mv x = SOME T ∧
       BDD_sem rec (root,edges,labels) mv l b'
-      ⇒      
+      ⇒
       BDD_sem rec (root,edges,labels) mv n b'
   )
-  
+
 [bdd_red_F:]
   ( ∀ (rec: ('a,'b) decision_structure) (root:num) (edges:edges) (labels: ('a,'b) labelings) (mv:(string#bool)list) (n:num) (l:num) (r:num) (pred:'a) (x:string) (b':'b option).
       ALOOKUP edges n = SOME (l,r) ∧
       ALOOKUP labels n  = SOME (non_termn (SOME x ,pred)) ∧
       ALOOKUP mv x = SOME F ∧
       BDD_sem rec (root,edges,labels) mv r b'
-      ⇒      
+      ⇒
       BDD_sem rec (root,edges,labels) mv n b'
-  )            
+  )
 
-End  
-
-
+End
 
 
 
-     
+
+
+
 
 
 (**********************************************)
@@ -112,11 +112,11 @@ End
 (* get leaves definition *)
 Definition get_leaves_list_def:
   get_leaves_list (edges : edges) =
-  nub (FILTER (\x. ~(MEM x (MAP FST edges))) 
+  nub (FILTER (\x. ~(MEM x (MAP FST edges)))
               (FLAT (MAP (\(k, (v1, v2)). [v1; v2]) edges)))
 End
 
-        
+
 Definition getLeaves_def:
   getLeaves [] r = SOME [r] ∧
   getLeaves edges r =
@@ -127,7 +127,7 @@ Definition getLeaves_def:
 End
 
 
-        
+
 (* get labels identified by the leafs *)
 Definition getLabels_def:
   (getLabels (labels:('a,'b) labelings) [] = SOME [] ) ∧
@@ -145,7 +145,7 @@ End
 
 
 
-(* from leaves's labels extract teh terminal ones as we wanna discard them *)        
+(* from leaves's labels extract teh terminal ones as we wanna discard them *)
 Definition extract_nontermn_def:
   extract_nontermn [] = SOME [] ∧
   extract_nontermn ((n,l)::leaves_labels) =
@@ -155,16 +155,16 @@ Definition extract_nontermn_def:
     | termn p  => SOME l'
     | non_termn (NONE , p) => SOME ((n ,p)::l')
     | non_termn (SOME x,p) => NONE
-    ) 
+    )
   | NONE => NONE
 End
 
-        
+
 
 Definition leaves_pred_sub_def:
   leaves_pred_sub rec (nodes_labels) x =
   MAP
-  (\(n,p).(n,x, rec.sub p x T, rec.sub p x F)) nodes_labels 
+  (\(n,p).(n,x, rec.sub p x T, rec.sub p x F)) nodes_labels
 End
 
 
@@ -175,15 +175,15 @@ Definition simp_pred_list_def:
 End
 
 
-        
+
 Definition determine_termn_def:
   determine_termn rec p =
   case rec.final(p) of
   | SOME b => termn (b, p)
-  | _ => non_termn (NONE,p) 
+  | _ => non_termn (NONE,p)
 End
 
-        
+
 
 Definition determine_termn_list_def:
   determine_termn_list rec nodes_simp =
@@ -191,21 +191,21 @@ Definition determine_termn_list_def:
 End
 
 
-        
+
 Definition mk_new_labels_def:
   mk_new_labels [] (c:num) =  [] ∧
-  mk_new_labels ((n,x',(label,label'))::rest) c =  (c, label)::(c+1, label')::(mk_new_labels rest (c+2)) 
+  mk_new_labels ((n,x',(label,label'))::rest) c =  (c, label)::(c+1, label')::(mk_new_labels rest (c+2))
 End
-        
+
 
 
 Definition mk_new_edges_def:
   mk_new_edges []                c =  [] ∧
-  mk_new_edges ((n:num,x',(p,p'))::rest) (c:num) =  (n, c, c+1)::(mk_new_edges rest (c+2))     
+  mk_new_edges ((n:num,x',(p,p'))::rest) (c:num) =  (n, c, c+1)::(mk_new_edges rest (c+2))
 End
 
 
-        
+
 Definition non_term_leaf_updt_def:
   non_term_leaf_updt l1 x =
     MAP (λ(n, lbl).
@@ -235,8 +235,8 @@ Definition body_of_mk_def:
                                  let label_leaf_updated = non_term_leaf_updt labels x
                                  in
                                    SOME (((r,  edges ++ new_edges, label_leaf_updated++new_labels):(('a,'b)BDD)),
-                                         c + (LENGTH new_labels) 
-                                        )             
+                                         c + (LENGTH new_labels)
+                                        )
                      )
                  | NONE => NONE
                )
@@ -254,11 +254,11 @@ Definition mk_BDDPred_def:
   (mk_BDDPred rec (BDD) l (x::xs) c =
    case (body_of_mk rec BDD (x:string) (c:num)) of
    | SOME (BDD',c') => mk_BDDPred rec BDD' (x::l) xs c'
-   | NONE => NONE 
+   | NONE => NONE
   )
 End
 
-        
+
 
 (*
 EVAL “mk_BDDPred pred_structure (0,[],[(0, non_termn (NONE, (Var "a")))]) [] ["a"] 1”;
@@ -281,13 +281,13 @@ val toBDD_pred_def = Define `
 (* generalised definitions for BDD WFness     *)
 (**********************************************)
 
-        
+
 
 val lookup_is_some_def = Define `
     lookup_is_some l1 n =
-     ? y . ALOOKUP l1 n = SOME y 
+     ? y . ALOOKUP l1 n = SOME y
 `;
-        
+
 val is_lookup_internal_def = Define `
     is_lookup_internal l1 n =
      ? x p . ALOOKUP l1 n = SOME (non_termn (SOME x, p))
@@ -298,22 +298,22 @@ val is_lookup_ntl_def = Define `
      ? p . ALOOKUP l1 n = SOME (non_termn (NONE, p))
 `;
 
-        
+
 
 Definition dom_range_edges_def:
-  dom_range_edges edges = 
+  dom_range_edges edges =
    nub (FLAT (MAP (λ(k,v1,v2). [k; v1; v2]) edges))
 End
 
 
-        
+
 Definition dom_labels_def:
-  dom_labels labels = 
+  dom_labels labels =
   MAP FST labels
 End
 
-        
-        
+
+
 (* i decided to make it domain of edges instead of labels cause
 all the proofs has split on edges and should prove labels*)
 
@@ -322,8 +322,8 @@ Definition BDD_WF_def:
   (ALL_DISTINCT (MAP FST edges)  ∧ ALL_DISTINCT (MAP FST labels) ∧
    (∀ n . MEM n (dom_range_edges edges) ⇒
           (lookup_is_some edges n ⇔ is_lookup_internal labels n )) ∧
-    (∀ n . MEM n (dom_range_edges edges) ⇒  
-       (ALOOKUP edges n = NONE 
+    (∀ n . MEM n (dom_range_edges edges) ⇒
+       (ALOOKUP edges n = NONE
                 ⇔   (is_lookup_ntl labels n
                      ∨ ∃ p b .ALOOKUP labels n= SOME (termn (b,p))))
     ) ∧
@@ -342,22 +342,22 @@ End
 Definition is_lbl_leaf_def:
   is_lbl_leaf (non_termn(SOME x,p)) = F ∧
   is_lbl_leaf (non_termn(NONE,p)) = T ∧
-  is_lbl_leaf (termn (b,p)) = T  
+  is_lbl_leaf (termn (b,p)) = T
 End
 
 
-        
+
 Definition order_hold_def:
   order_hold labels xl n n' =
   ∀ i i' x x' p p' (* lbl *).
   (ALOOKUP labels n  =  SOME (non_termn(SOME x,  p )) ∧
    ALOOKUP labels n' =  SOME (non_termn(SOME x', p')) ∧
    INDEX_OF x  xl = SOME i ∧
-   INDEX_OF x' xl = SOME i' 
-   ⇒ 
+   INDEX_OF x' xl = SOME i'
+   ⇒
    i' < i)
 End
-           
+
 
 Definition BDD_ordered_def:
   BDD_ordered ((r,edges,labels):('a,'b)BDD) xl =
@@ -373,17 +373,17 @@ End
 (*    other definitions must hold out of our control  *)
 (******************************************************)
 
-     
+
 Definition consumed_dom_bdd_def:
-  consumed_dom_bdd vars_consumed ((root,edges,labels):('a,'b)BDD) = 
+  consumed_dom_bdd vars_consumed ((root,edges,labels):('a,'b)BDD) =
   ∀ n p x.
     (ALOOKUP labels n = SOME (non_termn (SOME x,p))) ⇒
     MEM x vars_consumed
-End        
+End
 
 (*
 Definition mv_dom_bdd_def:
-  mv_dom_bdd mv ((root,edges,labels):('a,'b)BDD) = 
+  mv_dom_bdd mv ((root,edges,labels):('a,'b)BDD) =
   ∀ n p x.
     (ALOOKUP labels n = SOME (non_termn (SOME x,p))) ⇒
     lookup_is_some mv x
@@ -391,13 +391,13 @@ End
 *)
 
 Definition mv_dom_vars_def:
-  mv_dom_vars mv vars = 
+  mv_dom_vars mv vars =
   ∀ x.
     MEM x vars ⇒
     lookup_is_some mv x
 End
 
-    
+
 Definition range_c_def:
   range_c c ((r,edges,labels):('a,'b)BDD) =
    (EVERY (\n. c > n) (MAP FST labels))
@@ -410,7 +410,7 @@ End
 (* generalised definitions for BDD correctness  *)
 (************************************************)
 
-        
+
 Definition op_sem_def:
   op_sem rec opp mv =
   case opp of
@@ -419,7 +419,7 @@ Definition op_sem_def:
 End
 
 
-        
+
 Definition get_prop_def:
   get_prop labels n =
   (case ALOOKUP labels n of
@@ -445,13 +445,13 @@ End
 Definition fv_in_labels_def:
   fv_in_labels rec labels vars =
   ∀ n opx p. (ALOOKUP labels n = SOME (non_termn (opx,p)) ⇒
-         fv_in_vars rec p vars )  
+         fv_in_vars rec p vars )
 End
 
 
 Definition fv_in_BDD_def:
   fv_in_BDD rec (r,edges,labels) vars =
-  fv_in_labels rec labels vars 
+  fv_in_labels rec labels vars
 End
 
 
@@ -461,8 +461,8 @@ Definition correct_sem_def:
     BDD = (r,edges,labels) ∧
     mv_dom_vars mv vars  ∧
     BDD_sem rec BDD mv n b ⇒
-    b = op_sem rec (get_prop labels n) mv         
-End  
+    b = op_sem rec (get_prop labels n) mv
+End
 
 (*
 Definition correct_sem_def:
@@ -476,8 +476,8 @@ Definition correct_sem_def:
     fv_in_vars rec (get_prop labels n) mv ==>
   !b .
     BDD_sem rec BDD mv n b ⇒
-    b = op_sem rec (get_prop labels n) mv         
-End  
+    b = op_sem rec (get_prop labels n) mv
+End
 *)
 
 Definition valid_BDD_def:
@@ -486,12 +486,12 @@ Definition valid_BDD_def:
     BDD_ordered BDD vars_consumed ∧
     fv_in_BDD rec BDD ((REVERSE vars)++vars_consumed) ∧
     consumed_dom_bdd vars_consumed BDD)
-End  
+End
 
 (******************************************************)
 (*                  rec  properties                   *)
 (******************************************************)
-        
+
 
 Definition prop1_def:
   prop1 (rec:('a,'b)decision_structure) =
@@ -520,7 +520,7 @@ End
 
 
 Definition prop4_def:
-  prop4 rec =    
+  prop4 rec =
   ∀ varslist prop_parent p b h.
   rec.simp (rec.sub prop_parent h b) = p ∧
   fv_in_vars rec prop_parent varslist ⇒
@@ -540,30 +540,30 @@ Definition eq_vars_in_labels_def:
     | (SOME (non_termn (SOME x,_)), SOME (non_termn (SOME x',_))) => (x = x')
     | (SOME (non_termn (NONE, p)), SOME (non_termn (NONE,p'))) => (p=p')
     | _ => F
-End 
-           
-    
-Definition mergable_def:        
-  mergable ((r,edges,labels):('a,'b) BDD)  n n' = 
+End
+
+
+Definition mergable_def:
+  mergable ((r,edges,labels):('a,'b) BDD)  n n' =
   (n≠n' ∧ ALOOKUP edges n = ALOOKUP edges n' ∧
    eq_vars_in_labels labels n n' ∧ ALOOKUP labels n'  ≠ NONE )
 End
-      
-       
+
+
 (*
 EVAL “mergable (0,[(0,1,2)],
         [(0,non_termn (SOME "a",Or (Var "a") (Not (Var "a"))));
          (1,termn (T,True)); (2,termn (F,False));
          (3,non_termn (SOME "a",Or (Var "c") (Not (Var "a"))))]) 0 3”
 *)
-        
-        
+
+
 Definition merge_edges_def:
   merge_edges (edges:edges) n n' =
    MAP (\(a,b,c). ( a, if (b=n' ∧ c=n') then (n,n)
                  else if (b=n') then (n,c)
                  else if (c=n') then (b,n)
-                     else (b,c))) edges 
+                     else (b,c))) edges
 End
 
 
@@ -574,26 +574,26 @@ Definition merge_def:
       let labels' = ADELKEY n' labels in
           (r,edges'',labels')
 End
-        
+
 (*
 EVAL “merge (1,[(1,2,3);(2,4,5);(3,4,5)],[]) 2 3”
 *)
 
 
-(* the parent ≠ n here is important 
+(* the parent ≠ n here is important
    case we do not have ultimate root in the graph.
-   assume two roots can be eliminated, this wf condition of 
+   assume two roots can be eliminated, this wf condition of
     the nodes in edges being found after elminate fails
-*)    
+*)
 
 Definition has_parent_def:
   has_parent edges n n' =
-  EXISTS (λ(parent, (left, right)). (left = n' ∨ right = n') 
+  EXISTS (λ(parent, (left, right)). (left = n' ∨ right = n')
                                     ∧ parent ≠ n' ∧ parent ≠ n) edges
 End
 
 Definition eliminable_def:
-  eliminable ((r,edges,labels):('a,'b)BDD) n = 
+  eliminable ((r,edges,labels):('a,'b)BDD) n =
     case ALOOKUP edges n of
       |SOME (n1, n2) =>
         if n1 = n2 ∧
@@ -611,21 +611,21 @@ val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num
 
 
 Definition eliminable_projection_def:
-  eliminable_projection edges_proj n = 
+  eliminable_projection edges_proj n =
     case ALOOKUP edges_proj n of
       |SOME (n1, n2) =>
         if n1 = n2 ∧
            n1 ≠ n ∧
            n ≠ 0n ∧
-           has_parent edges_proj n1 n 
+           has_parent edges_proj n1 n
         then SOME n1
         else NONE
     | NONE => NONE
 End
 
 
-Definition mergable_projection_def:        
-  mergable_projection edges_proj labels_proj n n' = 
+Definition mergable_projection_def:
+  mergable_projection edges_proj labels_proj n n' =
   (n≠n' ∧ ALOOKUP edges_proj n = ALOOKUP edges_proj n' ∧
    eq_vars_in_labels labels_proj n n' ∧ ALOOKUP labels_proj n'  ≠ NONE )
 End
@@ -633,16 +633,16 @@ End
 
 
 Definition update_internals_def:
-  (update_internals pre [] n x = []) ∧    
+  (update_internals pre [] n x = []) ∧
   (update_internals pre (h::internals) n x =
    let (var, node_list_op) =  h in
      (if var ≠ x then
-        update_internals (pre++[h]) internals n x 
+        update_internals (pre++[h]) internals n x
       else
         (
         case node_list_op of
         | SOME l =>  pre++[(var, SOME (n::l))]++internals
-        | NONE => pre++[(var, SOME [n])]++internals                            
+        | NONE => pre++[(var, SOME [n])]++internals
         )
      )
   )
@@ -660,7 +660,7 @@ Definition distrubute_labels_def:
   )
 End
 
-           
+
 Definition bdd_distribute_def:
   bdd_distribute (BDD:('a,'b) BDD) order =
   let (r,edges,labels) = BDD in
@@ -690,8 +690,8 @@ End
 
 Definition optimize_node_def:
   (optimize_node edges_proj labels_proj (BDD:('a,'b) BDD) n [] = SND (eliminate_safe BDD n)) ∧
-  
-  (optimize_node edges_proj labels_proj BDD n (n'::nl) = 
+
+  (optimize_node edges_proj labels_proj BDD n (n'::nl) =
    case eliminable_projection edges_proj n of
    | SOME n' =>  SND (eliminate_safe BDD n)
    | NONE => (
@@ -700,7 +700,7 @@ Definition optimize_node_def:
               | (T, BDD') => BDD'
               | (F, BDD') => optimize_node edges_proj labels_proj BDD n nl
             )
-            
+
      | F => optimize_node edges_proj labels_proj BDD n nl)
   )
 End
@@ -715,13 +715,23 @@ End
 
 
 Definition project_edges_to_def:
-  project_edges_to ((r, edges,labels):('a,'b) BDD) nl = 
-    MAP (\n. (n,THE(ALOOKUP edges n))) nl
+  project_edges_to ((r, edges, labels):('a,'b) BDD) nl =
+    FOLDL
+      (\acc n.
+        case ALOOKUP edges n of
+        | NONE => acc
+        | SOME e => (n, e)::acc)
+      [] nl
 End
 
 Definition project_labels_to_def:
-  project_labels_to ((r, edges,labels):('a,'b) BDD) nl = 
-    MAP (\n. (n,THE(ALOOKUP labels n))) nl
+  project_labels_to ((r, edges,labels):('a,'b) BDD) nl =
+    FOLDL
+      (\acc n.
+        case ALOOKUP labels n of
+        | NONE => acc
+        | SOME e => (n, e)::acc)
+      [] nl
 End
 
 
@@ -738,7 +748,7 @@ Definition optimize_internals_def:
   )
 End
 
-        
+
 Definition optimize_bdd_def:
   optimize_bdd (BDD:('a,'b) BDD) order =
   let (internals,ntl,tl) = bdd_distribute (BDD:('a,'b) BDD) order in
@@ -748,7 +758,7 @@ Definition optimize_bdd_def:
           let BDD2 = optimize_layer [] labels_proj_ntl BDD1 ntl in
             optimize_internals BDD2 internals
 End
-                        
+
 
 
 
@@ -757,7 +767,7 @@ Definition mk_BDDPred_opt_def:
   (mk_BDDPred_opt rec (BDD) l (x::xs) c =
    case (body_of_mk rec BDD (x:string) (c:num)) of
    | SOME (BDD',c') => mk_BDDPred_opt rec (optimize_bdd BDD' (x::l)) (x::l) xs c'
-   | NONE => NONE 
+   | NONE => NONE
   )
 End
 
@@ -766,5 +776,5 @@ End
 
 
 
-                                             
+
 val _ = export_theory ();
