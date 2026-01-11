@@ -241,7 +241,7 @@ open bdd_utilsLib;
 
 
             val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_policy_exec”, “sem_policy”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract;
-            val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_policy_exec_thm1] var_eq_thm_extract_red;
+            val var_policy_var_policy_thm = SIMP_RULE bool_ss [correct_var_policy_var_policy_exec_thm1] var_eq_thm_extract_red;
 
             val _ = time_stage ("Stage 2 proof", start_cpu_total_stage2_proof, start_real_total_stage2_proof)
             val _ = time_stage ("Stage 2 total", start_cpu_total_stage2_bdd, start_real_total_stage2_bdd)
@@ -301,7 +301,7 @@ open bdd_utilsLib;
             assume_tac arith_policy_var_policy_thm2 >>
             first_x_assum (strip_assume_tac o (Q.SPECL [‘packet_input’,‘(create_mv ^policy_me packet_input)’])) >>
                           
-            assume_tac var_policy_var_table_thm >>
+            assume_tac var_policy_var_policy_thm >>
             first_x_assum (strip_assume_tac o (Q.SPECL [‘(create_mv ^policy_me packet_input)’])) >>
             fs[cond1_thm, cond2_thm] 
             );
