@@ -99,7 +99,7 @@ open bdd_utilsLib;
             val arith_policy_var_policy_thm = REWRITE_RULE[all_distinct_conj, arith_policy_eval]
             (ISPECL[arith_policy, var_policy, policy_me] policy_airth_to_var_sem_conversion_correct);
 
-            val _ = time_stage ("Stage 1", start_cpu_total, start_real_total)
+            val _ = time_stage ("Stage 1 for 2 BDDs ", start_cpu_total, start_real_total)
 
             (***********************)
             (*       STAGE 2       *)
@@ -153,8 +153,8 @@ open bdd_utilsLib;
 
             (*open Term;*)
 
-            val policy_bdd_content_term =
-                let
+            val policy_bdd_content_term = Parse.Term [QUOTE policy_content_str];
+               (* let
                     (* Clean the string by removing newlines and backslash escapes *)
                     fun clean s =
                         let
@@ -170,7 +170,7 @@ open bdd_utilsLib;
                     val parsed = Parse.Term [QUOTE cleaned]
                 in
                     parsed
-            end;
+            end;*)
 
             val _ = print "AA:finished cleaning input \n";
 
@@ -219,8 +219,8 @@ open bdd_utilsLib;
             val _ = print "AA:finished getting sexp table to hol4 \n";
 
 
-            val table_bdd_content_term =
-                let
+            val table_bdd_content_term = Parse.Term [QUOTE tbl_content_str];
+                (*let
                     (* Clean the string by removing newlines and backslash escapes *)
                     fun clean s =
                         let
@@ -236,7 +236,7 @@ open bdd_utilsLib;
                     val parsed = Parse.Term [QUOTE cleaned]
                 in
                     parsed
-            end;
+            end;*)
 
             val _ = print "AA:finished cleaning sexp table in hol4 \n";
 
