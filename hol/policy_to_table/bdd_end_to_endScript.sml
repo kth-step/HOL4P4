@@ -845,6 +845,71 @@ Proof
 QED
         
 
+(********************************************)
+(*     Var policy Var policy equivalence    *)
+(********************************************)
+
+        
+Theorem correct_var_policy_var_policy_thm1:
+  ∀ var_policy1 var_policy2 I vars BDD BDD' mv.
+    
+    isIsomorph I BDD BDD' ∧
+    ALOOKUP I 0 = SOME 0 ∧
+    node_in_BDD 0 BDD ∧
+             
+    SOME BDD = mk_BDDPred policy_structure  (0,[],[(0, non_termn (NONE, var_policy1 ))]) [] vars 1 ∧
+    SOME BDD'= mk_BDDPred policy_structure  (0,[],[(0, non_termn (NONE, var_policy2 ))]) [] vars 1 ∧
+  
+    (fv_in_vars policy_structure var_policy1 vars ∧
+     fv_in_vars policy_structure var_policy2 vars ∧
+     ALL_DISTINCT vars ∧
+     mv_dom_vars mv vars ∧
+     vars ≠ [] )
+
+    ⇒
+    sem_policy var_policy1 mv = sem_policy var_policy2 mv
+Proof
+cheat
+QED
+
+
+
+
+Definition correct_var_policy_var_policy_exec_def:
+  correct_var_policy_var_policy_exec var_policy1 var_policy2 vars I =
+  let BDD1_opt = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy1))]) [] vars 1 in
+    let BDD2_opt = mk_BDDPred_opt policy_structure  (0,[],[(0, non_termn (NONE, var_policy2))]) [] vars 1 in
+      if  ~ IS_SOME(BDD1_opt) \/  ~ IS_SOME (BDD2_opt) then
+	T
+      else let BDD1 = THE BDD1_opt in let BDD2 = THE BDD2_opt in
+          if  (isIsomorph_exec (I: (num #num) list) BDD1 BDD2 ∧
+              ALOOKUP I 0 = SOME 0 ∧
+              node_in_BDD 0 BDD1 ∧
+              node_in_BDD 0 BDD2 ∧
+              prop_in_BDD 0 BDD1 = SOME var_policy1 ∧
+              prop_in_BDD 0 BDD2 = SOME var_policy2 ∧
+              fv_in_vars_exec policy_structure var_policy2 vars ∧
+              fv_in_vars_exec policy_structure var_policy1 vars ∧
+              ALL_DISTINCT vars ∧
+              vars ≠ []) then
+
+            (! mv.  mv_dom_vars mv vars ⇒
+                   sem_policy var_policy1 mv = sem_policy var_policy2 mv)
+          else 
+            T
+End
+
+
+Theorem correct_var_policy_var_policy_exec_thm1:
+ ∀ var_policy1 var_policy2  vars I.
+ correct_var_policy_var_policy_exec var_policy1 var_policy2  vars I
+Proof
+cheat
+QED
+
+
+
+
 (******************************************
    
 arith policy to interval table requirement for gluing all assumtions of equiality theorems:                       

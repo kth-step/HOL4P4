@@ -33,7 +33,15 @@ all: $(TARGETS) $(if $(NEWHOLHEAP),$(NEWHOLHEAP),)
 
 INCLUDES       = $(DEPENDENCIES) $(if $(HOLHEAP),$(shell dirname $(HOLHEAP)),)
 
-EXTRA_CLEANS   = $(if $(NEWHOLHEAP),$(NEWHOLHEAP) $(NEWHOLHEAP).o,) $(wildcard *.exe)
+EXTRA_CLEANS   = $(if $(NEWHOLHEAP),$(NEWHOLHEAP) $(NEWHOLHEAP).o,) \
+                 $(wildcard *~) \
+                 .hol/ \
+                 *.uo \
+                 *.ui \
+                 *Theory.sml \
+                 *Theory.sig \
+                 *Script.ui \
+                 *Script.uo
 
 OPTIONS        = QUIT_ON_FAILURE
 
