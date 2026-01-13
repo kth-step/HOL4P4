@@ -13,6 +13,9 @@ hol/p4_from_json: hol
 
 validate: hol/p4_from_json
 	cd hol/p4_from_json && ./validate.sh
+	
+metatheory: hol
+	Holmake -r -I hol/metatheory
 
 concurrency: hol/p4_from_json
 	Holmake -r -I hol/p4_from_json/concurrency_tests
