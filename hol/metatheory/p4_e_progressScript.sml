@@ -1333,21 +1333,24 @@ gvs[]
 
 
 
-
 val wf_imp_ci_abstract_single = prove ( ``
-!e d x ss oracle_index random_oracle.
+!e d x ss random_oracle.
 wf_arg d x e ss ==>
-?scope. copyin_abstract [x] [d] [e] ss scope oracle_index random_oracle``,
+?scope. copyin_abstract [x] [d] [e] ss scope random_oracle``,
 
-REPEAT STRIP_TAC  >>
+rpt strip_tac >>
 Q.EXISTS_TAC `[(varn_name x , (\ (a,b). (FST a, b)) $ THE (one_arg_val_for_newscope d e ss oracle_index random_oracle))]` >>
-
 fs[copyin_abstract_def] >>
-IMP_RES_TAC wf_imp_val_lval >>
+rpt strip_tac >> (
+ imp_res_tac wf_imp_val_lval
+) >- (
+ Q.PAT_X_ASSUM ‘!random_oracle i. _’ (fn thm => assume_tac $ Q.SPECL [‘random_oracle’, ‘oracle_index’] thm) >>
+ gvs[]
+) >>
+qexists_tac ‘oracle_index’ >>
 Q.PAT_X_ASSUM ‘!random_oracle i. _’ (fn thm => assume_tac $ Q.SPECL [‘random_oracle’, ‘oracle_index’] thm) >>
-gvs[]
+gs[]
 );
-
 
 
 
@@ -1434,19 +1437,19 @@ gvs[] >| [
 
 
 
-val copyin_eq_rw = prove ( ``
+val copyin_imp_rw = prove ( ``
 ! xl dl el gscope scopest scope oracle_index random_oracle.
    (LENGTH xl = LENGTH dl) /\
    (LENGTH dl = LENGTH el) /\     
      (ALL_DISTINCT xl) ∧
      (wf_arg_list dl xl el  (scopest ⧺ gscope))  ==>
 ((?i_opt. SOME (scope, i_opt) = copyin xl dl el gscope scopest oracle_index random_oracle)
-<=>
-copyin_abstract xl dl el (scopest ⧺ gscope) scope oracle_index random_oracle)
+==>
+copyin_abstract xl dl el (scopest ⧺ gscope) scope random_oracle)
 ``,
 
 REPEAT STRIP_TAC >>
-ASSUME_TAC copyin_eq >>
+ASSUME_TAC copyin_imp >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`ZIP (el,ZIP (xl,dl))`, `gscope`,
      `scopest`, `scope`, ‘oracle_index’, ‘random_oracle’])) >>
@@ -1455,7 +1458,8 @@ gvs[] >>
 `(MAP (λ(e,x,d). x) (ZIP (el,ZIP (xl,dl)))) = xl` by gvs[GSYM map_distrub] >>
 `(MAP (λ(e,x,d). d) (ZIP (el,ZIP (xl,dl)))) = dl` by gvs[GSYM map_distrub] >>
 `(MAP (λ(e,x,d). e) (ZIP (el,ZIP (xl,dl)))) = el` by gvs[GSYM map_distrub] >>
-gvs[]
+gvs[] >>
+metis_tac[]
 );
 
 
@@ -1479,7 +1483,6 @@ Theorem PROG_e:
 (! (l2: (string#e) list) .  prog_strexp_list l2 ty) /\
 (! tup. prog_strexp_tup tup ty)
 Proof
-
 STRIP_TAC >>
 Induct >| [
 
@@ -1976,7 +1979,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
 
 (*show that the copyin_abstract is implied by the wfness of args *)
 
- ASSUME_TAC copyin_eq_rw >>
+ ASSUME_TAC copyin_imp_rw >>
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [`(MAP FST (xdl : (string # d) list))`,
     `(MAP (λ(e_,tau_,x_,d_,b_). d_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
@@ -1989,7 +1992,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
                 (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) gscope scopest c6 c7)` >>
  gvs[] >>
 
- Cases_on ` copyin (MAP FST xdl) (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
+ Cases_on `copyin (MAP FST xdl) (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
           (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) gscope scopest c6 c7` >| [
 	  
    IMP_RES_TAC wf_arg_list_NONE2 >>

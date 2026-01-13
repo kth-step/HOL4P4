@@ -297,13 +297,6 @@ STRIP_TAC >| [
  RES_TAC >>
  gvs[]
  ,
- (*FR_LEN_STMT_IND_CASE “stmt_verify e e0” >>
- gvs[] >>
- ASSUME_TAC fr_len_from_e_theorem >>
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`])) >>
- fs[fr_len_exp_def] >> gvs[] >>
- RES_TAC >> gvs[]
- ,*)
  FR_LEN_STMT_IND_CASE “stmt_trans e” 
  ,
  OPEN_STMT_RED_TAC “stmt_app s l” >>
@@ -582,13 +575,6 @@ REPEAT STRIP_TAC >| [
 
 
 
-(*
-EVAL “declare_list_in_fresh_scope [(varn_name "x",tau_bot)]”
-EVAL “ type_scopes_list [[(varn_name "x",v_bot,NONE)]] [[(varn_name "x",tau_bot)]] ”
-*)
-
-
-
 
 
 val tsl_singletone_exists = prove (“
@@ -833,50 +819,7 @@ STRIP_TAC  >| [
 
  (* the output scope sc is only of length 1*)
  IMP_RES_TAC tsl_singletone_exists >>
- gvs[] 
-
-(*
- (* show that txdl and txdl ' are the same *) 
- IMP_RES_TAC t_lookup_funn_ext_lemma >>                  
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_g`, `delta_b`])) >>
- gvs[] >>
- Cases_on ‘t_lookup_funn (funn_inst s) delta_g delta_b delta_x’ >> gvs[] >>
-          
- (* we know that the scopest (initial one) must be of size 1 *)
- IMP_RES_TAC ext_sc_same_as_input_LENGTH >>
- (*‘LENGTH scopest = 1’ by gvs[] >>
- ‘∃ outsc. scopest = [outsc]’ by  fs[quantHeuristicsTheory.LIST_LENGTH_1] >>
-
- (* same for the typing scope*)
- ‘LENGTH tsl = 1’ by (IMP_RES_TAC type_scopes_list_LENGTH >>   gvs[]) >>
- ‘∃ tsc. tsl = [tsc]’ by  fs[quantHeuristicsTheory.LIST_LENGTH_1] >>
- gvs[] >>
- *)
-
- fs[args_t_same_def, same_dir_x_def] >> 
- gvs[mk_tscope_def] >>
- srw_tac [] [] >>
-     
- (* we know that ts contains the same types as the input*)
- subgoal ‘  [tsc] = [ZIP (MAP FST tsc ,ZIP(MAP (λ(t,x,d). t)  txdl, MAP (λtxd. lol) txdl ))]’ >-
-  ( gvs[ELIM_UNCURRY, map_fst_EQ ] >>
-                      
-    ASSUME_TAC LOL_ext_sc_same_as_input >>
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘sc’, ‘outsc’,
-                                                ‘ZIP (mk_varn (MAP (λx. FST (SND x)) (txdl : (tau # string # d) list)),
-                                                      ZIP (MAP FST (txdl : (tau # string # d) list),
-                                                           MAP (λtxd. lol) txdl ))’,
-                                                ‘tsc’, ‘MAP (λtxd. lol) (txdl : (tau # string # d) list)’])) >>
-   gvs[] >>
-   METIS_TAC [ZIP_tri_id1, map_lemma_local_tmp ]    
-  ) >>
-                 
- IMP_RES_TAC typ_ext_out_scope_lemma >>
- rfs[] >>
-     
- LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`MAP FST (tsc : (varn # tau) list)`])) >>
- srw_tac [][] >>    
- METIS_TAC [] *)
+ gvs[]
  ,
         
  (*ext methods *)
@@ -895,51 +838,7 @@ STRIP_TAC  >| [
                                     
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ascope`, `gscope`, ‘scopest’])) >>
  gvs[] >>
- Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[] 
-(*
- IMP_RES_TAC tsl_singletone_exists >>
- gvs[] >>
-            
- IMP_RES_TAC t_lookup_funn_ext_lemma >>                  
- FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`delta_g`, `delta_b`])) >>
- gvs[] >>
- Cases_on ‘t_lookup_funn (funn_ext s s0) delta_g delta_b delta_x’ >> gvs[] >>
-          
-  (* we know that the scopest (initial one) must be of size 1 *)
- IMP_RES_TAC ext_sc_same_as_input_LENGTH >>
- ‘LENGTH scopest = 1’ by gvs[] >>
- ‘∃ outsc. scopest = [outsc]’ by  fs[quantHeuristicsTheory.LIST_LENGTH_1] >>
-
- (* same for the typing scope*)
- ‘LENGTH tsl = 1’ by (IMP_RES_TAC type_scopes_list_LENGTH >>   gvs[]) >>
- ‘∃ tsc. tsl = [tsc]’ by  fs[quantHeuristicsTheory.LIST_LENGTH_1] >>
-  gvs[] >>
-
-
-  fs[args_t_same_def, same_dir_x_def] >> 
-  gvs[mk_tscope_def] >>
-  srw_tac [] [] >>
-
- (* we know that ts contains the same types as the input*)
- subgoal ‘  [tsc] = [ZIP (MAP FST tsc ,ZIP(MAP (λ(t,x,d). t)  txdl, MAP (λtxd. lol) txdl ))]’ >-
-  ( gvs[ELIM_UNCURRY, map_fst_EQ ] >>
-                      
-    ASSUME_TAC LOL_ext_sc_same_as_input >>
-    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘sc’, ‘outsc’,
-                                                ‘ZIP (mk_varn (MAP (λx. FST (SND x)) (txdl : (tau # string # d) list)),
-                                                      ZIP (MAP FST (txdl : (tau # string # d) list),
-                                                           MAP (λtxd. lol) txdl))’,
-                                                ‘tsc’, ‘MAP (λtxd. lol) (txdl : (tau # string # d) list)’])) >>
-   gvs[] >>
-   METIS_TAC [ZIP_tri_id1, map_lemma_local_tmp ]     
-  ) >>
-                 
- IMP_RES_TAC typ_ext_out_scope_lemma >>
- rfs[] >>
-     
- LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`MAP FST (tsc : (varn # tau) list)`])) >>
- srw_tac [][] >>    
- METIS_TAC []    *)     
+ Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[]
   ]
 );
                 
@@ -2945,7 +2844,6 @@ val stmt_to_stmt_single = prove (“
  type_scopes_list scopest tsl ∧
  type_scopes_list gscope tslg ∧
  star_not_in_sl scopest ∧
- (*parseError_in_gs tslg [tsl] ∧*)
 
  SOME (txdl,tau) = t_lookup_funn f delta_g delta_b delta_x ∧
  args_t_same (MAP FST txdl) tsl ∧
@@ -3006,14 +2904,6 @@ STRIP_TAC >|  [
    ASSUME_SR_EXP_FOR ‘e’  >>
    imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
    qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
-(*
-
-fun INST_SR2_EXP_FOR (e', tau, b, frl) = 
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e', ‘gscope’, ‘scopest’, frl, ‘i_opt’, ‘tsl’, ‘tslg’, tau, b,
-                                      ‘order’,‘delta_g’,‘delta_b’, ‘delta_t’,‘delta_x’,‘f’,‘f_called’,‘stmt_called’,‘copied_in_scope’])) >>
-   FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘get_oracle_index ascope’, ‘random_oracle’])) >> gvs[]
-
-*)
    INST_SR2_EXP_FOR (‘e''’, ‘t_tau tau'’, ‘b’, ‘framel’)  >>
    srw_tac [SatisfySimps.SATISFY_ss][]
  ]    
@@ -3474,16 +3364,296 @@ gvs[] >| [
 ]
 QED
 
-      
+
+Theorem FOLDL_init_from_tau_SNOC[local]:
+!t t' random_oracle h' r.
+FST
+ (FOLDL
+    (λ(l,i') (x,tau).
+         (λ(v,i''). (v::l,i''))
+           (init_from_tau random_oracle i' tau)) (SNOC h' t',r) t) =
+SNOC h' (FST
+ (FOLDL
+    (λ(l,i') (x,tau).
+         (λ(v,i''). (v::l,i''))
+           (init_from_tau random_oracle i' tau)) (t',r) t))
+Proof
+Induct >> (
+ rpt strip_tac >>
+ gs[FOLDL]
+) >>
+PairCases_on ‘h’ >>
+gvs[] >>
+Cases_on ‘init_from_tau random_oracle r h1’ >> gs[] >>
+qpat_assum ‘!random_oracle h'. _’ (fn thm => REWRITE_TAC[GSYM thm]) >>
+gs[]
+QED
+
+Theorem FOLDL_init_from_tau_SNOC_tup[local]:
+!t t' random_oracle h' r.
+FST
+ (FOLDL
+    (λ(l,i') (x,tau).
+         (λ(v,i''). ((x,v)::l,i''))
+           (init_from_tau random_oracle i' tau)) (SNOC h' t',r) t) =
+SNOC h' (FST
+ (FOLDL
+    (λ(l,i') (x,tau).
+         (λ(v,i''). ((x,v)::l,i''))
+           (init_from_tau random_oracle i' tau)) (t',r) t))
+Proof
+Induct >> (
+ rpt strip_tac >>
+ gs[FOLDL]
+) >>
+PairCases_on ‘h’ >>
+gvs[] >>
+Cases_on ‘init_from_tau random_oracle r h1’ >> gs[] >>
+qpat_assum ‘!random_oracle h'. _’ (fn thm => REWRITE_TAC[GSYM thm]) >>
+gs[]
+QED
+
+(* TODO: Generalise *)
+Theorem FOLDL_init_from_tau_APPEND[local]:
+!t random_oracle q r.
+FST
+ (FOLDL
+    (λ(l,i') (x,tau).
+         (λ(v,i''). (v::l,i''))
+           (init_from_tau random_oracle i' tau)) ([q],r) t) =
+FST
+ (FOLDL
+    (λ(l,i') (x,tau).
+         (λ(v,i''). (v::l,i''))
+           (init_from_tau random_oracle i' tau)) ([],r) t) ++ [q]
+Proof
+Induct >> (
+ rpt strip_tac >>
+ gs[FOLDL]
+) >>
+PairCases_on ‘h’ >>
+gvs[] >>
+Cases_on ‘init_from_tau random_oracle r h1’ >> gs[] >>
+‘!l. l ++ [q'; q] = (SNOC q' l) ++ [q]’ by gs[] >>
+ASM_REWRITE_TAC[] >>
+REWRITE_TAC[GSYM FOLDL_init_from_tau_SNOC] >>
+REWRITE_TAC[SNOC] >>
+‘!l. l ++ [q] = (SNOC q l)’ by gs[] >>
+qpat_assum ‘!l. l ++ [q] = (SNOC q l)’ (fn thm => REWRITE_TAC[thm]) >>
+REWRITE_TAC[GSYM FOLDL_init_from_tau_SNOC] >>
+REWRITE_TAC[SNOC]
+QED
+
+(* L-folding using init_from_tau preserves LENGTH *)
+(* TODO: Generalise *)
+Theorem FOLDL_init_from_tau_LENGTH[local]:
+!t random_oracle q r xl vl r'.
+ LENGTH $ FST $ FOLDL
+  (λ(x_v_l,i') (x,tau).
+       (λ(v,i''). (v::x_v_l,i''))
+         (init_from_tau random_oracle i' tau)) ([q],r) t = SUC $ LENGTH t
+Proof
+Induct >> (
+ gs[]
+) >>
+rpt strip_tac >>
+PairCases_on ‘h’ >>
+gs[] >>
+Cases_on ‘init_from_tau random_oracle r h1’ >>
+gs[] >>
+REWRITE_TAC[GSYM SNOC] >>
+REWRITE_TAC[Once FOLDL_init_from_tau_SNOC] >>
+gs[LENGTH_SNOC]
+QED
+
+(* Every entry of the list of initial values is a value
+ * initialised by init_from_tau, for some oracle index *)
+Theorem FOLDL_init_from_tau_oracle_index[local]:
+!t random_oracle i r.
+ i < LENGTH t ==>
+ ?j.
+   EL i
+     (REVERSE
+        (FST
+           (FOLDL
+              (λ(l,i') (x,tau).
+                   (λ(v,i''). (v::l,i''))
+                     (init_from_tau random_oracle i' tau)) ([],r) t))) =
+   FST (init_from_tau random_oracle j (EL i (MAP SND t)))                     
+Proof
+Induct >> (
+ gs[]
+) >>
+rpt strip_tac >>
+PairCases_on ‘h’ >>
+gs[] >>
+Cases_on ‘init_from_tau random_oracle r h1’ >>
+gs[] >>
+REWRITE_TAC[GSYM SNOC] >>
+REWRITE_TAC[Once FOLDL_init_from_tau_SNOC] >>
+gs[REVERSE_SNOC] >>
+Cases_on ‘i’ >- (
+ gs[] >>
+ qexists_tac ‘r’ >>
+ gs[]
+) >>
+gs[]
+QED
+
+Theorem FOLDL_init_from_tau_MAP_SND[local]:
+!t random_oracle q h0 r xl vl r'.
+FST
+ (FOLDL
+    (λ(l,i') (x,tau).
+         (λ(v,i''). (v::l,i'')) (init_from_tau random_oracle i' tau))
+    ([q],r) t) =
+ MAP SND
+  (FST
+    (FOLDL
+       (λ(x_v_l,i') (x,tau).
+            (λ(v,i''). ((x,v)::x_v_l,i''))
+              (init_from_tau random_oracle i' tau)) ([(h0,q)],r) t))
+Proof
+Induct >> (
+ gs[]
+) >>
+rpt strip_tac >>
+PairCases_on ‘h’ >>
+gs[] >>
+Cases_on ‘init_from_tau random_oracle r h1’ >>
+gs[] >>
+REWRITE_TAC[GSYM SNOC] >>
+REWRITE_TAC[Once FOLDL_init_from_tau_SNOC_tup] >>
+gs[SNOC] >>
+qpat_assum ‘!random_oracle q. _’ (fn thm => REWRITE_TAC[GSYM thm]) >>
+REWRITE_TAC[GSYM SNOC_APPEND] >>
+REWRITE_TAC[GSYM FOLDL_init_from_tau_SNOC] >>
+gs[]
+QED
+
+(* TODO: Move *)
+Theorem ZIP_FRONT:
+∀l1 l2.
+l1 ≠ [] ∧ l2 ≠ [] ⇒
+FRONT (ZIP (l1,l2)) =
+ ZIP (FRONT l1,FRONT l2)
+Proof
+Induct_on ‘l1’ >> Induct_on ‘l2’ >> gs[] >>
+rpt strip_tac >>
+Cases_on ‘l2’ >> gs[ZIP_def] >>
+Cases_on ‘l1’ >> gs[ZIP_def] >>
+qpat_x_assum ‘!l2. _’ (fn thm => assume_tac $ Q.SPECL [‘h''::t’] thm) >>
+gs[]
+QED
+
+(* TODO: Move *)
+Theorem ZIP_LAST:
+∀l a b l1 l2.
+LENGTH l1 = LENGTH l2 ⇒
+l ++ [(a,b)] = ZIP(l1,l2) ⇒ LAST l1 = a
+Proof
+Induct >> (
+ rpt strip_tac >>
+ gs[] >>
+ Cases_on ‘l1’ >> Cases_on ‘l2’ >> gvs[ZIP_def, LAST_DEF]
+) >- (
+ Cases_on ‘t’ >>  Cases_on ‘t'’ >> gs[ZIP_def]
+) >>
+res_tac >>
+gs[] >>
+Cases_on ‘t’ >> gs[ZIP_def]
+QED
+
+(* L-folding using init_from_tau preserves the IDs as the first
+ * list elements *)
+(* TODO: Generalise *)
+Theorem FOLDL_init_from_tau_identifiers[local]:
+!t random_oracle h0 q r xl vl r'.
+ LENGTH xl = LENGTH vl ==>
+ FOLDL
+  (λ(x_v_l,i') (x,tau).
+       (λ(v,i''). ((x,v)::x_v_l,i''))
+         (init_from_tau random_oracle i' tau)) ([(h0,q)],r) t =
+   (ZIP (xl,vl),r') ==>
+xl = REVERSE (h0::MAP FST t)
+Proof
+Induct >> (
+ gs[] >>
+ rpt strip_tac
+) >- (
+ Cases_on ‘xl’ >> Cases_on ‘vl’ >>  gs[ZIP_EQ_NIL]
+) >>
+PairCases_on ‘h’ >>
+gs[] >>
+Cases_on ‘init_from_tau random_oracle r h1’ >>
+gs[] >>
+‘xl = [] ⇔ vl = []’ by (Cases_on ‘xl’ >> Cases_on ‘vl’ >> gs[]) >>
+FULL_SIMP_TAC bool_ss [GSYM SNOC] >>
+‘FST $ FOLDL
+          (λ(x_v_l,i') (x,tau).
+               (λ(v,i''). ((x,v)::x_v_l,i''))
+                 (init_from_tau random_oracle i' tau))
+          (SNOC (h0,q) (SNOC (h0',q') []),r'') t = ZIP (xl,vl)’ by gs[] >>
+FULL_SIMP_TAC bool_ss [Once FOLDL_init_from_tau_SNOC_tup] >>
+‘LAST xl = h0 /\ FRONT xl = REVERSE (MAP FST t) ⧺ [h0']’ suffices_by (
+ rpt strip_tac >>
+ ‘xl = (FRONT xl) ++ [LAST xl]’ by (
+  Cases_on ‘xl’ >> Cases_on ‘vl’ >> gs[] >>
+  ‘h::t' = SNOC (LAST (h::t')) (FRONT (h::t'))’ by gs[GSYM SNOC_LAST_FRONT] >>
+  gs[]
+ ) >>
+ gs[]
+) >>
+strip_tac >- (     
+ imp_res_tac ZIP_LAST >>
+ LAST_ASSUM irule >>
+ qexistsl_tac [‘q’, ‘FST
+          (FOLDL
+             (λ(x_v_l,i') (x,tau).
+                  (λ(v,i''). ((x,v)::x_v_l,i''))
+                    (init_from_tau random_oracle i' tau)) ([(h0',q')],r'') t)’] >>
+ gs[]
+) >>
+gs[] >>
+qpat_x_assum ‘!random_oracle. _’ irule >>
+Cases_on ‘FOLDL
+            (λ(x_v_l,i') (x,tau).
+                 (λ(v,i''). ((x,v)::x_v_l,i''))
+                   (init_from_tau random_oracle i' tau)) ([(h0',q')],r'') t’ >>
+qexistsl_tac [‘q'’, ‘r''’, ‘r'''’, ‘random_oracle’, ‘FRONT vl’] >>
+gs[] >>
+Cases_on ‘xl’ >> Cases_on ‘vl’ >> gs[] >>
+‘FRONT (q'' ⧺ [(h0,q)]) = FRONT ((h,h')::ZIP (t',t''))’ by gs[] >>
+FULL_SIMP_TAC bool_ss [GSYM SNOC_APPEND, FRONT_SNOC] >>
+gs[FRONT_CONS] >>
+REWRITE_TAC[GSYM ZIP_def] >>
+gs[ZIP_FRONT]
+QED
+
+(* TODO: Move *)
+Theorem MAP_SND_EL:
+∀l i.
+i < LENGTH l ⇒
+SND (EL i l) = EL i (MAP SND l)
+Proof
+Induct >- (
+ gs[]
+) >>
+rpt strip_tac >>
+Cases_on ‘i’ >> (
+ gs[]
+)
+QED
+
 Theorem init_from_tau_is_typed:
 !(ty:'a itself).
  (∀t. init_from_tau_typed t ty ) ∧
  (∀l. init_stl_from_tau_typed l ty) ∧
  (∀(st:(string#tau)). init_st_tup_from_tau_typed st ty)  
 Proof
-STRIP_TAC >>
+strip_tac >>
 Induct >~ [‘∀s. init_from_tau_typed (tau_xtl s l) ty’] >- (
- STRIP_TAC >>
+ strip_tac >>
  gvs[init_from_tau_typed_def] >>
  rpt strip_tac >>
  Cases_on ‘s’ >>
@@ -3500,8 +3670,10 @@ Induct >~ [‘∀s. init_from_tau_typed (tau_xtl s l) ty’] >- (
 
      Third subgoal states well-typedness of all the individual elements. This needs to make use of the IH.
    * *)
+
    qexists_tac ‘ZIP(MAP(λ(x,tau). x) (h::t),
-                ZIP (REVERSE $ FST (FOLDL (λ(l,i') (x,tau). let (v,i'') = init_from_tau random_oracle i' tau in (v::l, i'')) ([],i) (h::t)) ,
+                ZIP (REVERSE $ FST (FOLDL (λ(l,i') (x:string,tau). (λ(v,i''). (v::l,i''))
+                         (init_from_tau random_oracle i' tau)) ([],i) (h::t)) ,
                        MAP (λ(x,tau). tau) (h::t)))’ >>
          
    gvs[] >>
@@ -3509,41 +3681,56 @@ Induct >~ [‘∀s. init_from_tau_typed (tau_xtl s l) ty’] >- (
    rw[] >| [
 
      Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
+    
      Cases_on ‘(FOLDL
                 (λ(x_v_l,i') (x,tau).
                      (λ(v,i''). ((x,v)::x_v_l,i''))
                        (init_from_tau random_oracle i' tau)) ([(h0,q)],r) t)’ >>
+
+     rw[] >>
      (* Preconditions of map_distrub *)
-     (* TODO: The FOLDL stuff preserves the length of t *)
      ‘LENGTH (h0::MAP (λ(x,tau). x) t) = LENGTH (REVERSE
                    (FST
                       (FOLDL
                          (λ(l,i') (x,tau).
                               (λ(v,i''). (v::l,i''))
                                 (init_from_tau random_oracle i' tau)) ([q],r)
-                         t)))’ by cheat >>
+                         t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
      ‘LENGTH (REVERSE
               (FST
                  (FOLDL
                     (λ(l,i') (x,tau).
                          (λ(v,i''). (v::l,i''))
                            (init_from_tau random_oracle i' tau)) ([q],r)
-                    t))) = LENGTH (h1::MAP (λ(x,tau). tau) t)’ by cheat >>
+                    t))) = LENGTH (h1::MAP (λ(x,tau). tau) t)’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
      gs[map_distrub] >>
-     (* TODO: Need to show that the reverse of FOLDL of both IDs and taus is equal to the
-      * IDs zipped with the reverse of FOLDL of taus *)
-     cheat
-(*
-     subgoal ‘∀ (l:(string#tau)list) .  MAP (λ(x,t). (x,init_from_tau t)) l =
-             ZIP (MAP (λ(x,tau). x) l,MAP (λ(x,tau). init_from_tau tau) l) ’  >-      
-     (Induct >> gvs[] >> REPEAT STRIP_TAC >> PairCases_on ‘h’ >> gvs[]) >>
+
+     ‘(FST
+       (FOLDL
+          (λ(l,i') (x,tau).
+               (λ(v,i''). (v::l,i''))
+                 (init_from_tau random_oracle i' tau)) ([q],r) t)) =
+      MAP SND $ FST $
+       FOLDL
+          (λ(x_v_l,i') (x,tau).
+               (λ(v,i''). ((x,v)::x_v_l,i''))
+                 (init_from_tau random_oracle i' tau)) ([(h0,q)],r) t’ by gs[FOLDL_init_from_tau_MAP_SND] >>
+     gs[lambda_FST] >>
+     ‘?xl vl. q' = ZIP(xl,vl) /\ LENGTH xl = LENGTH vl’ by (
+      qexistsl_tac [‘MAP FST q'’, ‘MAP SND q'’] >>
+      gs[ZIP_MAP_FST_SND]
+     ) >>
+     (* A bit clumsy, make better? *)
+     imp_res_tac FOLDL_init_from_tau_identifiers >>     
+     gs[MAP_ZIP, REVERSE_ZIP] >>
+     ‘REVERSE xl = h0::MAP FST t’ suffices_by gs[] >>
+     res_tac >>
      gvs[]
-*)
      ,
      
      gs[lambda_FST, lambda_SND] >>
-
-     (* TODO: The FOLDL stuff preserves the length of t *)
+     Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
+     (* Preconditions of map_distrub *)
      ‘LENGTH (h0::MAP FST t) = LENGTH (REVERSE
                    (FST
                       (FOLDL
@@ -3551,7 +3738,7 @@ Induct >~ [‘∀s. init_from_tau_typed (tau_xtl s l) ty’] >- (
                               (λ(v,i''). (v::l,i''))
                                 (init_from_tau random_oracle i' tau))
                          ((λ(v,i''). ([v],i''))
-                            (init_from_tau random_oracle i h1)) t)))’ by cheat >>
+                            (init_from_tau random_oracle i h1)) t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
      ‘LENGTH (REVERSE
                    (FST
                       (FOLDL
@@ -3559,88 +3746,223 @@ Induct >~ [‘∀s. init_from_tau_typed (tau_xtl s l) ty’] >- (
                               (λ(v,i''). (v::l,i''))
                                 (init_from_tau random_oracle i' tau))
                          ((λ(v,i''). ([v],i''))
-                            (init_from_tau random_oracle i h1)) t))) = LENGTH (h1::MAP SND t)’ by cheat >>
+                            (init_from_tau random_oracle i h1)) t))) = LENGTH (h1::MAP SND t)’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
      gs[map_distrub] >>
      fs[ZIP_MAP_FST_SND]
      ,
+
      gvs[init_stl_from_tau_typed_def] >>
+     Cases_on ‘init_from_tau random_oracle i h1’ >> gvs[] >>
+     (* The special case of i'=0 is a bit easier *)
      fs[Once EL_compute] >> Cases_on ‘i'=0’ >> gvs[EL_CONS] >| [
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`(h0,h1)`])) >>
        gvs[init_from_tau_typed_def] >>
-       (* TODO: use map_distrub *)
-       cheat
+       gs[lambda_FST, lambda_SND] >>
+       (* use map_distrub, then grab the heads *)
+       ‘LENGTH (h0::MAP FST t) = LENGTH (REVERSE
+                     (FST
+                        (FOLDL
+                           (λ(l,i') (x,tau).
+                                (λ(v,i''). (v::l,i''))
+                                  (init_from_tau random_oracle i' tau))
+                           ((λ(v,i''). ([v],i''))
+                              (init_from_tau random_oracle i h1)) t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+    ‘LENGTH (REVERSE
+                   (FST
+                      (FOLDL
+                         (λ(l,i') (x,tau).
+                              (λ(v,i''). (v::l,i''))
+                                (init_from_tau random_oracle i' tau))
+                         ((λ(v,i''). ([v],i''))
+                            (init_from_tau random_oracle i h1)) t))) = LENGTH (h1::MAP SND t)’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+       gs[map_distrub] >>
+       gs[FOLDL_init_from_tau_APPEND, REVERSE_APPEND] >>
+       qpat_x_assum ‘!random_oracle. _’ (fn thm => assume_tac $ Q.SPECL [‘random_oracle’, ‘i’] thm) >>
+       gs[]
        ,
        
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`EL (PRE i') t`])) >>
        subgoal ‘PRE i' < LENGTH t’ >- rfs[] >>
        subgoal ‘MEM (EL (PRE i') t) t’ >- gvs[EL_MEM] >>
-       gvs[] >>
        gvs[init_from_tau_typed_def] >>
-       gvs[lambda_SND] >>
-       
-       ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:(string)``] init_EL_lemma) >>
-       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`PRE i'`,`t`])) >>
-       gvs[] >>
-       (* TODO: ??? *)
-       cheat
+       Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
+       (* First, obtain that q is the first element, then grab the tail of the resulting
+        * list. Then, obtain that the i'-1th value must be init_from_tau random_oracle i (SND (EL (PRE i') t)) for some i. Specialise the assumption with this i, and you're done. *)
+     ‘LENGTH (h0::MAP FST t) = LENGTH (REVERSE
+                   (FST
+                      (FOLDL
+                         (λ(l,i') (x,tau).
+                              (λ(v,i''). (v::l,i''))
+                                (init_from_tau random_oracle i' tau))
+                         ((λ(v,i''). ([v],i''))
+                            (init_from_tau random_oracle i h1)) t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+       gs[map_distrub] >>
+       gs[FOLDL_init_from_tau_APPEND, REVERSE_APPEND] >>
+       gvs[lambda_SND, EL_CONS] >>
+       ‘(SND (EL (PRE i') t)) = (EL (PRE i') (MAP SND t))’ by gs[MAP_SND_EL] >>
+       gs[] >>
+       ‘?i''. FST (init_from_tau random_oracle i'' (EL (PRE i') (MAP SND t))) = EL (PRE i')
+             (REVERSE
+                (FST
+                   (FOLDL
+                      (λ(l,i') (x,tau).
+                           (λ(v,i''). (v::l,i''))
+                             (init_from_tau random_oracle i' tau)) ([],r) t)))’ suffices_by (
+        rpt strip_tac >>
+        qpat_x_assum ‘!random_oracle. _’ (fn thm => assume_tac $ Q.SPECL [‘random_oracle’, ‘i''’] thm) >>
+        gs[]
+       ) >>
+       metis_tac[FOLDL_init_from_tau_oracle_index]
      ]                              
    ]
    ,
 
-   (* header's bool*)
+   (* validity bit *)
    gvs[Once v_typ_cases, clause_name_def]
    ,
+   
    (* headers case *)
-   (* TODO: Should be very similar to the struct case... *)
-   Q.EXISTS_TAC ‘ZIP(MAP(\(x,tau). x) (h::t),
-                ZIP (FST (FOLDR (\ (x,tau) (l,i'). let (v,i'') = init_from_tau random_oracle i' tau in (v::l, i'')) ([],i) (h::t)) ,
-                       MAP (\ (x,tau). tau) (h::t)))’ >>
-   Q.EXISTS_TAC ‘F’ >>               
+   qexists_tac ‘ZIP(MAP(λ(x,tau). x) (h::t),
+                ZIP (REVERSE $ FST (FOLDL (λ(l,i') (x:string,tau). (λ(v,i''). (v::l,i''))
+                         (init_from_tau random_oracle i' tau)) ([],i) (h::t)) ,
+                       MAP (λ(x,tau). tau) (h::t)))’ >>
+   qexists_tac ‘F’ >>               
    gvs[] >>
    PairCases_on ‘h’ >> gvs[] >>
-   gvs[map_distrub] >>             
    rw[] >| [
-     gvs[init_from_tau_def] >>
-     (* TODO: MAP, lambda, and FST trickery *)
-     cheat     
-(*
-     subgoal ‘∀ (l:(string#tau)list) .  MAP (λ(x,t). (x,init_from_tau t)) l =
-               ZIP (MAP (λ(x,tau). x) l,MAP (λ(x,tau). init_from_tau tau) l) ’  >-      
-     (Induct >> gvs[] >> REPEAT STRIP_TAC >> PairCases_on ‘h’ >> gvs[]) >>
+     Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
+     Cases_on ‘(FOLDL
+                (λ(x_v_l,i') (x,tau).
+                     (λ(v,i''). ((x,v)::x_v_l,i''))
+                       (init_from_tau random_oracle i' tau)) ([(h0,q)],r) t)’ >>
+     rw[] >>
+     (* Preconditions of map_distrub *)
+     ‘LENGTH (h0::MAP (λ(x,tau). x) t) = LENGTH (REVERSE
+                   (FST
+                      (FOLDL
+                         (λ(l,i') (x,tau).
+                              (λ(v,i''). (v::l,i''))
+                                (init_from_tau random_oracle i' tau)) ([q],r)
+                         t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+     ‘LENGTH (REVERSE
+              (FST
+                 (FOLDL
+                    (λ(l,i') (x,tau).
+                         (λ(v,i''). (v::l,i''))
+                           (init_from_tau random_oracle i' tau)) ([q],r)
+                    t))) = LENGTH (h1::MAP (λ(x,tau). tau) t)’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+     gs[map_distrub] >>
+     ‘(FST
+       (FOLDL
+          (λ(l,i') (x,tau).
+               (λ(v,i''). (v::l,i''))
+                 (init_from_tau random_oracle i' tau)) ([q],r) t)) =
+      MAP SND $ FST $
+       FOLDL
+          (λ(x_v_l,i') (x,tau).
+               (λ(v,i''). ((x,v)::x_v_l,i''))
+                 (init_from_tau random_oracle i' tau)) ([(h0,q)],r) t’ by gs[FOLDL_init_from_tau_MAP_SND] >>
+     gs[lambda_FST] >>
+     ‘?xl vl. q' = ZIP(xl,vl) /\ LENGTH xl = LENGTH vl’ by (
+      qexistsl_tac [‘MAP FST q'’, ‘MAP SND q'’] >>
+      gs[ZIP_MAP_FST_SND]
+     ) >>
+     (* A bit clumsy, make better? *)
+     imp_res_tac FOLDL_init_from_tau_identifiers >>
+     gs[MAP_ZIP, REVERSE_ZIP] >>
+     ‘REVERSE xl = h0::MAP FST t’ suffices_by gs[] >>
+     res_tac >>
      gvs[]
-*)
-     ,  
-     SIMP_TAC list_ss [lambda_FST, lambda_SND] >>
-     fs[ZIP_MAP_FST_SND] >>
-     (* TODO: MAP, lambda, and FST trickery *)
-     cheat
      ,
+     
+     gs[lambda_FST, lambda_SND] >>
+     Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
+     (* Preconditions of map_distrub *)
+     ‘LENGTH (h0::MAP FST t) = LENGTH (REVERSE
+                   (FST
+                      (FOLDL
+                         (λ(l,i') (x,tau).
+                              (λ(v,i''). (v::l,i''))
+                                (init_from_tau random_oracle i' tau))
+                         ((λ(v,i''). ([v],i''))
+                            (init_from_tau random_oracle i h1)) t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+     ‘LENGTH (REVERSE
+                   (FST
+                      (FOLDL
+                         (λ(l,i') (x,tau).
+                              (λ(v,i''). (v::l,i''))
+                                (init_from_tau random_oracle i' tau))
+                         ((λ(v,i''). ([v],i''))
+                            (init_from_tau random_oracle i h1)) t))) = LENGTH (h1::MAP SND t)’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+     gs[map_distrub] >>
+     fs[ZIP_MAP_FST_SND]
+     ,
+     
      gvs[Once v_typ_cases, clause_name_def]
-     ,        
+     ,
+     
      gvs[init_stl_from_tau_typed_def] >>
+     Cases_on ‘init_from_tau random_oracle i h1’ >> gvs[] >>     
      fs[Once EL_compute] >> Cases_on ‘i'=0’ >> gvs[EL_CONS] >| [
-         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`(h0,h1)`])) >>
-         gvs[init_from_tau_typed_def]
-         ,
+       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`(h0,h1)`])) >>
+       gvs[init_from_tau_typed_def, lambda_FST, lambda_SND] >>
+       (* use map_distrub, then grab the heads *)
+       ‘LENGTH (h0::MAP FST t) = LENGTH (REVERSE
+                     (FST
+                        (FOLDL
+                           (λ(l,i') (x,tau).
+                                (λ(v,i''). (v::l,i''))
+                                  (init_from_tau random_oracle i' tau))
+                           ((λ(v,i''). ([v],i''))
+                              (init_from_tau random_oracle i h1)) t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+    ‘LENGTH (REVERSE
+                   (FST
+                      (FOLDL
+                         (λ(l,i') (x,tau).
+                              (λ(v,i''). (v::l,i''))
+                                (init_from_tau random_oracle i' tau))
+                         ((λ(v,i''). ([v],i''))
+                            (init_from_tau random_oracle i h1)) t))) = LENGTH (h1::MAP SND t)’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+       gs[map_distrub, FOLDL_init_from_tau_APPEND, REVERSE_APPEND] >>
+       qpat_x_assum ‘!random_oracle. _’ (fn thm => assume_tac $ Q.SPECL [‘random_oracle’, ‘i’] thm) >>
+       gs[]
+       ,
                 
-         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`EL (PRE i') t`])) >>
-     (* TODO: MAP, lambda, and FST trickery *)
-     cheat
-(*              
-         subgoal ‘PRE i' < LENGTH t’ >- rfs[] >>
-         subgoal ‘MEM (EL (PRE i') t) t’ >- gvs[EL_MEM] >>
-         gvs[] >>
-         gvs[init_from_tau_typed_def] >>
-         gvs[lambda_SND] >> 
-
-         ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:(string)``] init_EL_lemma) >>
-         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`PRE i`,`t`])) >>
-         gvs[]
-*)         
+       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`EL (PRE i') t`])) >>
+       subgoal ‘PRE i' < LENGTH t’ >- rfs[] >>
+       subgoal ‘MEM (EL (PRE i') t) t’ >- gvs[EL_MEM] >>
+       gvs[init_from_tau_typed_def] >>
+       Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
+       (* First, obtain that q is the first element, then grab the tail of the resulting
+        * list. Then, obtain that the i'-1th value must be init_from_tau random_oracle i (SND (EL (PRE i') t)) for some i. Specialise the assumption with this i, and you're done. *)
+     ‘LENGTH (h0::MAP FST t) = LENGTH (REVERSE
+                   (FST
+                      (FOLDL
+                         (λ(l,i') (x,tau).
+                              (λ(v,i''). (v::l,i''))
+                                (init_from_tau random_oracle i' tau))
+                         ((λ(v,i''). ([v],i''))
+                            (init_from_tau random_oracle i h1)) t)))’ by gs[LENGTH_REVERSE, FOLDL_init_from_tau_LENGTH] >>
+       gs[map_distrub] >>
+       gs[FOLDL_init_from_tau_APPEND, REVERSE_APPEND] >>
+       gvs[lambda_SND, EL_CONS] >>
+       ‘(SND (EL (PRE i') t)) = (EL (PRE i') (MAP SND t))’ by gs[MAP_SND_EL] >>
+       gs[] >>
+       ‘?i''. FST (init_from_tau random_oracle i'' (EL (PRE i') (MAP SND t))) = EL (PRE i')
+             (REVERSE
+                (FST
+                   (FOLDL
+                      (λ(l,i') (x,tau).
+                           (λ(v,i''). (v::l,i''))
+                             (init_from_tau random_oracle i' tau)) ([],r) t)))’ suffices_by (
+        rpt strip_tac >>
+        qpat_x_assum ‘!random_oracle. _’ (fn thm => assume_tac $ Q.SPECL [‘random_oracle’, ‘i''’] thm) >>
+        gs[]
+       ) >>
+       metis_tac[FOLDL_init_from_tau_oracle_index]
        ]                              
    ]
  ] ) >> (
-
  TRY (
    gvs[init_stl_from_tau_typed_def, init_st_tup_from_tau_typed_def] >>
    REPEAT STRIP_TAC >> gvs[] ) >>
