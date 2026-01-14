@@ -47,6 +47,10 @@ indexvar m, n, o ::=
   {{ hol num }}
   {{ com indices }}
 
+metavar ascope {{ tex { {\gamma}_A } }} ::=
+{{ phantom }}
+{{ com architectural scope }}
+{{ hol 'a }}
 
 grammar
 
@@ -510,17 +514,12 @@ scope_list {{ tex \overline{\gamma} }} :: scope_list_ ::=
 %An extern function/method updates the scope list, global scope list and arch scope directly.
 %Note that at the time this happens, a new frame has already been declared for it to work inside.
 ext_fun {{ tex { \mathit{ext\_fun} } }} :: ext_fun_ ::=
-{{ hol ((ascope_ty # g_scope_list # scope_list) -> ((ascope_ty # scope_list # status) option)) }}
+{{ auxparam 'a }}
+{{ hol (('a # g_scope_list # scope_list) -> (('a # scope_list # status) option)) }}
 
 %%%%%%%%%%%
 % Context %
 %%%%%%%%%%%
-
-%Note that since the semantics is modular with respect to the architecture, A is typeset in cursive as a variable here
-%Note that a Python script later rewrites the export and add the proper polymorphic type in place of "ascope_ty"
-ascope {{ tex { {\gamma}_A } }}, ascope_ty :: ascope_ ::=
-{{ com architectural scope }}
-{{ hol ('a) }}
 
 d {{ tex d }} :: d_ ::=
 {{ com parameter direction }}
@@ -535,7 +534,8 @@ d {{ tex d }} :: d_ ::=
 
 %The "fixed function" of a fixed-function block
 ff {{ tex { \mathit{ff} } }} :: ff_ ::=
-{{ hol (ascope_ty -> ascope_ty option) }}
+{{ auxparam 'a }}
+{{ hol ('a -> 'a option) }}
 
 d_list :: d_list_ ::=
 {{ com list of directions }}
@@ -711,7 +711,8 @@ b_func_map {{ tex F_b }} :: b_func_map_ ::=
 
 ext_fun_map {{ tex X_{ \mathrm{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
-{{ hol ((string, ((string # d) list # ext_fun)) alist) }}
+{{ auxparam 'a }}
+{{ hol ((string, ((string # d) list # 'a ext_fun)) alist) }}
 
 %Fence between ext_fun_map and ext_map
 embed
@@ -723,7 +724,8 @@ grammar
 %This maps extern object names to tuples of optional constructors and the function map of the object in question
 ext_map {{ tex X }} :: ext_map_ ::=
 {{ com extern object map }}
-{{ hol ((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist) }}
+{{ auxparam 'a }}
+{{ hol ((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist) }}
 
 tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 {{ com table map }}
@@ -790,7 +792,8 @@ pblock_map {{ tex B_p }} :: pblock_map_ ::=
 
 ffblock_map {{ tex B_{ \mathrm{ff} } }} :: ffblock_map_ ::=
 {{ com fixed-function block map }}
-{{ hol ((string, ffblock) alist) }}
+{{ auxparam 'a }}
+{{ hol ((string, 'a ffblock) alist) }}
 
 in_out_list {{ tex \overline{ \mathit{io} } }} :: in_out_list_ ::=
 {{ com list of input and output }}
@@ -811,27 +814,32 @@ ab_list {{ tex \overline{ \mathit{ab} } }} :: ab_list_ ::=
 %The input function modifies the raw input at the start of the pipeline
 input_f {{ tex { \mathit{in}_A } }} :: input_f_ ::=
 {{ com input function }}
-{{ hol ((in_out_list # ascope_ty) -> (in_out_list # ascope_ty) option) }}
+{{ auxparam 'a }}
+{{ hol ((in_out_list # 'a) -> (in_out_list # 'a) option) }}
 
 %The output function modifies the raw output at the end of the pipeline
 output_f {{ tex { \mathit{out}_A } }} :: output_f_ ::=
 {{ com output function }}
-{{ hol ((in_out_list # ascope_ty) -> (in_out_list # ascope_ty) option) }}
+{{ auxparam 'a }}
+{{ hol ((in_out_list # 'a) -> (in_out_list # 'a) option) }}
 
 %This function is used to copy things from the architecture when a programmable block begins
 copyin_pbl {{ tex { \mathit{in}_p } }} :: copyin_pbl_ ::=
 {{ com copy-in to programmable blocks function }}
-{{ hol ((x list # d list # e list # ascope_ty) -> scope option) }}
+{{ auxparam 'a }}
+{{ hol ((x list # d list # e list # 'a) -> scope option) }}
 
 %This function is used to copy out things to the architecture after a programmable block is finished
 copyout_pbl {{ tex { \mathit{out}_p } }} :: copyout_pbl_ ::=
 {{ com copy-out from programmable blocks function }}
-{{ hol ((g_scope list # ascope_ty # d list # x list # status) -> ascope_ty option) }}
+{{ auxparam 'a }}
+{{ hol ((g_scope list # 'a # d list # x list # status) -> 'a option) }}
 
 %This function takes a table name, arguments, match kinds and the architectural scope and returns an action with arguments
 apply_table_f {{ tex { \mathit{apply\_table} } }} :: apply_table_f_ ::=
 {{ com apply table function }}
-{{ hol ((x # e_list # mk_list # (x # e_list) # ascope_ty) -> (x # e_list) option) }}
+{{ auxparam 'a }}
+{{ hol ((x # e_list # mk_list # (x # e_list) # 'a) -> (x # e_list) option) }}
 
 %Fence between ab_list and actx
 embed
@@ -843,7 +851,8 @@ grammar
 %The architectural context stores everything that's needed for, but stays invariant over, architecture-level reductions
 actx {{ tex { \mathit{ctx}_A } }} :: actx_ ::=
 {{ com architectural context }}
-{{ hol (ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map) }}
+{{ auxparam 'a }}
+{{ hol (ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map) }}
 | ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[ab_list]], [[pblock_map]], [[ffblock_map]], [[input_f]], [[output_f]], [[copyin_pbl]], [[copyout_pbl]], [[apply_table_f]], [[ext_map]], [[func_map]]) }}
@@ -851,7 +860,8 @@ actx {{ tex { \mathit{ctx}_A } }} :: actx_ ::=
 %The context stores everything that's needed for, but stays invariant over, statement reductions
 ctx {{ tex \mathit{ctx} }} :: ctx_ ::=
 {{ com context }}
-{{ hol (apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map) }}
+{{ auxparam 'a }}
+{{ hol ('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map) }}
 | ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[apply_table_f]], [[ext_map]], [[func_map]], [[b_func_map]] , [[pars_map]], [[tbl_map]]) }}

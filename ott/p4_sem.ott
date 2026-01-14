@@ -65,14 +65,16 @@ frame_list {{ tex \overline{\Phi} }} :: frame_list_ ::=
   {{ tex [[frame_list]] }}
 
 state {{ tex s }} :: state_ ::=
-{{ hol (ascope_ty # g_scope_list # frame_list # status) }}
+{{ auxparam 'a }}
+{{ hol ('a # g_scope_list # frame_list # status) }}
 {{ com execution state }}
 | ( ascope , g_scope_list , frame_list , status ) :: M :: tup
 {{ hol ([[ascope]], [[g_scope_list]], [[frame_list]], [[status]]) }}
 
 aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
 {{ com architectural environment }}
-{{ hol (num # in_out_list # in_out_list # ascope_ty) }}
+{{ auxparam 'a }}
+{{ hol (num # in_out_list # in_out_list # 'a) }}
 | empty :: M :: empty
   {{ com empty architectural environment }}
   {{ hol (0, [], [], []) }}
@@ -97,7 +99,8 @@ arch_frame_list :: arch_frame_list_ ::=
 
 astate {{ tex { \ensuremath{s_A} } }} :: astate_ ::=
 {{ com architectural state }}
-{{ hol (aenv # g_scope_list # arch_frame_list # status) }}
+{{ auxparam 'a }}
+{{ hol ('a aenv # g_scope_list # arch_frame_list # status) }}
 | ( aenv , g_scope_list , arch_frame_list , status ) :: M :: tup
   {{ com tuple }}
   {{ hol ([[aenv]], [[g_scope_list]], [[arch_frame_list]], [[status]]) }}
@@ -106,7 +109,8 @@ astate {{ tex { \ensuremath{s_A} } }} :: astate_ ::=
 %% Concurrent state
 cstate {{ tex { \ensuremath{s_c} } }} :: cstate_ ::=
 {{ com concurrent state }}
-{{ hol ((in_out_list # in_out_list # ascope_ty) # ((num # g_scope_list # arch_frame_list # status) # (num # g_scope_list # arch_frame_list # status))) }}
+{{ auxparam 'a }}
+{{ hol ((in_out_list # in_out_list # 'a) # ((num # g_scope_list # arch_frame_list # status) # (num # g_scope_list # arch_frame_list # status))) }}
 | ( (  in_out_list , in_out_list' , ascope ) , ( ( num_exp , g_scope_list , arch_frame_list , status ) , ( num_exp' , g_scope_list' , arch_frame_list' , status' ) ) ) :: M :: tup
   {{ com (shared , ( thread | thread )) }}
   {{ hol ((  [[in_out_list]] , [[in_out_list']] , [[ascope]] ) , ( ( [[num_exp]] , [[g_scope_list]] , [[arch_frame_list]] , [[status]] ) , ( [[num_exp']] , [[g_scope_list']] , [[arch_frame_list']] , [[status']] ) )) }}
@@ -2224,8 +2228,8 @@ val var_star_updates_of_func_map_def = Define `
 
 (* Obtains the varn_star updates of an extern map *)
 val var_star_updates_of_ext_map_def = Define `
- (var_star_updates_of_ext_map ([]:ext_map) = []) /\
- (var_star_updates_of_ext_map (((ext_obj_name, ext_obj_funs)::t):ext_map) =
+ (var_star_updates_of_ext_map ([]:'a ext_map) = []) /\
+ (var_star_updates_of_ext_map (((ext_obj_name, ext_obj_funs)::t):'a ext_map) =
   case ext_obj_funs of
   | (SOME _, ext_fun_map) =>
    ((varn_star (funn_inst ext_obj_name), (v_bot, (NONE:lval option)))::(MAP ( \x. (varn_star (funn_ext ext_obj_name x), (v_bot, (NONE:lval option)))) (MAP FST ext_fun_map)))++(var_star_updates_of_ext_map t)
