@@ -194,7 +194,7 @@ fun get_all_vars_in_group groupings group_name =
 
 
 (* Enhanced find_paths_for_group that handles input states *)
-fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_states =
+fun find_paths_for_group_with_inputs_old bdd_term groupings_term group_name input_states =
     let
       (* Extract components from the BDD term *)
       val (start_state_term, rest) = dest_pair bdd_term
@@ -308,7 +308,7 @@ fun find_paths_for_group_with_inputs bdd_term groupings_term group_name input_st
     end;
 
 
-fun bdd_to_tables_iterative bdd_term groupings_term =
+fun bdd_to_tables_iterative_old bdd_term groupings_term =
     let
 
         val groupings = map (fn t => 
@@ -367,7 +367,7 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
                 end
             | g::gs =>
                 let
-                    val raw_table = find_paths_for_group_with_inputs 
+                    val raw_table = find_paths_for_group_with_inputs_old 
                                    bdd_term groupings_term g inputs
                     val table = process_group_table raw_table
                     val next_states = mk_set (map (fn t =>
@@ -395,7 +395,423 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
 
 
 
+(******************************************************)
 
+
+fun extract_bdd bdd_term =
+    let val (start_state_term, rest) = dest_pair bdd_term
+        val (edges_term, labelings_term) = dest_pair rest
+        val edges_list = fst (dest_list edges_term)
+        val labelings_list = fst (dest_list labelings_term)
+        val edges = map (fn edge_term =>
+                let val (parent, rest) = dest_pair edge_term
+                    val (left_child, right_child) = dest_pair rest
+                in (num_of_term parent, num_of_term left_child, num_of_term right_child)
+                end) edges_list
+        val labelings = map (fn label_term =>
+                let val (id_term, label) = dest_pair label_term
+                in (num_of_term id_term, label)
+                end) labelings_list
+    in (num_of_term start_state_term, edges, labelings)
+    end;
+
+fun extract_groupings groupings_term =
+    let val groupings_list = fst (dest_list groupings_term)
+    in map (fn group_term =>
+            let val (name_term, vars_term) = dest_pair group_term
+                val name = fromHOLstring name_term
+                val vars_list = fst (dest_list vars_term)
+                val vars = map fromHOLstring vars_list
+            in (name, vars)
+            end) groupings_list
+    end;
+
+fun get_children edges node_id =
+    case List.find (fn (parent, _, _) => parent = node_id) edges of
+        SOME (_, left, right) => (left, right) | NONE => (~1, ~1);
+
+fun get_node_label labelings node_id =
+    case List.find (fn (id, _) => id = node_id) labelings of
+        SOME (_, label) => label | NONE => ``dummy``;
+
+fun get_node_variable labelings node_id =
+    let val label = get_node_label labelings node_id
+        val (constructor, args) = dest_comb label
+    in if same_const constructor ``non_termn`` then
+            let val (opt_term, _) = dest_pair args
+            in case (dest_some opt_term) of var_name_term => SOME (fromHOLstring var_name_term)
+            end handle HOL_ERR _ => NONE
+        else NONE
+    end handle HOL_ERR _ => NONE;
+
+fun in_group labelings group_vars node_id =
+    case get_node_variable labelings node_id of
+        SOME var_name => List.exists (fn v => v = var_name) group_vars | NONE => false;
+
+fun is_terminal_node labelings node_id =
+    case List.find (fn (id, label) => id = node_id) labelings of
+        SOME (_, label) =>
+            let val (constructor, _) = dest_comb label
+            in same_const constructor ``termn`` end
+      | NONE => false;
+
+fun find_main_path edges labelings group_vars entry_node =
+    let fun traverse current path =
+            if not (in_group labelings group_vars current) then (current, path)
+            else case get_node_variable labelings current of
+                    SOME var_name =>
+                        let val (left_child, _) = get_children edges current
+                        in if left_child >= 0 then
+                             traverse left_child (path @ [(var_name, true)])
+                           else (current, path @ [(var_name, true)])
+                        end
+                  | NONE => (current, path)
+    in traverse entry_node []
+    end;
+
+fun collect_main_path_nodes edges labelings group_vars entry_node main_path_vars =
+    let fun collect current remaining acc idx =
+            case remaining of
+                [] => rev acc
+              | (var, _)::rest =>
+                    let val (left_child, _) = get_children edges current
+                    in if left_child >= 0 then
+                         collect left_child rest ((current, var, idx)::acc) (idx + 1)
+                       else
+                         rev ((current, var, idx)::acc)
+                    end
+    in collect entry_node main_path_vars [] 0
+    end;
+
+fun find_shared_right_child edges main_path_nodes idx =
+    if idx >= length main_path_nodes then
+        ([], ~1)
+    else
+        let val (node1, _, _) = List.nth (main_path_nodes, idx)
+            val (_, right1) = get_children edges node1
+        in
+            if right1 < 0 then ([], ~1)
+            else
+                let fun collect_sharing i acc =
+                        if i >= length main_path_nodes then rev acc
+                        else
+                            let val (node_i, _, _) = List.nth (main_path_nodes, i)
+                                val (_, right_i) = get_children edges node_i
+                            in
+                                if right_i = right1 then
+                                    collect_sharing (i + 1) (i :: acc)
+                                else
+                                    rev acc
+                            end
+                in
+                    (collect_sharing idx [], right1)
+                end
+        end;
+
+fun find_default_exit edges labelings group_vars entry_node =
+    let
+        fun explore current =
+            if is_terminal_node labelings current orelse not (in_group labelings group_vars current) then
+                current
+            else
+                let val (_, right_child) = get_children edges current
+                in if right_child >= 0 then explore right_child else current
+                end
+    in explore entry_node
+    end;
+
+(* Restricted exploration: Pattern 1, 2, and 3 *)
+fun explore_restricted edges labelings group_vars node : ((string * bool) list * int) list =
+    let
+        val (main_exit, main_path_vars) = find_main_path edges labelings group_vars node
+        val main_path_nodes = collect_main_path_nodes edges labelings group_vars node main_path_vars
+
+        val main_rule = (main_path_vars, main_exit)
+
+        fun process_positions idx acc =
+            if idx < 0 then
+                acc
+            else
+                let val (shared_indices, shared_right) = find_shared_right_child edges main_path_nodes idx
+                in
+                    if length shared_indices > 1 andalso shared_right >= 0 then
+                        if in_group labelings group_vars shared_right then
+                            (* Shared child is IN GROUP - could be Pattern 1 or 2 *)
+                            let
+                                fun is_entry_at_start () =
+                                    case shared_indices of
+                                        [] => false
+                                      | (first::_) =>
+                                            let val (first_node, _, _) = List.nth (main_path_nodes, first)
+                                            in first_node = node
+                                            end
+                            in
+                                if is_entry_at_start () then
+                                    (* Pattern 2: CUTOFF - recursive cutoff *)
+                                    let val cutoff_rules = explore_restricted edges labelings group_vars shared_right
+                                    in
+                                        process_positions (idx - 1) (acc @ cutoff_rules)
+                                    end
+                                else
+                                    (* Pattern 1: NOT at entry - restricted exploration only *)
+                                    let
+                                        fun append_restricted_exploration idx_in_seq =
+                                            let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
+                                                val before = List.take (main_path_vars, idx_in_seq)
+                                                val negation_prefix = before @ [(var, false)]
+                                                val restricted_rules = explore_restricted edges labelings group_vars shared_right
+                                                fun add_prefix (path, exit) = (negation_prefix @ path, exit)
+                                            in
+                                                map add_prefix restricted_rules
+                                            end
+
+                                        val all_restricted = List.concat (map append_restricted_exploration shared_indices)
+                                    in
+                                        process_positions (idx - 1) (acc @ all_restricted)
+                                    end
+                            end
+                        else
+                            (* OUT OF GROUP - Pattern 3: negation only *)
+                            let
+                                fun create_negation_rule idx_in_seq =
+                                    let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
+                                        val before = List.take (main_path_vars, idx_in_seq)
+                                    in (before @ [(var, false)], shared_right)
+                                    end
+
+                                val negation_rules = map create_negation_rule shared_indices
+                            in
+                                process_positions (idx - 1) (acc @ negation_rules)
+                            end
+                    else
+                        process_positions (idx - 1) acc
+                end
+
+        val path_rules = process_positions (length main_path_nodes - 1) []
+
+        val default_exit = find_default_exit edges labelings group_vars node
+
+        val all_rules = main_rule :: path_rules @ [([], default_exit)]
+    in
+        all_rules
+    end;
+
+(* Main processing with Pattern 2 at entry level *)
+fun process_entry_rec edges labelings group_vars entry_node parent_entry is_original =
+    let
+        val (main_exit, main_path_vars) = find_main_path edges labelings group_vars entry_node
+        val main_path_nodes = collect_main_path_nodes edges labelings group_vars entry_node main_path_vars
+
+        val main_rule = (main_path_vars, main_exit)
+
+        (* Track which indices have been processed via shared sequences *)
+        val processed_indices = ref []
+
+        fun mark_processed idx = processed_indices := idx :: !processed_indices
+
+        fun process_positions idx acc =
+            if idx < 0 then
+                acc
+            else
+                let val (shared_indices, shared_right) = find_shared_right_child edges main_path_nodes idx
+                in
+                    if length shared_indices > 1 andalso shared_right >= 0 then
+                        (* Mark all these indices as processed *)
+                        (app mark_processed shared_indices;
+
+                         if in_group labelings group_vars shared_right then
+                             let
+                                 fun is_entry_at_start () =
+                                     case shared_indices of
+                                         [] => false
+                                       | (first::_) =>
+                                             let val (first_node, _, _) = List.nth (main_path_nodes, first)
+                                             in first_node = entry_node
+                                             end
+                             in
+                                 if is_entry_at_start () then
+                                     (* Pattern 2: CUTOFF *)
+                                     let val cutoff_rules = explore_restricted edges labelings group_vars shared_right
+                                     in
+                                         process_positions (idx - 1) (acc @ cutoff_rules)
+                                     end
+                                 else
+                                     (* Pattern 1: NOT at entry - restricted exploration *)
+                                     let
+                                         fun append_restricted_exploration idx_in_seq =
+                                             let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
+                                                 val before = List.take (main_path_vars, idx_in_seq)
+                                                 val negation_prefix = before @ [(var, false)]
+                                                 val restricted_rules = explore_restricted edges labelings group_vars shared_right
+                                                 fun add_prefix (path, exit) = (negation_prefix @ path, exit)
+                                             in
+                                                 map add_prefix restricted_rules
+                                             end
+
+                                         val all_restricted = List.concat (map append_restricted_exploration shared_indices)
+                                     in
+                                         process_positions (idx - 1) (acc @ all_restricted)
+                                     end
+                             end
+                         else
+                             (* Pattern 3: OUT OF GROUP - negation only *)
+                             let
+                                 fun create_negation_rule idx_in_seq =
+                                     let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
+                                         val before = List.take (main_path_vars, idx_in_seq)
+                                     in (before @ [(var, false)], shared_right)
+                                     end
+
+                                 val negation_rules = map create_negation_rule shared_indices
+                             in
+                                 process_positions (idx - 1) (acc @ negation_rules)
+                             end)
+                    else
+                        process_positions (idx - 1) acc
+                end
+
+        val path_rules = process_positions (length main_path_nodes - 1) []
+
+        (* NEW: Process individual unshared right children *)
+        fun process_individual_nodes idx acc =
+            if idx < 0 then
+                acc
+            else if List.exists (fn i => i = idx) (!processed_indices) then
+                process_individual_nodes (idx - 1) acc
+            else
+                let
+                    val (node_id, var, _) = List.nth (main_path_nodes, idx)
+                    val (_, right_child) = get_children edges node_id
+                    val before = List.take (main_path_vars, idx)
+                in
+                    if right_child >= 0 then
+                        if in_group labelings group_vars right_child then
+                            (* Right child is in group - need to explore it as a new main path *)
+                            let
+                                val exploration_rules = explore_restricted edges labelings group_vars right_child
+                                fun add_prefix (path, exit) = (before @ [(var, false)] @ path, exit)
+                                val prefixed_rules = map add_prefix exploration_rules
+                            in
+                                process_individual_nodes (idx - 1) (acc @ prefixed_rules)
+                            end
+                        else
+                            (* Right child is out of group - just create negation rule *)
+                            let val rule = (before @ [(var, false)], right_child)
+                            in
+                                process_individual_nodes (idx - 1) (rule :: acc)
+                            end
+                    else
+                        process_individual_nodes (idx - 1) acc
+                end
+
+        val individual_rules = process_individual_nodes (length main_path_nodes - 1) []
+
+        val default_exit = find_default_exit edges labelings group_vars entry_node
+
+        val all_rules = main_rule :: path_rules @ individual_rules @ [([], default_exit)]
+
+        val rules_with_entry = map (fn (path, exit) => (parent_entry, path, exit)) all_rules
+    in
+        rules_with_entry
+    end;
+
+fun process_entry_point_rec edges labelings group_vars entry_node parent_entry is_original =
+    process_entry_rec edges labelings group_vars entry_node parent_entry is_original;
+
+fun find_paths_for_group bdd_term groupings_term group_name input_states =
+    let val (_, edges, labelings) = extract_bdd bdd_term
+        val groupings = extract_groupings groupings_term
+        val group_vars = case List.find (fn (name, _) => name = group_name) groupings of SOME (_, vars) => vars | NONE => []
+
+        fun process_states [] acc = rev acc
+          | process_states (state::states) acc =
+                process_states states (process_entry_point_rec edges labelings group_vars state state true :: acc)
+
+        val all_rules = List.concat (process_states input_states [])
+
+        fun deduplicate rules =
+            let fun dedup [] seen acc = rev acc
+                  | dedup (rule::rest) seen acc =
+                        let val (inp, path, exit) = rule
+                            val rule_key = (inp, path, exit)
+                        in
+                            if List.exists (fn k => k = rule_key) seen then
+                                dedup rest seen acc
+                            else
+                                dedup rest (rule_key::seen) (rule::acc)
+                        end
+            in
+                rev (dedup (rev rules) [] [])
+            end
+
+        val deduped_rules = deduplicate all_rules
+
+        fun rule_to_term (inp, path, exit) =
+            let val atom_vars = map (fn (var, value) => if value then ``Var ^(fromMLstring var)`` else ``Not ^(fromMLstring var)``) path
+                val atom_list = if null atom_vars then [``True``] else atom_vars
+            in ``(^(mk_list (atom_list, ``:atom_var``)), ^(term_of_num inp), ^(mk_state_expr exit))``
+            end
+    in map rule_to_term deduped_rules
+    end handle e => (print ("ERROR in find_paths_for_group: " ^ exnMessage e ^ "\n"); []);
+
+fun generate_action_table bdd_term =
+    let val (_, _, labelings) = extract_bdd bdd_term
+        fun process_labeling (node_id, label) =
+            let val (constructor, args) = dest_comb label
+            in if same_const constructor ``termn`` then
+                    let val (action_term, _) = dest_pair args
+                    in SOME ``([True], ^(term_of_num node_id), ^action_term)``
+                    end
+                else NONE
+            end handle HOL_ERR _ => NONE
+    in List.mapPartial process_labeling labelings
+    end;
+
+fun extract_exit_states raw_table =
+    let fun get_exit_state term =
+            let val (_, state_pair) = dest_pair term
+                val (_, state_expr) = dest_pair state_pair
+                val (_, num_term) = dest_comb state_expr
+            in num_of_term num_term
+            end
+        fun uniq [] = [] | uniq (x::xs) = if List.exists (fn y => y = x) xs then uniq xs else x :: uniq xs
+    in uniq (map get_exit_state raw_table)
+    end;
+
+fun bdd_to_tables_iterative bdd_term groupings_term =
+    let val groupings = extract_groupings groupings_term
+        fun iterate inputs groups acc =
+            case groups of
+                [] =>
+                    let val group_tables = rev acc
+                        val action_table = generate_action_table bdd_term
+                    in group_tables @ [action_table]
+                    end
+              | (group_name, _)::gs =>
+                    let val raw_table = find_paths_for_group bdd_term groupings_term group_name inputs
+                        val next_states = extract_exit_states raw_table
+                    in iterate next_states gs (raw_table::acc)
+                    end
+
+        val tables = iterate [0] groupings []
+
+        fun mk_table_list [] = ``[] : (atom_var list # num # (string # num list) action_expr) list list``
+          | mk_table_list tables =
+                let val table_terms = map (fn t => mk_list (t, ``:(atom_var list # num # (string # num list) action_expr)``)) tables
+                in mk_list (table_terms, ``:(atom_var list # num # (string # num list) action_expr) list``)
+                end
+    in ``(^(mk_table_list tables), ^(term_of_num 0))``
+    end
+    handle e => (print ("ERROR in bdd_to_tables_iterative: " ^ exnMessage e ^ "\n"); ``([], ^(term_of_num 0))``);
+
+
+
+
+(*************************************************)
+(*************************************************)
+(*************************************************)
+(*************************************************)
+(*************************************************)
 
 
 (* MTBDD to Rules:simple outout *)
