@@ -557,8 +557,8 @@ fun explore_restricted edges labelings group_vars node : ((string * bool) list *
                                     let
                                         fun append_restricted_exploration idx_in_seq =
                                             let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
-                                                val before = List.take (main_path_vars, idx_in_seq)
-                                                val negation_prefix = before @ [(var, false)]
+                                                val before_ss = List.take (main_path_vars, idx_in_seq)
+                                                val negation_prefix = before_ss @ [(var, false)]
                                                 val restricted_rules = explore_restricted edges labelings group_vars shared_right
                                                 fun add_prefix (path, exit) = (negation_prefix @ path, exit)
                                             in
@@ -575,8 +575,8 @@ fun explore_restricted edges labelings group_vars node : ((string * bool) list *
                             let
                                 fun create_negation_rule idx_in_seq =
                                     let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
-                                        val before = List.take (main_path_vars, idx_in_seq)
-                                    in (before @ [(var, false)], shared_right)
+                                        val before_ss = List.take (main_path_vars, idx_in_seq)
+                                    in (before_ss @ [(var, false)], shared_right)
                                     end
 
                                 val negation_rules = map create_negation_rule shared_indices
@@ -601,14 +601,14 @@ fun process_entry_rec edges labelings group_vars entry_node parent_entry is_orig
     let
         val (main_exit, main_path_vars) = find_main_path edges labelings group_vars entry_node
         val main_path_nodes = collect_main_path_nodes edges labelings group_vars entry_node main_path_vars
-
+        
         val main_rule = (main_path_vars, main_exit)
-
+        
         (* Track which indices have been processed via shared sequences *)
         val processed_indices = ref []
-
+        
         fun mark_processed idx = processed_indices := idx :: !processed_indices
-
+        
         fun process_positions idx acc =
             if idx < 0 then
                 acc
@@ -618,9 +618,10 @@ fun process_entry_rec edges labelings group_vars entry_node parent_entry is_orig
                     if length shared_indices > 1 andalso shared_right >= 0 then
                         (* Mark all these indices as processed *)
                         (app mark_processed shared_indices;
-
+                         
                          if in_group labelings group_vars shared_right then
-                             let
+                             (* Shared child is IN GROUP - could be Pattern 1 or 2 *)
+                             let 
                                  fun is_entry_at_start () =
                                      case shared_indices of
                                          [] => false
@@ -630,38 +631,42 @@ fun process_entry_rec edges labelings group_vars entry_node parent_entry is_orig
                                              end
                              in
                                  if is_entry_at_start () then
-                                     (* Pattern 2: CUTOFF *)
-                                     let val cutoff_rules = explore_restricted edges labelings group_vars shared_right
+                                     (* Pattern 2: CUTOFF - generate fresh rules from cutoff node *)
+                                     let 
+                                         val cutoff_triples = 
+                                             process_entry_point_rec edges labelings group_vars shared_right parent_entry false
+                                         (* Extract just (path, exit) from (entry, path, exit) triples *)
+                                         val cutoff_rules = map (fn (_, path, exit) => (path, exit)) cutoff_triples
                                      in
                                          process_positions (idx - 1) (acc @ cutoff_rules)
                                      end
                                  else
-                                     (* Pattern 1: NOT at entry - restricted exploration *)
-                                     let
+                                     (* Pattern 1: NOT at entry - restricted exploration ONLY *)
+                                     let 
                                          fun append_restricted_exploration idx_in_seq =
                                              let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
-                                                 val before = List.take (main_path_vars, idx_in_seq)
-                                                 val negation_prefix = before @ [(var, false)]
+                                                 val prefix_vars = List.take (main_path_vars, idx_in_seq)
+                                                 val negation_prefix = prefix_vars @ [(var, false)]
                                                  val restricted_rules = explore_restricted edges labelings group_vars shared_right
                                                  fun add_prefix (path, exit) = (negation_prefix @ path, exit)
                                              in
                                                  map add_prefix restricted_rules
                                              end
-
+                                         
                                          val all_restricted = List.concat (map append_restricted_exploration shared_indices)
                                      in
                                          process_positions (idx - 1) (acc @ all_restricted)
                                      end
                              end
                          else
-                             (* Pattern 3: OUT OF GROUP - negation only *)
-                             let
+                             (* OUT OF GROUP - Pattern 3: negation only *)
+                             let 
                                  fun create_negation_rule idx_in_seq =
                                      let val (_, var, _) = List.nth (main_path_nodes, idx_in_seq)
-                                         val before = List.take (main_path_vars, idx_in_seq)
-                                     in (before @ [(var, false)], shared_right)
+                                         val prefix_vars = List.take (main_path_vars, idx_in_seq)
+                                     in (prefix_vars @ [(var, false)], shared_right)
                                      end
-
+                                 
                                  val negation_rules = map create_negation_rule shared_indices
                              in
                                  process_positions (idx - 1) (acc @ negation_rules)
@@ -669,10 +674,10 @@ fun process_entry_rec edges labelings group_vars entry_node parent_entry is_orig
                     else
                         process_positions (idx - 1) acc
                 end
-
+        
         val path_rules = process_positions (length main_path_nodes - 1) []
-
-        (* NEW: Process individual unshared right children *)
+        
+        (* Process individual unshared right children *)
         fun process_individual_nodes idx acc =
             if idx < 0 then
                 acc
@@ -682,40 +687,62 @@ fun process_entry_rec edges labelings group_vars entry_node parent_entry is_orig
                 let
                     val (node_id, var, _) = List.nth (main_path_nodes, idx)
                     val (_, right_child) = get_children edges node_id
-                    val before = List.take (main_path_vars, idx)
+                    val prefix_vars = List.take (main_path_vars, idx)
                 in
                     if right_child >= 0 then
                         if in_group labelings group_vars right_child then
-                            (* Right child is in group - need to explore it as a new main path *)
+                            (* Right child is in group - treat as cutoff (like Pattern 2) *)
                             let
-                                val exploration_rules = explore_restricted edges labelings group_vars right_child
-                                fun add_prefix (path, exit) = (before @ [(var, false)] @ path, exit)
-                                val prefixed_rules = map add_prefix exploration_rules
+                                val cutoff_triples = 
+                                    process_entry_point_rec edges labelings group_vars right_child parent_entry false
+                                (* Extract just (path, exit) from (entry, path, exit) triples *)
+                                val cutoff_rules = map (fn (_, path, exit) => (path, exit)) cutoff_triples
                             in
-                                process_individual_nodes (idx - 1) (acc @ prefixed_rules)
+                                process_individual_nodes (idx - 1) (acc @ cutoff_rules)
                             end
                         else
                             (* Right child is out of group - just create negation rule *)
-                            let val rule = (before @ [(var, false)], right_child)
+                            let val rule = (prefix_vars @ [(var, false)], right_child)
                             in
                                 process_individual_nodes (idx - 1) (rule :: acc)
                             end
                     else
                         process_individual_nodes (idx - 1) acc
                 end
-
+        
         val individual_rules = process_individual_nodes (length main_path_nodes - 1) []
-
+        
+        (* Special case: Handle entry node's right child as cutoff even if not processed yet *)
+        val entry_cutoff_rules =
+            if is_original andalso not (List.exists (fn i => i = 0) (!processed_indices)) then
+                let
+                    val (_, right_child) = get_children edges entry_node
+                in
+                    if right_child >= 0 andalso in_group labelings group_vars right_child then
+                        (* Entry node's right child is in group - treat as cutoff *)
+                        let
+                            val cutoff_triples = 
+                                process_entry_point_rec edges labelings group_vars right_child parent_entry false
+                            (* Extract just (path, exit) from (entry, path, exit) triples *)
+                            val cutoff_rules = map (fn (_, path, exit) => (path, exit)) cutoff_triples
+                        in
+                            cutoff_rules
+                        end
+                    else
+                        []
+                end
+            else []
+        
         val default_exit = find_default_exit edges labelings group_vars entry_node
-
-        val all_rules = main_rule :: path_rules @ individual_rules @ [([], default_exit)]
-
+        
+        val all_rules = main_rule :: path_rules @ individual_rules @ entry_cutoff_rules @ [([], default_exit)]
+        
         val rules_with_entry = map (fn (path, exit) => (parent_entry, path, exit)) all_rules
     in
         rules_with_entry
-    end;
+    end
 
-fun process_entry_point_rec edges labelings group_vars entry_node parent_entry is_original =
+and process_entry_point_rec edges labelings group_vars entry_node parent_entry is_original =
     process_entry_rec edges labelings group_vars entry_node parent_entry is_original;
 
 fun find_paths_for_group bdd_term groupings_term group_name input_states =
