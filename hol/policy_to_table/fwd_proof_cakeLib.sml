@@ -154,23 +154,6 @@ open bdd_utilsLib;
             (*open Term;*)
 
             val policy_bdd_content_term = Parse.Term [QUOTE policy_content_str];
-               (* let
-                    (* Clean the string by removing newlines and backslash escapes *)
-                    fun clean s =
-                        let
-                            val chars = String.explode s
-                            fun process [] = []
-                            | process (#"\\" :: #"n" :: rest) = process rest  (* remove \n *)
-                            | process (c :: rest) = c :: process rest
-                        in
-                            String.implode (process chars)
-                        end
-
-                    val cleaned = clean policy_content_str
-                    val parsed = Parse.Term [QUOTE cleaned]
-                in
-                    parsed
-            end;*)
 
             val _ = print "AA:finished cleaning input \n";
 
@@ -220,23 +203,6 @@ open bdd_utilsLib;
 
 
             val table_bdd_content_term = Parse.Term [QUOTE tbl_content_str];
-                (*let
-                    (* Clean the string by removing newlines and backslash escapes *)
-                    fun clean s =
-                        let
-                            val chars = String.explode s
-                            fun process [] = []
-                            | process (#"\\" :: #"n" :: rest) = process rest  (* remove \n *)
-                            | process (c :: rest) = c :: process rest
-                        in
-                            String.implode (process chars)
-                        end
-
-                    val cleaned = clean tbl_content_str
-                    val parsed = Parse.Term [QUOTE cleaned]
-                in
-                    parsed
-            end;*)
 
             val _ = print "AA:finished cleaning sexp table in hol4 \n";
 
