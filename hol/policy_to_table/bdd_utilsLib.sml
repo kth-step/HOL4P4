@@ -772,13 +772,55 @@ fun find_paths_for_group bdd_term groupings_term group_name input_states =
             end
 
         val deduped_rules = deduplicate all_rules
+        
+        (* ==== extra OPTIMIZATION ==== *)
+        (* Optimize by removing rules made redundant by true rules *)
+        fun optimize_with_true_rules rules =
+            let
+                (* Process the entire list, looking for true rules and optimizing before them *)
+                fun process_remaining [] acc = rev acc
+                  | process_remaining (current_rule::rest) acc =
+                        let
+                            val (entry, path, exit) = current_rule
+                        in
+                            if null path then  (* This is a true rule *)
+                                let
+                                    (* Look back at accumulated rules to find consecutive ones with same entry and exit *)
+                                    (* acc has most recent rules first (because we prepend) *)
+                                    fun find_consecutive_to_remove [] to_remove = to_remove
+                                      | find_consecutive_to_remove ((prev_entry, prev_path, prev_exit)::prev_rules) to_remove =
+                                            if prev_entry = entry andalso prev_exit = exit then
+                                                find_consecutive_to_remove prev_rules ((prev_entry, prev_path, prev_exit)::to_remove)
+                                            else
+                                                to_remove  (* Stop when exit is different *)
+                                    
+                                    val to_remove = find_consecutive_to_remove acc []
+                                    
+                                    (* Filter out the rules to remove from acc *)
+                                    val new_acc = 
+                                        List.filter (fn rule => not (List.exists (fn r => r = rule) to_remove)) acc
+                                in
+                                    (* Keep the true rule and continue *)
+                                    process_remaining rest (current_rule :: new_acc)
+                                end
+                            else
+                                (* Not a true rule, just accumulate *)
+                                process_remaining rest (current_rule :: acc)
+                        end
+            in
+                process_remaining rules []
+            end
+        (* ==== END OF OPTIMIZATION ==== *)
+
+
+         val optimized_rules = optimize_with_true_rules deduped_rules
 
         fun rule_to_term (inp, path, exit) =
             let val atom_vars = map (fn (var, value) => if value then ``Var ^(fromMLstring var)`` else ``Not ^(fromMLstring var)``) path
                 val atom_list = if null atom_vars then [``True``] else atom_vars
             in ``(^(mk_list (atom_list, ``:atom_var``)), ^(term_of_num inp), ^(mk_state_expr exit))``
             end
-    in map rule_to_term deduped_rules
+    in map rule_to_term optimized_rules
     end handle e => (print ("ERROR in find_paths_for_group: " ^ exnMessage e ^ "\n"); []);
 
 fun generate_action_table bdd_term =
@@ -830,6 +872,7 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
     in ``(^(mk_table_list tables), ^(term_of_num 0))``
     end
     handle e => (print ("ERROR in bdd_to_tables_iterative: " ^ exnMessage e ^ "\n"); ``([], ^(term_of_num 0))``);
+
 
 
 
