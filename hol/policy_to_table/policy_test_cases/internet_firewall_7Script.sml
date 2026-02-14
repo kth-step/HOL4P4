@@ -274,7 +274,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (*    but better for BDD    *)
 (****************************)
 
-val policy_order = ``[
+ val policy_order = ``[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -326,7 +326,7 @@ val policy_full_order = ``[
   ("ij3" ,["is_dstPort_le_47094";"is_dstPort_ge_47094"]);
   ("ny25",["is_srcNAT_le_45469";"is_srcNAT_ge_45469"]);
   ("s8w" ,["is_dstNAT_le_47094";"is_dstNAT_ge_47094"])
-]``;
+]``; 
 
 
 (***********************************************)

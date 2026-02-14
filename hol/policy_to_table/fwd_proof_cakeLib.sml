@@ -221,7 +221,48 @@ open bdd_utilsLib;
             val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”]  var_eq_thm_extract;
             val var_policy_var_table_thm = SIMP_RULE bool_ss [correct_var_policy_var_tables_exec_thm1] var_eq_thm_extract_red;
 
-            val _ = time_stage ("Stage 2 proof", start_cpu_total_stage2_proof, start_real_total_stage2_proof)
+
+(*
+val isIsomorph_exec_thm = mk_thm ( [], “isIsomorph_exec ^get_i_policy ^policy_bdd_content_term
+                                                              ^table_bdd_content_term”);
+
+
+val assumption1 = mk_thm ( [], “ALOOKUP ^get_i_policy 0 = SOME 0”);    
+val assumption2 = mk_thm ( [], “node_in_BDD 0 ^policy_bdd_content_term”);
+val assumption3 = mk_thm ( [],  “node_in_BDD 0 ^table_bdd_content_term”);
+val assumption4 = mk_thm ( [],  “prop_in_BDD 0 ^policy_bdd_content_term = SOME ^var_policy”);
+val assumption5 = mk_thm ( [],  “prop_in_BDD 0 ^table_bdd_content_term = SOME ^gen_var_table_auto”);
+val assumption6 = mk_thm ( [],  “fv_in_vars_exec <|sem := sem_tables; sub := mk_substitute_tables;
+         simp := simp_tables_wrapper; final := final_tables;
+         fv := fv_tables|> ^gen_var_table_auto ^policy_order”);
+val assumption7 = mk_thm ( [],  “fv_in_vars_exec
+                                 <|sem := sem_policy; sub := mk_substitute_policy; simp := simp_policy;
+         final := final_policy; fv := fv_policy|> ^var_policy ^policy_order”);
+val assumption8 = mk_thm ( [],  “ALL_DISTINCT ^policy_order”);
+val assumption9 = mk_thm ( [],  “^var_policy ≠ []”);
+val assumption10 = mk_thm ( [],  “SOME ^var_policy = SOME ^var_policy”);
+val assumption11 = mk_thm ( [],  “SOME ^gen_var_table_auto = SOME ^gen_var_table_auto”);
+
+val var_eq_thm_extract = REWRITE_CONV [
+    correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy”;
+
+                                        
+val var_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE
+                                       [“correct_var_policy_var_tables_exec”, “sem_tables”,“sem_policy”, “mv_dom_vars”,
+                                        “isIsomorph_exec”, “node_in_BDD”, “prop_in_BDD”, “ALL_DISTINCT”, “fv_in_vars_exec”]  var_eq_thm_extract;
+
+                                        
+val var_policy_var_table_thm = REWRITE_RULE [correct_var_policy_var_tables_exec_thm1,
+                                                  assumption1, assumption2,
+                                                  assumption3, assumption4, assumption5, assumption6,
+                                                  assumption7, assumption8, assumption9, assumption10, assumption11,
+                                                  isIsomorph_exec_thm] (var_eq_thm_extract_red)
+
+
+
+
+*)
+            val _ = time_stage ("Stage 2 full proof", start_cpu_total_stage2_proof, start_real_total_stage2_proof)
             val _ = time_stage ("Stage 2 total", start_cpu_total_stage2, start_real_total_stage2)
 
 
