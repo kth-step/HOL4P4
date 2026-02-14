@@ -16,7 +16,12 @@ val _ = new_theory "table_parse_cakeml_Prog";
 val _ = translation_extends "common_parse_cakeml_Prog"
 val _ = intLib.deprecate_int();
 
-(*This file extends the basic BDD translation for tables, where the input is parsed via cakeML *)
+(*This file extends the basic BDD translation for tables, 
+where the input is parsed via cakeML 
+  generates a single sexp that 
+  should be compiled:
+  ../bdd_cake_test/test_bdd_table.sexp
+*)
 
 
 val res = append_prog o process_topdecs $
