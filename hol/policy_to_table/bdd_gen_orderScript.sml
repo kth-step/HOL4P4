@@ -1,27 +1,12 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
-open pairTheory;
+open listTheory;
+open alistTheory;
 open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
 
 open p4_auxTheory;
-
-open bdd_auxTheory;          
-open bdd_genTheory;     
+open bdd_auxTheory;     
+open bdd_genTheory;  
 open bdd_gen_wfTheory;     
 
      

@@ -1,33 +1,15 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_coreTheory;
-
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
 open pairTheory;
+open listTheory;
 open rich_listTheory;
+open alistTheory;
 open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
+
+open p4_auxTheory;
 
 open bdd_genTheory;     
-open pred_specTheory;     
-open policy_specTheory;     
-     
+open policy_specTheory; 
 
 
 val _ = new_theory "tables_spec_old";
@@ -35,16 +17,18 @@ val _ = new_theory "tables_spec_old";
     
 
 (* atomic variable based predicates predicates*)
-val _ = Hol_datatype `
+Datatype:
      atom_var = True
                 | False
                 | NotTrue
                 | NotFalse
-                | Var of string
-                | Not of string
-               `;
+                | Var  string
+                | Not string
+End
 
-val _ = Hol_datatype `action_expr = action of 'a | state of num`;
+Datatype:
+  action_expr = action 'a | state num
+End
 
 
 Type var_line = “:(atom_var list # num # 'a action_expr)”;
@@ -61,11 +45,11 @@ Type var_table_list = “: ('a var_table) list”
 
 
 Definition sem_var_atom_def:
-  (sem_var_atom ((Var x): atom_var) mv = (ALOOKUP mv x)) /\
-  (sem_var_atom True _ = SOME T) /\
-  (sem_var_atom False _ = SOME F) /\
-  (sem_var_atom NotTrue _ = SOME F) /\
-  (sem_var_atom NotFalse _ = SOME T) /\
+  (sem_var_atom ((Var x): atom_var) mv = (ALOOKUP mv x)) ∧
+  (sem_var_atom True _ = SOME T) ∧
+  (sem_var_atom False _ = SOME F) ∧
+  (sem_var_atom NotTrue _ = SOME F) ∧
+  (sem_var_atom NotFalse _ = SOME T) ∧
   (sem_var_atom (Not x) mv = 
    case (ALOOKUP mv x) of
    | SOME b => SOME (~b)
@@ -87,11 +71,11 @@ End
 
    
 Definition simp_atom_def:
-  (simp_atom ((Var x):atom_var) = Var x) /\
-  (simp_atom True = True) /\
-  (simp_atom False = False) /\
-  (simp_atom NotTrue = False) /\
-  (simp_atom NotFalse = True) /\
+  (simp_atom ((Var x):atom_var) = Var x) ∧
+  (simp_atom True = True) ∧
+  (simp_atom False = False) ∧
+  (simp_atom NotTrue = False) ∧
+  (simp_atom NotFalse = True) ∧
   (simp_atom (Not x) = Not x)
 End
 
@@ -405,15 +389,6 @@ End
 
 
 
-
-
-
-
-
-        
-
-               
-
                
 Theorem fv_mem_tbll_thm:
   ∀ tbll tbl mv.
@@ -469,16 +444,6 @@ Theorem fv_mem_row_h_thm:
 Proof
   gvs[fv_row_def]
 QED
-
-(*
-Theorem fv_mem_atom_not_thm:        
-  ∀ atom mv.
-    (∀x. MEM x (fv_row [Not atom]) ⇒ ∃b. ALOOKUP mv x = SOME b) ⇒
-    (∀x. MEM x (fv_row [atom]) ⇒ ∃b. ALOOKUP mv x = SOME b)
-Proof     
-  gvs[fv_row_def, fv_atom_def]
-QED
-*)
 
           
 Theorem mk_substitute_tbl_normalize1:

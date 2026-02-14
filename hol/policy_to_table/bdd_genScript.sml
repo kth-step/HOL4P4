@@ -1,52 +1,38 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
-
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-open alistTheory;
-open numeralTheory;
-open set_relationTheory;
-open pred_setLib;
-
-open p4_auxTheory;
-
+open HolKernel Parse bossLib;
 
 val _ = new_theory "bdd_gen";
-
-
-
 
 
 (******************************************************)
 (*   generalized types for a structure and BDD graph  *)
 (******************************************************)
 
-Hol_datatype `decision_structure = <| sem : 'a -> ((string,bool) alist) -> 'b option ;
+
+(* language ILR specialization definitions: 
+   semantics, substitute, simplify, final, free variable check
+ *)
+Datatype `decision_structure = <| sem : 'a -> ((string,bool) alist) -> 'b option ;
                                       sub : 'a -> string -> bool -> 'a ;
                                       simp : 'a -> 'a ;
                                       final : 'a -> 'b option;
                                       fv : 'a -> string list
                                     |>`;
 
-(* BDD types *)
-val _ = type_abbrev("edges", ``:(num , (num # num)) alist``);
+(* edges map *)
+Type edges = ``:(num , (num # num)) alist``;
 
+(* label *)
+Datatype:
+   label = termn ('b # 'a )
+          | non_termn (string option #  'a)
+End
 
-val _ = Hol_datatype `
-                     label = termn of ('b # 'a )
-                            | non_termn of (string option #  'a)`;
-
-
-
+(* labels map *)
 Type labelings = ``:(num , ('a,'b) label) alist``;
-val _ = type_abbrev("BDD", ``:num # edges # ('a,'b) labelings``);
 
+
+(* BDD tuples *)
+Type BDD = ``:(num # edges # ('a,'b) labelings)``;
 
 
 
@@ -55,6 +41,7 @@ val _ = type_abbrev("BDD", ``:num # edges # ('a,'b) labelings``);
 (******************************************************)
 (* generalized definition (relation) of BDD semantics *)
 (******************************************************)
+
 
 Definition from_formula_to_action_def:
   from_formula_to_action (rec: ('a,'b) decision_structure) p mv =
@@ -74,7 +61,6 @@ Inductive BDD_sem:
       ⇒
       BDD_sem rec (r,edges,labels) mv n (from_formula_to_action rec p mv)
   )
-
 
 [bdd_red_T:]
   ( ∀ (rec: ('a,'b) decision_structure) (root:num) (edges:edges) (labels: ('a,'b) labelings) (mv:(string#bool)list) (n:num) (l:num) (r:num)  (pred:'a) (x:string) (b': 'b option).
@@ -218,6 +204,7 @@ End
 
 
 
+(* create one layer / one iteration in mk bdd optimized *)
 Definition body_of_mk_def:
   body_of_mk rec (BDD:('a,'b) BDD) (x:string) (c:num) =
   (let (r,edges,labels) = BDD in
@@ -270,8 +257,9 @@ EVAL “mk_BDDPred pred_structure (0,[],[(0, non_termn (NONE, Or (Var "a") (Var 
 *)
 
 (*
-val toBDD_pred_def = Define `
-  toBDD_pred P vars = mk_BDDPred (0, [], [(0, non_termn ( NONE , P))]) vars 1`;
+Definition toBDD_pred_def:
+  toBDD_pred P vars = mk_BDDPred (0, [], [(0, non_termn ( NONE , P))]) vars 1
+End
 *)
 
 
@@ -282,21 +270,20 @@ val toBDD_pred_def = Define `
 (**********************************************)
 
 
-
-val lookup_is_some_def = Define `
-    lookup_is_some l1 n =
+Definition lookup_is_some_def:
+  lookup_is_some l1 n =
      ? y . ALOOKUP l1 n = SOME y
-`;
+End
 
-val is_lookup_internal_def = Define `
-    is_lookup_internal l1 n =
+Definition is_lookup_internal_def:
+  is_lookup_internal l1 n =
      ? x p . ALOOKUP l1 n = SOME (non_termn (SOME x, p))
-`;
+End
 
-val is_lookup_ntl_def = Define `
-    is_lookup_ntl l1 n =
+Definition is_lookup_ntl_def:
+  is_lookup_ntl l1 n =
      ? p . ALOOKUP l1 n = SOME (non_termn (NONE, p))
-`;
+End
 
 
 
@@ -314,7 +301,7 @@ End
 
 
 
-(* i decided to make it domain of edges instead of labels cause
+(* decided to make it domain of edges instead of labels cause
 all the proofs has split on edges and should prove labels*)
 
 Definition BDD_WF_def:
@@ -381,14 +368,6 @@ Definition consumed_dom_bdd_def:
     MEM x vars_consumed
 End
 
-(*
-Definition mv_dom_bdd_def:
-  mv_dom_bdd mv ((root,edges,labels):('a,'b)BDD) =
-  ∀ n p x.
-    (ALOOKUP labels n = SOME (non_termn (SOME x,p))) ⇒
-    lookup_is_some mv x
-End
-*)
 
 Definition mv_dom_vars_def:
   mv_dom_vars mv vars =
@@ -464,21 +443,6 @@ Definition correct_sem_def:
     b = op_sem rec (get_prop labels n) mv
 End
 
-(*
-Definition correct_sem_def:
-  correct_sem rec (BDD:('a,'b)BDD)  =
-  ∀ r edges labels.
-    BDD = (r,edges,labels) ==>
-  ! n .
-  ! mv .
-    MEM n (all_edges edges)
-    mv_dom_bdd mv BDD  ∧
-    fv_in_vars rec (get_prop labels n) mv ==>
-  !b .
-    BDD_sem rec BDD mv n b ⇒
-    b = op_sem rec (get_prop labels n) mv
-End
-*)
 
 Definition valid_BDD_def:
   valid_BDD rec (BDD:('a,'b)BDD) vars vars_consumed =
@@ -607,7 +571,7 @@ End
 
 
 
-val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
+Type distrub_st = ``:( (string, (num list) option) alist   # num list # num list)``
 
 
 Definition eliminable_projection_def:
@@ -707,7 +671,7 @@ End
 
 
 Definition optimize_layer_def:
-  (optimize_layer edges_proj labels_proj (BDD:('a,'b) BDD) [] = BDD) /\
+  (optimize_layer edges_proj labels_proj (BDD:('a,'b) BDD) [] = BDD) ∧
   (optimize_layer edges_proj labels_proj BDD  (n::nl)=
    optimize_layer edges_proj labels_proj (optimize_node edges_proj labels_proj BDD n nl) nl
   )
@@ -737,8 +701,8 @@ End
 
 
 Definition optimize_internals_def:
-  (optimize_internals (BDD:('a,'b) BDD) [] = BDD) /\
-  (optimize_internals BDD  ((var,NONE)::l) = optimize_internals BDD l) /\
+  (optimize_internals (BDD:('a,'b) BDD) [] = BDD) ∧
+  (optimize_internals BDD  ((var,NONE)::l) = optimize_internals BDD l) ∧
 
   (optimize_internals BDD  ((var,SOME nl)::l)=
     let edges_proj = project_edges_to BDD nl in

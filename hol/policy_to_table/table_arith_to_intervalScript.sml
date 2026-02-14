@@ -1,37 +1,25 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
-
+open HolKernel boolLib simpLib Parse bossLib;
 open p4Lib;
 open blastLib bitstringLib;
+
 open p4Theory;
 open p4_auxTheory;
 open p4_coreTheory;
 
 open bitstringTheory;
 open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
+
 open pairTheory;
+open listTheory;
 open rich_listTheory;
-open arithmeticTheory;
 open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
 
 open bdd_genTheory;     
-open pred_specTheory;     
-open policy_specTheory;     
-open tables_spec_oldTheory;
-
 open table_bs_propertiesTheory;
-     
 open policy_arith_to_varTheory;
+
+open tables_spec_oldTheory;
+open tables_specTheory;
 open table_var_to_arithTheory;
 
 val _ = new_theory "table_arith_to_interval";
@@ -40,13 +28,13 @@ val _ = new_theory "table_arith_to_interval";
 (*==========================================*)
 (*         Types of interval tables         *)
 (*==========================================*)       
-val _ = Hol_datatype ` 
-  interval = Empty | Single of bitv => bitv
-`;
+Datatype:
+  interval = Empty | Single bitv bitv
+End
 
-val _ = Hol_datatype ` 
-  interval_key = key_val of arith_lv | key_const of bitv
-`;
+Datatype:
+  interval_key = key_val arith_lv | key_const bitv
+End
 
         
 Type intvl_row        = “:(interval list # num # 'a action_expr)”;
@@ -65,15 +53,14 @@ Definition mk_max_bv_def:
   mk_max_bv bit_len =
   (fixwidth bit_len (n2v (max_from_type bit_len)),bit_len)
 End
-           
+
+
 Definition mk_min_bv_def:
   mk_min_bv bit_len =
   (fixwidth bit_len (n2v 0),bit_len)
 End        
 
-
-
-
+(* well formed packet according to its type *)
 Definition wf_packet_def:
   wf_packet packet_type packet_input =
   ∀ lval n.  resolve_lval_type packet_type lval = SOME (type_length n) ⇒
@@ -139,9 +126,9 @@ End
 
         
 
-val _ = Hol_datatype ` 
-  ret_arth_indic = isTrue | isFalse | is_lval of arith_lv
-`;
+Datatype:
+  ret_arth_indic = isTrue | isFalse | is_lval arith_lv
+End
       
 
 
@@ -171,6 +158,7 @@ Definition get_lval_of_ret_arith_list_def:
                                               or more than one, then NONE*)
 End
            
+
 
 (* this should be for the whole table*)        
 Definition get_lval_of_arith_list_def:
@@ -227,17 +215,14 @@ End
 
 (*
 
-
 val test_pd_type = ``[("h" , type_record [("ttl", type_length 8);
                                           ("src", type_length 8)])]``;
-                               
-
-                                  
+                                                                
 EVAL “convert_arith_to_interval_table
       [([   a_True;
          arithm_ge (lv_acc (lv_x "h") "ttl") (fixwidth 8 (n2v 1),8);
          arithm_le (lv_acc (lv_x "h") "ttl") (fixwidth 8 (n2v 3),8)],1, action "fwd1");
-        
+
        ([arithm_ge (lv_acc (lv_x "h") "ttl") (fixwidth 8 (n2v 4),8)],1,action "fwd2");
 
        ([a_False],1,action "drop");
@@ -246,9 +231,6 @@ EVAL “convert_arith_to_interval_table
 
        ^test_pd_type”
 
-
-
-      
 EVAL “convert_arith_to_interval_table
       [([a_False],1, action "fwd1");
         
@@ -258,11 +240,7 @@ EVAL “convert_arith_to_interval_table
 
         ([a_False],1,action "drop")]
 
-       ^test_pd_type”
-
-       
-
-        
+       ^test_pd_type” 
 *)
 
 
@@ -337,9 +315,6 @@ End
 
 
 (*
-
-
-
 val example_pd =  
  “([ ("h", val_record [
             ("ttl", val_bs (fixwidth 8 (n2v 1), (8:num)))
@@ -387,8 +362,6 @@ Proof
   res_tac >> fs[] >>
   Cases_on ‘resolve_lval packet_input a’ >> gvs[]
 QED
-
-
 
 
 
@@ -445,7 +418,6 @@ QED
 
 
 
-
 Theorem arith_interval_equiv_for_bool_atoms_l:
   ∀ arith_guards packet_input.
     EVERY (λx. x = a_True ∨ x = a_False) arith_guards  ⇒
@@ -466,7 +438,8 @@ Proof
   metis_tac[]
 QED         
 
-          
+
+
 Definition relevant_atom_key_def:
   relevant_atom_key a_True a = T ∧
   relevant_atom_key a_False a  = T ∧
@@ -544,6 +517,7 @@ QED
 
 
 
+
 Theorem bs_is_between_its_max_min:
   ∀ bs packet_input.
     SND bs > 0 ∧ SND bs < 129 ⇒
@@ -559,8 +533,6 @@ Proof
   gvs[all_bs_larger_than_zero] >>             
   gvs[every_bs_is_less_than_max_fixwidth]
 QED
-
-                                                                                                
 
 
                                                                                                 
@@ -655,6 +627,8 @@ Proof
   metis_tac[sem_arith_var_atom_imp]
 QED
    
+
+
 
 Theorem convert_arith_to_interval_table_length:
   ∀ arith_table interval_table packet_type key. 
@@ -910,11 +884,7 @@ End
 
 
         
-(*
-
-
-
-            
+(*      
 val example_pd =  
  “([("h", type_length 4)])”;
 
@@ -931,16 +901,12 @@ val example_interval_table1 =
 EVAL “convert_interval_to_sinterval_table ^example_interval_table1 ^example_pd”
 
 
-
-
 fun make_bv n len = let
 val n_term = numSyntax.term_of_int n
 val len_term = numSyntax.term_of_int len
 in
 “(fixwidth ^(len_term) (n2v ^(n_term)), ^(len_term))”
 end
-
-
 
 fun make_interval a b len = let
 val a_term = make_bv a len
@@ -949,9 +915,8 @@ in
 “Single ^a_term ^b_term”
 end
 
+(*===============*)
 
-
-            
 val example_pd2 =  
  “([("h", type_length 5)])”;
 
@@ -968,11 +933,7 @@ val example_interval_table2 =
 
 EVAL “convert_interval_to_sinterval_table ^example_interval_table2 ^example_pd2”
 
-
-
-
 val =   (make_interval 1 1 1)”
-
 
 val example_interval_table1 =
  “(key_const ((fixwidth 1 (n2v 1), (1:num))),
@@ -984,14 +945,7 @@ val example_interval_table1 =
          ([^(make_interval 0 1 1)], 1, action "result4")]): string intvl_table”;
 
 EVAL “convert_interval_to_sinterval_table ^example_interval_table1 ^example_pd”
-
-
-
-     
-
-
-
-     
+ 
 *)
 
 
@@ -1193,6 +1147,7 @@ Proof
       )
     ) >> metis_tac[]
 QED
+
 
 
 Theorem if_bs_ge_max_then_eq:        
@@ -1463,8 +1418,6 @@ QED
                              
 
 
-
-
 Theorem starting_from_none_intersection_results_none:
   ∀ interval_list.
     FOLDL (λacc interval_g. operate_intersect interval_g acc) NONE interval_list = NONE 
@@ -1473,7 +1426,8 @@ Proof
   Cases_on ‘operate_intersect h NONE’ >> gvs[operate_intersect_def]
 QED
 
-                                                                                    
+
+
 Theorem starting_from_empty_intersection_results_none_or_empty:
   ∀ interval_list a b.
     FOLDL (λacc interval_g. operate_intersect interval_g acc) (SOME Empty) interval_list = a ⇒
@@ -1494,7 +1448,6 @@ QED
          
 
 
-
 Theorem two_wf_interval_intersection_results_wf_interval:
   ∀ interval1 interval2 interval3.
     wf_interval interval1 ∧
@@ -1509,7 +1462,6 @@ Proof
   
   gvs[wf_interval_def, wf_bit_def]
 QED
-
 
 
 
@@ -1560,6 +1512,7 @@ Proof
 QED
 
 
+
 Theorem transitive_binpred4:
   ∀ len a b c.
     len > 0 ∧
@@ -1580,6 +1533,7 @@ Proof
      )
     ) >> intLib.COOPER_TAC 
 QED
+
 
 
 Theorem transitive_binpred5:
@@ -1620,8 +1574,6 @@ Theorem intersection_preserves_evaluation_thm:
     ⇔
       eval_interval_atom (bs,len) packet_input interval3 = SOME T )
 Proof
-
-
   Cases_on ‘interval1’ >>
   Cases_on ‘interval2’ >>
   rw[operate_intersect_def] >>
@@ -1633,16 +1585,11 @@ Proof
   PairCases_on ‘p0’ >>
   PairCases_on ‘p0'’ >>
   
-  
   gvs[eval_interval_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[intersect_interval_def]) >>
 
-  
-  
   gvs[bv_le_than_def, bv_ge_than_def, bv_gt_than_def] >>
-  
-  
-  
+
   imp_res_tac bitv_binpred_same_length >> gvs[] >>
   imp_res_tac last_edge_of_binpred_neg >> gvs[] >>                 
   imp_res_tac transitive_binpred1 >> gvs[] >>
@@ -1706,9 +1653,6 @@ Proof
 QED
 
 
-
-
-
                                      
 
 Theorem intersection_eval_row_interval_sinterval_correct_full:
@@ -1758,10 +1702,7 @@ Proof
   ]
 QED
 
-
-
-
-                                                                                             
+                                                                                        
 
 Theorem  check_sinterval_table_sem_table_correct:
   ∀ packet_input packet_type interval_table sinterval_table st_in.
@@ -1904,8 +1845,6 @@ QED
 
 
 
-
-
 Theorem match_sinterval_table_correct:
   ∀ interval_table sinterval_table packet_input packet_type st_in.
     wf_packet packet_type packet_input ∧
@@ -1949,7 +1888,6 @@ End
 
 (*
 
-
 val test_pd = ``[("ttl", type_length 5);
                  ("src", type_length 5)]``;
                  
@@ -1982,10 +1920,6 @@ val test_final_table2 =
   EVAL ``convert_var_to_sinterval_table ^test_var_table2 ^test_me ^test_pd``;
 
 
-
-
-
-  
 val test_var_table3 = ``[
   ([True; True], 1n, action "fwd1");
   ([False], 1n, action "fwd2");
@@ -2016,7 +1950,6 @@ End
 
 (* semantics of last stage's full tables chain of the three steps var-arith-intervals-sinterval*)
 
-
 (* Process table list with state propagation *) 
 Definition match_sinterval_tbll_def:
   match_sinterval_tbll [] packet_input st_in = NONE ∧
@@ -2038,7 +1971,6 @@ Definition sem_sinterval_tables_def:
   sem_sinterval_tables (sinterval_tbll,st_in) packet_input =
    match_sinterval_tbll sinterval_tbll packet_input st_in
 End
-
 
 
 
@@ -2094,19 +2026,6 @@ QED
 
 
 
-
-        
-
-
-
-
-
         
 val _ = export_theory ();
-
-
-
-
-
-
 

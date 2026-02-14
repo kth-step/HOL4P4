@@ -1,37 +1,21 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
 open p4_auxTheory;
-open p4_coreTheory;
-
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
 open pairTheory;
+open listTheory;
 open rich_listTheory;
-open arithmeticTheory;
 open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
 
-open bdd_genTheory;
 open pred_specTheory;
 open policy_specTheory;
 open policy_arith_to_varTheory;
 
 val _ = new_theory "policy_var_to_arith";
 
-(* mainly to create a minimal policy, we need this file to translate back to arithmetic*)
+(* mainly to create a minimal policy, 
+we need policy to be output as well,
+this file translate it from var-based, or ILR to output.
+we need this file to translate back to arithmetic*)
 
 
 
@@ -61,8 +45,6 @@ Definition pred_v2a_def:
 End
 
 
-
-
 Definition all_convertable_to_arith_def:
   all_convertable_to_arith m_e policy =
   EVERY (λ(pred,_). pred_v2a m_e pred ≠ NONE) policy
@@ -76,10 +58,6 @@ Definition convert_var_to_arith_policy_def:
     else
       NONE
 End
-
-
-
-
 
 
 Theorem pred_conversion_preserves_semantics2_thm:
@@ -103,10 +81,6 @@ Proof
    rw[] >>
    gvs[eval_arithm_atom_def, sem_pred_def]
 QED
-
-
-
-
 
 
 Theorem policy_var_to_arith_sem_conversion_correct:
@@ -137,7 +111,6 @@ Proof
   Cases_on ‘x’ >> rw[] >>
   rename1 ‘(pred, act)’ >>
 
-  (* Since all_convertable_to_var holds, pred_a2v m_e pred ≠ NONE *)
   ‘pred_v2a m_e pred ≠ NONE’ by (
     fs[all_convertable_to_arith_def, EVERY_MEM] >>
     rgs[ELIM_UNCURRY] >>
@@ -145,7 +118,6 @@ Proof
     fs[FST]
   ) >>
 
-  (* This requires a lemma about pred_a2v and eval_pred_w_str equivalence *)
   Cases_on ‘pred_v2a m_e pred’ >> gvs[] >>
   metis_tac[pred_conversion_preserves_semantics2_thm]
 QED

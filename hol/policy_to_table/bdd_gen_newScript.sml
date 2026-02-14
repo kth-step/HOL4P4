@@ -26,16 +26,17 @@ val _ = new_theory "bdd_gen_new";
 
 
                                    
-val _ = Hol_datatype `
-                     id = id_termn of 'a
-                        | id_non_termn of (string option)`;
+Datatype:
+  id = id_termn  'a
+       | id_non_termn (string option)
+End
 
         
 Type label_id = ``:(num , ('b id # num)) alist``;   
 Type label_content = ``:(num , 'a) alist``;
 
-val _ = type_abbrev("BDD_sep", ``:num # edges # 'b label_id # 'a label_content``);
-val _ = type_abbrev("BDD_mini", ``:num # edges # 'b label_id``);
+Type BDD_sep = ``:num # edges # 'b label_id # 'a label_content``
+Type BDD_mini = ``:num # edges # 'b label_id``
 
    
 
@@ -228,7 +229,7 @@ End
 
 
 
-val _ = type_abbrev("distrub_st", ``:( (string, (num list) option) alist   # num list # num list)``);
+Type distrub_st = `:( (string, (num list) option) alist   # num list # num list)`
 
 
 Definition distrubute_labels_new_def:
@@ -295,7 +296,7 @@ End
 
 
 Definition optimize_layer_new_def:
-  (optimize_layer_new edges_proj labels_id_proj (BDD_mini:'b BDD_mini) [] = BDD_mini) /\
+  (optimize_layer_new edges_proj labels_id_proj (BDD_mini:'b BDD_mini) [] = BDD_mini) ∧
   (optimize_layer_new edges_proj labels_id_proj BDD_mini  (n::nl)=
    optimize_layer_new edges_proj labels_id_proj (optimize_node_new edges_proj labels_id_proj BDD_mini n nl) nl
   )
@@ -315,8 +316,8 @@ End
 
 
 Definition optimize_internals_new_def:
-  (optimize_internals_new (BDD_mini:'b BDD_mini) [] = BDD_mini) /\
-  (optimize_internals_new BDD_mini  ((var,NONE)::l) = optimize_internals_new BDD_mini l) /\
+  (optimize_internals_new (BDD_mini:'b BDD_mini) [] = BDD_mini) ∧
+  (optimize_internals_new BDD_mini  ((var,NONE)::l) = optimize_internals_new BDD_mini l) ∧
 
   (optimize_internals_new (r,edges,labels_id)  ((var,SOME nl)::l)=
     let edges_proj = project_edges_to_new edges nl in

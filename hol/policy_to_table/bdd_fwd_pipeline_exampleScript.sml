@@ -1,58 +1,20 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib pairLib;
 
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
-open pairTheory;
+open listTheory;
+open alistTheory;
 open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
 
-
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_coreTheory;
-     
-open bdd_genTheory;     
-open pred_specTheory;     
-open policy_specTheory;   
 open tables_specTheory;
-open bdd_isomorphTheory;
-open bdd_end_to_endTheory;     
 
 open policy_arith_to_varTheory;
-open table_var_to_arithTheory;
 open table_arith_to_intervalTheory;
 
-open bdd_auxTheory;
-open table_bs_propertiesTheory;
-     
-open bdd_utilsLib;
+open bdd_end_to_endTheory;  
 
 val _ = new_theory "bdd_fwd_pipeline_example";
 
-(* a few types abbreviations *)
 
-(*val _ = type_abbrev("BDD_tbl_type", “:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)”);
-
-val _ = type_abbrev("struc_tbl_type", “:((( atom_var list # num # (string# num list) action_expr) list list # num,
-                                          (string# num list) action_expr) decision_structure)”);
-
-val _ = type_abbrev("action_rule_type", “:((string# num list) action_expr) rule”);
-val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
-*)
-        
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
-    
+         
 (****************************************************************)
 (****************************************************************)
 (*           forward proof for a policy example                 *)
@@ -60,12 +22,22 @@ val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_ru
 (****************************************************************)
    
 
+(* a few types abbreviations *)
+
+(*Type BDD_tbl_type = ``:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)``
+
+Type struc_tbl_type = ``:((( atom_var list # num # (string# num list) action_expr) list list # num,
+                                          (string# num list) action_expr) decision_structure)``
+
+Type action_rule_type = ``:((string# num list) action_expr) rule``
+Type action_policy_type = ``:((string# num list) action_expr) policy``
+*)
+
+
+
 (* policy 1: arith POLICY representation *)
 
-
- 
-
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = ``:((string# num list) action_expr) arith_rule``
  
 val test_pd_type = “[("ip", type_record [("priority", type_length 3);
                                          ("size", type_length 16);
@@ -284,14 +256,6 @@ val final_thm = prove(
       
   fs[cond1_thm, cond2_thm, cond3_thm]
 );
-
-
-
-
-
-
-
-
 
 
 

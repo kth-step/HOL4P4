@@ -1,32 +1,18 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
-open pairTheory;
+open listTheory;
+open alistTheory;
 open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
 
 open p4_auxTheory;
 
-open bdd_auxTheory;          
-open bdd_genTheory;     
-open bdd_gen_wfTheory;     
+open bdd_auxTheory;     
+open bdd_genTheory;  
+open bdd_gen_wfTheory;   
 open bdd_gen_orderTheory;
 open bdd_gen_correctTheory;
-
 open bdd_gen_mergeTheory;
+
 
 val _ = new_theory "bdd_gen_eliminate";
 
@@ -513,7 +499,7 @@ Theorem eliminate_correct_bdd_exracted:
     BDD_ordered (r,edges,labels) vars_consumed ∧
     fv_in_BDD rec (r,edges,labels) (vars++vars_consumed)  ∧
     eliminable (r,edges,labels) n' = SOME n
-    ==>
+    ⇒
     correct_sem rec (merge (r,edges,labels) n n')  (vars++vars_consumed)
 Proof
   rpt strip_tac >>   
@@ -553,7 +539,7 @@ Theorem eliminate_correct:
     BDD_ordered BDD vars_consumed ∧
     fv_in_BDD rec BDD (vars++vars_consumed)  ∧
     eliminable BDD n' = SOME n
-    ==>
+    ⇒
     correct_sem rec (merge BDD n n')  (vars++vars_consumed)
 Proof
   rpt strip_tac >>
@@ -1308,7 +1294,7 @@ Theorem eliminate_wf_preservation:
     BDD_WF BDD ∧
     consumed_dom_bdd vars_consumed BDD ∧
     eliminable BDD n' = SOME n
-    ==>
+    ⇒
     BDD_WF (merge BDD n n') 
 Proof
   rpt strip_tac >>

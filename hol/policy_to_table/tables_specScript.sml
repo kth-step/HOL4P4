@@ -1,38 +1,22 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_coreTheory;
-
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
 open pairTheory;
+open listTheory;
 open rich_listTheory;
+open alistTheory;
 open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
+
+open p4_auxTheory;
 
 open bdd_genTheory;     
-open pred_specTheory;     
-open policy_specTheory;     
-     
 open tables_spec_oldTheory;
+open policy_specTheory;     
+
 
 val _ = new_theory "tables_spec";
 
-    
+
+(* A description of the tables ILR and its functions instansiations *)    
 
 Definition is_not_true_var_atom_def:
   (is_not_true_var_atom True = F) ∧
@@ -62,14 +46,12 @@ End
 here we work with none, and some.
 these represent the state of the previous table.
 
-   If the previous table is final, it menas it has only one line and one state as a result.
-   this state as a reult represent the answer of the previous table, that we will use to match on the current table.
+If the previous table is final, it menas it has only one line and one state as a result.
+this state as a reult represent the answer of the previous table, that we will use to match on the current table.
 
-   If is it SOME (st_num), then we have the ability to reduce the current table so much, otherwise,
-   if NONE, then we do not know the previous table what it could return yet,
-   thus we reduce but not as much when evaluating it EVAL. 
-
-
+If is it SOME (st_num), then we have the ability to reduce the current table so much, otherwise,
+if NONE, then we do not know the previous table what it could return yet,
+thus we reduce but not as much when evaluating it EVAL. 
    
 *)
 
@@ -119,18 +101,11 @@ End
 
 
 
-
 Definition simp_tables_wrapper_def:
   simp_tables_wrapper ((tbll: 'a var_table_list), st_in) =
    (simp_tables tbll (SOME st_in), st_in)
 End
 
-
-
-
-
-
-(*****************************)
 
 
 Definition final_row_def:
@@ -168,6 +143,7 @@ Definition final_tbll_def:
 End
 
 
+
 Definition final_tables_def:
   final_tables (tbll, st_in) =
   final_tbll tbll st_in
@@ -195,9 +171,6 @@ Proof
   rw[simp_row_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
 QED
-
-
-
 
 
 
@@ -309,7 +282,8 @@ Proof
 QED
 
 
-        
+
+
 Triviality simp_table_mk_substitute_tbl_empty1:
   ∀ t h x b s_in.
     simp_table (mk_substitute_tbl (h::t) x b) (SOME s_in) = [] ⇒
@@ -321,7 +295,8 @@ Proof
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
 QED
 
-        
+
+
         
 Theorem simp_table_sub_every_prop1:
   ∀ t x b  s_in mv.
@@ -383,9 +358,6 @@ Proof
 QED
 
 
-
-        
-
                              
 Theorem match_tbll_head_empty:
   ∀ tbll mv s_in.
@@ -396,6 +368,8 @@ Proof
 QED
 
 
+
+
 Theorem match_tbll_row_empty:
   ∀ tbll st res mv s_in.
     match_tbll ([([],st,res)]::tbll) mv s_in = NONE
@@ -403,6 +377,7 @@ Proof
  rw[] >> Cases_on ‘tbll’ >> 
  gvs[match_tbll_def, match_tbl_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def, is_match_row_def]
 QED
+
 
 
 
@@ -418,16 +393,12 @@ Proof
 QED
 
 
-
-
-
         
 Triviality simp_tables_sub_not_empty_table:
  ∀ t x b l.
   simp_tables (mk_substitute_tbl t x b::l) NONE ≠ []
 Proof
-
-rw[simp_tables_def, mk_substitute_tbl_def] >>
+  rw[simp_tables_def, mk_substitute_tbl_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
 
@@ -444,7 +415,8 @@ Proof
   gvs[is_not_true_var_atom_def]
 QED   
 
-      
+
+
 Theorem filtering_not_true_then_not_mem:
   ∀ atoml filtered_list.
     FILTER (λx. is_not_true_var_atom x) (MAP (λatom. simp_atom atom) atoml) = filtered_list ⇒
@@ -455,8 +427,6 @@ Proof
   Cases_on ‘h’ >>
   gvs[simp_atom_def, is_not_true_var_atom_def]
 QED
-
-
 
                    
 
@@ -475,9 +445,7 @@ Proof
   )
 QED
 
-        
 
-        
 
 Theorem simp_table_impossible_case2:
   ∀ l t t' s_in st_num res.        
@@ -520,22 +488,6 @@ Proof
 QED
 
 
-(*        
-Theorem simp_tbl_none_impies_some_cases:
-∀ tbl n h1 h2.
-  (simp_table (tbl) NONE = [] ⇒ simp_table (tbl) (SOME n) = []) ∧
-  (simp_table (tbl) NONE = [([],h1,h2)] ⇒ simp_table (tbl) (SOME n) = [([],h1,h2)])
-Proof
-
-Induct >>
-rw[simp_table_def] >>
-
-Cases_on ‘tbl’ >> PairCases_on ‘h’ >> gvs[simp_table_def]  >>       
-rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def])
-QED  
-*)
-
-
     
 Theorem simp_table_return_true_then_rows_none:
   ∀ tbl rows h1 h2.
@@ -562,7 +514,8 @@ Proof
 Induct >> rw[simp_tables_def] >>
 rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) 
 QED
-                                                
+
+
 
 Triviality simp_tables_single_not_empty:
 ∀ rows anyop.
@@ -632,8 +585,6 @@ QED
 
 
 
-
-
 Theorem INDEX_FIND_some_eq_next: 
   ∀ l1 res n.
   INDEX_FIND 0 (λ(p,a). p) l1 = SOME (n,res) ⇔ INDEX_FIND 1 (λ(p,a). p) l1 = SOME (n + 1,res)
@@ -659,6 +610,7 @@ QED
 
 
 
+
 Theorem INDEX_FIND_some_eq_next2: 
   ∀ l1 res n.
   (INDEX_FIND 0 (λ(p,a). p) l1 = SOME (n -1,res) ∧ n>0) ⇔ INDEX_FIND 1 (λ(p,a). p) l1 = SOME (n,res)
@@ -675,6 +627,7 @@ Proof
 QED
 
     
+
         
 Theorem min_idx_till_some_eq_next2: 
   ∀ l1 res res' n.
@@ -688,9 +641,7 @@ Proof
    Cases_on ‘n’ >> gvs[ADD1] 
 QED
 
-
-
-        
+    
 
 Triviality simp_row_false_emptyl:
   ∀ atoml t.        
@@ -926,15 +877,6 @@ QED
 
 
 
-
-
-
-
-
-
-
-        
-
 Theorem  min_idx_till_none_not_none:      
   ∀ l .        
     (min_idx_till l T = NONE) ⇔
@@ -1036,6 +978,8 @@ Proof
 QED
 
 
+
+
 Triviality simp_row_cannot_result1:
   ∀ atoml a l.
     simp_row atoml ≠ [NotFalse] ∧
@@ -1055,9 +999,8 @@ Proof
 QED
 
 
-
-    
         
+
 Theorem simp_table_cannot_result1:
   ∀ rows st res.
     (simp_table rows NONE ≠ [([NotFalse],st,res)]) ∧
@@ -1275,12 +1218,6 @@ Proof
   imp_res_tac simp_tables_single_match_eq >>
   metis_tac[]
 QED
-
-
-
-
-
-
 
 
 
@@ -1815,6 +1752,8 @@ Proof
 QED
 
 
+
+
 (* to do : same proof as none, merge them *)
 Theorem min_idx_till_simp_eq_some:
   ∀l s_in mv r r' idx idx'.
@@ -1951,9 +1890,6 @@ Proof
     imp_res_tac min_idx_till_simp_sub_eq_some >> gvs[]
   ]
 QED
-
-      
-
 
 
 
