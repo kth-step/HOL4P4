@@ -16,8 +16,13 @@ val _ = translation_extends "common_parse_cakeml_Prog"
 val _ = intLib.deprecate_int();
 
 
-(*This file extends the basic BDD translation for policies, where the input is parsed via cakeML,
-   here we create one BDD that takes an two inputs text one for policy and one for order then outputs BDD in the terminal *)
+(*This file extends the basic BDD translation for policies,
+ where the input is able to be parsed via cakeML,
+   here we create one BDD that takes an two inputs 
+   text one for policy and one for order then outputs 
+   BDD in the terminal 
+   val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" prog;
+   *)
 
 
 

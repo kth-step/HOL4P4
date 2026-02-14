@@ -56,10 +56,14 @@ open apply_trans_to_IOLib;
         end
 
 
-
     fun convert_arith_policy_to_interval_tables_cake_w_IO (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
 
-       (* this compiles the input with cakeML It takes a very longer time, so I created a parser in CakeML, This should be in fwd_proof_cakeLib file*)
+       (* this compiles the input with cakeML 
+       It takes a very longer time as teh compilations of Cakeml are heavy,
+       I mean the proofs even for stage 1,
+       , so I created a parser in CakeML, 
+       This should be in fwd_proof_cakeLib file lifted up,
+       as the proofs become suddenlty faster*)
 
 
         let
