@@ -1,37 +1,15 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_coreTheory;
-
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
 open pairTheory;
+open listTheory;
 open rich_listTheory;
-open arithmeticTheory;
 open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
 
 open bdd_genTheory;     
-open pred_specTheory;     
-open policy_specTheory;     
-open tables_spec_oldTheory;
-
 open table_bs_propertiesTheory;
-     
 open policy_arith_to_varTheory;
+open tables_spec_oldTheory;
+open tables_specTheory;
 
 
 val _ = new_theory "table_var_to_arith";
@@ -54,11 +32,11 @@ Type arith_table = “: ('a arith_row) list”
 Type arith_table_list = “: ('a arith_table) list”
 
 
-val _ = Hol_datatype `
+Datatype:
   pd_type = 
-     type_length of num   
-   | type_record of (string # pd_type) list  (* [f1:bs; ...; fn:bs_n] *)
-`;
+     type_length  num   
+   | type_record  ((string # pd_type) list)  (* [f1:bs; ...; fn:bs_n] *)
+End
 
 Type pd_type_struct = “: (string # pd_type) list”; 
 

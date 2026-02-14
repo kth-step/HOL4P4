@@ -1,9 +1,7 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
-
+open HolKernel boolLib simpLib Parse bossLib;
 open p4Lib;
 open blastLib bitstringLib;
+
 open p4Theory;
 open p4_auxTheory;
 open p4_coreTheory;
@@ -11,17 +9,11 @@ open p4_coreTheory;
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
-open sumTheory;
-open stringTheory;
 open ottTheory;
 open pairTheory;
 open rich_listTheory;
-open arithmeticTheory;
 open alistTheory;
 open numeralTheory;
-open alistTheory;
-open pred_setTheory;
-open pred_setLib;
   
 
 
@@ -168,7 +160,8 @@ end;
 
 val all_fixwidth_thms = List.tabulate(128, fn i => gen_fixwidth_thm (i+1));            
 val big_thm = LIST_CONJ all_fixwidth_thms;
-val fixwidth_zero_all_thm = save_thm("fixwidth_zero_all", big_thm);
+Theorem fixwidth_zero_all = big_thm
+
 
 
 
@@ -193,7 +186,7 @@ Proof
    gvs[] >>
    gvs[get_word_binpred_def] >>
    
-   imp_res_tac fixwidth_zero_all_thm >>
+   imp_res_tac fixwidth_zero_all >>
    gvs[] >>
    blastLib.FULL_BBLAST_TAC        
    ) 
@@ -227,7 +220,8 @@ end;
 
 val word_ineq_thms = List.tabulate(128, fn i => gen_word_ineq_thm (i+1));
 val word_ineq_all1 = LIST_CONJ word_ineq_thms;
-val word_ineq_all1_thm = save_thm("word_ineq_all_sizes", word_ineq_all1);
+Theorem word_ineq_all_sizes = word_ineq_all1
+
 
 
 
@@ -264,7 +258,7 @@ fun prove_ineq2_thm len = let
                   rpt strip_tac >>
                   Cases_on `^v2w_n = v2w (n2v 0)` >-
                    gvs[v2w_11] >> gvs[] >> 
-                  imp_res_tac word_ineq_all1_thm >>
+                  imp_res_tac word_ineq_all1 >>
                   gvs[]
                  )
 in
@@ -274,7 +268,8 @@ end;
                     
 val word_ineq2_thms = List.tabulate(128, fn i => prove_ineq2_thm (i+1));
 val word_ineq_all2 = LIST_CONJ word_ineq2_thms;
-val word_ineq_all2_thm = save_thm("word_ineq_all_sizes2", word_ineq_all2);
+Theorem word_ineq_all_sizes2 = word_ineq_all2
+
 
 
     
@@ -307,7 +302,7 @@ rpt (
    
    rewrite_tac [Once $ GSYM word_sub_def] >>
    
-   imp_res_tac word_ineq_all2_thm >>
+   imp_res_tac word_ineq_all2 >>
    gvs[]
    )
   ) >>
@@ -483,7 +478,8 @@ end;
 
 val gen_max_bound_thms = List.tabulate(128, fn i => gen_max_bound_thm (i+1));
 val gen_max_bound_all1 = LIST_CONJ gen_max_bound_thms;
-val gen_max_bound_all1_thm = save_thm("gen_max_bound_all1_sizes", gen_max_bound_all1);
+Theorem gen_max_bound_all1_sizes = gen_max_bound_all1
+
 
     
 Theorem bitv_binpred_le_bool_conv1:
@@ -516,7 +512,7 @@ Proof
      rpt strip_tac >>
      gvs[WORD_HIGHER_EQ] >>
      gvs[WORD_NOT_LOWER_EQUAL] >>
-     gvs[gen_max_bound_all1_thm]
+     gvs[gen_max_bound_all1]
      )
     ) >> intLib.ARITH_TAC
 QED 
@@ -545,7 +541,8 @@ end;
 
 val w_is_less_than_max_fixwidth_thms = List.tabulate(128, fn i => w_is_less_than_max_fixwidth_thm (i+1));
 val w_is_less_than_max_fixwidth_all1 = LIST_CONJ w_is_less_than_max_fixwidth_thms;
-val w_is_less_than_max_fixwidth_all1_thm = save_thm("w_is_less_than_max_fixwidth_all1_sizes", w_is_less_than_max_fixwidth_all1);
+Theorem w_is_less_than_max_fixwidth_all1_sizes = w_is_less_than_max_fixwidth_all1
+
 
 
 
@@ -569,7 +566,7 @@ Proof
     BasicProvers.FULL_CASE_TAC >-
      (
      fs[] >>
-     gvs[w_is_less_than_max_fixwidth_all1_thm]
+     gvs[w_is_less_than_max_fixwidth_all1]
      ) 
     ) >>
   
@@ -595,7 +592,8 @@ end;
 
 val all_fixwidth_max_thms = List.tabulate(128, fn i => gen_fixwidth_max_thm (i+1));            
 val big_thm_max = LIST_CONJ all_fixwidth_max_thms;
-val fixwidth_max_all_thm = save_thm("fixwidth_max_all", big_thm_max);
+Theorem fixwidth_max_all = big_thm_max
+
 
 
 

@@ -1,34 +1,27 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
-open pairTheory;
+open listTheory;
+open alistTheory;
 open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
-open set_relationTheory;
-open pred_setTheory;
-open pred_setLib;
 
 open p4_auxTheory;
 
-open bdd_auxTheory;          
-open bdd_genTheory;     
-open bdd_gen_wfTheory;     
+open bdd_auxTheory;     
+open bdd_genTheory;  
+open bdd_gen_wfTheory;   
 open bdd_gen_orderTheory;
 open bdd_gen_correctTheory;
 
 
      
 val _ = new_theory "bdd_gen_merge";
+
+   
+(*******************************************************)
+(*                                                     *)
+(*                   M  E  R  G  E                     *)
+(*                                                     *)
+(*******************************************************)
 
 
 
@@ -749,7 +742,7 @@ Theorem merge_correct_verbose:
     BDD_ordered (r,edges,labels) vars_consumed ∧
     fv_in_BDD rec (r,edges,labels) (vars++vars_consumed)  ∧
     mergable (r,edges,labels) n n'
-    ==>
+    ⇒
     correct_sem rec (merge (r,edges,labels) n n') (vars++vars_consumed)
 Proof
   rpt strip_tac >>   
@@ -796,7 +789,7 @@ Theorem merge_correct:
     BDD_ordered BDD vars_consumed ∧
     fv_in_BDD rec BDD (vars++vars_consumed)  ∧
     mergable BDD n n'
-    ==>
+    ⇒
     correct_sem rec (merge BDD n n') (vars++vars_consumed)
 Proof
   rpt strip_tac >>
@@ -1041,7 +1034,7 @@ QED
 
 
 
-        
+(*        
 Definition dom_range_edges_alt_def:
   dom_range_edges_alt edges = 
     {n | ∃k v1 v2. MEM (k,v1,v2) edges ∧ (n = k ∨ n = v1 ∨ n = v2)}
@@ -1088,7 +1081,7 @@ Proof
   Cases_on `c = n'` >> fs[] >> gvs[]                                 
 QED
 
-
+*)
 
 Definition dom_range_edges2_def:
   dom_range_edges2 edges =
@@ -1112,7 +1105,7 @@ QED
 
         
 Definition flat_edges_def:
-  (flat_edges [] = []) /\
+  (flat_edges [] = []) ∧
   (flat_edges ((k,v1,v2)::es) = 
    k :: v1 :: v2 :: flat_edges es)
 End
@@ -2445,7 +2438,7 @@ Theorem merge_wf_preservation:
     BDD_WF BDD ∧
     consumed_dom_bdd vars BDD ∧
     mergable BDD n n'
-    ==>
+    ⇒
     BDD_WF (merge BDD n n') 
 Proof
   rpt strip_tac >>

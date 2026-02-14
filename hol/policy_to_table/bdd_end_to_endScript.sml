@@ -1,45 +1,29 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib;
 
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
+open listTheory;
 open alistTheory;
-open numeralTheory;
-open set_relationTheory;
-open pred_setLib;
+open rich_listTheory;
 
 open p4_auxTheory;
-
 open bdd_auxTheory;          
-open bdd_genTheory;     
-open bdd_gen_wfTheory;     
+open table_bs_propertiesTheory;
+
+open bdd_genTheory;  
+open bdd_gen_wfTheory;   
 open bdd_gen_orderTheory;
 open bdd_gen_correctTheory;
+open bdd_gen_mergeTheory;
+open bdd_gen_eliminateTheory;
 open bdd_isomorphTheory;
-
 open bdd_gen_optimizationTheory;
 
 open pred_specTheory;     
 open policy_specTheory;
 open tables_specTheory;
 
-
 open policy_arith_to_varTheory;
 open table_var_to_arithTheory;
 open table_arith_to_intervalTheory;
-
-
-open bdd_auxTheory;
-open table_bs_propertiesTheory;
-
-
-
      
      
 val _ = new_theory "bdd_end_to_end";
@@ -749,7 +733,7 @@ Definition correct_var_policy_var_tables_exec_def:
   correct_var_policy_var_tables_exec var_policy var_table vars I =
   let BDD1_opt = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 in
     let BDD2_opt = mk_BDDPred_opt table_structure  (0,[],[(0, non_termn (NONE, var_table ))]) [] vars 1 in
-      if  ~ IS_SOME(BDD1_opt) \/  ~ IS_SOME (BDD2_opt) then
+      if  ~ IS_SOME(BDD1_opt) ∨  ~ IS_SOME (BDD2_opt) then
 	T
       else let BDD1 = THE BDD1_opt in let BDD2 = THE BDD2_opt in
           if  (isIsomorph_exec (I: (num #num) list) BDD1 BDD2 ∧
@@ -879,7 +863,7 @@ Definition correct_var_policy_var_policy_exec_def:
   correct_var_policy_var_policy_exec var_policy1 var_policy2 vars I =
   let BDD1_opt = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy1))]) [] vars 1 in
     let BDD2_opt = mk_BDDPred_opt policy_structure  (0,[],[(0, non_termn (NONE, var_policy2))]) [] vars 1 in
-      if  ~ IS_SOME(BDD1_opt) \/  ~ IS_SOME (BDD2_opt) then
+      if  ~ IS_SOME(BDD1_opt) ∨  ~ IS_SOME (BDD2_opt) then
 	T
       else let BDD1 = THE BDD1_opt in let BDD2 = THE BDD2_opt in
           if  (isIsomorph_exec (I: (num #num) list) BDD1 BDD2 ∧
@@ -913,9 +897,9 @@ QED
 (******************************************
    
 arith policy to interval table requirement for gluing all assumtions of equiality theorems:                       
-       cond1 ==> (arith_policy =  var_policy)
-       cond2 ==> (var_policy = var_table)    
-        cond1 /\ cond3 ==> (var_table = interval_table)                      
+       cond1 ⇒ (arith_policy =  var_policy)
+       cond2 ⇒ (var_policy = var_table)    
+        cond1 ∧ cond3 ⇒ (var_table = interval_table)                      
 
 cond1 is: 
 (∀var atom. 
