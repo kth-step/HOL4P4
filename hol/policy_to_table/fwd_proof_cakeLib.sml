@@ -1,48 +1,21 @@
 structure fwd_proof_cakeLib :> fwd_proof_cakeLib = struct
 
 
-open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib pairLib;
 
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
-open pairTheory;
+open listTheory;
+open alistTheory;
 open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
 
-
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_coreTheory;
-
-open bdd_genTheory;
-open pred_specTheory;
-open policy_specTheory;
 open tables_specTheory;
-open bdd_isomorphTheory;
-open bdd_end_to_endTheory;
 
 open policy_arith_to_varTheory;
-open table_var_to_arithTheory;
 open table_arith_to_intervalTheory;
 
-open bdd_auxTheory;
-open table_bs_propertiesTheory;
+open bdd_end_to_endTheory;  
 
-open bdd_utilsLib;
 
-    val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
-    val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
+
 
 
     fun time_stage (stage_name, timer_cpu, timer_real) =
