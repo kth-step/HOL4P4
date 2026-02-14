@@ -3,7 +3,7 @@ open policy_arith_to_varTheory;
 open bdd_utilsLib;
 
 
-val _ = new_theory "internet_firewall_2";
+val _ = new_theory "internet_firewall_2_6";
 
 val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
 
@@ -25,18 +25,13 @@ val is_dstPort_ge_53 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utilsLi
 val is_srcNAT_le_54587 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 54587 16))”;
 val is_srcNAT_ge_54587 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 54587 16))”;
 
-val is_dstNAT_le_53 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 53 16))”;
-val is_dstNAT_ge_53 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 53 16))”;
-
 
 val arith_policy_rule1 = “((arith_and (arith_a ^is_srcPort_le_57222)
                           (arith_and (arith_a ^is_srcPort_ge_57222)
                           (arith_and (arith_a ^is_dstPort_le_53)
                           (arith_and (arith_a ^is_dstPort_ge_53)
                           (arith_and (arith_a ^is_srcNAT_le_54587)
-                          (arith_and (arith_a ^is_srcNAT_ge_54587)
-                          (arith_and (arith_a ^is_dstNAT_le_53)
-                                   (arith_a ^is_dstNAT_ge_53)))))))) ,
+                          ( (arith_a ^is_srcNAT_ge_54587))))))) ,
                            action ("allow",[1])):single_rule”;
 
 (* rule 2 *)
@@ -50,19 +45,15 @@ val is_dstPort_ge_3389 = “(arithm_ge (lv_acc (lv_x "h") "dstPort") ^(bdd_utils
 val is_srcNAT_le_56258 = “(arithm_le (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 56258 16))”;
 val is_srcNAT_ge_56258 = “(arithm_ge (lv_acc (lv_x "h") "srcNAT") ^(bdd_utilsLib.make_bv 56258 16))”;
 
-val is_dstNAT_le_3389 = “(arithm_le (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 3389 16))”;
-val is_dstNAT_ge_3389 = “(arithm_ge (lv_acc (lv_x "h") "dstNAT") ^(bdd_utilsLib.make_bv 3389 16))”;
-
 
 val arith_policy_rule2 = “((arith_and (arith_a ^is_srcPort_le_56258)
                           (arith_and (arith_a ^is_srcPort_ge_56258)
                           (arith_and (arith_a ^is_dstPort_le_3389)
                           (arith_and (arith_a ^is_dstPort_ge_3389)
                           (arith_and (arith_a ^is_srcNAT_le_56258)
-                          (arith_and (arith_a ^is_srcNAT_ge_56258)
-                          (arith_and (arith_a ^is_dstNAT_le_3389)
-                                   (arith_a ^is_dstNAT_ge_3389)))))))) ,
-                           action ("allow",[1])):single_rule”;
+                          ( (arith_a ^is_srcNAT_ge_56258)
+                          )))))) ,
+                           action ("allow",[2])):single_rule”;
 
 (* Default policy rule *)
 val arith_policy_rule_default = “(arith_a a_True, action ("drop", [])):single_rule”;
@@ -84,33 +75,28 @@ val policy_me =   “[
     ("is_dstPort_ge_53", ^is_dstPort_ge_53);
     ("is_srcNAT_le_54587", ^is_srcNAT_le_54587);
     ("is_srcNAT_ge_54587", ^is_srcNAT_ge_54587);
-    ("is_dstNAT_le_53", ^is_dstNAT_le_53);
-    ("is_dstNAT_ge_53", ^is_dstNAT_ge_53);
     ("is_srcPort_le_56258", ^is_srcPort_le_56258);
     ("is_srcPort_ge_56258", ^is_srcPort_ge_56258);
     ("is_dstPort_le_3389", ^is_dstPort_le_3389);
     ("is_dstPort_ge_3389", ^is_dstPort_ge_3389);
     ("is_srcNAT_le_56258", ^is_srcNAT_le_56258);
     ("is_srcNAT_ge_56258", ^is_srcNAT_ge_56258);
-    ("is_dstNAT_le_3389", ^is_dstNAT_le_3389);
-    ("is_dstNAT_ge_3389", ^is_dstNAT_ge_3389);
 ]”;
 
 
 (******************************)
 (*   Best output table order  *)
 (******************************)
-(* 
+
 (* Grouped policy ordering *)
 val policy_full_order = “[
   ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258"]);
   ("dstPortGrp",["is_dstPort_le_53";"is_dstPort_ge_53";"is_dstPort_le_3389";"is_dstPort_ge_3389"]);
-  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258"]);
-  ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389"])
-]”;
+  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258"])
+  ]”;
 
 (* Flat policy order (grouped) *)
-val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"]”; *)
+val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"]”;
 
 
 
@@ -140,7 +126,7 @@ val policy_order = “[
 (****************************)
 
 
-
+(* 
 val policy_order = ``[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
@@ -161,7 +147,7 @@ val policy_full_order = ``[
   ("cfo" ,["is_dstPort_le_3389";"is_dstPort_ge_3389"]);
   ("43g",["is_srcNAT_le_56258";"is_srcNAT_ge_56258"]);
   ("w8" ,["is_dstNAT_le_3389";"is_dstNAT_ge_3389"])
-]``;
+]``; *)
 
 
 
@@ -181,7 +167,7 @@ fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, t
 
 
 (* BDD alists + Cakeml w parser, just bin *)
-val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order, "internet_firewall_2");
+val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order, "internet_firewall_2_6");
 
 
 

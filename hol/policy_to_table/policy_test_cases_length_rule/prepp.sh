@@ -18,6 +18,6 @@ echo "Done!"
 
 cd ../policy_test_cases_length_rule
 
-for i in {10..10}; do
+for ((i=2; i<=12; i+=2)); do
     Holmake "internet_firewall_10_${i}Theory.uo"
 done

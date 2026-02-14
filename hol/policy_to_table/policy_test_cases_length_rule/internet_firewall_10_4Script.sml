@@ -39,7 +39,7 @@ val arith_policy_rule2 = “((arith_and (arith_a ^is_srcPort_le_56258)
                           (arith_and (arith_a ^is_srcPort_ge_56258)
                           (arith_and (arith_a ^is_dstPort_le_3389)
                           ((arith_a ^is_dstPort_ge_3389))))) ,
-                           action ("allow",[2])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 3 *)
 
@@ -54,7 +54,7 @@ val arith_policy_rule3 = “((arith_and (arith_a ^is_srcPort_le_6881)
                           (arith_and (arith_a ^is_srcPort_ge_6881)
                           (arith_and (arith_a ^is_dstPort_le_50321)
                           ((arith_a ^is_dstPort_ge_50321))))) ,
-                           action ("allow",[3])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 4 *)
 
@@ -66,7 +66,7 @@ val arith_policy_rule4 = “((arith_and (arith_a ^is_srcPort_le_50553)
                           (arith_and (arith_a ^is_srcPort_ge_50553)
                           (arith_and (arith_a ^is_dstPort_le_3389)
                           ((arith_a ^is_dstPort_ge_3389))))) ,
-                           action ("allow",[4])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 5 *)
 
@@ -82,7 +82,7 @@ val arith_policy_rule5 = “((arith_and (arith_a ^is_srcPort_le_50002)
                           (arith_and (arith_a ^is_srcPort_ge_50002)
                           (arith_and (arith_a ^is_dstPort_le_443)
                           ( (arith_a ^is_dstPort_ge_443))))) ,
-                           action ("allow",[5])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 6 *)
 
@@ -94,7 +94,7 @@ val arith_policy_rule6 = “((arith_and (arith_a ^is_srcPort_le_51465)
                           (arith_and (arith_a ^is_srcPort_ge_51465)
                           (arith_and (arith_a ^is_dstPort_le_443)
                           ( (arith_a ^is_dstPort_ge_443))))) ,
-                           action ("allow",[6])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 7 *)
 
@@ -109,7 +109,7 @@ val arith_policy_rule7 = “((arith_and (arith_a ^is_srcPort_le_60513)
                           (arith_and (arith_a ^is_srcPort_ge_60513)
                           (arith_and (arith_a ^is_dstPort_le_47094)
                           ( (arith_a ^is_dstPort_ge_47094))))) ,
-                           action ("allow",[7])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 8 *)
 
@@ -121,7 +121,7 @@ val arith_policy_rule8 = “((arith_and (arith_a ^is_srcPort_le_50049)
                           (arith_and (arith_a ^is_srcPort_ge_50049)
                           (arith_and (arith_a ^is_dstPort_le_443)
                           ( (arith_a ^is_dstPort_ge_443))))) ,
-                           action ("allow",[8])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 9 *)
 
@@ -136,7 +136,7 @@ val arith_policy_rule9 = “((arith_and (arith_a ^is_srcPort_le_52244)
                           (arith_and (arith_a ^is_srcPort_ge_52244)
                           (arith_and (arith_a ^is_dstPort_le_58774)
                           ( (arith_a ^is_dstPort_ge_58774))))) ,
-                           action ("allow",[9])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* rule 10 *)
 
@@ -149,7 +149,7 @@ val arith_policy_rule10 = “((arith_and (arith_a ^is_srcPort_le_50627)
                           (arith_and (arith_a ^is_srcPort_ge_50627)
                           (arith_and (arith_a ^is_dstPort_le_443)
                           ( (arith_a ^is_dstPort_ge_443))))) ,
-                           action ("allow",[10])):single_rule”;
+                           action ("allow",[1])):single_rule”;
 
 (* Default policy rule *)
 val arith_policy_rule_default = “(arith_a a_True, action ("drop", [])):single_rule”;
