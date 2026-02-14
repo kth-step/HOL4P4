@@ -15,7 +15,7 @@ open table_arith_to_intervalTheory;
 open bdd_end_to_endTheory;  
 
 
-
+    val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
 
 
     fun time_stage (stage_name, timer_cpu, timer_real) =

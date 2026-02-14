@@ -16,6 +16,7 @@ open bdd_utilsLib;
 
 (* to check generate a policy that is minimized compared to the input *)
 
+    val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
 
     fun time_stage (stage_name, timer_cpu, timer_real) =
         let
