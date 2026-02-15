@@ -14,29 +14,43 @@ open tables_specTheory;
 
 val _ = new_theory "table_var_to_arith";
 
-
-
-
-(* todo :
- every_is_some_in_l change to all_is_some
+(* TODO :
+  all_is_some change to all_is_some
 *)
+
+(*******************************************************)
+(*  Variable to Arithmetic Table Conversion            *)
+(*                                                     *)
+(*  This theory defines the conversion from            *)
+(*  variable-based tables (using Var/Not atoms) to     *)
+(*  arithmetic tables (using inequalities on           *)
+(*  bitvectors). It proves that the conversion         *)
+(*  preserves semantics under well-formed mapping      *)
+(*  environments (me) and valuations in (mv).          *)
+(*                                                     *)
+(*  This is the first step in the compilation          *)
+(*      pipeline: var_table -> arith_table             *)
+(*******************************************************)
+
 
 
 (*===============================*)
 (*      Types of arith tables    *)
 (*===============================*)
 
-
+(* Row: (guard list, state, result action) *)
 Type arith_row = “:(arithm_atom list # num # 'a action_expr)”;
 Type arith_table = “: ('a arith_row) list”
 Type arith_table_list = “: ('a arith_table) list”
 
 
+(* Packet type definitions for lvalue resolution *)
 Datatype:
   pd_type =
      type_length  num
    | type_record  ((string # pd_type) list)  (* [f1:bs; ...; fn:bs_n] *)
 End
+
 
 Type pd_type_struct = “: (string # pd_type) list”;
 
@@ -70,7 +84,7 @@ End
 *)
 
 
-
+(* Extract lvalue from arithmetic atom (if any) *)
 Definition get_lval_def:
   get_lval (a_True) = NONE ∧
   get_lval (a_False) = NONE ∧
@@ -79,7 +93,7 @@ Definition get_lval_def:
 End
 
 
-(* given a struct type and lval, this retrives the field type
+(* Given a struct type and lval, this retrives the field type
  or bs width *)
 Definition resolve_lval_type_def:
   resolve_lval_type pd_type lval =
@@ -149,11 +163,17 @@ End
 (*    var atoms to arith atom conversion    *)
 (*==========================================*)
 
+(*Convert a single variable atom to arithmetic atom using me.
+    (atom_var to arithm_atom using me
+     i.e. each cell in the line of var table will be converted
+     directly to an aritmetic atom via this def.)
 
-(* Convert atom_var to arithm_atom using me
-   i.e. each cell in the line of var table will be converted
-   directly to an aritmetic atom via this def. *)
-
+  Handles:
+  - True/False constants
+  - Var x: lookup in me
+  - Not x: negate the arithmetic atom from me
+      (≥ becomes ≤, ≤ becomes ≥, with boundary adjustments) 
+*)
 Definition var_atom_to_arith_def:
   var_atom_to_arith me g =
   case g of
@@ -198,46 +218,45 @@ EVAL “var_atom_to_arith [("x", arithm_ge (lv_x "y") (fixwidth 3 (n2v 0),3))] (
 EVAL “var_atom_to_arith [("x", arithm_ge (lv_x "y") (fixwidth 3 (n2v 7),3))] (Not (Var "x"))”; (*x < 6*)
 EVAL “var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 7),3))] (Not (Var "x"))”; (*False*)
 EVAL “var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 0),3))] (Not (Var "x"))”; (*x>1*)
-
 EVAL “var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 8),3))] (Not (Var "x"))”;
-
 EVAL “bitv_binpred binop_ge (fixwidth 3 (n2v 8)      ,3)
                             (n2v (max_from_type 3)   ,3)”
-
-
-
 *)
 
 
+(* Convert a list of variable guards to arithmetic guards *)
 Definition convert_var_list_to_arith_def:
   convert_var_list_to_arith var_guards me =
       MAP (λg. var_atom_to_arith me g) var_guards
 End
 
 
-Definition every_is_some_in_l_def:
-  every_is_some_in_l var_tbl_opt =
+(* Check if all conversions succeeded (all SOME) *)
+Definition  all_is_some_def:
+   all_is_some var_tbl_opt =
   EVERY (λ(opt_guards,_,_). EVERY IS_SOME opt_guards) var_tbl_opt
 End
 
 
+(* Remove option wrappers after successful conversion *)
 Definition rm_optl_def:
   rm_optl var_tbl_opt =
   MAP (λ(arithl_opt, st, res). MAP (\g. THE g) arithl_opt , st, res) var_tbl_opt
 End
 
 
+(* Convert all rows of a var_table to arithmetic form *)
 Definition convert_var_rows_to_arith_def:
   convert_var_rows_to_arith var_table me =
       MAP (λ(var_guards,st,res). convert_var_list_to_arith var_guards me, st, res) var_table
 End
 
 
-
+(* MAIN CONVERSION: var_table --> arith_table *)
 Definition convert_var_to_arith_table_def:
   convert_var_to_arith_table var_table me =
     let converted = convert_var_rows_to_arith var_table me in
-    if every_is_some_in_l converted ∧ var_table ≠ [] then
+    if  all_is_some converted ∧ var_table ≠ [] then
       SOME (rm_optl converted)
     else
       NONE
@@ -249,25 +268,28 @@ End
 (*============================*)
 
 
-
+(* Check if all arithmetic guards evaluate to true *)
 Definition is_arith_guards_true_def:
   is_arith_guards_true arith_guards pd=
   EVERY (λ arith_atom. eval_arithm_atom pd arith_atom = SOME T ) arith_guards
 End
 
 
+(* Check if a row matches given state and packet input *)
 Definition is_arith_match_row_def:
   is_arith_match_row st_in st_num artih_atoml pd =
     ((st_in = st_num) ∧ is_arith_guards_true artih_atoml pd ∧ artih_atoml ≠ [])
 End
 
 
+(* Compute evaluation result for entire arithmetic table *)
 Definition check_arith_table_sem_def:
   check_arith_table_sem st_in (arith_table: 'a arith_table) pd =
   MAP (\(arith_guards,st,res). (is_arith_match_row st_in st arith_guards pd, res) )  arith_table
 End
 
 
+(* Find first matching row in arithmetic table *)
 Definition match_arith_table_def:
   match_arith_table (arith_table:'a arith_table) pd st_in =
     let res = check_arith_table_sem st_in arith_table pd in
@@ -284,7 +306,6 @@ val test_pd = “[("ttl", val_bs (fixwidth 8 (n2v 0), 8));
 val test_me = “[("x1", arithm_ge (lv_x "ttl") (fixwidth 8 (n2v 5), 8));
                 ("x2",  arithm_le (lv_x "src") (fixwidth 8 (n2v 3), 8))]”;
 
-
 val test_var_table = “[
   ([True; Var "x1"; Var "x2"], 1n, action "fwd1");
   ([False; Var "x1"; Not "x2"], 1n, action "fwd2");
@@ -292,14 +313,10 @@ val test_var_table = “[
   ([True], 1n, action "drop")
 ]”;
 
-
 val test_arith_table =
   EVAL “convert_var_to_arith_table ^test_var_table ^test_me”;
-
 val arith_table = optionSyntax.dest_some (rhs (concl test_arith_table));
-
 EVAL “match_arith_table  ^arith_table  ^test_pd (1:num)”
-
 *)
 
 
@@ -321,6 +338,7 @@ val bitv_normalize_imp1_tac =
 
 
 
+(* Forward direction - var_atom true ⇒ arith_atom true *)
 Theorem sem_var_arith_atom_imp1:
   ∀ var_atom me mv packet_input arith_atom b.
     (∀var arith_atom'.
@@ -414,7 +432,7 @@ QED
 
 
 
-
+(* If arith_atom evaluates, the corresponding variable must be in mv *)
 Theorem var_atom_to_arith_not_never_none_mv:
   ∀ mv me packet_input arith_atom b s.
 
@@ -442,6 +460,7 @@ QED
 
 
 
+(* Reverse direction, arith_atom true ⇒ var_atom true *)
 Theorem sem_var_arith_atom_imp2:
   ∀ var_atom me mv packet_input arith_atom b.
     (∀var. lookup_is_some mv var ⇔ lookup_is_some me var) ∧
@@ -507,7 +526,8 @@ QED
 
 
 
-
+(* List-level equivalence 
+                (guards list in var_table ⇔ guards list in arith_table) *)
 Theorem atoml_var_arith_correct:
   ∀var_guards me packet_input mv x var_table arith_st arith_res.
     (∀var. lookup_is_some mv var ⇔ lookup_is_some me var) ∧
@@ -540,19 +560,17 @@ QED
 
 
 
-Triviality every_is_some_in_l_rest_of_list:
+Triviality  all_is_some_rest_of_list:
   ∀ var_table h me.
-    every_is_some_in_l (convert_var_rows_to_arith (h::var_table) me) ⇒
-    every_is_some_in_l (convert_var_rows_to_arith var_table me)
+     all_is_some (convert_var_rows_to_arith (h::var_table) me) ⇒
+     all_is_some (convert_var_rows_to_arith var_table me)
 Proof
-  gvs[every_is_some_in_l_def, convert_var_to_arith_table_def, convert_var_rows_to_arith_def]
+  gvs[ all_is_some_def, convert_var_to_arith_table_def, convert_var_rows_to_arith_def]
 QED
 
 
 
-
-
-
+(* Conversion preserves table length *)
 Theorem convert_var_to_arith_table_length:
   ∀ var_table arith_table me.
     convert_var_to_arith_table var_table me = SOME arith_table ⇒
@@ -561,7 +579,7 @@ Proof
   Induct >>
   rpt strip_tac >>
   gvs[convert_var_to_arith_table_def] >>
-  imp_res_tac every_is_some_in_l_rest_of_list >>
+  imp_res_tac  all_is_some_rest_of_list >>
   res_tac  >>
   Cases_on ‘var_table = []’ >> gvs[] >|[
     PairCases_on ‘h’ >>
@@ -577,10 +595,8 @@ QED
 
 
 
-
-
-
-
+(* MAIN THEOREM: Row-level equivalence 
+                (all rows in var_table ⇔ all rows in arith_table) *)
 Theorem all_rows_var_arith_correct:
   ∀var_table arith_table me packet_input mv st_in.
     (∀var. lookup_is_some mv var ⇔ lookup_is_some me var) ∧
@@ -602,7 +618,7 @@ Proof
   rename1 ‘EL x arith_table = (arith_guards,arith_st,arith_res)’ >>
 
   gvs[convert_var_to_arith_table_def] >>
-  gvs[every_is_some_in_l_def] >>
+  gvs[ all_is_some_def] >>
 
   gvs[rm_optl_def] >>
   gvs[EL_MAP] >>
@@ -634,7 +650,8 @@ QED
 
 
 
-
+(* FINAL THEOREM: Table-level equivalence 
+                       (match semantics preserved under conversion) *)
 Theorem table_var_arith_correct:
   ∀var_table arith_table me packet_input mv st_in.
     (∀var. lookup_is_some mv var ⇔ lookup_is_some me var) ∧
