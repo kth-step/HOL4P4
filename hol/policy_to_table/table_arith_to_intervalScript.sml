@@ -215,8 +215,8 @@ End
 
 (*
 
-val test_pd_type = ``[("h" , type_record [("ttl", type_length 8);
-                                          ("src", type_length 8)])]``;
+val test_pd_type = “[("h" , type_record [("ttl", type_length 8);
+                                          ("src", type_length 8)])]”;
                                                                 
 EVAL “convert_arith_to_interval_table
       [([   a_True;
@@ -381,7 +381,7 @@ QED
 
 
 
-Theorem table_isbool_then_row_is_bool:
+(* Theorem table_isbool_then_row_is_bool:
   ∀ row st res mv x tbl.
     x < LENGTH tbl ∧
     EL x tbl = (row,st,res) ∧
@@ -396,7 +396,7 @@ Proof
   gvs[MEM_FLAT] >>
   res_tac >>
   gvs[]
-QED
+QED *)
 
 
 
@@ -1084,17 +1084,17 @@ QED
 
    
 
-Triviality operate_intersect_with_empty_results_none:
+(* Triviality operate_intersect_with_empty_results_none:
 ∀ h. operate_intersect Empty h = NONE
 Proof
   Cases_on ‘h’ >>
   gvs[operate_intersect_def] >>
   gvs[intersect_interval_def]
-QED
+QED *)
 
 
    
-Theorem if_bs_ge_not_gt_max_then_eq:        
+(* Theorem if_bs_ge_not_gt_max_then_eq:        
   ∀ a len.
     len < 129 ∧ len > 0 ∧
     wf_bit (a,len) ∧
@@ -1115,7 +1115,7 @@ Proof
         fs[wf_bit_def] >>
         gvs[] )
     ) >> metis_tac[]
-QED
+QED *)
 
 
 
@@ -1888,48 +1888,48 @@ End
 
 (*
 
-val test_pd = ``[("ttl", type_length 5);
-                 ("src", type_length 5)]``;
+val test_pd = “[("ttl", type_length 5);
+                 ("src", type_length 5)]”;
                  
-val test_me = ``[("x1", arithm_ge (lv_x "ttl") (fixwidth 5 (n2v 0), 5));
-                ("x2",  arithm_le (lv_x "ttl") (fixwidth 5 (n2v 10), 5))]``;
+val test_me = “[("x1", arithm_ge (lv_x "ttl") (fixwidth 5 (n2v 0), 5));
+                ("x2",  arithm_le (lv_x "ttl") (fixwidth 5 (n2v 10), 5))]”;
 
 
-val test_var_table = ``[
+val test_var_table = “[
   ([True; Var "x1"; Var "x2"], 1n, action "fwd1");
   ([Var "x1"; Not "x2"], 1n, action "fwd2");
   ([Var "x2"; Not "x2"], 1n, action "fwd3");
   ([True], 1n, action "drop")
-]``;
+]”;
 
                         
 val test_final_table = 
-  EVAL ``convert_var_to_sinterval_table ^test_var_table ^test_me ^test_pd``;
+  EVAL “convert_var_to_sinterval_table ^test_var_table ^test_me ^test_pd”;
 
 
 
-val test_var_table2 = ``[
+val test_var_table2 = “[
   ([True; True], 1n, action "fwd1");
   ([False], 1n, action "fwd2");
   ([Var "x2"; Not "x2"], 1n, action "fwd3");
   ([True], 1n, action "drop")
-]``;
+]”;
 
                    
 val test_final_table2 = 
-  EVAL ``convert_var_to_sinterval_table ^test_var_table2 ^test_me ^test_pd``;
+  EVAL “convert_var_to_sinterval_table ^test_var_table2 ^test_me ^test_pd”;
 
 
-val test_var_table3 = ``[
+val test_var_table3 = “[
   ([True; True], 1n, action "fwd1");
   ([False], 1n, action "fwd2");
   ([True], 1n, action "fwd3");
   ([True], 1n, action "drop")
-]``;
+]”;
 
                    
 val test_final_table3 = 
-  EVAL ``convert_var_to_sinterval_table ^test_var_table2 ^test_me ^test_pd``;
+  EVAL “convert_var_to_sinterval_table ^test_var_table2 ^test_me ^test_pd”;
 
 *)
      

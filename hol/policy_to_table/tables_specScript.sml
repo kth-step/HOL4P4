@@ -39,9 +39,6 @@ Definition simp_row_def:
 End
 
 
-
-
-
 (*
 here we work with none, and some.
 these represent the state of the previous table.
@@ -489,7 +486,7 @@ QED
 
 
     
-Theorem simp_table_return_true_then_rows_none:
+(* Theorem simp_table_return_true_then_rows_none:
   ∀ tbl rows h1 h2.
     simp_table tbl NONE = [(True::rows,h1,h2)] ⇒
     rows = []
@@ -502,7 +499,7 @@ Proof
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) >>
   imp_res_tac filtering_not_true_then_not_mem >>
   gvs[]
-QED          
+QED           *)
 
 
 
@@ -527,14 +524,14 @@ QED
                                                 
 
 
-Triviality simp_table_none_append:
+(* Triviality simp_table_none_append:
   ∀ rows h.
     simp_table (h::rows) NONE = (simp_table [h] NONE)++(simp_table rows NONE)
 Proof
   rw[] >> PairCases_on ‘h’ >>
   rw[simp_table_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) 
-QED
+QED *)
 
 
 
@@ -558,7 +555,7 @@ QED
 
 
 
-Theorem min_idx_till_some_eq_res:     
+(* Theorem min_idx_till_some_eq_res:     
   ∀ l1 l2 res.
     min_idx_till l1 T = min_idx_till l2 T ⇒
     ∃ n m res' . (min_idx_till ((F,res)::l1) T = SOME (n,res')) =
@@ -581,7 +578,7 @@ Proof
   gvs[] >>
   qexistsl_tac [‘SUC q’, ‘q’, ‘r’] >>
   gvs[] 
-QED
+QED *)
 
 
 
@@ -877,7 +874,7 @@ QED
 
 
 
-Theorem  min_idx_till_none_not_none:      
+(* Theorem  min_idx_till_none_not_none:      
   ∀ l .        
     (min_idx_till l T = NONE) ⇔
       ¬ (min_idx_till l T ≠ NONE)
@@ -889,7 +886,7 @@ Triviality a_not_a:
 ∀ l . min_idx_till l T = NONE ∧ min_idx_till l T ≠ NONE ⇒ F
 Proof
   gvs[min_idx_till_def]
-QED
+QED *)
 
 
 
@@ -958,7 +955,7 @@ QED
 
 
         
-Triviality simp_table_true_cases1:
+(* Triviality simp_table_true_cases1:
 ∀ rows n atoml st1 st2 res1 res2.
 simp_table rows NONE = [(True::atoml,st1,res1)] ∧
 simp_table rows (SOME n) = [([True],st2,res2)] ⇒
@@ -975,7 +972,7 @@ Proof
   imp_res_tac filtering_not_true_then_not_mem >>
   gvs[] >>
   res_tac
-QED
+QED *)
 
 
 
@@ -2199,10 +2196,6 @@ Proof
   Cases_on ‘h’ >> gvs[final_row_def]
 QED
 
-
-
-
-        
         
 
 Theorem property_final_imp_match_simp:
@@ -2249,9 +2242,6 @@ Proof
 QED
 
 
-
-
-   
         
 Theorem property_final_imp_sem_tbll_simp:
   ∀ tbll mv q s_in.
@@ -2325,6 +2315,9 @@ Proof
 QED
 
 
+(*******************************************)
+(*                property 3               *)
+(*******************************************)
 
          
 Theorem prop3_var_tables:
@@ -2553,6 +2546,9 @@ Proof
 QED
 
         
+(*******************************************)
+(*                property 4               *)
+(*******************************************)
 
 Theorem prop4_var_tables:
   prop4 table_structure
@@ -2575,12 +2571,6 @@ Proof
 QED
 
 
-
-
-
-
-        
-        
 
         
 val _ = export_theory ();
