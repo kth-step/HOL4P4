@@ -1168,7 +1168,7 @@ QED
 
 
 
-Triviality flat_edges_mem_triv1:
+Theorem flat_edges_mem_triv1:
   ∀ l h0 h1 a b .
     MEM (h1,a,b) l ∧
     h1 ≠ h0  ⇒
@@ -1210,7 +1210,7 @@ QED
 
 
 
-Triviality flat_edges_mem_triv3:
+Theorem flat_edges_mem_triv3:
   ∀ l h0 h1 a b .
     MEM (h1,a,b) l ∧
     h1 ≠ h0 ⇒
@@ -1801,36 +1801,6 @@ Proof
   gvs[]
 QED
 
-
-
-
-Theorem merge_edges_elim_same_l:        
-  ∀ edges l n n' n1 n2 n1' n2'.        
-    n1 ≠ n ∧
-    ALOOKUP (merge_edges edges n n') n = SOME (n1,n2) ∧
-    ALOOKUP edges n = SOME (n1',n2') ⇒
-    n1'=n1 
-Proof
-  Induct >-
-   gvs[] >>
-  rpt strip_tac >>
-  
-  rfs[Once merge_edges_list_cons] >>
-  
-  PairCases_on ‘h’ >>
-  rfs[Once ALOOKUP_APPEND] >>
-  
-  rgs[] >>
-  rgs[AllCaseEqs()] >>
-                    
-  rw[Once merge_edges_def] >>
-  rgs[Once merge_edges_def] >>
-  rgs[] >>
-  rgs[AllCaseEqs()] >>
-  
-  res_tac >>
-  metis_tac[merge_Theorem1]
-QED
 *)
 
 (****************************************************)
@@ -2186,7 +2156,7 @@ QED
 *)
 
         
-(* merge doesn't produce empty graph from non-empty mergable graph *))
+(* merge doesn't produce empty graph from non-empty mergable graph *)
 Theorem wf_non_empty_after_merge:
   ∀r edges labels n n'.
     ALL_DISTINCT (MAP FST edges) ∧
@@ -2300,7 +2270,7 @@ QED
 (*       MERGE  Order            *)
 (*********************************)  
 
-(* order_hold property adjusts for merged node *))
+(* order_hold property adjusts for merged node *)
 Theorem order_hold_for_merge: 
   ∀ r edges labels n n' n'' nl vars.
     BDD_WF (r,edges,labels) ∧

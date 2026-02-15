@@ -24,20 +24,20 @@ val _ = new_theory "bdd_fwd_pipeline_example";
 
 (* a few types abbreviations *)
 
-(*Type BDD_tbl_type = ``:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)``
+(*Type BDD_tbl_type = “:(( (string# num list) var_table_list, (string# num list) action_expr) BDD)”
 
-Type struc_tbl_type = ``:((( atom_var list # num # (string# num list) action_expr) list list # num,
-                                          (string# num list) action_expr) decision_structure)``
+Type struc_tbl_type = “:((( atom_var list # num # (string# num list) action_expr) list list # num,
+                                          (string# num list) action_expr) decision_structure)”
 
-Type action_rule_type = ``:((string# num list) action_expr) rule``
-Type action_policy_type = ``:((string# num list) action_expr) policy``
+Type action_rule_type = “:((string# num list) action_expr) rule”
+Type action_policy_type = “:((string# num list) action_expr) policy”
 *)
 
 
 
 (* policy 1: arith POLICY representation *)
 
-Type single_rule = ``:((string# num list) action_expr) arith_rule``
+Type single_rule = “:((string# num list) action_expr) arith_rule”
  
 val test_pd_type = “[("ip", type_record [("priority", type_length 3);
                                          ("size", type_length 16);

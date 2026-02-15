@@ -180,20 +180,20 @@ val p2 = “arith_a (arithm_lt (lv_acc (lv_x "h") "flag") 0)”;
 val p3 = “arith_a (arithm_eq (lv_acc (lv_x "h") "invalid") 1)”;
 
 
-val policy1 = ``[ (^p1, "fwd"); (^p2, "drop") ]``;
-EVAL ``check_arith_pred_sem ^policy1 ^test_pd``;
+val policy1 = “[ (^p1, "fwd"); (^p2, "drop") ]”;
+EVAL “check_arith_pred_sem ^policy1 ^test_pd”;
 (*   [(SOME T, "fwd"); (SOME F, "drop")] *)
 
-val policy2 = ``[ (^p1, "fwd"); (^p3, "log") ]``;
-EVAL ``check_arith_pred_sem ^policy2 ^test_pd``;
+val policy2 = “[ (^p1, "fwd"); (^p3, "log") ]”;
+EVAL “check_arith_pred_sem ^policy2 ^test_pd”;
 (*  [(SOME T, "allow"); (NONE, "log")]  *)
 
-val policy3 = ``[ (^p1, "allow_high_ttl"); (^p2, "deny_low_flag")]``;
-EVAL ``sem_arith_policy ^policy3 ^test_pd``;
+val policy3 = “[ (^p1, "allow_high_ttl"); (^p2, "deny_low_flag")]”;
+EVAL “sem_arith_policy ^policy3 ^test_pd”;
 (* SOME "allow_high_ttl"  *)
 
-val policy4 = ``[  (^p2, "deny_low_flag"); (^p1, "allow_high_ttl")]``;
-EVAL ``sem_arith_policy ^policy4 ^test_pd``;
+val policy4 = “[  (^p2, "deny_low_flag"); (^p1, "allow_high_ttl")]”;
+EVAL “sem_arith_policy ^policy4 ^test_pd”;
 
 *)
 
@@ -265,34 +265,34 @@ End
 
 
 (*
-val test_me = ``[
+val test_me = “[
   ("x_gt_5", arithm_gt (lv_x "x") 5);
   ("y_lt_2", arithm_lt (lv_x "y") 2)
-]``;
+]”;
 
 (* Sample policies *)
-val empty_policy = ``[] : (arith_pred # string) list``;
-val all_convertable_to_var_policy = ``[
+val empty_policy = “[] : (arith_pred # string) list”;
+val all_convertable_to_var_policy = “[
   (arith_a (arithm_gt (lv_x "x") 5), "allow");
   (arith_a (arithm_lt (lv_x "y") 2), "deny")
-]``;
-val partially_convertable_policy = ``[
+]”;
+val partially_convertable_policy = “[
   (arith_a (arithm_gt (lv_x "x") 5), "allow");
   (arith_a (arithm_eq (lv_x "z") 1), "log")  (* Unmapped *)
-]``;
+]”;
 
-EVAL ``convert_arith_to_var_policy ^empty_policy ^test_me``;
+EVAL “convert_arith_to_var_policy ^empty_policy ^test_me”;
 (*SOME []*)
-EVAL ``convert_arith_to_var_policy ^all_convertable_to_var_policy ^test_me``;
+EVAL “convert_arith_to_var_policy ^all_convertable_to_var_policy ^test_me”;
 (*[(Var "x_gt_5", "allow"); (Var "y_lt_2", "deny")]*)
-EVAL ``convert_arith_to_var_policy ^partially_convertable_policy ^test_me``;
+EVAL “convert_arith_to_var_policy ^partially_convertable_policy ^test_me”;
 (*NONE*)
 
-val complex_policy = ``[
+val complex_policy = “[
   (arith_not (arith_a (arithm_gt (lv_x "x") 5)), "reject");
   (arith_and (arith_a a_True) (arith_a (arithm_lt (lv_x "y") 2)), "special")
-]``;
-EVAL ``convert_arith_to_var_policy ^complex_policy ^test_me``;
+]”;
+EVAL “convert_arith_to_var_policy ^complex_policy ^test_me”;
 
 (*
    SOME [
@@ -368,8 +368,8 @@ Proof
    rw[] >>
    gvs[eval_arithm_atom_def]
    (*
-   Cases_on `pred_a2v m_e arith_pred` >> gvs[] >>
-   Cases_on `pred_a2v m_e arith_pred'` >> gvs[] >>
+   Cases_on ‘pred_a2v m_e arith_pred’ >> gvs[] >>
+   Cases_on ‘pred_a2v m_e arith_pred'’ >> gvs[] >>
    first_x_assum (drule_all_then assume_tac) >>
    first_x_assum (drule_all_then assume_tac) >>
    gvs[sem_pred_def] >>

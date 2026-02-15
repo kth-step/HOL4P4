@@ -167,7 +167,7 @@ QED
 
 
 (*Different results imply different evaluations *)    
-Theorem BDD_sem_not_eq:
+(* Theorem BDD_sem_not_eq:
   ∀ n r edges labels mv b rec n' n'' x p b'.
     ALOOKUP edges n = SOME (n',n'') ∧
     ALOOKUP labels n = SOME (non_termn (SOME x,p)) ∧
@@ -183,7 +183,7 @@ Proof
 
  rgs[Once BDD_sem_cases] >>
  gvs[] 
-QED
+QED *)
 
 
 
@@ -998,7 +998,7 @@ QED
 
 
 (*BDD semantics follow edges upward *)
-Theorem bdd_sem_imp_up:
+(* Theorem bdd_sem_imp_up:
   ∀ r edges labels n n' n'' x pred b' rec mv.
     ALOOKUP edges n = SOME (n',n'') ∧
     ALOOKUP labels n  = SOME (non_termn (SOME x ,pred)) ∧
@@ -1008,7 +1008,7 @@ Theorem bdd_sem_imp_up:
 Proof
   rpt strip_tac >>
   simp[Once BDD_sem_cases]
-QED
+QED *)
 
 
 (* New internal nodes were leaves in original *)
@@ -1373,14 +1373,14 @@ QED
 
 
 
-Theorem dom_range_edges_not:
+(* Theorem dom_range_edges_not:
   ∀ edges new_edges n.
     ¬MEM n (dom_range_edges (edges ⧺ new_edges)) ⇒
     ¬MEM n (dom_range_edges edges) ∧ ¬ MEM n (dom_range_edges new_edges)
 Proof
   rpt strip_tac >>
   gvs[dom_range_edges_def]
-QED
+QED *)
 
 
 
@@ -1404,15 +1404,6 @@ Proof
   res_tac  
 QED
 
-
-
-
-        
-Triviality mem_not_mem_triv:
-∀ l n1 n2. ¬MEM n1 l ∧  MEM n2 l ⇒ n1 ≠ n2       
-Proof
-  Induct >> gvs[]
-QED
 
 
 Theorem if_in_new_labels_parents_in_new_edges:        
