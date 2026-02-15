@@ -2,6 +2,7 @@ structure fwd_proofLib :> fwd_proofLib = struct
 
 
 open HolKernel boolLib simpLib Parse bossLib pairLib;
+open freq_func_in_fwdLib;
 
 open listTheory;
 open alistTheory;
@@ -13,21 +14,6 @@ open policy_arith_to_varTheory;
 open table_arith_to_intervalTheory;
 
 open bdd_end_to_endTheory;    
-
-        
-
-    fun time_stage (stage_name, timer_cpu, timer_real) = 
-        let
-            val cpu_time = Timer.checkCPUTimer timer_cpu
-            val real_time = Timer.checkRealTimer timer_real
-            val _ = HOL_MESG (stage_name ^ " completed in: " ^ 
-                          Time.toString (#usr cpu_time) ^ " user, " ^ 
-                          Time.toString (#sys cpu_time) ^ " system, " ^ 
-                          Time.toString real_time ^ " real\n")
-        in
-            (cpu_time, real_time)
-        end
-
 
 
     fun convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
