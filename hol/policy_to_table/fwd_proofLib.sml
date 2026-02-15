@@ -1,46 +1,18 @@
 structure fwd_proofLib :> fwd_proofLib = struct
 
 
-open HolKernel boolLib liteLib simpLib Parse bossLib pairLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib Parse bossLib pairLib;
 
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
-open pairTheory;
+open listTheory;
+open alistTheory;
 open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-open alistTheory;
 
-open optionSimps boolSimps;
-
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_coreTheory;
-     
-open bdd_genTheory;     
-open pred_specTheory;     
-open policy_specTheory;   
 open tables_specTheory;
-open bdd_isomorphTheory;
-open bdd_end_to_endTheory;     
 
 open policy_arith_to_varTheory;
-open table_var_to_arithTheory;
 open table_arith_to_intervalTheory;
 
-open bdd_auxTheory;
-open table_bs_propertiesTheory;
-     
-open bdd_utilsLib;   
+open bdd_end_to_endTheory;    
 
         
 

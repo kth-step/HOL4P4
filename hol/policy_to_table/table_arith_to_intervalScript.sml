@@ -246,7 +246,7 @@ Definition convert_arith_to_interval_table_def:
   | NONE => NONE
   | SOME (key, bit_len) =>
     (let converted = convert_arith_rows_to_arith arith_table bit_len in
-    if every_is_some_in_l converted ∧ arith_table ≠ [] then
+    if  all_is_some converted ∧ arith_table ≠ [] then
       SOME ((key, rm_optl converted): 'a intvl_table)
     else
       NONE
@@ -729,7 +729,7 @@ Proof
     gvs[rm_optl_def] >>
     gvs[EL_MAP] >>
 
-    gvs[every_is_some_in_l_def] >>
+    gvs[ all_is_some_def] >>
     gvs[EVERY_EL] >>
     res_tac >>
 

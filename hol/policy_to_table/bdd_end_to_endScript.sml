@@ -548,7 +548,7 @@ QED
 
 (*mk_BDDPred_opt produces valid and correct BDD for TABLES structure *)
 Theorem table_mk_bdd_correct_valid_opt_thm:
-  ∀ var_table vars BDD mv.
+  ∀ var_table vars BDD.
     ALL_DISTINCT vars ∧
     fv_in_vars table_structure var_table vars ∧
     SOME BDD = mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, var_table))]) [] vars 1 ⇒
@@ -576,7 +576,7 @@ QED
 
 (* mk_BDDPred_opt produces valid and correct BDD for POLICY structure *)
 Theorem policy_mk_bdd_correct_valid_opt_thm:
-  ∀ var_policy vars BDD mv.
+  ∀ var_policy vars BDD.
     ALL_DISTINCT vars ∧
     fv_in_vars policy_structure var_policy vars ∧
     SOME BDD = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 ⇒
@@ -862,9 +862,13 @@ Theorem correct_var_policy_var_policy_thm1:
     isIsomorph I BDD BDD' ∧
     ALOOKUP I 0 = SOME 0 ∧
     node_in_BDD 0 BDD ∧
+    node_in_BDD 0 BDD' ∧
 
-    SOME BDD = mk_BDDPred policy_structure  (0,[],[(0, non_termn (NONE, var_policy1 ))]) [] vars 1 ∧
-    SOME BDD'= mk_BDDPred policy_structure  (0,[],[(0, non_termn (NONE, var_policy2 ))]) [] vars 1 ∧
+    prop_in_BDD 0 BDD = SOME var_policy1 ∧
+    prop_in_BDD 0 BDD' = SOME var_policy2 ∧
+
+    SOME BDD = mk_BDDPred_opt policy_structure  (0,[],[(0, non_termn (NONE, var_policy1 ))]) [] vars 1 ∧
+    SOME BDD'= mk_BDDPred_opt policy_structure  (0,[],[(0, non_termn (NONE, var_policy2 ))]) [] vars 1 ∧
 
     (fv_in_vars policy_structure var_policy1 vars ∧
      fv_in_vars policy_structure var_policy2 vars ∧
@@ -875,7 +879,63 @@ Theorem correct_var_policy_var_policy_thm1:
     ⇒
     sem_policy var_policy1 mv = sem_policy var_policy2 mv
 Proof
-cheat
+  rpt strip_tac >>
+
+  (* 1. we know that given this layout of initial BDD, then
+     for sure the final BDDs are correct w.r.t. any node *)
+  imp_res_tac policy_mk_bdd_correct_valid_opt_thm >>
+
+
+  subgoal ‘∃ b.  BDD_sem policy_structure BDD mv 0 b ∧
+           ∃ b'. BDD_sem policy_structure BDD' mv 0 b'’ >-
+   (
+   ‘node_in_labels 0 BDD’ by gvs[prop_means_in_labels] >>
+   ‘node_in_labels 0 BDD'’ by gvs[prop_means_in_labels] >>
+   gvs[valid_BDD_def] >>
+   ‘mv_dom_vars mv ([] ⧺ REVERSE vars)’ by gvs[mv_dom_vars_def] >>
+   imp_res_tac BDD_sem_exsists_label_init >>
+   gvs[]
+   ) >>
+
+
+  PairCases_on ‘BDD’  >> rename1 ‘BDD_sem policy_structure (r, edges, labels ) mv 0 b’ >>
+  PairCases_on ‘BDD'’ >> rename1 ‘BDD_sem policy_structure  (r',edges',labels') mv 0 b'’ >>
+
+  (* 2. now we can show that for the root node's contents (policy1 and policy2),
+        it's BDD semantics is teh same as we gave in the BDD semantics *)
+  subgoal ‘(b  = op_sem policy_structure (get_prop labels  0) mv) ∧
+           (b' = op_sem policy_structure  (get_prop labels' 0) mv )’ >-
+   (
+   ‘mv_dom_vars mv (REVERSE vars)’ by gvs[mv_dom_vars_def] >>
+   gvs[correct_sem_def] >>
+   res_tac >>
+   gvs[]
+   ) >>
+
+
+  subgoal ‘BDD_sem policy_structure (r,edges,labels) mv 0 b ⇔
+           BDD_sem policy_structure (r',edges',labels') mv 0 b’ >- (
+  ‘mv_dom_vars mv (REVERSE vars)’ by gvs[mv_dom_vars_def] >>
+  irule isomorphism_preserves_semantics >>
+  gvs[valid_BDD_def] >>
+  srw_tac [SatisfySimps.SATISFY_ss][]
+  ) >>
+
+
+  subgoal ‘get_prop labels 0 = SOME var_policy1 ∧
+           get_prop labels' 0 = SOME var_policy2’ >- (
+  gvs[node_in_labels_def, prop_in_BDD_def, get_prop_def] >> res_tac >> gvs[]
+  ) >>
+
+
+  gvs[] >>
+  ‘op_sem policy_structure (SOME var_policy1) mv =
+   op_sem policy_structure (SOME var_policy2) mv’ by imp_res_tac BDD_sem_determ >>
+  gvs[] >>
+
+  imp_res_tac final_sem_eq_triv >>
+  gvs[op_sem_def, policy_structure_def]
+
 QED
 
 
@@ -906,11 +966,27 @@ Definition correct_var_policy_var_policy_exec_def:
 End
 
 
+
+
 Theorem correct_var_policy_var_policy_exec_thm1:
  ∀ var_policy1 var_policy2  vars I.
  correct_var_policy_var_policy_exec var_policy1 var_policy2  vars I
 Proof
-cheat
+  rgs[correct_var_policy_var_policy_exec_def] >>
+  rpt strip_tac >>
+
+  Cases_on ‘mk_BDDPred_opt policy_structure
+            (0,[],[(0,non_termn (NONE,var_policy1))]) [] vars 1’ >> gvs[] >>
+
+  Cases_on ‘mk_BDDPred_opt policy_structure
+           (0,[],[(0,non_termn (NONE,var_policy2))]) [] vars 1 ’ >> gvs[] >>
+
+
+  gvs[fv_in_vars_abs_exec_eq] >>
+
+  imp_res_tac isIsomorph_exe_abs_imp >>
+
+  metis_tac[correct_var_policy_var_policy_thm1]
 QED
 
 
@@ -1339,4 +1415,3 @@ QED
 
 
 val _ = export_theory ();
-
