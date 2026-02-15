@@ -1,5 +1,5 @@
 open HolKernel Parse boolLib bossLib;
-open optionTheory pairTheory bdd_genTheory; 
+open optionTheory pairTheory bdd_genTheory;
 open tables_specTheory tables_spec_oldTheory policy_specTheory pred_specTheory;
 
 open preamble basis ml_translatorLib ;
@@ -125,11 +125,11 @@ QED
 val _ = final_policy_cake_trans |> update_precondition;
 
 
-val r = ml_translatorLib.register_type ``:((pred # 'a) list, 'b) decision_structure``;
+val r = ml_translatorLib.register_type “:((pred # 'a) list, 'b) decision_structure”;
 val r = translate policy_structure_def;
 
 
-Type action_policy_type = ``:((string# num list) action_expr) policy``;
+Type action_policy_type = “:((string# num list) action_expr) policy”;
 
 (*
 Definition mk_BDD_policy_def:
@@ -178,7 +178,7 @@ val r = translate fv_tables_def;
 val r = translate table_structure_def;
 
 
-Type action_table_type = ``:((string# num list) var_table_list # num)``;
+Type action_table_type = “:((string# num list) var_table_list # num)”;
 
 
 

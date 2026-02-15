@@ -5,7 +5,7 @@ open bdd_utilsLib;
 
 val _ = new_theory "internet_firewall_10_2";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
 
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16)])]”;
 
@@ -187,7 +187,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (*    but better for BDD    *)
 (****************************)
 (*
-val policy_order = ``[
+val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_srcPort_le_56258"; "is_srcPort_ge_56258";
   "is_srcPort_le_6881"; "is_srcPort_ge_6881";
@@ -198,9 +198,9 @@ val policy_order = ``[
   "is_srcPort_le_50049"; "is_srcPort_ge_50049";
   "is_srcPort_le_52244"; "is_srcPort_ge_52244";
   "is_srcPort_le_50627"; "is_srcPort_ge_50627";
-]``;
+]”;
 
-val policy_full_order = ``[
+val policy_full_order = “[
   ("igfm",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
   ("gm",["is_srcPort_le_56258";"is_srcPort_ge_56258"]);
   ("qou",["is_srcPort_le_6881";"is_srcPort_ge_6881"]);
@@ -211,7 +211,7 @@ val policy_full_order = ``[
   ("j06",["is_srcPort_le_50049";"is_srcPort_ge_50049"]);
   ("hjl",["is_srcPort_le_52244";"is_srcPort_ge_52244"]);
   ("8ug",["is_srcPort_le_50627";"is_srcPort_ge_50627"]);
-]``; *)
+]”; *)
 
 
 (********************************)
@@ -240,7 +240,7 @@ val _ = export_theory ();
 
 (*
 
-    val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
+    Type action_table_type = :((string# num list) var_table_list # num)
 
 
 

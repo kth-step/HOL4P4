@@ -1,12 +1,12 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 open policy_arith_to_varTheory;
-open bdd_utilsLib; 
+open bdd_utilsLib;
 
 
 val _ = new_theory "internet_firewall_40";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
+
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16);
                                         ("srcNAT", type_length 16);
@@ -1063,7 +1063,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 
 
 
-val policy_order = ``[
+val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -1156,9 +1156,9 @@ val policy_order = ``[
   "is_srcNAT_le_40548"; "is_srcNAT_ge_40548";
   "is_srcPort_le_50149"; "is_srcPort_ge_50149";
   "is_srcNAT_le_2917"; "is_srcNAT_ge_2917"
-]``;
+]”;
 
-val policy_full_order = ``[
+val policy_full_order = “[
   ("ur5",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
   ("gsgq" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
   ("os",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
@@ -1251,7 +1251,7 @@ val policy_full_order = ``[
   ("vz" ,["is_srcNAT_le_40548";"is_srcNAT_ge_40548"]);
   ("59sy",["is_srcPort_le_50149";"is_srcPort_ge_50149"]);
   ("2bea" ,["is_srcNAT_le_2917";"is_srcNAT_ge_2917"])
-]``;
+]”;
 
 
 
@@ -1276,17 +1276,17 @@ val policy_full_order = ``[
 
 (* BDD alists + EVAL *)
 
-(* 
+(*
 val final_thm_res_eval =
-fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 *)
 
 
 (* BDD alists + Cakeml w parser, just bin *)
-val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order, 
+val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order,
 "internet_firewall_40");
 
 
 
-                      
+
 val _ = export_theory ();

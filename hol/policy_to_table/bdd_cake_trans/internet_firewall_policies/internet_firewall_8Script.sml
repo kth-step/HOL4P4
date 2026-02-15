@@ -5,8 +5,8 @@ open bdd_utilsLib;
 
 val _ = new_theory "internet_firewall_8";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
+
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16);
                                         ("srcNAT", type_length 16);
@@ -275,7 +275,7 @@ val policy_me =   “[
 (******************************)
 
 
- 
+
 
 (* Grouped policy ordering *)
 val policy_full_order = “[
@@ -296,8 +296,8 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (* worst output table order *)
 (*    but better for BDD    *)
 (****************************)
-(* 
-val policy_order = ``[
+(*
+val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -324,9 +324,9 @@ val policy_order = ``[
   "is_dstNAT_le_47094"; "is_dstNAT_ge_47094";
   "is_srcPort_le_50049"; "is_srcPort_ge_50049";
   "is_srcNAT_le_21285"; "is_srcNAT_ge_21285"
-]``;
+]”;
 
-val policy_full_order = ``[
+val policy_full_order = “[
   ("ax",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
   ("qncv" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
   ("mth6",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
@@ -353,7 +353,7 @@ val policy_full_order = ``[
   ("oic" ,["is_dstNAT_le_47094";"is_dstNAT_ge_47094"]);
   ("fuv",["is_srcPort_le_50049";"is_srcPort_ge_50049"]);
   ("58k" ,["is_srcNAT_le_21285";"is_srcNAT_ge_21285"])
-]``;  *)
+]”;  *)
 
 (***********************************************)
 

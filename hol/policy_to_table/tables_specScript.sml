@@ -8,15 +8,15 @@ open arithmeticTheory;
 
 open p4_auxTheory;
 
-open bdd_genTheory;     
+open bdd_genTheory;
 open tables_spec_oldTheory;
-open policy_specTheory;     
+open policy_specTheory;
 
 
 val _ = new_theory "tables_spec";
 
 
-(* A description of the tables ILR and its functions instansiations *)    
+(* A description of the tables ILR and its functions instansiations *)
 
 Definition is_not_true_var_atom_def:
   (is_not_true_var_atom True = F) ∧
@@ -32,7 +32,7 @@ Definition simp_row_def:
     let simp_row' = FILTER (\x. is_not_true_var_atom x) simp_row in
       case simp_row' of
       | [] => [True]
-      | _ => 
+      | _ =>
           (case MEM False simp_row' of
            | T => [False]
            | F => simp_row')
@@ -48,22 +48,22 @@ this state as a reult represent the answer of the previous table, that we will u
 
 If is it SOME (st_num), then we have the ability to reduce the current table so much, otherwise,
 if NONE, then we do not know the previous table what it could return yet,
-thus we reduce but not as much when evaluating it EVAL. 
-   
+thus we reduce but not as much when evaluating it EVAL.
+
 *)
 
 
-        
+
 Definition simp_table_def:
   (simp_table [] s = []) ∧
-                  
+
   (simp_table ((atoms,st,res)::table)  NONE =
    let atoms' = simp_row atoms in
      case atoms' of
      | [False] => simp_table table NONE
      | _ =>  ((atoms', st, res)::simp_table table NONE)
   ) ∧
-    
+
   (simp_table ((atoms,st,res)::table) (SOME s') =
    if (s' ≠ st) then
      simp_table table (SOME s')
@@ -86,7 +86,7 @@ End
 
 Definition simp_tables_def:
   (simp_tables [] s = []) ∧
-  (simp_tables (t::tbll) s = 
+  (simp_tables (t::tbll) s =
    (let t' = simp_table t s in
       ( case t' of
         | [([True], st , state s'')] => (t'::(simp_tables tbll (SOME s'')))
@@ -110,13 +110,13 @@ Definition final_row_def:
   (final_row ([True], s', s'') s = (if s = s' then SOME s'' else NONE)) ∧
   (final_row _ s = NONE)
 End
-        
+
 
 
 
 Definition final_tbl_def:
   (final_tbl [] s = NONE) ∧
-  (final_tbl (row::rows) s =         
+  (final_tbl (row::rows) s =
      case final_row row s of
        SOME a => SOME a
      | NONE => if (FST row = [False]) then final_tbl rows s else NONE
@@ -130,7 +130,7 @@ Definition final_tbll_def:
   final_tbll [tbl] st_in =
   ( case final_tbl tbl st_in of
     | SOME (action a) => SOME (action a)
-    | _ => NONE       
+    | _ => NONE
   )∧
   final_tbll (tbl::tbls) st_in =
   ( case final_tbl tbl st_in of
@@ -157,7 +157,7 @@ Definition table_structure_def:
     final := final_tables;
     fv := fv_tables;
   |>
-End            
+End
 
 
 
@@ -166,7 +166,7 @@ Triviality simp_row_not_empty:
     simp_row atoms = [] ⇔ atoms = []
 Proof
   rw[simp_row_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
 
 
@@ -177,7 +177,7 @@ Theorem simp_row_sub_false_head:
      simp_row (mk_substitute_row (atoms_list) x b) = [False]) ∧
     (simp_row (mk_substitute_row (NotFalse::atoms_list) x b) = [False] ⇒
      simp_row (mk_substitute_row (atoms_list) x b) = [False])
-    
+
 Proof
   Induct >>
   rw[mk_substitute_row_def, simp_row_def] >>
@@ -196,7 +196,7 @@ Theorem simp_row_sub_false_var_head:
     (ALOOKUP mv s = SOME F ∧
      ALOOKUP mv x = SOME b ∧
      simp_row (mk_substitute_row (Not s::atoms_list) x b) = [False] ⇒
-     simp_row (mk_substitute_row atoms_list x b) = [False]) 
+     simp_row (mk_substitute_row atoms_list x b) = [False])
 Proof
   Induct >>
   rw[mk_substitute_row_def, simp_row_def] >>
@@ -215,26 +215,26 @@ Theorem simp_sub_row_false_then_atoms_sem_false:
     simp_row (mk_substitute_row atoms_list x b) = [False] ⇒
     ~ is_atoml_true atoms_list mv
 Proof
-  
+
   Induct >-
    rw[mk_substitute_row_def, simp_row_def, is_atoml_true_def] >>
-  
+
   rw[] >>
   Cases_on ‘h’ >>
-  
+
   (imp_res_tac simp_row_sub_false_head >>
    res_tac >>
    gvs[is_atoml_true_def] >>
    gvs[sem_var_atom_def]) >>
-  
+
   strip_tac >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   imp_res_tac simp_row_sub_false_var_head  >>
   gvs[]
 QED
-    
 
-        
+
+
 
 Theorem simp_sub_empty_then_min_index_none:
   ∀ t x b s_in mv.
@@ -247,28 +247,28 @@ Proof
     rw[mk_substitute_tbl_def, simp_table_def] >>
     gvs[check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def]
     ,
-    
+
     PairCases_on ‘h’ >>
     rename1 ‘((atoms_list,st,res)::t)’ >>
     gvs[Once mk_substitute_tbl_normalize2] >>
     gvs[check_all_rows_match_def, is_match_row_def] >>
     rgs[simp_table_def] >>
-    
-    
+
+
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-        
+
     (res_tac >>
      rgs[min_idx_till_def] >>
      gvs[INDEX_FIND_NONE_EXISTS]) >>
-    
+
     imp_res_tac simp_sub_row_false_then_atoms_sem_false >>
-    fs[]          
+    fs[]
   ]
 QED
 
 
 
-        
+
 
 Triviality mk_substitute_row_empty:
   ∀ atoms_list x b.
@@ -289,12 +289,12 @@ Proof
   rw[mk_substitute_tbl_def, simp_table_def] >>
   PairCases_on ‘h’ >>
   gvs[simp_table_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
 
 
 
-        
+
 Theorem simp_table_sub_every_prop1:
   ∀ t x b  s_in mv.
     ALOOKUP mv x = SOME b ∧
@@ -302,7 +302,7 @@ Theorem simp_table_sub_every_prop1:
     EVERY ($¬ ∘ (λ(p,a). p)) (MAP
                               (λ(atoml,st_num,res'). (s_in = st_num ∧ is_atoml_true atoml mv ∧ atoml ≠ [],res')) t)
 Proof
-  
+
   Induct >>
   rw[] >|[
     PairCases_on ‘h’ >> gvs[] >>
@@ -315,11 +315,11 @@ Proof
     res_tac >>
     gvs[]
   ]
-QED 
-        
-               
-               
-        
+QED
+
+
+
+
 Theorem simp_sub_empty_then_min_index_tbl_none:
 ∀ t x b s_in mv s_num res.
   ALOOKUP mv x = SOME b ∧
@@ -330,37 +330,37 @@ Proof
   Induct >> rw[] >|[
     gvs[check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def]
     ,
-    
+
     PairCases_on ‘h’ >>
     rename1 ‘((atoms_list,st,result)::t)’ >>
     gvs[Once mk_substitute_tbl_normalize2] >>
     gvs[check_all_rows_match_def, is_match_row_def] >>
     rgs[simp_table_def] >>
-    
-    
+
+
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-        
+
     (res_tac >>
      rgs[min_idx_till_def] >>
      gvs[INDEX_FIND_NONE_EXISTS]) >>
-    
+
     imp_res_tac simp_sub_row_false_then_atoms_sem_false >>
     fs[] >>
 
 
     imp_res_tac simp_row_not_empty >> gvs[] >>
-    imp_res_tac mk_substitute_row_empty >> gvs[] >>        
+    imp_res_tac mk_substitute_row_empty >> gvs[] >>
     imp_res_tac simp_table_sub_every_prop1
   ]
 QED
 
 
-                             
+
 Theorem match_tbll_head_empty:
   ∀ tbll mv s_in.
     match_tbll ([]::tbll) mv s_in = NONE
 Proof
-  rw[] >> Cases_on ‘tbll’ >> 
+  rw[] >> Cases_on ‘tbll’ >>
   gvs[match_tbll_def, match_tbl_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def]
 QED
 
@@ -371,7 +371,7 @@ Theorem match_tbll_row_empty:
   ∀ tbll st res mv s_in.
     match_tbll ([([],st,res)]::tbll) mv s_in = NONE
 Proof
- rw[] >> Cases_on ‘tbll’ >> 
+ rw[] >> Cases_on ‘tbll’ >>
  gvs[match_tbll_def, match_tbl_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def, is_match_row_def]
 QED
 
@@ -383,14 +383,14 @@ Theorem match_tbll_final_before_ending_none:
     tbll ≠ [] ⇒
     match_tbll ([([True],st,action a)]::tbll) mv s_in = NONE
 Proof
-  rw[] >> Cases_on ‘tbll’ >> 
+  rw[] >> Cases_on ‘tbll’ >>
   gvs[match_tbll_def, match_tbl_def, check_all_rows_match_def, min_idx_till_def,
       INDEX_FIND_def, is_match_row_def, is_atoml_true_def, sem_var_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
 
 
-        
+
 Triviality simp_tables_sub_not_empty_table:
  ∀ t x b l.
   simp_tables (mk_substitute_tbl t x b::l) NONE ≠ []
@@ -405,12 +405,12 @@ Triviality simp_table_impossible_case1:
   ∀ atoml h s_in t t' st_num res st_num' res'.
     simp_table [(atoml, st_num, res)] (SOME s_in) ≠ [(True::t::t',st_num',res')]
 Proof
-  Induct_on ‘atoml’ >> 
+  Induct_on ‘atoml’ >>
   gvs[simp_table_def] >> rpt strip_tac >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) >>
   rw[] >>
   gvs[is_not_true_var_atom_def]
-QED   
+QED
 
 
 
@@ -425,13 +425,13 @@ Proof
   gvs[simp_atom_def, is_not_true_var_atom_def]
 QED
 
-                   
+
 
 Theorem filtering_not_true_then_notTrue_notFalse_mem:
   ∀ atoml filtered_list x b.
     FILTER (λx. is_not_true_var_atom x) (MAP (λatom. simp_atom atom) (mk_substitute_row atoml x b)) =
     filtered_list ⇒
-    (¬ MEM NotTrue filtered_list ∧ ¬ MEM NotFalse filtered_list) 
+    (¬ MEM NotTrue filtered_list ∧ ¬ MEM NotFalse filtered_list)
 Proof
   Induct_on ‘atoml’ >>
   rw[mk_substitute_row_def, simp_atom_def, is_not_true_var_atom_def] >>
@@ -445,10 +445,10 @@ QED
 
 
 Theorem simp_table_impossible_case2:
-  ∀ l t t' s_in st_num res.        
+  ∀ l t t' s_in st_num res.
     (simp_table l (SOME s_in) ≠ [(True::t::t',st_num,res)]) ∧
     (simp_table l (SOME s_in) ≠ [(False::t',st_num,res)])
-Proof                 
+Proof
   Induct_on ‘l’ >>
   rw[] >>
   gvs[simp_table_def] >>
@@ -468,7 +468,7 @@ QED
 Theorem simp_table_impossible_case3:
 ∀ l t t' s_in st_num res mv x b.
   (simp_table (mk_substitute_tbl t x b) (SOME s_in) ≠ [(NotTrue::t',st_num,res)]) ∧
-  (simp_table (mk_substitute_tbl t x b) (SOME s_in) ≠ [(NotFalse::t',st_num,res)])                 
+  (simp_table (mk_substitute_tbl t x b) (SOME s_in) ≠ [(NotFalse::t',st_num,res)])
 Proof
   Induct_on ‘t’ >>
   rw[] >>
@@ -485,17 +485,17 @@ Proof
 QED
 
 
-    
+
 (* Theorem simp_table_return_true_then_rows_none:
   ∀ tbl rows h1 h2.
     simp_table tbl NONE = [(True::rows,h1,h2)] ⇒
     rows = []
 Proof
-  
+
   Induct >>
   rw[simp_table_def] >>
-  
-  Cases_on ‘tbl’ >> PairCases_on ‘h’ >> gvs[simp_table_def]  >>       
+
+  Cases_on ‘tbl’ >> PairCases_on ‘h’ >> gvs[simp_table_def]  >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) >>
   imp_res_tac filtering_not_true_then_not_mem >>
   gvs[]
@@ -509,7 +509,7 @@ Triviality length_of_simp_single_table:
    LENGTH (simp_tables [rows] anyop) ≤ 1
 Proof
 Induct >> rw[simp_tables_def] >>
-rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) 
+rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def])
 QED
 
 
@@ -519,9 +519,9 @@ Triviality simp_tables_single_not_empty:
 simp_tables [rows] anyop ≠ []
 Proof
   rw[simp_tables_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def])
 QED
-                                                
+
 
 
 (* Triviality simp_table_none_append:
@@ -530,7 +530,7 @@ QED
 Proof
   rw[] >> PairCases_on ‘h’ >>
   rw[simp_table_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def])
 QED *)
 
 
@@ -544,9 +544,9 @@ Proof
 
   rw[min_idx_till_def] >>
   gvs[INDEX_FIND_def] >>
-  Cases_on ‘INDEX_FIND 0 (λ(p,a). p) l1’ >> 
+  Cases_on ‘INDEX_FIND 0 (λ(p,a). p) l1’ >>
   gvs[P_NONE_hold] >>
-                   
+
   Cases_on ‘INDEX_FIND 0 (λ(p,a). p) l2’ >> gvs[] >>
   Cases_on ‘INDEX_FIND 1 (λ(p,a). p) l1’ >> gvs[] >>
   imp_res_tac P_NONE_hold2 >>
@@ -555,7 +555,7 @@ QED
 
 
 
-(* Theorem min_idx_till_some_eq_res:     
+(* Theorem min_idx_till_some_eq_res:
   ∀ l1 l2 res.
     min_idx_till l1 T = min_idx_till l2 T ⇒
     ∃ n m res' . (min_idx_till ((F,res)::l1) T = SOME (n,res')) =
@@ -565,39 +565,39 @@ Proof
   rw[min_idx_till_def] >>
   gvs[INDEX_FIND_def] >>
   Cases_on ‘INDEX_FIND 0 (λ(p,a). p) l1’ >> gvs[] >>
-  
+
   gvs[P_NONE_hold] >>
-  
+
   Cases_on ‘INDEX_FIND 0 (λ(p,a). p) l2’ >> gvs[] >>
   Cases_on ‘INDEX_FIND 1 (λ(p,a). p) l1’ >> gvs[] >>
   imp_res_tac P_NONE_hold2 >>
   gvs[] >>
-  
+
   Cases_on ‘x’ >> Cases_on ‘x'’ >>
   imp_res_tac P_implies_next >>
   gvs[] >>
   qexistsl_tac [‘SUC q’, ‘q’, ‘r’] >>
-  gvs[] 
+  gvs[]
 QED *)
 
 
 
-Theorem INDEX_FIND_some_eq_next: 
+Theorem INDEX_FIND_some_eq_next:
   ∀ l1 res n.
   INDEX_FIND 0 (λ(p,a). p) l1 = SOME (n,res) ⇔ INDEX_FIND 1 (λ(p,a). p) l1 = SOME (n + 1,res)
 Proof
   rw[] >>
   Cases_on ‘INDEX_FIND 0 (λ(p,a). p) l1’ >>
   gvs[P_NONE_hold] >>
-  
+
   Cases_on ‘x’ >> gvs[] >>
   imp_res_tac P_implies_next >>
   gvs[ADD1]
 QED
 
 
-        
-Theorem min_idx_till_some_eq_next: 
+
+Theorem min_idx_till_some_eq_next:
   ∀ l1 res res' n.
   (min_idx_till l1 T = SOME (n,res)) ⇔  (min_idx_till ((F,res')::l1) T = SOME (n+1,res))
 Proof
@@ -608,25 +608,25 @@ QED
 
 
 
-Theorem INDEX_FIND_some_eq_next2: 
+Theorem INDEX_FIND_some_eq_next2:
   ∀ l1 res n.
   (INDEX_FIND 0 (λ(p,a). p) l1 = SOME (n -1,res) ∧ n>0) ⇔ INDEX_FIND 1 (λ(p,a). p) l1 = SOME (n,res)
 Proof
   rw[] >>
   Cases_on ‘INDEX_FIND 0 (λ(p,a). p) l1’ >>
   gvs[P_NONE_hold] >>
-  
+
   Cases_on ‘x’ >> gvs[] >>
   imp_res_tac P_implies_next >>
   gvs[ADD1] >>
-  
-  Cases_on ‘n’ >> gvs[ADD1]   
+
+  Cases_on ‘n’ >> gvs[ADD1]
 QED
 
-    
 
-        
-Theorem min_idx_till_some_eq_next2: 
+
+
+Theorem min_idx_till_some_eq_next2:
   ∀ l1 res res' n.
   (min_idx_till l1 T = SOME (n-1,res) ∧ n>0) ⇔ (min_idx_till ((F,res')::l1) T = SOME (n,res))
 Proof
@@ -635,22 +635,22 @@ Proof
   Cases_on ‘INDEX_FIND 1 (λ(p,a). p) l1’ >> gvs[] >>
   Cases_on ‘x’ >> gvs[] >>
   imp_res_tac INDEX_FIND_some_eq_next2 >>
-   Cases_on ‘n’ >> gvs[ADD1] 
+   Cases_on ‘n’ >> gvs[ADD1]
 QED
 
-    
+
 
 Triviality simp_row_false_emptyl:
-  ∀ atoml t.        
+  ∀ atoml t.
     simp_row atoml = False::t ⇒
     simp_row atoml = [False]
 Proof
   rw[simp_row_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
 
 
-      
+
 Theorem min_idx_check_rows_simp_tbl_none:
   ∀ rows st_in simp_rows simp_rows' mv.
     simp_table rows NONE = simp_rows ∧
@@ -662,7 +662,7 @@ Proof
   Induct_on ‘rows’ >>
   rpt strip_tac >-
    rgs[simp_table_def] >>
-  
+
   PairCases_on ‘h’ >>
   rename1 ‘simp_table ((atoms,st,res)::rows) (SOME st_in)’ >>
   rgs[simp_table_def] >>
@@ -689,7 +689,7 @@ Proof
         simp[Once is_match_row_def] >>
         metis_tac[min_idx_till_none_eq_res]
         )
-        
+
         ,
         (* when st is the same as st_in*)
         Cases_on ‘t’ >> gvs[] >|[
@@ -699,8 +699,8 @@ Proof
             ,
             Cases_on ‘h’ >> gvs[] >>
             (gvs[check_all_rows_match_def, is_match_row_def, is_atoml_true_def, sem_var_atom_def] >>
-             gvs[min_idx_till_def, INDEX_FIND_def, index_none_not_every]) 
-          ]                         
+             gvs[min_idx_till_def, INDEX_FIND_def, index_none_not_every])
+          ]
       ]
   ]
 QED
@@ -710,7 +710,7 @@ QED
 
 
 
-(* TODO: refactor this proof *)         
+(* TODO: refactor this proof *)
 Theorem min_idx_check_rows_simp_tbl_some:
   ∀ rows st_in simp_rows simp_rows' mv.
     simp_table rows NONE = simp_rows ∧
@@ -722,29 +722,29 @@ Proof
   Induct_on ‘rows’ >>
   rpt strip_tac >-
    rgs[simp_table_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def] >>
-  
+
   PairCases_on ‘h’ >>
   rename1 ‘simp_table ((atoms,st,res)::rows) (SOME st_in)’ >>
   rgs[simp_table_def] >>
   Cases_on ‘simp_row atoms’ >> gvs[] >|[
-           
+
     Cases_on ‘st_in ≠ st’ >>
     gvs[] >|[
       gvs[check_all_rows_match_def] >>
       simp[Once is_match_row_def] >>
-                
+
       first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’, ‘mv’])) >>
-      qexistsl_tac [‘m’, ‘n+1’, ‘res'’] >>      
+      qexistsl_tac [‘m’, ‘n+1’, ‘res'’] >>
       gvs[GSYM min_idx_till_some_eq_next]
 
       ,
       gvs[check_all_rows_match_def] >>
       gvs[is_match_row_def] >>
-                            
+
       first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-      qexistsl_tac [‘m+1’, ‘n+1’, ‘res'’] >>      
-      gvs[GSYM min_idx_till_some_eq_next] 
-      
+      qexistsl_tac [‘m+1’, ‘n+1’, ‘res'’] >>
+      gvs[GSYM min_idx_till_some_eq_next]
+
     ]
     ,
 
@@ -754,16 +754,16 @@ Proof
         (
         imp_res_tac simp_row_false_emptyl >>
         gvs[] >>
-        
-        
+
+
         gvs[check_all_rows_match_def] >>
         simp[Once is_match_row_def] >>
-        
+
         first_x_assum (strip_assume_tac o (Q.SPECL [‘st_in’, ‘mv’])) >>
-        qexistsl_tac [‘m’, ‘n+1’, ‘res'’] >> 
+        qexistsl_tac [‘m’, ‘n+1’, ‘res'’] >>
         gvs[GSYM min_idx_till_some_eq_next]
         )
-        
+
         ,
         (* when st is the same as st_in*)
         Cases_on ‘t’ >> gvs[] >|[
@@ -771,39 +771,39 @@ Proof
             (gvs[check_all_rows_match_def, is_match_row_def, is_atoml_true_def, sem_var_atom_def] >>
              gvs[min_idx_till_def, INDEX_FIND_def, index_none_not_every]) >|[
 
-              qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+              qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
               gvs[]
               ,
 
               first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-              qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-              gvs[GSYM INDEX_FIND_some_eq_next] 
+              qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+              gvs[GSYM INDEX_FIND_some_eq_next]
               ,
-              qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+              qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
               gvs[]
               ,
               BasicProvers.FULL_CASE_TAC >> gvs[] >|[
-                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
                   gvs[]
                   ,
-                  
+
                   first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                  gvs[GSYM INDEX_FIND_some_eq_next] 
+                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                  gvs[GSYM INDEX_FIND_some_eq_next]
 
                 ]
               ,
               rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
                   first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                  gvs[GSYM INDEX_FIND_some_eq_next] 
+                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                  gvs[GSYM INDEX_FIND_some_eq_next]
                   ,
-                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
                   gvs[]
                   ,
                   first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                  gvs[GSYM INDEX_FIND_some_eq_next] 
+                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                  gvs[GSYM INDEX_FIND_some_eq_next]
                 ]
             ]
             ,
@@ -812,59 +812,59 @@ Proof
              gvs[min_idx_till_def, INDEX_FIND_def, index_none_not_every]) >|[
 
                 rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
-                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
                   gvs[]
                   ,
                   first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                  gvs[GSYM INDEX_FIND_some_eq_next] 
+                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                  gvs[GSYM INDEX_FIND_some_eq_next]
                 ]
                 ,
-                
+
                 first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                gvs[GSYM INDEX_FIND_some_eq_next] 
+                qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                gvs[GSYM INDEX_FIND_some_eq_next]
                 ,
-                
+
                 first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                gvs[GSYM INDEX_FIND_some_eq_next] 
+                qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                gvs[GSYM INDEX_FIND_some_eq_next]
                 ,
-                
+
                 rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
-                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
                   gvs[]
                   ,
                   first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                  gvs[GSYM INDEX_FIND_some_eq_next] 
+                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                  gvs[GSYM INDEX_FIND_some_eq_next]
                   ]
                 ,
                  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
-                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+                  qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
                   gvs[]
                   ,
                   first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
-                  gvs[GSYM INDEX_FIND_some_eq_next] 
+                  qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
+                  gvs[GSYM INDEX_FIND_some_eq_next]
                   ]
                 ,
                 rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
-                    
+
                     first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                    qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
+                    qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
                     gvs[GSYM INDEX_FIND_some_eq_next]
                     ,
-                    qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >> 
+                    qexistsl_tac [‘0’, ‘0’, ‘(T,res)’] >>
                     gvs[]
                     ,
                     first_x_assum (strip_assume_tac o (Q.SPECL [‘st’, ‘mv’])) >>
-                    qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>      
+                    qexistsl_tac [‘m+1’, ‘n+1’, ‘res’] >>
                     gvs[GSYM INDEX_FIND_some_eq_next]
                   ]
 
               ]
-          ]                         
+          ]
       ]
   ]
 QED
@@ -874,8 +874,8 @@ QED
 
 
 
-(* Theorem  min_idx_till_none_not_none:      
-  ∀ l .        
+(* Theorem  min_idx_till_none_not_none:
+  ∀ l .
     (min_idx_till l T = NONE) ⇔
       ¬ (min_idx_till l T ≠ NONE)
 Proof
@@ -899,11 +899,11 @@ Proof
   rw[simp_table_def] >>
   PairCases_on ‘h’ >>
   gvs[simp_table_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def])
 QED
 
 
-        
+
 Triviality simp_table_none_true_cases:
   ∀ rows n st res.
     (simp_table rows NONE = [([True],st,res)] ⇒
@@ -913,40 +913,40 @@ Triviality simp_table_none_true_cases:
 
     ( ∀ s . simp_table rows NONE = [([Var s],st,res)] ⇒
      (simp_table rows (SOME n) = [([Var s],st,res)] ∨
-      simp_table rows (SOME n) = []                              
+      simp_table rows (SOME n) = []
      )) ∧
 
     ( ∀ s l. simp_table rows NONE = [(Var s::l,st,res)] ⇒
      (simp_table rows (SOME n) = [(Var s::l,st,res)] ∨
-      simp_table rows (SOME n) = []                              
+      simp_table rows (SOME n) = []
      )) ∧
 
     ( ∀ s . simp_table rows NONE = [([Not s],st,res)] ⇒
      (simp_table rows (SOME n) = [([Not s],st,res)] ∨
-      simp_table rows (SOME n) = []                              
+      simp_table rows (SOME n) = []
      )) ∧
 
     ( ∀ s l. simp_table rows NONE = [(Not s::l,st,res)] ⇒
      (simp_table rows (SOME n) = [(Not s::l,st,res)] ∨
-      simp_table rows (SOME n) = []                              
+      simp_table rows (SOME n) = []
      )) ∧
 
     ( ∀ a l. simp_table rows NONE = [(a::l,st,res)] ⇒
      (simp_table rows (SOME n) = [(a::l,st,res)] ∨
-      simp_table rows (SOME n) = []                              
+      simp_table rows (SOME n) = []
      )) ∧
 
     ( ∀ a l. simp_table rows NONE = [([],st,res)] ⇒
      (simp_table rows (SOME n) = [([],st,res)] ∨
-      simp_table rows (SOME n) = []                              
-     )) 
+      simp_table rows (SOME n) = []
+     ))
 Proof
   Induct >>
   rw[simp_table_def] >>
   PairCases_on ‘h’ >>
   gvs[simp_table_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[simp_row_def]) >>
-  
+
   imp_res_tac simp_table_none_empty_some_empty >>
   imp_res_tac filtering_not_true_then_not_mem >>
   gvs[]
@@ -954,7 +954,7 @@ QED
 
 
 
-        
+
 (* Triviality simp_table_true_cases1:
 ∀ rows n atoml st1 st2 res1 res2.
 simp_table rows NONE = [(True::atoml,st1,res1)] ∧
@@ -967,7 +967,7 @@ Proof
   PairCases_on ‘h’ >>
   gvs[simp_table_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  
+
   imp_res_tac simp_table_none_empty_some_empty >>
   imp_res_tac filtering_not_true_then_not_mem >>
   gvs[] >>
@@ -996,29 +996,29 @@ Proof
 QED
 
 
-        
+
 
 Theorem simp_table_cannot_result1:
   ∀ rows st res.
     (simp_table rows NONE ≠ [([NotFalse],st,res)]) ∧
     (simp_table rows NONE ≠ [([NotTrue],st,res)]) ∧
     (simp_table rows NONE ≠ [([False],st,res)]) ∧
-                    
+
     (∀ a l.(simp_table rows NONE ≠ [(False::a::l,st,res)])) ∧
     (∀ a l.(simp_table rows NONE ≠ [(True::a::l,st,res)])) ∧
     (∀ a l.(simp_table rows NONE ≠ [(NotTrue::a::l,st,res)])) ∧
     (∀ a l.(simp_table rows NONE ≠ [(NotFalse::a::l,st,res)]))
 Proof
-  
+
   Induct >>
   rw[simp_table_def] >>
   PairCases_on ‘h’ >>
   gvs[simp_table_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   rpt strip_tac >>
-  gvs[simp_row_cannot_result1] 
-QED   
-               
+  gvs[simp_row_cannot_result1]
+QED
+
 
 
 
@@ -1036,8 +1036,8 @@ Proof
   Induct_on ‘rows’ >>
   rpt strip_tac >-
    rgs[simp_table_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def] >>
-  
-  
+
+
   PairCases_on ‘h’ >>
   rename1 ‘simp_table ((atoms,st,res)::rows) (SOME st_in)’ >>
   rgs[simp_table_def] >>
@@ -1052,9 +1052,9 @@ Proof
    gvs[is_match_row_def] >>
 
    gvs[GSYM min_idx_till_some_eq_next2] >>
-   res_tac 
+   res_tac
    ) >>
-        
+
   Cases_on ‘st_in ≠ st’ >>
   gvs[] >|[
         Cases_on ‘h’ >> gvs[] >>
@@ -1071,25 +1071,25 @@ Proof
 
         (gvs[check_all_rows_match_def, is_match_row_def, is_atoml_true_def, sem_var_atom_def] >>
          gvs[min_idx_till_def, INDEX_FIND_def, index_none_not_every]) >>
-         
+
         rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
         gvs[GSYM min_idx_till_some_eq_next2] >>
         res_tac >>
 
 
-                
+
         gvs[INDEX_FIND_some_eq_next] >>
         Cases_on ‘n’ >> Cases_on ‘m’ >> gvs[index_find_not_prev, ADD1] >>
-        res_tac 
+        res_tac
 ]
-                               
+
 QED
 
 
-               
-          
-        
-        
+
+
+
+
 Theorem simp_tables_single_match_eq:
   ∀ rows n tbl tbl' mv.
     simp_tables [rows] NONE = [tbl] ∧
@@ -1098,38 +1098,38 @@ Theorem simp_tables_single_match_eq:
 Proof
 
   rw[simp_tables_def, match_tbl_def] >>
-  Cases_on ‘simp_table rows NONE’ >> 
-  Cases_on ‘simp_table rows (SOME n)’ >> 
+  Cases_on ‘simp_table rows NONE’ >>
+  Cases_on ‘simp_table rows (SOME n)’ >>
   gvs[] >>
-  
+
   imp_res_tac min_idx_check_rows_simp_tbl_none >>
   imp_res_tac min_idx_check_rows_simp_tbl_some >>
   gvs[] >>
-  
+
   (first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
    first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’]))) >| [
-    
+
     imp_res_tac simp_table_none_empty_some_empty >> gvs[]
     ,
-    
+
     Cases_on ‘t’ >> PairCases_on ‘h’ >> gvs[] >>
     Cases_on ‘h0’ >> gvs[] >>
-    
-    (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>     
+
+    (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
      gvs[check_all_rows_match_def, min_idx_till_def, is_match_row_def] >>
      gvs[INDEX_FIND_def])
-    
+
     ,
-    
+
     Cases_on ‘t’ >> PairCases_on ‘h’ >> gvs[] >>
     Cases_on ‘h0’ >> gvs[] >|[
-        
+
         Cases_on ‘t'’ >> PairCases_on ‘h'’ >> gvs[] >>
-        (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>     
+        (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
          gvs[check_all_rows_match_def, min_idx_till_def, is_match_row_def] >>
          gvs[INDEX_FIND_def])
         ,
-        
+
         Cases_on ‘h’ >> Cases_on ‘t’ >> gvs[] >>
         gvs[simp_table_cannot_result1]  >>
         (
@@ -1137,80 +1137,80 @@ Proof
         imp_res_tac simp_table_none_true_cases >> gvs[] >>
         first_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
         gvs[])
-        
-        ,                
+
+        ,
         Cases_on ‘t'’ >> PairCases_on ‘h'’ >> gvs[] >|[
             Cases_on ‘h'0’ >> gvs[] >|[
-              
-              (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>     
+
+              (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
                gvs[check_all_rows_match_def, min_idx_till_def, is_match_row_def] >>
                gvs[INDEX_FIND_def])
               ,
-              
+
               rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-              gvs[is_atoml_true_def, sem_var_atom_def] >>                     
-              
+              gvs[is_atoml_true_def, sem_var_atom_def] >>
+
               imp_res_tac min_idx_check_rows_simp_tbl_some2 >>
               res_tac >> gvs[] >>
-              res_tac >> gvs[] 
-                            
+              res_tac >> gvs[]
+
             ]
             ,
             rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-            gvs[is_atoml_true_def, sem_var_atom_def] >>                     
-            
+            gvs[is_atoml_true_def, sem_var_atom_def] >>
+
             imp_res_tac min_idx_check_rows_simp_tbl_some2 >>
-            res_tac >> gvs[] 
+            res_tac >> gvs[]
           ]
         ,
         Cases_on ‘t'’ >> PairCases_on ‘h'’ >> gvs[] >|[
             Cases_on ‘h'0’ >> gvs[] >|[
-              
-              (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>     
+
+              (rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
                gvs[check_all_rows_match_def, min_idx_till_def, is_match_row_def] >>
                gvs[INDEX_FIND_def])
               ,
-              
+
               rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-              gvs[is_atoml_true_def, sem_var_atom_def] >>                     
-              
+              gvs[is_atoml_true_def, sem_var_atom_def] >>
+
               imp_res_tac min_idx_check_rows_simp_tbl_some2 >>
               res_tac >> gvs[] >>
-              res_tac >> gvs[] 
-                            
+              res_tac >> gvs[]
+
             ]
             ,
             rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-            gvs[is_atoml_true_def, sem_var_atom_def] >>                     
-            
+            gvs[is_atoml_true_def, sem_var_atom_def] >>
+
             imp_res_tac min_idx_check_rows_simp_tbl_some2 >>
-            res_tac >> gvs[] 
+            res_tac >> gvs[]
           ]
       ]
   ]
 QED
-              
 
 
-                                                
+
+
 Theorem match_tbll_single_some_none_eq:
   ∀rows mv n.
     match_tbll (simp_tables [rows] NONE) mv n =
     match_tbll (simp_tables [rows] (SOME n)) mv n
 Proof
-  
+
   rw[] >>
   assume_tac length_of_simp_single_table >>
   first_assum (strip_assume_tac o (Q.SPECL [‘rows’, ‘NONE’])) >>
   first_x_assum (strip_assume_tac o (Q.SPECL [‘rows’, ‘SOME n’])) >>
- 
+
   Cases_on ‘simp_tables [rows] NONE’ >> gvs[] >>
   Cases_on ‘simp_tables [rows] (SOME n)’ >> gvs[] >>
-  
+
   gvs[simp_tables_single_not_empty] >>
   Cases_on ‘t’ >> gvs[] >>
   Cases_on ‘t'’ >> gvs[] >>
-  
+
   gvs[match_tbll_def] >>
   imp_res_tac simp_tables_single_match_eq >>
   metis_tac[]
@@ -1226,10 +1226,10 @@ Triviality simp_tables_res_empty_length:
 Proof
   Cases_on ‘sop’ >>
   Induct >> rw[simp_tables_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
 
-        
+
 Triviality simp_tables_res_single_length:
   ∀ tbll tbl n sop.
     simp_tables tbll sop = [tbl] ⇒
@@ -1243,7 +1243,7 @@ QED
 
 
 (*
-new definition for simp_tables 
+new definition for simp_tables
 so that the proofs are easier to deal with
 *)
 
@@ -1257,7 +1257,7 @@ End
 
 Definition simp_tables2_def:
   (simp_tables2 [] s = []) ∧
-  (simp_tables2 (t::tbll) s = 
+  (simp_tables2 (t::tbll) s =
    let t' = simp_table t s in
    t' :: simp_tables2 tbll (next_state t')
   )
@@ -1267,11 +1267,11 @@ End
 Theorem simp_tables_eq:
   ∀ l s.
     simp_tables l s = simp_tables2 l s
-Proof 
+Proof
   Induct >>
   rw[simp_tables2_def, simp_tables_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>     
-  
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
   Cases_on ‘s’ >> gvs[next_state_def]
 QED
 
@@ -1286,7 +1286,7 @@ Proof
   rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) >>
   gvs[match_tbl_def, check_all_rows_match_def, is_match_row_def,
       is_atoml_true_def, min_idx_till_def, sem_var_atom_def, INDEX_FIND_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> rgs[]) 
+  rpt (BasicProvers.FULL_CASE_TAC >> rgs[])
 QED
 
 
@@ -1300,10 +1300,10 @@ Proof
 
   rw[match_tbl_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> rgs[])  >>
-  
+
   ‘∃ l . simp_table tbl NONE = l’ by gvs[] >>
   ‘∃ l' . simp_table tbl (SOME n) = l'’ by gvs[] >|[
-    
+
     imp_res_tac min_idx_check_rows_simp_tbl_none >>
     gvs[]
     ,
@@ -1314,21 +1314,21 @@ Proof
     ,
     imp_res_tac min_idx_check_rows_simp_tbl_some2 >>
     gvs[] >>
-    
+
     first_x_assum (strip_assume_tac o (Q.SPECL [‘r'’, ‘mv’, ‘q'’])) >>
     gvs[]
   ]
 QED
 
 
-        
-        
+
+
 Theorem match_tbll_simp_tables_eq_thm:
   ∀tbll mv n.
     match_tbll (simp_tables tbll NONE) mv n =
     match_tbll (simp_tables tbll (SOME n)) mv n
 Proof
-  
+
 Induct_on ‘tbll’ >> rw[] >|[
     gvs[simp_tables_def]
     ,
@@ -1336,46 +1336,46 @@ Induct_on ‘tbll’ >> rw[] >|[
         gvs[match_tbll_single_some_none_eq]
         ,
         Cases_on ‘simp_tables (h::h'::t) (SOME n)’ >>
-        Cases_on ‘simp_tables (h::h'::t) NONE’ >>  
+        Cases_on ‘simp_tables (h::h'::t) NONE’ >>
         imp_res_tac simp_tables_res_empty_length >> gvs[] >>
-                    
+
         Cases_on ‘t'’ >>
-        Cases_on ‘t''’ >>  
-        imp_res_tac simp_tables_res_single_length >> gvs[] >> 
+        Cases_on ‘t''’ >>
+        imp_res_tac simp_tables_res_single_length >> gvs[] >>
 
         rename1 ‘match_tbll (t1_n::t2_n::t3_n) mv n = match_tbll (t1_s::t2_s::t3_s) mv n’ >>
-                    
+
 
         gvs[simp_tables_eq] >>
-        
+
         (Q.PAT_X_ASSUM ‘simp_tables2 (h::h'::t) (SOME n) = t1_s::t2_s::t3_s’
           (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once simp_tables2_def] thm))) >>
-        
-        
-        
+
+
+
         (Q.PAT_X_ASSUM ‘simp_tables2 (h::h'::t) NONE = t1_n::t2_n::t3_n’
           (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once simp_tables2_def] thm))) >>
-        
+
         rgs[] >>
-        
+
         simp[match_tbll_def] >>
         ‘match_tbl t1_n mv n = match_tbl t1_s mv n’ by (imp_res_tac simp_table_eq_none_some >>
                                                         first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’]))
                                                        ) >>
-        
-        
+
+
         Cases_on ‘match_tbl t1_s mv n’ >> rgs[] >>
         Cases_on ‘x’ >> rgs[] >>
-                
+
         Cases_on ‘next_state t1_s’ >>
         Cases_on ‘next_state t1_n’ >>
         rgs[] >>
-        
+
         imp_res_tac next_state_rel_to_final_match_res >> gvs[]
       ]
   ]
 QED
-   
+
 
 
 (* to do : same as simp_table_cannot_result1 merge them *)
@@ -1384,27 +1384,27 @@ Theorem simp_table_cannot_result2:
     (simp_table rows (SOME n) ≠ [([NotFalse],st,res)]) ∧
     (simp_table rows (SOME n) ≠ [([NotTrue],st,res)]) ∧
     (simp_table rows (SOME n) ≠ [([False],st,res)]) ∧
-                    
+
     (∀ a l.(simp_table rows (SOME n) ≠ [(False::a::l,st,res)])) ∧
     (∀ a l.(simp_table rows (SOME n) ≠ [(True::a::l,st,res)])) ∧
     (∀ a l.(simp_table rows (SOME n) ≠ [(NotTrue::a::l,st,res)])) ∧
-    (∀ a l.(simp_table rows (SOME n) ≠ [(NotFalse::a::l,st,res)])) 
+    (∀ a l.(simp_table rows (SOME n) ≠ [(NotFalse::a::l,st,res)]))
 Proof
-  
+
   Induct >>
   rw[simp_table_def] >>
   PairCases_on ‘h’ >>
   gvs[simp_table_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   rpt strip_tac >>
-  gvs[simp_row_cannot_result1] 
+  gvs[simp_row_cannot_result1]
 QED
 
 
 
 
 
-        
+
 Theorem sem_var_atom_sub_same:
   ∀ atom mv x b b'.
     ALOOKUP mv x = SOME b  ⇒
@@ -1418,7 +1418,7 @@ QED
 
 
 Theorem sem_var_atoml_sub_same_imp1:
-  ∀ atoml mv x b.        
+  ∀ atoml mv x b.
     ALOOKUP mv x = SOME b ∧
     EVERY (λminipred. sem_var_atom minipred mv = SOME T) atoml ⇒
     EVERY (λminipred. sem_var_atom minipred mv = SOME T)
@@ -1431,7 +1431,7 @@ QED
 
 
 Theorem sem_var_atoml_sub_same_imp2:
-  ∀ atoml mv x b.        
+  ∀ atoml mv x b.
     ALOOKUP mv x = SOME b ∧
     EVERY (λminipred. sem_var_atom minipred mv = SOME T)
           (MAP (λatom. mk_substitute_atom atom x b) atoml) ⇒
@@ -1444,8 +1444,8 @@ Proof
 QED
 
 
-        
-        
+
+
 Theorem is_match_row_mk_sub_eq:
   ∀ atoml st s_in mv x b.
     ALOOKUP mv x = SOME b ⇒
@@ -1454,16 +1454,16 @@ Proof
   Induct >>
   rw[is_match_row_def] >>
   gvs[mk_substitute_row_def, is_atoml_true_def] >>
-  
+
   EQ_TAC >> rw[] >>
-  
+
   imp_res_tac sem_var_atom_sub_same >> gvs[] >>
   imp_res_tac sem_var_atoml_sub_same_imp1 >> gvs[] >>
   imp_res_tac sem_var_atoml_sub_same_imp2 >> gvs[]
 QED
 
 
-    
+
 Theorem check_all_rows_match_sub_eq:
   ∀ tbl x b mv s_in.
     ALOOKUP mv x = SOME b ⇒
@@ -1472,18 +1472,18 @@ Proof
   Induct >>
   rw[check_all_rows_match_def] >-
    gvs[mk_substitute_tbl_def] >>
-  
+
   PairCases_on ‘h’ >>
   gvs[check_all_rows_match_def] >>
-  
+
   res_tac >>
   first_x_assum (strip_assume_tac o (Q.SPECL [‘s_in’])) >>
   gvs[] >>
-  
+
   gvs[mk_substitute_tbl_def] >>
   assume_tac (INST_TYPE [“:'a ”|-> “:num”  ] is_match_row_mk_sub_eq)  >>
   metis_tac[]
-QED                           
+QED
 
 
 
@@ -1493,9 +1493,9 @@ Triviality simp_row_single_true_rel:
     (simp_row atoms = [True] ∨ atoms = [])
 Proof
   rw[simp_row_def] >>
-  gvs[] 
+  gvs[]
 QED
-      
+
 
 
 Triviality simp_row_single_false_rel:
@@ -1506,13 +1506,13 @@ Triviality simp_row_single_false_rel:
 Proof
   rw[simp_row_def] >>
   gvs[is_not_true_var_atom_def]  >>
-  
-  Cases_on ‘h’ >> gvs[simp_row_def, sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def] >>  
+
+  Cases_on ‘h’ >> gvs[simp_row_def, sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
-QED        
+QED
 
 
-           
+
 Theorem simp_row_true_imp_atoml_true:
   ∀ atoms mv.
     atoms ≠ [] ∧
@@ -1521,7 +1521,7 @@ Theorem simp_row_true_imp_atoml_true:
 Proof
   Induct >>
   rw[is_atoml_true_def] >|[
-    
+
     (* for head *)
     rgs[Once simp_row_def] >>
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
@@ -1529,11 +1529,11 @@ Proof
     gvs[is_not_true_var_atom_def] >>
     Cases_on ‘h’ >> gvs[simp_atom_def, is_not_true_var_atom_def, is_atoml_true_def, sem_var_atom_def]
     ,
-        
+
     (* for list *)
     imp_res_tac simp_row_single_true_rel >>
     res_tac >> gvs[] >>
-    
+
     Cases_on ‘atoms’ >>
     imp_res_tac simp_row_not_empty >> gvs[] >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
@@ -1545,8 +1545,8 @@ QED
 
 
 
-                                          
-        
+
+
 Theorem simp_row_false_imp_atoml_false:
   ∀ atoms mv.
     simp_row atoms = [False] ⇒
@@ -1555,13 +1555,13 @@ Proof
   Induct >>
   rw[is_atoml_true_def] >-
    rgs[simp_row_def] >>
-  
-  
+
+
   Cases_on ‘atoms’ >>
   imp_res_tac simp_row_not_empty >> gvs[] >>
   first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
   gvs[is_atoml_true_def] >|[
-    Cases_on ‘h’ >> gvs[simp_row_def, sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def]    
+    Cases_on ‘h’ >> gvs[simp_row_def, sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def]
     ,
     imp_res_tac simp_row_single_false_rel >>
     res_tac
@@ -1577,12 +1577,12 @@ Triviality filter_simp_empty_then_all_true:
 Proof
   Induct >>
   rw[] >>
-  Cases_on ‘h’ >> gvs[sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def] >>    
+  Cases_on ‘h’ >> gvs[sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def] >>
   Cases_on ‘atoms’ >> gvs[]
 QED
-                                          
-        
-        
+
+
+
 Theorem simp_row_var_imp_atoml_true:
   ∀ atoms mv s.
     simp_row atoms = [Var s] ⇒
@@ -1591,7 +1591,7 @@ Proof
   Induct >>
   rw[is_atoml_true_def] >-
    gvs[simp_row_def] >>
-  
+
   Cases_on ‘h’ >> gvs[simp_row_def, sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   gvs[is_atoml_true_def, sem_var_atom_def] >>
@@ -1610,14 +1610,14 @@ Proof
   Induct >>
   rw[is_atoml_true_def] >-
    gvs[simp_row_def] >>
-  
+
   Cases_on ‘h’ >> gvs[simp_row_def, sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   gvs[is_atoml_true_def, sem_var_atom_def] >>
 
   imp_res_tac filter_simp_empty_then_all_true >>
   gvs[] >>
-                         
+
   first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
@@ -1633,27 +1633,27 @@ Proof
   Induct >>
   rw[is_atoml_true_def] >-
    gvs[simp_row_def] >>
-  
+
   Cases_on ‘h’ >> gvs[simp_row_def, sem_var_atom_def, simp_atom_def, is_not_true_var_atom_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   gvs[is_atoml_true_def, sem_var_atom_def]
 QED
 
 
-                                          
+
 Theorem min_idx_till_simp_eq_none:
   ∀ l s_in mv.
     min_idx_till (check_all_rows_match s_in l mv) T = NONE ⇔
       min_idx_till (check_all_rows_match s_in (simp_table l (SOME s_in)) mv) T = NONE
 Proof
-  
+
   Induct >>
   rw[]  >-
    gvs[simp_table_def] >>
-  
-  PairCases_on ‘h’ >>         
+
+  PairCases_on ‘h’ >>
   rename1 ‘((atoms,st,res)::rows)’ >>
-  
+
   gvs[simp_table_def] >>
   Cases_on ‘s_in ≠ st’ >> gvs[] >|[
     gvs[check_all_rows_match_def, is_match_row_def] >>
@@ -1665,11 +1665,11 @@ Proof
      gvs[check_all_rows_match_def, is_match_row_def] >>
      metis_tac[min_idx_till_none_eq_res]
      ) >>
-    
-    
+
+
     Cases_on ‘t’ >> gvs[] >| [
         Cases_on ‘h’ >> gvs[simp_row_cannot_result1] >| [
-          
+
           (* true case *)
           gvs[check_all_rows_match_def] >>
           gvs[is_match_row_def] >>
@@ -1705,12 +1705,12 @@ Proof
            gvs[simp_row_def] >>
           gvs[] >>
           imp_res_tac simp_row_not_imp_atoml_true >>
-          gvs[] >> 
+          gvs[] >>
           Cases_on ‘is_atoml_true [Not s] mv’ >> gvs[] >|[
               gvs[min_idx_till_def, is_atoml_true_def, INDEX_FIND_def, sem_var_atom_def]
               ,
               metis_tac[min_idx_till_none_eq_res]
-            ]               
+            ]
         ]
         ,
         gvs[check_all_rows_match_def, is_match_row_def] >>
@@ -1720,20 +1720,20 @@ Proof
         Cases_on ‘atoms = []’ >-
          gvs[simp_row_def] >>
         gvs[] >>
-              
+
         Cases_on ‘is_atoml_true (h::h'::t') mv’ >> gvs[] >|[
             gvs[min_idx_till_def, is_atoml_true_def, INDEX_FIND_def, sem_var_atom_def]
             ,
             metis_tac[min_idx_till_none_eq_res]
-          ]                                                    
-      ]      
-  ]                    
+          ]
+      ]
+  ]
 QED
 
-        
 
 
-    
+
+
 Theorem min_idx_till_simp_sub_eq_none:
   ∀ t t' mv x b s_in.
     ALOOKUP mv x = SOME b ∧
@@ -1761,10 +1761,10 @@ Proof
   Induct >>
   rw[]  >-
    gvs[simp_table_def] >>
-  
-  PairCases_on ‘h’ >>         
+
+  PairCases_on ‘h’ >>
   rename1 ‘((atoms,st,res)::rows)’ >>
-  
+
   gvs[simp_table_def] >>
   Cases_on ‘s_in ≠ st’ >> gvs[] >|[
     gvs[check_all_rows_match_def, is_match_row_def] >>
@@ -1778,10 +1778,10 @@ Proof
      gvs[GSYM min_idx_till_some_eq_next2] >>
      res_tac
      ) >>
-   
+
     Cases_on ‘t’ >> gvs[] >| [
         Cases_on ‘h’ >> gvs[simp_row_cannot_result1] >| [
-          
+
           (* true case *)
           gvs[check_all_rows_match_def] >>
           gvs[is_match_row_def] >>
@@ -1819,13 +1819,13 @@ Proof
            gvs[simp_row_def] >>
           gvs[] >>
           imp_res_tac simp_row_not_imp_atoml_true >>
-          gvs[] >> 
+          gvs[] >>
           Cases_on ‘is_atoml_true [Not s] mv’ >> gvs[] >|[
               gvs[min_idx_till_def, is_atoml_true_def, INDEX_FIND_def, sem_var_atom_def]
               ,
                gvs[GSYM min_idx_till_some_eq_next2] >>
               res_tac
-            ]               
+            ]
         ]
         ,
         gvs[check_all_rows_match_def, is_match_row_def] >>
@@ -1835,19 +1835,19 @@ Proof
         Cases_on ‘atoms = []’ >-
          gvs[simp_row_def] >>
         gvs[] >>
-              
+
         Cases_on ‘is_atoml_true (h::h'::t') mv’ >> gvs[] >|[
             gvs[min_idx_till_def, is_atoml_true_def, INDEX_FIND_def, sem_var_atom_def]
             ,
              gvs[GSYM min_idx_till_some_eq_next2] >>
               res_tac
-          ]                                                    
-      ]   
+          ]
+      ]
   ]
 QED
 
 
-        
+
 Theorem min_idx_till_simp_sub_eq_some:
   ∀ t t' mv x b s_in idx idx' res res'.
     ALOOKUP mv x = SOME b ∧
@@ -1863,10 +1863,10 @@ Proof
   metis_tac[min_idx_till_simp_eq_some]
 QED
 
-      
-      
 
-    
+
+
+
 Theorem prop1_mini_subcases:
   ∀ t l s_in  x b mv.
     ALOOKUP mv x = SOME b ∧
@@ -1874,14 +1874,14 @@ Theorem prop1_mini_subcases:
     match_tbl t mv s_in = match_tbl l mv s_in
 Proof
   rw[match_tbl_def] >>
-  
+
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   ‘∃l. (simp_table (mk_substitute_tbl t x b) (SOME s_in)) = l’ by gvs[] >>
   rgs[] >|[
-    
+
     imp_res_tac min_idx_till_simp_sub_eq_none >> gvs[]
     ,
-    imp_res_tac min_idx_till_simp_sub_eq_none >> gvs[] 
+    imp_res_tac min_idx_till_simp_sub_eq_none >> gvs[]
     ,
     PairCases_on ‘r’ >> PairCases_on ‘r'’ >> gvs[] >>
     imp_res_tac min_idx_till_simp_sub_eq_some >> gvs[]
@@ -1890,7 +1890,7 @@ QED
 
 
 
-        
+
 Triviality simp_table_final_case:
   ∀ rows n st res.
     simp_table rows (SOME n) = [([True],st,res)] ⇒
@@ -1914,7 +1914,7 @@ Proof
        is_atoml_true_def, sem_var_atom_def, min_idx_till_def, INDEX_FIND_def] >>
    rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
-        
+
 
 
 
@@ -1929,9 +1929,9 @@ Proof
    (
    gvs[simp_tables_def, match_tbll_def]
    ) >>
-  
 
-  
+
+
    (* we need to be able to cut the tables list into something manageble for the proof*)
    rename1 ‘mk_substitute_tbl t x b’ >>
 
@@ -1941,7 +1941,7 @@ Proof
     (*case when the whole first table is empty *)
     gvs[sem_tables_def, match_tbll_head_empty] >>
     Cases_on ‘tbll’ >> gvs[] >>
-    
+
     simp[match_tbll_def, match_tbl_def] >>
     imp_res_tac simp_sub_empty_then_min_index_none >>
     gvs[min_idx_till_def, check_all_rows_match_def, INDEX_FIND_def]
@@ -1949,14 +1949,14 @@ Proof
     ,
 
     Cases_on ‘t'’ >> gvs[] >|[
-             
+
         PairCases_on ‘h’ >> gvs[] >>
         Cases_on ‘h0’ >> gvs[] >|[
 
           (* case when the first table's row is empty *)
           gvs[sem_tables_def, match_tbll_row_empty] >>
           Cases_on ‘tbll’ >> gvs[] >>
-          
+
           simp[match_tbll_def, match_tbl_def] >>
           imp_res_tac simp_sub_empty_then_min_index_tbl_none >>
           gvs[min_idx_till_def, check_all_rows_match_def, INDEX_FIND_def]
@@ -1965,13 +1965,13 @@ Proof
           Cases_on ‘h’ >> gvs[] >|[
               (* case1: True case*)
 
-                 
+
               (*case simplification returns True::t' *)
               (*if t' is empty or not, as in a final table with a final row *)
               Cases_on ‘t'’ >> gvs[simp_table_cannot_result2] >>
                 (* case final table or not*)
               Cases_on ‘h2’ >> gvs[] >|[
-                       
+
                   (*case returns action *)
                 gvs[sem_tables_def] >>
                 Cases_on ‘tbll’ >> gvs[] >|[
@@ -1984,14 +1984,14 @@ Proof
                   gvs[sem_tables_def, simp_tables_sub_not_empty_table,
                       match_tbll_final_before_ending_none] >>
                   gvs[match_tbll_def] >>
-                  
+
                   imp_res_tac prop1_mini_subcases >> gvs[] >>
                   imp_res_tac simp_table_final_case >> gvs[] >>
                   gvs[match_tbl_def, check_all_rows_match_def, is_match_row_def,
                      is_atoml_true_def, sem_var_atom_def, min_idx_till_def, INDEX_FIND_def]
                   ]
                 ,
-                        
+
                   (* case returns state not action *)
                   gvs[sem_tables_def] >>
                   Cases_on ‘tbll’ >> gvs[] >|[
@@ -2007,31 +2007,31 @@ Proof
                                 (SOME n)’ >> gvs[] >>
                       gvs[simp_tables_sub_not_empty_table] >>
                       gvs[match_tbll_def] >>
-                      
+
                       gvs[simp_tables_sub_not_empty_table] >>
                       imp_res_tac prop1_mini_subcases >>
                       gvs[] >>
-                      
+
                       Cases_on ‘match_tbl [([True],h1,state n)] mv s_in’ >> gvs[] >>
                       Cases_on ‘x'’ >> gvs[] >|[
-                          
+
                           gvs[match_tbl_def, check_all_rows_match_def, is_match_row_def,
                               is_atoml_true_def, sem_var_atom_def, min_idx_till_def, INDEX_FIND_def] >>
                           rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
                           ,
-                          
+
                           imp_res_tac match_tbl_simple_final_case >> gvs[] >>
                           res_tac >>
                           first_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
-                          
+
                           Cases_on ‘simp_tables
                                     (mk_substitute_tbl h x b::MAP (λt. mk_substitute_tbl t x b) t')
                                     (SOME n)’ >> gvs[] >>
                           gvs[ match_tbll_def]
-                             
+
                           ,
-                          
-                          
+
+
                           imp_res_tac match_tbl_simple_final_case >> gvs[] >>
                           res_tac >>
                           first_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
@@ -2039,7 +2039,7 @@ Proof
                         ]
                   ]
               ]
-                                       
+
               (* end of true case *)
               ,
               (* case 2: False case *)
@@ -2058,10 +2058,10 @@ Proof
                   imp_res_tac prop1_mini_subcases >>
                   gvs[]
                   ,
-                        
+
                   Cases_on ‘simp_tables
                             (mk_substitute_tbl h x b::MAP (λt. mk_substitute_tbl t x b) t'') NONE’ >> gvs[] >>
-                                  
+
                   gvs[match_tbll_def] >>
                   gvs[simp_tables_sub_not_empty_table] >>
                   imp_res_tac prop1_mini_subcases >>
@@ -2103,7 +2103,7 @@ Proof
                   Cases_on ‘x'’ >> gvs[] >>
                   res_tac >>
                   first_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
-                  
+
                   ‘match_tbll
                    (simp_tables (mk_substitute_tbl h x b::MAP (λt. mk_substitute_tbl t x b) t'')
                                     (SOME n)) mv n
@@ -2130,7 +2130,7 @@ Proof
             gvs[simp_tables_sub_not_empty_table] >>
 
             rename1 ‘match_tbll ((r1::r2::r3)::tbl2::tbl3) mv s_in’ >>
-                                                 
+
             simp[match_tbll_def] >>
             ‘match_tbl (r1::r2::r3) mv s_in = match_tbl t mv s_in’ by (
               imp_res_tac prop1_mini_subcases >>
@@ -2141,7 +2141,7 @@ Proof
             res_tac >>
             first_x_assum (strip_assume_tac o (Q.SPECL [‘n’])) >>
 
-                          
+
             ‘match_tbll
           (simp_tables
              (mk_substitute_tbl h'' x b::MAP (λt. mk_substitute_tbl t x b) t')
@@ -2152,7 +2152,7 @@ Proof
              (mk_substitute_tbl h'' x b::MAP (λt. mk_substitute_tbl t x b) t')
              NONE) mv n ’
               by gvs[match_tbll_simp_tables_eq_thm] >>
-            
+
             gvs[]
 
           ]
@@ -2163,7 +2163,7 @@ QED
 
 
 
-               
+
 Theorem prop1_var_tables:
   prop1 table_structure
 Proof
@@ -2196,7 +2196,7 @@ Proof
   Cases_on ‘h’ >> gvs[final_row_def]
 QED
 
-        
+
 
 Theorem property_final_imp_match_simp:
   ∀ tbl s_in q mv.
@@ -2206,34 +2206,34 @@ Proof
   Induct >-
    gvs[final_tbl_def] >>
   rw[] >>
-  
+
   PairCases_on ‘h’ >>
   rename1 ‘((atoms_list,st,res)::t)’ >>
-  
+
   gvs[final_tbl_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
-    
+
     gvs[match_tbl_def] >>
     res_tac >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
-    
+
     Cases_on ‘min_idx_till (check_all_rows_match s_in t mv) T’ >> gvs[] >>
     PairCases_on ‘x’ >> gvs[] >>
-    
+
     Cases_on ‘min_idx_till (check_all_rows_match s_in (([False],st,res)::t) mv) T’ >>
-    
+
     (gvs[check_all_rows_match_def, is_match_row_def, is_atoml_true_def, sem_var_atom_def] >>
      gvs[min_idx_till_def, INDEX_FIND_def] >>
      imp_res_tac P_NONE_hold2 >> gvs[]) >>
-    
+
     Cases_on ‘x’ >> gvs[] >>
-    Cases_on ‘r’ >> gvs[] >>    
+    Cases_on ‘r’ >> gvs[] >>
     imp_res_tac INDEX_FIND_some_eq_next >> gvs[]
     ,
-    
+
     gvs[final_row_def]
     ,
-    
+
     imp_res_tac final_row_final_result >> gvs[] >>
     gvs[final_row_def, match_tbl_def] >>
     gvs[check_all_rows_match_def, is_match_row_def, is_atoml_true_def, sem_var_atom_def] >>
@@ -2242,7 +2242,7 @@ Proof
 QED
 
 
-        
+
 Theorem property_final_imp_sem_tbll_simp:
   ∀ tbll mv q s_in.
     final_tables (tbll,s_in) = SOME q
@@ -2260,21 +2260,21 @@ Proof
 
         imp_res_tac property_final_imp_match_simp >>
         first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
-        Cases_on ‘match_tbl h mv s_in’ >> gvs[]                    
+        Cases_on ‘match_tbl h mv s_in’ >> gvs[]
         ,
-        
+
         gvs[final_tables_def, match_tbll_def, final_tbll_def] >>
         Cases_on ‘final_tbl h s_in’ >> gvs[] >>
         Cases_on ‘x’ >> gvs[] >>
-                
+
         imp_res_tac property_final_imp_match_simp >>
         first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
         gvs[] >>
-              
+
         res_tac >>
         gvs[sem_tables_def]
       ]
-  ] 
+  ]
 QED
 
 
@@ -2291,15 +2291,15 @@ Proof
   rw[] >>
   imp_res_tac property_final_imp_sem_tbll_simp >>
   first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
-  
+
   imp_res_tac prop1_tables_verbose >>
   first_x_assum (strip_assume_tac o (Q.SPECL [‘tbll’,‘s_in’])) >>
   metis_tac[]
 QED
 
-        
 
-         
+
+
 Theorem prop2_var_tables:
   prop2 table_structure
 Proof
@@ -2319,7 +2319,7 @@ QED
 (*                property 3               *)
 (*******************************************)
 
-         
+
 Theorem prop3_var_tables:
   prop3 table_structure
 Proof
@@ -2335,7 +2335,7 @@ Proof
 QED
 
 
-        
+
 Theorem fv_atom_sub_single:
   ∀ h x b x'.
     MEM x' (fv_atom (mk_substitute_atom h x b)) ⇒
@@ -2344,14 +2344,14 @@ Proof
   Induct >>
   rw[mk_substitute_atom_def, fv_atom_def]
 QED
-       
+
 
 Theorem fv_atoml_row_single:
   ∀ atoml x' x b.
     MEM x' (fv_row (mk_substitute_row atoml x b)) ⇒
-    MEM x' (fv_row atoml) 
+    MEM x' (fv_row atoml)
 Proof
-  
+
   Induct >>
   rw[mk_substitute_row_def] >>
   gvs[fv_row_def] >>
@@ -2360,7 +2360,7 @@ Proof
   gvs[mk_substitute_row_def]
 QED
 
-        
+
 Theorem fv_tbl_sub_single:
   ∀ tbl x' h' b.
     MEM x' (fv_tbl (mk_substitute_tbl tbl h' b)) ⇒
@@ -2373,7 +2373,7 @@ Proof
   imp_res_tac fv_atoml_row_single >> gvs[] >>
   gvs[mk_substitute_tbl_def] >>
   res_tac >> gvs[]
-QED        
+QED
 
 Triviality mem_head_fv_tbll_triv:
   ∀ varslist h tbl x' tbls.
@@ -2384,7 +2384,7 @@ Proof
   rw[fv_tbll_def]
 QED
 
-        
+
 
 Theorem fv_tbls_in_sub_varslist_thm:
   ∀ tbls varslist h b.
@@ -2394,21 +2394,21 @@ Proof
 
   Induct >>
   rw[] >>
-  
+
   imp_res_tac fv_mem_tbll_varslist_thm >>
   res_tac >>
-  
+
   Cases_on ‘MEM x' (fv_tbl (mk_substitute_tbl h h' b)) ’ >>
-  
+
   imp_res_tac fv_tbl_sub_single >>
   imp_res_tac mem_head_fv_tbll_triv >>
-  
+
   gvs[fv_tbll_def] >>
-  res_tac 
-QED  
+  res_tac
+QED
 
 
-     
+
 Triviality simp_atom_fv_atom_triv:
   ∀ atom s.
     simp_atom atom = Var s ⇒ MEM s (fv_atom atom)
@@ -2423,18 +2423,18 @@ Theorem mem_flat_fv_row:
     MEM x (FLAT (MAP (λatom. fv_atom atom) row')) ⇒
     MEM x (FLAT (MAP (λatom. fv_atom atom) row))
 Proof
-  
+
   Induct >>
   gvs[simp_row_def] >> rw[]  >>
-  
+
   (Cases_on ‘h’ >> gvs[simp_atom_def, fv_atom_def, is_not_true_var_atom_def] >>
    rpt (BasicProvers.FULL_CASE_TAC >> gvs[])) >>
-  
+
   fs[fv_atom_def]
 QED
-                     
 
-     
+
+
 
 Theorem mem_fv_tbl_simp_mem:
   ∀ tbl tbl' x.
@@ -2445,17 +2445,17 @@ Proof
   Induct >>
   rw[simp_table_def] >>
   gvs[fv_tbl_def] >>
-  PairCases_on ‘h’ >> 
-  
+  PairCases_on ‘h’ >>
+
   gvs[simp_table_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   gvs[fv_tbl_def, fv_row_def, fv_atom_def] >>
   res_tac >> gvs[simp_row_cannot_result1] >>
-                                                 
+
   imp_res_tac mem_flat_fv_row >>
   gvs[fv_atom_def]
-QED     
-        
+QED
+
 
 
 
@@ -2465,25 +2465,25 @@ Theorem fv_simp_tables_some_in_varlist:
     MEM x (fv_tbl (simp_table t (SOME s_in))) ⇒
     MEM x varslist
 Proof
-  
+
   Induct >>
   rw[simp_table_def] >>
   PairCases_on ‘h’ >> gvs[] >>
   rename1 ‘fv_tbl ((atoml, st, res)::t)’ >>
   gvs[fv_tbl_def] >>
-  
+
   ‘∀x'. MEM x' (fv_row atoml) ⇒ MEM x' varslist’ by gvs[] >>
-  
+
   gvs[simp_table_def] >>
   Cases_on ‘s_in ≠ st’ >> gvs[] >-
    (
    res_tac >> gvs[]
    ) >>
-  
+
   Cases_on ‘simp_row atoml’ >> gvs[] >-
    gvs[fv_row_def] >>
   res_tac >> gvs[] >>
-  
+
   Cases_on ‘t'’ >> gvs[] >|[
     Cases_on ‘h’ >> gvs[] >>
     imp_res_tac mem_flat_fv_row >>
@@ -2496,7 +2496,7 @@ Proof
     gvs[]
     ,
     res_tac >> gvs[]
-  ]        
+  ]
 QED
 
 
@@ -2510,7 +2510,7 @@ Proof
   PairCases_on ‘h’ >>
   rename1 ‘((atoml,st,res)::t)’ >>
   gvs[simp_table_def] >>
-  
+
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   gvs[fv_tbl_def, fv_row_def, fv_atom_def] >>
   gvs[simp_row_cannot_result1] >>
@@ -2519,7 +2519,7 @@ QED
 
 
 
-   
+
 Theorem mem_var_list_simp_tables_fv_tbll:
   ∀ tbls s_in  h b x varslist.
     (∀x'. MEM x' (fv_tbll tbls) ⇒ MEM x' varslist) ∧
@@ -2532,20 +2532,20 @@ Proof
   rw[simp_tables2_def] >>
   gvs[fv_tbll_def] >>
 
-  
+
   imp_res_tac fv_simp_tables_some_in_varlist >> gvs[] >>
   imp_res_tac mem_fv_tbl_simp_mem >> gvs[] >|[
 
     Cases_on ‘next_state (simp_table h (SOME s_in))’ >> gvs[] >>
     res_tac >> gvs[]
     ,
-        
+
     Cases_on ‘next_state (simp_table h NONE)’ >> gvs[] >>
     res_tac >> gvs[]
   ]
 QED
 
-        
+
 (*******************************************)
 (*                property 4               *)
 (*******************************************)
@@ -2558,7 +2558,7 @@ Proof
   rpt strip_tac >>
   Cases_on ‘prop_parent’ >>
   rename1 ‘(tbls, s_in)’ >>
-          
+
   gvs[fv_tables_def, simp_tables_def, mk_substitute_tables_def, mk_substitute_tbll_def,
       simp_tables_wrapper_def] >>
 
@@ -2567,12 +2567,12 @@ Proof
   res_tac >> gvs[] >>
 
   metis_tac[]
-                        
+
 QED
 
 
 
-        
+
 val _ = export_theory ();
 
-    
+

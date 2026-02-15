@@ -16,9 +16,9 @@ val _ = new_theory "table_parse_cakeml_Prog";
 val _ = translation_extends "common_parse_cakeml_Prog"
 val _ = intLib.deprecate_int();
 
-(*This file extends the basic BDD translation for tables, 
-where the input is parsed via cakeML 
-  generates a single sexp that 
+(*This file extends the basic BDD translation for tables,
+where the input is parsed via cakeML
+  generates a single sexp that
   should be compiled:
   ../bdd_cake_test/test_bdd_table.sexp
 *)
@@ -205,7 +205,7 @@ fun parse_tables_list s =
                 let val (tbl, s) = parse_table s
                     val s = skip_ws s
                 in case s of
-                  #";" :: rest => 
+                  #";" :: rest =>
                     let val rest = skip_ws rest in
                     case rest of
                       #"]" :: rest => (List.rev (tbl :: acc), skip_ws rest)
@@ -471,11 +471,11 @@ fun main () =
 
 
 val prog =
-  ``SNOC
+  “SNOC
     (Dlet unknown_loc (Pcon NONE [])
       (App Opapp [Var (Short "main"); Con NONE []]))
     ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs;
+  ” |> EVAL |> concl |> rhs;
 
 
 

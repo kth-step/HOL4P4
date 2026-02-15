@@ -8,7 +8,7 @@ val _ = new_theory "bdd_gen";
 (******************************************************)
 
 
-(* language ILR specialization definitions: 
+(* language ILR specialization definitions:
    semantics, substitute, simplify, final, free variable check
  *)
 Datatype ‘decision_structure = <| sem : 'a -> ((string,bool) alist) -> 'b option ;
@@ -730,7 +730,7 @@ End
 
 
 (* Core MTBDD construction algorithm:
-   
+
    body_of_mk: Single iteration for variable x
    - Finds all leaves (nodes without outgoing edges)
    - Extracts non-terminal leaves (ones still containing x)
@@ -738,7 +738,7 @@ End
    - Simplifies resulting predicates
    - Creates new nodes for simplified predicates
    - Updates labels (marking which variable was eliminated)
-   
+
    mk_BDDPred: Recursively optmizes all variables in order
 
  *)

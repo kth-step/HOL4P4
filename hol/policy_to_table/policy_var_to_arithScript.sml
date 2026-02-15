@@ -12,7 +12,7 @@ open policy_arith_to_varTheory;
 
 val _ = new_theory "policy_var_to_arith";
 
-(* mainly to create a minimal policy, 
+(* mainly to create a minimal policy,
 we need policy to be output as well,
 this file translate it from var-based, or ILR to output.
 we need this file to translate back to arithmetic*)

@@ -1,12 +1,12 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 open policy_arith_to_varTheory;
-open bdd_utilsLib; 
+open bdd_utilsLib;
 
 
 val _ = new_theory "internet_firewall_13";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
+
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16);
                                         ("srcNAT", type_length 16);
@@ -435,7 +435,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (*    but better for BDD    *)
 (****************************)
 
-(* val policy_order = ``[
+(* val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -476,9 +476,9 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
   "is_srcNAT_le_16680"; "is_srcNAT_ge_16680";
   "is_srcPort_le_50690"; "is_srcPort_ge_50690";
   "is_srcNAT_le_20479"; "is_srcNAT_ge_20479"
-]``;
+]”;
 
-val policy_full_order = ``[
+val policy_full_order = “[
   ("3rg",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
   ("o8" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
   ("p7ik",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
@@ -519,7 +519,7 @@ val policy_full_order = ``[
   ("4tao" ,["is_srcNAT_le_16680";"is_srcNAT_ge_16680"]);
   ("d0",["is_srcPort_le_50690";"is_srcPort_ge_50690"]);
   ("hi55" ,["is_srcNAT_le_20479";"is_srcNAT_ge_20479"])
-]``; *)
+]”; *)
 
 (***********************************************)
 
@@ -533,5 +533,5 @@ val policy_full_order = ``[
 val final_thm_res = fwd_proof_w_IOcakeLib.convert_arith_policy_to_interval_tables_cake_w_IO (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 
 
-                      
+
 val _ = export_theory ();

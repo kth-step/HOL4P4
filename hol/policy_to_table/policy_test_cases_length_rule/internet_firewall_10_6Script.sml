@@ -5,7 +5,7 @@ open bdd_utilsLib;
 
 val _ = new_theory "internet_firewall_10_6";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
 
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16);
@@ -285,7 +285,7 @@ val policy_me =   “[
 (******************************)
 (*   Best output table order  *)
 (******************************)
-(* 
+(*
 (* Grouped policy ordering *)
 val policy_full_order = “[
   ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881";"is_srcPort_le_50553";"is_srcPort_ge_50553";"is_srcPort_le_50002";"is_srcPort_ge_50002";"is_srcPort_le_51465";"is_srcPort_ge_51465";"is_srcPort_le_60513";"is_srcPort_ge_60513";"is_srcPort_le_50049";"is_srcPort_ge_50049";"is_srcPort_le_52244";"is_srcPort_ge_52244";"is_srcPort_le_50627";"is_srcPort_ge_50627"]);
@@ -306,7 +306,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (*    but better for BDD    *)
 (****************************)
 
-val policy_order = ``[
+val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -333,9 +333,9 @@ val policy_order = ``[
   "is_srcNAT_le_2211"; "is_srcNAT_ge_2211";
   "is_srcPort_le_50627"; "is_srcPort_ge_50627";
   "is_srcNAT_le_16215"; "is_srcNAT_ge_16215"
-]``;
+]”;
 
-val policy_full_order = ``[
+val policy_full_order = “[
   ("igfm",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
   ("f5x" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
   ("s9e",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
@@ -362,7 +362,7 @@ val policy_full_order = ``[
   ("4se8",["is_srcNAT_le_2211";"is_srcNAT_ge_2211"]);
   ("8ug",["is_srcPort_le_50627";"is_srcPort_ge_50627"]);
   ("ut3r" ,["is_srcNAT_le_16215";"is_srcNAT_ge_16215"])
-]``; 
+]”;
 
 
 (********************************)

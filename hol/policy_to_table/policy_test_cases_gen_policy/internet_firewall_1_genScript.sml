@@ -6,7 +6,7 @@ val _ = new_theory "internet_firewall_1_gen";
 
 
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
 
 
 
