@@ -5,7 +5,7 @@ DEPENDENCIES   = ..
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../policy_to_table-heap
+HOLHEAP        = ../polygram-heap
 NEWHOLHEAP     = policy_test_cases_gen_policy-heap
 
 HEAPINC_EXTRA  = wordsLib

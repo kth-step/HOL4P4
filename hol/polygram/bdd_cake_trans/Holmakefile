@@ -12,7 +12,7 @@ DEPENDENCIES   = .. \
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../policy_to_table-heap
+HOLHEAP        = ../polygram-heap
 NEWHOLHEAP     = bdd_cake_trans-heap
 
 HEAPINC_EXTRA  = wordsLib

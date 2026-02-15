@@ -11,11 +11,11 @@ hol: hol/p4Script.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
 hol/p4_from_json: hol
 	Holmake -r -I hol/p4_from_json
 
-policy_to_table: hol
-	Holmake -r -I hol -I hol/policy_to_table
+polygram: hol
+	Holmake -r -I hol -I hol/polygram
 
-policy_test_cases: policy_to_table
-	cd hol/policy_to_table/policy_test_cases && Holmake
+policy_test_cases: polygram
+	cd hol/polygram/policy_test_cases && Holmake
 
 validate: hol/p4_from_json
 	cd hol/p4_from_json && ./validate.sh
@@ -35,11 +35,11 @@ docs/semantics/main.pdf: docs/semantics/p4_defs.tex docs/semantics/main.tex docs
 clean:
 	rm -f docs/semantics/p4_defs.tex hol/p4Script.sml
 	cd hol && Holmake clean -r && cd p4_from_json && Holmake clean && cd validation_tests && Holmake clean
-	cd hol/policy_to_table && Holmake clean 
-	cd hol/policy_to_table/policy_test_cases && Holmake clean 
+	cd hol/polygram && Holmake clean 
+	cd hol/polygram/policy_test_cases && Holmake clean 
 
 clean_policy:
-	cd hol/policy_to_table && Holmake clean
-	cd hol/policy_to_table/policy_test_cases && Holmake clean
+	cd hol/polygram && Holmake clean
+	cd hol/polygram/policy_test_cases && Holmake clean
 
 .PHONY: default clean hol
