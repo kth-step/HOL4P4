@@ -49,6 +49,7 @@ Definition sem_pred_def:
 End
 
 
+
 (* predicates substitute *)
 Definition mk_substitute_pred_def:
   (mk_substitute_pred (True) x b = True) ∧
@@ -64,6 +65,7 @@ Definition mk_substitute_pred_def:
   (mk_substitute_pred (Implies c c') x b =
    (Implies (mk_substitute_pred c x b) (mk_substitute_pred c' x b )))
 End
+
 
 
 (* predicates simplifications *)
@@ -106,9 +108,6 @@ Definition simp_pred_def:
        | (True, q') => q'
        | _ => Implies p' q')
 End
-
-
-
 
 
 
@@ -163,7 +162,6 @@ QED
 
 
 
-
 Theorem mem_imp_sem_pred:
   ∀p mv. (∀x. MEM x (fv_pred p) ⇒ (∃b. ALOOKUP mv x = SOME b)) ⇒
          sem_pred p mv ≠ NONE ∧ ∃ b' . sem_pred p mv = SOME b'
@@ -181,7 +179,7 @@ Theorem simplification_correct:
   ∀p mv. (∀x. MEM x (fv_pred p) ⇒ (∃b. ALOOKUP mv x = SOME b)) ⇒
          sem_pred p mv = sem_pred (simp_pred p) mv
 Proof
-  Induct_on `p` >-
+  Induct_on ‘p’ >-
    (rw[simp_pred_def, sem_pred_def]) >-
    (rw[simp_pred_def, sem_pred_def]) >-
    (rw[simp_pred_def, sem_pred_def]) >>
@@ -201,6 +199,7 @@ Proof
   imp_res_tac simp_pred_imp_mem >>
   gvs[]
 QED
+
 
 
 
@@ -400,7 +399,6 @@ QED
 
 
 
-
 Theorem fv_subst_simp_distributes_over_connectives:
   ∀ x p p' b h.
     (MEM x (fv_pred (simp_pred (mk_substitute_pred (And p p') h b))) ⇒
@@ -424,7 +422,6 @@ Proof
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
   gvs[fv_pred_def]
 QED
-
 
 
 

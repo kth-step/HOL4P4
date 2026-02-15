@@ -194,12 +194,12 @@ End
                                             
 (*
 
-EVAL ``var_atom_to_arith [("x", arithm_ge (lv_x "y") (fixwidth 3 (n2v 0),3))] (Not (Var "x"))``; (*false*)
-EVAL ``var_atom_to_arith [("x", arithm_ge (lv_x "y") (fixwidth 3 (n2v 7),3))] (Not (Var "x"))``; (*x < 6*)
-EVAL ``var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 7),3))] (Not (Var "x"))``; (*False*)
-EVAL ``var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 0),3))] (Not (Var "x"))``; (*x>1*)
+EVAL “var_atom_to_arith [("x", arithm_ge (lv_x "y") (fixwidth 3 (n2v 0),3))] (Not (Var "x"))”; (*false*)
+EVAL “var_atom_to_arith [("x", arithm_ge (lv_x "y") (fixwidth 3 (n2v 7),3))] (Not (Var "x"))”; (*x < 6*)
+EVAL “var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 7),3))] (Not (Var "x"))”; (*False*)
+EVAL “var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 0),3))] (Not (Var "x"))”; (*x>1*)
 
-EVAL ``var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 8),3))] (Not (Var "x"))``; 
+EVAL “var_atom_to_arith [("x", arithm_le (lv_x "y") (fixwidth 3 (n2v 8),3))] (Not (Var "x"))”; 
 
 EVAL “bitv_binpred binop_ge (fixwidth 3 (n2v 8)      ,3)
                             (n2v (max_from_type 3)   ,3)”
@@ -278,27 +278,27 @@ End
 
         
 (*
-val test_pd = ``[("ttl", val_bs (fixwidth 8 (n2v 0), 8));
-                 ("src", val_bs (fixwidth 8 (n2v 0), 8))]``;
+val test_pd = “[("ttl", val_bs (fixwidth 8 (n2v 0), 8));
+                 ("src", val_bs (fixwidth 8 (n2v 0), 8))]”;
                  
-val test_me = ``[("x1", arithm_ge (lv_x "ttl") (fixwidth 8 (n2v 5), 8));
-                ("x2",  arithm_le (lv_x "src") (fixwidth 8 (n2v 3), 8))]``;
+val test_me = “[("x1", arithm_ge (lv_x "ttl") (fixwidth 8 (n2v 5), 8));
+                ("x2",  arithm_le (lv_x "src") (fixwidth 8 (n2v 3), 8))]”;
 
 
-val test_var_table = ``[
+val test_var_table = “[
   ([True; Var "x1"; Var "x2"], 1n, action "fwd1");
   ([False; Var "x1"; Not "x2"], 1n, action "fwd2");
   ([Var "x2"; Not "x2"], 1n, action "fwd3");
   ([True], 1n, action "drop")
-]``;
+]”;
 
                         
 val test_arith_table = 
-  EVAL ``convert_var_to_arith_table ^test_var_table ^test_me``;
+  EVAL “convert_var_to_arith_table ^test_var_table ^test_me”;
 
 val arith_table = optionSyntax.dest_some (rhs (concl test_arith_table));
 
-EVAL ``match_arith_table  ^arith_table  ^test_pd (1:num)``
+EVAL “match_arith_table  ^arith_table  ^test_pd (1:num)”
                                     
 *)
 
@@ -653,10 +653,4 @@ QED
 
 
 val _ = export_theory ();
-
-
-
-
-
-
 
