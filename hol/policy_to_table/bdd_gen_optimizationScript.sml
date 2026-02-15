@@ -15,13 +15,33 @@ open bdd_gen_eliminateTheory;
 val _ = new_theory "bdd_gen_optimization";
 
 (*******************************************************)
-(*         Optimzations Correctness full               *)
+(*     Optimzations HURISTICS Correctness full         *)
 (*                       proofs                        *)
+(*******************************************************)
+(*******************************************************)
+(*  Optimization Algorithm Theorems                    *)
+(*                                                     *)
+(*  These theorems prove that the optimizations        *)
+(*            and huristics preserves                  *)
+(*  all BDD invariants and semantic correctness.       *)
+(*                                                     *)
+(*  The optimization proceeds in phases (bottom up):   *)
+(*    1. Terminal node optimization                    *)
+(*    2. Non-terminal leaf optimization                *)
+(*    3. Variable-wise internal optimization           *)
+(*                                                     *)
+(*  The main result (correct_sem_valid_translation_opt)*)
+(*  shows that mk_BDDPred_opt produces valid BDDs with*)
+(*  correct semantics.                                 *)
 (*******************************************************)
 
 
+(*******************************************************)
+(*  Safe Operation Wrappers                            *)
+(*******************************************************)
 
-
+(* Theorem: merge_safe preserves validity, correctness and range_c
+            (returns (T,merged) if mergable, (F,original) otherwise) *)
 Theorem merge_safe_preserves_valid_and_correctness:
   ∀ BDD b_BDD' rec vars_consumed vars n n' c.
     
@@ -61,7 +81,8 @@ Proof
 QED
 
 
-        
+(* Theorem: eliminate_safe preserves validity, correctness and range_c
+            (returns (T,merged) if eliminable, (F,original) otherwise) *)        
 Theorem eliminate_safe_preserves_valid_and_correctness:
   ∀ BDD b_BDD' rec vars_consumed vars n c.
     
@@ -98,7 +119,12 @@ QED
                                          
 
 
+(*******************************************************)
+(*  Single Node Optimization                           *)
+(*******************************************************)
 
+(* Theorem: optimize_node preserves all invariants
+            Attempts elimination first, then merge with candidates in nl *)
 Theorem optimize_node_preserves_valid_and_correctness:
   ∀ BDD BDD' rec vars_consumed vars edges_proj labels_proj nl n c.
     
@@ -141,7 +167,12 @@ QED
 
 
       
+(*******************************************************)
+(*  Layer Optimization (all nodes of a type)           *)
+(*******************************************************)
 
+(* Theorem: optimize_layer preserves all invariants
+            Optimizes each node in the list in turn *)
 Theorem optimize_layer_preserves_valid_and_correctness:
   ∀ nl BDD BDD' rec vars_consumed vars edges_proj labels_proj c.
        
@@ -163,7 +194,13 @@ QED
 
 
       
+(*******************************************************)
+(*  Internal Node Optimization (by variable)           *)
+(*******************************************************)
 
+(* Theorem: optimize_internals preserves all invariants
+            Processes each variable's nodes in order,
+            using projections for efficient lookup *)
 
 Theorem optimize_internals_preserves_valid_and_correctness:
   ∀ internals BDD BDD' rec vars_consumed vars c.
@@ -192,7 +229,16 @@ Proof
 QED
 
 
-                              
+
+
+(*******************************************************)
+(*  MAIN THEOREM: Full Optimization                    *)
+(*                                                     *)
+(*  The three-phase optimization algorithm preserves:  *)
+(*    1. Well-formedness (via valid_BDD)               *)
+(*    2. Semantic correctness                          *)
+(*    3. Node ID range invariant (range_c)            *)
+(*******************************************************)
 Theorem optimize_bdd_preserves_valid_and_correctness:
 
  ∀ BDD BDD' vars_consumed vars rec c.
@@ -237,9 +283,17 @@ QED
 
 
 
-
-
-      
+(*******************************************************)
+(*  FINAL MAIN THEOREM: Construction with Optimization *)
+(*                                                     *)
+(*  mk_BDDPred_opt builds and optimizes a BDD from     *)
+(*  a predicate, producing a valid BDD with correct    *)
+(*  semantics when the decision structure satisfies    *)
+(*  properties prop1-prop4.                            *)
+(*                                                     *)
+(*  This is the main result cited in the paper for     *)
+(*  the optimized BDD construction algorithm.          *)
+(*******************************************************)     
 Theorem correct_sem_valid_translation_opt:
   ∀ vars vars_consumed BDD BDD' rec c.
     prop1 rec ∧ prop2 rec ∧ prop3 rec ∧ prop4 rec ∧
