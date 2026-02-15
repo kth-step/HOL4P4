@@ -23,7 +23,7 @@ val _ = new_theory "bdd_gen_eliminate";
 (*                                                     *)
 (*******************************************************)
 
-
+(* 
 Definition is_unique_var_def:
   is_unique_var labels n =
     case ALOOKUP labels n of
@@ -36,7 +36,6 @@ Definition is_unique_var_def:
                 ) (ADELKEY n labels)
       | _ => T
 End
-
 
 
 
@@ -93,7 +92,7 @@ Theorem leaf_lbl_is_unique:
 Proof
   rpt strip_tac >>
   rgs[Once is_unique_var_def]
-QED
+QED  
 
     
 Theorem sem_imp_label_lookup_some:        
@@ -104,10 +103,13 @@ Proof
   Induct_on ‘BDD_sem’ >>
   rpt strip_tac >>
   rgs[Once BDD_sem_cases, lookup_is_some_def]
-QED
+QED  *)
 
 
-        
+(*******************************************************)
+(*  Basic Properties                                    *)
+(*******************************************************)
+
 Theorem op_sem_adel_key:
   ∀ labels n' n'' mv rec.
     n' ≠ n'' ⇒        
@@ -124,7 +126,7 @@ QED
 
 
 
-Theorem eliminatable_is_internal_indeed:        
+(* Theorem eliminatable_is_internal_indeed:        
   ∀ r edges labels n n'.
     BDD_WF (r,edges,labels) ∧        
     eliminable (r,edges,labels) n' = SOME n ⇒
@@ -136,10 +138,7 @@ Proof
   ‘MEM n' (dom_range_edges edges)’ by metis_tac[lookup_edges_in_domain] >> 
   rgs[BDD_WF_def, lookup_is_some_def, is_lookup_internal_def] >>
   res_tac >> gvs[] 
-QED
-
-
-
+QED 
 
 
 
@@ -153,14 +152,13 @@ Proof
   rpt strip_tac >>
   res_tac >>
   gvs[ALOOKUP_APPEND]
-QED
+QED *)
      
-
-
-
-
                 
-
+(*******************************************************)
+(*  Semantic Correctness of Elimination                *)
+(*******************************************************)
+(* elimination preserves semantics for internal nodes *)
 Theorem eliminable_correct_internal:
   ∀ x vars_consumed vars r edges labels n n' n'' nl nr pred mv b rec.
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
@@ -178,7 +176,7 @@ Theorem eliminable_correct_internal:
 Proof
   
   ntac 2 strip_tac >>
-  measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
+  measureInduct_on ‘THE(INDEX_OF x vars_consumed)’ >>
   rpt strip_tac >>
   
   simp[Once BDD_sem_cases]>> gvs[] >>
@@ -449,8 +447,7 @@ QED
         
 
 
- 
-
+(*elimination preserves semantics for all nodes except eliminated one *)
 Theorem eliminable_correct_eq:
   ∀labels vars vars_consumed n'' r edges n' n mv b rec.
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
@@ -484,13 +481,9 @@ Proof
 QED
 
 
-
-
-
-        
-                           
                 
- (* merge = eliminate defs*)       
+(* merge = eliminate defs*)
+(*Elimination preserves semantic correctness (verbose) *)       
 Theorem eliminate_correct_bdd_exracted:        
   ∀ r edges labels vars vars_consumed n n' rec .
     correct_sem rec (r,edges,labels) (vars++vars_consumed) ∧
@@ -530,7 +523,7 @@ Proof
 QED
 
 
-
+(* MAIN THEOREM: Elimination preserves semantic correctness (simplified) *)
 Theorem eliminate_correct:        
   ∀ BDD vars vars_consumed n n' rec .
     correct_sem rec BDD (vars++vars_consumed) ∧
@@ -550,6 +543,7 @@ Proof
  metis_tac[eliminate_correct_bdd_exracted]
 QED
 
+
 (*
 
 EVAL “mergable (0,[(0,1,2)],
@@ -561,8 +555,6 @@ EVAL “merge (0,[(0,1,2)],
         [(0,non_termn (SOME "a",Or (Var "a") (Not (Var "a"))));
          (1,termn (T,True)); (2,termn (T,True))]) 1 2” 
 
-
-
 EVAL “eliminable (0,[(0,1,1)],
       [(0,non_termn (SOME "a",Or (Var "a") (Not (Var "a"))));
        (1,termn (T,True))]) 1 0” 
@@ -573,13 +565,88 @@ EVAL “merge (0,[(0,1,1)],
 
 *)
 
-(*
-EVAL “is_unique_var [(1,non_termn (SOME "x",p));(2,non_termn (SOME "x",p))] (1:num)” 
-*)
+(*******************************************************)
+(*  Domain/Range Properties for Elimination            *)
+(*******************************************************)
+
+Triviality flat_edges_mem_triv4:
+  ∀ l k v1 v2 h0.
+    MEM (k,v1,v2) l ∧
+    (k ≠ h0) ⇒
+    MEM k (flat_edges (FILTER (λp. FST p ≠ h0) l))
+Proof
+  Induct >-
+   gvs[flat_edges_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[] >>
+  gvs[flat_edges_def] >>
+  Cases_on ‘h0'=h0’ >> gvs[] >|[
+    res_tac
+    ,
+    gvs[flat_edges_def] >>
+    metis_tac[]
+  ]
+QED
 
 
-        
-        
+
+Triviality flat_edges_mem_triv5:
+  ∀ l a n n' parent right.
+    parent ≠ a ∧
+    MEM (a,n,n') l ∧
+    MEM (parent,n,right) l ⇒
+    MEM n (flat_edges (FILTER (λp. FST p ≠ a) l))
+Proof
+  Induct >-
+   gvs[flat_edges_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[] >>
+  gvs[flat_edges_def] >|[
+    imp_res_tac mem_input_then_in_flattened >>
+    irule flat_edges_mem_triv1 >>
+    srw_tac [SatisfySimps.SATISFY_ss][]
+    ,
+  Cases_on ‘h0=a’ >> gvs[] >|[
+    res_tac
+    ,
+    gvs[flat_edges_def] >>
+    metis_tac[]
+      ]
+  ]
+QED
+
+
+Triviality flat_edges_mem_triv6:
+  ∀ l a n n' parent left.
+    parent ≠ a ∧
+    MEM (a,n,n') l ∧
+    MEM (parent,left,n) l ⇒
+    MEM n (flat_edges (FILTER (λp. FST p ≠ a) l))
+Proof
+  Induct >-
+   gvs[flat_edges_def] >>
+  rpt strip_tac >>
+  PairCases_on ‘h’ >>
+  gvs[] >>
+  gvs[flat_edges_def] >|[
+    imp_res_tac mem_input_then_in_flattened >>
+    irule flat_edges_mem_triv3 >>
+    srw_tac [SatisfySimps.SATISFY_ss][]
+    ,
+  Cases_on ‘h0=a’ >> gvs[] >|[
+    res_tac
+    ,
+    gvs[flat_edges_def] >>
+    metis_tac[]
+      ]
+  ]
+QED
+       
+
+
+(*nodes reachable from parent of eliminated node survive *)
 Theorem list_eliminated_flat_membership2:
   ∀ t n n' n'' b c.
     n'' ≠ n' ∧
@@ -603,13 +670,39 @@ Cases_on ‘n''=n’ >> fs[] >|[
 QED
 
 
+Theorem head_mem_not_changed_in_merge:
+  ∀ l l' n n' a b c.
+    ALL_DISTINCT (MAP FST l') ∧
+    MEM (a,b,c) l' ∧
+    merge_edges l' n n' = l ⇒
+    ∃ b' c' . MEM (a,b',c') l
+Proof
+  rpt gen_tac >> strip_tac >>
+  imp_res_tac mem_triple_map_fst >>
+  imp_res_tac map_fst_merge_edges >>
+              
+  gvs[MEM_MAP] >>
+  fs[merge_edges_def] >>
+  
+  qexists_tac ‘if b = n' then n else b’ >>
+  qexists_tac ‘if c = n' then n else c’ >>
+  fs[] >>
+  
+  Cases_on ‘b=n'’ >> gvs[] >>
+  Cases_on ‘c=n'’ >> gvs[] >>
+  Cases_on ‘c=b’ >> gvs[] >>
+  PairCases_on ‘y’ >> gvs[] >>
+  
+  gvs[MEM_MAP] >>
 
+  FIRST [
+      qexists_tac ‘(y0,b,b)’>> gvs[] >> decide_tac,
+      qexists_tac ‘(y0,b,c)’>> gvs[]
+    ]
+QED
+           
 
-
-        
-
-        
-                                           
+(*elimination preserves domain/range under has_parent condition *)                                   
 Theorem eliminate_dom_range_edges3_imp_adel_key_mem:
   ∀edges root labels vars n n' n'' a b.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -778,16 +871,13 @@ Proof
             gvs[]
 
           ]
-
       ] 
   ]
-
 QED      
 
 
             
-
-         
+(*Same as above using dom_range_edges *) 
 Theorem eliminate_dom_range_edges_imp_adel_key_mem:
   ∀edges root labels vars n n' n'' a b.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -803,7 +893,7 @@ Proof
 QED
 
 
-Theorem flat_edges_mem_exists_trivial:
+(* Theorem flat_edges_mem_exists_trivial:
   ∀ l n''.
     MEM n'' (flat_edges l) ⇒
     (∃k v1 v2. MEM (k,v1,v2) l ∧ (n'' = k ∨ n'' = v1 ∨ n'' = v2))
@@ -813,9 +903,8 @@ Proof
   PairCases_on ‘h’ >> gvs[] >>
   gvs[flat_edges_def] >> 
   metis_tac[]  
-QED
+QED 
 
-  
 
 Theorem flat_edges_normalization:
   ∀ l n a b c .        
@@ -823,10 +912,10 @@ Theorem flat_edges_normalization:
 Proof
   rw[flat_edges_def] >>
   metis_tac[]
-QED
+QED *)
 
         
-
+(*Characterizes has_parent condition *)
 Theorem has_parent_imp_exsists:
   ∀edges n n'.
     ALL_DISTINCT (MAP FST edges) ∧
@@ -842,9 +931,9 @@ Proof
   gvs[] 
 QED
 
-         
 
 
+(* == More general membership preservation for elimination == *)
 
 Theorem list_eliminated_flat_membership3:
   ∀ l a n n'' parent right left.
@@ -876,22 +965,7 @@ QED
 
 
 
-
-Theorem MEM_LOOKUP_trio:
-  ∀ l a b c n n'.        
-    ALL_DISTINCT (MAP FST l) ∧
-    MEM (a,b,c) l ⇒
-    ALOOKUP l a = SOME (b,c)     
-Proof                     
-  Induct >> gvs[] >>
-  rpt strip_tac >>
-  Cases_on ‘h’ >> fs[] >>
-  Cases_on ‘q=a’ >> fs[] >>
-  imp_res_tac mem_triple_map_fst
-QED
-
-
-
+(*When right child is eliminated node, edge redirected to n *)
 Theorem eliminate_snd_edges_membership:
   ∀ l l' n n' a b h.
     b = n' ∧
@@ -923,7 +997,7 @@ QED
 
 
 
-
+(*When left child is eliminated node, edge redirected to n *)
 Theorem eliminate_fst_edges_membership:
   ∀ l l' n n' a b h.
     a = n' ∧
@@ -953,17 +1027,9 @@ Proof
   ]
 QED
 
+     
 
-
-
-
-
-
-
-
-
-        
-    
+(* Domain/range preservation for leaf elimination case *)   
 Theorem eliminate_dom_range_edges3_imp_adel_key_mem_none:
   ∀ edges n n' n''.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -1143,6 +1209,7 @@ Proof
 QED
 
 
+(* Same as above using dom_range_edges *)
 Theorem eliminate_dom_range_edges_imp_adel_key_mem_none:
   ∀ edges n n' n''.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -1160,8 +1227,10 @@ Proof
   metis_tac[eliminate_dom_range_edges3_imp_adel_key_mem_none]
 QED  
 
-        
-   
+
+
+
+(*Under elimination conditions, all nodes in merged range survive *)
 Theorem eliminate_edges_preserve_nodes:
   ∀ edges n n' n'' root labels vars.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -1244,13 +1313,6 @@ QED
 
 
 
-
-
-
-
-
-
-
 Theorem wf_non_empty_after_eliminable:
   ∀r edges labels n n'.
     ALL_DISTINCT (MAP FST edges) ∧
@@ -1283,11 +1345,7 @@ QED
 
 
 
-        
-(*********************************)
-(*   ELIMINATE  WFness           *)
-(*********************************)
- 
+(*===  Main theorem Well-Formedness  Elimination ===*) 
 Theorem eliminate_wf_preservation:        
   ∀ BDD n n' vars_consumed.
     BDD_ordered BDD vars_consumed ∧
@@ -1331,9 +1389,9 @@ Proof
 QED
 
 
-
-
-          
+(*******************************************************)
+(*  Ordering Preservation of Elimination               *)
+(*******************************************************)
 Theorem order_hold_for_eliminate1: 
   ∀ r edges labels n n' n'' nl vars_consumed.
     BDD_WF (r,edges,labels) ∧
