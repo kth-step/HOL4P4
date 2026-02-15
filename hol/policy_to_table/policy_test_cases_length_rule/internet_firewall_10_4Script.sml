@@ -5,7 +5,7 @@ open bdd_utilsLib;
 
 val _ = new_theory "internet_firewall_10_4";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
 
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16)])]”;
@@ -233,8 +233,8 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (* worst output table order *)
 (*    but better for BDD    *)
 (****************************)
-(* 
-val policy_order = ``[
+(*
+val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcPort_le_56258"; "is_srcPort_ge_56258";
@@ -251,9 +251,9 @@ val policy_order = ``[
   "is_srcPort_le_52244"; "is_srcPort_ge_52244";
   "is_dstPort_le_58774"; "is_dstPort_ge_58774";
   "is_srcPort_le_50627"; "is_srcPort_ge_50627";
-]``;
+]”;
 
-val policy_full_order = ``[
+val policy_full_order = “[
   ("igfm",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
   ("f5x" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
   ("gm",["is_srcPort_le_56258";"is_srcPort_ge_56258"]);
@@ -270,7 +270,7 @@ val policy_full_order = ``[
   ("hjl",["is_srcPort_le_52244";"is_srcPort_ge_52244"]);
   ("8cb0" ,["is_dstPort_le_58774";"is_dstPort_ge_58774"]);
   ("8ug",["is_srcPort_le_50627";"is_srcPort_ge_50627"]);
-]``;  *)
+]”;  *)
 
 
 (********************************)

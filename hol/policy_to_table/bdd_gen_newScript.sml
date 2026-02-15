@@ -21,28 +21,28 @@ val _ = new_theory "bdd_gen_new";
 
 
 (*
-    
+
 (* new BDD types *)
 
 
-                                   
+
 Datatype:
   id = id_termn  'a
        | id_non_termn (string option)
 End
 
-        
-Type label_id = “:(num , ('b id # num)) alist”;   
+
+Type label_id = “:(num , ('b id # num)) alist”;
 Type label_content = “:(num , 'a) alist”;
 
 Type BDD_sep = “:num # edges # 'b label_id # 'a label_content”
 Type BDD_mini = “:num # edges # 'b label_id”
 
-   
+
 
 (* get labels identified by the leafs *)
 
-   
+
 (* gets the label only for non terminal leaf*)
 Definition getLabels_new_def:
   (getLabels_new (labels_id: 'b label_id) (labels_content: 'a label_content) [] = SOME []) ∧
@@ -67,7 +67,7 @@ End
 
 
 
-        
+
 Definition determine_termn_new_def:
   determine_termn_new rec p =
   case rec.final(p) of
@@ -75,7 +75,7 @@ Definition determine_termn_new_def:
   | _ => id_non_termn (NONE)
 End
 
-        
+
 
 Definition determine_termn_list_new_def:
   determine_termn_list_new rec nodes_simp =
@@ -92,8 +92,8 @@ End
 
 
 Definition mk_new_labels_content_new_def:
-  mk_new_labels_content_new l =  
-    let 
+  mk_new_labels_content_new l =
+    let
       all_contents = MAP (λ(n,x',((id,content),(id',content'))). content) l ++
                      MAP (λ(n,x',((id,content),(id',content'))). content') l;
       unique_contents = nub all_contents;
@@ -105,9 +105,9 @@ End
 
 Definition mk_new_labels_id_new_def:
   mk_new_labels_id_new [] all_contents_inverse (c:num) =  [] ∧
-  mk_new_labels_id_new ((n,x',((id,content),(id',content')))::rest) all_contents_inverse c =  
-   case (ALOOKUP all_contents_inverse content , ALOOKUP all_contents_inverse content' ) of 
-   | (SOME m , SOME q) => (c, (id,m))::(c+1, (id',q))::(mk_new_labels_id_new rest all_contents_inverse (c+2)) 
+  mk_new_labels_id_new ((n,x',((id,content),(id',content')))::rest) all_contents_inverse c =
+   case (ALOOKUP all_contents_inverse content , ALOOKUP all_contents_inverse content' ) of
+   | (SOME m , SOME q) => (c, (id,m))::(c+1, (id',q))::(mk_new_labels_id_new rest all_contents_inverse (c+2))
    | (_,_) => []
 End
 
@@ -138,18 +138,18 @@ Definition body_of_mk_new_def:
                ( let leaves_sub = leaves_pred_sub rec leaves_labels x in
                    let simp_leaves = simp_pred_list rec leaves_sub in
                      let simp_leaves' = determine_termn_list_new rec simp_leaves in
-                       
+
                        let new_labels_content = mk_new_labels_content_new simp_leaves' in
                          let new_labels_content_inverse = MAP (λ(a,b). (b,a)) new_labels_content in
                            let new_labels_id = mk_new_labels_id_new simp_leaves' new_labels_content_inverse c in
                              let new_edges = mk_new_edges simp_leaves' c in
                                let label_leaf_updated = non_term_leaf_updt_new labels_id x
                                in
-                                 SOME (((r,  edges ++ new_edges, 
+                                 SOME (((r,  edges ++ new_edges,
                                          label_leaf_updated++new_labels_id,
                                          new_labels_content):(('a,'b)BDD_sep)),
-                                       c + (LENGTH new_labels_id) 
-                                      )             
+                                       c + (LENGTH new_labels_id)
+                                      )
                )
            | NONE => NONE
           )
@@ -165,7 +165,7 @@ Definition mk_BDDPred_new_def:
   (mk_BDDPred_new rec (BDD:('a, 'b) BDD_sep) l (x::xs) c =
    case body_of_mk_new rec BDD (x:string) (c:num) of
      SOME (BDD',c') => mk_BDDPred_new rec BDD' (x::l) xs c'
-   | NONE => NONE 
+   | NONE => NONE
   )
 End
 
@@ -179,8 +179,8 @@ End
 (******************************************************)
 (*                    merge_new Def                       *)
 (******************************************************)
-    
-    
+
+
 
 
 Definition eq_vars_in_labels_new_def:
@@ -190,18 +190,18 @@ Definition eq_vars_in_labels_new_def:
     | (SOME (id_non_termn (SOME x), m), SOME (id_non_termn (SOME x'), m')) => (x = x')
     | (SOME (id_non_termn (NONE), m), SOME (id_non_termn (NONE), m')) => (m=m')
     | _ => F
-End 
-           
-    
+End
 
 
-Definition mergable_new_def:        
-  mergable_new ((r,edges,labels_id):'b BDD_mini)  n n' = 
+
+
+Definition mergable_new_def:
+  mergable_new ((r,edges,labels_id):'b BDD_mini)  n n' =
   (n≠n' ∧ ALOOKUP edges n = ALOOKUP edges n' ∧
    eq_vars_in_labels_new labels_id n n' ∧ ALOOKUP labels_id n'  ≠ NONE )
 End
-        
-   
+
+
 
 
 Definition merge_new_def:
@@ -211,11 +211,11 @@ Definition merge_new_def:
       let labels_id' = ADELKEY n' labels_id in
           (r,edges'',labels_id')
 End
-  
+
 
 
 Definition eliminable_new_def:
-  eliminable_new ((r,edges,labels_id):'b BDD_mini) n = 
+  eliminable_new ((r,edges,labels_id):'b BDD_mini) n =
     case ALOOKUP edges n of
       |SOME (n1, n2) =>
         if n1 = n2 ∧
@@ -242,7 +242,7 @@ Definition distrubute_labels_new_def:
   )
 End
 
-           
+
 
 Definition bdd_distribute_new_def:
   bdd_distribute_new labels_id order =
@@ -270,16 +270,16 @@ Definition eliminate_safe_new_def:
   | NONE => (F,BDD_mini)
 End
 
-Definition mergable_projection_new_def:        
-  mergable_projection_new edges_proj labels_id_proj n n' = 
+Definition mergable_projection_new_def:
+  mergable_projection_new edges_proj labels_id_proj n n' =
   (n≠n' ∧ ALOOKUP edges_proj n = ALOOKUP edges_proj n' ∧
    eq_vars_in_labels_new labels_id_proj n n' ∧ ALOOKUP labels_id_proj n'  ≠ NONE )
 End
 
 Definition optimize_node_new_def:
   (optimize_node_new edges_proj labels_id_proj (BDD_mini:'b BDD_mini) n [] = SND (eliminate_safe_new BDD_mini n)) ∧
-  
-  (optimize_node_new edges_proj labels_id_proj BDD_mini n (n'::nl) = 
+
+  (optimize_node_new edges_proj labels_id_proj BDD_mini n (n'::nl) =
    case eliminable_projection edges_proj n of
    | SOME n' =>  SND (eliminate_safe_new BDD_mini n)
    | NONE => (
@@ -288,7 +288,7 @@ Definition optimize_node_new_def:
               | (T, BDD_mini') => BDD_mini'
               | (F, BDD_mini') => optimize_node_new edges_proj labels_id_proj BDD_mini n nl
             )
-            
+
      | F => optimize_node_new edges_proj labels_id_proj BDD_mini n nl)
   )
 End
@@ -305,12 +305,12 @@ End
 
 
 Definition project_edges_to_new_def:
-  project_edges_to_new edges nl = 
+  project_edges_to_new edges nl =
     MAP (\n. (n,THE(ALOOKUP edges n))) nl
 End
 
 Definition project_labels_to_new_def:
-  project_labels_to_new labels_id nl = 
+  project_labels_to_new labels_id nl =
     MAP (\n. (n,THE(ALOOKUP labels_id n))) nl
 End
 
@@ -327,7 +327,7 @@ Definition optimize_internals_new_def:
   )
 End
 
-        
+
 Definition optimize_bdd_new_def:
   optimize_bdd_new ((r,edges,labels_id):'b BDD_mini) order =
   let (internals,ntl,tl) = bdd_distribute_new labels_id order in
@@ -337,7 +337,7 @@ Definition optimize_bdd_new_def:
           let BDD_mini2 = optimize_layer_new [] labels_id_proj_ntl BDD_mini1 ntl in
             optimize_internals_new BDD_mini2 internals
 End
-                        
+
 
 
 
@@ -346,20 +346,20 @@ Definition mk_BDDPred_opt_new_def:
   (mk_BDDPred_opt_new rec (BDD_sep:('b, 'a) BDD_sep) l [] c =
                            SOME (BDD_sep)
   ) ∧
-     
+
   (mk_BDDPred_opt_new rec (BDD_sep) l (x::xs) c =
-                      
+
    case (body_of_mk_new rec BDD_sep (x:string) (c:num)) of
    | SOME ((r,edges,labels_id,labels_content) ,c') =>
-          
+
        ( let (r',edges',labels_id') = optimize_bdd_new (r,edges,labels_id) (x::l) in
            mk_BDDPred_opt_new rec (r',edges',labels_id', labels_content) (x::l) xs c'
        )
-       
-   | NONE => NONE 
+
+   | NONE => NONE
   )
 End
 
 *)
-                                             
+
 val _ = export_theory ();

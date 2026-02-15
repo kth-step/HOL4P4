@@ -5,8 +5,8 @@ open bdd_utilsLib;
 
 val _ = new_theory "internet_firewall_9";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
+
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16);
                                         ("srcNAT", type_length 16);
@@ -307,7 +307,7 @@ val policy_me =   “[
 (*   Best output table order  *)
 (******************************)
 
-(* 
+(*
 (* Grouped policy ordering *)
 val policy_full_order = “[
   ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881";"is_srcPort_le_50553";"is_srcPort_ge_50553";"is_srcPort_le_50002";"is_srcPort_ge_50002";"is_srcPort_le_51465";"is_srcPort_ge_51465";"is_srcPort_le_60513";"is_srcPort_ge_60513";"is_srcPort_le_50049";"is_srcPort_ge_50049";"is_srcPort_le_52244";"is_srcPort_ge_52244"]);
@@ -329,7 +329,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 (*    but better for BDD    *)
 (****************************)
 
-val policy_order = ``[
+val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -360,9 +360,9 @@ val policy_order = ``[
   "is_dstPort_le_58774"; "is_dstPort_ge_58774";
   "is_srcNAT_le_2211"; "is_srcNAT_ge_2211";
   "is_dstNAT_le_58774"; "is_dstNAT_ge_58774"
-]``;
+]”;
 
-val policy_full_order = ``[
+val policy_full_order = “[
   ("dbgv",["is_srcPort_le_57222";"is_srcPort_ge_57222"]);
   ("rub" ,["is_dstPort_le_53";"is_dstPort_ge_53"]);
   ("nv23",["is_srcNAT_le_54587";"is_srcNAT_ge_54587"]);
@@ -393,7 +393,7 @@ val policy_full_order = ``[
   ("h6e" ,["is_dstPort_le_58774";"is_dstPort_ge_58774"]);
   ("lo",["is_srcNAT_le_2211";"is_srcNAT_ge_2211"]);
   ("hyh" ,["is_dstNAT_le_58774";"is_dstNAT_ge_58774"])
-]``;
+]”;
 
 (********************)
 (*  Testing scripts *)
@@ -401,16 +401,16 @@ val policy_full_order = ``[
 
 (* BDD alists + EVAL *)
 
-(* 
+(*
 val final_thm_res_eval =
-fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 *)
 
 
 (* BDD alists + Cakeml w parser, just bin *)
-val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order, 
+val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order,
 "internet_firewall_9");
 
 
-                     
+
 val _ = export_theory ();

@@ -18,9 +18,9 @@ val _ = intLib.deprecate_int();
 
 (*This file extends the basic BDD translation for policies,
  where the input is able to be parsed via cakeML,
-   here we create one BDD that takes an two inputs 
-   text one for policy and one for order then outputs 
-   BDD in the terminal 
+   here we create one BDD that takes an two inputs
+   text one for policy and one for order then outputs
+   BDD in the terminal
    val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" prog;
    *)
 
@@ -173,7 +173,7 @@ fun parse_policy_list s =
                 let val (entry, s) = parse_policy_entry s
                     val s = skip_ws s
                 in case s of
-                  #";" :: rest => 
+                  #";" :: rest =>
                     let val rest = skip_ws rest in
                     case rest of
                       #"]" :: rest => (List.rev (entry :: acc), skip_ws rest)
@@ -365,11 +365,11 @@ fun main () =
 
 
 val prog =
-  ``SNOC
+  “SNOC
     (Dlet unknown_loc (Pcon NONE [])
       (App Opapp [Var (Short "main"); Con NONE []]))
     ^(get_ml_prog_state() |> get_prog)
-  `` |> EVAL |> concl |> rhs;
+  ” |> EVAL |> concl |> rhs;
 
 
 
@@ -387,7 +387,7 @@ val _ = (max_print_depth := 700);
 (*
 bdd_cake_test$ CML_STACK_SIZE=2048 CML_HEAP_SIZE=8192 ./cake --sexp=true --exclude_prelude=true --skip_type_inference=false --jump=false --reg_alg=0 < test_bdd_policy.sexp > test_bdd_policy.cake.S
 bdd_cake_test$ cc test_bdd_policy.cake.S basis_ffi.c -lm -o test_bdd_policy.cake -lm
-bdd_cake_test$ ./test_bdd_policy.cake policy.txt order.txt 
+bdd_cake_test$ ./test_bdd_policy.cake policy.txt order.txt
 *)
 
 

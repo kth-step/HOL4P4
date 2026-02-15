@@ -1,12 +1,12 @@
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 open policy_arith_to_varTheory;
-open bdd_utilsLib; 
+open bdd_utilsLib;
 
 
 val _ = new_theory "internet_firewall_50";
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
- 
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
+
 val test_pd_type = “[("h", type_record [("srcPort", type_length 16);
                                         ("dstPort", type_length 16);
                                         ("srcNAT", type_length 16);
@@ -1348,7 +1348,7 @@ val policy_me =   “[
 ]”;
 
 
-val policy_order = ``[
+val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -1461,7 +1461,7 @@ val policy_order = ``[
   "is_srcNAT_le_28558"; "is_srcNAT_ge_28558";
   "is_srcPort_le_9523"; "is_srcPort_ge_9523";
   "is_srcNAT_le_27776"; "is_srcNAT_ge_27776"
-]``;
+]”;
 
 
 
@@ -1472,5 +1472,5 @@ val policy_eq_thm = fwd_proof_polcies_cakeLib.check_two_polcies_eq (arith_policy
 
 
 
-                      
+
 val _ = export_theory ();

@@ -6,7 +6,7 @@ val _ = new_theory "internet_firewall_1";
 
 
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
 
 
 
@@ -91,9 +91,9 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_dstPort
 
 (* BDD alists + EVAL *)
 
-(* 
+(*
 val final_thm_res_eval =
-fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
 *)
 
 

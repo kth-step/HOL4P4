@@ -6,8 +6,8 @@ val _ = new_theory "test_rand";
 
 
 
-val _ = type_abbrev("action_policy_type", “:((string# num list) action_expr) policy”);
-val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
+Type action_policy_type = :((string# num list) action_expr) policy
+Type action_table_type = :((string# num list) var_table_list # num)
 
 (*
 
@@ -19,11 +19,11 @@ fun term_of_num n = mk_numeral (Arbnum.fromInt n);
 fun num_of_term t = Arbnum.toInt (dest_numeral t);
 
 fun mk_action_expr (cmd, args) =
-    ``action (^(fromMLstring cmd), ^(mk_list (map term_of_num args, ``:num``)))
-     : (string # num list) action_expr``;
+    “action (^(fromMLstring cmd), ^(mk_list (map term_of_num args, ”:num“)))
+     : (string # num list) action_expr”;
 
 fun mk_state_expr n =
-    ``state ^(term_of_num n) : (string # num list) action_expr``;
+    “state ^(term_of_num n) : (string # num list) action_expr”;
 
 fun extract_bdd bdd_term =
     let val (start_state_term, rest) = dest_pair bdd_term
@@ -59,12 +59,12 @@ fun get_children edges node_id =
 
 fun get_node_label labelings node_id =
     case List.find (fn (id, _) => id = node_id) labelings of
-        SOME (_, label) => label | NONE => ``dummy``;
+        SOME (_, label) => label | NONE => “dummy”;
 
 fun get_node_variable labelings node_id =
     let val label = get_node_label labelings node_id
         val (constructor, args) = dest_comb label
-    in if same_const constructor ``non_termn`` then
+    in if same_const constructor “non_termn” then
             let val (opt_term, _) = dest_pair args
             in case (dest_some opt_term) of var_name_term => SOME (fromHOLstring var_name_term)
             end handle HOL_ERR _ => NONE
@@ -79,7 +79,7 @@ fun is_terminal_node labelings node_id =
     case List.find (fn (id, label) => id = node_id) labelings of
         SOME (_, label) =>
             let val (constructor, _) = dest_comb label
-            in same_const constructor ``termn`` end
+            in same_const constructor “termn” end
       | NONE => false;
 
 fun find_main_path edges labelings group_vars entry_node =
@@ -461,9 +461,9 @@ fun find_paths_for_group bdd_term groupings_term group_name input_states =
 
 
         fun rule_to_term (inp, path, exit) =
-            let val atom_vars = map (fn (var, value) => if value then ``Var ^(fromMLstring var)`` else ``Not ^(fromMLstring var)``) path
-                val atom_list = if null atom_vars then [``True``] else atom_vars
-            in ``(^(mk_list (atom_list, ``:atom_var``)), ^(term_of_num inp), ^(mk_state_expr exit))``
+            let val atom_vars = map (fn (var, value) => if value then “Var ^(fromMLstring var)” else “Not ^(fromMLstring var)”) path
+                val atom_list = if null atom_vars then [“True”] else atom_vars
+            in “(^(mk_list (atom_list, ”:atom_var“)), ^(term_of_num inp), ^(mk_state_expr exit))”
             end
     in map rule_to_term optimized_rules  (* Changed from deduped_rules to optimized_rules *)
     end handle e => (print ("ERROR in find_paths_for_group: " ^ exnMessage e ^ "\n"); []);
@@ -472,9 +472,9 @@ fun generate_action_table bdd_term =
     let val (_, _, labelings) = extract_bdd bdd_term
         fun process_labeling (node_id, label) =
             let val (constructor, args) = dest_comb label
-            in if same_const constructor ``termn`` then
+            in if same_const constructor “termn” then
                     let val (action_term, _) = dest_pair args
-                    in SOME ``([True], ^(term_of_num node_id), ^action_term)``
+                    in SOME “([True], ^(term_of_num node_id), ^action_term)”
                     end
                 else NONE
             end handle HOL_ERR _ => NONE
@@ -509,14 +509,14 @@ fun bdd_to_tables_iterative bdd_term groupings_term =
 
         val tables = iterate [0] groupings []
 
-        fun mk_table_list [] = ``[] : (atom_var list # num # (string # num list) action_expr) list list``
+        fun mk_table_list [] = “[] : (atom_var list # num # (string # num list) action_expr) list list”
           | mk_table_list tables =
-                let val table_terms = map (fn t => mk_list (t, ``:(atom_var list # num # (string # num list) action_expr)``)) tables
-                in mk_list (table_terms, ``:(atom_var list # num # (string # num list) action_expr) list``)
+                let val table_terms = map (fn t => mk_list (t, “:(atom_var list # num # (string # num list) action_expr)”)) tables
+                in mk_list (table_terms, “:(atom_var list # num # (string # num list) action_expr) list”)
                 end
-    in ``(^(mk_table_list tables), ^(term_of_num 0))``
+    in “(^(mk_table_list tables), ^(term_of_num 0))”
     end
-    handle e => (print ("ERROR in bdd_to_tables_iterative: " ^ exnMessage e ^ "\n"); ``([], ^(term_of_num 0))``);
+    handle e => (print ("ERROR in bdd_to_tables_iterative: " ^ exnMessage e ^ "\n"); “([], ^(term_of_num 0))”);
 
 
 
@@ -891,7 +891,7 @@ open table_bs_propertiesTheory;
 
 open bdd_utilsLib;
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = :((string# num list) action_expr) arith_rule
 
 val test_pd_type = “[("ip", type_record [("priority", type_length 3);
                                          ("size", type_length 16);

@@ -6,7 +6,7 @@ val _ = new_theory "test_poly_eq";
 
 
 
-val _ = type_abbrev("single_rule", “:((string# num list) action_expr) arith_rule”);
+Type single_rule = “:((string# num list) action_expr) arith_rule”;
 
 
 
