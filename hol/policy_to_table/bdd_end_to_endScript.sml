@@ -30,13 +30,30 @@ val _ = new_theory "bdd_end_to_end";
 
 
 
-(******************************************)
-(*        var policy to var table         *)
-(*            glue of theorems            *)
-(******************************************)
+(*******************************************************)
+(*  End-to-End Correctness Theorems                    *)
+(*                                                     *)
+(*  This theory glues together all previous results    *)
+(*  to prove the final correctness theorems for the    *)
+(*  ILR instantiation. It connects:                    *)
+(*    - BDD construction (mk_BDDPred/mk_BDDPred_opt)   *)
+(*    - Well-formedness and ordering invariants        *)
+(*    - Semantic correctness                           *)
+(*    - Isomorphism between BDDs                       *)
+(*    - Concrete policy and table structures           *)
+(*                                                     *)
+(*  The main results show that if two BDDs are         *)
+(*  isomorphic, the original policies/tables have      *)
+(*  equivalent semantics.                              *)
+(*******************************************************)
 
 
-        
+
+(*******************************************************)
+(*  Initial BDD Properties                             *)
+(*******************************************************)
+
+(* Theorem: Initial BDD for policy structure has correct semantics *)  
 Theorem correct_sem_policy_structure_root:
   ∀ var_policy vars.
     correct_sem policy_structure (0,[],[(0,non_termn (NONE,var_policy))]) (REVERSE vars)
@@ -50,7 +67,7 @@ Proof
 QED
 
 
-        
+(* Theorem: Initial BDD for table structure has correct semantics *)    
 Theorem correct_sem_table_structure_root:
   ∀ var_table vars.
     correct_sem table_structure (0,[],[(0,non_termn (NONE,var_table))]) (REVERSE vars)
@@ -64,6 +81,7 @@ Proof
 QED
 
 
+(* Theorem: Initial BDD is well-formed *)
 Triviality BDD_WF_init:        
   ∀ n n' prop.
     BDD_WF (n,[],[(n,non_termn (NONE,prop))])
@@ -72,6 +90,7 @@ Proof
 QED
 
 
+(* Theorem: Initial BDD is ordered (vacuously) *)
 Triviality BDD_ordered_init:
     ∀ n n' prop vars_consumed.      
       BDD_ordered (n,[],[(n,non_termn (NONE,prop))]) vars_consumed
@@ -80,6 +99,7 @@ Proof
 QED
 
 
+(* Theorem: Initial BDD has valid node ID range *)
 Triviality range_c_init:
     ∀ n  prop vars_consumed.      
       range_c 1 (n,[],[(0,non_termn (NONE,prop))])
@@ -87,7 +107,8 @@ Proof
   gvs[range_c_def]
 QED
 
-        
+
+(* Theorem: Free variables invariant holds for reversed lists *)      
 Triviality fv_vars_reverse:                           
   ∀ vars rec prop.
     fv_in_vars rec prop vars = fv_in_vars rec prop (REVERSE vars)
@@ -96,15 +117,14 @@ Proof
   gvs[fv_in_vars_def]
 QED
 
-        
+
+(* Theorem: Initial BDD has empty consumed domain *)  
 Triviality consumed_dom_bdd_init:
   ∀ n n' prop.
   consumed_dom_bdd [] (n,[],[(n',non_termn (NONE,prop))])
 Proof
   gvs[consumed_dom_bdd_def]
 QED   
-
-
 
 
 Triviality mem_lookup_local_triv:        
@@ -132,8 +152,10 @@ Definition non_termn_type_def:
   )         
 End
 
-        
-(* this theorem is for BDD without optimizations! we do not use it anymore *)      
+
+(* this theorem is for BDD without optimizations! 
+we do not use it anymore *) 
+(*   
 Theorem policy_mk_bdd_correct_thm:
   ∀ var_policy vars BDD mv.
     ALL_DISTINCT vars ∧
@@ -161,8 +183,10 @@ Proof
   gvs[Once fv_vars_reverse]
 QED
 
-        
-        
+
+
+(* Theorem: mk_BDDPred produces correct BDD for table structure
+            (without optimization) *)
 Theorem table_mk_bdd_correct_thm:
   ∀ var_table vars BDD mv.
     ALL_DISTINCT vars ∧
@@ -189,9 +213,11 @@ Proof
   gvs[fv_in_BDD_def, fv_in_labels_def] >>
   gvs[Once fv_vars_reverse]
 QED
+*)
 
-
-
+(*******************************************************)
+(*  Node Properties Throughout Construction            *)
+(*******************************************************)
 
 Definition node_in_labels_def:
   node_in_labels n BDD =
@@ -205,9 +231,10 @@ Definition  prop_in_BDD_def:
   let (r,edges,labels) = BDD in
      get_prop labels n
 End
-        
 
 
+
+(* Theorem: Every node in labels has a semantic value *)
 Theorem BDD_sem_exsists_label_init:  
   ∀ BDD mv n vars_consumed vars rec.
     BDD_ordered BDD vars_consumed ∧
@@ -271,8 +298,7 @@ QED
 
 
 
-        
-
+(* Theorem: body_of_mk preserves node membership and properties *)
 Theorem  body_of_mk_mem_init:
   ∀ r edges labels r' edges' labels' n n' c' h rec.
    BDD_WF (r',edges',labels') ∧
@@ -313,8 +339,7 @@ QED
 
 
 
-
-      
+(* Theorem: Nodes in initial BDD remain throughout construction *)  
 Theorem node_indeed_in_final_bdd:
   ∀ rec vars vars_consumed BDD BDD' n n'.
     range_c n' BDD ∧
@@ -379,7 +404,7 @@ QED
 
 
 
-
+(*
 Triviality node_in_bdd_mk_init_triv:
   ∀ n r labels r' edges' labels' c h rec.
     non_termn_type r (r,[],labels) ∧
@@ -404,12 +429,9 @@ Proof
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>           
   gvs[mk_new_edges_def, dom_range_edges_def]
 QED
-
+*)
         
-
-
-        
-        
+(*   
 Theorem correct_var_policy_var_tables_thm1:
   ∀ var_policy var_table I vars BDD BDD' mv.
     
@@ -513,12 +535,18 @@ Proof
   gvs[op_sem_def, policy_structure_def, table_structure_def]
 QED
 
+*)
 
 
-(**************************************)
-(*           mk_BDDPred_OPT           *)
-(**************************************)
 
+(*******************************************************)
+(*  Construction Correctness for Policy/Table          *)
+(*        This is just an instansiation                *)
+(*          for policies and tables BDDs               *)
+(*******************************************************)
+
+
+(*mk_BDDPred_opt produces valid and correct BDD for TABLES structure *)
 Theorem table_mk_bdd_correct_valid_opt_thm:
   ∀ var_table vars BDD mv.
     ALL_DISTINCT vars ∧
@@ -527,7 +555,6 @@ Theorem table_mk_bdd_correct_valid_opt_thm:
     (correct_sem table_structure BDD (REVERSE vars) ∧
      valid_BDD table_structure BDD [] (REVERSE vars))
 Proof
-  
   rpt strip_tac >>
   assume_tac (INST_TYPE [“:'a” |-> “: (('a var_table) list # num)”, “:'b” |-> “: 'a action_expr”]
                         correct_sem_valid_translation_opt)  >>
@@ -547,7 +574,7 @@ Proof
 QED   
 
 
-
+(* mk_BDDPred_opt produces valid and correct BDD for POLICY structure *)
 Theorem policy_mk_bdd_correct_valid_opt_thm:
   ∀ var_policy vars BDD mv.
     ALL_DISTINCT vars ∧
@@ -556,7 +583,6 @@ Theorem policy_mk_bdd_correct_valid_opt_thm:
     (correct_sem policy_structure BDD (REVERSE vars) ∧
      valid_BDD policy_structure BDD [] (REVERSE vars))
 Proof
-  
   rpt strip_tac >>
   assume_tac (INST_TYPE [“:'a” |-> “: (pred # 'a) list”, “:'b” |-> “: 'a”]
                         correct_sem_valid_translation_opt)  >>
@@ -574,6 +600,84 @@ Proof
   gvs[fv_in_BDD_def, fv_in_labels_def] >>
   gvs[Once fv_vars_reverse]
 QED   
+
+
+
+Triviality prop_means_in_labels:        
+  ∀ BDD n a.
+    prop_in_BDD n BDD = SOME a ⇒
+    node_in_labels n BDD
+Proof
+  rpt strip_tac >>
+  PairCases_on ‘BDD’ >>
+  rename1 ‘(r,edges,labels)’ >>
+
+  gvs[prop_in_BDD_def, node_in_labels_def, get_prop_def] >>
+  fs[AllCaseEqs()] >>
+  imp_res_tac ALOOKUP_MEM >>
+  imp_res_tac mem_fst_snd >>
+  gvs[] 
+QED
+
+
+
+
+Definition fv_in_vars_exec_def:
+  fv_in_vars_exec rec p vars=
+  EVERY (λx. MEM x vars) (rec.fv p)
+End
+
+
+
+
+Theorem fv_in_vars_abs_exec_eq:
+  ∀ rec p vars.
+    fv_in_vars_exec rec p vars = fv_in_vars rec p vars
+Proof
+  rw[fv_in_vars_exec_def, fv_in_vars_def] >>
+  gvs[EVERY_MEM]
+QED
+
+
+  
+Theorem isIsomorph_exe_abs_imp:
+  ∀ BDD1 BDD2 I.
+    isIsomorph_exec I (BDD1:('a,'b) BDD) (BDD2:('c,'b) BDD) ⇒ isIsomorph I BDD1 BDD2
+Proof
+                             
+  rpt strip_tac >>
+  PairCases_on ‘BDD1’ >>
+  PairCases_on ‘BDD2’ >>
+  rename1 ‘isIsomorph_exec I' (r1,edges1,labels1) (r2,edges2,labels2)’ >>
+  
+  gvs[isIsomorph_exec_def, isIsomorph_def] >>
+    
+  rpt strip_tac >>
+  
+  (
+  Cases_on ‘their_i_map I' (dom_range_edges edges1)’ >-
+   gvs[apply_iso_check_for_nodes_def, their_i_map_def, dom_range_edges_def, node_in_BDD_def] >>
+   
+  PairCases_on ‘h’ >>
+  rename1 ‘their_i_map I' (dom_range_edges edges1) = (n1',n1_map')::t’ >>
+  gvs[apply_iso_check_for_nodes_def, apply_iso_check_def] >>
+                                     
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  gvs[node_in_BDD_def] >>
+  gvs[their_i_map_def] >>
+  
+  Cases_on ‘dom_range_edges edges1’ >> gvs[] >>
+  Cases_on ‘h=n1’ >> gvs[] >>
+  
+  gvs[EVERY_MAP] >>
+  gvs[EVERY_MEM] >>
+  res_tac >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  
+  rpt strip_tac >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  res_tac)
+QED
 
 
 (*
@@ -601,29 +705,9 @@ Proof
 QED
 *)
 
-
-
-
-
-Triviality prop_means_in_labels:        
-  ∀ BDD n a.
-    prop_in_BDD n BDD = SOME a ⇒
-    node_in_labels n BDD
-Proof
-  rpt strip_tac >>
-  PairCases_on ‘BDD’ >>
-  rename1 ‘(r,edges,labels)’ >>
-
-  gvs[prop_in_BDD_def, node_in_labels_def, get_prop_def] >>
-  fs[AllCaseEqs()] >>
-  imp_res_tac ALOOKUP_MEM >>
-  imp_res_tac mem_fst_snd >>
-  gvs[] 
-QED
-
-
-                 
-
+(********************************************)
+(*     Var policy Var Table equivalence    *)
+(********************************************)
         
 Theorem correct_var_policy_var_tables_opt_thm1:
   ∀ var_policy var_table I vars BDD BDD' .
@@ -711,24 +795,6 @@ QED
 
 
 
-
-Definition fv_in_vars_exec_def:
-  fv_in_vars_exec rec p vars=
-  EVERY (λx. MEM x vars) (rec.fv p)
-End
-
-
-
-
-Theorem fv_in_vars_abs_exec_eq:
-  ∀ rec p vars.
-    fv_in_vars_exec rec p vars = fv_in_vars rec p vars
-Proof
-  rw[fv_in_vars_exec_def, fv_in_vars_def] >>
-  gvs[EVERY_MEM]
-QED
-
-
 Definition correct_var_policy_var_tables_exec_def:
   correct_var_policy_var_tables_exec var_policy var_table vars I =
   let BDD1_opt = mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, var_policy))]) [] vars 1 in
@@ -753,49 +819,7 @@ Definition correct_var_policy_var_tables_exec_def:
             T
 End
 
-
-
-        
-Theorem isIsomorph_exe_abs_imp:
-  ∀ BDD1 BDD2 I.
-    isIsomorph_exec I (BDD1:('a,'b) BDD) (BDD2:('c,'b) BDD) ⇒ isIsomorph I BDD1 BDD2
-Proof
-                             
-  rpt strip_tac >>
-  PairCases_on ‘BDD1’ >>
-  PairCases_on ‘BDD2’ >>
-  rename1 ‘isIsomorph_exec I' (r1,edges1,labels1) (r2,edges2,labels2)’ >>
-  
-  gvs[isIsomorph_exec_def, isIsomorph_def] >>
-    
-  rpt strip_tac >>
-  
-  (
-  Cases_on ‘their_i_map I' (dom_range_edges edges1)’ >-
-   gvs[apply_iso_check_for_nodes_def, their_i_map_def, dom_range_edges_def, node_in_BDD_def] >>
    
-  PairCases_on ‘h’ >>
-  rename1 ‘their_i_map I' (dom_range_edges edges1) = (n1',n1_map')::t’ >>
-  gvs[apply_iso_check_for_nodes_def, apply_iso_check_def] >>
-                                     
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-  gvs[node_in_BDD_def] >>
-  gvs[their_i_map_def] >>
-  
-  Cases_on ‘dom_range_edges edges1’ >> gvs[] >>
-  Cases_on ‘h=n1’ >> gvs[] >>
-  
-  gvs[EVERY_MAP] >>
-  gvs[EVERY_MEM] >>
-  res_tac >>
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-  
-  rpt strip_tac >>
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-  res_tac)
-QED
-
-        
 
 Theorem correct_var_policy_var_tables_exec_thm1:
  ∀ var_policy var_table  vars I.
@@ -832,8 +856,6 @@ QED
 (********************************************)
 (*     Var policy Var policy equivalence    *)
 (********************************************)
-
-        
 Theorem correct_var_policy_var_policy_thm1:
   ∀ var_policy1 var_policy2 I vars BDD BDD' mv.
     
@@ -894,9 +916,18 @@ QED
 
 
 
+
+(*******************************************************)
+(*  Auxiliary Theorems for Concrete Conditions         *)
+(*                                                     *)
+(*  These connect the abstract variable assignments   *)
+(*  (mv) to concrete packet inputs and mapping        *)
+(*  environments (me).                                 *)
+(*******************************************************)
+
 (******************************************
-   
-arith policy to interval table requirement for gluing all assumtions of equiality theorems:                       
+arith policy to interval table requirement for gluing all 
+assumtions of equiality theorems:                       
        cond1 ⇒ (arith_policy =  var_policy)
        cond2 ⇒ (var_policy = var_table)    
         cond1 ∧ cond3 ⇒ (var_table = interval_table)                      
