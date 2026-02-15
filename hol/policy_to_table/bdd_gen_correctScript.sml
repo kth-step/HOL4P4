@@ -13,6 +13,20 @@ open bdd_gen_orderTheory;
      
 val _ = new_theory "bdd_gen_correct";
 
+(*******************************************************)
+(*  MTBDD Semantic Correctness Theorems                *)
+(*                                                     *)
+(*  These theorems prove that the BDD construction     *)
+(*  algorithm preserves the semantics of the original  *)
+(*  ILR input when the decision structure satisfies    *)
+(*  properties prop1-prop4.                            *)
+(*                                                     *)
+(*  The main results (correct_sem_valid_translation)   *)
+(*  show that mk_BDDPred produces a BDD that:          *)
+(*    1. Is well-formed (BDD_WF)                       *)
+(*    2. Respects variable ordering (BDD_ordered)      *)
+(*    3. Preserves the original semantics              *)
+(*******************************************************)
 
 
 (* TODO: figure out how to put all of those in one file *)
@@ -79,6 +93,7 @@ Definition node_in_BDD_def:
 End
 
 
+(* A variable in labels, then indeed it is in teh valuation mv *)
 Theorem consumed_dom_bdd_in_mv:        
   ∀ vars_consumed vars mv r edges labels n x p.
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
@@ -107,7 +122,7 @@ Proof
 QED
 
             
-        
+(* In ordered BDD, child variables appear earlier in order *)        
 (* Labels index of parent and child are ordered in the consumed list *)
 Theorem ordered_for_two_labels:
   ∀ r edges labels n n' n'' vars_consumed x x' x'' n'' p p' p''.
@@ -133,7 +148,7 @@ Proof
     ‘∃i. INDEX_OF x vars_consumed = SOME i’ by (imp_res_tac MEM_INDEX_OF >> gvs[] )>>
     ‘∃i''. INDEX_OF x'' vars_consumed = SOME i''’ by (imp_res_tac MEM_INDEX_OF >> gvs[]) >>
     gvs[order_hold_def] 
-  ]                                                                 
+  ]
 QED
 
 
@@ -145,13 +160,13 @@ Theorem BDD_sem_determ:
     BDD_sem rec BDD mv n b' ⇒
     (b=b')
 Proof
- Induct_on ‘BDD_sem’ >>        
+ Induct_on ‘BDD_sem’ >>
  rpt strip_tac >>
  rgs[Once BDD_sem_cases]
 QED
 
 
-    
+(*Different results imply different evaluations *)    
 Theorem BDD_sem_not_eq:
   ∀ n r edges labels mv b rec n' n'' x p b'.
     ALOOKUP edges n = SOME (n',n'') ∧
@@ -173,8 +188,8 @@ QED
 
 
 
-                                
-(* in the intermidiate layer, there exsists a final answer *)
+(* Every inner node has a semantic value *)                                
+(* i.e. in the intermidiate layer, there exsists a final answer *)
 Theorem BDD_sem_exsists_inter:
   ∀ vars_consumed x' r edges labels mv n n' n'' p b rec vars.            
     BDD_ordered (r,edges,labels) vars_consumed ∧
@@ -189,7 +204,7 @@ Theorem BDD_sem_exsists_inter:
          ALOOKUP mv x' = SOME F ∧ BDD_sem rec (r,edges,labels) mv n'' b'
 Proof
   ntac 2 strip_tac >>
-  measureInduct_on `THE(INDEX_OF x' vars_consumed)` >>
+  measureInduct_on ‘THE(INDEX_OF x' vars_consumed)’ >>
   rpt strip_tac >>
   Cases_on ‘b’ >> gvs[] >>
   simp[Once BDD_sem_cases] >> rgs[] >|[
@@ -259,7 +274,8 @@ Proof
 QED
 
 
-
+(* MAIN THEOREM: Every node in a well-formed, ordered BDD
+                has a semantic value under any complete assignment *)
 (* exsists indeed an answer to the semantics *)       
 Theorem BDD_sem_exsists:
   ∀ BDD mv n vars_consumed vars rec.
@@ -302,7 +318,7 @@ Proof
 QED
 
 
-
+(* Existing edges are preserved by body_of_mk *)
 Theorem inner_edges_are_same_exists:
   ∀ r edges labels r' edges' labels' h c c' n n' n'' rec.
     BDD_WF (r',edges',labels') ∧
@@ -336,7 +352,7 @@ Proof
 QED
 
 
-                                                  
+(* Existing labels with variables are preserved *)                                                  
 Theorem inner_labels_are_same_exists:
   ∀ r edges labels r' edges' labels' h c c' n x p rec.
     BDD_WF (r',edges',labels') ∧
@@ -384,7 +400,7 @@ Proof
 QED
 
 
-
+(*Newly created nodes (from Shannon expansion) are leaves *)
 Theorem ntls_labels_and_prop_comp:
   ∀ r edges labels r' edges' labels' h c c' n x p p' rec.
     BDD_WF (r',edges',labels') ∧
@@ -586,7 +602,7 @@ Proof
 QED
 
 
-
+(* Base case correctness for construction from single node *)
 (* when edges are empty, then root makes a correct BDD *)        
 Theorem edges_empty_correct_ntl:
   ∀r edges labels r' edges' labels' mv n n' n'' x p c c' p' h rec vars mv.
@@ -651,7 +667,7 @@ Proof
 QED
 
     
-
+(* Lookup chain through construction steps *)
 Theorem leaves_pred_sub_alookup_some:
   ∀ ntl leaves_sub rec p h n.          
     ALOOKUP ntl n = SOME p ∧
@@ -665,7 +681,7 @@ Proof
   PairCases_on ‘h’ >> 
   rgs[AllCaseEqs()] 
 QED
-                                       
+
 
 
 Theorem simp_pred_list_alookup_some:
@@ -699,7 +715,7 @@ Proof
 QED
 
 
-
+(* Fresh node IDs are ≥ current counter *)
 Theorem lookup_new_edges_not_more_than_c:
   ∀ simp_leaves' c n n' n''.       
     ALOOKUP (mk_new_edges simp_leaves' c) n = SOME (n',n'') ⇒
@@ -717,7 +733,7 @@ QED
 
 
 
-
+(*New edges point to nodes with corresponding labels *)
 Theorem mk_new_labels_contains_prop:
   ∀ simp_leaves' new_edges new_labels ptsimp_det pfsimp_det n n' n'' h c.
     c > n ∧
@@ -784,7 +800,7 @@ Proof
 QED
 
 
-
+(*New nodes correctly encode Shannon expansion *)
 Theorem statements_structs_correctness_new_layer:
   ∀ simp_leaves' leaves_sub ntl simp_leaves new_edges new_labels n n' n'' p p' p'' h c mv  rec.     
     c > n ∧
@@ -863,7 +879,7 @@ QED
 
 
    
-
+(* New nodes (from leaves) correctly encode original semantics *)
 Theorem body_correctness_new_layer:       
   ∀ r edges labels r' edges' labels' mv n n' n'' x p c c' b vars h rec .
     prop1 rec ∧ prop2 rec ∧ 
@@ -981,7 +997,7 @@ Proof
 QED
 
 
-
+(*BDD semantics follow edges upward *)
 Theorem bdd_sem_imp_up:
   ∀ r edges labels n n' n'' x pred b' rec mv.
     ALOOKUP edges n = SOME (n',n'') ∧
@@ -995,6 +1011,7 @@ Proof
 QED
 
 
+(* New internal nodes were leaves in original *)
 Theorem mk_now_internal_lbl_was_leaf_in_labels:
   ∀ r edges labels r' edges' labels' n x p h c c' rec.
     MEM n (dom_range_edges edges) ∧
@@ -1003,7 +1020,7 @@ Theorem mk_now_internal_lbl_was_leaf_in_labels:
     ALOOKUP labels' n = SOME (non_termn (SOME x,p)) ∧
     body_of_mk rec (r,edges,labels) h c = SOME ((r',edges',labels'),c') ⇒
     ∃ p' . ALOOKUP labels n = SOME (non_termn (NONE,p'))
-Proof                                               
+Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
   gvs[AllCaseEqs()]>>
@@ -1013,7 +1030,7 @@ Proof
 QED
 
 
-
+(* Terminal nodes persist through construction *)
 Theorem mk_terminal_leafs_in_old_new_labels:        
   ∀ r edges labels r' edges' labels' n x p h c c' rec.
     MEM n (dom_range_edges edges) ∧
@@ -1144,9 +1161,10 @@ val parent_in_old_sem_correct_tac_r = (
 
 
 
-                         
 
-(*** this is lemma 2 (modified) ***)
+
+(* KEY theorem: Single construction step preserves correctness
+   for internal nodes *)
 Theorem correct_sem_translation_inner_nodes:
   ∀ vars_consumed x r edges labels r' edges' labels' mv n n' n'' h c c' p b rec vars.
     prop1 rec ∧ prop2 rec ∧
@@ -1168,7 +1186,7 @@ Theorem correct_sem_translation_inner_nodes:
     b = op_sem rec (SOME p) mv
 Proof
   ntac 2 strip_tac >>
-  measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
+  measureInduct_on ‘THE(INDEX_OF x vars_consumed)’ >>
   rpt strip_tac >>
   
   imp_res_tac WFness_range_c_inter >>
@@ -1246,7 +1264,7 @@ Proof
             
             parent_in_old_sem_correct_tac_l 
           ]
-                                                        
+
           ,
           (* inner layer, that stayed inner using IH *)
           PairCases_on ‘x'’ >>
@@ -1319,7 +1337,7 @@ Proof
             
             parent_in_old_sem_correct_tac_r 
           ]
-                                                        
+
           ,
           (* inner layer, that stayed inner using IH *)
           PairCases_on ‘x'’ >>
@@ -1353,8 +1371,8 @@ QED
 
 
 
-        
-               
+
+
 Theorem dom_range_edges_not:
   ∀ edges new_edges n.
     ¬MEM n (dom_range_edges (edges ⧺ new_edges)) ⇒
@@ -1454,7 +1472,7 @@ QED
                                                         
 
 
-        
+(* Terminal nodes are handled correctly in non-empty graphs *)
 Theorem edges_not_empty_correct_tl:        
   ∀vars_consumed r edges labels r' edges' labels' mv n h c c' action prop rec vars.
     prop1 rec ∧ prop2 rec ∧ prop3 rec ∧
@@ -1582,7 +1600,7 @@ QED
 
 
  
-(* this is a concrete theorem, with the correct vars, vars_consumed distrubution, 
+(* This is a concrete theorem, with the correct vars, vars_consumed distrubution, 
    later in this file I am more general and instansiate it with just vars *)
 Theorem correct_sem_translation_inter:
   ∀ (BDD:('a,'b) BDD) BDD'' rec c c' vars h vars_consumed.
@@ -1690,7 +1708,7 @@ QED
 
 
         
-
+(* prop4 ensures free variables are preserved in new nodes *)
 Theorem fv_in_body_of_mk_verbose_multi:
   ∀ simp_leaves simp_leaves' leaves_sub ntl new_edges new_labels n_parent n n' prop_parent x p c rec h vars vars_consumed. 
     c > n_parent ∧ prop4 rec ∧
@@ -1709,30 +1727,8 @@ Proof
   metis_tac[fv_in_body_of_mk_verbose]
 QED
 
-(*
-Definition prop4_def:
-  prop4 rec =    
-  ∀ varslist prop_parent p b h.
-  rec.simp (rec.sub prop_parent h b) = p ∧
-  fv_in_vars rec prop_parent varslist ⇒
-  fv_in_vars rec p varslist
-End
-*)
-(*
-Theorem prop4_imp_fv_in_vars:       
-  ∀ varslist prop_parent p b h rec.
-  rec.simp (rec.sub prop_parent h b) = p ∧
-  fv_in_vars rec prop_parent varslist ⇒
-  fv_in_vars rec p varslist
-Proof
-  rpt strip_tac >>
-  rgs[fv_in_vars_def] >>
-  
-        
-QED
-*)
 
-               
+(* Free variable invariant is preserved by construction *)               
 Theorem fv_in_BDD_body_preserved:
   ∀ r edges labels r'' edges'' labels'' c rec c' h vars vars_consumed.        
     range_c c (r,edges,labels) ∧ prop4 rec ∧
@@ -1823,8 +1819,7 @@ Proof
 QED              
 
 
-
-(* in the previous theorems varslist = ((REVERSE vars)++vars_consumed) *)         
+(* MAIN THEOREM: Full construction preserves semantic correctness *)
 Theorem correct_sem_translation:
   ∀ vars vars_consumed BDD BDD' rec c.
     prop1 rec ∧ prop2 rec ∧ prop3 rec ∧ prop4 rec ∧
@@ -1887,8 +1882,7 @@ QED
     
 
 
-
-(* in the previous theorems varslist = ((REVERSE vars)++vars_consumed) *)         
+(* MAIN THEOREM: Full construction preserves all validity conditions *)
 Theorem correct_sem_valid_translation_verbose:
   ∀ vars vars_consumed BDD BDD' rec c.
     prop1 rec ∧ prop2 rec ∧ prop3 rec ∧ prop4 rec ∧
@@ -1957,11 +1951,9 @@ QED
         
 
 
-
-
-
         
-(* in the previous theorems varslist = ((REVERSE vars)++vars_consumed) *)         
+(* FINAL MAIN THEOREM: Simplified statement - starting from valid BDD,
+                      construction produces valid BDD with correct semantics  *)       
 Theorem correct_sem_valid_translation:
   ∀ vars vars_consumed BDD BDD' rec c.
     prop1 rec ∧ prop2 rec ∧ prop3 rec ∧ prop4 rec ∧
@@ -1983,15 +1975,7 @@ Proof
 QED
 
 
-
-
-
-
-
-        
+     
 
 val _ = export_theory ();
-
-
-
 
