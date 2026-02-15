@@ -11,6 +11,16 @@ open bdd_genTheory;
 val _ = new_theory "bdd_gen_wf";
 
 
+(*******************************************************)
+(*  Well-Formedness Preservation Theorems              *)
+(*                                                     *)
+(*  These theorems prove that the MTBDD construction   *)
+(*  algorithm maintains the well-formedness invariants *)
+(*  defined in bdd_genTheory.                          *)
+(*                                                     *)
+(*******************************************************)
+
+
 val body_of_mk_pred_tac =    
 ( rename1 ‘getLeaves edges r = SOME leaves’ >>
   rename1 ‘getLabels labels leaves = SOME leaves_labels’ >>
@@ -51,8 +61,7 @@ val imp_res_tac_distinct =
 
 
 
-        
-        
+(* body_of_mk preserves the range_c invariant (all node IDs < c) *)        
 Theorem WFness_range_c_inter:
   ∀ BDD BDD'' c c' h rec.
     range_c c BDD ∧
@@ -89,8 +98,7 @@ QED
 
 
 
-
-
+(* body_of_mk produces edges/labels with distinct keys (no duplicate node IDs) *)
 Theorem WFness_distinct_edges_labels:
   ∀ BDD r'' edges'' labels'' c c' h rec.
     range_c c BDD ∧
@@ -171,7 +179,8 @@ QED
 
 
         
-
+(* body_of_mk preserves the correspondence between
+   edge domain and internal labels (nodes with children must have variable labels) *)
 (* if adding n in BDD is ok, we should also add it here*)
 Theorem WFness_lookup_edges:
   ∀ r edges labels r'' edges'' labels'' h c c' n vars_consumed rec.
@@ -217,7 +226,8 @@ Proof
            rgs[]                 
            ) >>
           (* case terminal, we do not pick it up really, so it shouldn't satisfy the result,
-             we should          show this subgoal by proving that in new_edges when looking up for n, then teh result should be none.
+             we should show this subgoal by proving that in new_edges when looking up for n, 
+             then the result should be none.
            *)
           (* we should show that n it is in leaves_labels , but not in ntl *)
           (
@@ -415,7 +425,9 @@ QED
 
 
 
-
+(* body_of_mk preserves the leaf labeling condition
+  (nodes without children must have terminal labels
+   or non-terminal labels without variables) *)
 Theorem WFness_lookup_ntl:
   ∀ r edges labels r'' edges'' labels'' h c c' n vars_consumed rec.
     range_c c (r,edges,labels) ∧
@@ -778,7 +790,7 @@ QED
         
 
 
-
+(* body_of_mk preserves domain equality (all nodes in edges appear in labels) *)
 Theorem dom_range_edges_labels_eq_wf:                                     
   ∀ r edges labels r'' edges'' labels'' h c c' n vars_consumed rec.        
     edges ≠ [] ∧
@@ -860,12 +872,8 @@ QED
 
                                  
 
-
-
-
-     
-        
-
+(* Special case-body_of_mk preserves well-formedness
+    when starting from a graph with no edges (single node) *)
 Theorem wf_edges_root_mkbody_imp_wf:
   ∀ r edges labels r'' edges'' labels'' rec c c' h.
     BDD_WF ((r,[],labels):('a,'b)BDD) ∧
@@ -906,7 +914,8 @@ QED
 
         
         
-        
+(* MAIN THEOREM: Single iteration (body_of_mk) preserves
+                all well-formedness conditions *)        
 Theorem WFness_translation_inter:
   ∀ (BDD:('a,'b)BDD) BDD'' rec c c' h.
     range_c c BDD ∧
@@ -944,7 +953,8 @@ QED
 
 
    
-       
+(* MAIN THEOREM: Full construction (mk_BDDPred) preserves
+                well-formedness across all variable eliminations *)       
 Theorem WFness_translation:
   ∀ vars rec vars_consumed (BDD:('a,'b)BDD) BDD' c.
     range_c c BDD ∧
@@ -978,20 +988,3 @@ QED
 
 
 val _ = export_theory ();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
