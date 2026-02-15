@@ -11,15 +11,15 @@ val _ = new_theory "bdd_gen";
 (* language ILR specialization definitions: 
    semantics, substitute, simplify, final, free variable check
  *)
-Datatype `decision_structure = <| sem : 'a -> ((string,bool) alist) -> 'b option ;
+Datatype ‘decision_structure = <| sem : 'a -> ((string,bool) alist) -> 'b option ;
                                       sub : 'a -> string -> bool -> 'a ;
                                       simp : 'a -> 'a ;
                                       final : 'a -> 'b option;
                                       fv : 'a -> string list
-                                    |>`;
+                                    |>’;
 
 (* edges map *)
-Type edges = ``:(num , (num # num)) alist``;
+Type edges = “:(num , (num # num)) alist”;
 
 (* label *)
 Datatype:
@@ -28,11 +28,11 @@ Datatype:
 End
 
 (* labels map *)
-Type labelings = ``:(num , ('a,'b) label) alist``;
+Type labelings = “:(num , ('a,'b) label) alist”;
 
 
 (* BDD tuples *)
-Type BDD = ``:(num # edges # ('a,'b) labelings)``;
+Type BDD = “:(num # edges # ('a,'b) labelings)”;
 
 
 
@@ -456,7 +456,7 @@ End
 (*                  rec  properties                   *)
 (******************************************************)
 
-
+(* prop1: Simplification after substitution preserves semantics *)
 Definition prop1_def:
   prop1 (rec:('a,'b)decision_structure) =
   ∀ mv h b p.
@@ -464,7 +464,8 @@ Definition prop1_def:
     (rec.sem (rec.simp (rec.sub p h b)) mv = rec.sem p mv)
 End
 
-(* version that works *)
+
+(* prop2: Final implies semantic value (completeness of final) *)
 Definition prop2_def:
   prop2 rec =
   ∀ mv h b p q.
@@ -475,6 +476,7 @@ Definition prop2_def:
 End
 
 
+(*prop3: Final implies simplification terminates *)
 Definition prop3_def:
   prop3 rec =
   ∀ mv h b p q.
@@ -483,6 +485,7 @@ Definition prop3_def:
 End
 
 
+(* prop4: Free variables are preserved under simplification *)
 Definition prop4_def:
   prop4 rec =
   ∀ varslist prop_parent p b h.
@@ -571,7 +574,7 @@ End
 
 
 
-Type distrub_st = ``:( (string, (num list) option) alist   # num list # num list)``
+Type distrub_st = “:( (string, (num list) option) alist   # num list # num list)”
 
 
 Definition eliminable_projection_def:
@@ -724,6 +727,21 @@ Definition optimize_bdd_def:
 End
 
 
+
+
+(* Core MTBDD construction algorithm:
+   
+   body_of_mk: Single iteration for variable x
+   - Finds all leaves (nodes without outgoing edges)
+   - Extracts non-terminal leaves (ones still containing x)
+   - Applies Shannon expansion: substitute T/F for x
+   - Simplifies resulting predicates
+   - Creates new nodes for simplified predicates
+   - Updates labels (marking which variable was eliminated)
+   
+   mk_BDDPred: Recursively optmizes all variables in order
+
+ *)
 
 
 Definition mk_BDDPred_opt_def:
