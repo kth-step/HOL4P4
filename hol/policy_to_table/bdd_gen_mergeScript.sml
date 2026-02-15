@@ -90,7 +90,7 @@ Theorem mergable_correct_leaf:
     BDD_sem rec (r,ADELKEY n' (merge_edges edges n n'),ADELKEY n' labels) mv n'' b
 Proof
   rpt strip_tac >>
-  simp[Once BDD_sem_cases]>> gvs[] >>
+  simp[Once BDD_sem_cases] >> gvs[] >>
   rpt strip_tac >>
 
 
@@ -116,8 +116,8 @@ QED
 Proof
   Induct >>
   rpt strip_tac>>
-  gvs[merge_edges_def]>>
-  PairCases_on ‘h’ >> rgs[]>>
+  gvs[merge_edges_def] >>
+  PairCases_on ‘h’ >> rgs[] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED *)
 
@@ -394,7 +394,7 @@ Proof
   rpt strip_tac >>
 
 
-  simp[Once BDD_sem_cases]>> gvs[] >>
+  simp[Once BDD_sem_cases] >> gvs[] >>
 
   simp[Once EQ_SYM_EQ, Once BDD_sem_cases] >>
   gvs[ALOOKUP_ADELKEY] >>
@@ -770,7 +770,7 @@ Proof
 
     ‘get_prop (ADELKEY n' labels) n' = NONE’ by gvs[get_prop_delkey_none] >>
     gvs[op_sem_def, get_prop_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
 
     gvs[Once BDD_sem_cases]
     ,
@@ -783,8 +783,8 @@ Proof
     gvs[correct_sem_def] >>
     res_tac >>
 
-    gvs[get_prop_def]>>
-    gvs[Once BDD_sem_cases]>>
+    gvs[get_prop_def] >>
+    gvs[Once BDD_sem_cases] >>
 
     gvs[ALOOKUP_ADELKEY] >>
     rgs[op_sem_def] >>

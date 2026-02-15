@@ -117,7 +117,7 @@ Theorem op_sem_adel_key:
 Proof
   rpt strip_tac >>
   gvs[op_sem_def, get_prop_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   Cases_on ‘ALOOKUP (ADELKEY n' labels) n''’ >> gvs[ALOOKUP_ADELKEY] >>
   Cases_on ‘x’ >> gvs[ALOOKUP_ADELKEY] >>
   Cases_on ‘p’ >> gvs[]
@@ -205,7 +205,7 @@ Proof
   measureInduct_on ‘THE(INDEX_OF x vars_consumed)’ >>
   rpt strip_tac >>
 
-  simp[Once BDD_sem_cases]>> gvs[] >>
+  simp[Once BDD_sem_cases] >> gvs[] >>
 
   simp[Once EQ_SYM_EQ, Once BDD_sem_cases] >>
   gvs[ALOOKUP_ADELKEY] >>
@@ -530,7 +530,7 @@ Proof
     gvs[merge_def] >>
     ‘get_prop (ADELKEY n' labels) n' = NONE’ by gvs[get_prop_delkey_none] >>
     gvs[op_sem_def, get_prop_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
 
     gvs[Once BDD_sem_cases]
     ,

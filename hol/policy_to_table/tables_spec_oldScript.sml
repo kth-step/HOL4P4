@@ -1422,7 +1422,7 @@ Proof
 
   PairCases_on ‘h’ >>
   gvs[simp_tbl_def, mk_substitute_tbl_def, is_hit_tbl_check_def] >>
-  gvs[INDEX_FIND_def]>>
+  gvs[INDEX_FIND_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
 
     gvs[check_all_rows_match_def, INDEX_FIND_def] >>
@@ -1431,7 +1431,7 @@ Proof
     gvs[]
     ,
 
-    gvs[check_all_rows_match_def, INDEX_FIND_def]>>
+    gvs[check_all_rows_match_def, INDEX_FIND_def] >>
     rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
 
         gvs[pre_lines_are_fail_def] >>

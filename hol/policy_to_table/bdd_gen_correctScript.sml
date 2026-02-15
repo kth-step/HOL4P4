@@ -137,7 +137,7 @@ Theorem ordered_for_two_labels:
       THE (INDEX_OF x'' vars_consumed) < THE (INDEX_OF x vars_consumed)))
 Proof
   rpt strip_tac >>
-  rgs[Once BDD_ordered_def]>>
+  rgs[Once BDD_ordered_def] >>
   first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n'’, ‘n''’])) >| [
     ‘MEM x' vars_consumed ∧ MEM x vars_consumed’ by (rgs[Once consumed_dom_bdd_def] >> res_tac >> fs[]) >>
     ‘∃i. INDEX_OF x vars_consumed = SOME i’ by (imp_res_tac MEM_INDEX_OF >> gvs[] )>>
@@ -220,14 +220,14 @@ Proof
       ‘∃p x'.ALOOKUP labels n' = SOME (non_termn (SOME x',p))’ by ( imp_res_tac WF_imp_non_leaf_lbl >> srw_tac [][]) >>
 
       ‘∃b . ALOOKUP mv x'' = SOME b’ by (imp_res_tac consumed_dom_bdd_in_mv >> metis_tac[]) >>
-      gvs[]>>
+      gvs[] >>
 
       ‘MEM x' vars_consumed ∧ MEM x'' vars_consumed’ by (rgs[Once consumed_dom_bdd_def] >> metis_tac[])>>
       imp_res_tac MEM_INDEX_OF >>
 
       subgoal ‘THE (INDEX_OF x'' vars_consumed) < THE (INDEX_OF x' vars_consumed)’ >-
        (
-       rgs[Once BDD_ordered_def]>>
+       rgs[Once BDD_ordered_def] >>
        first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n'’, ‘n''’]))>>
        gvs[order_hold_def]
        ) >>
@@ -251,14 +251,14 @@ Proof
         ‘∃p x'.ALOOKUP labels n'' = SOME (non_termn (SOME x',p))’ by ( imp_res_tac WF_imp_non_leaf_lbl >> srw_tac [][]) >>
 
         ‘∃b . ALOOKUP mv x'' = SOME b’ by (imp_res_tac consumed_dom_bdd_in_mv >> metis_tac[]) >>
-        gvs[]>>
+        gvs[] >>
 
         ‘MEM x' vars_consumed ∧ MEM x'' vars_consumed’ by (rgs[Once consumed_dom_bdd_def] >> metis_tac[])>>
         imp_res_tac MEM_INDEX_OF >>
 
         subgoal ‘THE (INDEX_OF x'' vars_consumed) < THE (INDEX_OF x' vars_consumed)’ >-
          (
-         rgs[Once BDD_ordered_def]>>
+         rgs[Once BDD_ordered_def] >>
        first_x_assum (strip_assume_tac o (Q.SPECL [‘n’,‘n'’, ‘n''’]))>>
          gvs[order_hold_def]
          ) >>
@@ -328,7 +328,7 @@ Theorem inner_edges_are_same_exists:
 Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   rgs[BDD_WF_def] >>
@@ -362,12 +362,12 @@ Theorem inner_labels_are_same_exists:
 Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   rgs[BDD_WF_def] >>
   rgs[ALOOKUP_APPEND, ALL_DISTINCT_APPEND] >>
-  rgs[AllCaseEqs()]>>
+  rgs[AllCaseEqs()] >>
 
   Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >> rgs[] >|[
     imp_res_tac lookup_ntl_updt_none >>
@@ -411,7 +411,7 @@ Theorem ntls_labels_and_prop_comp:
 Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
   (
   Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >> rgs[] >|[
@@ -441,7 +441,7 @@ Proof
   rpt strip_tac >>
 
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >-
@@ -485,7 +485,7 @@ Proof
   rpt strip_tac >>
 
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   Cases_on ‘ALOOKUP (non_term_leaf_updt labels h) n’ >-
@@ -515,7 +515,7 @@ Theorem mk_body_new_edges_none:
 Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
 
@@ -831,7 +831,7 @@ Proof
 
   rgs[from_formula_to_action_def, op_sem_def] >>
   rgs[determine_termn_def] >>
-  rgs[AllCaseEqs()]>>
+  rgs[AllCaseEqs()] >>
   rgs[prop1_def] >>
   rgs[prop2_def] >>
   res_tac
@@ -911,7 +911,7 @@ Proof
        which entails that that exact n is correct*)
 
     gvs[body_of_mk_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
     body_of_mk_pred_tac >>
 
     (*n is in leaves, then indeed in leaves labels *)
@@ -977,7 +977,7 @@ Proof
 
         ,
         gvs[body_of_mk_def] >>
-        gvs[AllCaseEqs()]>>
+        gvs[AllCaseEqs()] >>
         body_of_mk_pred_tac >>
 
         imp_res_tac get_leaves_in_nodes >>
@@ -1023,7 +1023,7 @@ Theorem mk_now_internal_lbl_was_leaf_in_labels:
 Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
   imp_res_tac now_internal_lbl_was_leaf_in_labels >>
   gvs[]
@@ -1044,7 +1044,7 @@ Theorem mk_terminal_leafs_in_old_new_labels:
 Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
   rgs[BDD_WF_def] >|[
 
@@ -1086,7 +1086,7 @@ Proof
   rpt strip_tac >>
   gvs[Once BDD_sem_cases] >>
   rgs[from_formula_to_action_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   Cases_on ‘from_formula_to_action rec (termn (action',v3)) mv’ >> gvs[]
 QED
 
@@ -1498,7 +1498,7 @@ Proof
     (* none in labels *)
 
     gvs[body_of_mk_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
     body_of_mk_pred_tac >>
 
     ‘ALOOKUP new_labels n = SOME (termn (action,prop))’ by rgs[ALOOKUP_APPEND] >>
@@ -1540,7 +1540,7 @@ Proof
       rgs[] >>
       rgs[from_formula_to_action_def, op_sem_def] >>
       rgs[determine_termn_def] >>
-      rgs[AllCaseEqs()]>>
+      rgs[AllCaseEqs()] >>
       rgs[prop1_def] >>
       rgs[prop2_def] >>
       res_tac >>
@@ -1556,7 +1556,7 @@ Proof
 
       rgs[from_formula_to_action_def, op_sem_def] >>
       rgs[determine_termn_def] >>
-      rgs[AllCaseEqs()]>>
+      rgs[AllCaseEqs()] >>
       rgs[prop1_def] >>
       rgs[prop2_def] >>
       res_tac >>
@@ -1735,7 +1735,7 @@ Proof
   rpt strip_tac >>
 
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   rgs[ALOOKUP_APPEND] >>
@@ -1847,7 +1847,7 @@ Proof
 
     ‘range_c c' (r'',edges'',labels'')’ by imp_res_tac WFness_range_c_inter >>
 
-    ‘BDD_WF (r'',edges'',labels'')’ by imp_res_tac WFness_translation_inter >> gvs[]>>
+    ‘BDD_WF (r'',edges'',labels'')’ by imp_res_tac WFness_translation_inter >> gvs[] >>
 
     ‘ALL_DISTINCT (h::vars_consumed)’ by gvs[ALL_DISTINCT_APPEND] >>
     ‘BDD_ordered (r'',edges'',labels'') (h::vars_consumed)’ by imp_res_tac order_translation_inter >>
@@ -1857,7 +1857,7 @@ Proof
 
     assume_tac correct_sem_translation_inter >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘(r,edges,labels)’, ‘(r'',edges'',labels'')’, ‘rec’, ‘c’, ‘c'’, ‘REVERSE vars’, ‘h’, ‘vars_consumed’])) >>
-    gvs[]>>
+    gvs[] >>
 
     (*  ‘REVERSE vars ⧺ h::vars_consumed = REVERSE vars ++ [h] ++ vars_consumed’ by gvs[Once CONS_APPEND] >>
         ‘ALL_DISTINCT (REVERSE vars ⧺ h::vars_consumed)’ by metis_tac[] >>
@@ -1915,7 +1915,7 @@ Proof
 
     ‘range_c c' (r'',edges'',labels'')’ by imp_res_tac WFness_range_c_inter >>
 
-    ‘BDD_WF (r'',edges'',labels'')’ by imp_res_tac WFness_translation_inter >> gvs[]>>
+    ‘BDD_WF (r'',edges'',labels'')’ by imp_res_tac WFness_translation_inter >> gvs[] >>
 
     ‘ALL_DISTINCT (h::vars_consumed)’ by gvs[ALL_DISTINCT_APPEND] >>
     ‘BDD_ordered (r'',edges'',labels'') (h::vars_consumed)’ by imp_res_tac order_translation_inter >>
@@ -1925,7 +1925,7 @@ Proof
 
     assume_tac correct_sem_translation_inter >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘(r,edges,labels)’, ‘(r'',edges'',labels'')’, ‘rec’, ‘c’, ‘c'’, ‘REVERSE vars’, ‘h’, ‘vars_consumed’])) >>
-    gvs[]>>
+    gvs[] >>
 
     (*  ‘REVERSE vars ⧺ h::vars_consumed = REVERSE vars ++ [h] ++ vars_consumed’ by gvs[Once CONS_APPEND] >>
         ‘ALL_DISTINCT (REVERSE vars ⧺ h::vars_consumed)’ by metis_tac[] >>
