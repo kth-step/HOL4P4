@@ -341,7 +341,7 @@ Proof
 
     ‘range_c c' (r'',edges'',labels'')’ by imp_res_tac WFness_range_c_inter >>
 
-    ‘BDD_WF (r'',edges'',labels'')’ by imp_res_tac WFness_translation_inter >> gvs[]>>
+    ‘BDD_WF (r'',edges'',labels'')’ by imp_res_tac WFness_translation_inter >> gvs[] >>
 
     ‘ALL_DISTINCT (h::vars_consumed)’ by gvs[ALL_DISTINCT_APPEND] >>
     ‘BDD_ordered (r'',edges'',labels'') (h::vars_consumed)’ by
@@ -354,7 +354,7 @@ Proof
     assume_tac correct_sem_translation_inter >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘(r,edges,labels)’, ‘(r'',edges'',labels'')’,
                                                 ‘rec’, ‘c’, ‘c'’, ‘REVERSE vars’, ‘h’, ‘vars_consumed’])) >>
-    gvs[]>>
+    gvs[] >>
 
     ‘fv_in_BDD rec (r'',edges'',labels'') (REVERSE vars ⧺ [h] ⧺ vars_consumed)’ by
       metis_tac[fv_in_BDD_body_preserved] >>

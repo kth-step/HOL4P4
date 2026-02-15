@@ -80,7 +80,7 @@ Theorem body_of_mk_output:
 Proof
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac
 QED
 
@@ -96,7 +96,7 @@ Proof
   rpt strip_tac >> gvs[] >>
   Cases_on ‘edges’ >>
   rgs[getLeaves_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   gvs[get_leaves_list_in_nodes]
 QED
 
@@ -117,7 +117,7 @@ Proof
 
   PairCases_on ‘h’ >> rgs[] >>
   rgs[mk_new_labels_def, mk_new_edges_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   res_tac >>
   gvs[]
 QED
@@ -151,7 +151,7 @@ Proof
   rpt gen_tac >>
   strip_tac >>
   gvs[ALOOKUP_APPEND] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   imp_res_tac lookup_labels_in_updt >> rgs[]
 QED
 
@@ -258,7 +258,7 @@ Proof
 
   imp_res_tac index_of_shifted_backwards >>
   ‘INDEX_OF x vars_consumed = SOME (i − 1)’ by (imp_res_tac index_of_shifted_backwards >> gvs[]) >>
-  ‘INDEX_OF x' vars_consumed = SOME (i' − 1)’ by (imp_res_tac index_of_shifted_backwards >> gvs[]>> metis_tac[]) >>
+  ‘INDEX_OF x' vars_consumed = SOME (i' − 1)’ by (imp_res_tac index_of_shifted_backwards >> gvs[] >> metis_tac[]) >>
   rgs[]
 QED
 
@@ -290,7 +290,7 @@ Proof
   rgs[] >>
 
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   (* First: we know that the parent, n, is
@@ -467,7 +467,7 @@ Proof
   rgs[] >>
 
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   (* First: we know that the parent, n, is
@@ -719,7 +719,7 @@ Proof
 
   rpt strip_tac >>
   gvs[body_of_mk_def] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   body_of_mk_pred_tac >>
 
   simp [consumed_dom_bdd_def] >>

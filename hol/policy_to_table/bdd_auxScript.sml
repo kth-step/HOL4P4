@@ -114,7 +114,7 @@ Proof
   gvs[ALOOKUP_def] >>
 
   gvs[Once non_term_leaf_updt_cons] >>
-  rgs[ALOOKUP_APPEND]>>
+  rgs[ALOOKUP_APPEND] >>
   gvs[AllCaseEqs()] >>
 
   PairCases_on ‘h’ >>
@@ -139,7 +139,7 @@ Proof
   gvs[ALOOKUP_def] >>
 
   gvs[Once non_term_leaf_updt_cons] >>
-  rgs[ALOOKUP_APPEND]>>
+  rgs[ALOOKUP_APPEND] >>
   gvs[AllCaseEqs()] >>
 
   PairCases_on ‘h’ >>
@@ -190,7 +190,7 @@ Theorem lookup_new_edges_simp_exists:
     ∃ sll . ALOOKUP simp_leaves' n = SOME sll
 Proof
   Induct >>
-  rgs[mk_new_edges_def]>>
+  rgs[mk_new_edges_def] >>
   rpt strip_tac >>
   PairCases_on ‘h’ >>
   rgs[mk_new_edges_def] >>
@@ -207,7 +207,7 @@ Theorem lookup_simp_leaves_determine_exists:
     ∃ sll' . ALOOKUP simp_leaves n = SOME sll'
 Proof
   Induct >>
-  rgs[determine_termn_list_def]>>
+  rgs[determine_termn_list_def] >>
   rpt strip_tac >>
   PairCases_on ‘h’ >>
   rgs[determine_termn_def] >>
@@ -224,7 +224,7 @@ Theorem  lookup_simp_pred_leaves_sub_exists:
     ∃ sll' . ALOOKUP leaves_sub n = SOME sll'
 Proof
   Induct >>
-  rgs[simp_pred_list_def]>>
+  rgs[simp_pred_list_def] >>
   rpt strip_tac >>
   PairCases_on ‘h’ >>
   rgs[AllCaseEqs()] >>
@@ -240,7 +240,7 @@ Theorem lookup_leaves_sub_pred_exists:
     ∃ p . ALOOKUP ntl n = SOME p
 Proof
   Induct >>
-  rgs[leaves_pred_sub_def]>>
+  rgs[leaves_pred_sub_def] >>
   rpt strip_tac >>
   PairCases_on ‘h’ >>
   rgs[AllCaseEqs()] >>
@@ -255,10 +255,10 @@ Theorem extract_nontermn_not_inner_node:
     ∃ x p' . ALOOKUP leaves n ≠ SOME (non_termn (SOME x,p'))
 Proof
   Induct >-
-   rgs[extract_nontermn_def]>>
+   rgs[extract_nontermn_def] >>
   rpt strip_tac >>
   PairCases_on ‘h’ >>
-  gvs[]>>
+  gvs[] >>
   Cases_on ‘h0=n’ >> gvs[] >> rgs[extract_nontermn_def] >>
   Cases_on ‘h1’ >> rgs[AllCaseEqs()]
 QED
@@ -729,7 +729,7 @@ Proof
   gvs[] >>
   rpt strip_tac >>
   PairCases_on ‘h’ >> gvs[] >>
-  gvs[AllCaseEqs()]>>
+  gvs[AllCaseEqs()] >>
   Cases_on ‘l'’ >> gvs[] >>
   PairCases_on ‘h’ >> gvs[]
 QED
@@ -1570,7 +1570,7 @@ Proof
   gvs[] >>
 
   qexistsl_tac [‘(n , EL n l)’] >>
-  gvs[]>>
+  gvs[] >>
   fs[INDEX_FIND_EQ_SOME_0] >>
   rpt strip_tac >>
 

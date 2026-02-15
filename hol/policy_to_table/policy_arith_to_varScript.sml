@@ -359,7 +359,7 @@ Proof
   Induct_on ‘arith_pred’ >> rw[pred_a2v_def, eval_pred_w_str_def] >>
 
    rpt (BasicProvers.FULL_CASE_TAC >>
-        gvs[eval_arithm_atom_def, sem_pred_def]>>
+        gvs[eval_arithm_atom_def, sem_pred_def] >>
         gvs[lookup_atom_def, inverse_list_def]) >>
 
    imp_res_tac inverse_list_lookup_thm >>

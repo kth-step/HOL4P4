@@ -125,7 +125,7 @@ Proof
     ‘ALL_DISTINCT (MAP FST simp_leaves')’ by (imp_res_tac all_distinct_determine >> gvs[]) >>
     ‘ALL_DISTINCT (MAP FST new_edges)’ by (imp_res_tac all_distinct_mk_edges >> gvs[]) >>
 
-    simp[ALL_DISTINCT_APPEND]>>
+    simp[ALL_DISTINCT_APPEND] >>
     strip_tac >> strip_tac >>
     imp_res_tac leaves_are_not_parents>>
 
@@ -156,7 +156,7 @@ Proof
 
       ‘ALL_DISTINCT (MAP FST new_labels)’ by (imp_res_tac all_distinct_mk_labels >> gvs[])
       )>>
-    simp[ALL_DISTINCT_APPEND]>>
+    simp[ALL_DISTINCT_APPEND] >>
 
     strip_tac >> strip_tac >>
     ‘∃ updated_labels . non_term_leaf_updt labels h = updated_labels’ by gvs[] >>
@@ -202,7 +202,7 @@ Proof
     (* if it has edges then indeed the label (x,p)*)
 
     gvs[body_of_mk_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
     body_of_mk_pred_tac >>
     rgs[ALOOKUP_APPEND] >>
     rgs[AllCaseEqs()]  >>
@@ -220,7 +220,7 @@ Proof
           ,
           rgs[BDD_WF_def] >-
            (
-           rgs[is_lookup_ntl_def]>>
+           rgs[is_lookup_ntl_def] >>
            imp_res_tac lookup_labels_in_updt_none >>
            first_x_assum (strip_assume_tac o (Q.SPECL [‘h’])) >>
            rgs[]
@@ -305,7 +305,7 @@ Proof
     (***** second part of implication *****)
 
     gvs[body_of_mk_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
     body_of_mk_pred_tac >>
     rgs[ALOOKUP_APPEND] >>
     rgs[AllCaseEqs()] >| [
@@ -451,7 +451,7 @@ Proof
 
     rpt strip_tac >>
     gvs[body_of_mk_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
     body_of_mk_pred_tac >>
     rgs[ALOOKUP_APPEND] >>
     rgs[AllCaseEqs()]  >>
@@ -620,7 +620,7 @@ Proof
 
     (* other side of equality *)
     gvs[body_of_mk_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
     body_of_mk_pred_tac >>
     rgs[ALOOKUP_APPEND] >>
     rgs[AllCaseEqs()]  >>
@@ -832,7 +832,7 @@ Proof
 
 
     gvs[body_of_mk_def] >>
-    gvs[AllCaseEqs()]>>
+    gvs[AllCaseEqs()] >>
     body_of_mk_pred_tac >>
 
     ‘¬MEM n (dom_range_edges edges)’ by imp_res_tac dom_range_edges_not_mem_append >>

@@ -415,7 +415,7 @@ Proof
   rpt strip_tac >>
 
   rgs[body_of_mk_def] >>
-  rgs[AllCaseEqs()]>>
+  rgs[AllCaseEqs()] >>
 
   gvs[getLeaves_def, getLabels_def, leaves_pred_sub_def, simp_pred_list_def] >>
   gvs[determine_termn_list_def, determine_termn_def, mk_new_edges_def] >>
