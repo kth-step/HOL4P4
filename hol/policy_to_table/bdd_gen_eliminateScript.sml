@@ -124,7 +124,33 @@ Proof
 QED
 
 
-
+Theorem merge_edges_elim_same_l:        
+  ∀ edges l n n' n1 n2 n1' n2'.        
+    n1 ≠ n ∧
+    ALOOKUP (merge_edges edges n n') n = SOME (n1,n2) ∧
+    ALOOKUP edges n = SOME (n1',n2') ⇒
+    n1'=n1 
+Proof
+  Induct >-
+   gvs[] >>
+  rpt strip_tac >>
+  
+  rfs[Once merge_edges_list_cons] >>
+  
+  PairCases_on ‘h’ >>
+  rfs[Once ALOOKUP_APPEND] >>
+  
+  rgs[] >>
+  rgs[AllCaseEqs()] >>
+                    
+  rw[Once merge_edges_def] >>
+  rgs[Once merge_edges_def] >>
+  rgs[] >>
+  rgs[AllCaseEqs()] >>
+  
+  res_tac >>
+  metis_tac[merge_Theorem1]
+QED
 
 (* Theorem eliminatable_is_internal_indeed:        
   ∀ r edges labels n n'.
@@ -1311,6 +1337,22 @@ Proof
   ] 
 QED
 
+
+
+Theorem merge_edges_adelkey_empty_imp_cases:
+  ∀edges n n'.
+    ADELKEY n' (merge_edges edges n n') = [] ⇒
+    EVERY (λe. FST e = n') edges
+Proof
+  Induct >> rw[] >>
+  
+  rename1 ‘h::t’ >>
+  fs[merge_edges_def, ADELKEY_def, MAP] >>
+  Cases_on ‘h’ >> Cases_on ‘r’ >> fs[] >>
+  rpt (BasicProvers.full_case_tac >> gvs[]) >>
+  
+  rw[] >> res_tac >> gvs[]
+QED
 
 
 Theorem wf_non_empty_after_eliminable:

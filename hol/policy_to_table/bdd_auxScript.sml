@@ -2,13 +2,13 @@ open HolKernel boolLib simpLib Parse bossLib;
 
 open listTheory;
 open alistTheory;
+open rich_listTheory;
 
 open p4_auxTheory;
 
 open bdd_genTheory;     
 
 val _ = new_theory "bdd_aux";
-
 
 
 
@@ -44,6 +44,7 @@ Proof
   res_tac >>
   gvs[]
 QED
+
 
 
 
@@ -1428,6 +1429,155 @@ Proof
 QED
 
 
+(****************************)
+(*******Trivialities ********)
+(****************************)
+
+
+Theorem mem_not_mem_triv:
+∀ l n1 n2. ¬MEM n1 l ∧  MEM n2 l ⇒ n1 ≠ n2       
+Proof
+  Induct >> gvs[]
+QED
+
+Theorem MEM_MAP_triple:
+  ∀f l x. MEM x (MAP f l) ⇔ ∃y. MEM y l ∧ x = f y
+Proof
+  gvs[MEM_MAP] >>
+  metis_tac[]
+QED
+
+Theorem MEM_FLAT_triple:
+  ∀ll x. MEM x (FLAT ll) ⇔ ∃l. MEM l ll ∧ MEM x l
+Proof
+  rw[MEM_FLAT]
+QED
+
+
+Theorem MEM_LOOKUP_trio:
+  ∀ l a b c n n'.        
+    ALL_DISTINCT (MAP FST l) ∧
+    MEM (a,b,c) l ⇒
+    ALOOKUP l a = SOME (b,c)     
+Proof                     
+  Induct >> gvs[] >>
+  rpt strip_tac >>
+  Cases_on ‘h’ >> fs[] >>
+  Cases_on ‘q=a’ >> fs[] >>
+  imp_res_tac mem_triple_map_fst
+QED
+
+
+Theorem ADELKEY_cons_h:
+  ∀ l h n'.
+    ADELKEY n' (h::l) = ADELKEY n' [h] ++ ADELKEY n' l
+Proof
+  rw[ADELKEY_def]
+QED
+
+
+Theorem ADELKEY_normalize_append:
+  ∀ l h n'.
+    ADELKEY n' (h++l) = ADELKEY n' h ++ ADELKEY n' l
+Proof
+  rw[ADELKEY_def, FILTER_APPEND]
+QED
+
+Theorem look_some_in_delkey_imp_og:
+  ∀ labels n n'.
+    n ≠ n' ⇒
+    (lookup_is_some (ADELKEY n labels) n' ⇔
+       lookup_is_some labels n')
+Proof
+  Induct >>
+  rpt strip_tac >>
+  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
+QED
+
+
+Theorem alookup_delkey_imp_og:
+  ∀ l n n' x.
+    n ≠ n' ⇒
+    (ALOOKUP (ADELKEY n l) n' = SOME x ) ⇒
+    (ALOOKUP l n' = SOME x)
+Proof
+  Induct >>
+  rpt strip_tac >>
+  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
+QED
+
+
+Theorem delkey_alookup_imp_og:
+  ∀ l n n' x.
+    n ≠ n' ⇒
+    (ALOOKUP l n' = SOME x) ⇒
+             (ALOOKUP (ADELKEY n l) n' = SOME x )
+Proof
+Induct >>
+rpt strip_tac >>
+gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
+QED
+
+(* Head of list has index 0 
+  TODO: find a theorem for this in HOL4
+*)
+Theorem index_of_head:
+∀ l i h .
+  INDEX_OF h (h::l) = SOME i ⇒
+  i = 0
+Proof
+  Induct >>
+  rgs[] >>
+  rpt strip_tac >>
+  gvs[INDEX_OF_def] >>
+  
+  rgs[INDEX_FIND_def] >>
+  PairCases_on ‘z’ >> rgs[]
+QED
+
+
+(* Index relationship when moving to tail of list *)        
+Theorem index_of_not_shifted:
+  ∀ l i h x.
+    x ≠ h ∧
+    INDEX_OF x (h::l) = SOME i ⇒
+    i > 0
+Proof
+  rpt strip_tac >>
+  gvs[INDEX_OF_def] >>
+  
+  PairCases_on ‘z’ >> rgs[] >>
+  fs[INDEX_FIND_EQ_SOME_0] >>
+  
+  Cases_on ‘z0’ >> gvs[] 
+QED
+
+
+(* Index relationship when moving to tail of list *)
+Theorem index_of_shifted_backwards:        
+∀ l i h x.
+  x ≠ h ∧
+INDEX_OF x (h::l) = SOME i ⇒
+∃ i'. INDEX_OF x l = SOME i' ∧ i' = i-1
+Proof
+  rpt strip_tac >>
+  imp_res_tac index_of_not_shifted >>
+  gvs[INDEX_OF_def] >>
+  PairCases_on ‘z’ >> rgs[] >>
+  
+  Cases_on ‘z0’ >> gvs[] >>
+  fs[INDEX_FIND_EQ_SOME_0] >>
+  gvs[] >>
+  
+  qexistsl_tac [‘(n , EL n l)’] >>
+  gvs[]>>
+  fs[INDEX_FIND_EQ_SOME_0] >>
+  rpt strip_tac >>
+
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘SUC j'’])) >>
+  gvs[]
+QED
+
 
 Theorem MEM_ALOOKUP_DISTINCT:                
   ∀ l  a  b.
@@ -1502,8 +1652,8 @@ Theorem not_mem_imp_adelkey_mem:
     ¬MEM n'' (MAP FST l) ⇒
     ¬MEM n'' (MAP FST (ADELKEY n' l))
 Proof
-  Induct_on `l` >> rw[] >- gvs[ADELKEY_def, MAP, MEM] >>
-  Cases_on `h` >> fs[ADELKEY_def] >>
+  Induct_on ‘l’ >> rw[] >- gvs[ADELKEY_def, MAP, MEM] >>
+  Cases_on ‘h’ >> fs[ADELKEY_def] >>
   rw[] >> fs[]
 QED
 

@@ -32,11 +32,11 @@ Datatype:
 End
 
         
-Type label_id = ``:(num , ('b id # num)) alist``;   
-Type label_content = ``:(num , 'a) alist``;
+Type label_id = “:(num , ('b id # num)) alist”;   
+Type label_content = “:(num , 'a) alist”;
 
-Type BDD_sep = ``:num # edges # 'b label_id # 'a label_content``
-Type BDD_mini = ``:num # edges # 'b label_id``
+Type BDD_sep = “:num # edges # 'b label_id # 'a label_content”
+Type BDD_mini = “:num # edges # 'b label_id”
 
    
 
@@ -229,7 +229,7 @@ End
 
 
 
-Type distrub_st = `:( (string, (num list) option) alist   # num list # num list)`
+Type distrub_st = ‘:( (string, (num list) option) alist   # num list # num list)’
 
 
 Definition distrubute_labels_new_def:

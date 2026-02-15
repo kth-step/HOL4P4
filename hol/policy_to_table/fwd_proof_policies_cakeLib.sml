@@ -177,12 +177,12 @@ open bdd_end_to_endTheory;
             end; *)
 
 
-            val _ = print "AA:finished cleaning input1 \n";
+            val _ = print "Note:finished cleaning input1 \n";
 
 
             val policy_bdd_content_term2 = Parse.Term [QUOTE policy_content_str2];
 
-            val _ = print "AA:finished cleaning input2 \n";
+            val _ = print "Note:finished cleaning input2 \n";
 
             val _ = time_stage ("Stage 2 finished cleaning", start_cpu_total_stage2_clean, start_real_total_stage2_clean)
 

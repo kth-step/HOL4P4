@@ -128,7 +128,7 @@ open bdd_end_to_endTheory;
 
             val policy_bdd_content_term = Parse.Term [QUOTE policy_content_str];
 
-            val _ = print "AA:finished cleaning input \n";
+            val _ = print "Note:finished cleaning input \n";
 
 
 
@@ -139,7 +139,7 @@ open bdd_end_to_endTheory;
             val test_groupings = rhs(concl(EVAL policy_full_order));
             val gen_var_table_auto = bdd_utilsLib.bdd_to_tables_iterative policy_bdd_content_term test_groupings;
 
-            val _ = print "AA:finished creating table \n";
+            val _ = print "Note:finished creating table \n";
 
             (**********************************************************)
             (*          prepp table:  translation to CakeML           *)
@@ -172,12 +172,12 @@ open bdd_end_to_endTheory;
             val tbl_content_str = TextIO.inputAll ins_tbl;
             val _ = TextIO.closeIn ins_tbl;
 
-            val _ = print "AA:finished getting sexp table to hol4 \n";
+            val _ = print "Note:finished getting sexp table to hol4 \n";
 
 
             val table_bdd_content_term = Parse.Term [QUOTE tbl_content_str];
 
-            val _ = print "AA:finished cleaning sexp table in hol4 \n";
+            val _ = print "Note:finished cleaning sexp table in hol4 \n";
 
 
                         
