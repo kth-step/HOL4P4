@@ -1,6 +1,7 @@
 structure fwd_proof_polcies_cakeLib :> fwd_proof_polcies_cakeLib = struct
 
 open HolKernel boolLib simpLib Parse bossLib pairLib;
+open freq_func_in_fwdLib;
 
 open listTheory;
 open alistTheory;
@@ -17,29 +18,6 @@ open bdd_end_to_endTheory;
 (* to check 2 policies equivalences, redundancies ...etc *)
 
     val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list # num)”);
-
-    fun time_stage (stage_name, timer_cpu, timer_real) =
-        let
-            val cpu_time = Timer.checkCPUTimer timer_cpu
-            val real_time = Timer.checkRealTimer timer_real
-            val _ = HOL_MESG (stage_name ^ " completed in: " ^
-                          Time.toString (#usr cpu_time) ^ " user, " ^
-                          Time.toString (#sys cpu_time) ^ " system, " ^
-                          Time.toString real_time ^ " real\n")
-        in
-            (cpu_time, real_time)
-        end
-
-
-    fun write_term_to_file (filename, term_string) =
-       let
-            val content = term_to_string term_string
-            val outstream = TextIO.openOut filename
-            val _ = TextIO.output(outstream, content)
-            val _ = TextIO.closeOut outstream
-        in
-            ()
-    end;
 
 
     fun check_two_polcies_eq (arith_policy1, arith_policy2, policy_me, test_pd_type, policy_order, file_name) =
