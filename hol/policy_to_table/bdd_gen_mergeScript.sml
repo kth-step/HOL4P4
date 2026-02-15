@@ -22,9 +22,25 @@ val _ = new_theory "bdd_gen_merge";
 (*                   M  E  R  G  E                     *)
 (*                                                     *)
 (*******************************************************)
+(*  Merge Operation Theorems                           *)
+(*                                                     *)
+(*  These theorems prove that the merge operation      *)
+(*  (combining isomorphic subgraphs) preserves all     *)
+(*  BDD invariants and semantic correctness.           *)
+(*                                                     *)
+(*  The main results show that merge:                  *)
+(*    1. Preserves well-formedness (BDD_WF)            *)
+(*    2. Preserves variable ordering (BDD_ordered)     *)
+(*    3. Preserves semantic correctness                *)
+(*    4. Preserves free variable invariants            *)
+(*******************************************************)
 
 
+(*******************************************************)
+(*  Basic Properties of merge_edges                    *)
+(*******************************************************)
 
+(*merge_edges doesn't introduce new keys *)
 Theorem merge_lookup_none:
   ∀ edges n n' n''.
     n' ≠ n'' ⇒
@@ -43,9 +59,7 @@ QED
 
 
 
-        
-
-        
+(* lookup in merged edges implies lookup in original *)      
 Theorem merge_lookup_exists:
   ∀ edges n n' n'' x.        
     n' ≠ n'' ∧
@@ -65,6 +79,8 @@ Proof
 QED
 
 
+
+(* semantics of leafs when being merged is still correct *)
 Theorem mergable_correct_leaf:
   ∀labels n'' r edges n' n mv b rec.
     BDD_WF (r,edges,labels) ∧
@@ -93,7 +109,8 @@ QED
 
 
 
-Theorem merge_edges_same:
+(* merge_edges of same node is identity *)
+(* Theorem merge_edges_same:
   ∀ edges n n.        
     merge_edges edges n n = edges
 Proof
@@ -102,9 +119,11 @@ Proof
   gvs[merge_edges_def]>>
   PairCases_on ‘h’ >> rgs[]>>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
-QED
+QED *)
 
 
+
+(*merge_edges distributes over cons *)
 Theorem merge_edges_list_cons:        
   ∀ edges h n n'.
     merge_edges (h::edges) n n' = (merge_edges [h] n n')++(merge_edges (edges) n n')
@@ -126,8 +145,10 @@ Proof
   rpt strip_tac >>
   gvs[merge_edges_def]                          
 QED
-        
 
+
+
+(* merge_edges doesn't change source node unless it's the merged node *)
 Theorem merge_edges_res_sing:
   ∀ n n' n'' nr nl h.
     n ≠ n' ∧
@@ -141,6 +162,7 @@ Proof
   gvs[merge_edges_def] >>       
   gvs[AllCaseEqs()]
 QED
+
 
 
 Theorem merge_edges_glue:        
@@ -166,7 +188,6 @@ Proof
 QED        
 
 
-           
 
 Theorem merge_edges_res:        
   ∀ edges n n' n'' nr nl r labels.
@@ -181,8 +202,6 @@ Proof
   metis_tac[merge_edges_glue]
 QED        
 
-
-   
 
 
 Theorem merge_Theorem1:
@@ -203,8 +222,6 @@ Proof
   rpt strip_tac >>
   fs[AllCaseEqs()]
 QED
-     
-
 
 
 
@@ -264,7 +281,7 @@ QED
 
 
 
-
+(* In ordered BDD, no node points to itself *)
 Theorem  lookup_edges_not_parent:       
   ∀ r edges labels vars_consumed n nl nr.
     BDD_ordered (r,edges,labels) vars_consumed ∧
@@ -307,6 +324,8 @@ Proof
 QED
 
 
+
+
 Theorem merge_replaces_stays_same_singular:
   n' ≠ x1'  ∧ n' ≠ x2' ∧      
   ALOOKUP (h::edges) n = SOME (x1',x2') ∧
@@ -320,7 +339,7 @@ Proof
 QED
 
 
-
+(* merge_edges preserves existing edges for unrelated nodes *)
 (* very slow proof, check why, replace with MEM proofs*)       
 Theorem merge_replaces_stays_same:            
   ∀ edges n' n x1 x2 x1' x2'.
@@ -353,7 +372,7 @@ QED
 
     
 
-                                               
+(* merge preserves semantics for internal nodes *)                                               
 Theorem mergable_correct_internal:
   ∀ x vars_consumed  vars r edges labels n n' n'' nl nr pred mv b rec.
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
@@ -371,7 +390,7 @@ Theorem mergable_correct_internal:
 Proof
         
   ntac 2 strip_tac >>
-  measureInduct_on `THE(INDEX_OF x vars_consumed)` >>
+  measureInduct_on ‘THE(INDEX_OF x vars_consumed)’ >>
   rpt strip_tac >>
   
   
@@ -673,13 +692,9 @@ QED
 
  
 
-
-
-
-
              
-           
-Theorem Lemma3:
+(* MAIN THEOREM: Merge preserves semantics for all nodes except the merged one *)           
+Theorem merge_all_preserved_not_merged:
   ∀ labels vars vars_consumed n'' r edges n' n mv b rec.
     consumed_dom_bdd vars_consumed (r,edges,labels) ∧
     fv_in_BDD rec (r,edges,labels) (vars++vars_consumed) ∧
@@ -718,7 +733,7 @@ QED
 
 
         
-
+(* get_prop returns NONE for deleted node *)
 Theorem get_prop_delkey_none:        
   ∀ labels n'.
     get_prop (ADELKEY n' labels) n' = NONE
@@ -733,7 +748,7 @@ QED
 
 
 
-        
+(* MAIN THEOREM: Merge preserves semantic correctness (verbose) *)
 Theorem merge_correct_verbose:        
   ∀ r edges labels vars vars_consumed n n' rec.
     correct_sem rec (r,edges,labels) (vars++vars_consumed)  ∧
@@ -760,7 +775,7 @@ Proof
     gvs[Once BDD_sem_cases]
     ,
     
-    assume_tac Lemma3 >>
+    assume_tac merge_all_preserved_not_merged >>
     first_x_assum (strip_assume_tac o (Q.SPECL [‘labels’, ‘vars’, ‘vars_consumed’, ‘n''’, ‘r’, ‘edges’, ‘n'’, ‘n’, ‘mv’, ‘b’, ‘rec’])) >>
     gvs[] >>
 
@@ -780,7 +795,7 @@ QED
 
 
 
-        
+(* MAIN THEOREM: Merge preserves semantic correctness (simplified) *)        
 Theorem merge_correct:        
   ∀ BDD vars vars_consumed n n' rec.
     correct_sem rec BDD (vars++vars_consumed)  ∧
@@ -800,11 +815,11 @@ QED
 
 
 
+(*******************************************************)
+(*      Membership Properties that are needed          *)
+(*******************************************************)
 
-
-
-
-
+(* merge_edges preserves the set of source nodes *)
 Theorem map_fst_merge_edges:
   ∀ edges n n'.
     MAP FST edges = MAP FST (merge_edges edges n n')
@@ -817,10 +832,8 @@ Proof
   gvs[merge_edges_def]
 QED
 
-
-
-
-
+(*
+(* Merged node disappears from children positions *)
 Theorem merge_edges_snd_mem1:
   ∀l l' n n'.
     n≠n' ∧
@@ -863,9 +876,13 @@ Proof
   gvs[] >>
   rpt(BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
+*)
 
-        
+(*******************************************************)
+(*     DISTINCTION Properties that are needed          *)
+(*******************************************************)
 
+(* merge_edges preserves distinctness of keys *)
 Theorem all_distinct_fst_merge_edges:
   ∀ r edges labels n n'.
     ALL_DISTINCT (MAP FST edges) =
@@ -875,6 +892,7 @@ metis_tac[map_fst_merge_edges]
 QED
 
 
+(* ADELKEY preserves distinctness *)
 Theorem ALL_DISTINCT_MAP_ADELKEY:
   ∀ l n.
     ALL_DISTINCT (MAP FST l) ⇒
@@ -893,6 +911,7 @@ Proof
 QED      
 
 
+
 Theorem edges_distinct_in_del_key:
   ∀ r edges labels n n' n''.
     ALL_DISTINCT (MAP FST edges) ⇒
@@ -907,7 +926,7 @@ QED
 
 
 
-
+(* Merged node not in range after deletion *)
 Theorem merge_no_effect_on_unrelated_node_mem:
 ∀ r edges labels n n' .
   n ≠ n' ⇒
@@ -925,6 +944,7 @@ QED
 
 
 
+(*
 Theorem  distinct_mem_edges_triv:
   ∀ edges n n' n'' a b.
     ALL_DISTINCT (MAP FST edges) ∧
@@ -939,8 +959,6 @@ Proof
   gvs[MEM_MAP]
 QED
 
-
-        
 
 Theorem distinct_mem_not_triv:
   ∀ edges n n' n''.
@@ -957,12 +975,7 @@ Proof
   metis_tac[distinct_mem_edges_triv]
 QED
 
-      
-
-
-
-     
-      
+ 
 Theorem mem_edge_merge_then_unrelated_source:         
   ∀ edges n n' n'' y0 y1 y2.
     (MEM (n'',y1,y2) (merge_edges edges n n') ⇒
@@ -984,10 +997,6 @@ Proof
   
   srw_tac [SatisfySimps.SATISFY_ss][]
 QED
-
-
-
-
 
 
 Theorem merge_edges_mem_possibilites:
@@ -1018,21 +1027,11 @@ Proof
     qexistsl_tac [‘k’, ‘v1’, ‘v2’] >> gvs[]
   ]
 QED
+*)
 
-
-
-
-
-
-
-         
-     
- 
-
-
-
-
-
+(*******************************************************)
+(*   alternative definitions for  dom_range_edges      *)
+(*******************************************************)
 
 (*        
 Definition dom_range_edges_alt_def:
@@ -1070,18 +1069,18 @@ Theorem merge_adelkey_dom_range_subset_alt:
 Proof
   rw[dom_range_edges_alt_def] >>
   fs[ADELKEY_def, MEM_FILTER, merge_edges_def, MEM_MAP] >>
-  Cases_on `y` >> Cases_on `r` >> fs[] >>
-  rename1 `MEM (a,b,c) edges` >>
+  Cases_on ‘y’ >> Cases_on ‘r’ >> fs[] >>
+  rename1 ‘MEM (a,b,c) edges’ >>
   
-  qexists_tac `a` >> qexists_tac `b` >> qexists_tac `c` >> fs[] >>
+  qexists_tac ‘a’ >> qexists_tac ‘b’ >> qexists_tac ‘c’ >> fs[] >>
   
   (* Case analysis on merge transformation *)
-  Cases_on `b = n' ∧ c = n'` >> fs[] >>
-  Cases_on `b = n'` >> fs[] >>  
-  Cases_on `c = n'` >> fs[] >> gvs[]                                 
+  Cases_on ‘b = n' ∧ c = n'’ >> fs[] >>
+  Cases_on ‘b = n'’ >> fs[] >>  
+  Cases_on ‘c = n'’ >> fs[] >> gvs[]                                 
 QED
 
-*)
+
 
 Definition dom_range_edges2_def:
   dom_range_edges2 edges =
@@ -1101,20 +1100,23 @@ Proof
   Cases_on ‘a = h1’ >> gvs[] >>
   Cases_on ‘a = h2’ >> gvs[] 
 QED
+*)
 
-
-        
+(* Alternative flattening of edges for membership testing *)        
 Definition flat_edges_def:
   (flat_edges [] = []) ∧
   (flat_edges ((k,v1,v2)::es) = 
    k :: v1 :: v2 :: flat_edges es)
 End
 
+
 Definition dom_range_edges3_def:
   dom_range_edges3 edges = nub (flat_edges edges)
 End
 
 
+
+(* Equivalence of dom_range_edges definitions *)
 Theorem dom_range_edges1_3_eq:
   ∀ edges n.
     MEM n (dom_range_edges3 edges) = MEM n (dom_range_edges edges)     
@@ -1129,6 +1131,8 @@ Proof
 QED
 
 
+
+(*
 Theorem flat_edges_not_triv1:
   ∀ l n n'.
     n' ≠ n ∧
@@ -1142,8 +1146,7 @@ Proof
   gvs[flat_edges_def] >>
   metis_tac [] 
 QED
-
-
+*)
 
 
 Theorem mem_input_then_in_flattened:
@@ -1165,7 +1168,7 @@ QED
 
 
 
-Theorem flat_edges_mem_triv1:
+Triviality flat_edges_mem_triv1:
   ∀ l h0 h1 a b .
     MEM (h1,a,b) l ∧
     h1 ≠ h0  ⇒
@@ -1186,8 +1189,7 @@ Proof
 QED
 
 
-
-
+(* needed for emilimation as well *)
 Theorem flat_edges_mem_triv2:
   ∀ l h0 h1 a b .
     ¬MEM h0 (MAP FST l) ∧
@@ -1208,9 +1210,7 @@ QED
 
 
 
-
-
-Theorem flat_edges_mem_triv3:
+Triviality flat_edges_mem_triv3:
   ∀ l h0 h1 a b .
     MEM (h1,a,b) l ∧
     h1 ≠ h0 ⇒
@@ -1233,85 +1233,6 @@ QED
 
 
 
-     
-Theorem flat_edges_mem_triv4:
-  ∀ l k v1 v2 h0.
-    MEM (k,v1,v2) l ∧
-    (k ≠ h0) ⇒
-    MEM k (flat_edges (FILTER (λp. FST p ≠ h0) l))
-Proof
-  Induct >-
-   gvs[flat_edges_def] >>
-  rpt strip_tac >>
-  PairCases_on ‘h’ >>
-  gvs[] >>
-  gvs[flat_edges_def] >>
-  Cases_on ‘h0'=h0’ >> gvs[] >|[
-    res_tac
-    ,
-    gvs[flat_edges_def] >>
-    metis_tac[]
-  ]
-QED
-
-
-
-Theorem flat_edges_mem_triv5:
-  ∀ l a n n' parent right.
-    parent ≠ a ∧
-    MEM (a,n,n') l ∧
-    MEM (parent,n,right) l ⇒
-    MEM n (flat_edges (FILTER (λp. FST p ≠ a) l))
-Proof
-  Induct >-
-   gvs[flat_edges_def] >>
-  rpt strip_tac >>
-  PairCases_on ‘h’ >>
-  gvs[] >>
-  gvs[flat_edges_def] >|[
-    imp_res_tac mem_input_then_in_flattened >>
-    irule flat_edges_mem_triv1 >>
-    srw_tac [SatisfySimps.SATISFY_ss][]
-    ,
-  Cases_on ‘h0=a’ >> gvs[] >|[
-    res_tac
-    ,
-    gvs[flat_edges_def] >>
-    metis_tac[]
-      ]
-  ]
-QED
-
-
-Theorem flat_edges_mem_triv6:
-  ∀ l a n n' parent left.
-    parent ≠ a ∧
-    MEM (a,n,n') l ∧
-    MEM (parent,left,n) l ⇒
-    MEM n (flat_edges (FILTER (λp. FST p ≠ a) l))
-Proof
-  Induct >-
-   gvs[flat_edges_def] >>
-  rpt strip_tac >>
-  PairCases_on ‘h’ >>
-  gvs[] >>
-  gvs[flat_edges_def] >|[
-    imp_res_tac mem_input_then_in_flattened >>
-    irule flat_edges_mem_triv3 >>
-    srw_tac [SatisfySimps.SATISFY_ss][]
-    ,
-  Cases_on ‘h0=a’ >> gvs[] >|[
-    res_tac
-    ,
-    gvs[flat_edges_def] >>
-    metis_tac[]
-      ]
-  ]
-QED
-
-
-
-(* GOLDEN ONE *)
 Theorem list_not_merged_flat_membership1:
   ∀ l n'' h0.
     ¬MEM h0 (MAP FST l) ∧
@@ -1447,41 +1368,7 @@ Proof
 QED
 
 
-
-Theorem head_mem_not_changed_in_merge:
-  ∀ l l' n n' a b c.
-    ALL_DISTINCT (MAP FST l') ∧
-    MEM (a,b,c) l' ∧
-    merge_edges l' n n' = l ⇒
-    ∃ b' c' . MEM (a,b',c') l
-Proof
-  rpt gen_tac >> strip_tac >>
-  imp_res_tac mem_triple_map_fst >>
-  imp_res_tac map_fst_merge_edges >>
-              
-  gvs[MEM_MAP] >>
-  fs[merge_edges_def] >>
-  
-  qexists_tac ‘if b = n' then n else b’ >>
-  qexists_tac ‘if c = n' then n else c’ >>
-  fs[] >>
-  
-  Cases_on ‘b=n'’ >> gvs[] >>
-  Cases_on ‘c=n'’ >> gvs[] >>
-  Cases_on ‘c=b’ >> gvs[] >>
-  PairCases_on ‘y’ >> gvs[] >>
-  
-  gvs[MEM_MAP] >>
-
-  FIRST [
-      qexists_tac ‘(y0,b,b)’>> gvs[] >> decide_tac,
-      qexists_tac ‘(y0,b,c)’>> gvs[]
-    ]
-QED
-
-
-        
-
+(*
 Theorem merge_normalize_for_mergable_nodes_exsists:
   ∀ edges t h0 h1 h2 a b n.
     ALL_DISTINCT (MAP FST edges) ∧
@@ -1504,7 +1391,7 @@ Proof
   PairCases_on ‘h’ >>
   gvs[MEM_MAP]
 QED
-
+*)
 
 
 
@@ -1658,8 +1545,10 @@ Proof
       ]
   ]
 QED                                          
-                                             
 
+
+
+(*
 Theorem merge_edges_delete_some:
   ∀ edges n n' x.
     n ≠ n' ∧
@@ -1669,6 +1558,7 @@ Proof
   rw[] >>
   fs[ALOOKUP_ADELKEY]
 QED
+*)
 
 
 
@@ -1680,6 +1570,7 @@ Proof
 QED
 
 
+
 Theorem mem_dom_normalize_h_or:
   ∀ l h n''.
     MEM n'' (dom_range_edges (h::l)) = (MEM n'' (dom_range_edges [h]) ∨ MEM n'' (dom_range_edges l))
@@ -1689,12 +1580,13 @@ QED
 
 
 
+(*
 Theorem all_distinct_dom_range_edges:
   ∀ l . ALL_DISTINCT (dom_range_edges l)
 Proof
   rw[dom_range_edges_def]
 QED
-        
+    
 Theorem all_distinct_dom_range3_edges:
   ∀ l . ALL_DISTINCT (dom_range_edges3 l)
 Proof
@@ -1713,8 +1605,7 @@ Proof
   res_tac >> gvs[] >>
   Cases_on ‘a=h’ >> gvs[]          
 QED
-
-
+  *)  
 
         
 
@@ -1731,7 +1622,9 @@ Proof
   rpt (BasicProvers.FULL_CASE_TAC >> rgs[])
 QED
 
-        
+
+
+(*
 Theorem not_mem_edges_imp_mem_merge_h1:
 ∀ h n n' n''.
   n ≠ n' ∧ n'' ≠ n'  ∧
@@ -1745,7 +1638,7 @@ Proof
   gvs[merge_edges_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> rgs[])
 QED
-
+*)
 
         
         
@@ -1770,20 +1663,6 @@ Proof
 QED                    
         
                                                         
-    
-
-Theorem MEM_MAP_triple:
-  ∀f l x. MEM x (MAP f l) ⇔ ∃y. MEM y l ∧ x = f y
-Proof
-  gvs[MEM_MAP] >>
-  metis_tac[]
-QED
-
-Theorem MEM_FLAT_triple:
-  ∀ll x. MEM x (FLAT ll) ⇔ ∃l. MEM l ll ∧ MEM x l
-Proof
-  rw[MEM_FLAT]
-QED
 
 (* Key lemma: what does it mean for an element to be in dom_range_edges *)
 Theorem MEM_dom_range_edges:
@@ -1848,26 +1727,8 @@ Proof
   ]
 QED
 
-                    
 
-
-Theorem ADELKEY_cons_h:
-  ∀ l h n'.
-    ADELKEY n' (h::l) = ADELKEY n' [h] ++ ADELKEY n' l
-Proof
-  rw[ADELKEY_def]
-QED
-
-
-Theorem ADELKEY_normalize_append:
-  ∀ l h n'.
-    ADELKEY n' (h++l) = ADELKEY n' h ++ ADELKEY n' l
-Proof
-  rw[ADELKEY_def, FILTER_APPEND]
-QED
-
-        
-                 
+(*              
 Theorem dom_range_edges_adelkey_normalize_imp1:
   ∀ h l n' n''.
     n'' ≠ n' ⇒
@@ -1907,7 +1768,7 @@ Proof
   gvs[dom_range_edges_def, ADELKEY_def, merge_edges_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) 
 QED
-
+*)
 
 
       
@@ -1922,46 +1783,9 @@ Proof
   Cases_on ‘FST h ≠ n'’ >> gvs[]
 QED
 
- 
-
-Theorem look_some_in_delkey_imp_og:
-  ∀ labels n n'.
-    n ≠ n' ⇒
-    (lookup_is_some (ADELKEY n labels) n' ⇔
-       lookup_is_some labels n')
-Proof
-  Induct >>
-  rpt strip_tac >>
-  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
-QED
-
-
-Theorem alookup_delkey_imp_og:
-  ∀ l n n' x.
-    n ≠ n' ⇒
-    (ALOOKUP (ADELKEY n l) n' = SOME x ) ⇒
-    (ALOOKUP l n' = SOME x)
-Proof
-  Induct >>
-  rpt strip_tac >>
-  gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
-QED
-
-
-Theorem delkey_alookup_imp_og:
-  ∀ l n n' x.
-    n ≠ n' ⇒
-    (ALOOKUP l n' = SOME x) ⇒
-             (ALOOKUP (ADELKEY n l) n' = SOME x )
-Proof
-Induct >>
-rpt strip_tac >>
-gvs[lookup_is_some_def, ALOOKUP_ADELKEY]
-QED
         
 
-
-
+(*
 Theorem merge_edges_elim_same_helper_l:
   ∀ h n n' n1 n2 n1' n2'.
     n1 ≠ n ∧    
@@ -2007,7 +1831,7 @@ Proof
   res_tac >>
   metis_tac[merge_Theorem1]
 QED
-
+*)
 
 (****************************************************)
 (****************************************************)
@@ -2021,7 +1845,7 @@ val simp_easy_cases_tac = PairCases_on ‘h’ >>
                           gvs[dom_range_edges_def, ADELKEY_def, merge_edges_def] >>
                           rpt (BasicProvers.FULL_CASE_TAC >> gvs[]);
 
-    
+(*    
 Theorem lookup_none_h_tail:
   ∀ edges h n'.
   ALOOKUP (h::edges) n' = NONE ⇒
@@ -2074,6 +1898,7 @@ Proof
       gvs[merge_edges_def] >>
      simp_easy_cases_tac
 QED
+*)
 
 
 
@@ -2096,6 +1921,8 @@ Proof
 QED
 
 
+
+(* Elements in merged edges (except merged node) survive ADELKEY *)
 Theorem dom_range_edges_imp_adel_key_mem_none:
   ∀ edges n n' n''.
     n'' ≠ n' ∧
@@ -2110,8 +1937,7 @@ Proof
 QED       
     
 
-
-
+(* For mergable nodes, domain/range preserved after deletion *)
 Theorem dom_range_edges_imp_adel_key_mem:
   ∀edges root labels vars n n' n'' a b.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -2128,7 +1954,8 @@ Proof
 QED
 
 
-    
+
+(* Under mergable conditions, all nodes in merged range survive *)
 Theorem merge_edges_preserve_nodes:
   ∀ edges n n' n'' root labels vars.
     n'' ≠ n' ∧ n ≠ n' ∧
@@ -2159,8 +1986,6 @@ Proof
 QED
 
 
-
- 
 
 Theorem mergable_wf_labels_edges_same:          
 ∀ r edges labels n n' vars_consumed.
@@ -2223,8 +2048,12 @@ Proof
 QED
 
 
-        
-        
+
+(*******************************************************)
+(*  Well-Formedness Preservation of Merge              *)
+(*******************************************************)
+
+(* merge preserves edge-label correspondence *)  
 Theorem mergable_wf_internals_some:
   ∀ r edges labels n n'.
     (∀n''.  MEM n'' (MAP FST labels) ⇒
@@ -2272,8 +2101,7 @@ QED
         
 
 
-
-        
+(*merge preserves leaf labeling condition *)
 Theorem adelkey_merge_none_imp_edges_none:
   ∀ edges n n' n''.
     n'' ≠ n' ∧
@@ -2287,9 +2115,8 @@ Proof
 QED
 
 
-                        
 
-    
+(*merge preserves leaf labeling condition *)          
 Theorem mergable_wf_leafs_some:
   ∀ r edges labels n n'.
     (∀n''.
@@ -2341,11 +2168,7 @@ Proof
 QED
 
 
-
-
-
-
-
+(*
 Theorem merge_edges_adelkey_empty_imp_cases:
   ∀edges n n'.
     ADELKEY n' (merge_edges edges n n') = [] ⇒
@@ -2360,10 +2183,10 @@ Proof
   
   rw[] >> res_tac >> gvs[]
 QED
-
+*)
 
         
-
+(* merge doesn't produce empty graph from non-empty mergable graph *))
 Theorem wf_non_empty_after_merge:
   ∀r edges labels n n'.
     ALL_DISTINCT (MAP FST edges) ∧
@@ -2425,13 +2248,11 @@ QED
 
   
 
-
-
-                                
-
 (*********************************)
 (*        MERGE  WFness          *)
-(*********************************)        
+(*********************************)
+(*Merge Preserves Well-Formedness*)
+
 Theorem merge_wf_preservation:        
   ∀ BDD n n' vars.
     BDD_ordered BDD vars ∧
@@ -2475,8 +2296,11 @@ QED
 
 
                     
+(*********************************)
+(*       MERGE  Order            *)
+(*********************************)  
 
-           
+(* order_hold property adjusts for merged node *))
 Theorem order_hold_for_merge: 
   ∀ r edges labels n n' n'' nl vars.
     BDD_WF (r,edges,labels) ∧
@@ -2496,11 +2320,7 @@ QED
 
 
 
-
-
-(*********************************)
-(*       MERGE  Order            *)
-(*********************************)       
+(* MAIN THEOREM: Merge Preserves Variable Ordering *)
 Theorem merge_order_preservation:
   ∀ BDD n n' vars.
     BDD_ordered BDD vars ∧
@@ -2571,11 +2391,12 @@ QED
 
 
 
-(*********************************)
-(*       MERGE  Misc             *)
-(*********************************) 
+(****************************************************)
+(*  MERGE  Misc needed for optimizations Script     *)
+(****************************************************)
 
 (* valid for merge and eliminate *)
+(* merge preserves free variable invariant *)
 Theorem merge_fv_final_preservation:                                
   ∀ BDD n n' vars rec.
     fv_in_BDD rec BDD vars  ⇒
@@ -2595,7 +2416,8 @@ QED
 
 
 
-
+(* valid for merge and eliminate *)
+(* merge preserves range_c invariant (node IDs) *)
 Theorem merge_range_preservation:
   ∀ BDD c n n'.
     range_c c BDD ⇒
@@ -2615,11 +2437,9 @@ Proof
 QED
 
 
-
-              
-        
-        
+    
 (* valid for merge and eliminate *)
+(* merge preserves consumed domain invariant *)
 Theorem merge_consumed_dom_final_preservation:
   ∀ BDD n n' vars.
     consumed_dom_bdd vars BDD ⇒
