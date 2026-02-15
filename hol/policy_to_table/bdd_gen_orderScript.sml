@@ -13,8 +13,20 @@ open bdd_gen_wfTheory;
 val _ = new_theory "bdd_gen_order";
 
 
+(*******************************************************)
+(*  Variable Ordering Preservation Theorems            *)
+(*                                                     *)
+(*  These theorems prove that the BDD construction    *)
+(*  maintains the variable ordering invariant         *)
+(*  (BDD_ordered) defined in bdd_genTheory.           *)
+(*                                                     *)
+(*  The main result is order_translation, which shows *)
+(*  that mk_BDDPred produces an ordered BDD when the  *)
+(*  input BDD is ordered and variables are eliminated *)
+(*  in the given order.                                *)
+(*******************************************************)
 
-(* to do, how to make a tactic visible to all files *)
+(* TODO, how to make a tactic visible to all files *)
 
 val body_of_mk_pred_tac =    
 ( rename1 ‘getLeaves edges r = SOME leaves’ >>
@@ -53,7 +65,13 @@ val imp_res_tac_distinct =
  imp_res_tac all_distinct_mk_labels
 );
 
-                                                                
+
+
+
+(*  Extracts the structure of body_of_mk output
+            - Root node remains unchanged
+            - New edges/labels are appended to existing ones
+            - Labels are updated to mark variable h as consumed *)
 Theorem body_of_mk_output:
   ∀  r r'' edges edges'' labels labels''  c c' h rec .
     body_of_mk rec (r,edges,labels) h c = SOME ((r'',edges'',labels''),c') ⇒
@@ -67,7 +85,7 @@ Proof
 QED 
 
 
-
+(*  Leaves returned by getLeaves must be nodes in the edges *)
 Theorem mem_leaves_in_dom_edges:
   ∀ leaves edges n r.
     edges ≠ [] ∧
@@ -83,72 +101,8 @@ Proof
 QED
 
 
-Theorem index_of_head:
-∀ l i h .
-  INDEX_OF h (h::l) = SOME i ⇒
-  i = 0
-Proof
-  Induct >>
-  rgs[] >>
-  rpt strip_tac >>
-  gvs[INDEX_OF_def] >>
-  
-  rgs[INDEX_FIND_def] >>
-  PairCases_on ‘z’ >> rgs[]
-QED
-
-
-        
-Theorem index_of_not_shifted:
-  ∀ l i h x.
-    x ≠ h ∧
-    INDEX_OF x (h::l) = SOME i ⇒
-    i > 0
-Proof
-  rpt strip_tac >>
-  gvs[INDEX_OF_def] >>
-  
-  PairCases_on ‘z’ >> rgs[] >>
-  fs[INDEX_FIND_EQ_SOME_0] >>
-  
-  Cases_on ‘z0’ >> gvs[] 
-QED
-
-
-Theorem index_of_shifted_backwards:        
-∀ l i h x.
-  x ≠ h ∧
-INDEX_OF x (h::l) = SOME i ⇒
-∃ i'. INDEX_OF x l = SOME i' ∧ i' = i-1
-Proof
-  rpt strip_tac >>
-  imp_res_tac index_of_not_shifted >>
-  gvs[INDEX_OF_def] >>
-  PairCases_on ‘z’ >> rgs[] >>
-  
-  Cases_on ‘z0’ >> gvs[] >>
-  fs[INDEX_FIND_EQ_SOME_0] >>
-  gvs[] >>
-  
-  qexistsl_tac [‘(n , EL n l)’] >>
-  gvs[]>>
-  fs[INDEX_FIND_EQ_SOME_0] >>
-  rpt strip_tac >>
-
-  first_x_assum (strip_assume_tac o (Q.SPECL [‘SUC j'’])) >>
-  gvs[]
-QED
-
-
-
-
-
-
-                                        
-
-
-        
-
+    
+(* New edges point to nodes that exist in new labels *)
 Theorem in_range_of_new_edges_in_dom_new_labels:
   ∀ simp_leaves' new_edges new_labels n n' n'' c.
     mk_new_labels simp_leaves' c = new_labels ∧
@@ -168,9 +122,7 @@ Proof
   gvs[]
 QED
 
-     
-        
-        
+           
 
 Theorem falsified_assump_triv1:
   ∀ simp_leaves' new_labels new_edges c n n' n''.          
@@ -188,6 +140,8 @@ Proof
 QED
 
 
+
+(* Looking up a node in updated labels preserves its variable *)
 Theorem lookup_labels_in_updt_append:
   ∀ labels new_labels  h n x p x' p'.
     ALOOKUP labels n = SOME (non_termn (SOME x,p)) ∧
@@ -202,6 +156,7 @@ Proof
 QED
         
 
+(* In well-formed BDD, nodes with edges must have variable labels *)
 Theorem WF_imp_non_leaf_lbl_abs:
   ∀r edges labels n.
     lookup_is_some edges n ∧
@@ -216,6 +171,7 @@ Proof
 QED       
 
 
+(* Nodes that become internal after update were non-terminal leaves before *)
 Theorem now_internal_lbl_was_leaf_in_labels:
   ∀ r edges labels new_labels n h x p.
     BDD_WF (r,edges,labels) ∧
@@ -236,6 +192,7 @@ Proof
 QED
 
 
+(* Existing edges are unchanged by body_of_mk *)
 Theorem internal_old_edges_are_the_same_as_updated:
   ∀ r edges new_edges labels new_labels simp_leaves' c n n' n'' x .
     range_c c (r,edges,labels) ∧
@@ -263,7 +220,7 @@ QED
 
 
         
-
+(* Ordering invariant holds for existing nodes after update *)
 Theorem old_layer_stays_ordered_lemma:
 ∀ r edges labels vars_consumed n n' n'' h i i' x x' p p'.
   ALL_DISTINCT (h::vars_consumed) ∧
@@ -310,11 +267,7 @@ QED
 
 
 
-
-
-
-
-        
+(*body_of_mk preserves ordering for left children *)     
 Theorem order_translation_inter_children_l:
   ∀ r edges labels r'' edges'' labels'' h c c' n n' n'' vars_consumed rec.
     range_c c (r,edges,labels) ∧
@@ -491,7 +444,7 @@ QED
 
 
 (* TODO: merge these two using lists tactics*)
-        
+(*body_of_mk preserves ordering for right children *)       
 Theorem order_translation_inter_children_r:
   ∀ r edges labels r'' edges'' labels'' h c c' n n' n'' vars_consumed rec.
     range_c c (r,edges,labels) ∧
@@ -666,9 +619,7 @@ QED
 
 
 
-        
-
-
+(* Base case - body_of_mk preserves ordering when starting from single node *)
 Theorem orderd_edges_empty_mkbody_imp_orderd:
   ∀ r edges labels r'' edges'' labels'' rec c c' h vars_consumed.
     range_c c (r,[],labels) ∧
@@ -715,7 +666,8 @@ QED
 
                                                                 
 
-
+(* MAIN THEOREM: Single iteration (body_of_mk) preserves
+                the variable ordering invariant *)
 Theorem order_translation_inter:
   ∀ vars rec vars_consumed (BDD:('a,'b)BDD) BDD'' c c' h.
     range_c c BDD ∧
@@ -752,7 +704,8 @@ QED
 
 
 
-
+(* body_of_mk preserves the consumed domain invariant
+            (nodes only contain variables that have been processed) *)
 Theorem consumed_dom_bdd_inter:
   ∀ r edges labels r'' edges'' labels'' c c' h vars_consumed rec.
     ALL_DISTINCT (h::vars_consumed) ∧
@@ -790,10 +743,10 @@ QED
 
 
                                
-                               
-
-
-        
+(* MAIN THEOREM: Full construction (mk_BDDPred) preserves:
+                1. Variable ordering invariant
+                2. Consumed domain invariant  
+                3. Well-formedness *)       
 Theorem order_translation:
   ∀ vars rec vars_consumed (BDD:('a,'b)BDD) BDD' c.
     range_c c BDD ∧
@@ -847,8 +800,5 @@ QED
 
 
 
-                     
-
-    
 
 val _ = export_theory ();
