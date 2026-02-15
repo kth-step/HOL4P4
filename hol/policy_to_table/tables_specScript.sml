@@ -15,16 +15,35 @@ open policy_specTheory;
 
 val _ = new_theory "tables_spec";
 
+(*******************************************************)
+(*  ILR Table Structure Instantiation                  *)
+(*                                                     *)
+(*  This theory instantiates the generalized BDD      *)
+(*  framework for ILR tables. It defines:             *)
+(*    1. Table simplification (simp_tables)           *)
+(*    2. Table substitution (mk_substitute_tables)    *)
+(*    3. Final table detection (final_tables)         *)
+(*    4. Free variable computation (fv_tables)        *)
+(*                                                     *)
+(*  The main results prove that the table structure   *)
+(*  satisfies properties prop1-prop4, making it a     *)
+(*  valid decision structure for the BDD framework.   *)
+(*******************************************************)
+
+
+
+
+(*******************************************************)
+(*         Definitions of tables ILR                   *)
+(*******************************************************)
 
 (* A description of the tables ILR and its functions instansiations *)
-
 Definition is_not_true_var_atom_def:
   (is_not_true_var_atom True = F) ∧
   (is_not_true_var_atom _ = T)
 End
 
-
-
+(* Check if a row is final (all True and matching state) *)
 Definition simp_row_def:
   simp_row atoml =
   if atoml = [] then [] else
@@ -39,21 +58,25 @@ Definition simp_row_def:
 End
 
 
-(*
+(*  NOTES:
 here we work with none, and some.
 these represent the state of the previous table.
 
-If the previous table is final, it menas it has only one line and one state as a result.
-this state as a reult represent the answer of the previous table, that we will use to match on the current table.
+If the previous table is final, it menas it has only 
+one line and one state as a result.
+this state as a reult represent the answer of the previous 
+table, that we will use to match on the current table.
 
-If is it SOME (st_num), then we have the ability to reduce the current table so much, otherwise,
-if NONE, then we do not know the previous table what it could return yet,
+If is it SOME (st_num), then we have the ability to reduce 
+the current table so much, otherwise,
+if NONE, then we do not know the previous table what 
+it could return yet,
 thus we reduce but not as much when evaluating it EVAL.
-
 *)
 
-
-
+(* Simplify a table given knowledge of previous state
+            - NONE: no knowledge (simplify all rows)
+            - SOME s': only rows matching state s' are relevant *)
 Definition simp_table_def:
   (simp_table [] s = []) ∧
 
@@ -83,7 +106,7 @@ End
 (* simplify table by table in the tables list. if the table is final i.e.
    one row only and containng true, then we know what is the state to match on
    the next table in the list, else we just casually reduce *)
-
+(* Simplify a list of tables with state propagation *)
 Definition simp_tables_def:
   (simp_tables [] s = []) ∧
   (simp_tables (t::tbll) s =
@@ -98,6 +121,7 @@ End
 
 
 
+(*  Wrapper for table simplification starting from initial state *)
 Definition simp_tables_wrapper_def:
   simp_tables_wrapper ((tbll: 'a var_table_list), st_in) =
    (simp_tables tbll (SOME st_in), st_in)
@@ -105,6 +129,7 @@ End
 
 
 
+(* Check if a row is final (all True and matching state) *)
 Definition final_row_def:
   (final_row ([],_,_) s = NONE) ∧
   (final_row ([True], s', s'') s = (if s = s' then SOME s'' else NONE)) ∧
@@ -113,7 +138,7 @@ End
 
 
 
-
+(* Find final result in a single table *)
 Definition final_tbl_def:
   (final_tbl [] s = NONE) ∧
   (final_tbl (row::rows) s =
@@ -125,6 +150,7 @@ End
 
 
 
+(* Find final result across a list of tables with state propagation *)
 Definition final_tbll_def:
   final_tbll ([]: 'a var_table_list) st_in = NONE ∧
   final_tbll [tbl] st_in =
@@ -141,6 +167,7 @@ End
 
 
 
+(* Top-level final table detection *)
 Definition final_tables_def:
   final_tables (tbll, st_in) =
   final_tbll tbll st_in
@@ -160,7 +187,9 @@ Definition table_structure_def:
 End
 
 
+(* PROOFS *)
 
+(* simp_row never returns empty for non-empty input *)
 Triviality simp_row_not_empty:
   ∀ atoms.
     simp_row atoms = [] ⇔ atoms = []
@@ -171,6 +200,7 @@ QED
 
 
 
+(* Properties of False propagation in substitution *)
 Theorem simp_row_sub_false_head:
   ∀ atoms_list x b.
     (simp_row (mk_substitute_row (True::atoms_list) x b) = [False] ⇒
@@ -207,15 +237,13 @@ QED
 
 
 
-
-
+(* False in substituted row implies original row is false *)
 Theorem simp_sub_row_false_then_atoms_sem_false:
   ∀ atoms_list x b mv.
     ALOOKUP mv x = SOME b ∧
     simp_row (mk_substitute_row atoms_list x b) = [False] ⇒
     ~ is_atoml_true atoms_list mv
 Proof
-
   Induct >-
    rw[mk_substitute_row_def, simp_row_def, is_atoml_true_def] >>
 
@@ -235,14 +263,13 @@ QED
 
 
 
-
+(* Empty simplified table implies no matching rows *)
 Theorem simp_sub_empty_then_min_index_none:
   ∀ t x b s_in mv.
     ALOOKUP mv x = SOME b ∧
     simp_table (mk_substitute_tbl t x b) (SOME s_in) = [] ⇒
     min_idx_till (check_all_rows_match s_in t mv) T = NONE
 Proof
-
   Induct >> rw[] >|[
     rw[mk_substitute_tbl_def, simp_table_def] >>
     gvs[check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def]
@@ -268,8 +295,6 @@ QED
 
 
 
-
-
 Triviality mk_substitute_row_empty:
   ∀ atoms_list x b.
     mk_substitute_row atoms_list x b = [] ⇒
@@ -277,7 +302,6 @@ Triviality mk_substitute_row_empty:
 Proof
   Induct >> gvs[mk_substitute_row_def]
 QED
-
 
 
 
@@ -294,7 +318,6 @@ QED
 
 
 
-
 Theorem simp_table_sub_every_prop1:
   ∀ t x b  s_in mv.
     ALOOKUP mv x = SOME b ∧
@@ -302,7 +325,6 @@ Theorem simp_table_sub_every_prop1:
     EVERY ($¬ ∘ (λ(p,a). p)) (MAP
                               (λ(atoml,st_num,res'). (s_in = st_num ∧ is_atoml_true atoml mv ∧ atoml ≠ [],res')) t)
 Proof
-
   Induct >>
   rw[] >|[
     PairCases_on ‘h’ >> gvs[] >>
@@ -319,7 +341,7 @@ QED
 
 
 
-
+(* Single-row simplified table with empty guards implies no matches *)
 Theorem simp_sub_empty_then_min_index_tbl_none:
 ∀ t x b s_in mv s_num res.
   ALOOKUP mv x = SOME b ∧
@@ -366,7 +388,6 @@ QED
 
 
 
-
 Theorem match_tbll_row_empty:
   ∀ tbll st res mv s_in.
     match_tbll ([([],st,res)]::tbll) mv s_in = NONE
@@ -374,7 +395,6 @@ Proof
  rw[] >> Cases_on ‘tbll’ >>
  gvs[match_tbll_def, match_tbl_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def, is_match_row_def]
 QED
-
 
 
 
@@ -707,9 +727,6 @@ QED
 
 
 
-
-
-
 (* TODO: refactor this proof *)
 Theorem min_idx_check_rows_simp_tbl_some:
   ∀ rows st_in simp_rows simp_rows' mv.
@@ -871,9 +888,6 @@ QED
 
 
 
-
-
-
 (* Theorem  min_idx_till_none_not_none:
   ∀ l .
     (min_idx_till l T = NONE) ⇔
@@ -976,7 +990,6 @@ QED *)
 
 
 
-
 Triviality simp_row_cannot_result1:
   ∀ atoml a l.
     simp_row atoml ≠ [NotFalse] ∧
@@ -994,7 +1007,6 @@ Proof
   rpt strip_tac >> gvs[] >>
   imp_res_tac filtering_not_true_then_not_mem >> gvs[]
 QED
-
 
 
 
@@ -1018,9 +1030,6 @@ Proof
   rpt strip_tac >>
   gvs[simp_row_cannot_result1]
 QED
-
-
-
 
 
 
@@ -1082,11 +1091,7 @@ Proof
         Cases_on ‘n’ >> Cases_on ‘m’ >> gvs[index_find_not_prev, ADD1] >>
         res_tac
 ]
-
 QED
-
-
-
 
 
 
@@ -1218,7 +1223,6 @@ QED
 
 
 
-
 Triviality simp_tables_res_empty_length:
   ∀ tbll sop.
     simp_tables tbll sop = [] ⇒
@@ -1228,6 +1232,7 @@ Proof
   Induct >> rw[simp_tables_def] >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
+
 
 
 Triviality simp_tables_res_single_length:
@@ -1242,17 +1247,13 @@ QED
 
 
 
-(*
-new definition for simp_tables
-so that the proofs are easier to deal with
-*)
-
-
+(* Alternative definition for simp_tables with next_state for easier to deal with  *)
 Definition next_state_def:
   next_state t' = case t' of
                   | [([True], s, state s'')] => SOME s''
                   | _ => NONE
 End
+
 
 
 Definition simp_tables2_def:
@@ -1262,6 +1263,7 @@ Definition simp_tables2_def:
    t' :: simp_tables2 tbll (next_state t')
   )
 End
+
 
 
 Theorem simp_tables_eq:
@@ -1276,6 +1278,8 @@ Proof
 QED
 
 
+
+(* next_state correctly predicts match result *)
 Theorem next_state_rel_to_final_match_res:
   ∀ tbl n n' n'' mv.
     match_tbl tbl mv n = SOME (state n') ∧
@@ -1322,7 +1326,7 @@ QED
 
 
 
-
+(* Simplification with/without state knowledge yields same matches *)
 Theorem match_tbll_simp_tables_eq_thm:
   ∀tbll mv n.
     match_tbll (simp_tables tbll NONE) mv n =
@@ -1390,7 +1394,6 @@ Theorem simp_table_cannot_result2:
     (∀ a l.(simp_table rows (SOME n) ≠ [(NotTrue::a::l,st,res)])) ∧
     (∀ a l.(simp_table rows (SOME n) ≠ [(NotFalse::a::l,st,res)]))
 Proof
-
   Induct >>
   rw[simp_table_def] >>
   PairCases_on ‘h’ >>
@@ -1402,9 +1405,7 @@ QED
 
 
 
-
-
-
+(* Substitution preserves atom semantics when x is assigned *)
 Theorem sem_var_atom_sub_same:
   ∀ atom mv x b b'.
     ALOOKUP mv x = SOME b  ⇒
@@ -1415,6 +1416,7 @@ Proof
   rw[sem_var_atom_def, mk_substitute_atom_def] >>
   Cases_on ‘b'’ >> gvs[]
 QED
+
 
 
 Theorem sem_var_atoml_sub_same_imp1:
@@ -1428,6 +1430,7 @@ Proof
   rw[] >>
   imp_res_tac sem_var_atom_sub_same
 QED
+
 
 
 Theorem sem_var_atoml_sub_same_imp2:
@@ -1445,7 +1448,7 @@ QED
 
 
 
-
+(* Substitution preserves row match condition *)
 Theorem is_match_row_mk_sub_eq:
   ∀ atoml st s_in mv x b.
     ALOOKUP mv x = SOME b ⇒
@@ -1464,6 +1467,7 @@ QED
 
 
 
+(* Substitution preserves table match results *)
 Theorem check_all_rows_match_sub_eq:
   ∀ tbl x b mv s_in.
     ALOOKUP mv x = SOME b ⇒
@@ -1543,10 +1547,6 @@ QED
 
 
 
-
-
-
-
 Theorem simp_row_false_imp_atoml_false:
   ∀ atoms mv.
     simp_row atoms = [False] ⇒
@@ -1567,6 +1567,7 @@ Proof
     res_tac
   ]
 QED
+
 
 
 Triviality filter_simp_empty_then_all_true:
@@ -1601,7 +1602,6 @@ QED
 
 
 
-
 Theorem simp_row_not_imp_atoml_true:
   ∀ atoms mv s.
     simp_row atoms = [Not s] ⇒
@@ -1621,7 +1621,6 @@ Proof
   first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
   rpt (BasicProvers.FULL_CASE_TAC >> gvs[])
 QED
-
 
 
 
@@ -1732,8 +1731,6 @@ QED
 
 
 
-
-
 Theorem min_idx_till_simp_sub_eq_none:
   ∀ t t' mv x b s_in.
     ALOOKUP mv x = SOME b ∧
@@ -1747,7 +1744,6 @@ Proof
   gvs[] >>
   metis_tac[min_idx_till_simp_eq_none]
 QED
-
 
 
 
@@ -1865,8 +1861,7 @@ QED
 
 
 
-
-
+(* Simplified substituted table matches original table *)
 Theorem prop1_mini_subcases:
   ∀ t l s_in  x b mv.
     ALOOKUP mv x = SOME b ∧
@@ -1890,7 +1885,6 @@ QED
 
 
 
-
 Triviality simp_table_final_case:
   ∀ rows n st res.
     simp_table rows (SOME n) = [([True],st,res)] ⇒
@@ -1905,6 +1899,7 @@ Proof
 QED
 
 
+
 Triviality match_tbl_simple_final_case:
   ∀ h1 st s_in n n' mv.
     match_tbl [([True],st,state n)] mv s_in = SOME (state n') ⇒
@@ -1917,6 +1912,10 @@ QED
 
 
 
+(*******************************************************)
+(*  PROPERTY 1: Simplification after substitution      *)
+(*  preserves semantics                                *)
+(*******************************************************)
 
 Theorem prop1_tables_verbose:
   ∀ tbll mv h b s_in.
@@ -1929,8 +1928,6 @@ Proof
    (
    gvs[simp_tables_def, match_tbll_def]
    ) >>
-
-
 
    (* we need to be able to cut the tables list into something manageble for the proof*)
    rename1 ‘mk_substitute_tbl t x b’ >>
@@ -2162,8 +2159,6 @@ QED
 
 
 
-
-
 Theorem prop1_var_tables:
   prop1 table_structure
 Proof
@@ -2181,11 +2176,11 @@ QED
 
 
 
-(*******************************************)
-(*                property 2               *)
-(*******************************************)
+(*******************************************************)
+(*  PROPERTY 2: Final implies semantic value           *)
+(*******************************************************)
 
-
+(* final_row only succeeds for [True] row *)
 Theorem final_row_final_result:
   ∀ atoms_list st res s_in q.
     final_row (atoms_list,st,res) s_in = SOME q ⇒
@@ -2198,6 +2193,7 @@ QED
 
 
 
+(* If final_tbl succeeds, match_tbl finds it *)
 Theorem property_final_imp_match_simp:
   ∀ tbl s_in q mv.
     final_tbl tbl s_in = SOME q ⇒
@@ -2243,6 +2239,7 @@ QED
 
 
 
+(* If final_tables succeeds, sem_tables finds it *)
 Theorem property_final_imp_sem_tbll_simp:
   ∀ tbll mv q s_in.
     final_tables (tbll,s_in) = SOME q
@@ -2279,8 +2276,7 @@ QED
 
 
 
-
-
+(* Final after substitution implies original semantics *)
 Theorem prop2_var_tables_verbose:
   ∀ tbll mv s_in h b q.
     ALOOKUP mv h = SOME b ∧
@@ -2299,7 +2295,6 @@ QED
 
 
 
-
 Theorem prop2_var_tables:
   prop2 table_structure
 Proof
@@ -2315,10 +2310,9 @@ Proof
 QED
 
 
-(*******************************************)
-(*                property 3               *)
-(*******************************************)
-
+(*******************************************************)
+(*  PROPERTY 3: Final implies deterministic            *)
+(*******************************************************)
 
 Theorem prop3_var_tables:
   prop3 table_structure
@@ -2336,6 +2330,7 @@ QED
 
 
 
+(* Substitution doesn't introduce new variables *)
 Theorem fv_atom_sub_single:
   ∀ h x b x'.
     MEM x' (fv_atom (mk_substitute_atom h x b)) ⇒
@@ -2346,12 +2341,12 @@ Proof
 QED
 
 
+
 Theorem fv_atoml_row_single:
   ∀ atoml x' x b.
     MEM x' (fv_row (mk_substitute_row atoml x b)) ⇒
     MEM x' (fv_row atoml)
 Proof
-
   Induct >>
   rw[mk_substitute_row_def] >>
   gvs[fv_row_def] >>
@@ -2359,6 +2354,7 @@ Proof
   first_x_assum (strip_assume_tac o (Q.SPECL [‘x'’, ‘x’, ‘b’])) >>
   gvs[mk_substitute_row_def]
 QED
+
 
 
 Theorem fv_tbl_sub_single:
@@ -2375,6 +2371,8 @@ Proof
   res_tac >> gvs[]
 QED
 
+
+
 Triviality mem_head_fv_tbll_triv:
   ∀ varslist h tbl x' tbls.
     (∀x. MEM x (fv_tbll (h::tbls)) ⇒ MEM x varslist) ∧
@@ -2386,6 +2384,7 @@ QED
 
 
 
+(* Free variables preserved under substitution *)
 Theorem fv_tbls_in_sub_varslist_thm:
   ∀ tbls varslist h b.
     (∀x. MEM x (fv_tbll tbls) ⇒ MEM x varslist) ⇒
@@ -2417,6 +2416,7 @@ Proof
 QED
 
 
+
 Theorem mem_flat_fv_row:
   ∀ row row' x .
     simp_row row = row' ∧
@@ -2435,7 +2435,7 @@ QED
 
 
 
-
+(* Simplification doesn't introduce new variables *)
 Theorem mem_fv_tbl_simp_mem:
   ∀ tbl tbl' x.
     MEM x ( fv_tbl tbl') ∧
@@ -2455,7 +2455,6 @@ Proof
   imp_res_tac mem_flat_fv_row >>
   gvs[fv_atom_def]
 QED
-
 
 
 
@@ -2519,7 +2518,6 @@ QED
 
 
 
-
 Theorem mem_var_list_simp_tables_fv_tbll:
   ∀ tbls s_in  h b x varslist.
     (∀x'. MEM x' (fv_tbll tbls) ⇒ MEM x' varslist) ∧
@@ -2546,9 +2544,10 @@ Proof
 QED
 
 
-(*******************************************)
-(*                property 4               *)
-(*******************************************)
+(*******************************************************)
+(*  PROPERTY 4: Free variables preserved under         *)
+(*  simplification                                     *)
+(*******************************************************)
 
 Theorem prop4_var_tables:
   prop4 table_structure

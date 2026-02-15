@@ -14,9 +14,6 @@ open tables_specTheory;
 
 val _ = new_theory "table_var_to_arith";
 
-(* TODO :
-  all_is_some change to all_is_some
-*)
 
 (*******************************************************)
 (*  Variable to Arithmetic Table Conversion            *)
