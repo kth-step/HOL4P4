@@ -57,7 +57,8 @@ End
 (* policy simplifications *)
 Definition simp_policy_def:
   simp_policy (policy: 'a policy) =
-  MAP (\(pred,a). (simp_pred pred,a)) policy
+  let all_lines = MAP (\(pred,a). (simp_pred pred,a)) policy in
+    FILTER (\(p,a). p ≠ False) all_lines
 End
 
 
@@ -232,7 +233,7 @@ Proof
 QED
 
 
-
+(*
 Theorem simp_policy_cons:
   ∀ pl pred action .
     simp_policy ((pred,action)::pl) = simp_policy [(pred,action)] ++ simp_policy pl
@@ -240,7 +241,7 @@ Proof
   rpt strip_tac >>
   gvs[simp_policy_def]
 QED
-
+*)
 
 
 Theorem check_sem_pred_cons:
@@ -272,14 +273,14 @@ Proof
 QED
 
 
-
+(*
 Triviality simp_policy_normalize:
   ∀ pred action pl.
   simp_policy ((pred,action)::pl) = (simp_pred pred,action)::(simp_policy pl)
 Proof
   gvs[simp_policy_def]
 QED
-
+*)
 
 
 Theorem property_1_policy_reverse_normalize:
@@ -312,6 +313,69 @@ QED
 
 
 
+Theorem property_1_policy_reverse_normalize_b:
+  ∀ pl pred action  h' b mv.
+    (sem_pred (simp_pred (mk_substitute_pred pred h' b)) mv = sem_pred pred mv) ∧
+    (sem_policy (simp_policy (mk_substitute_policy pl h' b)) mv = sem_policy pl mv) ⇒
+    (sem_policy
+     (simp_policy
+      ((mk_substitute_pred pred h' b,action)::
+                                            mk_substitute_policy pl h' b)) mv =
+     sem_policy ((pred,action)::pl) mv)
+Proof
+  rpt strip_tac >>
+  gvs[sem_policy_def] >>
+  gvs[min_idx_till_def, check_sem_pred_def] >>
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+  gvs[simp_policy_def] >>
+  (gvs[INDEX_FIND_def] >>
+   rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+   gvs[P_NONE_hold] >>
+   imp_res_tac P_NONE_hold2 >>
+   gvs[] ) >>
+
+  (gvs[simp_policy_def] >>
+   (gvs[INDEX_FIND_def] >>
+    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+    gvs[P_NONE_hold] >>
+    imp_res_tac P_NONE_hold2 >>
+    gvs[]) >>
+
+   gvs[sem_pred_def] >>
+   imp_res_tac P_current_next_same >>
+   gvs[])
+QED
+
+
+
+
+Theorem sem_policy_normalization_of_simp:
+  ∀ policy pred a mv.
+    sem_policy (simp_policy ((pred,a)::policy)) mv=
+    sem_policy ((simp_pred pred, a)::(simp_policy policy)) mv
+Proof
+  rw[simp_policy_def] >>
+  gvs[sem_policy_def] >>
+  gvs[min_idx_till_def, check_sem_pred_def] >>
+
+  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
+
+  gvs[INDEX_FIND_def] >>
+  gvs[sem_pred_def] >>
+  gvs[P_NONE_hold] >>
+  imp_res_tac P_NONE_hold2 >>
+  gvs[] >>
+
+  imp_res_tac P_current_next_same >>
+  gvs[]
+QED
+
+
+
+
+
+
 Theorem prop1_policy:
   prop1 policy_structure
 Proof
@@ -326,20 +390,16 @@ Proof
   res_tac >>
 
   imp_res_tac fv_mem_policy_hd_thm >>
-  imp_res_tac fv_mem_single_policy_imp_pred >>
-
+  rgs[Once fv_policy_def] >>
 
   rename1 ‘sem_policy ((pred,action)::pl) mv’ >>
   simp[mk_substitute_policy_normalize] >>
-  simp[simp_policy_normalize] >>
-
 
   assume_tac prop1_pred >>
   gvs[prop1_def, pred_structure_def] >>
-  gvs[fv_in_p_def] >>
-
+  fs[fv_in_p_def] >>
   res_tac >>
-  gvs[property_1_policy_reverse_normalize]
+  fs[property_1_policy_reverse_normalize_b]
 QED
 
 
@@ -431,135 +491,6 @@ Proof
   gvs[INDEX_FIND_def]
 QED
 
-
-
-(* TODO: make it a bit smaller -.- *)
-Theorem property_2_policy_reverse_normalize:
-  ∀ pl pred action h' b q mv.
-    (final_policy (simp_policy (mk_substitute_policy ((pred,action)::pl) h' b)) = SOME q) ∧
-    (∀q'. final_policy (simp_policy (mk_substitute_policy pl h' b)) = SOME q' ⇒
-         SOME q' = sem_policy pl mv) ∧
-    (∀q''. final_pred (simp_pred (mk_substitute_pred pred h' b)) = SOME q'' ⇒
-           SOME q'' = sem_pred pred mv)
-    ⇒
-    SOME q = sem_policy ((pred,action)::pl) mv
-
-Proof
-
-  rpt strip_tac >>
-
-  gvs[mk_substitute_policy_normalize] >>
-  gvs[simp_policy_normalize] >>
-
-
-  gvs[sem_policy_def, final_policy_def] >>
-  gvs[min_idx_till_def, check_sem_pred_def] >>
-  rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
-  gvs [pre_are_fail_def] >|[
-
-    gvs[INDEX_FIND_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >-
-     gvs[final_pred_def] >>
-    gvs[P_NONE_hold]
-    ,
-
-    gvs[INDEX_FIND_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >-
-     gvs[final_pred_def] >>
-    imp_res_tac index_of_simp_sub_add1 >>
-    gvs[] >>
-    ‘q' < LENGTH (simp_policy (mk_substitute_policy pl h' b))’ by gvs[INDEX_FIND_EQ_SOME_0] >>
-    imp_res_tac every_seg_property_1 >>
-    imp_res_tac index_find_in_seg_not_exists
-    ,
-
-    gvs[INDEX_FIND_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >-
-     gvs[final_pred_def] >>
-    imp_res_tac P_NONE_hold2 >>
-    gvs[]
-    ,
-
-    gvs[INDEX_FIND_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >-
-     gvs[final_pred_def] >>
-    gvs[P_NONE_hold]
-    ,
-
-    gvs[INDEX_FIND_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >-
-     gvs[final_pred_def] >>
-
-    (imp_res_tac index_of_simp_sub_add1 >>
-     gvs[] >>
-     imp_res_tac P_implies_next >>
-     gvs[SUC_ADD_ONE] >>
-     ‘q'' < LENGTH (simp_policy (mk_substitute_policy pl h' b))’ by gvs[INDEX_FIND_EQ_SOME_0] >>
-     imp_res_tac every_seg_property_1 >>
-     imp_res_tac index_find_in_seg_not_exists
-    )
-    ,
-
-    gvs[INDEX_FIND_def] >>
-    rpt (BasicProvers.FULL_CASE_TAC >> gvs[]) >-
-     gvs[final_pred_def] >>
-
-    imp_res_tac index_of_simp_sub_add1 >>
-    gvs[] >>
-    imp_res_tac P_implies_next >>
-    gvs[SUC_ADD_ONE] >>
-    ‘q'' < LENGTH (simp_policy (mk_substitute_policy pl h' b))’ by gvs[INDEX_FIND_EQ_SOME_0] >>
-    imp_res_tac every_seg_property_1 >>
-    res_tac >>
-
-    PairCases_on ‘r'’ >>
-    PairCases_on ‘r''’ >>
-    gvs[] >>
-
-    ‘(λ(p,a). p = SOME T) (r''0,r''1)’ by  imp_res_tac INDEX_FIND_EQ_SOME_0 >>
-    ‘(λ(p,a). p = True) (r'0,r''1)’ by  imp_res_tac INDEX_FIND_EQ_SOME_0 >>
-    gvs[] >>
-
-    first_x_assum (strip_assume_tac o (Q.SPECL [‘F’])) >> gvs[] >>
-    imp_res_tac every_seg_property_2 >>
-    gvs[final_pred_def]
-
-  ]
-QED
-
-
-
-
-Theorem prop2_policy:
-  prop2 policy_structure
-Proof
-  gvs[prop2_def] >>
-  gvs[fv_in_p_def, policy_structure_def] >>
-  Induct_on ‘p’ >-
-   gvs[sem_policy_def, check_sem_pred_def, min_idx_till_def, INDEX_FIND_def,
-       mk_substitute_policy_def, simp_policy_def, simp_policy_def,
-       final_policy_def] >>
-
-  rpt strip_tac >>
-  Cases_on ‘h’ >> gvs[] >>
-  rename1 ‘(pred,action)’ >>
-  imp_res_tac fv_mem_policy_thm >>
-  res_tac >>
-
-
-  imp_res_tac fv_mem_policy_hd_thm >>
-  imp_res_tac fv_mem_single_policy_imp_pred >>
-
-
-  rename1 ‘sem_policy ((pred,action)::pl) mv’ >>
-
-  assume_tac prop2_pred >>
-  gvs[prop2_def, pred_structure_def] >>
-  gvs[fv_in_p_def] >>
-
-  res_tac >>
-  imp_res_tac property_2_policy_reverse_normalize
-QED
 
 
 
@@ -658,6 +589,45 @@ QED
 
 
 
+Theorem prop2_policy:
+  prop2 policy_structure
+Proof
+  gvs[prop2_def] >>
+  gvs[fv_in_p_def, policy_structure_def] >>
+  Induct_on ‘p’ >-
+   gvs[sem_policy_def, check_sem_pred_def, min_idx_till_def, INDEX_FIND_def,
+       mk_substitute_policy_def, simp_policy_def, simp_policy_def,
+       final_policy_def] >>
+
+  rpt strip_tac >>
+  Cases_on ‘h’ >> gvs[] >>
+  rename1 ‘(pred,action)’ >>
+  imp_res_tac fv_mem_policy_thm >>
+  res_tac >>
+
+
+  imp_res_tac fv_mem_policy_hd_thm >>
+  imp_res_tac fv_mem_single_policy_imp_pred >>
+
+
+  rename1 ‘sem_policy ((pred,action)::pl) mv’ >>
+
+
+  imp_res_tac property_3_policy_reverse_normalize >>
+  first_x_assum (strip_assume_tac o (Q.SPECL [‘mv’])) >>
+  gvs[] >>
+
+   assume_tac prop1_policy >>
+  gvs[prop1_def, policy_structure_def] >>
+  fs[fv_in_p_def] >>
+  res_tac >>
+  gvs[]
+QED
+
+
+
+
+
 Theorem prop3_policy:
   prop3 policy_structure
 Proof
@@ -708,21 +678,75 @@ Proof
 QED
 
 
-
-Theorem property_4_policy_reverse_normalize:
-  ∀ pl pred action h x b varslist.
-    MEM x (fv_policy (simp_policy (mk_substitute_policy ((pred,action)::pl) h b))) ∧
-    (∀x' h b.    MEM x' (fv_policy (simp_policy (mk_substitute_policy pl h b))) ⇒
-                MEM x' varslist) ∧
-    (∀x'' h' b'.  MEM x'' (fv_pred (simp_pred (mk_substitute_pred pred h' b'))) ⇒
-                MEM x'' varslist) ⇒
-    MEM x varslist
+Theorem fv_for_pred_thm_local:
+  ∀ pred h' x b.
+    MEM x (fv_pred (simp_pred (mk_substitute_pred pred h' b))) ⇒
+    MEM x (fv_pred pred)
 Proof
+  Induct >>
+  (
   rpt strip_tac >>
-  gvs[fv_policy_def] >>
-  gvs[mk_substitute_policy_normalize] >>
-  gvs[simp_policy_normalize] >>
-  metis_tac[]
+  imp_res_tac fv_subst_simp_distributes_over_connectives >>
+  res_tac >>
+  simp[fv_pred_def] >>
+  gvs[mk_substitute_pred_def, simp_pred_def, fv_pred_def] >>
+  rpt (BasicProvers.full_case_tac >> gvs[simp_pred_def, fv_pred_def])
+ )
+QED
+
+
+
+Triviality fv_policy_plus_h:
+  ∀ x pl pred a.
+    MEM x (fv_policy pl) ⇒
+    MEM x (fv_policy ((pred,a)::pl))
+Proof
+  rw[fv_policy_def]
+QED
+
+
+
+Triviality fv_policy_in_h:
+  ∀ x pl pred a.
+    MEM x (fv_pred pred) ⇒
+    MEM x (fv_policy ((pred,a)::pl))
+Proof
+  rw[fv_policy_def]
+QED
+
+
+
+
+
+
+Theorem policies_fv_golden_lemma:
+  ∀ pl pred action h' b x.
+    MEM x (fv_policy (simp_policy (mk_substitute_policy ((pred,action)::pl) h' b))) ⇒
+    (MEM x (fv_policy pl) ∨  MEM x (fv_pred pred))
+Proof
+  Induct >|[
+    rw[fv_policy_def, simp_policy_def, mk_substitute_policy_def] >>
+    imp_res_tac fv_for_pred_thm_local >> gvs[]
+    ,
+    rw[] >>
+    rgs[Once mk_substitute_policy_normalize] >>
+    gvs[simp_policy_def] >>
+    rpt (BasicProvers.full_case_tac >> gvs[]) >|[
+        rw[fv_policy_def] >>
+        gvs[fv_policy_def] >|[
+          imp_res_tac fv_for_pred_thm_local >> gvs[]
+          ,
+          PairCases_on ‘h’ >>
+          res_tac >>
+          gvs[]
+        ]
+        ,
+        PairCases_on ‘h’ >>
+        res_tac >>
+        gvs[] >>
+        metis_tac[fv_policy_plus_h, fv_policy_in_h]
+      ]
+  ]
 QED
 
 
@@ -742,18 +766,11 @@ Proof
   res_tac >>
 
   imp_res_tac fv_mem_policy_in_mv_hd_thm >>
-
-  assume_tac prop4_pred >>
-  gvs[prop4_def, pred_structure_def] >>
-  gvs[fv_in_vars_def] >>
-
-  res_tac >>
-  imp_res_tac property_4_policy_reverse_normalize
+  imp_res_tac policies_fv_golden_lemma >>
+  res_tac
 QED
 
 
 
 
 val _ = export_theory ();
-
-
