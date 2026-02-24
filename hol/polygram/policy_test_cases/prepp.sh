@@ -18,6 +18,8 @@ echo "Done!"
 
 cd ../policy_test_cases
 
-for i in {1..50}; do
+Holmake "paper_example${i}Theory.uo"
+
+for i in {1..7}; do
     Holmake "internet_firewall_${i}Theory.uo"
 done

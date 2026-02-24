@@ -133,28 +133,7 @@ val policy_me =   “[
 (******************************)
 (*   Best output table order  *)
 (******************************)
-
-
-(* Grouped policy ordering *)
-val policy_full_order = “[
-  ("srcPortGrp",["is_srcPort_le_57222";"is_srcPort_ge_57222";"is_srcPort_le_56258";"is_srcPort_ge_56258";"is_srcPort_le_6881";"is_srcPort_ge_6881"]);
-  ("dstPortGrp",["is_dstPort_le_53";"is_dstPort_ge_53";"is_dstPort_le_3389";"is_dstPort_ge_3389";"is_dstPort_le_50321";"is_dstPort_ge_50321"]);
-  ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
-  ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389";"is_dstNAT_le_50321";"is_dstNAT_ge_50321"])
-]”;
-
-
-(* Flat policy order (grouped) *)
-
-val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881"; "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321"; "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265"; "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321"]”;
-
-
-
-(**************************************)
-(* hand crafted possible better order *)
-(**************************************)
-
-(*
+(* 
 val policy_full_order = “[
   ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
   ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389";"is_dstNAT_le_50321";"is_dstNAT_ge_50321"]);
@@ -166,8 +145,8 @@ val policy_order = “[
 "is_srcNAT_le_54587"; "is_srcNAT_ge_54587"; "is_srcNAT_le_56258"; "is_srcNAT_ge_56258"; "is_srcNAT_le_43265"; "is_srcNAT_ge_43265";
 "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321";
 "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321";
-"is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881";]”;  *)
-
+"is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881";]”; 
+ *)
 
 
 
@@ -176,7 +155,7 @@ val policy_order = “[
 (*    but better for BDD    *)
 (****************************)
 
-(*
+
  val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
@@ -205,7 +184,7 @@ val policy_full_order = “[
   ("qpkb" ,["is_dstPort_le_50321";"is_dstPort_ge_50321"]);
   ("hdur",["is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
   ("wg" ,["is_dstNAT_le_50321";"is_dstNAT_ge_50321"])
-]”;  *)
+]”; 
 
 
 
@@ -217,11 +196,10 @@ val policy_full_order = “[
 (********************)
 
 (* BDD alists + EVAL *)
-
-(*
+(* 
 val final_thm_res_eval =
 fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order);
-*)
+ *)
 
 
 (* BDD alists + Cakeml w parser, just bin *)

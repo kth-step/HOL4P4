@@ -250,7 +250,7 @@ val new_procedure_table_full_opt = mk_BDDPred_opt_new_thm rec_flag_table “(0n,
 
 
 
-val _ = export_theory ();
+
 
 (*
 (*
@@ -979,3 +979,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 
 *)
 *)
+
+
+
+val _ = export_theory ();
