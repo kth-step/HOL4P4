@@ -377,7 +377,7 @@ val (arch_frame_list_regular_tm,  mk_arch_frame_list_regular, dest_arch_frame_li
 
 fun dest_actx actx =
  case spine_pair actx of
-    [ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map] => (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map)
+    [ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map, get_oracle_index, set_oracle_index, random_oracle] => (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_fun_map, func_map, get_oracle_index, set_oracle_index, random_oracle)
   | _ => raise (ERR "dest_actx" ("Unsupported actx shape: "^(term_to_string actx)))
 ;
 fun dest_astate astate =

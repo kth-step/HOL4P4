@@ -1366,7 +1366,39 @@ extern_MoE_typed ext_map t_scope_list_g delta_g delta_b delta_x
 ext_map -| order t_scope_list_g delta_g delta_b delta_x
 
 
+defns
+WT_ec :: '' ::=
+defn
+ ectx -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n :: :: WT_ec :: WT_ec_
+{{ com expression-level context well typed }}
+{{ tex [[ectx]] -| [[order]] [[t_scope_list_g]] [[delta_g]] [[delta_b]] [[delta_x]] [[delta_t]] [[Prs_n]] }}
+by
 
+% TODO: remove dom_tmap_ei ( delta_g , delta_b ) because the prop is satisfies in typying_domains_ei
+% TODO: parser map has nothing to do with those semantics, shall we say that Prs_n is the domain or pars_map? ...
+
+WF_o order
+length_is_2 ( t_scope_list_g )
+length_eq delta_b b_func_map
+length_eq delta_t tbl_map
+dom_map_ei ( func_map , b_func_map )
+dom_tmap_ei ( delta_g , delta_b )
+typying_domains_ei ( delta_g , delta_b , delta_x )
+dom_g_eq ( delta_g , func_map )
+dom_b_eq ( delta_b , b_func_map )
+dom_x_eq ( delta_x , ext_map )
+dom_t_eq ( delta_t , tbl_map )
+Fg_star_defined ( func_map , t_scope_list_g )
+Fb_star_defined ( b_func_map , t_scope_list_g )
+X_star_defined  ( ext_map , t_scope_list_g )
+X_star_not_defined t_scope_list_g
+func_map -| order t_scope_list_g delta_g delta_b delta_x Prs_n
+b_func_map -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+ext_map -| order t_scope_list_g delta_g delta_b delta_x
+table_map_typed tbl_map apply_table_f delta_g delta_b order
+f_in_apply_tbl tbl_map apply_table_f
+--------------------------------------- :: c
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i , random_oracle ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 
 
 
@@ -1402,7 +1434,7 @@ ext_map -| order t_scope_list_g delta_g delta_b delta_x
 table_map_typed tbl_map apply_table_f delta_g delta_b order
 f_in_apply_tbl tbl_map apply_table_f
 --------------------------------------- :: c
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 
 
 
@@ -1530,7 +1562,7 @@ ctx state Prs_n order ( t_scope_list_g , t_scopes_frames ) delta :: :: WT_state 
 {{ com context well typed }}
 {{ tex WT [[ctx]] [[state]] [[Prs_n]] [[order]] [[t_scope_list_g]] [[t_scopes_frames]] [[delta]] }}
 by
-
+ 
 
 % We need type_scopes_list for globals because we need to know that the scopes are typed before we do the passing
 % we need type_state_tsll because it is easier for teh proof, 
@@ -1542,7 +1574,7 @@ type_scopes_list g_scope_list t_scope_list_g
 ctx -| order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n
 ( g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status )  -|||  Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t ) func_map b_func_map
 ---------------------------------------------------------------------- :: state
-( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map ) ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ [ ( funn1 , stmt_stack1 , scope_list1 ) ] , .. , [ ( funnn , stmt_stackn , scope_listn ) ] ] , status ) Prs_n order ( t_scope_list_g , [ t_scope_list1 , .. , t_scope_listn ] ) ( delta_g , delta_b , delta_x , delta_t )
 
 
 

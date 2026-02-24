@@ -105,7 +105,7 @@ val init_ctrl = ``[("ipv4_match",
                    )]``;
 
 (* TODO: Make syntax functions *)
-val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl):vss_ascope``;
+val init_ascope = ``((^init_counter), (^init_ext_obj_map), (^init_v_map), ^init_ctrl, 0):vss_ascope``;
 
 (* TODO: Make syntax functions *)
 val init_aenv = ``(^(list_mk_pair [``0:num``, init_inlist_ok, init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
@@ -122,7 +122,7 @@ val init_astate =
 (*   Data non-interference theorems    *)
 (***************************************)
 
-val ctx = ``p4_vss_actx``;
+val ctx = ``p4_vss_actx r``;
 val stop_consts_rewr = [``compute_checksum16``];
 Definition vss_updated_checksum16_def:
  vss_updated_checksum16 (w16_list:bool list) = 
@@ -199,11 +199,18 @@ Definition Checksum16_get':
  )
 End
 
+(*
+val ctx_tm = (rhs $ concl p4_vss_actx_def)
+val ext_name = "Checksum16"
+val method_name = "get"
+val method_tm = “Checksum16_get'”
+*)
+
 (* Re-definition of p4_vss_actx' *)
 Definition p4_vss_actx'_def:
-  p4_vss_actx' = ^(replace_ext_impl (rhs $ concl p4_vss_actx_def) "Checksum16" "get" “Checksum16_get'”)
+  p4_vss_actx' r = ^(replace_ext_impl (rhs $ snd $ strip_forall $ concl p4_vss_actx_def) "Checksum16" "get" “Checksum16_get'”)
 End
-val ctx' = ``p4_vss_actx'``;
+val ctx' = ``p4_vss_actx' r``;
 
 (* EVAL-uate until packet is output (happens to be step 180) *)
 (* Theorem on line below proves data non-interference using proof approach 2 *)

@@ -13,18 +13,21 @@ od_hacks = OrderedDict([("Type ascope = ``:('a)``", ""), #Delete this type abbre
                          "val _ = Hol_datatype ` \nffblock =  (* fixed-function block *)\n   ffblock_ff of 'a ff\n`;"),
                         ("Type ffblock_map = ``:((string, ffblock) alist)``",
                          "Type ffblock_map = ``:((string, 'a ffblock) alist)``"),
-                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # ext_map # func_map)``",
-                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # ext_map # func_map)``"),
+                        #TODO: Handled below?
+                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map # get_oracle_index # set_oracle_index # random_oracle)``",
+                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``"),
                         ("Type astate = ``:(aenv # g_scope_list # arch_frame_list # status)``",
                          "Type astate = ``:('a aenv # g_scope_list # arch_frame_list # status)``"),
                         ("Type ext_fun_map = ``:((string, ((string # d) list # ext_fun)) alist)``",
                          "Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``"),
                         ("Type ext_map = ``:((string, ((((string # d) list # ext_fun) option) # ext_fun_map)) alist)``",
                          "Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``"),
-                        ("Type ctx = ``:(apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map)``",
-                         "Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map)``"),
-                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map)``",
-                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map)``")
+                        ("Type ctx = ``:(apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map # get_oracle_index # set_oracle_index # random_oracle)``",
+                         "Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``"),
+                        ("Type ectx = ``:(apply_table_f # ext_map # func_map # b_func_map # pars_map # tbl_map # i # random_oracle)``",
+                         "Type ectx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # i # random_oracle)``"),
+                        ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``",
+                         "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``")
                         ])
 
 #Assign the polymorphic types (found in semantics definitions, et.c.) a proper 'a
@@ -37,9 +40,12 @@ od = OrderedDict([("ascope_ty", "'a"), #Replace this as it appears in type abbre
                   (":copyin_pbl", ":'a copyin_pbl"),
                   (":copyout_pbl", ":'a copyout_pbl"),
                   (":ff", ":'a ff"),
+                  (":ectx", ":'a ectx"),
                   (":ctx", ":'a ctx"),
                   (":ext_map", ":'a ext_map"),
                   (":ext_fun", ":'a ext_fun"),
+                  (":get_oracle_index", ":'a get_oracle_index"),
+                  (":set_oracle_index", ":'a set_oracle_index"),
                   (":apply_table_f", ":'a apply_table_f")])
                   
 all_replaces = OrderedDict(list(od_hacks.items()) + list(od.items()))

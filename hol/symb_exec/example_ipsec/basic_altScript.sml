@@ -270,10 +270,10 @@ val basic_alt_actx = ``([arch_block_inp;
                                     F; F; F; F],32));
                              e_v
                                (v_bit
-                                  ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                                    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                                    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                                    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+                                  ([F; F; F; F; F; F; F; F;
+                                    F; F; F; F; F; F; F; F;
+                                    F; F; F; F; F; F; F; F;
+                                    F; F; F; F; F; F; F; F],
                                    32))])))
                    (stmt_ass (lval_varname (varn_name "notify_soft"))
                       (e_v (v_bool F))))
@@ -350,7 +350,7 @@ val basic_alt_actx = ``([arch_block_inp;
                    (stmt_seq
                       (stmt_ass lval_null
                          (e_call (funn_name "send_to_controller")
-                            [e_v (v_bool F); e_v (v_bool ARB);
+                            [e_v (v_bool F); e_v (v_bool F);
                              e_v
                                (v_bit
                                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F;
@@ -360,7 +360,7 @@ val basic_alt_actx = ``([arch_block_inp;
                       (stmt_seq
                          (stmt_ass lval_null
                             (e_call (funn_name "send_to_controller")
-                               [e_v (v_bool F); e_v (v_bool ARB);
+                               [e_v (v_bool F); e_v (v_bool F);
                                 e_v
                                   (v_bit
                                      ([F; F; F; F; F; F; F; F; F; F; F; F; F;
@@ -1146,116 +1146,116 @@ val basic_alt_actx = ``([arch_block_inp;
  v1model_input_f
    (v_struct
       [("cpu_header",
-        v_header ARB
+        v_header F
           [("zeros",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],64));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],64));
            ("reason",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],16));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],16));
            ("port",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],16));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],16));
            ("timestamp",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F],
                48))]);
        ("ethernet",
-        v_header ARB
+        v_header F
           [("dstAddr",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F],
                48));
            ("srcAddr",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F],
                48));
            ("etherType",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],16))]);
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],16))]);
        ("ipv4",
-        v_header ARB
-          [("version",v_bit ([ARB; ARB; ARB; ARB],4));
-           ("ihl",v_bit ([ARB; ARB; ARB; ARB],4));
-           ("diffserv",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+        v_header F
+          [("version",v_bit ([F; F; F; F],4));
+           ("ihl",v_bit ([F; F; F; F],4));
+           ("diffserv",v_bit ([F; F; F; F; F; F; F; F],8));
            ("totalLen",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],16));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],16));
            ("identification",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],16));
-           ("flags",v_bit ([ARB; ARB; ARB],3));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],16));
+           ("flags",v_bit ([F; F; F],3));
            ("fragOffset",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB],13));
-           ("ttl",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
-           ("protocol",v_bit ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],8));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F],13));
+           ("ttl",v_bit ([F; F; F; F; F; F; F; F],8));
+           ("protocol",v_bit ([F; F; F; F; F; F; F; F],8));
            ("hdrChecksum",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],16));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],16));
            ("srcAddr",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F],32));
            ("dstAddr",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]);
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F],32))]);
        ("esp",
-        v_header ARB
+        v_header F
           [("spi",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32));
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F],32));
            ("sequenceNumber",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))])],
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F],32))])],
     v_struct
       [("intrinsic_metadata",
         v_struct
           [("ingress_global_timestamp",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F; F; F; F; F; F; F; F; F],
                48))]);
        ("user_metadata",
         v_struct
-          [("spd_mark",v_bit ([ARB; ARB; ARB; ARB],4));
-           ("bypass",v_bool ARB)]);
+          [("spd_mark",v_bit ([F; F; F; F],4));
+           ("bypass",v_bool F)]);
        ("esp_meta",
         v_struct
           [("payloadLength",
             v_bit
-              ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-                ARB; ARB; ARB; ARB],16))])]),v1model_output_f,
+              ([F; F; F; F; F; F; F; F; F; F; F; F;
+                F; F; F; F],16))])]),v1model_output_f,
  v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
@@ -1279,22 +1279,22 @@ val basic_alt_actx = ``([arch_block_inp;
    [("emit",[("this",d_in); ("data",d_in)],v1model_packet_out_emit)]);
   ("register",
    SOME
-     ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct),
-   [("read",[("this",d_in); ("result",d_out); ("index",d_in)],register_read);
+     ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct random_oracle),
+   [("read",[("this",d_in); ("result",d_out); ("index",d_in)],register_read random_oracle);
     ("write",[("this",d_in); ("index",d_in); ("value",d_in)],register_write)]);
   ("ipsec_crypt",SOME ([("this",d_out)],ipsec_crypt_construct),
    [("decrypt_aes_ctr",
      [("this",d_in); ("ipv4",d_inout); ("esp",d_inout);
       ("standard_metadata",d_inout); ("key",d_in); ("key_hmac",d_in)],
-     ipsec_crypt_decrypt_aes_ctr);
+     ipsec_crypt_decrypt_aes_ctr random_oracle);
     ("encrypt_aes_ctr",
      [("this",d_in); ("ipv4",d_inout); ("esp",d_inout); ("key",d_in);
-      ("key_hmac",d_in)],ipsec_crypt_encrypt_aes_ctr);
+      ("key_hmac",d_in)],ipsec_crypt_encrypt_aes_ctr random_oracle);
     ("encrypt_null",[("this",d_in); ("ipv4",d_inout); ("esp",d_inout)],
-     ipsec_crypt_encrypt_null);
+     ipsec_crypt_encrypt_null random_oracle);
     ("decrypt_null",
      [("this",d_in); ("ipv4",d_inout); ("esp",d_inout);
-      ("standard_metadata",d_inout)],ipsec_crypt_decrypt_null)])],
+      ("standard_metadata",d_inout)],ipsec_crypt_decrypt_null random_oracle)])],
  [("NoAction",
    stmt_seq
      (stmt_cond (e_var (varn_name "from_table"))
@@ -1308,14 +1308,15 @@ val basic_alt_actx = ``([arch_block_inp;
                      ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
                        F; F; F; F; F; F; F; F; F; F; F; F; F; F],32)))]))
         stmt_empty) (stmt_seq stmt_empty (stmt_ret (e_v v_bot))),
-   [("from_table",d_in); ("hit",d_in)])]):v1model_ascope actx``;
+   [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
+ v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
 val basic_alt_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("spd",spd_tbl); ("forward",forward_tbl); ("sad_decrypt",sad_decrypt_tbl); ("sad_encrypt",sad_encrypt_tbl)]),
+  [("spd",spd_tbl); ("forward",forward_tbl); ("sad_decrypt",sad_decrypt_tbl); ("sad_encrypt",sad_encrypt_tbl)],0),
  [[(varn_name "gen_apply_result",
     v_struct
-      [("hit",v_bool ARB); ("miss",v_bool ARB);
-       ("action_run",v_bit (REPLICATE 32 ARB,32))],NONE)]],
+      [("hit",v_bool F); ("miss",v_bool T);
+       ("action_run",v_bit (REPLICATE 32 F,32))],NONE)]],
  arch_frame_list_empty,status_running):v1model_ascope astate``;
 
 
@@ -1331,7 +1332,9 @@ val input = rhs $ concl $ EVAL “^eth_input ++ (^ipv4_input ++ ^esp_input)”;
 val basic_alt_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^input,0)] ^basic_alt_astate”;
 
 val ctx = basic_alt_actx;
-val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "basic_alt_ctx" (mk_eq(mk_var("basic_alt_ctx", type_of ctx), ctx));
+val ctx_name = "basic_alt_ctx"
+val ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_comb (mk_var (ctx_name, mk_fun_ty “:random_oracle” (type_of ctx)), “random_oracle:random_oracle”), ctx))
+val ctx_data = def_thm ctx_def
 
 (* Additional parts of the context relevant only to symbolic execution *)
 val fty_map' = optionSyntax.dest_some $ rhs $ concl $ EVAL “deparameterise_ftymap_entries ^basic_alt_ftymap”

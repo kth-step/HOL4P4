@@ -7,10 +7,10 @@ open pairSyntax listSyntax numSyntax optionSyntax stringSyntax computeLib marker
 open listTheory p4_auxTheory optionTheory pairTheory;
 
 open p4Theory p4_exec_semTheory;
-open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
+open symb_execTheory p4_symb_execTheory; (* p4_bigstepTheory; *)
 
 open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
-open auxLib symb_execLib p4_bigstepSyntax;
+open auxLib symb_execLib; (* p4_bigstepSyntax; *)
 
 open p4_convLib p4_symb_exec_v1modelLib;
 
@@ -139,13 +139,13 @@ fun astate_get_branch_data astate =
    * V1Model in HOL4P4 *)
  let
   val ascope = #1 $ dest_astate astate
-  val (i, _, _, ascope) = dest_ascope ascope
+  val (i, _, _, ascope, _) = dest_ascope ascope
  in
   if (int_of_term $ i) = 8 andalso
      (type_of ascope = p4_v1modelLib.v1model_arch_ty)
   then
    let
-    val (_, _, v_map, _) = p4_v1modelLib.dest_v1model_ascope ascope
+    val (_, _, v_map, _, _) = p4_v1modelLib.dest_v1model_ascope ascope
     (* TODO: Hack, do in SML *)
     val port_v_bit =
      dest_some $ rhs $ concl $ EVAL “(case ALOOKUP ^v_map "standard_metadata" of
@@ -166,7 +166,7 @@ val b_func_map_entry_ty = “:(string # stmt # (string # d) list)”;
 (* TODO: OPTIMIZE: This should be done once in pre-processing, not at every step *)
 fun get_f_maps (astate, actx) =
  let
-  val (ab_list, pblock_map, _, _, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
+  val (ab_list, pblock_map, _, _, _, _, _, _, ext_fun_map, func_map, _, _, _) = dest_actx actx
   val (aenv, _, _, _) = dest_astate astate
   val (i, _, _, _) = dest_aenv aenv
   val b_func_map_opt = get_b_func_map i ab_list pblock_map
@@ -729,26 +729,6 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
 (*
 val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”);
 
-basic:
-val apply (tbl_name, e) = apply
-    (“"spd"”,
-     “[e_v
-         (v_bit
-            ([ip128; ip129; ip130; ip131; ip132; ip133; ip134; ip135; ip136;
-              ip137; ip138; ip139; ip140; ip141; ip142; ip143; ip144; ip145;
-              ip146; ip147; ip148; ip149; ip150; ip151; ip152; ip153; ip154;
-              ip155; ip156; ip157; ip158; ip159],32));
-       e_v (v_bit ([ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79],8))]”);
-
-ARBs:
-val apply (tbl_name, e) = apply
-    (“"forward"”,
-     “[e_v
-       (v_bit
-	  ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-	    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-	    ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB],32))]”);
-
 *)
     if (hurdUtils.forall is_e_v) (fst $ dest_list e) andalso
        (* Perform a symbolic branch if the apply expression (list) contains
@@ -805,7 +785,7 @@ basic:
 *)
         val i = #1 $ dest_aenv $ #1 $ dest_astate astate
         (* TODO: Unify with the syntactic function obtaining the state above? *)
-        val (ab_list, pblock_map, _, _, _, _, _, _, _, _) = dest_actx $ rhs $ concl ctx_def
+        val (ab_list, pblock_map, _, _, _, _, _, _, _, _, _, _, _) = dest_actx $ rhs $ snd $ strip_forall $ concl ctx_def
         val (curr_block, _) = dest_arch_block_pbl $ rhs $ concl $ HOL4P4_CONV $ mk_el (i, ab_list)
 
         (* TODO: All of the information extracted from the ctx below could be
@@ -1013,6 +993,7 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
     val (aenv, _, arch_frame_list, _) = dest_astate astate
     val top_frame = hd $ fst $ dest_list $ dest_arch_frame_list_regular $ arch_frame_list
     val (funn, stmt_stack, scope_list) = dest_frame top_frame
+    val ascope = #4 $ dest_aenv aenv
    in
     if is_funn_inst funn
     then
@@ -1021,7 +1002,7 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
       val ext_obj = stringSyntax.fromHOLstring ext_obj_tm
      in
       if (ext_obj = "register")
-      then approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list
+      then approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list ascope
 (*
        let
 	(* Array size *)
@@ -1084,7 +1065,6 @@ val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; AR
       val (ext_obj_tm, ext_method_tm) = dest_funn_ext funn
       val ext_obj = stringSyntax.fromHOLstring ext_obj_tm
       val ext_method = stringSyntax.fromHOLstring ext_method_tm
-      val ascope = #4 $ dest_aenv aenv
      in
       if (ext_obj = "register") andalso (ext_method = "read")
       then approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope
@@ -1975,6 +1955,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
   (* TODO: If use_eval_in_ctxt, this should never shortcut apply or select statements, which
    * need to use assumptions in the middle of execution. Fix this when you enable shortcutting
    * these *)
+(* TODO: Re-enable shortcutting
   if ((shortcut_result_eq shortcut res_shortcut) orelse (shortcut_result_eq shortcut res_f_args_shortcut))
   then
    (* Take regular shortcut *)
@@ -2041,6 +2022,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
     res
    end
   else
+*)
    (* OLD regular step *)
    let
     val step_thm2 =
@@ -2183,8 +2165,10 @@ fun preprocess_ftymaps (fty_map, b_fty_map) =
  end
 ;
 
+(* TODO: Re-enable shortcutting
 val (small_big_exec_tm, mk_small_big_exec, dest_small_big_exec, is_small_big_exec) =
  syntax_fns2 "p4_bigstep" "small_big_exec";
+*)
 
 (* The main symbolic execution.
  * Here, the static ctxt and the dynamic path condition have been merged. *)
@@ -2840,7 +2824,7 @@ fun p4_prove_wellformed_state astate wf_def =
    val (concrete_state, abstract_state) = dest_eq eqn
    val (aenv, g_scope_list, _, _) = dest_astate concrete_state
    val (block_index, io_list, io_list', ascope) = dest_aenv aenv
-   val (ext_obj_index, ext_obj_map, v_map, ctrl) = p4_v1modelLib.dest_v1model_ascope ascope
+   val (ext_obj_index, ext_obj_map, v_map, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
 
    (* TODO: Fix this *)
    (* 1. Variables from ext_obj_map
@@ -2943,7 +2927,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
      (ctx_tm, hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx_tm), ctx_tm)))
     end
    | def_thm ctx_def =>
-    (rhs $ concl ctx_def, ctx_def)
+    (rhs $ snd $ strip_forall $ concl ctx_def, ctx_def)
 
   (* Perform symbolic execution until all branches are finished *)
   (* DEBUG *)
@@ -2984,7 +2968,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
   (* Unify all contracts *)
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
   (* Fix contract format *)
-  val ctx_lhs = lhs $ concl ctx_def
+  val ctx_lhs = lhs $ snd $ strip_forall $ concl ctx_def
   val unified_ct_thm' = prove_contract' unified_ct_thm (path_cond, init_astate, ctx_lhs, postcond);
 
   (* DEBUG *)
@@ -3023,7 +3007,7 @@ fun p4_debug_symb_exec arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names
      (ctx_tm, hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx_tm), ctx_tm)))
     end
    | def_thm ctx_def =>
-    (rhs $ concl ctx_def, ctx_def)
+    (snd $ strip_forall $ rhs $ concl ctx_def, ctx_def)
 
   val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
@@ -3199,13 +3183,13 @@ val v1model_standard_metadata_name_ty =
 fun get_v1model_wellformed_defs actx init_astate block_index_stop =
  let
   (* Obtain the function maps for generating star variables *)
-  val (_, _, _, input_f, _, _, _, _, ext_fun_map, func_map) = dest_actx actx
+  val (_, _, _, input_f, _, _, _, _, ext_fun_map, func_map, _, _, _) = dest_actx actx
 
   (* Obtain the control plane configuration from the initial state - this is used directly
    * for the intermediate state *)
   val aenv = #1 $ dest_astate init_astate
   val ascope = #4 $ dest_aenv aenv
-  val ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope ascope
+  val (_, _, _, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
 
   (* TODO: V1Model hack *)
   val (tau1_v, tau2_v) = dest_pair $ snd $ dest_comb input_f
@@ -3231,6 +3215,7 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
   val var_stars = rhs $ concl $ EVAL “(var_star_updates_of_func_map ^func_map)++(var_star_updates_of_ext_map ^ext_fun_map)”
 
   (* Note: Apply result desugaring variable is hard-coded into the architecture models *)
+  val oracle_index_var = mk_var("oracle_index", num)
   val hit_var = mk_var("hit", bool)
   val miss_var = mk_var("miss", bool)
   val (ar_free_vars, ar_v) = mk_v_bit_freevars ("r", 32)
@@ -3246,14 +3231,14 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
 (* OLD
   val def_free_vars = [“packet_tail:bool list”]@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[hit_var, miss_var]@ar_free_vars
 *)
-  val def_free_vars = (fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[hit_var, miss_var]@ar_free_vars
+  val def_free_vars = (fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
  in
   (* TODO: Adjust block index for the block in question, adjust extern map? *)
   Defn.mk_defn "p4_v1model_parser_wellformed"
    “p4_v1model_parser_wellformed astate <=>
      ^(list_mk_exists(def_free_vars, 
      “(astate:v1model_ascope astate) =
-     ((^block_index_stop, [], [], (2, [(0,INL (core_v_ext_packet [])); (1,INL (core_v_ext_packet []))], ^v_map', ^ctrl)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
+     ((^block_index_stop, [], [], (2, [(0,INL (core_v_ext_packet [])); (1,INL (core_v_ext_packet []))], ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
  end
 ;
 
@@ -3340,7 +3325,16 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
     
     (* Introduce the second contract *)
     qpat_assum ‘arch_multi_exec _ _ _ = _’ (fn thm => assume_tac $ SPECL (free_vars_lr $ rhs $ concl thm) gen_contract2) >>
-    FULL_SIMP_TAC std_ss [p4_contract'_alt_shape]
+    FULL_SIMP_TAC std_ss [p4_contract'_alt_shape] >>
+
+    (* Specialise the random oracle *)
+    qpat_x_assum ‘!random_oracle. _’ (fn thm =>
+     let
+      val oracle_var = el 1 $ fst $ strip_forall $ concl thm
+     in
+      assume_tac $ SPECL [oracle_var] thm
+     end) >>
+    FULL_SIMP_TAC std_ss []
    end) >> (
     (* Combine the two executions *)
     qexistsl_tac [‘n + n'’, ‘s'’] >>

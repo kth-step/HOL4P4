@@ -2,13 +2,11 @@ structure p4_testLib :> p4_testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
-open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
+open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax stringLib;
 
-open p4Syntax p4_concurrentSyntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib p4_vssTheory p4_ebpfTheory;
+open p4Syntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib p4_vssTheory p4_ebpfTheory;
 
 open p4_exec_semTheory;
-
-open p4_concurrentTheory;
 
 (* This file contains functions that are useful when creating P4 tests *)
 
@@ -378,9 +376,10 @@ fun dest_ascope ascope =
  let
   val (counter, ascope') = dest_pair ascope
   val (ext_obj_map, ascope'') = dest_pair ascope'
-  val (v_map, ctrl) = dest_pair ascope''
+  val (v_map, ascope''') = dest_pair ascope''
+  val (ctrl, oracle_index) = dest_pair ascope'''
  in
-  (counter, ext_obj_map, v_map, ctrl)
+  (counter, ext_obj_map, v_map, ctrl, oracle_index)
  end
 ;
 
@@ -396,9 +395,12 @@ fun dest_actx actx =
   val (copyin_pbl, actx'''''') = dest_pair actx'''''
   val (copyout_pbl, actx''''''') = dest_pair actx''''''
   val (apply_table_f, actx'''''''') = dest_pair actx'''''''
-  val (ext_map, func_map) = dest_pair actx''''''''
+  val (ext_map, actx''''''''') = dest_pair actx''''''''
+  val (func_map, actx'''''''''') = dest_pair actx'''''''''
+  val (get_oracle_index, actx''''''''''') = dest_pair actx''''''''''
+  val (set_oracle_index, random_oracle) = dest_pair actx'''''''''''
  in
-  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
+  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle)
  end
 ;
 
@@ -437,7 +439,7 @@ fun debug_arch_from_step arch actx astate nsteps =
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
 (* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
 (*  val (i, in_out_list, in_out_list', scope) = dest_aenv aenv *)
-(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle) = dest_actx actx *)
  in
   (dest_actx actx, (dest_aenv aenv, g_scope_list, arch_frame_list, status))
  end
@@ -450,7 +452,7 @@ fun debug_arch_from_step_alt arch actx astate nsteps =
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
 (* Use the below to debug, e.g. using the executable semantics in p4_exec_semScript.sml: *)
 (*  val (i, in_out_list, in_out_list', scope) = dest_aenv aenv *)
-(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx *)
+(*  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle) = dest_actx actx *)
  in
   (actx, list_mk_pair [aenv, g_scope_list, arch_frame_list, status])
  end
@@ -463,12 +465,12 @@ fun debug_frames_from_step arch actx astate nsteps =
   val astate' = eval_and_print_result arch actx astate nsteps
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate'
   val (i, in_out_list, in_out_list', scope) = dest_aenv aenv
-  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map) = dest_actx actx
+  val (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle) = dest_actx actx
   val (pbl_x, pbl_el) = dest_arch_block_pbl $ rhs $ concl $ EVAL ``EL (^i) (^ab_list)``
   val (pbl_type, params, b_func_map, decl_list, pars_map, tbl_map) = dest_pblock $ optionSyntax.dest_some $ rhs $ concl $ EVAL ``ALOOKUP (^pblock_map) (^pbl_x)``
   val frame_list = dest_arch_frame_list_regular arch_frame_list
  in
-  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map), (scope, g_scope_list, frame_list, status))
+  ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle), (scope, g_scope_list, frame_list, status))
  end
 ;
 
@@ -514,75 +516,11 @@ fun replace_ext_impl ctx_tm ext_name method_name method_tm =
     else raise (mk_HOL_ERR "p4_testLib" "replace_ext_impl" ("extern name "^ext_name^" and/or method name "^method_name^" could not be found in ext_map"))
    end;
 
-  val actx_list_10 = List.last actx_list;
-  val actx_list' = (actx_list_8first@[ext_map'])@[actx_list_10];
+  val actx_list_rest = List.drop (actx_list, 9);
+  val actx_list' = (actx_list_8first@[ext_map'])@actx_list_rest;
   val actx' = list_mk_pair actx_list';
  in
   actx'
- end
-;
-
-(***********************)
-(* Concurrency-related *)
-
-(* TODO: Move to concurrencySyntax *)
-fun arch_state_from_conc_state conc_state tid =
- let
-  val [io, io', n_externs, ext_obj_map, v_map, ctrl, index1, gscope1, arch_frame_list1, status1, index2, gscope2, arch_frame_list2, status2] = strip_pair conc_state
-  val aenv = list_mk_pair [n_externs, ext_obj_map, v_map, ctrl]
- in
-  if tid = 1
-  then list_mk_pair [
-        list_mk_pair [index1, io, io', aenv],
-        gscope1, arch_frame_list1, status1
-       ]
-  else list_mk_pair [
-        list_mk_pair [index2, io, io', aenv],
-        gscope2, arch_frame_list2, status2
-       ]
- end
-;
-
-(* TODO: Move to concurrencySyntax *)
-fun thread_state_from_conc_state conc_state tid =
- let
-  val [io, io', n_externs, ext_obj_map, v_map, ctrl, index1, gscope1, arch_frame_list1, status1, index2, gscope2, arch_frame_list2, status2] = strip_pair conc_state
- in
-  if tid = 1
-  then list_mk_pair [index1, gscope1, arch_frame_list1, status1]
-  else list_mk_pair [index2, gscope2, arch_frame_list2, status2]
- end
-;
-
-fun get_trace_thread_n arch_name actx conc_state nsteps tid =
- let
-  val arch_state = arch_state_from_conc_state conc_state tid
-  val other_thread_state =
-   if tid = 1
-   then thread_state_from_conc_state conc_state 2
-   else thread_state_from_conc_state conc_state 1
-
-  val arch_exec_thm =
-   eval_step_fuel (ascope_ty_from_arch arch_name) actx arch_state nsteps;
-
-  val trace_path_arch_thm = HO_MATCH_MP arch_exec_trace_n arch_exec_thm;
-
-  val trace_path_conc_thm =
-   if tid = 1
-   then HO_MATCH_MP arch_path_implies_conc_thread1 trace_path_arch_thm
-   else HO_MATCH_MP arch_path_implies_conc_thread2 trace_path_arch_thm;
- in
-  SPEC other_thread_state trace_path_conc_thm
- end
-;
-
-fun get_trace_thread_next_n arch_name actx conc_trace_thm nsteps tid =
- let
-  val conc_state_mid = #4 $ dest_trace_path $ concl conc_trace_thm
-
-  val conc_trace_next_n_thm = get_trace_thread_n arch_name actx conc_state_mid nsteps tid
- in
-  HO_MATCH_MP (HO_MATCH_MP conc_paths_compose_alt conc_trace_thm) conc_trace_next_n_thm
  end
 ;
 

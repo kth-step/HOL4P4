@@ -1,8 +1,9 @@
-open HolKernel boolLib Parse bossLib ottLib;
-
-open p4Theory p4_auxTheory;
+open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "p4_core";
+
+open ottLib;
+open p4Theory p4_auxTheory;
 
 (*****************)
 (* core ext type *)

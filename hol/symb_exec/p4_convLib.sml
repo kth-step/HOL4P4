@@ -74,7 +74,10 @@ fun same_const_disj_list [] tm = K false tm
 
 (* Customized CBV_CONV for HOL4P4 evaluation *)
 local
+(* TODO: Add back in when including p4_bigstep again
  val list_of_thys = ["p4_aux", "p4_core", "p4_v1model", "p4_ebpf", "p4_vss", "p4_bigstep"]
+*)
+ val list_of_thys = ["p4_aux", "p4_core", "p4_v1model", "p4_ebpf", "p4_vss"]
 
  fun filtered_thm_names name =
   (not $ String.isSuffix "_aux" name) andalso
