@@ -1,10 +1,8 @@
 open HolKernel boolLib simpLib Parse bossLib;
-open p4Lib;
 open blastLib bitstringLib;
 
 open p4Theory;
 open p4_auxTheory;
-open p4_coreTheory;
 
 open bitstringTheory;
 open wordsTheory;
