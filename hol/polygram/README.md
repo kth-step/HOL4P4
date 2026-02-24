@@ -1,3 +1,46 @@
+# PolyGram
+
+
+## To check PolyGram theorems:
+        Holmake
+
+## To run PolyGram test cases (Ubuntu 22.04)
+
+This guide assumes a fresh install of Ubuntu 22.04.
+
+1. Install CakeML (vHOL-Trindemossen-2) clone into the HOL4P4 folder:
+        
+		git clone https://github.com/CakeML/cakeml.git
+        cd cakeml
+        git checkout vHOL-Trindemossen-2
+        cd misc && Holmake && cd ..
+        cd basis && Holmake && cd ..
+        cd translator && Holmake && cd ..
+        cd unverified/sexpr-bootstrap && Holmake && cd ../..
+
+
+2. Install the CakeML bootstrapped compiler
+    Install the bootstrapped CakeML compiler matching the CakeML release for HOL Trindemossen-2 from:
+
+    https://github.com/CakeML/cakeml/releases
+
+    Extract the downloaded files and place them into the following empty folder:
+
+        bdd_cake_test
+
+    Then build:
+
+        cd bdd_cake_test
+        make
+
+
+3. Make the preprocessing scripts executable
+        
+		chmod +x policy_test_cases*/prepp.sh
+
+
+
+
 ## Theory Files Overview
 
 ### Core Theory Files
@@ -31,10 +74,6 @@ The pipeline is assembled according to the use case as described in the paper:
 
 ## Test Case Output
 
-Running `make test` from the root of the repository generates a `.txt` file per test case containing the pipeline output.
-
 For more detailed information on what is happening during each test case, inspect the `.hol/` directory inside each test case folder (for example `hol/polygram/policy_test_cases/.hol/`). Inside `.hol/log/`, each theorem has its own log file containing timing statistics for each stage of the pipeline.
-
-The test cases in `policy_test_cases/` also include the running example from the paper, found in `paper_exampleScript.sml`.
 
 
