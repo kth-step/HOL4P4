@@ -3,7 +3,7 @@ open policy_arith_to_varTheory;
 open bdd_utilsLib;
 
 
-val _ = new_theory "internet_firewall_8";
+val _ = new_theory "internet_firewall_8_simple";
 
 Type single_rule = “:((string# num list) action_expr) arith_rule”;
 
@@ -211,15 +211,22 @@ val arith_policy1 = “[
     ^arith_policy_rule_default
 ]:single_rule list”;
 
+
+
+
+
+
+
 val arith_policy2 = “[
-    ^arith_policy_rule5;
-    ^arith_policy_rule2;
-    ^arith_policy_rule8;
     ^arith_policy_rule1;
-    ^arith_policy_rule4;
-    ^arith_policy_rule7;
+    ^arith_policy_rule2;
     ^arith_policy_rule3;
+    ^arith_policy_rule4;
+    ^arith_policy_rule5;
     ^arith_policy_rule6;
+    ^arith_policy_rule3; (* rule 3 repeated here *)
+    ^arith_policy_rule7;
+    ^arith_policy_rule8;
     ^arith_policy_rule_default
 ]:single_rule list”;
 
@@ -282,7 +289,10 @@ val policy_me =   “[
 ]”;
 
 
-(* order *)
+(****************************)
+(* worst output table order *)
+(*    but better for BDD    *)
+(****************************)
 
 val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
@@ -314,9 +324,12 @@ val policy_order = “[
 ]”;
 
 
-
 (***********************************************)
 
-val policy_eq_thm = fwd_proof_polcies_cakeLib.check_two_polcies_eq (arith_policy1, arith_policy2, policy_me, test_pd_type, policy_order, "internet_firewall_8");
+
+val policy_eq_thm = fwd_proof_polcies_cakeLib.check_two_polcies_eq (arith_policy1, arith_policy2, policy_me, test_pd_type, policy_order, "internet_firewall_8_simple_");
+
+
+
 
 val _ = export_theory ();

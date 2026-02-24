@@ -2,7 +2,7 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 open policy_arith_to_varTheory;
 open bdd_utilsLib;
 
-val _ = new_theory "internet_firewall_1";
+val _ = new_theory "internet_firewall_1_simple";
 
 
 
@@ -81,7 +81,7 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_dstPort
 
 
 
-val policy_eq_thm = fwd_proof_polcies_cakeLib.check_two_polcies_eq (arith_policy1, arith_policy2, policy_me, test_pd_type, policy_order, "internet_firewall_1");
+val policy_eq_thm = fwd_proof_polcies_cakeLib.check_two_polcies_eq (arith_policy1, arith_policy2, policy_me, test_pd_type, policy_order, "internet_firewall_1_simple_");
 
 
 
