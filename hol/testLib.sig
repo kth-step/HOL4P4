@@ -2,7 +2,9 @@ signature testLib =
 sig
   include Abbrev
 
-val p4_v2w_ss : simpLib.ssfrag
+val p4_to_bitv_ss : simpLib.ssfrag
+
+val p4_from_bitv_ss : simpLib.ssfrag
 
 val eval_e : term -> term * thm
 

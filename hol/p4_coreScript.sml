@@ -410,7 +410,7 @@ Definition get_checksum_incr_def:
    (case lookup_lval scope_list ext_data_name of
     | SOME (v_bit (bl, n)) =>
      if n MOD 16 = 0 then SOME (v2w16s' bl) else NONE
-    | SOME (v_header vbit f_list) =>
+    | SOME (v_header vb f_list) =>
      (case header_entries2v f_list of
       | SOME bl => v2w16s bl
       | NONE => NONE)
@@ -428,7 +428,7 @@ Definition get_checksum_incr'_def:
    (case lookup_lval scope_list ext_data_name of
     | SOME (v_bit (bl, n)) =>
      if n MOD 16 = 0 then SOME bl else NONE
-    | SOME (v_header vbit f_list) =>
+    | SOME (v_header vb f_list) =>
      (case header_entries2v f_list of
       | SOME bl =>
        if (LENGTH bl) MOD 16 = 0 then SOME bl else NONE
@@ -471,7 +471,7 @@ Definition get_bitlist_def:
  get_bitlist scope_list ext_data_name =
   case lookup_lval scope_list ext_data_name of
    | SOME (v_bit (bl, n)) => SOME bl
-   | SOME (v_header vbit f_list) =>
+   | SOME (v_header vb f_list) =>
     (case header_entries2v f_list of
      | SOME bl => SOME bl
      | NONE => NONE)

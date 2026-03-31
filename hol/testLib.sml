@@ -2,6 +2,7 @@ structure testLib :> testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
+open p4_auxTheory;
 open p4Syntax;
 
 open finite_mapLib;
@@ -10,50 +11,82 @@ open finite_mapSyntax;
 (******************)
 (* Test functions *)
 
-(* Simpset fragment containing a conversion keyed on bitvectors that will
- * rewrite bool lists as the v2w of the corresponding word *)
-local
-fun vector_without_ARBs vector =
- not (exists (fn el => boolSyntax.is_arb el) (fst $ listSyntax.dest_list vector))
+val (vbit_tm, mk_vbit, dest_vbit, is_vbit) =
+  syntax_fns1 "p4_aux" "vbit";
+
+fun vector_is_constant vector =
+ (not (exists (fn el => boolSyntax.is_arb el) (fst $ listSyntax.dest_list vector))) andalso (null $ free_vars vector)
 ;
 
-fun to_bitv_word_form bitv =
+(* Simpset fragment containing a conversion keyed on bitvectors that will
+ * v_bit with bool lists to vbit with numbers *)
+local
+fun to_bitv_form bitv =
  let
-   val (vector, width) = pairSyntax.dest_pair bitv
+   val (vector, width) = pairSyntax.dest_pair $ dest_v_bit bitv
  in
-  if vector_without_ARBs vector
+  if vector_is_constant vector
   then
-   let
-    val word = wordsSyntax.mk_wordi (bitstringSyntax.num_of_term vector, numSyntax.int_of_term width)
-    val bitv_word = bitstringSyntax.mk_w2v word
-    val bitv' = pairSyntax.mk_pair (bitv_word, width)
-   in
-    bitv'
-   end
+(* TODO: Make more efficient
+   ``bitv (v2n ^vector, ^width)``
+ *)
+   mk_vbit $ pairSyntax.mk_pair (numSyntax.mk_numeral $ bitstringSyntax.num_of_term vector, width)
   else
    raise UNCHANGED
  end
 ;
 
-fun to_bitv_word_form_conv bitv =
+fun to_bitv_form_conv bitv =
   let
-    val bitv_word = to_bitv_word_form bitv
-    val bitv_word_thm = GSYM (EVAL bitv_word)
+    val bitv = to_bitv_form bitv
+    val bitv_thm = GSYM (EVAL bitv)
   in
-    bitv_word_thm
+    bitv_thm
   end
 ;
 in
-val p4_v2w_ss =
+val p4_to_bitv_ss =
   SSFRAG {ac = [],
           congs = [],
-          convs = [{conv = K (K to_bitv_word_form_conv),
-                    key= SOME ([], ``(v:bool list, (n:num))``),
-                    name = "BITV_TO_WORD_FORM",
+          convs = [{conv = K (K to_bitv_form_conv),
+                    key= SOME ([], ``v_bit $ (v:bool list, (n:num))``),
+                    name = "TO_BITV_FORM",
                     trace = 2}],
                     dprocs = [],
           filter = NONE,
-          name = SOME "p4_v2w_ss",
+          name = SOME "p4_to_bitv_ss",
+          rewrs = []};
+end;
+
+local
+(*
+fun from_bitv_form bitv =
+ let
+   val (number, width) = pairSyntax.dest_pair $ dest_bitv bitv
+ in
+   mk_v_bit $ pairSyntax.mk_pair (numSyntax.mk_numeral $ bitstringSyntax.num_of_term vector, width)
+ end
+;
+*)
+
+fun from_bitv_form_conv bitv =
+  let
+    val bitv_thm = EVAL bitv
+  in
+    bitv_thm
+  end
+;
+in
+val p4_from_bitv_ss =
+  SSFRAG {ac = [],
+          congs = [],
+          convs = [{conv = K (K from_bitv_form_conv),
+                    key= SOME ([], ``vbit (n:num, (w:num))``),
+                    name = "FROM_BITV_FORM",
+                    trace = 2}],
+                    dprocs = [],
+          filter = NONE,
+          name = SOME "p4_from_bitv_ss",
           rewrs = []};
 end;
 
@@ -61,7 +94,7 @@ end;
 fun eval_e e_tm =
   let
     val res_thm = EVAL (``e_exec ctx (^e_tm) stacks status_running``) (* TODO: Alternatively, use a tailor-made eval_e_conv *)
-    val res_canon_thm = SIMP_RULE (pure_ss++p4_v2w_ss) [] res_thm
+    val res_canon_thm = SIMP_RULE (pure_ss++p4_from_bitv_ss) [] res_thm
     val res_canon_tm = rhs $ concl res_canon_thm
   in
     (* Present bool lists as w2v function on words *)

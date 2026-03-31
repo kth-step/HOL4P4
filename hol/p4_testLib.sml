@@ -198,7 +198,7 @@ fun eval_and_print_result arch actx astate nsteps =
   val ascope_ty = ascope_ty_from_arch arch
   val actx' = inst [Type.alpha |-> ascope_ty] actx
  in
-  optionSyntax.dest_some $ rhs $ concl $ (fn thm => REWRITE_RULE [(SIMP_CONV (pure_ss++p4_v2w_ss) [] (rhs $ concl thm))] thm) $ EVAL ``arch_multi_exec (^actx') (^astate) ^(term_of_int nsteps)``
+  optionSyntax.dest_some $ rhs $ concl $ (fn thm => REWRITE_RULE [(SIMP_CONV (pure_ss++p4_from_bitv_ss) [] (rhs $ concl thm))] thm) $ EVAL ``arch_multi_exec (^actx') (^astate) ^(term_of_int nsteps)``
 end;
 
 (* Used for steps where architecture changes state *)

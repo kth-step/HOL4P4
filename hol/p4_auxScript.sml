@@ -13,6 +13,10 @@ Definition app_opt_def[simp]:
 End
 val _ = set_fixity ">>=" (Infixl 801);
 
+Definition vbit_def:
+ vbit (n, w) = v_bit (fixwidth w $ n2v n, w)
+End
+
 Theorem SUC_ADD_ONE:
 !n. SUC n = n + 1
 Proof
