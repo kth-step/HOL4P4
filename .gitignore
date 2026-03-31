@@ -1,6 +1,7 @@
 .HOLMK
 .hollogs
 .holobjs
+.hol
 *.uo
 *.ui
 *.dat
