@@ -3993,15 +3993,12 @@ Definition p4_infer_keys_def:
 End
 
 Definition get_tbl_updates_def:
- (get_tbl_updates [] = SOME []) /\
- (get_tbl_updates (h::t) =
-  case h of
-    tbl_regular l =>
-   (case get_tbl_updates t of
-      SOME res => SOME (l++res)
-    | NONE => NONE)
+ (get_tbl_updates upd =
+  case upd of
+    tbl_regular l => SOME l
   | tbl_impl f => NONE)
 End
+
 (*
 EVAL “get_tbl_updates [tbl_regular [((a,1:num),b,c)]; tbl_regular [((a,2:num),b,c)]]”
 *)

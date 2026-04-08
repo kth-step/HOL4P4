@@ -58,7 +58,7 @@ val v1model_copyin_pbl = ``v1model_copyin_pbl``;
 val v1model_copyout_pbl = ``v1model_copyout_pbl``;
 
 (* Programmable block output function term *)
-val v1model_apply_table_f = ``v1model_apply_table_f``;
+val v1model_apply_table_f = ``v1model_apply_table_f''``;
 
 (* Fixed-function block map *)
 val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser); ("preingress", ffblock_ff v1model_preingress)]``;

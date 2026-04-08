@@ -312,7 +312,7 @@ fun eval_step' actx comp_thm step_thm 0 = step_thm
  let
   val curr_state = the_final_state step_thm
   val step_thm2 =
-   EVAL “^(mk_arch_multi_exec (actx, curr_state, 1))”;
+   EVAL “^(mk_arch_multi_exec_arb (actx, curr_state, 1))”;
  in
   if final_state_is_none step_thm2
   then step_thm
@@ -329,7 +329,7 @@ in
 fun eval_step_fuel ascope_ty actx astate fuel =
  let
   val step_thm =
-   EVAL “^(mk_arch_multi_exec (actx, astate, 1))”;
+   EVAL “^(mk_arch_multi_exec_arb (actx, astate, 1))”;
   val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
  in
   if fuel = 1
@@ -344,7 +344,7 @@ fun eval_step' actx comp_thm step_thm =
  let
   val curr_state = the_final_state step_thm
   val step_thm2 =
-   EVAL “^(mk_arch_multi_exec (actx, curr_state, 1))”;
+   EVAL “^(mk_arch_multi_exec_arb (actx, curr_state, 1))”;
  in
   if final_state_is_none step_thm2
   then step_thm
@@ -361,7 +361,7 @@ in
 fun eval_step ascope_ty actx astate =
  let
   val step_thm =
-   EVAL “^(mk_arch_multi_exec (actx, astate, 1))”;
+   EVAL “^(mk_arch_multi_exec_arb (actx, astate, 1))”;
   val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
  in
   if final_state_is_none step_thm

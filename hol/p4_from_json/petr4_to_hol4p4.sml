@@ -523,7 +523,8 @@ fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(i
   val theorem =
    String.concat ["?n ab_index' ascope' g_scope_list' arch_frame_list' status' ",
                   terms_to_string out_vars, ".\n",
-                  if hol4p4exe then "arch_multi_exec''" else "arch_multi_exec",
+                  (* TODO: Add choice of uninitialised value convention? *)
+                  if hol4p4exe then "arch_multi_exec''" else "arch_multi_exec uninit_arb",
                   " ^", if hol4p4exe then actx' else actx,
                   " ^", if hol4p4exe then astate' else astate,
                   (* ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)")))), *)
