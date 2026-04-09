@@ -469,7 +469,7 @@ val (v2w8l'_tm, mk_v2w8l', dest_v2w8l', is_v2w8l') =
 (*
 val arch_opt = arch_opt_tm
 *)
-fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(int * term list) list, output_list) =
+fun output_test_list_theorem hol4p4exe is_bigstep outstream valname arch_opt (input_list:(int * term list) list, output_list) =
  let
   val (in_vars, in_data', i) = process_arbs_list (map snd input_list) 0
   val (out_vars, out_data', i') = process_arbs_list (map snd output_list) i
@@ -520,21 +520,32 @@ fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(i
      ()
     end
 
+  val proof =
+   if is_bigstep
+   then
+    String.concat ["metis_tac[EVAL “bigstep_arch_exec ^", actx, " ^", astate, " 1000”]"]
+   else
+    String.concat ["p4_eval_test_tac", if hol4p4exe then "'" else "", " ",
+		   (ascope_of_arch arch_opt hol4p4exe), " ",
+		   if hol4p4exe then actx' else actx, " ",
+		   if hol4p4exe then astate' else astate]
+
   val theorem =
    String.concat ["?n ab_index' ascope' g_scope_list' arch_frame_list' status' ",
                   terms_to_string out_vars, ".\n",
                   (* TODO: Add choice of uninitialised value convention? *)
-                  if hol4p4exe then "arch_multi_exec''" else "arch_multi_exec uninit_arb",
+                  if hol4p4exe
+                  then "arch_multi_exec''"
+		  else if is_bigstep
+	          then "bigstep_arch_exec"
+                  else "arch_multi_exec uninit_arb",
                   " ^", if hol4p4exe then actx' else actx,
                   " ^", if hol4p4exe then astate' else astate,
                   (* ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)")))), *)
                   " n =\n", " SOME ((ab_index', [], ", (term_to_string out_packets),
                   ", ascope'), g_scope_list', arch_frame_list', status')\n",
                   "Proof\n",
-                  "p4_eval_test_tac", if hol4p4exe then "'" else "", " ",
-                  (ascope_of_arch arch_opt hol4p4exe), " ",
-                  if hol4p4exe then actx' else actx, " ",
-                  if hol4p4exe then astate' else astate,
+                  proof,
                   "\nQED\n\n"];
   val _ = TextIO.output (outstream, theorem);
  in
@@ -627,7 +638,7 @@ in
 val ttymap = ttymap_tm
 val hol4p4exe = for_hol4p4exe
 *)
- fun parse_stf hol4p4exe outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap) arch_opt_tm =
+ fun parse_stf hol4p4exe is_bigstep outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap) arch_opt_tm =
   case stfname_opt of
    SOME stfname =>
     let
@@ -641,7 +652,7 @@ val SOME stfname = stfname_opt
               output queue in order. *)
      val (input_list, output_list) = parse_stf' (pblock_map, ftymap, blftymap, ttymap) hol4p4exe outstream valname arch_opt_tm ([],[]) instream;
 
-     val _ = output_test_list_theorem hol4p4exe outstream valname arch_opt_tm (input_list, output_list)
+     val _ = output_test_list_theorem hol4p4exe is_bigstep outstream valname arch_opt_tm (input_list, output_list)
      val _ = TextIO.closeIn instream;
     in
      ()
@@ -713,7 +724,7 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
  end
 ;
 
-fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
+fun output_hol4p4_vals outstream for_hol4p4exe is_bigstep output_extra_maps no_arbs valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm =
  let
   val extra_terms =
    if output_extra_maps
@@ -862,7 +873,7 @@ fun output_hol4p4_vals outstream for_hol4p4exe output_extra_maps no_arbs valname
             map (output_hol4_val outstream) (map (fn (a, b, c) => (valname^("_"^a), b, c))
                               (extra_terms@[("actx", actx, actx_of_arch arch_opt_tm), ("astate", astate, astate_of_arch arch_opt_tm)]))
           | NONE => [()];
-  val _ = parse_stf for_hol4p4exe outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap_tm) arch_opt_tm
+  val _ = parse_stf for_hol4p4exe is_bigstep outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap_tm) arch_opt_tm
  in
   ()
  end
@@ -905,7 +916,7 @@ fun main() =
     val stfname_opt =
      if length args = 6
      then 
-      if (el 6 args) = "concrete_stf"
+      if (el 6 args) = "concrete_stf" orelse (el 6 args) = "bigstep"
       then SOME ((implode $ rev valname_no_suffix)^".stf")
       else NONE
      else NONE;
@@ -925,6 +936,13 @@ fun main() =
       then (true, SOME ((implode $ rev valname_no_suffix)^".stf"))
       else (false, stfname_opt)
      else (false, stfname_opt);
+    val is_bigstep =
+     if length args = 6
+     then 
+      if (el 6 args) = "bigstep"
+      then true
+      else false
+     else false;
 
     (* TODO: Done in one split instead? *)
     val valname_no_prefix =
@@ -977,7 +995,7 @@ val ab_list_tm = (el 13 res_list)
 val ttymap_tm = (el 14 res_list)
 val pblock_action_names_map_tm = (el 15 res_list)
 *)
-         val _ = output_hol4p4_vals outstream for_hol4p4exe output_extra_maps for_hol4p4exe valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
+         val _ = output_hol4p4_vals outstream for_hol4p4exe is_bigstep output_extra_maps for_hol4p4exe valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list);
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in
