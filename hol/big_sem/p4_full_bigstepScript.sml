@@ -226,7 +226,7 @@ Definition bigstep_e_exec_def:
          | _ => NONE)
        | NONE => NONE)
      | NONE =>
-      (case copyin_exec uninit_arb (MAP FST x_d_l) (MAP SND x_d_l) e_l (LASTN 2 scope_lists) (BUTLASTN 2 scope_lists) of
+      (case copyin_exec uninit_zero (MAP FST x_d_l) (MAP SND x_d_l) e_l (LASTN 2 scope_lists) (BUTLASTN 2 scope_lists) of
        | SOME scope => 
         SOME (INL $ e_var (varn_star funn), [(funn, [stmt], [scope])], n)
        | NONE => NONE))
@@ -312,6 +312,18 @@ gvs[bigstep_e_exec_def, AllCaseEqs()] >- (
 res_tac >>
 decide_tac
 QED
+
+Definition stmt_seq_finish_def:
+stmt_seq_finish ascope' g_scope_list' frame_list' status' n' stmt2 =
+ (case frame_list' of
+  | [(funn, [stmt'], scope_list')] =>
+   SOME (ascope', g_scope_list', [(funn, [stmt_seq stmt' stmt2], scope_list')], status', n')
+  | [(funn, stmt'::stmt_stack', scope_list')] =>
+   SOME (ascope', g_scope_list', [(funn, (stmt'::(BUTLASTN 1 stmt_stack'))++[(stmt_seq (LAST stmt_stack') stmt2)], scope_list')], status', n')
+  | (frame::[(funn, stmt_stack', scope_list')]) =>
+   SOME (ascope', g_scope_list', frame::[(funn, ((BUTLASTN 1 stmt_stack')++[(stmt_seq (LAST stmt_stack') stmt2)]), scope_list')], status', n')
+  | _ => NONE)
+End
 
 Definition bigstep_stmt_exec_def:
  (bigstep_stmt_exec (ctx:'a ctx) ((ascope, g_scope_list, frame_list, (status_returnv v)):'a state) _ = NONE)
@@ -447,25 +459,14 @@ Definition bigstep_stmt_exec_def:
    (case bigstep_stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt1], scope_list)], status_running) n of
     | SOME (ascope', g_scope_list', frame_list', status', n') =>
      if n' = 0
-     then SOME (ascope', g_scope_list', frame_list', status', 0)
+     then
+      stmt_seq_finish ascope' g_scope_list' frame_list' status' n' stmt2
      else
       if n' < n
       then
        (case status' of
         | status_running =>
-         (case frame_list' of
-          | [(funn, [stmt'], scope_list')] =>
-           if stmt' = stmt_empty
-           then
-            bigstep_stmt_exec ctx (ascope', g_scope_list', [(funn, [stmt2], scope_list')], status_running) (n'-1)
-           else SOME (ascope', g_scope_list', frame_list', status', n')
-          | [(funn, stmt'::stmt_stack', scope_list')] =>
-           (* If a block is not fully reduced, this must signify something irreducible *)
-           SOME (ascope', g_scope_list', [(funn, stmt'::stmt_stack', scope_list')], status', n')
-          | (frame::frame_list'') =>
-           SOME (ascope', g_scope_list', frame::frame_list'', status', n')
-          | _ => NONE
-         )
+         stmt_seq_finish ascope' g_scope_list' frame_list' status' n' stmt2
         | _ =>
          SOME (ascope', g_scope_list', frame_list', status', n'))
       else NONE
@@ -486,20 +487,21 @@ Definition bigstep_stmt_exec_def:
    (case bigstep_stmt_exec ctx (ascope, g_scope_list, [(funn, [stmt], scope_list)], status) n of
     | SOME (ascope',g_scope_list',frame_list',status',n') =>
       (case frame_list' of
-       | [(funn,[stmt'],scope_list')] =>
+       | [(funn,[stmt'],scope_list')] =>       
         if stmt' = stmt_empty
         then
          if n' = 0 \/ n' > n
-         then SOME (ascope', g_scope_list', frame_list', status', n')
+         then SOME (ascope', g_scope_list', [(funn,stmt_stack,TL scope_list')], status', n')
          else
-          bigstep_stmt_exec ctx (ascope', g_scope_list', [(funn, stmt_stack, scope_list')], status') (n'-1)
-        else SOME (ascope', g_scope_list', frame_list', status', n')
-       | [(funn,[stmt'; stmt''],scope_list')] =>
-        SOME (ascope', g_scope_list', frame_list', status', n')
-       | (frame::frame_list'') =>
-        SOME (ascope', g_scope_list', frame::frame_list'', status', n')
+          bigstep_stmt_exec ctx (ascope', g_scope_list', [(funn, stmt_stack, TL scope_list')], status') (n'-1)
+        else SOME (ascope', g_scope_list', [(funn,stmt'::stmt_stack,scope_list')], status', n')
+       | [(funn,stmt_stack',scope_list')] =>
+        SOME (ascope', g_scope_list', [(funn,stmt_stack'++stmt_stack,scope_list')], status', n')
+       | (frame::[(funn,stmt_stack',scope_list')]) =>
+        SOME (ascope', g_scope_list', (frame::[(funn,stmt_stack'++stmt_stack,scope_list')]), status', n')
        | _ => NONE)
-    | NONE => NONE))
+    | NONE => NONE)
+)
   /\  
  (bigstep_stmt_exec ctx (ascope, g_scope_list, frame_list, status) 0 = SOME (ascope, g_scope_list, frame_list, status, 0))
 Termination
