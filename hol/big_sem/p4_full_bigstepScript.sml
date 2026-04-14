@@ -194,7 +194,7 @@ Definition bigstep_e_exec_def:
    (case bigstep_e_exec e_ctx scope_lists (INL e1) n of
     | SOME (INL $ e1', frame_list, n') =>
      if n' = 0 \/ ~NULL frame_list
-     then SOME (INL $ (e_concat e1' e2), frame_list, n')
+     then SOME (INL $ (e_slice e1' e2 e3), frame_list, n')
      else
       if is_v_bit e1'
       then 
@@ -326,7 +326,8 @@ stmt_seq_finish ascope' g_scope_list' frame_list' status' n' stmt2 =
 End
 
 Definition bigstep_stmt_exec_def:
- (bigstep_stmt_exec (ctx:'a ctx) ((ascope, g_scope_list, frame_list, (status_returnv v)):'a state) _ = NONE)
+ (bigstep_stmt_exec (ctx:'a ctx) ((ascope, g_scope_list, frame_list, status_returnv v):'a state) n =
+  SOME (ascope, g_scope_list, frame_list, status_returnv v, n))
   /\
  (bigstep_stmt_exec _ (_, _, _, status_trans x) _ = NONE)
   /\
