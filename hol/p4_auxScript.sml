@@ -2985,4 +2985,13 @@ gs[] >>
 gs[GSYM bitstringTheory.w2v_v2w]
 QED
 
+(* In contrast to lookup_vexp2 which uses two scope lists and then concatentates, this uses a single one.
+ * Useful for situations where you repeatedly use the same concatenated scope list, e.g. the big-step semantics *)
+Definition lookup_vexp_def:
+ lookup_vexp scope_list x =
+  case lookup_map scope_list x of
+  | SOME (v,str_opt) => SOME v
+  | NONE => NONE
+End
+
 val _ = export_theory ();

@@ -14,21 +14,11 @@ val _ = intLib.deprecate_int();
 (* Known issues/design choices:
  * * The statement-level semantics returns upon every function call pushing a new frame. An alternative
  *   may be to use a mutual recursion scheme.
- * * This keeps certain half-reduced results instead of returning NONE. Easier for debugging, but bad
- *   for compiler and reachability proofs.
  * * Expression semantics could perhaps re-use the list expression (INR) reductions for function call
  * * Proofs of bigstep_e_exec_decr and bigstep_stmt_exec_decr
  * * To simplify the termination proofs, the semantics currently performs checks (e.g. "n' > n") for
- *   fuel consumed by certain recursive calls.
+ *   fuel returned by certain recursive calls.
  * *)
-
-(* TODO: Move this? *)
-Definition lookup_vexp_def:
- lookup_vexp scope_list x =
-  case lookup_map scope_list x of
-  | SOME (v,str_opt) => SOME v
-  | NONE => NONE
-End
 
 Definition bigstep_e_exec_def:
  (********************)
@@ -61,7 +51,7 @@ Definition bigstep_e_exec_def:
  (bigstep_e_exec e_ctx scope_lists (INL (e_struct x_e_l)) (SUC n) =
   case bigstep_e_exec e_ctx scope_lists (INR (MAP SND x_e_l)) n of
   | SOME (INR $ e_l', frame_list, n') =>
-   if n' = 0 \/ ~NULL frame_list \/ n' > n
+   if n' = 0 \/ ~NULL frame_list
    then SOME (INL $ (e_struct (ZIP (MAP FST x_e_l, e_l'))), frame_list, n')
    else
     (case vl_of_el_exec e_l' of
@@ -76,7 +66,7 @@ Definition bigstep_e_exec_def:
  (bigstep_e_exec e_ctx scope_lists (INL (e_header validity x_e_l)) (SUC n) =
   case bigstep_e_exec e_ctx scope_lists (INR (MAP SND x_e_l)) n of
   | SOME (INR $ e_l', frame_list, n') =>
-   if n' = 0 \/ ~NULL frame_list \/ n' > n
+   if n' = 0 \/ ~NULL frame_list
    then SOME (INL $ (e_header validity (ZIP (MAP FST x_e_l, e_l'))), frame_list, n')
    else
     (case vl_of_el_exec e_l' of
@@ -277,7 +267,6 @@ Definition bigstep_e_exec_def:
   | _ => NONE)
 End
 
-(* TODO: This has recursive calls, so may require induction *)
 Theorem bigstep_e_exec_decr:
 !ctx scope_lists e_el n e_el' frame_list n'.
 bigstep_e_exec ctx scope_lists e_el n = SOME (e_el',frame_list,n') ==>
@@ -463,14 +452,11 @@ Definition bigstep_stmt_exec_def:
      then
       stmt_seq_finish ascope' g_scope_list' frame_list' status' n' stmt2
      else
-      if n' < n
-      then
-       (case status' of
-        | status_running =>
-         stmt_seq_finish ascope' g_scope_list' frame_list' status' n' stmt2
-        | _ =>
-         SOME (ascope', g_scope_list', frame_list', status', n'))
-      else NONE
+      (case status' of
+       | status_running =>
+        stmt_seq_finish ascope' g_scope_list' frame_list' status' n' stmt2
+       | _ =>
+        SOME (ascope', g_scope_list', frame_list', status', n'))
     | _ => NONE)) /\
  (*********************)
  (* Stmt stack clause *)
@@ -514,35 +500,6 @@ rpt strip_tac >> (
 )
 End
 
-(*
-Definition bigstep_frames_exec_comp2_def:
- bigstep_frames_exec_comp2 frame_list' g_scope_list'' v func_map b_func_map g_scope_list ext_map funn' scope_list' ascope' stmt_stack' frame_list'' n' =
-            (case frame_list' of
-             | [(funn, stmt_stack'', scope_list'')] =>
-              (case assign' g_scope_list'' v (lval_varname (varn_star funn)) of
-               | SOME g_scope_list''' =>
-                (case scopes_to_retrieve_exec funn func_map b_func_map g_scope_list g_scope_list''' of
-                 | SOME g_scope_list'''' =>
-                  (case lookup_funn_sig_body funn func_map b_func_map ext_map of
-                   | SOME (stmt'', x_d_l) =>
-                    (case scopes_to_pass_exec funn' func_map b_func_map g_scope_list'''' of
-                     | SOME g_scope_list''''' =>
-                      (case copyout_exec (MAP FST x_d_l) (MAP SND x_d_l) g_scope_list''''' scope_list' scope_list'' of
-                       | SOME (g_scope_list'''''', scope_list''') =>
-                        (case scopes_to_retrieve_exec funn' func_map b_func_map g_scope_list'''' g_scope_list'''''' of
-                         | SOME g_scope_list''''''' =>
-                          SOME (ascope', g_scope_list''''''', ((funn', stmt_stack', scope_list''')::frame_list''), status_running, n')
-                         | _ => NONE)
-                       | _ => NONE)
-                     | _ => NONE)
-                   | _ => NONE)
-                 | _ => NONE)
-               | NONE => NONE)
-             | _ => NONE)
-End
-*)
-
-(* TODO: This has recursive calls, so may require induction *)
 Theorem bigstep_stmt_exec_decr:
 !ctx astate n n' ascope' g_scope_list' frame_list' status'.
 bigstep_stmt_exec ctx astate n = SOME (ascope', g_scope_list', frame_list', status', n') ==>
@@ -584,9 +541,6 @@ Definition bigstep_frames_exec_def:
           (case status' of
            | status_returnv v =>
             (* Comp2 *)
-(*
-           bigstep_frames_exec_comp2 frame_list' g_scope_list'' v func_map b_func_map g_scope_list ext_map funn' scope_list' ascope' stmt_stack' frame_list'' n'
-*)
             (case frame_list' of
              | [(funn, stmt_stack'', scope_list'')] =>
               (case assign' g_scope_list'' v (lval_varname (varn_star funn)) of
@@ -684,7 +638,7 @@ Definition bigstep_arch_exec_def:
       then
        (case lookup_block_body x b_func_map of
         | SOME stmt =>
-         (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
+         (* NOTE: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
          (if LENGTH e_l = LENGTH x_d_list
           then
            (* pbl_ret *)
@@ -715,7 +669,7 @@ Definition bigstep_arch_exec_def:
          (* pbl_exec *)
          (case bigstep_frames_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map) (scope, g_scope_list, frame_list, status) (SUC n) of
           | SOME (scope', g_scope_list', frame_list', status', n') =>
-           if n' = 0 \/ n' > (SUC n)
+           if n' = 0
            then SOME ((i, in_out_list, in_out_list', scope'), g_scope_list', arch_frame_list_regular frame_list', status', 0)
            else
             bigstep_arch_exec (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map)
@@ -743,7 +697,7 @@ Definition bigstep_arch_exec_def:
      | SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) =>
       (case lookup_block_body x b_func_map of
        | SOME stmt =>
-        (* TODO: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
+        (* NOTE: The below LENGTH check is only used for proofs (e.g. soundness proof) *)
         (if LENGTH e_l = LENGTH x_d_list
          then
           (case copyin_pbl ((MAP FST x_d_list), (MAP SND x_d_list), e_l, scope) of
