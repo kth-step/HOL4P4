@@ -410,7 +410,7 @@ fun output_astate_add outstream valname arch_opt table_name keys priority action
 (*
                   "((\\e_l. e_l = ", term_to_string keys, "), ", priority, ":num) \"",
 *)
-                  "((match_all_e_alt ", term_to_string keys, "), ", priority, ":num) \"",
+                  "((", term_to_string keys, "), ", priority, ":num) \"",
                   action_name, "\" ",
                   args, "”;\n\n"]
   val _ = TextIO.output (outstream, outstring);
@@ -523,7 +523,7 @@ fun output_test_list_theorem hol4p4exe is_bigstep outstream valname arch_opt (in
   val proof =
    if is_bigstep
    then
-    String.concat ["metis_tac[EVAL “bigstep_arch_exec ^", actx, " ^", astate, " 1000”]"]
+    String.concat ["metis_tac[EVAL “bigstep_arch_exec ^", actx, " ^", astate, " 2000”]"]
    else
     String.concat ["p4_eval_test_tac", if hol4p4exe then "'" else "", " ",
 		   (ascope_of_arch arch_opt hol4p4exe), " ",
