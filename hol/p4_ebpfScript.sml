@@ -168,6 +168,7 @@ Definition ebpf_input_f_def:
     | _ => NONE)
 End
 
+(* TODO: Uses init_out_v_cake directly, instead of parameterisation, for now *)
 Definition ebpf_reduce_nonout_def:
  (ebpf_reduce_nonout ([], elist, v_map) = SOME []) /\
  (ebpf_reduce_nonout (d::dlist, e::elist, v_map) =
@@ -180,7 +181,7 @@ Definition ebpf_reduce_nonout_def:
       | SOME v =>
        if is_d_in d
        then oCONS (e_v v, ebpf_reduce_nonout (dlist, elist, v_map))
-       else oCONS (e_v (init_out_v v), ebpf_reduce_nonout (dlist, elist, v_map))       
+       else oCONS (e_v (init_out_v_cake v), ebpf_reduce_nonout (dlist, elist, v_map))       
       | _ => NONE)
     | _ => NONE)) /\
  (ebpf_reduce_nonout (_, _, v_map) = NONE)
@@ -200,11 +201,12 @@ End
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
+(* TODO: Hacked to use copyin_exec, fix this uninit hack *)
 Definition ebpf_copyin_pbl_def:
  ebpf_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl):ebpf_ascope) =
   case ebpf_reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ]
+   copyin_exec uninit_zero xlist dlist elist' [v_map_to_scope v_map] [ [] ]
   | NONE => NONE
 End
 
