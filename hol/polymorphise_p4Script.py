@@ -16,6 +16,8 @@ od_hacks = OrderedDict([("Type ascope = ``:('a)``", ""), #Delete this type abbre
                         #TODO: Handled below?
                         ("Type actx = ``:(ab_list # pblock_map # ffblock_map # input_f # output_f # copyin_pbl # copyout_pbl # apply_table_f # ext_map # func_map # get_oracle_index # set_oracle_index # random_oracle)``",
                          "Type actx = ``:(ab_list # pblock_map # 'a ffblock_map # 'a input_f # 'a output_f # 'a copyin_pbl # 'a copyout_pbl # 'a apply_table_f # 'a ext_map # func_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``"),
+                        ("Type ff = ``:(aenv -> aenv option)``",
+                         "Type ff = ``:(('a aenv) -> ('a aenv) option)``"),
                         ("Type astate = ``:(aenv # g_scope_list # arch_frame_list # status)``",
                          "Type astate = ``:('a aenv # g_scope_list # arch_frame_list # status)``"),
                         ("Type ext_fun_map = ``:((string, ((string # d) list # ext_fun)) alist)``",

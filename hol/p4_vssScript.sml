@@ -5,6 +5,8 @@ val _ = new_theory "p4_vss";
 open ottLib;
 open p4Theory p4_auxTheory p4_coreTheory;
 
+intLib.deprecate_int();
+
 Datatype:
  vss_v_ext =
    vss_v_ext_ipv4_checksum (word16 list)
@@ -224,20 +226,20 @@ Definition vss_copyout_pbl_def:
 End
 
 Definition vss_parser_runtime_def:
- vss_parser_runtime ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+ vss_parser_runtime (i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (case ALOOKUP v_map "parsedHeaders" of
    | SOME (v_struct hdrs) =>
     let v_map' = AUPDATE v_map ("headers", v_struct hdrs) in
-     SOME (counter, ext_obj_map, v_map', ctrl, oracle_index)
+     SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map', ctrl, oracle_index))
    | _ => NONE)
 End
 
 Definition vss_pre_deparser_def:
- vss_pre_deparser ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+ vss_pre_deparser (i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (case ALOOKUP v_map "headers" of
    | SOME (v_struct hdrs) =>
     let v_map' = AUPDATE v_map ("outputHeaders", v_struct hdrs) in
-     SOME (counter, ext_obj_map, v_map', ctrl, oracle_index)
+     SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map', ctrl, oracle_index))
    | _ => NONE)
 End
 

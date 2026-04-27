@@ -2204,9 +2204,9 @@ Definition arch_exec_def:
    | (arch_block_ffbl x) =>
     (case ALOOKUP ffblock_map x of
      | SOME (ffblock_ff ff) =>
-      (case ff scope of
-       | SOME scope' =>
-        SOME ((i+1, in_out_list, in_out_list', scope'), g_scope_list, arch_frame_list_empty, status_running)
+      (case ff (i, in_out_list, in_out_list', scope) of
+       | SOME (i', in_out_list'', in_out_list''', scope') =>
+        SOME ((i', in_out_list'', in_out_list''', scope'), g_scope_list, arch_frame_list_empty, status_running)
        | NONE => NONE)
      | NONE => NONE)
    (* out *)
