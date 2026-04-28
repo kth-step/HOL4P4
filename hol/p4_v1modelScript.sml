@@ -662,13 +662,13 @@ End
  * then resets the shared packet "b" (TODO: Fix that hack) and saves its content in "b_temp" *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition v1model_postparser_def:
- v1model_postparser ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
+ v1model_postparser ((i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)):v1model_ascope aenv) =
   (case ALOOKUP v_map "b" of
-   | SOME (v_ext_ref i) =>
-    (case ALOOKUP ext_obj_map i of
+   | SOME (v_ext_ref j) =>
+    (case ALOOKUP ext_obj_map j of
      | SOME (INL (core_v_ext_packet bl)) =>
       (case ALOOKUP v_map "b_temp" of
-       | SOME (v_ext_ref i') =>
+       | SOME (v_ext_ref j') =>
         (case ALOOKUP v_map "parsedHdr" of
          | SOME v =>
           let v_map' = AUPDATE v_map ("hdr", v) in
@@ -679,8 +679,8 @@ Definition v1model_postparser_def:
                (case scope_to_vmap v_map_scope of
                 | SOME v_map'' =>
                  let v_map''' = AUPDATE v_map'' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
-                 let (counter', ext_obj_map', v_map'''', ctrl', oracle_index') = (v1model_ascope_update (counter, ext_obj_map, v_map''', ctrl, oracle_index) i' (INL (core_v_ext_packet bl))) in
-   SOME (v1model_ascope_update (counter', ext_obj_map', v_map'''', ctrl', oracle_index') i (INL (core_v_ext_packet [])))
+                 let (counter', ext_obj_map', v_map'''', ctrl', oracle_index') = (v1model_ascope_update (counter, ext_obj_map, v_map''', ctrl, oracle_index) j' (INL (core_v_ext_packet bl))) in
+   SOME (i+1, io_list, io_list', (v1model_ascope_update (counter', ext_obj_map', v_map'''', ctrl', oracle_index') j (INL (core_v_ext_packet []))))
                 | NONE => NONE)
               | _ => NONE)
             | NONE => NONE)
