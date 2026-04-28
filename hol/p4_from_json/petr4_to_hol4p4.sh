@@ -4,9 +4,10 @@
 
 JSON_PATH=$1
 LOG_PATH=$2
+SEM_TYPE=$3
 
-if [ "$#" -ne 2 ]; then
-    echo "petr4_to_hol4p4.sh requires two arguments: the first a path to a P4 program in petr4 JSON format, the second a path to a log file"
+if [ "$#" -ne 3 ]; then
+    echo "petr4_to_hol4p4.sh requires three arguments: the first a path to a P4 program in petr4 JSON format, the second a path to a log file, the third the type of semantics (smallstep or bigstep)"
     exit 1
 fi
 
@@ -27,11 +28,16 @@ if [ "$arch" = "none" ]; then
 fi
 
 # Check if .stf file exists
-if [ -e "${JSON_PATH%.json}.stf" ]; then
-    mode="concrete_stf"
+if [ "$SEM_TYPE" = "smallstep" ]; then
+    if [ -e "${JSON_PATH%.json}.stf" ]; then
+    	mode=concrete_stf
+    else
+        mode=concrete
+    fi
 else
-    mode="concrete"
+    mode=bigstep    
 fi
+
 
 set -e
 "$(dirname "$(which Holmake)")/buildheap" --gcthreads=1 --holstate="p4_from_json-heap" petr4_to_hol4p4 "$JSON_PATH" "$LOG_PATH" "$arch" "$mode"

@@ -13,7 +13,7 @@ The simplest way to try this out is to use the `Makefile` in the root directory 
 
 `petr4_to_hol4p4_dir.sh` is the version of `petr4_to_hol4p4.sh` for entire directories. It takes a path and a number of threads. Rule of thumb: don't use all (virtual) cores on your computer, or instability may ensue. Note that this has a hard-coded log variable for the log file to write results for every test, by default `petr4_to_hol4p4_stf.log`.
 
-`validate.sh` runs both `petr4_json_export.sh` and `petr4_to_hol4p4_dir.sh` targeted at `validation_tests`, and compiles the result with `Holmake` afterward. Note that this takes a number of parallel processes to use as an optional argument.
+`validate.sh` runs both `petr4_json_export.sh` and `petr4_to_hol4p4_dir.sh`, and compiles the result with `Holmake` afterward. Note that this takes a number of parallel processes to use, as well as the choice between small-step and big-step semantics as an optional argument.
 
 ## HOL4 files
 

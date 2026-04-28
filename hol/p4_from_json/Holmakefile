@@ -1,11 +1,11 @@
 # includes
 # ----------------------------------
-DEPENDENCIES   = ..
+DEPENDENCIES   = .. ../big_sem
 
 
 # configuration
 # ----------------------------------
-HOLHEAP        = ../p4-heap
+HOLHEAP        = ../big_sem/big_sem-heap
 NEWHOLHEAP     = p4_from_json-heap
 
 HEAPINC_EXTRA  = wordsLib

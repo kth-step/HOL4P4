@@ -3,8 +3,16 @@
 
 if [ $# -eq 0 ]; then
     NTHREADS=1
+    SEM_TYPE=smallstep
 else
 	NTHREADS=$1
+	SEM_TYPE=$2
+fi
+
+if [ "$SEM_TYPE" = "smallstep" ]; then
+    TESTS_DIR="validation_tests"
+else
+    TESTS_DIR="bigstep_validation_tests"
 fi
 
 #1. Check if validation_tests directory exists, if not, check if ../../petr4/examples/checker_tests/good exists
@@ -49,11 +57,11 @@ fi
 #	fi
 #fi
 
-./petr4_json_export.sh validation_tests/ p4include/
+./petr4_json_export.sh ${TESTS_DIR}/ p4include/
 
-./petr4_to_hol4p4_dir.sh validation_tests/ ${NTHREADS}
+./petr4_to_hol4p4_dir.sh ${TESTS_DIR}/ ${NTHREADS} ${SEM_TYPE}
 
-cd validation_tests
+cd ${TESTS_DIR}
 
 Holmake
 

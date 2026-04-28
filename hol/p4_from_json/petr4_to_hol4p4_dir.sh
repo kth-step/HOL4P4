@@ -6,6 +6,9 @@ JSONS_PATH=$1
 # Number of processes - lower to stabilise system
 N=$2
 
+# Type of semantics to use
+SEM_TYPE=$3
+
 # Replace if you want to write to a different log file
 log="petr4_to_hol4p4_stf.log"
 
@@ -17,7 +20,7 @@ for f in "${JSONS_PATH}"*.json; do
     if [ -s "$f" ]; then
 	(
 	    echo "Parsing $f..."
-	    ./petr4_to_hol4p4.sh "$f" "$log"
+	    ./petr4_to_hol4p4.sh "$f" "$log" "$3"
 	) &
 
 	if [[ $(jobs -r -p | wc -l) -ge $N ]]; then
