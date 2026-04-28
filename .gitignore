@@ -1,12 +1,5 @@
-.HOLMK
-.hollogs
-.holobjs
-*.uo
-*.ui
-*.dat
-*Theory.sig
-*Theory.sml
 *-heap
+.hol/
 
 ## LaTeX stuff
 *.aux
@@ -17,6 +10,8 @@
 *.synctex.gz
 *.bbl
 *.blg
+*.fls
+*.fdb_latexmk
 
 ## Validation tests
 hol/p4_from_json/validation_tests/*.p4
@@ -27,6 +22,8 @@ hol/p4_from_json/validation_tests/*.sig
 hol/p4_from_json/validation_tests/*-heap
 hol/p4_from_json/p4include
 
+## petr4
+petr4/
 
 ## Emacs
 *~
