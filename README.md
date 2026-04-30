@@ -1,5 +1,10 @@
 # HOL4P4
 
+[![Build Status][workflow-badge]][workflow-link]
+
+[workflow-badge]: https://github.com/kth-step/HOL4P4/actions/workflows/build.yaml/badge.svg?branch=main
+[workflow-link]: https://github.com/kth-step/HOL4P4/actions/workflows/build.yaml
+
 HOL4P4 is a small-step, heapless formalisation and a type system of the P4 language implemented in HOL4. The syntax and semantics is written in the Ott metalanguage, which co-organizes export of definitions to multiple interactive theorem provers.
 
 ## Content
