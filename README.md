@@ -4,13 +4,13 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
 
 ## Content
 
-* [Semantics](ott/p4_sem.ott) and [type system](ott/p4_types.ott) in Ott.
+* [Semantics](ott/p4_sem.ott) and [type system](ott/p4_types.ott) in Ott
 * [Proof of determinism for the semantics](hol/p4_deterScript.sml)
 * [Type preservation](hol/p4_frames_subject_reductionScript.sml) and [progress](hol/p4_frames_progressScript.sml) proofs up to the frame level
 * [Executable semantics](hol/p4_exec_semScript.sml) with [soundness proof](hol/p4_exec_sem_arch_soundnessScript.sml)
 * [.p4 import tool (using Petr4 as backend)](hol/p4_from_json)
 * [Symbolic execution tool](hol/symb_exec)
-* Architecture models
+* Architecture models:
   * [eBPF](hol/p4_ebpfScript.sml)
   * [VSS](hol/p4_vssScript.sml)
   * [V1Model](hol/p4_v1modelScript.sml)
@@ -22,7 +22,7 @@ Follow the instructions in [INSTALL.md](INSTALL.md). The [CI scripts](scripts) m
 
 * A. Alshnakat, D. Lundberg, R. Guanciale, M. Dam and K. Palmskog, ["HOL4P4: Semantics for a Verified Data Plane"](https://doi.org/10.1145/3565475.3569081) (EuroP4 '22).
 * A. Alshnakat, D. Lundberg, R. Guanciale, and M. Dam, ["HOL4P4: Mechanized Small-Step Semantics for P4"](https://doi.org/10.1145/3649819) (OOPSLA '24).
-* D. Lundberg, R. Guanciale, and M. Dam, ["Proof-Producing Symbolic Execution for P4"](https://doi.org/10.1145/3649819) (VSTTE '24).
+* D. Lundberg, R. Guanciale, and M. Dam, ["Proof-Producing Symbolic Execution for P4"](https://doi.org/10.1007/978-3-031-86695-1_5) (VSTTE '24).
 
 ## License
 
