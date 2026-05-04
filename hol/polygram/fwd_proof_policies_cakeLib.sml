@@ -162,8 +162,13 @@ val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list 
         (*    Make Stage 2 proof       *)
         (*******************************)
 
-        val eval_policy_full_opt1 = mk_thm ( [], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy1))]) [] ^policy_order 1 = SOME ^policy_bdd_content_term1 ”);
-        val eval_policy_full_opt2 = mk_thm ( [], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy2))]) [] ^policy_order 1 = SOME ^policy_bdd_content_term2 ”);
+        val _ = (show_tags := true);
+
+        val CakeML_policy_TCB_thm = mk_oracle_thm "CakeML_policy_TCB";
+
+        val eval_policy_full_opt1 = CakeML_policy_TCB_thm ([], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy1))]) [] ^policy_order 1 = SOME ^policy_bdd_content_term1 ”);
+
+        val eval_policy_full_opt2 = CakeML_policy_TCB_thm ([], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy2))]) [] ^policy_order 1 = SOME ^policy_bdd_content_term2 ”); 
 
 
         val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_policy_exec_def, eval_policy_full_opt1 , eval_policy_full_opt2] “correct_var_policy_var_policy_exec ^var_policy1 ^var_policy2 ^policy_order ^get_i_policy”;

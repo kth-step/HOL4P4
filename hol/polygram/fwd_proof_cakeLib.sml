@@ -157,8 +157,17 @@ val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list 
         val start_cpu_total_stage2_proof = Timer.startCPUTimer ();
         val start_real_total_stage2_proof = Timer.startRealTimer ();
 
-        val eval_policy_full_opt = mk_thm ( [], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1 = SOME ^policy_bdd_content_term ”);
-        val eval_table_full_opt_auto = mk_thm ( [], “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1 = SOME ^table_bdd_content_term ”);
+
+        val _ = (show_tags := true);
+
+        val CakeML_policy_TCB_thm = mk_oracle_thm "CakeML_policy_TCB";
+        val CakeML_table_TCB_thm = mk_oracle_thm "CakeML_table_TCB";
+
+        val eval_policy_full_opt = CakeML_policy_TCB_thm ([], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1 = SOME ^policy_bdd_content_term ”);
+
+        val eval_table_full_opt_auto = CakeML_table_TCB_thm ([], “mk_BDDPred_opt table_structure (0,[],[(0, non_termn (NONE, ^gen_var_table_auto))]) [] ^policy_order 1 = SOME ^table_bdd_content_term ”);        
+
+        (* val _ = print_thm eval_table_full_opt_auto *)
 
 
         val var_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_tables_exec_def, eval_policy_full_opt , eval_table_full_opt_auto] “correct_var_policy_var_tables_exec ^var_policy ^gen_var_table_auto ^policy_order ^get_i_policy”;
