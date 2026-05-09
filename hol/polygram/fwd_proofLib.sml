@@ -284,7 +284,7 @@ open bdd_end_to_endTheory;
         );
 
 
-        val _ = time_stage ("FINAL CORRECTNESS PROOF", start_cpu_final, start_real_final);
+        val _ = time_stage ("Final glue proof", start_cpu_final, start_real_final);
 
         val _ = time_stage ("Total time of everything", start_cpu_total, start_real_total);
 
