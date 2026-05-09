@@ -108,7 +108,7 @@ type the following:
 
 
 
-        For checking MTBDD only (Table I) bdd_test_cases have three theorems 
+        For checking MTBDD only (Table I) bdd_creation_test_cases have three theorems 
              policy_trans_fwd 
             policy_trans_fwd_proof
              policy_BDD 

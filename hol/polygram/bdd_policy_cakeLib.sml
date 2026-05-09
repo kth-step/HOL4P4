@@ -160,7 +160,7 @@ val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list 
         val eval_policy_full_opt = CakeML_policy_TCB_thm ([], “mk_BDDPred_opt policy_structure (0,[],[(0, non_termn (NONE, ^var_policy))]) [] ^policy_order 1 = SOME ^policy_bdd_content_term ”);
 
 
-        val _ = time_stage ("Total ", start_cpu_total, start_read_total)
+        val _ = time_stage ("Total ", start_cpu_total, start_real_total)
 
 
         (* Save the Policy BDD *) 
