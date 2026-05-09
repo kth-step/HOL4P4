@@ -168,7 +168,7 @@ val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list 
 
 
     in
-    final_thm
+    eval_policy_full_opt
     end;
 
 end;
