@@ -39,6 +39,91 @@ This guide assumes a fresh install of Ubuntu 22.04.
 		chmod +x policy_test_cases*/prepp.sh
 
 
+## To run test cases
+
+1. go to the file of interest:
+Folder ?????? contains Table I test cases.
+
+Folder policy_test_cases contains Table II test cases.
+
+    Each test case contains two pipelines
+
+        First: convert_arith_policy_to_interval_tables
+        Described in fwd_proofLib
+
+        Second: convert_arith_policy_to_interval_tables_cake 
+        defiend in fwd_proof_cakeLib
+
+    Each file also contains the best order and worst order.
+
+    by default, we run CakeML + Best order. To get the other ones (CakeML + worstorder ) (HOL best and worst), edit teh files and uncomment and comment the relenevt parts of the combination in mind.
+
+
+
+Folder policy_test_cases_eq contains Table III test cases.
+Folder policy_test_cases_gen_policy contains Table IV.  
+
+2. go to the folder and run:
+./prepp.sh
+
+    notice that you might need to run 
+    chmod +x prepp.sh
+
+
+3. Once the running is over. 
+to view the time logs they are in .hol/log they contain the time stamps (make sure you are in the folder where the test cases are)
+   cd .hol/logs
+   cat  internet_firewall_1Theory
+to view the theorem (make sure you are in the folder where the test cases are), 
+and you can only view theorems that succeded in the generation, the failing ones, will not have a xTheory file.
+type the following:
+
+    For example 
+        cd policy_test_cases    
+        hol ....... (you will enter a hol envirounment)
+        load "internet_firewall_1Theory"; ........ load the testcase you like to view
+        open internet_firewall_1Theory; .............. open theorem
+        To select:
+        internet_firewall_4Theory.policy_trans_fwd; .......... this will show the input to ILR policy translation.
+        internet_firewall_1Theory.policy_trans_fwd_proof; ........ proof of input policy equivelnce with ILR
+        internet_firewall_1Theory.policy_BDD; ............. policy mtbdd creation
+        internet_firewall_1Theory.table_BDD; ............ table mtbdd creation
+        internet_firewall_1Theory.table_trans_back; ...... table ILR to table out
+        internet_firewall_1Theory.final_proof; ...... final proof theorem (equivelnce between input policy and output p4 table)
+
+        The names of the theorems changes according to the folder as it uses a different pipeline.
+        You can see these in the .hol/logs in "saved therem ____ thm_name " 
+        thm_name would be the valid name
+
+    to exit holmode:
+    ctrl + d
+
+
+To clean up the .hol files, you type:
+Holmake clean
+
+
+NOTE: for teh sake of teh evaluation, we reduce the time out to 300 seconds instead of 1200 seconds as in the paper.
+to change it, go to the prepp file and edit 300s in this line to 1200s :
+timeout 300s Holmake "internet_firewall_${i}Theory.uo"
+
+
+
+
+
+
+### Pipeline Library Files
+
+The pipeline is assembled according to the use case as described in the paper:
+
+
+| File | Description | Used in |
+|------|-------------|---------|
+| **`fwd_proofLib.sml`** | (End to End verified) Policy-to-table pipeline that uses HOL4 `EVAL` for MTBDD construction. | `policy_test_cases` |
+| **`fwd_proof_cakeLib.sml`** | Policy-to-table pipeline using CakeML (i.e., serialization is TBB) for MTBDD construction. | `policy_test_cases` |
+| **`fwd_proof_policies_cakeLib.sml`** | Takes two policies as input and checks their equivalence. | `policy_test_cases_eq` |
+| **`fwd_proof_gen_eq_cakeLib.sml`** | Generates a minimized policy from a given input policy. | `policy_test_cases_gen_policy` |
+
 
 
 ## Theory Files Overview
@@ -59,21 +144,5 @@ This guide assumes a fresh install of Ubuntu 22.04.
 
 
 
-### Pipeline Library Files
-
-The pipeline is assembled according to the use case as described in the paper:
-
-
-| File | Description | Used in |
-|------|-------------|---------|
-| **`fwd_proof_cakeLib.sml`** | Policy-to-table pipeline using CakeML for MTBDD construction. | `policy_test_cases` |
-| **`fwd_proofLib.sml`** | Policy-to-table pipeline using HOL4 `EVAL` for MTBDD construction. | `policy_test_cases` |
-| **`fwd_proof_policies_cakeLib.sml`** | Takes two policies as input and checks their equivalence. | `policy_test_cases_eq` |
-| **`fwd_proof_gen_eq_cakeLib.sml`** | Generates a minimized policy from a given input policy. | `policy_test_cases_gen_policy` |
-
-
-## Test Case Output
-
-For more detailed information on what is happening during each test case, inspect the `.hol/` directory inside each test case folder (for example `hol/polygram/policy_test_cases/.hol/`). Inside `.hol/log/`, each theorem has its own log file containing timing statistics for each stage of the pipeline.
 
 

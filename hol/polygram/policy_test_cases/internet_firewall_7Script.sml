@@ -338,15 +338,16 @@ val policy_full_order = “[
 
 (* BDD alists + EVAL *)
 
-(* 
+
 val final_thm_res_eval =
-fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); *)
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order); 
 
 
-
+(* 
 (* BDD alists + Cakeml w parser, just bin *)
 val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order,
-"internet_firewall_7"); 
+"internet_firewall_7");  *)
+
 
 
 val _ = export_theory ();

@@ -127,9 +127,21 @@ val policy_full_order = “[
 *)
 
 
+
+(********************)
+(*  Testing scripts *)
+(********************)
+
+(* BDD alists + EVAL *)
+val final_thm_res_eval =
+fwd_proofLib.convert_arith_policy_to_interval_tables (arith_policy_figure1, atoms_map, test_pd_type, policy_full_order, policy_order); 
+
+
+(* 
+(* BDD alists + Cakeml w parser, just bin *)
 val final_thm_res_cake = fwd_proof_cakeLib.convert_arith_policy_to_interval_tables_cake
                                           (arith_policy_figure1, atoms_map, test_pd_type, policy_full_order, policy_order,
-"paper_example");
+"paper_example");  *)
 
 
 val _ = export_theory ();
