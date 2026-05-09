@@ -190,9 +190,6 @@ val policy_me =   “[
 
 (******************************)
 (*   worst MTBDD ordering     *)
-(*  However, this generates   *)
-(*  the nicest P4 tables      *)
-(*    i.e., only 4 tables     *)
 (******************************)
 
 (* val policy_full_order = “[
@@ -211,7 +208,6 @@ val policy_order = “[
 
 (******************************)
 (*   best MTBDD ordering      *)
-(*  However, this generates   *)
 (******************************)
 
 

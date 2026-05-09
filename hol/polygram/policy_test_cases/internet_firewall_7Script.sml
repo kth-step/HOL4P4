@@ -248,9 +248,6 @@ val policy_me =   “[
 
 (******************************)
 (*   worst MTBDD ordering     *)
-(*  However, this generates   *)
-(*  the nicest P4 tables      *)
-(*    i.e., only 4 tables     *)
 (******************************)
 
 (* 
@@ -273,7 +270,6 @@ val policy_order = “["is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort
 
 (******************************)
 (*   best MTBDD ordering      *)
-(*  However, this generates   *)
 (******************************)
 
  val policy_order = “[
