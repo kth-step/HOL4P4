@@ -19,7 +19,7 @@ open bdd_end_to_endTheory;
 (* ---------------------------------------------------------------------------
    convert_arith_policy_to_interval_tables
 
-   Implements the POLYGRAM compilation pipeline (Path 2, Figure 3),
+   Implements the POLYGRAM compilation pipeline (Purple Path, Figure 3),
    instantiated for input policy and output P4 tables.
    Fully end-to-end verified in HOL4; no TCB.
 
