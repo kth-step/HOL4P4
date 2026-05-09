@@ -96,13 +96,27 @@ type the following:
         You can see these in the .hol/logs in "saved therem ____ thm_name " 
         thm_name would be the valid name
 
+    
+        NOTE: In Folder policy_test_cases_eq these are: 
+            policy_trans_fwd_1
+            policy_trans_fwd_2
+            policy_trans_fwd_proof_1
+            policy_trans_fwd_proof_2
+            policy_BDD_1
+            policy_BDD_2
+            final_thm
+
+
+
+
+
     to exit holmode:
     ctrl + d
 
 
-To clean up the .hol files, you type:
+To clean up the .hol files in the test cases folders, you type:
 Holmake clean
-
+(Notice that this removes the .hol folder as well)
 
 NOTE: for teh sake of teh evaluation, we reduce the time out to 300 seconds instead of 1200 seconds as in the paper.
 to change it, go to the prepp file and edit 300s in this line to 1200s :

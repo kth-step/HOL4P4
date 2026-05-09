@@ -220,8 +220,9 @@ val policy_me =   “[
     ("is_srcNAT_le_39975", ^is_srcNAT_le_39975);
     ("is_srcNAT_ge_39975", ^is_srcNAT_ge_39975);
 ]”;
-(* order *)
 
+
+(* order *)
  val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
@@ -248,6 +249,6 @@ val policy_me =   “[
 
 (***********************************************)
 
-val policy_eq_thm = fwd_proof_polcies_cakeLib.check_two_polcies_eq (arith_policy1, arith_policy2, policy_me, test_pd_type, policy_order, "internet_firewall_4");
+val policy_eq_thm = fwd_proof_polcies_cakeLib.check_two_polcies_eq (arith_policy1, arith_policy2, policy_me, test_pd_type, policy_order, "internet_firewall_6");
 
 val _ = export_theory ();

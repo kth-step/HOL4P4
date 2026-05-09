@@ -103,9 +103,6 @@ val policy_me =   “[
 
 
 (* order *)
-
-
-
 val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
