@@ -83,8 +83,9 @@ type the following:
         hol ....... (you will enter a hol envirounment)
         load "internet_firewall_1Theory"; ........ load the testcase you like to view
         open internet_firewall_1Theory; .............. open theorem
+        show_tags := true; ..... to show the hypothesis of the theorem in case used CakeML for MTBDD creation's serialization
         To select:
-        internet_firewall_4Theory.policy_trans_fwd; .......... this will show the input to ILR policy translation.
+        internet_firewall_1Theory.policy_trans_fwd; .......... this will show the input to ILR policy translation.
         internet_firewall_1Theory.policy_trans_fwd_proof; ........ proof of input policy equivelnce with ILR
         internet_firewall_1Theory.policy_BDD; ............. policy mtbdd creation
         internet_firewall_1Theory.table_BDD; ............ table mtbdd creation
