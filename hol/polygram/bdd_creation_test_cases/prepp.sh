@@ -12,6 +12,6 @@ echo "Done!"
 cd ../bdd_creation_test_cases
 
 
-for i in $(seq 15 2 50); do
+for i in $(seq 15 5 50); do
     Holmake "internet_firewall_${i}Theory.uo"
 done
