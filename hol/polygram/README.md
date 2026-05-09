@@ -108,6 +108,9 @@ type the following:
 
 
 
+        For checking MTBDD only (Table I)
+        
+
     to exit holmode:
     ctrl + d
 
@@ -136,6 +139,9 @@ The pipeline is assembled according to the use case as described in the paper:
 | **`fwd_proof_cakeLib.sml`** | Policy-to-table pipeline using CakeML (i.e., serialization is TBB) for MTBDD construction. | `policy_test_cases` |
 | **`fwd_proof_policies_cakeLib.sml`** | Takes two policies as input and checks their equivalence. | `policy_test_cases_eq` |
 | **`fwd_proof_gen_eq_cakeLib.sml`** | Generates a minimized policy from a given input policy. | `policy_test_cases_gen_policy` |
+
+
+bdd_policy_cakeLib.sml not a pipeline but contains a acript to run mtbdd creation only for testing
 
 
 
