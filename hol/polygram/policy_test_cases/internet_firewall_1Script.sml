@@ -66,10 +66,10 @@ val policy_me =   “[
 ]”;
 
 
-(******************************)
+(************************************************************)
 (*   In this case study order doesn't matter
-     as we are working with a big conjunction in one rule  *)
-(******************************)
+     as we are working with a big conjunction in one rule * *)
+(************************************************************)
 
 (* Grouped policy ordering *)
 val policy_full_order = “[
