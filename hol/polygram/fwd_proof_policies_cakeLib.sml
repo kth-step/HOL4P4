@@ -243,7 +243,7 @@ open bdd_end_to_endTheory;
         (*  FINAL PROOF: End-to-end semantic equivalence    *)
         (*                                                  *)
         (* Composes Thm 1 (IF1) x2 and Thm 4:              *)
-        (*   |- !packet. wf_packet T packet =>              *)
+        (*   ORACLE|- !packet. wf_packet T packet =>        *)
         (*        sem_arith_policy policy1 packet =         *)
         (*        sem_arith_policy policy2 packet           *)
         (*                                                  *)

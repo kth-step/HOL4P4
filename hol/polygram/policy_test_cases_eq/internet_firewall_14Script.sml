@@ -346,7 +346,6 @@ val arith_policy1 = “[
 
 val arith_policy2 = “[
     ^arith_policy_rule3;
-    ^arith_policy_rule12;
     ^arith_policy_rule1;
     ^arith_policy_rule9;
     ^arith_policy_rule5;
@@ -359,6 +358,7 @@ val arith_policy2 = “[
     ^arith_policy_rule7;
     ^arith_policy_rule13;
     ^arith_policy_rule14;
+    ^arith_policy_rule12;
     ^arith_policy_rule_default
 ]:single_rule list”;
 
