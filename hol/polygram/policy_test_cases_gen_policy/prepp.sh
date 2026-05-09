@@ -12,6 +12,6 @@ echo "Done!"
 cd ../policy_test_cases_gen_policy
 
 
-for i in $(seq 2 2 8); do
+for i in 9 19 26 35; do
     Holmake "internet_firewall_${i}_genTheory.uo"
 done

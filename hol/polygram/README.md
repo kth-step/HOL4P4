@@ -97,7 +97,7 @@ type the following:
         thm_name would be the valid name
 
     
-        NOTE: In Folder policy_test_cases_eq these are: 
+        NOTE: In Folder policy_test_cases_eq and policy_test_cases_gen_policy these are: 
             policy_trans_fwd_1
             policy_trans_fwd_2
             policy_trans_fwd_proof_1
@@ -105,8 +105,6 @@ type the following:
             policy_BDD_1
             policy_BDD_2
             final_thm
-
-
 
 
 

@@ -88,6 +88,12 @@ open bdd_utilsLib;
 
         val _ = time_stage ("Stage 1 (Policy to policy ILR)", start_cpu_total, start_real_total)
 
+        (* Save the ILR Policy 1 *) 
+        val _ = save_thm("policy_trans_fwd_1", arith_policy_eval1);
+        (* Save the trans proof Policy Theorem 1 *)
+        val _ = save_thm("policy_trans_fwd_proof_1", arith_policy_var_policy_thm1); 
+
+
         (****************************************************)
         (*  STAGE 2: MTBDD construction, minimization,      *)
         (*           and equivalence check  (Thms 3 and 4)  *)
@@ -213,12 +219,19 @@ open bdd_utilsLib;
 
         (* Verify isomorphism between MTBDD1 and MTBDD2 and lift to semantic
            equivalence via Theorem 4:  |- sem(MTBDD1) = sem(MTBDD2). *)
+
+        val var_gen_eq_thm_extract = REWRITE_CONV [correct_var_policy_var_policy_exec_def, eval_policy_full_opt1 , eval_policy_full_opt2] “correct_var_policy_var_policy_exec ^var_policy1 ^var_policy2 ^policy_order ^get_i_policy”;
+
         val var_gen_eq_thm_extract_red = computeLib.RESTR_EVAL_RULE  [“correct_var_policy_var_policy_exec”, “sem_policy”,“sem_policy”, “mv_dom_vars”]  var_gen_eq_thm_extract;
         val var_policy_var_policy_thm = SIMP_RULE bool_ss [correct_var_policy_var_policy_exec_thm1] var_gen_eq_thm_extract_red;
 
         val _ = time_stage ("Stage 2 proof", start_cpu_total_stage2_proof, start_real_total_stage2_proof)
         val _ = time_stage ("Stage 2 total", start_cpu_total_stage2_bdd, start_real_total_stage2_bdd)
 
+         (* Save the Policy1 BDD *) 
+        val _ = save_thm("policy_BDD_1", eval_policy_full_opt1);
+        (* Save the Policy2 BDD *)
+        val _ = save_thm("policy_BDD_2", eval_policy_full_opt2);
 
         (****************************************************)
         (*  STAGE 3: Back translation  (Theorem 1 trans-back*)
@@ -246,6 +259,10 @@ open bdd_utilsLib;
         val arith_policy_var_policy_thm2 = REWRITE_RULE[all_distinct_conj, arith_policy_eval2]
         (ISPECL[arith_policy2, var_policy2, policy_me] policy_var_to_arith_sem_conversion_correct);
 
+        (* Save the ILR Policy 1 *) 
+        val _ = save_thm("policy_trans_fwd_2", arith_policy_eval2);
+        (* Save the trans proof Policy Theorem 1 *)
+        val _ = save_thm("policy_trans_fwd_proof_2", arith_policy_var_policy_thm2); 
 
         (****************************************************)
         (*  FINAL PROOF: End-to-end semantic equivalence    *)
@@ -320,8 +337,11 @@ open bdd_utilsLib;
         fs[cond1_thm, cond2_thm]
         );
 
-        val _ = time_stage ("ONLY FINAL CORRECTNESS PROOF", start_cpu_final_p, start_real_final_p)
-        val _ = write_term_to_file ( file_name ^ "_policy_out.txt", arith_policy2);
+        val _ = time_stage ("Final glue proof", start_cpu_final_p, start_real_final_p)
+        (* val _ = write_term_to_file ( file_name ^ "_policy_out.txt", arith_policy2); *)
+        val _ = save_thm("final_proof", final_thm);
+        val _ = time_stage ("Total", start_cpu_total, start_real_total)
+
     in
     final_thm
     end;
