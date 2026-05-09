@@ -131,9 +131,12 @@ val policy_me =   “[
 ]”;
 
 (******************************)
-(*   Best output table order  *)
+(*   worst MTBDD ordering     *)
+(*  However, this generates   *)
+(*  the nicest P4 tables      *)
+(*    i.e., only 4 tables     *)
 (******************************)
-(* 
+
 val policy_full_order = “[
   ("srcNATGrp" ,["is_srcNAT_le_54587";"is_srcNAT_ge_54587";"is_srcNAT_le_56258";"is_srcNAT_ge_56258";"is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
   ("dstNATGrp" ,["is_dstNAT_le_53";"is_dstNAT_ge_53";"is_dstNAT_le_3389";"is_dstNAT_ge_3389";"is_dstNAT_le_50321";"is_dstNAT_ge_50321"]);
@@ -146,17 +149,17 @@ val policy_order = “[
 "is_dstNAT_le_53"; "is_dstNAT_ge_53"; "is_dstNAT_le_3389"; "is_dstNAT_ge_3389"; "is_dstNAT_le_50321"; "is_dstNAT_ge_50321";
 "is_dstPort_le_53"; "is_dstPort_ge_53"; "is_dstPort_le_3389"; "is_dstPort_ge_3389"; "is_dstPort_le_50321"; "is_dstPort_ge_50321";
 "is_srcPort_le_57222"; "is_srcPort_ge_57222"; "is_srcPort_le_56258"; "is_srcPort_ge_56258"; "is_srcPort_le_6881"; "is_srcPort_ge_6881";]”; 
- *)
 
 
 
-(****************************)
-(* worst output table order *)
-(*    but better for BDD    *)
-(****************************)
+
+(******************************)
+(*   best MTBDD ordering      *)
+(*  However, this generates   *)
+(******************************)
 
 
- val policy_order = “[
+ (* val policy_order = “[
   "is_srcPort_le_57222"; "is_srcPort_ge_57222";
   "is_dstPort_le_53"; "is_dstPort_ge_53";
   "is_srcNAT_le_54587"; "is_srcNAT_ge_54587";
@@ -184,7 +187,7 @@ val policy_full_order = “[
   ("qpkb" ,["is_dstPort_le_50321";"is_dstPort_ge_50321"]);
   ("hdur",["is_srcNAT_le_43265";"is_srcNAT_ge_43265"]);
   ("wg" ,["is_dstNAT_le_50321";"is_dstNAT_ge_50321"])
-]”; 
+]”;  *)
 
 
 

@@ -19,45 +19,25 @@ open bdd_end_to_endTheory;
 (* ---------------------------------------------------------------------------
    convert_arith_policy_to_interval_tables
 
-   Implements the POLYGRAM compilation pipeline (The purple path Figure 3).
-   Instansiated for input policy and output tables.
-
-   This is end-to-end verified, no TCB.
+   Implements the POLYGRAM compilation pipeline (Path 2, Figure 3),
+   instantiated for input policy and output P4 tables.
+   Fully end-to-end verified in HOL4; no TCB.
 
    Arguments:
-     arith_policy      -- the input high-level forwarding policy, whose
-                          predicates are arithmetic comparisons over packet
-                          header fields (Section IV-B)
-     policy_me         -- the mapping m : variables -> atomic predicates,
-                          used to connect the policy language and its ILR
-                          (Section IV-A)
-     test_pd_type      -- packet-field type descriptor, recording the
-                          bit-vector width of each header field; needed
-                          to compute interval complements in trans-back
-                          (Section IV-D)
-     policy_full_order -- the variable grouping G
-                          that determines which variables belong to which
-                          P4 table (Section IV-D, Algorithm 3)
-     policy_order      -- the variable order x1,...,xn used by
-                          mk_mtbdd_opt during MTBDD construction
-                          (Section V)
+     arith_policy      -- high-level forwarding policy with arithmetic
+                          predicates over packet header fields (Sec. IV-B)
+     policy_me         -- mapping m : variables -> atomic predicates,
+                          connecting the policy language and its ILR (Sec. IV-A)
+     test_pd_type      -- packet-field type descriptor encoding bit-vector
+                          widths; needed for interval complements (Sec. IV-D)
+     policy_full_order -- variable grouping G assigning variables to P4
+                          tables (Sec. IV-D, Algorithm 3)
+     policy_order      -- variable order x1,...,xn for mk_mtbdd_opt (Sec. V)
 
    Returns:
-     A HOL4 theorem 
-     establishing end-to-end semantic equivalence between the input
-     arithmetic policy and the generated P4 interval tables.
-
-   Pipeline stages (see Figure 3):
-     Stage 1 - trans-fwd  (Theorem 1 / Thm IF1):
-                arith policy  ->  policy ILR
-     Stage 2 - MTBDD construction and validation:
-                policy ILR    ->  MTBDD1           (Theorem 3)
-                MTBDD1        ->  var table ILR    (untrusted SML, Sec. IV-E)
-                var table ILR ->  MTBDD2           (Theorem 3)
-                MTBDD1 iso MTBDD2                  (Theorem 4)
-     Stage 3 - trans-back  (Theorem 2 / Thm OF2):
-                var table ILR ->  interval tables
-     Final   - end-to-end proof by composing all stage theorems
+     |- !packet. wf_packet T packet =>
+          sem_arith_policy policy packet =
+          sem_sinterval_tables (tables, 0) packet
    --------------------------------------------------------------------------- *)
 
    fun convert_arith_policy_to_interval_tables (arith_policy, policy_me, test_pd_type, policy_full_order, policy_order) =
@@ -120,13 +100,10 @@ open bdd_end_to_endTheory;
         (*  STAGE 2: MTBDD construction and validation      *)
         (*           (Theorems 3 and 4)                     *)
         (*                                                  *)
-        (* 2a. Build MTBDD1 from policy ILR (Theorem 3).   *)
-        (* 2b. Run untrusted SML algorithm (Sec. IV-E)      *)
-        (*     to produce candidate var table ILR.          *)
-        (* 2c. Build MTBDD2 from var table ILR (Theorem 3). *)
-        (* 2d. Check MTBDD1 iso MTBDD2 (Theorem 4):        *)
-        (*     compilation correctness reduced to           *)
-        (*     MTBDD equivalence checking.                  *)
+        (* 2a. policy ILR  -> MTBDD1       (Theorem 3)     *)
+        (* 2b. MTBDD1      -> var table ILR (untrusted SML) *)
+        (* 2c. var table   -> MTBDD2       (Theorem 3)     *)
+        (* 2d. MTBDD1 iso MTBDD2           (Theorem 4)     *)
         (****************************************************)
 
 
@@ -196,15 +173,12 @@ open bdd_end_to_endTheory;
 
 
         (****************************************************)
-        (*  STAGE 3: Back translation                       *)
+        (*  STAGE 3: Back translation  (Theorem 2 / OF2)   *)
         (*           var table ILR -> interval tables       *)
-        (*           trans-back (Theorem 2 / Thm OF2)       *)
         (*                                                  *)
-        (* convert_var_to_sinterval_tables implements       *)
-        (* trans-back: each Boolean row constraint is       *)
-        (* converted to a closed bit-vector interval using  *)
-        (* m and the field widths in test_pd_type           *)
-        (* (Section IV-D). Theorem 2 proves soundness:      *)
+        (* trans-back converts each Boolean row constraint  *)
+        (* to a closed bit-vector interval using m and      *)
+        (* field widths in test_pd_type (Section IV-D):     *)
         (*   for every u ~_m packet,                        *)
         (*     sem-down(var_table) u                        *)
         (*       = sem-up(interval_table) packet            *)
@@ -310,7 +284,7 @@ open bdd_end_to_endTheory;
         );
 
 
-        val _ = time_stage ("Final glue proof", start_cpu_final, start_real_final);
+        val _ = time_stage ("FINAL CORRECTNESS PROOF", start_cpu_final, start_real_final);
 
         val _ = time_stage ("Total time of everything", start_cpu_total, start_real_total);
 
