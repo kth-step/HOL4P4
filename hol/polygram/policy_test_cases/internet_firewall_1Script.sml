@@ -67,7 +67,8 @@ val policy_me =   “[
 
 
 (******************************)
-(*   Best output table order  *)
+(*   In this case study order doesn't matter
+     as we are working with a big conjunction in one rule  *)
 (******************************)
 
 (* Grouped policy ordering *)
