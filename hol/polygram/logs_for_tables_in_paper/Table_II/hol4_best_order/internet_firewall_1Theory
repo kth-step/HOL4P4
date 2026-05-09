@@ -1,0 +1,28 @@
+<<HOL message: Created theory "internet_firewall_1">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 0.042 user, 0.003 system, 0.046 real
+>>
+Saved theorem _______ "policy_trans_fwd"
+Saved theorem _______ "policy_trans_fwd_proof"
+<<HOL message: Stage 2 (Policy MTBDD) completed in: 0.113 user, 0.018 system, 0.133 real
+>>
+<<HOL message: Stage 2 (Policy MTBDD to Table) completed in: 0.003 user, 0.000 system, 0.003 real
+>>
+<<HOL message: Stage 2 (Table MTBDD) completed in: 0.148 user, 0.019 system, 0.169 real
+>>
+<<HOL message: Stage 2 proof completed in: 0.185 user, 0.028 system, 0.215 real
+>>
+<<HOL message: Stage 2 total completed in: 0.450 user, 0.065 system, 0.520 real
+>>
+Saved theorem _______ "policy_BDD"
+Saved theorem _______ "table_BDD"
+<<HOL message: Stage 3 (Table ILR to P4 table) completed in: 0.079 user, 0.008 system, 0.088 real
+>>
+Saved theorem _______ "table_trans_back"
+Saved theorem _______ "table_trans_fwd_proof"
+<<HOL message: Final glue proof completed in: 0.620 user, 0.024 system, 0.648 real
+>>
+<<HOL message: Total time of everything completed in: 1.192 user, 0.100 system, 1.302 real
+>>
+Saved theorem _______ "final_proof"
+Exporting theory "internet_firewall_1" ... done.
+Theory "internet_firewall_1" took 1.4s to build

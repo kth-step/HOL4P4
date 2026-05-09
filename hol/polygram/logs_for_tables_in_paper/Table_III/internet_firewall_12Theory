@@ -1,0 +1,44 @@
+<<HOL message: Created theory "internet_firewall_12">>
+<<HOL message: Stage 1 (Both policies to their ILR) completed in: 1.888 user, 0.225 system, 2.113 real
+>>
+Saved theorem _______ "policy_trans_fwd_1"
+Saved theorem _______ "policy_trans_fwd_2"
+Saved theorem _______ "policy_trans_fwd_proof_1"
+Saved theorem _______ "policy_trans_fwd_proof_2"
+0.02user 0.07system 0:00.10elapsed 98%CPU (0avgtext+0avgdata 88000maxresident)k
+0inputs+368outputs (0major+21678minor)pagefaults 0swaps
+Ja, policy1 BDD compilation completed
+<<HOL message: Stage 2 (Policy 1 MTBDD) completed in: 0.000 user, 0.000 system, 0.111 real
+>>
+0.41user 0.32system 0:00.74elapsed 99%CPU (0avgtext+0avgdata 1050240maxresident)k
+0inputs+368outputs (0major+262239minor)pagefaults 0swaps
+Ja, policy2 BDD compilation completed
+<<HOL message: Stage 2 (Policy 2 MTBDD) completed in: 0.000 user, 0.001 system, 0.745 real
+>>
+Note:finished cleaning input1 
+Note:finished cleaning input2 
+<<HOL message: Stage 2 finished cleaning completed in: 1.439 user, 0.218 system, 1.657 real
+>>
+<<HOL message: Stage 2 get isomorph completed in: 0.003 user, 0.000 system, 0.003 real
+>>
+<<HOL message: Stage 2 proof completed in: 64.698 user, 0.901 system, 65.600 real
+>>
+<<HOL message: Stage 2 total completed in: 66.157 user, 1.128 system, 68.142 real
+>>
+Saved ORACLE thm ____ "policy_BDD_1"
+Saved ORACLE thm ____ "policy_BDD_2"
+<<HOL message: Stage 3 prepp for proof COND1  completed in: 0.096 user, 0.000 system, 0.096 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2  completed in: 0.418 user, 0.006 system, 0.424 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2 THM  completed in: 0.016 user, 0.000 system, 0.016 real
+>>
+<<HOL message: Stage 3 total prepping for proof completed in: 0.530 user, 0.006 system, 0.536 real
+>>
+<<HOL message: Final glue proof completed in: 5.327 user, 0.156 system, 5.484 real
+>>
+<<HOL message: Total  completed in: 73.928 user, 1.516 system, 76.302 real
+>>
+Saved ORACLE thm ____ "final_proof"
+Exporting theory "internet_firewall_12" ... done.
+Theory "internet_firewall_12" took 1m15s to build

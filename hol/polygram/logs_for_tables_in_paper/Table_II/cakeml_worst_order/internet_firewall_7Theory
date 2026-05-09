@@ -1,0 +1,26 @@
+<<HOL message: Created theory "internet_firewall_7">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 0.708 user, 0.079 system, 0.789 real
+>>
+Saved theorem _______ "policy_trans_fwd"
+Saved theorem _______ "policy_trans_fwd_proof"
+<<HOL message: Stage 2 prepp policy  completed in: 0.008 user, 0.000 system, 0.009 real
+>>
+1.84user 0.65system 0:02.50elapsed 99%CPU (0avgtext+0avgdata 1049920maxresident)k
+632inputs+2480outputs (1major+262253minor)pagefaults 0swaps
+Ja, policy BDD compilation completed
+<<HOL message: Stage 2 (Policy MTBDD)  completed in: 0.004 user, 0.003 system, 2.518 real
+>>
+Note:finished cleaning input 
+Note:finished creating table 
+<<HOL message: Stage 2 prepp tables  completed in: 11.829 user, 0.709 system, 12.561 real
+>>
+Program exited with nonzero exit code.
+Command exited with non-zero status 1
+2.76user 0.26system 0:03.02elapsed 99%CPU (0avgtext+0avgdata 1050400maxresident)k
+648inputs+0outputs (1major+262294minor)pagefaults 0swaps
+error in quse /home/anoud/Desktop/HOL4P4/hol/polygram/policy_test_cases/internet_firewall_7Script.sml : HOL_ERR {message = "Parse failed", origin_function = "Absyn", origin_structure = "Parse", source_location = Loc (LocPEnd 0, LocPEnd 0)}
+error in load /home/anoud/Desktop/HOL4P4/hol/polygram/policy_test_cases/internet_firewall_7Script : HOL_ERR {message = "Parse failed", origin_function = "Absyn", origin_structure = "Parse", source_location = Loc (LocPEnd 0, LocPEnd 0)}
+<<HOL message: Stage 2 (Table MTBDD)  completed in: 0.004 user, 0.001 system, 3.030 real
+>>
+Note:finished getting sexp table to hol4 
+Uncaught exception at /home/anoud/HOL/src/parse/TermParse.sml:58: HOL_ERR {message = "Parse failed", origin_function = "Absyn", origin_structure = "Parse", source_location = Loc (LocPEnd 0, LocPEnd 0)}

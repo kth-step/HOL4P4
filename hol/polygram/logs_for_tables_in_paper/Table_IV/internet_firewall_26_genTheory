@@ -1,0 +1,42 @@
+<<HOL message: Created theory "internet_firewall_26_gen">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 0.703 user, 0.053 system, 0.768 real
+>>
+Saved theorem _______ "policy_trans_fwd_1"
+Saved theorem _______ "policy_trans_fwd_proof_1"
+0.00user 0.01system 0:00.02elapsed 100%CPU (0avgtext+0avgdata 12160maxresident)k
+0inputs+104outputs (0major+2784minor)pagefaults 0swaps
+Ja, policy1 BDD compilation completed
+Note:finished cleaning input1 
+0.00user 0.00system 0:00.00elapsed 71%CPU (0avgtext+0avgdata 5280maxresident)k
+0inputs+32outputs (0major+981minor)pagefaults 0swaps
+Ja, policy2 BDD compilation completed
+<<HOL message: Stage 2 from vars policy 2 to BDDs completed in: 0.000 user, 0.000 system, 0.010 real
+>>
+Note:finished cleaning input2 
+<<HOL message: Stage 2 finished cleaning completed in: 0.099 user, 0.008 system, 0.107 real
+>>
+<<HOL message: Stage 2 get isomorph completed in: 0.000 user, 0.000 system, 0.000 real
+>>
+<<HOL message: Stage 2 proof completed in: 2.035 user, 0.238 system, 2.280 real
+>>
+<<HOL message: Stage 2 total completed in: 2.347 user, 0.270 system, 2.667 real
+>>
+Saved ORACLE thm ____ "policy_BDD_1"
+Saved ORACLE thm ____ "policy_BDD_2"
+Saved theorem _______ "policy_trans_fwd_2"
+Saved theorem _______ "policy_trans_fwd_proof_2"
+<<HOL message: Stage 3 prepp for proof COND1  completed in: 0.063 user, 0.005 system, 0.068 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2  completed in: 0.156 user, 0.002 system, 0.158 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2 THM  completed in: 0.009 user, 0.000 system, 0.009 real
+>>
+<<HOL message: Stage 3 total prepping for proof completed in: 0.228 user, 0.007 system, 0.235 real
+>>
+<<HOL message: Final glue proof completed in: 3.192 user, 0.080 system, 3.284 real
+>>
+Saved ORACLE thm ____ "final_proof"
+<<HOL message: Total completed in: 6.614 user, 0.414 system, 7.103 real
+>>
+Exporting theory "internet_firewall_26_gen" ... done.
+Theory "internet_firewall_26_gen" took 7.2s to build

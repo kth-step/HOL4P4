@@ -1,0 +1,37 @@
+<<HOL message: Created theory "internet_firewall_5">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 0.395 user, 0.036 system, 0.437 real
+>>
+Saved theorem _______ "policy_trans_fwd"
+Saved theorem _______ "policy_trans_fwd_proof"
+<<HOL message: Stage 2 prepp policy  completed in: 0.008 user, 0.004 system, 0.012 real
+>>
+0.00user 0.01system 0:00.02elapsed 91%CPU (0avgtext+0avgdata 9760maxresident)k
+0inputs+80outputs (0major+2057minor)pagefaults 0swaps
+Ja, policy BDD compilation completed
+<<HOL message: Stage 2 (Policy MTBDD)  completed in: 0.000 user, 0.000 system, 0.031 real
+>>
+Note:finished cleaning input 
+Note:finished creating table 
+<<HOL message: Stage 2 prepp tables  completed in: 0.205 user, 0.028 system, 0.235 real
+>>
+0.54user 0.24system 0:00.79elapsed 99%CPU (0avgtext+0avgdata 940480maxresident)k
+0inputs+192outputs (0major+234750minor)pagefaults 0swaps
+<<HOL message: Stage 2 (Table MTBDD)  completed in: 0.002 user, 0.000 system, 0.800 real
+>>
+Note:finished getting sexp table to hol4 
+Note:finished cleaning sexp table in hol4 
+<<HOL message: Stage 2 proof completed in: 4.296 user, 0.243 system, 4.550 real
+>>
+<<HOL message: Stage 2 total completed in: 5.223 user, 0.350 system, 6.416 real
+>>
+Saved ORACLE thm ____ "policy_BDD"
+Saved ORACLE thm ____ "table_BDD"
+<<HOL message: Stage 3 (Table ILR to P4 table) completed in: 0.526 user, 0.004 system, 0.531 real
+>>
+Saved theorem _______ "table_trans_back"
+Saved theorem _______ "table_trans_fwd_proof"
+<<HOL message: Final glue proof completed in: 3.109 user, 0.069 system, 3.185 real
+>>
+Saved ORACLE thm ____ "final_proof"
+Exporting theory "internet_firewall_5" ... done.
+Theory "internet_firewall_5" took 9.8s to build

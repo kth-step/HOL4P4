@@ -1,0 +1,42 @@
+<<HOL message: Created theory "internet_firewall_35_gen">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 1.126 user, 0.104 system, 1.247 real
+>>
+Saved theorem _______ "policy_trans_fwd_1"
+Saved theorem _______ "policy_trans_fwd_proof_1"
+0.01user 0.03system 0:00.05elapsed 98%CPU (0avgtext+0avgdata 21600maxresident)k
+0inputs+184outputs (0major+5036minor)pagefaults 0swaps
+Ja, policy1 BDD compilation completed
+Note:finished cleaning input1 
+0.00user 0.00system 0:00.01elapsed 81%CPU (0avgtext+0avgdata 8960maxresident)k
+0inputs+32outputs (0major+1895minor)pagefaults 0swaps
+Ja, policy2 BDD compilation completed
+<<HOL message: Stage 2 from vars policy 2 to BDDs completed in: 0.000 user, 0.000 system, 0.021 real
+>>
+Note:finished cleaning input2 
+<<HOL message: Stage 2 finished cleaning completed in: 0.048 user, 0.002 system, 0.050 real
+>>
+<<HOL message: Stage 2 get isomorph completed in: 0.000 user, 0.000 system, 0.000 real
+>>
+<<HOL message: Stage 2 proof completed in: 2.932 user, 0.252 system, 3.191 real
+>>
+<<HOL message: Stage 2 total completed in: 3.369 user, 0.308 system, 3.767 real
+>>
+Saved ORACLE thm ____ "policy_BDD_1"
+Saved ORACLE thm ____ "policy_BDD_2"
+Saved theorem _______ "policy_trans_fwd_2"
+Saved theorem _______ "policy_trans_fwd_proof_2"
+<<HOL message: Stage 3 prepp for proof COND1  completed in: 0.075 user, 0.004 system, 0.079 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2  completed in: 0.233 user, 0.003 system, 0.237 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2 THM  completed in: 0.012 user, 0.000 system, 0.012 real
+>>
+<<HOL message: Stage 3 total prepping for proof completed in: 0.320 user, 0.007 system, 0.328 real
+>>
+<<HOL message: Final glue proof completed in: 4.390 user, 0.110 system, 4.516 real
+>>
+Saved ORACLE thm ____ "final_proof"
+<<HOL message: Total completed in: 9.384 user, 0.539 system, 10.048 real
+>>
+Exporting theory "internet_firewall_35_gen" ... done.
+Theory "internet_firewall_35_gen" took 10.1s to build

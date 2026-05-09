@@ -1,0 +1,16 @@
+<<HOL message: Created theory "internet_firewall_40">>
+<<HOL message: (Policy to policy ILR) completed in: 6.405 user, 0.374 system, 6.836 real
+>>
+Saved theorem _______ "policy_trans_fwd"
+Saved theorem _______ "policy_trans_fwd_proof"
+1.95user 1.26system 0:03.22elapsed 99%CPU (0avgtext+0avgdata 1050240maxresident)k
+0inputs+6160outputs (0major+262235minor)pagefaults 0swaps
+Ja, policy BDD compilation completed
+<<HOL message: (Policy MTBDD creation time via CakeML)  completed in: 0.005 user, 0.004 system, 3.231 real
+>>
+Note:finished cleaning input 
+<<HOL message: Total  completed in: 19.749 user, 1.485 system, 24.516 real
+>>
+Saved ORACLE thm ____ "policy_BDD"
+Exporting theory "internet_firewall_40" ... done.
+Theory "internet_firewall_40" took 21.9s to build

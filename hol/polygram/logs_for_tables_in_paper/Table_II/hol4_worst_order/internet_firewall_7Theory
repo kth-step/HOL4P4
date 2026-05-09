@@ -1,0 +1,5 @@
+<<HOL message: Created theory "internet_firewall_7">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 0.601 user, 0.074 system, 0.681 real
+>>
+Saved theorem _______ "policy_trans_fwd"
+Saved theorem _______ "policy_trans_fwd_proof"

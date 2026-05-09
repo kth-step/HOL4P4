@@ -1,0 +1,44 @@
+<<HOL message: Created theory "internet_firewall_6">>
+<<HOL message: Stage 1 (Both policies to their ILR) completed in: 0.715 user, 0.057 system, 0.780 real
+>>
+Saved theorem _______ "policy_trans_fwd_1"
+Saved theorem _______ "policy_trans_fwd_2"
+Saved theorem _______ "policy_trans_fwd_proof_1"
+Saved theorem _______ "policy_trans_fwd_proof_2"
+0.00user 0.02system 0:00.03elapsed 93%CPU (0avgtext+0avgdata 12800maxresident)k
+0inputs+112outputs (0major+2887minor)pagefaults 0swaps
+Ja, policy1 BDD compilation completed
+<<HOL message: Stage 2 (Policy 1 MTBDD) completed in: 0.000 user, 0.000 system, 0.041 real
+>>
+0.01user 0.02system 0:00.03elapsed 97%CPU (0avgtext+0avgdata 19520maxresident)k
+0inputs+104outputs (0major+4594minor)pagefaults 0swaps
+Ja, policy2 BDD compilation completed
+<<HOL message: Stage 2 (Policy 2 MTBDD) completed in: 0.000 user, 0.000 system, 0.040 real
+>>
+Note:finished cleaning input1 
+Note:finished cleaning input2 
+<<HOL message: Stage 2 finished cleaning completed in: 0.430 user, 0.055 system, 0.488 real
+>>
+<<HOL message: Stage 2 get isomorph completed in: 0.000 user, 0.000 system, 0.000 real
+>>
+<<HOL message: Stage 2 proof completed in: 5.485 user, 0.239 system, 5.738 real
+>>
+<<HOL message: Stage 2 total completed in: 5.925 user, 0.296 system, 6.318 real
+>>
+Saved ORACLE thm ____ "policy_BDD_1"
+Saved ORACLE thm ____ "policy_BDD_2"
+<<HOL message: Stage 3 prepp for proof COND1  completed in: 0.062 user, 0.001 system, 0.064 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2  completed in: 0.187 user, 0.007 system, 0.195 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2 THM  completed in: 0.010 user, 0.000 system, 0.010 real
+>>
+<<HOL message: Stage 3 total prepping for proof completed in: 0.260 user, 0.008 system, 0.269 real
+>>
+<<HOL message: Final glue proof completed in: 3.556 user, 0.075 system, 3.640 real
+>>
+<<HOL message: Total  completed in: 10.466 user, 0.436 system, 11.018 real
+>>
+Saved ORACLE thm ____ "final_proof"
+Exporting theory "internet_firewall_6" ... done.
+Theory "internet_firewall_6" took 11.0s to build

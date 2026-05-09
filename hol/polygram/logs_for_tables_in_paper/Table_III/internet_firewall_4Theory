@@ -1,0 +1,44 @@
+<<HOL message: Created theory "internet_firewall_4">>
+<<HOL message: Stage 1 (Both policies to their ILR) completed in: 0.438 user, 0.033 system, 0.477 real
+>>
+Saved theorem _______ "policy_trans_fwd_1"
+Saved theorem _______ "policy_trans_fwd_2"
+Saved theorem _______ "policy_trans_fwd_proof_1"
+Saved theorem _______ "policy_trans_fwd_proof_2"
+0.00user 0.00system 0:00.01elapsed 100%CPU (0avgtext+0avgdata 5760maxresident)k
+0inputs+48outputs (0major+1110minor)pagefaults 0swaps
+Ja, policy1 BDD compilation completed
+<<HOL message: Stage 2 (Policy 1 MTBDD) completed in: 0.000 user, 0.000 system, 0.020 real
+>>
+0.00user 0.01system 0:00.01elapsed 88%CPU (0avgtext+0avgdata 6080maxresident)k
+0inputs+48outputs (0major+1171minor)pagefaults 0swaps
+Ja, policy2 BDD compilation completed
+<<HOL message: Stage 2 (Policy 2 MTBDD) completed in: 0.001 user, 0.000 system, 0.021 real
+>>
+Note:finished cleaning input1 
+Note:finished cleaning input2 
+<<HOL message: Stage 2 finished cleaning completed in: 0.187 user, 0.023 system, 0.211 real
+>>
+<<HOL message: Stage 2 get isomorph completed in: 0.000 user, 0.000 system, 0.000 real
+>>
+<<HOL message: Stage 2 proof completed in: 2.562 user, 0.157 system, 2.730 real
+>>
+<<HOL message: Stage 2 total completed in: 2.761 user, 0.183 system, 2.997 real
+>>
+Saved ORACLE thm ____ "policy_BDD_1"
+Saved ORACLE thm ____ "policy_BDD_2"
+<<HOL message: Stage 3 prepp for proof COND1  completed in: 0.043 user, 0.000 system, 0.043 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2  completed in: 0.109 user, 0.002 system, 0.111 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2 THM  completed in: 0.007 user, 0.000 system, 0.007 real
+>>
+<<HOL message: Stage 3 total prepping for proof completed in: 0.159 user, 0.002 system, 0.161 real
+>>
+<<HOL message: Final glue proof completed in: 2.069 user, 0.055 system, 2.133 real
+>>
+<<HOL message: Total  completed in: 5.432 user, 0.273 system, 5.775 real
+>>
+Saved ORACLE thm ____ "final_proof"
+Exporting theory "internet_firewall_4" ... done.
+Theory "internet_firewall_4" took 5.8s to build

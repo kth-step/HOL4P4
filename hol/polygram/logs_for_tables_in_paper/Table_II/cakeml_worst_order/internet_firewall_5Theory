@@ -1,0 +1,22 @@
+<<HOL message: Created theory "internet_firewall_5">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 0.428 user, 0.039 system, 0.473 real
+>>
+Saved theorem _______ "policy_trans_fwd"
+Saved theorem _______ "policy_trans_fwd_proof"
+<<HOL message: Stage 2 prepp policy  completed in: 0.005 user, 0.002 system, 0.007 real
+>>
+0.03user 0.06system 0:00.10elapsed 100%CPU (0avgtext+0avgdata 85440maxresident)k
+0inputs+288outputs (0major+21036minor)pagefaults 0swaps
+Ja, policy BDD compilation completed
+<<HOL message: Stage 2 (Policy MTBDD)  completed in: 0.000 user, 0.000 system, 0.112 real
+>>
+Note:finished cleaning input 
+Note:finished creating table 
+<<HOL message: Stage 2 prepp tables  completed in: 0.909 user, 0.079 system, 0.996 real
+>>
+2.58user 2.51system 0:05.09elapsed 100%CPU (0avgtext+0avgdata 1050400maxresident)k
+0inputs+14160outputs (0major+262247minor)pagefaults 0swaps
+<<HOL message: Stage 2 (Table MTBDD)  completed in: 0.009 user, 0.006 system, 5.104 real
+>>
+Note:finished getting sexp table to hol4 
+Note:finished cleaning sexp table in hol4 

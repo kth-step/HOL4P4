@@ -1,0 +1,44 @@
+<<HOL message: Created theory "internet_firewall_8">>
+<<HOL message: Stage 1 (Both policies to their ILR) completed in: 1.393 user, 0.108 system, 1.511 real
+>>
+Saved theorem _______ "policy_trans_fwd_1"
+Saved theorem _______ "policy_trans_fwd_2"
+Saved theorem _______ "policy_trans_fwd_proof_1"
+Saved theorem _______ "policy_trans_fwd_proof_2"
+0.01user 0.06system 0:00.07elapsed 98%CPU (0avgtext+0avgdata 26560maxresident)k
+0inputs+184outputs (0major+6320minor)pagefaults 0swaps
+Ja, policy1 BDD compilation completed
+<<HOL message: Stage 2 (Policy 1 MTBDD) completed in: 0.000 user, 0.000 system, 0.081 real
+>>
+0.06user 0.07system 0:00.13elapsed 99%CPU (0avgtext+0avgdata 96640maxresident)k
+0inputs+176outputs (0major+23849minor)pagefaults 0swaps
+Ja, policy2 BDD compilation completed
+<<HOL message: Stage 2 (Policy 2 MTBDD) completed in: 0.000 user, 0.000 system, 0.142 real
+>>
+Note:finished cleaning input1 
+Note:finished cleaning input2 
+<<HOL message: Stage 2 finished cleaning completed in: 0.858 user, 0.159 system, 1.017 real
+>>
+<<HOL message: Stage 2 get isomorph completed in: 0.001 user, 0.001 system, 0.002 real
+>>
+<<HOL message: Stage 2 proof completed in: 34.950 user, 0.558 system, 35.511 real
+>>
+<<HOL message: Stage 2 total completed in: 35.828 user, 0.731 system, 36.785 real
+>>
+Saved ORACLE thm ____ "policy_BDD_1"
+Saved ORACLE thm ____ "policy_BDD_2"
+<<HOL message: Stage 3 prepp for proof COND1  completed in: 0.069 user, 0.001 system, 0.070 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2  completed in: 0.282 user, 0.005 system, 0.287 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2 THM  completed in: 0.013 user, 0.000 system, 0.013 real
+>>
+<<HOL message: Stage 3 total prepping for proof completed in: 0.365 user, 0.006 system, 0.371 real
+>>
+<<HOL message: Final glue proof completed in: 3.905 user, 0.097 system, 4.003 real
+>>
+<<HOL message: Total  completed in: 41.579 user, 0.951 system, 42.765 real
+>>
+Saved ORACLE thm ____ "final_proof"
+Exporting theory "internet_firewall_8" ... done.
+Theory "internet_firewall_8" took 42.7s to build

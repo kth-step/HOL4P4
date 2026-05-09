@@ -1,0 +1,28 @@
+<<HOL message: Created theory "paper_example">>
+<<HOL message: Stage 1 (Policy to policy ILR) completed in: 0.073 user, 0.004 system, 0.077 real
+>>
+Saved theorem _______ "policy_trans_fwd"
+Saved theorem _______ "policy_trans_fwd_proof"
+<<HOL message: Stage 2 (Policy MTBDD) completed in: 0.139 user, 0.007 system, 0.147 real
+>>
+<<HOL message: Stage 2 (Policy MTBDD to Table) completed in: 0.003 user, 0.001 system, 0.004 real
+>>
+<<HOL message: Stage 2 (Table MTBDD) completed in: 0.244 user, 0.006 system, 0.252 real
+>>
+<<HOL message: Stage 2 proof completed in: 0.140 user, 0.020 system, 0.161 real
+>>
+<<HOL message: Stage 2 total completed in: 0.526 user, 0.034 system, 0.564 real
+>>
+Saved theorem _______ "policy_BDD"
+Saved theorem _______ "table_BDD"
+<<HOL message: Stage 3 (Table ILR to P4 table) completed in: 0.168 user, 0.023 system, 0.193 real
+>>
+Saved theorem _______ "table_trans_back"
+Saved theorem _______ "table_trans_fwd_proof"
+<<HOL message: Final glue proof completed in: 0.410 user, 0.042 system, 0.454 real
+>>
+<<HOL message: Total time of everything completed in: 1.178 user, 0.103 system, 1.289 real
+>>
+Saved theorem _______ "final_proof"
+Exporting theory "paper_example" ... done.
+Theory "paper_example" took 1.4s to build

@@ -1,0 +1,44 @@
+<<HOL message: Created theory "internet_firewall_2">>
+<<HOL message: Stage 1 (Both policies to their ILR) completed in: 0.215 user, 0.029 system, 0.247 real
+>>
+Saved theorem _______ "policy_trans_fwd_1"
+Saved theorem _______ "policy_trans_fwd_2"
+Saved theorem _______ "policy_trans_fwd_proof_1"
+Saved theorem _______ "policy_trans_fwd_proof_2"
+0.00user 0.00system 0:00.00elapsed 100%CPU (0avgtext+0avgdata 2720maxresident)k
+0inputs+16outputs (0major+304minor)pagefaults 0swaps
+Ja, policy1 BDD compilation completed
+<<HOL message: Stage 2 (Policy 1 MTBDD) completed in: 0.000 user, 0.000 system, 0.010 real
+>>
+0.00user 0.00system 0:00.00elapsed 85%CPU (0avgtext+0avgdata 2880maxresident)k
+0inputs+16outputs (0major+333minor)pagefaults 0swaps
+Ja, policy2 BDD compilation completed
+<<HOL message: Stage 2 (Policy 2 MTBDD) completed in: 0.000 user, 0.000 system, 0.010 real
+>>
+Note:finished cleaning input1 
+Note:finished cleaning input2 
+<<HOL message: Stage 2 finished cleaning completed in: 0.041 user, 0.008 system, 0.049 real
+>>
+<<HOL message: Stage 2 get isomorph completed in: 0.000 user, 0.000 system, 0.000 real
+>>
+<<HOL message: Stage 2 proof completed in: 0.490 user, 0.070 system, 0.562 real
+>>
+<<HOL message: Stage 2 total completed in: 0.538 user, 0.078 system, 0.641 real
+>>
+Saved ORACLE thm ____ "policy_BDD_1"
+Saved ORACLE thm ____ "policy_BDD_2"
+<<HOL message: Stage 3 prepp for proof COND1  completed in: 0.026 user, 0.001 system, 0.027 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2  completed in: 0.055 user, 0.003 system, 0.058 real
+>>
+<<HOL message: Stage 3 prepp for proof COND2 THM  completed in: 0.004 user, 0.000 system, 0.004 real
+>>
+<<HOL message: Stage 3 total prepping for proof completed in: 0.085 user, 0.004 system, 0.089 real
+>>
+<<HOL message: Final glue proof completed in: 1.026 user, 0.046 system, 1.073 real
+>>
+<<HOL message: Total  completed in: 1.866 user, 0.157 system, 2.052 real
+>>
+Saved ORACLE thm ____ "final_proof"
+Exporting theory "internet_firewall_2" ... done.
+Theory "internet_firewall_2" took 2.1s to build
