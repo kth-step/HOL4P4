@@ -1,14 +1,54 @@
 # PolyGram
 
 
-## To check PolyGram theorems:
-        Holmake
+Docker ....
 
-## To run PolyGram test cases (Ubuntu 22.04)
+
+## To run PolyGram test cases (Ubuntu 22.04) [SKIP IF YOU ARE USING DOCKER]
 
 This guide assumes a fresh install of Ubuntu 22.04.
 
-1. Install CakeML (vHOL-Trindemossen-2) clone into the HOL4P4 folder:
+
+You may skip steps for components you already have installed.
+
+First, navigate to the directory where you want to put the source code of Poly/ML and HOL4. Then, in the terminal:
+
+1. Install Poly/ML 5.9.2
+
+		git clone https://github.com/polyml/polyml.git
+		cd polyml
+		git checkout v5.9.2
+		./configure --prefix=/usr
+		make
+		sudo make install
+		cd ..
+
+2. Install HOL4 Trindemossen-2
+
+		git clone https://github.com/HOL-Theorem-Prover/HOL.git
+		cd HOL
+		git checkout trindemossen-2
+		poly < tools/smart-configure.sml
+		bin/build
+		cd ..
+	
+
+	If you want to be able to persistently compile HOL4 theories from anywhere, edit `~/.bashrc`, now adding:
+		
+		export PATH=$PATH:[installation directory]/HOL/bin
+	
+	where `[installation directory]` is substituted with the directory you cloned HOL4 in, then
+		
+		source ~/.bashrc
+		
+	Otherwise, if you don't want the HOL4 installation to be persistent on your system, simply run
+
+		export PATH=$PATH:[installation directory]/HOL/bin
+
+	in the terminal window you want to be able to compile HOL4 theories from.
+
+		
+3. Install CakeML (vHOL-Trindemossen-2) clone into the root of this repository (submit_hol4/):
         
 		git clone https://github.com/CakeML/cakeml.git
         cd cakeml
@@ -19,30 +59,48 @@ This guide assumes a fresh install of Ubuntu 22.04.
         cd unverified/sexpr-bootstrap && Holmake && cd ../..
 
 
-2. Install the CakeML bootstrapped compiler
+4. Install the CakeML bootstrapped compiler
     Install the bootstrapped CakeML compiler matching the CakeML release for HOL Trindemossen-2 from:
 
     https://github.com/CakeML/cakeml/releases
 
     Extract the downloaded files and place them into the following empty folder:
 
-        bdd_cake_test
+        submit_hol4/hol/polygram/bdd_cake_test/
 
     Then build:
 
-        cd bdd_cake_test
+        cd hol/polygram/bdd_cake_test
         make
 
 
-3. Make the preprocessing scripts executable
+5. Make the preprocessing scripts executable
         
-		chmod +x policy_test_cases*/prepp.sh
+		chmod +x hol/polygram/policy_test_cases*/prepp.sh
 
 
-## To run test cases
 
-1. go to the file of interest:
-Folder ?????? contains Table I test cases.
+## Usage
+
+All commands listed here should be run from the root of the repository (submit_hol4/).
+
+### Build
+
+The build steps are incremental and must be run in order:
+
+- `make hol`  compiles the excerpt of HOL4P4 theories that we use in `hol/`
+- `make polygram`  compiles the Polygram theories in `hol/polygram/`
+- `make cake`  compiles the CakeML translation in `hol/polygram/bdd_cake_trans/`, after this command, there should be 2 sexp files, that we compile when testing next step
+- `make test`  runs the preprocessing and testing scripts for the policy test cases in `hol/polygram/policy_test_cases*/`
+
+
+### For the test cases inspection
+
+1. go to the file of interest (according to the Appendix's evaluation section):
+
+
+
+
 
 Folder policy_test_cases contains Table II test cases.
 
@@ -108,7 +166,7 @@ type the following:
 
 
 
-        For checking MTBDD only (Table I) bdd_creation_test_cases have three theorems 
+        For checking MTBDD only (Table I) policy_test_cases_mtbdd have three theorems 
              policy_trans_fwd 
             policy_trans_fwd_proof
              policy_BDD 

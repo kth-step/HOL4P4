@@ -1,12 +1,12 @@
 # includes
 # ----------------------------------
-DEPENDENCIES   = 
+DEPENDENCIES   = ..
 
 
 # configuration
 # ----------------------------------
-HOLHEAP        = 
-NEWHOLHEAP     = p4-heap
+HOLHEAP        = ../polygram-heap
+NEWHOLHEAP     = policy_test_cases_mtbdd-heap
 
 HEAPINC_EXTRA  = wordsLib
 
@@ -34,13 +34,20 @@ all: $(TARGETS) $(if $(NEWHOLHEAP),$(NEWHOLHEAP),)
 INCLUDES       = $(DEPENDENCIES) $(if $(HOLHEAP),$(shell dirname $(HOLHEAP)),)
 
 EXTRA_CLEANS   = $(if $(NEWHOLHEAP),$(NEWHOLHEAP) $(NEWHOLHEAP).o,) \
+                 $(wildcard *.exe) \
+                 $(wildcard *.sexp) \
+                 $(wildcard *.S) \
+                 $(wildcard *.o) \
                  $(wildcard *~) \
                  .hol/ \
                  *.uo \
                  *.ui \
+                 *Theory.sml \
+                 *Theory.sig \
                  *Script.ui \
                  *Script.uo
 
+                 
 OPTIONS        = QUIT_ON_FAILURE
 
 default: all
@@ -56,3 +63,4 @@ $(NEWHOLHEAP): $(TARGETS) $(HOLHEAP)
 	$(protect $(HOLDIR)/bin/buildheap) $(if $(HOLHEAP),-b $(HOLHEAP),) -o $@ $(HEAPINC)
 
 endif
+

@@ -1,45 +1,27 @@
-OTT = ott
-
-default: docs/semantics/main.pdf
-
-hol/p4Script.sml: ott/p4.ott ott/p4_sem.ott ott/p4_types.ott
-	cd hol && $(OTT) -i ../ott/p4.ott -i ../ott/p4_sem.ott -i ../ott/p4_types.ott -o p4Script.sml && python3 ./polymorphise_p4Script.py
-
-hol: hol/p4Script.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
-	Holmake -r -I hol
-
-hol/p4_from_json: hol
-	Holmake -r -I hol/p4_from_json
+hol:
+	cd hol/ && Holmake
 
 polygram: hol
 	Holmake -r -I hol -I hol/polygram
 
-policy_test_cases: polygram
-	cd hol/polygram/policy_test_cases && Holmake
+cake: polygram
+	cd hol/polygram/bdd_cake_trans && Holmake	
 
-validate: hol/p4_from_json
-	cd hol/p4_from_json && ./validate.sh
-	
-metatheory: hol
-	Holmake -r -I hol/metatheory
 
-concurrency: hol/p4_from_json
-	Holmake -r -I hol/p4_from_json/concurrency_tests
+test: cake
+	cd hol/polygram/policy_test_cases_mtbdd && ./prepp.sh
+	cd hol/polygram/policy_test_cases_eq && ./prepp.sh
+	cd hol/polygram/policy_test_cases_gen_policy && ./prepp.sh
+	cd hol/polygram/policy_test_cases && ./prepp.sh
 
-docs/semantics/p4_defs.tex: ott/p4.ott
-	ott -o $@ -tex_wrap false $< -i ott/p4_sem.ott -i ott/p4_types.ott
-
-docs/semantics/main.pdf: docs/semantics/p4_defs.tex docs/semantics/main.tex docs/semantics/p4.bib
-	cd docs/semantics && latexmk -pdf main.tex
 
 clean:
-	rm -f docs/semantics/p4_defs.tex hol/p4Script.sml
-	cd hol && Holmake clean -r && cd p4_from_json && Holmake clean && cd validation_tests && Holmake clean
-	cd hol/polygram && Holmake clean 
-	cd hol/polygram/policy_test_cases && Holmake clean 
-
-clean_policy:
+	cd hol && Holmake clean
 	cd hol/polygram && Holmake clean
-	cd hol/polygram/policy_test_cases && Holmake clean
+	cd hol/polygram/policy_test_cases && Holmake clean && rm -f *.txt
+	cd hol/polygram/policy_test_cases_eq && Holmake clean && rm -f *.txt
+	cd hol/polygram/policy_test_cases_gen_policy && Holmake clean && rm -f *.txt
+	cd hol/polygram/bdd_cake_trans && Holmake clean
+	cd hol/polygram/bdd_cake_test && Holmake clean && rm -f internet_firewall_* && rm -f test_bdd_*
 
 .PHONY: default clean hol
