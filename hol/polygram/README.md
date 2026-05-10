@@ -102,7 +102,7 @@ The test case folders and the scripts they run are as follows:
 
 | Table | Folder | Script(s) |
 |-------|--------|-----------|
-| Table I - MTBDD creation | `bdd_creation_test_cases/` | `bdd_policy_cakeLib.sml` |
+| Table I - MTBDD creation | `policy_test_cases_mtbdd/` | `bdd_policy_cakeLib.sml` |
 | Table II - Policy-to-table | `policy_test_cases/` | `fwd_proofLib.sml` or `fwd_proof_cakeLib.sml` (see commented lines in each file) |
 | Table III - Policy equivalence | `policy_test_cases_eq/` | `fwd_proof_policies_cakeLib.sml` |
 | Table IV - Policy minimization | `policy_test_cases_gen_policy/` | `fwd_proof_gen_eq_cakeLib.sml` |
@@ -118,7 +118,7 @@ If you did not `make test` in the build, navigate to the folder of the test case
 	cd hol/polygram/policy_test_cases
 	./prepp.sh
 
-Repeat for any other folder you want to test (`bdd_creation_test_cases`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`).
+Repeat for any other folder you want to test (`policy_test_cases_mtbdd`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`).
 
 ---
 
@@ -165,7 +165,7 @@ The available theorems differ by folder. Check `.hol/logs/` for lines beginning 
 	internet_firewall_1Theory.policy_BDD_2
 	internet_firewall_1Theory.final_thm
 
-**`bdd_creation_test_cases`** (Table I):
+**`policy_test_cases_mtbdd`** (Table I):
 
 	internet_firewall_1Theory.policy_trans_fwd
 	internet_firewall_1Theory.policy_trans_fwd_proof
@@ -177,11 +177,6 @@ To exit the HOL environment:
 
 ---
 
-#### Step 4 - Cleanup
-
-To remove generated `.hol` files from a test case folder:
-
-	Holmake clean
 
 
 > **Note on Table II (`policy_test_cases`):** To replicate the full Table II results from the paper,  each test case file must be run four times - once per combination of pipeline and variable ordering. Each file contains clearly marked lines for all four combinations; simply comment/uncomment the relevant lines before each run:
@@ -234,5 +229,112 @@ bdd_policy_cakeLib.sml not a pipeline but contains a acript to run mtbdd creatio
 
 
 
+# Paper's Appendix B in MD format
+## Formalization Correspondence
+
+This section maps the definitions, theorems, and algorithms from the paper to their HOL4 mechanization. Each entry is given as `File.sml, lines x–y`.
+
+> **Note:** The implementation may use different names for definitions and theorems than those used in the paper.
+
+---
+
+### Forwarding Languages (Section IV-A)
+
+| Paper Item | File | Lines |
+|------------|------|-------|
+| Forwarding language structure | `bdd_genScript.sml` | 14–19 |
+| Forwarding language properties | `bdd_genScript.sml` | 455–495 |
+
+---
+
+### Policy Language (Section IV-B)
+
+| Paper Item | File | Lines |
+|------------|------|-------|
+| Policy syntax | `policy_arith_to_varScript.sml` | 20–51 |
+| Policy semantics | `policy_arith_to_varScript.sml` | 54–172 |
+| Policy ILR syntax | `policy_specScript.sml` | 19–20 |
+| | `pred_specScript.sml` | 9–17 |
+| Policy ILR semantics | `policy_specScript.sml` | 29–47 |
+| ILR policy instantiation | `policy_specScript.sml` | 50–106 |
+| ILR policy properties theorems | `policy_specScript.sml` | 115–771 |
+| Definition of trans▶ | `policy_arith_to_varScript.sml` | 207–263 |
+| Definition of trans◀ | `policy_var_to_arithScript.sml` | 22–60 |
+| Theorem 1 (Sound policy translation and retranslation) | `policy_arith_to_varScript.sml` | 311–424 |
+| | `policy_var_to_arithScript.sml` | 63–123 |
+
+---
+
+### Network Table Language (Section IV-D)
+
+| Paper Item | File | Lines |
+|------------|------|-------|
+| Table syntax | `table_arith_to_intervalScript.sml` | 790–792 |
+| Table semantics | `table_arith_to_intervalScript.sml` | 979–1017 |
+| Table ILR syntax | `table_var_to_arithScript.sml` | 39–41 |
+| | `policy_arith_to_varScript.sml` | 30–37 |
+| Table ILR semantics | `tables_spec_oldScript.sml` | 133–167 |
+| ILR table instantiation | `tables_specScript.sml` | 41–187 |
+| ILR table properties theorems | `tables_specScript.sml` | 1920–2570 |
+| Definition of trans◀ | `table_arith_to_intervalScript.sml` | 1885–1974 |
+| Theorem 2 (Sound table retranslation) | `table_arith_to_intervalScript.sml` | 1979–2025 |
+
+---
+
+### MTBDD Verified Translation (Section V)
+
+| Paper Item | File | Lines |
+|------------|------|-------|
+| MTBDD syntax | `bdd_genScript.sml` | 21–35 |
+| MTBDD well-formedness definition | `bdd_genScript.sml` | 307–320 |
+| MTBDD semantics | `bdd_genScript.sml` | 45–85 |
+| MTBDD correctness definition | `bdd_genScript.sml` | 437–444 |
+| `mk_layer` definition | `bdd_genScript.sml` | 208–235 |
+| `mk_layer` correctness theorem | `bdd_gen_correctScript.sml` | 1514–1606 |
+| `mk_layer` well-formedness theorem | `bdd_gen_wfScript.sml` | 920–948 |
+| `merge` definition | `bdd_genScript.sml` | 640–646 |
+| `merge` correctness theorem | `bdd_gen_mergeScript.sml` | 799–814 |
+| `merge` well-formedness theorem | `bdd_gen_mergeScript.sml` | 2226–2265 |
+| `eliminate` definition | `bdd_genScript.sml` | 650–655 |
+| `eliminate` correctness theorem | `bdd_gen_eliminateScript.sml` | 553–570 |
+| `eliminate` well-formedness theorem | `bdd_gen_eliminateScript.sml` | 1319–1431 |
+| `optimize_mtbdd` definition | `bdd_genScript.sml` | 719–727 |
+| `optimize_mtbdd` correctness theorem | `bdd_gen_optimizationScript.sml` | 242–280 |
+| `optimize_mtbdd` well-formedness theorem | `bdd_gen_optimizationScript.sml` | 242–280 |
+| `mk_mtbdd_opt` definition | `bdd_genScript.sml` | 747–754 |
+| Theorem 3 (`mk_mtbdd_opt` correctness) | `bdd_gen_optimizationScript.sml` | 297–375 |
+| `mk_mtbdd_opt` well-formedness theorem | `bdd_gen_optimizationScript.sml` | 297–375 |
+| `is_isomorphic` definition | `bdd_isomorphScript.sml` | 124–129 |
+| Theorem 4 (Isomorphism implies semantic equivalence) | `bdd_isomorphScript.sml` | 502–531 |
+| End-to-end semantic equivalence theorem | `bdd_end_to_endScript.sml` | 858–939 |
+
+---
+
+### Implementation and Algorithms (Sections IV-E and VI)
+
+| Paper Item | File | Notes |
+|------------|------|-------|
+| MTBDD-to-tables algorithm | `bdd_utilsLib.sml` | Lines 850–874. Untrusted SML. |
+| Policy minimization algorithm | `bdd_utilsLib.sml` | Lines 1224–1594. Untrusted SML. |
+| Translation to CakeML (trusted part) | `bdd_cake_trans/bdd_trans_progScript.sml` | Trusted |
+| CakeML serialization & deserialization (TCB) | `bdd_cake_trans/common_parse_cakeml_ProgScript.sml` | Part of Unrusted Code Base. |
+| | `bdd_cake_trans/policy_parse_cakeml_ProgScript.sml` | Part of Unrusted Code Base. |
+| | `bdd_cake_trans/table_parse_cakeml_ProgScript.sml` | Part of Unrusted Code Base. |
+| Output MTBDD creation binaries | `bdd_cake_test/test_bdd_policy` and `bdd_cake_test/test_bdd_table` | Appear after compiling the project. |
+
+---
+
+### Evaluation (Section VII)
+
+| Paper Item | File | Description |
+|------------|------|-------------|
+| POLYGRAM end-to-end verified variant | `fwd_proofLib.sml` | Instantiated pipeline with policy input and table output. Fully HOL4-verified. |
+| POLYGRAM CakeML variant | `fwd_proof_cakeLib.sml` | Policy input and table output using CakeML + serialization/deserialization (TCB). |
+| Policy equivalence checking | `fwd_proof_policies_cakeLib.sml` | Instantiated pipeline with policy input and output for checking equality. |
+| Policy minimization | `fwd_proof_gen_eq_cakeLib.sml` | Instantiated pipeline for policy minimization. |
+| Table I - MTBDD creation times | `policy_test_cases_mtbdd/` | Time logs in `logs for tables in paper/Table I/`. Run `bdd_policy_cakeLib.sml`. |
+| Table II - Policy-to-table benchmark | `policy_test_cases/` | Time logs in `logs for tables in paper/Table II/`. Run `fwd_proofLib.sml` or `fwd_proof_cakeLib.sml` depending on commented lines. |
+| Table III - Policy equivalence | `policy_test_cases_eq/` | Time logs in `logs for tables in paper/Table III/`. Run `fwd_proof_policies_cakeLib.sml`. |
+| Table IV - Policy minimization | `policy_test_cases_gen_policy/` | Time logs in `logs for tables in paper/Table IV/`. Run `fwd_proof_gen_eq_cakeLib.sml`. |
 
 
