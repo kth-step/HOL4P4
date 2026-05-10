@@ -19,9 +19,4 @@ FILEPATH=$(dirname "$FILE")
 
 . ${FILEPATH}/install_hol4.sh ${PWD} ${PWD}
 
-#TODO Tested with OCaml 4.13.1 - fix version?
-. ${FILEPATH}/install_opam.sh
 
-. ${FILEPATH}/install_ott.sh
-
-. ${FILEPATH}/install_petr4.sh ${FILEPATH}/.. ${PWD}
