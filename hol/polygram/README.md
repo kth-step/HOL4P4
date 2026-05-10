@@ -1,10 +1,8 @@
 # PolyGram
 
 
-Docker ....
 
-
-## To run PolyGram test cases (Ubuntu 22.04) [SKIP IF YOU ARE USING DOCKER]
+## Installations and pre-requists (Ubuntu 22.04) [SKIP IF YOU ARE USING DOCKER]
 
 This guide assumes a fresh install of Ubuntu 22.04.
 
@@ -207,7 +205,7 @@ The pipeline is assembled according to the use case as described in the paper:
 | **`fwd_proof_gen_eq_cakeLib.sml`** | Generates a minimized policy from a given input policy. | `policy_test_cases_gen_policy` |
 
 
-bdd_policy_cakeLib.sml not a pipeline but contains a acript to run mtbdd creation only for testing
+> `bdd_policy_cakeLib.sml` is not a pipeline but contains a script to run MTBDD creation only for testing (Table I)
 
 
 
