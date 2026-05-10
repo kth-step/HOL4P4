@@ -1,5 +1,5 @@
 open HolKernel Parse boolLib bossLib;
-open optionTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory;
+open optionTheory pairTheory bdd_genTheory tables_specTheory;
 
 open preamble basis ml_translatorLib ;
 
@@ -26,7 +26,7 @@ where the input is parsed via cakeML
 
 val res = append_prog o process_topdecs $
 ‘
-(* Parse an atom variable *)
+(*parse an atom variable *)
 fun parse_atom s =
   let val s = skip_ws s in
   case s of
@@ -63,7 +63,7 @@ fun parse_atom s =
   | _ => (True_2, s)
   end;
 
-(* Parse a list of atoms: [Var "x"; Var "y"] *)
+(* parse a list of atoms: [Var "x"; Var "y"] *)
 fun parse_atom_list s =
   let val s = skip_ws s in
   case s of
@@ -87,7 +87,7 @@ fun parse_atom_list s =
   | _ => ([], s)
   end;
 
-(* Parse action or state result *)
+(*parse action or state result *)
 fun parse_result s =
   let val s = skip_ws s in
   case s of
@@ -138,7 +138,7 @@ fun parse_result s =
   | _ => (State 0, s)
   end;
 
-(* Parse a row entry: ([Var "x"; Var "y"], 0, state 3) *)
+(*parse a row entry: ([Var "x"; Var "y"], 0, state 3) *)
 fun parse_row_entry s =
   let val s = skip_ws s in
   case s of
@@ -167,7 +167,7 @@ fun parse_row_entry s =
   | _ => (([], (0, State 0)), s)
   end;
 
-(* Parse a table: [([Var "x"; ...], 0, state 3); ...] *)
+(* parse a table: [([Var "x"; ...], 0, state 3); ...] *)
 fun parse_table s =
   let val s = skip_ws s in
   case s of
@@ -191,7 +191,7 @@ fun parse_table s =
   | _ => ([], s)
   end;
 
-(* Parse the tables list: [[...]; [...]; ...] *)
+(* parse the tables list: [[...]; [...]; ...] *)
 fun parse_tables_list s =
   let val s = skip_ws s in
   case s of
@@ -220,7 +220,7 @@ fun parse_tables_list s =
   | _ => ([], s)
   end;
 
-(* Parse the entire structure: ([[...]; [...]], initial_state) *)
+(* parse the entire structure: ([[...]; [...]], initial_state) *)
 fun parse_tables_structure s =
   let val s = skip_ws s in
   case s of
@@ -242,7 +242,7 @@ fun parse_tables_structure s =
   | _ => (([], 0), s)
   end;
 
-(* Pretty-print an atom *)
+(* print an atom *)
 fun atom_to_string a =
   case a of
     True_2 => "True"
@@ -252,34 +252,34 @@ fun atom_to_string a =
   | Var_1 name => "Var(\"" ^ String.implode name ^ "\")"
   | Not_1 name => "Not(\"" ^ String.implode name ^ "\")";
 
-(* Pretty-print a result *)
+(* print a result *)
 fun result_to_string r =
   case r of
     State n => "state(" ^ Int.toString n ^ ")"
   | Action (name, nums) => "action(\"" ^ String.implode name ^ "\", [" ^ int_list_to_string nums ^ "])";
 
-(* Pretty-print a row entry *)
+(* print a row entry *)
 fun row_entry_to_string entry =
   case entry of
     (atoms, (state_in, result)) =>
       "([" ^ String.concatWith "; " (List.map atom_to_string atoms) ^ "], " ^
       Int.toString state_in ^ ", " ^ result_to_string result ^ ")";
 
-(* Pretty-print a table *)
+(* print a table *)
 fun table_to_string tbl =
   "[" ^ String.concatWith "; " (List.map row_entry_to_string tbl) ^ "]";
 
-(* Pretty-print tables list *)
+(* print tables list *)
 fun tables_list_to_string tbls =
   "[" ^ String.concatWith "; " (List.map table_to_string tbls) ^ "]";
 
-(* Pretty-print entire structure *)
+(* print entire structure *)
 fun tables_structure_to_string s =
   case s of
     (tbls, init_state) =>
       "(" ^ tables_list_to_string tbls ^ ", " ^ Int.toString init_state ^ ")";
 
-(* Parse from file *)
+(* parse from file *)
 fun parse_from_file filename =
   let
     val instream = TextIO.openIn filename

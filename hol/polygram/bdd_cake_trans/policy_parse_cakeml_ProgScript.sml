@@ -26,13 +26,13 @@ val _ = intLib.deprecate_int();
 
 
 
-(* Helper function to check if character is whitespace *)
+(*helper function to check if character is whitespace*)
 val res = append_prog o process_topdecs $
   ‘
-(* Parse an action: action ("accept", [1;2]) or (action (...)) *)
+(*parse an action: action ("accept", [1;2]) or (action (...)) *)
 fun parse_action s =
   let val s = skip_ws s
-      (* Skip opening parens before action keyword *)
+      (*Skip opening parens before action keyword *)
       fun skip_leading_parens s =
         let val s = skip_ws s in
         case s of
@@ -73,7 +73,9 @@ fun parse_action s =
   | _ => (State 0, s)
   end
   end;
-(* Main parser for predicates *)
+
+
+(*main parser for predicates*)
 fun parse_pred s =
   let val s = skip_ws s in
   case s of
@@ -139,7 +141,9 @@ fun parse_pred s =
       end
   | _ => (True_1, s)
   end;
-(* Parse a single policy entry: (predicate, action) *)
+
+
+(*parse a single policy entry: (predicate, action) *)
 fun parse_policy_entry s =
   let val s = skip_ws s
   in case s of
@@ -159,7 +163,9 @@ fun parse_policy_entry s =
       end
   | _ => ((True_1, State 0), s)
   end;
-(* Parse a list of policy entries: [(pred1, action1); (pred2, action2)] *)
+
+
+(*parse a list of policy entries: [(pred1, action1); (pred2, action2)] *)
 fun parse_policy_list s =
   let val s = skip_ws s in
   case s of
@@ -187,7 +193,9 @@ fun parse_policy_list s =
       end
   | _ => ([], s)
   end;
-(* Pretty-print a pred_spec_pred *)
+
+
+(*pretty print a pred_spec_pred *)
 fun pred_to_string p =
   case p of
     True_1 => "True_1"
@@ -197,7 +205,9 @@ fun pred_to_string p =
   | And left right => "And(" ^ pred_to_string left ^ ", " ^ pred_to_string right ^ ")"
   | Or left right => "Or(" ^ pred_to_string left ^ ", " ^ pred_to_string right ^ ")"
   | Implies left right => "Implies(" ^ pred_to_string left ^ ", " ^ pred_to_string right ^ ")";
-(* Pretty-print an action *)
+
+
+(*pretty print an action *)
 fun action_to_string act =
   case act of
     Action payload =>
@@ -205,17 +215,21 @@ fun action_to_string act =
         (name, nums) =>
           "action(\"" ^ String.implode name ^ "\", [" ^ int_list_to_string nums ^ "])")
   | State n => "State(" ^ Int.toString n ^ ")";
-(* Pretty-print a policy entry *)
+
+
+(*pretty print a policy entry *)
 fun entry_to_string entry =
   case entry of
     (pred, act) =>
       "(" ^ pred_to_string pred ^ ", " ^ action_to_string act ^ ")";
-(* Pretty-print entire policy list *)
+
+
+(*pretty print entire policy list *)
 fun policy_list_to_string entries =
   case entries of
     [] => "[]"
   | _ => "[" ^ String.concatWith "; " (List.map entry_to_string entries) ^ "]";
-(* Parse from file *)
+(*parse from file *)
 fun parse_from_file filename =
   let
     val instream = TextIO.openIn filename
@@ -265,7 +279,7 @@ in
         case s of
           #"]" :: rest => (List.rev acc, skip_ws rest)
         | #"\"" :: rest => let
-            val (str_chars, rest) = parse_var_name s  (* FIXED: don't add extra quote! *)
+            val (str_chars, rest) = parse_var_name s
             val s = skip_ws rest
           in
             case s of
@@ -282,7 +296,7 @@ in
   | _ => ([], s)
 end;
 
-(* Parse from file - returns char list list *)
+(*Parse from file, returns char list list *)
 fun parse_string_list_from_file filename = let
   val instream = TextIO.openIn filename
   val content = TextIO.inputAll instream
@@ -334,7 +348,7 @@ val r = translate policy_main_hol4_def;
 
 
 
-(* Main function *)
+(*Main function *)
 val res = append_prog o process_topdecs $
 ‘
 fun main () =
@@ -373,7 +387,7 @@ val prog =
 
 
 
-(* write the translation to an sexp file *)
+(*write the translation to an sexp file *)
 val _ = astToSexprLib.write_ast_to_file "../bdd_cake_test/test_bdd_policy.sexp" prog;
 
 

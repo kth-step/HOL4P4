@@ -16,22 +16,23 @@ val _ = intLib.deprecate_int();
 
 val res = append_prog o process_topdecs $
 ‘
-(* Helper function to check if character is whitespace *)
+(*check if character is whitespace  *)
 fun is_whitespace c = c = #" " orelse c = #"\n" orelse c = #"\t" orelse c = #"\r";
 
 
-(* Skip whitespace and return remaining string *)
 fun skip_ws s =
   case s of
     [] => []
   | c::rest => if is_whitespace c then skip_ws rest else c::rest;
 
 
-(* Helper to check if character is a digit *)
+
 fun is_digit c = (c = #"0") orelse (c = #"1") orelse (c = #"2") orelse (c = #"3")
                   orelse (c = #"4") orelse (c = #"5") orelse (c = #"6")
                   orelse (c = #"7") orelse (c = #"8") orelse (c = #"9");
-(* Convert character digit to int *)
+
+
+(*character digit to int  *)
 fun char_to_digit c =
   if c = #"0" then 0
   else if c = #"1" then 1
@@ -44,7 +45,9 @@ fun char_to_digit c =
   else if c = #"8" then 8
   else if c = #"9" then 9
   else 0;
-(* Parse a variable name (quoted) - returns char list and remaining *)
+
+
+(* a variable name returns char list and remaining  *)
 fun parse_var_name s =
   case s of
     #"\"" :: rest =>
@@ -56,7 +59,9 @@ fun parse_var_name s =
       in read_until_quote [] rest
       end
   | _ => ([], s);
-(* Parse an integer - returns int and remaining *)
+
+
+(*returns int and remaining  *)
 fun parse_int s =
   let fun read_digits acc s =
     case s of
@@ -72,7 +77,9 @@ fun parse_int s =
         end
     | _ => read_digits 0 s
   end;
-(* Parse a list of integers: [1;2;3] *)
+
+
+(*parse a list of integers: [1;2;3]*)
 fun parse_int_list s =
   let val s = skip_ws s in
   case s of
@@ -95,7 +102,9 @@ fun parse_int_list s =
       end
   | _ => ([], s)
   end;
-(* Helper to convert int list to string *)
+
+
+(*helper to convert int list to string  *)
 fun int_list_to_string nums =
   case nums of
     [] => ""
@@ -103,7 +112,7 @@ fun int_list_to_string nums =
       case rest of
         [] => Int.toString n
       | _ => Int.toString n ^ ";" ^ int_list_to_string rest;
-(* Skip closing parentheses *)
+(*skip closing parentheses*)
 fun skip_close_parens s =
   let val s = skip_ws s in
   case s of
@@ -111,7 +120,8 @@ fun skip_close_parens s =
   | _ => s
   end;
 
-(* Skip opening parentheses *)
+
+(*Skip opening parentheses  *)
 fun skip_open_parens s =
   let val s = skip_ws s in
   case s of

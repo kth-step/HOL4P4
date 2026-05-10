@@ -1,0 +1,29 @@
+<<HOL message: Created theory "table_parse_cakeml_Prog">>
+Loading translation: common_parse_cakeml_Prog ... done.
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_0_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_1_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_2_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_3_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_4_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_5_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_6_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_7_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_8_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_9_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_10_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_11_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_12_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_13_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_14_pfun_eqs"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_15_pfun_eqs"
+Saved definition ____ "table_main_hol4_def"
+Translating table_main_hol4
+Adding nsLookup representation thms for 661 consts [table_parse_cakeml_Prog_env_15, table_parse_cakeml_Prog_env_14, ..., CommandLineProg_env_2]
+Adding nsLookup representation thms for [init_env]
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_16_pfun_eqs"
+Saved theorem _______ "table_main_hol4_v_thm"
+Saved theorem _______ "nsLookup_table_parse_cakeml_Prog_env_17_pfun_eqs"
+Adding nsLookup representation thms for [table_parse_cakeml_Prog_env_17, table_parse_cakeml_Prog_env_16]
+Exporting theory "table_parse_cakeml_Prog" ... done.
+Theory "table_parse_cakeml_Prog" took 2m32s to build
