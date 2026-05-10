@@ -6,7 +6,6 @@ open bitstringTheory;
 open wordsTheory;
 open optionTheory;
 open sumTheory;
-open ottTheory;
 open pairTheory;
 open rich_listTheory;
 open alistTheory;

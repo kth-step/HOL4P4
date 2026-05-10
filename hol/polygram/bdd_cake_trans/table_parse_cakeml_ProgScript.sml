@@ -1,5 +1,5 @@
 open HolKernel Parse boolLib bossLib;
-open optionTheory pairTheory bdd_genTheory tables_specTheory;
+open optionTheory pairTheory bdd_genTheory tables_specTheory tables_spec_oldTheory;
 
 open preamble basis ml_translatorLib ;
 

@@ -7,7 +7,6 @@ open p4_auxTheory;
 open bitstringTheory;
 open wordsTheory;
 open optionTheory;
-open ottTheory;
 open pairTheory;
 open rich_listTheory;
 open alistTheory;
