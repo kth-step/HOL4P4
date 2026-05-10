@@ -94,99 +94,109 @@ The build steps are incremental and must be run in order:
 - `make test`  runs the preprocessing and testing scripts for the policy test cases in `hol/polygram/policy_test_cases*/`
 
 
-### For the test cases inspection
+### For the Test Cases Inspection
 
-1. go to the file of interest (according to the Appendix's evaluation section):
+The time logs for all tables are saved under `logs_for_tables_in_paper/` in the corresponding subfolder (`Table I`, `Table II`, `Table III`, `Table IV`).
 
+The test case folders and the scripts they run are as follows:
 
-
-
-
-Folder policy_test_cases contains Table II test cases.
-
-    Each test case contains two pipelines
-
-        First: convert_arith_policy_to_interval_tables
-        Described in fwd_proofLib
-
-        Second: convert_arith_policy_to_interval_tables_cake 
-        defiend in fwd_proof_cakeLib
-
-    Each file also contains the best order and worst order.
-
-    by default, we run CakeML + Best order. To get the other ones (CakeML + worstorder ) (HOL best and worst), edit teh files and uncomment and comment the relenevt parts of the combination in mind.
+| Table | Folder | Script(s) |
+|-------|--------|-----------|
+| Table I - MTBDD creation | `bdd_creation_test_cases/` | `bdd_policy_cakeLib.sml` |
+| Table II - Policy-to-table | `policy_test_cases/` | `fwd_proofLib.sml` or `fwd_proof_cakeLib.sml` (see commented lines in each file) |
+| Table III - Policy equivalence | `policy_test_cases_eq/` | `fwd_proof_policies_cakeLib.sml` |
+| Table IV - Policy minimization | `policy_test_cases_gen_policy/` | `fwd_proof_gen_eq_cakeLib.sml` |
 
 
 
-Folder policy_test_cases_eq contains Table III test cases.
-Folder policy_test_cases_gen_policy contains Table IV.  
+---
 
-2. go to the folder and run:
-./prepp.sh
+#### Step 1 - Run the test cases
 
-    notice that you might need to run 
-    chmod +x prepp.sh
+If you did not `make test` in the build, navigate to the folder of the test cases of interest e.g., `policy_test_cases/` and run:
+
+	cd hol/polygram/policy_test_cases
+	./prepp.sh
+
+Repeat for any other folder you want to test (`bdd_creation_test_cases`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`).
+
+---
+
+#### Step 2 - View the time logs
+
+Once the run completes, the time logs are stored in `.hol/logs/` inside the test case folder. For example (you can also see the theorems names being stored there):
+
+	cd .hol/logs
+	cat internet_firewall_1Theory
+
+---
+
+#### Step 3 - View the theorems
+
+Only test cases that completed successfully will have a generated theory file. To inspect a theorem, first launch HOL from the test case folder:
+
+	cd hol/polygram/policy_test_cases
+	hol
+
+Then, inside the HOL environment, load and open the theory of interest:
+
+	load "internet_firewall_1Theory";
+	open internet_firewall_1Theory;
+	show_tags := true;
+
+The available theorems differ by folder. Check `.hol/logs/` for lines beginning with `saved theorem` to confirm valid theorem names. For reference:
+
+**`policy_test_cases`** (Table II):
+
+	internet_firewall_1Theory.policy_trans_fwd
+	internet_firewall_1Theory.policy_trans_fwd_proof
+	internet_firewall_1Theory.policy_BDD
+	internet_firewall_1Theory.table_BDD
+	internet_firewall_1Theory.table_trans_back
+	internet_firewall_1Theory.final_proof
+
+**`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** (Tables III & IV):
+
+	internet_firewall_1Theory.policy_trans_fwd_1
+	internet_firewall_1Theory.policy_trans_fwd_2
+	internet_firewall_1Theory.policy_trans_fwd_proof_1
+	internet_firewall_1Theory.policy_trans_fwd_proof_2
+	internet_firewall_1Theory.policy_BDD_1
+	internet_firewall_1Theory.policy_BDD_2
+	internet_firewall_1Theory.final_thm
+
+**`bdd_creation_test_cases`** (Table I):
+
+	internet_firewall_1Theory.policy_trans_fwd
+	internet_firewall_1Theory.policy_trans_fwd_proof
+	internet_firewall_1Theory.policy_BDD
+
+To exit the HOL environment:
+
+	ctrl+d
+
+---
+
+#### Step 4 - Cleanup
+
+To remove generated `.hol` files from a test case folder:
+
+	Holmake clean
 
 
-3. Once the running is over. 
-to view the time logs they are in .hol/log they contain the time stamps (make sure you are in the folder where the test cases are)
-   cd .hol/logs
-   cat  internet_firewall_1Theory
-to view the theorem (make sure you are in the folder where the test cases are), 
-and you can only view theorems that succeded in the generation, the failing ones, will not have a xTheory file.
-type the following:
+> **Note on Table II (`policy_test_cases`):** To replicate the full Table II results from the paper,  each test case file must be run four times - once per combination of pipeline and variable ordering. Each file contains clearly marked lines for all four combinations; simply comment/uncomment the relevant lines before each run:
 
-    For example 
-        cd policy_test_cases    
-        hol ....... (you will enter a hol envirounment)
-        load "internet_firewall_1Theory"; ........ load the testcase you like to view
-        open internet_firewall_1Theory; .............. open theorem
-        show_tags := true; ..... to show the hypothesis of the theorem in case used CakeML for MTBDD creation's serialization
-        To select:
-        internet_firewall_1Theory.policy_trans_fwd; .......... this will show the input to ILR policy translation.
-        internet_firewall_1Theory.policy_trans_fwd_proof; ........ proof of input policy equivelnce with ILR
-        internet_firewall_1Theory.policy_BDD; ............. policy mtbdd creation
-        internet_firewall_1Theory.table_BDD; ............ table mtbdd creation
-        internet_firewall_1Theory.table_trans_back; ...... table ILR to table out
-        internet_firewall_1Theory.final_proof; ...... final proof theorem (equivelnce between input policy and output p4 table)
+| Combination | Pipeline | Ordering |
+|-------------|----------|----------|
+| ✅ Default (as shipped) | CakeML - `convert_arith_policy_to_interval_tables_cake` in(`fwd_proof_cakeLib.sml`) | Best order |
+| | CakeML - `convert_arith_policy_to_interval_tables_cake` in (`fwd_proof_cakeLib.sml`) | Worst order |
+| | HOL4 EVAL - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Best order |
+| | HOL4 EVAL - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Worst order |
 
-        The names of the theorems changes according to the folder as it uses a different pipeline.
-        You can see these in the .hol/logs in "saved therem ____ thm_name " 
-        thm_name would be the valid name
-
-    
-        NOTE: In Folder policy_test_cases_eq and policy_test_cases_gen_policy these are: 
-            policy_trans_fwd_1
-            policy_trans_fwd_2
-            policy_trans_fwd_proof_1
-            policy_trans_fwd_proof_2
-            policy_BDD_1
-            policy_BDD_2
-            final_thm
-
-
-
-        For checking MTBDD only (Table I) policy_test_cases_mtbdd have three theorems 
-             policy_trans_fwd 
-            policy_trans_fwd_proof
-             policy_BDD 
-        
-
-    to exit holmode:
-    ctrl + d
-
-
-To clean up the .hol files in the test cases folders, you type:
-Holmake clean
-(Notice that this removes the .hol folder as well)
-
-NOTE: for teh sake of teh evaluation, we reduce the time out to 300 seconds instead of 1200 seconds as in the paper.
-to change it, go to the prepp file and edit 300s in this line to 1200s :
-timeout 300s Holmake "internet_firewall_${i}Theory.uo"
-
-
-
-
+> **Note:** For evaluation purposes, the timeout is set to 300 seconds (vs. 1200 seconds in the paper). To change it, edit `prepp.sh` and update:
+> ```
+> timeout 300s Holmake "internet_firewall_${i}Theory.uo"
+> ```
 
 
 ### Pipeline Library Files
