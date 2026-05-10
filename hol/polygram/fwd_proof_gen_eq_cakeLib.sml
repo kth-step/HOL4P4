@@ -124,7 +124,7 @@ open bdd_utilsLib;
         val start_real_total_stage2_bdd1_start = Timer.startRealTimer ();
 
         val status_exec_policy1 = OS.Process.system 
-        ("cd ../bdd_cake_test/ && time ./test_bdd_policy.cake " ^ 
+        ("cd ../bdd_cake_test/ && ./test_bdd_policy.cake " ^ 
         file_name ^ "_gen_eq_policy1_out_test.txt " ^ 
         file_name ^ "_gen_eq_order_out_test.txt > " ^ 
         file_name ^ "_gen_eq_bdd_policy1_cakeml_export.txt")
@@ -162,7 +162,7 @@ open bdd_utilsLib;
         val start_real_total_stage2_bdd2_start = Timer.startRealTimer ();
 
         val status_exec_policy2 = OS.Process.system 
-        ("cd ../bdd_cake_test/ && time ./test_bdd_policy.cake " ^ 
+        ("cd ../bdd_cake_test/ && ./test_bdd_policy.cake " ^ 
         file_name ^ "_gen_eq_policy2_out_test.txt " ^ 
         file_name ^ "_gen_eq_order_out_test.txt > " ^ 
         file_name ^ "_gen_eq_bdd_policy2_cakeml_export.txt")

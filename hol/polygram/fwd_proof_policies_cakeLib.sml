@@ -137,7 +137,7 @@ open bdd_end_to_endTheory;
         (* Run the verified CakeML binary to build MTBDD1 from var_policy1.
            The binary implements mk_mtbdd_opt (Theorem 3, Section V). *)
         val status_exec_policy1 = OS.Process.system 
-        ("cd ../bdd_cake_test/ && time ./test_bdd_policy.cake " ^ 
+        ("cd ../bdd_cake_test/ && ./test_bdd_policy.cake " ^ 
         file_name ^ "_eq_policy1_out_test.txt " ^ 
         file_name ^ "_eq_order_out_test.txt > " ^ 
         file_name ^ "_eq_bdd_policy1_cakeml_export.txt")
@@ -154,7 +154,7 @@ open bdd_end_to_endTheory;
 
         (* Run the verified CakeML binary to build MTBDD2 from var_policy2. *)
         val status_exec_policy2 = OS.Process.system 
-        ("cd ../bdd_cake_test/ && time ./test_bdd_policy.cake " ^ 
+        ("cd ../bdd_cake_test/ && ./test_bdd_policy.cake " ^ 
         file_name ^ "_eq_policy2_out_test.txt " ^ 
         file_name ^ "_eq_order_out_test.txt > " ^ 
         file_name ^ "_eq_bdd_policy2_cakeml_export.txt")

@@ -121,7 +121,7 @@ val _ = type_abbrev("action_table_type", “:((string# num list) var_table_list 
            compiled via CakeML verified compilation (Section VI). The result
            is written to a text file for deserialization back into HOL4. *)
         val status_exec_policy = OS.Process.system 
-        ("cd ../bdd_cake_test/ && time ./test_bdd_policy.cake " ^ 
+        ("cd ../bdd_cake_test/ && ./test_bdd_policy.cake " ^ 
         file_name ^ "_policy_out_test.txt " ^ 
         file_name ^ "_order_out_test.txt > " ^ 
         file_name ^ "_bdd_policy_cakeml_export.txt")
