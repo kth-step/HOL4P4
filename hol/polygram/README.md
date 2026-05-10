@@ -46,7 +46,7 @@ First, navigate to the directory where you want to put the source code of Poly/M
 	in the terminal window you want to be able to compile HOL4 theories from.
 
 		
-3. Install CakeML (vHOL-Trindemossen-2) clone into the root of this repository (submit_hol4/):
+3. Install CakeML (vHOL-Trindemossen-2) clone into the root of this repository (HOL4P4/):
         
 		git clone https://github.com/CakeML/cakeml.git
         cd cakeml
@@ -64,7 +64,7 @@ First, navigate to the directory where you want to put the source code of Poly/M
 
     Extract the downloaded files and place them into the following empty folder:
 
-        submit_hol4/hol/polygram/bdd_cake_test/
+        HOL4P4/hol/polygram/bdd_cake_test/
 
     Then build:
 
@@ -80,7 +80,7 @@ First, navigate to the directory where you want to put the source code of Poly/M
 
 ## Usage
 
-All commands listed here should be run from the root of the repository (submit_hol4/).
+All commands listed here should be run from the root of the repository (HOL4P4/).
 
 ### Build
 
