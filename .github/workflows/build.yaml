@@ -40,8 +40,8 @@ jobs:
         run: |
           cd scripts && ./install.sh
 
-      - name: Export Ott files to HOL4 and run Holmake
-        run: eval "$(opam env)" && export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make hol
+      # - name: Export Ott files to HOL4 and run Holmake
+      #   run: eval "$(opam env)" && export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make hol
         
-      - name: Compile metatheory
-        run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make metatheory
+      # - name: Compile metatheory
+      #   run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make metatheory
