@@ -53,7 +53,7 @@ HOL4P4/
 
 ## Resource Requirements
 
-- **RAM:** 16 GB recommended (8 GB minimum)
+- **RAM:** 16 GB minimum
 - **CPU cores:** 4+ cores recommended
 - **Disk:** ~20 GB for the full Docker image (HOL4 + CakeML + artifact)
 - **Time estimates (inside Docker):**
@@ -85,6 +85,12 @@ Verify Docker is installed:
 
 ```bash
 docker --version
+```
+
+Unzip the artifact:
+
+```bash
+gunzip polygram-artifact.tar.gz
 ```
 
 ### Step 2: Load the artifact image
@@ -269,26 +275,26 @@ Note: it is easy to miss the semi-colon at the end, please do not forget to add 
 The available theorems differ by folder. Check `.hol/logs/` for lines beginning with `saved theorem` to confirm valid theorem names or here we have a reference:
 
 In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_worst`**, **`policy_test_cases_hol4_best`** and **`policy_test_cases_hol4_worst`** for firewall (e.g., `internet_firewall_1Theory` to check them type `ls -la`) (Table II):
-- `internet_firewall_1Theory.policy_trans_fwd` : trans-fwd result
-- `internet_firewall_1Theory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
-- `internet_firewall_1Theory.policy_BDD` : MTBDD1 result 
-- `internet_firewall_1Theory.table_BDD` : MTBDD2 result 
-- `internet_firewall_1Theory.table_trans_back` : trans-back soundness (Theorem 2)
-- `internet_firewall_1Theory.final_proof` : end-to-end equivalence proof between policy and a table
+- `internet_firewall_1Theory.policy_trans_fwd;` -> trans-fwd result
+- `internet_firewall_1Theory.policy_trans_fwd_proof;` -> soundness of trans-fwd (Theorem 1)
+- `internet_firewall_1Theory.policy_BDD;` -> MTBDD1 result 
+- `internet_firewall_1Theory.table_BDD;` -> MTBDD2 result 
+- `internet_firewall_1Theory.table_trans_back;` -> trans-back soundness (Theorem 2)
+- `internet_firewall_1Theory.final_proof;` -> end-to-end equivalence proof between policy and a table
 
 In folder **`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** for firewall (e.g., `internet_firewall_xTheory` where `x` is a number, to check them type `ls -la`) (Tables III & IV):
-- `internet_firewall_xTheory.policy_trans_fwd_1` : trans-fwd result for policy 1 (Theorem 1)
-- `internet_firewall_xTheory.policy_trans_fwd_2` : trans-fwd result for policy 2 (Theorem 1)
-- `internet_firewall_xTheory.policy_trans_fwd_proof_1` : soundness of trans-fwd for policy 1 (Theorem 1)
-- `internet_firewall_xTheory.policy_trans_fwd_proof_2` : soundness of trans-fwd for policy 2 (Theorem 1)
-- `internet_firewall_xTheory.policy_BDD_1` : MTBDD1 from policy 1 
-- `internet_firewall_xTheory.policy_BDD_2` : MTBDD2 from policy 2 
-- `internet_firewall_xTheory.final_thm` : end-to-end equivalence between the two policies
+- `internet_firewall_xTheory.policy_trans_fwd_1;` -> trans-fwd result for policy 1 (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_2;` -> trans-fwd result for policy 2 (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_proof_1;` -> soundness of trans-fwd for policy 1 (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_proof_2;` -> soundness of trans-fwd for policy 2 (Theorem 1)
+- `internet_firewall_xTheory.policy_BDD_1;` -> MTBDD1 from policy 1 
+- `internet_firewall_xTheory.policy_BDD_;` -> MTBDD2 from policy 2 
+- `internet_firewall_xTheory.final_thm;` -> end-to-end equivalence between the two policies
 
 In folder **`policy_test_cases_mtbdd`** (Table I) for firewall (e.g., `internet_firewall_xTheory` where `x` is a number, to check them type `ls -la`):
-- `internet_firewall_xTheory.policy_trans_fwd` : trans-fwd result (Theorem 1)
-- `internet_firewall_xTheory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
-- `internet_firewall_xTheory.policy_BDD` : MTBDD result
+- `internet_firewall_xTheory.policy_trans_fwd;` -> trans-fwd result (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_proof;` -> soundness of trans-fwd (Theorem 1)
+- `internet_firewall_xTheory.policy_BDD;` -> MTBDD result
 
 
 
@@ -341,7 +347,7 @@ This compiles the CakeML binary and runs all four variants. Each variant produce
 To open and inspect a variant:
 
 
-	nano paper_example_cakeml_bestScript.sml
+	nano -l paper_example_cakeml_bestScript.sml
 
 
 Inside, you will find:
@@ -374,12 +380,12 @@ show_tags := true;
 
 You should see the following theorems:
 
-- `paper_example_cakeml_worstTheory.policy_trans_fwd` : trans-fwd result
-- `paper_example_cakeml_worstTheory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
-- `paper_example_cakeml_worstTheory.policy_BDD` : MTBDD1 result 
-- `paper_example_cakeml_worstTheory.table_BDD` : MTBDD2 result 
-- `paper_example_cakeml_worstTheory.table_trans_back` : trans-back soundness (Theorem 2, you will see the tables here)
-- `paper_example_cakeml_worstTheory.final_proof` : end-to-end equivalence proof between policy and a table
+- `paper_example_cakeml_worstTheory.policy_trans_fwd;` -> trans-fwd result
+- `paper_example_cakeml_worstTheory.policy_trans_fwd_proof;` -> soundness of trans-fwd (Theorem 1)
+- `paper_example_cakeml_worstTheory.policy_BDD;` -> MTBDD1 result 
+- `paper_example_cakeml_worstTheory.table_BDD;` -> MTBDD2 result 
+- `paper_example_cakeml_worstTheory.table_trans_back;` -> trans-back soundness (Theorem 2, you will see the tables here)
+- `paper_example_cakeml_worstTheory.final_proof;` -> end-to-end equivalence proof between policy and a table
 
 
 When you view the theorems, `paper_example_hol4_*` will show 
@@ -405,7 +411,7 @@ ctrl + d
 Open the variant you want to modify:
 
 ```bash
-nano paper_example_cakeml_bestScript.sml
+nano -l paper_example_cakeml_bestScript.sml
 ```
 
 You need to update five things. For example, to add a rule that drops traffic with `ip.ttl <= 1`:
@@ -475,8 +481,8 @@ The policy equivalence example is in `hol/polygram/reviewers_test_here/policy_eq
 
 It demonstrates PolyGram's equivalence checking on two policies defined over three predicates:
 
-- `y1` : `tcp.dstport <= 1023` (standard service ports)
-- `y2` : `tcp.dstport >= 49152` (dynamic/ephemeral ports)
+- `y1` -> `tcp.dstport <= 1023` (standard service ports)
+- `y2` -> `tcp.dstport >= 49152` (dynamic/ephemeral ports)
 - `z`  : `ip.ttl >= 2` (packet has enough hops left)
 
 Both policies produce the same forwarding behaviour, but are written differently.
@@ -503,7 +509,7 @@ show_tags := true;
 
 The interesting theorem to inspect is:
 
-- `policy_equiv_exampleTheory.final_thm` : end-to-end equivalence between the two policies
+- `policy_equiv_exampleTheory.final_thm;` -> end-to-end equivalence between the two policies
 
 The theorem will show the equivelnce.
 
@@ -549,7 +555,7 @@ show_tags := true;
 
 The theorem to inspect is:
 
-- `policy_min_exampleTheory.final_thm` : end-to-end equivalence between the original and minimized policy (there you can also see the minimized policy)
+- `policy_min_exampleTheory.final_thm;` -> end-to-end equivalence between the original and minimized policy (there you can also see the minimized policy)
 
 The theorem will show:
 
@@ -566,7 +572,7 @@ We can modify the pipeline to get a non-oracle theorem. It is like Lego!
 To modify the input policy and observe how PolyGram minimizes it, open the script:
 
 ```bash
-nano policy_min_exampleScript.sml
+nano -l policy_min_exampleScript.sml
 ```
 
 You can add new rules, introduce unsatisfiable conditions, or reorder rules. For example, to add a redundant rule that is subsumed by Rule 1:
