@@ -10,7 +10,7 @@ USER root
 RUN apt-get update && apt-get install -y -q \
     build-essential git python3 file \
     zlib1g-dev libbz2-dev liblzma-dev wget sudo \
-    opam make nano && \
+    opam make nano micro && \
     rm -rf /var/lib/apt/lists/*
 
 # ---- 2. Copy the full project into the image ----------------------------------------------------------------------
