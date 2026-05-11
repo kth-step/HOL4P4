@@ -25,6 +25,7 @@ clean:
 	cd hol/polygram/policy_test_cases_cakeml_worst && Holmake clean
 	cd hol/polygram/policy_test_cases_hol4_best && Holmake clean
 	cd hol/polygram/policy_test_cases_hol4_worst && Holmake clean
+	cd hol/polygram/reviewers_test_here && Holmake clean
 	cd hol/polygram/policy_test_cases_eq && Holmake clean
 	cd hol/polygram/policy_test_cases_gen_policy && Holmake clean
 	cd hol/polygram/policy_test_cases_mtbdd && Holmake clean
