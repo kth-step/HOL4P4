@@ -63,8 +63,7 @@ HOL4P4/
 | HOL4P4 theories | `make hol` | ~30s |
 | PolyGram theories | `make polygram` | ~1320s (`table_bs_propertiesTheory` alone takes ~10 min) |
 | CakeML translation | `make cake` | ~800s |
-| Benchmark test cases | `make test` | ~2000s |
-| Reviewer examples | `./prepp.sh` | ~5s |
+| Benchmark test cases | `make test` | ~4000s |
 
 ---
 
@@ -199,19 +198,47 @@ All commands listed here should be run from the root of the repository (HOL4P4/)
 
 ### 1. Build
 
-> ⚠️ **WARNING:** ⚠️ The Docker contains a pre-built version. However, for reproducibility reasons, the following commands can be used after cleaning up with `make clean`. This is time consuming as you cannot interrupt `make test`.
+> ⚠️ **WARNING: If you are using Docker, skip this section entirely and jump to [Inspecting the Paper's Test Cases](#2-inspecting-the-papers-test-cases).** ⚠️ The Docker image ships with everything pre-built: HOL4 theories, CakeML binaries, and all benchmark test cases are already compiled and ready to inspect.
 
-The build steps of PolyGram are incremental and must be run in order:
+The build steps below are provided for reproducibility only. They are time-consuming and cannot be interrupted mid-way. If you just want to explore the artifact, the Docker image is the right choice.
 
-- `make hol` compiles the excerpt of HOL4P4 theories that we use in `hol/`, expected time: 30s.
-- `make polygram` compiles the Polygram theories in `hol/polygram/`, expected time: 1320s, (`table_bs_propertiesTheory` takes 10 minutes due to the long heavy proofs).
-- `make cake` compiles the CakeML translation in `hol/polygram/bdd_cake_trans/`, after this command, there should be 2 sexp files in the repository `bdd_cake_test`, that we compile when testing next step, expected time: 800s.
-- `make test` runs the testing scripts for the policy test cases in `hol/polygram/policy_test_cases*/`, expected time: at least 3000s
+However, if you still want to rebuild from scratch, first clean the existing build:
+
+```bash
+make clean
+```
+
+Then run the steps in order:
+
+- `make hol` compiles the excerpt of HOL4P4 theories that we use in `hol/`, expected time: ~30s.
+- `make polygram` compiles the Polygram theories in `hol/polygram/`, expected time: ~1320s, (`table_bs_propertiesTheory` takes 10 minutes due to the long heavy proofs).
+- `make cake` compiles the CakeML translation in `hol/polygram/bdd_cake_trans/`, after this command, there should be 2 sexp files in the repository `bdd_cake_test`, that we compile when testing next step, expected time: ~800s.
+- `make test` runs all benchmark test cases in `hol/polygram/policy_test_cases*/`, expected time: ~4000s or more.
 
 
-### 2. Inspecting the Test Cases
+<br>
+<br>
 
-The time logs for all tables in the paper are saved under `logs_for_tables_in_paper/` in the corresponding subfolder (`Table I`, `Table II`, `Table III`, `Table IV`).
+### 2. Inspecting the Paper's Test Cases
+
+The time logs for all tables in the paper are saved under `logs_for_tables_in_paper/` in the corresponding subfolder (`Table_I`, `Table_II`, `Table_III`, `Table_IV`).
+
+```bash
+cd /HOL4P4/hol/polygram/logs_for_tables_in_paper/
+ls
+# you should see: Table_I  Table_II  Table_III  Table_IV
+
+cd Table_II/
+ls
+# you should see: cakeml_best_order  cakeml_worst_order  hol4_best_order  hol4_worst_order
+
+cd cakeml_best_order/
+ls
+# you should see the log files, one per test case
+
+cat internet_firewall_1Theory
+# shows the time log and saved theorem names for that test case
+```
 
 
 #### General description:
@@ -224,38 +251,63 @@ The test case folders and the scripts they run are as follows:
 | Table III - Policy equivalence | `policy_test_cases_eq/` | `fwd_proof_policies_cakeLib.sml` |
 | Table IV - Policy minimization | `policy_test_cases_gen_policy/` | `fwd_proof_gen_eq_cakeLib.sml` |
 
-To inspect the files, we exemplify using `policy_test_cases/internet_firewall_1.sml`, we add further instructions for other test case folders when needed:
 
----
+The following steps show how to inspect the compiled theories inside the Docker image.
+To inspect the contents of the files, we exemplify using `policy_test_cases_cakeml_best/internet_firewall_1.sml`, we add further instructions for other test case folders when needed:
 
-#### Step 1 - Run the test cases
 
-If you did not `make test` in the build, navigate to the folder of the test cases of interest e.g., `policy_test_cases_cakeml_best/` and run:
 
-	cd hol/polygram/policy_test_cases_cakeml_best
+
+
+
+
+
+#### Step 1 - Navigate to the folder of interest
+
+Navigate to the folder of the test cases of interest e.g., `policy_test_cases_cakeml_best/`, run:
+
+```bash
+	cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best
+
+	# You can skip the following re-run, 
+	# as this is pre-built version you are using :)
 	./prepp.sh
+```
 
 Repeat for any other folder you want to test/inspect later (`policy_test_cases_mtbdd`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`...`policy_test_cases_*`).
 
----
+
+> **Note:** For evaluation purposes, the timeout is set here to 20 seconds (vs. 1200 seconds in the paper). If you feel like you want to change it, edit `prepp.sh` and update (20s to 1200s) in this line:
+> ```
+> timeout 20s Holmake "internet_firewall_${i}Theory.uo"
+> ```
+
+
 
 #### Step 2 - View the time logs
 
-Once the run completes, the time logs being generated are stored in `.hol/logs/` inside the test case folder. For example (you can also see the *theorems names* being stored in HOL4 there):
+Once the run completes (if you are using docker this is pre-done), the time logs being generated are stored in `.hol/logs/` inside the test case folder. For example (you can also see the *theorems names* being stored in HOL4 there):
 
-	cd .hol/logs
+```bash
+	cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best/.hol/logs
+	ls
 	cat internet_firewall_1Theory
+```
 
 For each successfully compiled `.sml` file (e.g., `internet_firewall_1Script.sml`), a corresponding theory file (`internet_firewall_1Theory`) is generated.
 
----
+
 
 #### Step 3 - View the theorems
 
-Only test cases `filenameTheory` that completed successfully will have a generated theory file. To inspect a theorem, first launch HOL from the test case folder:
+> **Note:** Only test cases `xScript.sml` that completed successfully will have a generated theory file `xTheory`. To inspect a theorem, first launch HOL from the test case folder:
 
-	cd hol/polygram/policy_test_cases_cakeml_best
+```bash
+	cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best/
+
+	# Enter HOL4 mode via:
 	hol
+```
 
 Then, inside the HOL environment, load and open the theory of interest:
 
@@ -267,14 +319,19 @@ Then, inside the HOL environment, load and open the theory of interest:
 
 Display a theorem (type this):
 
+```sml
 	internet_firewall_1Theory.policy_trans_fwd_proof;
-	
+```
+
 This will show the translation proof between input policy forwarding and its ILR representation.
-Note: it is easy to miss the semi-colon at the end, please do not forget to add it.
+> **Note:** It is easy to miss the semi-colon at the end, please do not forget to add it.
 
-The available theorems differ by folder. Check `.hol/logs/` for lines beginning with `saved theorem` to confirm valid theorem names or here we have a reference:
+The available theorems differ by folder. The available theorems differ by folder. Check `.hol/logs/` for lines beginning with `saved theorem` to confirm valid theorem names see [Step 2](#step-2---view-the-time-logs) to confirm valid theorem names *or here we have a reference*:
 
-In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_worst`**, **`policy_test_cases_hol4_best`** and **`policy_test_cases_hol4_worst`** for firewall (e.g., `internet_firewall_1Theory` to check them type `ls -la`) (Table II):
+
+
+
+In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_worst`**, **`policy_test_cases_hol4_best`** and **`policy_test_cases_hol4_worst`** for firewall (e.g., `internet_firewall_1Theory` to find them write `ls -la`) (Table II):
 - `internet_firewall_1Theory.policy_trans_fwd;` -> trans-fwd result
 - `internet_firewall_1Theory.policy_trans_fwd_proof;` -> soundness of trans-fwd (Theorem 1)
 - `internet_firewall_1Theory.policy_BDD;` -> MTBDD1 result 
@@ -307,12 +364,8 @@ In folder **`policy_test_cases_mtbdd`** (Table I) for firewall (e.g., `internet_
 | **`policy_test_cases_hol4_best`** | HOL4 fully verified - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Best order |
 | **`policy_test_cases_hol4_worst`** | HOL4 fully verified - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Worst order |
 
-> **Note:** For evaluation purposes, the timeout is set to 20 seconds (vs. 1200 seconds in the paper). To change it, edit `prepp.sh` and update (20s to 1200s) in this line:
-> ```
-> timeout 20s Holmake "internet_firewall_${i}Theory.uo"
-> ```
 
----
+
 
 #### Step 4 - Exit HOL4
 
@@ -320,11 +373,15 @@ To exit the HOL environment:
 
 	ctrl+d
 
----
+
+
+<br>
+<br>
+<br>
 
 ## Try PolyGram Yourself
 
-### Running the Paper Example
+### 1. Running the Paper Example
 
 The running example from the paper (Figures 1, 4, and 5) is in `hol/polygram/reviewers_test_here/`. It contains four variants combining two pipeline types (CakeML binary or HOL4 EVAL) and two variable orders (best or worst):
 
@@ -342,7 +399,7 @@ To run all four variants:
 
 This compiles the CakeML binary and runs all four variants. Each variant produces a HOL4 theory file with the verified theorems.
 
-### Inspecting the Example Files
+#### Inspecting the Example Files
 
 To open and inspect a variant:
 
@@ -361,7 +418,7 @@ Inside, you will find:
 
 > **Note:** The policy is encoded as a HOL4 deep embedding. This keeps the pipeline free from untrusted compiler dependencies, at the cost of some verbosity.
 
-### Checking the Output
+#### Checking the Output
 
 After `./prepp.sh` completes, inspect the generated theorems interactively:
 
@@ -404,7 +461,11 @@ To exit HOL4:
 ctrl + d
 
 
-### Extending the Running Example
+---
+<br>
+
+
+### 2. Extending the Running Example
 
 #### Adding a Rule
 
@@ -474,15 +535,16 @@ Check the result again, the same way for the unmodified file.
 
 
 ---
+<br>
 
-### Policy Equivalence Example
+### 3. Policy Equivalence Example
 
 The policy equivalence example is in `hol/polygram/reviewers_test_here/policy_equiv_exampleScript.sml`.
 
 It demonstrates PolyGram's equivalence checking on two policies defined over three predicates:
 
-- `y1` -> `tcp.dstport <= 1023` (standard service ports)
-- `y2` -> `tcp.dstport >= 49152` (dynamic/ephemeral ports)
+- `y1` : `tcp.dstport <= 1023` (standard service ports)
+- `y2` : `tcp.dstport >= 49152` (dynamic/ephemeral ports)
 - `z`  : `ip.ttl >= 2` (packet has enough hops left)
 
 Both policies produce the same forwarding behaviour, but are written differently.
@@ -514,8 +576,10 @@ The interesting theorem to inspect is:
 The theorem will show the equivelnce.
 
 
+---
+<br>
 
-### Policy Minimization Example
+### 4. Policy Minimization Example
 
 The policy minimization example is in `hol/polygram/reviewers_test_here/policy_min_exampleScript.sml`.
 
@@ -606,7 +670,10 @@ To exit HOL4:
 	ctrl+d
 
 
+<br>
+
 ---
+
 ## Pipeline Library Files
 
 The pipeline is assembled according to the use case as described in the paper:
