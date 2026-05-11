@@ -191,7 +191,11 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		chmod +x hol/polygram/policy_test_cases*/prepp.sh
 
 
+<br>
+<br>
+<br>
 
+---
 ## Usage
 
 All commands listed here should be run from the root of the repository (HOL4P4/).
@@ -247,7 +251,7 @@ The test case folders and the scripts they run are as follows:
 | Table | Folder | Script(s) |
 |-------|--------|-----------|
 | Table I - MTBDD creation | `policy_test_cases_mtbdd/` | `bdd_policy_cakeLib.sml` |
-| Table II - Policy-to-table | `policy_test_cases_cakeml_best/` `policy_test_cases_cakeml_worst/` `policy_test_cases_hol4_best/` `policy_test_cases_hol4_worst/`| `fwd_proofLib.sml` or `fwd_proof_cakeLib.sml` (see commented lines in each file) |
+| Table II - Policy-to-table | `policy_test_cases_cakeml_best/` `policy_test_cases_cakeml_worst/` `policy_test_cases_hol4_best/` `policy_test_cases_hol4_worst/`| `fwd_proofLib.sml` for hol4 or `fwd_proof_cakeLib.sml` for cakeml |
 | Table III - Policy equivalence | `policy_test_cases_eq/` | `fwd_proof_policies_cakeLib.sml` |
 | Table IV - Policy minimization | `policy_test_cases_gen_policy/` | `fwd_proof_gen_eq_cakeLib.sml` |
 
@@ -267,11 +271,11 @@ To inspect the contents of the files, we exemplify using `policy_test_cases_cake
 Navigate to the folder of the test cases of interest e.g., `policy_test_cases_cakeml_best/`, run:
 
 ```bash
-	cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best
+cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best
 
-	# You can skip the following re-run, 
-	# as this is pre-built version you are using :)
-	./prepp.sh
+# You can skip the following re-run, 
+# as this is pre-built version you are using :)
+./prepp.sh
 ```
 
 Repeat for any other folder you want to test/inspect later (`policy_test_cases_mtbdd`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`...`policy_test_cases_*`).
@@ -289,9 +293,9 @@ Repeat for any other folder you want to test/inspect later (`policy_test_cases_m
 Once the run completes (if you are using docker this is pre-done), the time logs being generated are stored in `.hol/logs/` inside the test case folder. For example (you can also see the *theorems names* being stored in HOL4 there):
 
 ```bash
-	cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best/.hol/logs
-	ls
-	cat internet_firewall_1Theory
+cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best/.hol/logs
+ls
+cat internet_firewall_1Theory
 ```
 
 For each successfully compiled `.sml` file (e.g., `internet_firewall_1Script.sml`), a corresponding theory file (`internet_firewall_1Theory`) is generated.
@@ -303,10 +307,10 @@ For each successfully compiled `.sml` file (e.g., `internet_firewall_1Script.sml
 > **Note:** Only test cases `xScript.sml` that completed successfully will have a generated theory file `xTheory`. To inspect a theorem, first launch HOL from the test case folder:
 
 ```bash
-	cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best/
+cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best/
 
-	# Enter HOL4 mode via:
-	hol
+# Enter HOL4 mode via:
+hol
 ```
 
 Then, inside the HOL environment, load and open the theory of interest:
@@ -340,16 +344,16 @@ In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_wors
 - `internet_firewall_1Theory.final_proof;` -> end-to-end equivalence proof between policy and a table
 
 In folder **`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** for firewall (e.g., `internet_firewall_xTheory` where `x` is a number, to check them type `ls -la`) (Tables III & IV):
-- `internet_firewall_xTheory.policy_trans_fwd_1;` -> trans-fwd result for policy 1 (Theorem 1)
-- `internet_firewall_xTheory.policy_trans_fwd_2;` -> trans-fwd result for policy 2 (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_1;` -> trans-fwd result for policy 1 
+- `internet_firewall_xTheory.policy_trans_fwd_2;` -> trans-fwd result for policy 2 
 - `internet_firewall_xTheory.policy_trans_fwd_proof_1;` -> soundness of trans-fwd for policy 1 (Theorem 1)
 - `internet_firewall_xTheory.policy_trans_fwd_proof_2;` -> soundness of trans-fwd for policy 2 (Theorem 1)
 - `internet_firewall_xTheory.policy_BDD_1;` -> MTBDD1 from policy 1 
 - `internet_firewall_xTheory.policy_BDD_;` -> MTBDD2 from policy 2 
-- `internet_firewall_xTheory.final_proof;` -> end-to-end equivalence between the two policies
+- `internet_firewall_xTheory.final_proof;` -> end-to-end equivalence between the two policies 
 
 In folder **`policy_test_cases_mtbdd`** (Table I) for firewall (e.g., `internet_firewall_xTheory` where `x` is a number, to check them type `ls -la`):
-- `internet_firewall_xTheory.policy_trans_fwd;` -> trans-fwd result (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd;` -> trans-fwd result
 - `internet_firewall_xTheory.policy_trans_fwd_proof;` -> soundness of trans-fwd (Theorem 1)
 - `internet_firewall_xTheory.policy_BDD;` -> MTBDD result
 
@@ -371,7 +375,7 @@ In folder **`policy_test_cases_mtbdd`** (Table I) for firewall (e.g., `internet_
 
 To exit the HOL environment:
 
-	ctrl+d
+	Ctrl+d
 
 
 
@@ -392,10 +396,16 @@ The running example from the paper (Figures 1, 4, and 5) is in `hol/polygram/rev
 
 To run all four variants:
 
+```bash
+cd /HOL4P4/hol/polygram/reviewers_test_here
 
-	cd hol/polygram/reviewers_test_here
-	./prepp.sh
+#check the 4 examples variants:
+ls
 
+# You can skip the following re-run, 
+# as this is pre-built version you are using :)
+./prepp.sh
+```
 
 This compiles the CakeML binary and runs all four variants. Each variant produces a HOL4 theory file with the verified theorems.
 
@@ -403,29 +413,36 @@ This compiles the CakeML binary and runs all four variants. Each variant produce
 
 To open and inspect a variant:
 
-
-	nano -l paper_example_cakeml_bestScript.sml
-
+```bash
+micro paper_example_cakeml_bestScript.sml
+```
 
 Inside, you will find:
 
-- **Packet type descriptor** : encodes the bit-vector width of each header field
-- **Atomic predicates** : e.g. `x1` for `ip.dst >= 10.0.0.0`, declared as HOL4 deep embeddings
-- **Mapping m** (`atoms_map`) : maps variable names to atomic predicates (Figure 4)
-- **Policy rules** : the five rules from Figure 1, in order
-- **Variable order and grouping** : controls MTBDD construction (Section V)
-- **Pipeline invocation** : calls either `fwd_proof_cakeLib` (CakeML) or `fwd_proofLib` (HOL4 EVAL)
+- **Packet type descriptor** : encodes the bit-vector width of each header field (line 45)
+- **Atomic predicates** : e.g. `x1` for `ip.dst >= 10.0.0.0`, declared as HOL4 deep embeddings (lines 56-17)
+- **Mapping m** (`atoms_map`) : maps variable names to atomic predicates (same as in Figure 4) (lines 89-97)
+- **Policy rules** : the five rules from Figure 1, in order (lines 100-132)
+- **Variable order and grouping** : controls MTBDD construction (Section V) (lines 160-168)
+- **Pipeline invocation** : calls either `fwd_proof_cakeLib` (CakeML) or `fwd_proofLib` (HOL4 EVAL) (lines 185)
 
 > **Note:** The policy is encoded as a HOL4 deep embedding. This keeps the pipeline free from untrusted compiler dependencies, at the cost of some verbosity.
 
+> **Note:** The line number differs according to the test case, these are for `paper_example_cakeml_bestScript.sml`
+
+
+To exit micro
+Ctrl+q
+
+
 #### Checking the Output
 
-After `./prepp.sh` completes, inspect the generated theorems interactively:
+Inspect the generated theorems interactively:
 
-
-	cd hol/polygram/reviewers_test_here
+```bash
+	cd /HOL4P4/hol/polygram/reviewers_test_here
 	hol
-
+```
 
 Then inside the HOL4 interactive session:
 
@@ -458,7 +475,7 @@ The oracle tag `CakeML_policy_TCB` makes the trust assumption explicit: the Cake
 
 To exit HOL4:
 
-ctrl + d
+Ctrl+d
 
 
 ---
@@ -472,35 +489,19 @@ ctrl + d
 Open the variant you want to modify:
 
 ```bash
-nano -l paper_example_cakeml_bestScript.sml
+cd /HOL4P4/hol/polygram/reviewers_test_here
+micro paper_example_cakeml_bestScript.sml
 ```
 
 You need to update five things. For example, to add a rule that drops traffic with `ip.ttl <= 1`:
 
-**1. Define the atomic predicate and lift it: (line 72 in all 4 test cases)**
+**1. Define the atomic predicate and lift it: (copy the following at line 72)**
 ```sml
 val ttl_low = ``(arithm_le (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^(bdd_utilsLib.make_bv 1 8))``;
 val a_ttl_low = ``arith_a ^ttl_low``;
 ```
 
-**2. Define the rule:**
-```sml
-val arith_policy_rule_ttl = ``(^a_ttl_low, action ("drop", [])):single_rule``;
-```
-
-**3. Add it to the policy list before the default rule:**
-```sml
-val arith_policy_figure1 = “[
-    ^arith_policy_rule1;
-    ^arith_policy_rule2;
-    ^arith_policy_rule3;
-    ^arith_policy_rule4;
-    ^arith_policy_rule_ttl;  (* add here *)
-    ^arith_policy_rule_default
-]:single_rule list”;
-```
-
-**4. Add the predicate to the mapping m:**
+**2. Add the predicate to the mapping m: (replace at line 91)**
 ```sml
 val atoms_map = ``[
     ("x1", ^x1); 
@@ -510,28 +511,57 @@ val atoms_map = ``[
     ("y1", ^y1); 
 	("y2", ^y2); 
 	("z", ^z);
-    ("ttl_low", ^ttl_low) (* add here *)
+    ("ttl_low", ^ttl_low) (* <---- add here *)
 ]``;
 ```
 
-**5. Add the variable to the order and grouping:**
+
+**3. Define the rule: (copy the following at line 137)**
 ```sml
-val policy_order = “["y1";"x1";"x2";"x3";"x4";"y2";"z";"ttl_low"]”;
+val arith_policy_rule_ttl = ``(^a_ttl_low, action ("drop", [])):single_rule``;
+```
+
+**4. Add it to the policy list before the default rule: (replace at line 140)**
+```sml
+val arith_policy_figure1 = “[
+    ^arith_policy_rule1;
+    ^arith_policy_rule2;
+    ^arith_policy_rule3;
+    ^arith_policy_rule4;
+    ^arith_policy_rule_ttl;  (* <---- add here *)
+    ^arith_policy_rule_default
+]:single_rule list”;
+```
+
+
+**5. Add the variable to the order and grouping: (replace at line 165)**
+```sml
+val policy_order = “["y1";"x1";"x2";"x3";"x4";"y2";"z";"ttl_low"]”; (* <---- add here *)
 
 val variables_grouping = “[
   ("tcp_dst1" ,["y1"]);
   ("ip_dst",["x1";"x2";"x3";"x4"]);
   ("tcp_dst2" ,["y2"]);
-  ("ip_ttl" ,["z";"ttl_low"])
+  ("ip_ttl" ,["z";"ttl_low"])  (* <---- add here *)
 ]”;
 ```
+
+
+
+Save your changes:
+Ctrl+s
+
+
+Exit micro:
+Ctrl+q
+
 
 Then rerun:
 ```bash
 ./prepp.sh
 ```
 
-Check the result again, the same way for the unmodified file.
+You can see that the file has been compiler with an OK next to it. It means successfully generated a table and a proof of equivalence. *You can check the result again, the same way for the unmodified file.*
 
 
 ---
@@ -541,23 +571,26 @@ Check the result again, the same way for the unmodified file.
 
 The policy equivalence example is in `hol/polygram/reviewers_test_here/policy_equiv_exampleScript.sml`.
 
+```bash
+cd /HOL4P4/hol/polygram/reviewers_test_here
+micro policy_equiv_exampleScript.sml
+```
+
 It demonstrates PolyGram's equivalence checking on two policies defined over three predicates:
 
 - `y1` : `tcp.dstport <= 1023` (standard service ports)
 - `y2` : `tcp.dstport >= 49152` (dynamic/ephemeral ports)
 - `z`  : `ip.ttl >= 2` (packet has enough hops left)
 
-Both policies produce the same forwarding behaviour, but are written differently.
+Both policies produce the same forwarding behaviour, but are written differently (see the comment blocks in file `policy_equiv_exampleScript.sml`).
 Each policy contains a rule that is **never reached** due to match-first semantics, yet PolyGram proves the two policies semantically equivalent.
 
-To run it:
 
-```bash
-cd hol/polygram/reviewers_test_here
-./prepp.sh
-```
+Quit micro:
+Ctrl+q
 
-Then inspect the result interactively:
+
+Then inspect the built result interactively:
 
 ```bash
 hol
@@ -573,8 +606,10 @@ The interesting theorem to inspect is:
 
 - `policy_equiv_exampleTheory.final_proof;` -> end-to-end equivalence between the two policies
 
-The theorem will show the equivelnce.
+The theorem will show the equivalence.
 
+Quit hol mode:
+Ctrl+d
 
 ---
 <br>
@@ -582,6 +617,11 @@ The theorem will show the equivelnce.
 ### 4. Policy Minimization Example
 
 The policy minimization example is in `hol/polygram/reviewers_test_here/policy_min_exampleScript.sml`.
+
+```bash
+cd /HOL4P4/hol/polygram/reviewers_test_here
+micro policy_min_exampleScript.sml
+```
 
 It demonstrates PolyGram's policy minimization on a bloated policy defined over three predicates.
 
@@ -593,19 +633,14 @@ The input policy has 9 rules with several issues that are hard to spot by hand:
 - **Rule 9** : unreachable . Rule 8 (`NOT z → fwd(2)`) always fires first due to match-first semantics
 - **Rules 1, 3, 5, 6** : overlapping conditions that can be simplified
 
-PolyGram automatically generates a minimized policy and produces a certified proof that the minimized policy is semantically equivalent to the original.
+PolyGram automatically generates a *minimized policy of 1 rule* and produces a certified proof that the minimized policy is semantically equivalent to the original.
 
-#### Running the Example
 
-```bash
-cd hol/polygram/reviewers_test_here
-./prepp.sh
-```
+Quit micro: Ctrl+q
 
-#### Inspecting the Result
+Inspecting the pre-built result:
 
 ```bash
-cd hol/polygram/reviewers_test_here
 hol
 ```
 
@@ -630,33 +665,36 @@ The theorem will show:
 
 We can modify the pipeline to get a non-oracle theorem. It is like Lego!
 
+Quit hol mode: Ctrl+d
+
 
 #### Reproducing the Minimization
 
 To modify the input policy and observe how PolyGram minimizes it, open the script:
 
 ```bash
-nano -l policy_min_exampleScript.sml
+micro policy_min_exampleScript.sml
 ```
 
-You can add new rules, introduce unsatisfiable conditions, or reorder rules. For example, to add a redundant rule that is subsumed by Rule 1:
+You can add new rules, introduce unsatisfiable conditions, or reorder rules. For example, to add a redundant rule that is subsumed by Rule 1 (at line 77 copy the following):
 
 ```sml
 val rule_new = ``(arith_and ^a_y1 (arith_and ^a_z (arith_not ^a_y2)),
                 action ("fwd",[1])):single_rule``;
 ```
 
-Add it to the policy list:
+Add it to the policy list (line 118):
 
 ```sml
 val arith_policy = "[
     ^rule1;
-    ^rule_new;   (* add here *)
+    ^rule_new;   (* <--- add here *)
     ^rule2;
     ...
 ]:single_rule list";
 ```
 
+Quit micro: Ctrl+q
 Then rerun:
 
 ```bash
@@ -665,11 +703,9 @@ Then rerun:
 
 PolyGram will produce the same minimized policy and a new equivalence proof, showing it correctly identified and removed the redundant rule.
 
-To exit HOL4:
 
-	ctrl+d
-
-
+<br>
+<br>
 <br>
 
 ---
@@ -687,10 +723,14 @@ The pipeline is assembled according to the use case as described in the paper:
 | **`fwd_proof_gen_eq_cakeLib.sml`** | Generates a minimized policy from a given input policy. | `policy_test_cases_gen_policy` |
 
 
-> Note: `bdd_policy_cakeLib.sml` is not a pipeline but contains a script to run MTBDD creation only for testing (Table I)
+> **Note:** `bdd_policy_cakeLib.sml` is not a pipeline but contains a script to run MTBDD creation only for testing (Table I)
 
 
+<br>
+<br>
+<br>
 
+---
 ## Theory Files Overview
 
 ### Core Theory Files
@@ -708,7 +748,11 @@ The pipeline is assembled according to the use case as described in the paper:
 | **`bdd_end_to_endScript.sml`** | **End-to-End Correctness**. Glues all previous results together, connecting the abstract BDD framework to the concrete ILR policy and table structures. Contains the main executable equivalence theorem. |
 
 
+<br>
+<br>
+<br>
 
+---
 # Paper's Appendix B in MD format
 ## Formalization Correspondence
 
