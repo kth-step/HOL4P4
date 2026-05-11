@@ -21,3 +21,5 @@ for target in \
     echo "Running Holmake $target..."
     Holmake "$target"
 done
+
+Holmake "policy_equiv_exampleTheory.uo"

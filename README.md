@@ -274,6 +274,17 @@ You should see the following theorems:
 - `paper_example_cakeml_worstTheory.final_proof` : end-to-end equivalence proof between policy and a table
 
 
+When you view the theorems, `paper_example_hol4_*` will show 
+
+    ⊢ THM_CONTENT
+
+whereas checking `paper_example_cakeml_*` will show
+
+	[oracles: CakeML_policy_TCB, DISK_THM] [axioms: ] []
+    ⊢ THM_CONTENT
+
+The oracle tag `CakeML_policy_TCB` makes the trust assumption explicit: the CakeML binary implements verified `mk_mtbdd_opt` (Theorem 3), but the text file I/O between HOL4 and the binary is not verified and constitutes the TCB.
+
 To exit HOL4:
 
 ctrl + d
@@ -291,7 +302,7 @@ nano hol/polygram/reviewers_test_here/paper_example_cakeml_bestScript.sml
 
 You need to update five things. For example, to add a rule that drops traffic with `ip.ttl <= 1`:
 
-**1. Define the atomic predicate and lift it:**
+**1. Define the atomic predicate and lift it: (line 72 in all 4 test cases)**
 ```sml
 val ttl_low = ``(arithm_le (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^(bdd_utilsLib.make_bv 1 8))``;
 val a_ttl_low = ``arith_a ^ttl_low``;
@@ -324,7 +335,7 @@ val atoms_map = ``[
     ("y1", ^y1); 
 	("y2", ^y2); 
 	("z", ^z);
-    ("ttl_low", ^ttl_low)
+    ("ttl_low", ^ttl_low) (* add here *)
 ]``;
 ```
 
@@ -345,12 +356,55 @@ Then rerun:
 ./prepp.sh
 ```
 
-
+Check the result again, the same way for the unmodified file.
 
 
 ---
 
+### Policy Equivalence Example
 
+The policy equivalence example is in `hol/polygram/reviewers_test_here/policy_equiv_exampleScript.sml`.
+
+It demonstrates PolyGram's equivalence checking on two policies defined over three predicates:
+
+- `y1` : `tcp.dstport <= 1023` (standard service ports)
+- `y2` : `tcp.dstport >= 49152` (dynamic/ephemeral ports)
+- `z`  : `ip.ttl >= 2` (packet has enough hops left)
+
+Both policies produce the same forwarding behaviour, but are written differently.
+Each policy contains a rule that is **never reached** due to match-first semantics, yet PolyGram proves the two policies semantically equivalent.
+
+To run it:
+
+```bash
+cd hol/polygram/reviewers_test_here
+./prepp.sh
+```
+
+Then inspect the result interactively:
+
+```bash
+hol
+```
+
+```sml
+load "policy_equiv_exampleTheory";
+open policy_equiv_exampleTheory;
+show_tags := true;
+```
+
+The interesting theorem to inspect is:
+
+- `policy_equiv_exampleTheory.final_thm` : end-to-end equivalence between the two policies
+
+The theorem will show the equivelnce.
+
+
+
+
+
+
+---
 ## Pipeline Library Files
 
 The pipeline is assembled according to the use case as described in the paper:
