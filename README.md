@@ -10,6 +10,8 @@ This artifact contains:
 - Benchmark test cases reproducing the results from the paper (Tables I-IV)
 - Interactive examples for exploring and extending the pipeline
 
+Please start at the [Setup: Using Docker (Recommended)](#setup-using-docker-recommended) section.
+
 ## Artifact Overview
 
 ### Structure and Content
@@ -22,14 +24,18 @@ HOL4P4/
 ├── COPYRIGHT                         # Copyright notice
 ├── Makefile                          # Top-level build file (make hol/polygram/cake/test)
 ├── cakeml/                           # CakeML installation (vHOL-Trindemossen-2)
+├── HOL/                              # HOL-Theorem-Prover (Trindemossen-2)
+│
+│
 ├── hol/
+│   │                             
 │   ├── Holmakefile                   # HOL4 build file for HOL4P4 excerpt
 │   ├── p4Script.sml                  # HOL4P4 dependency
 │   ├── p4_auxScript.sml              # HOL4P4 dependency
 │   └── polygram/
 │       ├── Holmakefile               # HOL4 build file for PolyGram
 │       ├── bdd_genScript.sml         # Generalized BDD framework
-│       ├── ...					      # Other files
+│       ├── ...					      # Other Theorems Files
 │       ├── bdd_gen_eliminateScript.sml # Elimination operation proofs
 │       ├── fwd_proofLib.sml          # HOL4 EVAL pipeline
 │       ├── fwd_proof_cakeLib.sml     # CakeML pipeline
@@ -219,6 +225,11 @@ Then run the steps in order:
 - `make cake` compiles the CakeML translation in `hol/polygram/bdd_cake_trans/`, after this command, there should be 2 sexp files in the repository `bdd_cake_test`, that we compile when testing next step, expected time: ~800s.
 - `make test` runs all benchmark test cases in `hol/polygram/policy_test_cases*/`, expected time: ~4000s or more.
 
+> **Note:** For evaluation purposes, the timeout for the test cases is set here to 20 seconds (vs. 1200 seconds in the paper). If you feel like you want to change it, edit `prepp.sh` in folders `policy_test_cases_cakeml_worst/` `policy_test_cases_hol4_best/` `policy_test_cases_hol4_worst/` and update (20s to 1200s) in this line:
+> ```
+> timeout 20s Holmake "internet_firewall_${i}Theory.uo"
+> ```
+
 
 <br>
 <br>
@@ -259,7 +270,7 @@ The test case folders and the scripts they run are as follows:
 The following steps show how to inspect the compiled theories inside the Docker image.
 To inspect the contents of the files, we exemplify using `policy_test_cases_cakeml_best/internet_firewall_1.sml`, we add further instructions for other test case folders when needed:
 
-
+> **Note:** For evaluation purposes, the timeout for the test cases is set here to 20 seconds (vs. 1200 seconds in the paper). 
 
 
 
@@ -279,12 +290,6 @@ cd /HOL4P4/hol/polygram/policy_test_cases_cakeml_best
 ```
 
 Repeat for any other folder you want to test/inspect later (`policy_test_cases_mtbdd`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`...`policy_test_cases_*`).
-
-
-> **Note:** For evaluation purposes, the timeout is set here to 20 seconds (vs. 1200 seconds in the paper). If you feel like you want to change it, edit `prepp.sh` and update (20s to 1200s) in this line:
-> ```
-> timeout 20s Holmake "internet_firewall_${i}Theory.uo"
-> ```
 
 
 
