@@ -2,7 +2,7 @@
 
 This is the artifact for the paper **"PolyGram: A Certifying Compiler for Network Policies"** submitted to FMCAD 2026.
 
-PolyGram is a certifying compiler for network forwarding policies. It takes a high-level policy as input and produces equivalent P4 match-action tables (or minimized policies), together with a machine-checked proof of semantic equivalence between the input policy and the generated foreardings. The proofs are mechanized in HOL4 and the MTBDD construction is additionally compiled to a verified CakeML binary.
+PolyGram is a certifying compiler for network forwarding policies. It takes a high-level policy as input and produces equivalent P4 match-action tables (or minimized policies), together with a machine-checked proof of semantic equivalence between the input policy and the generated forwarding. The proofs are mechanized in HOL4 and the MTBDD construction is additionally compiled to a verified CakeML binary.
 
 This artifact contains:
 - The HOL4 proof scripts for the PolyGram formalization
@@ -193,7 +193,7 @@ All commands listed here should be run from the root of the repository (HOL4P4/)
 
 ### 1. Build
 
-> ⚠️ **WARNING:** ⚠️ The Docker contains a pre-built version. However, for reproducibility reasons, the following commands can be used after cleaning up with `make clean`. This is time consuomg as you cannot interrupt `make test`.
+> ⚠️ **WARNING:** ⚠️ The Docker contains a pre-built version. However, for reproducibility reasons, the following commands can be used after cleaning up with `make clean`. This is time consuming as you cannot interrupt `make test`.
 
 The build steps of PolyGram are incremental and must be run in order:
 
@@ -268,7 +268,7 @@ Note: it is easy to miss the semi-colon at the end, please do not forget to add 
 
 The available theorems differ by folder. Check `.hol/logs/` for lines beginning with `saved theorem` to confirm valid theorem names or here we have a reference:
 
-In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_worst`**, **`policy_test_cases_hol4_best`** and **`policy_test_cases_hol4_worst`** (Table II):
+In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_worst`**, **`policy_test_cases_hol4_best`** and **`policy_test_cases_hol4_worst`** for firewall (e.g., `internet_firewall_1Theory` to check them type `ls -la`) (Table II):
 - `internet_firewall_1Theory.policy_trans_fwd` : trans-fwd result
 - `internet_firewall_1Theory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
 - `internet_firewall_1Theory.policy_BDD` : MTBDD1 result 
@@ -276,19 +276,19 @@ In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_wors
 - `internet_firewall_1Theory.table_trans_back` : trans-back soundness (Theorem 2)
 - `internet_firewall_1Theory.final_proof` : end-to-end equivalence proof between policy and a table
 
-In folder **`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** (Tables III & IV):
-- `internet_firewall_1Theory.policy_trans_fwd_1` : trans-fwd result for policy 1 (Theorem 1)
-- `internet_firewall_1Theory.policy_trans_fwd_2` : trans-fwd result for policy 2 (Theorem 1)
-- `internet_firewall_1Theory.policy_trans_fwd_proof_1` : soundness of trans-fwd for policy 1 (Theorem 1)
-- `internet_firewall_1Theory.policy_trans_fwd_proof_2` : soundness of trans-fwd for policy 2 (Theorem 1)
-- `internet_firewall_1Theory.policy_BDD_1` : MTBDD1 from policy 1 
-- `internet_firewall_1Theory.policy_BDD_2` : MTBDD2 from policy 2 
-- `internet_firewall_1Theory.final_thm` : end-to-end equivalence between the two policies
+In folder **`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** for firewall (e.g., `internet_firewall_xTheory` where `x` is a number, to check them type `ls -la`) (Tables III & IV):
+- `internet_firewall_xTheory.policy_trans_fwd_1` : trans-fwd result for policy 1 (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_2` : trans-fwd result for policy 2 (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_proof_1` : soundness of trans-fwd for policy 1 (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_proof_2` : soundness of trans-fwd for policy 2 (Theorem 1)
+- `internet_firewall_xTheory.policy_BDD_1` : MTBDD1 from policy 1 
+- `internet_firewall_xTheory.policy_BDD_2` : MTBDD2 from policy 2 
+- `internet_firewall_xTheory.final_thm` : end-to-end equivalence between the two policies
 
-In folder **`policy_test_cases_mtbdd`** (Table I):
-- `internet_firewall_1Theory.policy_trans_fwd` : trans-fwd result (Theorem 1)
-- `internet_firewall_1Theory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
-- `internet_firewall_1Theory.policy_BDD` : MTBDD result
+In folder **`policy_test_cases_mtbdd`** (Table I) for firewall (e.g., `internet_firewall_xTheory` where `x` is a number, to check them type `ls -la`):
+- `internet_firewall_xTheory.policy_trans_fwd` : trans-fwd result (Theorem 1)
+- `internet_firewall_xTheory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
+- `internet_firewall_xTheory.policy_BDD` : MTBDD result
 
 
 
@@ -301,9 +301,9 @@ In folder **`policy_test_cases_mtbdd`** (Table I):
 | **`policy_test_cases_hol4_best`** | HOL4 fully verified - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Best order |
 | **`policy_test_cases_hol4_worst`** | HOL4 fully verified - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Worst order |
 
-> **Note:** For evaluation purposes, the timeout is set to 600 seconds (vs. 1200 seconds in the paper). To change it, edit `prepp.sh` and update:
+> **Note:** For evaluation purposes, the timeout is set to 20 seconds (vs. 1200 seconds in the paper). To change it, edit `prepp.sh` and update (20s to 1200s) in this line:
 > ```
-> timeout 500 Holmake "internet_firewall_${i}Theory.uo"
+> timeout 20s Holmake "internet_firewall_${i}Theory.uo"
 > ```
 
 ---
@@ -341,7 +341,7 @@ This compiles the CakeML binary and runs all four variants. Each variant produce
 To open and inspect a variant:
 
 
-	nano hol/polygram/reviewers_test_here/paper_example_cakeml_bestScript.sml
+	nano paper_example_cakeml_bestScript.sml
 
 
 Inside, you will find:
@@ -405,7 +405,7 @@ ctrl + d
 Open the variant you want to modify:
 
 ```bash
-nano hol/polygram/reviewers_test_here/paper_example_cakeml_bestScript.sml
+nano paper_example_cakeml_bestScript.sml
 ```
 
 You need to update five things. For example, to add a rule that drops traffic with `ip.ttl <= 1`:
@@ -566,7 +566,7 @@ We can modify the pipeline to get a non-oracle theorem. It is like Lego!
 To modify the input policy and observe how PolyGram minimizes it, open the script:
 
 ```bash
-nano hol/polygram/reviewers_test_here/policy_min_exampleScript.sml
+nano policy_min_exampleScript.sml
 ```
 
 You can add new rules, introduce unsatisfiable conditions, or reorder rules. For example, to add a redundant rule that is subsumed by Rule 1:
