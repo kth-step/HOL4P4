@@ -540,10 +540,6 @@ d {{ tex d }} :: d_ ::=
 | none :: :: none
   {{ tex \circ }}
 
-%The "fixed function" of a fixed-function block
-ff {{ tex { \mathit{ff} } }} :: ff_ ::=
-{{ hol (ascope_ty -> ascope_ty option) }}
-
 d_list :: d_list_ ::=
 {{ com list of directions }}
 {{ hol (d list) }}
@@ -720,6 +716,12 @@ ext_fun_map {{ tex X_{ \mathrm{obj} } }} :: ext_fun_map_ ::=
 {{ com extern function map }}
 {{ hol ((string, ((string # d) list # ext_fun)) alist) }}
 
+in_out :: in_out_ ::=
+{{ com input and output }}
+{{ hol (bl # num) }}
+| packet bl i :: M :: packet
+  {{ hol ( [[bl]] , [[i]] ) }}
+
 %Fence between ext_fun_map and ext_map
 embed
 {{ hol
@@ -741,21 +743,32 @@ tbl_map {{ tex { \mathit{Tb} } }} :: tbl_map_ ::=
 | ( tbl_map ) :: S :: paren
   {{ hol ([[tbl_map]]) }}
 
-
 pars_map {{ tex P }} :: pars_map_ ::=
 {{ com parser state map }}
 {{ hol ((string, stmt) alist) }}
 
-in_out :: in_out_ ::=
-{{ com input and output }}
-{{ hol (bl # num) }}
-| packet bl i :: M :: packet
-  {{ hol ( [[bl]] , [[i]] ) }}
+in_out_list {{ tex \overline{ \mathit{io} } }} :: in_out_list_ ::=
+{{ com list of input and output }}
+{{ hol (in_out list) }}
 
 pbl_type :: pbl_type_ ::=
 {{ com programmable block type }}
 | parser :: :: parser
 | control :: :: control
+
+aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
+{{ com architectural environment }}
+{{ hol (num # in_out_list # in_out_list # ascope_ty) }}
+| empty :: M :: empty
+  {{ com empty architectural environment }}
+  {{ hol (0, [], [], []) }}
+| ( num_exp , in_out_list , in_out_list' , ascope ) :: M :: tup
+  {{ com tuple }}
+  {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[ascope]]) }}
+%TODO: Allow set_oracle index here or in ascope definition?
+| ( num_exp , in_out_list , in_out_list' , set_oracle_index i_opt ascope ) :: M :: set_oracle_index
+  {{ com tuple }}
+  {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[set_oracle_index]] [[i_opt]] [[ascope]]) }}
 
 %Fence between pbl_type and pblock
 embed
@@ -763,6 +776,10 @@ embed
 
 }}
 grammar
+
+%The "fixed function" of a fixed-function block
+ff {{ tex { \mathit{ff} } }} :: ff_ ::=
+{{ hol (aenv -> aenv option) }}
 
 pblock {{ tex { \mathit{pblock} } }} :: pblock_ ::=
 {{ com programmable block }}
@@ -798,10 +815,6 @@ pblock_map {{ tex B_p }} :: pblock_map_ ::=
 ffblock_map {{ tex B_{ \mathrm{ff} } }} :: ffblock_map_ ::=
 {{ com fixed-function block map }}
 {{ hol ((string, ffblock) alist) }}
-
-in_out_list {{ tex \overline{ \mathit{io} } }} :: in_out_list_ ::=
-{{ com list of input and output }}
-{{ hol (in_out list) }}
 
 %This function takes an index and returns a Boolean
 %Effectively, each call with a new index yields a new random bit

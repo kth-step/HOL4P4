@@ -93,26 +93,12 @@ Cases_on `arch_frame_list` >> (
   ],
 
   (* fixed-function block *)
-  fs[arch_exec_def] >>
-  Cases_on `ALOOKUP ffblock_map s` >> (
-   fs[]
-  ) >>
-  Cases_on `x` >>
-  fs[] >>
-  Cases_on `f ascope` >> (
-   fs[]
-  ) >>
-  rw [] >>
+  gvs[arch_exec_def, AllCaseEqs()] >>
+  gvs[] >>
   metis_tac [(valOf o find_clause_arch_red) "arch_ffbl", clause_name_def],
 
   (* output *)
-  fs[arch_exec_def] >>
-  Cases_on `output_f (in_out_list',ascope)` >> (
-   fs[]
-  ) >>
-  PairCases_on `x` >>
-  fs[] >>
-  rw [] >>
+  gvs[arch_exec_def, AllCaseEqs()] >>
   metis_tac [(valOf o find_clause_arch_red) "arch_out", clause_name_def]
  ],
 

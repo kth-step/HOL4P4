@@ -201,8 +201,6 @@ Type s_t_list = ``:(s_t list)``
 
 Type ext_fun = ``:(('a # g_scope_list # scope_list) -> (('a # scope_list # status) option))``
 
-Type ff = ``:('a -> 'a option)``
-
 Type d_list = ``:(d list)``
 
 
@@ -229,6 +227,8 @@ Type func_map = ``:((string, (stmt # (string # d) list)) alist)``
 
 Type b_func_map = ``:((string, (stmt # (string # d) list)) alist)``
 
+Type in_out = ``:(bl # num)``
+
 Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``
 
 
@@ -238,15 +238,19 @@ Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_
 Type pars_map = ``:((string, stmt) alist)``
 
 Type tbl_map = ``:((string, ((mk list) # (x # e_list))) alist)``
+
+Type in_out_list = ``:(in_out list)``
+
+Type aenv = ``:(num # in_out_list # in_out_list # 'a)``
 val _ = Hol_datatype ` 
 pbl_type =  (* programmable block type *)
    pbl_type_parser
  | pbl_type_control
 `;
 
-Type in_out = ``:(bl # num)``
 
 
+Type ff = ``:(('a aenv) -> ('a aenv) option)``
 val _ = Hol_datatype ` 
 ffblock =  (* fixed-function block *)
    ffblock_ff of 'a ff
@@ -256,15 +260,13 @@ Type pblock = ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_m
 
 
 
-Type ffblock_map = ``:((string, 'a ffblock) alist)``
-
 Type pblock_map = ``:((string, pblock) alist)``
 
-Type in_out_list = ``:(in_out list)``
-
-Type random_oracle = ``:(num -> bool)``
+Type ffblock_map = ``:((string, 'a ffblock) alist)``
 
 Type pblock_list = ``:(pblock list)``
+
+Type random_oracle = ``:(num -> bool)``
 val _ = Hol_datatype ` 
 arch_block =  (* architectural block *)
    arch_block_inp
@@ -308,8 +310,6 @@ Type frame = ``:(funn # stmt_stack # scope_list)``
 Type frame_list = ``:(frame list)``
 
 Type state = ``:('a # g_scope_list # frame_list # status)``
-
-Type aenv = ``:(num # in_out_list # in_out_list # 'a)``
 
 
 val _ = Hol_datatype ` 
@@ -2697,13 +2697,13 @@ Inductive arch_sem:
  ==> 
 ( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  i  ,  in_out_list ,  in_out_list' ,  set_oracle_index   i_opt'   ascope )  ,  g_scope_list''' ,  (arch_frame_list_regular  ([   ( (funn_name f)  ,   ( ([(stmt)]) )   ,   ( ([( [] )]) )  )   ]) ) ,  status_running )  )))
 
-[arch_ffbl:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (ascope':'a) (x:x) (ff:'a ff) .
+[arch_ffbl:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (i':i) (in_out_list'':in_out_list) (in_out_list''':in_out_list) (ascope':'a) (x:x) (ff:'a ff) .
 (clause_name "arch_ffbl") /\
 (( (  (arch_block_ffbl x)  = EL  i   ab_list  ) ) /\
 ( (ALOOKUP  ffblock_map   x  = SOME  (ffblock_ff ff) ) ) /\
-( (SOME  ascope'  =  ff  ( ascope ) ) ))
+( (SOME   (  i'  ,  in_out_list'' ,  in_out_list''' ,  ascope' )   =  ff  (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ) ) ))
  ==> 
-( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  (   i   +   1   )  ,  in_out_list ,  in_out_list' ,  ascope' )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
+( ( arch_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   (  (  i  ,  in_out_list ,  in_out_list' ,  ascope )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )   (  (  i'  ,  in_out_list'' ,  in_out_list''' ,  ascope' )  ,  g_scope_list ,  arch_frame_list_empty ,  status_running )  )))
 
 [arch_out:] (! (ab_list:ab_list) (pblock_map:pblock_map) (ffblock_map:'a ffblock_map) (input_f:'a input_f) (output_f:'a output_f) (copyin_pbl:'a copyin_pbl) (copyout_pbl:'a copyout_pbl) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (i:i) (in_out_list:in_out_list) (in_out_list':in_out_list) (ascope:'a) (g_scope_list:g_scope_list) (in_out_list'':in_out_list) (ascope':'a) .
 (clause_name "arch_out") /\

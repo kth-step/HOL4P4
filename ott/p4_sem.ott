@@ -73,21 +73,6 @@ state {{ tex s }} :: state_ ::=
 | ( set_oracle_index i_opt ascope , g_scope_list , frame_list , status ) :: M :: set_oracle_index
 {{ hol (set_oracle_index [[i_opt]] [[ascope]], [[g_scope_list]], [[frame_list]], [[status]]) }}
 
-aenv {{ tex { \mathit{env}_\mathit{A} } }} :: aenv_ ::=
-{{ com architectural environment }}
-{{ hol (num # in_out_list # in_out_list # ascope_ty) }}
-| empty :: M :: empty
-  {{ com empty architectural environment }}
-  {{ hol (0, [], [], []) }}
-| ( num_exp , in_out_list , in_out_list' , ascope ) :: M :: tup
-  {{ com tuple }}
-  {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[ascope]]) }}
-%TODO: Allow set_oracle index here or in ascope definition?
-| ( num_exp , in_out_list , in_out_list' , set_oracle_index i_opt ascope ) :: M :: set_oracle_index
-  {{ com tuple }}
-  {{ hol ([[num_exp]], [[in_out_list]], [[in_out_list']], [[set_oracle_index]] [[i_opt]] [[ascope]]) }}
-
-%Fence so that ott does not re-order aenv and astate
 embed
 {{ hol
 
@@ -464,9 +449,9 @@ formula :: formula_ ::=
 | arch_block = ab_list [ i ] :: M :: ab_index
   {{ com ab at index i }}
   {{ hol ( [[arch_block]] = EL [[i]] [[ab_list]] ) }}
-| ascope' = ff ( ascope ) :: M :: app_ff
+| aenv' = ff ( aenv ) :: M :: app_ff
   {{ com apply fixed function }}
-  {{ hol (SOME [[ascope']] = [[ff]] ([[ascope]]) ) }}
+  {{ hol (SOME [[aenv']] = [[ff]] ([[aenv]]) ) }}
 | ( in_out_list' , ascope' ) = input_f ( in_out_list , ascope ) :: M :: input_f
   {{ com apply input function }}
   {{ hol ( SOME ( [[in_out_list']] , [[ascope']] ) = [[input_f]] ( [[in_out_list]] , [[ascope]] ) ) }}
@@ -3193,9 +3178,9 @@ by
 
   ffbl x = ab_list [ i ]
   ff = ffblock_map ( x )
-  ascope' = ff ( ascope )
+  ( i' , in_out_list'' , in_out_list''' , ascope' ) = ff ( ( i , in_out_list , in_out_list' , ascope ) )
   ----------------------------------- :: ffbl
-  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i + 1 , in_out_list , in_out_list' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
+  ( ab_list , pblock_map , ffblock_map , input_f , output_f , copyin_pbl , copyout_pbl , apply_table_f , ext_map , func_map , get_oracle_index , set_oracle_index , random_oracle ) ( ( i , in_out_list , in_out_list' , ascope ) , g_scope_list , arch_frame_list_empty , Running ) -'> ( ( i' , in_out_list'' , in_out_list''' , ascope' ) , g_scope_list , arch_frame_list_empty , Running )
 
 %Note that this always sets index to 0. This could be done conditionally, if it would not be ideal
 %to have the final state have index 0.
