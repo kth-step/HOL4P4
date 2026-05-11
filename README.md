@@ -289,7 +289,7 @@ In folder **`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** for 
 - `internet_firewall_xTheory.policy_trans_fwd_proof_2;` -> soundness of trans-fwd for policy 2 (Theorem 1)
 - `internet_firewall_xTheory.policy_BDD_1;` -> MTBDD1 from policy 1 
 - `internet_firewall_xTheory.policy_BDD_;` -> MTBDD2 from policy 2 
-- `internet_firewall_xTheory.final_thm;` -> end-to-end equivalence between the two policies
+- `internet_firewall_xTheory.final_proof;` -> end-to-end equivalence between the two policies
 
 In folder **`policy_test_cases_mtbdd`** (Table I) for firewall (e.g., `internet_firewall_xTheory` where `x` is a number, to check them type `ls -la`):
 - `internet_firewall_xTheory.policy_trans_fwd;` -> trans-fwd result (Theorem 1)
@@ -509,7 +509,7 @@ show_tags := true;
 
 The interesting theorem to inspect is:
 
-- `policy_equiv_exampleTheory.final_thm;` -> end-to-end equivalence between the two policies
+- `policy_equiv_exampleTheory.final_proof;` -> end-to-end equivalence between the two policies
 
 The theorem will show the equivelnce.
 
@@ -555,7 +555,7 @@ show_tags := true;
 
 The theorem to inspect is:
 
-- `policy_min_exampleTheory.final_thm;` -> end-to-end equivalence between the original and minimized policy (there you can also see the minimized policy)
+- `policy_min_exampleTheory.final_proof;` -> end-to-end equivalence between the original and minimized policy (there you can also see the minimized policy)
 
 The theorem will show:
 
