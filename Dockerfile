@@ -58,7 +58,8 @@ RUN git clone https://github.com/CakeML/cakeml.git && \
 
 # ---- 7. Make preprocessing scripts executable ------------------------------------------------------------------
 WORKDIR /HOL4P4
-RUN chmod +x hol/polygram/policy_test_cases*/prepp.sh
+RUN chmod +x hol/polygram/policy_test_cases*/prepp.sh && \
+    chmod +x hol/polygram/reviewers_test_here/prepp.sh
 
 
 # ---- 8. Set working directory for reviewers ------------------------------------------------------------------------
