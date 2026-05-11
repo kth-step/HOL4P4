@@ -464,10 +464,8 @@ nano hol/polygram/reviewers_test_here/policy_min_exampleScript.sml
 You can add new rules, introduce unsatisfiable conditions, or reorder rules. For example, to add a redundant rule that is subsumed by Rule 1:
 
 ```sml
-(* New redundant rule: y1 AND z AND NOT y2 -> fwd(1)
-   This is subsumed by Rule 1 since NOT y2 is always true when y1 holds *)
-val rule_new = "(arith_and ^a_y1 (arith_and ^a_z (arith_not ^a_y2)),
-                action ("fwd",[1])):single_rule";
+val rule_new = ``(arith_and ^a_y1 (arith_and ^a_z (arith_not ^a_y2)),
+                action ("fwd",[1])):single_rule``;
 ```
 
 Add it to the policy list:
